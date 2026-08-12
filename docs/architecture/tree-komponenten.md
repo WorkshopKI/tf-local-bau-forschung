@@ -35,6 +35,7 @@ TfTreeItems<T> = Readonly<Record<string, {
 | `renaming` | F2 / Doppelklick; das Eingabefeld nimmt die Breite der Beschriftung |
 | `dnd` | Ziehen und Ablegen, inkl. Tastatur-Variante (`keyboardDragAndDropFeature`) |
 | `reorder` | Ablegen **zwischen** Geschwistern statt nur hinein; zeigt die Einfüge-Marke |
+| | Ein Zug hat **zwei** Ausgänge, und beide sind sichtbar: die Marke (3 px, Punkt am Anfang, Einzug = Ziel-Ebene) für „dazwischen", der 2-px-Rahmen der Zeile für „hinein". Die Bibliothek entscheidet nach der Zeigerhöhe — äußere 30 % oben/unten dazwischen, die Mitte hinein |
 | `dragHandle` | Gezogen wird an einem Griff (`dragHandleProps`), nicht an der Zeile. **Pflicht, sobald die Zeile Eingabefelder trägt** — sonst startet der Versuch, eine Zahl zu markieren, einen Drag |
 
 **Zustand ist controlled by default**: Für jede Achse (`expandedItems`, `checkedItems`, `selectedItems`) gilt — wofür ein `on…`-Callback gesetzt ist, gehört dem Verbraucher; alles andere hält der Baum selbst. So bleibt der Filter-Store bzw. der Katalog-Entwurf die Quelle der Wahrheit, und es entsteht keine zweite Kopie daneben.

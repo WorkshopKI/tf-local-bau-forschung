@@ -2,6 +2,164 @@
 
 Ältere Versionsblöcke (append-only, chronologisch absteigend). Die jüngsten Versionen stehen im Root-[CHANGELOG.md](../CHANGELOG.md). Bump-Regeln + Architektur: [CLAUDE.md](../CLAUDE.md).
 
+### v3.10.0 — Team-Antwort im Board, Verwaltung fuer alle PL (August 2026)
+
+MINOR — Eine öffentliche Team-Antwort war im Board unsichtbar: `kurator_response` lag in jedem Kanban-Item, wurde aber nirgends gerendert, und das einzige Signal war ein Badge hinter `mine && unread`. `mine` wiederum war kaputt — erfasst wurde unter `profile.name`, verglichen gegen das Kürzel, also galt jedes eigene Ticket als fremd („Von mir" leer, keine Glocke, kein „Ergänzen").
+
+- „Antwort"-Pill auf Karte und Listenzeile, solange eine Antwort existiert; Wortlaut im Hover, Antworttext ist mitsuchbar — [FeedbackAntwortHover.tsx](src/components/feedback/FeedbackAntwortHover.tsx)
+- Zugehörigkeit über eine tolerante Identität (Kürzel UND Profilname), Schreiben behält EINE kanonische Id; Guard `no-direct-feedback-user-id-compare` — [feedbackIdentitaet.ts](src/core/services/feedback/feedbackIdentitaet.ts)
+- „Ergänzen" hängt nur noch am Schreibrecht: jedes PL-Mitglied darf jedes Ticket fortschreiben (Beta) — [FeedbackBoardDetail.tsx](src/components/feedback/FeedbackBoardDetail.tsx)
+- Schreib-Lage `geschrieben|kein-schreibrecht|fehler`: „Gespeichert" nur noch bei echtem Write, und ein unlesbarer Stand dampft den Teambestand nicht mehr auf ein Ticket ein — [feedbackSharedFile.ts](src/core/services/feedback/feedbackSharedFile.ts)
+- Einstellungen-Reiter fragt die Datei-Lage statt der nie gefüllten Legacy-Registrierung; System-Prompt kommt endlich vom Share — [FeedbackConfigPanel.tsx](src/plugins/feedback-board/verwaltung/FeedbackConfigPanel.tsx)
+
+### v3.9.0 — Tabelle: Ueberschuss an abgeschnittene Spalten, Filter-Chevron on demand, FKZ-Kopierknopf ueberlagert (August 2026)
+
+MINOR — Schmale Spalten waren breiter als ihr Inhalt: `min-width:100%` streckte im Scroll-Modus ALLE Prozent-`<col>` proportional (nachgemessen +25 % je Spalte), der Kopf reservierte 38 px für Sortierpfeil und Filter-Chevron, und der FKZ-Kopierknopf belegte 28 px für etwas, das nur beim Hover erscheint. Ergebnis: FKZ 179→111, die vier Kürzel-Spalten 101→64, Frist 116→90.
+
+- Freier Platz geht nur noch an Spalten, deren Text `maxWidth` kürzt; ein gezogener Override schützt seine Spalte, der Rest parkt in einer zellenlosen Füller-`<col>` — [tableSizing.ts](src/components/data-table/tableSizing.ts)
+- Filter-Chevron verlässt den Textfluss und erscheint beim Überfahren; dauerhaft sichtbar (und im Kopf eingerechnet) nur, wo ein Filter liegt — [TableHeadRows.tsx](src/components/data-table/TableHeadRows.tsx)
+- FKZ-Kopierknopf liegt im rechten Zellpolster statt in einem reservierten Slot — [tableColumns.tsx](src/plugins/antraege/tableColumns.tsx)
+- Kopf-Messmodell korrigiert: `<th>` ist fett, und `button` hebt `uppercase` auf („Status und nächster Schritt" war 31 px zu breit veranschlagt, ZTP 1,2 px zu schmal) — [textMessung.ts](src/components/data-table/messung/textMessung.ts)
+- Drag-Rückrechnung deckelt `scale` auf 1 — mit verteiltem Überschuss hätte ein Zug an einer unverteilten Spalte ihre Breite durch 1,4 geteilt gespeichert — [useColumnResize.ts](src/components/data-table/useColumnResize.ts)
+
+### v3.8.0 — Projektart: Einzel- und Kooperationsprojekt als eigene Achse (August 2026)
+
+MINOR — Einzel- vs. Kooperationsprojekt war fachlich längst da (die Aufbereitung beschriftet den 1-TV-Fall so), aber nirgends filterbar. Einzelprojekt = FuE/DS mit genau einem Teilvorhaben, Kooperationsprojekt mit mehreren; der Netzwerkbezug (16KN/16EP) liegt als zwei Unterstufen darin.
+
+- Neue Pille „Projektart" neben „Antragstyp", fünf Stufen mit Zählern und Klartext-Tooltips — [QuickfilterToolbar.tsx](src/plugins/antraege/filter/QuickfilterToolbar.tsx)
+- Abgeleitete Klassifikation als eigener Pipeline-Schritt neben PreCheck, nicht als Seed-Facette (die Engine machte aus einem Nicht-Slim-Feld still ein `() => true`) — [projektartQuickfilter.ts](src/plugins/antraege/filter/projektartQuickfilter.ts)
+- Die TV-Zahl kommt aus `verbundById`, also filter-unabhängig: ein Statusfilter macht aus einem Kooperationsprojekt kein Einzelprojekt — [useFilteredAntraege.ts](src/plugins/antraege/useFilteredAntraege.ts)
+- `istEinzelFkz` (16EP) als Gegenstück zu `extractNetzwerkId` (16KN) — bewusst nicht „alles außer 16KN" — [netzwerk.ts](src/plugins/antraege/netzwerk.ts)
+- Zähler und Filter laufen über dieselbe Prädikatsfunktion; ein Test hält fest, dass `mit + ohne < Einzelprojekt` gelten darf (16DS gehört in keine Unterstufe) — [projektartQuickfilter.test.ts](src/plugins/antraege/__tests__/projektartQuickfilter.test.ts)
+
+### v3.7.0 — Antragseingang-Filter nach Monaten, neueste zuerst (August 2026)
+
+MINOR — Der Spaltenfilter bucketete auf das Jahr und sortierte aufsteigend: die Liste startete bei 2018, das aktuelle Jahr stand hinter einer Scroll-Strecke. Nebenbefund: Zeilen ohne lesbares Datum lieferten `''`, waren nicht anwählbar und fielen still aus der Tabelle, sobald ein Jahr angehakt war.
+
+- Filterwert ist der Monat, das Jahr die Gruppe; neueste zuerst, Jahre zugeklappt — [spaltenFilterWerte.ts](src/plugins/antraege/spaltenFilterWerte.ts)
+- Das Dropdown wird mit `groupOf` zweistufig (`TfTree`, Tri-State); ohne die Prop bleibt es die flache Liste wie bisher — [ColumnFilterDropdown.tsx](src/components/data-table/ColumnFilterDropdown.tsx)
+- Reiner Baum-Adapter; Werte außerhalb der Suchtreffer überleben einen Klick — [filterBaum.ts](src/components/data-table/filterBaum.ts)
+- `SortableColumn.filterSort` / `.filterGroupOf`: Reihenfolge-Hoheit liegt bei der Spalte, nicht beim Dropdown — [types.ts](src/components/data-table/types.ts)
+- Zeilen ohne Datum stehen als „(leer)" am Ende und bleiben wählbar — [tableColumns.tsx](src/plugins/antraege/tableColumns.tsx)
+
+### v3.6.1 — Abschnitts-Bänder zählen den Abschnitt, nicht die Seite (August 2026)
+
+PATCH — Die Zahl an einem Abschnittskopf kam aus den GERENDERTEN Zeilen, nicht aus dem Abschnitt: sie wuchs beim Nachladen, und ihre Summe ergab exakt die Seitengröße (gemessen: „AAt 48" + „AM 12" = 60). Betraf Tabelle (status/netzwerk/fb/ab) und die Status-Abschnitte in Listen- und Karten-Ansicht.
+
+- Abschnitts-Zahlen kommen aus dem vollen Satz statt aus der Seite — eine Zählung für alle drei Ansichten — [zaehleJeAbschnitt](src/plugins/antraege/antragGroups.ts)
+- Abschnitts-Id einer Gruppe hat eine Heimat (`statusSectionIdOf`); Zähler und Sektionierung können nicht mehr verschiedene Schlüssel bilden — [antragGroups.ts](src/plugins/antraege/antragGroups.ts)
+- Der Arbeitsvorrat/Beendet-Zweig braucht dafür keine Sonderbehandlung mehr — er läuft über denselben Weg — [AntraegeTable.tsx](src/plugins/antraege/AntraegeTable.tsx)
+
+### v3.6.0 — Beendet-Schalter: eigene Achse statt Kopplung an die Gruppierung (August 2026)
+
+MINOR — Der Arbeitsvorrat/Beendet-Split hing an „Gruppierung: Keine". Das war eine stille Kopplung: wer gruppierte, verlor die Trennung. Als die Verbund-Verdichtung mit v3.4 aus der Gruppierung auf die Ansicht-Achse wanderte, tauchte der Split unangekündigt bei allen auf, die zuvor „Gruppierung: Verbund" stehen hatten.
+
+- Dritter Toolbar-Schalter „Beendet: ausgeblendet | eingeblendet" im Reiter „Alle", unabhängig von Ansicht und Gruppierung — [arbeitsvorrat.ts](src/plugins/antraege/arbeitsvorrat.ts)
+- Ausgeblendete Zeilen bleiben unter **jeder** Gruppierung abzählbar: Streifen unter der Liste mit Zahl und Aufschlüsselung — [AntraegeTable.tsx](src/plugins/antraege/AntraegeTable.tsx)
+- Die zwei Bänder (Arbeitsvorrat/Beendet) erscheinen nur noch, wo sie etwas trennen — bei „Gruppierung: Keine" und eingeblendetem Beendet-Teil — [AntraegeMain.tsx](src/plugins/antraege/AntraegeMain.tsx)
+- Drei Notbremsen in EINER reinen Funktion statt verstreut: nichts Beendetes, nur Beendetes, laufende Suche — [istBeendetVersteckt](src/plugins/antraege/arbeitsvorrat.ts)
+- Schalter-Zustand behält seinen localStorage-Schlüssel — ein neuer hätte jeden bestehenden Wunsch verworfen — [useBeendetSichtbarkeit.ts](src/plugins/antraege/useBeendetSichtbarkeit.ts)
+
+### v3.5.0 — Tabelle: Auto-Spaltenbreiten, sichtbarer Breiten-Griff, Sticky-Kopf, Spalten-Sets (August 2026)
+
+MINOR — Seit v3.3.0 sind 24 Spalten plus die Ordner-Spalten des Statuskatalogs wählbar; die Tabelle war dafür nicht gebaut. Die Breiten stammten aus handgepflegten Pixelwerten statt aus dem Inhalt, der Griff für die Gesamtbreite lag im Scroll-Zustand außerhalb des Sichtfelds (gemessen: 731 px rechts daneben), und beim Scrollen verschwanden Kopfzeile und FKZ.
+
+- Spaltenbreiten kommen aus dem Inhalt statt aus gepflegten Pixelwerten (Kette: gezogen > gemessen > gepflegt); gemessen wird der volle gefilterte Satz, damit Nachladen und Sortieren die Breiten nicht verschieben — [messung/spaltenBreite.ts](src/components/data-table/messung/spaltenBreite.ts)
+- Rubrik-Kopfzeile über den Spaltenköpfen; dafür ist die Registry nach Rubrik geordnet (Antrag · Zuständigkeit · Antragsdaten · Status · Termine) — Tabelle und XLSX-Export ziehen gemeinsam mit — [rubrikSpannen.ts](src/components/data-table/rubrikSpannen.ts)
+- Spalten-Picker mit Suchfeld (ab 12 Spalten), Zähler „x von y" und Rubrik-Schalter „alle/keine"; die erzwungene MA-Spalte steht jetzt als „auto" drin statt zu fehlen — [columnPickerLogik.ts](src/components/data-table/columnPickerLogik.ts)
+- Die FKZ-Spalte bleibt beim waagerechten Scrollen stehen; die Beschriftung der Gruppierungs-Bänder ebenfalls — [TableBody.tsx](src/components/data-table/TableBody.tsx)
+- Doppelklick auf den Spaltengriff verwirft eine gezogene Breite, statt die gemessene festzuschreiben — die Spalte folgt danach wieder dem Inhalt — [columnWidthStorage.ts](src/components/data-table/columnWidthStorage.ts)
+- Der Griff für die Tabellenbreite steht jetzt neben dem Scroll-Container statt darin — bei vielen Spalten lag er außerhalb des Sichtfelds und war nur 15 px hoch — [TotalWidthGrip.tsx](src/components/data-table/TotalWidthGrip.tsx)
+- Tabellen-Baustein entlang seiner Verantwortungen zerlegt — Layout-Rechnung, Resize, Griff, Kopf, Körper je eigene Datei; die drei Größen-Modi sind erstmals testbar statt nur im Dateikopf beschrieben — [tableLayout.ts](src/components/data-table/tableLayout.ts)
+- Datumsspalten zeigen `30.07.2018` statt `2018-07-30`; der XLSX-Export schrieb unter „FB Status", „PreCheck Status" und allen Ordner-Spalten das ISO-Datum statt des Labels — [tableColumns.tsx](src/plugins/antraege/tableColumns.tsx)
+- Ein Klick ohne Ziehen auf den Spaltengriff schrieb bisher eine Spaltenbreite (im gestauchten Modus sogar eine verrechnete) — [useColumnResize.ts](src/components/data-table/useColumnResize.ts)
+
+### v3.4.0 — Glossar (August 2026)
+
+MINOR — Statuswerte, Kürzel, Trigger-Herkunft und Zieltage sind gepflegt, waren aber nur über „Vorgangs-Regeln" erreichbar — ein Kurationswerkzeug voller Eingabefelder. Wer wissen will, was RNE heißt, öffnet es nicht. Dazu beschrieb der Begriffs-Abschnitt in „Über die App" einen Stand vor dem Vorgangssystem.
+
+- Neues Modul „Glossar" unter Werkzeuge, ohne Feature-Flag: ein Suchfeld über Abkürzungen, Statuswerte, Kürzel und To-do-Regeln — [src/plugins/glossar/](src/plugins/glossar/), Seed in [abkuerzungen.seed.ts](src/core/glossar/abkuerzungen.seed.ts)
+- Kürzel-Detail zeigt „Löst aus" (Trigger-Wirkung nach Wortlaut gebündelt) und „Wird verwendet von" (prüfende Regeln) — [navigator.ts](src/core/status/navigator.ts) `wirkungGruppen`, Rückwärts-Index über `todoFeld()` (Pitfall #44)
+- Rollensicht „Für meine Rolle wichtig": Kürzel je Fachrolle nach Vorkommen, Filter auf die Richtlinie, neutrale Kürzel abgesetzt — [RollenSicht.tsx](src/plugins/glossar/RollenSicht.tsx)
+- Begriffe richtiggestellt und ins Glossar umgezogen: „Rollen" getrennt in Ausgabe/Berechtigung und Fachrolle, Verfahrensschritt und Arbeitsliste ergänzt — [_app.md](docs/feedback-kontext/_app.md)
+- Hilfe-Dialog: Titel 18 px über Abschnitten mit 16 px — die Hierarchie stand auf dem Kopf; dazu ein Weg ins Glossar aus Hilfe-Kopfzeile und Herleitungs-Popover
+
+### v3.3.0 — Zuständigkeits-Spalten und geordneter Spalten-Picker (August 2026)
+
+MINOR — Der Reiter „Begleitung" filtert nach den Antragsphasen-Kürzeln (TIB/BIB), zeigt aber Anträge in der Begleitphase — wer sie begleitet (ZTP/PFM), stand nirgends. Und der Spalten-Picker war eine ungegliederte Liste von 37 Einträgen.
+
+- Vier Zuständigkeits-Spalten statt einer: TIB · BIB · ZTP · PFM, BIB ab Werk eingeblendet — [tableColumns.tsx](src/plugins/antraege/tableColumns.tsx)
+- Spalten-Picker nach Rubriken (Antrag/Zuständigkeit/Status/Termine/Ordner je Ebene), Überschriften bleiben beim Scrollen stehen — [ColumnPicker.tsx](src/components/data-table/ColumnPicker.tsx), opt-in über `SortableColumn.gruppe`
+- Neue Standardspalten werden bestehenden Auswahlen einmalig nachgereicht statt still zu fehlen — [useAntraegeColumnsStore.ts](src/plugins/antraege/useAntraegeColumnsStore.ts)
+- Kürzel-Pills ohne Versalien: „StE" bleibt „StE" — [MaKuerzelBadge.tsx](src/plugins/antraege/MaKuerzelBadge.tsx)
+
+### v3.2.2 — Favicon prod auf ZIM-Lila (August 2026)
+
+PATCH — Das Schiefer-Blau aus v3.2.1 war ein Platzhalter meiner Wahl; prod trägt jetzt die Hausfarbe.
+
+- `build.faviconColor` der prod-Variante auf `#5C2483` — [prod.config.json](configs/prod.config.json); Weiß darauf 10,3:1
+- Farbliste im Branding-Runbook nachgezogen, inklusive der Ansage, dass der Fallback `#506786` bewusst keiner Variante gehört — [change-app-branding.md](docs/agents/change-app-branding.md)
+
+### v3.2.1 — Tab-Titel auf ZIM umgestellt + Favicon je Variante (August 2026)
+
+PATCH — Der prod-Tab hieß „ZAH prod" — ein Bauzeit-Etikett vor Endnutzern, während die Datei längst `zim-dashboard.html` heißt. Und die App hatte überhaupt kein Favicon: unter `file://` läuft die `favicon.ico`-Anfrage ins Leere, im Tab stand das generische Blatt.
+
+- Tab-Titel: prod `zim-dashboard`, pl `zim-pl`, dev `zim-dev` — [configs/](configs/prod.config.json). Dateinamen und Sidebar-Label bleiben (`outputFilename` hängt am IndexedDB-Namen)
+- Favicon als Inline-`data:`-URI: Monogramm „Z" auf abgerundetem Quadrat, Geometrie auf 16 px gemessen — [scripts/favicon.mjs](scripts/favicon.mjs). Icon-**Dateien** gehen hier nicht: Vite lehnt das Inlinen von Icon-Links ab, singlefile inlined nur JS/CSS
+- Neues optionales `build.faviconColor` (`#rrggbb`, validiert): prod schiefer-blau, pl grün, dev orange, local grau — gleichzeitig offene Builds sind im Tab unterscheidbar
+- Injektion im bestehenden Hook (jetzt `teamflow-index-html-branding`), der schon Titel und Loader-Label ersetzt — [vite.config.ts](vite.config.ts)
+- Guards: Farben paarweise verschieden, kaputte Farbe = Validierungsfehler statt stiller Default, `index.html`-Kopie byte-gleich zu `favicon.mjs` — [favicon.test.ts](src/config/__tests__/favicon.test.ts)
+
+### v3.2.0 — Tabelle: Ansicht und Gruppierung getrennt (August 2026)
+
+MINOR — Die Pille „Gruppierung" mischte zwei Dinge: „Status" bildete Abschnitte, „Verbund" verdichtete Teilvorhaben zu einer Zeile. Weil beides im selben Schalter saß, schlossen sie sich aus — wer nach Status gruppieren wollte, verlor die Verdichtung. Jetzt sind es zwei Achsen.
+
+- Neue Achse **Ansicht** (`antrag` / `antrag-mit-tv`) mit eigenem Store-Slot; `verbund` ist als Gruppierung entfallen — [tableGrouping.ts](src/plugins/antraege/tableGrouping.ts), [store.ts](src/plugins/antraege/store.ts)
+- Drei neue Gruppierungen: **NW** (reuse der Netzwerk-Engine inkl. Namens-Index), **FB** (`tib_kuerz`) und **AB** (`bib_kuerz`), alphabetisch, „ohne …" als letzter Abschnitt
+- Persistenz-Whitelist kommt aus den Optionen (`istTableGroupingMode`) statt aus einer zweiten Literal-Liste — ein gespeichertes `verbund` fällt dadurch auf `none`
+- **Fix:** die Status-Bänder der Tabelle zeigten die rohe Abschnitts-Id („VOR-ENTSCHEIDUNG"); die Beschriftung kommt jetzt vom Builder — [AntraegeTable.tsx](src/plugins/antraege/AntraegeTable.tsx)
+- Nachgemessen in `dev:local` (Reiter „Diese Woche", 49 TV): Ansicht „Antrag" → 34 Zeilen, alle Band-Summen = Zeilenzahl, „Ohne Netzwerk" zuletzt, `__tf.fehler()` = 0
+
+### v3.1.0 — Drift-Bilanz und Ist-Stand (August 2026)
+
+MINOR — Der Phasenschnitt wird seit v2.409 in der App kuratiert, prod läuft weiter auf dem Seed — wie weit beide auseinander sind, wusste niemand. Und Beschluss und Umsetzung waren unverbunden: die Klärung sagte bei Code 29 „einig → Abgeschlossen", der Baum hielt ihn ohne Phase, der Widerspruch fiel nirgends auf.
+
+- Neue Bilanz `katalogDrift(fassung, seed)` nach Phasen/Zuordnungen/Zieltagen/Statuswerten/Prominenz, angezeigt als ausklappbare Zeile im Statuswerte-Tab — [katalog-drift.ts](src/core/status/katalog-drift.ts), [README](docs/status-system/README.md). Kein Nachzieh-Knopf: sie stellt fest.
+- Gezählt wird die **Sache**, nicht die Katalogzeile — ein Status steht an TV- und Verbund-Feld; ungefiltert meldete die Bilanz jeden Zieltag doppelt (30 statt 17 im Bestand)
+- „Zu klären" zeigt je Zeile den **Ist-Stand** des Katalogs mit den Vermerken umgesetzt / noch offen / abweichend beschlossen, dazu den Filter „Nicht umgesetzt" — [gruppen.ts](src/plugins/zu-klaeren/gruppen.ts), [klaerung.md](docs/architecture/klaerung.md)
+- Der Export „Seed-Änderungen" kommt aus der **Fassung** statt aus den Antworten ([seedExport.ts](src/plugins/zu-klaeren/seedExport.ts)): am 05.08. nannte er fünf Änderungen, während der Baum zehn Umhängungen und drei Phasenänderungen trug
+- `useKlaerung` verglich Fassung und Auslieferung in einer eigenen Schleife — ersetzt durch dieselbe Bilanz; die Pillen-Zahl „30" kommt jetzt aus den Zeilen statt aus dem Code
+
+### v3.0.1 — Kommentar geht nicht mehr still verloren (August 2026)
+
+PATCH — Gemeldet: Kommentar schreiben, senden, Ticket schließen, wieder öffnen — Kommentar weg, ohne jede Meldung. Ursache ist eine Verwechslung zwei Ebenen tiefer: `readText` schluckt jeden Lesefehler und liefert `null`, ununterscheidbar von „Datei gibt es nicht".
+
+- Neue Lage-Unterscheidung `ok`/`leer`/`unlesbar` ([readSharedFileLage](src/core/services/feedback/feedbackSharedFile.ts)); `readSharedFile` bleibt für Leser unverändert
+- Schreibende Pfade (`addComment`, `toggleVote`, `sponsorTicket`, `unsponsorTicket`) brechen bei `unlesbar` ab, statt auf leerer Basis zu rechnen — vorher hielten sie das Ticket für nicht existent und verwarfen die Eingabe wortlos
+- **Verhinderter Datenverlust:** in derselben Lage schrieb der Vorgang den lokalen Teilbestand über die geteilte Datei — fremde Kommentare/Stimmen wären verschwunden ([addComment.test.ts](src/core/services/feedback/__tests__/addComment.test.ts) hält beides fest)
+- Fehlschlag ist jetzt sichtbar und der Text bleibt stehen ([FeedbackCommentThread.tsx](src/components/feedback/FeedbackCommentThread.tsx)) — `useAsyncAction.error` wurde nie gerendert, `ok:false` gar nicht ausgewertet
+- Nachgemessen in `dev:local`: Kommentar senden → schließen → öffnen hält (vorher/nachher), kein Hinweis-Banner im Normalfall, `__tf.fehler()` = 0
+
+### v3.0.0 — Build-Konsolidierung: drei Varianten, Module per Zusatzpasswort (August 2026)
+
+MAJOR — Aus fünf Build-Varianten werden drei. `as` und `kurator` unterschieden sich von `pl` nur in Flags bei byte-gleichem Code — die Trennung sparte kein Byte und kostete Pflege (`as` fiel über zwölf Flags zurück, v2.403). Was die Zielgruppen trennte, entscheidet jetzt ein Zusatzpasswort zur Laufzeit.
+
+- `pl`, `as` und `kurator` gehen in einem `zah-pl.html` auf; Auslastung und Kuration liegen dort hinter je einem Zusatzpasswort — [modul-freischaltung.md](docs/architecture/modul-freischaltung.md), Pitfall #51
+- Der prod-Build heißt **`zim-dashboard.html`** (vorher `zah-prod.html`) — [prod.config.json](configs/prod.config.json)
+- Elf Feature-Flags entfernt (38 → 27): sie trugen überall denselben Wert oder bedienten nur eine abgeschaffte Variante — [feature-flags.ts](src/config/feature-flags.ts)
+- Der doppelte Kurator-Login ist weg: `_intern/kurator-config.enc` entfällt, geblieben ist der Build-Weg; die Audit-Identität kommt jetzt aus dem Profilnamen statt aus dem Build-Label — [update-author.ts](src/core/services/infrastructure/update-author.ts)
+- Variant-Configs enthalten nur noch ihre Abweichungen (`buildBasis()` als neutrale Basis) — [config-schema.mjs](scripts/config-schema.mjs)
+
+**Migration.** `zim-dashboard.html` leitet einen neuen IndexedDB-Namen ab (`teamflow-zim-dashboard`);
+bestehende prod-Installationen laufen **einmalig** durch Onboarding + Ordner-Freigabe + Profil.
+Fachdaten gehen nicht verloren — der Share ist die Quelle der Wahrheit, die IDB nur Cache. Die
+alte `teamflow-zah-prod`-DB bleibt harmlos liegen und kann über die DevTools gelöscht werden.
+Nutzer von `zah-as.html` / `zah-kurator.html` wechseln auf `zah-pl.html` (ebenfalls einmaliger
+Erststart). `_intern/kurator-config.enc` wird nicht mehr gelesen.
+
+**Vor dem Rollout**: die Platzhalter-Passwörter ersetzen —
+`npm run set-password -- pl --modul auslastung "<pw>"` und `--modul kurator "<pw>"`.
+
 ### v2.416.0 — Kommentare im Hover lesen, neue Kommentare sichtbar (August 2026)
 
 MINOR — Die Diskussion an einem Ticket war unsichtbar: das Board zeigte `💬 3` als stumme Zahl, den Inhalt gab es nur nach einem Klick im Detail-Panel. Genau die Tickets mit laufender Diskussion sind aber die wichtigen.

@@ -207,8 +207,10 @@ export function TfTree<T>({
     };
   }, [mitAuswahl, mitCheckboxen, mitUmbenennen, mitZiehen, features?.dragHandle]);
 
-  // Die Einfüge-Marke beim Umsortieren. Position rechnet die Bibliothek, die
-  // Farbe kommt von uns — deshalb `getDragLineStyle()` und ein eigener Strich.
+  // Die Einfüge-Marke beim Umsortieren. Position rechnet die Bibliothek, das
+  // Aussehen kommt von uns — deshalb `getDragLineStyle()` und ein eigener
+  // Strich. Ihr Einzug zeigt zugleich die Ziel-EBENE an: die Marke beginnt
+  // dort, wo der Knoten danach steht.
   const dragLinie = mitZiehen && features?.reorder === true ? tree.getDragLineStyle() : null;
 
   return (
@@ -220,10 +222,23 @@ export function TfTree<T>({
       style={mitZiehen ? { position: 'relative' } : undefined}
     >
       {dragLinie && (
+        // Ein 2px-Strich in Randfarbe war zwischen den Zeilen kaum von einer
+        // Trennlinie zu unterscheiden — deshalb 3px, Vollfarbe und der Punkt
+        // am Anfang, der die Marke als Einfügestelle lesbar macht.
         <div
           aria-hidden="true"
-          style={{ ...dragLinie, height: 2, background: 'var(--tf-primary)', borderRadius: 1, pointerEvents: 'none' }}
-        />
+          style={{
+            ...dragLinie, height: 3, background: 'var(--tf-primary)', borderRadius: 2,
+            pointerEvents: 'none', zIndex: 2,
+          }}
+        >
+          <span
+            style={{
+              position: 'absolute', left: -3, top: -2.5, width: 8, height: 8,
+              borderRadius: 9999, background: 'var(--tf-primary)',
+            }}
+          />
+        </div>
       )}
       {tree.getItems().map(item => {
         // Zeile aus der noch nicht neu gebauten Liste: `data` wäre der

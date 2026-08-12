@@ -19,6 +19,17 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.4 — 2026-08
+
+### Neu
+- In der Meilenstein-Konfiguration hebt ein neuer Knopf einen Unter-Meilenstein wieder eine Ebene höher.
+### Verbesserungen
+- Mehrere Meilensteine lassen sich gleichzeitig aufklappen — Regeln nebeneinander vergleichen, statt hin und her zu klicken.
+- Beim Ziehen zeigt eine Marke, wo der Meilenstein eingefügt wird; ein Rahmen zeigt, wenn er in einen anderen hineinwandert.
+- Die Bedingungen stehen dichter untereinander: ein Meilenstein mit vier Regeln braucht rund ein Fünftel weniger Höhe.
+### Bugfixes
+- „Unter-Meilenstein anlegen" zeigte den neuen Meilenstein nicht — er erschien erst nach dem nächsten Öffnen der Seite. Jetzt klappt die Zeile auf, und der Cursor steht gleich in der Bezeichnung.
+
 ## v4.3 — 2026-08
 
 ### Verbesserungen

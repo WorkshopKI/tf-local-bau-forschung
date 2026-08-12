@@ -191,6 +191,26 @@ export function haengeKnotenUm(
   }));
 }
 
+/**
+ * Hebt einen Unter-Meilenstein eine Ebene an: er wird Geschwister seines
+ * bisherigen Elternteils und landet direkt HINTER ihm — dort sucht ihn, wer ihn
+ * eben noch darunter gesehen hat.
+ *
+ * Der Gegenweg zum Ziehen: wer einen Knoten versehentlich untergeordnet hat,
+ * kam bisher nur mit der Maus wieder heraus. Ein Knoten der obersten Ebene ist
+ * ein No-op (gleiche Referenz).
+ */
+export function hebeKnotenAn(
+  knoten: readonly MeilensteinKnoten[], id: string,
+): MeilensteinKnoten[] {
+  const k = knoten.find(x => x.id === id);
+  if (!k || k.elternId === null) return knoten as MeilensteinKnoten[];
+  const grossElternId = knoten.find(x => x.id === k.elternId)?.elternId ?? null;
+  const reihe = kinderVon(knoten, grossElternId);
+  const posEltern = reihe.findIndex(x => x.id === k.elternId);
+  return haengeKnotenUm(knoten, id, grossElternId, posEltern + 1);
+}
+
 /** Vertauscht einen Knoten mit seinem Nachbarn. Am Rand ein No-op. */
 export function verschiebeKnoten(
   knoten: readonly MeilensteinKnoten[], id: string, richtung: 'hoch' | 'runter',

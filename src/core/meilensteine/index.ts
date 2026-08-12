@@ -36,8 +36,8 @@ export {
 } from './spalten-katalog';
 export {
   aendereKnoten, darfUmhaengen, entferneKnoten, fuegeKnotenHinzu, haengeKnotenUm,
-  istNachfahre, kinderVon, naechsteKnotenId, nummeriereNeu, sortiereKnoten,
-  tiefeVon, verschiebeKnoten,
+  hebeKnotenAn, istNachfahre, kinderVon, naechsteKnotenId, nummeriereNeu,
+  sortiereKnoten, tiefeVon, verschiebeKnoten,
 } from './knoten-edit';
 export {
   ergaenzeRisiko, erledigeRisiko, istRisikoDatei, leseEigeneRisiken, leseRisikenAusOrdner,

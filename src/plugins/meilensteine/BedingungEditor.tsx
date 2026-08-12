@@ -47,8 +47,13 @@ export function alsGruppe(b: Bedingung): Gruppe {
   return istGruppe(b) ? b : { alle: [b] };
 }
 
+/**
+ * Dicht gesetzt (v4.4): eine Regel mit vier Bedingungen soll ohne Scrollen
+ * neben einer zweiten lesbar sein. Die Zeilenhöhe kommt aus der Schriftgröße,
+ * nicht aus Polsterung — deshalb `py-0.5` statt `py-1`.
+ */
 const selectKlasse =
-  'text-[12px] rounded px-1.5 py-1 bg-[var(--tf-bg)] text-[var(--tf-text)] cursor-pointer';
+  'text-[12px] rounded px-1.5 py-0.5 bg-[var(--tf-bg)] text-[var(--tf-text)] cursor-pointer';
 
 /**
  * Optionale Zusatzprüfung des Aufrufers: kennt die Zielwelt das Feld?
@@ -120,8 +125,8 @@ function BlattZeile({ blatt, spalten, pruefeFeld, onChange, onEntfernen }: {
   ].filter((m): m is string => typeof m === 'string' && m.length > 0);
 
   return (
-    <div className="flex flex-col gap-1">
-    <div className="flex items-center gap-1.5 flex-wrap">
+    <div className="flex flex-col gap-0.5">
+    <div className="flex items-center gap-1 flex-wrap">
       <select
         value={blatt.feldId}
         onChange={e => setFeld(e.target.value)}
@@ -169,7 +174,7 @@ function BlattZeile({ blatt, spalten, pruefeFeld, onChange, onEntfernen }: {
           value={'wert' in blatt ? blatt.wert ?? '' : ''}
           onChange={e => onChange({ ...blatt, wert: e.target.value } as Bedingung)}
           placeholder="Wert"
-          className="text-[12px] rounded px-2 py-1 bg-[var(--tf-bg)] text-[var(--tf-text)] w-[160px]"
+          className="text-[12px] rounded px-2 py-0.5 bg-[var(--tf-bg)] text-[var(--tf-text)] w-[160px]"
           style={feldStil}
           aria-label="Wert"
         />
@@ -182,7 +187,7 @@ function BlattZeile({ blatt, spalten, pruefeFeld, onChange, onEntfernen }: {
             type="number"
             value={'tageRelativHeute' in blatt ? blatt.tageRelativHeute : 0}
             onChange={e => onChange({ ...blatt, tageRelativHeute: Number(e.target.value) || 0 } as Bedingung)}
-            className="text-[12px] rounded px-1.5 py-1 bg-[var(--tf-bg)] text-[var(--tf-text)] w-[72px] text-right"
+            className="text-[12px] rounded px-1.5 py-0.5 bg-[var(--tf-bg)] text-[var(--tf-text)] w-[72px] text-right"
             style={feldStil}
             aria-label="Tage relativ zu heute"
           />
@@ -196,7 +201,7 @@ function BlattZeile({ blatt, spalten, pruefeFeld, onChange, onEntfernen }: {
             type="number" min={0}
             value={'tage' in blatt ? blatt.tage : 0}
             onChange={e => onChange({ ...blatt, tage: Number(e.target.value) || 0 } as Bedingung)}
-            className="text-[12px] rounded px-1.5 py-1 bg-[var(--tf-bg)] text-[var(--tf-text)] w-[72px] text-right"
+            className="text-[12px] rounded px-1.5 py-0.5 bg-[var(--tf-bg)] text-[var(--tf-text)] w-[72px] text-right"
             style={feldStil}
             aria-label="Tage"
           />
@@ -235,7 +240,7 @@ function BlattZeile({ blatt, spalten, pruefeFeld, onChange, onEntfernen }: {
                   const next = gewaehlt ? bisher.filter(v => v !== nr) : [...bisher, nr].sort((a, b) => a - b);
                   onChange({ ...blatt, varianten: next } as Bedingung);
                 }}
-                className={`text-[11px] leading-none rounded px-1.5 py-1 cursor-pointer ${
+                className={`text-[11px] leading-none rounded px-1.5 py-0.5 cursor-pointer ${
                   gewaehlt ? 'text-white' : 'text-[var(--tf-text-tertiary)]'}`}
                 style={gewaehlt ? { background: 'var(--tf-primary)' } : feldStil}
               >
@@ -284,10 +289,10 @@ export function BedingungEditor({ bedingung, spalten, pruefeFeld, onChange, tief
 
   return (
     <div
-      className="flex flex-col gap-1.5 rounded px-2 py-2"
+      className="flex flex-col gap-1 rounded px-2 py-1.5"
       style={tiefe > 0 ? feldStil : { background: 'var(--tf-bg)' }}
     >
-      <div className="flex items-center gap-1.5">
+      <div className="flex items-center gap-1">
         <select
           value={istUnd ? 'alle' : 'einige'}
           onChange={e => onChange(e.target.value === 'alle' ? { alle: kinder } : { einige: kinder })}
@@ -307,11 +312,11 @@ export function BedingungEditor({ bedingung, spalten, pruefeFeld, onChange, tief
         )}
       </div>
 
-      <div className="flex flex-col gap-1.5 pl-3 border-l border-[var(--tf-border)]">
+      <div className="flex flex-col gap-1 pl-2.5 border-l border-[var(--tf-border)]">
         {kinder.map((kind, i) => (
           <div key={i}>
             {istGruppe(kind) ? (
-              <div className="flex items-start gap-1.5">
+              <div className="flex items-start gap-1">
                 <div className="flex-1 min-w-0">
                   <BedingungEditor
                     bedingung={kind} spalten={spalten} tiefe={tiefe + 1}
@@ -339,16 +344,16 @@ export function BedingungEditor({ bedingung, spalten, pruefeFeld, onChange, tief
           </div>
         ))}
 
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1">
           <Button
-            variant="ghost" size="sm" icon={Plus}
+            variant="ghost" size="xs" icon={Plus}
             onClick={() => onChange(mitKindern(gruppe, [...kinder, { feldId: ersteSpalte, op: 'gefuellt' }]))}
           >
             Bedingung
           </Button>
           {tiefe < 2 && (
             <Button
-              variant="ghost" size="sm" icon={Plus}
+              variant="ghost" size="xs" icon={Plus}
               onClick={() => onChange(mitKindern(gruppe, [...kinder, { einige: [] }]))}
             >
               Gruppe

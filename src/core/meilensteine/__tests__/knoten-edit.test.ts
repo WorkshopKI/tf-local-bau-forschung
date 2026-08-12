@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
-  aendereKnoten, entferneKnoten, fuegeKnotenHinzu, kinderVon, naechsteKnotenId,
-  nummeriereNeu, sortiereKnoten, tiefeVon, verschiebeKnoten,
+  aendereKnoten, entferneKnoten, fuegeKnotenHinzu, hebeKnotenAn, kinderVon,
+  naechsteKnotenId, nummeriereNeu, sortiereKnoten, tiefeVon, verschiebeKnoten,
 } from '@/core/meilensteine/knoten-edit';
 import { baueSpaltenKatalog, bekannteStatusWerte } from '@/core/meilensteine/spalten-katalog';
 import type { MeilensteinKnoten } from '@/core/meilensteine/typen';
@@ -113,6 +113,29 @@ describe('verschiebeKnoten', () => {
     const b = baum();
     expect(verschiebeKnoten(b, 'a', 'hoch')).toBe(b);
     expect(verschiebeKnoten(b, 'b', 'runter')).toBe(b);
+  });
+});
+
+describe('hebeKnotenAn', () => {
+  it('macht den Knoten zum Geschwister seines Elternteils — direkt dahinter', () => {
+    const n = hebeKnotenAn(baum(), 'a1');
+    expect(sortiereKnoten(n).map(x => x.id)).toEqual(['a', 'a1', 'a1x', 'b']);
+    expect(n.find(x => x.id === 'a1')!.elternId).toBeNull();
+    expect(n.find(x => x.id === 'a1')!.nummer).toBe('2');
+    // Der eigene Ast zieht mit, statt zurückzubleiben.
+    expect(n.find(x => x.id === 'a1x')!.nummer).toBe('2.1');
+  });
+
+  it('hebt aus der dritten Ebene in die zweite, nicht bis nach oben', () => {
+    const n = hebeKnotenAn(baum(), 'a1x');
+    expect(n.find(x => x.id === 'a1x')!.elternId).toBe('a');
+    expect(n.find(x => x.id === 'a1x')!.nummer).toBe('1.2');
+  });
+
+  it('ist auf der obersten Ebene und bei unbekannter ID ein No-op', () => {
+    const b = baum();
+    expect(hebeKnotenAn(b, 'a')).toBe(b);
+    expect(hebeKnotenAn(b, 'gibtesnicht')).toBe(b);
   });
 });
 

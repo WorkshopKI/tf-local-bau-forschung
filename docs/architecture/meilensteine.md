@@ -144,6 +144,30 @@ domänenfrei gegenüber den Meilensteinen — er kennt nur `Bedingung` und kann
 später den bis heute read-only `RegelnTab` des Status-Cockpits ohne Fork
 übernehmen.
 
+### Der Baum-Editor (v4.4)
+
+Vier Zusagen, die alle aus derselben Beobachtung stammen — der Editor ist ein
+**Arbeitsgerät**, keine Anzeige:
+
+- **Angelegt heißt sichtbar.** Ein Unter-Meilenstein entsteht unter einer
+  zugeklappten Zeile; bis v4.4 passierte auf den Klick hin nichts Sichtbares und
+  er tauchte erst nach dem nächsten Laden auf. `ergaenze()` klappt jetzt die
+  Elternzeile auf, öffnet den Regel-Bereich des Neuen und setzt den Cursor in
+  seine Bezeichnung (per Effekt, **nicht** per `autoFocus` — dessen
+  Fokus-Ereignis feuert im Commit, bevor React die Handler der Zeile kennt).
+- **Mehrere Regel-Bereiche bleiben offen.** Sie hängen an einem eigenen Satz
+  (`koerperOffen`), nicht mehr an der Auswahl — sonst schloss jedes Aufklappen
+  das vorige, und zwei Regeln ließen sich nie vergleichen. Geschaltet wird über
+  `onZeilenKlick` (Capture-Phase) mit einem `closest()`-Filter auf die
+  Bedienelemente der Zeile.
+- **Der Rückweg aus der Unterordnung** ist ein Knopf (`hebeKnotenAn`), nicht nur
+  ein Zug mit der Maus: der Knoten wird Geschwister seines Elternteils und landet
+  direkt dahinter.
+- **Beide Ausgänge des Ziehens sind sichtbar**: die Einfüge-Marke des `TfTree`
+  für „dazwischen", der Rahmen der Zeile für „hinein". Die linke Kante der
+  offenen Zeile weicht dabei zurück — sie ist ein Inline-`box-shadow` und würde
+  den Rahmen sonst verdecken.
+
 ## Auslieferungs-Plan v1 ([seed.ts](../../src/core/meilensteine/seed.ts))
 
 Die **Struktur** (MST 1 … 6 inkl. 1.1–1.4.3, Soll-Wochen) ist fachlich

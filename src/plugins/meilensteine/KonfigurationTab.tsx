@@ -9,15 +9,19 @@
  * Dreieck beides nicht — es öffnete den Editor, und Unter-Meilensteine waren
  * immer sichtbar.
  *
- * **Umsortiert wird durch Ziehen.** Die Hoch/Runter-Schalter bleiben als
- * Zweitweg: sie waren bisher der einzige, stehen in jeder Einweisung und
+ * **Umsortiert wird durch Ziehen.** Die Hoch/Runter/Ausrücken-Schalter bleiben
+ * als Zweitweg: sie waren bisher der einzige, stehen in jeder Einweisung und
  * funktionieren ohne Maus.
+ *
+ * Der Regel-Bereich hängt an einem EIGENEN Satz offener Zeilen, nicht an der
+ * Auswahl: zwei Meilensteine sollen ihre Bedingungen nebeneinander zeigen
+ * können. Vorher schloss jedes Aufklappen das vorige.
  *
  * Unbestätigte Zuordnungen aus dem Auslieferungs-Plan tragen einen sichtbaren
  * Hinweis — wer eine geratene Zahl für bare Münze nimmt, plant falsch.
  */
-import { useMemo, useState } from 'react';
-import { ChevronDown, ChevronUp, GripVertical, Plus, Trash2 } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { ChevronDown, ChevronLeft, ChevronUp, GripVertical, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ToggleChip } from '@/components/ui/ToggleChip';
@@ -25,7 +29,7 @@ import { TfTree } from '@/components/tree';
 import { ContextMenuItem, ContextMenuLabel, ContextMenuSeparator } from '@/components/ui/context-menu';
 import {
   aendereKnoten, darfUmhaengen, entferneKnoten, fuegeKnotenHinzu, haengeKnotenUm,
-  verschiebeKnoten, type MeilensteinKnoten, type SpaltenEintrag,
+  hebeKnotenAn, verschiebeKnoten, type MeilensteinKnoten, type SpaltenEintrag,
 } from '@/core/meilensteine';
 import { ANTRAGSTYP_BUCKETS } from '@/core/utils/vb-phase-mappings';
 import { BedingungEditor } from './BedingungEditor';
@@ -44,13 +48,27 @@ interface Props {
 }
 
 /** Kopfzeile eines Knotens: Nummer, Bezeichnung, Soll-Woche, Zustandsschalter. */
-function KnotenKopf({ knoten, alle, schreibgeschuetzt, onKnoten }: {
+function KnotenKopf({ knoten, alle, schreibgeschuetzt, frisch, onKnoten }: {
   knoten: MeilensteinKnoten;
   alle: MeilensteinKnoten[];
   schreibgeschuetzt: boolean;
+  /** Gerade angelegt — der Cursor steht dann gleich in der Bezeichnung. */
+  frisch: boolean;
   onKnoten: (k: MeilensteinKnoten[]) => void;
 }): React.ReactElement {
   const patch = (p: Partial<MeilensteinKnoten>): void => onKnoten(aendereKnoten(alle, knoten.id, p));
+  const bezeichnung = useRef<HTMLInputElement>(null);
+
+  // Der eben angelegte Knoten will benannt werden: Cursor hinein, Platzhalter
+  // markiert. Bewusst als Effekt statt `autoFocus` — dessen Fokus-Ereignis
+  // feuert im Commit, bevor React die Handler der Zeile kennt, und das
+  // Markieren fiel deshalb aus.
+  useEffect(() => {
+    if (!frisch) return;
+    bezeichnung.current?.focus();
+    bezeichnung.current?.select();
+  }, [frisch]);
+
   return (
     // Die Eingabefelder dürfen den Zeilen-Klick nicht auslösen — der klappt
     // die Unter-Meilensteine auf.
@@ -64,6 +82,7 @@ function KnotenKopf({ knoten, alle, schreibgeschuetzt, onKnoten }: {
       </span>
 
       <input
+        ref={bezeichnung}
         value={knoten.label}
         onChange={e => patch({ label: e.target.value })}
         disabled={schreibgeschuetzt}
@@ -108,11 +127,12 @@ function KnotenKopf({ knoten, alle, schreibgeschuetzt, onKnoten }: {
   );
 }
 
-/** Hoch/Runter/Anlegen/Löschen — rechtsbündig. */
-function KnotenAktionen({ knoten, alle, onKnoten }: {
+/** Hoch/Runter/Ausrücken/Anlegen/Löschen — rechtsbündig. */
+function KnotenAktionen({ knoten, alle, onKnoten, onErgaenzen }: {
   knoten: MeilensteinKnoten;
   alle: MeilensteinKnoten[];
   onKnoten: (k: MeilensteinKnoten[]) => void;
+  onErgaenzen: (elternId: string | null) => void;
 }): React.ReactElement {
   return (
     <span className="flex shrink-0 items-center gap-0.5" onClick={e => e.stopPropagation()}>
@@ -130,9 +150,20 @@ function KnotenAktionen({ knoten, alle, onKnoten }: {
       >
         <ChevronDown size={13} />
       </button>
+      {/* Der Rückweg aus der Unterordnung — ohne ihn hilft nur die Maus. */}
+      {knoten.elternId !== null && (
+        <button
+          type="button" aria-label="Eine Ebene höher"
+          title="Eine Ebene höher — dann kein Unter-Meilenstein mehr"
+          onClick={() => onKnoten(hebeKnotenAn(alle, knoten.id))}
+          className="p-1 rounded text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text)] cursor-pointer"
+        >
+          <ChevronLeft size={13} />
+        </button>
+      )}
       <button
         type="button" aria-label="Unter-Meilenstein anlegen" title="Unter-Meilenstein anlegen"
-        onClick={() => onKnoten(fuegeKnotenHinzu(alle, knoten.id))}
+        onClick={() => onErgaenzen(knoten.id)}
         className="p-1 rounded text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text)] cursor-pointer"
       >
         <Plus size={13} />
@@ -159,14 +190,14 @@ function KnotenKoerper({ knoten, alle, spalten, schreibgeschuetzt, onKnoten }: {
   const patch = (p: Partial<MeilensteinKnoten>): void => onKnoten(aendereKnoten(alle, knoten.id, p));
   return (
     <div className="rounded" style={feldStil}>
-        <div className="border-[var(--tf-border)] px-3 py-2 flex flex-col gap-2">
+        <div className="border-[var(--tf-border)] px-3 py-1.5 flex flex-col gap-1.5">
           <input
             value={knoten.beschreibung ?? ''}
             onChange={e => patch({ beschreibung: e.target.value })}
             disabled={schreibgeschuetzt}
             placeholder="Beschreibung (optional)"
             aria-label="Beschreibung"
-            className="text-[12px] rounded px-2 py-1 bg-[var(--tf-bg)] text-[var(--tf-text-secondary)] disabled:opacity-60"
+            className="text-[12px] rounded px-2 py-0.5 bg-[var(--tf-bg)] text-[var(--tf-text-secondary)] disabled:opacity-60"
             style={feldStil}
           />
 
@@ -188,18 +219,25 @@ function KnotenKoerper({ knoten, alle, spalten, schreibgeschuetzt, onKnoten }: {
             ))}
           </div>
 
-          <div className="flex flex-col gap-1">
-            <span className="text-[11.5px] text-[var(--tf-text-tertiary)]">Erfüllt, wenn:</span>
+          {/* Beschriftung NEBEN dem Regelwerk, wie „Gilt für" darüber — eine
+              eigene Zeile dafür kostet Höhe, die bei zwei offenen Meilensteinen
+              fehlt. */}
+          <div className="flex items-start gap-1.5">
+            <span className="shrink-0 pt-1 text-[11.5px] text-[var(--tf-text-tertiary)]">
+              Erfüllt, wenn:
+            </span>
             {schreibgeschuetzt ? (
               <p className="text-[12px] text-[var(--tf-text-tertiary)]">
                 Nur Lesezugriff — die Bedingung kann hier nicht geändert werden.
               </p>
             ) : (
-              <BedingungEditor
-                bedingung={knoten.bedingung}
-                spalten={spalten}
-                onChange={b => patch({ bedingung: b })}
-              />
+              <div className="min-w-0 flex-1">
+                <BedingungEditor
+                  bedingung={knoten.bedingung}
+                  spalten={spalten}
+                  onChange={b => patch({ bedingung: b })}
+                />
+              </div>
             )}
           </div>
 
@@ -209,7 +247,7 @@ function KnotenKoerper({ knoten, alle, spalten, schreibgeschuetzt, onKnoten }: {
               value={knoten.istDatumFeld ?? ''}
               onChange={e => patch({ istDatumFeld: e.target.value || undefined })}
               disabled={schreibgeschuetzt}
-              className="text-[12px] rounded px-1.5 py-1 bg-[var(--tf-bg)] text-[var(--tf-text)] max-w-[260px] cursor-pointer disabled:opacity-60"
+              className="text-[12px] rounded px-1.5 py-0.5 bg-[var(--tf-bg)] text-[var(--tf-text)] max-w-[260px] cursor-pointer disabled:opacity-60"
               style={feldStil}
             >
               <option value="">— frühestes Datum der Bedingungs-Felder —</option>
@@ -225,17 +263,23 @@ function KnotenKoerper({ knoten, alle, spalten, schreibgeschuetzt, onKnoten }: {
   );
 }
 
-function Menue({ knoten, alle, onKnoten }: {
+function Menue({ knoten, alle, onKnoten, onErgaenzen }: {
   knoten: MeilensteinKnoten;
   alle: MeilensteinKnoten[];
   onKnoten: (k: MeilensteinKnoten[]) => void;
+  onErgaenzen: (elternId: string | null) => void;
 }): React.ReactElement {
   return (
     <>
       <ContextMenuLabel>{knoten.nummer || '—'} · Woche {knoten.sollWoche}</ContextMenuLabel>
-      <ContextMenuItem onSelect={() => onKnoten(fuegeKnotenHinzu(alle, knoten.id))}>
+      <ContextMenuItem onSelect={() => onErgaenzen(knoten.id)}>
         Unter-Meilenstein anlegen
       </ContextMenuItem>
+      {knoten.elternId !== null && (
+        <ContextMenuItem onSelect={() => onKnoten(hebeKnotenAn(alle, knoten.id))}>
+          Eine Ebene höher
+        </ContextMenuItem>
+      )}
       <ContextMenuItem onSelect={() => onKnoten(aendereKnoten(alle, knoten.id, { aktiv: !knoten.aktiv }))}>
         {knoten.aktiv ? 'Stilllegen' : 'Wieder aktivieren'}
       </ContextMenuItem>
@@ -247,13 +291,43 @@ function Menue({ knoten, alle, onKnoten }: {
   );
 }
 
+/**
+ * Bedienelemente der Zeile: ein Klick darauf meint das Element, nicht den
+ * Regel-Bereich. Der Zeilen-Klick läuft in der Capture-Phase und sieht deshalb
+ * auch die Klicks, die das Element selbst später stoppt.
+ */
+const BEDIENELEMENTE = 'input, select, textarea, button, label, [draggable="true"]';
+
 export function KonfigurationTab({
   knoten, gesamtfristTage, spalten, schreibgeschuetzt, onKnoten, onGesamtfrist,
 }: Props): React.ReactElement {
   const [offen, setOffen] = useState<string[]>([]);
   const [gewaehlt, setGewaehlt] = useState<string[]>([]);
+  // Aufgeklappte Regel-Bereiche — bewusst NEBEN der Auswahl, damit zwei
+  // Meilensteine gleichzeitig offen stehen können.
+  const [koerperOffen, setKoerperOffen] = useState<string[]>([]);
+  const [frischeId, setFrischeId] = useState<string | null>(null);
   const { items, rootId } = useMemo(() => baueMeilensteinBaum(knoten), [knoten]);
   const unbestaetigt = knoten.filter(k => k.unbestaetigt).length;
+
+  const schalteKoerper = (id: string): void =>
+    setKoerperOffen(o => (o.includes(id) ? o.filter(x => x !== id) : [...o, id]));
+
+  /**
+   * Anlegen MIT sichtbarem Ergebnis: der neue Knoten steht unter einer
+   * zugeklappten Zeile und war bis v4.4 unsichtbar — der Klick schien wirkungslos
+   * und der Meilenstein tauchte erst nach dem nächsten Laden auf. Also: Eltern
+   * aufklappen, Regeln zeigen, Cursor in die Bezeichnung.
+   */
+  const ergaenze = (elternId: string | null): void => {
+    const naechste = fuegeKnotenHinzu(knoten, elternId);
+    const neu = naechste.find(k => !knoten.some(a => a.id === k.id));
+    onKnoten(naechste);
+    if (!neu) return;
+    if (elternId !== null) setOffen(o => (o.includes(elternId) ? o : [...o, elternId]));
+    setKoerperOffen(o => (o.includes(neu.id) ? o : [...o, neu.id]));
+    setFrischeId(neu.id);
+  };
 
   return (
     <div className="flex flex-col gap-3 pt-4">
@@ -271,7 +345,7 @@ export function KonfigurationTab({
           Tage
         </label>
         {!schreibgeschuetzt && (
-          <Button variant="ghost" size="sm" icon={Plus} onClick={() => onKnoten(fuegeKnotenHinzu(knoten, null))}>
+          <Button variant="ghost" size="sm" icon={Plus} onClick={() => ergaenze(null)}>
             Meilenstein
           </Button>
         )}
@@ -301,6 +375,11 @@ export function KonfigurationTab({
           onExpandedChange={setOffen}
           selectedItems={gewaehlt}
           onSelectedChange={setGewaehlt}
+          onZeilenKlick={(id, _daten, e) => {
+            const ziel = e.target as Element | null;
+            if (ziel?.closest?.(BEDIENELEMENTE)) return;
+            schalteKoerper(id);
+          }}
           canDrag={ids => ids.every(i => i !== MEILENSTEIN_BAUM_ROOT)}
           canDrop={(quellen, ziel) => quellen.every(q =>
             darfUmhaengen(knoten, q, ziel === MEILENSTEIN_BAUM_ROOT ? null : ziel))}
@@ -329,15 +408,21 @@ export function KonfigurationTab({
                 knoten={p.data.knoten}
                 alle={knoten}
                 schreibgeschuetzt={schreibgeschuetzt}
+                frisch={p.id === frischeId}
                 onKnoten={onKnoten}
               />
             ) : null),
             trailing: p => (p.data.art === 'meilenstein' && !schreibgeschuetzt
-              ? <KnotenAktionen knoten={p.data.knoten} alle={knoten} onKnoten={onKnoten} />
+              ? (
+                <KnotenAktionen
+                  knoten={p.data.knoten} alle={knoten}
+                  onKnoten={onKnoten} onErgaenzen={ergaenze}
+                />
+              )
               : null),
-            // Der Bedingungs-Editor gehört zum AUSGEWÄHLTEN Knoten — das
+            // Der Bedingungs-Editor hängt am eigenen Satz offener Zeilen — das
             // Chevron bleibt beim Auf-/Zuklappen der Unter-Meilensteine.
-            body: p => (p.isSelected && p.data.art === 'meilenstein' ? (
+            body: p => (koerperOffen.includes(p.id) && p.data.art === 'meilenstein' ? (
               <KnotenKoerper
                 knoten={p.data.knoten}
                 alle={knoten}
@@ -346,8 +431,19 @@ export function KonfigurationTab({
                 onKnoten={onKnoten}
               />
             ) : null),
+            // Bei mehreren offenen Bereichen sagt die Kante, welcher Block zu
+            // welcher Zeile gehört. `boxShadow` statt Hintergrund, damit der
+            // Hover-Zustand der Zeile erhalten bleibt — beim Ziehen tritt sie
+            // zurück, sonst verdeckte der Inline-Stil den Drop-Rahmen (auch er
+            // ein `box-shadow`).
+            zeilenStil: p => (koerperOffen.includes(p.id) && !p.isDropZiel
+              ? { boxShadow: 'inset 2px 0 0 var(--tf-primary)' }
+              : undefined),
             contextMenu: p => (p.data.art === 'meilenstein' && !schreibgeschuetzt ? (
-              <Menue knoten={p.data.knoten} alle={knoten} onKnoten={onKnoten} />
+              <Menue
+                knoten={p.data.knoten} alle={knoten}
+                onKnoten={onKnoten} onErgaenzen={ergaenze}
+              />
             ) : null),
           }}
         />
