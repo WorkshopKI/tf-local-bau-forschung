@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v3.46.0 — Chronik zweispaltig, Schalter nur mit Inhalt (August 2026)
+
+MINOR — Gemeldet: der Schalter „Nebensächliches" zeigt keine Wirkung — er ist **gegenstandslos**, keine der 15 nebensächlichen Kommunikations-Spalten existiert in einem der acht Import-CSVs. Dazu die gewünschte Verdichtung: der Verlauf soll auf einen Blick dastehen. Detail: [vorgangssystem.md §16.10](docs/architecture/vorgangssystem.md). Code bereits in `ba77c447`.
+
+- Monat links in einer eigenen Spalte, ein Termin auf **einer** Zeile (Begleittext gekürzt, voller Wortlaut im `title`) — [StatusChronik.tsx](src/plugins/antraege/status/StatusChronik.tsx)
+- Der Chip erscheint nur, wenn der Vorgang nebensächliche Termine hat, und trägt ihre Anzahl; `teileChronik` trennt die fertige Chronik statt sie zweimal zu bauen — [chronik.ts](src/core/status/chronik.ts)
+- Zähler nennt die Spanne; ab **zwei** übersprungenen Monaten steht „N Monate ohne Termin" in der Monatsspalte (`monateDazwischen`)
+- Zeilenhöhe in **px** statt als Faktor: ein Faktor rechnet gegen die geerbte Schriftgröße — gemessen 20 px im Ausklapp gegen 24 px auf der Detailseite
+- Gemessen (13 090 Vorgänge: Median 22 Termine in 6 Monaten): `16EP250140` (28/8) 1 003 → **659 px**, ein Median-Fall **460 px**
+
 ### v3.45.0 — Ein Board-Primitiv statt dreier Nachbauten (August 2026)
 
 MINOR — Das Kanban-Lane-Layout stand dreimal da: als geteilte Shell (v2.228 aus dem Feedback-Kanban extrahiert) und, seit dem Handoff v3.17, ein zweites Mal als CSS im Feedback-Board. Belegte Folge: der **1|2-Spalten-Schalter des Boards war wirkungslos** — im Popover wählbar, persistiert, durchgereicht, im Nachbau nie gelesen. Detail: [board-komponente.md](docs/architecture/board-komponente.md).

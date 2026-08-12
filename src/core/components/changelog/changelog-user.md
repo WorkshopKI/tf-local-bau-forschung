@@ -19,6 +19,15 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v3.46 — 2026-08
+
+### Verbesserungen
+- Die **Chronik** eines Vorgangs braucht deutlich weniger Platz: der Monat steht jetzt links in einer eigenen Spalte statt in einer eigenen Zeile, und jeder Termin belegt genau eine Zeile — der Zusatztext steht hinter der Bezeichnung, den vollen Wortlaut zeigt der Tooltip. Ein durchschnittlicher Vorgang passt damit auf einen Bildschirm.
+- Über der Liste steht jetzt auch die **Zeitspanne** („28 Termine aus den Datumsfeldern · Aug. 2025 – Juli 2026"). Und wo zwei oder mehr Monate ohne jeden Termin verstrichen sind, sagt die Monatsspalte das ausdrücklich („4 Monate ohne Termin") — Stillstand musste man sich bisher aus den Überschriften zusammenrechnen.
+
+### Bugfixes
+- Der Schalter **Nebensächliches** über der Chronik bewirkte nichts. Grund: als nebensächlich gelten nur Kommunikations-Termine (Brief, E-Mail, Fax, Telefon), und die liefert das Fachsystem in der Tagesdatei gar nicht mit. Der Schalter erscheint deshalb nur noch, wenn es solche Termine wirklich gibt, und nennt dann ihre Anzahl. Im Reiter „Zeitstrahl" wirkt er wie bisher.
+
 ## v3.45 — 2026-08
 
 ### Verbesserungen
