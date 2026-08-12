@@ -3,7 +3,7 @@
 Daten-Modell-Änderungen, die einen Re-Pick beim Start erzwingen:
 
 - **Neuer Handle-Slot `SMB_HANDLE_PERSOENLICH`** in der `smb-handles`-Map ([smb-handle.ts](../../src/core/services/infrastructure/smb-handle.ts)). Pflegt `ZAH/profile.json`, `ZAH/einstellungen.json` und `ZAH/feedback/outbox/*.json` auf dem User-Home-Laufwerk. Optional — Skip im Onboarding ist erlaubt, Fallback ist IDB.
-- **Neuer Handle-Slot `SMB_HANDLE_USER_FOLDERS_ROOT`** für den Kurator (einmaliger Pick) zum Einsammeln der User-Outboxen via `FeedbackInboxTab`.
+- **Neuer Handle-Slot `SMB_HANDLE_USER_FOLDERS_ROOT`** für den Kurator (einmaliger Pick) zum Einsammeln der User-Outboxen via `FeedbackInboxTab`. **Seit v4.1 mehrere Wurzeln** — siehe Abschnitt unten; der Einzel-Slot bleibt lesbar.
 - **`pickAndStoreDatenShareHandle(idb, { mode })`** ist jetzt mode-parametrisiert. Kurator pickt `readwrite` (wie bisher), Nicht-Kurator pickt `read` (Hardening). `refreshAllPermissions(idb, { isKurator })` aktualisiert beim Start in einer User-Gesture-Kette die Permissions aller Slots.
 - **Migrations-Flag `NEEDS_HANDLE_DOWNGRADE_IDB_KEY`**: bestehende Nicht-Kurator-User mit `readwrite`-Daten-Share-Handle werden auf dem `StartupScreen` ([src/core/StartupScreen.tsx](../../src/core/StartupScreen.tsx)) in einen Re-Pick mit `read`-Mode geführt. Single-Klick mit Banner-Erklärung.
 - **Config-Schema-Bump `CONFIG_SCHEMA_VERSION = 2`** in [scripts/config-schema.mjs](../../scripts/config-schema.mjs). Neue Felder: `data.expectedFolderName` (optional Ordner-Name-Validation beim Daten-Share-Picker) und `personalFolder` (`subfolder`/`required`/`promptAfterProfile`/`snapshotAgeWarningDays`). Alle `configs/*.json` wurden aktualisiert.
@@ -26,6 +26,24 @@ Zweiter Personal-Ordner-Flow neben der Feedback-Outbox, gleiche Begründung (Nic
 - **Einsammeln (PL)**: `collectUserProfiles` + `mergeProfilesIntoMitarbeiter` ([profil-einsammeln.ts](../../src/plugins/auslastung/services/profil-einsammeln.ts)) lesen über `SMB_HANDLE_USER_FOLDERS_ROOT` alle Profile ein (Iterations-Muster wie `FeedbackInboxTab`) und mergen sie via `kuerzel → anonId` in `auslastung.json`. PL-only-Felder (`jahresKapazitaet`, `abschlagProzent`, `aktiv`, `abgemeldet`, `antragstypUeberschreibung`) bleiben erhalten; unbekannte Kürzel legen neue MAs an. Trigger: Button „Team-Profile einsammeln" in der Auslastungs-Übersicht ([MaListSection.tsx](../../src/plugins/auslastung/views/uebersicht/MaListSection.tsx)) — manuell, EIN `setState` + EIN `persist` (Pitfall #16/#20).
 
 UI-Touchpoints: `Onboarding.tsx` (Kürzel-Feld optional + Step 2 Pers. Ordner), `WelcomeScreen.tsx` (`expectedFolderName`-Validation + Mode-Default abhängig von `is_kurator`), `StartupScreen.tsx` (neu), `OfflineBanner.tsx` (neu), `ShellLayout.tsx` (Banner eingehängt), `EinstellungenPage`/`SpeicherTab` (Section "Persönlicher Ordner" + Verbinden/Ändern/Trennen).
+
+---
+
+## v4.1 — Mehrere Wurzeln für die persönlichen Ordner
+
+Die persönlichen Ordner der Anwender liegen nicht mehr unter EINER Wurzel, sondern unter mehreren Gruppen (PL, Bearbeiter). Aus dem Einzel-Slot wird deshalb ein Präfix-Slot nach dem Muster der DMS-Sources.
+
+- **Welche Gruppen es gibt, steht in der Config** — `personalFolder.roots: [{id, label}]` in [configs/_shared.json](../../configs/_shared.json), gelesen ausschließlich über [personal-roots.ts](../../src/config/personal-roots.ts). Eine dritte Gruppe ist ein Config-Eintrag, kein Release. Die `id` wandert in den Slot-Namen `user-folders-root-<id>` und damit in die IndexedDB — sie ist stabil zu halten, `legacy` ist reserviert.
+- **Eine Lesestelle**: `getUserFoldersRoots(idb)` ([smb-handle.ts](../../src/core/services/infrastructure/smb-handle.ts)) liefert JEDE konfigurierte Wurzel — auch die nicht verbundene (`handle: null`) — plus den belegten Alt-Slot als eigenen Eintrag `legacy`. Nicht verbundene Wurzeln dürfen nicht aus der Liste fallen: bei zwei Wurzeln sähe Teil-Einsammeln sonst aus wie Erfolg. Guard: `personal-roots-single-reader`.
+- **Der Alt-Slot wird NICHT automatisch zugeordnet** — welche Gruppe es war, weiß niemand. Er bleibt lesbar (bestehende Installationen sammeln am Update-Tag unverändert weiter ein) und lässt sich entfernen, sobald die Gruppen gepickt sind.
+- **Ein Prompt pro Geste**: `refreshUserFoldersRootPermission(idb, rootId)` behandelt GENAU EINE Wurzel; das Verbinden läuft über [WurzelnVerbinden.tsx](../../src/core/components/WurzelnVerbinden.tsx) — eine Zeile, ein Knopf je Gruppe. Es gibt keine Schleife über Picker oder `requestPermission` (recurring-bug §2). Non-invasiv und damit für Mount-/Timer-Pfade geeignet sind nur `getUserFoldersRoots` + `queryUserFoldersRootPermissions`.
+- **Zwei Regeln, eine Heimat** ([core/services/personal-roots/](../../src/core/services/personal-roots/)):
+  - `juengsterGewinnt` — dieselbe Person unter zwei Wurzeln (Gruppenwechsel, Ordnerleiche): der jüngste Zeitstempel gewinnt, **kein Root hat Vorrang** (das Ergebnis ist reihenfolge-unabhängig). Schlüssel ist die Identität der Nutzlast (Kürzel NFC-normalisiert / `deviceId` / Eintrags-Id), nicht der Ordnername — der überlebt den Gruppenwechsel meist nicht.
+  - `jeWurzel` + `formatiereSammelBericht` — je Wurzel EIN Ausgang statt einer Summe („PL-Ordner: 4 eingesammelt · Bearbeiter-Ordner: nicht verbunden"). Streng sequenziell, Fehler bleiben bei ihrer Wurzel. Kein harter Gate: wer nur eine Wurzel verbunden hat, sammelt weiter ein und **sieht**, dass etwas fehlt.
+- **Die Sammler bleiben unangetastet** (`root` bleibt Parameter) — die Schleife liegt beim Aufrufer. Store-Applies laufen weiter GENAU EINMAL über die Vereinigung (Pitfall #16/#20), nie je Wurzel.
+- **Feedback-Sonderfall**: die vier `autoCollect*` sind keine Sammler, sondern vollständige Read-Modify-Write-Zyklen auf `feedback.json` (ohne Lock). Sie laufen streng sequenziell, nie `Promise.all`. Ihr Batch existiert am Aufrufort nicht, deshalb liegt die Dubletten-Regel dort eine Ebene tiefer als **Stale-Guard** in `mergeSponsorVotes`/`mergeFeedbackVotes`: eine strikt ältere Quelldatei retrahiert und überschreibt nicht.
+- **`RefreshAllResult.userFoldersRoot`** (Skalar) → **`userFoldersRoots: Record<rootId, PermState>`**, analog `dmsSources`. `connection-status.ts` ignoriert das Feld weiterhin bewusst — persönliche Wurzeln sind kein Online/Offline-Kriterium.
+- **local-Variante**: `local.userFoldersRoots: {rootId → Pfad}` neben dem Singular `local.userFoldersRoot`, der weiter den Alt-Slot bedient — damit ist der Legacy-Fall in `dev:local` real durchspielbar.
 
 ---
 

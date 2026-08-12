@@ -5,6 +5,17 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.1.0 — Multi-Root für persönliche Ordner (August 2026)
+
+MINOR — Die persönlichen Ordner liegen ab sofort unter zwei Wurzeln statt einer (PL, Bearbeiter). Der bisherige Einzel-Slot wird zum Präfix-Slot nach dem Muster der DMS-Quellen. Das eigentliche Risiko liegt daneben: „kein Handle → `return`" war bei EINER Wurzel ehrlich, bei zweien sieht Teil-Einsammeln aus wie Erfolg. Detail: [v2-handle-architektur.md](docs/architecture/v2-handle-architektur.md).
+
+- **Wurzeln aus der Config** (`personalFolder.roots`, [personal-roots.ts](src/config/personal-roots.ts)) — eine dritte Gruppe ist ein Config-Eintrag, kein Release; `getUserFoldersRoots` ist die einzige Lesestelle und liefert auch die NICHT verbundenen (Guard `personal-roots-single-reader`)
+- **Ein Knopf je Gruppe** statt Auto-Pick im Sammel-Klick ([WurzelnVerbinden.tsx](src/core/components/WurzelnVerbinden.tsx)): unter `file://` verbraucht jeder Berechtigungs-Dialog die User-Activation, eine Schleife verhungert ab der zweiten Wurzel
+- **Bericht je Wurzel** statt Summe („PL-Ordner: 4 eingesammelt · Bearbeiter-Ordner: nicht verbunden"), 0 wird ausgeschrieben; kein harter Gate — [sammelBericht.ts](src/core/services/personal-roots/sammelBericht.ts)
+- **Dubletten-Regel** an genau einer Stelle ([juengsterGewinnt.ts](src/core/services/personal-roots/juengsterGewinnt.ts)): dieselbe Person unter zwei Wurzeln → jüngster Stand, kein Root hat Vorrang; Store-Applies laufen weiter genau einmal (Pitfall #16/#20)
+- **Stale-Guard** in [mergeSponsorVotes.ts](src/core/services/feedback/mergeSponsorVotes.ts) + [mergeFeedbackVotes.ts](src/core/services/feedback/mergeFeedbackVotes.ts): die vier `autoCollect*` sind Read-Modify-Write-Zyklen ohne Lock, ihr Batch existiert am Aufrufort nicht — eine ältere Quelldatei darf die frische Stimme nicht zurückziehen
+- Der Alt-Slot bleibt **lesbar** und erscheint als eigener Eintrag „Bisheriger Ordner (bitte neu zuordnen)" — nie automatisch einer Gruppe zugeordnet
+
 ### v4.0.0 — Ablageort-Umzug + CSV-Pfad-Anzeige (August 2026)
 
 MAJOR — Der Datenordner zieht um. Ein neuer Pfad in der Config allein bewirkt dabei **nichts**: ein FSAPI-Handle hängt am Dateisystem-Objekt, nicht am Anzeigepfad — bestehende Installationen hätten still im alten Ordner weitergeschrieben, halbes Team auf neu, halbes auf alt, bei live geteilter `registry.json`. Also ein explizites Gate. Detail: [build-varianten.md](docs/architecture/build-varianten.md).

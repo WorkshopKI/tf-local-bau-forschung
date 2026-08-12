@@ -57,7 +57,7 @@ export function useVisibilityPermissionProbe(
       applyRefreshResult({
         datenShare: dsState,
         persoenlich: psState,
-        userFoldersRoot: 'missing',
+        userFoldersRoots: {},
         dmsSources: {},
       });
     };

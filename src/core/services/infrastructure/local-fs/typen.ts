@@ -12,7 +12,12 @@
 export const SLOT_DATEN_SHARE = 'daten-share';
 /** Home-Ordner des Users; die App navigiert selbst nach `ZAH/`. */
 export const SLOT_PERSOENLICH = 'persoenlich';
-/** Wurzel der Home-Laufwerke; Kinder = User-Verzeichnisse. */
+/**
+ * Wurzel der Home-Laufwerke; Kinder = User-Verzeichnisse.
+ * @deprecated Seit v4.1 gibt es MEHRERE Wurzeln (`userFoldersRootSlot`). Dieser
+ * Einzel-Slot bleibt als „legacy"-Eintrag bedienbar — damit ist der Alt-Fall in
+ * `dev:local` real durchspielbar.
+ */
 export const SLOT_USER_FOLDERS_ROOT = 'user-folders-root';
 /** Ordner der CSV-Quelldateien (eigener IDB-Key, nicht in der smb-handles-Map). */
 export const SLOT_CSV_SOURCE_DIR = 'csv-source-dir';
@@ -22,6 +27,14 @@ export const SLOT_VORLAGEN = 'gutachten-vorlagen';
 /** Slot-Name einer DMS-Quelle. Spiegelt `dmsSourceSlotKey` aus `types.ts`. */
 export function dmsSlot(sourceId: string): string {
   return `dms-source-${sourceId}`;
+}
+
+/**
+ * Slot-Name einer Wurzel der persoenlichen Ordner (v4.1). Spiegelt
+ * `userFoldersRootSlotKey` aus `types.ts`.
+ */
+export function userFoldersRootSlot(rootId: string): string {
+  return `user-folders-root-${rootId}`;
 }
 
 /**

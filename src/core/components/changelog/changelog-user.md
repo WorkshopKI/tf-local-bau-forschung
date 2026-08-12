@@ -19,6 +19,16 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.1 — 2026-08
+
+### Neu
+- Die persönlichen Ordner des Teams dürfen jetzt unter mehreren Wurzeln liegen (PL-Ordner, Bearbeiter-Ordner). Beim Einsammeln wird jede Gruppe einzeln verbunden — ein Knopf je Gruppe.
+### Verbesserungen
+- Nach dem Einsammeln steht in der Meldung, aus welcher Gruppe wie viel gelesen wurde. Eine nicht verbundene Gruppe wird benannt, statt stillschweigend zu fehlen.
+- Taucht dieselbe Person unter zwei Wurzeln auf, gewinnt ihr neuester Stand — eine liegengebliebene Ordner-Kopie überschreibt nichts mehr und zieht auch keine Stimme zurück.
+### Bugfixes
+<!-- - … -->
+
 ## v4.0 — 2026-08
 
 ### Neu

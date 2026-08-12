@@ -58,7 +58,7 @@ Braucht das Team eine Antwort vom Melder, setzt es das Ticket auf **Rückfrage**
 
 - Status, Aufwand, Zuständigkeit und Bereich stehen als Chips an Karte, Zeile und im Detail. Alles Übrige (Kategorie, Priorität, interne Notizen, öffentliche Antwort, FAQ-Markierung, „Claude Code Prompt", Löschen) liegt im Detail unter **„Weitere Verwaltung"**.
 - Das `⋯`-Menü an jeder Karte: mir zuweisen, als umgesetzt markieren, auf Rückfrage setzen, archivieren, Details öffnen.
-- Im Seitenkopf ein **Posteingangs-Knopf** → Dialog „Feedback-Verwaltung" mit vier Reitern: **Inbox** (Feedback der Nutzer ohne Schreibrecht einsammeln, einmaliger Ordner-Connect), **FAQ**, **Sponsoring** (Ranking, Schwellen, Budget), **Einstellungen** (Modell, System-Prompt, Status der geteilten Datei).
+- Im Seitenkopf ein **Posteingangs-Knopf** → Dialog „Feedback-Verwaltung" mit vier Reitern: **Inbox** (Feedback der Nutzer ohne Schreibrecht einsammeln; je Ordner-Gruppe eine Zeile mit eigenem Verbinden-Knopf, jeder Eintrag nennt Ordner und Gruppe), **FAQ**, **Sponsoring** (Ranking, Schwellen, Budget), **Einstellungen** (Modell, System-Prompt, Status der geteilten Datei).
 - Der Reiter „Einstellungen" zeigt zur geteilten Datei die Zahl der Einträge und das Datum der letzten Änderung. „nicht verbunden" heißt, der Zugriff auf den gemeinsamen Datenspeicher fehlt; „vorhanden, aber nicht lesbar" heißt, dass Änderungen bewusst abgelehnt werden, statt den Bestand zu überschreiben.
 - Schlägt ein Speichern fehl, sagt die Seite das — als Meldung an der Stelle, an der man geklickt hat.
 

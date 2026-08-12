@@ -43,6 +43,9 @@ const ISOLATED_TESTS = [
   // Lock-Kern dagegen (Heartbeat-Takt, Freigabe-Verifikation).
   'src/core/services/infrastructure/__tests__/build-lock-freigabe.test.ts',
   'src/core/services/infrastructure/__tests__/listPendingGrants.test.ts',
+  // Mockt `@/config/personal-roots` modulweit (feste Wurzel-Liste statt
+  // Build-Config) — ohne Isolation gewinnt der zuerst geladene echte Modulstand.
+  'src/core/services/infrastructure/__tests__/userFoldersRootPermission.test.ts',
   'src/core/services/personal-storage/__tests__/updateOutboxFeedback.test.ts',
   'src/core/services/search/__tests__/ort-wasm-init.test.ts',
   'src/core/services/skill-feedback/__tests__/export.test.ts',

@@ -21,6 +21,7 @@ Durchgängig:
 
 - **Anonymität:** MAs erscheinen überall nur als anonyme ID (MA01–MAxx).
 - **Filter-Pillen zählen facettiert:** die Zahl an einer Pille ist die Zeilenzahl nach dem Klick (andere aktive Filter sind eingerechnet).
+- **Einsammeln aus mehreren Ordner-Gruppen:** Die persönlichen Ordner der Teammitglieder liegen unter mehreren Wurzeln (z. B. PL-Ordner und Bearbeiter-Ordner). Solange eine Gruppe nicht verbunden ist, steht eine Zeile mit ihrem Namen und einem eigenen Knopf über dem Bereich — eine Freigabe je Klick, mehr erlaubt der Browser nicht. Die Meldung nach dem Einsammeln nennt jede Gruppe einzeln („PL-Ordner: 4 gelesen · Bearbeiter-Ordner: nicht verbunden"), damit eine fehlende Gruppe sichtbar ist statt stillzuschweigen. Eingesammelt wird trotzdem aus allen verbundenen Gruppen.
 
 ## Typische Aktionen
 
@@ -30,6 +31,7 @@ Durchgängig:
 - Kompetenz-XLSX hochladen, Kompetenz-Matrix pflegen
 - Kategorien/Konfiguration in der Verwaltung anpassen (inkl. Zugangspasswörter erzeugen/versenden)
 - Übernahme-Wünsche einsammeln (Bilanz: neu / zurückgezogen / bereits vergeben / nicht mehr zuweisbar)
+- Team-Profile einsammeln; eine noch nicht verbundene Ordner-Gruppe über ihren eigenen Knopf verbinden
 - MA-seitig: eigene Technologien/Präferenzen pflegen, Anträge „übernehmen"
 
 ## Technik

@@ -12,11 +12,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
-import {
-  getUserFoldersRootHandle,
-  pickAndStoreUserFoldersRootHandle,
-  refreshUserFoldersRootPermission,
-} from '@/core/services/infrastructure/smb-handle';
+import { usePersoenlicheWurzeln } from '@/core/hooks/usePersoenlicheWurzeln';
+import { WurzelnVerbinden } from '@/core/components/WurzelnVerbinden';
+import { jeWurzel, juengsterGewinnt, formatiereSammelBericht } from '@/core/services/personal-roots';
 import { useAuslastungData } from '../hooks/useAuslastungData';
 import { useAntraegeCache } from '../hooks/useAntraegeCache';
 import { usePendingUebernahmeWuensche } from '../hooks/usePendingUebernahmeWuensche';
@@ -32,6 +30,7 @@ import {
   NICHT_ZUWEISBAR_TEXT,
   type WunschRef,
 } from '../services/onboarding';
+import { normalizeKuerzel } from '../services/identitaet';
 import { useDeAnonResolver } from '../components/AnonymIdBadge';
 import { useAuslastungReady } from '../hooks/useAuslastungReady';
 import { useAuslastungIndex } from '../hooks/useAuslastungIndex';
@@ -51,6 +50,7 @@ import {
   type AntragstypBucket,
   type AusgeschlossenerMa,
   type MatchResult,
+  type PersoenlicheUebernahmeWuensche,
   type Zuweisung,
 } from '../types';
 import { buildManualMatch } from '../services/matching';
@@ -145,6 +145,7 @@ export function ZuweisungsCockpit(): React.ReactElement {
   const [ausgeschlossen, setAusgeschlossen] = useState<AusgeschlossenerMa[]>([]);
   const [matchingRunning, setMatchingRunning] = useState(false);
   const [einsammelnMsg, setEinsammelnMsg] = useState<string | null>(null);
+  const { wurzeln, zustaende, verbinde, entferne } = usePersoenlicheWurzeln();
   // v2.290: Details des letzten Einsammelns (wer/was) — als Tooltip an der
   // Bilanz-Zeile, damit die PL zurückgezogene und nicht mehr zuweisbare
   // Wünsche nachvollziehen kann.
@@ -170,31 +171,24 @@ export function ZuweisungsCockpit(): React.ReactElement {
     [config.aktuellesQuartal, config.verteilLookbackMonate],
   );
 
-  // v2.9: Übernahme-Wünsche aus den persoenlichen Ordnern einsammeln (read-Mode
-  // ueber den User-Folders-Root, gespiegelt von MaListSection). Merged sie als
-  // Zuweisung{status:'selbst'} in auslastung.json (EIN persist im Store).
+  // v2.9: Übernahme-Wünsche aus den persoenlichen Ordnern einsammeln (read-Mode,
+  // gespiegelt von MaListSection). Merged sie als Zuweisung{status:'selbst'} in
+  // auslastung.json (EIN persist im Store).
+  //
+  // v4.1: mehrere Wurzeln. KEIN Auto-Pick mehr im Sammel-Klick — das Verbinden
+  // laeuft ueber die Zeilen daneben, eine je Gruppe mit eigenem Knopf
+  // (recurring-bug §2). Erst alle lesen, Dubletten falten, dann EIN
+  // applyUebernahmeWuensche (Pitfall #16/#20).
   const einsammelnAction = useAsyncAction(async () => {
     setEinsammelnMsg(null);
     setEinsammelnRefs(null);
-    let root = await getUserFoldersRootHandle(storage.idb);
-    if (!root) {
-      const res = await pickAndStoreUserFoldersRootHandle(storage.idb);
-      if (!res.ok) {
-        if (res.reason === 'aborted') return;
-        throw new Error(res.message ?? 'Ordner-Auswahl fehlgeschlagen.');
-      }
-      root = res.handle;
-    } else {
-      // v2.59.5: bestehendes Handle re-granten — die Read-Permission kann unter
-      // file:// nach Browser-Neustart verfallen sein; collectUebernahmeWuensche
-      // würde dann beim Verzeichnis-Iterieren mit NotAllowedError werfen. Hier
-      // sind wir im Klick-Gesture → requestPermission darf prompten.
-      const perm = await refreshUserFoldersRootPermission(storage.idb);
-      if (perm !== 'granted') {
-        throw new Error('Zugriff auf den Ordner der Teammitglieder wurde nicht erteilt. Bitte erneut versuchen.');
-      }
-    }
-    const batch = await collectUebernahmeWuensche(root);
+    const alle: PersoenlicheUebernahmeWuensche[] = [];
+    const bericht = await jeWurzel(wurzeln, async root => {
+      const teil = await collectUebernahmeWuensche(root.handle);
+      alle.push(...teil);
+      return teil.length;
+    });
+    const batch = juengsterGewinnt(alle, w => normalizeKuerzel(w.kuerzel), w => w.updatedAt);
     const total = batch.reduce((n, p) => n + p.wuensche.length, 0);
     // antragId → Verbund-Key, damit der Merge keine Selbst-Wünsche fuer bereits
     // freigegebene Verbünde anlegt (eine Einheit, ein Bearbeiter).
@@ -214,7 +208,8 @@ export function ZuweisungsCockpit(): React.ReactElement {
     // stehen noch in der persönlichen Datei des MA, bis er das nächste Mal auf
     // die Startseite geht.
     setEinsammelnMsg(
-      `${total} Wunsch/Wünsche gelesen · ${neu} neu · ${entfernt} zurückgezogen`
+      `${formatiereSammelBericht(bericht, { einheit: 'Ordner gelesen' })}`
+      + ` · ${total} Wunsch/Wünsche · ${neu} neu · ${entfernt} zurückgezogen`
       + (bereitsVergeben > 0 ? ` · ${bereitsVergeben} bereits vergeben` : '')
       + (nichtZuweisbar > 0 ? ` · ${nichtZuweisbar} nicht mehr zuweisbar` : ''),
     );
@@ -658,6 +653,15 @@ export function ZuweisungsCockpit(): React.ReactElement {
 
   return (
     <div className="flex flex-col gap-3">
+      {/* Verbinden je Gruppe — ein Knopf, ein Dialog. Verschwindet, sobald alle
+          Wurzeln nutzbar sind. */}
+      <WurzelnVerbinden
+        wurzeln={wurzeln}
+        zustaende={zustaende}
+        verbinde={verbinde}
+        entferne={entferne}
+        hinweis="Zum Einsammeln muss je Gruppe der übergeordnete Ordner mit den persönlichen Ordnern verbunden sein (nur Lesezugriff)."
+      />
       {/* Toolbar: Übernahme-Wünsche einsammeln (links) + Export (rechts) */}
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div className="flex items-center gap-2">

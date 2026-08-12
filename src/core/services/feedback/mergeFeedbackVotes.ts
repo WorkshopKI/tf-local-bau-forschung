@@ -8,9 +8,16 @@
  * (Retraktion). Nur `kuerzel`, deren Datei in DIESEM Batch gelesen wurde, werden
  * reconciled — fremde Stimmen bleiben unangetastet, User OHNE Datei im Batch
  * ebenfalls (kein versehentliches Loeschen).
+ *
+ * **Stale-Guard (v4.1)** wie in `mergeSponsorVotes`: liegen die persoenlichen
+ * Ordner unter mehreren Wurzeln, wird derselbe User bei Gruppenwechsel oder
+ * Ordnerleiche zweimal gelesen — in zwei getrennten Aufrufen nacheinander. Ohne
+ * Guard entschiede die Wurzel-Reihenfolge, ob eine alte Datei die frische
+ * Stimme zurueckzieht.
  */
 import type { FeedbackItem, FeedbackVote } from '@/core/types/feedback';
 import type { VoteFile } from './feedbackVoteOutbox';
+import { istStrengAelter } from './mergeSponsorVotes';
 
 export interface MergeVotesResult {
   items: FeedbackItem[];
@@ -29,12 +36,15 @@ export function mergeVotesIntoItems(
   const collectedKuerzels = new Set<string>();
   // ticketId → (kuerzel → Zeitstempel der Datei)
   const desired = new Map<string, Map<string, Wanted>>();
+  /** kuerzel → Zeitstempel der gelesenen Datei (fuer den Stale-Guard). */
+  const dateiStempel = new Map<string, string>();
 
   for (const file of batch) {
     if (!file || typeof file.kuerzel !== 'string' || !file.kuerzel) continue;
     const kuerzel = file.kuerzel;
     collectedKuerzels.add(kuerzel);
     const ts = typeof file.updatedAt === 'string' ? file.updatedAt : '';
+    dateiStempel.set(kuerzel, ts);
     for (const ticketId of file.ticketIds ?? []) {
       if (typeof ticketId !== 'string' || !ticketId) continue;
       let m = desired.get(ticketId);
@@ -60,6 +70,12 @@ export function mergeVotesIntoItems(
     for (const v of votes) {
       // Fremde (nicht im Batch gelesene) Stimmen unangetastet.
       if (!collectedKuerzels.has(v.user_id)) { nextVotes.push(v); continue; }
+      // Stale-Guard: aeltere Datei als der vorhandene Stand → nicht retrahieren.
+      if (istStrengAelter(dateiStempel.get(v.user_id), v.created_at)) {
+        nextVotes.push(v);
+        seen.add(v.user_id);
+        continue;
+      }
       seen.add(v.user_id);
       if (wanted?.has(v.user_id)) {
         nextVotes.push(v); // Stimme bleibt bestehen

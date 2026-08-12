@@ -86,6 +86,10 @@
     "datenShare": "C:\\01b_genAI_Code\\01d-lokal-fzd\\fzd-SMB-Root-mit-csv\\ZAH",
     "persoenlich": "C:\\01b_genAI_Code\\01d-lokal-fzd\\fzd-SMB-Root-mit-csv\\Mitarbeiterordner\\Hübsch",
     "userFoldersRoot": "C:\\01b_genAI_Code\\01d-lokal-fzd\\fzd-SMB-Root-mit-csv\\Mitarbeiterordner",
+    "userFoldersRoots": {
+      "pl": "C:\\01b_genAI_Code\\01d-lokal-fzd\\fzd-SMB-Root-mit-csv\\Mitarbeiterordner\\PL",
+      "bearbeiter": "C:\\01b_genAI_Code\\01d-lokal-fzd\\fzd-SMB-Root-mit-csv\\Mitarbeiterordner\\Bearbeiter"
+    },
     "csvSourceDir": "C:\\01b_genAI_Code\\01d-lokal-fzd\\fzd-SMB-Root-mit-csv\\ZAH\\programm\\antraege\\imports",
     "vorlagenDir": "C:\\01b_genAI_Code\\01d-lokal-fzd\\fzd-SMB-Root-mit-csv\\DMS Vorlagen",
     "dmsSources": {

@@ -10,16 +10,23 @@
  * das Einsammeln automatisch (einmal pro App-Session), sodass der PL nicht jedes
  * Mal manuell „Team-Profile einsammeln" klicken muss.
  *
- * Best-effort: Wenn der User-Folders-Root nicht verbunden ist, passiert nichts
- * (kein Picker-Prompt im Auto-Pfad) — der manuelle Button bleibt verfügbar.
+ * Best-effort: Wenn keine Wurzel verbunden ist, passiert nichts (kein
+ * Picker-Prompt im Auto-Pfad) — der manuelle Button bleibt verfügbar.
+ *
+ * v4.1: mehrere Wurzeln. Erst ALLE lesen, dann Dubletten falten, dann GENAU EIN
+ * `applyAggregatedProfiles` — ein Apply je Wurzel liefe in den Save-Lock des
+ * Stores (Pitfall #16/#20).
  */
 import { useEffect } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
-import { getUserFoldersRootHandle } from '@/core/services/infrastructure/smb-handle';
+import { getUserFoldersRoots } from '@/core/services/infrastructure/smb-handle';
+import { jeWurzel, juengsterGewinnt } from '@/core/services/personal-roots';
 import { useAuslastungData } from './useAuslastungData';
 import { useAntraegeCache } from './useAntraegeCache';
 import { useAuslastungReady } from './useAuslastungReady';
 import { collectUserProfiles } from '../services/onboarding';
+import { normalizeKuerzel } from '../services/identitaet';
+import type { PersoenlichesAuslastungProfil } from '../types';
 
 /** Einmal pro App-Session (überlebt Plugin-/Tab-Wechsel-Remounts). */
 let autoCollectDone = false;
@@ -51,10 +58,22 @@ export function useAutoCollectTeamProfiles(): void {
     autoCollectDone = true;
 
     void (async () => {
-      const root = await getUserFoldersRootHandle(storage.idb).catch(() => null);
-      if (!root) return; // Root nicht verbunden — still überspringen.
       try {
-        const profile = await collectUserProfiles(root);
+        const wurzeln = await getUserFoldersRoots(storage.idb);
+        const alle: PersoenlichesAuslastungProfil[] = [];
+        // jeWurzel laeuft sequenziell und faengt Fehler je Wurzel — eine
+        // unerreichbare Gruppe stoppt die andere nicht.
+        await jeWurzel(wurzeln, async root => {
+          const teil = await collectUserProfiles(root.handle);
+          alle.push(...teil);
+          return teil.length;
+        });
+        // Schluessel ist das normalisierte Kuerzel, nicht der Ordnername: der
+        // nachgelagerte Merge kollabiert ohnehin auf die Person, und ein
+        // Gruppenwechsel benennt den Ordner in aller Regel um. NFC-Normalisierung
+        // ist Pflicht (Pitfall #22) — die Wurzeln wurden von verschiedenen
+        // Rechnern beschrieben.
+        const profile = juengsterGewinnt(alle, p => normalizeKuerzel(p.kuerzel), p => p.updatedAt);
         if (profile.length > 0) {
           await applyAggregatedProfiles(storage, profile, cache.anonymMap);
         }

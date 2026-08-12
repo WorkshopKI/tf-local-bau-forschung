@@ -14,8 +14,29 @@ export const SMB_HANDLE_PERSOENLICH = 'persoenlich';
  * v2.0: Wurzel-Ordner aller User-Home-Laufwerke (z.B. `\\share\home-laufwerke\`).
  * Wird vom Kurator einmalig gepickt, damit die App im FeedbackInboxTab
  * JSON-Dateien aus `<user>/ZAH/feedback/outbox/` einsammeln kann.
+ *
+ * @deprecated Seit v4.1 liegen die persoenlichen Ordner unter MEHREREN Wurzeln
+ * (`USER_FOLDERS_ROOT_SLOT_PREFIX`). Dieser Einzel-Slot bleibt LESBAR, damit
+ * bestehende Installationen bis zum Neu-Zuordnen weiter einsammeln — er wird
+ * unter der Id `legacy` gefuehrt und keiner Gruppe automatisch zugeordnet.
  */
 export const SMB_HANDLE_USER_FOLDERS_ROOT = 'user-folders-root';
+
+/**
+ * v4.1: Schluessel-Praefix fuer die Wurzeln der persoenlichen Ordner in der
+ * `smb-handles`-Map. Ein Eintrag je Gruppe aus `personalFolder.roots`:
+ * `user-folders-root-${rootId}` -> FileSystemDirectoryHandle.
+ *
+ * Beachte: `'user-folders-root'.startsWith('user-folders-root-')` ist FALSE —
+ * der Praefix-Scan erfasst den Alt-Slot bewusst NICHT. Genau deshalb ist die
+ * Config-Id `legacy` gesperrt (sonst hiesse ihr Slot `user-folders-root-legacy`
+ * und kollidierte fachlich mit dem echten Alt-Slot).
+ */
+export const USER_FOLDERS_ROOT_SLOT_PREFIX = 'user-folders-root-';
+
+export function userFoldersRootSlotKey(rootId: string): string {
+  return `${USER_FOLDERS_ROOT_SLOT_PREFIX}${rootId}`;
+}
 /**
  * @deprecated Seit v1.15 wird Multi-Source via `dms-source-${id}`-Slots verwaltet
  * (siehe DMS_SOURCE_SLOT_PREFIX). Dieser Single-Slot bleibt nur bis die Migration

@@ -17,6 +17,7 @@ import {
   SLOT_CSV_SOURCE_DIR,
   SLOT_VORLAGEN,
   dmsSlot,
+  userFoldersRootSlot,
 } from '../../src/core/services/infrastructure/local-fs/typen';
 
 /** Der `local`-Block aus der Variant-Config (siehe TeamflowLocalConfig). */
@@ -24,6 +25,8 @@ export interface LocalBlock {
   datenShare?: string | null;
   persoenlich?: string | null;
   userFoldersRoot?: string | null;
+  /** v4.1: Wurzeln der persoenlichen Ordner je Gruppe (`rootId → Pfad`). */
+  userFoldersRoots?: Record<string, string>;
   csvSourceDir?: string | null;
   vorlagenDir?: string | null;
   dmsSources?: Record<string, string>;
@@ -44,6 +47,9 @@ function sammleSlots(local: LocalBlock): Record<string, string> {
   setze(SLOT_DATEN_SHARE, local.datenShare);
   setze(SLOT_PERSOENLICH, local.persoenlich);
   setze(SLOT_USER_FOLDERS_ROOT, local.userFoldersRoot);
+  for (const [id, pfad] of Object.entries(local.userFoldersRoots ?? {})) {
+    setze(userFoldersRootSlot(id), pfad);
+  }
   setze(SLOT_CSV_SOURCE_DIR, local.csvSourceDir);
   setze(SLOT_VORLAGEN, local.vorlagenDir);
   for (const [id, pfad] of Object.entries(local.dmsSources ?? {})) setze(dmsSlot(id), pfad);

@@ -286,7 +286,7 @@ export function SpeicherTab(): React.ReactElement {
     applyRefreshResult({
       datenShare: 'missing',
       persoenlich: prev.persoenlichAvailable ? 'granted' : 'missing',
-      userFoldersRoot: 'missing',
+      userFoldersRoots: {},
       dmsSources: {},
     });
   };

@@ -2,22 +2,24 @@
  * Online-Tab (Einstellungen, nur pl/dev — gegated via `isOnlineStatusTabEnabled`).
  *
  * Zeigt, wer die App zuletzt genutzt hat — aus den Heartbeat-Dateien
- * (`ZAH/online-status.json`) aller User unter dem User-Folders-Root. „Online" =
- * Heartbeat juenger als ONLINE_STALE_WINDOW_MS (5 Min). Auto-Refresh alle ~45 s,
- * solange der Tab offen ist. Serverless: kein Echtzeit-Presence, sondern
- * „zuletzt aktiv vor X Min".
+ * (`ZAH/online-status.json`) aller User unter den Wurzeln der persoenlichen
+ * Ordner. „Online" = Heartbeat juenger als ONLINE_STALE_WINDOW_MS (5 Min).
+ * Auto-Refresh alle ~45 s, solange der Tab offen ist. Serverless: kein
+ * Echtzeit-Presence, sondern „zuletzt aktiv vor X Min".
+ *
+ * Seit v4.1 mehrere Wurzeln: der Timer bleibt strikt non-invasiv (kein
+ * `requestPermission` ohne Klick), das Verbinden laeuft ueber `WurzelnVerbinden`
+ * — eine Zeile, ein Knopf, ein Dialog je Gruppe. Dieselbe Person kann unter
+ * zwei Wurzeln liegen, deshalb faellt die Liste vor dem Sortieren auf den
+ * juengsten Heartbeat je Geraet zusammen.
  */
 import { useCallback, useEffect, useState } from 'react';
-import { RefreshCw, FolderOpen } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useStorage } from '@/core/hooks/useStorage';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
-import {
-  getUserFoldersRootHandle,
-  pickAndStoreUserFoldersRootHandle,
-  queryUserFoldersRootPermission,
-  refreshUserFoldersRootPermission,
-} from '@/core/services/infrastructure/smb-handle';
+import { usePersoenlicheWurzeln, nurNutzbare } from '@/core/hooks/usePersoenlicheWurzeln';
+import { WurzelnVerbinden } from '@/core/components/WurzelnVerbinden';
+import { jeWurzel, formatiereSammelBericht, juengsterGewinnt } from '@/core/services/personal-roots';
 import { collectHeartbeats, type OnlineUser } from '@/core/services/presence';
 // Direktimport statt Barrel: `@/components/feedback` zieht `FeedbackPanel` mit, das
 // wiederum `@/plugins.config` laedt — ueber die Einstellungen-Plugin-Kette entstuende
@@ -28,88 +30,43 @@ import { SettingsSectionHeader } from './_shared/settings-primitives';
 const REFRESH_INTERVAL_MS = 45_000;
 
 export function OnlineTab(): React.ReactElement {
-  const storage = useStorage();
+  const { wurzeln, zustaende, laden, neuLaden, verbinde, entferne } = usePersoenlicheWurzeln();
   const [users, setUsers] = useState<OnlineUser[]>([]);
-  const [rootMissing, setRootMissing] = useState(false);
-  // Handle in IDB, aber Permission unter file:// nach Neustart verfallen → Re-Grant
-  // im Klick-Gesture nötig (der Auto-Load darf nicht prompten).
-  const [needsRegrant, setNeedsRegrant] = useState(false);
+  const [bericht, setBericht] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
 
   const applyList = useCallback((list: OnlineUser[]) => {
+    // Dieselbe Person kann unter zwei Wurzeln liegen (Gruppenwechsel,
+    // Ordnerleiche). Erst je Geraet auf den juengsten Heartbeat falten — sonst
+    // entschiede die Wurzel-Reihenfolge, ob jemand „online" aussieht. Geraet,
+    // nicht Person: eine Person hat legitim mehrere Geraete.
+    const eindeutig = juengsterGewinnt(list, u => u.deviceId, u => u.lastActive);
     // Online zuerst, dann nach Aktualitaet absteigend.
-    list.sort((a, b) =>
+    eindeutig.sort((a, b) =>
       Number(b.online) - Number(a.online) ||
       Date.parse(b.lastActive) - Date.parse(a.lastActive));
-    setUsers(list);
+    setUsers(eindeutig);
     setLoaded(true);
   }, []);
 
-  // Auto-/Manuell-Refresh: liest NUR den bestehenden Handle — KEIN Picker (der
-  // FSAPI-Ordner-Dialog darf ausschliesslich aus einer echten Klick-Geste kommen).
+  // Auto-/Manuell-Refresh: liest NUR bestehende, freigegebene Handles — KEIN
+  // Picker und KEIN requestPermission (beides darf ausschliesslich aus einer
+  // echten Klick-Geste kommen; `usePersoenlicheWurzeln` prueft non-invasiv).
   const load = useAsyncAction(async () => {
-    const root = await getUserFoldersRootHandle(storage.idb);
-    if (!root) {
-      setRootMissing(true);
-      setNeedsRegrant(false);
-      setUsers([]);
-      setLoaded(true);
-      return;
-    }
-    setRootMissing(false);
-    // Permission kann unter file:// nach Neustart verfallen sein. Erst non-invasiv
-    // prüfen — sonst wirft schon das Verzeichnis-Iterieren in collectHeartbeats
-    // (kein Gesture hier → requestPermission unmöglich). Re-Grant via Button unten.
-    const perm = await queryUserFoldersRootPermission(storage.idb);
-    if (perm !== 'granted') {
-      setNeedsRegrant(true);
-      setUsers([]);
-      setLoaded(true);
-      return;
-    }
-    setNeedsRegrant(false);
-    try {
-      applyList(await collectHeartbeats(root));
-    } catch {
-      // Sicherheitsnetz: Permission zwischen Query und Iteration entzogen → kein
-      // roher Fehlerbanner, sondern Re-Grant anbieten.
-      setNeedsRegrant(true);
-      setUsers([]);
-      setLoaded(true);
-    }
-  });
-
-  // Re-Grant (Klick-Gesture): gibt das bestehende Handle erneut frei — kein
-  // erneutes Auswählen des Ordners nötig. Fällt bei denied/missing auf den
-  // Re-Pick-Pfad (rootMissing → connect) zurück.
-  const regrant = useAsyncAction(async () => {
-    const state = await refreshUserFoldersRootPermission(storage.idb);
-    if (state !== 'granted') {
-      setNeedsRegrant(false);
-      setRootMissing(true);
-      return;
-    }
-    const root = await getUserFoldersRootHandle(storage.idb);
-    if (!root) {
-      setNeedsRegrant(false);
-      setRootMissing(true);
-      return;
-    }
-    setNeedsRegrant(false);
-    applyList(await collectHeartbeats(root));
-  });
-
-  // Erstverbindung: oeffnet den Ordner-Picker (nur im Klick-Gesture) und sammelt
-  // dann ein. Gespiegelt von MaListSection „Profile einsammeln".
-  const connect = useAsyncAction(async () => {
-    const res = await pickAndStoreUserFoldersRootHandle(storage.idb);
-    if (!res.ok) {
-      if (res.reason === 'aborted') return;
-      throw new Error(res.message ?? 'Ordner-Auswahl fehlgeschlagen.');
-    }
-    setRootMissing(false);
-    setNeedsRegrant(false);
-    applyList(await collectHeartbeats(res.handle));
+    // Den frisch gelesenen Stand VERWENDEN, nicht den aus dem Render-Closure:
+    // `setState` wirkt erst im naechsten Render, `wurzeln` waere hier beim
+    // ersten Lauf noch das leere Array (und der Tab bliebe bis zum 45-s-Takt
+    // stumm — genau so ist es in der Abnahme aufgefallen).
+    const stand = await neuLaden();
+    const alle: OnlineUser[] = [];
+    const b = await jeWurzel(stand.wurzeln, async root => {
+      if (stand.zustaende[root.id] !== 'granted') return 0;
+      const teil = await collectHeartbeats(root.handle);
+      alle.push(...teil);
+      return teil.length;
+    });
+    setBericht(stand.wurzeln.length > 1 ? formatiereSammelBericht(b, { einheit: 'gelesen' }) : null);
+    applyList(alle);
   });
 
   useEffect(() => {
@@ -119,7 +76,15 @@ export function OnlineTab(): React.ReactElement {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Nach dem Verbinden einer Wurzel sofort nachladen — sonst bliebe die Liste
+  // bis zum naechsten 45-s-Takt leer.
+  const verbindeUndLade = useCallback(async (root: Parameters<typeof verbinde>[0]) => {
+    await verbinde(root);
+    await load.run();
+  }, [verbinde, load]);
+
   const onlineCount = users.filter(u => u.online).length;
+  const nutzbare = nurNutzbare(wurzeln, zustaende);
 
   return (
     <section id="sec-team" className="scroll-mt-20 space-y-5">
@@ -145,46 +110,21 @@ export function OnlineTab(): React.ReactElement {
         </div>
       )}
 
-      {needsRegrant && loaded && (
-        <div className="rounded-[var(--tf-radius)] px-4 py-4 space-y-3"
-          style={{ border: '0.5px solid var(--tf-border)' }}>
-          <p className="text-[13px] text-[var(--tf-text-secondary)] max-w-prose">
-            Der Zugriff auf den Ordner der Teammitglieder muss nach dem Browser-Neustart
-            einmal erneut bestätigt werden (Sicherheitsvorgabe für lokale Apps). Nur
-            Lesezugriff.
-          </p>
-          {regrant.error && (
-            <p className="text-[12px] text-[var(--tf-danger-text)]">{regrant.error}</p>
-          )}
-          <Button variant="primary" size="sm" icon={FolderOpen} loading={regrant.busy}
-            onClick={() => regrant.run()}>
-            Erneut freigeben
-          </Button>
-        </div>
+      {!laden && (
+        <WurzelnVerbinden
+          wurzeln={wurzeln}
+          zustaende={zustaende}
+          verbinde={verbindeUndLade}
+          entferne={entferne}
+          hinweis={'Wähle je Gruppe den übergeordneten Ordner mit den persönlichen Ordnern der Teammitglieder — das Verzeichnis, in dem die Ordner der Kolleg:innen liegen. Nur Lesezugriff. Es sind dieselben Ordner wie für „Profile einsammeln" im Auslastung-Modul.'}
+        />
       )}
 
-      {rootMissing && loaded && (
-        <div className="rounded-[var(--tf-radius)] px-4 py-4 space-y-3"
-          style={{ border: '0.5px solid var(--tf-border)' }}>
-          <p className="text-[13px] text-[var(--tf-text-secondary)] max-w-prose">
-            Noch nicht verbunden. Wähle den{' '}
-            <span className="text-[var(--tf-text)]">übergeordneten Ordner mit den
-            persönlichen Ordnern aller Teammitglieder</span> — das Verzeichnis, in dem
-            die Ordner der Kolleg:innen liegen. Daraus liest die App den Online-Status
-            (nur Lesezugriff, einmalig). Es ist derselbe Ordner wie für „Profile
-            einsammeln" im Auslastung-Modul.
-          </p>
-          {connect.error && (
-            <p className="text-[12px] text-[var(--tf-danger-text)]">{connect.error}</p>
-          )}
-          <Button variant="primary" size="sm" icon={FolderOpen} loading={connect.busy}
-            onClick={() => connect.run()}>
-            Benutzer-Ordner verbinden
-          </Button>
-        </div>
+      {bericht && loaded && (
+        <p className="text-[12px] text-[var(--tf-text-secondary)]">{bericht}</p>
       )}
 
-      {!rootMissing && !needsRegrant && loaded && users.length === 0 && (
+      {nutzbare.length > 0 && loaded && users.length === 0 && (
         <div className="text-[13px] text-[var(--tf-text-secondary)] rounded-[var(--tf-radius)] px-3 py-3"
           style={{ border: '0.5px solid var(--tf-border)' }}>
           Aktuell ist niemand online.

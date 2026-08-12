@@ -176,7 +176,8 @@ Ein Transportfehler darf **nie** als `NotFoundError` ankommen — sonst liest
 |---|---|---|
 | `daten-share` | `datenShare` | `programm/`, `_intern/`, `backups/` |
 | `persoenlich` | `persoenlich` | Home des Users; die App navigiert selbst nach `ZAH/` |
-| `user-folders-root` | `userFoldersRoot` | Wurzel der Home-Laufwerke (Kinder = User) |
+| `user-folders-root` | `userFoldersRoot` | Alt-Wurzel der Home-Laufwerke (v2.0-Einzelslot, Id „legacy") |
+| `user-folders-root-<id>` | `userFoldersRoots` | Wurzeln je Gruppe (v4.1; Kinder = User) |
 | `csv-source-dir` | `csvSourceDir` | CSV-Quelldateien (eigener IDB-Key) |
 | `gutachten-vorlagen` | `vorlagenDir` | DOCX-Vorlagen (eigener IDB-Key) |
 | `dms-source-<id>` | `dmsSources` | DMS-Quellen |

@@ -9,6 +9,16 @@
  * werden Punkte-Eintraege entfernt, die nicht mehr (oder mit 0) in seiner Datei
  * stehen. User OHNE Datei im Batch bleiben unangetastet (kein versehentliches
  * Loeschen). Stunden-Sponsoring (`type==='hours'`) wird NIE angefasst.
+ *
+ * **Stale-Guard (v4.1).** Seit die persoenlichen Ordner unter mehreren Wurzeln
+ * liegen, wird derselbe User bei einem Gruppenwechsel oder einer Ordnerleiche
+ * ZWEIMAL gelesen — je Wurzel EIN eigener Aufruf, also zwei getrennte Batches
+ * nacheinander. Ohne Guard entschiede die Wurzel-Reihenfolge: kaeme die alte
+ * Datei als zweite, zoege sie die frische Stimme wieder zurueck. Deshalb bleibt
+ * ein vorhandener Eintrag unangetastet, wenn die gerade gelesene Datei STRIKT
+ * AELTER ist als sein `created_at` (dort steht der Zeitstempel der Quelldatei).
+ * Unparsebar oder gleich → alter Pfad, damit sich Bestandsdaten unveraendert
+ * verhalten.
  */
 import type { FeedbackItem, FeedbackSponsor } from '@/core/types/feedback';
 import type { SponsorVoteFile } from './feedbackSponsorOutbox';
@@ -35,11 +45,15 @@ export function mergeSponsorVotesIntoItems(
   // ticketId → (kuerzel → gewuenschte Punkte + Zeitstempel der Datei)
   const desired = new Map<string, Map<string, Wanted>>();
 
+  /** kuerzel → Zeitstempel der gelesenen Datei (fuer den Stale-Guard). */
+  const dateiStempel = new Map<string, string>();
+
   for (const file of batch) {
     if (!file || typeof file.kuerzel !== 'string' || !file.kuerzel) continue;
     const kuerzel = file.kuerzel;
     collectedKuerzels.add(kuerzel);
     const ts = typeof file.updatedAt === 'string' ? file.updatedAt : '';
+    dateiStempel.set(kuerzel, ts);
     for (const [ticketId, rawPts] of Object.entries(file.votes ?? {})) {
       const points = Math.max(0, Math.floor(Number(rawPts) || 0));
       if (points <= 0) continue; // 0 / negativ = keine Stimme → via Abwesenheit retrahiert
@@ -72,6 +86,14 @@ export function mergeSponsorVotesIntoItems(
       // Stunden + fremde (nicht im Batch gelesene) Punkte-Eintraege unangetastet.
       if (s.type !== 'points' || !collectedKuerzels.has(s.user_id)) {
         nextSponsors.push(s);
+        continue;
+      }
+      // Stale-Guard: die gerade gelesene Datei ist aelter als der Stand, der
+      // hier schon steht → sie stammt aus einer Ordnerleiche/alten Wurzel und
+      // darf weder retrahieren noch ueberschreiben.
+      if (istStrengAelter(dateiStempel.get(s.user_id), s.created_at)) {
+        nextSponsors.push(s);
+        seen.add(s.user_id);
         continue;
       }
       seen.add(s.user_id);
@@ -113,4 +135,16 @@ export function mergeSponsorVotesIntoItems(
   }
 
   return { items: nextItems, neu, aktualisiert, entfernt };
+}
+
+/**
+ * Strikt aelter. Unparsebar oder gleich zaehlt NICHT als aelter — Bestandsdaten
+ * (und der Normalfall „dieselbe Datei nochmal gelesen") verhalten sich damit
+ * exakt wie vor dem Guard.
+ */
+export function istStrengAelter(datei: string | undefined, vorhanden: string | undefined): boolean {
+  const a = datei ? Date.parse(datei) : Number.NaN;
+  const b = vorhanden ? Date.parse(vorhanden) : Number.NaN;
+  if (Number.isNaN(a) || Number.isNaN(b)) return false;
+  return a < b;
 }

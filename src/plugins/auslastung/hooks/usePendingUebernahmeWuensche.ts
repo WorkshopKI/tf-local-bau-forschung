@@ -4,21 +4,30 @@
  * einsammeln" geklickt hat.
  *
  * Quelle: dieselben persönlichen Ordner wie der Einsammel-Schritt
- * (`collectUebernahmeWuensche` über den User-Folders-Root), aber NUR lesend —
- * kein Merge, kein Store-Write. Liefert den vollen `WunschStand` (`antragId →
- * anonIds[]` + die Menge gelesener anonIds); Letztere trägt die Rückzugs-
- * Erkennung im Cockpit.
+ * (`collectUebernahmeWuensche` über die Wurzeln), aber NUR lesend — kein Merge,
+ * kein Store-Write. Liefert den vollen `WunschStand` (`antragId → anonIds[]` +
+ * die Menge gelesener anonIds); Letztere trägt die Rückzugs-Erkennung im
+ * Cockpit.
  *
- * Bewusst defensiv: ist kein User-Folders-Root-Handle gepickt ODER die
- * Read-Permission noch nicht erteilt, bleibt die Map leer (kein Picker-/
+ * Bewusst defensiv: `getUserFoldersRoots` + der Permissions-Check sind
+ * non-invasiv, gelesen wird nur aus bereits freigegebenen Wurzeln (kein Picker-/
  * Permission-Prompt beim bloßen Öffnen des Tabs). Die PL erteilt die Permission
  * ohnehin beim „einsammeln"-Klick; danach `reloadPending()` aufrufen.
+ *
+ * v4.1: mehrere Wurzeln. ALLE lesen, Dubletten falten, dann EIN
+ * `buildWunschStand` — sonst wäre `gelesenAnonIds` unvollständig und die
+ * Rückzugs-Erkennung zöge Wünsche zurück, die es noch gibt.
  */
 import { useCallback, useEffect, useState } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
-import { getUserFoldersRootHandle } from '@/core/services/infrastructure/smb-handle';
+import {
+  getUserFoldersRoots,
+  queryUserFoldersRootPermissions,
+} from '@/core/services/infrastructure/smb-handle';
+import { jeWurzel, juengsterGewinnt } from '@/core/services/personal-roots';
 import { collectUebernahmeWuensche, buildWunschStand, type WunschStand } from '../services/onboarding';
-import type { AnonymMap } from '../services/identitaet';
+import { normalizeKuerzel, type AnonymMap } from '../services/identitaet';
+import type { PersoenlicheUebernahmeWuensche } from '../types';
 
 const LEER: WunschStand = { byAntrag: new Map(), gelesenAnonIds: new Set() };
 
@@ -41,18 +50,20 @@ export function usePendingUebernahmeWuensche(anonymMap: AnonymMap): {
     const reset = (): void => { if (!cancelled) setStand(LEER); };
     void (async () => {
       try {
-        const root = await getUserFoldersRootHandle(storage.idb);
-        if (!root) { reset(); return; }
-        // Kein Permission-Prompt beim Öffnen: nur lesen, wenn bereits gewährt.
-        const queryPermission = (root as FileSystemDirectoryHandle & {
-          queryPermission?: (d: { mode: 'read' }) => Promise<PermissionState>;
-        }).queryPermission;
-        if (queryPermission) {
-          const perm = await queryPermission.call(root, { mode: 'read' });
-          if (perm !== 'granted') { reset(); return; }
-        }
-        const batch = await collectUebernahmeWuensche(root);
+        // Kein Permission-Prompt beim Öffnen: nur lesen, wo bereits gewährt.
+        const [wurzeln, zustaende] = await Promise.all([
+          getUserFoldersRoots(storage.idb),
+          queryUserFoldersRootPermissions(storage.idb),
+        ]);
+        const alle: PersoenlicheUebernahmeWuensche[] = [];
+        await jeWurzel(wurzeln, async root => {
+          if (zustaende[root.id] !== 'granted') return 0;
+          const teil = await collectUebernahmeWuensche(root.handle);
+          alle.push(...teil);
+          return teil.length;
+        });
         if (cancelled) return;
+        const batch = juengsterGewinnt(alle, w => normalizeKuerzel(w.kuerzel), w => w.updatedAt);
         setStand(buildWunschStand(batch, anonymMap));
       } catch {
         reset();

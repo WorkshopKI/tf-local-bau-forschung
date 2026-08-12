@@ -54,6 +54,18 @@ export interface TeamflowPersonalFolderConfig {
   required: boolean;
   promptAfterProfile: boolean;
   snapshotAgeWarningDays: number;
+  /**
+   * v4.1: Wurzeln, unter denen die persoenlichen Ordner der Anwender liegen.
+   * Die `id` ist Teil des Handle-Slots `user-folders-root-<id>` und muss stabil
+   * bleiben; `legacy` ist fuer den Alt-Slot reserviert. Fehlend/leer = keine
+   * Wurzel konfiguriert.
+   */
+  roots?: TeamflowPersonalRootConfig[];
+}
+
+export interface TeamflowPersonalRootConfig {
+  id: string;
+  label: string;
 }
 
 /**
@@ -277,6 +289,12 @@ export interface TeamflowLocalConfig {
   persoenlich?: string | null;
   /** Wurzel der Home-Laufwerke; Kinder = User-Verzeichnisse. */
   userFoldersRoot?: string | null;
+  /**
+   * v4.1: Wurzeln der persoenlichen Ordner je Gruppe (`rootId → Pfad`), passend
+   * zu `personalFolder.roots`. Der Singular oben bleibt daneben bedienbar und
+   * bedient den Alt-Slot — so ist der „legacy"-Fall lokal durchspielbar.
+   */
+  userFoldersRoots?: Record<string, string>;
   /** Ordner der CSV-Quelldateien (eigener IDB-Key, nicht in der smb-handles-Map). */
   csvSourceDir?: string | null;
   /** Ordner der DOCX-Gutachten-Vorlagen. */

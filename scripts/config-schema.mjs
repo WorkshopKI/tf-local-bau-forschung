@@ -158,6 +158,15 @@ export const DEFAULT_CONFIG = {
     required: false,
     promptAfterProfile: true,
     snapshotAgeWarningDays: 3,
+    /**
+     * v4.1: Wurzeln, unter denen die persoenlichen Ordner der Anwender liegen
+     * (Slots `user-folders-root-<id>`). Org-weit invariant → gehoert nach
+     * `_shared.json`. Leer = keine Wurzel konfiguriert; ein evtl. vorhandener
+     * Alt-Slot `user-folders-root` bleibt trotzdem lesbar.
+     * `id` ist Teil des Slot-Namens und muss stabil bleiben; `legacy` ist fuer
+     * genau diesen Alt-Slot reserviert.
+     */
+    roots: [],
   },
 
   features: {
@@ -362,7 +371,7 @@ export const DEFAULT_CONFIG = {
 /** Einzel-Pfad-Slots des `local`-Blocks (Variante „local"). */
 const LOCAL_PFAD_SLOTS = ['datenShare', 'persoenlich', 'userFoldersRoot', 'csvSourceDir', 'vorlagenDir'];
 /** Slot-Maps `{id: pfad}` des `local`-Blocks. */
-const LOCAL_PFAD_MAPS = ['dmsSources'];
+const LOCAL_PFAD_MAPS = ['dmsSources', 'userFoldersRoots'];
 
 /**
  * Absoluter Pfad? Akzeptiert Windows (`C:\…`, `C:/…`), UNC (`\\server\…`) und
@@ -469,6 +478,37 @@ export function validateConfig(config) {
       }
       if (typeof personalFolder.snapshotAgeWarningDays !== 'number' || personalFolder.snapshotAgeWarningDays < 0) {
         errors.push('personalFolder.snapshotAgeWarningDays muss Zahl >= 0 sein');
+      }
+      // v4.1: Wurzeln der persoenlichen Ordner. Die `id` wandert in den
+      // Slot-Namen `user-folders-root-<id>` und damit in die IndexedDB — eine
+      // Tippfehler-Korrektur spaeter wuerde jede Verknuepfung entwerten.
+      // Deshalb hier hart pruefen statt still zu schlucken.
+      if (personalFolder.roots != null) {
+        if (!Array.isArray(personalFolder.roots)) {
+          errors.push('personalFolder.roots muss ein Array sein');
+        } else {
+          const gesehen = new Set();
+          for (const root of personalFolder.roots) {
+            if (!root || typeof root !== 'object' || Array.isArray(root)) {
+              errors.push('personalFolder.roots: jeder Eintrag muss ein Objekt { id, label } sein');
+              continue;
+            }
+            if (typeof root.id !== 'string' || !/^[a-z0-9][a-z0-9-]*$/.test(root.id)) {
+              errors.push(`personalFolder.roots: id "${root.id}" muss a-z/0-9/- sein und mit a-z/0-9 beginnen`);
+              continue;
+            }
+            if (root.id === 'legacy') {
+              errors.push('personalFolder.roots: id "legacy" ist fuer den Alt-Slot reserviert');
+            }
+            if (typeof root.label !== 'string' || !root.label.trim()) {
+              errors.push(`personalFolder.roots: label zu "${root.id}" muss nicht-leerer String sein`);
+            }
+            if (gesehen.has(root.id)) {
+              errors.push(`personalFolder.roots: id "${root.id}" kommt doppelt vor`);
+            }
+            gesehen.add(root.id);
+          }
+        }
       }
     }
   }

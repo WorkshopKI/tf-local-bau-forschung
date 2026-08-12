@@ -22,6 +22,7 @@ import {
   SLOT_CSV_SOURCE_DIR,
   SLOT_VORLAGEN,
   dmsSlot,
+  userFoldersRootSlot,
   istLokalerHandle,
 } from './typen';
 
@@ -40,7 +41,11 @@ function smbSlotNamen(): string[] {
   const namen: string[] = [];
   if (local.datenShare) namen.push(SLOT_DATEN_SHARE);
   if (local.persoenlich) namen.push(SLOT_PERSOENLICH);
+  // Singular = der Alt-Slot (Id „legacy" in der App), Plural = die Gruppen.
+  // Beide dürfen gleichzeitig gesetzt sein, damit der Legacy-Fall lokal
+  // durchspielbar ist.
   if (local.userFoldersRoot) namen.push(SLOT_USER_FOLDERS_ROOT);
+  for (const id of Object.keys(local.userFoldersRoots ?? {})) namen.push(userFoldersRootSlot(id));
   for (const id of Object.keys(local.dmsSources ?? {})) namen.push(dmsSlot(id));
   return namen;
 }
@@ -59,6 +64,9 @@ function pfadFuerSlot(slot: string): string | null {
   if (slot === SLOT_USER_FOLDERS_ROOT) return local.userFoldersRoot ?? null;
   if (slot === SLOT_CSV_SOURCE_DIR) return local.csvSourceDir ?? null;
   if (slot === SLOT_VORLAGEN) return local.vorlagenDir ?? null;
+  for (const [id, pfad] of Object.entries(local.userFoldersRoots ?? {})) {
+    if (slot === userFoldersRootSlot(id)) return pfad;
+  }
   for (const [id, pfad] of Object.entries(local.dmsSources ?? {})) {
     if (slot === dmsSlot(id)) return pfad;
   }

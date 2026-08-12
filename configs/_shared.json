@@ -5,6 +5,12 @@
     "expectedFolderName": "ZAH",
     "shareGeneration": 2,
     "fixedCsvImportPfad": "P:\\cg\\FP\\ZIM\\Abfragen\\"
+  },
+  "personalFolder": {
+    "roots": [
+      { "id": "pl", "label": "PL-Ordner" },
+      { "id": "bearbeiter", "label": "Bearbeiter-Ordner" }
+    ]
   }
 }
 

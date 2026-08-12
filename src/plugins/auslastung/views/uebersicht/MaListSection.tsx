@@ -16,13 +16,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { StorageService } from '@/core/services/storage';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
-import {
-  getUserFoldersRootHandle,
-  pickAndStoreUserFoldersRootHandle,
-  refreshUserFoldersRootPermission,
-} from '@/core/services/infrastructure/smb-handle';
+import { usePersoenlicheWurzeln } from '@/core/hooks/usePersoenlicheWurzeln';
+import { WurzelnVerbinden } from '@/core/components/WurzelnVerbinden';
+import { jeWurzel, juengsterGewinnt, formatiereSammelBericht } from '@/core/services/personal-roots';
 import { useAuslastungData } from '../../hooks/useAuslastungData';
 import { collectUserProfiles } from '../../services/onboarding';
+import { normalizeKuerzel } from '../../services/identitaet';
+import type { PersoenlichesAuslastungProfil } from '../../types';
 import type { useAntraegeCache } from '../../hooks/useAntraegeCache';
 import { useDeAnonResolver } from '../../components/AnonymIdBadge';
 import { detectAktiveMAs, shouldShowAktivVorschlag } from '../../services/kapazitaet';
@@ -78,6 +78,7 @@ export function MaListSection({ storage, cache, warningFilter, onClearWarningFil
   const ensureMitarbeiterForAnonIds = useAuslastungData(s => s.ensureMitarbeiterForAnonIds);
   const applyAggregatedProfiles = useAuslastungData(s => s.applyAggregatedProfiles);
   const [einsammelnMsg, setEinsammelnMsg] = useState<string | null>(null);
+  const { wurzeln, zustaende, verbinde, entferne } = usePersoenlicheWurzeln();
 
   const resolveName = useDeAnonResolver();
   // Filter aus localStorage vorbelegen (überleben Reload/Session); ein
@@ -155,32 +156,29 @@ export function MaListSection({ storage, cache, warningFilter, onClearWarningFil
   });
 
   // v2.6: MA-Selbst-Profile aus den persoenlichen Ordnern einsammeln und in
-  // auslastung.json mergen. Liest ueber den User-Folders-Root (nur read noetig).
-  // Manuell statt auto-on-mount, um die Load-Idempotenz + SMB-Roundtrips nicht
-  // zu unterlaufen. EIN setState + EIN persist im Store (Pitfall #16/#20).
+  // auslastung.json mergen (nur read noetig). Manuell statt auto-on-mount, um
+  // die Load-Idempotenz + SMB-Roundtrips nicht zu unterlaufen.
+  //
+  // v4.1: mehrere Wurzeln. KEIN Auto-Pick mehr im Sammel-Klick — das Verbinden
+  // laeuft ueber die Zeilen daneben, eine je Gruppe mit eigenem Knopf (unter
+  // file:// verbraucht jeder Berechtigungs-Dialog die User-Activation,
+  // recurring-bug §2). Gesammelt wird aus allen freigegebenen Wurzeln, danach
+  // GENAU EIN applyAggregatedProfiles (Pitfall #16/#20). Nicht verbundene
+  // Gruppen stehen in der Meldung statt still zu fehlen.
   const einsammelnAction = useAsyncAction(async () => {
     setEinsammelnMsg(null);
-    let root = await getUserFoldersRootHandle(storage.idb);
-    if (!root) {
-      const res = await pickAndStoreUserFoldersRootHandle(storage.idb);
-      if (!res.ok) {
-        if (res.reason === 'aborted') return;
-        throw new Error(res.message ?? 'Ordner-Auswahl fehlgeschlagen.');
-      }
-      root = res.handle;
-    } else {
-      // v2.59.5: bestehendes Handle re-granten — die Read-Permission kann unter
-      // file:// nach Browser-Neustart verfallen sein; collectUserProfiles würde
-      // dann beim Verzeichnis-Iterieren mit NotAllowedError werfen. Hier sind wir
-      // im Klick-Gesture → requestPermission darf prompten.
-      const perm = await refreshUserFoldersRootPermission(storage.idb);
-      if (perm !== 'granted') {
-        throw new Error('Zugriff auf den Ordner der Teammitglieder wurde nicht erteilt. Bitte erneut versuchen.');
-      }
-    }
-    const profile = await collectUserProfiles(root);
+    const alle: PersoenlichesAuslastungProfil[] = [];
+    const bericht = await jeWurzel(wurzeln, async root => {
+      const teil = await collectUserProfiles(root.handle);
+      alle.push(...teil);
+      return teil.length;
+    });
+    const profile = juengsterGewinnt(alle, p => normalizeKuerzel(p.kuerzel), p => p.updatedAt);
     const { aktualisiert, neu, unzuordenbar } = await applyAggregatedProfiles(storage, profile, cache.anonymMap);
-    const teile = [`${profile.length} Profil(e) gelesen`, `${aktualisiert.length} aktualisiert`];
+    const teile = [
+      formatiereSammelBericht(bericht, { einheit: 'Profil(e) gelesen' }),
+      `${aktualisiert.length} aktualisiert`,
+    ];
     if (neu.length > 0) teile.push(`${neu.length} neu angelegt`);
     if (unzuordenbar.length > 0) teile.push(`${unzuordenbar.length} nicht zuordenbar (${unzuordenbar.join(', ')})`);
     setEinsammelnMsg(teile.join(' · '));
@@ -408,6 +406,16 @@ export function MaListSection({ storage, cache, warningFilter, onClearWarningFil
           {einsammelnAction.error ?? einsammelnMsg}
         </div>
       )}
+
+      {/* Verbinden je Gruppe — ein Knopf, ein Dialog. Verschwindet, sobald alle
+          Wurzeln nutzbar sind. */}
+      <WurzelnVerbinden
+        wurzeln={wurzeln}
+        zustaende={zustaende}
+        verbinde={verbinde}
+        entferne={entferne}
+        hinweis="Zum Einsammeln muss je Gruppe der übergeordnete Ordner mit den persönlichen Ordnern verbunden sein (nur Lesezugriff)."
+      />
 
       {maOpen && (
         <>

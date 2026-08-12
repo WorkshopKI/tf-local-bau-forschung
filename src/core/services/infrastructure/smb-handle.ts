@@ -7,8 +7,10 @@
  *    einstellungen.json, Feedback-Outbox
  *  - Dokumentenquelle (Phase 2, deprecated seit v1.15): Legacy-Single-Slot
  *  - DMS-Source (v1.15): `dms-source-${id}` pro Source (Kurator-Read-Only)
- *  - User-Folders-Root (v2.0): Wurzel der Home-Laufwerke, einmaliger Kurator-
- *    Pick um Feedback-Outboxen einzusammeln
+ *  - Wurzeln der persoenlichen Ordner (v2.0 einzeln, seit v4.1 mehrere):
+ *    `user-folders-root-${rootId}` je Gruppe aus `personalFolder.roots`, um
+ *    Profile, Wuensche, Heartbeats und Feedback-Outboxen einzusammeln. Der
+ *    v2.0-Einzel-Slot `user-folders-root` bleibt lesbar (Id `legacy`).
  *
  * IDB-Layout: Key `smb-handles` → `Record<string, FileSystemDirectoryHandle>`.
  * Legacy-Slot `test-programm` wird beim Laden transparent als Daten-Share gelesen.
@@ -22,6 +24,8 @@ import {
   SMB_HANDLE_LEGACY_TEST_PROGRAMM,
   SMB_HANDLE_PERSOENLICH,
   SMB_HANDLE_USER_FOLDERS_ROOT,
+  USER_FOLDERS_ROOT_SLOT_PREFIX,
+  userFoldersRootSlotKey,
   DMS_SOURCE_SLOT_PREFIX,
   dmsSourceSlotKey,
   PROGRAMM_SUBDIRS,
@@ -37,6 +41,7 @@ import {
   CSV_SOURCE_DIR_HANDLE_IDB_KEY,
 } from './types';
 import { canWriteDatenShare, isKuratorMenusEnabled, isCsvAutoRefreshEnabled } from '@/config/feature-flags';
+import { personalRoots, PERSONAL_ROOT_LEGACY_ID, PERSONAL_ROOT_LEGACY_LABEL } from '@/config/personal-roots';
 import { mitLokalenHandles, ohneLokaleHandles, lokalerSlotHandle } from './local-fs/slots';
 
 type PermState = 'granted' | 'denied' | 'prompt';
@@ -464,62 +469,120 @@ export async function ensurePersoenlichFolders(parent: FileSystemDirectoryHandle
 }
 
 /* --------------------------------------------------------------------------
- * v2.0: User-Folders-Root (Kurator-Pick fuer Outbox-Einsammeln)
+ * v4.1: Wurzeln der persoenlichen Ordner (Kurator-Pick fuer das Einsammeln)
+ *
+ * Bis v4.0 war das EIN Slot. Seit v4.1 liegen die persoenlichen Ordner unter
+ * mehreren Wurzeln (`personalFolder.roots`) — je Gruppe ein Slot unter dem
+ * Praefix, nach demselben Muster wie die DMS-Sources. Der Alt-Slot bleibt
+ * lesbar und erscheint als eigener Eintrag `legacy`.
+ *
+ * Alle Funktionen nehmen die `rootId` explizit: es gibt keinen „den" Root mehr,
+ * und die Signaturaenderung zwingt jede Aufrufstelle zu einer Entscheidung.
  * -------------------------------------------------------------------------- */
 
-export async function pickAndStoreUserFoldersRootHandle(idb: IDBStore): Promise<PickResult> {
-  const res = await pickDirectory('read', SMB_HANDLE_USER_FOLDERS_ROOT);
+/**
+ * Eine Wurzel, wie die App sie sieht: immer mit Beschriftung, auch wenn (noch)
+ * kein Handle verbunden ist. Nicht verbundene Wurzeln SIND ein Zustand und
+ * duerfen nicht stillschweigend aus der Liste fallen — bei zwei Wurzeln saehe
+ * Teil-Einsammeln sonst aus wie Erfolg.
+ */
+export interface UserFoldersRoot {
+  id: string;
+  label: string;
+  handle: FileSystemDirectoryHandle | null;
+  /** true fuer den Alt-Slot `user-folders-root` (v2.0-Einzelwurzel). */
+  legacy: boolean;
+}
+
+/**
+ * Alle Wurzeln in Config-Reihenfolge, danach — falls belegt — der Alt-Slot.
+ * Rein lesend: KEIN Picker, KEIN `requestPermission`, damit Mount- und
+ * Timer-Pfade das gefahrlos aufrufen koennen.
+ */
+export async function getUserFoldersRoots(idb: IDBStore): Promise<UserFoldersRoot[]> {
+  const map = await readAll(idb);
+  const roots: UserFoldersRoot[] = personalRoots().map(def => ({
+    id: def.id,
+    label: def.label,
+    handle: map[userFoldersRootSlotKey(def.id)] ?? null,
+    legacy: false,
+  }));
+  const alt = map[SMB_HANDLE_USER_FOLDERS_ROOT];
+  if (alt) {
+    roots.push({
+      id: PERSONAL_ROOT_LEGACY_ID,
+      label: PERSONAL_ROOT_LEGACY_LABEL,
+      handle: alt,
+      legacy: true,
+    });
+  }
+  return roots;
+}
+
+/** Oeffnet den Picker (read) und persistiert die Wurzel `rootId`. Ein Dialog. */
+export async function pickAndStoreUserFoldersRoot(
+  idb: IDBStore,
+  rootId: string,
+): Promise<PickResult> {
+  const slot = rootId === PERSONAL_ROOT_LEGACY_ID
+    ? SMB_HANDLE_USER_FOLDERS_ROOT
+    : userFoldersRootSlotKey(rootId);
+  const res = await pickDirectory('read', slot);
   if ('aborted' in res) return { ok: false, reason: 'aborted' };
   if ('error' in res) {
     return { ok: false, reason: res.error.includes('nicht verfügbar') ? 'unsupported' : 'error', message: res.error };
   }
   const map = await readAll(idb);
-  map[SMB_HANDLE_USER_FOLDERS_ROOT] = res;
+  map[slot] = res;
   await writeAll(idb, map);
   return { ok: true, handle: res };
 }
 
-export async function getUserFoldersRootHandle(idb: IDBStore): Promise<FileSystemDirectoryHandle | null> {
+/** Entfernt die Wurzel `rootId` aus der Map (auch den Alt-Slot). */
+export async function clearUserFoldersRoot(idb: IDBStore, rootId: string): Promise<void> {
   const map = await readAll(idb);
-  return map[SMB_HANDLE_USER_FOLDERS_ROOT] ?? null;
-}
-
-export async function clearUserFoldersRootHandle(idb: IDBStore): Promise<void> {
-  const map = await readAll(idb);
-  delete map[SMB_HANDLE_USER_FOLDERS_ROOT];
+  delete map[rootId === PERSONAL_ROOT_LEGACY_ID
+    ? SMB_HANDLE_USER_FOLDERS_ROOT
+    : userFoldersRootSlotKey(rootId)];
   await writeAll(idb, map);
 }
 
 /**
- * Non-invasiver Permission-Status des User-Folders-Root-Handles (`queryPermission`
- * read, KEIN Gesture). Für Auto-Load-/Timer-Pfade, die das Verzeichnis sonst
- * blind iterieren würden (→ `NotAllowedError`, wenn die Permission unter
- * `file://` nach Neustart verfallen ist). `'missing'` wenn kein Handle in IDB.
+ * Non-invasiver Permission-Status ALLER Wurzeln (`queryPermission` read, KEIN
+ * Gesture) als `{ rootId: state }`. Für Auto-Load-/Timer-Pfade, die die
+ * Verzeichnisse sonst blind iterieren würden (→ `NotAllowedError`, wenn die
+ * Permission unter `file://` nach Neustart verfallen ist). Nicht verbundene
+ * Wurzeln stehen als `'missing'` drin.
  */
-export async function queryUserFoldersRootPermission(
+export async function queryUserFoldersRootPermissions(
   idb: IDBStore,
-): Promise<PermStateOrMissing> {
-  const map = await readAll(idb);
-  const handle = map[SMB_HANDLE_USER_FOLDERS_ROOT];
-  if (!handle) return 'missing';
-  try {
-    return await (handle as FsDirHandle).queryPermission({ mode: 'read' });
-  } catch {
-    return 'denied';
+): Promise<Record<string, PermStateOrMissing>> {
+  const roots = await getUserFoldersRoots(idb);
+  const out: Record<string, PermStateOrMissing> = {};
+  for (const root of roots) {
+    if (!root.handle) { out[root.id] = 'missing'; continue; }
+    try {
+      out[root.id] = await (root.handle as FsDirHandle).queryPermission({ mode: 'read' });
+    } catch {
+      out[root.id] = 'denied';
+    }
   }
+  return out;
 }
 
 /**
- * Gibt das User-Folders-Root-Handle (read) frei. MUSS aus einem User-Gesture-
- * Handler laufen → ein Prompt. Spiegel von `refreshCsvSourceDirPermission`:
- * no-op't, wenn die Permission schon `granted` ist (kein Doppel-Prompt).
- * `'missing'` wenn kein Handle in IDB.
+ * Gibt GENAU EINE Wurzel (read) frei. MUSS aus einem User-Gesture-Handler
+ * laufen → ein Prompt. Bewusst Singular: unter `file://` verbraucht Chromium
+ * die User-Activation pro Prompt, eine Schleife ueber N Wurzeln wuerde ab der
+ * zweiten still verhungern (recurring-bug §2). N Wurzeln = N Klicks.
+ * No-op't bei bereits `granted` (kein Doppel-Prompt); `'missing'` ohne Handle.
  */
 export async function refreshUserFoldersRootPermission(
   idb: IDBStore,
+  rootId: string,
 ): Promise<PermStateOrMissing> {
-  const map = await readAll(idb);
-  const handle = map[SMB_HANDLE_USER_FOLDERS_ROOT];
+  const roots = await getUserFoldersRoots(idb);
+  const handle = roots.find(r => r.id === rootId)?.handle;
   if (!handle) return 'missing';
   try {
     const h = handle as FsDirHandle;
@@ -539,7 +602,8 @@ export type PermStateOrMissing = 'granted' | 'denied' | 'prompt' | 'missing';
 export interface RefreshAllResult {
   datenShare: PermStateOrMissing;
   persoenlich: PermStateOrMissing;
-  userFoldersRoot: PermStateOrMissing;
+  /** v4.1: Zustand je Wurzel-Id (inkl. `legacy`); leer wenn Nicht-Kurator. */
+  userFoldersRoots: Record<string, PermStateOrMissing>;
   dmsSources: Record<string, PermStateOrMissing>;
 }
 
@@ -566,14 +630,14 @@ export async function refreshAllPermissions(
   const result: RefreshAllResult = {
     datenShare: 'missing',
     persoenlich: 'missing',
-    userFoldersRoot: 'missing',
+    userFoldersRoots: {},
     dmsSources: {},
   };
 
   const datenShare = map[SMB_HANDLE_DATEN_SHARE] ?? map[SMB_HANDLE_LEGACY_TEST_PROGRAMM];
   if (datenShare) {
     // Schreibrecht: Kurator ODER Build erlaubt es generell (pl-Variante).
-    // userFoldersRoot/DMS unten bleiben bewusst kurator-only.
+    // userFoldersRoots/DMS unten bleiben bewusst kurator-only.
     const mode = canWriteDatenShare(opts.isKurator) ? 'readwrite' : 'read';
     try {
       result.datenShare = await (datenShare as FsDirHandle).requestPermission({ mode });
@@ -592,12 +656,21 @@ export async function refreshAllPermissions(
   }
 
   if (opts.isKurator) {
-    const userFolders = map[SMB_HANDLE_USER_FOLDERS_ROOT];
-    if (userFolders) {
+    for (const key of Object.keys(map)) {
+      if (!key.startsWith(USER_FOLDERS_ROOT_SLOT_PREFIX)) continue;
+      const rootId = key.slice(USER_FOLDERS_ROOT_SLOT_PREFIX.length);
       try {
-        result.userFoldersRoot = await (userFolders as FsDirHandle).requestPermission({ mode: 'read' });
+        result.userFoldersRoots[rootId] = await (map[key] as FsDirHandle).requestPermission({ mode: 'read' });
       } catch {
-        result.userFoldersRoot = 'denied';
+        result.userFoldersRoots[rootId] = 'denied';
+      }
+    }
+    const alt = map[SMB_HANDLE_USER_FOLDERS_ROOT];
+    if (alt) {
+      try {
+        result.userFoldersRoots[PERSONAL_ROOT_LEGACY_ID] = await (alt as FsDirHandle).requestPermission({ mode: 'read' });
+      } catch {
+        result.userFoldersRoots[PERSONAL_ROOT_LEGACY_ID] = 'denied';
       }
     }
 
@@ -788,7 +861,7 @@ export async function queryAllPermissions(
   const result: RefreshAllResult = {
     datenShare: 'missing',
     persoenlich: 'missing',
-    userFoldersRoot: 'missing',
+    userFoldersRoots: {},
     dmsSources: {},
   };
 
@@ -812,12 +885,21 @@ export async function queryAllPermissions(
   }
 
   if (opts.isKurator) {
-    const userFolders = map[SMB_HANDLE_USER_FOLDERS_ROOT];
-    if (userFolders) {
+    for (const key of Object.keys(map)) {
+      if (!key.startsWith(USER_FOLDERS_ROOT_SLOT_PREFIX)) continue;
+      const rootId = key.slice(USER_FOLDERS_ROOT_SLOT_PREFIX.length);
       try {
-        result.userFoldersRoot = await (userFolders as FsDirHandle).queryPermission({ mode: 'read' });
+        result.userFoldersRoots[rootId] = await (map[key] as FsDirHandle).queryPermission({ mode: 'read' });
       } catch {
-        result.userFoldersRoot = 'denied';
+        result.userFoldersRoots[rootId] = 'denied';
+      }
+    }
+    const alt = map[SMB_HANDLE_USER_FOLDERS_ROOT];
+    if (alt) {
+      try {
+        result.userFoldersRoots[PERSONAL_ROOT_LEGACY_ID] = await (alt as FsDirHandle).queryPermission({ mode: 'read' });
+      } catch {
+        result.userFoldersRoots[PERSONAL_ROOT_LEGACY_ID] = 'denied';
       }
     }
 
