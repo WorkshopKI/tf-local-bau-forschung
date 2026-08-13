@@ -18,6 +18,9 @@
   background: var(--tf-bg);
   color: var(--tf-text);
   overflow: hidden;
+  /* Bezug für das Einstellungs-Panel, das unter dem Kopf HÄNGT statt das Board
+     nach unten zu schieben — sonst sprängen beim Öffnen alle Bahnen. */
+  position: relative;
 }
 
 .kv-kopf {
@@ -47,6 +50,76 @@
   font-size: 12px;
   color: var(--tf-text-tertiary);
   font-variant-numeric: tabular-nums;
+}
+
+.kv-zahnrad {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--tf-radius-sm);
+  color: var(--tf-text-tertiary);
+  cursor: pointer;
+}
+.kv-zahnrad:hover,
+.kv-zahnrad[aria-expanded='true'] {
+  background: var(--tf-hover);
+  color: var(--tf-text);
+}
+
+/* Das Panel HÄNGT unter dem Kopf (kein Flex-Kind): sonst schöbe jedes Öffnen
+   das Board nach unten und die Bahnen änderten ihre Höhe. */
+.kv-einst {
+  position: absolute;
+  z-index: 5;
+  top: 44px;
+  right: 14px;
+  width: 300px;
+  max-height: calc(100vh - 64px);
+  overflow-y: auto;
+  padding: 10px 12px 12px;
+  border: var(--tf-border-thin) solid var(--tf-border);
+  border-radius: var(--tf-radius-lg);
+  background: var(--tf-card-surface);
+  box-shadow: var(--tf-shadow-dialog);
+}
+.kv-einst-kopf {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+  font-size: 10.5px;
+  font-weight: var(--tf-weight-medium);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--tf-text-tertiary);
+}
+.kv-einst-kopf button {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--tf-radius-sm);
+  color: var(--tf-text-tertiary);
+  cursor: pointer;
+}
+.kv-einst-kopf button:hover {
+  background: var(--tf-hover);
+  color: var(--tf-text);
+}
+/* `--tf-text-secondary`, nicht `-tertiary` wie die übrigen Erklärzeilen des
+   Formulars: dieser Satz beugt einem Missverständnis vor (die Spaltenzahl wirkt
+   im Fenster nicht) und muss dafür lesbar sein — gemessen 2,5:1 gegen 5,4:1. */
+.kv-einst-hinweis {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: var(--tf-border-thin) solid var(--tf-border);
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--tf-text-secondary);
 }
 
 /* Der Stand friert ein, sobald die Startseite verlassen wird — das Fenster sagt

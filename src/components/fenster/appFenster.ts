@@ -120,8 +120,11 @@ export function oeffneAppFenster(
   try {
     const doc = win.document;
     doc.documentElement.lang = 'de';
-    doc.title = titel;
     doc.head.innerHTML = `<meta charset="utf-8"><base href="${document.baseURI}">`;
+    // NACH dem Kopf-Schreiben: `doc.title = …` legt ein `<title>` in den Kopf,
+    // und ein `head.innerHTML` danach räumte es wieder weg — das Fenster hieß
+    // dann in der Titelzeile „about:blank".
+    doc.title = titel;
     doc.body.innerHTML = '';
 
     spiegleStile(doc);

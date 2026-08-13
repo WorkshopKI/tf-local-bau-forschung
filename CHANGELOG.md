@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.10.0 — Kanban-Fenster merkt eingeklappte Bahnen und traegt die Einstellungen (August 2026)
+
+MINOR — Das Kanban-Fenster aus v3.47 war eine Ansicht zum Anschauen; gewünscht war eine zum Einrichten. Beides hing an derselben Frage: Wo darf Zustand liegen, wenn das Fenster seine Startseite überlebt?
+
+- **Eingeklappte Bahnen überleben das Fenster** ([types.ts](src/plugins/home/widgets/types.ts), [home-widgets.md](docs/architecture/home-widgets.md)): `vollbildEingeklappt` in der Widget-Config, geschrieben über `mutiereConfig` auf den aktuellen Stand — im Widget bleibt das Einklappen flüchtig
+- **Das Board-Primitiv nimmt den Einklapp-Zustand von außen** ([TfBoard.tsx](src/components/kanban/TfBoard.tsx), [board-komponente.md](docs/architecture/board-komponente.md)): optionale `einklapp`-Naht, Speicherform ist eine Liste statt der vollen Wunsch-Karte
+- **Zahnrad im Fensterkopf zeigt dieselbe `WidgetConfigForm`** ([VollbildEinstellungen.tsx](src/plugins/home/widgets/VollbildEinstellungen.tsx), [fenster-in-fenster.md](docs/architecture/fenster-in-fenster.md)): der Storage-Kontext wird als Wert nachgereicht, kein Radix-Overlay im Fenster
+- **`Escape` schließt erst das Panel, dann das Fenster** ([KanbanVollbild.tsx](src/plugins/home/widgets/KanbanVollbild.tsx)): Zuhörer am Fenster-Dokument in der Einfang-Phase — Reacts delegierter Griff erreichte einen Tastendruck ohne Fokus im Baum nie (gemessen: das Fenster ging zu)
+- **Fenstertitel war leer** ([appFenster.ts](src/components/fenster/appFenster.ts)): `head.innerHTML` räumte das eben gesetzte `<title>` wieder weg, die Titelzeile zeigte „about:blank"
+
 ### v4.9.1 — Startseiten-Menue oeffnet einstoeckig und bleibt am Ausloeser (August 2026)
 
 PATCH — Zwei Meldungen zum Rechtsklick-Menü aus v4.7.0, eine Wurzel: das Untermenü ging beim Öffnen automatisch mit auf, verdoppelte damit die gemessene Breite, und Radix schob die ganze Gruppe vom Auslöser weg nach links. Das Ergebnis sah nach zwei Fehlern aus und war einer.

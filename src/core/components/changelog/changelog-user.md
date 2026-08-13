@@ -19,6 +19,18 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.10 — 2026-08
+
+### Neu
+- Das Kanban im eigenen Fenster lässt sich jetzt dort einrichten: Ein Zahnrad in der Titelzeile öffnet dieselben Einstellungen wie auf der Startseite (Bahnen, Spalten, Farben) — Sie müssen dafür nicht mehr zurück.
+
+### Verbesserungen
+- Bahnen, die Sie im eigenen Fenster einklappen, bleiben eingeklappt — auch nachdem Sie das Fenster geschlossen und wieder geöffnet haben. Im Widget auf der Startseite gilt das Einklappen weiterhin nur für den Moment.
+- `Esc` schließt bei offenen Einstellungen erst diese und nicht mehr gleich das ganze Fenster.
+
+### Bugfixes
+- Das Kanban-Fenster hieß in der Titelzeile „about:blank". Es trägt jetzt seinen Namen.
+
 ## v4.9 — 2026-08
 
 ### Bugfixes

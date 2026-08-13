@@ -28,6 +28,7 @@ import { bahnAnsicht, istSchiene, type TfBahnWunsch } from './tfBoardBahn';
 import type {
   TfBoardBahn,
   TfBoardDnd,
+  TfBoardEinklapp,
   TfBoardFeatures,
   TfBoardNachladen,
   TfBoardProps,
@@ -45,6 +46,7 @@ export function TfBoard<T>({
   label,
   layout = 'gedeckelt',
   features,
+  einklapp,
   nachladen,
   dnd,
   className,
@@ -75,6 +77,7 @@ export function TfBoard<T>({
           key={bahn.key}
           bahn={bahn}
           features={features}
+          einklapp={einklapp}
           nachladen={nachladen}
           dnd={dnd}
           renderCard={renderCard}
@@ -84,16 +87,24 @@ export function TfBoard<T>({
   );
 }
 
-function Bahn<T>({ bahn, features, nachladen, dnd, renderCard }: {
+function Bahn<T>({ bahn, features, einklapp, nachladen, dnd, renderCard }: {
   bahn: TfBoardBahn<T>;
   features: TfBoardFeatures | undefined;
+  einklapp: TfBoardEinklapp | undefined;
   nachladen: TfBoardNachladen | undefined;
   dnd: TfBoardDnd<T> | undefined;
   renderCard: TfBoardProps<T>['renderCard'];
 }): React.ReactElement {
   const [limit, setLimit] = useState(nachladen?.start ?? 0);
   const [ueber, setUeber] = useState(false);
-  const [wunsch, setWunsch] = useState<TfBahnWunsch>('auto');
+  // Gesteuert ODER selbst gehalten — der lokale Zustand bleibt bestehen, damit
+  // die Naht optional bleibt (und die Hook-Reihenfolge unabhängig von der Prop).
+  const [eigenerWunsch, setEigenenWunsch] = useState<TfBahnWunsch>('auto');
+  const wunsch = einklapp ? (einklapp.wuensche[bahn.key] ?? 'auto') : eigenerWunsch;
+  const setWunsch = (w: TfBahnWunsch): void => {
+    if (einklapp) einklapp.onWunsch(bahn.key, w);
+    else setEigenenWunsch(w);
+  };
 
   const bestand = bahn.items.length;
   // Beim Wechsel der Sicht/Filter wieder oben anfangen — sonst zeigt eine frisch

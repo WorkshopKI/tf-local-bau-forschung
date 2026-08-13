@@ -55,6 +55,24 @@ Die Folge für den Inhalt: **reine Props, keine App-Hooks**. Im zweiten Baum gib
 noch Storage-Kontext — `useNavigation()` liefe ins Leere. Alles, was nach draußen wirkt, kommt als
 Callback aus dem mountenden Widget. Zustand-Stores dagegen sind Modul-Singletons und funktionieren.
 
+## Was ein Bauteil braucht, das doch Kontext will
+
+Die Kanban-Einstellungen im Fenster sind **dasselbe** `WidgetConfigForm` wie auf der Startseite, und
+das ruft `useStorage()`. Statt einer zweiten Fassung reicht
+[VollbildEinstellungen](../../src/plugins/home/widgets/VollbildEinstellungen.tsx) den Kontext nach:
+
+- **Der Dienst kommt als Wert herein** und wird im Fenster neu bereitgestellt
+  (`<StorageContext.Provider value={storage}>`). Das trägt, weil beide Bäume im selben Realm laufen —
+  dasselbe React-Modul, dasselbe Kontext-Objekt. Das Element entsteht im Widget, seine **Hooks laufen
+  dort, wo es gerendert wird**.
+- **Der Store wird gelesen, nicht durchgereicht.** Zustand braucht keinen Kontext, also ist das
+  Formular von sich aus lebendig — auch dann noch, wenn die Startseite ausgehängt ist.
+- **Kein Radix-Overlay im Fenster.** Ein `Select`/`Popover` portaliert in den Body des Haupt-
+  dokuments (`document` ist modulglobal) und erschiene hinter dem Fenster, in dem man es geöffnet
+  hat. Deshalb dort der Popover-Umfang (Bahnen + Farben), nicht der volle mit „Quelle"/„Datenbasis".
+- **`Escape` hat zwei Bedeutungen.** Der Zuhörer am Dokument schließt das Fenster; steht ein Panel
+  offen, hält der Griff an der Seitenwurzel das Ereignis auf und schließt erst das Panel.
+
 ## Der Griff überlebt sein Widget
 
 Ein Klick auf eine Karte im Fenster navigiert die App und hängt damit die Startseite aus dem Baum.
@@ -64,6 +82,12 @@ Modul-Register (`useKanbanVollbild.ts`), gekeyt nach Widget-Instanz.
 Beim Aushängen bekommt das Fenster **einen letzten Zustand mit `verwaist`** — es sagt selbst, dass
 es nicht mehr nachgeführt wird, statt einen alten Stand als aktuellen auszugeben. Kehrt die
 Startseite zurück, klinkt sich das Widget wieder ein und der Hinweis verschwindet.
+
+Daraus folgt, **wo Zustand liegen darf**: Bedienbares gehört ins Fenster. Der Einklapp-Zustand der
+Bahnen ist deshalb `useState` in `KanbanVollbild` und wird nur *beim Aufbau* aus der Config
+gelesen — läge er drüben, ließe sich nach dem ersten Karten-Klick keine Bahn mehr klappen, weil
+niemand mehr nachzeichnet. Umgekehrt schreibt das Fenster **nie** auf einem mitgeschleppten Stand:
+`mutiereConfig` patcht den aktuellen, sonst nähme ein verwaistes Fenster fremde Änderungen zurück.
 
 ## Was der Dev-Server nicht zeigen kann
 

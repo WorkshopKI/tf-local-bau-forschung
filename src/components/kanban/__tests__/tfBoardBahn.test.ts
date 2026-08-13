@@ -12,7 +12,14 @@
  * vorübergehend schmal stellen.
  */
 import { describe, expect, it } from 'vitest';
-import { bahnAnsicht, istSchiene, type TfBahnAnsicht, type TfBahnWunsch } from '../tfBoardBahn';
+import {
+  bahnAnsicht,
+  eingeklappteBahnen,
+  istSchiene,
+  wunschAusEingeklappten,
+  type TfBahnAnsicht,
+  type TfBahnWunsch,
+} from '../tfBoardBahn';
 
 const leer = (wunsch: TfBahnWunsch): TfBahnAnsicht =>
   bahnAnsicht({ leer: true, unerreichbar: false, wunsch });
@@ -72,5 +79,40 @@ describe('bahnAnsicht', () => {
     expect(istSchiene(voll('zu'))).toBe(true);
     expect(istSchiene(voll('auto'))).toBe(false);
     expect(istSchiene(leer('offen'))).toBe(false);
+  });
+});
+
+/**
+ * Die Speicherform des Einklappens. Persistiert wird eine LISTE, nicht die volle
+ * Wunsch-Karte — sie ist die einzige Aussage, die eine Sitzung überdauern soll.
+ */
+describe('Einklapp-Zustand ⇄ Speicherform', () => {
+  it('macht aus der gespeicherten Liste lauter „zu"', () => {
+    expect(wunschAusEingeklappten(['bewilligt', 'offen'])).toEqual({
+      bewilligt: 'zu',
+      offen: 'zu',
+    });
+    expect(wunschAusEingeklappten([])).toEqual({});
+  });
+
+  // `auto` und `offen` sind für eine gefüllte Bahn dasselbe Bild — nur `zu` ist
+  // eine Aussage, die beim nächsten Öffnen noch etwas bedeutet.
+  it('speichert nur die eingeklappten Bahnen, sortiert', () => {
+    expect(eingeklappteBahnen({ offen: 'zu', abgelehnt: 'auto', bewilligt: 'zu' }))
+      .toEqual(['bewilligt', 'offen']);
+    expect(eingeklappteBahnen({ offen: 'offen', bewilligt: 'auto' })).toEqual([]);
+  });
+
+  it('kommt hin und zurück', () => {
+    const gespeichert = ['abgelehnt', 'bewilligt'];
+    expect(eingeklappteBahnen(wunschAusEingeklappten(gespeichert))).toEqual(gespeichert);
+  });
+
+  // Eine Bahn, die es nicht mehr gibt, bleibt in der Liste stehen und stört
+  // nicht: die Karte wird je Bahn-Schlüssel GEFRAGT, nicht durchlaufen.
+  it('verträgt Schlüssel, zu denen es keine Bahn mehr gibt', () => {
+    const wuensche = wunschAusEingeklappten(['weggefallen']);
+    expect(wuensche['offen'] ?? 'auto').toBe('auto');
+    expect(eingeklappteBahnen(wuensche)).toEqual(['weggefallen']);
   });
 });

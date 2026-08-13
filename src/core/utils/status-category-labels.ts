@@ -79,6 +79,17 @@ export const KATEGORIE_REIHENFOLGE: readonly StatusCategory[] = [
   'bewilligt', 'begleitung', 'abgelehnt', 'abgeschlossen', 'sonstige',
 ];
 
+const KATEGORIE_WERTE = new Set<string>(KATEGORIE_REIHENFOLGE);
+
+/**
+ * Ist diese Zeichenkette eine Kategorie? Der Prüfstein für Werte, die aus einem
+ * gespeicherten Stand zurückkommen — eine Config überlebt Umbenennungen, der
+ * Typ tut es nicht.
+ */
+export function istStatusCategory(wert: string): wert is StatusCategory {
+  return KATEGORIE_WERTE.has(wert);
+}
+
 /**
  * Zusammenfassungen mehrerer Kategorien. Ihre Namen kommen mit keiner
  * Kategoriebezeichnung überein — das ist die Zusage, nicht ein Zufall.

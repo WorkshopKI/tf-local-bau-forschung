@@ -65,6 +65,17 @@ export interface HomeWidgetsApi {
   setEingeklappt: (id: string, eingeklappt: boolean) => Promise<void>;
   move: (id: string, richtung: 'hoch' | 'runter') => Promise<void>;
   updateConfig: (id: string, config: WidgetSpezifischeConfig) => Promise<void>;
+  /**
+   * Wie `updateConfig`, aber die neue Config entsteht aus dem AKTUELLEN Stand
+   * statt aus dem, den der Aufrufer in der Hand hält. Für Schreiber, die außerhalb
+   * des Render-Takts sitzen — das Vollbild-Fenster lebt weiter, wenn die
+   * Startseite längst ausgehängt ist, und würde mit `updateConfig` einen alten
+   * Stand zurückschreiben und fremde Änderungen mitnehmen.
+   */
+  mutiereConfig: (
+    id: string,
+    aendere: (config: WidgetSpezifischeConfig) => WidgetSpezifischeConfig,
+  ) => Promise<void>;
   /** „Alles einklappen"/-aufklappen über beide Spalten (nur sichtbare Widgets). */
   alleEinklappen: (eingeklappt: boolean) => Promise<void>;
   /** Der „alle"-Schalter einer Spalte im Widgets-Untermenü. */
@@ -104,6 +115,11 @@ export function useHomeWidgets(): HomeWidgetsApi {
       setEingeklappt: (id, eingeklappt) => patchInstanz(id, { eingeklappt }),
       move: (id, richtung) => mutiere(idb, cfg => moveInstanz(cfg, id, richtung)),
       updateConfig: (id, config_) => patchInstanz(id, { config: config_ }),
+      mutiereConfig: (id, aendere) =>
+        mutiere(idb, cfg => ({
+          ...cfg,
+          widgets: cfg.widgets.map(w => (w.id === id ? { ...w, config: aendere(w.config) } : w)),
+        })),
       alleEinklappen: eingeklappt => mutiere(idb, cfg => setzeAlleEingeklappt(cfg, eingeklappt)),
       setSichtbarBereich: (bereich, sichtbar) =>
         mutiere(idb, cfg => setzeSichtbarkeitBereich(cfg, bereich, sichtbar)),

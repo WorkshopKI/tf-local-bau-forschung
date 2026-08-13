@@ -92,6 +92,16 @@ export interface AntragKanbanWidgetConfig extends KanbanWidgetConfigBasis {
   /** UserPreset.id aus idb-filter; bei gelöschtem Preset Fallback auf Grundmenge. */
   presetId?: string;
   lanes: KanbanLane[];
+  /**
+   * Im EIGENEN FENSTER von Hand eingeklappte Bahnen. Nur dort persistiert: das
+   * Fenster zeigt alle neun Kategorien und ist die Ansicht, in der man sich
+   * einrichtet — im Widget hängt der Body ohnehin bei jedem Seitenwechsel aus
+   * dem DOM, ein gespeicherter Zustand hätte dort nichts zu überleben.
+   *
+   * Eine Liste von Kategorien, kein Wunsch-Objekt: „eingeklappt" ist die einzige
+   * Aussage, die eine Sitzung überdauern soll (`eingeklappteBahnen`).
+   */
+  vollbildEingeklappt?: StatusCategory[];
 }
 
 /** Kanban aus Feedback-Tickets: Lanes = Feedback-Status (kein Antrags-Preset). */

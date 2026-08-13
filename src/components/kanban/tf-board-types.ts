@@ -9,6 +9,7 @@
  * `StatusCategory` (Pitfall #12) bzw. `FeedbackStatus` (Pitfall #21), und beides
  * hat hier nichts verloren.
  */
+import type { TfBahnWunsch, TfBahnWuensche } from './tfBoardBahn';
 
 /** Strukturell statt `LucideIcon`: auch dynamische Resolver (`getLucideIcon`)
  *  liefern eine Komponente dieser Form. */
@@ -84,6 +85,22 @@ export interface TfBoardFeatures {
 }
 
 /**
+ * Der Einklapp-Zustand von AUSSEN. Ohne diese Naht hält jede Bahn ihren Wunsch
+ * selbst — flüchtig, was für ein Board richtig ist, das man beim nächsten Besuch
+ * ohnehin neu aufbaut.
+ *
+ * Gesetzt heißt: der Aufrufer besitzt den Zustand und darf ihn überleben lassen.
+ * Das Primitiv persistiert nichts (es kennt keinen Speicher) — es fragt und
+ * meldet. Wirkt nur zusammen mit `features.einklappbar`; ohne das Flag gibt es
+ * keine Geste, die etwas zu melden hätte.
+ */
+export interface TfBoardEinklapp {
+  /** Wunsch je Bahn-Schlüssel; fehlender Schlüssel = `auto`. */
+  wuensche: TfBahnWuensche;
+  onWunsch: (key: string, wunsch: TfBahnWunsch) => void;
+}
+
+/**
  * DOM-Budget je Bahn. Gesetzt ⇒ das Primitiv kappt selbst, rendert „+ N weitere"
  * und fängt bei Bestandswechsel wieder oben an (sonst zeigt eine frisch
  * gefilterte Bahn mit drei Treffern noch das aufgeklappte Limit von vorhin).
@@ -138,6 +155,9 @@ export interface TfBoardProps<T> {
    */
   layout?: 'gedeckelt' | 'geteilt';
   features?: TfBoardFeatures;
+  /** Einklapp-Zustand von außen (persistierbar). Ohne die Prop hält ihn jede
+   *  Bahn selbst — dann ist er mit dem nächsten Aufbau weg. */
+  einklapp?: TfBoardEinklapp;
   nachladen?: TfBoardNachladen;
   dnd?: TfBoardDnd<T>;
   /**

@@ -32,7 +32,8 @@ import { useAntraegeStore } from '@/plugins/antraege/store';
 import { useBereich } from '@/core/hooks/useBereich';
 import { istImBereich } from '@/core/status/betrachtungsbereich';
 import { bearbeiterScopeLabel, parseBearbeiterFilter } from '@/plugins/antraege/bearbeiterFilter';
-import { getStatusCategoryLabel } from '@/core/utils/status-category-labels';
+import { getStatusCategoryLabel, istStatusCategory } from '@/core/utils/status-category-labels';
+import { useHomeWidgets } from './useHomeWidgets';
 import { WIDGET_KATALOG } from './widgetCatalog';
 import {
   buildAlleAntragKanbanLanes,
@@ -45,6 +46,7 @@ import { KATEGORIE_ICON } from './kanbanIcons';
 import { KanbanKarteView } from './KanbanKarteView';
 import { KanbanVollbild } from './KanbanVollbild';
 import { useKanbanVollbild } from './useKanbanVollbild';
+import { VollbildEinstellungen } from './VollbildEinstellungen';
 import type { AntragKanbanWidgetConfig } from './types';
 import { WidgetShell } from './WidgetShell';
 import type { WidgetProps } from './widgetProps';
@@ -62,6 +64,7 @@ const OHNE_PRESET: PresetZustand = { preset: null, fehlt: false, definitions: []
 
 export function AntragKanbanWidget({ instanz, onToggleEingeklappt }: WidgetProps): React.ReactElement {
   const storage = useStorage();
+  const widgets = useHomeWidgets();
   const { navigate } = useNavigation();
   const alleAntraege = useAntraegeStore(s => s.antraege);
   const bereichMenge = useBereich().menge;
@@ -157,6 +160,18 @@ export function AntragKanbanWidget({ instanz, onToggleEingeklappt }: WidgetProps
   // der Hook ruft die Funktion nur bei offenem Fenster, und `useCallback`
   // bindet sie an dieselben Daten-Abhängigkeiten. Ohne offenes Fenster wird die
   // zweite Projektion damit nie gerechnet.
+  // Das Fenster meldet seinen Einklapp-Stand, die Config hält ihn. Geschrieben
+  // wird auf den AKTUELLEN Stand (`mutiereConfig`) und nicht auf das `cfg` aus
+  // diesem Rendervorgang: das Fenster lebt weiter, wenn die Startseite längst
+  // ausgehängt ist — ein mitgeschlepptes `cfg` nähme fremde Änderungen zurück.
+  const merkeEingeklappt = useCallback((bahnen: string[]): void => {
+    const vollbildEingeklappt = bahnen.filter(istStatusCategory);
+    void widgets.mutiereConfig(instanz.id, alt =>
+      (alt.art === 'kanban' && alt.quelle === 'antraege'
+        ? { ...alt, vollbildEingeklappt }
+        : alt));
+  }, [widgets, instanz.id]);
+
   const zeichneVollbild = useCallback((verwaist: boolean): React.ReactNode => {
     const voll = buildAlleAntragKanbanLanes(basis, cfg.lanes);
     return (
@@ -167,6 +182,12 @@ export function AntragKanbanWidget({ instanz, onToggleEingeklappt }: WidgetProps
         gesamt={voll.gesamt}
         farbmodus={cfg.farbmodus}
         verwaist={verwaist}
+        eingeklappt={cfg.vollbildEingeklappt}
+        onEinklapp={merkeEingeklappt}
+        // Das Element entsteht hier, gerendert wird es im ZWEITEN Baum — dort
+        // laufen auch seine Hooks. Deshalb reicht es, den Storage-Dienst als
+        // Wert mitzugeben; einen Provider hat das Fenster nicht.
+        einstellungen={<VollbildEinstellungen instanzId={instanz.id} storage={storage} />}
         onOpenAntrag={az => {
           navigate('antraege', { selectedId: az });
           // Die App steht hinter dem Fenster — ohne das sähe der Klick aus, als
@@ -175,7 +196,10 @@ export function AntragKanbanWidget({ instanz, onToggleEingeklappt }: WidgetProps
         }}
       />
     );
-  }, [basis, cfg.lanes, cfg.farbmodus, meta, navigate]);
+  }, [
+    basis, cfg.lanes, cfg.farbmodus, cfg.vollbildEingeklappt, meta, navigate,
+    merkeEingeklappt, instanz.id, storage,
+  ]);
   const vollbild = useKanbanVollbild(instanz.id, TITEL, zeichneVollbild);
 
   return (

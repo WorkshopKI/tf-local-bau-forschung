@@ -64,6 +64,7 @@ Tailwind bleibt für **Slot-Inhalte** (Karten, Fußtext, `LanePills`). Das Primi
   bahnen={…}                          // key/label/accent/items (+ gesamt, icon, spalten,
                                       //   zusatz, fuss, unerreichbar)
   features={{ einklappbar: true, bahnScrollt: true }}
+  einklapp={{ wuensche, onWunsch }}   // optional: Einklapp-Zustand von außen
   nachladen={{ start: 15, schritt: 25 }}
   dnd={{ idOf, onDrop }}
   renderCard={(t, bahn, zieh) => <Karte {...} zieh={zieh} />}
@@ -79,8 +80,28 @@ Tailwind bleibt für **Slot-Inhalte** (Karten, Fußtext, `LanePills`). Das Primi
 | `canDrag` | das Recht zu ziehen ist board-weit (Rolle + Schreibrecht), nie je Karte |
 | `canDrop` | ein Ablehnen müsste im `dragover` sichtbar werden, und dort gibt der Browser die gezogene Id nicht heraus. Ein Prädikat, das erst beim Fallenlassen greift, verspräche eine Rückmeldung, die es nicht gibt |
 | `onDrop(ids[])` | das Primitiv kennt genau **eine** gezogene Karte. Ob die ihre Mehrfachauswahl mitnimmt, ist eine fachliche Regel (`zuBewegen`) |
-| `wunschProBahn` / `onWunschChange` | der Einklapp-Zustand wird bewusst nicht persistiert — er beantwortet „was schaue ich gerade an", nicht „wie soll mein Board aussehen" |
+| ein eigener Speicher hinter `einklapp` | das Primitiv fragt und meldet, es kennt keinen Speicher. Wer den Zustand überleben lassen will, hält ihn selbst (siehe unten) |
 | `onDrop(…, index)` (Sortieren in der Bahn) | HTML5-DnD kann es nicht, kein Aufrufer will es. Kommt mit einem `reorder`-Flag, wenn jemand es braucht |
+
+## Die Einklapp-Naht
+
+Ohne `einklapp` hält jede Bahn ihren Wunsch selbst — flüchtig, was für ein Board richtig ist, das
+man beim nächsten Besuch ohnehin neu aufbaut. Mit der Prop besitzt ihn der Aufrufer:
+
+```tsx
+einklapp={{ wuensche, onWunsch: (key, wunsch) => … }}   // fehlender Schlüssel = 'auto'
+```
+
+Wirkt nur zusammen mit `features.einklappbar`; ohne das Flag gibt es keine Geste, die etwas zu
+melden hätte. Die Speicherform ist eine **Liste eingeklappter Schlüssel**, nicht die volle Karte —
+`wunschAusEingeklappten` / `eingeklappteBahnen` in
+[tfBoardBahn.ts](../../src/components/kanban/tfBoardBahn.ts) rechnen hin und zurück. Der Grund:
+`auto` und `offen` sind für eine gefüllte Bahn dasselbe Bild, und eine Liste altert gutmütig —
+verschwindet eine Bahn aus den Daten, steht ihr Schlüssel nur unbenutzt herum.
+
+Genutzt wird sie heute an genau einer Stelle: das [Kanban-Vollbild](fenster-in-fenster.md) ist die
+Ansicht, in der man sich einrichtet. Im Widget bleibt der Zustand flüchtig — dessen Body hängt bei
+jedem Seitenwechsel aus dem DOM, ein gespeicherter Zustand hätte dort nichts zu überleben.
 
 ## Die DnD-Naht
 
@@ -101,7 +122,7 @@ Offen bleiben die bekannten Löcher: kein Touch, **keine Tastaturbedienung**, ke
 | [TicketBoard](../../src/plugins/feedback-board/ticket/TicketBoard.tsx) | `gedeckelt` | einklappbar, bahnScrollt, nachladen, dnd, Summenzeile, Sicht-Zuschnitt |
 | [AntragKanbanWidget](../../src/plugins/home/widgets/AntragKanbanWidget.tsx) | `geteilt` | read-only, einklappbar, Icon je Kategorie, `fuss` navigiert in die Liste |
 | [FeedbackKanbanWidget](../../src/plugins/home/widgets/FeedbackKanbanWidget.tsx) | `geteilt` | read-only, einklappbar, `fuss` navigiert ins Board |
-| [KanbanVollbild](../../src/plugins/home/widgets/KanbanVollbild.tsx) | `gedeckelt` | eigenes Fenster (v3.47), einklappbar + bahnScrollt + nachladen, alle Kategorien mit Karten, Spaltenzahl aus dem Bestand abgeleitet — [fenster-in-fenster.md](fenster-in-fenster.md) |
+| [KanbanVollbild](../../src/plugins/home/widgets/KanbanVollbild.tsx) | `gedeckelt` | eigenes Fenster (v3.47), einklappbar + bahnScrollt + nachladen + `einklapp` (persistiert, v4.10), alle Kategorien mit Karten, Spaltenzahl aus dem Bestand abgeleitet — [fenster-in-fenster.md](fenster-in-fenster.md) |
 
 Der eingeklappte Widget-Zähler ist [LanePills](../../src/components/kanban/LanePills.tsx) — bis v3.44 zweimal wortgleich, bis auf `max-w-[110px]` gegen `max-w-[120px]`, was kein Entwurf war, sondern der Zwilling.
 

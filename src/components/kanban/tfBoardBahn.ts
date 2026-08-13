@@ -48,3 +48,27 @@ export function bahnAnsicht({ leer, unerreichbar, wunsch }: TfBahnLage): TfBahnA
 export function istSchiene(ansicht: TfBahnAnsicht): boolean {
   return ansicht === 'schiene' || ansicht === 'voll-schiene';
 }
+
+/**
+ * Wunsch-Karte je Bahn — der Zustand, den ein Aufrufer hält, der das Einklappen
+ * ÜBERLEBEN lassen will. Fehlender Schlüssel heißt `auto` (nichts gesagt).
+ */
+export type TfBahnWuensche = Readonly<Record<string, TfBahnWunsch>>;
+
+/**
+ * Speicherform ⇄ Zustand. Persistiert wird nur die Liste der eingeklappten
+ * Bahnen und nicht die volle Karte: `auto` und `offen` sind für eine gefüllte
+ * Bahn dasselbe Bild, und eine Liste altert gutmütig — verschwindet eine Bahn
+ * aus den Daten, steht ihr Schlüssel nur unbenutzt herum.
+ */
+export function wunschAusEingeklappten(keys: readonly string[]): TfBahnWuensche {
+  const karte: Record<string, TfBahnWunsch> = {};
+  for (const key of keys) karte[key] = 'zu';
+  return karte;
+}
+
+/** Die eingeklappten Bahnen als sortierte Liste — sortiert, damit zweimal
+ *  derselbe Zustand auch dieselbe gespeicherte Zeichenkette ergibt. */
+export function eingeklappteBahnen(wuensche: TfBahnWuensche): string[] {
+  return Object.keys(wuensche).filter(key => wuensche[key] === 'zu').sort();
+}
