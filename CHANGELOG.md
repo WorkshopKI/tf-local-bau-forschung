@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.19.0 — Ein Verfuegbarkeits-Check oeffnet keinen KI-Tab mehr (August 2026)
+
+MINOR — Nachlese zu v4.17.0: der ungefragt aufgerissene KI-Tab war kein Einzelfall der Suchseite. `ping()` trägt `openIfNeeded: true` als Vorgabe und ruft `window.open` — die Klasse stand seit v2.103.2 als Nr. 8 in den Bug-Klassen und war trotzdem an fünf weiteren Stellen offen.
+
+- **Fünf Stellen pingen jetzt passiv oder hinter dem Guard** ([turn.ts](src/plugins/chat/assistent/turn.ts), [SkillTestlauf.tsx](src/plugins/skill-verwaltung-kuration/SkillTestlauf.tsx), [llm-klassifizierung.ts](src/plugins/auslastung/services/klassifizierung/llm-klassifizierung.ts), [useNachforderungen.ts](src/plugins/antraege/nachforderungen/useNachforderungen.ts), [eval-batch.ts](src/core/services/skill-eval/eval-batch.ts)): Assistent-Turn, Skill-Testlauf, Auslastungs-Klassifizierung, NF-Generierung und Skill-Eval
+- **Statt eines Tabs der Verbinden-Dialog**: die vier Klick-Pfade rufen vorher `kiVerbindungGeprueft` ([ki-guard.ts](src/core/services/ai/ki-guard.ts)) — der geöffnete Tab trug ohnehin kein Bookmarklet und hätte nie geantwortet
+- **Guard `kein-oeffnender-ping`** ([conventions-daten.test.ts](src/__tests__/conventions-daten.test.ts)): flaggt `.ping()` und `openIfNeeded: true` in jeder Datei ohne `kiVerbindung*`; Inline-Ausnahme für die beiden „Verbindung testen"-Knöpfe der Einstellungen
+- **Der Assistenten-Turn hat einen eigenen Test** ([turn.test.ts](src/plugins/chat/assistent/__tests__/turn.test.ts)): er prüft die Ping-Argumente, nicht nur das Ergebnis
+- **Bug-Klasse 8 umgeschrieben** ([recurring-bug-classes.md](docs/architecture/recurring-bug-classes.md)): „eine Nutzer-Geste darf den Tab öffnen" ist überholt — jetzt öffnet kein Verfügbarkeits-Check ein Fenster
+
 ### v4.18.0 — Gefiltert heisst nicht geloescht, unlesbar nicht leer (August 2026)
 
 MINOR — Fünf Befunde der CSV-Bug-Jagd, zwei Wurzeln: Der Import konnte „vom Filter verworfen" nicht von „im Fachsystem gelöscht" unterscheiden, und mehrere Stellen lasen einen Fehler als leeres Ergebnis. Beides endete darin, dass Bestand verschwand und der Lauf Erfolg meldete.

@@ -19,6 +19,11 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.19 — 2026-08
+
+### Bugfixes
+- Wie auf der Suchseite öffnet jetzt auch an vier weiteren Stellen kein Klick mehr ungefragt ein Fenster mit der internen KI: Assistent, Skill-Testlauf, Klassifizierung der Auslastung und der Entwurf einer Nachforderung. Ist die KI nicht verbunden, fragt die App nach, statt einen Tab aufzumachen, der ohnehin nicht antworten kann.
+
 ## v4.18 — 2026-08
 
 ### Verbesserungen

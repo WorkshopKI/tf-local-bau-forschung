@@ -18,6 +18,7 @@ import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { useClickOutside } from '@/core/hooks/useClickOutside';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
 import { useBridgeStatus } from '@/core/services/ai/bridge-status';
+import { kiVerbindungGeprueft } from '@/core/services/ai/ki-guard';
 import { useAuslastungData } from '../hooks/useAuslastungData';
 import {
   buildPromptForClipboard,
@@ -189,6 +190,11 @@ export function LLMKlassifizierungButtons({ verbundViews, kategorien, isLoading 
       showToast('Keine unklassifizierten Verbuende gefunden.', 'error');
       return;
     }
+    // Verbindung zuerst, Lauf danach: `kiVerbindungGeprueft` pingt PASSIV und
+    // oeffnet bei getrennter KI den app-weiten Verbinden-Dialog statt eines
+    // nutzlosen Tabs. Der Ping-Guard in `klassifiziereBatch` bleibt der
+    // Backstop — hier steht nur der Weg zum Verbinden.
+    if (!(await kiVerbindungGeprueft(aiBridge))) return;
     setProgress({ done: 0, total: offeneVerbuende.length });
     try {
       const result = await klassifiziereBatch({

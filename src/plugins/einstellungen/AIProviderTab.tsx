@@ -146,7 +146,7 @@ export function AIProviderTab({ aiConfig, setAiConfig }: AIProviderTabProps): Re
     setTesting(true); setTestResult(null);
     try {
       const transport = new DirectLLMTransport(aiConfig.endpoint, aiConfig.model, aiConfig.apiKey || undefined);
-      const ok = await transport.ping();
+      const ok = await transport.ping(); // allow-oeffnender-ping: „Verbindung testen"-Knopf, DirectLLM (kein Fenster)
       setTestResult(ok ? 'success' : 'error');
       setTestError(ok ? '' : 'Nicht erreichbar');
     } catch (err) {

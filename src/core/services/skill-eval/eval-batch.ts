@@ -182,8 +182,12 @@ export async function runEvalBatch(args: RunEvalBatchArgs): Promise<EvalBatchRes
   const anzahl = Math.max(1, Math.min(args.anzahl, all.length, EVAL_MAX_ANZAHL));
   const fixtures = all.slice(0, anzahl);
 
-  // 3) Erreichbarkeit der internen KI vorab prüfen.
-  if (!(await genTransport.ping())) {
+  // 3) Erreichbarkeit der internen KI vorab prüfen — PASSIV (v4.19.0). In der
+  //    Eval-GUI ist `genTransport` der Bridge-Transport; die Ping-Vorgabe
+  //    `openIfNeeded: true` hätte hier einen KI-Tab ohne Bookmarklet geöffnet.
+  //    Im CLI ist die Option wirkungslos (Node-Transport kennt kein Fenster).
+  //    Das Verbinden bietet der GUI-Aufrufer an (`kiVerbindungGeprueft`).
+  if (!(await genTransport.ping({ openIfNeeded: false }))) {
     throw new GenTransportUnreachableError();
   }
   // 4) Stabile Modell-Spalte + Kontext-Achse.

@@ -84,7 +84,12 @@ export async function fuehreAssistentTurnAus(
   }
 
   // 2. Verfügbarkeit — vor jedem Aufwand prüfen (fail-fast, kein Inhalt gesendet).
-  const erreichbar = await transport.ping().catch(() => false);
+  //    PASSIV (`openIfNeeded: false`): die Vorgabe des Pings ist `true` und ruft
+  //    bei der Streamlit-Bridge `ensureConnection()` → `window.open`. Ein Turn
+  //    ohne verbundene Bridge riss damit jedes Mal einen KI-Tab auf — einen ohne
+  //    Bookmarklet, der die Frage ohnehin nie beantwortet hätte. Der Tab bleibt
+  //    dem ausdrücklichen „Verbinden" vorbehalten (der Aufrufer bietet es an).
+  const erreichbar = await transport.ping({ openIfNeeded: false }).catch(() => false);
   if (!erreichbar) return { ok: false, fehler: DEGRADATION_MELDUNG };
 
   // 3. Kontext-Snapshot + optionales Retrieval + optionales Gedächtnis + Vorhaben-Doks.

@@ -209,7 +209,7 @@ export async function initMetadataLLM(
       return false;
     }
     llmState.transport = new DirectLLMTransport(endpoint, modelCfg.openRouterId, apiKey);
-    const ok = await llmState.transport.ping();
+    const ok = await llmState.transport.ping(); // allow-oeffnender-ping: DirectLLM (HTTP-Fetch) — kein Fenster
     if (!ok) {
       if (modelId === 'llamacpp-lan') {
         onProgress?.(`LAN-Server nicht erreichbar: ${endpoint}`);

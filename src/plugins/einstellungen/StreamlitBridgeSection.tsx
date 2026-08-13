@@ -56,7 +56,7 @@ export function StreamlitBridgeSection({ aiConfig, setAiConfig }: StreamlitBridg
     // per `tf-bridge-ready`-Announce gecapturte Fenster-Handle → pingt den echten
     // Bookmarklet-Tab (tf-ping → tf-pong), ohne ihn per window.open neu zu laden.
     // `url` synchronisiert die Origin-Prüfung.
-    const ok = await aiBridge.getStreamlitTransport(url).ping();
+    const ok = await aiBridge.getStreamlitTransport(url).ping(); // allow-oeffnender-ping: „Verbindung testen" — Öffnen ist hier die Wirkung
     setTestResult(ok ? 'success' : 'error');
     setTimeout(() => setTestResult(null), 5000);
   });

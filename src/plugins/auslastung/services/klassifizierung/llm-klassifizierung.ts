@@ -265,7 +265,13 @@ export async function klassifiziereBatch(input: LLMKlassifizierungInput): Promis
   // `ensureConnection()` einen frischen Tab OHNE Bookmarklet oeffnen → nie ein
   // `tf-response` → 200-s-Endlos-Spinner. Sofortiger, klarer Fehler statt Hang
   // (spiegelt runAnonymisierung). Der Button-`useAsyncAction` malt ihn in die UI.
-  const erreichbar = await transport.ping();
+  //
+  // PASSIV (`openIfNeeded: false`, v4.18.0): der Ping tat mit seiner Vorgabe
+  // genau das, wogegen er schuetzen soll — `ping()` ruft selbst
+  // `ensureConnection()`. Der Guard meldete den Fehler also korrekt UND liess
+  // den nutzlosen Tab stehen. Das Verbinden bietet der Aufrufer an
+  // (`kiVerbindungGeprueft` in LLMKlassifizierungButtons).
+  const erreichbar = await transport.ping({ openIfNeeded: false });
   if (!erreichbar) {
     throw new Error('Interne KI nicht erreichbar — Klassifizierung derzeit nicht möglich.');
   }

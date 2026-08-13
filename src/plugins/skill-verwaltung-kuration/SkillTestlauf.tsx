@@ -9,6 +9,7 @@ import { X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
+import { kiVerbindungGeprueft } from '@/core/services/ai/ki-guard';
 import {
   runSkill,
   runRegelChecks,
@@ -128,6 +129,13 @@ export function SkillTestlaufPanel({ skill, regeln, hinweis, onClose }: SkillTes
       // gilt für ihn dieselbe DSGVO-Policy wie für den Gutachten-Workflow.
       // Vorher zog er den Transport roh und umging sie (Pitfall #30/#35).
       const transport = bridge.getTransportForSkillRun(skill);
+      // Erst der Guard, dann der Ping (Muster: workflow-generierung.ts). Der
+      // rohe `ping()` traegt `openIfNeeded: true` und riss bei getrennter KI
+      // einen Tab OHNE Bookmarklet auf — einen, der den Testlauf ohnehin nie
+      // beantwortet haette. `kiVerbindungGeprueft` prueft passiv und bietet
+      // stattdessen den Verbinden-Dialog an; der Ping danach faengt die
+      // Direkt-Provider, die der Guard durchwinkt (kein Tab noetig).
+      if (!(await kiVerbindungGeprueft(bridge, transport.name))) return;
       if (!(await transport.ping())) {
         setError('KI nicht erreichbar — Testlauf derzeit nicht möglich.');
         return;

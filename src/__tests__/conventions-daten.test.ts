@@ -74,6 +74,11 @@
  *     persoenliche Darstellungs-Daten: IDB primaer, Mirror NUR ueber
  *     savePersonalSettings; keine Share-/Snapshot-Writer unter
  *     src/plugins/home/widgets/, kein Widget-Key in SNAPSHOT_FILES.
+ *   - kein-oeffnender-ping              → ein Verfuegbarkeits-Check darf keinen KI-Tab
+ *     aufreissen: `transport.ping()` traegt `openIfNeeded: true` als Vorgabe und ruft
+ *     `ensureConnection()` → window.open. Entweder ausdruecklich passiv pingen
+ *     (`{ openIfNeeded: false }`) oder in derselben Datei den Guard
+ *     `kiVerbindungBereit`/`kiVerbindungGeprueft` fuehren (src/core/services/ai/ki-guard.ts).
  *   - no-index-punkt-id                 → Klaerung (v2.412): eine Punkt-Id im Seed von
  *     src/plugins/zu-klaeren/ darf NIE aus einem Schleifenindex entstehen. Die Antworten
  *     liegen append-only auf dem Share und zeigen auf die Id; ein eingefuegter Punkt
@@ -1334,6 +1339,69 @@ describe('no-index-punkt-id (Klärungs-Punkte tragen stabile Ids)', () => {
         + `Stattdessen: sprechende Id am Datensatz (\`frage-32-ablehnungsreif\`) oder\n`
         + `aus den Daten ableiten (\`code-\${code}\`). Alte Ids übersetzt ALT_PUNKT_IDS.\n`
         + `\nTreffer:\n${fmt(findings)}`,
+      );
+    }
+  });
+});
+
+describe('kein-oeffnender-ping (ein Verfügbarkeits-Check reißt keinen KI-Tab auf)', () => {
+  // `AITransport.ping()` trägt `openIfNeeded: true` als VORGABE. Bei der
+  // Streamlit-Bridge ruft das `ensureConnection()` → `window.open` — ein Tab
+  // OHNE Bookmarklet, der die Anfrage nie beantwortet. Ein bloßer „läuft die KI
+  // überhaupt?"-Check darf das nicht: die Meldung stimmt, und der nutzlose Tab
+  // bleibt trotzdem stehen. Zuletzt gemeldet an „Warum?" auf der Suchseite
+  // (v4.17.0); der Review fand die Klasse an fünf weiteren Stellen.
+  //
+  // Zwei zulässige Formen, beide in derselben DATEI nachweisbar:
+  //  (a) ausdrücklich passiv: `ping({ openIfNeeded: false })`,
+  //  (b) vorgelagerter Guard: `kiVerbindungBereit` / `kiVerbindungGeprueft`
+  //      (src/core/services/ai/ki-guard.ts) — danach ist der Tab schon offen,
+  //      der Ping öffnet also nichts mehr (Muster: workflow-generierung.ts).
+  //
+  // Nicht getroffen wird die Durchreiche `ping(opts)` — sie entscheidet nichts.
+  const GUARD_MARKER = ['kiVerbindungBereit', 'kiVerbindungGeprueft'];
+
+  const istOeffnenderPing = (l: string): boolean => {
+    const t = l.trim();
+    if (t.startsWith('//') || t.startsWith('*') || t.startsWith('/*')) return false;
+    // Leere Klammern = Vorgabe greift; explizites `true` = derselbe Effekt.
+    return /\.ping\(\s*\)/.test(l) || /\.ping\(\s*\{[^}]*openIfNeeded:\s*true/.test(l);
+  };
+
+  it('erkennt die Formen (Selbsttest)', () => {
+    expect(istOeffnenderPing('  const ok = await transport.ping();')).toBe(true);
+    expect(istOeffnenderPing('  await t.ping({ openIfNeeded: true });')).toBe(true);
+    expect(istOeffnenderPing('  await t.ping({ openIfNeeded: false });')).toBe(false);
+    expect(istOeffnenderPing('    ping: (opts) => inner.ping(opts),')).toBe(false);
+    expect(istOeffnenderPing('   * sauberer als rohes getActiveTransport().ping()')).toBe(false);
+  });
+
+  it('kein Verfügbarkeits-Check öffnet ungefragt ein Bridge-Fenster', () => {
+    const findings: Finding[] = [];
+    for (const file of ALL_TS_FILES) {
+      if (file.includes(`${sep}__tests__${sep}`) || file.endsWith('.test.ts')) continue;
+      // Der Guard selbst und die Bridge-Innereien (ensureConnection, Heartbeat,
+      // Durchreichen) sind die IMPLEMENTIERUNG dieser Regel, nicht ihr Adressat.
+      const rel = relPath(file);
+      if (rel.startsWith('src/core/services/ai/transports/')) continue;
+      if (rel === 'src/core/services/ai/ki-guard.ts') continue;
+      // Node-CLI: kein Fenster, kein Tab — `openIfNeeded` ist dort wirkungslos.
+      if (rel.startsWith('src/core/services/skill-eval/cli')) continue;
+      const inhalt = readFileSync(file, 'utf-8');
+      if (GUARD_MARKER.some(m => inhalt.includes(m))) continue;
+      findings.push(...findInFile(file, istOeffnenderPing, 'allow-oeffnender-ping'));
+    }
+    if (findings.length > 0) {
+      expect.fail(
+        `Ein Verfügbarkeits-Check darf keinen KI-Tab öffnen.\n`
+        + `\`ping()\` ohne Argument nutzt die Vorgabe \`openIfNeeded: true\` und ruft bei der\n`
+        + `Streamlit-Bridge \`ensureConnection()\` → window.open — ein Tab ohne Bookmarklet,\n`
+        + `der die Anfrage nie beantwortet.\n`
+        + `Entweder \`ping({ openIfNeeded: false })\`, oder in derselben Datei zuerst\n`
+        + `\`kiVerbindungGeprueft(bridge)\` (src/core/services/ai/ki-guard.ts) — der öffnet\n`
+        + `statt eines Tabs den app-weiten Verbinden-Dialog.\n`
+        + `Echte Ausnahme (ein ausdrücklicher „Verbindung testen"-Knopf):\n`
+        + `'// allow-oeffnender-ping: <grund>'.\n\nTreffer:\n${fmt(findings)}`,
       );
     }
   });

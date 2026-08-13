@@ -24,6 +24,7 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
+import { kiVerbindungGeprueft } from '@/core/services/ai/ki-guard';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { isOpenRouterEnabled } from '@/config/feature-flags';
 import { DirectLLMTransport } from '@/core/services/ai/transports/direct-llm';
@@ -129,6 +130,9 @@ export function SkillEvalPanel({ registry }: SkillEvalPanelProps): React.ReactEl
   const zeigeKontext = (batch?.matrix.kontexte.length ?? 0) > 1;
 
   const start = useAsyncAction(async () => {
+    // Verbindung zuerst: `runEvalBatch` prüft die Erreichbarkeit passiv (kein
+    // Tab). Der Weg zum Verbinden gehört hierher, wo der Klick passiert.
+    if (!(await kiVerbindungGeprueft(bridge))) return;
     setBatch(null);
     setExpanded(new Set());
     const kontexteN = kontext === 'both' ? 2 : 1;

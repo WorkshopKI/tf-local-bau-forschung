@@ -12,6 +12,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
+import { kiVerbindungGeprueft } from '@/core/services/ai/ki-guard';
 import {
   runSkill, loadSkillRegistry, getSkillById, resolveRegeln, capVbMarkdown,
   loadTextbausteinKatalog, freigegebeneBausteine,
@@ -133,7 +134,12 @@ export function useNachforderungen(ctx: KurzfassungContext): NachforderungenCont
     setBusy(true); setError(null); setEntwuerfe([]);
     try {
       const transport = bridge.getTransportForSkillRun(aktSkill);
-      const reachable = await transport.ping({ openIfNeeded: true }).catch(() => false);
+      // Erst der Guard, dann der Ping (Muster: workflow-generierung.ts). Hier
+      // stand bis v4.19.0 ein ausdrückliches `openIfNeeded: true` — der Klick
+      // auf „Generieren" riss bei getrennter KI einen Tab ohne Bookmarklet auf,
+      // der den Lauf ohnehin nie beantwortet hätte. Jetzt der Verbinden-Dialog.
+      if (!(await kiVerbindungGeprueft(bridge, transport.name))) { setLlmAvailable(false); return; }
+      const reachable = await transport.ping({ openIfNeeded: false }).catch(() => false);
       setLlmAvailable(reachable);
       if (!reachable) { setError('KI nicht erreichbar — NF-Generierung derzeit nicht möglich.'); return; }
 

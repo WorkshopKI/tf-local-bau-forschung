@@ -18,9 +18,10 @@ import type { KontextEntitaet, VorhabenDokument } from '@/core/services/assisten
 import type { IDBStore } from '@/core/services/storage';
 import type { DocumentFull } from '@/plugins/dokumente/store';
 import type { ChatMessage } from '../types';
+import { useKiConnectPrompt } from '@/core/services/ai/ki-guard';
 import { assistentSessionStore } from './sessionStore';
 import { baueKontextSnapshot } from './kontextSnapshot';
-import type { AssistentTurnDeps } from './turn';
+import { DEGRADATION_MELDUNG, type AssistentTurnDeps } from './turn';
 
 /** Aktive Gedächtnis-Einträge nur bei Flag + BEIDEN Opt-ins (sonst leer). */
 export async function ladeAssistentGedaechtnis(): Promise<ReadonlyArray<{ text: string }>> {
@@ -94,6 +95,16 @@ export function useAssistentController(): AssistentController {
       getVorhabenDokumente: (entitaet) => ladeVorhabenDokumente(storage.idb, entitaet),
     };
     await assistentSessionStore.getState().send(frage, deps);
+
+    // Nicht erreichbar? Dann den app-weiten Verbinden-Dialog anbieten — dieselbe
+    // Antwort wie bei jedem anderen KI-CTA (`ki-guard.ts`). Bewusst NACH dem
+    // Turn statt als Vorschaltung: der Store hat die Frage dann bereits ins
+    // Eingabefeld zurückgelegt (`letzteFehlerFrage`), und der passive Ping des
+    // Turns hat die Frage „verbunden?" schon beantwortet — ein zweiter Ping
+    // davor kostete nur Wartezeit.
+    if (assistentSessionStore.getState().error === DEGRADATION_MELDUNG) {
+      useKiConnectPrompt.getState().oeffnen();
+    }
   }, [bridge, search, storage]);
 
   return {

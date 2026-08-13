@@ -52,6 +52,17 @@ describe('fuehreAssistentTurnAus', () => {
     expect(res.ok).toBe(false);
   });
 
+  it('pingt PASSIV — ein Turn öffnet nie einen KI-Tab', async () => {
+    // Die Vorgabe `openIfNeeded: true` ruft bei der Streamlit-Bridge
+    // `ensureConnection()` → `window.open`; ohne verbundene Bridge riss damit
+    // jeder Turn einen Tab auf, der die Frage ohnehin nie beantwortet hätte.
+    const gesehen: Array<unknown> = [];
+    await fuehreAssistentTurnAus('Frage', [], deps(fakeTransport({
+      ping: async (opts) => { gesehen.push(opts); return true; },
+    })));
+    expect(gesehen).toEqual([{ openIfNeeded: false }]);
+  });
+
   it('meldet einen Fehler bei leerer Antwort', async () => {
     const res = await fuehreAssistentTurnAus('Frage', [], deps(fakeTransport({ submitMessage: async () => '   ' })));
     expect(res.ok).toBe(false);
