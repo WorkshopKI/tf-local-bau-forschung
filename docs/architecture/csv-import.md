@@ -74,12 +74,58 @@ sondern etwas über den Horizont der Quelle. Bis v4.10 übernahm `runMergeForDel
 Anträge dauerhaft fest. Wer eine Quelle außer Betrieb nimmt, entfernt sie (`removeSchema`) — sonst
 altert der Bestand nicht mehr.
 
-Die verbleibenden Türen in dieselbe Löschung sind damit **enger, aber nicht zu**: leerer Join-Wert,
-leere/unbekannte Unterprogramm-Zelle, Whitespace im Spaltennamen
-([parser.ts](../../src/core/services/csv/parser.ts) trimmt die Kopfzeile, liest den Wert aber unter
-dem getrimmten Schlüssel) und abgeschnittener Export führen weiterhin in `removedJoinValues` — sie
-treffen jetzt nur noch Anträge, die **keine** zweite Quelle trägt. Gegen ihren team-weiten Teil steht
-der Publish-Guard in [csv-auto-refresh.md](csv-auto-refresh.md).
+## Gefiltert heißt „ich weiß es nicht", nicht „gibt es nicht" (v4.18.0)
+
+Zweite Hälfte derselben Team-Entscheidung: `seen` füllt nur, was der Import auch **ausgewertet** hat.
+Eine Zeile, die im Export steht, aber am Filter hängenbleibt, sah damit genauso aus wie eine Zeile,
+die es nicht mehr gibt. Der Schnitt verläuft jetzt zwischen Entscheidung und Wissenslücke:
+
+| Lage der Zeile | Import | Löschung |
+|---|---|---|
+| Unterprogramm-Code aktiv | ja | – |
+| Code im Katalog, aber deaktiviert | nein | **ja** — Kurations-Entscheidung |
+| Zelle leer oder Code unbekannt | nein | **nein** — `unknownUnterprogramm` |
+| Zeile ohne Join-Wert | nein | unberührt — `rowsWithoutJoinValue` |
+
+`beurteileUnterprogramm` ([importer.ts](../../src/core/services/csv/importer.ts)) trifft das Urteil,
+`getUnterprogrammFilter` liefert dafür beide Mengen (`aktiv` **und** `bekannt`) statt nur der
+Allowlist.
+
+**Zeilen ohne Join-Wert werden bewusst nur gezählt, nicht gesondert behandelt.** Der naheliegende
+Reflex — „nicht zuzuordnen, also in diesem Lauf gar nicht löschen" — hält der Messung am echten
+Bestand nicht stand: die Projektbeschreibung führt **28 926 von 43 149 Zeilen ohne
+Förderkennzeichen** (Irrläufer, frühe Phasen; alle übrigen Felder belegt). Das ist der Normalfall
+dieser Quelle, kein Signal; eine Aussetz-Regel hätte ihre Löschungen dauerhaft stillgelegt. Ohne
+Join-Wert stand die Zeile ausserdem nie in den Row-Hashes — für sich genommen kann sie gar keine
+Löschung auslösen. Die Zahl ist trotzdem sichtbar, und zwar **exakt**: bis v4.15 rendete der Wizard
+die Länge der auf zehn gedeckelten Warnungs-Stichprobe `skippedJoinValues` als Mengenangabe.
+
+Der Row-Hash einer gefilterten Zeile bleibt **stehen** (anders als bei einer echten Löschung): die
+Quelle trägt sie ja, sie hält den Antrag also weiter gegen die Löschung durch andere Quellen.
+
+**Whitespace im Spaltennamen** ist damit ebenfalls zu: `normalizeRow`
+([parser.ts](../../src/core/services/csv/parser.ts)) baut die Zeile zwar auf die getrimmten
+Spaltennamen um, liest die Werte aber unter dem **rohen** Namen, wie PapaParse sie ablegt. Vorher war
+„FKZ " eine still geleerte Spalte — in der Join-Spalte hätte das den kompletten Bestand als entfernt
+gemeldet, ohne dass der Kopfzeilen-Guard (v4.9.0) etwas bemerkt.
+
+Ebenfalls seit v4.18.0 nicht mehr stumm:
+
+- **PapaParse-Zeilenfehler** (`TooFewFields`, ungeschlossene Anführungszeichen) landen als
+  `ImportResult.parseErrors` im Wizard und im Audit-Log. Der Import läuft weiter — ein Ausreißer soll
+  den Tages-Import nicht kippen —, aber die betroffenen Zeilen sind gegenüber der Kopfzeile
+  verschoben, ihre Werte stehen in den falschen Feldern.
+- **`saveCsvSourceFile` ist kein best-effort mehr.** Der Merge liest ausschließlich diese Share-Kopie
+  zurück; ein still gescheiterter Write ließ ihn mit der alten oder gar keiner Fassung rechnen und
+  Anträge schreiben, denen ihre Felder fehlen. Ein Fehler bricht den Import jetzt ab. `loadCsvSourceFile`
+  wirft entsprechend bei einer **vorhandenen, aber unlesbaren** Kopie und liefert `null` nur noch für
+  „gibt es nicht" (Pitfall-Klasse 17).
+- **Ein nicht veröffentlichter Snapshot** steht als `ImportResult.publishError` im Wizard („Import
+  lokal abgeschlossen") und im Auto-Refresh in `report.errors`.
+
+Übrig bleibt der **abgeschnittene Export**: er führt weiter in `removedJoinValues`, trifft aber nur
+noch Anträge, die keine zweite Quelle trägt. Gegen seinen team-weiten Teil steht der Publish-Guard in
+[csv-auto-refresh.md](csv-auto-refresh.md).
 
 ## Verbund-Aggregation (Forschungs-Domäne)
 

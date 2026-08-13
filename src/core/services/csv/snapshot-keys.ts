@@ -10,6 +10,15 @@
 
 import type { SnapshotStoreName } from './snapshot';
 
+/**
+ * Gemeinsames Präfix ALLER Sync-Marken (auch der Record-Hash-Map aus
+ * `incremental-antraege.ts`). Wer den Antrags-Bestand zurücksetzt, muss sie
+ * mitnehmen — sonst hält sich der nächste Sync für erledigt und lädt nichts
+ * nach. Über das Präfix statt über eine Aufzählung, damit eine neu
+ * hinzugefügte Marke nicht vergessen wird.
+ */
+export const SNAPSHOT_SYNC_KEY_PREFIX = 'snapshot-';
+
 /** Lokal zuletzt gesyncte Snapshot-Version (ISO-String) je Programm. */
 export const SYNC_VERSION_KEY = (programmId: string): string =>
   `snapshot-version-${programmId}`;

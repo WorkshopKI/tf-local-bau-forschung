@@ -58,7 +58,9 @@ export function MaintenanceSection(): React.ReactElement {
           Reset abgeschlossen: {resetResult.antraege.toLocaleString('de-DE')} Anträge,{' '}
           {resetResult.verbuende.toLocaleString('de-DE')} Verbünde,{' '}
           {resetResult.historie.toLocaleString('de-DE')} Historie-Einträge,{' '}
-          {resetResult.rowHashes.toLocaleString('de-DE')} Row-Hashes gelöscht.
+          {resetResult.rowHashes.toLocaleString('de-DE')} Row-Hashes und{' '}
+          {resetResult.listView.toLocaleString('de-DE')} Listen-Einträge gelöscht;
+          die Snapshot-Marken sind zurückgesetzt, der nächste Abgleich lädt vollständig neu.
           Du kannst jetzt über „CSV neu wählen" oder „Neu registrieren" die CSVs erneut einspielen.
         </div>
       ) : null}

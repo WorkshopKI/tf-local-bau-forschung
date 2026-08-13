@@ -11,7 +11,14 @@ import path from 'path';
 // mit Standard-Isolation. Neue Wackelkandidaten hier ergänzen (Verfahren: CLAUDE.md).
 const ISOLATED_TESTS = [
   'src/core/services/assistent/protokoll/__tests__/recorder.test.ts',
+  // Beide mocken `smb-handle` modulweit und fahren einen In-Memory-Share dagegen,
+  // dessen Handle in einer `vi.hoisted`-Kapsel je Datei liegt. Ohne Isolation
+  // bedient die zuerst registrierte Fabrik auch die andere Datei — der Merge las
+  // dann eine leere Quell-Kopie, und der gehaltene Antrag kam ohne Felder zurück
+  // (v4.16: die zweite Datei brachte die erste zu Fall, beide einzeln gruen).
+  'src/core/services/csv/__tests__/importer-gefiltert-ist-keine-loeschung.test.ts',
   'src/core/services/csv/__tests__/importer-lock-held-by-caller.test.ts',
+  'src/core/services/csv/__tests__/importer-loeschung-nur-wenn-ueberall-weg.test.ts',
   'src/core/services/csv/__tests__/importer-source-baseline.test.ts',
   'src/core/services/csv/__tests__/merger-scoped-load.test.ts',
   'src/core/services/csv/__tests__/snapshot-verbuende-guard.test.ts',

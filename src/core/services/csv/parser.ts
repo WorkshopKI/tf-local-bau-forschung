@@ -124,8 +124,9 @@ export async function parseCsvPreview(
     dynamicTyping: false,
     skipEmptyLines: true,
   });
-  const headers = (result.meta.fields ?? []).map(h => h.trim());
-  const rows = (result.data ?? []).map(r => normalizeRow(r, headers));
+  const rawFields = result.meta.fields ?? [];
+  const headers = rawFields.map(h => h.trim());
+  const rows = (result.data ?? []).map(r => normalizeRow(r, rawFields, headers));
   return {
     headers,
     rows,
@@ -136,10 +137,27 @@ export async function parseCsvPreview(
   };
 }
 
-function normalizeRow(raw: Record<string, string>, headers: string[]): Record<string, string> {
+/**
+ * Baut die Zeile auf die GETRIMMTEN Spaltennamen um.
+ *
+ * Gelesen wird dabei über den ROHEN Namen: PapaParse legt die Zeilen-Objekte
+ * unter der Kopfzeile ab, wie sie in der Datei steht. Wer mit dem getrimmten
+ * Namen liest, bekommt bei „FKZ " für jede Zeile `undefined` → eine still
+ * geleerte Spalte. Beide Listen stammen aus `meta.fields` und sind deshalb
+ * positionsgleich.
+ */
+function normalizeRow(
+  raw: Record<string, string>,
+  rawFields: string[],
+  headers: string[],
+): Record<string, string> {
   const out: Record<string, string> = {};
-  for (const h of headers) {
-    out[h] = (raw[h] ?? '').toString();
+  for (let i = 0; i < headers.length; i++) {
+    const h = headers[i]!;
+    // Trimmen kann zwei Spalten auf denselben Namen legen ("FKZ" + "FKZ ").
+    // Die erste gewinnt — für jede Zeile gleich, statt zeilenweise zu kippen.
+    if (h in out) continue;
+    out[h] = (raw[rawFields[i]!] ?? '').toString();
   }
   return out;
 }
@@ -163,8 +181,9 @@ export async function parseCsvStream(
     dynamicTyping: false,
     skipEmptyLines: true,
   });
-  const headers = (result.meta.fields ?? []).map(h => h.trim());
-  const rows = (result.data ?? []).map(r => normalizeRow(r, headers));
+  const rawFields = result.meta.fields ?? [];
+  const headers = rawFields.map(h => h.trim());
+  const rows = (result.data ?? []).map(r => normalizeRow(r, rawFields, headers));
   const chunkSize = opts.chunkSize ?? 500;
   for (let i = 0; i < rows.length; i += chunkSize) {
     const chunk = rows.slice(i, i + chunkSize);
@@ -185,8 +204,9 @@ export async function parseCsvAll(
     dynamicTyping: false,
     skipEmptyLines: true,
   });
-  const headers = (result.meta.fields ?? []).map(h => h.trim());
-  const rows = (result.data ?? []).map(r => normalizeRow(r, headers));
+  const rawFields = result.meta.fields ?? [];
+  const headers = rawFields.map(h => h.trim());
+  const rows = (result.data ?? []).map(r => normalizeRow(r, rawFields, headers));
   return { headers, rows, encoding, separator };
 }
 
@@ -211,7 +231,21 @@ export interface StreamedParseOptions extends ParseOptions {
 export async function parseCsvAllStreamed(
   blob: Blob,
   opts: StreamedParseOptions = {},
-): Promise<{ headers: string[]; rows: Record<string, string>[]; encoding: CsvEncoding; separator: CsvSeparator; totalBytes: number }> {
+): Promise<{
+  headers: string[];
+  rows: Record<string, string>[];
+  encoding: CsvEncoding;
+  separator: CsvSeparator;
+  totalBytes: number;
+  /**
+   * Zeilen-Fehler von PapaParse (`TooFewFields`, `TooManyFields`, ungeschlossene
+   * Anführungszeichen …), verdichtet nach Fehler-Code. Eine solche Zeile ist
+   * gegenüber der Kopfzeile VERSCHOBEN: die Werte stehen in den falschen
+   * Spalten. Bisher las die Zahl niemand — der Import übernahm die verschobenen
+   * Werte kommentarlos.
+   */
+  parseErrors: { code: string; anzahl: number; beispielZeile: number }[];
+}> {
   const { text, encoding } = await readWithEncodingFallback(blob, opts.encoding);
   const separator: CsvSeparator = opts.separator ?? detectSeparator(text.slice(0, 20_000));
   const totalBytes = text.length;
@@ -225,7 +259,8 @@ export async function parseCsvAllStreamed(
     dynamicTyping: false,
     skipEmptyLines: true,
   });
-  const headers = (result.meta.fields ?? []).map(h => h.trim());
+  const rawFields = result.meta.fields ?? [];
+  const headers = rawFields.map(h => h.trim());
   const raw = (result.data ?? []) as Record<string, string>[];
 
   // Normalize in Chunks mit periodischen Yields. Auf einer 50-MB-CSV mit
@@ -237,7 +272,7 @@ export async function parseCsvAllStreamed(
     const end = Math.min(i + CHUNK, raw.length);
     for (let j = i; j < end; j++) {
       const r = raw[j];
-      if (r) rows.push(normalizeRow(r, headers));
+      if (r) rows.push(normalizeRow(r, rawFields, headers));
     }
     if (opts.onProgress) {
       const approxBytes = raw.length > 0
@@ -251,5 +286,18 @@ export async function parseCsvAllStreamed(
   }
 
   if (opts.onProgress) opts.onProgress(totalBytes, totalBytes);
-  return { headers, rows, encoding, separator, totalBytes };
+  return { headers, rows, encoding, separator, totalBytes, parseErrors: verdichteFehler(result.errors) };
+}
+
+/** PapaParse-Fehlerliste → eine Zeile je Fehler-Code (Anzahl + erste Fundstelle). */
+function verdichteFehler(
+  errors: Papa.ParseError[] | undefined,
+): { code: string; anzahl: number; beispielZeile: number }[] {
+  const nachCode = new Map<string, { anzahl: number; beispielZeile: number }>();
+  for (const e of errors ?? []) {
+    const bisher = nachCode.get(e.code);
+    if (bisher) bisher.anzahl++;
+    else nachCode.set(e.code, { anzahl: 1, beispielZeile: (e.row ?? 0) + 2 }); // +2: 1-basiert inkl. Kopfzeile
+  }
+  return [...nachCode].map(([code, v]) => ({ code, ...v }));
 }

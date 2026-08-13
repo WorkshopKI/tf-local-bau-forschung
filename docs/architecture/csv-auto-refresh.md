@@ -113,10 +113,15 @@ beiden Pfaden — im Voll-Write gegen `existingManifest.stores.antraege.count`, 
 `baseCount − removedKeys.length` (dort steht die Löschung explizit, der Voll-Write-Guard sieht sie nie).
 Beide prüfen **vor** dem ersten Byte, es bleiben also keine halben Dateien liegen.
 
-Grenzen, bewusst: der Guard fängt den katastrophalen Fall, nicht den schleichenden — ein Verlust von
-weniger als der Hälfte passiert ihn. Und er ist **still**: beide Aufrufer verschlucken den Publish-Fehler
-(`importCsvSource` und der gebündelte Batch-Write protokollieren `snapshot_failed` mit der vollen
-Meldung ins Audit-Log, melden dem Nutzer aber weiter Erfolg). Der Share ist geschützt, die Meldung fehlt.
+Grenze, bewusst: der Guard fängt den katastrophalen Fall, nicht den schleichenden — ein Verlust von
+weniger als der Hälfte passiert ihn.
+
+**Seit v4.18.0 ist der Abbruch nicht mehr still.** Beide Aufrufer protokollieren `snapshot_failed`
+weiterhin ins Audit-Log, reichen die Meldung aber zusätzlich nach oben: `importCsvSource` als
+`ImportResult.publishError` (der Wizard titelt dann „Import lokal abgeschlossen" und nennt den Grund),
+der gebündelte Batch-Write als Eintrag in `report.errors` — und damit in die Fehler-Zahl des Banners
+und in den Drift-Dialog. Vorher war der Share geschützt und der Kurator ahnungslos: die Daten lagen
+lokal, das Team sah sie nie.
 
 Seit v4.11.0 kommt der Publish-Guard seltener zum Zug: eine Zeile, die aus **einer** Quelle fällt,
 löscht den Antrag nicht mehr, solange eine andere ihn trägt (siehe
@@ -124,6 +129,11 @@ löscht den Antrag nicht mehr, solange eine andere ihn trägt (siehe
 `RefreshReport.heldRemovals` summiert diese Rückhalte über alle Quellen des Laufs und steht im
 `[data-update]`-Log als `zurueckgehalteneLoeschungen=…`. Der Guard bleibt die letzte Instanz für den
 Fall, dass ein Schwund **alle** Quellen gleichzeitig trifft.
+
+Daneben führt der Bericht seit v4.18.0 `unknownUnterprogramm`: Zeilen mit leerer oder im Katalog
+unbekannter Unterprogramm-Zelle — nicht importiert, aber auch nicht gelöscht. Steht im
+`[data-update]`-Log als `unbekanntesUP=…`; die Regel dahinter in
+[csv-import.md](csv-import.md#gefiltert-heißt-ich-weiß-es-nicht-nicht-gibt-es-nicht-v4180).
 
 ## Frische-Ampel „● CSV" (`deriveCsvFreshnessState`)
 

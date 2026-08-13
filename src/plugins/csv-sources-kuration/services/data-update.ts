@@ -96,6 +96,7 @@ function logTiming(
     + ` skipped(fixtures=${csv.fixtures} fileMissing=${csv.fileMissing} upToDate=${csv.upToDate}`
     + ` inaktivesUP=${result.csvReport?.skippedInactiveUnterprogramm ?? 0})`
     + ` zurueckgehalteneLoeschungen=${result.csvReport?.heldRemovals ?? 0}`
+    + ` unbekanntesUP=${result.csvReport?.unknownUnterprogramm ?? 0}`
     + (c ? ` parse=${round(c.parseMs)}ms hashDiff=${round(c.hashDiffMs)}ms merge=${round(c.mergeMs)}ms snapshotWrite=${round(c.snapshotWriteMs)}ms` : '')
     + (result.lockBusy ? ` lockBusy=${result.lockBusy.blockingKurator}` : '');
   // Always-on (wie das bestehende `[snapshot-sync]`-info) — soll auch im
@@ -128,6 +129,9 @@ function logTiming(
         // >0 = eine Quelle hat Zeilen verloren, die eine andere noch trägt; der
         // Antrag bleibt stehen, bis er überall weg ist.
         heldRemovals: result.csvReport?.heldRemovals ?? 0,
+        // >0 = Codes im Export, die der Katalog nicht kennt: nicht importiert,
+        // aber auch nicht gelöscht.
+        unknownUnterprogramm: result.csvReport?.unknownUnterprogramm ?? 0,
         parseMs: c ? round(c.parseMs) : 0,
         hashDiffMs: c ? round(c.hashDiffMs) : 0,
         mergeMs: c ? round(c.mergeMs) : 0,

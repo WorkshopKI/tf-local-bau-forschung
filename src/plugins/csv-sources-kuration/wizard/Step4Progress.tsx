@@ -73,16 +73,32 @@ export function Step4Progress({ progress, result, error, cancelled }: Step4Props
             </div>
           ) : (
             <div>
-              <div className="text-[13.5px] mb-2"><strong>Import abgeschlossen</strong> ({result.rowCount} Zeilen, {(result.durationMs / 1000).toFixed(1)}s)</div>
+              <div className="text-[13.5px] mb-2">
+                <strong>{result.publishError ? 'Import lokal abgeschlossen' : 'Import abgeschlossen'}</strong>
+                {' '}({result.rowCount} Zeilen, {(result.durationMs / 1000).toFixed(1)}s)
+              </div>
+              {result.publishError ? (
+                <div className="mb-2 text-[12px] text-red-700">
+                  <strong>Nicht veröffentlicht.</strong> Die Daten stehen auf diesem Rechner, das
+                  Team sieht sie nicht: {result.publishError}
+                </div>
+              ) : null}
               <div className="grid grid-cols-4 gap-2">
                 <BucketCard label="Neu" value={result.buckets.new} />
                 <BucketCard label="Geändert" value={result.buckets.changed} />
                 <BucketCard label="Unverändert" value={result.buckets.unchanged} />
                 <BucketCard label="Entfernt" value={result.buckets.removed} />
               </div>
-              {result.skippedJoinValues && result.skippedJoinValues.length > 0 ? (
-                <div className="mt-3 text-[12px] text-amber-700">
-                  {result.skippedJoinValues.length} Zeilen mit leerem Join-Value übersprungen.
+              {/* Zahl aus `rowsWithoutJoinValue`, NICHT aus `skippedJoinValues`:
+                  letzteres ist eine auf MAX_SKIP_WARNINGS gedeckelte Stichprobe
+                  und las sich als Mengenangabe („5 Zeilen", auch bei 5000).
+                  Bewusst neutral gesetzt: bei der Projektbeschreibung sind es
+                  regulär zwei Drittel der Zeilen (Irrläufer, frühe Phasen) — in
+                  Warnfarbe wäre die Meldung bei jedem Import ein Fehlalarm. */}
+              {result.rowsWithoutJoinValue ? (
+                <div className="mt-3 text-[12px] text-[var(--tf-text-secondary)]">
+                  {result.rowsWithoutJoinValue.toLocaleString('de-DE')} Zeile(n) ohne
+                  Förderkennzeichen übersprungen — sie lassen sich keinem Antrag zuordnen.
                 </div>
               ) : null}
               {result.heldRemovals ? (
@@ -95,6 +111,20 @@ export function Step4Progress({ progress, result, error, cancelled }: Step4Props
               {result.skippedInactiveUnterprogramm ? (
                 <div className="mt-2 text-[12px] text-[var(--tf-text-secondary)]">
                   {result.skippedInactiveUnterprogramm.toLocaleString('de-DE')} Zeilen in deaktivierten Unterprogrammen übersprungen.
+                </div>
+              ) : null}
+              {result.parseErrors?.length ? (
+                <div className="mt-2 text-[12px] text-amber-700">
+                  {result.parseErrors.map(e => `${e.anzahl.toLocaleString('de-DE')}× ${e.code} (ab Zeile ${e.beispielZeile})`).join(', ')}
+                  {' '}— diese Zeilen haben nicht die Spaltenzahl der Kopfzeile; ihre Werte stehen
+                  verschoben in den falschen Feldern.
+                </div>
+              ) : null}
+              {result.unknownUnterprogramm ? (
+                <div className="mt-2 text-[12px] text-[var(--tf-text-secondary)]">
+                  {result.unknownUnterprogramm.toLocaleString('de-DE')} Zeile(n) mit leerem oder
+                  unbekanntem Unterprogramm-Code übersprungen — nicht importiert, aber auch nicht
+                  gelöscht. Fehlt der Code im Katalog, ergänzen Sie ihn unter „Unterprogramme".
                 </div>
               ) : null}
             </div>

@@ -26,9 +26,10 @@ import {
 } from './merger';
 import {
   findUnterprogrammColumn,
-  getActiveUnterprogrammCodes,
+  getUnterprogrammFilter,
   recomputeUnterprogrammStats,
 } from './unterprogrammRegistry';
+import type { UnterprogrammFilter } from './unterprogrammRegistry';
 import { logMem } from '../../utils/log-mem';
 import type { CsvEncoding, CsvSchema, ImportResult } from './types';
 
@@ -174,7 +175,7 @@ export async function importCsvSource(
     opts.signal?.throwIfAborted();
     opts.onProgress?.({ phase: 'parsing', done: 0, total: csvBlob.size });
     const tParse = performance.now();
-    let { rows, headers } = await parseCsvAllStreamed(csvBlob, {
+    let { rows, headers, parseErrors } = await parseCsvAllStreamed(csvBlob, {
       encoding: effectiveEncoding,
       separator: schema.separator,
       onProgress: (bytes, totalBytes) => {
@@ -183,6 +184,23 @@ export async function importCsvSource(
     });
     timings.parseMs = performance.now() - tParse;
     result.rowCount = rows.length;
+
+    // PapaParse meldet verschobene Zeilen (falsche Feldzahl, ungeschlossene
+    // Anführungszeichen). Der Import übernahm sie bisher kommentarlos: die
+    // Werte stehen dann in den falschen Spalten. Er läuft weiter — ein einzelner
+    // Ausreisser soll den Tages-Import nicht kippen —, aber er sagt es.
+    if (parseErrors.length > 0) {
+      result.parseErrors = parseErrors;
+      const text = parseErrors.map(e => `${e.code}×${e.anzahl} (ab Zeile ${e.beispielZeile})`).join(', ');
+      console.warn(
+        `[csv-import] „${schema.csv_source_name}": ${text} — betroffene Zeilen sind gegenüber`
+        + ' der Kopfzeile verschoben, ihre Werte landen in den falschen Spalten.',
+      );
+      await logAudit(idb, {
+        action: 'csv_import_parse_fehler',
+        details: { schemaId, schemaName: schema.csv_source_name, fehler: parseErrors },
+      }).catch(() => undefined);
+    }
 
     // Die Join-Spalte muss in der GELESENEN Kopfzeile stehen, nicht nur im
     // Mapping. `findJoinColumn` löst gegen `column_mapping` auf — wird die
@@ -227,8 +245,8 @@ export async function importCsvSource(
     const prevMap = new Map(prevHashes.map(h => [h.join_value, h.row_hash]));
 
     // Unterprogramm-Filter (nur Master)
-    const activeUpCodes = await getActiveUnterprogrammCodes(idb, schema);
-    const upCol = activeUpCodes !== null ? findUnterprogrammColumn(schema) : null;
+    const upFilter = await getUnterprogrammFilter(idb, schema);
+    const upCol = upFilter !== null ? findUnterprogrammColumn(schema) : null;
 
     const seen = new Set<string>();
     const newHashes: { csv_schema_id: string; join_value: string; row_hash: string }[] = [];
@@ -236,17 +254,26 @@ export async function importCsvSource(
     const changedJoinValues: string[] = [];
     const newJoinValues: string[] = [];
     let skippedInactive = 0;
+    // Zeilen, die im Export STEHEN, deren Unterprogramm der Import aber nicht
+    // auflösen konnte. Sie werden nicht importiert — dürfen aber auch nicht als
+    // Löschung durchgehen, sonst löscht eine leere Zelle den Antrag.
+    const nichtAufgeloest = new Set<string>();
+    let rowsWithoutJoinValue = 0;
 
     const DIFF_PROGRESS_STEP = 500;
     let diffDone = 0;
 
     for (const row of rows) {
       const jv = (row[joinCol] ?? '').trim();
+      const upUrteil = upFilter && upCol ? beurteileUnterprogramm(row[upCol], upFilter) : 'aktiv';
       if (!jv) {
+        rowsWithoutJoinValue++;
         if (skippedWarnings.length < MAX_SKIP_WARNINGS) {
           skippedWarnings.push(`Leerer Join-Value in Zeile, Spalte "${joinCol}"`);
         }
-      } else if (activeUpCodes !== null && upCol && !activeUpCodes.has((row[upCol] ?? '').trim())) {
+      } else if (upUrteil === 'unbekannt') {
+        nichtAufgeloest.add(jv);
+      } else if (upUrteil === 'deaktiviert') {
         skippedInactive++;
       } else {
         seen.add(jv);
@@ -273,10 +300,23 @@ export async function importCsvSource(
     opts.onProgress?.({ phase: 'diffing', done: diffDone, total: rows.length });
 
     result.skippedInactiveUnterprogramm = skippedInactive;
+    if (nichtAufgeloest.size > 0) result.unknownUnterprogramm = nichtAufgeloest.size;
+    if (rowsWithoutJoinValue > 0) result.rowsWithoutJoinValue = rowsWithoutJoinValue;
 
+    // Gefiltert heisst „ich weiss es nicht", nicht „gibt es nicht": ein Antrag,
+    // dessen Zeile im Export steht, aber nicht auswertbar war, bleibt stehen.
+    //
+    // Zeilen OHNE Join-Wert bleiben davon unberührt — sie werden gezählt und
+    // gemeldet, lösen aber keine Sonderbehandlung aus. Am echten Bestand
+    // gemessen: die Projektbeschreibung führt 28 926 von 43 149 Zeilen ohne
+    // Förderkennzeichen (Irrläufer, frühe Phasen; alle Felder belegt, nur eben
+    // ohne FKZ). Solche Zeilen sind der NORMALFALL dieser Quelle, kein Signal.
+    // Wer daraufhin die Löschungen des Laufs aussetzt, legt sie für diese Quelle
+    // dauerhaft still. Ohne Join-Wert stand die Zeile ausserdem nie in `prevMap`
+    // — sie kann für sich genommen gar keine Löschung auslösen.
     const removedJoinValues: string[] = [];
     for (const [jv] of prevMap) {
-      if (!seen.has(jv)) removedJoinValues.push(jv);
+      if (!seen.has(jv) && !nichtAufgeloest.has(jv)) removedJoinValues.push(jv);
     }
 
     // Gelöscht wird erst, wenn der Antrag in ALLEN Quellen verschwunden ist.
@@ -438,6 +478,10 @@ export async function importCsvSource(
         details: { programmId: schema.programm_id, schemaId, error: (e as Error).message },
       }).catch(() => undefined);
       console.warn('[csv-import] Snapshot-Write fehlgeschlagen:', e);
+      // Der Import selbst ist durch (IDB steht), aber das Team sieht ihn nicht.
+      // Ohne diese Zeile meldete der Wizard „Import abgeschlossen", während der
+      // Schwund-Guard (v4.9.0) den Write gerade absichtlich abgebrochen hatte.
+      result.publishError = (e as Error).message;
     }
 
     result.durationMs = Date.now() - started;
@@ -452,7 +496,9 @@ export async function importCsvSource(
         rowCount: result.rowCount,
         skippedInactiveUnterprogramm: result.skippedInactiveUnterprogramm ?? 0,
         heldRemovals: result.heldRemovals ?? 0,
-        activeUnterprogramme: activeUpCodes ? Array.from(activeUpCodes).sort() : null,
+        unknownUnterprogramm: result.unknownUnterprogramm ?? 0,
+        rowsWithoutJoinValue: result.rowsWithoutJoinValue ?? 0,
+        activeUnterprogramme: upFilter ? Array.from(upFilter.aktiv).sort() : null,
       },
     });
 
@@ -495,6 +541,28 @@ export async function importCsvSource(
       await releaseLock(idb).catch(() => undefined);
     }
   }
+}
+
+/**
+ * Urteil über die Unterprogramm-Zelle einer Master-Zeile.
+ *
+ * Der Schnitt entscheidet, ob eine nicht importierte Zeile als Löschung zählt
+ * (Team-Entscheidung 2026-08-13: gefiltert heisst „ich weiss es nicht", nicht
+ * „gibt es nicht"):
+ *
+ *   - `aktiv`        → Zeile wird importiert
+ *   - `deaktiviert`  → Code steht im Katalog, der Kurator hat ihn abgewählt.
+ *                      Eine Entscheidung, also darf sie löschen.
+ *   - `unbekannt`    → Zelle leer oder Code nicht im Katalog. Eine Lücke im
+ *                      Wissen, keine Aussage über den Antrag — nicht löschen.
+ */
+function beurteileUnterprogramm(
+  zelle: string | undefined,
+  filter: UnterprogrammFilter,
+): 'aktiv' | 'deaktiviert' | 'unbekannt' {
+  const code = (zelle ?? '').trim();
+  if (filter.aktiv.has(code)) return 'aktiv';
+  return filter.bekannt.has(code) ? 'deaktiviert' : 'unbekannt';
 }
 
 /**

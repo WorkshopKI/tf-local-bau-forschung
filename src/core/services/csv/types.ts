@@ -401,6 +401,33 @@ export interface ImportResult {
   heldRemovals?: number;
   /** Bis zu MAX_SKIP_WARNINGS Beispiele dazu — für Meldung und Audit-Log. */
   heldRemovalExamples?: string[];
+  /**
+   * Zeilen, deren Unterprogramm-Zelle leer oder im Katalog unbekannt ist. Sie
+   * werden nicht importiert und zählen NICHT als Löschung — anders als der
+   * bewusst deaktivierte Code (`skippedInactiveUnterprogramm`), der eine
+   * Kurations-Entscheidung ist.
+   */
+  unknownUnterprogramm?: number;
+  /**
+   * Zeilen ohne Join-Wert — keinem Antrag zuzuordnen, also nicht importiert.
+   * Bei manchen Quellen der Normalfall (die Projektbeschreibung führt zwei
+   * Drittel ihrer Zeilen ohne Förderkennzeichen: Irrläufer, frühe Phasen), bei
+   * der Master-Quelle ein Alarmzeichen. Die Zahl ist exakt, nicht die Länge der
+   * gedeckelten Warnungs-Stichprobe `skippedJoinValues`.
+   */
+  rowsWithoutJoinValue?: number;
+  /**
+   * Gesetzt, wenn der Import lokal durchlief, der Snapshot aber NICHT auf den
+   * Share ging (Schwund-Guard, fremder Build-Lock, SMB weg). Der eigene Rechner
+   * ist dann aktuell, das Team nicht — das darf keine Erfolgsmeldung sein.
+   */
+  publishError?: string;
+  /**
+   * Zeilen-Fehler von PapaParse, verdichtet nach Code (`TooFewFields`, …). Eine
+   * solche Zeile ist gegenüber der Kopfzeile verschoben — der Import läuft
+   * weiter, meldet sie aber.
+   */
+  parseErrors?: { code: string; anzahl: number; beispielZeile: number }[];
 }
 
 export interface ParsedRow {

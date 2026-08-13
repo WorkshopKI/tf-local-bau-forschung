@@ -322,6 +322,17 @@ Ein transienter Lesefehler ist auf einem geteilten Laufwerk normal: ein zweiter 
 
 **Nachtrag v4.12 — die Klasse war beschrieben, das Werkzeug fehlte.** Diese Beschreibung stand seit v3.0.1 hier, und die Feedback-Schreiber waren sauber. Ein Cross-Cutting-Review fand die Klasse trotzdem an **vier** weiteren Stellen: Outbox-Einsammler, Kürzel-Map (Pitfall #18), MA-Zugänge, Katalog-Archiv. Ein Muster, das nur als Text existiert und in genau einem Modul implementiert ist, wird nicht übernommen — es wird übersehen. Deshalb liegt die Unterscheidung jetzt im geteilten Lese-Primitiv statt im Modul, das sie zuerst brauchte.
 
+**Nachtrag v4.18 — auch ein LESER kann die Verwechslung nicht bezahlen.** Der Fix von v4.12 zog die
+Schreiber nach; der Delta-Leser des Snapshot-Syncs blieb übrig und war der teuerste Fall von allen.
+`syncAntraegeViaDelta` ([snapshot-sync.ts](../../src/core/services/csv/snapshot-sync.ts)) las die
+Delta-Datei mit `readText`, machte aus `null` ein **leeres Delta**, wandte es an und schob den
+Seq-Cursor weiter — die Änderungen dieses Tages waren auf dem Rechner dauerhaft weg, weil der nächste
+Sync sich für aktuell hielt. Die Regel für Leser lautet also nicht „`null` ist harmlos", sondern:
+**wer aus dem Gelesenen einen Fortschritt ableitet, ist ein Schreiber.** Ein Cursor, ein Wasserzeichen,
+ein „erledigt"-Stempel — alles drei macht die tolerante Lesart tödlich. Bei `unlesbar` bleibt der
+Cursor stehen, der Lauf meldet sich als unvollständig (`SyncResult.incomplete`), und die
+Snapshot-Version wird nicht festgeschrieben.
+
 **Schwester-Regel: nichts löschen, was man nicht gesichert hat.** Derselbe Review fand zwei Aufräumer im Fehlerpfad, die mehr zerstörten als sie verhinderten — der Snapshot-Publish löschte die bereits geschriebene `antraege.jsonl` (die einzige Datei ohne `.backup`), die Legacy-Migration die Quellordner samt der Dateien, deren Kopie gerade gescheitert war. Prüffrage: **belegt dieser Aufräumer, dass er etwas verhindert?** Wenn der Gültigkeits-Marker ohnehin zuletzt geschrieben wird, macht ein Teil-Write nichts gültig — dann ist Stehenlassen die sichere Wahl.
 
 ---

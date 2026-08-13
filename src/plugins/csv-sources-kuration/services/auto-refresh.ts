@@ -260,6 +260,14 @@ export interface RefreshReport {
    */
   heldRemovals: number;
   /**
+   * Aufsummierte Zeilen, deren Unterprogramm-Zelle leer oder im Katalog
+   * unbekannt war. Sie sind nicht importiert worden, zählen aber auch nicht als
+   * Löschung. >0 heisst: der Export trägt Codes, die der Katalog nicht kennt —
+   * entweder ist der Katalog unvollständig oder das Feld läuft im Fachsystem
+   * leer mit.
+   */
+  unknownUnterprogramm: number;
+  /**
    * Was der Journal-Schritt je Master-Quelle getan hat. Leer, wenn keine Quelle
    * journalisiert wurde (kein Master, keine Join-Spalte, keine `D_`-Spalten,
    * kein Schreibrecht).
@@ -434,6 +442,7 @@ export async function runAutoRefresh(
     importTimings: { parseMs: 0, hashDiffMs: 0, mergeMs: 0, snapshotWriteMs: 0 },
     skippedInactiveUnterprogramm: 0,
     heldRemovals: 0,
+    unknownUnterprogramm: 0,
   };
   if (candidates.length === 0) return report;
 
@@ -615,6 +624,7 @@ async function laufeKandidatenAb(
       }
       report.skippedInactiveUnterprogramm += result.skippedInactiveUnterprogramm ?? 0;
       report.heldRemovals += result.heldRemovals ?? 0;
+      report.unknownUnterprogramm += result.unknownUnterprogramm ?? 0;
 
       // Programm zum Publizieren vormerken, wenn dieser Import echte Deltas hatte
       // (sonst ist der vorhandene Snapshot bereits aktuell). Geänderte/entfernte
@@ -695,6 +705,16 @@ async function laufeKandidatenAb(
           details: { error: (e as Error).message, source: 'csv_auto_refresh_batch' },
         }).catch(() => undefined);
         console.warn('[csv-auto-refresh] Snapshot-Batch-Write fehlgeschlagen:', e);
+        // …und in den Bericht. Ohne diese Zeile stand der Fehler nur im
+        // Audit-Log, während Banner und Dialog „erfolgreich aktualisiert"
+        // meldeten — der Import lag lokal, das Team sah ihn nie. Betrifft auch
+        // den Schwund-Guard aus v4.9.0: der bricht den Write bewusst ab, und
+        // genau dieser Abbruch muss beim Kurator ankommen.
+        report.errors.push({
+          schemaId: '',
+          schemaName: 'Veröffentlichung',
+          message: `Der Datenbestand wurde NICHT veröffentlicht: ${(e as Error).message}`,
+        });
       }
       report.importTimings.snapshotWriteMs += Date.now() - tSnap;
     }

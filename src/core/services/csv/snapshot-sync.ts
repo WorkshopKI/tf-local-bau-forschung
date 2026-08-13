@@ -1,6 +1,6 @@
 import type { IDBStore } from '../storage/idb-store';
 import { CSV_STORES, type CsvStoreName } from '../storage/idb-store';
-import { readText } from '../infrastructure/atomic-write';
+import { readText, readTextLage } from '../infrastructure/atomic-write';
 import type { ProgrammSnapshotManifest, SnapshotStoreName, SnapshotDeltaBlock } from './snapshot';
 import {
   SYNC_VERSION_KEY,
@@ -68,6 +68,16 @@ export interface SyncResult {
   createdAt?: string;
   /** Welche Stores wirklich neu geladen wurden (Hash-Mismatch). */
   reloadedStores?: SnapshotStoreName[];
+  /**
+   * true, wenn mindestens ein Store oder Delta NICHT integriert werden konnte
+   * (fehlende/unlesbare Datei, kaputtes JSONL). Der lokale Stand ist dann
+   * älter als das Manifest; die Snapshot-Version wird bewusst nicht
+   * festgeschrieben, damit der nächste Lauf es erneut versucht.
+   *
+   * `synced` bleibt in dem Fall `true` — die Stores, die geladen wurden, sind
+   * geladen, und der In-Memory-Store muss sie nachziehen.
+   */
+  incomplete?: boolean;
   /** Per-Phasen-Timing (nur gesetzt, sobald das Manifest gelesen wurde). */
   timings?: SnapshotTimings;
 }
@@ -241,6 +251,7 @@ export async function syncProgrammSnapshot(
     if (storeKey === 'antraege' && deltaBlock) {
       const r = await syncAntraegeViaDelta(idb, programmDir, manifest, deltaBlock, programmId, timings);
       if (r.reloaded) reloadedStores.push('antraege');
+      if (r.incomplete) incompleteLoad = true;
       antraegeHandledByDelta = true;
       storesDone++;
       reportStore(1);
@@ -403,6 +414,7 @@ export async function syncProgrammSnapshot(
     snapshotVersion: manifest.snapshotVersion,
     createdAt: manifest.createdAt,
     reloadedStores,
+    incomplete: incompleteLoad,
     timings,
   };
 }
@@ -424,7 +436,7 @@ async function syncAntraegeViaDelta(
   delta: SnapshotDeltaBlock,
   programmId: string,
   timings: SnapshotTimings,
-): Promise<{ reloaded: boolean }> {
+): Promise<{ reloaded: boolean; incomplete: boolean }> {
   const deltas = [...delta.deltas].sort((a, b) => a.seq - b.seq);
   const lastSeq = deltas.length > 0 ? deltas[deltas.length - 1]!.seq : 0;
   const firstSeq = deltas.length > 0 ? deltas[0]!.seq : 0;
@@ -447,13 +459,17 @@ async function syncAntraegeViaDelta(
 
   if (needFullBase) {
     const tRead = performance.now();
-    const jsonl = await readText(programmDir, STORE_FILES.antraege);
+    const basisLage = await readTextLage(programmDir, STORE_FILES.antraege);
     timings.smbReadMs += performance.now() - tRead;
-    if (jsonl === null) {
-      console.warn('[snapshot-sync] antraege-Basis fehlt im v2-Snapshot, skip');
-      return { reloaded: false };
+    if (basisLage.status !== 'ok') {
+      // „fehlt" und „liess sich nicht lesen" sind verschiedene Lagen: die eine
+      // ist ein unvollständiger Snapshot, die andere ein Aussetzer. Beide Male
+      // bleibt der lokale Stand stehen — aber der Lauf gilt als unvollständig,
+      // damit die Snapshot-Version nicht als integriert festgeschrieben wird.
+      console.warn(`[snapshot-sync] antraege-Basis ${basisLage.status} im v2-Snapshot, skip`);
+      return { reloaded: false, incomplete: true };
     }
-    const rawLines = jsonl.split('\n').filter(l => l.trim().length > 0);
+    const rawLines = basisLage.text.split('\n').filter(l => l.trim().length > 0);
     let items: unknown[];
     try {
       const tParse = performance.now();
@@ -461,7 +477,7 @@ async function syncAntraegeViaDelta(
       timings.parseMs += performance.now() - tParse;
     } catch (parseErr) {
       console.warn('[snapshot-sync] antraege-Basis: malformed JSONL, skip', parseErr);
-      return { reloaded: false };
+      return { reloaded: false, incomplete: true };
     }
     const tWrite = performance.now();
     await replaceStore(idb, STORE_TARGETS.antraege, items);
@@ -482,20 +498,41 @@ async function syncAntraegeViaDelta(
   // Nur Deltas mit seq > lokalem Cursor anwenden (Konsument lädt nur diese Dateien).
   const lvCurrent = !baseReloaded && await isListViewProjectionCurrent(idb);
   const pending = deltas.filter(d => d.seq > localSeq);
+  let incomplete = false;
   for (const d of pending) {
     const entry = d.stores.antraege;
     if (!entry) { await idb.set(SYNC_DELTA_SEQ_KEY(programmId), d.seq); continue; }
 
     const tRead = performance.now();
-    const changedText = await readText(programmDir, entry.changedFile);
-    let removedKeys = entry.removedKeys ?? [];
-    if (entry.removedFile) {
-      const remText = await readText(programmDir, entry.removedFile);
-      removedKeys = remText ? remText.split('\n').map(s => s.trim()).filter(Boolean) : [];
-    }
+    const changedLage = await readTextLage(programmDir, entry.changedFile);
+    const removedLage = entry.removedFile
+      ? await readTextLage(programmDir, entry.removedFile)
+      : null;
     timings.smbReadMs += performance.now() - tRead;
 
-    const changedLines = (changedText ?? '').split('\n').filter(l => l.trim().length > 0);
+    // Ein Delta, das sich nicht LESEN lässt, ist kein leeres Delta. Wer es als
+    // solches verbucht und den Cursor weiterschiebt, verliert die Änderungen
+    // dieses Tages endgültig — der nächste Sync hält sich für aktuell. Also:
+    // abbrechen, Cursor stehen lassen, beim nächsten Lauf erneut versuchen.
+    // Gilt für „unlesbar" (SMB-Aussetzer, Datei gesperrt) wie für „fehlt"
+    // (Manifest verweist auf eine Datei, die es nicht gibt) — anwenden lässt
+    // sich das Delta in beiden Fällen nicht.
+    if (changedLage.status !== 'ok' || removedLage?.status === 'leer' || removedLage?.status === 'unlesbar') {
+      const grund = changedLage.status !== 'ok'
+        ? `${entry.changedFile}: ${changedLage.status}`
+        : `${entry.removedFile}: ${removedLage?.status}`;
+      console.warn(
+        `[snapshot-sync] antraege.delta.${d.seq} nicht anwendbar (${grund})`
+        + ` — Cursor bleibt bei ${localSeq}, kein leeres Delta verbucht.`,
+      );
+      incomplete = true;
+      break;
+    }
+
+    const removedKeys = removedLage
+      ? removedLage.text.split('\n').map(s => s.trim()).filter(Boolean)
+      : (entry.removedKeys ?? []);
+    const changedLines = changedLage.text.split('\n').filter(l => l.trim().length > 0);
     let changed: Antrag[];
     try {
       const tParse = performance.now();
@@ -504,7 +541,8 @@ async function syncAntraegeViaDelta(
     } catch (parseErr) {
       console.warn(`[snapshot-sync] antraege.delta.${d.seq}: malformed JSONL → Voll-Basis beim nächsten Sync`, parseErr);
       await idb.delete(SNAPSHOT_RECORD_HASHES_KEY(programmId)); // erzwingt Voll-Basis
-      return { reloaded };
+      incomplete = true;
+      break; // nicht `return`: der List-View-Rebuild unten muss noch laufen
     }
 
     for (let i = 0; i < changed.length; i++) {
@@ -540,7 +578,7 @@ async function syncAntraegeViaDelta(
   if (reloaded) {
     console.info(`[snapshot-sync] antraege delta: base=${baseReloaded} applied=${pending.length} (seq→${lastSeq})`);
   }
-  return { reloaded };
+  return { reloaded, incomplete };
 }
 
 /** Record-Anzahl im lokalen Store — für den Empty-Guard (leeres Remote darf einen

@@ -9,6 +9,7 @@ import {
   clearAntraegeListView,
 } from './idb-csv';
 import { toAntragListItem } from './list-view';
+import { LIST_VIEW_VERSION_KEY } from './constants';
 import {
   resolveStatusDatumGruppen, type ResolvedKategorieSpalten,
 } from './status-datum-gruppen';
@@ -34,7 +35,6 @@ import type { Programm } from './types';
  * Boot-Statuszeile).
  */
 export const LIST_VIEW_PROJECTION_VERSION = 6;
-const LIST_VIEW_VERSION_KEY = 'list-view-projection-version';
 /**
  * Signatur der aus ALLEN Programm-Schemas aufgelösten Status-Datum-Felder
  * (FB/PC). Ergänzt den reinen Code-Versions-Marker: Eine Mapping-Änderung (eine

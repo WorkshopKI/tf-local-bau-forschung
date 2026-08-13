@@ -19,6 +19,18 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.18 — 2026-08
+
+### Verbesserungen
+- Der Import sagt jetzt, was er übersprungen hat, und nennt die genaue Zahl: Zeilen mit leerem oder unbekanntem Unterprogramm, Zeilen ohne Förderkennzeichen und Zeilen, deren Spaltenzahl nicht zur Kopfzeile passt.
+- Konnte ein Import zwar gelesen, aber nicht ans Team weitergegeben werden, steht das jetzt im Abschluss („Import lokal abgeschlossen") statt nur im Protokoll.
+
+### Bugfixes
+- Ein Antrag verschwindet nicht mehr, weil seine Unterprogramm-Angabe im Export fehlt oder im Katalog nicht steht — nur ein bewusst abgewähltes Unterprogramm entfernt ihn noch.
+- Ein Leerzeichen in der Kopfzeile des Exports leerte bisher stillschweigend die ganze Spalte.
+- Ließ sich beim Abgleich eine Datei nicht lesen, galt der Tag trotzdem als erledigt und die Änderungen fehlten dauerhaft. Jetzt wird es beim nächsten Abgleich nachgeholt.
+- „Antrags-Daten zurücksetzen" leert nun auch die Listenansicht — vorher zeigten Tabelle, Startseite und Suche danach weiter den alten Bestand.
+
 ## v4.17 — 2026-08
 
 ### Neu

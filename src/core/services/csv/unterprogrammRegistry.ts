@@ -65,13 +65,27 @@ export async function saveUnterprogramm(idb: IDBStore, input: Partial<Unterprogr
 }
 
 /**
- * Gibt die Set<code> zurück, die für den Master-Schema-Import aktiv sind.
+ * Die beiden Mengen, die der Master-Import auseinanderhalten muss: welche Codes
+ * der Katalog überhaupt KENNT und welche davon AKTIV sind.
+ *
+ * Der Unterschied entscheidet über Leben und Tod eines Antrags: ein bekannter,
+ * bewusst deaktivierter Code ist eine Kurations-Entscheidung („gehört nicht in
+ * den Bestand"), ein unbekannter oder leerer ist schlicht eine Wissenslücke.
+ * Nur die Entscheidung darf löschen.
+ */
+export interface UnterprogrammFilter {
+  aktiv: Set<string>;
+  bekannt: Set<string>;
+}
+
+/**
+ * Gibt den Unterprogramm-Filter für den Master-Schema-Import zurück.
  * Nicht-Master: gibt null zurück (= kein Filter).
  */
-export async function getActiveUnterprogrammCodes(
+export async function getUnterprogrammFilter(
   idb: IDBStore,
   schema: CsvSchema,
-): Promise<Set<string> | null> {
+): Promise<UnterprogrammFilter | null> {
   if (!schema.is_master) return null;
   const all = await listUnterprogrammeByProgramm(idb, schema.programm_id);
   // Leerer Store = „nie konfiguriert", NICHT „alle deaktiviert" → KEIN Filter.
@@ -82,9 +96,24 @@ export async function getActiveUnterprogrammCodes(
   // hängen (2026-07). Eine bewusste „alle deaktiviert"-Absicht drückt sich durch
   // vorhandene Einträge mit `aktiv:false` aus (all.length>0) und bleibt Skip-all.
   if (all.length === 0) return null;
-  const codes = new Set<string>();
-  for (const up of all) if (up.aktiv) codes.add(up.code);
-  return codes;
+  const aktiv = new Set<string>();
+  const bekannt = new Set<string>();
+  for (const up of all) {
+    bekannt.add(up.code);
+    if (up.aktiv) aktiv.add(up.code);
+  }
+  return { aktiv, bekannt };
+}
+
+/**
+ * Gibt die Set<code> zurück, die für den Master-Schema-Import aktiv sind.
+ * Nicht-Master: gibt null zurück (= kein Filter).
+ */
+export async function getActiveUnterprogrammCodes(
+  idb: IDBStore,
+  schema: CsvSchema,
+): Promise<Set<string> | null> {
+  return (await getUnterprogrammFilter(idb, schema))?.aktiv ?? null;
 }
 
 /** Liefert das antragsdatum als ISO-Date-String (YYYY-MM-DD) oder null. */

@@ -1,5 +1,6 @@
 import { IDBStore, CSV_STORES, type CsvStoreName } from '../storage/idb-store';
-import { MAX_WRITES_PER_TX } from './constants';
+import { MAX_WRITES_PER_TX, LIST_VIEW_VERSION_KEY } from './constants';
+import { SNAPSHOT_SYNC_KEY_PREFIX } from './snapshot-keys';
 import type {
   Programm,
   Unterprogramm,
@@ -525,6 +526,8 @@ export interface ClearAntragDataResult {
   verbuende: number;
   historie: number;
   rowHashes: number;
+  /** Records der Slim-Projektion — das, was Tabelle/Startseite/Suche wirklich lesen. */
+  listView: number;
 }
 
 async function countStore(idb: IDBStore, store: CsvStoreName): Promise<number> {
@@ -555,6 +558,7 @@ export async function clearAntragData(idb: IDBStore): Promise<ClearAntragDataRes
       (await countStore(idb, CSV_STORES.ANTRAG_HISTORIE)) +
       (await countStore(idb, CSV_STORES.VERBUND_HISTORIE)),
     rowHashes: await countStore(idb, CSV_STORES.CSV_ROW_HASHES),
+    listView: await countStore(idb, CSV_STORES.ANTRAEGE_LIST_VIEW),
   };
   await clearStoreFully(idb, CSV_STORES.ANTRAEGE);
   await clearStoreFully(idb, CSV_STORES.VERBUENDE);
@@ -562,6 +566,18 @@ export async function clearAntragData(idb: IDBStore): Promise<ClearAntragDataRes
   await clearStoreFully(idb, CSV_STORES.VERBUND_HISTORIE);
   await clearStoreFully(idb, CSV_STORES.AKRONYM_INDEX);
   await clearStoreFully(idb, CSV_STORES.CSV_ROW_HASHES);
+  // Die Slim-Projektion ist die EINZIGE Lesequelle von Tabelle, Startseite und
+  // Suche. Bliebe sie stehen, zeigte die App nach dem Reset den alten Bestand
+  // weiter — mit der Meldung, er sei gelöscht.
+  await clearStoreFully(idb, CSV_STORES.ANTRAEGE_LIST_VIEW);
+  await idb.delete(LIST_VIEW_VERSION_KEY);
+
+  // Sync-Marken mit: sie sagen „diese Snapshot-Version ist integriert". Nach dem
+  // Leeren stimmt das nicht mehr, und der nächste Sync übersprünge den Nachschub
+  // als erledigt. Über das Präfix, damit keine neue Marke vergessen wird.
+  for (const key of await idb.keys(SNAPSHOT_SYNC_KEY_PREFIX)) {
+    await idb.delete(key);
+  }
   return result;
 }
 
@@ -573,5 +589,6 @@ export async function countAntragData(idb: IDBStore): Promise<ClearAntragDataRes
       (await countStore(idb, CSV_STORES.ANTRAG_HISTORIE)) +
       (await countStore(idb, CSV_STORES.VERBUND_HISTORIE)),
     rowHashes: await countStore(idb, CSV_STORES.CSV_ROW_HASHES),
+    listView: await countStore(idb, CSV_STORES.ANTRAEGE_LIST_VIEW),
   };
 }

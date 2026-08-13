@@ -159,3 +159,11 @@ export const DEFAULT_SMB_HANDLE_KEY = 'daten-share';
 // v1.9: Schemas liegen unter programm/schemas/, Imports unter programm/antraege/imports/.
 export const CSV_SCHEMAS_SUBDIR = 'schemas';
 export const CSV_SOURCES_SUBDIR = 'antraege/imports';
+
+/**
+ * Marker der zuletzt gebauten Slim-Projektion (`ANTRAEGE_LIST_VIEW`). Liegt
+ * hier statt in `list-view-migration.ts`, weil ihn auch `idb-csv.ts` beim
+ * Zurücksetzen löschen muss — und ein Wert-Import von dort zurück wäre ein
+ * Laufzeit-Zyklus.
+ */
+export const LIST_VIEW_VERSION_KEY = 'list-view-projection-version';
