@@ -99,6 +99,35 @@ describe('validateHeaders erkennt verschobene Alias-Zuordnungen', () => {
   });
 });
 
+describe('Ignorierte Spalten blockieren den täglichen Import nicht', () => {
+  const MIT_IGNORIERTEN = schema({
+    FKZ: { canonical: 'aktenzeichen', type: 'string', required: true },
+    VB_BEMERK: { ignore: true },
+  });
+
+  it('eine fehlende `{ignore:true}`-Spalte zählt nicht als fehlend', () => {
+    const v = validateHeaders(MIT_IGNORIERTEN, ['FKZ']);
+    expect(v.missingFromCsv).toEqual([]);
+    expect(entscheideDrift(v, false).importieren).toBe(true);
+  });
+
+  it('eine fehlende TRAGENDE Spalte blockiert weiterhin', () => {
+    const v = validateHeaders(MIT_IGNORIERTEN, ['VB_BEMERK']);
+    expect(v.missingFromCsv).toEqual(['FKZ']);
+    expect(entscheideDrift(v, false).importieren).toBe(false);
+  });
+
+  it('für die Aliasgruppen zählt sie mit — auch sie belegt eine Position', () => {
+    const mitAlias = schema({
+      FKZ: { canonical: 'aktenzeichen', type: 'string', required: true },
+      Nachhaltig: { ignore: true },
+      Nachhaltig_1: { custom: 'zt_nachhaltig_vb', type: 'string' },
+    });
+    const v = validateHeaders(mitAlias, ['FKZ', 'Nachhaltig', 'Nachhaltig_1', 'Nachhaltig_2']);
+    expect(v.mehrdeutigeSpalten).toEqual(['Nachhaltig']);
+  });
+});
+
 describe('entscheideDrift bei mehrdeutigen Spalten', () => {
   it('blockiert — auch wenn der Kurator „Trotzdem importieren" geklickt hat', () => {
     const v = validateHeaders(ZWILLINGE, ['FKZ', 'Nachhaltig', 'Nachhaltig_1', 'Nachhaltig_2']);

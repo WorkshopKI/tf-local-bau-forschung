@@ -32,7 +32,7 @@ import {
 } from '../csv-source-handle';
 import { refreshAntraegeStoreAfterSync } from '@/plugins/antraege/snapshot-refresh';
 import { acquireDataMutation, releaseDataMutation } from '@/core/services/csv/data-mutation-gate';
-import { useCsvSourcesSignal } from '@/core/services/csv/csv-sources-signal';
+import { bumpCsvSourcesSignal, useCsvSourcesSignal } from '@/core/services/csv/csv-sources-signal';
 import { useStartupDataStatus } from '@/core/services/csv/startup-data-status';
 import {
   runAutoRefresh,
@@ -69,7 +69,8 @@ export interface AutoRefreshCheckState {
    * echten Fremd-Lock von „anderes Fenster unter deinem Namen" und „dieses
    * Fenster selbst" — der Banner formuliert danach (`beschreibeLockKonflikt`).
    */
-  lockConflict: { blockingKurator: string; ageMinutes: number; besitz: LockBesitz } | null;
+  lockConflict:
+    { blockingKurator: string; ageMinutes: number; besitz: LockBesitz; stufe?: string } | null;
   /** Allgemeiner Fehler im Refresh-Lauf (nicht-Lock-Konflikt). */
   refreshError: string | null;
 
@@ -284,6 +285,7 @@ export function useCsvAutoRefreshCheck(): AutoRefreshCheckState {
             blockingKurator: err.blockingKurator,
             ageMinutes: err.ageMinutes,
             besitz: err.besitz,
+            stufe: err.stufe,
           });
         }
       } else if (mountedRef.current) {
@@ -291,6 +293,13 @@ export function useCsvAutoRefreshCheck(): AutoRefreshCheckState {
       }
     } finally {
       releaseDataMutation();
+      // Quellen-Signal anstoßen: der Fußzeilen-Punkt „● CSV" und der Dialog
+      // hängen an genau diesem Signal, und der Banner-Pfad bumpte es nie.
+      // Nach einem erfolgreichen Banner-Import zeigte das Banner „N Quellen
+      // aktualisiert", die Ampel daneben blieb den Rest der Sitzung rot mit
+      // „Neue CSV-Exporte verfügbar" — samt einem „Letzter CSV-Import" von VOR
+      // dem Lauf. Wer nachsah, ob es gewirkt hat, las das Gegenteil.
+      bumpCsvSourcesSignal();
       if (mountedRef.current) {
         setRefreshing(false);
         setRefreshProgress(null);

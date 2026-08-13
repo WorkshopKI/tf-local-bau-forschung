@@ -43,10 +43,13 @@ const MAPPING: ColumnMapping = {
 
 describe('validateHeaders', () => {
   it('partitioniert matched / missingFromCsv / newColumns korrekt', () => {
-    // CSV hat AKZ + STATUS (matched), nicht EXPORT_TS (missing), plus NEU_1/NEU_2 (neu).
+    // CSV hat AKZ + STATUS (matched), plus NEU_1/NEU_2 (neu). EXPORT_TS fehlt
+    // zwar, ist aber `{ignore:true}` — daran hängt kein Feld, also ist es keine
+    // blockierende Lücke (v4.23.0; vorher stand hier ['EXPORT_TS'] und die
+    // Quelle wurde deswegen täglich dem Kurator vorgelegt).
     const v = validateHeaders(mkSchema(MAPPING), ['AKZ', 'STATUS', 'NEU_1', 'NEU_2']);
     expect(v.matched.sort()).toEqual(['AKZ', 'STATUS']);
-    expect(v.missingFromCsv).toEqual(['EXPORT_TS']);
+    expect(v.missingFromCsv).toEqual([]);
     expect(v.newColumns.sort()).toEqual(['NEU_1', 'NEU_2']);
   });
 

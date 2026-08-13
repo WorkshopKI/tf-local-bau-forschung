@@ -11,7 +11,9 @@
  * `.tsx`) — siehe CLAUDE.md „File Naming".
  */
 
-import type { LockBesitz } from '@/core/services/infrastructure/build-lock';
+import {
+  staleThresholdForStufe, type LockBesitz,
+} from '@/core/services/infrastructure/build-lock';
 
 export interface LockKonfliktAnzeige {
   /** Text VOR dem hervorgehobenen Namen ('' wenn keiner vorangeht). */
@@ -30,7 +32,21 @@ export interface LockKonfliktAnzeige {
   bestaetigung: string | null;
 }
 
-const WARTE_HINWEIS = 'Bitte in 2-3 Min erneut versuchen.';
+/**
+ * Wie lange dauert es, bis DIESER Lock von selbst verfällt?
+ *
+ * Die Schwelle hängt an der Stufe: der CSV-Import räumt sich nach 3 Minuten ab
+ * (`CSV_IMPORT_STALE_HEARTBEAT_MS`), jeder andere Vorgang erst nach 2 Stunden —
+ * der Embedding-Korpus-Build läuft bis zu ~47 Minuten und darf nicht für tot
+ * erklärt werden. Die pauschale Zusage „in 2-3 Min erneut versuchen" war
+ * deshalb genau dann falsch, wenn sie am meisten wehtat.
+ */
+function warteHinweis(stufe: string | undefined): string {
+  const min = Math.round(staleThresholdForStufe(stufe ?? '') / 60_000);
+  return min <= 5
+    ? `Bitte in ${min} Min erneut versuchen.`
+    : `Der Lock gehört zu einem lang laufenden Vorgang und verfällt erst nach ${Math.round(min / 60)} h von selbst.`;
+}
 
 function fremdBestaetigung(wer: string, min: number): string {
   return (
@@ -44,20 +60,30 @@ export function beschreibeLockKonflikt(input: {
   besitz: LockBesitz;
   blockingKurator: string;
   ageMinutes: number;
+  /** Stufe des blockierenden Locks — bestimmt, wann er von selbst verfällt. */
+  stufe?: string;
 }): LockKonfliktAnzeige {
   const min = Math.round(input.ageMinutes);
+  const warte = warteHinweis(input.stufe);
 
   if (input.besitz === 'eigener-tab') {
-    // Nach dem Umbau auf EINEN Lock je Lauf sollte das nicht mehr vorkommen —
-    // wenn doch, ist es ein Befund und keine fremde Blockade.
+    // `acquireBuildLock` liefert 'eigener-tab' NUR, wenn ein zweiter Flow in
+    // DIESEM Fenster den Lock JETZT hält — ein echtes Überbleibsel wird
+    // kommentarlos übernommen und erzeugt gar keinen Konflikt. Der frühere
+    // Wortlaut behauptete das Gegenteil („aus einem früheren Lauf … läuft in
+    // 2-3 Min von selbst ab") und übernahm ohne Rückfrage. Erreichbar u.a.
+    // während des Embedding-Korpus-Builds (bis ~47 Min, Banner voll bedienbar).
     return {
-      vorText:
-        `Dieses Fenster hält noch einen Aktualisierungs-Lock aus einem früheren Lauf (seit ${min} Min). `
-        + 'Er läuft in 2-3 Min von selbst ab.',
+      vorText: `In diesem Fenster läuft seit ${min} Min bereits eine Aktualisierung.`,
       name: null,
       nachText: '',
       kannUebernehmen: true,
-      bestaetigung: null,
+      bestaetigung:
+        `In diesem Fenster läuft seit ${min} Min bereits eine Aktualisierung — etwa ein Import `
+        + 'in einem offenen Dialog oder der Aufbau des Suchindex.\n\n'
+        + 'Wird der Lock übernommen, laufen beide Vorgänge gleichzeitig weiter; der zuerst '
+        + 'fertige gibt den Lock frei, und der andere schreibt danach ungeschützt gegen andere '
+        + 'Rechner.\n\nTrotzdem jetzt aktualisieren?',
     };
   }
 
@@ -65,7 +91,7 @@ export function beschreibeLockKonflikt(input: {
     return {
       vorText: 'Ein anderes Fenster unter deinem Namen (',
       name: input.blockingKurator,
-      nachText: `) aktualisiert gerade (seit ${min} Min). ${WARTE_HINWEIS}`,
+      nachText: `) aktualisiert gerade (seit ${min} Min). ${warte}`,
       kannUebernehmen: true,
       bestaetigung:
         `Ein anderes Fenster unter deinem Namen („${input.blockingKurator}") hält den `
@@ -78,7 +104,7 @@ export function beschreibeLockKonflikt(input: {
   return {
     vorText: '',
     name: input.blockingKurator,
-    nachText: ` aktualisiert gerade (seit ${min} Min). ${WARTE_HINWEIS}`,
+    nachText: ` aktualisiert gerade (seit ${min} Min). ${warte}`,
     kannUebernehmen: true,
     bestaetigung: fremdBestaetigung(input.blockingKurator, min),
   };

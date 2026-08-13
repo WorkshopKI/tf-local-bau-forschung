@@ -185,6 +185,13 @@ export function SchemaRecoverySection({ programmId, onRestored }: Props): React.
               Snapshot geschrieben ({publishResult.mode}) — Version {publishResult.snapshotVersion}.
               Andere Rechner heilen beim nächsten „Datenbestand aktualisieren".
             </p>
+          ) : publishResult.status === 'lock-besetzt' ? (
+            <p className="text-[12px] text-[var(--tf-danger-text)]">
+              Nichts geschrieben — „{publishResult.blockingKurator}" aktualisiert gerade (seit{' '}
+              {Math.round(publishResult.ageMinutes)} Min). Zwei gleichzeitige Schreiber im selben
+              Snapshot-Ordner erzeugen genau die Schäden, die dieser Knopf heilen soll. Später erneut
+              versuchen.
+            </p>
           ) : (
             <p className="text-[12px] text-[var(--tf-danger-text)]">
               Kein Daten-Share verbunden — Snapshot nicht geschrieben. Share verbinden und erneut versuchen.

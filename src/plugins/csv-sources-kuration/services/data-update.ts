@@ -49,6 +49,20 @@ export interface DataUpdateResult {
   csvReport?: RefreshReport;
   /** Anderer Schreiber hielt den Build-Lock — CSV-Import übersprungen. */
   lockBusy?: { blockingKurator: string; ageMinutes: number; besitz: LockBesitz };
+  /**
+   * Der Lauf hat gar nicht stattgefunden. Ohne dieses Feld war das Ergebnis
+   * BAUGLEICH mit „geprüft, nichts gefunden" — beide Türen (● CSV-Ampel,
+   * Einstellungen → Speicher) meldeten daraufhin Frische, obwohl nichts
+   * geprüft wurde.
+   */
+  nichtGelaufen?: 'gate-belegt';
+  /**
+   * Mindestens ein Programm konnte seinen Snapshot nicht vollständig
+   * integrieren (`SyncResult.incomplete`). Die Version wird dann bewusst NICHT
+   * festgeschrieben — der nächste Lauf holt nach. Ohne dieses Feld meldete der
+   * Toast Erfolg samt neuem Stand, und der Banner kam sofort wieder.
+   */
+  snapshotUnvollstaendig?: boolean;
   /** Gesamt-Wall-Clock (ms). */
   totalMs: number;
 }
@@ -161,7 +175,7 @@ export async function runDataUpdate(
   // atomicWrite-Rennen auf denselben Stores/Share-Dateien). Der zweite Aufruf
   // wird zum No-Op (leeres Result). Ersetzt die frühere modulweite `running`-Flag,
   // die NUR runDataUpdate schützte — die Banner-CTAs liefen daran vorbei.
-  if (!acquireDataMutation()) return result;
+  if (!acquireDataMutation()) return { ...result, nichtGelaufen: 'gate-belegt' };
 
   const tTotal = performance.now();
   const snapAgg: SnapshotTimings = {
@@ -206,6 +220,8 @@ export async function runDataUpdate(
         snapAgg.idbWriteMs += r.timings.idbWriteMs;
         snapAgg.listViewRebuildMs += r.timings.listViewRebuildMs;
       }
+
+      if ('incomplete' in r && r.incomplete) result.snapshotUnvollstaendig = true;
 
       if (r.synced) {
         result.snapshotSynced = true;

@@ -246,8 +246,9 @@ interface AntraegeState {
   /** Cross-Programm-Index: 4-Ziffer-Netzwerk-ID → Netzwerk-Name (akronym des
    *  Lead-Antrags). Gefüllt einmal pro Session via `loadNetzwerkNameIndex`. */
   netzwerkNameById: Map<string, string>;
-  /** True sobald der Index einmal aufgebaut wurde (auch wenn leer). Verhindert
-   *  Re-Fetches bei jedem Programm-Switch. */
+  /** True sobald der Index aus einem NICHT-leeren Bestand aufgebaut wurde.
+   *  Verhindert Re-Fetches bei jedem Programm-Switch — aber nicht den zweiten
+   *  Anlauf nach einem Cold-Start, bei dem noch nichts da war. */
   netzwerkNameIndexLoaded: boolean;
   loading: boolean;
   /** Wann der Store zuletzt erfolgreich geladen hat. Für TTL-Skip-Path
@@ -285,6 +286,9 @@ interface AntraegeState {
   /** Lädt einmal pro Session den Cross-Programm-Netzwerk-Namen-Index aus
    *  dem `ANTRAEGE_LIST_VIEW`-Store. Idempotent — Folge-Aufrufe sind No-Ops. */
   loadNetzwerkNameIndex: (idb: IDBStore) => Promise<void>;
+  /** Index neu aufbauen lassen — nach einem Import/Sync kann er neue Netzwerke
+   *  nicht kennen (`loadAll(force)` allein rührt ihn nicht an). */
+  resetNetzwerkNameIndex: () => void;
 }
 
 /** Session-TTL: innerhalb dieses Fensters wird ein erneuter loadAll-Aufruf
@@ -541,7 +545,14 @@ export const useAntraegeStore = create<AntraegeState>((set) => ({
     try {
       const all = await listAllAntraegeListView(idb);
       const map = buildNetzwerkNameIndex(all);
-      set({ netzwerkNameById: map, netzwerkNameIndexLoaded: true });
+      // Ein LEERER Bestand ist kein Ergebnis, sondern ein Zeitpunkt: beim
+      // Cold-Start lädt die Seite ihren ersten `loadAll`, bevor `runDataUpdate`
+      // gelaufen ist (der Start-Pass hängt bewusst hinter dem First-Paint).
+      // Der Latch hätte den leeren Index für die ganze Sitzung festgeschrieben
+      // — Netzwerk-Gruppen hießen dann „Netzwerk 1062" statt mit ihrem Namen,
+      // bis zum Browser-Reload. Zwei Blöcke höher ist derselbe Fall für
+      // `lastLoadedAt` bereits abgesichert.
+      set({ netzwerkNameById: map, netzwerkNameIndexLoaded: all.length > 0 });
       end(`names=${map.size} scanned=${all.length}`);
     } catch (e) {
       // Best-effort: bei Fehler trotzdem als geladen markieren, damit nicht
@@ -550,4 +561,6 @@ export const useAntraegeStore = create<AntraegeState>((set) => ({
       end(`error: ${(e as Error).message}`);
     }
   },
+
+  resetNetzwerkNameIndex: () => set({ netzwerkNameIndexLoaded: false }),
 }));

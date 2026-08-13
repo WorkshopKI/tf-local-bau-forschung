@@ -19,6 +19,15 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.23 — 2026-08
+
+### Bugfixes
+- „Demo-Quellen in echte umwandeln" entfernt die Beispiel-Anträge jetzt gleich mit. Der anschließende Hinweis empfiehlt nicht mehr das Zurücksetzen der Antragsdaten — das hätte auch die echten Daten gelöscht.
+- „Bereits aktuell." erscheint nur noch, wenn wirklich geprüft wurde und nichts war. Lief gerade ein anderer Vorgang, wurden Quellen wegen geänderter Spalten übersprungen oder kam der Datenbestand unvollständig an, steht das jetzt da.
+- Der Punkt „● CSV" unten prüft nach einem Import über das Banner sofort neu. Bisher blieb er den Rest der Sitzung rot und meldete „Neue CSV-Exporte verfügbar", obwohl der Import gerade gelaufen war.
+- Wird im Statuskatalog ein Feld umbenannt, zeigt die Spalte in der Antragstabelle sofort den neuen Text — bisher erst nach einem Neustart der App.
+- Netzwerk-Gruppen heißen auch dann mit ihrem Namen, wenn die Daten beim Öffnen der Seite noch nicht geladen waren.
+
 ## v4.22 — 2026-08
 
 ### Bugfixes

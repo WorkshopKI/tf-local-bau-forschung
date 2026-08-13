@@ -107,6 +107,14 @@ export function kategorienMitDatumsfeldern(
  */
 export function kategorieSpaltenSignatur(spalten: readonly ResolvedKategorieSpalten[]): string {
   return spalten
-    .map(s => `${s.kategorieId}#${s.label}=${s.felder.map(f => `${f.code}>${f.feld}`).join('|')}`)
+    // Das FELD-Label gehört dazu: genau es landet als `kat_status[...].l` in der
+    // Projektion und erscheint in der Zelle, im XLSX-Export und in der
+    // Filter-Werteliste. Ohne `#${f.label}` änderte eine Feld-Umbenennung
+    // (Ordner, Code, Zuordnung unverändert) weder einen Record noch die
+    // Projektionsversion noch die Signatur — der Boot-Guard baute nicht neu,
+    // und die Zelle zeigte auf unbestimmte Zeit den alten Text, während
+    // Katalog-Verwaltung und Spaltenkopf den neuen führten. Der FB/PC-Teil
+    // derselben Signatur führt das Label seit je.
+    .map(s => `${s.kategorieId}#${s.label}=${s.felder.map(f => `${f.code}>${f.feld}#${f.label}`).join('|')}`)
     .join(';');
 }

@@ -175,6 +175,39 @@ Drei Stellen behandelten den Snapshot, als wäre er der ganze Datenbestand des R
   `loadSmallStoreData` den **Rechner**: hat das Programm CSV-Quellen und ist nach dem Fixture-Filter
   keine übrig, stammt sein ganzer Bestand aus den gebündelten Beispieldaten. Der Publish bricht ab.
 
+## Was der Lauf meldet — und was er verschwieg (v4.23.0)
+
+Zwei Türen (Fußzeilen-Ampel „● CSV" und Einstellungen → Speicher) bauten ihre Meldung je selbst aus
+`processed` und sagten **„Bereits aktuell."** für drei sehr verschiedene Lagen. Die Regel steht jetzt
+einmal in [datenUpdateMeldung.ts](../../src/plugins/csv-sources-kuration/services/datenUpdateMeldung.ts)
+und ist ohne React prüfbar:
+
+- **Es lief gar kein Lauf.** Ist das Daten-Mutations-Gate belegt (Start-Pass, Banner-Lauf, Watcher —
+  jeweils über Minuten), kehrt `runDataUpdate` sofort mit dem unberührten Initial-Objekt zurück:
+  kein Report, kein `lockBusy`, kein Fehler — exakt die Form von „geprüft, nichts gefunden". Das neue
+  `DataUpdateResult.nichtGelaufen` macht den Unterschied lesbar. Besonders folgenreich am
+  Force-Knopf: der parallele Lauf nutzt gerade den Fast-Path, den `forceRecheck` umgehen soll.
+- **Der Lauf hat Quellen abgewiesen.** `report.drift` und `report.errors` blieben ungelesen — der
+  Dialog zeigte daneben weiter „Neue Exporte verfügbar", der Punkt blieb rot.
+- **Der Snapshot kam unvollständig.** `SyncResult.incomplete` gibt es seit v4.18.0, gelesen hat es
+  niemand; jetzt reicht `runDataUpdate` es als `snapshotUnvollstaendig` weiter.
+
+Dazu zwei Stellen, an denen die App etwas behauptete oder tat, was nicht stimmte:
+
+- **Die Ampel wird nach einem Banner-Import neu geprüft.** Der Fußzeilen-Punkt hängt allein am
+  Quellen-Signal, und der Banner-Pfad bumpte es nie. Nach einem erfolgreichen Import zeigte das
+  Banner „N Quellen aktualisiert", die Ampel daneben blieb den Rest der Sitzung rot mit „Neue
+  CSV-Exporte verfügbar" — samt einem „Letzter CSV-Import" von VOR dem Lauf.
+- **`republishSnapshot` bricht bei besetztem Lock ab**, statt ihn zu überstempeln. Es war der einzige
+  Publish-Pfad des Moduls ohne Rückfrage und ohne Abbruch; das `finally` löschte anschließend die
+  Lock-Datei, obwohl der andere Lauf noch schrieb. Der Knopf ist dev-only — der dev-Build erbt aber
+  den ECHTEN Team-Share.
+- **Der Lock-Konflikt-Text beschreibt den echten Zustand.** `besitz: 'eigener-tab'` heißt „in diesem
+  Fenster läuft JETZT ein zweiter Flow", nicht „Überbleibsel aus einem früheren Lauf"; übernommen
+  wird nur nach Rückfrage. Und die Zusage „in 2-3 Min erneut versuchen" gilt nur für die
+  CSV-Import-Stufe (3 Min) — jede andere verfällt erst nach 2 Stunden, allen voran der
+  ~47-minütige Embedding-Build.
+
 ## Frische-Ampel „● CSV" (`deriveCsvFreshnessState`)
 
 Reine, getestete Entscheidungslogik für den Fußzeilen-Punkt: `fresh` (grün) nur, wenn **erreichbare** Quellen

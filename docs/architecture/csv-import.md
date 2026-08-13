@@ -188,6 +188,32 @@ Zwei Regeln stehen jetzt davor:
    gewann die Fehlbindung dauerhaft — auch wenn die richtige Datei am nächsten Tag zurück war. Der
    kuratierte Name geht vor, der Cache füllt nur die Lücke.
 
+## Demo-Quellen in echte umwandeln (v4.23.0)
+
+Der Knopf „Demo-Quellen umwandeln" speicherte bisher nur das neue Schema und löschte das
+Fixture-Schema — **ohne** `deleteRowHashes`, ohne Recompute (anders als `removeFixtureSeeds`). Die
+Demo-Anträge blieben im Bestand, ihre Row-Hashes verwaisten unter nicht mehr existierenden
+Schema-Ids, und die Lage war danach **schlechter als vorher**: `fixtureSourceWarning` fand keine
+`fixture-real-*`-Id mehr (Banner weg), `removeFixtureSeeds` griff ins Leere, der Echt-Import unter
+der neuen Id räumte nichts ab. Übrig blieb der Alles-oder-nichts-Reset — den der Erfolgs-Banner auch
+noch empfahl, obwohl `clearAntragData` herkunftsblind löscht.
+
+[convert-fixture-source.ts](../../src/plugins/csv-sources-kuration/services/convert-fixture-source.ts)
+räumt jetzt mit auf, und zwar nach **derselben Löschregel wie der Import**
+([loeschregel.ts](../../src/core/services/csv/loeschregel.ts), geteilt statt kopiert): weg ist nur,
+was keine verbliebene Quelle mehr trägt; ein Antrag, den auch eine echte Quelle führt, wird ohne den
+Fixture-Anteil neu zusammengebaut. Damit erledigt sich auch der zweite Defekt derselben Stelle —
+dass die Share-CSV unter der ALTEN Id liegen bleibt und der (Master-)Schema danach 0 Zeilen liefert:
+es gibt keine Demo-Anträge mehr, die ein Recompute verstümmeln könnte.
+
+Dritter Defekt, andere Wurzel: **die abgeleitete Id kollidierte programmübergreifend.** Die
+Kollisionsmenge kam aus `listSchemas(idb, programmId)` — den Quellen des AKTIVEN Programms —,
+geschrieben wird per `putSchema` in den GLOBALEN `csv_schemas`-Store. Eine echte Quelle
+„Bewilligungsdetails" in einem zweiten Programm wurde beim Klick vom Demo-Klon ersetzt: Mapping,
+Priorität, `file_checksum` weg, `programm_id` auf das Default-Programm gesprungen, die Quelle aus
+ihrem Programm verschwunden — und der Klon trug keine `fixture-real-*`-Id mehr, fiel also durch jede
+Fixture-Prüfung. `listAllSchemas` liefert die Kollisionsmenge jetzt global.
+
 ## Verbund-Aggregation (Forschungs-Domäne)
 
 Ein **Verbund** bündelt mehrere Teilanträge unter einer gemeinsamen Projektbeschreibung. Der CSV-Master-Import erkennt Verbünde über das Akronym + Teilantragsindex und dedupliziert geteilte Dokumente per Content-Hash. Anzeige in der Antrags-Liste: Teilvorhaben werden visuell unter dem Verbund-Header geclustert (siehe `src/plugins/antraege/` Cluster-Komponenten).

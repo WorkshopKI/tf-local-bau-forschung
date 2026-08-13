@@ -15,6 +15,7 @@ import { canWriteDatenShare } from '@/config/feature-flags';
 import {
   listProgramme, listVerbuendeByProgramm, listAntraegeByProgramm, listSchemasByProgramm,
 } from '@/core/services/csv/idb-csv';
+import { rebuildAntraegeListView } from '@/core/services/csv/list-view-migration';
 import type { CsvSchema } from '@/core/services/csv/types';
 import { pickSchemaSnapshotFile } from '@/plugins/csv-sources-kuration/csv-file-picker';
 import { programmNummernVon } from '@/plugins/antraege/status/programmNummer';
@@ -526,6 +527,19 @@ export function useStatusCockpit(): StatusCockpitApi {
       setEntwurf(neu);
       setVersionen(await listeVersionen(idb));
       basisRef.current = nr;
+
+      // Die Ordner-Spalten der Antragstabelle stehen als `kat_status` IN der
+      // Slim-Projektion, aufgelöst über die kuratierte Fassung. Hängt die PL ein
+      // Datumsfeld um oder benennt es, ändert sich kein Record, keine
+      // Projektionsversion und kein Row-Hash — wohl aber der Sollinhalt. Der
+      // einzige Wächter ist die Schema-Signatur, und die wird ausschliesslich
+      // beim App-Start ausgewertet: die PL kurierte, sah in der Tabelle die
+      // alte Zuordnung, hielt die Kuration für wirkungslos und kurierte nach.
+      // Der Rebuild kostet einmalig ein paar Sekunden — nach einer bewussten
+      // Kurations-Aktion ist das der richtige Preis.
+      await rebuildAntraegeListView(idb).catch(err => {
+        console.warn('[status-katalog] Ordner-Spalten konnten nicht neu projiziert werden', err);
+      });
 
       const ergebnis = await schreibeKatalogAufShare(idb, { basisVersion: basisVorher, stand: datei });
       if (ergebnis.art === 'konflikt') {

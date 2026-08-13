@@ -17,6 +17,7 @@ import { isDevFixturesEnabled, dataConfig } from '@/config/feature-flags';
 import { PfadKopierZeile } from '@/components/ui/PfadKopierZeile';
 import { isKuratorFreigeschaltet } from '@/core/modul-freischaltung';
 import { runDataUpdate } from '@/plugins/csv-sources-kuration/services/data-update';
+import { beschreibeDatenUpdate } from '@/plugins/csv-sources-kuration/services/datenUpdateMeldung';
 import { getDatenShareHandle } from '@/core/services/infrastructure/smb-handle';
 import type { IDBStore } from '@/core/services/storage/idb-store';
 import type { CsvSchema } from '@/core/services/csv/types';
@@ -176,12 +177,7 @@ export function CsvFreshnessIndicator({ compact = false }: { compact?: boolean }
     const handle = await getDatenShareHandle(storage.idb);
     if (!handle) throw new Error('Datenordner nicht verbunden.');
     const r = await runDataUpdate(storage.idb, handle, {});
-    const parts: string[] = [];
-    if (r.snapshotSynced) parts.push('Datenbestand aktualisiert');
-    const imported = r.csvReport?.processed.filter(p => !p.skipped).length ?? 0;
-    if (imported > 0) parts.push(`${imported} CSV-Quelle(n) importiert`);
-    if (r.lockBusy) parts.push(`Übersprungen — ${r.lockBusy.blockingKurator} aktualisiert gerade`);
-    if (mountedRef.current) setImportMsg(parts.length > 0 ? parts.join(' · ') : 'Bereits aktuell.');
+    if (mountedRef.current) setImportMsg(beschreibeDatenUpdate(r));
     // Re-Check anstoßen → Punkt + „Letzter Import" frisch.
     bumpCsvSourcesSignal();
   });
@@ -195,17 +191,10 @@ export function CsvFreshnessIndicator({ compact = false }: { compact?: boolean }
     const handle = await getDatenShareHandle(storage.idb);
     if (!handle) throw new Error('Datenordner nicht verbunden.');
     const r = await runDataUpdate(storage.idb, handle, { forceRecheck: true });
-    const imported = r.csvReport?.processed.filter(p => !p.skipped).length ?? 0;
-    const blockiert = r.csvReport?.drift.length ?? 0;
-    if (mountedRef.current) {
-      // „Keine Änderungen gefunden" wäre gelogen, wenn Quellen an der
-      // Spalten-Drift hängen geblieben sind — das sind gerade die Fälle, in
-      // denen jemand hier nachsieht.
-      const teile: string[] = [];
-      if (imported > 0) teile.push(`Erzwungen: ${imported} CSV-Quelle(n) re-importiert`);
-      if (blockiert > 0) teile.push(`${blockiert} Quelle(n) mit Spalten-Drift übersprungen — Details im Banner`);
-      setImportMsg(teile.length > 0 ? teile.join(' · ') : 'Erzwungen geprüft — keine inhaltlichen Änderungen gefunden.');
-    }
+    // „Keine Änderungen gefunden" wäre gelogen, wenn Quellen an der Spalten-Drift
+    // hängen geblieben sind oder der Lauf gar nicht stattfand — das sind gerade
+    // die Fälle, in denen jemand hier nachsieht.
+    if (mountedRef.current) setImportMsg(beschreibeDatenUpdate(r, { erzwungen: true }));
     bumpCsvSourcesSignal();
   });
 

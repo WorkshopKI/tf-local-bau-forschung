@@ -334,6 +334,8 @@ export class BuildLockBusyError extends Error {
     public blockingKurator: string,
     public ageMinutes: number,
     public besitz: LockBesitz = 'fremd',
+    /** Stufe des blockierenden Locks — entscheidet, wann er von selbst verfällt. */
+    public stufe?: string,
   ) {
     super(`Lock besetzt von ${blockingKurator} seit ${Math.round(ageMinutes)} Min`);
     this.name = 'BuildLockBusyError';
@@ -458,6 +460,7 @@ export async function runAutoRefresh(
         lockRes.existing.kurator_name ?? 'unbekannt',
         lockRes.ageMinutes,
         lockRes.besitz,
+        lockRes.existing.stufe,
       );
     }
   }

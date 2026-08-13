@@ -26,7 +26,6 @@ import { resolveSnapshotAuthor } from '@/core/services/infrastructure/update-aut
 import { logAudit } from '@/core/services/infrastructure/audit-log';
 import {
   acquireBuildLock,
-  forceLock,
   releaseLock,
   startHeartbeat,
 } from '@/core/services/infrastructure/build-lock';
@@ -110,7 +109,9 @@ export async function restoreSchemasToIdb(
 
 export type RepublishResult =
   | { status: 'written'; mode: 'delta' | 'full' | 'v1'; snapshotVersion: string }
-  | { status: 'no-handle' };
+  | { status: 'no-handle' }
+  /** Ein anderer Schreiber hält den Lock — nichts geschrieben. */
+  | { status: 'lock-besetzt'; blockingKurator: string; ageMinutes: number };
 
 /**
  * Schreibt einen frischen Snapshot über den echten Publish-Pfad. Delta-Modus mit
@@ -118,6 +119,15 @@ export type RepublishResult =
  * kleinen Stores (inkl. des jetzt nicht-leeren `csv_schemas`) + ein frisches
  * Manifest neu — genau das, was zum Heilen des Shares nötig ist. Unter Build-Lock
  * (mit Heartbeat), analog zum Auto-Refresh-Batch-Write.
+ *
+ * **Ein besetzter Lock bricht ab.** Bis v4.23.0 verwarf diese Funktion das
+ * Ergebnis von `acquireBuildLock` in derselben Zeile und rief `forceLock` —
+ * als einziger Publish-Pfad des Moduls ohne Rückfrage und ohne Abbruch
+ * (`runAutoRefresh` wirft, `importCsvSource` fragt). Danach schrieb dieser
+ * Rechner Manifest und kleine Stores in dasselbe Verzeichnis, in das ein noch
+ * laufender Import gleich sein Delta publiziert, und das `finally` löschte
+ * anschließend die Lock-Datei, obwohl der andere Lauf noch schrieb. Der Knopf
+ * ist zwar dev-only — der dev-Build erbt aber den ECHTEN Team-Share.
  */
 export async function republishSnapshot(
   idb: IDBStore,
@@ -128,7 +138,13 @@ export async function republishSnapshot(
 
   const author = await resolveSnapshotAuthor(idb);
   const lockRes = await acquireBuildLock(idb, BUILD_LOCK_STUFE, {});
-  if (!lockRes.acquired) await forceLock(idb, BUILD_LOCK_STUFE, {});
+  if (!lockRes.acquired) {
+    return {
+      status: 'lock-besetzt',
+      blockingKurator: lockRes.existing.kurator_name ?? 'unbekannt',
+      ageMinutes: lockRes.ageMinutes,
+    };
+  }
   const hb = startHeartbeat(idb);
   try {
     if (isDeltaSnapshotWriteEnabled()) {

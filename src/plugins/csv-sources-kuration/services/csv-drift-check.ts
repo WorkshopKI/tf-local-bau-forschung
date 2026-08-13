@@ -91,10 +91,22 @@ export function validateHeaders(schema: CsvSchema, csvHeaders: string[]): Header
   const schemaCols = Object.keys(schema.column_mapping);
   const csvSet = new Set(csvHeaders);
   const schemaSet = new Set(schemaCols);
+  // Für „fehlt" zählen nur Spalten, an denen ein Feld hängt. Der Auto-Refresh
+  // adoptiert Zusatzspalten headless als `{ignore:true}` und persistiert sie;
+  // liess der nächste Export eine davon weg, wurde die Quelle BLOCKIEREND
+  // übersprungen und dem Kurator mit „N Schema-Spalten fehlen … die davon
+  // abhängigen Felder werden geleert" vorgelegt — obwohl `resolveFieldKey` für
+  // sie `null` liefert und kein Feld daran hängt. Weil die Zustimmung bewusst
+  // nicht persistiert wird, wiederholte sich der Block bei jedem Export mit
+  // derselben Lücke: der tägliche Import dieser Quelle stand still.
+  // Gemessen: 69 von 69 bzw. 70 von 70 ignorierten Spalten blockierten einzeln.
+  const tragend = schemaCols.filter(c => !schema.column_mapping[c]?.ignore);
   return {
     matched: schemaCols.filter(c => csvSet.has(c)),
-    missingFromCsv: schemaCols.filter(c => !csvSet.has(c)),
+    missingFromCsv: tragend.filter(c => !csvSet.has(c)),
     newColumns: csvHeaders.filter(c => !schemaSet.has(c)),
+    // Aliasgruppen dagegen gegen ALLE Mapping-Keys: auch eine ignorierte Spalte
+    // belegt eine Position und verschiebt die Aliase hinter sich.
     mehrdeutigeSpalten: mehrdeutigeAliasgruppen(schemaCols, csvHeaders),
   };
 }

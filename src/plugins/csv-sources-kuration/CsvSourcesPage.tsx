@@ -158,8 +158,10 @@ export function CsvSourcesPage(): React.ReactElement {
               {convertResult.length} Demo-Quelle{convertResult.length === 1 ? '' : 'n'} in echte Quellen umgewandelt — Mappings übernommen.
             </div>
             <div className="font-mono text-[11px] mb-1">{convertResult.map(r => `${r.name} → ${r.newId}`).join(' · ')}</div>
-            Nächste Schritte: pro Quelle <strong>„CSV neu wählen"</strong> → echte Datei → <strong>Windows-1252</strong> → importieren;
-            danach <strong>„Antrags-Daten zurücksetzen"</strong> (löscht die Demo-Anträge).
+            Die Demo-Anträge sind dabei bereits entfernt worden. Nächster und einziger Schritt: pro
+            Quelle <strong>„CSV neu wählen"</strong> → echte Datei → <strong>Windows-1252</strong> →
+            importieren. <strong>„Antrags-Daten zurücksetzen"</strong> wird dafür nicht gebraucht — es
+            löscht herkunftsblind alles, also auch die echten Daten, die eben eingespielt wurden.
           </div>
         ) : null}
 

@@ -106,6 +106,17 @@ export async function listSchemasByProgramm(idb: IDBStore, programmId: string): 
   return (await req(idx.getAll(programmId))) as CsvSchema[];
 }
 
+/**
+ * ALLE Schemas über alle Programme. Für Entscheidungen, die den Store als
+ * Ganzes betreffen — allen voran die Vergabe einer Schema-Id: der Store ist
+ * programm-übergreifend, eine nur gegen ein Programm geprüfte Id überschreibt
+ * sonst die gleichnamige Quelle eines anderen.
+ */
+export async function listAllSchemas(idb: IDBStore): Promise<CsvSchema[]> {
+  const t = tx(idb, CSV_STORES.CSV_SCHEMAS, 'readonly');
+  return (await req(t.objectStore(CSV_STORES.CSV_SCHEMAS).getAll())) as CsvSchema[];
+}
+
 export async function deleteSchema(idb: IDBStore, id: string): Promise<void> {
   const t = tx(idb, CSV_STORES.CSV_SCHEMAS, 'readwrite');
   t.objectStore(CSV_STORES.CSV_SCHEMAS).delete(id);

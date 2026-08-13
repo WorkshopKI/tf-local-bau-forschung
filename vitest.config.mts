@@ -21,6 +21,10 @@ const ISOLATED_TESTS = [
   'src/core/services/csv/__tests__/importer-loeschung-nur-wenn-ueberall-weg.test.ts',
   'src/core/services/csv/__tests__/importer-source-baseline.test.ts',
   'src/core/services/csv/__tests__/merger-scoped-load.test.ts',
+  // Gleiche Ursache eine Ebene höher: mockt `smb-handle` modulweit, um dem
+  // Recompute nach dem Umwandeln der Demo-Quellen eine echte Quell-Kopie
+  // unterzuschieben (v4.23).
+  'src/plugins/csv-sources-kuration/services/__tests__/demo-zu-echt.test.ts',
   'src/core/services/csv/__tests__/snapshot-verbuende-guard.test.ts',
   'src/core/services/csv/__tests__/unterprogramm-registry.test.ts',
   'src/core/services/embedding-corpus/__tests__/storage.test.ts',

@@ -123,6 +123,19 @@ describe('kategorieSpaltenSignatur', () => {
     expect(kategorieSpaltenSignatur(loeseKategorieSpalten(umbenannt, [SCHEMA]))).not.toBe(a);
   });
 
+  it('ändert sich, wenn ein FELD umbenannt wird', () => {
+    // Genau dieses Label landet als `kat_status[...].l` in der Projektion und
+    // erscheint in der Zelle, im XLSX-Export und in der Filter-Werteliste.
+    // Ohne es im Signatur-String baut der Boot-Guard nicht neu, und die Spalte
+    // zeigt auf unbestimmte Zeit den alten Text.
+    const a = kategorieSpaltenSignatur(loeseKategorieSpalten(BASIS, [SCHEMA]));
+    const umbenannt: MappingVersion = {
+      ...BASIS,
+      felder: BASIS.felder.map(f => (f.feldId === 'D_ZZA' ? { ...f, label: 'Förderfähigkeit bestätigt' } : f)),
+    };
+    expect(kategorieSpaltenSignatur(loeseKategorieSpalten(umbenannt, [SCHEMA]))).not.toBe(a);
+  });
+
   it('ändert sich, wenn ein Feld umgehängt wird', () => {
     const a = kategorieSpaltenSignatur(loeseKategorieSpalten(BASIS, [SCHEMA]));
     const umgehaengt: MappingVersion = {

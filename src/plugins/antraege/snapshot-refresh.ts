@@ -29,5 +29,9 @@ export async function refreshAntraegeStoreAfterSync(
     || store.programmId === null
     || store.antraege.length === 0;
   if (!coldOrMatching) return;
+  // Der Netzwerk-Namen-Index wird EINMAL pro Session gelatcht und von
+  // `loadAll(force)` nicht angefasst — ein im Nacht-Export neu hinzugekommenes
+  // Netzwerk hieße sonst bis zum Browser-Reload „Netzwerk 1062".
+  store.resetNetzwerkNameIndex();
   await store.loadAll(idb, programmId, { force: true });
 }

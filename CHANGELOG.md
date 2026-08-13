@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.23.0 — Demo-Umwandlung raeumt auf, Meldungen sagen die Wahrheit (August 2026)
+
+MINOR — Neun Befunde der CSV-Bug-Jagd, gemeinsamer Nenner: die App tat etwas anderes, als sie sagte. Die Demo-Umwandlung ließ ihre Daten liegen, „Bereits aktuell." stand für drei verschiedene Lagen, und ein Feld-Label konnte umbenannt werden, ohne dass die Spalte es je erfuhr.
+
+- **Demo→Echt räumt die Demo-Daten mit ab** ([convert-fixture-source.ts](src/plugins/csv-sources-kuration/services/convert-fixture-source.ts), [loeschregel.ts](src/core/services/csv/loeschregel.ts), [csv-import.md](docs/architecture/csv-import.md)): nach derselben Löschregel wie der Import — der Erfolgs-Banner empfiehlt nicht mehr den herkunftsblinden Reset, und die abgeleitete Id kollidiert nicht mehr mit einer Quelle in einem anderen Programm
+- **„Bereits aktuell." nur noch, wenn es stimmt** ([datenUpdateMeldung.ts](src/plugins/csv-sources-kuration/services/datenUpdateMeldung.ts), [csv-auto-refresh.md](docs/architecture/csv-auto-refresh.md)): ein gar nicht gelaufener Lauf, blockierte Quellen, Fehler und ein unvollständig geladener Snapshot werden benannt
+- **Die ● CSV-Ampel prüft nach einem Banner-Import neu** ([useCsvAutoRefreshCheck.ts](src/plugins/csv-sources-kuration/hooks/useCsvAutoRefreshCheck.ts)): bisher blieb sie den Rest der Sitzung rot und zeigte einen Import-Stand von vor dem Lauf
+- **Zwei Lock-Wahrheiten** ([lockKonfliktText.ts](src/plugins/csv-sources-kuration/components/lockKonfliktText.ts), [schemaRecovery.ts](src/plugins/csv-sources-kuration/services/schemaRecovery.ts)): „eigener Tab" heißt laufender Vorgang und fragt vor dem Übernehmen; „Snapshot neu schreiben" überstempelt keinen fremden Lock mehr
+- **Feld-Umbenennungen erreichen die Ordner-Spalte** ([kategorie-projektion.ts](src/core/status/kategorie-projektion.ts), [useStatusCockpit.ts](src/plugins/status-cockpit/useStatusCockpit.ts)): das Label geht in die Projektions-Signatur ein, und eine Katalog-Kuration baut die Projektion sofort neu — dazu blockieren ignorierte Spalten den Import nicht mehr und der Netzwerk-Namen-Index latcht keinen leeren Bestand
+
 ### v4.22.0 — Ein Snapshot gehoert einem Programm, eine Quelle einer Datei (August 2026)
 
 MINOR — Vier weitere Befunde der CSV-Bug-Jagd. Drei behandelten den Snapshot, als wäre er der ganze Datenbestand des Rechners; der vierte band eine Quelle an die falsche Datei und schrieb die Fehlbindung als Selbstheilung fest.

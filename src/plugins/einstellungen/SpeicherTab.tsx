@@ -30,6 +30,7 @@ import {
 import { listProgramme, listSchemas } from '@/core/services/csv';
 import { bumpCsvSourcesSignal } from '@/core/services/csv/csv-sources-signal';
 import { runDataUpdate } from '@/plugins/csv-sources-kuration/services/data-update';
+import { beschreibeDatenUpdate } from '@/plugins/csv-sources-kuration/services/datenUpdateMeldung';
 import type { CsvSchema } from '@/core/services/csv/types';
 import {
   listeArbeitskontext,
@@ -257,12 +258,7 @@ export function SpeicherTab(): React.ReactElement {
       }
       const r = await runDataUpdate(storage.idb, handle, {});
       bumpCsvSourcesSignal();
-      const parts: string[] = [];
-      if (r.snapshotSynced) parts.push('Datenbestand aktualisiert');
-      const imported = r.csvReport?.processed.filter(p => !p.skipped).length ?? 0;
-      if (imported > 0) parts.push(`${imported} CSV-Quelle(n) importiert`);
-      if (r.lockBusy) parts.push(`CSV-Import übersprungen — ${r.lockBusy.blockingKurator} aktualisiert gerade`);
-      setUpdateMsg(parts.length > 0 ? parts.join(' · ') : 'Bereits aktuell.');
+      setUpdateMsg(beschreibeDatenUpdate(r));
       // „Letzter CSV-Import" sofort frisch zeigen — last_imported_at neu einlesen,
       // statt auf einen Browser-Reload zu warten (csvSchemas wurde nur beim Mount geladen).
       try {
