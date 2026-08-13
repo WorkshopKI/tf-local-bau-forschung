@@ -55,21 +55,23 @@ Die Folge für den Inhalt: **reine Props, keine App-Hooks**. Im zweiten Baum gib
 noch Storage-Kontext — `useNavigation()` liefe ins Leere. Alles, was nach draußen wirkt, kommt als
 Callback aus dem mountenden Widget. Zustand-Stores dagegen sind Modul-Singletons und funktionieren.
 
-## Was ein Bauteil braucht, das doch Kontext will
+## Bedienelemente im Fenster
 
-Die Kanban-Einstellungen im Fenster sind **dasselbe** `WidgetConfigForm` wie auf der Startseite, und
-das ruft `useStorage()`. Statt einer zweiten Fassung reicht
-[VollbildEinstellungen](../../src/plugins/home/widgets/VollbildEinstellungen.tsx) den Kontext nach:
+[VollbildEinstellungen](../../src/plugins/home/widgets/VollbildEinstellungen.tsx) ist reine Props —
+kein Store, kein Kontext. Das war nicht immer so: bis v4.25 stand dort das Formular der Startseite
+und brauchte einen nachgereichten `StorageContext`. Seit das Fenster **seine eigenen** Bahnen hat
+(v4.26), bedient das Panel den Zustand des Fensters, und der Umweg entfällt.
 
-- **Der Dienst kommt als Wert herein** und wird im Fenster neu bereitgestellt
-  (`<StorageContext.Provider value={storage}>`). Das trägt, weil beide Bäume im selben Realm laufen —
-  dasselbe React-Modul, dasselbe Kontext-Objekt. Das Element entsteht im Widget, seine **Hooks laufen
-  dort, wo es gerendert wird**.
-- **Der Store wird gelesen, nicht durchgereicht.** Zustand braucht keinen Kontext, also ist das
-  Formular von sich aus lebendig — auch dann noch, wenn die Startseite ausgehängt ist.
+Sollte doch einmal ein Bauteil im Fenster Kontext brauchen: er lässt sich nachreichen
+(`<XContext.Provider value={…}>` mit einem Wert aus dem Widget), weil beide Bäume im **selben Realm**
+laufen — dasselbe React-Modul, dasselbe Kontext-Objekt; die Hooks laufen dort, wo das Element
+*gerendert* wird, nicht dort, wo es entsteht. Zustand-Stores brauchen ihn ohnehin nicht.
+
+Zwei Grenzen bleiben:
+
 - **Kein Radix-Overlay im Fenster.** Ein `Select`/`Popover` portaliert in den Body des Haupt-
   dokuments (`document` ist modulglobal) und erschiene hinter dem Fenster, in dem man es geöffnet
-  hat. Deshalb dort der Popover-Umfang (Bahnen + Farben), nicht der volle mit „Quelle"/„Datenbasis".
+  hat. Deshalb im Fenster nur Bahnen + Farben und kein „Quelle"/„Datenbasis"-Select.
 - **`Escape` hat zwei Bedeutungen.** Der Zuhörer am Dokument schließt das Fenster; steht ein Panel
   offen, hält der Griff an der Seitenwurzel das Ereignis auf und schließt erst das Panel.
 
@@ -83,11 +85,17 @@ Beim Aushängen bekommt das Fenster **einen letzten Zustand mit `verwaist`** —
 es nicht mehr nachgeführt wird, statt einen alten Stand als aktuellen auszugeben. Kehrt die
 Startseite zurück, klinkt sich das Widget wieder ein und der Hinweis verschwindet.
 
-Daraus folgt, **wo Zustand liegen darf**: Bedienbares gehört ins Fenster. Der Einklapp-Zustand der
-Bahnen ist deshalb `useState` in `KanbanVollbild` und wird nur *beim Aufbau* aus der Config
-gelesen — läge er drüben, ließe sich nach dem ersten Karten-Klick keine Bahn mehr klappen, weil
-niemand mehr nachzeichnet. Umgekehrt schreibt das Fenster **nie** auf einem mitgeschleppten Stand:
-`mutiereConfig` patcht den aktuellen, sonst nähme ein verwaistes Fenster fremde Änderungen zurück.
+Daraus folgt, **wo Zustand liegen darf**: Bedienbares gehört ins Fenster. Einklapp-Zustand *und*
+Bahnen-Anordnung sind deshalb `useState` in `KanbanVollbild` und werden nur *beim Aufbau* aus der
+Config gelesen — läge das drüben, ließe sich nach dem ersten Karten-Klick nichts mehr einstellen,
+weil niemand mehr nachzeichnet. Umgekehrt schreibt das Fenster **nie** auf einem mitgeschleppten
+Stand: `mutiereConfig` patcht den aktuellen, sonst nähme ein verwaistes Fenster fremde Änderungen
+zurück.
+
+Und daraus folgt, **was hineingereicht wird**: Daten, keine fertige Ansicht. Das Widget schickt die
+Karten **aller** Kategorien (`kartenProKategorie`); welche Bahn daraus wird, rechnet das Fenster
+selbst. Bekäme es fertige Bahnen, hätte eine wieder eingeblendete Bahn keine Karten, sobald die
+Startseite ausgehängt ist — die Einstellung wäre genau dann wirkungslos, wenn sie gebraucht wird.
 
 ## Was der Dev-Server nicht zeigen kann
 

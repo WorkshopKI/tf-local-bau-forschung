@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.26.0 — Das Kanban-Fenster hat eigene Bahnen (August 2026)
+
+MINOR — Im Kanban-Fenster widersprach das Einstellungs-Panel dem Bild daneben: „Wartet auf Antragsteller" stand angehakt da und war nicht zu sehen, „Bewilligt" ohne Haken war die größte Bahn. Das Fenster las die Einstellung gar nicht — es leitete seine Bahnen aus dem Bestand ab. Jetzt hat es eine eigene.
+
+- **Eigene Bahnen je Fenster** ([types.ts](src/plugins/home/widgets/types.ts), [home-widgets.md](docs/architecture/home-widgets.md)): Auswahl, Reihenfolge und Kartenspalten (1–3) in `vollbildLanes` — die Startseite behält ihre; Farben und Datenbasis bleiben geteilt
+- **Vier reine Funktionen statt einer Ableitung** ([kanbanLanes.ts](src/plugins/home/widgets/kanbanLanes.ts)): Clustering, Startvorschlag, Projektion, toleranter Leser; `ZWEISPALTIG_AB` schlägt nur noch vor, statt zu überstimmen
+- **Das Fenster projiziert selbst** ([KanbanVollbild.tsx](src/plugins/home/widgets/KanbanVollbild.tsx), [fenster-in-fenster.md](docs/architecture/fenster-in-fenster.md)): es bekommt die Karten aller Kategorien, damit eine wieder eingeblendete Bahn auch dann Karten hat, wenn die Startseite ausgehängt ist
+- **Panel ohne Kontext-Nachbau** ([VollbildEinstellungen.tsx](src/plugins/home/widgets/VollbildEinstellungen.tsx)): reine Props statt `StorageContext`-Provider im zweiten React-Baum, mit Pfeilspalte und „Anordnung zurücksetzen"; Panel 340 px (die Pfeile kosten den Namen 44 px)
+- **Verschieben hat eine Heimat** ([laneFolge.ts](src/components/ui/laneFolge.ts)): `verschiebeUmEinen` teilt sich mit dem Feedback-Board, statt die Index-Arithmetik ein zweites Mal zu buchstabieren
+
 ### v4.25.0 — Kurations-Klicks raeumen auf, was sie anrichten (August 2026)
 
 MINOR — Fünf Befunde der CSV-Bug-Jagd an den Kurations-Klicks: jeder tat weniger, als er zusagte, und was liegen blieb, fiel erst Tage später beim nächsten Import auf.

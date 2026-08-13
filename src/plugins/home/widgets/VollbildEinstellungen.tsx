@@ -1,73 +1,112 @@
 /**
- * Die Kanban-Einstellungen IM eigenen Fenster — dasselbe Formular wie auf der
- * Startseite, nicht dessen Zwilling.
+ * Die Kanban-Einstellungen IM eigenen Fenster — die Bahnen, die NUR hier gelten.
  *
- * Zwei Dinge macht diese Hülle, und nur die:
+ * Bis v4.25 stand hier das Formular der Startseite, und ein Fußnotensatz erklärte,
+ * warum seine Regler in diesem Fenster nichts tun: das Fenster leitete seine
+ * Bahnen aus dem Bestand ab und las die Einstellung gar nicht. Ein Schalter, der
+ * erklärt werden muss, warum er wirkungslos ist, ist der falsche Schalter.
  *
- * 1. **Sie reicht den Storage-Kontext nach.** Der zweite React-Baum hängt an
- *    einer eigenen Wurzel (`components/fenster/appFenster.ts`) und sieht die
- *    Provider der App nicht — `useStorage()` fände dort nichts und würfe.
- *    `StorageService` kommt deshalb als schlichter Wert aus dem Widget herein und
- *    wird hier neu bereitgestellt. Das geht, weil beide Bäume im SELBEN Realm
- *    laufen: es ist dasselbe React-Modul und damit dasselbe Kontext-Objekt.
- * 2. **Sie liest die Instanz aus dem Store statt aus einer Prop.** Zustand-Stores
- *    brauchen keinen Kontext, also ist das Formular hier von sich aus lebendig —
- *    auch dann noch, wenn die Startseite längst ausgehängt ist und das Fenster
- *    keine neuen Daten mehr bekommt (siehe `verwaist` in `KanbanVollbild`).
+ * Jetzt bedient diese Liste den Zustand des FENSTERS (gehalten in
+ * `KanbanVollbild`, persistiert über das Widget). Damit ist die Komponente reine
+ * Props — kein Store, kein `StorageContext`-Nachbau für den zweiten React-Baum,
+ * keine Hooks. Der Farbmodus bleibt geteilt: er beschreibt die Köpfe beider
+ * Ansichten, nicht die Anordnung einer.
  *
- * Was hier NICHT steht: eine zweite Fassung der Regler. `WidgetConfigForm` ist
- * die eine Wahrheit für Startseiten-Menü, Einstellungs-Sektion und dieses
- * Fenster.
+ * Geteilte Bauteile, keine zweite Fassung: `LaneListe` (Haken, Pfeile,
+ * Spaltenschalter) und `FarbmodusToggle` sind dieselben wie auf der Startseite
+ * und im Feedback-Board.
  */
-import { StorageContext } from '@/core/hooks/useStorage';
-import type { StorageService } from '@/core/services/storage';
-import { useHomeWidgets } from './useHomeWidgets';
-import { WidgetConfigForm } from './WidgetConfigForm';
+import { RotateCcw } from 'lucide-react';
+import { LaneListe } from '@/components/ui/LaneListe';
+import { FarbmodusToggle } from '@/components/kanban/FarbmodusToggle';
+import type { TfBahnSpalten } from '@/components/kanban/tfBoardBahn';
+import type { StatusCategory } from '@/core/utils/status-canonical';
+import { getStatusCategoryLabel } from '@/core/utils/status-category-labels';
+import { KANBAN_LANE_ACCENT, verschiebeVollbildLane } from './kanbanLanes';
+import type { KanbanWidgetConfig, VollbildLane } from './types';
 
-export function VollbildEinstellungen({ instanzId, storage }: {
-  instanzId: string;
-  storage: StorageService;
-}): React.ReactElement {
-  return (
-    <StorageContext.Provider value={storage}>
-      <Formular instanzId={instanzId} />
-    </StorageContext.Provider>
-  );
+export interface VollbildEinstellungenProps {
+  /** Alle Kategorien in der Reihenfolge dieses Fensters (auch die abgewählten —
+   *  die Liste IST die Bahnfolge). */
+  lanes: VollbildLane[];
+  onLanes: (lanes: VollbildLane[]) => void;
+  /** Der frisch gerechnete Startvorschlag — der Weg zurück zur automatischen
+   *  Anordnung. Fehlt er, gibt es keinen Zurücksetzen-Knopf. */
+  seed?: VollbildLane[];
+  farbmodus: KanbanWidgetConfig['farbmodus'];
+  onFarbmodus: (farbmodus: KanbanWidgetConfig['farbmodus']) => void;
 }
 
-/** Eigene Komponente, weil `useHomeWidgets` seinerseits `useStorage()` ruft —
- *  der Provider muss ÜBER dem Hook stehen, nicht daneben. */
-function Formular({ instanzId }: { instanzId: string }): React.ReactElement {
-  const api = useHomeWidgets();
-  const instanz = api.alleInstanzen.find(w => w.id === instanzId);
+export function VollbildEinstellungen({
+  lanes, onLanes, seed, farbmodus, onFarbmodus,
+}: VollbildEinstellungenProps): React.ReactElement {
+  const spaltenProKey = new Map<string, TfBahnSpalten>(
+    lanes.filter(l => l.sichtbar).map(l => [l.kategorie as string, l.spalten]),
+  );
 
-  if (!instanz) {
-    return (
-      <p className="kv-einst-hinweis">
-        Dieses Widget gibt es nicht mehr — die Einstellungen sind damit gegenstandslos.
-      </p>
-    );
-  }
+  // Ein-/Ausblenden verschiebt NICHT (Lehre des Feedback-Boards, v3.40): wer eine
+  // Bahn kurz ausblendet, findet sie danach an ihrem Platz wieder.
+  const setzeAn = (key: string, patch: Partial<VollbildLane>): void => {
+    onLanes(lanes.map(l => (l.kategorie === key ? { ...l, ...patch } : l)));
+  };
+
+  const ausgeblendet = lanes.filter(l => !l.sichtbar).length;
 
   return (
     <>
-      <WidgetConfigForm
-        instanz={instanz}
-        // Bewusst der Popover-Umfang (Bahnen + Farben) und nicht der volle:
-        // „Quelle" und „Datenbasis" hängen an einem Radix-`Select`, dessen Liste
-        // in den Body des HAUPTfensters portaliert würde — sie erschiene hinter
-        // dem Fenster, in dem man sie geöffnet hat.
-        kontext="popover"
-        onUpdateConfig={cfg => api.updateConfig(instanzId, cfg)}
+      <p className="kv-einst-feld">Bahnen in diesem Fenster</p>
+      <LaneListe
+        options={lanes.map(l => ({
+          key: l.kategorie,
+          label: getStatusCategoryLabel(l.kategorie),
+          akzent: KANBAN_LANE_ACCENT[l.kategorie],
+        }))}
+        spaltenProKey={spaltenProKey}
+        onToggle={key => {
+          const lane = lanes.find(l => l.kategorie === key);
+          if (lane) setzeAn(key, { sichtbar: !lane.sichtbar });
+        }}
+        onSpalten={(key, spalten) => setzeAn(key, { spalten })}
+        onVerschiebe={(key, richtung) => {
+          const next = verschiebeVollbildLane(lanes, key as StatusCategory, richtung);
+          // Am Rand kommt dieselbe Liste zurück — dann kein Schreibvorgang.
+          if (next !== lanes) onLanes(next);
+        }}
+        // Das Fenster hat Platz — hier scrollt keine Liste in einer Liste.
+        maxSichtbareZeilen={lanes.length}
       />
-      {/* Was hier wirkt und was nicht — ohne den Satz sähe die Spaltenzahl aus
-          wie ein Schalter, der in diesem Fenster nichts tut. */}
-      <p className="kv-einst-hinweis">
-        Die Auswahl gilt dem Widget auf der Startseite. In diesem Fenster stehen
-        <strong> alle </strong>
-        Bahnen mit Karten — die gewählten zuerst —, und ob eine Bahn zwei Spalten
-        bekommt, entscheidet ihr Bestand. Die Farben wirken hier sofort.
+      <p className="kv-einst-fuss">
+        Leere Bahnen stehen als Schiene; abgewählte fehlen ganz.
+        {ausgeblendet > 0 ? ` Zurzeit ausgeblendet: ${ausgeblendet}.` : null}
       </p>
+
+      <div className="kv-einst-farbe">
+        <p className="kv-einst-feld">Farben der Köpfe</p>
+        <FarbmodusToggle
+          value={farbmodus}
+          onChange={m => { if (m !== farbmodus) onFarbmodus(m); }}
+          buntDots={['var(--tf-kanban-offen)', 'var(--tf-kanban-nachforderung)', 'var(--tf-kanban-bewilligt)']}
+        />
+      </div>
+
+      {/* Was hier gilt und was nicht — jetzt als Abgrenzung, nicht mehr als
+          Entschuldigung für einen wirkungslosen Regler. */}
+      <p className="kv-einst-hinweis">
+        Die Bahnen gelten nur in diesem Fenster; die Startseite behält ihre eigene
+        Auswahl. Farben und Datenbasis teilen sich beide Ansichten.
+      </p>
+
+      {seed ? (
+        <button
+          type="button"
+          className="kv-einst-reset"
+          title="Alle Bahnen sichtbar, Spalten wieder aus dem Bestand vorgeschlagen"
+          onClick={() => onLanes(seed)}
+        >
+          <RotateCcw size={11} strokeWidth={2} aria-hidden />
+          Anordnung zurücksetzen
+        </button>
+      ) : null}
     </>
   );
 }

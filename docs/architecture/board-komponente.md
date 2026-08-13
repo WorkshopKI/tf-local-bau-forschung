@@ -124,7 +124,7 @@ Offen bleiben die bekannten Löcher: kein Touch, **keine Tastaturbedienung**, ke
 | [TicketBoard](../../src/plugins/feedback-board/ticket/TicketBoard.tsx) | `gedeckelt` | einklappbar, bahnScrollt, nachladen, dnd, Summenzeile, Sicht-Zuschnitt |
 | [AntragKanbanWidget](../../src/plugins/home/widgets/AntragKanbanWidget.tsx) | `geteilt` | read-only, einklappbar, Icon je Kategorie, `fuss` navigiert in die Liste |
 | [FeedbackKanbanWidget](../../src/plugins/home/widgets/FeedbackKanbanWidget.tsx) | `geteilt` | read-only, einklappbar, `fuss` navigiert ins Board |
-| [KanbanVollbild](../../src/plugins/home/widgets/KanbanVollbild.tsx) | `gedeckelt` | eigenes Fenster (v3.47), einklappbar + bahnScrollt + nachladen + `einklapp` (persistiert, v4.10), alle Kategorien mit Karten, Spaltenzahl aus dem Bestand abgeleitet (1\|2, **nicht** 3: bei echtem Bestand hat jede Bahn vierstellig viele Karten und liefe über jede Schwelle — die Spur wäre nur noch waagerechtes Scrollen) — [fenster-in-fenster.md](fenster-in-fenster.md) |
+| [KanbanVollbild](../../src/plugins/home/widgets/KanbanVollbild.tsx) | `gedeckelt` | eigenes Fenster (v3.47), einklappbar + bahnScrollt + nachladen + `einklapp` (persistiert, v4.10), **eigene** Bahnen-Anordnung (Auswahl/Folge/Spalten 1–3, v4.26) — der Bestand liefert nur noch den Startvorschlag ([home-widgets.md](home-widgets.md), [fenster-in-fenster.md](fenster-in-fenster.md)) |
 
 Der eingeklappte Widget-Zähler ist [LanePills](../../src/components/kanban/LanePills.tsx) — bis v3.44 zweimal wortgleich, bis auf `max-w-[110px]` gegen `max-w-[120px]`, was kein Entwurf war, sondern der Zwilling.
 

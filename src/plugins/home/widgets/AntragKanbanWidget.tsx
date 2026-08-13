@@ -36,17 +36,18 @@ import { getStatusCategoryLabel, istStatusCategory } from '@/core/utils/status-c
 import { useHomeWidgets } from './useHomeWidgets';
 import { WIDGET_KATALOG } from './widgetCatalog';
 import {
-  buildAlleAntragKanbanLanes,
   buildAntragKanbanLanes,
   filtereKanbanGrundmenge,
+  kartenProKategorie,
   laneAccent,
+  leseVollbildLanes,
+  seedVollbildLanes,
   type KanbanKarte,
 } from './kanbanLanes';
 import { KATEGORIE_ICON } from './kanbanIcons';
 import { KanbanKarteView } from './KanbanKarteView';
 import { KanbanVollbild } from './KanbanVollbild';
 import { useKanbanVollbild } from './useKanbanVollbild';
-import { VollbildEinstellungen } from './VollbildEinstellungen';
 import type { AntragKanbanWidgetConfig } from './types';
 import { WidgetShell } from './WidgetShell';
 import type { WidgetProps } from './widgetProps';
@@ -154,40 +155,47 @@ export function AntragKanbanWidget({ instanz, onToggleEingeklappt }: WidgetProps
   const meta = `${bearbeiterScopeLabel(bearbeiterMode)} · Quelle: Förderanträge${presetZustand.preset ? ` · Filter „${presetZustand.preset.name}"` : ''}`;
 
   // ── Vollbild-Fenster ────────────────────────────────────────────────────────
-  // Die Bahnen des Fensters sind eine ANDERE Ableitung als die des Widgets: alle
-  // Kategorien mit Karten, ungekappt, Spaltenzahl aus dem Bestand. Sie stehen
-  // absichtlich IM Rumpf von `zeichneVollbild` und nicht in einem `useMemo` —
-  // der Hook ruft die Funktion nur bei offenem Fenster, und `useCallback`
-  // bindet sie an dieselben Daten-Abhängigkeiten. Ohne offenes Fenster wird die
-  // zweite Projektion damit nie gerechnet.
-  // Das Fenster meldet seinen Einklapp-Stand, die Config hält ihn. Geschrieben
-  // wird auf den AKTUELLEN Stand (`mutiereConfig`) und nicht auf das `cfg` aus
-  // diesem Rendervorgang: das Fenster lebt weiter, wenn die Startseite längst
-  // ausgehängt ist — ein mitgeschlepptes `cfg` nähme fremde Änderungen zurück.
+  // Das Widget liefert dem Fenster DATEN, keine fertigen Bahnen: welche Bahn dort
+  // steht, entscheidet seit v4.26 seine eigene Einstellung (`vollbildLanes`) —
+  // und die soll auch dann noch wirken, wenn die Startseite ausgehängt ist.
+  // Beides steht absichtlich IM Rumpf von `zeichneVollbild` und nicht in einem
+  // `useMemo`: der Hook ruft die Funktion nur bei offenem Fenster, und
+  // `useCallback` bindet sie an dieselben Daten-Abhängigkeiten. Ohne offenes
+  // Fenster wird die zweite Projektion damit nie gerechnet.
+  //
+  // Geschrieben wird auf den AKTUELLEN Stand (`mutiereConfig`) und nicht auf das
+  // `cfg` aus diesem Rendervorgang: das Fenster lebt weiter, wenn die Startseite
+  // längst ausgehängt ist — ein mitgeschlepptes `cfg` nähme fremde Änderungen
+  // zurück.
+  const aendereVollbild = useCallback(
+    (patch: Partial<AntragKanbanWidgetConfig>): void => {
+      void widgets.mutiereConfig(instanz.id, alt =>
+        (alt.art === 'kanban' && alt.quelle === 'antraege' ? { ...alt, ...patch } : alt));
+    },
+    [widgets, instanz.id],
+  );
   const merkeEingeklappt = useCallback((bahnen: string[]): void => {
-    const vollbildEingeklappt = bahnen.filter(istStatusCategory);
-    void widgets.mutiereConfig(instanz.id, alt =>
-      (alt.art === 'kanban' && alt.quelle === 'antraege'
-        ? { ...alt, vollbildEingeklappt }
-        : alt));
-  }, [widgets, instanz.id]);
+    aendereVollbild({ vollbildEingeklappt: bahnen.filter(istStatusCategory) });
+  }, [aendereVollbild]);
 
   const zeichneVollbild = useCallback((verwaist: boolean): React.ReactNode => {
-    const voll = buildAlleAntragKanbanLanes(basis, cfg.lanes);
+    const karten = kartenProKategorie(basis);
+    // Der Startvorschlag wird immer gerechnet, nicht nur beim ersten Öffnen: er
+    // ist auch der Weg zurück („Anordnung zurücksetzen").
+    const seed = seedVollbildLanes(karten, cfg.lanes);
     return (
       <KanbanVollbild
         titel={TITEL}
         meta={meta}
-        lanes={voll.lanes}
-        gesamt={voll.gesamt}
+        karten={karten}
+        lanesInitial={leseVollbildLanes(cfg.vollbildLanes, seed)}
+        onLanes={vollbildLanes => aendereVollbild({ vollbildLanes })}
+        seed={seed}
         farbmodus={cfg.farbmodus}
+        onFarbmodus={farbmodus => aendereVollbild({ farbmodus })}
         verwaist={verwaist}
         eingeklappt={cfg.vollbildEingeklappt}
         onEinklapp={merkeEingeklappt}
-        // Das Element entsteht hier, gerendert wird es im ZWEITEN Baum — dort
-        // laufen auch seine Hooks. Deshalb reicht es, den Storage-Dienst als
-        // Wert mitzugeben; einen Provider hat das Fenster nicht.
-        einstellungen={<VollbildEinstellungen instanzId={instanz.id} storage={storage} />}
         onOpenAntrag={az => {
           navigate('antraege', { selectedId: az });
           // Die App steht hinter dem Fenster — ohne das sähe der Klick aus, als
@@ -197,8 +205,8 @@ export function AntragKanbanWidget({ instanz, onToggleEingeklappt }: WidgetProps
       />
     );
   }, [
-    basis, cfg.lanes, cfg.farbmodus, cfg.vollbildEingeklappt, meta, navigate,
-    merkeEingeklappt, instanz.id, storage,
+    basis, cfg.lanes, cfg.farbmodus, cfg.vollbildLanes, cfg.vollbildEingeklappt,
+    meta, navigate, aendereVollbild, merkeEingeklappt,
   ]);
   const vollbild = useKanbanVollbild(instanz.id, TITEL, zeichneVollbild);
 

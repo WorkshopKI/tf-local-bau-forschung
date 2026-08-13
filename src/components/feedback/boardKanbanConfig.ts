@@ -13,6 +13,7 @@
  */
 import type { FeedbackStatus } from '@/core/types/feedback';
 import type { LaneFarbmodus } from '@/components/kanban/laneAccent';
+import { verschiebeUmEinen } from '@/components/ui/laneFolge';
 import { leseSpalten } from '@/components/kanban/tfBoardBahn';
 import { FEEDBACK_LANE_STATUS, type FeedbackLane } from './feedbackLanes';
 
@@ -62,24 +63,18 @@ export function sichtbareLanes(cfg: BoardKanbanConfig): FeedbackLane[] {
 /**
  * Eine Lane um einen Platz verschieben (−1 = nach vorn, +1 = nach hinten).
  *
- * Getauscht wird mit der NACHBARZEILE, auch wenn die ausgeblendet ist: das
- * Popover zeigt alle Lanes in dieser Reihenfolge, und ein Klick, der dort nichts
- * bewegt, sähe kaputt aus. Am Rand bleibt die Liste unverändert (gleiche
- * Referenz — der Aufrufer kann den Schreibvorgang sparen).
+ * Nur noch das Nachschlagen des Platzes — die Arithmetik selbst teilt sich diese
+ * Liste seit v4.26 mit dem Kanban-Fenster (`verschiebeUmEinen`, Heimat neben der
+ * `LaneListe`, die das Pfeilpaar zeichnet). Verhalten unverändert: getauscht wird
+ * mit der Nachbarzeile, auch wenn die ausgeblendet ist, und am Rand kommt
+ * dieselbe Referenz zurück.
  */
 export function verschiebeLane(
   lanes: BoardLane[],
   status: FeedbackStatus,
   richtung: -1 | 1,
 ): BoardLane[] {
-  const i = lanes.findIndex(l => l.status === status);
-  const ziel = i + richtung;
-  if (i < 0 || ziel < 0 || ziel >= lanes.length) return lanes;
-  const next = [...lanes];
-  const [bewegt] = next.splice(i, 1);
-  if (!bewegt) return lanes;
-  next.splice(ziel, 0, bewegt);
-  return next;
+  return verschiebeUmEinen(lanes, lanes.findIndex(l => l.status === status), richtung);
 }
 
 /** Bekannter Lane-Status? (Pitfall #21 — Prüfung gegen den Katalog, nie gegen

@@ -76,6 +76,18 @@ export interface KanbanLane {
   spalten: TfBahnSpalten;
 }
 
+/**
+ * Eine Bahn im eigenen FENSTER: wie die Widget-Lane, plus die Frage, ob der
+ * Nutzer sie DORT sehen will.
+ *
+ * Ausgeblendet wird per Flag statt durch Entfernen — die Liste IST die
+ * Reihenfolge, und wer eine Bahn herausnähme, verlöre ihren Platz. Dasselbe
+ * Modell wie `BoardLane` des Feedback-Boards, aus demselben Grund (v3.41).
+ */
+export interface VollbildLane extends KanbanLane {
+  sichtbar: boolean;
+}
+
 /** Eine Feedback-Kanban-Lane = ein Feedback-Status (Pitfall #21: nie Roh-Literal).
  *  Identisch zur Board-Lane — EIN Typ, damit Widget und Board dieselbe
  *  Lane-Auswahl-UI teilen können. */
@@ -95,13 +107,25 @@ export interface AntragKanbanWidgetConfig extends KanbanWidgetConfigBasis {
   presetId?: string;
   lanes: KanbanLane[];
   /**
+   * Die Bahnen des EIGENEN FENSTERS — Auswahl, Reihenfolge und Kartenspalten,
+   * die nur dort gelten. Das Fenster hat ein Vielfaches der Widget-Breite; wer
+   * sich dort einrichtet, meint nicht die Startseite (und umgekehrt).
+   *
+   * `undefined` = noch nie eingerichtet. Dann friert das erste Öffnen den
+   * bisherigen Anblick als Vorschlag ein (`seedVollbildLanes`) — bis v4.25 leitete
+   * das Fenster seine Bahnen aus dem Bestand ab und ignorierte jede Einstellung.
+   */
+  vollbildLanes?: VollbildLane[];
+  /**
    * Im EIGENEN FENSTER von Hand eingeklappte Bahnen. Nur dort persistiert: das
    * Fenster zeigt alle neun Kategorien und ist die Ansicht, in der man sich
    * einrichtet — im Widget hängt der Body ohnehin bei jedem Seitenwechsel aus
    * dem DOM, ein gespeicherter Zustand hätte dort nichts zu überleben.
    *
    * Eine Liste von Kategorien, kein Wunsch-Objekt: „eingeklappt" ist die einzige
-   * Aussage, die eine Sitzung überdauern soll (`eingeklappteBahnen`).
+   * Aussage, die eine Sitzung überdauern soll (`eingeklappteBahnen`). Getrennt
+   * von `vollbildLanes.sichtbar`: eingeklappt heißt „steht als Schiene da",
+   * abgewählt heißt „ist nicht da".
    */
   vollbildEingeklappt?: StatusCategory[];
 }

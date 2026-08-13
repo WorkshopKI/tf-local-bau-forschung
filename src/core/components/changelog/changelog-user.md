@@ -19,6 +19,16 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.26 — 2026-08
+
+### Neu
+- Das Kanban-Fenster hat jetzt **eigene** Bahnen: über das Zahnrad stellen Sie ein, welche Sie dort sehen wollen, in welcher Reihenfolge und mit wie vielen Kartenspalten. Die Startseite behält ihre eigene Auswahl — im Fenster ist mehr Platz, also darf dort auch mehr stehen.
+- „Anordnung zurücksetzen" stellt den Vorschlag wieder her, mit dem das Fenster gestartet ist.
+### Verbesserungen
+- Angehakte Bahnen ohne Vorgänge stehen jetzt als schmale Schiene da, statt zu fehlen; abgewählte fehlen ganz. Was im Zahnrad steht, ist damit das, was daneben zu sehen ist.
+### Bugfixes
+<!-- - … -->
+
 ## v4.25 — 2026-08
 
 ### Bugfixes

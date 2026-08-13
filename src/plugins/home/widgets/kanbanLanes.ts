@@ -8,16 +8,17 @@
  */
 import type { AntragListItem } from '@/core/services/csv/types';
 import { monoLaneAccent } from '@/components/kanban/laneAccent';
-import type { TfBahnSpalten } from '@/components/kanban/tfBoardBahn';
+import { leseSpalten, type TfBahnSpalten } from '@/components/kanban/tfBoardBahn';
+import { verschiebeUmEinen } from '@/components/ui/laneFolge';
 import { getStatusCategory, type StatusCategory } from '@/core/utils/status-canonical';
-import { KATEGORIE_REIHENFOLGE } from '@/core/utils/status-category-labels';
+import { KATEGORIE_REIHENFOLGE, istStatusCategory } from '@/core/utils/status-category-labels';
 import { schrittText } from '@/core/utils/naechsterSchritt';
 import { isIrrlaeufer } from '@/core/utils/vb-phase-mappings';
 import {
   antragMatchesBearbeiter,
   type BearbeiterFilterMode,
 } from '@/plugins/antraege/bearbeiterFilter';
-import type { KanbanLane, KanbanWidgetConfig } from './types';
+import type { KanbanLane, KanbanWidgetConfig, VollbildLane } from './types';
 
 /** Lane-Kopf-Akzente (bunt): feste Kategorie→Token-Zuordnung. Tokens leben in
  *  theme.css (:root + dark — theme-token-contract). Kein Hex im Widget-Code. */
@@ -119,14 +120,20 @@ export interface KanbanLanesErgebnis {
   gesamt: number;
 }
 
+/** Karten je Status-Kategorie — die gemeinsame Datengrundlage beider Ansichten.
+ *  `Readonly`, weil jeder Konsument nur liest (und niemand die Sortierung kippen
+ *  darf, die hier einmal hergestellt wird). */
+export type KartenProKategorie = ReadonlyMap<StatusCategory, KanbanKarte[]>;
+
 /**
  * Verbund-Clustering → Kategorie-Zuordnung → Sortierung (ältester Eingang
- * zuerst). Der geteilte Kern beider Lane-Bauer: das Widget kappt danach auf die
- * konfigurierten Kategorien, das Vollbild nimmt alle.
+ * zuerst). Die geteilte Grundlage beider Ansichten: das Widget kappt danach auf
+ * die konfigurierten Kategorien, das Fenster projiziert seine eigene Anordnung
+ * darauf (`projiziereVollbildLanes`).
  */
-function clustereNachKategorie(
+export function kartenProKategorie(
   antraege: AntragListItem[],
-  nowMs: number,
+  nowMs: number = Date.now(),
 ): Map<StatusCategory, KanbanKarte[]> {
   // Verbund-Clustering: eine Gruppe je verbund_id (Solo = eigenes Aktenzeichen).
   const gruppen = new Map<string, AntragListItem[]>();
@@ -164,7 +171,7 @@ export function buildAntragKanbanLanes(
   maxKartenProLane: number,
   nowMs: number = Date.now(),
 ): KanbanLanesErgebnis {
-  const proKategorie = clustereNachKategorie(antraege, nowMs);
+  const proKategorie = kartenProKategorie(antraege, nowMs);
   const cap = Math.max(1, maxKartenProLane);
 
   let gesamt = 0;
@@ -182,63 +189,123 @@ export function buildAntragKanbanLanes(
 }
 
 /**
- * Ab wie vielen Karten eine Bahn im Vollbild zweispaltig wird — gemessen, nicht
- * geschätzt: in einem 1600×900-Fenster hat der Kartenbereich einer Bahn 738 px,
- * eine Karte misst mit ihrer Lücke 106 px. Sechs passen also ohne Scrollen; ab
- * der siebten halbiert die zweite Spalte den Weg (gemessen 12 statt 6 sichtbare
- * Karten).
+ * Ab wie vielen Karten eine Bahn im Fenster zweispaltig VORGESCHLAGEN wird —
+ * gemessen, nicht geschätzt: in einem 1600×900-Fenster hat der Kartenbereich
+ * einer Bahn 738 px, eine Karte misst mit ihrer Lücke 106 px. Sechs passen also
+ * ohne Scrollen; ab der siebten halbiert die zweite Spalte den Weg (gemessen 12
+ * statt 6 sichtbare Karten).
  *
- * Der Wert bleibt eine Zahl und keine Messung zur Laufzeit: die Bahnen entstehen
- * in einer reinen Funktion, die kein Fenster kennt — und ein Layout, das seine
- * Spaltenzahl beim Ziehen am Fensterrand umwirft, wäre unruhiger als eine Bahn,
- * die einmal zu viel scrollt.
+ * Seit v4.26 ist das ein **Startvorschlag** und keine Regel: die Zahl geht einmal
+ * in den Seed (`seedVollbildLanes`), danach steht im Fenster, was der Nutzer
+ * eingestellt hat. Bis dahin überstimmte die Ableitung jede Einstellung — und
+ * genau das war der Grund, warum der Schalter im Fenster nichts tat.
  */
 export const ZWEISPALTIG_AB = 6;
 
 /**
- * Die Lanes der VOLLBILD-Ansicht: alles, was Karten hat — auch die Kategorien,
- * die im Widget gar nicht konfiguriert sind und deren Anträge dort deshalb
- * unsichtbar bleiben (bewilligt, erledigt, ohne Zuordnung).
+ * Der Vorschlag, mit dem ein Fenster startet, das noch nie eingerichtet wurde:
+ * **alle** Kategorien sichtbar, die konfigurierten zuerst in ihrer Anordnung
+ * (der Nutzer hat sie so gelegt), dahinter der Rest in Taxonomie-Reihenfolge;
+ * die Spaltenzahl einmalig aus dem Bestand abgeleitet.
  *
- * Drei Unterschiede zum Widget, alle beabsichtigt:
- *  - **Keine Kappung.** `maxKartenProLane` beantwortet die Frage „was passt in
- *    eine Widget-Karte" — im eigenen Fenster stellt sie sich nicht.
- *  - **Leere Bahnen fallen weg.** Im Widget ist die Schiene eine sinnvolle
- *    Auskunft („hier ist gerade nichts"); neben zwei vollen Bahnen wären neun
- *    Schienen nur Lärm.
- *  - **`spalten` wird abgeleitet.** „Wo viele Karten sind, zweispaltig" ist die
- *    Ansage — die im Widget eingestellte Spaltenzahl gilt hier nicht.
- *
- * Reihenfolge: die konfigurierten Bahnen zuerst in ihrer Anordnung (der Nutzer
- * hat sie so gelegt), dahinter der Rest in Taxonomie-Reihenfolge.
+ * Damit sieht das erste Öffnen aus wie bisher — nur steht der Anblick ab jetzt
+ * IN der Einstellung und nicht daneben. Leere Kategorien sind bewusst dabei: sie
+ * stehen als Schiene da („hier ist gerade nichts"), statt zu fehlen, wenn sie
+ * angehakt sind. Und sie füllen sich, ohne dass jemand nachjustieren muss.
  */
-export function buildAlleAntragKanbanLanes(
-  antraege: AntragListItem[],
+export function seedVollbildLanes(
+  karten: KartenProKategorie,
   konfigurierteLanes: KanbanLane[],
-  nowMs: number = Date.now(),
   zweispaltigAb: number = ZWEISPALTIG_AB,
-): KanbanLanesErgebnis {
-  const proKategorie = clustereNachKategorie(antraege, nowMs);
-
+): VollbildLane[] {
   // `Set` über die konfigurierten Kategorien, nicht nur über den Rest: eine
   // doppelt konfigurierte Lane ergäbe sonst zwei Bahnen mit demselben Schlüssel.
   const reihenfolge = [...new Set([
     ...konfigurierteLanes.map(l => l.kategorie),
     ...KATEGORIE_REIHENFOLGE,
   ])];
+  return reihenfolge.map((kategorie): VollbildLane => ({
+    kategorie,
+    spalten: (karten.get(kategorie)?.length ?? 0) > zweispaltigAb ? 2 : 1,
+    sichtbar: true,
+  }));
+}
 
+/**
+ * Was das Fenster zeichnet: die sichtbaren Bahnen in ihrer Reihenfolge.
+ *
+ * Zwei Unterschiede zum Widget, beide beabsichtigt:
+ *  - **Keine Kappung.** `maxKartenProLane` beantwortet die Frage „was passt in
+ *    eine Widget-Karte" — im eigenen Fenster stellt sie sich nicht.
+ *  - **Leere Bahnen bleiben.** Eine angehakte Bahn muss dastehen, sonst
+ *    widerspricht die Einstellung dem Bild (das Board macht daraus von selbst
+ *    eine Schmalschiene). Weg ist nur, was abgewählt ist.
+ *
+ * `gesamt` zählt entsprechend nur die sichtbaren Bahnen — die Zahl im Kopf
+ * beschreibt, was in diesem Fenster steht.
+ */
+export function projiziereVollbildLanes(
+  karten: KartenProKategorie,
+  lanes: readonly VollbildLane[],
+): KanbanLanesErgebnis {
   let gesamt = 0;
   const ergebnis: KanbanLaneDaten[] = [];
-  for (const kategorie of reihenfolge) {
-    const karten = proKategorie.get(kategorie);
-    if (!karten || karten.length === 0) continue;
-    gesamt += karten.length;
+  for (const lane of lanes) {
+    if (!lane.sichtbar) continue;
+    const eigene = karten.get(lane.kategorie) ?? [];
+    gesamt += eigene.length;
     ergebnis.push({
-      kategorie,
-      spalten: karten.length > zweispaltigAb ? 2 : 1,
-      karten,
-      gesamt: karten.length,
+      kategorie: lane.kategorie,
+      spalten: lane.spalten,
+      karten: eigene,
+      gesamt: eigene.length,
     });
   }
   return { lanes: ergebnis, gesamt };
+}
+
+/**
+ * Gespeicherter Stand → gültige Bahnen-Liste (rein, ohne IDB testbar).
+ *
+ * Toleranz wie beim Feedback-Board (`parseBoardKanbanConfig`): unbekannte
+ * Kategorien und Dubletten fallen raus, die Spaltenzahl geht durch `leseSpalten`,
+ * und nur ein ausdrückliches `false` blendet aus. Fehlende Kategorien kommen
+ * SICHTBAR hinten dazu — anders als dort, weil hier kein Alt-Format nachzuziehen
+ * ist: eine Kategorie, die niemand je gesehen hat, still zu verschlucken wäre
+ * eine unsichtbare Lücke im Arbeitsvorrat.
+ *
+ * Eine Liste ohne einzige sichtbare Bahn bleibt stehen — das ist eine mögliche
+ * Nutzer-Entscheidung, und das Fenster sagt sie an, statt sie zu überschreiben.
+ */
+export function leseVollbildLanes(roh: unknown, seed: VollbildLane[]): VollbildLane[] {
+  if (!Array.isArray(roh)) return seed;
+
+  const gesehen = new Set<StatusCategory>();
+  const lanes = roh.flatMap((l): VollbildLane[] => {
+    if (!l || typeof l !== 'object') return [];
+    const { kategorie, spalten, sichtbar } = l as {
+      kategorie?: unknown; spalten?: unknown; sichtbar?: unknown;
+    };
+    // `istStatusCategory` prüft gegen den Katalog, nimmt aber eine Zeichenkette —
+    // der gespeicherte Wert kann alles sein.
+    if (typeof kategorie !== 'string' || !istStatusCategory(kategorie)) return [];
+    if (gesehen.has(kategorie)) return [];
+    gesehen.add(kategorie);
+    return [{ kategorie, spalten: leseSpalten(spalten), sichtbar: sichtbar !== false }];
+  });
+
+  for (const kategorie of KATEGORIE_REIHENFOLGE) {
+    if (!gesehen.has(kategorie)) lanes.push({ kategorie, spalten: 1, sichtbar: true });
+  }
+  return lanes;
+}
+
+/** Eine Bahn des Fensters um einen Platz verschieben — dieselbe Arithmetik wie
+ *  im Feedback-Board (`verschiebeUmEinen`), am Rand referenzgleich. */
+export function verschiebeVollbildLane(
+  lanes: VollbildLane[],
+  kategorie: StatusCategory,
+  richtung: -1 | 1,
+): VollbildLane[] {
+  return verschiebeUmEinen(lanes, lanes.findIndex(l => l.kategorie === kategorie), richtung);
 }

@@ -1,8 +1,13 @@
 /**
- * Tests für die reine Kanban-Lane-Ableitung (Phase 2): Lane-Zuordnung über
+ * Tests für die reine Kanban-Lane-Ableitung: Lane-Zuordnung über
  * getStatusCategory (Roh-Status-Fixtures), Verbund-Clustering, Kappung,
  * Sortierung, Schmalschienen-Erhalt leerer Lanes, Spalten-Passthrough,
  * Grundmengen-Filter, Akzent-Auflösung (Token-only) und Config-Aktivierung.
+ *
+ * Dazu die drei Teile der FENSTER-Anordnung (v4.26): der Startvorschlag
+ * (`seedVollbildLanes`), die Projektion der eingestellten Bahnen auf die Karten
+ * (`projiziereVollbildLanes`) und der tolerante Leser des gespeicherten Standes
+ * (`leseVollbildLanes`).
  */
 import { describe, expect, it } from 'vitest';
 import type { AntragListItem } from '@/core/services/csv/types';
@@ -10,13 +15,17 @@ import { parseBearbeiterFilter } from '@/plugins/antraege/bearbeiterFilter';
 import {
   KANBAN_LANE_ACCENT,
   ZWEISPALTIG_AB,
-  buildAlleAntragKanbanLanes,
   buildAntragKanbanLanes,
   filtereKanbanGrundmenge,
+  kartenProKategorie,
   laneAccent,
+  leseVollbildLanes,
+  projiziereVollbildLanes,
+  seedVollbildLanes,
+  verschiebeVollbildLane,
 } from '../kanbanLanes';
 import { defaultHomeWidgetConfig, sichtbareWidgets } from '../homeWidgetsStore';
-import type { HomeWidgetConfig, KanbanLane } from '../types';
+import type { HomeWidgetConfig, KanbanLane, VollbildLane } from '../types';
 
 const NOW = Date.parse('2026-07-12T00:00:00.000Z');
 
@@ -134,49 +143,30 @@ describe('laneAccent — Token-only Farbauflösung', () => {
   });
 });
 
-describe('buildAlleAntragKanbanLanes — die Vollbild-Sicht', () => {
-  it('zeigt AUCH die nicht konfigurierten Kategorien, konfigurierte zuerst', () => {
-    const { lanes, gesamt } = buildAlleAntragKanbanLanes([
+describe('seedVollbildLanes — der Startvorschlag des Fensters', () => {
+  it('nimmt ALLE Kategorien, die konfigurierten zuerst', () => {
+    const karten = kartenProKategorie([
       antrag({ aktenzeichen: 'A1', status: 'beantragt' }), // offen (konfiguriert)
       antrag({ aktenzeichen: 'A2', status: 'irgendwas unbekanntes' }), // sonstige
-      antrag({ aktenzeichen: 'A3', status: 'bewilligt' }), // bewilligt
-    ], LANES, NOW);
-    // 'offen' steht vorn (konfiguriert), der Rest in Taxonomie-Reihenfolge:
-    // bewilligt kommt vor sonstige.
-    expect(lanes.map(l => l.kategorie)).toEqual(['offen', 'bewilligt', 'sonstige']);
-    // Genau die Karten, die das Widget mit derselben Config NICHT zeigt.
-    expect(buildAntragKanbanLanes([
-      antrag({ aktenzeichen: 'A2', status: 'irgendwas unbekanntes' }),
-      antrag({ aktenzeichen: 'A3', status: 'bewilligt' }),
-    ], LANES, 4, NOW).gesamt).toBe(0);
-    expect(gesamt).toBe(3);
+    ], NOW);
+    const seed = seedVollbildLanes(karten, LANES);
+    // Die drei konfigurierten vorn in IHRER Anordnung, dann der Rest in
+    // Taxonomie-Reihenfolge — und zwar vollzaehlig, auch ohne Karten.
+    expect(seed.slice(0, 3).map(l => l.kategorie)).toEqual(['offen', 'in_pruefung', 'entscheidung']);
+    expect(seed).toHaveLength(9);
+    expect(seed.every(l => l.sichtbar)).toBe(true);
   });
 
-  it('laesst LEERE Bahnen weg (anders als das Widget)', () => {
-    const { lanes } = buildAlleAntragKanbanLanes(
-      [antrag({ aktenzeichen: 'A1', status: 'beantragt' })], LANES, NOW,
-    );
-    expect(lanes.map(l => l.kategorie)).toEqual(['offen']);
-  });
-
-  it('kappt NICHT — maxKartenProLane ist eine Widget-Frage', () => {
-    const viele = Array.from({ length: 40 }, (_, i) =>
-      antrag({ aktenzeichen: `A${i}`, status: 'beantragt', antragsdatum: '2026-01-01' }));
-    const { lanes } = buildAlleAntragKanbanLanes(viele, LANES, NOW);
-    expect(lanes[0]!.karten).toHaveLength(40);
-    expect(lanes[0]!.gesamt).toBe(40);
-  });
-
-  it('leitet die Spaltenzahl aus dem Bestand ab statt aus der Config', () => {
+  it('schlaegt die zweite Spalte ab dem gemessenen Wert vor — die Widget-Config zaehlt nicht', () => {
     const mach = (n: number): AntragListItem[] => Array.from({ length: n }, (_, i) =>
       antrag({ aktenzeichen: `A${i}`, status: 'beantragt', antragsdatum: '2026-01-01' }));
-    // LANES sagt fuer 'offen' spalten:1 — die Ableitung ueberstimmt das.
-    expect(buildAlleAntragKanbanLanes(mach(ZWEISPALTIG_AB), LANES, NOW).lanes[0]!.spalten).toBe(1);
-    expect(buildAlleAntragKanbanLanes(mach(ZWEISPALTIG_AB + 1), LANES, NOW).lanes[0]!.spalten).toBe(2);
-    // Umgekehrt: LANES sagt fuer 'in_pruefung' spalten:2 — eine kurze Bahn
-    // bleibt trotzdem einspaltig.
-    const kurz = [antrag({ aktenzeichen: 'B1', status: 'techn geprüft' })];
-    expect(buildAlleAntragKanbanLanes(kurz, LANES, NOW).lanes[0]!.spalten).toBe(1);
+    const spaltenVon = (n: number): number =>
+      seedVollbildLanes(kartenProKategorie(mach(n), NOW), LANES)[0]!.spalten;
+    expect(spaltenVon(ZWEISPALTIG_AB)).toBe(1);
+    expect(spaltenVon(ZWEISPALTIG_AB + 1)).toBe(2);
+    // LANES sagt fuer 'in_pruefung' spalten:2 — eine kurze Bahn bleibt einspaltig.
+    const kurz = kartenProKategorie([antrag({ aktenzeichen: 'B1', status: 'techn geprüft' })], NOW);
+    expect(seedVollbildLanes(kurz, LANES)[1]!.spalten).toBe(1);
   });
 
   it('erzeugt keine doppelte Bahn, wenn eine Kategorie doppelt konfiguriert ist', () => {
@@ -184,20 +174,105 @@ describe('buildAlleAntragKanbanLanes — die Vollbild-Sicht', () => {
       { kategorie: 'offen', spalten: 1 },
       { kategorie: 'offen', spalten: 2 },
     ];
-    const { lanes } = buildAlleAntragKanbanLanes(
-      [antrag({ aktenzeichen: 'A1', status: 'beantragt' })], doppelt, NOW,
-    );
-    expect(lanes.map(l => l.kategorie)).toEqual(['offen']);
+    const seed = seedVollbildLanes(new Map(), doppelt);
+    expect(seed.filter(l => l.kategorie === 'offen')).toHaveLength(1);
+    expect(seed).toHaveLength(9);
+  });
+});
+
+describe('kartenProKategorie / projiziereVollbildLanes — was das Fenster zeichnet', () => {
+  const alle = (): ReturnType<typeof kartenProKategorie> => kartenProKategorie([
+    antrag({ aktenzeichen: 'A1', status: 'beantragt' }),
+    antrag({ aktenzeichen: 'A2', status: 'bewilligt' }),
+  ], NOW);
+  const lane = (kategorie: VollbildLane['kategorie'], sichtbar: boolean): VollbildLane =>
+    ({ kategorie, spalten: 1, sichtbar });
+
+  it('zeigt die sichtbaren Bahnen in LISTEN-Reihenfolge, abgewaehlte fehlen ganz', () => {
+    const { lanes, gesamt } = projiziereVollbildLanes(alle(), [
+      lane('bewilligt', true),
+      lane('offen', false),
+      lane('entscheidung', true),
+    ]);
+    expect(lanes.map(l => l.kategorie)).toEqual(['bewilligt', 'entscheidung']);
+    // 'offen' ist abgewaehlt — seine Karte zaehlt auch im Kopf nicht mit.
+    expect(gesamt).toBe(1);
+  });
+
+  it('behaelt LEERE sichtbare Bahnen (Schmalschiene) — angehakt heisst sichtbar', () => {
+    const { lanes } = projiziereVollbildLanes(alle(), [lane('nachforderung', true)]);
+    expect(lanes).toHaveLength(1);
+    expect(lanes[0]!.karten).toEqual([]);
+    expect(lanes[0]!.gesamt).toBe(0);
+  });
+
+  it('kappt NICHT — maxKartenProLane ist eine Widget-Frage', () => {
+    const viele = Array.from({ length: 40 }, (_, i) =>
+      antrag({ aktenzeichen: `A${i}`, status: 'beantragt', antragsdatum: '2026-01-01' }));
+    const { lanes } = projiziereVollbildLanes(kartenProKategorie(viele, NOW), [lane('offen', true)]);
+    expect(lanes[0]!.karten).toHaveLength(40);
+    expect(lanes[0]!.gesamt).toBe(40);
   });
 
   it('clustert Verbuende wie das Widget (eine Karte je verbund_id)', () => {
-    const { lanes } = buildAlleAntragKanbanLanes([
+    const karten = kartenProKategorie([
       antrag({ aktenzeichen: 'V1', verbund_id: 'VB', status: 'beantragt', antragsdatum: '2026-01-01' }),
       antrag({ aktenzeichen: 'V2', verbund_id: 'VB', status: 'beantragt', antragsdatum: '2026-03-01' }),
-    ], LANES, NOW);
+    ], NOW);
+    const { lanes } = projiziereVollbildLanes(karten, [lane('offen', true)]);
     expect(lanes[0]!.karten).toHaveLength(1);
     expect(lanes[0]!.karten[0]!.aktenzeichen).toBe('V1'); // aeltester Eingang
     expect(lanes[0]!.karten[0]!.tvCount).toBe(2);
+  });
+});
+
+describe('leseVollbildLanes / verschiebeVollbildLane — gespeicherter Stand', () => {
+  const seed = (): VollbildLane[] => seedVollbildLanes(new Map(), LANES);
+
+  it('ohne gespeicherten Stand gilt der Seed', () => {
+    expect(leseVollbildLanes(undefined, seed())).toEqual(seed());
+    expect(leseVollbildLanes({ lanes: [] }, seed())).toEqual(seed());
+  });
+
+  it('behaelt Reihenfolge, Auswahl und Spaltenzahl des gespeicherten Standes', () => {
+    const gelesen = leseVollbildLanes([
+      { kategorie: 'bewilligt', spalten: 3, sichtbar: true },
+      { kategorie: 'offen', spalten: 1, sichtbar: false },
+    ], seed());
+    expect(gelesen[0]).toEqual({ kategorie: 'bewilligt', spalten: 3, sichtbar: true });
+    expect(gelesen[1]).toEqual({ kategorie: 'offen', spalten: 1, sichtbar: false });
+  });
+
+  it('wirft Unbekanntes und Dubletten raus, klemmt die Spaltenzahl', () => {
+    const gelesen = leseVollbildLanes([
+      { kategorie: 'offen', spalten: 7 },
+      { kategorie: 'offen', spalten: 2 }, // Dublette
+      { kategorie: 'gibt_es_nicht', spalten: 2 },
+      'kaputt',
+      null,
+    ], seed());
+    expect(gelesen.filter(l => l.kategorie === 'offen')).toHaveLength(1);
+    expect(gelesen[0]).toEqual({ kategorie: 'offen', spalten: 1, sichtbar: true });
+    expect(gelesen.map(l => l.kategorie)).not.toContain('gibt_es_nicht');
+  });
+
+  it('haengt fehlende Kategorien SICHTBAR an (nichts still verschlucken)', () => {
+    const gelesen = leseVollbildLanes([{ kategorie: 'offen', spalten: 1, sichtbar: true }], seed());
+    expect(gelesen).toHaveLength(9);
+    expect(gelesen.slice(1).every(l => l.sichtbar)).toBe(true);
+  });
+
+  it('eine Liste ohne sichtbare Bahn bleibt stehen (Nutzer-Entscheidung, kein Fehler)', () => {
+    const alleAus = seed().map(l => ({ ...l, sichtbar: false }));
+    expect(leseVollbildLanes(alleAus, seed()).every(l => !l.sichtbar)).toBe(true);
+  });
+
+  it('verschiebt um einen Platz, am Rand referenzgleich', () => {
+    const lanes = seed();
+    expect(verschiebeVollbildLane(lanes, 'in_pruefung', -1).map(l => l.kategorie).slice(0, 2))
+      .toEqual(['in_pruefung', 'offen']);
+    expect(verschiebeVollbildLane(lanes, 'offen', -1)).toBe(lanes);
+    expect(verschiebeVollbildLane(lanes, 'gibt_es_nicht' as VollbildLane['kategorie'], 1)).toBe(lanes);
   });
 });
 
