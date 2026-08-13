@@ -94,11 +94,18 @@ Allowlist.
 **Zeilen ohne Join-Wert werden bewusst nur gezählt, nicht gesondert behandelt.** Der naheliegende
 Reflex — „nicht zuzuordnen, also in diesem Lauf gar nicht löschen" — hält der Messung am echten
 Bestand nicht stand: die Projektbeschreibung führt **28 926 von 43 149 Zeilen ohne
-Förderkennzeichen** (Irrläufer, frühe Phasen; alle übrigen Felder belegt). Das ist der Normalfall
-dieser Quelle, kein Signal; eine Aussetz-Regel hätte ihre Löschungen dauerhaft stillgelegt. Ohne
-Join-Wert stand die Zeile ausserdem nie in den Row-Hashes — für sich genommen kann sie gar keine
-Löschung auslösen. Die Zahl ist trotzdem sichtbar, und zwar **exakt**: bis v4.15 rendete der Wizard
-die Länge der auf zehn gedeckelten Warnungs-Stichprobe `skippedJoinValues` als Mengenangabe.
+Förderkennzeichen**. Das ist kein Datenfehler, sondern der Bauplan dieser Quelle: sie listet
+*Beteiligungen an Verbünden*, nicht Anträge. Gemessen nach `STATUS_TV` — Sonderstatus 20 732,
+Skizze eingegangen 3 188, assoziierter Partner 2 673, internationaler Partner 1 312,
+abgelehnt/zurückgezogen 981, Irrläufer 40. Wer keinen Zuwendungsbescheid bekommt, bekommt kein
+Förderkennzeichen; **27 492** dieser Zeilen gehören zu einer `VB_NUMMER`, die anderswo sehr wohl
+eine Zeile mit FKZ hat. Zum Vergleich die Master-Quelle: dort trägt **jede** der 12 359 Zeilen ein
+FKZ, in der Begleitung jede der 7 914 — jeder *Antrag* hat eines.
+
+Eine Aussetz-Regel hätte die Löschungen dieser Quelle also dauerhaft stillgelegt. Ohne Join-Wert
+stand die Zeile ausserdem nie in den Row-Hashes — für sich genommen kann sie gar keine Löschung
+auslösen. Die Zahl ist trotzdem sichtbar, und zwar **exakt**: bis v4.17 rendete der Wizard die Länge
+der auf zehn gedeckelten Warnungs-Stichprobe `skippedJoinValues` als Mengenangabe.
 
 Der Row-Hash einer gefilterten Zeile bleibt **stehen** (anders als bei einer echten Löschung): die
 Quelle trägt sie ja, sie hält den Antrag also weiter gegen die Löschung durch andere Quellen.

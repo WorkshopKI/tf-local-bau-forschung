@@ -13,9 +13,10 @@
  *   - Code bekannt, vom Kurator deaktiviert      → bewusste Kuration, löschen
  *
  * Zeilen OHNE Join-Wert bleiben davon unberührt: sie werden exakt gezählt und
- * gemeldet, lösen aber keine Sonderbehandlung aus — am echten Bestand gemessen
- * sind sie bei der Projektbeschreibung der Normalfall (28 926 von 43 149), und
- * ohne Join-Wert stand die Zeile nie in den Row-Hashes.
+ * gemeldet, lösen aber keine Sonderbehandlung aus — am echten Bestand sind sie
+ * bei der Projektbeschreibung der Normalfall (28 926 von 43 149 Zeilen, weil die
+ * Quelle Verbund-Beteiligungen listet und nicht Anträge), und ohne Join-Wert
+ * stand die Zeile ohnehin nie in den Row-Hashes.
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import 'fake-indexeddb/auto';
@@ -214,11 +215,12 @@ describe('importCsvSource — gefiltert heisst nicht gelöscht', () => {
     const idb = await setup();
 
     // Am ECHTEN Bestand gemessen: die Projektbeschreibung führt 28 926 von
-    // 43 149 Zeilen ohne Förderkennzeichen (Irrläufer, frühe Phasen — alle
-    // Felder belegt, nur eben ohne FKZ). Solche Zeilen sind der Normalfall
-    // dieser Quelle. Wer daraufhin die Löschungen des Laufs aussetzt, legt sie
-    // für sie dauerhaft still. Ohne Join-Wert stand die Zeile ausserdem nie in
-    // den Row-Hashes — für sich genommen kann sie gar keine Löschung auslösen.
+    // 43 149 Zeilen ohne Förderkennzeichen — sie listet Beteiligungen an
+    // Verbünden, nicht Anträge (Sonderstatus, Skizzen, assoziierte und
+    // internationale Partner). Der Normalfall dieser Quelle also. Wer daraufhin
+    // die Löschungen des Laufs aussetzt, legt sie für sie dauerhaft still. Ohne
+    // Join-Wert stand die Zeile ausserdem nie in den Row-Hashes — für sich
+    // genommen kann sie gar keine Löschung auslösen.
     const r = await importCsvSource(
       idb, MASTER, blob('FKZ;TITEL;FM_NUMMER\n16EP0001;Alpha;4711\n;Ohne Kennzeichen;4711\n'),
       { force: true, deferSnapshotWrite: true },

@@ -309,11 +309,13 @@ export async function importCsvSource(
     // Zeilen OHNE Join-Wert bleiben davon unberührt — sie werden gezählt und
     // gemeldet, lösen aber keine Sonderbehandlung aus. Am echten Bestand
     // gemessen: die Projektbeschreibung führt 28 926 von 43 149 Zeilen ohne
-    // Förderkennzeichen (Irrläufer, frühe Phasen; alle Felder belegt, nur eben
-    // ohne FKZ). Solche Zeilen sind der NORMALFALL dieser Quelle, kein Signal.
-    // Wer daraufhin die Löschungen des Laufs aussetzt, legt sie für diese Quelle
-    // dauerhaft still. Ohne Join-Wert stand die Zeile ausserdem nie in `prevMap`
-    // — sie kann für sich genommen gar keine Löschung auslösen.
+    // Förderkennzeichen, weil sie Beteiligungen an Verbünden listet und nicht
+    // Anträge (Sonderstatus, Skizzen, assoziierte und internationale Partner —
+    // wer keinen Zuwendungsbescheid bekommt, bekommt kein FKZ). Der NORMALFALL
+    // dieser Quelle also, kein Signal: wer daraufhin die Löschungen des Laufs
+    // aussetzt, legt sie für diese Quelle dauerhaft still. Ohne Join-Wert stand
+    // die Zeile ausserdem nie in `prevMap` — sie kann für sich genommen gar
+    // keine Löschung auslösen.
     const removedJoinValues: string[] = [];
     for (const [jv] of prevMap) {
       if (!seen.has(jv) && !nichtAufgeloest.has(jv)) removedJoinValues.push(jv);
