@@ -169,6 +169,25 @@ Quelle stammte.
   jetzt zusätzlich per **Key** und korrigiert an einem gefundenen Record nur Ablage (`programm_id`) und
   Teilvorhaben-Liste.
 
+## Welche Datei gehört zu welcher Quelle (v4.22.0)
+
+Der Ordner-Link ist der empfohlene Weg; er löscht die Per-Datei-Handles. Scheitert `getFileHandle`
+ein einziges Mal (Datei fehlt, umbenannt, gerade in Bearbeitung, Groß-/Kleinschreibung), greift der
+Header-Fallback in [csv-source-handle.ts](../../src/plugins/csv-sources-kuration/csv-source-handle.ts)
+— und der nahm **jede** `.csv` mit `score > 0`, also mit auch nur einer bekannten Spalte. Weil die drei
+C16-Quellen ihren Spaltenvorrat teilen, ist das keine theoretische Lücke: über alle 9 Schema/Datei-Paare
+der Fixtures matchen **fremde** Dateien 14–20 von 21–24 gemappten Spalten.
+
+Zwei Regeln stehen jetzt davor:
+
+1. **Der Fallback muss überzeugen** — genommen wird nur eine Datei, die **keine** Schema-Spalte
+   vermissen lässt, und nur, wenn genau eine das schafft. Bleibt es mehrdeutig, ist `null` („Datei
+   fehlt") die Antwort: eine solche Meldung ist reparierbar, eine Fehlbindung nicht.
+2. **`schema.source_file_name` schlägt die lokale Filemap.** Der Notnagel wurde als Self-Heal in die
+   Filemap geschrieben, und weil der schnelle Pfad `knownFileName` **vor** dem Schema-Namen probierte,
+   gewann die Fehlbindung dauerhaft — auch wenn die richtige Datei am nächsten Tag zurück war. Der
+   kuratierte Name geht vor, der Cache füllt nur die Lücke.
+
 ## Verbund-Aggregation (Forschungs-Domäne)
 
 Ein **Verbund** bündelt mehrere Teilanträge unter einer gemeinsamen Projektbeschreibung. Der CSV-Master-Import erkennt Verbünde über das Akronym + Teilantragsindex und dedupliziert geteilte Dokumente per Content-Hash. Anzeige in der Antrags-Liste: Teilvorhaben werden visuell unter dem Verbund-Header geclustert (siehe `src/plugins/antraege/` Cluster-Komponenten).

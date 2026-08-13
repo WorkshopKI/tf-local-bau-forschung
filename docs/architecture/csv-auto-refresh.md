@@ -149,6 +149,32 @@ unbekannter Unterprogramm-Zelle — nicht importiert, aber auch nicht gelöscht.
 `[data-update]`-Log als `unbekanntesUP=…`; die Regel dahinter in
 [csv-import.md](csv-import.md#gefiltert-heißt-ich-weiß-es-nicht-nicht-gibt-es-nicht-v4180).
 
+## Ein Snapshot gehört EINEM Programm (v4.22.0)
+
+Drei Stellen behandelten den Snapshot, als wäre er der ganze Datenbestand des Rechners.
+
+- **Der Sync fasst nur die Records des eigenen Programms an.** `replaceStore` rief `clear()` auf den
+  GANZEN Objekt-Store, während `programme.jsonl` / `csv_schemas.jsonl` per Konstruktion nur die Records
+  eines Programms enthalten. Auf einem Rechner mit zwei Programmen (Kurator-Seite „Programme", dev
+  zusätzlich `dev-programm`) löschte der Sync von A die CSV-Schemas von B — und weil `listProgramme` B
+  danach nicht mehr lieferte, wurde B **nie wieder** gesynct: keine Selbstheilung, auch nicht am
+  Folgetag. `keysDesProgramms` ([snapshot-sync.ts](../../src/core/services/csv/snapshot-sync.ts)) löst
+  die Zugehörigkeit je Store auf — per `programm_id`-Index (billig, Key-Cursor), über den Key selbst
+  (`akronym_index`), oder über die Bezugsmenge des Nachbar-Stores (Historien über ihre Entität,
+  Row-Hashes über ihr Schema), genau wie `listAntragHistorieByProgramm` es schon tat.
+- **Eine Löschung überlebt das gebündelte Delta.** Der Auto-Refresh vereinigt `touched` und `removed`
+  über alle Quellen; ein Aktenzeichen, das Quelle 1 als geändert meldete und der danach importierte
+  Master gelöscht hat, fiel durch beide Raster (aus `removedKeys` gefiltert, mangels Record auch nicht
+  in `changedRecords`). Der Schreiber zeigte es als gelöscht, jeder andere Rechner behielt die
+  Karteileiche bis zur nächsten Compaction. Jetzt entscheidet der **Bestand**: `removedKeys` = alles,
+  was der Lauf angefasst hat und danach nicht mehr im Store steht.
+- **Ein reiner Demo-Rechner publiziert gar nicht.** Der Fixture-Filter schützte nur `csv_schemas.jsonl`;
+  Anträge, Verbünde, Akronyme und Unterprogramme gingen ungefiltert raus (gemessen: Share 500 echte
+  Anträge → 70 Demo-Anträge, `csv_schemas` dank Guard korrekt bei 1). Statt jeden Store einzeln zu
+  filtern — und dabei Anträge, Verbünde und Akronym-Index auseinanderlaufen zu lassen — erkennt
+  `loadSmallStoreData` den **Rechner**: hat das Programm CSV-Quellen und ist nach dem Fixture-Filter
+  keine übrig, stammt sein ganzer Bestand aus den gebündelten Beispieldaten. Der Publish bricht ab.
+
 ## Frische-Ampel „● CSV" (`deriveCsvFreshnessState`)
 
 Reine, getestete Entscheidungslogik für den Fußzeilen-Punkt: `fresh` (grün) nur, wenn **erreichbare** Quellen

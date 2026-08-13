@@ -19,6 +19,14 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.22 — 2026-08
+
+### Bugfixes
+- Wer auf einem Rechner mit mehreren Programmen arbeitet, verliert beim Laden neuer Daten nicht mehr die Daten des jeweils anderen Programms.
+- Ein im Fachsystem gelöschter Antrag verschwindet jetzt auch bei den Kolleginnen und Kollegen, wenn er im selben Lauf zusätzlich geändert wurde. Bisher blieb er dort als Karteileiche stehen.
+- Ein Rechner, der nur mit den mitgelieferten Beispieldaten läuft, kann den echten Datenbestand des Teams nicht mehr überschreiben.
+- Findet die App die Datei einer CSV-Quelle nicht wieder, greift sie nicht mehr zur nächstbesten Datei im Ordner. Sie meldet stattdessen, dass die Datei fehlt — das lässt sich beheben, eine falsche Zuordnung nicht.
+
 ## v4.21 — 2026-08
 
 ### Neu

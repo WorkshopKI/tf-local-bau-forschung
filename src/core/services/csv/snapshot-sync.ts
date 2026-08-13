@@ -314,7 +314,7 @@ export async function syncProgrammSnapshot(
         }
         timings.parseMs += performance.now() - tWork;
         const tWrite = performance.now();
-        await replaceStore(idb, STORE_TARGETS.antraege, items, (done, total) => {
+        await replaceStore(idb, 'antraege', items, programmId, (done, total) => {
           reportStore(total > 0 ? done / total : 1);
         });
         timings.idbWriteMs += performance.now() - tWrite;
@@ -359,7 +359,7 @@ export async function syncProgrammSnapshot(
     }
 
     const tWrite = performance.now();
-    await replaceStore(idb, STORE_TARGETS[storeKey], items, (done, total) => {
+    await replaceStore(idb, storeKey, items, programmId, (done, total) => {
       reportStore(total > 0 ? done / total : 1);
     });
     timings.idbWriteMs += performance.now() - tWrite;
@@ -480,7 +480,7 @@ async function syncAntraegeViaDelta(
       return { reloaded: false, incomplete: true };
     }
     const tWrite = performance.now();
-    await replaceStore(idb, STORE_TARGETS.antraege, items);
+    await replaceStore(idb, 'antraege', items, programmId);
     timings.idbWriteMs += performance.now() - tWrite;
     const baseHashes = buildAntraegeHashes(rawLines);
     Object.assign(hashes, baseHashes);
@@ -593,26 +593,138 @@ async function countStore(idb: IDBStore, storeName: CsvStoreName): Promise<numbe
   });
 }
 
+/** Stores, deren Records die Programm-Zugehörigkeit direkt tragen (mit Index). */
+const PROGRAMM_INDEX: Partial<Record<SnapshotStoreName, string>> = {
+  antraege: 'programm_id',
+  verbuende: 'programm_id',
+  unterprogramme: 'programm_id',
+  csv_schemas: 'programm_id',
+};
+
+/** Primärschlüssel aller Treffer eines Index — ohne die Records zu laden. */
+function keysViaIndex(
+  db: IDBDatabase, storeName: CsvStoreName, indexName: string, wert: IDBValidKey,
+): Promise<IDBValidKey[]> {
+  return new Promise((resolve, reject) => {
+    const out: IDBValidKey[] = [];
+    const t = db.transaction(storeName, 'readonly');
+    const cur = t.objectStore(storeName).index(indexName).openKeyCursor(IDBKeyRange.only(wert));
+    cur.onsuccess = () => {
+      const c = cur.result;
+      if (!c) return;
+      out.push(c.primaryKey);
+      c.continue();
+    };
+    t.oncomplete = () => resolve(out);
+    t.onerror = () => reject(t.error);
+    t.onabort = () => reject(t.error);
+  });
+}
+
+/** Alle Records eines Stores, gefiltert — für Stores ohne passenden Index. */
+function keysGefiltert(
+  db: IDBDatabase, storeName: CsvStoreName,
+  passt: (key: IDBValidKey, wert: unknown) => boolean,
+  brauchtWert: boolean,
+): Promise<IDBValidKey[]> {
+  return new Promise((resolve, reject) => {
+    const out: IDBValidKey[] = [];
+    const t = db.transaction(storeName, 'readonly');
+    const s = t.objectStore(storeName);
+    const cur = brauchtWert ? s.openCursor() : s.openKeyCursor();
+    cur.onsuccess = () => {
+      const c = cur.result;
+      if (!c) return;
+      const wert = brauchtWert ? (c as IDBCursorWithValue).value : undefined;
+      if (passt(c.primaryKey, wert)) out.push(c.primaryKey);
+      c.continue();
+    };
+    t.oncomplete = () => resolve(out);
+    t.onerror = () => reject(t.error);
+    t.onabort = () => reject(t.error);
+  });
+}
+
 /**
- * clear() + chunked put, jeweils in eigener Transaction, weil Bulk-Inserts
+ * Welche Records im Ziel-Store gehören DIESEM Programm?
+ *
+ * Der Snapshot eines Programms enthält per Konstruktion nur dessen Records —
+ * ein `clear()` auf den ganzen Store löschte deshalb auf einem Rechner mit
+ * zwei Programmen den Bestand des Nachbarn mit (und weil `listProgramme` ihn
+ * danach nicht mehr lieferte, wurde er nie wieder gesynct).
+ *
+ * Drei Fälle: eigener Index (billig, Key-Cursor), der Programm-Record selbst,
+ * und die abgeleitet zugeordneten Stores (Historien über ihre Entität,
+ * Row-Hashes über ihr Schema) — dort entscheidet die Bezugsmenge aus dem
+ * Nachbar-Store, genau wie in `listAntragHistorieByProgramm`.
+ */
+async function keysDesProgramms(
+  idb: IDBStore, storeKey: SnapshotStoreName, programmId: string,
+): Promise<IDBValidKey[]> {
+  const db = idb.getDb();
+  const indexFeld = PROGRAMM_INDEX[storeKey];
+  if (indexFeld) return keysViaIndex(db, STORE_TARGETS[storeKey], indexFeld, programmId);
+
+  if (storeKey === 'programme') return [programmId];
+
+  if (storeKey === 'akronym_index') {
+    // keyPath [programm_id, akronym] — die Zugehörigkeit steht im Key selbst.
+    return keysGefiltert(db, STORE_TARGETS.akronym_index,
+      key => Array.isArray(key) && key[0] === programmId, false);
+  }
+
+  if (storeKey === 'csv_row_hashes') {
+    const schemaIds = new Set(
+      (await keysViaIndex(db, CSV_STORES.CSV_SCHEMAS, 'programm_id', programmId)).map(String),
+    );
+    return keysGefiltert(db, STORE_TARGETS.csv_row_hashes,
+      key => Array.isArray(key) && schemaIds.has(String(key[0])), false);
+  }
+
+  if (storeKey === 'antrag_historie') {
+    const az = new Set(
+      (await keysViaIndex(db, CSV_STORES.ANTRAEGE, 'programm_id', programmId)).map(String),
+    );
+    return keysGefiltert(db, STORE_TARGETS.antrag_historie,
+      (_k, wert) => az.has(String((wert as { aktenzeichen?: unknown }).aktenzeichen)), true);
+  }
+
+  // verbund_historie
+  const vids = new Set(
+    (await keysViaIndex(db, CSV_STORES.VERBUENDE, 'programm_id', programmId)).map(String),
+  );
+  return keysGefiltert(db, STORE_TARGETS.verbund_historie,
+    (_k, wert) => vids.has(String((wert as { verbund_id?: unknown }).verbund_id)), true);
+}
+
+/**
+ * Programm-weiser Ersatz: erst die Records DIESES Programms entfernen, dann die
+ * neuen chunked schreiben — jeweils in eigener Transaction, weil Bulk-Inserts
  * mit 13k+ Items die TX-Lifetime ueberschreiten wuerden.
  */
 async function replaceStore(
   idb: IDBStore,
-  storeName: CsvStoreName,
+  storeKey: SnapshotStoreName,
   items: unknown[],
+  programmId: string,
   onChunk?: (done: number, total: number) => void,
 ): Promise<void> {
   const db = idb.getDb();
+  const storeName = STORE_TARGETS[storeKey];
 
-  // 1. clear()
-  await new Promise<void>((resolve, reject) => {
-    const t = db.transaction(storeName, 'readwrite');
-    t.objectStore(storeName).clear();
-    t.oncomplete = () => resolve();
-    t.onerror = () => reject(t.error);
-    t.onabort = () => reject(t.error);
-  });
+  // 1. nur die eigenen Records löschen (statt clear() auf den ganzen Store)
+  const zuLoeschen = await keysDesProgramms(idb, storeKey, programmId);
+  for (let i = 0; i < zuLoeschen.length; i += MAX_WRITES_PER_TX) {
+    const chunk = zuLoeschen.slice(i, i + MAX_WRITES_PER_TX);
+    await new Promise<void>((resolve, reject) => {
+      const t = db.transaction(storeName, 'readwrite');
+      const s = t.objectStore(storeName);
+      for (const key of chunk) s.delete(key);
+      t.oncomplete = () => resolve();
+      t.onerror = () => reject(t.error);
+      t.onabort = () => reject(t.error);
+    });
+  }
 
   // 2. chunked put
   for (let i = 0; i < items.length; i += MAX_WRITES_PER_TX) {

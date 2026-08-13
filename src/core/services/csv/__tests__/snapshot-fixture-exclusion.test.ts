@@ -105,3 +105,46 @@ describe('Snapshot-Write schließt Fixture-Quellen aus', () => {
     expect(jsonl).not.toContain('fixture-real-anb');
   });
 });
+
+/**
+ * Der Schema-Filter allein reichte nicht: er schützt `csv_schemas.jsonl`, aber
+ * die ANTRÄGE, Verbünde, Akronyme und Unterprogramme desselben Rechners gingen
+ * ungefiltert raus. Ein dev-Build mit gebündelten Demo-Daten, verknüpftem
+ * ECHTEN Share und frischer IDB seedet die drei Fixture-CSVs und publiziert
+ * dabei selbst — gemessen: Share 500 echte Anträge → 70 Demo-Anträge, während
+ * `csv_schemas` dank Guard korrekt bei 1 blieb.
+ *
+ * Statt jeden Store einzeln zu filtern (und dabei Anträge, Verbünde und
+ * Akronym-Index auseinanderlaufen zu lassen), erkennt der Publish den Rechner:
+ * hat ein Programm CSV-Quellen und ist nach dem Fixture-Filter keine übrig,
+ * stammt sein gesamter Bestand aus Demo-Daten. Ein solcher Rechner publiziert
+ * nicht — er wirft.
+ */
+describe('Ein reiner Demo-Rechner publiziert gar nicht', () => {
+  it('bricht ab, wenn ALLE Quellen des Programms Fixtures sind', async () => {
+    const idb = new IDBStore();
+    await idb.open();
+    await putProgramm(idb, { id: PID, name: 'P1', created_at: '2026-06-01T00:00:00.000Z', smb_handle_key: 'daten-share' } as Programm);
+    await putSchema(idb, schema('fixture-real-anb', 'Demo-Antragsbasis'));
+    await putSchema(idb, schema('fixture-real-bgl', 'Demo-Bewilligung'));
+
+    const root = new MemDir('root');
+    await expect(
+      writeProgrammSnapshot(idb, root as unknown as FileSystemDirectoryHandle, PID, 'tester'),
+    ).rejects.toThrow(/Demo/i);
+
+    // Nichts geschrieben — der Share bleibt, wie er war.
+    await expect(readSnapshotFile(root, 'manifest.json')).rejects.toThrow();
+  });
+
+  it('ein Programm ohne jede Quelle ist kein Demo-Rechner (kein Fehlalarm)', async () => {
+    const idb = new IDBStore();
+    await idb.open();
+    await putProgramm(idb, { id: PID, name: 'P1', created_at: '2026-06-01T00:00:00.000Z', smb_handle_key: 'daten-share' } as Programm);
+
+    const root = new MemDir('root');
+    await writeProgrammSnapshot(idb, root as unknown as FileSystemDirectoryHandle, PID, 'tester');
+
+    expect(await readSnapshotFile(root, 'csv_schemas.jsonl')).toBe('');
+  });
+});

@@ -159,14 +159,25 @@ export async function requestCsvSourceDirPermission(
  * Verzeichnis-Handle auf die Kind-Datei — kein eigener Datei-Prompt nötig.
  *
  * Match-Strategie:
- *  1. `knownFileName` (lokale Filemap) bzw. `schema.source_file_name` gesetzt +
+ *  1. `schema.source_file_name` bzw. `knownFileName` (lokale Filemap) gesetzt +
  *     Datei existiert → direkt `getFileHandle` (nur Metadaten, KEIN Scan/Parse).
+ *     Der im Schema hinterlegte Name geht VOR: er ist die kuratierte Angabe,
+ *     die Filemap nur ein lokaler Cache, den der Fallback unten befüllt haben
+ *     kann. Andersherum gewann eine einmal falsch geheilte Bindung dauerhaft,
+ *     auch wenn die richtige Datei am nächsten Tag zurück war.
  *  2. sonst: alle `.csv`-Dateien des Ordners gegen das Schema validieren
- *     (`parseCsvPreview` + `validateHeaders`), die Datei mit den meisten
- *     gematchten Spalten (>0) nehmen. Begründung: `source_file_name` ist auf
- *     pl-Schemas (Snapshot-Import) nicht zuverlässig gesetzt. Dieser Pfad ist
- *     teuer (liest+parst jede CSV) — Caller cachen den Treffer in der lokalen
- *     Filemap, damit er pro Quelle nur EINMAL läuft (Perf-Fix v2.27.2).
+ *     (`parseCsvPreview` + `validateHeaders`) und die nehmen, die KEINE
+ *     Schema-Spalte vermissen lässt — und das auch nur, wenn genau EINE das
+ *     schafft. Begründung: `source_file_name` ist auf pl-Schemas
+ *     (Snapshot-Import) nicht zuverlässig gesetzt, der Fallback bleibt also
+ *     nötig; er ist aber ein Rateschritt. „Die meisten Spalten (>0)" hat dabei
+ *     nachweislich nicht getragen: die drei C16-Quellen teilen ihren
+ *     Spaltenvorrat, über alle 9 Schema/Datei-Paare der Fixtures matchen
+ *     FREMDE Dateien 14–20 von 21–24 gemappten Spalten. Bleibt es
+ *     mehrdeutig, ist `null` („Datei fehlt") die reparierbare Antwort, eine
+ *     Fehlbindung nicht. Dieser Pfad ist teuer (liest+parst jede CSV) —
+ *     Caller cachen den Treffer in der lokalen Filemap, damit er pro Quelle
+ *     nur EINMAL läuft (Perf-Fix v2.27.2).
  *
  * Nicht-rekursiv — erfasst nur Dateien DIREKT im gewählten Ordner. Liefert
  * `null`, wenn keine passende Datei gefunden wird.
@@ -176,8 +187,8 @@ export async function resolveFileViaDir(
   schema: CsvSchema,
   knownFileName?: string,
 ): Promise<{ file: File; fileName: string } | null> {
-  // 1. bekannter Dateiname (Filemap > source_file_name) — schneller Pfad ohne Scan
-  for (const candidate of [knownFileName, schema.source_file_name]) {
+  // 1. bekannter Dateiname (source_file_name > Filemap) — schneller Pfad ohne Scan
+  for (const candidate of [schema.source_file_name, knownFileName]) {
     if (!candidate) continue;
     try {
       const fh = await dirHandle.getFileHandle(candidate);
@@ -186,8 +197,8 @@ export async function resolveFileViaDir(
       /* nicht (mehr) gefunden → nächster Kandidat / Header-Fallback */
     }
   }
-  // 2. Header-Fallback: beste Übereinstimmung unter den .csv-Dateien
-  let best: { file: File; fileName: string; score: number } | null = null;
+  // 2. Header-Fallback: nur eine vollständige, eindeutige Übereinstimmung zählt
+  const vollstaendig: { file: File; fileName: string }[] = [];
   try {
     const iter = dirHandle as unknown as AsyncIterable<[string, FileSystemHandle]>;
     for await (const [name, handle] of iter) {
@@ -199,9 +210,9 @@ export async function resolveFileViaDir(
           encoding: schema.encoding,
           separator: schema.separator,
         });
-        const score = validateHeaders(schema, preview.headers).matched.length;
-        if (score > 0 && (!best || score > best.score)) {
-          best = { file, fileName: name, score };
+        const v = validateHeaders(schema, preview.headers);
+        if (v.matched.length > 0 && v.missingFromCsv.length === 0) {
+          vollstaendig.push({ file, fileName: name });
         }
       } catch {
         /* unlesbare/inkompatible Datei überspringen */
@@ -210,7 +221,17 @@ export async function resolveFileViaDir(
   } catch {
     /* Verzeichnis nicht iterierbar (Permission?) → null */
   }
-  return best ? { file: best.file, fileName: best.fileName } : null;
+  if (vollstaendig.length !== 1) {
+    if (vollstaendig.length > 1) {
+      console.warn(
+        `[csv-source] „${schema.csv_source_name}": ${vollstaendig.length} Dateien passen gleich gut `
+        + `(${vollstaendig.map(v => v.fileName).join(', ')}) — keine Zuordnung geraten. `
+        + `Die Quelle über „CSV neu wählen" verknüpfen.`,
+      );
+    }
+    return null;
+  }
+  return vollstaendig[0]!;
 }
 
 export type UpdateCheckResult =

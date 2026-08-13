@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.22.0 — Ein Snapshot gehoert einem Programm, eine Quelle einer Datei (August 2026)
+
+MINOR — Vier weitere Befunde der CSV-Bug-Jagd. Drei behandelten den Snapshot, als wäre er der ganze Datenbestand des Rechners; der vierte band eine Quelle an die falsche Datei und schrieb die Fehlbindung als Selbstheilung fest.
+
+- **Der Sync fasst nur das eigene Programm an** ([snapshot-sync.ts](src/core/services/csv/snapshot-sync.ts), [csv-auto-refresh.md](docs/architecture/csv-auto-refresh.md)): `clear()` auf den ganzen Store löschte auf einem Rechner mit zwei Programmen den Bestand des Nachbarn — der danach nie wieder gesynct wurde
+- **Eine Löschung überlebt das gebündelte Delta** ([snapshot.ts](src/core/services/csv/snapshot.ts)): wurde dasselbe Aktenzeichen im Lauf auch berührt, fiel es durch beide Raster; jetzt entscheidet der Bestand statt der Meldung
+- **Ein reiner Demo-Rechner publiziert gar nicht** ([snapshot.ts](src/core/services/csv/snapshot.ts)): der Fixture-Filter schützte nur die Schema-Datei, Anträge und Verbünde gingen ungefiltert auf den Team-Share
+- **Der Header-Fallback muss überzeugen** ([csv-source-handle.ts](src/plugins/csv-sources-kuration/csv-source-handle.ts), [csv-import.md](docs/architecture/csv-import.md)): eine Datei wird nur zugeordnet, wenn sie alle Schema-Spalten führt und keine zweite das auch tut
+- **Der kuratierte Dateiname schlägt die lokale Filemap** ([csv-source-handle.ts](src/plugins/csv-sources-kuration/csv-source-handle.ts)): sonst gewann eine einmal falsch geheilte Bindung dauerhaft
+
 ### v4.21.0 — Eine Bahn kann drei Kartenspalten breit sein (August 2026)
 
 MINOR — Der Spaltenschalter je Lane bot 1 oder 2. Wer eine volle Bahn breiter stellen wollte, war damit am Ende — und die Menge `1 | 2` stand sechsmal wortgleich im Code, also an sechs Stellen zu ändern. Detail: [board-komponente.md](docs/architecture/board-komponente.md).

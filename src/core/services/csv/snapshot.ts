@@ -254,7 +254,23 @@ async function loadSmallStoreData(idb: IDBStore, programmId: string): Promise<Sm
   // (der die Fixtures auto-seedet) würde sonst die echten Quellen überschreiben
   // und alle pl/kurator-Rechner zögen sich die Demo-Daten (Vorfall 2026-06).
   // Defense-in-depth am Publish-Boundary — der lokale Store behält die Fixtures.
-  const csvSchemas = (await listSchemasByProgramm(idb, programmId)).filter(s => !isFixtureSchemaId(s.id));
+  const alleSchemas = await listSchemasByProgramm(idb, programmId);
+  const csvSchemas = alleSchemas.filter(s => !isFixtureSchemaId(s.id));
+  // Der Filter oben schützt nur `csv_schemas.jsonl`. Anträge, Verbünde,
+  // Akronyme und Unterprogramme desselben Rechners gingen ungefiltert raus —
+  // gemessen: Share 500 echte Anträge → 70 Demo-Anträge, während `csv_schemas`
+  // dank Guard bei 1 blieb. Statt jeden Store einzeln zu filtern (und dabei
+  // Anträge, Verbünde und Akronym-Index auseinanderlaufen zu lassen), wird der
+  // RECHNER erkannt: hat das Programm Quellen und ist nach dem Fixture-Filter
+  // keine übrig, stammt sein ganzer Bestand aus Demo-Daten. Der publiziert nicht.
+  if (alleSchemas.length > 0 && csvSchemas.length === 0) {
+    throw new Error(
+      `Snapshot-Publish abgebrochen (Programm ${programmId}): alle ${alleSchemas.length} CSV-Quellen `
+      + `dieses Rechners sind Demo-Fixtures. Der gesamte Bestand stammt aus den gebündelten `
+      + `Beispieldaten — ein Publish würde die echten Daten des Shares damit überschreiben. `
+      + `Erst die Quellen auf echte Exporte umstellen ("CSV neu wählen"), dann publizieren.`,
+    );
+  }
   const csvRowHashes = await listRowHashesBySchemas(idb, csvSchemas.map(s => s.id));
   const unterprogramme = await listUnterprogrammeByProgramm(idb, programmId);
   return {
@@ -548,9 +564,23 @@ export async function writeProgrammSnapshotDelta(
   const delta = existing!.delta!;
   const nextSeq = (delta.deltas.length ? delta.deltas[delta.deltas.length - 1]!.seq : 0) + 1;
 
-  // Removals = entfernt UND nicht (von einer anderen Quelle) wieder berührt.
+  // Nur die geänderten Records keyed laden (kein 14k-Cursor) + stabil sortieren.
   const touchedSet = new Set(change.touchedAz);
-  const removedKeys = [...new Set(change.removedAz)].filter(k => !touchedSet.has(k));
+  const changedRecords = await getAntraegeByKeys(idb, [...touchedSet]);
+  changedRecords.sort((a, b) => (a.aktenzeichen < b.aktenzeichen ? -1 : a.aktenzeichen > b.aktenzeichen ? 1 : 0));
+  const nochDa = new Set(changedRecords.map(a => a.aktenzeichen));
+
+  // Gelöscht ist, was der Lauf angefasst hat und danach NICHT mehr im Store
+  // steht — der Bestand entscheidet, nicht die Meldung. Vorher wurden die
+  // beiden Mengen gegeneinander gerechnet (`removed` ohne `touched`): der
+  // Auto-Refresh vereinigt sie über ALLE Quellen eines Programms, und ein
+  // Aktenzeichen, das Quelle 1 als geändert meldete und der danach importierte
+  // Master gelöscht hat, fiel durch beide Raster — aus `removedKeys` gefiltert
+  // und mangels Record auch nicht in `changedRecords`. Der Schreiber zeigte es
+  // als gelöscht, jeder andere Rechner behielt die Karteileiche samt List-View,
+  // Fristen und Zählern, bis die nächste Compaction eine Voll-Basis schrieb.
+  const removedKeys = [...new Set([...change.removedAz, ...change.touchedAz])]
+    .filter(k => !nochDa.has(k));
 
   // Mengen-Plausibilität auch hier — im Delta steht die Löschung explizit als
   // `removedKeys`, der Voll-Write-Guard bekommt sie nie zu sehen. Bewusst VOR
@@ -559,10 +589,6 @@ export async function writeProgrammSnapshotDelta(
   // Change-Set landet ohnehin im Voll-Write (`tooManyChanges`), hier laufen nur
   // kleine Deltas durch.
   pruefeAntraegeSchwund(baseCount - removedKeys.length, baseCount, programmId);
-
-  // Nur die geänderten Records keyed laden (kein 14k-Cursor) + stabil sortieren.
-  const changedRecords = await getAntraegeByKeys(idb, [...touchedSet]);
-  changedRecords.sort((a, b) => (a.aktenzeichen < b.aktenzeichen ? -1 : a.aktenzeichen > b.aktenzeichen ? 1 : 0));
   const changedLines = changedRecords.map(a => JSON.stringify(a));
   const changedJsonl = changedLines.join('\n') + (changedLines.length ? '\n' : '');
   const changedFile = `antraege.delta.${nextSeq}.jsonl`;
