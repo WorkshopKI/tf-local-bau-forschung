@@ -28,14 +28,9 @@ import {
 } from '@/config/feature-flags';
 import type { AIProviderConfig } from '@/core/types/config';
 import { ProfilPanel } from './profil/ProfilPanel';
-import { DarstellungTab } from './DarstellungTab';
-import { WidgetsSettingsSection } from './WidgetsSettingsSection';
-import { TastaturTab } from './TastaturTab';
+import { DarstellungPanel } from './darstellung/DarstellungPanel';
+import { DatenPanel } from './daten/DatenPanel';
 import { AIProviderTab } from './AIProviderTab';
-import { SpeicherTab } from './SpeicherTab';
-import { DokumentenquellenTab } from './DokumentenquellenTab';
-import { TagsTab } from './TagsTab';
-import { OnlineTab } from './OnlineTab';
 
 /** Sprung-Ziel für die Einstellungs-Suche (DOM-`id` eines Abschnitts). */
 export interface SettingsSectionRef {
@@ -121,21 +116,13 @@ export function getSettingsPanels(ctx: PanelContext): SettingsPanel[] {
     untertitel: 'Gilt nur für dieses Gerät.',
     icon: Contrast,
     sections: [
+      { id: 'sec-erscheinung', label: 'Farbschema', keywords: 'dark light hell dunkel theme darstellung modus erscheinungsbild' },
       { id: 'sec-farbe', label: 'Primärfarbe', keywords: 'akzent farbe darstellung' },
-      { id: 'sec-erscheinung', label: 'Erscheinungsbild', keywords: 'dark light theme darstellung modus' },
-      { id: 'sec-tastatur', label: 'Tastatur Shortcuts', keywords: 'shortcuts command palette tastatur bedienung kürzel' },
+      { id: 'sec-farb-vorschau', label: 'Farb-Vorschau', keywords: 'vorschau badge akzent info erfolg warnung fehler' },
+      { id: 'sec-tastatur', label: 'Tastenkürzel', keywords: 'shortcuts command palette tastatur bedienung kürzel' },
       { id: 'sec-widgets', label: 'Widgets auf der Startseite', keywords: 'widgets startseite home kanban notizen reihenfolge sichtbarkeit ampel antragseingang' },
     ],
-    render: () => (
-      // „Tastatur Shortcuts" (Standard eingeklappt) steht bewusst VOR den Widgets
-      // und wird von „Erscheinungsbild" etwas abgerückt (mt-10); die Widgets
-      // folgen mit normalem Abstand (mt-8). Beide Sektionen sind aufklappbar.
-      <div>
-        <DarstellungTab />
-        <div className="mt-10"><TastaturTab /></div>
-        <div className="mt-8"><WidgetsSettingsSection /></div>
-      </div>
-    ),
+    render: () => <DarstellungPanel />,
   });
 
   panels.push({
@@ -153,14 +140,7 @@ export function getSettingsPanels(ctx: PanelContext): SettingsPanel[] {
         ? [{ id: 'sec-team', label: 'Team-Status', keywords: 'online wer ist online benutzer-ordner presence' }]
         : []),
     ],
-    render: () => (
-      <div className="space-y-8">
-        <SpeicherTab />
-        <DokumentenquellenTab />
-        <TagsTab />
-        {isOnlineStatusTabEnabled() && <OnlineTab />}
-      </div>
-    ),
+    render: () => <DatenPanel />,
   });
 
   // KI-Assistent bewusst als letztes System-Panel (Reihenfolge = Push-Reihenfolge in der Gruppe).

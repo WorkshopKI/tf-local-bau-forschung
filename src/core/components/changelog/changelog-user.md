@@ -19,6 +19,14 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.30 — 2026-08
+
+### Verbesserungen
+- „Darstellung & Bedienung" und „Daten & Verbindungen" stehen jetzt ebenfalls zweispaltig: links die Einstellungen selbst, rechts, was daran hängt (Startseiten-Widgets bzw. Team-Status und Tags).
+- Jedes Widget hat einen Schalter statt zweier Zustands-Knöpfe; ausgeschaltete Zeilen sind gedimmt, und die Zeile sagt „13 von 15 sichtbar" statt nur „13 sichtbar".
+- Die Tastenkürzel-Liste, die Widget-Liste, der Arbeitsverlauf, die Online-Liste und die Tag-Liste sind eingeklappt und nennen in ihrer Zeile, was dahinter steckt.
+- Der Datenordner zeigt „Letzter CSV-Import" direkt in seiner Zeile; die Erklärungen zu den Ordnern stehen im ⓘ.
+
 ## v4.29 — 2026-08
 
 ### Verbesserungen

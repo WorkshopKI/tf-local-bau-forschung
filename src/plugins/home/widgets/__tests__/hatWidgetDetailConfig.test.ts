@@ -56,8 +56,10 @@ describe('Einstellungs-Eintrag — eine Wahrheit', () => {
     expect(menue).not.toContain('folgt in einer späteren Version');
   });
 
-  it('WidgetsSettingsSection nutzt dieselbe Funktion aus ../types', () => {
-    const settings = readFileSync(join(SRC, 'plugins', 'einstellungen', 'WidgetsSettingsSection.tsx'), 'utf-8');
+  // Die Einstellungs-Seite heisst seit v4.30 `darstellung/WidgetsGruppe.tsx`
+  // (Redesign `einstellungen-zweispaltig`) — vorher WidgetsSettingsSection.tsx.
+  it('Die Widget-Gruppe der Einstellungen nutzt dieselbe Funktion aus ../types', () => {
+    const settings = readFileSync(join(SRC, 'plugins', 'einstellungen', 'darstellung', 'WidgetsGruppe.tsx'), 'utf-8');
     expect(settings).toContain('hatWidgetDetailConfig(instanz.config)');
     expect(settings).toContain("from '@/plugins/home/widgets/types'");
   });

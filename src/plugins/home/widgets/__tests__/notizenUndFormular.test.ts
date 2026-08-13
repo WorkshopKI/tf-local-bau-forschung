@@ -42,9 +42,10 @@ describe('WidgetConfigForm — eine Wahrheit (Popover ↔ Settings)', () => {
   // Seit v4.6 hängt die Schnellanpassung nicht mehr am Stift, sondern als zweite
   // Ansicht im `⋯`-Menü (StartseiteMenue) — die geteilte Formular-Komponente ist
   // dieselbe geblieben, und genau das hält dieser Guard fest.
-  it('Startseiten-Menü und WidgetsSettingsSection rendern dieselbe Formular-Komponente', () => {
+  // Die Einstellungs-Seite heisst seit v4.30 `darstellung/WidgetsGruppe.tsx`.
+  it('Startseiten-Menü und Widget-Gruppe rendern dieselbe Formular-Komponente', () => {
     const menue = readFileSync(join(SRC, 'plugins', 'home', 'anpassen', 'StartseiteMenue.tsx'), 'utf-8');
-    const settings = readFileSync(join(SRC, 'plugins', 'einstellungen', 'WidgetsSettingsSection.tsx'), 'utf-8');
+    const settings = readFileSync(join(SRC, 'plugins', 'einstellungen', 'darstellung', 'WidgetsGruppe.tsx'), 'utf-8');
     expect(menue).toContain('<WidgetConfigForm');
     expect(settings).toContain('<WidgetConfigForm');
     expect(menue).toContain(`kontext="popover"`);

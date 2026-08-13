@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.30.0 — Darstellung und Daten zweispaltig (August 2026)
+
+MINOR — Dritte Etappe des Einstellungs-Redesigns: „Darstellung & Bedienung" und „Daten & Verbindungen" stehen zweispaltig. Die sieben `*Tab.tsx`-Dateien dahinter sind in Gruppen aufgegangen; die langen Erklärabsätze stehen im ⓘ, das Seltene in Klappen mit Zähler.
+
+- **Zwei Seiten, sieben Gruppen** ([darstellung/](src/plugins/einstellungen/darstellung/), [daten/](src/plugins/einstellungen/daten/)): `DarstellungTab`, `TastaturTab`, `WidgetsSettingsSection`, `SpeicherTab`, `TagsTab`, `OnlineTab` und `DokumentenquellenTab` sind darin aufgelöst
+- **Ein Schalter je Widget statt zweier Zustands-Pillen** ([WidgetsGruppe.tsx](src/plugins/einstellungen/darstellung/WidgetsGruppe.tsx)); ausgeschaltete Zeilen sind gedimmt, der Zähler nennt jetzt auch den Nenner („13 von 15 sichtbar")
+- **Reihenfolge bleibt bei den Pfeilen**: der Griff aus dem Prototyp verspricht ein Ziehen, das die Widget-Verwaltung nicht kennt
+- **Team-Status-Liste und Tag-Liste stehen in Klappen** („1 online · 1 zuletzt aktiv", Tag-Anzahl) — beide vollständig, nur nicht mehr dauerhaft aufgeschlagen
+- **Key-Bump für die Widget-Klappe**: der alte Abschnitt war offen und hatte das persistiert — ohne neuen Schlüssel bliebe er bei jedem Bestandsnutzer offen ([default-aendern-braucht-key-bump](docs/architecture/recurring-bug-classes.md))
+
 ### v4.29.0 — Mein Profil zweispaltig (August 2026)
 
 MINOR — Zweite Etappe des Einstellungs-Redesigns: „Mein Profil" steht zweispaltig. Links, was du über dich pflegst (Account, Fachprofil), rechts, was daraus folgt (welche Anträge du siehst, welche Module offen sind, was der Assistent mitschreibt). Kein Bereich entfällt — was selten gebraucht wird, steht eingeklappt mit Zähler.
