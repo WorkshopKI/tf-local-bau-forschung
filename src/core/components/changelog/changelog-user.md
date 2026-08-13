@@ -19,6 +19,15 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.27 — 2026-08
+
+### Bugfixes
+- Wird die Art einer Spalte korrigiert (z.B. von Text auf Datum), wirkt sich das beim nächsten Import wirklich auf die Anträge aus. Bisher meldete der Dialog Vollzug, im Antrag stand aber weiter der alte Wert. Der erste Import nach diesem Update dauert einmalig länger, weil alle Zeilen neu berechnet werden.
+- „Beispieldaten erzeugen" kann den Suchindex nicht mehr leeren, wenn echte Anträge vorhanden sind — und der Knopf verschwindet, sobald die Beispieldaten einmal angelegt wurden.
+- Ein Import, der während des Einlesens abgebrochen wird, lässt die gespeicherte Kopie der Quelldatei unangetastet. Vorher konnte ein späterer Import einer anderen Quelle Werte aus dem abgebrochenen Lauf übernehmen.
+- Eine neue Hauptquelle löst die bisherige wirklich ab; vorher gab es danach zwei, und die App arbeitete mit der falschen weiter.
+- Der Hinweis „Standardfeld doppelt belegt" nennt jetzt die richtige Regel: es gewinnt die Spalte, die in der gespeicherten Zuordnung weiter unten steht — nicht die in der Datei spätere.
+
 ## v4.26 — 2026-08
 
 ### Neu

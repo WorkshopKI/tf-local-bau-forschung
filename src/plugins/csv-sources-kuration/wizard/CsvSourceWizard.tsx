@@ -18,6 +18,7 @@ import { logAudit } from '@/core/services/infrastructure/audit-log';
 import { saveSharedCsvFilenames } from '../csv-source-filenames';
 import { refreshAntraegeStoreAfterSync } from '@/plugins/antraege/snapshot-refresh';
 import { journalisiereImport } from '@/core/status/journal';
+import { acquireDataMutation, releaseDataMutation } from '@/core/services/csv/data-mutation-gate';
 import { Step1Metadata } from './Step1Metadata';
 import { Step2Columns } from './Step2Columns';
 import { Step3Unterprogramme } from './Step3Unterprogramme';
@@ -199,6 +200,13 @@ export function CsvSourceWizard({ open, onClose, programmId, onCompleted, onUseE
   }, [state.upScan, programmId, storage.idb]);
 
   const handleSave = async (skipImport: boolean): Promise<void> => {
+    // Geteiltes In-Tab-Gate (siehe CsvSourceReimportDialog) — VOR dem
+    // Schema-Write, damit ein blockierter Lauf nichts halb Angelegtes
+    // hinterlässt.
+    if (!acquireDataMutation()) {
+      setImportError('Ein anderer Vorgang aktualisiert die Daten gerade. Bitte gleich noch einmal versuchen.');
+      return;
+    }
     setSaving(true);
     try {
       const hasLabelXlsx = state.labelEntries.length > 0;
@@ -218,6 +226,19 @@ export function CsvSourceWizard({ open, onClose, programmId, onCompleted, onUseE
         ...(state.file ? { source_file_name: state.file.name, source_last_modified: state.file.lastModified } : {}),
         created_at: new Date().toISOString(),
       };
+      // „Nur genau eine Master-Source pro Programm" — Step 1 sagt sogar
+      // ausdrücklich zu, die bisherige werde „abgelöst". Geschrieben wurde
+      // bisher aber nur der NEUE Record: keine Nicht-Test-Stelle im Repo senkte
+      // `is_master` an einem bestehenden. Das Programm trug danach zwei Master
+      // (zwei Badges), und `findMasterSchema` nahm den ersten Treffer der
+      // id-sortierten Liste — im Jahrgangsfall (`anb-2025` vs. `anb-2026`) die
+      // ABGELÖSTE Quelle. Über die UI war das nur durch Löschen reparabel.
+      if (schema.is_master) {
+        for (const alt of await listSchemas(storage.idb, programmId)) {
+          if (alt.id === schema.id || !alt.is_master) continue;
+          await saveSchema(storage.idb, { ...alt, is_master: false });
+        }
+      }
       await saveSchema(storage.idb, schema);
       const ambiguousMergesLog = state.ambiguousMerges.map(m => ({
         value: m.value,
@@ -287,6 +308,7 @@ export function CsvSourceWizard({ open, onClose, programmId, onCompleted, onUseE
     } catch (e) {
       setImportError((e as Error).message);
     } finally {
+      releaseDataMutation();
       setSaving(false);
     }
   };

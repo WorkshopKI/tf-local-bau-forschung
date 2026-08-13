@@ -217,7 +217,7 @@ export function Step2Columns({ api }: Step2Props): React.ReactElement {
             ))}
           </ul>
           <div className="mt-1.5 text-[11.5px]">
-            Beim Import gewinnt die Spalte, die in der CSV-Reihenfolge zuletzt steht — die Werte der anderen gehen verloren.
+            Beim Import gewinnt die Spalte, die in der gespeicherten Zuordnung weiter unten steht — die Werte der anderen gehen verloren.
             Empfehlung: nur eine Spalte als Standardfeld mappen, die andere(n) auf <em>Eigenes Feld</em> umstellen
             (z.B. <code>verbund_titel</code> vs. <code>tv_titel</code>).
           </div>

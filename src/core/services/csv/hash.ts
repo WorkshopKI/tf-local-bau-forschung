@@ -68,7 +68,7 @@ export function murmurhash3(str: string, seed = 0): string {
 // Build the canonical hash input from a raw CSV row + mapping.
 // - Only non-ignored columns are included
 // - Column names sorted alphabetically
-// - Each part is `col>targetField=value` — der Ziel-Feldschlüssel (canonical/
+// - Each part is `col>targetField:type=value` — Ziel-Feldschlüssel (canonical/
 //   custom) gehört bewusst mit ins Hash: sonst ist ein Re-Mapping DERSELBEN
 //   Quellspalte (z.B. `D_AZ1_1` von custom auf canonical `erstentscheidung`)
 //   unsichtbar und der force-Re-Import erkennt 0 geänderte Zeilen (Bug v2.50).
@@ -84,8 +84,19 @@ export function canonicalRowHash(
   const parts: string[] = [];
   for (const col of cols) {
     const v = (row[col] ?? '').trim();
-    const target = targetFieldKey(col, mapping[col]);
-    parts.push(`${col}>${target}=${v}`);
+    const entry = mapping[col];
+    const target = targetFieldKey(col, entry);
+    // Der TYP gehört mit (v4.26.0): `detectFieldType` rät bei leeren
+    // Preview-Zellen 'string', und die D_*-Spalten der C16-Exporte sind in den
+    // ersten Zeilen fast alle leer. Stellte der Kurator auf 'date' um, lief
+    // `importCsvSource(force:true)` durch, alle Zeilen galten als unverändert,
+    // `hasDeltas` blieb false und `coerceValue` wurde nie erneut angewandt — im
+    // Antrag stand weiter „30.06.2028" statt „2028-06-30", während Filter-Engine
+    // und Spalten-Inventar den deklarierten Typ glaubten. Der Dialog versprach
+    // dabei „die geänderten Felder erscheinen danach auf allen Anträgen".
+    // Einmaliger Preis: der erste Import nach dem Update sieht jede Zeile als
+    // „geändert" und rechnet einen Voll-Merge.
+    parts.push(`${col}>${target}:${entry?.type ?? 'string'}=${v}`);
   }
   return murmurhash3(parts.join(HASH_SEPARATOR));
 }

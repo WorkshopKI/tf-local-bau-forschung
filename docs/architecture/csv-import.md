@@ -246,6 +246,48 @@ Vier Stellen, an denen ein Kurations-Klick weniger tat, als er zusagte.
   über zwei Generationen, und die Änderungen des übersprungenen Tages waren endgültig weg. Der
   Remap-Dialog bleibt bewusst aussen vor — er liest die UTF-8-Kopie vom Share, nicht den Export.
 
+## Der Rest der Bug-Jagd (v4.27.0)
+
+Die letzten neun Befunde. Zwei davon ändern das Verhalten spürbar:
+
+- **Der Typ gehört in den Row-Hash** ([hash.ts](../../src/core/services/csv/hash.ts)). `detectFieldType`
+  rät bei leeren Preview-Zellen `'string'`, und die `D_*`-Spalten der C16-Exporte sind in den ersten
+  Zeilen fast alle leer (`sample_9097_AnB`: 11 solcher Spalten). Korrigierte der Kurator den Typ auf
+  `'date'`, lief `importCsvSource(force:true)` durch, ohne eine einzige Zeile als geändert zu sehen:
+  `coerceValue` wurde nie erneut angewandt, im Antrag blieb „30.06.2028" stehen — während Filter-Engine
+  und Spalten-Inventar den deklarierten Typ glaubten und der Dialog Vollzug meldete. **Einmaliger
+  Preis**: der erste Import nach dem Update sieht jede Zeile als „geändert" und rechnet einen
+  Voll-Merge; danach wieder normal.
+- **Der Seed rührt einen belegten Suchindex nicht mehr an**
+  ([seed-data.ts](../../src/core/services/seed/seed-data.ts)). Das Bestands-Gate stand hinter
+  `createOramaDB` — der Fixture-Import wurde korrekt übersprungen, die geladene Orama-DB aber vorher
+  schon durch eine leere ersetzt und persistiert. Gemessen: Chunk-Marker 10 → 0, `getDocCount` 8 → 3,
+  `loadIndexFromFileServer()` danach `false`. Der Knopf war dauerhaft sichtbar, weil
+  [IndexManager](../../src/plugins/kurator/IndexManager.tsx) den ALTEN Flag `seed-complete` las,
+  während der Seed `seed-complete-v2` schreibt.
+
+Die übrigen sieben:
+
+- **`file_checksum` beschreibt wieder die verknüpfte Exportdatei**: der Remap-Dialog reicht die
+  UTF-8-normalisierte Share-Kopie als Blob herein, deren SHA bei jeder windows-1252-/BOM-Quelle
+  abweicht — gestempelt wird der Checksum jetzt nur noch für ein echtes `File`, wie die
+  Baseline-Felder daneben.
+- **Ein Abbruch während „Parse CSV…" ersetzt die Share-Kopie nicht mehr**: die Schranke steht jetzt
+  VOR `saveCsvSourceFile`. Vorher trug die Kopie den neuen Export, während Row-Hashes und Anträge den
+  alten beschrieben — und der nächste Import einer ANDEREN Quelle mischte beide Stände.
+- **Der Wizard löst die bisherige Master-Quelle wirklich ab** (Step 1 sagt es zu; geschrieben wurde
+  bisher nur der neue Record, das Programm trug danach zwei Master und `findMasterSchema` nahm den
+  id-alphabetisch ersten).
+- **Der Schema-Konfig-Import lässt den `join_key` eines Masters stehen** — sonst entstand ein Master
+  mit fremdem Join, und neue Anträge entstanden nie mehr.
+- **`isListViewProjectionCurrent` prüft auch die Schema-Signatur** — sie existiert genau deshalb, weil
+  der Code-Marker Mapping- und Katalog-Änderungen nicht sieht.
+- **Die vier Dialog-Importe nehmen das Daten-Mutations-Gate** (bisher nur den Build-Lock — die
+  gefährliche Gegenseite `runDataUpdate` nimmt keinen Build-Lock und wird nur vom Gate serialisiert).
+- **Vier UI-Zusagen stimmen wieder**: bei zwei Quellspalten auf demselben Standardfeld entscheidet die
+  Reihenfolge im **Mapping**, nicht die in der CSV — und neu übernommene Spalten hängen sich ans Ende,
+  gewinnen also.
+
 ## Verbund-Aggregation (Forschungs-Domäne)
 
 Ein **Verbund** bündelt mehrere Teilanträge unter einer gemeinsamen Projektbeschreibung. Der CSV-Master-Import erkennt Verbünde über das Akronym + Teilantragsindex und dedupliziert geteilte Dokumente per Content-Hash. Anzeige in der Antrags-Liste: Teilvorhaben werden visuell unter dem Verbund-Header geclustert (siehe `src/plugins/antraege/` Cluster-Komponenten).

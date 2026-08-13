@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.27.0 — Der Rest der CSV-Bugjagd (August 2026)
+
+MINOR — Die letzten neun Befunde der CSV-Bug-Jagd. Zwei ändern das Verhalten spürbar: eine korrigierte Spalten-Typ-Angabe wirkt jetzt, und der Beispieldaten-Knopf kann keinen belegten Suchindex mehr leeren.
+
+- **Der Typ geht in den Row-Hash ein** ([hash.ts](src/core/services/csv/hash.ts), [csv-import.md](docs/architecture/csv-import.md)): eine Korrektur `string → date` galt bisher als „keine Änderung", also lief die Koerzion nie — Preis ist ein einmaliger Voll-Merge beim ersten Import nach dem Update
+- **Der Seed rührt einen belegten Suchindex nicht mehr an** ([seed-data.ts](src/core/services/seed/seed-data.ts), [IndexManager.tsx](src/plugins/kurator/IndexManager.tsx)): das Bestands-Gate stand hinter `createOramaDB`, und der Knopf war sichtbar, weil er den alten Seed-Flag las
+- **Abbruch und Checksum beschreiben wieder die Quelldatei** ([importer.ts](src/core/services/csv/importer.ts)): die Share-Kopie wird erst nach der Abbruch-Schranke ersetzt, und `file_checksum` wird nur für ein echtes `File` gestempelt
+- **Ein Master bleibt ein Master** ([CsvSourceWizard.tsx](src/plugins/csv-sources-kuration/wizard/CsvSourceWizard.tsx), [schema-config-transfer.ts](src/plugins/csv-sources-kuration/services/schema-config-transfer.ts)): der Wizard löst die bisherige Master-Quelle wirklich ab, und ein Konfig-Import zieht keinen fremden `join_key` hinein
+- **Vier Dialog-Importe nehmen das Daten-Mutations-Gate**, `isListViewProjectionCurrent` prüft auch die Schema-Signatur, und vier UI-Zusagen zur Spalten-Reihenfolge stimmen wieder
+
 ### v4.26.0 — Das Kanban-Fenster hat eigene Bahnen (August 2026)
 
 MINOR — Im Kanban-Fenster widersprach das Einstellungs-Panel dem Bild daneben: „Wartet auf Antragsteller" stand angehakt da und war nicht zu sehen, „Bewilligt" ohne Haken war die größte Bahn. Das Fenster las die Einstellung gar nicht — es leitete seine Bahnen aus dem Bestand ab. Jetzt hat es eine eigene.

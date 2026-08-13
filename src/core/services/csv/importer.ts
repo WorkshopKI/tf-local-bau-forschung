@@ -236,6 +236,15 @@ export async function importCsvSource(
     // Roundtrip kaputt.
     const { text: csvText } = await readWithEncodingFallback(csvBlob, effectiveEncoding);
     const utf8Blob = new Blob([csvText], { type: 'text/csv;charset=utf-8' });
+    // Abbruch-Schranke VOR dem Ersetzen der Share-Kopie. Der Merge liest seine
+    // Zeilen ausschliesslich aus dieser Kopie; wurde sie ersetzt und der Lauf
+    // danach abgebrochen, beschrieben Row-Hashes, `file_checksum` und alle
+    // Anträge den ALTEN Stand, die Kopie aber den NEUEN — und der nächste,
+    // völlig unabhängige Import einer ANDEREN Quelle rechnete die von ihm
+    // berührten Anträge mit den Werten des abgebrochenen Exports neu. Der
+    // Bestand wurde zur Mischung und so publiziert; der Dialog hatte „Keine
+    // Änderungen am Datenbestand" zugesagt.
+    opts.signal?.throwIfAborted();
     await saveCsvSourceFile(idb, schemaId, utf8Blob);
 
     // Row-Diff
@@ -364,7 +373,18 @@ export async function importCsvSource(
     // updatedSchema in-memory bauen (Cancel-Barriere bereits passiert)
     const updatedSchema: CsvSchema = {
       ...schema,
-      file_checksum: fileSha,
+      // `file_checksum` beschreibt die VERKNÜPFTE Exportdatei — genau wie
+      // `source_file_name`/`source_last_modified`/`last_file_size` daneben.
+      // Der Remap-Dialog reicht die auf dem Share gespeicherte, nach UTF-8
+      // normalisierte Kopie als Blob herein; deren SHA weicht bei jeder
+      // windows-1252- oder BOM-Quelle ab (gemessen an `sample_7737_Bgl`:
+      // 8ef7a94beee1 / 12 389 B roh gegen 3ddcc7bf8855 / 12 428 B normalisiert).
+      // Wurde er trotzdem gestempelt, beschrieb der Checksum ab dem Re-Mapping
+      // eine andere Datei: der nächste Neuschrieb mit IDENTISCHEM Inhalt fiel
+      // aus dem billigen Pfad, der Inhalts-Vergleich schlug fehl, und Ampel und
+      // Banner meldeten einmalig „neuer Export" für eine unveränderte Datei —
+      // team-weit, denn der falsche Checksum reist über den Share mit.
+      ...(csvBlob instanceof File ? { file_checksum: fileSha } : {}),
       last_imported_at: new Date().toISOString(),
       last_row_count: rows.length,
       // Quelldatei-Baseline HIER stempeln — VOR saveSchema + writeProgrammSnapshot

@@ -29,6 +29,26 @@ export async function seedTestData(
   const isSeeded = await storage.idb.get<boolean>(SEED_COMPLETE_FLAG);
   if (isSeeded) return { antraege: 0 };
 
+  // Der Bestand entscheidet, nicht der Flag. Das Kurator-Panel „Suchindex →
+  // Verwaltung → Zurücksetzen" bietet diesen Knopf dauerhaft an, weil es einen
+  // ANDEREN (alten) Flag liest; ein Klick lief am `isSeeded`-Return vorbei, der
+  // Fixture-Import wurde korrekt übersprungen — aber `createOramaDB` hatte die
+  // geladene Orama-DB davor schon durch eine leere ersetzt und persistierte sie.
+  // Alle Dokument-Chunks waren weg, die Antrags-Einträge trugen nur noch
+  // Null-Vektoren, und `index-fs-version` blieb stehen: es half nur ein
+  // kompletter Neuindexlauf. Wo echte Anträge liegen, wird hier nichts mehr
+  // neu aufgesetzt.
+  const vorhandenesProgramm = await ensureDefaultProgramm(storage.idb);
+  const bestand = await listAntraegeByProgramm(storage.idb, vorhandenesProgramm.id);
+  if (bestand.length > 0) {
+    console.info(
+      `[seed] Übersprungen: Default-Programm enthält bereits ${bestand.length} Anträge. `
+      + 'Der Suchindex bleibt unangetastet.',
+    );
+    await storage.idb.set(SEED_COMPLETE_FLAG, true);
+    return { antraege: 0 };
+  }
+
   const modelId = await getActiveModelId(storage.idb);
   const model = getModelById(modelId);
   createOramaDB(model.dimensions);
@@ -39,21 +59,10 @@ export async function seedTestData(
   // Wenn die CSVs lokal fehlen (frischer Klon), liefert der Loader 0 Antraege
   // und der Seed laeuft graceful weiter.
   //
-  // Gate: nur seeden, wenn das Default-Programm leer ist. So vermischen sich
-  // die Fixture-„Muster TV Titel"-Antraege nicht mit User-importierten echten
-  // CSV-Daten (Issue beim v2-Upgrade auf bestehenden Dev-IDBs).
-  const programm = await ensureDefaultProgramm(storage.idb);
-  const existing = await listAntraegeByProgramm(storage.idb, programm.id);
-  let fixtureResult: { csvsImported: number; missingFilenames: string[] } = {
-    csvsImported: 0, missingFilenames: [],
-  };
-  if (existing.length > 0) {
-    console.info(
-      `[seed] Foerderantraege-Seed übersprungen: Default-Programm enthält bereits ${existing.length} Antraege (vermutlich manueller CSV-Import).`,
-    );
-  } else {
-    fixtureResult = await seedFromFixtureCsvs(storage, programm.id);
-  }
+  // Das Bestands-Gate steht jetzt ganz oben (vor `createOramaDB`) — hier ist
+  // der Store also garantiert leer.
+  const programm = vorhandenesProgramm;
+  const fixtureResult = await seedFromFixtureCsvs(storage, programm.id);
   const importedAntraege = await listAntraegeByProgramm(storage.idb, programm.id);
 
   let current = 0;
@@ -78,7 +87,7 @@ export async function seedTestData(
   await saveOramaDimensions(storage.idb, model.dimensions);
   await storage.idb.set(SEED_COMPLETE_FLAG, true);
 
-  if (fixtureResult.csvsImported === 0 && existing.length === 0) {
+  if (fixtureResult.csvsImported === 0) {
     console.warn(
       '[seed] Foerderantraege-Seed leer — keine Fixture-CSVs gefunden. ' +
       'Lege anonymisierte CSVs unter docs/fixtures/ ab (siehe README).',

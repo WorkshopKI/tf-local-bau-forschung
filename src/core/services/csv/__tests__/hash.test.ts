@@ -33,6 +33,20 @@ describe('canonicalRowHash', () => {
     expect(canonicalRowHash(row, asCustom)).not.toBe(canonicalRowHash(row, asCanonical));
   });
 
+  it('ändert sich, wenn nur der TYP korrigiert wird (string → date)', () => {
+    // `detectFieldType` rät bei leeren Preview-Zellen 'string', und die
+    // D_*-Spalten der C16-Exporte sind in den ersten Zeilen fast alle leer
+    // (`sample_9097_AnB` hat 11 solcher Spalten). Korrigiert der Kurator den
+    // Typ, lief der force-Re-Import bisher durch, ohne eine einzige Zeile als
+    // geändert zu sehen: `coerceValue` wurde nie erneut angewandt, im Antrag
+    // blieb „30.06.2028" stehen — während Filter-Engine und Spalten-Inventar
+    // den deklarierten Typ glaubten und der Dialog Vollzug meldete.
+    const row = { AZ: '16KN1', ZBE: '30.06.2028' };
+    const alsText: ColumnMapping = { AZ: { canonical: 'aktenzeichen' }, ZBE: { custom: 'zbe', type: 'string' } };
+    const alsDatum: ColumnMapping = { AZ: { canonical: 'aktenzeichen' }, ZBE: { custom: 'zbe', type: 'date' } };
+    expect(canonicalRowHash(row, alsText)).not.toBe(canonicalRowHash(row, alsDatum));
+  });
+
   it('gleiches Mapping + gleiche Zeile → gleicher Hash (deterministisch)', () => {
     const row = { AZ: '16KN1', X: 'y' };
     const m: ColumnMapping = { AZ: { canonical: 'aktenzeichen' }, X: { custom: 'x' } };

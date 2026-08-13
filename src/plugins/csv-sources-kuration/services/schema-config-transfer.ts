@@ -109,12 +109,22 @@ export function parseSchemaConfig(json: string): SchemaConfigExport {
  * dessen identitäts-/instanz-spezifische Felder (id, programm_id, created_at,
  * source_file_name, Checksums, last_*, is_master), überschreibt nur
  * Name + Mapping + Merge-Parameter. Liefert ein neues Objekt.
+ *
+ * **Der `join_key` eines Masters bleibt.** Das Master-Flag wurde schon immer
+ * bewusst nicht übernommen — der Join-Schlüssel aber schon, und damit entstand
+ * beim Einspielen einer Sekundär-Konfig ein Master mit fremdem Join. Danach
+ * ging `runMergeForDeltas` in den Nicht-Aktenzeichen-Zweig und leitete die
+ * berührten Anträge nur noch aus dem BESTEHENDEN Bestand ab: neue Anträge
+ * entstanden nie mehr, während der Lauf Zahlen meldete, die nach Arbeit
+ * aussehen (gemessen: `{new:2,…}` bei unverändertem Bestand, auch beim
+ * übernächsten Export). Der Dialog erkannte die Abweichung und meldete nur das
+ * Master-Flag.
  */
 export function applyConfigToSchema(target: CsvSchema, cfg: TransferableSchemaConfig): CsvSchema {
   const next: CsvSchema = {
     ...target,
     csv_source_name: cfg.csv_source_name,
-    join_key: cfg.join_key,
+    join_key: target.is_master ? target.join_key : cfg.join_key,
     priority: cfg.priority,
     column_mapping: cfg.column_mapping,
     encoding: cfg.encoding ?? target.encoding,

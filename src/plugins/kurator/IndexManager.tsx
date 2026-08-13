@@ -47,7 +47,11 @@ export function IndexManager(): React.ReactElement {
   useEffect(() => { setAlteWorttrennung(indexSpracheVeraltet()); }, [documentCount]);
 
   useEffect(() => {
-    storage.idb.get<boolean>('seed-complete').then(v => setSeeded(!!v));
+    // `seed-complete-v2` ist der Flag, den der Seed WIRKLICH schreibt. Der alte
+    // `seed-complete` wird seit v2 nirgends mehr gesetzt — dadurch stand hier
+    // dauerhaft „noch nicht geseedet" und der Zurücksetzen-Knopf blieb sichtbar,
+    // auch auf einem Rechner mit echtem Bestand.
+    storage.idb.get<boolean>('seed-complete-v2').then(v => setSeeded(!!v));
     storage.idb.get<string>('index-last-update').then(v => setLastUpdate(v));
     storage.idb.keys('doc:').then(k => setDocCount(k.length));
     storage.idb.get<number>('index-chunk-count').then(c => setChunkCount(c ?? 0));

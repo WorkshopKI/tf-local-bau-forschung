@@ -139,6 +139,28 @@ describe('applyConfigToSchema', () => {
     expect(next.label_xlsx_header_rows).toBe(3);
   });
 
+  it('lässt den join_key eines MASTERS unangetastet', () => {
+    // Das Master-Flag wurde schon immer bewusst nicht übernommen — der
+    // Join-Schlüssel aber schon. Ein Master mit fremdem Join schickte
+    // `runMergeForDeltas` in den Nicht-Aktenzeichen-Zweig: neue Anträge
+    // entstanden nie mehr, während der Lauf Zahlen meldete, die nach Arbeit
+    // aussehen.
+    const { config } = buildSchemaConfigExport({ ...SOURCE, join_key: 'verbund_id', priority: 40 }, '2026-07-01T12:00:00.000Z');
+    const master: CsvSchema = { ...TARGET, is_master: true, join_key: 'aktenzeichen' };
+    const next = applyConfigToSchema(master, config);
+    expect(next.is_master).toBe(true);
+    expect(next.join_key).toBe('aktenzeichen');
+    // Alles andere kommt weiter aus der Konfiguration.
+    expect(next.priority).toBe(40);
+    expect(next.column_mapping).toEqual(SOURCE.column_mapping);
+  });
+
+  it('eine Nicht-Master-Quelle übernimmt den join_key weiterhin', () => {
+    const { config } = buildSchemaConfigExport({ ...SOURCE, join_key: 'verbund_id' }, '2026-07-01T12:00:00.000Z');
+    const next = applyConfigToSchema({ ...TARGET, is_master: false }, config);
+    expect(next.join_key).toBe('verbund_id');
+  });
+
   it('behält die identitäts-/instanz-spezifischen Felder des Ziel-Schemas', () => {
     const { config } = buildSchemaConfigExport(SOURCE, '2026-07-01T12:00:00.000Z');
     const next = applyConfigToSchema(TARGET, config);

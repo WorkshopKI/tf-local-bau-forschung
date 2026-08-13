@@ -16,6 +16,7 @@ import {
 import { getCanonicalLabel } from '@/core/services/csv/constants';
 import { logAudit } from '@/core/services/infrastructure/audit-log';
 import { refreshAntraegeStoreAfterSync } from '@/plugins/antraege/snapshot-refresh';
+import { acquireDataMutation, releaseDataMutation } from '@/core/services/csv/data-mutation-gate';
 import type { CsvSchema, ImportResult } from '@/core/services/csv/types';
 import { Step4Progress } from './wizard/Step4Progress';
 import { guessDecision, type PerColumnDecision } from './wizard/useCsvWizardState';
@@ -182,6 +183,11 @@ export function RemapCsvColumnsDialog({ schema, onClose, onCompleted }: Props): 
     const blob = blobRef.current;
     if (!blob) throw new Error('Keine geladene CSV.');
 
+    // Geteiltes In-Tab-Gate (siehe CsvSourceReimportDialog) — VOR dem
+    // Schema-Write, damit ein blockierter Lauf gar nichts hinterlässt.
+    if (!acquireDataMutation()) {
+      throw new Error('Ein anderer Vorgang aktualisiert die Daten gerade. Bitte gleich noch einmal versuchen.');
+    }
     const mapping = rebuildMapping(schema.column_mapping, decisions);
     await saveSchema(storage.idb, { ...schema, column_mapping: mapping });
     await logAudit(storage.idb, {
@@ -229,6 +235,7 @@ export function RemapCsvColumnsDialog({ schema, onClose, onCompleted }: Props): 
       if (e instanceof DOMException && e.name === 'AbortError') setCancelled(true);
       else setImportError((e as Error).message);
     } finally {
+      releaseDataMutation();
       abortRef.current = null;
     }
   });
@@ -329,7 +336,8 @@ export function RemapCsvColumnsDialog({ schema, onClose, onCompleted }: Props): 
                 <div className="mb-2 rounded-md border-[0.5px] border-amber-300 bg-amber-50 p-2.5 text-[12px] text-amber-900">
                   <span className="font-medium">⚠ Standardfeld doppelt belegt: </span>
                   {Array.from(conflictCanonicals).map(getCanonicalLabel).join(', ')} — beim Import gewinnt die
-                  in der CSV zuletzt stehende Spalte, die anderen Werte gehen verloren.
+                  Spalte, die in dieser Zuordnungs-Liste weiter unten steht (nicht die in der CSV
+                  spätere); die anderen Werte gehen verloren.
                 </div>
               ) : null}
 

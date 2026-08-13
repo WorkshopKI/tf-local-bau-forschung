@@ -118,7 +118,7 @@ export function NewColumnRow({ column, decision, conflict, sampleHint, locked, o
       ) : null}
 
       {conflict && mode === 'canonical' ? (
-        <span className="text-[11px] text-amber-700" title="Dieses Standardfeld ist bereits belegt — beim Import gewinnt die in der CSV zuletzt stehende Spalte.">
+        <span className="text-[11px] text-amber-700" title="Dieses Standardfeld ist bereits belegt — beim Import gewinnt die Spalte, die in der Zuordnungs-Liste weiter unten steht (neu übernommene stehen am Ende). Die CSV-Reihenfolge entscheidet nicht.">
           ⚠ doppelt belegt
         </span>
       ) : null}

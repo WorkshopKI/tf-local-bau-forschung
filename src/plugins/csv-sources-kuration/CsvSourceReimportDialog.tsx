@@ -17,6 +17,7 @@ import { persistCsvSourceMeta } from './csv-source-handle';
 import { confirmLockConflict } from './lock-conflict';
 import { validateHeaders, type HeaderValidation } from './services/csv-drift-check';
 import { journalisiereImport } from '@/core/status/journal';
+import { acquireDataMutation, releaseDataMutation } from '@/core/services/csv/data-mutation-gate';
 import { refreshAntraegeStoreAfterSync } from '@/plugins/antraege/snapshot-refresh';
 
 interface Props {
@@ -134,6 +135,18 @@ export function CsvSourceReimportDialog({
   }
 
   async function runImport(extraOpts: Partial<ImportOptions> = {}): Promise<void> {
+    // Geteiltes In-Tab-Gate — dieselbe Serialisierung, die Start-Pass, Banner
+    // und Watcher benutzen. Der Dialog-Import hielt bisher nur den Build-Lock;
+    // die gefährliche Gegenseite (`runDataUpdate` Phase 1 mit `replaceStore`
+    // auf `antraege`) nimmt keinen Build-Lock und wird NUR vom Gate
+    // serialisiert. Lief sie im Cold-Start-Zweig parallel an, ersetzte sie den
+    // Antrags-Store, während dieser Import weiterlief — und stempelte danach
+    // `file_checksum` + Row-Hashes auf einen Stand, den es nicht mehr gab.
+    if (!acquireDataMutation()) {
+      setPhase('importing');
+      setError('Ein anderer Vorgang aktualisiert die Daten gerade. Bitte gleich noch einmal versuchen.');
+      return;
+    }
     setPhase('importing');
     setError(null);
     setResult(null);
@@ -176,6 +189,7 @@ export function CsvSourceReimportDialog({
         setError((e as Error).message);
       }
     } finally {
+      releaseDataMutation();
       abortRef.current = null;
     }
   }

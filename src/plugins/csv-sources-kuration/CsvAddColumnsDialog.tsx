@@ -15,6 +15,7 @@ import { getCanonicalLabel } from '@/core/services/csv/constants';
 import { logAudit } from '@/core/services/infrastructure/audit-log';
 import { refreshAntraegeStoreAfterSync } from '@/plugins/antraege/snapshot-refresh';
 import { journalisiereImport } from '@/core/status/journal';
+import { acquireDataMutation, releaseDataMutation } from '@/core/services/csv/data-mutation-gate';
 import type { CsvSchema, ImportResult } from '@/core/services/csv/types';
 import { Step4Progress } from './wizard/Step4Progress';
 import { guessDecision, type PerColumnDecision } from './wizard/useCsvWizardState';
@@ -129,6 +130,10 @@ export function CsvAddColumnsDialog({
   }, [decisions, existingCanonicals]);
 
   const confirm = useAsyncAction(async () => {
+    // Geteiltes In-Tab-Gate (siehe CsvSourceReimportDialog).
+    if (!acquireDataMutation()) {
+      throw new Error('Ein anderer Vorgang aktualisiert die Daten gerade. Bitte gleich noch einmal versuchen.');
+    }
     const merged = mergeNewColumns(schema.column_mapping, decisions);
     await saveSchema(storage.idb, { ...schema, column_mapping: merged });
     await logAudit(storage.idb, {
@@ -182,6 +187,7 @@ export function CsvAddColumnsDialog({
       if (e instanceof DOMException && e.name === 'AbortError') setCancelled(true);
       else setImportError((e as Error).message);
     } finally {
+      releaseDataMutation();
       abortRef.current = null;
     }
   });
@@ -267,8 +273,9 @@ export function CsvAddColumnsDialog({
                   <div className="font-medium mb-1">⚠ Standardfeld doppelt belegt</div>
                   <div className="text-[11.5px]">
                     {Array.from(conflictCanonicals).map(c => getCanonicalLabel(c)).join(', ')} — beim Import gewinnt
-                    die in der CSV-Reihenfolge zuletzt stehende Spalte, die anderen Werte gehen verloren.
-                    Ggf. eine der Spalten auf <em>Eigenes Feld</em> umstellen.
+                    die Spalte, die in der Zuordnungs-Liste weiter unten steht. Hier übernommene
+                    Spalten kommen ans ENDE, gewinnen also gegen die bisherige — unabhängig davon,
+                    wo sie in der CSV stehen. Ggf. eine der Spalten auf <em>Eigenes Feld</em> umstellen.
                   </div>
                 </div>
               ) : null}

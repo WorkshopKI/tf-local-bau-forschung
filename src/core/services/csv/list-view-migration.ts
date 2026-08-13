@@ -98,7 +98,16 @@ export async function loeseKategorieSpaltenFuer(
  */
 export async function isListViewProjectionCurrent(idb: IDBStore): Promise<boolean> {
   const marker = (await idb.get<number>(LIST_VIEW_VERSION_KEY).catch(() => null)) ?? null;
-  return marker === LIST_VIEW_PROJECTION_VERSION;
+  if (marker !== LIST_VIEW_PROJECTION_VERSION) return false;
+  // Die Schema-Signatur gehört mit: sie existiert genau deshalb, WEIL der
+  // Code-Marker Mapping- und Katalog-Änderungen nicht sieht. Ohne sie hier
+  // projizierte ein inkrementeller Sync die Delta-Anträge mit dem NEUEN Label,
+  // während der Rest der Tabelle das alte behielt — dieselbe Spalte zeigte
+  // denselben Sachverhalt in zwei Beschriftungen, bis zum nächsten App-Start.
+  const gespeichert = (await idb.get<string>(LIST_VIEW_SCHEMA_SIG_KEY).catch(() => null)) ?? null;
+  if (gespeichert === null) return false;
+  const programme = await listProgramme(idb);
+  return gespeichert === await computeStatusDatumSchemaSig(idb, programme);
 }
 
 export interface MigrationProgress {

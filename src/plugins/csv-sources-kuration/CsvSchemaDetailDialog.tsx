@@ -423,7 +423,8 @@ export function CsvSchemaDetailDialog({ schema: initialSchema, onClose, onSaved 
               <div className="mb-2 rounded-md border-[0.5px] border-amber-300 bg-amber-50 p-2.5 text-[12px] text-amber-900">
                 <span className="font-medium">⚠ Standardfeld doppelt belegt: </span>
                 {Array.from(conflictCanonicals).map(c => getCanonicalLabel(c)).join(', ')} — beim Import gewinnt
-                die in der CSV zuletzt stehende Spalte.
+                die Spalte, die in dieser Zuordnungs-Liste weiter unten steht; die CSV-Reihenfolge
+                entscheidet nicht.
               </div>
             ) : null}
             {searchBox}
