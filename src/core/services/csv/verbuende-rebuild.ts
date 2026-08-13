@@ -27,7 +27,19 @@ function strOrUndef(v: unknown): string | undefined {
 /**
  * Stellt fehlende Verbund-Records aus der List-View wieder her. Lässt
  * vorhandene Records unangetastet (keine kuratierten Verbund-Level-Felder
- * überschreiben). Liefert die Anzahl neu erzeugter Records (0 = nichts zu tun).
+ * überschreiben). Liefert die Anzahl geschriebener Records (0 = nichts zu tun).
+ *
+ * **Was der Heal NICHT tut: raten.** Verbund-Ebenen-Felder gehen im Merge nie
+ * auf den Antrag (`getCanonicalLevel(...) === 'verbund'` leitet sie um), also
+ * kennt die List-View den echten VB-Titel gar nicht und `status` ist der des
+ * Teilvorhabens. Beides bleibt hier offen — die Konsumenten fallen von sich aus
+ * auf den Lead-TV zurück (`verbund?.titel ?? rep?.titel`), und die Detailseite
+ * leitet den Verbund-Status ohnehin aus den TV-Status ab. Ein Fallback zur
+ * Lesezeit ist reparierbar, ein persistierter Falschwert wandert über
+ * `verbuende.jsonl` ins ganze Team.
+ *
+ * `akronym` bleibt dagegen: es ist antrag-level (VB_KURZNAM landet am Antrag),
+ * also gelesen und nicht geraten.
  */
 export async function healMissingVerbuende(idb: IDBStore, programmId: string): Promise<number> {
   const existing = await listVerbuendeByProgramm(idb, programmId);
@@ -49,35 +61,55 @@ export async function healMissingVerbuende(idb: IDBStore, programmId: string): P
   if (groups.size === 0) return 0;
 
   const now = new Date().toISOString();
-  const toCreate: Verbund[] = [];
-  for (const [vid, tvs] of groups) {
-    const lead = tvs[0]!;
-    toCreate.push({
-      verbund_id: vid,
-      programm_id: programmId,
-      akronym: strOrUndef(lead.akronym),
-      titel: strOrUndef(lead.verbund_titel) ?? strOrUndef(lead.titel),
-      // Verbund-Status aus dem Lead-TV (Backward-Compat zu buildPseudoVerbund);
-      // Konsumenten leiten ihn ansonsten ohnehin aus den TV-Status ab.
-      status: lead.status,
-      teilantrags_ids: tvs.map(t => t.aktenzeichen),
-      _updated_at: now,
-    });
-  }
 
   // Eine einzige readwrite-Transaktion (statt N) — der Heal-Fall hat ggf.
-  // hunderte Verbünde.
+  // hunderte Verbünde. Innerhalb der TX wird je Verbund erst per KEY gelesen:
+  // `listVerbuendeByProgramm` oben liest über den `programm_id`-Index, ein
+  // mis-filed Record gilt dort als fehlend. Ohne den Key-Lookup ERSETZTE der
+  // Heal einen inhaltlich korrekten Record durch TV-Werte.
+  let neu = 0;
+  let repariert = 0;
   await new Promise<void>((resolve, reject) => {
     const t = idb.getDb().transaction(CSV_STORES.VERBUENDE, 'readwrite');
     const s = t.objectStore(CSV_STORES.VERBUENDE);
-    for (const v of toCreate) s.put(v);
+    for (const [vid, tvs] of groups) {
+      const req = s.get(vid);
+      req.onsuccess = () => {
+        const vorhanden = req.result as Verbund | undefined;
+        if (vorhanden) {
+          // Nur die Ablage reparieren, den Inhalt behalten.
+          const ids = new Set(vorhanden.teilantrags_ids);
+          for (const tv of tvs) ids.add(tv.aktenzeichen);
+          s.put({
+            ...vorhanden,
+            programm_id: programmId,
+            teilantrags_ids: [...ids],
+            _updated_at: now,
+          });
+          repariert++;
+          return;
+        }
+        const lead = tvs[0]!;
+        s.put({
+          verbund_id: vid,
+          programm_id: programmId,
+          akronym: strOrUndef(lead.akronym),
+          titel: strOrUndef(lead.verbund_titel),
+          teilantrags_ids: tvs.map(tv => tv.aktenzeichen),
+          _updated_at: now,
+        } satisfies Verbund);
+        neu++;
+      };
+    }
     t.oncomplete = () => resolve();
     t.onerror = () => reject(t.error);
     t.onabort = () => reject(t.error);
   });
 
   console.info(
-    `[verbuende-heal] ${toCreate.length} fehlende Verbund-Record(s) aus der List-View rekonstruiert (Programm ${programmId})`,
+    `[verbuende-heal] ${neu} fehlende Verbund-Record(s) aus der List-View rekonstruiert`
+    + `${repariert > 0 ? `, ${repariert} mis-filed Record(s) auf programm_id ${programmId} korrigiert` : ''}`
+    + ` (Programm ${programmId})`,
   );
-  return toCreate.length;
+  return neu + repariert;
 }

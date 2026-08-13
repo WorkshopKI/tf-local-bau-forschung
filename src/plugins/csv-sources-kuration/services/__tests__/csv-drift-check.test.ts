@@ -63,6 +63,7 @@ describe('hasDrift', () => {
     matched: [],
     missingFromCsv: missing,
     newColumns: neu,
+    mehrdeutigeSpalten: [],
   });
 
   it('true bei fehlenden Spalten', () => expect(hasDrift(mk(['A'], []))).toBe(true));
@@ -76,6 +77,7 @@ describe('isNewColumnsOnlyDrift', () => {
     matched: [],
     missingFromCsv: missing,
     newColumns: neu,
+    mehrdeutigeSpalten: [],
   });
 
   it('true bei reinen Zusatzspalten (nichts fehlt)', () => {
@@ -97,6 +99,7 @@ describe('encodingHeilungTraegt', () => {
     matched: ['AKZ'],
     missingFromCsv: missing,
     newColumns: neu,
+    mehrdeutigeSpalten: [],
   });
 
   it('der belegte Fall: Umlaut-Spalten fehlen UND stehen als neu da', () => {
@@ -122,6 +125,7 @@ describe('entscheideDrift', () => {
     matched: ['AKZ'],
     missingFromCsv: missing,
     newColumns: neu,
+    mehrdeutigeSpalten: [],
   });
 
   it('ohne Drift: importieren, nichts adoptieren, nichts uebergangen', () => {

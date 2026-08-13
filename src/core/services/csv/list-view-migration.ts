@@ -74,8 +74,13 @@ async function computeStatusDatumSchemaSig(
   return murmurhash3(parts.join('~'));
 }
 
-/** Ordner-Spalten eines Programms — einmal je Programm auflösen, dann je Record anwenden. */
-async function loeseKategorieSpaltenFuer(
+/**
+ * Ordner-Spalten eines Programms — einmal je Programm auflösen, dann je Record
+ * anwenden. Exportiert, weil die MERGE-Pfade dieselbe Auflösung brauchen: ihre
+ * `putAntraegeListView`-Schreibvorgänge sind Vollersatz, ein Slim-Item ohne
+ * `kat_status` löschte die Ordner-Spalte des Antrags wieder.
+ */
+export async function loeseKategorieSpaltenFuer(
   idb: IDBStore, programmId: string,
 ): Promise<ResolvedKategorieSpalten[]> {
   const [version, schemas] = await Promise.all([

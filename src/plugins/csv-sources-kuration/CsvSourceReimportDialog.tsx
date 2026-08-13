@@ -199,7 +199,10 @@ export function CsvSourceReimportDialog({
               size="sm"
               variant="default"
               onClick={() => void runImport()}
-              disabled={validating || !validation || validation.matched.length === 0}
+              disabled={
+                validating || !validation || validation.matched.length === 0
+                || validation.mehrdeutigeSpalten.length > 0
+              }
             >
               Importieren mit gespeicherten Mappings
             </Button>
@@ -304,6 +307,24 @@ export function CsvSourceReimportDialog({
                   </div>
                   <div className="ml-6 max-h-[100px] overflow-y-auto text-[11px] font-mono text-blue-900">
                     {validation.newColumns.join(', ')}
+                  </div>
+                </div>
+              ) : null}
+
+              {validation.mehrdeutigeSpalten.length > 0 ? (
+                <div className="mb-3 rounded-md border-[0.5px] border-red-300 bg-red-50 p-2.5">
+                  <div className="flex items-start gap-2 mb-1">
+                    <AlertTriangle size={14} className="mt-0.5 flex-shrink-0 text-red-700" />
+                    <div className="text-[12px] font-medium text-red-900">
+                      Gleichnamige Spalten stehen jetzt anders in der Datei
+                    </div>
+                  </div>
+                  <div className="ml-6 text-[11.5px] text-red-900">
+                    Betroffen: <span className="font-mono">{validation.mehrdeutigeSpalten.join(', ')}</span>.
+                    Bei mehrfach vergebenen Spaltennamen entscheidet die Reihenfolge, welche
+                    Spalte welches Feld füllt — mit den gespeicherten Zuordnungen läse der
+                    Import stillschweigend aus der falschen Spalte. Bitte über „Spalten neu
+                    zuordnen" nachziehen.
                   </div>
                 </div>
               ) : null}

@@ -28,6 +28,63 @@ export interface HeaderValidation {
   matched: string[];
   missingFromCsv: string[];
   newColumns: string[];
+  /**
+   * Basisnamen, deren PapaParse-Aliasgruppe (`X`, `X_1`, `X_2`, …) zwischen
+   * Schema und Export unterschiedlich gross ist. Die Zuordnung „Spalte → Feld"
+   * haengt bei solchen Gruppen an der POSITION, nicht am Namen — eine
+   * veraenderte Gruppengroesse verschiebt jeden Alias dahinter. BLOCKIEREND
+   * (auch gegen „Trotzdem importieren"): der Import laesst sonst Felder
+   * unbemerkt aus der falschen Spalte lesen.
+   */
+  mehrdeutigeSpalten: string[];
+}
+
+const ALIAS_RE = /^(.*)_(\d+)$/;
+
+/**
+ * Basisname eines Spaltennamens: `X_1` gehoert zu `X` — aber nur, wenn `X` in
+ * derselben Kopfzeile steht. PapaParse vergibt den Suffix ausschliesslich bei
+ * Namens-Kollisionen; eine Spalte, die von Haus aus `Quartal_1` heisst, ist
+ * ihre eigene Basis. Mehrstufig (`A_1_1`), weil auch ein Alias kollidieren kann.
+ */
+function basisname(name: string, vorhanden: ReadonlySet<string>): string {
+  let cur = name;
+  for (;;) {
+    const m = ALIAS_RE.exec(cur);
+    if (!m || !vorhanden.has(m[1]!)) return cur;
+    cur = m[1]!;
+  }
+}
+
+/** Wie viele Spalten je Basisname — die Groesse jeder Aliasgruppe. */
+export function aliasGruppen(namen: readonly string[]): Map<string, number> {
+  const vorhanden = new Set(namen);
+  const out = new Map<string, number>();
+  for (const n of namen) {
+    const b = basisname(n, vorhanden);
+    out.set(b, (out.get(b) ?? 0) + 1);
+  }
+  return out;
+}
+
+/**
+ * Aliasgruppen, deren Groesse sich geaendert hat. Eine Gruppe, die es im Export
+ * gar nicht mehr gibt, ist schlicht „fehlend" (das meldet `missingFromCsv`) —
+ * mehrdeutig ist nur, was noch da ist, aber anders geschnitten.
+ */
+function mehrdeutigeAliasgruppen(schemaCols: string[], csvHeaders: string[]): string[] {
+  const imSchema = aliasGruppen(schemaCols);
+  const imExport = aliasGruppen(csvHeaders);
+  const out: string[] = [];
+  for (const [basis, anzahl] of imSchema) {
+    const jetzt = imExport.get(basis) ?? 0;
+    if (jetzt === 0 || jetzt === anzahl) continue;
+    // Gruppen, die weder vorher noch jetzt mehrfach vorkommen, koennen keinen
+    // Alias verschoben haben — deren Differenz ist ein normales Fehlen/Neu.
+    if (anzahl < 2 && jetzt < 2) continue;
+    out.push(basis);
+  }
+  return out.sort();
 }
 
 export function validateHeaders(schema: CsvSchema, csvHeaders: string[]): HeaderValidation {
@@ -38,11 +95,13 @@ export function validateHeaders(schema: CsvSchema, csvHeaders: string[]): Header
     matched: schemaCols.filter(c => csvSet.has(c)),
     missingFromCsv: schemaCols.filter(c => !csvSet.has(c)),
     newColumns: csvHeaders.filter(c => !schemaSet.has(c)),
+    mehrdeutigeSpalten: mehrdeutigeAliasgruppen(schemaCols, csvHeaders),
   };
 }
 
 export function hasDrift(v: HeaderValidation): boolean {
-  return v.missingFromCsv.length > 0 || v.newColumns.length > 0;
+  return v.missingFromCsv.length > 0 || v.newColumns.length > 0
+    || v.mehrdeutigeSpalten.length > 0;
 }
 
 /**
@@ -54,7 +113,8 @@ export function hasDrift(v: HeaderValidation): boolean {
  * gefährliche Fall (leert echte Felder) → weiter Kurator-Review.
  */
 export function isNewColumnsOnlyDrift(v: HeaderValidation): boolean {
-  return v.missingFromCsv.length === 0 && v.newColumns.length > 0;
+  return v.missingFromCsv.length === 0 && v.mehrdeutigeSpalten.length === 0
+    && v.newColumns.length > 0;
 }
 
 /**
@@ -100,6 +160,14 @@ export function encodingHeilungTraegt(alt: HeaderValidation, neu: HeaderValidati
 export function entscheideDrift(v: HeaderValidation, akzeptiert: boolean): DriftEntscheidung {
   if (!hasDrift(v)) {
     return { importieren: true, neueSpaltenAdoptieren: false, uebergangeneSpalten: [] };
+  }
+  // Mehrdeutige Aliasgruppe: die Zustimmung des Kurators kann sie nicht
+  // aufloesen. „Trotzdem importieren" heisst „diese Felder bleiben leer" — hier
+  // waere die Folge aber, dass Felder still aus der FALSCHEN Spalte gelesen
+  // werden, ueber den ganzen Bestand und ohne Spur. Der Weg heraus ist
+  // „Spalten neu zuordnen": das baut das Mapping gegen die aktuelle Kopfzeile.
+  if (v.mehrdeutigeSpalten.length > 0) {
+    return { importieren: false, neueSpaltenAdoptieren: false, uebergangeneSpalten: [] };
   }
   if (isNewColumnsOnlyDrift(v)) {
     return { importieren: true, neueSpaltenAdoptieren: true, uebergangeneSpalten: [] };

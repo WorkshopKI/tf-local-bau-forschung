@@ -19,6 +19,14 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.20 — 2026-08
+
+### Bugfixes
+- Die kuratierten Ordner-Spalten in der Antragstabelle bleiben nach einem Import stehen. Bisher waren sie ausgerechnet bei den Anträgen leer, die sich gerade geändert hatten — bis zum nächsten Start der App sah die Spalte deshalb lückenhaft aus.
+- Wird das Kürzel eines Verbundes im Fachsystem korrigiert, zieht die Verbund-Seite jetzt mit. Vorher zeigte die Liste den neuen Namen und die Detailseite weiter den alten.
+- Fehlt ein Verbund-Datensatz und die App baut ihn nach, übernimmt sie nicht mehr Titel und Status des ersten Teilvorhabens. Angezeigt wird weiterhin etwas Sinnvolles — es wird nur nicht mehr als Verbund-Angabe gespeichert und ans Team verteilt.
+- Führt ein Export einen Spaltennamen plötzlich unterschiedlich oft (das Fachsystem kürzt Spaltenköpfe, dadurch gibt es Namensdopplungen), meldet sich die Quelle und wird nicht importiert. Bei gleichnamigen Spalten entscheidet die Reihenfolge, welche Spalte welches Feld füllt — sonst hätte der Import stillschweigend die falsche gelesen.
+
 ## v4.19 — 2026-08
 
 ### Bugfixes

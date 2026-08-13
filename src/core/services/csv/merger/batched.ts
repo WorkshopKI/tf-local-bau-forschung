@@ -33,7 +33,12 @@ import type {
 } from '../types';
 import { asAntragStatusRaw } from '../types';
 import { toAntragListItem } from '../list-view';
-import { resolveStatusDatumGruppen, type ResolvedStatusDatumGruppe } from '../status-datum-gruppen';
+import { loeseKategorieSpaltenFuer } from '../list-view-migration';
+import {
+  resolveStatusDatumGruppen,
+  type ResolvedKategorieSpalten,
+  type ResolvedStatusDatumGruppe,
+} from '../status-datum-gruppen';
 import type { AntragListItem } from '../types';
 import { applyFristDatumFallback, coerceValue, findJoinColumn, resolveFieldKey } from './helpers';
 import { loadAllSchemasWithRows, type SchemaWithRows } from './loader';
@@ -58,6 +63,10 @@ interface RecomputeCaches {
   /** Datums-Status-Gruppen, einmal pro Programm aus den Schemas aufgelöst (für
    *  die Slim-Projektion `toAntragListItem`). */
   statusGruppen: ResolvedStatusDatumGruppe[];
+  /** Kuratierte Ordner-Spalten (`kat_status`), ebenfalls einmal pro Programm.
+   *  Muss mit, weil `putAntraegeListView` ein Vollersatz ist: ein Slim-Item
+   *  ohne sie löschte die Ordner-Spalten der berührten Anträge. */
+  kategorieSpalten: ResolvedKategorieSpalten[];
   /** Pro Schema-ID: pre-indexed Map joinValue → matching rows. Macht aus dem
    *  ehemaligen findMatchingRows() (Linear-Scan ueber alle Rows) ein
    *  O(1)-Lookup. Bei 13k Antraegen × 5 Schemas spart das ~850M Vergleiche
@@ -117,10 +126,11 @@ async function loadRecomputeCaches(
   programmId: string,
   schemas: SchemaWithRows[],
 ): Promise<RecomputeCaches> {
-  const [antraege, verbuende, akronymEntries] = await Promise.all([
+  const [antraege, verbuende, akronymEntries, kategorieSpalten] = await Promise.all([
     listAntraegeByProgramm(idb, programmId),
     listVerbuendeByProgramm(idb, programmId),
     listAkronymIndexByProgramm(idb, programmId),
+    loeseKategorieSpaltenFuer(idb, programmId),
   ]);
   const rowIndices = new Map<string, Map<string, Record<string, string>[]>>();
   for (const { schema, rows } of schemas) {
@@ -129,6 +139,7 @@ async function loadRecomputeCaches(
   return {
     schemas,
     statusGruppen: resolveStatusDatumGruppen(schemas.map(s => s.schema)),
+    kategorieSpalten,
     rowIndices,
     antraegeByAz: new Map(antraege.map(a => [a.aktenzeichen, a])),
     verbuendeById: new Map(verbuende.map(v => [v.verbund_id, v])),
@@ -284,7 +295,10 @@ function recomputeAntragIntoBatch(
   // konsistent bleiben.
   batch.antraegeUpsert.set(aktenzeichen, merged);
   batch.antraegeDelete.delete(aktenzeichen);
-  batch.listViewUpsert.set(aktenzeichen, toAntragListItem(merged, caches.statusGruppen));
+  batch.listViewUpsert.set(
+    aktenzeichen,
+    toAntragListItem(merged, caches.statusGruppen, caches.kategorieSpalten),
+  );
   batch.listViewDelete.delete(aktenzeichen);
   caches.antraegeByAz.set(aktenzeichen, merged);
 
@@ -397,7 +411,12 @@ function recomputeAntragIntoBatch(
       if (!next.teilantrags_ids.includes(aktenzeichen)) {
         next.teilantrags_ids = [...next.teilantrags_ids, aktenzeichen];
       }
-      if (!next.akronym && newAkronym) next.akronym = newAkronym;
+      // Akronym wie Titel/Status behandeln: ein nicht-leerer Wert aus dem
+      // Export gewinnt. First-write-wins ließ eine korrigierte VB_KURZNAM nie
+      // am Verbund-Record ankommen — Liste und Detailseite zeigten danach zwei
+      // verschiedene Namen, und weil `akronym` antrag-level ist, hielt auch die
+      // Verbund-Historie die Abweichung nicht fest.
+      if (newAkronym) next.akronym = newAkronym;
       if (vbTitel !== undefined && vbTitel !== '') next.titel = vbTitel;
       else if (!next.titel && tvTitel) next.titel = tvTitel;
       if (vbStatus !== undefined && vbStatus !== '') next.status = vbStatus;

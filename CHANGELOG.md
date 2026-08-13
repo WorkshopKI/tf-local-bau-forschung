@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.20.0 — Merge schreibt vollstaendig, Drift prueft Spalten-Identitaet (August 2026)
+
+MINOR — Vier Befunde der CSV-Bug-Jagd, die den Bestand im Normalbetrieb still verändert haben statt im Störfall. Drei Mal schrieb der Merge etwas Plausibles, dem niemand ansah, dass es nicht aus der Quelle stammte; einmal verglich die Drift-Prüfung Spalten**namen**, während die Zuordnung an der Position hängt.
+
+- **Ordner-Spalten überleben den Import** ([batched.ts](src/core/services/csv/merger/batched.ts), [single.ts](src/core/services/csv/merger/single.ts), [csv-import.md](docs/architecture/csv-import.md)): beide Merge-Pfade schreiben die Slim-Projektion jetzt mit `kat_status` — bisher verlor jeder berührte Antrag seine kuratierten Ordner-Werte bis zum nächsten App-Start
+- **Eine korrigierte VB_KURZNAM erreicht den Verbund-Record** ([batched.ts](src/core/services/csv/merger/batched.ts)): first-write-wins ließ Liste und Detailseite dauerhaft zwei verschiedene Akronyme zeigen; ein leerer Wert überschreibt weiterhin nichts
+- **Der Verbund-Heal erfindet keinen Titel und keinen Status mehr** ([verbuende-rebuild.ts](src/core/services/csv/verbuende-rebuild.ts)): er nahm beides vom ersten Teilvorhaben und lief vor jedem Publish — die Konsumenten fallen ohnehin zur Lesezeit auf den Lead-TV zurück
+- **Mis-filed Verbund-Records werden repariert statt ersetzt** ([verbuende-rebuild.ts](src/core/services/csv/verbuende-rebuild.ts)): ein Record mit falscher `programm_id` galt im Index als fehlend und verlor dabei seinen kuratierten Inhalt
+- **Die Drift-Prüfung vergleicht Spalten-Identität** ([csv-drift-check.ts](src/plugins/csv-sources-kuration/services/csv-drift-check.ts), [csv-auto-refresh.md](docs/architecture/csv-auto-refresh.md)): verschobene PapaParse-Aliasgruppen (`X`, `X_1`, …) blockieren die Quelle — als einzige Drift-Art auch gegen „Trotzdem importieren"
+
 ### v4.19.0 — Ein Verfuegbarkeits-Check oeffnet keinen KI-Tab mehr (August 2026)
 
 MINOR — Nachlese zu v4.17.0: der ungefragt aufgerissene KI-Tab war kein Einzelfall der Suchseite. `ping()` trägt `openIfNeeded: true` als Vorgabe und ruft `window.open` — die Klasse stand seit v2.103.2 als Nr. 8 in den Bug-Klassen und war trotzdem an fünf weiteren Stellen offen.

@@ -134,6 +134,41 @@ Ebenfalls seit v4.18.0 nicht mehr stumm:
 noch Anträge, die keine zweite Quelle trägt. Gegen seinen team-weiten Teil steht der Publish-Guard in
 [csv-auto-refresh.md](csv-auto-refresh.md).
 
+## Was der Merge schreibt — und was er nicht raten darf (v4.20.0)
+
+Drei Stellen, an denen der Merge etwas *stiller* verfälschte, als ein Absturz es getan hätte. Gemeinsamer
+Nenner: der geschriebene Wert sah plausibel aus, und niemand konnte ihm ansehen, dass er nicht aus der
+Quelle stammte.
+
+- **Die Slim-Projektion wird vollständig geschrieben.** `toAntragListItem` bekommt seit Projektion v6 die
+  kuratierten Ordner-Spalten als dritten Parameter; Voll-Rebuild und beide Snapshot-Sync-Pfade reichten ihn
+  durch, die beiden **Merge**-Pfade nicht ([batched.ts](../../src/core/services/csv/merger/batched.ts),
+  [single.ts](../../src/core/services/csv/merger/single.ts)). Weil `putAntraegeListView` ein **Vollersatz**
+  ist, verlor damit jeder frisch importierte oder geänderte Antrag seine `kat_status`-Werte wieder —
+  unberührte behielten ihre. Die Spalte sah dadurch lückenhaft aus, nicht falsch, und heilte erst beim
+  nächsten App-Start. Am echten Bestand gemessen: 12 369 von 14 225 Anträgen tragen Ordner-Werte, für einen
+  von ihnen liefert der alte Aufruf `kat_status = null`, der neue alle drei Ordner. Die Auflösung kommt aus
+  dem exportierten `loeseKategorieSpaltenFuer` — **eine** Definition für Rebuild, Sync und Merge.
+- **Eine korrigierte `VB_KURZNAM` erreicht den Verbund-Record.** Dort galt `if (!next.akronym && …)` —
+  first-write-wins —, während Titel und Status zwei Zeilen weiter überschrieben werden. Danach zeigten
+  Antragsliste, Suche und Akronym-Index den neuen Namen, Verbund-Detailseite, Gruppenzeile und KI-Kontext
+  den alten; weil `akronym` antrag-level ist, hielt auch die Verbund-Historie die Abweichung nicht fest.
+  Jetzt gewinnt der nicht-leere Wert, ein leerer überschreibt weiterhin nichts.
+- **Der Verbund-Heal erfindet nichts mehr** ([verbuende-rebuild.ts](../../src/core/services/csv/verbuende-rebuild.ts)).
+  Er nahm `lead.verbund_titel ?? lead.titel` und `lead.status`. Verbund-Ebenen-Felder gehen im Merge aber
+  **nie** auf den Antrag, also war `verbund_titel` am Slim-Item immer leer und der TV-Fallback griff immer;
+  `status` war ohnehin STATUS_TV statt STATUS_VB. Am Fixture-Master weicht `VB_TITEL` in 44/44 Zeilen von
+  `THEMA_AD` ab — 21 von 21 Verbünden hätten einen falschen Titel bekommen, und der Heal läuft bei **jedem
+  App-Start und vor jedem Publish**. Beide Felder bleiben jetzt offen: die Konsumenten fallen von sich aus
+  auf den Lead-TV zurück (`verbund?.titel ?? rep?.titel`), und die Detailseite leitet den Verbund-Status aus
+  den TV-Status ab. Ein Fallback zur **Lesezeit** ist reparierbar, ein persistierter Falschwert wandert über
+  `verbuende.jsonl` ins ganze Team. `akronym` bleibt — es ist antrag-level, also gelesen statt geraten.
+- **Mis-filed Records werden repariert, nicht ersetzt.** `listVerbuendeByProgramm` liest über den
+  `programm_id`-Index; ein Record mit falscher `programm_id` galt dort als *fehlend* und wurde vom `put` mit
+  TV-Werten überschrieben — ein inhaltlich korrekter Verbund verlor dabei Titel und Status. Der Heal liest
+  jetzt zusätzlich per **Key** und korrigiert an einem gefundenen Record nur Ablage (`programm_id`) und
+  Teilvorhaben-Liste.
+
 ## Verbund-Aggregation (Forschungs-Domäne)
 
 Ein **Verbund** bündelt mehrere Teilanträge unter einer gemeinsamen Projektbeschreibung. Der CSV-Master-Import erkennt Verbünde über das Akronym + Teilantragsindex und dedupliziert geteilte Dokumente per Content-Hash. Anzeige in der Antrags-Liste: Teilvorhaben werden visuell unter dem Verbund-Header geclustert (siehe `src/plugins/antraege/` Cluster-Komponenten).

@@ -25,6 +25,7 @@ import {
   putVerbund,
 } from '../idb-csv';
 import { toAntragListItem } from '../list-view';
+import { loeseKategorieSpaltenFuer } from '../list-view-migration';
 import { resolveStatusDatumGruppen } from '../status-datum-gruppen';
 import type {
   Antrag,
@@ -52,6 +53,9 @@ export async function recomputeAntrag(
 ): Promise<void> {
   const schemas = schemasCache ?? (await loadAllSchemasWithRows(idb, programmId));
   const statusGruppen = resolveStatusDatumGruppen(schemas.map(s => s.schema));
+  // Ordner-Spalten mitführen: `putAntraegeListView` ist Vollersatz, ein
+  // Slim-Item ohne `kat_status` löschte die Ordner-Spalte des Antrags.
+  const kategorieSpalten = await loeseKategorieSpaltenFuer(idb, programmId);
   const existing = await getAntrag(idb, aktenzeichen);
 
   const merged: Antrag = {
@@ -137,7 +141,7 @@ export async function recomputeAntrag(
   }
 
   await putAntraege(idb, [merged]);
-  await putAntraegeListView(idb, [toAntragListItem(merged, statusGruppen)]);
+  await putAntraegeListView(idb, [toAntragListItem(merged, statusGruppen, kategorieSpalten)]);
   if (history.length > 0) await appendHistory(idb, history);
 
   // Akronym-Index aktualisieren (bei geändertem Akronym: altes Entry säubern)
@@ -230,7 +234,8 @@ export async function recomputeAntrag(
       // (listVerbundsByProgramm) → unvollständige verbuende.jsonl.
       if (vb.programm_id !== programmId) vb.programm_id = programmId;
       if (!vb.teilantrags_ids.includes(aktenzeichen)) vb.teilantrags_ids.push(aktenzeichen);
-      if (!vb.akronym && newAkronym) vb.akronym = newAkronym;
+      // Nicht-leeres Akronym gewinnt (wie Titel/Status) — siehe batched.ts.
+      if (newAkronym) vb.akronym = newAkronym;
       // VB-Titel: explizites Mapping wins, sonst Erstbelegung mit TV-Titel
       if (vbTitel !== undefined && vbTitel !== '') vb.titel = vbTitel;
       else if (!vb.titel && tvTitel) vb.titel = tvTitel;

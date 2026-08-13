@@ -158,9 +158,22 @@ export function CsvAutoRefreshDriftDialog({
                         {d.validation.missingFromCsv.join(', ')}
                       </div>
                     ) : null}
+                    {/* Mehrdeutige Aliasgruppe: nicht „etwas fehlt", sondern „die
+                        Zuordnung stimmt nicht mehr" — und dagegen hilft keine
+                        Zustimmung, nur ein neues Mapping. */}
+                    {d.validation.mehrdeutigeSpalten.length > 0 ? (
+                      <div className="mt-1 text-[11px] leading-snug text-amber-900">
+                        Der Export führt den Spaltennamen{' '}
+                        <span className="font-mono">{d.validation.mehrdeutigeSpalten.join(', ')}</span>{' '}
+                        jetzt unterschiedlich oft. Bei gleichnamigen Spalten entscheidet die
+                        Reihenfolge, welche Spalte welches Feld füllt — diese Quelle muss über
+                        „Spalten neu zuordnen" nachgezogen werden, sonst liest der Import
+                        stillschweigend aus der falschen Spalte.
+                      </div>
+                    ) : null}
                   </div>
                   <div className="flex shrink-0 flex-col items-end gap-1">
-                    {onTrotzdemImportieren ? (
+                    {onTrotzdemImportieren && d.validation.mehrdeutigeSpalten.length === 0 ? (
                       <button
                         type="button"
                         onClick={() => trotzdem([d.schemaId])}

@@ -58,9 +58,23 @@ Pro Kandidat: Datei via gespeichertem Handle laden (kein Picker) → Header gege
      das erkannte Encoding **vor** dem Import ins Schema (`csv_schema_encoding_korrigiert`), damit
      `importCsvSource` es über `loadSchema` selbst aufgreift. Der Re-Import-Dialog konnte das seit je,
      der automatische Weg nicht — dort war es eine Sackgasse.
-  2. **Reine `newColumns`-Drift** (nichts fehlt, nur Zusatzspalten) wird **headless** als `{ ignore: true }`
-     adoptiert (`adoptNewColumnsAsIgnored`) und importiert weiter — der tägliche Import blockiert nicht (v2.153.1).
-  3. **`missingFromCsv > 0`** bleibt **blockierend** (`report.drift` → Modal), weil eine verschwundene
+  2. **Mehrdeutige Aliasgruppe** (v4.20.0) blockiert **härter als alles andere** — sie ist die einzige
+     Stufe, die auch „Trotzdem importieren" nicht aufhebt. C16 kürzt Spaltenköpfe auf 10 Zeichen, dadurch
+     stehen Namen mehrfach im Export (`9052_PrjBsp`: 163 Spalten, 35 mehrfach vergebene Namen, 72 betroffene
+     Spalten); PapaParse benennt jedes weitere Vorkommen **positionsabhängig** in `<Name>_1`, `_2` um, und
+     genau dieser synthetische Name ist der Mapping-Schlüssel. Ändert sich die **Größe** einer solchen
+     Gruppe, verschiebt sich jeder Alias dahinter: eine neue gleichnamige Spalte vor dem bisherigen zweiten
+     Vorkommen macht die echte Spalte zu `_2` — bisher „neue Spalte", headless als `{ ignore: true }`
+     adoptiert, und das Feld las ab dann still aus der falschen Spalte. `validateHeaders` vergleicht deshalb
+     die Gruppengrößen (`aliasGruppen`) und meldet `mehrdeutigeSpalten`. Warum keine Zustimmung hilft:
+     „Trotzdem importieren" heißt „diese Felder bleiben leer" — hier wären sie **falsch belegt**, über den
+     ganzen Bestand und ohne Spur. Ausweg ist „Spalten neu zuordnen" (baut das Mapping gegen die aktuelle
+     Kopfzeile). **Grenze, offen benannt**: tauschen zwei gleichnamige Spalten die Plätze, ist die Kopfzeile
+     byte-identisch — das kann kein Header-Vergleich sehen, nur ein Blick in die Werte.
+  3. **Reine `newColumns`-Drift** (nichts fehlt, keine Mehrdeutigkeit, nur Zusatzspalten) wird **headless**
+     als `{ ignore: true }` adoptiert (`adoptNewColumnsAsIgnored`) und importiert weiter — der tägliche
+     Import blockiert nicht (v2.153.1).
+  4. **`missingFromCsv > 0`** bleibt **blockierend** (`report.drift` → Modal), weil eine verschwundene
      gemappte Spalte echte Felder leert: der Merge baut jeden Antrag komplett neu aus allen CSVs auf
      ([batched.ts](../../src/core/services/csv/merger/batched.ts)), ein fehlender Wert wird also `''`.
      **Ausweg** (v3.47.0): `RunAutoRefreshOptions.driftAkzeptiertFuer` — der Knopf **„Trotzdem
