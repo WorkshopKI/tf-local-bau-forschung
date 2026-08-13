@@ -13,6 +13,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   verbindeEindeutig,
+  verbindeMit,
   bundeslandName,
   standortSuchform,
   standortNadel,
@@ -127,5 +128,45 @@ describe('standortSuchform / standortNadel', () => {
     expect(standortSuchform('  -  ')).toBe('');
     expect(standortNadel('')).toBe('');
     expect(standortNadel('-')).toBe('');
+  });
+});
+
+/**
+ * Der Standort wird seit v4.23 nicht nur gesucht, sondern auch ANGEZEIGT
+ * (Trefferliste, Spalte „Ort & Bundesland") — deshalb der sichtbare Trenner.
+ *
+ * Diese Tests sind der Grund, warum das gefahrlos ist: Anzeigeform und Suchform
+ * sind zwei verschiedene Dinge, und nur die erste ändert sich.
+ */
+describe('verbindeMit — Anzeigeform des Standorts', () => {
+  it('fügt mit dem gewählten Trenner und entdoppelt wie zuvor', () => {
+    expect(verbindeMit(' · ', 'Dresden', 'Dresden', 'Sachsen')).toBe('Dresden · Sachsen');
+  });
+
+  it('setzt keinen Trenner vor oder nach Leerem', () => {
+    expect(verbindeMit(' · ', '', 'Berlin', '  ')).toBe('Berlin');
+    expect(verbindeMit(' · ', '', '', '')).toBe('');
+  });
+
+  it('bleibt für den Standard-Trenner identisch zu verbindeEindeutig', () => {
+    expect(verbindeMit(' ', 'Wedel', 'Hamburg')).toBe(verbindeEindeutig('Wedel', 'Hamburg'));
+  });
+
+  it('ändert die SUCHFORM nicht — der Trenner fällt in der Normalisierung weg', () => {
+    // Ohne diese Zusicherung wäre die Anzeige-Kosmetik ein Eingriff in die
+    // Suche: `standortSuchform` ersetzt jede Nicht-Buchstaben-Folge durch
+    // Leerraum, „Dresden · Sachsen" und „Dresden Sachsen" sind danach dasselbe.
+    const mitPunkt = verbindeMit(' · ', 'Dresden', 'Sachsen');
+    const ohnePunkt = verbindeEindeutig('Dresden', 'Sachsen');
+    expect(standortSuchform(mitPunkt)).toBe(standortSuchform(ohnePunkt));
+    expect(standortSuchform(mitPunkt)).toBe(' dresden sachsen ');
+    expect(standortSuchform(mitPunkt).includes(standortNadel('Sachsen'))).toBe(true);
+  });
+
+  it('lässt auch mehrteilige Ortsnamen unverändert suchbar', () => {
+    const feld = verbindeMit(' · ', 'Frankfurt am Main', 'Hessen');
+    expect(feld).toBe('Frankfurt am Main · Hessen');
+    expect(standortSuchform(feld).includes(standortNadel('Frankfurt'))).toBe(true);
+    expect(standortSuchform(feld).includes(standortNadel('Main'))).toBe(true);
   });
 });

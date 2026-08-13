@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.24.0 — Suche: der Treffer zeigt seinen Beleg (August 2026)
+
+MINOR — „Dresden" im Bereich „nur Ort & Bundesland" lieferte 485 Treffer, und markiert war das Suchwort in 4 von 30 Zeilen — bei denen, wo die Stadt zufällig im Firmennamen stand. Von den neun Trefferstellen haben sieben längst einen Platz im Ergebnis; `standort` und `deskriptoren` hatten keinen. Ein Etikett „Ort" sagt DASS, nicht WAS.
+
+- **Zwei Belege stehen jetzt am Treffer** ([search-result.ts](src/core/types/search-result.ts), [search-corpus.ts](src/plugins/antraege/services/search-corpus.ts)): der gesuchte Ortstext (Ort AFS + Ort AST + beide Bundesländer) und die Deskriptoren — Suchform unverändert, nur der Trenner ist jetzt sichtbar
+- **Die Tabelle blendet die erklärende Spalte selbst ein** ([autoSpalten.ts](src/plugins/suche/autoSpalten.ts), [columns.tsx](src/plugins/suche/columns.tsx)): ausgelöst durch die Einstellung „nur Ort & Bundesland" oder durch die Fundstelle; im Spalten-Aufklapper als „auto" markiert, ohne die persönliche Spaltenwahl zu ändern
+- **Neue Spalten „Ort & Bundesland" + „Deskriptoren"** ([columns.tsx](src/plugins/suche/columns.tsx)): „Ort AST" bleibt unangetastet — sie trägt nur `ort_ast` und könnte weder „Bayern" noch einen abweichenden Ausführungsort markieren
+- **Trefferliste eine Zeile kürzer** ([TrefferZeile.tsx](src/plugins/suche/TrefferZeile.tsx)): die Etiketten ziehen in die Kopfzeile, der Belegwert in die Fundstellen-Zeile — 111 px → 82 px je Zeile, 30 von 30 Zeilen markiert statt 4
+- **Regel + Messung stehen einmal** ([suche-relevanz.md](docs/architecture/suche-relevanz.md), [autoSpalten.test.ts](src/plugins/suche/__tests__/autoSpalten.test.ts)): welche Trefferstelle wo sichtbar ist, und warum die Liste genau zwei Einträge hat
+
 ### v4.23.0 — Demo-Umwandlung raeumt auf, Meldungen sagen die Wahrheit (August 2026)
 
 MINOR — Neun Befunde der CSV-Bug-Jagd, gemeinsamer Nenner: die App tat etwas anderes, als sie sagte. Die Demo-Umwandlung ließ ihre Daten liegen, „Bereits aktuell." stand für drei verschiedene Lagen, und ein Feld-Label konnte umbenannt werden, ohne dass die Spalte es je erfuhr.

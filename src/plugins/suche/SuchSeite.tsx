@@ -64,6 +64,7 @@ import { SeitenHilfeButton } from '@/components/help/SeitenHilfeButton';
 // mit, und das lädt die Plugin-Config nach (siehe SeitenHilfeButton.tsx).
 import { useFeedbackDialog } from '@/components/feedback/useFeedbackDialog';
 import { wendeFacettenAn, aktiveFilterTexte, LEERE_WAHL, type FacettenId } from './facetten';
+import { autoSpalten } from './autoSpalten';
 import { markierWoerter, wirksameAnfrage } from './deutung';
 import { baueSucheDarstellungsAchsen, vergleiche, type SucheAchsenId } from './darstellungsAchsen';
 import { berechneAuswege, type Ausweg } from './auswege';
@@ -209,6 +210,14 @@ export function SuchSeite(): React.ReactElement {
     [searchResults, facettenWahl],
   );
 
+  // Spalten, die diese Anfrage selbst einblendet: die Belege, die sonst in
+  // keiner Zeile stünden (Ort, Deskriptoren). Gerechnet auf der Menge NACH den
+  // Facetten — die Spalte soll das erklären, was in der Tabelle steht.
+  const autoColumnKeys = useMemo(
+    () => autoSpalten(bereich, nachFacetten),
+    [bereich, nachFacetten],
+  );
+
   const {
     dataSource,
     sorted, analyseResults, visibleColumnDefs, filterCandidatesByColumn, filterCountsByColumn,
@@ -220,6 +229,7 @@ export function SuchSeite(): React.ReactElement {
     begruendungById: analyse.begruendungById,
     analyseActive,
     visibleColumns,
+    autoColumnKeys,
   });
 
   // Die Liste sortiert nach der Darstellungs-Achse, die Tabelle nach ihrer
@@ -666,7 +676,9 @@ export function SuchSeite(): React.ReactElement {
                   options={ANSICHT_OPTIONEN}
                   ariaLabel="Ansicht"
                 />
-                {ansicht === 'tabelle' && <ColumnPicker typeFilter="" />}
+                {ansicht === 'tabelle' && (
+                  <ColumnPicker typeFilter="" erzwungeneKeys={autoColumnKeys} />
+                )}
                 <button
                   type="button"
                   onClick={openAssistentMitTreffern}

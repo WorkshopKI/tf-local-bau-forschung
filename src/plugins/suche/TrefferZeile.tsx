@@ -6,6 +6,11 @@
  * Liste zeigt die FUNDSTELLE — den Satz, in dem das Suchwort steht, und wo er
  * herkommt. Beides nebeneinander wäre in einer Tabellenzelle unlesbar.
  *
+ * Drei Zeilen, nicht vier (v4.23): Kennung + Trefferstellen · Titel · Fundstelle.
+ * Die Etiketten hatten eine eigene Reihe, in der oft nur „Ort" stand — eine
+ * Zeilenhöhe für die Auskunft, DASS irgendwo im Ort etwas traf. Der WERT steht
+ * jetzt in der Fundstellen-Zeile (`belegWerte`), das Etikett zur Kennung.
+ *
  * „Warum?" klappt die KI-Begründung unter der Zeile auf. Bewusst je Zeile statt
  * global: der Zweifel entsteht an einem Treffer, nicht an der Liste.
  *
@@ -23,6 +28,7 @@ import {
 } from '@/core/services/search/trefferstelle';
 import { StufenBalken } from '@/components/ui/StufenBalken';
 import { SuchMarkierung } from './SuchMarkierung';
+import { belegWerte } from './autoSpalten';
 
 /** Welche Felder überhaupt eine Vorkommens-Zahl tragen können. Für Akronym,
  *  Aktenzeichen und Ähnlichkeit wäre „1" keine Information. */
@@ -60,12 +66,18 @@ export function TrefferZeile({
   /** Warum keine Begründung da ist (z. B. keine KI verbunden). */
   hinweis?: string | null;
 }): React.ReactElement {
-  const felder = treffer.trefferfelder ?? [];
   const stufe = treffer.relevanzStufe ?? 1;
+  // Belege, die sonst nirgends stehen — sie kommen als WERT in die Metazeile.
+  const belege = belegWerte(treffer);
+  // …und dürfen deshalb nicht zusätzlich als Etikett erscheinen: „Ort" neben
+  // „Ort: Dresden · Sachsen" wäre dasselbe zweimal.
+  const belegFelder = new Set(belege.map(b => b.feld));
+  const tags = (treffer.trefferfelder ?? []).filter(f => !belegFelder.has(f));
+  const fundtext = treffer.textstelle?.text ?? treffer.snippet;
 
   return (
     <li
-      className="group px-3 py-2.5 transition-colors hover:bg-[var(--tf-hover)]"
+      className="group px-3 py-2 transition-colors hover:bg-[var(--tf-hover)]"
       style={{ borderBottom: '0.5px solid var(--tf-border)' }}
     >
       <div className="flex gap-2.5">
@@ -106,6 +118,23 @@ export function TrefferZeile({
                 außerhalb des Bereichs
               </span>
             )}
+            {/* Trefferstellen-Tags stehen HIER und nicht unter der Zeile: als
+                eigene Reihe kosteten sie eine ganze Zeilenhöhe für ein einzelnes
+                Etikett. Die Kopfzeile ist kurz und bricht nicht um — an die
+                Metazeile gehängt wären sie bei langen Titeln sofort wieder in
+                der zweiten Reihe. */}
+            {!kompakt && tags.map(f => (
+              <span
+                key={f}
+                className="inline-flex items-center gap-1 rounded-[5px] px-1.5 py-px text-[10.5px] text-[var(--tf-text-secondary)]"
+                style={{ border: '0.5px solid var(--tf-border)' }}
+              >
+                {TREFFERFELD_LABEL[f]}
+                {ZAEHLBAR.has(f) && (
+                  <ZaehlungFuerFeld feld={f} treffer={treffer} woerter={woerter} />
+                )}
+              </span>
+            ))}
           </div>
 
           {/* Titel — die Klickfläche in den Antrag. */}
@@ -117,46 +146,33 @@ export function TrefferZeile({
             <SuchMarkierung text={treffer.title} wortlaut={woerter} aehnlich={varianten} />
           </button>
 
-          {!kompakt && (
-            <>
-              {/* Die Fundstelle: Quelle klein und gesperrt, dann der Satz. */}
-              {treffer.textstelle
-                ? (
-                  <p className="mt-1 text-[12px] leading-relaxed text-[var(--tf-text-secondary)]">
-                    <span className="mr-1.5 text-[10px] uppercase tracking-[0.08em] text-[var(--tf-text-tertiary)]">
-                      {treffer.textstelle.quelle}
-                    </span>
-                    <SuchMarkierung
-                      text={treffer.textstelle.text}
-                      wortlaut={woerter}
-                      aehnlich={varianten}
-                    />
-                  </p>
-                )
-                : treffer.snippet && (
-                  <p className="mt-1 text-[12px] leading-relaxed text-[var(--tf-text-secondary)]">
-                    <SuchMarkierung text={treffer.snippet} wortlaut={woerter} aehnlich={varianten} />
-                  </p>
-                )}
-
-              {/* Trefferstellen-Tags. */}
-              {felder.length > 0 && (
-                <div className="mt-1.5 flex flex-wrap items-center gap-1">
-                  {felder.map(f => (
-                    <span
-                      key={f}
-                      className="inline-flex items-center gap-1 rounded-[5px] px-1.5 py-px text-[10.5px] text-[var(--tf-text-secondary)]"
-                      style={{ border: '0.5px solid var(--tf-border)' }}
-                    >
-                      {TREFFERFELD_LABEL[f]}
-                      {ZAEHLBAR.has(f) && (
-                        <ZaehlungFuerFeld feld={f} treffer={treffer} woerter={woerter} />
-                      )}
-                    </span>
-                  ))}
-                </div>
+          {/* Die Fundstelle: Quelle klein und gesperrt, dann der Satz — und
+              dahinter die Belege, die sonst nirgends stünden. Bis v4.22 sagte
+              ein Etikett „Ort" nur, DASS im Ort getroffen wurde; bei „Dresden"
+              war das Suchwort deshalb in 4 von 30 Zeilen markiert, obwohl alle
+              30 einen Ort-Treffer hatten. */}
+          {!kompakt && (fundtext.length > 0 || belege.length > 0) && (
+            <p className="mt-1 text-[12px] leading-relaxed text-[var(--tf-text-secondary)]">
+              {treffer.textstelle && (
+                <span className="mr-1.5 text-[10px] uppercase tracking-[0.08em] text-[var(--tf-text-tertiary)]">
+                  {treffer.textstelle.quelle}
+                </span>
               )}
-            </>
+              {fundtext.length > 0 && (
+                <SuchMarkierung text={fundtext} wortlaut={woerter} aehnlich={varianten} />
+              )}
+              {belege.map((b, i) => (
+                <span key={b.feld}>
+                  {(i > 0 || fundtext.length > 0) && (
+                    <span className="text-[var(--tf-text-tertiary)]"> · </span>
+                  )}
+                  <span className="mr-1 text-[10px] uppercase tracking-[0.08em] text-[var(--tf-text-tertiary)]">
+                    {TREFFERFELD_LABEL[b.feld]}
+                  </span>
+                  <SuchMarkierung text={b.wert} wortlaut={woerter} aehnlich={varianten} />
+                </span>
+              ))}
+            </p>
           )}
 
           {/* Begründung — klappt unter der Zeile auf. */}

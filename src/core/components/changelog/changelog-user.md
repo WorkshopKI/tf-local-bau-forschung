@@ -19,6 +19,13 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.24 — 2026-08
+
+### Verbesserungen
+- Die Suche zeigt jetzt, warum ein Treffer erscheint. Wer nach einem Ort oder Bundesland sucht, bekommt die Spalte „Ort & Bundesland" automatisch eingeblendet — mit dem gefundenen Wort markiert. Dasselbe gilt für Treffer in den Deskriptoren.
+- Eingeblendete Spalten sind im Aufklapper „Spalten" mit „auto" gekennzeichnet. Sie ändern Ihre eigene Spaltenauswahl nicht und verschwinden wieder, sobald die Suche sie nicht mehr braucht.
+- Die Trefferliste ist kompakter: die Trefferstellen stehen jetzt oben neben dem Förderkennzeichen statt in einer eigenen Zeile darunter. Statt des bloßen Etiketts „Ort" steht dort jetzt der Ort selbst.
+
 ## v4.23 — 2026-08
 
 ### Bugfixes

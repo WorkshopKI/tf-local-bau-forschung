@@ -35,6 +35,58 @@ nur eine Information, die niemand mitgeführt hat.
 Der Kurzschluss im ersten Durchgang ist der Grund für die Laufzeit; ihn
 aufzugeben, um nebenbei Felder zu sammeln, hätte die Suche spürbar verlangsamt.
 
+### Wo der Beleg im Ergebnis steht (v4.23)
+
+Ein Etikett „Ort" sagt, DASS im Ort getroffen wurde — nicht WAS dort steht. Am
+echten Bestand gemessen: „Dresden" im Bereich „nur Ort & Bundesland" lieferte 485
+Treffer, und in der Liste war das Suchwort bei **4 von 30** sichtbaren Zeilen
+markiert — bei denen, wo die Stadt zufällig im Firmennamen vorkam.
+
+Die Ursache ist keine Lücke im Layout, sondern eine im Datenfluss: sieben der
+neun Trefferstellen haben längst einen Platz im Ergebnis, zwei nicht.
+
+| Trefferstelle | steht im Ergebnis als |
+|---|---|
+| `titel`, `kurzbeschreibung` | Spalte „Titel / Inhalt" (fest eingeblendet) |
+| `akronym`, `organisation` | Snippet derselben Spalte (`makeAntragSnippet`) |
+| `aktenzeichen` | Spalte „FKZ" |
+| `dokument` | Dateiname bzw. gefaltete Textstelle |
+| `aehnlichkeit` | Spalten „Suche" / „Score" |
+| **`standort`** | **Spalte „Ort & Bundesland"** — wird eingeblendet |
+| **`deskriptoren`** | **Spalte „Deskriptoren"** — wird eingeblendet |
+
+[autoSpalten.ts](../../src/plugins/suche/autoSpalten.ts) führt diese zwei — und
+nur diese zwei. Eine achte Zeile braucht den Nachweis, dass der Beleg wirklich
+nirgends sonst auftaucht; sonst verbreitert sich die Tabelle für nichts.
+
+**Zwei Auslöser.** Die Einstellung: „nur Ort & Bundesland" blendet die Spalte
+immer ein, auch wenn eine Anfrage nichts findet. Die Fundstelle: im
+Standardbereich erscheint sie, sobald **ein** Treffer den Beleg trägt — das ist
+der Normalfall, denn kaum jemand stellt das Dropdown um.
+
+**Die Spalten gehören der Anfrage, nicht der Person.** Sie kommen über
+`erzwungeneKeys` des geteilten [ColumnPicker](../../src/components/data-table/ColumnPicker.tsx)
+dazu (angehakt, deaktiviert, Marke „auto", im Zähler mitgezählt) und schreiben
+**nichts** in die gespeicherte Spaltenwahl. Verschwindet der Grund, verschwindet
+die Spalte.
+
+**Warum nicht die vorhandene Spalte „Ort AST".** Gesucht wird gegen
+`AntragTextEntry.standort` = Ort-AFS + Ort-AST + beide Bundesländer im Klartext.
+Bei „Bayern" oder bei abweichendem Ausführungsort (1 052 von 14 224 Sätzen)
+stünde in einer `ort_ast`-Zelle ein Wert **ohne** Markierung — eine Erklärung,
+die keine ist. „Ort AST" bleibt daneben die CSV-Spalte für Sortieren, Filtern und
+Export; die neue Spalte ist der Beleg. Dieselbe Unterscheidung wie bei
+`antragsteller` (= ORG_AFS) in v4.4.3.
+
+Das Feld trägt seinen Trenner deshalb schon im Korpus (`verbindeMit(' · ', …)`).
+Die **Suchform ist davon unberührt**: `standortSuchform` ersetzt jede
+Nicht-Buchstaben-Folge durch Leerraum, „Dresden · Sachsen" und „Dresden Sachsen"
+sind danach dieselbe Zeichenkette (Test in `korpusFelder.test.ts`).
+
+In der **Liste** zeigt derselbe Baustein (`belegWerte`) den Wert in der
+Fundstellen-Zeile; das Etikett entfällt dort, weil der Wert es ersetzt. Nach dem
+Umbau: 30 von 30 Zeilen markiert, Zeilenhöhe 111 px → 82 px.
+
 ## 3 Relevanz — das Urteil
 
 `berechneRelevanz(felder, abdeckung)` in

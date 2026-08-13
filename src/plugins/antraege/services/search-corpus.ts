@@ -70,7 +70,12 @@ export interface AntragTextEntry {
   organisation: string;
   organisationLower: string;
   /** Ort + Bundesland (Klartext), beide Seiten zusammengezogen — „welche
-   *  Vorhaben wurden in Berlin gefoerdert". */
+   *  Vorhaben wurden in Berlin gefoerdert".
+   *
+   *  Seit v4.23 zugleich die ANZEIGEFORM dieses Belegs (`' · '`-getrennt): die
+   *  Fundstelle „Ort" ist die einzige, die sonst nirgends im Ergebnis steht, und
+   *  ein Etikett ohne Wert beantwortet die Frage „warum erscheint dieser
+   *  Treffer?" nicht. */
   standort: string;
   /** Suchform des Standorts — ANDERS gebaut als die uebrigen `*Lower`-Felder:
    *  klein, Trennzeichen zu Leerraum, von Leerzeichen eingerahmt. Verglichen
@@ -240,12 +245,29 @@ function pickByNormalized(
  * Suchwort nie (`zerlegeAnfrage` trennt an Leerraum).
  */
 export function verbindeEindeutig(...werte: string[]): string {
+  return verbindeMit(' ', ...werte);
+}
+
+/**
+ * Dasselbe mit frei gewaehltem Trenner.
+ *
+ * Der Standort braucht ihn: sein Feld wird seit v4.23 nicht mehr nur GESUCHT,
+ * sondern auch ANGEZEIGT (Trefferliste, Spalte „Ort & Bundesland") — und
+ * „Dresden Sachsen" liest sich dort wie ein Tippfehler, „Dresden · Sachsen"
+ * nicht.
+ *
+ * Am Suchverhalten aendert der Trenner nichts: `standortSuchform` ersetzt jede
+ * Nicht-Buchstaben-Folge (`STANDORT_TRENNER`) durch Leerraum, die Suchform ist
+ * mit Punkt wie ohne `' dresden sachsen '`. Der zugehoerige Test steht in
+ * `korpusFelder.test.ts` und ist der Grund, warum das hier gefahrlos ist.
+ */
+export function verbindeMit(trenner: string, ...werte: string[]): string {
   const gesehen: string[] = [];
   for (const w of werte) {
     const t = w.trim();
     if (t.length > 0 && !gesehen.includes(t)) gesehen.push(t);
   }
-  return gesehen.join(' ');
+  return gesehen.join(trenner);
 }
 
 export interface LoadCorpusOptions {
@@ -297,7 +319,10 @@ export async function loadAntraegeTextCorpus(
       const orgAfs = pickByNormalized(rec, ORG_AFS_NORMALIZED);
       const orgAst = pickByNormalized(rec, ORG_AST_NORMALIZED);
       const organisation = verbindeEindeutig(orgAfs, orgAst);
-      const standort = verbindeEindeutig(
+      // Mit sichtbarem Trenner: dieses Feld wird auch ANGEZEIGT (siehe
+      // `verbindeMit`). Die Suchform darunter bleibt davon unberuehrt.
+      const standort = verbindeMit(
+        ' · ',
         pickByNormalized(rec, ORT_AFS_NORMALIZED),
         pickByNormalized(rec, ORT_AST_NORMALIZED),
         bundeslandName(pickByNormalized(rec, LAND_AFS_NORMALIZED)),

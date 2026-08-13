@@ -66,6 +66,7 @@ import {
   countAntraegeListViewByProgramm,
 } from '@/core/services/csv/idb-csv';
 import type { AntragListItem } from '@/core/services/csv/types';
+import type { AntragTextEntry } from '@/plugins/antraege/services/search-corpus';
 import { getStatusCategory } from '@/core/utils/status-canonical';
 import { useUnterprogrammLabels } from '@/plugins/antraege/useUnterprogrammLabels';
 import { useBereich } from '@/core/hooks/useBereich';
@@ -182,6 +183,7 @@ function baueAntragTreffer(
   akku: AntragAkku,
   item: AntragListItem | undefined,
   programmNameById: Map<string, string>,
+  korpus: AntragTextEntry | undefined,
 ): UnifiedSearchResult {
   const belege = sortiereFelder(akku.felder).filter(f => f !== 'aehnlichkeit');
   const wortlaut = berechneRelevanz(belege, akku.wortAbdeckung);
@@ -191,7 +193,7 @@ function baueAntragTreffer(
       : belege.length > 0 ? 'fulltext'
         : 'vector';
   return {
-    ...basisAntrag(akz, item, programmNameById),
+    ...basisAntrag(akz, item, programmNameById, korpus),
     score,
     method,
     trefferfelder: sortiereFelder(akku.felder),
@@ -204,6 +206,7 @@ function basisAntrag(
   aktenzeichen: string,
   item: AntragListItem | undefined,
   programmNameById: Map<string, string>,
+  korpus: AntragTextEntry | undefined,
 ): UnifiedSearchResult {
   return {
     id: aktenzeichen,
@@ -228,6 +231,13 @@ function basisAntrag(
     ortAst: item?.ort_ast,
     zuwendung: typeof item?.foerdersumme === 'number' ? item.foerdersumme : undefined,
     vbPhase: item?.vb_phase,
+    // Die zwei Belege, die sonst nirgends im Ergebnis stehen. Aus dem KORPUS,
+    // nicht aus der Listen-Projektion: gesucht wird in genau diesen Zeichenketten
+    // (`ort_ast` allein trüge weder den Ausführungsort noch das Bundesland).
+    // Fehlt der Korpus-Eintrag (reiner Vektortreffer), bleibt das Feld leer —
+    // ein Ersatzwert wäre eine Behauptung.
+    standort: korpus?.standort || undefined,
+    deskriptoren: korpus?.descriptors || undefined,
   };
 }
 
@@ -376,6 +386,10 @@ export function useUnifiedSearch(query: string): UseUnifiedSearchResult {
         const antraege = new Map<string, AntragAkku>();
         const dokumente = new Map<string, UnifiedSearchResult>();
         let byAkz = new Map<string, AntragListItem>();
+        // Neben `byAkz`, aus demselben Grund: `emit()` läuft nach jeder Stufe und
+        // sieht nur, was AUSSERHALB des try-Blocks steht. Der Korpus liefert die
+        // Belegtexte (Ort, Deskriptoren), die die Listen-Projektion nicht führt.
+        let textKorpus = new Map<string, AntragTextEntry>();
         const tStart = performance.now();
 
         function isCancelled(): boolean {
@@ -392,7 +406,9 @@ export function useUnifiedSearch(query: string): UseUnifiedSearchResult {
           if (isCancelled()) return;
           const out: UnifiedSearchResult[] = [];
           for (const [akz, akku] of antraege) {
-            out.push(baueAntragTreffer(akz, akku, byAkz.get(akz), programmNameById));
+            out.push(baueAntragTreffer(
+              akz, akku, byAkz.get(akz), programmNameById, textKorpus.get(akz),
+            ));
           }
           for (const d of dokumente.values()) out.push(d);
           out.sort((a, b) => b.score - a.score);
@@ -411,6 +427,7 @@ export function useUnifiedSearch(query: string): UseUnifiedSearchResult {
           if (isCancelled()) return;
 
           byAkz = listCache?.byAkz ?? new Map<string, AntragListItem>();
+          textKorpus = programmCaches?.textCorpus ?? new Map<string, AntragTextEntry>();
           const filenameToAkz = programmCaches?.filenameToAkz ?? new Map<string, string>();
 
           // Stage 1: Wortlaut (sync) — sofort sichtbare Treffer, inkl. der

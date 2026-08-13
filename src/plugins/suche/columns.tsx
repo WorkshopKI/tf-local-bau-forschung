@@ -293,6 +293,46 @@ export const SEARCH_COLUMNS: SearchColumn[] = [
       : null,
   },
   {
+    // Der Text, in dem die Suche tatsächlich nachsieht (Ort AFS + Ort AST +
+    // beide Bundesländer im Klartext) — NICHT die CSV-Spalte `ort_ast`. Die
+    // steht als „Ort AST" daneben und bleibt die Quelle für Sortieren, Filtern
+    // und Export; hier geht es um den BELEG: eine Zelle ohne das Suchwort
+    // behauptete eine Erklärung, die sie nicht liefert (7,4 % der Sätze haben
+    // einen abweichenden Ausführungsort, und ein Bundesland steht in `ort_ast`
+    // ohnehin nie).
+    key: 'standort', label: 'Ort & Bundesland', width: 175, defaultVisible: false,
+    sortable: true, filterable: true, appliesTo: 'antrag',
+    accessor: r => safeString(r.standort),
+    render: r => r.standort
+      ? (
+        <span className="text-[12px] text-[var(--tf-text)] truncate block" title={r.standort}>
+          <MarkierterText text={r.standort} />
+        </span>
+      )
+      : null,
+  },
+  {
+    // Nicht filterbar: der Wert ist eine zusammengesetzte Kette
+    // („lasertechnik • maschinenbau • …"), als Facette gäbe das tausende
+    // Einzelwerte, von denen keiner zweimal vorkommt.
+    //
+    // Klein geschrieben, und das ist kein Anzeigefehler: `readAntragDeskriptoren`
+    // normalisiert die Werte fürs Zusammenführen (TECHN-Spalten + ZT-Klartexte),
+    // und genau diese Form durchsucht die Suche. Das Auslastungs-Modul zeigt sie
+    // seit jeher genauso (`TechnologieTags` im DetailPanel) — sie hier
+    // aufzuhübschen hieße, einen anderen Text zu zeigen als den getroffenen.
+    key: 'deskriptoren', label: 'Deskriptoren', width: 240, defaultVisible: false,
+    sortable: true, filterable: false, appliesTo: 'antrag', wrap: true,
+    accessor: r => safeString(r.deskriptoren),
+    render: r => r.deskriptoren
+      ? (
+        <span className="text-[12px] text-[var(--tf-text-secondary)] whitespace-normal">
+          <MarkierterText text={r.deskriptoren} />
+        </span>
+      )
+      : null,
+  },
+  {
     key: 'laufzeitbeginn', label: 'Laufzeitbeginn', width: 150, defaultVisible: false,
     sortable: true, filterable: true, appliesTo: 'antrag',
     accessor: r => safeString(r.laufzeitbeginn),

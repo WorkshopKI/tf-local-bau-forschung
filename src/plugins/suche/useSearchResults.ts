@@ -49,6 +49,10 @@ export interface UseSearchResultsParams {
   begruendungById: Record<string, string> | null;
   analyseActive: boolean;
   visibleColumns: string[];
+  /** Spalten, die die Seite zusätzlich zur persönlichen Auswahl einblendet, weil
+   *  sie den Beleg des Treffers tragen (`autoSpalten.ts`). Sie kommen zur
+   *  Sichtbarkeit dazu, ändern die gespeicherte Auswahl aber nicht. */
+  autoColumnKeys: readonly string[];
 }
 
 export interface UseSearchResultsReturn {
@@ -69,7 +73,9 @@ export interface UseSearchResultsReturn {
 }
 
 export function useSearchResults(params: UseSearchResultsParams): UseSearchResultsReturn {
-  const { searchResults, begruendungById, analyseActive, visibleColumns } = params;
+  const {
+    searchResults, begruendungById, analyseActive, visibleColumns, autoColumnKeys,
+  } = params;
 
   // Sortierung und Spaltenfilter bleiben lokal — sie sind Feinarbeit an EINER
   // Trefferliste, nicht an der Suche.
@@ -190,10 +196,10 @@ export function useSearchResults(params: UseSearchResultsParams): UseSearchResul
   );
 
   const visibleColumnDefs = useMemo<SearchColumn[]>(() => {
-    const visibleSet = new Set(visibleColumns);
+    const visibleSet = new Set([...visibleColumns, ...autoColumnKeys]);
     const staticCols = SEARCH_COLUMNS.filter(c => visibleSet.has(c.key));
     return analyseActive ? [...staticCols, BEGRUENDUNG_COLUMN] : staticCols;
-  }, [visibleColumns, analyseActive]);
+  }, [visibleColumns, autoColumnKeys, analyseActive]);
 
   function handleSort(key: string): void {
     if (sortKey !== key) { setSortKey(key); setSortDirection('asc'); return; }
