@@ -19,6 +19,15 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.14 — 2026-08
+
+### Neu
+<!-- - Kurzer, verständlicher Satz (nur bei nutzersichtbaren Änderungen) -->
+### Verbesserungen
+- Unter „Suchindex → Verwaltung" steht bei der Textanalyse jetzt einfach das verwendete Modell (EmbeddingGemma 300M) statt einer Auswahlliste. Die anderen Modelle waren Erprobungs-Kandidaten: der gesamte Suchbestand ist mit diesem einen gebaut, ein Wechsel hätte ihn team-weit unbrauchbar gemacht.
+### Bugfixes
+<!-- - … -->
+
 ## v4.13 — 2026-08
 
 ### Neu

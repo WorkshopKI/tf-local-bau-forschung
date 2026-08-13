@@ -2,6 +2,8 @@
 
 Embedding-Modelle werden zentral in einer Registry geführt; das aktive Modell prägt sowohl den lokalen Suchindex als auch den team-weiten Auslastungs-Stage-2-Korpus (siehe CLAUDE.md Pitfall #19). Ein Modell-Wechsel ist ein team-weiter Bruch — beim **Hinzufügen** eines neuen Modells gilt aber: das aktive Modell bleibt vorerst gleich, neue Modelle sind nur in der Auswahlliste sichtbar.
 
+> **Stand seit v4.14.0**: `EMBEDDING_MODELS` führt **genau einen** Eintrag (EmbeddingGemma 300M), mit dem der gesamte Bestand gebaut ist. Das Kurator-UI zeigt bei einem einzigen Modell deshalb eine **Angabe statt eines Dropdowns** — ein Aufklapper mit einer Zeile sieht nach Wahl aus und ist keine. Wer ein Modell ergänzt, bekommt das Dropdown automatisch zurück (Abschnitt „Kurator-UI").
+
 ## Touch-Points (Pflicht)
 
 1. **Registry-Eintrag** in [src/core/services/search/model-registry.ts](../../src/core/services/search/model-registry.ts):
@@ -31,7 +33,7 @@ Embedding-Modelle werden zentral in einer Registry geführt; das aktive Modell p
 
 ## Optional, je nach Use-Case
 
-- **Kurator-UI** [src/plugins/kurator/actions/ActionCardModels.tsx](../../src/plugins/kurator/actions/ActionCardModels.tsx): rendert `EMBEDDING_MODELS` als Select. Kein Code-Change nötig wenn nur ein Eintrag dazukommt — neue Modelle erscheinen automatisch. Wenn das neue Modell besondere Hinweise braucht (z.B. "GPU empfohlen"), eigene `<p>`-Zeile im JSX bei Auswahl ergänzen.
+- **Kurator-UI** [src/plugins/kurator/actions/ActionCardModels.tsx](../../src/plugins/kurator/actions/ActionCardModels.tsx): rendert `EMBEDDING_MODELS` als Select, sobald **mehr als ein** Modell geführt wird (bei genau einem steht dort nur dessen Label). Kein Code-Change nötig wenn ein Eintrag dazukommt — das Dropdown samt Wechsel-Dialog erscheint automatisch. Wenn das neue Modell besondere Hinweise braucht (z.B. "GPU empfohlen"), eigene `<p>`-Zeile im JSX bei Auswahl ergänzen.
 
 - **Bestätigungs-Dialog** ([ConfirmModelSwitch oder analog]): wenn das neue Modell strukturell von bisherigen abweicht (z.B. andere Dimension, anderes Pooling), den Warntext aktualisieren — Pitfall #19 listet die drei Konsequenzen (Suchindex + Auslastungs-Korpus + Kategorie-Centroids). Bei gleicher Dimension nur "lokaler Suchindex neu bauen" nötig.
 
@@ -39,7 +41,14 @@ Embedding-Modelle werden zentral in einer Registry geführt; das aktive Modell p
 
 ## Modell entfernen
 
-Wenn ein Modell aus `EMBEDDING_MODELS` gelöscht werden soll, aber Nutzer es bereits aktiv haben: `getModelById()` returnt automatisch das erste Modell (Fallback) — ungiftig. Aber bestehende IDB-Caches passen dann ggf. nicht mehr zur Dimension. Sicherer: Modell drinlassen, optional `deprecated: true`-Flag einführen (heute nicht im Schema).
+Mit v4.14.0 einmal durchgespielt (MiniLM + beide Harrier raus). Was ein entferntes Modell auffängt:
+
+- **Aktive Wahl**: `getActiveModelId()` prüft den persistierten Wert gegen die Liste und fällt sonst auf `DEFAULT_MODEL_ID` — der Nutzer landet stillschweigend beim geführten Modell. `getModelById()` fällt zusätzlich auf den ersten Eintrag zurück.
+- **Bestehender Index**: `BatchIndexer.indexAll` vergleicht `index-model-id` mit dem aktiven Modell, verwirft bei Abweichung `orama-db` + Manifest und baut neu — die Dimensions-Inkompatibilität kommt also gar nicht erst zum Tragen. Der Kurator-Bereich meldet den Zustand vorher als „Modell gewechselt".
+- **Korpus vom Share**: `checkCompat` liefert `modell-mismatch` (Test in [embedding-corpus-mirror.test.ts](../../src/plugins/auslastung/__tests__/embedding-corpus-mirror.test.ts)).
+- **Index vom Share**: [index-persistence.ts](../../src/core/services/search/index-persistence.ts) sucht die Modell-Id **ohne Raten** in der Registry; eine unbekannte Id lässt die Dimensions-Angabe ungeschrieben, statt eine falsche zu setzen.
+
+Zu prüfen bleibt eine harte Stelle: **Startwerte im UI dürfen keine Modell-Id nennen**, sondern `DEFAULT_MODEL_ID` (siehe `IndexManager.tsx` — dort stand bis v4.14.0 eine feste Id und ließ die Ampel für einen Wimpernschlag „Modell gewechselt" melden). `grep -rn "'<entfernte-id>'" src` vor dem Commit.
 
 ## Verifikation
 

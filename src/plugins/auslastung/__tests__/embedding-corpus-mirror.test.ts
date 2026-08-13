@@ -222,6 +222,9 @@ describe('checkCompat', () => {
       .toEqual({ kind: 'compatible' });
   });
 
+  // `harrier-0.6b` ist seit v4.14.0 kein waehlbares Modell mehr — genau deshalb
+  // steht es hier: der Mismatch-Fall ist heute in erster Linie ein Korpus, den
+  // eine aeltere Fassung mit einem inzwischen entfernten Modell gebaut hat.
   it('andere modellId → modell-mismatch (beide Werte im Result)', () => {
     const r = checkCompat(makeManifest('embeddinggemma-300m', 768), 'harrier-0.6b', 1024);
     expect(r).toEqual({

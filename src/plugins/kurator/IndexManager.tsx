@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Tabs } from '@/components/ui/tabs';
 import { useStorage } from '@/core/hooks/useStorage';
-import { getActiveModelId, getModelById } from '@/core/services/search/model-registry';
+import { getActiveModelId, getModelById, DEFAULT_MODEL_ID } from '@/core/services/search/model-registry';
 import { indexSpracheVeraltet } from '@/core/services/search/orama-store';
 import { useSearch } from '@/core/hooks/useSearch';
 import { METADATA_LLM_MODELS } from '@/core/services/search/metadata-extractor';
@@ -21,7 +21,11 @@ export function IndexManager(): React.ReactElement {
   const [chunkCount, setChunkCount] = useState(0);
   const [docCount, setDocCount] = useState(0);
   const [lastUpdate, setLastUpdate] = useState<string | null>(null);
-  const [activeModelId, setActiveModelIdState] = useState('minilm-l6-v2');
+  // Startwert = Vorgabe, nicht ein hart genanntes Modell: der echte Wert kommt
+  // gleich aus der IDB (`getActiveModelId` unten). Stand hier bis v4.14.0 die
+  // Id eines Erprobungs-Modells — dann meldete die Karte fuer einen Wimpernschlag
+  // „Modell gewechselt", und ein Lauf vor dem Nachladen haette falsch indexiert.
+  const [activeModelId, setActiveModelIdState] = useState(DEFAULT_MODEL_ID);
   const [indexModelId, setIndexModelId] = useState<string | null>(null);
   const [seeded, setSeeded] = useState(false);
   const [seeding, setSeeding] = useState(false);

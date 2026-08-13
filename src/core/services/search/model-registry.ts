@@ -17,21 +17,21 @@ export interface EmbeddingModelConfig {
   useMRL?: boolean;
 }
 
+/**
+ * Die auswählbaren Embedding-Modelle — bewusst **genau eines**.
+ *
+ * Das aktive Modell prägt den Suchindex, den team-weiten Auslastungs-Korpus auf
+ * dem Share und die Kategorie-Centroids; ein Wechsel entwertet alle drei
+ * gleichzeitig (Pitfall #19). Eine Auswahlliste stellt diese Entscheidung
+ * jedem Kurator jederzeit zur Verfügung, obwohl sie längst gefallen ist —
+ * darum steht hier nur noch das Modell, mit dem der Bestand gebaut ist.
+ *
+ * Die Erprobungs-Kandidaten (MiniLM 384d, Harrier 270M/0.6B) sind mit v4.14.0
+ * entfallen; ihre Configs stehen in der Git-Historie. Ein Modell wieder
+ * aufzunehmen ist ein Eintrag hier — das UI zieht nach
+ * ([add-embedding-model.md](../../../../docs/agents/add-embedding-model.md)).
+ */
 export const EMBEDDING_MODELS: EmbeddingModelConfig[] = [
-  {
-    id: 'minilm-l6-v2',
-    name: 'Xenova/all-MiniLM-L6-v2',
-    label: 'MiniLM L6 v2 (fp32)',
-    dimensions: 384,
-    sizeLabel: '22M',
-    downloadSize: '~80 MB',
-    strategy: 'pipeline',
-    pooling: 'mean',
-    normalize: true,
-    queryPrefix: '',
-    documentPrefix: '',
-    description: 'Schnell, englisch-optimiert. Gute Baseline.',
-  },
   {
     id: 'embeddinggemma-300m',
     name: 'onnx-community/embeddinggemma-300m-ONNX',
@@ -49,38 +49,6 @@ export const EMBEDDING_MODELS: EmbeddingModelConfig[] = [
     description: 'Google, multilingual, 100+ Sprachen. Beste Balance aus Qualitaet und Geschwindigkeit.',
     matryoshka: [768, 512, 384, 256, 128],
   },
-  {
-    id: 'harrier-270m',
-    name: 'onnx-community/harrier-oss-v1-270m-ONNX',
-    label: 'Harrier 270M (fp16)',
-    dimensions: 640,
-    sizeLabel: '270M',
-    downloadSize: '~135 MB (fp16)',
-    strategy: 'automodel',
-    dtype: 'fp16',
-    pooling: 'last-token',
-    normalize: true,
-    // Original (englisch): 'Instruct: Given a search query, retrieve relevant passages that answer the query\nQuery: '
-    queryPrefix: 'Instruct: Finde relevante Textabschnitte aus deutschen Verwaltungsdokumenten die zur Suchanfrage passen\nQuery: ',
-    documentPrefix: '',
-    description: 'Microsoft, MTEB-SOTA, multilingual, decoder-only. Schnell wie EmbeddingGemma.',
-  },
-  {
-    id: 'harrier-0.6b',
-    name: 'onnx-community/harrier-oss-v1-0.6b-ONNX',
-    label: 'Harrier 0.6B (q8)',
-    dimensions: 1024,
-    sizeLabel: '600M',
-    downloadSize: '~1 GB (q8)',
-    strategy: 'automodel',
-    dtype: 'q8',
-    pooling: 'last-token',
-    normalize: true,
-    // Original (englisch): 'Instruct: Given a search query, retrieve relevant passages that answer the query\nQuery: '
-    queryPrefix: 'Instruct: Finde relevante Textabschnitte aus deutschen Verwaltungsdokumenten die zur Suchanfrage passen\nQuery: ',
-    documentPrefix: '',
-    description: 'Microsoft, MTEB-SOTA, multilingual, 1024d. Langsamer, beste Qualitaet. GPU empfohlen.',
-  },
 ];
 
 export const DEFAULT_MODEL_ID = 'embeddinggemma-300m';
@@ -91,6 +59,12 @@ export function getModelById(id: string): EmbeddingModelConfig {
   return EMBEDDING_MODELS.find(m => m.id === id) ?? EMBEDDING_MODELS[0]!;
 }
 
+/**
+ * Das aktive Modell. Ein persistierter Wert, den diese Fassung nicht mehr führt
+ * (etwa ein Erprobungs-Modell aus einer älteren Version), fällt still auf
+ * `DEFAULT_MODEL_ID` zurück — das ist zugleich die Migration: der Indexer
+ * bemerkt den Modellwechsel gegen `index-model-id` und baut neu auf.
+ */
 export async function getActiveModelId(
   idb: { get: <T>(key: string) => Promise<T | null> },
 ): Promise<string> {

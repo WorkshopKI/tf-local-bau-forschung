@@ -5,6 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.14.0 — Suchindex: nur noch das gefuehrte Embedding-Modell (August 2026)
+
+MINOR — Die Modell-Auswahl im Kurator-Bereich bot vier Embedding-Modelle an, obwohl die Entscheidung längst gefallen ist: der gesamte Bestand (Suchindex, Auslastungs-Korpus auf dem Share, Kategorie-Centroids) ist mit EmbeddingGemma gebaut, und ein Wechsel entwertet alle drei gleichzeitig (Pitfall #19). Eine Liste, aus der nur ein Eintrag richtig ist, ist keine Wahl, sondern eine Falle.
+
+- **Nur noch das geführte Modell in der Registry** ([model-registry.ts](src/core/services/search/model-registry.ts)): MiniLM 384d und beide Harrier entfallen; ein persistierter Alt-Wert fällt still auf `DEFAULT_MODEL_ID`, der Indexer bemerkt den Wechsel gegen `index-model-id` und baut neu
+- **Angabe statt Aufklapper** ([ActionCardModels.tsx](src/plugins/kurator/actions/ActionCardModels.tsx)): bei genau einem Modell steht dort dessen Label als Text — ein Dropdown mit einer Zeile sieht nach Wahl aus und ist keine; ab zwei Einträgen kommt Select samt Wechsel-Dialog zurück
+- **Startwert ohne feste Modell-Id** ([IndexManager.tsx](src/plugins/kurator/IndexManager.tsx)): der Zustand startet auf `DEFAULT_MODEL_ID` statt auf einer genannten Id — die meldete zwischen zwei asynchronen Ladevorgängen kurz „Modell gewechselt"
+- **Was ein entferntes Modell auffängt, steht jetzt geschrieben** ([add-embedding-model.md](docs/agents/add-embedding-model.md)): aktive Wahl, lokaler Index, Share-Korpus und Share-Index — vier Stellen, alle vorhanden, keine neu gebaut
+
 ### v4.13.0 — Detailseite kompakt, Historie belegt (August 2026)
 
 MINOR — Die Antrags-Detailseite kostete zu viel Scroll-Weg, bevor das Wichtigste sichtbar wurde: fast alle Sektionen starteten offen, zwischen ihnen lagen je 48 px, und ein unsichtbarer leerer Block zog Strich plus Abstand ein. Dabei fiel auf, dass die Sektion „Historie" strukturell nie etwas zeigen konnte — sie las einen Store, den kein ausgeliefertes CSV-Mapping befüllt.

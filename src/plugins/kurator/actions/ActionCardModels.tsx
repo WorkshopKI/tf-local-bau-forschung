@@ -48,9 +48,13 @@ export function ActionCardModels({
 
       <p className="text-[13px] font-medium text-[var(--tf-text)]">KI Modelle auswaehlen</p>
 
-      {/* Textanalyse */}
+      {/* Textanalyse — bei genau einem Modell keine Auswahl, sondern eine Angabe:
+          ein Aufklapper mit einer einzigen Zeile sieht nach Wahl aus und ist keine. */}
       <div className="space-y-1">
         <p className="text-[12px] text-[var(--tf-text-secondary)]">Textanalyse</p>
+        {EMBEDDING_MODELS.length === 1 ? (
+          <p className="text-[12px] text-[var(--tf-text)]">{EMBEDDING_MODELS[0]!.label}</p>
+        ) : (
         <Select
           options={EMBEDDING_MODELS.map(m => ({ value: m.id, label: m.label }))}
           value={activeModelId}
@@ -77,6 +81,7 @@ export function ActionCardModels({
             setActiveModelIdState(newId);
             await setActiveModelId(storage.idb, newId);
           }} />
+        )}
       </div>
 
       {/* Metadaten-Extraktion */}
