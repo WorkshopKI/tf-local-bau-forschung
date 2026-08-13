@@ -1,14 +1,10 @@
 import { useState } from 'react';
 import { Search } from 'lucide-react';
 import {
-  GROUP_LABEL,
   searchSettings,
-  type SettingsGroup,
   type SettingsPanel,
   type SettingsSearchEntry,
 } from './settingsPanels';
-
-const GROUP_ORDER: SettingsGroup[] = ['persoenlich', 'system'];
 
 interface SettingsNavProps {
   panels: SettingsPanel[];
@@ -20,9 +16,10 @@ interface SettingsNavProps {
 }
 
 /**
- * Settings-Sidebar (Design-Handoff „Variante B"): Suchfeld (Strg+,) + zwei
- * Gruppen (Persönlich / System) mit Nav-Items. Reine Präsentation — Auswahl und
- * Sprung-zu-Abschnitt kommen als Callbacks aus der EinstellungenPage.
+ * Settings-Navigation (Design-Handoff `einstellungen-zweispaltig`): Suchfeld
+ * (Strg+,) über einer flachen Liste der vier Seiten, darunter die Fußzeile mit
+ * dem Kürzel und dem Hinweis auf die ⓘ-Popover. Reine Präsentation — Auswahl
+ * und Sprung-zu-Abschnitt kommen als Callbacks aus der EinstellungenPage.
  */
 export function SettingsNav({
   panels,
@@ -122,37 +119,41 @@ export function SettingsNav({
         )}
       </div>
 
-      {/* Gruppen */}
-      {GROUP_ORDER.map(group => {
-        const groupPanels = panels.filter(p => p.group === group);
-        if (groupPanels.length === 0) return null;
-        return (
-          <div key={group}>
-            <p className="text-[10.5px] font-medium uppercase tracking-[0.08em] text-[var(--tf-text-tertiary)] mt-[22px] mb-2 ml-2.5">
-              {GROUP_LABEL[group]}
-            </p>
-            {groupPanels.map(panel => {
-              const Icon = panel.icon;
-              const active = panel.id === activePanel;
-              return (
-                <button
-                  key={panel.id}
-                  type="button"
-                  onClick={() => onSelectPanel(panel.id)}
-                  className={`w-full flex items-center gap-2.5 px-2.5 py-[7px] rounded-[var(--tf-radius)] text-[13px] text-left transition-colors ${
-                    active
-                      ? 'bg-[var(--tf-primary-light)] text-[var(--tf-primary)] font-medium'
-                      : 'text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)]'
-                  }`}
-                >
-                  <Icon size={14} strokeWidth={1.5} className={`shrink-0 ${active ? '' : 'opacity-75'}`} />
-                  <span className="truncate">{panel.label}</span>
-                </button>
-              );
-            })}
-          </div>
-        );
-      })}
+      {/* Seiten. Seit v4.28 flach statt in zwei Gruppen: bei vier Einträgen
+          kosteten „Persönlich"/„System" zwei Überschriften und trennten
+          nichts, was der Name der Seite nicht schon sagt. */}
+      <div className="mt-[18px] flex flex-col gap-0.5">
+        {panels.map(panel => {
+          const Icon = panel.icon;
+          const active = panel.id === activePanel;
+          return (
+            <button
+              key={panel.id}
+              type="button"
+              onClick={() => onSelectPanel(panel.id)}
+              className={`w-full flex items-center gap-2.5 px-2.5 py-[7px] rounded-[var(--tf-radius)] text-[13px] text-left transition-colors cursor-pointer ${
+                active
+                  ? 'bg-[var(--tf-primary-light)] text-[var(--tf-primary)] font-medium'
+                  : 'text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)]'
+              }`}
+            >
+              <Icon size={14} strokeWidth={1.5} className={`shrink-0 ${active ? '' : 'opacity-75'}`} />
+              <span className="truncate">{panel.label}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      <p className="mt-[22px] mx-2.5 text-[11.5px] leading-[1.5] text-[var(--tf-text-tertiary)]">
+        Suche mit{' '}
+        <kbd
+          className="font-mono text-[10.5px] rounded-[4px] px-1 py-[2px] bg-[var(--tf-bg-secondary)]"
+          style={{ border: '0.5px solid var(--tf-border)' }}
+        >
+          Strg + ,
+        </kbd>{' '}
+        · Details überall hinter <span aria-hidden>ⓘ</span>
+      </p>
     </div>
   );
 }

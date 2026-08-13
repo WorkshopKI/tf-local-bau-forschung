@@ -19,6 +19,14 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.28 — 2026-08
+
+### Verbesserungen
+- Die Einstellungen haben statt fünf nur noch vier Seiten: „Meine Technologien" ist als Bereich „Mein Fachprofil" in „Mein Profil" umgezogen. Die Suche findet die Punkte weiterhin unter dem alten Namen.
+- Jede Seite trägt jetzt eine Zeile darunter, die sagt, wofür sie zuständig ist.
+- Die kleinen ⓘ öffnen sich auf Klick und bleiben stehen, bis Sie danebenklicken oder Esc drücken — vorher verschwanden sie beim Lesen.
+- Die Einstellungs-Suche findet zwei Punkte, die es vorher nicht gab: „Arbeitsverlauf" und „Verbundene Verzeichnisse".
+
 ## v4.27 — 2026-08
 
 ### Bugfixes

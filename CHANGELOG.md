@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.28.0 — Einstellungen: vier Seiten statt fünf, Details hinter dem ⓘ (August 2026)
+
+MINOR — Erste Etappe des Redesigns aus `_design/handoff/einstellungen-zweispaltig`: Registry, Navigation und die Bauteile, auf denen die vier Seiten danach entstehen. Die Inhalte selbst stehen noch wie bisher; sichtbar ändert sich der Menüschnitt und die Art, wie Erklärungen erscheinen.
+
+- **„Meine Technologien" ist kein eigener Menüpunkt mehr** ([settingsPanels.tsx](src/plugins/einstellungen/settingsPanels.tsx)): vier Seiten statt fünf, flache Liste statt zweier Gruppen — die fünf `sec-`Anker wandern unverändert nach „Mein Profil" und behalten den alten Menünamen als Suchbegriff
+- **Das ⓘ öffnet auf Klick statt auf Hover** ([settings-primitives.tsx](src/plugins/einstellungen/_shared/settings-primitives.tsx)): Voraussetzung dafür, dass die Erklärabsätze der Seiten dort hineinziehen — ein Tooltip verschwindet beim Lesen
+- **Neue Layout-Schicht** ([settings-layout.tsx](src/plugins/einstellungen/_shared/settings-layout.tsx), [einstellungen-layout.css](src/plugins/einstellungen/einstellungen-layout.css)): Zweispalten-Rumpf, Gruppen-Karte, Options-Zeile, Klappe, Stepper — Umbruch über eine Container-Query, weil die App-Sidebar ziehbar ist
+- **Der Sprung der Suche klappt sein Ziel auf** ([EinstellungenPage.tsx](src/plugins/einstellungen/EinstellungenPage.tsx)): Sprung-Kontext statt nur Scroll; der Scroll läuft jetzt über `setTimeout` statt `requestAnimationFrame`, das im Hintergrund-Tab ruht
+- **Zwei tote Suchtreffer geheilt**: `sec-gedaechtnis-eval` stand nie im Index, `sec-arbeitsverlauf`/`sec-verzeichnisse` hatten keinen Anker ([SpeicherTab.tsx](src/plugins/einstellungen/SpeicherTab.tsx))
+
 ### v4.27.0 — Der Rest der CSV-Bugjagd (August 2026)
 
 MINOR — Die letzten neun Befunde der CSV-Bug-Jagd. Zwei ändern das Verhalten spürbar: eine korrigierte Spalten-Typ-Angabe wirkt jetzt, und der Beispieldaten-Knopf kann keinen belegten Suchindex mehr leeren.

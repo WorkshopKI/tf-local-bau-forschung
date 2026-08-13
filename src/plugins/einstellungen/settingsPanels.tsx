@@ -1,14 +1,19 @@
 /**
- * Panel- & Such-Registry der Einstellungen (Design-Handoff „Variante B").
+ * Panel- & Such-Registry der Einstellungen (Design-Handoff
+ * `_design/handoff/einstellungen-zweispaltig`).
  *
- * Single Source of Truth für die Settings-Sidebar-Navigation UND den Suchindex:
- * 9 alte Tabs → 5 Panels in zwei Gruppen (Persönlich / System). Sichtbarkeit von
- * Panels und Abschnitten folgt exakt den bisherigen Feature-Flags — nur die
- * Verortung ändert sich. Der Suchindex wird aus den sichtbaren Abschnitten
- * abgeleitet (respektiert die Flags automatisch).
+ * Single Source of Truth für die Settings-Navigation UND den Suchindex:
+ * **4 Panels** — „Meine Technologien" ist seit v4.28 kein eigener Menüpunkt
+ * mehr, sondern die Gruppe „Mein Fachprofil" in „Mein Profil". Die
+ * `sec-…`-Anker der alten Seite bleiben unverändert; sie sind der Vertrag von
+ * Suche, Deep-Links (`?sektion=…`) und `ModulSchlossGate`.
+ *
+ * Sichtbarkeit von Panels und Abschnitten folgt den Feature-Flags — der
+ * Suchindex wird aus den sichtbaren Abschnitten abgeleitet und respektiert sie
+ * dadurch automatisch.
  */
 import type { LucideIcon } from 'lucide-react';
-import { User, LayoutGrid, Contrast, Sparkles, Database } from 'lucide-react';
+import { User, Contrast, Sparkles, Database } from 'lucide-react';
 import {
   isDevContext,
   isDevFixturesEnabled,
@@ -33,13 +38,6 @@ import { DokumentenquellenTab } from './DokumentenquellenTab';
 import { TagsTab } from './TagsTab';
 import { OnlineTab } from './OnlineTab';
 
-export type SettingsGroup = 'persoenlich' | 'system';
-
-export const GROUP_LABEL: Record<SettingsGroup, string> = {
-  persoenlich: 'Persönlich',
-  system: 'System',
-};
-
 /** Sprung-Ziel für die Einstellungs-Suche (DOM-`id` eines Abschnitts). */
 export interface SettingsSectionRef {
   id: string;
@@ -51,8 +49,9 @@ export interface SettingsSectionRef {
 export interface SettingsPanel {
   id: string;
   label: string;
+  /** Eine Zeile unter der Überschrift — wofür diese Seite zuständig ist. */
+  untertitel: string;
   icon: LucideIcon;
-  group: SettingsGroup;
   sections: SettingsSectionRef[];
   render: () => React.ReactElement;
 }
@@ -60,7 +59,6 @@ export interface SettingsPanel {
 export interface SettingsSearchEntry extends SettingsSectionRef {
   panelId: string;
   panelLabel: string;
-  groupLabel: string;
 }
 
 interface PanelContext {
@@ -72,16 +70,23 @@ interface PanelContext {
 export function getSettingsPanels(ctx: PanelContext): SettingsPanel[] {
   const panels: SettingsPanel[] = [];
 
-  // ── Persönlich ──
   panels.push({
     id: 'profil',
     label: 'Mein Profil',
+    untertitel: 'Wer du bist, was zu dir passt, was auf der Startseite landet.',
     icon: User,
-    group: 'persoenlich',
     sections: [
       { id: 'sec-account', label: 'Account', keywords: 'name avatar kurator profil' },
-      { id: 'sec-filter', label: 'Bearbeiter-Filter', keywords: 'kürzel inaktive begleitungen filter' },
-      { id: 'sec-home', label: 'Initial sichtbare Anträge', keywords: 'home dashboard anzahl startseite' },
+      // „Mein Fachprofil" — bis v4.27 das eigene Panel „Meine Technologien".
+      // Der alte Menüname bleibt als Suchbegriff an den Abschnitten, sonst
+      // fände ihn niemand mehr, der ihn im Kopf hat.
+      { id: 'sec-programm', label: 'Programmkennung', keywords: 'programm automatisch speichern ma meine technologien fachprofil' },
+      { id: 'sec-kategorien', label: 'Meine Kategorien', keywords: 'hauptkategorie ergänzende erfahrungen matching technologien meine technologien fachprofil' },
+      { id: 'sec-antragstypen', label: 'Antragstypen', keywords: 'fue ds dl nw typen meine technologien fachprofil' },
+      { id: 'sec-themen', label: 'Themen aus deinen Anträgen', keywords: 'themen technologien gewählt auto-tags meine technologien' },
+      { id: 'sec-kompetenzen', label: 'Eigene Kompetenzen', keywords: 'machine learning skills kompetenzen technologien meine technologien' },
+      { id: 'sec-filter', label: 'Bearbeiter-Filter', keywords: 'kürzel inaktive begleitungen filter rolle ztp pfm welche anträge' },
+      { id: 'sec-home', label: 'Anträge auf der Startseite', keywords: 'home dashboard anzahl startseite initial sichtbar' },
       // Der freie Kurator-Schalter existiert nur in Builds OHNE Kurator-Schloss
       // (ProfilTab) — die zweite Bedingung muss mit, sonst bietet die Navigation
       // in `pl` einen Abschnitt an, den es auf der Seite nicht gibt.
@@ -108,30 +113,19 @@ export function getSettingsPanels(ctx: PanelContext): SettingsPanel[] {
           ]
         : []),
     ],
-    render: () => <ProfilTab />,
+    render: () => (
+      <div className="space-y-8">
+        <ProfilTab />
+        <MeineTechnologienTab />
+      </div>
+    ),
   });
 
-  panels.push({
-    id: 'technologien',
-    label: 'Meine Technologien',
-    icon: LayoutGrid,
-    group: 'persoenlich',
-    sections: [
-      { id: 'sec-programm', label: 'Programmkennung', keywords: 'programm automatisch speichern ma' },
-      { id: 'sec-kategorien', label: 'Meine Kategorien', keywords: 'hauptkategorie ergänzende erfahrungen matching technologien' },
-      { id: 'sec-antragstypen', label: 'Antragstypen', keywords: 'fue ds dl nw typen' },
-      { id: 'sec-themen', label: 'Aus deinen bisherigen Anträgen', keywords: 'themen technologien gewählt' },
-      { id: 'sec-kompetenzen', label: 'Zusätzliche Kompetenzen', keywords: 'machine learning skills kompetenzen technologien' },
-    ],
-    render: () => <MeineTechnologienTab />,
-  });
-
-  // ── System ──
   panels.push({
     id: 'darstellung',
     label: 'Darstellung & Bedienung',
+    untertitel: 'Gilt nur für dieses Gerät.',
     icon: Contrast,
-    group: 'system',
     sections: [
       { id: 'sec-farbe', label: 'Primärfarbe', keywords: 'akzent farbe darstellung' },
       { id: 'sec-erscheinung', label: 'Erscheinungsbild', keywords: 'dark light theme darstellung modus' },
@@ -153,10 +147,12 @@ export function getSettingsPanels(ctx: PanelContext): SettingsPanel[] {
   panels.push({
     id: 'daten',
     label: 'Daten & Verbindungen',
+    untertitel: 'Woher die App ihre Daten liest und wohin sie deine speichert.',
     icon: Database,
-    group: 'system',
     sections: [
-      { id: 'sec-speicher', label: 'Speicherorte', keywords: 'datenordner zah netzlaufwerk speicher csv-import aktualisieren datenaktualisierung persönlicher ordner csv-quellen' },
+      { id: 'sec-speicher', label: 'Ordner', keywords: 'datenordner zah netzlaufwerk speicher speicherorte csv-import aktualisieren datenaktualisierung persönlicher ordner csv-quellen' },
+      { id: 'sec-verzeichnisse', label: 'Verbundene Verzeichnisse', keywords: 'verzeichnis hinzufügen dokumentverzeichnis datenverzeichnis opfs sandbox wurzel' },
+      { id: 'sec-arbeitsverlauf', label: 'Arbeitsverlauf', keywords: 'arbeitsverlauf arbeitskontext protokoll letzte schritte' },
       { id: 'sec-doku', label: 'Persönliche Dokumentenquellen', keywords: 'pfade embedding dms dokumente' },
       { id: 'sec-tags', label: 'Tags', keywords: 'tag-verwaltung neu zählen' },
       ...(isOnlineStatusTabEnabled()
@@ -187,15 +183,18 @@ export function getSettingsPanels(ctx: PanelContext): SettingsPanel[] {
     }
     if (isDevFixturesEnabled()) {
       sections.push({ id: 'sec-aufbereitung-eval', label: 'Aufbereitung: Baustein-Eval', keywords: 'eval fixtures goldset aspekte steckbrief precision recall aufbereitung baustein bridge messung' });
+      // Der Anker existiert seit v2.256 in AIProviderTab, stand aber nie im
+      // Suchindex — als einziger Abschnitt weder auffindbar noch deeplinkbar.
+      sections.push({ id: 'sec-gedaechtnis-eval', label: 'Gedächtnis: Eval', keywords: 'gedächtnis eval messung konsolidierung fixtures assistent' });
     }
     if (isAntragAufbereitungEnabled()) {
-      sections.push({ id: 'sec-aufbereitung-recherche', label: 'Aufbereitung: Recherche', keywords: 'deep research recherche url chatgpt claude mistral marktzugang aufbereitung kmu ziel externe' });
+      sections.push({ id: 'sec-aufbereitung-recherche', label: 'Externe Recherche-Ziele', keywords: 'deep research recherche url chatgpt claude mistral marktzugang aufbereitung kmu ziel externe' });
     }
     panels.push({
       id: 'ki',
       label: 'Interne KI',
+      untertitel: 'Verbindung zur internen KI und wie sie antwortet.',
       icon: Sparkles,
-      group: 'system',
       sections,
       render: () => <AIProviderTab aiConfig={ctx.aiConfig} setAiConfig={ctx.setAiConfig} />,
     });
@@ -213,7 +212,6 @@ export function buildSearchIndex(panels: SettingsPanel[]): SettingsSearchEntry[]
         ...section,
         panelId: panel.id,
         panelLabel: panel.label,
-        groupLabel: GROUP_LABEL[panel.group],
       });
     }
   }
@@ -225,6 +223,6 @@ export function searchSettings(index: SettingsSearchEntry[], query: string): Set
   const q = query.trim().toLowerCase();
   if (q.length < 2) return [];
   return index
-    .filter(e => `${e.label} ${e.keywords} ${e.panelLabel} ${e.groupLabel}`.toLowerCase().includes(q))
+    .filter(e => `${e.label} ${e.keywords} ${e.panelLabel}`.toLowerCase().includes(q))
     .slice(0, 6);
 }

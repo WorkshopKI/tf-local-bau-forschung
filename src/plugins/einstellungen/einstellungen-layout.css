@@ -1,0 +1,36 @@
+/*
+ * Zweispalten-Umbruch der Einstellungen (Design-Handoff
+ * `_design/handoff/einstellungen-zweispaltig`).
+ *
+ * Gemessen wird die INHALTSBREITE, nicht der Viewport: die App-Sidebar ist
+ * ziehbar (140–360 px) und einklappbar, eine `@media`-Regel maesse also am
+ * falschen Mass — bei schmaler Sidebar bliebe es unnoetig einspaltig, bei
+ * breiter wuerden die Spalten gequetscht. Praezedenz im Haus:
+ * `src/plugins/feedback-board/ticketsystem.css`.
+ *
+ * Der Rest des Layouts (Karten, Abstaende, Farben) laeuft ueber Tailwind +
+ * `--tf-*` in `_shared/settings-layout.tsx` — hier stehen NUR die Regeln, die
+ * eine Container-Query brauchen.
+ */
+.tf-set-cols {
+  container-type: inline-size;
+}
+
+.tf-set-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px 0;
+  align-items: start;
+}
+
+@container (min-width: 900px) {
+  .tf-set-grid {
+    grid-template-columns: minmax(0, 1.32fr) minmax(0, 1fr);
+    gap: 0 26px;
+  }
+
+  .tf-set-grid > .tf-set-neben {
+    border-left: 0.5px solid var(--tf-border);
+    padding-left: 26px;
+  }
+}

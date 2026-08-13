@@ -452,36 +452,45 @@ export function SpeicherTab(): React.ReactElement {
         )}
       </section>
 
-      {verlauf.length > 0 && (
-        <section className="scroll-mt-20 space-y-3">
-          <SettingsSectionHeader label="Arbeitsverlauf" />
-          <p className="text-[12px] text-[var(--tf-text-secondary)] leading-snug">
-            Zuletzt bearbeitete Gutachten, Nachforderungen und Kurzfassungen — Quelle der
-            „Weitermachen"-Karte auf der Startseite.{' '}
-            <span className="text-[var(--tf-text-tertiary)]">Nur lokal auf diesem Gerät; wird nicht synchronisiert oder exportiert.</span>
+      {/* Anker `sec-arbeitsverlauf` steht seit v4.28 auch bei leerem Verlauf im
+          DOM — die Einstellungs-Suche fuehrt ihn, und ein Sprungziel, das je
+          nach Datenlage fehlt, ist ein toter Treffer. */}
+      <section id="sec-arbeitsverlauf" className="scroll-mt-20 space-y-3">
+        <SettingsSectionHeader label="Arbeitsverlauf" />
+        <p className="text-[12px] text-[var(--tf-text-secondary)] leading-snug">
+          Zuletzt bearbeitete Gutachten, Nachforderungen und Kurzfassungen — Quelle der
+          „Weitermachen"-Karte auf der Startseite.{' '}
+          <span className="text-[var(--tf-text-tertiary)]">Nur lokal auf diesem Gerät; wird nicht synchronisiert oder exportiert.</span>
+        </p>
+        {verlauf.length === 0 ? (
+          <p className="text-[12.5px] text-[var(--tf-text-tertiary)]">
+            Noch nichts bearbeitet — der Verlauf füllt sich beim Arbeiten an Anträgen.
           </p>
-          <div className="rounded-[var(--tf-radius)] overflow-hidden" style={{ border: '0.5px solid var(--tf-border)' }}>
-            {verlauf.map((e, i) => (
-              <ListItem
-                key={`${e.typ}:${e.verbundKey}`}
-                icon={<History size={14} className="text-[var(--tf-text-tertiary)]" />}
-                title={VERLAUF_TYP_LABEL[e.typ]}
-                subtitle={e.verbundKey}
-                meta={<span className="text-[11px] text-[var(--tf-text-tertiary)] tabular-nums">{formatVerlaufZeit(e.ts)}</span>}
-                last={i === verlauf.length - 1}
-              />
-            ))}
-          </div>
-          <div>
-            <Button variant="secondary" icon={Trash2} onClick={handleClearVerlauf} disabled={verlaufBusy}>
-              {verlaufBusy ? 'Lösche…' : 'Verlauf löschen'}
-            </Button>
-          </div>
-        </section>
-      )}
+        ) : (
+          <>
+            <div className="rounded-[var(--tf-radius)] overflow-hidden" style={{ border: '0.5px solid var(--tf-border)' }}>
+              {verlauf.map((e, i) => (
+                <ListItem
+                  key={`${e.typ}:${e.verbundKey}`}
+                  icon={<History size={14} className="text-[var(--tf-text-tertiary)]" />}
+                  title={VERLAUF_TYP_LABEL[e.typ]}
+                  subtitle={e.verbundKey}
+                  meta={<span className="text-[11px] text-[var(--tf-text-tertiary)] tabular-nums">{formatVerlaufZeit(e.ts)}</span>}
+                  last={i === verlauf.length - 1}
+                />
+              ))}
+            </div>
+            <div>
+              <Button variant="secondary" icon={Trash2} onClick={handleClearVerlauf} disabled={verlaufBusy}>
+                {verlaufBusy ? 'Lösche…' : 'Verlauf löschen'}
+              </Button>
+            </div>
+          </>
+        )}
+      </section>
 
 
-      <section className="scroll-mt-20 space-y-4">
+      <section id="sec-verzeichnisse" className="scroll-mt-20 space-y-4">
       {(directories.length > 0 || isKuratorFreigeschaltet()) && (
         <SettingsSectionHeader label="Verbundene Verzeichnisse" />
       )}

@@ -4,8 +4,10 @@ import { useStorage } from '@/core/hooks/useStorage';
 import { useKeyboardShortcut } from '@/core/hooks/useKeyboard';
 import { SettingsNav } from './SettingsNav';
 import { getSettingsPanels, buildSearchIndex } from './settingsPanels';
+import { SettingsSprungProvider, type SettingsSprungZiel } from './_shared/settings-layout';
 import type { AIProviderConfig } from '@/core/types/config';
 import { SeitenHilfeButton } from '@/components/help/SeitenHilfeButton';
+import './einstellungen-layout.css';
 
 export function EinstellungenPage(): React.ReactElement {
   const storage = useStorage();
@@ -13,9 +15,11 @@ export function EinstellungenPage(): React.ReactElement {
   const [aiConfig, setAiConfig] = useState<AIProviderConfig>({ type: 'streamlit', endpoint: 'https://gpt.vdivde-it.de/', model: '', apiKey: '' });
 
   const searchInputRef = useRef<HTMLInputElement>(null);
-  // Nach einem Such-Sprung: Panel wird erst umgeschaltet, das Ziel ist danach
-  // (frisch gemountet) im DOM → Scroll+Flash erst im useEffect (rAF).
-  const pendingSection = useRef<string | null>(null);
+  // Sprung-Ziel der Suche/Deep-Links. Es steuert ZWEI Dinge: den Scroll+Flash
+  // hier und — über den Kontext — das Aufklappen der `SettingsKlappe`, in der
+  // das Ziel steckt. Der Zähler macht denselben Treffer wiederholbar.
+  const [sprung, setSprung] = useState<SettingsSprungZiel | null>(null);
+  const sprungZaehler = useRef(0);
 
   useEffect(() => {
     storage.idb.get<AIProviderConfig>('ai-provider').then(c => { if (c) setAiConfig(c); });
@@ -33,7 +37,8 @@ export function EinstellungenPage(): React.ReactElement {
 
   const goToSection = (panelId: string, sectionId: string): void => {
     setActivePanel(panelId);
-    pendingSection.current = sectionId;
+    sprungZaehler.current += 1;
+    setSprung({ id: sectionId, nr: sprungZaehler.current });
   };
 
   // Deep-Link von außerhalb (v2.229, z.B. Widget-Popover „Alle Einstellungen →"):
@@ -47,31 +52,31 @@ export function EinstellungenPage(): React.ReactElement {
     const panel = panels.find(p => p.sections.some(s => s.id === ziel));
     if (!panel) return;
     behandelteSektion.current = ziel;
-    if (panel.id === activePanel) {
-      // Scroll-Effekt unten feuert nur bei Panel-WECHSEL — hier direkt scrollen.
-      requestAnimationFrame(() => {
-        document.getElementById(ziel)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      });
-    } else {
-      setActivePanel(panel.id);
-      pendingSection.current = ziel;
-    }
-  }, [searchParams, panels, activePanel]);
+    goToSection(panel.id, ziel);
+    // `goToSection` ist stabil genug (nur setState + Ref) — als Abhängigkeit
+    // würde es den Effekt bei jedem Render neu bewerten.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, panels]);
 
+  // Scroll + Flash, einen Tick nach dem Panel-Wechsel: erst dann ist das Ziel
+  // gemountet. Bewusst `setTimeout` statt `requestAnimationFrame` — rAF ruht,
+  // solange das Fenster nicht zeichnet (Hintergrund-Tab), der Sprung liefe
+  // dort ins Leere und feuerte später nach. Die Klappe darum öffnet sich in
+  // ihrem eigenen Effekt; ihr `<section id>`-Anker steht auch zugeklappt im
+  // DOM, der Sprung braucht sie also nicht abzuwarten.
   useEffect(() => {
-    const id = pendingSection.current;
-    if (!id) return;
-    pendingSection.current = null;
-    requestAnimationFrame(() => {
-      const el = document.getElementById(id);
+    if (!sprung) return;
+    const t = window.setTimeout(() => {
+      const el = document.getElementById(sprung.id);
       if (!el) return;
       el.scrollIntoView({ behavior: 'smooth', block: 'start' });
       el.classList.remove('tf-settings-flash');
       void el.offsetWidth; // Reflow → Animation startet auch bei erneutem Sprung neu
       el.classList.add('tf-settings-flash');
       window.setTimeout(() => el.classList.remove('tf-settings-flash'), 1900);
-    });
-  }, [activePanel]);
+    }, 0);
+    return () => window.clearTimeout(t);
+  }, [sprung]);
 
   return (
     <div className="px-8 pt-4 pb-6">
@@ -83,7 +88,7 @@ export function EinstellungenPage(): React.ReactElement {
         <div className="ml-auto shrink-0"><SeitenHilfeButton pluginId="einstellungen" /></div>
       </div>
 
-      <div className="grid grid-cols-[224px_1fr] items-start gap-0 max-w-5xl">
+      <div className="grid grid-cols-[224px_1fr] items-start gap-0 max-w-[1280px]">
         <SettingsNav
           panels={panels}
           activePanel={active.id}
@@ -93,7 +98,17 @@ export function EinstellungenPage(): React.ReactElement {
           searchInputRef={searchInputRef}
         />
         <div className="pl-7 min-w-0">
-          {active.render()}
+          <div className="flex items-start gap-4 pb-3.5 mb-3.5 border-b border-[var(--tf-border)]">
+            <div className="min-w-0">
+              <h2 className="text-[17px] font-medium leading-tight text-[var(--tf-text)]">{active.label}</h2>
+              <p className="text-[12.5px] leading-[1.5] text-[var(--tf-text-secondary)] mt-0.5">
+                {active.untertitel}
+              </p>
+            </div>
+          </div>
+          <SettingsSprungProvider ziel={sprung}>
+            {active.render()}
+          </SettingsSprungProvider>
         </div>
       </div>
     </div>
