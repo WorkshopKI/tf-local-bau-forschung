@@ -16,6 +16,7 @@ import {
   bahnAnsicht,
   eingeklappteBahnen,
   istSchiene,
+  leseSpalten,
   wunschAusEingeklappten,
   type TfBahnAnsicht,
   type TfBahnWunsch,
@@ -114,5 +115,26 @@ describe('Einklapp-Zustand ⇄ Speicherform', () => {
     const wuensche = wunschAusEingeklappten(['weggefallen']);
     expect(wuensche['offen'] ?? 'auto').toBe('auto');
     expect(eingeklappteBahnen(wuensche)).toEqual(['weggefallen']);
+  });
+});
+
+/**
+ * Die gespeicherte Spaltenzahl. Ein toleranter Leser statt einer Prüfung je
+ * Speicher: Board (localStorage) und Widget (IDB) halten dieselbe Zahl, und
+ * getrennte Prüfungen driften — die des Boards ließ bis v4.21 exakt die 2 durch.
+ */
+describe('leseSpalten', () => {
+  it('nimmt jede Spaltenzahl an, für die es eine Geometrie gibt', () => {
+    expect(leseSpalten(1)).toBe(1);
+    expect(leseSpalten(2)).toBe(2);
+    expect(leseSpalten(3)).toBe(3);
+  });
+
+  // Nicht raten, sondern auf die Grundform fallen: eine Zahl ohne Boden in
+  // `tf-board.css` ergäbe eine Bahn ohne Breite, kein breiteres Raster.
+  it('macht aus allem anderen eine einspaltige Bahn', () => {
+    for (const roh of [0, 4, -1, 2.5, '2', '3', null, undefined, NaN, {}, [2]]) {
+      expect(leseSpalten(roh)).toBe(1);
+    }
   });
 });

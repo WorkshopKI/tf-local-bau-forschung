@@ -12,6 +12,7 @@
  * (src/__tests__/codebase-conventions.test.ts).
  */
 import type { FeedbackLane } from '@/components/feedback/feedbackLanes';
+import type { TfBahnSpalten } from '@/components/kanban/tfBoardBahn';
 import type { StatusCategory } from '@/core/utils/status-canonical';
 
 export interface HomeWidgetConfig {
@@ -68,10 +69,11 @@ export interface WidgetInstanz {
   config: WidgetSpezifischeConfig;
 }
 
-/** Eine Anträge-Kanban-Lane = eine Status-Kategorie (Pitfall #12: nie Roh-Status). */
+/** Eine Anträge-Kanban-Lane = eine Status-Kategorie (Pitfall #12: nie Roh-Status).
+ *  Die Spalten-Menge kommt vom Primitiv, das sie zeichnet (`TfBahnSpalten`). */
 export interface KanbanLane {
   kategorie: StatusCategory;
-  spalten: 1 | 2;
+  spalten: TfBahnSpalten;
 }
 
 /** Eine Feedback-Kanban-Lane = ein Feedback-Status (Pitfall #21: nie Roh-Literal).

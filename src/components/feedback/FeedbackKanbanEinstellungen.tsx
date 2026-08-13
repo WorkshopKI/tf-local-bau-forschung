@@ -14,6 +14,7 @@ import { Lock, Pencil } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { LaneListe } from '@/components/ui/LaneListe';
 import { FarbmodusToggle } from '@/components/kanban/FarbmodusToggle';
+import type { TfBahnSpalten } from '@/components/kanban/tfBoardBahn';
 import type { FeedbackStatus } from '@/core/types/feedback';
 import { STATUS_LABELS, STATUS_LANE_ACCENT } from './constants';
 import { verschiebeLane, type BoardKanbanConfig } from './boardKanbanConfig';
@@ -24,7 +25,7 @@ export function FeedbackKanbanEinstellungen({ config, onChange }: {
 }): React.ReactElement {
   // Nur sichtbare Lanes gelten als „gewählt" — die ausgeblendeten stehen
   // weiterhin in der Liste, damit ihr Platz in der Folge sichtbar bleibt.
-  const spaltenProKey = new Map<string, 1 | 2>(
+  const spaltenProKey = new Map<string, TfBahnSpalten>(
     config.lanes.filter(l => l.sichtbar).map(l => [l.status as string, l.spalten]),
   );
 
@@ -37,7 +38,7 @@ export function FeedbackKanbanEinstellungen({ config, onChange }: {
     });
   };
 
-  const setSpalten = (key: string, spalten: 1 | 2): void => {
+  const setSpalten = (key: string, spalten: TfBahnSpalten): void => {
     onChange({
       ...config,
       lanes: config.lanes.map(l => (l.status === key ? { ...l, spalten } : l)),

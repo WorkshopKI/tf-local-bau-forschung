@@ -8,6 +8,7 @@
  */
 import type { AntragListItem } from '@/core/services/csv/types';
 import { monoLaneAccent } from '@/components/kanban/laneAccent';
+import type { TfBahnSpalten } from '@/components/kanban/tfBoardBahn';
 import { getStatusCategory, type StatusCategory } from '@/core/utils/status-canonical';
 import { KATEGORIE_REIHENFOLGE } from '@/core/utils/status-category-labels';
 import { schrittText } from '@/core/utils/naechsterSchritt';
@@ -71,7 +72,7 @@ export interface KanbanKarte {
 
 export interface KanbanLaneDaten {
   kategorie: StatusCategory;
-  spalten: 1 | 2;
+  spalten: TfBahnSpalten;
   /** Sichtbare Karten (gekappt auf maxKartenProLane), ältester Eingang zuerst. */
   karten: KanbanKarte[];
   /** Gesamt-Zahl der Lane (Zähler-Pill; > karten.length ⇒ „+ N weitere →"). */

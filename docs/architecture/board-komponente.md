@@ -31,7 +31,7 @@ Das Primitiv kennt `key`, `label`, einen Farbwert, eine Liste und eine Zahl. Es 
 | Bahn-Geometrie, Schmalschiene, Kopf mit Ellipse + `title`, Zähler-Pille | Lane-Schlüssel und ihre Reihenfolge/Sichtbarkeit |
 | Ansichts-Rechnung `auto\|offen\|zu` × leer/voll/unerreichbar | Persistenz — das Primitiv persistiert **nichts** |
 | Klick/Enter/Space auf der Schiene, `role`, `tabIndex` | Bucketing, Sortierung, Kappungs-Zahl |
-| 1\|2 Kartenspalten, DOM-Budget + Nachladen | Summenzeilen-**Text**, Sicht-Zuschnitt-**Entscheidung** |
+| 1–3 Kartenspalten (`TfBahnSpalten`), DOM-Budget + Nachladen | Summenzeilen-**Text**, Sicht-Zuschnitt-**Entscheidung** |
 | Drop-Mechanik und ihre Fallen | Recht zu ziehen, Auswahl-Regel beim Drop |
 | `aria-label` | Karten-Inhalt vollständig, inklusive Karten-Dichte |
 
@@ -70,6 +70,8 @@ Tailwind bleibt für **Slot-Inhalte** (Karten, Fußtext, `LanePills`). Das Primi
   renderCard={(t, bahn, zieh) => <Karte {...} zieh={zieh} />}
 />
 ```
+
+**Die Spaltenzahl hat eine Heimat**: `TfBahnSpalten` (`1 | 2 | 3`) in [tfBoardBahn.ts](../../src/components/kanban/tfBoardBahn.ts) — von dort beziehen sie `FeedbackLane`, `KanbanLane` und der Schalter, statt sie je selbst zu buchstabieren (bis v4.21 stand `1 | 2` sechsmal wortgleich im Code). Eine weitere Spalte braucht **drei** Dinge zusammen: einen Boden je Layout-Form in `tf-board.css`, einen Eintrag in `SPALTEN_KLASSE` und ein Segment in `SPALTEN_WERTE`. Fehlt eines, ist die Zahl wählbar und wirkungslos — genau der tote Schalter von v3.12. Gespeicherte Werte laufen durch `leseSpalten`, damit ein Wert ohne Geometrie auf die einspaltige Grundform fällt statt auf eine Klasse, die es nicht gibt.
 
 **Was bewusst NICHT existiert** — jedes wäre ein Flag ohne Verbraucher, die Falle aus [tree-komponenten.md](tree-komponenten.md):
 
@@ -122,7 +124,7 @@ Offen bleiben die bekannten Löcher: kein Touch, **keine Tastaturbedienung**, ke
 | [TicketBoard](../../src/plugins/feedback-board/ticket/TicketBoard.tsx) | `gedeckelt` | einklappbar, bahnScrollt, nachladen, dnd, Summenzeile, Sicht-Zuschnitt |
 | [AntragKanbanWidget](../../src/plugins/home/widgets/AntragKanbanWidget.tsx) | `geteilt` | read-only, einklappbar, Icon je Kategorie, `fuss` navigiert in die Liste |
 | [FeedbackKanbanWidget](../../src/plugins/home/widgets/FeedbackKanbanWidget.tsx) | `geteilt` | read-only, einklappbar, `fuss` navigiert ins Board |
-| [KanbanVollbild](../../src/plugins/home/widgets/KanbanVollbild.tsx) | `gedeckelt` | eigenes Fenster (v3.47), einklappbar + bahnScrollt + nachladen + `einklapp` (persistiert, v4.10), alle Kategorien mit Karten, Spaltenzahl aus dem Bestand abgeleitet — [fenster-in-fenster.md](fenster-in-fenster.md) |
+| [KanbanVollbild](../../src/plugins/home/widgets/KanbanVollbild.tsx) | `gedeckelt` | eigenes Fenster (v3.47), einklappbar + bahnScrollt + nachladen + `einklapp` (persistiert, v4.10), alle Kategorien mit Karten, Spaltenzahl aus dem Bestand abgeleitet (1\|2, **nicht** 3: bei echtem Bestand hat jede Bahn vierstellig viele Karten und liefe über jede Schwelle — die Spur wäre nur noch waagerechtes Scrollen) — [fenster-in-fenster.md](fenster-in-fenster.md) |
 
 Der eingeklappte Widget-Zähler ist [LanePills](../../src/components/kanban/LanePills.tsx) — bis v3.44 zweimal wortgleich, bis auf `max-w-[110px]` gegen `max-w-[120px]`, was kein Entwurf war, sondern der Zwilling.
 
@@ -132,5 +134,6 @@ Zwei Zahlen im Primitiv tragen eine Messung und keine Meinung:
 
 - **Kopf-Lücke 4 px, nicht 8.** Bei „Wartet auf Antragsteller" in einer 170-px-Bahn (Home, sieben Bahnen, 1280 px) standen der zweizeiligen Bezeichnung mit 8 px genau 88 px zur Verfügung, sie brauchte 92 — mit 4 px sind es 96 und sie passt ohne Ellipse. Dieselbe Messung entschied schon in der Widget-Fassung; die 8 px der Board-Fassung waren nie gegen eine lange Bezeichnung geprüft, weil das Board nur kurze Status führt.
 - **Zähler rechtsbündig.** In der Board-Fassung stand die Pille bei „NEU" (23 px) an x=58 in einem 226 px breiten Kopf und ließ 148 px Leerraum hinter sich — das war die Abwesenheit einer Entscheidung, nicht eine.
-- **`minmax(0, 1fr)` statt `1fr`** für die zwei Kartenspalten: das Auto-Minimum von `1fr` ließ eine Karte mit unschrumpfbarem Inhalt ihre Spalte aufdrücken (gemessen 166 px gegen 181 px). Zwei Kartenspalten sind gleich breit oder sie sind keine.
+- **`minmax(0, 1fr)` statt `1fr`** für die Kartenspalten: das Auto-Minimum von `1fr` ließ eine Karte mit unschrumpfbarem Inhalt ihre Spalte aufdrücken (gemessen 166 px gegen 181 px). Kartenspalten sind gleich breit oder sie sind keine.
 - **Zweispalten-Boden 445 px (`gedeckelt`) bzw. 329 px (`geteilt`), nicht 300 px für beide.** Sieben Bahnen in einem 1600-px-Fenster landeten alle auf dem alten gemeinsamen Boden, und die Karte maß dort **132 px** statt der 210 px einer einspaltigen Bahn — zwei Spalten machten die Karte schmaler, statt die Bahn kürzer zu machen. Die neuen Böden sind gerechnet, nicht gewählt: `2 × Kartenbreite + 7 Rasterlücke + 18 Polster`, je Form gegen deren eigenes `--tfb-min`. Nachgemessen liegt die Karte danach bei 204–209 px (zweispaltig) gegen 208 px (einspaltig).
+- **Dreispalten-Boden 662 px bzw. 488 px (v4.21)** — dieselbe Rechnung, ein Summand mehr. Nachgemessen im Feedback-Board (1600 px, sechs Bahnen): die dreispaltige Bahn steht auf ihrem Boden von 662 px, ihre Karte misst **206 px** gegen 208 px einspaltig, und die Spur scrollt waagerecht (1346 gegen 1312 px sichtbar). Im Widget (`geteilt`, 1078 px Brett) wächst dieselbe Bahn über ihren Boden auf 519 px, die drei übrigen sitzen auf ihren 170 px — **ohne** Waagerecht-Scroll. Die dritte Spalte kostet also im gedeckelten Board Spurbreite und im geteilten Widget die Breite der Nachbarn; beides ist die ehrliche Folge der Wahl und wird nicht abgefangen.

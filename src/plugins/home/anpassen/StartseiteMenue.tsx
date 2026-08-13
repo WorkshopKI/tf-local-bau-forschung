@@ -36,6 +36,15 @@ import { berechneUntermenueLage, useStartseiteMenueStore, type UntermenueId } fr
 /** Handoff §5: Menü min. 250 px, Untermenü 268 px. */
 const BREITE_MENUE = 250;
 const BREITE_UNTERMENUE = 268;
+/**
+ * Die Einstellungs-Ansicht desselben Panels ist breiter als das Menü. Ein Menü
+ * führt kurze Verben, das Formular eine Zeile je Lane: Name, Häkchen und der
+ * Spaltenschalter nebeneinander. In 250 px blieben dem Namen 77 px — mit der
+ * dritten Kartenspalte (v4.21) kürzten dort vier von neun Kategorien, darunter
+ * „Zu bearbeiten". Gemessen reichen 290 px für acht davon; „Wartet auf
+ * Antragsteller" (137 px) kürzt weiterhin und trägt dafür seinen `title`.
+ */
+const BREITE_EINSTELLUNGEN = 290;
 /** Spalt zwischen den Panels, wie im Handoff-Prototyp. */
 const ABSTAND = 6;
 
@@ -122,7 +131,13 @@ export function StartseiteMenue(): React.ReactElement {
             if (!(e.target as HTMLElement).closest('[data-untermenue]')) zeigeUntermenue(null);
           }}
         >
-          <MenuePanel breite={BREITE_MENUE}>
+          <MenuePanel
+            breite={
+              ansicht === 'einstellungen' && offen.ziel.art === 'widget'
+                ? BREITE_EINSTELLUNGEN
+                : BREITE_MENUE
+            }
+          >
             {ansicht === 'einstellungen' && offen.ziel.art === 'widget' ? (
               <WidgetEinstellungen instanzId={offen.ziel.instanzId} />
             ) : offen.ziel.art === 'widget' ? (

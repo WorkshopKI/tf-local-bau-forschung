@@ -17,6 +17,7 @@ import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { LaneListe } from '@/components/ui/LaneListe';
 import { FarbmodusToggle } from '@/components/kanban/FarbmodusToggle';
+import type { TfBahnSpalten } from '@/components/kanban/tfBoardBahn';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
 import { getUserPresets } from '@/core/services/csv/filter/idb-filter';
@@ -182,7 +183,9 @@ function AntragLaneChips({ cfg, onUpdate }: {
   cfg: AntragKanbanWidgetConfig;
   onUpdate: (config: WidgetSpezifischeConfig) => Promise<void>;
 }): React.ReactElement {
-  const spaltenProKey = new Map<string, 1 | 2>(cfg.lanes.map(l => [l.kategorie as string, l.spalten]));
+  const spaltenProKey = new Map<string, TfBahnSpalten>(
+    cfg.lanes.map(l => [l.kategorie as string, l.spalten]),
+  );
   const toggleLane = (key: string): void => {
     const kategorie = key as StatusCategory;
     const lanes = spaltenProKey.has(key)
@@ -190,7 +193,7 @@ function AntragLaneChips({ cfg, onUpdate }: {
       : [...cfg.lanes, { kategorie, spalten: 1 as const }];
     void onUpdate({ ...cfg, lanes });
   };
-  const setSpalten = (key: string, spalten: 1 | 2): void => {
+  const setSpalten = (key: string, spalten: TfBahnSpalten): void => {
     const lanes = cfg.lanes.map(l => (l.kategorie === key ? { ...l, spalten } : l));
     void onUpdate({ ...cfg, lanes });
   };
@@ -216,7 +219,9 @@ function FeedbackLaneChips({ cfg, onUpdate }: {
   cfg: FeedbackKanbanWidgetConfig;
   onUpdate: (config: WidgetSpezifischeConfig) => Promise<void>;
 }): React.ReactElement {
-  const spaltenProKey = new Map<string, 1 | 2>(cfg.lanes.map(l => [l.status as string, l.spalten]));
+  const spaltenProKey = new Map<string, TfBahnSpalten>(
+    cfg.lanes.map(l => [l.status as string, l.spalten]),
+  );
   const toggleLane = (key: string): void => {
     const status = key as FeedbackKanbanWidgetConfig['lanes'][number]['status'];
     const lanes = spaltenProKey.has(key)
@@ -224,7 +229,7 @@ function FeedbackLaneChips({ cfg, onUpdate }: {
       : [...cfg.lanes, { status, spalten: 1 as const }];
     void onUpdate({ ...cfg, lanes });
   };
-  const setSpalten = (key: string, spalten: 1 | 2): void => {
+  const setSpalten = (key: string, spalten: TfBahnSpalten): void => {
     const lanes = cfg.lanes.map(l => (l.status === key ? { ...l, spalten } : l));
     void onUpdate({ ...cfg, lanes });
   };

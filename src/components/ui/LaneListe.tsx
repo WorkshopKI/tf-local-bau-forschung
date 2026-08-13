@@ -1,5 +1,6 @@
 import { Check, ChevronDown, ChevronUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import type { TfBahnSpalten } from '@/components/kanban/tfBoardBahn';
 
 /**
  * Lane-Auswahl als bündige ZEILENLISTE — geteilt von der Home-Widget-Config
@@ -30,10 +31,13 @@ export interface LaneListeOption {
 
 export interface LaneListeProps {
   options: LaneListeOption[];
-  /** Nur enthaltene Keys sind gewählt; der Wert ist die Kartenspaltenzahl. */
-  spaltenProKey: Map<string, 1 | 2>;
+  /** Nur enthaltene Keys sind gewählt; der Wert ist die Kartenspaltenzahl.
+   *  `ReadonlyMap`, weil die Liste nur liest — und weil eine engere Map des
+   *  Aufrufers (`Map<string, 1 | 2>`) sonst nur wegen der Methoden-Bivarianz
+   *  durchginge, nicht weil sie sicher wäre. */
+  spaltenProKey: ReadonlyMap<string, TfBahnSpalten>;
   onToggle: (key: string) => void;
-  onSpalten: (key: string, spalten: 1 | 2) => void;
+  onSpalten: (key: string, spalten: TfBahnSpalten) => void;
   /**
    * Optional: Zeile um einen Platz verschieben (−1 hoch, +1 runter). Ist die
    * Prop gesetzt, IST die Zeilenfolge die Lane-Folge — der Aufrufer muss
@@ -44,6 +48,17 @@ export interface LaneListeProps {
   /** Ab dieser Zeilenzahl scrollt die Liste statt das Popover zu sprengen. */
   maxSichtbareZeilen?: number;
 }
+
+/** Die wählbaren Spaltenzahlen — abgeleitet aus dem Typ des Primitivs, damit
+ *  Schalter und Geometrie nicht auseinanderlaufen können. */
+const SPALTEN_WERTE: readonly TfBahnSpalten[] = [1, 2, 3];
+/** Breite des Segmentschalters: je Segment `w-6` (24 px, box-border) plus die
+ *  beiden Rahmen der Hülle. Die sind mit 0,5 px angeschrieben, malen bei DPR 1
+ *  aber je ein ganzes Gerätepixel — gemessen 74,0 px bei drei Segmenten, nicht
+ *  73. Gerechnet statt geschrieben, weil die Kopfzeile sonst beim nächsten
+ *  Segment danebenstünde (der frühere Festwert 49 war schon einen Punkt zu
+ *  schmal). */
+const SCHALTER_BREITE = SPALTEN_WERTE.length * 24 + 2;
 
 export function LaneListe({
   options,
@@ -69,7 +84,10 @@ export function LaneListe({
             Folge
           </span>
         ) : null}
-        <span className="shrink-0 w-[49px] text-center text-[9.5px] font-medium uppercase tracking-[0.06em] text-[var(--tf-text-tertiary)]">
+        <span
+          className="shrink-0 text-center text-[9.5px] font-medium uppercase tracking-[0.06em] text-[var(--tf-text-tertiary)]"
+          style={{ width: SCHALTER_BREITE }}
+        >
           Spalten
         </span>
       </div>
@@ -105,7 +123,10 @@ export function LaneListe({
                   style={{ background: opt.akzent }}
                 />
               ) : null}
-              <span className="truncate">{opt.label}</span>
+              {/* `title` am gekürzten Namen: in schmalen Wirten (Startseiten-Menü,
+                  250 px) reicht die Spalte für „Wartet auf Antragsteller" nicht,
+                  und ohne Titel wäre die Zeile dort nicht mehr zu lesen. */}
+              <span className="truncate" title={opt.label}>{opt.label}</span>
             </button>
 
             {onVerschiebe ? (
@@ -169,13 +190,14 @@ function VerschiebeKnopf({ richtung, label, aktiv, onKlick }: {
   );
 }
 
-/** Kleiner 1|2-Segmentschalter rechts in der Zeile. Bei abgewählter Lane
- *  gedämpft + nicht bedienbar, aber gerendert (konstante Zeilenbreite). */
+/** Kleiner Segmentschalter für die Kartenspalten rechts in der Zeile. Bei
+ *  abgewählter Lane gedämpft + nicht bedienbar, aber gerendert (konstante
+ *  Zeilenbreite). */
 function SpaltenSchalter({ wert, aktiv, label, onWaehle }: {
-  wert: 1 | 2;
+  wert: TfBahnSpalten;
   aktiv: boolean;
   label: string;
-  onWaehle: (n: 1 | 2) => void;
+  onWaehle: (n: TfBahnSpalten) => void;
 }): React.ReactElement {
   return (
     <span
@@ -183,7 +205,7 @@ function SpaltenSchalter({ wert, aktiv, label, onWaehle }: {
       style={{ border: `0.5px solid ${aktiv ? 'var(--tf-border-hover)' : 'var(--tf-border)'}` }}
       title={aktiv ? `Kartenspalten der Lane „${label}"` : 'Lane erst auswählen'}
     >
-      {([1, 2] as const).map((n, i) => {
+      {SPALTEN_WERTE.map((n, i) => {
         const an = aktiv && wert === n;
         return (
           <button
@@ -202,7 +224,7 @@ function SpaltenSchalter({ wert, aktiv, label, onWaehle }: {
                   ? 'bg-[var(--tf-bg-secondary)] font-medium text-[var(--tf-text)] cursor-pointer'
                   : 'text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] cursor-pointer',
             )}
-            style={i === 1 ? { borderLeft: '0.5px solid var(--tf-border)' } : undefined}
+            style={i > 0 ? { borderLeft: '0.5px solid var(--tf-border)' } : undefined}
           >
             {n}
           </button>

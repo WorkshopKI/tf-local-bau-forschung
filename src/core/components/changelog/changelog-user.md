@@ -19,6 +19,14 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.21 — 2026-08
+
+### Neu
+- Eine Kanban-Spalte lässt sich jetzt auch **dreispaltig** stellen, nicht nur ein- oder zweispaltig. Der Schalter steht überall dort, wo Sie die Lanes einstellen: im „Board anpassen"-Popover des Feedback-Boards, im Menü des Kanban-Widgets, unter Einstellungen › Widgets und im Zahnrad des Kanban-Fensters. Die Karten behalten dabei ihre Größe — die Spalte wird breiter und dafür kürzer.
+
+### Verbesserungen
+- Die Einstellungs-Ansicht des Startseiten-Menüs ist etwas breiter, damit die Namen der Lanes nebeneinander Platz haben; wo ein Name doch nicht passt, zeigt ihn ein Tooltip vollständig.
+
 ## v4.20 — 2026-08
 
 ### Bugfixes

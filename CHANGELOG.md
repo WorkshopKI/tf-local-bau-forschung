@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.21.0 — Eine Bahn kann drei Kartenspalten breit sein (August 2026)
+
+MINOR — Der Spaltenschalter je Lane bot 1 oder 2. Wer eine volle Bahn breiter stellen wollte, war damit am Ende — und die Menge `1 | 2` stand sechsmal wortgleich im Code, also an sechs Stellen zu ändern. Detail: [board-komponente.md](docs/architecture/board-komponente.md).
+
+- **Dritte Kartenspalte im Primitiv** ([tf-board.css](src/components/kanban/tf-board.css), [TfBoard.tsx](src/components/kanban/TfBoard.tsx)): eigener Boden je Layout-Form (662 px gedeckelt, 488 px geteilt), gerechnet wie der zweispaltige — die Karte behält ihre Breite, die Bahn wird kürzer
+- **Eine Heimat für die Spaltenzahl** ([tfBoardBahn.ts](src/components/kanban/tfBoardBahn.ts)): `TfBahnSpalten` plus tolerantes `leseSpalten`; Lane-Typen, Schalter und Persistenz beziehen sie von dort statt sie zu buchstabieren
+- **Schalter 1/2/3 überall, wo Lanes eingestellt werden** ([LaneListe.tsx](src/components/ui/LaneListe.tsx)): Feedback-Board-Popover, Startseiten-Menü, Einstellungen › Widgets und das Zahnrad des Kanban-Fensters — die Kopfbreite ist aus der Segmentzahl gerechnet
+- **Die Einstellungs-Ansicht des Startseiten-Menüs ist 290 px breit** ([StartseiteMenue.tsx](src/plugins/home/anpassen/StartseiteMenue.tsx)): in den 250 px des Menüs kürzte das dritte Segment vier von neun Kategorienamen; gekürzte Namen tragen jetzt ihren `title`
+- **Im Kanban-Fenster bleibt es bei 1|2** ([kanbanLanes.ts](src/plugins/home/widgets/kanbanLanes.ts)): dort wird die Spaltenzahl aus dem Bestand abgeleitet, und der echte Bestand liefe über jede Schwelle
+
 ### v4.20.0 — Merge schreibt vollstaendig, Drift prueft Spalten-Identitaet (August 2026)
 
 MINOR — Vier Befunde der CSV-Bug-Jagd, die den Bestand im Normalbetrieb still verändert haben statt im Störfall. Drei Mal schrieb der Merge etwas Plausibles, dem niemand ansah, dass es nicht aus der Quelle stammte; einmal verglich die Drift-Prüfung Spalten**namen**, während die Zuordnung an der Position hängt.

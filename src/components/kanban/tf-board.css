@@ -38,6 +38,12 @@
      Spalten sollen die Bahn KÜRZER machen, nicht die Karte schmaler. */
   --tfb-min2: 445px;
   --tfb-max2: 692px; /* 2 × 340 + 12 Lücke */
+  /* Dieselbe Rechnung für drei Spalten: 3 × 210 + 2 × 7 Rasterlücke + 18 Polster.
+     Eine dreispaltige Bahn ist damit breiter als die meisten Fenster hoch sind —
+     das ist der Preis, den sie kostet, und er gehört sichtbar in die Zahl statt
+     in eine schmalere Karte. */
+  --tfb-min3: 662px;
+  --tfb-max3: 1044px; /* 3 × 340 + 2 × 12 Lücke */
   --tfb-luecke: 12px;
   display: flex;
   gap: var(--tfb-luecke);
@@ -53,6 +59,12 @@
      Spalte hat den Platz der gedeckelten Form schlicht nicht. */
   --tfb-min2: 329px;
   --tfb-max2: none;
+  /* 3 × 152 + 2 × 7 + 18. In einer Widget-Karte ist das mehr, als die Spalte
+     breit ist — dann scrollt die Spur waagerecht, wie sie es bei zwei Bahnen
+     auch tut. Die Alternative wäre, die Einstellung hier still zu ignorieren:
+     genau das Versprechen ohne Wirkung, das dieses Primitiv abgelöst hat. */
+  --tfb-min3: 488px;
+  --tfb-max3: none;
 }
 /* `bahnScrollt`: die Bahn füllt die Höhe und scrollt ihren Inhalt selbst (Board
    in fester Höhe). Ohne das wächst sie mit dem Inhalt und die Seite scrollt
@@ -75,22 +87,34 @@
   border-top: 3px solid var(--tfb-c);
   overflow: hidden;
 }
-/* Zwei Kartenspalten: die Bahn bekommt den doppelten Wachstumsanteil und einen
-   eigenen Boden/Deckel — sonst quetschen sich zwei Karten in eine Ein-Spalten-
-   Spur. Im Board war das seit v3.12 im Popover wählbar und wirkungslos. */
+/* Mehrere Kartenspalten: die Bahn bekommt den entsprechenden Wachstumsanteil und
+   einen eigenen Boden/Deckel — sonst quetschen sich zwei Karten in eine
+   Ein-Spalten-Spur. Im Board war das seit v3.12 im Popover wählbar und
+   wirkungslos. */
 .tfb-bahn.zwei {
   flex-grow: 2;
   min-width: var(--tfb-min2);
   max-width: var(--tfb-max2);
 }
+.tfb-bahn.drei {
+  flex-grow: 3;
+  min-width: var(--tfb-min3);
+  max-width: var(--tfb-max3);
+}
 /* `minmax(0, 1fr)` statt `1fr`: das Auto-Minimum von `1fr` lässt eine Karte mit
    unschrumpfbarem Inhalt ihre Spalte aufdrücken — gemessen 166 px gegen 181 px
-   bei zwei Karten in einer 300-px-Bahn. Zwei Kartenspalten sind gleich breit
-   oder sie sind keine. */
-.tfb-bahn.zwei .tfb-karten {
+   bei zwei Karten in einer 300-px-Bahn. Kartenspalten sind gleich breit oder sie
+   sind keine. */
+.tfb-bahn.zwei .tfb-karten,
+.tfb-bahn.drei .tfb-karten {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   align-content: start;
+}
+.tfb-bahn.zwei .tfb-karten {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.tfb-bahn.drei .tfb-karten {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 /* ---------------- Schmalschiene ---------------- */

@@ -9,7 +9,7 @@
  * `StatusCategory` (Pitfall #12) bzw. `FeedbackStatus` (Pitfall #21), und beides
  * hat hier nichts verloren.
  */
-import type { TfBahnWunsch, TfBahnWuensche } from './tfBoardBahn';
+import type { TfBahnSpalten, TfBahnWunsch, TfBahnWuensche } from './tfBoardBahn';
 
 /** Strukturell statt `LucideIcon`: auch dynamische Resolver (`getLucideIcon`)
  *  liefern eine Komponente dieser Form. */
@@ -52,8 +52,8 @@ export interface TfBoardBahn<T> {
    *  Board führt sechs Status ohne eigenes Icon-Vokabular, die Home-Widgets
    *  Status-Kategorien mit etabliertem. */
   icon?: TfBoardIcon;
-  /** Karten-Spalten INNERHALB der Bahn. */
-  spalten?: 1 | 2;
+  /** Karten-Spalten INNERHALB der Bahn (Default 1). */
+  spalten?: TfBahnSpalten;
   /** Zeile unter dem Kopf (Board: die Summenzeile). */
   zusatz?: React.ReactNode;
   /**

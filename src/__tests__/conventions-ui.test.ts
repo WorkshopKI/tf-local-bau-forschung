@@ -578,7 +578,7 @@ describe('no-parallel-board-geometry (Bahn-Layout gehört in TfBoard)', () => {
       expect.fail(
         `Kanban-Bahn-Layout gehört in das Board-Primitiv (@/components/kanban/TfBoard\n` +
         `+ tf-board.css) — nicht hand-bauen. Schmalschiene, getönter Bahn-Kopf,\n` +
-        `Zähler-Pille, „+ N weitere"-Fußzeile und die 1|2-Kartenspalten gehören\n` +
+        `Zähler-Pille, „+ N weitere"-Fußzeile und die Kartenspalten gehören\n` +
         `zusammen; getrennt driften sie.\n` +
         `Fehlende Fähigkeit? Im Primitiv als Feature-Flag ergänzen, nicht daneben.\n` +
         `Senkrechte Beschriftung an einer eingeklappten PANE (nicht an einer Bahn)?\n` +

@@ -72,3 +72,31 @@ export function wunschAusEingeklappten(keys: readonly string[]): TfBahnWuensche 
 export function eingeklappteBahnen(wuensche: TfBahnWuensche): string[] {
   return Object.keys(wuensche).filter(key => wuensche[key] === 'zu').sort();
 }
+
+/**
+ * Karten-Spalten INNERHALB einer Bahn — die EINZIGE Stelle, an der diese Zahlen
+ * stehen. Die Domänen-Typen (`FeedbackLane`, `KanbanLane`) und die
+ * Auswahl-Oberfläche (`LaneListe`) beziehen sie von hier, statt `1 | 2` jeweils
+ * selbst zu buchstabieren: bis v4.21 stand die Menge sechsmal wortgleich im
+ * Code, und die dritte Spalte wäre sechs Stellen weit auseinandergefallen.
+ *
+ * Wer die Menge erweitert, braucht drei Dinge zusammen: einen Boden je
+ * Layout-Form in `tf-board.css`, eine Klasse in `SPALTEN_KLASSE` (TfBoard.tsx)
+ * und ein Segment in `SPALTEN_WERTE` (LaneListe.tsx). Fehlt eines, ist die Zahl
+ * wählbar und wirkungslos — genau das Versprechen, das das Board von v3.12 bis
+ * v3.45 gebrochen hat.
+ */
+export type TfBahnSpalten = 1 | 2 | 3;
+
+/**
+ * Gespeicherte Spaltenzahl → gültige Spaltenzahl. Alles Unbekannte wird 1, nicht
+ * geraten: ein Wert aus einem neueren Stand (oder von Hand editiert) soll eine
+ * einspaltige Bahn ergeben und nicht eine Bahn ohne Geometrie.
+ *
+ * Bewusst hier und nicht beim Aufrufer: Board und Widget lesen dieselbe Zahl aus
+ * verschiedenen Speichern, und getrennte Prüfungen driften (die des Boards ließ
+ * bis v4.21 exakt die 2 durch — eine 3 wäre dort still zur 1 geworden).
+ */
+export function leseSpalten(roh: unknown): TfBahnSpalten {
+  return roh === 2 || roh === 3 ? roh : 1;
+}

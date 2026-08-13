@@ -17,11 +17,12 @@
  */
 import type { FeedbackItem, FeedbackStatus } from '@/core/types/feedback';
 import type { FeedbackLane } from '@/components/feedback/feedbackLanes';
+import type { TfBahnSpalten } from '@/components/kanban/tfBoardBahn';
 import { spaltenSumme, type SpaltenSumme } from './boardZahlen';
 
 export interface BoardSpalte {
   status: FeedbackStatus;
-  spalten: 1 | 2;
+  spalten: TfBahnSpalten;
   tickets: FeedbackItem[];
   summe: SpaltenSumme;
   /**

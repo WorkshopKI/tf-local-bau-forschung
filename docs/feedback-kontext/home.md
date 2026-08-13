@@ -15,7 +15,7 @@ Startseite — Arbeitseinstieg: oben ein **Hero-Band**, darunter ein persönlich
   - **Rückmeldung:** Das Menü bleibt beim Häkchensetzen offen. Ausblenden und Zurücksetzen bestätigen sich unten mit **Rückgängig**. In Textfeldern und bei markiertem Text bleibt das Browser-Menü.
 - **Widgets** (read-only + Navigation):
   - **Meine Anträge:** Liste + Rückstands-Balken.
-  - **Kanban:** Förderanträge ODER Feedback, farbige Lanes, 1–2 Spalten. Jede Bahn lässt sich über ihre Kopfzeile zu einer schmalen Schiene einklappen und dort wieder aufklappen; der Zustand gilt nur für die laufende Ansicht.
+  - **Kanban:** Förderanträge ODER Feedback, farbige Lanes, 1–3 Kartenspalten je Lane (eine Lane mit mehr Spalten wird entsprechend breiter, die übrigen rücken zusammen). Jede Bahn lässt sich über ihre Kopfzeile zu einer schmalen Schiene einklappen und dort wieder aufklappen; der Zustand gilt nur für die laufende Ansicht.
   - **Kanban im eigenen Fenster:** Das Zeichen rechts neben dem `⋯` öffnet die Anträge in einem großen eigenen Fenster — dort **alle** Status-Kategorien mit Karten (auch die im Widget nicht eingestellten), ohne Kappung, volle Bahnen zweispaltig, lange Bahnen mit Scrollbalken. Ein Klick auf eine Karte öffnet den Antrag in der App. Verlässt man die Startseite, sagt das Fenster, dass sein Stand einfriert.
   - **Im Fenster einrichten:** Dort eingeklappte Bahnen bleiben eingeklappt — auch nach dem Schließen des Fensters. Ein Zahnrad im Fensterkopf öffnet dieselben Kanban-Einstellungen wie die Startseite (Bahnen, Spalten, Farben); die Auswahl gilt dem Widget, im Fenster stehen weiterhin alle Bahnen mit Karten.
   - **Antragseingang-Ampel:** Schwellen einstellbar, Zeile → gefilterte Liste.

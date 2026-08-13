@@ -13,6 +13,7 @@ import { FEEDBACK_STATUS } from '@/core/services/feedback/feedback-status';
 // rein + node-testbar, das Barrel zöge pdfjs u.a. schwere Deps herein.
 import { FEEDBACK_LANE_STATUS, feedbackLaneAccent } from '@/components/feedback/feedbackLanes';
 import { feedbackAuthorLabel, feedbackTitle } from '@/components/feedback/feedbackUi';
+import type { TfBahnSpalten } from '@/components/kanban/tfBoardBahn';
 import { defaultAntragKanbanLanes } from './kanbanLanes';
 import type {
   FeedbackKanbanLane,
@@ -39,7 +40,7 @@ export interface FeedbackKanbanKarte {
 
 export interface FeedbackKanbanLaneDaten {
   status: FeedbackStatus;
-  spalten: 1 | 2;
+  spalten: TfBahnSpalten;
   karten: FeedbackKanbanKarte[];
   gesamt: number;
 }

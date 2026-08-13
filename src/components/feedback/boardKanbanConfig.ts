@@ -13,6 +13,7 @@
  */
 import type { FeedbackStatus } from '@/core/types/feedback';
 import type { LaneFarbmodus } from '@/components/kanban/laneAccent';
+import { leseSpalten } from '@/components/kanban/tfBoardBahn';
 import { FEEDBACK_LANE_STATUS, type FeedbackLane } from './feedbackLanes';
 
 // Key-Bump `_v2` (v3.12): die Default-Lane-Liste hat mit `rueckfrage` eine Spalte
@@ -112,7 +113,7 @@ export function parseBoardKanbanConfig(roh: unknown): BoardKanbanConfig {
         gesehen.add(status);
         // Nur ein ausdrückliches `false` blendet aus — ein Alt-Eintrag ohne das
         // Feld ist eine sichtbare Lane, kein unentschiedener Zustand.
-        return [{ status, spalten: spalten === 2 ? 2 : 1, sichtbar: sichtbar !== false }];
+        return [{ status, spalten: leseSpalten(spalten), sichtbar: sichtbar !== false }];
       })
     : [];
 

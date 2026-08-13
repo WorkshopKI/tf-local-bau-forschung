@@ -20,7 +20,11 @@ import {
   type BoardLane,
 } from '../boardKanbanConfig';
 
-const lane = (status: BoardLane['status'], sichtbar = true, spalten: 1 | 2 = 1): BoardLane =>
+const lane = (
+  status: BoardLane['status'],
+  sichtbar = true,
+  spalten: BoardLane['spalten'] = 1,
+): BoardLane =>
   ({ status, spalten, sichtbar });
 
 describe('defaultBoardKanbanConfig', () => {
@@ -119,16 +123,20 @@ describe('parseBoardKanbanConfig', () => {
     ]);
   });
 
-  it('klemmt die Spaltenzahl auf 1 oder 2', () => {
+  it('klemmt die Spaltenzahl auf 1, 2 oder 3', () => {
     const cfg = parseBoardKanbanConfig({
       lanes: [
         { status: FEEDBACK_STATUS.neu, spalten: 7 },
         { status: FEEDBACK_STATUS.geplant, spalten: 0 },
         { status: FEEDBACK_STATUS.umgesetzt, spalten: '2' },
         { status: FEEDBACK_STATUS.abgelehnt, spalten: 2 },
+        // Die dritte Spalte kam mit v4.21 dazu. Vor dem Umbau prüfte diese
+        // Stelle exakt auf `=== 2` — eine gespeicherte 3 wäre still zur 1
+        // geworden, obwohl der Schalter sie anbietet.
+        { status: FEEDBACK_STATUS.rueckfrage, spalten: 3 },
       ],
     });
-    expect(cfg.lanes.slice(0, 4).map(l => l.spalten)).toEqual([1, 1, 1, 2]);
+    expect(cfg.lanes.slice(0, 5).map(l => l.spalten)).toEqual([1, 1, 1, 2, 3]);
   });
 
   it('nimmt den Default, wenn nach dem Filtern keine Lane übrig bleibt', () => {

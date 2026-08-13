@@ -24,7 +24,12 @@
  * Was das Primitiv NICHT tut: persistieren, sortieren, bucketen, Status kennen.
  */
 import { useEffect, useState } from 'react';
-import { bahnAnsicht, istSchiene, type TfBahnWunsch } from './tfBoardBahn';
+import {
+  bahnAnsicht,
+  istSchiene,
+  type TfBahnSpalten,
+  type TfBahnWunsch,
+} from './tfBoardBahn';
 import type {
   TfBoardBahn,
   TfBoardDnd,
@@ -39,6 +44,10 @@ import './tf-board.css';
 /** Stabile Identität, damit ein `renderCard` ohne Ziehen nicht bei jedem Rendern
  *  ein neues Objekt gespreizt bekommt. */
 const OHNE_ZIEHEN: TfBoardZiehProps = Object.freeze({});
+
+/** Spaltenzahl → Bahn-Klasse. Einspaltig trägt keine, weil das die Grundform der
+ *  Bahn IST. Jeder Eintrag hier braucht seinen Boden in `tf-board.css`. */
+const SPALTEN_KLASSE: Record<TfBahnSpalten, string> = { 1: '', 2: 'zwei', 3: 'drei' };
 
 export function TfBoard<T>({
   bahnen,
@@ -173,7 +182,10 @@ function Bahn<T>({ bahn, features, einklapp, nachladen, dnd, renderCard }: {
     zu ? 'zu' : '',
     bahn.unerreichbar ? 'ausserhalb' : '',
     ueber ? 'ueber' : '',
-    (bahn.spalten ?? 1) === 2 ? 'zwei' : '',
+    // Nachschlagen statt vergleichen: ein gespeicherter Wert, den dieser Stand
+    // nicht kennt (ältere/neuere Config), fällt auf einspaltig zurück, statt eine
+    // Klasse zu erfinden, für die es keine Geometrie gibt.
+    SPALTEN_KLASSE[bahn.spalten ?? 1] ?? '',
   ].filter(Boolean).join(' ');
 
   return (

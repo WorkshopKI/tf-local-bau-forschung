@@ -19,6 +19,7 @@
 import type { FeedbackStatus } from '@/core/types/feedback';
 import { FEEDBACK_STATUS } from '@/core/services/feedback/feedback-status';
 import { monoLaneAccent, type LaneFarbmodus } from '@/components/kanban/laneAccent';
+import type { TfBahnSpalten } from '@/components/kanban/tfBoardBahn';
 import { STATUS_LANE_ACCENT } from './constants';
 
 /**
@@ -39,10 +40,11 @@ export const FEEDBACK_LANE_STATUS: readonly FeedbackStatus[] = [
   FEEDBACK_STATUS.abgelehnt,
 ];
 
-/** Eine konfigurierte Lane: welcher Status, wie viele Kartenspalten. */
+/** Eine konfigurierte Lane: welcher Status, wie viele Kartenspalten. Die
+ *  Spalten-Menge kommt vom Primitiv, das sie zeichnet (`TfBahnSpalten`). */
 export interface FeedbackLane {
   status: FeedbackStatus;
-  spalten: 1 | 2;
+  spalten: TfBahnSpalten;
 }
 
 const FEEDBACK_LANE_FALLBACK = 'var(--tf-text-tertiary)';

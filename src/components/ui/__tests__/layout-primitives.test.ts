@@ -8,6 +8,7 @@ import { ScopeTabs, type ScopeTabItem } from '../ScopeTabs';
 import { DarstellungDropdown } from '../DarstellungDropdown';
 import type { DarstellungAchse } from '../darstellungsAchsen';
 import { LaneListe } from '../LaneListe';
+import type { TfBahnSpalten } from '@/components/kanban/tfBoardBahn';
 
 // Smoke-/Render-Tests der Layout-Primitive (Phase 2). Die Test-Suite läuft im
 // node-Env ohne DOM und ohne JSX (Konvention: nur *.test.ts) → React.createElement
@@ -176,7 +177,7 @@ describe('LaneListe', () => {
   ];
   // Gewählt = im Map, der Wert ist die Kartenspaltenzahl. „geplant" fehlt hier
   // absichtlich: eine abgewählte Zeile bleibt sichtbar, nur ohne Häkchen.
-  const spaltenProKey = new Map<string, 1 | 2>([['neu', 1], ['fertig', 2]]);
+  const spaltenProKey = new Map<string, TfBahnSpalten>([['neu', 1], ['fertig', 3]]);
 
   it('rendert eine Zeile je Lane mit Sichtbar-Überschrift und Spalten-Schalter', () => {
     const html = renderToStaticMarkup(h(LaneListe, {
@@ -188,6 +189,23 @@ describe('LaneListe', () => {
     expect(html).toContain('Geplant');
     // Häkchen-Slot ist auch bei abgewählter Zeile da, nur unsichtbar (Pitfall #14).
     expect(html).toContain('invisible');
+  });
+
+  // Der Schalter bietet jede Spaltenzahl an, für die das Primitiv eine Geometrie
+  // hat — bis v4.21 waren es zwei. Ein Segment ohne Boden in `tf-board.css` wäre
+  // wieder das Versprechen ohne Wirkung, das dem Board von v3.12 bis v3.45 als
+  // toter 1|2-Schalter anhing.
+  it('bietet je Zeile 1, 2 und 3 Kartenspalten an und markiert die gewählte', () => {
+    const html = renderToStaticMarkup(h(LaneListe, {
+      options: optionen, spaltenProKey, onToggle: noop, onSpalten: noop,
+    }));
+    // Drei Lanes × drei Segmente.
+    expect(html.match(/Kartenspalten?"/g)?.length).toBe(9);
+    expect(html).toContain('aria-label="Neu: 1 Kartenspalte"');
+    expect(html).toContain('aria-label="Neu: 3 Kartenspalten"');
+    // Genau ein gedrücktes Segment je gewählter Zeile („geplant" ist abgewählt).
+    expect(html.match(/aria-pressed="true"/g)?.length).toBe(2);
+    expect(html).toContain('aria-label="Fertig: 3 Kartenspalten" aria-pressed="true"');
   });
 
   // Ohne `onVerschiebe` bleibt die Liste, was sie für die Home-Widgets war:
