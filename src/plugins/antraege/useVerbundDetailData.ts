@@ -1,9 +1,14 @@
 /**
  * Daten-Schicht der Verbund-Detailseite (aus `VerbundDetail` herausgelöst,
- * Journey-Paket 2 Phase 7). Lädt Verbund + Teilvorhaben + Historie + CSV-Schemas
- * (bzw. den synthetischen Pseudo-Verbund für Standalone-Anträge) und liefert die
+ * Journey-Paket 2 Phase 7). Lädt Verbund + Teilvorhaben + CSV-Schemas (bzw. den
+ * synthetischen Pseudo-Verbund für Standalone-Anträge) und liefert die
  * Lead-First-sortierten TVs. Reine IO-/State-Schicht — die Präsentation
  * (`VerbundDetail`) bleibt schlank.
+ *
+ * Die Änderungs-Historie kommt NICHT von hier: sie liest seit v4.11 das
+ * Import-Diff-Journal vom Share und lädt sich selbst (`VerbundHistorie`). Der
+ * frühere Griff nach `verbund_historie` war ein Leerlauf — der Store wird ohne
+ * `trackHistory` auf einer Verbund-Spalte nie befüllt.
  *
  * Die Auflösung läuft NICHT nur einmal pro Route: `lastLoadedAt` des Antrags-Stores
  * hängt in den Effekt-Deps, damit ein Leseversuch, der ins Leere lief, sich selbst
@@ -20,11 +25,10 @@ import {
   getAntrag,
   getVerbund,
   listAntraegeByVerbund,
-  getVerbundHistoryByVerbund,
   loadSchema,
   listSchemas,
 } from '@/core/services/csv';
-import type { Antrag, Verbund, VerbundHistorieEntry, CsvSchema } from '@/core/services/csv/types';
+import type { Antrag, Verbund, CsvSchema } from '@/core/services/csv/types';
 import { isNetzwerkLead } from './netzwerk';
 import { aktenzeichenFromPseudoVerbundId, buildPseudoVerbund, buildVerbundFromTeilantraege } from './pseudoVerbund';
 import { useAntraegeStore } from './store';
@@ -32,7 +36,6 @@ import { useAntraegeStore } from './store';
 export interface VerbundDetailData {
   verbund: Verbund | null;
   antraege: Antrag[];
-  history: VerbundHistorieEntry[];
   schemas: CsvSchema[];
   sourceNames: Record<string, string>;
   /** `true`, solange ein Auflösungs-Lauf läuft. Trennt „wird noch geladen" von
@@ -47,7 +50,6 @@ export function useVerbundDetailData(verbundId: string, isPseudo: boolean): Verb
   const storage = useStorage();
   const [verbund, setVerbund] = useState<Verbund | null>(null);
   const [antraege, setAntraege] = useState<Antrag[]>([]);
-  const [history, setHistory] = useState<VerbundHistorieEntry[]>([]);
   const [schemas, setSchemas] = useState<CsvSchema[]>([]);
   const [sourceNames, setSourceNames] = useState<Record<string, string>>({});
   const [laedt, setLaedt] = useState(true);
@@ -99,19 +101,16 @@ export function useVerbundDetailData(verbundId: string, isPseudo: boolean): Verb
         if (!a) {
           setVerbund(null);
           setAntraege([]);
-          setHistory([]);
           return;
         }
         setVerbund(buildPseudoVerbund(a));
         setAntraege([a]);
-        setHistory([]);
         await loadSchemasFor([a]);
         return;
       }
 
       const v = await getVerbund(storage.idb, verbundId);
       const a = await listAntraegeByVerbund(storage.idb, verbundId);
-      const h = await getVerbundHistoryByVerbund(storage.idb, verbundId);
       if (cancelled) return;
       // Lead-First-Sort: Netzwerk-Lead-TVs (Suffix 01/02 + vb_phase 1/2) zuerst,
       // dann nach Aktenzeichen aufsteigend.
@@ -132,7 +131,6 @@ export function useVerbundDetailData(verbundId: string, isPseudo: boolean): Verb
       }
       setVerbund(v ?? (sorted.length > 0 ? buildVerbundFromTeilantraege(verbundId, sorted) : null));
       setAntraege(sorted);
-      setHistory(h.sort((x, y) => y.geaendert_am.localeCompare(x.geaendert_am)));
       await loadSchemasFor(sorted);
     }
 
@@ -144,5 +142,5 @@ export function useVerbundDetailData(verbundId: string, isPseudo: boolean): Verb
     return () => { cancelled = true; };
   }, [verbundId, storage.idb, isPseudo, datenStand, versuch]);
 
-  return { verbund, antraege, history, schemas, sourceNames, laedt, erneutVersuchen };
+  return { verbund, antraege, schemas, sourceNames, laedt, erneutVersuchen };
 }

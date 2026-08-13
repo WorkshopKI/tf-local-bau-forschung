@@ -10,6 +10,7 @@
 import { useMemo, useState } from 'react';
 import { ChevronRight } from 'lucide-react';
 import { useCollapsedSection } from '@/core/hooks/useCollapsedSection';
+import { sektionOffenDefault, sektionsKey } from '../detailSektionen';
 import { DokumentAufnahme } from '@/core/components/DokumentAufnahme';
 import { Button } from '@/components/ui/button';
 import type { Antrag } from '@/core/services/csv/types';
@@ -21,7 +22,9 @@ export function NachforderungenSection({ ctx }: { ctx: KurzfassungContext }): Re
   const ctrl = useNachforderungen(ctx);
   // Einklappbar (persistiert, Default offen); Body via CSS verstecken statt
   // unmounten, damit der NF-Stand/offene Dialoge erhalten bleiben.
-  const [open, toggleOpen] = useCollapsedSection('verbund_nf_collapsed');
+  const [open, toggleOpen] = useCollapsedSection(
+    sektionsKey('nachforderungen'), { defaultOpen: sektionOffenDefault('nachforderungen') },
+  );
   const [dialogTv, setDialogTv] = useState<NfEntwurf | null>(null);
 
   const dialogAntrag = useMemo<Antrag | null>(() => {

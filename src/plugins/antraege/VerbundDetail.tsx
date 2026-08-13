@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, X, LayoutTemplate } from 'lucide-react';
+import { LayoutTemplate } from 'lucide-react';
 import { dominantStatus } from './groupAggregates';
 import { FieldHistoryModal } from './FieldHistoryModal';
 import { VerbundAlleFelder } from './VerbundAlleFelder';
@@ -31,6 +31,8 @@ import type { KurzfassungContext } from './kurzfassung/types';
 import { buildKurzfassungContext } from './kurzfassung/context-builder';
 import { StatusDetailSection } from './status/StatusDetailSection';
 import { MeilensteinSection } from './meilensteine/MeilensteinSection';
+import { PanelShell, Sektionsrahmen } from './detailRahmen';
+import { sektionOffenDefault, sektionsKey } from './detailSektionen';
 import { Button } from '@/components/ui/button';
 import { isGutachtenKurzfassungEnabled, isGutachtenWorkflowEnabled, isNfNachforderungenEnabled, isAntragAufbereitungEnabled, isArtefaktWerkbankEnabled, isStatusCockpitEnabled, isMeilensteinMonitoringEnabled } from '@/config/feature-flags';
 
@@ -91,7 +93,7 @@ export function VerbundDetail({
 
   const isPseudo = isPseudoVerbundId(verbundId);
   // Daten-Schicht: Verbund + TVs + Historie + Schemas (bzw. Pseudo-Verbund).
-  const { verbund, antraege, history, schemas, sourceNames, laedt } = useVerbundDetailData(verbundId, isPseudo);
+  const { verbund, antraege, schemas, sourceNames, laedt } = useVerbundDetailData(verbundId, isPseudo);
 
   const [historyField, setHistoryField] = useState<string | null>(null);
   // „Volltext lesen"-Zustand der Kurzbeschreibungs-Karte.
@@ -263,13 +265,15 @@ export function VerbundDetail({
   // existieren also genau einmal im DOM. Volle Panel-Breite (kein READ_COL).
   const werkbankBlock: React.ReactNode = isArtefaktWerkbankEnabled() ? (
     <>
-      <div id="nf" className="mt-6 pt-6 scroll-mt-[80px]" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
+      <Sektionsrahmen id="nf">
         <WerkbankSection ctx={kurzfassungCtx} vorbelegung={werkbankVorbelegung} />
-      </div>
+      </Sektionsrahmen>
       {/* Widerspruch/Stellungnahme — nur sichtbar, wenn ein RNE/ABL-Bescheid existiert.
           Zieht mit der Werkbank mit: „Antwort in der Werkbank vorbereiten" springt von
-          hier dorthin, ein Sprung über die Feld-Sektionen hinweg wäre unnötig weit. */}
-      <div id="widerspruch" className="mt-6 pt-6 scroll-mt-[80px]" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
+          hier dorthin, ein Sprung über die Feld-Sektionen hinweg wäre unnötig weit.
+          Ohne Bescheid rendert die Sektion `null` — der Rahmen verschwindet dann
+          mitsamt Strich und Abstand (`empty:hidden`, siehe `detailRahmen`). */}
+      <Sektionsrahmen id="widerspruch">
         <WiderspruchSection
           ctx={kurzfassungCtx}
           onAntwortVorbereiten={keys => {
@@ -277,12 +281,12 @@ export function VerbundDetail({
             document.getElementById('nf')?.scrollIntoView({ behavior: 'smooth' });
           }}
         />
-      </div>
+      </Sektionsrahmen>
     </>
   ) : isNfNachforderungenEnabled() ? (
-    <div id="nf" className="mt-6 pt-6 scroll-mt-[80px]" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
+    <Sektionsrahmen id="nf">
       <NachforderungenSection ctx={kurzfassungCtx} />
-    </div>
+    </Sektionsrahmen>
   ) : null;
 
   return (
@@ -344,17 +348,17 @@ export function VerbundDetail({
       {/* STATUS & VERLAUF (Phase 5) — kuratierter Katalog + Historie + Ableitung
           (Timeline + „Warum?" + nächste Schritte). Nur bei aktivem Status-Cockpit-Flag. */}
       {isStatusCockpitEnabled() && (
-        <div id="status" className="mt-6 pt-6 scroll-mt-[80px]" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
+        <Sektionsrahmen id="status">
           <StatusDetailSection verbundId={verbund.verbund_id} statusRoh={verbundStatus} />
-        </div>
+        </Sektionsrahmen>
       )}
 
       {/* FRISTEN & MEILENSTEINE — die Soll-Achse zum Status: Zeitstrahl Soll gegen
           Ist, Restzeit zur Gesamtfrist, Risiko-Meldung an die Projektleitung. */}
       {isMeilensteinMonitoringEnabled() && (
-        <div id="meilensteine" className="mt-6 pt-6 scroll-mt-[80px]" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
+        <Sektionsrahmen id="meilensteine">
           <MeilensteinSection verbundId={verbund.verbund_id} />
-        </div>
+        </Sektionsrahmen>
       )}
 
       {/* GUTACHTEN-WERKSTATT — Verbund-Ebene (nur dev). Nach oben gezogen (ersetzt
@@ -362,13 +366,13 @@ export function VerbundDetail({
           Sektionskopf bzw. der Wiederaufnahme-Zeile. Der Workflow A–G löst die
           Kurzfassung-Sektion ab; else-if, damit in dev nur EINE Sektion mountet. */}
       {gutachtenSichtbar ? (
-        <div id="gutachten" className="mt-6 pt-6 scroll-mt-[80px]" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
+        <Sektionsrahmen id="gutachten">
           {isGutachtenWorkflowEnabled() ? (
             <GutachtenSection ctx={kurzfassungCtx} initialAbschnittId={abschnittParam} />
           ) : (
             <KurzfassungSection ctx={kurzfassungCtx} />
           )}
-        </div>
+        </Sektionsrahmen>
       ) : null}
 
       {/* DATEN-SEKTIONEN — kollabierte Zeilen mit Kontext-Vorschau (Default zu).
@@ -382,7 +386,8 @@ export function VerbundDetail({
           <div className={READ_COL}>
             <CollapsibleDataSection
               title="Antragsdaten"
-              storageKey="verbund_antragsdaten_collapsed"
+              storageKey={sektionsKey('antragsdaten')}
+              defaultCollapsed={!sektionOffenDefault('antragsdaten')}
               preview={antragsdatenPreview}
             >
               <VerbundGlance tvs={antraege} verbundId={verbund.verbund_id} unterprogramm={unterprogramm} />
@@ -413,7 +418,8 @@ export function VerbundDetail({
             {antraege.length > 0 ? (
               <CollapsibleDataSection
                 title="Alle Felder"
-                storageKey="verbund_allefelder_collapsed"
+                storageKey={sektionsKey('alleFelder')}
+                defaultCollapsed={!sektionOffenDefault('alleFelder')}
                 preview={`${felderStats.gesamt} · ${felderStats.mitWerten} mit Werten`}
               >
                 <VerbundAlleFelder
@@ -426,12 +432,15 @@ export function VerbundDetail({
               </CollapsibleDataSection>
             ) : null}
 
+            {/* Keine Kontext-Vorschau: sie käme aus dem Journal auf dem Share, und
+                der Body ist eingeklappt nicht gemountet — die Zeile bliebe leer,
+                bis jemand aufklappt, und läse sich wie ein Fehler. */}
             <CollapsibleDataSection
               title="Historie"
-              storageKey="verbund_historie_collapsed"
-              preview={history.length > 0 ? `zuletzt ${formatShortDate(history[0]!.geaendert_am)}` : null}
+              storageKey={sektionsKey('historie')}
+              defaultCollapsed={!sektionOffenDefault('historie')}
             >
-              <VerbundHistorie history={history} />
+              <VerbundHistorie tvs={antraege} />
             </CollapsibleDataSection>
           </div>
         </>
@@ -461,44 +470,3 @@ export function VerbundDetail({
   );
 }
 
-function PanelShell({ onClose, zurueck, children }: {
-  onClose: () => void;
-  zurueck?: { label: string; onClick: () => void };
-  children: React.ReactNode;
-}): React.ReactElement {
-  return (
-    <div className="flex-1 min-w-0 h-full overflow-y-auto" style={{ borderLeft: '0.5px solid var(--tf-border)' }}>
-      {/* Links der Rückweg (nur wenn es einen gibt), rechts das Schließen. Zwei
-          verschiedene Aussagen: „zurück, wo ich herkam" vs. „Detail zu". */}
-      <div className="sticky top-0 z-10 flex items-center justify-between gap-3 px-4 pt-3 pb-1 bg-[var(--tf-bg)]">
-        {zurueck ? (
-          <button
-            type="button"
-            onClick={zurueck.onClick}
-            className="inline-flex items-center gap-1.5 text-[12.5px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] cursor-pointer"
-          >
-            <ArrowLeft size={14} /> {zurueck.label}
-          </button>
-        ) : <span />}
-        <button
-          type="button"
-          onClick={onClose}
-          className="text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text)] cursor-pointer"
-          aria-label="Detail schließen"
-        >
-          <X size={18} />
-        </button>
-      </div>
-      <div className="px-6 pb-8">{children}</div>
-    </div>
-  );
-}
-
-/** Kurzes Datum `DD.MM.YY` für die Historie-Kontext-Vorschau. */
-function formatShortDate(iso: string): string {
-  try {
-    return new Date(iso).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit' });
-  } catch {
-    return iso;
-  }
-}

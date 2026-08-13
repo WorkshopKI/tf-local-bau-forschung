@@ -784,6 +784,41 @@ reicht den Journal-Schritt herein. Das ist Absicht — ein Fixture-Seed darf den
 Team-Stand nicht anlegen —, heißt aber: der Live-Pfad ist nur aus einem echten
 Nacht-Import heraus zu beobachten, nicht aus dem Dev-Server.
 
+### 12.9 Die Historie am Verbund (v4.13)
+
+Die vierte Journal-Ansicht — und die einzige, die mehrere Anträge auf einmal
+zeigt: die Sektion **„Historie"** auf der Antrags-Detailseite faltet die Chroniken
+aller Teilvorhaben eines Verbundes
+([VerbundHistorie.tsx](../../src/plugins/antraege/VerbundHistorie.tsx)).
+
+Sie las bis v4.12 den IDB-Store `verbund_historie` und konnte deshalb **nie etwas
+zeigen**: der Store wird nur befüllt, wenn im CSV-Mapping eine auf
+`verbund_titel`/`verbund_status` gemappte Spalte `trackHistory: true` trägt — der
+Wizard setzt `false`, das Auto-Adopt neuer Spalten ebenfalls, und die einzigen
+`true`-Fälle liegen in Dev-Fixtures auf *Antrags*-Feldern, die den Verbund-Zweig
+des Mergers gar nicht erreichen. Auf jedem Antrag stand also „Noch keine
+Verbund-Änderungen erfasst", während der Nachtlauf seit Wochen mitschrieb. Der
+Store und der Merger bleiben unangetastet; geändert hat sich nur, woher die
+Sektion liest.
+
+- **Ein Lesevorgang je Verbund, nicht je Teilvorhaben.** `chronikFuerAntraege`
+  ([lesen.ts](../../src/core/status/journal/lesen.ts)) liest Stand und
+  Monatsdateien **einmal** und verteilt die Einträge auf die angefragten Anträge.
+  `chronikFuerAntrag` je TV läse `stand.json` (mehrere MB, **nicht** gecacht —
+  nur die Monate sind es) bei einem Achter-Verbund achtmal. Dieselbe Überlegung
+  wie bei `letzteAenderungJeAntrag`.
+- **Der Nullpunkt steht dabei**, wie in jeder Journal-Anzeige ([§12.2](#122-der-nullpunkt)).
+- **„Nicht geführt" und „nichts geändert" bleiben getrennt** — der Verbund kann
+  außerhalb des Bereichs liegen, für den mitgeschrieben wird ([§12.4](#124-der-bereich-gilt-hier-auch-für-evidenz)).
+- **Keine Kontext-Vorschau im Sektionskopf.** Sie käme vom Share, der Body ist
+  eingeklappt aber nicht gemountet — die Zeile bliebe leer, bis jemand aufklappt,
+  und läse sich wie ein Fehler.
+- Wortlaut und Zahlenform teilt sie mit dem Verlauf am Teilvorhaben
+  ([journalTexte.ts](../../src/plugins/antraege/status/journalTexte.ts)): zwei
+  Ansichten desselben Journals, die dieselbe Änderung verschieden benennen, lesen
+  sich wie zwei Sachverhalte. Beide Dateien stehen in der `ANSICHTEN`-Liste des
+  Guards aus [§12.6](#126-keine-personen-achse).
+
 ## 13. Phasenvorschlag für Kürzel (v2.408)
 
 Die ZAH-Phase am **Kürzel** beantwortet „welches Datum gehört zum aktuellen

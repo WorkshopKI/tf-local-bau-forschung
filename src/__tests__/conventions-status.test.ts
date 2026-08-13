@@ -966,6 +966,13 @@ describe('journal-ohne-personen-achse (Pitfall #48)', () => {
   const ANSICHTEN = [
     'src/plugins/home/widgets/NachtlaufWidget.tsx',
     'src/plugins/antraege/status/JournalVerlauf.tsx',
+    // Dieselbe Quelle eine Ebene höher: die Historie am Verbund faltet die
+    // Chroniken seiner Teilvorhaben. Sie steht hier, weil die Regel sonst genau
+    // die Ansicht nicht prüfte, die am meisten auf einmal zeigt.
+    'src/plugins/antraege/VerbundHistorie.tsx',
+    // Der geteilte Wortlaut beider Journal-Ansichten — formuliert Einträge und
+    // ist damit die Stelle, an der eine Personen-Angabe zuerst auftauchte.
+    'src/plugins/antraege/status/journalTexte.ts',
     // Die Frische-Diagnose im Status-Cockpit: sie beantwortet „laeuft das
     // Journal noch", nie „wer war das". Deshalb steht sie in einer EIGENEN
     // Datei — an eine Sammel-Sektion gehaengt liesse sich die Regel nicht mehr

@@ -46,7 +46,7 @@ export function VerbundKopf({
   const eckdaten = buildKopfEckdaten({ tvs, unterprogramm });
 
   return (
-    <div className="mb-6">
+    <div className="mb-4">
       {/* Titelzeile: Akronym + ZKN + Eckdaten-Meta (hinter dem FKZ), rechts die
           optionale Aktion. Der äußere Container ist `items-start` — ein Button
           auf der Baseline der H1 würde nach unten rutschen; der linke Block
@@ -74,7 +74,7 @@ export function VerbundKopf({
 
       {/* Untertitel: Projekt-Titel (+ optionaler XSW-Suffix). */}
       {untertitel ? (
-        <p className="mt-2 m-0 text-[12.5px] leading-[1.6] text-[var(--tf-text-secondary)] whitespace-pre-wrap">
+        <p className="mt-1.5 m-0 text-[12.5px] leading-[1.6] text-[var(--tf-text-secondary)] whitespace-pre-wrap">
           {untertitel}
           <XswSuffix value={xsw} />
         </p>
@@ -86,7 +86,7 @@ export function VerbundKopf({
 
       {/* Stepper: amtliche 5-Stationen-Wirbelsäule (ersetzt das Status-Badge). */}
       {stepperStatus ? (
-        <div className="mt-5">
+        <div className="mt-3">
           <WorkflowStepper status={stepperStatus} />
         </div>
       ) : null}

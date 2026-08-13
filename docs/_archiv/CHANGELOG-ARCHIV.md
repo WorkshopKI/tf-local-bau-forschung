@@ -2,6 +2,167 @@
 
 Ältere Versionsblöcke (append-only, chronologisch absteigend). Die jüngsten Versionen stehen im Root-[CHANGELOG.md](../CHANGELOG.md). Bump-Regeln + Architektur: [CLAUDE.md](../CLAUDE.md).
 
+### v3.24.0 — Feedback-Werkzeugleiste an Förderanträge angeglichen (August 2026)
+
+MINOR — In einer Toolbar-Zeile standen fünf Bauformen für dieselbe Art Aufgabe, und drei Icons trugen eine Bedeutung, die sie in der übrigen App nicht haben. Was Förderanträge schon konnte, war hier nachgebaut statt benutzt.
+
+- Das „Darstellung"-Menü der Förderanträge ist geteilt und trägt am Board Gruppierung · Dichte · Archivierte — aus drei Bedienelementen wird eines — [DarstellungDropdown.tsx](src/components/ui/DarstellungDropdown.tsx)
+- Liste/Board läuft über den geteilten `ViewModeToggle` (Modi jetzt als Prop) statt über eine eigene Segmentgruppe — [ViewModeToggle.tsx](src/components/ui/ViewModeToggle.tsx)
+- Der Rollen-Umschalter ist eine Kopf-Pille im Stil von „Profil: THÜ"; die Hilfe steht wie überall als letztes Element — [RollenPille.tsx](src/plugins/feedback-board/RollenPille.tsx)
+- Icon-Vokabular vereinheitlicht (`Filter`, `SquareKanban`, `Inbox`, `Pencil`, `ThumbsUp`) und in der Muster-Doku festgehalten — [ui-muster.md](docs/architecture/ui-muster.md)
+- Zwei Doppelbauten aufgelöst: `FarbmodusOption` (2×) → [FarbmodusToggle.tsx](src/components/kanban/FarbmodusToggle.tsx), zwei handgebaute Punkte-Menüs → ein `Popover` in [SponsorButton.tsx](src/components/feedback/SponsorButton.tsx)
+
+### v3.23.0 — C16 als alleinige Regelquelle, Bedingungen ausgewertet (August 2026)
+
+MINOR — Die Verlaufsableitung rechnete gegen 41 Regeln, die eine einzelne Bearbeiterin für ihr eigenes Excel-Dashboard notiert hatte: unvollständig und nur für NW. C16 ist der Export aus dem laufenden Fachsystem und damit die tatsächliche Konfiguration. Der Wechsel hebt die Verbund-Deckung von 21,0 % auf 62,9 % und die messbaren Verweildauern von 16.200 auf 62.396 Abschnitte.
+
+- C16 ist alleinige Regelquelle: Nachschlag je Richtlinie statt je Projektform, `statusTv`/`statusVb` als getrennte Wirkungsebenen — [c16-regeln.ts](src/core/status/verlauf/c16-regeln.ts)
+- Vorbedingungen werden ausgewertet, und zwar gegen den Stand **am Tag des Kürzels**: laufender Status plus damals gesetzte Kürzel; 3.193 Übergänge scheitern daran — [uebergaenge.ts](src/core/status/verlauf/uebergaenge.ts)
+- Der Bedingungs-Auswerter des Navigators bekommt eine Heimat und einen zweiten Aufrufer statt einer Kopie; `navigator.test.ts` blieb ohne Änderung grün — [trigger-bedingung.ts](src/core/status/trigger-bedingung.ts)
+- Nicht auswertbar ist weder wahr noch falsch: neue Konfidenz `trigger_bedingt` samt Grund im aufgeklappten Bereich — [typen.ts](src/core/status/verlauf/typen.ts)
+- Die Zuarbeit-Regeln bleiben erhalten (`quelle: 'zuarbeit'`); drei von 41 bleiben als Klärfall übrig, alle drei die `XPC`-Familie — [klaerfaelle.ts](src/core/status/verlauf/klaerfaelle.ts), [§14.7](docs/architecture/vorgangssystem.md)
+
+### v3.22.0 — Feedback-Board: Platz für das Board, Typ-Badge, Verlauf im Panel (August 2026)
+
+MINOR — Nachlese aus der Benutzung des Redesigns: neben dem Detail-Panel blieben dem Board 250 px, drei leere Lanes belegten die Hälfte der Breite, der Typ war in der Liste nur ein Farbpunkt, und die Kommentar-Spur war noch die alte von v2.199. Vier Stellen, an denen der Handoff nicht die bessere Vorgabe war.
+
+- `MasterDetailLayout` misst die Startbreite wahlweise von RECHTS (`detailDefaultWidth`): das Detail startet schmal, die Liste bekommt den Rest und behält ihn beim Fenster-Resize — [masterDetailLayout-logic.ts](src/components/master-detail/masterDetailLayout-logic.ts)
+- Board-Spalten wachsen mit (`flex: 1 1 262px`, 228–340 px) statt fest 262 px zu bleiben — [ticketsystem.css](src/plugins/feedback-board/ticketsystem.css)
+- Leere Lanes klappen wieder zur 44-px-Schmalschiene ein (ging beim Redesign verloren) und bleiben Drop-Ziel: Ziehen faltet alle auf, Klick eine einzelne — [TicketBoard.tsx](src/plugins/feedback-board/ticket/TicketBoard.tsx)
+- Der Typ steht in der Liste als beschriftetes Badge statt als Farbpunkt; die Container-Query-Schwellen wandern um die neue Spalte mit — [TicketZeile.tsx](src/plugins/feedback-board/ticket/TicketZeile.tsx)
+- Eigener „Verlauf" im Detail-Panel mit Bausteinen, „Als Rückfrage senden" / „Als Ergänzung"; `ctx.kommentiere` meldet Erfolg zurück, damit der Entwurf bei einem Share-Fehler stehenbleibt — [VerlaufBlock.tsx](src/plugins/feedback-board/ticket/VerlaufBlock.tsx)
+
+### v3.21.0 — Ausklappbarer Bereich an der Tabellenzeile (August 2026)
+
+MINOR — Die Verlaufsableitung aus v3.19 hatte noch keinen Ort, an dem sie ankommt: sichtbar waren nur Bilanzzahlen im Kurator-Panel. Jetzt geht unter einer Tabellenzeile ein Bereich auf, der zeigt, wie der Vorgang zu seinem Status kam — und was seine Frist wirklich trägt.
+
+- Status- und Frist-Zelle klappen einen Bereich mit zwei Reitern auf; FKZ und Akronym navigieren weiter ins Detail, der Zeilenklick entfällt — [ausklapp/](src/plugins/antraege/ausklapp/)
+- Reiter *Verlauf*: je Teilvorhaben und Verbund die Statusabschnitte und die Kürzel dazwischen, mit Rolle, Konfidenz und Journal-Nullpunkt — der erste Renderer der Spuren aus v3.19
+- Reiter *Fristen und Meilensteine*: dieselbe Engine mit tieferer Eingabe (`D_XTE` aus dem Schema, Haltedatum) — `ermittleHaltedatum` bekommt seinen ersten Produktions-Aufrufer — [FristenReiter.tsx](src/plugins/antraege/ausklapp/FristenReiter.tsx)
+- `SortableTable` kann jetzt Detailzeilen (`isRowExpanded`/`renderRowDetail`) statt sie zum fünften Mal je Seite nachzubauen — [TableBody.tsx](src/components/data-table/TableBody.tsx)
+- Die „Verlaufs-Näherung (max. 5)" im Popover weicht „Ganzen Verlauf zeigen"; die Regeln der Zuarbeit haben über eine Fassade weiter genau einen Leser, die Guard-Ausnahme entfällt — [fuer-vorgang.ts](src/core/status/verlauf/fuer-vorgang.ts)
+
+### v3.20.0 — Verlaufs-Segmente: warum die Dauer unsicher ist (August 2026)
+
+MINOR — 68,3 % der Abschnitte trugen „Dauer unsicher", und daraus las sich „die Verweildauern sind wertlos". Die Zahl mischte zwei Dinge: eine offene Grenze und eine gemessene Ein-Tages-Dauer. Vor dem Band in Phase 3 muss klar sein, welches davon überwiegt.
+
+- Vier disjunkte Auslöser hinter `dauerUnsicher` (Summe = `segmenteUnsicher`, per Test): **nur 1.719 von 31.135 (5,5 %)** sind gemessene ≤ 1-Tages-Dauern, 94,5 % sind offene Grenzen — [erhebung.ts](src/core/status/verlauf/erhebung.ts)
+- Verteilung der 16.200 messbaren Dauern aus einem Histogramm statt eines Sammel-Arrays: Median 10 T, p75 37 T, 28,9 % über 30 Tagen — die Dauerachse trägt — [VerlaufBefundeBlock.tsx](src/plugins/status-cockpit/VerlaufBefundeBlock.tsx)
+- Negative Dauern (Termin nach dem Bezugszeitpunkt) sind ein eigener Befund statt stiller Teil von „stand einen Tag" — im Bestand null Fälle
+- C16-Vergleich gemessen: **null Widersprüche** bei zwei Überlappungs-Paaren; die Zuarbeit deckt FuE, DS und DL mit **0** Verbünden, C16 löst `AB` → 51 und `XHSP` → 50 auf — [vorgangssystem.md §14.5](docs/architecture/vorgangssystem.md)
+- Die 63,2 % C16-Deckung sind eine **Obergrenze**: alle 287 statusetzenden Zeilen tragen eine Bedingung, keine einzige ist bedingungsfrei
+
+### v3.19.0 — Verlaufsableitung (August 2026)
+
+MINOR — Das Vorgangssystem erklärt den aktuellen Status, aber nicht den Weg dorthin. Das Import-Diff-Journal beginnt erst am 05.08.2026 und kennt null Statuswechsel — eine Spur, die nur beobachten kann, erklärt bei jedem Vorgang nur ihre eigene Blindheit. Also wird abgeleitet, mit Herkunft an jeder Spur. Reines Modul, keine UI (Band und Ausklappmechanik folgen).
+
+- `baueVerlauf` baut je Teilvorhaben und Verbund eine Spur aus den `D_`-Spalten und den Statuswechsel-Regeln der Kürzel-Zuarbeit; Kürzel-Nachschlag immer × Projektform, historische Formen doppelt geführt — [verlauf/](src/core/status/verlauf/)
+- Vier Spurzustände statt einer leeren Zeile, und Abweichungen zum Export in zwei Arten getrennt: 11.134 „gar nicht ableitbar" gegen **152** echte Widersprüche — [typen.ts](src/core/status/verlauf/typen.ts)
+- Bestandslauf im Reiter *Kürzel* der Vorgangs-Regeln: 12.356 Teilvorhaben in 6.614 Vorhaben, 86,1 % mit Verlauf, aber nur 21,0 % der Verbünde mit abgeleitetem Statuswechsel — [VerlaufBefundeBlock.tsx](src/plugins/status-cockpit/VerlaufBefundeBlock.tsx)
+- Zwei Guards halten Pitfall #44: der Status-Pfad kennt das Verlaufs-Modul nicht, und die durchweg `aktiv: false`-Regeln der Zuarbeit haben genau einen Konsumenten — [codebase-conventions.test.ts](src/__tests__/codebase-conventions.test.ts)
+- Gemessen und richtiggestellt: `Sonderstatus` und die Partner-Werte kommen im Antragsbestand **null**-mal vor — sie stehen nur auf Roh-Exportzeilen ohne Förderkennzeichen — [vorgangssystem.md §14](docs/architecture/vorgangssystem.md)
+
+### v3.18.0 — Feedback-Tickets: Mehrfachauswahl, Ziehen, Kontextmenue, Swimlanes (August 2026)
+
+MINOR — Etappe 2 des Feedback-Redesigns: alles, was MEHRERE Tickets betrifft. Nach Etappe 1 war jede Änderung ein Klick weit entfernt — aber vierzig Tickets an einen Bearbeiter zu geben blieben vierzig Einzelklicks.
+
+- Mehrfachauswahl mit Häkchen + dunkle Bulk-Leiste (Status · Aufwand · Zuweisen · Archivieren); jede Aktion mit Sammel-Toast und Rückgängig je Ticket — [auswahl.ts](src/plugins/feedback-board/auswahl.ts), [BulkLeiste.tsx](src/plugins/feedback-board/ticket/BulkLeiste.tsx)
+- `updateFeedbackMany`: ein Lese-/Schreiblauf statt n — fünfzig Einzelaufrufe wären fünfzig SMB-Runden und fünfzig Rennen um dieselbe Datei — [feedbackService.ts](src/core/services/feedback/feedbackService.ts)
+- Karten zwischen den Spalten ziehen; eine markierte Karte nimmt die Auswahl mit, eine unmarkierte nur sich selbst — [TicketBoard.tsx](src/plugins/feedback-board/ticket/TicketBoard.tsx)
+- Rechtsklick öffnet dasselbe Menü wie `⋯`; darin ein Schnell-Kommentar mit Bausteinen, `Strg+↵` und „Als Rückfrage" (Beitrag + Statuswechsel in einem Zug) — [TicketMenue.tsx](src/plugins/feedback-board/ticket/TicketMenue.tsx)
+- Gruppierung in klappbare Bänder nach Bereich/Aufwand/Ersteller (Aufwand fachlich sortiert), Esc-Kaskade und `J`/`K` — [gruppierung.ts](src/plugins/feedback-board/gruppierung.ts)
+
+### v3.17.0 — Feedback-Tickets: Verwaltung an der Karte, Status Rueckfrage, Sichten und Facetten (August 2026)
+
+MINOR — Das Board hatte drei Defekte, die erst bei realer Ticketmenge greifen: die Verwaltungsfelder lagen vier Ebenen tief in einem eingeklappten Akkordeon, eine Entwickler-Rückfrage versandete als Kommentar, den niemand sah, und ab etwa hundert Tickets gab es keinen Einstieg außer „alle". Umbau nach Handoff `_design/handoff/feedback-redesign`; Etappe 1 von 2 (Massenbearbeitung folgt).
+
+- Status, Aufwand, Zuständigkeit und Bereich sind Inline-Chips an Karte, Zeile und in einer festen Aktionsleiste im Detail — jede Änderung mit Toast und „Rückgängig" — [ticket/](src/plugins/feedback-board/ticket/)
+- Neuer Status **Rückfrage** mit eigener Board-Spalte, Sicht „Wartet auf mich" und Klartext-Streifen, der Aufwand in Dauer übersetzt — [dauerText.ts](src/plugins/feedback-board/ticket/dauerText.ts)
+- Rollenabhängige Sichten mit Zählern, Facetten-Leiste (Typ · Status · Bereich), Spalten-Kappung, Spaltenkopf-Summen, drei Dichte-Stufen — [smartViews.ts](src/plugins/feedback-board/smartViews.ts), [boardZahlen.ts](src/plugins/feedback-board/boardZahlen.ts)
+- Neue Felder `assignee`/`bereich` + `FeedbackComment.kind` (additiv, Kurator-Felder shared-wins); Autor darf sein eigenes Ticket ändern, solange es auf „Neu" steht — [feedback.ts](src/core/types/feedback.ts)
+- Zwölf abgelöste bzw. tote Bausteine entfernt (−1.400 LOC), `ScopeTabs` um Variante `pills-solid` + `trailing`-Slot erweitert — [feedback-system.md](docs/architecture/feedback-system.md)
+
+### v3.16.1 — Gesamtbreiten-Griff auf 4px (August 2026)
+
+PATCH — Der Griff am rechten Tabellenrand war auch nach 12 → 8 px noch zu breit für das, was er ist: eine Kante, kein Bedienelement mit Fläche.
+
+- Griff 8 → 4 px, Griffpunkte 2 → 1,5 px (2 px füllten die 3 px Innenbreite fast randlos und lasen sich als Strich) — [TotalWidthGrip.tsx](src/components/data-table/TotalWidthGrip.tsx)
+- Ziehen und Doppelklick-Reset in der 4-px-Rinne nachgemessen: 1.132 → 912 px gepinnt, Doppelklick zurück auf 1.132 und Eintrag gelöscht
+
+### v3.16.0 — Kurzlabel aus einer Quelle (August 2026)
+
+MINOR — Die Kurzform eines Statuswerts lag dreifach hartkodiert und war auseinandergelaufen: die Suche schrieb „Wiederspr. zur Ablehn." (Tippfehler), das Archiv-Kopfband „abgelehnt/zurückgez.", die Antragsliste „abgel./zurückgez.". Die Fassung für Code 72 war zudem auf eine Schreibweise geschlüsselt, die im Bestand gar nicht vorkommt — sie hat dort nie gegriffen (29 Fälle), und 65 % des Bestands (Sonderstatus, Skizze, Partner) hatten überhaupt keine Kurzform.
+
+- Eine Quelle: `kurz` am Code-Katalog (30 Werte, gegen den Produktivbestand freigegeben) + kuratierbares `kurzLabel` je Code — [status-codes.ts](src/core/status/status-codes.ts), [katalog-edit.ts](src/core/status/katalog-edit.ts)
+- Ein Lookup: `statusKurzLabel()` für enge Flächen, `statusLabel()` für Tooltip/Export/Prompt; fehlt beides, steht der gekürzte Bezeichner mit „…" da statt einer stillen Ersetzung — [status-wert-labels.ts](src/core/utils/status-wert-labels.ts)
+- 15 Anzeigestellen tragen jetzt Kurzform **und** Tooltip mit dem vollen Bezeichner; `STATUS_LABELS`/`getStatusLabel` und die beiden anderen Kopien sind entfallen — [status-mappings.ts](src/core/utils/status-mappings.ts)
+- Pflegeliste + Spalte „Kurzform" im Reiter *Statuswerte*, nach Vorkommen im Bestand sortiert; Längenhinweis meldet, blockiert aber kein Speichern — [KurzLabelPflege.tsx](src/plugins/status-cockpit/KurzLabelPflege.tsx)
+- `statusKurz` heißt `statusHerleitungKopf`; das Herleitungs-Popover nennt die Kurzform und ihre Herkunft (Fassung / Auslieferung / nicht gepflegt) — [herleitung.ts](src/core/status/herleitung.ts)
+
+### v3.15.0 — Spaltenfilter zeigen Trefferzahlen (August 2026)
+
+MINOR — Die Spalten-Filter listeten nur die Werte auf; wie viele Zeilen hinter einem stehen, sah man erst nach dem Anwenden. Bei 605 Akronymen oder 33 FB-Kürzeln ist das ein Blindflug.
+
+- Hinter jedem Wert steht seine Trefferzahl — **einseitige Facette**: andere aktive Spaltenfilter zählen mit, der eigene nicht — [useColumnFilters.ts](src/components/data-table/useColumnFilters.ts)
+- Ein Wert, den die anderen Filter auf 0 drücken, bleibt wählbar (ausgegraut statt weg) — [ColumnFilterDropdown.tsx](src/components/data-table/ColumnFilterDropdown.tsx)
+- Im Jahr→Monat-Baum trägt auch der Ordner seine Summe; die Zahl steckt im Knoten, nicht im Render — [filterBaum.ts](src/components/data-table/filterBaum.ts)
+- Gerechnet wird nur für die gerade geöffnete Spalte (ein Durchlauf beim Öffnen statt ~25 bei jedem Klick) — [TableHeadRows.tsx](src/components/data-table/TableHeadRows.tsx)
+- Die Suche zieht mit, über ihren eigenen Wert-Zugriff (`filterType: 'year'`) — [useSearchResults.ts](src/plugins/suche/useSearchResults.ts)
+
+### v3.14.1 — DS und Irrlaeufer sind zwei verschiedene Luecken (August 2026)
+
+PATCH — Hinter dem fehlenden Projektform-Treffer standen zwei ganz verschiedene Sachverhalte, die als ein „unbekannt" verschmolzen waren: **DS** ist eine echte Projektform, die nur nach der Zuarbeit entstanden ist (nachlieferbar), **Irrläufer** ist begrifflich gar keine — an uns gesendet, aber nicht unsere Zuständigkeit (nie nachlieferbar).
+
+- `projektformLage()` unterscheidet `zuarbeit-aelter` von `keine-projektform`, damit niemand das eine mit der Lösung des anderen „repariert" (etwa DS auf FuE mappt) — [kuerzel-katalog.ts](src/core/status/kuerzel-katalog.ts)
+- `projektformVonVbPhase()` bleibt unverändert die schlanke Frage „kann ich nachschlagen?" und liest nur noch aus der Lage ab — kein zweiter Weg
+
+### v3.14.0 — Kuerzelkatalog je Projektform aus der Zuarbeit (August 2026)
+
+MINOR — Die Kürzeltabelle war flach: ein Kürzel, eine Bezeichnung. 77 Kürzel bedeuten aber je nach Projektform etwas anderes — `AB` ist in DL die „Bewilligungsempfehlung durch Haushaltsbeauftragte", sonst „bewilligungsreif/Akte an Euronorm". Am Produktivbestand gemessen: **11 216 von 14 222 Anträgen (78,9 %)** tragen mindestens ein Kürzel, dessen angezeigter Klartext für ihre Projektform falsch ist.
+
+- Katalog mit Schlüssel **Kürzel × Projektform** (608 Kürzel, 1 350 Paare) aus der Zuarbeit generiert — [gen-kuerzel-katalog.mjs](scripts/gen-kuerzel-katalog.mjs)
+- Nachschlagen nur über `kuerzelAuskunft(kuerzel, projektform)`; unbekannte Projektform + uneinige Formen ⇒ `eindeutig: false` statt geratener Bedeutung — [kuerzel-katalog.ts](src/core/status/kuerzel-katalog.ts)
+- Historische Kürzel bleiben über `ersetztDurch` auflösbar (83 Umbenennungen), damit Altfälle lesbar bleiben — [kuerzel-katalog.ts](src/core/status/kuerzel-katalog.ts)
+- 41 Trigger-Regeln importiert, **alle `aktiv: false`**; Benachrichtigung und Statuswechsel als getrennte Felder, 15 unauflösbare Zielstatus markiert statt geraten — [kuerzel-trigger.data.ts](src/core/status/kuerzel-trigger.data.ts)
+- Guard `kuerzel-nie-flach` verbietet den direkten Zugriff auf die Rohtabelle — [codebase-conventions.test.ts](src/__tests__/codebase-conventions.test.ts)
+
+### v3.13.1 — Projektart-Menue liegt vor der Tabelle (August 2026)
+
+PATCH — Das neue Untermenü lag hinter der Tabelle: die aufgeklappte Pille trägt eine Animation mit `transform` und ist damit ein eigener Stacking-Context — ein `z-index` darin gilt nur innerhalb der Pille. Dazu las sich der Knopf „Einzelprojekt · Einzelprojekt 397", weil der Oberpunkt im Menü noch einmal steht und sich selbst als aktiven Unterpunkt fand.
+
+- Untermenü hängt am `document.body` und wandert beim Scrollen mit dem Anker mit (Muster aus `ColumnFilterDropdown`) — [CollapsibleSeg.tsx](src/plugins/antraege/filter/CollapsibleSeg.tsx)
+- Was der Segment-Knopf anzeigt (aktiv? welche Zahl? welcher Zusatz?) entscheidet ein reines, geprüftes Modul — [segAnzeige.ts](src/plugins/antraege/filter/segAnzeige.ts)
+
+### v3.13.0 — Projektart-Filter: Einzelprojekt mit Menue, Zaehler folgen dem Antragstyp (August 2026)
+
+MINOR — Die Projektart brachte fünf Segmente in eine Leiste, die schon vier Pillen trägt, und zwei davon lasen sich wie eine Aufteilung von „Einzelprojekt" (397 = 38 + 192), die sie nicht sind. Dazu zählten die Stufen den vollen Bestand, während der Antragstyp-Filter davor schon geschnitten hatte.
+
+- Die Netzwerkbezug-Stufen hängen im **Menü** unter „Einzelprojekt" statt daneben; Kurzform „mit / ohne NW Bezug" — [projektartQuickfilter.ts](src/plugins/antraege/filter/projektartQuickfilter.ts)
+- Segment-Knöpfe können ein Untermenü tragen (`unterpunkte`, opt-in — die fünf anderen Nutzer von `SegGroup` bleiben unverändert) — [CollapsibleSeg.tsx](src/plugins/antraege/filter/CollapsibleSeg.tsx)
+- Projektart-Zähler folgen dem gewählten Antragstyp (einseitig: „FuE" schneidet mit, die eigene Auswahl nicht) — [QuickfilterToolbar.tsx](src/plugins/antraege/filter/QuickfilterToolbar.tsx)
+- Mehrere Filter-Pillen dürfen gleichzeitig offen sein; der Zustand ist eine Menge statt eines Einzelwerts, alter Einzelwert wird gelesen — [quickfilterExpanded.ts](src/plugins/antraege/filter/quickfilterExpanded.ts)
+- Eine filternde Pille ist markiert — zugeklappt Rahmen + Grund, aufgeklappt die Beschriftung — [CollapsibleSeg.tsx](src/plugins/antraege/filter/CollapsibleSeg.tsx)
+
+### v3.12.0 — Tabelle: stehende Kopfzeile, Darstellungs-Menue, verdichteter Seitenkopf (August 2026)
+
+MINOR — Der Seitenkopf der Fördertabelle war auf fünf Zeilen gewachsen: die drei Schalter „Ansicht", „Gruppierung" und „Beendet" belegten rechts rund 640 px und drängten die Quickfilter in einen Umbruch, unter dem die Trefferzahl noch eine eigene, links leere Zeile bekam. Nachgemessen bei 1.226 px Inhaltsbreite: 70 px weniger Kopf, zwei Zeilen weg. Und beim Blättern nach unten verschwand die Kopfzeile — bei 21 Spalten weiß dann niemand mehr, welche Spalte er liest.
+
+- Die drei Achsen teilen sich ein Menü „Darstellung"; der Knopf nennt nur, was vom Standard abweicht — [darstellungsAchsen.ts](src/plugins/antraege/darstellungsAchsen.ts)
+- Trefferzahl reitet im Umbruch der Quickfilter mit (Slot in der Toolbar, kein Geschwister — als Nachbar bricht sie immer eigenständig um) — [QuickfilterToolbar.tsx](src/plugins/antraege/filter/QuickfilterToolbar.tsx)
+- Kopf- und Rubrikzeile bleiben stehen; dafür wird der Tabellenkasten selbst der senkrechte Scroller — [SortableTable.tsx](src/components/data-table/SortableTable.tsx)
+- Lade-Streifen wandert MIT in den Scroller (`footerSlot`, `sticky left-0`) und der Beobachtungs-Bereich auf den Kasten — sonst lädt die Seite sofort alles nach oder gar nichts mehr — [AntraegeMain.tsx](src/plugins/antraege/AntraegeMain.tsx)
+- Platz für den senkrechten Scrollbalken fest reserviert: er erschien sonst erst nach der Breitenmessung und verengte genau das gemessene Element — [SortableTable.tsx](src/components/data-table/SortableTable.tsx)
+
+### v3.11.0 — Fristen-Stoppuhr: die Uhr haelt mit der Erstentscheidung an (August 2026)
+
+MINOR — Die 90-Tage-Uhr rechnete für **jeden** Antrag bis heute weiter, auch für einen 2018 abgelehnten: CRISPROMIC zeigte „seit 2 760 T" — exakt Eingang + 90 Tage. Die Arithmetik stimmte, das Kriterium fehlte. Ebenso schwer wog die Gegenrichtung: „keine Basis", „keine Frist nötig" und „terminal" waren alle dieselbe leere Zelle. Das Haltekriterium existierte bereits — aber nur im Vorgangs-Board, als feste Code-Menge.
+
+- Frist liefert einen **Zustand** statt einer Zahl (`laeuft` / `angehalten` / `nicht_berechenbar`), jeder mit eigener Anzeige und eigenem Grund — [frist-ergebnis.ts](src/core/services/csv/frist-ergebnis.ts)
+- Das Haltekriterium ist **Katalogdatum am Verfahrensschritt** (`fristLaeuft`) und damit ohne Release änderbar; Seed hält ab „Entscheidung" an — [zah-phasen.ts](src/core/status/zah-phasen.ts)
+- Haltedatum als Kaskade Journal → Datumsfeld derselben Phase → „unbekannt"; nie ersatzweise weiterlaufen lassen — [haltedatum.ts](src/core/status/haltedatum.ts)
+- Tab-Zähler „Überfällig"/„Diese Woche" fragen dieselbe Engine wie die Spalte daneben (vorher Eingangsalter mit eigenen 84/90-Literalen) — [views.ts](src/plugins/antraege/views.ts)
+- Guard `no-inline-frist-arithmetik`: die Zahl 90 gehört ins Fristmodul, `ANTRAG_SLA_DAYS` benutzen ist erwünscht — [codebase-conventions.test.ts](src/__tests__/codebase-conventions.test.ts)
+
 ### v3.10.0 — Team-Antwort im Board, Verwaltung fuer alle PL (August 2026)
 
 MINOR — Eine öffentliche Team-Antwort war im Board unsichtbar: `kurator_response` lag in jedem Kanban-Item, wurde aber nirgends gerendert, und das einzige Signal war ein Badge hinter `mine && unread`. `mine` wiederum war kaputt — erfasst wurde unter `profile.name`, verglichen gegen das Kürzel, also galt jedes eigene Ticket als fremd („Von mir" leer, keine Glocke, kein „Ergänzen").

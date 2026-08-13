@@ -13,6 +13,7 @@ import { ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { useCollapsedSection } from '@/core/hooks/useCollapsedSection';
+import { sektionOffenDefault, sektionsKey } from '../detailSektionen';
 import { isMeilensteinMonitoringEnabled } from '@/config/feature-flags';
 import { sortiereKnoten, type MeilensteinRisiko } from '@/core/meilensteine';
 import { MeilensteinLeiste } from '@/plugins/meilensteine/MeilensteinLeiste';
@@ -54,7 +55,9 @@ export function MeilensteinSection({ verbundId }: { verbundId: string }): React.
   // Kopf bleiben sichtbar. Body via CSS verstecken statt unmounten, damit ein
   // halb getippter Risiko-Text das Zuklappen überlebt. Hook VOR den Early
   // Returns (Hook-Reihenfolge, React #310).
-  const [open, toggleOpen] = useCollapsedSection('verbund_meilensteine_collapsed', { defaultOpen: false });
+  const [open, toggleOpen] = useCollapsedSection(
+    sektionsKey('meilensteine'), { defaultOpen: sektionOffenDefault('meilensteine') },
+  );
 
   if (!isMeilensteinMonitoringEnabled()) return null;
   if (api.laden) {

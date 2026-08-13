@@ -10,6 +10,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ChevronRight, Plus, X } from 'lucide-react';
 import { useCollapsedSection } from '@/core/hooks/useCollapsedSection';
+import { sektionOffenDefault, sektionsKey } from '../detailSektionen';
 import { DokumentAufnahme } from '@/core/components/DokumentAufnahme';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -37,7 +38,9 @@ export function WerkbankSection({ ctx, vorbelegung }: {
   vorbelegung?: { keys: string[]; nonce: number };
 }): React.ReactElement {
   const w = useWerkbank(ctx);
-  const [open, toggleOpen] = useCollapsedSection('verbund_werkbank_collapsed');
+  const [open, toggleOpen] = useCollapsedSection(
+    sektionsKey('werkbank'), { defaultOpen: sektionOffenDefault('werkbank') },
+  );
   const [gewaehlt, setGewaehlt] = useState<Set<string>>(new Set());
   const [auswahl, setAuswahl] = useState<Auswahl>({});
   const [artefaktTyp, setArtefaktTyp] = useState<ArtefaktTyp>('nf');

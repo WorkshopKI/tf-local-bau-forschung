@@ -11,6 +11,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, FileText, FileSearch, ChevronLeft, ChevronRight, SlidersHorizontal } from 'lucide-react';
 import { useNavigation } from '@/core/hooks/useNavigation';
 import { useCollapsedSection } from '@/core/hooks/useCollapsedSection';
+import { sektionOffenDefault, sektionsKey } from '../detailSektionen';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { DokumentAufnahme } from '@/core/components/DokumentAufnahme';
@@ -128,10 +129,12 @@ export function GutachtenSection({
         setWerkstatt({ skillId });
       }
     : undefined;
-  // Einklappbar (persistiert, Default offen): beim Texten anderer Artefakte
-  // (NF/Kurzfassung) wegklappbar. Body via CSS verstecken statt unmounten —
-  // der aktive Markdown-Editor (SectionReviewCard) behält so seinen Buffer.
-  const [open, toggleOpen] = useCollapsedSection('verbund_gutachten_collapsed');
+  // Einklappbar (persistiert; Vorgabe in `detailSektionen`: zu). Body via CSS
+  // verstecken statt unmounten — der aktive Markdown-Editor (SectionReviewCard)
+  // behält so seinen Buffer.
+  const [open, toggleOpen] = useCollapsedSection(
+    sektionsKey('gutachten'), { defaultOpen: sektionOffenDefault('gutachten') },
+  );
   const [dialogOpen, setDialogOpen] = useState(false);
   // Welches Dokument im Konvertierungs-Dialog liegt (null = zu). Pro Inventar-Zeile
   // adressierbar — vorher gab es nur „die VB".

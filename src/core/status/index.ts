@@ -221,10 +221,10 @@ export {
 // Das Import-Diff-Journal hat ein eigenes Barrel (`./journal`); hier stehen nur
 // die Stellen, die andere Module ohnehin über `@/core/status` beziehen.
 export {
-  chronikFuerAntrag, letzterNachtLauf, letzteAenderungJeAntrag,
+  chronikFuerAntrag, chronikFuerAntraege, letzterNachtLauf, letzteAenderungJeAntrag,
   journalFrische, JOURNAL_FRISCHE_WARNUNG_TAGE,
-  type AntragsChronik, type FeldChronik, type JournalEintrag, type JournalFrische,
-  type NachtLauf,
+  type AntragsChronik, type AntragsChronikMitId, type FeldChronik, type JournalEintrag,
+  type JournalFrische, type NachtLauf,
 } from './journal';
 export {
   erhebePlatzhalter, fassePlatzhalterZusammen, BEISPIELE_MAX, PAAR_ALTBESTAND_TAGE,

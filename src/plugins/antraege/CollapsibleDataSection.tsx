@@ -35,7 +35,7 @@ export function CollapsibleDataSection({
         type="button"
         onClick={toggle}
         aria-expanded={open}
-        className="flex items-center gap-2 w-full min-w-0 text-left py-3 cursor-pointer"
+        className="flex items-center gap-2 w-full min-w-0 text-left py-2.5 cursor-pointer"
       >
         <ChevronRight
           size={15}
@@ -49,7 +49,7 @@ export function CollapsibleDataSection({
           </span>
         ) : null}
       </button>
-      {open ? <div className="pb-4">{children}</div> : null}
+      {open ? <div className="pb-3">{children}</div> : null}
     </div>
   );
 }

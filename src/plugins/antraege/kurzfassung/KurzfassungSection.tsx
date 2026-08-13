@@ -13,6 +13,7 @@ import { useMemo, useState } from 'react';
 import { SlidersHorizontal, X, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useCollapsedSection } from '@/core/hooks/useCollapsedSection';
+import { sektionOffenDefault, sektionsKey } from '../detailSektionen';
 import { DokumentAufnahme } from '@/core/components/DokumentAufnahme';
 import { KonvertierungReviewDialog } from '@/core/components/KonvertierungReviewDialog';
 import { maxConversionLevel } from '@/core/services/converter';
@@ -33,9 +34,11 @@ export function KurzfassungSection({ ctx }: { ctx: KurzfassungContext }): React.
   // Cap + Kontextfenster folgen der KI-Variante (Bridge-Tab), nicht nur dem lokalen Wert.
   const kontextZiel = useKontextZiel();
   const vbCap = useVbCharCap();
-  // Einklappbar (persistiert, Default offen); Body via CSS verstecken statt
-  // unmounten, damit ein offener Review-/Stream-Stand erhalten bleibt.
-  const [open, toggleOpen] = useCollapsedSection('verbund_kurzfassung_collapsed');
+  // Einklappbar (persistiert; Vorgabe in `detailSektionen`: zu); Body via CSS
+  // verstecken statt unmounten, damit ein offener Review-/Stream-Stand erhalten bleibt.
+  const [open, toggleOpen] = useCollapsedSection(
+    sektionsKey('kurzfassung'), { defaultOpen: sektionOffenDefault('kurzfassung') },
+  );
   const [dialogOpen, setDialogOpen] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
   const [ersetzen, setErsetzen] = useState(false);

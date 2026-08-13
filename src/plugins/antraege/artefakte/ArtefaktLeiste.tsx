@@ -28,7 +28,7 @@ export function ArtefaktLeiste({ ctxKey, tvs, status, onWeiterNachforderung }: P
   if (!nachforderung) return null;
 
   return (
-    <div className="mb-4 grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))' }}>
+    <div className="mb-3 grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))' }}>
       <ArtefaktKarte
         titel="Nachforderung"
         badge={

@@ -43,6 +43,12 @@ const ISOLATED_TESTS = [
   // Lock-Kern dagegen (Heartbeat-Takt, Freigabe-Verifikation).
   'src/core/services/infrastructure/__tests__/build-lock-freigabe.test.ts',
   'src/core/services/infrastructure/__tests__/listPendingGrants.test.ts',
+  // Mockt `smb-handle` modulweit und reicht ein absichtlich leeres `idb` durch —
+  // dieselbe Familie wie `updateFeedbackLage` oben, gleicher Fehlertext (`idb.get
+  // is not a function`, weil die echte Handle-Schicht durchkommt). Bis v4.12 war
+  // die Datei nur nicht an der Reihe; eine einzige zusaetzliche Testdatei (v4.13)
+  // verschob die Ladereihenfolge im gemeinsamen Register. Einzeln immer gruen.
+  'src/core/services/infrastructure/__tests__/schreibsperre-unlesbar.test.ts',
   // Mockt `@/config/personal-roots` modulweit (feste Wurzel-Liste statt
   // Build-Config) — ohne Isolation gewinnt der zuerst geladene echte Modulstand.
   'src/core/services/infrastructure/__tests__/userFoldersRootPermission.test.ts',

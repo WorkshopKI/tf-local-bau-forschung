@@ -22,6 +22,7 @@ import { useRef } from 'react';
 import { ChevronRight } from 'lucide-react';
 import { ToggleChip } from '@/components/ui/ToggleChip';
 import { useCollapsedSection } from '@/core/hooks/useCollapsedSection';
+import { sektionOffenDefault, sektionsKey } from '../detailSektionen';
 import { isVorgangssystemEnabled } from '@/config/feature-flags';
 import { zahPhaseLabel, zahPhaseFuerStatusText, offenePaareJeTeilvorhaben } from '@/core/status';
 import { HerleitungPopover } from './HerleitungPopover';
@@ -42,7 +43,9 @@ export function StatusDetailSection({ verbundId, statusRoh }: {
   // Einklappbar, Default ZU (persistierter Zustand gewinnt): die abgeleitete
   // Phase steht als Vorschau im Kopf, Timeline und Begründung sind Nachschlagen.
   // Hook VOR den Early Returns (Hook-Reihenfolge, React #310).
-  const [open, toggleOpen] = useCollapsedSection('verbund_status_collapsed', { defaultOpen: false });
+  const [open, toggleOpen] = useCollapsedSection(
+    sektionsKey('status'), { defaultOpen: sektionOffenDefault('status') },
+  );
   // Eine Präferenz-Instanz für beide Verlaufs-Ansichten (Hook vor den Early
   // Returns — React #310).
   const prefsApi = useTimelinePrefs();

@@ -23,7 +23,8 @@ export {
   journalisiereImport, stempelBekannt, type AnbindungsErgebnis,
 } from './import-anbindung';
 export {
-  chronikFuerAntrag, letzterNachtLauf, letzteAenderungJeAntrag, leereJournalCache,
-  bewerteAlter, journalFrische, JOURNAL_FRISCHE_WARNUNG_TAGE,
-  type AntragsChronik, type FeldChronik, type JournalFrische, type NachtLauf,
+  chronikFuerAntrag, chronikFuerAntraege, letzterNachtLauf, letzteAenderungJeAntrag,
+  leereJournalCache, bewerteAlter, journalFrische, JOURNAL_FRISCHE_WARNUNG_TAGE,
+  type AntragsChronik, type AntragsChronikMitId, type FeldChronik, type JournalFrische,
+  type NachtLauf,
 } from './lesen';

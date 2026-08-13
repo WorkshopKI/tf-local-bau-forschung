@@ -8,6 +8,7 @@
 import { useEffect, useState } from 'react';
 import { ChevronRight } from 'lucide-react';
 import { useCollapsedSection } from '@/core/hooks/useCollapsedSection';
+import { sektionOffenDefault, sektionsKey } from '../detailSektionen';
 import { DokumentAufnahme } from '@/core/components/DokumentAufnahme';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -37,7 +38,9 @@ export function WiderspruchSection({ ctx, onAntwortVorbereiten }: {
 }): React.ReactElement | null {
   const storage = useStorage();
   const w = useWiderspruch(ctx);
-  const [open, toggleOpen] = useCollapsedSection('verbund_widerspruch_collapsed');
+  const [open, toggleOpen] = useCollapsedSection(
+    sektionsKey('widerspruch'), { defaultOpen: sektionOffenDefault('widerspruch') },
+  );
   const [stellungnahme, setStellungnahme] = useState<DocumentFull | null>(null);
 
   // Zugeordnetes Stellungnahme-Dokument nachladen (für die Anzeige rechts).

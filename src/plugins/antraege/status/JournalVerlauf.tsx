@@ -13,37 +13,8 @@
  */
 import { useEffect, useState } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
-import { chronikFuerAntrag, type AntragsChronik, type JournalEintrag } from '@/core/status';
-
-const ART_TEXT: Record<JournalEintrag['art'], string> = {
-  gesetzt: 'gesetzt',
-  geaendert: 'geändert',
-  geleert: 'zurückgenommen',
-  'antrag-neu': 'erstmals im Export',
-  'antrag-fehlt': 'nicht mehr im Export',
-};
-
-/** `20260803` → `03.08.2026`; Text bleibt Text. */
-function wertText(w: JournalEintrag['von']): string {
-  if (w === undefined) return '—';
-  if (typeof w === 'number') {
-    const s = String(w);
-    return s.length === 8 ? `${s.slice(6, 8)}.${s.slice(4, 6)}.${s.slice(0, 4)}` : s;
-  }
-  return w;
-}
-
-function tagDe(iso: string): string {
-  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
-  return m ? `${m[3]}.${m[2]}.${m[1]}` : iso;
-}
-
-/** Wann — als Tag oder, bei unscharfer Spanne, als Zeitraum. */
-function wannText(e: JournalEintrag): string {
-  return e.unscharf && e.vonDatum && e.bisDatum
-    ? `zwischen ${tagDe(e.vonDatum)} und ${tagDe(e.bisDatum)}`
-    : `am ${tagDe(e.datum)}`;
-}
+import { chronikFuerAntrag, type AntragsChronik } from '@/core/status';
+import { ART_TEXT, tagDe, wannText, wertText } from './journalTexte';
 
 export function JournalVerlauf({ aktenzeichen, stichtag }: {
   aktenzeichen: string;

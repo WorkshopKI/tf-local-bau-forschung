@@ -36,10 +36,13 @@ interface Props {
 /** Volle Page-Breite über List- und Detail-Spalte:
  *  H1 + Subtitle + Tabs-Toolbar mit Search + Filter-Button.
  *
- *  Fokus-Modus (`listeSichtbar === false`): es bleiben Titel + Profil-Pill +
- *  „Aufnehmen" (wirkt auf den offenen Antrag, nicht auf die Liste). Kein State
- *  wird zurückgesetzt — Suchtext, aktive Sicht und Filter greifen unverändert,
- *  sobald die Liste wieder eingeblendet ist. */
+ *  Fokus-Modus (`listeSichtbar === false`): es bleiben Titel + Hilfe. Alles andere
+ *  im Kopf ist eine Aussage ÜBER DIE LISTE — der Bereichs-Chip nennt ihren
+ *  Ausschnitt, die Profil-Pille ihren Kürzel-Filter, Sicht-Tabs/Suche/Export/
+ *  Filter bedienen sie. Ohne Liste behaupten sie etwas über nichts, und der
+ *  Nutzer, der genau einen Antrag vor sich hat, scrollt an ihnen vorbei. Kein
+ *  State wird zurückgesetzt — Suchtext, aktive Sicht und Filter greifen
+ *  unverändert, sobald die Liste wieder eingeblendet ist. */
 export function AntraegeHeader({ filterOpen, onToggleFilter, listeSichtbar }: Props): React.ReactElement {
   const activeView = useAntraegeStore(s => s.activeView);
   const setActiveView = useAntraegeStore(s => s.setActiveView);
@@ -114,9 +117,9 @@ export function AntraegeHeader({ filterOpen, onToggleFilter, listeSichtbar }: Pr
             Kuerzel-Filter aktiv ist — auch wenn die Quickfilter-Toolbar
             darunter expandiert ist. */}
         <PageHeader
-          className="mb-3"
+          className={listeSichtbar ? 'mb-3' : ''}
           title={menuLabel('antraege', 'Förderanträge')}
-          meta={(
+          meta={listeSichtbar ? (
             <span className="inline-flex items-center gap-1.5 flex-wrap">
               <BereichChip ausgeblendet={ausgeblendet} />
               {bearbeiterFilter.active && (
@@ -126,7 +129,7 @@ export function AntraegeHeader({ filterOpen, onToggleFilter, listeSichtbar }: Pr
                 />
               )}
             </span>
-          )}
+          ) : undefined}
           actions={<SeitenHilfeButton pluginId="antraege" />}
         />
 
@@ -134,8 +137,10 @@ export function AntraegeHeader({ filterOpen, onToggleFilter, listeSichtbar }: Pr
             List/Cards) kompensiert das px-4-Innenpadding der AntragCard, damit
             die Filter-Button-Kante mit der Status-Badge-Kante fluchtet; im
             Compact-Modus kein pr → Icons treffen den Tabellen-Rand. */}
-        <div className="flex items-end gap-4">
-          {listeSichtbar ? (
+        {/* Toolbar-Zeile komplett nur bei sichtbarer Liste — im Fokus-Modus bliebe
+            sonst eine leere Zeile mit ihrem Innenabstand stehen. */}
+        {listeSichtbar ? (
+          <div className="flex items-end gap-4">
             <ScopeTabs
               variant="tabs"
               // Trenner vor „Diese Woche": links teilen „Antragsphase" und
@@ -153,61 +158,58 @@ export function AntraegeHeader({ filterOpen, onToggleFilter, listeSichtbar }: Pr
               onChange={key => setActiveView(key as ViewKey)}
               aria-label="Ansicht"
             />
-          ) : null}
 
-          <div className={`flex items-center gap-2 shrink-0 pb-2 ml-auto ${actionPr}`}>
-            {isGutachtenWorkflowEnabled() && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => useAufnahmeUiStore.getState().toggle()}
-                aria-label="Dokumente aufnehmen"
-                title="Antragsdokumente (ZIP) aufnehmen"
-                className="h-8 gap-1.5 px-2.5"
-              >
-                <FileUp size={13} />
-                <span className="text-[12px]">Aufnehmen</span>
-              </Button>
-            )}
-            {/* Export / Ansicht / Filter beziehen sich auf die LISTE — im
-                Fokus-Modus raus. „Aufnehmen" oben bleibt. */}
-            {listeSichtbar ? (
-              <>
+            <div className={`flex items-center gap-2 shrink-0 pb-2 ml-auto ${actionPr}`}>
+              {/* „Aufnehmen" nimmt Antragsdokumente auf und braucht dafür keine
+                  Liste — es steht hier trotzdem im Listen-Zweig, weil der Kopf im
+                  Fokus-Modus auf Titel + Hilfe zusammenschrumpfen soll. */}
+              {isGutachtenWorkflowEnabled() && (
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={handleExport}
-                  disabled={exportBusy || filtered.length === 0 || !activeProgrammId}
-                  aria-label={`Liste als XLSX exportieren (${filtered.length} Anträge)`}
-                  title={`Liste als XLSX exportieren (${filtered.length} Anträge)`}
-                  className="h-8 w-8 p-0"
+                  onClick={() => useAufnahmeUiStore.getState().toggle()}
+                  aria-label="Dokumente aufnehmen"
+                  title="Antragsdokumente (ZIP) aufnehmen"
+                  className="h-8 gap-1.5 px-2.5"
                 >
-                  {exportBusy
-                    ? <Loader2 size={13} className="animate-spin" />
-                    : <Download size={13} />}
+                  <FileUp size={13} />
+                  <span className="text-[12px]">Aufnehmen</span>
                 </Button>
-                <ViewModeToggle />
-                <Button
-                  variant={filterOpen ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={onToggleFilter}
-                  aria-label={`Filter${filterCount > 0 ? ` (${filterCount} aktiv)` : ''}`}
-                  title={`Filter${filterCount > 0 ? ` (${filterCount} aktiv)` : ''}`}
-                  className="relative h-8 w-8 p-0"
-                >
-                  <Filter size={13} />
-                  {filterCount > 0 && !filterOpen ? (
-                    <span
-                      aria-hidden="true"
-                      className="absolute top-1 right-1 h-1.5 w-1.5 rounded-full"
-                      style={{ background: 'var(--tf-primary)' }}
-                    />
-                  ) : null}
-                </Button>
-              </>
-            ) : null}
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExport}
+                disabled={exportBusy || filtered.length === 0 || !activeProgrammId}
+                aria-label={`Liste als XLSX exportieren (${filtered.length} Anträge)`}
+                title={`Liste als XLSX exportieren (${filtered.length} Anträge)`}
+                className="h-8 w-8 p-0"
+              >
+                {exportBusy
+                  ? <Loader2 size={13} className="animate-spin" />
+                  : <Download size={13} />}
+              </Button>
+              <ViewModeToggle />
+              <Button
+                variant={filterOpen ? 'default' : 'outline'}
+                size="sm"
+                onClick={onToggleFilter}
+                aria-label={`Filter${filterCount > 0 ? ` (${filterCount} aktiv)` : ''}`}
+                title={`Filter${filterCount > 0 ? ` (${filterCount} aktiv)` : ''}`}
+                className="relative h-8 w-8 p-0"
+              >
+                <Filter size={13} />
+                {filterCount > 0 && !filterOpen ? (
+                  <span
+                    aria-hidden="true"
+                    className="absolute top-1 right-1 h-1.5 w-1.5 rounded-full"
+                    style={{ background: 'var(--tf-primary)' }}
+                  />
+                ) : null}
+              </Button>
+            </div>
           </div>
-        </div>
+        ) : null}
 
         {/* Such-Zeile + Suchhinweise (eigene Zeile unter den Tabs): breites
             Suchfeld links, im „alle"-Modus der Inaktiv-MA-Toggle rechts daneben.

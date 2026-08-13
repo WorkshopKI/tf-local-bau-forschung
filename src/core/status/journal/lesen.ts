@@ -145,6 +145,22 @@ export interface FeldChronik {
   eintraege: JournalEintrag[];
 }
 
+/** Einträge eines Antrags nach Feld gruppieren (Feld alphabetisch, Einträge nach Datum). */
+function alsFeldChronik(eintraege: JournalEintrag[]): FeldChronik[] {
+  const proFeld = new Map<string, JournalEintrag[]>();
+  for (const e of eintraege) {
+    const feld = e.feld ?? `(${e.art})`;
+    const list = proFeld.get(feld);
+    if (list) list.push(e); else proFeld.set(feld, [e]);
+  }
+  return [...proFeld.entries()]
+    .map(([feld, es]) => ({
+      feld,
+      eintraege: [...es].sort((a, b) => a.datum.localeCompare(b.datum)),
+    }))
+    .sort((a, b) => a.feld.localeCompare(b.feld));
+}
+
 export interface AntragsChronik {
   /**
    * Ab wann das Journal Aussagen macht. **Gehört an jede Anzeige** — sonst wird
@@ -174,15 +190,13 @@ export async function chronikFuerAntrag(
   const stand = await frischerStand(idb);
   if (!stand) return null;
 
-  const proFeld = new Map<string, JournalEintrag[]>();
+  const eigene: JournalEintrag[] = [];
   let letzteAenderung: string | null = null;
   for (const monat of monateZwischen(stand.journalAb, heuteIso)) {
     for (const e of await ladeMonat(idb, monat)) {
       if (e.antragId !== antragId) continue;
       if (letzteAenderung === null || e.datum > letzteAenderung) letzteAenderung = e.datum;
-      const feld = e.feld ?? `(${e.art})`;
-      const list = proFeld.get(feld);
-      if (list) list.push(e); else proFeld.set(feld, [e]);
+      eigene.push(e);
     }
   }
 
@@ -190,13 +204,59 @@ export async function chronikFuerAntrag(
     journalAb: stand.journalAb,
     gefuehrt: antragId in stand.werte,
     letzteAenderung,
-    felder: [...proFeld.entries()]
-      .map(([feld, eintraege]) => ({
-        feld,
-        eintraege: [...eintraege].sort((a, b) => a.datum.localeCompare(b.datum)),
-      }))
-      .sort((a, b) => a.feld.localeCompare(b.feld)),
+    felder: alsFeldChronik(eigene),
   };
+}
+
+/** Eine Chronik samt ihrem Antrag — für Ansichten über mehrere Teilvorhaben. */
+export interface AntragsChronikMitId extends AntragsChronik {
+  antragId: string;
+}
+
+/**
+ * Die Chroniken mehrerer Anträge — für die Verbund-Ebene (ein Verbund = n TVs).
+ *
+ * Einmal über Stand und Monatsdateien statt n-mal `chronikFuerAntrag`: `stand.json`
+ * wiegt über tausende Anträge mehrere MB und ist NICHT gecacht (nur die Monate
+ * sind es). Ein Aufruf je Teilvorhaben läse ihn bei einem Achter-Verbund achtmal.
+ * Dieselbe Überlegung wie bei {@link letzteAenderungJeAntrag}.
+ *
+ * `null`, wenn es (noch) kein Journal gibt. Die Reihenfolge folgt `antragIds`
+ * (Duplikate fallen weg); Anträge ohne Einträge kommen mit leerer `felder`-Liste
+ * zurück — „nichts geändert" und „nicht geführt" sind verschiedene Aussagen und
+ * werden über `gefuehrt` unterschieden.
+ */
+export async function chronikFuerAntraege(
+  idb: IDBStore, antragIds: string[], heuteIso: string,
+): Promise<AntragsChronikMitId[] | null> {
+  const stand = await frischerStand(idb);
+  if (!stand) return null;
+
+  const ids = [...new Set(antragIds)];
+  const gesucht = new Set(ids);
+  const proAntrag = new Map<string, JournalEintrag[]>();
+  for (const monat of monateZwischen(stand.journalAb, heuteIso)) {
+    for (const e of await ladeMonat(idb, monat)) {
+      if (!gesucht.has(e.antragId)) continue;
+      const list = proAntrag.get(e.antragId);
+      if (list) list.push(e); else proAntrag.set(e.antragId, [e]);
+    }
+  }
+
+  return ids.map(antragId => {
+    const eintraege = proAntrag.get(antragId) ?? [];
+    let letzteAenderung: string | null = null;
+    for (const e of eintraege) {
+      if (letzteAenderung === null || e.datum > letzteAenderung) letzteAenderung = e.datum;
+    }
+    return {
+      antragId,
+      journalAb: stand.journalAb,
+      gefuehrt: antragId in stand.werte,
+      letzteAenderung,
+      felder: alsFeldChronik(eintraege),
+    };
+  });
 }
 
 /**

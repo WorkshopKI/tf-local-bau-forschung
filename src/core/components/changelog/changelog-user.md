@@ -19,6 +19,17 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.13 — 2026-08
+
+### Neu
+- Die Sektion „Historie" auf der Antragsseite zeigt jetzt, was sich seit dem Nullpunkt wirklich geändert hat — je Teilvorhaben, mit altem und neuem Wert. Vorher stand dort immer „Noch keine Verbund-Änderungen erfasst".
+### Verbesserungen
+- Die Antragsseite öffnet zugeklappt: sichtbar sind die Antragsdaten und die Kurzbeschreibung, sofern sie schon geschrieben ist. Was Sie auf- oder zuklappen, bleibt so beim nächsten Antrag.
+- Die Seite ist enger gesetzt und zeigt keine leeren Blöcke mehr — die Antragsdaten stehen rund 120 Pixel weiter oben.
+- Bei eingeklappter Antragsliste bleiben oben nur noch Titel und Hilfe stehen; Filter-Chips und Listen-Werkzeuge verschwinden mit der Liste, ohne ihre Einstellung zu verlieren.
+### Bugfixes
+<!-- - … -->
+
 ## v4.11 — 2026-08
 
 ### Verbesserungen
