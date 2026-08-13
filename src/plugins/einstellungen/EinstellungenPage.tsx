@@ -4,7 +4,7 @@ import { useStorage } from '@/core/hooks/useStorage';
 import { useKeyboardShortcut } from '@/core/hooks/useKeyboard';
 import { SettingsNav } from './SettingsNav';
 import { getSettingsPanels, buildSearchIndex } from './settingsPanels';
-import { SettingsSprungProvider, type SettingsSprungZiel } from './_shared/settings-layout';
+import { SettingsKopfStatusAnker, SettingsSprungProvider, type SettingsSprungZiel } from './_shared/settings-layout';
 import type { AIProviderConfig } from '@/core/types/config';
 import { SeitenHilfeButton } from '@/components/help/SeitenHilfeButton';
 import './einstellungen-layout.css';
@@ -20,6 +20,9 @@ export function EinstellungenPage(): React.ReactElement {
   // das Ziel steckt. Der Zähler macht denselben Treffer wiederholbar.
   const [sprung, setSprung] = useState<SettingsSprungZiel | null>(null);
   const sprungZaehler = useRef(0);
+  // Als State, nicht als Ref: der Portal-Anker muss einen Re-Render auslösen,
+  // sonst rendert der erste Durchlauf ohne Ziel und der Status bleibt leer.
+  const [kopfStatusEl, setKopfStatusEl] = useState<HTMLDivElement | null>(null);
 
   useEffect(() => {
     storage.idb.get<AIProviderConfig>('ai-provider').then(c => { if (c) setAiConfig(c); });
@@ -105,10 +108,15 @@ export function EinstellungenPage(): React.ReactElement {
                 {active.untertitel}
               </p>
             </div>
+            {/* Status-Anker: gefüllt wird er von der Gruppe, die tatsächlich
+                speichert (siehe SettingsKopfStatus) — sonst bleibt er leer. */}
+            <div ref={setKopfStatusEl} className="ml-auto shrink-0 pt-0.5 empty:hidden" />
           </div>
-          <SettingsSprungProvider ziel={sprung}>
-            {active.render()}
-          </SettingsSprungProvider>
+          <SettingsKopfStatusAnker el={kopfStatusEl}>
+            <SettingsSprungProvider ziel={sprung}>
+              {active.render()}
+            </SettingsSprungProvider>
+          </SettingsKopfStatusAnker>
         </div>
       </div>
     </div>

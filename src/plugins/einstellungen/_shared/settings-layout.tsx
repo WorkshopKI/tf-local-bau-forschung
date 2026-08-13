@@ -20,6 +20,7 @@
  * mit, die App hat fuer jedes davon laengst ein Primitive.
  */
 import { createContext, useContext, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { ChevronRight, Minus, Plus } from 'lucide-react';
 import { useCollapsedSection } from '@/core/hooks/useCollapsedSection';
 import { InfoHint } from './settings-primitives';
@@ -51,6 +52,32 @@ export function SettingsSprungProvider({
   children: React.ReactNode;
 }): React.ReactElement {
   return <SprungZielContext.Provider value={ziel}>{children}</SprungZielContext.Provider>;
+}
+
+// ───────────────────────── Kopf-Status ─────────────────────────
+
+/**
+ * Anker fuer die Status-Anzeige rechts im Seitenkopf. Sie steht dort, weil das
+ * der Handoff so zeigt — der WERT kommt aber aus der Gruppe, die wirklich
+ * speichert (`FachprofilGruppe`). Eine feste Textmarke „Automatisch
+ * gespeichert" waere eine Behauptung; hier steht der echte Zustand oder nichts.
+ */
+const KopfStatusContext = createContext<HTMLElement | null>(null);
+
+export function SettingsKopfStatusAnker({
+  el,
+  children,
+}: {
+  el: HTMLElement | null;
+  children: React.ReactNode;
+}): React.ReactElement {
+  return <KopfStatusContext.Provider value={el}>{children}</KopfStatusContext.Provider>;
+}
+
+/** Haengt seinen Inhalt in den Seitenkopf. Rendert nichts an Ort und Stelle. */
+export function SettingsKopfStatus({ children }: { children: React.ReactNode }): React.ReactNode {
+  const el = useContext(KopfStatusContext);
+  return el ? createPortal(children, el) : null;
 }
 
 // ───────────────────────── Spalten ─────────────────────────

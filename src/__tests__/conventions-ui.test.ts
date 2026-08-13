@@ -95,8 +95,8 @@ describe('no-raw-async-onclick (CLAUDE.md Pitfall #15)', () => {
     'src/plugins/filter-kuration/sections/AdminCustomFilterList.tsx',
     'src/plugins/antraege/filter/FilterSidebar.tsx',
     'src/plugins/antraege/filter/SavePresetDialog.tsx',
-    'src/plugins/einstellungen/MeineTechnologienTab.tsx',
-    'src/plugins/einstellungen/KuratorSessionPanel.tsx',
+    // (einstellungen/MeineTechnologienTab.tsx + KuratorSessionPanel.tsx sind mit
+    //  dem Redesign v4.28/v4.29 entfallen — die Nachfolger nutzen useAsyncAction.)
     'src/plugins/programme-kuration/unterprogramme/UnterprogrammXlsxImportDialog.tsx',
   ]);
 

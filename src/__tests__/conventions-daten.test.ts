@@ -265,7 +265,9 @@ describe('no-direct-bearbeiter-kuerzel (CLAUDE.md Pitfall #27)', () => {
     `${sep}__tests__${sep}`,
     `.test.ts`,
     `${sep}hooks${sep}useMeinKuerzel.ts`,    // der kanonische Getter selbst
-    `${sep}einstellungen${sep}ProfilTab.tsx`, // das editierbare Profilfeld (Schreib-Quelle)
+    // Das editierbare Profilfeld selbst (Schreib-Quelle) — seit v4.29 in der
+    // Gruppe „Welche Anträge du siehst" statt im alten ProfilTab.
+    `${sep}profil${sep}AntraegeSichtGruppe.tsx`,
   ];
   const isAllowed = (file: string): boolean =>
     ALLOWED_PATH_FRAGMENTS.some(frag => file.includes(frag));

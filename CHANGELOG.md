@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.29.0 — Mein Profil zweispaltig (August 2026)
+
+MINOR — Zweite Etappe des Einstellungs-Redesigns: „Mein Profil" steht zweispaltig. Links, was du über dich pflegst (Account, Fachprofil), rechts, was daraus folgt (welche Anträge du siehst, welche Module offen sind, was der Assistent mitschreibt). Kein Bereich entfällt — was selten gebraucht wird, steht eingeklappt mit Zähler.
+
+- **Fünf Gruppen statt neun ALL-CAPS-Sektionen** ([profil/](src/plugins/einstellungen/profil/)): `ProfilTab`, `MeineTechnologienTab`, `AssistentTab`, `GedaechtnisSektion` und `ModulFreischaltungSection` gehen darin auf; Zustand + Auto-Save des Fachprofils liegen in [useFachprofil.ts](src/plugins/einstellungen/profil/useFachprofil.ts)
+- **Zähler aus dem echten Zustand**: „13 von 30 aktiv" (Themen), „3 Begriffe" (Kompetenzen), „N Ereignisse" (Protokoll), Restlaufzeit je Modul als Status-Badge
+- **Gedächtnis-Verwaltung bleibt vollständig**, nur eingeklappt ([GedaechtnisVerwaltung.tsx](src/plugins/einstellungen/profil/GedaechtnisVerwaltung.tsx)) — der Prototyp zeigt an dieser Stelle nur den Schalter
+- **Der Kopf zeigt den echten Speicher-Zustand** statt einer festen Textmarke ([ProfilPanel.tsx](src/plugins/einstellungen/profil/ProfilPanel.tsx)); vor dem ersten Schreiben steht dort die Zusage „Automatisch gespeichert"
+- **Zwei Anzeigefehler nebenbei**: die Kürzel-Pille behauptete „Kürzel ALLE" (der Aus-Zustand des Filters), und die Zusammenfassung nannte Hauptkategorie und Antragstypen auch ohne Programm-Id
+
 ### v4.28.0 — Einstellungen: vier Seiten statt fünf, Details hinter dem ⓘ (August 2026)
 
 MINOR — Erste Etappe des Redesigns aus `_design/handoff/einstellungen-zweispaltig`: Registry, Navigation und die Bauteile, auf denen die vier Seiten danach entstehen. Die Inhalte selbst stehen noch wie bisher; sichtbar ändert sich der Menüschnitt und die Art, wie Erklärungen erscheinen.

@@ -19,6 +19,17 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.29 — 2026-08
+
+### Verbesserungen
+- „Mein Profil" ist zweispaltig: links Ihr Account und Ihr Fachprofil, rechts, was daraus folgt — welche Anträge Sie sehen, welche Zusatz-Module offen sind und was der persönliche Assistent mitschreibt.
+- Selten Gebrauchtes steht eingeklappt und sagt in der Zeile, was dahinter liegt: „Themen aus Ihren Anträgen · 13 von 30 aktiv", „Eigene Kompetenzen · 3 Begriffe".
+- Die lange Erklärung zum Arbeitsprotokoll steht jetzt im ⓘ; „Persönliches Gedächtnis" bleibt sichtbar gesperrt, solange das Arbeitsprotokoll aus ist, und nennt den Grund in der Zeile.
+- Oben rechts steht, ob gerade gespeichert wurde — statt einer festen Zusage.
+
+### Bugfixes
+- Die Kürzel-Anzeige im Profil behauptete „Kürzel ALLE", wenn gar kein Kürzel gewählt war.
+
 ## v4.28 — 2026-08
 
 ### Verbesserungen

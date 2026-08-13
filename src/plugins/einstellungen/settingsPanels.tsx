@@ -27,8 +27,7 @@ import {
   hatIrgendeinModulSchloss,
 } from '@/config/feature-flags';
 import type { AIProviderConfig } from '@/core/types/config';
-import { ProfilTab } from './ProfilTab';
-import { MeineTechnologienTab } from './MeineTechnologienTab';
+import { ProfilPanel } from './profil/ProfilPanel';
 import { DarstellungTab } from './DarstellungTab';
 import { WidgetsSettingsSection } from './WidgetsSettingsSection';
 import { TastaturTab } from './TastaturTab';
@@ -113,12 +112,7 @@ export function getSettingsPanels(ctx: PanelContext): SettingsPanel[] {
           ]
         : []),
     ],
-    render: () => (
-      <div className="space-y-8">
-        <ProfilTab />
-        <MeineTechnologienTab />
-      </div>
-    ),
+    render: () => <ProfilPanel />,
   });
 
   panels.push({
