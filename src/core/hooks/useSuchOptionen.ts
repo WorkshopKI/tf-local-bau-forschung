@@ -1,6 +1,6 @@
 /**
  * Die beiden übrigen Suchoptionen neben der Wortverknüpfung (v4.5):
- * „ähnliche Begriffe mitsuchen" und „Suchen in".
+ * „Wortformen mitsuchen" und „Suchen in".
  *
  * Schwester von [[useSuchVerknuepfung]] — dort steht, WIE die Wörter verknüpft
  * werden, hier, WOMIT und WORIN gesucht wird. Beide persistieren, weil sie

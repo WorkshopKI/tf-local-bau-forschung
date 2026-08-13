@@ -110,7 +110,7 @@ export interface UseUnifiedSearchResult {
   /** Warum die Ähnlichkeits-Stage ggf. keine Treffer liefern konnte. */
   semanticStatus: SemanticStatus;
   /** Wörter, die der Bestand über den Wortstamm beigesteuert hat — die
-   *  abwählbaren Chips der Deutungszeile. Leer, wenn „ähnliche Begriffe" aus
+   *  abwählbaren Chips der Deutungszeile. Leer, wenn „Wortformen mitsuchen" aus
    *  ist oder nichts dazukam. */
   varianten: string[];
 }

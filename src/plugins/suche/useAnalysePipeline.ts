@@ -8,9 +8,18 @@
  * würde jeden Mount der Suche-Seite zum „pop-up" machen, auch wenn der User die
  * KI-Analyse gar nicht nutzen will. Verfügbarkeit wird **lazy** beim ersten
  * Klick auf „Analyse starten" geprüft.
+ *
+ * Bis v4.15.0 galt das nur für den Mount: der Klick selbst pingte OFFEN
+ * (`openIfNeeded` steht per Vorgabe auf `true`) und riss damit ungefragt einen
+ * KI-Tab auf — sichtbar am „Warum?" einer einzelnen Zeile, das sich wie eine
+ * Frage an die Liste liest und nicht wie ein Auftrag, ein Fenster zu öffnen.
+ * Jetzt läuft der Guard `kiVerbindungGeprueft` davor: passiver Ping auf eine
+ * BEREITS offene Bridge, sonst der app-weite Verbinden-Dialog und ein sauberer
+ * Abbruch mit Hinweis.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
+import { kiVerbindungGeprueft } from '@/core/services/ai/ki-guard';
 import type { UnifiedSearchResult } from '@/core/types/search-result';
 import {
   runAnalysisPipeline,
@@ -64,9 +73,19 @@ export function useAnalysePipeline(): UseAnalysePipeline {
 
     void (async () => {
       try {
-        // Verfügbarkeitsprüfung erst HIER (lazy) — `ping()` kann Side-Effects
-        // haben (Streamlit-Bridge öffnet window.open); okay, weil der User
-        // explizit „Analyse starten" geklickt hat.
+        // 1. Ist überhaupt eine interne KI verbunden? Der Guard pingt PASSIV
+        //    (öffnet keinen Tab) und zeigt sonst den Verbinden-Dialog.
+        if (!(await kiVerbindungGeprueft(bridge))) {
+          setError('Die interne KI ist nicht verbunden — ohne sie gibt es keine Begründung. Der Verbinden-Dialog ist offen.');
+          setRunning(false);
+          setProgress(null);
+          setBegruendungById(null);
+          return;
+        }
+
+        // 2. Erreichbarkeit des tatsächlichen Transports. Bei der Bridge hat
+        //    Schritt 1 das schon beantwortet; für Direkt-Provider (die der Guard
+        //    durchwinkt, weil sie keinen Tab brauchen) ist das die echte Prüfung.
         const reachable = await transport.ping().catch(() => false);
         if (!reachable) {
           setError(`KI-Provider „${transport.displayName ?? transport.name}" nicht erreichbar. Konfiguration in den Einstellungen prüfen.`);
@@ -98,7 +117,7 @@ export function useAnalysePipeline(): UseAnalysePipeline {
         setRunning(false);
       }
     })();
-  }, [running, transport]);
+  }, [running, transport, bridge]);
 
   const cancel = useCallback(() => {
     abortRef.current?.abort();

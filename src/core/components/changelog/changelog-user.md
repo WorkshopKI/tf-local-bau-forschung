@@ -19,6 +19,18 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.17 — 2026-08
+
+### Neu
+- „Suchen in" trennt jetzt „nur Einrichtung" und „nur Ort & Bundesland". Wer wissen will, welche Vorhaben in Bayern gefördert wurden, bekommt nicht mehr die Firmen mit „Bayern" im Namen dazu.
+
+### Verbesserungen
+- Der Schalter „Ähnliche Begriffe mitsuchen" heißt jetzt „Wortformen mitsuchen" — er sucht dasselbe Wort in anderer Form („Normen" findet „Normung"). Die „Ähnlichkeitssuche" daneben sucht dasselbe Thema in anderen Worten. Zwei verschiedene Dinge, jetzt auch zwei verschiedene Namen.
+- In der Tabellenansicht ist der Suchbegriff jetzt genauso markiert wie in der Liste — im Titel, im Förderkennzeichen, beim Antragsteller und beim Ort.
+
+### Bugfixes
+- „Warum?" öffnete bisher ein neues Browser-Fenster mit der internen KI, auch wenn man nur wissen wollte, warum ein Treffer oben steht. Jetzt fragt die App erst nach, ob die KI überhaupt verbunden ist — und sagt es, wenn nicht.
+
 ## v4.15 — 2026-08
 
 ### Verbesserungen

@@ -115,7 +115,7 @@ export function berechneAuswege(lage: AuswegLage, probe: Probelauf): Ausweg[] {
   if (!lage.stammSuche) {
     kandidaten.push({
       id: 'stamm',
-      text: 'ähnliche Begriffe mitsuchen (Wortstamm)',
+      text: 'andere Wortformen mitsuchen (Wortstamm)',
       aenderung: { stammSuche: true },
     });
   }

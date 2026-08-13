@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.17.0 — Suche: klare Schalter, Markierung in der Tabelle, kein KI-Tab (August 2026)
+
+MINOR — Vier Befunde aus dem Test der Suchseite. Zwei Schalter hießen fast gleich und taten Verschiedenes, ein Suchbereich beantwortete zwei Fragen auf einmal, die Markierung gab es nur in der Liste, und ein Klick auf „Warum?" riss ungefragt einen KI-Tab auf.
+
+- **„Wortformen mitsuchen" statt „Ähnliche Begriffe mitsuchen"** ([SuchOptionenZeile.tsx](src/plugins/suche/SuchOptionenZeile.tsx), [suche-relevanz.md](docs/architecture/suche-relevanz.md)): getrennt entlang der Achse — dasselbe Wort in anderer Form gegen dasselbe Thema in anderen Worten (Ähnlichkeitssuche); Deutungszeile und Kein-Treffer-Auswege ziehen mit
+- **„nur Einrichtung" und „nur Ort & Bundesland" sind zwei Bereiche** ([suchbereich.ts](src/core/services/search/suchbereich.ts)): zusammengelegt mischte „wer" und „wo" — am Bestand gemessen 82 gegen 1 976 Treffer für „Bayern"
+- **Die Tabelle markiert den Suchbegriff wie die Liste** ([SuchMarkierung.tsx](src/plugins/suche/SuchMarkierung.tsx), [columns.tsx](src/plugins/suche/columns.tsx)): Titel/Inhalt, FKZ, AST und Ort AST über einen Kontext; `accessor` bleibt roh, Sortierung/Filter/Export unverändert
+- **„Warum?" öffnet keinen KI-Tab mehr** ([useAnalysePipeline.ts](src/plugins/suche/useAnalysePipeline.ts)): der Verfügbarkeits-Check läuft über den vorhandenen Guard `kiVerbindungGeprueft` (passiver Ping) statt über `ping()` mit seiner öffnenden Vorgabe
+- **Der Grund steht, wo die Begründung erwartet wurde** ([TrefferZeile.tsx](src/plugins/suche/TrefferZeile.tsx)): ohne verbundene KI sagt der aufgeklappte Bereich das, statt „Noch keine Begründung."
+
 ### v4.15.0 — Hilfe steht auf jeder Seite am Blattrand (August 2026)
 
 MINOR — „Rechtsbündig als letztes Element der Kopf-Aktionen" stand als Regel im Doc, aber rechtsbündig **wovon** stand nirgends. Auf elf Seiten steckte der Hilfe-Knopf darum in der schmalen Inhaltsspalte und hing mitten in der Fläche — auf den Förderanträgen 414 px vor dem Rand, gemessen auf einem 1520 px breiten Blatt. Gesucht wird er trotzdem am Rand, so wie ihn die Startseite zeigt.

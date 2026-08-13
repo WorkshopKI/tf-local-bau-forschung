@@ -9,6 +9,12 @@
  * Die Ähnlichkeitssuche (Embedding) bleibt daneben ihr eigener Schalter: sie
  * lädt ein Modell von ~200 MB nach, und das darf nicht hinter einer harmlosen
  * Beschriftung passieren.
+ *
+ * Die beiden Schalter hießen bis v4.15.0 „Ähnliche Begriffe mitsuchen" und
+ * „Ähnlichkeitssuche" — zwei Namen, die dasselbe versprachen und Verschiedenes
+ * taten. Sie trennt jetzt die Achse, auf der sie wirken: der eine sucht dasselbe
+ * WORT in anderer Form (rein sprachlich, kostenlos), der andere dasselbe THEMA
+ * in anderen Worten (Sprachmodell, Nachladen).
  */
 import {
   VERKNUEPFUNG_LABEL,
@@ -67,7 +73,7 @@ export function SuchOptionenZeile({
       <label
         className="inline-flex h-7 items-center gap-1.5 rounded-[8px] px-2 text-[12px] text-[var(--tf-text-secondary)] cursor-pointer"
         style={SELECT_STYLE}
-        title="Sucht zusätzlich mit dem Wortstamm — „Normen“ findet dann auch „Normung“. Kostet nichts und lädt nichts nach."
+        title="Dasselbe Wort in anderer Form: „Normen“ findet dann auch „Normung“. Rein sprachlich — kostet nichts und lädt nichts nach. (Nicht zu verwechseln mit der Ähnlichkeitssuche rechts, die nach dem Thema geht.)"
       >
         <input
           type="checkbox"
@@ -75,7 +81,7 @@ export function SuchOptionenZeile({
           onChange={e => onStammSuche(e.target.checked)}
           className="h-3.5 w-3.5 cursor-pointer accent-[var(--tf-primary)]"
         />
-        Ähnliche Begriffe mitsuchen
+        Wortformen mitsuchen
       </label>
 
       <label className="inline-flex items-center gap-1.5 text-[12px] text-[var(--tf-text-secondary)]">
@@ -96,7 +102,7 @@ export function SuchOptionenZeile({
       <label
         className="inline-flex h-7 items-center gap-1.5 rounded-[8px] px-2 text-[12px] text-[var(--tf-text-secondary)] cursor-pointer"
         style={SELECT_STYLE}
-        title="Findet thematisch verwandte Vorhaben ohne gemeinsames Wort. Lädt beim ersten Mal ein Sprachmodell (~200 MB) nach."
+        title="Dasselbe Thema in anderen Worten: findet verwandte Vorhaben auch ohne gemeinsames Wort. Lädt beim ersten Mal ein Sprachmodell (~200 MB) nach — anders als „Wortformen mitsuchen“ links, das rein sprachlich arbeitet."
       >
         <input
           type="checkbox"

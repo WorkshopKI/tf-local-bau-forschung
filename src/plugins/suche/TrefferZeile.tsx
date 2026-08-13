@@ -8,6 +8,10 @@
  *
  * „Warum?" klappt die KI-Begründung unter der Zeile auf. Bewusst je Zeile statt
  * global: der Zweifel entsteht an einem Treffer, nicht an der Liste.
+ *
+ * Kommt keine Begründung, steht der GRUND im aufgeklappten Bereich (`hinweis`,
+ * v4.15.0) — bis dahin sagte er „Noch keine Begründung." und verschwieg, dass
+ * gar keine KI verbunden ist.
  */
 import { Sparkles, ChevronDown, ExternalLink, Search, ThumbsDown } from 'lucide-react';
 import type { UnifiedSearchResult } from '@/core/types/search-result';
@@ -39,6 +43,7 @@ export function TrefferZeile({
   onUnpassend,
   onWaehlen,
   begruendungLaeuft,
+  hinweis,
 }: {
   treffer: UnifiedSearchResult;
   woerter: readonly string[];
@@ -52,6 +57,8 @@ export function TrefferZeile({
   onUnpassend: () => void;
   onWaehlen: () => void;
   begruendungLaeuft: boolean;
+  /** Warum keine Begründung da ist (z. B. keine KI verbunden). */
+  hinweis?: string | null;
 }): React.ReactElement {
   const felder = treffer.trefferfelder ?? [];
   const stufe = treffer.relevanzStufe ?? 1;
@@ -162,7 +169,9 @@ export function TrefferZeile({
                 <Sparkles size={12} className="mt-0.5 shrink-0 text-[var(--tf-primary)]" aria-hidden />
                 <p className="text-[12px] leading-relaxed text-[var(--tf-text-secondary)]">
                   {treffer.begruendung
-                    ?? (begruendungLaeuft ? 'Begründung wird erzeugt …' : 'Noch keine Begründung.')}
+                    ?? (begruendungLaeuft
+                      ? 'Begründung wird erzeugt …'
+                      : (hinweis ?? 'Noch keine Begründung.'))}
                 </p>
               </div>
               <div className="mt-2 flex flex-wrap gap-1.5">

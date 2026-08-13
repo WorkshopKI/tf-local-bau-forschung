@@ -86,11 +86,17 @@ Zwei Folgen:
   Suche) ist entfallen: er fragte denselben Index ein zweites Mal für dieselbe
   Zuordnung — 150–300 ms für ein Ergebnis, das schon vorlag.
 
-## 5 Ähnliche Begriffe = Wortstämme
+## 5 „Wortformen mitsuchen" = Wortstämme
 
 Eine Synonymquelle hat die App nicht (das Glossar führt 41 Abkürzungen ohne
 Synonymfeld), und das Embedding-Modell kann Nachbarschaft messen, aber keine
 Begriffe BENENNEN — ohne benennbare Begriffe gibt es nichts abzuwählen.
+
+Der Schalter hieß bis v4.16.0 „Ähnliche Begriffe mitsuchen" und stand neben der
+„Ähnlichkeitssuche": zwei Namen, die dasselbe versprachen und Verschiedenes
+taten. Getrennt sind sie jetzt entlang ihrer Achse — dasselbe **Wort** in anderer
+Form (hier, rein sprachlich) gegen dasselbe **Thema** in anderen Worten
+(Embedding, [[useSemanticSearchMode]]).
 
 [wortstamm.ts](../../src/core/services/search/wortstamm.ts) löst Endungen ab
 (`ungen|ung|en|er|es|em|e|s|n`, Reststamm ≥ 4 Zeichen). Die Chips der

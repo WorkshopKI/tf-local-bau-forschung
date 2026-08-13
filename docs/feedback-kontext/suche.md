@@ -10,15 +10,15 @@ Nutzer durchsucht Förderanträge und Dokumente programmweit mit einer hybriden 
 - **Suchfeld** oben — mehrzeilig und an der Ecke in beide Richtungen ziehbar (die Größe wird gemerkt). Enter startet/übernimmt, Shift+Enter macht einen Zeilenumbruch.
 - **Optionszeile** darunter, vier Elemente:
   - **„Wortverknüpfung":** alle Wörter (UND, Standard) · irgendein Wort (ODER) · genaue Wortfolge. Wirkt auf Wortlaut-Treffer.
-  - **„Ähnliche Begriffe mitsuchen":** deterministischer Wortstamm-Vergleich („Normen" findet „Normung"). Kostenlos, lädt nichts nach.
-  - **„Suchen in":** Titel/Beschreibung/Dokumente · nur Titel & Kurzbeschreibung · nur Dokumente · nur Einrichtung & Ort.
-  - **„Ähnlichkeitssuche":** semantische Treffer, lädt beim ersten Mal ein Embedding-Modell (~200 MB).
+  - **„Wortformen mitsuchen":** dasselbe Wort in anderer Form — deterministischer Wortstamm-Vergleich („Normen" findet „Normung"). Kostenlos, lädt nichts nach.
+  - **„Suchen in":** Titel/Beschreibung/Dokumente · nur Titel & Kurzbeschreibung · nur Dokumente · nur Einrichtung · nur Ort & Bundesland.
+  - **„Ähnlichkeitssuche":** dasselbe Thema in anderen Worten — semantische Treffer, lädt beim ersten Mal ein Embedding-Modell (~200 MB). Nicht zu verwechseln mit „Wortformen mitsuchen": der eine Schalter geht über das Wort, der andere über den Inhalt.
   - Rechts der **Index-Hinweis** („Index: 14.225 Anträge · n Textabschnitte").
 - **Deutungszeile „Gesucht wird":** die Suchwörter als **abwählbare** Chips (gelb), dazwischen der Operator (UND/ODER/„gefolgt von"), dahinter die gefundenen Wortstamm-Varianten (türkis, ebenfalls abwählbar). Ein abgewähltes Wort fällt aus der Suche — das Feld bleibt unverändert.
 - **Facettenzeile:** Status · Antragstyp · Jahr · Trefferstelle, je mit Trefferzahl. Gesetzte Filter erscheinen zusätzlich als entfernbarer Chip, daneben „Filter zurücksetzen".
 - **Ergebniskopf:** „n Treffer in m Anträgen" · **Darstellung** (Sortierung + Dichte in einem Menü) · **Liste/Tabelle** · **Spalten** (nur in der Tabelle) · **Mit KI analysieren** (öffnet den Assistenten) · **Alle begründen** · **Begründungen entfernen** · **Export-Menü** (CSV / XLSX / Zwischenablage).
-- **Trefferliste** (Standard): je Zeile FKZ · Status · Bewilligungsdatum · Titel (Suchwörter markiert) · Textstelle mit Quellenangabe · Trefferstellen-Tags mit Anzahl · Relevanzbalken (hoch/mittel/gering) · **„Warum?"**. „Warum?" klappt die KI-Begründung unter der Zeile auf, mit den Aktionen **Antrag öffnen** · **Ähnliche Anträge** · **Als unpassend melden** (öffnet das Feedback-Formular vorbefüllt; ändert kein Ranking).
-- **Ergebnistabelle** (Alternative): sortier-/filterbare, konfigurierbare Spalten wie bisher.
+- **Trefferliste** (Standard): je Zeile FKZ · Status · Bewilligungsdatum · Titel (Suchwörter markiert) · Textstelle mit Quellenangabe · Trefferstellen-Tags mit Anzahl · Relevanzbalken (hoch/mittel/gering) · **„Warum?"**. „Warum?" klappt die KI-Begründung unter der Zeile auf, mit den Aktionen **Antrag öffnen** · **Ähnliche Anträge** · **Als unpassend melden** (öffnet das Feedback-Formular vorbefüllt; ändert kein Ranking). Ist keine interne KI verbunden, öffnet „Warum?" **keinen** KI-Tab, sondern den app-weiten Verbinden-Dialog; im aufgeklappten Bereich steht der Grund.
+- **Ergebnistabelle** (Alternative): sortier-/filterbare, konfigurierbare Spalten. Die Suchwörter sind auch hier markiert (Titel/Inhalt, FKZ bzw. Dateiname, AST, Ort AST); Sortierung, Filter und Export arbeiten weiter auf dem Rohwert.
 - **Mehrfachauswahl:** Kästchen je Zeile, dunkle Leiste unten mit Exportieren · Mit KI vergleichen · Auswahl leeren.
 - **ASSISTENT-Streifen** am rechten Rand (auf jeder Seite): schaltet hier das andockende KI-Chat-Panel mit den Treffern als Kontext.
 - **Startzustand** (noch nichts getippt): vier Spalten — letzte Suchen, gespeicherte Suchen, häufig gesucht (je mit echter Trefferzahl) und „Aus dem Index" mit den Beispiel-Chips. Fehlt der Dokumentenindex, steht unten eine gedämpfte Info-Zeile (kein Button — der Index ist Kurator-Aufgabe).

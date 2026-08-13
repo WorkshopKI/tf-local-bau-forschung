@@ -96,7 +96,7 @@ describe('sammleVarianten', () => {
 });
 
 describe('Suchbereich', () => {
-  const ALLE: Suchbereich[] = ['alles', 'inhalt', 'dokumente', 'einrichtung'];
+  const ALLE: Suchbereich[] = ['alles', 'inhalt', 'dokumente', 'einrichtung', 'standort'];
 
   it('jeder Bereich hat eine Beschriftung', () => {
     for (const b of ALLE) expect(SUCHBEREICH_LABEL[b].length).toBeGreaterThan(0);
@@ -114,6 +114,13 @@ describe('Suchbereich', () => {
     for (const f of bereichFelder('einrichtung')) expect(inhalt.has(f)).toBe(false);
   });
 
+  it('„wer" und „wo" sind zwei Bereiche, nicht einer', () => {
+    // v4.15.0: zusammengelegt beantwortete der Bereich beide Fragen auf einmal
+    // — wer nach einem Ort suchte, bekam die Firmennamen dazu.
+    expect(Array.from(bereichFelder('einrichtung'))).toEqual(['organisation']);
+    expect(Array.from(bereichFelder('standort'))).toEqual(['standort']);
+  });
+
   it('„nur Dokumente" prüft KEIN Antragsfeld', () => {
     expect(bereichFelder('dokumente').size).toBe(0);
   });
@@ -127,11 +134,13 @@ describe('Suchbereich', () => {
     expect(bereichNutztDokumente('dokumente')).toBe(true);
     expect(bereichNutztDokumente('inhalt')).toBe(false);
     expect(bereichNutztDokumente('einrichtung')).toBe(false);
+    expect(bereichNutztDokumente('standort')).toBe(false);
   });
 
   it('toleranter Leser: Unbekanntes fällt auf „alles" zurück', () => {
     expect(parseSuchbereich(null)).toBe('alles');
     expect(parseSuchbereich('quatsch')).toBe('alles');
     expect(parseSuchbereich('einrichtung')).toBe('einrichtung');
+    expect(parseSuchbereich('standort')).toBe('standort');
   });
 });

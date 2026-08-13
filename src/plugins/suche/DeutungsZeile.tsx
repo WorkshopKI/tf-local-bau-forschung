@@ -82,7 +82,7 @@ export function DeutungsZeile({
           Überschrift ohne Inhalt zu zeigen. */}
       {stammSuche && varianten.length > 0 && (
         <>
-          <span className="text-[11.5px] text-[var(--tf-text-tertiary)]">auch ähnlich</span>
+          <span className="text-[11.5px] text-[var(--tf-text-tertiary)]">auch als</span>
           {varianten.slice(0, VARIANTEN_SICHTBAR).map(v => {
             const aktiv = !ausVarianten.has(v.toLowerCase());
             return (
@@ -114,7 +114,7 @@ export function DeutungsZeile({
           className="inline-flex items-center gap-1 rounded-[6px] px-1.5 py-0.5 text-[11.5px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text)] cursor-pointer"
           style={{ border: '0.5px dashed var(--tf-border)' }}
         >
-          + ähnliche Begriffe
+          + Wortformen
         </button>
       )}
     </div>

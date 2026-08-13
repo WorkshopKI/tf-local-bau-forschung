@@ -29,6 +29,7 @@ export function TrefferListe({
   onAehnliche,
   onUnpassend,
   onWaehlen,
+  begruendungHinweis,
 }: {
   treffer: readonly UnifiedSearchResult[];
   woerter: readonly string[];
@@ -42,6 +43,9 @@ export function TrefferListe({
   onAehnliche: (t: UnifiedSearchResult) => void;
   onUnpassend: (t: UnifiedSearchResult) => void;
   onWaehlen: (t: UnifiedSearchResult) => void;
+  /** Steht im aufgeklappten Bereich, wenn keine Begründung kam — der Grund
+   *  gehört dorthin, wo der Nutzer sie erwartet hat. */
+  begruendungHinweis?: string | null;
 }): React.ReactElement {
   const [sichtbar, setSichtbar] = useState(SEITE);
   const sentinel = useRef<HTMLLIElement | null>(null);
@@ -80,6 +84,7 @@ export function TrefferListe({
           ausgeklappt={ausgeklappt.has(t.id)}
           gewaehlt={auswahl.has(t.id)}
           begruendungLaeuft={laufendeBegruendung.has(t.id)}
+          hinweis={begruendungHinweis}
           onOeffnen={() => onOeffnen(t)}
           onWarum={() => onWarum(t)}
           onAehnliche={() => onAehnliche(t)}

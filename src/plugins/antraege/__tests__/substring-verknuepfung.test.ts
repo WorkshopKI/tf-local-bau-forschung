@@ -359,7 +359,7 @@ describe('searchAntraegeSubstring — Suchen in', () => {
       .toEqual(['T1']);
   });
 
-  it('„nur Einrichtung & Ort" dreht es um', () => {
+  it('„nur Einrichtung" dreht es um', () => {
     expect(searchAntraegeSubstring('standards', BEREICH_KORPUS, { bereich: 'einrichtung' }))
       .toEqual(['O1']);
   });
@@ -374,9 +374,18 @@ describe('searchAntraegeSubstring — Suchen in', () => {
       .toEqual([]);
   });
 
-  it('der Ort bleibt dem Einrichtungs-Bereich erhalten', () => {
-    expect(searchAntraegeSubstring('berlin', BEREICH_KORPUS, { bereich: 'einrichtung' }))
+  it('„nur Ort & Bundesland" sucht am Ort, nicht am Firmennamen', () => {
+    // v4.15.0: „wer" und „wo" sind getrennt. „Standards" steht im Firmennamen
+    // von O1 — im Ortsbereich darf das keinen Treffer geben.
+    expect(searchAntraegeSubstring('berlin', BEREICH_KORPUS, { bereich: 'standort' }))
       .toEqual(['T1']);
+    expect(searchAntraegeSubstring('standards', BEREICH_KORPUS, { bereich: 'standort' }))
+      .toEqual([]);
+  });
+
+  it('der Einrichtungs-Bereich sucht nicht mehr am Ort mit', () => {
+    expect(searchAntraegeSubstring('berlin', BEREICH_KORPUS, { bereich: 'einrichtung' }))
+      .toEqual([]);
     expect(searchAntraegeSubstring('berlin', BEREICH_KORPUS, { bereich: 'inhalt' })).toEqual([]);
   });
 });

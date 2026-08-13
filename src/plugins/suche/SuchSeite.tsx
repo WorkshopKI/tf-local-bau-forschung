@@ -33,6 +33,7 @@ import { SearchInput } from './SearchInput';
 import { SucheStartzustand, type StartEintrag } from './SucheStartzustand';
 import { KeinTrefferZustand } from './KeinTrefferZustand';
 import { TrefferListe } from './TrefferListe';
+import { SuchMarkierungProvider } from './SuchMarkierung';
 import { SuchOptionenZeile } from './SuchOptionenZeile';
 import { DeutungsZeile } from './DeutungsZeile';
 import { FacettenZeile } from './FacettenZeile';
@@ -790,26 +791,31 @@ export function SuchSeite(): React.ReactElement {
                 onAehnliche={aehnlicheAntraege}
                 onUnpassend={alsUnpassendMelden}
                 onWaehlen={waehle}
+                begruendungHinweis={analyse.error}
               />
             </div>
           )}
 
           {showResults && ansicht === 'tabelle' && (
             <div className="mt-3">
-              <SearchResultsTable
-                results={sorted}
-                columns={visibleColumnDefs}
-                sortKey={sortKey}
-                sortDirection={sortDirection}
-                onSort={handleSort}
-                columnFilters={columnFilters}
-                onColumnFilterChange={handleColumnFilterChange}
-                filterCandidatesByColumn={filterCandidatesByColumn}
-                filterCountsByColumn={filterCountsByColumn}
-                columnWidths={columnWidths}
-                onColumnWidthChange={handleColumnWidthChange}
-                onRowClick={oeffneTreffer}
-              />
+              {/* Dieselbe Markierung wie in der Liste: die Zellen-Renderer holen
+                  die Wörter aus diesem Kontext (siehe SuchMarkierung.tsx). */}
+              <SuchMarkierungProvider wortlaut={markWoerter} aehnlich={aktiveVariantenChips}>
+                <SearchResultsTable
+                  results={sorted}
+                  columns={visibleColumnDefs}
+                  sortKey={sortKey}
+                  sortDirection={sortDirection}
+                  onSort={handleSort}
+                  columnFilters={columnFilters}
+                  onColumnFilterChange={handleColumnFilterChange}
+                  filterCandidatesByColumn={filterCandidatesByColumn}
+                  filterCountsByColumn={filterCountsByColumn}
+                  columnWidths={columnWidths}
+                  onColumnWidthChange={handleColumnWidthChange}
+                  onRowClick={oeffneTreffer}
+                />
+              </SuchMarkierungProvider>
             </div>
           )}
 

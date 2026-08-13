@@ -7,10 +7,16 @@
  *
  * Konvention: leere Zellen liefern `''` aus `accessor` und `null` aus `render`,
  * damit Sortierung deterministisch ist und Tailwind keinen Layout-Shift macht.
+ *
+ * Die durchsuchten Textspalten rendern über `MarkierterText` (v4.15.0) — er
+ * holt die Suchwörter aus dem Kontext, den die Suchseite um die Tabelle legt.
+ * `accessor` bleibt unangetastet: Sortierung, Filter und Export arbeiten auf dem
+ * Rohwert, markiert wird nur, was am Bildschirm steht.
  */
 import { memo, type ReactNode } from 'react';
 import { FileText } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { MarkierterText } from './SuchMarkierung';
 import type { UnifiedSearchResult } from '@/core/types/search-result';
 import type { SortableColumn } from '@/components/data-table';
 import { getStatusCategoryColor } from '@/core/utils/status-category-labels';
@@ -163,8 +169,16 @@ export const SEARCH_COLUMNS: SearchColumn[] = [
     filterType: 'type',
     filterAccessor: r => r.type === 'antrag' ? 'Antrag' : 'Dokument',
     render: r => r.type === 'antrag'
-      ? <span className="font-mono text-[12px] text-[var(--tf-text)]">{r.fkz}</span>
-      : <span className="text-[12px] text-[var(--tf-text)] truncate block" title={r.dateiname}>{r.dateiname}</span>,
+      ? (
+        <span className="font-mono text-[12px] text-[var(--tf-text)]">
+          <MarkierterText text={r.fkz ?? ''} />
+        </span>
+      )
+      : (
+        <span className="text-[12px] text-[var(--tf-text)] truncate block" title={r.dateiname}>
+          <MarkierterText text={r.dateiname ?? ''} />
+        </span>
+      ),
   },
   {
     // Format „Programm/Unterprogramm" (z.B. „ZIM/ZIM FuE-Projekte 2025"). Ohne
@@ -194,7 +208,9 @@ export const SEARCH_COLUMNS: SearchColumn[] = [
     accessor: r => safeString(r.title),
     render: r => (
       <div className="min-w-0">
-        <span className="font-medium text-[13px] text-[var(--tf-text)]">{r.title}</span>
+        <span className="font-medium text-[13px] text-[var(--tf-text)]">
+          <MarkierterText text={r.title} />
+        </span>
         {/* Die Suche bleibt am Vollbestand — ein Treffer aus einem
             stillgelegten Altprogramm wird gekennzeichnet, nicht verschwiegen.
             Öffnen geht trotzdem; der Bereich bleibt, wie er ist. */}
@@ -209,7 +225,9 @@ export const SEARCH_COLUMNS: SearchColumn[] = [
         {r.snippet && (
           <>
             <span className="text-[12px] text-[var(--tf-text-tertiary)]"> — </span>
-            <span className="text-[12px] text-[var(--tf-text-secondary)]">{r.snippet}</span>
+            <span className="text-[12px] text-[var(--tf-text-secondary)]">
+              <MarkierterText text={r.snippet} />
+            </span>
           </>
         )}
       </div>
@@ -237,7 +255,11 @@ export const SEARCH_COLUMNS: SearchColumn[] = [
     sortable: true, filterable: true, appliesTo: 'antrag',
     accessor: r => safeString(r.antragsteller),
     render: r => r.antragsteller
-      ? <span className="text-[12px] text-[var(--tf-text)] truncate block" title={r.antragsteller}>{r.antragsteller}</span>
+      ? (
+        <span className="text-[12px] text-[var(--tf-text)] truncate block" title={r.antragsteller}>
+          <MarkierterText text={r.antragsteller} />
+        </span>
+      )
       : null,
   },
   {
@@ -263,7 +285,11 @@ export const SEARCH_COLUMNS: SearchColumn[] = [
     sortable: true, filterable: true, appliesTo: 'antrag',
     accessor: r => safeString(r.ortAst),
     render: r => r.ortAst
-      ? <span className="text-[12px] text-[var(--tf-text)] truncate block" title={r.ortAst}>{r.ortAst}</span>
+      ? (
+        <span className="text-[12px] text-[var(--tf-text)] truncate block" title={r.ortAst}>
+          <MarkierterText text={r.ortAst} />
+        </span>
+      )
       : null,
   },
   {

@@ -1,5 +1,5 @@
 /**
- * Wortstamm-Vergleich — die Grundlage von „ähnliche Begriffe mitsuchen".
+ * Wortstamm-Vergleich — die Grundlage von „Wortformen mitsuchen".
  *
  * Der Handoff zeigt an dieser Stelle abwählbare Synonym-Chips (Regelwerk,
  * Richtlinie, Normung). Eine Synonymquelle hat die App nicht: das Glossar führt
@@ -84,7 +84,7 @@ export function sammleVarianten(
 
 /**
  * Die Nadel, mit der ein Suchwort im Volltext gesucht wird: der Stamm, wenn
- * „ähnliche Begriffe" an ist, sonst das Wort selbst.
+ * „Wortformen mitsuchen" an ist, sonst das Wort selbst.
  *
  * Eine Funktion statt einer Bedingung an jeder Aufrufstelle — sonst sucht eine
  * Stelle mit Stamm und eine andere ohne, und niemand merkt es.
