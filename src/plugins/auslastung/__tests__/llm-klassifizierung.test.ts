@@ -36,6 +36,7 @@ function makeMockBridge(submitImpl: (prompt: string, sys?: string) => Promise<st
   };
   return {
     getActiveTransport: () => transport,
+    getTransportForDatenLauf: () => transport,
   } as unknown as AIBridge;
 }
 

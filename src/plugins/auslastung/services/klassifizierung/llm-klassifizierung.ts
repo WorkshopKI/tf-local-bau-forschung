@@ -253,7 +253,13 @@ export async function klassifiziereBatch(input: LLMKlassifizierungInput): Promis
     byVerbundId: new Map(),
     errors: [],
   };
-  const transport = bridge.getActiveTransport();
+  // Gegatete Wahl (v4.12): der Prompt traegt `verbundTitel`, `tvTitels` und
+  // `antragsteller` — genau die Klasse, die `INHALTS_SLOTS` als `stammdaten`
+  // fuehrt und die die DSGVO-Policy intern haelt. Vorher zog dieser Lauf den
+  // Transport roh und konnte den ganzen Bestand an einen externen Provider
+  // geben (Pitfall #30). Die Taste „Prompt kopieren" bleibt davon unberuehrt:
+  // sie ist eine bewusste Nutzerhandlung, kein automatischer Lauf.
+  const transport = bridge.getTransportForDatenLauf('Die Auslastungs-Klassifizierung');
 
   // Ping-Guard VOR dem Lauf: bei getrennter KI wuerde `submitMessage` sonst per
   // `ensureConnection()` einen frischen Tab OHNE Bookmarklet oeffnen → nie ein

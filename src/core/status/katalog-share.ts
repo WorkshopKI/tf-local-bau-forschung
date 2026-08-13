@@ -32,7 +32,7 @@
  */
 import type { IDBStore } from '@/core/services/storage';
 import type { MappingVersion } from './typen';
-import { leseSidecar, leseSidecarKopf, schreibeSidecar } from './sidecar-datei';
+import { leseSidecar, leseSidecarKopf, leseSidecarLage, schreibeSidecar } from './sidecar-datei';
 import { getAktiveVersionsnummer, listeVersionen, setzeAktiv, speichereVersion } from './katalog-store';
 import { findeKonflikt, leseNummerAusKopf, planeVereinigung, type KatalogKonflikt } from './katalog-konflikt';
 import {
@@ -151,7 +151,18 @@ async function rotiere(
   const plan = planeRotation(fassungen, aktiv);
   if (plan.auslagern.length === 0) return plan.behalten;
 
-  const bisher = await leseKatalogArchiv(idb);
+  // LAGE statt `leseKatalogArchiv` (v4.12): das Archiv wird gleich VOLLSTAENDIG
+  // neu geschrieben. Ein „unlesbar", das als leeres Archiv durchgeht, ersetzt
+  // alle bisher ausgelagerten Fassungen durch die eine, die gerade abgeschält
+  // wird — und auf einem Rechner, der den Katalog vom Share bezogen hat, kennt
+  // die lokale Liste diese alten Fassungen gar nicht mehr. Dann lieber nicht
+  // rotieren: eine große Datei ist der Preis, eine verlorene Fassung nicht.
+  const lage = await leseSidecarLage(idb, STATUS_KATALOG_ARCHIV_PATH, istKatalogArchiv);
+  if (lage.status === 'unlesbar') {
+    console.warn('[status] Archiv nicht lesbar — es wird nicht rotiert.');
+    return [...fassungen];
+  }
+  const bisher = lage.status === 'ok' ? lage.daten : null;
   const archiv: StatusKatalogArchiv = {
     version: 1,
     fassungen: vereinigeArchiv(bisher?.fassungen ?? [], plan.auslagern),

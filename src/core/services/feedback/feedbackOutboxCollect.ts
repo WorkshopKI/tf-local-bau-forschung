@@ -27,7 +27,7 @@ import {
   writeOutboxStatus,
   type FeedbackOutboxItem,
 } from '@/core/services/personal-storage';
-import { readSharedFile, writeSharedFile, writeSharedAttachment, mergeItems } from './feedbackSharedFile';
+import { readSharedFileLage, writeSharedFile, writeSharedAttachment, mergeItems } from './feedbackSharedFile';
 import { emitFeedbackUpdated, normalizeLegacyFields } from './feedbackStorage';
 import { readSponsorVotesFromDir, type SponsorVoteFile } from './feedbackSponsorOutbox';
 import { mergeSponsorVotesIntoItems } from './mergeSponsorVotes';
@@ -107,7 +107,18 @@ export async function autoCollectFeedbackOutboxes(
   reviewerKuerzel: string,
 ): Promise<FeedbackCollectResult> {
   // Bestehende Shared-Items einmal lesen → id-Set fuer Dedup.
-  const shared = await readSharedFile(storage);
+  //
+  // LAGE statt `readSharedFile` (v4.12): dieser Pfad ueberschreibt die geteilte
+  // Datei anschliessend VOLLSTAENDIG und loescht danach die Outbox-Quellen. Ein
+  // `unlesbar` als „also leer" zu nehmen hiesse, den gesamten Team-Bestand durch
+  // die paar frisch eingesammelten Items zu ersetzen — und das Ergebnis saehe wie
+  // ein Erfolg aus. Lieber gar nicht einsammeln; der naechste Lauf holt es nach.
+  const lage = await readSharedFileLage(storage);
+  if (lage.status === 'unlesbar') {
+    console.warn('[feedbackOutboxCollect] feedback.json nicht lesbar — Einsammeln uebersprungen.');
+    return { scanned: 0, imported: 0 };
+  }
+  const shared = lage.status === 'ok' ? lage.datei : null;
   const existingIds = new Set((shared?.items ?? []).map(i => i.id));
 
   // 1. Alle offenen Outbox-Eintraege einsammeln (mit Ziel-Handle fuer Status-Write).
@@ -215,7 +226,12 @@ export async function autoCollectSponsorVotes(
   }
   if (batch.length === 0) return { scanned: 0, merged: 0 };
 
-  const shared = await readSharedFile(storage);
+  const lage = await readSharedFileLage(storage);
+  if (lage.status === 'unlesbar') {
+    console.warn('[feedbackOutboxCollect] feedback.json nicht lesbar — Sponsoring-Stimmen uebersprungen.');
+    return { scanned: 0, merged: 0 };
+  }
+  const shared = lage.status === 'ok' ? lage.datei : null;
   const { items, neu, aktualisiert, entfernt } = mergeSponsorVotesIntoItems(
     shared?.items ?? [],
     batch,
@@ -252,7 +268,12 @@ export async function autoCollectFeedbackVotes(
   }
   if (batch.length === 0) return { scanned: 0, merged: 0 };
 
-  const shared = await readSharedFile(storage);
+  const lage = await readSharedFileLage(storage);
+  if (lage.status === 'unlesbar') {
+    console.warn('[feedbackOutboxCollect] feedback.json nicht lesbar — Votes uebersprungen.');
+    return { scanned: 0, merged: 0 };
+  }
+  const shared = lage.status === 'ok' ? lage.datei : null;
   const { items, neu, entfernt } = mergeVotesIntoItems(shared?.items ?? [], batch);
   const changes = neu + entfernt;
   if (changes > 0) {
@@ -286,7 +307,12 @@ export async function autoCollectFeedbackComments(
   }
   if (batch.length === 0) return { scanned: 0, merged: 0 };
 
-  const shared = await readSharedFile(storage);
+  const lage = await readSharedFileLage(storage);
+  if (lage.status === 'unlesbar') {
+    console.warn('[feedbackOutboxCollect] feedback.json nicht lesbar — Kommentare uebersprungen.');
+    return { scanned: 0, merged: 0 };
+  }
+  const shared = lage.status === 'ok' ? lage.datei : null;
   const { items, neu } = mergeCommentsIntoItems(shared?.items ?? [], batch);
   if (neu > 0) {
     await writeSharedFile(storage, items);

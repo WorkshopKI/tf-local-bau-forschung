@@ -660,6 +660,14 @@ describe('no-raw-active-transport (CLAUDE.md Pitfall #30, DSGVO-Transport-Policy
     // Assistent Phase 2: Gedächtnis-Konsolidierung ist dokument-tragend (Protokoll-
     // daten) → nur intern, gegatete Wahl bridge.getTransportForKonsolidierung().
     `${sep}core${sep}services${sep}assistent${sep}gedaechtnis${sep}`,
+    // v4.12 (Cross-Cutting-Review): der Scope war zu eng geschnitten und liess zwei
+    // inhalts-tragende Laeufe ausserhalb der Gutachten-Domaene durch.
+    // - skill-verwaltung-kuration/: der Real-Daten-Testlauf schickt den VB-Volltext
+    //   eines produktiven Antrags (SkillTestlauf) → getTransportForSkillRun.
+    // - auslastung/: die LLM-Klassifizierung schickt Verbund-/TV-Titel und
+    //   Antragsteller, also `stammdaten` aus INHALTS_SLOTS → getTransportForDatenLauf.
+    `${sep}plugins${sep}skill-verwaltung-kuration${sep}`,
+    `${sep}plugins${sep}auslastung${sep}`,
   ];
   const isInScope = (file: string): boolean =>
     SCOPE_FRAGMENTS.some(frag => file.includes(frag))

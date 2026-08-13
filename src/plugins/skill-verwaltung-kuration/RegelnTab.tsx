@@ -16,7 +16,7 @@ import {
 } from '@/components/data-table';
 import { CollapsibleSeg } from '@/plugins/antraege/filter/CollapsibleSeg';
 import { ListItem } from '@/components/ui/ListItem';
-import { TYP_LABEL, SevPill, Switch } from './regelShared';
+import { typLabel, SevPill, Switch } from './regelShared';
 import { buildRegelColumns, type RegelRow } from './regelTableColumns';
 import { useRegelFilters, ALLE, type RegelFacetKey } from './useRegelFilters';
 import type { ViewMode as RegistryViewMode } from '@/components/ui/ViewModeToggle';
@@ -31,10 +31,15 @@ interface RegelnTabProps {
   onToggleAktiv: (regel: QualitaetsRegel) => void;
 }
 
-function TypPill({ typ }: { typ: string }): React.ReactElement {
+/** Typ-Pille. Nutzt `typLabel` — denselben Helfer wie die Tabellen-Spalte, damit
+ *  dieselbe Regel nicht je nach Ansicht anders heißt (v4.12). Die rohe
+ *  `TYP_LABEL`-Tabelle kennt die `pruefart`-getriebenen QS-/NF-Typen nicht und
+ *  beschriftete sie hier als „unbekannter Typ", während die Tabelle
+ *  „Administrativ"/„Fachlich" zeigte. */
+function TypPill({ regel }: { regel: QualitaetsRegel }): React.ReactElement {
   return (
     <span className="text-[11px] px-2.5 py-1 rounded-[99px] bg-[var(--tf-bg-secondary)] text-[var(--tf-text-secondary)] whitespace-nowrap">
-      {TYP_LABEL[typ] ?? 'unbekannter Typ'}
+      {typLabel(regel)}
     </span>
   );
 }
@@ -62,7 +67,8 @@ export function RegelnTab({
     if (!q) return file.regeln;
     return file.regeln.filter(r =>
       r.name.toLowerCase().includes(q)
-      || (TYP_LABEL[r.typ] ?? r.typ).toLowerCase().includes(q)
+      || typLabel(r).toLowerCase().includes(q)
+      || r.typ.toLowerCase().includes(q)
       || describeRegelParams(r).toLowerCase().includes(q));
   }, [file.regeln, search]);
 
@@ -155,7 +161,7 @@ export function RegelnTab({
               title={(
                 <>
                   <span className="text-[13.5px] font-medium text-[var(--tf-text)] whitespace-nowrap">{r.name}</span>
-                  <TypPill typ={r.typ} />
+                  <TypPill regel={r} />
                 </>
               )}
               subtitle={describeRegelParams(r)}
@@ -188,7 +194,7 @@ export function RegelnTab({
                 </span>
               </div>
               <div className="flex items-center gap-2 mt-2.5">
-                <TypPill typ={r.typ} />
+                <TypPill regel={r} />
                 <SevPill s={r.schweregrad} />
               </div>
               <p className="text-[13px] leading-[1.55] text-[var(--tf-text-secondary)] mt-2.5">{describeRegelParams(r)}</p>

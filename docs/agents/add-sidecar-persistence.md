@@ -112,3 +112,38 @@ Vier Profile (kombiniert mit #10), je nach Datei-Charakter:
   3. **Ein Lesepfad ins Archiv muss bleiben.** Ein frisch aufgesetzter Rechner kennt nur die Hauptdatei; ohne diesen Weg wäre der ausgelagerte Teil unerreichbar — und genau dafür gab es die Historie.
 
 Entscheidung beim Anlegen einer neuen Sidecar als Header-Kommentar in der Datei festhalten.
+
+### Wer nach dem Lesen SCHREIBT, nimmt `readTextLage` (v4.12)
+
+Die Profile oben sagen, WIE geschrieben wird. Diese Regel sagt, **wann gar nicht**.
+
+`readText` bildet jeden Fehler auf `null` ab — „Datei gibt es nicht" und „Datei ist da,
+ließ sich aber nicht lesen" sind danach nicht mehr zu unterscheiden. Fast jede Sidecar
+wird read-modify-write fortgeschrieben: lesen, ergänzen, **die ganze Datei** neu
+schreiben. Wer `null` als „also leer" nimmt, schreibt genau das zurück — und löscht,
+was er nie gesehen hat. Vier Stellen taten das (v4.12): Team-Feedback, die append-only
+Kürzel-Map (Pitfall #18), die MA-Zugänge und das Katalog-Archiv.
+
+```ts
+// Schreibender Pfad: Lage lesen, bei `unlesbar` abbrechen.
+const lage = await readTextLage(handle, PFAD);          // atomic-write.ts
+if (lage.status === 'unlesbar') return;                 // NICHT schreiben
+const bestand = lage.status === 'ok' ? parse(lage.text) : leererAnfangsstand();
+```
+
+- `leer` = legitimer Anfangszustand (Datei/Ordner fehlt) → darauf darf man aufbauen.
+- `unlesbar` = jeder andere Fehler, **plus** kaputtes JSON und verfehlte Strukturprüfung.
+  Die Datei ist da, ihr Inhalt taugt nur gerade nicht — daraus einen Neuanfang
+  abzuleiten ist derselbe Verlust.
+- Rein LESENDE Aufrufer, die mit „nichts" leben können, nehmen weiter `readText`.
+
+Fertige Lage-Leser: `readTextLage` ([atomic-write.ts](../../src/core/services/infrastructure/atomic-write.ts)),
+`leseSidecarLage` ([sidecar-datei.ts](../../src/core/status/sidecar-datei.ts), Status-Sidecars),
+`readSharedFileLage` ([feedbackSharedFile.ts](../../src/core/services/feedback/feedbackSharedFile.ts), Feedback),
+`loadKuerzelMapLage`, `loadZugangLage`.
+
+**Schwester-Regel: nichts löschen, was man nicht gesichert hat.** Ein Aufräumer im
+Fehlerpfad muss belegen, dass er etwas verhindert. Der Snapshot-Publish löschte die
+bereits geschriebenen Dateien „damit kein halb-konsistenter Stand stehen bleibt" —
+verhindert hat das nichts (das Manifest ist der einzige Marker und wird zuletzt
+geschrieben), gekostet hat es `antraege.jsonl`, die einzige Datei ohne `.backup`.

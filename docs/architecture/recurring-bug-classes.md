@@ -312,12 +312,17 @@ Positivbeispielen: [prompt-audit-2026-07.md](../_archiv/prompt-audit-2026-07.md)
 Ein transienter Lesefehler ist auf einem geteilten Laufwerk normal: ein zweiter Client mitten im `atomicWrite`, eine SMB-Aussetzer-Millisekunde. Es braucht keinen Defekt, damit `null` zurückkommt.
 
 **Fix-Pattern:**
-- **Lage statt Wert lesen.** Der schreibende Pfad braucht eine dreiwertige Auskunft — `ok` / `leer` / `unlesbar` —, unterschieden über `fileExists`: existiert die Datei, war `null` ein **Fehler**, kein Anfangszustand. Muster: [`readSharedFileLage`](../../src/core/services/feedback/feedbackSharedFile.ts).
+- **Lage statt Wert lesen.** Der schreibende Pfad braucht eine dreiwertige Auskunft — `ok` / `leer` / `unlesbar`. Seit v4.12 gibt es sie als geteiltes Primitiv: [`readTextLage`](../../src/core/services/infrastructure/atomic-write.ts) unterscheidet am Fehler-Namen (`NotFoundError` = fehlt, alles andere = unlesbar); `readText` ist nur noch seine tolerante Hülle. Darauf bauen [`leseSidecarLage`](../../src/core/status/sidecar-datei.ts), [`readSharedFileLage`](../../src/core/services/feedback/feedbackSharedFile.ts), `loadKuerzelMapLage` und `loadZugangLage` auf.
+- **Kaputtes JSON zählt als `unlesbar`, nicht als `leer`.** Die Datei ist da, ihr Inhalt taugt nur gerade nicht — daraus einen Neuanfang abzuleiten ist derselbe Verlust. Dasselbe gilt für eine verfehlte Strukturprüfung.
 - **Bei `unlesbar` abbrechen, nie rechnen.** Kein Merge, kein Schreiben, kein Budget-Rückbuchen. `leer` bleibt ein gültiger Startzustand.
 - **Die lesende Signatur unangetastet lassen** (`readSharedFile` liefert weiter `null`) — sonst zieht der Fix eine Migration durch alle Anzeige-Pfade.
 - **Fehlschlag sichtbar machen und die Eingabe stehen lassen.** Sie ist die einzige Kopie. `useAsyncAction` fängt nur *geworfene* Fehler; ein `{ok:false}`-Rückgabewert muss der Aufrufer selbst auswerten und anzeigen — Pitfall #15 deckt nur die halbe Strecke ab.
 
 **Prüffrage beim Review:** Schreibt dieser Pfad einen Stand, den er zuvor über einen fehlertoleranten Leser geholt hat? Dann: was passiert bei `null`?
+
+**Nachtrag v4.12 — die Klasse war beschrieben, das Werkzeug fehlte.** Diese Beschreibung stand seit v3.0.1 hier, und die Feedback-Schreiber waren sauber. Ein Cross-Cutting-Review fand die Klasse trotzdem an **vier** weiteren Stellen: Outbox-Einsammler, Kürzel-Map (Pitfall #18), MA-Zugänge, Katalog-Archiv. Ein Muster, das nur als Text existiert und in genau einem Modul implementiert ist, wird nicht übernommen — es wird übersehen. Deshalb liegt die Unterscheidung jetzt im geteilten Lese-Primitiv statt im Modul, das sie zuerst brauchte.
+
+**Schwester-Regel: nichts löschen, was man nicht gesichert hat.** Derselbe Review fand zwei Aufräumer im Fehlerpfad, die mehr zerstörten als sie verhinderten — der Snapshot-Publish löschte die bereits geschriebene `antraege.jsonl` (die einzige Datei ohne `.backup`), die Legacy-Migration die Quellordner samt der Dateien, deren Kopie gerade gescheitert war. Prüffrage: **belegt dieser Aufräumer, dass er etwas verhindert?** Wenn der Gültigkeits-Marker ohnehin zuletzt geschrieben wird, macht ein Teil-Write nichts gültig — dann ist Stehenlassen die sichere Wahl.
 
 ---
 

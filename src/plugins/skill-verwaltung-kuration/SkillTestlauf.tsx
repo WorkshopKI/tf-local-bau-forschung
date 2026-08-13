@@ -123,7 +123,11 @@ export function SkillTestlaufPanel({ skill, regeln, hinweis, onClose }: SkillTes
     setBusy(true);
     setError(null);
     try {
-      const transport = bridge.getActiveTransport();
+      // Gegatete Wahl (v4.12): dieser Testlauf schickt den ECHTEN VB-Volltext
+      // eines produktiven Antrags (`findVorhabensbeschreibung` unten) — damit
+      // gilt für ihn dieselbe DSGVO-Policy wie für den Gutachten-Workflow.
+      // Vorher zog er den Transport roh und umging sie (Pitfall #30/#35).
+      const transport = bridge.getTransportForSkillRun(skill);
       if (!(await transport.ping())) {
         setError('KI nicht erreichbar — Testlauf derzeit nicht möglich.');
         return;

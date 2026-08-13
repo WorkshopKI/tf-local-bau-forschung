@@ -26,7 +26,7 @@ import {
   randomBytes,
   SALT_BYTES,
 } from './crypto';
-import { atomicWrite, readText, fileExists } from './atomic-write';
+import { atomicWrite, readTextLage, fileExists } from './atomic-write';
 import { getDatenShareHandle } from './smb-handle';
 import { ZUGANG_CONFIG_PATH, type ZugangsEintrag, type ZugangsFile } from './types';
 import type { IDBStore } from '@/core/services/storage/idb-store';
@@ -70,19 +70,56 @@ function parseZugang(text: string): ZugangsFile {
   };
 }
 
-/** Liest die Zugangsdatei. Datei fehlt → `null` (Signal: Fallback aufs alte
- *  Kuerzelfeld, KEIN Login erzwungen). Parse-Fehler → leere Datei. */
-export async function loadZugangFile(idb: IDBStore): Promise<ZugangsFile | null> {
+/**
+ * Lage der Zugangsdatei (v4.12). Die Mutatoren schreiben read-modify-write und
+ * ersetzen die Datei vollstaendig — ein „unlesbar", das als leere Datei
+ * durchgereicht wird, loescht damit die Zugaenge ALLER anderen MAs. Deshalb
+ * trennt diese Funktion, was `readText` zusammenwirft, und wertet auch einen
+ * Parse-Fehler als `unlesbar`: die Datei ist da, ihr Inhalt taugt nur nicht.
+ */
+export type ZugangLage =
+  | { status: 'ok'; datei: ZugangsFile }
+  | { status: 'leer' }
+  | { status: 'unlesbar' };
+
+export async function loadZugangLage(idb: IDBStore): Promise<ZugangLage> {
   const parent = await parentHandle(idb);
-  if (!parent) return null;
-  const text = await readText(parent, ZUGANG_CONFIG_PATH);
-  if (text == null) return null;
+  if (!parent) return { status: 'leer' };
+  const lage = await readTextLage(parent, ZUGANG_CONFIG_PATH);
+  if (lage.status !== 'ok') return lage;
   try {
-    return parseZugang(text);
+    return { status: 'ok', datei: parseZugang(lage.text) };
   } catch {
-    console.warn('[zugang-config] JSON-Parse fehlgeschlagen — leere Datei angenommen.');
-    return emptyZugangFile();
+    console.warn('[zugang-config] JSON-Parse fehlgeschlagen — Datei gilt als unlesbar.');
+    return { status: 'unlesbar' };
   }
+}
+
+/**
+ * Liest die Zugangsdatei fuer LESENDE Aufrufer. Datei fehlt ODER ist unlesbar →
+ * `null` (Signal: Fallback aufs alte Kuerzelfeld, KEIN Login erzwungen). Wer
+ * anschliessend SCHREIBT, nimmt {@link loadZugangLage} und bricht bei
+ * `unlesbar` ab — sonst gehen fremde Zugaenge verloren.
+ */
+export async function loadZugangFile(idb: IDBStore): Promise<ZugangsFile | null> {
+  const lage = await loadZugangLage(idb);
+  return lage.status === 'ok' ? lage.datei : null;
+}
+
+/**
+ * Gemeinsamer Lese-Vorschritt der Mutatoren: liefert den Stand, auf den
+ * aufgebaut werden darf — oder wirft, wenn die Datei da, aber unlesbar ist.
+ */
+async function ladeBasisZumSchreiben(idb: IDBStore): Promise<ZugangsFile> {
+  const lage = await loadZugangLage(idb);
+  if (lage.status === 'unlesbar') {
+    throw new Error(
+      'Die Zugangsdatei auf dem Daten-Share ist derzeit nicht lesbar — es wird nicht '
+      + 'geschrieben, weil sonst die Zugänge aller anderen Mitarbeitenden verloren gingen. '
+      + 'Bitte später erneut versuchen.',
+    );
+  }
+  return lage.status === 'ok' ? lage.datei : emptyZugangFile();
 }
 
 /** True, wenn `_intern/auslastung-zugang.enc` existiert (→ Login erzwingen). */
@@ -108,7 +145,7 @@ export async function addOrReplaceEintrag(
 ): Promise<ZugangsFile> {
   const parent = await parentHandle(idb);
   if (!parent) throw new Error('Daten-Share nicht verbunden — bitte im Welcome-Screen einrichten.');
-  const current = (await loadZugangFile(idb)) ?? emptyZugangFile();
+  const current = await ladeBasisZumSchreiben(idb);
   const salt = randomBytes(SALT_BYTES);
   const key = await deriveKey(passwort, salt);
   const ivAndCt = await cryptoEncrypt(kuerzel.normalize('NFC'), key);
@@ -134,7 +171,7 @@ export async function addOrReplaceManyEintraege(
 ): Promise<ZugangsFile> {
   const parent = await parentHandle(idb);
   if (!parent) throw new Error('Daten-Share nicht verbunden — bitte im Welcome-Screen einrichten.');
-  const current = (await loadZugangFile(idb)) ?? emptyZugangFile();
+  const current = await ladeBasisZumSchreiben(idb);
   const byAnon = new Map(current.eintraege.map(e => [e.anonId, e]));
   for (const it of items) {
     const salt = randomBytes(SALT_BYTES);
@@ -155,7 +192,7 @@ export async function addOrReplaceManyEintraege(
 export async function removeEintrag(idb: IDBStore, anonId: string): Promise<ZugangsFile> {
   const parent = await parentHandle(idb);
   if (!parent) throw new Error('Daten-Share nicht verbunden.');
-  const current = (await loadZugangFile(idb)) ?? emptyZugangFile();
+  const current = await ladeBasisZumSchreiben(idb);
   const eintraege = current.eintraege.filter(e => e.anonId !== anonId);
   const next: ZugangsFile = { version: 1, updatedAt: new Date().toISOString(), eintraege };
   await atomicWrite(parent, ZUGANG_CONFIG_PATH, JSON.stringify(next, null, 2));

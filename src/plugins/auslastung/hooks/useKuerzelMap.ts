@@ -14,7 +14,7 @@ import type { StorageService } from '@/core/services/storage';
 import type { Antrag, AntragListItem } from '@/core/services/csv/types';
 import { isDatenShareReadable } from '@/core/services/infrastructure/smb-handle';
 import {
-  loadKuerzelMap,
+  loadKuerzelMapLage,
   saveKuerzelMap,
   syncKuerzelMapWithAntraege,
   bootstrapKuerzelMap,
@@ -50,6 +50,9 @@ interface KuerzelMapState {
   loading: boolean;
   loaded: boolean;
   saving: boolean;
+  /** Letzter Lese-Versuch traf eine vorhandene, aber unlesbare Sidecar (v4.12).
+   *  Sperrt jeden Write — siehe `syncWithAntraege`. */
+  unlesbar: boolean;
   error: string | null;
   load: (storage: StorageService) => Promise<void>;
   /** Bootstrap (wenn leer) + Sync neuer Kuerzel + Persist in einem Schritt.
@@ -64,13 +67,27 @@ export const useKuerzelMap = create<KuerzelMapState>((set, get) => ({
   loading: false,
   loaded: false,
   saving: false,
+  unlesbar: false,
   error: null,
 
   load: async (storage) => {
     if (get().loading || get().loaded) return;
     set({ loading: true, error: null });
     try {
-      const f = await loadKuerzelMap(storage);
+      const lage = await loadKuerzelMapLage(storage);
+      // Vorhandene, aber unlesbare Datei: NICHT als leere Map weiterreichen.
+      // `loaded` bleibt false (der naechste Mount liest neu) und `unlesbar`
+      // sperrt jeden Write, bis wieder ein echter Stand vorliegt.
+      if (lage.status === 'unlesbar') {
+        set({
+          loading: false,
+          loaded: false,
+          unlesbar: true,
+          error: 'Kürzel-Map auf dem Daten-Share ist derzeit nicht lesbar.',
+        });
+        return;
+      }
+      const f = lage.map;
       // v2.46.1: `loaded` (= Reload-Guard scharf) nur setzen, wenn der Daten-
       // Share beim Laden wirklich lesbar war — analog useAuslastungData.load
       // (v2.19.2). Der Plugin-onInit lädt VOR dem StartupScreen-Grant;
@@ -87,9 +104,9 @@ export const useKuerzelMap = create<KuerzelMapState>((set, get) => ({
       // useMemos in useAntraegeCache (anonymMap, historischeAstByAnon, ...)
       // beim Initial-Mount mehrfach durch.
       if (isSameKuerzelContent(current, f)) {
-        set({ loaded: shareReadable, loading: false });
+        set({ loaded: shareReadable, loading: false, unlesbar: false });
       } else {
-        set({ file: f, loaded: shareReadable, loading: false });
+        set({ file: f, loaded: shareReadable, loading: false, unlesbar: false });
       }
     } catch (err) {
       set({ loading: false, error: err instanceof Error ? err.message : String(err) });
@@ -99,6 +116,12 @@ export const useKuerzelMap = create<KuerzelMapState>((set, get) => ({
   syncWithAntraege: async (storage, antraege) => {
     if (get().saving) return { added: [] };
     if (antraege.length === 0) return { added: [] };
+    // Ohne verlaesslich gelesenen Stand wird NICHT geschrieben (v4.12):
+    // `saveKuerzelMap` ersetzt die Datei vollstaendig. Der In-Memory-Stand waere
+    // hier entweder der leere Anfangswert (load noch nicht durch) oder ein
+    // Notbehelf nach einem Lesefehler — beides zurueckzuschreiben verschoebe
+    // jede vergebene anonId (Pitfall #18). Der naechste Mount liest neu.
+    if (!get().loaded || get().unlesbar) return { added: [] };
 
     const current = get().file;
     const isBootstrap = current.entries.length === 0;

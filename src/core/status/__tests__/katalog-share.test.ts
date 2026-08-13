@@ -34,17 +34,26 @@ const share: {
   geschrieben: StatusKatalogDatei[];
   schreibrecht: boolean;
   archivSchreibrecht: boolean;
+  /** Das Archiv IST da, ließ sich aber nicht lesen (SMB-Aussetzer, kaputtes
+   *  JSON). Getrennt vom Schreibrecht, weil es der andere Weg in denselben
+   *  Verlust ist — siehe die Rotations-Tests. */
+  archivLesbar: boolean;
   /** Simuliert ein anderes Gerät, das zwischen Vereinigung und Schreiben fertig wird. */
   beimKopfLesen?: () => void;
   kopfLesungen: number;
 } = {
   dateien: new Map(), datei: null, geschrieben: [],
-  schreibrecht: true, archivSchreibrecht: true, kopfLesungen: 0,
+  schreibrecht: true, archivSchreibrecht: true, archivLesbar: true, kopfLesungen: 0,
 };
 
 vi.mock('@/core/status/sidecar-datei', () => ({
   leseSidecar: (_idb: unknown, pfad: string): Promise<unknown> =>
     Promise.resolve(pfad === ARCHIV ? (share.dateien.get(ARCHIV) ?? null) : share.datei),
+  leseSidecarLage: (_idb: unknown, pfad: string): Promise<unknown> => {
+    if (pfad === ARCHIV && !share.archivLesbar) return Promise.resolve({ status: 'unlesbar' });
+    const daten = pfad === ARCHIV ? share.dateien.get(ARCHIV) : share.datei;
+    return Promise.resolve(daten == null ? { status: 'leer' } : { status: 'ok', daten });
+  },
   schreibeSidecar: (_idb: unknown, pfad: string, daten: unknown): Promise<boolean> => {
     if (pfad === ARCHIV) {
       if (!share.schreibrecht || !share.archivSchreibrecht) return Promise.resolve(false);
@@ -83,6 +92,7 @@ beforeEach(async () => {
   share.datei = null;
   share.dateien = new Map();
   share.archivSchreibrecht = true;
+  share.archivLesbar = true;
   share.geschrieben = [];
   share.schreibrecht = true;
   share.beimKopfLesen = undefined;
@@ -384,6 +394,29 @@ describe('Rotation der Fassungsdatei (v2.414)', () => {
     expect(e.art).toBe('geschrieben');
     expect(share.datei?.fassungen).toHaveLength(12);
     expect(await leseKatalogArchiv(idb)).toBeNull();
+  });
+
+  it('ein UNLESBARES Archiv verhindert die Rotation — die alten Fassungen bleiben (v4.12)', async () => {
+    // Der andere Weg in denselben Verlust: das Archiv ist da, liess sich aber
+    // nicht lesen. Wer daraus „leeres Archiv" macht, schreibt es auf die eine
+    // gerade abgeschaelte Fassung zusammen — die frueher ausgelagerten sind aus
+    // jedem Lesepfad weg, und zwar besonders dort, wo die lokale Fassungsliste
+    // nur die Hauptdatei kennt (Rechner, der den Katalog vom Share bezogen hat).
+    const idb = await frisch();
+    await lokalerBestand(12);
+    await schreibeKatalogAufShare(idb, {});
+    const archivVorher = await leseKatalogArchiv(idb);
+    expect(archivVorher?.fassungen, 'Vorbedingung: es wurde etwas ausgelagert').toHaveLength(4);
+
+    // Naechster Speichervorgang, Archiv unlesbar.
+    share.archivLesbar = false;
+    await lokalerBestand(13);
+    const e = await schreibeKatalogAufShare(idb, {});
+
+    expect(e.art).toBe('geschrieben');
+    // Nicht rotiert ⇒ die Hauptdatei traegt alles, das Archiv ist unveraendert.
+    expect(share.datei?.fassungen).toHaveLength(13);
+    expect((share.dateien.get(ARCHIV) as { fassungen: unknown[] }).fassungen).toHaveLength(4);
   });
 
   it('beim naechsten Speichern wird die Rotation erneut versucht', async () => {

@@ -41,7 +41,7 @@ function fakeBridge(opts: FakeOpts): AIBridge {
       return r;
     },
   };
-  return { getActiveTransport: () => transport } as unknown as AIBridge;
+  return { getActiveTransport: () => transport, getTransportForDatenLauf: () => transport } as unknown as AIBridge;
 }
 
 describe('klassifiziereBatch — Ping-Guard', () => {

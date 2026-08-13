@@ -25,7 +25,7 @@ import type {
   FeedbackVote,
   SharedFeedbackFile,
 } from '@/core/types/feedback';
-import { atomicWrite, fileExists, readBinary, readText } from '@/core/services/infrastructure/atomic-write';
+import { atomicWrite, readBinary, readTextLage } from '@/core/services/infrastructure/atomic-write';
 import { getDatenShareHandle, queryPermission } from '@/core/services/infrastructure/smb-handle';
 import { normalizeLegacyFields } from './feedbackStorage';
 
@@ -50,15 +50,13 @@ export type SharedFileLage =
 export async function readSharedFileLage(storage: StorageService): Promise<SharedFileLage> {
   const handle = await getDatenShareHandle(storage.idb);
   if (!handle) return { status: 'leer' };
-  const text = await readText(handle, FEEDBACK_SHARED_FILE);
-  if (text == null) {
-    // `null` ist zweideutig → nachsehen, ob die Datei existiert. Tut sie es,
-    // war es ein Lesefehler (paralleler atomicWrite, SMB-Aussetzer), kein
-    // leerer Anfangszustand.
-    return (await fileExists(handle, FEEDBACK_SHARED_FILE)) ? { status: 'unlesbar' } : { status: 'leer' };
-  }
+  // `readTextLage` trennt „gibt es nicht" von „ließ sich nicht lesen" (v4.12) —
+  // vorher stand diese Unterscheidung hier als Sonderweg, jetzt kommt sie aus
+  // der geteilten Mechanik und gilt für alle Sidecar-Schreiber gleich.
+  const lage = await readTextLage(handle, FEEDBACK_SHARED_FILE);
+  if (lage.status !== 'ok') return lage;
   try {
-    const data = JSON.parse(text) as SharedFeedbackFile;
+    const data = JSON.parse(lage.text) as SharedFeedbackFile;
     if (!data || data.version !== 1 || !Array.isArray(data.items)) return { status: 'unlesbar' };
     return { status: 'ok', datei: { ...data, items: data.items.map(normalizeLegacyFields) } };
   } catch (err) {

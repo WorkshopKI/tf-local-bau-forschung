@@ -15,7 +15,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const loadKuerzelMapSpy = vi.fn();
 vi.mock('../services/identitaet', async (importActual) => {
   const actual = await importActual<typeof import('../services/identitaet')>();
-  return { ...actual, loadKuerzelMap: () => loadKuerzelMapSpy() };
+  return { ...actual, loadKuerzelMapLage: () => loadKuerzelMapSpy() };
 });
 
 const readableSpy = vi.fn();
@@ -50,12 +50,13 @@ describe('useKuerzelMap.load — Cold-Start-Guard (isDatenShareReadable)', () =>
       loaded: false,
       loading: false,
       saving: false,
+      unlesbar: false,
       error: null,
     });
   });
 
   it('armt loaded NICHT, wenn der Daten-Share (noch) nicht lesbar ist (pre-grant)', async () => {
-    loadKuerzelMapSpy.mockResolvedValue(emptyKuerzelMap()); // still-geschluckter Permission-Fehler
+    loadKuerzelMapSpy.mockResolvedValue({ status: 'leer', map: emptyKuerzelMap() }); // still-geschluckter Permission-Fehler
     readableSpy.mockResolvedValue(false);
 
     await useKuerzelMap.getState().load(fakeStorage);
@@ -65,7 +66,7 @@ describe('useKuerzelMap.load — Cold-Start-Guard (isDatenShareReadable)', () =>
   });
 
   it('lädt + armt loaded, wenn der Share lesbar ist und die Map gefüllt ist', async () => {
-    loadKuerzelMapSpy.mockResolvedValue(mapWith(['MUE', 'SCH']));
+    loadKuerzelMapSpy.mockResolvedValue({ status: 'ok', map: mapWith(['MUE', 'SCH']) });
     readableSpy.mockResolvedValue(true);
 
     await useKuerzelMap.getState().load(fakeStorage);
@@ -76,17 +77,63 @@ describe('useKuerzelMap.load — Cold-Start-Guard (isDatenShareReadable)', () =>
 
   it('Retry nach Grant füllt die Map, nachdem der pre-grant-Load leer blieb', async () => {
     // 1. pre-grant: leer + nicht lesbar → loaded bleibt false
-    loadKuerzelMapSpy.mockResolvedValueOnce(emptyKuerzelMap());
+    loadKuerzelMapSpy.mockResolvedValueOnce({ status: 'leer', map: emptyKuerzelMap() });
     readableSpy.mockResolvedValueOnce(false);
     await useKuerzelMap.getState().load(fakeStorage);
     expect(useKuerzelMap.getState().loaded).toBe(false);
     expect(useKuerzelMap.getState().file.entries.length).toBe(0);
 
     // 2. post-grant Retry (Guard greift NICHT, weil loaded:false) → echte Map
-    loadKuerzelMapSpy.mockResolvedValueOnce(mapWith(['MUE']));
+    loadKuerzelMapSpy.mockResolvedValueOnce({ status: 'ok', map: mapWith(['MUE']) });
     readableSpy.mockResolvedValueOnce(true);
     await useKuerzelMap.getState().load(fakeStorage);
     expect(useKuerzelMap.getState().loaded).toBe(true);
     expect(useKuerzelMap.getState().file.entries.length).toBe(1);
+  });
+});
+
+describe('useKuerzelMap — unlesbare Sidecar sperrt den Write (v4.12)', () => {
+  beforeEach(() => {
+    loadKuerzelMapSpy.mockReset();
+    readableSpy.mockReset();
+    useKuerzelMap.setState({
+      file: emptyKuerzelMap(), loaded: false, loading: false, saving: false,
+      unlesbar: false, error: null,
+    });
+  });
+
+  it('unlesbar → loaded bleibt false, unlesbar wird gesetzt, Map bleibt leer', async () => {
+    loadKuerzelMapSpy.mockResolvedValue({ status: 'unlesbar' });
+    readableSpy.mockResolvedValue(true);
+
+    await useKuerzelMap.getState().load(fakeStorage);
+
+    expect(useKuerzelMap.getState().loaded).toBe(false);
+    expect(useKuerzelMap.getState().unlesbar).toBe(true);
+    expect(useKuerzelMap.getState().error).toMatch(/nicht lesbar/);
+  });
+
+  it('syncWithAntraege schreibt NICHT nach einem unlesbaren Lesevorgang', async () => {
+    // Der Kern von Pitfall #18: `saveKuerzelMap` ersetzt die Datei vollstaendig.
+    // Auf einer leeren Notbehelf-Map bootstrappt der Sync neu — jede vergebene
+    // anonId verschiebt sich, und Profile/Zuweisungen gehoeren lautlos zu
+    // anderen Personen. Also: gar nicht erst schreiben.
+    loadKuerzelMapSpy.mockResolvedValue({ status: 'unlesbar' });
+    readableSpy.mockResolvedValue(true);
+    await useKuerzelMap.getState().load(fakeStorage);
+
+    const antraege = [{ tib_kuerz: 'MUE' }, { tib_kuerz: 'SCH' }] as never;
+    const res = await useKuerzelMap.getState().syncWithAntraege(fakeStorage, antraege);
+
+    expect(res).toEqual({ added: [] });
+    expect(useKuerzelMap.getState().file.entries).toHaveLength(0);
+  });
+
+  it('syncWithAntraege schreibt auch dann NICHT, wenn noch gar nicht geladen wurde', async () => {
+    // Zweites Loch derselben Klasse: ohne durchgelaufenen `load` ist `file` der
+    // leere Anfangswert — ihn zurueckzuschreiben haette denselben Effekt.
+    const antraege = [{ tib_kuerz: 'MUE' }] as never;
+    const res = await useKuerzelMap.getState().syncWithAntraege(fakeStorage, antraege);
+    expect(res).toEqual({ added: [] });
   });
 });

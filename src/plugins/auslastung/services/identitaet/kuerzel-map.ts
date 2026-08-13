@@ -19,7 +19,7 @@
  * Klartext-Spalte, das ephemeral-Mapping war daraus trivial ableitbar.
  */
 import type { StorageService } from '@/core/services/storage';
-import { atomicWrite, readText } from '@/core/services/infrastructure/atomic-write';
+import { atomicWrite, readTextLage } from '@/core/services/infrastructure/atomic-write';
 import { getDatenShareHandle } from '@/core/services/infrastructure/smb-handle';
 import type { Antrag, AntragListItem } from '@/core/services/csv/types';
 import { CANONICAL_TIB_KUERZ } from '../../types';
@@ -70,19 +70,46 @@ export function normalizeKuerzelMap(raw: Partial<KuerzelMapFile> | null | undefi
   };
 }
 
-/** Liest die Sidecar-Datei. Datei fehlt → leeres Default. */
-export async function loadKuerzelMap(storage: StorageService): Promise<KuerzelMapFile> {
+/**
+ * Lage der Sidecar-Datei (v4.12). Die Unterscheidung ist hier existenziell:
+ * `saveKuerzelMap` ersetzt die Datei VOLLSTAENDIG, und ein „unlesbar", das als
+ * leere Map durchgereicht wird, laesst den Aufrufer die Map neu bootstrappen —
+ * womit sich jede vergebene anonId verschiebt und Profile, Kompetenzen und
+ * Zuweisungen lautlos zu anderen Personen gehoeren (Pitfall #18).
+ *
+ * Ein Parse-Fehler zaehlt bewusst als `unlesbar`, nicht als `leer`: die Datei
+ * ist da, ihr Inhalt taugt nur gerade nicht — daraus einen Neuanfang abzuleiten
+ * waere derselbe Verlust.
+ */
+export type KuerzelMapLage =
+  | { status: 'ok'; map: KuerzelMapFile }
+  | { status: 'leer'; map: KuerzelMapFile }
+  | { status: 'unlesbar' };
+
+export async function loadKuerzelMapLage(storage: StorageService): Promise<KuerzelMapLage> {
   const handle = await getDatenShareHandle(storage.idb);
-  if (!handle) return emptyKuerzelMap();
-  const text = await readText(handle, KUERZEL_MAP_PATH);
-  if (text == null) return emptyKuerzelMap();
-  try {
-    const parsed = JSON.parse(text) as Partial<KuerzelMapFile>;
-    return normalizeKuerzelMap(parsed);
-  } catch {
-    console.warn('[kuerzel-map] JSON-Parse fehlgeschlagen, leere Map zurueckgegeben.');
-    return emptyKuerzelMap();
+  if (!handle) return { status: 'leer', map: emptyKuerzelMap() };
+  const lage = await readTextLage(handle, KUERZEL_MAP_PATH);
+  if (lage.status === 'unlesbar') {
+    console.warn('[kuerzel-map] Sidecar nicht lesbar — kein Bootstrap, kein Write.');
+    return { status: 'unlesbar' };
   }
+  if (lage.status === 'leer') return { status: 'leer', map: emptyKuerzelMap() };
+  try {
+    const parsed = JSON.parse(lage.text) as Partial<KuerzelMapFile>;
+    return { status: 'ok', map: normalizeKuerzelMap(parsed) };
+  } catch {
+    console.warn('[kuerzel-map] JSON-Parse fehlgeschlagen — Datei gilt als unlesbar.');
+    return { status: 'unlesbar' };
+  }
+}
+
+/** Liest die Sidecar-Datei. Datei fehlt ODER ist unlesbar → leeres Default.
+ *  Nur fuer rein LESENDE Aufrufer; wer danach schreibt, nimmt
+ *  {@link loadKuerzelMapLage} und bricht bei `unlesbar` ab. */
+export async function loadKuerzelMap(storage: StorageService): Promise<KuerzelMapFile> {
+  const lage = await loadKuerzelMapLage(storage);
+  return lage.status === 'unlesbar' ? emptyKuerzelMap() : lage.map;
 }
 
 /** Schreibt atomar via .tmp + rename + 1-Gen-Backup. Wirft falls Daten-Share

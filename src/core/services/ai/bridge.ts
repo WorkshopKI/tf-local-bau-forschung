@@ -111,6 +111,31 @@ export class AIBridge {
   }
 
   /**
+   * Transport für einen dokument-tragenden Lauf OHNE Skill-Record (v4.12).
+   *
+   * `getTransportForSkillRun` leitet die DSGVO-Klasse aus dem `promptTemplate`
+   * des Skills ab (Pitfall #35) — es gibt aber Batch-Läufe, die Antragsdaten ans
+   * Modell geben, ohne dass ein `SkillRecord` das Policy-Subjekt wäre: die
+   * Auslastungs-Klassifizierung schickt Verbund-/TV-Titel und Antragsteller,
+   * also genau die Klasse, die `INHALTS_SLOTS` als `stammdaten` führt. Für die
+   * gilt dieselbe Regel wie für den Assistenten: **nur intern**, sonst wirft es.
+   *
+   * `zweck` benennt den Lauf in der Fehlermeldung (der Nutzer soll wissen, was
+   * gerade blockiert wurde).
+   */
+  getTransportForDatenLauf(zweck: string): AITransport {
+    const erlaubt = erlaubteTransportKlassen({ enthaeltDokumentInhalte: true });
+    if (!erlaubt.includes(this.activeKlasse)) {
+      throw new Error(
+        `DSGVO-Transport-Policy: ${zweck} verarbeitet Antragsdaten und darf nur über `
+        + `einen internen Transport laufen — aktiver Provider „${this.getActiveProviderName()}" `
+        + 'ist extern. Bitte auf die interne KI wechseln.',
+      );
+    }
+    return this.mutex.wrapVordergrund(this.getActiveTransport());
+  }
+
+  /**
    * Transport für einen Assistenten-Turn — die **gegatete** Wahl des Assistenz-
    * Panels (Phase 1). Der Assistenten-Kontext enthält regelmäßig Dokumentinhalte
    * (Orama-Auszüge aus VBs), daher gilt jeder Aufruf pauschal als dokument-tragend:

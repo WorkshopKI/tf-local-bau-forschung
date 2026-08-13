@@ -163,7 +163,9 @@ export function SkillEvalPanel({ registry }: SkillEvalPanelProps): React.ReactEl
         abschnitt,
         anzahl,
         registry,
-        genTransport: bridge.getActiveTransport(),
+        // Die Eval-GUI faehrt ausschliesslich FIKTIVE Fixtures aus dem
+        // gebuendelten Asset — echter Antragsinhalt ist hier konstruktiv aus.
+        genTransport: bridge.getActiveTransport(), // allow-raw-active-transport: nur fiktive Fixtures (Guard eval-gui-fictional-only)
         kontext,
         mapSchwelle,
         judgeTransport,

@@ -24,7 +24,7 @@ vi.mock('../feedbackSharedFile', async (importActual) => {
   const actual = await importActual<typeof import('../feedbackSharedFile')>();
   return {
     ...actual,
-    readSharedFile: vi.fn(),
+    readSharedFileLage: vi.fn(),
     writeSharedFile: vi.fn(async () => true),
     writeSharedAttachment: vi.fn(async () => true),
   };
@@ -38,7 +38,7 @@ vi.mock('../feedbackStorage', async (importOriginal) => ({
 
 import { autoCollectFeedbackOutboxes } from '../feedbackOutboxCollect';
 import { listOutboxItems, writeOutboxStatus, deleteOutboxItem } from '@/core/services/personal-storage';
-import { readSharedFile, writeSharedFile, writeSharedAttachment } from '../feedbackSharedFile';
+import { readSharedFileLage, writeSharedFile, writeSharedAttachment } from '../feedbackSharedFile';
 import type { StorageService } from '@/core/services/storage';
 import type { FeedbackItem } from '@/core/types/feedback';
 
@@ -81,7 +81,7 @@ describe('autoCollectFeedbackOutboxes', () => {
   });
 
   it('importiert neue Eintraege, dedupt vorhandene, ueberspringt nicht-pending, loescht am Ursprung', async () => {
-    vi.mocked(readSharedFile).mockResolvedValue({ version: 1, updated_at: '', items: [sharedItem('B')] });
+    vi.mocked(readSharedFileLage).mockResolvedValue({ status: 'ok', datei: { version: 1, updated_at: '', items: [sharedItem('B')] } });
     vi.mocked(listOutboxItems).mockResolvedValue([
       ob('A', 'pending'), ob('B', 'pending'), ob('C', 'approved'),
     ] as never);
@@ -104,7 +104,7 @@ describe('autoCollectFeedbackOutboxes', () => {
   // Alt-Clients koennen weiterhin die entfallene Kategorie 'ux' liefern — der
   // Import heilt sie auf 'idea' (normalizeLegacyFields, v2.289).
   it('reicht category + structured + attachments durch (ux wird migriert) und kopiert Bytes vor dem Loeschen', async () => {
-    vi.mocked(readSharedFile).mockResolvedValue(null);
+    vi.mocked(readSharedFileLage).mockResolvedValue({ status: 'leer' });
     vi.mocked(listOutboxItems).mockResolvedValue([
       {
         id: 'X', kuerzel: 'AAA', submitted_at: '2026-06-01T10:00:00.000Z',
@@ -129,7 +129,7 @@ describe('autoCollectFeedbackOutboxes', () => {
   });
 
   it('reicht die KI-Verbesserung durch (original_text + llm_summary + llm_classification)', async () => {
-    vi.mocked(readSharedFile).mockResolvedValue(null);
+    vi.mocked(readSharedFileLage).mockResolvedValue({ status: 'leer' });
     vi.mocked(listOutboxItems).mockResolvedValue([
       {
         id: 'V', kuerzel: 'AAA', submitted_at: '2026-07-09T10:00:00.000Z',
@@ -151,7 +151,7 @@ describe('autoCollectFeedbackOutboxes', () => {
   });
 
   it('loescht NICHT, wenn der Shared-Write fehlschlaegt (approved-Fallback)', async () => {
-    vi.mocked(readSharedFile).mockResolvedValue(null);
+    vi.mocked(readSharedFileLage).mockResolvedValue({ status: 'leer' });
     vi.mocked(writeSharedFile).mockResolvedValue(false);
     vi.mocked(listOutboxItems).mockResolvedValue([ob('A', 'pending')] as never);
 
@@ -165,7 +165,7 @@ describe('autoCollectFeedbackOutboxes', () => {
   });
 
   it('ohne offene Eintraege: kein Shared-Write, kein Loeschen', async () => {
-    vi.mocked(readSharedFile).mockResolvedValue(null);
+    vi.mocked(readSharedFileLage).mockResolvedValue({ status: 'leer' });
     vi.mocked(listOutboxItems).mockResolvedValue([ob('C', 'approved')] as never);
 
     const res = await autoCollectFeedbackOutboxes(storage, rootWithOneUser(), 'KUR');
@@ -174,5 +174,22 @@ describe('autoCollectFeedbackOutboxes', () => {
     expect(writeSharedFile).not.toHaveBeenCalled();
     expect(writeOutboxStatus).not.toHaveBeenCalled();
     expect(deleteOutboxItem).not.toHaveBeenCalled();
+  });
+
+  it('UNLESBARE feedback.json: kein Write, kein Loeschen — der Team-Bestand bleibt (v4.12)', async () => {
+    // Der schwerste Befund des Cross-Cutting-Reviews. Dieser Pfad ueberschreibt
+    // die geteilte Datei VOLLSTAENDIG und loescht danach die Outbox-Quellen.
+    // Wuerde „unlesbar" als „leer" durchgehen, ersetzten die zwei frisch
+    // eingesammelten Items die 180 Team-Eintraege — und weil der Write gelaenge,
+    // gaelte `safeToDelete`, sodass auch die Originale in den Outboxen fielen.
+    vi.mocked(readSharedFileLage).mockResolvedValue({ status: 'unlesbar' });
+    vi.mocked(listOutboxItems).mockResolvedValue([ob('A', 'pending')] as never);
+
+    const res = await autoCollectFeedbackOutboxes(storage, rootWithOneUser(), 'KUR');
+
+    expect(res).toEqual({ scanned: 0, imported: 0 });
+    expect(writeSharedFile).not.toHaveBeenCalled();
+    expect(deleteOutboxItem).not.toHaveBeenCalled();
+    expect(writeOutboxStatus).not.toHaveBeenCalled();
   });
 });

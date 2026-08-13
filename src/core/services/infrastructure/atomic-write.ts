@@ -214,19 +214,58 @@ export async function appendToFile(
   await writeData(fh, next);
 }
 
-export async function readText(
+/**
+ * Lage einer Datei beim Lesen — die Unterscheidung, die {@link readText} nicht
+ * treffen kann, weil es JEDEN Fehler auf `null` abbildet.
+ *
+ * `leer` heißt „die Datei gibt es (noch) nicht" — ein legitimer Anfangszustand,
+ * auf dem man aufbauen darf. `unlesbar` heißt „da IST etwas, es ließ sich nur
+ * gerade nicht lesen" (SMB-Aussetzer, entzogenes Recht, paralleler Schreiber im
+ * Rename-Fenster). Wer aus `unlesbar` ein „also leer" macht und das Ergebnis
+ * zurückschreibt, löscht fremden Bestand — genau die Bug-Klasse, die dieses
+ * Modul sonst verhindert (Pitfall #10/#23).
+ *
+ * **Regel: wer nach dem Lesen SCHREIBT, nimmt `readTextLage` und bricht bei
+ * `unlesbar` ab.** Wer nur liest und mit „nichts" leben kann, nimmt `readText`.
+ */
+export type DateiLage =
+  | { status: 'ok'; text: string }
+  | { status: 'leer' }
+  | { status: 'unlesbar' };
+
+/**
+ * Liest eine Datei und meldet die {@link DateiLage} statt eines zweideutigen
+ * `null`. Unterschieden wird am Fehler-Namen: die File System Access API wirft
+ * `NotFoundError`, wenn Datei oder Ordner nicht existieren — jeder ANDERE Fehler
+ * bedeutet, dass etwas da ist, das sich nicht lesen ließ.
+ */
+export async function readTextLage(
   root: FileSystemDirectoryHandle,
   path: string,
-): Promise<string | null> {
+): Promise<DateiLage> {
   try {
     const { dirParts, filename } = splitPath(path);
     const dir = await navigateToDir(root, dirParts, false);
     const fh = await dir.getFileHandle(filename);
     const f = await fh.getFile();
-    return f.text();
-  } catch {
-    return null;
+    return { status: 'ok', text: await f.text() };
+  } catch (err) {
+    return (err as { name?: string } | null)?.name === 'NotFoundError'
+      ? { status: 'leer' }
+      : { status: 'unlesbar' };
   }
+}
+
+/**
+ * Datei-Inhalt oder `null`. Fehlertolerant für LESENDE Aufrufer, die mit
+ * „nichts" leben können — wer anschließend schreibt, nimmt {@link readTextLage}.
+ */
+export async function readText(
+  root: FileSystemDirectoryHandle,
+  path: string,
+): Promise<string | null> {
+  const lage = await readTextLage(root, path);
+  return lage.status === 'ok' ? lage.text : null;
 }
 
 /**

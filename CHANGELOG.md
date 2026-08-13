@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.12.0 — Cross-Cutting-Review: unlesbar heisst nicht leer (August 2026)
+
+MINOR — Ergebnis eines Cross-Cutting-Reviews entlang Pitfall #10/#23/#30/#31: neun bestätigte Befunde, vier davon mit derselben Wurzel. `readText` bildete „Datei fehlt" und „Datei ließ sich nicht lesen" auf dasselbe `null` ab; vier Sidecar-Schreiber machten daraus „also leer" und schrieben das Ergebnis als vollständige Datei zurück — womit fremder Team-Bestand verschwand. Die Trennung gab es bereits im Feedback-Modul, sie war nur nie verallgemeinert.
+
+- **`readTextLage` trennt fehlend von unlesbar** ([atomic-write.ts](src/core/services/infrastructure/atomic-write.ts), [read-text-lage.test.ts](src/core/services/infrastructure/__tests__/read-text-lage.test.ts)): nur `NotFoundError` heißt „gibt es nicht"; `readText` bleibt für rein lesende Aufrufer unverändert tolerant
+- **Vier Schreiber brechen jetzt ab, statt leer zu überschreiben** ([feedbackOutboxCollect.ts](src/core/services/feedback/feedbackOutboxCollect.ts), [kuerzel-map.ts](src/plugins/auslastung/services/identitaet/kuerzel-map.ts), [zugang-config.ts](src/core/services/infrastructure/zugang-config.ts), [katalog-share.ts](src/core/status/katalog-share.ts)): Team-Feedback, anonIds (Pitfall #18), MA-Zugänge und Katalog-Archiv bleiben erhalten
+- **Kein Löschen ungesicherter Dateien mehr** ([snapshot.ts](src/core/services/csv/snapshot.ts), [migration.ts](src/core/services/infrastructure/migration.ts)): der Teil-Write-Aufräumer riss `antraege.jsonl` mit (kein `.backup`), die Legacy-Migration die nicht kopierten Quelldateien — beides verhinderte nichts und zerstörte etwas
+- **Zwei ungegatete Inhalts-Läufe geschlossen** ([SkillTestlauf.tsx](src/plugins/skill-verwaltung-kuration/SkillTestlauf.tsx), [llm-klassifizierung.ts](src/plugins/auslastung/services/klassifizierung/llm-klassifizierung.ts), [bridge.ts](src/core/services/ai/bridge.ts)): Real-Daten-Testlauf und Auslastungs-Klassifizierung liefen roh am DSGVO-Gate vorbei; neu `getTransportForDatenLauf` für Läufe ohne Skill-Record
+- **Guard-Scope war zu eng** ([conventions-daten.test.ts](src/__tests__/conventions-daten.test.ts)): `no-raw-active-transport` deckte fünf Verzeichnisse per Allow-Liste — jetzt auch `skill-verwaltung-kuration/` und `auslastung/`, die zwei echten Ausnahmen begründet markiert
+
 ### v4.11.0 — Antraege sterben erst, wenn alle Quellen sie fallen lassen (August 2026)
 
 MINOR — Fortsetzung von v4.9.0, jetzt als fachliche Regel statt als Guard: die Quellen reichen unterschiedlich weit zurück (Master + Begleitung bis 2015, Projektbeschreibung bis 2012). „Fehlt in diesem Export" sagt deshalb nichts über die Existenz eines Antrags — bis v4.10 löschte genau das ihn samt Verbund-Referenz und Akronym-Index.

@@ -150,6 +150,44 @@ export interface MigrationResult {
 }
 
 /**
+ * Verschiebt einen Ordner und räumt die Quelle **nur dann** ab, wenn dabei kein
+ * einziger Eintrag liegen geblieben ist (v4.12).
+ *
+ * `moveAllInto` fängt pro Datei ab, sammelt die Meldung in `stat.errors` und
+ * läuft weiter — es liefert keinen Erfolgsstatus. Das anschließende
+ * `removeEntry(..., { recursive: true })` nahm die nicht kopierten Dateien
+ * deshalb mit: sie waren danach an beiden Orten weg. Ausgewertet wurden die
+ * Fehler erst ganz am Ende der Migration, lange nach dem Löschen — der Nutzer
+ * sah „teilweise fehlgeschlagen", als nichts mehr zu retten war.
+ */
+async function verschiebeUndRaeumeAb(
+  quelleParent: FileSystemDirectoryHandle,
+  ordnerName: string,
+  quelle: FileSystemDirectoryHandle,
+  ziel: FileSystemDirectoryHandle,
+  label: string,
+  moveStat: MoveStat,
+  result: MigrationResult,
+): Promise<void> {
+  const fehlerVorher = moveStat.errors.length;
+  await moveAllInto(quelle, ziel, moveStat);
+  const neueFehler = moveStat.errors.length - fehlerVorher;
+  if (neueFehler > 0) {
+    result.errors.push(
+      `${label}: ${neueFehler} Eintrag/Einträge nicht verschiebbar — Quellordner bleibt `
+      + `erhalten, es wurde nichts gelöscht.`,
+    );
+    return;
+  }
+  try {
+    await quelleParent.removeEntry(ordnerName, { recursive: true });
+    result.foldersRemoved.push(label);
+  } catch (err) {
+    result.errors.push(`remove ${ordnerName}: ${(err as Error).message}`);
+  }
+}
+
+/**
  * Führt die Legacy→v1.9-Migration durch. Idempotent: prüft Zielpfade vor jedem Schritt.
  * Schreibt Audit-Eintrag `kurator_structure_migrated` mit Statistik.
  */
@@ -174,27 +212,23 @@ export async function migrateLegacyStructure(
   if (legacyProgramm) {
     const legacyCsvSources = await legacyProgramm.getDirectoryHandle('csv-sources').catch(() => null);
     if (legacyCsvSources) {
-      await moveAllInto(legacyCsvSources, antraegeImports, moveStat);
-      try { await legacyProgramm.removeEntry('csv-sources', { recursive: true }); result.foldersRemoved.push('programm-test/csv-sources'); }
-      catch (err) { result.errors.push(`remove csv-sources: ${(err as Error).message}`); }
+      await verschiebeUndRaeumeAb(legacyProgramm, 'csv-sources', legacyCsvSources, antraegeImports,
+        'programm-test/csv-sources', moveStat, result);
     }
     const legacyCsvSchemas = await legacyProgramm.getDirectoryHandle('csv-schemas').catch(() => null);
     if (legacyCsvSchemas) {
-      await moveAllInto(legacyCsvSchemas, schemas, moveStat);
-      try { await legacyProgramm.removeEntry('csv-schemas', { recursive: true }); result.foldersRemoved.push('programm-test/csv-schemas'); }
-      catch (err) { result.errors.push(`remove csv-schemas: ${(err as Error).message}`); }
+      await verschiebeUndRaeumeAb(legacyProgramm, 'csv-schemas', legacyCsvSchemas, schemas,
+        'programm-test/csv-schemas', moveStat, result);
     }
     const legacyIndex = await legacyProgramm.getDirectoryHandle('index').catch(() => null);
     if (legacyIndex) {
-      await moveAllInto(legacyIndex, index, moveStat);
-      try { await legacyProgramm.removeEntry('index', { recursive: true }); result.foldersRemoved.push('programm-test/index'); }
-      catch (err) { result.errors.push(`remove index: ${(err as Error).message}`); }
+      await verschiebeUndRaeumeAb(legacyProgramm, 'index', legacyIndex, index,
+        'programm-test/index', moveStat, result);
     }
     const legacyVorgaenge = await legacyProgramm.getDirectoryHandle('vorgaenge').catch(() => null);
     if (legacyVorgaenge) {
-      await moveAllInto(legacyVorgaenge, antraege, moveStat);
-      try { await legacyProgramm.removeEntry('vorgaenge', { recursive: true }); result.foldersRemoved.push('programm-test/vorgaenge'); }
-      catch (err) { result.errors.push(`remove vorgaenge: ${(err as Error).message}`); }
+      await verschiebeUndRaeumeAb(legacyProgramm, 'vorgaenge', legacyVorgaenge, antraege,
+        'programm-test/vorgaenge', moveStat, result);
     }
     // admin/ → _intern/ (mit Datei-Umbenennung)
     const legacyAdmin = await legacyProgramm.getDirectoryHandle('admin').catch(() => null);
@@ -270,17 +304,22 @@ export async function migrateLegacyStructure(
       try { await legacyProgramm.removeEntry('dokumente', { recursive: true }); result.foldersRemoved.push('programm-test/dokumente'); }
       catch (err) { result.errors.push(`remove dokumente: ${(err as Error).message}`); }
     }
-    // programm-test/ jetzt löschen (sollte leer sein)
-    try { await parent.removeEntry('programm-test', { recursive: true }); result.foldersRemoved.push('programm-test/'); }
-    catch (err) { result.errors.push(`remove programm-test: ${(err as Error).message}`); }
+    // programm-test/ jetzt löschen — aber nur, wenn wirklich alles umgezogen ist.
+    // Der alte Kommentar lautete „sollte leer sein"; geprüft wurde das nie, und
+    // ein rekursives Löschen hätte jeden liegen gebliebenen Rest mitgenommen.
+    if (moveStat.errors.length === 0) {
+      try { await parent.removeEntry('programm-test', { recursive: true }); result.foldersRemoved.push('programm-test/'); }
+      catch (err) { result.errors.push(`remove programm-test: ${(err as Error).message}`); }
+    } else {
+      result.errors.push('programm-test/ bleibt erhalten — nicht alles konnte umgezogen werden.');
+    }
   }
 
   // 2. feedback/ → _intern/feedback/
   const legacyFeedback = await parent.getDirectoryHandle('feedback').catch(() => null);
   if (legacyFeedback) {
-    await moveAllInto(legacyFeedback, internFeedback, moveStat);
-    try { await parent.removeEntry('feedback', { recursive: true }); result.foldersRemoved.push('feedback/'); }
-    catch (err) { result.errors.push(`remove feedback: ${(err as Error).message}`); }
+    await verschiebeUndRaeumeAb(parent, 'feedback', legacyFeedback, internFeedback,
+      'feedback/', moveStat, result);
   }
 
   // 3. backups/programm-test/* → backups/*
@@ -288,9 +327,8 @@ export async function migrateLegacyStructure(
   if (backups) {
     const wrapper = await backups.getDirectoryHandle('programm-test').catch(() => null);
     if (wrapper) {
-      await moveAllInto(wrapper, backups, moveStat);
-      try { await backups.removeEntry('programm-test', { recursive: true }); result.foldersRemoved.push('backups/programm-test'); }
-      catch (err) { result.errors.push(`remove backups/programm-test: ${(err as Error).message}`); }
+      await verschiebeUndRaeumeAb(backups, 'programm-test', wrapper, backups,
+        'backups/programm-test', moveStat, result);
     }
   }
 

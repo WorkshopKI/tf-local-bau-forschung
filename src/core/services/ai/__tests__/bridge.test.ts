@@ -25,6 +25,25 @@ const EXTERN_CONFIG = {
   apiKey: 'k',
 };
 
+describe('AIBridge.getTransportForDatenLauf (Laeufe ohne Skill-Record, v4.12)', () => {
+  // Die Auslastungs-Klassifizierung schickt Verbund-/TV-Titel und Antragsteller
+  // ans Modell, hat aber keinen SkillRecord als Policy-Subjekt. Bis v4.12 zog sie
+  // den Transport roh und konnte den Bestand an einen externen Provider geben.
+  it('intern → liefert Transport', () => {
+    const bridge = new AIBridge();
+    expect(bridge.getActiveKlasse()).toBe('intern');
+    expect(() => bridge.getTransportForDatenLauf('Die Auslastungs-Klassifizierung')).not.toThrow();
+  });
+
+  it('extern → wirft, und die Meldung benennt den Lauf', () => {
+    const bridge = new AIBridge();
+    bridge.switchProvider(EXTERN_CONFIG);
+    expect(bridge.getActiveKlasse()).toBe('extern');
+    expect(() => bridge.getTransportForDatenLauf('Die Auslastungs-Klassifizierung'))
+      .toThrow(/DSGVO-Transport-Policy: Die Auslastungs-Klassifizierung/);
+  });
+});
+
 describe('AIBridge.getTransportForSkillRun (DSGVO-Transport-Policy)', () => {
   it('intern (streamlit, Default) + Inhalts-Skill → liefert Transport (kein Throw)', () => {
     const bridge = new AIBridge();

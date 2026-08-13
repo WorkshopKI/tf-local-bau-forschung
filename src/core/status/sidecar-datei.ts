@@ -20,7 +20,7 @@
  */
 import type { IDBStore } from '@/core/services/storage';
 import {
-  atomicWrite, atomicWriteStream, appendToFile, readText, readTextPrefix,
+  atomicWrite, atomicWriteStream, appendToFile, readText, readTextLage, readTextPrefix,
   listFilesWithBackupInfo, type AtomicWriteSink,
 } from '@/core/services/infrastructure/atomic-write';
 import { getDatenShareHandle, queryPermission } from '@/core/services/infrastructure/smb-handle';
@@ -33,16 +33,42 @@ import { getDatenShareHandle, queryPermission } from '@/core/services/infrastruc
 export async function leseSidecar<T>(
   idb: IDBStore, pfad: string, istGueltig: (raw: unknown) => raw is T,
 ): Promise<T | null> {
+  const lage = await leseSidecarLage(idb, pfad, istGueltig);
+  return lage.status === 'ok' ? lage.daten : null;
+}
+
+/**
+ * Lage einer Sidecar (v4.12) — für Aufrufer, die nach dem Lesen SCHREIBEN.
+ *
+ * `leseSidecar` wirft „gibt es nicht" und „ließ sich nicht lesen" auf dasselbe
+ * `null`. Wer daraus einen leeren Anfangsstand ableitet und ihn zurückschreibt,
+ * ersetzt fremden Bestand durch das bisschen, das er selbst kennt — bei einer
+ * Datei, die alles Ausgelagerte führt (Katalog-Archiv), heißt das Verlust.
+ * Ein verfehlter Strukturtest zählt als `unlesbar`: die Datei ist da, sie passt
+ * nur nicht zur Erwartung.
+ */
+export type SidecarLage<T> =
+  | { status: 'ok'; daten: T }
+  | { status: 'leer' }
+  | { status: 'unlesbar' };
+
+export async function leseSidecarLage<T>(
+  idb: IDBStore, pfad: string, istGueltig: (raw: unknown) => raw is T,
+): Promise<SidecarLage<T>> {
   const handle = await getDatenShareHandle(idb);
-  if (!handle) return null;
-  const text = await readText(handle, pfad);
-  if (text == null) return null;
+  if (!handle) return { status: 'leer' };
+  const lage = await readTextLage(handle, pfad);
+  if (lage.status !== 'ok') return lage;
   try {
-    const parsed: unknown = JSON.parse(text);
-    return istGueltig(parsed) ? parsed : null;
+    const parsed: unknown = JSON.parse(lage.text);
+    if (!istGueltig(parsed)) {
+      console.warn(`[status] leseSidecarLage(${pfad}): Struktur verfehlt — gilt als unlesbar.`);
+      return { status: 'unlesbar' };
+    }
+    return { status: 'ok', daten: parsed };
   } catch (err) {
-    console.warn(`[status] leseSidecar(${pfad}) parse failed:`, err);
-    return null;
+    console.warn(`[status] leseSidecarLage(${pfad}) parse failed:`, err);
+    return { status: 'unlesbar' };
   }
 }
 

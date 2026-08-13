@@ -429,16 +429,26 @@ export async function writeProgrammSnapshot(
     Object.assign(stores, small.stores);
     written.push(...small.written);
   } catch (writeErr) {
-    // Best-effort cleanup: bereits geschriebene JSONL-Files entfernen, damit kein
-    // halb-konsistenter Snapshot stehen bleibt. Fehler beim Cleanup werden
-    // verschluckt — der eigentliche Write-Error wird re-thrown.
-    for (const key of written) {
-      await programmDir.removeEntry(SNAPSHOT_FILES[key]).catch(() => undefined);
-    }
-    // Nur melden, wenn wirklich etwas zurückzunehmen war — ein Abbruch VOR dem
-    // ersten Write (Schwund-Guard) ist kein Teil-Write.
+    // KEIN Löschen des bereits Geschriebenen (v4.12). Bis hierher wurden die
+    // fertigen Dateien im Fehlerfall entfernt — „damit kein halb-konsistenter
+    // Snapshot stehen bleibt". Verhindert hat das nichts: das Manifest ist der
+    // einzige Marker und wird erst ganz unten geschrieben, ein Abbruch hier
+    // lässt also den ALTEN, gültigen Snapshot-Stand als Ganzes stehen.
+    // Mitgerissen wurde dabei `antraege.jsonl` — die einzige Datei ohne
+    // `.backup` (`skipBackup`, nicht in BACKUP_STORES). Scheiterte
+    // `writeSmallStores` NACH dem erfolgreichen Anträge-Stream, stand danach
+    // ein Manifest auf dem Share, das `antraege` mit Count und Hash ausweist,
+    // während die Datei fehlte — ein Rechner mit leerer IDB fand null Anträge,
+    // und der Delta-Pfad schrieb die Basis so bald nicht neu.
+    // Stehenbleibende neue Dateien sind dagegen harmlos: solange das Manifest
+    // die alte Version ausweist, liest sie niemand, und der nächste Publish
+    // überschreibt sie.
     if (written.length > 0) {
-      console.warn(`[snapshot] partial-write cleanup: ${written.length} files removed, original error:`, writeErr);
+      console.warn(
+        `[snapshot] Teil-Write abgebrochen nach ${written.length} Datei(en) (${written.join(', ')}); `
+        + `Manifest bleibt auf dem alten Stand, nichts gelöscht. Fehler:`,
+        writeErr,
+      );
     }
     throw writeErr;
   }

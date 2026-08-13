@@ -44,7 +44,28 @@ später einen In-App-Judge über **reale** Daten (intern-only) frei.
 - **Aufrufstellen** (gegatet über `getTransportForSkillRun`):
   - Einzellauf: `useGutachtenWorkflow.runGeneration` + `runQs`.
   - Batch: `useBatchJob.erzeugeAbschnitt`.
+  - Real-Daten-Testlauf der Skill-Verwaltung: `SkillTestlauf.run` (v4.12) — er schickt
+    den VB-Volltext eines produktiven Antrags, unterlag der Policy also von Anfang an,
+    lag aber außerhalb des Guard-Scopes.
   - `.ping()`-Verfügbarkeitschecks bleiben roh/`pingActive()` — sie tragen keinen Inhalt.
+
+- **Läufe OHNE Skill-Record** (gegatet über `getTransportForDatenLauf(zweck)`, v4.12):
+  `skillEnthaeltDokumentInhalte` leitet die Klasse aus dem `promptTemplate` ab — es gibt
+  aber Batch-Läufe, die Antragsdaten ans Modell geben, ohne dass ein `SkillRecord` das
+  Policy-Subjekt wäre. Für sie gilt dieselbe Regel wie für den Assistenten: **nur intern**,
+  sonst wirft es. Aufrufstelle: die Auslastungs-Klassifizierung (`klassifiziereBatch`)
+  sendet `verbundTitel`/`tvTitels`/`antragsteller`, also `stammdaten` aus `INHALTS_SLOTS`.
+  Die Taste „Prompt kopieren" bleibt davon unberührt — eine bewusste Nutzerhandlung ist
+  kein automatischer Lauf.
+
+- **Guard-Scope** (`no-raw-active-transport`, [conventions-daten.test.ts](../../src/__tests__/conventions-daten.test.ts)):
+  eine **Allow-Liste von Pfaden**, kein Repo-weiter Scan. Wer eine neue inhalts-tragende
+  Aufrufstelle außerhalb dieser Verzeichnisse anlegt, wird nicht gefangen — genau so
+  entstanden die beiden v4.12-Lücken. Beim Anlegen eines Moduls, das Antragsdaten ans
+  Modell gibt: Verzeichnis in `SCOPE_FRAGMENTS` eintragen. Echte Ausnahmen brauchen
+  `// allow-raw-active-transport: <grund>` **auf derselben Zeile** (der Marker wird
+  zeilenweise geprüft) — heute: die QS-Kriterien-Ableitung (liest nur den Skill-Prompt)
+  und die Eval-GUI (nur fiktive Fixtures).
   - **Metadaten-Extraktion** (`metadata-extractor.ts`, sekundär): eigener
     `DirectLLMTransport`-Lebenszyklus (WebGPU/Browser-Backends). Statt Refactoring durch
     die Bridge prüft `initMetadataLLM` den Endpoint via `classifyProvider`; ist er

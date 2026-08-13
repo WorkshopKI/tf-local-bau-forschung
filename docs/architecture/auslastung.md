@@ -156,7 +156,19 @@ MA-Modell (1.17):
 
 ## LLM-Batch-Klassifizierung (1.17)
 
-`services/llm-klassifizierung.ts` ruft den **aktiven AIBridge-Transport** (DirectLLM/OpenRouter/Streamlit) mit JSON-Schema-Mode auf. UI-Buttons (Komponente `LLMKlassifizierungButtons`) im Klassifizierungs-Tab:
+`services/llm-klassifizierung.ts` ruft seit v4.12 den **gegateten** Transport
+`bridge.getTransportForDatenLauf(...)` mit JSON-Schema-Mode auf — also **nur intern**
+(Streamlit oder lokales llama.cpp), nicht mehr den rohen aktiven Transport. Grund: der
+Prompt trägt `verbundTitel`, `tvTitels` und `antragsteller`, und genau diese Klasse führt
+die DSGVO-Transport-Policy als `stammdaten` in `INHALTS_SLOTS`
+([transport-policy.md](transport-policy.md)). Ein extern gewählter Provider lässt den Lauf
+mit einer klaren Meldung scheitern, statt den Bestand hinauszugeben.
+
+Die **Zwischenablage-Fallbacks bleiben unverändert extern nutzbar** („Prompt kopieren" /
+„LLM-Ergebnis einfügen"): eine bewusste Nutzerhandlung ist kein automatischer Lauf, und
+der Weg über ein externes Chat-Fenster bleibt damit offen.
+
+UI-Buttons (Komponente `LLMKlassifizierungButtons`) im Klassifizierungs-Tab:
 - "LLM-Klassifizierung starten" — Progress-Anzeige, Bulk-Save am Ende (EIN persist, siehe CLAUDE.md Lesson 16).
 - "Prompt kopieren" — `navigator.clipboard.writeText()` für Streamlit-/ChatGPT-Fallback.
 - "LLM-Ergebnis einfügen" — Modal mit Textarea, robustes JSON-Parsing (Markdown-Wrapper, Umlaut-Schlüssel `primär`/`begründung`).

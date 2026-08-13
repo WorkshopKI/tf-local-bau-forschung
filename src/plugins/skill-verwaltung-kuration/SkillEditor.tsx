@@ -165,7 +165,9 @@ export function SkillEditor({ file, skill, isNew, canEdit, agg, initialView, per
     setVorschlaege([]);
     setVorschlaegeHinweis('');
     const vorlage = promptViewRef.current?.state.doc.toString() ?? draft.promptTemplate;
-    const gefunden = await leiteQsKriterienAb(bridge.getActiveTransport(), draft.name, vorlage);
+    // `vorlage` ist der Prompt-Text des Skills aus dem Editor, also kuratierte
+    // App-Daten — die Ableitung liest nur ihn, nie ein Antragsdokument.
+    const gefunden = await leiteQsKriterienAb(bridge.getActiveTransport(), draft.name, vorlage); // allow-raw-active-transport: nur Skill-Prompt-Text, keine Antragsdaten
     if (!gefunden) {
       setVorschlaegeHinweis('Keine Vorschläge — interne KI nicht erreichbar oder Antwort unbrauchbar.');
       return;
