@@ -36,37 +36,92 @@ interface OeffnenOptionen {
   untermenue?: UntermenueId;
 }
 
+/**
+ * Wo das Untermenü-Panel liegt. Es hängt absolut am Hauptmenü, damit dessen
+ * Position beim Aufklappen unverändert bleibt — deshalb rechnet der Aufrufer
+ * Seite, Versatz und Deckel selbst aus (Handoff §2.5).
+ */
+export interface UntermenueLage {
+  /** Y-Versatz gegen den Kopf des Hauptmenüs (das Panel klebt an seiner Zeile). */
+  versatz: number;
+  /** `links`, wenn rechts neben dem Hauptmenü kein Platz mehr ist. */
+  seite: 'links' | 'rechts';
+  /** Platz nach unten in Pixeln (0 = kein Deckel, dann greift `78vh`). */
+  maxHoehe: number;
+  /**
+   * Falsch, solange die Lage nur geraten ist. Ein Flag statt eines Vergleichs
+   * mit der Start-Referenz: die trägt nach einem Modul-Neustart nicht mehr.
+   */
+  gemessen: boolean;
+}
+
+/** Lage vor der ersten Messung: oben am Hauptmenü, rechts, ohne Deckel. */
+export const UNTERMENUE_LAGE_START: UntermenueLage = {
+  versatz: 0, seite: 'rechts', maxHoehe: 0, gemessen: false,
+};
+
 interface StartseiteMenueState {
   /** null = geschlossen. */
   offen: { ziel: MenueZiel; punkt: MenuePunkt } | null;
   untermenue: UntermenueId | null;
-  /**
-   * Y-Versatz des Untermenü-Panels in Pixeln — es soll an der auslösenden Zeile
-   * kleben, nicht am Kopf des Hauptmenüs (Handoff-Screenshots 03/04).
-   */
-  untermenueVersatz: number;
+  lage: UntermenueLage;
   ansicht: MenueAnsicht;
   oeffne: (ziel: MenueZiel, punkt: MenuePunkt, opts?: OeffnenOptionen) => void;
   schliesse: () => void;
-  zeigeUntermenue: (id: UntermenueId | null, versatz?: number) => void;
+  zeigeUntermenue: (id: UntermenueId | null, lage?: UntermenueLage) => void;
   zeigeAnsicht: (ansicht: MenueAnsicht) => void;
 }
 
 export const useStartseiteMenueStore = create<StartseiteMenueState>(set => ({
   offen: null,
   untermenue: null,
-  untermenueVersatz: 0,
+  lage: UNTERMENUE_LAGE_START,
   ansicht: 'menue',
   oeffne: (ziel, punkt, opts) => set({
     offen: { ziel, punkt },
     untermenue: opts?.untermenue ?? null,
-    untermenueVersatz: 0,
+    lage: UNTERMENUE_LAGE_START,
     ansicht: 'menue',
   }),
-  schliesse: () => set({ offen: null, untermenue: null, untermenueVersatz: 0, ansicht: 'menue' }),
-  zeigeUntermenue: (id, versatz = 0) => set({ untermenue: id, untermenueVersatz: versatz }),
+  schliesse: () => set({ offen: null, untermenue: null, lage: UNTERMENUE_LAGE_START, ansicht: 'menue' }),
+  zeigeUntermenue: (id, lage = UNTERMENUE_LAGE_START) => set({ untermenue: id, lage }),
   zeigeAnsicht: ansicht => set({ ansicht, untermenue: null }),
 }));
+
+/** Sicherheitsabstand zum Fensterrand, wie `collisionPadding` des Popovers. */
+const RAND = 8;
+/** Unter diesem Wert lohnt kein gerechneter Deckel — dann greift `78vh`. */
+const MIN_HOEHE = 180;
+
+/**
+ * Wohin gehört das Untermenü neben ein Hauptmenü-Panel? Rein, damit die
+ * Kollisionsregel ohne Browser prüfbar ist: nach links nur, wenn rechts kein
+ * Platz ist UND links einer wäre — sonst bliebe es lieber rechts angeschnitten
+ * als links aus dem Bild zu laufen.
+ */
+export function berechneUntermenueLage(opts: {
+  /** Rechteck des Hauptmenü-Panels. */
+  panel: { top: number; left: number; right: number };
+  /** Oberkante der auslösenden Zeile. */
+  zeileOben: number;
+  breite: number;
+  abstand: number;
+  fensterBreite: number;
+  fensterHoehe: number;
+}): UntermenueLage {
+  const { panel, breite, abstand, fensterBreite, fensterHoehe } = opts;
+  const bedarf = breite + abstand + RAND;
+  const passtRechts = fensterBreite - panel.right >= bedarf;
+  const passtLinks = panel.left >= bedarf;
+  const versatz = Math.max(0, opts.zeileOben - panel.top - 4);
+  const platzUnten = fensterHoehe - panel.top - versatz - RAND * 2;
+  return {
+    versatz,
+    seite: !passtRechts && passtLinks ? 'links' : 'rechts',
+    maxHoehe: platzUnten >= MIN_HOEHE ? platzUnten : 0,
+    gemessen: true,
+  };
+}
 
 /** Ankerpunkt eines Knopfes: unter seiner linken Kante, wie ein Dropdown. */
 export function punktUnter(el: HTMLElement | null): MenuePunkt {

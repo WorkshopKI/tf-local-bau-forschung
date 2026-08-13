@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.9.1 — Startseiten-Menue oeffnet einstoeckig und bleibt am Ausloeser (August 2026)
+
+PATCH — Zwei Meldungen zum Rechtsklick-Menü aus v4.7.0, eine Wurzel: das Untermenü ging beim Öffnen automatisch mit auf, verdoppelte damit die gemessene Breite, und Radix schob die ganze Gruppe vom Auslöser weg nach links. Das Ergebnis sah nach zwei Fehlern aus und war einer.
+
+- **Untermenüs öffnen nicht mehr per Fokus** ([menueZeilen.tsx](src/plugins/home/anpassen/menueZeilen.tsx)): Radix fokussiert beim Öffnen die erste Zeile — Überfahren, Klick und `→` bleiben, der Fokus geht auf den Panel-Rahmen
+- **Untermenü hängt absolut am Hauptmenü** ([StartseiteMenue.tsx](src/plugins/home/anpassen/StartseiteMenue.tsx), [home-widgets.md](docs/architecture/home-widgets.md)): der Popover misst wieder 250 statt 524 px, das Hauptmenü steht bündig am Auslöser und bleibt beim Aufklappen stehen — gemessen 1171/1171
+- **Eigene Kollisionsrechnung fürs Untermenü** ([useStartseiteMenue.ts](src/plugins/home/anpassen/useStartseiteMenue.ts)): nach links nur, wenn rechts kein Platz ist und links einer wäre; dazu ein Höhendeckel gegen den unteren Rand (gemessen 353 statt 543 px)
+- **Vorab offenes Untermenü misst einen Tick später** ([StartseiteMenue.tsx](src/plugins/home/anpassen/StartseiteMenue.tsx)): Floating UI reicht die Position asynchron nach, im Layout-Effekt steht das Panel noch am Ursprung — betraf „Widget hinzufügen"
+- **Reißleinen** ([untermenueLage.test.ts](src/plugins/home/anpassen/__tests__/untermenueLage.test.ts)): Seitenwahl, Versatz und Deckel als reine Funktion, plus Quelltext-Guards gegen `onFocus` am Untermenü und gegen die Flex-Geschwister-Anordnung
+
 ### v4.9.0 — Import und Publish stoppen den Bestandsverlust (August 2026)
 
 MINOR — Aus einer Bug-Jagd im Import-Pfad: `removedJoinValues` unterschied nicht zwischen „im Fachsystem gelöscht" und „vom Import gefiltert", der Merge löschte bedingungslos, und der Snapshot trug das Ergebnis team-weit. Fünf verschiedene Ursachen mündeten in denselben Datenverlust; zwei Guards schließen den katastrophalen Teil.

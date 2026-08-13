@@ -11,19 +11,23 @@ import { ChevronRight } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
 /** Ein Panel des Menüs (Hauptmenü, Untermenü, Einstellungs-Ansicht). */
-export function MenuePanel({ breite, versatz, children }: {
+export function MenuePanel({ breite, maxHoehe, children }: {
   /** Handoff: Hauptmenü min. 250 px, Untermenü 268 px. */
   breite: number;
-  /** Y-Versatz gegen das Hauptmenü (Untermenü klebt an seiner Zeile). */
-  versatz?: number;
+  /**
+   * Deckel in Pixeln statt der `78vh`-Klasse — das Untermenü hängt an seiner
+   * Zeile und kann deshalb tiefer beginnen als das Hauptmenü; sein Platz nach
+   * unten misst der Aufrufer.
+   */
+  maxHoehe?: number;
   children: React.ReactNode;
 }): React.ReactElement {
   return (
     <div
-      className="rounded-[11px] bg-[var(--tf-bg)] p-[5px] max-h-[78vh] overflow-y-auto"
+      className={`rounded-[11px] bg-[var(--tf-bg)] p-[5px] overflow-y-auto${maxHoehe ? '' : ' max-h-[78vh]'}`}
       style={{
         width: breite,
-        marginTop: versatz ?? 0,
+        maxHeight: maxHoehe,
         border: '0.5px solid var(--tf-border-hover)',
         boxShadow: 'var(--tf-shadow-dialog)',
       }}
@@ -65,7 +69,7 @@ export interface MenueZeileProps {
   icon?: LucideIcon;
   /** Rechtsbündiger Zusatz — Positionsanzeige „2 / 5" oder Tastenkürzel. */
   kuerzel?: string;
-  /** Führt in ein Untermenü: Pfeil rechts, öffnet auch beim Überfahren. */
+  /** Führt in ein Untermenü: Pfeil rechts, öffnet beim Überfahren und beim Klick. */
   untermenue?: boolean;
   /** Am Spaltenrand ausgegraut statt versteckt (Handoff §2.2). */
   deaktiviert?: boolean;
@@ -88,9 +92,11 @@ export function MenueZeile({
       data-untermenue={untermenue ? '1' : undefined}
       aria-haspopup={untermenue ? 'menu' : undefined}
       aria-expanded={untermenue ? !!aktiv : undefined}
-      onClick={onClick}
+      // Überfahren, Klick und `→` öffnen das Untermenü — der bloße FOKUS nicht:
+      // Radix setzt den Fokus beim Öffnen auf die erste Zeile, ein `onFocus` hier
+      // hätte also jedes Menü sofort mit offenem Untermenü gezeigt (v4.7.0-Fehler).
+      onClick={e => { onClick?.(); if (untermenue) onHover?.(e.currentTarget); }}
       onMouseEnter={e => onHover?.(e.currentTarget)}
-      onFocus={e => onHover?.(e.currentTarget)}
       onKeyDown={e => {
         if (untermenue && e.key === 'ArrowRight') { e.preventDefault(); onHover?.(e.currentTarget); }
       }}

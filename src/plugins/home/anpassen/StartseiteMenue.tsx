@@ -10,10 +10,16 @@
  * verschachteltes Popover. Optisch dasselbe wie im Handoff (zwei Karten
  * nebeneinander, das Untermenü an seiner Zeile ausgerichtet), aber nur eine
  * Dismissable-Layer — kein Portal im Portal, kein Streit darum, wer `Esc`
- * bekommt. `collisionPadding` klappt die ganze Gruppe nach links, wenn rechts
- * kein Platz ist (Handoff §2.5).
+ * bekommt.
+ *
+ * Es hängt dabei **absolut** am Hauptmenü und nicht als Flex-Geschwister daneben:
+ * sonst wächst der Popover-Inhalt beim Aufklappen von 250 auf 524 px, Radix
+ * findet die Gruppe zu breit fürs Fenster und schiebt sie nach links — das
+ * Hauptmenü springt vom Auslöser weg (Fehler in v4.7.0). Der Handoff will genau
+ * das Gegenteil: das UNTERmenü klappt nach links, das Hauptmenü bleibt stehen
+ * (§2.5). Die Seitenwahl rechnet `berechneUntermenueLage`.
  */
-import { useCallback, useRef } from 'react';
+import { useCallback, useLayoutEffect, useRef } from 'react';
 import { ChevronLeft, Lock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
@@ -25,16 +31,18 @@ import { FlaechenMenue } from './FlaechenMenue';
 import { MenuePanel } from './menueZeilen';
 import { WidgetMenue } from './WidgetMenue';
 import { WidgetsUntermenue } from './WidgetsUntermenue';
-import { useStartseiteMenueStore, type UntermenueId } from './useStartseiteMenue';
+import { berechneUntermenueLage, useStartseiteMenueStore, type UntermenueId } from './useStartseiteMenue';
 
 /** Handoff §5: Menü min. 250 px, Untermenü 268 px. */
 const BREITE_MENUE = 250;
 const BREITE_UNTERMENUE = 268;
+/** Spalt zwischen den Panels, wie im Handoff-Prototyp. */
+const ABSTAND = 6;
 
 export function StartseiteMenue(): React.ReactElement {
   const offen = useStartseiteMenueStore(s => s.offen);
   const untermenue = useStartseiteMenueStore(s => s.untermenue);
-  const versatz = useStartseiteMenueStore(s => s.untermenueVersatz);
+  const lage = useStartseiteMenueStore(s => s.lage);
   const ansicht = useStartseiteMenueStore(s => s.ansicht);
   const schliesse = useStartseiteMenueStore(s => s.schliesse);
   const zeigeUntermenue = useStartseiteMenueStore(s => s.zeigeUntermenue);
@@ -44,9 +52,41 @@ export function StartseiteMenue(): React.ReactElement {
   // Hauptmenüs — gemessen gegen die Oberkante des Popovers, nicht per offsetTop
   // (das Panel ist nicht garantiert der offsetParent).
   const oeffneUnter = useCallback((id: UntermenueId, el: HTMLElement): void => {
-    const oben = contentRef.current?.getBoundingClientRect().top ?? 0;
-    zeigeUntermenue(id, Math.max(0, el.getBoundingClientRect().top - oben - 4));
+    const panel = contentRef.current?.getBoundingClientRect();
+    if (!panel) { zeigeUntermenue(id); return; }
+    zeigeUntermenue(id, berechneUntermenueLage({
+      panel,
+      zeileOben: el.getBoundingClientRect().top,
+      breite: BREITE_UNTERMENUE,
+      abstand: ABSTAND,
+      fensterBreite: window.innerWidth,
+      fensterHoehe: window.innerHeight,
+    }));
   }, [zeigeUntermenue]);
+
+  // „Widget hinzufügen" öffnet das Menü mit bereits ausgeklapptem Untermenü —
+  // dessen Seite lässt sich erst messen, wenn das Panel steht. Floating UI
+  // reicht die Position asynchron nach, im Layout-Effekt sitzt das Panel also
+  // noch am Ursprung. Deshalb einen Tick später, und nur solange die Lage
+  // geraten ist. Bewusst `setTimeout` statt `requestAnimationFrame`: die Lage
+  // hängt nicht an der Bildwiederholung, und in einem nicht gerenderten Fenster
+  // käme ein rAF nie an.
+  useLayoutEffect(() => {
+    if (!untermenue || lage.gemessen) return;
+    const id = window.setTimeout(() => {
+      const panel = contentRef.current?.getBoundingClientRect();
+      if (!panel?.width) return;
+      zeigeUntermenue(untermenue, berechneUntermenueLage({
+        panel,
+        zeileOben: panel.top,
+        breite: BREITE_UNTERMENUE,
+        abstand: ABSTAND,
+        fensterBreite: window.innerWidth,
+        fensterHoehe: window.innerHeight,
+      }));
+    }, 0);
+    return () => window.clearTimeout(id);
+  }, [untermenue, lage, zeigeUntermenue]);
 
   if (!offen) return <></>;
 
@@ -65,13 +105,19 @@ export function StartseiteMenue(): React.ReactElement {
         sideOffset={2}
         collisionPadding={8}
         aria-label="Startseite anpassen"
-        className="w-auto flex-row items-start gap-1.5 bg-transparent p-0 shadow-none ring-0"
+        className="relative block w-auto bg-transparent p-0 shadow-none ring-0"
+        // Ohne das fokussiert Radix beim Öffnen die erste Zeile. Der Fokus wandert
+        // stattdessen auf das Panel selbst (`tabIndex={-1}` von Radix' FocusScope),
+        // damit Tab von dort in die Einträge führt und `Esc` sicher ankommt.
+        onOpenAutoFocus={e => { e.preventDefault(); contentRef.current?.focus(); }}
         // Rechtsklick INS Menü soll weder das Browser-Menü zeigen noch das
         // Startseiten-Menü ein zweites Mal öffnen.
         onContextMenu={e => { e.preventDefault(); e.stopPropagation(); }}
       >
         <div
           // Jede Zeile ohne eigenes Untermenü schließt beim Überfahren das offene.
+          // Der Handler sitzt NUR am Hauptmenü — läge er am Rahmen, schlösse das
+          // Überfahren des Untermenüs dieses sofort wieder.
           onMouseOver={e => {
             if (!(e.target as HTMLElement).closest('[data-untermenue]')) zeigeUntermenue(null);
           }}
@@ -87,9 +133,18 @@ export function StartseiteMenue(): React.ReactElement {
           </MenuePanel>
         </div>
         {untermenue ? (
-          <MenuePanel breite={BREITE_UNTERMENUE} versatz={versatz}>
-            {untermenue === 'widgets' ? <WidgetsUntermenue /> : <DarstellungUntermenue />}
-          </MenuePanel>
+          <div
+            className="absolute top-0"
+            style={{
+              marginTop: lage.versatz,
+              left: lage.seite === 'rechts' ? `calc(100% + ${ABSTAND}px)` : undefined,
+              right: lage.seite === 'links' ? `calc(100% + ${ABSTAND}px)` : undefined,
+            }}
+          >
+            <MenuePanel breite={BREITE_UNTERMENUE} maxHoehe={lage.maxHoehe || undefined}>
+              {untermenue === 'widgets' ? <WidgetsUntermenue /> : <DarstellungUntermenue />}
+            </MenuePanel>
+          </div>
         ) : null}
       </PopoverContent>
     </Popover>

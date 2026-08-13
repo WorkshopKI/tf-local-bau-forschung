@@ -22,6 +22,7 @@
 ## v4.9 — 2026-08
 
 ### Bugfixes
+- Das Menü „Startseite anpassen" ging sofort zweistöckig auf — mit bereits ausgeklappter Widget-Liste — und rutschte dabei vom Knopf weg nach links. Es öffnet jetzt einstöckig und bündig an der Stelle, an der Sie es aufrufen; die Widget-Liste klappt erst auf, wenn Sie „Widgets" ansteuern.
 - Ein Export, in dem die Schlüsselspalte (z. B. `FKZ`) umbenannt wurde oder fehlt, hat den kompletten Antragsbestand dieser Quelle gelöscht — und dabei „Import abgeschlossen" gemeldet. Der Import bricht jetzt mit einer Erklärung ab und rührt nichts an; die Quelle wird beim nächsten Lauf erneut angeboten.
 - Ein unvollständiger Datenbestand konnte den gemeinsamen Stand auf dem Laufwerk überschreiben — für alle im Team. Fehlt beim Veröffentlichen mehr als die Hälfte der Anträge, bricht die App ab und lässt den gemeinsamen Stand unverändert stehen.
 
