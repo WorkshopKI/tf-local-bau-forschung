@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.8.0 — Dokumentensuche trennt Woerter deutsch (August 2026)
+
+MINOR — Nachgeholt, was v4.6.0 ausdrücklich offengelassen hat. Orama lief auf der englischen Worttrennung, und deren Zeichenklasse kennt `ä ö ü ß` nicht: „Fördergeber" zerfiel in `f` + `rdergeber`. Die Suche fand damit noch etwas — aber über Bruchstücke. Betrifft nur die Dokumentenstufe; die Antragsstufe vergleicht rohe Zeichenketten.
+
+- **Worttrennung deutsch, aus einer Konstante** ([orama-store.ts](src/core/services/search/orama-store.ts), [suche-relevanz.md §6](docs/architecture/suche-relevanz.md)): am echten Textbestand 14 778 statt 20 338 verschiedene Token, 1 217 zerrissene Wörter weniger; Bruchstücke wie `f` (859×) verbanden bisher jedes Umlautwort miteinander
+- **Bindestrich trennt jetzt** — „ZIM-Kooperationsprojekt" ist auch über `kooperationsprojekt` auffindbar, vorher war der ganze Ausdruck ein Token
+- **Alt-Index bleibt nutzbar statt stumm zu werden** ([orama-store.ts](src/core/services/search/orama-store.ts)): `load()` stellt seine Sprache wieder her, er bleibt in sich stimmig — niemand verliert die Dokumentensuche, bis der Kurator neu aufbaut
+- **Der nächste Indexlauf baut erzwungen komplett neu** ([batch-indexer.ts](src/core/services/search/batch-indexer.ts)): inkrementell entstünde ein halber Index mit zwei Trennungen; Manifest UND Checkpoint fallen mit
+- **Der Zustand ist sichtbar** ([IndexManager.tsx](src/plugins/kurator/IndexManager.tsx)): Ampel „Worttrennung geändert — Index neu aufbauen"; Guard `orama-create-mit-indexsprache` hält künftige `create(...)`-Stellen an die Konstante
+
 ### v4.7.0 — Startseite per Rechtsklick anpassen (August 2026)
 
 MINOR — Umsetzung des Handoffs `_design/handoff/homepage-anpassen`. Ein Widget ein- oder auszublenden kostete vier Kontextwechsel: Startseite verlassen, Einstellungen öffnen, Liste suchen, zurück, Ergebnis prüfen — für eine Entscheidung, die beim Ansehen der Startseite fällt. Die Einstellungsseite bleibt und ist aus jedem Menü erreichbar; sie ist nur nicht mehr der einzige Weg.

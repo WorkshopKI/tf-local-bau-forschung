@@ -30,6 +30,8 @@ interface AdminViewProps {
   seeding: boolean;
   seedProgress: string;
   indexOutdated: boolean;
+  /** Index mit alter Worttrennung gebaut — der naechste Lauf baut ihn komplett neu. */
+  alteWorttrennung: boolean;
   hasGPU: boolean;
   qualityPct: number | null;
   newDocsCount: number;
@@ -46,7 +48,7 @@ interface AdminViewProps {
 
 export function AdminView({
   chunkCount, docCount, activeModelId,
-  seeded, seeding, seedProgress, indexOutdated, hasGPU, qualityPct, newDocsCount,
+  seeded, seeding, seedProgress, indexOutdated, alteWorttrennung, hasGPU, qualityPct, newDocsCount,
   setDocCount, setChunkCount, setLastUpdate, setActiveModelIdState,
   setIndexModelId, setSeeded, setSeeding, setSeedProgress, setNewDocsCount,
 }: AdminViewProps): React.ReactElement {
@@ -63,7 +65,8 @@ export function AdminView({
           <ActionCardDocuments docCount={docCount} setDocCount={setDocCount} />
           <ActionCardIndex
             chunkCount={chunkCount} docCount={docCount} activeModelId={activeModelId}
-            indexOutdated={indexOutdated} hasGPU={hasGPU} newDocsCount={newDocsCount}
+            indexOutdated={indexOutdated} alteWorttrennung={alteWorttrennung}
+            hasGPU={hasGPU} newDocsCount={newDocsCount}
             pipelineConfig={config}
             setChunkCount={setChunkCount} setLastUpdate={setLastUpdate}
             setIndexModelId={setIndexModelId} setNewDocsCount={setNewDocsCount}

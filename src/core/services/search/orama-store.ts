@@ -23,12 +23,73 @@ export interface OramaSearchResult {
   method: 'fulltext' | 'vector' | 'hybrid';
 }
 
+/**
+ * Sprache des Volltext-Tokenizers — die Worttrennung des gesamten Dokumenten-Index.
+ *
+ * Orama trennt Wörter über ein Zeichenklassen-Muster pro Sprache. Das englische
+ * Muster (`[^A-Za-zàèéìòóù0-9_'-]+`) kennt `ä ö ü ß` NICHT und behandelt sie als
+ * Trennzeichen: „Fördergeber" zerfiel damit in `f` + `rdergeber`, „Größe" in
+ * `gr` + `e`. Weil Anfrage und Index dieselbe Trennung benutzten, fand die Suche
+ * zwar noch etwas — aber über Bruchstücke: am echten Textbestand entstanden so
+ * 20 338 statt 14 778 verschiedene Token, darunter Rauschen wie `f` (859×) oder
+ * `r` (626×), das jedes Umlautwort miteinander verband und die BM25-Wertung
+ * verzerrte. 1 217 verschiedene Wörter zerriss die englische Trennung.
+ *
+ * Das deutsche Muster (`[^a-z0-9A-ZäöüÄÖÜß]+`) hält Umlautwörter zusammen und
+ * trennt zusätzlich an `-` und `_`, wodurch „ZIM-Kooperationsprojekt" auch über
+ * `kooperationsprojekt` auffindbar wird. Die anschließende Normalisierung faltet
+ * Umlaute ohnehin (`förderung` → `forderung`), auf beiden Seiten gleich.
+ *
+ * KEIN Stemming: das bliebe ohne `@orama/stemmers` unmöglich (Orama wirft
+ * `MISSING_STEMMER`) und wäre ein zweiter, eigener Eingriff.
+ *
+ * **Ein Index, der mit einer anderen Sprache gebaut wurde, bleibt lesbar.**
+ * `load()` setzt `tokenizer.language` auf den gespeicherten Wert zurück — der
+ * Alt-Index bleibt also in sich stimmig und die Suche läuft weiter wie bisher.
+ * Er wird dadurch aber nicht besser: erst ein Vollindexlauf hebt ihn. Genau
+ * deshalb erkennt {@link indexSpracheVeraltet} den Zustand, statt ihn zu heilen.
+ */
+export const INDEX_SPRACHE = 'german';
+
 /* eslint-disable @typescript-eslint/no-explicit-any */
 let db: Orama<any> | null = null;
 let currentDimensions: number | null = null;
 let docChunkCounts: Record<string, number> | null = null;
 
 const IDB_DIMENSIONS_KEY = 'orama-dimensions';
+
+/**
+ * Sprache, mit der ein serialisierter Index gebaut wurde — `save()` schreibt sie mit.
+ * `null`, wenn die Rohdaten sie nicht führen (dann ist die Herkunft unbekannt und
+ * wird bewusst NICHT geraten).
+ */
+export function spracheAusIndex(rohdaten: unknown): string | null {
+  const sprache = (rohdaten as { language?: unknown } | null)?.language;
+  return typeof sprache === 'string' && sprache.length > 0 ? sprache : null;
+}
+
+/** Sprache des GELADENEN Index; `null`, solange keiner geladen ist. */
+export function getIndexSprache(): string | null {
+  if (!db) return null;
+  return spracheAusIndex({ language: (db as any).tokenizer?.language });
+}
+
+/**
+ * Die Regel selbst, an einer Stelle: eine Sprache, die es GIBT und nicht die
+ * aktuelle ist. Eine unbekannte Sprache (`null`) zählt ausdrücklich NICHT als
+ * veraltet — ohne Beleg wird weder gewarnt noch ein Neuaufbau erzwungen.
+ */
+export function spracheVeraltet(sprache: string | null): boolean {
+  return sprache !== null && sprache !== INDEX_SPRACHE;
+}
+
+/**
+ * Der geladene Index stammt aus einer Fassung mit anderer Worttrennung.
+ * Kein Fehler — nur ein Grund für einen Vollindexlauf (siehe {@link INDEX_SPRACHE}).
+ */
+export function indexSpracheVeraltet(): boolean {
+  return spracheVeraltet(getIndexSprache());
+}
 
 export async function saveOramaDimensions(
   idb: { set: (key: string, value: unknown) => Promise<void> },
@@ -82,8 +143,9 @@ export function createOramaDB(vectorDimensions: number): void {
       type: 'string',
       embedding: `vector[${vectorDimensions}]`,
     } as any,
-  });
-  pipelineLog.info('Orama', `Neue DB erstellt: vector[${vectorDimensions}]`);
+    language: INDEX_SPRACHE,
+  } as any);
+  pipelineLog.info('Orama', `Neue DB erstellt: vector[${vectorDimensions}], Worttrennung ${INDEX_SPRACHE}`);
 }
 
 /**
@@ -229,10 +291,16 @@ export async function loadOramaFromDB(
       currentDimensions = dimensions;
     }
 
-    db = create({ schema } as any);
+    db = create({ schema, language: INDEX_SPRACHE } as any);
+    // `load` setzt `tokenizer.language` auf die im Index gespeicherte Sprache zurück
+    // und überschreibt damit die Zeile darüber. Das ist gewollt: ein Alt-Index bleibt
+    // so in sich stimmig (Anfrage und Index trennen gleich) statt stumm zu werden.
     load(db!, data as any);
 
     pipelineLog.info('Orama', `DB geladen: ${count(db!)} Dokumente, ${dimensions ? dimensions + 'd Vektoren' : 'keine Vektoren'}`);
+    if (indexSpracheVeraltet()) {
+      pipelineLog.warn('Orama', `Index mit Worttrennung „${getIndexSprache()}" gebaut (erwartet: „${INDEX_SPRACHE}") — bleibt nutzbar, ein Vollindexlauf hebt ihn`);
+    }
 
     if (dimensions && !verifyVectorIndex()) {
       pipelineLog.warn('Orama', 'Vektor-Index defekt nach Laden — Neuindexierung empfohlen');

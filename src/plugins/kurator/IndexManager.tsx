@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { Tabs } from '@/components/ui/tabs';
 import { useStorage } from '@/core/hooks/useStorage';
 import { getActiveModelId, getModelById } from '@/core/services/search/model-registry';
+import { indexSpracheVeraltet } from '@/core/services/search/orama-store';
+import { useSearch } from '@/core/hooks/useSearch';
 import { METADATA_LLM_MODELS } from '@/core/services/search/metadata-extractor';
 import { UserView } from './views/UserView';
 import { AdminView } from './views/AdminView';
@@ -14,6 +16,7 @@ const TABS = [
 
 export function IndexManager(): React.ReactElement {
   const storage = useStorage();
+  const { documentCount } = useSearch();
   const [tab, setTab] = useState('overview');
   const [chunkCount, setChunkCount] = useState(0);
   const [docCount, setDocCount] = useState(0);
@@ -28,8 +31,16 @@ export function IndexManager(): React.ReactElement {
   const [qualityPct, setQualityPct] = useState<number | null>(null);
   const [metadataLLMLabel, setMetadataLLMLabel] = useState('Kein LLM');
   const [smokeTestScore, setSmokeTestScore] = useState<number | null>(null);
+  /** Index stammt aus einer Fassung mit anderer Worttrennung (siehe INDEX_SPRACHE). */
+  const [alteWorttrennung, setAlteWorttrennung] = useState(false);
 
   const fsConnected = storage.isFileServerConnected();
+
+  // Gelesen wird der GELADENE Index, nicht ein Merkschluessel daneben. Der steht
+  // aber erst, wenn `useSearchProvider` seinen Init durch hat — wer diese Seite
+  // direkt aufruft (Lesezeichen, Reload), ist frueher da. `documentCount` ist das
+  // Signal: der Provider setzt ihn unmittelbar nach `loadOramaFromDB`.
+  useEffect(() => { setAlteWorttrennung(indexSpracheVeraltet()); }, [documentCount]);
 
   useEffect(() => {
     storage.idb.get<boolean>('seed-complete').then(v => setSeeded(!!v));
@@ -82,6 +93,8 @@ export function IndexManager(): React.ReactElement {
       return { color: 'bg-red-500', label: 'Kein Index vorhanden \u2014 bitte indexieren' };
     if (indexOutdated)
       return { color: 'bg-amber-500', label: 'Modell gewechselt \u2014 Neu-Indexierung noetig' };
+    if (alteWorttrennung)
+      return { color: 'bg-amber-500', label: 'Worttrennung ge\u00e4ndert \u2014 Index neu aufbauen' };
     if (newDocsCount > 0)
       return { color: 'bg-amber-500', label: `${newDocsCount} Dokumente nicht indexiert` };
     return { color: 'bg-emerald-500', label: 'Index aktuell' };
@@ -127,7 +140,7 @@ export function IndexManager(): React.ReactElement {
             chunkCount={chunkCount} docCount={docCount}
             activeModelId={activeModelId}
             seeded={seeded} seeding={seeding} seedProgress={seedProgress}
-            indexOutdated={indexOutdated} hasGPU={hasGPU}
+            indexOutdated={indexOutdated} alteWorttrennung={alteWorttrennung} hasGPU={hasGPU}
             qualityPct={qualityPct} newDocsCount={newDocsCount}
             setDocCount={setDocCount} setChunkCount={setChunkCount}
             setLastUpdate={setLastUpdate} setActiveModelIdState={setActiveModelIdState}

@@ -14,6 +14,7 @@ interface ActionCardIndexProps {
   docCount: number;
   activeModelId: string;
   indexOutdated: boolean;
+  alteWorttrennung: boolean;
   hasGPU: boolean;
   newDocsCount: number;
   pipelineConfig: PipelineConfigState;
@@ -24,7 +25,7 @@ interface ActionCardIndexProps {
 }
 
 export function ActionCardIndex({
-  chunkCount, docCount, activeModelId, indexOutdated, hasGPU, newDocsCount,
+  chunkCount, docCount, activeModelId, indexOutdated, alteWorttrennung, hasGPU, newDocsCount,
   pipelineConfig, setChunkCount, setLastUpdate, setIndexModelId, setNewDocsCount,
 }: ActionCardIndexProps): React.ReactElement {
   const storage = useStorage();
@@ -100,9 +101,14 @@ export function ActionCardIndex({
       ? `${chunkCount} Textabschnitte (veraltet)`
       : 'Nicht indexiert';
 
+  // Bei alter Worttrennung verwirft der Indexer den Bestand ohnehin (siehe
+  // INDEX_SPRACHE) — „Aktualisieren" wäre dann ein stiller Vollaufbau. Das steht
+  // hier dran, statt den Kurator von der Laufzeit überraschen zu lassen.
   const statusText = indexOutdated
     ? 'Modell gewechselt — Neu-Indexierung noetig'
-    : allNew
+    : alteWorttrennung
+      ? 'Worttrennung geändert — der nächste Lauf baut den Index komplett neu'
+      : allNew
       ? 'Indexierung starten um Dokumente durchsuchbar zu machen'
       : newDocsCount > 0
         ? `${newDocsCount} neue Dokumente`

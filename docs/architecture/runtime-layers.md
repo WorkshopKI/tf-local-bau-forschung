@@ -13,7 +13,10 @@ Pfad-Map des SMB-Daten-Shares: [data-layout.md](data-layout.md).
 
 ## Search Stack
 
-- **Orama**: Hybrid search engine (BM25 fulltext + vector similarity in one DB)
+- **Orama**: Hybrid search engine (BM25 fulltext + vector similarity in one DB).
+  Worttrennung **deutsch** über die Konstante `INDEX_SPRACHE` — Begründung, Messung
+  und der Umgang mit Alt-Indizes stehen in
+  [suche-relevanz.md §6](suche-relevanz.md#6-worttrennung-des-dokumenten-index).
 - **Embeddings**: EmbeddingGemma 300M via Transformers.js v4, runs in Main Thread (no Worker under `file://`)
 - **Backend**: WebGPU (preferred) or WASM fallback, auto-detected at init
 - **Metadata-Extraktion**: LLM-basiert via OpenRouter API oder lokales llama.cpp (Nemotron)

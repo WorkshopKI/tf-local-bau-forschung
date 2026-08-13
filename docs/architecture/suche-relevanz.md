@@ -102,13 +102,67 @@ Stamm — was nie eingesammelt wurde, fehlt dann. Mit Sammel-Deckel 8 fiel „No
 beim Abwählen EINER Variante von 28 auf 15 Treffer. Deshalb: **einsammeln 64,
 anzeigen 8**; die nicht gezeigten bleiben aktiv.
 
-## 6 Was NICHT gemacht wurde
+## 6 Worttrennung des Dokumenten-Index
 
-- **Deutscher Orama-Tokenizer.** Orama läuft auf `english`; `ä ö ü ß` sind dort
-  Trennzeichen, „Fördergeber" wird zu `f` + `rdergeber`. Der Fix ist eine Zeile
-  (`components: { tokenizer: { language: 'german' } }`), entwertet aber den
-  persistierten Index team-weit und verlangt einen Kurator-Vollindexlauf. Die
-  Antragsstufe ist nicht betroffen — sie vergleicht rohe Zeichenketten.
+Betrifft **nur** die Dokumentenstufe (Orama). Die Antragsstufe vergleicht rohe
+Zeichenketten und ist von alldem unberührt.
+
+Orama trennt Wörter über ein Zeichenklassen-Muster **pro Sprache**. Bis v4.7 lief
+der Index auf `english` — und dessen Muster
+(`[^A-Za-zàèéìòóù0-9_'-]+`) kennt `ä ö ü ß` nicht, behandelt sie also als
+Trennzeichen. Seit v4.8 steht die Sprache in **einer** Konstante,
+`INDEX_SPRACHE` in [orama-store.ts](../../src/core/services/search/orama-store.ts);
+der Guard `orama-create-mit-indexsprache` hält jede weitere `create(...)`-Stelle
+daran.
+
+Am echten Textbestand gemessen (Fixture-CSVs + Projekt-Doku):
+
+| | englisch | deutsch |
+|---|---|---|
+| verschiedene Token | 20 338 | **14 778** |
+| Wörter, die zerrissen werden | 1 217 | 0 |
+| häufigste Bruchstücke | `f` 859× · `r` 626× · `l` 321× | — |
+
+„Fördergeber" wurde zu `f` + `rdergeber`, „Größe" zu `gr` + `e`. Weil Anfrage und
+Index dieselbe Trennung benutzten, fand die Suche noch etwas — aber über
+Bruchstücke. Das kostete zweierlei: `f` verband **jedes** Umlautwort miteinander
+(mit ODER-Verknüpfung traf „Förderung" auch „Führung"), und die BM25-Wertung
+zählte Bruchstücke statt Wörter.
+
+Das deutsche Muster (`[^a-z0-9A-ZäöüÄÖÜß]+`) hält Umlautwörter zusammen und
+trennt zusätzlich an `-` und `_` — „ZIM-Kooperationsprojekt" ist damit auch über
+`kooperationsprojekt` auffindbar. Die Normalisierung faltet Umlaute danach
+ohnehin (`förderung` → `forderung`), auf beiden Seiten gleich.
+
+**Kein Stemming.** Das bräuchte `@orama/stemmers` (Orama wirft sonst
+`MISSING_STEMMER`) und wäre ein zweiter, eigener Eingriff mit eigener Messung.
+
+### Was mit einem Alt-Index passiert
+
+**Er bleibt nutzbar.** `load()` setzt `tokenizer.language` auf den im Index
+gespeicherten Wert zurück — der Alt-Index bleibt also in sich stimmig, Anfrage
+und Index trennen weiterhin gleich, und niemand verliert seine Dokumentensuche.
+Besser wird er dadurch nicht; erst ein Vollindexlauf hebt ihn.
+
+Damit dieser Zustand nicht still bleibt:
+
+| Ort | Verhalten |
+|---|---|
+| `loadOramaFromDB` | Warnung im Pipeline-Log |
+| Kurator → Suchindex | Ampel „Worttrennung geändert — Index neu aufbauen" |
+| Kurator → Index aktualisieren | „der nächste Lauf baut den Index komplett neu" |
+| `BatchIndexer.indexAll` | verwirft `orama-db` + `index-manifest` + Checkpoint → erzwungener Vollaufbau |
+
+Der erzwungene Vollaufbau ist kein Komfort, sondern Pflicht: ein inkrementeller
+Lauf würde die Alt-Token behalten und neue Dokumente deutsch dazulegen — ein
+halber Index mit zwei Trennungen. Der Checkpoint muss mit weg, sonst überspringt
+der Vollaufbau die dort als erledigt vermerkten Dokumente.
+
+Gelesen wird die Sprache **aus dem Index selbst** (`save()` schreibt sie mit),
+nicht aus einem Merkschlüssel daneben — eine zweite Quelle könnte davon abweichen.
+
+## 7 Was NICHT gemacht wurde
+
 - **Feldsuche-Syntax** (`fkz:16KN*`, `jahr:2024`) — existiert nicht und steht
   deshalb auch nicht in der Hilfe.
 - **Monitoring gespeicherter Suchen** — es gibt keinen Benachrichtigungsweg.

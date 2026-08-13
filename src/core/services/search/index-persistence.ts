@@ -1,5 +1,5 @@
 import { save, load, create } from '@orama/orama';
-import { getOramaDB, saveOramaDimensions } from './orama-store';
+import { getOramaDB, saveOramaDimensions, INDEX_SPRACHE, spracheAusIndex, spracheVeraltet } from './orama-store';
 import { EMBEDDING_MODELS } from './model-registry';
 import type { StorageService } from '@/core/services/storage';
 
@@ -65,8 +65,16 @@ export async function loadIndexFromFileServer(
     if (!indexData) return false;
 
     /* eslint-disable @typescript-eslint/no-explicit-any */
-    const db = create({ schema: { id: 'string' } as any });
+    const db = create({ schema: { id: 'string' } as any, language: INDEX_SPRACHE } as any);
     load(db!, indexData as any);
+
+    // Ein Index vom Share, den der Kurator noch mit der alten Worttrennung gebaut hat,
+    // wird übernommen statt verworfen — er bleibt in sich stimmig (siehe INDEX_SPRACHE).
+    // Der Vollindexlauf hebt ihn; der Kurator-Bereich meldet den Zustand.
+    const serverSprache = spracheAusIndex(indexData);
+    if (spracheVeraltet(serverSprache)) {
+      console.warn(`Index vom Datei-Server mit Worttrennung "${serverSprache}" gebaut (erwartet: "${INDEX_SPRACHE}")`);
+    }
 
     await storage.idb.set('orama-db', indexData);
     // Dimensionen aus der Modell-Id des Servers ableiten und mitschreiben — ohne den

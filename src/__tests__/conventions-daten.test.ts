@@ -15,6 +15,9 @@
  * Geprueft:
  *   - no-raw-worker                     → Pitfall #5, Worker als
  *     `?worker&inline`-Import einbinden (file://-Kompat).
+ *   - orama-create-mit-indexsprache     → jede Datei, die eine Orama-DB anlegt,
+ *     nennt INDEX_SPRACHE; ohne sie trennt Orama englisch und zerreisst jedes
+ *     Umlautwort (docs/architecture/suche-relevanz.md).
  *   - no-plugins-config-in-components   → Konsolidierungs-Pass, src/components/
  *     (geteilte Blatt-Schicht) importiert nicht @/plugins.config; Plugin-Wissen
  *     kommt als Prop oder via useNavigation().activeName herein.
@@ -108,6 +111,35 @@ describe('no-raw-worker (CLAUDE.md Pitfall #5)', () => {
         `  const w = new MyWorker();\n` +
         `Siehe docs/agents/file-protocol-pitfalls.md.\n\nTreffer:\n${fmt(findings)}`;
       expect.fail(msg);
+    }
+  });
+});
+
+describe('orama-create-mit-indexsprache', () => {
+  // Ein Orama-Index ohne gesetzte Sprache trennt Woerter englisch — `ä ö ü ß`
+  // sind dort Trennzeichen, „Foerdergeber" zerfaellt in `f` + `rdergeber`.
+  // Wer eine zweite `create(...)`-Stelle aufmacht und die Sprache vergisst, baut
+  // stillschweigend einen Index mit anderer Worttrennung als der Rest der App.
+  const nutztOrama = /from\s+'@orama\/orama'/;
+  const legtAn = /\bcreate\s*\(/;
+
+  it('jede Datei, die eine Orama-DB anlegt, nennt INDEX_SPRACHE', () => {
+    const treffer: string[] = [];
+    for (const file of ALL_TS_FILES) {
+      if (file.includes(`${sep}__tests__${sep}`) || file.endsWith('.test.ts')) continue;
+      const inhalt = readFileSync(file, 'utf8');
+      if (!nutztOrama.test(inhalt) || !legtAn.test(inhalt)) continue;
+      if (!inhalt.includes('INDEX_SPRACHE')) treffer.push(relPath(file));
+    }
+
+    if (treffer.length > 0) {
+      expect.fail(
+        `Orama-DB ohne Worttrennung angelegt.\n` +
+        `create({ schema, language: INDEX_SPRACHE }) — die Konstante liegt in\n` +
+        `src/core/services/search/orama-store.ts und begruendet sich dort.\n` +
+        `Ohne sie trennt Orama englisch und zerreisst jedes Umlautwort.\n\n` +
+        `Dateien:\n${treffer.map(t => `  ${t}`).join('\n')}`,
+      );
     }
   });
 });

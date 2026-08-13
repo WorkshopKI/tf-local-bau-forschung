@@ -1,7 +1,7 @@
 # Kuration (nur für Kuratoren sichtbar, nach Kurator-Login)
 
 ## Suchindex
-Pflege des Volltext-/Embedding-Suchindex (Orama). Index neu aufbauen, Status/Statistiken prüfen.
+Pflege des Volltext-/Embedding-Suchindex (Orama). Index neu aufbauen, Status/Statistiken prüfen. Die Ampel meldet neben „Modell gewechselt" auch „Worttrennung geändert" — dann stammt der Index aus einer Fassung vor der deutschen Worttrennung; er bleibt nutzbar, der nächste Lauf baut ihn komplett neu auf.
 
 ## Programme
 Stammdaten der Förderprogramme (Name, Kürzel). Programme anlegen, umbenennen, löschen (nur bei 0 Anträgen).

@@ -19,6 +19,13 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.8 — 2026-08
+
+### Verbesserungen
+- Die Dokumentensuche versteht deutsche Wörter jetzt als Ganzes. Bisher zerlegte sie Umlautwörter in Teile — „Fördergeber" wurde intern zu „f" und „rdergeber". Das brachte fremde Treffer mit: eine Suche nach „Förderung" konnte auch Dokumente über „Führung" hereinholen.
+- Wörter mit Bindestrich sind jetzt über beide Teile auffindbar: „ZIM-Kooperationsprojekt" findet man auch mit „Kooperationsprojekt".
+- Bestehende Suchindizes funktionieren unverändert weiter. Die Verbesserung greift, sobald der Suchindex das nächste Mal neu aufgebaut wird — der Kurator-Bereich weist darauf hin.
+
 ## v4.7 — 2026-08
 
 ### Neu

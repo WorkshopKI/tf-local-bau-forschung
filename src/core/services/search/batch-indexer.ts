@@ -1,7 +1,7 @@
 import { embeddingService, TRANSFORMERS_LIB_VERSION } from './embedding-service';
 import type { EmbeddingProgress } from './embedding-service';
 import type { EmbeddingModelConfig } from './model-registry';
-import { createOramaDB, loadOramaFromDB, insertDoc, saveOramaToDB, getOramaDB, getStoredDimensions, saveOramaDimensions } from './orama-store';
+import { createOramaDB, loadOramaFromDB, insertDoc, saveOramaToDB, getOramaDB, getStoredDimensions, saveOramaDimensions, INDEX_SPRACHE, spracheAusIndex, spracheVeraltet } from './orama-store';
 import type { StorageService } from '@/core/services/storage';
 import { extractMetadata, initMetadataLLM, disposeMetadataLLM, getCachedMetadata, setCachedMetadata, METADATA_LLM_MODELS } from './metadata-extractor';
 import type { DocumentMetadata, MetadataStorage } from './metadata-extractor';
@@ -119,6 +119,23 @@ export class BatchIndexer {
       pipelineLog.warn('Indexer', `Transformers.js v${storedLibVersion} → v${TRANSFORMERS_LIB_VERSION} — Index wird neu gebaut`);
       await storage.idb.delete('orama-db');
       await storage.idb.delete('index-manifest');
+    }
+
+    // Worttrennung gewechselt: der gespeicherte Index besteht aus anderen Token
+    // (siehe INDEX_SPRACHE). Ein inkrementeller Lauf würde die Alt-Token behalten
+    // und nur neue Dokumente deutsch dazulegen — halber Index, zwei Trennungen.
+    // Gelesen wird der Index selbst, nicht ein Merkschlüssel daneben: `save()` führt
+    // die Sprache ohnehin mit, und eine zweite Quelle könnte davon abweichen.
+    const gespeicherterIndex = await storage.idb.get<Record<string, unknown>>('orama-db');
+    const gespeicherteSprache = spracheAusIndex(gespeicherterIndex);
+    if (spracheVeraltet(gespeicherteSprache)) {
+      pipelineLog.warn('Indexer', `Worttrennung ${gespeicherteSprache} → ${INDEX_SPRACHE} — Index wird neu gebaut`);
+      await storage.idb.delete('orama-db');
+      await storage.idb.delete('index-manifest');
+      // Auch der Checkpoint muss weg: er würde beim erzwungenen Vollaufbau
+      // Dokumente als „schon verarbeitet" überspringen und den frischen Index
+      // lückenhaft lassen (`isDocProcessed` weiter unten).
+      await clearCheckpoint(storage);
     }
 
     // Bei inkrementeller Indexierung: bestehende DB laden, bei Full: frische DB
