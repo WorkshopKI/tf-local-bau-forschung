@@ -44,12 +44,42 @@ Bestand der Quelle gilt als entfernt. Der Import bricht deshalb direkt nach dem 
 nicht als erledigt und wird im nächsten Auto-Refresh erneut angeboten. Der Abbruch landet im
 Reimport-Dialog als Meldung und im Auto-Refresh in `report.errors`.
 
-Die verbleibenden Türen in dieselbe Löschung — leerer Join-Wert, leere/unbekannte Unterprogramm-Zelle,
-Whitespace im Spaltennamen ([parser.ts](../../src/core/services/csv/parser.ts) trimmt die Kopfzeile,
-liest den Wert aber unter dem getrimmten Schlüssel), abgeschnittener Export, Zeilenverlust in einer
-**Sekundär**quelle ([importer.ts](../../src/core/services/csv/importer.ts), `removedAz` ohne
-`is_master`-Prüfung) — sind offen. Gegen ihren team-weiten Teil steht der Publish-Guard in
-[csv-auto-refresh.md](csv-auto-refresh.md).
+## Gelöscht wird erst, wenn der Antrag in ALLEN Quellen weg ist (v4.11.0)
+
+Fachliche Regel des Teams, nicht bloß eine Absicherung: die Quellen reichen **unterschiedlich weit
+zurück** — Master und Begleitung (`7737_Bgl`) führen den Bestand bis 2015, die Projektbeschreibung
+(`9052_PrjBsp`) bis 2012. „Fehlt in diesem Export" sagt deshalb nichts über die Existenz des Antrags,
+sondern etwas über den Horizont der Quelle. Bis v4.10 übernahm `runMergeForDeltas` die
+`removedJoinValues` **einer** Quelle unbesehen als `removedAz`.
+
+`teileLoeschkandidaten` ([importer.ts](../../src/core/services/csv/importer.ts)) teilt sie deshalb in
+*wirklich weg* und *gehalten*:
+
+- Geprüft wird gegen die **Row-Hashes** der anderen Quellen (`getJoinValuesForSchema`), nicht gegen
+  deren Dateien — die Hashes spiegeln exakt, was eine Quelle bei ihrem letzten Import getragen hat.
+- Nur Quellen mit `join_key === 'aktenzeichen'` zählen; Verbund-Nummern und Akronyme sind keine
+  Aktenzeichen.
+- Jeder Import löscht die Hashes seiner ausgefallenen Zeilen **vollständig** — auch die gehaltenen.
+  Genau daran löst sich der Rückhalt von selbst auf: die letzte Quelle, die eine Zeile fallen lässt,
+  findet bei keiner anderen mehr einen Hash und löscht den Antrag. Das gilt innerhalb desselben
+  Auto-Refresh-Laufs und **unabhängig von der Quellen-Reihenfolge**.
+- Ein gehaltener Antrag wird **nicht** neu gemergt. Er behält seinen letzten vollen Stand, statt auf
+  die Felder der verbliebenen Quellen zusammenzuschrumpfen — ein Teil-Export soll den Bestand nicht
+  aushöhlen. Liefert die Quelle die Zeile wieder, zählt sie als `new` und der Merge holt alles zurück.
+- Sichtbar statt still: `ImportResult.heldRemovals` (+ bis zu 10 Beispiele), Audit-Eintrag
+  `csv_import_loeschung_zurueckgehalten`, Zeile im Wizard-Abschluss, Summe in `RefreshReport` und im
+  `[data-update]`-Log.
+
+**Grenze:** eine stillgelegte, aber noch registrierte Quelle hält ihre Row-Hashes und damit ihre
+Anträge dauerhaft fest. Wer eine Quelle außer Betrieb nimmt, entfernt sie (`removeSchema`) — sonst
+altert der Bestand nicht mehr.
+
+Die verbleibenden Türen in dieselbe Löschung sind damit **enger, aber nicht zu**: leerer Join-Wert,
+leere/unbekannte Unterprogramm-Zelle, Whitespace im Spaltennamen
+([parser.ts](../../src/core/services/csv/parser.ts) trimmt die Kopfzeile, liest den Wert aber unter
+dem getrimmten Schlüssel) und abgeschnittener Export führen weiterhin in `removedJoinValues` — sie
+treffen jetzt nur noch Anträge, die **keine** zweite Quelle trägt. Gegen ihren team-weiten Teil steht
+der Publish-Guard in [csv-auto-refresh.md](csv-auto-refresh.md).
 
 ## Verbund-Aggregation (Forschungs-Domäne)
 

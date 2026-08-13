@@ -14,8 +14,10 @@ import { parseCsvAllStreamed, readWithEncodingFallback } from './parser';
 import { saveCsvSourceFile, saveSchema, loadSchema } from './schemaRegistry';
 import {
   deleteRowHashes,
+  getJoinValuesForSchema,
   getRowHashesForSchema,
   listAntraegeByProgramm,
+  listSchemasByProgramm,
   putRowHashes,
 } from './idb-csv';
 import {
@@ -276,7 +278,30 @@ export async function importCsvSource(
     for (const [jv] of prevMap) {
       if (!seen.has(jv)) removedJoinValues.push(jv);
     }
-    result.buckets.removed = removedJoinValues.length;
+
+    // Gelöscht wird erst, wenn der Antrag in ALLEN Quellen verschwunden ist.
+    // Die Quellen haben unterschiedlich lange Historien — dass eine Zeile in
+    // DIESEM Export fehlt, heisst nicht, dass es den Antrag nicht mehr gibt.
+    const { zuLoeschen, gehalten } = await teileLoeschkandidaten(idb, schema, removedJoinValues);
+    result.buckets.removed = zuLoeschen.length;
+    if (gehalten.length > 0) {
+      result.heldRemovals = gehalten.length;
+      result.heldRemovalExamples = gehalten.slice(0, MAX_SKIP_WARNINGS);
+      console.info(
+        `[csv-import] ${gehalten.length} Löschung(en) zurückgehalten — andere Quellen führen`
+        + ` diese Anträge weiter: ${result.heldRemovalExamples.join(', ')}`
+        + `${gehalten.length > MAX_SKIP_WARNINGS ? ' …' : ''}`,
+      );
+      await logAudit(idb, {
+        action: 'csv_import_loeschung_zurueckgehalten',
+        details: {
+          schemaId,
+          schemaName: schema.csv_source_name,
+          anzahl: gehalten.length,
+          beispiele: result.heldRemovalExamples,
+        },
+      }).catch(() => undefined);
+    }
     result.skippedJoinValues = skippedWarnings;
     timings.hashDiffMs = performance.now() - tDiff;
 
@@ -323,8 +348,11 @@ export async function importCsvSource(
     // Ein force-Re-Import ohne Aenderungen (gleiche Datei + gleiches Mapping)
     // aktualisiert nur Hashes/Schema und ist damit quasi-instant — kein voller
     // 13k-Recompute + kein synchrones JSON.stringify des gesamten Programms.
+    // Zurückgehaltene Löschungen zählen bewusst NICHT als Delta: am Antrags-
+    // Bestand ändert sich nichts, nur die Row-Hashes dieser Quelle ziehen nach
+    // (weiter unten, ausserhalb dieses Gates).
     const hasDeltas =
-      newJoinValues.length > 0 || changedJoinValues.length > 0 || removedJoinValues.length > 0;
+      newJoinValues.length > 0 || changedJoinValues.length > 0 || zuLoeschen.length > 0;
 
     // Speicher freigeben (v2.61.5 OOM-Fix): die geparsten Rows dieser Quelle
     // werden ab hier nicht mehr gebraucht (Diff fertig, rowCount + Schema
@@ -344,7 +372,7 @@ export async function importCsvSource(
         schema: updatedSchema,
         newJoinValues,
         changedJoinValues,
-        removedJoinValues,
+        removedJoinValues: zuLoeschen,
         onProgress: (done, total) =>
           opts.onProgress?.({ phase: 'merging', done, total }),
       });
@@ -361,6 +389,10 @@ export async function importCsvSource(
     // Diff und Merge hat dann nichts in IDB hinterlassen.
     opts.onProgress?.({ phase: 'finalizing', done: 0, total: 4, stage: 'Row-Hashes speichern' });
     await putRowHashes(idb, newHashes);
+    // Bewusst die VOLLE Liste, auch die zurückgehaltenen: die Row-Hashes
+    // spiegeln, was DIESE Quelle trägt — und die trägt die Zeile nicht mehr.
+    // Bliebe der Hash stehen, hielte diese Quelle den Antrag später gegen die
+    // Löschung durch die letzte verbleibende Quelle fest, und er stürbe nie.
     if (removedJoinValues.length > 0) {
       await deleteRowHashes(idb, schemaId, removedJoinValues);
     }
@@ -419,6 +451,7 @@ export async function importCsvSource(
         durationMs: result.durationMs,
         rowCount: result.rowCount,
         skippedInactiveUnterprogramm: result.skippedInactiveUnterprogramm ?? 0,
+        heldRemovals: result.heldRemovals ?? 0,
         activeUnterprogramme: activeUpCodes ? Array.from(activeUpCodes).sort() : null,
       },
     });
@@ -462,6 +495,59 @@ export async function importCsvSource(
       await releaseLock(idb).catch(() => undefined);
     }
   }
+}
+
+/**
+ * Teilt die Löschkandidaten einer Quelle in „wirklich weg" und „eine andere
+ * Quelle führt den Antrag weiter".
+ *
+ * Fachliche Regel (Team-Entscheidung 2026-08-13): ein Antrag wird erst gelöscht,
+ * wenn er in ALLEN Quellen verschwunden ist. Die Quellen reichen unterschiedlich
+ * weit zurück — Master und Begleitung führen den Bestand bis 2015, die
+ * Projektbeschreibung bis 2012. „Fehlt in diesem Export" ist deshalb keine
+ * Aussage über die Existenz des Antrags, sondern über den Horizont der Quelle.
+ *
+ * Geprüft wird gegen die Row-Hashes der anderen Quellen, nicht gegen deren
+ * Dateien: die Hashes spiegeln exakt, was die Quelle bei ihrem letzten Import
+ * getragen hat, und werden am Ende jedes Imports mitgezogen. Dadurch löst sich
+ * der Rückhalt von selbst auf, sobald die letzte Quelle die Zeile fallen lässt
+ * — auch innerhalb desselben Auto-Refresh-Laufs und unabhängig davon, in
+ * welcher Reihenfolge die Quellen dran waren.
+ *
+ * Nur Quellen mit `join_key === 'aktenzeichen'` zählen: die Join-Werte der
+ * verbund_id-/akronym-Quellen sind Verbund-Nummern und Akronyme, keine
+ * Aktenzeichen — ihre Übereinstimmung wäre reiner Zufall.
+ *
+ * Bekannte Grenze: eine stillgelegte Quelle, die nie wieder importiert wird,
+ * hält ihre Row-Hashes und damit ihre Anträge dauerhaft fest. Wer eine Quelle
+ * ausser Betrieb nimmt, muss sie entfernen (`removeSchema`) — sonst altert der
+ * Bestand nicht mehr.
+ */
+async function teileLoeschkandidaten(
+  idb: IDBStore,
+  schema: CsvSchema,
+  kandidaten: string[],
+): Promise<{ zuLoeschen: string[]; gehalten: string[] }> {
+  if (kandidaten.length === 0 || schema.join_key !== 'aktenzeichen') {
+    return { zuLoeschen: kandidaten, gehalten: [] };
+  }
+  const andere = (await listSchemasByProgramm(idb, schema.programm_id))
+    .filter(s => s.id !== schema.id && s.join_key === 'aktenzeichen');
+  if (andere.length === 0) return { zuLoeschen: kandidaten, gehalten: [] };
+
+  const zuLoeschen: string[] = [];
+  const gehalten: string[] = [];
+  const offen = new Set(kandidaten);
+  for (const s of andere) {
+    if (offen.size === 0) break;
+    for (const jv of await getJoinValuesForSchema(idb, s.id)) {
+      if (offen.delete(jv)) gehalten.push(jv);
+    }
+  }
+  for (const jv of kandidaten) {
+    if (offen.has(jv)) zuLoeschen.push(jv);
+  }
+  return { zuLoeschen, gehalten };
 }
 
 function findJoinColumn(schema: CsvSchema): string | null {

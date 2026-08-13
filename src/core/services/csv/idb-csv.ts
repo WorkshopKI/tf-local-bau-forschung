@@ -139,6 +139,21 @@ export async function getRowHashesForSchema(idb: IDBStore, schemaId: string): Pr
   return (await req(idx.getAll(schemaId))) as CsvRowHash[];
 }
 
+/**
+ * Nur die Join-Werte einer Quelle — für die Frage „trägt diese Quelle den Wert
+ * noch?" (Löschprüfung über alle Quellen, siehe importer.ts).
+ *
+ * Bewusst nicht `getRowHashesForSchema`: der Primary-Key ist
+ * `[csv_schema_id, join_value]`, der Index liefert ihn direkt. Das spart bei
+ * 14k Zeilen die Deserialisierung von 14k Objekten samt Hash-String.
+ */
+export async function getJoinValuesForSchema(idb: IDBStore, schemaId: string): Promise<Set<string>> {
+  const t = tx(idb, CSV_STORES.CSV_ROW_HASHES, 'readonly');
+  const idx = t.objectStore(CSV_STORES.CSV_ROW_HASHES).index('csv_schema_id');
+  const keys = (await req(idx.getAllKeys(schemaId))) as [string, string][];
+  return new Set(keys.map(k => k[1]));
+}
+
 // ---------- Antraege ----------
 
 export async function putAntraege(idb: IDBStore, antraege: Antrag[]): Promise<void> {

@@ -252,6 +252,14 @@ export interface RefreshReport {
    */
   skippedInactiveUnterprogramm: number;
   /**
+   * Aufsummierte Löschungen, die zurückgehalten wurden, weil eine andere Quelle
+   * den Antrag weiterführt (gelöscht wird erst, wenn er überall verschwunden
+   * ist). >0 heisst: mindestens ein Export war kürzer als der Bestand — normal
+   * bei unterschiedlich weit zurückreichenden Quellen, auffällig bei einer
+   * Quelle, die sonst deckungsgleich ist.
+   */
+  heldRemovals: number;
+  /**
    * Was der Journal-Schritt je Master-Quelle getan hat. Leer, wenn keine Quelle
    * journalisiert wurde (kein Master, keine Join-Spalte, keine `D_`-Spalten,
    * kein Schreibrecht).
@@ -425,6 +433,7 @@ export async function runAutoRefresh(
     processed: [], drift: [], errors: [], journal: [],
     importTimings: { parseMs: 0, hashDiffMs: 0, mergeMs: 0, snapshotWriteMs: 0 },
     skippedInactiveUnterprogramm: 0,
+    heldRemovals: 0,
   };
   if (candidates.length === 0) return report;
 
@@ -605,6 +614,7 @@ async function laufeKandidatenAb(
         report.importTimings.snapshotWriteMs += result.importTimings.snapshotWriteMs;
       }
       report.skippedInactiveUnterprogramm += result.skippedInactiveUnterprogramm ?? 0;
+      report.heldRemovals += result.heldRemovals ?? 0;
 
       // Programm zum Publizieren vormerken, wenn dieser Import echte Deltas hatte
       // (sonst ist der vorhandene Snapshot bereits aktuell). Geänderte/entfernte

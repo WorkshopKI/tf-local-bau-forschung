@@ -19,6 +19,12 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.11 — 2026-08
+
+### Verbesserungen
+- Ein Antrag verschwindet erst, wenn er aus **allen** Quellen gefallen ist. Bisher genügte eine: fehlte eine Zeile im Export der Begleitung oder der Projektbeschreibung, war der Antrag weg — obwohl der Master ihn weiterführte. Da die Quellen unterschiedlich weit zurückreichen, passierte das regelmäßig bei älteren Vorhaben.
+- Wird eine Löschung zurückgehalten, steht das am Ende des Imports als eigene Zeile — samt Zahl, wie viele Zeilen betroffen waren.
+
 ## v4.10 — 2026-08
 
 ### Neu

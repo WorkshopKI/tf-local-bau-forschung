@@ -118,6 +118,13 @@ weniger als der Hälfte passiert ihn. Und er ist **still**: beide Aufrufer versc
 (`importCsvSource` und der gebündelte Batch-Write protokollieren `snapshot_failed` mit der vollen
 Meldung ins Audit-Log, melden dem Nutzer aber weiter Erfolg). Der Share ist geschützt, die Meldung fehlt.
 
+Seit v4.11.0 kommt der Publish-Guard seltener zum Zug: eine Zeile, die aus **einer** Quelle fällt,
+löscht den Antrag nicht mehr, solange eine andere ihn trägt (siehe
+[csv-import.md](csv-import.md#gelöscht-wird-erst-wenn-der-antrag-in-allen-quellen-weg-ist-v4110)).
+`RefreshReport.heldRemovals` summiert diese Rückhalte über alle Quellen des Laufs und steht im
+`[data-update]`-Log als `zurueckgehalteneLoeschungen=…`. Der Guard bleibt die letzte Instanz für den
+Fall, dass ein Schwund **alle** Quellen gleichzeitig trifft.
+
 ## Frische-Ampel „● CSV" (`deriveCsvFreshnessState`)
 
 Reine, getestete Entscheidungslogik für den Fußzeilen-Punkt: `fresh` (grün) nur, wenn **erreichbare** Quellen

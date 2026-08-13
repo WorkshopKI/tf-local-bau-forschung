@@ -393,6 +393,14 @@ export interface ImportResult {
   changedAktenzeichen?: string[];
   /** Aktenzeichen, die der Merge entfernt hat. */
   removedAktenzeichen?: string[];
+  /**
+   * Anzahl Zeilen, die aus DIESER Quelle gefallen sind, deren Antrag aber
+   * bestehen bleibt, weil eine andere Quelle ihn weiterführt. Gelöscht wird erst,
+   * wenn er in allen Quellen verschwunden ist (siehe importer.ts).
+   */
+  heldRemovals?: number;
+  /** Bis zu MAX_SKIP_WARNINGS Beispiele dazu — für Meldung und Audit-Log. */
+  heldRemovalExamples?: string[];
 }
 
 export interface ParsedRow {

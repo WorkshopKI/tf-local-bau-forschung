@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.11.0 — Antraege sterben erst, wenn alle Quellen sie fallen lassen (August 2026)
+
+MINOR — Fortsetzung von v4.9.0, jetzt als fachliche Regel statt als Guard: die Quellen reichen unterschiedlich weit zurück (Master + Begleitung bis 2015, Projektbeschreibung bis 2012). „Fehlt in diesem Export" sagt deshalb nichts über die Existenz eines Antrags — bis v4.10 löschte genau das ihn samt Verbund-Referenz und Akronym-Index.
+
+- **Gelöscht wird erst, wenn der Antrag in ALLEN Quellen weg ist** ([importer.ts](src/core/services/csv/importer.ts), [csv-import.md](docs/architecture/csv-import.md)): `teileLoeschkandidaten` prüft die Löschkandidaten gegen die Row-Hashes der übrigen Aktenzeichen-Quellen
+- **Der Rückhalt löst sich von selbst auf** ([importer.ts](src/core/services/csv/importer.ts)): jede Quelle löscht die Hashes ihrer ausgefallenen Zeilen vollständig — die letzte, die eine Zeile fallen lässt, findet nirgends mehr einen Hash; Reihenfolge egal
+- **Ein gehaltener Antrag wird nicht neu gemergt** ([importer.ts](src/core/services/csv/importer.ts)): er behält seinen vollen Stand, statt auf die Felder der verbliebenen Quellen zusammenzuschrumpfen — ein Teil-Export soll den Bestand nicht aushöhlen
+- **Sichtbar statt still** ([Step4Progress.tsx](src/plugins/csv-sources-kuration/wizard/Step4Progress.tsx), [auto-refresh.ts](src/plugins/csv-sources-kuration/services/auto-refresh.ts)): `heldRemovals` im Import-Ergebnis, Audit-Eintrag, Zeile im Wizard-Abschluss, Summe im `[data-update]`-Log
+- **Reißleinen** ([importer-loeschung-nur-wenn-ueberall-weg.test.ts](src/core/services/csv/__tests__/importer-loeschung-nur-wenn-ueberall-weg.test.ts)): Rückhalt, Reihenfolge-Unabhängigkeit, unangetasteter Bestand — und die Gegenprobe, dass eine einzeln getragene Zeile weiterhin sofort verschwindet
+
 ### v4.10.0 — Kanban-Fenster merkt eingeklappte Bahnen und traegt die Einstellungen (August 2026)
 
 MINOR — Das Kanban-Fenster aus v3.47 war eine Ansicht zum Anschauen; gewünscht war eine zum Einrichten. Beides hing an derselben Frage: Wo darf Zustand liegen, wenn das Fenster seine Startseite überlebt?

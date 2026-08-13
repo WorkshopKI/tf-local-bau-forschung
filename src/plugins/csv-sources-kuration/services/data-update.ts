@@ -95,6 +95,7 @@ function logTiming(
     // Datei fehlt, als „unverändert" erkannt). fixtures>0 in prod = Fehlkonfiguration.
     + ` skipped(fixtures=${csv.fixtures} fileMissing=${csv.fileMissing} upToDate=${csv.upToDate}`
     + ` inaktivesUP=${result.csvReport?.skippedInactiveUnterprogramm ?? 0})`
+    + ` zurueckgehalteneLoeschungen=${result.csvReport?.heldRemovals ?? 0}`
     + (c ? ` parse=${round(c.parseMs)}ms hashDiff=${round(c.hashDiffMs)}ms merge=${round(c.mergeMs)}ms snapshotWrite=${round(c.snapshotWriteMs)}ms` : '')
     + (result.lockBusy ? ` lockBusy=${result.lockBusy.blockingKurator}` : '');
   // Always-on (wie das bestehende `[snapshot-sync]`-info) — soll auch im
@@ -124,6 +125,9 @@ function logTiming(
         // >0 = Master-Import verwirft Anträge wegen inaktivem/unbekanntem
         // Unterprogramm-Code (leerer/lückenhafter unterprogramme-Store).
         skippedInactiveUnterprogramm: result.csvReport?.skippedInactiveUnterprogramm ?? 0,
+        // >0 = eine Quelle hat Zeilen verloren, die eine andere noch trägt; der
+        // Antrag bleibt stehen, bis er überall weg ist.
+        heldRemovals: result.csvReport?.heldRemovals ?? 0,
         parseMs: c ? round(c.parseMs) : 0,
         hashDiffMs: c ? round(c.hashDiffMs) : 0,
         mergeMs: c ? round(c.mergeMs) : 0,

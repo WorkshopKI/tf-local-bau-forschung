@@ -85,6 +85,13 @@ export function Step4Progress({ progress, result, error, cancelled }: Step4Props
                   {result.skippedJoinValues.length} Zeilen mit leerem Join-Value übersprungen.
                 </div>
               ) : null}
+              {result.heldRemovals ? (
+                <div className="mt-3 text-[12px] text-[var(--tf-text-secondary)]">
+                  {result.heldRemovals.toLocaleString('de-DE')} Zeile(n) sind aus dieser Quelle
+                  gefallen, ohne gelöscht zu werden — eine andere Quelle führt diese Anträge
+                  weiter. Gelöscht wird erst, wenn ein Antrag in allen Quellen verschwunden ist.
+                </div>
+              ) : null}
               {result.skippedInactiveUnterprogramm ? (
                 <div className="mt-2 text-[12px] text-[var(--tf-text-secondary)]">
                   {result.skippedInactiveUnterprogramm.toLocaleString('de-DE')} Zeilen in deaktivierten Unterprogrammen übersprungen.
