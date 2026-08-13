@@ -330,15 +330,20 @@ export function SettingsKlappe({
   enthaelt?: readonly string[];
   children: React.ReactNode;
 }): React.ReactElement {
-  const [offen, umschalten] = useCollapsedSection(storageKey, { defaultOpen });
+  const [offen, umschalten, setzeOffen] = useCollapsedSection(storageKey, { defaultOpen });
   const ziel = useContext(SprungZielContext);
   const trifft = ziel != null && (ziel.id === id || (enthaelt?.includes(ziel.id) ?? false));
 
-  // Sprung-Ziel aufklappen. Ausgeloest wird das je SPRUNG (`ziel.nr`), nicht je
-  // Zustand: `offen` gehoert bewusst NICHT in die Abhaengigkeiten, sonst risse
-  // ein manuelles Zuklappen die Klappe sofort wieder auf.
+  // Sprung-Ziel aufklappen. Ausgeloest je SPRUNG (`ziel.nr`), nicht je Zustand:
+  // `offen` gehoert bewusst NICHT in die Abhaengigkeiten, sonst risse ein
+  // manuelles Zuklappen die Klappe sofort wieder auf.
+  //
+  // Gesetzt wird IDEMPOTENT, nicht getoggelt: bei einem Sprung auf eine ANDERE
+  // Seite montiert die Klappe frisch, und React ruft Mount-Effekte im
+  // StrictMode zweimal auf — zwei Toggles heben sich auf, und der Treffer bliebe
+  // ausgerechnet dann zu, wenn der Sprung ihn erst sichtbar machen soll.
   useEffect(() => {
-    if (trifft && !offen) umschalten();
+    if (trifft) setzeOffen(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trifft, ziel?.nr]);
 

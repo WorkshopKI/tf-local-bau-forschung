@@ -86,7 +86,7 @@ der Bearbeiter-Filter (`isKuerzelDropdownEnabled`), der auch bei gesperrtem Modu
   drei mögliche Passwörter (`verifyAnyPassword`) — Basis-Passwort öffnet die App, ein
   Modul-Passwort öffnet App **und** Modul. Wer nur für sein Modul eins bekommen hat, tippt eines
   statt zweier.
-- **In den Einstellungen** (`ModulFreischaltungSection`, Abschnitt `sec-freischaltung`): Status,
+- **In den Einstellungen** (`ZusatzModuleGruppe`, Abschnitt `sec-freischaltung`): Status,
   Restlaufzeit, Passwortfeld, „Sperren".
 
 Beide laden nach dem Schalten **neu**. Das ist kein Schönheitsfehler, sondern der Grund, warum
@@ -149,7 +149,7 @@ Pitfall #28.
   `!hatModulSchloss('kurator')` machte jedes gültige Basis-Passwort seinen Inhaber zum Kurator.
 - Der freie `is_kurator`-Schalter im Profil erscheint nur in Builds **ohne** Kurator-Schloss; wo
   eines existiert, wäre er die offene Hintertür daneben.
-- „Inaktive einblenden" (ProfilTab) und `useInaktiveKuerzelSet` müssen am **selben** Prädikat
+- „Inaktive einblenden" (AntraegeSichtGruppe) und `useInaktiveKuerzelSet` müssen am **selben** Prädikat
   hängen. Filterte die Liste, während das Häkchen fehlt, verschwänden die Anträge ehemaliger
   Kolleg:innen ohne Weg, sie wieder einzublenden.
 - **Ein Passwort nie zweimal vergeben.** `verifyGegenEbenen` prüft Basis → `auslastung` →

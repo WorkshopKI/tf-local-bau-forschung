@@ -86,7 +86,7 @@ verhindert versehentliches Abkippen von Dokumenttext.
 | `skill_abgeschlossen` | Skill-Lauf beendet (Abbruch zählt nicht) | dito | skillId, erfolg |
 | `gutachten_abschnitt_editiert` | Abschnitt im Editor übernommen (entprellt je Abschnitt/60 s) | [useGutachtenWorkflow.ts](../../src/plugins/antraege/gutachten/useGutachtenWorkflow.ts) `bearbeitenStep` | abschnittId — **nie Textinhalt** |
 | `frist_angesehen` | Fristen-/Arbeitsvorrat-Interaktion | [MeineAntraegeBalken.tsx](../../src/plugins/home/MeineAntraegeBalken.tsx) `handleZuAntraegen` | quelle, view, sort |
-| `einstellung_geaendert` | Protokoll-relevante Einstellung geändert | [AssistentTab.tsx](../../src/plugins/einstellungen/AssistentTab.tsx) | schluessel (nur Assistent) |
+| `einstellung_geaendert` | Protokoll-relevante Einstellung geändert | [AssistentGruppe.tsx](../../src/plugins/einstellungen/profil/AssistentGruppe.tsx) | schluessel (nur Assistent) |
 
 ## Datenschutz-Begründung `suche_ausgefuehrt.query`
 
@@ -99,8 +99,8 @@ transparent gemacht.
 ## Einstellungen-UI
 
 Sektion „Assistent & Gedächtnis" — seit v2.235 **kein eigener Menüpunkt mehr**, sondern
-in „Mein Profil" gefaltet ([AssistentTab.tsx](../../src/plugins/einstellungen/AssistentTab.tsx)
-wird von [ProfilTab.tsx](../../src/plugins/einstellungen/ProfilTab.tsx) gerendert; die
+in „Mein Profil" gefaltet ([AssistentGruppe.tsx](../../src/plugins/einstellungen/profil/AssistentGruppe.tsx)
+wird von [ProfilPanel.tsx](../../src/plugins/einstellungen/profil/ProfilPanel.tsx) gerendert; die
 Abschnitts-Metadaten `sec-assistent-*` liegen am `profil`-Panel in
 [settingsPanels.tsx](../../src/plugins/einstellungen/settingsPanels.tsx),
 gegated `isAssistentProtokollEnabled()`): Opt-in-Toggle mit Klartext-Erklärung,

@@ -19,6 +19,7 @@ Decision-Tree für häufige Aufgaben. Erst hier nachsehen, **bevor** du die Code
 | Kanban-/Board-Ansicht (Bahnen, Schmalschiene, Einklappen, Karten ziehen) | [board-komponente.md](docs/architecture/board-komponente.md) — `TfBoard` aus `@/components/kanban` |
 | App-Inhalt in einem eigenen Browser-Fenster zeigen | [fenster-in-fenster.md](docs/architecture/fenster-in-fenster.md) — `oeffneAppFenster` aus `@/components/fenster` |
 | Tabellenartige Seite mit Detail/Editor (Master-Detail-Split) | [docs/agents/add-table-detail-page.md](docs/agents/add-table-detail-page.md) — `MasterDetailLayout` |
+| Neue Einstellung / neuer Einstellungs-Abschnitt (vier Seiten, zweispaltig, ⓘ-Popover, Klappe mit Zähler) | [docs/agents/add-settings-section.md](docs/agents/add-settings-section.md) |
 | UI-Muster wählen (Seitenkopf, Listen-Sicht-Tabs-mit-Zähler, Status-Badge/Dot, Filter-Chip) | [docs/architecture/ui-muster.md](docs/architecture/ui-muster.md) + [docs/layout-audit.md](docs/layout-audit.md) |
 | `file://`-Constraint vergessen? | [docs/agents/file-protocol-pitfalls.md](docs/agents/file-protocol-pitfalls.md) + Critical Constraints unten |
 | Bug-Risiko-Check vor Commit | [Common Pitfalls](#common-pitfalls) unten (nummerierte Liste) überfliegen |

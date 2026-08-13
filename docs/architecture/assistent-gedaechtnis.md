@@ -81,7 +81,7 @@ Der Assembler ([assembliere.ts](../../src/core/services/assistent/kontext/assemb
 
 ## UI (Einstellungen → „Assistent & Gedächtnis")
 
-[GedaechtnisSektion.tsx](../../src/plugins/einstellungen/GedaechtnisSektion.tsx): Opt-in-Toggle (doppeltes Opt-in), Lauf-Status + „Jetzt konsolidieren", die 3 Blocks mit aufklappbaren Einträgen (Belege → aufgelöste Ereignisse, Zeitstempel, Vorgänger-Hinweis), Einzellöschung, „Invalidierte anzeigen", „Alles vergessen" (mit Bestätigung).
+[GedaechtnisVerwaltung.tsx](../../src/plugins/einstellungen/profil/GedaechtnisVerwaltung.tsx): Opt-in-Toggle (doppeltes Opt-in), Lauf-Status + „Jetzt konsolidieren", die 3 Blocks mit aufklappbaren Einträgen (Belege → aufgelöste Ereignisse, Zeitstempel, Vorgänger-Hinweis), Einzellöschung, „Invalidierte anzeigen", „Alles vergessen" (mit Bestätigung).
 
 ## Eval (Phase D — das Gate statt manuellem Zwischentesten)
 

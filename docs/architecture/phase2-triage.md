@@ -46,7 +46,7 @@ Neues Kurator-Plugin (`id: 'dokumentenquellen-kuration'`, `kuratorOnly: true`, `
 - **Migration**: `migrateLegacyDmsSource(idb)` läuft idempotent beim App-Start (in `App.tsx` nach `storage.init()`). Wenn `dms_sources` leer ist UND ein Legacy-`dokumentenquelle`-Handle existiert: legt eine Default-Source mit `id='default'` an, übernimmt `phase2_scan_config.selected_paths` als `sub_roots`, kopiert den Handle auf `dms-source-default`. Audit-Action: `dms_source_migrated_from_legacy`.
 - **Audit-Actions**: `dms_source_added`, `dms_source_removed`, `dms_source_label_changed`, `dms_source_subroots_changed`, `dms_source_handle_picked`, `dms_source_handle_lost`, `dms_source_activated`, `dms_source_deactivated`, `dms_source_indexed_started`, `dms_source_indexed_finished`.
 - **Phase2RescanCard im Suchindex-Plugin entfernt** (vor v1.15 in `src/plugins/kurator/sections/`); Multi-Source-Indexierung lebt jetzt komplett im neuen Plugin.
-- **Einstellungen-Tab "Dokumentenquellen"** (`src/plugins/einstellungen/DokumentenquellenTab.tsx`): User-sichtbar, ausgegraut. Vorbereitend für persönliche User-Pfade, sobald internes Embedding/LLM-API verfügbar ist.
+- **Einstellungs-Gruppe „Persönliche Dokumentenquellen"** (`src/plugins/einstellungen/daten/DokumentenquellenGruppe.tsx`): User-sichtbar, ausgegraut. Vorbereitend für persönliche User-Pfade, sobald internes Embedding/LLM-API verfügbar ist.
 
 ## Build-Time-Config (`runtimeConfig.scan`)
 

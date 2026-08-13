@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.31.0 — Interne KI zweispaltig, Suche klappt ihr Ziel auf (August 2026)
+
+MINOR — Letzte Etappe des Einstellungs-Redesigns. Die vierte Seite steht zweispaltig, und beim Abnehmen fiel auf, dass die Suche ihr Sprungziel nur dann aufklappte, wenn es auf derselben Seite lag — ausgerechnet der Sprung auf eine andere Seite blieb wirkungslos.
+
+- **Seite „Interne KI" zweispaltig** ([ki/](src/plugins/einstellungen/ki/)): links die Verbindung mit Statuskarte und der Einrichtung in fünf Schritten, rechts Antwortverhalten und Recherche-Ziele; die dev-Werkbank (Provider, zwei Eval-Panels, Zweit-LLM) steht eingeklappt darunter
+- **Kontextfenster als Automatik/Manuell** ([AntwortverhaltenGruppe.tsx](src/plugins/einstellungen/ki/AntwortverhaltenGruppe.tsx)) mit der Zeichenzahl in Klartext statt nur in Tokens
+- **Sprungziel klappt idempotent auf** ([useCollapsedSection.ts](src/core/hooks/useCollapsedSection.ts), [settings-layout.tsx](src/plugins/einstellungen/_shared/settings-layout.tsx)): ein Toggle aus dem Mount-Effekt hebt sich im StrictMode auf — neue Bug-Klasse 21 in [recurring-bug-classes.md](docs/architecture/recurring-bug-classes.md)
+- **Doku nachgezogen**: neun Architektur-Docs auf die neuen Dateipfade, [einstellungen.md](docs/feedback-kontext/einstellungen.md) (zugleich Seiten-Hilfe) neu geschrieben, Cheatsheet [add-settings-section.md](docs/agents/add-settings-section.md) angelegt
+- Damit sind die vierzehn `*Tab.tsx`/`*Section.tsx`-Dateien der alten Einstellungen vollständig in vier Seiten-Ordner aufgelöst
+
 ### v4.30.0 — Darstellung und Daten zweispaltig (August 2026)
 
 MINOR — Dritte Etappe des Einstellungs-Redesigns: „Darstellung & Bedienung" und „Daten & Verbindungen" stehen zweispaltig. Die sieben `*Tab.tsx`-Dateien dahinter sind in Gruppen aufgegangen; die langen Erklärabsätze stehen im ⓘ, das Seltene in Klappen mit Zähler.

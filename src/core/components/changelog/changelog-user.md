@@ -19,6 +19,15 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.31 — 2026-08
+
+### Verbesserungen
+- „Interne KI" zeigt oben eine Statuskarte: verbunden oder nicht, mit welcher Adresse, und daneben „Verbindung testen" und „Interne KI öffnen". Die Einrichtung in fünf Schritten samt ziehbarem Lesezeichen steht eingeklappt darunter.
+- Das Kontextfenster lässt sich auf „Automatik" oder „Manuell" stellen und sagt in Klartext, für wie viele Zeichen es reicht.
+
+### Bugfixes
+- Die Einstellungs-Suche klappt den gefundenen Bereich jetzt auch dann auf, wenn er auf einer anderen Seite liegt. Vorher sprang sie hin, ließ ihn aber zugeklappt — man sah den Treffer nicht.
+
 ## v4.30 — 2026-08
 
 ### Verbesserungen

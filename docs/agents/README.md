@@ -11,6 +11,7 @@ Kompakte Checklisten für häufige Erweiterungen, die jeweils mehrere synchronis
 | Neuer Feature-Flag | [add-feature-flag.md](add-feature-flag.md) |
 | Neuer IndexedDB-Store | [add-idb-store.md](add-idb-store.md) |
 | Neuer Tab im Auslastungs-Plugin | [add-auslastung-tab.md](add-auslastung-tab.md) |
+| Neue Einstellung / neuer Einstellungs-Abschnitt | [add-settings-section.md](add-settings-section.md) |
 | Neue View in `src/plugins/antraege/views.ts` | [add-view.md](add-view.md) |
 | Neue Tabellen-Detail-Seite (Master-Detail-Split) | [add-table-detail-page.md](add-table-detail-page.md) |
 | Neue Filter-Facet in der Filter-Sidebar | [add-filter-facet.md](add-filter-facet.md) |

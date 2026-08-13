@@ -30,7 +30,7 @@ import type { AIProviderConfig } from '@/core/types/config';
 import { ProfilPanel } from './profil/ProfilPanel';
 import { DarstellungPanel } from './darstellung/DarstellungPanel';
 import { DatenPanel } from './daten/DatenPanel';
-import { AIProviderTab } from './AIProviderTab';
+import { KiPanel } from './ki/KiPanel';
 
 /** Sprung-Ziel für die Einstellungs-Suche (DOM-`id` eines Abschnitts). */
 export interface SettingsSectionRef {
@@ -170,7 +170,7 @@ export function getSettingsPanels(ctx: PanelContext): SettingsPanel[] {
       untertitel: 'Verbindung zur internen KI und wie sie antwortet.',
       icon: Sparkles,
       sections,
-      render: () => <AIProviderTab aiConfig={ctx.aiConfig} setAiConfig={ctx.setAiConfig} />,
+      render: () => <KiPanel aiConfig={ctx.aiConfig} setAiConfig={ctx.setAiConfig} />,
     });
   }
 

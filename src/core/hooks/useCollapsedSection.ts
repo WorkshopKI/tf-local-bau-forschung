@@ -18,7 +18,7 @@ import { useEffect, useState } from 'react';
 export function useCollapsedSection(
   key: string,
   opts?: { defaultOpen?: boolean },
-): [boolean, () => void] {
+): [boolean, () => void, (offen: boolean) => void] {
   const defaultOpen = opts?.defaultOpen ?? true;
   const [open, setOpen] = useState<boolean>(() => {
     try {
@@ -39,5 +39,11 @@ export function useCollapsedSection(
   }, [key, open]);
 
   const toggle = (): void => setOpen(v => !v);
-  return [open, toggle];
+  // Dritter Rückgabewert: IDEMPOTENTES Setzen. Wer aus einem Effekt heraus
+  // aufklappt (z.B. ein Sprungziel der Einstellungs-Suche), darf nicht toggeln —
+  // React ruft Mount-Effekte im StrictMode zweimal auf, und zwei Toggles heben
+  // sich auf. Bestehende Aufrufer destrukturieren nur zwei Werte und bleiben
+  // davon unberührt.
+  const setzeOffen = (naechster: boolean): void => setOpen(naechster);
+  return [open, toggle, setzeOffen];
 }

@@ -10,7 +10,7 @@ Zugang zu einem internen LLM (z.B. gpt-oss), für das **kein API** existiert —
 |---|---|---|
 | Transport | [src/core/services/ai/transports/streamlit.ts](../../src/core/services/ai/transports/streamlit.ts) | `StreamlitBridgeTransport implements AITransport` — `window.open` (Tab-Name `teamflow-streamlit`) + `postMessage`, nur Single-Turn (`submitMessage`) |
 | Registry | [src/core/services/ai/bridge.ts](../../src/core/services/ai/bridge.ts) | `AIBridge` — Streamlit ist der Default-Transport; `switchProvider` aktualisiert die URL per `updateUrl()` (kein Listener-Leak) |
-| Installer-UI | [src/plugins/einstellungen/StreamlitBridgeSection.tsx](../../src/plugins/einstellungen/StreamlitBridgeSection.tsx) | URL konfigurieren, Bookmarklet ziehen/kopieren, Tab öffnen, Verbindung testen |
+| Installer-UI | [src/plugins/einstellungen/ki/VerbindungGruppe.tsx](../../src/plugins/einstellungen/ki/VerbindungGruppe.tsx) | URL konfigurieren, Bookmarklet ziehen/kopieren, Tab öffnen, Verbindung testen |
 | Bookmarklet | [src/core/services/ai/streamlit-bridge/bridge-snippet.source.js](../../src/core/services/ai/streamlit-bridge/bridge-snippet.source.js) + `snippet.ts` | Streamlit-seitiges Snippet (Single Source of Truth), via `?raw` zur Build-Zeit ins Bundle inlined (kein Runtime-`fetch`, `file://`-tauglich) |
 
 ## Protokoll (postMessage)
@@ -121,7 +121,7 @@ QS/Zweitmeinung. Das Bridge-Protokoll trägt dafür ein optionales `ziel` (`'sta
 - App-seitig trugen zunächst **nur** `SubmitMessageOptions` das `ziel`; `ConversationOptions`
   war bewusst ausgespart, solange die agentische Variante eine Erprobung war. Validiert wurde
   über die dev-only Testfläche „Zweit-LLM (Erprobung)" in der Einstellungs-Sektion
-  ([StreamlitBridgeSection.tsx](../../src/plugins/einstellungen/StreamlitBridgeSection.tsx),
+  ([VerbindungGruppe.tsx](../../src/plugins/einstellungen/ki/VerbindungGruppe.tsx),
   gated `isDevContext()`) — Rechenfrage → Tab-Wechsel → Scrape → gezielter Reset.
 - **Seit v2.274 tragen beide Options-Typen das Feld.** Die Aussparung war überholt, seit die
   Variante eine globale Nutzer-Einstellung (`useKiZiel`) und in allen Skill-Runnern verdrahtet
