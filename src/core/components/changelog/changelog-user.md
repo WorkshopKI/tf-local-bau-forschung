@@ -19,6 +19,16 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.32 — 2026-08
+
+### Verbesserungen
+- **Die Einstellungs-Suche sagt jetzt, wohin sie springt.** Unter jedem Treffer steht sein Weg — etwa „Mein Profil › Persönlicher Assistent". So wissen Sie schon vor dem Klick, in welcher Karte Sie landen.
+- **Der gefundene Eintrag bleibt markiert**, bis Sie das nächste Mal klicken oder tippen. Bisher leuchtete er nur kurz auf — und wenn die Seite für den Sprung gar nicht scrollen musste, war das leicht zu übersehen.
+- **Weniger Kleingedrucktes in den Einstellungen:** die Fußzeile unter der Navigation ist entfallen. Sie erklärte ein Tastenkürzel für das Suchfeld, das direkt darüber steht.
+
+### Bugfixes
+- **Interne KI:** In der rechten Spalte stand „KI-Variante" doppelt, und der Erklärtext lief über den Kartenrand hinaus. Die Zeile zeigt jetzt eine Beschriftung, ein ⓘ und die beiden Knöpfe.
+
 ## v4.31 — 2026-08
 
 ### Verbesserungen

@@ -13,7 +13,7 @@ import { useProfile } from '@/core/hooks/useProfile';
 import { useMeinKuerzel } from '@/core/hooks/useMeinKuerzel';
 import { kuerzelFuerAnzeige, profilAvatarText } from '@/core/utils/profil-anzeige';
 import { Avatar, InfoHint } from '../_shared/settings-primitives';
-import { SettingsGruppe } from '../_shared/settings-layout';
+import { SettingsGruppe, useSprungTreffer } from '../_shared/settings-layout';
 
 const TOOLTIP_PROGRAMM =
   'Deine anonyme Programm-ID. Ordnet deine Technologien im Team-Auslastungs-Profil zu, ohne den Klarnamen preiszugeben.';
@@ -36,6 +36,7 @@ export function AccountGruppe({
   // „alle" ist der Aus-Zustand des Filters, kein Kürzel — die Pille dürfte
   // sonst „Kürzel ALLE" behaupten (dieselbe Regel wie im Avatar).
   const kuerzelPille = kuerzelFuerAnzeige(meinKuerzel);
+  const programmTreffer = useSprungTreffer('sec-programm');
 
   // Ohne Programm-Id zeigt das Fachprofil daneben seinen Leerzustand — dann
   // wären Hauptkategorie und Antragstypen hier eine Angabe ohne Gegenstück.
@@ -74,8 +75,11 @@ export function AccountGruppe({
               </span>
             )}
           </div>
+          {/* Eigener Anker ohne Layout-Bauteil — die Treffer-Markierung holt
+              sich die Zeile deshalb direkt aus dem Sprung-Kontext. */}
           <p
             id="sec-programm"
+            data-tf-treffer={programmTreffer ? '' : undefined}
             className="scroll-mt-20 text-[12px] leading-[1.5] text-[var(--tf-text-tertiary)] mt-0.5 flex items-center gap-1.5 flex-wrap"
           >
             {teile.map((t, i) => (

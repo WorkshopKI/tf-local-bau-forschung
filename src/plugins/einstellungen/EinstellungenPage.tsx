@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useStorage } from '@/core/hooks/useStorage';
-import { useKeyboardShortcut } from '@/core/hooks/useKeyboard';
 import { SettingsNav } from './SettingsNav';
 import { getSettingsPanels, buildSearchIndex } from './settingsPanels';
 import { SettingsKopfStatusAnker, SettingsSprungProvider, type SettingsSprungZiel } from './_shared/settings-layout';
@@ -14,10 +13,10 @@ export function EinstellungenPage(): React.ReactElement {
   const [activePanel, setActivePanel] = useState('profil');
   const [aiConfig, setAiConfig] = useState<AIProviderConfig>({ type: 'streamlit', endpoint: 'https://gpt.vdivde-it.de/', model: '', apiKey: '' });
 
-  const searchInputRef = useRef<HTMLInputElement>(null);
-  // Sprung-Ziel der Suche/Deep-Links. Es steuert ZWEI Dinge: den Scroll+Flash
-  // hier und — über den Kontext — das Aufklappen der `SettingsKlappe`, in der
-  // das Ziel steckt. Der Zähler macht denselben Treffer wiederholbar.
+  // Sprung-Ziel der Suche/Deep-Links. Es steuert DREI Dinge: den Scroll hier,
+  // die stehende Markierung am Ziel (`data-tf-treffer`) und — über den Kontext
+  // — das Aufklappen der `SettingsKlappe`, in der das Ziel steckt. Der Zähler
+  // macht denselben Treffer wiederholbar.
   const [sprung, setSprung] = useState<SettingsSprungZiel | null>(null);
   const sprungZaehler = useRef(0);
   // Als State, nicht als Ref: der Portal-Anker muss einen Re-Render auslösen,
@@ -35,13 +34,17 @@ export function EinstellungenPage(): React.ReactElement {
   // panels ist nie leer (Profil wird immer eingehängt).
   const active = panels.find(p => p.id === activePanel) ?? panels[0]!;
 
-  // Strg+, fokussiert die Einstellungs-Suche (erscheint dadurch in der Tastatur-Liste).
-  useKeyboardShortcut('mod+,', () => searchInputRef.current?.focus(), { description: 'Einstellungen durchsuchen', category: 'Einstellungen' });
-
   const goToSection = (panelId: string, sectionId: string): void => {
     setActivePanel(panelId);
     sprungZaehler.current += 1;
     setSprung({ id: sectionId, nr: sprungZaehler.current });
+  };
+
+  // Seitenwechsel per Navigation räumt eine stehende Markierung ab: sie gehört
+  // zum Treffer, nicht zur Seite.
+  const waehlePanel = (id: string): void => {
+    setActivePanel(id);
+    setSprung(null);
   };
 
   // Deep-Link von außerhalb (v2.229, z.B. Widget-Popover „Alle Einstellungen →"):
@@ -61,24 +64,33 @@ export function EinstellungenPage(): React.ReactElement {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams, panels]);
 
-  // Scroll + Flash, einen Tick nach dem Panel-Wechsel: erst dann ist das Ziel
-  // gemountet. Bewusst `setTimeout` statt `requestAnimationFrame` — rAF ruht,
-  // solange das Fenster nicht zeichnet (Hintergrund-Tab), der Sprung liefe
-  // dort ins Leere und feuerte später nach. Die Klappe darum öffnet sich in
-  // ihrem eigenen Effekt; ihr `<section id>`-Anker steht auch zugeklappt im
-  // DOM, der Sprung braucht sie also nicht abzuwarten.
+  // Scroll einen Tick nach dem Panel-Wechsel: erst dann ist das Ziel gemountet.
+  // Bewusst `setTimeout` statt `requestAnimationFrame` — rAF ruht, solange das
+  // Fenster nicht zeichnet (Hintergrund-Tab), der Sprung liefe dort ins Leere
+  // und feuerte später nach. Die Klappe darum öffnet sich in ihrem eigenen
+  // Effekt; ihr `<section id>`-Anker steht auch zugeklappt im DOM, der Sprung
+  // braucht sie also nicht abzuwarten.
+  //
+  // `block: 'center'` statt `'start'`: so bleibt der Kartentitel über dem
+  // Treffer im Bild — er sagt dem Nutzer, WO er gelandet ist.
+  //
+  // Die Markierung am Ziel setzt der Kontext (`useSprungTreffer`); abgeräumt
+  // wird sie beim NÄCHSTEN Klick/Tastendruck. Der Listener wird im selben Tick
+  // registriert wie der Scroll — das `pointerdown`, das den Sprung ausgelöst
+  // hat, ist da längst durch und räumt sich nicht selbst ab.
   useEffect(() => {
     if (!sprung) return;
+    const abraeumen = (): void => setSprung(null);
     const t = window.setTimeout(() => {
-      const el = document.getElementById(sprung.id);
-      if (!el) return;
-      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      el.classList.remove('tf-settings-flash');
-      void el.offsetWidth; // Reflow → Animation startet auch bei erneutem Sprung neu
-      el.classList.add('tf-settings-flash');
-      window.setTimeout(() => el.classList.remove('tf-settings-flash'), 1900);
+      document.getElementById(sprung.id)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      document.addEventListener('pointerdown', abraeumen, { once: true, capture: true });
+      document.addEventListener('keydown', abraeumen, { once: true, capture: true });
     }, 0);
-    return () => window.clearTimeout(t);
+    return () => {
+      window.clearTimeout(t);
+      document.removeEventListener('pointerdown', abraeumen, { capture: true });
+      document.removeEventListener('keydown', abraeumen, { capture: true });
+    };
   }, [sprung]);
 
   return (
@@ -95,10 +107,9 @@ export function EinstellungenPage(): React.ReactElement {
         <SettingsNav
           panels={panels}
           activePanel={active.id}
-          onSelectPanel={setActivePanel}
+          onSelectPanel={waehlePanel}
           searchIndex={searchIndex}
           onGoToSection={goToSection}
-          searchInputRef={searchInputRef}
         />
         <div className="pl-7 min-w-0">
           <div className="flex items-start gap-4 pb-3.5 mb-3.5 border-b border-[var(--tf-border)]">

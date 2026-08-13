@@ -429,18 +429,10 @@ body {
   100% { background-color: transparent; }
 }
 
-/* Einstellungen-Suche: kurzer Highlight nach Sprung zum Abschnitt (~1,8 s). */
-@keyframes tf-settings-flash {
-  0%, 60% { box-shadow: 0 0 0 6px var(--tf-primary-light); background: var(--tf-primary-light); }
-  100%    { box-shadow: 0 0 0 6px transparent; background: transparent; }
-}
-.tf-settings-flash {
-  animation: tf-settings-flash 1.8s var(--tf-ease);
-  border-radius: var(--tf-radius);
-}
-@media (prefers-reduced-motion: reduce) {
-  .tf-settings-flash { animation: none; }
-}
+/* Der Einstellungs-Suchtreffer wurde bis v4.31 hier als kurzer Blitz markiert.
+   Seit v4.32 bleibt die Markierung stehen, bis der Nutzer weiterarbeitet — die
+   Regel dazu steht bei ihrem einzigen Nutzer
+   (src/plugins/einstellungen/einstellungen-layout.css). */
 
 /* Unbestimmter Fortschritt: schmale Leiste unter dem Seitenkopf, solange eine
    Seite noch Daten nachlaedt und keine echte Restzeit bekannt ist (erster

@@ -17,8 +17,17 @@ import { useChatStore } from '@/plugins/chat/store';
  * verlustfrei umkehrbar, und ein Dialog auf einem Zwei-Knopf-Umschalter nervt
  * genau die Nutzer, die wissen was sie tun. Wann gewarnt wird, entscheidet die
  * reine `sollWechselHinweisZeigen`.
+ *
+ * Drei Stufen: voll (Label + Chips + Erklärung), `compact` (ohne Erklärung) und
+ * `nurSteuerung` (nur die Chips). Letzteres für Wirte, die Label und Erklärung
+ * selbst mitbringen — die `SettingsOption` der Einstellungen tut das, und ohne
+ * die Stufe stünde „KI-Variante" dort zweimal und der Erklärabsatz liefe in der
+ * schmalen Nebenspalte über den Kartenrand.
  */
-export function KiVariantSelector({ compact = false }: { compact?: boolean } = {}): React.ReactElement {
+export function KiVariantSelector({
+  compact = false,
+  nurSteuerung = false,
+}: { compact?: boolean; nurSteuerung?: boolean } = {}): React.ReactElement {
   const ziel = useKiZiel(s => s.ziel);
   const setZiel = useKiZiel(s => s.setZiel);
   const bridge = useAIBridge();
@@ -39,8 +48,10 @@ export function KiVariantSelector({ compact = false }: { compact?: boolean } = {
   };
 
   return (
-    <div>
-      <div className="text-[11px] text-[var(--tf-text-tertiary)] mb-1">KI-Variante</div>
+    <div className={nurSteuerung ? 'max-w-[240px]' : undefined}>
+      {!nurSteuerung && (
+        <div className="text-[11px] text-[var(--tf-text-tertiary)] mb-1">KI-Variante</div>
+      )}
       <div className="inline-flex gap-1.5 flex-wrap">
         {OPTIONEN.map(opt => (
           <button
@@ -73,7 +84,7 @@ export function KiVariantSelector({ compact = false }: { compact?: boolean } = {
           </p>
         </div>
       )}
-      {!compact && (
+      {!compact && !nurSteuerung && (
         <p className="text-[11px] text-[var(--tf-text-tertiary)] mt-1.5 leading-snug">
           Standard = klassische interne KI. Agentisch = agentische interne KI (Erprobung) — setzt einen
           „Agentischer Chat"-Tab in der KI-Oberfläche voraus.

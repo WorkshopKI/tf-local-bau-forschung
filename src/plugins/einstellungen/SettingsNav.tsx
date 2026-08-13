@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Search } from 'lucide-react';
 import {
   searchSettings,
@@ -12,14 +12,15 @@ interface SettingsNavProps {
   onSelectPanel: (id: string) => void;
   searchIndex: SettingsSearchEntry[];
   onGoToSection: (panelId: string, sectionId: string) => void;
-  searchInputRef: React.RefObject<HTMLInputElement | null>;
 }
 
 /**
  * Settings-Navigation (Design-Handoff `einstellungen-zweispaltig`): Suchfeld
- * (Strg+,) über einer flachen Liste der vier Seiten, darunter die Fußzeile mit
- * dem Kürzel und dem Hinweis auf die ⓘ-Popover. Reine Präsentation — Auswahl
- * und Sprung-zu-Abschnitt kommen als Callbacks aus der EinstellungenPage.
+ * über einer flachen Liste der vier Seiten. Reine Präsentation — Auswahl und
+ * Sprung-zu-Abschnitt kommen als Callbacks aus der EinstellungenPage.
+ *
+ * Jeder Treffer nennt seinen Weg (`Seite › Gruppe`): die Seite allein trägt bis
+ * zu acht Karten, „Mein Profil" sagt also noch nicht, wohin der Sprung geht.
  */
 export function SettingsNav({
   panels,
@@ -27,8 +28,8 @@ export function SettingsNav({
   onSelectPanel,
   searchIndex,
   onGoToSection,
-  searchInputRef,
 }: SettingsNavProps): React.ReactElement {
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState('');
   const [focused, setFocused] = useState(false);
   const [selIdx, setSelIdx] = useState(0);
@@ -84,7 +85,6 @@ export function SettingsNav({
             placeholder="Suchen"
             autoComplete="off"
             aria-label="Einstellungen durchsuchen"
-            title="Strg + Komma öffnet die Suche"
             className="flex-1 min-w-0 bg-transparent outline-none text-[13px] text-[var(--tf-text)] placeholder:text-[var(--tf-text-tertiary)]"
           />
         </div>
@@ -100,15 +100,18 @@ export function SettingsNav({
                 type="button"
                 onMouseDown={e => { e.preventDefault(); go(r); }}
                 onMouseEnter={() => setSelIdx(i)}
-                className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-[var(--tf-radius)] text-left ${
+                className={`w-full block px-2.5 py-1.5 rounded-[var(--tf-radius)] text-left ${
                   i === selIdx ? 'bg-[var(--tf-hover)]' : ''
                 }`}
               >
-                <span className="text-[13px] font-medium text-[var(--tf-text)] truncate">
+                <span className="block text-[13px] font-medium text-[var(--tf-text)] truncate">
                   <Highlight text={r.label} query={query} />
                 </span>
-                <span className="ml-auto text-[11.5px] text-[var(--tf-text-tertiary)] whitespace-nowrap shrink-0">
-                  {r.panelLabel}
+                {/* Trägt die Karte denselben Namen wie der Treffer (ganze
+                    Gruppen wie „Tags", „Team-Status"), bliebe der Weg eine
+                    Wiederholung — dann nur die Seite. */}
+                <span className="block text-[11.5px] text-[var(--tf-text-tertiary)] truncate">
+                  {r.gruppe === r.label ? r.panelLabel : `${r.panelLabel} › ${r.gruppe}`}
                 </span>
               </button>
             ))}
@@ -143,17 +146,6 @@ export function SettingsNav({
           );
         })}
       </div>
-
-      <p className="mt-[22px] mx-2.5 text-[11.5px] leading-[1.5] text-[var(--tf-text-tertiary)]">
-        Suche mit{' '}
-        <kbd
-          className="font-mono text-[10.5px] rounded-[4px] px-1 py-[2px] bg-[var(--tf-bg-secondary)]"
-          style={{ border: '0.5px solid var(--tf-border)' }}
-        >
-          Strg + ,
-        </kbd>{' '}
-        · Details überall hinter <span aria-hidden>ⓘ</span>
-      </p>
     </div>
   );
 }

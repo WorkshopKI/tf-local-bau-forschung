@@ -54,6 +54,24 @@ export function SettingsSprungProvider({
   return <SprungZielContext.Provider value={ziel}>{children}</SprungZielContext.Provider>;
 }
 
+/**
+ * Ist dieser Anker gerade das Sprung-Ziel? Die vier Layout-Bauteile setzen
+ * daraufhin `data-tf-treffer` und bekommen den Ring aus
+ * `../einstellungen-layout.css`.
+ *
+ * Die Markierung BLEIBT stehen, bis der Nutzer das naechste Mal klickt oder
+ * tippt (`EinstellungenPage` setzt das Ziel dann zurueck). Bis v4.31 blitzte
+ * sie 1,8 s auf — und wenn die Seite fuer den Sprung gar nicht scrollen muss,
+ * bewegt sich nichts, der Blitz ist vorbei, bevor der Blick ankommt.
+ *
+ * Exportiert, weil nicht jeder Anker eines der vier Bauteile ist (z.B.
+ * `sec-programm` auf der Zusammenfassungszeile in `AccountGruppe`).
+ */
+export function useSprungTreffer(id?: string): boolean {
+  const ziel = useContext(SprungZielContext);
+  return id != null && ziel?.id === id;
+}
+
 // ───────────────────────── Kopf-Status ─────────────────────────
 
 /**
@@ -145,9 +163,11 @@ export function SettingsGruppe({
   children: React.ReactNode;
 }): React.ReactElement {
   const neben = useContext(NebenspalteContext);
+  const treffer = useSprungTreffer(id);
   return (
     <section
       id={id}
+      data-tf-treffer={treffer ? '' : undefined}
       className={`scroll-mt-20 rounded-[10px] px-[15px] pt-[13px] pb-[11px] ${
         neben ? 'bg-[var(--tf-bg-secondary)]' : 'bg-[var(--tf-bg)]'
       }`}
@@ -236,13 +256,25 @@ export function SettingsOption({
   oben?: boolean;
   children?: React.ReactNode;
 }): React.ReactElement {
+  const treffer = useSprungTreffer(id);
   return (
     <div
       id={id}
-      className={`flex ${oben ? 'items-start' : 'items-center'} gap-3.5 py-2 scroll-mt-20 border-t first:border-t-0`}
+      data-tf-treffer={treffer ? '' : undefined}
+      // `flex-wrap` + Mindestbreite an der Label-Spalte: eine Steuerung, die in
+      // der schmalen Nebenspalte nicht mehr neben das Label passt, rutscht in
+      // die zweite Zeile — statt (wie bis v4.31) die Label-Spalte auf zwei
+      // gequetschte Silben zu druecken und sich darueberzuschieben.
+      //
+      // 110 px ist am ENGSTEN Wirt gemessen: die Nebenspalte laesst der Karte
+      // 375 px, das laengste Label dort („Kontextfenster") braucht ~100 px und
+      // die breiteste Steuerung (Segment + Zahlenfeld) 238 px — beides passt
+      // damit weiter nebeneinander. Groesser gewaehlt, und heute heile Zeilen
+      // braechen ohne Not um.
+      className={`flex flex-wrap ${oben ? 'items-start' : 'items-center'} gap-3.5 py-2 scroll-mt-20 border-t first:border-t-0`}
       style={{ borderTopColor: 'var(--tf-border)', borderTopWidth: '0.5px' }}
     >
-      <div className="flex-1 min-w-0">
+      <div className="flex-1 min-w-[110px]">
         <div className="flex items-center gap-[7px] flex-wrap">
           <span
             className={`text-[13.5px] leading-[1.35] ${
@@ -260,7 +292,9 @@ export function SettingsOption({
           </p>
         )}
       </div>
-      {children != null && <div className="flex items-center gap-2 shrink-0">{children}</div>}
+      {children != null && (
+        <div className="flex items-center gap-2 shrink-0 ml-auto">{children}</div>
+      )}
     </div>
   );
 }
@@ -284,9 +318,11 @@ export function SettingsBlock({
   hint?: string;
   children: React.ReactNode;
 }): React.ReactElement {
+  const treffer = useSprungTreffer(id);
   return (
     <div
       id={id}
+      data-tf-treffer={treffer ? '' : undefined}
       className="py-2 scroll-mt-20 border-t first:border-t-0"
       style={{ borderTopColor: 'var(--tf-border)', borderTopWidth: '0.5px' }}
     >
@@ -350,6 +386,9 @@ export function SettingsKlappe({
   return (
     <section
       id={id}
+      // Nur der DIREKTE Treffer wird markiert: bei `enthaelt` steckt das Ziel
+      // im Rumpf und traegt seinen eigenen Ring.
+      data-tf-treffer={ziel?.id === id ? '' : undefined}
       className="scroll-mt-20 border-t"
       style={{ borderTopColor: 'var(--tf-border)', borderTopWidth: '0.5px' }}
     >

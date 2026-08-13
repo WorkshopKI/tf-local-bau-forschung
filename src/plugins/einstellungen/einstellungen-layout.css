@@ -34,3 +34,48 @@
     padding-left: 26px;
   }
 }
+
+/*
+ * Suchtreffer. Der Ring BLEIBT stehen, bis der Nutzer das naechste Mal klickt
+ * oder tippt — bis v4.31 blitzte der Treffer 1,8 s auf, was ihn ausgerechnet
+ * dann verfehlte, wenn die Seite fuer den Sprung gar nicht scrollen musste:
+ * dann bewegt sich nichts, und der Blitz ist vorbei, bevor der Blick von der
+ * Trefferliste ankommt.
+ *
+ * Ein Ring statt einer Flaechenfarbe, weil dieselbe Regel eine Zeile auf
+ * weisser Karte UND eine getoente Karte der Nebenspalte treffen kann — ein
+ * Hintergrund muesste je Untergrund anders ausfallen, der Ring nicht.
+ * Der Nachkomme-Selektor (statt nur `[data-tf-treffer]`) schlaegt die
+ * Tailwind-Hintergrundklasse der Karte zuverlaessig in der Kaskade.
+ */
+.tf-set-cols [data-tf-treffer] {
+  position: relative;
+  z-index: 1;
+  border-radius: var(--tf-radius);
+  box-shadow:
+    inset 0 0 0 999px color-mix(in srgb, var(--tf-primary) 10%, transparent),
+    0 0 0 1.5px var(--tf-primary),
+    0 0 0 5px var(--tf-primary-light);
+  animation: tf-set-treffer 240ms var(--tf-ease);
+}
+
+/*
+ * Die Flaeche wird als INSET-Schatten getoent, nicht als `background`: der
+ * Treffer kann eine Zeile ohne eigenen Hintergrund sein oder eine getoente
+ * Karte der Nebenspalte — ein `background` ueberschriebe deren Ton, der Inset
+ * legt sich darueber. Er traegt den Treffer ausserdem im Dunkelmodus, wo
+ * `--tf-primary-light` fast auf der Kartenfarbe liegt und der 1,5-px-Ring
+ * allein zu leise waere.
+ */
+@keyframes tf-set-treffer {
+  from {
+    box-shadow:
+      inset 0 0 0 999px transparent,
+      0 0 0 1.5px transparent,
+      0 0 0 12px transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tf-set-cols [data-tf-treffer] { animation: none; }
+}

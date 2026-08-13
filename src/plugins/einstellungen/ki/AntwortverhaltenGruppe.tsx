@@ -91,8 +91,11 @@ export function AntwortverhaltenGruppe({ aiConfig }: { aiConfig: AIProviderConfi
         />
       </SettingsOption>
 
+      {/* `nurSteuerung`: Label und Erklärung liefert die Zeile (Label +
+          `hint`) — der Selektor brächte beides ein zweites Mal mit, und sein
+          Erklärabsatz liefe in der schmalen Nebenspalte über den Kartenrand. */}
       <SettingsOption label="KI-Variante" hint={HINT_VARIANTE}>
-        <KiVariantSelector />
+        <KiVariantSelector nurSteuerung />
       </SettingsOption>
 
       <SettingsOption

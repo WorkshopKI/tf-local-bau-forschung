@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.32.0 — Einstellungs-Suche nennt ihr Ziel, KI-Variante entdoppelt (August 2026)
+
+MINOR — Nachlese am Redesign. Die Suche sprang auf die richtige Seite, ließ den Nutzer dort aber suchen: der Treffer blitzte 1,8 s auf, und wenn die Seite gar nicht scrollen musste, bewegte sich überhaupt nichts. Dazu zwei Stellen, die sich selbst erklärten statt zu wirken.
+
+- **Trefferzeile nennt den Weg** ([SettingsNav.tsx](src/plugins/einstellungen/SettingsNav.tsx), [settingsPanels.tsx](src/plugins/einstellungen/settingsPanels.tsx)): „Mein Profil › Persönlicher Assistent" statt nur der Seite; neues Registry-Feld `gruppe`, gehalten vom Guard `settings-treffer-weg`
+- **Markierung bleibt stehen**, bis der Nutzer das nächste Mal klickt oder tippt ([settings-layout.tsx](src/plugins/einstellungen/_shared/settings-layout.tsx), [einstellungen-layout.css](src/plugins/einstellungen/einstellungen-layout.css)) — deklarativ aus dem Sprung-Kontext statt per `classList`-Griff, Scroll zentriert statt oben
+- **Fußzeile „Suche mit Strg + , · Details überall hinter ⓘ" entfernt** samt Kürzel: es stand 22 px unter dem Suchfeld und setzte den Cursor in genau dieses Feld
+- **KI-Variante entdoppelt** ([KiVariantSelector.tsx](src/core/components/KiVariantSelector.tsx)): neue Stufe `nurSteuerung` — Label und Erklärung liefert die Zeile, der eigene Erklärabsatz lief in der Nebenspalte über den Kartenrand
+- **`SettingsOption` bricht um statt zu überlappen**: zu breite Steuerung rutscht in die zweite Zeile (Mindestbreite am engsten Wirt gemessen, nicht geschätzt)
+
 ### v4.31.0 — Interne KI zweispaltig, Suche klappt ihr Ziel auf (August 2026)
 
 MINOR — Letzte Etappe des Einstellungs-Redesigns. Die vierte Seite steht zweispaltig, und beim Abnehmen fiel auf, dass die Suche ihr Sprungziel nur dann aufklappte, wenn es auf derselben Seite lag — ausgerechnet der Sprung auf eine andere Seite blieb wirkungslos.

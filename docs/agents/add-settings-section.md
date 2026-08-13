@@ -49,6 +49,13 @@ Ton setzt `SettingsZweiSpalten` selbst, die Gruppe muss nichts wissen.
    DOM** — sonst springt die Suche ins Leere. Hängt der Abschnitt an einem
    Feature-Flag, hängt der Registry-Eintrag am selben Flag.
 
+   Der Eintrag nennt drei Dinge: `label` = die **gerenderte** Überschrift am
+   Anker, `gruppe` = der `titel` der Karte drumherum (wortgleich), `keywords` =
+   Synonyme. Aus `gruppe` baut die Trefferzeile den Weg „Seite › Gruppe" — die
+   Seite allein trägt bis zu acht Karten. Guard: `settings-treffer-weg` in
+   [conventions-ui.test.ts](../../src/__tests__/conventions-ui.test.ts) prüft
+   beide Richtungen und dass jede genannte Karte existiert.
+
 6. **Keywords mitgeben**, inklusive alter Namen. Wer den früheren Menüpunkt im
    Kopf hat, muss ihn weiter finden (so tragen die Fachprofil-Abschnitte
    „meine technologien").
@@ -58,6 +65,12 @@ Ton setzt `SettingsZweiSpalten` selbst, die Gruppe muss nichts wissen.
 - **Aus einem Effekt heraus nie toggeln** — `SettingsKlappe` klappt Sprungziele
   über `setzeOffen(true)` auf; ein Toggle hebt sich im StrictMode auf
   (Klasse 21 in [recurring-bug-classes.md](../architecture/recurring-bug-classes.md)).
+- **Die Steuerung gehört nicht zweimal beschriftet** — bringt ein Bauteil ein
+  eigenes Label oder einen eigenen Erklärabsatz mit, braucht es eine
+  „nur-Steuerung"-Stufe (so `KiVariantSelector`). Sonst steht die Beschriftung
+  doppelt, und der Absatz sprengt in der Nebenspalte die Karte: der
+  Steuerungs-Slot der `SettingsOption` ist `shrink-0` und nimmt seine
+  Wunschbreite.
 - **Keine lokalen `--tf-*`-Token-Blöcke** — fehlt ein Token, kommt es global in
   `theme.css` (Guard `theme-token-contract`).
 - **Async-Handler über `useAsyncAction`**, nicht `onClick={() => void fn()}`

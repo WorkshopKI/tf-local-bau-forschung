@@ -6,7 +6,7 @@ Persönliche App-Konfiguration: wer Sie sind, was Ihnen angezeigt wird, wie die 
 
 ## UI-Elemente & Begriffe
 
-- **Navigation links** mit Suchfeld (Strg + Komma fokussiert es) und vier Seiten: Mein Profil, Darstellung & Bedienung, Daten & Verbindungen, Interne KI. Die Suche findet Einstellungen über alle vier Seiten hinweg, springt hin, klappt den nötigen Bereich auf und hebt die Zeile kurz hervor.
+- **Navigation links** mit Suchfeld und vier Seiten: Mein Profil, Darstellung & Bedienung, Daten & Verbindungen, Interne KI. Die Suche findet Einstellungen über alle vier Seiten hinweg; jeder Treffer nennt unter seinem Namen den Weg dorthin („Mein Profil › Persönlicher Assistent"). Ein Klick springt hin, klappt den nötigen Bereich auf und **markiert die Zeile so lange, bis Sie das nächste Mal klicken oder tippen**.
 
 - **Zwei Spalten je Seite:** links der Hauptbereich in weißen Karten, rechts eine getönte Nebenspalte mit dem, was daran hängt. Ist das Fenster zu schmal, stehen beide Spalten untereinander.
 

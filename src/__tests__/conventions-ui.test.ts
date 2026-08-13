@@ -909,3 +909,82 @@ describe('hilfe-knopf-am-blattrand (Seiten-Hilfe steht rechts aussen)', () => {
     }
   });
 });
+
+describe('settings-treffer-weg (Einstellungs-Suche nennt ihr Ziel)', () => {
+  // Jeder Treffer der Einstellungs-Suche zeigt „Seite › Gruppe", damit vor dem
+  // Sprung klar ist, WO er landet — eine Seite traegt bis zu acht Karten.
+  // Das haelt nur, solange der `gruppe`-Wert der Registry wortgleich zum
+  // `titel`-Prop der gerenderten SettingsGruppe ist; sonst zeigt die Suche
+  // nach der ersten Umbenennung still auf eine Karte, die es nicht mehr gibt.
+  //
+  // Geprueft wird gegen ALLE Gruppentitel der vier Seiten, nicht je Seite: die
+  // Seiten-Zuordnung steht im selben Objektliteral wie der Anker und ist per
+  // Textscan nicht verlaesslich zu trennen. Der reale Driftfall (Titel
+  // umbenannt, Registry vergessen) wird so trotzdem gefangen.
+  const EINSTELLUNGEN = join(ROOT, 'plugins', 'einstellungen');
+  const REGISTRY = join(EINSTELLUNGEN, 'settingsPanels.tsx');
+
+  /**
+   * Alle `titel="…"`/`titel={'…'}`-Literale der Einstellungs-Seiten. Zeilen mit
+   * `InfoHint` bleiben aussen vor — dessen `titel` ist die Ueberschrift des
+   * Popovers, keine Karte.
+   */
+  function gruppenTitel(): Set<string> {
+    const titel = new Set<string>();
+    for (const file of ALL_TS_FILES) {
+      if (!file.startsWith(EINSTELLUNGEN) || !file.endsWith('.tsx')) continue;
+      for (const zeile of readFileSync(file, 'utf-8').split('\n')) {
+        if (zeile.includes('InfoHint')) continue;
+        const m = /titel=(?:"([^"]+)"|\{'([^']+)'\})/.exec(zeile);
+        if (m) titel.add(m[1] ?? m[2] ?? '');
+      }
+    }
+    return titel;
+  }
+
+  /** Ein Eintrag der Anker-Registry: `{ id: 'sec-…', label: …, gruppe: … }`. */
+  function eintraege(): { id: string; gruppe: string | null }[] {
+    const quelle = readFileSync(REGISTRY, 'utf-8');
+    return [...quelle.matchAll(/\{\s*id:\s*'(sec-[^']+)'([^}]*)\}/g)].map(m => ({
+      id: m[1]!,
+      gruppe: /gruppe:\s*'([^']+)'/.exec(m[2]!)?.[1] ?? null,
+    }));
+  }
+
+  it('jeder Registry-Eintrag nennt seine Gruppe', () => {
+    const ohne = eintraege().filter(e => !e.gruppe).map(e => e.id);
+    expect(ohne, `Ohne \`gruppe\`: ${ohne.join(', ')} — die Trefferzeile zeigte dann nur die Seite.`).toEqual([]);
+  });
+
+  it('jede genannte Gruppe existiert als Karte auf einer der vier Seiten', () => {
+    const titel = gruppenTitel();
+    const unbekannt = [...new Set(eintraege().map(e => e.gruppe).filter((g): g is string => g != null))]
+      .filter(g => !titel.has(g));
+    if (unbekannt.length > 0) {
+      expect.fail(
+        `Die Einstellungs-Suche verweist auf Karten, die es nicht (mehr) gibt:\n` +
+        `  ${unbekannt.join('\n  ')}\n\n` +
+        `Der \`gruppe\`-Wert in settingsPanels.tsx muss WORTGLEICH dem \`titel\`-Prop\n` +
+        `der SettingsGruppe sein, in deren Karte der Anker sitzt. Wurde eine Karte\n` +
+        `umbenannt, zieht die Registry mit (docs/agents/add-settings-section.md).\n\n` +
+        `Vorhandene Kartentitel:\n  ${[...titel].sort().join('\n  ')}`,
+      );
+    }
+  });
+
+  it('Registry-Anker existiert im DOM-Baum der Seiten', () => {
+    // Gegenrichtung derselben Regel: kein Eintrag ohne Anker, sonst springt die
+    // Suche ins Leere (v4.31 hatte das fuer zwei Abschnitte).
+    const anker = new Set<string>();
+    for (const file of ALL_TS_FILES) {
+      if (!file.startsWith(EINSTELLUNGEN) || !file.endsWith('.tsx') || file === REGISTRY) continue;
+      const quelle = readFileSync(file, 'utf-8');
+      for (const m of quelle.matchAll(/id=(?:"(sec-[^"]+)"|\{[^}]*'(sec-[^']+)'[^}]*\})/g)) {
+        anker.add(m[1] ?? m[2] ?? '');
+      }
+    }
+    const fehlend = eintraege().map(e => e.id).filter(id => !anker.has(id));
+    expect(fehlend, `Ohne Anker im DOM: ${fehlend.join(', ')}`).toEqual([]);
+  });
+});
+
