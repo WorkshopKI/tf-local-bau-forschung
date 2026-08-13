@@ -123,7 +123,7 @@ export function CsvSourcesPage(): React.ReactElement {
   const fixtureWarn = fixtureSourceWarning(schemas, isDevFixturesEnabled());
 
   return (
-    <div className="p-6 max-w-5xl mx-auto">
+    <div className="p-6">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-[22px] font-medium text-[var(--tf-text)]">CSV-Sources</h1>
         <div className="flex items-center gap-2 shrink-0">
@@ -138,95 +138,97 @@ export function CsvSourcesPage(): React.ReactElement {
           <SeitenHilfeButton pluginId="csv-sources-kuration" />
         </div>
       </div>
+      <div className="max-w-5xl">
 
-      {!session.isActive ? (
-        <div className="mb-4 text-[12.5px] text-[var(--tf-text-secondary)]">
-          Kurator-Modus nicht aktiv. Schemas sind nur lesbar. Aktivierung in Einstellungen → Profil → Kurator-Bereich.
-        </div>
-      ) : null}
-
-      {pickError ? (
-        <div className="mb-4 rounded-md border-[0.5px] border-red-300 bg-red-50 p-2.5 text-[12px] text-red-800">
-          {pickError}
-        </div>
-      ) : null}
-
-      {convertResult && convertResult.length > 0 ? (
-        <div className="mb-4 rounded-md border-[0.5px] border-emerald-300 bg-emerald-50 p-3 text-[12px] text-emerald-900">
-          <div className="font-medium mb-0.5">
-            {convertResult.length} Demo-Quelle{convertResult.length === 1 ? '' : 'n'} in echte Quellen umgewandelt — Mappings übernommen.
+        {!session.isActive ? (
+          <div className="mb-4 text-[12.5px] text-[var(--tf-text-secondary)]">
+            Kurator-Modus nicht aktiv. Schemas sind nur lesbar. Aktivierung in Einstellungen → Profil → Kurator-Bereich.
           </div>
-          <div className="font-mono text-[11px] mb-1">{convertResult.map(r => `${r.name} → ${r.newId}`).join(' · ')}</div>
-          Nächste Schritte: pro Quelle <strong>„CSV neu wählen"</strong> → echte Datei → <strong>Windows-1252</strong> → importieren;
-          danach <strong>„Antrags-Daten zurücksetzen"</strong> (löscht die Demo-Anträge).
-        </div>
-      ) : null}
+        ) : null}
 
-      {fixtureWarn ? (
-        <div className="mb-4 rounded-md border-[0.5px] border-red-300 bg-red-50 p-3">
-          <div className="flex items-start gap-2">
-            <AlertTriangle size={15} className="mt-0.5 flex-shrink-0 text-red-700" />
-            <div className="text-[12px] text-red-900">
-              <div className="font-medium mb-0.5">
-                {fixtureWarn.allFixtures
-                  ? 'Nur Demo-/Fixture-Quellen registriert — keine echten CSV-Quellen.'
-                  : `${fixtureWarn.fixtureCount} von ${fixtureWarn.total} Quellen sind Demo-/Fixture-Quellen.`}
-              </div>
-              Diese <span className="font-mono">fixture-real-*</span>-Quellen sind vom Auto-Refresh
-              ausgeschlossen — die echten CSV-Exporte werden so <strong>nie importiert</strong>.
-              Wandle sie in echte Quellen um (Mapping bleibt erhalten) oder lege sie über
-              „Neu registrieren" neu an.
-              {session.isActive ? (
-                <div className="mt-2 flex items-center gap-2">
-                  <Button
-                    size="sm"
-                    variant="default"
-                    onClick={() => convertFixtures.run()}
-                    disabled={convertFixtures.busy}
-                  >
-                    {convertFixtures.busy ? 'Wandle um…' : 'In echte Quellen umwandeln (Mapping bleibt)'}
-                  </Button>
-                  {convertFixtures.error ? (
-                    <span className="text-[11.5px] text-red-700">Fehler: {convertFixtures.error}</span>
-                  ) : null}
+        {pickError ? (
+          <div className="mb-4 rounded-md border-[0.5px] border-red-300 bg-red-50 p-2.5 text-[12px] text-red-800">
+            {pickError}
+          </div>
+        ) : null}
+
+        {convertResult && convertResult.length > 0 ? (
+          <div className="mb-4 rounded-md border-[0.5px] border-emerald-300 bg-emerald-50 p-3 text-[12px] text-emerald-900">
+            <div className="font-medium mb-0.5">
+              {convertResult.length} Demo-Quelle{convertResult.length === 1 ? '' : 'n'} in echte Quellen umgewandelt — Mappings übernommen.
+            </div>
+            <div className="font-mono text-[11px] mb-1">{convertResult.map(r => `${r.name} → ${r.newId}`).join(' · ')}</div>
+            Nächste Schritte: pro Quelle <strong>„CSV neu wählen"</strong> → echte Datei → <strong>Windows-1252</strong> → importieren;
+            danach <strong>„Antrags-Daten zurücksetzen"</strong> (löscht die Demo-Anträge).
+          </div>
+        ) : null}
+
+        {fixtureWarn ? (
+          <div className="mb-4 rounded-md border-[0.5px] border-red-300 bg-red-50 p-3">
+            <div className="flex items-start gap-2">
+              <AlertTriangle size={15} className="mt-0.5 flex-shrink-0 text-red-700" />
+              <div className="text-[12px] text-red-900">
+                <div className="font-medium mb-0.5">
+                  {fixtureWarn.allFixtures
+                    ? 'Nur Demo-/Fixture-Quellen registriert — keine echten CSV-Quellen.'
+                    : `${fixtureWarn.fixtureCount} von ${fixtureWarn.total} Quellen sind Demo-/Fixture-Quellen.`}
                 </div>
-              ) : null}
+                Diese <span className="font-mono">fixture-real-*</span>-Quellen sind vom Auto-Refresh
+                ausgeschlossen — die echten CSV-Exporte werden so <strong>nie importiert</strong>.
+                Wandle sie in echte Quellen um (Mapping bleibt erhalten) oder lege sie über
+                „Neu registrieren" neu an.
+                {session.isActive ? (
+                  <div className="mt-2 flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="default"
+                      onClick={() => convertFixtures.run()}
+                      disabled={convertFixtures.busy}
+                    >
+                      {convertFixtures.busy ? 'Wandle um…' : 'In echte Quellen umwandeln (Mapping bleibt)'}
+                    </Button>
+                    {convertFixtures.error ? (
+                      <span className="text-[11.5px] text-red-700">Fehler: {convertFixtures.error}</span>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
             </div>
           </div>
-        </div>
-      ) : null}
+        ) : null}
 
-      <SourceList
-        schemas={schemas}
-        sessionActive={session.isActive}
-        updateChecks={updateChecks}
-        deleteConfirmId={deleteConfirmId}
-        setDeleteConfirmId={setDeleteConfirmId}
-        onOpenDetail={setDetailSchema}
-        onAutoUpdate={handleAutoUpdate}
-        onRemap={setRemapSchema}
-        onReselect={handleReselect}
-        onConfirmDelete={onConfirmDelete}
-      />
+        <SourceList
+          schemas={schemas}
+          sessionActive={session.isActive}
+          updateChecks={updateChecks}
+          deleteConfirmId={deleteConfirmId}
+          setDeleteConfirmId={setDeleteConfirmId}
+          onOpenDetail={setDetailSchema}
+          onAutoUpdate={handleAutoUpdate}
+          onRemap={setRemapSchema}
+          onReselect={handleReselect}
+          onConfirmDelete={onConfirmDelete}
+        />
 
-      <MaintenanceSection />
+        <MaintenanceSection />
 
-      <SchemaRecoverySection programmId={programmId} onRestored={() => { void refresh(); }} />
+        <SchemaRecoverySection programmId={programmId} onRestored={() => { void refresh(); }} />
 
-      <SourceModals
-        programmId={programmId}
-        wizardOpen={wizardOpen}
-        onCloseWizard={() => setWizardOpen(false)}
-        reimportRequest={reimportRequest}
-        setReimportRequest={setReimportRequest}
-        addColumnsRequest={addColumnsRequest}
-        setAddColumnsRequest={setAddColumnsRequest}
-        remapSchema={remapSchema}
-        setRemapSchema={setRemapSchema}
-        detailSchema={detailSchema}
-        setDetailSchema={setDetailSchema}
-        onRefresh={() => { void refresh(); }}
-      />
+        <SourceModals
+          programmId={programmId}
+          wizardOpen={wizardOpen}
+          onCloseWizard={() => setWizardOpen(false)}
+          reimportRequest={reimportRequest}
+          setReimportRequest={setReimportRequest}
+          addColumnsRequest={addColumnsRequest}
+          setAddColumnsRequest={setAddColumnsRequest}
+          remapSchema={remapSchema}
+          setRemapSchema={setRemapSchema}
+          detailSchema={detailSchema}
+          setDetailSchema={setDetailSchema}
+          onRefresh={() => { void refresh(); }}
+        />
+      </div>
     </div>
   );
 }

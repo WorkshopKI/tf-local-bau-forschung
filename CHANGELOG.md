@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.15.0 — Hilfe steht auf jeder Seite am Blattrand (August 2026)
+
+MINOR — „Rechtsbündig als letztes Element der Kopf-Aktionen" stand als Regel im Doc, aber rechtsbündig **wovon** stand nirgends. Auf elf Seiten steckte der Hilfe-Knopf darum in der schmalen Inhaltsspalte und hing mitten in der Fläche — auf den Förderanträgen 414 px vor dem Rand, gemessen auf einem 1520 px breiten Blatt. Gesucht wird er trotzdem am Rand, so wie ihn die Startseite zeigt.
+
+- **Elf Kopfzeilen spannen jetzt die volle Blattbreite** ([AntraegeHeader.tsx](src/plugins/antraege/AntraegeHeader.tsx), [SuchSeite.tsx](src/plugins/suche/SuchSeite.tsx), [EinstellungenPage.tsx](src/plugins/einstellungen/EinstellungenPage.tsx), [HomePage.tsx](src/plugins/home/HomePage.tsx) u. a.): der Rumpf behält seine Spaltenbreite (1024/896/672 px unverändert), nur der Kopf reicht bis an den Rand
+- **Vier zentrierte Kurator-Spalten stehen links** ([CsvSourcesPage.tsx](src/plugins/csv-sources-kuration/CsvSourcesPage.tsx), [ProgrammeAdminPage.tsx](src/plugins/programme-kuration/ProgrammeAdminPage.tsx), [IndexManager.tsx](src/plugins/kurator/IndexManager.tsx), [AnfragenEinstellungenPage.tsx](src/plugins/anfragen/AnfragenEinstellungenPage.tsx)): `mx-auto` raus, sonst fluchten Titel und Inhalt nach dem Umbau nicht mehr
+- **Die Regel steht jetzt geschrieben** ([ui-muster.md](docs/architecture/ui-muster.md)): Kopfzeile über die volle Blattbreite, schmalerer Rumpf erst darunter — samt Muster-Schnipsel
+- **Guard `hilfe-knopf-am-blattrand`** ([conventions-ui.test.ts](src/__tests__/conventions-ui.test.ts)): liest die Vorfahren-Kette des Knopfes über die Einrückung — auch hinter einer Klassen-Konstante — und fällt bei jedem `max-w-*` darüber; er hätte alle elf Fundstellen gemeldet
+- **Gemessen in `dev:local` statt angesagt**: 15 Routen, Abstand zum Blattrand überall 24 bzw. 32 px (= das Seiten-Padding), Detail-Schließen-Kreuz 103 px darunter ohne Kollision, `__tf.fehler()` 0
+
 ### v4.14.0 — Suchindex: nur noch das gefuehrte Embedding-Modell (August 2026)
 
 MINOR — Die Modell-Auswahl im Kurator-Bereich bot vier Embedding-Modelle an, obwohl die Entscheidung längst gefallen ist: der gesamte Bestand (Suchindex, Auslastungs-Korpus auf dem Share, Kategorie-Centroids) ist mit EmbeddingGemma gebaut, und ein Wechsel entwertet alle drei gleichzeitig (Pitfall #19). Eine Liste, aus der nur ein Eintrag richtig ist, ist keine Wahl, sondern eine Falle.

@@ -484,7 +484,10 @@ export function SuchSeite(): React.ReactElement {
         <div className="px-8 pt-4 pb-6">
 
           {/* ── Kopf ─────────────────────────────────────────────────────── */}
-          <div className="mb-4 flex w-full max-w-6xl items-center gap-3">
+          {/* Volle Blattbreite (KEIN max-w-6xl wie die Zeilen darunter): die
+              Kopf-Aktionen — und mit ihnen der Hilfe-Knopf — gehören an den
+              rechten Blattrand (ui-muster.md, Guard `hilfe-knopf-am-blattrand`). */}
+          <div className="mb-4 flex w-full items-center gap-3">
             <h1 className="text-[22px] font-medium text-[var(--tf-text)]">Suche</h1>
             <div className="ml-auto flex shrink-0 items-center gap-1">
               <div className="relative">

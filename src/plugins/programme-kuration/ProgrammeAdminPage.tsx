@@ -117,7 +117,7 @@ export function ProgrammeAdminPage(): React.ReactElement {
   };
 
   return (
-    <div className="p-6 max-w-5xl mx-auto">
+    <div className="p-6">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-[22px] font-medium text-[var(--tf-text)]">Programme</h1>
         <div className="flex items-center gap-2 shrink-0">
@@ -132,152 +132,154 @@ export function ProgrammeAdminPage(): React.ReactElement {
           <SeitenHilfeButton pluginId="programme-kuration" />
         </div>
       </div>
+      <div className="max-w-5xl">
 
-      <p className="text-[12.5px] text-[var(--tf-text-secondary)] mb-4">
-        Datenmodell-Scope (Aktenzeichen, CSV-Schemas, Anträge) ist an die Programm-ID gebunden.
-        Mit dem Sidebar-Switcher wechselt der User zwischen seinen Programmen.
-      </p>
+        <p className="text-[12.5px] text-[var(--tf-text-secondary)] mb-4">
+          Datenmodell-Scope (Aktenzeichen, CSV-Schemas, Anträge) ist an die Programm-ID gebunden.
+          Mit dem Sidebar-Switcher wechselt der User zwischen seinen Programmen.
+        </p>
 
-      <SectionHeader label="Registrierte Programme" />
+        <SectionHeader label="Registrierte Programme" />
 
-      {programme.length === 0 ? (
-        <div className="py-10 text-center text-[13px] text-[var(--tf-text-tertiary)]">
-          Noch kein Programm registriert. Erst Programm-Ordner im Dev-Panel (SMB) auswählen.
-        </div>
-      ) : (
-        <div>
-          {programme.map((p, i) => {
-            const isActive = p.id === activeProgrammId;
-            const count = antragCounts.get(p.id) ?? 0;
-            const canDelete = count === 0 && programme.length > 1;
-            return (
-              <div
-                key={p.id}
-                className="flex items-center justify-between py-3"
-                style={i === programme.length - 1 ? undefined : { borderBottom: '0.5px solid var(--tf-border)' }}
-              >
-                <div className="flex items-center gap-2">
-                  <div>
-                    <div className="text-[14px] text-[var(--tf-text)]">{p.name}</div>
-                    <div className="text-[11.5px] font-mono text-[var(--tf-text-tertiary)]">{p.id}</div>
+        {programme.length === 0 ? (
+          <div className="py-10 text-center text-[13px] text-[var(--tf-text-tertiary)]">
+            Noch kein Programm registriert. Erst Programm-Ordner im Dev-Panel (SMB) auswählen.
+          </div>
+        ) : (
+          <div>
+            {programme.map((p, i) => {
+              const isActive = p.id === activeProgrammId;
+              const count = antragCounts.get(p.id) ?? 0;
+              const canDelete = count === 0 && programme.length > 1;
+              return (
+                <div
+                  key={p.id}
+                  className="flex items-center justify-between py-3"
+                  style={i === programme.length - 1 ? undefined : { borderBottom: '0.5px solid var(--tf-border)' }}
+                >
+                  <div className="flex items-center gap-2">
+                    <div>
+                      <div className="text-[14px] text-[var(--tf-text)]">{p.name}</div>
+                      <div className="text-[11.5px] font-mono text-[var(--tf-text-tertiary)]">{p.id}</div>
+                    </div>
+                    {isActive && (
+                      <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10.5px] font-medium text-emerald-800">
+                        aktiv
+                      </span>
+                    )}
                   </div>
-                  {isActive && (
-                    <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10.5px] font-medium text-emerald-800">
-                      aktiv
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11.5px] text-[var(--tf-text-tertiary)]">
+                      {count} Anträge · angelegt {new Date(p.created_at).toLocaleDateString('de-DE')}
                     </span>
-                  )}
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-[11.5px] text-[var(--tf-text-tertiary)]">
-                    {count} Anträge · angelegt {new Date(p.created_at).toLocaleDateString('de-DE')}
-                  </span>
-                  {!isActive && (
+                    {!isActive && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => { void onSwitchActive(p.id); }}
+                      >
+                        Aktivieren
+                      </Button>
+                    )}
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => { void onSwitchActive(p.id); }}
-                    >
-                      Aktivieren
-                    </Button>
-                  )}
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => { setRenameOpen(p); setNewName(p.name); }}
-                    disabled={!session.isActive}
-                  >
-                    Umbenennen
-                  </Button>
-                  {canDelete && (
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      onClick={() => { setDeleteConfirm(p); setErrorMsg(null); }}
+                      onClick={() => { setRenameOpen(p); setNewName(p.name); }}
                       disabled={!session.isActive}
-                      title="Programm löschen (nur möglich bei 0 Anträgen)"
                     >
-                      Löschen
+                      Umbenennen
                     </Button>
-                  )}
+                    {canDelete && (
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => { setDeleteConfirm(p); setErrorMsg(null); }}
+                        disabled={!session.isActive}
+                        title="Programm löschen (nur möglich bei 0 Anträgen)"
+                      >
+                        Löschen
+                      </Button>
+                    )}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+              );
+            })}
+          </div>
+        )}
 
-      {activeProgrammId ? (
-        <UnterprogrammeSection
-          key={activeProgrammId}
-          programmId={activeProgrammId}
-          programmName={programme.find(p => p.id === activeProgrammId)?.name}
-        />
-      ) : null}
-
-      <Dialog
-        open={!!renameOpen}
-        onClose={() => setRenameOpen(null)}
-        title="Programm umbenennen"
-        footer={
-          <>
-            <Button size="sm" variant="ghost" onClick={() => setRenameOpen(null)}>Abbrechen</Button>
-            <Button size="sm" variant="default" onClick={onRename}>Speichern</Button>
-          </>
-        }
-      >
-        <Input value={newName} onChange={e => setNewName(e.target.value)} autoFocus />
-      </Dialog>
-
-      <Dialog
-        open={!!deleteConfirm}
-        onClose={() => { setDeleteConfirm(null); setErrorMsg(null); }}
-        title="Programm löschen"
-        footer={
-          <>
-            <Button size="sm" variant="ghost" onClick={() => { setDeleteConfirm(null); setErrorMsg(null); }}>Abbrechen</Button>
-            <Button size="sm" variant="destructive" onClick={onDelete}>Endgültig löschen</Button>
-          </>
-        }
-      >
-        <div className="space-y-2">
-          <p className="text-[13px] text-[var(--tf-text)]">
-            Programm <strong>{deleteConfirm?.name}</strong> wirklich löschen?
-          </p>
-          <p className="text-[12px] text-[var(--tf-text-secondary)]">
-            Es hat 0 Anträge — der Programm-Eintrag wird aus IDB entfernt. Zugehörige
-            CSV-Schemas, Row-Hashes, Unterprogramme, Verbünde und Filter werden ebenfalls
-            gelöscht (Cascade-Cleanup).
-          </p>
-          {errorMsg && (
-            <p className="text-[12px] text-red-600">{errorMsg}</p>
-          )}
-        </div>
-      </Dialog>
-
-      <Dialog
-        open={createOpen}
-        onClose={() => setCreateOpen(false)}
-        title="Neues Programm anlegen"
-        footer={
-          <>
-            <Button size="sm" variant="ghost" onClick={() => setCreateOpen(false)}>Abbrechen</Button>
-            <Button size="sm" variant="default" onClick={onCreate} disabled={!newName.trim()}>Anlegen</Button>
-          </>
-        }
-      >
-        <div className="space-y-2">
-          <p className="text-[12px] text-[var(--tf-text-secondary)]">
-            Name des Förderprogramms (z.B. „ZIM 2026", „EXIST", „GO-Bio"). Wird nach dem Anlegen
-            sofort als aktiv gesetzt — du kannst dann CSV-Quellen, Filter etc. dafür einrichten.
-          </p>
-          <Input
-            value={newName}
-            onChange={e => setNewName(e.target.value)}
-            placeholder="Programm-Name"
-            autoFocus
+        {activeProgrammId ? (
+          <UnterprogrammeSection
+            key={activeProgrammId}
+            programmId={activeProgrammId}
+            programmName={programme.find(p => p.id === activeProgrammId)?.name}
           />
-        </div>
-      </Dialog>
+        ) : null}
+
+        <Dialog
+          open={!!renameOpen}
+          onClose={() => setRenameOpen(null)}
+          title="Programm umbenennen"
+          footer={
+            <>
+              <Button size="sm" variant="ghost" onClick={() => setRenameOpen(null)}>Abbrechen</Button>
+              <Button size="sm" variant="default" onClick={onRename}>Speichern</Button>
+            </>
+          }
+        >
+          <Input value={newName} onChange={e => setNewName(e.target.value)} autoFocus />
+        </Dialog>
+
+        <Dialog
+          open={!!deleteConfirm}
+          onClose={() => { setDeleteConfirm(null); setErrorMsg(null); }}
+          title="Programm löschen"
+          footer={
+            <>
+              <Button size="sm" variant="ghost" onClick={() => { setDeleteConfirm(null); setErrorMsg(null); }}>Abbrechen</Button>
+              <Button size="sm" variant="destructive" onClick={onDelete}>Endgültig löschen</Button>
+            </>
+          }
+        >
+          <div className="space-y-2">
+            <p className="text-[13px] text-[var(--tf-text)]">
+              Programm <strong>{deleteConfirm?.name}</strong> wirklich löschen?
+            </p>
+            <p className="text-[12px] text-[var(--tf-text-secondary)]">
+              Es hat 0 Anträge — der Programm-Eintrag wird aus IDB entfernt. Zugehörige
+              CSV-Schemas, Row-Hashes, Unterprogramme, Verbünde und Filter werden ebenfalls
+              gelöscht (Cascade-Cleanup).
+            </p>
+            {errorMsg && (
+              <p className="text-[12px] text-red-600">{errorMsg}</p>
+            )}
+          </div>
+        </Dialog>
+
+        <Dialog
+          open={createOpen}
+          onClose={() => setCreateOpen(false)}
+          title="Neues Programm anlegen"
+          footer={
+            <>
+              <Button size="sm" variant="ghost" onClick={() => setCreateOpen(false)}>Abbrechen</Button>
+              <Button size="sm" variant="default" onClick={onCreate} disabled={!newName.trim()}>Anlegen</Button>
+            </>
+          }
+        >
+          <div className="space-y-2">
+            <p className="text-[12px] text-[var(--tf-text-secondary)]">
+              Name des Förderprogramms (z.B. „ZIM 2026", „EXIST", „GO-Bio"). Wird nach dem Anlegen
+              sofort als aktiv gesetzt — du kannst dann CSV-Quellen, Filter etc. dafür einrichten.
+            </p>
+            <Input
+              value={newName}
+              onChange={e => setNewName(e.target.value)}
+              placeholder="Programm-Name"
+              autoFocus
+            />
+          </div>
+        </Dialog>
+      </div>
     </div>
   );
 }

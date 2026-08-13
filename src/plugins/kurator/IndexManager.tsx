@@ -107,7 +107,7 @@ export function IndexManager(): React.ReactElement {
   const activeModel = getModelById(activeModelId);
 
   return (
-    <div className="p-6 max-w-5xl mx-auto">
+    <div className="p-6">
       {/* Header mit Ampel */}
       <div className="flex items-end justify-between mb-5">
         <div>
@@ -127,32 +127,34 @@ export function IndexManager(): React.ReactElement {
           <SeitenHilfeButton pluginId="kurator" />
         </div>
       </div>
+      <div className="max-w-5xl">
 
-      <Tabs tabs={TABS} activeTab={tab} onChange={setTab} />
+        <Tabs tabs={TABS} activeTab={tab} onChange={setTab} />
 
-      <div className="mt-6">
-        {tab === 'overview' ? (
-          <UserView
-            chunkCount={chunkCount} docCount={docCount} lastUpdate={lastUpdate}
-            activeModelLabel={activeModel.label} hasGPU={hasGPU}
-            fsConnected={fsConnected} ampelColor={amp.color}
-            qualityPct={qualityPct}
-            metadataLLMLabel={metadataLLMLabel} smokeTestScore={smokeTestScore}
-          />
-        ) : (
-          <AdminView
-            chunkCount={chunkCount} docCount={docCount}
-            activeModelId={activeModelId}
-            seeded={seeded} seeding={seeding} seedProgress={seedProgress}
-            indexOutdated={indexOutdated} alteWorttrennung={alteWorttrennung} hasGPU={hasGPU}
-            qualityPct={qualityPct} newDocsCount={newDocsCount}
-            setDocCount={setDocCount} setChunkCount={setChunkCount}
-            setLastUpdate={setLastUpdate} setActiveModelIdState={setActiveModelIdState}
-            setIndexModelId={setIndexModelId} setSeeded={setSeeded}
-            setSeeding={setSeeding} setSeedProgress={setSeedProgress}
-            setNewDocsCount={setNewDocsCount}
-          />
-        )}
+        <div className="mt-6">
+          {tab === 'overview' ? (
+            <UserView
+              chunkCount={chunkCount} docCount={docCount} lastUpdate={lastUpdate}
+              activeModelLabel={activeModel.label} hasGPU={hasGPU}
+              fsConnected={fsConnected} ampelColor={amp.color}
+              qualityPct={qualityPct}
+              metadataLLMLabel={metadataLLMLabel} smokeTestScore={smokeTestScore}
+            />
+          ) : (
+            <AdminView
+              chunkCount={chunkCount} docCount={docCount}
+              activeModelId={activeModelId}
+              seeded={seeded} seeding={seeding} seedProgress={seedProgress}
+              indexOutdated={indexOutdated} alteWorttrennung={alteWorttrennung} hasGPU={hasGPU}
+              qualityPct={qualityPct} newDocsCount={newDocsCount}
+              setDocCount={setDocCount} setChunkCount={setChunkCount}
+              setLastUpdate={setLastUpdate} setActiveModelIdState={setActiveModelIdState}
+              setIndexModelId={setIndexModelId} setSeeded={setSeeded}
+              setSeeding={setSeeding} setSeedProgress={setSeedProgress}
+              setNewDocsCount={setNewDocsCount}
+            />
+          )}
+        </div>
       </div>
     </div>
   );

@@ -236,8 +236,10 @@ export function HomePage(): React.ReactElement {
   }
 
   return (
-    <div className="px-8 pt-4 pb-6 max-w-[1600px]" onContextMenu={beiRechtsklick}>
-      {/* Header */}
+    <div className="px-8 pt-4 pb-6" onContextMenu={beiRechtsklick}>
+      {/* Header — über die VOLLE Blattbreite (die 1600px-Grenze gilt erst dem
+          Rumpf darunter): der Hilfe-Knopf steht auf jeder Seite am rechten
+          Blattrand (ui-muster.md, Guard `hilfe-knopf-am-blattrand`). */}
       <div data-tour="home-dashboard" className="mb-6 flex items-start gap-3">
         <div className="min-w-0">
           <h1 className="text-[22px] font-medium text-[var(--tf-text)]">{data.greeting}{name ? `, ${name}` : ''}</h1>
@@ -261,35 +263,37 @@ export function HomePage(): React.ReactElement {
         <div className="shrink-0"><SeitenHilfeButton pluginId="home" /></div>
       </div>
 
-      <RechtsklickHinweis />
+      <div className="max-w-[1600px]">
+        <RechtsklickHinweis />
 
-      {data.bearbeiterFilterActive && data.bearbeiterKuerzelMissing ? (
-        <BearbeiterKuerzelMissingAlert tokens={data.bearbeiterTokens} />
-      ) : null}
+        {data.bearbeiterFilterActive && data.bearbeiterKuerzelMissing ? (
+          <BearbeiterKuerzelMissingAlert tokens={data.bearbeiterTokens} />
+        ) : null}
 
-      {/* Multi-Programm-Übersicht — versteckt bei <= 1 Programm */}
-      <ProgrammeOverviewCards />
+        {/* Multi-Programm-Übersicht — versteckt bei <= 1 Programm */}
+        <ProgrammeOverviewCards />
 
-      {/* Two-column grid — beide Spalten rendern Widget-Instanzen aus der
-          persönlichen Config (Reihenfolge/Sichtbarkeit/Collapse). Der ziehbare
-          Trenn-Griff (HomeZweiSpalten) verbreitert die Hauptspalte für den
-          Kanban. Die Sonderfälle (Begrüßung, Alert, ProgrammeOverviewCards,
-          Early-Returns/Tour) bleiben bewusst KEINE Widgets. „Neue Anträge für
-          dich" (MA-Selbsteintragung) ist seit v2.238 ein echtes Katalog-Widget
-          (flag-gebunden über sichtbarWenn) und wird vom haupt-Stack gerendert. */}
-      <HomeZweiSpalten
-        main={
-          <div className="min-w-0 space-y-[18px]">
-            {/* Hero-Band (fixes Element, kein Widget) — Arbeitseinstieg oben in
-                der Hauptspalte, Rail top-aligned daneben (Handoff-Layout). */}
-            <HomeHero counts={ampelCounts} schwellen={schwellen} onOpenBucket={openBucket} onOpenQs={openQs} />
-            <div data-tour="document-list">
-              <HomeWidgetStack bereich="haupt" ctx={widgetCtx} className="space-y-[18px]" />
+        {/* Two-column grid — beide Spalten rendern Widget-Instanzen aus der
+            persönlichen Config (Reihenfolge/Sichtbarkeit/Collapse). Der ziehbare
+            Trenn-Griff (HomeZweiSpalten) verbreitert die Hauptspalte für den
+            Kanban. Die Sonderfälle (Begrüßung, Alert, ProgrammeOverviewCards,
+            Early-Returns/Tour) bleiben bewusst KEINE Widgets. „Neue Anträge für
+            dich" (MA-Selbsteintragung) ist seit v2.238 ein echtes Katalog-Widget
+            (flag-gebunden über sichtbarWenn) und wird vom haupt-Stack gerendert. */}
+        <HomeZweiSpalten
+          main={
+            <div className="min-w-0 space-y-[18px]">
+              {/* Hero-Band (fixes Element, kein Widget) — Arbeitseinstieg oben in
+                  der Hauptspalte, Rail top-aligned daneben (Handoff-Layout). */}
+              <HomeHero counts={ampelCounts} schwellen={schwellen} onOpenBucket={openBucket} onOpenQs={openQs} />
+              <div data-tour="document-list">
+                <HomeWidgetStack bereich="haupt" ctx={widgetCtx} className="space-y-[18px]" />
+              </div>
             </div>
-          </div>
-        }
-        seite={<HomeWidgetStack bereich="seite" ctx={widgetCtx} className="space-y-3" />}
-      />
+          }
+          seite={<HomeWidgetStack bereich="seite" ctx={widgetCtx} className="space-y-3" />}
+        />
+      </div>
 
       {/* Menü und Rückgängig-Leiste portalen bzw. sitzen `fixed` — Position im
           Baum ist egal, sie stehen hier nur beieinander. */}

@@ -142,13 +142,15 @@ export function DokumenteListe({ narrow = false }: Props): React.ReactElement {
   const containerClass = narrow
     ? 'flex-1 min-w-0 h-full overflow-y-auto'
     : 'flex-1 min-w-0 h-full overflow-y-auto';
-  const innerClass = narrow
-    ? 'px-6 pt-4 pb-6'
-    : 'px-8 pt-4 pb-6 max-w-5xl';
+  // Kopfzeile über die volle Blattbreite, Rumpf darunter schmal: der
+  // Hilfe-Knopf steht auf jeder Seite am rechten Blattrand (ui-muster.md,
+  // Guard `hilfe-knopf-am-blattrand`).
+  const kopfClass = narrow ? 'px-6 pt-4' : 'px-8 pt-4';
+  const rumpfClass = narrow ? 'px-6 pb-6' : 'px-8 pb-6 max-w-5xl';
 
   return (
     <div className={containerClass}>
-      <div className={innerClass}>
+      <div className={kopfClass}>
         {/* Header */}
         <div className="flex items-center justify-between mb-5">
           <div>
@@ -166,7 +168,8 @@ export function DokumenteListe({ narrow = false }: Props): React.ReactElement {
             <SeitenHilfeButton pluginId="dokumente" />
           </div>
         </div>
-
+      </div>
+      <div className={rumpfClass}>
         {/* Drop-Zone */}
         {showDropZone && !narrow && (
           <div className="mb-5">

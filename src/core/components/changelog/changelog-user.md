@@ -19,6 +19,12 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.15 — 2026-08
+
+### Verbesserungen
+- Der Knopf „Hilfe" steht jetzt auf jeder Seite an derselben Stelle: oben rechts am Rand, so wie auf der Startseite. Bisher rutschte er auf manchen Seiten weit in die Fläche hinein.
+- Die Kurator-Seiten „CSV-Quellen", „Programme", „Suchindex" und „E-Mail Anfragen: Einstellungen" beginnen links statt mittig — Überschrift und Inhalt stehen wieder untereinander.
+
 ## v4.14 — 2026-08
 
 ### Neu

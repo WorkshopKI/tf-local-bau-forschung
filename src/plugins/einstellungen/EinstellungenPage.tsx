@@ -74,13 +74,16 @@ export function EinstellungenPage(): React.ReactElement {
   }, [activePanel]);
 
   return (
-    <div className="px-8 pt-4 pb-6 max-w-5xl">
+    <div className="px-8 pt-4 pb-6">
+      {/* Kopfzeile über die volle Blattbreite, Rumpf darunter schmal: der
+          Hilfe-Knopf steht auf jeder Seite am rechten Blattrand
+          (ui-muster.md, Guard `hilfe-knopf-am-blattrand`). */}
       <div className="flex items-center gap-3 mb-6">
         <h1 className="text-[22px] font-medium text-[var(--tf-text)]">Einstellungen</h1>
         <div className="ml-auto shrink-0"><SeitenHilfeButton pluginId="einstellungen" /></div>
       </div>
 
-      <div className="grid grid-cols-[224px_1fr] items-start gap-0">
+      <div className="grid grid-cols-[224px_1fr] items-start gap-0 max-w-5xl">
         <SettingsNav
           panels={panels}
           activePanel={active.id}

@@ -5,6 +5,12 @@
  * Einbau je Seite eine Zeile:
  *   <PageHeader … actions={<SeitenHilfeButton pluginId="meilensteine" />} />
  *
+ * Der Knopf steht auf JEDER Seite am rechten BLATTRAND — er ist überall dasselbe
+ * Bauteil und wird deshalb überall an derselben Stelle gesucht. Dafür spannt die
+ * Kopfzeile die volle Blattbreite; eine schmalere Inhaltsspalte (`max-w-*`)
+ * beginnt erst im Rumpf darunter. Guard: `hilfe-knopf-am-blattrand`
+ * (src/__tests__/conventions-ui.test.ts), Regel: docs/architecture/ui-muster.md.
+ *
  * Fehlt ein Doc (oder bleibt nach dem Technik-Strip nichts übrig), rendert die
  * Komponente NICHTS — kein toter Knopf. Inhalt + Strip-Regeln: screenContext.ts.
  *

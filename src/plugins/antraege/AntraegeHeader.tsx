@@ -104,14 +104,15 @@ export function AntraegeHeader({ filterOpen, onToggleFilter, listeSichtbar }: Pr
       className="shrink-0 pt-4 pb-0"
       style={{ borderBottom: '0.5px solid var(--tf-border)' }}
     >
-      {/* Inhalts-Wrapper teilt EXAKT die Content-Box von Toolbar + Liste/Tabelle
-          (max-w-6xl px-8, Padding innen) — dadurch fluchten Header-Icons,
-          „Spalten"-Dropdown und Tabellen-Rand. Die Unterkanten-Border läuft
-          voll durch, weil sie auf dem äußeren (padding-freien) Container sitzt. */}
+      {/* Kopfzeile über die VOLLE Blattbreite (nur px-8), nicht in der
+          max-w-6xl-Content-Box: der Hilfe-Knopf gehört auf jeder Seite an den
+          rechten Blattrand (docs/architecture/ui-muster.md, Guard
+          `hilfe-knopf-am-blattrand`). Der Titel steht dadurch unverändert an
+          seiner Stelle — nur die Kopf-Aktionen rücken nach außen. */}
       {/* Im Fokus-Modus fällt die Such-Zeile weg, die sonst den Abstand zur
           Kopf-Unterkante stellt → eigenes Bottom-Padding, damit die Border
           nicht an den Knöpfen klebt. */}
-      <div className={`max-w-6xl px-8${listeSichtbar ? '' : ' pb-3'}`}>
+      <div className={`px-8${listeSichtbar ? '' : ' pb-3'}`}>
         {/* Title — Tabs zeigen Ansicht + Counts. Bearbeiter-Filter-Pill sitzt
             direkt neben dem Titel, damit der User immer sieht, dass der
             Kuerzel-Filter aktiv ist — auch wenn die Quickfilter-Toolbar
@@ -132,7 +133,13 @@ export function AntraegeHeader({ filterOpen, onToggleFilter, listeSichtbar }: Pr
           ) : undefined}
           actions={<SeitenHilfeButton pluginId="antraege" />}
         />
+      </div>
 
+      {/* Rumpf-Wrapper teilt EXAKT die Content-Box von Liste/Tabelle
+          (max-w-6xl px-8, Padding innen) — dadurch fluchten Toolbar-Icons,
+          „Spalten"-Dropdown und Tabellen-Rand. Die Unterkanten-Border läuft
+          voll durch, weil sie auf dem äußeren (padding-freien) Container sitzt. */}
+      <div className="max-w-6xl px-8">
         {/* Toolbar: Tabs links, Suche + Filter rechts (ml-auto). pr-4 (nur
             List/Cards) kompensiert das px-4-Innenpadding der AntragCard, damit
             die Filter-Button-Kante mit der Status-Badge-Kante fluchtet; im

@@ -372,9 +372,12 @@ export function SkillVerwaltungPage(): React.ReactElement {
 
   return (
     <div className="flex flex-col h-full min-h-[calc(100vh-60px)] overflow-hidden">
-      {/* Header — volle Breite mit Unterkanten-Border, Inhalts-Box max-w-6xl px-8 */}
+      {/* Header — volle Breite mit Unterkanten-Border, Inhalts-Box max-w-6xl px-8.
+          Die TITELZEILE steht davor über die ganze Blattbreite: der Hilfe-Knopf
+          gehört an den rechten Blattrand (ui-muster.md, Guard
+          `hilfe-knopf-am-blattrand`). */}
       <div className="shrink-0 pt-4 pb-0" style={{ borderBottom: '0.5px solid var(--tf-border)' }}>
-        <div className="max-w-6xl px-8">
+        <div className="px-8">
           <div className="mb-3 flex items-start gap-3">
             <div className="min-w-0">
               <h1 className="text-[22px] font-medium text-[var(--tf-text)] leading-tight">Skill-Verwaltung</h1>
@@ -382,7 +385,8 @@ export function SkillVerwaltungPage(): React.ReactElement {
             </div>
             <div className="ml-auto shrink-0"><SeitenHilfeButton pluginId="skill-verwaltung-kuration" /></div>
           </div>
-
+        </div>
+        <div className="max-w-6xl px-8">
           {/* Unterstrich-Tabs links, Aktionen rechts */}
           <div className="flex items-end gap-4">
             <div className="flex items-end gap-5 min-w-0 overflow-x-auto overflow-y-hidden">

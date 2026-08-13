@@ -38,6 +38,9 @@
  *     in BEIDEN Modi, an den echten Werten aus theme.css. Der Stand bis v3.37 (satte
  *     Fuellung, weisse Schrift) lag bei 3,02-5,06:1 hell und 2,14-2,92:1 dunkel; ein
  *     zweiter Testfall haelt fest, dass der Guard genau den verworfen haette.
+ *   - hilfe-knopf-am-blattrand          → Seiten-Hilfe steht rechts AUSSEN: die
+ *     Kopfzeile einer Seite spannt die volle Blattbreite, ein schmalerer Rumpf
+ *     beginnt erst darunter. Kein `max-w-*` in der Vorfahren-Kette des Knopfes.
  *   - no-raw-cta-fill                   → CTA-Buttons tragen die Profil-Primaerfarbe
  *     ueber die kanonische <Button>-Komponente (@/components/ui/button, variant=
  *     'primary' = --tf-primary); kein hand-gebauter Fill — weder als Klasse
@@ -717,6 +720,191 @@ describe('no-raw-cta-fill (CTA-Buttons tragen die Profil-Primaerfarbe via <Butto
         `Zweitaktion = variant='secondary' (Outline), Anker = <Button asChild><a>…</a></Button>.\n` +
         `Bewusste Nicht-Button-Flaeche (Toggle-Pill/Badge/Chip): Fill OHNE hover:opacity halten\n` +
         `oder Zeile mit '// allow-cta-fill: <grund>' markieren.\n\nTreffer:\n${fmt(findings)}`,
+      );
+    }
+  });
+});
+
+describe('hilfe-knopf-am-blattrand (Seiten-Hilfe steht rechts aussen)', () => {
+  // Der Hilfe-Knopf ist auf jeder Seite dasselbe Bauteil und gehoert an den
+  // rechten BLATTRAND — so, wie ihn die Startseite zeigt. Bis v4.14 steckte er
+  // auf elf Seiten in der schmalen Inhaltsspalte (max-w-6xl/5xl/4xl/2xl, zum
+  // Teil zusaetzlich mittig) und hing dadurch bis zu 200 px vor dem Rand in der
+  // Flaeche — auf jeder Seite woanders. Die Regel, die das traegt:
+  // die KOPFZEILE spannt die volle Blattbreite, ein schmalerer Rumpf beginnt
+  // erst darunter (docs/architecture/ui-muster.md).
+  //
+  // Geprueft wird die Vorfahren-Kette des Knopfes ueber die EINRUECKUNG — der
+  // Bestand ist durchgaengig zweier-eingerueckt, damit ist sie ohne JSX-Parser
+  // ablesbar. Mehrzeilige Oeffnungs-Tags werden vorher zu je einer logischen
+  // Zeile gefaltet; sonst bliebe das `className` einer ueber drei Zeilen
+  // geschriebenen `<div …>` ungelesen.
+  //
+  // BEWUSSTE LUECKE: steht der Kopf in einer hochgezogenen Konstante
+  // (`const kopf = (…)` — so in meilensteine/zu-klaeren), endet die Kette am
+  // `const`, und wo diese Konstante eingebettet wird, sieht der Guard nicht.
+  // Beide Seiten stehen heute in einem vollbreiten Container.
+  interface JsxZeile { text: string; tiefe: number; zeile: number }
+
+  const ohneStrings = (s: string): string => s.replace(/'[^']*'|"[^"]*"|`[^`]*`/g, '""');
+
+  /** Quelltext → logische JSX-Zeilen (mehrzeilige Oeffnungs-Tags gefaltet). */
+  function falteTags(zeilen: readonly string[]): JsxZeile[] {
+    const out: JsxZeile[] = [];
+    for (let i = 0; i < zeilen.length; i++) {
+      const roh = zeilen[i] ?? '';
+      const text = roh.trim();
+      if (text === '') continue;
+      const tiefe = roh.length - roh.trimStart().length;
+      if (!text.startsWith('<') || ohneStrings(text).includes('>')) {
+        out.push({ text, tiefe, zeile: i + 1 });
+        continue;
+      }
+      const teile = [text];
+      let j = i + 1;
+      for (; j < zeilen.length; j++) {
+        const t = (zeilen[j] ?? '').trim();
+        teile.push(t);
+        if (ohneStrings(t).includes('>')) break;
+      }
+      out.push({ text: teile.join(' '), tiefe, zeile: i + 1 });
+      i = j;
+    }
+    return out;
+  }
+
+  // Woran die Kette endet: ab hier steht kein JSX-Vorfahre mehr, sondern der
+  // umgebende Code (Funktionsrumpf, Konstante, Rueckgabe).
+  const KETTEN_ENDE = /^(return\b|const\b|let\b|var\b|function\b|export\b|\}|\);)/;
+
+  /** Oeffnende Tags oberhalb von `idx`, von innen nach aussen. */
+  function vorfahren(gefaltet: readonly JsxZeile[], idx: number): JsxZeile[] {
+    let grenze = gefaltet[idx]?.tiefe ?? 0;
+    const kette: JsxZeile[] = [];
+    for (let i = idx - 1; i >= 0; i--) {
+      const z = gefaltet[i];
+      if (z === undefined || z.tiefe >= grenze) continue;
+      grenze = z.tiefe;
+      if (KETTEN_ENDE.test(z.text)) break;
+      if (z.text.startsWith('<') && !z.text.startsWith('</')) kette.push(z);
+    }
+    return kette;
+  }
+
+  /**
+   * Klassen-Konstanten der Datei (`const innerClass = narrow ? '…' : '… max-w-5xl'`).
+   * Ohne sie versteckt sich die Breite hinter einem Namen — genau so stand sie
+   * bis v4.15 in der Dokumente-Liste, und der Guard haette dort nichts gesehen.
+   */
+  function klassenKonstanten(zeilen: readonly string[]): Map<string, string> {
+    const map = new Map<string, string>();
+    for (let i = 0; i < zeilen.length; i++) {
+      const m = (zeilen[i] ?? '').match(/^\s*const\s+([A-Za-z_$][\w$]*)\s*=/);
+      if (m === null) continue;
+      const name = m[1] ?? '';
+      const teile: string[] = [];
+      for (let j = i; j < zeilen.length && j < i + 6; j++) {
+        const t = (zeilen[j] ?? '').trim();
+        teile.push(t);
+        if (t.endsWith(';')) break;
+      }
+      map.set(name, teile.join(' '));
+    }
+    return map;
+  }
+
+  /** Traegt dieses Tag eine Breitenbegrenzung — literal oder ueber eine Konstante? */
+  function istEng(tag: string, konstanten: Map<string, string>): boolean {
+    if (tag.includes('max-w-')) return true;
+    for (const ausdruck of tag.match(/className=\{[^}]*\}/g) ?? []) {
+      for (const bezeichner of ausdruck.match(/[A-Za-z_$][\w$]*/g) ?? []) {
+        if (konstanten.get(bezeichner)?.includes('max-w-') === true) return true;
+      }
+    }
+    return false;
+  }
+
+  /** Die Fundstellen einer Datei, deren Vorfahren-Kette eine Breite begrenzt. */
+  function engeVorfahren(quelle: string): Array<{ zeile: number; wrapper: string }> {
+    const zeilen = quelle.split(/\r?\n/);
+    const gefaltet = falteTags(zeilen);
+    const konstanten = klassenKonstanten(zeilen);
+    const out: Array<{ zeile: number; wrapper: string }> = [];
+    for (let i = 0; i < gefaltet.length; i++) {
+      const z = gefaltet[i];
+      if (z === undefined || !z.text.includes('SeitenHilfeButton pluginId=')) continue;
+      if (z.text.includes('allow-hilfe-am-blattrand')) continue;
+      const eng = vorfahren(gefaltet, i).find(v => istEng(v.text, konstanten));
+      if (eng !== undefined) out.push({ zeile: z.zeile, wrapper: eng.text.trim() });
+    }
+    return out;
+  }
+
+  it('engeVorfahren: findet die schmale Fassung, auch mehrzeilig geschrieben', () => {
+    const eng = [
+      '  return (',
+      '    <div',
+      '      className="px-8 pt-4 pb-6 max-w-5xl"',
+      '    >',
+      '      <PageHeader',
+      '        title="Einstellungen"',
+      '        actions={<SeitenHilfeButton pluginId="einstellungen" />}',
+      '      />',
+      '    </div>',
+      '  );',
+    ].join('\n');
+    expect(engeVorfahren(eng)).toHaveLength(1);
+
+    // Richtig: Kopf vollbreit, `max-w-` erst am GESCHWISTER darunter.
+    const weit = [
+      '  return (',
+      '    <div className="px-8 pt-4 pb-6">',
+      '      <div className="flex items-center gap-3">',
+      '        <h1>Einstellungen</h1>',
+      '        <div className="ml-auto shrink-0"><SeitenHilfeButton pluginId="einstellungen" /></div>',
+      '      </div>',
+      '      <div className="max-w-5xl">Rumpf</div>',
+      '    </div>',
+      '  );',
+    ].join('\n');
+    expect(engeVorfahren(weit)).toEqual([]);
+  });
+
+  it('engeVorfahren: sieht die Breite auch hinter einer Klassen-Konstante', () => {
+    const quelle = [
+      "  const innerClass = narrow ? 'px-6 pt-4 pb-6' : 'px-8 pt-4 pb-6 max-w-5xl';",
+      '  return (',
+      '    <div className={innerClass}>',
+      '      <div className="flex"><SeitenHilfeButton pluginId="dokumente" /></div>',
+      '    </div>',
+      '  );',
+    ].join('\n');
+    expect(engeVorfahren(quelle)).toHaveLength(1);
+  });
+
+  it('kein Hilfe-Knopf in einer breitenbegrenzten Spalte', () => {
+    const findings: Finding[] = [];
+    for (const file of ALL_TS_FILES) {
+      if (!file.endsWith('.tsx')) continue;
+      if (file.includes(`${sep}__tests__${sep}`)) continue;
+      const quelle = readFileSync(file, 'utf-8');
+      if (!quelle.includes('SeitenHilfeButton pluginId=')) continue;
+      for (const t of engeVorfahren(quelle)) {
+        findings.push({ file: relPath(file), line: t.zeile, text: t.wrapper });
+      }
+    }
+    if (findings.length > 0) {
+      expect.fail(
+        `Der Hilfe-Knopf steckt in einer breitenbegrenzten Spalte und landet damit\n` +
+        `mitten in der Flaeche statt am rechten Blattrand.\n` +
+        `Regel (docs/architecture/ui-muster.md): die KOPFZEILE spannt die volle\n` +
+        `Blattbreite (nur das Seiten-Padding), der schmalere RUMPF beginnt darunter:\n` +
+        `  <div className="px-8 pt-4 pb-6">\n` +
+        `    <div className="flex items-center gap-3">… <SeitenHilfeButton …/></div>\n` +
+        `    <div className="max-w-5xl">…Rumpf…</div>\n` +
+        `  </div>\n` +
+        `Echte Ausnahme: '// allow-hilfe-am-blattrand: <grund>' auf der Knopf-Zeile.\n\n` +
+        `Treffer (Zeile des Knopfes, darunter der zu enge Vorfahre):\n${fmt(findings)}`,
       );
     }
   });
