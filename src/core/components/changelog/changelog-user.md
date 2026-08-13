@@ -19,6 +19,12 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.9 — 2026-08
+
+### Bugfixes
+- Ein Export, in dem die Schlüsselspalte (z. B. `FKZ`) umbenannt wurde oder fehlt, hat den kompletten Antragsbestand dieser Quelle gelöscht — und dabei „Import abgeschlossen" gemeldet. Der Import bricht jetzt mit einer Erklärung ab und rührt nichts an; die Quelle wird beim nächsten Lauf erneut angeboten.
+- Ein unvollständiger Datenbestand konnte den gemeinsamen Stand auf dem Laufwerk überschreiben — für alle im Team. Fehlt beim Veröffentlichen mehr als die Hälfte der Anträge, bricht die App ab und lässt den gemeinsamen Stand unverändert stehen.
+
 ## v4.8 — 2026-08
 
 ### Verbesserungen

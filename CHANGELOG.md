@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.9.0 — Import und Publish stoppen den Bestandsverlust (August 2026)
+
+MINOR — Aus einer Bug-Jagd im Import-Pfad: `removedJoinValues` unterschied nicht zwischen „im Fachsystem gelöscht" und „vom Import gefiltert", der Merge löschte bedingungslos, und der Snapshot trug das Ergebnis team-weit. Fünf verschiedene Ursachen mündeten in denselben Datenverlust; zwei Guards schließen den katastrophalen Teil.
+
+- **Join-Spalte muss in der gelesenen Kopfzeile stehen** ([importer.ts](src/core/services/csv/importer.ts), [csv-import.md](docs/architecture/csv-import.md)): war sie nur im Mapping, lief der Import durch und löschte den kompletten Bestand der Quelle — gemessen 44 → 0 Anträge bei umbenanntem `FKZ`, mit Erfolgsmeldung
+- **Abbruch vor dem Share-Write und vor jedem Schema-Stempel** ([importer.ts](src/core/services/csv/importer.ts)): die Quell-Kopie bleibt unangetastet, die Quelle gilt nicht als erledigt und läuft im nächsten Auto-Refresh erneut an
+- **Mengen-Plausibilität für `antraege` beim Publish** ([snapshot.ts](src/core/services/csv/snapshot.ts), [csv-auto-refresh.md](docs/architecture/csv-auto-refresh.md)): `PUBLISH_PRESERVE_WHEN_EMPTY` übersprang `antraege` per `continue` — jeder geschrumpfte Bestand ging kommentarlos auf den Share
+- **Guard greift in beiden Publish-Pfaden** ([snapshot.ts](src/core/services/csv/snapshot.ts)): Voll-Write gegen den Manifest-Count, Delta-Write gegen die `removedKeys` — ab 20 Anträgen Basis, Abbruch unter der Hälfte
+- **Offen und bewusst nicht mitgefixt**: Löschung aus einer Sekundärquelle trifft weiter Anträge, die der Master trägt ([importer.ts:472](src/core/services/csv/importer.ts:472)) — das ist eine fachliche Entscheidung, keine technische
+
 ### v4.8.0 — Dokumentensuche trennt Woerter deutsch (August 2026)
 
 MINOR — Nachgeholt, was v4.6.0 ausdrücklich offengelassen hat. Orama lief auf der englischen Worttrennung, und deren Zeichenklasse kennt `ä ö ü ß` nicht: „Fördergeber" zerfiel in `f` + `rdergeber`. Die Suche fand damit noch etwas — aber über Bruchstücke. Betrifft nur die Dokumentenstufe; die Antragsstufe vergleicht rohe Zeichenketten.

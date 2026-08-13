@@ -59,6 +59,40 @@ const SNAPSHOT_FILES = {
 const PUBLISH_PRESERVE_WHEN_EMPTY: ReadonlySet<SnapshotStoreName> = new Set(['csv_schemas', 'programme']);
 
 /**
+ * Mengen-Plausibilität für `antraege` beim Publish. Der Guard oben deckt nur die
+ * kleinen Struktur-Stores — `antraege` läuft an ihm vorbei (`continue`), und der
+ * Voll-Write streamt kommentarlos, was lokal in der IDB steht.
+ *
+ * Genau dort endete bisher jede Ursache, die den lokalen Bestand schrumpfen ließ:
+ * abgeschnittener Export, verschwundene/umbenannte Join-Spalte, Whitespace im
+ * Spaltennamen, leere Unterprogramm-Zelle, Zeilenverlust in einer Sekundärquelle.
+ * `removedJoinValues` unterscheidet nicht zwischen „im Fachsystem gelöscht" und
+ * „vom Import gefiltert"; der Merge löscht bedingungslos, und der Snapshot trug
+ * das Ergebnis team-weit. `last_row_count` existiert, wird aber nirgends
+ * verglichen — nur angezeigt.
+ *
+ * Der Guard ist bewusst KEIN Leer-Verbot (wie bei den Struktur-Stores), sondern
+ * eine Schwelle: er greift erst ab einer relevanten Basis (darunter ist jede
+ * Schwankung normal — Erstbefüllung, Testbestand) und lässt alles durch, was ein
+ * Tages-Delta plausibel macht. Er fängt den katastrophalen Fall sicher, nicht den
+ * schleichenden: ein Verlust von weniger als der Hälfte passiert ihn.
+ */
+const ANTRAEGE_SCHWUND_MIN_BASIS = 20;
+const ANTRAEGE_SCHWUND_MIN_ANTEIL = 0.5;
+
+/** Prüft den Publish gegen den Stand auf dem Share; wirft, statt ihn zu überschreiben. */
+function pruefeAntraegeSchwund(lokal: number, aufShare: number, programmId: string): void {
+  if (aufShare < ANTRAEGE_SCHWUND_MIN_BASIS) return;
+  if (lokal >= aufShare * ANTRAEGE_SCHWUND_MIN_ANTEIL) return;
+  throw new Error(
+    `Snapshot-Publish abgebrochen (Programm ${programmId}): lokal ${lokal} Anträge, `
+    + `auf dem Share ${aufShare} — mehr als die Hälfte des Bestands fehlt. `
+    + `Der Share bleibt unangetastet. Ursache prüfen: unvollständiger CSV-Export, `
+    + `umbenannte/fehlende Spalte oder ein Import, der Zeilen als gelöscht gewertet hat.`,
+  );
+}
+
+/**
  * Struktur-Stores, für die eine versionierte Backup-Historie auf dem Share gehalten
  * wird: klein (KB–wenige MB) UND deren Verlust NICHT aus `antraege` rekonstruierbar
  * ist. Bewusst NICHT dabei: `antraege` (421 MB — pro Publish sichern zu teuer), die
@@ -372,6 +406,9 @@ export async function writeProgrammSnapshot(
         if (opts.emitDeltaBase) recordHashes[String(a.aktenzeichen)] = murmurhash3(line);
       });
       const count = lines.length;
+      // Vor dem ersten Byte: schrumpft der Bestand gegenüber dem Share drastisch,
+      // gar nicht erst schreiben (siehe pruefeAntraegeSchwund).
+      pruefeAntraegeSchwund(count, existingManifest?.stores?.antraege?.count ?? 0, programmId);
       const enc = new TextEncoder();
       const byteChunks: Uint8Array[] = [];
       await atomicWriteStream(programmDir, SNAPSHOT_FILES.antraege, async sink => {
@@ -398,7 +435,11 @@ export async function writeProgrammSnapshot(
     for (const key of written) {
       await programmDir.removeEntry(SNAPSHOT_FILES[key]).catch(() => undefined);
     }
-    console.warn(`[snapshot] partial-write cleanup: ${written.length} files removed, original error:`, writeErr);
+    // Nur melden, wenn wirklich etwas zurückzunehmen war — ein Abbruch VOR dem
+    // ersten Write (Schwund-Guard) ist kein Teil-Write.
+    if (written.length > 0) {
+      console.warn(`[snapshot] partial-write cleanup: ${written.length} files removed, original error:`, writeErr);
+    }
     throw writeErr;
   }
 
@@ -500,6 +541,14 @@ export async function writeProgrammSnapshotDelta(
   // Removals = entfernt UND nicht (von einer anderen Quelle) wieder berührt.
   const touchedSet = new Set(change.touchedAz);
   const removedKeys = [...new Set(change.removedAz)].filter(k => !touchedSet.has(k));
+
+  // Mengen-Plausibilität auch hier — im Delta steht die Löschung explizit als
+  // `removedKeys`, der Voll-Write-Guard bekommt sie nie zu sehen. Bewusst VOR
+  // `writeSmallStores`/`atomicWrite`, damit ein Abbruch keine halben Dateien
+  // hinterlässt. Zuwachs aus `touchedAz` wird nicht gegengerechnet: ein großes
+  // Change-Set landet ohnehin im Voll-Write (`tooManyChanges`), hier laufen nur
+  // kleine Deltas durch.
+  pruefeAntraegeSchwund(baseCount - removedKeys.length, baseCount, programmId);
 
   // Nur die geänderten Records keyed laden (kein 14k-Cursor) + stabil sortieren.
   const changedRecords = await getAntraegeByKeys(idb, [...touchedSet]);

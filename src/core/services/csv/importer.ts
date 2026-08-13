@@ -182,6 +182,26 @@ export async function importCsvSource(
     timings.parseMs = performance.now() - tParse;
     result.rowCount = rows.length;
 
+    // Die Join-Spalte muss in der GELESENEN Kopfzeile stehen, nicht nur im
+    // Mapping. `findJoinColumn` löst gegen `column_mapping` auf — wird die
+    // Spalte im Export umbenannt oder fällt sie weg, bleibt das Mapping formal
+    // gültig, `row[joinCol]` ist aber in JEDER Zeile leer: `seen` bleibt leer,
+    // alle bisherigen Join-Werte landen in `removedJoinValues`, und der Merge
+    // löscht den kompletten Bestand der Quelle — im Auto-Refresh team-weit
+    // publiziert, während die Quelle als erledigt gestempelt wird und nie
+    // wieder anläuft. Der Abbruch steht bewusst VOR `saveCsvSourceFile` und
+    // vor jedem Schema-Stempel: so bleibt die Share-Kopie unangetastet und der
+    // nächste Lauf versucht es erneut, statt den Fehler stillzulegen.
+    const joinCol = findJoinColumn(schema);
+    if (!joinCol) throw new Error(`Schema ${schemaId}: join_key-Spalte nicht im Mapping`);
+    if (!headers.includes(joinCol)) {
+      throw new Error(
+        `Join-Spalte "${joinCol}" fehlt in der Kopfzeile von „${schema.csv_source_name}" — `
+        + `Import abgebrochen, damit die ${result.rowCount} Zeilen der Quelle nicht als gelöscht gelten. `
+        + `Wurde die Spalte im Export umbenannt, die Quelle über „Spalten neu zuordnen" nachziehen.`,
+      );
+    }
+
     // Rohe Export-Zeilen durchreichen (Journal). Best-effort: ein Fehler hier
     // darf den Import nicht abbrechen.
     if (opts.onRows) {
@@ -201,8 +221,6 @@ export async function importCsvSource(
     // Row-Diff
     const tDiff = performance.now();
     opts.onProgress?.({ phase: 'diffing', done: 0, total: rows.length });
-    const joinCol = findJoinColumn(schema);
-    if (!joinCol) throw new Error(`Schema ${schemaId}: join_key-Spalte nicht im Mapping`);
     const prevHashes = await getRowHashesForSchema(idb, schemaId);
     const prevMap = new Map(prevHashes.map(h => [h.join_value, h.row_hash]));
 

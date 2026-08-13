@@ -98,6 +98,26 @@ Pro Kandidat: Datei via gespeichertem Handle laden (kein Picker) → Header gege
   Unterprogramm-Code verwarf. `>0` heißt: die Unterprogramm-Allowlist greift und schluckt Anträge — bei
   leerem `unterprogramme`-Store der stille Datenverlust (Prod-Vorfall 2026-07, v2.156). Sichtbar für Diagnose.
 
+## Publish-Guard: Mengen-Plausibilität für `antraege` (v4.9.0)
+
+`PUBLISH_PRESERVE_WHEN_EMPTY` schützt nur die kleinen Struktur-Stores — die Schleife in
+[snapshot.ts](../../src/core/services/csv/snapshot.ts) überspringt `antraege` per `continue`, und der
+Voll-Write streamt, was lokal in der IDB steht. Dort endete jede Ursache, die den lokalen Bestand
+schrumpfen ließ (siehe [csv-import.md](csv-import.md)): der Schwund ging kommentarlos auf den Share und
+von dort an jeden anderen Rechner. `last_row_count` existiert seit je, wird aber nirgends **verglichen**
+— nur angezeigt.
+
+`pruefeAntraegeSchwund` ist bewusst **kein** Leer-Verbot, sondern eine Schwelle: ab **20** Anträgen auf
+dem Share bricht der Publish ab, wenn lokal weniger als die **Hälfte** davon übrig ist. Er greift in
+beiden Pfaden — im Voll-Write gegen `existingManifest.stores.antraege.count`, im Delta-Write gegen
+`baseCount − removedKeys.length` (dort steht die Löschung explizit, der Voll-Write-Guard sieht sie nie).
+Beide prüfen **vor** dem ersten Byte, es bleiben also keine halben Dateien liegen.
+
+Grenzen, bewusst: der Guard fängt den katastrophalen Fall, nicht den schleichenden — ein Verlust von
+weniger als der Hälfte passiert ihn. Und er ist **still**: beide Aufrufer verschlucken den Publish-Fehler
+(`importCsvSource` und der gebündelte Batch-Write protokollieren `snapshot_failed` mit der vollen
+Meldung ins Audit-Log, melden dem Nutzer aber weiter Erfolg). Der Share ist geschützt, die Meldung fehlt.
+
 ## Frische-Ampel „● CSV" (`deriveCsvFreshnessState`)
 
 Reine, getestete Entscheidungslogik für den Fußzeilen-Punkt: `fresh` (grün) nur, wenn **erreichbare** Quellen

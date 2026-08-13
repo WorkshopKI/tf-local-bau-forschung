@@ -28,6 +28,29 @@ Column-Mapping unterstützt optionalen **hierarchischen Label-XLS-Upload** ([xls
 - `FilterDefinition.display_group` wird beim Erstellen eines Filters aus dem Schema vorgetragen (UI-Gruppierung im Filter-Panel in Folge-Patch).
 - Test-Assets: `scripts/generate-test-label-xlsx.mjs` erzeugt 4 XLSX-Varianten (2/3/4 Zeilen + vertikal-merged "Branche") unter `public/test-korpus/bauforschung-v2/`. Läuft als prebuild-Hook.
 
+## Schutz gegen Bestandsverlust beim Import (v4.9.0)
+
+Der Row-Hash-Diff in [importer.ts](../../src/core/services/csv/importer.ts) leitet `removedJoinValues`
+allein daraus ab, welche bisherigen Join-Werte in diesem Lauf **nicht** in `seen` gelandet sind. Damit
+war „im Fachsystem gelöscht" nicht von „vom Import gefiltert" zu unterscheiden — und der Merge löscht
+über [removeAntragIntoBatch](../../src/core/services/csv/merger/batched.ts) bedingungslos: Antrag,
+List-View-Eintrag, Verbund-Referenz (samt Verbund, wenn es der letzte TV war) und Akronym-Index.
+
+**Die Join-Spalte muss in der gelesenen Kopfzeile stehen, nicht nur im Mapping.** `findJoinColumn` löst
+gegen `column_mapping` auf; eine im Export umbenannte oder weggefallene Join-Spalte lässt das Mapping
+formal gültig, macht aber `row[joinCol]` in **jeder** Zeile leer — `seen` bleibt leer, der gesamte
+Bestand der Quelle gilt als entfernt. Der Import bricht deshalb direkt nach dem Parsen ab, **vor**
+`saveCsvSourceFile` und vor jedem Schema-Stempel: die Share-Kopie bleibt unangetastet, die Quelle gilt
+nicht als erledigt und wird im nächsten Auto-Refresh erneut angeboten. Der Abbruch landet im
+Reimport-Dialog als Meldung und im Auto-Refresh in `report.errors`.
+
+Die verbleibenden Türen in dieselbe Löschung — leerer Join-Wert, leere/unbekannte Unterprogramm-Zelle,
+Whitespace im Spaltennamen ([parser.ts](../../src/core/services/csv/parser.ts) trimmt die Kopfzeile,
+liest den Wert aber unter dem getrimmten Schlüssel), abgeschnittener Export, Zeilenverlust in einer
+**Sekundär**quelle ([importer.ts](../../src/core/services/csv/importer.ts), `removedAz` ohne
+`is_master`-Prüfung) — sind offen. Gegen ihren team-weiten Teil steht der Publish-Guard in
+[csv-auto-refresh.md](csv-auto-refresh.md).
+
 ## Verbund-Aggregation (Forschungs-Domäne)
 
 Ein **Verbund** bündelt mehrere Teilanträge unter einer gemeinsamen Projektbeschreibung. Der CSV-Master-Import erkennt Verbünde über das Akronym + Teilantragsindex und dedupliziert geteilte Dokumente per Content-Hash. Anzeige in der Antrags-Liste: Teilvorhaben werden visuell unter dem Verbund-Header geclustert (siehe `src/plugins/antraege/` Cluster-Komponenten).
