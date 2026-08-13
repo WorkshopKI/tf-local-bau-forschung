@@ -17,6 +17,7 @@ import type { CsvSchema, ImportResult, Unterprogramm } from '@/core/services/csv
 import { logAudit } from '@/core/services/infrastructure/audit-log';
 import { saveSharedCsvFilenames } from '../csv-source-filenames';
 import { refreshAntraegeStoreAfterSync } from '@/plugins/antraege/snapshot-refresh';
+import { journalisiereImport } from '@/core/status/journal';
 import { Step1Metadata } from './Step1Metadata';
 import { Step2Columns } from './Step2Columns';
 import { Step3Unterprogramme } from './Step3Unterprogramme';
@@ -262,13 +263,18 @@ export function CsvSourceWizard({ open, onClose, programmId, onCompleted, onUseE
       }
 
       goto(5);
-      const result = await importCsvSource(storage.idb, schema.id, state.file, {
+      const datei = state.file;
+      const result = await importCsvSource(storage.idb, schema.id, datei, {
         onProgress: p => setProgress(p),
         onLockConflict: ageMinutes =>
           new Promise(resolve => setLockConflict({ ageMinutes, resolve })),
         // Wizard-Abschluss ist ein expliziter Re-Import: auch bei unveränderter
         // Datei neu verarbeiten (Mapping kann sich geändert haben).
         force: true,
+        // Journal mitführen (siehe CsvSourceReimportDialog): auch dieser Weg
+        // stempelt den Export als erledigt.
+        onRows: (zeilen, headers) =>
+          journalisiereImport(storage.idb, datei, schema, zeilen, headers).then(() => undefined),
       });
       setImportResult(result);
       // v2.28: Dateiname team-weit auf den Daten-Ordner spiegeln, damit PLs den

@@ -16,6 +16,7 @@ import { Step4Progress } from './wizard/Step4Progress';
 import { persistCsvSourceMeta } from './csv-source-handle';
 import { confirmLockConflict } from './lock-conflict';
 import { validateHeaders, type HeaderValidation } from './services/csv-drift-check';
+import { journalisiereImport } from '@/core/status/journal';
 import { refreshAntraegeStoreAfterSync } from '@/plugins/antraege/snapshot-refresh';
 
 interface Props {
@@ -143,6 +144,14 @@ export function CsvSourceReimportDialog({
       const r = await importCsvSource(storage.idb, schema.id, file, {
         signal: abortRef.current.signal,
         onProgress: p => setProgress(p),
+        // Journal mitführen — sonst wird genau der Export nie journalisiert,
+        // den dieser Dialog gerade einspielt: er stempelt die Quelle als
+        // erledigt, `decideSourceUpdateState` meldet ab da `up_to_date`, und
+        // der nächste Auto-Refresh diffed über ZWEI Generationen. Die
+        // Änderungen des übersprungenen Tages sind dann endgültig weg — genau
+        // der Verlust, gegen den das Journal gebaut wurde.
+        onRows: (zeilen, headers) =>
+          journalisiereImport(storage.idb, file, schema, zeilen, headers).then(() => undefined),
         // Gewähltes Encoding für DIESEN Import erzwingen (überschreibt schema.encoding).
         encodingOverride: encoding,
         // Expliziter „CSV neu wählen"-Re-Import → Checksum-Skip umgehen (z.B.

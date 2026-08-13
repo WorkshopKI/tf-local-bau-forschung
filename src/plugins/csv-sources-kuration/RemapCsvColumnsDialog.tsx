@@ -215,6 +215,17 @@ export function RemapCsvColumnsDialog({ schema, onClose, onCompleted }: Props): 
       await refreshAntraegeStoreAfterSync(storage.idb, schema.programm_id, ['antraege', 'verbuende'] as const);
       onCompleted();
     } catch (e) {
+      // Das Schema trägt das NEUE Mapping bereits (der Importer braucht es),
+      // Anträge und Row-Hashes aber noch das alte. Bricht der Import ab — der
+      // Knopf ist bis in die Diff-Phase angeboten, und ein Unmount bricht
+      // ebenfalls ab —, liefen beide dauerhaft auseinander: der Dialog meldete
+      // „Keine Änderungen am Datenbestand", `file_checksum` blieb unangetastet,
+      // der tägliche Check meldete `up_to_date`, und die Liste zeigte bis zum
+      // nächsten inhaltlich geänderten Export die Werte des ALTEN Mappings,
+      // während Schema-Detail und Filter-Auswahl das neue behaupteten.
+      await saveSchema(storage.idb, schema).catch(err => {
+        console.warn('[csv-remap] Rücknahme des Mappings fehlgeschlagen', err);
+      });
       if (e instanceof DOMException && e.name === 'AbortError') setCancelled(true);
       else setImportError((e as Error).message);
     } finally {

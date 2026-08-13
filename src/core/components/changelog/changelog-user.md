@@ -19,6 +19,14 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.25 — 2026-08
+
+### Bugfixes
+- „Quelle löschen" entfernt jetzt gleich, was zu dieser Quelle gehört. Bisher blieben ihre Felder in den Anträgen stehen und verschwanden erst nach und nach — bei jedem Antrag zu einem anderen Zeitpunkt.
+- Wird ein Re-Import mit geänderter Spaltenzuordnung abgebrochen, gilt wieder die alte Zuordnung. Vorher zeigte die Quellen-Ansicht die neue, die Daten stammten aber weiter aus der alten.
+- Eine gerade zugeordnete Spalte wird nicht mehr vom Auto-Import auf „ignorieren" zurückgesetzt.
+- Ein Import über die Dialoge wird jetzt genauso aufgezeichnet wie der automatische — bisher fehlte dieser Tag im Verlauf.
+
 ## v4.24 — 2026-08
 
 ### Verbesserungen

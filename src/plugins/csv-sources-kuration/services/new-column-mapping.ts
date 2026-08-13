@@ -72,7 +72,17 @@ export function adoptNewColumnsAsIgnoredMapping(
   newColumns: string[],
 ): ColumnMapping {
   const decisions: Record<string, PerColumnDecision> = {};
-  for (const col of newColumns) decisions[col] = { mode: 'ignore' };
+  for (const col of newColumns) {
+    // Nur, was im FRISCHEN Mapping wirklich noch fehlt. Der Banner-Hook baut
+    // seine Kandidatenliste einmal pro Mount und hält die Schema-Objekte als
+    // Momentaufnahme; keiner der vier Kurations-Dialoge bumpt das Quellen-Signal.
+    // Mappt der Kurator zwischenzeitlich eine neue Spalte und klickt danach den
+    // noch stehenden Banner, sah der Lauf sie weiter als `newColumns` — und der
+    // Adopt legte `{ignore:true}` über die eben gepflegte Zuordnung. Die Spalte
+    // wurde ab dann bei jedem Import verworfen, ohne jede Meldung.
+    if (col in existing) continue;
+    decisions[col] = { mode: 'ignore' };
+  }
   return mergeNewColumns(existing, decisions);
 }
 

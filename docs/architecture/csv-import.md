@@ -214,6 +214,38 @@ Priorität, `file_checksum` weg, `programm_id` auf das Default-Programm gesprung
 ihrem Programm verschwunden — und der Klon trug keine `fixture-real-*`-Id mehr, fiel also durch jede
 Fixture-Prüfung. `listAllSchemas` liefert die Kollisionsmenge jetzt global.
 
+## Was ein Dialog hinterlässt (v4.25.0)
+
+Vier Stellen, an denen ein Kurations-Klick weniger tat, als er zusagte.
+
+- **„Quelle löschen" räumt auf** ([quelle-entfernen.ts](../../src/plugins/csv-sources-kuration/services/quelle-entfernen.ts)).
+  `removeSchema` löschte nur den IDB-Record — direkt danach stimmte die Zusage „Importierte Anträge
+  bleiben". Beim nächsten Import einer ANDEREN Quelle baute `recomputeAntragIntoBatch` jeden
+  BERÜHRTEN Antrag aus den verbliebenen Schemas neu auf und strich die Felder der gelöschten Quelle:
+  dasselbe Feld war danach bei einem Teil der Anträge gefüllt und beim Rest leer, und der Riss
+  wanderte mit jedem Nacht-Export weiter — publiziert wurde er mit. Jetzt fallen Row-Hashes und
+  Anträge sofort, nach derselben Löschregel wie beim Import; der Bestätigungstext sagt das auch.
+- **Ein abgebrochenes Re-Mapping nimmt sein Schema zurück**
+  ([RemapCsvColumnsDialog](../../src/plugins/csv-sources-kuration/RemapCsvColumnsDialog.tsx),
+  [CsvAddColumnsDialog](../../src/plugins/csv-sources-kuration/CsvAddColumnsDialog.tsx)). Beide
+  speichern das neue Mapping VOR dem Import (der Importer braucht es). Der Abbruch ist bis in die
+  Diff-Phase angeboten und passiert auch beim Unmount — danach trug das Schema das neue Mapping,
+  Anträge und Row-Hashes das alte, und der Dialog meldete „Keine Änderungen am Datenbestand".
+  Repariert wurde das nie: `file_checksum` blieb unangetastet, der tägliche Check meldete
+  `up_to_date`.
+- **Der Auto-Adopt überschreibt keine frisch gepflegte Spalte**
+  ([new-column-mapping.ts](../../src/plugins/csv-sources-kuration/services/new-column-mapping.ts)).
+  Der Banner hält seine Schema-Objekte als Momentaufnahme und kein Kurations-Dialog bumpt das
+  Quellen-Signal; mappte der Kurator zwischenzeitlich eine Spalte und klickte danach den noch
+  stehenden Banner, legte `adoptNewColumnsAsIgnored` `{ignore:true}` über die eben gepflegte
+  Zuordnung — und die Spalte wurde ab dann bei jedem Import verworfen, ohne jede Meldung.
+- **Auch Dialog-Importe journalisieren.** `handleAutoUpdate` löst den Re-Import über GENAU die
+  Nacht-Export-Datei aus, die sonst `runAutoRefresh` verarbeitet — aber ohne `onRows`. Der Export
+  wurde gemergt und gestempelt, ab da meldete `decideSourceUpdateState` `up_to_date`, und er wurde
+  **nie** journalisiert: der Journal-Stand blieb auf dem Vorgänger, der nächste Auto-Refresh diffte
+  über zwei Generationen, und die Änderungen des übersprungenen Tages waren endgültig weg. Der
+  Remap-Dialog bleibt bewusst aussen vor — er liest die UTF-8-Kopie vom Share, nicht den Export.
+
 ## Verbund-Aggregation (Forschungs-Domäne)
 
 Ein **Verbund** bündelt mehrere Teilanträge unter einer gemeinsamen Projektbeschreibung. Der CSV-Master-Import erkennt Verbünde über das Akronym + Teilantragsindex und dedupliziert geteilte Dokumente per Content-Hash. Anzeige in der Antrags-Liste: Teilvorhaben werden visuell unter dem Verbund-Header geclustert (siehe `src/plugins/antraege/` Cluster-Komponenten).

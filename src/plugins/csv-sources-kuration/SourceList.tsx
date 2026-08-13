@@ -95,7 +95,8 @@ export function SourceList(props: SourceListProps): React.ReactElement {
                   >
                     <span className="text-[11.5px] text-[var(--tf-text-secondary)] text-right">
                       Schema dauerhaft löschen?<br />
-                      Re-Import-Konfiguration geht verloren. Importierte Anträge bleiben.
+                      Re-Import-Konfiguration geht verloren. Die Felder dieser Quelle fallen
+                      aus den Anträgen; Anträge, die nur sie trug, werden entfernt.
                     </span>
                     <Button
                       size="sm"

@@ -8,13 +8,13 @@ import { useStorage } from '@/core/hooks/useStorage';
 import { useKuratorSession } from '@/core/hooks/useKuratorSession';
 import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
-import { ensureDefaultProgramm, listSchemas, removeSchema } from '@/core/services/csv';
+import { ensureDefaultProgramm, listSchemas } from '@/core/services/csv';
+import { entferneQuelle } from './services/quelle-entfernen';
 import type { CsvSchema } from '@/core/services/csv/types';
 import { logAudit } from '@/core/services/infrastructure/audit-log';
 import {
   checkSourceForUpdate,
   loadFileFromStoredHandle,
-  removeCsvSourceHandle,
   type UpdateCheckResult,
 } from './csv-source-handle';
 import { pickCsvFile } from './csv-file-picker';
@@ -74,9 +74,12 @@ export function CsvSourcesPage(): React.ReactElement {
   }, [schemas, storage.idb]);
 
   const onConfirmDelete = async (s: CsvSchema): Promise<void> => {
-    await removeSchema(storage.idb, s.id);
-    await removeCsvSourceHandle(storage.idb, s.id);
-    await logAudit(storage.idb, { action: 'csv_schema_deleted', user: session.kuratorName ?? undefined, details: { schemaId: s.id } });
+    const abraeumung = await entferneQuelle(storage.idb, s);
+    await logAudit(storage.idb, {
+      action: 'csv_schema_deleted',
+      user: session.kuratorName ?? undefined,
+      details: { schemaId: s.id, ...abraeumung },
+    });
     setDeleteConfirmId(null);
     await refresh();
   };

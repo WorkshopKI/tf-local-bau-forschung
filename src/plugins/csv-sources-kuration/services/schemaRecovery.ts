@@ -45,13 +45,24 @@ export interface ParsedSchemaFile {
   skippedOtherProgramm: number;
 }
 
-/** Minimale Struktur-Prüfung: reicht, um einen Schema-Record von Müll zu trennen. */
+/**
+ * Minimale Struktur-Prüfung: reicht, um einen Schema-Record von Müll zu trennen.
+ *
+ * `join_key` gehört dazu, obwohl es nach „Detail" aussieht: `findJoinColumn`
+ * sucht `e.canonical === schema.join_key`, und bei fehlendem Wert passt
+ * `undefined === undefined` auf den ersten custom-Eintrag. Statt des
+ * vorgesehenen Abbruchs würden die Row-Hashes dann auf einem beliebigen Feld
+ * (im belegten Fall: einem Fließtext) gekeyt. Die Vorschau meldete solche
+ * Records bisher als „gültige Schemas" und schrieb sie mit Schritt 2 team-weit
+ * auf den Share.
+ */
 function isCsvSchemaShape(o: unknown): o is CsvSchema {
   if (!o || typeof o !== 'object') return false;
   const r = o as Record<string, unknown>;
   return (
     typeof r.id === 'string' && r.id.length > 0 &&
     typeof r.programm_id === 'string' && r.programm_id.length > 0 &&
+    typeof r.join_key === 'string' && r.join_key.length > 0 &&
     !!r.column_mapping && typeof r.column_mapping === 'object'
   );
 }

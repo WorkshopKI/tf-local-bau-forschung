@@ -145,6 +145,17 @@ describe('adoptNewColumnsAsIgnoredMapping (headless Auto-Adopt im Auto-Refresh)'
     expect(merged).not.toBe(EXISTING);
   });
 
+  it('überschreibt eine inzwischen gemappte Spalte NICHT', () => {
+    // Der Banner hält die Schema-Objekte als Momentaufnahme; mappt der Kurator
+    // zwischenzeitlich eine Spalte und klickt danach den noch stehenden Banner,
+    // steht sie im Lauf weiter als „neu" — der Adopt legte `{ignore:true}`
+    // über die eben gepflegte Zuordnung, und die Spalte wurde ab dann bei
+    // jedem Import verworfen, ohne jede Meldung.
+    const frisch: ColumnMapping = { ...EXISTING, NACHRUECKER: { custom: 'nachruecker', type: 'string' } };
+    const merged = adoptNewColumnsAsIgnoredMapping(frisch, ['NACHRUECKER']);
+    expect(merged.NACHRUECKER).toEqual({ custom: 'nachruecker', type: 'string' });
+  });
+
   it('Drift-Idempotenz: nach Adopt sind die Spalten keine newColumns mehr', () => {
     const headers = [...Object.keys(EXISTING), 'NEU_1', 'NEU_2'];
     const merged = adoptNewColumnsAsIgnoredMapping(EXISTING, ['NEU_1', 'NEU_2']);

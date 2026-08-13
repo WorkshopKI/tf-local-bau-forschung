@@ -2,6 +2,165 @@
 
 Ältere Versionsblöcke (append-only, chronologisch absteigend). Die jüngsten Versionen stehen im Root-[CHANGELOG.md](../CHANGELOG.md). Bump-Regeln + Architektur: [CLAUDE.md](../CLAUDE.md).
 
+### v3.36.0 — Glossar-Suche: Umlaute egal, mehrere Woerter (August 2026)
+
+MINOR — Nachtrag zu v3.33: die Suche verglich eine Zeichenkette am Stück. „Prufung" fand „Prüfung" nicht, und „brief nf" traf nur, wer die Wortstellung des Bestands erriet — was gerade der nicht kann, der nachschlägt. Beides scheiterte bisher an der Treffer-Markierung: Falten verschiebt Positionen, `NFD` zerlegt „ü", „ß" wird zu „ss".
+
+- Faltung mit **Herkunfts-Abbildung**: gesucht wird gefaltet, markiert im Original — neu [textFaltung.ts](src/core/utils/textFaltung.ts) (`falte`/`ursprung`)
+- „ß" fällt auf „ss"; ein Treffer auf der halben Ausweitung markiert das ganze Zeichen
+- Mehrere Wörter werden UND-verknüpft, reihenfolgeunabhängig, über verschiedene Felder hinweg — `leseSuche`/`Suchbegriff` in [glossarSuche.ts](src/plugins/glossar/glossarSuche.ts)
+- Die Markierung zeichnet jedes Wort an jeder Stelle aus und verschmilzt überlappende Bereiche
+- `normalisiereSuche` delegiert auf dieselbe Faltung — eine Definition von „vergleichbar" statt zwei — [columnPickerLogik.ts](src/components/data-table/columnPickerLogik.ts)
+
+### v3.35.0 — Darstellungs-Menue: Zeilen-Pattern statt Optionsliste (August 2026)
+
+MINOR — Das Menü kostete je Achse zwei Beschriftungszeilen plus eine 30-px-Zeile pro Wert; drei Achsen ergaben rund 430 px, und die Erklärzeile darunter liest niemand ein zweites Mal. Design-Handoff `_design/handoff/dropdown/`: eine Achse = eine Zeile, Beschriftung links, Auswahl rechts. Gemessen jetzt 380 × 182 px auf beiden Seiten.
+
+- Zeilen-Pattern mit Kopfzeile + „Zurücksetzen"; Erklärzeilen und Häkchen-Liste sind weg — [DarstellungDropdown.tsx](src/components/ui/DarstellungDropdown.tsx)
+- Jede Achse deklariert ihre Bedienform (`art`), An/Aus-Achsen tragen `anKey` — zwei Werte heißen nicht An/Aus — [darstellungsAchsen.ts](src/components/ui/darstellungsAchsen.ts)
+- Der Knopf nennt die erste Abweichung und zählt die übrigen („Darstellung: Antrag mit TV +2") statt einer wachsenden `·`-Kette — [darstellungsAchsen.ts](src/components/ui/darstellungsAchsen.ts)
+- „Beendet" und „Archivierte" sind Schalter; „Beendete zeigen" bleibt an den Aggregatnamen gebunden — [arbeitsvorrat.ts](src/plugins/antraege/arbeitsvorrat.ts)
+- Das Segment kommt aus dem geteilten Bauteil, erweitert um `rolle='auswahl'` + `breit` — kein zweites Segment daneben — [SegmentedToggle.tsx](src/components/ui/SegmentedToggle.tsx)
+
+### v3.34.0 — Alle Status-Spalten klappen den Verlauf auf; Unterzeile bindet an ihren Balken (August 2026)
+
+MINOR — Zwei der vier Status-Spalten reagierten auf einen Klick, zwei nicht — nicht erklärbar. Und die neue Unterzeile aus v3.32 band optisch an nichts: ein Strich in Rahmenfarbe, zwei Pixel unter dem Balken schwebend, ließ „keine weiteren NF" zum Balken „NF gestellt" darüber gehören.
+
+- Die ganze Rubrik **Status** klappt den Verlauf auf (auch FB Status und PreCheck Status) — über die Rubrik statt über eine Schlüsselliste, damit eine künftige Status-Spalte das erbt: [klickzonen.tsx](src/plugins/antraege/ausklapp/klickzonen.tsx)
+- Der Anker der Unterzeile sitzt bündig an der Balken-Unterkante und trägt **dessen Farbe** — er liest sich als Fortsetzung des eigenen Abschnitts: [VerlaufsBand.tsx](src/plugins/antraege/verlauf-band/VerlaufsBand.tsx)
+- `G_STATUS` ist exportiert, die Zuordnung Spalte→Reiter läuft über `ausklappReiter(key, gruppe)`: [tableColumns.tsx](src/plugins/antraege/tableColumns.tsx)
+
+### v3.33.0 — Glossar: Suche links, breiter, in beiden Reitern (August 2026)
+
+MINOR — „Im Glossar fehlt eine Suchmöglichkeit" — es gab sie, rechts neben den Reitern, auf 340 px gedeckelt und nur im ersten Reiter. Die Breite schnitt den eigenen Platzhalter ab („Abkürzung, Begriff, Statusw…"), also verschwieg das Feld, was es kann. Dazu fehlte alles, was man von einem Suchfeld erwartet.
+
+- Das Feld steht **links vor den Reitern**, 520 px breit, mit ×-Knopf — [GlossarPage.tsx](src/plugins/glossar/GlossarPage.tsx)
+- Es wirkt in **beiden** Reitern; „Für meine Rolle wichtig" filtert mit und behält Rolle + Richtlinien-Wahl über den Wechsel — [RollenSicht.tsx](src/plugins/glossar/RollenSicht.tsx)
+- Tastatur: „/" fokussiert, Pfeil hoch/runter wandert (Liste scrollt nach), Enter nimmt den ersten Treffer, Escape leert — neue reine `flacheIds`/`naechsteId` in [glossarSuche.ts](src/plugins/glossar/glossarSuche.ts)
+- Die Fundstelle ist im Treffer markiert — `markiere()` liefert Segmente, [Markiert.tsx](src/plugins/glossar/Markiert.tsx) rendert sie
+- `fokusIstTippziel` löst die dritte Kopie der „tippt gerade jemand?"-Prüfung ab — [masterDetailLayout-logic.ts](src/components/master-detail/masterDetailLayout-logic.ts)
+
+### v3.32.0 — VerlaufsBand nutzt die sichtbare Tabellenbreite; Balken tragen ausgeschriebene Namen (August 2026)
+
+MINOR — Die Bahn war auf 620 px festgenagelt, während die Tabelle 1300 zeigte; schmale Abschnitte trugen eine Legendennummer, und der Leser sprang zwischen Balken und Legende. Der 24-px-Boden der Achse macht die kürzesten Abschnitte durch Breite allein nie beschriftbar — deshalb kommt zur Breite eine zweite Etage.
+
+- Der Ausklappbereich nimmt die **sichtbare** Tabellenbreite (`min(100%, port)`, gemessener Scrollport) — [TableBody.tsx](src/components/data-table/TableBody.tsx), [SortableTable.tsx](src/components/data-table/SortableTable.tsx)
+- Vier Stufen je Abschnitt, **gemessen** statt geraten: voller Name → Kurzform → unter dem Balken → Legendennummer — [bandBeschriftung.ts](src/plugins/antraege/verlauf-band/bandBeschriftung.ts)
+- Die Legende nummeriert nur noch, wenn ein Abschnitt eine Nummer trägt; die feste Schwelle „ab sechs" entfällt — [VerlaufsBand.tsx](src/plugins/antraege/verlauf-band/VerlaufsBand.tsx)
+- Die Bahn misst ihren Container; die festen 620/760 sind nur noch Erst-Rahmen-Wert — neuer geteilter Hook [useElementBreite.ts](src/core/hooks/useElementBreite.ts) (löst die zweite private Kopie in `GanttAchse.tsx` ab)
+- Die Lesebreite zog vom ganzen Bereich an den Reiter mit Fließtext um — [FristenReiter.tsx](src/plugins/antraege/ausklapp/FristenReiter.tsx), [ZeilenBereich.tsx](src/plugins/antraege/ausklapp/ZeilenBereich.tsx)
+
+### v3.31.1 — Antwortrunde 1 dokumentiert (August 2026)
+
+PATCH — Was die Antwortrunde offen gelassen hat, steht jetzt mit Zahlen und Belegen da — sodass ein Wiedereinstieg ohne Chatverlauf auskommt. Kein Code, kein Reimport, kein neuer Export.
+
+- Neuer Abschnitt §15 „Antwortrunde 1": gemessene Zahlen, wo die Antworten leben, warum die Sammelregel kein Alias ist — [vorgangssystem.md](docs/architecture/vorgangssystem.md)
+- Offen festgehalten: DS-Grundregel (8 Abweichungen, 6× DL / 2× EP), `ÄZ`/`ÄZX` mit Bedeutungsumkehr, `VN gegrüft` fürs Fachsystem, 3.193 Vorbedingungen samt Prüf-Hypothese
+- Erledigt festgehalten: 12 Kleinschreibungen als Frageklasse abgeschafft, 29 NW/FuE-Widersprüche entschieden, `strittig`-Marker per Vorgabe geklärt
+- Fürs Hinweisblatt der nächsten Mappe notiert: **bei einer Sammelregel bleiben die Einzelzeilen leer** — genau dieser Konflikt hat den Widerspruch erzeugt
+
+### v3.31.0 — FristenBand (August 2026)
+
+MINOR — Die Frist stand als Liste da und ihre Zahl als Behauptung: welches Eingangsdatum gewonnen hat, warum der Punkt in der Spalte diese Farbe trägt, woher das Haltedatum kam — nichts davon war ablesbar. Das Band zeigt die Lage und nennt darunter jede Zahl.
+
+- Achse Basis → Bezugszeitpunkt → Ziel plus beschriftete Herleitung in **einem** Bauteil; ersetzt die schlichte Liste aus Phase 2 — [FristenBand.tsx](src/plugins/antraege/fristen-band/FristenBand.tsx)
+- Das gewinnende Basisfeld steht sichtbar da (`D_AAE` vs. `D_XTE`), das andere leiser; fehlt `D_XTE`, steht warum — [fristenBandModell.ts](src/plugins/antraege/fristen-band/fristenBandModell.ts)
+- Die Punktfarbe der Frist-Spalte wird hergeleitet, aus **derselben** Stufentabelle, aus der `fristAmpelFromDays` liest — [fristAnzeige.ts](src/plugins/antraege/fristAnzeige.ts)
+- Zweiter Ort: die Verbund-Detailseite, oberhalb des Aufklapp-Rumpfs — die Frist ist kein Nachschlagen — [StatusDetailSection.tsx](src/plugins/antraege/status/StatusDetailSection.tsx)
+- **Fix aus der Abnahme**: im Ausklappbereich rechnete die Frist mit dem Zeilen-Status, Wächter und Zieltage aber mit dem Verbund-Status — ein Band über zwei Vorgänge — [useZeilenVerlauf.ts](src/plugins/antraege/ausklapp/useZeilenVerlauf.ts)
+
+### v3.30.0 — Haltedatum aus dem Verlauf (August 2026)
+
+MINOR — Die Fristen-Stoppuhr aus v3.11 wusste seit jeher, dass ein Vorgang steht — nur nicht, seit wann. Journal und Datumsfeld schweigen bei genau den Fällen, um die es geht. Die Verlaufsableitung kennt den Übergang samt Datum; gemessen am Bestand bekommen **1.638 von 5.623** angehaltenen Vorhaben erstmals ein Haltedatum.
+
+- Dritte Quelle in der Kaskade, nach Journal und Datumsfeld: der Übergang in den heutigen Status — [haltedatum-aus-verlauf.ts](src/core/status/verlauf/haltedatum-aus-verlauf.ts)
+- `FristErgebnis.haltedatumQuelle` unterscheidet belastbar (Journal, bestätigte Kante) von hergeleitet (Datumsfeld, bedingte Kante) — [frist-ergebnis.ts](src/core/services/csv/frist-ergebnis.ts)
+- **Kein Zyklus, kein Wegwerf-Verlauf**: `baueUebergaenge` braucht den Bezugszeitpunkt gar nicht, der zweite Lauf entfällt, wo kein Haltedatum herauskam — [useZeilenVerlauf.ts](src/plugins/antraege/ausklapp/useZeilenVerlauf.ts)
+- Bestandslauf im Cockpit rechnet jeden Vorgang zweimal und prüft die Diagonale: der Frist-Zustand darf sich nicht bewegen — [FristBefundeBlock.tsx](src/plugins/status-cockpit/FristBefundeBlock.tsx)
+- Der Frist-Reiter rechnet nicht mehr nach, was der Hook schon gerechnet hat — dieselbe Zahl kam bis hierher aus zwei Aufrufen — [FristenReiter.tsx](src/plugins/antraege/ausklapp/FristenReiter.tsx)
+
+### v3.29.0 — Antwortrunde 1 eingefaltet (August 2026)
+
+MINOR — Die erste Klärrunde kam beantwortet zurück: 70 Fragen, 69 beantwortet. Die Antworten liegen jetzt im Code statt in einer Mappe, und die Ableitung stellt sie nicht mehr. Am Bestand vom 05.08. bleibt **eine** Frage übrig — dass es für DS keine Kürzel-Quelle gibt.
+
+- Kuration neben Generat: 23 Vereinheitlichungen, 6 bestätigte Divergenzen, 8 DS-Wortlaute, 5 Quellkorrekturen — überleben `gen:kuerzel-katalog` samt Drift-Gatter auf jeden Wortlaut — [kuerzel-kuration.ts](src/core/status/kuerzel-kuration.ts)
+- DS wird beantwortet statt geliehen: eigener Wortlaut schlägt die Sammelregel „DS = FuE", beides als Herkunft erkennbar — [kuerzel-katalog.ts](src/core/status/kuerzel-katalog.ts)
+- „VN gegrüft" wird beim Lesen aufgelöst, der Rohwert bleibt im Tooltip sichtbar; Bestandsdaten unangetastet — [schreibfehler.ts](src/core/status/schreibfehler.ts)
+- Zwei entschiedene Frageklassen entfallen (amtliche Kleinschreibung, `strittig`-Marker), eine kommt dazu: die K/T-Konvention prüft sich künftig selbst — [kt-konvention.ts](src/core/status/klaerfragen/kt-konvention.ts)
+- **Fehler in der Ableitung behoben**: „führt die Fassung diesen Wert?" prüfte nur `wert`, nicht Varianten und amtliche Schreibweisen — Code 72 galt als fehlend, obwohl die App ihn auflöst — [useKlaerfragen.ts](src/plugins/status-cockpit/useKlaerfragen.ts)
+
+### v3.28.1 — Zugangs-Passwoerter der pl-Variante neu gesetzt (August 2026)
+
+PATCH — Alle drei Zugänge der pl-Variante sind frisch erzeugt: App-Wall, Auslastung, Kuration. Damit trägt jede Ebene ein eigenes Salt/Verifier-Paar aus einem Lauf, statt teils aus dem Varianten-Merge vom 05.08. zu stammen.
+
+- `auth` + beide `moduleAuth`-Slots neu gesetzt (nur Salt + Verifier; die Passwörter selbst liegen nirgends im Repo) — [pl.config.json](configs/pl.config.json)
+- **`dev` spiegelt den `auth`-Block von pl nicht mehr**: die dev-Variante hält weiter ihre eigene Kopie und öffnet nur, wenn das Standardpasswort unverändert blieb — [dev.config.json](configs/dev.config.json)
+
+### v3.28.0 — VerlaufsBand (August 2026)
+
+MINOR — Seit v3.19 liegt der Verlauf als Daten vor — je Spur lückenlose Abschnitte mit Dauer, 82,4 % zweiseitig verankert. Gezeichnet wurde er nie: der Reiter zeigte eine Aufzählung, ausdrücklich als Sicherheitsnetz, solange die Bauform offen war. Jetzt steht die Bahn, und die Liste ist eine Stufe tiefer gerückt — geteilt, nicht ersetzt.
+
+- Mehrspurige Statusbahn (Verbund + je Teilvorhaben) auf **einer gewarpten Zeitachse**: derselbe Tag sitzt in jeder Spur an derselben Stelle, kurze Abschnitte bleiben über der Klickgrenze — [bandGeometrie.ts](src/plugins/antraege/verlauf-band/bandGeometrie.ts)
+- Konfidenz sitzt an den **Kanten**, nie am Statusfeld: der Status ist beobachtete Tatsache, unsicher ist die Zuschreibung — [VerlaufsBand.tsx](src/plugins/antraege/verlauf-band/VerlaufsBand.tsx)
+- Zwei leere Spurzustände sprechen verschieden („für diese Richtlinie keine Regeln" ≠ „kein Bearbeitungsstand"), dafür neu `VerlaufsSpur.regelLage` — [typen.ts](src/core/status/verlauf/typen.ts)
+- „Verlauf kopieren" gibt Labels **und** Codes heraus, samt Katalogfassung und Rekonstruktions-Hinweis — [bandText.ts](src/plugins/antraege/verlauf-band/bandText.ts)
+- `bezugsZeitpunkt` liest endlich die Frist-Uhr statt des nackten Stichtags; am Bestand heute folgenlos, weil kein Haltedatum belegt ist — [frist-bezug.ts](src/core/status/frist-bezug.ts), [vorgangssystem.md §14.9](docs/architecture/vorgangssystem.md)
+
+### v3.27.2 — Kurator-Passwort im pl-Build gesetzt (August 2026)
+
+PATCH — Der Slot `moduleAuth.kurator` trug seit seiner Einführung nur einen Platzhalter-Verifier: die Kurations-Rolle war in `pl` gar nicht erreichbar, der einzige Weg hinein war ein Überbleibsel aus einem Stand vor dem Schloss (v3.27.0). Mit dem gesetzten Passwort greift die dritte Regel erstmals wirklich.
+
+- Beide Modul-Slots tragen echte Salt/Verifier-Paare, der Platzhalter-Hinweis ist raus — [pl.config.json](configs/pl.config.json)
+- Damit gilt in `zah-pl.html`: Standard → beide Module zu · Auslastungs-Passwort → nur Auslastung · Kurations-Passwort → nur Kuration — [modul-freischaltung.md](docs/architecture/modul-freischaltung.md)
+
+### v3.27.1 — Build-Ziel devpl statt devprod (August 2026)
+
+PATCH — Die Zusammenlegung auf drei Varianten (v3.0) hat `build:all` mitgezogen, das Standard-Paar aber nicht: `build:devprod` baute weiter dev + prod, obwohl der Fach-Stack seit v3.0 komplett in `pl` liegt und der End-User-Build ihn gar nicht kompiliert. Wer der Default-Regel folgte, baute die Variante nicht, aus der getestet wird.
+
+- `build:devprod` → **`build:devpl`** (dev + pl); `build:all`, `build:dev`, `build:pl`, `build:prod` bleiben, wie sie sind — [package.json](package.json)
+- Die Default-Regel im Cheatsheet dreht sich entsprechend: dev + pl immer, `build:prod` zusätzlich bei geteiltem Code — [which-build-to-run.md](docs/agents/which-build-to-run.md)
+- Drei Cheatsheets nannten `build:devprod` als Abnahme-Schritt — [add-embedding-model.md](docs/agents/add-embedding-model.md), [add-auslastung-tab.md](docs/agents/add-auslastung-tab.md), [optimize-remount-latency.md](docs/agents/optimize-remount-latency.md)
+
+### v3.27.0 — Anmeldung legt den Freischalt-Zustand fest (August 2026)
+
+MINOR — In `zah-pl` erschienen **beide** Modul-Menüs, egal welches Passwort an der Wall getippt wurde. Kein Code-Defekt: eine Freischaltung galt 12 h und überlebte jede Anmeldung, also blieb offen, was ein früherer Login geöffnet hatte. Für den Kurator-Slot existierte zudem nie ein benutzbares Passwort — der einzige Weg hinein war ein Überbleibsel aus einem pl-Stand vor dem Schloss.
+
+- Steht eine Anmeldung an, wird jedes Modul mit Schloss VOR dem `rehydrate` geschlossen; die Wall öffnet danach genau den getroffenen Slot — [modul-freischaltung.ts](src/core/modul-freischaltung.ts), [App.tsx](src/core/App.tsx)
+- Die Profil-Flagge `is_kurator` folgt dem getippten Passwort, sonst fordert eine Standard-Anmeldung weiter Schreibrechte auf dem Share an — [AppPasswordGate.tsx](src/core/AppPasswordGate.tsx)
+- Die Ebenen-Prüfung ist als reine Funktion testbar (Basis → `auslastung` → `kurator`, erster Treffer gewinnt) und erstmals abgedeckt — [app-password.ts](src/core/services/infrastructure/app-password.ts)
+- Die Wall nennt Modul-Passwörter, die Freischalt-Sektion sagt jetzt die Wahrheit über ihre Geltung — [AppPasswordGate.tsx](src/core/AppPasswordGate.tsx), [ModulFreischaltungSection.tsx](src/plugins/einstellungen/ModulFreischaltungSection.tsx)
+- Einstellungs-Registry: „Module freischalten" ist auffindbar, der in `pl` tote Eintrag „Kurator-Bereich" ist weg — [settingsPanels.tsx](src/plugins/einstellungen/settingsPanels.tsx), [modul-freischaltung.md](docs/architecture/modul-freischaltung.md)
+
+### v3.26.0 — Klaerfragen als Arbeitsmappe (August 2026)
+
+MINOR — Was am Status- und Kürzelkatalog fachlich offen ist, stand bisher nur in `vorgangssystem.md` — als Handmessungen aus einer Konsolensitzung, die mit jedem Nacht-Export veralten und die niemand nachrechnen konnte. Die Befragung läuft Wochen und braucht eine Datei, die reihum geht. **70 Klärfragen** aus 14.222 Vorgängen, in sechs Herkünften mit je eigener Zuständigkeit.
+
+- Neuer Reiter „Klärfragen" mit Bestandslauf, Zähler je Herkunft und XLSX-Export; read-only, kein Rückweg (das ist „Zu klären") — [KlaerfragenTab.tsx](src/plugins/status-cockpit/KlaerfragenTab.tsx)
+- Die Ableitung entsteht bei jedem Lauf neu und ist rein; die drei Wert-Herkünfte sind disjunkt geordnet, Ids kommen aus Daten — [klaerfragen/](src/core/status/klaerfragen/)
+- Fixierte Kopfzeile, Zeilenumbruch, entsperrte Antwortzellen und Auswahllisten kann der XLSX-Writer nicht; ein Nachschritt über `jszip` ergänzt sie und bricht ab, wenn seine Formatannahme nicht mehr stimmt — [arbeitsmappe-veredelung.ts](src/core/status/export/arbeitsmappe-veredelung.ts)
+- `uneinigeKuerzel()` liefert erstmals, WELCHE Projektform was sagt — bisher nur die Namensliste — [kuerzel-katalog.ts](src/core/status/kuerzel-katalog.ts)
+- §14.4 ist bis auf die DS-Lücke abgearbeitet; `AB` → 51 und `XHSP` → 50 sind fachlich bestätigt und decken sich mit C16 — der erste direkte Beleg für die Güte des Exports — [vorgangssystem.md](docs/architecture/vorgangssystem.md)
+
+### v3.25.0 — Arbeitsliste folgt dem Phasenschnitt nicht mehr (August 2026)
+
+MINOR — Katalog-Fassung 19 löste die Phase „Vollständigkeit" auf und hängte deren Codes an „Prüfung" — ein gewollter Schnitt, der nebenbei **448 Anträge** die Arbeitsliste wechseln ließ: „Wartet auf Antragsteller" fiel von 52 auf 0, der Altanträge-Balken der Auslastung von 395 auf 22 Teilvorhaben (leer bei 22 von 32 MAs). Entschieden hatte das niemand; in den Reitern blieb es unsichtbar, weil das Aggregat „Vor Entscheidung" drei Kategorien bündelt.
+
+- Codes mit fachlich fester Arbeitsliste (33–37, 59) hängen jetzt am **Code** statt an einer Phasen-Id — `kategorieVorgabe` bleibt für alle übrigen wirksam — [kategorie-ableitung.ts](src/core/status/kategorie-ableitung.ts)
+- „Altlast" ist an die fünf amtlichen Codes gebunden statt an zwei Kategorien der beweglichen Achse, mit Rückfall für unbekannte Schreibweisen — [altlast.ts](src/plugins/auslastung/services/kapazitaet/altlast.ts)
+- Regressionsgatter setzt den Phasenschnitt der Fassung 19 aktiv, statt auf dem Seed zu laufen, wo die Lücke unsichtbar blieb — [altlast.test.ts](src/plugins/auslastung/__tests__/altlast.test.ts)
+- Gegenprobe hält fest, dass nicht verankerte Codes weiter dem kuratierten Schnitt folgen — [zah-phasen-daten.test.ts](src/core/status/__tests__/zah-phasen-daten.test.ts)
+- Warum `status-category-not-curated` allein nicht reichte, steht bei den Achsen — [status-achsen.md](docs/architecture/status-achsen.md), Pitfall #50
+
+### v3.24.1 — Freischaltung ueberlebt den Reload (August 2026)
+
+PATCH — Auf dem Produktivsystem verlor die Modul-Freischaltung nach dem erzwungenen Reload ihren Eintrag: Slot wieder „gesperrt", kein Menüpunkt, keine Meldung — ein zweiter Versuch klappte. Ein Wettlauf, den nur langsame Maschinen verlieren, deshalb im Dev nie sichtbar.
+
+- Schreiben löst erst beim **Commit** der Transaktion auf statt beim Request; `onabort` lehnt ab, damit aus stillem Verlust kein stiller Hänger wird — [idb-store.ts](src/core/services/storage/idb-store.ts)
+- `updateProfile` schreibt nicht mehr im `setState`-Updater und ist damit tatsächlich abwartbar (betraf `is_kurator` vor dem Reload) — [useProfile.ts](src/core/hooks/useProfile.ts)
+- Der Store behauptet die Freischaltung erst nach dem Schreiben, und Fehler nach der Passwortprüfung stehen sichtbar da statt geschluckt zu werden — [useModulFreischaltung.ts](src/core/hooks/useModulFreischaltung.ts), [ModulFreischaltungSection.tsx](src/plugins/einstellungen/ModulFreischaltungSection.tsx)
+- Regressionsgatter „Commit vor Aufloesung" für `set`/`delete` samt Abbruch-Fall — [idb-store.test.ts](src/core/services/storage/__tests__/idb-store.test.ts)
+- Bug-Klasse 18 „Schreiben und sofort neu laden" festgehalten — [recurring-bug-classes.md](docs/architecture/recurring-bug-classes.md)
+
 ### v3.24.0 — Feedback-Werkzeugleiste an Förderanträge angeglichen (August 2026)
 
 MINOR — In einer Toolbar-Zeile standen fünf Bauformen für dieselbe Art Aufgabe, und drei Icons trugen eine Bedeutung, die sie in der übrigen App nicht haben. Was Förderanträge schon konnte, war hier nachgebaut statt benutzt.

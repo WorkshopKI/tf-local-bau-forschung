@@ -14,6 +14,7 @@ import {
 import { getCanonicalLabel } from '@/core/services/csv/constants';
 import { logAudit } from '@/core/services/infrastructure/audit-log';
 import { refreshAntraegeStoreAfterSync } from '@/plugins/antraege/snapshot-refresh';
+import { journalisiereImport } from '@/core/status/journal';
 import type { CsvSchema, ImportResult } from '@/core/services/csv/types';
 import { Step4Progress } from './wizard/Step4Progress';
 import { guessDecision, type PerColumnDecision } from './wizard/useCsvWizardState';
@@ -152,6 +153,11 @@ export function CsvAddColumnsDialog({
       const r = await importCsvSource(storage.idb, schema.id, file, {
         signal: abortRef.current.signal,
         onProgress: p => setProgress(p),
+        // Journal mitführen (siehe CsvSourceReimportDialog): dieser Dialog
+        // stempelt denselben Export als erledigt, den sonst der Auto-Refresh
+        // journalisiert hätte.
+        onRows: (zeilen, headers) =>
+          journalisiereImport(storage.idb, file, schema, zeilen, headers).then(() => undefined),
         // Mapping wurde gerade geaendert → byte-gleiche Datei trotzdem neu
         // verarbeiten (sonst Checksum-Skip, neue Spalten blieben leer).
         force: true,
@@ -166,6 +172,13 @@ export function CsvAddColumnsDialog({
       await refreshAntraegeStoreAfterSync(storage.idb, schema.programm_id, ['antraege', 'verbuende'] as const);
       onCompleted();
     } catch (e) {
+      // Mapping zurücknehmen — sonst trägt das Schema die neuen Spalten,
+      // während Anträge und Row-Hashes den alten Stand beschreiben und der
+      // tägliche Check die Datei als `up_to_date` meldet (siehe
+      // RemapCsvColumnsDialog).
+      await saveSchema(storage.idb, schema).catch(err => {
+        console.warn('[csv-add-columns] Rücknahme des Mappings fehlgeschlagen', err);
+      });
       if (e instanceof DOMException && e.name === 'AbortError') setCancelled(true);
       else setImportError((e as Error).message);
     } finally {
