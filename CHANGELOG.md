@@ -5,6 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.48.1 — Startseiten-Kopf verschlankt, Sicht-Menue entrumpelt (August 2026)
+
+PATCH — Die Startseite ist Einstieg, nicht Arbeitsfläche: unter der Begrüßung stand seit v4.47 eine eigene Zeile mit zwei Chips, obwohl der Betrachtungsbereich dort dieselbe Auskunft gibt wie im Förderanträge-Kopf und auch dort gewechselt wird. Das Sicht-Menü erklärte sich zudem mit einem Absatz, dessen Zusage („Ihr Kürzel bleibt dabei stehen") nach dem Umschalten sichtbar nicht mehr stimmte.
+
+- **Der Kürzel-Chip steht neben der Begrüßung** statt in einer eigenen Zeile darunter — dieselbe Geometrie wie der `meta`-Slot im Förderanträge-Kopf ([HomePage.tsx](src/plugins/home/HomePage.tsx))
+- **Bereichs-Chip nur noch dort, wo die Liste an ihm hängt**; das Startseiten-Aggregat verliert seine Ausblend-Zahl wieder ([useDashboardData.ts](src/plugins/home/useDashboardData.ts))
+- **Sicht-Menü entrumpelt**: zwei Optionen, eine Zeile zu Reichweite und Gerätebindung, ein Weg in die Einstellungen ([BearbeiterSichtChip.tsx](src/components/bearbeiter/BearbeiterSichtChip.tsx))
+- **Die unhaltbare Zusage ist raus** — nach dem Umschalten nennt der Chip „Alle Bearbeiter", das eigene Kürzel steht nur noch in der Option darunter ([home.md](docs/feedback-kontext/home.md))
+
 ### v4.48.0 — Chronik nach Schritt: Matrix ueber die Teilvorhaben, Rollenfarben, geteilter Filter (August 2026)
 
 MINOR — Die Chronik kannte die Träger jedes Termins längst und faltete sie zu „3 Teilvorhaben" zusammen — genau die Auskunft, wegen der im Fachsystem der Verbund und danach jedes Teilvorhaben einzeln aufgerufen wird. Aus dem Design-Handoff `_design/handoff/chronik`, Teil 1 von 2 (der Zeitstrahl folgt).

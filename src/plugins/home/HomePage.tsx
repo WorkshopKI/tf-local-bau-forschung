@@ -26,7 +26,6 @@ import { getDatenShareHandle } from '@/core/services/infrastructure/smb-handle';
 import { HomeCallToAction } from '@/core/components/HomeCallToAction';
 import { tfPerfStart } from '@/core/utils/tfPerf';
 import { SeitenHilfeButton } from '@/components/help/SeitenHilfeButton';
-import { BereichChip } from '@/components/bereich/BereichChip';
 import { BearbeiterSichtChip } from '@/components/bearbeiter/BearbeiterSichtChip';
 import { vornameVon } from '@/core/utils/profil-anzeige';
 import { RechtsklickHinweis, merkeHinweisGesehen } from './anpassen/RechtsklickHinweis';
@@ -241,19 +240,19 @@ export function HomePage(): React.ReactElement {
           Blattrand (ui-muster.md, Guard `hilfe-knopf-am-blattrand`). */}
       <div data-tour="home-dashboard" className="mb-6 flex items-start gap-3">
         <div className="min-w-0">
-          <h1 className="text-[22px] font-medium text-[var(--tf-text)]">{data.greeting}{name ? `, ${name}` : ''}</h1>
+          {/* Der Kürzel-Chip steht NEBEN dem Titel (Geometrie wie der
+              `meta`-Slot des `PageHeader` im Förderanträge-Kopf): „wessen
+              Zahlen sind das?" beantworten beide Seiten an derselben Stelle.
+              Den Bereichs-Chip trägt bewusst nur die Förderanträge-Seite —
+              die Startseite ist Einstieg, keine Arbeitsfläche, und geändert
+              wird der Bereich dort, wo die Liste daran hängt. */}
+          <div className="flex items-center gap-3 flex-wrap">
+            <h1 className="text-[22px] font-medium text-[var(--tf-text)] leading-tight">{data.greeting}{name ? `, ${name}` : ''}</h1>
+            <BearbeiterSichtChip />
+          </div>
           {/* Nur die Gesamtzahl: die Aufteilung steht als klickbare Kacheln im
               Hero-Band direkt darunter (und im Antragseingang-Widget rechts). */}
           <p className="text-[13px] text-[var(--tf-text-secondary)]">{subtitle}</p>
-          {/* Dieselben zwei Chips wie im Förderanträge-Kopf: die Startseite
-              rechnet auf demselben Ausschnitt, hat ihn bis v4.46 aber
-              verschwiegen — inklusive der Anträge, die der Bereich wegnimmt
-              (Pitfall #46). Die Ausblend-Zahl kommt aus derselben Pipeline wie
-              die Zahlen darunter, der Chip rechnet nichts nach. */}
-          <span className="mt-1.5 inline-flex items-center gap-1.5 flex-wrap">
-            <BereichChip ausgeblendet={data.ausgeblendet} />
-            <BearbeiterSichtChip />
-          </span>
         </div>
         {/* Derselbe Weg wie der Rechtsklick, für alle, die keinen erwarten. */}
         <button

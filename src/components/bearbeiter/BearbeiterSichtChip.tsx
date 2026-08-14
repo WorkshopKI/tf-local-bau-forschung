@@ -3,11 +3,12 @@
  * meine Anträge oder die aller Bearbeiter.
  *
  * Schwester des `BereichChip` — beide beantworten dieselbe Frage („welchen
- * Ausschnitt sehe ich gerade?") für verschiedene Achsen und stehen deshalb
- * nebeneinander in einer Zeile. Er **erscheint in beiden Zuständen**: ein
- * Umschalter, der sich nach dem Umschalten versteckt, wäre eine Einbahnstraße,
- * und eine Liste, die still nur den eigenen Vorrat zeigt, liest sich wie der
- * ganze Bestand.
+ * Ausschnitt sehe ich gerade?") für verschiedene Achsen. Im Förderanträge-Kopf
+ * stehen sie nebeneinander; auf der Startseite steht dieser hier allein neben
+ * der Begrüßung (der Bereich wird dort gewechselt, wo die Liste an ihm hängt).
+ * Er **erscheint in beiden Zuständen**: ein Umschalter, der sich nach dem
+ * Umschalten versteckt, wäre eine Einbahnstraße, und eine Liste, die still nur
+ * den eigenen Vorrat zeigt, liest sich wie der ganze Bestand.
  *
  * Die **Beschriftung kommt aus `bearbeiterScopeLabel`**, derselben Quelle wie
  * die Meta-Zeilen der Startseiten-Widgets — Chip und Karte können so nicht
@@ -69,12 +70,12 @@ export function BearbeiterSichtChip(): React.ReactElement | null {
         </button>
       </PopoverTrigger>
       <PopoverContent align="start" className="w-[320px]">
-        <div className="flex flex-col gap-2.5">
-          <p className="text-[12px] text-[var(--tf-text-secondary)]">
-            Wessen Anträge <strong>Listen, Zähler und Startseite</strong> zeigen. Ihr Kürzel
-            bleibt dabei stehen — die Wahl gilt nur für diesen Rechner.
-          </p>
-
+        {/* Bewusst ohne Erklärtext über den Optionen: die zwei Beschriftungen
+            sagen bereits, was sie tun, und der Satz davor behauptete zudem,
+            das Kürzel „bleibe stehen" — sichtbar bleibt es aber nur hier in
+            der Option, nicht am Chip. Was der Leser nicht sehen kann (Reichweite
+            + Gerätebindung), steht als eine Zeile darunter. */}
+        <div className="flex flex-col gap-2">
           <div className="flex flex-wrap gap-1.5">
             <ToggleChip
               label={eigenesLabel}
@@ -92,12 +93,11 @@ export function BearbeiterSichtChip(): React.ReactElement | null {
             />
           </div>
 
-          {!kannUmschalten && (
-            <p className="text-[11.5px] text-[var(--tf-text-tertiary)]">
-              Ohne eigenes Kürzel gibt es nichts einzugrenzen — die Listen zeigen den
-              ganzen Bestand.
-            </p>
-          )}
+          <p className="text-[11px] text-[var(--tf-text-tertiary)]">
+            {kannUmschalten
+              ? 'Gilt für Listen und Zähler — nur auf diesem Rechner.'
+              : 'Ohne eigenes Kürzel zeigen die Listen den ganzen Bestand.'}
+          </p>
 
           <button
             type="button"

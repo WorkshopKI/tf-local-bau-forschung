@@ -42,12 +42,6 @@ export interface DashboardData {
   bearbeiterKuerzelMissing: boolean;
   /** Tokens des aktiven Bearbeiter-Filters (uppercase, getrimmt). Leer wenn inaktiv. */
   bearbeiterTokens: string[];
-  /**
-   * Wie viele Anträge der Betrachtungsbereich hier gerade wegnimmt — die Zahl
-   * für den Chip in der Kopfzeile. Der Chip rechnet sie nie selbst nach; ohne
-   * sie blendete die Startseite den Rest stumm aus (Pitfall #46).
-   */
-  ausgeblendet: number;
 }
 
 export function useDashboardData(): DashboardData {
@@ -107,9 +101,6 @@ export function useDashboardData(): DashboardData {
       bearbeiterFilterActive: bearbeiterMode.active,
       bearbeiterKuerzelMissing,
       bearbeiterTokens: bearbeiterMode.tokens,
-      // Nur der Bereich, nicht die Inaktiv-Stufe: der Chip nennt seinen eigenen
-      // Ausschnitt, die Inaktiven haben ihren eigenen Schalter.
-      ausgeblendet: antraegeFiltered.length - imBereich.length,
     };
     end(`antraege=${antraege.length} → total=${agg.stats.total} offen=${agg.stats.offen}`);
     return result;
