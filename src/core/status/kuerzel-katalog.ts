@@ -71,6 +71,8 @@ export type BezeichnungsHerkunft =
   | 'ds-aus-fue'
   /** Erstgeführte Form, weil nichts Besseres da ist — gilt NICHT sicher. */
   | 'geliehen'
+  /** Die kuratierte Fassung des Teams hat den Wortlaut überschrieben. */
+  | 'kuratiert'
   /** Der Katalog kennt das Kürzel nicht. */
   | 'unbekannt';
 
@@ -311,6 +313,42 @@ export function kuerzelAuskunft(kuerzel: string, form: Nachschlageform | null): 
   const ersteEintrag = formen[0]!;
   const alleGleich = !divergent(e);
   return ausForm(e, ersteEintrag[1], null, alleGleich, 'geliehen');
+}
+
+/**
+ * Legt den **kuratierten** Wortlaut der aktiven Fassung über eine Auskunft.
+ *
+ * Der Grund: die App führt zwei Wortlaut-Quellen, und beide erreichen dieselbe
+ * Seite. Die Chronik zeigt `StatusFeldEintrag.label` aus der Fassung — was die
+ * PL im Kürzel-Tab bearbeitet und für das Team freigibt. Die Verlaufs-Spur zeigt
+ * `kuerzelAuskunft` — einkompilierte Fremddaten, die keine Freigabe erreicht.
+ * Dieselben zwei Reiter, zwei Texte für dasselbe Kürzel; `XKS` las sich links
+ * „DL-Gutachten fertig - FB/AB" und rechts „Gutachten fertig".
+ *
+ * **Die Kuration gewinnt — bis auf einen Fall.** Wo die Projektformen etwas
+ * VERSCHIEDENES sagen (`bedeutungsdivergenz`, 58 Kürzel), bleibt der Katalog
+ * stehen: die Fassung kennt nur einen Wortlaut je Code und kann diese
+ * Unterscheidung gar nicht ausdrücken. Sie hier gewinnen zu lassen, gäbe jedem
+ * Antrag wieder die Bedeutung einer fremden Projektform — genau der Zustand vor
+ * v3.13, der 78,9 % der Anträge betraf.
+ *
+ * Unbekannte Kürzel bekommen dagegen sehr wohl den kuratierten Text: der Katalog
+ * kennt 36 Codes der Zuarbeit nicht, und ein Name ist dort besser als keiner.
+ *
+ * **Nur die Bezeichnung**, nicht die Rollen. `rollenLage` unterscheidet „jede
+ * Rolle" von „Rolle unbekannt"; ein Feld der Fassung trägt immer eine (leere =
+ * neutrale) Rollenliste, überlagert verschwände die zweite Aussage.
+ *
+ * Rein: nimmt den Text entgegen, statt ihn zu holen — der Katalog kennt die
+ * Fassung nicht und soll sie nicht kennen.
+ */
+export function ueberlagereKuration(
+  auskunft: KuerzelAuskunft, kuratiertesLabel: string | undefined,
+): KuerzelAuskunft {
+  const label = kuratiertesLabel?.trim();
+  if (!label || label === auskunft.bezeichnung) return auskunft;
+  if (auskunft.bedeutungsdivergenz) return auskunft;
+  return { ...auskunft, bezeichnung: label, eindeutig: true, quelle: null, herkunft: 'kuratiert' };
 }
 
 /**

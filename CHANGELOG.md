@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.45.0 — Kuerzel-Wortlaut folgt der Kuration in der ganzen App (August 2026)
+
+MINOR — Chronik und Zeitstrahl liegen in derselben Sektion und zeigten für dasselbe Kürzel verschiedene Texte: die Chronik den kuratierten Wortlaut der Fassung, die Spur die einkompilierten Fremddaten. Auf dem echten Bestand betraf das 111 von 505 Kürzeln.
+
+- **Die kuratierte Fassung gewinnt** — was die PL im Kürzel-Tab freigibt, wirkt jetzt auch in der Verlaufs-Spur ([kuerzel-katalog.ts](src/core/status/kuerzel-katalog.ts), [uebergaenge.ts](src/core/status/verlauf/uebergaenge.ts))
+- **Außer bei form-divergenten Kürzeln**: dort bleibt der Katalog, weil eine flache Kuration „AB in DL" nicht von „AB in NW" unterscheiden kann — 26 Kürzel, gewollt
+- **Dem Katalog unbekannte Kürzel** bekommen den kuratierten Namen statt gar keinen (36 Codes der flachen Zuarbeit)
+- **Rollen bleiben beim Katalog**: `rollenLage` unterscheidet „jede Rolle" von „Rolle unbekannt", was die Fassung nicht ausdrücken kann
+- **Guard** `kuerzel-text-folgt-der-kuration` ([conventions-status.test.ts](src/__tests__/conventions-status.test.ts)) + Verhalten in [kuerzel-overlay.test.ts](src/core/status/__tests__/kuerzel-overlay.test.ts)
+
 ### v4.44.1 — Suchbereich-Optionen tragen Suche in selbst (August 2026)
 
 PATCH — Aufgeklappt liegt die Optionsliste über der Seite; die Beschriftung „Suchen in:" daneben ist dann verdeckt, und jede Zeile las sich für sich allein als „alle Felder", „nur Dokumente" — ohne die Frage, die sie beantwortet.

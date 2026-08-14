@@ -111,7 +111,8 @@ export {
 // wird nur über `kuerzelAuskunft`, weil ein flacher Zugriff für 78,9 % der
 // Anträge den falschen Klartext liefert (Guard `kuerzel-nie-flach`).
 export {
-  kuerzelAuskunft, heutigesKuerzel, projektformVonVbPhase, projektformLage,
+  kuerzelAuskunft, ueberlagereKuration,
+  heutigesKuerzel, projektformVonVbPhase, projektformLage,
   nachschlageformVonVbPhase, nachschlageformVonLage,
   projektformAbhaengigeKuerzel, strittigeKuerzel, uneinigeKuerzel,
   offeneBedeutungen, kuerzelKategorien,

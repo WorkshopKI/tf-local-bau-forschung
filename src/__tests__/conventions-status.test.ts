@@ -165,6 +165,39 @@ describe('kuerzel-nie-flach (v3.13 — Kürzel × Projektform)', () => {
   });
 });
 
+describe('kuerzel-text-folgt-der-kuration (v4.45 — eine Seite, ein Wortlaut)', () => {
+  // Die Chronik zeigt `feld.label` aus der kuratierten Fassung, die
+  // Verlaufs-Spur `kuerzelAuskunft` aus den einkompilierten Fremddaten. Zwei
+  // Reiter DERSELBEN Sektion, und auf dem echten Bestand (Fassung 18, 505
+  // Kuerzel) liefen 111 davon auseinander: `ALQ` las sich links „NF von PL
+  // gelesen", rechts „NF von QS gelesen".
+  //
+  // Wo ein kuratiertes Feld zur Hand ist, gehoert die Auskunft deshalb durch
+  // `ueberlagereKuration`. Die Funktion haelt selbst fest, wo der Katalog
+  // gewinnt (form-divergente Kuerzel); dieser Guard haelt nur fest, DASS sie
+  // aufgerufen wird.
+  const HEIMAT = `${sep}core${sep}status${sep}verlauf${sep}uebergaenge.ts`;
+
+  it('uebergaenge.ts legt die Fassung ueber den Katalog', () => {
+    const datei = ALL_TS_FILES.find(f => f.endsWith(HEIMAT));
+    expect(datei, 'uebergaenge.ts nicht gefunden — Guard umbenannt?').toBeDefined();
+    const quelle = readFileSync(datei!, 'utf8');
+
+    if (!quelle.includes('ueberlagereKuration')) {
+      expect.fail(
+        `Die Verlaufs-Spur schlaegt wieder flach nach (v4.45).\n` +
+        `Stattdessen:\n` +
+        `  const auskunft = ueberlagereKuration(\n` +
+        `    kuerzelAuskunft(roh, e.projektform), eintrag.feld.label,\n` +
+        `  );\n` +
+        `Ohne die Ueberlagerung zeigen Chronik und Zeitstrahl fuer dasselbe\n` +
+        `Kuerzel verschiedene Texte — auf Fassung 18 bei 111 von 505.\n` +
+        `Belegt in src/core/status/__tests__/kuerzel-overlay.test.ts.`,
+      );
+    }
+  });
+});
+
 describe('verlauf-leitet-keinen-status-ab (Phase 1b — Pitfall #44)', () => {
   // Die Verlaufsableitung rekonstruiert die VERGANGENHEIT aus den `D_`-Spalten.
   // Der GELTENDE Status kommt weiter aus dem Export und wird nie berechnet —

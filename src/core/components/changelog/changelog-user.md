@@ -19,6 +19,12 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.45 — 2026-08
+
+### Verbesserungen
+- **Korrigierte Kürzel-Bezeichnungen wirken jetzt überall.** Wer im Kürzel-Verzeichnis eine Bezeichnung berichtigt, speichert und für das Team freigibt, sieht sie danach auch im **Zeitstrahl** — bisher zeigte der dort einen anderen Text als die Chronik direkt daneben. Auf dem echten Bestand betraf das 111 der 505 Kürzel; `ALQ` las sich links „NF von PL gelesen" und rechts „NF von QS gelesen".
+- Eine Ausnahme bleibt mit Absicht: Kürzel, die je Antragstyp etwas anderes bedeuten (etwa `AB` in DL gegenüber NW), nennt der Zeitstrahl weiter typgenau. Das Verzeichnis kennt nur eine Bezeichnung je Kürzel und könnte diesen Unterschied nicht ausdrücken.
+
 ## v4.44 — 2026-08
 
 ### Verbesserungen

@@ -29,7 +29,9 @@
  * Rein: keine IO, keine Uhr.
  */
 import { baueChronik } from '../chronik';
-import { heutigesKuerzel, kuerzelAuskunft, type Nachschlageform } from '../kuerzel-katalog';
+import {
+  heutigesKuerzel, kuerzelAuskunft, ueberlagereKuration, type Nachschlageform,
+} from '../kuerzel-katalog';
 import { normKey } from '../normalisierung';
 import { pruefeTriggerBedingungen, type BedingungsUrteil, type TriggerKontext } from '../trigger-bedingung';
 import type { FeldVorkommen } from '../feld-aufloesung';
@@ -134,7 +136,12 @@ export function baueUebergaenge(e: UebergangsEingabe): VerlaufsUebergang[] {
     const roh = eintrag.feld.code?.normalize('NFC');
     if (!roh) continue;                       // kanonische Felder ohne Kürzel-Code
     const heute = heutigesKuerzel(roh);
-    const auskunft = kuerzelAuskunft(roh, e.projektform);
+    // `eintrag.feld` IST das Feld, dessen Bezeichnung die Chronik zeigt. Beide
+    // Ansichten lesen damit dieselbe Zeichenkette, statt sie zufällig gleich zu
+    // haben — der Grund steht bei `ueberlagereKuration`.
+    const auskunft = ueberlagereKuration(
+      kuerzelAuskunft(roh, e.projektform), eintrag.feld.label,
+    );
 
     const rollenLage: RollenLage = auskunft.bezeichnung === null || !auskunft.eindeutig
       ? 'unbekannt'

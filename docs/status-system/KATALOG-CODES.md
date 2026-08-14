@@ -94,6 +94,46 @@ voraus, dass die 66 entschieden sind. Bis dahin bleibt `kuerzelAuskunft()` die
 eine Tür für die *form-abhängige* Bedeutung und der Seed die Quelle der
 *angezeigten Bezeichnung*; beide lesen dieselben Entscheidungen.
 
+### Auf dem Bildschirm gilt die kuratierte Fassung
+
+Die beiden Quellen oben beschreiben, was **ausgeliefert** wird. Davon getrennt
+ist die Frage, welcher Text auf der Seite steht — und dort gewinnt seit v4.45 die
+**kuratierte Fassung**, also das, was die PL im Kürzel-Tab bearbeitet, speichert
+und für das Team freigibt.
+
+Nötig wurde das, weil dieselbe Sektion des Verbund-Detail zwei Reiter hat, die
+ihren Text aus verschiedenen Quellen zogen: die **Chronik** aus
+`StatusFeldEintrag.label` (Fassung), der **Zeitstrahl** aus `kuerzelAuskunft()`
+(einkompiliert). Gemessen an der laufenden Fassung 18 mit 505 Kürzeln liefen
+**111** auseinander — `ALQ` las sich links „NF von PL gelesen", rechts „NF von QS
+gelesen". Eine Freigabe erreichte den Zeitstrahl gar nicht; nur ein neuer Build
+änderte ihn.
+
+`ueberlagereKuration()` in [kuerzel-katalog.ts](../../src/core/status/kuerzel-katalog.ts)
+legt den kuratierten Wortlaut über die Auskunft. Aufgerufen wird sie in
+[uebergaenge.ts](../../src/core/status/verlauf/uebergaenge.ts) mit
+`eintrag.feld.label` — **demselben Feld**, das die Chronik rendert. Beide
+Ansichten zeigen damit dieselbe Zeichenkette per Konstruktion, nicht zufällig.
+
+Zwei Grenzen, beide gewollt:
+
+- **Form-divergente Kürzel bleiben beim Katalog.** Die Fassung kennt einen
+  Wortlaut je Code; `AB` heißt in DL aber etwas anderes als in NW. Sie hier
+  gewinnen zu lassen, gäbe jedem DL-Antrag wieder den NW-Text — der Zustand vor
+  v3.13, der 78,9 % der Anträge betraf. Nach der Überlagerung bleiben deshalb
+  **26** Kürzel mit zwei Texten auf einer Seite, und das ist die richtige Zahl.
+- **Rollen folgen nicht.** `rollenLage` unterscheidet „jede Rolle" von „Rolle
+  unbekannt"; ein Feld der Fassung trägt immer eine (leere = neutrale)
+  Rollenliste, überlagert verschwände die zweite Aussage.
+
+Eine **stale Fassung** zeigt danach ihren alten Text in beiden Reitern statt in
+einem — das ist Absicht. Ein Stand, der einheitlich veraltet ist und im Cockpit
+als „Bei N Feldern weichen Bezeichnung oder Rollen ab → Zuarbeit übernehmen"
+gemeldet wird, ist ehrlicher als zwei Texte nebeneinander, von denen die Seite
+nicht sagt, welcher gilt. Die offenen Sachwidersprüche (`XFB` & Co.) bleiben
+davon unberührt: sie werden weiter zwischen den **Quellen** gemessen, nicht
+zwischen den Ansichten.
+
 **Vorbehalt bleibt die Ordner-Zuordnung**: sie ist aus Bildschirmfotos der
 Fachsystem-Ordnerbäume übertragen — eine Vorbelegung, die die Projektleitung
 bestätigt, genau wie beim Meilenstein-Seed. Die Zuarbeit führt **keine** Ordner.
