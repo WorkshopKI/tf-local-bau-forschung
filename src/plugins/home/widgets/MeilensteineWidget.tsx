@@ -15,6 +15,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigation } from '@/core/hooks/useNavigation';
 import { useStorage } from '@/core/hooks/useStorage';
+import { useBearbeiterSicht } from '@/core/hooks/useBearbeiterSicht';
+import { bearbeiterScopeLabel } from '@/plugins/antraege/bearbeiterFilter';
 import { isMeilensteinMonitoringEnabled } from '@/config/feature-flags';
 import { listProgramme, listSchemasByProgramm } from '@/core/services/csv/idb-csv';
 import {
@@ -79,6 +81,8 @@ export function MeilensteineWidget({
 }: WidgetProps): React.ReactElement | null {
   const { navigate } = useNavigation();
   const idb = useStorage().idb;
+  // Vor dem Flag-Return (React-Hook-Regel); trägt die Schreibweise der Kürzel.
+  const { mode: bearbeiterMode } = useBearbeiterSicht();
   const aktiv = !instanz.eingeklappt;
 
   const [knoten, setKnoten] = useState<MeilensteinKnoten[]>([]);
@@ -140,9 +144,7 @@ export function MeilensteineWidget({
 
   const sichtbar = zeilen.slice(0, MAX_ZEILEN);
   const rest = zeilen.length - sichtbar.length;
-  const scope = ctx.data.bearbeiterFilterActive && ctx.data.bearbeiterTokens.length > 0
-    ? `Kürzel ${ctx.data.bearbeiterTokens.join(', ')}`
-    : 'Alle Bearbeiter';
+  const scope = bearbeiterScopeLabel(bearbeiterMode);
 
   return (
     <WidgetShell

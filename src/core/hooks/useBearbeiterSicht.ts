@@ -13,6 +13,11 @@
  * zum Aufteilen zwingt (eine kuratierte Definition neben der persönlichen
  * Auswahl), gibt es hier nicht — die Definition ist das Profil-Kürzel.
  *
+ * Er liefert außerdem die **Schreibweise** der eigenen Kürzel („THü", nicht
+ * „THÜ") als `anzeigeTokens`/`eigeneTokens` — an EINER Stelle aus den Anträgen
+ * gelesen, damit Chip, Widget-Meta-Zeilen und Rückweg dieselbe Fassung nennen.
+ * Verglichen wird weiter mit `mode.tokens`.
+ *
  * **Dieser Hook filtert nichts** (Pitfall #46). Er liefert den fertigen Modus;
  * anwenden müssen ihn die Konsumenten selbst — und den Zustand sichtbar machen
  * (`BearbeiterSichtChip`), sonst blendet eine Liste stumm den halben Bestand aus.
@@ -23,9 +28,11 @@ import { useProfile } from '@/core/hooks/useProfile';
 import { useMeinKuerzel } from '@/core/hooks/useMeinKuerzel';
 import { useMAIdentity } from '@/core/hooks/useMAIdentity';
 import { isMaLoginEnabled } from '@/config/feature-flags';
+import { useAntraegeStore } from '@/plugins/antraege/store';
 import {
   parseBearbeiterFilter,
   sichtModus,
+  anzeigeTokensFuer,
   type BearbeiterFilterMode,
   type BearbeiterSicht,
 } from '@/plugins/antraege/bearbeiterFilter';
@@ -81,7 +88,8 @@ export interface BearbeiterSichtErgebnis {
   /** Der anzuwendende Filter-Modus (Sicht bereits eingerechnet). */
   mode: BearbeiterFilterMode;
   /** Das eigene Kürzel — auch in der „alle"-Sicht, damit der Chip den Rückweg
-   *  beschriften kann („Meine Anträge (THÜ)"). Leer ohne gesetztes Kürzel. */
+   *  beschriften kann („Meine Anträge (THü)"). In der Schreibweise der Daten,
+   *  wo sie bekannt ist; **nur zum Anzeigen**. Leer ohne gesetztes Kürzel. */
   eigeneTokens: string[];
   setSicht: (v: BearbeiterSicht) => void;
 }
@@ -93,20 +101,30 @@ export function useBearbeiterSicht(): BearbeiterSichtErgebnis {
   const istAngemeldet = useMAIdentity(s => s.istAngemeldet);
   const { profile } = useProfile();
   const inklBegleitung = profile?.bearbeiter_inkl_begleitung;
+  // Nur als Quelle der SCHREIBWEISE (siehe unten) — gefiltert wird hier nichts.
+  const antraege = useAntraegeStore(s => s.antraege);
 
   return useMemo(() => {
     const eigen = parseBearbeiterFilter(meinKuerzel, inklBegleitung);
     const identitaetFest = isMaLoginEnabled() && istAngemeldet;
     const kannUmschalten = eigen.active && !identitaetFest;
+    // Die Bearbeitenden kennen ihr Kürzel gemischt geschrieben („THü"), das
+    // Profil trägt die Vergleichsform („THÜ"). Beschriftet wird deshalb mit der
+    // Schreibweise aus den Daten — gelesen EINMAL hier, damit Chip, Widget-
+    // Meta-Zeilen und Rückweg dieselbe Fassung nennen. Ohne Treffer bleibt es
+    // beim Token (Liste noch leer, Kürzel aus einer anderen Quelle).
+    const anzeige = (toks: string[]): string[] =>
+      eigen.active ? anzeigeTokensFuer(antraege, toks) : toks;
+    // Ohne Umschalt-Recht gilt der Profil-Wert unverändert — eine im
+    // localStorage liegengebliebene „alle"-Wahl darf einem prod-User mit
+    // festem Kürzel nicht den ganzen Bestand aufmachen.
+    const mode = kannUmschalten ? sichtModus(eigen, sicht) : eigen;
     return {
       sicht: kannUmschalten ? sicht : 'meine',
       kannUmschalten,
-      // Ohne Umschalt-Recht gilt der Profil-Wert unverändert — eine im
-      // localStorage liegengebliebene „alle"-Wahl darf einem prod-User mit
-      // festem Kürzel nicht den ganzen Bestand aufmachen.
-      mode: kannUmschalten ? sichtModus(eigen, sicht) : eigen,
-      eigeneTokens: eigen.tokens,
+      mode: mode.active ? { ...mode, anzeigeTokens: anzeige(mode.tokens) } : mode,
+      eigeneTokens: anzeige(eigen.tokens),
       setSicht,
     };
-  }, [meinKuerzel, inklBegleitung, istAngemeldet, sicht, setSicht]);
+  }, [meinKuerzel, inklBegleitung, istAngemeldet, sicht, setSicht, antraege]);
 }

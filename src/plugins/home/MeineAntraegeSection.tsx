@@ -4,6 +4,7 @@ import { ArrowRight, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ListItem } from '@/components/ui/ListItem';
 import { useNavigation } from '@/core/hooks/useNavigation';
+import { useBearbeiterSicht } from '@/core/hooks/useBearbeiterSicht';
 import { isKuerzelDropdownEnabled } from '@/config/feature-flags';
 import { useAntraegeStore } from '@/plugins/antraege/store';
 import { bearbeiterScopeLabel } from '@/plugins/antraege/bearbeiterFilter';
@@ -45,6 +46,7 @@ function splitTitle(title: string, acronym: string | undefined): { acronym: stri
 export function MeineAntraegeWidget({ instanz, ctx, onToggleEingeklappt }: WidgetProps): React.ReactElement {
   const { navigate } = useNavigation();
   const { data, initialCount } = ctx;
+  const { mode: bearbeiterMode } = useBearbeiterSicht();
   const antraege = data.meineAntraege;
   const alleMode = !data.bearbeiterFilterActive;
   const [visibleCount, setVisibleCount] = useState(initialCount);
@@ -75,13 +77,17 @@ export function MeineAntraegeWidget({ instanz, ctx, onToggleEingeklappt }: Widge
 
   const zeigtListe = !(alleMode && !isKuerzelDropdownEnabled()) && antraege.length > 0;
 
-  // Modus sichtbar in der Meta-Zeile (v1.1): „Kürzel THU" vs. „Alle Bearbeiter"
+  // Modus sichtbar in der Meta-Zeile (v1.1): „Kürzel THü" vs. „Alle Bearbeiter"
   // — ersetzt den früheren Titel-Swap; der Titel bleibt fix „Meine Anträge".
-  const scopeLabel = bearbeiterScopeLabel({
-    active: data.bearbeiterFilterActive,
-    tokens: data.bearbeiterTokens,
-    includeBegleitung: false,
-  });
+  // Der Modus kommt aus der geteilten Fassade, nicht aus einem hier
+  // zusammengesetzten Teil-Objekt: nur so trägt er die Schreibweise der Kürzel
+  // (`anzeigeTokens`) — und ein zweiter Bauplatz für denselben Modus lief schon
+  // einmal der Sicht hinterher (Antragseingang, v4.47).
+  const scopeLabel = bearbeiterScopeLabel(bearbeiterMode);
+  // Dieselbe Schreibweise auch in den zwei Fließtexten darunter („Anträge mit
+  // Ihrem Kürzel THü …") — sonst steht im Kopf der Karte eine andere Fassung
+  // als drei Zeilen tiefer.
+  const anzeigeKuerzel = bearbeiterMode.anzeigeTokens ?? data.bearbeiterTokens;
 
   // Kein „N sichtbar" in der Meta-Zeile mehr: dieselbe Auskunft steht als
   // „N von M" unter der Liste, dort mit der Gesamtzahl daneben (v2.372.2).
@@ -114,7 +120,7 @@ export function MeineAntraegeWidget({ instanz, ctx, onToggleEingeklappt }: Widge
       {alleMode && !isKuerzelDropdownEnabled() ? (
         <KuerzelOnboardingKarte />
       ) : antraege.length === 0 ? (
-        <EmptyKarte alleMode={alleMode} bearbeiterTokens={data.bearbeiterTokens} />
+        <EmptyKarte alleMode={alleMode} bearbeiterTokens={anzeigeKuerzel} />
       ) : (
         <>
           {/* Rückstands-Balken: eigene offene Anträge nach Quartals-Alter
@@ -124,7 +130,7 @@ export function MeineAntraegeWidget({ instanz, ctx, onToggleEingeklappt }: Widge
             antraege={antraege}
             visibleCount={visibleCount}
             setVisibleCount={setVisibleCount}
-            bearbeiterTokens={data.bearbeiterTokens}
+            bearbeiterTokens={anzeigeKuerzel}
             alleMode={alleMode}
           />
         </>
@@ -192,7 +198,7 @@ interface ListeProps {
   antraege: AntragVorgang[];
   visibleCount: number;
   setVisibleCount: React.Dispatch<React.SetStateAction<number>>;
-  /** Aktive Bearbeiter-Filter-Tokens (uppercase). Für den Help-Text. */
+  /** Die eigenen Kürzel in der Schreibweise der Daten. Nur für den Help-Text. */
   bearbeiterTokens: string[];
   /** „alle"-/Übersichtsmodus (pl/dev): MA-Kürzel je Zeile. */
   alleMode: boolean;

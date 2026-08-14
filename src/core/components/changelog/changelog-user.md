@@ -28,6 +28,7 @@
 ### Verbesserungen
 - Der Startbildschirm der Suche zeigt unter „So kannst du suchen" sechs Beispiele mit Erklärung — vom einfachen Thema bis zur Anfrage über zwei Felder. Ein Klick führt das Beispiel aus.
 - Nennen Sie ein Feld, steht es zur Kontrolle im Chip unter dem Suchfeld („Einrichtung: GMBU"). Treffer aus Dokumenten und aus der Ähnlichkeitssuche bleiben dann außen vor — beide können eine Feldangabe nicht einhalten.
+- Ihr Kürzel steht jetzt überall so da, wie Ihr Team es schreibt („Kürzel THü", nicht „THÜ") — im Chip, in seinem Menü und in den Meta-Zeilen aller Startseiten-Karten. Bisher zeigte nur die Auswahl im Profil die richtige Schreibweise.
 
 ## v4.48 — 2026-08
 

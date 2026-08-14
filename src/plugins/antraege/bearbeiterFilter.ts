@@ -60,6 +60,16 @@ export interface BearbeiterFilterMode {
   active: boolean;
   /** Tokens, gegen die gematcht wird (uppercase, getrimmt). */
   tokens: string[];
+  /**
+   * Dieselben Kürzel in der Schreibweise der Daten („THü" statt „THÜ") —
+   * **ausschließlich zum Anzeigen**. Verglichen wird nie damit: `tokens` ist die
+   * Vergleichsform, und zwei Formen zum Matchen wären genau die Gabel, an der
+   * ein Kürzel je nach Aufrufer mal trifft und mal nicht (Guard
+   * `anzeigetokens-nur-anzeigen`). Fehlt das Feld — Kürzel steht in keinem
+   * geladenen Antrag, Liste noch leer —, beschriften die Konsumenten mit
+   * `tokens`; großgeschrieben ist unschön, aber nie falsch.
+   */
+  anzeigeTokens?: string[];
   /** Auch Begleitungs-Spalten (ZTP, PFM) berücksichtigen. */
   includeBegleitung: boolean;
   /**
@@ -158,15 +168,18 @@ function forEachKuerzelValue(
   antrag: AntragListItem,
   fieldsLowerKeys: readonly string[],
   fieldsLowerSet: ReadonlySet<string>,
-  cb: (uppered: string) => boolean,
+  /** `roh` ist der getrimmte Originalwert — nur `kuerzelSchreibweisen` liest ihn,
+   *  alle Filter vergleichen `uppered`. */
+  cb: (uppered: string, roh: string) => boolean,
 ): boolean {
   const rec = antrag as unknown as Record<string, unknown>;
   for (const k of fieldsLowerKeys) {
     const v = rec[k];
     if (typeof v !== 'string') continue;
-    const upper = v.trim().toUpperCase();
+    const roh = v.trim();
+    const upper = roh.toUpperCase();
     if (!upper) continue;
-    if (cb(upper)) return true;
+    if (cb(upper, roh)) return true;
   }
   for (const key in rec) {
     if (fieldsLowerSet.has(key)) continue;
@@ -175,11 +188,62 @@ function forEachKuerzelValue(
     if (!fieldsLowerSet.has(lk)) continue;
     const v = rec[key];
     if (typeof v !== 'string') continue;
-    const upper = v.trim().toUpperCase();
+    const roh = v.trim();
+    const upper = roh.toUpperCase();
     if (!upper) continue;
-    if (cb(upper)) return true;
+    if (cb(upper, roh)) return true;
   }
   return false;
+}
+
+/**
+ * Sucht zu den (bereits uppercase) Tokens die **Schreibweise, die in den Daten
+ * steht** — „THü" zu `THÜ`. Nur zum Beschriften (`anzeigeTokens`).
+ *
+ * Warum aus den Anträgen und nicht aus dem Profil: das Profilfeld trägt die
+ * Vergleichsform, und sie um der Optik willen umzuschreiben hieße, die
+ * Identität an ein Quellendetail zu hängen. Die Schreibweise steht ohnehin in
+ * jedem Antrag, den der Nutzer bearbeitet.
+ *
+ * Gibt IMMER so viele Einträge zurück wie Tokens hereinkamen, in derselben
+ * Reihenfolge: was sich nicht finden lässt (Liste noch leer, Kürzel aus einer
+ * anderen Quelle), bleibt als Token stehen. Großgeschrieben ist unschön, ein
+ * fehlendes Kürzel in der Beschriftung wäre falsch.
+ */
+export function anzeigeTokensFuer(
+  antraege: readonly AntragListItem[],
+  tokens: readonly string[],
+): string[] {
+  const map = kuerzelSchreibweisen(antraege, tokens);
+  return tokens.map(t => map.get(t) ?? t);
+}
+
+/**
+ * Der Rohbefund hinter `anzeigeTokensFuer`: was in den Daten GEFUNDEN wurde —
+ * nicht Gefundenes fehlt in der Map, den Rückfall entscheidet der Wrapper.
+ *
+ * Bricht ab, sobald jedes Token gefunden ist; das eigene Kürzel steht bei einem
+ * Bearbeiter meist in den ersten Sätzen. Gesucht wird auch in den
+ * Begleitungs-Spalten — dieselbe Person, dieselbe Schreibweise, mehr Chancen auf
+ * einen Treffer.
+ */
+export function kuerzelSchreibweisen(
+  antraege: readonly AntragListItem[],
+  tokens: readonly string[],
+): Map<string, string> {
+  const gefunden = new Map<string, string>();
+  if (tokens.length === 0) return gefunden;
+  const offen = new Set(tokens);
+  for (const a of antraege) {
+    forEachKuerzelValue(a, COMBINED_FIELDS_LOWER, COMBINED_FIELDS_LOWER_SET, (upper, roh) => {
+      if (!offen.has(upper)) return false;
+      gefunden.set(upper, roh.normalize('NFC'));
+      offen.delete(upper);
+      return offen.size === 0;
+    });
+    if (offen.size === 0) break;
+  }
+  return gefunden;
 }
 
 function antragHasKuerzel(
@@ -265,7 +329,10 @@ export function isAlleMode(raw: string | undefined): boolean {
  * Meine Anträge und Antragseingang.
  */
 export function bearbeiterScopeLabel(mode: BearbeiterFilterMode): string {
-  return mode.active ? `Kürzel ${mode.tokens.join('/')}` : 'Alle Bearbeiter';
+  if (!mode.active) return 'Alle Bearbeiter';
+  // Schreibweise der Daten, wo sie bekannt ist: 81 der 112 Kürzel im Bestand
+  // sind gemischt geschrieben, und die Bearbeitenden kennen ihres so.
+  return `Kürzel ${(mode.anzeigeTokens ?? mode.tokens).join('/')}`;
 }
 
 /** NFC+uppercase-Normalisierung eines tib_kuerz-Rohwerts für den Vergleich

@@ -9,6 +9,8 @@ import {
   hasAnyKuerzelData,
   bearbeiterScopeLabel,
   sichtModus,
+  kuerzelSchreibweisen,
+  anzeigeTokensFuer,
 } from '../bearbeiterFilter';
 
 function makeAntrag(extra: Record<string, unknown>): AntragListItem {
@@ -29,6 +31,77 @@ describe('bearbeiterScopeLabel (v1.1 — Modus sichtbar)', () => {
   it('gibt „Kürzel …" bei gesetztem Kürzel (Vertretung mit „/")', () => {
     expect(bearbeiterScopeLabel(parseBearbeiterFilter('thu', false))).toBe('Kürzel THU');
     expect(bearbeiterScopeLabel(parseBearbeiterFilter('MUE, SCH', false))).toBe('Kürzel MUE/SCH');
+  });
+
+  it('nimmt die Schreibweise, wo sie bekannt ist (v4.48)', () => {
+    const mode = { ...parseBearbeiterFilter('THÜ, MUE', false), anzeigeTokens: ['THü', 'MuE'] };
+    expect(bearbeiterScopeLabel(mode)).toBe('Kürzel THü/MuE');
+  });
+
+  it('faellt ohne Schreibweise auf das Token zurueck — nie leer', () => {
+    const mode = { ...parseBearbeiterFilter('THÜ', false), anzeigeTokens: undefined };
+    expect(bearbeiterScopeLabel(mode)).toBe('Kürzel THÜ');
+  });
+});
+
+describe('kuerzelSchreibweisen (v4.48 — Anzeige ≠ Vergleichsform)', () => {
+  it('findet die Schreibweise in beiden Bearbeiter-Spalten', () => {
+    const map = kuerzelSchreibweisen(
+      [makeAntrag({ tib_kuerz: 'THü' }), makeAntrag({ bib_kuerz: 'DaHa' })],
+      ['THÜ', 'DAHA'],
+    );
+    expect([...map]).toEqual([['THÜ', 'THü'], ['DAHA', 'DaHa']]);
+  });
+
+  it('findet sie auch in den Begleitungs-Spalten — dieselbe Person', () => {
+    const map = kuerzelSchreibweisen([makeAntrag({ ztp_kuerz: 'JuHe' })], ['JUHE']);
+    expect(map.get('JUHE')).toBe('JuHe');
+  });
+
+  it('laesst ein unauffindbares Kuerzel weg (Aufrufer nimmt das Token)', () => {
+    const map = kuerzelSchreibweisen([makeAntrag({ tib_kuerz: 'THü' })], ['THÜ', 'XYZ']);
+    expect(map.has('XYZ')).toBe(false);
+    expect(map.size).toBe(1);
+  });
+
+  it('nimmt den ERSTEN Treffer und liest danach nicht weiter', () => {
+    // Im echten Bestand widerspricht sich kein Kuerzel; die Regel muss trotzdem
+    // festliegen, sonst haengt die Anzeige an der Sortierung der Liste.
+    const map = kuerzelSchreibweisen(
+      [makeAntrag({ tib_kuerz: 'MaL' }), makeAntrag({ tib_kuerz: 'MAL' })],
+      ['MAL'],
+    );
+    expect(map.get('MAL')).toBe('MaL');
+  });
+
+  it('normalisiert die gefundene Schreibweise nach NFC (Pitfall #22)', () => {
+    // Codepoints explizit: ein literal getippter Umlaut laesst offen, welche
+    // Unicode-Form in der Datei steht — und genau die ist hier der Prueffall.
+    const nfd = 'TH\u0075\u0308';  // u + Combining Diaeresis
+    const nfc = 'TH\u00FC';        // dasselbe Kuerzel, ein Codepoint
+    expect(nfd).not.toBe(nfc);     // sonst prueft der Test nichts
+    const map = kuerzelSchreibweisen([makeAntrag({ tib_kuerz: nfd })], [nfd.toUpperCase()]);
+    expect([...map.values()][0]).toBe(nfc);
+  });
+
+  it('anzeigeTokensFuer gibt jedes Token zurueck — gefunden oder nicht', () => {
+    expect(anzeigeTokensFuer(
+      [makeAntrag({ tib_kuerz: 'MaL' })],
+      ['MAL', 'XYZ'],
+    )).toEqual(['MaL', 'XYZ']);
+  });
+
+  it('anzeigeTokensFuer haelt die Reihenfolge der Tokens', () => {
+    // Die Beschriftung liest „Kürzel A/B" — vertauscht waere sie eine andere
+    // Aussage, und die Map-Reihenfolge haengt an der Reihenfolge der Antraege.
+    expect(anzeigeTokensFuer(
+      [makeAntrag({ tib_kuerz: 'ScH' }), makeAntrag({ tib_kuerz: 'MuE' })],
+      ['MUE', 'SCH'],
+    )).toEqual(['MuE', 'ScH']);
+  });
+
+  it('scannt gar nicht ohne Tokens', () => {
+    expect(kuerzelSchreibweisen([makeAntrag({ tib_kuerz: 'THü' })], []).size).toBe(0);
   });
 });
 

@@ -25,6 +25,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigation } from '@/core/hooks/useNavigation';
 import { useStorage } from '@/core/hooks/useStorage';
+import { useBearbeiterSicht } from '@/core/hooks/useBearbeiterSicht';
+import { bearbeiterScopeLabel } from '@/plugins/antraege/bearbeiterFilter';
 import {
   getVerbund, listAntraegeByVerbund, listSchemasByProgramm,
 } from '@/core/services/csv/idb-csv';
@@ -139,6 +141,8 @@ export function StatusVerlaufWidget({
   onToggleEingeklappt,
 }: WidgetProps): React.ReactElement | null {
   const { navigate } = useNavigation();
+  // Vor dem Flag-Return (React-Hook-Regel); trägt die Schreibweise der Kürzel.
+  const { mode: bearbeiterMode } = useBearbeiterSicht();
   // Stabile Referenz solange keine neue Katalog-Version aktiviert wird
   // (Snapshot-Modul hält genau ein Objekt) — direkt in Render lesen, damit ein
   // erst nach Mount gesetzter Snapshot noch greift.
@@ -167,10 +171,7 @@ export function StatusVerlaufWidget({
   if (!isStatusCockpitEnabled() || !version) return null;
 
   const rest = verbuende.length - sichtbare.length;
-  const scope =
-    ctx.data.bearbeiterFilterActive && ctx.data.bearbeiterTokens.length > 0
-      ? `Kürzel ${ctx.data.bearbeiterTokens.join(', ')}`
-      : 'Alle Bearbeiter';
+  const scope = bearbeiterScopeLabel(bearbeiterMode);
 
   return (
     <WidgetShell

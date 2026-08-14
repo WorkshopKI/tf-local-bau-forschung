@@ -29,7 +29,7 @@ import {
   type RollenBilanz,
 } from '@/core/status';
 import {
-  parseBearbeiterFilter, type BearbeiterFilterMode,
+  parseBearbeiterFilter, anzeigeTokensFuer, type BearbeiterFilterMode,
 } from '@/plugins/antraege/bearbeiterFilter';
 import {
   letzteDreiJahrgaenge, reichtInAltbestand, passtJahr, passtVariante, passtPhase, passtRest,
@@ -355,7 +355,17 @@ export function useVorgangsBoard(): VorgangsBoardApi {
     // Der Rollen-Zuschnitt: ein AB sucht sich in BIB, ein FB in TIB. Ohne Rolle
     // bleibt es beim vollen Spaltensatz (unverändertes Verhalten).
     ...(rolle === 'alle' ? {} : { rolle }),
-  }), [nurMeine, meinKuerzel, profile, rolle]);
+    // Beschriftung in der Schreibweise der Daten („Kürzel THü"). Gelesen aus den
+    // EIGENEN Zeilen dieser Seite, nicht aus dem Anträge-Store: wer die Seite
+    // direkt aufruft (Lesezeichen), hat den anderen Store gar nicht geladen und
+    // bekäme die Großschreibung zurück.
+    anzeigeTokens: nurMeine && meinKuerzel
+      ? anzeigeTokensFuer(
+          alle.map(z => z.filterRecord),
+          parseBearbeiterFilter(meinKuerzel, false).tokens,
+        )
+      : undefined,
+  }), [nurMeine, meinKuerzel, profile, rolle, alle]);
 
   /**
    * Die Menge OHNE die Menü-Achsen — Grundlage aller drei Facetten-Rechnungen.

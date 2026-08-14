@@ -18,6 +18,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigation } from '@/core/hooks/useNavigation';
 import { useStorage } from '@/core/hooks/useStorage';
+import { useBearbeiterSicht } from '@/core/hooks/useBearbeiterSicht';
+import { bearbeiterScopeLabel } from '@/plugins/antraege/bearbeiterFilter';
 import { isVorgangssystemEnabled } from '@/config/feature-flags';
 import {
   getVerbund, listAntraegeByVerbund, listSchemasByProgramm,
@@ -48,6 +50,9 @@ function rolleText(w: WaechterErgebnis): string {
 export function HaengtFestWidget({ instanz, ctx, onToggleEingeklappt }: WidgetProps): React.ReactElement | null {
   const idb = useStorage().idb;
   const { navigate } = useNavigation();
+  // Modus aus der geteilten Fassade (vor dem Flag-Return, React-Hook-Regel):
+  // nur er trägt die Schreibweise der Kürzel („Kürzel THü").
+  const { mode: bearbeiterMode } = useBearbeiterSicht();
   const aktiv = !instanz.eingeklappt;
   // EIN Stichtag je Mount, in die reine Engine injiziert.
   const heuteRef = useRef<string>(new Date().toISOString());
@@ -127,9 +132,7 @@ export function HaengtFestWidget({ instanz, ctx, onToggleEingeklappt }: WidgetPr
 
   const sichtbar = zeilen.slice(0, MAX_ZEILEN);
   const rest = zeilen.length - sichtbar.length;
-  const scope = ctx.data.bearbeiterFilterActive && ctx.data.bearbeiterTokens.length > 0
-    ? `Kürzel ${ctx.data.bearbeiterTokens.join(', ')}`
-    : 'Alle Bearbeiter';
+  const scope = bearbeiterScopeLabel(bearbeiterMode);
 
   return (
     <WidgetShell

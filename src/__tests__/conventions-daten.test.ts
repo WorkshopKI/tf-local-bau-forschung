@@ -25,6 +25,8 @@
  *     FEEDBACK_STATUS / Praedikate aus src/core/services/feedback/feedback-status.ts.
  *   - no-direct-bearbeiter-kuerzel      → Pitfall #27, useMeinKuerzel() statt
  *     direktem profile.bearbeiter_kuerzel-Lesezugriff.
+ *   - anzeigetokens-nur-anzeigen        → v4.48, `anzeigeTokens` (Schreibweise
+ *     der Kuerzel) steht in keinem Vergleich; gematcht wird mit `tokens`.
  *   - no-direct-feedback-user-id-compare → v3.7, Feedback-Zugehoerigkeit ueber
  *     istMeinTicket/istMeineId (Kuerzel UND Profilname), nie `user_id === meId`.
  *   - no-hardcoded-datenshare-mode      → Pitfall #25, Daten-Share-Modus
@@ -296,6 +298,42 @@ describe('no-direct-bearbeiter-kuerzel (CLAUDE.md Pitfall #27)', () => {
         `(Session > Profilfeld, drop-in-kompatibel: string | undefined).\n` +
         `Pre-Login-Ausnahme (Code laeuft vor der MaLoginGate)? Zeile mit\n` +
         `'// allow-direct-kuerzel: <grund>' markieren.\n\nTreffer:\n${fmt(findings)}`;
+      expect.fail(msg);
+    }
+  });
+});
+
+describe('anzeigetokens-nur-anzeigen (v4.48)', () => {
+  // `BearbeiterFilterMode` fuehrt die Kuerzel in ZWEI Fassungen: `tokens`
+  // (uppercase, die Vergleichsform) und `anzeigeTokens` (die Schreibweise der
+  // Daten, „THue" statt „THUE"). Gematcht wird ausschliesslich mit `tokens`.
+  // Wer gegen die Anzeige-Fassung vergleicht, baut eine Gabel, an der dasselbe
+  // Kuerzel je nach Aufrufer mal trifft und mal nicht — und der Fehler faellt
+  // erst bei einem der 81 gemischt geschriebenen Kuerzel auf, nie bei den 31
+  // rein grossgeschriebenen.
+  const VERGLEICH = /===|!==|[^=!<>]==[^=]|\.includes\(|\.indexOf\(|\.has\(|\.some\(|\.startsWith\(/;
+  const isComment = (l: string): boolean => {
+    const t = l.trim();
+    return t.startsWith('//') || t.startsWith('*') || t.startsWith('/*');
+  };
+
+  it('anzeigeTokens steht in keinem Vergleich', () => {
+    const findings: Finding[] = [];
+    for (const file of ALL_TS_FILES) {
+      if (file.includes(`${sep}__tests__${sep}`) || file.endsWith('.test.ts')) continue;
+      findings.push(...findInFile(
+        file,
+        l => !isComment(l) && l.includes('anzeigeTokens') && VERGLEICH.test(l),
+        'allow-anzeigetokens-vergleich',
+      ));
+    }
+
+    if (findings.length > 0) {
+      const msg =
+        `anzeigeTokens ist NUR zum Anzeigen (bearbeiterFilter.ts).\n` +
+        `Verglichen wird mit mode.tokens — sonst trifft ein gemischt\n` +
+        `geschriebenes Kuerzel je nach Aufrufer mal und mal nicht.\n\n` +
+        `Treffer:\n${fmt(findings)}`;
       expect.fail(msg);
     }
   });
@@ -888,16 +926,23 @@ describe('screen-context-coverage (Feedback-KI-Kontext: docs/feedback-kontext/)'
   // Zahl. Die Reissleine faengt nur den Unfall (Architektur-Doc reinkopiert,
   // generierter Dump) und liegt bewusst weit ueber jeder legitimen Laenge.
   //
-  // Die Zahl steht auf der Unfallgrenze, die dieser Kommentar seit v2.409 selbst
-  // benennt: 30000. Davor wurde sie viermal knapp nachgezogen (10000 → 20000 →
-  // 24000 → 26000), jedes Mal von derselben Seite (erst status-cockpit.md, dann
-  // dreimal antraege.md), jedes Mal ohne WIE-Text im Doc — und jedes Mal kostete
-  // es eine eigene Runde, weil der Riss erst im Voll-Gate auffiel. Eine Reissleine,
-  // die im Normalbetrieb reisst, ist keine Reissleine. Ein Doc, das die 30000
-  // erreicht, hat wirklich einen Unfall drin (Architektur-Doc reinkopiert,
-  // generierter Dump); alles darunter ist eine Lese-, keine Zahlenfrage.
+  // Die Zahl soll auf der UNFALLGRENZE stehen, nicht auf einem Budget: eine
+  // Reissleine, die im Normalbetrieb reisst, ist keine Reissleine. Sie wurde
+  // viermal knapp nachgezogen (10000 → 20000 → 24000 → 26000), jedes Mal von
+  // derselben Seite (erst status-cockpit.md, dann dreimal antraege.md), jedes Mal
+  // ohne WIE-Text im Doc — und jedes Mal kostete es eine eigene Runde, weil der
+  // Riss erst im Voll-Gate auffiel. Deshalb ging sie mit v2.409 auf 30000, mit der
+  // Begruendung: wer die erreicht, hat einen Unfall drin.
+  //
+  // Diese Annahme ist mit v4.48 widerlegt — antraege.md erreichte 30058 durch
+  // gewachsenen Nutzertext. Nachgesehen statt vermutet: „UI-Elemente & Begriffe"
+  // 24842 Zeichen ueber ~90 Punkte, laengste Zeile 565, kein eingefuegtes
+  // Architektur-Doc, kein Dump, keine Route/Komponente ausserhalb von „Technik".
+  // Die groesste Seite der App traegt legitim so viel. 40000 haelt den Unfall
+  // weiter (ein reinkopiertes Doc bringt fuenfstellig mit) und liegt ueber dem
+  // groessten echten Doc statt darauf.
   const DOCS_DIR = join(ROOT, '..', 'docs', 'feedback-kontext');
-  const REISSLEINE_DOC_CHARS = 30000;
+  const REISSLEINE_DOC_CHARS = 40000;
 
   // Text-Scan statt Import: plugins.config.ts importiert alle Plugin-Komponenten
   // (u.a. pdfjs-dist-Worker), was unter Vitest bricht. Jede Plugin-ID steht

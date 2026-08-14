@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.49.1 — Kuerzel ueberall in der Schreibweise des Teams (August 2026)
+
+PATCH — Nachzug zu v4.48.3: dort lernte die Kürzel-Auswahl die Schreibweise des Teams, überall sonst stand weiter die Vergleichsform („Kürzel THÜ"). Die Bearbeitenden kennen ihr Kürzel gemischt geschrieben — 81 der 112 im Bestand sind es.
+
+- **`anzeigeTokens` am Filter-Modus**, aus den Anträgen gelesen und rein zum Beschriften; verglichen wird weiter mit `tokens` ([bearbeiterFilter.ts](src/plugins/antraege/bearbeiterFilter.ts), Fassade [useBearbeiterSicht.ts](src/core/hooks/useBearbeiterSicht.ts))
+- **Chip, Popover-Option und sechs Widget-Meta-Zeilen** nennen dieselbe Fassung — Meine Anträge, Antragseingang, Kanban, QS, Hängt fest, Meilensteine, Status & Verlauf
+- **Drei Widgets bauten das Label selbst** und tragen es jetzt aus `bearbeiterScopeLabel` ([HaengtFestWidget.tsx](src/plugins/home/widgets/HaengtFestWidget.tsx), [MeilensteineWidget.tsx](src/plugins/home/widgets/MeilensteineWidget.tsx), [StatusVerlaufWidget.tsx](src/plugins/home/widgets/StatusVerlaufWidget.tsx))
+- **Das Vorgangs-Board liest die Schreibweise aus den EIGENEN Zeilen** — wer die Seite direkt aufruft, hat den Anträge-Store nicht geladen ([useVorgangsBoard.ts](src/plugins/vorgangs-board/useVorgangsBoard.ts))
+- **Guard `anzeigetokens-nur-anzeigen`**: die Anzeige-Fassung steht in keinem Vergleich ([conventions-daten.test.ts](src/__tests__/conventions-daten.test.ts))
+
 ### v4.49.0 — Feldsuche in der Eingabe, Suchbeispiele auf der Startseite (August 2026)
 
 MINOR — Wer weiß, in welcher Spalte sein Wort steht, konnte das bisher nur grob sagen: das Dropdown „Suche in" kennt fünf Bereiche und gilt für die ganze Anfrage. `FKZ: 16KN083001` oder `AST:GMBU` einzutippen fand nichts — „fkz:" war ein Suchwort wie jedes andere. Der Startzustand erklärte die Syntax bewusst nicht, weil es sie nicht gab; jetzt gibt es sie und er macht sie vor.
