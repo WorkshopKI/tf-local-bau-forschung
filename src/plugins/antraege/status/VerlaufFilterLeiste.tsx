@@ -28,6 +28,18 @@ import type { VerlaufFilter } from './useVerlaufFilter';
 const LEISE = 'text-[var(--tf-text-tertiary)]';
 const RUBRIK = `text-[10.5px] uppercase tracking-wider ${LEISE} shrink-0`;
 
+/**
+ * Die Endung des Aktenzeichens am Träger-Chip („TV 1 …049").
+ *
+ * Die laufende Nummer ordnet, aber sie lässt sich nicht zitieren: im Fachsystem
+ * heißt das Teilvorhaben `16KN122049`. Die letzten drei Stellen unterscheiden
+ * die Teilvorhaben eines Verbunds zuverlässig — sie laufen fortlaufend.
+ */
+function endung(spalte: { id: string; lang: string }): string | undefined {
+  if (spalte.id === BEREICH_VERBUND) return undefined;
+  return spalte.lang.length > 3 ? `…${spalte.lang.slice(-3)}` : spalte.lang;
+}
+
 export function VerlaufFilterLeiste({ chronik, spalten, filter, nichtGesetzt, nebensaechlich }: {
   /** Die **ungefilterte** Chronik — Grundlage für Anwesenheit und Zahlen. */
   chronik: readonly ChronikEintrag[];
@@ -65,6 +77,7 @@ export function VerlaufFilterLeiste({ chronik, spalten, filter, nichtGesetzt, ne
               return (
                 <ToggleChip
                   key={r}
+                  form="marke"
                   label={ROLLE_LABEL[r]}
                   zahl={zahlen[r]}
                   tonung={{ text: farbe.text, flaeche: farbe.flaeche }}
@@ -80,26 +93,33 @@ export function VerlaufFilterLeiste({ chronik, spalten, filter, nichtGesetzt, ne
         <div className="flex flex-wrap items-center gap-1.5">
           <span className={RUBRIK}>Wo</span>
           <ToggleChip
+            form="marke"
             label="Alle"
             variant="dark"
             selected={alleBereicheAn}
             onToggle={filter.alleBereiche}
             title="Verbund und alle Teilvorhaben"
           />
-          {spalten.map(s => (
-            <ToggleChip
-              key={s.id}
-              label={s.kurz}
-              zahl={proBereich.get(s.id) ?? 0}
-              selected={!alleBereicheAn && filter.bereiche.has(s.id)}
-              onToggle={() => filter.schalteBereich(s.id)}
-              title={s.id === BEREICH_VERBUND ? s.lang : `${s.kurz} — ${s.lang}`}
-            />
-          ))}
+          {spalten.map(s => {
+            const kurz = endung(s);
+            return (
+              <ToggleChip
+                key={s.id}
+                form="marke"
+                label={s.kurz}
+                {...(kurz === undefined ? {} : { zusatz: kurz })}
+                zahl={proBereich.get(s.id) ?? 0}
+                selected={!alleBereicheAn && filter.bereiche.has(s.id)}
+                onToggle={() => filter.schalteBereich(s.id)}
+                title={s.id === BEREICH_VERBUND ? s.lang : `${s.kurz} — ${s.lang}`}
+              />
+            );
+          })}
         </div>
 
         {nebensaechlich !== null && (
           <ToggleChip
+            form="marke"
             label="Nebensächliches"
             zahl={nebensaechlich.anzahl}
             selected={nebensaechlich.an}
@@ -110,6 +130,7 @@ export function VerlaufFilterLeiste({ chronik, spalten, filter, nichtGesetzt, ne
 
         {nichtGesetzt > 0 && (
           <ToggleChip
+            form="marke"
             label={`${nichtGesetzt} Kürzel nicht gesetzt`}
             selected={filter.nurLuecken}
             onToggle={() => filter.setzeNurLuecken(!filter.nurLuecken)}

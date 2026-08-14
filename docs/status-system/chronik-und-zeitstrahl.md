@@ -92,8 +92,24 @@ Filterleiste ist damit die Legende**; eine zweite gibt es nicht.
 ### Wie breit eine Marke sein darf
 
 Rollen- und Träger-Marken teilen **ein** Maß ([VerlaufBadges.tsx](../../src/plugins/antraege/status/VerlaufBadges.tsx)):
-17 px hoch, 4 px Polster, 3 px Abstand — gemessen 19–21 px je Marke, 27 px für
-eine Träger-Marke (`TV1`).
+17 px hoch, 3 px Polster, 3 px Abstand — gemessen 17–20 px je Rollenmarke, 25 px
+für `TV1`. Die Schrift steht auf `--tf-text-secondary` über `--tf-bg-secondary`
+(gemessen 5,0:1 hell, 6,3:1 dunkel); der **Rand** trägt `--tf-border-hover`, weil
+0,08 Alpha die Fläche verschwinden ließ und die Marke sich als loser grauer Text
+las.
+
+### Und warum die Chips der Leiste eckig sind
+
+Die Leiste **ist** die Legende — also trägt ihr Chip die Form des Zeichens, das
+er erklärt: eckig (6 px), nicht als Pille. `ToggleChip` hat dafür die Form
+`form="marke"` (häkchenlos, enger, Rand `--tf-border-hover`); die Pillen-Form
+bleibt das Filter-Idiom des Rests der App. Ohne Haken trägt die Tönung den
+Zustand allein, die Schriftstärke bleibt darum in beiden Zuständen 500 — sonst
+wanderte die Zeile beim Klick (DESIGN_GUIDE Kap. 5 / Pitfall #14).
+
+Die Träger-Chips nennen zusätzlich die **Endung des Aktenzeichens**
+(„TV 1 …426"): die laufende Nummer ordnet, aber zitieren lässt sie sich nicht —
+im Fachsystem heißt das Teilvorhaben `16KN084426`.
 
 Die Rollenspalte ist auf **drei** Marken bemessen (76 px; gemessen belegt sie im
 Bestand höchstens 67,5). 31 der 506 Codes tragen drei Rollen, genau einer vier

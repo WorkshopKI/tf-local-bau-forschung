@@ -37,6 +37,28 @@ export interface ToggleChipProps {
    * neutral, sonst leuchtete die Leiste in fünf Farben, ohne etwas zu sagen.
    */
   tonung?: { text: string; flaeche: string };
+  /**
+   * Kleiner Zusatz hinter dem Label, in Monospace und zurückgenommen — der
+   * Bezeichner, unter dem die Kategorie anderswo geführt wird („TV 1 …049").
+   * Wie {@link zahl} ein eigenes Feld, damit die Typografie hier entschieden
+   * wird und nicht in jedem Aufrufer neu.
+   */
+  zusatz?: string;
+  /**
+   * Die **Form** des Chips.
+   *
+   * `pille` (Default) ist das Filter-Idiom der App: rund, mit Häkchen-Slot.
+   *
+   * `marke` ist eckig (6 px), häkchenlos und enger — für Leisten, die zugleich
+   * **Legende** einer Marke sind. Eine runde Legende neben einer eckigen Marke
+   * behauptet zwei verschiedene Dinge; die Form muss dieselbe sein wie die des
+   * Zeichens, das sie erklärt (Statusverlauf: Rollen- und Träger-Marken).
+   *
+   * Ohne Häkchen trägt die Tönung den Zustand allein — die Schriftstärke bleibt
+   * deshalb in **beiden** Zuständen 500, sonst wanderte die Zeile beim Klick
+   * (Pitfall #14 gilt für jede Breitenänderung, nicht nur für den Haken).
+   */
+  form?: 'pille' | 'marke';
   className?: string;
 }
 
@@ -60,35 +82,48 @@ export function ToggleChip({
   variant = 'neutral',
   zahl,
   tonung,
+  zusatz,
+  form = 'pille',
   className,
 }: ToggleChipProps): React.ReactElement {
+  const marke = form === 'marke';
   const base =
-    'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[12px] transition-colors '
-    + 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--tf-primary)]/40';
+    (marke
+      ? 'inline-flex items-center gap-1.5 px-2.5 h-[26px] rounded-[6px] text-[12px] font-medium '
+      : 'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[12px] ')
+    + 'transition-colors focus-visible:outline-none focus-visible:ring-2 '
+    + 'focus-visible:ring-[var(--tf-primary)]/40';
+  // Ohne Häkchen muss der Aus-Zustand seinen Umriss selbst tragen: 0.08 Alpha
+  // verschwindet neben einer getönten Fläche, 0.15 hält dagegen (der Wert des
+  // Entwurfs). Die Pille behält ihren zarteren Rand — sie hat den Haken.
+  const randAus = marke ? 'var(--tf-border-hover)' : 'var(--tf-border)';
+  // In der Marken-Form trägt `base` die 500 bereits; sie darf im Aus-Zustand
+  // nicht wegfallen, sonst wandert die Nachbarschaft beim Klick.
+  const stark = marke ? '' : 'font-medium ';
 
   let stateCls: string;
   let stateStyle: React.CSSProperties;
   if (disabled) {
     stateCls = 'text-[var(--tf-text-tertiary)] cursor-not-allowed';
-    stateStyle = { background: 'transparent', border: '0.5px solid var(--tf-border)' };
+    stateStyle = { background: 'transparent', border: `0.5px solid ${randAus}` };
   } else if (selected && variant === 'dark') {
-    stateCls = 'font-medium cursor-pointer';
+    stateCls = `${stark}cursor-pointer`;
     stateStyle = { background: 'var(--tf-text)', color: 'var(--tf-bg)', border: '0.5px solid var(--tf-text)' }; // allow-cta-fill: Toggle-Pill (Single-Select an), bewusst dunkle Voll-Füllung, kein Klick-CTA
   } else if (selected && tonung) {
-    stateCls = 'font-medium cursor-pointer';
+    stateCls = `${stark}cursor-pointer`;
     stateStyle = {
       background: tonung.flaeche, color: tonung.text,
       border: '0.5px solid var(--tf-border-hover)',
     };
   } else if (selected) {
-    stateCls = 'text-[var(--tf-text)] font-medium cursor-pointer';
+    stateCls = `text-[var(--tf-text)] ${stark}cursor-pointer`;
     stateStyle = { background: 'var(--tf-bg-secondary)', border: '0.5px solid var(--tf-border-hover)' };
   } else {
     stateCls = 'text-[var(--tf-text-secondary)] cursor-pointer hover:text-[var(--tf-text)]';
-    stateStyle = { background: 'transparent', border: '0.5px solid var(--tf-border)' };
+    stateStyle = { background: 'transparent', border: `0.5px solid ${randAus}` };
   }
 
-  const showHaken = selected && !disabled;
+  const showHaken = selected && !disabled && !marke;
   return (
     <button
       type="button"
@@ -99,18 +134,32 @@ export function ToggleChip({
       className={cn(base, stateCls, className)}
       style={stateStyle}
     >
-      {/* Häkchen-Slot immer rendern (konstante Breite, Pitfall #14). */}
-      <span aria-hidden className={cn('inline-flex leading-none', showHaken ? '' : 'invisible')}>
-        <Check size={13} strokeWidth={2.5} />
-      </span>
+      {/* Häkchen-Slot immer rendern (konstante Breite, Pitfall #14). Die
+          Marken-Form hat gar keinen — dort ist die Breite ohnehin konstant. */}
+      {!marke && (
+        <span aria-hidden className={cn('inline-flex leading-none', showHaken ? '' : 'invisible')}>
+          <Check size={13} strokeWidth={2.5} />
+        </span>
+      )}
       <span>{label}</span>
-      {/* Die Zahl erbt im getönten An-Zustand `currentColor` und wird nur
-          zurückgenommen — eine zweite Farbe hier machte den Chip zum Diagramm. */}
+      {/* Der Bezeichner der Kategorie — leiser als das Label, aber lesbar. */}
+      {zusatz !== undefined && (
+        <span
+          className="font-mono text-[10px] font-normal"
+          style={{ color: selected ? 'currentColor' : 'var(--tf-text-tertiary)' }}
+        >
+          {zusatz}
+        </span>
+      )}
+      {/* Die Zahl erbt im getönten An-Zustand `currentColor` — eine zweite Farbe
+          hier machte den Chip zum Diagramm. Zurückgenommen wird sie über Größe
+          und Schriftstärke, NICHT über `opacity`: 0,75 auf einer getönten Fläche
+          drückte den gemessenen Kontrast von 4,7:1 auf ~3,3:1 (Pitfall #14 —
+          Deckkraft ist auch hier das falsche Werkzeug). */}
       {zahl !== undefined && (
         <span
           className="tabular-nums text-[11.5px] font-normal"
-          style={{ color: selected && tonung ? 'currentColor' : 'var(--tf-text-tertiary)',
-            opacity: selected && tonung ? 0.75 : 1 }}
+          style={{ color: selected ? 'currentColor' : 'var(--tf-text-secondary)' }}
         >
           {zahl}
         </span>

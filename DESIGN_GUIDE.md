@@ -333,6 +333,17 @@ Drei Pflicht-Eigenschaften:
 
 Referenz: [src/plugins/auslastung/components/KategoriePill.tsx](src/plugins/auslastung/components/KategoriePill.tsx)
 
+**Die Regel heißt „konstante Breite", nicht „Häkchen".** `ToggleChip` kennt
+deshalb eine zweite Form (`form="marke"`): eckig (6 px), **ohne** Haken, enger.
+Sie gehört in Leisten, die zugleich **Legende** einer Marke sind — eine runde
+Legende neben einer eckigen Marke behauptet zwei verschiedene Dinge (Chronik:
+Rollen- und Träger-Marken). Ohne Haken trägt die Tönung den Zustand allein, und
+damit die Breite trotzdem konstant bleibt, steht die Schrift in **beiden**
+Zuständen auf 500: eine Stärkeänderung verschiebt die Nachbarn genauso wie ein
+erscheinender Haken. Und Zahlen im Chip werden über **Größe und Stärke**
+zurückgenommen, nie über `opacity` — 0,75 auf einer getönten Fläche drückt
+gemessene 4,7:1 auf ~3,3:1, also unter AA.
+
 ### Card
 ```css
 .card {

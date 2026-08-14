@@ -33,6 +33,8 @@
 - Einträge, die jeder setzen darf, verschwinden bei einer Rollenwahl nicht mehr, sondern bleiben blass stehen — es sind rund 28 % aller Kürzel.
 - In der Ansicht nach Datum hat jeder Monat wieder eine Trennlinie, und die Rollen-Marken sind schmaler: drei nebeneinander passen jetzt in ihre Spalte, statt in den Text daneben zu rutschen.
 - Der Balken im Zeitstrahl ist kräftiger — seine Beschriftung stand vorher auf einem Strich statt in einer Fläche.
+- Die Chips über dem Verlauf haben jetzt die Form der Marken, die sie erklären: eckig statt rund, ohne Häkchen und dadurch schmaler. Die Teilvorhaben-Chips nennen zusätzlich die Endung des Aktenzeichens („TV 1 …426") — die laufende Nummer ordnet, zitieren lässt sie sich nicht.
+- Zahlen in Chips sind wieder lesbar: sie standen in einem Grau, das den Mindestkontrast verfehlte.
 - Der Kopf der Startseite ist wieder schlank: Ihr Kürzel steht als Chip direkt neben der Begrüßung, die Angabe zu den angezeigten Richtlinien nur noch bei den Förderanträgen — dort, wo sie auch geändert wird.
 - Das Menü hinter dem Kürzel-Chip kommt mit den zwei Optionen und einer Zeile aus. Der frühere Hinweis, Ihr Kürzel bleibe stehen, ist raus: nach dem Umschalten heißt der Chip „Alle Bearbeiter", Ihr Kürzel steht in der Option darunter.
 

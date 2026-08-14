@@ -32,8 +32,14 @@ const EINZELN_MAX = 4;
  */
 const ROLLEN_MAX = 3;
 
-/** Polster und Höhe einer Marke — beide Marken tragen dasselbe Maß. */
-const MARKE = 'inline-flex items-center rounded-[4px] px-1 h-[17px] text-[10.5px] leading-none';
+/**
+ * Polster und Höhe einer Marke — beide Marken tragen dasselbe Maß.
+ *
+ * 3 px Polster (Entwurf: 5, bis v4.48.1: 6): die Marke steht in einer Zeile mit
+ * 19 px Höhe zwischen Kürzel und Ereignistext, und dort zählt jeder Millimeter
+ * gegen den Text. Weniger geht nicht — bei 2 px berührt die Schrift den Rand.
+ */
+const MARKE = 'inline-flex items-center rounded-[4px] px-[3px] h-[17px] text-[10.5px] leading-none';
 /** Abstand zwischen zwei Marken derselben Zeile. */
 const ABSTAND = 'gap-[3px]';
 
@@ -92,7 +98,16 @@ export function RollenBadges({ rollen, gedimmt = false }: {
   );
 }
 
-/** Eine Träger-Marke — bewusst monospace, damit die Aktenzeichen untereinander stehen. */
+/**
+ * Eine Träger-Marke — bewusst monospace, damit die Aktenzeichen untereinander
+ * stehen.
+ *
+ * Die Schrift steht auf `--tf-text-secondary` über `--tf-bg-secondary`:
+ * gemessen 5,0:1 hell und 6,3:1 dunkel, also über AA — dunkler geriete sie in
+ * Konkurrenz zum Ereignistext, den sie nur begleitet. Was ihr fehlte, war der
+ * **Umriss**: mit `--tf-border` (0,08 Alpha) verschwand die Fläche, und die
+ * Marke las sich als loser grauer Text. Der Rand trägt deshalb `-hover` (0,15).
+ */
 function Traeger({ text, titel }: { text: string; titel?: string }): React.ReactElement {
   return (
     <span
@@ -100,7 +115,7 @@ function Traeger({ text, titel }: { text: string; titel?: string }): React.React
       style={{
         background: 'var(--tf-bg-secondary)',
         color: 'var(--tf-text-secondary)',
-        border: '0.5px solid var(--tf-border)',
+        border: '0.5px solid var(--tf-border-hover)',
       }}
       title={titel}
     >

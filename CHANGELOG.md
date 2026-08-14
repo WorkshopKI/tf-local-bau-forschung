@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.48.4 — Verlaufs-Leiste in Markenform: eckig, enger, lesbar (August 2026)
+
+PATCH — Rückfrage zur neuen Leiste: warum sind die Chips rund? Weil sie das Filter-Idiom der App erben — nur ist diese Leiste zugleich die **Legende** der Marken in den Zeilen, und eine runde Legende neben einer eckigen Marke behauptet zwei verschiedene Dinge. Detail: [chronik-und-zeitstrahl.md](docs/status-system/chronik-und-zeitstrahl.md).
+
+- **Zweite Form am geteilten Chip** (`form="marke"`): eckig, häkchenlos, enger — gemessen 54–62 px statt Pillen mit Haken; die Pillen-Form bleibt überall sonst ([ToggleChip.tsx](src/components/ui/ToggleChip.tsx))
+- **Zustand ohne Haken heißt Breite ohne Sprung**: die Schriftstärke bleibt in beiden Zuständen 500, sonst wandert die Nachbarschaft beim Klick (Pitfall #14, [DESIGN_GUIDE.md](DESIGN_GUIDE.md) Kap. 5)
+- **Zahl im Chip war unter AA** — grau auf Weiß 2,85:1, jetzt 5,0:1; im getönten Zustand trägt sie `currentColor` statt 0,75 Deckkraft (die drückte 4,7:1 auf ~3,3:1) ([ToggleChip.tsx](src/components/ui/ToggleChip.tsx))
+- **Träger-Chips nennen die Endung des Aktenzeichens** („TV 1 …426") — die laufende Nummer ordnet, zitieren lässt sie sich nicht ([VerlaufFilterLeiste.tsx](src/plugins/antraege/status/VerlaufFilterLeiste.tsx))
+- **Marken enger und mit Umriss**: 3 statt 4 px Polster (17–20 px je Rollenmarke, 25 px für `TV1`), Rand auf `--tf-border-hover` — mit 0,08 Alpha las sich die Marke als loser grauer Text ([VerlaufBadges.tsx](src/plugins/antraege/status/VerlaufBadges.tsx))
+
 ### v4.48.3 — Kuerzel in der Schreibweise des Teams, Sprung mit Ziel (August 2026)
 
 PATCH — Zwei Nachbesserungen an der Kürzel-Auswahl. Sie zeigte jedes Kürzel großgeschrieben — 81 der 112 Kürzel im Bestand sind aber gemischt geschrieben („THü", „JuHe"), und wer sein eigenes in einer Liste von 112 sucht, sucht es in seiner Schreibweise. Und „Kürzel ändern → Einstellungen" landete auf einer Seite mit acht Karten, ohne zu sagen, welche gemeint ist.
