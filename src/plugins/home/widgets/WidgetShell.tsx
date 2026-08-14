@@ -33,9 +33,9 @@ export interface WidgetShellProps {
   variante: 'haupt' | 'seite';
   eingeklappt: boolean;
   onToggleEingeklappt: () => Promise<void>;
-  /** Widget-Instanz für Rechtsklick-Erkennung (`data-widget-id`) und das
-   *  `⋯`-Menü. Ohne Instanz bleibt der Kopf knopflos — die Karte ist dann kein
-   *  konfigurierbares Widget. */
+  /** Widget-Instanz für das `⋯`-Menü und die Abgrenzung gegen den Rechtsklick der
+   *  Seite (`data-widget-id`). Ohne Instanz bleibt der Kopf knopflos — die Karte
+   *  ist dann kein konfigurierbares Widget. */
   instanz?: WidgetInstanz;
   children: React.ReactNode;
 }
@@ -63,8 +63,10 @@ export function WidgetShell({
 
   return (
     <section
-      // `data-widget-id`: daran erkennt der Rechtsklick der Startseite, ob er
-      // auf einem Widget oder auf freier Fläche gelandet ist (StartseiteMenue).
+      // `data-widget-id`: daran erkennt der Rechtsklick der Startseite, dass er
+      // NICHT auf freier Fläche gelandet ist — auf einer Karte bleibt seit
+      // v4.40.2 das Browser-Menü stehen (`darfMenueOeffnen`), die Aktionen des
+      // Widgets führt das `⋯` im Kopf.
       data-widget-id={instanz?.id}
       className="group/widget rounded-[var(--tf-radius-lg)] bg-[var(--tf-card-surface)]"
       style={{ border: '0.5px solid var(--tf-border)' }}

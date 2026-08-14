@@ -1,12 +1,12 @@
 /**
  * Transienter Offen-Zustand des Startseiten-Menüs (v4.6).
  *
- * Vier Auslöser, EIN Menü: Rechtsklick auf die freie Fläche, Rechtsklick auf ein
- * Widget, der Knopf im Seitenkopf, das `⋯` im Widget-Kopf und „Widget
- * hinzufügen" am Spaltenende. Weil die Auslöser über drei Komponenten-Ebenen
- * verstreut sind (HomePage · WidgetShell · HomeWidgetStack), liegt der Zustand in
- * einem Modul-Store statt in Props — dieselbe Wahl wie beim transienten
- * [feedbackNavStore](../../../components/feedback/feedbackNavStore.ts).
+ * Vier Auslöser, EIN Panel: Rechtsklick auf die freie Fläche, der Knopf im
+ * Seitenkopf, „Widget hinzufügen" am Spaltenende — und das `⋯` im Widget-Kopf,
+ * das als einziges die Aktionen EINES Widgets zeigt. Weil die Auslöser über drei
+ * Komponenten-Ebenen verstreut sind (HomePage · WidgetShell · HomeWidgetStack),
+ * liegt der Zustand in einem Modul-Store statt in Props — dieselbe Wahl wie beim
+ * transienten [feedbackNavStore](../../../components/feedback/feedbackNavStore.ts).
  *
  * Bewusst KEIN zweites Menü über Radix' `ContextMenu`: zwei Implementierungen
  * desselben Inhalts laufen auseinander, sobald jemand einen Eintrag nur an einer
@@ -131,16 +131,25 @@ export function punktUnter(el: HTMLElement | null): MenuePunkt {
 }
 
 /**
- * Soll dieser Rechtsklick das Startseiten-Menü öffnen? Nein in Eingabefeldern und
- * bei markiertem Text — dort gehört das Browser-Menü hin (Einfügen im
- * Notizen-Widget, Kopieren einer markierten Zeile). Rein, damit die Regel
- * ohne DOM-Test nachweisbar ist.
+ * Soll dieser Rechtsklick das Startseiten-Menü öffnen?
+ *
+ * Nein auf einer Widget-Karte (v4.40.2): deren eigene Aktionen hängen am `⋯` im
+ * Kopf, und die allgemeinen Punkte „Widgets"/„Darstellung" gehören nicht in jedes
+ * Widget. Der Rechtsklick meint hier die SEITE, nicht die Karte — also bleibt auf
+ * der Karte das Browser-Menü stehen, samt Kopieren.
+ *
+ * Nein ebenso in Eingabefeldern und bei markiertem Text — dort gehört das
+ * Browser-Menü hin (Einfügen im Notizen-Widget, Kopieren einer markierten Zeile).
+ * Rein, damit die Regel ohne DOM-Test nachweisbar ist.
  */
 export function darfMenueOeffnen(opts: {
   tagName: string;
+  /** Klick landete innerhalb einer Widget-Karte (`[data-widget-id]`). */
+  aufWidgetKarte: boolean;
   istEingabefeld: boolean;
   hatTextauswahl: boolean;
 }): boolean {
+  if (opts.aufWidgetKarte) return false;
   if (opts.istEingabefeld) return false;
   if (opts.hatTextauswahl) return false;
   const tag = opts.tagName.toLowerCase();

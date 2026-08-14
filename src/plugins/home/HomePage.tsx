@@ -112,28 +112,24 @@ export function HomePage(): React.ReactElement {
   // wie die „Prüfen →"-Zeile im QS-Widget (eine QS-Listenseite gibt es nicht).
   const openQs = (scopeId: string): void => navigate('antraege', { selectedId: scopeId });
 
-  // „Startseite anpassen" (v4.6): Rechtsklick auf die Seite. Was darunter liegt,
-  // entscheidet über das Menü — eine Widget-Karte trägt `data-widget-id`, alles
-  // andere ist freie Fläche. In Eingabefeldern und bei markiertem Text bleibt das
-  // Browser-Menü stehen (darfMenueOeffnen), sonst nähme es dem Notizen-Widget das
-  // Einfügen und jeder Zeile das Kopieren.
+  // „Startseite anpassen" (v4.6): Rechtsklick auf die FREIE Fläche der Seite.
+  // Auf einer Widget-Karte (`data-widget-id`) bleibt das Browser-Menü stehen —
+  // die Aktionen eines Widgets hängen seit v4.40.2 allein am `⋯` in seinem Kopf.
+  // Ebenso in Eingabefeldern und bei markiertem Text (darfMenueOeffnen), sonst
+  // nähme das Menü dem Notizen-Widget das Einfügen und jeder Zeile das Kopieren.
   const oeffneMenue = useStartseiteMenueStore(s => s.oeffne);
   const anpassenKnopf = useRef<HTMLButtonElement>(null);
   const beiRechtsklick = useCallback((e: React.MouseEvent<HTMLDivElement>): void => {
     const ziel = e.target as HTMLElement;
     if (!darfMenueOeffnen({
       tagName: ziel.tagName,
+      aufWidgetKarte: !!ziel.closest('[data-widget-id]'),
       istEingabefeld: !!ziel.closest('input, textarea, [contenteditable="true"]'),
       hatTextauswahl: !!window.getSelection()?.toString(),
     })) return;
     e.preventDefault();
     merkeHinweisGesehen();
-    const karte = ziel.closest<HTMLElement>('[data-widget-id]');
-    const instanzId = karte?.dataset.widgetId;
-    oeffneMenue(
-      instanzId ? { art: 'widget', instanzId } : { art: 'flaeche' },
-      { x: e.clientX, y: e.clientY },
-    );
+    oeffneMenue({ art: 'flaeche' }, { x: e.clientX, y: e.clientY });
   }, [oeffneMenue]);
 
   // Geteilter Kontext für die Widget-Wrapper — die 13k-Antraege-Aggregation

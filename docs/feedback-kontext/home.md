@@ -11,8 +11,8 @@ Startseite — Arbeitseinstieg: oben ein **Hero-Band**, darunter ein persönlich
 - **Zwei Spalten mit Widgets:** jedes mit Kopfzeile (Chevron ein-/ausklappen; `⋯`-Menü beim Überfahren; Modus „Kürzel THU" vs. „Alle Bearbeiter"). Ein ziehbarer Griff verbreitert die Hauptspalte. Jede Spalte endet mit „Widget hinzufügen"; eine leergeräumte Spalte sagt das und bleibt bedienbar.
 - **Startseite anpassen** (seit v4.7): Konfiguration direkt auf der Seite statt über die Einstellungen.
   - **Menü der freien Fläche** (Rechtsklick, oder Knopf „Startseite anpassen" oben rechts): „Widgets ▸" (Checkliste beider Spalten mit Reihenfolge-Pfeilen und „alle"-Schalter), „Darstellung ▸" (Primärfarbe, Hell/Dunkel), „Alles ein-/aufklappen", „Startseite zurücksetzen", „Alle Einstellungen öffnen".
-  - **Menü eines Widgets** (Rechtsklick auf die Karte, oder `⋯` im Kopf): Ausblenden, Ein-/Aufklappen, Nach oben/unten mit Positionsanzeige „2 / 5", Widget-Einstellungen.
-  - **Rückmeldung:** Das Menü bleibt beim Häkchensetzen offen. Ausblenden und Zurücksetzen bestätigen sich unten mit **Rückgängig**. In Textfeldern und bei markiertem Text bleibt das Browser-Menü.
+  - **Menü eines Widgets** (`⋯` im Kopf, sichtbar beim Überfahren): Ausblenden, Ein-/Aufklappen, Nach oben/unten mit Positionsanzeige „2 / 5", Widget-Einstellungen. Nur was dieses Widget betrifft — die seitenweiten Punkte stehen allein im Menü der freien Fläche.
+  - **Rückmeldung:** Das Menü bleibt beim Häkchensetzen offen. Ausblenden und Zurücksetzen bestätigen sich unten mit **Rückgängig**. Auf einer Widget-Karte, in Textfeldern und bei markiertem Text bleibt das Browser-Menü.
 - **Widgets** (read-only + Navigation):
   - **Meine Anträge:** Liste + Rückstands-Balken.
   - **Kanban:** Förderanträge ODER Feedback, farbige Lanes, 1–3 Kartenspalten je Lane (eine Lane mit mehr Spalten wird entsprechend breiter, die übrigen rücken zusammen). Jede Bahn lässt sich über ihre Kopfzeile zu einer schmalen Schiene einklappen und dort wieder aufklappen; der Zustand gilt nur für die laufende Ansicht.
@@ -33,7 +33,7 @@ Startseite — Arbeitseinstieg: oben ein **Hero-Band**, darunter ein persönlich
 ## Typische Aktionen
 
 - Über das Hero-Band weitermachen oder zu kritischen/QS-Punkten springen
-- Widgets ein-/ausblenden, sortieren, ein-/ausklappen und anpassen (Kanban-Lanes/Farben, Ampel-Schwellen) — per Rechtsklick, `⋯` oder Kopfzeilen-Knopf
+- Widgets ein-/ausblenden, sortieren, ein-/ausklappen und anpassen (Kanban-Lanes/Farben, Ampel-Schwellen) — per Rechtsklick auf die freie Fläche, `⋯` im Widget-Kopf oder Kopfzeilen-Knopf
 - Auf Antrag-/Ampel-Zeile springen (→ gefilterte Liste), Kanban-Karte öffnen
 - Kanban-Bahn ein-/ausklappen; Kanban im eigenen Fenster öffnen und dort einrichten
 - Notiz festhalten, KI verbinden, Selbsteintragung annehmen

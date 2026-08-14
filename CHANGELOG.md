@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.40.2 — Widget-Menue fuehrt nur noch eigene Punkte (August 2026)
+
+PATCH — Das `⋯` eines Widgets führte „Widgets ▸" und „Darstellung ▸" mit: dieselben seitenweiten Punkte in jeder einzelnen Karte. Und der Rechtsklick auf eine Karte öffnete dasselbe Menü ein zweites Mal — dafür nahm er der Karte das Browser-Menü samt Kopieren.
+
+- **Widget-Menü führt nur widget-eigene Punkte** (Ausblenden, Ein-/Aufklappen, Verschieben, Widget-Einstellungen); der Trenner gehört zum Eintrag, das Menü endet nie mit einer Linie ([WidgetMenue.tsx](src/plugins/home/anpassen/WidgetMenue.tsx))
+- **„Widgets ▸"/„Darstellung ▸" stehen allein im Menü der freien Fläche** ([FlaechenMenue.tsx](src/plugins/home/anpassen/FlaechenMenue.tsx))
+- **Rechtsklick auf eine Karte öffnet kein Menü mehr** — `[data-widget-id]` ist jetzt die Sperre des Rechtsklicks statt seiner Zielwahl (`darfMenueOeffnen`, [useStartseiteMenue.ts](src/plugins/home/anpassen/useStartseiteMenue.ts))
+- **Reißleine gegen die Rückkehr**: reine Regel + Quelltext-Guards für beide Zuständigkeiten ([menueZustaendigkeit.test.ts](src/plugins/home/anpassen/__tests__/menueZustaendigkeit.test.ts))
+- Zuständigkeits-Schnitt dokumentiert ([home-widgets.md](docs/architecture/home-widgets.md))
+
 ### v4.40.1 — Startup-Freigabe: Karte laeuft mit den Browser-Dialogen mit (August 2026)
 
 PATCH — Chrome zeigt unter `file://` inzwischen mehrere Freigabe-Dialoge hintereinander, die Karte buchte den Fortschritt aber erst hinter der Kette: sie stand während aller drei Abfragen auf „Schritt 1 von 3" und sprang dann in die App. Und ein fehlgeschlagener Rescan buchte alle offenen Ordner als gewährt — der dritte wurde nie gefragt.

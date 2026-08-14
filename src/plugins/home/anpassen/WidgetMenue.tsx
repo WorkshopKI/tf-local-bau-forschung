@@ -1,5 +1,12 @@
 /**
- * Menü eines einzelnen Widgets (Rechtsklick auf die Karte oder `⋯` im Kopf).
+ * Menü eines einzelnen Widgets — Auslöser ist allein das `⋯` in seinem Kopf.
+ *
+ * **Nur widget-eigene Punkte** (v4.40.2): „Widgets ▸" und „Darstellung ▸" standen
+ * bis dahin auch hier und wiederholten in jeder Karte, was die ganze Seite
+ * betrifft. Sie leben jetzt ausschließlich im Menü der freien Fläche
+ * (`FlaechenMenue`) — ein Ort je Zuständigkeit statt derselben Punkte an sieben
+ * Stellen. Aus demselben Grund öffnet der Rechtsklick auf eine Karte gar kein
+ * Menü mehr (`darfMenueOeffnen`).
  *
  * „Nach oben/unten" trägt die Position als „2 / 5" und ist am Spaltenrand
  * ausgegraut statt versteckt (Handoff §2.2) — sonst sprängen die Einträge unter
@@ -10,22 +17,20 @@
  * (`hatWidgetDetailConfig`) und tauscht den Panel-Inhalt im selben Menü, statt
  * ein zweites Popover zu öffnen (Muster aus `TicketMenue`).
  */
-import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, Columns3, EyeOff, Settings2, SunMoon } from 'lucide-react';
+import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, EyeOff, Settings2 } from 'lucide-react';
 import { useHomeWidgets } from '../widgets/useHomeWidgets';
 import { WIDGET_KATALOG } from '../widgets/widgetCatalog';
 import { hatWidgetDetailConfig } from '../widgets/types';
 import { MenueTrenner, MenueZeile } from './menueZeilen';
 import { useRueckgaengigStore } from './rueckgaengigStore';
-import { useStartseiteMenueStore, type UntermenueId } from './useStartseiteMenue';
+import { useStartseiteMenueStore } from './useStartseiteMenue';
 
-export function WidgetMenue({ instanzId, oeffneUnter }: {
+export function WidgetMenue({ instanzId }: {
   instanzId: string;
-  oeffneUnter: (id: UntermenueId, el: HTMLElement) => void;
 }): React.ReactElement | null {
   const api = useHomeWidgets();
   const schliesse = useStartseiteMenueStore(s => s.schliesse);
   const zeigeAnsicht = useStartseiteMenueStore(s => s.zeigeAnsicht);
-  const untermenue = useStartseiteMenueStore(s => s.untermenue);
   const merke = useRueckgaengigStore(s => s.merke);
 
   const instanz = api.alleInstanzen.find(w => w.id === instanzId);
@@ -71,28 +76,18 @@ export function WidgetMenue({ instanzId, oeffneUnter }: {
         deaktiviert={i < 0 || i >= n - 1}
         onClick={() => { void api.move(instanzId, 'runter'); }}
       />
-      <MenueTrenner />
+      {/* Der Trenner gehört zum Eintrag: ohne Formular endet das Menü bei „Nach
+          unten" statt mit einer Linie unter dem letzten Punkt. */}
       {hatWidgetDetailConfig(instanz.config) ? (
-        <MenueZeile
-          label="Widget-Einstellungen"
-          icon={Settings2}
-          onClick={() => zeigeAnsicht('einstellungen')}
-        />
+        <>
+          <MenueTrenner />
+          <MenueZeile
+            label="Widget-Einstellungen"
+            icon={Settings2}
+            onClick={() => zeigeAnsicht('einstellungen')}
+          />
+        </>
       ) : null}
-      <MenueZeile
-        label="Widgets"
-        icon={Columns3}
-        untermenue
-        aktiv={untermenue === 'widgets'}
-        onHover={el => oeffneUnter('widgets', el)}
-      />
-      <MenueZeile
-        label="Darstellung"
-        icon={SunMoon}
-        untermenue
-        aktiv={untermenue === 'darstellung'}
-        onHover={el => oeffneUnter('darstellung', el)}
-      />
     </>
   );
 }

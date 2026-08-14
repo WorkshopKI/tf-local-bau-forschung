@@ -141,7 +141,9 @@ export function StartseiteMenue(): React.ReactElement {
             {ansicht === 'einstellungen' && offen.ziel.art === 'widget' ? (
               <WidgetEinstellungen instanzId={offen.ziel.instanzId} />
             ) : offen.ziel.art === 'widget' ? (
-              <WidgetMenue instanzId={offen.ziel.instanzId} oeffneUnter={oeffneUnter} />
+              // Ohne `oeffneUnter`: die allgemeinen Untermenüs hängen allein am
+              // Menü der freien Fläche (v4.40.2).
+              <WidgetMenue instanzId={offen.ziel.instanzId} />
             ) : (
               <FlaechenMenue oeffneUnter={oeffneUnter} />
             )}
