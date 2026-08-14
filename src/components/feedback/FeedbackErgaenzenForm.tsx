@@ -137,7 +137,10 @@ export function FeedbackErgaenzenForm({ ticket, onFertig, onChanged, nurLokal }:
       </div>
 
       {strukturiert && typeDef ? (
-        typeDef.fields.map(f => (
+        // Bestands-Felder (`legacy`) stehen nur noch da, wenn dieses Ticket sie
+        // gefüllt hat — sonst könnte der Autor seinen eigenen Alt-Text nicht mehr
+        // korrigieren. Neue Tickets sehen sie gar nicht erst.
+        typeDef.fields.filter(f => !f.legacy || (werte[f.key] ?? '').trim().length > 0).map(f => (
           <div key={f.key}>
             <label className="text-[10.5px] text-[var(--tf-text-tertiary)]">
               {f.label}{f.required ? ' *' : ''}

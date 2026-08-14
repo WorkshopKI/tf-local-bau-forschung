@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.37.0 — Feedback-Erfassung: schmaler, kuerzer, Screenshot ohne Sichtblockade (August 2026)
+
+MINOR — Der Erfassungs-Dialog kam aus dem Testbetrieb mit fünf Rückmeldungen zurück: zu breit, zu lang, zu viel zu tippen — und er verdeckte genau den Bildschirm, den man screenshotten wollte. Gemessen: 520 × 877 px → 420 × 535 px bei gleichem Funktionsumfang.
+
+- **„Bereich aufnehmen (Win+Shift+S)" klappt das Panel weg** und fängt den Strg+V global ab ([FeedbackScreenshotInput.tsx](src/components/feedback/FeedbackScreenshotInput.tsx)) — der Entwurf bleibt dabei stehen ([FeedbackPanel.tsx](src/components/feedback/FeedbackPanel.tsx))
+- **„Was hast du gemacht?" ist in „Was ist passiert?" aufgegangen** — `legacy`-Felder bleiben im Schema, nur nicht mehr im Formular ([constants.ts](src/components/feedback/constants.ts))
+- **Bereichsauswahl als unauffälliges Dropdown oben rechts** („Seite: Home" statt „— Auto-erkannt: Home —"), Titel mit der erkannten Seite vorbelegt ([FeedbackInputStep.tsx](src/components/feedback/FeedbackInputStep.tsx))
+- **Sieben Zeilen weniger**: App-Kontext und Verbessern-Erklärung als ⓘ, Dateiformate in der Ablage-Fläche ([FeedbackFileInput.tsx](src/components/feedback/FeedbackFileInput.tsx))
+- **Breite 520 → 420 mit Schlüssel-Bump** (`teamflow_feedback_panel_width_v2`) — ohne ihn schlüge die gemerkte Breite den neuen Default; Detail in [feedback-system.md](docs/architecture/feedback-system.md)
+
 ### v4.36.0 — Programme und Filter werden ein Panel (August 2026)
 
 MINOR — Zwei weitere Kurator-Seiten werden ein Panel. Beide beschreiben dieselbe Sache — die Ordnung, in der die importierten Daten stehen — und hängen an derselben Voraussetzung: dem aktiven Programm. Die Filterseite nannte es nie, obwohl ihre Liste daran hing.

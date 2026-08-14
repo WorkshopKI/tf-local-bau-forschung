@@ -19,6 +19,18 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.37 — 2026-08
+
+### Neu
+- **Screenshot, ohne dass das Feedback-Fenster im Weg steht.** „Bereich aufnehmen (Win+Shift+S)" klappt das Fenster auf eine schmale Leiste zusammen. Sie nehmen Ihren Ausschnitt auf, drücken Strg+V — und das Fenster geht mit dem Bild und Ihrem angefangenen Text wieder auf.
+
+### Verbesserungen
+- Das Feedback-Fenster ist deutlich schmaler und kürzer geworden: gleiche Möglichkeiten, gut ein Drittel weniger Höhe.
+- Beim Melden eines Problems gibt es statt „Was hast du gemacht?" und „Was ist passiert?" **ein** Feld — beides in einem Satz, wie man es ohnehin schreibt.
+- Die Überschrift ist mit der Seite vorbelegt, auf der Sie stehen („Home: …"). Lassen Sie sie stehen, wird der Titel wie bisher aus Ihrer Antwort abgeleitet.
+- Der Bereich steht jetzt oben rechts als kleines Auswahlfeld und heißt nach Ihrer Seite („Seite: Home"); was automatisch mitgeschickt wird, steht im ⓘ daneben.
+- Bei „Datei anhängen" stehen die erlaubten Formate direkt in der Ablage-Fläche.
+
 ## v4.36 — 2026-08
 
 ### Verbesserungen

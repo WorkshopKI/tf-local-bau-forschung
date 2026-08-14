@@ -41,12 +41,18 @@ interface Props {
 type View = 'input' | 'confirm' | 'verbessern' | 'my-feedback';
 
 // Panel-Breite: per Drag-Handle am linken Rand resizable + in localStorage
-// persistiert (Pattern gespiegelt von AntraegeMain). Default seit v2.45 breiter
-// (war 420). Panel ist rechts verankert → nach links ziehen verbreitert.
-const PANEL_WIDTH_KEY = 'teamflow_feedback_panel_width';
-const PANEL_DEFAULT_WIDTH = 520;
+// persistiert (Pattern gespiegelt von AntraegeMain). Panel ist rechts verankert →
+// nach links ziehen verbreitert.
+//
+// v4.36: 520 → 420. Der Schlüssel MUSS dabei mitwandern — ein gemerkter Wert
+// schlägt sonst den Code-Default, und genau die Leute, denen das Fenster zu breit
+// war (weil sie es mal gezogen haben), sähen die Änderung nie.
+const PANEL_WIDTH_KEY = 'teamflow_feedback_panel_width_v2';
+const PANEL_DEFAULT_WIDTH = 420;
 const PANEL_MIN_WIDTH = 360;
 const PANEL_MAX_WIDTH = 900;
+/** Breite der zusammengeklappten Leiste während der Screenshot-Aufnahme. */
+const PANEL_AUFNAHME_WIDTH = 320;
 
 function loadPanelWidth(): number {
   try {
@@ -67,7 +73,9 @@ export function FeedbackPanel({ open, onClose, focusScreenshot, vorbelegung }: P
 
   const [view, setView] = useState<View>('input');
   const [areaRef, setAreaRef] = useState('');
-  const [showContext, setShowContext] = useState(false);
+  // true = für die Screenshot-Aufnahme zusammengeklappt (v4.36). Der Body bleibt
+  // dabei GEMOUNTET und wird nur ausgeblendet — sonst wäre der Entwurf weg.
+  const [aufnahme, setAufnahme] = useState(false);
   const [submitting, setSubmitting] = useState<'speichern' | 'verbessern' | null>(null);
   const [submittedItem, setSubmittedItem] = useState<FeedbackItem | null>(null);
   const [improvePayload, setImprovePayload] = useState<FeedbackImprovePayload | null>(null);
@@ -108,22 +116,25 @@ export function FeedbackPanel({ open, onClose, focusScreenshot, vorbelegung }: P
     try { localStorage.setItem(PANEL_WIDTH_KEY, String(panelWidth)); } catch { /* ignore */ }
   }, [panelWidth]);
 
-  // ESC-Handler
+  // ESC-Handler. Im Aufnahme-Modus beendet Escape NUR diesen — das Panel zu
+  // schließen hieße, den halb getippten Entwurf wegzuwerfen.
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape') onClose();
+      if (e.key !== 'Escape') return;
+      if (aufnahme) { setAufnahme(false); return; }
+      onClose();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [open, onClose]);
+  }, [open, onClose, aufnahme]);
 
   // Reset + Context-Capture beim Öffnen
   useEffect(() => {
     if (open) {
       setView('input');
       setAreaRef('');
-      setShowContext(false);
+      setAufnahme(false);
       setSubmittedItem(null);
       setImprovePayload(null);
       setOutboxHandle(null);
@@ -206,19 +217,25 @@ export function FeedbackPanel({ open, onClose, focusScreenshot, vorbelegung }: P
   return (
     <div
       className="fixed bottom-20 right-4 z-40 max-w-[calc(100vw-2rem)] rounded-[12px] bg-[var(--tf-bg)] shadow-2xl flex flex-col overflow-hidden"
-      style={{ width: panelWidth, border: '0.5px solid var(--tf-border)', maxHeight: 'calc(100vh - 6rem)' }}
+      style={{
+        width: aufnahme ? PANEL_AUFNAHME_WIDTH : panelWidth,
+        border: '0.5px solid var(--tf-border)',
+        maxHeight: 'calc(100vh - 6rem)',
+      }}
       role="dialog"
       aria-label="Feedback"
     >
       {/* Resize-Handle am linken Rand (Panel ist rechts verankert → links ziehen verbreitert) */}
-      <div
-        role="separator"
-        aria-orientation="vertical"
-        aria-label="Breite ändern"
-        onMouseDown={onResizeMouseDown}
-        className="absolute left-0 top-0 h-full w-[6px] cursor-col-resize hover:bg-[var(--tf-border-hover)] z-10"
-        style={{ touchAction: 'none' }}
-      />
+      {!aufnahme && (
+        <div
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Breite ändern"
+          onMouseDown={onResizeMouseDown}
+          className="absolute left-0 top-0 h-full w-[6px] cursor-col-resize hover:bg-[var(--tf-border-hover)] z-10"
+          style={{ touchAction: 'none' }}
+        />
+      )}
 
       {/* Header */}
       <div className="flex items-center justify-between px-3.5 py-2.5" style={{ borderBottom: '0.5px solid var(--tf-border)' }}>
@@ -234,7 +251,7 @@ export function FeedbackPanel({ open, onClose, focusScreenshot, vorbelegung }: P
             </button>
           )}
           <span className="text-[13px] font-medium text-[var(--tf-text)]">
-            {view === 'my-feedback' ? 'Mein Feedback' : 'Feedback'}
+            {aufnahme ? 'Screenshot aufnehmen' : view === 'my-feedback' ? 'Mein Feedback' : 'Feedback'}
           </span>
         </div>
         <button
@@ -247,21 +264,32 @@ export function FeedbackPanel({ open, onClose, focusScreenshot, vorbelegung }: P
         </button>
       </div>
 
+      {/* Aufnahme-Leiste — ersetzt sichtbar den Body, ohne ihn auszuhängen. */}
+      {aufnahme && (
+        <div className="px-3.5 py-3 space-y-2">
+          <p className="text-[12px] text-[var(--tf-text)] leading-[1.5]">
+            Jetzt <strong>Win+Shift+S</strong> drücken und den Bereich aufziehen — danach
+            <strong> Strg+V</strong>. Das Fenster geht dann von selbst wieder auf.
+          </p>
+          <Button type="button" variant="secondary" onClick={() => setAufnahme(false)}>Abbrechen</Button>
+        </div>
+      )}
+
       {/* Body */}
-      <div className="flex-1 overflow-y-auto">
+      <div className={`flex-1 overflow-y-auto ${aufnahme ? 'hidden' : ''}`}>
         {view === 'input' && context && (
           <FeedbackInputStep
             areaRef={areaRef}
             setAreaRef={setAreaRef}
             context={context}
-            showContext={showContext}
-            setShowContext={setShowContext}
             submitting={submitting}
             kiVerfuegbar={kiVerfuegbar}
             onSubmit={handleSubmit}
             onShowMyFeedback={() => setView('my-feedback')}
             autoFocusScreenshot={focusScreenshot}
             vorbelegung={vorbelegung}
+            aufnahme={aufnahme}
+            onAufnahme={setAufnahme}
           />
         )}
 

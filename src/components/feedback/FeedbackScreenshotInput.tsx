@@ -2,9 +2,14 @@
 // Strg+V) + Datei-Upload-Fallback. Jedes Bild wird auf ≤1600px runterskaliert
 // (scaleImageToAttachment), als Thumbnail mit „Annotieren"/„Entfernen" gezeigt.
 // Controlled: der Parent (FeedbackInputStep) hält die attachments-Liste.
+//
+// v4.36 — Aufnahme-Modus: „Bereich aufnehmen" klappt das Panel zusammen (das
+// Formular verdeckte genau den Bildschirm, den man aufnehmen will) und fängt den
+// anschließenden Strg+V global ab. Win+Shift+S selbst kann der Browser NICHT
+// auslösen — es gibt keinen Zugriff auf OS-Tastenkürzel; der Nutzer drückt es.
 
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
-import { ImagePlus, Pencil, X } from 'lucide-react';
+import { Camera, ImagePlus, Pencil, X } from 'lucide-react';
 import { scaleImageToAttachment, type PendingAttachment } from './feedbackAttachments';
 import { FeedbackAnnotator } from './FeedbackAnnotator';
 
@@ -12,6 +17,11 @@ interface Props {
   attachments: PendingAttachment[];
   onChange: (next: PendingAttachment[]) => void;
   autoFocus?: boolean;
+  /** true = das Panel ist zusammengeklappt und wartet auf den Strg+V des Nutzers. */
+  aufnahme?: boolean;
+  /** Aufnahme-Modus starten/beenden. Fehlt der Callback, gibt es den Knopf nicht
+   *  (z.B. im „Ergänzen"-Formular, das nicht im wegklappbaren Panel steckt). */
+  onAufnahme?: (aktiv: boolean) => void;
 }
 
 /** Imperativer Griff: erlaubt dem Parent, die Paste-Fläche gezielt zu fokussieren
@@ -21,12 +31,16 @@ export interface FeedbackScreenshotHandle {
 }
 
 export const FeedbackScreenshotInput = forwardRef<FeedbackScreenshotHandle, Props>(
-  function FeedbackScreenshotInput({ attachments, onChange, autoFocus }, ref): React.ReactElement {
+  function FeedbackScreenshotInput({ attachments, onChange, autoFocus, aufnahme, onAufnahme }, ref): React.ReactElement {
   const pasteRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [annotating, setAnnotating] = useState<PendingAttachment | null>(null);
+  // Die Liste liegt beim Parent; der globale Paste-Fänger unten läuft in einem
+  // Effekt und sähe sonst den Stand vom Registrieren.
+  const aktuellRef = useRef(attachments);
+  aktuellRef.current = attachments;
 
   useEffect(() => { if (autoFocus) pasteRef.current?.focus(); }, [autoFocus]);
 
@@ -46,7 +60,7 @@ export const FeedbackScreenshotInput = forwardRef<FeedbackScreenshotHandle, Prop
         const base = await scaleImageToAttachment(f);
         added.push({ ...base, caption: '' });
       }
-      if (added.length) onChange([...attachments, ...added]);
+      if (added.length) onChange([...aktuellRef.current, ...added]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Bild konnte nicht verarbeitet werden.');
     } finally {
@@ -54,13 +68,32 @@ export const FeedbackScreenshotInput = forwardRef<FeedbackScreenshotHandle, Prop
     }
   };
 
-  const handlePaste = (e: React.ClipboardEvent): void => {
-    const imgs = Array.from(e.clipboardData?.items ?? [])
+  const bilderAus = (data: DataTransfer | null): File[] =>
+    Array.from(data?.items ?? [])
       .filter(it => it.kind === 'file' && it.type.startsWith('image/'))
       .map(it => it.getAsFile())
       .filter((f): f is File => f != null);
+
+  const handlePaste = (e: React.ClipboardEvent): void => {
+    const imgs = bilderAus(e.clipboardData);
     if (imgs.length) { e.preventDefault(); void addFiles(imgs); }
   };
+
+  // Aufnahme-Modus: das Panel ist zusammengeklappt, also ist kein Feld fokussiert
+  // — der Strg+V landet am Dokument. JEDER Paste beendet den Modus (auch einer
+  // ohne Bild: die Aufnahme wurde dann abgebrochen, und das Panel wieder offen zu
+  // sehen ist die ehrlichere Rückmeldung als eine stumme Warteleiste).
+  useEffect(() => {
+    if (!aufnahme || !onAufnahme) return;
+    const onPaste = (e: ClipboardEvent): void => {
+      const imgs = bilderAus(e.clipboardData);
+      if (imgs.length) { e.preventDefault(); void addFiles(imgs); }
+      onAufnahme(false);
+    };
+    window.addEventListener('paste', onPaste, true);
+    return () => window.removeEventListener('paste', onPaste, true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- addFiles liest über aktuellRef
+  }, [aufnahme, onAufnahme]);
 
   const handleFiles = (e: React.ChangeEvent<HTMLInputElement>): void => {
     const files = Array.from(e.target.files ?? []);
@@ -75,27 +108,36 @@ export const FeedbackScreenshotInput = forwardRef<FeedbackScreenshotHandle, Prop
   };
 
   return (
-    <div className="flex flex-col gap-2">
-      <label className="text-[11px] text-[var(--tf-text-tertiary)]">Screenshots (optional)</label>
-
+    <div className="flex flex-col gap-1.5">
       <textarea
         ref={pasteRef}
         value=""
         onChange={() => { /* Paste-Ziel: getippter Text wird verworfen */ }}
         onPaste={handlePaste}
         rows={2}
-        placeholder={busy ? 'Bild wird verarbeitet…' : 'Screenshot hier einfügen (Strg+V) — Win+Shift+S erstellt ihn'}
-        className="w-full resize-none px-2.5 py-2.5 text-[12.5px] bg-transparent text-[var(--tf-text)] rounded-[var(--tf-radius)] outline-none placeholder:font-semibold placeholder:text-[var(--tf-text-secondary)] focus:border-[var(--tf-primary)] cursor-text"
+        placeholder={busy ? 'Bild wird verarbeitet…' : 'Screenshot hier einfügen (Strg+V)'}
+        className="w-full resize-none px-2.5 py-2 text-[12.5px] bg-transparent text-[var(--tf-text)] rounded-[var(--tf-radius)] outline-none placeholder:font-semibold placeholder:text-[var(--tf-text-secondary)] focus:border-[var(--tf-primary)] cursor-text"
         style={{ border: '1px dashed var(--tf-border-hover)' }}
       />
 
-      <button
-        type="button"
-        onClick={() => fileRef.current?.click()}
-        className="inline-flex items-center gap-1 self-start px-1 py-0.5 text-[10px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text-secondary)] cursor-pointer"
-      >
-        <ImagePlus size={11} /> oder Bild hochladen
-      </button>
+      <div className="flex items-center gap-2">
+        {onAufnahme && (
+          <button
+            type="button"
+            onClick={() => onAufnahme(true)}
+            className="inline-flex items-center gap-1 px-1 py-0.5 text-[10.5px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] cursor-pointer"
+          >
+            <Camera size={11} /> Bereich aufnehmen (Win+Shift+S)
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={() => fileRef.current?.click()}
+          className="inline-flex items-center gap-1 px-1 py-0.5 text-[10px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text-secondary)] cursor-pointer"
+        >
+          <ImagePlus size={11} /> Bild hochladen
+        </button>
+      </div>
       <input ref={fileRef} type="file" accept="image/*" multiple onChange={handleFiles} className="hidden" />
 
       {error && <p className="text-[11px] text-[var(--tf-danger-text)]">{error}</p>}

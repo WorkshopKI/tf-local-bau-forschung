@@ -200,6 +200,21 @@ export interface FeedbackFieldDef {
   optional?: boolean;
   /** true = textarea (rows=3), false/undefined = einzeiliges input. */
   multiline?: boolean;
+  /**
+   * true = das Feld steht nur noch in Bestandsdaten; das Erfassungs-Formular
+   * zeigt es NICHT mehr an (v4.36: „Was hast du gemacht?" ist in „Was ist
+   * passiert?" aufgegangen — wer ein Problem meldet, schreibt beides ohnehin als
+   * eine Erzählung). Es bleibt im Schema, damit Alt-Tickets unverändert
+   * weitergelesen werden: `composeFeedbackText`, `feedbackQaSegments`,
+   * `KNOWN_FEEDBACK_LABELS` und der `promptGenerator` finden ihr Label weiter.
+   * Formular-Konsumenten filtern über `sichtbareFelder()`.
+   */
+  legacy?: boolean;
+}
+
+/** Die im Erfassungs-Formular gezeigten Felder eines Typs (ohne Bestands-Felder). */
+export function sichtbareFelder(typeDef: FeedbackTypeDef): FeedbackFieldDef[] {
+  return typeDef.fields.filter(f => !f.legacy);
 }
 
 export interface FeedbackTypeDef {
@@ -221,8 +236,11 @@ export const FEEDBACK_TYPES: readonly FeedbackTypeDef[] = [
   {
     category: 'problem', label: 'Etwas funktioniert nicht', icon: 'Zap', llmHint: 'bug', primary: true,
     fields: [
-      { key: 'steps', label: 'Was hast du gemacht?', shortLabel: 'Gemacht', multiline: true },
-      { key: 'actual', label: 'Was ist passiert?', shortLabel: 'Passiert', multiline: true, required: true },
+      { key: 'steps', label: 'Was hast du gemacht?', shortLabel: 'Gemacht', multiline: true, legacy: true },
+      {
+        key: 'actual', label: 'Was ist passiert?', shortLabel: 'Passiert', multiline: true, required: true,
+        placeholder: 'Was hast du gemacht — und was passierte dann?',
+      },
       { key: 'expected', label: 'Was hättest du erwartet?', shortLabel: 'Erwartet', multiline: true },
     ],
   },

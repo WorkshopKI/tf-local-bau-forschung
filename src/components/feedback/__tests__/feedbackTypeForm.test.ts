@@ -5,7 +5,7 @@
  *  - jede sichtbare Kategorie ist durch einen Typ abgedeckt.
  */
 import { describe, expect, it } from 'vitest';
-import { FEEDBACK_TYPES, composeFeedbackText, type FeedbackTypeDef } from '../constants';
+import { FEEDBACK_TYPES, composeFeedbackText, sichtbareFelder, type FeedbackTypeDef } from '../constants';
 
 function typeFor(category: string): FeedbackTypeDef {
   const t = FEEDBACK_TYPES.find(t => t.category === category);
@@ -24,6 +24,25 @@ describe('FEEDBACK_TYPES', () => {
   it('deckt die sponsorbaren + Freitext-Kategorien ab', () => {
     const cats = FEEDBACK_TYPES.map(t => t.category).sort();
     expect(cats).toEqual(['idea', 'praise', 'problem', 'question']);
+  });
+});
+
+describe('sichtbareFelder (v4.36)', () => {
+  it('nimmt Bestands-Felder aus dem Formular, lässt sie aber im Schema', () => {
+    const problem = typeFor('problem');
+    // Im Schema, damit Alt-Tickets ihr Label behalten (Karten-Vorschau, Prompt).
+    expect(problem.fields.map(f => f.key)).toContain('steps');
+    // Nicht mehr im Formular: „Was hast du gemacht?" ist in „Was ist passiert?"
+    // aufgegangen — wer ein Problem meldet, schreibt beides als eine Erzählung.
+    expect(sichtbareFelder(problem).map(f => f.key)).toEqual(['actual', 'expected']);
+  });
+
+  it('lässt jedem Typ genau ein sichtbares Pflichtfeld', () => {
+    for (const t of FEEDBACK_TYPES) {
+      const felder = sichtbareFelder(t);
+      expect(felder.filter(f => f.required), `Typ ${t.category}`).toHaveLength(1);
+      expect(felder.length, `Typ ${t.category}`).toBeGreaterThan(0);
+    }
   });
 });
 

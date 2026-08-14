@@ -50,24 +50,28 @@ export function FeedbackFileInput({ files, onChange }: Props): React.ReactElemen
   const remove = (id: string): void => onChange(files.filter(f => f.id !== id));
 
   return (
-    <div className="flex flex-col gap-2">
-      <label className="text-[11px] text-[var(--tf-text-tertiary)]">Dateien anhängen (optional)</label>
-
+    <div className="flex flex-col gap-1.5">
+      {/* Formate + Grenze stehen IN der Ablage-Fläche statt als eigene Fußnote
+          darunter — dieselbe Aussage, eine Zeile weniger (v4.36). */}
       <button
         type="button"
         onClick={() => inputRef.current?.click()}
         onDragOver={e => { e.preventDefault(); setDragOver(true); }}
         onDragLeave={() => setDragOver(false)}
         onDrop={handleDrop}
-        className={`w-full flex items-center justify-center gap-1.5 px-2.5 py-2.5 rounded-[var(--tf-radius)] text-[12px] cursor-pointer transition-colors ${
+        className={`w-full flex flex-col items-center gap-0.5 px-2.5 py-2 rounded-[var(--tf-radius)] cursor-pointer transition-colors ${
           dragOver ? 'text-[var(--tf-primary)] bg-[var(--tf-primary-light)]/30' : 'text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)]'
         }`}
         style={{ border: '1px dashed var(--tf-border-hover)' }}
       >
-        <FilePlus size={13} /> Datei hier ablegen oder auswählen
+        <span className="inline-flex items-center gap-1.5 text-[12px]">
+          <FilePlus size={13} /> Datei hier ablegen oder auswählen
+        </span>
+        <span className="text-[10px] text-[var(--tf-text-tertiary)]">
+          PDF, Word, Excel, PowerPoint, CSV, TXT, MD — max. 10 MB pro Datei
+        </span>
       </button>
       <input ref={inputRef} type="file" accept={FEEDBACK_FILE_ACCEPT} multiple onChange={handleInput} className="hidden" />
-      <p className="text-[10px] text-[var(--tf-text-tertiary)]">PDF, Word, Excel, PowerPoint, CSV, TXT, MD — max. 10 MB pro Datei.</p>
 
       {error && <p className="text-[11px] text-[var(--tf-danger-text)]">{error}</p>}
 

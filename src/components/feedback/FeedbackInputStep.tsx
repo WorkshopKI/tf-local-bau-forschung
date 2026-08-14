@@ -1,16 +1,23 @@
 // Strukturierter Feedback-Eingabe-Schritt: erst Typ-Wahl, dann typspezifische
 // Felder. Deterministisch + LLM-unabhängig (die Kategorie steht über die Typ-Wahl
 // fest). Ausgelagert aus FeedbackPanel.tsx (300-Zeilen-Regel).
+//
+// v4.36 — kompakter Haushalt: Bereichsauswahl + App-Kontext-ⓘ sitzen in der
+// Kopfzeile des Formulars (statt als zwei eigene Zeilen unten), das Titel-Feld
+// trägt seine Beschriftung im Platzhalter und ist mit der erkannten Seite
+// vorbelegt, und der Erklärtext zum Verbessern hängt als ⓘ am Knopf.
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import * as Icons from 'lucide-react';
-import { Camera, ChevronDown, ChevronRight, MessageSquare } from 'lucide-react';
+import { Camera, ChevronDown, ChevronRight, Info, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Tooltip } from '@/components/ui/Tooltip';
 import type { FeedbackCategory, FeedbackContext } from '@/core/types/feedback';
 import {
   FEEDBACK_TYPES,
   TEAMFLOW_AREAS,
   composeFeedbackText,
+  sichtbareFelder,
   type FeedbackTypeDef,
 } from './constants';
 import { FaqSuggestions } from './FaqSuggestions';
@@ -42,8 +49,6 @@ interface Props {
   areaRef: string;
   setAreaRef: (v: string) => void;
   context: FeedbackContext;
-  showContext: boolean;
-  setShowContext: (v: boolean) => void;
   submitting: 'speichern' | 'verbessern' | null;
   /** true wenn die interne KI (Bridge) verbunden ist → zweiter CTA "… & verbessern". */
   kiVerfuegbar: boolean;
@@ -56,6 +61,10 @@ interface Props {
    * Mounten (das Panel unmountet beim Schließen) — „Typ ändern" bleibt frei.
    */
   vorbelegung?: FeedbackVorbelegung | null;
+  /** true = das Panel ist für die Screenshot-Aufnahme zusammengeklappt (v4.36). */
+  aufnahme: boolean;
+  /** Aufnahme-Modus starten/beenden — der Zustand liegt im Panel (es klappt sich zusammen). */
+  onAufnahme: (aktiv: boolean) => void;
 }
 
 type IconComponent = React.ComponentType<{ size?: number; className?: string }>;
@@ -66,12 +75,16 @@ function getIcon(name: string): IconComponent {
 }
 
 export function FeedbackInputStep(props: Props): React.ReactElement {
-  const { areaRef, setAreaRef, context, showContext, setShowContext, submitting, kiVerfuegbar, onSubmit, onShowMyFeedback, autoFocusScreenshot, vorbelegung } = props;
+  const { areaRef, setAreaRef, context, submitting, kiVerfuegbar, onSubmit, onShowMyFeedback, autoFocusScreenshot, vorbelegung, aufnahme, onAufnahme } = props;
+  // Der Titel beginnt mit der erkannten Seite („Home: "), damit im Board auf
+  // einen Blick steht, worum es geht — ohne dass jemand sie abtippt. Bleibt es
+  // beim Präfix, gilt der Titel als leer (siehe doSubmit).
+  const titelPraefix = `${context.page}: `;
   const [selectedType, setSelectedType] = useState<FeedbackTypeDef | null>(
     () => FEEDBACK_TYPES.find(t => t.category === vorbelegung?.kategorie) ?? null,
   );
   const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
-  const [title, setTitle] = useState(vorbelegung?.titel ?? '');
+  const [title, setTitle] = useState(vorbelegung?.titel ?? titelPraefix);
   // Screenshots + Dateien sind typ-unabhängig → überleben einen Typ-Wechsel (kein Reset in changeType).
   const [attachments, setAttachments] = useState<PendingAttachment[]>([]);
   const [fileAttachments, setFileAttachments] = useState<PendingAttachment[]>([]);
@@ -81,17 +94,26 @@ export function FeedbackInputStep(props: Props): React.ReactElement {
   // welcher Button gedrückt wurde, damit „Trotzdem senden" korrekt weiterläuft.
   const [nudge, setNudge] = useState<{ verbessern: boolean } | null>(null);
 
+  // Zurück aus der Aufnahme: an die Screenshot-Fläche scrollen (dort steht die
+  // neue Miniatur) und sie fokussieren — ein zweiter Strg+V geht direkt.
+  // MUSS vor dem Early-Return der Typ-Auswahl stehen (Hook-Reihenfolge).
+  const warAufnahme = useRef(aufnahme);
+  useEffect(() => {
+    if (warAufnahme.current && !aufnahme) screenshotRef.current?.focus();
+    warAufnahme.current = aufnahme;
+  }, [aufnahme]);
+
   const chooseType = (type: FeedbackTypeDef): void => {
     setSelectedType(type);
     setFieldValues({});
-    setTitle('');
+    setTitle(titelPraefix);
     requestAnimationFrame(() => firstFieldRef.current?.focus());
   };
 
   const changeType = (): void => {
     setSelectedType(null);
     setFieldValues({});
-    setTitle('');
+    setTitle(titelPraefix);
   };
 
   const setField = (key: string, value: string): void => {
@@ -101,7 +123,7 @@ export function FeedbackInputStep(props: Props): React.ReactElement {
   // Typ-Auswahl ─────────────────────────────────────────────────────────────
   if (!selectedType) {
     return (
-      <div className="p-3.5 space-y-3">
+      <div className="p-3 space-y-2.5">
         <label className="text-[12.5px] text-[var(--tf-text-secondary)] block">
           Was möchtest du uns mitteilen?
         </label>
@@ -128,30 +150,37 @@ export function FeedbackInputStep(props: Props): React.ReactElement {
   }
 
   // Feld-Set ──────────────────────────────────────────────────────────────────
-  const canSubmit = selectedType.fields
+  // Bestands-Felder (`legacy`) stehen nicht mehr im Formular — sie bleiben nur im
+  // Schema, damit Alt-Tickets weiter gelesen werden.
+  const felder = sichtbareFelder(selectedType);
+
+  const canSubmit = felder
     .filter(f => f.required)
     .every(f => (fieldValues[f.key] ?? '').trim().length > 0);
 
   // Screenshot-Nudge: bei Mehrfeld-Typen ("funktioniert nicht" / "wünsche mir etwas"),
   // wenn nur eine Box gefüllt ist UND noch kein Anhang dranhängt, vor dem Senden auf die
   // Screenshot-Option hinweisen. Ein-Feld-Typen (Frage/Lob) sind bewusst ausgenommen.
-  const gefuellteFelder = selectedType.fields
+  const gefuellteFelder = felder
     .filter(f => (fieldValues[f.key] ?? '').trim().length > 0).length;
   const hatAnhang = attachments.length + fileAttachments.length > 0;
-  const sollNudgen = selectedType.fields.length > 1 && gefuellteFelder <= 1 && !hatAnhang;
+  const sollNudgen = felder.length > 1 && gefuellteFelder <= 1 && !hatAnhang;
 
   const doSubmit = (verbessern: boolean): void => {
-    const isSingleText = selectedType.fields.length === 1 && selectedType.fields[0]?.key === 'text';
+    const isSingleText = felder.length === 1 && felder[0]?.key === 'text';
     const structured = isSingleText
       ? undefined
       : Object.fromEntries(
-          selectedType.fields
+          felder
             .map(f => [f.key, (fieldValues[f.key] ?? '').trim()] as const)
             .filter(([, v]) => v.length > 0),
         );
+    // Nur das Seiten-Präfix = der Nutzer hat nichts geschrieben → kein Titel,
+    // `feedbackTitle()` leitet ihn wie bisher aus der Hauptantwort ab.
+    const titelWert = title.trim();
     onSubmit({
       category: selectedType.category,
-      title: title.trim() || undefined,
+      title: titelWert && titelWert !== titelPraefix.trim() ? titelWert : undefined,
       structured: structured && Object.keys(structured).length > 0 ? structured : undefined,
       text: composeFeedbackText(selectedType, fieldValues),
       llmHint: selectedType.llmHint,
@@ -174,34 +203,38 @@ export function FeedbackInputStep(props: Props): React.ReactElement {
   const TypeIcon = getIcon(selectedType.icon);
 
   return (
-    <div className="p-3.5 space-y-3">
-      <button
-        type="button"
-        onClick={changeType}
-        className="inline-flex items-center gap-1 text-[11.5px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] cursor-pointer"
-      >
-        <ChevronRight size={12} className="rotate-180" /> Typ ändern
-      </button>
+    <div className="p-3 space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <button
+          type="button"
+          onClick={changeType}
+          className="inline-flex items-center gap-1 text-[11.5px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] cursor-pointer"
+        >
+          <ChevronRight size={12} className="rotate-180" /> Typ ändern
+        </button>
+        <div className="flex items-center gap-0.5 shrink-0">
+          <BereichAuswahl seite={context.page} areaRef={areaRef} setAreaRef={setAreaRef} />
+          <KontextInfo context={context} />
+        </div>
+      </div>
 
       <div className="flex items-center gap-1.5 text-[12.5px] font-medium text-[var(--tf-text)]">
         <TypeIcon size={14} className="text-[var(--tf-text-secondary)]" />
         {selectedType.label}
       </div>
 
-      <div className="flex flex-col gap-1">
-        <label className="text-[11.5px] text-[var(--tf-text-secondary)]">Titel (optional)</label>
-        <input
-          value={title}
-          onChange={e => setTitle(e.target.value)}
-          placeholder="Kurz &amp; knackig — sonst aus der Antwort abgeleitet"
-          maxLength={90}
-          className="w-full px-2.5 py-1.5 text-[12.5px] bg-transparent text-[var(--tf-text)] rounded-[var(--tf-radius)] outline-none placeholder:text-[var(--tf-text-tertiary)] focus:border-[var(--tf-primary)]"
-          style={{ border: '0.5px solid var(--tf-border)' }}
-        />
-      </div>
+      <input
+        value={title}
+        onChange={e => setTitle(e.target.value)}
+        aria-label="Titel (optional)"
+        placeholder="Titel — kurz &amp; knackig, sonst aus der Antwort abgeleitet"
+        maxLength={90}
+        className="w-full px-2.5 py-1.5 text-[12.5px] bg-transparent text-[var(--tf-text)] rounded-[var(--tf-radius)] outline-none placeholder:text-[var(--tf-text-tertiary)] focus:border-[var(--tf-primary)]"
+        style={{ border: '0.5px solid var(--tf-border)' }}
+      />
 
-      {selectedType.fields.map((field, idx) => (
-        <div key={field.key} className="flex flex-col gap-1">
+      {felder.map((field, idx) => (
+        <div key={field.key} className="flex flex-col gap-0.5">
           <label className="text-[11.5px] text-[var(--tf-text-secondary)]">
             {field.label}
             {field.required
@@ -223,7 +256,7 @@ export function FeedbackInputStep(props: Props): React.ReactElement {
               value={fieldValues[field.key] ?? ''}
               onChange={e => setField(field.key, e.target.value)}
               placeholder={field.placeholder}
-              rows={3}
+              rows={field.required ? 3 : 2}
               className="w-full px-2.5 py-2 text-[12.5px] bg-transparent text-[var(--tf-text)] rounded-[var(--tf-radius)] outline-none resize-none placeholder:text-[var(--tf-text-tertiary)] focus:border-[var(--tf-primary)]"
               style={{ border: '0.5px solid var(--tf-border)' }}
             />
@@ -238,41 +271,11 @@ export function FeedbackInputStep(props: Props): React.ReactElement {
         attachments={attachments}
         onChange={next => { setAttachments(next); setNudge(null); }}
         autoFocus={autoFocusScreenshot}
+        aufnahme={aufnahme}
+        onAufnahme={onAufnahme}
       />
 
       <FeedbackFileInput files={fileAttachments} onChange={setFileAttachments} />
-
-      <div className="flex flex-col gap-1">
-        <label className="text-[11px] text-[var(--tf-text-tertiary)]">Bereich (optional)</label>
-        <select
-          value={areaRef}
-          onChange={e => setAreaRef(e.target.value)}
-          className="px-2.5 py-1.5 text-[12.5px] bg-transparent text-[var(--tf-text)] rounded-[var(--tf-radius)] outline-none focus:border-[var(--tf-primary)]"
-          style={{ border: '0.5px solid var(--tf-border)' }}
-        >
-          <option value="">— Auto-erkannt: {context.page} —</option>
-          {VISIBLE_AREAS.map(a => (
-            <option key={a.ref} value={a.ref}>{a.label}</option>
-          ))}
-        </select>
-      </div>
-
-      <button
-        type="button"
-        onClick={() => setShowContext(!showContext)}
-        className="w-full inline-flex items-center gap-1 text-[11px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text-secondary)] cursor-pointer"
-      >
-        {showContext ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
-        Auto: App-Kontext wird mitgesendet
-      </button>
-      {showContext && (
-        <div className="px-2.5 py-2 rounded text-[10.5px] text-[var(--tf-text-secondary)] bg-[var(--tf-bg-secondary)] space-y-0.5">
-          <div>Seite: {context.page}</div>
-          <div>Gerät: {context.device} · {context.viewport}</div>
-          <div>Session: {Math.round(context.sessionDuration / 60)} Min.</div>
-          {context.errors.length > 0 && <div>Fehler: {context.errors.length}</div>}
-        </div>
-      )}
 
       {nudge && (
         <div
@@ -304,16 +307,30 @@ export function FeedbackInputStep(props: Props): React.ReactElement {
 
       <div className="flex flex-col gap-1.5">
         {kiVerfuegbar && (
-          <Button
-            type="button"
-            onClick={() => handleSubmit(true)}
-            disabled={!canSubmit}
-            loading={submitting === 'verbessern'}
-            variant="primary"
-            className="w-full"
-          >
-            Feedback speichern & verbessern
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button
+              type="button"
+              onClick={() => handleSubmit(true)}
+              disabled={!canSubmit}
+              loading={submitting === 'verbessern'}
+              variant="primary"
+              className="flex-1"
+            >
+              Feedback speichern & verbessern
+            </Button>
+            <Tooltip
+              maxWidth={280}
+              text="Die interne KI stellt kurze Rückfragen und formt dein Feedback in eine klare, umsetzbare Fassung — die du noch anpassen kannst."
+            >
+              <button
+                type="button"
+                aria-label="Erklärung zum Verbessern"
+                className="p-1 rounded text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)] cursor-help"
+              >
+                <Info size={13} />
+              </button>
+            </Tooltip>
+          </div>
         )}
         <Button
           type="button"
@@ -325,13 +342,66 @@ export function FeedbackInputStep(props: Props): React.ReactElement {
         >
           Feedback speichern
         </Button>
-        {kiVerfuegbar && (
-          <p className="text-[11px] text-[var(--tf-text-tertiary)]">
-            Verbessern: die interne KI stellt kurze Rückfragen und formt dein Feedback in eine klare, umsetzbare Fassung — die du noch anpassen kannst.
-          </p>
-        )}
       </div>
     </div>
+  );
+}
+
+// ── Kopfzeilen-Bausteine ─────────────────────────────────────────────────────
+
+/**
+ * Bereichsauswahl als unauffälliges Dropdown oben rechts. Der Startwert ist der
+ * leere String = „der automatisch erkannte Bereich"; er heißt im Menü nach der
+ * Seite, auf der man steht („Seite: Home") — der frühere Text „— Auto-erkannt:
+ * Home —" las sich wie ein Systemzustand statt wie eine Auswahl.
+ *
+ * Bewusst ein natives `<select>` (kein Radix-`Select`): dort ist der leere String
+ * als Item-Wert reserviert, und `context.screenRef` bleibt genau dieser leere
+ * String, solange niemand etwas auswählt.
+ */
+function BereichAuswahl({ seite, areaRef, setAreaRef }: { seite: string; areaRef: string; setAreaRef: (v: string) => void }): React.ReactElement {
+  return (
+    <div className="relative">
+      <select
+        value={areaRef}
+        onChange={e => setAreaRef(e.target.value)}
+        aria-label="Bereich"
+        className="appearance-none max-w-[190px] pl-1.5 pr-5 py-0.5 text-[11.5px] bg-transparent text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] hover:bg-[var(--tf-hover)] rounded-[var(--tf-radius)] outline-none cursor-pointer"
+        style={{ border: 'none' }}
+      >
+        <option value="">Seite: {seite}</option>
+        {VISIBLE_AREAS.map(a => (
+          <option key={a.ref} value={a.ref}>{a.label}</option>
+        ))}
+      </select>
+      <ChevronDown size={11} className="absolute right-1 top-1/2 -translate-y-1/2 pointer-events-none text-[var(--tf-text-tertiary)]" />
+    </div>
+  );
+}
+
+/** Was automatisch mitgeht — früher eine eigene Klapp-Zeile im Formular. */
+function KontextInfo({ context }: { context: FeedbackContext }): React.ReactElement {
+  return (
+    <Tooltip
+      maxWidth={260}
+      content={
+        <div className="space-y-0.5">
+          <div className="font-medium">Wird automatisch mitgesendet</div>
+          <div>Seite: {context.page}</div>
+          <div>Gerät: {context.device} · {context.viewport}</div>
+          <div>Session: {Math.round(context.sessionDuration / 60)} Min.</div>
+          {context.errors.length > 0 && <div>Fehler: {context.errors.length}</div>}
+        </div>
+      }
+    >
+      <button
+        type="button"
+        aria-label="Welcher App-Kontext mitgesendet wird"
+        className="p-1 rounded text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)] cursor-help"
+      >
+        <Info size={12} />
+      </button>
+    </Tooltip>
   );
 }
 
