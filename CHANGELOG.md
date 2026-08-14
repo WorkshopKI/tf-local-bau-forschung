@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.49.0 — Feldsuche in der Eingabe, Suchbeispiele auf der Startseite (August 2026)
+
+MINOR — Wer weiß, in welcher Spalte sein Wort steht, konnte das bisher nur grob sagen: das Dropdown „Suche in" kennt fünf Bereiche und gilt für die ganze Anfrage. `FKZ: 16KN083001` oder `AST:GMBU` einzutippen fand nichts — „fkz:" war ein Suchwort wie jedes andere. Der Startzustand erklärte die Syntax bewusst nicht, weil es sie nicht gab; jetzt gibt es sie und er macht sie vor.
+
+- **Feld direkt in der Eingabe**: `ast:Fraunhofer` (307), `ort:Dresden` (451), `titel:Laser ort:Dresden` (4) — Alltagswörter und Spaltencodes der Fördertabelle (`ORG_AST:`, `VB_TITEL:`), auch mit Leerzeichen getippt ([feldpraefix.ts](src/core/services/search/feldpraefix.ts))
+- **Je Wort ein eigener Bereich**: das genannte Feld schlägt das Dropdown, Wörter ohne Präfix folgen ihm weiter ([antraege-search-service.ts](src/plugins/antraege/services/antraege-search-service.ts))
+- **Dokumente und Ähnlichkeit bleiben außen vor**, solange ein Feld genannt ist — keine der beiden Quellen kann eine Feldangabe einhalten; die Deutungszeile schreibt es an ([useUnifiedSearch.ts](src/core/hooks/useUnifiedSearch.ts), [DeutungsZeile.tsx](src/plugins/suche/DeutungsZeile.tsx))
+- **„So kannst du suchen"** auf der Startseite: sechs ausführbare Beispiele vom Thema bis zur Zwei-Felder-Anfrage ([SucheStartzustand.tsx](src/plugins/suche/SucheStartzustand.tsx))
+- **Guard**: jedes Feld aus „alle Felder" braucht ein Präfix — sonst kann die Suche mehr, als sie sagt ([feldpraefix.test.ts](src/core/services/search/__tests__/feldpraefix.test.ts))
+
 ### v4.48.4 — Verlaufs-Leiste in Markenform: eckig, enger, lesbar (August 2026)
 
 PATCH — Rückfrage zur neuen Leiste: warum sind die Chips rund? Weil sie das Filter-Idiom der App erben — nur ist diese Leiste zugleich die **Legende** der Marken in den Zeilen, und eine runde Legende neben einer eckigen Marke behauptet zwei verschiedene Dinge. Detail: [chronik-und-zeitstrahl.md](docs/status-system/chronik-und-zeitstrahl.md).

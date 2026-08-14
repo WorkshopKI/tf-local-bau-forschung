@@ -15,16 +15,31 @@
  * [store.ts](src/plugins/suche/store.ts).
  */
 import type { SuchVerknuepfung } from '@/core/hooks/useSuchVerknuepfung';
+import { zerlegeFeldAnfrage } from '@/core/services/search/feldpraefix';
+import type { Trefferfeld } from '@/core/services/search/trefferstelle';
 
 export interface DeutungsChip {
-  /** Das Wort, wie der Nutzer es getippt hat. */
+  /**
+   * Der Teil, wie der Nutzer ihn getippt hat — MIT Feld-Präfix. Er ist die
+   * Identität des Chips: darüber läuft die Abwahl, und daraus setzt
+   * `wirksameAnfrage` die Anfrage wieder zusammen.
+   */
   wort: string;
+  /** Der reine Suchwert ohne Präfix — das, wonach gesucht und was markiert wird. */
+  wert: string;
+  /** Das getippte Feld, falls der Teil eines nannte (`ast:GMBU` → `organisation`). */
+  feld?: Trefferfeld;
   /** Abgewählte Wörter bleiben sichtbar, zählen aber nicht mehr mit. */
   aktiv: boolean;
 }
 
 /**
  * Zerlegt die Eingabe in die Chips der Deutungszeile.
+ *
+ * Gelesen wird mit demselben Parser wie in der Suchstufe
+ * ([feldpraefix.ts](src/core/services/search/feldpraefix.ts)) — sonst zeigte die
+ * Zeile eine andere Deutung an, als gesucht wird, und das wäre schlimmer als
+ * keine Zeile.
  *
  * Bei „genauer Wortfolge" gibt es GENAU EINEN Chip: dort ist die ganze Eingabe
  * ein Suchbegriff, und ein einzelnes Wort daraus abzuwählen hieße, etwas
@@ -35,22 +50,16 @@ export function baueWortChips(
   verknuepfung: SuchVerknuepfung,
   abgewaehlt: readonly string[],
 ): DeutungsChip[] {
-  const roh = query.trim();
-  if (roh.length === 0) return [];
   const aus = new Set(abgewaehlt.map(w => w.toLowerCase()));
-  if (verknuepfung === 'wortfolge') {
-    return [{ wort: roh, aktiv: !aus.has(roh.toLowerCase()) }];
-  }
   const gesehen = new Set<string>();
   const chips: DeutungsChip[] = [];
-  for (const wort of roh.split(/\s+/)) {
-    if (wort.length === 0) continue;
-    const klein = wort.toLowerCase();
+  for (const t of zerlegeFeldAnfrage(query, verknuepfung === 'wortfolge')) {
+    const klein = t.roh.toLowerCase();
     // Wer „laser laser" tippt, meint einmal Laser. Zwei gleiche Chips wären
     // zwei Schalter für dieselbe Sache.
     if (gesehen.has(klein)) continue;
     gesehen.add(klein);
-    chips.push({ wort, aktiv: !aus.has(klein) });
+    chips.push({ wort: t.roh, wert: t.wert, feld: t.feld, aktiv: !aus.has(klein) });
   }
   return chips;
 }
@@ -75,7 +84,8 @@ export function wirksameAnfrage(
   return aktive.join(' ');
 }
 
-/** Die aktiven Wörter als Nadeln für die Markierung im Treffertext. */
+/** Die aktiven Wörter als Nadeln für die Markierung im Treffertext. Ohne
+ *  Präfix: markiert wird, wonach gesucht wurde — `ast:` steht in keinem Feld. */
 export function markierWoerter(
   query: string,
   verknuepfung: SuchVerknuepfung,
@@ -83,5 +93,5 @@ export function markierWoerter(
 ): string[] {
   return baueWortChips(query, verknuepfung, abgewaehlt)
     .filter(c => c.aktiv)
-    .map(c => c.wort);
+    .map(c => c.wert);
 }

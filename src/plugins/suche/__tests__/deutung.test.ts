@@ -4,8 +4,8 @@ import { baueWortChips, wirksameAnfrage, markierWoerter } from '../deutung';
 describe('baueWortChips', () => {
   it('zerlegt an Leerraum und behält die Schreibweise des Nutzers', () => {
     expect(baueWortChips('Laser Schweißen', 'und', [])).toEqual([
-      { wort: 'Laser', aktiv: true },
-      { wort: 'Schweißen', aktiv: true },
+      { wort: 'Laser', wert: 'Laser', feld: undefined, aktiv: true },
+      { wort: 'Schweißen', wert: 'Schweißen', feld: undefined, aktiv: true },
     ]);
   });
 
@@ -25,12 +25,28 @@ describe('baueWortChips', () => {
 
   it('bei genauer Wortfolge gibt es GENAU einen Chip', () => {
     expect(baueWortChips('additive Fertigung', 'wortfolge', []))
-      .toEqual([{ wort: 'additive Fertigung', aktiv: true }]);
+      .toEqual([{ wort: 'additive Fertigung', wert: 'additive Fertigung', feld: undefined, aktiv: true }]);
   });
 
   it('leere Anfrage ergibt keine Chips', () => {
     expect(baueWortChips('', 'und', [])).toEqual([]);
     expect(baueWortChips('   ', 'und', [])).toEqual([]);
+  });
+
+  it('trennt beim Feld-Präfix Anzeige vom Wortlaut (v4.49)', () => {
+    // `wort` bleibt das Getippte (Identität, Abwahl, Rekonstruktion), `wert` ist
+    // das, was der Chip zeigt und was markiert wird.
+    expect(baueWortChips('ast:GMBU', 'und', [])).toEqual([
+      { wort: 'ast:GMBU', wert: 'GMBU', feld: 'organisation', aktiv: true },
+    ]);
+  });
+
+  it('das mit Leerzeichen getippte Präfix ist EIN Chip, nicht zwei', () => {
+    const chips = baueWortChips('FKZ: 16KN083001', 'und', []);
+    expect(chips).toHaveLength(1);
+    expect(chips[0]).toEqual({
+      wort: 'FKZ: 16KN083001', wert: '16KN083001', feld: 'aktenzeichen', aktiv: true,
+    });
   });
 });
 
@@ -52,6 +68,13 @@ describe('wirksameAnfrage', () => {
   it('nimmt bei Wortfolge nichts heraus, solange der eine Chip aktiv ist', () => {
     expect(wirksameAnfrage('additive Fertigung', 'wortfolge', [])).toBe('additive Fertigung');
   });
+
+  it('behält das Feld-Präfix beim Zusammensetzen', () => {
+    // Ginge das Präfix hier verloren, wäre die Abwahl EINES Wortes zugleich das
+    // stille Aufheben der Feldangabe.
+    expect(wirksameAnfrage('ast:GMBU laser', 'und', ['laser'])).toBe('ast:GMBU');
+    expect(wirksameAnfrage('ast:GMBU laser', 'und', [])).toBe('ast:GMBU laser');
+  });
 });
 
 describe('markierWoerter', () => {
@@ -61,5 +84,9 @@ describe('markierWoerter', () => {
 
   it('bei Wortfolge die ganze Wendung', () => {
     expect(markierWoerter('additive Fertigung', 'wortfolge', [])).toEqual(['additive Fertigung']);
+  });
+
+  it('markiert ohne das Präfix — „ast:" steht in keinem Feld', () => {
+    expect(markierWoerter('ast:GMBU', 'und', [])).toEqual(['GMBU']);
   });
 });

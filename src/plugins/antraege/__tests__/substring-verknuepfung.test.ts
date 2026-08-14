@@ -8,7 +8,7 @@
  * sondern wie ein leerer Bestand.
  */
 import { describe, it, expect } from 'vitest';
-import { searchAntraegeSubstring, zerlegeAnfrage } from '../services/antraege-search-service';
+import { searchAntraegeSubstring } from '../services/antraege-search-service';
 import {
   domainSuchform, standortSuchform, type AntragTextEntry,
 } from '../services/search-corpus';
@@ -49,17 +49,6 @@ const KORPUS = new Map<string, AntragTextEntry>([
   // Keines.
   ['A4', eintrag('Bilderkennung in der Qualitätssicherung')],
 ]);
-
-describe('zerlegeAnfrage', () => {
-  it('zerlegt an Leerraum und schreibt klein', () => {
-    expect(zerlegeAnfrage('Laser  Schweißen')).toEqual(['laser', 'schweißen']);
-  });
-
-  it('liefert für leere/reine Leerraum-Anfragen nichts', () => {
-    expect(zerlegeAnfrage('')).toEqual([]);
-    expect(zerlegeAnfrage('   ')).toEqual([]);
-  });
-});
 
 describe('searchAntraegeSubstring — Verknüpfung', () => {
   it('UND findet auch Wörter, die in verschiedenen Feldern stehen (der Defekt)', () => {
@@ -392,5 +381,57 @@ describe('searchAntraegeSubstring — Suchen in', () => {
     expect(searchAntraegeSubstring('berlin', BEREICH_KORPUS, { bereich: 'einrichtung' }))
       .toEqual([]);
     expect(searchAntraegeSubstring('berlin', BEREICH_KORPUS, { bereich: 'inhalt' })).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// v4.49: Feld direkt in der Anfrage nennen (`ast:GMBU`)
+// ---------------------------------------------------------------------------
+
+describe('searchAntraegeSubstring — Feld in der Anfrage', () => {
+  it('bindet das Wort an sein Feld — dasselbe Wort, zwei Ergebnisse', () => {
+    expect(searchAntraegeSubstring('titel:standards', BEREICH_KORPUS)).toEqual(['T1']);
+    expect(searchAntraegeSubstring('ast:standards', BEREICH_KORPUS)).toEqual(['O1']);
+  });
+
+  it('nimmt auch den Spaltencode der Fördertabelle', () => {
+    expect(searchAntraegeSubstring('ORG_AST:standards', BEREICH_KORPUS)).toEqual(['O1']);
+    expect(searchAntraegeSubstring('VB_TITEL:standards', BEREICH_KORPUS)).toEqual(['T1']);
+  });
+
+  it('mit Leerzeichen getippt gelesen wie ohne', () => {
+    expect(searchAntraegeSubstring('ast: standards', BEREICH_KORPUS)).toEqual(['O1']);
+  });
+
+  it('das Präfix schlägt den Bereich — sonst wäre die Anfrage nie erfüllbar', () => {
+    expect(searchAntraegeSubstring('ast:standards', BEREICH_KORPUS, { bereich: 'inhalt' }))
+      .toEqual(['O1']);
+    expect(searchAntraegeSubstring('ort:berlin', BEREICH_KORPUS, { bereich: 'einrichtung' }))
+      .toEqual(['T1']);
+  });
+
+  it('mischt sich mit freien Wörtern — die folgen weiter dem Bereich', () => {
+    expect(searchAntraegeSubstring('ast:standards mykotoxinen', BEREICH_KORPUS)).toEqual(['O1']);
+    // Das freie Wort steht bei O1 nur im Titel — im Einrichtungs-Bereich fällt
+    // der Antrag damit heraus, obwohl sein Präfix-Teil trifft.
+    expect(searchAntraegeSubstring('ast:standards mykotoxinen', BEREICH_KORPUS,
+      { bereich: 'einrichtung' })).toEqual([]);
+  });
+
+  it('unbekanntes Wort vor dem Doppelpunkt bleibt ein gewöhnliches Suchwort', () => {
+    // „projekt:" ist kein Feld — die Anfrage darf nicht anders gedeutet werden,
+    // nur weil ein Doppelpunkt darin steht.
+    expect(searchAntraegeSubstring('projekt:standards', BEREICH_KORPUS)).toEqual([]);
+  });
+
+  it('gilt auch für die genaue Wortfolge', () => {
+    expect(searchAntraegeSubstring('ast:hpc standards', BEREICH_KORPUS,
+      { verknuepfung: 'wortfolge' })).toEqual(['O1']);
+    expect(searchAntraegeSubstring('titel:hpc standards', BEREICH_KORPUS,
+      { verknuepfung: 'wortfolge' })).toEqual([]);
+  });
+
+  it('ein angefangenes Präfix ohne Wert sucht nichts — nicht alles', () => {
+    expect(searchAntraegeSubstring('ast:', BEREICH_KORPUS)).toEqual([]);
   });
 });

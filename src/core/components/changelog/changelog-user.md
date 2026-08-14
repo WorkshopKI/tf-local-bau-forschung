@@ -19,6 +19,16 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.49 — 2026-08
+
+### Neu
+- Sie können das Feld jetzt direkt in die Suche schreiben: `ast:Fraunhofer` sucht nur beim Antragsteller, `fkz:16KN08` nur im Förderkennzeichen, `ort:Dresden` nur bei Ort und Bundesland. Auch die Spaltennamen der Fördertabelle gehen (`ORG_AST:`, `VB_TITEL:`), und ein Leerzeichen nach dem Doppelpunkt stört nicht.
+- Mehrere Felder in einer Anfrage sind erlaubt: `titel:Laser ort:Dresden`. Wörter ohne Feldangabe folgen weiterhin der Auswahl „Suche in".
+
+### Verbesserungen
+- Der Startbildschirm der Suche zeigt unter „So kannst du suchen" sechs Beispiele mit Erklärung — vom einfachen Thema bis zur Anfrage über zwei Felder. Ein Klick führt das Beispiel aus.
+- Nennen Sie ein Feld, steht es zur Kontrolle im Chip unter dem Suchfeld („Einrichtung: GMBU"). Treffer aus Dokumenten und aus der Ähnlichkeitssuche bleiben dann außen vor — beide können eine Feldangabe nicht einhalten.
+
 ## v4.48 — 2026-08
 
 ### Neu

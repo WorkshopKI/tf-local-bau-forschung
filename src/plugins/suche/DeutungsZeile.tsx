@@ -10,6 +10,7 @@
  */
 import { X } from 'lucide-react';
 import { VERKNUEPFUNG_OPERATOR, type SuchVerknuepfung } from '@/core/hooks/useSuchVerknuepfung';
+import { TREFFERFELD_LABEL } from '@/core/services/search/trefferstelle';
 import { baueWortChips } from './deutung';
 
 /**
@@ -47,6 +48,10 @@ export function DeutungsZeile({
   if (chips.length === 0) return null;
   const operator = VERKNUEPFUNG_OPERATOR[verknuepfung];
   const ausVarianten = new Set(abgewaehlteVarianten.map(v => v.toLowerCase()));
+  // Sobald ein Teil sein Feld nennt, laufen Dokumente und Ähnlichkeit nicht mit
+  // (siehe feldpraefix.ts). Das steht hier, weil die Zeile ohnehin sagt, was aus
+  // der Eingabe geworden ist — eine stille Abschaltung wäre der Defekt.
+  const feldSuche = chips.some(c => c.feld !== undefined);
 
   return (
     <div
@@ -65,13 +70,23 @@ export function DeutungsZeile({
           <button
             type="button"
             onClick={() => onToggleWort(chip.wort)}
-            title={chip.aktiv ? `„${chip.wort}" nicht mitsuchen` : `„${chip.wort}" wieder mitsuchen`}
+            title={
+              (chip.feld ? `Nur im Feld „${TREFFERFELD_LABEL[chip.feld]}". ` : '')
+              + (chip.aktiv ? `„${chip.wert}" nicht mitsuchen` : `„${chip.wert}" wieder mitsuchen`)
+            }
             aria-pressed={chip.aktiv}
             className={`inline-flex items-center gap-1 rounded-[6px] px-1.5 py-0.5 text-[12px] cursor-pointer transition-opacity ${chip.aktiv ? '' : 'opacity-45 line-through'}`}
             style={{ background: chip.aktiv ? 'var(--tf-highlight)' : 'transparent',
               border: chip.aktiv ? '0.5px solid transparent' : '0.5px solid var(--tf-border)' }}
           >
-            <span className="text-[var(--tf-text)]">{chip.wort}</span>
+            {/* Das Feld steht im Chip, nicht als eigenes Etikett daneben: es
+                gehört zu diesem einen Wort, nicht zur Anfrage. */}
+            {chip.feld && (
+              <span className="text-[var(--tf-text-secondary)]">
+                {TREFFERFELD_LABEL[chip.feld]}:
+              </span>
+            )}
+            <span className="text-[var(--tf-text)]">{chip.wert}</span>
             <X size={11} className="text-[var(--tf-text-tertiary)]" aria-hidden />
           </button>
         </span>
@@ -102,6 +117,15 @@ export function DeutungsZeile({
             );
           })}
         </>
+      )}
+
+      {feldSuche && (
+        <span
+          className="text-[11px] text-[var(--tf-text-tertiary)]"
+          title="Ein genanntes Feld können weder der Dokumentenindex noch die Ähnlichkeitssuche einhalten — sie würden Treffer beisteuern, die außerhalb des Feldes liegen. Ohne Feldangabe laufen beide wie gewohnt mit."
+        >
+          · nur in den Antragsfeldern
+        </span>
       )}
 
       {/* Einladung statt Leerstelle: wer die Stammsuche nicht kennt, sieht hier,

@@ -36,6 +36,7 @@ import { useSemanticSearchMode } from './useSemanticSearchMode';
 import { useSuchVerknuepfung, verknuepfungAlsThreshold } from './useSuchVerknuepfung';
 import { useSuchOptionen } from './useSuchOptionen';
 import { bereichNutztDokumente } from '@/core/services/search/suchbereich';
+import { hatFeldPraefix } from '@/core/services/search/feldpraefix';
 import { embeddingService } from '@/core/services/search/embedding-service';
 import { embedQueryCached } from '@/core/services/search/query-embedder';
 import { getActiveModelId, getModelById } from '@/core/services/search/model-registry';
@@ -374,6 +375,9 @@ export function useUnifiedSearch(query: string): UseUnifiedSearchResult {
     }
     setSemanticStatus(null);
 
+    // Nennt die Anfrage ein Feld? Einmal gelesen, in zwei Stufen gebraucht.
+    const feldSuche = hatFeldPraefix(q, verknuepfung === 'wortfolge');
+
     const abort = new AbortController();
     let cancelled = false;
     setLoading(true);
@@ -462,8 +466,15 @@ export function useUnifiedSearch(query: string): UseUnifiedSearchResult {
           // Stage 2: Vector — Embedding berechnen, Cosine-Loop.
           setSearchPhase('vector');
           // Abonnierter Wert + zentrales Gate (Build-Flag): beides muss stehen.
+          //
+          // `feldSuche` nimmt beide nachgelagerten Quellen heraus: nennt die
+          // Anfrage ein Feld (`ast:GMBU`), können weder das Embedding noch der
+          // Dokumentenindex diese Einschränkung einhalten — sie lieferten
+          // Treffer, die genau außerhalb des genannten Feldes liegen. Die
+          // Deutungszeile schreibt das an, statt es still zu tun.
           const semanticActive =
             semanticEnabled
+            && !feldSuche
             && isSemanticSearchActive()
             && q.length >= STREAMING_CONSTS.MIN_QUERY_LEN_FOR_SEMANTIC;
 
@@ -519,7 +530,7 @@ export function useUnifiedSearch(query: string): UseUnifiedSearchResult {
           setSearchPhase('orama');
           const tStage3 = performance.now();
           const dokumenteHits: OramaSearchResult[] =
-            getOramaDB() !== null && bereichNutztDokumente(bereich)
+            getOramaDB() !== null && bereichNutztDokumente(bereich) && !feldSuche
               ? hybridSearch(q, queryVec, {
                   limit: DOC_HIT_LIMIT,
                   threshold: verknuepfungAlsThreshold(verknuepfung),

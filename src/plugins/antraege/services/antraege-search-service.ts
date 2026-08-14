@@ -48,6 +48,7 @@ import {
 } from './search-corpus';
 import { berechneRelevanz, type Trefferfeld } from '@/core/services/search/trefferstelle';
 import { bereichFelder, type Suchbereich } from '@/core/services/search/suchbereich';
+import { zerlegeFeldAnfrage } from '@/core/services/search/feldpraefix';
 import { suchNadel, sammleVarianten } from '@/core/services/search/wortstamm';
 import type { HybridUnavailableSource } from '../store';
 
@@ -257,18 +258,6 @@ export async function autoBootstrapEmbeddingMirror(
 // ----- Helpers ---------------------------------------------------------------
 
 /**
- * Anfrage in Wörter zerlegen (klein geschrieben, Leerraum-getrennt). Rein und
- * exportiert, damit die Verknüpfungs-Logik ohne Korpus testbar bleibt.
- *
- * Bewusst KEINE Faltung (`falte()`): die Korpus-Felder sind nur `toLowerCase()`
- * (siehe `search-corpus.ts`), eine gefaltete Anfrage würde dort auf ungefalteten
- * Text treffen und Umlaut-Wörter schlechter finden als heute.
- */
-export function zerlegeAnfrage(query: string): string[] {
-  return query.toLowerCase().split(/\s+/).filter(w => w.length > 0);
-}
-
-/**
  * Wortlaut-Treffer über den Antrags-Textkorpus.
  *
  * Bis v3.49 wurde die GANZE Anfrage als eine Zeichenkette gesucht — „laser
@@ -286,6 +275,13 @@ export function zerlegeAnfrage(query: string): string[] {
  * holt „essen" die hessischen Anträge herein. Die Nadeln dafür entstehen einmal
  * je Anfrage, nicht je Eintrag; über 14 000 Einträge wäre das sonst genau der
  * GC-Druck, den die vorberechneten Felder vermeiden.
+ *
+ * Seit v4.49 trägt jeder Suchteil seine EIGENE Feldmenge: ein getipptes Präfix
+ * (`ast:GMBU`, siehe [feldpraefix.ts](src/core/services/search/feldpraefix.ts))
+ * bindet dieses Wort an sein Feld, alle übrigen folgen weiter dem Bereich.
+ * Ein Teil mit leerer Feldmenge trifft nie — bei UND fällt der Antrag damit
+ * heraus, bei ODER tragen die anderen Teile weiter. Genau das ist richtig, und
+ * es ist derselbe Weg, auf dem „nur Dokumente" die Wortlaut-Stufe stilllegt.
  */
 function substringMatches(
   query: string,
@@ -299,49 +295,53 @@ function substringMatches(
   } = optionen;
   const out = new Map<string, WortlautTreffer>();
   const leer: WortlautErgebnis = { treffer: out, varianten: [] };
-  const felder = bereichFelder(bereich);
-  if (felder.size === 0) return leer;
+  const bereichsFelder = bereichFelder(bereich);
 
   // „Genaue Wortfolge" sucht die Anfrage als EINE Zeichenkette — das Verhalten,
   // das bis v3.49 der einzige Weg war. Als ausdrücklich gewählte Option ist es
   // richtig; als stiller Standard war es der Defekt.
-  const woerter = verknuepfung === 'wortfolge'
-    ? [query.trim().toLowerCase()].filter(w => w.length > 0)
-    : zerlegeAnfrage(query);
-  if (woerter.length === 0) return leer;
-
-  const teile: SuchTeil[] = woerter.map(wort => ({
-    wort,
-    nadeln: baueNadeln(wort, stammSuche, optionen.aktiveVarianten),
-    ortNadel: standortNadel(wort),
-  }));
+  const teile: SuchTeil[] = zerlegeFeldAnfrage(query, verknuepfung === 'wortfolge')
+    .map(t => {
+      const wort = t.wert.toLowerCase();
+      return {
+        wort,
+        nadeln: baueNadeln(wort, stammSuche, optionen.aktiveVarianten),
+        ortNadel: standortNadel(wort),
+        erlaubt: t.feld ? new Set<Trefferfeld>([t.feld]) : bereichsFelder,
+      };
+    })
+    .filter(t => t.wort.length > 0);
+  if (teile.length === 0) return leer;
+  // Alle Teile ohne Feld ⇒ nichts zu prüfen (der Bereich „nur Dokumente" ist
+  // genau dieser Fall). Der Kurzschluss spart den Lauf über 14 000 Einträge.
+  if (teile.every(t => t.erlaubt.size === 0)) return leer;
 
   const varianten = new Map<string, string>();
   let gescannt = 0;
 
   for (const [akz, entry] of textCorpus.entries()) {
     const trifft = (t: SuchTeil): boolean => t.nadeln.some(nadel => (
-      (felder.has('titel') && (entry.vbLower.includes(nadel) || entry.tvLower.includes(nadel)))
-      || (felder.has('kurzbeschreibung') && entry.absLower.includes(nadel))
-      || (felder.has('deskriptoren') && entry.descriptorsLower.includes(nadel))
-      || (felder.has('akronym') && entry.akronymLower.includes(nadel))
-      || (felder.has('aktenzeichen') && entry.akzLower.includes(nadel))
-      || (felder.has('organisation') && entry.organisationLower.includes(nadel))
+      (t.erlaubt.has('titel') && (entry.vbLower.includes(nadel) || entry.tvLower.includes(nadel)))
+      || (t.erlaubt.has('kurzbeschreibung') && entry.absLower.includes(nadel))
+      || (t.erlaubt.has('deskriptoren') && entry.descriptorsLower.includes(nadel))
+      || (t.erlaubt.has('akronym') && entry.akronymLower.includes(nadel))
+      || (t.erlaubt.has('aktenzeichen') && entry.akzLower.includes(nadel))
+      || (t.erlaubt.has('organisation') && entry.organisationLower.includes(nadel))
     ))
       // Leere Nadel verwerfen: `''.includes('')` wäre `true` und träfe alles.
       // Der Standort vergleicht bewusst das ROHE Wort, nicht den Stamm: seine
       // Suchform ist am Wortanfang verankert, ein gekürzter Stamm holte über
       // dieselbe Verankerung genau die Nachbarorte herein, die v4.4.4
       // ausgeschlossen hat.
-      || (felder.has('standort') && t.ortNadel.length > 0
+      || (t.erlaubt.has('standort') && t.ortNadel.length > 0
         && entry.standortSuchform.includes(t.ortNadel))
       // Die Web-Adresse nutzt dieselbe verankerte Nadel — aus demselben Grund:
       // „gmbu" soll `gmbu.de` finden, aber nicht mitten in einer fremden Domain
       // treffen.
-      || (felder.has('domain') && t.ortNadel.length > 0
+      || (t.erlaubt.has('domain') && t.ortNadel.length > 0
         && entry.domainSuchform.includes(t.ortNadel));
     if (verknuepfung === 'oder' ? teile.some(trifft) : teile.every(trifft)) {
-      out.set(akz, feldZuordnung(entry, teile, felder));
+      out.set(akz, feldZuordnung(entry, teile));
       if (stammSuche && gescannt < VARIANTEN_SCAN_MAX && varianten.size < VARIANTEN_MAX) {
         gescannt++;
         sammleAusEintrag(entry, teile, varianten);
@@ -352,11 +352,17 @@ function substringMatches(
 }
 
 /** Ein zerlegtes Suchwort: der Wortlaut (für Anzeige und Zählung), die Nadeln
- *  (Wortlaut, Stamm oder ausgewählte Varianten) und die am Wortanfang
- *  verankerte Nadel. Letztere bedient Standort UND Web-Adresse — beide sind
- *  kurze, ineinandersteckende Zeichenketten, in denen freies Substring-Matching
- *  Unsinn liefert. */
-interface SuchTeil { wort: string; nadeln: string[]; ortNadel: string }
+ *  (Wortlaut, Stamm oder ausgewählte Varianten), die am Wortanfang verankerte
+ *  Nadel und die Felder, in denen DIESES Wort nachsehen darf. Die verankerte
+ *  Nadel bedient Standort UND Web-Adresse — beide sind kurze, ineinander
+ *  steckende Zeichenketten, in denen freies Substring-Matching Unsinn liefert. */
+interface SuchTeil {
+  wort: string;
+  nadeln: string[];
+  ortNadel: string;
+  /** Der Bereich — oder das eine getippte Feld, wenn der Teil ein Präfix trug. */
+  erlaubt: ReadonlySet<Trefferfeld>;
+}
 
 /**
  * Wonach im Volltext gesucht wird.
@@ -453,14 +459,13 @@ export interface WortlautErgebnis {
 function feldZuordnung(
   entry: AntragTextEntry,
   teile: readonly SuchTeil[],
-  erlaubt: ReadonlySet<Trefferfeld>,
 ): WortlautTreffer {
   const felder = new Set<Trefferfeld>();
   let getroffen = 0;
   for (const t of teile) {
     let trifftIrgendwo = false;
     const merke = (feld: Trefferfeld, bedingung: boolean): void => {
-      if (!bedingung || !erlaubt.has(feld)) return;
+      if (!bedingung || !t.erlaubt.has(feld)) return;
       felder.add(feld);
       trifftIrgendwo = true;
     };

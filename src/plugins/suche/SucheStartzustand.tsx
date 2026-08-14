@@ -10,18 +10,42 @@
  * häufig gesucht wird — jeweils mit der ECHTEN Trefferzahl aus einem Probelauf.
  * Eine gepflegte Zahl wäre irgendwann falsch; eine gerechnete ist es nie.
  *
- * Die Handoff-Spalte „So findest du schneller" mit `fkz:16KN* jahr:2024` fehlt
- * bewusst: eine Feldsuche-Syntax gibt es in dieser App nicht, und eine Hilfe,
- * die Nichtvorhandenes erklärt, ist schlimmer als keine.
+ * Die Handoff-Spalte „So findest du schneller" fehlte bis v4.48, weil sie eine
+ * Feldsuche-Syntax erklärte, die es nicht gab — eine Hilfe, die Nichtvorhandenes
+ * beschreibt, ist schlimmer als keine. Seit v4.49 gibt es sie
+ * ([feldpraefix.ts](src/core/services/search/feldpraefix.ts)), und damit steht
+ * die Spalte unten: „So kannst du suchen", jede Zeile ausführbar.
  */
 import { Search, Clock, Bookmark, TrendingUp, FileText, Info, X } from 'lucide-react';
+import { FELD_PRAEFIX } from '@/core/services/search/feldpraefix';
 import { veraenderungText, type GespeicherteSuche } from './gespeicherteSuchen';
 
-/** Statische, realistische Beispiele — je Chip eine Sucheingabe-Art
- *  (thematisch · FKZ · Mehrwort-Thema · Ort). Aus dem bisherigen Leerzustand
- *  übernommen: der Ort-Chip kam mit v4.4.4 dazu und ist die einzige Stelle, an
- *  der die Standortsuche überhaupt sichtbar ist. */
-const BEISPIELE = ['Bilderkennung', '16KN055710', 'additive Fertigung', 'Dresden'] as const;
+/**
+ * Die Suchweisen, je Zeile eine — vom Alltagsfall zur gezielten Angabe.
+ *
+ * Jede Zeile ist AUSFÜHRBAR: sie startet dieselbe Suche über denselben Pfad wie
+ * eine getippte Anfrage. Eine Syntax-Tabelle, die man abschreiben muss, wäre
+ * eine Bedienungsanleitung; ein Klick, der es vormacht, ist die Erklärung.
+ *
+ * Die Beispiele sind statisch und bewusst so gewählt, dass sie am echten
+ * Bestand Treffer haben (in dev:local an 14.225 Anträgen nachgemessen, Zahlen
+ * unten) — ein Beispiel, das ins Leere führt, lehrt die falsche Lektion. Der
+ * naheliegende Fall `ast:GMBU` steht deshalb NICHT hier: „GMBU" kommt im ganzen
+ * Bestand in keinem Organisationsfeld vor, nur in der Web-Adresse (v4.42) — das
+ * Beispiel wäre ausgerechnet an der Stelle leer, an der es etwas beibringen soll.
+ */
+const SUCHARTEN: readonly { query: string; erklaerung: string }[] = [
+  { query: 'Bilderkennung', erklaerung: 'ein Thema — in allen Feldern' },        // 31
+  { query: 'additive Fertigung', erklaerung: 'zwei Wörter — beide müssen vorkommen' }, // 639
+  { query: '16KN055710', erklaerung: 'Förderkennzeichen — auch ein Anfang davon' },    // 1
+  { query: 'ast:Fraunhofer', erklaerung: 'nur die Einrichtung' },                // 307
+  { query: 'ort:Dresden', erklaerung: 'nur Ort und Bundesland' },                // 451
+  { query: 'titel:Laser ort:Dresden', erklaerung: 'zwei Felder in einer Anfrage' },    // 4
+];
+
+/** Die Feldnamen, die vor dem Doppelpunkt stehen dürfen — aus der einen Quelle
+ *  gezogen, damit die Hilfe nicht von der Syntax abdriften kann. */
+const FELDNAMEN = Object.values(FELD_PRAEFIX).join(' · ');
 
 export interface StartEintrag {
   query: string;
@@ -129,25 +153,45 @@ export function SucheStartzustand({
             Nach Titel, Akronym, FKZ, Antragsteller oder Ort — mit
             Ähnlichkeitssuche findest du auch thematisch verwandte Vorhaben.
           </p>
-
-          {/* Beispiele — starten die Suche über den regulären Pfad. */}
-          <div className="mt-2 flex flex-wrap items-center gap-2 px-2">
-            {BEISPIELE.map(b => (
-              <button
-                key={b}
-                type="button"
-                onClick={() => onSuche(b)}
-                title={`„${b}" suchen`}
-                className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] text-[var(--tf-text)] hover:bg-[var(--tf-hover)] cursor-pointer"
-                style={{ border: '0.5px solid var(--tf-border)' }}
-              >
-                <Search size={11} className="text-[var(--tf-text-tertiary)]" aria-hidden />
-                {b}
-              </button>
-            ))}
-          </div>
         </Spalte>
       </div>
+
+      {/* Was und wie man suchen kann — Beispiele statt Syntax-Tabelle. Über die
+          ganze Breite, weil jede Zeile aus Eingabe UND Erklärung besteht und in
+          einer Spalte auf zwei Zeilen umbräche. */}
+      <section className="mt-8 pt-4" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
+        <h2 className="mb-1 px-2 text-[10.5px] uppercase tracking-[0.1em] text-[var(--tf-text-tertiary)]">
+          So kannst du suchen
+        </h2>
+        <div className="grid gap-x-10 md:grid-cols-2">
+          {SUCHARTEN.map(s => (
+            <button
+              key={s.query}
+              type="button"
+              onClick={() => onSuche(s.query)}
+              title={`„${s.query}" suchen`}
+              className="flex min-w-0 items-center gap-2 rounded-[6px] px-2 py-1.5 text-left hover:bg-[var(--tf-hover)] cursor-pointer"
+            >
+              <Search size={11} className="shrink-0 text-[var(--tf-text-tertiary)]" aria-hidden />
+              <span
+                className="shrink-0 rounded-full px-2 py-0.5 text-[12px] text-[var(--tf-text)]"
+                style={{ border: '0.5px solid var(--tf-border)' }}
+              >
+                {s.query}
+              </span>
+              <span className="truncate text-[12px] text-[var(--tf-text-secondary)]">
+                {s.erklaerung}
+              </span>
+            </button>
+          ))}
+        </div>
+        <p className="mt-2 px-2 text-[11.5px] leading-relaxed text-[var(--tf-text-tertiary)]">
+          Vor dem Doppelpunkt steht das Feld: {FELDNAMEN}. Die Spaltennamen der
+          Fördertabelle gehen auch (<code>ORG_AST:</code>, <code>VB_TITEL:</code>,
+          <code> ORT_AST:</code>). Ohne Feldangabe gilt die Auswahl „Suche in"
+          über dem Ergebnis.
+        </p>
+      </section>
 
       {/* Index-Hinweis — NUR bei leerem Dokumentenindex, dezent, keine CTA.
           Index-Einrichtung ist Kurator-Aufgabe, nicht Nutzer-Aufgabe. */}
