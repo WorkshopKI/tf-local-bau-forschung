@@ -99,9 +99,14 @@ export function BearbeiterSichtChip(): React.ReactElement | null {
               : 'Ohne eigenes Kürzel zeigen die Listen den ganzen Bestand.'}
           </p>
 
+          {/* Mit `?sektion=` statt nackt auf die Seite: der Hub scrollt die
+              Karte „Welche Anträge du siehst" an und lässt ihre Markierung
+              stehen, bis der Nutzer das nächste Mal klickt — derselbe Weg, den
+              die Einstellungs-Suche nimmt (SettingsHubPage). Ohne ihn landet
+              man auf einer Seite mit acht Karten und sucht die gemeinte. */}
           <button
             type="button"
-            onClick={() => { setOffen(false); navigate('/einstellungen'); }}
+            onClick={() => { setOffen(false); navigate('/einstellungen?sektion=sec-filter'); }}
             className="text-left text-[11.5px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] cursor-pointer"
           >
             Kürzel ändern → Einstellungen

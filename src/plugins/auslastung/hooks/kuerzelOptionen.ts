@@ -12,6 +12,11 @@
  * (`BEARBEITER_FIELDS_LOWER` in `bearbeiterFilter.ts`). Ein Kürzel meint dieselbe
  * Person, in welcher Spalte es auch steht; die Liste bleibt deshalb flach.
  *
+ * **Angezeigt wird die Schreibweise der Quelle** (v4.48): das Team schreibt
+ * „THü", nicht „THÜ" — großgeschrieben liest ein Kürzel sich fremd. Verglichen
+ * und ins Profil geschrieben wird weiter die Normalform, die Schreibweise
+ * begleitet sie nur (`anzeige`).
+ *
  * **Das `aktiv`-Flag bleibt tib-seitig**: es kommt aus der MA-Liste des
  * Auslastungs-Moduls, und die AnonymMap kennt ausschließlich `tib_kuerz`
  * (Pitfall #17/#18 — daran ändert diese Datei nichts). Ein Kürzel ohne
@@ -25,8 +30,16 @@ import type { AnonymerMitarbeiter } from '../types';
 import { CANONICAL_TIB_KUERZ, CANONICAL_BIB_KUERZ } from '../types';
 
 export interface KuerzelOption {
-  /** Bearbeiter-Kürzel (Klartext, NFC+upper). */
+  /** Vergleichs- und Speicherform (NFC+upper) — der Wert, der ins Profil geht. */
   kuerzel: string;
+  /**
+   * Schreibweise, wie das Team sie führt („THü", „JuHe"): NFC, aber
+   * Groß-/Kleinschreibung unangetastet. **Nur zum Anzeigen** — verglichen und
+   * gespeichert wird `kuerzel`, sonst hinge die Identität an einem Detail, das
+   * je nach Quelle anders aussieht. 81 der 112 Kürzel im Bestand sind gemischt
+   * geschrieben; großgeschrieben liest sie ihr Träger nicht als seine eigenen.
+   */
+  anzeige: string;
   /** false = ehemalige:r Bearbeiter:in; in der Auswahl als „ehem." markiert. */
   aktiv: boolean;
 }
@@ -34,27 +47,44 @@ export interface KuerzelOption {
 /** Nur die Felder, die hier gelesen werden — hält die Testdaten klein. */
 type AntragMitKuerzeln = Record<string, unknown>;
 
+/** Trimmt + NFC (Pitfall #22), lässt die Schreibweise aber stehen. */
+function schreibweise(raw: unknown): string | null {
+  if (typeof raw !== 'string') return null;
+  const t = raw.trim();
+  return t ? t.normalize('NFC') : null;
+}
+
 export function baueKuerzelOptionen(
   antraege: ReadonlyArray<AntragMitKuerzeln>,
   mapKuerzel: ReadonlyArray<string>,
   anonymMap: AnonymMap,
   mitarbeiter: Readonly<Record<string, AnonymerMitarbeiter>>,
 ): KuerzelOption[] {
-  const kuerzelSet = new Set<string>();
-  for (const a of antraege) {
-    const fb = normalizeKuerzel(a[CANONICAL_TIB_KUERZ]);
-    if (fb) kuerzelSet.add(fb);
-    const ab = normalizeKuerzel(a[CANONICAL_BIB_KUERZ]);
-    if (ab) kuerzelSet.add(ab);
-  }
-  for (const k of mapKuerzel) {
-    const n = normalizeKuerzel(k);
-    if (n) kuerzelSet.add(n);
-  }
+  // Normalform → Schreibweise. Die erste gefundene gewinnt; eine reine
+  // Großschreibung weicht aber einer gemischten, die später kommt — die
+  // kuerzel-map führt ihre Einträge normalisiert, die Anträge im Original, und
+  // die Reihenfolge der beiden Quellen soll das Ergebnis nicht bestimmen.
+  // (Im echten Bestand widerspricht sich kein Kürzel selbst — 0 von 368 Werten
+  // stehen in zwei Schreibweisen da.)
+  const gefunden = new Map<string, string>();
+  const merke = (raw: unknown): void => {
+    const s = schreibweise(raw);
+    if (!s) return;
+    const norm = normalizeKuerzel(s);
+    if (!norm) return;
+    const bisher = gefunden.get(norm);
+    if (bisher === undefined || (bisher === norm && s !== norm)) gefunden.set(norm, s);
+  };
 
-  const opts: KuerzelOption[] = [...kuerzelSet].map(kuerzel => {
+  for (const a of antraege) {
+    merke(a[CANONICAL_TIB_KUERZ]);
+    merke(a[CANONICAL_BIB_KUERZ]);
+  }
+  for (const k of mapKuerzel) merke(k);
+
+  const opts: KuerzelOption[] = [...gefunden].map(([kuerzel, anzeige]) => {
     const anonId = anonymMap.toAnon.get(kuerzel);
-    return { kuerzel, aktiv: mitarbeiter[anonId ?? '']?.aktiv ?? true };
+    return { kuerzel, anzeige, aktiv: mitarbeiter[anonId ?? '']?.aktiv ?? true };
   });
   // Aktive zuerst — die inaktiven bleiben sichtbar (viele PL waren früher selbst
   // Bearbeiter:innen und finden sich nur dort), stehen aber nicht im Weg.

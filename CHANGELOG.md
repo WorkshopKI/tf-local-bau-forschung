@@ -5,6 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.48.3 — Kuerzel in der Schreibweise des Teams, Sprung mit Ziel (August 2026)
+
+PATCH — Zwei Nachbesserungen an der Kürzel-Auswahl. Sie zeigte jedes Kürzel großgeschrieben — 81 der 112 Kürzel im Bestand sind aber gemischt geschrieben („THü", „JuHe"), und wer sein eigenes in einer Liste von 112 sucht, sucht es in seiner Schreibweise. Und „Kürzel ändern → Einstellungen" landete auf einer Seite mit acht Karten, ohne zu sagen, welche gemeint ist.
+
+- **Die Auswahl zeigt die Schreibweise der Quelle** — verglichen und ins Profil geschrieben wird weiter die Normalform, damit die Identität nicht an einem Quellendetail hängt ([kuerzelOptionen.ts](src/plugins/auslastung/hooks/kuerzelOptionen.ts))
+- **„THü" und „THu" sind wieder zu unterscheiden**: großgeschrieben trennte die beiden nur der Umlaut ([AntraegeSichtGruppe.tsx](src/plugins/einstellungen/profil/AntraegeSichtGruppe.tsx))
+- **Alle drei Wege zur Kürzel-Einstellung springen mit `?sektion=sec-filter`** — der Hub scrollt die Karte an und lässt ihre Markierung stehen wie bei einem Suchtreffer ([BearbeiterSichtChip.tsx](src/components/bearbeiter/BearbeiterSichtChip.tsx), [HomePage.tsx](src/plugins/home/HomePage.tsx), [MeineAntraegeSection.tsx](src/plugins/home/MeineAntraegeSection.tsx))
+- **Kollisionsregel im Test**: eine gemischte Schreibweise schlägt die normalisierte der `kuerzel-map`, egal welche Quelle zuerst gelesen wird ([kuerzelOptionen.test.ts](src/plugins/auslastung/__tests__/kuerzelOptionen.test.ts))
+
 ### v4.48.2 — Chronik: Rollenspalte fasst drei Marken, Monatslinie, dickerer Zeitstrahl (August 2026)
 
 PATCH — Vier Rückmeldungen aus dem Gebrauch der neuen Chronik, drei davon Maße: die dritte Rollenmarke schob sich in den Ereignistext, die Monatsblöcke liefen ohne Trennung ineinander, und der Zeitstrahl-Balken blieb hinter dem Entwurf zurück. Detail: [chronik-und-zeitstrahl.md](docs/status-system/chronik-und-zeitstrahl.md).

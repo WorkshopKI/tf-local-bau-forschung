@@ -36,6 +36,9 @@
 - Der Kopf der Startseite ist wieder schlank: Ihr Kürzel steht als Chip direkt neben der Begrüßung, die Angabe zu den angezeigten Richtlinien nur noch bei den Förderanträgen — dort, wo sie auch geändert wird.
 - Das Menü hinter dem Kürzel-Chip kommt mit den zwei Optionen und einer Zeile aus. Der frühere Hinweis, Ihr Kürzel bleibe stehen, ist raus: nach dem Umschalten heißt der Chip „Alle Bearbeiter", Ihr Kürzel steht in der Option darunter.
 
+- Die Kürzel-Auswahl im Profil führt die Kürzel so, wie das Team sie schreibt („THü" statt „THÜ") — bei 81 von 112 macht das einen Unterschied, und „THü" und „THu" sind wieder auseinanderzuhalten.
+- Die Wege in die Einstellungen zeigen auf die gemeinte Karte: sie wird angesprungen und bleibt umrandet, bis Sie das nächste Mal klicken.
+
 ### Bugfixes
 <!-- - … -->
 

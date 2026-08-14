@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate as useRouterNavigate } from 'react-router-dom';
 import { ArrowRight, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ListItem } from '@/components/ui/ListItem';
@@ -135,7 +136,10 @@ export function MeineAntraegeWidget({ instanz, ctx, onToggleEingeklappt }: Widge
 /** Onboarding-Karte: Bearbeiter-Kürzel noch nicht gesetzt (Varianten ohne
  *  Kürzel-Dropdown). Früher direkt in HomePage. */
 function KuerzelOnboardingKarte(): React.ReactElement {
-  const { navigate } = useNavigation();
+  // Router-`navigate` statt der Plugin-Navigation: nur damit lässt sich das
+  // `?sektion=` mitgeben, das den Hub auf die gemeinte Karte scrollt und sie
+  // markiert stehen lässt.
+  const navigate = useRouterNavigate();
   return (
     <div className="bg-[var(--tf-bg-secondary)] rounded-[var(--tf-radius)] p-5">
       <div className="flex items-start gap-3">
@@ -149,7 +153,7 @@ function KuerzelOnboardingKarte(): React.ReactElement {
             (z.B. <span className="font-mono">MUE</span>), damit hier automatisch
             Ihre offenen Anträge erscheinen.
           </p>
-          <Button variant="secondary" size="sm" icon={ArrowRight} onClick={() => navigate('einstellungen')}>
+          <Button variant="secondary" size="sm" icon={ArrowRight} onClick={() => navigate('/einstellungen?sektion=sec-filter')}>
             Zu den Einstellungen
           </Button>
         </div>

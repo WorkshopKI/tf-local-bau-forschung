@@ -153,9 +153,11 @@ function KuerzelZeile(): React.ReactElement {
           style={SELECT_STYLE}
         >
           <option value="alle">Alle</option>
+          {/* Angezeigt wird die Schreibweise der Quelle („THü"), gespeichert die
+              Normalform — wer sein Kürzel sucht, sucht es so, wie er es schreibt. */}
           {options.map(o => (
             <option key={o.kuerzel} value={o.kuerzel}>
-              {o.aktiv ? o.kuerzel : `${o.kuerzel} · ehem.`}
+              {o.aktiv ? o.anzeige : `${o.anzeige} · ehem.`}
             </option>
           ))}
         </select>

@@ -35,7 +35,7 @@ describe('baueKuerzelOptionen — beide Bearbeiter-Spalten (v4.47)', () => {
       [{ tib_kuerz: 'MUE', bib_kuerz: 'MUE' }, { tib_kuerz: 'MUE' }],
       ['MUE'], OHNE_MAP, KEINE_MAS,
     );
-    expect(opts).toEqual([{ kuerzel: 'MUE', aktiv: true }]);
+    expect(opts).toEqual([{ kuerzel: 'MUE', anzeige: 'MUE', aktiv: true }]);
   });
 
   it('nimmt die kuerzel-map dazu (Cold-Start: Antraege noch leer)', () => {
@@ -50,7 +50,7 @@ describe('baueKuerzelOptionen — beide Bearbeiter-Spalten (v4.47)', () => {
       [{ tib_kuerz: THUE_NFC }, { bib_kuerz: THUE_NFD }],
       [], OHNE_MAP, KEINE_MAS,
     );
-    expect(opts).toEqual([{ kuerzel: THUE_NFC, aktiv: true }]);
+    expect(opts).toEqual([{ kuerzel: THUE_NFC, anzeige: THUE_NFC, aktiv: true }]);
   });
 
   it('ignoriert leere und nicht-textuelle Werte', () => {
@@ -62,13 +62,52 @@ describe('baueKuerzelOptionen — beide Bearbeiter-Spalten (v4.47)', () => {
   });
 });
 
+describe('baueKuerzelOptionen — Schreibweise der Quelle (v4.48)', () => {
+  /** Wie das Team es schreibt: gemischt, NFC (U+00FC). */
+  const THUE_ORIGINAL = 'THü';
+
+  it('zeigt die Schreibweise der Quelle und vergleicht ueber die Normalform', () => {
+    const opts = baueKuerzelOptionen([{ tib_kuerz: THUE_ORIGINAL }], [], OHNE_MAP, KEINE_MAS);
+    expect(opts).toEqual([{ kuerzel: THUE_NFC, anzeige: THUE_ORIGINAL, aktiv: true }]);
+  });
+
+  it('laesst die gemischte Schreibweise gegen den Grossbuchstaben-Eintrag gewinnen', () => {
+    // Die kuerzel-map fuehrt normalisiert, die Antraege im Original — welche
+    // Quelle zuerst gelesen wird, darf die Anzeige nicht bestimmen.
+    const ausAntraegen = baueKuerzelOptionen(
+      [{ tib_kuerz: THUE_ORIGINAL }], [THUE_NFC], OHNE_MAP, KEINE_MAS,
+    );
+    const nurMap = baueKuerzelOptionen([], [THUE_NFC], OHNE_MAP, KEINE_MAS);
+    expect(ausAntraegen.map(o => o.anzeige)).toEqual([THUE_ORIGINAL]);
+    // Ohne eine gemischte Quelle bleibt es bei der Normalform — nichts erfinden.
+    expect(nurMap.map(o => o.anzeige)).toEqual([THUE_NFC]);
+  });
+
+  it('haelt die Anzeige an die erste gemischte Schreibweise (Determinismus)', () => {
+    const opts = baueKuerzelOptionen(
+      [{ tib_kuerz: 'MaL' }, { tib_kuerz: 'MAL' }, { tib_kuerz: 'Mal' }],
+      [], OHNE_MAP, KEINE_MAS,
+    );
+    expect(opts).toEqual([{ kuerzel: 'MAL', anzeige: 'MaL', aktiv: true }]);
+  });
+
+  it('sortiert weiter ueber die Normalform, nicht ueber die Schreibweise', () => {
+    // Sonst landeten Kleinbuchstaben in einer eigenen Gruppe hinter allen
+    // Grossbuchstaben — „aBC" stuende nach „ZED".
+    const opts = baueKuerzelOptionen(
+      [{ tib_kuerz: 'zEd' }, { tib_kuerz: 'aBc' }], [], OHNE_MAP, KEINE_MAS,
+    );
+    expect(opts.map(o => o.anzeige)).toEqual(['aBc', 'zEd']);
+  });
+});
+
 describe('baueKuerzelOptionen — aktiv-Flag und Reihenfolge', () => {
   it('liest `aktiv` ueber die AnonymMap aus der MA-Liste', () => {
     const opts = baueKuerzelOptionen(
       [{ tib_kuerz: 'MUE' }],
       [], anonymMap({ MUE: 'MA01' }), { MA01: ma('MA01', false) },
     );
-    expect(opts).toEqual([{ kuerzel: 'MUE', aktiv: false }]);
+    expect(opts).toEqual([{ kuerzel: 'MUE', anzeige: 'MUE', aktiv: false }]);
   });
 
   it('gilt ohne Map-Eintrag als aktiv — „inaktiv" kann nur die MA-Liste sagen', () => {
@@ -77,7 +116,7 @@ describe('baueKuerzelOptionen — aktiv-Flag und Reihenfolge', () => {
       [{ bib_kuerz: 'NEU' }],
       [], anonymMap({ MUE: 'MA01' }), { MA01: ma('MA01', true) },
     );
-    expect(opts).toEqual([{ kuerzel: 'NEU', aktiv: true }]);
+    expect(opts).toEqual([{ kuerzel: 'NEU', anzeige: 'NEU', aktiv: true }]);
   });
 
   it('sortiert aktive zuerst, dann alphabetisch — inaktive verschwinden aber nicht', () => {
@@ -88,9 +127,9 @@ describe('baueKuerzelOptionen — aktiv-Flag und Reihenfolge', () => {
       { MA01: ma('MA01', false), MA02: ma('MA02', true), MA03: ma('MA03', true) },
     );
     expect(opts).toEqual([
-      { kuerzel: 'BOB', aktiv: true },
-      { kuerzel: 'ZED', aktiv: true },
-      { kuerzel: 'ALT', aktiv: false },
+      { kuerzel: 'BOB', anzeige: 'BOB', aktiv: true },
+      { kuerzel: 'ZED', anzeige: 'ZED', aktiv: true },
+      { kuerzel: 'ALT', anzeige: 'ALT', aktiv: false },
     ]);
   });
 });

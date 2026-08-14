@@ -331,7 +331,7 @@ function BearbeiterKuerzelMissingAlert({ tokens }: BearbeiterKuerzelMissingAlert
         </p>
         <div className="mt-1.5 flex items-center gap-3 text-[11.5px]">
           <Link
-            to="/einstellungen"
+            to="/einstellungen?sektion=sec-filter"
             className="inline-flex items-center gap-1 underline hover:no-underline"
           >
             <Settings size={12} /> Profil bearbeiten
