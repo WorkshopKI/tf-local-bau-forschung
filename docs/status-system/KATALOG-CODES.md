@@ -61,24 +61,38 @@ form-bewusste Katalog dort über alle Formen einstimmig ist.
 **Diese 76 gehen in beide Richtungen**, und das ist der Punkt. Mal ist die flache
 Quelle veraltet (`XKS` trug „DL-Gutachten fertig - FB/AB" für alle Formen), mal
 trägt der form-bewusste Katalog den Tippfehler (`Biref NF`, `Verwedungsnachweis`,
-`allgmeine Ablehnung`). Wer eine der beiden Quellen global übernähme, tauschte
-also Fehler gegen Fehler. Deshalb gibt es **keine** Vorrangregel, sondern eine
-kurze belegte Liste in
-[seed-label-korrekturen.ts](../../src/core/status/seed-label-korrekturen.ts) —
-heute sechs Einträge, alle ohne Fachwissen entscheidbar (Rechtschreibung, eine
-Dopplung, das Projektform-Präfix).
+`allgmeine Ablehnung`) oder die falsche Sache (`IVW2` „starker Verwalter" statt
+„Sachwalter"). Wer eine der beiden Quellen global übernähme, tauschte also Fehler
+gegen Fehler. Deshalb gibt es **keine** Vorrangregel, sondern eine belegte Liste
+in [seed-label-korrekturen.ts](../../src/core/status/seed-label-korrekturen.ts).
+Jeder Eintrag sagt, **welche Seite** danebenlag (`seedFalsch` / `katalogFalsch`);
+beide Seiten sind optional, weil beide Richtungen vorkommen.
 
-**Die restlichen 70 sind eine Frage an den Fachbereich, keine an uns.** Dort
-unterscheidet sich die *Aussage*, nicht die Schreibung: `ALQ` „NF von PL gelesen"
-gegen „NF von QS gelesen", `XFB` „max. 2 Bew. in 12 Monaten" gegen „max. 1 in
-24", `IVW2` „Sachwalter" gegen „starker Verwalter". Der Test hält die Zahl als
-**Wasserstand** fest: sinkt sie, wurde geklärt; steigt sie, hat eine neue
+**Die restlichen 66 sind eine Frage an den Fachbereich, keine an uns.** Dort
+unterscheidet sich die *Aussage*, nicht die Schreibung: `XFB` „max. 2 Bew. in 12
+Monaten" gegen „max. 1 in 24", `SART` führt zwei völlig verschiedene Wertelisten,
+`ABLWG+` „Freigabe erfolgt" gegen „Hinweise/Rückfragen". Der Test hält die Zahl
+als **Wasserstand** fest: sinkt sie, wurde geklärt; steigt sie, hat eine neue
 Zuarbeit Widersprüche mitgebracht.
 
+### Was der Quellen-Vergleich strukturell NICHT findet
+
+Das Ministerium heißt **BMWE**; `BMWK` ist der frühere Name. Betroffen sind 14
+Kürzel im Seed — und **zwölf davon schreiben `BMWK` in beiden Quellen**. Sie
+zählten damit zu den 335 „wortgleichen" und tauchten in keiner Konfliktliste auf.
+
+Übereinstimmung zweier veralteter Quellen ist eben keine Richtigkeit. Ein
+Vergleich findet nur, worin sich zwei Dokumente *unterscheiden* — was beide
+gleich falsch führen, ist für ihn unsichtbar, und die einzige Prüfung, die es
+findet, ist die fachliche. Die Umbenennung steht deshalb als **Regel**
+(`BEHOERDEN_UMBENENNUNG`) statt als 14 Listeneinträge: es ist ein Urteil, kein
+Dutzend, und ein neues Kürzel der nächsten Zuarbeit erbt sie. Ein Test pinnt die
+betroffene Code-Menge, damit die Wirkung sichtbar bleibt.
+
 **Ein einheitlicher Kürzel-Katalog ist damit noch nicht erreicht** — er setzt
-voraus, dass diese 70 entschieden sind. Bis dahin bleibt `kuerzelAuskunft()` die
+voraus, dass die 66 entschieden sind. Bis dahin bleibt `kuerzelAuskunft()` die
 eine Tür für die *form-abhängige* Bedeutung und der Seed die Quelle der
-*angezeigten Bezeichnung*.
+*angezeigten Bezeichnung*; beide lesen dieselben Entscheidungen.
 
 **Vorbehalt bleibt die Ordner-Zuordnung**: sie ist aus Bildschirmfotos der
 Fachsystem-Ordnerbäume übertragen — eine Vorbelegung, die die Projektleitung

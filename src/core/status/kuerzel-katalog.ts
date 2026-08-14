@@ -40,6 +40,7 @@ import {
   QUELLKORREKTUREN, belegText, divergenzBestaetigt, dsBedeutungFuer, vereinheitlichtFuer,
   type KurationsStand,
 } from './kuerzel-kuration';
+import { korrigierteKatalogBezeichnung } from './seed-label-korrekturen';
 import type { Rolle } from './typen';
 
 export type { Projektform, KuerzelForm, KuerzelEintrag };
@@ -161,17 +162,20 @@ function baueEffektiv(): ReadonlyMap<string, KuerzelEintrag> {
   for (const e of KUERZEL_KATALOG) {
     const einheitlich = vereinheitlichtFuer(e.kuerzel);
     const korrekturen = QUELLKORREKTUREN.filter(q => q.kuerzel === e.kuerzel);
-    if (!einheitlich && korrekturen.length === 0) {
-      out.set(e.kuerzel.toUpperCase(), e);
-      continue;
-    }
     const formen: Partial<Record<Projektform, KuerzelForm>> = {};
+    let veraendert = false;
     for (const [form, f] of Object.entries(e.formen) as [Projektform, KuerzelForm][]) {
       const q = korrekturen.find(x => x.formen.includes(form) && x.falsch === f.bezeichnung);
-      const bezeichnung = einheitlich?.bezeichnung ?? q?.richtig ?? f.bezeichnung;
+      // Zuletzt der Quellen-Vergleich: er entscheidet nur, wo weder eine
+      // Vereinheitlichung noch eine Quellkorrektur schon gesprochen hat, und
+      // zieht die Behörden-Umbenennung über JEDEN Wortlaut nach.
+      const bezeichnung = korrigierteKatalogBezeichnung(
+        e.kuerzel, einheitlich?.bezeichnung ?? q?.richtig ?? f.bezeichnung,
+      );
+      if (bezeichnung !== f.bezeichnung) veraendert = true;
       formen[form] = bezeichnung === f.bezeichnung ? f : { ...f, bezeichnung };
     }
-    out.set(e.kuerzel.toUpperCase(), { ...e, formen });
+    out.set(e.kuerzel.toUpperCase(), veraendert ? { ...e, formen } : e);
   }
   return out;
 }
