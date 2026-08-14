@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.40.0 — Kuration und Developer klappen zu, Datenpflege statt zweimal Kuration (August 2026)
+
+MINOR — Nachlese zum Kuration-Umbau, aus dem Blick auf die fertige Seitenleiste: „Kuration" stand dort zweimal untereinander (Überschrift und einziger Eintrag darunter), die beiden unteren Gruppen ließen sich als einzige nicht wegräumen, und „Verzeichnisse" heißt in dieser App sonst überall Ordner auf der Platte.
+
+- **Gruppen „Kuration" und „Developer" sind zuklappbar** (Standard offen, gemerkt je Gerät; zugeklappt bleibt der aktive Eintrag stehen) ([ShellLayout.tsx](src/core/ShellLayout.tsx))
+- **Der Hub heißt in der Seitenleiste „Datenpflege"** — die Gruppe behält den Oberbegriff; Seitenname aus EINER Quelle ([kurationPanels.tsx](src/plugins/kuration/kurationPanels.tsx))
+- **Panel „Verzeichnisse" → „Förderprogramme"**, Ordner und Panel-Id ziehen mit ([FoerderprogrammePanel.tsx](src/plugins/kuration/foerderprogramme/FoerderprogrammePanel.tsx)); die Redirects zeigen aufs neue Ziel ([routes.ts](src/core/routes.ts))
+- **„Werkbank (dev)" → „Developer"** ([groupNavPlugins.ts](src/core/nav/groupNavPlugins.ts))
+- **Vier Wegweiser im Text nachgezogen**, die noch die alte Menüführung nannten (CSV-Wizard, Drift-Dialog, leere Antragsliste, Eval-README)
+
 ### v4.39.2 — Feedback-Fenster: breiter, Titel ermuntert, Boxen ziehbar (August 2026)
 
 PATCH — Weitere Nachlese aus dem Testbetrieb: 420 px waren beim Tippen zu eng, „(optional)" im Titel-Platzhalter beantwortete die Frage „muss ich?" mit nein, und das Schluss-Leerzeichen des Seiten-Präfix fiel beim Rendern weg.

@@ -1,8 +1,10 @@
-# Kuration (nur für Kuratoren sichtbar, nach Kurator-Login)
+# Datenpflege (nur für Kuratoren sichtbar, nach Kurator-Login)
 
-Die Kuration ist eine Seite mit mehreren Unterseiten links in der Spalte — genau wie die Einstellungen. Das Suchfeld darüber findet jeden Abschnitt und springt hin; der Treffer bleibt markiert, bis du weiterklickst. Was du hier änderst, gilt für alle: es liegt auf dem Daten-Share, nicht auf deinem Gerät.
+Die Seite heißt **Datenpflege** und steht in der Seitenleiste unter der Überschrift „Kuration" — die Gruppe lässt sich zuklappen, wenn man sie gerade nicht braucht.
 
-Daneben steht in der Seitenleiste weiterhin die Seite, die eine eigene Arbeitsfläche ist: Dokument-Review.
+Sie ist eine Seite mit mehreren Unterseiten links in der Spalte — genau wie die Einstellungen. Das Suchfeld darüber findet jeden Abschnitt und springt hin; der Treffer bleibt markiert, bis du weiterklickst. Was du hier änderst, gilt für alle: es liegt auf dem Daten-Share, nicht auf deinem Gerät.
+
+Daneben steht in derselben Gruppe die Seite, die eine eigene Arbeitsfläche ist: Dokument-Review.
 
 Solange der Kurator-Modus nicht freigeschaltet ist, steht das als Zeile oben auf der Seite: alles ist lesbar, nichts ist änderbar. Freigeschaltet wird in den Einstellungen unter „Mein Profil → Zusatz-Module".
 
@@ -18,8 +20,8 @@ Rechts der Zustand: dieselbe Aussage, die der Punkt „● CSV" in der Fußzeile
 
 Eingeklappt darunter das Seltene: **Antrags-Daten zurücksetzen** (bei Encoding-Schäden aus der Quell-CSV; Schemas und Programme bleiben) und, nur im Dev-Build, das Wiederherstellen von CSV-Schemas aus einer Sicherung.
 
-## Verzeichnisse
-Die Ordnung, in der die importierten Daten stehen — und alles darauf gilt für das **aktive Programm**; jede Gruppe sagt, für welches.
+## Förderprogramme
+Programme, Unterprogramme und die Filter, die daran hängen — alles darauf gilt für das **aktive Programm**; jede Gruppe sagt, für welches.
 
 **Programme** sind der äußerste Rahmen: an der Programm-Id hängen Aktenzeichen, CSV-Schemas, Anträge, Unterprogramme und Filter. Anlegen, umbenennen, aktiv schalten; löschen geht nur bei 0 Anträgen. Umgeschaltet wird in der Seitenleiste.
 

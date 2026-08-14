@@ -62,7 +62,7 @@ const LEGACY_REDIRECTS: Record<string, string> = {
   '/admin/filter': '/kuration/filter',
   // Zeigte bis v4.34 auf `/kuration/unterprogramme` — eine Route, die es nie
   // gab; der Weg endete im Catch-all auf der Startseite. Seit die
-  // Unterprogramme eine Gruppe im Panel „Verzeichnisse" sind, hat er ein Ziel.
+  // Unterprogramme eine Gruppe im Panel „Förderprogramme" sind, hat er ein Ziel.
   '/admin/unterprogramme': '/kuration/unterprogramme',
   // Das Feedback-Board hat die Kurations-Seite mit v2.364 aufgenommen; bis
   // v4.33 zeigte dieser Eintrag auf `/kuration/feedback`, das es seitdem nicht
@@ -74,11 +74,14 @@ const LEGACY_REDIRECTS: Record<string, string> = {
   '/kuration/dokumentenquellen': '/kuration?panel=suche-index&sektion=sec-dokumentenquellen',
   // v4.36
   '/kuration/csv-quellen': '/kuration?panel=csv-quellen',
-  '/kuration/programme': '/kuration?panel=verzeichnisse',
-  '/kuration/filter': '/kuration?panel=verzeichnisse&sektion=sec-filter',
+  // Das Panel hiess bis v4.40 „Verzeichnisse" — das Wort meint in dieser App
+  // Ordner auf der Platte. Die Panel-Id zog mit; alt gespeicherte
+  // `?panel=verzeichnisse`-Links fallen auf das erste Panel zurueck.
+  '/kuration/programme': '/kuration?panel=foerderprogramme',
+  '/kuration/filter': '/kuration?panel=foerderprogramme&sektion=sec-filter',
   // Zeigte bis v4.33 auf eine Seite, die es nie gab (der Weg endete im
   // Catch-all auf der Startseite) — jetzt hat er ein echtes Ziel.
-  '/kuration/unterprogramme': '/kuration?panel=verzeichnisse&sektion=sec-unterprogramme',
+  '/kuration/unterprogramme': '/kuration?panel=foerderprogramme&sektion=sec-unterprogramme',
 };
 
 /**

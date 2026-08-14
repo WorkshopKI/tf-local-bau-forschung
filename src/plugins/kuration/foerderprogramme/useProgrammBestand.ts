@@ -1,5 +1,5 @@
 /**
- * Der Programm-Bestand des Panels „Verzeichnisse": die Liste, die Antragszahl
+ * Der Programm-Bestand des Panels „Förderprogramme": die Liste, die Antragszahl
  * je Programm und das aktive Programm.
  *
  * Aus `ProgrammeAdminPage` herausgezogen, weil ihn seit v4.36 DREI Stellen

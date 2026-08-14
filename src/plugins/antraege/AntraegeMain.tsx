@@ -437,7 +437,7 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
             <div className="py-16 text-center text-[13px] text-[var(--tf-text-tertiary)]">
               {loading
                 ? 'Lade …'
-                : 'Noch keine Anträge. Erst CSV-Source registrieren und importieren (Kuration → CSV-Quellen).'}
+                : 'Noch keine Anträge. Erst CSV-Source registrieren und importieren (Datenpflege → CSV-Quellen).'}
             </div>
           ) : filtered.length === 0 ? (
             <div className="py-16 text-center text-[13px] text-[var(--tf-text-tertiary)]">

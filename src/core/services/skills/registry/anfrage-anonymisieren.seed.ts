@@ -11,7 +11,7 @@
  * ACHTUNG — Bestands-Installationen: `mergeMissingSeeds` (storage.ts) ergänzt nur
  * FEHLENDE Seeds und überschreibt bestehende Registry-Einträge NIE. Ein Share,
  * dessen `_intern/skills/registry.json` den Skill bereits mit `aktiv: false` trägt,
- * bleibt gesperrt, bis er EINMAL zur Laufzeit freigeschaltet wird (Kuration →
+ * bleibt gesperrt, bis er EINMAL zur Laufzeit freigeschaltet wird (Werkzeuge →
  * Skill-Verwaltung → „Anfrage anonymisieren" → aktiv → Speichern; ein Share =
  * team-weit für alle Varianten).
  *

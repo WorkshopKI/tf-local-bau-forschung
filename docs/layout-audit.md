@@ -31,12 +31,14 @@ Fünfmal hand-rolled, jeweils leicht abweichend (Margins, Subtitle ja/nein):
 - Chat `ConversationHeader` — Titel in der Konversations-Kopfzeile
 - Suche — **kein** H1 (Abweichung; bleibt vorerst so)
 
-### Kuration (v4.33–v4.39 auditiert und bereinigt)
+### Kuration (v4.33–v4.40 auditiert und bereinigt)
 War nie im Audit. Neun Sidebar-Einträge mit vier Paddings, drei Rumpfbreiten,
 zwei Tab-Implementierungen, null `PageHeader`, viermal derselbe Sperr-Hinweis
 von Hand. Heute: **ein** Hub in der geteilten Einstellungs-Seitenform (fünf
-Panels), daneben **eine** eigenständige Arbeitsfläche (Dokument-Review, gleicher
-Rahmen) und die Gruppe „Werkbank (dev)" für die zwei Entwickler-Panels. Der
+Panels, in der Sidebar „Datenpflege"), daneben **eine** eigenständige
+Arbeitsfläche (Dokument-Review, gleicher Rahmen) und die Gruppe „Developer"
+für die zwei Entwickler-Panels. „Kuration" und „Developer" sind seit v4.40
+zuklappbar (Standard offen, gemerkt je Gerät). Der
 Sperr-Hinweis ist ein Bauteil ([KuratorGesperrtHinweis](../src/components/kurator/KuratorGesperrtHinweis.tsx)).
 Offen: `src/plugins/csv-sources-kuration/wizard/` (5 Schritte, eigenes Layout) —
 läuft als Dialog über dem Panel und ist nicht Teil der Seitenform.

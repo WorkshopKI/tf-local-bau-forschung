@@ -84,7 +84,7 @@ export function CsvAutoRefreshDriftDialog({
                 <div key={p.schemaId}>
                   <span className="font-medium text-[var(--tf-text)]">{p.schemaName}</span>:{' '}
                   {p.autoAdoptedColumns!.length} neue Spalte{p.autoAdoptedColumns!.length === 1 ? '' : 'n'} automatisch
-                  als „ignoriert" übernommen. Bei Bedarf in „Kuration → CSV-Sources" gezielt zuordnen.
+                  als „ignoriert" übernommen. Bei Bedarf in „Datenpflege → CSV-Quellen" gezielt zuordnen.
                 </div>
               ))}
             </div>
@@ -116,7 +116,7 @@ export function CsvAutoRefreshDriftDialog({
                   {p.uebergangeneSpalten!.length} fehlender Spalte
                   {p.uebergangeneSpalten!.length === 1 ? '' : 'n'} importiert — diese Felder sind
                   jetzt leer, soweit keine andere Quelle sie liefert. Dauerhafte Lösung: das
-                  Mapping in „Kuration → CSV-Sources" anpassen.
+                  Mapping in „Datenpflege → CSV-Quellen" anpassen.
                 </div>
               ))}
             </div>
@@ -218,7 +218,7 @@ export function CsvAutoRefreshDriftDialog({
             ) : null}
             {onOpenWizard ? (
               <div className="ml-6 mt-2 text-[11px] text-amber-900">
-                Öffne „Kuration → CSV-Sources" und nutze pro Quelle den Button „CSV Daten aktualisieren"
+                Öffne „Datenpflege → CSV-Quellen" und nutze pro Quelle den Button „CSV Daten aktualisieren"
                 oder „CSV neu wählen". Im Dialog siehst du die volle Drift-Analyse und kannst entscheiden,
                 ob du die Datei trotzdem importierst (alte Mappings bleiben erhalten) oder das Schema neu registrierst.
               </div>

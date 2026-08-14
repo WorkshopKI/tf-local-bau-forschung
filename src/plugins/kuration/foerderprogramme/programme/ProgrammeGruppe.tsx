@@ -1,5 +1,5 @@
 /**
- * Gruppe „Programme" im Panel „Verzeichnisse" — bis v4.35 die eigene Seite
+ * Gruppe „Programme" im Panel „Förderprogramme" — bis v4.35 die eigene Seite
  * `/kuration/programme`.
  *
  * Der Bestand kommt von aussen (`useProgrammBestand`), weil ihn die

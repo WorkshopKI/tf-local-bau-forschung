@@ -1,5 +1,5 @@
 /**
- * Gruppe „Unterprogramme" im Panel „Verzeichnisse" — bis v4.35 der untere Teil
+ * Gruppe „Unterprogramme" im Panel „Förderprogramme" — bis v4.35 der untere Teil
  * der Seite `/kuration/programme`. Sie haengt am AKTIVEN Programm; die Zeile
  * „Gilt fuer …" sagt das, weil die Tabelle sonst nicht verraet, welchen
  * Ausschnitt sie zeigt.

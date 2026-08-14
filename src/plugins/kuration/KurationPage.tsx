@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { SettingsHubPage } from '@/components/settings';
 import { KuratorGesperrtHinweis } from '@/components/kurator';
-import { getKurationPanels } from './kurationPanels';
+import { getKurationPanels, KURATION_SEITENNAME } from './kurationPanels';
 
 /**
  * Der Kuration-Hub — dieselbe Seitenform wie die Einstellungen (Rahmen,
@@ -18,10 +18,10 @@ export function KurationPage(): React.ReactElement {
   const panels = useMemo(() => getKurationPanels(), []);
   return (
     <SettingsHubPage
-      titel="Kuration"
+      titel={KURATION_SEITENNAME}
       pluginId="kuration"
       panels={panels}
-      hinweis={<KuratorGesperrtHinweis was="Quellen, Verzeichnisse und Einstellungen" />}
+      hinweis={<KuratorGesperrtHinweis was="Quellen, Programme und Einstellungen" />}
     />
   );
 }

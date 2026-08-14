@@ -43,16 +43,16 @@ describe('legacyRedirectTarget', () => {
   it('fuehrt die aufgeloesten Kuration-Seiten in ihr Panel', () => {
     expect(legacyRedirectTarget('/kuration/anfragen')).toBe('/kuration?panel=dienste');
     expect(legacyRedirectTarget('/kuration/suchindex')).toBe('/kuration?panel=suche-index');
-    expect(legacyRedirectTarget('/kuration/programme')).toBe('/kuration?panel=verzeichnisse');
+    expect(legacyRedirectTarget('/kuration/programme')).toBe('/kuration?panel=foerderprogramme');
     expect(legacyRedirectTarget('/kuration/csv-quellen')).toBe('/kuration?panel=csv-quellen');
   });
 
   it('springt bei Seiten, die nur eine GRUPPE geworden sind, auf ihren Anker', () => {
-    // `/kuration/filter` war eine ganze Seite; im Panel „Verzeichnisse" ist sie
-    // die dritte Karte. Ohne `&sektion=` laendete das Lesezeichen am Seitenkopf,
-    // und der Nutzer muesste suchen, was er im Lesezeichen hatte.
+    // `/kuration/filter` war eine ganze Seite; im Panel „Förderprogramme" ist
+    // sie die dritte Karte. Ohne `&sektion=` laendete das Lesezeichen am
+    // Seitenkopf, und der Nutzer muesste suchen, was er im Lesezeichen hatte.
     expect(legacyRedirectTarget('/kuration/filter'))
-      .toBe('/kuration?panel=verzeichnisse&sektion=sec-filter');
+      .toBe('/kuration?panel=foerderprogramme&sektion=sec-filter');
     expect(legacyRedirectTarget('/kuration/dokumentenquellen'))
       .toBe('/kuration?panel=suche-index&sektion=sec-dokumentenquellen');
   });
@@ -63,7 +63,7 @@ describe('legacyRedirectTarget', () => {
     // Gruppe im Panel sind, traegt die zweite Stufe ihn ans richtige Ziel.
     expect(legacyRedirectTarget('/admin/unterprogramme')).toBe('/kuration/unterprogramme');
     expect(legacyRedirectTarget('/kuration/unterprogramme'))
-      .toBe('/kuration?panel=verzeichnisse&sektion=sec-unterprogramme');
+      .toBe('/kuration?panel=foerderprogramme&sektion=sec-unterprogramme');
   });
 
   it('haengt bei Panel-Zielen KEIN Unterpfad-Suffix an die Query', () => {

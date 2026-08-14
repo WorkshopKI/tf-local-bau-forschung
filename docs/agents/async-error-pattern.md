@@ -81,7 +81,7 @@ Stand Mai 2026: 30 Files mit `onClick={() => void asyncFn()}`-Pattern, davon ~10
 
 Reference-Anwendungen (in stabilen Plugins, als Vorbild):
 - [src/plugins/kuration/csv-quellen/CsvQuellenPanel.tsx](../../src/plugins/kuration/csv-quellen/CsvQuellenPanel.tsx)
-- [src/plugins/kuration/verzeichnisse/filter/dialogs/FilterEditDialog.tsx](../../src/plugins/kuration/verzeichnisse/filter/dialogs/FilterEditDialog.tsx)
+- [src/plugins/kuration/foerderprogramme/filter/dialogs/FilterEditDialog.tsx](../../src/plugins/kuration/foerderprogramme/filter/dialogs/FilterEditDialog.tsx)
 - [src/plugins/dokumentenquellen-kuration/components/SourceFormDialog.tsx](../../src/plugins/dokumentenquellen-kuration/components/SourceFormDialog.tsx)
 
 ## Verifikation

@@ -419,9 +419,14 @@ export function ShellLayout({ plugins, children }: ShellLayoutProps): React.Reac
   }, []);
 
   const grouped = useMemo(() => groupNavPlugins(visiblePlugins), [visiblePlugins]);
-  // Nur „In Erprobung" ist zuklappbar (Standard offen): die Seiten dort sollen
-  // getestet werden, wer sie nicht braucht, räumt sie einmal weg.
+  // Zuklappbar sind die drei Gruppen, die nicht jeder täglich braucht (alle
+  // Standard offen): „In Erprobung" soll getestet werden, wer sie nicht braucht,
+  // räumt sie einmal weg — „Kuration" trifft nur, wer freigeschaltet ist, und
+  // „Developer" nur, wer an der App selbst baut. Die beiden obersten Gruppen
+  // bleiben fest: der tägliche Weg räumt sich nicht weg.
   const [erprobungOffen, toggleErprobung] = useCollapsedSection('teamflow_nav_erprobung');
+  const [kurationOffen, toggleKuration] = useCollapsedSection('teamflow_nav_kuration');
+  const [werkbankOffen, toggleWerkbank] = useCollapsedSection('teamflow_nav_werkbank');
 
   const renderNavItem = (plugin: TeamFlowPlugin): React.ReactElement => {
     const Icon = getIcon(plugin.icon);
@@ -455,7 +460,7 @@ export function ShellLayout({ plugins, children }: ShellLayoutProps): React.Reac
 
   /**
    * Eine Sidebar-Gruppe: Trennlinie, optionale Überschrift, Einträge. `klapp`
-   * macht die Überschrift zum Schalter (nur „In Erprobung").
+   * macht die Überschrift zum Schalter („In Erprobung", „Kuration", „Developer").
    *
    * Im Rail (52 px) fallen Überschriften weg — und damit auch das Zuklappen,
    * sonst wären die Ziele dort unerreichbar.
@@ -554,10 +559,10 @@ export function ShellLayout({ plugins, children }: ShellLayoutProps): React.Reac
             {/* System-Gruppe: derzeit leer — Einstellungen sind `hideFromNav`
                 (Zahnrad in der Fußzeile). Bleibt als Ablage für System-Seiten. */}
             {renderNavGruppe('system')}
-            {renderNavGruppe('kuration')}
+            {renderNavGruppe('kuration', { offen: kurationOffen, onToggle: toggleKuration })}
             {/* Entwickler-Panels stehen GANZ unten und unter eigenem Namen: sie
                 kuratieren nichts, sie sind Werkzeug am Bau. */}
-            {renderNavGruppe('werkbank')}
+            {renderNavGruppe('werkbank', { offen: werkbankOffen, onToggle: toggleWerkbank })}
           </nav>
 
           <div className="px-2 py-1.5 shrink-0 flex flex-col" style={{ borderTop: '0.5px solid var(--tf-border)' }}>

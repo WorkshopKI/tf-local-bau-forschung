@@ -130,6 +130,6 @@ describe('sichtbareGruppenItems', () => {
     const groups = groupNavPlugins(plugins);
     expect(groups.kuration.map(p => p.id)).toEqual(['kuration']);
     expect(groups.werkbank.map(p => p.id)).toEqual(['dev-state-inspector', 'dev-infrastructure-test']);
-    expect(NAV_GRUPPEN_LABEL.werkbank).toBe('Werkbank (dev)');
+    expect(NAV_GRUPPEN_LABEL.werkbank).toBe('Developer');
   });
 });

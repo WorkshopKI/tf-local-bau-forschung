@@ -1,5 +1,5 @@
 /**
- * Gruppe „Filter" im Panel „Verzeichnisse" — bis v4.35 die eigene Seite
+ * Gruppe „Filter" im Panel „Förderprogramme" — bis v4.35 die eigene Seite
  * `/kuration/filter`.
  *
  * Aus den drei Reitern (System / Kurator-Custom / User-Presets) sind drei

@@ -102,7 +102,7 @@ export function SettingsHubPage({
   };
 
   // Deep-Link von außerhalb: `?sektion=sec-widgets` springt Panel + Anker an,
-  // `?panel=verzeichnisse` öffnet nur die Seite (die Redirects der alten
+  // `?panel=foerderprogramme` öffnet nur die Seite (die Redirects der alten
   // Kuration-Routen nutzen das). Einmal pro Wert behandeln (Ref), damit
   // spätere Panel-Wechsel nicht zurückgezogen werden.
   const [searchParams] = useSearchParams();

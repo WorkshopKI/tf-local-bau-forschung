@@ -221,7 +221,7 @@ export function isAnfragenEnabled(): boolean {
 /** Kanonischer Code-Default der ZIM-FAQ-Assistent-URL (Modul „Anfragen") — die
  *  EINZIGE Quelle im Code. `scripts/config-schema.mjs` trägt die URL NICHT mehr
  *  doppelt (nur optionaler Per-Variant-Override-Slot). Team-weite Laufzeit-
- *  Änderung läuft über Kuration → Anfragen (Sidecar `_intern/anfragen-settings.json`). */
+ *  Änderung läuft über Datenpflege → Dienste (Sidecar `_intern/anfragen-settings.json`). */
 export const DEFAULT_ANFRAGEN_DASHBOARD_URL =
   'https://claude.ai/public/artifacts/5faeb8ed-c446-4050-aad8-3464094a2b9f';
 

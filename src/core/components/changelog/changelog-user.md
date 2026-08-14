@@ -19,6 +19,15 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.40 — 2026-08
+
+### Neu
+- Die Gruppen „Kuration" und „Developer" in der Seitenleiste lassen sich zuklappen — wie „In Erprobung". Zugeklappt bleibt die Seite stehen, auf der Sie gerade sind, damit Sie nicht die Orientierung verlieren. Was Sie einklappen, bleibt auf diesem Gerät eingeklappt.
+### Verbesserungen
+- Die Kurations-Seite heißt jetzt **Datenpflege**. Vorher stand „Kuration" in der Seitenleiste zweimal untereinander: als Überschrift der Gruppe und als einziger Eintrag darunter.
+- Die Unterseite „Verzeichnisse" heißt jetzt **Förderprogramme** — „Verzeichnis" klingt nach Ordner auf der Festplatte, gemeint waren aber immer Programme, Unterprogramme und die Filter, die daran hängen. Alte Lesezeichen führen weiterhin dorthin.
+- Die Entwickler-Gruppe heißt schlicht **Developer**.
+
 ## v4.39 — 2026-08
 
 ### Neu

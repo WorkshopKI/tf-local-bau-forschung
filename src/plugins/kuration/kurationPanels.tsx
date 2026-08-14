@@ -11,14 +11,24 @@
  * Sichtbarkeit folgt den Feature-Flags; der Suchindex leitet sich aus den
  * sichtbaren Abschnitten ab und respektiert sie dadurch automatisch.
  */
-import { Database, FolderTree, LayoutDashboard, Plug, Search } from 'lucide-react';
+import { Database, Layers, LayoutDashboard, Plug, Search } from 'lucide-react';
 import type { SettingsPanel } from '@/components/settings';
 import { features } from '@/config/feature-flags';
 import { UebersichtPanel } from './uebersicht/UebersichtPanel';
 import { CsvQuellenPanel } from './csv-quellen/CsvQuellenPanel';
-import { VerzeichnissePanel } from './verzeichnisse/VerzeichnissePanel';
+import { FoerderprogrammePanel } from './foerderprogramme/FoerderprogrammePanel';
 import { SucheIndexPanel } from './suche-index/SucheIndexPanel';
 import { DienstePanel } from './dienste/DienstePanel';
+
+/**
+ * Der Seitenname — EINE Quelle fuer den Sidebar-Eintrag (`index.ts`) und die
+ * Ueberschrift der Seite (`KurationPage`). Bis v4.40 hiess beides „Kuration",
+ * und weil die Sidebar-GRUPPE ebenfalls so heisst, stand das Wort dort zweimal
+ * untereinander: einmal als Ueberschrift, einmal als einziger Eintrag darunter.
+ * Die Gruppe behaelt den Oberbegriff (sie traegt auch Dokument-Review und ist
+ * seit v4.40 der Klapp-Schalter), die Seite sagt jetzt, was man auf ihr tut.
+ */
+export const KURATION_SEITENNAME = 'Datenpflege';
 
 export function getKurationPanels(): SettingsPanel[] {
   const panels: SettingsPanel[] = [];
@@ -59,11 +69,15 @@ export function getKurationPanels(): SettingsPanel[] {
 
   // Bis v4.35 zwei eigene Seiten („Programme", „Filter verwalten"). Beide alten
   // Seitennamen bleiben als Suchbegriffe.
+  //
+  // Bis v4.40 hiess das Panel „Verzeichnisse". Das Wort meint in dieser App
+  // durchgaengig Ordner auf der Platte (Dokumentenquellen, verbundene
+  // Verzeichnisse in den Einstellungen) — hier geht es um Foerderprogramme.
   panels.push({
-    id: 'verzeichnisse',
-    label: 'Verzeichnisse',
-    untertitel: 'Die Ordnung, in der die importierten Daten stehen.',
-    icon: FolderTree,
+    id: 'foerderprogramme',
+    label: 'Förderprogramme',
+    untertitel: 'Programme, Unterprogramme und die Filter, die daran hängen.',
+    icon: Layers,
     sections: [
       { id: 'sec-programme', label: 'Programme', gruppe: 'Programme', keywords: 'programm förderprogramm zim exist anlegen umbenennen löschen aktiv wechseln scope' },
       { id: 'sec-unterprogramme', label: 'Unterprogramme', gruppe: 'Unterprogramme', keywords: 'unterprogramm modul label zeitraum aktiv xlsx import codes' },
@@ -72,7 +86,7 @@ export function getKurationPanels(): SettingsPanel[] {
       { id: 'sec-filter-system', label: 'System-Filter', gruppe: 'Filter', keywords: 'eingebaut system versteckt ausblenden read-only' },
       { id: 'sec-filter-nutzer', label: 'Nutzer-Vorlagen', gruppe: 'Filter', keywords: 'preset user vorlage privat gespeichert kombination' },
     ],
-    render: () => <VerzeichnissePanel />,
+    render: () => <FoerderprogrammePanel />,
   });
 
   // Bis v4.34 die eigene Seite „Suchindex" mit den Reitern „Übersicht" und

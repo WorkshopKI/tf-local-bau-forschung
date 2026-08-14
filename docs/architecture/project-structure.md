@@ -153,10 +153,12 @@ src/
 │   # Kuration (category 'kuration', kuratorOnly: true). Bis v4.32 neun eigene
 │   # Sidebar-Eintraege; v4.33–v4.38 zu EINEM Hub zusammengezogen — Panels statt
 │   # Seiten, Seitenform aus @/components/settings (docs/agents/add-settings-section.md).
-│   ├── kuration/                <- Der Hub (id='kuration', route /kuration); Registry: kurationPanels.tsx
+│   ├── kuration/                <- Der Hub (id='kuration', route /kuration, Sidebar „Datenpflege");
+│   │                               Registry + Seitenname: kurationPanels.tsx
 │   │   ├── uebersicht/          <- Panel „Uebersicht": Lage & Aufgaben, liest indexAmpel + csvFreshnessAussage
 │   │   ├── csv-quellen/         <- Panel „CSV-Quellen" (v4.38); Bausteine aus ../../csv-sources-kuration/
-│   │   ├── verzeichnisse/       <- Panel „Verzeichnisse" (v4.36): programme/ (+unterprogramme/) + filter/
+│   │   ├── foerderprogramme/    <- Panel „Foerderprogramme" (v4.36, bis v4.40 „Verzeichnisse"):
+│   │   │                           programme/ (+unterprogramme/) + filter/
 │   │   ├── suche-index/         <- Panel „Suche & Index" (v4.35, war Plugin 'kurator')
 │   │   ├── dokumentenquellen/   <- Gruppe im Panel „Suche & Index" (war Plugin 'dokumentenquellen-kuration')
 │   │   └── dienste/             <- Panel „Dienste" (war Plugin 'anfragen-kuration')

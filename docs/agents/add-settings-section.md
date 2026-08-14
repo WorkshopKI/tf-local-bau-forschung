@@ -6,7 +6,7 @@ Die Seitenform gibt es **zweimal** — sie ist eine geteilte Schicht in
 | Hub | Route | Registry | Panels |
 |---|---|---|---|
 | **Einstellungen** | `/einstellungen` | `plugins/einstellungen/settingsPanels.tsx` | Mein Profil · Darstellung · Daten & Verbindungen · Interne KI |
-| **Kuration** (kuratorOnly) | `/kuration` | `plugins/kuration/kurationPanels.tsx` | Übersicht · CSV-Quellen · Verzeichnisse · Suche & Index · Dienste |
+| **Datenpflege** (kuratorOnly, id `kuration`) | `/kuration` | `plugins/kuration/kurationPanels.tsx` | Übersicht · CSV-Quellen · Förderprogramme · Suche & Index · Dienste |
 
 Dieses Blatt gilt für beide. Was unten „Seite" heißt, ist ein **Panel** des
 jeweiligen Hubs; der Rahmen (`SettingsHubPage`) und die Sprung-/Markier-Mechanik

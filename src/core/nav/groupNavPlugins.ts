@@ -24,7 +24,10 @@ export interface NavGroups {
  * `/kuration/*`, und sie kuratieren nichts. Sichtbar sind sie ohnehin nur über
  * ihre eigenen Flags (`devInfraPanel`, `devFixtures`), die in allen vier
  * Variant-Configs genau dort `true` stehen, wo auch `kuratorMenus` true ist —
- * der Umzug ändert die Verfügbarkeit in keiner Variante.
+ * der Umzug ändert die Verfügbarkeit in keiner Variante. Die Beschriftung heißt
+ * seit v4.40 schlicht „Developer": das Wort steht in dieser App ohnehin überall
+ * für die Entwickler-Sicht (`DEV: State`, `DEV: Infra`), und „(dev)" hinter
+ * einem Namen wiederholte nur, was die Einträge selbst schon sagen.
  */
 export const NAV_GRUPPEN_LABEL: Record<NavGroupKey, string | null> = {
   workflow: null,
@@ -32,7 +35,7 @@ export const NAV_GRUPPEN_LABEL: Record<NavGroupKey, string | null> = {
   erprobung: 'In Erprobung',
   system: null,
   kuration: 'Kuration',
-  werkbank: 'Werkbank (dev)',
+  werkbank: 'Developer',
 };
 
 /**

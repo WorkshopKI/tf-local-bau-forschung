@@ -116,7 +116,7 @@ export function Step3Unterprogramme({ api }: Props): React.ReactElement {
       </div>
 
       <div className="mt-3 text-[11px] text-[var(--tf-text-tertiary)]">
-        Labels und Zeiträume können unter <span className="font-mono">Kuration → Unterprogramme</span> nachgepflegt werden.
+        Labels und Zeiträume können unter <span className="font-mono">Datenpflege → Förderprogramme</span> nachgepflegt werden.
       </div>
     </div>
   );
