@@ -33,6 +33,7 @@ Decision-Tree für häufige Aufgaben. Erst hier nachsehen, **bevor** du die Code
 | Async-UI-Aktion ohne silent-fail | [docs/agents/async-error-pattern.md](docs/agents/async-error-pattern.md) |
 | Antrag-Status-Vergleich | Pitfall #12 + [docs/architecture/antrag-status-domaenen.md](docs/architecture/antrag-status-domaenen.md) |
 | Status-System (Katalog/Historie/Cockpit/Timeline/Widget; Flag `statusCockpit`) | [docs/status-system/README.md](docs/status-system/README.md) + Pitfall #40 |
+| Verlaufs-Ansichten am Verbund (Matrix Schritt × TV, Chronik nach Datum, Zeitstrahl; Rollenfarben, WER/WO-Filter, Fokus) | [chronik-und-zeitstrahl.md](docs/status-system/chronik-und-zeitstrahl.md) |
 | Die zwei Status-Achsen (Verfahrensschritt kuratierbar, Arbeitsliste fest; Umbenennung, Abschnitts-Ids, Aggregatnamen) | [status-achsen.md](docs/architecture/status-achsen.md) + Pitfall #50 |
 | Vorgangssystem (Companion zum Fachsystem: Status-Erklärung, Kürzel-Navigator, To-do-Kaskade, Stillstands-Wächter, Fristen-Cockpit; Flag `vorgangssystem`) | [vorgangssystem.md](docs/architecture/vorgangssystem.md) + Pitfall #44 |
 | Betrachtungsbereich (welche Richtlinien zählen zum Arbeitsvorrat; Chip im Seitenkopf, flag-unabhängig) | [vorgangssystem.md §10](docs/architecture/vorgangssystem.md) + Pitfall #46 |

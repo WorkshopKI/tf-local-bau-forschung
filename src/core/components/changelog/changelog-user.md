@@ -19,6 +19,22 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.48 — 2026-08
+
+### Neu
+- „Status & Verlauf" hat eine neue Ansicht **nach Schritt**: eine Zeile je Kürzel, eine Spalte je Teilvorhaben. Damit sehen Sie auf einen Blick, wer geliefert hat, wer später — und wo ein Kürzel fehlt. Bisher hieß dafür jedes Teilvorhaben einzeln aufzurufen.
+- Eine Spalte **Spanne** zeigt, wie weit die Teilvorhaben bei einem Schritt auseinanderliegen.
+- Neue Leiste **Wer / Wo**: nach Rolle (PA, AB, FB, QS, Jur) und nach Teilvorhaben eingrenzen. Beide Ansichten teilen die Auswahl, und ein angeklickter Schritt bleibt beim Wechsel markiert.
+
+### Verbesserungen
+- Die Rollen haben jetzt überall dieselbe Farbe — in der Leiste, in der Zeile und in der Matrix. Die Leiste ist damit zugleich die Legende.
+- Die chronologische Ansicht nennt die betroffenen Teilvorhaben einzeln statt „3 Teilvorhaben".
+- Die Kopfzeile unterscheidet **Schritte** von **Datumsangaben**: vier Teilvorhaben mit demselben Eingangsdatum sind ein Schritt und vier Angaben.
+- Einträge, die jeder setzen darf, verschwinden bei einer Rollenwahl nicht mehr, sondern bleiben blass stehen — es sind rund 28 % aller Kürzel.
+
+### Bugfixes
+<!-- - … -->
+
 ## v4.47 — 2026-08
 
 ### Neu

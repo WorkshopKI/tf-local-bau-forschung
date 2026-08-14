@@ -30,8 +30,12 @@
  */
 import { useMemo, useState } from 'react';
 import { ChevronRight } from 'lucide-react';
-import type { FeldVorkommen, MappingVersion, OffenesPaarJeTv } from '@/core/status';
+import {
+  baueChronik, verlaufKennzahlen,
+  type FeldVorkommen, type MappingVersion, type OffenesPaarJeTv,
+} from '@/core/status';
 import { StatusChronik } from '../../status/StatusChronik';
+import { VerlaufKennzahlenZeile } from '../../status/VerlaufKennzahlenZeile';
 import { VorgangsRaster } from './VorgangsRaster';
 import { OhneDatumBlock } from './OhneDatumBlock';
 import { baueOhneDatum } from './ohneDatum';
@@ -103,11 +107,24 @@ export function VorgangsverlaufReiter({
 }: VorgangsverlaufReiterProps): React.ReactElement {
   const [zeigeNebensaechlich, setZeigeNebensaechlich] = useState(false);
   const ohneDatum = useMemo(() => baueOhneDatum(vorkommen), [vorkommen]);
+  // Die Kennzahlen kommen aus derselben reinen Funktion wie auf der
+  // Detailseite. Wie viele Teilvorhaben der Verbund führt, weiß der Ausklapp
+  // nicht — er bekommt die Vorkommen SEINER Zeile —, also zählt er die Träger,
+  // die in den Terminen vorkommen, statt eine Zahl zu erfinden.
+  const kennzahlen = useMemo(() => {
+    const chronik = baueChronik(vorkommen, { zeigeNebensaechlich });
+    const traeger = new Set(chronik.flatMap(e => e.tvIds));
+    return verlaufKennzahlen(chronik, offenePaare, traeger.size);
+  }, [vorkommen, zeigeNebensaechlich, offenePaare]);
 
   return (
     <div className="flex flex-col gap-4">
       {version !== null && (
         <Abschnitt titel="Chronik">
+          {/* Keine Filterleiste und keine Matrix: fünf Datumsspalten passen
+              nicht in einen Tabellen-Ausklapp, und auf einer TV-Zeile hätte die
+              Matrix genau eine Spalte. Hier steht der Hergang. */}
+          <VerlaufKennzahlenZeile kennzahlen={kennzahlen} />
           <StatusChronik
             vorkommen={vorkommen}
             version={version}

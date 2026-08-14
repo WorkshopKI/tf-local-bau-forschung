@@ -21,9 +21,21 @@ import { useStorage } from '@/core/hooks/useStorage';
  */
 export type VerlaufAnsicht = 'chronik' | 'band';
 
+/**
+ * Wie die Chronik ordnet: nach **Schritt** (Matrix Kürzel × Träger) oder nach
+ * **Datum** (chronologisch). Zwei Sichten auf dieselben Termine.
+ *
+ * Der Standard ist `schritt`: die Frage, mit der die Statussektion geöffnet
+ * wird, ist „wo stehen wir, und wer fehlt noch" — und die beantwortet der
+ * Vergleich über die Teilvorhaben, nicht die Zeitfolge. Wer den Hergang
+ * nachlesen will, ist einen Klick entfernt.
+ */
+export type ChronikModus = 'schritt' | 'datum';
+
 export interface TimelinePrefs {
   zeigeNebensaechlich: boolean;
   ansicht: VerlaufAnsicht;
+  modus: ChronikModus;
 }
 
 const KEY = 'status-timeline-prefs';
@@ -31,6 +43,7 @@ const KEY = 'status-timeline-prefs';
 export const DEFAULT_PREFS: TimelinePrefs = {
   zeigeNebensaechlich: false,
   ansicht: 'chronik',
+  modus: 'schritt',
 };
 
 function normalisiere(roh: unknown): TimelinePrefs {
@@ -38,6 +51,10 @@ function normalisiere(roh: unknown): TimelinePrefs {
   return {
     zeigeNebensaechlich: p.zeigeNebensaechlich === true,
     ansicht: p.ansicht === 'band' ? 'band' : 'chronik',
+    // Bestandsstände tragen kein `modus` — sie bekommen den neuen Standard,
+    // nicht die alte Zeitfolge: ein Default zu ändern verwirft keine
+    // gespeicherte Wahl, er gilt für die, die noch keine haben.
+    modus: p.modus === 'datum' ? 'datum' : 'schritt',
   };
 }
 
@@ -45,6 +62,7 @@ export interface UseTimelinePrefs {
   prefs: TimelinePrefs;
   setNebensaechlich: (v: boolean) => void;
   setAnsicht: (a: VerlaufAnsicht) => void;
+  setModus: (m: ChronikModus) => void;
 }
 
 export function useTimelinePrefs(): UseTimelinePrefs {
@@ -70,5 +88,6 @@ export function useTimelinePrefs(): UseTimelinePrefs {
     prefs,
     setNebensaechlich: v => mutiere({ ...prefs, zeigeNebensaechlich: v }),
     setAnsicht: a => mutiere({ ...prefs, ansicht: a }),
+    setModus: m => mutiere({ ...prefs, modus: m }),
   };
 }

@@ -18,6 +18,25 @@ export interface ToggleChipProps {
    *            Single-Select-Hauptkategorie, damit sie sich abhebt.
    */
   variant?: 'neutral' | 'dark';
+  /**
+   * Zahl hinter dem Label (Treffer, Termine, Einträge) — gedämpft und in
+   * Tabellenziffern, damit die Chips einer Reihe gleich breit bleiben.
+   *
+   * Steht bewusst als eigenes Feld statt im `label`: nur so bleibt sie
+   * typografisch zurückgenommen, und nur so kann sie im An-Zustand die
+   * Tönung mitnehmen, ohne sie zu übertönen.
+   */
+  zahl?: number;
+  /**
+   * Eigene Tönung im An-Zustand — für Chips, die eine **Kategorie** wählen und
+   * dieselbe Farbe tragen, mit der ihre Kategorie überall sonst markiert ist
+   * (die Rollen des Statusverlaufs). Die Leiste ist dadurch selbst die Legende;
+   * eine zweite gibt es nicht.
+   *
+   * Wirkt nur bei `selected` und ohne `disabled`; der Aus-Zustand bleibt
+   * neutral, sonst leuchtete die Leiste in fünf Farben, ohne etwas zu sagen.
+   */
+  tonung?: { text: string; flaeche: string };
   className?: string;
 }
 
@@ -39,6 +58,8 @@ export function ToggleChip({
   disabled = false,
   title,
   variant = 'neutral',
+  zahl,
+  tonung,
   className,
 }: ToggleChipProps): React.ReactElement {
   const base =
@@ -53,6 +74,12 @@ export function ToggleChip({
   } else if (selected && variant === 'dark') {
     stateCls = 'font-medium cursor-pointer';
     stateStyle = { background: 'var(--tf-text)', color: 'var(--tf-bg)', border: '0.5px solid var(--tf-text)' }; // allow-cta-fill: Toggle-Pill (Single-Select an), bewusst dunkle Voll-Füllung, kein Klick-CTA
+  } else if (selected && tonung) {
+    stateCls = 'font-medium cursor-pointer';
+    stateStyle = {
+      background: tonung.flaeche, color: tonung.text,
+      border: '0.5px solid var(--tf-border-hover)',
+    };
   } else if (selected) {
     stateCls = 'text-[var(--tf-text)] font-medium cursor-pointer';
     stateStyle = { background: 'var(--tf-bg-secondary)', border: '0.5px solid var(--tf-border-hover)' };
@@ -77,6 +104,17 @@ export function ToggleChip({
         <Check size={13} strokeWidth={2.5} />
       </span>
       <span>{label}</span>
+      {/* Die Zahl erbt im getönten An-Zustand `currentColor` und wird nur
+          zurückgenommen — eine zweite Farbe hier machte den Chip zum Diagramm. */}
+      {zahl !== undefined && (
+        <span
+          className="tabular-nums text-[11.5px] font-normal"
+          style={{ color: selected && tonung ? 'currentColor' : 'var(--tf-text-tertiary)',
+            opacity: selected && tonung ? 0.75 : 1 }}
+        >
+          {zahl}
+        </span>
+      )}
     </button>
   );
 }

@@ -46,6 +46,10 @@
  *     'primary' = --tf-primary); kein hand-gebauter Fill — weder als Klasse
  *     (`bg-[var(--tf-text)]`/`bg-[var(--tf-primary)]` + hover:opacity) noch inline
  *     (`background:'var(--tf-text)',color:'var(--tf-bg)'`). Inline '// allow-cta-fill'.
+ *   - rollen-farbe-eine-quelle          → Chronik/Zeitstrahl (v4.48): die Zuordnung
+ *     Rolle → Farbe steht genau einmal (src/core/status/rollen-farbe.ts), die Werte
+ *     genau in theme.css; und jede Rollenfarbe muss auf ihrer eigenen Flaeche in
+ *     BEIDEN Modi >= 4,5:1 erreichen. Inline '// allow-rollen-farbe: <grund>'.
  */
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
@@ -1037,4 +1041,62 @@ describe('kuration-hub-eine-schicht (der Hub baut die Seitenform nicht nach)', (
     }
   });
 });
+
+describe('rollen-farbe-eine-quelle (Chronik/Zeitstrahl, v4.48)', () => {
+  // Die Rollen des Fachsystems (PA/AB/FB/QS/Jur) sind eine der wenigen Stellen,
+  // an denen Farbe Information traegt. Damit sie ueberall DIESELBE Information
+  // traegt, gibt es genau eine Zuordnung Rolle → Tokenname
+  // (src/core/status/rollen-farbe.ts) und genau einen Ort fuer die Werte
+  // (src/theme.css, Hell + Dunkel). Ein zweiter Ort waere ein zweites
+  // Farbsystem, und die Filterleiste waere nicht mehr die Legende.
+  const ROLLEN = ['pa', 'ab', 'fb', 'qs', 'jur'] as const;
+  const QUELLE = 'core/status/rollen-farbe.ts';
+
+  it('nennt --tf-rolle-* nur in der Zuordnung und in theme.css', () => {
+    const findings: Finding[] = [];
+    for (const file of ALL_SOURCE_FILES) {
+      const rel = relPath(file);
+      if (rel.endsWith(QUELLE) || rel.endsWith('src/theme.css')) continue;
+      if (rel.includes('/__tests__/')) continue;
+      findings.push(...findInFile(file, l => l.includes('--tf-rolle-'), 'allow-rollen-farbe'));
+    }
+    if (findings.length > 0) {
+      expect.fail(
+        `Rollen-Farbtokens gehoeren in ${QUELLE} (Namen) und theme.css (Werte):\n`
+        + `${fmt(findings)}\n\n`
+        + `Komponenten lesen rollenFarbe(rolle) aus @/core/status.\n`
+        + `Echte Ausnahme: '// allow-rollen-farbe: <grund>'.`,
+      );
+    }
+  });
+
+  it('haelt jede Rollenfarbe auf ihrer eigenen Flaeche ueber 4,5:1 — in beiden Modi', () => {
+    const problem: string[] = [];
+    for (const satz of themeFarbTokens()) {
+      for (const r of ROLLEN) {
+        const text = satz.werte.get(`--tf-rolle-${r}`);
+        const flaeche = satz.werte.get(`--tf-rolle-${r}-bg`);
+        if (text === undefined || flaeche === undefined) {
+          problem.push(`  ${satz.modus}: --tf-rolle-${r}(-bg) fehlt in theme.css`);
+          continue;
+        }
+        const a = parseCssFarbe(text);
+        const b = parseCssFarbe(flaeche);
+        if (a === null || b === null) {
+          problem.push(`  ${satz.modus}: --tf-rolle-${r} nicht lesbar (${text} / ${flaeche})`);
+          continue;
+        }
+        const k = kontrast(a, b);
+        if (k < 4.5) problem.push(`  ${satz.modus}: ${r} = ${k.toFixed(2)}:1 (< 4,5)`);
+      }
+    }
+    if (problem.length > 0) {
+      expect.fail(
+        `Rollen-Marken sind zu kontrastarm — sie tragen zweistellige Schriftgroessen\n`
+        + `und muessen als Text lesbar sein, nicht nur als Flaeche:\n${problem.join('\n')}`,
+      );
+    }
+  });
+});
+
 

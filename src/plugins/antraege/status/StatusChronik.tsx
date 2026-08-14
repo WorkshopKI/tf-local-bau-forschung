@@ -1,14 +1,13 @@
 /**
- * Senkrechte Chronik des Verbunds — der Verlauf als Zeitstrahl von oben nach
- * unten, gruppiert nach Monat.
+ * Die Chronik **nach Datum** — der Verlauf als Zeitstrahl von oben nach unten,
+ * gruppiert nach Monat. Die Schwesteransicht dazu ist
+ * {@link StatusSchrittMatrix}: dieselben Termine, nach Schritt geordnet.
  *
  * Warum aus den Datumsfeldern: bis v3.48 stand daneben eine Lane-Ansicht auf das
  * gerätelokale Ereignis-Protokoll. Sie blieb leer, solange eine Installation noch
  * keine Änderung mitgeschrieben hatte — die Termine im Vorgang gibt es trotzdem.
  * Sie stehen in den Datumsfeldern und ergeben, chronologisch gelesen, die
- * eigentliche Geschichte des Antrags. Die Lane-Ansicht ist entfallen, ihr Name
- * („Zeitstrahl") auf das Verlaufs-Band übergegangen, das dieselben Termine als
- * Bahn zeichnet.
+ * eigentliche Geschichte des Antrags.
  *
  * **Ungekürzt, überall.** Die Liste bekommt keinen Höhendeckel und keinen
  * eigenen Scrollbereich — auch nicht im aufgeklappten Bereich der Tabelle, wo
@@ -26,56 +25,50 @@
  * **Das Kürzel steht dabei.** Zwischen Datum und Rolle, in einer eigenen
  * schmalen Spalte — dieselbe Anordnung wie im Fachsystem. Es ist der Bezeichner,
  * unter dem das Team einen Eintrag kennt und in C16 wiederfindet; die
- * Bezeichnung daneben sagt, was er bedeutet. Ohne das Kürzel muss man von der
- * Bezeichnung auf den Code zurückschließen, und genau das kostet die
- * Wiedererkennung, wegen der die Chronik überhaupt gelesen wird.
+ * Bezeichnung daneben sagt, was er bedeutet.
  *
- * **Wer hat gesetzt.** Jede Zeile trägt die Rolle ihres Feldes (`AB`, `FB`, `QS`,
- * `PA`, `Jur`) in einer eigenen schmalen Spalte. Neutrale Einträge — 143 der 505
- * Codes, die das Fachsystem von jedem setzen lässt — bleiben unbeschriftet:
- * „alle" an jeder dritten Zeile wäre Rauschen ohne Information (dieselbe Regel
- * wie in {@link StatusCodeListe}). Gelesen wird **ausschließlich** über
- * `rollenVonFeld`, nie über `feld.rollen` — sonst fallen Bestandsfassungen mit
- * `zustaendigkeit` durch (Pitfall #43).
+ * **Wer hat gesetzt** steht als getönte Marke da, in derselben Farbe wie in der
+ * Filterleiste und in der Matrix — die Leiste ist die Legende. Neutrale
+ * Einträge — 143 der 505 Codes, die das Fachsystem von jedem setzen lässt —
+ * bleiben unbeschriftet: „alle" an jeder dritten Zeile wäre Rauschen ohne
+ * Information. Gelesen wird **ausschließlich** über `rollenVonFeld`, nie über
+ * `feld.rollen` — sonst fallen Bestandsfassungen mit `zustaendigkeit` durch
+ * (Pitfall #43).
+ *
+ * **Wo der Eintrag steht**, sagen die Träger-Marken rechts: nicht mehr
+ * „3 Teilvorhaben", sondern welche drei. Genau diese Auskunft ist der Grund,
+ * aus dem im Fachsystem jedes Teilvorhaben einzeln geöffnet wird.
  *
  * **Was davon meins ist**, sagt die Rolle aus dem Profil (`status_rolle`): meine
- * Zeilen tragen eine Kante auf der Achse und ihr Kürzel in der Primärfarbe —
- * dasselbe Idiom, mit dem das Feedback-Board „meins" markiert. Es wird
- * **hervorgehoben, nicht gefiltert**: wer wissen will, was der Partner gesetzt
- * hat, darf ihn nicht ausgeblendet bekommen. Steht das Profil auf „alle",
- * entfällt die Hervorhebung — die Zuordnung bleibt.
- *
- * Neutrale Zeilen zählen dabei NICHT als meine. Sie gehören jedem; wären sie
- * markiert, trüge fast jede dritte Zeile die Kante und das Signal verginge.
+ * Zeilen tragen eine Kante auf der Achse. Das ist eine andere Frage als der
+ * Wer-Filter darüber — der fragt „was hat die QS getan", die Kante „was geht
+ * mich an" — und beide dürfen nebeneinander stehen. Neutrale Zeilen zählen dabei
+ * NICHT als meine: sie gehören jedem, und markiert trüge fast jede dritte Zeile
+ * die Kante.
  *
  * **Was fehlt**, kommt aus `offenePaareJeTeilvorhaben` und steht als Fehlzeile
- * unter dem Termin, der die andere Seite gesetzt hat — hohler Ring, kein Datum.
- * Sie zählt **nicht** als Termin: die Kopfzeile verspricht „Termine aus den
- * Datumsfeldern", und eine Lücke ist keiner.
+ * unter dem Termin, der die andere Seite gesetzt hat — roter Ring, kein Datum.
+ * Sie zählt **nicht** als Termin: eine Lücke ist keiner.
  *
  * Rein darstellend: `baueChronik` liefert die Daten, hier wird nur gerendert.
  */
 import { Fragment } from 'react';
-import { Milestone } from 'lucide-react';
 import { ToggleChip } from '@/components/ui/ToggleChip';
 import { useProfile } from '@/core/hooks/useProfile';
 import {
   baueChronik, gruppiereNachMonat, kategoriePfadLabel, monateDazwischen, teileChronik,
-  traegerLabel, zahPhaseLabel,
-  ROLLE_LABEL, ROLLE_LANG, leseStatusRolle, normKey, rollenVonFeld, sortiereRollen,
+  rollenSicht, trifftBereich, zahPhaseLabel,
+  ROLLE_LABEL, leseStatusRolle, normKey, rollenVonFeld,
   type ChronikEintrag, type FeldVorkommen, type MappingVersion,
   type OffenesPaarJeTv, type Rolle,
 } from '@/core/status';
 import { formatDatumsWert } from '@/core/services/csv/dateParse';
+import { RollenBadges, TraegerBadges } from './VerlaufBadges';
 
 /** Ab wann eine Pause eigens benannt wird — ein übersprungener Monat ist Alltag. */
 const LUECKE_AB = 2;
 
 const LEISE = 'text-[var(--tf-text-tertiary)]';
-
-/** Die Rollenspalte. Schmal genug für `AB/FB`; was länger ist, kürzt und steht
- *  im Tooltip — nur 32 der 505 Codes tragen drei Rollen oder mehr. */
-const ROLLEN_SPALTE = 'w-[38px] shrink-0 truncate text-[11px]';
 
 /** Die Tagesspalte — hier steht bei einer Fehlzeile der Gedankenstrich. */
 const TAG_SPALTE = 'w-[42px] shrink-0 font-mono text-[11px]';
@@ -87,10 +80,12 @@ const TAG_SPALTE = 'w-[42px] shrink-0 font-mono text-[11px]';
  * Fachsystem man es wiederfindet.
  *
  * 46 px: der längste Code des Katalogs hat **sechs** Zeichen (`XSPDOK`,
- * `WRWZG+`), gemessen über alle 505. `truncate` bleibt als Netz für eine
- * künftige Zuarbeit stehen, greift heute aber bei keinem Eintrag.
+ * `WRWZG+`), gemessen über alle 505.
  */
 const CODE_SPALTE = 'w-[46px] shrink-0 truncate font-mono text-[11px]';
+
+/** Die Rollenspalte — Platz für zwei Marken (`AB` `FB`), der Regelfall. */
+const ROLLEN_SPALTE = 'w-[62px] shrink-0';
 
 /** `2026-03` → „März 2026" in der Kurzform, die in die schmale Spalte passt. */
 function monatLabel(monat: string): string {
@@ -113,31 +108,37 @@ function zeilenTitel(e: ChronikEintrag, pfad: string): string {
   return [e.feld.label, e.text, pfad].filter(t => t !== undefined && t !== '').join('\n');
 }
 
-/** Punkt auf der Achse, Größe nach Prominenz (gleiche Sprache wie die Lane-Ansicht). */
+/**
+ * Punkt auf der Achse. Drei Signale zusammen — Größe, Halo, Textgewicht —
+ * ergeben eine Rangfolge, die auf einen Blick lesbar ist; ein Symbol im Punkt
+ * war es bei 9 px nie.
+ */
 function Punkt({ eintrag }: { eintrag: ChronikEintrag }): React.ReactElement {
   const p = eintrag.feld.prominenzDefault;
   if (p === 'meilenstein') {
     return (
       <span
-        className="inline-flex items-center justify-center rounded-full"
-        style={{ width: 14, height: 14, background: 'var(--tf-primary)', color: 'var(--tf-on-primary)' }}
-      >
-        <Milestone size={9} aria-hidden="true" />
-      </span>
+        className="inline-block rounded-full"
+        style={{
+          width: 10, height: 10,
+          background: 'var(--tf-primary)',
+          boxShadow: '0 0 0 3px var(--tf-primary-light)',
+        }}
+      />
     );
   }
   if (p === 'nebensaechlich') {
     return (
       <span
         className="inline-block rounded-full"
-        style={{ width: 7, height: 7, border: '1px solid var(--tf-text-tertiary)', background: 'var(--tf-bg)' }}
+        style={{ width: 6, height: 6, border: '1px solid var(--tf-text-tertiary)', background: 'var(--tf-bg)' }}
       />
     );
   }
   return (
     <span
       className="inline-block rounded-full"
-      style={{ width: 9, height: 9, background: 'var(--tf-text-tertiary)' }}
+      style={{ width: 7, height: 7, background: 'var(--tf-text-tertiary)' }}
     />
   );
 }
@@ -157,114 +158,148 @@ function Kante(): React.ReactElement {
   );
 }
 
-/** Das Rollen-Kürzel einer Zeile; neutral bleibt leer, meins wird kräftig. */
-function RollenZelle({ rollen, meins }: {
-  rollen: readonly Rolle[]; meins: boolean;
+/** Der gemeinsame Rahmen einer Zeile: Achse, Kante, Fokus, Klickfläche. */
+function ZeilenRahmen({ meins, imFokus, onKlick, punkt, children }: {
+  meins: boolean;
+  imFokus: boolean;
+  onKlick?: () => void;
+  punkt: React.ReactNode;
+  children: React.ReactNode;
 }): React.ReactElement {
-  // Kanonisch sortiert, damit `FB/AB` und `AB/FB` dieselbe Zeichenkette ergeben.
-  const sortiert = sortiereRollen(rollen);
   return (
-    <span
-      className={`${ROLLEN_SPALTE} ${meins ? 'font-medium' : ''}`}
-      style={{ color: meins ? 'var(--tf-primary)' : 'var(--tf-text-tertiary)' }}
-      title={sortiert.length === 0 ? undefined : sortiert.map(r => ROLLE_LANG[r]).join('\n')}
+    <li
+      className={`relative pl-4${onKlick ? ' cursor-pointer hover:bg-[var(--tf-hover)]' : ''}`}
+      style={imFokus ? { background: 'var(--tf-bg-secondary)' } : undefined}
+      onClick={onKlick}
     >
-      {sortiert.map(r => ROLLE_LABEL[r]).join('/')}
-    </span>
-  );
-}
-
-/** Eine Zeile: Punkt · Tag · Rolle · Bezeichnung (+ Notiz) · Phase · Träger. */
-function Zeile({ e, version, meins }: {
-  e: ChronikEintrag; version: MappingVersion; meins: boolean;
-}): React.ReactElement {
-  const pfad = kategoriePfadLabel(version.kategorien ?? [], e.feld.kategorieId);
-  return (
-    <li className="relative pl-4">
       {meins && <Kante />}
       <span
         className="absolute left-0 flex -translate-x-1/2 items-center justify-center"
         style={{ width: 14, height: 14, top: 3 }}
       >
-        <Punkt eintrag={e} />
+        {punkt}
       </span>
+      <div className="flex items-baseline gap-2 leading-[19px]">{children}</div>
+    </li>
+  );
+}
+
+/** Eine Zeile: Punkt · Tag · Kürzel · Rolle · Bezeichnung (+ Notiz) · Phase · Träger. */
+function Zeile({ e, version, meins, gedimmt, imFokus, onFokus, tvNummern, tvGesamt }: {
+  e: ChronikEintrag;
+  version: MappingVersion;
+  meins: boolean;
+  gedimmt: boolean;
+  imFokus: boolean;
+  onFokus?: (feldId: string | null) => void;
+  tvNummern?: ReadonlyMap<string, number>;
+  tvGesamt?: number;
+}): React.ReactElement {
+  const pfad = kategoriePfadLabel(version.kategorien ?? [], e.feld.kategorieId);
+  const meilenstein = e.feld.prominenzDefault === 'meilenstein';
+  const nebensache = e.feld.prominenzDefault === 'nebensaechlich';
+  const textFarbe = gedimmt || nebensache ? 'var(--tf-text-tertiary)' : 'var(--tf-text)';
+  return (
+    <ZeilenRahmen
+      meins={meins}
+      imFokus={imFokus}
+      punkt={<Punkt eintrag={e} />}
+      {...(onFokus ? { onKlick: () => onFokus(imFokus ? null : e.feld.feldId) } : {})}
+    >
       {/* Kein senkrechtes Padding: die Zeilenhöhe trägt den Abstand allein —
           bei 28 Terminen sind 3 px je Zeile ein ganzer Eintrag. Und sie steht
           in **px**, nicht als Faktor: ein Faktor rechnet gegen die geerbte
           Schriftgröße, und die ist im Ausklapp eine andere als auf der
-          Detailseite (gemessen: 20 px hier, 24 px dort). Dieselbe Ansicht darf
-          nicht je nach Umgebung eine andere Dichte haben. */}
-      <div className="flex items-baseline gap-2 leading-[18px]">
-        <span className={`${TAG_SPALTE} ${LEISE}`}>
-          {tagLabel(e.tag)}
+          Detailseite (gemessen: 20 px hier, 24 px dort). */}
+      <span className={`${TAG_SPALTE} ${LEISE}`}>{tagLabel(e.tag)}</span>
+      {/* Jedes Datumsfeld trägt einen Code — auch die kanonischen (`AAE`,
+          `ABB`, `AZ1`, `VBE` in `seed-kanonisch.ts`). Der Fallback bleibt
+          trotzdem stehen: `code` ist am Typ optional. */}
+      <span
+        className={CODE_SPALTE}
+        style={{
+          color: gedimmt
+            ? 'var(--tf-text-tertiary)'
+            : meilenstein ? 'var(--tf-primary)' : 'var(--tf-text-tertiary)',
+        }}
+      >
+        {e.feld.code ?? ''}
+      </span>
+      <span className={ROLLEN_SPALTE}>
+        <RollenBadges rollen={rollenVonFeld(e.feld)} gedimmt={gedimmt} />
+      </span>
+      <span className="min-w-0 flex-1 truncate" title={zeilenTitel(e, pfad)}>
+        <span
+          className="text-[12.5px]"
+          style={{ color: textFarbe, ...(meilenstein ? { fontWeight: 500 } : {}) }}
+        >
+          {e.feld.label}
         </span>
-        {/* Jedes Datumsfeld trägt einen Code — auch die kanonischen (`AAE`,
-            `ABB`, `AZ1`, `VBE` in `seed-kanonisch.ts`). Der Fallback bleibt
-            trotzdem stehen: `code` ist am Typ optional, und ein künftiges
-            entdecktes Feld könnte ohne kommen. Dann bleibt die Spalte leer,
-            statt die Spur der Codes darunter zu verschieben. */}
-        <span className={`${CODE_SPALTE} ${LEISE}`}>{e.feld.code ?? ''}</span>
-        <RollenZelle rollen={rollenVonFeld(e.feld)} meins={meins} />
-        <span className="min-w-0 flex-1 truncate" title={zeilenTitel(e, pfad)}>
-          <span
-            className="text-[12.5px] text-[var(--tf-text)]"
-            style={e.feld.prominenzDefault === 'meilenstein' ? { fontWeight: 500 } : undefined}
-          >
-            {e.feld.label}
-          </span>
-          {e.text ? (
-            <span className={`text-[11.5px] ${LEISE}`}>{' · '}{e.text}</span>
-          ) : null}
-        </span>
-        {e.feld.zahPhaseId ? (
-          <span className="shrink-0 rounded-full bg-[var(--tf-bg-secondary)] px-1.5 text-[10.5px] text-[var(--tf-text-secondary)]">
-            {zahPhaseLabel(e.feld.zahPhaseId, version.zahPhasen)}
-          </span>
+        {e.text ? (
+          <span className={`text-[11.5px] ${LEISE}`}>{' · '}{e.text}</span>
         ) : null}
-        <span className={`shrink-0 min-w-[72px] text-right text-[11px] ${LEISE}`}>
-          {traegerLabel(e.tvIds)}
+      </span>
+      {e.feld.zahPhaseId ? (
+        <span className="shrink-0 rounded-full bg-[var(--tf-bg-secondary)] px-1.5 text-[10.5px] text-[var(--tf-text-secondary)]">
+          {zahPhaseLabel(e.feld.zahPhaseId, version.zahPhasen)}
         </span>
-      </div>
-    </li>
+      ) : null}
+      <span className="shrink-0">
+        <TraegerBadges tvIds={e.tvIds} nummern={tvNummern} gesamt={tvGesamt} />
+      </span>
+    </ZeilenRahmen>
   );
 }
 
 /**
  * Ein fehlendes Gegenstück: die eine Seite eines Kürzel-Paares ist gesetzt, die
  * andere nicht. Kein Datum — es gibt keines; die Standzeit steht stattdessen da.
+ *
+ * Der Ring ist **rot und durchgezogen**, nicht grau gestrichelt: das hier ist
+ * eine offene Aufgabe in genau einem Teilvorhaben, meist ein vergessener
+ * Eintrag. Grau-gestrichelt las sich als Randnotiz.
  */
-function FehlZeile({ p, meins }: { p: OffenesPaarJeTv; meins: boolean }): React.ReactElement {
+function FehlZeile({ p, meins, gedimmt, tvNummern }: {
+  p: OffenesPaarJeTv;
+  meins: boolean;
+  gedimmt: boolean;
+  tvNummern?: ReadonlyMap<string, number>;
+}): React.ReactElement {
   return (
-    <li className="relative pl-4">
-      {meins && <Kante />}
-      <span
-        className="absolute left-0 flex -translate-x-1/2 items-center justify-center"
-        style={{ width: 14, height: 14, top: 3 }}
-      >
+    <ZeilenRahmen
+      meins={meins}
+      imFokus={false}
+      punkt={(
         <span
           className="inline-block rounded-full"
           style={{
             width: 9, height: 9,
-            border: '1px dashed var(--tf-text-tertiary)', background: 'var(--tf-bg)',
+            border: '1px solid var(--tf-danger-text)',
+            background: 'var(--tf-danger-bg)',
           }}
         />
+      )}
+    >
+      <span className={`${TAG_SPALTE} ${LEISE}`} aria-hidden="true">—</span>
+      {/* Das FEHLENDE Kürzel, nicht das gesetzte: die Zeile sagt „hier müsste
+          `p.fehlt` stehen". Genau dieses Kürzel wird in C16 gesucht. */}
+      <span className={CODE_SPALTE} style={{ color: 'var(--tf-danger-text)' }}>{p.fehlt}</span>
+      <span className={ROLLEN_SPALTE}>
+        <RollenBadges rollen={p.rolle === null ? [] : [p.rolle]} gedimmt={gedimmt} />
       </span>
-      <div className="flex items-baseline gap-2 leading-[18px]">
-        <span className={`${TAG_SPALTE} ${LEISE}`} aria-hidden="true">—</span>
-        {/* Das FEHLENDE Kürzel, nicht das gesetzte: die Zeile sagt „hier müsste
-            `p.fehlt` stehen". Genau dieses Kürzel wird in C16 gesucht. */}
-        <span className={`${CODE_SPALTE} ${LEISE}`}>{p.fehlt}</span>
-        <RollenZelle rollen={p.rolle === null ? [] : [p.rolle]} meins={meins} />
-        <span
-          className="min-w-0 flex-1 truncate"
-          title={`${p.fehlt} — ${p.fehltLabel}\nfehlt, seit ${p.gesetzt} gesetzt wurde`}
-        >
-          <span className={`text-[12.5px] ${LEISE}`}>{p.fehltLabel}</span>
-          <span className={`text-[11.5px] ${LEISE}`}>{` · fehlt seit ${p.tage} T`}</span>
+      <span
+        className="min-w-0 flex-1 truncate"
+        title={`${p.fehlt} — ${p.fehltLabel}\nfehlt, seit ${p.gesetzt} gesetzt wurde`}
+      >
+        <span className={`text-[12.5px] ${LEISE}`}>{p.fehltLabel}</span>
+        <span className="text-[11.5px]" style={{ color: 'var(--tf-danger-text)' }}>
+          {` · Kürzel nicht gesetzt · ${p.tage} T`}
         </span>
-        <span className={`min-w-[72px] shrink-0 text-right text-[11px] ${LEISE}`}>{p.tvId}</span>
-      </div>
-    </li>
+      </span>
+      <span className="shrink-0">
+        <TraegerBadges tvIds={[p.tvId]} nummern={tvNummern} />
+      </span>
+    </ZeilenRahmen>
   );
 }
 
@@ -273,12 +308,40 @@ function ankerKey(code: string, tag: string): string {
   return `${normKey(code)}|${tag}`;
 }
 
+/** Die vier Knotenzustände, ausgeschrieben — nur in dieser Ansicht. */
+function Legende(): React.ReactElement {
+  const eintraege: [React.ReactNode, string][] = [
+    [<span key="m" className="inline-block rounded-full" style={{ width: 10, height: 10, background: 'var(--tf-primary)', boxShadow: '0 0 0 3px var(--tf-primary-light)' }} />, 'Meilenstein'],
+    [<span key="n" className="inline-block rounded-full" style={{ width: 7, height: 7, background: 'var(--tf-text-tertiary)' }} />, 'Regelfall'],
+    [<span key="k" className="inline-block rounded-full" style={{ width: 6, height: 6, border: '1px solid var(--tf-text-tertiary)', background: 'var(--tf-bg)' }} />, 'Nachrichtenkanal'],
+    [<span key="f" className="inline-block rounded-full" style={{ width: 9, height: 9, border: '1px solid var(--tf-danger-text)', background: 'var(--tf-danger-bg)' }} />, 'Kürzel nicht gesetzt'],
+  ];
+  return (
+    <div className={`flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] ${LEISE}`}>
+      {eintraege.map(([punkt, text]) => (
+        <span key={text} className="inline-flex items-center gap-1.5">
+          <span className="inline-flex w-[10px] justify-center">{punkt}</span>
+          {text}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 export function StatusChronik({
   vorkommen,
   version,
   zeigeNebensaechlich,
   onToggleNebensaechlich,
   offenePaare = [],
+  rollenWahl,
+  bereichWahl,
+  nurLuecken = false,
+  fokus = null,
+  onFokus,
+  tvNummern,
+  tvGesamt,
+  zeigeSchalter = true,
 }: {
   /** `readonly`, weil der Ausklapp seine Vorkommen unveränderlich durchreicht
    *  (`ZeilenVerlauf.vorkommen`) — gelesen wird hier ohnehin nur. */
@@ -293,27 +356,61 @@ export function StatusChronik({
    * Zeile trägt.
    */
   offenePaare?: readonly OffenesPaarJeTv[];
+  /** Rollenwahl der Filterleiste; leer/fehlend = keine Einschränkung. */
+  rollenWahl?: ReadonlySet<Rolle>;
+  /** Bereichswahl der Filterleiste; leer/fehlend = alle Träger. */
+  bereichWahl?: ReadonlySet<string>;
+  /** Nur die Schritte zeigen, an denen irgendwo ein Kürzel fehlt. */
+  nurLuecken?: boolean;
+  /** Fokussierte Feld-Id — geteilt mit der Matrix. */
+  fokus?: string | null;
+  /** Fehlt der Handler, ist die Zeile nicht klickbar (Ausklapp). */
+  onFokus?: (feldId: string | null) => void;
+  /** Aktenzeichen → laufende Nummer für die Träger-Marken. */
+  tvNummern?: ReadonlyMap<string, number>;
+  /** Anzahl Teilvorhaben des Verbunds — für „alle N". */
+  tvGesamt?: number;
+  /**
+   * Ob der Schalter „Nebensächliches" hier steht. Auf der Detailseite steht er
+   * in der Filterleiste, weil er beide Ordnungen betrifft — zweimal wäre er
+   * zwei Schalter auf denselben Zustand. Im Ausklapp gibt es keine Leiste, dort
+   * bleibt er hier.
+   */
+  zeigeSchalter?: boolean;
 }): React.ReactElement {
+  const rollen = rollenWahl ?? new Set<Rolle>();
+  const bereiche = bereichWahl ?? new Set<string>();
+
   // EIN Aufbau, danach geteilt: die Anzeige muss wissen, ob der Schalter
   // überhaupt etwas bewirkt, bevor sie ihn anbietet (`teileChronik`). Die
-  // volle Liste wird NICHT neu sortiert — sie kommt bereits geordnet, und eine
-  // zweite Sortierregel wäre eine zweite Ordnung über denselben Daten.
+  // volle Liste wird NICHT neu sortiert — sie kommt bereits geordnet.
   const alle = baueChronik(vorkommen, { zeigeNebensaechlich: true });
-  const { haupt, neben } = teileChronik(alle);
-  const eintraege = zeigeNebensaechlich ? alle : haupt;
+  const { neben } = teileChronik(alle);
+  const sichtbar = alle.filter(e =>
+    (zeigeNebensaechlich || e.feld.prominenzDefault !== 'nebensaechlich')
+    && rollenSicht(rollenVonFeld(e.feld), rollen) !== 'weg'
+    && trifftBereich(e.tvIds, bereiche));
+
+  // Fehlzeilen hängen an dem Termin, der die andere Seite gesetzt hat. Findet
+  // sich der nicht — sein Feld kann `ignoriert` sein oder als nebensächlich
+  // gerade ausgeblendet —, geht die Lücke NICHT verloren: sie landet am Ende
+  // ihres Monats, und fehlt auch der, ganz am Schluss.
+  const ankerFuer = (p: OffenesPaarJeTv): string => ankerKey(p.gesetzt, p.seit);
+  const mitLuecke = new Set(offenePaare.map(ankerFuer));
+  // „Nur nicht gesetzt" behält die Termine, die eine Lücke tragen: die Zeile
+  // darüber sagt, WER geliefert hat, und erst daneben wird die Schuld lesbar.
+  const eintraege = !nurLuecken
+    ? sichtbar
+    : sichtbar.filter(e => e.feld.code !== undefined && mitLuecke.has(ankerKey(e.feld.code, e.tag)));
   const monate = gruppiereNachMonat(eintraege);
 
   const { profile } = useProfile();
   // Vorauswahl, keine Sperre — dieselbe Lesart wie in der Ordner-Liste. `alle`
   // heißt „nichts hervorheben"; die Rollenspalte steht trotzdem.
   const meineRolle = leseStatusRolle(profile?.status_rolle);
-  const istMeins = (rollen: readonly Rolle[]): boolean =>
-    meineRolle !== 'alle' && rollen.includes(meineRolle);
+  const istMeins = (r: readonly Rolle[]): boolean =>
+    meineRolle !== 'alle' && r.includes(meineRolle);
 
-  // Fehlzeilen hängen an dem Termin, der die andere Seite gesetzt hat. Findet
-  // sich der nicht — sein Feld kann `ignoriert` sein oder als nebensächlich
-  // gerade ausgeblendet —, geht die Lücke NICHT verloren: sie landet am Ende
-  // ihres Monats, und fehlt auch der, ganz am Schluss.
   const vorhanden = new Set(
     eintraege.filter(e => e.feld.code).map(e => ankerKey(e.feld.code!, e.tag)),
   );
@@ -322,7 +419,7 @@ export function StatusChronik({
   const heimatlos: OffenesPaarJeTv[] = [];
   const monatsNamen = new Set(monate.map(m => m.monat));
   for (const p of offenePaare) {
-    const key = ankerKey(p.gesetzt, p.seit);
+    const key = ankerFuer(p);
     const monat = p.seit.slice(0, 7);
     const ziel = vorhanden.has(key) ? anTermin : monatsNamen.has(monat) ? anMonat : null;
     if (ziel === null) { heimatlos.push(p); continue; }
@@ -331,40 +428,33 @@ export function StatusChronik({
     if (liste) liste.push(p); else ziel.set(unter, [p]);
   }
 
-  const ersterMonat = monate[0]?.monat;
-  const letzterMonat = monate[monate.length - 1]?.monat;
-  const spanne = ersterMonat === undefined || letzterMonat === undefined
-    ? null
-    : ersterMonat === letzterMonat
-      ? monatLabel(ersterMonat)
-      : `${monatLabel(ersterMonat)} – ${monatLabel(letzterMonat)}`;
-
   return (
-    <div>
-      <div className="mb-2 flex flex-wrap items-center gap-2">
-        {neben.length > 0 && (
-          <ToggleChip
-            label={`Nebensächliches ${neben.length}`}
-            selected={zeigeNebensaechlich}
-            onToggle={onToggleNebensaechlich}
-          />
-        )}
-        <span className={`text-[11.5px] ${LEISE}`}>
-          {eintraege.length} {eintraege.length === 1 ? 'Termin' : 'Termine'} aus den Datumsfeldern
-          {spanne === null ? '' : ` · ${spanne}`}
-          {/* Die Lücken zählen NICHT als Termine — sie stehen daneben, damit
-              eine Fehlzeile tief in der Liste nicht übersehen wird. */}
-          {offenePaare.length === 0 ? '' : ` · ${offenePaare.length} ${
-            offenePaare.length === 1 ? 'fehlendes Gegenstück' : 'fehlende Gegenstücke'}`}
-          {meineRolle === 'alle' ? '' : ` · hervorgehoben: ${ROLLE_LABEL[meineRolle]}`}
-        </span>
-      </div>
+    <div className="flex flex-col gap-2">
+      {((zeigeSchalter && neben.length > 0) || meineRolle !== 'alle') && (
+        <div className="flex flex-wrap items-center gap-2">
+          {zeigeSchalter && neben.length > 0 && (
+            <ToggleChip
+              label="Nebensächliches"
+              zahl={neben.length}
+              selected={zeigeNebensaechlich}
+              onToggle={onToggleNebensaechlich}
+              title="Briefe, Bestätigungen und andere reine Nachrichtenkanäle"
+            />
+          )}
+          {meineRolle !== 'alle' && (
+            <span className={`text-[11px] ${LEISE}`}>
+              Kante auf der Achse: {ROLLE_LABEL[meineRolle]} — Ihre Rolle laut Profil
+            </span>
+          )}
+        </div>
+      )}
 
       {/* Auch ohne einen einzigen Termin kann es eine Lücke geben — dann ist sie
           das Einzige, was zu sagen ist, und darf nicht mit der Liste wegfallen. */}
-      {eintraege.length === 0 && heimatlos.length === 0 ? (
+      {eintraege.length === 0 && heimatlos.length === 0 && anMonat.size === 0 ? (
         <div className={`py-6 text-[12px] ${LEISE}`}>
-          Keine datierten Statuseinträge. Wert- und Textfelder stehen unten in der Ordner-Ansicht.
+          Keine datierten Statuseinträge zur aktuellen Auswahl. Wert- und Textfelder stehen
+          unten in der Ordner-Ansicht.
         </div>
       ) : (
         <div className="flex flex-col">
@@ -385,23 +475,37 @@ export function StatusChronik({
                   ) : null}
                 </div>
                 <ol className={`min-w-0 flex-1 border-l border-[var(--tf-border)] ${abstand}`}>
-                  {m.eintraege.map(e => (
-                    <Fragment key={`${e.feld.feldId}:${e.tag}`}>
-                      <Zeile e={e} version={version} meins={istMeins(rollenVonFeld(e.feld))} />
-                      {(e.feld.code ? anTermin.get(ankerKey(e.feld.code, e.tag)) ?? [] : []).map(p => (
-                        <FehlZeile
-                          key={`${p.tvId}:${p.fehlt}`} p={p}
-                          meins={istMeins(p.rolle === null ? [] : [p.rolle])}
+                  {m.eintraege.map(e => {
+                    const r = rollenVonFeld(e.feld);
+                    return (
+                      <Fragment key={`${e.feld.feldId}:${e.tag}`}>
+                        <Zeile
+                          e={e} version={version} meins={istMeins(r)}
+                          gedimmt={rollenSicht(r, rollen) === 'gedimmt'}
+                          imFokus={fokus === e.feld.feldId}
+                          {...(onFokus ? { onFokus } : {})}
+                          {...(tvNummern ? { tvNummern } : {})}
+                          {...(tvGesamt !== undefined ? { tvGesamt } : {})}
                         />
-                      ))}
-                    </Fragment>
-                  ))}
+                        {(e.feld.code ? anTermin.get(ankerKey(e.feld.code, e.tag)) ?? [] : []).map(p => (
+                          <FehlZeile
+                            key={`${p.tvId}:${p.fehlt}`} p={p}
+                            meins={istMeins(p.rolle === null ? [] : [p.rolle])}
+                            gedimmt={rollenSicht(p.rolle === null ? [] : [p.rolle], rollen) === 'gedimmt'}
+                            {...(tvNummern ? { tvNummern } : {})}
+                          />
+                        ))}
+                      </Fragment>
+                    );
+                  })}
                   {/* Lücken ohne sichtbaren Termin: der Monat stimmt, die Stelle
                       darin nicht — besser als sie zu verschlucken. */}
                   {(anMonat.get(m.monat) ?? []).map(p => (
                     <FehlZeile
                       key={`rest:${p.tvId}:${p.fehlt}`} p={p}
                       meins={istMeins(p.rolle === null ? [] : [p.rolle])}
+                      gedimmt={rollenSicht(p.rolle === null ? [] : [p.rolle], rollen) === 'gedimmt'}
+                      {...(tvNummern ? { tvNummern } : {})}
                     />
                   ))}
                 </ol>
@@ -418,6 +522,8 @@ export function StatusChronik({
                   <FehlZeile
                     key={`heimatlos:${p.tvId}:${p.fehlt}`} p={p}
                     meins={istMeins(p.rolle === null ? [] : [p.rolle])}
+                    gedimmt={rollenSicht(p.rolle === null ? [] : [p.rolle], rollen) === 'gedimmt'}
+                    {...(tvNummern ? { tvNummern } : {})}
                   />
                 ))}
               </ol>
@@ -425,6 +531,8 @@ export function StatusChronik({
           )}
         </div>
       )}
+
+      <Legende />
     </div>
   );
 }

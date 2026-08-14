@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.48.0 — Chronik nach Schritt: Matrix ueber die Teilvorhaben, Rollenfarben, geteilter Filter (August 2026)
+
+MINOR — Die Chronik kannte die Träger jedes Termins längst und faltete sie zu „3 Teilvorhaben" zusammen — genau die Auskunft, wegen der im Fachsystem der Verbund und danach jedes Teilvorhaben einzeln aufgerufen wird. Aus dem Design-Handoff `_design/handoff/chronik`, Teil 1 von 2 (der Zeitstrahl folgt).
+
+- **Neue Ordnung „nach Schritt"** (Standard): eine Zeile je Kürzel, eine Spalte je Träger, dazu die TV-Streuung — an ZKN084412 gemessen 91 Schritte × 8 Spalten ([StatusSchrittMatrix.tsx](src/plugins/antraege/status/StatusSchrittMatrix.tsx), rein in [chronik-matrix.ts](src/core/status/chronik-matrix.ts))
+- **Geteilte WER/WO-Leiste mit Fokus**: neutrale Einträge werden abgeblendet statt gefiltert — 144 der 505 Codes lässt das Fachsystem von jedem setzen ([verlauf-filter.ts](src/core/status/verlauf-filter.ts), [VerlaufFilterLeiste.tsx](src/plugins/antraege/status/VerlaufFilterLeiste.tsx))
+- **Rollenfarben als Tokenfamilie** `--tf-rolle-*` für alle fünf Rollen inkl. Jur; die Filterleiste ist die Legende ([rollen-farbe.ts](src/core/status/rollen-farbe.ts), [theme.css](src/theme.css))
+- **„Nach Datum" nennt die Teilvorhaben einzeln** statt „3 Teilvorhaben", und die Kopfzeile trennt Schritte von Datumsangaben ([VerlaufBadges.tsx](src/plugins/antraege/status/VerlaufBadges.tsx), [verlauf-kennzahlen.ts](src/core/status/verlauf-kennzahlen.ts))
+- **Guard `rollen-farbe-eine-quelle`** misst den Kontrast jeder Rollenfarbe nach — fünf der zehn Werte des Entwurfs lagen unter 4,5:1 ([conventions-ui.test.ts](src/__tests__/conventions-ui.test.ts), Doc: [chronik-und-zeitstrahl.md](docs/status-system/chronik-und-zeitstrahl.md))
+
 ### v4.47.0 — Meine/Alle umschaltbar, Kuerzel-Auswahl vollstaendig (August 2026)
 
 MINOR — „Meine Anträge" oder „alle" war bisher kein Zustand, sondern der WERT des Profil-Kürzels: umschalten hieß, die eigene Identität zu überschreiben und danach neu einzutippen. Dazu fand sich die halbe Zielgruppe in der Kürzel-Auswahl gar nicht — inaktive Kürzel waren ausgeblendet (fast jede PL ist als ehemalige Bearbeitung geführt), und die AB-Spalte wurde nie gesammelt.

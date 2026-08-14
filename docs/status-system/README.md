@@ -35,7 +35,10 @@ unerreichbar. Schreib-Profil: [add-sidecar-persistence.md](../agents/add-sidecar
    Seit v2.348 führt er die **505 Codes des Fachsystems** aus der Kürzel-Zuarbeit
    in einem Ordnerbaum (Verbund und Teilvorhaben getrennt), jeweils mit den
    Rollen, die den Eintrag setzen dürfen — Herkunft, Spalten-Konvention und
-   Wirkung: [KATALOG-CODES.md](KATALOG-CODES.md).
+   Wirkung: [KATALOG-CODES.md](KATALOG-CODES.md). Wie die Termine daraus am
+   Verbund gezeigt werden (Matrix Schritt × Teilvorhaben, Chronik nach Datum,
+   Zeitstrahl; Rollenfarben, WER/WO-Filter, Fokus):
+   [chronik-und-zeitstrahl.md](chronik-und-zeitstrahl.md).
 2. **Historie** ([HISTORIE.md](../_archiv/HISTORIE.md)) — append-only `StatusEvent`-Log
    (`status_event`), per idempotentem Post-Import-Reconcile befüllt.
 

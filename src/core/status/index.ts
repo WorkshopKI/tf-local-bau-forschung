@@ -276,6 +276,19 @@ export {
   baueChronik, gruppiereNachMonat, monateDazwischen, teileChronik, traegerLabel,
   type ChronikEintrag, type ChronikMonat,
 } from './chronik';
+export {
+  baueSchrittMatrix, baueSpalten, phasenRinne,
+  type MatrixSpalte, type MatrixZelle, type SchrittZeile,
+} from './chronik-matrix';
+export {
+  verlaufKennzahlen, zellenJeEintrag, type VerlaufKennzahlen,
+} from './verlauf-kennzahlen';
+export {
+  BEREICH_VERBUND, bereicheVon, bereichZaehler, filterePaare, neutralZaehler,
+  rollenSicht, rollenWahlOffen, rollenZaehler, schalteAuswahl, sichtFuerBahn,
+  trifftBereich, type Sicht,
+} from './verlauf-filter';
+export { ROLLE_GEDIMMT, rollenFarbe, type RollenFarbe } from './rollen-farbe';
 // Die Verlaufsableitung hat ein eigenes Barrel (`./verlauf`), wie das Journal.
 // Sie steht bewusst NICHT hier: dieses Barrel speist auch den Pfad, der den
 // GELTENDEN Status bestimmt, und die Rekonstruktion der Vergangenheit darf dort
