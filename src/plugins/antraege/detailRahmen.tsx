@@ -31,7 +31,7 @@ export function Sektionsrahmen({ id, children }: {
   return (
     <div
       id={id}
-      className="mt-4 pt-4 scroll-mt-[80px] border-t-[0.5px] border-[var(--tf-border)] empty:hidden"
+      className="mt-3 pt-3 scroll-mt-[80px] border-t-[0.5px] border-[var(--tf-border)] empty:hidden"
     >
       {children}
     </div>

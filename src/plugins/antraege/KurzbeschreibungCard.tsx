@@ -64,7 +64,9 @@ export function KurzbeschreibungCard({ text, open, onToggle }: Props): React.Rea
         type="button"
         onClick={toggleSektion}
         aria-expanded={sektionOffen}
-        className="mb-1.5 flex items-center gap-1 cursor-pointer"
+        // Die Marge gilt nur zur Karte darunter — zugeklappt hing sie unter einer
+        // einzeiligen Überschrift.
+        className={`flex items-center gap-1 cursor-pointer${sektionOffen ? ' mb-1.5' : ''}`}
       >
         <ChevronRight
           size={13}

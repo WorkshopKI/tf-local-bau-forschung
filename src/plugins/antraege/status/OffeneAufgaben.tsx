@@ -10,9 +10,16 @@
  * TVs eines Verbunds zusammen — richtig für Chronik und Ordner, falsch für die
  * Regeln: die lesen überwiegend TV-Spalten, und ein fertiges TV bekäme das To-do
  * seines Nachbarn. Deshalb `jeTeilvorhaben`.
+ *
+ * Einklappbar mit Default ZU und **gemerktem** Zustand (Vorgabe zentral in
+ * `detailSektionen.ts`). Bis dahin war dies der einzige der drei Unter-Abschnitte,
+ * der aufgeklappt startete und sich nichts merkte: wer ihn zuklappte, fand ihn am
+ * nächsten Antrag wieder offen.
  */
 import { useMemo, useState } from 'react';
 import { ChevronRight } from 'lucide-react';
+import { useCollapsedSection } from '@/core/hooks/useCollapsedSection';
+import { sektionOffenDefault, sektionsKey } from '../detailSektionen';
 import {
   ROLLEN, ROLLE_LABEL, baueTodoKontext, ermittleTodosAlleRollen,
   type FeldVorkommen, type MappingVersion, type Rolle, type TodoErgebnis,
@@ -61,7 +68,10 @@ export function OffeneAufgaben({ version, jeTeilvorhaben, stichtag }: {
   stichtag: string;
 }): React.ReactElement | null {
   const regeln = version.todoRegeln ?? [];
-  const [offen, setOffen] = useState(true);
+  // Hook VOR dem Early Return (Hook-Reihenfolge, React #310).
+  const [offen, toggleOpen] = useCollapsedSection(
+    sektionsKey('offeneAufgaben'), { defaultOpen: sektionOffenDefault('offeneAufgaben') },
+  );
 
   const aufgaben = useMemo<TvAufgaben[]>(() => jeTeilvorhaben.map(tv => ({
     aktenzeichen: tv.aktenzeichen,
@@ -73,10 +83,12 @@ export function OffeneAufgaben({ version, jeTeilvorhaben, stichtag }: {
   const mitTodo = aufgaben.filter(a => ROLLEN.some(r => a.todos[r].todo !== null));
 
   return (
-    <section>
+    // Der Abstand zum Rumpf liegt am Container, nicht am Kopf: als `mb-2` am
+    // Button blieb er auch zugeklappt stehen, wo es keinen Rumpf mehr gab.
+    <section className="flex flex-col gap-2">
       <button
-        type="button" onClick={() => setOffen(v => !v)} aria-expanded={offen}
-        className="flex items-center gap-1.5 cursor-pointer mb-2"
+        type="button" onClick={toggleOpen} aria-expanded={offen}
+        className="flex items-center gap-1.5 cursor-pointer self-start"
       >
         <ChevronRight
           size={14} className="text-[var(--tf-text-tertiary)] transition-transform duration-200 shrink-0"

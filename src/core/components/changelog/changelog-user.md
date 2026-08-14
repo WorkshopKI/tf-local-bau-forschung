@@ -19,6 +19,15 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.46 — 2026-08
+
+### Neu
+- **„Statuseinträge" lässt sich zuklappen** und startet zugeklappt. Die Liste aller gesetzten Einträge war der längste Block der Sektion „Status & Verlauf" — wer die Chronik lesen wollte, scrollte an ihr vorbei. Die Anzahl steht weiterhin in der Kopfzeile, ein Klick holt die Liste zurück.
+- **„Offene Aufgaben" startet ebenfalls zugeklappt** und merkt sich, wie Sie es zuletzt hatten. Bisher stand der Block bei jedem Antrag wieder offen, egal ob Sie ihn zugeklappt hatten.
+
+### Verbesserungen
+- **Die Antrags-Detailseite ist enger gesetzt.** Zugeklappte Abschnitte brauchen jetzt nur noch ihre Kopfzeile — der Leerraum, der früher unter ihnen hing, ist weg. Aufgeklappt zeigt „Status & Verlauf" damit gut dreimal so viel auf einem Bildschirm wie vorher.
+
 ## v4.45 — 2026-08
 
 ### Verbesserungen

@@ -9,11 +9,19 @@
  * Die eigene Rolle (Profil) ist eine **Vorauswahl, keine Sperre**: die Liste
  * startet gefiltert, „Alle" ist ein Klick entfernt. Neutrale Einträge — die das
  * Fachsystem von jedem setzen lässt — bleiben unter jeder Wahl sichtbar.
+ *
+ * Einklappbar mit Default ZU (Vorgabe zentral in `detailSektionen.ts`): die
+ * Ordner-Liste ist der längste Block der Statussektion — an einem Verbund mit
+ * drei Teilvorhaben über 1.100 px. Wer sie ungefragt ausrollte, schob Chronik
+ * und Navigator aus dem Blick. Die Anzahl steht auch zugeklappt im Kopf.
  */
 import { useMemo, useState } from 'react';
+import { ChevronRight } from 'lucide-react';
 import { ToggleChip } from '@/components/ui/ToggleChip';
+import { useCollapsedSection } from '@/core/hooks/useCollapsedSection';
 import { useProfile } from '@/core/hooks/useProfile';
 import { parseGermanDate } from '@/core/services/csv/dateParse';
+import { sektionOffenDefault, sektionsKey } from '../detailSektionen';
 import {
   flacheBaumListe, NICHT_ZUGEORDNET_ID, ROLLEN, ROLLE_LABEL, ROLLE_LANG,
   betrifftRolle, istNeutral, leseStatusRolle, rollenLabel,
@@ -39,6 +47,11 @@ export function StatusCodeListe({ version, vorkommen }: {
 }): React.ReactElement | null {
   const { profile } = useProfile();
   const [rolle, setRolle] = useState<Rolle | 'alle'>(() => leseStatusRolle(profile?.status_rolle));
+  // Hook VOR dem Early Return (Hook-Reihenfolge, React #310) — die Vorgabe steht
+  // zentral in `detailSektionen.ts`, nicht hier.
+  const [offen, toggleOpen] = useCollapsedSection(
+    sektionsKey('statuseintraege'), { defaultOpen: sektionOffenDefault('statuseintraege') },
+  );
 
   const kategorien = version.kategorien ?? [];
 
@@ -64,10 +77,27 @@ export function StatusCodeListe({ version, vorkommen }: {
   return (
     <section className="flex flex-col gap-2">
       <div className="flex items-center gap-2 flex-wrap">
-        <h4 className="text-[13px] font-medium text-[var(--tf-text)]">Statuseinträge</h4>
+        <button
+          type="button"
+          onClick={toggleOpen}
+          aria-expanded={offen}
+          className="flex items-center gap-1.5 cursor-pointer"
+        >
+          <ChevronRight
+            size={14}
+            className="text-[var(--tf-text-tertiary)] transition-transform duration-200 shrink-0"
+            style={{ transform: offen ? 'rotate(90deg)' : 'rotate(0deg)' }}
+          />
+          <h4 className="text-[13px] font-medium text-[var(--tf-text)]">Statuseinträge</h4>
+        </button>
+        {/* Die Anzahl bleibt AUCH zugeklappt stehen — eine eingeklappte Zeile,
+            die nichts aussagt, zwingt zum Aufklappen, nur um zu erfahren, ob es
+            sich lohnt (dieselbe Regel wie an „Nächste Schritte"). */}
         <span className="text-[12px] text-[var(--tf-text-tertiary)]">{sichtbar.length}</span>
         <span className="flex-1" />
-        {(['alle', ...ROLLEN] as const).map(r => (
+        {/* Die Rollen-Chips filtern den Rumpf; zugeklappt steuerten sie nichts
+            Sichtbares und gäben vor, die Kopfzahl daneben zu meinen. */}
+        {offen && (['alle', ...ROLLEN] as const).map(r => (
           <ToggleChip
             key={r}
             label={r === 'alle' ? 'Alle' : ROLLE_LABEL[r]}
@@ -78,6 +108,9 @@ export function StatusCodeListe({ version, vorkommen }: {
         ))}
       </div>
 
+      {/* CSS-`hidden` statt Unmount: die Rollen-Wahl oben ist lokaler Zustand und
+          soll das Zuklappen überleben. */}
+      <div className={offen ? 'flex flex-col gap-2' : 'hidden'}>
       {(['verbund', 'tv'] as const).map(ebene => {
         const ordner = flacheBaumListe(kategorien, ebene)
           .filter(({ kategorie }) => (proOrdner.get(kategorie.id) ?? []).length > 0);
@@ -126,6 +159,7 @@ export function StatusCodeListe({ version, vorkommen }: {
           Für diese Rolle sind keine Statuseinträge gesetzt.
         </p>
       )}
+      </div>
     </section>
   );
 }

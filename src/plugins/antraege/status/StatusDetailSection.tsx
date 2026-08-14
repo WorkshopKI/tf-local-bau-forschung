@@ -74,7 +74,9 @@ export function StatusDetailSection({ verbundId, statusRoh }: {
 
   return (
     <div>
-      <div className="flex items-center gap-3 flex-wrap mb-4">
+      {/* Der Abstand zum Rumpf gilt nur, solange es einen gibt — zugeklappt blieb
+          er als hängende Marge unter einer einzeiligen Kopfzeile stehen. */}
+      <div className={`flex items-center gap-3 flex-wrap${open ? ' mb-3' : ''}`}>
         <button
           type="button"
           onClick={toggleOpen}
@@ -99,7 +101,12 @@ export function StatusDetailSection({ verbundId, statusRoh }: {
         )}
       </div>
 
-      <div className={open ? undefined : 'hidden'}>
+      {/* Der Rumpf trägt den Abstand seiner Blöcke als `gap`, nicht als `mt-5` an
+          Wrapper-`div`s: ein Block, der `null` liefert (`OffeneAufgaben` ohne
+          Regeln, `NaechsteSchritte` ohne Flag), zeichnete sonst seine 20 px
+          trotzdem — dasselbe Muster, das `Sektionsrahmen` mit `empty:hidden` löst.
+          Als `null` ist er gar kein Flex-Item. */}
+      <div className={open ? 'flex flex-col gap-3' : 'hidden'}>
       {/* Zwei Sichten auf DIESELBEN Termine aus den Datumsfeldern: die Chronik
           listet sie, der Zeitstrahl zeichnet sie als Bahn.
           Der Reiter heißt „Zeitstrahl", der gespeicherte Wert dahinter `band` —
@@ -109,7 +116,7 @@ export function StatusDetailSection({ verbundId, statusRoh }: {
           übergegangen. Den Wert mitzubenennen hieße, jede gespeicherte Wahl zu
           migrieren, ohne dass ein Nutzer davon etwas sähe. */}
       {bandAn && (
-        <div className="mb-3 flex flex-wrap items-center gap-1.5">
+        <div className="flex flex-wrap items-center gap-1.5">
           <ToggleChip
             label="Chronik"
             selected={ansicht === 'chronik'}
@@ -138,26 +145,20 @@ export function StatusDetailSection({ verbundId, statusRoh }: {
           Rolle. Steht VOR dem Navigator: „was ist meine Aufgabe" kommt vor
           „welches Kürzel setze ich dafür". */}
       {isVorgangssystemEnabled() && (
-        <div className="mt-5">
-          <OffeneAufgaben
-            version={version} jeTeilvorhaben={v.jeTeilvorhaben} stichtag={stichtag}
-          />
-        </div>
+        <OffeneAufgaben
+          version={version} jeTeilvorhaben={v.jeTeilvorhaben} stichtag={stichtag}
+        />
       )}
 
       {/* Der Navigator: was ist als Nächstes zu setzen, von wem, was löst es aus.
           Aus der Trigger-Tabelle des Fachsystems — nicht abgeleitet. */}
-      <div className="mt-5">
-        <NaechsteSchritte
-          version={version} vorkommen={v.vorkommen} statusRoh={statusRoh} programm={v.programm}
-        />
-      </div>
+      <NaechsteSchritte
+        version={version} vorkommen={v.vorkommen} statusRoh={statusRoh} programm={v.programm}
+      />
 
       {/* Die Ordner des Fachsystems: was steht wo. Die Timeline oben beantwortet
           „wann", diese Liste „in welchem Ordner". */}
-      <div className="mt-5">
-        <StatusCodeListe version={version} vorkommen={v.vorkommen} />
-      </div>
+      <StatusCodeListe version={version} vorkommen={v.vorkommen} />
       </div>
     </div>
   );

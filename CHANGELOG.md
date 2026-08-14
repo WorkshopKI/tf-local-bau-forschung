@@ -5,6 +5,18 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.46.0 — Statuseintraege einklappbar, Detailseite vertikal verdichtet (August 2026)
+
+MINOR — „Statuseinträge" war der einzige Block der Statussektion ohne Klapp-Zustand und rollte ungefragt aus: gemessen 1.383 px für „Status & Verlauf", davon über zwei Drittel Ordner-Liste. Dazu trugen mehrere Klapp-Köpfe ihren Bodenabstand am Button statt am Rumpf — die Marge blieb stehen, wenn der Rumpf verschwand.
+
+- **„Statuseinträge" ist einklappbar, Default zu** — Kopfzeile behält die Anzahl, die Rollen-Chips erscheinen mit dem Inhalt, den sie filtern ([StatusCodeListe.tsx](src/plugins/antraege/status/StatusCodeListe.tsx))
+- **„Offene Aufgaben" zieht mit**: startet zu und merkt sich den Zustand wie seine zwei Nachbarn ([OffeneAufgaben.tsx](src/plugins/antraege/status/OffeneAufgaben.tsx), zwei neue Einträge in [detailSektionen.ts](src/plugins/antraege/detailSektionen.ts))
+- **Eingeklappt kostet nur noch die Kopfzeile** — die hängenden Margen von Statussektion, Aufgaben und Kurzbeschreibung gelten jetzt nur bei offenem Rumpf
+- **Der Rumpf der Statussektion trägt `gap` statt `mt-5`-Wrapper**: ein Block, der `null` liefert, zeichnete bisher trotzdem seine 20 px ([StatusDetailSection.tsx](src/plugins/antraege/status/StatusDetailSection.tsx))
+- **Trenn-Abstände enger**: Sektionsrahmen 32 → 24 px, Daten-Sektionskopf 40 → 36 px ([detailRahmen.tsx](src/plugins/antraege/detailRahmen.tsx), [CollapsibleDataSection.tsx](src/plugins/antraege/CollapsibleDataSection.tsx))
+
+Gemessen am echten Bestand (1400 px, ein Verbund mit 25 Statuseinträgen): „Status & Verlauf" aufgeklappt **1.383 → 400 px**, Detailseite zugeklappt 835 → 791 px.
+
 ### v4.45.0 — Kuerzel-Wortlaut folgt der Kuration in der ganzen App (August 2026)
 
 MINOR — Chronik und Zeitstrahl liegen in derselben Sektion und zeigten für dasselbe Kürzel verschiedene Texte: die Chronik den kuratierten Wortlaut der Fassung, die Spur die einkompilierten Fremddaten. Auf dem echten Bestand betraf das 111 von 505 Kürzeln.

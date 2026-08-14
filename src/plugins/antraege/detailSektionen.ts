@@ -20,7 +20,9 @@
 export type DetailSektionId =
   | 'kurzbeschreibung'
   | 'status'
+  | 'offeneAufgaben'
   | 'naechsteSchritte'
+  | 'statuseintraege'
   | 'meilensteine'
   | 'gutachten'
   | 'kurzfassung'
@@ -51,11 +53,17 @@ interface Eintrag {
 export const DETAIL_SEKTIONEN: Record<DetailSektionId, Eintrag> = {
   kurzbeschreibung: { key: 'verbund_kurzbeschreibung_collapsed_v2', offen: 'wennGefuellt' },
   status: { key: 'verbund_status_collapsed_v2', offen: false },
-  // Liegt INNERHALB von `status` — der einzige Eintrag, der eine Sektion in
-  // einer Sektion beschreibt. Eigener Schlüssel, weil der Navigator mit bis zu
-  // 18 Kandidaten à 4–6 Wirkungszeilen den Rest der aufgeklappten Statussektion
-  // (Chronik, Statuseinträge) nach unten aus dem Blick schiebt.
+  // Die nächsten drei liegen INNERHALB von `status` — die einzigen Einträge, die
+  // eine Sektion in einer Sektion beschreiben. Je ein eigener Schlüssel, weil
+  // jeder der drei Blöcke für sich genommen den Rest der aufgeklappten
+  // Statussektion nach unten aus dem Blick schiebt: die Aufgaben mit einer
+  // Rollenzeile je Teilvorhaben, der Navigator mit bis zu 18 Kandidaten à 4–6
+  // Wirkungszeilen, die Ordner-Liste mit allen gesetzten Einträgen beider Ebenen
+  // (gemessen: über 1.100 px an einem Verbund mit drei Teilvorhaben). Wer die
+  // Chronik lesen will, soll an keinem davon vorbeiscrollen müssen.
+  offeneAufgaben: { key: 'verbund_offeneaufgaben_collapsed_v2', offen: false },
   naechsteSchritte: { key: 'verbund_naechsteschritte_collapsed_v2', offen: false },
+  statuseintraege: { key: 'verbund_statuseintraege_collapsed_v2', offen: false },
   meilensteine: { key: 'verbund_meilensteine_collapsed_v2', offen: false },
   gutachten: { key: 'verbund_gutachten_collapsed_v2', offen: false },
   // Belegt denselben Platz wie `gutachten` (Kurzfassung statt Workflow A–G) —
