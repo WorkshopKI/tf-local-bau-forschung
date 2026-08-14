@@ -3,6 +3,7 @@
 // externe Render-Lib. Zeichen-Logik im Hook useAnnotationCanvas.
 
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { ArrowUpRight, Check, Square, Type, Undo2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
@@ -60,7 +61,10 @@ export function FeedbackAnnotator({ attachment, onCancel, onConfirm }: Props): R
     });
   });
 
-  return (
+  // Portal an den Body: gerendert wird das Modal aus dem Feedback-Panel heraus,
+  // und das trägt einen `backdrop-filter` — der macht es zum Bezugsrahmen für
+  // `position: fixed`. Ohne Portal saß die „Vollfläche" in 420×624 px fest.
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" role="dialog" aria-label="Screenshot annotieren" // allow-raw-modal: Annotier-Canvas-Vollfläche, eigene Interaktionsmechanik
     >
       <div
@@ -194,6 +198,7 @@ export function FeedbackAnnotator({ attachment, onCancel, onConfirm }: Props): R
           <Button type="button" onClick={() => confirm.run()} disabled={!bitmap} loading={confirm.busy} variant="primary" icon={Check}>Übernehmen</Button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

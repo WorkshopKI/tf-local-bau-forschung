@@ -8,10 +8,10 @@
 // Feedback-Board Card/Liste (`compact` = kleinere Thumbnails ohne Überschrift).
 
 import { useEffect, useState } from 'react';
-import { X } from 'lucide-react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { readSharedAttachment } from '@/core/services/feedback';
 import type { FeedbackAttachment } from '@/core/types/feedback';
+import { FeedbackBildLightbox } from './FeedbackBildLightbox';
 
 interface Props {
   attachments: FeedbackAttachment[];
@@ -102,16 +102,11 @@ export function FeedbackScreenshots({ attachments, compact = false, variant }: P
       </div>
 
       {lightbox && urls[lightbox.id] && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={() => setLightbox(null)} role="dialog" aria-label="Screenshot-Vollansicht" // allow-raw-modal: Lightbox, eigene Interaktionsmechanik
-        >
-          <button type="button" onClick={() => setLightbox(null)} className="absolute top-4 right-4 p-1.5 rounded-full bg-[var(--tf-bg)] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] cursor-pointer" style={{ border: '0.5px solid var(--tf-border)' }} aria-label="Schließen">
-            <X size={16} />
-          </button>
-          <div className="flex flex-col items-center gap-2 max-w-[92vw] max-h-[92vh]" onClick={e => e.stopPropagation()}>
-            <img src={urls[lightbox.id]} alt={lightbox.caption || 'Screenshot'} className="max-w-full max-h-[82vh] object-contain rounded-[var(--tf-radius)]" />
-            {lightbox.caption && <p className="text-[12px] text-white/90">{lightbox.caption}</p>}
-          </div>
-        </div>
+        <FeedbackBildLightbox
+          src={urls[lightbox.id]!}
+          caption={lightbox.caption}
+          onClose={() => setLightbox(null)}
+        />
       )}
     </div>
   );

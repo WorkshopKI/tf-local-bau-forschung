@@ -412,3 +412,18 @@ Der Schalter wäre hier die falsche Antwort gewesen — und zwar gefährlich: di
 **Prüffrage beim Review:** Ruft ein `useEffect` eine Funktion auf, deren Name „toggle/umschalten/wechseln" heißt? Dann: Was passiert, wenn dieser Effekt zweimal läuft?
 
 **Kanonische Dateien:** [useCollapsedSection.ts](../../src/core/hooks/useCollapsedSection.ts) (`setzeOffen`), [settings-layout.tsx](../../src/components/settings/settings-layout.tsx) (`SettingsKlappe`), [main.tsx](../../src/main.tsx) (`StrictMode`).
+
+## 22. `filter`/`backdrop-filter`/`transform` am Wirt — `position: fixed` hört auf, das Fenster zu meinen
+
+**Symptom:** Ein Overlay, das die ganze Seite abdecken soll (`fixed inset-0`), sitzt plötzlich im Kasten seines Vorfahren fest. Gemessen an der Feedback-Erfassung (v4.39.1): der Annotier-Modal maß **418 × 622 px** statt 1280 × 720 — exakt die Panel-Größe. Ausgelöst hat es eine Änderung, die mit Overlays nichts zu tun hatte: das Panel bekam `backdrop-filter: blur(8px)`, damit man die App durchscheinen sieht.
+
+**Root-Cause:** `filter`, `backdrop-filter`, `transform`, `perspective`, `contain` und `will-change` machen ein Element zum **Bezugsrahmen für `position: fixed`-Nachfahren** (dieselbe Regel, die `transform` schon lange für Popover-Wirte hat). Der Nachfahre bleibt `fixed` — er meint nur nicht mehr das Fenster. Nichts wirft, nichts loggt: das Overlay ist da, nur klein. **Und der Auslöser steht in einer anderen Datei als das Symptom**, oft in einem Patch, der rein optisch gemeint war.
+
+**Fix-Pattern:**
+- **Vollflächen-Overlays per `createPortal(…, document.body)` rendern**, statt den Wirt zu entschärfen. Der Weichzeichner soll ja bleiben.
+- **`Escape` in der Einfang-Phase abfangen** (`addEventListener('keydown', …, true)` + `stopImmediatePropagation`), wenn der Wirt selbst einen ESC-Handler am `window` hat — sonst schließt der Wirt mit.
+- **Wer einem Container `filter`/`backdrop-filter`/`transform` gibt, sucht im Teilbaum nach `fixed`.** Ein Grep, kein Gefühl.
+
+**Prüffrage beim Review:** Liegt zwischen dem neuen `fixed`-Overlay und `<body>` ein Element mit `transform`, `filter`, `backdrop-filter` oder `will-change`? Und umgekehrt: fügt dieser Patch eine dieser Eigenschaften **hinzu**?
+
+**Kanonische Dateien:** [FeedbackBildLightbox.tsx](../../src/components/feedback/FeedbackBildLightbox.tsx) (Portal + ESC-Einfang), [FeedbackAnnotator.tsx](../../src/components/feedback/FeedbackAnnotator.tsx), [FeedbackPanel.tsx](../../src/components/feedback/FeedbackPanel.tsx) (`PANEL_DECKKRAFT`).

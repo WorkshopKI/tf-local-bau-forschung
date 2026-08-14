@@ -4,8 +4,9 @@
 //
 // v4.36 — kompakter Haushalt: Bereichsauswahl + App-Kontext-ⓘ sitzen in der
 // Kopfzeile des Formulars (statt als zwei eigene Zeilen unten), das Titel-Feld
-// trägt seine Beschriftung im Platzhalter und ist mit der erkannten Seite
-// vorbelegt, und der Erklärtext zum Verbessern hängt als ⓘ am Knopf.
+// trägt seine Beschriftung im Platzhalter, und der Erklärtext zum Verbessern
+// hängt als ⓘ am Knopf. Die erkannte Seite steht als feste Beschriftung im
+// Titel-Rahmen (v4.39.1) — im Wert hätte sie den Platzhalter verdeckt.
 
 import { useEffect, useRef, useState } from 'react';
 import * as Icons from 'lucide-react';
@@ -77,14 +78,16 @@ function getIcon(name: string): IconComponent {
 export function FeedbackInputStep(props: Props): React.ReactElement {
   const { areaRef, setAreaRef, context, submitting, kiVerfuegbar, onSubmit, onShowMyFeedback, autoFocusScreenshot, vorbelegung, aufnahme, onAufnahme } = props;
   // Der Titel beginnt mit der erkannten Seite („Home: "), damit im Board auf
-  // einen Blick steht, worum es geht — ohne dass jemand sie abtippt. Bleibt es
-  // beim Präfix, gilt der Titel als leer (siehe doSubmit).
+  // einen Blick steht, worum es geht — ohne dass jemand sie abtippt. Das Präfix
+  // steht FEST vor dem Feld (v4.39.1): stand es im Wert, verdeckte es den
+  // Platzhalter, und niemand sah mehr, dass dort noch etwas hingehört.
   const titelPraefix = `${context.page}: `;
   const [selectedType, setSelectedType] = useState<FeedbackTypeDef | null>(
     () => FEEDBACK_TYPES.find(t => t.category === vorbelegung?.kategorie) ?? null,
   );
   const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
-  const [title, setTitle] = useState(vorbelegung?.titel ?? titelPraefix);
+  // Nur der vom Nutzer geschriebene Teil — ohne das Präfix (siehe doSubmit).
+  const [titelRest, setTitelRest] = useState(vorbelegung?.titel ?? '');
   // Screenshots + Dateien sind typ-unabhängig → überleben einen Typ-Wechsel (kein Reset in changeType).
   const [attachments, setAttachments] = useState<PendingAttachment[]>([]);
   const [fileAttachments, setFileAttachments] = useState<PendingAttachment[]>([]);
@@ -103,17 +106,19 @@ export function FeedbackInputStep(props: Props): React.ReactElement {
     warAufnahme.current = aufnahme;
   }, [aufnahme]);
 
+  // Der Typ-Wechsel verwirft NICHTS (v4.39.1): wer schon getippt hat und nur
+  // nachsieht, ob ein anderer Typ besser passt, kam bis dahin mit leeren Boxen
+  // zurück — während der Screenshot dranblieb, was den Verlust erst recht wie
+  // einen Fehler aussehen ließ. Die Werte hängen am Feld-Key; nur die Felder des
+  // gewählten Typs werden gerendert und gesendet, Fremdes bleibt liegen.
   const chooseType = (type: FeedbackTypeDef): void => {
     setSelectedType(type);
-    setFieldValues({});
-    setTitle(titelPraefix);
     requestAnimationFrame(() => firstFieldRef.current?.focus());
   };
 
   const changeType = (): void => {
     setSelectedType(null);
-    setFieldValues({});
-    setTitle(titelPraefix);
+    setNudge(null);
   };
 
   const setField = (key: string, value: string): void => {
@@ -175,12 +180,12 @@ export function FeedbackInputStep(props: Props): React.ReactElement {
             .map(f => [f.key, (fieldValues[f.key] ?? '').trim()] as const)
             .filter(([, v]) => v.length > 0),
         );
-    // Nur das Seiten-Präfix = der Nutzer hat nichts geschrieben → kein Titel,
-    // `feedbackTitle()` leitet ihn wie bisher aus der Hauptantwort ab.
-    const titelWert = title.trim();
+    // Nichts geschrieben = kein Titel; `feedbackTitle()` leitet ihn wie bisher
+    // aus der Hauptantwort ab, statt 40 Tickets „Home:" zu nennen.
+    const rest = titelRest.trim();
     onSubmit({
       category: selectedType.category,
-      title: titelWert && titelWert !== titelPraefix.trim() ? titelWert : undefined,
+      title: rest ? `${titelPraefix}${rest}` : undefined,
       structured: structured && Object.keys(structured).length > 0 ? structured : undefined,
       text: composeFeedbackText(selectedType, fieldValues),
       llmHint: selectedType.llmHint,
@@ -223,15 +228,24 @@ export function FeedbackInputStep(props: Props): React.ReactElement {
         {selectedType.label}
       </div>
 
-      <input
-        value={title}
-        onChange={e => setTitle(e.target.value)}
-        aria-label="Titel (optional)"
-        placeholder="Titel — kurz &amp; knackig, sonst aus der Antwort abgeleitet"
-        maxLength={90}
-        className="w-full px-2.5 py-1.5 text-[12.5px] bg-transparent text-[var(--tf-text)] rounded-[var(--tf-radius)] outline-none placeholder:text-[var(--tf-text-tertiary)] focus:border-[var(--tf-primary)]"
+      {/* Seiten-Präfix als feste Beschriftung IM Feldrahmen: stünde es im Wert,
+          bliebe der Platzhalter unsichtbar — und mit ihm der Hinweis, dass hier
+          noch ein Titel hingehört. Das umschließende <label> macht auch das
+          Präfix zur Klickfläche fürs Feld. */}
+      <label
+        className="flex items-center w-full pl-2.5 pr-1 rounded-[var(--tf-radius)] cursor-text"
         style={{ border: '0.5px solid var(--tf-border)' }}
-      />
+      >
+        <span className="shrink-0 text-[12.5px] text-[var(--tf-text-secondary)] select-none">{titelPraefix}</span>
+        <input
+          value={titelRest}
+          onChange={e => setTitelRest(e.target.value)}
+          aria-label="Titel (optional)"
+          placeholder="kurz, worum es geht (optional)"
+          maxLength={90}
+          className="flex-1 min-w-0 py-1.5 pr-1.5 text-[12.5px] bg-transparent text-[var(--tf-text)] outline-none border-none placeholder:text-[var(--tf-text-tertiary)]"
+        />
+      </label>
 
       {felder.map((field, idx) => (
         <div key={field.key} className="flex flex-col gap-0.5">

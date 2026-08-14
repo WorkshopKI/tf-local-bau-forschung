@@ -53,6 +53,8 @@ const PANEL_MIN_WIDTH = 360;
 const PANEL_MAX_WIDTH = 900;
 /** Breite der zusammengeklappten Leiste während der Screenshot-Aufnahme. */
 const PANEL_AUFNAHME_WIDTH = 320;
+/** Deckkraft des Panel-Hintergrunds (v4.39.1) — der Rest lässt die App durch. */
+const PANEL_DECKKRAFT = '88%';
 
 function loadPanelWidth(): number {
   try {
@@ -216,11 +218,17 @@ export function FeedbackPanel({ open, onClose, focusScreenshot, vorbelegung }: P
 
   return (
     <div
-      className="fixed bottom-20 right-4 z-40 max-w-[calc(100vw-2rem)] rounded-[12px] bg-[var(--tf-bg)] shadow-2xl flex flex-col overflow-hidden"
+      className="fixed bottom-20 right-4 z-40 max-w-[calc(100vw-2rem)] rounded-[12px] shadow-2xl flex flex-col overflow-hidden"
       style={{
         width: aufnahme ? PANEL_AUFNAHME_WIDTH : panelWidth,
         border: '0.5px solid var(--tf-border)',
         maxHeight: 'calc(100vh - 6rem)',
+        // Leicht durchscheinend, damit man sieht, worüber das Fenster liegt. Der
+        // Weichzeichner ist kein Effekt, sondern die Bedingung dafür: ohne ihn
+        // stünde der scharfe Text darunter als Geisterbild im Formular.
+        background: `color-mix(in srgb, var(--tf-bg) ${PANEL_DECKKRAFT}, transparent)`,
+        backdropFilter: 'blur(8px)',
+        WebkitBackdropFilter: 'blur(8px)',
       }}
       role="dialog"
       aria-label="Feedback"
@@ -250,7 +258,10 @@ export function FeedbackPanel({ open, onClose, focusScreenshot, vorbelegung }: P
               <ArrowLeft size={14} />
             </button>
           )}
-          <span className="text-[13px] font-medium text-[var(--tf-text)]">
+          {/* Panel-Titel auf der Größe des geteilten Dialog-Kopfes (15px) — er
+              stand auf 13px und damit fast gleichauf mit dem Formularinhalt
+              (12.5px), also trug die Hierarchie niemand. */}
+          <span className="text-[15px] font-medium text-[var(--tf-text)]">
             {aufnahme ? 'Screenshot aufnehmen' : view === 'my-feedback' ? 'Mein Feedback' : 'Feedback'}
           </span>
         </div>

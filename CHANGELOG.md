@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.39.1 — Feedback-Erfassung: Aufnahme zuerst, Bild gross, Panel durchscheinend (August 2026)
+
+PATCH — Nachlese zu v4.37 aus dem Testbetrieb: die Aufnahme stand hinter der Einfüge-Fläche, das Präfix im Titelfeld verdeckte den Platzhalter, und der Typ-Wechsel warf den getippten Text weg (der Screenshot blieb — was den Verlust wie einen Fehler aussehen ließ).
+
+- **Aufnahme zuerst, prominenter, mit Mehrfach-Hinweis** ([FeedbackScreenshotInput.tsx](src/components/feedback/FeedbackScreenshotInput.tsx)): ab dem ersten Bild heißt der Knopf „Weiteren Bereich aufnehmen"
+- **Miniaturbild öffnet die Vollansicht** — eine Lightbox für Erfassung UND Ticket-Screenshots ([FeedbackBildLightbox.tsx](src/components/feedback/FeedbackBildLightbox.tsx))
+- **Typ-Wechsel verwirft nichts mehr**, Seiten-Präfix steht fest im Titel-Rahmen statt im Wert ([FeedbackInputStep.tsx](src/components/feedback/FeedbackInputStep.tsx))
+- **Panel zu 88 % deckend + Weichzeichner**, Titel auf 15 px ([FeedbackPanel.tsx](src/components/feedback/FeedbackPanel.tsx))
+- **Annotator und Lightbox per Portal an den Body** — `backdrop-filter` macht den Wirt zum Bezugsrahmen für `fixed` (neue [Bug-Klasse 22](docs/architecture/recurring-bug-classes.md))
+
 ### v4.39.0 — Werkbank-Gruppe, ein Sperr-Hinweis, gleicher Rahmen (August 2026)
 
 MINOR — Abschluss des Kuration-Umbaus: der Rand um den Hub. Die Entwickler-Panels standen unter „Kuration", obwohl sie weder kuratorpflichtig sind noch etwas kuratieren; die verbliebene eigenständige Seite trug einen anderen Rahmen als der Hub daneben.
@@ -471,160 +481,4 @@ MINOR — Gewünscht: als FB auf einen Blick sehen, welche Kürzel meine sind, w
 - **Fehlende Gegenstücke** als Zeile unter dem gesetzten Termin („Gutachten kaufmännisch fertig · fehlt seit 159 T"), **je Teilvorhaben** gerechnet und nicht als Termin gezählt — [waechter.ts](src/core/status/waechter.ts)
 - Reiter **„Zeitstrahl"** (Ereignis-Protokoll, blieb leer) entfallen, das **Band** erbt den Namen; der gespeicherte Wert bleibt `band`, ein alter `zeitstrahl` fällt auf die Chronik zurück — [timelinePrefs.ts](src/plugins/antraege/status/timelinePrefs.ts)
 - **Fristen-Band der Detailseite** entfernt — es stand vor dem Aufklapp-Rumpf und war die einzige nicht schließbare Fläche; mit ihm `StatusTimeline`, `baueLanes`/`clustere`, `aufzeichnungsGrenze` und `fristen-band/`
-
-### v3.47.0 — Encoding-Drift heilt sich, fehlende Spalten sind uebergehbar (August 2026)
-
-MINOR — Gewünscht war ein Schalter, um blockierende Spalten-Drift zu übergehen. Beim Nachsehen war die Drift auf allen drei Quellen der lokalen Kopie **dieselbe Spalte zweimal**: der Export wechselte auf UTF-8, `Nachrücker` las sich als `NachrÃ¼cker`. „Trotzdem importieren" hätte dort jeden Umlaut im Bestand verstümmelt. Also beides — Heilung zuerst, Ausweg danach. Detail: [csv-auto-refresh.md](docs/architecture/csv-auto-refresh.md).
-
-- **Encoding-Drift heilt sich**: bei Drift wird einmal ohne erzwungenes Encoding gelesen; übernommen wird nur, wenn danach **keine** Schema-Spalte mehr fehlt (`encodingHeilungTraegt`) — [csv-drift-check.ts](src/plugins/csv-sources-kuration/services/csv-drift-check.ts)
-- Das erkannte Encoding geht **vor** dem Import ins Schema (`csv_schema_encoding_korrigiert`), damit `importCsvSource` es selbst aufgreift — der Re-Import-Dialog konnte das seit je, der automatische Weg nicht
-- Eine reine **Schema-Änderung publiziert jetzt** (Encoding/adoptierte Spalte): vorher wuchs `programmeToPublish` nur bei Zeilen-Deltas, ein Kodierungs-Wechsel ist aber inhaltlich identisch — die Korrektur blieb lokal, der Snapshot trug die alte Kopie weiter, jeder andere Rechner heilte erneut
-- **„Trotzdem importieren"** pro Quelle im Drift-Bericht (`driftAkzeptiertFuer`): einmalig, nie gespeichert, protokolliert als `csv_auto_refresh_drift_akzeptiert` — [auto-refresh.ts](src/plugins/csv-sources-kuration/services/auto-refresh.ts)
-- Der Bericht zeigt dafür die **Spaltennamen** statt nur Zähler und benennt die Folge (Felder werden geleert, soweit keine andere Quelle sie trägt) — [CsvAutoRefreshDriftDialog.tsx](src/plugins/csv-sources-kuration/components/CsvAutoRefreshDriftDialog.tsx)
-- „Erzwungen geprüft — keine Änderungen gefunden" verschweigt keine übersprungenen Quellen mehr — [CsvFreshnessIndicator.tsx](src/components/ui/CsvFreshnessIndicator.tsx)
-
-### v3.46.1 — Ein Lock je Aktualisierungslauf — kein Abbruch am eigenen Nachhall (August 2026)
-
-PATCH — Gemeldet (nur Citrix, tagelang unauffällig): zwei neue CSV-Quellen, erste importiert, dann brach der Lauf ab und das Banner meldete **„THü (PL) aktualisiert gerade"** — der Nutzer war allein in der App. Der Lock wurde pro Quelle genommen; im Freigabe-Fenster dazwischen legte ein noch laufender Heartbeat-Schlag die gelöschte Lock-Datei neu an. Beweis im Audit-Log: zweimal ein `build_lock_force` gegen den **eigenen** Namen, eine Sekunde nach dem eigenen Release. Detail: [recurring-bug-classes §19](docs/architecture/recurring-bug-classes.md) + Pitfall #52.
-
-- **Ein Lock je Lauf** statt je Quelle: gehalten über alle Quellen **plus** Snapshot-Write (`lockHeldByCaller`) — aus N Freigabe-Fenstern wird eines ([auto-refresh.ts](src/plugins/csv-sources-kuration/services/auto-refresh.ts))
-- `startHeartbeat(idb).stop()` **wartet den laufenden Schlag ab**; `heartbeat` prüft sein Stopp-Flag direkt vor dem Write und hält keinen fremden Lock frisch ([build-lock.ts](src/core/services/infrastructure/build-lock.ts))
-- Der Lock trägt eine Tab-Kennung (`owner_id`, nicht persistiert): ein eigenes Überbleibsel wird übernommen, ein fremder Lock nie — Alt-Locks verhalten sich unverändert
-- Freigabe wird **verifiziert** statt behauptet: nachlesen, einmal nachfassen, sonst `build_lock_release_failed` — der Erfolgs-Eintrag log bisher auch bei fehlgeschlagenem Löschen
-- Banner nennt nicht mehr den eigenen Namen als Fremd-Blockierer (`fremd` / `gleicher-name` / `eigener-tab`, [lockKonfliktText.ts](src/plugins/csv-sources-kuration/components/lockKonfliktText.ts)); Abbruch durch echten Fremd-Lock passiert jetzt **vor** dem ersten Import, hinterlässt also keine gemergten-aber-unpublizierten Quellen
-
-### v3.46.0 — Chronik zweispaltig, Schalter nur mit Inhalt (August 2026)
-
-MINOR — Gemeldet: der Schalter „Nebensächliches" zeigt keine Wirkung — er ist **gegenstandslos**, keine der 15 nebensächlichen Kommunikations-Spalten existiert in einem der acht Import-CSVs. Dazu die gewünschte Verdichtung: der Verlauf soll auf einen Blick dastehen. Detail: [vorgangssystem.md §16.10](docs/architecture/vorgangssystem.md). Code bereits in `ba77c447`.
-
-- Monat links in einer eigenen Spalte, ein Termin auf **einer** Zeile (Begleittext gekürzt, voller Wortlaut im `title`) — [StatusChronik.tsx](src/plugins/antraege/status/StatusChronik.tsx)
-- Der Chip erscheint nur, wenn der Vorgang nebensächliche Termine hat, und trägt ihre Anzahl; `teileChronik` trennt die fertige Chronik statt sie zweimal zu bauen — [chronik.ts](src/core/status/chronik.ts)
-- Zähler nennt die Spanne; ab **zwei** übersprungenen Monaten steht „N Monate ohne Termin" in der Monatsspalte (`monateDazwischen`)
-- Zeilenhöhe in **px** statt als Faktor: ein Faktor rechnet gegen die geerbte Schriftgröße — gemessen 20 px im Ausklapp gegen 24 px auf der Detailseite
-- Gemessen (13 090 Vorgänge: Median 22 Termine in 6 Monaten): `16EP250140` (28/8) 1 003 → **659 px**, ein Median-Fall **460 px**
-
-### v3.45.0 — Ein Board-Primitiv statt dreier Nachbauten (August 2026)
-
-MINOR — Das Kanban-Lane-Layout stand dreimal da: als geteilte Shell (v2.228 aus dem Feedback-Kanban extrahiert) und, seit dem Handoff v3.17, ein zweites Mal als CSS im Feedback-Board. Belegte Folge: der **1|2-Spalten-Schalter des Boards war wirkungslos** — im Popover wählbar, persistiert, durchgereicht, im Nachbau nie gelesen. Detail: [board-komponente.md](docs/architecture/board-komponente.md).
-
-- Neues Primitiv `TfBoard` trägt alle drei Kanbans (Feedback-Board + beide Home-Widgets); `KanbanBoard.tsx` entfällt ([src/components/kanban/](src/components/kanban/TfBoard.tsx))
-- **Der 1|2-Spalten-Schalter wirkt jetzt**: eine zweispaltige Bahn wird doppelt so breit und stellt ihre Karten nebeneinander ([tf-board.css](src/components/kanban/tf-board.css))
-- Karten-Ziehen läuft über eine opake Naht (`zieh`), damit ein späterer Bibliotheks-Einzug keinen Aufrufer anfasst — heute weiter natives HTML5 ([TfBoard.tsx](src/components/kanban/TfBoard.tsx))
-- Zwei Guards halten die Wiederholung fern: `no-parallel-board-geometry` + `no-parallel-board-dnd` ([codebase-conventions.test.ts](src/__tests__/codebase-conventions.test.ts))
-- Gemessen und angeglichen: Kopf-Lücke 4 px (bei „Wartet auf Antragsteller" in 170 px fehlten der Bezeichnung genau 4), Zähler rechtsbündig (vorher 148 px Leerraum dahinter), Schiene einheitlich 44 px
-
-### v3.44.1 — Vorgangsverlauf: Chronik ungekuerzt, Nachschlage-Bloecke zu (August 2026)
-
-PATCH — Der Höhendeckel aus v3.44.0 saß an der falschen Stelle: der Reiter wird **wegen** des Verlaufs geöffnet, und ein Kasten, der zehn von 28 Terminen zeigt, liest sich als der ganze Verlauf. Die Länge fangen jetzt die Blöcke darunter ab. Detail: [vorgangssystem.md §16.9](docs/architecture/vorgangssystem.md).
-
-- Chronik ohne Höhendeckel und ohne eigenen Scrollbereich, im Ausklapp wie auf der Detailseite — die Prop `maxHoehe` entfällt ersatzlos ([StatusChronik.tsx](src/plugins/antraege/status/StatusChronik.tsx))
-- „Ohne Termin im Export" und „Wie die Bearbeitungsfrist zustande kommt" starten **zugeklappt**; die erste trägt ihre Anzahl in der Überschrift ([VorgangsverlaufReiter.tsx](src/plugins/antraege/ausklapp/vorgangsverlauf/VorgangsverlaufReiter.tsx))
-- Auch die beiden Klapp-Zustände werden nicht persistiert — lokaler `useState` wie der Schalter „Nebensächliches", der Ausklapp merkt sich weiterhin nichts
-- Gemessen: `16EP260076` (15 Termine) 1 184 → **989 px** trotz jetzt vollständiger Chronik; `16EP250140` (28 Termine) 1 525 px, davon 1 003 px Chronik
-
-### v3.44.0 — Vorgangsverlauf zeigt die Chronik (August 2026)
-
-MINOR — Der Reiter hieß wie das C16-Fenster und zeigte die **Fristrechnung** — darin genau zwei Feldkürzel (`D_AAE`, `D_XTE`). Wer ihn wegen seines Namens öffnete, fand keinen Verlauf; die Chronik gab es nur auf der Verbund-Detailseite. Detail: [vorgangssystem.md §16.9](docs/architecture/vorgangssystem.md).
-
-- Drei Blöcke statt einem: Chronik · Ohne Termin im Export · Fristrechnung — [VorgangsverlaufReiter.tsx](src/plugins/antraege/ausklapp/vorgangsverlauf/VorgangsverlaufReiter.tsx)
-- Die Chronik ist die **wiederverwendete** [StatusChronik.tsx](src/plugins/antraege/status/StatusChronik.tsx) der Detailseite, kein zweiter Renderer; neu ist nur ihr optionaler Höhendeckel
-- Codes, die der Export nur als Wert führt (`T_ABK`, `T_AMA`, …), stehen als eigener Block — Begleitnotizen zu Datumsfeldern (`T_AAI`) ausdrücklich nicht — [ohneDatum.ts](src/plugins/antraege/ausklapp/vorgangsverlauf/ohneDatum.ts)
-- Gemessen: Median 22 Termine je Vorgang (p90 31, max 47) → Liste im Ausklapp auf 320 px gedeckelt, Zähler bleibt stehen; Detailseite unverändert ungedeckelt
-- Gegen C16 gemessen: von 25 Protokollzeilen liefert der Export 15 datiert, 6 nur als Wert, 4 gar nicht (`AA`, `XARF`, `ID` zweimal) — eine Frage an die Export-Definition, kein Code-Fehler
-
-### v3.43.2 — Stillstands-Waechter: Zeile und Board sagen wieder dasselbe (August 2026)
-
-PATCH — Gemeldet als Nebenbefund: das Board sagt für `16EP250140` „hängt ≥23 T", der Fristen-Reiter derselben Zeile „läuft". Ursache war kein zweiter Evaluator, sondern eine vertauschte Eingabe — der Ausklappbereich reichte den **Nullpunkt** des Journals als **letzte Änderung** durch (seit v3.31). Detail: [vorgangssystem.md §12.2](docs/architecture/vorgangssystem.md).
-
-- `ZeilenVerlauf.journalAenderung` neu: die belegte letzte Änderung DIESER Zeile, `null` wo die Chronik sie nicht deckt — [useZeilenVerlauf.ts](src/plugins/antraege/ausklapp/useZeilenVerlauf.ts)
-- Die drei Aufrufer lesen sie statt `journalAb` — [ZeilenBereich.tsx](src/plugins/antraege/ausklapp/ZeilenBereich.tsx), [VerbundFristenBand.tsx](src/plugins/antraege/fristen-band/VerbundFristenBand.tsx), [VerbundBand.tsx](src/plugins/antraege/verlauf-band/VerbundBand.tsx)
-- Am Bestand gemessen: 1 056 von 1 057 hängenden Vorgängen meldeten in der Zeile „läuft"; Wortlaut und Zahl decken sich jetzt mit dem Board (25 T, Ziel 14)
-- Guard `kein-nullpunkt-als-letzte-aenderung` — beide Werte sind `string | null`, der Typ konnte sie nie trennen — [codebase-conventions.test.ts](src/__tests__/codebase-conventions.test.ts)
-- Nebenwirkung: die Stillstands-Marke der Verlaufs-Bahn (v3.38) ist erstmals am echten Bestand zu sehen, nicht nur über eine invertierte Bedingung
-
-### v3.43.1 — Spaltenkopf ohne Einklapp-Zeichen; Dunkelmodus kein Abnahme-Kriterium (August 2026)
-
-PATCH — Zwei Ansagen: „das Einklapp-Icon kann weg, Tooltip reicht" und „Dunkelmodus wird gar nicht genutzt, muss ab jetzt nicht mehr optimiert werden". Letzteres rückwirkend relevant: die Füllung der eingeklappten Bahn (v3.43.0) wich allein einem Dunkel-Kontrast von 3,7:1.
-
-- Kein `PanelLeftClose` mehr in der Kopfzeile — sie IST die Klickfläche, der Titel sagt, was ein Klick tut; die Hover-Fläche bleibt der Hinweis — [TicketBoard.tsx](src/plugins/feedback-board/ticket/TicketBoard.tsx), [ticketsystem.css](src/plugins/feedback-board/ticketsystem.css)
-- Dunkelmodus ist **kein Abnahme-Kriterium** mehr: Checkliste durchgestrichen, hell entscheidet bei Widerspruch — [DESIGN_GUIDE.md](DESIGN_GUIDE.md)
-- Unverändert Pflicht: Tokens statt Hex, Guard `theme-token-contract`, Palette in DESIGN_GUIDE Kap. 9 — der Dunkelmodus soll funktionieren, nur nicht mehr optimiert werden
-
-### v3.43.0 — Jede Board-Lane voruebergehend einklappbar (August 2026)
-
-MINOR — Gewünscht: „User soll eine Lane egal ob sie voll ist oder nicht vorübergehend einklappen können (um die anderen besser lesen zu können)". Bis v3.42.1 konnte das nur eine LEERE Bahn; für eine gefüllte gab es allein das dauerhafte Ausblenden über die Lane-Auswahl. Detail: [feedback-system.md](docs/architecture/feedback-system.md).
-
-- `spaltenAnsicht` nimmt einen Wunsch (`auto` · `offen` · `zu`) statt eines Booleans und kennt den vierten Zustand `voll-schiene` — [boardSpalten.ts](src/plugins/feedback-board/boardSpalten.ts)
-- Der Spaltenkopf ist der Einklapp-Schalter (`PanelLeftClose`, app-weit „Fläche einklappen"); die Schiene trägt den echten Bestand statt einer Null — [TicketBoard.tsx](src/plugins/feedback-board/ticket/TicketBoard.tsx)
-- Eingeklappt ≠ ausgeblendet: die Bahn bleibt Drop-Ziel, behält die volle Akzentkante und bleibt beim Ziehen schmal — [ticketsystem.css](src/plugins/feedback-board/ticketsystem.css)
-- Nicht persistiert (Komponenten-State) — der Zustand beantwortet „was schaue ich gerade an", nicht „wie soll mein Board aussehen"; letzteres bleibt die Lane-Auswahl unter „Board anpassen"
-- Gatter: jeder von Hand erzeugte Zustand kommt mit `auto` zurück, unerreichbare Bahnen bleiben unter JEDEM Wunsch Schiene (v3.39) — [boardSpalten.test.ts](src/plugins/feedback-board/__tests__/boardSpalten.test.ts)
-
-### v3.42.1 — Aufgeklappte leere Lane wieder einklappbar (August 2026)
-
-PATCH — Gemeldet: „habe eine Lane gerade ausgeklappt, wie kann ich sie wieder einklappen, ich sehe kein Menü". Es gab keins: `setEntfaltet` kannte nur `true`, und die aufgeklappte leere Bahn verlor mit der Schiene auch Klick, Rolle und Titel — nur ein Neuladen faltete sie zurück. Detail: [feedback-system.md](docs/architecture/feedback-system.md).
-
-- Die drei Spalten-Zustände als reine `spaltenAnsicht()` (`voll` · `schiene` · `leer-offen`) statt als Boolean in der Komponente — [boardSpalten.ts](src/plugins/feedback-board/boardSpalten.ts)
-- Der Leer-Hinweis der aufgeklappten Bahn IST der Rückweg: aus dem stummen Gedankenstrich wird „leer — einklappen" — [TicketBoard.tsx](src/plugins/feedback-board/ticket/TicketBoard.tsx)
-- Unerreichbare Bahnen bleiben Schiene, auch nach einem Klick; beim Ziehen taucht der Knopf nicht auf (Regressionsgatter zu v3.39) — [boardSpalten.test.ts](src/plugins/feedback-board/__tests__/boardSpalten.test.ts)
-
-### v3.42.0 — To-do-Kaskade in der Kopfkarte, drei Ebenen-Pillen (August 2026)
-
-MINOR — Die Kopfkarte beantwortete „was ist zu tun?" nur mit Knöpfen; die Antwort selbst stand seit v2.390 in der To-do-Engine, zu sehen aber nur im Vorgangs-Board. Sie wird jetzt am Antrag gelesen — und füllt nebenbei „Liegt bei", das allein aus dem Kürzel-Paar meist leer blieb (Bestand: 35,4 % → 55,0 % ableitbare Adressen). Detail: [vorgangssystem.md §16.3 + §16.8](docs/architecture/vorgangssystem.md).
-
-- Aufgaben-Zeile in der Kopfkarte: To-do des eigenen Regelsatzes, „geliehen"-Marke, „warum?" mit Regel und gelesenen Feldern — [AufgabenZeile.tsx](src/plugins/antraege/ausklapp/kopfkarte/AufgabenZeile.tsx), [aufgabe.ts](src/plugins/antraege/ausklapp/kopfkarte/aufgabe.ts)
-- Ausgewertet wird je Teilvorhaben (Verbundzeile faltet und nennt abweichende TVs mit Aktenzeichen); die Adresse für den Wächter kommt immer aus dem AB-Satz — [useZeilenTodo.ts](src/plugins/antraege/ausklapp/useZeilenTodo.ts)
-- „Liegt bei" hat zwei Quellen und nennt im Tooltip, welche; uneinige Teilvorhaben bekommen ein eigenes Urteil statt einer ausgewählten Rolle — [liegtBei.ts](src/plugins/antraege/ausklapp/kopfkarte/liegtBei.ts)
-- Ebenen-Pillen jetzt drei: Verbund (an) · Kürzel (an) · Meilensteine (aus); „Phasen" entfällt — die TV-Bahnen sind der Zeitverlauf, nicht eine Ebene darin — [ebenen.ts](src/plugins/antraege/ausklapp/zeitverlauf/ebenen.ts)
-
-### v3.41.0 — Lanes selbst ordnen und ausblenden (August 2026)
-
-MINOR — Gewünscht: Reihenfolge der Board-Lanes selbst bestimmen, einzelne ausblenden, und automatisch nur einklappen, was leer ist. Ausblenden konnte das Board schon — aber es kostete den Platz: `lanes` führte nur die sichtbaren, Wiedereinblenden hängte hinten an (so stand „Geplant" rechts von „Abgelehnt"), und das Popover zeigte trotzdem Katalogfolge. Detail: [feedback-system.md](docs/architecture/feedback-system.md).
-
-- `BoardKanbanConfig.lanes` führt ALLE Lanes in Board-Reihenfolge, ausgeblendet per `sichtbar: false` — [boardKanbanConfig.ts](src/components/feedback/boardKanbanConfig.ts)
-- Alt-Stand ohne Key-Bump: fehlende Lanes kommen ausgeblendet dazu, fehlendes `sichtbar` heißt sichtbar, ein unsichtbares Board heilt — `parseBoardKanbanConfig`
-- Popover zeigt die ECHTE Spaltenfolge, je Zeile ein Pfeilpaar (Ränder gedämpft) unter der neuen Überschrift „Sichtbar · Folge · Spalten" — [FeedbackKanbanEinstellungen.tsx](src/components/feedback/FeedbackKanbanEinstellungen.tsx)
-- Pfeile sind opt-in an der geteilten [LaneListe](src/components/ui/LaneListe.tsx) (`onVerschiebe`) — die Home-Widgets bleiben, wie sie waren
-- Die Regel steht im Popover: leere Lanes klappen von selbst ein, abgewählte bleiben weg — auch mit Tickets
-
-### v3.40.0 — Aufgeklappte Antragszeile nach dem Entwurf (August 2026)
-
-MINOR — Umsetzung des Handoffs `_design/handoff/status-fristen-detail-ansicht/`. Der aufgeklappte Bereich beantwortete bisher „wie steht die Frist?", nicht „woran hängt es und was tue ich?". Er ordnet sich jetzt nach diesen drei Fragen; der Nachweis liegt darunter in zwei Reitern. Detail: [vorgangssystem.md §16](docs/architecture/vorgangssystem.md).
-
-- Kopfkarte „Woran es hängt": Urteil + drei Fakten (Bewegung · Meilensteine · Liegt bei) + **ein** Blocker mit den mitwartenden Stufen — [KopfKarte.tsx](src/plugins/antraege/ausklapp/kopfkarte/KopfKarte.tsx), [blocker.ts](src/plugins/antraege/ausklapp/kopfkarte/blocker.ts)
-- Reiter heißen „Vorgangsverlauf" (Fristrechnung als Raster) und „Zeitverlauf"; die Klickzone wählt weiter vor — [AusklappInhalt.tsx](src/plugins/antraege/ausklapp/AusklappInhalt.tsx)
-- Ebenen-Pillen (Phasen · Meilensteine · Kürzel · Verbund) und die Meilenstein-Ebene auf DERSELBEN Achse; die x-Skala kommt vom Band — [msEbene.ts](src/plugins/antraege/ausklapp/zeitverlauf/msEbene.ts), `ZeitAchse` in [bandGeometrie.ts](src/plugins/antraege/verlauf-band/bandGeometrie.ts)
-- Meilenstein-Gliederung über `TfTree`, mit beidseitiger Hervorhebung zur Achse; `onZeilenHover` im Wrapper statt eigener Zeile — [GliederungSektion.tsx](src/plugins/antraege/ausklapp/gliederung/GliederungSektion.tsx)
-- Aktionen sind echte Züge (Risiko melden · Detailseite · Verlauf kopieren) statt der drei Attrappen des Entwurfs; zwei Sachfehler des Handoffs korrigiert (Herkunft der 90 T, Ebene von „liegt bei") — [KopfAktionen.tsx](src/plugins/antraege/ausklapp/kopfkarte/KopfAktionen.tsx)
-- Mitgefixt: `useVerbundMeilensteine` bewertete gegen `new Date()` statt gegen den gestempelten Stichtag — zwei Uhren in einer Karte
-
-### v3.39.0 — Umgesetzte Tickets verschwinden nicht mehr spurlos (August 2026)
-
-MINOR — Gemeldet: „als umgesetzt markiert, sofort aus seiner Lane verschwunden, aber nicht in der Lane Umgesetzt aufgetaucht". Der Schreibvorgang war korrekt — belegt am Bestand, gleiches Board, nur Sicht gewechselt: UMGESETZT meldete in „Alles offen" 0, in „Alles" 3. Die Bahnen bilden die ganze Pipeline ab, die Sicht (`istOffen`) schneidet die Endzustände weg; die Bahn stand daneben und behauptete „0".
-
-- Eine Sicht deklariert ihren `statusRaum` (aus `istOffen` **abgeleitet**, keine zweite Handliste); `sichtKannStatus()` beantwortet „kann hier überhaupt etwas stehen?" — [smartViews.ts](src/plugins/feedback-board/smartViews.ts)
-- Unerreichbare Bahn sagt „nicht in dieser Sicht" statt „0" und springt per Klick nach `SICHT_ALLE` — [TicketBoard.tsx](src/plugins/feedback-board/ticket/TicketBoard.tsx), `BoardSpalte.ausserhalbDerSicht`
-- Die Meldung nennt den Verlust („#A7K2 → Umgesetzt · nicht in der Sicht „Alles offen""), einmal umhüllt für Menü, Ziehen, Bulk und Detail — [FeedbackBoardPage.tsx](src/plugins/feedback-board/FeedbackBoardPage.tsx)
-- Schiene der unerreichbaren Bahn in `--tf-text-secondary` (5,3:1 hell / 4,1:1 dunkel) statt tertiär-gedimmt (1,99:1) — sie trägt eine Auskunft, keine Null
-- Neue Guards: `smartViews.test.ts` (Raum deckt sich mit `passt`, Sprungziel existiert in beiden Rollen), `boardSpalten.test.ts` um die Markierung erweitert
-
-### v3.38.0 — VerlaufsBand: lesbare Flaechen, Dauern am Balken, weniger Gedraenge (August 2026)
-
-MINOR — Ein Entwurfsvergleich legte einen messbaren Defekt frei: die Balken trugen den **satten** `--tf-kanban-*`-Akzent mit weißer Schrift, gerechnet **3,02–5,06:1 hell** (sechs von neun unter AA für 11-px-Text) und **2,14–2,92:1 dunkel** (alle neun). Die Tokens sind Farbchips für Kanban-Lane-Köpfe, nie Textuntergrund. Dazu klebte der Achsen-Boden seit v3.27 bei 24 px, auch wenn 1000 zur Verfügung standen.
-
-- Getönte Flächen (30 % auf `--tf-bg`) statt satter, Schrift in `--tf-text`; der Akzent überlebt am Grenzstreifen — [bandFarbe.ts](src/plugins/antraege/verlauf-band/bandFarbe.ts), Guard `band-fuellung-kontrast`
-- Achsen-Boden wächst mit der Bahn (`bodenFuer`, 24–56 px): kein Abschnitt trägt am Bestand mehr nur seine Nummer — [bandGeometrie.ts](src/plugins/antraege/verlauf-band/bandGeometrie.ts)
-- Dauer je Abschnitt und die Warnung „hängt fest" in der zweiten Etage, in drei Durchgängen nach Rang vergeben — [bandBeschriftung.ts](src/plugins/antraege/verlauf-band/bandBeschriftung.ts)
-- Kürzel über den Grenzen (widerruft „keine Codes in der Bahn"), gemessen gesetzt, Kollidierendes entfällt — [bandKanten.ts](src/plugins/antraege/verlauf-band/bandKanten.ts)
-- Der Stillstands-Wächter wird je Zeile **einmal** gerechnet und von beiden Reitern gelesen — neu [useZeilenWaechter.ts](src/plugins/antraege/ausklapp/useZeilenWaechter.ts), Wortlaut aus [waechterLabels.ts](src/plugins/antraege/waechterLabels.ts)
-
-### v3.37.0 — VerlaufsBand: hoehere Balken, Legende am Bild, eine Fusszeile, eine Kante je Tag (August 2026)
-
-MINOR — Die Bahn hatte nach v3.32 Platz, gab ihn aber nicht weiter: `16KN073848 (diese Zeile)` brauchte 137 px in einer 128-px-Spalte, unter der Bahn standen zwei Sätze über dieselben Datumsspalten, und die Legende lag hinter einem davon. Dazu ein gemessener Befund: **51 Kanten auf 26 Tagen** — mehr als die Hälfte lag exakt übereinander, und obenauf ein 9-px-Handsymbol, nach dem als „mini Pfeil" rückgefragt wurde.
-
-- Eine Kante je **Tag** statt je Übergang, Stil vom best belegten des Tages, Tooltip nennt jedes Kürzel — neu [bandKanten.ts](src/plugins/antraege/verlauf-band/bandKanten.ts)
-- Balken 20 statt 16 px, Beschriftung 11 statt 10 — Messprofil `bandLabel` zieht mit ([textMessung.ts](src/components/data-table/messung/textMessung.ts))
-- Spur-Beschriftung misst sich selbst (Profil `bandSpur`, 128–260 px) statt fester 128 — [VerlaufsBand.tsx](src/plugins/antraege/verlauf-band/VerlaufsBand.tsx)
-- Legende direkt unter der Bahn, gerahmt, mit Farbmarke und Nummer darin — neu [BandFuss.tsx](src/plugins/antraege/verlauf-band/BandFuss.tsx)
-- Eine Fußzeile statt zweier: Kurzauskunft + Info-Zeichen, `JournalFuss` entfällt — neu [herkunftsText.ts](src/plugins/antraege/verlauf-band/herkunftsText.ts)
 

@@ -21,6 +21,18 @@
 
 ## v4.39 — 2026-08
 
+### Neu
+- Ein Klick auf ein angehängtes Bild zeigt es groß — praktisch, um vor dem Absenden zu prüfen, ob die Markierung sitzt.
+- Sie können mehrere Screenshots anhängen; der Knopf sagt es jetzt auch („Weiteren Bereich aufnehmen").
+### Verbesserungen
+- Im Feedback-Fenster steht „Bereich aufnehmen" vor der Einfüge-Fläche und ist deutlicher als Knopf erkennbar — in der Reihenfolge, in der Sie es benutzen.
+- Das Feedback-Fenster ist leicht durchscheinend, sodass Sie sehen, worüber es liegt.
+- Im Titelfeld steht die erkannte Seite fest vor dem Eingabefeld — daneben steht jetzt sichtbar, dass Sie dort noch eine kurze Überschrift schreiben können.
+### Bugfixes
+- Wer über „Typ ändern" nachsieht, ob eine andere Ticket-Art besser passt, findet seinen bereits getippten Text danach unverändert vor. Bisher war er weg.
+
+## v4.39 — 2026-08
+
 ### Verbesserungen
 - Die beiden Entwickler-Seiten stehen in der Seitenleiste jetzt unter einer eigenen Überschrift **„Werkbank (dev)"** statt unter „Kuration" — dort gehörten sie nie hin.
 - **Dokument-Review** hat eine Überschrift bekommen und denselben Seitenrand wie die Kuration daneben. Vorher stand dort oben nur der Hilfe-Knopf.

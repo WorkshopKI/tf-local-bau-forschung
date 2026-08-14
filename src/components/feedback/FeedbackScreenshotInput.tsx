@@ -7,11 +7,15 @@
 // Formular verdeckte genau den Bildschirm, den man aufnehmen will) und fängt den
 // anschließenden Strg+V global ab. Win+Shift+S selbst kann der Browser NICHT
 // auslösen — es gibt keinen Zugriff auf OS-Tastenkürzel; der Nutzer drückt es.
+// v4.39.1 — Reihenfolge nach dem Weg: erst aufnehmen (eigener Knopf), dann
+// einfügen (die gestrichelte Fläche darunter).
 
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { Camera, ImagePlus, Pencil, X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { scaleImageToAttachment, type PendingAttachment } from './feedbackAttachments';
 import { FeedbackAnnotator } from './FeedbackAnnotator';
+import { FeedbackBildLightbox } from './FeedbackBildLightbox';
 
 interface Props {
   attachments: PendingAttachment[];
@@ -109,35 +113,43 @@ export const FeedbackScreenshotInput = forwardRef<FeedbackScreenshotHandle, Prop
 
   return (
     <div className="flex flex-col gap-1.5">
+      {/* Der Aufnahme-Knopf steht VOR der Einfüge-Fläche: er ist der Anfang des
+          Wegs (aufnehmen → einfügen), stand aber darunter und las sich dadurch
+          wie eine Fußnote zu ihr. */}
+      <div className="flex items-center gap-1.5">
+        {onAufnahme && (
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            icon={Camera}
+            onClick={() => onAufnahme(true)}
+            className="flex-1 bg-transparent"
+          >
+            {/* Mehrere Aufnahmen gingen immer (jede hängt an) — nur stand es
+                nirgends. Ab dem ersten Bild sagt es der Knopf selbst. */}
+            {attachments.length > 0 ? 'Weiteren Bereich aufnehmen' : 'Bereich aufnehmen (Win+Shift+S)'}
+          </Button>
+        )}
+        <button
+          type="button"
+          onClick={() => fileRef.current?.click()}
+          className="shrink-0 inline-flex items-center gap-1 px-1 py-0.5 text-[10.5px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text-secondary)] cursor-pointer"
+        >
+          <ImagePlus size={11} /> Bild hochladen
+        </button>
+      </div>
+
       <textarea
         ref={pasteRef}
         value=""
         onChange={() => { /* Paste-Ziel: getippter Text wird verworfen */ }}
         onPaste={handlePaste}
         rows={2}
-        placeholder={busy ? 'Bild wird verarbeitet…' : 'Screenshot hier einfügen (Strg+V)'}
-        className="w-full resize-none px-2.5 py-2 text-[12.5px] bg-transparent text-[var(--tf-text)] rounded-[var(--tf-radius)] outline-none placeholder:font-semibold placeholder:text-[var(--tf-text-secondary)] focus:border-[var(--tf-primary)] cursor-text"
+        placeholder={busy ? 'Bild wird verarbeitet…' : '… oder Screenshot hier einfügen (Strg+V)'}
+        className="w-full resize-none px-2.5 py-2 text-[12.5px] bg-transparent text-[var(--tf-text)] rounded-[var(--tf-radius)] outline-none placeholder:text-[var(--tf-text-secondary)] focus:border-[var(--tf-primary)] cursor-text"
         style={{ border: '1px dashed var(--tf-border-hover)' }}
       />
-
-      <div className="flex items-center gap-2">
-        {onAufnahme && (
-          <button
-            type="button"
-            onClick={() => onAufnahme(true)}
-            className="inline-flex items-center gap-1 px-1 py-0.5 text-[10.5px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] cursor-pointer"
-          >
-            <Camera size={11} /> Bereich aufnehmen (Win+Shift+S)
-          </button>
-        )}
-        <button
-          type="button"
-          onClick={() => fileRef.current?.click()}
-          className="inline-flex items-center gap-1 px-1 py-0.5 text-[10px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text-secondary)] cursor-pointer"
-        >
-          <ImagePlus size={11} /> Bild hochladen
-        </button>
-      </div>
       <input ref={fileRef} type="file" accept="image/*" multiple onChange={handleFiles} className="hidden" />
 
       {error && <p className="text-[11px] text-[var(--tf-danger-text)]">{error}</p>}
@@ -163,6 +175,9 @@ export const FeedbackScreenshotInput = forwardRef<FeedbackScreenshotHandle, Prop
 
 function Thumbnail({ att, onAnnotate, onRemove }: { att: PendingAttachment; onAnnotate: () => void; onRemove: () => void }): React.ReactElement {
   const [url, setUrl] = useState('');
+  // Klick aufs Miniaturbild zeigt es groß — wer annotiert hat, will vor dem
+  // Absenden nachsehen, ob der Pfeil sitzt; 96×64 px beantworten das nicht.
+  const [gross, setGross] = useState(false);
   useEffect(() => {
     const u = URL.createObjectURL(att.blob);
     setUrl(u);
@@ -172,7 +187,16 @@ function Thumbnail({ att, onAnnotate, onRemove }: { att: PendingAttachment; onAn
   return (
     <div className="flex flex-col gap-1 w-[96px]">
       <div className="relative group">
-        {url && <img src={url} alt={att.caption || 'Screenshot'} className="w-[96px] h-[64px] object-cover rounded-[var(--tf-radius)]" style={{ border: '0.5px solid var(--tf-border)' }} />}
+        {url && (
+          <img
+            src={url}
+            alt={att.caption || 'Screenshot'}
+            onClick={() => setGross(true)}
+            title="Groß ansehen"
+            className="w-[96px] h-[64px] object-cover rounded-[var(--tf-radius)] cursor-zoom-in"
+            style={{ border: '0.5px solid var(--tf-border)' }}
+          />
+        )}
         <button
           type="button"
           onClick={onRemove}
@@ -192,6 +216,10 @@ function Thumbnail({ att, onAnnotate, onRemove }: { att: PendingAttachment; onAn
         <Pencil size={10} /> Annotieren
       </button>
       {att.caption && <p className="text-[9.5px] text-[var(--tf-text-tertiary)] truncate" title={att.caption}>{att.caption}</p>}
+
+      {gross && url && (
+        <FeedbackBildLightbox src={url} caption={att.caption} onClose={() => setGross(false)} />
+      )}
     </div>
   );
 }
