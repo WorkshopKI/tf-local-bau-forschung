@@ -5,6 +5,14 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.44.1 — Suchbereich-Optionen tragen Suche in selbst (August 2026)
+
+PATCH — Aufgeklappt liegt die Optionsliste über der Seite; die Beschriftung „Suchen in:" daneben ist dann verdeckt, und jede Zeile las sich für sich allein als „alle Felder", „nur Dokumente" — ohne die Frage, die sie beantwortet.
+
+- **Jede Option trägt „Suche in: …"** — zugeklappt wie aufgeklappt, damit der Kasten auch nach einem Zeilenumbruch lesbar bleibt ([SuchOptionenZeile.tsx](src/plugins/suche/SuchOptionenZeile.tsx))
+- **Die vorangestellte Beschriftung entfällt** — sonst stünde dort „Suchen in: Suche in: alle Felder"; die Auswahl trägt sie jetzt als `aria-label`
+- **Der Präfix ist reine Darstellung**: `SUCHBEREICH_LABEL` bleibt der nackte Name, den Tooltip und Guards lesen ([suchbereich.ts](src/core/services/search/suchbereich.ts))
+
 ### v4.44.0 — Suchbereich heisst alle Felder und ist wieder der Standard (August 2026)
 
 MINOR — Gewünscht war ein Eintrag „in allen Feldern suchen", standardmäßig gewählt. Den gab es bereits — er hieß nur „Titel, Beschreibung, Dokumente" und nannte damit drei von acht Feldern. Zweimal wurde deshalb gemeldet, ein Feld werde nicht durchsucht; beide Male stimmte es nicht.

@@ -10,10 +10,11 @@
  * lädt ein Modell von ~200 MB nach, und das darf nicht hinter einer harmlosen
  * Beschriftung passieren.
  *
- * „Suchen in" steht seit v4.44.0 standardmäßig auf „alle Felder" — vorher hieß
- * derselbe Bereich „Titel, Beschreibung, Dokumente" und las sich damit als
+ * Der Suchbereich steht seit v4.44.0 standardmäßig auf „alle Felder" — vorher
+ * hieß derselbe Bereich „Titel, Beschreibung, Dokumente" und las sich damit als
  * Einschränkung, die er nie war. Wer nicht weiß, in welchem Feld sein Wort
- * steht, muss es auch nicht wissen.
+ * steht, muss es auch nicht wissen. Seine Optionen tragen die Frage seit v4.44.1
+ * selbst („Suche in: …"), siehe `BEREICH_PRAEFIX`.
  *
  * Die beiden Schalter hießen bis v4.15.0 „Ähnliche Begriffe mitsuchen" und
  * „Ähnlichkeitssuche" — zwei Namen, die dasselbe versprachen und Verschiedenes
@@ -36,7 +37,21 @@ const SELECT_STYLE: React.CSSProperties = {
 };
 
 /**
- * „Suchen in", solange es NICHT alle Felder sind.
+ * Jede Bereichs-Option trägt ihre Frage selbst.
+ *
+ * Vorher stand „Suchen in:" daneben und die Optionen hießen nur „alle Felder",
+ * „nur Dokumente". Aufgeklappt liegt die Liste über der Seite — die Beschriftung
+ * daneben ist dann verdeckt oder weit weg, und jede Zeile steht für sich allein.
+ * Zugeklappt trägt der Kasten denselben Text und bleibt lesbar, wenn die Zeile
+ * umbricht und die Beschriftung in der Zeile darüber landet.
+ *
+ * Deshalb steht das Wort IN den Optionen und nicht mehr davor: zweimal wäre es
+ * „Suchen in: Suche in: alle Felder".
+ */
+const BEREICH_PRAEFIX = 'Suche in: ';
+
+/**
+ * Der Bereich, solange es NICHT alle Felder sind.
  *
  * Ein eingeengter Bereich ist der einzige Schalter dieser Zeile, der Treffer
  * verschwinden lässt, ohne dass am Ergebnis etwas davon steht — 0 Treffer sehen
@@ -105,29 +120,27 @@ export function SuchOptionenZeile({
         Wortformen mitsuchen
       </label>
 
-      <label className="inline-flex items-center gap-1.5 text-[12px] text-[var(--tf-text-secondary)]">
-        Suchen in:
-        <select
-          value={bereich}
-          onChange={e => onBereich(e.target.value as Suchbereich)}
-          className={SELECT_CLASS}
-          style={bereich === 'alles' ? SELECT_STYLE : SELECT_STYLE_ENG}
-          title={
-            bereich === 'alles'
-              ? 'Sucht in allen Feldern: Titel, Kurzbeschreibung, Deskriptoren, '
-                + 'Akronym, Aktenzeichen, Einrichtung, Web-Adresse, Ort und '
-                + 'Bundesland — dazu in den Dokumenten. Der Standard, wenn man '
-                + 'nicht weiß, wo das Wort steht.'
-              : `Eingeschränkt auf „${SUCHBEREICH_LABEL[bereich]}“. Was außerhalb `
-                + 'steht, erscheint nicht — auch dann nicht, wenn es das Wort '
-                + 'enthält. „alle Felder" nimmt die Einschränkung zurück.'
-          }
-        >
-          {(Object.keys(SUCHBEREICH_LABEL) as Suchbereich[]).map(b => (
-            <option key={b} value={b}>{SUCHBEREICH_LABEL[b]}</option>
-          ))}
-        </select>
-      </label>
+      <select
+        value={bereich}
+        onChange={e => onBereich(e.target.value as Suchbereich)}
+        aria-label="Suche in"
+        className={SELECT_CLASS}
+        style={bereich === 'alles' ? SELECT_STYLE : SELECT_STYLE_ENG}
+        title={
+          bereich === 'alles'
+            ? 'Sucht in allen Feldern: Titel, Kurzbeschreibung, Deskriptoren, '
+              + 'Akronym, Aktenzeichen, Einrichtung, Web-Adresse, Ort und '
+              + 'Bundesland — dazu in den Dokumenten. Der Standard, wenn man '
+              + 'nicht weiß, wo das Wort steht.'
+            : `Eingeschränkt auf „${SUCHBEREICH_LABEL[bereich]}“. Was außerhalb `
+              + 'steht, erscheint nicht — auch dann nicht, wenn es das Wort '
+              + 'enthält. „alle Felder" nimmt die Einschränkung zurück.'
+        }
+      >
+        {(Object.keys(SUCHBEREICH_LABEL) as Suchbereich[]).map(b => (
+          <option key={b} value={b}>{BEREICH_PRAEFIX}{SUCHBEREICH_LABEL[b]}</option>
+        ))}
+      </select>
 
       <label
         className="inline-flex h-7 items-center gap-1.5 rounded-[8px] px-2 text-[12px] text-[var(--tf-text-secondary)] cursor-pointer"
