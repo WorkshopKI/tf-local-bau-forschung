@@ -19,6 +19,19 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.43 — 2026-08
+
+### Neu
+- **Die Chronik nennt jetzt das Kürzel.** Zwischen Datum und Rolle steht der Code, unter dem Sie den Eintrag aus dem Fachsystem kennen — `AAE`, `XTEC`, `XKS`. Dieselbe Reihenfolge wie dort: Datum, Kürzel, Rolle, Eintrag. Auch die fehlenden Gegenstücke nennen das Kürzel, das gesucht wird.
+
+### Verbesserungen
+- **„Nächste Schritte (in C16 zu setzen)" startet zugeklappt.** Der Block war mit bis zu 18 Kandidaten der längste der Seite und schob Chronik und Statuseinträge aus dem Blick. Die Anzahl steht weiterhin in der Überschrift, damit Sie sehen, ob sich das Aufklappen lohnt; Ihre Wahl wird gemerkt.
+
+### Bugfixes
+- **„DL-Gutachten fertig - FB/AB" heißt wieder „Gutachten fertig".** `DL` ist eine Antragsform (Dienstleistung zur Markteinführung) und hatte in diesem Eintrag nichts zu suchen — der Wortlaut stammte aus der DL-Spalte und galt versehentlich für alle Antragsformen. Ebenso bei `XQS`. Dazu vier Schreibfehler: „Schwiergigkeiten", „ausgestezt", „VN-Qualitätsicherung" und ein doppeltes „QS".
+- Beim Nachgehen zeigte sich, dass die beiden Kürzel-Listen des Fachsystems sich bei **76 Kürzeln** widersprechen. Sechs davon waren eindeutig und sind korrigiert. Bei den übrigen 70 unterscheidet sich die *Aussage*, nicht die Schreibweise — etwa `ALQ` („NF von PL gelesen" gegen „von QS gelesen"). Die klärt der Fachbereich; geraten wird nichts.
+- Die Korrekturen wirken erst, wenn die Projektleitung sie im Status-Katalog übernimmt („Zuarbeit übernehmen") — kuratierte Bezeichnungen werden nie ungefragt überschrieben.
+
 ## v4.42 — 2026-08
 
 ### Bugfixes

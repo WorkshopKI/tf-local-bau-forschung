@@ -20,6 +20,7 @@
 export type DetailSektionId =
   | 'kurzbeschreibung'
   | 'status'
+  | 'naechsteSchritte'
   | 'meilensteine'
   | 'gutachten'
   | 'kurzfassung'
@@ -50,6 +51,11 @@ interface Eintrag {
 export const DETAIL_SEKTIONEN: Record<DetailSektionId, Eintrag> = {
   kurzbeschreibung: { key: 'verbund_kurzbeschreibung_collapsed_v2', offen: 'wennGefuellt' },
   status: { key: 'verbund_status_collapsed_v2', offen: false },
+  // Liegt INNERHALB von `status` — der einzige Eintrag, der eine Sektion in
+  // einer Sektion beschreibt. Eigener Schlüssel, weil der Navigator mit bis zu
+  // 18 Kandidaten à 4–6 Wirkungszeilen den Rest der aufgeklappten Statussektion
+  // (Chronik, Statuseinträge) nach unten aus dem Blick schiebt.
+  naechsteSchritte: { key: 'verbund_naechsteschritte_collapsed_v2', offen: false },
   meilensteine: { key: 'verbund_meilensteine_collapsed_v2', offen: false },
   gutachten: { key: 'verbund_gutachten_collapsed_v2', offen: false },
   // Belegt denselben Platz wie `gutachten` (Kurzfassung statt Workflow A–G) —

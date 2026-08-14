@@ -23,6 +23,13 @@
  * Wortlaut im Tooltip), und die senkrechte Achse läuft durch alle Monate durch,
  * weil der Blockabstand innerhalb der Liste entsteht.
  *
+ * **Das Kürzel steht dabei.** Zwischen Datum und Rolle, in einer eigenen
+ * schmalen Spalte — dieselbe Anordnung wie im Fachsystem. Es ist der Bezeichner,
+ * unter dem das Team einen Eintrag kennt und in C16 wiederfindet; die
+ * Bezeichnung daneben sagt, was er bedeutet. Ohne das Kürzel muss man von der
+ * Bezeichnung auf den Code zurückschließen, und genau das kostet die
+ * Wiedererkennung, wegen der die Chronik überhaupt gelesen wird.
+ *
  * **Wer hat gesetzt.** Jede Zeile trägt die Rolle ihres Feldes (`AB`, `FB`, `QS`,
  * `PA`, `Jur`) in einer eigenen schmalen Spalte. Neutrale Einträge — 143 der 505
  * Codes, die das Fachsystem von jedem setzen lässt — bleiben unbeschriftet:
@@ -72,6 +79,18 @@ const ROLLEN_SPALTE = 'w-[38px] shrink-0 truncate text-[11px]';
 
 /** Die Tagesspalte — hier steht bei einer Fehlzeile der Gedankenstrich. */
 const TAG_SPALTE = 'w-[42px] shrink-0 font-mono text-[11px]';
+
+/**
+ * Die Kürzelspalte. Steht zwischen Datum und Rolle — dieselbe Lesereihenfolge
+ * wie im Fachsystem, wo das Kürzel der Bezeichner ist, unter dem das Team einen
+ * Eintrag kennt. Die Bezeichnung sagt, WAS passiert ist; das Kürzel sagt, wo im
+ * Fachsystem man es wiederfindet.
+ *
+ * 46 px: der längste Code des Katalogs hat **sechs** Zeichen (`XSPDOK`,
+ * `WRWZG+`), gemessen über alle 505. `truncate` bleibt als Netz für eine
+ * künftige Zuarbeit stehen, greift heute aber bei keinem Eintrag.
+ */
+const CODE_SPALTE = 'w-[46px] shrink-0 truncate font-mono text-[11px]';
 
 /** `2026-03` → „März 2026" in der Kurzform, die in die schmale Spalte passt. */
 function monatLabel(monat: string): string {
@@ -179,6 +198,12 @@ function Zeile({ e, version, meins }: {
         <span className={`${TAG_SPALTE} ${LEISE}`}>
           {tagLabel(e.tag)}
         </span>
+        {/* Jedes Datumsfeld trägt einen Code — auch die kanonischen (`AAE`,
+            `ABB`, `AZ1`, `VBE` in `seed-kanonisch.ts`). Der Fallback bleibt
+            trotzdem stehen: `code` ist am Typ optional, und ein künftiges
+            entdecktes Feld könnte ohne kommen. Dann bleibt die Spalte leer,
+            statt die Spur der Codes darunter zu verschieben. */}
+        <span className={`${CODE_SPALTE} ${LEISE}`}>{e.feld.code ?? ''}</span>
         <RollenZelle rollen={rollenVonFeld(e.feld)} meins={meins} />
         <span className="min-w-0 flex-1 truncate" title={zeilenTitel(e, pfad)}>
           <span
@@ -226,6 +251,9 @@ function FehlZeile({ p, meins }: { p: OffenesPaarJeTv; meins: boolean }): React.
       </span>
       <div className="flex items-baseline gap-2 leading-[18px]">
         <span className={`${TAG_SPALTE} ${LEISE}`} aria-hidden="true">—</span>
+        {/* Das FEHLENDE Kürzel, nicht das gesetzte: die Zeile sagt „hier müsste
+            `p.fehlt` stehen". Genau dieses Kürzel wird in C16 gesucht. */}
+        <span className={`${CODE_SPALTE} ${LEISE}`}>{p.fehlt}</span>
         <RollenZelle rollen={p.rolle === null ? [] : [p.rolle]} meins={meins} />
         <span
           className="min-w-0 flex-1 truncate"

@@ -13,11 +13,20 @@
  *
  * Die eigene Rolle aus dem Profil ist **Vorauswahl, keine Sperre** (wie in
  * `StatusCodeListe`); neutrale Kürzel bleiben unter jeder Wahl sichtbar.
+ *
+ * **Einklappbar, Default ZU.** Bis zu 18 Kandidaten à 4–6 Wirkungszeilen sind
+ * der längste Block der Statussektion; immer offen schoben sie Chronik und
+ * Statuseinträge aus dem Blick. Die Anzahl bleibt zugeklappt stehen, damit die
+ * Zeile eine Aussage behält. Der Rumpf wird `hidden` statt ausgehängt — die
+ * Kandidatenrechnung (`useMemo` über Trigger × Vorkommen) soll beim Aufklappen
+ * nicht neu anlaufen.
  */
 import { useEffect, useMemo, useState } from 'react';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, ChevronRight } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { ToggleChip } from '@/components/ui/ToggleChip';
+import { useCollapsedSection } from '@/core/hooks/useCollapsedSection';
+import { sektionOffenDefault, sektionsKey } from '../detailSektionen';
 import { useProfile } from '@/core/hooks/useProfile';
 import { useRichtlinienLabels, richtlinienLabel } from '@/core/hooks/useRichtlinienLabels';
 import { useStorage } from '@/core/hooks/useStorage';
@@ -104,6 +113,11 @@ export function NaechsteSchritte({ version, vorkommen, statusRoh, programm }: {
   const [rolle, setRolle] = useState<Rolle | 'alle'>(() => leseStatusRolle(profile?.status_rolle));
   const [alleZeigen, setAlleZeigen] = useState(false);
   const { trigger, geladen } = useTriggerTabelle();
+  // Einklappbar, Default ZU. Hook VOR dem Early Return (Hook-Reihenfolge,
+  // React #310) — die Vorgabe steht zentral in `detailSektionen.ts`, nicht hier.
+  const [offen, toggleOpen] = useCollapsedSection(
+    sektionsKey('naechsteSchritte'), { defaultOpen: sektionOffenDefault('naechsteSchritte') },
+  );
 
   const legende = useMemo(() => baueLegende(version.textbausteine), [version.textbausteine]);
   const ergebnis = useMemo(() => navigatorKandidaten({
@@ -133,12 +147,29 @@ export function NaechsteSchritte({ version, vorkommen, statusRoh, programm }: {
   return (
     <section className="flex flex-col gap-2">
       <div className="flex items-center gap-2 flex-wrap">
-        <h4 className="text-[13px] font-medium text-[var(--tf-text)]">
-          Nächste Schritte (in C16 zu setzen)
-        </h4>
+        <button
+          type="button"
+          onClick={toggleOpen}
+          aria-expanded={offen}
+          className="flex items-center gap-1.5 cursor-pointer"
+        >
+          <ChevronRight
+            size={14}
+            className="text-[var(--tf-text-tertiary)] transition-transform duration-200 shrink-0"
+            style={{ transform: offen ? 'rotate(90deg)' : 'rotate(0deg)' }}
+          />
+          <h4 className="text-[13px] font-medium text-[var(--tf-text)]">
+            Nächste Schritte (in C16 zu setzen)
+          </h4>
+        </button>
+        {/* Die Anzahl bleibt AUCH zugeklappt stehen — eine eingeklappte Zeile,
+            die nichts aussagt, zwingt zum Aufklappen, nur um zu erfahren, ob es
+            sich lohnt (dieselbe Regel wie die ZAH-Phase an „Status & Verlauf"). */}
         <span className="text-[12px] text-[var(--tf-text-tertiary)]">{ergebnis.kandidaten.length}</span>
         <span className="flex-1" />
-        {(['alle', ...ROLLEN] as const).map(r => (
+        {/* Die Rollen-Chips filtern den Rumpf; zugeklappt steuerten sie nichts
+            Sichtbares und gäben vor, die Kopfzahl daneben zu meinen. */}
+        {offen && (['alle', ...ROLLEN] as const).map(r => (
           <ToggleChip
             key={r}
             label={r === 'alle' ? 'Alle' : ROLLE_LABEL[r]}
@@ -149,6 +180,7 @@ export function NaechsteSchritte({ version, vorkommen, statusRoh, programm }: {
         ))}
       </div>
 
+      <div className={offen ? 'flex flex-col gap-2' : 'hidden'}>
       {!geladen ? (
         <p className="text-[12px] text-[var(--tf-text-tertiary)]">Lädt …</p>
       ) : trigger.length === 0 ? (
@@ -224,6 +256,7 @@ export function NaechsteSchritte({ version, vorkommen, statusRoh, programm }: {
           </p>
         </>
       )}
+      </div>
     </section>
   );
 }

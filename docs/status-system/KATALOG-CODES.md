@@ -43,6 +43,43 @@ Neue Zuarbeit einarbeiten: CSV nach `docs/status-system/` legen, `QUELLE` in
 unangetastet; im Cockpit zeigt der Block „Bei N Feldern weichen Bezeichnung oder
 Rollen ab" die Differenz zur laufenden Fassung an.
 
+### Zwei Zuarbeiten, und keine gewinnt pauschal
+
+Die App führt **zwei** Dokumente des Fachsystems nebeneinander, und sie
+überschneiden sich:
+
+| | Dokument | Schlüssel | Codes | wirkt auf |
+|---|---|---|---|---|
+| flach | `kuerzel-zuarbeit-20260724.csv` | Code | 505 | `StatusFeldEintrag.label` — **jede** Anzeigefläche |
+| form-bewusst | `Janne-Gelbe_Karte_Kürzel.xlsx` | Kürzel × Projektform | 608 | `kuerzelAuskunft()` — Verlauf, Klärfragen |
+
+Gemessen über alle 505 Codes (Test `seed-label-korrekturen`): **335** sagen
+wortgleich dasselbe, **58** unterscheiden sich zu Recht je Projektform, **36**
+kennt nur die flache Quelle — und **76 widersprechen sich**, obwohl der
+form-bewusste Katalog dort über alle Formen einstimmig ist.
+
+**Diese 76 gehen in beide Richtungen**, und das ist der Punkt. Mal ist die flache
+Quelle veraltet (`XKS` trug „DL-Gutachten fertig - FB/AB" für alle Formen), mal
+trägt der form-bewusste Katalog den Tippfehler (`Biref NF`, `Verwedungsnachweis`,
+`allgmeine Ablehnung`). Wer eine der beiden Quellen global übernähme, tauschte
+also Fehler gegen Fehler. Deshalb gibt es **keine** Vorrangregel, sondern eine
+kurze belegte Liste in
+[seed-label-korrekturen.ts](../../src/core/status/seed-label-korrekturen.ts) —
+heute sechs Einträge, alle ohne Fachwissen entscheidbar (Rechtschreibung, eine
+Dopplung, das Projektform-Präfix).
+
+**Die restlichen 70 sind eine Frage an den Fachbereich, keine an uns.** Dort
+unterscheidet sich die *Aussage*, nicht die Schreibung: `ALQ` „NF von PL gelesen"
+gegen „NF von QS gelesen", `XFB` „max. 2 Bew. in 12 Monaten" gegen „max. 1 in
+24", `IVW2` „Sachwalter" gegen „starker Verwalter". Der Test hält die Zahl als
+**Wasserstand** fest: sinkt sie, wurde geklärt; steigt sie, hat eine neue
+Zuarbeit Widersprüche mitgebracht.
+
+**Ein einheitlicher Kürzel-Katalog ist damit noch nicht erreicht** — er setzt
+voraus, dass diese 70 entschieden sind. Bis dahin bleibt `kuerzelAuskunft()` die
+eine Tür für die *form-abhängige* Bedeutung und der Seed die Quelle der
+*angezeigten Bezeichnung*.
+
 **Vorbehalt bleibt die Ordner-Zuordnung**: sie ist aus Bildschirmfotos der
 Fachsystem-Ordnerbäume übertragen — eine Vorbelegung, die die Projektleitung
 bestätigt, genau wie beim Meilenstein-Seed. Die Zuarbeit führt **keine** Ordner.

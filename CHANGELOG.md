@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.43.0 — Chronik zeigt das Kuerzel, Naechste Schritte klappt zu, DL-Praefix korrigiert (August 2026)
+
+MINOR — Gemeldet war dreierlei: der Chronik fehlt das Kürzel, „Nächste Schritte" steht immer offen, und „DL-Gutachten" nennt eine Projektform, die nicht dazugehört. Die dritte Meldung führte auf eine Datenursache: die App trägt **zwei** Kürzel-Zuarbeiten, die sich bei 76 Codes widersprechen — und keine der beiden ist pauschal die richtige.
+
+- **Die Chronik führt das Kürzel** in eigener Spalte zwischen Datum und Rolle, wie im Fachsystem — auch an den kanonischen Feldern (`AAE`, `ABB`) und an den Fehlzeilen ([StatusChronik.tsx](src/plugins/antraege/status/StatusChronik.tsx))
+- **„Nächste Schritte (in C16 zu setzen)" klappt zu**, Default zu; die Anzahl bleibt im Kopf stehen, die Rollen-Chips wandern in den Rumpf ([NaechsteSchritte.tsx](src/plugins/antraege/status/NaechsteSchritte.tsx), Vorgabe zentral in [detailSektionen.ts](src/plugins/antraege/detailSektionen.ts))
+- **`XKS` heißt wieder „Gutachten fertig"** statt „DL-Gutachten fertig - FB/AB", `XQS` „Gutachten QS fertig" — dazu vier belegte Schreibfehler ([seed-label-korrekturen.ts](src/core/status/seed-label-korrekturen.ts)); ausgeliefert über den bestehenden Cockpit-Block, nicht automatisch
+- **Der Abgleich beider Zuarbeiten ist gemessen**: 335 wortgleich, 58 zu Recht formabhängig, 36 nur flach geführt, **76 widersprüchlich** — davon 6 entschieden, 70 als Wasserstand im Test festgehalten ([KATALOG-CODES.md](docs/status-system/KATALOG-CODES.md))
+- **Keine Vorrangregel zwischen den Quellen**: mal ist die flache veraltet (`XKS`), mal trägt die form-bewusste den Tippfehler (`Biref`, `Verwedungsnachweis`) — eine globale Übernahme tauschte Fehler gegen Fehler
+
 ### v4.42.0 — Suche findet die Projektbeschreibung wieder, Einrichtungen auch per Kuerzel (August 2026)
 
 MINOR — Gemeldet war „der Antragsteller GMBU wird nicht gefunden, obwohl er da ist". Beim Nachmessen am Bestand fiel ein größerer Defekt auf: die alten Feld-Aliase des Suchkorpus trafen **0 von 14.225** Anträgen — die gesamte Projektbeschreibung fehlte im Suchindex. Sichtbar war das nur als dünner Bestand.

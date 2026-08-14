@@ -15,6 +15,12 @@
  * ist wortgetreu, inklusive Abkürzungen; jede „Verbesserung" zerstörte die
  * Wiedererkennung gegen das Fachsystem.
  *
+ * **Eine einzige Ausnahme, und sie ist keine Umformulierung**: wo die flache
+ * Zuarbeit einem zweiten Dokument desselben Fachsystems belegt widerspricht
+ * (Rechtschreibung, ein Projektform-Präfix, eine Dopplung), steht die Korrektur
+ * mit Begründung in `seed-label-korrekturen.ts` und greift hier. Sie ist an den
+ * falschen Wortlaut gebunden und läuft ins Leere, sobald die Quelle ihn behebt.
+ *
  * **Herkunft der Ordner-Zuordnung**: aus Bildschirmfotos der Ordnerbäume
  * übertragen. Das ist eine **Vorbelegung, die die PL bestätigt** — genau wie
  * beim Meilenstein-Seed. Codes, die dort nicht sichtbar waren, kommen aus der
@@ -39,6 +45,7 @@
  */
 import { NICHT_ZUGEORDNET_ID } from './kategorien';
 import { ZUARBEIT_CODES, type ZuarbeitCode } from './seed-codes.data';
+import { korrigiereZuarbeitLabel } from './seed-label-korrekturen';
 import type { Prominenz, StatusFeldEintrag, ZahPhaseId } from './typen';
 
 /** Was WIR zu einem Code entscheiden. Bezeichnung und Rollen stehen in der Zuarbeit. */
@@ -359,7 +366,10 @@ function baueFeld(z: ZuarbeitCode, k: Kuration, kategorieId: string): StatusFeld
  * Seed-Determinismus-Test hängt daran.
  */
 export function baueSeedCodeFelder(): StatusFeldEintrag[] {
-  const zuarbeit = new Map(ZUARBEIT_CODES.map(z => [z.code, z]));
+  // EINMAL korrigiert, dann beide Schleifen aus derselben Liste — sonst trüge
+  // ein einsortierter Code den richtigen und ein unsortierter den falschen Text.
+  const codes = ZUARBEIT_CODES.map(korrigiereZuarbeitLabel);
+  const zuarbeit = new Map(codes.map(z => [z.code, z]));
   const out: StatusFeldEintrag[] = [];
   const einsortiert = new Set<string>();
 
@@ -374,7 +384,7 @@ export function baueSeedCodeFelder(): StatusFeldEintrag[] {
     }
   }
 
-  for (const z of ZUARBEIT_CODES) {
+  for (const z of codes) {
     if (einsortiert.has(z.code)) continue;
     out.push(baueFeld(z, {}, NICHT_ZUGEORDNET_ID[ebeneVonCode(z.code)]));
   }
