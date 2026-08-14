@@ -30,8 +30,22 @@
  *    einen Dialog gezeigt hat, ist von aussen nicht feststellbar, also darf aus
  *    einem Misserfolg NIE eine Ablehnung werden (v2.276.0, siehe
  *    guided-grant-progress.ts). Bleibt ein Ordner ungewährt, ist er einfach der
- *    nächste Klick-Schritt. In Chrome/`file://` ändert die Kette nichts, in
- *    Browsern mit persistenten Permissions spart sie Klicks.
+ *    nächste Klick-Schritt.
+ *
+ * v4.40.1 — die Kette lief, die Karte schwieg. Chrome zeigt unter `file://`
+ * inzwischen mehrere Dialoge hintereinander (die v2.59.2-Beobachtung gilt nicht
+ * mehr allgemein), der Fortschritt wurde aber erst HINTER der Schleife gebucht:
+ * die Karte stand während aller Dialoge auf „Schritt 1 von 3" und sprang dann
+ * direkt in die App. Zwei Korrekturen:
+ *  - **Enge Kette + Live-Buchung:** jeder Grant wird sofort gebucht und
+ *    gerendert (`buchErgebnis`), der Rescan läuft nur noch EINMAL am Ende. Der
+ *    Sweep zwischen zwei Prompts verbrauchte das Zeitfenster der Activation,
+ *    das der nächste Prompt braucht — daher brach die Kette mal nach zwei, mal
+ *    nach drei Ordnern ab. Für die Sammel-Box ist er nicht nötig: ein bereits
+ *    gewährtes Handle beantwortet `requestPermission` sofort mit `'granted'`,
+ *    ganz ohne Dialog.
+ *  - **Rest-Ordner hält an:** bleibt nach dem Lauf etwas offen, benennt die
+ *    Karte es, statt still zu starten (siehe `abschlussStand`, Rescan-Fehler).
  */
 
 import { useState, useEffect, useRef } from 'react';
@@ -39,7 +53,7 @@ import { ArrowRight, Check, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { grantPending, type PendingGrant } from '@/core/services/infrastructure/smb-handle';
-import { resolveAfterGrant, darfWeiterketten, type GrantOutcome } from './guided-grant-progress';
+import { buchErgebnis, abschlussStand, darfWeiterketten, type GrantOutcome } from './guided-grant-progress';
 
 interface GuidedGrantStepsProps {
   /** Non-leer (der StartupScreen rendert den Stepper nur bei pending.length > 0). */
@@ -57,6 +71,7 @@ export function GuidedGrantSteps({ pending, rescan, onComplete }: GuidedGrantSte
   const current = pending.find(g => resolved[g.slot] === undefined) ?? null;
   const resolvedCount = pending.filter(g => resolved[g.slot] !== undefined).length;
   const total = pending.length;
+  const offeneAnzahl = total - resolvedCount;
 
   const grantCurrent = useAsyncAction(async () => {
     if (!current) {
@@ -66,44 +81,60 @@ export function GuidedGrantSteps({ pending, rescan, onComplete }: GuidedGrantSte
 
     // Re-Scan: welche Slots sind JETZT noch ungranted? Eine Sammel-Box (modernes
     // Chromium) kann mehrere auf einmal gewährt haben → nicht stur weiterklicken.
-    // Definition ist synchron — die User-Activation bleibt bis grantPending live.
-    const offeneSlots = async (): Promise<Set<string>> => {
+    // `null` bei Fehler — „ich weiß es nicht" darf nie als „alles gewährt"
+    // gelesen werden (siehe abschlussStand).
+    const offeneSlots = async (): Promise<Set<string> | null> => {
       try {
         return new Set((await rescan()).map(g => g.slot));
       } catch {
-        return new Set(); // Scan-Fehler best-effort → als alles-erledigt behandeln.
+        return null;
       }
     };
 
-    // Schritt 1 = der geklickte Slot. Bewusst OHNE Dauer-Heuristik, damit der
-    // kritische Startup-Pfad sich exakt wie bisher verhält.
-    const ergebnis = await grantPending(current);
-    let stand = resolveAfterGrant(pendingSlots, resolved, current.slot, await offeneSlots());
+    // Schritt 1 = der geklickte Slot, die einzige echte User-Geste dieses Laufs.
+    // Nur er darf aus einem Misserfolg eine Ablehnung machen.
+    let ergebnis = await grantPending(current);
+    let stand = buchErgebnis(resolved, current.slot, ergebnis, true);
+    setResolved(stand);
 
-    // Auto-Kette: solange der Browser weiter prompted, die restlichen Slots ohne
-    // zusätzlichen Klick nachziehen. Obergrenze = Slot-Anzahl (kein Endlos-Lauf).
-    //
-    // Die Kette läuft OHNE eigene User-Geste — ob der Browser überhaupt einen
-    // Dialog zeigt, ist von aussen nicht feststellbar. Deshalb bucht sie
-    // ausschliesslich Erfolge (attemptedSlot=null → nie 'denied'). Bleibt ein
-    // Ordner ungewährt, ist er einfach der nächste reguläre Klick-Schritt.
-    let weiter = darfWeiterketten(ergebnis);
-    for (let runde = 0; weiter && !stand.complete && runde < pending.length; runde++) {
-      const naechster = pending.find(g => stand.resolved[g.slot] === undefined);
+    // Enge Auto-Kette: solange der Browser weiter prompted, die restlichen Slots
+    // ohne zusätzlichen Klick nachziehen — direkt hintereinander, ohne Rescan
+    // dazwischen (der verbraucht die Activation, die der nächste Prompt braucht).
+    // Jeder Grant wird sofort gebucht und gerendert, damit die Karte mit den
+    // Browser-Dialogen mitläuft. Obergrenze = Slot-Anzahl (kein Endlos-Lauf).
+    for (let runde = 0; darfWeiterketten(ergebnis) && runde < pending.length; runde++) {
+      const naechster = pending.find(g => stand[g.slot] === undefined);
       if (!naechster) break;
 
-      const kettenErgebnis = await grantPending(naechster);
-      stand = resolveAfterGrant(pendingSlots, stand.resolved, null, await offeneSlots());
-      weiter = darfWeiterketten(kettenErgebnis);
+      ergebnis = await grantPending(naechster);
+      stand = buchErgebnis(stand, naechster.slot, ergebnis, false);
+      setResolved(stand);
     }
 
-    setResolved(stand.resolved);
-    if (stand.complete) await onComplete();
+    // Ein Rescan am Ende: fängt die Sammel-Box (ein Prompt gewährte mehrere) und
+    // korrigiert ein zu früh gebuchtes 'denied', falls der Ordner doch offen ist.
+    const abschluss = abschlussStand(pendingSlots, stand, await offeneSlots());
+    setResolved(abschluss.resolved);
+    if (abschluss.complete) await onComplete();
   });
 
   const skipRemaining = useAsyncAction(async () => {
     await onComplete();
   });
+
+  // Ein Lauf ist durch, es bleibt aber etwas offen: der Browser hat die Kette
+  // nicht weitergeführt (Activation verfallen) oder der User hat abgelehnt und
+  // die Reihe geht weiter. Beides braucht einen benannten nächsten Schritt — die
+  // Ursache nur dort nennen, wo sie feststeht (eine Ablehnung ist in der Liste
+  // ohnehin markiert). „Enter genügt" stimmt hier immer: der Auto-Fokus greift
+  // ab Schritt 2, und Schritt 1 kann nie offen sein, wenn resolvedCount > 0 ist.
+  const restOffen = !grantCurrent.busy && resolvedCount > 0 && current !== null;
+  const hatAblehnung = pending.some(g => resolved[g.slot] === 'denied');
+  const restHinweis = restOffen
+    ? `${offeneAnzahl === 1 ? 'Noch ein Ordner ist' : `Noch ${offeneAnzahl} Ordner sind`} offen` +
+      `${hatAblehnung ? '' : ' — Ihr Browser hat nicht von selbst weitergefragt'}. ` +
+      'Bitte unten freigeben (Enter genügt).'
+    : null;
 
   // Auto-Fokus ab dem ZWEITEN Schritt: der User klickt „Zulassen" oben im
   // Browser-Popup und kommt mit Enter direkt zum nächsten Ordner, ohne die Maus
@@ -148,7 +179,11 @@ export function GuidedGrantSteps({ pending, rescan, onComplete }: GuidedGrantSte
               </span>
               <span className="flex-1">{g.label}</span>
               <span className="text-[11px] text-[var(--tf-text-tertiary)]">
-                {g.mode === 'readwrite' ? 'Lesen + Schreiben' : 'Nur lesen'}
+                {isCurrent && grantCurrent.busy
+                  ? 'wartet auf Ihre Bestätigung'
+                  : g.mode === 'readwrite'
+                    ? 'Lesen + Schreiben'
+                    : 'Nur lesen'}
               </span>
             </div>
           );
@@ -159,6 +194,14 @@ export function GuidedGrantSteps({ pending, rescan, onComplete }: GuidedGrantSte
         Schritt {Math.min(resolvedCount + 1, total)} von {total}
       </p>
 
+      {/* Die Reihe ist stehengeblieben — das benennen, statt den Ordner still zu
+          überspringen. */}
+      {restHinweis && (
+        <p className="mb-2 text-[12px] text-[var(--tf-text-secondary)] leading-relaxed">
+          {restHinweis}
+        </p>
+      )}
+
       <Button
         ref={grantButtonRef}
         icon={ArrowRight}
@@ -166,7 +209,11 @@ export function GuidedGrantSteps({ pending, rescan, onComplete }: GuidedGrantSte
         disabled={grantCurrent.busy || !current}
         className="w-full"
       >
-        {grantCurrent.busy ? 'Wird freigegeben…' : current ? `„${current.label}" freigeben` : 'Starten'}
+        {grantCurrent.busy && current
+          ? `„${current.label}" wird abgefragt…`
+          : current
+            ? `„${current.label}" freigeben`
+            : 'Starten'}
       </Button>
 
       {grantCurrent.error && (

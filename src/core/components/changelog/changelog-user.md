@@ -27,6 +27,9 @@
 - Die Kurations-Seite heißt jetzt **Datenpflege**. Vorher stand „Kuration" in der Seitenleiste zweimal untereinander: als Überschrift der Gruppe und als einziger Eintrag darunter.
 - Die Unterseite „Verzeichnisse" heißt jetzt **Förderprogramme** — „Verzeichnis" klingt nach Ordner auf der Festplatte, gemeint waren aber immer Programme, Unterprogramme und die Filter, die daran hängen. Alte Lesezeichen führen weiterhin dorthin.
 - Die Entwickler-Gruppe heißt schlicht **Developer**.
+### Bugfixes
+- Beim Start hakt die Freigabe-Karte jeden Ordner sofort ab, sobald Sie im Browser auf „Zulassen" geklickt haben. Bisher stand dort während aller Abfragen „Schritt 1 von 3" — es sah aus, als sei nichts angekommen.
+- Fragt Ihr Browser von sich aus nicht weiter, sagt die Karte, welcher Ordner noch offen ist, statt ihn stillschweigend zu überspringen. Ein Ordner ohne Freigabe wird nie mehr als freigegeben verbucht.
 
 ## v4.39 — 2026-08
 

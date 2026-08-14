@@ -1,6 +1,6 @@
 /**
- * Pure Fortschritts-Logik für den GuidedGrantSteps-Stepper (v2.59.2, Auto-Kette
- * seit v2.275).
+ * Pure Fortschritts-Logik für den GuidedGrantSteps-Stepper (v2.59.2, enge
+ * Auto-Kette seit v4.40.1).
  *
  * Hintergrund: Manche Chromium-Browser (in Edge beobachtet; in Chrome unter
  * `file://` NICHT, getestet bis v149) zeigen einen konsolidierten
@@ -9,6 +9,12 @@
  * auf einmal gewähren. Das ist browser-/kontextabhängig und nicht erzwingbar.
  * Der Stepper darf danach nicht stur den nächsten Schritt zeigen, sondern muss
  * alle bereits gewährten Slots als erledigt erkennen und ggf. sofort abschließen.
+ *
+ * Zwei Buchungswege, bewusst getrennt:
+ *  - `buchErgebnis` bucht das DIREKTE Resultat eines `requestPermission` — das
+ *    ist die Wahrheit, die die Kette ohne Rescan zwischen den Prompts braucht.
+ *  - `resolveAfterGrant` / `abschlussStand` buchen aus dem Rescan
+ *    (`queryPermission`-Sweep) und fangen damit die Sammel-Box.
  *
  * Diese Funktionen kapseln genau diese Entscheidungen — pure, damit sie ohne
  * React-Rendering (kein RTL/jsdom im Projekt) unit-testbar sind.
@@ -57,6 +63,57 @@ export function resolveAfterGrant(
 
   const complete = pendingSlots.every(slot => resolved[slot] !== undefined);
   return { resolved, complete };
+}
+
+/**
+ * Bucht das DIREKTE Ergebnis eines `requestPermission` — ohne Rescan.
+ *
+ * Die Kette fragt die restlichen Ordner unmittelbar hintereinander an; ein
+ * Rescan dazwischen (IDB + `queryPermission` über SMB-Handles) verbraucht das
+ * Zeitfenster der User-Activation, das der nächste Prompt braucht. Der
+ * Rückgabewert von `requestPermission` reicht als Wahrheit: `'granted'` ist
+ * `'granted'`, egal ob eine Geste dahinterstand.
+ *
+ * @param echteGeste `true` nur für den geklickten Slot. Ausschliesslich dann
+ *                   darf aus einem Misserfolg eine Ablehnung werden — in der
+ *                   Kette ist von aussen nicht feststellbar, ob der Browser
+ *                   überhaupt einen Dialog gezeigt hat, ein `denied` würde den
+ *                   Ordner also dauerhaft überspringen.
+ */
+export function buchErgebnis(
+  prior: Record<string, GrantOutcome>,
+  slot: string,
+  ergebnis: GrantErgebnis,
+  echteGeste: boolean,
+): Record<string, GrantOutcome> {
+  if (ergebnis === 'granted') return { ...prior, [slot]: 'granted' };
+  if (echteGeste) return { ...prior, [slot]: 'denied' };
+  return prior;
+}
+
+/**
+ * Abschluss nach der Kette: den Rescan einarbeiten (falls er gelang) und
+ * entscheiden, ob der Stepper fertig ist.
+ *
+ * @param offen Slots, die laut Rescan JETZT noch nicht granted sind — oder
+ *              `null`, wenn der Rescan gescheitert ist. `null` darf NIEMALS wie
+ *              ein leeres Set behandelt werden: „ich weiß es nicht" ist nicht
+ *              „alles gewährt". Bis v4.40.0 lieferte der Fehlerpfad ein leeres
+ *              Set; ein einziger fehlgeschlagener Sweep buchte damit alle
+ *              offenen Ordner als gewährt und startete die App, ohne sie je
+ *              gefragt zu haben.
+ */
+export function abschlussStand(
+  pendingSlots: string[],
+  resolved: Record<string, GrantOutcome>,
+  offen: Set<string> | null,
+): { resolved: Record<string, GrantOutcome>; complete: boolean } {
+  if (offen === null) {
+    // Kein verlässlicher Rescan → nichts zusätzlich buchen. Direkt beobachtete
+    // Grants zählen trotzdem, deshalb wird `complete` aus `resolved` gerechnet.
+    return { resolved, complete: pendingSlots.every(slot => resolved[slot] !== undefined) };
+  }
+  return resolveAfterGrant(pendingSlots, resolved, null, offen);
 }
 
 /**

@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.40.1 — Startup-Freigabe: Karte laeuft mit den Browser-Dialogen mit (August 2026)
+
+PATCH — Chrome zeigt unter `file://` inzwischen mehrere Freigabe-Dialoge hintereinander, die Karte buchte den Fortschritt aber erst hinter der Kette: sie stand während aller drei Abfragen auf „Schritt 1 von 3" und sprang dann in die App. Und ein fehlgeschlagener Rescan buchte alle offenen Ordner als gewährt — der dritte wurde nie gefragt.
+
+- **Fortschritt wird nach jedem Grant gebucht und gerendert** (`buchErgebnis`), laufende Zeile sagt „wartet auf Ihre Bestätigung" ([GuidedGrantSteps.tsx](src/core/components/GuidedGrantSteps.tsx))
+- **Enge Kette**: kein Rescan mehr zwischen zwei Prompts — er verbrauchte das Activation-Fenster des nächsten; einer am Ende genügt ([GuidedGrantSteps.tsx](src/core/components/GuidedGrantSteps.tsx))
+- **Gescheiterter Rescan bucht keinen Erfolg mehr** — Fehlerpfad liefert `null` statt eines leeren Sets ([guided-grant-progress.ts](src/core/components/guided-grant-progress.ts))
+- **Rest-Ordner wird benannt** statt still übersprungen („Noch ein Ordner offen…", Enter genügt) ([GuidedGrantSteps.tsx](src/core/components/GuidedGrantSteps.tsx))
+- **Bug-Klasse fortgeschrieben**: Activation ist zeit-, nicht zählbegrenzt; Reload ≠ Neustart als Repro-Falle ([recurring-bug-classes.md §2](docs/architecture/recurring-bug-classes.md))
+
 ### v4.40.0 — Kuration und Developer klappen zu, Datenpflege statt zweimal Kuration (August 2026)
 
 MINOR — Nachlese zum Kuration-Umbau, aus dem Blick auf die fertige Seitenleiste: „Kuration" stand dort zweimal untereinander (Überschrift und einziger Eintrag darunter), die beiden unteren Gruppen ließen sich als einzige nicht wegräumen, und „Verzeichnisse" heißt in dieser App sonst überall Ordner auf der Platte.

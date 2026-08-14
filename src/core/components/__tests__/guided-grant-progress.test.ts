@@ -4,7 +4,7 @@
  * sind und ob abgeschlossen werden kann — pure Funktion, ohne React-Rendering.
  */
 import { describe, it, expect } from 'vitest';
-import { resolveAfterGrant, darfWeiterketten } from '../guided-grant-progress';
+import { resolveAfterGrant, darfWeiterketten, buchErgebnis, abschlussStand } from '../guided-grant-progress';
 
 const PENDING = ['daten-share', 'persoenlich'];
 
@@ -97,6 +97,64 @@ describe('resolveAfterGrant ohne Geste (Auto-Kette, attemptedSlot = null)', () =
     // Vor v2.276.0 wurde 'persoenlich' hier faelschlich denied und
     // uebersprungen; jetzt bleibt er offen und wird der naechste Klick-Schritt.
     const r = resolveAfterGrant(PENDING, { 'daten-share': 'granted' }, null, new Set(['persoenlich']));
+    expect(r.resolved.persoenlich).toBeUndefined();
+    expect(r.complete).toBe(false);
+  });
+});
+
+/**
+ * v4.40.1 — die enge Kette bucht das DIREKTE Ergebnis von `requestPermission`,
+ * ohne Rescan dazwischen (der verbrauchte das Activation-Zeitfenster, das der
+ * naechste Prompt braucht). Die Gesture-Invariante bleibt: nur der geklickte
+ * Slot darf abgelehnt werden.
+ */
+describe('buchErgebnis', () => {
+  it('bucht einen Erfolg immer — auch ohne eigene Geste (granted ist beobachtete Wahrheit)', () => {
+    expect(buchErgebnis({}, 'persoenlich', 'granted', false)).toEqual({ persoenlich: 'granted' });
+  });
+
+  it('bucht in der Kette NIE eine Ablehnung — der Slot bleibt offen', () => {
+    expect(buchErgebnis({}, 'persoenlich', 'prompt', false)).toEqual({});
+    expect(buchErgebnis({}, 'persoenlich', 'denied', false)).toEqual({});
+  });
+
+  it('bucht denied nur beim geklickten Slot (echte Geste = der User hat wirklich abgelehnt)', () => {
+    expect(buchErgebnis({}, 'daten-share', 'denied', true)).toEqual({ 'daten-share': 'denied' });
+  });
+
+  it('laesst frueher gebuchte Slots stehen', () => {
+    const r = buchErgebnis({ 'daten-share': 'granted' }, 'persoenlich', 'granted', false);
+    expect(r).toEqual({ 'daten-share': 'granted', persoenlich: 'granted' });
+  });
+});
+
+/**
+ * v4.40.1 — Abschluss nach der Kette. Der Rescan darf scheitern; dann weiss die
+ * App schlicht nichts Neues.
+ */
+describe('abschlussStand', () => {
+  it('REGRESSION: gescheiterter Rescan (null) bucht keinen Grant und schliesst nicht ab', () => {
+    // Bis v4.40.0 lieferte der Fehlerpfad ein LEERES Set. resolveAfterGrant las
+    // „kein Slot mehr offen" als „alles gewaehrt", meldete complete und startete
+    // die App — der Persoenliche Ordner wurde nie gefragt.
+    const r = abschlussStand(PENDING, { 'daten-share': 'granted' }, null);
+    expect(r.resolved.persoenlich).toBeUndefined();
+    expect(r.complete).toBe(false);
+  });
+
+  it('gescheiterter Rescan schliesst trotzdem ab, wenn die Kette selbst alles gebucht hat', () => {
+    const r = abschlussStand(PENDING, { 'daten-share': 'granted', persoenlich: 'granted' }, null);
+    expect(r.complete).toBe(true);
+  });
+
+  it('echter Rescan ohne offene Slots: Sammel-Box gewaehrte alles → complete', () => {
+    const r = abschlussStand(PENDING, {}, new Set());
+    expect(r.resolved).toEqual({ 'daten-share': 'granted', persoenlich: 'granted' });
+    expect(r.complete).toBe(true);
+  });
+
+  it('echter Rescan mit offenem Slot: bleibt offen, nie denied (Kette hat keine Geste)', () => {
+    const r = abschlussStand(PENDING, { 'daten-share': 'granted' }, new Set(['persoenlich']));
     expect(r.resolved.persoenlich).toBeUndefined();
     expect(r.complete).toBe(false);
   });
