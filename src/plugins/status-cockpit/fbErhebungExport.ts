@@ -143,7 +143,7 @@ export function baueMarkdown(k: ErhebungsKontext, d: ErhebungsDaten): string {
   if (eigene.length === 0) {
     z.push('Keine — im ausgewerteten Bestand wartet derzeit keine Regel auf diese Rolle.');
   } else {
-    z.push('Heute mit geliehenem To-do: '
+    z.push('Heute mit abgeleitetem To-do: '
       + `${zaehlwort(bilanz?.abgeleitet ?? 0, 'Vorgang', 'Vorgänge')}. Je Zeile: `
       + 'was die App anzeigt, aus welcher Regel es stammt, wie oft.');
     z.push('');
@@ -203,7 +203,7 @@ export function baueMarkdown(k: ErhebungsKontext, d: ErhebungsDaten): string {
     + 'mit welchem To-do-Text?');
   z.push('2. Welche der offenen Paare aus Abschnitt 2 sind ein echter Rückstand und welche eine '
     + 'Altlast der Datenpflege?');
-  z.push('3. Soll eine eigene Regel dieselbe Population treffen wie der geliehene Platzhalter '
+  z.push('3. Soll eine eigene Regel dieselbe Population treffen wie der abgeleitete Platzhalter '
     + '(dann braucht sie zusätzliche Abgrenzungen) oder bewusst die breitere?');
   z.push('');
   return z.join('\n');

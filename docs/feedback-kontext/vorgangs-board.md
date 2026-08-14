@@ -49,13 +49,13 @@ Verfügung.
 - **Rollen-Sicht**: jede Rolle hat einen eigenen Regelsatz. Die Rollen-Chips
   schalten die Sicht um; ausgewertet wird immer genau ein Satz. „Alle Rollen"
   zeigt den AB-Satz — er ist der einzige mit einer vollstaendigen Kaskade.
-- **Geliehene To-dos**: solange fuer eine Rolle keine eigene Regel gepflegt ist,
-  leiht sich das Board die Aussage der Regel, die auf sie wartet. Solche
-  Eintraege sind mit **„geliehen"** markiert (Zeile und Gruppenkopf); der
+- **Abgeleitete To-dos**: solange fuer eine Rolle keine eigene Regel gepflegt
+  ist, uebernimmt das Board die Aussage der Regel, die auf sie wartet. Solche
+  Eintraege sind mit **„abgeleitet"** markiert (Zeile und Gruppenkopf); der
   Tooltip nennt die Herkunftsregel. Eine spaeter geschriebene eigene Regel
-  ersetzt den geliehenen Eintrag.
+  ersetzt den abgeleiteten Eintrag.
 - **Rollen-Bilanz** im Kopf: „824 AB-To-dos · 68 FB-To-dos, davon 68 abgeleitet".
-  Der zweite Teil sagt, wie viel von der Arbeit einer Rolle nur geliehen ist —
+  Der zweite Teil sagt, wie viel von der Arbeit einer Rolle nur abgeleitet ist —
   und damit, wie viel Regelarbeit noch aussteht.
 - **Filter**: Rollen-Chips (Vorbelegung aus dem Profil, umschaltbar auf alle),
   eigenes Kürzel an/aus, **„hängt fest"** — dazu drei Menüs mit

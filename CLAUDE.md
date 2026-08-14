@@ -217,7 +217,7 @@ Demonstrator der Fachprüfung: Einreichungs-JSON → Rechenchecks → **editierb
 
 **Regelquelle ist C16** (v3.23), nicht die Zuarbeit; EP/DL sind Ein-TV-Verbünde, DS fehlt im Kürzelkatalog — Absicht, kein Guard ([§14.7](docs/architecture/vorgangssystem.md)).
 
-**Mehrspurig seit v2.391** (Pitfall #47): jede Regel trägt einen `regelsatz` (fehlend = AB), die Engine wertet je Rolle den ihren aus. Eine Rolle ohne eigene Regel bekommt einen **abgeleiteten Platzhalter** aus dem `wartetAuf` der fremden Regel — im Board als „geliehen" markiert, verdrängt von jedem echten Treffer. Regeln in einem Satz außer AB starten stillgelegt, weil `status-katalog.json` für alle Varianten gleichzeitig live ist.
+**Mehrspurig seit v2.391** (Pitfall #47): jede Regel trägt einen `regelsatz` (fehlend = AB), die Engine wertet je Rolle den ihren aus. Eine Rolle ohne eigene Regel bekommt einen **abgeleiteten Platzhalter** aus dem `wartetAuf` der fremden Regel — überall als „abgeleitet" markiert, verdrängt von jedem echten Treffer. Regeln in einem Satz außer AB starten stillgelegt, weil `status-katalog.json` für alle Varianten gleichzeitig live ist.
 
 **Import-Diff-Journal seit v2.392** (Pitfall #48): der Nacht-Export wird überschrieben, also führt die App einen Stand mit (`_intern/vorgangssystem/journal/`) und hält fest, was sich zwischen zwei Exporten geändert hat. Ab dem Nullpunkt ist der Verlauf belegt statt genähert — ohne Personen-Achse.
 

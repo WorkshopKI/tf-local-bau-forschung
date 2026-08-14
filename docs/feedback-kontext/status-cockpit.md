@@ -200,7 +200,7 @@ wird.
     Rolle warten — mit Anzahl, Herkunftsregel und Beispiel-Aktenzeichen. Aus
     jeder Zeile lässt sich die fehlende Regel direkt anlegen, vorbefüllt mit der
     Bedingung, die schon feststeht. Jede Zeile trägt **zwei** Zahlen: wie oft die
-    Rolle das To-do heute geliehen sieht, und wie oft die Bedingung der
+    Rolle das To-do heute abgeleitet sieht, und wie oft die Bedingung der
     Herkunftsregel im Bestand überhaupt zutrifft. Die zweite ist die Reichweite
     einer eigenen Regel und regelmäßig ein Vielfaches der ersten.
   - Daneben die Zahl der Vorgänge **ohne To-do in jedem Regelsatz**, bei denen

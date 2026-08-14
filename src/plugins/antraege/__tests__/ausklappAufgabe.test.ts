@@ -79,12 +79,12 @@ describe('baueAufgabe', () => {
     expect(baueAufgabe({ jeTv, rolle: 'ab', ohneRegeln: false }).text).toBe('AB-Sache');
   });
 
-  it('markiert ein geliehenes To-do als solches', () => {
+  it('markiert ein abgeleitetes To-do als solches', () => {
     const a = baueAufgabe({
       jeTv: [tv('A1', { fb: erg({ todo: 'Gutachten liefern', quelle: 'abgeleitet', abgeleitetAus: 'R4' }) })],
       rolle: 'fb', ohneRegeln: false,
     });
-    expect(a.grund).toContain('Geliehen aus Regel R4');
+    expect(a.grund).toContain('Abgeleitet aus Regel R4');
   });
 });
 

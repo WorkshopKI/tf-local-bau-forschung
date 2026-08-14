@@ -133,14 +133,15 @@ function Gruppe({ todo, zeilen, rolle, onOeffnen }: {
         />
         <span className="text-[13px] font-medium text-[var(--tf-text)]">{todo}</span>
         <span className="text-[11px] text-[var(--tf-text-tertiary)]">{zeilen.length}</span>
-        {/* Eine Gruppe, die nur geliehen dasteht, sagt das am Kopf — sonst liest
-            man sie als gepflegtes Ergebnis eines Regelsatzes, den es nicht gibt. */}
+        {/* Eine Gruppe, die nur abgeleitet dasteht, sagt das am Kopf — sonst
+            liest man sie als gepflegtes Ergebnis eines Regelsatzes, den es
+            nicht gibt. */}
         {zeilen.every(z => sichtVon(z, rolle).quelle === 'abgeleitet') && (
           <span
             className="text-[11px] italic text-[var(--tf-text-tertiary)]"
             title="Alle Einträge dieser Gruppe sind aus einer fremden Regel abgeleitet — für diese Rolle gibt es dazu noch keine eigene."
           >
-            geliehen
+            abgeleitet
           </span>
         )}
       </button>

@@ -6,10 +6,15 @@
  * Sonderfall auseinanderliefen. Domänenfrei in dem Sinn, dass hier nichts
  * gerechnet wird: das {@link TodoErgebnis} kommt fertig herein.
  *
- * **Der Abgeleitet-Marker ist kein Schmuck.** Ein geliehenes To-do ist eine
+ * **Der Abgeleitet-Marker ist kein Schmuck.** Ein abgeleitetes To-do ist eine
  * schwächere Aussage als ein ermitteltes — es sagt „die AB-Regel wartet auf
  * dich", nicht „dein Regelsatz beschreibt diesen Fall". Wer das nicht sieht,
  * hält den Platzhalter für eine gepflegte Regel und schreibt sie nie.
+ *
+ * Das Wort dafür heißt überall **„abgeleitet"** — so wie `quelle`, der Tooltip
+ * und die Rollen-Bilanz des Boards. Bis v4.46.1 stand am Eintrag „geliehen",
+ * daneben zählte dieselbe Seite „davon N abgeleitet": zwei Wörter für eine
+ * Sache.
  */
 import { ROLLE_LABEL, ROLLE_LANG, type Rolle, type TodoErgebnis } from '@/core/status';
 
@@ -27,7 +32,7 @@ export function WartetAuf({ e }: { e: TodoErgebnis }): React.ReactElement | null
   return <span className="text-[11px] text-[var(--tf-text-tertiary)]">wartet auf {text}</span>;
 }
 
-/** Der unaufdringliche Marker am geliehenen To-do. */
+/** Der unaufdringliche Marker am abgeleiteten To-do. */
 export function AbgeleitetMarke({ e, rolle }: {
   e: TodoErgebnis;
   rolle: Rolle | 'alle';
@@ -39,7 +44,7 @@ export function AbgeleitetMarke({ e, rolle }: {
       className="shrink-0 text-[11px] text-[var(--tf-text-tertiary)] italic whitespace-nowrap"
       title={titel}
     >
-      geliehen
+      abgeleitet
     </span>
   );
 }
@@ -57,14 +62,14 @@ export function TodoHerleitung({ e, rolle, waechterGrund }: {
   rolle: Rolle | 'alle';
   waechterGrund?: string;
 }): React.ReactElement {
-  const geliehen = abgeleitetTitel(e, rolle);
+  const abgeleitet = abgeleitetTitel(e, rolle);
   return (
     <div className="flex flex-col gap-0.5">
       {e.beschreibung !== null && (
         <span className="text-[11.5px] text-[var(--tf-text-secondary)]">{e.beschreibung}</span>
       )}
-      {geliehen !== null && (
-        <span className="text-[11.5px] text-[var(--tf-text-secondary)] italic">{geliehen}</span>
+      {abgeleitet !== null && (
+        <span className="text-[11.5px] text-[var(--tf-text-secondary)] italic">{abgeleitet}</span>
       )}
       {waechterGrund !== undefined && (
         <span className="text-[11px] text-[var(--tf-text-tertiary)]">Wächter: {waechterGrund}</span>

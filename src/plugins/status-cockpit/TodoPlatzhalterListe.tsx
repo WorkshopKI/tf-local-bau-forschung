@@ -36,8 +36,8 @@ export function TodoPlatzhalterListe({ satz, anzahlRegeln, lauf, onRegelErzeugen
           {anzahlRegeln === 1 && <>Für <strong>{ROLLE_LABEL[satz]}</strong> ist eine Regel gepflegt.</>}
           {anzahlRegeln > 1 && <>Für <strong>{ROLLE_LABEL[satz]}</strong> sind {anzahlRegeln} Regeln gepflegt.</>}
           {' '}
-          Wo keine davon greift, leiht sich das Board die Aussage der Regel, die auf{' '}
-          {ROLLE_LABEL[satz]} wartet — dort als „geliehen" markiert.
+          Wo keine davon greift, übernimmt das Board die Aussage der Regel, die auf{' '}
+          {ROLLE_LABEL[satz]} wartet — dort als „abgeleitet" markiert.
         </span>
         <Button
           variant="secondary" size="sm" disabled={lauf.aktion.busy}
@@ -111,7 +111,7 @@ export function TodoPlatzhalterListe({ satz, anzahlRegeln, lauf, onRegelErzeugen
                 <li key={g.quellRegelId} className="flex items-baseline gap-2 flex-wrap">
                   <span
                     className="text-[12px] font-mono text-[var(--tf-text-tertiary)] w-[228px] shrink-0"
-                    title={'Sieht das To-do heute geliehen: '
+                    title={'Sieht das To-do heute abgeleitet: '
                       + `${zaehlwort(g.alsPlatzhalter, 'Vorgang', 'Vorgänge')} · `
                       + 'erfüllt die Bedingung der Herkunftsregel: '
                       + `${zaehlwort(g.bedingungTrifft, 'Vorgang', 'Vorgänge')}`}

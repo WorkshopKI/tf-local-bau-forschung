@@ -5,6 +5,14 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.46.1 — Abgeleitete To-dos heissen ueberall abgeleitet (August 2026)
+
+PATCH — Am To-do stand die Marke „geliehen", während die Rollen-Bilanz derselben Seite „davon 68 abgeleitet" zählte: zwei Wörter für eine Sache, und das ungewöhnlichere davon an der sichtbarsten Stelle. `quelle`, Tooltip und Herkunftsspalte des Exports sagten ohnehin schon „abgeleitet".
+
+- **Die Marke am To-do heißt „abgeleitet"** — Antrag-Detail, Ausklapp-Kopfkarte und Gruppenkopf im Vorgangs-Board ([TodoAnzeige.tsx](src/components/vorgang/TodoAnzeige.tsx), [aufgabe.ts](src/plugins/antraege/ausklapp/kopfkarte/aufgabe.ts), [VorgangsBoardPage.tsx](src/plugins/vorgangs-board/VorgangsBoardPage.tsx))
+- **Gleicher Wortlaut im Status-Cockpit und in der FB-Erhebung** ([TodoPlatzhalterListe.tsx](src/plugins/status-cockpit/TodoPlatzhalterListe.tsx), [fbErhebungExport.ts](src/plugins/status-cockpit/fbErhebungExport.ts))
+- **Die geliehene Kürzel-Bezeichnung bleibt „geliehen"** — anderer Sachverhalt (ein Wortlaut aus einer fremden Projektform), eigener Schirm ([kuerzel-katalog.ts](src/core/status/kuerzel-katalog.ts), [VerlaufBefundeBlock.tsx](src/plugins/status-cockpit/VerlaufBefundeBlock.tsx))
+
 ### v4.46.0 — Statuseintraege einklappbar, Detailseite vertikal verdichtet (August 2026)
 
 MINOR — „Statuseinträge" war der einzige Block der Statussektion ohne Klapp-Zustand und rollte ungefragt aus: gemessen 1.383 px für „Status & Verlauf", davon über zwei Drittel Ordner-Liste. Dazu trugen mehrere Klapp-Köpfe ihren Bodenabstand am Button statt am Rumpf — die Marge blieb stehen, wenn der Rumpf verschwand.

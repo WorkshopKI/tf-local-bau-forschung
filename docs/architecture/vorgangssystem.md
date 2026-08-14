@@ -516,9 +516,11 @@ Regelsatz; sie gilt vorgangsweit, solange sie über `giltFuer` nichts anderes sa
 ### 11.2 Abgeleitete Platzhalter — der Weg ohne Umschaltpunkt
 
 Liefert der Regelsatz einer Rolle keinen Treffer, hat aber die für eine andere
-Rolle greifende Regel ein `wartetAuf` auf sie, entsteht ein **geliehenes**
+Rolle greifende Regel ein `wartetAuf` auf sie, entsteht ein **abgeleitetes**
 Ergebnis: derselbe To-do-Text, `quelle: 'abgeleitet'`, Herkunft in
-`abgeleitetAus`. Im Board trägt es den Marker „geliehen".
+`abgeleitetAus`. Im Board trägt es den Marker „abgeleitet" — dasselbe Wort wie
+`quelle`, der Tooltip und die Rollen-Bilanz (bis v4.46.1 stand am Eintrag
+„geliehen", während die Bilanz daneben „davon N abgeleitet" zählte).
 
 Drei Regeln halten es ehrlich: ein echter Treffer schlägt den Platzhalter immer;
 er läuft durch den Sperr-Filter der eigenen Rolle (sonst würde ein für sie

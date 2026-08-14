@@ -41,7 +41,7 @@ export interface Aufgabe {
   rolle: Rolle;
   /** Der To-do-Text; `null` = keine Regel dieses Satzes traf. */
   text: string | null;
-  /** Das zugehörige Ergebnis — Quelle für „geliehen" und die Herleitung. */
+  /** Das zugehörige Ergebnis — Quelle für „abgeleitet" und die Herleitung. */
   ergebnis: TodoErgebnis | null;
   /** Immer gefüllt: die Herkunft bzw. der Grund, warum nichts dasteht. */
   grund: string;
@@ -125,7 +125,7 @@ function grundOhneTreffer(jeTv: readonly TvTodo[], rolle: Rolle): string {
 function grundMitTreffer(e: TodoErgebnis): string {
   const regel = e.beschreibung ?? e.regelId ?? 'unbenannte Regel';
   return e.quelle === 'abgeleitet'
-    ? `Geliehen aus Regel ${e.abgeleitetAus ?? '?'} — für diese Rolle gibt es dazu noch keine eigene Regel.`
+    ? `Abgeleitet aus Regel ${e.abgeleitetAus ?? '?'} — für diese Rolle gibt es dazu noch keine eigene Regel.`
     : `Aus ${regel}.`;
 }
 

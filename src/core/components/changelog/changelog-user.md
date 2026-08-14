@@ -26,6 +26,7 @@
 - **„Offene Aufgaben" startet ebenfalls zugeklappt** und merkt sich, wie Sie es zuletzt hatten. Bisher stand der Block bei jedem Antrag wieder offen, egal ob Sie ihn zugeklappt hatten.
 
 ### Verbesserungen
+- **Aufgaben, die aus der Regel einer anderen Rolle stammen, sind jetzt als „abgeleitet" markiert** — vorher stand dort „geliehen", obwohl die Zählung daneben schon von „abgeleitet" sprach. Gemeint ist beides Mal dasselbe: Für Ihre Rolle ist zu diesem Fall noch keine eigene Regel gepflegt, deshalb zeigt die App, worauf die Regel einer anderen Rolle wartet.
 - **Die Antrags-Detailseite ist enger gesetzt.** Zugeklappte Abschnitte brauchen jetzt nur noch ihre Kopfzeile — der Leerraum, der früher unter ihnen hing, ist weg. Aufgeklappt zeigt „Status & Verlauf" damit gut dreimal so viel auf einem Bildschirm wie vorher.
 
 ## v4.45 — 2026-08
