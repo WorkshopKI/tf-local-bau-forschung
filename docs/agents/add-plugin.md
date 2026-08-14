@@ -70,7 +70,7 @@ damit ein neuer Eintrag nicht versehentlich zwischen zwei Gruppen rutscht.
 
 ## ID-Konvention
 
-- **Kurator-Plugin**: ID endet auf `-kuration` (z.B. `feedback-kuration`)
+- **Kurator-Seite**: in aller Regel **kein** eigenes Plugin mehr — sie wird ein Panel des Hubs `/kuration` ([add-settings-section.md](add-settings-section.md)). Ein eigenes Plugin nur, wenn die Seite eine eigene Arbeitsfläche ist (Vorbild `dokument-review`: Tastatursteuerung, 50/50-Split); dann endet die ID auf `-kuration` und die ID gehört in `KURATION_PLUGIN_IDS`
 - **Nutzer-Plugin**: Domain-Name pur (z.B. `home`, `chat`, `antraege`)
 - **Dev-Plugin**: ID-Präfix `dev-` (z.B. `dev-infrastructure-test`)
 

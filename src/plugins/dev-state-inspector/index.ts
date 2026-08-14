@@ -7,7 +7,7 @@ export const devStateInspectorPlugin: TeamFlowPlugin = {
   featureFlag: 'devFixtures',
   name: 'DEV: State',
   icon: 'Microscope',
-  category: 'kuration',
+  category: 'werkbank',
   order: 98,
   component: StateInspectorPanel,
   kuratorOnly: false,

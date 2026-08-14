@@ -555,6 +555,9 @@ export function ShellLayout({ plugins, children }: ShellLayoutProps): React.Reac
                 (Zahnrad in der Fußzeile). Bleibt als Ablage für System-Seiten. */}
             {renderNavGruppe('system')}
             {renderNavGruppe('kuration')}
+            {/* Entwickler-Panels stehen GANZ unten und unter eigenem Namen: sie
+                kuratieren nichts, sie sind Werkzeug am Bau. */}
+            {renderNavGruppe('werkbank')}
           </nav>
 
           <div className="px-2 py-1.5 shrink-0 flex flex-col" style={{ borderTop: '0.5px solid var(--tf-border)' }}>

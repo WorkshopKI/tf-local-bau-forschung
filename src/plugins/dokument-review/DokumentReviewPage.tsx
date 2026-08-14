@@ -39,10 +39,15 @@ export function DokumentReviewPage(): React.ReactElement {
   }, [activeProgrammId, antraegeIndex.load]);
 
   return (
-    <div className="flex flex-col gap-4 p-6">
-      {/* Die Seite trägt keinen eigenen Titel (sie startet mit der Dashboard-Karte);
-          der Hilfe-Knopf steht darum allein rechts oben. */}
-      <div className="-mb-2 flex justify-end"><SeitenHilfeButton pluginId="dokument-review" /></div>
+    <div className="flex flex-col gap-4 px-8 pt-4 pb-6">
+      {/* Derselbe Seitenkopf wie der Kuration-Hub daneben (Titel links,
+          Hilfe-Knopf am rechten Blattrand). Bis v4.39 stand hier nur der
+          Knopf, ohne Titel: die Seite sagte als einzige der Gruppe nicht,
+          wo man ist. */}
+      <div className="flex items-center gap-3">
+        <h1 className="text-[22px] font-medium text-[var(--tf-text)]">Dokument-Review</h1>
+        <div className="ml-auto shrink-0"><SeitenHilfeButton pluginId="dokument-review" /></div>
+      </div>
       <DashboardCard
         entries={manifest.entries}
         pending={manifest.pending}

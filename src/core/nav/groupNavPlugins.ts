@@ -1,6 +1,6 @@
 import type { TeamFlowPlugin } from '@/core/types/plugin';
 
-export type NavGroupKey = 'workflow' | 'tools' | 'erprobung' | 'system' | 'kuration';
+export type NavGroupKey = 'workflow' | 'tools' | 'erprobung' | 'system' | 'kuration' | 'werkbank';
 
 export interface NavGroups {
   workflow: TeamFlowPlugin[];
@@ -8,6 +8,7 @@ export interface NavGroups {
   erprobung: TeamFlowPlugin[];
   system: TeamFlowPlugin[];
   kuration: TeamFlowPlugin[];
+  werkbank: TeamFlowPlugin[];
 }
 
 /**
@@ -17,6 +18,13 @@ export interface NavGroups {
  *
  * EINE Quelle für Sidebar UND Command-Palette — sonst heißt dieselbe Gruppe an
  * zwei Stellen verschieden.
+ *
+ * `werkbank` (v4.39) trägt die Entwickler-Panels. Sie standen bis dahin unter
+ * „Kuration", waren dort aber falsch einsortiert: weder `kuratorOnly` noch
+ * `/kuration/*`, und sie kuratieren nichts. Sichtbar sind sie ohnehin nur über
+ * ihre eigenen Flags (`devInfraPanel`, `devFixtures`), die in allen vier
+ * Variant-Configs genau dort `true` stehen, wo auch `kuratorMenus` true ist —
+ * der Umzug ändert die Verfügbarkeit in keiner Variante.
  */
 export const NAV_GRUPPEN_LABEL: Record<NavGroupKey, string | null> = {
   workflow: null,
@@ -24,6 +32,7 @@ export const NAV_GRUPPEN_LABEL: Record<NavGroupKey, string | null> = {
   erprobung: 'In Erprobung',
   system: null,
   kuration: 'Kuration',
+  werkbank: 'Werkbank (dev)',
 };
 
 /**
@@ -44,7 +53,7 @@ export function navVisiblePlugins(plugins: TeamFlowPlugin[]): TeamFlowPlugin[] {
  * `hideFromNav`-Plugins fallen raus (Route bleibt erreichbar, siehe Router).
  */
 export function groupNavPlugins(plugins: TeamFlowPlugin[]): NavGroups {
-  const groups: NavGroups = { workflow: [], tools: [], erprobung: [], system: [], kuration: [] };
+  const groups: NavGroups = { workflow: [], tools: [], erprobung: [], system: [], kuration: [], werkbank: [] };
   for (const p of navVisiblePlugins(plugins)) groups[p.category].push(p);
   return groups;
 }

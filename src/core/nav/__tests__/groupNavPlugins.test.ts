@@ -112,9 +112,24 @@ describe('sichtbareGruppenItems', () => {
   it('füllt die kuration-Gruppe getrennt (Kurator-Builds)', () => {
     const plugins = [
       plugin({ id: 'home', category: 'workflow', order: 0 }),
-      plugin({ id: 'feedback-kuration', category: 'kuration', order: 90 }),
+      plugin({ id: 'dokument-review', category: 'kuration', order: 30 }),
     ];
     const groups = groupNavPlugins(plugins);
-    expect(groups.kuration.map(p => p.id)).toEqual(['feedback-kuration']);
+    expect(groups.kuration.map(p => p.id)).toEqual(['dokument-review']);
+  });
+
+  it('trennt die Werkbank von der Kuration', () => {
+    // Die DEV-Panels standen bis v4.39 unter „Kuration", obwohl sie weder
+    // `kuratorOnly` sind noch etwas kuratieren. Landeten sie wieder dort,
+    // sähe ein Kurator Werkzeug am Bau zwischen seinen Arbeitsmitteln.
+    const plugins = [
+      plugin({ id: 'kuration', category: 'kuration', order: 10 }),
+      plugin({ id: 'dev-state-inspector', category: 'werkbank', order: 98 }),
+      plugin({ id: 'dev-infrastructure-test', category: 'werkbank', order: 99 }),
+    ];
+    const groups = groupNavPlugins(plugins);
+    expect(groups.kuration.map(p => p.id)).toEqual(['kuration']);
+    expect(groups.werkbank.map(p => p.id)).toEqual(['dev-state-inspector', 'dev-infrastructure-test']);
+    expect(NAV_GRUPPEN_LABEL.werkbank).toBe('Werkbank (dev)');
   });
 });

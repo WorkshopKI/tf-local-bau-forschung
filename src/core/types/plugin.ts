@@ -64,7 +64,7 @@ export interface TeamFlowPlugin {
    * Aussage über Reife, nicht über Sichtbarkeit — sonst wechselte eine Seite die
    * Gruppe als Nebenwirkung einer Flag-Änderung.
    */
-  category: 'workflow' | 'tools' | 'erprobung' | 'system' | 'kuration';
+  category: 'workflow' | 'tools' | 'erprobung' | 'system' | 'kuration' | 'werkbank';
   order: number;
   component: ComponentType;
   /** Wenn true, nur sichtbar für User mit `profile.is_kurator === true`. */

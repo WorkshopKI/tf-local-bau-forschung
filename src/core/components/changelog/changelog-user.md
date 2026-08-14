@@ -19,6 +19,13 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.39 — 2026-08
+
+### Verbesserungen
+- Die beiden Entwickler-Seiten stehen in der Seitenleiste jetzt unter einer eigenen Überschrift **„Werkbank (dev)"** statt unter „Kuration" — dort gehörten sie nie hin.
+- **Dokument-Review** hat eine Überschrift bekommen und denselben Seitenrand wie die Kuration daneben. Vorher stand dort oben nur der Hilfe-Knopf.
+- Der Hinweis „Kurator-Modus nicht aktiv" ist überall derselbe und nennt jetzt den richtigen Weg zum Freischalten (Einstellungen → Mein Profil → Zusatz-Module). Vorher stand er an vier Stellen unterschiedlich, mit einem Weg, den es so nicht mehr gab.
+
 ## v4.38 — 2026-08
 
 ### Verbesserungen

@@ -1,8 +1,21 @@
 # Neue Einstellung / neuen Abschnitt anlegen
 
-Die Einstellungen haben **vier Seiten** (Redesign v4.28–v4.31, Handoff
+Die Seitenform gibt es **zweimal** — sie ist eine geteilte Schicht in
+[src/components/settings/](../../src/components/settings/), kein Plugin:
+
+| Hub | Route | Registry | Panels |
+|---|---|---|---|
+| **Einstellungen** | `/einstellungen` | `plugins/einstellungen/settingsPanels.tsx` | Mein Profil · Darstellung · Daten & Verbindungen · Interne KI |
+| **Kuration** (kuratorOnly) | `/kuration` | `plugins/kuration/kurationPanels.tsx` | Übersicht · CSV-Quellen · Verzeichnisse · Suche & Index · Dienste |
+
+Dieses Blatt gilt für beide. Was unten „Seite" heißt, ist ein **Panel** des
+jeweiligen Hubs; der Rahmen (`SettingsHubPage`) und die Sprung-/Markier-Mechanik
+liegen genau einmal und werden nie nachgebaut (Guard
+`kuration-hub-eine-schicht`).
+
+Die Einstellungen haben **vier Panels** (Redesign v4.28–v4.31, Handoff
 `_design/handoff/einstellungen-zweispaltig`). Eine neue Einstellung bekommt
-**keine fünfte Seite** — sie kommt als Zeile in eine bestehende Gruppe oder als
+**kein fünftes** — sie kommt als Zeile in eine bestehende Gruppe oder als
 neue Gruppe in eine der vier Spalten.
 
 ## 1 · Wohin gehört sie?

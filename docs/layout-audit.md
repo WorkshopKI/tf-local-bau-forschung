@@ -27,8 +27,19 @@ Fünfmal hand-rolled, jeweils leicht abweichend (Margins, Subtitle ja/nein):
 - [src/plugins/antraege/AntraegeHeader.tsx](../src/plugins/antraege/AntraegeHeader.tsx) (~Z. 112) — `text-[22px] font-medium`
 - [src/plugins/auslastung/views/AuslastungView.tsx](../src/plugins/auslastung/views/AuslastungView.tsx) (~Z. 91) — H1 + Subtitle
 - [src/components/settings/SettingsHubPage.tsx](../src/components/settings/SettingsHubPage.tsx) — H1 + `mb-6`; trägt seit v4.33 **beide** Hub-Seiten (Einstellungen, Kuration)
+- [src/plugins/dokument-review/DokumentReviewPage.tsx](../src/plugins/dokument-review/DokumentReviewPage.tsx) — seit v4.39 dieselbe Kopfzeile wie der Hub daneben (`px-8 pt-4 pb-6`, Titel links, Hilfe-Knopf am Blattrand); vorher stand dort nur der Knopf
 - Chat `ConversationHeader` — Titel in der Konversations-Kopfzeile
 - Suche — **kein** H1 (Abweichung; bleibt vorerst so)
+
+### Kuration (v4.33–v4.39 auditiert und bereinigt)
+War nie im Audit. Neun Sidebar-Einträge mit vier Paddings, drei Rumpfbreiten,
+zwei Tab-Implementierungen, null `PageHeader`, viermal derselbe Sperr-Hinweis
+von Hand. Heute: **ein** Hub in der geteilten Einstellungs-Seitenform (fünf
+Panels), daneben **eine** eigenständige Arbeitsfläche (Dokument-Review, gleicher
+Rahmen) und die Gruppe „Werkbank (dev)" für die zwei Entwickler-Panels. Der
+Sperr-Hinweis ist ein Bauteil ([KuratorGesperrtHinweis](../src/components/kurator/KuratorGesperrtHinweis.tsx)).
+Offen: `src/plugins/csv-sources-kuration/wizard/` (5 Schritte, eigenes Layout) —
+läuft als Dialog über dem Panel und ist nicht Teil der Seitenform.
 
 ### Tabs/Pills mit Zähler (→ ScopeTabs)
 Zwei optisch ähnliche, strukturell getrennte Implementierungen + eine generische:

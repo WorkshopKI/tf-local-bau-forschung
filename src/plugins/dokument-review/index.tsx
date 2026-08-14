@@ -16,7 +16,7 @@ export const dokumentReviewPlugin: TeamFlowPlugin = {
   name: 'Dokument-Review',
   icon: 'ClipboardCheck',
   category: 'kuration',
-  order: 35,
+  order: 30,
   component: DokumentReviewPage,
   kuratorOnly: true,
 };

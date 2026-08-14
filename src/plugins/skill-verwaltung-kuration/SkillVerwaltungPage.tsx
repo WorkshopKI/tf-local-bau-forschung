@@ -42,6 +42,7 @@ import { DetailKopf } from './DetailKopf';
 import { PersoenlichePanel } from './PersoenlichePanel';
 import { useSkillTweak } from './useSkillTweak';
 import { SeitenHilfeButton } from '@/components/help/SeitenHilfeButton';
+import { KuratorGesperrtHinweis } from '@/components/kurator';
 
 type TabId = 'skills' | 'regeln' | 'workflows' | 'textbausteine' | 'eval';
 
@@ -460,11 +461,13 @@ export function SkillVerwaltungPage(): React.ReactElement {
         detail={detail}
         list={(
           <div className={hasDetail ? 'px-4 py-6' : 'max-w-6xl px-8 py-6'}>
-        {!reg.canEdit && (
-          <div className="mb-4 text-[12.5px] text-[var(--tf-text-secondary)] rounded-[8px] border-[0.5px] border-[var(--tf-border)] bg-[var(--tf-bg-secondary)] px-3.5 py-2.5">
-            Kurator-Modus nicht aktiv — Skills und Regeln sind nur lesbar. Sandbox-Testläufe sind möglich.
-          </div>
-        )}
+        {/* `reg.canEdit` statt der blossen Sitzung: die Registry ist zusaetzlich
+            von der Build-Variante abhaengig. */}
+        <KuratorGesperrtHinweis
+          gesperrt={!reg.canEdit}
+          was="Skills und Regeln"
+          nachsatz="Sandbox-Testläufe sind möglich."
+        />
         {reg.stale && (
           <div className="mb-4 text-[12.5px] rounded-[8px] px-3.5 py-2.5" style={{ background: 'var(--tf-warning-bg)', color: 'var(--tf-warning-text)' }}>
             Offline — angezeigter Stand stammt aus dem lokalen Zwischenspeicher.

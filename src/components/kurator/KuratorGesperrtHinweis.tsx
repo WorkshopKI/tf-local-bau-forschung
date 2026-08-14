@@ -16,12 +16,26 @@ import { useKuratorSession } from '@/core/hooks/useKuratorSession';
 
 export function KuratorGesperrtHinweis({
   was = 'Änderungen',
+  gesperrt,
+  nachsatz,
 }: {
   /** Was gesperrt ist, im Plural — „Filter", „Skills und Regeln". */
   was?: string;
+  /**
+   * Ueberschreibt die Sitzungs-Pruefung. Fuer Seiten, deren Schreibrecht an
+   * einer STRENGEREN Bedingung haengt als der blossen Sitzung (die
+   * Skill-Verwaltung etwa an `canEditSkillRegistry`, das zusaetzlich die
+   * Build-Variante beruecksichtigt). Ohne die Moeglichkeit muesste eine
+   * solche Seite ihre eigene Kopie behalten — und die alterte dann wieder
+   * fuer sich.
+   */
+  gesperrt?: boolean;
+  /** Ein Satz, den nur diese Seite braucht („Sandbox-Testläufe sind möglich."). */
+  nachsatz?: string;
 }): React.ReactElement | null {
   const session = useKuratorSession();
-  if (session.isActive) return null;
+  const zu = gesperrt ?? !session.isActive;
+  if (!zu) return null;
 
   return (
     <div
@@ -30,6 +44,7 @@ export function KuratorGesperrtHinweis({
     >
       Kurator-Modus nicht aktiv — {was} sind nur lesbar. Freischalten in{' '}
       <span className="text-[var(--tf-text)]">Einstellungen → Mein Profil → Zusatz-Module</span>.
+      {nachsatz ? ` ${nachsatz}` : null}
     </div>
   );
 }

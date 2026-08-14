@@ -7,7 +7,7 @@ export const devInfrastructureTestPlugin: TeamFlowPlugin = {
   featureFlag: 'devInfraPanel',
   name: 'DEV: Infra',
   icon: 'FlaskConical',
-  category: 'kuration',
+  category: 'werkbank',
   order: 99,
   component: DevPanel,
   kuratorOnly: false,

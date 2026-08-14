@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.39.0 — Werkbank-Gruppe, ein Sperr-Hinweis, gleicher Rahmen (August 2026)
+
+MINOR — Abschluss des Kuration-Umbaus: der Rand um den Hub. Die Entwickler-Panels standen unter „Kuration", obwohl sie weder kuratorpflichtig sind noch etwas kuratieren; die verbliebene eigenständige Seite trug einen anderen Rahmen als der Hub daneben.
+
+- **Sidebar-Gruppe „Werkbank (dev)"** ([groupNavPlugins.ts](src/core/nav/groupNavPlugins.ts)): die zwei DEV-Panels stehen unter eigenem Namen; ihre Flags sind in allen vier Variant-Configs genau dort `true`, wo `kuratorMenus` es ist — die Verfügbarkeit ändert sich in keiner
+- **Dokument-Review trägt denselben Seitenkopf wie der Hub** ([DokumentReviewPage.tsx](src/plugins/dokument-review/DokumentReviewPage.tsx)): Titel links, Hilfe-Knopf am Blattrand — vorher stand dort nur der Knopf, ohne Titel
+- **Der Sperr-Hinweis ist ein Bauteil** ([KuratorGesperrtHinweis.tsx](src/components/kurator/KuratorGesperrtHinweis.tsx)): die letzte Handkopie (Skill-Verwaltung) nutzt ihn mit `gesperrt`, weil ihr Schreibrecht zusätzlich an der Build-Variante hängt
+- **Doku nachgezogen**: die geteilte Seitenform steht in der Entscheidungstabelle ([ui-muster.md](docs/architecture/ui-muster.md)), das Cheatsheet gilt für beide Hubs ([add-settings-section.md](docs/agents/add-settings-section.md)), Kuration ist auditiert ([layout-audit.md](docs/layout-audit.md))
+- **Zwei Leichen entfernt**: das Kontext-Doc des seit v2.394 nicht mehr existierenden `feedback-kuration` und seine Guard-Ausnahme — eine Ausnahme für eine tote Id entschuldigt still den nächsten Bewohner desselben Namens
+
 ### v4.38.0 — CSV-Quellen wird ein Panel (August 2026)
 
 MINOR — Auf Nutzerwunsch zieht auch die CSV-Quellen-Seite in den Hub. Damit ist die Kuration eine Seite mit fünf Panels; die Navigationsspalte liest sich als Weg, den die Daten nehmen: Übersicht → CSV-Quellen → Verzeichnisse → Suche & Index → Dienste.
