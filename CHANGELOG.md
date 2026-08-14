@@ -5,6 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.35.0 — Suchindex und Dokumentenquellen werden ein Panel (August 2026)
+
+MINOR — Zwei Seiten, die dieselbe Frage beantworten, werden ein Panel: welche Ordner der Index einliest und wie er danach steht. Der Tab-Schnitt „Übersicht"/„Verwaltung" entfällt — er trennte die Aktion von dem Zustand, auf den sie wirkt.
+
+- **Panel „Suche & Index"** ([SucheIndexPanel.tsx](src/plugins/kuration/suche-index/SucheIndexPanel.tsx)): links Aktionen und Dokumentenquellen, rechts der Zustand — man sieht beim Indexieren zu, statt danach den Reiter zu wechseln
+- **Zwei Plugins weniger** ([plugins.config.ts](src/plugins.config.ts)): `kurator` und `dokumentenquellen-kuration` sind in den Hub gezogen; `/kuration/suchindex` und `/kuration/dokumentenquellen` leiten ins Panel bzw. auf die Gruppe
+- **Seltenes steht eingeklappt**: Modell-Konfiguration, Suchqualität, Zurücksetzen und der Embedding-Korpus-Status liegen hinter zwei Klappen statt dauerhaft im Blick
+- **Legacy-Whitelist zieht mit** ([conventions-ui.test.ts](src/__tests__/conventions-ui.test.ts)): ein Umzug darf alte Schuld weder als neu melden noch still aus der Bewachung fallen lassen
+
 ### v4.34.0 — Kuration wird ein Hub mit Lage-Uebersicht (August 2026)
 
 MINOR — Die Kuration bekommt die Seitenform der Einstellungen und endlich einen Ort, der sagt, was ansteht. Bis hierher war der Zustand der Daten auf sieben Seiten verstreut: man musste jede aufsuchen, um zu erfahren, dass dort nichts zu tun war.

@@ -11,10 +11,11 @@
  * Sichtbarkeit folgt den Feature-Flags; der Suchindex leitet sich aus den
  * sichtbaren Abschnitten ab und respektiert sie dadurch automatisch.
  */
-import { LayoutDashboard, Plug } from 'lucide-react';
+import { LayoutDashboard, Plug, Search } from 'lucide-react';
 import type { SettingsPanel } from '@/components/settings';
 import { features } from '@/config/feature-flags';
 import { UebersichtPanel } from './uebersicht/UebersichtPanel';
+import { SucheIndexPanel } from './suche-index/SucheIndexPanel';
 import { DienstePanel } from './dienste/DienstePanel';
 
 export function getKurationPanels(): SettingsPanel[] {
@@ -35,6 +36,25 @@ export function getKurationPanels(): SettingsPanel[] {
       { id: 'sec-sitzung', label: 'Kurator-Sitzung', gruppe: 'Kurator-Sitzung', keywords: 'sitzung session freischaltung sperren anmelden ttl restlaufzeit kurator' },
     ],
     render: () => <UebersichtPanel />,
+  });
+
+  // Bis v4.34 die eigene Seite „Suchindex" mit den Reitern „Übersicht" und
+  // „Verwaltung". Der alte Seitenname bleibt als Suchbegriff.
+  panels.push({
+    id: 'suche-index',
+    label: 'Suche & Index',
+    untertitel: 'Was durchsuchbar ist — und wie gut.',
+    icon: Search,
+    sections: [
+      { id: 'sec-index', label: 'Index pflegen', gruppe: 'Index pflegen', keywords: 'suchindex index indexieren orama embedding bulk-scan dokumente einlesen aufbauen verwaltung' },
+      { id: 'sec-index-zustand', label: 'Zustand', gruppe: 'Zustand', keywords: 'status kennzahlen textabschnitte dokumente qualität modell backend webgpu übersicht' },
+      ...(features.dokumentenscan
+        ? [{ id: 'sec-dokumentenquellen', label: 'Dokumentenquellen', gruppe: 'Dokumentenquellen', keywords: 'dms quellen ordner pfade smb aktivieren indexieren triage scan verzeichnisse' }]
+        : []),
+      { id: 'sec-index-erweitert', label: 'Modelle, Suchqualität, Zurücksetzen', gruppe: 'Selten gebraucht', keywords: 'modell wechseln metadata llm eval smoke-test zurücksetzen seed konfiguration pipeline' },
+      { id: 'sec-embedding-korpus', label: 'Embedding-Korpus', gruppe: 'Selten gebraucht', keywords: 'korpus centroid auslastung stage 2 matching spiegel' },
+    ],
+    render: () => <SucheIndexPanel />,
   });
 
   // Bis v4.33 der eigene Menuepunkt „E-Mail Anfragen: Einstellungen".

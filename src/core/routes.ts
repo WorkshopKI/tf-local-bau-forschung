@@ -66,6 +66,8 @@ const LEGACY_REDIRECTS: Record<string, string> = {
   '/admin/feedback': '/feedback-board',
   // v4.34
   '/kuration/anfragen': '/kuration?panel=dienste',
+  '/kuration/suchindex': '/kuration?panel=suche-index',
+  '/kuration/dokumentenquellen': '/kuration?panel=suche-index&sektion=sec-dokumentenquellen',
 };
 
 /**

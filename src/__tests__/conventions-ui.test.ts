@@ -85,11 +85,14 @@ describe('no-raw-async-onclick (CLAUDE.md Pitfall #15)', () => {
     'src/plugins/dev-infrastructure-test/panels/AtomicPanel.tsx',
     // src/plugins/dev-state-inspector/ — Dev-only
     'src/plugins/dev-state-inspector/StateInspectorPanel.tsx',
-    // src/plugins/dokumentenquellen-kuration/ — v1.15, Migration laeuft
-    'src/plugins/dokumentenquellen-kuration/components/SourceFormDialog.tsx',
-    'src/plugins/dokumentenquellen-kuration/sections/AktivierenIndexierenSection.tsx',
-    'src/plugins/dokumentenquellen-kuration/sections/VerwaltenSection.tsx',
-    'src/plugins/dokumentenquellen-kuration/components/SubRootsTreePicker.tsx',
+    // Dokumentenquellen — v1.15, Migration laeuft. Mit v4.34 aus
+    // `src/plugins/dokumentenquellen-kuration/` in den Kuration-Hub gezogen;
+    // die Pfade ziehen mit, damit ein UMZUG alte Schuld nicht als neue meldet
+    // (und umgekehrt der Guard nicht still aufhoert, sie zu bewachen).
+    'src/plugins/kuration/dokumentenquellen/components/SourceFormDialog.tsx',
+    'src/plugins/kuration/dokumentenquellen/sections/AktivierenIndexierenSection.tsx',
+    'src/plugins/kuration/dokumentenquellen/sections/VerwaltenSection.tsx',
+    'src/plugins/kuration/dokumentenquellen/components/SubRootsTreePicker.tsx',
     // src/plugins/filter-kuration/, antraege/, einstellungen/ etc.
     'src/plugins/filter-kuration/dialogs/FilterEditDialog.tsx',
     'src/plugins/filter-kuration/sections/AdminCustomFilterList.tsx',

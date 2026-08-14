@@ -18,7 +18,7 @@ Diese Suite ist **nicht** Vitest-fähig. Sie braucht:
 In der App selbst, im Kurator-Plugin **Suchindex** → Tab „Eval":
 
 - Plugin-ID: `kurator` (Sidebar → Kuration → Suchindex)
-- UI-Komponente: [`src/plugins/kurator/eval/EvalSection.tsx`](../../../../plugins/kurator/eval/EvalSection.tsx)
+- UI-Komponente: [`src/plugins/kuration/suche-index/eval/EvalSection.tsx`](../../../../plugins/kuration/suche-index/eval/EvalSection.tsx)
 - Voraussetzung: Index wurde vorher gebaut (Plugin → „Index aktualisieren")
 
 ## Module

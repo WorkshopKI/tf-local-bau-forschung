@@ -19,6 +19,15 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.35 — 2026-08
+
+*(Nur für Kuratoren sichtbar.)*
+
+### Verbesserungen
+- **„Suchindex" und „Dokumentenquellen" sind eine Seite geworden:** „Suche & Index" in der Kuration. Links stehen die Aktionen und die Ordner, die eingelesen werden, rechts der Zustand — Sie sehen beim Indexieren zu, statt danach den Reiter zu wechseln.
+- **Die Reiter „Übersicht" und „Verwaltung" entfallen.** Was Sie selten brauchen — Modellwahl, Suchqualität, Zurücksetzen — steht jetzt eingeklappt darunter, statt eine eigene Ansicht zu belegen.
+- Alte Lesezeichen auf beide Seiten führen weiterhin ans richtige Ziel.
+
 ## v4.34 — 2026-08
 
 *(Nur für Kuratoren sichtbar.)*

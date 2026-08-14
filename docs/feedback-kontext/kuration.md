@@ -10,17 +10,18 @@ Die Landeseite: was gerade ansteht und wie die Daten stehen. Je eine Zeile für 
 ## Dienste
 Externe Gegenstellen, die das Team gemeinsam nutzt. Heute die URL des ZIM-FAQ-Assistenten, an den das Modul „E-Mail Anfragen" seine anonymisierten Fragen schickt. Leer lassen heißt: die Adresse aus dem Build verwenden.
 
-## Suchindex
-Pflege des Volltext-/Embedding-Suchindex (Orama). Index neu aufbauen, Status/Statistiken prüfen. Die Ampel meldet neben „Modell gewechselt" auch „Worttrennung geändert" — dann stammt der Index aus einer Fassung vor der deutschen Worttrennung; er bleibt nutzbar, der nächste Lauf baut ihn komplett neu auf.
+## Suche &amp; Index
+Was durchsuchbar ist — und wie gut. Links die Aktionen: Dokumente einlesen, Index bauen, Qualität messen; darunter die Dokumentenquellen, also die DMS-Ordner, die der Index einliest (read-only, die App schreibt dort nie hinein). Rechts steht der Zustand daneben, während Sie arbeiten: Textabschnitte, Dokumente, Suchqualität, Modell, Backend, letztes Update.
+
+Die Ampel oben meldet neben „Modell gewechselt" auch „Worttrennung geändert" — dann stammt der Index aus einer Fassung vor der deutschen Worttrennung; er bleibt nutzbar, der nächste Lauf baut ihn komplett neu auf.
+
+Selten Gebrauchtes steht eingeklappt: Modellwahl und Suchqualitäts-Einstellungen, das Zurücksetzen, und der Status des Embedding-Korpus (gebaut wird der im Auslastungs-Modul).
 
 ## Programme
 Stammdaten der Förderprogramme (Name, Kürzel). Programme anlegen, umbenennen, löschen (nur bei 0 Anträgen).
 
 ## CSV-Quellen
 CSV-Import-Wizard + Quellen-Verwaltung für Förderanträge-Daten. Quelle anlegen, Spalten mappen, Auto-Refresh konfigurieren, manuell re-importieren.
-
-## Dokumentenquellen
-DMS-Quellen (SMB-Ordner) für die Phase-2-Dokumenten-Triage verwalten. Quelle anlegen/bearbeiten, aktivieren + indexieren (Bulk-Triage mit Live-Progress).
 
 ## Filter verwalten
 Vordefinierte Filter-Presets für Suche/Listen anlegen und pflegen.
