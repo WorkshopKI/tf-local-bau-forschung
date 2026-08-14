@@ -7,7 +7,7 @@
 // Zwei Eigenheiten, die hier wohnen statt bei jedem Aufrufer:
 // - **Portal an den Body**: das Feedback-Panel trägt einen `backdrop-filter` und
 //   ist damit Bezugsrahmen für `position: fixed`. Ohne Portal klebte die
-//   Vollansicht im 420-px-Panel statt im Fenster.
+//   Vollansicht im schmalen Panel statt im Fenster.
 // - **Escape in der Einfang-Phase**: der ESC-Handler des Panels hängt am `window`
 //   (Bubble) und schlösse sonst das ganze Fenster samt Entwurf.
 

@@ -236,12 +236,15 @@ export function FeedbackInputStep(props: Props): React.ReactElement {
         className="flex items-center w-full pl-2.5 pr-1 rounded-[var(--tf-radius)] cursor-text"
         style={{ border: '0.5px solid var(--tf-border)' }}
       >
-        <span className="shrink-0 text-[12.5px] text-[var(--tf-text-secondary)] select-none">{titelPraefix}</span>
+        {/* Der Abstand kommt aus dem Rand, nicht aus dem Leerzeichen des Präfix:
+            am Ende eines Inline-Kastens fällt es weg, und „Seite:" klebte am
+            Platzhalter. Für den zusammengesetzten Titel gilt weiter titelPraefix. */}
+        <span className="shrink-0 mr-2 text-[12.5px] text-[var(--tf-text-secondary)] select-none">{context.page}:</span>
         <input
           value={titelRest}
           onChange={e => setTitelRest(e.target.value)}
-          aria-label="Titel (optional)"
-          placeholder="kurz, worum es geht (optional)"
+          aria-label="Titel"
+          placeholder="bitte kurz benennen, worum es geht"
           maxLength={90}
           className="flex-1 min-w-0 py-1.5 pr-1.5 text-[12.5px] bg-transparent text-[var(--tf-text)] outline-none border-none placeholder:text-[var(--tf-text-tertiary)]"
         />
@@ -271,7 +274,10 @@ export function FeedbackInputStep(props: Props): React.ReactElement {
               onChange={e => setField(field.key, e.target.value)}
               placeholder={field.placeholder}
               rows={field.required ? 3 : 2}
-              className="w-full px-2.5 py-2 text-[12.5px] bg-transparent text-[var(--tf-text)] rounded-[var(--tf-radius)] outline-none resize-none placeholder:text-[var(--tf-text-tertiary)] focus:border-[var(--tf-primary)]"
+              // Vertikal ziehbar (v4.39.2): die Startgröße ist knapp gehalten,
+              // damit das Fenster kurz bleibt — wer ausführlich schreibt, zieht
+              // die Box auf. Nur vertikal: die Breite gehört dem Panel.
+              className="w-full px-2.5 py-2 text-[12.5px] bg-transparent text-[var(--tf-text)] rounded-[var(--tf-radius)] outline-none resize-y placeholder:text-[var(--tf-text-tertiary)] focus:border-[var(--tf-primary)]"
               style={{ border: '0.5px solid var(--tf-border)' }}
             />
           )}

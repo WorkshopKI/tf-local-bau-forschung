@@ -5,6 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.39.2 — Feedback-Fenster: breiter, Titel ermuntert, Boxen ziehbar (August 2026)
+
+PATCH — Weitere Nachlese aus dem Testbetrieb: 420 px waren beim Tippen zu eng, „(optional)" im Titel-Platzhalter beantwortete die Frage „muss ich?" mit nein, und das Schluss-Leerzeichen des Seiten-Präfix fiel beim Rendern weg.
+
+- **Panel 420 → 470 px**, Schlüssel-Bump `…_v3` ([FeedbackPanel.tsx](src/components/feedback/FeedbackPanel.tsx))
+- **Titel-Platzhalter ermuntert statt zu relativieren** („bitte kurz benennen, worum es geht"); technisch bleibt der Titel optional ([FeedbackInputStep.tsx](src/components/feedback/FeedbackInputStep.tsx))
+- **Abstand hinter dem Seiten-Präfix aus dem Rand** statt aus dem Leerzeichen — der zusammengesetzte Titel behält es ([FeedbackInputStep.tsx](src/components/feedback/FeedbackInputStep.tsx))
+- **Textboxen vertikal ziehbar** (`resize-y`), Startgröße unverändert knapp; die Screenshot-Ablage bleibt fest ([feedback-system.md](docs/architecture/feedback-system.md))
+
 ### v4.39.1 — Feedback-Erfassung: Aufnahme zuerst, Bild gross, Panel durchscheinend (August 2026)
 
 PATCH — Nachlese zu v4.37 aus dem Testbetrieb: die Aufnahme stand hinter der Einfüge-Fläche, das Präfix im Titelfeld verdeckte den Platzhalter, und der Typ-Wechsel warf den getippten Text weg (der Screenshot blieb — was den Verlust wie einen Fehler aussehen ließ).

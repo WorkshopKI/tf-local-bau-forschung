@@ -28,6 +28,7 @@
 - Im Feedback-Fenster steht „Bereich aufnehmen" vor der Einfüge-Fläche und ist deutlicher als Knopf erkennbar — in der Reihenfolge, in der Sie es benutzen.
 - Das Feedback-Fenster ist leicht durchscheinend, sodass Sie sehen, worüber es liegt.
 - Im Titelfeld steht die erkannte Seite fest vor dem Eingabefeld — daneben steht jetzt sichtbar, dass Sie dort noch eine kurze Überschrift schreiben können.
+- Die Textfelder im Feedback-Fenster lassen sich nach unten aufziehen, wenn Sie mehr schreiben möchten; das Fenster selbst ist wieder etwas breiter.
 ### Bugfixes
 - Wer über „Typ ändern" nachsieht, ob eine andere Ticket-Art besser passt, findet seinen bereits getippten Text danach unverändert vor. Bisher war er weg.
 

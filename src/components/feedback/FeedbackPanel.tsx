@@ -44,11 +44,12 @@ type View = 'input' | 'confirm' | 'verbessern' | 'my-feedback';
 // persistiert (Pattern gespiegelt von AntraegeMain). Panel ist rechts verankert →
 // nach links ziehen verbreitert.
 //
-// v4.36: 520 → 420. Der Schlüssel MUSS dabei mitwandern — ein gemerkter Wert
-// schlägt sonst den Code-Default, und genau die Leute, denen das Fenster zu breit
-// war (weil sie es mal gezogen haben), sähen die Änderung nie.
-const PANEL_WIDTH_KEY = 'teamflow_feedback_panel_width_v2';
-const PANEL_DEFAULT_WIDTH = 420;
+// v4.36: 520 → 420, v4.39.2: 420 → 470 (im Testbetrieb zu eng). Der Schlüssel
+// MUSS dabei jedes Mal mitwandern — ein gemerkter Wert schlägt sonst den
+// Code-Default, und genau die Leute, die das Fenster mal gezogen haben, sähen
+// die Änderung nie.
+const PANEL_WIDTH_KEY = 'teamflow_feedback_panel_width_v3';
+const PANEL_DEFAULT_WIDTH = 470;
 const PANEL_MIN_WIDTH = 360;
 const PANEL_MAX_WIDTH = 900;
 /** Breite der zusammengeklappten Leiste während der Screenshot-Aufnahme. */
