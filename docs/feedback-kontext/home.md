@@ -7,12 +7,13 @@ Startseite — Arbeitseinstieg: oben ein **Hero-Band**, darunter ein persönlich
 ## UI-Elemente & Begriffe
 
 - **Begrüßung:** „X offene Vorgänge …".
-- **Hero-Band** (zwei flache Karten): „Weiter, wo du aufgehört hast" (jüngste Arbeit, „Weiter →") und „Braucht heute Aufmerksamkeit" (klickbare Chips: älter als 90 Tage / zwischen 31 und 90 Tagen → gefilterte Liste, QS-Freigaben offen → erster offener Entwurf). Die Tage-Grenzen kommen aus der Widget-Config; Chips mit Zähler 0 werden nicht gezeigt, ohne Chip entfällt die Karte.
+- **Hero-Band** (zwei flache Karten): „Weiter, wo du aufgehört hast" (jüngste Arbeit, „Weiter →") und „Braucht heute Aufmerksamkeit" (klickbare Chips: älter als 90 Tage / zwischen 31 und 90 Tagen → gefilterte Liste, QS-Freigaben offen → erster offener Entwurf). Die Tage-Grenzen kommen aus der Widget-Config; Chips mit Zähler 0 werden nicht gezeigt, ohne Chip entfällt die Karte. Beide Karten haben beim Überfahren ein `⋯` mit ihren eigenen Einstellungen (s. u.).
 - **Zwei Spalten mit Widgets:** jedes mit Kopfzeile (Chevron ein-/ausklappen; `⋯`-Menü beim Überfahren; Modus „Kürzel THU" vs. „Alle Bearbeiter"). Ein ziehbarer Griff verbreitert die Hauptspalte. Jede Spalte endet mit „Widget hinzufügen"; eine leergeräumte Spalte sagt das und bleibt bedienbar.
 - **Startseite anpassen** (seit v4.7): Konfiguration direkt auf der Seite statt über die Einstellungen.
-  - **Menü der freien Fläche** (Rechtsklick, oder Knopf „Startseite anpassen" oben rechts): „Widgets ▸" (Checkliste beider Spalten mit Reihenfolge-Pfeilen und „alle"-Schalter), „Darstellung ▸" (Primärfarbe, Hell/Dunkel), „Alles ein-/aufklappen", „Startseite zurücksetzen", „Alle Einstellungen öffnen".
-  - **Menü eines Widgets** (`⋯` im Kopf, sichtbar beim Überfahren): Ausblenden, Ein-/Aufklappen, Nach oben/unten mit Positionsanzeige „2 / 5", Widget-Einstellungen. Nur was dieses Widget betrifft — die seitenweiten Punkte stehen allein im Menü der freien Fläche.
-  - **Rückmeldung:** Das Menü bleibt beim Häkchensetzen offen. Ausblenden und Zurücksetzen bestätigen sich unten mit **Rückgängig**. Auf einer Widget-Karte, in Textfeldern und bei markiertem Text bleibt das Browser-Menü.
+  - **Menü der freien Fläche** (Rechtsklick, oder Knopf „Startseite anpassen" oben rechts): „Widgets ▸" (Checkliste mit den zwei Karten unter „Oben" und beiden Spalten samt Reihenfolge-Pfeilen und „alle"-Schalter), „Darstellung ▸" (Primärfarbe, Hell/Dunkel), „Alles ein-/aufklappen", „Startseite zurücksetzen", „Alle Einstellungen öffnen".
+  - **Menü einer Karte** (`⋯` im Kopf, sichtbar beim Überfahren): beim Widget Ausblenden, Ein-/Aufklappen, Nach oben/unten mit Positionsanzeige „2 / 5", Widget-Einstellungen. Bei „Weiter, wo du aufgehört hast" Ausblenden + „Arbeitsverlauf löschen"; bei „Braucht heute Aufmerksamkeit" Ausblenden, die drei Kacheln zum Abwählen und „Fristen-Schwellen ändern …". Nur was diese Karte betrifft — die seitenweiten Punkte stehen allein im Menü der freien Fläche.
+  - **Rückmeldung:** Das Menü bleibt beim Häkchensetzen offen. Ausblenden und Zurücksetzen bestätigen sich unten mit **Rückgängig**. Eine ausgeblendete Karte kommt über „Widgets ▸" zurück; wird die letzte Kachel abgewählt, gilt die Aufmerksamkeits-Karte dort als aus und bringt ihre Kacheln beim Wiedereinschalten mit.
+- **Rechtsklick in der ganzen App:** Er zeigt nur noch etwas, wo er etwas kann — das Menü der App auf der freien Startseiten-Fläche, sonst das Browser-Menü nur in Textfeldern (Einfügen), bei markiertem Text (Kopieren) und mit gedrückter Umschalt-Taste.
 - **Widgets** (read-only + Navigation):
   - **Meine Anträge:** Liste + Rückstands-Balken.
   - **Kanban:** Förderanträge ODER Feedback, farbige Lanes, 1–3 Kartenspalten je Lane (eine Lane mit mehr Spalten wird entsprechend breiter, die übrigen rücken zusammen). Jede Bahn lässt sich über ihre Kopfzeile zu einer schmalen Schiene einklappen und dort wieder aufklappen; der Zustand gilt nur für die laufende Ansicht.
@@ -33,13 +34,14 @@ Startseite — Arbeitseinstieg: oben ein **Hero-Band**, darunter ein persönlich
 ## Typische Aktionen
 
 - Über das Hero-Band weitermachen oder zu kritischen/QS-Punkten springen
-- Widgets ein-/ausblenden, sortieren, ein-/ausklappen und anpassen (Kanban-Lanes/Farben, Ampel-Schwellen) — per Rechtsklick auf die freie Fläche, `⋯` im Widget-Kopf oder Kopfzeilen-Knopf
+- Widgets ein-/ausblenden, sortieren, ein-/ausklappen und anpassen (Kanban-Lanes/Farben, Ampel-Schwellen) — per Rechtsklick auf die freie Fläche, `⋯` im Kopf einer Karte oder Kopfzeilen-Knopf
+- Die zwei oberen Karten ausblenden, Kacheln abwählen, Arbeitsverlauf löschen — über ihr `⋯`
 - Auf Antrag-/Ampel-Zeile springen (→ gefilterte Liste), Kanban-Karte öffnen
 - Kanban-Bahn ein-/ausklappen; Kanban im eigenen Fenster öffnen und dort einrichten
 - Notiz festhalten, KI verbinden, Selbsteintragung annehmen
 
 ## Technik
 
-**Datenmodell dahinter:** Widget-Config gerätelokal (IDB-Key `home-widgets-config` v2, gespiegelt in PersonalEinstellungen, nie im Snapshot; v1→v2 blendet ein sichtbares „Weitermachen"-Widget aus); Inhalte aggregiert aus `useAntraegeStore` über `dashboardAggregate.ts`/`kanbanLanes.ts`; Profil (Bearbeiter-Kürzel), aktives Programm. Notizen nur in der IDB.
+**Datenmodell dahinter:** Widget-Config gerätelokal (IDB-Key `home-widgets-config` v2, gespiegelt in PersonalEinstellungen, nie im Snapshot; v1→v2 blendet ein sichtbares „Weitermachen"-Widget aus; das Feld `hero` für die zwei oberen Karten kam additiv dazu — fehlt es, ist alles an); Inhalte aggregiert aus `useAntraegeStore` über `dashboardAggregate.ts`/`kanbanLanes.ts`; Profil (Bearbeiter-Kürzel), aktives Programm. Notizen nur in der IDB.
 
 **Code:** `src/plugins/home/` — `HomePage.tsx`, `HomeHero.tsx` (Hero-Band), `widgets/` (Katalog, Config-Store, `WidgetShell`, `HomeWidgetStack`, Kanban/Notizen, `useQsFreigaben`), `anpassen/` (Startseiten-Menü, Untermenüs, Rückgängig-Leiste), `dashboardAggregate.ts`, `MeineAntraegeSection.tsx`/`EingangAmpelCard.tsx`/`AiAssistantCard.tsx`/`WeitermachenSection.tsx`.

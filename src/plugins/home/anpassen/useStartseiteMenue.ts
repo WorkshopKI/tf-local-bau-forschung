@@ -2,9 +2,10 @@
  * Transienter Offen-Zustand des Startseiten-Menüs (v4.6).
  *
  * Vier Auslöser, EIN Panel: Rechtsklick auf die freie Fläche, der Knopf im
- * Seitenkopf, „Widget hinzufügen" am Spaltenende — und das `⋯` im Widget-Kopf,
- * das als einziges die Aktionen EINES Widgets zeigt. Weil die Auslöser über drei
- * Komponenten-Ebenen verstreut sind (HomePage · WidgetShell · HomeWidgetStack),
+ * Seitenkopf, „Widget hinzufügen" am Spaltenende — und das `⋯` einer Karte
+ * (Widget oder Hero-Band), das als einziges die Aktionen GENAU DIESER Karte
+ * zeigt. Weil die Auslöser über vier Komponenten-Ebenen verstreut sind
+ * (HomePage · HomeHero · WidgetShell · HomeWidgetStack),
  * liegt der Zustand in einem Modul-Store statt in Props — dieselbe Wahl wie beim
  * transienten [feedbackNavStore](../../../components/feedback/feedbackNavStore.ts).
  *
@@ -14,6 +15,7 @@
  * die Widget-Config schreibt `useHomeWidgets`.
  */
 import { create } from 'zustand';
+import type { HeroKarte } from '../widgets/types';
 
 /** Bildschirm-Koordinate, an der das Menü hängt (`position: fixed`). */
 export interface MenuePunkt {
@@ -21,10 +23,22 @@ export interface MenuePunkt {
   y: number;
 }
 
-/** Flächen-Menü („Startseite anpassen") vs. Menü eines einzelnen Widgets. */
+/**
+ * Flächen-Menü („Startseite anpassen") vs. Menü EINER Karte — eines Widgets
+ * oder einer der beiden festen Karten des Hero-Bandes (v4.41).
+ */
 export type MenueZiel =
   | { art: 'flaeche' }
-  | { art: 'widget'; instanzId: string };
+  | { art: 'widget'; instanzId: string }
+  | { art: 'hero'; karte: HeroKarte };
+
+/** Zeigt derselbe Auslöser dieses Menü? (Zustand des `⋯`-Knopfes.) */
+export function zielGleich(a: MenueZiel | undefined, b: MenueZiel): boolean {
+  if (!a || a.art !== b.art) return false;
+  if (a.art === 'widget' && b.art === 'widget') return a.instanzId === b.instanzId;
+  if (a.art === 'hero' && b.art === 'hero') return a.karte === b.karte;
+  return true;
+}
 
 export type UntermenueId = 'widgets' | 'darstellung';
 
@@ -34,6 +48,12 @@ export type MenueAnsicht = 'menue' | 'einstellungen';
 interface OeffnenOptionen {
   /** Direkt mit offenem Untermenü starten — „Widget hinzufügen". */
   untermenue?: UntermenueId;
+  /**
+   * Direkt in der Einstellungs-Ansicht starten. Ein Weg: die Alert-Karte führt
+   * zu den Fristen-Schwellen, die im Antragseingang-Widget wohnen (eine Quelle,
+   * kein zweites Formular).
+   */
+  ansicht?: MenueAnsicht;
 }
 
 /**
@@ -81,7 +101,7 @@ export const useStartseiteMenueStore = create<StartseiteMenueState>(set => ({
     offen: { ziel, punkt },
     untermenue: opts?.untermenue ?? null,
     lage: UNTERMENUE_LAGE_START,
-    ansicht: 'menue',
+    ansicht: opts?.ansicht ?? 'menue',
   }),
   schliesse: () => set({ offen: null, untermenue: null, lage: UNTERMENUE_LAGE_START, ansicht: 'menue' }),
   zeigeUntermenue: (id, lage = UNTERMENUE_LAGE_START) => set({ untermenue: id, lage }),
@@ -133,23 +153,30 @@ export function punktUnter(el: HTMLElement | null): MenuePunkt {
 /**
  * Soll dieser Rechtsklick das Startseiten-Menü öffnen?
  *
- * Nein auf einer Widget-Karte (v4.40.2): deren eigene Aktionen hängen am `⋯` im
- * Kopf, und die allgemeinen Punkte „Widgets"/„Darstellung" gehören nicht in jedes
- * Widget. Der Rechtsklick meint hier die SEITE, nicht die Karte — also bleibt auf
- * der Karte das Browser-Menü stehen, samt Kopieren.
+ * Nein auf einer Karte (v4.40.2, seit v4.41 auch die beiden Hero-Karten): deren
+ * eigene Aktionen hängen am `⋯` im Kopf, und die allgemeinen Punkte
+ * „Widgets"/„Darstellung" gehören nicht in jede Karte. Der Rechtsklick meint hier
+ * die SEITE, nicht die Karte.
  *
  * Nein ebenso in Eingabefeldern und bei markiertem Text — dort gehört das
  * Browser-Menü hin (Einfügen im Notizen-Widget, Kopieren einer markierten Zeile).
  * Rein, damit die Regel ohne DOM-Test nachweisbar ist.
+ *
+ * Was hier `false` ergibt, heißt NICHT „Browser-Menü": darüber entscheidet
+ * app-weit `zeigtBrowserMenue` (useBrowserKontextmenue) — auf einer Karte
+ * erscheint seit v4.41 gar nichts mehr.
  */
 export function darfMenueOeffnen(opts: {
   tagName: string;
-  /** Klick landete innerhalb einer Widget-Karte (`[data-widget-id]`). */
-  aufWidgetKarte: boolean;
+  /** Klick landete in einer Karte (`[data-widget-id]` / `[data-hero-karte]`). */
+  aufKarte: boolean;
   istEingabefeld: boolean;
   hatTextauswahl: boolean;
+  /** Umschalt = „ich will das Browser-Menü" — derselbe Notausgang wie app-weit. */
+  mitUmschalt: boolean;
 }): boolean {
-  if (opts.aufWidgetKarte) return false;
+  if (opts.mitUmschalt) return false;
+  if (opts.aufKarte) return false;
   if (opts.istEingabefeld) return false;
   if (opts.hatTextauswahl) return false;
   const tag = opts.tagName.toLowerCase();

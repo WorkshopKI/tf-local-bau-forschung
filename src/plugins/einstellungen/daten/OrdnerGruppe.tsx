@@ -43,6 +43,7 @@ import { runDataUpdate } from '@/plugins/csv-sources-kuration/services/data-upda
 import { beschreibeDatenUpdate } from '@/plugins/csv-sources-kuration/services/datenUpdateMeldung';
 import type { CsvSchema } from '@/core/services/csv/types';
 import {
+  ARBEITSVERLAUF_LOESCHEN_FRAGE,
   clearArbeitskontextLog,
   listeArbeitskontext,
   type ArbeitskontextEintrag,
@@ -152,10 +153,7 @@ export function OrdnerGruppe(): React.ReactElement {
   }, [storage]);
 
   const handleClearVerlauf = async (): Promise<void> => {
-    if (!window.confirm(
-      'Arbeitsverlauf löschen? Die „Weitermachen"-Karte auf der Startseite wird geleert. '
-      + 'Nur lokal auf diesem Gerät — Anträge, Gutachten und Nachforderungen bleiben unberührt.',
-    )) return;
+    if (!window.confirm(ARBEITSVERLAUF_LOESCHEN_FRAGE)) return;
     setVerlaufBusy(true);
     try {
       await clearArbeitskontextLog(storage.idb);

@@ -59,7 +59,7 @@ export function RechtsklickHinweis(): React.ReactElement | null {
       <p className="pr-7 font-medium text-[var(--tf-text)]">Neu: Rechtsklick auf die Startseite</p>
       <p className="mt-0.5 pr-7">
         Widgets ein- und ausblenden, sortieren und die Darstellung wechseln — ohne Umweg über die
-        Einstellungen. Was nur ein einzelnes Widget betrifft, steht im ⋯ seines Kopfes.
+        Einstellungen. Was nur eine einzelne Karte betrifft, steht im ⋯ ihres Kopfes.
       </p>
       <button
         type="button"

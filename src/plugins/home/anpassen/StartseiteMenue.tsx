@@ -28,6 +28,7 @@ import { WIDGET_KATALOG } from '../widgets/widgetCatalog';
 import { WidgetConfigForm } from '../widgets/WidgetConfigForm';
 import { DarstellungUntermenue } from './DarstellungUntermenue';
 import { FlaechenMenue } from './FlaechenMenue';
+import { HeroMenue } from './HeroMenue';
 import { MenuePanel } from './menueZeilen';
 import { WidgetMenue } from './WidgetMenue';
 import { WidgetsUntermenue } from './WidgetsUntermenue';
@@ -144,6 +145,8 @@ export function StartseiteMenue(): React.ReactElement {
               // Ohne `oeffneUnter`: die allgemeinen Untermenüs hängen allein am
               // Menü der freien Fläche (v4.40.2).
               <WidgetMenue instanzId={offen.ziel.instanzId} />
+            ) : offen.ziel.art === 'hero' ? (
+              <HeroMenue karte={offen.ziel.karte} />
             ) : (
               <FlaechenMenue oeffneUnter={oeffneUnter} />
             )}

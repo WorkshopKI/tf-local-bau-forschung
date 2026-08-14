@@ -11,7 +11,7 @@
  */
 import { ChevronRight } from 'lucide-react';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
-import { WidgetMenueKnopf } from '../anpassen/WidgetMenueKnopf';
+import { KartenMenueKnopf } from '../anpassen/KartenMenueKnopf';
 import type { WidgetInstanz } from './types';
 
 export interface WidgetShellProps {
@@ -64,9 +64,9 @@ export function WidgetShell({
   return (
     <section
       // `data-widget-id`: daran erkennt der Rechtsklick der Startseite, dass er
-      // NICHT auf freier Fläche gelandet ist — auf einer Karte bleibt seit
-      // v4.40.2 das Browser-Menü stehen (`darfMenueOeffnen`), die Aktionen des
-      // Widgets führt das `⋯` im Kopf.
+      // NICHT auf freier Fläche gelandet ist (`darfMenueOeffnen`) — auf einer
+      // Karte zeigt er seit v4.41 gar nichts mehr, die Aktionen des Widgets
+      // führt das `⋯` im Kopf.
       data-widget-id={instanz?.id}
       className="group/widget rounded-[var(--tf-radius-lg)] bg-[var(--tf-card-surface)]"
       style={{ border: '0.5px solid var(--tf-border)' }}
@@ -104,7 +104,9 @@ export function WidgetShell({
         {zaehler ? <div className="shrink-0 flex items-center gap-1.5">{zaehler}</div> : null}
         {/* `⋯` an jedem Widget (v4.6, löst den Stift ab): Ausblenden, Sortieren
             und — wo es welche gibt — die Widget-Einstellungen stehen darin. */}
-        {instanz ? <WidgetMenueKnopf instanzId={instanz.id} titel={titel} /> : null}
+        {instanz ? (
+          <KartenMenueKnopf ziel={{ art: 'widget', instanzId: instanz.id }} titel={titel} />
+        ) : null}
         {aktionRechts ? <div className="shrink-0">{aktionRechts}</div> : null}
       </div>
       {/* Lazy: Body existiert im DOM NUR ausgeklappt. */}

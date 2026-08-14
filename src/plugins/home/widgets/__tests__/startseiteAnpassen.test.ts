@@ -6,13 +6,17 @@
 import { describe, expect, it } from 'vitest';
 import {
   defaultHomeWidgetConfig,
+  leseHeroConfig,
+  leseHomeWidgetConfig,
   reconcileVerfuegbareWidgets,
   setzeAlleEingeklappt,
+  setzeHeroChip,
+  setzeHeroKarte,
   setzeSichtbarkeitBereich,
   sichtbareWidgets,
   zurueckgesetzteConfig,
 } from '../homeWidgetsStore';
-import type { HomeWidgetConfig } from '../types';
+import { HERO_CONFIG_DEFAULT, type HomeWidgetConfig } from '../types';
 import { WIDGET_KATALOG } from '../widgetCatalog';
 
 /** Default + nachgezogene Opt-in-Instanzen = der Stand, den die Homepage sieht. */
@@ -103,6 +107,78 @@ describe('setzeSichtbarkeitBereich — der „alle"-Schalter einer Spalte', () =
   it('ist idempotent — ein zweiter Aufruf gibt dieselbe Referenz zurück', () => {
     const aus = setzeSichtbarkeitBereich(basis(), 'haupt', false);
     expect(setzeSichtbarkeitBereich(aus, 'haupt', false)).toBe(aus);
+  });
+});
+
+describe('Hero-Karten — die zwei festen Karten über den Spalten (v4.41)', () => {
+  it('liest einen Bestands-Stand ohne `hero`-Feld als „alles an"', () => {
+    // Additiv statt versioniert: wer die App vorher nutzte, sieht danach exakt
+    // dasselbe Band.
+    expect(leseHeroConfig(undefined)).toEqual(HERO_CONFIG_DEFAULT);
+    const alt = leseHomeWidgetConfig({
+      version: 2, updatedAt: '2026-01-01T00:00:00.000Z', widgets: [],
+    });
+    expect(alt?.hero).toEqual(HERO_CONFIG_DEFAULT);
+  });
+
+  it('nimmt jeden einzelnen gesetzten Wert und rät den Rest auf „an"', () => {
+    expect(leseHeroConfig({ sichtbar: { alert: false }, chips: { qs: false } })).toEqual({
+      sichtbar: { resume: true, alert: false },
+      chips: { kritisch: true, warnung: true, qs: false },
+    });
+  });
+
+  it('überlebt kaputte Werte, statt die ganze Config zu verwerfen', () => {
+    expect(leseHeroConfig({ sichtbar: 'ja', chips: 7 })).toEqual(HERO_CONFIG_DEFAULT);
+  });
+
+  it('blendet eine Karte aus, ohne die andere oder die Widgets anzufassen', () => {
+    const vorher = basis();
+    const nachher = setzeHeroKarte(vorher, 'resume', false);
+    expect(nachher.hero.sichtbar).toEqual({ resume: false, alert: true });
+    expect(nachher.hero.chips).toEqual(HERO_CONFIG_DEFAULT.chips);
+    // Referenzgleich: die Karten-Wahl rührt die Widget-Liste nicht an.
+    expect(nachher.widgets).toBe(vorher.widgets);
+  });
+
+  it('wählt eine Kachel ab, ohne die anderen anzufassen', () => {
+    const nachher = setzeHeroChip(basis(), 'qs', false);
+    expect(nachher.hero.chips).toEqual({ kritisch: true, warnung: true, qs: false });
+    expect(nachher.hero.sichtbar).toEqual(HERO_CONFIG_DEFAULT.sichtbar);
+  });
+
+  it('schaltet die Karte AUS, wenn die letzte Kachel fällt', () => {
+    // Sonst wäre es eine Einbahnstraße: die Karte verschwindet (nichts zu
+    // zeigen), ihr `⋯` mit ihr — und die Liste „Oben" führte sie weiter als an.
+    let cfg = basis();
+    for (const chip of ['kritisch', 'warnung', 'qs'] as const) cfg = setzeHeroChip(cfg, chip, false);
+    expect(cfg.hero.sichtbar.alert).toBe(false);
+    expect(cfg.hero.sichtbar.resume).toBe(true);
+  });
+
+  it('holt beim Wiedereinschalten die Kacheln zurück', () => {
+    let cfg = basis();
+    for (const chip of ['kritisch', 'warnung', 'qs'] as const) cfg = setzeHeroChip(cfg, chip, false);
+    const zurueck = setzeHeroKarte(cfg, 'alert', true);
+    expect(zurueck.hero.chips).toEqual(HERO_CONFIG_DEFAULT.chips);
+  });
+
+  it('lässt die Kacheln in Ruhe, wenn noch eine steht', () => {
+    const eine = setzeHeroChip(setzeHeroChip(basis(), 'kritisch', false), 'qs', false);
+    expect(eine.hero.sichtbar.alert).toBe(true);
+    const ausUndAn = setzeHeroKarte(setzeHeroKarte(eine, 'alert', false), 'alert', true);
+    expect(ausUndAn.hero.chips).toEqual({ kritisch: false, warnung: true, qs: false });
+  });
+
+  it('ist idempotent — ein zweiter Aufruf gibt dieselbe Referenz zurück', () => {
+    const aus = setzeHeroKarte(basis(), 'alert', false);
+    expect(setzeHeroKarte(aus, 'alert', false)).toBe(aus);
+    const ohneQs = setzeHeroChip(basis(), 'qs', false);
+    expect(setzeHeroChip(ohneQs, 'qs', false)).toBe(ohneQs);
+  });
+
+  it('kommt beim Zurücksetzen zurück', () => {
+    expect(zurueckgesetzteConfig().hero).toEqual(HERO_CONFIG_DEFAULT);
   });
 });
 

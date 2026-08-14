@@ -101,9 +101,19 @@ describe('leseHomeWidgetConfig — toleranter Read + v1→v2-Migration', () => {
     expect(leseHomeWidgetConfig({ version: 0, updatedAt: 'x', widgets: [] })).toBeNull();
   });
 
-  it('liest v2 verbatim (normalisiert version)', () => {
+  it('liest v2 verbatim (normalisiert version, ergänzt die Hero-Karten)', () => {
+    // `hero` kam mit v4.41 additiv dazu — ein Stand ohne das Feld bekommt beim
+    // Lesen den bisherigen Zustand „alles an" (kein Versions-Bump).
     const gelesen = leseHomeWidgetConfig({ version: 2, updatedAt: 'x', widgets: [] });
-    expect(gelesen).toEqual({ version: 2, updatedAt: 'x', widgets: [] });
+    expect(gelesen).toEqual({
+      version: 2,
+      updatedAt: 'x',
+      widgets: [],
+      hero: {
+        sichtbar: { resume: true, alert: true },
+        chips: { kritisch: true, warnung: true, qs: true },
+      },
+    });
   });
 
   it('filtert defekte Instanzen, behaelt valide', () => {

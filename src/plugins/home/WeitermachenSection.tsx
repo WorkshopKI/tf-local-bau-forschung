@@ -10,6 +10,7 @@ import {
 import {
   beschreibeArbeitskontext, type ArbeitskontextAnzeige,
 } from './arbeitskontext-anzeige';
+import { useArbeitskontextSignal } from './arbeitskontextSignal';
 import { relativeZeitKurz } from '@/core/utils/relativeZeit';
 import { WidgetShell } from './widgets/WidgetShell';
 import type { WidgetProps } from './widgets/widgetProps';
@@ -47,6 +48,9 @@ export function useWeitermachenRows(): WeitermachenRow[] {
   const storage = useStorage();
   const antraege = useAntraegeStore(s => s.antraege);
   const verbundById = useAntraegeStore(s => s.verbundById);
+  // Das Löschen des Verlaufs ändert weder IDB-Instanz noch Antrags-Store —
+  // ohne dieses Signal bliebe die Karte stehen (arbeitskontextSignal.ts).
+  const signal = useArbeitskontextSignal(s => s.stand);
   const [rows, setRows] = useState<WeitermachenRow[]>([]);
 
   useEffect(() => {
@@ -77,7 +81,7 @@ export function useWeitermachenRows(): WeitermachenRow[] {
       if (!cancelled) setRows(out);
     })();
     return () => { cancelled = true; };
-  }, [storage.idb, antraege, verbundById]);
+  }, [storage.idb, antraege, verbundById, signal]);
 
   return rows;
 }

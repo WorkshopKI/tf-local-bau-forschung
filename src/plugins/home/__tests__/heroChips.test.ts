@@ -1,12 +1,19 @@
 import { describe, it, expect } from 'vitest';
 import { heroChipSichtbarkeit, type HeroChipEingabe } from '../heroChips';
+import { HERO_CONFIG_DEFAULT, type HeroConfig } from '../widgets/types';
 
 const eingabe = (teil: Partial<HeroChipEingabe> = {}): HeroChipEingabe => ({
   kritisch: 0,
   warnung: 0,
   qsCount: 0,
   ersteQsScopeId: undefined,
+  hero: HERO_CONFIG_DEFAULT,
   ...teil,
+});
+
+const hero = (teil: Partial<HeroConfig['chips']>, alert = true): HeroConfig => ({
+  sichtbar: { resume: true, alert },
+  chips: { ...HERO_CONFIG_DEFAULT.chips, ...teil },
 });
 
 describe('heroChipSichtbarkeit', () => {
@@ -25,6 +32,34 @@ describe('heroChipSichtbarkeit', () => {
 
   it('ohne jeden Chip entfällt die Karte', () => {
     expect(heroChipSichtbarkeit(eingabe()).karte).toBe(false);
+  });
+});
+
+describe('Abwahl im `⋯` der Karte (v4.41) — zweiter Grund, gleiche Wirkung', () => {
+  it('blendet eine abgewählte Kachel auch bei vollem Zähler aus', () => {
+    const s = heroChipSichtbarkeit(eingabe({
+      kritisch: 29, warnung: 11, qsCount: 17, ersteQsScopeId: 'VB-1',
+      hero: hero({ qs: false }),
+    }));
+    expect(s.qs).toBe(false);
+    expect(s.kritisch).toBe(true);
+    expect(s.karte).toBe(true);
+  });
+
+  it('lässt die Karte entfallen, wenn jede Kachel abgewählt ist', () => {
+    const s = heroChipSichtbarkeit(eingabe({
+      kritisch: 29, warnung: 11, qsCount: 17, ersteQsScopeId: 'VB-1',
+      hero: hero({ kritisch: false, warnung: false, qs: false }),
+    }));
+    expect(s.karte).toBe(false);
+  });
+
+  it('nimmt die ausgeblendete Karte auch mit Kacheln vom Bildschirm', () => {
+    const s = heroChipSichtbarkeit(eingabe({
+      kritisch: 29, ersteQsScopeId: undefined, hero: hero({}, false),
+    }));
+    expect(s.kritisch).toBe(true); // die Kachel selbst bleibt gewählt …
+    expect(s.karte).toBe(false); // … die Karte steht trotzdem nicht da
   });
 });
 

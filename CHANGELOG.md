@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.41.0 — Karten-Menues fuer das obere Band, Rechtsklick app-weit gezaehmt (August 2026)
+
+MINOR — Die zwei Karten über den Spalten trugen als einzige kein `⋯` und ließen sich als einzige nicht abschalten. Und das Browser-Menü, das v4.40.2 auf den Karten zurückgab, hilft hier niemandem: „Zurück", „Neu laden", „Seitenquelltext" sind in einer Datei-App ohne Seiten keine Antwort.
+
+- **Beide Hero-Karten haben ihr eigenes `⋯`** — Resume: ausblenden + Arbeitsverlauf löschen; Alert: ausblenden, Kacheln abwählen, Fristen-Schwellen ([HeroMenue.tsx](src/plugins/home/anpassen/HeroMenue.tsx))
+- **Ein Knopf für beide Wirte** statt zweier Kopien: `WidgetMenueKnopf` → [KartenMenueKnopf.tsx](src/plugins/home/anpassen/KartenMenueKnopf.tsx), Ziel-Vergleich über die reine `zielGleich`
+- **`HomeWidgetConfig.hero`** additiv (fehlt = alles an); letzte Kachel weg ⇒ Karte aus, Karte an ⇒ Kacheln zurück ([homeWidgetsStore.ts](src/plugins/home/widgets/homeWidgetsStore.ts)) — Rückweg ist die Gruppe „Oben" im Widgets-Untermenü
+- **Rechtsklick app-weit gezähmt**: Browser-Menü nur noch in Eingabefeldern, bei markiertem Text und mit Umschalt ([useBrowserKontextmenue.ts](src/core/hooks/useBrowserKontextmenue.ts), einmal am Dokument in der [ShellLayout](src/core/ShellLayout.tsx))
+- **„Arbeitsverlauf löschen" wirkt sofort** — Zähler-Signal in den Effekt-Deps, sonst stünde die Karte unverändert da ([arbeitskontextSignal.ts](src/plugins/home/arbeitskontextSignal.ts)); Rückfrage-Wortlaut einmal geteilt
+
 ### v4.40.2 — Widget-Menue fuehrt nur noch eigene Punkte (August 2026)
 
 PATCH — Das `⋯` eines Widgets führte „Widgets ▸" und „Darstellung ▸" mit: dieselben seitenweiten Punkte in jeder einzelnen Karte. Und der Rechtsklick auf eine Karte öffnete dasselbe Menü ein zweites Mal — dafür nahm er der Karte das Browser-Menü samt Kopieren.

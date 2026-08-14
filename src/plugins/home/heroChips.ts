@@ -9,7 +9,11 @@
  * v2.371 wurden alle drei Chips immer gerendert; „0 QS-Freigaben offen" war
  * damit ein Klickziel, das in die ungefilterte Antragsliste führte. Bleibt
  * kein Chip übrig, entfällt die ganze Karte statt leer dazustehen.
+ *
+ * Seit v4.41 kommt die Abwahl aus dem `⋯` der Karte dazu. Zwei Gründe, dieselbe
+ * Wirkung: die 0 sagt „heute nichts da", die Abwahl „geht mich nichts an".
  */
+import type { HeroConfig } from './widgets/types';
 
 export interface HeroChipEingabe {
   kritisch: number;
@@ -17,6 +21,8 @@ export interface HeroChipEingabe {
   qsCount: number;
   /** Sprungziel des QS-Chips (erster offener Entwurf). Ohne Ziel kein Chip. */
   ersteQsScopeId: string | undefined;
+  /** Karten- und Kachel-Wahl des Nutzers (persönliche Widget-Config). */
+  hero: HeroConfig;
 }
 
 export interface HeroChipSichtbarkeit {
@@ -28,8 +34,14 @@ export interface HeroChipSichtbarkeit {
 }
 
 export function heroChipSichtbarkeit(eingabe: HeroChipEingabe): HeroChipSichtbarkeit {
-  const kritisch = eingabe.kritisch > 0;
-  const warnung = eingabe.warnung > 0;
-  const qs = eingabe.qsCount > 0 && eingabe.ersteQsScopeId !== undefined;
-  return { kritisch, warnung, qs, karte: kritisch || warnung || qs };
+  const gewaehlt = eingabe.hero.chips;
+  const kritisch = gewaehlt.kritisch && eingabe.kritisch > 0;
+  const warnung = gewaehlt.warnung && eingabe.warnung > 0;
+  const qs = gewaehlt.qs && eingabe.qsCount > 0 && eingabe.ersteQsScopeId !== undefined;
+  return {
+    kritisch,
+    warnung,
+    qs,
+    karte: eingabe.hero.sichtbar.alert && (kritisch || warnung || qs),
+  };
 }

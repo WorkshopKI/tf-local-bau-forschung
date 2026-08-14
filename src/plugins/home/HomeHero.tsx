@@ -1,8 +1,11 @@
 /**
  * Hero-Band der Startseite („Home optimiert", Design-Handoff homepage-optimiert).
  *
- * Fixes Element (KEIN konfigurierbares Widget — analog Begrüßung /
- * ProgrammeOverviewCards): der morgendliche Arbeitseinstieg. Zwei Karten:
+ * Fixes Element (kein Widget — keine Position, kein Einklappen, kein Bereich;
+ * analog Begrüßung / ProgrammeOverviewCards): der morgendliche Arbeitseinstieg.
+ * Seit v4.41 trägt jede der beiden Karten aber ein `⋯` mit IHREN Einstellungen
+ * (`HeroMenue`) und lässt sich ausblenden — der Weg zurück ist die Gruppe „Oben"
+ * im Widgets-Untermenü. Zwei Karten:
  *  1. Resume-Karte „Weiter, wo du aufgehört hast" — jüngster Arbeitskontext
  *     (reuse `useWeitermachenRows`, ersetzt das gleichnamige Widget im Default).
  *  2. Alert-Karte „Braucht heute Aufmerksamkeit" — bis zu drei klickbare Chips:
@@ -26,6 +29,9 @@ import { relativeZeitKurz } from '@/core/utils/relativeZeit';
 import { useQsFreigaben } from './widgets/useQsFreigaben';
 import { heroChipSichtbarkeit } from './heroChips';
 import { labelKritisch, labelWarnung } from './homeSubtitle';
+import { KartenMenueKnopf } from './anpassen/KartenMenueKnopf';
+import { useHomeWidgetsStore } from './widgets/useHomeWidgets';
+import { HERO_CONFIG_DEFAULT } from './widgets/types';
 import type { EingangAmpelCounts } from './useEingangAmpelCounts';
 
 const fmt = (n: number): string => n.toLocaleString('de-DE');
@@ -48,16 +54,23 @@ export interface HomeHeroProps {
 
 export function HomeHero({ counts, schwellen, onOpenBucket, onOpenQs }: HomeHeroProps): React.ReactElement | null {
   const navigate = useNavigate();
-  const resume = useWeitermachenRows()[0] ?? null;
+  const resumeZeile = useWeitermachenRows()[0] ?? null;
   const { zeilen: qsZeilen } = useQsFreigaben(true);
   const qsCount = qsZeilen.length;
   const ersteQsScopeId = qsZeilen[0]?.scopeId;
+
+  // Karten- und Kachel-Wahl aus der persönlichen Widget-Config. Bewusst der
+  // ROHE Store statt `useHomeWidgets()`: die HomePage lädt die Config ohnehin,
+  // und das Band braucht hier nur zu lesen.
+  const hero = useHomeWidgetsStore(s => s.config)?.hero ?? HERO_CONFIG_DEFAULT;
+  const resume = hero.sichtbar.resume ? resumeZeile : null;
 
   const chips = heroChipSichtbarkeit({
     kritisch: counts.kritisch,
     warnung: counts.warnung,
     qsCount,
     ersteQsScopeId,
+    hero,
   });
 
   // Nichts anzuzeigen → Band ganz ausblenden. (HomePage rendert den Hero ohnehin
@@ -67,35 +80,53 @@ export function HomeHero({ counts, schwellen, onOpenBucket, onOpenQs }: HomeHero
   return (
     <div className={`grid gap-3.5 ${resume && chips.karte ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1'}`}>
       {resume ? (
-        <button
-          type="button"
-          onClick={() => navigate(resume.target)}
-          className="text-left rounded-[var(--tf-radius-lg)] bg-[var(--tf-card-surface)] px-[17px] py-[15px] transition-colors hover:border-[var(--tf-border-hover)] cursor-pointer min-w-0"
-          style={{ border: '0.5px solid var(--tf-border)' }}
-        >
-          <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-[0.04em] text-[var(--tf-text-tertiary)]">
-            <Clock size={13} className="shrink-0" /> Weiter, wo du aufgehört hast
+        // Wrapper, weil die ganze Karte ein `<button>` ist: ein zweiter Knopf
+        // DARIN wäre ungültiges HTML. Das `⋯` liegt deshalb als Geschwister
+        // darüber — sichtbar ist es ohnehin erst beim Überfahren (`group/widget`).
+        <div className="relative min-w-0 group/widget" data-hero-karte="resume">
+          <button
+            type="button"
+            onClick={() => navigate(resume.target)}
+            className="w-full text-left rounded-[var(--tf-radius-lg)] bg-[var(--tf-card-surface)] px-[17px] py-[15px] transition-colors hover:border-[var(--tf-border-hover)] cursor-pointer min-w-0"
+            style={{ border: '0.5px solid var(--tf-border)' }}
+          >
+            <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-[0.04em] text-[var(--tf-text-tertiary)]">
+              <Clock size={13} className="shrink-0" /> Weiter, wo du aufgehört hast
+            </div>
+            <div className="mt-2 text-[15px] font-medium text-[var(--tf-text)] truncate">
+              {resume.anzeige.akronym}
+            </div>
+            <div className="mt-0.5 text-[12.5px] text-[var(--tf-text-secondary)] truncate">
+              {resume.anzeige.kontext}
+            </div>
+            <div className="mt-0.5 text-[11.5px] tabular-nums text-[var(--tf-text-tertiary)] truncate">
+              {relativeZeitKurz(resume.anzeige.ts)} · <span className="font-mono">{resume.anzeige.fkz}</span>
+            </div>
+            <span className="mt-3 inline-flex items-center gap-1 text-[12.5px] font-medium text-[var(--tf-primary)]">
+              Weiter <ArrowRight size={14} />
+            </span>
+          </button>
+          <div className="absolute right-2 top-2">
+            <KartenMenueKnopf
+              ziel={{ art: 'hero', karte: 'resume' }}
+              titel="Weiter, wo du aufgehört hast"
+            />
           </div>
-          <div className="mt-2 text-[15px] font-medium text-[var(--tf-text)] truncate">
-            {resume.anzeige.akronym}
-          </div>
-          <div className="mt-0.5 text-[12.5px] text-[var(--tf-text-secondary)] truncate">
-            {resume.anzeige.kontext}
-          </div>
-          <div className="mt-0.5 text-[11.5px] tabular-nums text-[var(--tf-text-tertiary)] truncate">
-            {relativeZeitKurz(resume.anzeige.ts)} · <span className="font-mono">{resume.anzeige.fkz}</span>
-          </div>
-          <span className="mt-3 inline-flex items-center gap-1 text-[12.5px] font-medium text-[var(--tf-primary)]">
-            Weiter <ArrowRight size={14} />
-          </span>
-        </button>
+        </div>
       ) : null}
 
       {chips.karte ? (
         <div
-          className="rounded-[var(--tf-radius-lg)] bg-[var(--tf-card-surface)] px-[17px] py-[15px] min-w-0"
+          className="relative rounded-[var(--tf-radius-lg)] bg-[var(--tf-card-surface)] px-[17px] py-[15px] min-w-0 group/widget"
           style={{ border: '0.5px solid var(--tf-border)' }}
+          data-hero-karte="alert"
         >
+          <div className="absolute right-2 top-2">
+            <KartenMenueKnopf
+              ziel={{ art: 'hero', karte: 'alert' }}
+              titel="Braucht heute Aufmerksamkeit"
+            />
+          </div>
           <div className="text-[11px] font-medium uppercase tracking-[0.04em] text-[var(--tf-text-tertiary)]">
             Braucht heute Aufmerksamkeit
           </div>

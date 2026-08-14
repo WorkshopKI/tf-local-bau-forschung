@@ -34,6 +34,7 @@ import { useModulFreischaltung } from '@/core/hooks/useModulFreischaltung';
 import { useAuslastungFrei, useKuratorFrei } from '@/core/modul-freischaltung';
 import { useSmbStatus } from '@/core/hooks/useSmbStatus';
 import { useKuratorActivityTracker } from '@/core/hooks/useKuratorActivityTracker';
+import { useBrowserKontextmenue } from '@/core/hooks/useBrowserKontextmenue';
 import { ensureDefaultProgramm } from '@/core/services/csv';
 import { getDatenShareHandle } from '@/core/services/infrastructure/smb-handle';
 import { SmbBanner } from '@/core/components/SmbBanner';
@@ -222,6 +223,9 @@ export function ShellLayout({ plugins, children }: ShellLayoutProps): React.Reac
   const initActiveProgramm = useActiveProgramm(s => s.init);
 
   useKuratorActivityTracker();
+  // Der Rechtsklick zeigt app-weit nur noch etwas, wo er etwas kann: Menüs der
+  // App, Eingabefelder, markierter Text — sonst nichts (useBrowserKontextmenue).
+  useBrowserKontextmenue();
   useAutoSmbRefresh(storage.idb);
   // Einmalige Auto-Freischaltung des Anonymisierer-Skills auf Bestands-Shares
   // (Recall-Gate bestanden → Seed aktiv:true, aber mergeMissingSeeds überschreibt

@@ -19,6 +19,14 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.41 — 2026-08
+
+### Neu
+- Die beiden Karten ganz oben auf der Startseite haben jetzt auch ein ⋯-Menü. „Weiter, wo du aufgehört hast" lässt sich ausblenden, und der gemerkte Arbeitsverlauf lässt sich dort löschen. Bei „Braucht heute Aufmerksamkeit" können Sie einzelne Kacheln abwählen — wer zum Beispiel nichts mit QS-Freigaben zu tun hat, nimmt die Kachel weg — und von dort direkt die Fristen-Schwellen ändern.
+- Eine ausgeblendete Karte holen Sie über „Widgets" im Rechtsklick-Menü der Startseite zurück; die beiden stehen dort neu unter **Oben**.
+### Verbesserungen
+- Der Rechtsklick zeigt nur noch etwas, wo er auch etwas kann: das Menü der App auf einer freien Stelle der Startseite. Das Browser-Menü mit „Zurück" und „Neu laden" erscheint nicht mehr überall, wo es nichts nützt — in Textfeldern (Einfügen) und bei markiertem Text (Kopieren) bleibt es. Wenn Sie es doch einmal brauchen: Umschalt gedrückt halten und rechtsklicken.
+
 ## v4.40 — 2026-08
 
 ### Neu

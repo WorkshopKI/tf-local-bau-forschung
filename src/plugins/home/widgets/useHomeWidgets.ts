@@ -14,12 +14,22 @@ import {
   moveInstanz,
   saveHomeWidgets,
   setzeAlleEingeklappt,
+  setzeHeroChip,
+  setzeHeroKarte,
   setzeSichtbarkeitBereich,
   sichtbareWidgets,
   sortiereInstanzen,
   zurueckgesetzteConfig,
 } from './homeWidgetsStore';
-import type { HomeWidgetConfig, WidgetInstanz, WidgetSpezifischeConfig } from './types';
+import {
+  HERO_CONFIG_DEFAULT,
+  type HeroChipId,
+  type HeroConfig,
+  type HeroKarte,
+  type HomeWidgetConfig,
+  type WidgetInstanz,
+  type WidgetSpezifischeConfig,
+} from './types';
 
 interface HomeWidgetsState {
   /** null = noch nicht geladen. */
@@ -61,6 +71,8 @@ export interface HomeWidgetsApi {
   seite: WidgetInstanz[];
   /** ALLE Instanzen global sortiert, ungefiltert — Einstellungs-Positionsliste. */
   alleInstanzen: WidgetInstanz[];
+  /** Die beiden festen Karten über den Spalten (kein Widget, s. `HeroConfig`). */
+  hero: HeroConfig;
   setSichtbar: (id: string, sichtbar: boolean) => Promise<void>;
   setEingeklappt: (id: string, eingeklappt: boolean) => Promise<void>;
   move: (id: string, richtung: 'hoch' | 'runter') => Promise<void>;
@@ -80,6 +92,10 @@ export interface HomeWidgetsApi {
   alleEinklappen: (eingeklappt: boolean) => Promise<void>;
   /** Der „alle"-Schalter einer Spalte im Widgets-Untermenü. */
   setSichtbarBereich: (bereich: WidgetInstanz['bereich'], sichtbar: boolean) => Promise<void>;
+  /** Hero-Karte ein-/ausblenden (`⋯` der Karte, Gruppe „Oben" im Untermenü). */
+  setHeroKarte: (karte: HeroKarte, sichtbar: boolean) => Promise<void>;
+  /** Kachel der Alert-Karte ab-/anwählen (nur im `⋯` dieser Karte). */
+  setHeroChip: (chip: HeroChipId, an: boolean) => Promise<void>;
   /** „Startseite zurücksetzen" — Stand eines frischen Geräts. */
   zuruecksetzen: () => Promise<void>;
   /** Schreibt einen kompletten Vorstand zurück — der EINE Rückgängig-Weg. */
@@ -111,6 +127,7 @@ export function useHomeWidgets(): HomeWidgetsApi {
       haupt: config ? sichtbareWidgets(config, 'haupt') : [],
       seite: config ? sichtbareWidgets(config, 'seite') : [],
       alleInstanzen: config ? sortiereInstanzen(config.widgets) : [],
+      hero: config?.hero ?? HERO_CONFIG_DEFAULT,
       setSichtbar: (id, sichtbar) => patchInstanz(id, { sichtbar }),
       setEingeklappt: (id, eingeklappt) => patchInstanz(id, { eingeklappt }),
       move: (id, richtung) => mutiere(idb, cfg => moveInstanz(cfg, id, richtung)),
@@ -123,6 +140,8 @@ export function useHomeWidgets(): HomeWidgetsApi {
       alleEinklappen: eingeklappt => mutiere(idb, cfg => setzeAlleEingeklappt(cfg, eingeklappt)),
       setSichtbarBereich: (bereich, sichtbar) =>
         mutiere(idb, cfg => setzeSichtbarkeitBereich(cfg, bereich, sichtbar)),
+      setHeroKarte: (karte, sichtbar) => mutiere(idb, cfg => setzeHeroKarte(cfg, karte, sichtbar)),
+      setHeroChip: (chip, an) => mutiere(idb, cfg => setzeHeroChip(cfg, chip, an)),
       zuruecksetzen: () => mutiere(idb, () => zurueckgesetzteConfig()),
       ersetze: vorstand => mutiere(idb, () => vorstand),
     };

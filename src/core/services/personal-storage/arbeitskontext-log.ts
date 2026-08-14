@@ -87,7 +87,16 @@ export async function listeArbeitskontext(
   return typeof limit === 'number' ? list.slice(0, limit) : list;
 }
 
-/** Löscht das gesamte Log (Einstellungen → Speicher → „Verlauf löschen"). */
+/**
+ * Die Rückfrage vor dem Löschen — EIN Wortlaut für beide Auslöser (Einstellungen
+ * → Daten und das `⋯` der Karte „Weiter, wo du aufgehört hast"). Zwei Kopien
+ * desselben Satzes laufen auseinander, sobald jemand nur einen anfasst.
+ */
+export const ARBEITSVERLAUF_LOESCHEN_FRAGE =
+  'Arbeitsverlauf löschen? Die „Weitermachen"-Karte auf der Startseite wird geleert. '
+  + 'Nur lokal auf diesem Gerät — Anträge, Gutachten und Nachforderungen bleiben unberührt.';
+
+/** Löscht das gesamte Log (Einstellungen → Daten → „Verlauf löschen"). */
 export async function clearArbeitskontextLog(idb: IDBStore): Promise<void> {
   await idb.delete(ARBEITSKONTEXT_LOG_IDB_KEY);
 }

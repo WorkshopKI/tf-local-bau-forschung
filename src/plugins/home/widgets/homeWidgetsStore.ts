@@ -20,7 +20,15 @@ import {
   AMPEL_SCHWELLEN_DEFAULT,
   type AmpelSchwellen,
 } from '@/plugins/antraege/eingangAmpel';
-import type { HomeWidgetConfig, WidgetInstanz, WidgetTyp } from './types';
+import {
+  HERO_CONFIG_DEFAULT,
+  type HeroChipId,
+  type HeroConfig,
+  type HeroKarte,
+  type HomeWidgetConfig,
+  type WidgetInstanz,
+  type WidgetTyp,
+} from './types';
 import { WIDGET_KATALOG, type WidgetKatalogEintrag } from './widgetCatalog';
 
 /** IDB-Key (kv-Store) — primäre Quelle der Widget-Config. */
@@ -63,6 +71,7 @@ export function defaultHomeWidgetConfig(
   return {
     version: 2,
     updatedAt: new Date(0).toISOString(),
+    hero: HERO_CONFIG_DEFAULT,
     widgets: [
       instanz('w-meine-antraege', 'meine-antraege', 0, true, opts?.meineAntraegeEingeklappt ?? false),
       instanz('w-kanban', 'kanban', 1, false),
@@ -100,6 +109,23 @@ export function migriereV1HeroWeitermachen(widgets: WidgetInstanz[]): WidgetInst
 }
 
 /**
+ * Die Hero-Karten aus einem Config-Stand — jeder fehlende oder kaputte Wert
+ * bedeutet „an". Additiv statt versioniert: das Feld kam mit v4.41 dazu, und ein
+ * Stand ohne es soll exakt so aussehen wie bisher (beide Karten, alle Kacheln).
+ */
+export function leseHeroConfig(raw: unknown): HeroConfig {
+  const feld = (v: unknown): Record<string, unknown> =>
+    (v && typeof v === 'object' ? v : {}) as Record<string, unknown>;
+  const an = (v: unknown): boolean => (typeof v === 'boolean' ? v : true);
+  const s = feld(feld(raw).sichtbar);
+  const c = feld(feld(raw).chips);
+  return {
+    sichtbar: { resume: an(s.resume), alert: an(s.alert) },
+    chips: { kritisch: an(c.kritisch), warnung: an(c.warnung), qs: an(c.qs) },
+  };
+}
+
+/**
  * Toleranter Read (analog arbeitskontext-log): kaputte/fremde Werte → null
  * (Aufrufer fällt auf Default). Der `version`-Switch ist der Migrations-
  * Einstieg: v1-Stände werden auf v2 gehoben (weitermachen einmalig ausgeblendet,
@@ -116,6 +142,7 @@ export function leseHomeWidgetConfig(raw: unknown): HomeWidgetConfig | null {
   return {
     version: 2,
     updatedAt: cfg.updatedAt,
+    hero: leseHeroConfig(cfg.hero),
     widgets,
   };
 }
@@ -294,6 +321,56 @@ export function setzeSichtbarkeitBereich(
   return {
     ...cfg,
     widgets: cfg.widgets.map(w => (trifft(w) ? { ...w, sichtbar } : w)),
+  };
+}
+
+/** Hat die Alert-Karte überhaupt noch eine Kachel zu zeigen? */
+function irgendeineKachel(chips: HeroConfig['chips']): boolean {
+  return chips.kritisch || chips.warnung || chips.qs;
+}
+
+/**
+ * Blendet eine der beiden Hero-Karten aus/ein. Der Weg zurück ist nicht ihr
+ * eigenes `⋯` (das ist mit der Karte weg), sondern die Gruppe „Oben" im
+ * Widgets-Untermenü — dieselbe Checkliste, die auch die Widgets führt.
+ *
+ * Wer die Alert-Karte dort wieder einschaltet, bekommt ihre Kacheln zurück:
+ * sonst käme eine Karte wieder, die nichts anzuzeigen hätte, und der Schalter
+ * bliebe wirkungslos. Rein + referenzgleich ohne Änderung.
+ */
+export function setzeHeroKarte(
+  cfg: HomeWidgetConfig, karte: HeroKarte, sichtbar: boolean,
+): HomeWidgetConfig {
+  if (cfg.hero.sichtbar[karte] === sichtbar) return cfg;
+  const leer = karte === 'alert' && sichtbar && !irgendeineKachel(cfg.hero.chips);
+  return {
+    ...cfg,
+    hero: {
+      chips: leer ? { kritisch: true, warnung: true, qs: true } : cfg.hero.chips,
+      sichtbar: { ...cfg.hero.sichtbar, [karte]: sichtbar },
+    },
+  };
+}
+
+/**
+ * Wählt eine Kachel der Alert-Karte ab/an. Getrennt von der Zähler-Regel: die
+ * Abwahl ist eine Aussage über Zuständigkeit („QS geht mich nichts an"), die
+ * 0 eine über den Bestand — beide blenden aus, aus verschiedenen Gründen.
+ *
+ * **Kachel-Wahl und Karte hängen zusammen**: ohne Kachel hat die Karte nichts zu
+ * zeigen, also ist sie dann auch „aus" — und taucht als solche in der Liste
+ * „Oben" auf. Stünde sie dort weiter als „an", wäre das Abwählen aller drei eine
+ * Einbahnstraße: die Karte weg, ihr `⋯` mit ihr, und der Schalter, der sie
+ * zurückholen soll, schon oben.
+ */
+export function setzeHeroChip(
+  cfg: HomeWidgetConfig, chip: HeroChipId, an: boolean,
+): HomeWidgetConfig {
+  if (cfg.hero.chips[chip] === an) return cfg;
+  const chips = { ...cfg.hero.chips, [chip]: an };
+  return {
+    ...cfg,
+    hero: { chips, sichtbar: { ...cfg.hero.sichtbar, alert: irgendeineKachel(chips) } },
   };
 }
 

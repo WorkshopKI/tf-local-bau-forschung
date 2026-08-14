@@ -113,19 +113,20 @@ export function HomePage(): React.ReactElement {
   const openQs = (scopeId: string): void => navigate('antraege', { selectedId: scopeId });
 
   // „Startseite anpassen" (v4.6): Rechtsklick auf die FREIE Fläche der Seite.
-  // Auf einer Widget-Karte (`data-widget-id`) bleibt das Browser-Menü stehen —
-  // die Aktionen eines Widgets hängen seit v4.40.2 allein am `⋯` in seinem Kopf.
-  // Ebenso in Eingabefeldern und bei markiertem Text (darfMenueOeffnen), sonst
-  // nähme das Menü dem Notizen-Widget das Einfügen und jeder Zeile das Kopieren.
+  // Auf einer Karte — Widget (`data-widget-id`) wie Hero-Band (`data-hero-karte`)
+  // — nicht: deren Aktionen hängen am `⋯` in ihrem Kopf. Ebenso wenig in
+  // Eingabefeldern und bei markiertem Text (darfMenueOeffnen), sonst nähme das
+  // Menü dem Notizen-Widget das Einfügen und jeder Zeile das Kopieren.
   const oeffneMenue = useStartseiteMenueStore(s => s.oeffne);
   const anpassenKnopf = useRef<HTMLButtonElement>(null);
   const beiRechtsklick = useCallback((e: React.MouseEvent<HTMLDivElement>): void => {
     const ziel = e.target as HTMLElement;
     if (!darfMenueOeffnen({
       tagName: ziel.tagName,
-      aufWidgetKarte: !!ziel.closest('[data-widget-id]'),
+      aufKarte: !!ziel.closest('[data-widget-id], [data-hero-karte]'),
       istEingabefeld: !!ziel.closest('input, textarea, [contenteditable="true"]'),
       hatTextauswahl: !!window.getSelection()?.toString(),
+      mitUmschalt: e.shiftKey,
     })) return;
     e.preventDefault();
     merkeHinweisGesehen();

@@ -23,7 +23,37 @@ export interface HomeWidgetConfig {
   /** ISO-Zeitstempel — Last-Writer-Wins analog PersonalEinstellungen. */
   updatedAt: string;
   widgets: WidgetInstanz[];
+  /**
+   * Die beiden festen Karten ÜBER den Spalten (HomeHero). Sie sind keine
+   * Widgets — sie haben keine Position, keinen Bereich und kein Einklappen —,
+   * ihre Sichtbarkeit gehört aber in dieselbe persönliche Darstellungs-Config
+   * (v4.41). Additiv: fehlt das Feld in einem Bestands-Stand, liest
+   * `leseHeroConfig` den bisherigen Zustand „alles an" (kein Versions-Bump).
+   */
+  hero: HeroConfig;
 }
+
+/** Die beiden Karten des Bandes über den Spalten. */
+export type HeroKarte = 'resume' | 'alert';
+
+/** Die drei Kacheln der Karte „Braucht heute Aufmerksamkeit". */
+export type HeroChipId = 'kritisch' | 'warnung' | 'qs';
+
+export interface HeroConfig {
+  sichtbar: Record<HeroKarte, boolean>;
+  /**
+   * Abgewählte Kacheln. Wirkt ZUSÄTZLICH zur Zähler-Regel (`heroChipSichtbarkeit`):
+   * eine 0 fällt weiterhin von selbst raus — wer die QS-Kachel abwählt, will sie
+   * auch bei 12 offenen Freigaben nicht sehen.
+   */
+  chips: Record<HeroChipId, boolean>;
+}
+
+/** Bisheriger Zustand: beide Karten, alle Kacheln. */
+export const HERO_CONFIG_DEFAULT: HeroConfig = {
+  sichtbar: { resume: true, alert: true },
+  chips: { kritisch: true, warnung: true, qs: true },
+};
 
 /**
  * Abschließende Typ-Liste. Alle Typen sind im Katalog `verfuegbar: true`; die
