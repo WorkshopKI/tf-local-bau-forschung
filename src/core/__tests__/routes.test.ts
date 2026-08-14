@@ -19,7 +19,6 @@ vi.mock('@/plugins.config', () => ({
     home: '/',
     antraege: '/antraege',
     kuration: '/kuration',
-    'csv-sources-kuration': '/kuration/csv-quellen',
     'dokument-review': '/kuration/dokument-review',
     'feedback-board': '/feedback-board',
   },
@@ -45,6 +44,7 @@ describe('legacyRedirectTarget', () => {
     expect(legacyRedirectTarget('/kuration/anfragen')).toBe('/kuration?panel=dienste');
     expect(legacyRedirectTarget('/kuration/suchindex')).toBe('/kuration?panel=suche-index');
     expect(legacyRedirectTarget('/kuration/programme')).toBe('/kuration?panel=verzeichnisse');
+    expect(legacyRedirectTarget('/kuration/csv-quellen')).toBe('/kuration?panel=csv-quellen');
   });
 
   it('springt bei Seiten, die nur eine GRUPPE geworden sind, auf ihren Anker', () => {
@@ -77,17 +77,15 @@ describe('legacyRedirectTarget', () => {
 
   it('laesst Wege in Ruhe, die weiter existieren', () => {
     expect(legacyRedirectTarget('/kuration')).toBeNull();
-    expect(legacyRedirectTarget('/kuration/csv-quellen')).toBeNull();
     expect(legacyRedirectTarget('/kuration/dokument-review')).toBeNull();
     expect(legacyRedirectTarget('/antraege')).toBeNull();
   });
 });
 
 describe('routeToPluginId', () => {
-  it('loest die eigenstaendig gebliebenen Kuration-Seiten NICHT auf den Hub auf', () => {
-    // Der Hub liegt auf `/kuration`, also einem Praefix der beiden. Nur weil
-    // `ROUTE_TO_PLUGIN` die laengste Route zuerst prueft, gewinnen sie.
-    expect(routeToPluginId('/kuration/csv-quellen')).toBe('csv-sources-kuration');
+  it('loest die eigenstaendig gebliebene Kuration-Seite NICHT auf den Hub auf', () => {
+    // Der Hub liegt auf `/kuration`, also einem Praefix. Nur weil
+    // `ROUTE_TO_PLUGIN` die laengste Route zuerst prueft, gewinnt sie.
     expect(routeToPluginId('/kuration/dokument-review')).toBe('dokument-review');
     expect(routeToPluginId('/kuration')).toBe('kuration');
   });

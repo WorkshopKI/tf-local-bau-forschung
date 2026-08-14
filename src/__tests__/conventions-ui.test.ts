@@ -121,7 +121,7 @@ describe('no-raw-async-onclick (CLAUDE.md Pitfall #15)', () => {
         `Neuer 'onClick={() => void asyncFn()}'-Pattern in nicht-whitelisteter\n` +
         `Datei (CLAUDE.md Pitfall #15). Pflicht: useAsyncAction-Hook aus\n` +
         `src/core/hooks/useAsyncAction.ts nutzen — fängt Rejections + Doppelklick.\n` +
-        `Referenz: src/plugins/csv-sources-kuration/CsvSourcesPage.tsx,\n` +
+        `Referenz: src/plugins/kuration/csv-quellen/CsvQuellenPanel.tsx,\n` +
         `Cheatsheet: docs/agents/async-error-pattern.md.\n` +
         `Wenn wirklich noetig: '// allow-raw-async-onclick: <grund>' inline.\n\n` +
         `Treffer:\n${fmt(newFindings)}`;

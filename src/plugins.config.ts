@@ -10,7 +10,6 @@ import { antraegePlugin } from '@/plugins/antraege';
 import { anfragenPlugin } from '@/plugins/anfragen';
 import { kurationPlugin } from '@/plugins/kuration';
 import { auslastungPlugin } from '@/plugins/auslastung';
-import { csvSourcesAdminPlugin } from '@/plugins/csv-sources-kuration';
 import { dokumentReviewPlugin } from '@/plugins/dokument-review';
 import { skillVerwaltungPlugin } from '@/plugins/skill-verwaltung-kuration';
 import { mapFoerderfaehigPlugin } from '@/plugins/map-foerderfaehig';
@@ -38,7 +37,6 @@ const allPlugins: TeamFlowPlugin[] = [
   skillVerwaltungPlugin,
   einstellungenPlugin,
   kurationPlugin,
-  csvSourcesAdminPlugin,
   dokumentReviewPlugin,
   devInfrastructureTestPlugin,
   devStateInspectorPlugin,

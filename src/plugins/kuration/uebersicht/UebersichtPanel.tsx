@@ -118,7 +118,7 @@ export function UebersichtPanel(): React.ReactElement {
               type="button"
               variant="secondary"
               size="sm"
-              onClick={() => navigate('csv-sources-kuration')}
+              onClick={() => hub.geheZuPanel('csv-quellen')}
             >
               Öffnen
             </Button>

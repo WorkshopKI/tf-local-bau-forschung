@@ -150,15 +150,20 @@ src/
 │   │       ├── FeedbackConfigPanel.tsx
 │   │       └── useAutoCollectFeedback.ts      <- im Board gemountet (einziger Pfad fuer prod-Feedback!)
 │   ├── einstellungen/           <- Profil, Theme, AI-Provider, is_kurator-Toggle (id='einstellungen')
-│   # Kurator-Plugins (category 'kuration', kuratorOnly: true) — Directory-Name == Plugin-ID
-│   ├── kurator/                 <- Suchindex-Kurations-Panel (id='kurator', route /kuration/suchindex)
-│   ├── programme-kuration/      <- Programm-Verwaltung inkl. Unterprogramme-Sub-Feature (id='programme-kuration')
-│   ├── csv-sources-kuration/    <- CSV-Import-Wizard (id='csv-sources-kuration', 5-Step-Wizard + Label-XLS-Hierarchie; v2.18: csv-source-handle.ts pickAndLinkCsvSource + components/CsvSourceLinkDialog.tsx für pl-Handle-Lücke; v2.164: CsvSourcesPage = Container aus SourceList.tsx + MaintenanceSection.tsx + SourceModals.tsx + csv-file-picker.ts)
-│   ├── dokumentenquellen-kuration/ <- DMS-Quellen-Verwaltung (id='dokumentenquellen-kuration', v1.15, Multi-Source + Indexierung)
-│   ├── filter-kuration/         <- Filter-Verwaltung (id='filter-kuration', 4-Step-Wizard)
-│   ├── feedback/                <- NUR NOCH REDIRECT (id='feedback-kuration', hideFromNav; v2.364 im Board aufgegangen)
-│   │   ├── FeedbackKurationRedirect.tsx  <- /kuration/feedback -> /feedback-board (alte Lesezeichen)
-│   │   └── index.ts
+│   # Kuration (category 'kuration', kuratorOnly: true). Bis v4.32 neun eigene
+│   # Sidebar-Eintraege; v4.33–v4.38 zu EINEM Hub zusammengezogen — Panels statt
+│   # Seiten, Seitenform aus @/components/settings (docs/agents/add-settings-section.md).
+│   ├── kuration/                <- Der Hub (id='kuration', route /kuration); Registry: kurationPanels.tsx
+│   │   ├── uebersicht/          <- Panel „Uebersicht": Lage & Aufgaben, liest indexAmpel + csvFreshnessAussage
+│   │   ├── csv-quellen/         <- Panel „CSV-Quellen" (v4.38); Bausteine aus ../../csv-sources-kuration/
+│   │   ├── verzeichnisse/       <- Panel „Verzeichnisse" (v4.36): programme/ (+unterprogramme/) + filter/
+│   │   ├── suche-index/         <- Panel „Suche & Index" (v4.35, war Plugin 'kurator')
+│   │   ├── dokumentenquellen/   <- Gruppe im Panel „Suche & Index" (war Plugin 'dokumentenquellen-kuration')
+│   │   └── dienste/             <- Panel „Dienste" (war Plugin 'anfragen-kuration')
+│   ├── csv-sources-kuration/    <- KEIN Plugin mehr (v4.38), aber weiter ein Modul: neben den
+│   │                               Seiten-Bausteinen (SourceList, MaintenanceSection, SourceModals,
+│   │                               5-Step-Wizard, csv-file-picker) liegt hier die Auto-Refresh- und
+│   │                               Datenupdate-Maschine, die App.tsx + ShellLayout beim Start hochfahren
 │   ├── dokument-review/         <- Phase-2 Review-Queue UI (id='dokument-review', kuratorOnly + features.dokumentenscan)
 │   │   ├── DokumentReviewPage.tsx
 │   │   ├── store.ts                  <- Zustand: viewMode/Filter/Sort/Pagination/Toast

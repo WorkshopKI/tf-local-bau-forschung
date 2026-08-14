@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.38.0 — CSV-Quellen wird ein Panel (August 2026)
+
+MINOR — Auf Nutzerwunsch zieht auch die CSV-Quellen-Seite in den Hub. Damit ist die Kuration eine Seite mit fünf Panels; die Navigationsspalte liest sich als Weg, den die Daten nehmen: Übersicht → CSV-Quellen → Verzeichnisse → Suche & Index → Dienste.
+
+- **Panel „CSV-Quellen"** ([CsvQuellenPanel.tsx](src/plugins/kuration/csv-quellen/CsvQuellenPanel.tsx)): links die Quellen mit ihren Aktionen, rechts der Zustand — Quellen, Zeilen, letzter Import, offene Aktualisierungen; Wartung und Wiederherstellung eingeklappt
+- **Der Ordner `csv-sources-kuration/` bleibt** ([project-structure.md](docs/architecture/project-structure.md)): umgezogen ist, was nur Seite war — dort liegt auch die Auto-Refresh-Maschine, die App und Shell beim Start hochfahren
+- **Ein Satz über die CSV-Frische, drei Orte**: Panel, Übersicht und der Punkt „● CSV" lesen `csvFreshnessAussage` ([csv-freshness-state.ts](src/plugins/csv-sources-kuration/services/csv-freshness-state.ts))
+- **Sidebar-Kuration: vier Einträge statt neun** ([plugins.config.ts](src/plugins.config.ts)) — Kuration · Dokument-Review · DEV: State · DEV: Infra
+- **Veralteter Plugin-Baum berichtigt** ([project-structure.md](docs/architecture/project-structure.md)): er führte `kurator/`, `dokumentenquellen-kuration/` und den Feedback-Redirect noch als Plugins
+
 ### v4.37.0 — Feedback-Erfassung: schmaler, kuerzer, Screenshot ohne Sichtblockade (August 2026)
 
 MINOR — Der Erfassungs-Dialog kam aus dem Testbetrieb mit fünf Rückmeldungen zurück: zu breit, zu lang, zu viel zu tippen — und er verdeckte genau den Bildschirm, den man screenshotten wollte. Gemessen: 520 × 877 px → 420 × 535 px bei gleichem Funktionsumfang.

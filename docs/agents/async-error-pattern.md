@@ -80,8 +80,8 @@ function useAsyncAction<TArgs extends unknown[]>(
 Stand Mai 2026: 30 Files mit `onClick={() => void asyncFn()}`-Pattern, davon ~10 im Auslastungs-Plugin. Migration opportunistisch — wenn ein Patch ohnehin eine dieser Komponenten anfasst, gleich auf den Hook umstellen. Keine Massen-Migration.
 
 Reference-Anwendungen (in stabilen Plugins, als Vorbild):
-- [src/plugins/csv-sources-kuration/CsvSourcesPage.tsx](../../src/plugins/csv-sources-kuration/CsvSourcesPage.tsx)
-- [src/plugins/filter-kuration/dialogs/FilterEditDialog.tsx](../../src/plugins/filter-kuration/dialogs/FilterEditDialog.tsx)
+- [src/plugins/kuration/csv-quellen/CsvQuellenPanel.tsx](../../src/plugins/kuration/csv-quellen/CsvQuellenPanel.tsx)
+- [src/plugins/kuration/verzeichnisse/filter/dialogs/FilterEditDialog.tsx](../../src/plugins/kuration/verzeichnisse/filter/dialogs/FilterEditDialog.tsx)
 - [src/plugins/dokumentenquellen-kuration/components/SourceFormDialog.tsx](../../src/plugins/dokumentenquellen-kuration/components/SourceFormDialog.tsx)
 
 ## Verifikation

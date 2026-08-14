@@ -26,7 +26,7 @@ prod schaltet andere Flags, und was dort nicht mitkompiliert, fällt erst im pro
 ## Faustregeln nach Pfad
 
 - `src/plugins/auslastung/**` → **pl**, also von `build:devpl` schon abgedeckt. (Memory-Feedback: wurde früher oft vergessen — deshalb steckt pl jetzt im Standard-Paar.)
-- `src/plugins/{feedback,csv-sources-kuration,programme-kuration,dokumentenquellen-kuration,filter-kuration,dokument-review,kurator}/**` oder etwas hinter `features.kuratorMenus` → **pl** (dort liegt die Kuration seit v3.0).
+- `src/plugins/{kuration,csv-sources-kuration,dokument-review}/**` oder etwas hinter `features.kuratorMenus` → **pl** (dort liegt die Kuration seit v3.0). Die Kurator-Seiten sind mit v4.33–v4.38 Panels EINES Hubs geworden; `csv-sources-kuration/` ist kein Plugin mehr, trägt aber weiter die Auto-Refresh-Maschine.
 - `src/plugins/{home,antraege,einstellungen}/**`, `src/core/**`, `src/components/**` → `build:devpl` **plus** `build:prod`: dieser Code läuft auch im End-User-Build, und ein variant-gegatetes Verhalten (z.B. `csvAutoRefresh`, `maLogin`, `auth`, `moduleAuth`, `datenShareSchreibrecht`) schaltet dort anders.
 
 ## Achtung: gesperrte Module im pl-Build

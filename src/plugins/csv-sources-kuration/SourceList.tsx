@@ -11,7 +11,7 @@
  */
 import { RefreshCw, Trash2, Sparkles, Columns3 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { SectionHeader } from '@/components/ui/SectionHeader';
+import { SettingsLeer } from '@/components/settings';
 import type { CsvSchema } from '@/core/services/csv/types';
 import type { UpdateCheckResult } from './csv-source-handle';
 
@@ -38,12 +38,10 @@ export function SourceList(props: SourceListProps): React.ReactElement {
 
   return (
     <>
-      <SectionHeader label={`Registrierte Schemas (${schemas.length})`} />
-
       {schemas.length === 0 ? (
-        <div className="py-10 text-center text-[13px] text-[var(--tf-text-tertiary)]">
-          Noch keine CSV-Source registriert.
-        </div>
+        <SettingsLeer>
+          Noch keine CSV-Quelle registriert — „Neu registrieren" führt durch den Wizard.
+        </SettingsLeer>
       ) : (
         <div>
           {schemas.sort((a, b) => b.priority - a.priority).map((s, i) => {

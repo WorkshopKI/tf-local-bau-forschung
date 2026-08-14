@@ -11,10 +11,11 @@
  * Sichtbarkeit folgt den Feature-Flags; der Suchindex leitet sich aus den
  * sichtbaren Abschnitten ab und respektiert sie dadurch automatisch.
  */
-import { FolderTree, LayoutDashboard, Plug, Search } from 'lucide-react';
+import { Database, FolderTree, LayoutDashboard, Plug, Search } from 'lucide-react';
 import type { SettingsPanel } from '@/components/settings';
 import { features } from '@/config/feature-flags';
 import { UebersichtPanel } from './uebersicht/UebersichtPanel';
+import { CsvQuellenPanel } from './csv-quellen/CsvQuellenPanel';
 import { VerzeichnissePanel } from './verzeichnisse/VerzeichnissePanel';
 import { SucheIndexPanel } from './suche-index/SucheIndexPanel';
 import { DienstePanel } from './dienste/DienstePanel';
@@ -37,6 +38,23 @@ export function getKurationPanels(): SettingsPanel[] {
       { id: 'sec-sitzung', label: 'Kurator-Sitzung', gruppe: 'Kurator-Sitzung', keywords: 'sitzung session freischaltung sperren anmelden ttl restlaufzeit kurator' },
     ],
     render: () => <UebersichtPanel />,
+  });
+
+  // Der Datenzufluss steht vor der Ordnung und der Auffindbarkeit — die
+  // Navigationsspalte liest sich als Weg, den die Daten nehmen.
+  // Bis v4.36 die eigene Seite „CSV-Quellen".
+  panels.push({
+    id: 'csv-quellen',
+    label: 'CSV-Quellen',
+    untertitel: 'Woher die Antragsdaten kommen und wie frisch sie sind.',
+    icon: Database,
+    sections: [
+      { id: 'sec-csv-quellen', label: 'Registrierte Quellen', gruppe: 'Registrierte Quellen', keywords: 'csv quelle schema import export fördertabelle registrieren wizard mapping spalten datei sources' },
+      { id: 'sec-csv-zustand', label: 'Zustand', gruppe: 'Zustand', keywords: 'frische letzter import zeilen aktualisieren ampel auto-refresh' },
+      { id: 'sec-csv-wartung', label: 'Antrags-Daten zurücksetzen', gruppe: 'Selten gebraucht', keywords: 'reset löschen encoding umlaute wartung zurücksetzen neu einspielen' },
+      { id: 'sec-csv-wiederherstellen', label: 'CSV-Schemas wiederherstellen', gruppe: 'Selten gebraucht', keywords: 'recovery jsonl snapshot wiederherstellen schemas verschwunden backup' },
+    ],
+    render: () => <CsvQuellenPanel />,
   });
 
   // Bis v4.35 zwei eigene Seiten („Programme", „Filter verwalten"). Beide alten

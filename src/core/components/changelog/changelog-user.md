@@ -19,6 +19,14 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.38 — 2026-08
+
+### Verbesserungen
+- Auch **CSV-Quellen** ist jetzt Teil der Seite „Kuration". Damit ist alles Kuratorische an einem Ort: Übersicht, CSV-Quellen, Verzeichnisse, Suche & Index, Dienste — in der Reihenfolge, in der die Daten durch die App laufen.
+- Neben den Quellen steht jetzt ihr Zustand: wie viele Quellen, wie viele Zeilen, wann zuletzt importiert wurde und bei wie vielen Quellen eine neuere Datei bereitliegt.
+- Selten Gebrauchtes (Antrags-Daten zurücksetzen) liegt eingeklappt darunter statt dauerhaft im Blick.
+- In der Seitenleiste stehen unter „Kuration" noch vier Einträge statt der ursprünglich neun. Alte Lesezeichen funktionieren weiter und landen im passenden Abschnitt.
+
 ## v4.37 — 2026-08
 
 ### Neu

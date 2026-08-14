@@ -40,11 +40,7 @@ export function MaintenanceSection(): React.ReactElement {
   });
 
   return (
-    <section
-      className="mt-10 rounded-[12px] p-[18px]"
-      style={{ border: '0.5px solid var(--tf-border)' }}
-    >
-      <h3 className="text-[13px] font-medium text-[var(--tf-text)] mb-1">Wartung</h3>
+    <div>
       <p className="text-[12px] text-[var(--tf-text-tertiary)] mb-3">
         Wenn importierte Antrags-Daten unleserlich erscheinen
         (z.B. <code className="font-mono">Ã+ã€™Ãƒâ€¡</code> statt Umlauten), liegt fast immer ein
@@ -117,6 +113,6 @@ export function MaintenanceSection(): React.ReactElement {
           ) : null}
         </>
       )}
-    </section>
+    </div>
   );
 }

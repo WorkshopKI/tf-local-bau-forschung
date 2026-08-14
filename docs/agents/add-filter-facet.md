@@ -1,6 +1,6 @@
 # Neue Filter-Facet (Filter-Sidebar)
 
-Wenn eine neue System-Filter-Facet zur Antrags-Sidebar kommt (z.B. `Bearbeiter-Kürzel`, `Land`, `Fördersumme-Range`). User-spezifische Filter werden **nicht** hier definiert — die werden im Kurator-Plugin `filter-kuration` über den 4-Step-Wizard zur Laufzeit angelegt.
+Wenn eine neue System-Filter-Facet zur Antrags-Sidebar kommt (z.B. `Bearbeiter-Kürzel`, `Land`, `Fördersumme-Range`). User-spezifische Filter werden **nicht** hier definiert — die legt der Kurator zur Laufzeit über den 4-Step-Wizard an, in `Kuration → Verzeichnisse → Filter` ([FilterGruppe.tsx](../../src/plugins/kuration/verzeichnisse/filter/FilterGruppe.tsx)).
 
 ## Touch-Points (Pflicht)
 

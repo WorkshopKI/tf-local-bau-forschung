@@ -77,16 +77,7 @@ export function SchemaRecoverySection({ programmId, onRestored }: Props): React.
   }
 
   return (
-    <section
-      className="mt-6 rounded-[12px] p-[18px]"
-      style={{ border: '0.5px solid var(--tf-border)' }}
-    >
-      <div className="flex items-center gap-2 mb-1">
-        <h3 className="text-[13px] font-medium text-[var(--tf-text)]">CSV-Schemas wiederherstellen</h3>
-        <span className="text-[10px] font-medium uppercase tracking-wide px-1.5 py-0.5 rounded bg-[var(--tf-bg-secondary)] text-[var(--tf-text-tertiary)]">
-          dev
-        </span>
-      </div>
+    <div>
       <p className="text-[12px] text-[var(--tf-text-tertiary)] mb-3">
         Wenn die CSV-Quellen verschwunden sind (Anträge da, aber „0 Schemas" / ● CSV grau),
         wurde der lokale Bestand vermutlich von einem leer publizierten Snapshot gewischt.
@@ -199,6 +190,6 @@ export function SchemaRecoverySection({ programmId, onRestored }: Props): React.
           )}
         </div>
       ) : null}
-    </section>
+    </div>
   );
 }

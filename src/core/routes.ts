@@ -46,10 +46,10 @@ export function routeToPluginId(pathname: string): string | null {
  * Legacy-Routing für Lesezeichen und Browser-History. Zwei Wellen:
  *
  *  - v1.9: `/admin/*` → `/kuration/*`.
- *  - v4.34: die Kuration-Seiten sind Panels EINER Seite geworden; ihre alten
- *    Routen zeigen jetzt auf `/kuration?panel=…`. Eigenständig geblieben (und
- *    darum NICHT hier) sind `/kuration/csv-quellen` und
- *    `/kuration/dokument-review`.
+ *  - v4.34–v4.36: die Kuration-Seiten sind Panels EINER Seite geworden; ihre
+ *    alten Routen zeigen jetzt auf `/kuration?panel=…`. Eigenständig geblieben
+ *    (und darum NICHT hier) ist `/kuration/dokument-review` — eine
+ *    tastaturgetriebene Arbeitsfläche, kein Blatt aus Einstellungen.
  *
  * Gibt null zurück, wenn kein Redirect greift. Unterpfade (z.B. Detail-URLs)
  * werden 1:1 übernommen — außer bei den Panel-Zielen, die eine Query tragen.
@@ -73,6 +73,7 @@ const LEGACY_REDIRECTS: Record<string, string> = {
   '/kuration/suchindex': '/kuration?panel=suche-index',
   '/kuration/dokumentenquellen': '/kuration?panel=suche-index&sektion=sec-dokumentenquellen',
   // v4.36
+  '/kuration/csv-quellen': '/kuration?panel=csv-quellen',
   '/kuration/programme': '/kuration?panel=verzeichnisse',
   '/kuration/filter': '/kuration?panel=verzeichnisse&sektion=sec-filter',
   // Zeigte bis v4.33 auf eine Seite, die es nie gab (der Weg endete im

@@ -32,7 +32,6 @@ const CONTEXT_DOCS: Record<string, string> = Object.fromEntries(
  * aufgegangen.
  */
 export const KURATION_PLUGIN_IDS: readonly string[] = [
-  'csv-sources-kuration',
   'dokument-review',
 ];
 
