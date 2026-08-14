@@ -19,11 +19,12 @@ const REDIRECT_SEITEN = new Set(['chat', 'feedback-kuration']);
 
 /**
  * Seiten, die ein Doc haben und darum auch den Hilfe-Knopf tragen müssen.
- * `kuration` ist keine Plugin-ID, sondern das gemeinsame Doc der sieben
- * Kurator-Seiten — die stehen einzeln in KURATION_PLUGIN_IDS.
+ * `kuration` ist seit v4.34 selbst eine Plugin-ID (der Hub) UND weiterhin das
+ * gemeinsame Doc der eigenständig gebliebenen Kurator-Seiten — die stehen
+ * einzeln in KURATION_PLUGIN_IDS.
  */
 const HILFE_PFLICHT: string[] = [
-  ...getKnownScreenContextIds().filter(id => id !== 'kuration'),
+  ...getKnownScreenContextIds(),
   ...KURATION_PLUGIN_IDS,
 ]
   // `hideFromNav`-Redirects haben keinen eigenen Seitenkopf, also auch keinen Platz

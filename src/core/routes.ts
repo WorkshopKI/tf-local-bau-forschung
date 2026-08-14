@@ -43,26 +43,46 @@ export function routeToPluginId(pathname: string): string | null {
 }
 
 /**
- * Legacy-Routing: alte /admin/*-URLs auf neue /kuration/*-URLs mappen.
+ * Legacy-Routing für Lesezeichen und Browser-History. Zwei Wellen:
+ *
+ *  - v1.9: `/admin/*` → `/kuration/*`.
+ *  - v4.34: die Kuration-Seiten sind Panels EINER Seite geworden; ihre alten
+ *    Routen zeigen jetzt auf `/kuration?panel=…`. Eigenständig geblieben (und
+ *    darum NICHT hier) sind `/kuration/csv-quellen` und
+ *    `/kuration/dokument-review`.
+ *
  * Gibt null zurück, wenn kein Redirect greift. Unterpfade (z.B. Detail-URLs)
- * werden 1:1 übernommen.
+ * werden 1:1 übernommen — außer bei den Panel-Zielen, die eine Query tragen.
  */
-const LEGACY_ADMIN_REDIRECTS: Record<string, string> = {
+const LEGACY_REDIRECTS: Record<string, string> = {
+  // v1.9
   '/admin/suchindex': '/kuration/suchindex',
   '/admin/programme': '/kuration/programme',
   '/admin/csv-sources': '/kuration/csv-quellen',
-  '/admin/unterprogramme': '/kuration/unterprogramme',
   '/admin/filter': '/kuration/filter',
-  '/admin/feedback': '/kuration/feedback',
+  // Das Feedback-Board hat die Kurations-Seite mit v2.364 aufgenommen; bis
+  // v4.33 zeigte dieser Eintrag auf `/kuration/feedback`, das es seitdem nicht
+  // mehr gibt — der Weg endete im Catch-all auf der Startseite.
+  '/admin/feedback': '/feedback-board',
+  // v4.34
+  '/kuration/anfragen': '/kuration?panel=dienste',
 };
 
+/**
+ * Ziele mit Query vertragen kein angehängtes Unterpfad-Suffix — ein
+ * `/kuration/anfragen/xyz` landet auf dem Panel, nicht auf
+ * `/kuration?panel=dienste/xyz`.
+ */
+function traegtQuery(ziel: string): boolean {
+  return ziel.includes('?');
+}
+
 export function legacyRedirectTarget(pathname: string): string | null {
-  if (!pathname.startsWith('/admin/')) return null;
-  const direct = LEGACY_ADMIN_REDIRECTS[pathname];
+  const direct = LEGACY_REDIRECTS[pathname];
   if (direct) return direct;
-  for (const [oldPrefix, newPrefix] of Object.entries(LEGACY_ADMIN_REDIRECTS)) {
+  for (const [oldPrefix, newPrefix] of Object.entries(LEGACY_REDIRECTS)) {
     if (pathname.startsWith(oldPrefix + '/')) {
-      return newPrefix + pathname.slice(oldPrefix.length);
+      return traegtQuery(newPrefix) ? newPrefix : newPrefix + pathname.slice(oldPrefix.length);
     }
   }
   return null;

@@ -910,29 +910,34 @@ describe('hilfe-knopf-am-blattrand (Seiten-Hilfe steht rechts aussen)', () => {
   });
 });
 
-describe('settings-treffer-weg (Einstellungs-Suche nennt ihr Ziel)', () => {
-  // Jeder Treffer der Einstellungs-Suche zeigt „Seite › Gruppe", damit vor dem
-  // Sprung klar ist, WO er landet — eine Seite traegt bis zu acht Karten.
-  // Das haelt nur, solange der `gruppe`-Wert der Registry wortgleich zum
-  // `titel`-Prop der gerenderten SettingsGruppe ist; sonst zeigt die Suche
-  // nach der ersten Umbenennung still auf eine Karte, die es nicht mehr gibt.
+describe('settings-treffer-weg (Hub-Suche nennt ihr Ziel)', () => {
+  // Jeder Treffer einer Hub-Suche zeigt „Seite › Gruppe", damit vor dem Sprung
+  // klar ist, WO er landet — eine Seite traegt bis zu acht Karten. Das haelt
+  // nur, solange der `gruppe`-Wert der Registry wortgleich zum `titel`-Prop der
+  // gerenderten SettingsGruppe ist; sonst zeigt die Suche nach der ersten
+  // Umbenennung still auf eine Karte, die es nicht mehr gibt.
   //
-  // Geprueft wird gegen ALLE Gruppentitel der vier Seiten, nicht je Seite: die
+  // Geprueft wird je Hub gegen ALLE seine Gruppentitel, nicht je Seite: die
   // Seiten-Zuordnung steht im selben Objektliteral wie der Anker und ist per
   // Textscan nicht verlaesslich zu trennen. Der reale Driftfall (Titel
   // umbenannt, Registry vergessen) wird so trotzdem gefangen.
-  const EINSTELLUNGEN = join(ROOT, 'plugins', 'einstellungen');
-  const REGISTRY = join(EINSTELLUNGEN, 'settingsPanels.tsx');
+  //
+  // Seit v4.34 gibt es zwei Wirte derselben Seitenform — beide stehen hier,
+  // sonst waere der zweite ungehalten.
+  const HUBS = [
+    { name: 'Einstellungen', ordner: join(ROOT, 'plugins', 'einstellungen'), registry: 'settingsPanels.tsx' },
+    { name: 'Kuration', ordner: join(ROOT, 'plugins', 'kuration'), registry: 'kurationPanels.tsx' },
+  ];
 
   /**
-   * Alle `titel="…"`/`titel={'…'}`-Literale der Einstellungs-Seiten. Zeilen mit
+   * Alle `titel="…"`/`titel={'…'}`-Literale eines Hub-Ordners. Zeilen mit
    * `InfoHint` bleiben aussen vor — dessen `titel` ist die Ueberschrift des
    * Popovers, keine Karte.
    */
-  function gruppenTitel(): Set<string> {
+  function gruppenTitel(ordner: string): Set<string> {
     const titel = new Set<string>();
     for (const file of ALL_TS_FILES) {
-      if (!file.startsWith(EINSTELLUNGEN) || !file.endsWith('.tsx')) continue;
+      if (!file.startsWith(ordner) || !file.endsWith('.tsx')) continue;
       for (const zeile of readFileSync(file, 'utf-8').split('\n')) {
         if (zeile.includes('InfoHint')) continue;
         const m = /titel=(?:"([^"]+)"|\{'([^']+)'\})/.exec(zeile);
@@ -943,48 +948,87 @@ describe('settings-treffer-weg (Einstellungs-Suche nennt ihr Ziel)', () => {
   }
 
   /** Ein Eintrag der Anker-Registry: `{ id: 'sec-…', label: …, gruppe: … }`. */
-  function eintraege(): { id: string; gruppe: string | null }[] {
-    const quelle = readFileSync(REGISTRY, 'utf-8');
+  function eintraege(registry: string): { id: string; gruppe: string | null }[] {
+    const quelle = readFileSync(registry, 'utf-8');
     return [...quelle.matchAll(/\{\s*id:\s*'(sec-[^']+)'([^}]*)\}/g)].map(m => ({
       id: m[1]!,
       gruppe: /gruppe:\s*'([^']+)'/.exec(m[2]!)?.[1] ?? null,
     }));
   }
 
-  it('jeder Registry-Eintrag nennt seine Gruppe', () => {
-    const ohne = eintraege().filter(e => !e.gruppe).map(e => e.id);
-    expect(ohne, `Ohne \`gruppe\`: ${ohne.join(', ')} — die Trefferzeile zeigte dann nur die Seite.`).toEqual([]);
-  });
+  for (const hub of HUBS) {
+    const REGISTRY = join(hub.ordner, hub.registry);
 
-  it('jede genannte Gruppe existiert als Karte auf einer der vier Seiten', () => {
-    const titel = gruppenTitel();
-    const unbekannt = [...new Set(eintraege().map(e => e.gruppe).filter((g): g is string => g != null))]
-      .filter(g => !titel.has(g));
-    if (unbekannt.length > 0) {
+    it(`${hub.name}: jeder Registry-Eintrag nennt seine Gruppe`, () => {
+      const ohne = eintraege(REGISTRY).filter(e => !e.gruppe).map(e => e.id);
+      expect(ohne, `Ohne \`gruppe\`: ${ohne.join(', ')} — die Trefferzeile zeigte dann nur die Seite.`).toEqual([]);
+    });
+
+    it(`${hub.name}: jede genannte Gruppe existiert als Karte`, () => {
+      const titel = gruppenTitel(hub.ordner);
+      const unbekannt = [...new Set(eintraege(REGISTRY).map(e => e.gruppe).filter((g): g is string => g != null))]
+        .filter(g => !titel.has(g));
+      if (unbekannt.length > 0) {
+        expect.fail(
+          `Die Suche in „${hub.name}" verweist auf Karten, die es nicht (mehr) gibt:\n` +
+          `  ${unbekannt.join('\n  ')}\n\n` +
+          `Der \`gruppe\`-Wert in ${hub.registry} muss WORTGLEICH dem \`titel\`-Prop\n` +
+          `der SettingsGruppe sein, in deren Karte der Anker sitzt. Wurde eine Karte\n` +
+          `umbenannt, zieht die Registry mit (docs/agents/add-settings-section.md).\n\n` +
+          `Vorhandene Kartentitel:\n  ${[...titel].sort().join('\n  ')}`,
+        );
+      }
+    });
+
+    it(`${hub.name}: Registry-Anker existiert im DOM-Baum`, () => {
+      // Gegenrichtung derselben Regel: kein Eintrag ohne Anker, sonst springt die
+      // Suche ins Leere (v4.31 hatte das fuer zwei Abschnitte).
+      const anker = new Set<string>();
+      for (const file of ALL_TS_FILES) {
+        if (!file.startsWith(hub.ordner) || !file.endsWith('.tsx') || file === REGISTRY) continue;
+        const quelle = readFileSync(file, 'utf-8');
+        for (const m of quelle.matchAll(/id=(?:"(sec-[^"]+)"|\{[^}]*'(sec-[^']+)'[^}]*\})/g)) {
+          anker.add(m[1] ?? m[2] ?? '');
+        }
+      }
+      const fehlend = eintraege(REGISTRY).map(e => e.id).filter(id => !anker.has(id));
+      expect(fehlend, `Ohne Anker im DOM: ${fehlend.join(', ')}`).toEqual([]);
+    });
+  }
+});
+
+describe('kuration-hub-eine-schicht (der Hub baut die Seitenform nicht nach)', () => {
+  // Dieselbe Reissleine wie bei Baum und Board: die Einstellungs-Seitenform
+  // liegt in `@/components/settings` und hat seit v4.34 zwei Wirte. Baute der
+  // zweite Spaltenraster, Trefferring oder Navigationsspalte selbst nach, waere
+  // die Schicht nach einem Patch wieder zwei Schichten — und der Haertefall
+  // „Sprung ohne Scroll-Weg" (v4.32) koennte in einer davon zurueckkehren.
+  const VERBOTEN: { muster: RegExp; was: string }[] = [
+    { muster: /tf-set-(cols|grid|neben)/, was: 'Zweispalten-Raster (→ SettingsZweiSpalten)' },
+    { muster: /data-tf-treffer/, was: 'Trefferring (→ useSprungTreffer / die Layout-Bauteile)' },
+    { muster: /grid-cols-\[224px/, was: 'Navigationsspalte (→ SettingsHubPage)' },
+  ];
+
+  it('keine Datei unter plugins/kuration baut Raster, Ring oder Nav nach', () => {
+    const KURATION = join(ROOT, 'plugins', 'kuration');
+    const findings: string[] = [];
+    for (const file of ALL_TS_FILES) {
+      if (!file.startsWith(KURATION)) continue;
+      const zeilen = readFileSync(file, 'utf-8').split('\n');
+      zeilen.forEach((zeile, i) => {
+        if (zeile.includes('allow-eigene-schicht')) return;
+        for (const { muster, was } of VERBOTEN) {
+          if (muster.test(zeile)) findings.push(`  ${relPath(file)}:${i + 1} — ${was}`);
+        }
+      });
+    }
+    if (findings.length > 0) {
       expect.fail(
-        `Die Einstellungs-Suche verweist auf Karten, die es nicht (mehr) gibt:\n` +
-        `  ${unbekannt.join('\n  ')}\n\n` +
-        `Der \`gruppe\`-Wert in settingsPanels.tsx muss WORTGLEICH dem \`titel\`-Prop\n` +
-        `der SettingsGruppe sein, in deren Karte der Anker sitzt. Wurde eine Karte\n` +
-        `umbenannt, zieht die Registry mit (docs/agents/add-settings-section.md).\n\n` +
-        `Vorhandene Kartentitel:\n  ${[...titel].sort().join('\n  ')}`,
+        `Der Kuration-Hub baut die geteilte Seitenform nach:\n${findings.join('\n')}\n\n` +
+        `Bauteile kommen aus @/components/settings (docs/agents/add-settings-section.md).\n` +
+        `Wenn wirklich noetig: '// allow-eigene-schicht: <grund>' inline.`,
       );
     }
-  });
-
-  it('Registry-Anker existiert im DOM-Baum der Seiten', () => {
-    // Gegenrichtung derselben Regel: kein Eintrag ohne Anker, sonst springt die
-    // Suche ins Leere (v4.31 hatte das fuer zwei Abschnitte).
-    const anker = new Set<string>();
-    for (const file of ALL_TS_FILES) {
-      if (!file.startsWith(EINSTELLUNGEN) || !file.endsWith('.tsx') || file === REGISTRY) continue;
-      const quelle = readFileSync(file, 'utf-8');
-      for (const m of quelle.matchAll(/id=(?:"(sec-[^"]+)"|\{[^}]*'(sec-[^']+)'[^}]*\})/g)) {
-        anker.add(m[1] ?? m[2] ?? '');
-      }
-    }
-    const fehlend = eintraege().map(e => e.id).filter(id => !anker.has(id));
-    expect(fehlend, `Ohne Anker im DOM: ${fehlend.join(', ')}`).toEqual([]);
   });
 });
 

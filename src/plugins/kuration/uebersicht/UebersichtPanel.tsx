@@ -1,0 +1,184 @@
+/**
+ * „Lage & Aufgaben" — die Landeseite der Kuration.
+ *
+ * Sie beantwortet die Frage, die vor v4.34 keine Seite beantwortete: *was ist
+ * der Zustand, und was ist zu tun?* Bis dahin stand jede Teilaussage auf einer
+ * anderen Seite, und man musste sie aufsuchen, um zu erfahren, dass dort nichts
+ * zu tun war.
+ *
+ * Zwei Regeln halten die Seite ehrlich:
+ *
+ *  1. **Nichts wird hier hergeleitet.** Jede Zeile liest die Aussage des
+ *     Moduls, das sie verantwortet (`useKurationLage`, `useCsvFreshness`).
+ *  2. **Auch der Ruhezustand steht da.** Eine Zeile, die nur bei Problemen
+ *     erscheint, macht Abwesenheit mehrdeutig — „nichts zu sehen" hiesse dann
+ *     entweder „alles gut" oder „noch nicht geladen".
+ */
+import { Globe } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { useNavigation } from '@/core/hooks/useNavigation';
+import { useStorage } from '@/core/hooks/useStorage';
+import { useAsyncAction } from '@/core/hooks/useAsyncAction';
+import { restlaufzeitLabel, useKuratorSession } from '@/core/hooks/useKuratorSession';
+import { useCsvFreshness } from '@/components/ui/CsvFreshnessIndicator';
+import { csvFreshnessAussage, type CsvFreshnessTon } from '@/plugins/csv-sources-kuration/services/csv-freshness-state';
+import {
+  SettingsGruppe,
+  SettingsOption,
+  SettingsStatusBadge,
+  SettingsTrustZeile,
+  SettingsZweiSpalten,
+  type SettingsBadgeTon,
+} from '@/components/settings';
+import { useKurationLage } from './useKurationLage';
+
+/**
+ * Der CSV-Check kennt „nicht pruefbar" (offline, kein Handle) — das Badge nennt
+ * das `neutral`. Die Index-Ampel braucht keine Abbildung, ihre drei Toene
+ * heissen schon so wie die des Badges.
+ */
+const CSV_ZU_TON: Record<CsvFreshnessTon, SettingsBadgeTon> = {
+  ok: 'ok',
+  warnung: 'warnung',
+  fehler: 'fehler',
+  unbekannt: 'neutral',
+};
+
+function datum(iso: string | null): string {
+  return iso ? new Date(iso).toLocaleDateString('de-DE') : '—';
+}
+
+export function UebersichtPanel(): React.ReactElement {
+  const lage = useKurationLage();
+  const csv = useCsvFreshness();
+  const csvAussage = csvFreshnessAussage({ state: csv.state, misconfig: csv.misconfig });
+  const { navigate } = useNavigation();
+  const storage = useStorage();
+  const session = useKuratorSession();
+  const sperren = useAsyncAction(async () => {
+    await session.deactivate(storage.idb);
+  });
+
+  const zahl = (n: number): string => n.toLocaleString('de-DE');
+
+  return (
+    <SettingsZweiSpalten
+      haupt={
+        <SettingsGruppe
+          id="sec-lage"
+          titel="Zu tun"
+          unterzeile="Der Stand der Daten, die das ganze Team sieht."
+        >
+          <SettingsOption
+            id="sec-lage-index"
+            label="Suchindex"
+            hint="Der Index trägt die Volltext- und die semantische Suche. Er veraltet nicht von selbst, sondern wenn neue Dokumente dazukommen oder das Embedding-Modell wechselt — beides steht hier, sobald es zutrifft."
+            badge={
+              lage.index && (
+                <SettingsStatusBadge ton={lage.index.ampel.ton}>
+                  {lage.index.ampel.label}
+                </SettingsStatusBadge>
+              )
+            }
+            kurzzeile={
+              lage.index
+                ? `${zahl(lage.index.docCount)} Dokumente · ${zahl(lage.index.chunkCount)} Textabschnitte · zuletzt ${datum(lage.index.lastUpdate)}`
+                : 'wird gelesen …'
+            }
+          >
+            <Button type="button" variant="secondary" size="sm" onClick={() => navigate('kurator')}>
+              Öffnen
+            </Button>
+          </SettingsOption>
+
+          <SettingsOption
+            id="sec-lage-csv"
+            label="CSV-Datenimport"
+            hint="Die Fördertabelle kommt als CSV-Export aus dem Fachsystem. Der Stand hier ist derselbe, den der Punkt ● CSV in der Fußzeile zeigt; ein Klick dort importiert."
+            badge={<SettingsStatusBadge ton={CSV_ZU_TON[csvAussage.ton]}>{csvAussage.label}</SettingsStatusBadge>}
+            kurzzeile={
+              csv.lastImport
+                ? `Letzter Import: ${new Date(csv.lastImport).toLocaleString('de-DE')}`
+                : 'Noch kein Import verzeichnet.'
+            }
+          >
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={() => navigate('csv-sources-kuration')}
+            >
+              Öffnen
+            </Button>
+          </SettingsOption>
+
+          {lage.offeneReviews != null && (
+            <SettingsOption
+              id="sec-lage-review"
+              label="Dokument-Prüfung"
+              hint="Die Triage entscheidet je Datei: relevant, irrelevant oder unsicher. Nur die unsicheren landen in der Warteschlange — hier steht, wie viele davon offen sind."
+              badge={
+                <SettingsStatusBadge ton={lage.offeneReviews > 0 ? 'warnung' : 'ok'}>
+                  {lage.offeneReviews > 0
+                    ? `${zahl(lage.offeneReviews)} offen`
+                    : 'nichts offen'}
+                </SettingsStatusBadge>
+              }
+              kurzzeile={`${zahl(lage.reviewGesamt ?? 0)} Dokumente klassifiziert`}
+            >
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => navigate('dokument-review')}
+              >
+                Öffnen
+              </Button>
+            </SettingsOption>
+          )}
+        </SettingsGruppe>
+      }
+      neben={
+        <SettingsGruppe
+          id="sec-sitzung"
+          titel="Kurator-Sitzung"
+          unterzeile="Solange sie läuft, sind die Schreib-Aktionen offen."
+        >
+          <SettingsOption
+            label="Freigeschaltet"
+            badge={
+              <SettingsStatusBadge ton={session.isActive ? 'ok' : 'neutral'}>
+                {session.isActive ? `noch ${restlaufzeitLabel(session.expiresAt)}` : 'gesperrt'}
+              </SettingsStatusBadge>
+            }
+            kurzzeile={
+              sperren.error
+                ? <span className="text-[var(--tf-danger-text)]">Fehler: {sperren.error}</span>
+                : session.isActive
+                  ? session.kuratorName
+                    ? `Angemeldet als ${session.kuratorName}.`
+                    : undefined
+                  : 'Freischalten läuft über Einstellungen → Mein Profil → Zusatz-Module.'
+            }
+          >
+            {session.isActive && (
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => sperren.run()}
+                loading={sperren.busy}
+              >
+                Sperren
+              </Button>
+            )}
+          </SettingsOption>
+
+          <SettingsTrustZeile icon={<Globe size={14} />}>
+            Was du hier änderst, sehen alle — es liegt auf dem Daten-Share, nicht auf diesem Gerät.
+          </SettingsTrustZeile>
+        </SettingsGruppe>
+      }
+    />
+  );
+}

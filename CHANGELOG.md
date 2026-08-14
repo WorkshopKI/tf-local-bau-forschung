@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.34.0 — Kuration wird ein Hub mit Lage-Uebersicht (August 2026)
+
+MINOR — Die Kuration bekommt die Seitenform der Einstellungen und endlich einen Ort, der sagt, was ansteht. Bis hierher war der Zustand der Daten auf sieben Seiten verstreut: man musste jede aufsuchen, um zu erfahren, dass dort nichts zu tun war.
+
+- **Hub `/kuration`** ([kuration/](src/plugins/kuration/)): Navigationsspalte, Suche über alle Abschnitte, Sprungmarke — Panels „Übersicht" und „Dienste"
+- **Panel „Übersicht"** ([UebersichtPanel.tsx](src/plugins/kuration/uebersicht/UebersichtPanel.tsx)): Suchindex, CSV-Import und Dokument-Prüfung mit echtem Zustand (auch im Ruhezustand sichtbar), rechts die Kurator-Sitzung samt „Sperren"
+- **Eine Quelle je Aussage**: die Index-Ampel ([indexAmpel.ts](src/core/services/search/indexAmpel.ts)) und der CSV-Satz ([csv-freshness-state.ts](src/plugins/csv-sources-kuration/services/csv-freshness-state.ts)) werden gelesen, nicht neu hergeleitet — Guard `kuration-hub-eine-schicht` hält den Hub auf der geteilten Schicht
+- **„E-Mail Anfragen: Einstellungen" ist Panel „Dienste"** — ein Menüpunkt für ein Textfeld weniger; `/kuration/anfragen` leitet dorthin ([routes.ts](src/core/routes.ts))
+- **Zwei tote Wege repariert**: `/admin/feedback` zeigte auf `/kuration/feedback`, das es seit v2.364 nicht gibt (jetzt `/feedback-board`); `/admin/unterprogramme` ist entfallen
+
 ### v4.33.0 — Einstellungs-Seitenform wird geteilte Schicht (August 2026)
 
 MINOR — Vorbereitung des Kuration-Hubs: die Seitenform, die das Einstellungs-Redesign hervorgebracht hat, bekommt einen zweiten Wirt. Bis hierher ändert sich nichts Sichtbares — die Einstellungen sind die Nullprobe.

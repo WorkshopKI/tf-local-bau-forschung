@@ -42,6 +42,20 @@ export interface KuratorSessionState {
   tick: (idb: IDBStore) => void;
 }
 
+/**
+ * Restlaufzeit als Wort („noch 7 h 35 m"). Zwei Stellen zeigen sie — die
+ * Freischalt-Sektion in den Einstellungen und die Kuration-Uebersicht —, und
+ * beide sollen dieselbe Auskunft geben.
+ */
+export function restlaufzeitLabel(bis: number | null): string {
+  if (bis === null) return '';
+  const diff = bis - Date.now();
+  if (diff <= 0) return 'abgelaufen';
+  const min = Math.floor(diff / 60_000);
+  const h = Math.floor(min / 60);
+  return h > 0 ? `${h} h ${min % 60} m` : `${min} m`;
+}
+
 async function writeMeta(idb: IDBStore, meta: SessionMeta | null): Promise<void> {
   if (meta) await idb.set(KURATOR_SESSION_META_IDB_KEY, meta);
   else await idb.delete(KURATOR_SESSION_META_IDB_KEY);

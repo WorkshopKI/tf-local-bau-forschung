@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Tabs } from '@/components/ui/tabs';
 import { useStorage } from '@/core/hooks/useStorage';
-import { getActiveModelId, getModelById, DEFAULT_MODEL_ID } from '@/core/services/search/model-registry';
-import { indexSpracheVeraltet } from '@/core/services/search/orama-store';
+import { getModelById, DEFAULT_MODEL_ID } from '@/core/services/search/model-registry';
+import { indexAmpel, ladeIndexKennzahlen, type IndexAmpelTon } from '@/core/services/search/indexAmpel';
 import { useSearch } from '@/core/hooks/useSearch';
 import { METADATA_LLM_MODELS } from '@/core/services/search/metadata-extractor';
 import { UserView } from './views/UserView';
@@ -13,6 +13,16 @@ const TABS = [
   { id: 'overview', label: '\u00dcbersicht' },
   { id: 'admin', label: 'Verwaltung' },
 ];
+
+/**
+ * Der Punkt neben der Ueberschrift. Die AUSSAGE kommt aus `indexAmpel`
+ * (geteilt mit der Kuration-Uebersicht), hier steht nur, wie sie hier aussieht.
+ */
+const AMPEL_KLASSE: Record<IndexAmpelTon, string> = {
+  fehler: 'bg-red-500',
+  warnung: 'bg-amber-500',
+  ok: 'bg-emerald-500',
+};
 
 export function IndexManager(): React.ReactElement {
   const storage = useStorage();
@@ -40,11 +50,23 @@ export function IndexManager(): React.ReactElement {
 
   const fsConnected = storage.isFileServerConnected();
 
-  // Gelesen wird der GELADENE Index, nicht ein Merkschluessel daneben. Der steht
-  // aber erst, wenn `useSearchProvider` seinen Init durch hat — wer diese Seite
-  // direkt aufruft (Lesezeichen, Reload), ist frueher da. `documentCount` ist das
-  // Signal: der Provider setzt ihn unmittelbar nach `loadOramaFromDB`.
-  useEffect(() => { setAlteWorttrennung(indexSpracheVeraltet()); }, [documentCount]);
+  // Die sechs Kennzahlen, aus denen die Ampel entsteht, kommen aus der geteilten
+  // Ladestelle (`ladeIndexKennzahlen`) — dieselbe, aus der die Kuration-Uebersicht
+  // liest. `alteWorttrennung` steckt darin und wird bei jedem `documentCount`
+  // nachgezogen: gelesen wird der GELADENE Index, und der steht erst, wenn
+  // `useSearchProvider` seinen Init durch hat — wer diese Seite direkt aufruft
+  // (Lesezeichen, Reload), ist frueher da.
+  useEffect(() => {
+    void ladeIndexKennzahlen(storage.idb).then(k => {
+      setDocCount(k.docCount);
+      setChunkCount(k.chunkCount);
+      setLastUpdate(k.lastUpdate);
+      setIndexModelId(k.indexModelId);
+      setActiveModelIdState(k.activeModelId);
+      setNewDocsCount(k.neueDokumente);
+      setAlteWorttrennung(k.alteWorttrennung);
+    });
+  }, [storage, documentCount]);
 
   useEffect(() => {
     // `seed-complete-v2` ist der Flag, den der Seed WIRKLICH schreibt. Der alte
@@ -52,20 +74,6 @@ export function IndexManager(): React.ReactElement {
     // dauerhaft „noch nicht geseedet" und der Zurücksetzen-Knopf blieb sichtbar,
     // auch auf einem Rechner mit echtem Bestand.
     storage.idb.get<boolean>('seed-complete-v2').then(v => setSeeded(!!v));
-    storage.idb.get<string>('index-last-update').then(v => setLastUpdate(v));
-    storage.idb.keys('doc:').then(k => setDocCount(k.length));
-    storage.idb.get<number>('index-chunk-count').then(c => setChunkCount(c ?? 0));
-    storage.idb.get<string>('index-model-id').then(v => setIndexModelId(v ?? null));
-    getActiveModelId(storage.idb).then(setActiveModelIdState);
-
-    // Unindexierte Docs zaehlen
-    Promise.all([
-      storage.idb.keys('doc:'),
-      storage.idb.get<Record<string, string>>('index-manifest'),
-    ]).then(([keys, manifest]) => {
-      const m = manifest ?? {};
-      setNewDocsCount(keys.filter(k => !m[k.replace('doc:', '')]).length);
-    });
 
     // GPU-Erkennung
     if ('gpu' in navigator) {
@@ -95,19 +103,13 @@ export function IndexManager(): React.ReactElement {
 
   const indexOutdated = indexModelId !== null && indexModelId !== activeModelId;
 
-  // Ampel-Logik
-  const ampel = (): { color: string; label: string } => {
-    if (chunkCount === 0)
-      return { color: 'bg-red-500', label: 'Kein Index vorhanden \u2014 bitte indexieren' };
-    if (indexOutdated)
-      return { color: 'bg-amber-500', label: 'Modell gewechselt \u2014 Neu-Indexierung noetig' };
-    if (alteWorttrennung)
-      return { color: 'bg-amber-500', label: 'Worttrennung ge\u00e4ndert \u2014 Index neu aufbauen' };
-    if (newDocsCount > 0)
-      return { color: 'bg-amber-500', label: `${newDocsCount} Dokumente nicht indexiert` };
-    return { color: 'bg-emerald-500', label: 'Index aktuell' };
-  };
-  const amp = ampel();
+  const ampel = indexAmpel({
+    chunkCount,
+    modellGewechselt: indexOutdated,
+    alteWorttrennung,
+    neueDokumente: newDocsCount,
+  });
+  const amp = { color: AMPEL_KLASSE[ampel.ton], label: ampel.label };
   const activeModel = getModelById(activeModelId);
 
   return (

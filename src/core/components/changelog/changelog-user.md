@@ -19,6 +19,20 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.34 — 2026-08
+
+*(Nur für Kuratoren sichtbar.)*
+
+### Neu
+- **Die Kuration hat eine Startseite.** „Übersicht" zeigt auf einen Blick, wie der Suchindex steht, wann zuletzt CSV-Daten importiert wurden und wie viele Dokumente auf eine Prüfung warten — mit einem Weg dorthin. Auch wenn nichts ansteht, sehen Sie das ausdrücklich, statt es aus einer leeren Liste schließen zu müssen.
+- **Ihre Kurator-Sitzung steht jetzt dort, wo Sie arbeiten:** rechts auf der Übersicht, mit Restlaufzeit und einem Knopf zum Sperren.
+
+### Verbesserungen
+- **Die Kuration ist eine Seite mit Unterseiten geworden** — dieselbe Form wie die Einstellungen, mit Suchfeld über der Navigation. „E-Mail Anfragen: Einstellungen" ist darin als „Dienste" aufgegangen; alte Lesezeichen finden weiterhin ihr Ziel.
+
+### Bugfixes
+- Ein alter Link auf die Feedback-Verwaltung landete auf der Startseite statt im Feedback-Board.
+
 ## v4.32 — 2026-08
 
 ### Verbesserungen

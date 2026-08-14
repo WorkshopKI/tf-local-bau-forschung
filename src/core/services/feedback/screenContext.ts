@@ -26,13 +26,16 @@ const CONTEXT_DOCS: Record<string, string> = Object.fromEntries(
  * (`screen-context-coverage` in codebase-conventions.test.ts). Bewusst NICHT
  * `skill-verwaltung-kuration` (trägt trotz des Namens `category: 'tools'`, siehe
  * plugins.config.ts / src/plugins/skill-verwaltung-kuration/index.ts).
+ *
+ * Der Hub `kuration` steht hier NICHT: er trägt `kuration.md` als eigenes Doc
+ * und findet es über den Dateinamen. `anfragen-kuration` ist mit v4.34 in ihm
+ * aufgegangen.
  */
 export const KURATION_PLUGIN_IDS: readonly string[] = [
   'kurator',
   'programme-kuration',
   'csv-sources-kuration',
   'dokumentenquellen-kuration',
-  'anfragen-kuration',
   'filter-kuration',
   'dokument-review',
 ];

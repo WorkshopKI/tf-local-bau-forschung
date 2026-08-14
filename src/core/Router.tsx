@@ -177,15 +177,23 @@ export function buildRouter(
     });
   }
 
-  // Legacy /admin/* → /kuration/* Redirects (Bookmarks / Browser-History).
-  children.push({
-    path: 'admin/*',
-    Component: function LegacyAdminRedirect() {
+  // Legacy-Redirects für Bookmarks / Browser-History (siehe `routes.ts`):
+  //   `/admin/*`    → v1.9, die alten Kurator-Routen
+  //   `/kuration/*` → v4.34, die Seiten, die Panels des Hubs geworden sind
+  //
+  // Beide Muster sind Splats und greifen erst, wenn keine echte Route passt —
+  // React Router rankt statische Segmente über `*`, `/kuration/csv-quellen`
+  // und `/kuration` selbst gehen also weiter an ihre eigenen Seiten.
+  const legacyRedirect = (fallback: string) =>
+    function LegacyRedirect() {
       const location = useLocation();
-      const target = legacyRedirectTarget(location.pathname) ?? '/';
+      const target = legacyRedirectTarget(location.pathname) ?? fallback;
       return <Navigate to={target} replace />;
-    },
-  });
+    };
+  children.push({ path: 'admin/*', Component: legacyRedirect('/') });
+  // Ein unbekanntes `/kuration/…` meinte immer eine Kurator-Seite — der Hub ist
+  // der ehrlichere Landeplatz als die Startseite.
+  children.push({ path: 'kuration/*', Component: legacyRedirect('/kuration') });
 
   const antraege = byId.get('antraege');
   if (antraege) {

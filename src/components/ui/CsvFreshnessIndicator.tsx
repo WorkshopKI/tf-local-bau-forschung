@@ -11,7 +11,7 @@ import { useStartupDataStatus } from '@/core/services/csv/startup-data-status';
 import { useCsvSourcesSignal, bumpCsvSourcesSignal } from '@/core/services/csv/csv-sources-signal';
 import { listProgramme, listSchemas } from '@/core/services/csv';
 import { collectCandidates } from '@/plugins/csv-sources-kuration/services/auto-refresh';
-import { deriveCsvFreshnessState, type CsvFreshnessState } from '@/plugins/csv-sources-kuration/services/csv-freshness-state';
+import { csvFreshnessAussage, deriveCsvFreshnessState, type CsvFreshnessState } from '@/plugins/csv-sources-kuration/services/csv-freshness-state';
 import { getCsvSourceDirHandle, requestCsvSourceDirPermission, pickAndLinkCsvFolder } from '@/plugins/csv-sources-kuration/csv-source-handle';
 import { isDevFixturesEnabled, dataConfig } from '@/config/feature-flags';
 import { PfadKopierZeile } from '@/components/ui/PfadKopierZeile';
@@ -55,7 +55,7 @@ interface ImportedSourceInfo {
   rowCount: number | null;
 }
 
-interface CsvFreshnessResult {
+export interface CsvFreshnessResult {
   state: CsvFreshnessState;
   /**
    * Fehlkonfiguration (prod-Fixtures / unerreichbare Dateien) — echte Daten kommen
@@ -133,18 +133,21 @@ async function checkCsvFreshness(idb: IDBStore): Promise<CsvFreshnessResult> {
   return { state, misconfig, pendingNames, fixtureNames, fileMissingNames, lastImport, sources };
 }
 
-export function CsvFreshnessIndicator({ compact = false }: { compact?: boolean } = {}): React.ReactElement {
-  const { navigate } = useNavigation();
+/**
+ * Der CSV-Stand als Lesewert — ohne Darstellung, ohne Aktionen.
+ *
+ * Herausgezogen, weil die Kuration-Uebersicht seit v4.34 dieselbe Aussage zeigt
+ * wie der „● CSV"-Knopf in der Fusszeile. Sie leitet sie nicht neu her: derselbe
+ * Check (`checkCsvFreshness`, nur `queryPermission`, kein Prompt), dieselben
+ * Ausloeser.
+ */
+export function useCsvFreshness(): CsvFreshnessResult {
   const storage = useStorage();
   const startupPhase = useStartupDataStatus(s => s.phase);
   const smbStatus = useSmbStatus(s => s.status);
-  const dsAvailable = useConnectionState(s => s.datenShareAvailable);
   const sourcesSignal = useCsvSourcesSignal(s => s.version);
 
-  const [open, setOpen] = useState(false);
   const [result, setResult] = useState<CsvFreshnessResult>({ state: 'offline', misconfig: false, pendingNames: [], fixtureNames: [], fileMissingNames: [], lastImport: null, sources: [] });
-  const [importMsg, setImportMsg] = useState<string | null>(null);
-
   const runningRef = useRef(false);
   const mountedRef = useRef(true);
   useEffect(() => {
@@ -170,6 +173,24 @@ export function CsvFreshnessIndicator({ compact = false }: { compact?: boolean }
       }
     })();
   }, [startupPhase, smbStatus, sourcesSignal, storage.idb]);
+
+  return result;
+}
+
+export function CsvFreshnessIndicator({ compact = false }: { compact?: boolean } = {}): React.ReactElement {
+  const { navigate } = useNavigation();
+  const storage = useStorage();
+  const dsAvailable = useConnectionState(s => s.datenShareAvailable);
+  const result = useCsvFreshness();
+
+  const [open, setOpen] = useState(false);
+  const [importMsg, setImportMsg] = useState<string | null>(null);
+
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
 
   // Import = derselbe Orchestrator wie „Jetzt aktualisieren" (Snapshot → CSV).
   const importAction = useAsyncAction(async () => {
@@ -237,29 +258,9 @@ export function CsvFreshnessIndicator({ compact = false }: { compact?: boolean }
       : state === 'needs_link'
         ? 'text-[var(--tf-warning-text)]'
         : 'text-[var(--tf-text-tertiary)]';
-  const statusLabel = misconfig
-    ? 'Achtung — Quellen ausgeschlossen'
-    : state === 'fresh'
-      ? 'Aktuell'
-      : state === 'stale'
-        ? 'Neue Exporte verfügbar'
-        : state === 'no_sources'
-          ? 'Keine CSV-Quellen — Datenbestand prüfen'
-          : state === 'needs_link'
-            ? 'CSV-Ordner verknüpfen'
-            : 'Status offline';
-
-  const tip = misconfig
-    ? 'CSV-Quellen werden nicht importiert — klicken für Details'
-    : state === 'stale'
-      ? 'Neue CSV-Exporte verfügbar — klicken zum Importieren'
-      : state === 'fresh'
-        ? 'CSV-Exporte sind importiert'
-        : state === 'no_sources'
-          ? 'Keine CSV-Quellen im Datenbestand — klicken für Details'
-          : state === 'needs_link'
-            ? 'CSV-Ordner nicht verknüpft — klicken zum Verknüpfen'
-            : 'CSV-Status offline / nicht prüfbar';
+  // Die Worte kommen aus der reinen Aussage-Funktion — dieselbe, aus der die
+  // Kuration-Uebersicht liest (csv-freshness-state.ts).
+  const { label: statusLabel, tip } = csvFreshnessAussage({ state, misconfig });
 
   const lastImportStr = result.lastImport ? new Date(result.lastImport).toLocaleString('de-DE') : null;
 

@@ -19,7 +19,7 @@ import { Switch } from '@/components/ui/switch';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useProfile } from '@/core/hooks/useProfile';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
-import { useKuratorSession } from '@/core/hooks/useKuratorSession';
+import { restlaufzeitLabel, useKuratorSession } from '@/core/hooks/useKuratorSession';
 import { useModulFreischaltung } from '@/core/hooks/useModulFreischaltung';
 import { verifyModulPassword } from '@/core/services/infrastructure/app-password';
 import { refreshAllPermissions } from '@/core/services/infrastructure/smb-handle';
@@ -48,15 +48,6 @@ const HINT_KURATOR_FREI =
   'Schaltet die Kurations-Menüpunkte (Suchindex, Programme, CSV-Quellen, Filter, Feedback-Verwaltung, Review) in der Sidebar frei. In Builds mit Zusatzpasswort gibt es diesen Schalter nicht.';
 
 /** Restlaufzeit als „7 h 12 m" — sekundengenau wäre hier nur Unruhe. */
-function restLabel(bis: number | null): string {
-  if (bis === null) return '';
-  const diff = bis - Date.now();
-  if (diff <= 0) return 'abgelaufen';
-  const min = Math.floor(diff / 60_000);
-  const h = Math.floor(min / 60);
-  return h > 0 ? `${h} h ${min % 60} m` : `${min} m`;
-}
-
 export function ZusatzModuleGruppe(): React.ReactElement | null {
   const schloesser = hatIrgendeinModulSchloss();
   const freierSchalter = isKuratorMenusEnabled() && !hatModulSchloss('kurator');
@@ -160,8 +151,8 @@ function ModulZeile({ slot }: { slot: ModulSlot }): React.ReactElement | null {
         </span>
       }
       badge={
-        <SettingsStatusBadge an={frei}>
-          {frei ? `noch ${restLabel(bis)}` : 'gesperrt'}
+        <SettingsStatusBadge ton={frei ? 'ok' : 'neutral'}>
+          {frei ? `noch ${restlaufzeitLabel(bis)}` : 'gesperrt'}
         </SettingsStatusBadge>
       }
       kurzzeile={

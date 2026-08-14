@@ -493,32 +493,42 @@ export function SettingsStepper({
 }
 
 /**
- * Status-Pille mit Punkt (Handoff „● noch 7 h 35 m", „● ZAH").
- * `an` faerbt gruen (aktiv/verbunden), sonst neutral — dieselbe Aussage wie
- * der grosse Statuspunkt, nur in Zeilenhoehe.
+ * Status-Pille mit Punkt (Handoff „● noch 7 h 35 m", „● ZAH") — dieselbe
+ * Aussage wie ein grosser Statuspunkt, nur in Zeilenhoehe.
+ *
+ * Seit v4.34 vierstufig statt an/aus: die Kuration-Uebersicht sagt nicht nur
+ * „laeuft / laeuft nicht", sondern auch „schau mal" (warnung) und „das haelt
+ * gerade nicht" (fehler). Ein zweites Badge daneben zu bauen waere eine
+ * Parallel-Implementierung derselben Sache.
  */
+export type SettingsBadgeTon = 'ok' | 'warnung' | 'fehler' | 'neutral';
+
+const BADGE_TON: Record<SettingsBadgeTon, { flaeche: string; punkt: string }> = {
+  ok: { flaeche: 'bg-[var(--tf-success-bg)] text-[var(--tf-success-text)]', punkt: 'var(--tf-success-text)' },
+  warnung: { flaeche: 'bg-[var(--tf-warning-bg)] text-[var(--tf-warning-text)]', punkt: 'var(--tf-warning-text)' },
+  fehler: { flaeche: 'bg-[var(--tf-danger-bg)] text-[var(--tf-danger-text)]', punkt: 'var(--tf-danger-text)' },
+  neutral: { flaeche: 'bg-[var(--tf-bg-secondary)] text-[var(--tf-text-secondary)]', punkt: 'var(--tf-text-tertiary)' },
+};
+
 export function SettingsStatusBadge({
-  an,
+  ton,
   children,
   title,
 }: {
-  an: boolean;
+  ton: SettingsBadgeTon;
   children: React.ReactNode;
   title?: string;
 }): React.ReactElement {
+  const t = BADGE_TON[ton];
   return (
     <span
       title={title}
-      className={`inline-flex items-center gap-[5px] text-[11px] px-2 py-[2px] rounded-full ${
-        an
-          ? 'bg-[var(--tf-success-bg)] text-[var(--tf-success-text)]'
-          : 'bg-[var(--tf-bg-secondary)] text-[var(--tf-text-secondary)]'
-      }`}
+      className={`inline-flex items-center gap-[5px] text-[11px] px-2 py-[2px] rounded-full ${t.flaeche}`}
     >
       <span
         aria-hidden
         className="w-[6px] h-[6px] rounded-full shrink-0"
-        style={{ background: an ? 'var(--tf-success-text)' : 'var(--tf-text-tertiary)' }}
+        style={{ background: t.punkt }}
       />
       {children}
     </span>

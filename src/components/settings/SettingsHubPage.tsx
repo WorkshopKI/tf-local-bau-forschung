@@ -9,7 +9,7 @@
  * ein zweiter Ort, an dem der Härtefall „Sprung ohne Scroll-Weg" kaputtgehen
  * kann (v4.32).
  */
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { SeitenHilfeButton } from '@/components/help/SeitenHilfeButton';
 import { SettingsNav } from './SettingsNav';
@@ -19,6 +19,27 @@ import {
   SettingsSprungProvider,
   type SettingsSprungZiel,
 } from './settings-layout';
+
+/**
+ * Weg von einem Panel ins andere — fuer Uebersichts-Seiten, die auf ihre
+ * eigenen Unterseiten zeigen („12 warten auf Pruefung → dorthin").
+ *
+ * Ohne das bliebe einem Panel nur `navigate('/kuration/…')`, also ein
+ * Routen-Wechsel auf die eigene Seite: der Hub montierte neu und verloere den
+ * Zustand, den der Nutzer gerade aufgebaut hat.
+ */
+interface HubNavigation {
+  geheZuPanel: (panelId: string) => void;
+  geheZuAbschnitt: (panelId: string, sectionId: string) => void;
+}
+
+const HubNavigationContext = createContext<HubNavigation | null>(null);
+
+export function useHubNavigation(): HubNavigation {
+  const ctx = useContext(HubNavigationContext);
+  if (!ctx) throw new Error('useHubNavigation nur innerhalb von SettingsHubPage');
+  return ctx;
+}
 
 export function SettingsHubPage({
   titel,
@@ -45,6 +66,16 @@ export function SettingsHubPage({
   const [kopfStatusEl, setKopfStatusEl] = useState<HTMLDivElement | null>(null);
 
   const searchIndex = useMemo(() => buildSearchIndex(panels), [panels]);
+  const hubNav = useMemo<HubNavigation>(
+    () => ({
+      geheZuPanel: (id: string) => waehlePanel(id),
+      geheZuAbschnitt: (panelId: string, sectionId: string) => goToSection(panelId, sectionId),
+    }),
+    // Beide Funktionen sind stabil (nur setState + Ref) — als Abhaengigkeit
+    // wuerden sie den Kontext bei jedem Render neu bauen.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
 
   // Aktives Panel darf nach Flag-/Sichtbarkeitswechsel nicht ins Leere zeigen.
   const active = panels.find(p => p.id === activePanel) ?? panels[0]!;
@@ -151,11 +182,13 @@ export function SettingsHubPage({
                 speichert (siehe SettingsKopfStatus) — sonst bleibt er leer. */}
             <div ref={setKopfStatusEl} className="ml-auto shrink-0 pt-0.5 empty:hidden" />
           </div>
-          <SettingsKopfStatusAnker el={kopfStatusEl}>
-            <SettingsSprungProvider ziel={sprung}>
-              {active.render()}
-            </SettingsSprungProvider>
-          </SettingsKopfStatusAnker>
+          <HubNavigationContext.Provider value={hubNav}>
+            <SettingsKopfStatusAnker el={kopfStatusEl}>
+              <SettingsSprungProvider ziel={sprung}>
+                {active.render()}
+              </SettingsSprungProvider>
+            </SettingsKopfStatusAnker>
+          </HubNavigationContext.Provider>
         </div>
       </div>
     </div>

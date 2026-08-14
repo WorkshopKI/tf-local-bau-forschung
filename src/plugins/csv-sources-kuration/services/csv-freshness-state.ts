@@ -75,3 +75,48 @@ export function deriveCsvFreshnessState(input: FreshnessInput): FreshnessDecisio
   }
   return { state, misconfig };
 }
+
+/**
+ * Was der Zustand dem Nutzer SAGT. Steht hier und nicht im Indikator, weil
+ * seit v4.34 zwei Stellen dieselbe Aussage zeigen: der „● CSV"-Knopf in der
+ * Fusszeile und die Zeile „CSV-Datenimport" auf der Kuration-Uebersicht. Die
+ * Darstellung (Punktfarbe dort, Badge hier) bleibt bei den Aufrufern — der
+ * SATZ nicht, sonst driften die beiden auseinander.
+ */
+export type CsvFreshnessTon = 'ok' | 'warnung' | 'fehler' | 'unbekannt';
+
+export interface CsvFreshnessAussage {
+  ton: CsvFreshnessTon;
+  /** Kurzform fuer Badge/Zeile („Aktuell", „Neue Exporte verfügbar"). */
+  label: string;
+  /** Langform mit Handlungsaufforderung — Tooltip bzw. `aria-label`. */
+  tip: string;
+}
+
+export function csvFreshnessAussage({ state, misconfig }: FreshnessDecision): CsvFreshnessAussage {
+  const ton: CsvFreshnessTon =
+    state === 'fresh' ? 'ok'
+      : state === 'stale' || state === 'no_sources' ? 'fehler'
+        : state === 'needs_link' ? 'warnung'
+          : 'unbekannt';
+
+  if (misconfig) {
+    return {
+      ton,
+      label: 'Achtung — Quellen ausgeschlossen',
+      tip: 'CSV-Quellen werden nicht importiert — klicken für Details',
+    };
+  }
+  switch (state) {
+    case 'fresh':
+      return { ton, label: 'Aktuell', tip: 'CSV-Exporte sind importiert' };
+    case 'stale':
+      return { ton, label: 'Neue Exporte verfügbar', tip: 'Neue CSV-Exporte verfügbar — klicken zum Importieren' };
+    case 'no_sources':
+      return { ton, label: 'Keine CSV-Quellen — Datenbestand prüfen', tip: 'Keine CSV-Quellen im Datenbestand — klicken für Details' };
+    case 'needs_link':
+      return { ton, label: 'CSV-Ordner verknüpfen', tip: 'CSV-Ordner nicht verknüpft — klicken zum Verknüpfen' };
+    default:
+      return { ton, label: 'Status offline', tip: 'CSV-Status offline / nicht prüfbar' };
+  }
+}

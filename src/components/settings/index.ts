@@ -8,7 +8,7 @@
  *
  * Neue Abschnitte: [docs/agents/add-settings-section.md].
  */
-export { SettingsHubPage } from './SettingsHubPage';
+export { SettingsHubPage, useHubNavigation } from './SettingsHubPage';
 export { SettingsNav } from './SettingsNav';
 export { InfoHint } from './InfoHint';
 export {
@@ -31,6 +31,7 @@ export {
   SettingsKlappe,
   SettingsStepper,
   SettingsStatusBadge,
+  type SettingsBadgeTon,
   SettingsTrustZeile,
   SettingsKennzahl,
   SettingsLeer,
