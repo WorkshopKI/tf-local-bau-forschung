@@ -7,6 +7,7 @@ Startseite — Arbeitseinstieg: oben ein **Hero-Band**, darunter ein persönlich
 ## UI-Elemente & Begriffe
 
 - **Begrüßung:** „X offene Vorgänge …".
+- **Zwei Chips unter der Begrüßung** — dieselben wie im Förderanträge-Kopf, weil die Startseite denselben Ausschnitt rechnet: **Anzeige** (Betrachtungsbereich samt Zahl der ausgeblendeten Anträge) und die **Bearbeiter-Sicht** („Kürzel THÜ" / „Alle Bearbeiter"). Das Umschalten wirkt auf **alle** Widgets zugleich — Meine Anträge, Kanban, Antragseingang, QS-Freigaben —, und der Wechsel gilt seitenübergreifend auch für die Förderanträge-Liste.
 - **Hero-Band** (zwei flache Karten): „Weiter, wo du aufgehört hast" (jüngste Arbeit, „Weiter →") und „Braucht heute Aufmerksamkeit" (klickbare Chips: älter als 90 Tage / zwischen 31 und 90 Tagen → gefilterte Liste, QS-Freigaben offen → erster offener Entwurf). Die Tage-Grenzen kommen aus der Widget-Config; Chips mit Zähler 0 werden nicht gezeigt, ohne Chip entfällt die Karte. Beide Karten haben beim Überfahren ein `⋯` mit ihren eigenen Einstellungen (s. u.).
 - **Zwei Spalten mit Widgets:** jedes mit Kopfzeile (Chevron ein-/ausklappen; `⋯`-Menü beim Überfahren; Modus „Kürzel THU" vs. „Alle Bearbeiter"). Ein ziehbarer Griff verbreitert die Hauptspalte. Jede Spalte endet mit „Widget hinzufügen"; eine leergeräumte Spalte sagt das und bleibt bedienbar.
 - **Startseite anpassen** (seit v4.7): Konfiguration direkt auf der Seite statt über die Einstellungen.

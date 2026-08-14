@@ -1,12 +1,15 @@
 /**
  * Geteilter, persistenter Schalter „Inaktive MAs einblenden".
  *
- * Wirkt im „alle"-Modus (kein Kürzel-Filter) der pl/dev-Variante an zwei
- * Stellen, die denselben State reaktiv teilen müssen:
- * - Einstellungen → Profil: blendet inaktive MAs als Dropdown-Optionen ein
- *   (`useKuerzelFilterOptions`-Caller).
- * - Förderanträge-Liste + Home: blendet Anträge inaktiver MAs ein
- *   (`applyInaktiveExclusion`).
+ * Wirkt im „alle"-Modus (kein Kürzel-Filter) der pl/dev-Variante auf die
+ * **Antragsmengen**: Förderanträge-Liste + Home blenden die Anträge inaktiver
+ * MAs ein (`applyInaktiveExclusion`). Bedient wird er an zwei Oberflächen
+ * (Einstellungen → Profil, Suchzeile der Liste), die denselben State reaktiv
+ * teilen müssen.
+ *
+ * **Nicht** mehr an der Kürzel-Auswahl im Profil (bis v4.46): die führt ehemalige
+ * Kolleg:innen seither immer mit — sonst fand sich, wer als inaktiv geführt ist,
+ * dort selbst nicht wieder.
  *
  * Persistenz: localStorage `teamflow_show_inaktive_mas`. Muster 1:1 aus
  * `useAntraegeColumnsStore` / `viewModes`.

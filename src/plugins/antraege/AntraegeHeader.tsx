@@ -8,13 +8,13 @@ import { VIEWS, type ViewKey } from './views';
 import { ScopeTabs } from '@/components/ui/ScopeTabs';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { BereichChip } from '@/components/bereich/BereichChip';
+import { BearbeiterSichtChip } from '@/components/bearbeiter/BearbeiterSichtChip';
 import { menuLabel, isGutachtenWorkflowEnabled } from '@/config/feature-flags';
 import { isAuslastungFreigeschaltet } from '@/core/modul-freischaltung';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useFilteredAntraege } from './useFilteredAntraege';
 import { useShowInaktiveMasStore } from './useShowInaktiveMasStore';
-import { BearbeiterFilterPill } from './filter/BearbeiterFilterPill';
 import { ViewModeToggle } from './ViewModeToggle';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
@@ -123,12 +123,9 @@ export function AntraegeHeader({ filterOpen, onToggleFilter, listeSichtbar }: Pr
           meta={listeSichtbar ? (
             <span className="inline-flex items-center gap-1.5 flex-wrap">
               <BereichChip ausgeblendet={ausgeblendet} />
-              {bearbeiterFilter.active && (
-                <BearbeiterFilterPill
-                  tokens={bearbeiterFilter.tokens}
-                  includeBegleitung={bearbeiterFilter.includeBegleitung}
-                />
-              )}
+              {/* Steht in BEIDEN Sichten — sonst führte „Alle Bearbeiter" in
+                  einen Zustand ohne sichtbaren Rückweg. */}
+              <BearbeiterSichtChip />
             </span>
           ) : undefined}
           actions={<SeitenHilfeButton pluginId="antraege" />}

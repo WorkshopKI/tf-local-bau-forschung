@@ -1,7 +1,6 @@
 import { useNavigation } from '@/core/hooks/useNavigation';
-import { useProfile } from '@/core/hooks/useProfile';
-import { useMeinKuerzel } from '@/core/hooks/useMeinKuerzel';
-import { bearbeiterScopeLabel, parseBearbeiterFilter } from '@/plugins/antraege/bearbeiterFilter';
+import { useBearbeiterSicht } from '@/core/hooks/useBearbeiterSicht';
+import { bearbeiterScopeLabel } from '@/plugins/antraege/bearbeiterFilter';
 import {
   AMPEL_SCHWELLEN_DEFAULT,
   type AmpelBucket,
@@ -34,18 +33,17 @@ const fmt = (n: number): string => n.toLocaleString('de-DE');
  */
 export function AntragseingangWidget({ instanz, onToggleEingeklappt }: WidgetProps): React.ReactElement | null {
   const { navigate } = useNavigation();
-  const { profile } = useProfile();
-  const meinKuerzel = useMeinKuerzel();
+  const { mode: bearbeiterMode } = useBearbeiterSicht();
   const widgetConfig = useHomeWidgetsStore(s => s.config);
   const schwellen = ampelSchwellenAusConfig(widgetConfig);
   const counts = useEingangAmpelCounts(schwellen);
   const zeilenKlickbar = instanz.config.art === 'ampel' ? instanz.config.zeilenKlickbar : true;
 
-  // Modus sichtbar (v1.1): dieselbe Bearbeiter-Semantik, die useEingangAmpelCounts
-  // intern zählt — „Kürzel THU" vs. „Alle Bearbeiter".
-  const scopeLabel = bearbeiterScopeLabel(
-    parseBearbeiterFilter(meinKuerzel, profile?.bearbeiter_inkl_begleitung),
-  );
+  // Modus sichtbar (v1.1): dieselbe Bearbeiter-Semantik, die
+  // `useEingangAmpelCounts` intern zählt — aus DERSELBEN Quelle (v4.47). Solange
+  // die Karte ihren Modus selbst parste, nannte sie nach dem Umschalten auf
+  // „Alle Bearbeiter" weiter das Kürzel über frisch gezählten Team-Zahlen.
+  const scopeLabel = bearbeiterScopeLabel(bearbeiterMode);
 
   if (counts.total === 0) return null;
 

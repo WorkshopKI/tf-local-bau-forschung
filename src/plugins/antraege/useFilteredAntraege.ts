@@ -7,10 +7,8 @@ import { useFilterState } from './filter/useFilterState';
 import { getView, viewCounts, type AntragView, type ViewKey } from './views';
 import { getSortOption } from './sort';
 import { applyVerbundClustering } from './antragGroups';
-import { useProfile } from '@/core/hooks/useProfile';
-import { useMeinKuerzel } from '@/core/hooks/useMeinKuerzel';
+import { useBearbeiterSicht } from '@/core/hooks/useBearbeiterSicht';
 import {
-  parseBearbeiterFilter,
   applyBearbeiterFilter,
   applyInaktiveExclusion,
   hasAnyKuerzelData,
@@ -112,8 +110,9 @@ export function useFilteredAntraege(): FilteredAntraegeResult {
   const ampelQuickfilter = useAntraegeStore(s => s.ampelQuickfilter);
   const active = useFilterState(s => s.active);
   const definitions = useFilterState(s => s.definitions);
-  const { profile } = useProfile();
-  const meinKuerzel = useMeinKuerzel();
+  // Profil-Kürzel UND Meine/Alle-Umschalter in einem — die Sicht ist hier ein
+  // expliziter Parameter, kein stiller Filter weiter unten (Pitfall #46).
+  const { mode: bearbeiterFilter } = useBearbeiterSicht();
   // „alle"-Modus: Anträge inaktiver MAs ausblenden (pl/dev). Außerhalb pl/dev
   // ist das Set leer → die Exklusions-Stufe ist ein No-op.
   const inaktiveKuerzel = useInaktiveKuerzelSet();
@@ -125,11 +124,6 @@ export function useFilteredAntraege(): FilteredAntraegeResult {
   // "stockt beim Tippen" und "flüssig".
   const deferredSearch = useDeferredValue(search);
   const deferredHybridAkz = useDeferredValue(hybridMatchAkz);
-
-  const bearbeiterFilter = useMemo(
-    () => parseBearbeiterFilter(meinKuerzel, profile?.bearbeiter_inkl_begleitung),
-    [meinKuerzel, profile?.bearbeiter_inkl_begleitung],
-  );
 
   /**
    * Teilvorhaben-Zahl des Verbunds — aus `verbundById`, also aus dem VOLLEN

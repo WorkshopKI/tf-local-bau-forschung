@@ -1,11 +1,10 @@
 import { useDeferredValue, useMemo } from 'react';
 import { useAntraegeStore } from '@/plugins/antraege/store';
 import type { Vorgang } from '@/core/types/vorgang';
-import { useProfile } from '@/core/hooks/useProfile';
-import { useMeinKuerzel } from '@/core/hooks/useMeinKuerzel';
+import { useBearbeiterSicht } from '@/core/hooks/useBearbeiterSicht';
 import { useBereich } from '@/core/hooks/useBereich';
 import { istImBereich } from '@/core/status/betrachtungsbereich';
-import { parseBearbeiterFilter, applyInaktiveExclusion } from '@/plugins/antraege/bearbeiterFilter';
+import { applyInaktiveExclusion } from '@/plugins/antraege/bearbeiterFilter';
 import { useInaktiveKuerzelSet } from '@/plugins/auslastung/hooks/useInaktiveKuerzelSet';
 import { useShowInaktiveMasStore } from '@/plugins/antraege/useShowInaktiveMasStore';
 import { tfPerfStart } from '@/core/utils/tfPerf';
@@ -43,13 +42,20 @@ export interface DashboardData {
   bearbeiterKuerzelMissing: boolean;
   /** Tokens des aktiven Bearbeiter-Filters (uppercase, getrimmt). Leer wenn inaktiv. */
   bearbeiterTokens: string[];
+  /**
+   * Wie viele Anträge der Betrachtungsbereich hier gerade wegnimmt — die Zahl
+   * für den Chip in der Kopfzeile. Der Chip rechnet sie nie selbst nach; ohne
+   * sie blendete die Startseite den Rest stumm aus (Pitfall #46).
+   */
+  ausgeblendet: number;
 }
 
 export function useDashboardData(): DashboardData {
   const antraegeRaw = useAntraegeStore(s => s.antraege);
   const verbundByIdRaw = useAntraegeStore(s => s.verbundById);
-  const { profile } = useProfile();
-  const meinKuerzel = useMeinKuerzel();
+  // Kürzel + Meine/Alle-Sicht in einem — dieselbe Quelle wie die
+  // Förderanträge-Liste, damit beide Seiten denselben Ausschnitt meinen.
+  const { mode: bearbeiterMode } = useBearbeiterSicht();
   // „alle"-Modus: Förderanträge inaktiver MAs ausblenden (pl/dev). Außerhalb
   // pl/dev ist das Set leer → No-op.
   const inaktiveKuerzel = useInaktiveKuerzelSet();
@@ -64,10 +70,6 @@ export function useDashboardData(): DashboardData {
 
   return useMemo(() => {
     const end = tfPerfStart('useDashboardData memo');
-    const bearbeiterMode = parseBearbeiterFilter(
-      meinKuerzel,
-      profile?.bearbeiter_inkl_begleitung,
-    );
     // Im „alle"-Modus die Förderanträge inaktiver MAs ausblenden (pl/dev),
     // konsistent zur Förderanträge-Liste.
     const antraegeFiltered = applyInaktiveExclusion(antraege, bearbeiterMode.active, inaktiveKuerzel, showInaktive);
@@ -105,8 +107,11 @@ export function useDashboardData(): DashboardData {
       bearbeiterFilterActive: bearbeiterMode.active,
       bearbeiterKuerzelMissing,
       bearbeiterTokens: bearbeiterMode.tokens,
+      // Nur der Bereich, nicht die Inaktiv-Stufe: der Chip nennt seinen eigenen
+      // Ausschnitt, die Inaktiven haben ihren eigenen Schalter.
+      ausgeblendet: antraegeFiltered.length - imBereich.length,
     };
     end(`antraege=${antraege.length} → total=${agg.stats.total} offen=${agg.stats.offen}`);
     return result;
-  }, [antraege, verbundById, meinKuerzel, profile?.bearbeiter_inkl_begleitung, inaktiveKuerzel, showInaktive, bereichMenge]);
+  }, [antraege, verbundById, bearbeiterMode, inaktiveKuerzel, showInaktive, bereichMenge]);
 }

@@ -19,6 +19,17 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.47 — 2026-08
+
+### Neu
+- Zwischen „Meine Anträge" und „Alle Bearbeiter" umschalten — über den Chip im Kopf der Förderanträge und der Startseite. Ihr Kürzel bleibt dabei stehen, die Wahl merkt sich der Rechner, und sie wirkt auf beide Seiten samt allen Widgets.
+- Die Startseite zeigt jetzt auch, welche Richtlinien gerade gelten und wie viele Anträge dadurch außen vor bleiben.
+### Verbesserungen
+- Die Kürzel-Auswahl im Profil ist vollständig: Sie finden dort auch Kürzel aus der administrativen Bearbeitung sowie ehemalige Kolleg:innen (als „· ehem." gekennzeichnet).
+- Ein einmal gewähltes Kürzel bleibt stehen — bisher sprang die Auswahl bei ehemaligen Bearbeitenden ohne Hinweis auf „Alle" zurück.
+### Bugfixes
+<!-- - … -->
+
 ## v4.46 — 2026-08
 
 ### Neu

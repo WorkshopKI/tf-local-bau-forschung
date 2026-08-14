@@ -20,9 +20,8 @@ import { TfBoard } from '@/components/kanban/TfBoard';
 import type { TfBoardBahn } from '@/components/kanban/tf-board-types';
 import { LanePills, type LanePill } from '@/components/kanban/LanePills';
 import { useNavigation } from '@/core/hooks/useNavigation';
-import { useProfile } from '@/core/hooks/useProfile';
 import { useStorage } from '@/core/hooks/useStorage';
-import { useMeinKuerzel } from '@/core/hooks/useMeinKuerzel';
+import { useBearbeiterSicht } from '@/core/hooks/useBearbeiterSicht';
 import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
 import { getUserPresets } from '@/core/services/csv/filter/idb-filter';
 import { listFiltersByProgramm } from '@/core/services/csv/filter/idb-filter';
@@ -31,7 +30,7 @@ import type { FilterDefinition, UserPreset } from '@/core/services/csv/filter/ty
 import { useAntraegeStore } from '@/plugins/antraege/store';
 import { useBereich } from '@/core/hooks/useBereich';
 import { istImBereich } from '@/core/status/betrachtungsbereich';
-import { bearbeiterScopeLabel, parseBearbeiterFilter } from '@/plugins/antraege/bearbeiterFilter';
+import { bearbeiterScopeLabel } from '@/plugins/antraege/bearbeiterFilter';
 import { getStatusCategoryLabel, istStatusCategory } from '@/core/utils/status-category-labels';
 import { useHomeWidgets } from './useHomeWidgets';
 import { WIDGET_KATALOG } from './widgetCatalog';
@@ -76,8 +75,9 @@ export function AntragKanbanWidget({ instanz, onToggleEingeklappt }: WidgetProps
       : alleAntraege.filter(a => istImBereich(a.unterprogramm_id, bereichMenge))),
     [alleAntraege, bereichMenge],
   );
-  const { profile } = useProfile();
-  const meinKuerzel = useMeinKuerzel();
+  // Kürzel + Meine/Alle-Sicht — der Umschalter im Seitenkopf wirkt dadurch auch
+  // auf dieses Widget (die Meta-Zeile unten nennt den geltenden Ausschnitt).
+  const { mode: bearbeiterMode } = useBearbeiterSicht();
   const activeProgrammId = useActiveProgramm(s => s.activeProgrammId);
 
   // Defensive: fremde/alte Config-Stände fallen auf die Katalog-Defaults zurück.
@@ -109,11 +109,6 @@ export function AntragKanbanWidget({ instanz, onToggleEingeklappt }: WidgetProps
     })();
     return () => { cancelled = true; };
   }, [cfg.presetId, activeProgrammId, storage.idb]);
-
-  const bearbeiterMode = useMemo(
-    () => parseBearbeiterFilter(meinKuerzel, profile?.bearbeiter_inkl_begleitung),
-    [meinKuerzel, profile?.bearbeiter_inkl_begleitung],
-  );
 
   const grundmenge = useMemo(
     () => filtereKanbanGrundmenge(antraege, bearbeiterMode),

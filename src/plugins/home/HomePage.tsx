@@ -26,6 +26,8 @@ import { getDatenShareHandle } from '@/core/services/infrastructure/smb-handle';
 import { HomeCallToAction } from '@/core/components/HomeCallToAction';
 import { tfPerfStart } from '@/core/utils/tfPerf';
 import { SeitenHilfeButton } from '@/components/help/SeitenHilfeButton';
+import { BereichChip } from '@/components/bereich/BereichChip';
+import { BearbeiterSichtChip } from '@/components/bearbeiter/BearbeiterSichtChip';
 import { vornameVon } from '@/core/utils/profil-anzeige';
 import { RechtsklickHinweis, merkeHinweisGesehen } from './anpassen/RechtsklickHinweis';
 import { RueckgaengigLeiste } from './anpassen/RueckgaengigLeiste';
@@ -243,6 +245,15 @@ export function HomePage(): React.ReactElement {
           {/* Nur die Gesamtzahl: die Aufteilung steht als klickbare Kacheln im
               Hero-Band direkt darunter (und im Antragseingang-Widget rechts). */}
           <p className="text-[13px] text-[var(--tf-text-secondary)]">{subtitle}</p>
+          {/* Dieselben zwei Chips wie im Förderanträge-Kopf: die Startseite
+              rechnet auf demselben Ausschnitt, hat ihn bis v4.46 aber
+              verschwiegen — inklusive der Anträge, die der Bereich wegnimmt
+              (Pitfall #46). Die Ausblend-Zahl kommt aus derselben Pipeline wie
+              die Zahlen darunter, der Chip rechnet nichts nach. */}
+          <span className="mt-1.5 inline-flex items-center gap-1.5 flex-wrap">
+            <BereichChip ausgeblendet={data.ausgeblendet} />
+            <BearbeiterSichtChip />
+          </span>
         </div>
         {/* Derselbe Weg wie der Rechtsklick, für alle, die keinen erwarten. */}
         <button

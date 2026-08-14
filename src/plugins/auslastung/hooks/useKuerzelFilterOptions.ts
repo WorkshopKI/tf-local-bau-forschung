@@ -1,26 +1,24 @@
 /**
  * Dropdown-Optionen für die Profil-Kürzel-Auswahl in der pl/dev-Variante.
  *
+ * Diese Datei ist reine Store-Verdrahtung; die Regeln (welche Spalten, welches
+ * `aktiv`, welche Reihenfolge) stehen in `kuerzelOptionen.ts`.
+ *
  * Quelle = **Vereinigung** zweier Quellen, damit die Optionen schon verfügbar
  * sind, sobald Anträge geladen sind — unabhängig vom kuerzel-map-Sync, der erst
  * über den Auslastungs-Cache läuft (Cold-Start-Robustheit; sonst zeigt das
  * Profil fälschlich das Freitextfeld):
- *  1. distinct `tib_kuerz` aus der geladenen Förderanträge-Slim-Liste
- *     (`useAntraegeStore.antraege`) — im Normalfluss bereits beim Home-Mount
- *     befüllt, also vor dem Öffnen von Einstellungen.
+ *  1. distinct `tib_kuerz` + `bib_kuerz` aus der geladenen Förderanträge-Slim-
+ *     Liste (`useAntraegeStore.antraege`) — im Normalfluss bereits beim
+ *     Home-Mount befüllt, also vor dem Öffnen von Einstellungen.
  *  2. `kuerzel-map.entries` — die persistente, kanonische Liste (nach Sync).
- *
- * `aktiv`-Flag je Kürzel: über die AnonymMap (`toAnon: Kürzel→anonId`) auf
- * `auslastung.json` (`mitarbeiter[anonId].aktiv`); Kürzel ohne Map-Eintrag
- * (neu, nur in Anträgen) gelten als aktiv. Sortierung: aktiv zuerst, dann
- * alphabetisch.
  *
  * Rückgabe `null` NUR wenn der Dropdown aus ist (`isKuerzelDropdownEnabled()`
  * false — weder Auslastungs-Modul noch das `kuerzelDropdown`-Flag → prod/demo)
- * → der Caller (`ProfilTab`) zeigt das Freitextfeld. Sonst nie `null` (auch leer
- * = `[]`), damit der Dropdown zuverlässig erscheint. Klartext-Kürzel sind
- * unbedenklich — sie stehen ohnehin in der Förderanträge-Tabelle. Ohne
- * Auslastungs-Daten (AS: kein kuerzel-map-/`mitarbeiter`-Sync) defaulten alle
+ * → der Caller (`AntraegeSichtGruppe`) zeigt das Freitextfeld. Sonst nie `null`
+ * (auch leer = `[]`), damit der Dropdown zuverlässig erscheint. Klartext-Kürzel
+ * sind unbedenklich — sie stehen ohnehin in der Förderanträge-Tabelle. Ohne
+ * Auslastungs-Daten (kein kuerzel-map-/`mitarbeiter`-Sync) defaulten alle
  * Kürzel auf `aktiv: true`, der Dropdown speist sich aus `antraege`.
  */
 import { useMemo } from 'react';
@@ -28,16 +26,10 @@ import { isKuerzelDropdownEnabled } from '@/config/feature-flags';
 import { useAntraegeStore } from '@/plugins/antraege/store';
 import { useKuerzelMap } from './useKuerzelMap';
 import { useAuslastungData } from './useAuslastungData';
-import { normalizeKuerzel } from '../services/identitaet';
 import { buildAnonymMapFromKuerzelMap } from '../services/identitaet';
-import { CANONICAL_TIB_KUERZ } from '../types';
+import { baueKuerzelOptionen, type KuerzelOption } from './kuerzelOptionen';
 
-export interface KuerzelOption {
-  /** TIB-Kürzel (Klartext, NFC+upper). */
-  kuerzel: string;
-  /** false = ehemaliger Bearbeiter; im Dropdown standardmäßig ausgeblendet. */
-  aktiv: boolean;
-}
+export type { KuerzelOption };
 
 export function useKuerzelFilterOptions(): KuerzelOption[] | null {
   const enabled = isKuerzelDropdownEnabled();
@@ -47,24 +39,11 @@ export function useKuerzelFilterOptions(): KuerzelOption[] | null {
 
   return useMemo(() => {
     if (!enabled) return null;
-    // Distinct-Kürzel aus beiden Quellen sammeln (beide NFC+upper normalisiert).
-    const kuerzelSet = new Set<string>();
-    for (const a of antraege) {
-      const k = normalizeKuerzel((a as unknown as Record<string, unknown>)[CANONICAL_TIB_KUERZ]);
-      if (k) kuerzelSet.add(k);
-    }
-    for (const e of file.entries) kuerzelSet.add(e.kuerzel);
-
-    const anonymMap = buildAnonymMapFromKuerzelMap(file);
-    const opts: KuerzelOption[] = [...kuerzelSet].map(kuerzel => {
-      const anonId = anonymMap.toAnon.get(kuerzel);
-      // Kürzel ohne Map-Eintrag (neu, nur in Anträgen) → kein anonId → aktiv.
-      return { kuerzel, aktiv: mitarbeiter[anonId ?? '']?.aktiv ?? true };
-    });
-    opts.sort((a, b) => {
-      if (a.aktiv !== b.aktiv) return a.aktiv ? -1 : 1;
-      return a.kuerzel.localeCompare(b.kuerzel, 'de');
-    });
-    return opts;
+    return baueKuerzelOptionen(
+      antraege as unknown as ReadonlyArray<Record<string, unknown>>,
+      file.entries.map(e => e.kuerzel),
+      buildAnonymMapFromKuerzelMap(file),
+      mitarbeiter,
+    );
   }, [enabled, antraege, file, mitarbeiter]);
 }

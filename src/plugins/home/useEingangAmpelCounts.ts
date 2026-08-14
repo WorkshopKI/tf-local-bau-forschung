@@ -2,9 +2,7 @@ import { useMemo } from 'react';
 import { useAntraegeStore } from '@/plugins/antraege/store';
 import { useBereich } from '@/core/hooks/useBereich';
 import { istImBereich } from '@/core/status/betrachtungsbereich';
-import { useProfile } from '@/core/hooks/useProfile';
-import { useMeinKuerzel } from '@/core/hooks/useMeinKuerzel';
-import { parseBearbeiterFilter } from '@/plugins/antraege/bearbeiterFilter';
+import { useBearbeiterSicht } from '@/core/hooks/useBearbeiterSicht';
 import { countByAmpelBucket, type AmpelSchwellen } from '@/plugins/antraege/eingangAmpel';
 
 export interface EingangAmpelCounts {
@@ -21,9 +19,10 @@ export interface EingangAmpelCounts {
  * (`HomePage`). Beide teilen sich diesen Hook, damit die Subtitle-Zahlen IMMER
  * identisch zu den Karten-Zahlen sind (kein Drift).
  *
- * Der Bearbeiter-Filter wird direkt aus `parseBearbeiterFilter` abgeleitet
- * (billig) statt über die schwere `useFilteredAntraege`-Pipeline — die Zahlen
- * sind identisch (die Karte nutzte davon ohnehin nur `bearbeiterFilter`).
+ * Der Bearbeiter-Filter kommt aus `useBearbeiterSicht` (billig) statt über die
+ * schwere `useFilteredAntraege`-Pipeline — die Zahlen sind identisch (die Karte
+ * nutzte davon ohnehin nur `bearbeiterFilter`), und der Meine/Alle-Umschalter
+ * wirkt dadurch auf Kopfzeile und Karte gleichzeitig.
  *
  * `schwellen` (v2.229, optional): konfigurierbare Bucket-Grenzen aus der
  * Widget-Config. Kopfzeile UND Widget übergeben DIESELBEN Werte (aus
@@ -40,15 +39,13 @@ export function useEingangAmpelCounts(schwellen?: AmpelSchwellen): EingangAmpelC
       : alleAntraege.filter(a => istImBereich(a.unterprogramm_id, bereichMenge))),
     [alleAntraege, bereichMenge],
   );
-  const { profile } = useProfile();
-  const meinKuerzel = useMeinKuerzel();
+  const { mode: bearbeiterFilter } = useBearbeiterSicht();
 
   return useMemo(() => {
-    const bearbeiterFilter = parseBearbeiterFilter(meinKuerzel, profile?.bearbeiter_inkl_begleitung);
     const frisch = countByAmpelBucket(antraege, 'frisch', bearbeiterFilter, schwellen);
     const warnung = countByAmpelBucket(antraege, 'warnung', bearbeiterFilter, schwellen);
     const kritisch = countByAmpelBucket(antraege, 'kritisch', bearbeiterFilter, schwellen);
     return { frisch, warnung, kritisch, total: frisch + warnung + kritisch };
     // schwellen ist ein kleines Objekt — Werte statt Referenz als Deps.
-  }, [antraege, meinKuerzel, profile?.bearbeiter_inkl_begleitung, schwellen?.warnschwelleTage, schwellen?.kritischSchwelleTage]);
+  }, [antraege, bearbeiterFilter, schwellen?.warnschwelleTage, schwellen?.kritischSchwelleTage]);
 }

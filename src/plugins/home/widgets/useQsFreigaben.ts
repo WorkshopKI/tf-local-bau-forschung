@@ -11,12 +11,10 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
-import { useProfile } from '@/core/hooks/useProfile';
-import { useMeinKuerzel } from '@/core/hooks/useMeinKuerzel';
+import { useBearbeiterSicht } from '@/core/hooks/useBearbeiterSicht';
 import { useAntraegeStore } from '@/plugins/antraege/store';
 import {
   antragMatchesBearbeiter,
-  parseBearbeiterFilter,
   type BearbeiterFilterMode,
 } from '@/plugins/antraege/bearbeiterFilter';
 import type { AntragListItem } from '@/core/services/csv/types';
@@ -39,8 +37,8 @@ export interface QsFreigabenDaten {
 
 export function useQsFreigaben(aktiv: boolean): QsFreigabenDaten {
   const storage = useStorage();
-  const { profile } = useProfile();
-  const meinKuerzel = useMeinKuerzel();
+  // Kürzel + Meine/Alle-Sicht (der Umschalter im Seitenkopf wirkt hier mit).
+  const { mode } = useBearbeiterSicht();
   const antraege = useAntraegeStore(s => s.antraege);
   const verbundById = useAntraegeStore(s => s.verbundById);
 
@@ -70,11 +68,6 @@ export function useQsFreigaben(aktiv: boolean): QsFreigabenDaten {
     })();
     return () => { cancelled = true; };
   }, [aktiv, storage.idb]);
-
-  const mode = useMemo(
-    () => parseBearbeiterFilter(meinKuerzel, profile?.bearbeiter_inkl_begleitung),
-    [meinKuerzel, profile?.bearbeiter_inkl_begleitung],
-  );
 
   const scopeIndex = useMemo(() => {
     const byAz = new Map<string, AntragListItem>();

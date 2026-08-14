@@ -116,6 +116,31 @@ export function parseBearbeiterFilter(
 }
 
 /**
+ * Welche Bearbeiter-Sicht gerade gilt. **Orthogonal zum Kürzel**: das Profilfeld
+ * sagt, WER man ist, die Sicht sagt, WESSEN Anträge man gerade sehen will.
+ *
+ * Bis v4.46 trug das Profilfeld beides — „alle" darin hieß Übersichtsmodus. Wer
+ * umschalten wollte, überschrieb damit sein eigenes Kürzel und musste es
+ * danach neu eintippen. Der Wert „alle" im Profilfeld bleibt gültig (= „kein
+ * Kürzel gesetzt"), er ist nur nicht mehr der einzige Weg zur Übersicht.
+ */
+export type BearbeiterSicht = 'meine' | 'alle';
+
+/**
+ * Wendet die Sicht auf den aus dem Profil geparsten Modus an.
+ *
+ * `'alle'` schaltet den Filter ab, **ohne das Kürzel zu vergessen** — die Tokens
+ * fallen weg, weil `applyBearbeiterFilter` sie sonst weiter matchte; wer das
+ * eigene Kürzel für die Beschriftung braucht (Chip, Rückweg), liest den
+ * ungeschnittenen Modus. `includeBegleitung` bleibt in beiden Sichten stehen: es
+ * beschreibt die Spaltenauswahl, nicht den Ausschnitt.
+ */
+export function sichtModus(eigen: BearbeiterFilterMode, sicht: BearbeiterSicht): BearbeiterFilterMode {
+  if (sicht === 'meine') return eigen;
+  return { active: false, tokens: [], includeBegleitung: eigen.includeBegleitung, rolle: eigen.rolle };
+}
+
+/**
  * Hot path: direkter Property-Zugriff auf die canonical lowercase-Keys.
  * Der Merger schreibt KUERZ-Spalten im Default-Pfad (`resolveFieldKey` →
  * `col.toLowerCase()`) immer als lowercase, der CSV-Wizard mappt sie

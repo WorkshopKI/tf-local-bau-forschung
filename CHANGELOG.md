@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.47.0 — Meine/Alle umschaltbar, Kuerzel-Auswahl vollstaendig (August 2026)
+
+MINOR — „Meine Anträge" oder „alle" war bisher kein Zustand, sondern der WERT des Profil-Kürzels: umschalten hieß, die eigene Identität zu überschreiben und danach neu einzutippen. Dazu fand sich die halbe Zielgruppe in der Kürzel-Auswahl gar nicht — inaktive Kürzel waren ausgeblendet (fast jede PL ist als ehemalige Bearbeitung geführt), und die AB-Spalte wurde nie gesammelt.
+
+- **Chip „Kürzel THÜ / Alle Bearbeiter" im Kopf von Förderanträgen und Startseite**, in beiden Zuständen sichtbar ([BearbeiterSichtChip.tsx](src/components/bearbeiter/BearbeiterSichtChip.tsx))
+- **Eine Quelle für den Ausschnitt**: Liste, Startseiten-Aggregat, Kanban, Antragseingang und QS lesen denselben Modus ([useBearbeiterSicht.ts](src/core/hooks/useBearbeiterSicht.ts), pures `sichtModus` in [bearbeiterFilter.ts](src/plugins/antraege/bearbeiterFilter.ts))
+- **Die Startseite zeigt jetzt auch ihren Betrachtungsbereich** — sie wandte ihn an, ohne es zu sagen ([HomePage.tsx](src/plugins/home/HomePage.tsx), `ausgeblendet` aus [useDashboardData.ts](src/plugins/home/useDashboardData.ts))
+- **Kürzel-Auswahl führt AB-Kürzel und Ehemalige**: 33 rein administrative Kürzel waren nie wählbar, inaktive stehen als „· ehem." drin ([kuerzelOptionen.ts](src/plugins/auslastung/hooks/kuerzelOptionen.ts), [AntraegeSichtGruppe.tsx](src/plugins/einstellungen/profil/AntraegeSichtGruppe.tsx))
+- **Der Inaktiv-Schalter wirkt nur noch auf Antragsmengen**, nicht mehr auf die Auswahl — samt Wegfall des Stale-Guards, der eine solche Wahl still zurücksetzte ([auslastung.md](docs/architecture/auslastung.md))
+
 ### v4.46.1 — Abgeleitete To-dos heissen ueberall abgeleitet (August 2026)
 
 PATCH — Am To-do stand die Marke „geliehen", während die Rollen-Bilanz derselben Seite „davon 68 abgeleitet" zählte: zwei Wörter für eine Sache, und das ungewöhnlichere davon an der sichtbarsten Stelle. `quelle`, Tooltip und Herkunftsspalte des Exports sagten ohnehin schon „abgeleitet".

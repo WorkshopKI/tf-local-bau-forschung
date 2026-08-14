@@ -8,6 +8,7 @@ import {
   isAlleMode,
   hasAnyKuerzelData,
   bearbeiterScopeLabel,
+  sichtModus,
 } from '../bearbeiterFilter';
 
 function makeAntrag(extra: Record<string, unknown>): AntragListItem {
@@ -28,6 +29,39 @@ describe('bearbeiterScopeLabel (v1.1 — Modus sichtbar)', () => {
   it('gibt „Kürzel …" bei gesetztem Kürzel (Vertretung mit „/")', () => {
     expect(bearbeiterScopeLabel(parseBearbeiterFilter('thu', false))).toBe('Kürzel THU');
     expect(bearbeiterScopeLabel(parseBearbeiterFilter('MUE, SCH', false))).toBe('Kürzel MUE/SCH');
+  });
+});
+
+describe('sichtModus (v4.47 — Meine/Alle ohne Kürzel-Verlust)', () => {
+  it('reicht den Modus in der Sicht „meine" unverändert durch', () => {
+    const eigen = parseBearbeiterFilter('THÜ', true);
+    expect(sichtModus(eigen, 'meine')).toBe(eigen);
+  });
+
+  it('schaltet in der Sicht „alle" ab — inkl. der Tokens', () => {
+    const alle = sichtModus(parseBearbeiterFilter('THÜ', false), 'alle');
+    expect(alle.active).toBe(false);
+    // Tokens müssen fallen: applyBearbeiterFilter prüft `active` zwar zuerst,
+    // aber ein Modus mit Tokens und active:false wäre eine Falle für jeden
+    // Konsumenten, der nur die Tokens liest.
+    expect(alle.tokens).toEqual([]);
+  });
+
+  it('behält `includeBegleitung` in beiden Sichten — es beschreibt die Spalten, nicht den Ausschnitt', () => {
+    expect(sichtModus(parseBearbeiterFilter('THÜ', true), 'alle').includeBegleitung).toBe(true);
+    expect(sichtModus(parseBearbeiterFilter('THÜ', false), 'alle').includeBegleitung).toBe(false);
+  });
+
+  it('bleibt ohne Kürzel in beiden Sichten inaktiv', () => {
+    expect(sichtModus(parseBearbeiterFilter('', false), 'meine').active).toBe(false);
+    expect(sichtModus(parseBearbeiterFilter('alle', false), 'alle').active).toBe(false);
+  });
+
+  it('lässt in der Sicht „alle" jeden Antrag durch, den „meine" ausblendet', () => {
+    const fremder = makeAntrag({ tib_kuerz: 'XYZ' });
+    const eigen = parseBearbeiterFilter('THÜ', false);
+    expect(antragMatchesBearbeiter(fremder, sichtModus(eigen, 'meine'))).toBe(false);
+    expect(antragMatchesBearbeiter(fremder, sichtModus(eigen, 'alle'))).toBe(true);
   });
 });
 

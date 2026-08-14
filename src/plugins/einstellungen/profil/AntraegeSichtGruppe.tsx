@@ -7,7 +7,6 @@
  * Startseite. Die Erklärungen dazu standen bis v4.27 als Tooltip-Langtexte an
  * den Labels — sie stehen jetzt im Klick-ⓘ, die Zeile trägt nur noch das Nötige.
  */
-import { useEffect } from 'react';
 import { Switch } from '@/components/ui/switch';
 import { useProfile } from '@/core/hooks/useProfile';
 import { useMAIdentity } from '@/core/hooks/useMAIdentity';
@@ -21,13 +20,13 @@ import { SettingsGruppe, SettingsOption, SettingsStepper } from '@/components/se
 const HINT_ROLLE =
   'Das Fachsystem vermerkt bei jedem Statuseintrag, wer ihn setzt. Die Auswahl ist eine Vorauswahl: die Statusliste auf der Antragsseite startet darauf gefiltert, alles Übrige bleibt einen Klick entfernt. Einträge, die jeder setzen darf, bleiben immer sichtbar.';
 const HINT_KUERZEL_WAHL =
-  'Kürzel auswählen, dessen Anträge angezeigt werden. „Alle" zeigt die Anträge aller Bearbeiter (Übersichtsmodus).';
+  'Ihr eigenes Kürzel — es bestimmt, welche Anträge als „Ihre" gelten. Die Liste führt die Kürzel beider Bearbeiter-Spalten (fachlich und administrativ) und auch ehemalige Kolleg:innen (als „ehem." markiert), weil viele PL früher selbst bearbeitet haben. Zwischen Ihren Anträgen und allen wechseln Sie über den Chip im Seitenkopf.';
 const HINT_KUERZEL_FREI =
   'Mehrere Kürzel komma-separiert für Vertretungen (z.B. MUE, SCH). Der Wert „alle" schaltet den Filter ab (Übersichtsmodus).';
 const HINT_KUERZEL_LOGIN =
   'Dein Kürzel wird beim Login aus deinem Passwort ermittelt und kann hier nicht geändert werden.';
 const HINT_INAKTIV =
-  'Zeigt auch Kürzel von Kolleg:innen, die im Auslastungs-Modul als inaktiv geführt sind. Wirkt zugleich auf die Antragslisten und die Startseite.';
+  'Zeigt in den Antragslisten und auf der Startseite auch die Anträge von Kolleg:innen, die im Auslastungs-Modul als inaktiv geführt sind. Wirkt nur im Übersichtsmodus „Alle Bearbeiter" — die Auswahl darüber führt ehemalige Kürzel unabhängig davon.';
 const HINT_ZTP =
   'Mit Schalter gelten Anträge, in denen dein Kürzel in der Begleitung steht (ZTP_KUERZ, PFM_KUERZ), als deine eigenen. Ohne Schalter bleibt der Reiter „Begleitung" sichtbar, zeigt bei aktivem Kürzel-Filter aber nur Anträge, in denen du direkt als Bearbeiter geführt bist (TIB_KUERZ/BIB_KUERZ, bei gesetzter Rolle nur deren Spalte). Frist für VN-Anträge: D_VBE + 6 Monate.';
 const HINT_ANZAHL =
@@ -91,9 +90,13 @@ export function AntraegeSichtGruppe(): React.ReactElement | null {
 /**
  * Bearbeiter-Kürzel: Dropdown, wo das Auslastungs-Modul Kürzel kennt, sonst
  * Freitext — und im MA-Login nur der Wert, weil er aus dem Passwort stammt.
- * Der Schalter „Inaktive Bearbeiter einblenden" steht als eigene Zeile darunter,
- * hängt aber am selben Modul-Prädikat wie die Filterung (sonst verschwänden
- * Anträge ehemaliger Kolleg:innen ohne Weg, sie wieder einzublenden).
+ *
+ * Die Auswahl **verschweigt niemanden** (v4.47): sie führt ehemalige
+ * Bearbeiter:innen als „ehem." mit, weil PL-Leute früher fast alle selbst
+ * bearbeitet haben und ihr eigenes Kürzel sonst schlicht fehlt. Der Schalter
+ * „Inaktive Bearbeiter einblenden" darunter wirkt seither nur noch auf die
+ * Listen und die Startseite — bis v4.46 hing die Auswahl mit daran und versteckte
+ * genau die Person, die hier gerade nach sich selbst sucht.
  */
 function KuerzelZeile(): React.ReactElement {
   const { profile, updateProfile } = useProfile();
@@ -103,16 +106,6 @@ function KuerzelZeile(): React.ReactElement {
   const showInaktive = useShowInaktiveMasStore(s => s.showInaktive);
   const setShowInaktive = useShowInaktiveMasStore(s => s.setShowInaktive);
   const current = profile?.bearbeiter_kuerzel ?? '';
-
-  // Stale-Guard: ist ein inaktives Kürzel gewählt und werden Inaktive wieder
-  // ausgeblendet, würde es aus dem Dropdown verschwinden — zurück auf „Alle".
-  useEffect(() => {
-    if (showInaktive || !options) return;
-    const cur = current.trim();
-    if (!cur || cur.toLowerCase() === 'alle') return;
-    const opt = options.find(o => o.kuerzel === cur.toUpperCase());
-    if (opt && !opt.aktiv) void updateProfile({ bearbeiter_kuerzel: 'alle' });
-  }, [showInaktive, options, current, updateProfile]);
 
   if (isMaLoginEnabled() && istAngemeldet) {
     return (
@@ -140,12 +133,12 @@ function KuerzelZeile(): React.ReactElement {
     );
   }
 
-  const sichtbare = showInaktive ? options : options.filter(o => o.aktiv);
   const cur = current.trim();
   const upper = cur.toUpperCase();
-  // Ein gewähltes, aber gerade nicht sichtbares Kürzel fällt visuell auf „Alle".
+  // Ein gewähltes, aber unbekanntes Kürzel (Freitext-Altbestand, Kürzel aus einer
+  // Quelle, die gerade nicht geladen ist) fällt visuell auf „Alle".
   const wert =
-    !cur || cur.toLowerCase() === 'alle' || !sichtbare.some(o => o.kuerzel === upper)
+    !cur || cur.toLowerCase() === 'alle' || !options.some(o => o.kuerzel === upper)
       ? 'alle'
       : upper;
 
@@ -160,15 +153,19 @@ function KuerzelZeile(): React.ReactElement {
           style={SELECT_STYLE}
         >
           <option value="alle">Alle</option>
-          {sichtbare.map(o => <option key={o.kuerzel} value={o.kuerzel}>{o.kuerzel}</option>)}
+          {options.map(o => (
+            <option key={o.kuerzel} value={o.kuerzel}>
+              {o.aktiv ? o.kuerzel : `${o.kuerzel} · ehem.`}
+            </option>
+          ))}
         </select>
       </SettingsOption>
       {isAuslastungFreigeschaltet() && (
-        <SettingsOption label="Inaktive Bearbeiter einblenden" hint={HINT_INAKTIV}>
+        <SettingsOption label="Anträge inaktiver Bearbeiter einblenden" hint={HINT_INAKTIV}>
           <Switch
             checked={showInaktive}
             onCheckedChange={setShowInaktive}
-            aria-label="Inaktive Bearbeiter einblenden"
+            aria-label="Anträge inaktiver Bearbeiter einblenden"
           />
         </SettingsOption>
       )}

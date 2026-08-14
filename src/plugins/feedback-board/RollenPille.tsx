@@ -4,7 +4,7 @@
  * Vorher war das ein `ScopeTabs variant="segmented"` mit gefülltem Primary-
  * Segment — die Optik eines Haupt-Bedienelements für eine Vorschau-Funktion, die
  * nur Verwalter überhaupt sehen. Jetzt trägt sie die kanonische Kopf-Pillen-
- * Klassenkette der App: dieselbe wie `BearbeiterFilterPill` („Profil: THÜ") und
+ * Klassenkette der App: dieselbe wie `BearbeiterSichtChip` („Kürzel THÜ") und
  * `BereichChip` auf den Förderanträgen.
  *
  * **Klick-Toggle, kein Popover**: es gibt genau zwei Zustände, ein Menü wäre ein
@@ -13,7 +13,7 @@
  * Entwickler-Sicht", nicht „hier klicken für Entwickler".
  *
  * Icon `Eye` und nicht `User`: es geht um den Blickwinkel auf denselben Bestand.
- * `User` ist app-weit mit „Person/Bearbeiter" belegt (BearbeiterFilterPill).
+ * `User` ist app-weit mit „Person/Bearbeiter" belegt (BearbeiterSichtChip).
  */
 import { Eye } from 'lucide-react';
 
