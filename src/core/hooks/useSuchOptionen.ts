@@ -15,7 +15,17 @@
 import { create } from 'zustand';
 import { parseSuchbereich, type Suchbereich } from '@/core/services/search/suchbereich';
 
-const BEREICH_KEY = 'teamflow_suche_bereich';
+/**
+ * Der Schlüssel trägt seit v4.44.0 ein `_v2`, und das ist der Zweck: ein einmal
+ * gewählter enger Bereich lag sonst für immer im Speicher und schlug jeden
+ * Code-Standard. Wer irgendwann „nur Ort & Bundesland" eingestellt hatte, suchte
+ * Monate später immer noch dort — und las das Ergebnis als „steht nicht im
+ * Bestand" statt als „hier habe ich nicht nachgesehen". Genau dieser Fall wurde
+ * gemeldet. Der Bump kostet eine Dropdown-Wahl und setzt alle einmal auf „alle
+ * Felder" zurück; sichtbar bleibt die Einstellung danach über die Markierung an
+ * der Auswahl ([[SuchOptionenZeile]]).
+ */
+const BEREICH_KEY = 'teamflow_suche_bereich_v2';
 const STAMM_KEY = 'teamflow_suche_stammsuche';
 
 function ladeBereich(): Suchbereich {

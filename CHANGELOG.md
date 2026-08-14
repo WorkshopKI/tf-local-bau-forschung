@@ -5,6 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.44.0 — Suchbereich heisst alle Felder und ist wieder der Standard (August 2026)
+
+MINOR — Gewünscht war ein Eintrag „in allen Feldern suchen", standardmäßig gewählt. Den gab es bereits — er hieß nur „Titel, Beschreibung, Dokumente" und nannte damit drei von acht Feldern. Zweimal wurde deshalb gemeldet, ein Feld werde nicht durchsucht; beide Male stimmte es nicht.
+
+- **Der Standardbereich heißt „alle Felder"**, im Gegensatz zu den vier „nur …"-Wahlen; die Zusage hält ein Guard ([suchbereich.ts](src/core/services/search/suchbereich.ts), [wortstamm.test.ts](src/core/services/search/__tests__/wortstamm.test.ts))
+- **Ein eingeengter Bereich markiert sich farbig** — er ist der einzige Schalter der Zeile, der Treffer verschwinden lässt, ohne dass am Ergebnis etwas davon steht ([SuchOptionenZeile.tsx](src/plugins/suche/SuchOptionenZeile.tsx))
+- **Der gemerkte Bereich wird einmalig zurückgesetzt** (Schlüssel-Bump): eine irgendwann gewählte Einschränkung schlug bisher für immer den Code-Standard ([useSuchOptionen.ts](src/core/hooks/useSuchOptionen.ts))
+- **Kein zweiter Eintrag im Aufklapper**: ein Duplikat neben „alles" hätte dasselbe zweimal angeboten — die Felder waren nie das Problem, die Beschriftung war es
+
 ### v4.43.0 — Chronik zeigt das Kuerzel, Naechste Schritte klappt zu, DL-Praefix korrigiert (August 2026)
 
 MINOR — Gemeldet war dreierlei: der Chronik fehlt das Kürzel, „Nächste Schritte" steht immer offen, und „DL-Gutachten" nennt eine Projektform, die nicht dazugehört. Die dritte Meldung führte auf eine Datenursache: die App trägt **zwei** Kürzel-Zuarbeiten, die sich bei 76 Codes widersprechen — und keine der beiden ist pauschal die richtige.

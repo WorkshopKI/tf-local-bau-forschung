@@ -19,6 +19,13 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.44 — 2026-08
+
+### Verbesserungen
+- „Suchen in" steht jetzt auf **alle Felder** — der Standard hieß vorher „Titel, Beschreibung, Dokumente" und klang nach einer Einschränkung, die er nie war. Gesucht wurde immer schon in Titel, Kurzbeschreibung, Deskriptoren, Akronym, Aktenzeichen, Einrichtung, Web-Adresse, Ort und Bundesland — dazu in den Dokumenten. Wer nicht weiß, in welchem Feld sein Wort steht, muss es auch nicht wissen.
+- Jede andere Wahl beginnt mit „nur …" und **färbt sich**, solange sie gesetzt ist. Ein eingestellter Bereich ist das Einzige, was Treffer verschwinden lässt, ohne dass am Ergebnis etwas davon steht.
+- Ein früher eingestellter Bereich wird **einmalig zurückgesetzt**. Wer die Einschränkung weiter braucht, wählt sie einmal neu.
+
 ## v4.43 — 2026-08
 
 ### Neu

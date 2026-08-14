@@ -10,6 +10,11 @@
  * lädt ein Modell von ~200 MB nach, und das darf nicht hinter einer harmlosen
  * Beschriftung passieren.
  *
+ * „Suchen in" steht seit v4.44.0 standardmäßig auf „alle Felder" — vorher hieß
+ * derselbe Bereich „Titel, Beschreibung, Dokumente" und las sich damit als
+ * Einschränkung, die er nie war. Wer nicht weiß, in welchem Feld sein Wort
+ * steht, muss es auch nicht wissen.
+ *
  * Die beiden Schalter hießen bis v4.15.0 „Ähnliche Begriffe mitsuchen" und
  * „Ähnlichkeitssuche" — zwei Namen, die dasselbe versprachen und Verschiedenes
  * taten. Sie trennt jetzt die Achse, auf der sie wirken: der eine sucht dasselbe
@@ -28,6 +33,22 @@ const SELECT_CLASS = 'h-7 rounded-[8px] px-2 text-[12px] text-[var(--tf-text)] c
 const SELECT_STYLE: React.CSSProperties = {
   background: 'var(--tf-sheet)',
   border: '0.5px solid var(--tf-border)',
+};
+
+/**
+ * „Suchen in", solange es NICHT alle Felder sind.
+ *
+ * Ein eingeengter Bereich ist der einzige Schalter dieser Zeile, der Treffer
+ * verschwinden lässt, ohne dass am Ergebnis etwas davon steht — 0 Treffer sehen
+ * aus wie „gibt es nicht", nicht wie „hier war nicht gesucht". Die Auswahl
+ * bekommt deshalb dieselbe Randfarbe, die die Seite sonst für gesetzte Filter
+ * verwendet. Kein Chip daneben: die Auswahl trägt ihre Beschriftung selbst, ein
+ * zweites Element sagte dasselbe noch einmal.
+ */
+const SELECT_STYLE_ENG: React.CSSProperties = {
+  background: 'var(--tf-sheet)',
+  border: '0.5px solid var(--tf-primary)',
+  color: 'var(--tf-primary)',
 };
 
 export function SuchOptionenZeile({
@@ -90,8 +111,17 @@ export function SuchOptionenZeile({
           value={bereich}
           onChange={e => onBereich(e.target.value as Suchbereich)}
           className={SELECT_CLASS}
-          style={SELECT_STYLE}
-          title="Begrenzt die durchsuchten Felder."
+          style={bereich === 'alles' ? SELECT_STYLE : SELECT_STYLE_ENG}
+          title={
+            bereich === 'alles'
+              ? 'Sucht in allen Feldern: Titel, Kurzbeschreibung, Deskriptoren, '
+                + 'Akronym, Aktenzeichen, Einrichtung, Web-Adresse, Ort und '
+                + 'Bundesland — dazu in den Dokumenten. Der Standard, wenn man '
+                + 'nicht weiß, wo das Wort steht.'
+              : `Eingeschränkt auf „${SUCHBEREICH_LABEL[bereich]}“. Was außerhalb `
+                + 'steht, erscheint nicht — auch dann nicht, wenn es das Wort '
+                + 'enthält. „alle Felder" nimmt die Einschränkung zurück.'
+          }
         >
           {(Object.keys(SUCHBEREICH_LABEL) as Suchbereich[]).map(b => (
             <option key={b} value={b}>{SUCHBEREICH_LABEL[b]}</option>

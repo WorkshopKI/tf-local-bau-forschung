@@ -11,7 +11,7 @@ Nutzer durchsucht Förderanträge und Dokumente programmweit mit einer hybriden 
 - **Optionszeile** darunter, vier Elemente:
   - **„Wortverknüpfung":** alle Wörter (UND, Standard) · irgendein Wort (ODER) · genaue Wortfolge. Wirkt auf Wortlaut-Treffer.
   - **„Wortformen mitsuchen":** dasselbe Wort in anderer Form — deterministischer Wortstamm-Vergleich („Normen" findet „Normung"). Kostenlos, lädt nichts nach.
-  - **„Suchen in":** Titel/Beschreibung/Dokumente · nur Titel & Kurzbeschreibung · nur Dokumente · nur Einrichtung · nur Ort & Bundesland. „nur Einrichtung" umfasst neben Antragsteller und ausführender Stelle auch die **Web-Adresse** — sonst wären Einrichtungen, die ihr Kürzel nicht im Namen führen, über das Kürzel unauffindbar („GMBU" steht in keinem Namensfeld, wohl aber in `gmbu.de`).
+  - **„Suchen in":** **alle Felder** (Standard) · nur Titel & Kurzbeschreibung · nur Dokumente · nur Einrichtung · nur Ort & Bundesland. „alle Felder" heißt wörtlich alle: Titel, Kurzbeschreibung, Deskriptoren, Akronym, Aktenzeichen, Einrichtung, Web-Adresse, Ort und Bundesland — dazu die Dokumente. Wer nicht weiß, wo sein Wort steht, muss es nicht wissen. Jede andere Wahl nimmt etwas weg und markiert sich deshalb farbig. „nur Einrichtung" umfasst neben Antragsteller und ausführender Stelle auch die **Web-Adresse** — sonst wären Einrichtungen, die ihr Kürzel nicht im Namen führen, über das Kürzel unauffindbar („GMBU" steht in keinem Namensfeld, wohl aber in `gmbu.de`).
   - **„Ähnlichkeitssuche":** dasselbe Thema in anderen Worten — semantische Treffer, lädt beim ersten Mal ein Embedding-Modell (~200 MB). Nicht zu verwechseln mit „Wortformen mitsuchen": der eine Schalter geht über das Wort, der andere über den Inhalt.
   - Rechts der **Index-Hinweis** („Index: 14.225 Anträge · n Textabschnitte").
 - **Deutungszeile „Gesucht wird":** die Suchwörter als **abwählbare** Chips (gelb), dazwischen der Operator (UND/ODER/„gefolgt von"), dahinter die gefundenen Wortstamm-Varianten (türkis, ebenfalls abwählbar). Ein abgewähltes Wort fällt aus der Suche — das Feld bleibt unverändert.
@@ -36,7 +36,7 @@ Nutzer durchsucht Förderanträge und Dokumente programmweit mit einer hybriden 
 - Suchbegriff eingeben (oder Beispiel-Chip im Startzustand klicken), Treffer durchsehen
 - In der Deutungszeile ein Wort oder eine Stamm-Variante abwählen und die Treffermenge korrigieren
 - Zwischen „alle Wörter", „irgendein Wort" und „genaue Wortfolge" umschalten
-- Den Suchbereich einschränken, z. B. den Firmennamen ausschließen
+- Den Suchbereich einschränken, z. B. den Firmennamen ausschließen (die Auswahl färbt sich, solange sie nicht auf „alle Felder" steht)
 - Nach Status, Antragstyp, Jahr oder Trefferstelle filtern
 - Zwischen Liste und Tabelle wechseln, Sortierung und Dichte im Darstellungs-Menü einstellen
 - Einen Treffer per „Warum?" begründen lassen oder alle auf einmal

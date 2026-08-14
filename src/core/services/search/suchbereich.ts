@@ -19,13 +19,22 @@ export type Suchbereich = 'alles' | 'inhalt' | 'dokumente' | 'einrichtung' | 'st
  * Die Beschriftungen — Reihenfolge = Reihenfolge im Aufklapper: erst der weite
  * Standard, dann die Einschränkungen vom Inhalt zur Herkunft.
  *
+ * Der Standard heißt seit v4.44.0 „alle Felder" und nicht mehr „Titel,
+ * Beschreibung, Dokumente". Die Aufzählung nannte drei von acht Feldern und las
+ * sich damit als Einschränkung, die sie nie war: Einrichtung, Ort, Akronym,
+ * Aktenzeichen, Deskriptoren und Web-Adresse waren immer mit dabei. Zweimal
+ * gemeldet als „Feld X wird nicht durchsucht", beide Male stimmte es nicht —
+ * gesucht wurde in einem der „nur …"-Bereiche. Erst der Gegensatz „alle Felder"
+ * ⇄ „nur …" macht sichtbar, welche Wahl etwas WEGNIMMT. Was der Name zusagt,
+ * hält der Guard in `wortstamm.test.ts` fest.
+ *
  * „Wer" und „wo" sind seit v4.15.0 GETRENNT. Zusammengelegt beantwortete der
  * Bereich zwei Fragen auf einmal: wer nach einem Ort suchte, bekam die
  * Firmennamen dazu (und umgekehrt) — und genau das Trennen war der Zweck der
  * Beschränkung. Der Korpus hält beide Felder ohnehin einzeln vor.
  */
 export const SUCHBEREICH_LABEL: Record<Suchbereich, string> = {
-  alles: 'Titel, Beschreibung, Dokumente',
+  alles: 'alle Felder',
   inhalt: 'nur Titel & Kurzbeschreibung',
   dokumente: 'nur Dokumente',
   einrichtung: 'nur Einrichtung',
@@ -44,6 +53,12 @@ export const SUCHBEREICH_LABEL: Record<Suchbereich, string> = {
  * `dokumente` liefert eine LEERE Menge: die Wortlaut-Stufe trägt dann nichts
  * bei, alle Treffer kommen aus dem Dokumentenindex. Sonst stünde unter „nur
  * Dokumente" ein Antrag, der über sein Akronym gefunden wurde.
+ *
+ * `alles` führt JEDES Antragsfeld, das der Korpus kennt — der Name ist eine
+ * Zusage, keine Beschreibung. Ein neues `Trefferfeld` gehört deshalb hier
+ * eingetragen, sonst sucht „alle Felder" stillschweigend weniger als alle.
+ * (`dokument` und `aehnlichkeit` stehen bewusst nicht drin: der Dokumentenindex
+ * hängt an `bereichNutztDokumente`, die Ähnlichkeit an ihrem eigenen Schalter.)
  */
 export function bereichFelder(bereich: Suchbereich): ReadonlySet<Trefferfeld> {
   switch (bereich) {

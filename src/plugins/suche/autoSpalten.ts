@@ -88,9 +88,9 @@ export function belegWerte(treffer: UnifiedSearchResult): BelegWert[] {
  *  1. **Die Einstellung.** Wer „nur Ort & Bundesland" wählt, bekommt die Spalte
  *     immer — auch wenn eine Anfrage gerade nichts findet. Die Einstellung ist
  *     eine Ansage, kein Zufall.
- *  2. **Die Fundstelle.** Im Standardbereich („Titel, Beschreibung, Dokumente")
- *     entscheidet der Bestand: sobald EIN Treffer den Beleg trägt, erscheint die
- *     Spalte. Das ist der Normalfall — kaum jemand stellt das Dropdown um.
+ *  2. **Die Fundstelle.** Im Standardbereich („alle Felder") entscheidet der
+ *     Bestand: sobald EIN Treffer den Beleg trägt, erscheint die Spalte. Das ist
+ *     der Normalfall — kaum jemand stellt das Dropdown um.
  *
  * Die Spalten sind damit an die Anfrage gebunden, nicht an die persönliche
  * Spaltenwahl: sie verschwinden wieder, wenn ihr Grund verschwindet, und sie

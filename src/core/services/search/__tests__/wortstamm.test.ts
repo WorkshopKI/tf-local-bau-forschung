@@ -7,6 +7,7 @@ import {
   SUCHBEREICH_LABEL,
   type Suchbereich,
 } from '../suchbereich';
+import { TREFFERFELD_LABEL, type Trefferfeld } from '../trefferstelle';
 
 describe('wortStamm', () => {
   it('löst die längste passende Endung ab', () => {
@@ -106,6 +107,33 @@ describe('Suchbereich', () => {
     const alles = bereichFelder('alles');
     for (const b of ALLE) {
       for (const f of bereichFelder(b)) expect(alles.has(f)).toBe(true);
+    }
+  });
+
+  it('„alle Felder" führt JEDES Antragsfeld — der Name ist eine Zusage', () => {
+    // Der Bereich heißt seit v4.44.0 „alle Felder". Ein neu eingeführtes
+    // `Trefferfeld`, das hier nicht landet, macht die Beschriftung zur
+    // Falschaussage — und zwar stumm: die Suche liefert dann einfach weniger.
+    //
+    // `dokument` und `aehnlichkeit` sind ausgenommen, weil sie nicht aus dem
+    // Antrags-Korpus stammen: der Dokumentenindex hängt an
+    // `bereichNutztDokumente`, die Ähnlichkeit an ihrem eigenen Schalter.
+    const ausserhalb: readonly Trefferfeld[] = ['dokument', 'aehnlichkeit'];
+    const alles = bereichFelder('alles');
+    const fehlend = (Object.keys(TREFFERFELD_LABEL) as Trefferfeld[])
+      .filter(f => !ausserhalb.includes(f) && !alles.has(f));
+    expect(fehlend).toEqual([]);
+    expect(bereichNutztDokumente('alles')).toBe(true);
+  });
+
+  it('nur „alles" verspricht alle Felder, alle anderen sagen „nur"', () => {
+    // Der Gegensatz IST die Bedienhilfe: „alle Felder" ⇄ „nur …" zeigt auf
+    // einen Blick, welche Wahl etwas wegnimmt. Eine Aufzählung an der Stelle
+    // von „alle Felder" las sich zweimal als Einschränkung, die sie nicht war.
+    expect(SUCHBEREICH_LABEL.alles).toBe('alle Felder');
+    for (const b of ALLE) {
+      if (b === 'alles') continue;
+      expect(SUCHBEREICH_LABEL[b].startsWith('nur ')).toBe(true);
     }
   });
 
