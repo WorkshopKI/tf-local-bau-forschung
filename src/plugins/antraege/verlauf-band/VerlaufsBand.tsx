@@ -49,11 +49,15 @@ import { BandFuss, BandLegende, type LegendenEintrag } from './BandFuss';
 /** Oberkante des Balkens in seiner Bahn. */
 const BALKEN_OBEN = 4;
 /**
- * Höhe des Balkens. Seit v3.36 20 statt 16 px: die Beschriftung steht bei
- * 11 px (vorher 10), und darunter wirkte der Balken wie ein Strich mit Text
- * darauf statt wie eine Fläche.
+ * Höhe des Balkens. Seit v4.48.1 **26** px — das Maß des Entwurfs
+ * (`_design/handoff/chronik`, `.track`). Zwischenstufen: bis v3.36 16 px, danach
+ * 20. Der Grund ist derselbe geblieben und war bei 20 px nicht erledigt: die
+ * Beschriftung steht bei 11 px im Balken, und ein 20-px-Band mit 11-px-Schrift
+ * darin liest sich als Strich mit Text darauf, nicht als Fläche. Die Zeilenhöhe
+ * der Schrift folgt der Konstanten (siehe {@link Segment}) — sie darf nicht als
+ * eigene Utility-Klasse danebenstehen und auseinanderlaufen.
  */
-const BALKEN_H = 20;
+const BALKEN_H = 26;
 /** Höhe des Balken-Kastens einer Bahn — Balken plus etwas Luft darunter. */
 const KASTEN_H = BALKEN_OBEN + BALKEN_H + 4;
 /** Höhe einer Bahn inklusive Abstand zur nächsten. */
@@ -162,7 +166,7 @@ function Segment({ b, schrift, erstes, letztes }: {
         // als Kachelreihe, nicht als eine Zeitleiste. Eine angeschnittene Kante
         // (`offenLinks`/`offenRechts`) bleibt eckig — die Maske blendet sie
         // ohnehin aus, und eine Rundung darauf behauptete einen Abschluss.
-        className={`block h-full overflow-hidden text-[11px] leading-5 text-[var(--tf-text)] whitespace-nowrap${
+        className={`block h-full overflow-hidden text-[11px] text-[var(--tf-text)] whitespace-nowrap${
           erstes && !b.offenLinks ? ' rounded-l-[3px]' : ''}${
           letztes && !b.offenRechts ? ' rounded-r-[3px]' : ''}${
           label === '' ? '' : ' px-1'}${
@@ -170,6 +174,9 @@ function Segment({ b, schrift, erstes, letztes }: {
           letztes ? ' font-medium' : ''}`}
         style={{
           background: segmentFuellung(s.statusRef?.roh),
+          // Aus der Konstanten, nicht als `leading-*`-Klasse: die Schrift sitzt
+          // sonst beim nächsten Höhenwechsel wieder oben statt in der Mitte.
+          lineHeight: `${BALKEN_H}px`,
           // Angeschnittene Kante statt Ersatzbreite: wo eine Grenze fehlt, endet
           // das Segment im Nichts — eine gerade Kante behauptete ein Datum.
           ...(b.offenLinks

@@ -84,8 +84,19 @@ const TAG_SPALTE = 'w-[42px] shrink-0 font-mono text-[11px]';
  */
 const CODE_SPALTE = 'w-[46px] shrink-0 truncate font-mono text-[11px]';
 
-/** Die Rollenspalte — Platz für zwei Marken (`AB` `FB`), der Regelfall. */
-const ROLLEN_SPALTE = 'w-[62px] shrink-0';
+/**
+ * Die Rollenspalte — Platz für **drei** Marken. 62 px reichten für zwei, und die
+ * dritte schob sich in den Ereignistext (`AB` `FB` `Q`|`S-Freigabe …`); 31 der
+ * 506 Codes tragen drei Rollen. Mehr fängt `RollenBadges` mit „+n" ab.
+ */
+const ROLLEN_SPALTE = 'w-[76px] shrink-0';
+
+/**
+ * Die Linie, die einen Monatsblock vom vorigen trennt — über die **ganze**
+ * Breite, Monatsspalte eingeschlossen. Ohne sie lief die Liste als ein Block
+ * durch, und die Monatsbeschriftung links hatte keinen sichtbaren Anfang.
+ */
+const MONATS_TRENNER = 'border-t border-[var(--tf-border)]';
 
 /** `2026-03` → „März 2026" in der Kurzform, die in die schmale Spalte passt. */
 function monatLabel(monat: string): string {
@@ -461,10 +472,9 @@ export function StatusChronik({
           {monate.map((m, i) => {
             const vorheriger = monate[i - 1]?.monat;
             const luecke = vorheriger === undefined ? 0 : monateDazwischen(vorheriger, m.monat);
-            const abstand = i === 0 ? '' : 'pt-2';
             return (
-              <div key={m.monat} className="flex">
-                <div className={`w-[84px] shrink-0 pr-2 ${abstand}`}>
+              <div key={m.monat} className={`flex ${MONATS_TRENNER}`}>
+                <div className="w-[84px] shrink-0 pr-2 pt-2">
                   <div className={`text-[11px] font-medium uppercase tracking-wide ${LEISE}`}>
                     {monatLabel(m.monat)}
                   </div>
@@ -474,7 +484,7 @@ export function StatusChronik({
                     </div>
                   ) : null}
                 </div>
-                <ol className={`min-w-0 flex-1 border-l border-[var(--tf-border)] ${abstand}`}>
+                <ol className="min-w-0 flex-1 border-l border-[var(--tf-border)] pt-2">
                   {m.eintraege.map(e => {
                     const r = rollenVonFeld(e.feld);
                     return (
@@ -513,7 +523,7 @@ export function StatusChronik({
             );
           })}
           {heimatlos.length > 0 && (
-            <div className="flex">
+            <div className={`flex ${MONATS_TRENNER}`}>
               <div className={`w-[84px] shrink-0 pr-2 pt-2 text-[11px] font-medium uppercase tracking-wide ${LEISE}`}>
                 ohne Bezug
               </div>

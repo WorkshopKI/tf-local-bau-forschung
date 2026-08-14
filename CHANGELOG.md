@@ -5,6 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.48.2 — Chronik: Rollenspalte fasst drei Marken, Monatslinie, dickerer Zeitstrahl (August 2026)
+
+PATCH — Vier Rückmeldungen aus dem Gebrauch der neuen Chronik, drei davon Maße: die dritte Rollenmarke schob sich in den Ereignistext, die Monatsblöcke liefen ohne Trennung ineinander, und der Zeitstrahl-Balken blieb hinter dem Entwurf zurück. Detail: [chronik-und-zeitstrahl.md](docs/status-system/chronik-und-zeitstrahl.md).
+
+- **Die Rollenspalte fasst drei Marken** (76 statt 62 px, gemessen 67,5 belegt); mehr fällt zu „+n" zusammen, dessen Titel alle nennt — betrifft genau einen der 506 Codes ([VerlaufBadges.tsx](src/plugins/antraege/status/VerlaufBadges.tsx))
+- **Rollen- und Träger-Marken sind schmaler** — ein Maß für beide, 4 statt 6 px Polster ([VerlaufBadges.tsx](src/plugins/antraege/status/VerlaufBadges.tsx))
+- **Jeder Monatsblock beginnt mit einer Linie** über die ganze Breite, Monatsspalte eingeschlossen ([StatusChronik.tsx](src/plugins/antraege/status/StatusChronik.tsx))
+- **Der Zeitstrahl-Balken ist 26 px hoch** statt 20 — das Maß des Entwurfs; die Schrift darin folgt der Konstanten statt einer eigenen Klasse ([VerlaufsBand.tsx](src/plugins/antraege/verlauf-band/VerlaufsBand.tsx))
+
 ### v4.48.1 — Startseiten-Kopf verschlankt, Sicht-Menue entrumpelt (August 2026)
 
 PATCH — Die Startseite ist Einstieg, nicht Arbeitsfläche: unter der Begrüßung stand seit v4.47 eine eigene Zeile mit zwei Chips, obwohl der Betrachtungsbereich dort dieselbe Auskunft gibt wie im Förderanträge-Kopf und auch dort gewechselt wird. Das Sicht-Menü erklärte sich zudem mit einem Absatz, dessen Zusage („Ihr Kürzel bleibt dabei stehen") nach dem Umschalten sichtbar nicht mehr stimmte.
@@ -497,133 +506,4 @@ MINOR — Umsetzung des Handoffs `_design/handoff/suche`. Der Handoff nennt den 
 - **Drei benannte Optionen statt Fachjargon** ([SuchOptionenZeile.tsx](src/plugins/suche/SuchOptionenZeile.tsx)): „genaue Wortfolge" (554) ≤ „alle Wörter" (570) ≤ „irgendein Wort" (963), Wortstämme („Normen" 3 → 28) und „Suchen in"
 - **Deutungszeile „Gesucht wird"** ([DeutungsZeile.tsx](src/plugins/suche/DeutungsZeile.tsx)) mit abwählbaren Wort- und Stamm-Chips + **Facettenzeile** ([facetten.ts](src/plugins/suche/facetten.ts)) für Liste und Tabelle; die alten Treffer-Pillen entfallen
 - **Kein-Treffer-Auswege mit geprüfter Trefferzahl** ([auswege.ts](src/plugins/suche/auswege.ts)), Startzustand mit letzten/gespeicherten/häufigen Suchen, „Warum?" je Zeile und Mehrfachauswahl
-
-### v4.5.0 — Der Durchlauf wird kuerzer: Guards frueh, Schwellen am Ist, ein Build statt zwei (August 2026)
-
-MINOR — Ein Feature-Durchlauf verlor die Zeit nicht in der Umsetzung, sondern davor und danach. Gemessen statt geschätzt: die Testsuite braucht 26 s und war nie der Engpass — dafür rissen zwei Limits ungefähr jedes zweite Feature, und ein Build lief doppelt. Beides ließ sich abstellen, ohne eine einzige Zusage aufzugeben.
-
-- **Convention-Guards thematisch geteilt** ([conventions-status](src/__tests__/conventions-status.test.ts) / [-ui](src/__tests__/conventions-ui.test.ts) / [-daten](src/__tests__/conventions-daten.test.ts) + [health-baseline](src/__tests__/health-baseline.test.ts)): 58 `describe`-Blöcke wandern wortgleich, Testanzahl unverändert — die 3 211-Zeilen-Datei stand 38 Zeilen unter ihrem eigenen Limit und riss es mit jedem neuen Guard
-- **`MAX_FILE_LOC` misst wieder Produktionscode** (1 200, Ist 1 011) und Tests getrennt (1 600, Ist 1 317): unter der alten Decke von 3 250 war `useStatusCockpit.ts` unbemerkt von 846 auf 1 011 LOC gewachsen
-- **Reißleine der Kontext-Docs auf die Unfallgrenze 30 000**, die der Kommentar seit v2.409 selbst nennt — `antraege.md` stand bei 25 786 von 26 000, und viermal knapp nachziehen hatte jedes Mal eine eigene Runde gekostet
-- **`npm run check:docs` (~6 s)** als Früh-Gate, `check:quick` fährt die volle Suite: eine reine Doc-Änderung lief mit `--changed` durch **kein** Testfile ([package.json](package.json))
-- **`build:dev` aus `check` entfernt** — der abschließende `build:devpl` baut dev ohnehin; **25 maschinell erzwungene Pitfalls** nach [pitfalls.md](docs/architecture/pitfalls.md) ausgelagert (CLAUDE.md 66 382 → 54 408 Zeichen, geht in jede Session und jeden Subagenten)
-
-### v4.4.4 — Ort und Bundesland werden durchsucht (August 2026)
-
-PATCH — „Welche Vorhaben wurden 2026 in Berlin gefördert?" war bisher nicht zu beantworten. Der Standort kam als freier Substring aber nicht durch die Messung: „essen" holte 439 zusätzliche Anträge herein — fast alle aus H·essen, nicht aus Essen. Ortsangaben werden deshalb als einziges Feld am Wortanfang verglichen.
-
-- **Ort + Bundesland im Wortlaut-Korpus** ([search-corpus.ts](src/plugins/antraege/services/search-corpus.ts)): „Berlin" → 1 392 Treffer, mit der Sicht „Bewilligt 2026" kombiniert → 68; beide Spalten je Seite, weil Firmensitz und Arbeitsort in 1 052 Sätzen auseinandergehen
-- **Bundesland aus dem Kürzel aufgelöst** (`bundeslandName`): der Export kennt nur „SN"/„BW" — als Suchwort wertlos, weil ein zweistelliges Feld nur von einer zweistelligen Anfrage getroffen wird
-- **Wortanfang statt freier Substring** (`standortSuchform`/`standortNadel`, [antraege-search-service.ts](src/plugins/antraege/services/antraege-search-service.ts)): „essen" 684 → 255, „sachsen" 4 048 → 3 286 (Niedersachsen fällt raus, Sachsen-Anhalt bleibt); Präfix-Tippen bleibt, „dresd" findet Dresden
-- **Beschriftungen nachgezogen** ([SucheLeerzustand.tsx](src/plugins/suche/SucheLeerzustand.tsx), [AntraegeHeader.tsx](src/plugins/antraege/AntraegeHeader.tsx)): „Nach Titel, Akronym, FKZ, Antragsteller oder Ort" statt des unbestimmten „Stammdaten", vierter Beispiel-Chip zeigt die Ortssuche
-- Regression unverändert: „mobiinspec" 30, „16KN083001" 1
-
-### v4.4.3 — Organisation wird durchsucht (August 2026)
-
-PATCH — „Stammdaten" war der letzte offene Teil der Zusage aus dem Leerzustand der Suche. Am Bestand gemessen war eine Einrichtung über ihren Namen praktisch unauffindbar: 3 von 14 224 Anträgen ließen sich so finden, denn der Organisationsname steht so gut wie nie im Titel oder in der Kurzbeschreibung.
-
-- **Organisation im Wortlaut-Korpus** ([search-corpus.ts](src/plugins/antraege/services/search-corpus.ts), [antraege-search-service.ts](src/plugins/antraege/services/antraege-search-service.ts)): 5 461 Einrichtungen sind jetzt über ihren Namen erreichbar — 3 → 14 224 auffindbare Anträge
-- **Zwei Spalten, ein Feld** (`verbindeOrganisation`): Rechtsperson (`ORG_AST`) und ausführende Stelle (`ORG_AFS`) weichen in 363 Sätzen voneinander ab — „Universität Münster" und „Universitätsklinikum Münster" sind derselbe Antrag; bei Gleichheit steht der Name nur einmal im Korpus
-- **Platzhalter der Antragsliste nachgezogen** ([AntraegeHeader.tsx](src/plugins/antraege/AntraegeHeader.tsx)): nennt jetzt Akronym, FKZ und Antragsteller — der Tooltip daneben versprach sie schon seit v4.4.1
-- Nicht aufgenommen: `ANTRAGSTELLER_AST` (weicht in 0 von 12 358 Sätzen von `ORG_AST` ab) und der Ort — er brächte vor allem Rauschen
-
-### v4.4.2 — Aktenzeichen wird durchsucht (August 2026)
-
-PATCH — Der Leerzustand der Suche verspricht „Nach Titel, Akronym, FKZ oder Stammdaten". Das Akronym kam mit v4.4.1 dazu, das Aktenzeichen war der letzte Teil dieser Zusage, den die Wortlaut-Stufe nie eingelöst hat — ein FKZ fand bis hierher nur, wer ein Dokument mit dieser Nummer im Index hatte.
-
-- **Aktenzeichen im Wortlaut-Korpus** ([search-corpus.ts](src/plugins/antraege/services/search-corpus.ts), [antraege-search-service.ts](src/plugins/antraege/services/antraege-search-service.ts)): „16KN083001" liefert den Antrag, „16KN0830" die 32 Sätze des ganzen Netzwerks
-- **Als einziges Feld ohne Roh-Variante** (`akzLower`) — der Rohwert ist der Schlüssel der Korpus-Map; vorberechnet, weil ein `toLowerCase()` je Eintrag und Wort genau den GC-Druck erzeugte, den die anderen Felder vermeiden
-- Gemessen: alle 14 225 Anträge stehen im Korpus, keiner bleibt per FKZ unerreichbar
-
-### v4.4.1 — Wiedereinreichungen zählen als Netzwerkantrag, Akronym wird durchsucht (August 2026)
-
-PATCH — Gemeldet war ein Suchfehler („MobiInspec Phase 1 nicht gefunden") mit vermuteter Ursache im FKZ-Suffix. Am Bestand gemessen sind es zwei Befunde: die Suffix-Regel greift tatsächlich zu eng (47 Netzwerkanträge), der gemeldete Treffer fehlte aber aus einem anderen Grund — sein Titel trägt als einziger des Netzwerks das Akronym nicht, und das Akronym stand nicht im Suchkorpus.
-
-- **Antragsnummern 03/04/05 sind Netzwerkanträge** ([netzwerk.ts](src/plugins/antraege/netzwerk.ts)): Wiedereinreichung nach Ablehnung zählt hoch (Phase 1 `01→03→05`, Phase 2 `02→04`); die Grenze zum Teilvorhaben liegt bei 10 — am Bestand belegt (1728 → 1775 Leads)
-- **Bei mehreren Versuchen gewinnt der jüngste** (`juengsterAntrag`): 18 Netzwerke tragen jetzt den Namen der gültigen statt der zurückgezogenen Einreichung („Telemedizin" statt „(Telemedizin)"); vorher entschied die Store-Reihenfolge
-- **Akronym im Wortlaut-Korpus** ([search-corpus.ts](src/plugins/antraege/services/search-corpus.ts), [antraege-search-service.ts](src/plugins/antraege/services/antraege-search-service.ts)): der Leerzustand versprach „Nach Titel, Akronym, FKZ …", durchsucht wurde das Feld nie — „mobiinspec" findet jetzt 30 statt 29 Treffer
-- **Nicht angefasst**: der Embedding-Korpus (ein geänderter Text entwertete alle maschinen-lokalen Caches) und das Aktenzeichen (FKZ-Suche bleibt offen)
-
-### v4.4.0 — Meilenstein-Editor: sichtbar anlegen, ausrücken, vergleichen (August 2026)
-
-MINOR — Fünf Rückmeldungen aus der Konfiguration, alle mit derselben Wurzel: der Baum-Editor verhielt sich wie eine Anzeige, nicht wie ein Arbeitsgerät. Der schwerste Punkt war unsichtbares Anlegen — der neue Meilenstein entstand unter einer zugeklappten Zeile und tauchte erst nach dem nächsten Laden auf. Detail: [meilensteine.md](docs/architecture/meilensteine.md), [tree-komponenten.md](docs/architecture/tree-komponenten.md).
-
-- **Angelegt heißt sichtbar** ([KonfigurationTab.tsx](src/plugins/meilensteine/KonfigurationTab.tsx)): Elternzeile klappt auf, der Regel-Bereich des Neuen steht offen, der Cursor markiert die Bezeichnung
-- **Mehrere Regel-Bereiche bleiben offen** — sie hängen an einem eigenen Satz statt an der Auswahl; die offene Zeile trägt links eine Kante, ein zweiter Klick schließt sie
-- **„Eine Ebene höher"** als Knopf und Menü-Eintrag ([knoten-edit.ts](src/core/meilensteine/knoten-edit.ts)): der Knoten wird Geschwister seines Elternteils und landet direkt dahinter — bisher führte da nur die Maus heraus
-- **Beide Ausgänge des Ziehens sind sichtbar** ([TfTree.tsx](src/components/tree/TfTree.tsx)): 3-px-Marke mit Punkt am Anfang für „dazwischen", 2-px-Rahmen für „hinein" — gilt für jeden Baum der App
-- **Regeln dichter gesetzt** ([BedingungEditor.tsx](src/plugins/meilensteine/BedingungEditor.tsx)): am echten Plan gemessen 361 → 284 px für einen Meilenstein mit vier Bedingungen (−21 %)
-
-### v4.3.0 — Verfahrensschritte wirken überall, Meilenstein-Regeln überleben den Neustart (August 2026)
-
-MINOR — Der Phasenschnitt ist seit v2.409 kuratierbar, aber drei Stellen führten weiter ihre eigene Kopie — darunter zwei Wörter („Fachprüfung", „Nachforderung"), die in KEINER Fassung ein Phasenlabel waren. Daneben ein stiller Datenverlust: der Meilenstein-Editor bot neun Bedingungs-Operatoren an, das Lesen kannte sechs. Detail: [status-achsen.md](docs/architecture/status-achsen.md), [meilensteine.md](docs/architecture/meilensteine.md).
-
-- **Alle neun Operatoren überleben den Neustart** ([plan-storage.ts](src/core/meilensteine/plan-storage.ts)); eine UND-Gruppe, die einen Zweig verliert, gilt jetzt als **nie** erfüllt statt als immer — `[].every(…)` ist `true`, der Meilenstein galt sonst für jeden Verbund als erreicht
-- **Fristlauf im Vorgangs-Board aus der Fassung** statt aus vier eingetippten Phasen-Ids ([boardFilter.ts](src/plugins/vorgangs-board/boardFilter.ts)) — die Auslieferung hält die Uhr damit in der Entscheidung an, steuerbar je Phase im Baum-Editor
-- **Handlungs-Formel zeigt nur noch die Aktion** ([naechsterSchritt.ts](src/core/utils/naechsterSchritt.ts)); ohne hinterlegte Handlung steht dort die Status-Kurzform — betrifft Home, Kanban-Widget und den Assistenten-Kontext, dessen Zeile „Phase" jetzt korrekt **Fördervariante** heißt
-- **Gutachten-Karte fragt die Arbeitsliste** statt zwei Phasen-Ids ([artefaktKarten.ts](src/plugins/antraege/artefakte/artefaktKarten.ts)) — „wer ist am Zug" ist deren Frage, und die steht im Code
-- **Guard `zah-phase-single-source`** ([codebase-conventions.test.ts](src/__tests__/codebase-conventions.test.ts)): keine feste Phasen-Id, keine Phasen-Beschriftung als Literal — auf dem Vorher-Stand hätte er alle drei Fundstellen gemeldet
-
-### v4.2.0 — Suche: Assistent am Rand, UND/ODER, größeres Feld, Rückweg (August 2026)
-
-MINOR — Die Suchseite war eine Insel: eigener Assistent-Knopf im Kopf statt des Streifens am Rand, ein Feld für „analytische Fragen" von einer Zeile Höhe, und ein Treffer-Klick ohne Rückweg. Der schwerste Punkt lag darunter — mehrere Stichwörter wurden als EINE Zeichenkette gesucht. Gemessen am Bestand (14 221 Anträge): „laser schweißen" fand **0**, jetzt 21. Detail: [assistent-panel.md](docs/architecture/assistent-panel.md), [suche.md](docs/feedback-kontext/suche.md).
-
-- **Ein Streifen auf jeder Seite** ([AssistentSpine.tsx](src/plugins/chat/assistent/AssistentSpine.tsx)): auf `/suche` schaltet er den vollen Such-Chat, sonst das schlanke Dock — der „Assistent"-Knopf im Seitenkopf entfällt, `<main>` reserviert die 28 px jetzt für jede Spine ([ShellLayout.tsx](src/core/ShellLayout.tsx))
-- **UND/ODER als Schalter** neben dem Feld ([useSuchVerknuepfung.ts](src/core/hooks/useSuchVerknuepfung.ts)): wortweise statt ganz-Zeichenkette ([antraege-search-service.ts](src/plugins/antraege/services/antraege-search-service.ts)) + Orama-`threshold` 0/1 ([orama-store.ts](src/core/services/search/orama-store.ts)) — die Ähnlichkeitssuche bleibt unberührt, sie kennt keine einzelnen Wörter
-- **„Mit KI analysieren" öffnet den Assistenten**; die zeilenweise Begründung zieht als **„Treffer begründen"** zu ihrem Gegenstück „Begründungen entfernen" in die Filterzeile ([SuchSeite.tsx](src/plugins/suche/SuchSeite.tsx))
-- **Suchfeld ist ein ziehbares `<textarea>`** ([SearchInput.tsx](src/plugins/suche/SearchInput.tsx)): Enter startet wie bisher, Shift+Enter bricht um, die Größe wird gemerkt; die Kopfzeile bricht um, statt die Bedienelemente zu quetschen
-- **Rückweg aus dem Antrags-Detail** ([herkunft.ts](src/plugins/suche/herkunft.ts)): Anfrage + Trefferfilter liegen sitzungs-lokal im [Store](src/plugins/suche/store.ts), „Zurück zur Suche" steht in der Detail-Kopfzeile — auch der Browser-Zurück-Knopf zeigt wieder Treffer
-
-### v4.1.1 — Alt-Ordner benennt, was zu tun ist (August 2026)
-
-PATCH — Der Alt-Ordner bat um „neu zuordnen", nachdem längst zugeordnet war: die Aufforderung steckte in der Beschriftung und kannte die Lage nicht. Detail: [v2-handle-architektur.md](docs/architecture/v2-handle-architektur.md).
-
-- **Die Zeile sagt, was gilt** ([wurzelLage.ts](src/core/services/personal-roots/wurzelLage.ts)): sind alle Gruppen verbunden, ist der Alt-Ordner abgelöst — „wird nicht mehr gebraucht", **Entfernen** als beschrifteter Knopf, „Erneut freigeben" bleibt als Rückweg erreichbar
-- `PERSONAL_ROOT_LEGACY_LABEL` wieder **neutral** ([personal-roots.ts](src/config/personal-roots.ts)) — es erscheint auch im Sammelbericht, wo eine Aufforderung nichts zu suchen hat
-- Seine Zeile bleibt sichtbar, **auch wenn er gerade lesbar ist**: sonst nähme ein erfolgreiches „Erneut freigeben" den einzigen Weg mit, ihn loszuwerden
-- Der erklärende Satz erscheint nur noch, wenn wirklich eine Gruppe zu verbinden ist ([WurzelnVerbinden.tsx](src/core/components/WurzelnVerbinden.tsx))
-- `'kein-zugriff'` statt `0` im Bericht, wo wegen verfallener Berechtigung gar nicht gelesen wurde ([sammelBericht.ts](src/core/services/personal-roots/sammelBericht.ts)) — der Ausgang existierte, nur erzeugte ihn niemand
-
-### v4.1.0 — Multi-Root für persönliche Ordner (August 2026)
-
-MINOR — Die persönlichen Ordner liegen ab sofort unter zwei Wurzeln statt einer (PL, Bearbeiter). Der bisherige Einzel-Slot wird zum Präfix-Slot nach dem Muster der DMS-Quellen. Das eigentliche Risiko liegt daneben: „kein Handle → `return`" war bei EINER Wurzel ehrlich, bei zweien sieht Teil-Einsammeln aus wie Erfolg. Detail: [v2-handle-architektur.md](docs/architecture/v2-handle-architektur.md).
-
-- **Wurzeln aus der Config** (`personalFolder.roots`, [personal-roots.ts](src/config/personal-roots.ts)) — eine dritte Gruppe ist ein Config-Eintrag, kein Release; `getUserFoldersRoots` ist die einzige Lesestelle und liefert auch die NICHT verbundenen (Guard `personal-roots-single-reader`)
-- **Ein Knopf je Gruppe** statt Auto-Pick im Sammel-Klick ([WurzelnVerbinden.tsx](src/core/components/WurzelnVerbinden.tsx)): unter `file://` verbraucht jeder Berechtigungs-Dialog die User-Activation, eine Schleife verhungert ab der zweiten Wurzel
-- **Bericht je Wurzel** statt Summe („PL-Ordner: 4 eingesammelt · Bearbeiter-Ordner: nicht verbunden"), 0 wird ausgeschrieben; kein harter Gate — [sammelBericht.ts](src/core/services/personal-roots/sammelBericht.ts)
-- **Dubletten-Regel** an genau einer Stelle ([juengsterGewinnt.ts](src/core/services/personal-roots/juengsterGewinnt.ts)): dieselbe Person unter zwei Wurzeln → jüngster Stand, kein Root hat Vorrang; Store-Applies laufen weiter genau einmal (Pitfall #16/#20)
-- **Stale-Guard** in [mergeSponsorVotes.ts](src/core/services/feedback/mergeSponsorVotes.ts) + [mergeFeedbackVotes.ts](src/core/services/feedback/mergeFeedbackVotes.ts): die vier `autoCollect*` sind Read-Modify-Write-Zyklen ohne Lock, ihr Batch existiert am Aufrufort nicht — eine ältere Quelldatei darf die frische Stimme nicht zurückziehen
-- Der Alt-Slot bleibt **lesbar** und erscheint als eigener Eintrag „Bisheriger Ordner (bitte neu zuordnen)" — nie automatisch einer Gruppe zugeordnet
-
-### v4.0.0 — Ablageort-Umzug + CSV-Pfad-Anzeige (August 2026)
-
-MAJOR — Der Datenordner zieht um. Ein neuer Pfad in der Config allein bewirkt dabei **nichts**: ein FSAPI-Handle hängt am Dateisystem-Objekt, nicht am Anzeigepfad — bestehende Installationen hätten still im alten Ordner weitergeschrieben, halbes Team auf neu, halbes auf alt, bei live geteilter `registry.json`. Also ein explizites Gate. Detail: [build-varianten.md](docs/architecture/build-varianten.md).
-
-- **Umzugs-Gate**: `data.shareGeneration` in der Config gegen die zuletzt verbundene Generation in der IDB; liegt sie zurück, zeigt der Start den neuen Pfad und erzwingt EIN Neu-Verbinden — [share-generation.ts](src/core/services/infrastructure/share-generation.ts), [StartupScreen.tsx](src/core/StartupScreen.tsx)
-- Der alte Handle bleibt dabei **stehen**; `connectDataShare` rollt bei falschem Ordnernamen oder gewähltem Unterordner auf ihn zurück (der Picker persistiert VOR der Prüfung) und stempelt die Generation nur am Erfolg — [connect-data-share.ts](src/core/services/infrastructure/connect-data-share.ts)
-- **CSV-Import-Pfad** (`data.fixedCsvImportPfad`) wird beim Verknüpfen angezeigt und ist kopierbar — die FSAPI erlaubt keine Vorauswahl; Kopieren und Picken bleiben zwei Knöpfe (User-Activation) — [SpeicherTab.tsx](src/plugins/einstellungen/SpeicherTab.tsx), [CsvFreshnessIndicator.tsx](src/components/ui/CsvFreshnessIndicator.tsx)
-- Der doppelt nachgebaute Pfad-Kopier-Block ist **ein** Bauteil auf `useKopierAktion` — [PfadKopierZeile.tsx](src/components/ui/PfadKopierZeile.tsx); der Beispielpfad im WelcomeScreen nennt keinen echt aussehenden Ordner mehr
-- Die Fehlermeldung des Kopier-Helfers sprach vom „Auftragstext" und stand damit wörtlich unter einem Pfad-Knopf — [kopieren.ts](src/core/utils/kopieren.ts)
-
-**Migration**: Keine Datenmigration. Beim ersten Start nach dem Rollout erscheint einmalig das Umzugs-Banner; ein Klick auf „Neuen Datenordner verbinden" genügt. Reihenfolge beim Ausrollen: **erst** den Ordner auf dem Share umziehen, **dann** die Builds mit `shareGeneration: 2` verteilen — umgekehrt landen alle im Gate, während das Ziel noch nicht existiert. Den alten Ordner nicht löschen, sondern schreibgeschützt setzen.
-
-### v3.49.0 — Kanban-Bahnen einklappbar, Kanban im eigenen Fenster (August 2026)
-
-MINOR — Gewünscht: Bahnen einklappen wie im Feedback-Board, und ein Vollbild-Zeichen, das alle eigenen Anträge in einem eigenen Fenster zeigt. Das Einklappen war ein Flag am Primitiv, das die Widgets nie gesetzt hatten — leere Bahnen waren dort 44 px, die aussahen wie ein Knopf und keiner waren. Detail: [fenster-in-fenster.md](docs/architecture/fenster-in-fenster.md) + [board-komponente.md](docs/architecture/board-komponente.md).
-
-- **Bahnen einklappbar** in beiden Home-Kanbans (`features.einklappbar`), Zustand bleibt flüchtig — [AntragKanbanWidget.tsx](src/plugins/home/widgets/AntragKanbanWidget.tsx)
-- **Kanban im eigenen Fenster**: `about:blank` erbt die Herkunft des Openers, eine zweite React-Wurzel darin teilt Realm und Stores mit der App statt sie neu zu starten; Stile und Theme werden gespiegelt und nachgeführt — [appFenster.ts](src/components/fenster/appFenster.ts), neuer Guard `no-parallel-fenster-features`
-- Dort **alle** Kategorien mit Karten (nicht nur die konfigurierten), ohne Kappung, Spaltenzahl aus dem Bestand — [kanbanLanes.ts](src/plugins/home/widgets/kanbanLanes.ts); Karten-Klick öffnet den Antrag in der App, das Verlassen der Startseite friert den Stand **sichtbar** ein
-- **Zweispalten-Boden korrigiert** (445 px `gedeckelt` / 329 px `geteilt`, vorher 300 für beide): sieben Bahnen in 1600 px landeten alle auf dem Boden, die Karte maß 132 statt 210 px — zwei Spalten machten die Karte schmaler statt die Bahn kürzer — [tf-board.css](src/components/kanban/tf-board.css)
-- Fenster-Geometrie aus der Seiten-Hilfe **gehoben** statt kopiert ([fensterGeometrie.ts](src/components/fenster/fensterGeometrie.ts)); Kategorien-Reihenfolge lag zweimal wortgleich, jetzt bei den Beschriftungen ([status-category-labels.ts](src/core/utils/status-category-labels.ts))
-
-### v3.48.0 — Chronik: wer hat gesetzt, was fehlt (August 2026)
-
-MINOR — Gewünscht: als FB auf einen Blick sehen, welche Kürzel meine sind, was der AB gesetzt hat und wo eine Seite offen steht. Beides lag längst vor — die Rolle am Feld, die Lücke im Wächter —, nur nicht in der Chronik. Dazu drei Flächen weg, die keiner benutzt. Detail: [vorgangssystem.md §16.11/§16.12](docs/architecture/vorgangssystem.md).
-
-- **Rollenspalte** (AB/FB/QS/PA/Jur) hinter dem Tag, neutrale Einträge bleiben leer; gemessen tragen 26 von 29 Zeilen ein Kürzel, Zeilenhöhe unverändert 20 px — [StatusChronik.tsx](src/plugins/antraege/status/StatusChronik.tsx)
-- **Eigene Rolle** aus dem Profil (`status_rolle`): Kante auf der Achse + Kürzel in `--tf-primary`, Kopf sagt „hervorgehoben: FB". **Hervorheben statt filtern** — der Partner bleibt sichtbar
-- **Fehlende Gegenstücke** als Zeile unter dem gesetzten Termin („Gutachten kaufmännisch fertig · fehlt seit 159 T"), **je Teilvorhaben** gerechnet und nicht als Termin gezählt — [waechter.ts](src/core/status/waechter.ts)
-- Reiter **„Zeitstrahl"** (Ereignis-Protokoll, blieb leer) entfallen, das **Band** erbt den Namen; der gespeicherte Wert bleibt `band`, ein alter `zeitstrahl` fällt auf die Chronik zurück — [timelinePrefs.ts](src/plugins/antraege/status/timelinePrefs.ts)
-- **Fristen-Band der Detailseite** entfernt — es stand vor dem Aufklapp-Rumpf und war die einzige nicht schließbare Fläche; mit ihm `StatusTimeline`, `baueLanes`/`clustere`, `aufzeichnungsGrenze` und `fristen-band/`
 

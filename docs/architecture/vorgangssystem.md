@@ -2309,10 +2309,10 @@ Kopfkarte und „Offene Aufgaben" = was zu tun ist. Die To-do-Engine ein drittes
 Mal zu rendern wäre eine zweite Wahrheit gewesen.
 
 Gemessen am Bestand (dev:local, 29 Termine): Zeilenhöhe unverändert 20 px, kein
-Scrollbereich, die Rollenspalte kostet 38 px Breite. Sie füllt sich gut — in
-einem typischen Vorgang tragen 26 von 29 Zeilen ein Kürzel. Drei Rollen
-(`AB/FB/QS`, 32 von 505 Codes) kürzen mit Auslassungspunkt; der Tooltip nennt
-alle im Klartext.
+Scrollbereich. Die Rollenspalte trug anfangs Text (`AB/FB/QS`, mit Auslassungs-
+punkt gekürzt) auf 38 px; seit v4.48 stehen dort **getönte Marken** in derselben
+Farbe wie die Filterleiste, auf drei Marken bemessen — Maße und der „+n"-Fall
+in [chronik-und-zeitstrahl.md](../status-system/chronik-und-zeitstrahl.md).
 
 ### 16.12 Was mit v3.48 wegfiel
 

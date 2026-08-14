@@ -89,6 +89,20 @@ Filterleiste ist damit die Legende**; eine zweite gibt es nicht.
   lagen bei fünf von zehn Kombinationen darunter (hell PA 4,31; dunkel PA 4,04 /
   AB 4,11 / FB 4,42 / QS 4,02) — bei 10,5-px-Marken keine Feinheit.
 
+### Wie breit eine Marke sein darf
+
+Rollen- und Träger-Marken teilen **ein** Maß ([VerlaufBadges.tsx](../../src/plugins/antraege/status/VerlaufBadges.tsx)):
+17 px hoch, 4 px Polster, 3 px Abstand — gemessen 19–21 px je Marke, 27 px für
+eine Träger-Marke (`TV1`).
+
+Die Rollenspalte ist auf **drei** Marken bemessen (76 px; gemessen belegt sie im
+Bestand höchstens 67,5). 31 der 506 Codes tragen drei Rollen, genau einer vier
+(`IP`, „Kenntnisnahme von Insolvenz des Partners" — AB/FB/QS/Jur). Eine Spalte
+für diesen einen zu bemessen kostete auf jeder Zeile jedes Vorgangs Breite; ihn
+überlaufen zu lassen schob die Marken in den Ereignistext (v4.48.0, korrigiert in
+v4.48.1). Darum fällt der Rest zu „+n" zusammen, dessen Titel alle Rollen nennt —
+dieselbe Mechanik wie bei den Träger-Marken.
+
 ## Zustand: was bleibt, was flüchtig ist
 
 | Was | Wo | Warum |
@@ -148,5 +162,8 @@ Termin. Sie stehen daneben und sind klickbar.
   C16-Trigger-Tabelle abgeleitete Phase; ihn nach Rolle einzufärben ändert, was
   das Bild behauptet. Bis dahin steht die Filterleiste **nur** über der Chronik
   — ein Bedienelement ohne Wirkung wäre ein gebrochenes Versprechen.
+  Übernommen ist bislang allein das **Maß**: der Balken ist seit v4.48.1 26 px
+  hoch (`BALKEN_H`, das `.track` des Entwurfs) statt 20 — bei 11-px-Schrift darin
+  las sich das schmalere Band als Strich mit Text darauf, nicht als Fläche.
 - **Export** („Verlauf kopieren", „Als XLSX") — im Entwurf angelegt, Zielformat
   offen (Matrix oder Ereignisliste).

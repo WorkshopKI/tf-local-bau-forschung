@@ -22,8 +22,20 @@ import { ROLLE_LABEL, ROLLE_LANG, ROLLE_GEDIMMT, rollenFarbe, sortiereRollen, ty
 const ALLE_AB = 4;
 /** Wie viele Träger einzeln stehen, bevor der Rest zu „+n" wird. */
 const EINZELN_MAX = 4;
+/**
+ * Wie viele Marken eine Rollenspalte hält. **Drei**, weil die Spalte auf drei
+ * bemessen ist: 31 der 506 Codes tragen drei Rollen, genau einer vier (`IP`,
+ * „Kenntnisnahme von Insolvenz des Partners" — AB/FB/QS/Jur). Eine Spalte für
+ * diesen einen zu bemessen, kostete auf jeder Zeile jedes Vorgangs Breite; ihn
+ * überlaufen zu lassen, schöbe die Marken in den Ereignistext (bis v4.48.1 zu
+ * sehen). Der Rest fällt darum zu „+n" zusammen, dessen Titel alle nennt.
+ */
+const ROLLEN_MAX = 3;
 
-const MARKE = 'inline-flex items-center rounded-[4px] px-1.5 h-[17px] text-[10.5px] leading-none';
+/** Polster und Höhe einer Marke — beide Marken tragen dasselbe Maß. */
+const MARKE = 'inline-flex items-center rounded-[4px] px-1 h-[17px] text-[10.5px] leading-none';
+/** Abstand zwischen zwei Marken derselben Zeile. */
+const ABSTAND = 'gap-[3px]';
 
 /**
  * Die Rollen einer Zeile als getönte Marken.
@@ -41,9 +53,12 @@ export function RollenBadges({ rollen, gedimmt = false }: {
 }): React.ReactElement | null {
   const sortiert = sortiereRollen(rollen);
   if (sortiert.length === 0) return null;
+  const zuViele = sortiert.length > ROLLEN_MAX;
+  const sichtbar = zuViele ? sortiert.slice(0, ROLLEN_MAX - 1) : sortiert;
+  const rest = sortiert.length - sichtbar.length;
   return (
-    <span className="inline-flex items-center gap-1">
-      {sortiert.map(r => {
+    <span className={`inline-flex items-center ${ABSTAND}`}>
+      {sichtbar.map(r => {
         const farbe = gedimmt ? ROLLE_GEDIMMT : rollenFarbe(r);
         return (
           <span
@@ -60,6 +75,19 @@ export function RollenBadges({ rollen, gedimmt = false }: {
           </span>
         );
       })}
+      {rest > 0 && (
+        <span
+          className={MARKE}
+          style={{
+            background: ROLLE_GEDIMMT.flaeche,
+            color: ROLLE_GEDIMMT.text,
+            border: '0.5px solid var(--tf-border)',
+          }}
+          title={sortiert.map(r => ROLLE_LANG[r]).join('\n')}
+        >
+          +{rest}
+        </span>
+      )}
     </span>
   );
 }
@@ -114,7 +142,7 @@ export function TraegerBadges({ tvIds, nummern, gesamt }: {
   const sichtbar = tvIds.slice(0, EINZELN_MAX);
   const rest = tvIds.length - sichtbar.length;
   return (
-    <span className="inline-flex items-center gap-1">
+    <span className={`inline-flex items-center ${ABSTAND}`}>
       {sichtbar.map(id => <Traeger key={id} text={beschriftung(id)} titel={id} />)}
       {rest > 0 && <Traeger text={`+${rest}`} titel={alleTitel} />}
     </span>
