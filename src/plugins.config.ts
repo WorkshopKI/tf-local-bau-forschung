@@ -3,7 +3,6 @@ import { homePlugin } from '@/plugins/home';
 import { einstellungenPlugin } from '@/plugins/einstellungen';
 import { dokumentePlugin } from '@/plugins/dokumente/index';
 import { suchePlugin } from '@/plugins/suche';
-import { adminPlugin } from '@/plugins/kurator';
 import { feedbackBoardPlugin } from '@/plugins/feedback-board';
 import { devInfrastructureTestPlugin } from '@/plugins/dev-infrastructure-test';
 import { devStateInspectorPlugin } from '@/plugins/dev-state-inspector';
@@ -11,10 +10,7 @@ import { antraegePlugin } from '@/plugins/antraege';
 import { anfragenPlugin } from '@/plugins/anfragen';
 import { kurationPlugin } from '@/plugins/kuration';
 import { auslastungPlugin } from '@/plugins/auslastung';
-import { programmeAdminPlugin } from '@/plugins/programme-kuration';
 import { csvSourcesAdminPlugin } from '@/plugins/csv-sources-kuration';
-import { filterAdminPlugin } from '@/plugins/filter-kuration';
-import { dokumentenquellenKurationPlugin } from '@/plugins/dokumentenquellen-kuration';
 import { dokumentReviewPlugin } from '@/plugins/dokument-review';
 import { skillVerwaltungPlugin } from '@/plugins/skill-verwaltung-kuration';
 import { mapFoerderfaehigPlugin } from '@/plugins/map-foerderfaehig';
@@ -42,11 +38,7 @@ const allPlugins: TeamFlowPlugin[] = [
   skillVerwaltungPlugin,
   einstellungenPlugin,
   kurationPlugin,
-  adminPlugin,
-  programmeAdminPlugin,
   csvSourcesAdminPlugin,
-  dokumentenquellenKurationPlugin,
-  filterAdminPlugin,
   dokumentReviewPlugin,
   devInfrastructureTestPlugin,
   devStateInspectorPlugin,

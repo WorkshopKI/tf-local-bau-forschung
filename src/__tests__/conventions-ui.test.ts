@@ -93,14 +93,16 @@ describe('no-raw-async-onclick (CLAUDE.md Pitfall #15)', () => {
     'src/plugins/kuration/dokumentenquellen/sections/AktivierenIndexierenSection.tsx',
     'src/plugins/kuration/dokumentenquellen/sections/VerwaltenSection.tsx',
     'src/plugins/kuration/dokumentenquellen/components/SubRootsTreePicker.tsx',
-    // src/plugins/filter-kuration/, antraege/, einstellungen/ etc.
-    'src/plugins/filter-kuration/dialogs/FilterEditDialog.tsx',
-    'src/plugins/filter-kuration/sections/AdminCustomFilterList.tsx',
+    // Filter + Programme — mit v4.36 aus `src/plugins/{filter,programme}-kuration/`
+    // ins Panel „Verzeichnisse" gezogen; die Pfade ziehen mit (siehe oben).
+    'src/plugins/kuration/verzeichnisse/filter/dialogs/FilterEditDialog.tsx',
+    'src/plugins/kuration/verzeichnisse/filter/sections/AdminCustomFilterList.tsx',
+    'src/plugins/kuration/verzeichnisse/programme/unterprogramme/UnterprogrammXlsxImportDialog.tsx',
+    // antraege/, einstellungen/ etc.
     'src/plugins/antraege/filter/FilterSidebar.tsx',
     'src/plugins/antraege/filter/SavePresetDialog.tsx',
     // (einstellungen/MeineTechnologienTab.tsx + KuratorSessionPanel.tsx sind mit
     //  dem Redesign v4.28/v4.29 entfallen — die Nachfolger nutzen useAsyncAction.)
-    'src/plugins/programme-kuration/unterprogramme/UnterprogrammXlsxImportDialog.tsx',
   ]);
 
   const pattern = /onClick=\{\(\)\s*=>\s*void\s+/;

@@ -60,6 +60,10 @@ const LEGACY_REDIRECTS: Record<string, string> = {
   '/admin/programme': '/kuration/programme',
   '/admin/csv-sources': '/kuration/csv-quellen',
   '/admin/filter': '/kuration/filter',
+  // Zeigte bis v4.34 auf `/kuration/unterprogramme` — eine Route, die es nie
+  // gab; der Weg endete im Catch-all auf der Startseite. Seit die
+  // Unterprogramme eine Gruppe im Panel „Verzeichnisse" sind, hat er ein Ziel.
+  '/admin/unterprogramme': '/kuration/unterprogramme',
   // Das Feedback-Board hat die Kurations-Seite mit v2.364 aufgenommen; bis
   // v4.33 zeigte dieser Eintrag auf `/kuration/feedback`, das es seitdem nicht
   // mehr gibt — der Weg endete im Catch-all auf der Startseite.
@@ -68,6 +72,12 @@ const LEGACY_REDIRECTS: Record<string, string> = {
   '/kuration/anfragen': '/kuration?panel=dienste',
   '/kuration/suchindex': '/kuration?panel=suche-index',
   '/kuration/dokumentenquellen': '/kuration?panel=suche-index&sektion=sec-dokumentenquellen',
+  // v4.36
+  '/kuration/programme': '/kuration?panel=verzeichnisse',
+  '/kuration/filter': '/kuration?panel=verzeichnisse&sektion=sec-filter',
+  // Zeigte bis v4.33 auf eine Seite, die es nie gab (der Weg endete im
+  // Catch-all auf der Startseite) — jetzt hat er ein echtes Ziel.
+  '/kuration/unterprogramme': '/kuration?panel=verzeichnisse&sektion=sec-unterprogramme',
 };
 
 /**

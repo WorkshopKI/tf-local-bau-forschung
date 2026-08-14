@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.36.0 — Programme und Filter werden ein Panel (August 2026)
+
+MINOR — Zwei weitere Kurator-Seiten werden ein Panel. Beide beschreiben dieselbe Sache — die Ordnung, in der die importierten Daten stehen — und hängen an derselben Voraussetzung: dem aktiven Programm. Die Filterseite nannte es nie, obwohl ihre Liste daran hing.
+
+- **Panel „Verzeichnisse"** ([VerzeichnissePanel.tsx](src/plugins/kuration/verzeichnisse/VerzeichnissePanel.tsx)): Programme, Unterprogramme und Filter auf einer Seite; jede Gruppe nennt das Programm, für das sie gilt
+- **Drei Filter-Reiter werden drei Klappen mit Zähler** ([FilterGruppe.tsx](src/plugins/kuration/verzeichnisse/filter/FilterGruppe.tsx)): alle drei Bestände sind gleichzeitig sichtbar, statt zwei davon hinter Reitern zu liegen
+- **Ein Sperr-Hinweis statt vier Handkopien** ([KuratorGesperrtHinweis.tsx](src/components/kurator/KuratorGesperrtHinweis.tsx)): die alten Kopien wiesen seit v4.28 auf einen Einstellungs-Weg, den es nicht mehr gibt
+- **Panel ohne Nebenspalte bleibt einspaltig** ([settings-layout.css](src/components/settings/settings-layout.css)): bis hierher räumte das Raster der leeren zweiten Spalte 43 % ein — Listen-Panels standen auf halber Seite
+- **Zwei Wege repariert**: `/admin/unterprogramme` hat wieder ein Ziel ([routes.ts](src/core/routes.ts)); „Öffnen" auf der Suchindex-Zeile der Übersicht landete seit v4.35 auf der Startseite ([UebersichtPanel.tsx](src/plugins/kuration/uebersicht/UebersichtPanel.tsx))
+
 ### v4.35.0 — Suchindex und Dokumentenquellen werden ein Panel (August 2026)
 
 MINOR — Zwei Seiten, die dieselbe Frage beantworten, werden ein Panel: welche Ordner der Index einliest und wie er danach steht. Der Tab-Schnitt „Übersicht"/„Verwaltung" entfällt — er trennte die Aktion von dem Zustand, auf den sie wirkt.

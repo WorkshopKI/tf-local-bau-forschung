@@ -45,6 +45,7 @@ export function SettingsHubPage({
   titel,
   pluginId,
   panels,
+  hinweis,
 }: {
   /** Überschrift der Seite — auch die Vorlese-Beschriftung des Suchfelds. */
   titel: string;
@@ -52,6 +53,13 @@ export function SettingsHubPage({
   pluginId: string;
   /** Flag-gefilterte Panel-Registry des Wirts. Nie leer. */
   panels: SettingsPanel[];
+  /**
+   * Eine Aussage über die GANZE Seite, unter der Kopfzeile und über der
+   * Navigationsspalte — für die Kuration der Sperr-Hinweis. Gehört hierher und
+   * nicht in die Panels: er gilt für alle gleichermaßen, und in jedem Panel
+   * einzeln stünde er wieder viermal da.
+   */
+  hinweis?: React.ReactNode;
 }): React.ReactElement {
   const [activePanel, setActivePanel] = useState(panels[0]?.id ?? '');
 
@@ -160,6 +168,8 @@ export function SettingsHubPage({
         <h1 className="text-[22px] font-medium text-[var(--tf-text)]">{titel}</h1>
         <div className="ml-auto shrink-0"><SeitenHilfeButton pluginId={pluginId} /></div>
       </div>
+
+      {hinweis != null && <div className="max-w-[1280px]">{hinweis}</div>}
 
       <div className="grid grid-cols-[224px_1fr] items-start gap-0 max-w-[1280px]">
         <SettingsNav

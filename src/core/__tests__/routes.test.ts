@@ -43,6 +43,27 @@ describe('legacyRedirectTarget', () => {
 
   it('fuehrt die aufgeloesten Kuration-Seiten in ihr Panel', () => {
     expect(legacyRedirectTarget('/kuration/anfragen')).toBe('/kuration?panel=dienste');
+    expect(legacyRedirectTarget('/kuration/suchindex')).toBe('/kuration?panel=suche-index');
+    expect(legacyRedirectTarget('/kuration/programme')).toBe('/kuration?panel=verzeichnisse');
+  });
+
+  it('springt bei Seiten, die nur eine GRUPPE geworden sind, auf ihren Anker', () => {
+    // `/kuration/filter` war eine ganze Seite; im Panel „Verzeichnisse" ist sie
+    // die dritte Karte. Ohne `&sektion=` laendete das Lesezeichen am Seitenkopf,
+    // und der Nutzer muesste suchen, was er im Lesezeichen hatte.
+    expect(legacyRedirectTarget('/kuration/filter'))
+      .toBe('/kuration?panel=verzeichnisse&sektion=sec-filter');
+    expect(legacyRedirectTarget('/kuration/dokumentenquellen'))
+      .toBe('/kuration?panel=suche-index&sektion=sec-dokumentenquellen');
+  });
+
+  it('gibt /admin/unterprogramme wieder ein Ziel', () => {
+    // Der Eintrag zeigte auf `/kuration/unterprogramme` — eine Route, die es nie
+    // gab; er fiel bis v4.34 in den Catch-all. Seit die Unterprogramme eine
+    // Gruppe im Panel sind, traegt die zweite Stufe ihn ans richtige Ziel.
+    expect(legacyRedirectTarget('/admin/unterprogramme')).toBe('/kuration/unterprogramme');
+    expect(legacyRedirectTarget('/kuration/unterprogramme'))
+      .toBe('/kuration?panel=verzeichnisse&sektion=sec-unterprogramme');
   });
 
   it('haengt bei Panel-Zielen KEIN Unterpfad-Suffix an die Query', () => {

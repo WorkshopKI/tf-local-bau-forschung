@@ -1,5 +1,10 @@
+/**
+ * Gruppe „Unterprogramme" im Panel „Verzeichnisse" — bis v4.35 der untere Teil
+ * der Seite `/kuration/programme`. Sie haengt am AKTIVEN Programm; die Zeile
+ * „Gilt fuer …" sagt das, weil die Tabelle sonst nicht verraet, welchen
+ * Ausschnitt sie zeigt.
+ */
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Button } from '@/components/ui/button';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useKuratorSession } from '@/core/hooks/useKuratorSession';
 import {
@@ -8,6 +13,7 @@ import {
   logUnterprogrammChange,
 } from '@/core/services/csv';
 import type { Unterprogramm } from '@/core/services/csv/types';
+import { SettingsGruppe, SettingsGruppenAktion, SettingsLeer } from '@/components/settings';
 import { UnterprogrammRow } from './UnterprogrammRow';
 import { AktivConfirmDialog } from './AktivConfirmDialog';
 import { UnterprogrammXlsxImportDialog } from './UnterprogrammXlsxImportDialog';
@@ -38,7 +44,7 @@ function compareUp(a: Unterprogramm, b: Unterprogramm, key: SortKey): number {
   }
 }
 
-export function UnterprogrammeSection({ programmId, programmName }: Props): React.ReactElement {
+export function UnterprogrammeGruppe({ programmId, programmName }: Props): React.ReactElement {
   const storage = useStorage();
   const session = useKuratorSession();
   const [ups, setUps] = useState<Unterprogramm[]>([]);
@@ -123,48 +129,43 @@ export function UnterprogrammeSection({ programmId, programmName }: Props): Reac
   const totalActive = ups.filter(u => u.aktiv).length;
   const totalAntraege = ups.reduce((s, u) => s + (u.antrag_count_cached ?? 0), 0);
 
-  const headline = programmName
-    ? `Unterprogramme von „${programmName}"`
-    : 'Unterprogramme';
+  const unterzeile = programmName
+    ? `Gilt für „${programmName}" — ${totalActive} von ${ups.length} aktiv.`
+    : `${totalActive} von ${ups.length} aktiv.`;
 
   return (
-    <section className="mt-10">
-      <div className="flex items-end justify-between mb-3 gap-4">
-        <div>
-          <h2 className="text-[18px] font-medium text-[var(--tf-text)]">{headline}</h2>
-          <p className="mt-1 text-[12.5px] text-[var(--tf-text-secondary)]">
-            {ups.length} Unterprogramme · {totalActive} aktiv · {totalAntraege.toLocaleString('de-DE')} Anträge insgesamt
-          </p>
-        </div>
-        <Button
-          size="sm"
-          variant="outline"
+    <SettingsGruppe
+      id="sec-unterprogramme"
+      titel="Unterprogramme"
+      unterzeile={unterzeile}
+      hint="Unterprogramme entstehen beim CSV-Import automatisch aus der Spalte, die auf unterprogramm_id gemappt ist — angelegt wird hier keines. Kuratierbar sind Label, geplanter Zeitraum und das Aktiv-Häkchen; aktiv steuert, welche in Auswahllisten erscheinen."
+      rechts={`${totalAntraege.toLocaleString('de-DE')} Anträge`}
+      aktion={
+        <SettingsGruppenAktion
           disabled={!session.isActive || ups.length === 0}
           onClick={() => setImportOpen(true)}
         >
-          Labels aus XLSX importieren …
-        </Button>
-      </div>
-
-      {!session.isActive ? (
-        <div className="mb-4 text-[12.5px] text-[var(--tf-text-secondary)]">
-          Kurator-Modus nicht aktiv. Inline-Bearbeitung und XLSX-Import deaktiviert. Aktivierung in Einstellungen → Profil → Kurator-Bereich.
-        </div>
-      ) : null}
-
+          Labels aus XLSX …
+        </SettingsGruppenAktion>
+      }
+    >
       {flash && (
-        <div className="mb-4 px-3 py-2 rounded text-[12.5px] bg-emerald-50 text-emerald-800 border border-emerald-200">
+        <div
+          className="mt-1 mb-2 px-3 py-2 rounded-[var(--tf-radius)] text-[12.5px]"
+          style={{ background: 'var(--tf-success-bg)', color: 'var(--tf-success-text)' }}
+        >
           {flash}
         </div>
       )}
 
       {ups.length === 0 ? (
-        <div className="py-10 text-center text-[13px] text-[var(--tf-text-tertiary)]">
-          Noch keine Unterprogramme. Importiere eine Master-CSV mit Mapping auf <span className="font-mono">unterprogramm_id</span> —
-          beim Import werden die gefundenen Unterprogramme automatisch registriert.
-        </div>
+        <SettingsLeer>
+          Noch keine Unterprogramme. Importiere eine Master-CSV mit Mapping auf{' '}
+          <span className="font-mono">unterprogramm_id</span> — beim Import werden die
+          gefundenen Unterprogramme automatisch registriert.
+        </SettingsLeer>
       ) : (
-        <div className="overflow-x-auto" style={{ border: '0.5px solid var(--tf-border)', borderRadius: 12 }}>
+        <div className="overflow-x-auto mt-1" style={{ border: '0.5px solid var(--tf-border)', borderRadius: 10 }}>
           <table className="w-full text-[13px]">
             <thead>
               <tr className="text-left text-[11px] uppercase tracking-wider text-[var(--tf-text-tertiary)]">
@@ -209,7 +210,7 @@ export function UnterprogrammeSection({ programmId, programmName }: Props): Reac
           void refresh();
         }}
       />
-    </section>
+    </SettingsGruppe>
   );
 }
 

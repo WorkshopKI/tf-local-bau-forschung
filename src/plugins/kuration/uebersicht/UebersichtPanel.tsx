@@ -28,6 +28,7 @@ import {
   SettingsStatusBadge,
   SettingsTrustZeile,
   SettingsZweiSpalten,
+  useHubNavigation,
   type SettingsBadgeTon,
 } from '@/components/settings';
 import { useKurationLage } from './useKurationLage';
@@ -53,6 +54,12 @@ export function UebersichtPanel(): React.ReactElement {
   const csv = useCsvFreshness();
   const csvAussage = csvFreshnessAussage({ state: csv.state, misconfig: csv.misconfig });
   const { navigate } = useNavigation();
+  // Ziele im eigenen Hub werden als PANEL angesprungen, nicht als Route: ein
+  // `navigate('/kuration')` montierte den Hub neu. Bis v4.35 stand hier
+  // `navigate('kurator')` — die Id des Plugins, das in eben diesem Umbau zum
+  // Panel geworden war; `pluginIdToRoute` fiel auf `/` zurueck und der Knopf
+  // landete auf der Startseite.
+  const hub = useHubNavigation();
   const storage = useStorage();
   const session = useKuratorSession();
   const sperren = useAsyncAction(async () => {
@@ -86,7 +93,12 @@ export function UebersichtPanel(): React.ReactElement {
                 : 'wird gelesen …'
             }
           >
-            <Button type="button" variant="secondary" size="sm" onClick={() => navigate('kurator')}>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={() => hub.geheZuPanel('suche-index')}
+            >
               Öffnen
             </Button>
           </SettingsOption>

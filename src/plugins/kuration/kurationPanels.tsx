@@ -11,10 +11,11 @@
  * Sichtbarkeit folgt den Feature-Flags; der Suchindex leitet sich aus den
  * sichtbaren Abschnitten ab und respektiert sie dadurch automatisch.
  */
-import { LayoutDashboard, Plug, Search } from 'lucide-react';
+import { FolderTree, LayoutDashboard, Plug, Search } from 'lucide-react';
 import type { SettingsPanel } from '@/components/settings';
 import { features } from '@/config/feature-flags';
 import { UebersichtPanel } from './uebersicht/UebersichtPanel';
+import { VerzeichnissePanel } from './verzeichnisse/VerzeichnissePanel';
 import { SucheIndexPanel } from './suche-index/SucheIndexPanel';
 import { DienstePanel } from './dienste/DienstePanel';
 
@@ -36,6 +37,24 @@ export function getKurationPanels(): SettingsPanel[] {
       { id: 'sec-sitzung', label: 'Kurator-Sitzung', gruppe: 'Kurator-Sitzung', keywords: 'sitzung session freischaltung sperren anmelden ttl restlaufzeit kurator' },
     ],
     render: () => <UebersichtPanel />,
+  });
+
+  // Bis v4.35 zwei eigene Seiten („Programme", „Filter verwalten"). Beide alten
+  // Seitennamen bleiben als Suchbegriffe.
+  panels.push({
+    id: 'verzeichnisse',
+    label: 'Verzeichnisse',
+    untertitel: 'Die Ordnung, in der die importierten Daten stehen.',
+    icon: FolderTree,
+    sections: [
+      { id: 'sec-programme', label: 'Programme', gruppe: 'Programme', keywords: 'programm förderprogramm zim exist anlegen umbenennen löschen aktiv wechseln scope' },
+      { id: 'sec-unterprogramme', label: 'Unterprogramme', gruppe: 'Unterprogramme', keywords: 'unterprogramm modul label zeitraum aktiv xlsx import codes' },
+      { id: 'sec-filter', label: 'Filter verwalten', gruppe: 'Filter', keywords: 'filter facette sidebar antragsliste verwalten anlegen' },
+      { id: 'sec-filter-kurator', label: 'Kurator-Filter', gruppe: 'Filter', keywords: 'custom eigene filter team anlegen bearbeiten reihenfolge' },
+      { id: 'sec-filter-system', label: 'System-Filter', gruppe: 'Filter', keywords: 'eingebaut system versteckt ausblenden read-only' },
+      { id: 'sec-filter-nutzer', label: 'Nutzer-Vorlagen', gruppe: 'Filter', keywords: 'preset user vorlage privat gespeichert kombination' },
+    ],
+    render: () => <VerzeichnissePanel />,
   });
 
   // Bis v4.34 die eigene Seite „Suchindex" mit den Reitern „Übersicht" und

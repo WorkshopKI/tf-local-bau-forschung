@@ -19,6 +19,17 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.36 — 2026-08
+
+### Verbesserungen
+- „Programme" und „Filter verwalten" sind keine eigenen Menüpunkte mehr, sondern die Seite **Kuration → Verzeichnisse**. Programme, Unterprogramme und Filter stehen dort untereinander.
+- Bei den Filtern siehst du jetzt alle drei Bestände auf einen Blick — eingebaute, eigene und die privaten Vorlagen der Nutzer, jeweils mit Anzahl. Vorher lagen zwei davon hinter Reitern.
+- Jede Gruppe sagt, für welches Programm sie gilt. Bei den Filtern stand das vorher nirgends.
+- Ist der Kurator-Modus nicht freigeschaltet, steht das einmal oben auf der Seite — mit dem richtigen Weg dorthin.
+
+### Bugfixes
+- „Öffnen" beim Suchindex auf der Kurations-Übersicht führte auf die Startseite statt zum Suchindex.
+
 ## v4.35 — 2026-08
 
 *(Nur für Kuratoren sichtbar.)*

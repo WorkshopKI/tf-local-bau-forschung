@@ -28,8 +28,14 @@
   align-items: start;
 }
 
+/*
+ * Zwei Spalten NUR, wenn es eine zweite gibt. `neben` ist optional (Panels aus
+ * Listen und Tabellen brauchen die Breite), und ohne diese Bedingung raeumte
+ * das Raster der leeren zweiten Spalte trotzdem 43 % ein — die Karten stuenden
+ * dann auf halber Seite neben einer weissen Flaeche.
+ */
 @container (min-width: 900px) {
-  .tf-set-grid {
+  .tf-set-grid:has(> .tf-set-neben) {
     grid-template-columns: minmax(0, 1.32fr) minmax(0, 1fr);
     gap: 0 26px;
   }

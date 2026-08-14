@@ -1,0 +1,1 @@
+export { KuratorGesperrtHinweis } from './KuratorGesperrtHinweis';
