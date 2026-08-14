@@ -4,7 +4,7 @@ import {
   searchSettings,
   type SettingsPanel,
   type SettingsSearchEntry,
-} from './settingsPanels';
+} from './panels';
 
 interface SettingsNavProps {
   panels: SettingsPanel[];
@@ -12,12 +12,14 @@ interface SettingsNavProps {
   onSelectPanel: (id: string) => void;
   searchIndex: SettingsSearchEntry[];
   onGoToSection: (panelId: string, sectionId: string) => void;
+  /** Vorlese-Beschriftung des Suchfelds („Einstellungen durchsuchen"). */
+  suchLabel: string;
 }
 
 /**
- * Settings-Navigation (Design-Handoff `einstellungen-zweispaltig`): Suchfeld
- * über einer flachen Liste der vier Seiten. Reine Präsentation — Auswahl und
- * Sprung-zu-Abschnitt kommen als Callbacks aus der EinstellungenPage.
+ * Navigationsspalte eines Hubs (Design-Handoff `einstellungen-zweispaltig`):
+ * Suchfeld über einer flachen Liste der Seiten. Reine Präsentation — Auswahl
+ * und Sprung-zu-Abschnitt kommen als Callbacks aus `SettingsHubPage`.
  *
  * Jeder Treffer nennt seinen Weg (`Seite › Gruppe`): die Seite allein trägt bis
  * zu acht Karten, „Mein Profil" sagt also noch nicht, wohin der Sprung geht.
@@ -28,6 +30,7 @@ export function SettingsNav({
   onSelectPanel,
   searchIndex,
   onGoToSection,
+  suchLabel,
 }: SettingsNavProps): React.ReactElement {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState('');
@@ -84,7 +87,7 @@ export function SettingsNav({
             onKeyDown={onKeyDown}
             placeholder="Suchen"
             autoComplete="off"
-            aria-label="Einstellungen durchsuchen"
+            aria-label={suchLabel}
             className="flex-1 min-w-0 bg-transparent outline-none text-[13px] text-[var(--tf-text)] placeholder:text-[var(--tf-text-tertiary)]"
           />
         </div>

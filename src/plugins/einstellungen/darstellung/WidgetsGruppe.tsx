@@ -26,7 +26,7 @@ import { useHomeWidgets } from '@/plugins/home/widgets/useHomeWidgets';
 import { WIDGET_KATALOG, listeKatalog } from '@/plugins/home/widgets/widgetCatalog';
 import { WidgetConfigForm } from '@/plugins/home/widgets/WidgetConfigForm';
 import { hatWidgetDetailConfig, type WidgetInstanz } from '@/plugins/home/widgets/types';
-import { SettingsGruppe, SettingsKlappe, SettingsOption } from '../_shared/settings-layout';
+import { SettingsGruppe, SettingsKlappe, SettingsOption } from '@/components/settings';
 
 export function WidgetsGruppe(): React.ReactElement {
   const api = useHomeWidgets();

@@ -6,7 +6,7 @@
  * Startseiten-Widgets — die eigentlich woanders konfiguriert werden und hier
  * nur ihre vollständige Liste haben.
  */
-import { SettingsZweiSpalten } from '../_shared/settings-layout';
+import { SettingsZweiSpalten } from '@/components/settings';
 import { ErscheinungsbildGruppe } from './ErscheinungsbildGruppe';
 import { TastaturGruppe } from './TastaturGruppe';
 import { WidgetsGruppe } from './WidgetsGruppe';

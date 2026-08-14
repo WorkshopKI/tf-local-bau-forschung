@@ -7,7 +7,7 @@
  */
 import { Badge } from '@/components/ui/badge';
 import { SettingsNoteCard } from '../_shared/settings-primitives';
-import { SettingsGruppe } from '../_shared/settings-layout';
+import { SettingsGruppe } from '@/components/settings';
 
 export function DokumentenquellenGruppe(): React.ReactElement {
   return (

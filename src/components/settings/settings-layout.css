@@ -1,5 +1,5 @@
 /*
- * Zweispalten-Umbruch der Einstellungen (Design-Handoff
+ * Zweispalten-Umbruch der Einstellungs-Seitenform (Design-Handoff
  * `_design/handoff/einstellungen-zweispaltig`).
  *
  * Gemessen wird die INHALTSBREITE, nicht der Viewport: die App-Sidebar ist
@@ -9,8 +9,13 @@
  * `src/plugins/feedback-board/ticketsystem.css`.
  *
  * Der Rest des Layouts (Karten, Abstaende, Farben) laeuft ueber Tailwind +
- * `--tf-*` in `_shared/settings-layout.tsx` — hier stehen NUR die Regeln, die
- * eine Container-Query brauchen.
+ * `--tf-*` in `settings-layout.tsx` — hier stehen NUR die Regeln, die eine
+ * Container-Query brauchen.
+ *
+ * Eingebunden wird diese Datei vom Modul selbst (`settings-layout.tsx`), nicht
+ * von der Seite: bis v4.32 hing der Import an `EinstellungenPage`, und ein
+ * zweiter Wirt, der ihn nicht spiegelt, stuende einspaltig und ohne
+ * Trefferring da.
  */
 .tf-set-cols {
   container-type: inline-size;

@@ -23,7 +23,7 @@ import { connectInternalKi } from '@/core/services/ai/connect-ki';
 import type { AIProviderConfig } from '@/core/types/config';
 import type { BridgeZiel } from '@/core/services/ai/transports/streamlit';
 import { isDevContext } from '@/config/feature-flags';
-import { SettingsGruppe, SettingsKlappe } from '../_shared/settings-layout';
+import { SettingsGruppe, SettingsKlappe } from '@/components/settings';
 
 const HINT_GRUPPE =
   'Der Zugang läuft über einen parallelen Browser-Tab: Diese App öffnet den Tab und tauscht die Daten aus. Ein Lesezeichen aktiviert die Verbindung im Tab der internen KI — pro KI-Tab einmal anklicken, nach jedem Neuladen erneut.';

@@ -6,7 +6,7 @@
  * selten, sie ist aber lang. Also eingeklappt, mit der Anzahl in der Zeile.
  */
 import { keyboardService } from '@/core/services/keyboard';
-import { SettingsGruppe, SettingsKbd, SettingsKlappe, SettingsLeer } from '../_shared/settings-layout';
+import { SettingsGruppe, SettingsKbd, SettingsKlappe, SettingsLeer } from '@/components/settings';
 
 export function TastaturGruppe(): React.ReactElement {
   const shortcuts = keyboardService.getAll();

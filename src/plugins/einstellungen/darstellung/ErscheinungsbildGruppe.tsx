@@ -17,7 +17,7 @@ import {
   SettingsKbd,
   SettingsKlappe,
   SettingsOption,
-} from '../_shared/settings-layout';
+} from '@/components/settings';
 
 const HINT_FARBE =
   'Die Primärfarbe färbt Akzente, Links, aktive Zustände und Auswahl-Markierungen. Sie gilt nur auf diesem Gerät und ändert nichts an den Daten.';

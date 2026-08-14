@@ -19,7 +19,7 @@ import {
   SettingsGruppenAktion,
   SettingsKlappe,
   SettingsLeer,
-} from '../_shared/settings-layout';
+} from '@/components/settings';
 
 export function TagsGruppe(): React.ReactElement {
   const { allTags, removeTag, renameTag, recountTags } = useTags();

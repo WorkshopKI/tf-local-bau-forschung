@@ -15,7 +15,7 @@ import { DirectLLMTransport } from '@/core/services/ai/transports/direct-llm';
 import { setDetectedLlmContextTokens } from '@/core/services/ai/llm-context';
 import type { AIProviderConfig } from '@/core/types/config';
 import { isOpenRouterEnabled } from '@/config/feature-flags';
-import { SettingsKlappe } from '../_shared/settings-layout';
+import { SettingsKlappe } from '@/components/settings';
 
 const inputClass =
   'w-full px-2.5 py-1.5 text-[12.5px] bg-[var(--tf-bg)] text-[var(--tf-text)] rounded-[var(--tf-radius)] outline-none focus:border-[var(--tf-primary)] placeholder:text-[var(--tf-text-tertiary)]';

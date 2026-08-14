@@ -13,7 +13,7 @@
  */
 import { Check } from 'lucide-react';
 import { isAssistentProtokollEnabled } from '@/config/feature-flags';
-import { SettingsKopfStatus, SettingsZweiSpalten } from '../_shared/settings-layout';
+import { SettingsKopfStatus, SettingsZweiSpalten } from '@/components/settings';
 import { AccountGruppe } from './AccountGruppe';
 import { FachprofilGruppe } from './FachprofilGruppe';
 import { AntraegeSichtGruppe } from './AntraegeSichtGruppe';

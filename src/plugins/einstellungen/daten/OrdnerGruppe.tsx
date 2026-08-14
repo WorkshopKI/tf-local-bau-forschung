@@ -49,7 +49,7 @@ import {
   type ArbeitskontextTyp,
 } from '@/core/services/personal-storage/arbeitskontext-log';
 import { SettingsFileRow } from '../_shared/settings-primitives';
-import { SettingsGruppe, SettingsKlappe, SettingsLeer } from '../_shared/settings-layout';
+import { SettingsGruppe, SettingsKlappe, SettingsLeer } from '@/components/settings';
 
 const HINT_DATENORDNER =
   'Geteilter Ordner auf dem Netzlaufwerk mit Anträgen, Suchindex und Sync-Stand. Wird beim Start automatisch auf neuere Exporte geprüft.';

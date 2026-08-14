@@ -27,7 +27,7 @@ Ton setzt `SettingsZweiSpalten` selbst, die Gruppe muss nichts wissen.
    in einer bestehenden `SettingsGruppe`. Erst wenn drei bis fünf Zeilen
    zusammengehören, wird daraus eine eigene Gruppe (max. fünf je Seite).
 
-2. **Zeile bauen** — [`SettingsOption`](../../src/plugins/einstellungen/_shared/settings-layout.tsx):
+2. **Zeile bauen** — [`SettingsOption`](../../src/components/settings/settings-layout.tsx):
    links Label (+ `hint` fürs ⓘ, + `badge`), **höchstens eine** `kurzzeile`,
    rechts die Steuerung als `children`. Nie zwei Erklärzeilen, nie Steuerung
    links. **Jeder Satz, der über eine Zeile hinausgeht, gehört ins ⓘ.**
@@ -36,7 +36,7 @@ Ton setzt `SettingsZweiSpalten` selbst, die Gruppe muss nichts wissen.
    (`rolle="auswahl"`), `Button`, `Badge`, `ToggleChip`, `SettingsStepper`.
    Kein eigenes Toggle, kein eigenes Segment.
 
-4. **Seltenes einklappen** — [`SettingsKlappe`](../../src/plugins/einstellungen/_shared/settings-layout.tsx)
+4. **Seltenes einklappen** — [`SettingsKlappe`](../../src/components/settings/settings-layout.tsx)
    mit `zaehler`, der aus dem **echten Zustand** kommt („8 von 28 aktiv"), nicht
    aus einer Konstanten. Standard ist zu; ändert sich ein bestehender Default,
    braucht der `storageKey` einen Bump (ein persistierter Wert schlägt den
@@ -78,7 +78,7 @@ Ton setzt `SettingsZweiSpalten` selbst, die Gruppe muss nichts wissen.
 - **Kürzel nur über `useMeinKuerzel`** (Pitfall #27); die einzige Schreibstelle
   ist `profil/AntraegeSichtGruppe.tsx`.
 - **Der Umbruch misst die Inhaltsbreite**, nicht den Viewport
-  ([einstellungen-layout.css](../../src/plugins/einstellungen/einstellungen-layout.css)) —
+  ([settings-layout.css](../../src/components/settings/settings-layout.css)) —
   die App-Sidebar ist ziehbar.
 - **Danach das Kontext-Doc nachziehen**
   ([docs/feedback-kontext/einstellungen.md](../feedback-kontext/einstellungen.md),

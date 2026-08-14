@@ -43,7 +43,7 @@ import {
   SettingsLeer,
   SettingsOption,
   SettingsTrustZeile,
-} from '../_shared/settings-layout';
+} from '@/components/settings';
 import { GedaechtnisVerwaltung, useGedaechtnisZahl } from './GedaechtnisVerwaltung';
 
 const HINT_PROTOKOLL =

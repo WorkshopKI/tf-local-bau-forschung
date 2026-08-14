@@ -26,7 +26,7 @@ Der ursprüngliche Phasen-Prompt nahm eine Extraktion „von Grund auf" an. Das 
 Fünfmal hand-rolled, jeweils leicht abweichend (Margins, Subtitle ja/nein):
 - [src/plugins/antraege/AntraegeHeader.tsx](../src/plugins/antraege/AntraegeHeader.tsx) (~Z. 112) — `text-[22px] font-medium`
 - [src/plugins/auslastung/views/AuslastungView.tsx](../src/plugins/auslastung/views/AuslastungView.tsx) (~Z. 91) — H1 + Subtitle
-- [src/plugins/einstellungen/EinstellungenPage.tsx](../src/plugins/einstellungen/EinstellungenPage.tsx) (~Z. 67) — H1 + `mb-6`
+- [src/components/settings/SettingsHubPage.tsx](../src/components/settings/SettingsHubPage.tsx) — H1 + `mb-6`; trägt seit v4.33 **beide** Hub-Seiten (Einstellungen, Kuration)
 - Chat `ConversationHeader` — Titel in der Konversations-Kopfzeile
 - Suche — **kein** H1 (Abweichung; bleibt vorerst so)
 

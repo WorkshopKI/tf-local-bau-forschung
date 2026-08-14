@@ -28,7 +28,7 @@ import {
 } from '@/core/services/ai/llm-context';
 import { getLlmThinkingEnabled, setLlmThinkingEnabled } from '@/core/services/ai/llm-thinking';
 import type { AIProviderConfig } from '@/core/types/config';
-import { SettingsGruppe, SettingsOption } from '../_shared/settings-layout';
+import { SettingsGruppe, SettingsOption } from '@/components/settings';
 
 const HINT_THINKING =
   'Lässt das LLM vor der Antwort „nachdenken" — oft bessere Ergebnisse, aber langsamer. Der Denkprozess wird pro Fassung aufklappbar angezeigt. Nur die Voreinstellung: bei jeder Generierung („Neu"/„Kürzer"/„Länger") direkt per Schalter umschaltbar.';

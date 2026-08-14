@@ -20,7 +20,7 @@ import { AufbereitungEvalPanel } from '@/plugins/antraege/aufbereitung/eval-pane
 import { AufbereitungRechercheSettings } from '@/plugins/antraege/aufbereitung/AufbereitungRechercheSettings';
 import type { AIProviderConfig } from '@/core/types/config';
 import { GedaechtnisEvalPanel } from '../GedaechtnisEvalPanel';
-import { SettingsGruppe, SettingsKlappe, SettingsZweiSpalten } from '../_shared/settings-layout';
+import { SettingsGruppe, SettingsKlappe, SettingsZweiSpalten } from '@/components/settings';
 import { VerbindungGruppe } from './VerbindungGruppe';
 import { AntwortverhaltenGruppe } from './AntwortverhaltenGruppe';
 import { ProviderKlappe } from './ProviderKlappe';

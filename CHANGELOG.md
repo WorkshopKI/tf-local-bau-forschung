@@ -5,6 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.33.0 — Einstellungs-Seitenform wird geteilte Schicht (August 2026)
+
+MINOR — Vorbereitung des Kuration-Hubs: die Seitenform, die das Einstellungs-Redesign hervorgebracht hat, bekommt einen zweiten Wirt. Bis hierher ändert sich nichts Sichtbares — die Einstellungen sind die Nullprobe.
+
+- **Layout-Schicht geteilt** ([components/settings/](src/components/settings/)): die 16 Bauteile, die Navigationsspalte und der Panel-Vertrag stehen nicht mehr unter `plugins/einstellungen/_shared`, sondern als domänenfreie Schicht in `src/components/`
+- **`SettingsHubPage` extrahiert** ([SettingsHubPage.tsx](src/components/settings/SettingsHubPage.tsx)): Kopf, Spaltenraster, Sprung-Zähler, Scroll und stehende Markierung liegen genau einmal; `EinstellungenPage` ist ein Aufrufer von 23 Zeilen
+- **CSS kommt vom Modul, nicht von der Seite** ([settings-layout.css](src/components/settings/settings-layout.css)): ein Wirt, der den seitenlokalen Import nicht spiegelt, stünde einspaltig und ohne Trefferring da, ohne dass etwas fehlschlägt
+- **Hilfe-Knopf-Guard kennt den Hub-Einbau** ([seitenHilfe.test.ts](src/core/services/feedback/__tests__/seitenHilfe.test.ts)): eine Seite darf ihre `pluginId` an den Rahmen reichen, statt den Knopf selbst zu schreiben
+
 ### v4.32.0 — Einstellungs-Suche nennt ihr Ziel, KI-Variante entdoppelt (August 2026)
 
 MINOR — Nachlese am Redesign. Die Suche sprang auf die richtige Seite, ließ den Nutzer dort aber suchen: der Treffer blitzte 1,8 s auf, und wenn die Seite gar nicht scrollen musste, bewegte sich überhaupt nichts. Dazu zwei Stellen, die sich selbst erklärten statt zu wirken.

@@ -20,7 +20,7 @@ import type { DirectoryEntry } from '@/core/types/config';
 import { shouldShowOpfsOption } from '@/core/utils/environment';
 import { isKuratorFreigeschaltet } from '@/core/modul-freischaltung';
 import { SettingsNoteCard } from '../_shared/settings-primitives';
-import { SettingsGruppe, SettingsLeer } from '../_shared/settings-layout';
+import { SettingsGruppe, SettingsLeer } from '@/components/settings';
 
 const HINT_OPFS =
   'Browser-interner Speicher. Funktioniert in iframes (Preview), erlaubt aber kein Teilen zwischen Nutzern oder Geräten.';

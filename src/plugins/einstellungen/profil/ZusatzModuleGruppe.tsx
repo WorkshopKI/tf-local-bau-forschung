@@ -30,7 +30,7 @@ import {
   SettingsGruppe,
   SettingsOption,
   SettingsStatusBadge,
-} from '../_shared/settings-layout';
+} from '@/components/settings';
 
 const TITEL: Record<ModulSlot, string> = {
   auslastung: 'Auslastung',

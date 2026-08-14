@@ -8,7 +8,7 @@
  * aber noch nicht bedienbar.
  */
 import { isOnlineStatusTabEnabled } from '@/config/feature-flags';
-import { SettingsZweiSpalten } from '../_shared/settings-layout';
+import { SettingsZweiSpalten } from '@/components/settings';
 import { DokumentenquellenGruppe } from './DokumentenquellenGruppe';
 import { OrdnerGruppe } from './OrdnerGruppe';
 import { VerzeichnisseGruppe } from './VerzeichnisseGruppe';

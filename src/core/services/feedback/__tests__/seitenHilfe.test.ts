@@ -32,6 +32,22 @@ const HILFE_PFLICHT: string[] = [
   // `feedback-kuration` → /feedback-board (v2.364, Verwaltung ist im Board).
   .filter(id => !REDIRECT_SEITEN.has(id));
 
+/**
+ * Zwei Wege, den Hilfe-Knopf zu verdrahten:
+ *
+ *  1. direkt im Seitenkopf — `<SeitenHilfeButton pluginId="…" />`;
+ *  2. als Hub in der Einstellungs-Seitenform — die Seite reicht ihre `pluginId`
+ *     an `SettingsHubPage`, und der Rahmen setzt den Knopf (seit v4.33 tun das
+ *     Einstellungen und Kuration).
+ *
+ * Beide zaehlen als Einbau; entscheidend ist, dass es einen Weg zur Hilfe gibt,
+ * nicht welche Datei den Knopf schreibt.
+ */
+const EINBAU_MUSTER = [
+  /SeitenHilfeButton\s+pluginId="([^"]+)"/g,
+  /SettingsHubPage[^>]*\spluginId="([^"]+)"/g,
+];
+
 /** Alle `pluginId="…"`-Werte, mit denen der Hilfe-Knopf irgendwo eingebaut ist. */
 function verdrahteteIds(): Set<string> {
   const treffer = new Set<string>();
@@ -39,8 +55,8 @@ function verdrahteteIds(): Set<string> {
     .filter(p => p.endsWith('.tsx'));
   for (const rel of dateien) {
     const text = readFileSync(join(PLUGINS_DIR, rel), 'utf-8');
-    for (const m of text.matchAll(/SeitenHilfeButton\s+pluginId="([^"]+)"/g)) {
-      treffer.add(m[1] ?? '');
+    for (const muster of EINBAU_MUSTER) {
+      for (const m of text.matchAll(muster)) treffer.add(m[1] ?? '');
     }
   }
   return treffer;

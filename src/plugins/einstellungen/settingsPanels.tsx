@@ -12,7 +12,6 @@
  * Suchindex wird aus den sichtbaren Abschnitten abgeleitet und respektiert sie
  * dadurch automatisch.
  */
-import type { LucideIcon } from 'lucide-react';
 import { User, Contrast, Sparkles, Database } from 'lucide-react';
 import {
   isDevContext,
@@ -27,40 +26,11 @@ import {
   hatIrgendeinModulSchloss,
 } from '@/config/feature-flags';
 import type { AIProviderConfig } from '@/core/types/config';
+import type { SettingsPanel, SettingsSectionRef } from '@/components/settings';
 import { ProfilPanel } from './profil/ProfilPanel';
 import { DarstellungPanel } from './darstellung/DarstellungPanel';
 import { DatenPanel } from './daten/DatenPanel';
 import { KiPanel } from './ki/KiPanel';
-
-/** Sprung-Ziel für die Einstellungs-Suche (DOM-`id` eines Abschnitts). */
-export interface SettingsSectionRef {
-  id: string;
-  label: string;
-  /**
-   * Titel der `SettingsGruppe`, in deren Karte der Anker sitzt — WORTGLEICH mit
-   * dem `titel`-Prop dort. Die Trefferzeile zeigt damit „Seite › Gruppe": eine
-   * Seite trägt bis zu acht Karten, der Seitenname allein sagt also noch nicht,
-   * wohin der Sprung geht. Guard: `settings-treffer-weg`.
-   */
-  gruppe: string;
-  /** Synonyme inkl. der ALTEN Tab-Namen (speicher, online, tastatur …). */
-  keywords: string;
-}
-
-export interface SettingsPanel {
-  id: string;
-  label: string;
-  /** Eine Zeile unter der Überschrift — wofür diese Seite zuständig ist. */
-  untertitel: string;
-  icon: LucideIcon;
-  sections: SettingsSectionRef[];
-  render: () => React.ReactElement;
-}
-
-export interface SettingsSearchEntry extends SettingsSectionRef {
-  panelId: string;
-  panelLabel: string;
-}
 
 interface PanelContext {
   aiConfig: AIProviderConfig;
@@ -184,28 +154,4 @@ export function getSettingsPanels(ctx: PanelContext): SettingsPanel[] {
   }
 
   return panels;
-}
-
-/** Flacht die sichtbaren Abschnitte aller Panels zum Suchindex. */
-export function buildSearchIndex(panels: SettingsPanel[]): SettingsSearchEntry[] {
-  const entries: SettingsSearchEntry[] = [];
-  for (const panel of panels) {
-    for (const section of panel.sections) {
-      entries.push({
-        ...section,
-        panelId: panel.id,
-        panelLabel: panel.label,
-      });
-    }
-  }
-  return entries;
-}
-
-/** Filtert den Suchindex (ab 2 Zeichen), max. 6 Treffer. */
-export function searchSettings(index: SettingsSearchEntry[], query: string): SettingsSearchEntry[] {
-  const q = query.trim().toLowerCase();
-  if (q.length < 2) return [];
-  return index
-    .filter(e => `${e.label} ${e.keywords} ${e.panelLabel}`.toLowerCase().includes(q))
-    .slice(0, 6);
 }

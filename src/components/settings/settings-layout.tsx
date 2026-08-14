@@ -1,13 +1,20 @@
 /**
- * Layout-Schicht des Einstellungs-Redesigns (Design-Handoff
+ * Layout-Schicht der EINSTELLUNGS-SEITENFORM (Design-Handoff
  * `_design/handoff/einstellungen-zweispaltig`).
  *
- * Vier Bauteile tragen jede der vier Einstellungs-Seiten:
+ * „Settings" meint hier das **Muster**, nicht das Einstellungen-Plugin: eine
+ * Seite aus Gruppen von Optionen, deren Erklaerungen hinter ⓘ liegen. Zwei
+ * Wirte benutzen es — `plugins/einstellungen` und der Kuration-Hub
+ * `plugins/kuration`. Deshalb steht die Schicht seit v4.33 hier und nicht
+ * mehr unter `plugins/einstellungen/_shared` (CLAUDE.md: geteilte,
+ * domaenenfreie Layout-Schicht in `src/components/`).
+ *
+ * Vier Bauteile tragen jede solche Seite:
  *
  * - `SettingsZweiSpalten` — links Hauptbereich (weisse Karten), rechts
  *   Nebenspalte (getoente Karten, Trennlinie). Der Umbruch auf einspaltig
  *   misst die INHALTSBREITE ueber eine Container-Query
- *   (`../einstellungen-layout.css`), nicht den Viewport.
+ *   (`./settings-layout.css`), nicht den Viewport.
  * - `SettingsGruppe` — die Karte um eine Gruppe zusammengehoeriger Optionen.
  * - `SettingsOption` — die Zeile: links Label (+ ⓘ + Badge) und HOECHSTENS
  *   eine Kurzzeile, rechts die Steuerung. Nie zwei Erklaerzeilen, nie
@@ -23,7 +30,11 @@ import { createContext, useContext, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronRight, Minus, Plus } from 'lucide-react';
 import { useCollapsedSection } from '@/core/hooks/useCollapsedSection';
-import { InfoHint } from './settings-primitives';
+import { InfoHint } from './InfoHint';
+// Das Modul bringt sein CSS SELBST mit. Bis v4.32 importierte die Seite es
+// (`EinstellungenPage`) — ein zweiter Wirt, der das nicht spiegelt, stuende
+// einspaltig und ohne Trefferring da, ohne dass irgendetwas fehlschlaegt.
+import './settings-layout.css';
 
 // ───────────────────────── Sprung-Ziel ─────────────────────────
 
@@ -57,10 +68,10 @@ export function SettingsSprungProvider({
 /**
  * Ist dieser Anker gerade das Sprung-Ziel? Die vier Layout-Bauteile setzen
  * daraufhin `data-tf-treffer` und bekommen den Ring aus
- * `../einstellungen-layout.css`.
+ * `./settings-layout.css`.
  *
  * Die Markierung BLEIBT stehen, bis der Nutzer das naechste Mal klickt oder
- * tippt (`EinstellungenPage` setzt das Ziel dann zurueck). Bis v4.31 blitzte
+ * tippt (`SettingsHubPage` setzt das Ziel dann zurueck). Bis v4.31 blitzte
  * sie 1,8 s auf — und wenn die Seite fuer den Sprung gar nicht scrollen muss,
  * bewegt sich nichts, der Blitz ist vorbei, bevor der Blick ankommt.
  *

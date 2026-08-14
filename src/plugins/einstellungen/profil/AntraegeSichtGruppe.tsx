@@ -16,7 +16,7 @@ import { useShowInaktiveMasStore } from '@/plugins/antraege/useShowInaktiveMasSt
 import { ROLLEN, ROLLE_LANG, leseStatusRolle, type Rolle } from '@/core/status';
 import { isMaLoginEnabled } from '@/config/feature-flags';
 import { isAuslastungFreigeschaltet } from '@/core/modul-freischaltung';
-import { SettingsGruppe, SettingsOption, SettingsStepper } from '../_shared/settings-layout';
+import { SettingsGruppe, SettingsOption, SettingsStepper } from '@/components/settings';
 
 const HINT_ROLLE =
   'Das Fachsystem vermerkt bei jedem Statuseintrag, wer ihn setzt. Die Auswahl ist eine Vorauswahl: die Statusliste auf der Antragsseite startet darauf gefiltert, alles Übrige bleibt einen Klick entfernt. Einträge, die jeder setzen darf, bleiben immer sichtbar.';

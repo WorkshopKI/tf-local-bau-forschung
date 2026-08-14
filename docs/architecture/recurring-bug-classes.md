@@ -411,4 +411,4 @@ Der Schalter wäre hier die falsche Antwort gewesen — und zwar gefährlich: di
 
 **Prüffrage beim Review:** Ruft ein `useEffect` eine Funktion auf, deren Name „toggle/umschalten/wechseln" heißt? Dann: Was passiert, wenn dieser Effekt zweimal läuft?
 
-**Kanonische Dateien:** [useCollapsedSection.ts](../../src/core/hooks/useCollapsedSection.ts) (`setzeOffen`), [settings-layout.tsx](../../src/plugins/einstellungen/_shared/settings-layout.tsx) (`SettingsKlappe`), [main.tsx](../../src/main.tsx) (`StrictMode`).
+**Kanonische Dateien:** [useCollapsedSection.ts](../../src/core/hooks/useCollapsedSection.ts) (`setzeOffen`), [settings-layout.tsx](../../src/components/settings/settings-layout.tsx) (`SettingsKlappe`), [main.tsx](../../src/main.tsx) (`StrictMode`).

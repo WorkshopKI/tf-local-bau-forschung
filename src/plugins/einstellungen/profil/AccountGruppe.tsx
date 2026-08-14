@@ -13,7 +13,7 @@ import { useProfile } from '@/core/hooks/useProfile';
 import { useMeinKuerzel } from '@/core/hooks/useMeinKuerzel';
 import { kuerzelFuerAnzeige, profilAvatarText } from '@/core/utils/profil-anzeige';
 import { Avatar, InfoHint } from '../_shared/settings-primitives';
-import { SettingsGruppe, useSprungTreffer } from '../_shared/settings-layout';
+import { SettingsGruppe, useSprungTreffer } from '@/components/settings';
 
 const TOOLTIP_PROGRAMM =
   'Deine anonyme Programm-ID. Ordnet deine Technologien im Team-Auslastungs-Profil zu, ohne den Klarnamen preiszugeben.';

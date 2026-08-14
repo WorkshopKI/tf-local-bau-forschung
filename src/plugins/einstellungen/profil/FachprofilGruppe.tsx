@@ -20,7 +20,7 @@ import {
   SettingsGruppe,
   SettingsKlappe,
   SettingsLeer,
-} from '../_shared/settings-layout';
+} from '@/components/settings';
 import type { Fachprofil } from './useFachprofil';
 
 const TOOLTIP_GRUPPE =

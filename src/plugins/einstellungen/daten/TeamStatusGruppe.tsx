@@ -23,7 +23,7 @@ import { WurzelnVerbinden } from '@/core/components/WurzelnVerbinden';
 import { jeWurzel, formatiereSammelBericht, juengsterGewinnt } from '@/core/services/personal-roots';
 import { collectHeartbeats, type OnlineUser } from '@/core/services/presence';
 import { relativeZeitLang } from '@/core/utils/relativeZeit';
-import { SettingsGruppe, SettingsKlappe, SettingsLeer } from '../_shared/settings-layout';
+import { SettingsGruppe, SettingsKlappe, SettingsLeer } from '@/components/settings';
 
 const REFRESH_INTERVAL_MS = 45_000;
 

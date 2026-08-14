@@ -429,10 +429,10 @@ body {
   100% { background-color: transparent; }
 }
 
-/* Der Einstellungs-Suchtreffer wurde bis v4.31 hier als kurzer Blitz markiert.
+/* Der Suchtreffer der Hub-Seiten wurde bis v4.31 hier als kurzer Blitz markiert.
    Seit v4.32 bleibt die Markierung stehen, bis der Nutzer weiterarbeitet — die
-   Regel dazu steht bei ihrem einzigen Nutzer
-   (src/plugins/einstellungen/einstellungen-layout.css). */
+   Regel dazu steht bei der Layout-Schicht, die sie setzt
+   (src/components/settings/settings-layout.css). */
 
 /* Unbestimmter Fortschritt: schmale Leiste unter dem Seitenkopf, solange eine
    Seite noch Daten nachlaedt und keine echte Restzeit bekannt ist (erster
