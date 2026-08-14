@@ -71,6 +71,25 @@ pauschales „bitte manuell testen" ersetzt den Sicht-Check nicht.
 7. **`appVersion` friert beim Serverstart ein.** Der Wert kommt aus einem
    Vite-`define`; nach `npm run version:bump` zeigt der Fuß der Seitenleiste
    die alte Version, bis `dev:local` neu gestartet wird. Kein Befund.
+8. **Im verborgenen Pane ist `100vw`/`100vh` = 0** — jedes Element mit
+   `max-width: calc(100vw - …)` misst sich auf ~2 px, unabhängig von seiner
+   Inline-Breite. Wer die ECHTE Größe braucht (z.B. „ist das Fenster kürzer
+   geworden?"), hebt die Deckel für die Messung an und setzt sie sofort zurück:
+   `el.style.maxWidth = 'none'; el.style.maxHeight = 'none';` → messen →
+   die gemerkten Werte wieder eintragen. Die Inline-`width` bleibt dabei gültig,
+   das Ergebnis ist die natürliche Höhe bei genau dieser Breite.
+9. **Ein Vorher-Wert ist messbar, nicht schätzbar.** Für „X px kürzer" die
+   eigenen Dateien kurz zurückdrehen (`git stash push -- <nur die eigenen
+   Pfade>`), im selben Lauf messen, `git stash pop`. Nur die eigenen Pfade —
+   bei einer parallelen Sitzung im selben Repo nimmt ein pauschales `git stash`
+   deren Arbeit mit. Danach EINMAL sauber laden, sonst zählt Fallstrick 2 die
+   Fehler der abgebrochenen Reloads mit.
+10. **Zwischen zwei Tool-Runden kann die Seite neu montieren** (HMR nach einem
+    Datei-Wechsel remountet die betroffene Komponente und wirft ihren State weg).
+    Ein Ablauf über mehrere Zustände — tippen → Modus wechseln → Ereignis →
+    prüfen — gehört deshalb in EINEN `javascript_tool`-Aufruf. Ein „State war
+    plötzlich zurückgesetzt" zwischen zwei Aufrufen ist zuerst ein
+    Pane-Artefakt, kein Befund.
 
 ## Warum
 
