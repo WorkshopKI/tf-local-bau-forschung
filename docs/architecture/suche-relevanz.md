@@ -21,8 +21,28 @@ Sortierung, keine Relevanzangabe, keine Erklärung, warum ein Treffer kam.
 Der Antrags-Korpus hält die suchbaren Felder ohnehin getrennt
 ([search-corpus.ts](../../src/plugins/antraege/services/search-corpus.ts)):
 Titel (VB + TV), Kurzbeschreibung, Deskriptoren, Akronym, Aktenzeichen,
-Organisation, Standort. Die Feld-Zuordnung war also nie eine Rechnung, sondern
-nur eine Information, die niemand mitgeführt hat.
+Organisation, Standort, Web-Adresse. Die Feld-Zuordnung war also nie eine
+Rechnung, sondern nur eine Information, die niemand mitgeführt hat.
+
+**Woher der Korpus seine Felder nimmt (v4.42.0).** Unter welchem Schlüssel eine
+CSV-Spalte im Antrags-Record landet, entscheidet das Wizard-Mapping —
+`canonical ?? custom ?? spalte.toLowerCase()`. Der Korpus hat diese Schlüssel bis
+v4.41 **geraten**, und am echten Bestand lag `VB_INHALT` unter
+`inhalt_kurzzusammenfassung` statt unter `vb_inhalt`: die gesamte
+Projektbeschreibung fehlte im Suchindex, bei einer Quelle, die 14 084 der 14 097
+FKZ abdeckt. Nichts wurde rot — die Suche sah nur aus wie ein dünner Bestand
+(recurring-bug-classes Klasse 5). Dasselbe traf `ORG_AST`, das je Quelle unter
+drei verschiedenen Schlüsseln liegt.
+
+Die Zuordnung kommt deshalb aus
+[korpusFeldAufloesung.ts](../../src/plugins/antraege/services/korpusFeldAufloesung.ts):
+aufgelöst über den Spalten-**CODE** (`VB_INHALT`, `ORG_AST`, …) per
+`resolveFieldKey`, gleiches Muster wie `resolveFbStatusFelder`. Die alten
+Alias-Listen bleiben als Fallback, damit ein Programm ohne passendes Schema nicht
+schlechter sucht als vorher. Die Reihenfolge der Slots ist dabei die
+Kollisions-Regel: eine Quelle mappt `ORG_AST` auf denselben Schlüssel wie das
+kanonische `ORG_AFS`, und wer beide Slots darauf zeigen ließe, verlöre die 2,5 %
+der Sätze mit abweichender Rechtsperson.
 
 `substringMatches` arbeitet deshalb in **zwei Durchgängen**
 ([antraege-search-service.ts](../../src/plugins/antraege/services/antraege-search-service.ts)):
@@ -54,10 +74,15 @@ neun Trefferstellen haben längst einen Platz im Ergebnis, zwei nicht.
 | `aehnlichkeit` | Spalten „Suche" / „Score" |
 | **`standort`** | **Spalte „Ort & Bundesland"** — wird eingeblendet |
 | **`deskriptoren`** | **Spalte „Deskriptoren"** — wird eingeblendet |
+| **`domain`** | **Spalte „Web-Adresse"** — wird eingeblendet |
 
-[autoSpalten.ts](../../src/plugins/suche/autoSpalten.ts) führt diese zwei — und
-nur diese zwei. Eine achte Zeile braucht den Nachweis, dass der Beleg wirklich
+[autoSpalten.ts](../../src/plugins/suche/autoSpalten.ts) führt diese drei — und
+nur diese drei. Eine weitere Zeile braucht den Nachweis, dass der Beleg wirklich
 nirgends sonst auftaucht; sonst verbreitert sich die Tabelle für nichts.
+
+Für `domain` ist der Nachweis geführt: die Web-Adresse steht in keiner anderen
+Spalte und in keinem Snippet. Sie ist sogar der schärfere Fall — bei einem
+Domain-Treffer steht das Suchwort in **keinem** sichtbaren Feld der Zeile.
 
 **Zwei Auslöser.** Die Einstellung: „nur Ort & Bundesland" blendet die Spalte
 immer ein, auch wenn eine Anfrage nichts findet. Die Fundstelle: im
@@ -87,6 +112,41 @@ In der **Liste** zeigt derselbe Baustein (`belegWerte`) den Wert in der
 Fundstellen-Zeile; das Etikett entfällt dort, weil der Wert es ersetzt. Nach dem
 Umbau: 30 von 30 Zeilen markiert, Zeilenhöhe 111 px → 82 px.
 
+### Die Web-Adresse (v4.42.0)
+
+Gemeldet war: „der Antragsteller GMBU wird nicht gefunden, obwohl er da ist."
+
+Am Bestand nachgemessen stimmte beides — er ist da, und er ist nicht zu finden.
+Die Einrichtung steht in **jedem** Organisationsfeld ausgeschrieben
+(„Gesellschaft zur Förderung von Medizin-, Bio- und Umwelt- Technologien e.V.");
+die Zeichenfolge „GMBU" kommt im ganzen Bestand in **keinem** Antragstellerfeld
+vor. Sie steht nur in Projektbeschreibungen, Bemerkungen — und in
+`@gmbu.de`.
+
+Das ist kein Einzelfall mit Regel-Charakter, sondern eine Lücke in den Daten:
+**244** Einrichtungen führen ihr Kürzel im Namen („… e.V. (IUTA)") und sind
+darüber längst auffindbar. Wer es nicht tut, war unerreichbar.
+
+Deshalb leitet der Korpus aus der Kontakt-Mail der Projektleitung (`EMAIL_PL`)
+den **Host** ab — `bergmann@gmbu.de` → `gmbu.de`. Drei Regeln:
+
+- **Nur der Host, nie die Adresse.** Der lokale Teil ist eine Personenangabe und
+  gehört in kein Suchfeld.
+- **Ohne Top-Level-Domain in der Suchform** (` gmbu `), sonst träfe die Anfrage
+  „de" jeden Antrag — dieselbe Falle wie beim zweibuchstabigen Bundesland-Kürzel.
+- **Sperrliste.** Die Quelldatei führt in `TIB_MAIL`/`BIB_MAIL`/`ZTP_MAIL`/
+  `PFM_MAIL` die Adressen des **Projektträgers**: `vdivde-it.de` steht 26 933 mal
+  darin, `filina-it.de` 3 367 mal. Als Suchwort wären sie ein Treffer auf alles.
+  Die Auflösung über den Spalten-CODE schließt diese Spalten strukturell aus, die
+  Liste ist das zweite Netz — plus Freemailer, die keine Einrichtung benennen.
+
+Verglichen wird **am Wortanfang**, wie beim Standort: Kürzel sind kurz und
+stecken ineinander. Trennzeichen bleiben Wortgrenzen, damit `tu-chemnitz.de` auch
+auf „chemnitz" anspricht.
+
+**Reichweite:** `EMAIL_PL` führt nur die Bewilligungs-Quelle — **8 024 von
+14 097** FKZ. Anträge ohne Bewilligungssatz bleiben über die Domain unerreichbar.
+
 ## 3 Relevanz — das Urteil
 
 `berechneRelevanz(felder, abdeckung)` in
@@ -100,7 +160,7 @@ breite   = min(1, (Anzahl Felder − 1) / 2)
 
 **Feldgewichte** (nur ihr Verhältnis zählt): Titel · Akronym · Aktenzeichen 3 —
 Kurzbeschreibung · Dokument 2 — Deskriptoren · Ähnlichkeit 1,5 — Organisation ·
-Standort 1.
+Web-Adresse · Standort 1.
 
 Die Staffelung sagt, wie stark eine Fundstelle für das THEMA spricht: im Titel
 steht, worum es geht; in der Einrichtung steht, wer es macht. „HPC Standards

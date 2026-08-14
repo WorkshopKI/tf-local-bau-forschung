@@ -117,7 +117,11 @@ describe('Suchbereich', () => {
   it('„wer" und „wo" sind zwei Bereiche, nicht einer', () => {
     // v4.15.0: zusammengelegt beantwortete der Bereich beide Fragen auf einmal
     // — wer nach einem Ort suchte, bekam die Firmennamen dazu.
-    expect(Array.from(bereichFelder('einrichtung'))).toEqual(['organisation']);
+    //
+    // Die Web-Adresse steht seit v4.42.0 beim „wer", nicht beim „wo": sie
+    // benennt die Einrichtung (`gmbu.de`), nicht ihren Sitz. Sie ist der
+    // einzige Weg zu Einrichtungen, die ihr Kürzel nicht im Namen führen.
+    expect(Array.from(bereichFelder('einrichtung'))).toEqual(['organisation', 'domain']);
     expect(Array.from(bereichFelder('standort'))).toEqual(['standort']);
   });
 

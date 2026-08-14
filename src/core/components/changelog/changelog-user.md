@@ -19,6 +19,15 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.42 — 2026-08
+
+### Bugfixes
+- **Die Suche durchsucht die Projektbeschreibung wieder.** Sie war unbemerkt aus dem Suchindex gefallen: die Beschreibung wurde bei keinem einzigen Antrag mitgesucht. Wer „Netzwerkpartner" in „nur Titel & Kurzbeschreibung" suchte, bekam nichts — jetzt sind es 696 Anträge. Betroffen waren alle 9.225 Anträge mit hinterlegter Beschreibung. Wenn Ihnen die Suche in letzter Zeit zu dünn vorkam, war das der Grund.
+
+### Neu
+- **Einrichtungen sind jetzt auch über ihr Kürzel zu finden.** Manche Einrichtungen führen ihr Kürzel im Namen („… e.V. (IUTA)") und waren darüber immer schon zu finden. Andere nicht: die „Gesellschaft zur Förderung von Medizin-, Bio- und Umwelt- Technologien e.V." heißt nirgends in den Daten „GMBU", obwohl jeder sie so nennt. Die Suche zieht solche Kürzel deshalb aus der Web-Adresse der Einrichtung — „GMBU" findet unter „nur Einrichtung" jetzt 35 Anträge statt keinen.
+- In der Trefferliste steht bei einem solchen Treffer die **Web-Adresse** als Beleg dabei, damit erkennbar bleibt, warum der Antrag erscheint; in der Tabelle blendet sich die passende Spalte von selbst ein. Das klappt bei Anträgen, zu denen eine Kontaktadresse hinterlegt ist (rund 7.600).
+
 ## v4.41 — 2026-08
 
 ### Neu

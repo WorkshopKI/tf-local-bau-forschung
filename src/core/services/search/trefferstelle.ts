@@ -33,6 +33,7 @@ export type Trefferfeld =
   | 'akronym'
   | 'aktenzeichen'
   | 'organisation'
+  | 'domain'
   | 'standort'
   | 'aehnlichkeit';
 
@@ -46,6 +47,7 @@ export const TREFFERFELD_LABEL: Record<Trefferfeld, string> = {
   akronym: 'Akronym',
   aktenzeichen: 'Aktenzeichen',
   organisation: 'Einrichtung',
+  domain: 'Web-Adresse',
   standort: 'Ort',
   aehnlichkeit: 'ähnliche Bedeutung',
 };
@@ -67,6 +69,9 @@ const GEWICHT: Record<Trefferfeld, number> = {
   deskriptoren: 1.5,
   aehnlichkeit: 1.5,
   organisation: 1,
+  // Wie die Einrichtung: sagt WER, nicht worum es geht. Und schwaecher belegt —
+  // die Domain ist aus der Kontakt-Mail abgeleitet, nicht erhoben.
+  domain: 1,
   standort: 1,
 };
 
@@ -90,7 +95,7 @@ const AEHNLICHKEIT_DECKEL = 0.5;
  *  Gewicht in fester Reihenfolge (stabil über Renders). */
 const REIHENFOLGE: readonly Trefferfeld[] = [
   'titel', 'akronym', 'aktenzeichen', 'kurzbeschreibung', 'dokument',
-  'deskriptoren', 'aehnlichkeit', 'organisation', 'standort',
+  'deskriptoren', 'aehnlichkeit', 'organisation', 'domain', 'standort',
 ];
 
 /** Relevanzstufe. Drei Stufen, weil mehr niemand unterscheiden kann. */

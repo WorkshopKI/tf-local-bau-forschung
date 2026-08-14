@@ -50,7 +50,11 @@ export function bereichFelder(bereich: Suchbereich): ReadonlySet<Trefferfeld> {
     case 'inhalt':
       return new Set<Trefferfeld>(['titel', 'kurzbeschreibung', 'akronym', 'aktenzeichen']);
     case 'einrichtung':
-      return new Set<Trefferfeld>(['organisation']);
+      // Die Web-Adresse gehoert hierher, weil sie dieselbe Frage beantwortet:
+      // wer ist das. Sie ist der einzige Weg zu Einrichtungen, die ihr Kuerzel
+      // NICHT im Namen fuehren — „GMBU" steht im ganzen Bestand in keinem
+      // Organisationsfeld, wohl aber in `gmbu.de`.
+      return new Set<Trefferfeld>(['organisation', 'domain']);
     case 'standort':
       return new Set<Trefferfeld>(['standort']);
     case 'dokumente':
@@ -59,7 +63,7 @@ export function bereichFelder(bereich: Suchbereich): ReadonlySet<Trefferfeld> {
     default:
       return new Set<Trefferfeld>([
         'titel', 'kurzbeschreibung', 'deskriptoren',
-        'akronym', 'aktenzeichen', 'organisation', 'standort',
+        'akronym', 'aktenzeichen', 'organisation', 'domain', 'standort',
       ]);
   }
 }

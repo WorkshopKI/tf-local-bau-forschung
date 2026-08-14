@@ -643,6 +643,36 @@ describe('no-hardcoded-canonical-field (recurring-bug-classes Klasse 5)', () => 
   });
 });
 
+describe('korpus-felder-ueber-schema (recurring-bug-classes Klasse 5)', () => {
+  // Zweiter Fall derselben Klasse, v4.42.0: der Suchkorpus las seine
+  // Quell-Spalten unter GERATENEN Feld-Schluesseln. Am Bestand lag `VB_INHALT`
+  // unter `inhalt_kurzzusammenfassung` statt `vb_inhalt` — die gesamte
+  // Projektbeschreibung fehlte im Suchindex, ohne dass irgendetwas rot wurde.
+  // Die Suche sah nur aus wie ein duenner Bestand.
+  //
+  // Reissleine, kein Muster-Verbot: wer die Aufloesung entfernt und wieder raet,
+  // faellt hier auf. Welche Spalte zu welchem Feld gehoert, prueft der
+  // Modul-Test korpusFeldAufloesung.test.ts.
+  const KORPUS = join('plugins', 'antraege', 'services', 'search-corpus.ts');
+
+  it('der Suchkorpus loest seine Spalten ueber das CSV-Schema auf', () => {
+    const quelle = readFileSync(join(ROOT, KORPUS), 'utf-8');
+    if (quelle.includes('allow-korpus-felder')) return;
+    const nutztResolver = quelle.includes('baueKorpusFeldKarte');
+    if (!nutztResolver) {
+      expect.fail(
+        `${KORPUS} baut den Suchkorpus ohne Schema-Aufloesung\n` +
+        `(recurring-bug-classes Klasse 5). Unter welchem Schluessel eine CSV-Spalte\n` +
+        `im Antrags-Record landet, entscheidet das Wizard-Mapping — nicht der Code\n` +
+        `(resolveFieldKey: canonical → custom → col.toLowerCase()). Ein geratener\n` +
+        `Schluessel laesst das Feld still leer.\n` +
+        `Zuordnung ueber baueKorpusFeldKarte (korpusFeldAufloesung.ts) beziehen.\n` +
+        `Echte Ausnahme: '// allow-korpus-felder: <grund>'.`,
+      );
+    }
+  });
+});
+
 describe('no-raw-active-transport (CLAUDE.md Pitfall #30, DSGVO-Transport-Policy)', () => {
   // Dokument-tragende Skill-Laeufe (Generierung, QS, Batch) duerfen den Transport
   // NICHT roh ueber bridge.getActiveTransport() ziehen — sonst kann Dokumentinhalt

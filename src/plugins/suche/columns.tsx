@@ -312,6 +312,22 @@ export const SEARCH_COLUMNS: SearchColumn[] = [
       : null,
   },
   {
+    // Der Beleg für einen Kürzel-Treffer. Die Einrichtung heißt im Bestand
+    // ausgeschrieben; wer „GMBU" tippt, findet sie über ihre Mail-Domain — und
+    // ohne diese Spalte stünde in der Zeile kein einziges Zeichen der Anfrage.
+    // Abgeleitet, nicht erhoben: deshalb kein Sortier-/Filter-Vertrag.
+    key: 'domain', label: 'Web-Adresse', width: 150, defaultVisible: false,
+    sortable: true, filterable: true, appliesTo: 'antrag',
+    accessor: r => safeString(r.domain),
+    render: r => r.domain
+      ? (
+        <span className="text-[12px] text-[var(--tf-text)] truncate block" title={r.domain}>
+          <MarkierterText text={r.domain} />
+        </span>
+      )
+      : null,
+  },
+  {
     // Nicht filterbar: der Wert ist eine zusammengesetzte Kette
     // („lasertechnik • maschinenbau • …"), als Facette gäbe das tausende
     // Einzelwerte, von denen keiner zweimal vorkommt.

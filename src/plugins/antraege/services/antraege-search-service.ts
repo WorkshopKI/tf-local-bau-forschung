@@ -334,7 +334,12 @@ function substringMatches(
       // dieselbe Verankerung genau die Nachbarorte herein, die v4.4.4
       // ausgeschlossen hat.
       || (felder.has('standort') && t.ortNadel.length > 0
-        && entry.standortSuchform.includes(t.ortNadel));
+        && entry.standortSuchform.includes(t.ortNadel))
+      // Die Web-Adresse nutzt dieselbe verankerte Nadel — aus demselben Grund:
+      // „gmbu" soll `gmbu.de` finden, aber nicht mitten in einer fremden Domain
+      // treffen.
+      || (felder.has('domain') && t.ortNadel.length > 0
+        && entry.domainSuchform.includes(t.ortNadel));
     if (verknuepfung === 'oder' ? teile.some(trifft) : teile.every(trifft)) {
       out.set(akz, feldZuordnung(entry, teile, felder));
       if (stammSuche && gescannt < VARIANTEN_SCAN_MAX && varianten.size < VARIANTEN_MAX) {
@@ -348,7 +353,9 @@ function substringMatches(
 
 /** Ein zerlegtes Suchwort: der Wortlaut (für Anzeige und Zählung), die Nadeln
  *  (Wortlaut, Stamm oder ausgewählte Varianten) und die am Wortanfang
- *  verankerte Standort-Nadel. */
+ *  verankerte Nadel. Letztere bedient Standort UND Web-Adresse — beide sind
+ *  kurze, ineinandersteckende Zeichenketten, in denen freies Substring-Matching
+ *  Unsinn liefert. */
 interface SuchTeil { wort: string; nadeln: string[]; ortNadel: string }
 
 /**
@@ -440,8 +447,8 @@ export interface WortlautErgebnis {
  * Bewusst getrennt vom Match-Durchgang oben. Dort steht eine Oder-Kette, die
  * beim ersten Treffer abbricht — über 14 000 Einträge ist genau dieser
  * Kurzschluss der Grund, warum die Wortlaut-Stufe in ~10–30 ms durchläuft. Hier
- * werden alle acht Felder geprüft, aber nur für die Handvoll Einträge, die
- * ohnehin in der Ergebnisliste landen.
+ * werden alle Felder geprüft, aber nur für die Handvoll Einträge, die ohnehin
+ * in der Ergebnisliste landen.
  */
 function feldZuordnung(
   entry: AntragTextEntry,
@@ -464,6 +471,7 @@ function feldZuordnung(
     merke('akronym', in_(entry.akronymLower));
     merke('aktenzeichen', in_(entry.akzLower));
     merke('organisation', in_(entry.organisationLower));
+    merke('domain', t.ortNadel.length > 0 && entry.domainSuchform.includes(t.ortNadel));
     merke('standort', t.ortNadel.length > 0 && entry.standortSuchform.includes(t.ortNadel));
     if (trifftIrgendwo) getroffen++;
   }

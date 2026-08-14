@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.42.0 — Suche findet die Projektbeschreibung wieder, Einrichtungen auch per Kuerzel (August 2026)
+
+MINOR — Gemeldet war „der Antragsteller GMBU wird nicht gefunden, obwohl er da ist". Beim Nachmessen am Bestand fiel ein größerer Defekt auf: die alten Feld-Aliase des Suchkorpus trafen **0 von 14.225** Anträgen — die gesamte Projektbeschreibung fehlte im Suchindex. Sichtbar war das nur als dünner Bestand.
+
+- **Korpus-Felder werden aus dem CSV-Schema aufgelöst** statt geraten (Spalten-CODE → `resolveFieldKey`, alte Listen als Fallback) — [korpusFeldAufloesung.ts](src/plugins/antraege/services/korpusFeldAufloesung.ts); zweiter Fall von [recurring-bug-classes](docs/architecture/recurring-bug-classes.md) Klasse 5
+- **Projektbeschreibung ist wieder durchsuchbar**: 9.225 Anträge tragen sie; „Netzwerkpartner" findet in „nur Titel & Kurzbeschreibung" 696 statt 0 ([search-corpus.ts](src/plugins/antraege/services/search-corpus.ts))
+- **Neue Trefferstelle „Web-Adresse"** aus der Kontakt-Mail (`bergmann@gmbu.de` → `gmbu.de`), im Bereich „nur Einrichtung" — „GMBU" findet 35 statt 0 Anträge ([trefferstelle.ts](src/core/services/search/trefferstelle.ts), [suchbereich.ts](src/core/services/search/suchbereich.ts))
+- **Nur der Host, nie die Adresse**, ohne Top-Level-Domain in der Suchform, mit Sperrliste gegen Projektträger- und Freemail-Domains (`vdivde-it.de` steht 26.933× in der Quelle)
+- **Der Beleg zeigt sich selbst**: Spalte „Web-Adresse" blendet sich bei einem Domain-Treffer ein ([autoSpalten.ts](src/plugins/suche/autoSpalten.ts)) — sonst stünde das Suchwort in keinem sichtbaren Feld der Zeile
+
 ### v4.41.0 — Karten-Menues fuer das obere Band, Rechtsklick app-weit gezaehmt (August 2026)
 
 MINOR — Die zwei Karten über den Spalten trugen als einzige kein `⋯` und ließen sich als einzige nicht abschalten. Und das Browser-Menü, das v4.40.2 auf den Karten zurückgab, hilft hier niemandem: „Zurück", „Neu laden", „Seitenquelltext" sind in einer Datei-App ohne Seiten keine Antwort.

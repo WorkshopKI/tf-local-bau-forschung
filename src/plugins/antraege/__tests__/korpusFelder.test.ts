@@ -17,6 +17,8 @@ import {
   bundeslandName,
   standortSuchform,
   standortNadel,
+  domainLabel,
+  domainSuchform,
 } from '../services/search-corpus';
 
 describe('verbindeEindeutig', () => {
@@ -168,5 +170,86 @@ describe('verbindeMit — Anzeigeform des Standorts', () => {
     expect(feld).toBe('Frankfurt am Main · Hessen');
     expect(standortSuchform(feld).includes(standortNadel('Frankfurt'))).toBe(true);
     expect(standortSuchform(feld).includes(standortNadel('Main'))).toBe(true);
+  });
+});
+
+/**
+ * Die Web-Adresse (v4.42.0) macht Einrichtungen auffindbar, die ihr Kürzel NICHT
+ * im Namen führen.
+ *
+ * Am Bestand gemessen: 244 Organisationen schreiben es aus („… e.V. (IUTA)") und
+ * sind darüber längst zu finden. Die „Gesellschaft zur Förderung von Medizin-,
+ * Bio- und Umwelt- Technologien e.V." nicht — „GMBU" steht in keinem einzigen
+ * Organisationsfeld des Bestandes, wohl aber in `gmbu.de`.
+ */
+describe('domainLabel', () => {
+  it('nimmt den Host und lässt den Personenteil weg', () => {
+    // Der lokale Teil ist eine Personenangabe und gehört in kein Suchfeld.
+    expect(domainLabel('bergmann@gmbu.de')).toBe('gmbu.de');
+    expect(domainLabel('bergmann@gmbu.de')).not.toContain('bergmann');
+  });
+
+  it('liest die erste Adresse, wenn das Feld mehrere führt', () => {
+    expect(domainLabel('a@gmbu.de; b@example.org')).toBe('gmbu.de');
+  });
+
+  it('sperrt die Domains des Projektträgers', () => {
+    // Am Bestand: `vdivde-it.de` steht 26 933 mal in der Quelldatei, bei rund
+    // 8 000 Sätzen. Als Suchwort wäre das ein Treffer auf alles.
+    expect(domainLabel('mueller@vdivde-it.de')).toBe('');
+    expect(domainLabel('mueller@filina-it.de')).toBe('');
+    expect(domainLabel('mueller@eura-ag.de')).toBe('');
+  });
+
+  it('sperrt Freemailer — sie benennen keine Einrichtung', () => {
+    expect(domainLabel('chef@t-online.de')).toBe('');
+    expect(domainLabel('chef@gmx.de')).toBe('');
+    expect(domainLabel('chef@gmail.com')).toBe('');
+  });
+
+  it('bleibt bei fehlender oder unbrauchbarer Angabe leer', () => {
+    expect(domainLabel('')).toBe('');
+    expect(domainLabel('kein Kontakt hinterlegt')).toBe('');
+    expect(domainLabel('@')).toBe('');
+  });
+
+  it('behandelt Groß-/Kleinschreibung wie eine Adresse, nicht wie Text', () => {
+    expect(domainLabel('Bergmann@GMBU.de')).toBe('gmbu.de');
+  });
+});
+
+describe('domainSuchform', () => {
+  it('findet das Kürzel — der Fall, der das Feld nötig machte', () => {
+    expect(domainSuchform('gmbu.de').includes(standortNadel('gmbu'))).toBe(true);
+  });
+
+  it('lässt die Top-Level-Domain weg', () => {
+    // Sonst träfe die zweibuchstabige Anfrage „de" jeden Antrag mit Mailadresse
+    // — dieselbe Falle, die beim Bundesland-Kürzel schon zugeschlagen hat.
+    expect(domainSuchform('gmbu.de')).toBe(' gmbu ');
+    expect(domainSuchform('gmbu.de').includes(standortNadel('de'))).toBe(false);
+  });
+
+  it('hält alle übrigen Segmente suchbar', () => {
+    expect(domainSuchform('mb.tu-chemnitz.de')).toBe(' mb tu chemnitz ');
+    expect(domainSuchform('mb.tu-chemnitz.de').includes(standortNadel('chemnitz'))).toBe(true);
+  });
+
+  it('trifft am Wortanfang, nicht mittendrin', () => {
+    // Kürzel sind kurz und stecken ineinander; freies Substring-Matching
+    // holte hier Fremdes herein (dieselbe Regel wie beim Ort).
+    expect(domainSuchform('weingutmbu.de').includes(standortNadel('mbu'))).toBe(false);
+    expect(domainSuchform('mbu-technik.de').includes(standortNadel('mbu'))).toBe(true);
+  });
+
+  it('macht aus Bindestrich und Punkt eine Wortgrenze — wie beim Ort', () => {
+    // Beabsichtigt: `tu-chemnitz.de` soll auf „tu" UND auf „chemnitz" ansprechen.
+    // Wer hier eine engere Regel will, nimmt der Suche genau diese Fälle weg.
+    expect(domainSuchform('weingut-mbu.de')).toBe(' weingut mbu ');
+    expect(domainSuchform('weingut-mbu.de').includes(standortNadel('mbu'))).toBe(true);
+  });
+
+  it('bleibt leer, wenn es keine Adresse gibt', () => {
+    expect(domainSuchform('')).toBe('');
   });
 });

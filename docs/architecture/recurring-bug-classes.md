@@ -110,6 +110,15 @@ Fehler-Muster, die in diesem Projekt **mehrfach** aufgetreten sind und an denen 
 
 **Maschinell erzwungen** durch den Convention-Test `no-hardcoded-canonical-field` in [conventions-daten.test.ts](../../src/__tests__/conventions-daten.test.ts): direkter `.d_xtec`/`.d_adv`-Lesezugriff ausserhalb des Resolver-Moduls ([vollstaendigkeit-felder.ts](../../src/plugins/auslastung/services/vollstaendigkeit-felder.ts)) ist verboten (Ausnahme: `// allow-canonical-field: <grund>`).
 
+**Zweiter Fall, v4.42.0 — der Suchkorpus.** Dieselbe Wurzel, andere Stelle und deutlich groessere Reichweite: [search-corpus.ts](../../src/plugins/antraege/services/search-corpus.ts) las seine Quell-Spalten unter *geratenen* Alias-Listen (`vb_inhalt`, `org_ast`, …). Am echten Bestand gemessen lag `VB_INHALT` unter `inhalt_kurzzusammenfassung` — die alten Aliase trafen **0 von 14 225** Records, die **gesamte Projektbeschreibung** fehlte im Suchindex. Sichtbar war das nur als duenner Bestand: „Netzwerkpartner" fand im Bereich „nur Titel & Kurzbeschreibung" **0** statt 696 Antraege, und dieser Bereich suchte faktisch nur im Titel. `ORG_AST` lag je Quelle unter **drei** verschiedenen Schluesseln, einer davon in Kollision mit dem kanonischen `ORG_AFS`.
+
+Zwei Lehren ueber Klasse 5 hinaus:
+
+1. **Ein Alias-Kommentar ist kein Vertrag.** Der Korpus behauptete, seine Listen seien „identisch zu den `findFieldValue`-Aliasen in `TvDetailBlock.tsx`". Das Detail-View hatte `inhalt_kurzzusammenfassung` laengst nachgezogen, der Korpus nie — die Behauptung stand noch da und las sich wie eine Zusicherung.
+2. **Die Reihenfolge der Aufloesung ist Teil der Regel.** Weil eine Quelle `ORG_AST` auf den Schluessel von `ORG_AFS` mappt, muss die Vergabe eine Prioritaet haben; ohne sie zeigten beide Slots auf denselben Wert und die 2,5 % der Saetze mit abweichender Rechtsperson verloeren ihre zweite Organisation — eine *Verschlechterung* durch den Fix.
+
+Aufloesung jetzt in [korpusFeldAufloesung.ts](../../src/plugins/antraege/services/korpusFeldAufloesung.ts) (Spalten-CODE → `resolveFieldKey`, alte Listen als Fallback). Reissleine: `korpus-felder-ueber-schema` in [conventions-daten.test.ts](../../src/__tests__/conventions-daten.test.ts).
+
 ## 6. Tracking-Baseline nach dem Snapshot geschrieben (Snapshot-only-Leser sehen veralteten Stand)
 
 **Symptom:** Auf Snapshot-only-Konsumenten (pl-Variante / nach „clear site data" / neuer Rechner) erscheint ein „hat sich geändert"-Banner (Auto-Refresh „CSV-Quelle hat neue Daten", „Neuer Datenbestand") bei **jedem** frischen Start, obwohl sich nichts geändert hat. Der schreibende Client (Kurator) sieht es **nie**. Klick auf „Aktualisieren" hilft nur bis zum nächsten clear-site-data.

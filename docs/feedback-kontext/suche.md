@@ -11,7 +11,7 @@ Nutzer durchsucht Förderanträge und Dokumente programmweit mit einer hybriden 
 - **Optionszeile** darunter, vier Elemente:
   - **„Wortverknüpfung":** alle Wörter (UND, Standard) · irgendein Wort (ODER) · genaue Wortfolge. Wirkt auf Wortlaut-Treffer.
   - **„Wortformen mitsuchen":** dasselbe Wort in anderer Form — deterministischer Wortstamm-Vergleich („Normen" findet „Normung"). Kostenlos, lädt nichts nach.
-  - **„Suchen in":** Titel/Beschreibung/Dokumente · nur Titel & Kurzbeschreibung · nur Dokumente · nur Einrichtung · nur Ort & Bundesland.
+  - **„Suchen in":** Titel/Beschreibung/Dokumente · nur Titel & Kurzbeschreibung · nur Dokumente · nur Einrichtung · nur Ort & Bundesland. „nur Einrichtung" umfasst neben Antragsteller und ausführender Stelle auch die **Web-Adresse** — sonst wären Einrichtungen, die ihr Kürzel nicht im Namen führen, über das Kürzel unauffindbar („GMBU" steht in keinem Namensfeld, wohl aber in `gmbu.de`).
   - **„Ähnlichkeitssuche":** dasselbe Thema in anderen Worten — semantische Treffer, lädt beim ersten Mal ein Embedding-Modell (~200 MB). Nicht zu verwechseln mit „Wortformen mitsuchen": der eine Schalter geht über das Wort, der andere über den Inhalt.
   - Rechts der **Index-Hinweis** („Index: 14.225 Anträge · n Textabschnitte").
 - **Deutungszeile „Gesucht wird":** die Suchwörter als **abwählbare** Chips (gelb), dazwischen der Operator (UND/ODER/„gefolgt von"), dahinter die gefundenen Wortstamm-Varianten (türkis, ebenfalls abwählbar). Ein abgewähltes Wort fällt aus der Suche — das Feld bleibt unverändert.
@@ -20,11 +20,11 @@ Nutzer durchsucht Förderanträge und Dokumente programmweit mit einer hybriden 
 - **Trefferliste** (Standard), drei Zeilen je Treffer:
   - Kopfzeile: FKZ · Status · Bewilligungsdatum · Trefferstellen-Tags mit Anzahl.
   - Titel, Suchwörter markiert — klickt in den Antrag.
-  - Fundstelle: Textstelle mit Quellenangabe bzw. Antragsteller/Akronym, dahinter die Belege, die sonst nirgends stünden („Ort Dresden · Sachsen", „Deskriptoren …", ebenfalls markiert).
+  - Fundstelle: Textstelle mit Quellenangabe bzw. Antragsteller/Akronym, dahinter die Belege, die sonst nirgends stünden („Ort Dresden · Sachsen", „Deskriptoren …", „Web-Adresse gmbu.de", ebenfalls markiert).
   - Rechts am Rand: Relevanzbalken (hoch/mittel/gering) und **„Warum?"**.
 - **„Warum?"** klappt die KI-Begründung unter der Zeile auf, mit den Aktionen **Antrag öffnen** · **Ähnliche Anträge** · **Als unpassend melden** (öffnet das Feedback-Formular vorbefüllt; ändert kein Ranking). Ist keine interne KI verbunden, öffnet „Warum?" **keinen** KI-Tab, sondern den app-weiten Verbinden-Dialog; im aufgeklappten Bereich steht der Grund.
-- **Ergebnistabelle** (Alternative): sortier-/filterbare, konfigurierbare Spalten. Die Suchwörter sind auch hier markiert (Titel/Inhalt, FKZ bzw. Dateiname, AST, Ort AST, Ort & Bundesland, Deskriptoren); Sortierung, Filter und Export arbeiten weiter auf dem Rohwert.
-- **Automatisch eingeblendete Spalten:** Wer in „nur Ort & Bundesland" sucht — oder wessen Treffer im Ort bzw. in den Deskriptoren gefunden wurden —, bekommt die zugehörige Spalte dazu, damit sichtbar ist, warum ein Treffer erscheint. Im Aufklapper „Spalten" stehen sie angehakt mit der Marke „auto"; sie ändern die persönliche Spaltenwahl nicht und verschwinden mit ihrem Grund wieder.
+- **Ergebnistabelle** (Alternative): sortier-/filterbare, konfigurierbare Spalten. Die Suchwörter sind auch hier markiert (Titel/Inhalt, FKZ bzw. Dateiname, AST, Ort AST, Ort & Bundesland, Deskriptoren, Web-Adresse); Sortierung, Filter und Export arbeiten weiter auf dem Rohwert.
+- **Automatisch eingeblendete Spalten:** Wer in „nur Ort & Bundesland" sucht — oder wessen Treffer im Ort, in den Deskriptoren oder in der Web-Adresse gefunden wurden —, bekommt die zugehörige Spalte dazu, damit sichtbar ist, warum ein Treffer erscheint. Im Aufklapper „Spalten" stehen sie angehakt mit der Marke „auto"; sie ändern die persönliche Spaltenwahl nicht und verschwinden mit ihrem Grund wieder.
 - **Mehrfachauswahl:** Kästchen je Zeile, dunkle Leiste unten mit Exportieren · Mit KI vergleichen · Auswahl leeren.
 - **ASSISTENT-Streifen** am rechten Rand (auf jeder Seite): schaltet hier das andockende KI-Chat-Panel mit den Treffern als Kontext.
 - **Startzustand** (noch nichts getippt): vier Spalten — letzte Suchen, gespeicherte Suchen, häufig gesucht (je mit echter Trefferzahl) und „Aus dem Index" mit den Beispiel-Chips. Fehlt der Dokumentenindex, steht unten eine gedämpfte Info-Zeile (kein Button — der Index ist Kurator-Aufgabe).

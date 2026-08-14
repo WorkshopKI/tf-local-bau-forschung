@@ -9,7 +9,9 @@
  */
 import { describe, it, expect } from 'vitest';
 import { searchAntraegeSubstring, zerlegeAnfrage } from '../services/antraege-search-service';
-import { standortSuchform, type AntragTextEntry } from '../services/search-corpus';
+import {
+  domainSuchform, standortSuchform, type AntragTextEntry,
+} from '../services/search-corpus';
 
 function eintrag(
   vb: string,
@@ -20,6 +22,7 @@ function eintrag(
   akz = '',
   organisation = '',
   standort = '',
+  domain = '',
 ): AntragTextEntry {
   return {
     vbLower: vb.toLowerCase(),
@@ -30,6 +33,8 @@ function eintrag(
     akzLower: akz.toLowerCase(),
     organisationLower: organisation.toLowerCase(),
     standortSuchform: standortSuchform(standort),
+    domain,
+    domainSuchform: domainSuchform(domain),
   } as AntragTextEntry;
 }
 

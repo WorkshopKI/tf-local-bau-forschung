@@ -19,9 +19,17 @@
  *  - `dokument`                 → Dateiname bzw. gefaltete Textstelle,
  *  - `aehnlichkeit`             → Spalten „Suche" und „Score".
  *
- * Übrig bleiben `standort` und `deskriptoren`. NUR sie stehen unten in `BELEG` —
- * wer hier eine achte Zeile ergänzt, muss vorher zeigen, dass der Beleg wirklich
- * nirgends sonst auftaucht, sonst wächst die Tabelle für nichts.
+ * Übrig bleiben `standort`, `deskriptoren` und `domain`. NUR sie stehen unten in
+ * `BELEG` — wer hier eine weitere Zeile ergänzt, muss vorher zeigen, dass der
+ * Beleg wirklich nirgends sonst auftaucht, sonst wächst die Tabelle für nichts.
+ *
+ * Für `domain` ist das gezeigt: die Web-Adresse wird aus der Kontakt-Mail
+ * abgeleitet und steht in keiner Spalte und in keinem Snippet. Sie existiert
+ * genau für die Einrichtungen, die ihr Kürzel NICHT im Namen führen — wer
+ * „GMBU" sucht, sieht in der Zeile sonst nur „Gesellschaft zur Förderung von
+ * Medizin-, Bio- und Umwelt-Technologien e.V." und damit keinen Grund für den
+ * Treffer. Das ist derselbe Fall wie bei „Dresden" oben, nur eine Stufe
+ * schärfer: hier steht das Suchwort in KEINEM sichtbaren Feld.
  *
  * Dieselbe Tabelle bedient beide Ansichten: die Tabelle blendet die Spalte ein,
  * die Liste schreibt den Wert in die Metazeile. Zwei Listen für dieselbe Frage
@@ -45,6 +53,7 @@ interface BelegDefinition {
 const BELEG: readonly BelegDefinition[] = [
   { feld: 'standort', spalte: 'standort', wert: r => r.standort },
   { feld: 'deskriptoren', spalte: 'deskriptoren', wert: r => r.deskriptoren },
+  { feld: 'domain', spalte: 'domain', wert: r => r.domain },
 ];
 
 /** Ein Beleg mit seinem Wert — was die Trefferzeile zusätzlich schreibt. */

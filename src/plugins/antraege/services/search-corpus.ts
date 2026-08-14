@@ -6,11 +6,14 @@
  * werden:
  *
  *  - `loadAntraegeTextCorpus` — projiziert den vollen `Antrag`-Record auf die
- *    suchrelevanten Text-Felder (`verbund_titel`, `titel`,
- *    `projektbeschreibung_text`, Deskriptoren, `akronym`, Aktenzeichen,
- *    Organisation) und
- *    cached zusaetzlich die lowercase-Variante
+ *    suchrelevanten Text-Felder (Verbund-Titel, Titel, Projektbeschreibung,
+ *    Deskriptoren, Akronym, Aktenzeichen, Organisation, Standort, Web-Adresse)
+ *    und cached zusaetzlich die lowercase-Variante
  *    (Substring-Match per Keystroke wird so von ~500 ms auf ~10–30 ms reduziert).
+ *
+ *    Unter welchem Schluessel eine CSV-Spalte im Antrags-Record liegt, sagt das
+ *    Wizard-Mapping — nicht der Code. Die Zuordnung kommt deshalb aus
+ *    [korpusFeldAufloesung.ts](src/plugins/antraege/services/korpusFeldAufloesung.ts).
  *
  *  - `loadDmsFilenameToAkz` — Umkehr-Lookup fuer Phase-2-Treffer: Orama
  *    liefert pro Hit den `source`-Filename, wir wollen den `matched_antrag_id`
@@ -20,8 +23,10 @@ import type { IDBStore } from '@/core/services/storage/idb-store';
 import { CSV_STORES } from '@/core/services/storage/idb-store';
 import type { Antrag } from '@/core/services/csv/types';
 import { listManifestEntries } from '@/phase2/scanner/manifest-store';
+import { listSchemasByProgramm } from '@/core/services/csv/idb-csv';
 import { normalizeKey } from '../fieldLookup';
 import { buildDescriptorsText } from './descriptor-text';
+import { baueKorpusFeldKarte, type KorpusFeldKarte } from './korpusFeldAufloesung';
 
 export interface AntragTextEntry {
   /** Verbund-Titel. */
@@ -93,68 +98,80 @@ export interface AntragTextEntry {
    *  Regensburg. Das ist die normale Erwartung an ein Suchfeld, das mit jedem
    *  Tastendruck sucht — „dresd" soll Dresden schon finden. */
   standortSuchform: string;
+  /** Web-Adresse der Einrichtung, aus der Kontakt-Mail der Projektleitung
+   *  abgeleitet (`bergmann@gmbu.de` → `gmbu.de`). ANZEIGEFORM, wie beim
+   *  Standort — eine Fundstelle, die sonst nirgends in der Zeile stuende,
+   *  muss sich ausschreiben.
+   *
+   *  Der Grund, am Bestand gemessen: viele Einrichtungen fuehren ihr Kuerzel im
+   *  Namen („… e.V. (IUTA)", 244 Faelle) und sind darueber auffindbar. Andere
+   *  nicht — die „Gesellschaft zur Foerderung von Medizin-, Bio- und
+   *  Umwelt-Technologien e.V." heisst im ganzen Bestand nirgends „GMBU", obwohl
+   *  jeder sie so nennt. Ihre Mail-Domain schliesst genau diese Luecke. */
+  domain: string;
+  /** Suchform der Web-Adresse — wie `standortSuchform` am Wortanfang verankert
+   *  und OHNE die Top-Level-Domain: sonst traefe die Anfrage „de" jeden Antrag. */
+  domainSuchform: string;
 }
 
 /**
- * Feld-Name-Kandidaten je Spalte. Der CSV-Merger
- * ([helpers.ts](src/core/services/csv/merger/helpers.ts)) speichert ein
- * Feld unter `entry.canonical ?? entry.custom ?? col.toLowerCase()`. C16
- * exportiert mit Leerzeichen im Spaltennamen (`VB INHALT`, `VB TITEL`) →
- * ohne Wizard-Mapping landet das als `'vb inhalt'` / `'vb titel'` (mit
- * Space, nicht Underscore). Wir gleichen deshalb gegen die NORMALISIERTE
- * Form (lowercase + alle Trenner raus) ab — gleicher Algorithmus wie
- * `findFieldValue` in `fieldLookup.ts`, der das im Detail-View erfolgreich
- * loest.
+ * Feld-Name-Kandidaten je Spalte — der FALLBACK, wenn kein Schema die Spalte
+ * fuehrt.
  *
- * Listen identisch zu `findFieldValue`-Aliasen in `TvDetailBlock.tsx`
- * plus die Canonical-Variante `projektbeschreibung_text`. Vorberechnete
- * Sets als Modul-Konstanten — der Cursor-Walk macht 13 k × 2 Lookups,
- * Re-Hashing der Kandidaten pro Eintrag waere Verschwendung.
+ * Der CSV-Merger ([helpers.ts](src/core/services/csv/merger/helpers.ts))
+ * speichert ein Feld unter `entry.canonical ?? entry.custom ?? col.toLowerCase()`.
+ * C16 exportiert mit Leerzeichen im Spaltennamen (`VB INHALT`, `VB TITEL`) →
+ * ohne Wizard-Mapping landet das als `'vb inhalt'` / `'vb titel'` (mit Space,
+ * nicht Underscore). Wir gleichen deshalb gegen die NORMALISIERTE Form
+ * (lowercase + alle Trenner raus) ab — gleicher Algorithmus wie
+ * `findFieldValue` in `fieldLookup.ts`.
+ *
+ * Diese Liste zu RATEN war der Defekt: welcher Schluessel es wirklich wird,
+ * entscheidet das Wizard-Mapping, nicht der Code. Am Bestand lag `VB_INHALT`
+ * unter `inhalt_kurzzusammenfassung` und fehlte damit vollstaendig im Korpus.
+ * Die verbindliche Aufloesung macht jetzt
+ * [korpusFeldAufloesung.ts](src/plugins/antraege/services/korpusFeldAufloesung.ts)
+ * ueber den Spalten-CODE; was hier steht, greift zusaetzlich.
+ *
+ * Vorberechnete Sets — der Cursor-Walk macht 14 k × 10 Lookups, Re-Hashing der
+ * Kandidaten pro Eintrag waere Verschwendung.
  */
-const VB_TITEL_NORMALIZED: ReadonlySet<string> = new Set(
-  ['verbund_titel', 'vb_titel', 'vb titel'].map(normalizeKey),
-);
-const ABSTRACT_NORMALIZED: ReadonlySet<string> = new Set(
-  [
+const KORPUS_BASIS: KorpusFeldKarte = {
+  vbTitel: mengeAus('verbund_titel', 'vb_titel', 'vb titel'),
+  abstract: mengeAus(
     'projektbeschreibung_text',
     'vb_inhalt', 'vb inhalt',
     'vorhaben_inhalt', 'vorhabeninhalt',
+    'inhalt_kurzzusammenfassung', 'kurzzusammenfassung',
     'kurzbeschreibung', 'beschreibung', 'inhalt',
-  ].map(normalizeKey),
-);
-const AKRONYM_NORMALIZED: ReadonlySet<string> = new Set(
-  ['akronym', 'vb_kurznam', 'vb kurznam'].map(normalizeKey),
-);
-/** Ausfuehrende Stelle. `org_afs` traegt im Repo den Canonical-Namen
- *  `antragsteller` ([constants.ts](src/core/services/csv/constants.ts)) — beide
- *  Schreibweisen stehen hier, weil die Spalte je nach Wizard-Mapping unter dem
- *  einen ODER dem anderen Schluessel im Store liegt. */
-const ORG_AFS_NORMALIZED: ReadonlySet<string> = new Set(
-  ['antragsteller', 'org_afs', 'org afs'].map(normalizeKey),
-);
-/** Rechtsperson. Hat KEIN Canonical-Feld — landet als Custom-Spalte unter dem
- *  kleingeschriebenen Spaltennamen im Antrags-Record. */
-const ORG_AST_NORMALIZED: ReadonlySet<string> = new Set(
-  ['org_ast', 'org ast'].map(normalizeKey),
-);
-/** Sitz der Rechtsperson bzw. der ausfuehrenden Stelle. Beide Spalten, weil sie
- *  am Bestand gemessen in 1 052 von 14 224 Saetzen (7,4 %) auseinandergehen —
- *  Firmensitz Hamburg, gearbeitet wird in Wedel. */
-const ORT_AST_NORMALIZED: ReadonlySet<string> = new Set(
-  ['ort_ast', 'ort ast'].map(normalizeKey),
-);
-const ORT_AFS_NORMALIZED: ReadonlySet<string> = new Set(
-  ['ort_afs', 'ort afs'].map(normalizeKey),
-);
-/** Bundesland — im Export NUR als Kuerzel (`SN`, `BW`). Gemessene Abweichung
- *  zwischen den beiden Spalten: 621 Saetze. `buland_ast` und `bl_ast` sind
- *  dieselbe Angabe unter zwei Spaltennamen (je nach Quelldatei). */
-const LAND_AST_NORMALIZED: ReadonlySet<string> = new Set(
-  ['buland_ast', 'buland ast', 'bl_ast', 'bl ast'].map(normalizeKey),
-);
-const LAND_AFS_NORMALIZED: ReadonlySet<string> = new Set(
-  ['buland_afs', 'buland afs', 'bl_afs', 'bl afs'].map(normalizeKey),
-);
+  ),
+  akronym: mengeAus('akronym', 'vb_kurznam', 'vb kurznam'),
+  /** Ausfuehrende Stelle. `org_afs` traegt im Repo den Canonical-Namen
+   *  `antragsteller` ([constants.ts](src/core/services/csv/constants.ts)) — beide
+   *  Schreibweisen stehen hier, weil die Spalte je nach Wizard-Mapping unter dem
+   *  einen ODER dem anderen Schluessel im Store liegt. */
+  orgAfs: mengeAus('antragsteller', 'org_afs', 'org afs'),
+  /** Rechtsperson. Hat KEIN Canonical-Feld — landet als Custom-Spalte, und zwar
+   *  am Bestand unter drei verschiedenen Namen je Quelle. */
+  orgAst: mengeAus('org_ast', 'org ast', 'antragsteller_ast'),
+  /** Sitz der Rechtsperson bzw. der ausfuehrenden Stelle. Beide Spalten, weil sie
+   *  am Bestand gemessen in 1 052 von 14 224 Saetzen (7,4 %) auseinandergehen —
+   *  Firmensitz Hamburg, gearbeitet wird in Wedel. */
+  ortAst: mengeAus('ort_ast', 'ort ast'),
+  ortAfs: mengeAus('ort_afs', 'ort afs'),
+  /** Bundesland — im Export NUR als Kuerzel (`SN`, `BW`). Gemessene Abweichung
+   *  zwischen den beiden Spalten: 621 Saetze. `buland_ast` und `bl_ast` sind
+   *  dieselbe Angabe unter zwei Spaltennamen (je nach Quelldatei). */
+  landAst: mengeAus('buland_ast', 'buland ast', 'bl_ast', 'bl ast'),
+  landAfs: mengeAus('buland_afs', 'buland afs', 'bl_afs', 'bl afs'),
+  /** Kontakt-Mail der Projektleitung des ANTRAGSTELLERS. Quelle des
+   *  Domain-Kuerzels, siehe `domainLabel`. */
+  emailPl: mengeAus('email_pl', 'email pl'),
+};
+
+function mengeAus(...namen: string[]): ReadonlySet<string> {
+  return new Set(namen.map(normalizeKey));
+}
 
 /**
  * Bundesland-Kuerzel → Klartext. Das Kuerzel allein taugt nicht als Suchwort:
@@ -219,6 +236,66 @@ export function standortSuchform(text: string): string {
 export function standortNadel(wort: string): string {
   const kern = wort.toLowerCase().replace(STANDORT_TRENNER, ' ').trim();
   return kern.length === 0 ? '' : ` ${kern}`;
+}
+
+/**
+ * Domains, die NICHTS ueber die Einrichtung sagen und deshalb draussen bleiben.
+ *
+ * Der erste Block ist der wichtige: die Quelldatei fuehrt in `TIB_MAIL`,
+ * `BIB_MAIL`, `ZTP_MAIL` und `PFM_MAIL` die Adressen des PROJEKTTRAEGERS. Am
+ * Bestand gemessen steht `vdivde-it.de` 26 933 mal in der Datei, `filina-it.de`
+ * 3 367 mal, `eura-ag.de` 788 mal — bei rund 8 000 Saetzen also mehrfach pro
+ * Zeile. Als Suchwort waeren sie ein Treffer auf alles.
+ *
+ * Die Spalten-Aufloesung (`emailPl`) schliesst diese Spalten bereits
+ * strukturell aus; die Liste ist das zweite Netz, falls jemand `EMAIL_PL`
+ * einmal anders mappt.
+ *
+ * Der zweite Block sind Freemailer: wer von `t-online.de` schreibt (100 Faelle),
+ * verraet damit seine Einrichtung nicht.
+ */
+const GESPERRTE_DOMAINS: ReadonlySet<string> = new Set([
+  'vdivde-it.de', 'filina-it.de', 'eura-ag.de', 'euronorm.de',
+  't-online.de', 'gmx.de', 'gmx.net', 'web.de', 'gmail.com', 'googlemail.com',
+  'aol.com', 'freenet.de', 'yahoo.de', 'yahoo.com', 'hotmail.de', 'hotmail.com',
+  'outlook.de', 'outlook.com', 'posteo.de', 'mail.de',
+]);
+
+/** Erste Mail-Adresse in einem Feld. `EMAIL_PL` fuehrt gelegentlich mehrere,
+ *  durch Semikolon oder Komma getrennt. */
+const MAIL_MUSTER = /[A-Za-z0-9._%+-]+@([A-Za-z0-9.-]+\.[A-Za-z]{2,})/;
+
+/**
+ * Web-Adresse der Einrichtung aus einer Kontakt-Mail — NUR der Host, nie die
+ * Adresse.
+ *
+ * Der lokale Teil („bergmann") ist eine Personenangabe und hat in einem
+ * Suchfeld nichts zu suchen; der Host benennt die Organisation. Gesperrte und
+ * unbrauchbare Hosts liefern den leeren String, den der Aufrufer wie ein
+ * fehlendes Feld behandelt. Pure — testbar ohne IDB.
+ */
+export function domainLabel(feldwert: string): string {
+  const treffer = MAIL_MUSTER.exec(feldwert ?? '');
+  const roh = treffer?.[1];
+  if (!roh) return '';
+  const host = roh.toLowerCase().replace(/\.+$/, '');
+  if (host.length === 0 || GESPERRTE_DOMAINS.has(host)) return '';
+  return host;
+}
+
+/**
+ * Suchform der Web-Adresse: wie beim Standort am Wortanfang verankert, aber
+ * OHNE die Top-Level-Domain.
+ *
+ * Ohne diesen Schnitt traefe die zweibuchstabige Anfrage „de" jeden Antrag mit
+ * Mail-Adresse — dieselbe Falle, die beim Bundesland-Kuerzel schon zugeschlagen
+ * hat. Die uebrigen Segmente bleiben alle erhalten: `mb.tu-chemnitz.de` wird zu
+ * ` mb tu chemnitz `, damit „chemnitz" den Treffer auch findet. Pure.
+ */
+export function domainSuchform(host: string): string {
+  const punkt = host.lastIndexOf('.');
+  const ohneTld = punkt > 0 ? host.slice(0, punkt) : host;
+  return standortSuchform(ohneTld);
 }
 
 function pickByNormalized(
@@ -299,6 +376,12 @@ export async function loadAntraegeTextCorpus(
   opts: LoadCorpusOptions = {},
 ): Promise<Map<string, AntragTextEntry>> {
   const { signal, includeEmpty = false } = opts;
+  // VOR der Transaktion: ein `await` zwischen zwei Cursor-Schritten wuerde die
+  // IDB-Transaktion beenden. Die Karte gilt ohnehin fuer den ganzen Lauf.
+  const karte = baueKorpusFeldKarte(
+    await listSchemasByProgramm(idb, programmId),
+    KORPUS_BASIS,
+  );
   const db = idb.getDb();
   const result = new Map<string, AntragTextEntry>();
   await new Promise<void>((resolve, reject) => {
@@ -311,28 +394,30 @@ export async function loadAntraegeTextCorpus(
       if (!cursor) { resolve(); return; }
       const a = cursor.value as Antrag;
       const rec = a as unknown as Record<string, unknown>;
-      const vb = pickByNormalized(rec, VB_TITEL_NORMALIZED);
+      const vb = pickByNormalized(rec, karte.vbTitel);
       const tv = typeof a.titel === 'string' ? a.titel : '';
-      const ab = pickByNormalized(rec, ABSTRACT_NORMALIZED);
+      const ab = pickByNormalized(rec, karte.abstract);
       const descriptors = buildDescriptorsText(a);
-      const ak = pickByNormalized(rec, AKRONYM_NORMALIZED);
-      const orgAfs = pickByNormalized(rec, ORG_AFS_NORMALIZED);
-      const orgAst = pickByNormalized(rec, ORG_AST_NORMALIZED);
+      const ak = pickByNormalized(rec, karte.akronym);
+      const orgAfs = pickByNormalized(rec, karte.orgAfs);
+      const orgAst = pickByNormalized(rec, karte.orgAst);
       const organisation = verbindeEindeutig(orgAfs, orgAst);
       // Mit sichtbarem Trenner: dieses Feld wird auch ANGEZEIGT (siehe
       // `verbindeMit`). Die Suchform darunter bleibt davon unberuehrt.
       const standort = verbindeMit(
         ' · ',
-        pickByNormalized(rec, ORT_AFS_NORMALIZED),
-        pickByNormalized(rec, ORT_AST_NORMALIZED),
-        bundeslandName(pickByNormalized(rec, LAND_AFS_NORMALIZED)),
-        bundeslandName(pickByNormalized(rec, LAND_AST_NORMALIZED)),
+        pickByNormalized(rec, karte.ortAfs),
+        pickByNormalized(rec, karte.ortAst),
+        bundeslandName(pickByNormalized(rec, karte.landAfs)),
+        bundeslandName(pickByNormalized(rec, karte.landAst)),
       );
+      const domain = domainLabel(pickByNormalized(rec, karte.emailPl));
       if (
         includeEmpty
         || vb.length > 0 || tv.length > 0 || ab.length > 0
         || descriptors.length > 0 || ak.length > 0
         || organisation.length > 0 || standort.length > 0
+        || domain.length > 0
       ) {
         result.set(a.aktenzeichen, {
           vb,
@@ -350,6 +435,8 @@ export async function loadAntraegeTextCorpus(
           organisationLower: organisation.toLowerCase(),
           standort,
           standortSuchform: standortSuchform(standort),
+          domain,
+          domainSuchform: domainSuchform(domain),
         });
       }
       cursor.continue();

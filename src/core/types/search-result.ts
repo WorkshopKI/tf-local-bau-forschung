@@ -70,6 +70,11 @@ export interface UnifiedSearchResult {
   /** Deskriptoren-Text (Technologie/Branche/Anwendung + ZT-Klartexte). Zweiter
    *  Beleg ohne eigenen Platz im Ergebnis — dieselbe Begründung wie `standort`. */
   deskriptoren?: string;
+  /** Web-Adresse der Einrichtung, aus der Kontakt-Mail abgeleitet
+   *  (`bergmann@gmbu.de` → `gmbu.de`). Dritter Beleg dieser Art: wer über das
+   *  Kürzel „GMBU" hierher gefunden hat, sieht in der Zeile sonst nur den
+   *  ausgeschriebenen Namen — und damit keinen Grund für den Treffer. */
+  domain?: string;
 
   // ----- Antrags-spezifisch (nur wenn type === 'antrag') -----
   /** Foerderkennzeichen / Aktenzeichen. */
