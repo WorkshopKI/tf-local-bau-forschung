@@ -51,6 +51,39 @@ export interface UnsicherAufschluesselung {
   kurz: number;
 }
 
+/**
+ * Bis zu drei Belege je Auffälligkeit — damit ein Fall von Hand nachsehbar ist
+ * und eine Zahl nicht allein im Raum steht.
+ *
+ * **Gedeckelt, und das ist der Punkt.** Der Modulkopf verbietet das Sammeln über
+ * den Bestand aus gutem Grund; drei feste Plätze je Auffälligkeit sind kein
+ * Sammeln, sondern eine Stichprobe mit Obergrenze. Doppelte bleiben draußen —
+ * `MVA→ÄA` dreimal ist kein Beleg, sondern eine Zeile.
+ */
+export interface VerlaufsBeispiel {
+  /** Was dasteht: `VV → 47`, `MVA→ÄA`, `16KN084044`. */
+  text: string;
+  /**
+   * Das Kürzel darin — Sprungziel für die Kürzel-Tabelle. Getrennt geführt statt
+   * aus `text` zurückgeparst: das Anzeigeformat darf sich ändern, ohne dass ein
+   * Filter stillschweigend ins Leere zeigt.
+   */
+  kuerzel?: string;
+}
+
+export interface VerlaufsBeispiele {
+  /** `VV → 47` — Kürzel und der rohe Zielcode, den der Katalog nicht beschriftet. */
+  zielCodeUnbekannt: VerlaufsBeispiel[];
+  /** `MVA→ÄA` — Export-Form und heutige Form, Notation wie in §14.3. */
+  historischeKuerzel: VerlaufsBeispiel[];
+  /** Kürzel, deren geliehene Bezeichnung sich zwischen den Formen widerspricht. */
+  geliehenStrittig: VerlaufsBeispiel[];
+  /** Spur-Ids (Aktenzeichen bzw. Verbund) mit einem Widerspruch. */
+  widerspruch: VerlaufsBeispiel[];
+  /** Spur-Ids mit einem Abschnitt negativer Dauer. */
+  rueckwaerts: VerlaufsBeispiel[];
+}
+
 /** Die größte Spur — sie sagt, womit die Anzeige im schlimmsten Fall rechnet. */
 export interface LaengsteSpur {
   id: string;
@@ -146,12 +179,27 @@ export interface VerlaufsBefunde {
   /** Verteilung der Projektform-Lage über die Verbünde. */
   projektform: Map<string, number>;
   /**
-   * Nur **gezählt**, nicht abgeleitet: was die importierte C16-Trigger-Tabelle
-   * zusätzlich erklären würde. Entscheidungsgrundlage für Phase 2/3 — ein
-   * zweiter Ableitungspfad wäre eine zweite Wahrheit.
+   * Die **Obergrenze**: für wie viele Termine die C16-Tabelle überhaupt eine
+   * Zeile führt — Bedingungen ignoriert, Schlüssel `Programm|Kürzel`.
+   *
+   * Bis v3.22 war das die Vergleichszahl neben einer anderen Quelle. Seit v3.23
+   * ist C16 die Regelquelle selbst, und die Zählung misst nun etwas anderes,
+   * aber nicht weniger Nützliches: was das Regelwerk hergibt, gegen das, was die
+   * Ableitung daraus tatsächlich belegt. Die Differenz sind die Bedingungen.
    */
   c16TvUebergaenge: number;
   c16VerbuendeMitVbUebergang: number;
+  /** Nachsehbare Fälle zu den Auffälligkeiten — siehe {@link VerlaufsBeispiele}. */
+  beispiele: VerlaufsBeispiele;
+}
+
+/** Wie viele Belege je Auffälligkeit höchstens mitlaufen. */
+const BEISPIELE_MAX = 3;
+
+/** Nimmt einen Beleg auf, solange Platz ist und er neu ist. */
+function merkeBeispiel(liste: VerlaufsBeispiel[], text: string, kuerzel?: string): void {
+  if (liste.length >= BEISPIELE_MAX || liste.some(b => b.text === text)) return;
+  liste.push(kuerzel === undefined ? { text } : { text, kuerzel });
 }
 
 function leererZaehler<T extends string>(schluessel: readonly T[]): Record<T, number> {
@@ -180,6 +228,10 @@ export function leereBefunde(): VerlaufsBefunde {
     verbuendeMitStatuswechsel: 0, verbuendeMitTermin: 0, laengsteSpur: null,
     projektform: new Map(),
     c16TvUebergaenge: 0, c16VerbuendeMitVbUebergang: 0,
+    beispiele: {
+      zielCodeUnbekannt: [], historischeKuerzel: [], geliehenStrittig: [],
+      widerspruch: [], rueckwaerts: [],
+    },
   };
 }
 
@@ -205,14 +257,25 @@ export function nimmAuf(b: VerlaufsBefunde, spuren: readonly VerlaufsSpur[]): vo
       b.projektform.set(label, (b.projektform.get(label) ?? 0) + 1);
     }
     if (spur.abweichung?.art === 'nicht_ableitbar') b.abweichungNichtAbleitbar++;
-    if (spur.abweichung?.art === 'widerspruch') b.abweichungWiderspruch++;
+    if (spur.abweichung?.art === 'widerspruch') {
+      b.abweichungWiderspruch++;
+      merkeBeispiel(b.beispiele.widerspruch, spur.id);
+    }
 
     for (const u of spur.uebergaenge) {
       b.uebergaenge++;
       b.konfidenz[u.konfidenz]++;
       const ziel = u.setztStatus;
-      if (ziel && ziel.code !== null && ziel.roh === String(ziel.code)) b.zielCodeUnbekannt++;
-      if (u.kuerzelHistorisch) b.historischeKuerzel++;
+      if (ziel && ziel.code !== null && ziel.roh === String(ziel.code)) {
+        b.zielCodeUnbekannt++;
+        merkeBeispiel(b.beispiele.zielCodeUnbekannt, `${u.kuerzel} → ${ziel.roh}`, u.kuerzel);
+      }
+      if (u.kuerzelHistorisch) {
+        b.historischeKuerzel++;
+        merkeBeispiel(
+          b.beispiele.historischeKuerzel, `${u.kuerzelHistorisch}→${u.kuerzel}`, u.kuerzel,
+        );
+      }
       if (u.bedingung?.urteil === 'erfuellt') b.bedingungErfuellt++;
       if (u.bedingung?.urteil === 'verletzt') b.bedingungVerletzt++;
       if (u.bedingung?.urteil === 'unpruefbar') b.bedingungUnpruefbar++;
@@ -221,14 +284,20 @@ export function nimmAuf(b: VerlaufsBefunde, spuren: readonly VerlaufsSpur[]): vo
       // nicht mit — sonst stünde eine Lücke neben einer Anleihe unter einer Zahl.
       if (u.bezeichnung !== null && u.bezeichnungQuelle === undefined) {
         b.bezeichnungGeliehen++;
-        if (!u.bezeichnungEindeutig) b.bezeichnungGeliehenUneindeutig++;
+        if (!u.bezeichnungEindeutig) {
+          b.bezeichnungGeliehenUneindeutig++;
+          merkeBeispiel(b.beispiele.geliehenStrittig, u.kuerzel, u.kuerzel);
+        }
       }
     }
 
     for (const s of spur.segmente) {
       b.segmente++;
       if (s.mehrdeutig) b.segmenteMehrdeutig++;
-      if (s.dauerTage !== null && s.dauerTage < 0) b.segmenteRueckwaerts++;
+      if (s.dauerTage !== null && s.dauerTage < 0) {
+        b.segmenteRueckwaerts++;
+        merkeBeispiel(b.beispiele.rueckwaerts, spur.id);
+      }
       if (s.dauerUnsicher) {
         b.segmenteUnsicher++;
         // Reihenfolge ist die Aussage: eine offene Grenze schlägt jede
@@ -274,9 +343,19 @@ export function c16Treffer(
   return { tv, vb };
 }
 
-/** Anteil als Prozent-Text mit einer Nachkommastelle; `'—'` ohne Grundgesamtheit. */
+/**
+ * Anteil als Prozent-Text mit einer Nachkommastelle; `'—'` ohne Grundgesamtheit.
+ *
+ * Deutsches Komma wie bei allen anderen Zahlen der Anzeige (`toLocaleString`).
+ * `toFixed` lieferte „58.5 %" — in einer Zahlenspalte übersehbar, in einem Satz
+ * („58.5 % der Teilvorhaben") nicht.
+ */
 export function anteil(teil: number, ganzes: number): string {
-  return ganzes === 0 ? '—' : `${((100 * teil) / ganzes).toFixed(1)} %`;
+  if (ganzes === 0) return '—';
+  const wert = (100 * teil) / ganzes;
+  return `${wert.toLocaleString('de-DE', {
+    minimumFractionDigits: 1, maximumFractionDigits: 1,
+  })} %`;
 }
 
 /** Wie viele Abschnitte das Histogramm insgesamt zählt. */

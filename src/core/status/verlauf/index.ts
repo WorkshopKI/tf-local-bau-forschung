@@ -62,7 +62,7 @@ export {
   leereBefunde, nimmAuf, c16Treffer, anteil,
   histogrammSumme, quantilAusHistogramm, histogrammUeber, DAUER_HIST_MAX,
   type VerlaufsBefunde, type LaengsteSpur, type ZustandsZaehler, type KonfidenzZaehler,
-  type UnsicherAufschluesselung,
+  type UnsicherAufschluesselung, type VerlaufsBeispiele, type VerlaufsBeispiel,
 } from './erhebung';
 
 /** Ein Teilvorhaben, so wie die Ableitung es braucht. */

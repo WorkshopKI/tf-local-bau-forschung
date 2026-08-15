@@ -34,6 +34,16 @@ export interface FristBefunde {
   jeQuelle: Map<HaltedatumQuelle, number>;
   /** Von „unbekannt" auf ein bestimmtes Datum gewechselt. */
   neuDatiert: number;
+  /**
+   * Vorgänge, die **angehalten** sind und trotzdem kein Haltedatum haben — die
+   * einzigen, für die eine weitere Quelle überhaupt etwas ändern könnte.
+   *
+   * Nicht dasselbe wie `jeQuelle('unbekannt')`: dort stecken auch laufende und
+   * nicht berechenbare Vorgänge, die gar kein Haltedatum brauchen. Am Bestand
+   * ist der Unterschied 1 030 gegen 42 — die größere Zahl klingt nach einer
+   * Lücke, die es nicht gibt.
+   */
+  angehaltenOhneDatum: number;
   /** Hatten schon eins und bekommen jetzt ein ANDERES — darf nicht vorkommen. */
   umdatiert: number;
   /** Bezugszeitpunkt verschoben (die Achse der Bahn endet woanders). */
@@ -49,6 +59,7 @@ export function leereFristBefunde(): FristBefunde {
     zustandsMatrix: new Map(),
     jeQuelle: new Map(),
     neuDatiert: 0,
+    angehaltenOhneDatum: 0,
     umdatiert: 0,
     achseVerschoben: 0,
     muster: [],
@@ -79,6 +90,7 @@ export function nimmFristAuf(
   const vorherDatiert = vorher.haltedatumQuelle !== 'unbekannt';
   const nachherDatiert = nachher.haltedatumQuelle !== 'unbekannt';
   if (!vorherDatiert && nachherDatiert) bilanz.neuDatiert++;
+  if (nachher.zustand === 'angehalten' && !nachherDatiert) bilanz.angehaltenOhneDatum++;
   if (vorherDatiert && nachherDatiert && vorher.bezugsZeitpunkt !== nachher.bezugsZeitpunkt) {
     bilanz.umdatiert++;
   }

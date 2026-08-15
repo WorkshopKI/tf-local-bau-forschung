@@ -53,9 +53,8 @@ import {
 } from './labels';
 import { KategorieEditor } from './KategorieEditor';
 import { FelderAbgleich } from './FelderAbgleich';
-import { VerlaufBefundeBlock } from './VerlaufBefundeBlock';
+import { BestandslaufBlock } from './BestandslaufBlock';
 import { useVerlaufErhebung } from './useVerlaufErhebung';
-import { FristBefundeBlock } from './FristBefundeBlock';
 import { useFristErhebung } from './useFristErhebung';
 
 const thKlasse = 'text-left font-medium text-[11px] text-[var(--tf-text-tertiary)] px-2 py-1.5 whitespace-nowrap';
@@ -396,11 +395,13 @@ export function FelderTab({ api }: { api: StatusCockpitApi }): React.ReactElemen
 
       <FelderAbgleich api={api} />
 
-      {/* Der Bestandslauf der Verlaufsableitung sitzt hier, weil er über die
-          Kürzel und ihre Statuswirkung Auskunft gibt — dieselbe Sache wie der
-          Rest des Reiters, nur über den Bestand statt über den Katalog. */}
-      {vorgangssystem && <VerlaufBefundeBlock lauf={verlauf} />}
-      {vorgangssystem && <FristBefundeBlock lauf={frist} />}
+      {/* Der Bestandslauf sitzt hier, weil er über die Kürzel und ihre
+          Statuswirkung Auskunft gibt — dieselbe Sache wie der Rest des Reiters,
+          nur über den Bestand statt über den Katalog. Ein Beleg im Befund
+          filtert deshalb die Tabelle weiter unten, statt woandershin zu führen. */}
+      {vorgangssystem && (
+        <BestandslaufBlock verlauf={verlauf} frist={frist} onKuerzelFilter={setSuche} />
+      )}
 
       <div className="flex flex-col gap-2">
         <input

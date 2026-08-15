@@ -136,7 +136,8 @@ describe('verlauf/erhebung — die Bilanz', () => {
 
   it('sagt bei leerer Grundgesamtheit „—", statt durch null zu teilen', () => {
     expect(anteil(0, 0)).toBe('—');
-    expect(anteil(1, 4)).toBe('25.0 %');
+    // Deutsches Komma: der Wert steht auch in Sätzen, nicht nur in Zahlenspalten.
+    expect(anteil(1, 4)).toBe('25,0 %');
   });
 });
 

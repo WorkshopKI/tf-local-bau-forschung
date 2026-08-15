@@ -914,9 +914,13 @@ und die Unterscheidung ist der Unterschied zwischen einer Warnung und Lärm:
 
 ### 14.3 Was der Bestandslauf ergeben hat
 
-Knopf im Reiter *Kürzel* der Vorgangs-Regeln
+Knopf „Am Bestand messen" im Reiter *Kürzel* der Vorgangs-Regeln
+([BestandslaufBlock.tsx](../../src/plugins/status-cockpit/BestandslaufBlock.tsx));
+die Zahlen unten stehen dort unter „Zahlen im Detail"
 ([VerlaufBefundeBlock.tsx](../../src/plugins/status-cockpit/VerlaufBefundeBlock.tsx)),
-gemessen über **12 356 Teilvorhaben in 6 614 Vorhaben** (Richtlinien 2015 + 2020
+darüber der Befund in Sätzen
+([bestandslaufBefund.ts](../../src/plugins/status-cockpit/bestandslaufBefund.ts)).
+Gemessen über **12 356 Teilvorhaben in 6 614 Vorhaben** (Richtlinien 2015 + 2020
 + 2025, 12 Programme), Laufzeit 6,2–7,8 s.
 
 Die Spalte „Zuarbeit" ist der Stand v3.19–v3.22 (41 Regeln, Schlüssel Kürzel ×
@@ -1857,24 +1861,36 @@ mit dem Stichtag liefert deshalb dieselben Kanten wie der endgültige; der zweit
 entfällt, wo kein Haltedatum herauskam. Ein Test in `verlauf.test.ts` hält die
 Kanten-Invarianz fest; ohne sie wäre die Auflösung ein Zirkelschluss.
 
-Bestandslauf (6 614 Vorhaben, Richtlinien 2015 + 2020 + 2025, 14,5 s):
+Bestandslauf (6 615 Vorhaben, Richtlinien 2015 + 2020 + 2025, 17,5 s), Spalte
+v3.30 zum Vergleich:
 
-| | |
-|---|---|
-| Zustandsmatrix | **diagonal** — kein Vorgang wechselt den Frist-Zustand |
-| erstmals ein Haltedatum | **1 638** (1 584 aus bedingter Kante, 54 aus bestätigter) |
-| umdatiert | 0 |
-| Achse endet woanders | 1 638 |
-| bleiben ohne Datum | 3 985 |
+| | v3.30 | **heute (v4.52)** |
+|---|---:|---:|
+| Zustandsmatrix | diagonal | **diagonal** |
+| erstmals ein Haltedatum | 1 638 | **0** |
+| umdatiert | 0 | **0** |
+| Achse endet woanders | 1 638 | **0** |
+| aus einem Datumsfeld (Stufe 2) | — | **5 585** |
+| ohne Haltedatum-Quelle | 3 985 | **1 030** |
+| … davon **angehalten** (die offenen Fälle) | — | **42** |
 
 Die Diagonale ist eine **Zusage**, keine Statistik: `berechneFrist` liest das
 Haltedatum erst im `angehalten`-Zweig, nachdem der Zustand feststeht. Ein
 Unit-Test in `frist-ergebnis.test.ts` hält dieselbe Invarianz fest; der
 Bestandslauf bestätigt sie nur.
 
-Die 3 985 ohne Datum sind kein Versäumnis: dort erklärt die Ableitung den
-importierten Status nicht, und ein Datum von einer fremden Kante wäre eine
-Aussage über einen anderen Status (Pitfall #44).
+**Stufe 3 greift heute nirgends** — nicht, weil sie kaputt wäre, sondern weil
+Stufe 2 vorher antwortet: die kuratierten ZAH-Phasen sind seit v3.30 gewachsen,
+und `ausDatumsfeld` deckt jetzt 5 585 Vorhaben. Die Zusage darüber ist damit
+zwar wahr, aber leer — genau das meldet der Befund im Kürzel-Reiter als
+Auffälligkeit, statt es in drei Nullzeilen zu verstecken.
+
+Von den 1 030 ohne Quelle sind **988 gar keine offenen Fälle**: 616 laufen (eine
+laufende Uhr braucht kein Haltedatum), 372 sind nicht berechenbar. Offen sind die
+**42 angehaltenen** — dort erklärt die Ableitung den importierten Status nicht,
+und ein Datum von einer fremden Kante wäre eine Aussage über einen anderen Status
+(Pitfall #44). Die Anzeige zählt deshalb `angehaltenOhneDatum` und nicht „Quelle
+unbekannt": 1 030 behauptete eine Lücke, die es nicht gibt.
 
 ### 15.5 Was offen bleibt
 

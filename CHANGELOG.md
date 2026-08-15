@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.52.0 — Bestandslauf: Befund oben, Zahlen eingeklappt (August 2026)
+
+MINOR — Der Reiter *Kürzel* zeigte zwei Mess-Kacheln mit rund 40 gleichrangigen Zahlen in elf Abschnitten, alle immer offen: die eine Zeile, die eine Zusage bricht, stand neben einem Median. Jetzt steht die Wertung vor den Zahlen, und die Zahlen bleiben vollständig — §14.3 zitiert aus ihnen. Detail: [vorgangssystem.md §14.3/§15.4](docs/architecture/vorgangssystem.md).
+
+- **Ein Block, ein Knopf, Befund in Sätzen** — Zusagen (✓), Auffälligkeiten (⚠) und Kennzahlen (ohne Symbol, weil kein Schwellwert erfunden wird) statt einer Zahlenwand ([BestandslaufBlock.tsx](src/plugins/status-cockpit/BestandslaufBlock.tsx)); die volle Auswertung liegt unter „Zahlen im Detail"
+- **Die Wertung ist eine reine Funktion** und damit erstmals im Node-Test prüfbar — der Bestand selbst ist es nicht ([bestandslaufBefund.ts](src/plugins/status-cockpit/bestandslaufBefund.ts))
+- **Auffälligkeiten tragen bis zu drei Belege**; ist der Beleg ein Kürzel, filtert ein Klick die Tabelle darunter ([erhebung.ts](src/core/status/verlauf/erhebung.ts))
+- **„Vergleich: C16" hieß seit v3.23 falsch** — die Zeilen verglichen C16 mit sich selbst; jetzt „Obergrenze", und der Prozentwert der TV-Zeile entfällt, weil er Datumsfelder gegen Übergänge rechnete ([VerlaufBefundeBlock.tsx](src/plugins/status-cockpit/VerlaufBefundeBlock.tsx))
+- **Neu gemessen: die dritte Haltedatum-Quelle greift nirgends** — 0 statt 1 638 aus §15.4, weil Stufe 2 inzwischen 5 585 Fälle beantwortet; offen sind 42 angehaltene Vorgänge, nicht 1 030 ([fristErhebung.ts](src/plugins/status-cockpit/fristErhebung.ts))
+
 ### v4.51.0 — Zeitstrahl zeigt jeden Termin, mit Rolle und Filter (August 2026)
 
 MINOR — Teil 2 des Handoffs `_design/handoff/chronik`. Die Bahn zeigte nur die Termine, die einen Statuswechsel auslösen — gemessen 7,3 %; die übrigen standen vollständig in den Daten und wurden nicht gezeichnet. Rolle, Filter und Fokus der Chronik erbt sie jetzt mit. Detail + die vier Abweichungen vom Entwurf: [chronik-und-zeitstrahl.md](docs/status-system/chronik-und-zeitstrahl.md).

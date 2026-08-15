@@ -1,23 +1,25 @@
 /**
- * Der Bestandslauf der **Verlaufsableitung**, an einer Stelle lesbar.
+ * Die vollen Zahlen der **Verlaufsableitung** — der Detailteil des Bestandslaufs.
  *
- * Er beantwortet eine Frage: trägt eine Verlaufs-Bahn über diesen Bestand? Dafür
- * braucht es keine Bahn, sondern Zahlen — wie viele Spuren einen Verlauf haben,
- * wie viele Termine einen Statuswechsel belegen, wie oft die Ableitung dem
+ * Sie beantworten eine Frage: trägt eine Verlaufs-Bahn über diesen Bestand?
+ * Dafür braucht es keine Bahn, sondern Zahlen — wie viele Spuren einen Verlauf
+ * haben, wie viele Termine einen Statuswechsel belegen, wie oft die Ableitung dem
  * Export widerspricht.
  *
  * **Jede Zahl trägt ihre Grundgesamtheit**: Spuren, Termine und Abschnitte sind
- * drei verschiedene Einheiten. Und der Betrachtungsbereich steht dabei — ohne
- * ihn ist keine der Zahlen einzuordnen (Pitfall #46).
+ * drei verschiedene Einheiten.
+ *
+ * Seit v4.52 ohne eigenen Kopf, Knopf und Rahmen: die sitzen in
+ * `BestandslaufBlock`, zusammen mit der Wertung und dem Betrachtungsbereich
+ * (Pitfall #46). Hier stehen nur noch die Abschnitte — bewusst unverändert,
+ * weil §14.3 der Vorgangssystem-Doku aus ihnen zitiert.
  *
  * Reine Anzeige; gerechnet wird in `verlauf/erhebung.ts` und `useVerlaufErhebung`.
  */
-import { Button } from '@/components/ui/button';
 import {
   anteil, histogrammSumme, histogrammUeber, quantilAusHistogramm,
   type VerlaufsBefunde,
 } from '@/core/status/verlauf';
-import { feldStil } from './labels';
 import type { VerlaufLauf } from './useVerlaufErhebung';
 
 const leise = 'text-[11.5px] text-[var(--tf-text-tertiary)]';
@@ -249,14 +251,17 @@ function Bilanz({ b, c16Vorhanden }: {
       </div>
 
       <div className="flex flex-col gap-0.5">
-        <p className={`uppercase tracking-wider ${leise}`}>Vergleich: C16-Trigger-Tabelle</p>
+        <p className={`uppercase tracking-wider ${leise}`}>Obergrenze: was C16 überhaupt führt</p>
         {c16Vorhanden ? (
           <>
             <ul className="flex flex-col gap-0.5">
+              {/* KEIN Prozentwert: gezählt werden gesetzte Datumsfelder je
+                  Teilvorhaben, `uebergaenge` zählt Übergänge über TV- UND
+                  Verbundspuren. Der Bruchstrich zwischen beiden ergäbe eine Zahl,
+                  die richtig gerechnet und trotzdem keine Aussage ist. */}
               <Zeile
-                label="Termine, die sie erklären würde"
+                label="Datumsfelder mit einer C16-Zeile (TV)"
                 wert={zahl(b.c16TvUebergaenge)}
-                hinweis={anteil(b.c16TvUebergaenge, b.uebergaenge)}
               />
               <Zeile
                 label="Verbünde mit VB-Wechsel"
@@ -264,14 +269,20 @@ function Bilanz({ b, c16Vorhanden }: {
                 hinweis={anteil(b.c16VerbuendeMitVbUebergang, b.verbuende)}
               />
             </ul>
+            {/* Bis v3.22 stand hier „was ein zweiter Weg brächte" — damals war die
+                Zuarbeit die Regelquelle und C16 die Vergleichszahl daneben. Seit
+                v3.23 ist C16 die Quelle selbst, und dieselbe Zählung misst etwas
+                anderes: nicht eine Alternative, sondern den eigenen Spielraum. */}
             <p className={leise}>
-              Nur gezählt, nicht abgeleitet: die Ableitung nutzt allein die Kürzel-Zuarbeit
-              (eine Quelle). Diese Zeilen sagen, was ein zweiter Weg brächte.
+              Bedingungen ignoriert — so viel führt C16 überhaupt. Vergleichbar ist die
+              zweite Zeile: sie steht gegen „Verbünde mit abgeleitetem Statuswechsel" ganz
+              oben, und die Differenz sind die Bedingungen. Die erste zählt eine andere
+              Einheit als die Termine oben und trägt deshalb keinen Anteil.
             </p>
           </>
         ) : (
           <p className={leise}>
-            Keine Trigger-Tabelle importiert — ohne sie fehlt die Vergleichszahl.
+            Keine Trigger-Tabelle importiert — ohne sie fehlt die Obergrenze.
           </p>
         )}
       </div>
@@ -279,31 +290,15 @@ function Bilanz({ b, c16Vorhanden }: {
   );
 }
 
-export function VerlaufBefundeBlock({ lauf }: { lauf: VerlaufLauf }): React.ReactElement {
+export function VerlaufBefundeBlock({ lauf }: { lauf: VerlaufLauf }): React.ReactElement | null {
   const b = lauf.befunde;
+  if (b === null) return null;
   return (
-    <div className="flex flex-col gap-2 rounded px-2.5 py-2" style={feldStil}>
-      <div className="flex items-center justify-between gap-2 flex-wrap">
-        <span className="text-[12.5px] text-[var(--tf-text)]">
-          {b === null
-            ? <>Trägt eine Verlaufs-Bahn über diesen Bestand? Ein Durchgang zählt es aus.</>
-            : <>{zahl(b.teilvorhaben)} Teilvorhaben in {zahl(b.verbuende)} Vorhaben
-              {lauf.bereichText !== null && <> · {lauf.bereichText}</>}
-              {lauf.dauerMs !== null && <> · {(lauf.dauerMs / 1000).toFixed(1)} s</>}</>}
-        </span>
-        <Button
-          variant="secondary" size="sm" disabled={lauf.aktion.busy}
-          onClick={() => lauf.aktion.run()}
-        >
-          {lauf.aktion.busy ? 'Rechnet …' : b === null ? 'Verlauf am Bestand messen' : 'Erneut rechnen'}
-        </Button>
-      </div>
-
-      {lauf.aktion.error !== null && (
-        <p className="text-[12px] text-[var(--tf-danger-text)]">⚠ {lauf.aktion.error}</p>
-      )}
-
-      {b !== null && <Bilanz b={b} c16Vorhanden={lauf.c16Vorhanden} />}
+    <div className="flex flex-col gap-1.5">
+      <p className="text-[12px] font-medium text-[var(--tf-text-secondary)]">
+        Verlaufsableitung · {zahl(b.teilvorhaben)} Teilvorhaben, {zahl(b.verbuende)} Vorhaben
+      </p>
+      <Bilanz b={b} c16Vorhanden={lauf.c16Vorhanden} />
     </div>
   );
 }

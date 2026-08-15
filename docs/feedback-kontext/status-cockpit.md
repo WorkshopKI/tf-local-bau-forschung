@@ -139,6 +139,22 @@ wird.
     dieselbe Aktion, gespeist aus „wird gesetzt von" statt aus einer erfundenen
     Liste; Kürzel, die jeder setzen darf, bleiben außen vor.
   - Filter: Ebene, Rolle, „nur relevante", „nur mit CSV-Spalte", „ohne Phase".
+  - Über der Tabelle steht der **Bestandslauf** — ein Knopf („Am Bestand
+    messen"), der Verlaufsableitung und Haltedatum in einem Durchgang über den
+    Betrachtungsbereich rechnet (~15 s + ~15 s). Er gehört hierher, weil er über
+    die Kürzel und ihre Statuswirkung Auskunft gibt, nur über den Bestand statt
+    über den Katalog.
+    - Zuerst der **Befund in Sätzen**: ✓ für die beiden Zusagen (der Frist-
+      Zustand bewegt sich nicht, nichts wird umdatiert), ⚠ für Auffälligkeiten
+      (Zielcodes ohne Katalog-Eintrag, Widersprüche zwischen Ableitung und
+      Export, negative Dauern, strittige geliehene Bezeichnungen). Kennzahlen —
+      Deckung der Bahn, Herkunft der Haltedaten — stehen darunter **ohne**
+      Symbol, weil sie beschreiben statt zu werten.
+    - Auffälligkeiten tragen bis zu drei **Belege**. Ist der Beleg ein Kürzel,
+      filtert ein Klick die Tabelle darunter darauf; Aktenzeichen bleiben Text.
+    - „**Zahlen im Detail**" klappt die vollständige Auswertung auf (Spuren,
+      Übergänge, Bedingungen, Abschnitte, Verweildauern, Projektform, was C16
+      überhaupt führt). Default zu; der Zustand bleibt gerätelokal erhalten.
 - **To-do-Regeln** (bis v2.412 „To-dos"): die To-do-Kaskade — geordnet, die
   erste zutreffende Regel gewinnt. Die Reihenfolge IST das Ergebnis, deshalb
   wird sie über Pfeile gesetzt, nicht per Ziehen. Jede Regel liest sich als
