@@ -15,28 +15,16 @@
  * nichts: die Kante führt alle Übergänge des Tages mit, der Tooltip zählt sie
  * einzeln auf, und die Klartext-Liste unter der Bahn ohnehin.
  *
- * Seit v3.38 trägt die Kante auch ihren **Namen**: {@link verteileKuerzel} setzt
- * das Kürzel über die Bahn, wo gemessen Platz ist. Position, Stil und Name einer
- * Grenze gehören in dieselbe Datei — sonst rechnete die eine Stelle Kanten aus,
- * die die andere anders zählt.
+ * Die **Namen** über der Bahn stehen seit v4.50 nebenan (`bandTermine.ts`): sie
+ * gelten für jeden Termin, nicht nur für die Grenzen. Geteilt bleibt die
+ * Gruppierung ({@link tagesGruppen}) — sonst zählte die eine Stelle einen Tag
+ * anders als die andere.
  *
- * Rein und node-testbar: keine DOM-Messung, keine Uhr — das Textmaß kommt als
- * Funktion herein.
+ * Rein und node-testbar: keine DOM-Messung, keine Uhr.
  */
 import type { Konfidenz, VerlaufsUebergang } from '@/core/status/verlauf';
 import type { BandSegment } from './bandGeometrie';
-
-/**
- * Rang der Konfidenz — kleiner heißt besser belegt. Die Reihenfolge ist die des
- * Typs selbst (`typen.ts`) und **nicht** verhandelbar: sie entscheidet, welcher
- * Strich an einer Grenze steht, an der sich mehrere Kürzel drängen.
- */
-const RANG: Record<Konfidenz, number> = {
-  trigger_bestaetigt: 0,
-  trigger_bedingt: 1,
-  zeitliche_naehe: 2,
-  kein_kuerzel: 3,
-};
+import { tagesGruppen } from './bandTermine';
 
 export interface BandKante {
   /** px ab linkem Bahnrand — die linke Kante des Segments, das hier beginnt. */
@@ -65,88 +53,22 @@ export function baueKanten(
   segmente: readonly BandSegment[],
   uebergaenge: readonly VerlaufsUebergang[],
 ): BandKante[] {
-  const proTag = new Map<
-    string, { x: number; roh: string | undefined; gruppe: VerlaufsUebergang[] }
-  >();
-  for (const u of uebergaenge) {
-    const vorhanden = proTag.get(u.datum);
-    if (vorhanden !== undefined) {
-      vorhanden.gruppe.push(u);
-      continue;
-    }
-    const treffer = segmente.find(s => s.segment.vonDatum === u.datum);
+  const out: BandKante[] = [];
+  for (const g of tagesGruppen(uebergaenge)) {
+    // Ohne Segmentgrenze am selben Tag hat der Übergang keine Stelle auf der
+    // Achse — sein Ort ist die Marke über der Bahn, nicht der Strich darin.
+    const treffer = segmente.find(s => s.segment.vonDatum === g.tag);
     if (treffer === undefined) continue;
-    proTag.set(u.datum, {
-      x: treffer.links, roh: treffer.segment.statusRef?.roh, gruppe: [u],
+    // `uebergaenge[0]` existiert: eine Gruppe entsteht nur mit ihrem ersten Eintrag.
+    const beste = g.uebergaenge[0];
+    if (beste === undefined) continue;
+    out.push({
+      x: treffer.links,
+      datum: g.tag,
+      konfidenz: beste.konfidenz,
+      uebergaenge: g.uebergaenge,
+      roh: treffer.segment.statusRef?.roh,
     });
   }
-
-  const out: BandKante[] = [];
-  for (const [datum, { x, roh, gruppe }] of proTag) {
-    const sortiert = [...gruppe].sort((a, b) => RANG[a.konfidenz] - RANG[b.konfidenz]);
-    // `sortiert[0]` existiert: eine Gruppe entsteht nur mit ihrem ersten Eintrag.
-    const beste = sortiert[0];
-    if (beste === undefined) continue;
-    out.push({ x, datum, konfidenz: beste.konfidenz, uebergaenge: sortiert, roh });
-  }
   return out.sort((a, b) => a.x - b.x);
-}
-
-// --- Die Kürzel über der Bahn ---------------------------------------------
-
-/** Luft links und rechts einer Kürzel-Marke. */
-const MARKE_POLSTER = 4;
-/** Mindestlücke zwischen zwei Marken. */
-const MARKE_ABSTAND = 4;
-
-/** Ein Kürzel über einer Kante, fertig platziert. */
-export interface KuerzelMarke {
-  datum: string;
-  /** Linke Kante der Beschriftung — über der Kante zentriert und in die Bahn geklemmt. */
-  links: number;
-  breite: number;
-  text: string;
-}
-
-/**
- * Setzt die Kürzel über die Kanten — **gemessen, und was kollidiert, entfällt**.
- *
- * Ein gekürztes Kürzel wäre ein anderes Kürzel; abschneiden verbietet sich hier
- * also nicht aus Geschmack, sondern weil `AAE` und `AAEB` verschiedene Dinge
- * sind. Und eine Reihe überlappender Codes wäre schlechter zu lesen als keiner.
- * Im Bestand mit sechsundzwanzig Grenzen zeigt sich deshalb nur ein Teil — das
- * ist die richtige Auskunft, nicht ein Mangel.
- *
- * Fällt ein Tag mit mehreren Kürzeln zusammen, steht das **best belegte** da und
- * dahinter `+n`; alle nennt der Tooltip der Kante (`uebergaenge`).
- *
- * `messeText: null` (keine Messung möglich) ⇒ **keine** Marken: ohne Maß ließe
- * sich die Kollision nicht prüfen, und geraten wäre hier schlimmer als still.
- */
-export function verteileKuerzel(
-  kanten: readonly BandKante[],
-  o: { bahnBreite: number; messeText: ((text: string) => number) | null },
-): KuerzelMarke[] {
-  const messe = o.messeText;
-  if (messe === null) return [];
-
-  const out: KuerzelMarke[] = [];
-  let belegtBis = Number.NEGATIVE_INFINITY;
-  // `kanten` kommt aus `baueKanten` bereits nach x sortiert — links nach rechts,
-  // also chronologisch: bei Gedränge gewinnt der frühere Übergang.
-  for (const k of kanten) {
-    const erste = k.uebergaenge[0];
-    if (erste === undefined) continue;
-    const rest = k.uebergaenge.length - 1;
-    const text = rest > 0 ? `${erste.kuerzel} +${rest}` : erste.kuerzel;
-    const breite = messe(text) + MARKE_POLSTER;
-    if (breite > o.bahnBreite) continue;
-    // Am Rand darf die Marke nach innen rutschen: ein halb abgeschnittenes
-    // Kürzel wäre unlesbar, die kleine Verschiebung bleibt zuordenbar.
-    const links = Math.min(Math.max(0, k.x - breite / 2), o.bahnBreite - breite);
-    if (links < belegtBis + MARKE_ABSTAND) continue;
-    belegtBis = links + breite;
-    out.push({ datum: k.datum, links, breite, text });
-  }
-  return out;
 }

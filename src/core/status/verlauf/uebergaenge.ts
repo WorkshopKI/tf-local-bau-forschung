@@ -33,6 +33,7 @@ import {
   heutigesKuerzel, kuerzelAuskunft, ueberlagereKuration, type Nachschlageform,
 } from '../kuerzel-katalog';
 import { normKey } from '../normalisierung';
+import { rollenVonFeld } from '../rollen';
 import { pruefeTriggerBedingungen, type BedingungsUrteil, type TriggerKontext } from '../trigger-bedingung';
 import type { FeldVorkommen } from '../feld-aufloesung';
 import { statusRefVonCode } from './status-ref';
@@ -143,15 +144,31 @@ export function baueUebergaenge(e: UebergangsEingabe): VerlaufsUebergang[] {
       kuerzelAuskunft(roh, e.projektform), eintrag.feld.label,
     );
 
-    const rollenLage: RollenLage = auskunft.bezeichnung === null || !auskunft.eindeutig
-      ? 'unbekannt'
-      : auskunft.rollen.length > 0 ? 'benannt' : 'neutral';
+    // **Wer setzt** kommt aus der geladenen Fassung, nicht aus der Zuarbeit.
+    // Beide führen die Spalte, und sie widersprechen sich: an ZKN084412 nennt
+    // die Zuarbeit 37 Termine „Juristen", die Fassung keinen einzigen. Die
+    // Chronik, die Matrix, die Filterleiste und die Aufgaben-Kaskade lesen
+    // alle `rollenVonFeld` — läse die Bahn daneben die Zuarbeit, zeigte sie
+    // Marken in einer Rollenfarbe an, die ihre eigene Legende nicht anbietet.
+    // Welche der beiden Quellen fachlich recht hat, entscheidet die Kuration
+    // (Kürzel-Tab); die App spricht bis dahin mit EINER Stimme (Pitfall #43).
+    const rollen = rollenVonFeld(eintrag.feld);
+    const rollenLage: RollenLage = rollen.length > 0
+      ? 'benannt'
+      // Leer heißt zweierlei, und das darf nicht zu einer Auskunft verschmelzen:
+      // „jeder darf setzen" sagt die Fassung, „wir kennen das Kürzel nicht" die
+      // Zuarbeit. Nur für DIESE Unterscheidung wird sie noch befragt.
+      : auskunft.bezeichnung === null || !auskunft.eindeutig ? 'unbekannt' : 'neutral';
 
     const uebergang: VerlaufsUebergang = {
       kuerzel: heute ?? roh,
       ...(heute ? { kuerzelHistorisch: roh } : {}),
       datum: eintrag.tag,
-      rollen: rollenLage === 'benannt' ? auskunft.rollen : [],
+      // Aus DEMSELBEN Feld, das die Chronik zeigt — die Bahn und die Liste
+      // meinen damit denselben Schritt, statt zufällig dasselbe zu meinen.
+      feldId: eintrag.feld.feldId,
+      prominenz: eintrag.feld.prominenzDefault,
+      rollen,
       rollenLage,
       konfidenz: 'kein_kuerzel',
       bezeichnung: auskunft.bezeichnung,

@@ -9,7 +9,7 @@
  * **Warum Farbe hier überhaupt zulässig ist** (DESIGN_GUIDE Regel 1: Farbe ist
  * ein knappes Gut): sie trägt genau eine Information — wer den Eintrag setzt —
  * und zwar in allen Flächen dieselbe. Filterleiste, Chronik-Zeile, Matrix-Zelle
- * und Zeitstrahl-Balken sind damit ein System, und die Filterleiste ist die
+ * und Zeitstrahl-Marke sind damit ein System, und die Filterleiste ist die
  * Legende. Dieselbe Begründung wie bei der Kompetenz-Matrix (`--tf-level-*`).
  *
  * **Neutral hat keine Farbe.** 144 der 505 Codes lässt das Fachsystem von jedem
@@ -21,26 +21,28 @@
  */
 import type { Rolle } from './typen';
 
-/** Die drei Rollen von einem Farbton: Schrift, Fläche, Balken. */
+/**
+ * Die zwei Rollen von einem Farbton: Schrift und Fläche.
+ *
+ * **Eine dritte gab es kurz** (`--tf-rolle-<r>-bar`, v4.47–v4.49): die
+ * gesättigtere Fläche für einen nach Rolle gefärbten Zeitstrahl-Balken. Der
+ * Umbau hat sich dagegen entschieden — die Rolle sitzt am **Termin**, nicht auf
+ * dem Zeitraum ({@link ../../plugins/antraege/verlauf-band/BandBahn.tsx}) —, und
+ * ein Token, das nichts färbt, ist eine Behauptung über ein Vorhaben.
+ */
 export interface RollenFarbe {
   /** Schrift-/Randfarbe — `--tf-rolle-<r>`. */
   text: string;
   /** Getönte Fläche hinter Badge und aktivem Chip — `--tf-rolle-<r>-bg`. */
   flaeche: string;
-  /**
-   * Gesättigtere Fläche für den Zeitstrahl-Balken — `--tf-rolle-<r>-bar`.
-   * Steht bereits hier, damit die Familie vollständig an einer Stelle liegt;
-   * gelesen wird sie erst vom Balken-Umbau.
-   */
-  balken: string;
 }
 
 const FARBEN: Readonly<Record<Rolle, RollenFarbe>> = {
-  pa: { text: 'var(--tf-rolle-pa)', flaeche: 'var(--tf-rolle-pa-bg)', balken: 'var(--tf-rolle-pa-bar)' },
-  ab: { text: 'var(--tf-rolle-ab)', flaeche: 'var(--tf-rolle-ab-bg)', balken: 'var(--tf-rolle-ab-bar)' },
-  fb: { text: 'var(--tf-rolle-fb)', flaeche: 'var(--tf-rolle-fb-bg)', balken: 'var(--tf-rolle-fb-bar)' },
-  qs: { text: 'var(--tf-rolle-qs)', flaeche: 'var(--tf-rolle-qs-bg)', balken: 'var(--tf-rolle-qs-bar)' },
-  jur: { text: 'var(--tf-rolle-jur)', flaeche: 'var(--tf-rolle-jur-bg)', balken: 'var(--tf-rolle-jur-bar)' },
+  pa: { text: 'var(--tf-rolle-pa)', flaeche: 'var(--tf-rolle-pa-bg)' },
+  ab: { text: 'var(--tf-rolle-ab)', flaeche: 'var(--tf-rolle-ab-bg)' },
+  fb: { text: 'var(--tf-rolle-fb)', flaeche: 'var(--tf-rolle-fb-bg)' },
+  qs: { text: 'var(--tf-rolle-qs)', flaeche: 'var(--tf-rolle-qs-bg)' },
+  jur: { text: 'var(--tf-rolle-jur)', flaeche: 'var(--tf-rolle-jur-bg)' },
 };
 
 /** Die Farbe einer Rolle. */
@@ -59,5 +61,4 @@ export function rollenFarbe(rolle: Rolle): RollenFarbe {
 export const ROLLE_GEDIMMT: RollenFarbe = {
   text: 'var(--tf-text-tertiary)',
   flaeche: 'transparent',
-  balken: 'var(--tf-bg-secondary)',
 };

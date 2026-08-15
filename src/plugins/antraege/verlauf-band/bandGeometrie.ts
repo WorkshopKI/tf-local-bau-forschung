@@ -111,6 +111,17 @@ export interface ZeitAchse {
   readonly x: readonly number[];
 }
 
+export interface BandGeometrieOptionen {
+  /**
+   * Welche Bahnen gezeichnet werden — Schlüssel `art-id` (`verbund-ZKN…`,
+   * `tv-16KN…`). Fehlt die Menge, sind es alle.
+   *
+   * **Die Achse entsteht unabhängig davon**, über sämtliche Spuren: der Filter
+   * sagt, was zu sehen ist, nicht, was gilt.
+   */
+  nurBahnen?: ReadonlySet<string>;
+}
+
 export interface BandGeometrie {
   /** Gesamtbreite der Bahn in px — kann die Containerbreite übersteigen (Scroll). */
   breite: number;
@@ -305,9 +316,11 @@ function jahresMarken(achse: Achse): AchsenMarke[] {
 
 export function baueBandGeometrie(
   spuren: readonly VerlaufsSpur[], bezugsZeitpunkt: string, vorgabeBreite: number,
+  opt: BandGeometrieOptionen = {},
 ): BandGeometrie {
   const grenzen: number[] = [tagMs(bezugsZeitpunkt)];
   let frueheste: string | null = null;
+  let fruehesterTermin: string | null = null;
   for (const s of spuren) {
     for (const seg of s.segmente) {
       if (seg.vonDatum !== null) {
@@ -316,13 +329,35 @@ export function baueBandGeometrie(
       }
       if (seg.bisDatum !== null) grenzen.push(tagMs(seg.bisDatum));
     }
+    for (const u of s.uebergaenge) {
+      if (fruehesterTermin === null || u.datum < fruehesterTermin) fruehesterTermin = u.datum;
+    }
+  }
+  // GENAU EINE zusätzliche Kante, und nur links: ein Termin vor dem ersten
+  // Statuswechsel (`FOY` vor `AAE`) fiele sonst auf x = 0 und behauptete dort ein
+  // Datum. Jeden Termin zur Kante zu machen verböte sich — `bodenFuer` gibt jedem
+  // Intervall ein Mindestmaß, und neunzig weitere Kanten blähten die Bahn auf
+  // über 2000 px Scrollbreite. Rechts wird NICHT erweitert: die Achse endet am
+  // Bezugszeitpunkt, und ein Termin dahinter braucht eine `heute`-Linie, keine
+  // längere Achse.
+  if (fruehesterTermin !== null) {
+    const ms = tagMs(fruehesterTermin);
+    if (ms < Math.min(...grenzen)) grenzen.push(ms);
   }
 
   const achse = baueAchse(grenzen, vorgabeBreite);
   const links = achse.kanten[0] ?? 0;
   const rechts = achse.kanten[achse.kanten.length - 1] ?? 0;
 
-  const gebuendelt = buendle(spuren);
+  // Die Achse steht über ALLEN Spuren, gebündelt und gezeichnet wird nur die
+  // Auswahl: „nur TV 3" darf den Maßstab nicht ändern, sonst zeigte dieselbe
+  // Bahn zwei verschiedene Bilder und der geteilte Fokus wäre wertlos. Und der
+  // Schnitt sitzt VOR `buendle`, sonst verträte eine Bündel-Bahn Teilvorhaben,
+  // die gerade abgewählt sind.
+  const sichtbar = opt.nurBahnen === undefined
+    ? spuren
+    : spuren.filter(s => opt.nurBahnen?.has(`${s.art}-${s.id}`) === true);
+  const gebuendelt = buendle(sichtbar);
   for (const b of gebuendelt) {
     b.segmente = b.spur.segmente.map(seg => {
       // Eine fehlende Grenze bekommt KEINE Ersatzbreite: das Segment läuft bis

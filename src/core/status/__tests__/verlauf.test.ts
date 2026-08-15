@@ -8,8 +8,11 @@
  * keine hat — die Fälle, die eine Bahn tragen sollen, sind die aus dem Bestand.
  *
  * Seit v3.23 ist C16 die alleinige Regelquelle (vorher: 41 Regeln der
- * Kürzel-Zuarbeit). Die Zuarbeit liefert weiter **Bezeichnung und Rollen** —
- * deshalb bleibt der Block „Kürzel × Projektform" unverändert bestehen.
+ * Kürzel-Zuarbeit). Die Zuarbeit liefert weiter die **Bezeichnung** — deshalb
+ * bleibt der Block „Kürzel × Projektform" unverändert bestehen. Die **Rollen**
+ * kommen seit v4.51 aus der geladenen Fassung: sie sind dieselbe Auskunft, die
+ * Chronik, Matrix und Filterleiste zählen, und zwei Quellen dafür sprachen
+ * messbar verschieden (an ZKN084412: 37 Termine „Juristen" gegen null).
  */
 import { describe, it, expect } from 'vitest';
 import {
@@ -30,13 +33,25 @@ const BEZUG = '2026-08-06';
 /** Die Richtlinie, für die C16 im Test Regeln führt. */
 const PROGRAMM = '76';
 
+/**
+ * Wer setzt — wie in der geladenen Fassung, nicht wie in der Zuarbeit. Nur die
+ * Codes, deren Rolle ein Test behauptet; alles andere bleibt neutral („jeder
+ * darf setzen"), und genau das soll es auch aussagen.
+ */
+const ROLLEN_JE_CODE: Readonly<Record<string, StatusFeldEintrag['rollen']>> = {
+  AAE: ['pa'],
+  AAR: ['ab'],
+};
+
 function feld(
   code: string,
   ebene: StatusFeldEintrag['ebene'] = 'tv',
   prominenz: Prominenz = 'normal',
 ): StatusFeldEintrag {
+  const rollen = ROLLEN_JE_CODE[code];
   return {
     feldId: `D_${code}`, label: code, typ: 'datum', ebene, code,
+    ...(rollen ? { rollen } : {}),
     prominenzDefault: prominenz, aktiv: true, unkuratiert: false,
   };
 }

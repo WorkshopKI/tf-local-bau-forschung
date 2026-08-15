@@ -14,18 +14,22 @@ zweite Quelle und keine Ableitung: der Status kommt aus dem Export (Pitfall #44)
 |---|---|---|
 | **Chronik · nach Schritt** (Standard) | eine Zeile je Kürzel, eine Spalte je Träger | [StatusSchrittMatrix.tsx](../../src/plugins/antraege/status/StatusSchrittMatrix.tsx) |
 | **Chronik · nach Datum** | chronologisch, Monat in der linken Rinne | [StatusChronik.tsx](../../src/plugins/antraege/status/StatusChronik.tsx) |
-| **Zeitstrahl** | waagerechte Bahn je Verbund/TV | [VerlaufsBand.tsx](../../src/plugins/antraege/verlauf-band/VerlaufsBand.tsx) |
+| **Zeitstrahl** | waagerechte Bahn je Verbund/TV | [VerlaufsBand.tsx](../../src/plugins/antraege/verlauf-band/VerlaufsBand.tsx) (rahmt) + [BandBahn.tsx](../../src/plugins/antraege/verlauf-band/BandBahn.tsx) (zeichnet) |
 
 Gerechnet wird rein und node-testbar in `src/core/status/`:
 [chronik.ts](../../src/core/status/chronik.ts) (Termine),
 [chronik-matrix.ts](../../src/core/status/chronik-matrix.ts) (Matrix),
 [verlauf-filter.ts](../../src/core/status/verlauf-filter.ts) (Auswahl),
 [verlauf-kennzahlen.ts](../../src/core/status/verlauf-kennzahlen.ts) (Kopfzeile).
+Für den Zeitstrahl zusätzlich in `src/plugins/antraege/verlauf-band/`:
+[bandGeometrie.ts](../../src/plugins/antraege/verlauf-band/bandGeometrie.ts) (Achse),
+[bandTermine.ts](../../src/plugins/antraege/verlauf-band/bandTermine.ts) (Marken),
+[bandBeschriftung.ts](../../src/plugins/antraege/verlauf-band/bandBeschriftung.ts) (Etage).
 
-## Drei Regeln, die der Entwurf nicht hergibt
+## Vier Regeln, die der Entwurf nicht hergibt
 
 Der Design-Handoff (`_design/handoff/chronik`) arbeitet mit erfundenen Daten. An
-drei Stellen weichen die echten davon ab — und das entschied den Bau.
+vier Stellen weichen die echten davon ab — und das entschied den Bau.
 
 ### 1. Verbund-Ebene und TV-Ebene werden nie zusammengezogen
 
@@ -74,15 +78,37 @@ Der Entwurf faltet die Juristen in die QS. Der Katalog trennt sie (QS 100 Codes,
 Jur 22), und die Chronik schreibt seit jeher „Jur". Also fünf Chips und fünf
 Tönungen.
 
+### 4. „Wer setzt" hat zwei Quellen — es gilt die Fassung
+
+Die Rollenspalte steht an **zwei** Stellen: in der geladenen Katalogfassung
+(`StatusFeldEintrag.rollen`, gelesen über `rollenVonFeld`) und in der
+Kürzel-Zuarbeit (`kuerzelAuskunft`). Sie widersprechen sich messbar: an
+ZKN084412 nannte die Zuarbeit **37 Termine „Juristen", die Fassung keinen
+einzigen**.
+
+Bis v4.50 fiel das nicht auf, weil nur die Verlaufsableitung die Zuarbeit las und
+niemand ihre Rollen anzeigte. Mit den getönten Marken über der Bahn wäre daraus
+ein sichtbarer Widerspruch geworden: eine Marke in Jur-Violett, die die
+Filterleiste daneben nicht anbietet. Also liest **`baueUebergaenge` die Rollen
+aus der Fassung** — dieselbe Quelle wie Chronik, Matrix, Filterleiste und
+Aufgaben-Kaskade.
+
+Die Zuarbeit wird nur noch für **eine** Unterscheidung befragt, die die Fassung
+nicht führt: ob ein leeres Rollenfeld „jeder darf setzen" heißt (`neutral`) oder
+„wir kennen dieses Kürzel gar nicht" (`unbekannt`) — Pitfall #43. Welche der
+beiden Quellen fachlich recht hat, entscheidet die Kuration im Kürzel-Tab; bis
+dahin spricht die App mit einer Stimme statt mit zwei.
+
 ## Rollenfarbe
 
 Eine der wenigen Stellen, an denen Farbe Information trägt (DESIGN_GUIDE Regel 1;
 Präzedenz ist die Kompetenz-Matrix). Dieselbe Codierung in Filterleiste,
-Chronik-Zeile, Matrix-Zelle und — später — im Zeitstrahl-Balken. **Die
-Filterleiste ist damit die Legende**; eine zweite gibt es nicht.
+Chronik-Zeile, Matrix-Zelle und Zeitstrahl-Marke. **Die Filterleiste ist damit
+die Legende**; eine zweite gibt es nicht — und weil sie das ist, darf keine
+Ansicht eine Rolle zeigen, die sie nicht anbietet (Regel 4 oben).
 
 - Namen: [rollen-farbe.ts](../../src/core/status/rollen-farbe.ts) — die einzige Zuordnung.
-- Werte: [theme.css](../../src/theme.css), `--tf-rolle-{pa,ab,fb,qs,jur}[-bg|-bar]`, Hell + Dunkel.
+- Werte: [theme.css](../../src/theme.css), `--tf-rolle-{pa,ab,fb,qs,jur}[-bg]`, Hell + Dunkel.
 - Guard `rollen-farbe-eine-quelle` ([conventions-ui.test.ts](../../src/__tests__/conventions-ui.test.ts))
   hält beides fest **und misst den Kontrast nach**: jede Schriftfarbe muss auf
   ihrer eigenen Fläche ≥ 4,5:1 erreichen, in beiden Modi. Die Werte des Entwurfs
@@ -171,15 +197,75 @@ vier Angaben. Ist gefiltert, steht der Nenner dabei („8 von 57").
 Lücken zählen **nicht** in die Datumsangaben: eine fehlende Seite ist kein
 Termin. Sie stehen daneben und sind klickbar.
 
+## Der Zeitstrahl: drei Etagen je Bahn
+
+| Etage | Was | Datei |
+|---|---|---|
+| oben | **Termin-Marken**: jedes gesetzte Kürzel, getönt in der Farbe seiner Rolle | [bandTermine.ts](../../src/plugins/antraege/verlauf-band/bandTermine.ts) |
+| Mitte | **Balken** mit Statusabschnitt, Grenzstrich (Konfidenz), Abschlussstreifen | [BandBahn.tsx](../../src/plugins/antraege/verlauf-band/BandBahn.tsx) |
+| unten | **Klartext**: fehlende Gegenstücke (rot), Termine ohne Phase, überlange Abschnittsnamen, Dauern | [bandBeschriftung.ts](../../src/plugins/antraege/verlauf-band/bandBeschriftung.ts) |
+
+Links daneben steht die **Rollenbilanz** der Bahn (`AB 24 · FB 22 · QS 30`) — wer
+an diesem Teilvorhaben gearbeitet hat, in einer Zeile. Sie zählt Termine je Bahn,
+die Chips der Leiste zählen Datumsangaben des Verbunds; beide nach derselben
+Regel (`rollenBilanz`/`rollenZaehler`), aber mit verschiedenem Nenner — eine
+Verbund-Spalte steht auf **jeder** TV-Bahn und wird dort auch gezählt.
+
+### Die Rolle sitzt am Termin, nicht auf der Fläche
+
+Der Entwurf färbt den **Balken** nach Rolle. Das trägt an unseren Daten nicht:
+
+- **PA ist Neutralgrau** — und „neutral" (144 der 505 Codes) wäre auf einer
+  Fläche derselbe Ton. Zwei Auskünfte, ein Bild.
+- **Ein Kürzel trägt bis zu vier Rollen** (`IP`). Eine Marke löst das mit „+n",
+  eine Füllung kann es nicht.
+- **Der Balken nennt seinen Status als Text in sich.** Eine Fläche, die etwas
+  anderes codiert als ihre eigene Beschriftung, widerspricht sich.
+
+Also: Fläche = Status (wie bisher), Rollenfarbe an Marke und Klartext. Der
+Meilenstein wirkt dort über die **Schriftstärke**, nicht über die Akzentfarbe wie
+in der Matrix — der Farbkanal ist schon vergeben.
+
+### Was die Etage zeigt, und was nicht
+
+Die Rangfolge der Klartext-Zeile ist die Entscheidung: Warnung → Lücke →
+fokussierter Termin → übrige Termine → Abschnittsnamen → Dauern. Termine stehen
+**vor** den Abschnittsnamen, weil ein Abschnittsname im Balken, im Tooltip und in
+der Legende steht — der Klartext eines Termins nirgends sonst.
+
+Gemessen an ZKN084412 (TV 2, **78 Termine** in der Bahn): 18 Marken tragen 22
+Termine, 3 bekommen den vollen Klartext. Das ist kein Mangel, sondern die
+Auskunft: was nicht ohne Überlappung passt, entfällt — ein gekürztes Kürzel wäre
+ein anderes Kürzel. Eine zweite Etage brächte etwa drei Texte mehr und kostete
+16 px auf jeder Bahn; die Beschriftungen sind 300 px lang, nicht die Zeile ist zu
+kurz. Kurzbezeichnungen je Kürzel (Handoff §9.3) wären der Hebel — die gibt es
+noch nicht, und sie zu erfinden hieße Fremddaten zu ersetzen.
+
+### Filter und Fokus
+
+- **Wer blendet ab** (`sichtFuerBahn`): Marken und Klartext verlieren Tönung,
+  die Balken bleiben unangetastet. Der Entwurf leert dort zusätzlich die Balken
+  (Screenshot 08); ein Balken ohne seinen Status ist aber kein Kontext mehr.
+- **Wo blendet Bahnen aus**, und **die Achse bleibt**: gemessen sitzt jede
+  gemeinsame Marke bei „alle" und bei „nur TV 3" auf demselben Pixel. Ohne diese
+  Zusage wäre der geteilte Fokus wertlos.
+- **Fokus**: Marken des Feldes bekommen einen Akzentring, ihr Klartext wird vor
+  allen anderen gesetzt. `Esc` hebt auf.
+- **„Nebensächliches" bleibt der Chronik.** `baueUebergaenge` baut seine Termine
+  fest ohne diese Kürzel; die Bahn kennt sie gar nicht. Der Schalter verschwindet
+  deshalb im Zeitstrahl, und eine Zeile darunter sagt, wie viele fehlen.
+
+Die Achse deckt **genau eine** Kante mehr als früher: den frühesten Termin, falls
+er vor dem ersten Statuswechsel liegt (`FOY` vor `AAE`). Jeden Termin zur Kante
+zu machen blähte die Bahn auf über 2000 px Scrollbreite — `bodenFuer` gibt jedem
+Intervall ein Mindestmaß. Termine **nach** dem Bezugszeitpunkt bekommen keine
+Marke: geklemmt behaupteten sie ein Datum, das sie nicht haben.
+
 ## Offen
 
-- **Zeitstrahl-Umbau** — Kürzel-Zeile über der Bahn, Balkenfarbe nach Rolle,
-  ausgeschriebene Beschriftungszeile. Er zeigt heute die aus der
-  C16-Trigger-Tabelle abgeleitete Phase; ihn nach Rolle einzufärben ändert, was
-  das Bild behauptet. Bis dahin steht die Filterleiste **nur** über der Chronik
-  — ein Bedienelement ohne Wirkung wäre ein gebrochenes Versprechen.
-  Übernommen ist bislang allein das **Maß**: der Balken ist seit v4.48.1 26 px
-  hoch (`BALKEN_H`, das `.track` des Entwurfs) statt 20 — bei 11-px-Schrift darin
-  las sich das schmalere Band als Strich mit Text darauf, nicht als Fläche.
-- **Export** („Verlauf kopieren", „Als XLSX") — im Entwurf angelegt, Zielformat
-  offen (Matrix oder Ereignisliste).
+- **Export** („Als XLSX") — im Entwurf angelegt, Zielformat offen (Matrix oder
+  Ereignisliste). „Verlauf kopieren" gibt es am Zeitstrahl schon, der Chronik
+  fehlt es.
+- **`heute`-Linie**: nötig, sobald die Achse über den Bezugszeitpunkt hinaus
+  reichen soll (siehe Termine nach dem Stichtag).
+- **Kurzbezeichnungen je Kürzel** — der Hebel für die Klartext-Zeile.

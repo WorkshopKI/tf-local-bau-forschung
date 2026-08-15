@@ -1,11 +1,10 @@
 /**
- * Die zwei kleinen Marken, die in Chronik **und** Matrix dieselbe Auskunft
+ * Die kleinen Marken, die in Chronik, Matrix **und** Zeitstrahl dieselbe Auskunft
  * geben: **wer** hat gesetzt (Rolle) und **wo** steht der Eintrag (Träger).
  *
- * Sie liegen zusammen in einer Datei, weil sie zusammen gelesen werden — eine
- * Zeile beantwortet mit beiden die Leitfrage der Ansicht. Getrennt wären es
- * zwei Dateien mit je einem Dutzend Zeilen und derselben Größenkonvention, die
- * dann zweimal gepflegt würde.
+ * Sie liegen zusammen in einer Datei, weil sie **ein Maß** teilen ({@link MARKE}):
+ * getrennt wären es vier Dateien mit derselben Größenkonvention, die dann
+ * viermal gepflegt würde und beim fünften Mal auseinanderliefe.
  *
  * **Träger: einzeln benennen, nicht zusammenfassen.** Bis v4.47 stand hier
  * `traegerLabel` — „3 Teilvorhaben". Das ist genau die Auskunft, wegen der man
@@ -16,7 +15,10 @@
  * Zusammengefasst wird erst, wo Einzelnennung nichts mehr trägt: tragen **alle**
  * Teilvorhaben denselben Termin, sagt „alle 6" mehr als sechs gleiche Marken.
  */
-import { ROLLE_LABEL, ROLLE_LANG, ROLLE_GEDIMMT, rollenFarbe, sortiereRollen, type Rolle } from '@/core/status';
+import {
+  ROLLE_LABEL, ROLLE_LANG, ROLLE_GEDIMMT, rollenFarbe, rollenWahlOffen, sortiereRollen,
+  type Rolle,
+} from '@/core/status';
 
 /** Ab wie vielen Trägern eine vollständige Liste zu „alle N" zusammenfällt. */
 const ALLE_AB = 4;
@@ -94,6 +96,90 @@ export function RollenBadges({ rollen, gedimmt = false }: {
           +{rest}
         </span>
       )}
+    </span>
+  );
+}
+
+/**
+ * Ein **Kürzel** in der Rollenfarbe — die Marke über der Zeitstrahl-Bahn.
+ *
+ * Sie steht hier und nicht im Band, weil sie das Maß der beiden anderen teilt.
+ * Zwei Unterschiede zur Chronik-Zeile, beide bewusst:
+ *
+ * - **Monospace**, wie die Träger-Marke: über der Bahn stehen Kürzel neben
+ *   Kürzeln, und `AK4` neben `AT4` liest sich nur mit fester Laufweite als Paar.
+ * - **Meilenstein wirkt über die Schriftstärke**, nicht über die Akzentfarbe wie
+ *   in der Matrix: der Farbkanal trägt hier schon die Rolle. Zwei Bedeutungen auf
+ *   einem Kanal machten beide unlesbar.
+ *
+ * Ohne Rolle (neutral oder Kürzel nicht im Katalog) bleibt die Marke ungetönt —
+ * die beiden Fälle unterscheidet der Titel, den der Aufrufer setzt (Pitfall #43).
+ */
+export function RollenKuerzel({ text, rolle, meilenstein = false, gedimmt = false, titel }: {
+  text: string;
+  /** `null` = neutral oder unbekannt — dann trägt die Marke keine Tönung. */
+  rolle: Rolle | null;
+  meilenstein?: boolean;
+  gedimmt?: boolean;
+  titel?: string;
+}): React.ReactElement {
+  const farbe = gedimmt || rolle === null ? ROLLE_GEDIMMT : rollenFarbe(rolle);
+  return (
+    <span
+      className={`${MARKE} font-mono w-full justify-center overflow-hidden${
+        meilenstein && !gedimmt ? ' font-medium' : ''}`}
+      style={{
+        background: farbe.flaeche,
+        color: farbe.text,
+        ...(rolle === null || gedimmt ? { border: '0.5px solid var(--tf-border-hover)' } : {}),
+      }}
+      title={titel}
+    >
+      {text}
+    </span>
+  );
+}
+
+/**
+ * Die **Rollenbilanz** einer Zeitstrahl-Bahn: wie viele Termine je Rolle in ihr
+ * stehen — „wer hat an diesem Teilvorhaben gearbeitet" in einer Zeile.
+ *
+ * Rollen ohne Termin fehlen ganz: eine `0` sagt dasselbe wie Abwesenheit und
+ * kostet die Breite, die der Nachbar braucht. Neutrale Termine zählen nirgends
+ * — die Summe der Marken ist deshalb weder die Zahl der Termine noch ihre
+ * Obergrenze (ein Kürzel mit zwei Rollen zählt zweimal).
+ */
+export function RollenBilanz({ bilanz, wahl }: {
+  bilanz: Readonly<Record<Rolle, number>>;
+  /** Aktive Rollenwahl; leer oder vollständig = keine Einschränkung. */
+  wahl?: ReadonlySet<Rolle>;
+}): React.ReactElement | null {
+  const offen = wahl === undefined || rollenWahlOffen(wahl);
+  const rollen = sortiereRollen(
+    (Object.keys(bilanz) as Rolle[]).filter(r => bilanz[r] > 0),
+  );
+  if (rollen.length === 0) return null;
+  return (
+    <span className={`inline-flex items-center ${ABSTAND}`}>
+      {rollen.map(r => {
+        const gedimmt = !offen && wahl?.has(r) !== true;
+        const farbe = gedimmt ? ROLLE_GEDIMMT : rollenFarbe(r);
+        return (
+          <span
+            key={r}
+            className={`${MARKE} gap-[3px]`}
+            style={{
+              background: farbe.flaeche,
+              color: farbe.text,
+              ...(gedimmt ? { border: '0.5px solid var(--tf-border)' } : {}),
+            }}
+            title={`${ROLLE_LANG[r]}: ${bilanz[r]} Termine`}
+          >
+            <span className="font-medium">{ROLLE_LABEL[r]}</span>
+            {bilanz[r]}
+          </span>
+        );
+      })}
     </span>
   );
 }

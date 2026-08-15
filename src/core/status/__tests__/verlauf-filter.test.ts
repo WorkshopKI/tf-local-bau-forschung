@@ -7,8 +7,8 @@
 import { describe, it, expect } from 'vitest';
 import {
   BEREICH_VERBUND, bereicheVon, bereichZaehler, filterePaare, neutralZaehler,
-  rollenSicht, rollenWahlOffen, rollenZaehler, schalteAuswahl, sichtFuerBahn,
-  trifftBereich,
+  rollenBilanz, rollenSicht, rollenWahlOffen, rollenZaehler, schalteAuswahl,
+  sichtFuerBahn, trifftBereich,
 } from '@/core/status/verlauf-filter';
 import { ROLLEN } from '@/core/status/rollen';
 import type { ChronikEintrag } from '@/core/status/chronik';
@@ -106,6 +106,20 @@ describe('verlauf-filter — Zähler', () => {
     expect(z.get('TV1')).toBe(1);
     expect(z.get('TV2')).toBeUndefined();
     expect(z.get(BEREICH_VERBUND)).toBe(1);
+  });
+
+  it('bilanziert eine Bahn nach derselben Regel wie die Leiste', () => {
+    // Die Bilanz zählt Einträge (Termine der Bahn), nicht Zellen — aber
+    // mehrrollig zählt für jede Rolle, und neutral zählt nirgends. Zwei Zahlen
+    // für dieselbe Frage wären zwei Wahrheiten.
+    const b = rollenBilanz([
+      { rollen: ['ab', 'fb'] }, { rollen: ['qs'] }, { rollen: [] },
+    ]);
+    expect(b).toEqual({ ab: 1, fb: 1, qs: 1, pa: 0, jur: 0 });
+  });
+
+  it('gibt für eine Bahn ohne Termine überall null', () => {
+    expect(rollenBilanz([])).toEqual({ ab: 0, fb: 0, qs: 0, pa: 0, jur: 0 });
   });
 });
 

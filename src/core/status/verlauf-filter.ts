@@ -99,6 +99,23 @@ export function rollenZaehler(
   return out;
 }
 
+/**
+ * Rollen-Zähler über eine beliebige Menge rollentragender Einträge — die
+ * **Bilanz einer Zeitstrahl-Bahn** (`VerlaufsUebergang[]`).
+ *
+ * Bewusst strukturell typisiert statt auf `VerlaufsUebergang` festgelegt: die
+ * Regel ist dieselbe wie in {@link rollenZaehler} (ein Eintrag zählt für **jede**
+ * seiner Rollen, neutrale zählen nirgends), und sie zweimal zu schreiben hieße,
+ * dass Leiste und Bahn irgendwann zwei Zahlen für dieselbe Frage nennen.
+ */
+export function rollenBilanz(
+  eintraege: readonly { rollen: readonly Rolle[] }[],
+): Record<Rolle, number> {
+  const out = { ab: 0, fb: 0, qs: 0, pa: 0, jur: 0 } as Record<Rolle, number>;
+  for (const e of eintraege) for (const r of e.rollen) out[r] += 1;
+  return out;
+}
+
 /** Datumsangaben ohne Rollenzuweisung („jeder darf setzen"). */
 export function neutralZaehler(
   chronik: readonly ChronikEintrag[], bereichWahl: ReadonlySet<string>,

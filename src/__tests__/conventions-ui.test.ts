@@ -1070,6 +1070,28 @@ describe('rollen-farbe-eine-quelle (Chronik/Zeitstrahl, v4.48)', () => {
     }
   });
 
+  it('schreibt in den Verlaufs-Ansichten keine Farbe von Hand', () => {
+    // Ein literales hsl()/rgb() in Chronik, Matrix oder Zeitstrahl waere eine
+    // zweite Rollenzuordnung — und der Dunkelmodus waere verloren, bevor ihn
+    // jemand testet. Die drei Ansichten lesen ausschliesslich Tokens.
+    const ORDNER = ['src/plugins/antraege/status/', 'src/plugins/antraege/verlauf-band/'];
+    const findings: Finding[] = [];
+    for (const file of ALL_SOURCE_FILES) {
+      const rel = relPath(file).split(sep).join('/');
+      if (!ORDNER.some(o => rel.includes(o))) continue;
+      findings.push(...findInFile(
+        file, l => /\b(hsl|rgb)a?\(/.test(l) && !l.trimStart().startsWith('*'), 'allow-rollen-farbe',
+      ));
+    }
+    if (findings.length > 0) {
+      expect.fail(
+        `Farbe von Hand in einer Verlaufs-Ansicht — Tokens statt Literale:\n${fmt(findings)}\n\n`
+        + `Rollenfarben ueber rollenFarbe(rolle), alles andere ueber var(--tf-*).\n`
+        + `Echte Ausnahme: '// allow-rollen-farbe: <grund>'.`,
+      );
+    }
+  });
+
   it('haelt jede Rollenfarbe auf ihrer eigenen Flaeche ueber 4,5:1 — in beiden Modi', () => {
     const problem: string[] = [];
     for (const satz of themeFarbTokens()) {

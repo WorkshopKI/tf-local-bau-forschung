@@ -19,7 +19,7 @@
  * Rein und deterministisch: keine IO, keine Uhr — Stichtag, Journal und
  * Trigger-Regeln reicht der Aufrufer herein.
  */
-import type { Rolle } from '../typen';
+import type { Prominenz, Rolle } from '../typen';
 import type { BedingungsUrteil } from '../trigger-bedingung';
 import type { Projektform, ProjektformLage } from '../kuerzel-katalog';
 import type { LabelHerkunft } from '@/core/utils/status-wert-labels';
@@ -67,10 +67,10 @@ export type Konfidenz =
  * Warum ein Übergang keine Rolle nennt — `neutral` und `unbekannt` sähen als
  * leeres Array gleich aus, sind aber verschiedene Auskünfte (Pitfall #43).
  *
- * - `benannt` — der Katalog nennt Rollen.
- * - `neutral` — der Katalog sagt ausdrücklich „jeder darf setzen".
- * - `unbekannt` — das Kürzel steht nicht im Katalog, oder die Projektformen
- *   widersprechen sich (`KuerzelAuskunft.eindeutig === false`).
+ * - `benannt` — die geladene Fassung nennt Rollen.
+ * - `neutral` — sie sagt ausdrücklich „jeder darf setzen".
+ * - `unbekannt` — sie nennt keine, und die Zuarbeit kennt das Kürzel gar nicht
+ *   bzw. die Projektformen widersprechen sich (`KuerzelAuskunft.eindeutig`).
  */
 export type RollenLage = 'benannt' | 'neutral' | 'unbekannt';
 
@@ -121,7 +121,28 @@ export interface VerlaufsUebergang {
   kuerzelHistorisch?: string;
   /** ISO-Tag. Tagesgranularität; eine Uhrzeit führt der Export nicht. */
   datum: string;
-  /** Leer bei `rollenLage !== 'benannt'` — nie mit einer Vermutung gefüllt. */
+  /**
+   * Die **rohe Spalte**, aus der der Termin stammt (Pitfall #42) — der exakte
+   * Schlüssel, mit dem Chronik, Matrix und Bahn denselben Schritt meinen.
+   *
+   * Über das Kürzel allein ginge das nicht: dasselbe steht auf Verbund- und
+   * TV-Ebene in verschiedenen Spalten, und der Fokus zeigt auf eine davon.
+   * Gesetzt wird es aus **demselben** Feldobjekt, das die Chronik anzeigt — kein
+   * zweiter Nachschlag, also auch keine zweite Auflösung, die abweichen könnte.
+   */
+  feldId: string;
+  /**
+   * Gewichtung des Feldes, wie der Katalog sie führt. Sie steht hier, damit die
+   * zeichnende Schicht den Meilenstein hervorheben kann, ohne die ganze
+   * Katalogfassung zu bekommen. `ignoriert`/`nebensaechlich` erreichen die
+   * Übergänge nicht (siehe {@link ./uebergaenge.ts}).
+   */
+  prominenz: Prominenz;
+  /**
+   * Wer den Eintrag setzt — aus der geladenen **Fassung** (`rollenVonFeld`),
+   * derselben Quelle, aus der Chronik, Matrix und Filterleiste zählen. Leer bei
+   * `rollenLage !== 'benannt'`; nie mit einer Vermutung gefüllt.
+   */
   rollen: readonly Rolle[];
   rollenLage: RollenLage;
   konfidenz: Konfidenz;

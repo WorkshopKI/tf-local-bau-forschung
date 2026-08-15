@@ -23,7 +23,8 @@ function spur(o: Partial<VerlaufsSpur> & Pick<VerlaufsSpur, 'art' | 'zustand'>):
 }
 
 const uebergang = (o: Partial<VerlaufsSpur['uebergaenge'][number]> = {}): VerlaufsSpur['uebergaenge'][number] => ({
-  kuerzel: 'AAE', datum: '2024-02-01', rollen: [], rollenLage: 'neutral',
+  kuerzel: 'AAE', datum: '2024-02-01', feldId: 'D_AAE', prominenz: 'normal',
+  rollen: [], rollenLage: 'neutral',
   konfidenz: 'kein_kuerzel', bezeichnung: 'Antragseingang', bezeichnungEindeutig: true, ...o,
 });
 

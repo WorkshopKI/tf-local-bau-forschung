@@ -285,8 +285,8 @@ export {
 } from './verlauf-kennzahlen';
 export {
   BEREICH_VERBUND, bereicheVon, bereichZaehler, filterePaare, neutralZaehler,
-  rollenSicht, rollenWahlOffen, rollenZaehler, schalteAuswahl, sichtFuerBahn,
-  trifftBereich, type Sicht,
+  rollenBilanz, rollenSicht, rollenWahlOffen, rollenZaehler, schalteAuswahl,
+  sichtFuerBahn, trifftBereich, type Sicht,
 } from './verlauf-filter';
 export { ROLLE_GEDIMMT, rollenFarbe, type RollenFarbe } from './rollen-farbe';
 // Die Verlaufsableitung hat ein eigenes Barrel (`./verlauf`), wie das Journal.

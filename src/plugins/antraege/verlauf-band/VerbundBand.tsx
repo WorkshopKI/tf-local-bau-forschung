@@ -11,16 +11,29 @@
  * Eine zweite feste Zahl neben dem Rückfallwert des Bands erklärte nur noch,
  * wie breit der erste Rahmen ist — und der ist nach einem Wimpernschlag vorbei.
  */
+import { useMemo } from 'react';
+import type { Rolle } from '@/core/status';
+import type { OffenesPaarJeTv } from '@/core/status';
 import { useZeilenVerlauf } from '../ausklapp/useZeilenVerlauf';
 import { useZeilenWaechter } from '../ausklapp/useZeilenWaechter';
 import { leise } from '../ausklapp/SpurListe';
+import type { BandLuecke } from './bandBeschriftung';
 import { VerlaufsBand } from './VerlaufsBand';
 
-export function VerbundBand({ verbundId, statusRoh, stichtag }: {
+export function VerbundBand({
+  verbundId, statusRoh, stichtag, rollenWahl, bereichWahl, fokus, onFokus, offenePaare,
+}: {
   verbundId: string;
   statusRoh?: string | null;
   /** ISO-Tag. */
   stichtag: string;
+  /** Der geteilte Verlaufs-Filter der Detailseite — dieselbe Auswahl wie die Chronik. */
+  rollenWahl?: ReadonlySet<Rolle>;
+  bereichWahl?: ReadonlySet<string>;
+  fokus?: string | null;
+  onFokus?: (feldId: string | null) => void;
+  /** Die halb offenen Kürzel-Paare, bereits nach Rolle und Träger gefiltert. */
+  offenePaare?: readonly OffenesPaarJeTv[];
 }): React.ReactElement {
   const daten = useZeilenVerlauf(verbundId, null, stichtag, true, statusRoh);
   // Der Zeilen-Zustand wird hier selbst gezogen: es gibt keine gemeinsame Hülle,
@@ -33,6 +46,20 @@ export function VerbundBand({ verbundId, statusRoh, stichtag }: {
     stichtag,
     journalAenderung: daten.journalAenderung,
   });
+
+  // Die Lücken je Teilvorhaben, wie die Bahn sie braucht: „… fehlt" an dem Tag,
+  // seit dem die andere Seite gesetzt ist. Mehrere je Teilvorhaben sind der
+  // Normalfall — verbunden werden sie erst, wenn sie auf denselben Tag fallen
+  // (`bandBeschriftung.ts`).
+  const luecken = useMemo(() => {
+    const out = new Map<string, BandLuecke[]>();
+    for (const p of offenePaare ?? []) {
+      const liste = out.get(p.tvId) ?? [];
+      liste.push({ seit: p.seit, text: `${p.fehltLabel} fehlt` });
+      out.set(p.tvId, liste);
+    }
+    return out;
+  }, [offenePaare]);
 
   if (daten.laden) return <p className={leise}>Lädt …</p>;
   if (daten.spuren.length === 0) {
@@ -49,6 +76,12 @@ export function VerbundBand({ verbundId, statusRoh, stichtag }: {
       // Die Seite zeigt IMMER das ganze Vorhaben — die Marke gehört deshalb an
       // die Verbundbahn, nie an eine der Teilvorhaben-Bahnen.
       haengtFest={waechter?.urteil === 'haengt' ? { art: 'verbund', id: verbundId } : null}
+      {...(rollenWahl ? { rollenWahl } : {})}
+      {...(bereichWahl ? { bereichWahl } : {})}
+      fokus={fokus ?? null}
+      {...(onFokus ? { onFokus } : {})}
+      luecken={luecken}
+      zeigeBilanz
     />
   );
 }

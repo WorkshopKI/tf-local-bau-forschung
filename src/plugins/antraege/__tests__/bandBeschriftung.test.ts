@@ -50,7 +50,14 @@ function bahn(segmente: BandSegment[]): BandSpur {
 /** Legende mit Nummern für jeden hier verwendeten Kurznamen. */
 const NUMMERN = new Map([['NF', 7], ['AB', 8], ['BR', 3], ['KW', 4], ['NFGESTELLT', 9]]);
 const nummerVon = (k: string): number | undefined => NUMMERN.get(k);
-const OPT = { messeText: messe, nummerVon };
+/**
+ * Die Achse zählt hier nicht: die Segmente dieser Datei tragen keine Daten, also
+ * gibt es weder Termine noch Lücken zu setzen. Sie steht trotzdem im Satz, weil
+ * sie zur Signatur gehört — die Zusagen dieser Datei betreffen die Etage, nicht
+ * die Zeit.
+ */
+const OHNE_ZEIT = { kanten: [], x: [] };
+const OPT = { messeText: messe, nummerVon, achse: OHNE_ZEIT };
 
 /**
  * Wo der Text eines Segments gelandet ist — eine Zeichenkette je Segment, damit
@@ -93,7 +100,7 @@ describe('Vier Stufen je Segment', () => {
     expect(r.segmente[0]![0]).toMatchObject({ lage: 'keine', text: '' });
     expect(r.segmente[0]![0]!.unten).toEqual({
       // 66 px Text + 3 px Führungsstrich + 2 px Sicherheit.
-      text: 'NF gestellt', x: 24, breite: 71, rechtsBuendig: false,
+      text: 'NF gestellt', x: 24, breite: 71, rechtsBuendig: false, art: 'name',
     });
   });
 
@@ -171,7 +178,7 @@ describe('Die zweite Etage kollidiert nicht mit sich selbst', () => {
       [bahn([bandSeg(120, 16, 'AB', 'Ablehnung')])], { ...OPT, bahnBreite: 150 },
     );
     expect(r.segmente[0]![0]!.unten).toEqual({
-      text: 'Ablehnung', x: 91, breite: 59, rechtsBuendig: true,
+      text: 'Ablehnung', x: 91, breite: 59, rechtsBuendig: true, art: 'name',
     });
   });
 });
@@ -185,7 +192,7 @@ describe('Die Dauer steht in derselben Etage', () => {
     expect(r.segmente[0]![0]).toMatchObject({ lage: 'im-balken', text: 'NF gestellt' });
     // '28 T' = 4 Zeichen → 24 px + 3 + 2.
     expect(r.segmente[0]![0]!.unten).toEqual({
-      text: '28 T', x: 0, breite: 29, rechtsBuendig: false,
+      text: '28 T', x: 0, breite: 29, rechtsBuendig: false, art: 'dauer',
     });
   });
 
@@ -260,7 +267,7 @@ describe('Die Endmarke am Achsenende', () => {
     );
     // 'hängt fest' = 10 Zeichen → 60 px + 3 + 2 = 65.
     expect(r.endMarken[0]).toEqual({
-      text: 'hängt fest', x: 335, breite: 65, rechtsBuendig: true,
+      text: 'hängt fest', x: 335, breite: 65, rechtsBuendig: true, art: 'warnung',
     });
     expect(r.unterzeile[0]).toBe(true);
   });
@@ -303,7 +310,7 @@ describe('Die Endmarke am Achsenende', () => {
   it('erscheint ohne Messung nicht — dann gibt es die Etage gar nicht', () => {
     const r = verteileBeschriftung(
       [bahn([bandSeg(0, 90, 'NF', 'NF gestellt')])],
-      { messeText: null, nummerVon, bahnBreite: 400, endMarke: marke },
+      { messeText: null, nummerVon, achse: OHNE_ZEIT, bahnBreite: 400, endMarke: marke },
     );
     expect(r.endMarken[0]).toBeNull();
     expect(r.unterzeile).toEqual([false]);
@@ -362,7 +369,7 @@ describe('Nummern erscheinen nur, wo sie gebraucht werden', () => {
     ];
     const mit = verteileBeschriftung([bahn(segmente)], { ...OPT, bahnBreite: 400 });
     const ohne = verteileBeschriftung(
-      [bahn(segmente)], { messeText: messe, nummerVon: () => undefined, bahnBreite: 400 },
+      [bahn(segmente)], { messeText: messe, nummerVon: () => undefined, achse: OHNE_ZEIT, bahnBreite: 400 },
     );
     const unter = (r: typeof mit): unknown[] => r.segmente[0]!
       .map(s => s.unten).filter(u => u !== null);
@@ -373,7 +380,7 @@ describe('Nummern erscheinen nur, wo sie gebraucht werden', () => {
 });
 
 describe('Ohne Messung bleibt alles wie bis v3.31', () => {
-  const ohneMass = { messeText: null, nummerVon, bahnBreite: 400 };
+  const ohneMass = { messeText: null, nummerVon, achse: OHNE_ZEIT, bahnBreite: 400 };
 
   it('zeigt die Kurzform ab 46 px, die Nummer ab 16, sonst nichts', () => {
     const r = verteileBeschriftung([bahn([
@@ -456,5 +463,99 @@ describe('Der Vertrag mit der Geometrie', () => {
     b.segmente.forEach((bahnSeg, i) => {
       expect(b.unterzeile[i]).toBe(bahnSeg.some(s => s.unten !== null));
     });
+  });
+});
+
+describe('Was an keinem Segment hängt: Lücken und Termine', () => {
+  const tagMs = (iso: string): number => new Date(`${iso}T00:00:00Z`).getTime();
+  /** Feste Anker, damit die x-Werte im Kopf nachrechenbar bleiben. */
+  const ACHSE = {
+    kanten: ['2024-01-01', '2024-04-01', '2024-06-01', '2024-12-31'].map(tagMs),
+    x: [0, 100, 140, 400],
+  };
+
+  const ueb = (
+    kuerzel: string, datum: string, bezeichnung: string, setzt = false,
+  ): VerlaufsSpur['uebergaenge'][number] => ({
+    kuerzel, datum, feldId: `D_${kuerzel}`, prominenz: 'normal',
+    rollen: [], rollenLage: 'neutral',
+    konfidenz: setzt ? 'trigger_bestaetigt' : 'kein_kuerzel',
+    bezeichnung, bezeichnungEindeutig: true,
+    ...(setzt
+      ? { setztStatus: { roh: 'x', code: 31, kurz: 'X', lang: 'x', labelHerkunft: 'katalog' as const } }
+      : {}),
+  });
+
+  /** Eine Bahn, deren einziges Segment breit genug ist, um seinen Namen selbst
+   *  zu tragen — so konkurriert es nicht um die Etage. */
+  const mitTerminen = (uebergaenge: VerlaufsSpur['uebergaenge']): BandSpur => {
+    const b = bahn([bandSeg(0, 400, 'NF', 'NF')]);
+    return { ...b, spur: { ...b.spur, uebergaenge } };
+  };
+
+  const setz = { ...OPT, achse: ACHSE, bahnBreite: 400 };
+
+  it('verbindet Termine desselben Tages zu EINEM Eintrag', () => {
+    // Sie sitzen an derselben x-Position und verdeckten einander sonst.
+    const r = verteileBeschriftung([mitTerminen([
+      ueb('FOY', '2024-04-01', 'Import ZIM-Foyer'),
+      ueb('C16', '2024-04-01', 'in C16 eingestellt'),
+    ])], setz);
+    expect(r.frei[0]).toHaveLength(1);
+    expect(r.frei[0]![0]).toMatchObject({
+      text: 'Import ZIM-Foyer · in C16 eingestellt', x: 100, art: 'termin',
+    });
+  });
+
+  it('schreibt NICHT aus, was der Balken schon sagt', () => {
+    // Ein Termin, der einen Statuswechsel auslöst, steht als Abschnitt da.
+    const r = verteileBeschriftung([mitTerminen([
+      ueb('AAE', '2024-04-01', 'Antragseingang', true),
+    ])], setz);
+    expect(r.frei[0]).toEqual([]);
+  });
+
+  it('gibt der Lücke den Platz vor dem Termin', () => {
+    // Rangfolge: eine fehlende Seite ist eine Aufgabe, ein Termin eine Auskunft.
+    const r = verteileBeschriftung([mitTerminen([
+      ueb('FOY', '2024-04-01', 'Import ZIM-Foyer'),
+    ])], {
+      ...setz,
+      luecken: () => [{ seit: '2024-04-01', text: 'Brief NF (TB) fehlt' }],
+    });
+    expect(r.frei[0]!.map(f => f.art)).toEqual(['luecke']);
+    expect(r.frei[0]![0]!.text).toBe('Brief NF (TB) fehlt');
+  });
+
+  it('verbindet mehrere Lücken desselben Tages', () => {
+    const r = verteileBeschriftung([mitTerminen([])], {
+      ...setz,
+      luecken: () => [
+        { seit: '2024-04-01', text: 'A fehlt' },
+        { seit: '2024-04-01', text: 'B fehlt' },
+      ],
+    });
+    expect(r.frei[0]![0]!.text).toBe('A fehlt · B fehlt');
+  });
+
+  it('setzt den fokussierten Termin, auch wenn ein früherer den Platz nähme', () => {
+    const uebergaenge = [
+      ueb('FOY', '2024-04-01', 'Import ZIM-Foyer'),
+      ueb('JUR', '2024-06-01', 'jur. Prüfung'),
+    ];
+    // Ohne Fokus gewinnt der frühere — bei knappem Platz zählt die Chronologie.
+    const ohne = verteileBeschriftung([mitTerminen(uebergaenge)], setz);
+    expect(ohne.frei[0]!.map(f => f.text)).toEqual(['Import ZIM-Foyer']);
+
+    // Mit Fokus gewinnt der gefragte: er darf nicht der sein, der entfällt.
+    const mit = verteileBeschriftung([mitTerminen(uebergaenge)], { ...setz, fokus: 'D_JUR' });
+    expect(mit.frei[0]!.map(f => f.text)).toEqual(['jur. Prüfung']);
+  });
+
+  it('lässt einen Termin außerhalb der Achse weg', () => {
+    const r = verteileBeschriftung([mitTerminen([
+      ueb('SPT', '2025-06-01', 'nach dem Stichtag'),
+    ])], setz);
+    expect(r.frei[0]).toEqual([]);
   });
 });

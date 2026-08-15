@@ -275,3 +275,55 @@ describe('dauerText', () => {
     expect(dauerText(null)).toBe('Dauer unbekannt');
   });
 });
+
+describe('Die Achse steht über ALLEN Spuren', () => {
+  const ueb = (kuerzel: string, datum: string): VerlaufsSpur['uebergaenge'][number] => ({
+    kuerzel, datum, feldId: `D_${kuerzel}`, prominenz: 'normal',
+    rollen: [], rollenLage: 'neutral', konfidenz: 'kein_kuerzel',
+    bezeichnung: null, bezeichnungEindeutig: true,
+  });
+
+  const drei = (): VerlaufsSpur[] => [
+    spur('vb', 'verbund', [seg('2024-01-01', BEZUG)]),
+    spur('tv1', 'tv', [seg('2024-01-01', '2024-06-01'), seg('2024-06-01', BEZUG)]),
+    spur('tv2', 'tv', [seg('2024-03-01', BEZUG)]),
+  ];
+
+  it('lässt den Maßstab unberührt, wenn nur eine Bahn gezeichnet wird', () => {
+    // Die Zusage, an der der geteilte Fokus hängt: „nur TV 1" ist ein Ausschnitt
+    // desselben Bildes, nicht ein zweites. Verschöbe sich die Skala, zeigte
+    // dieselbe Ansicht denselben Tag an zwei Stellen.
+    const alle = baueBandGeometrie(drei(), BEZUG, 800);
+    const eine = baueBandGeometrie(drei(), BEZUG, 800, { nurBahnen: new Set(['tv-tv1']) });
+    expect(eine.spuren.map(b => b.spur.id)).toEqual(['tv1']);
+    expect(eine.breite).toBe(alle.breite);
+    expect(xFuerTag(eine.achse, '2024-06-01')).toBe(xFuerTag(alle.achse, '2024-06-01'));
+    // ... auch für einen Tag, den NUR eine abgewählte Bahn kennt.
+    expect(xFuerTag(eine.achse, '2024-03-01')).toBe(xFuerTag(alle.achse, '2024-03-01'));
+  });
+
+  it('zeichnet gar keine Bahn, wenn die Wahl keine trifft', () => {
+    const g = baueBandGeometrie(drei(), BEZUG, 800, { nurBahnen: new Set(['tv-gibtesnicht']) });
+    expect(g.spuren).toEqual([]);
+    expect(Number.isFinite(g.breite)).toBe(true);
+  });
+
+  it('deckt den frühesten Termin, auch wenn er vor dem ersten Statuswechsel liegt', () => {
+    // `FOY` (Import ZIM-Foyer) steht im Bestand vor `AAE`. Ohne diese Kante
+    // fiele seine Marke auf x = 0 und behauptete dort ein Datum.
+    const s = spur('tv1', 'tv', [seg('2024-01-01', BEZUG)]);
+    const mitTermin: VerlaufsSpur = { ...s, uebergaenge: [ueb('FOY', '2023-11-02')] };
+    expect(imFenster(baueBandGeometrie([s], BEZUG, 800).achse, '2023-11-02')).toBe(false);
+
+    const g = baueBandGeometrie([mitTermin], BEZUG, 800);
+    expect(imFenster(g.achse, '2023-11-02')).toBe(true);
+    // GENAU eine Kante mehr: neunzig Termine als Kanten blähten die Bahn auf.
+    expect(g.achse.kanten).toHaveLength(3);
+  });
+
+  it('fügt keine Kante hinzu, wenn die Termine im Fenster liegen', () => {
+    const s = spur('tv1', 'tv', [seg('2024-01-01', BEZUG)]);
+    const drin: VerlaufsSpur = { ...s, uebergaenge: [ueb('AAE', '2024-05-05')] };
+    expect(baueBandGeometrie([drin], BEZUG, 800).achse.kanten).toHaveLength(2);
+  });
+});

@@ -19,6 +19,17 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.51 — 2026-08
+
+### Neu
+- Der Zeitstrahl unter „Status & Verlauf" zeigt jetzt **jeden gesetzten Termin** über der Bahn, in der Farbe der Rolle, die ihn setzt — vorher standen dort nur die Kürzel, die einen Statuswechsel auslösen.
+- Unter der Bahn steht ausgeschrieben, was der Balken nicht zeigen kann: fehlende Kürzel in Rot und die Termine ohne eigenen Abschnitt.
+- Links neben jeder Bahn: **wer daran gearbeitet hat** („AB 24 · FB 22 · QS 30").
+### Verbesserungen
+- Die Filterleiste „Wer / Wo" und der Fokus wirken jetzt auch im Zeitstrahl. Eine abgewählte Rolle wird dort blass, statt zu verschwinden — der Verlauf behält seine Form. Der Zeitmaßstab bleibt gleich, auch wenn nur ein Teilvorhaben angezeigt wird.
+### Bugfixes
+- Wer einen Statuseintrag setzen darf, stand an zwei Stellen und wurde verschieden beantwortet. Es gilt jetzt überall die geladene Katalogfassung — dieselbe Auskunft wie in Chronik, Matrix und Filterleiste.
+
 ## v4.50 — 2026-08
 
 ### Neu

@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.51.0 — Zeitstrahl zeigt jeden Termin, mit Rolle und Filter (August 2026)
+
+MINOR — Teil 2 des Handoffs `_design/handoff/chronik`. Die Bahn zeigte nur die Termine, die einen Statuswechsel auslösen — gemessen 7,3 %; die übrigen standen vollständig in den Daten und wurden nicht gezeichnet. Rolle, Filter und Fokus der Chronik erbt sie jetzt mit. Detail + die vier Abweichungen vom Entwurf: [chronik-und-zeitstrahl.md](docs/status-system/chronik-und-zeitstrahl.md).
+
+- **Jeder Termin als Marke über der Bahn**, getönt nach Rolle; ein Tag = eine Marke mit „+n", was kollidiert entfällt ([bandTermine.ts](src/plugins/antraege/verlauf-band/bandTermine.ts), gemessen an ZKN084412/TV2: 18 Marken für 22 von 78 Terminen)
+- **Klartext-Zeile mit Rangfolge** — Warnung, fehlende Kürzel (rot), fokussierter Termin, übrige Termine, Abschnittsnamen, Dauern ([bandBeschriftung.ts](src/plugins/antraege/verlauf-band/bandBeschriftung.ts)); dazu die **Rollenbilanz je Bahn** ([VerlaufBadges.tsx](src/plugins/antraege/status/VerlaufBadges.tsx))
+- **Wer/Wo/Fokus wirken auf beide Ansichten**: Wer blendet ab, Wo blendet Bahnen aus, und die Achse bleibt dieselbe (gemessen: 0 px Abweichung bei „nur TV 3") ([bandGeometrie.ts](src/plugins/antraege/verlauf-band/bandGeometrie.ts), [StatusDetailSection.tsx](src/plugins/antraege/status/StatusDetailSection.tsx))
+- **„Wer setzt" hat nur noch eine Quelle**: `baueUebergaenge` liest die Rollen aus der geladenen Fassung statt aus der Zuarbeit — die widersprachen sich an ZKN084412 um 37 Termine „Juristen" gegen null ([uebergaenge.ts](src/core/status/verlauf/uebergaenge.ts))
+- **Balkenfarbe bleibt der Status** (der Entwurf färbt nach Rolle): PA ist Neutralgrau und von „neutral" nicht zu unterscheiden, ein Kürzel trägt bis zu vier Rollen, und der Balken nennt seinen Status als Text — `--tf-rolle-*-bar` entfällt ([theme.css](src/theme.css)); die Bahn zieht nach [BandBahn.tsx](src/plugins/antraege/verlauf-band/BandBahn.tsx)
+
 ### v4.50.0 — Netzwerk, Notizen und Wahlkreis werden mitdurchsucht (August 2026)
 
 MINOR — Gefragt war, ob weitere Roh-CSV-Spalten mit sinnvollem Text in die Suche können. Entschieden hat nicht die Textmenge, sondern die Messung über alle drei aktiven Quellen (512 Spalten, 14.225 FKZ): welcher Text ist nirgendwo sonst auffindbar? Detail + verworfene Kandidaten: [suche-relevanz.md](docs/architecture/suche-relevanz.md).

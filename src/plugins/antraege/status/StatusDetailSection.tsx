@@ -195,26 +195,35 @@ export function StatusDetailSection({ verbundId, statusRoh }: {
         )}
       </div>
 
-      {/* Die Leiste steht nur über der Chronik: der Zeitstrahl liest sie noch
-          nicht, und ein Bedienelement ohne Wirkung ist ein gebrochenes
-          Versprechen. Er bekommt sie mit seinem eigenen Umbau. */}
-      {ansicht === 'chronik' && (
-        <VerlaufFilterLeiste
-          chronik={basis}
-          spalten={spalten}
-          filter={filter}
-          nichtGesetzt={offenePaare.length}
-          nebensaechlich={nebenAnzahl === 0 ? null : {
-            an: prefsApi.prefs.zeigeNebensaechlich,
-            anzahl: nebenAnzahl,
-            umschalten: () => prefsApi.setNebensaechlich(!prefsApi.prefs.zeigeNebensaechlich),
-          }}
-        />
+      {/* Eine Leiste für beide Ansichten (seit v4.50) — dieselbe Auswahl, zwei
+          Bilder. Nur „Nebensächliches" bleibt der Chronik: die Verlaufsableitung
+          baut ihre Termine fest ohne diese Kürzel (`baueUebergaenge`), der
+          Zeitstrahl kennt sie also gar nicht, und ein Schalter ohne Wirkung ist
+          ein gebrochenes Versprechen. */}
+      <VerlaufFilterLeiste
+        chronik={basis}
+        spalten={spalten}
+        filter={filter}
+        nichtGesetzt={offenePaare.length}
+        nebensaechlich={nebenAnzahl === 0 || ansicht !== 'chronik' ? null : {
+          an: prefsApi.prefs.zeigeNebensaechlich,
+          anzahl: nebenAnzahl,
+          umschalten: () => prefsApi.setNebensaechlich(!prefsApi.prefs.zeigeNebensaechlich),
+        }}
+      />
+      {/* Was der Zeitstrahl von der Auswahl NICHT einlöst — einmal gesagt, statt
+          es den Leser an einer fehlenden Marke merken zu lassen. */}
+      {ansicht !== 'chronik' && nebenAnzahl > 0 && (
+        <p className="text-[11.5px] text-[var(--tf-text-tertiary)]">
+          {nebenAnzahl} nebensächliche Termine (Briefe, Bestätigungen) zeichnet der
+          Zeitstrahl nicht — sie lösen keinen Statuswechsel aus. Die Chronik zeigt sie.
+        </p>
       )}
 
       {/* Der Fokus überlebt den Ordnungswechsel — in der Matrix eine Streuung
-          sehen, nach Datum nachlesen, wann sie entstand. */}
-      {fokusZeile !== null && ansicht === 'chronik' && (
+          sehen, nach Datum nachlesen, wann sie entstand, im Zeitstrahl sehen,
+          wo sie liegt. */}
+      {fokusZeile !== null && (
         <div
           className="flex flex-wrap items-center gap-2 rounded-[var(--tf-radius)] px-2.5 py-1.5 text-[12px]"
           style={{ background: 'var(--tf-bg-secondary)', border: '0.5px solid var(--tf-border)' }}
@@ -239,7 +248,14 @@ export function StatusDetailSection({ verbundId, statusRoh }: {
       )}
 
       {ansicht !== 'chronik' ? (
-        <VerbundBand verbundId={verbundId} statusRoh={statusRoh} stichtag={stichtag.slice(0, 10)} />
+        <VerbundBand
+          verbundId={verbundId} statusRoh={statusRoh} stichtag={stichtag.slice(0, 10)}
+          rollenWahl={filter.rollen}
+          bereichWahl={filter.bereiche}
+          fokus={filter.fokus}
+          onFokus={filter.setzeFokus}
+          offenePaare={paareGefiltert}
+        />
       ) : modus === 'schritt' ? (
         <StatusSchrittMatrix
           zeilen={matrixZeilen}

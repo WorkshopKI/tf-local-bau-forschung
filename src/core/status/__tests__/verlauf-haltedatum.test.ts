@@ -23,7 +23,8 @@ function u(
   setzt?: number, konfidenz: VerlaufsUebergang['konfidenz'] = 'trigger_bestaetigt',
 ): VerlaufsUebergang {
   return {
-    kuerzel, datum, rollen: [], rollenLage: 'neutral',
+    kuerzel, datum, feldId: `D_${kuerzel}`, prominenz: 'normal',
+    rollen: [], rollenLage: 'neutral',
     konfidenz: setzt === undefined ? 'kein_kuerzel' : konfidenz,
     bezeichnung: null, bezeichnungEindeutig: true,
     ...(setzt !== undefined ? { setztStatus: ref(setzt) } : {}),

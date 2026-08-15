@@ -60,15 +60,17 @@
      Wer einen Statuseintrag setzt: PA, AB, FB, QS, Jur. Eine der wenigen
      Stellen, an denen Farbe Information trägt statt zu schmücken (Präzedenz:
      Kompetenz-Matrix unten) — dieselbe Codierung in Filterleiste, Chronik-Zeile,
-     Matrix-Badge und später im Zeitstrahl-Balken. Die Filterleiste IST damit die
-     Legende; eine zweite gibt es nicht.
+     Matrix-Badge und Zeitstrahl-Marke. Die Filterleiste IST damit die Legende;
+     eine zweite gibt es nicht.
 
      PA neutralgrau, weil Projektadministration den Vorgang bewegt, ohne ihn
      fachlich zu bewerten. Jur trägt Ocker (aus --tf-accent-ochre) — der Katalog
      trennt Jur von QS (22 gegen 100 Codes), also trennt die Anzeige sie auch.
 
-     `-bar` ist die gesättigtere Fläche für den Zeitstrahl-Balken. Sie steht hier
-     schon, damit die Familie vollständig an einer Stelle liegt.
+     Ein drittes Token je Rolle (`-bar`, v4.47–v4.49) ist mit v4.50 entfallen: es
+     war für einen nach Rolle gefärbten Zeitstrahl-Balken gedacht, und der Umbau
+     hat sich dagegen entschieden — die Rolle sitzt am Termin, nicht auf dem
+     Zeitraum (PA ist grau und wäre von „neutral" nicht zu unterscheiden).
      Dark: Lightness flippt, Hue/Sat bleiben (vgl. semantische Farben oben).
 
      Die Lightness der Schriftfarben ist gegen die eigene Fläche **nachgerechnet**,
@@ -78,19 +80,14 @@
      `rollen-farbe-eine-quelle` misst es bei jedem Lauf nach. */
   --tf-rolle-pa:      hsl(220,  4%, 42%);
   --tf-rolle-pa-bg:   hsl(220,  5%, 93%);
-  --tf-rolle-pa-bar:  hsl(220,  5%, 81%);
   --tf-rolle-ab:      hsl(214, 58%, 41%);
   --tf-rolle-ab-bg:   hsl(214, 62%, 94%);
-  --tf-rolle-ab-bar:  hsl(214, 52%, 81%);
   --tf-rolle-fb:      hsl(167, 44%, 29%);
   --tf-rolle-fb-bg:   hsl(167, 40%, 92%);
-  --tf-rolle-fb-bar:  hsl(167, 36%, 77%);
   --tf-rolle-qs:      hsl(292, 34%, 44%);
   --tf-rolle-qs-bg:   hsl(292, 38%, 94%);
-  --tf-rolle-qs-bar:  hsl(292, 30%, 84%);
   --tf-rolle-jur:     hsl( 40, 52%, 34%);
   --tf-rolle-jur-bg:  hsl( 40, 55%, 92%);
-  --tf-rolle-jur-bar: hsl( 40, 45%, 78%);
 
   /* ── Kompetenz-Matrix (v2.16, Design-Handoff) — zwei bewusst getrennte
      Heatmap-Sprachen: Grün = Kompetenz-Level (Qualität), Graustufen =
@@ -352,19 +349,14 @@
      gegen ihre Fläche nachgerechnet (siehe Hell-Block). */
   --tf-rolle-pa:      hsl(220,  5%, 71%);
   --tf-rolle-pa-bg:   hsl(220,  4%, 27%);
-  --tf-rolle-pa-bar:  hsl(220,  4%, 36%);
   --tf-rolle-ab:      hsl(214, 52%, 72%);
   --tf-rolle-ab-bg:   hsl(214, 24%, 27%);
-  --tf-rolle-ab-bar:  hsl(214, 32%, 38%);
   --tf-rolle-fb:      hsl(167, 40%, 61%);
   --tf-rolle-fb-bg:   hsl(167, 20%, 24%);
-  --tf-rolle-fb-bar:  hsl(167, 26%, 32%);
   --tf-rolle-qs:      hsl(292, 36%, 75%);
   --tf-rolle-qs-bg:   hsl(292, 18%, 29%);
-  --tf-rolle-qs-bar:  hsl(292, 22%, 40%);
   --tf-rolle-jur:     hsl( 40, 42%, 64%);
   --tf-rolle-jur-bg:  hsl( 40, 20%, 24%);
-  --tf-rolle-jur-bar: hsl( 40, 26%, 34%);
 
   /* Kompetenz-Matrix — Dark: Lightness flippt, Hue/Sat bleiben (warm-grey,
      reduzierter Kontrast). Grün-Level dunkler+entsättigt, Graustufe invertiert
