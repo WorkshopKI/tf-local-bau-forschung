@@ -27,6 +27,12 @@ import type { DataUpdateResult } from './data-update';
 export interface MeldungOptionen {
   /** „Erzwungen neu prüfen" — die Meldung nennt das, sonst liest sie sich wie ein Normal-Lauf. */
   erzwungen?: boolean;
+  /**
+   * Zeigt der Aufrufer Drift/Fehler selbst an (Dialog direkt darunter) statt sie
+   * ans Banner zu delegieren? Der „● CSV"-Dialog tut das seit v4.57 — vorher
+   * verwies er auf einen Banner, den nur der Banner-Lauf füllt, also ins Leere.
+   */
+  detailsInline?: boolean;
 }
 
 export function beschreibeDatenUpdate(r: DataUpdateResult, opts: MeldungOptionen = {}): string {
@@ -49,15 +55,25 @@ export function beschreibeDatenUpdate(r: DataUpdateResult, opts: MeldungOptionen
     teile.push(opts.erzwungen
       ? `Erzwungen: ${importiert} CSV-Quelle(n) re-importiert`
       : `${importiert} CSV-Quelle(n) importiert`);
+    // Verarbeitet ≠ geändert. Ein neuer Export mit unveränderten Werten
+    // importiert sauber und lässt den Bestand in Ruhe — ohne diesen Zusatz liest
+    // sich „N Quellen importiert" wie „neue Daten sind da", die Liste bleibt aber
+    // zu Recht gleich, und das sieht aus wie eine hängende App.
+    const geaendert = r.csvReport?.changedAntraege ?? 0;
+    teile.push(geaendert > 0
+      ? `${geaendert.toLocaleString('de-DE')} Antrag/Anträge geändert`
+      : 'keine inhaltlichen Änderungen');
   }
+
+  const wohin = opts.detailsInline ? 'Details unten' : 'Details im Banner';
 
   const blockiert = r.csvReport?.drift.length ?? 0;
   if (blockiert > 0) {
-    teile.push(`${blockiert} Quelle(n) mit Spalten-Drift übersprungen — Details im Banner`);
+    teile.push(`${blockiert} Quelle(n) mit Spalten-Drift übersprungen — ${wohin}`);
   }
 
   const fehler = r.csvReport?.errors.length ?? 0;
-  if (fehler > 0) teile.push(`${fehler} Quelle(n) mit Fehler — Details im Banner`);
+  if (fehler > 0) teile.push(`${fehler} Quelle(n) mit Fehler — ${wohin}`);
 
   if (r.lockBusy) {
     teile.push(`CSV-Import übersprungen — ${r.lockBusy.blockingKurator} aktualisiert gerade`);

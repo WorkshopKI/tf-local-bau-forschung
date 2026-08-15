@@ -71,4 +71,45 @@ describe('beschreibeDatenUpdate', () => {
     expect(beschreibeDatenUpdate(ergebnis(), { erzwungen: true }))
       .toBe('Erzwungen geprüft — keine inhaltlichen Änderungen gefunden.');
   });
+
+  // „Verarbeitet" und „geändert" sind zwei Aussagen. Ein neuer Export mit
+  // unveränderten Werten importiert sauber und lässt den Bestand in Ruhe — wer
+  // dann „2 Quellen importiert" liest und in der Liste nichts findet, hält die
+  // App für hängend. Genau diese Verwechslung war der gemeldete Fehler.
+  describe('trennt „gelaufen" von „angekommen"', () => {
+    const zweiQuellen = [
+      { schemaId: 'a', skipped: false }, { schemaId: 'b', skipped: false },
+    ] as RefreshReport['processed'];
+
+    it('sagt ausdrücklich, wenn der Import nichts geändert hat', () => {
+      const m = beschreibeDatenUpdate(ergebnis({
+        csvReport: report({ processed: zweiQuellen, changedAntraege: 0 }),
+      }));
+      expect(m).toBe('2 CSV-Quelle(n) importiert · keine inhaltlichen Änderungen');
+    });
+
+    it('nennt die Zahl der geänderten Anträge, wenn welche da sind', () => {
+      const m = beschreibeDatenUpdate(ergebnis({
+        csvReport: report({ processed: zweiQuellen, changedAntraege: 1432 }),
+      }));
+      expect(m).toMatch(/2 CSV-Quelle\(n\) importiert/);
+      expect(m).toMatch(/1\.432 Antrag\/Anträge geändert/);
+      expect(m).not.toMatch(/keine inhaltlichen Änderungen/);
+    });
+
+    it('hängt den Zusatz nur an, wenn überhaupt importiert wurde', () => {
+      // Ohne Import wäre „keine inhaltlichen Änderungen" eine Antwort auf eine
+      // Frage, die niemand gestellt hat.
+      expect(beschreibeDatenUpdate(ergebnis({ csvReport: report({ changedAntraege: 0 }) })))
+        .toBe('Bereits aktuell.');
+    });
+  });
+
+  // Der „● CSV"-Dialog zeigt Drift/Fehler seit v4.57 selbst an; der Verweis aufs
+  // Banner ginge dort ins Leere (der Banner-Report kommt nur aus dem Banner-Lauf).
+  it('verweist auf die Stelle, die der Aufrufer wirklich anzeigt', () => {
+    const r = ergebnis({ csvReport: report({ drift: [{ schemaId: 'a' }] as RefreshReport['drift'] }) });
+    expect(beschreibeDatenUpdate(r)).toMatch(/Details im Banner/);
+    expect(beschreibeDatenUpdate(r, { detailsInline: true })).toMatch(/Details unten/);
+  });
 });

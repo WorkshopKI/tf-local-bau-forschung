@@ -431,7 +431,16 @@ export const useAntraegeStore = create<AntraegeState>((set) => ({
       });
       end(`n=${antraege.length} programm=${targetId}`);
     } catch (e) {
-      set({ loading: false });
+      // Always-on (wie das `[antraege] loadAll`-info oben): `end()` ist tfPerf und
+      // in Builds stumm — ein gescheiterter Read hinterliess bis v4.58 KEINE Spur.
+      console.warn('[antraege] loadAll fehlgeschlagen', e);
+      // `lastLoadedAt: 0` entwaffnet den TTL-Skip. Ohne das strandet ein
+      // fehlgeschlagener Post-Import-Refresh (IDB-Transaktionskonflikt gegen den
+      // Merger / den ~25-s-Snapshot-Write): `antraege` bleibt alt, `lastLoadedAt`
+      // bleibt frisch — und weil der Mount-Effekt ohne `force` laedt, heilt kein
+      // Seitenwechsel mehr, nur ein Browser-Reload. Gleiche Logik wie beim leeren
+      // Erst-Load oben.
+      set({ loading: false, lastLoadedAt: 0 });
       end(`error: ${(e as Error).message}`);
     }
   },

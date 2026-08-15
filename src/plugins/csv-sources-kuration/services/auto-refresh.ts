@@ -268,6 +268,18 @@ export interface RefreshReport {
    */
   unknownUnterprogramm: number;
   /**
+   * Wie viele Antraege der Lauf inhaltlich angefasst hat (neu + geaendert +
+   * entfernt, ueber alle Quellen und Programme dedupliziert nach Aktenzeichen).
+   *
+   * Trennt die zwei Lagen, die `processed` nicht auseinanderhaelt: eine Quelle
+   * kann sauber verarbeitet worden sein und trotzdem NICHTS geaendert haben (der
+   * Export ist neu, seine Werte sind es nicht). „N Quellen importiert" liest sich
+   * dann wie „neue Daten sind da", die Liste bleibt aber zu Recht gleich — genau
+   * die Verwechslung, die wie ein Haenger aussieht. 0 heisst hier: nichts zu sehen,
+   * und das ist die Wahrheit.
+   */
+  changedAntraege: number;
+  /**
    * Was der Journal-Schritt je Master-Quelle getan hat. Leer, wenn keine Quelle
    * journalisiert wurde (kein Master, keine Join-Spalte, keine `D_`-Spalten,
    * kein Schreibrecht).
@@ -445,6 +457,7 @@ export async function runAutoRefresh(
     skippedInactiveUnterprogramm: 0,
     heldRemovals: 0,
     unknownUnterprogramm: 0,
+    changedAntraege: 0,
   };
   if (candidates.length === 0) return report;
 
@@ -669,6 +682,19 @@ async function laufeKandidatenAb(
       // kaputte Quelle stoppt den Lauf damit nicht mehr.
       report.errors.push({ schemaId, schemaName: name, message: (err as Error).message });
     }
+  }
+
+  // Wie viele Antraege der Lauf inhaltlich angefasst hat — dedupliziert, weil
+  // dasselbe Aktenzeichen aus mehreren Quellen kommen kann. Quelle ist derselbe
+  // Bestand, aus dem auch der Delta-Snapshot gebaut wird; damit sagt die Zahl das
+  // Gleiche wie das, was auf dem Share landet.
+  {
+    const angefasst = new Set<string>();
+    for (const acc of changeByProgramm.values()) {
+      for (const k of acc.touched) angefasst.add(k);
+      for (const k of acc.removed) angefasst.add(k);
+    }
+    report.changedAntraege = angefasst.size;
   }
 
   // Lokalen Store JETZT aktualisieren (nach allen Merges, vor dem ~25-s-Publish):

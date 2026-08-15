@@ -19,6 +19,17 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.58 — 2026-08
+
+### Verbesserungen
+- **Ein selbst gestarteter CSV-Import zeigt jetzt, was er gerade tut.** Statt eines stillen „Importiere…" laufen Fortschrittsbalken, Prozentzahl und der Name der Quelle mit („2/3"). Bei mehreren Quellen dauert der Lauf einige Minuten — das ist normal, und man sieht es ihm jetzt an.
+- **Am Ende steht „Fertig".** Vorher verschwand nur der Knopf, und nichts sagte, dass man das Fenster wieder schließen kann.
+- **Die Abschlussmeldung sagt, ob sich wirklich etwas geändert hat.** „2 Quellen importiert" hieß bisher nur, dass gelesen wurde. Jetzt steht dabei, ob Anträge geändert wurden oder ob der neue Export inhaltlich derselbe war — dann bleibt die Liste zu Recht gleich.
+- Das Fenster darf während des Laufs geschlossen werden: der Import läuft weiter, und der Fortschritt wandert in die Leiste am oberen Rand.
+
+### Bugfixes
+- **Bleibt eine Quelle an geänderten Spalten hängen, ist der Bericht jetzt erreichbar** — samt „Trotzdem importieren". Vorher verwies die Meldung auf einen Hinweis, der an dieser Stelle nie erschien.
+
 ## v4.57 — 2026-08
 
 ### Neu

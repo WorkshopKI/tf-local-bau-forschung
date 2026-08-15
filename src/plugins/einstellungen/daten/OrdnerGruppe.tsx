@@ -39,8 +39,10 @@ import {
 } from '@/plugins/csv-sources-kuration/csv-source-handle';
 import { listProgramme, listSchemas } from '@/core/services/csv';
 import { bumpCsvSourcesSignal } from '@/core/services/csv/csv-sources-signal';
-import { runDataUpdate } from '@/plugins/csv-sources-kuration/services/data-update';
+import { runDataUpdate, type DataUpdateResult } from '@/plugins/csv-sources-kuration/services/data-update';
 import { beschreibeDatenUpdate } from '@/plugins/csv-sources-kuration/services/datenUpdateMeldung';
+import { phaseToastLabel } from '@/plugins/csv-sources-kuration/services/data-update-toast';
+import { useStartupDataStatus } from '@/core/services/csv/startup-data-status';
 import type { CsvSchema } from '@/core/services/csv/types';
 import {
   ARBEITSVERLAUF_LOESCHEN_FRAGE,
@@ -268,7 +270,30 @@ export function OrdnerGruppe(): React.ReactElement {
         setFehler('Datenordner nicht verbunden.');
         return;
       }
-      const r = await runDataUpdate(storage.idb, handle, {});
+      // Fortschritt in den Status-Store → der (bereits gemountete)
+      // StartupDataUpdateBanner zeigt Spinner + Balken + Prozent. Hier steht kein
+      // Overlay im Weg, der globale Banner genuegt also. Gedrosselt wie im
+      // Banner-Pfad: nur bei Label-/Prozent-Wechsel schreiben.
+      const status = useStartupDataStatus.getState();
+      status.setPhase('running');
+      let lastLabel: string | null = null;
+      let lastPct = -1;
+      let r: DataUpdateResult;
+      try {
+        r = await runDataUpdate(storage.idb, handle, {
+          onPhase: p => {
+            const label = phaseToastLabel(p);
+            const pct = Math.round(p.fraction * 100);
+            if (label === lastLabel && pct === lastPct) return;
+            lastLabel = label;
+            lastPct = pct;
+            useStartupDataStatus.getState().setProgress({ label, fraction: p.fraction });
+          },
+        });
+      } finally {
+        useStartupDataStatus.getState().setProgress(null);
+        useStartupDataStatus.getState().setPhase('done');
+      }
       bumpCsvSourcesSignal();
       setUpdateMsg(beschreibeDatenUpdate(r));
       // „Letzter CSV-Import" sofort frisch zeigen — last_imported_at neu einlesen,

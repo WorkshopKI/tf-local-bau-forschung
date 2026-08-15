@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.58.0 — Der manuelle CSV-Import zeigt seinen Lauf (August 2026)
+
+MINOR — Der Lauf dauert bei mehreren Quellen Minuten, und die manuellen Türen zeigten dabei nichts als einen Knopf, der „Importiere…" hieß. Das liest sich als Hänger. Detail: [csv-auto-refresh.md](docs/architecture/csv-auto-refresh.md).
+
+- **Fortschritt im „● CSV"-Dialog** (Spinner + Phase + Balken + Prozent, Quellen-Zähler „2/3") — beide manuellen Türen riefen `runDataUpdate` mit leerem Options-Objekt, also ohne den `onPhase`-Kanal, den der Orchestrator seit je anbietet ([CsvFreshnessIndicator.tsx](src/components/ui/CsvFreshnessIndicator.tsx), [OrdnerGruppe.tsx](src/plugins/einstellungen/daten/OrdnerGruppe.tsx))
+- **„Fertig" nach dem Lauf**: der Import-Knopf verschwindet, sobald der Status auf `fresh` kippt — nichts sagte danach, dass man das Fenster zumachen kann
+- **Drift ist keine Sackgasse mehr**: der Dialog zeigt den Bericht selbst, statt auf einen Banner zu verweisen, den nur der Banner-Lauf füllt; `driftAkzeptiertFuer` reicht „Trotzdem importieren" durch ([data-update.ts](src/plugins/csv-sources-kuration/services/data-update.ts))
+- **„Verarbeitet" ist nicht „geändert"**: `RefreshReport.changedAntraege` trennt beides, die Meldung sagt „keine inhaltlichen Änderungen" statt neue Daten zu versprechen ([datenUpdateMeldung.ts](src/plugins/csv-sources-kuration/services/datenUpdateMeldung.ts))
+- **`loadAll` schweigt nicht mehr, wenn es scheitert** ([store.ts](src/plugins/antraege/store.ts)): `console.warn` + `lastLoadedAt: 0`, sonst strandete ein fehlgeschlagener Post-Import-Refresh hinter dem TTL-Skip bis zum Browser-Reload
+
 ### v4.57.1 — Kanonische Felder zeigen ihre Kuerzel (August 2026)
 
 PATCH — In der Feldauswahl standen die kanonischen Felder ohne Herkunft: `antragsdatum` sagt nicht, aus welcher Spalte des Fachsystems es entsteht. Die rohen Codes standen daneben, die Standardfelder schwiegen.

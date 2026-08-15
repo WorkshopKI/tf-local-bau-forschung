@@ -208,6 +208,52 @@ Dazu zwei Stellen, an denen die App etwas behauptete oder tat, was nicht stimmte
   CSV-Import-Stufe (3 Min) — jede andere verfällt erst nach 2 Stunden, allen voran der
   ~47-minütige Embedding-Build.
 
+## Jede Tür zeigt ihren Lauf (v4.58.0)
+
+`runDataUpdate` bietet seit je einen Fortschritts-Kanal (`onPhase`: `snapshot` → `csv-check`
+→ `csv-import` → `publishing`, mit Quellen-Zähler „Name (2/3)"). Abgefragt hat ihn nur der
+Start-Pass ([App.tsx](../../src/core/App.tsx)) und der kombinierte Banner
+([DataUpdateBanners.tsx](../../src/plugins/csv-sources-kuration/components/DataUpdateBanners.tsx));
+die beiden **manuellen** Türen riefen `runDataUpdate(idb, handle, {})` — leeres
+Options-Objekt. Ein Lauf über mehrere Quellen dauert Minuten, und beide zeigten dabei nichts
+als einen Knopf, der „Importiere…" hieß. Das liest sich als Hänger, nicht als Arbeit.
+
+- **Fußzeilen-Dialog „● CSV"** ([CsvFreshnessIndicator.tsx](../../src/components/ui/CsvFreshnessIndicator.tsx)):
+  Fortschritt steht **im Dialog** — der `Dialog` ist ein Overlay (`z-[80]`, `bg-black/40`),
+  der globale `StartupDataUpdateBanner` liegt dahinter und ist verdeckt. Zusätzlich wird der
+  Status-Store gefüttert, damit der Banner übernimmt, wenn der Nutzer das Fenster während des
+  Laufs schließt (die Aktion läuft weiter, die Komponente bleibt in der Fußzeile gemountet).
+  Nach dem Lauf erscheint **„Fertig"** neben dem Ergebnis: der Import-Knopf verschwindet,
+  sobald der Status auf `fresh` kippt, und ohne ihn sagte nichts, dass man zumachen kann.
+- **Einstellungen → Speicher** ([OrdnerGruppe.tsx](../../src/plugins/einstellungen/daten/OrdnerGruppe.tsx)):
+  dort steht kein Overlay im Weg — es genügt, den Status-Store zu füttern, der gemountete
+  Banner zeigt Spinner + Balken + Prozent.
+
+Beide drosseln die Schreibe wie der Banner (nur bei Label-/Prozent-Wechsel), sonst löst jeder
+feinkörnige `fraction`-Tick ein Re-Render aus.
+
+**Drift ist keine Sackgasse mehr.** `beschreibeDatenUpdate` verwies auf „Details im Banner" —
+den Banner-Report füllt aber ausschließlich `useCsvAutoRefreshCheck.doRefresh`. Ein Lauf aus
+dem Dialog zeigte den Bericht damit **nirgends**, und „Trotzdem importieren" war unerreichbar.
+Der Dialog öffnet den `CsvAutoRefreshDriftDialog` jetzt selbst; `MeldungOptionen.detailsInline`
+schaltet den Verweis auf „Details unten" um. Damit das auch trägt, reicht
+`RunDataUpdateOptions.driftAkzeptiertFuer` die Zustimmung an `runAutoRefresh` durch — der
+Banner-Pfad ruft `runAutoRefresh` direkt und konnte das immer schon.
+
+**„Verarbeitet" ist nicht „geändert".** `RefreshReport.changedAntraege` zählt die inhaltlich
+angefassten Anträge (neu + geändert + entfernt, über alle Quellen nach Aktenzeichen
+dedupliziert, aus derselben `changeByProgramm`-Basis wie der Delta-Snapshot). Die Meldung sagt
+seitdem „2 CSV-Quelle(n) importiert · **keine inhaltlichen Änderungen**" statt eines Satzes,
+der neue Daten verspricht: ein neuer Export mit unveränderten Werten importiert sauber und
+lässt den Bestand in Ruhe — wer dann in der Liste nichts findet, hielt die App für hängend.
+
+Dazu die Gegenprobe im Lesepfad: `loadAll` fing jeden Fehler **still**
+([store.ts](../../src/plugins/antraege/store.ts)) — `end()` ist tfPerf und in Builds stumm.
+Scheiterte der IDB-Read (Transaktionskonflikt gegen Merger/Snapshot-Write), blieben `antraege`
+**und** `lastLoadedAt` unverändert; weil der Mount-Effekt ohne `force` lädt, heilte danach kein
+Seitenwechsel mehr, nur ein Browser-Reload. Jetzt: `console.warn` (always-on) + `lastLoadedAt: 0`,
+damit der nächste Lauf den TTL-Skip nicht mehr nimmt — dieselbe Logik wie beim leeren Erst-Load.
+
 ## Frische-Ampel „● CSV" (`deriveCsvFreshnessState`)
 
 Reine, getestete Entscheidungslogik für den Fußzeilen-Punkt: `fresh` (grün) nur, wenn **erreichbare** Quellen

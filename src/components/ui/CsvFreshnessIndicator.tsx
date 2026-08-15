@@ -1,13 +1,14 @@
-import { useState, useEffect, useRef } from 'react';
-import { Database, RefreshCw, Settings } from 'lucide-react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { Database, RefreshCw, Settings, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
+import { ProgressBar } from '@/components/ui/ProgressBar';
 import { useNavigation } from '@/core/hooks/useNavigation';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { useSmbStatus } from '@/core/hooks/useSmbStatus';
 import { useConnectionState } from '@/core/services/connection-status';
-import { useStartupDataStatus } from '@/core/services/csv/startup-data-status';
+import { useStartupDataStatus, type StartupDataProgress } from '@/core/services/csv/startup-data-status';
 import { useCsvSourcesSignal, bumpCsvSourcesSignal } from '@/core/services/csv/csv-sources-signal';
 import { listProgramme, listSchemas } from '@/core/services/csv';
 import { collectCandidates } from '@/plugins/csv-sources-kuration/services/auto-refresh';
@@ -18,6 +19,9 @@ import { PfadKopierZeile } from '@/components/ui/PfadKopierZeile';
 import { isKuratorFreigeschaltet } from '@/core/modul-freischaltung';
 import { runDataUpdate } from '@/plugins/csv-sources-kuration/services/data-update';
 import { beschreibeDatenUpdate } from '@/plugins/csv-sources-kuration/services/datenUpdateMeldung';
+import { phaseToastLabel } from '@/plugins/csv-sources-kuration/services/data-update-toast';
+import { CsvAutoRefreshDriftDialog } from '@/plugins/csv-sources-kuration/components/CsvAutoRefreshDriftDialog';
+import type { RefreshReport } from '@/plugins/csv-sources-kuration/services/auto-refresh';
 import { getDatenShareHandle } from '@/core/services/infrastructure/smb-handle';
 import type { IDBStore } from '@/core/services/storage/idb-store';
 import type { CsvSchema } from '@/core/services/csv/types';
@@ -185,6 +189,12 @@ export function CsvFreshnessIndicator({ compact = false }: { compact?: boolean }
 
   const [open, setOpen] = useState(false);
   const [importMsg, setImportMsg] = useState<string | null>(null);
+  // Fortschritt IM Dialog: der globale StartupDataUpdateBanner liegt hinter dem
+  // Overlay (z-[80] + bg-black/40) — er hilft nur, wenn der Dialog zu ist.
+  const [fortschritt, setFortschritt] = useState<StartupDataProgress | null>(null);
+  // Drift-Bericht des eigenen Laufs. Ohne ihn war der Dialog-Lauf eine Sackgasse:
+  // die Meldung verwies auf „Details im Banner", den nur der Banner-Lauf fuellt.
+  const [drift, setDrift] = useState<RefreshReport | null>(null);
 
   const mountedRef = useRef(true);
   useEffect(() => {
@@ -192,31 +202,78 @@ export function CsvFreshnessIndicator({ compact = false }: { compact?: boolean }
     return () => { mountedRef.current = false; };
   }, []);
 
-  // Import = derselbe Orchestrator wie „Jetzt aktualisieren" (Snapshot → CSV).
-  const importAction = useAsyncAction(async () => {
+  /**
+   * Ein Lauf mit Rueckmeldung — geteilt von „Jetzt importieren" und „Erzwungen
+   * neu pruefen", weil beide dieselbe Luecke hatten (`runDataUpdate(…, {})`, also
+   * ohne `onPhase`, obwohl der Orchestrator den Kanal seit je anbietet).
+   *
+   * Spiegelt den Banner-Pfad (`DataUpdateBanners.runCombined`): `phase 'running'`
+   * pausiert die Hintergrund-Checks, die Fortschritts-Schreibe ist auf Label-/
+   * Prozent-Wechsel gedrosselt (kein Re-Render-Sturm bei feinkoernigen Ticks),
+   * und `'done'` + Signal-Bump ziehen Punkt und „Letzter Import" frisch nach.
+   */
+  const laufMitFortschritt = useCallback(async (
+    opts: { forceRecheck?: boolean; driftAkzeptiertFuer?: string[] } = {},
+  ): Promise<void> => {
     setImportMsg(null);
+    setDrift(null);
     const handle = await getDatenShareHandle(storage.idb);
     if (!handle) throw new Error('Datenordner nicht verbunden.');
-    const r = await runDataUpdate(storage.idb, handle, {});
-    if (mountedRef.current) setImportMsg(beschreibeDatenUpdate(r));
-    // Re-Check anstoßen → Punkt + „Letzter Import" frisch.
-    bumpCsvSourcesSignal();
+
+    const status = useStartupDataStatus.getState();
+    status.setPhase('running');
+    let lastLabel: string | null = null;
+    let lastPct = -1;
+    try {
+      const r = await runDataUpdate(storage.idb, handle, {
+        ...opts,
+        onPhase: p => {
+          const label = phaseToastLabel(p);
+          const pct = Math.round(p.fraction * 100);
+          if (label === lastLabel && pct === lastPct) return;
+          lastLabel = label;
+          lastPct = pct;
+          const next = { label, fraction: p.fraction };
+          useStartupDataStatus.getState().setProgress(next);
+          if (mountedRef.current) setFortschritt(next);
+        },
+      });
+      if (mountedRef.current) {
+        setImportMsg(beschreibeDatenUpdate(r, { ...opts.forceRecheck ? { erzwungen: true } : {}, detailsInline: true }));
+        if ((r.csvReport?.drift.length ?? 0) > 0 || (r.csvReport?.errors.length ?? 0) > 0) {
+          setDrift(r.csvReport ?? null);
+        }
+      }
+    } finally {
+      useStartupDataStatus.getState().setProgress(null);
+      useStartupDataStatus.getState().setPhase('done');
+      if (mountedRef.current) setFortschritt(null);
+      // Re-Check anstoßen → Punkt + „Letzter Import" frisch.
+      bumpCsvSourcesSignal();
+    }
+  }, [storage.idb]);
+
+  // Import = derselbe Orchestrator wie „Jetzt aktualisieren" (Snapshot → CSV).
+  const importAction = useAsyncAction(async () => {
+    await laufMitFortschritt();
   });
 
   // „Erzwungen neu prüfen/importieren": umgeht den mtime/Größe/Checksum-Fast-Path
   // (forceRecheck). Selbstbedienungs-Weg gegen einen Citrix-False-Negative, auch
   // wenn der Punkt fälschlich „grün" zeigt. Der Importer difft per Row-Hash und
   // schreibt nur bei echtem Delta — ein Force-Klick ohne Änderung ist ein No-Op.
+  // „Keine Änderungen gefunden" wäre gelogen, wenn Quellen an der Spalten-Drift
+  // hängen geblieben sind oder der Lauf gar nicht stattfand — das sind gerade
+  // die Fälle, in denen jemand hier nachsieht (`beschreibeDatenUpdate`).
   const forceAction = useAsyncAction(async () => {
-    setImportMsg(null);
-    const handle = await getDatenShareHandle(storage.idb);
-    if (!handle) throw new Error('Datenordner nicht verbunden.');
-    const r = await runDataUpdate(storage.idb, handle, { forceRecheck: true });
-    // „Keine Änderungen gefunden" wäre gelogen, wenn Quellen an der Spalten-Drift
-    // hängen geblieben sind oder der Lauf gar nicht stattfand — das sind gerade
-    // die Fälle, in denen jemand hier nachsieht.
-    if (mountedRef.current) setImportMsg(beschreibeDatenUpdate(r, { erzwungen: true }));
-    bumpCsvSourcesSignal();
+    await laufMitFortschritt({ forceRecheck: true });
+  });
+
+  // „Trotzdem importieren" aus dem Drift-Bericht: gilt genau den abgenickten
+  // Quellen und einmalig. NICHT dasselbe wie `forceRecheck` — das umgeht nur die
+  // Unveraendert-Erkennung und liefe erneut in dieselbe Drift-Blockade.
+  const trotzDriftAction = useAsyncAction(async (schemaIds: string[]) => {
+    await laufMitFortschritt({ driftAkzeptiertFuer: schemaIds });
   });
 
   // „CSV-Ordner verknüpfen / Zugriff erneuern" (state === 'needs_link'): Ordner-
@@ -238,7 +295,7 @@ export function CsvFreshnessIndicator({ compact = false }: { compact?: boolean }
     bumpCsvSourcesSignal();
   });
 
-  const busy = importAction.busy || forceAction.busy || linkAction.busy;
+  const busy = importAction.busy || forceAction.busy || linkAction.busy || trotzDriftAction.busy;
   const state = result.state;
   const dotColor = busy
     ? 'bg-[var(--tf-warning-text)] animate-pulse'
@@ -395,11 +452,42 @@ export function CsvFreshnessIndicator({ compact = false }: { compact?: boolean }
             </div>
           )}
 
+          {/* Fortschritt des laufenden Imports — gleiche visuelle Sprache wie der
+             StartupDataUpdateBanner, aber IM Dialog: der Banner liegt hinter dem
+             Overlay. Determinierter Balken fuer einen Daten-/Indexierungs-Pass ist
+             per DESIGN_GUIDE die erlaubte Ausnahme. */}
+          {busy && fortschritt && (
+            <div
+              className="rounded-md border-[0.5px] border-[var(--tf-primary)] bg-[var(--tf-primary-light)] px-2.5 py-2"
+              role="status"
+              aria-live="polite"
+            >
+              <div className="flex items-center gap-2 text-[12px] text-[var(--tf-text)]">
+                <span
+                  className="shrink-0 inline-block w-3 h-3 rounded-full border-2 border-[var(--tf-border)] border-t-[var(--tf-primary)] animate-spin"
+                  aria-hidden="true"
+                />
+                <span className="flex-1 min-w-0 truncate">{fortschritt.label}</span>
+                <span className="shrink-0 tabular-nums text-[var(--tf-text-secondary)]">
+                  {Math.min(100, Math.max(0, Math.round(fortschritt.fraction * 100)))}%
+                </span>
+              </div>
+              <div className="mt-1.5">
+                <ProgressBar value={fortschritt.fraction} />
+              </div>
+              <p className="mt-1.5 text-[11px] text-[var(--tf-text-tertiary)] leading-snug">
+                Das kann bei großen Exporten einige Minuten dauern. Der Lauf läuft
+                weiter, auch wenn dieses Fenster geschlossen wird.
+              </p>
+            </div>
+          )}
+
           {state === 'stale' && (
             <Button
               variant="secondary"
               icon={RefreshCw}
               onClick={() => importAction.run()}
+              loading={importAction.busy}
               disabled={busy || !dsAvailable}
             >
               {importAction.busy ? 'Importiere…' : 'Jetzt importieren'}
@@ -433,6 +521,7 @@ export function CsvFreshnessIndicator({ compact = false }: { compact?: boolean }
               variant="ghost"
               icon={RefreshCw}
               onClick={() => forceAction.run()}
+              loading={forceAction.busy}
               disabled={busy || !dsAvailable}
               title="Alle verknüpften Quellen neu einlesen und die Unverändert-Erkennung (mtime/Größe/Checksum) ignorieren. Importiert nur bei echter Inhaltsänderung."
             >
@@ -448,11 +537,25 @@ export function CsvFreshnessIndicator({ compact = false }: { compact?: boolean }
             Zu den Einstellungen
           </Button>
 
-          {importMsg && (
-            <p className="text-[12px] text-[var(--tf-success-text)] leading-snug">{importMsg}</p>
+          {/* Ergebnis + Abschluss zusammen: der Import-Knopf verschwindet nach dem
+             Lauf (Status kippt auf `fresh`), und ohne diesen Knopf sagte nichts,
+             dass man das Fenster jetzt zumachen kann. */}
+          {importMsg && !busy && (
+            <div className="rounded-md border-[0.5px] border-[var(--tf-border)] bg-[var(--tf-bg-secondary)] px-2.5 py-2">
+              <p className="text-[12px] text-[var(--tf-success-text)] leading-snug">{importMsg}</p>
+              <div className="mt-2">
+                <Button
+                  variant="primary"
+                  icon={Check}
+                  onClick={() => { setImportMsg(null); setOpen(false); }}
+                >
+                  Fertig
+                </Button>
+              </div>
+            </div>
           )}
-          {(importAction.error || forceAction.error || linkAction.error) && (
-            <p className="text-[12px] text-[var(--tf-danger-text)] leading-snug">Fehler: {importAction.error ?? forceAction.error ?? linkAction.error}</p>
+          {(importAction.error || forceAction.error || linkAction.error || trotzDriftAction.error) && (
+            <p className="text-[12px] text-[var(--tf-danger-text)] leading-snug">Fehler: {importAction.error ?? forceAction.error ?? linkAction.error ?? trotzDriftAction.error}</p>
           )}
 
           <p className="text-[11.5px] text-[var(--tf-text-tertiary)] leading-snug">
@@ -462,6 +565,20 @@ export function CsvFreshnessIndicator({ compact = false }: { compact?: boolean }
           </p>
         </div>
       </Dialog>
+
+      {/* Drift/Fehler des eigenen Laufs — sonst verweist die Meldung ins Leere
+         (der Banner-Report kommt ausschliesslich aus dem Banner-Lauf). „Trotzdem
+         importieren" haengt am normalen Force-Weg: der Nachlauf baut seine
+         Kandidaten frisch aus den Schema-Ids, ist also nicht an den Lauf gebunden,
+         der den Bericht erzeugt hat. */}
+      {drift && (
+        <CsvAutoRefreshDriftDialog
+          report={drift}
+          onClose={() => setDrift(null)}
+          onOpenWizard={() => { setDrift(null); setOpen(false); navigate('kuration'); }}
+          onTrotzdemImportieren={ids => { setDrift(null); void trotzDriftAction.run(ids); }}
+        />
+      )}
     </>
   );
 }

@@ -83,6 +83,15 @@ export interface RunDataUpdateOptions {
    * kurator-Build. Fixtures/Permission bleiben ausgeschlossen.
    */
   forceRecheck?: boolean;
+  /**
+   * „Trotzdem importieren" pro Quelle — reicht die Zustimmung des Nutzers an
+   * `runAutoRefresh` durch (die fehlenden Spalten werden bewusst in Kauf
+   * genommen, siehe dort). Nötig, damit auch die Türen, die über DIESEN
+   * Orchestrator laufen (● CSV-Dialog, Einstellungen → Speicher), einen
+   * Drift-Nachlauf anbieten können statt in einer Sackgasse zu enden — der
+   * Banner-Pfad ruft `runAutoRefresh` direkt und konnte es immer schon.
+   */
+  driftAkzeptiertFuer?: string[];
   /** Abbruch-Signal (App-Unmount / Gate öffnet wieder). */
   signal?: { cancelled: boolean };
 }
@@ -168,7 +177,7 @@ export async function runDataUpdate(
   smbHandle: FileSystemDirectoryHandle,
   opts: RunDataUpdateOptions = {},
 ): Promise<DataUpdateResult> {
-  const { onPhase, includeCsv = true, forceRecheck = false, signal } = opts;
+  const { onPhase, includeCsv = true, forceRecheck = false, driftAkzeptiertFuer, signal } = opts;
   const result: DataUpdateResult = { snapshotSynced: false, snapshotInfo: [], totalMs: 0 };
   // Geteiltes In-Tab-Gate: Start-Sync + Watcher-Banner + CSV-Banner + Sidebar/
   // Einstellungen dürfen sich nicht überlappen (paralleles clear()/put() +
@@ -274,6 +283,9 @@ export async function runDataUpdate(
         try {
           const report = await runAutoRefresh(idb, collected.candidates, {
             kuratorName: identity,
+            // Der Nachlauf gilt genau den Quellen, die der Nutzer im Bericht
+            // abgenickt hat — die Zustimmung ist die Auswahl selbst.
+            ...(driftAkzeptiertFuer ? { driftAkzeptiertFuer } : {}),
             // Nach den Merges, VOR dem Publish: In-Memory-Store je betroffenem
             // Programm nachladen → der lokale User sieht die neuen Anträge sofort
             // (importCsvSource schreibt nur IDB; der Store hat 5-Min-TTL-Skip).
