@@ -10,7 +10,7 @@ const VERSION = baueSeedVersion();
 function spalte(
   feldId: string, label = feldId, quelle: 'csv' | 'kanonisch' = 'csv',
 ): SpaltenEintrag {
-  return { feldId, label, typ: 'datum', quelle, schemaAnzahl: 1 };
+  return { feldId, label, typ: 'datum', quelle, schemaAnzahl: 1, quellCodes: [] };
 }
 
 describe('codeAusSpalte', () => {

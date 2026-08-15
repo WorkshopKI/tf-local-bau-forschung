@@ -22,6 +22,42 @@ import type { CsvSchema } from './types';
 /** Welche Operatoren zu einem Feld passen. */
 export type SpaltenTyp = 'datum' | 'wert';
 
+/** Eine rohe CSV-Spalte mit ihrer Beschriftung aus der Label-XLS. */
+export interface RohSpalte {
+  code: string;
+  label: string;
+}
+
+/**
+ * Welche rohen CSV-Spalten hinter einem kanonischen Feld stehen — über alle
+ * übergebenen Schemas, dedupliziert.
+ *
+ * Der Weg ist bewusst rückwärts: die Alias-Tabelle in `constants.ts` sagt nur,
+ * was der Wizard *vorschlagen* würde. Was ein Programm tatsächlich gemappt hat,
+ * steht allein im Schema — und danach richtet sich, was in der Zelle landet.
+ *
+ * **Eine Auflösung für zwei Fragen**: den Herkunfts-Tooltip einer eingebauten
+ * Spalte und die Feld-Auswahl beim Anlegen einer eigenen. Zwei Fassungen liefen
+ * bei der ersten Mapping-Feinheit auseinander, und dann behauptete der Tooltip
+ * etwas anderes als die Auswahlliste.
+ */
+export function rohSpaltenJeKanonisch(
+  schemas: readonly CsvSchema[],
+): Map<string, RohSpalte[]> {
+  const out = new Map<string, RohSpalte[]>();
+  for (const schema of schemas) {
+    for (const [spalte, entry] of Object.entries(schema.column_mapping ?? {})) {
+      const kanonisch = entry?.canonical?.trim();
+      if (!entry || entry.ignore || !kanonisch) continue;
+      const liste = out.get(kanonisch) ?? [];
+      if (liste.some(f => f.code === spalte)) continue;
+      liste.push({ code: spalte, label: entry.label?.trim() || '' });
+      out.set(kanonisch, liste);
+    }
+  }
+  return out;
+}
+
 export interface SpaltenEintrag {
   /** So referenziert eine Bedingung oder ein Katalog-Feld die Spalte. */
   feldId: string;
@@ -31,6 +67,14 @@ export interface SpaltenEintrag {
   quelle: 'kanonisch' | 'csv';
   /** In wie vielen Schemas die Spalte gemappt ist (Hinweis auf Programm-Deckung). */
   schemaAnzahl: number;
+  /**
+   * Bei `quelle: 'kanonisch'`: die rohen CSV-Codes, die auf dieses Feld gemappt
+   * sind (dedupliziert über alle Schemas). Ein kanonischer Key wie
+   * `antragsdatum` sagt nämlich nicht, WORAUS er entsteht — und genau danach
+   * fragt, wer eine Spalte auswählt. Bei `quelle: 'csv'` leer: dort IST die
+   * `feldId` schon der Code.
+   */
+  quellCodes: string[];
 }
 
 /**
@@ -44,6 +88,8 @@ export interface SpaltenEintrag {
  */
 export function baueSpaltenKatalog(schemas: readonly CsvSchema[]): SpaltenEintrag[] {
   const perFeld = new Map<string, SpaltenEintrag>();
+  // Herkunft aus derselben Auflösung, die auch der Tooltip benutzt.
+  const rohJeKanonisch = rohSpaltenJeKanonisch(schemas);
 
   for (const schema of schemas) {
     for (const [spalte, entry] of Object.entries(schema.column_mapping ?? {})) {
@@ -61,6 +107,10 @@ export function baueSpaltenKatalog(schemas: readonly CsvSchema[]): SpaltenEintra
         typ: entry.type === 'date' ? 'datum' : 'wert',
         quelle: kanonisch ? 'kanonisch' : 'csv',
         schemaAnzahl: 1,
+        // Über ALLE Schemas, nicht nur über das gerade betrachtete: zwei
+        // Programme dürfen dasselbe kanonische Feld aus verschiedenen Spalten
+        // speisen, und dann gehören beide Codes in die Herkunft.
+        quellCodes: kanonisch ? (rohJeKanonisch.get(kanonisch) ?? []).map(r => r.code) : [],
       });
     }
   }

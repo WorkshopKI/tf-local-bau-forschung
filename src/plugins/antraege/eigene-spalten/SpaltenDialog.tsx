@@ -64,6 +64,18 @@ function neueRegel(feldId: string): SpaltenRegel {
   return { wenn: { feldId, op: 'gefuellt' }, text: '' };
 }
 
+/**
+ * Die Quell-Codes eines kanonischen Feldes, gekürzt auf das, was in eine Zeile
+ * passt. Der volle Satz steht im `title` — abschneiden ohne Rest wäre eine
+ * unvollständige Auskunft, die aussieht wie eine vollständige.
+ */
+function herkunftKurz(codes: readonly string[]): string {
+  if (codes.length <= MAX_QUELL_CODES) return codes.join(', ');
+  return `${codes.slice(0, MAX_QUELL_CODES).join(', ')} +${codes.length - MAX_QUELL_CODES}`;
+}
+
+const MAX_QUELL_CODES = 2;
+
 export function SpaltenDialog({
   open, onClose, bestehend, vorrat, zeilen, heute, brauchtNeuaufbau, onSpeichern, onLoeschen,
   darfTeam = false, onInsTeam,
@@ -94,7 +106,13 @@ export function SpaltenDialog({
     const q = suche.trim().toLowerCase();
     return vorrat
       .filter(e => (nurDatum ? e.typ === 'datum' : true))
-      .filter(e => q === '' || e.feldId.toLowerCase().includes(q) || e.label.toLowerCase().includes(q))
+      // Auch nach dem rohen Code suchbar: wer „D_AAE" im Kopf hat, findet damit
+      // `antragsdatum` — sonst zeigte die Liste die Herkunft an, ließe sich aber
+      // nicht danach durchsuchen.
+      .filter(e => q === ''
+        || e.feldId.toLowerCase().includes(q)
+        || e.label.toLowerCase().includes(q)
+        || e.quellCodes.some(c => c.toLowerCase().includes(q)))
       .slice(0, 200);
   }, [vorrat, suche, nurDatum]);
 
@@ -360,7 +378,17 @@ export function SpaltenDialog({
                   checked={art === 'feld' ? feldId === e.feldId : felder.includes(e.feldId)}
                   onChange={() => (art === 'feld' ? setFeldId(e.feldId) : schalteFeld(e.feldId))}
                 />
-                <code className="font-mono text-[11px] text-[var(--tf-text)]">{e.feldId}</code>
+                <code className="shrink-0 font-mono text-[11px] text-[var(--tf-text)]">{e.feldId}</code>
+                {/* Woraus das kanonische Feld entsteht. Ein Key wie `antragsdatum`
+                    sagt es nicht — und wer eine Spalte wählt, fragt genau danach. */}
+                {e.quellCodes.length > 0 && (
+                  <span
+                    className="shrink-0 font-mono text-[10px] text-[var(--tf-text-tertiary)]"
+                    title={`Gebildet aus: ${e.quellCodes.join(', ')}`}
+                  >
+                    ← {herkunftKurz(e.quellCodes)}
+                  </span>
+                )}
                 <span className="min-w-0 truncate text-[var(--tf-text-secondary)]">{e.label}</span>
                 {/* Deckungshinweis: ein Feld, das nur ein Programm mappt, traegt
                     anderswo nichts — das soll man vorher sehen. */}

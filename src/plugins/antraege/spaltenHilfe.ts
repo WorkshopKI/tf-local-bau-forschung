@@ -21,6 +21,7 @@ import type { SortableColumn, SpaltenHilfe } from '@/components/data-table/types
 import type { CsvSchema } from '@/core/services/csv/types';
 import { ANTRAG_SLA_DAYS, VN_SLA_MONTHS } from '@/core/services/csv/frist';
 import { CANONICAL_FIELD_KEYS } from '@/core/services/csv/constants';
+import { rohSpaltenJeKanonisch } from '@/core/services/csv/spalten-inventar';
 import {
   resolveStatusDatumGruppen,
   type ResolvedKategorieSpalten,
@@ -97,30 +98,11 @@ const FESTE_FELDER: Record<string, { code: string; label: string }[]> = {
   ],
 };
 
-/**
- * Welche rohen CSV-Spalten hinter einem kanonischen Feld stehen — über alle
- * geladenen Schemas, dedupliziert.
- *
- * Der Weg ist bewusst rückwärts: die Alias-Tabelle in `csv/constants.ts` sagt
- * nur, was der Wizard *vorschlagen* würde. Was ein Programm tatsächlich gemappt
- * hat, steht allein im Schema — und danach richtet sich, was in der Zelle landet.
- */
-export function rohSpaltenJeKanonisch(
-  schemas: readonly CsvSchema[],
-): Map<string, { code: string; label: string }[]> {
-  const out = new Map<string, { code: string; label: string }[]>();
-  for (const schema of schemas) {
-    for (const [spalte, entry] of Object.entries(schema.column_mapping ?? {})) {
-      const kanonisch = entry?.canonical?.trim();
-      if (!entry || entry.ignore || !kanonisch) continue;
-      const liste = out.get(kanonisch) ?? [];
-      if (liste.some(f => f.code === spalte)) continue;
-      liste.push({ code: spalte, label: entry.label?.trim() || '' });
-      out.set(kanonisch, liste);
-    }
-  }
-  return out;
-}
+// `rohSpaltenJeKanonisch` wohnt seit v4.57.1 im Spalten-Inventar
+// (`csv/spalten-inventar.ts`): der Feld-Vorrat des Anlege-Dialogs braucht
+// dieselbe Auflösung, um die Herkunft eines kanonischen Feldes anzuzeigen.
+// Zwei Fassungen liefen bei der ersten Mapping-Feinheit auseinander — dann
+// behauptete der Tooltip etwas anderes als die Auswahlliste.
 
 /** Spalten-Keys, die auf ein kanonisches Feld zeigen — nur für sie ist ein
  *  fehlendes Mapping eine Aussage und kein Normalfall. */

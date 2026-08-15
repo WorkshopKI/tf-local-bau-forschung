@@ -5,6 +5,14 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.57.1 — Kanonische Felder zeigen ihre Kuerzel (August 2026)
+
+PATCH — In der Feldauswahl standen die kanonischen Felder ohne Herkunft: `antragsdatum` sagt nicht, aus welcher Spalte des Fachsystems es entsteht. Die rohen Codes standen daneben, die Standardfelder schwiegen.
+
+- **Kanonische Felder nennen ihre Quell-Kürzel** (`antragsdatum ← D_AAE`) in der Feldauswahl des Anlege-Dialogs; voller Satz im Tooltip, wenn mehrere Programme verschiedene Spalten mappen ([SpaltenDialog.tsx](src/plugins/antraege/eigene-spalten/SpaltenDialog.tsx))
+- **Suchbar nach dem Code**: wer „D_AAE" eintippt, findet `antragsdatum` — die Herkunft anzuzeigen, aber nicht danach suchen zu lassen, wäre eine halbe Auskunft
+- **Eine Auflösung statt zweier**: `rohSpaltenJeKanonisch` ist vom Plugin in den Kern gezogen ([spalten-inventar.ts](src/core/services/csv/spalten-inventar.ts)) — Kopf-Tooltip und Feldauswahl lesen jetzt dieselbe, statt bei der ersten Mapping-Feinheit auseinanderzulaufen
+
 ### v4.57.0 — Eigene Spalten fuer das Team (August 2026)
 
 MINOR — Eine eigene Spalte war bisher eine Privatsache: gerätelokal, für niemanden sonst sichtbar. Wer eine erprobt hatte, konnte sie nur beschreiben, nicht weitergeben. Jetzt hebt sie ein Griff ins Team. Detail: [eigene-spalten.md](docs/architecture/eigene-spalten.md).

@@ -40,6 +40,9 @@ export function baueTodoFeldVorrat(felder: readonly StatusFeldEintrag[]): Spalte
         typ: spaltenTyp(f),
         quelle: f.code === undefined ? 'kanonisch' : 'csv',
         schemaAnzahl: 1,
+        // Der Katalog-Vorrat kennt keine CSV-Herkunft: seine Felder kommen aus
+        // der Katalog-Fassung, nicht aus einem Schema-Mapping.
+        quellCodes: [],
       });
     }
     // Die Textspalte ist ein eigener Wert, kein Datum — die Mappe fragt sie mit
@@ -51,6 +54,7 @@ export function baueTodoFeldVorrat(felder: readonly StatusFeldEintrag[]): Spalte
         typ: 'wert',
         quelle: 'csv',
         schemaAnzahl: 1,
+        quellCodes: [],
       });
     }
   }

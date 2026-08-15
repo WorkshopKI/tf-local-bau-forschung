@@ -26,6 +26,7 @@
 - Angelegt wird weiterhin **erst für Sie allein**. So können Sie in Ruhe ausprobieren; geteilt wird bewusst in einem zweiten Schritt.
 
 ### Verbesserungen
+- **Die Standardfelder zeigen jetzt, woraus sie entstehen.** In der Feldauswahl steht hinter `antragsdatum` das Kürzel des Fachsystems, aus dem es gebildet wird (`← D_AAE`) — und Sie können auch nach diesem Kürzel suchen.
 - Beim Bearbeiten steht jetzt oben, **wen die Spalte betrifft** — nur Sie auf diesem Gerät, oder das ganze Team.
 - Nach dem Übernehmen bleibt die Spalte in Ihrer Tabelle stehen, wo sie war — sie wechselt nur die Rubrik.
 - Team-Spalten pflegt, wer auch sonst im Daten-Ordner schreiben darf. Alle anderen sehen und benutzen sie ganz normal.
