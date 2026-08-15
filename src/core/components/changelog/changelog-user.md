@@ -19,6 +19,15 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.60 — 2026-08
+
+### Verbesserungen
+- In der Tabellen-Ansicht der Förderanträge teilen sich die Spalten jetzt **immer die verfügbare Breite**. Rechts bleibt nichts mehr leer, und wird die Fläche schmaler oder breiter, ändern sich alle Spalten gleichmäßig mit.
+- **Der Griff am rechten Tabellenrand kann zweierlei**: Ziehen macht die ganze Tabelle breiter oder schmaler, ein Klick schaltet auf Inhaltsbreite um — dann nimmt sich jede Spalte, was ihr Text braucht, und die Tabelle scrollt seitwärts. Der nächste Klick schaltet zurück; die Wahl bleibt über einen Neustart erhalten. Der Griff ist etwas breiter geworden und damit leichter zu treffen.
+
+### Bugfixes
+- Ein Klick auf den Griff, ohne zu ziehen, legte die Tabellenbreite versehentlich fest. Jetzt zählt nur noch eine echte Ziehbewegung.
+
 ## v4.59 — 2026-08
 
 ### Neu

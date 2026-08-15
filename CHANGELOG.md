@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.60.0 — Spalten fuellen die Breite, der Griff schaltet um (August 2026)
+
+MINOR — Die Fördertabelle stand fest auf Inhaltsbreite: jede Spalte nahm, was ihr längster Eintrag brauchte, und was übrig blieb, landete in einer leeren Füllspalte. Jetzt teilen sich die Spalten die verfügbare Breite und skalieren mit ihr; die alte Darstellung liegt einen Klick entfernt. Detail: [ui-muster.md](docs/architecture/ui-muster.md).
+
+- **Einpassen wächst jetzt auch** (`flex: 1 1 auto`) — vorher blieb die Tabelle bei ihrer Wunschbreite stehen, sobald die Spaltensumme kleiner war als der Container ([tableLayout.ts](src/components/data-table/tableLayout.ts))
+- **Der Griff trägt zwei Gesten**: Ziehen pinnt eine Pixelbreite, Klick verwirft erst einen Pin und schaltet danach Einpassen ↔ Inhaltsbreite um (der Doppelklick-Reset geht darin auf); 4px → 6px ([TotalWidthGrip.tsx](src/components/data-table/TotalWidthGrip.tsx))
+- **Fix: ein Klick ohne Bewegung pinnte die Tabelle** — der Griff kannte die `DRAG_SCHWELLE` der Spaltengriffe nicht und committete auf jedem Mouseup
+- **Umschalt-Zustand je Tabelle persistiert** in einem eigenen Schlüssel neben der gepinnten Breite ([useTotalTableWidth.ts](src/components/data-table/useTotalTableWidth.ts))
+- **Boden der Fördertabelle** ist die Summe der Spalten-Mindestbreiten statt pauschal 720px ([AntraegeTable.tsx](src/plugins/antraege/AntraegeTable.tsx))
+
 ### v4.59.0 — Die Chronik zeigt zurueckgenommene Termine (August 2026)
 
 MINOR — Nimmt jemand in C16 eine Setzung zurück, überschreibt der Nacht-Export die Spalte und die Zeile ist spurlos. Das Journal hielt es fest, die Chronik zeigte es nicht — die Aussage, für die es das Journal gibt, war die einzige unsichtbare. Detail: [chronik-und-zeitstrahl.md](docs/status-system/chronik-und-zeitstrahl.md) + [vorgangssystem.md §12.10](docs/architecture/vorgangssystem.md).
