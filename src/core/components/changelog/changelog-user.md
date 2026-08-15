@@ -23,6 +23,7 @@
 
 ### Bugfixes
 - **Der Schalter „Kurator-Menüs" wirkt jetzt vollständig.** Bisher machte er die Kurations-Seiten nur sichtbar — die Schaltflächen darin blieben grau, etwa „Mapping bearbeiten" oder „Spalten neu mappen". Jetzt genügt der Schalter; nach dem Umlegen können Sie sofort arbeiten.
+- **Auf „Datenpflege → CSV-Quellen" war jede Quelle unlesbar.** Die Zeile mit Kennung, Zeilenzahl und letztem Import war zu einer schmalen Säule gequetscht, über der die Knöpfe lagen. Die Liste nimmt jetzt die volle Breite; der Zustand (Quellen, Zeilen, letzter Import, neuere Datei) steht als Streifen darüber. Bei schmalem Fenster rutschen die Knöpfe unter den Text, statt ihn zu verdecken.
 
 ### Verbesserungen
 - In der Tabellen-Ansicht der Förderanträge teilen sich die Spalten jetzt **immer die verfügbare Breite**. Rechts bleibt nichts mehr leer, und wird die Fläche schmaler oder breiter, ändern sich alle Spalten gleichmäßig mit.

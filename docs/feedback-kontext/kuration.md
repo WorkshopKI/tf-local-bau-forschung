@@ -14,9 +14,9 @@ Die Landeseite: was gerade ansteht und wie die Daten stehen. Je eine Zeile für 
 ## CSV-Quellen
 Woher die Antragsdaten kommen. Jede Quelle ist ein CSV-Export des Fachsystems mit gemerkter Datei, Spalten-Mapping und letztem Import; ein Klick auf die Zeile öffnet ihre Details. „Neu registrieren" führt durch den Wizard.
 
-Der Knopf **CSV Daten aktualisieren** wird aktiv, sobald am Ablageort eine neuere Datei liegt — rechts steht, bei wie vielen Quellen das der Fall ist. **Spalten neu mappen** ordnet die gespeicherte Datei neu zu, ohne den Dateidialog. **CSV neu wählen** braucht man, wenn die Datei umgezogen ist oder der Zugriff verfallen ist.
+Der Knopf **CSV Daten aktualisieren** wird aktiv, sobald am Ablageort eine neuere Datei liegt — im Streifen darüber steht, bei wie vielen Quellen das der Fall ist. **Spalten neu mappen** ordnet die gespeicherte Datei neu zu, ohne den Dateidialog. **CSV neu wählen** braucht man, wenn die Datei umgezogen ist oder der Zugriff verfallen ist.
 
-Rechts der Zustand: dieselbe Aussage, die der Punkt „● CSV" in der Fußzeile und die Übersicht zeigen — Anzahl Quellen, Zeilen, letzter Import.
+Über der Liste der Zustand als schmaler Streifen — Quellen, Zeilen, letzter Import, neuere Datei am Ablageort: dieselbe Aussage, die der Punkt „● CSV" in der Fußzeile und die Übersicht zeigen. Er steht oben statt in einer Nebenspalte, weil die Quellen-Zeilen mit ihren vier Aktionen die volle Breite brauchen.
 
 Eingeklappt darunter das Seltene: **Antrags-Daten zurücksetzen** (bei Encoding-Schäden aus der Quell-CSV; Schemas und Programme bleiben) und, nur im Dev-Build, das Wiederherstellen von CSV-Schemas aus einer Sicherung.
 

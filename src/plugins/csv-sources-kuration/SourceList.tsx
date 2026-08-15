@@ -60,10 +60,15 @@ export function SourceList(props: SourceListProps): React.ReactElement {
                     onOpenDetail(s);
                   }
                 }}
-                className="flex items-center justify-between py-3 px-2 -mx-2 rounded-md cursor-pointer hover:bg-[var(--tf-bg-secondary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--tf-primary)]"
+                // `basis-72` statt `flex-1` ist hier der Punkt: mit `flex-basis: 0`
+                // waere die hypothetische Breite des Textblocks 0, die Reihe braeche
+                // also NIE um — die Knopfreihe (~494 px) schoebe sich stattdessen
+                // ueber den Text, wie bis v4.60. Mit 18 rem Basis rutscht sie bei zu
+                // schmalem Wirt auf eine eigene, rechtsbuendige Zeile.
+                className="flex flex-wrap items-center gap-x-4 gap-y-2 py-3 px-2 -mx-2 rounded-md cursor-pointer hover:bg-[var(--tf-bg-secondary)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--tf-primary)]"
                 style={i === schemas.length - 1 ? undefined : { borderBottom: '0.5px solid var(--tf-border)' }}
               >
-                <div className="min-w-0">
+                <div className="min-w-0 grow basis-72">
                   <div className="text-[14px] text-[var(--tf-text)] flex items-center gap-2">
                     {s.csv_source_name}
                     {s.is_master ? <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-blue-50 text-blue-800">Master</span> : null}
@@ -88,7 +93,7 @@ export function SourceList(props: SourceListProps): React.ReactElement {
                 </div>
                 {isConfirming ? (
                   <div
-                    className="flex items-center gap-2 max-w-[60%]"
+                    className="flex items-center gap-2 ml-auto max-w-[60%]"
                     onClick={e => e.stopPropagation()}
                   >
                     <span className="text-[11.5px] text-[var(--tf-text-secondary)] text-right">
@@ -112,7 +117,7 @@ export function SourceList(props: SourceListProps): React.ReactElement {
                     </Button>
                   </div>
                 ) : (
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1.5 shrink-0 ml-auto">
                     <Button
                       size="sm"
                       variant="default"

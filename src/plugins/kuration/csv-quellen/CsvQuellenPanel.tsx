@@ -8,10 +8,16 @@
  * Dokumentenquellen); geblieben ist, was zugleich Dienst der ganzen App ist.
  * Was hier steht, ist der Seiten-Rumpf — die Bausteine kommen von drueben.
  *
- * Links die Quellen mit ihren Aktionen, rechts der Zustand: derselbe Satz, den
- * der Punkt „● CSV" in der Fusszeile und die Kuration-Uebersicht zeigen
- * (`csvFreshnessAussage`), damit die Seite und der Ort, der auf sie zeigt,
- * nicht zwei Dinge behaupten.
+ * Oben der Zustand als schmaler Streifen, darunter die Quellen ueber die volle
+ * Breite. Das Panel fuehrt bewusst KEINE Nebenspalte (v4.60.1): eine Quellen-
+ * Zeile traegt vier beschriftete Aktionen (~494 px) — in der 1.32fr-Spalte des
+ * Hubs blieben davon ~47 px fuer Name und Metazeile, und die Knoepfe legten
+ * sich ueber den Text. `settings-layout.css` sieht den Fall vor: „`neben` ist
+ * optional (Panels aus Listen und Tabellen brauchen die Breite)".
+ *
+ * Der Zustand ist derselbe Satz, den der Punkt „● CSV" in der Fusszeile und die
+ * Kuration-Uebersicht zeigen (`csvFreshnessAussage`), damit die Seite und der
+ * Ort, der auf sie zeigt, nicht zwei Dinge behaupten.
  */
 import { useCallback, useEffect, useState } from 'react';
 import { AlertTriangle } from 'lucide-react';
@@ -29,7 +35,6 @@ import {
   SettingsGruppenAktion,
   SettingsKennzahl,
   SettingsKlappe,
-  SettingsOption,
   SettingsStatusBadge,
   SettingsZweiSpalten,
   type SettingsBadgeTon,
@@ -168,6 +173,15 @@ export function CsvQuellenPanel(): React.ReactElement {
   const offeneUpdates = Object.values(updateChecks).filter(u => u.state === 'update_available').length;
   const zeilen = schemas.reduce((s, x) => s + (x.last_row_count ?? 0), 0);
 
+  // Der Satz, der bei den Kennzahlen sonst fehlte: eine Zahl allein sagt nicht,
+  // was zu tun ist. Hoechstens einer — „noch kein Import" schlaegt den Hinweis
+  // auf den Knopf, weil ohne Import auch nichts zu aktualisieren waere.
+  const zustandHinweis = !csv.lastImport
+    ? 'Noch kein Import verzeichnet.'
+    : offeneUpdates > 0
+      ? 'In der Zeile der Quelle steht „CSV Daten aktualisieren".'
+      : null;
+
   return (
     <SettingsZweiSpalten
       haupt={
@@ -224,6 +238,30 @@ export function CsvQuellenPanel(): React.ReactElement {
               </div>
             </div>
           ) : null}
+
+          <SettingsGruppe
+            id="sec-csv-zustand"
+            titel="Zustand"
+            rechts={<SettingsStatusBadge ton={CSV_ZU_TON[aussage.ton]}>{aussage.label}</SettingsStatusBadge>}
+          >
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 pt-1">
+              <SettingsKennzahl label="Quellen" wert={schemas.length.toLocaleString('de-DE')} />
+              <SettingsKennzahl label="Zeilen" wert={zeilen.toLocaleString('de-DE')} />
+              <SettingsKennzahl
+                label="Letzter Import"
+                wert={csv.lastImport ? new Date(csv.lastImport).toLocaleString('de-DE') : '—'}
+              />
+              <SettingsKennzahl
+                label="Neuere Datei am Ablageort"
+                wert={offeneUpdates > 0 ? `${offeneUpdates} Quelle${offeneUpdates === 1 ? '' : 'n'}` : 'keine'}
+              />
+            </div>
+            {zustandHinweis && (
+              <p className="text-[12px] leading-[1.5] text-[var(--tf-text-tertiary)] mt-2">
+                {zustandHinweis}
+              </p>
+            )}
+          </SettingsGruppe>
 
           <SettingsGruppe
             id="sec-csv-quellen"
@@ -291,38 +329,6 @@ export function CsvQuellenPanel(): React.ReactElement {
             onRefresh={() => { void refresh(); }}
           />
         </>
-      }
-      neben={
-        <SettingsGruppe
-          id="sec-csv-zustand"
-          titel="Zustand"
-          rechts={<SettingsStatusBadge ton={CSV_ZU_TON[aussage.ton]}>{aussage.label}</SettingsStatusBadge>}
-        >
-          <div className="grid grid-cols-2 gap-2 pt-1 pb-1">
-            <SettingsKennzahl label="Quellen" wert={schemas.length.toLocaleString('de-DE')} />
-            <SettingsKennzahl label="Zeilen" wert={zeilen.toLocaleString('de-DE')} />
-          </div>
-          <SettingsOption
-            label="Letzter Import"
-            kurzzeile={csv.lastImport ? undefined : 'Noch kein Import verzeichnet.'}
-          >
-            <span className="text-[12.5px] text-[var(--tf-text-secondary)]">
-              {csv.lastImport ? new Date(csv.lastImport).toLocaleString('de-DE') : '—'}
-            </span>
-          </SettingsOption>
-          <SettingsOption
-            label="Neuere Datei am Ablageort"
-            kurzzeile={
-              offeneUpdates > 0
-                ? 'In der Zeile der Quelle steht „CSV Daten aktualisieren".'
-                : undefined
-            }
-          >
-            <span className="text-[12.5px] text-[var(--tf-text-secondary)]">
-              {offeneUpdates > 0 ? `${offeneUpdates} Quelle${offeneUpdates === 1 ? '' : 'n'}` : 'keine'}
-            </span>
-          </SettingsOption>
-        </SettingsGruppe>
       }
     />
   );

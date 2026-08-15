@@ -5,7 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
-### v4.60.1 — Kurator-Schalter oeffnet die Sitzung (August 2026)
+### v4.60.2 — Die Quellen-Zeile bekommt ihre Breite zurueck (August 2026)
+
+PATCH — Auf **Datenpflege → CSV-Quellen** zerfiel jede Quellen-Zeile: die Metazeile brach zeichenweise in eine ~47 px schmale Säule, die vier Aktionsknöpfe legten sich darüber. Grund war kein Umbruch-Detail, sondern ein Breitenbudget: die Knöpfe brauchen ~494 px, die Nebenspalten-Form des Hubs gab der Zeile ~541 px — auch bei maximaler Seitenbreite.
+
+- **Die Quellen-Liste bekommt die volle Breite** ([CsvQuellenPanel.tsx](src/plugins/kuration/csv-quellen/CsvQuellenPanel.tsx)) — die Nebenspalte entfällt, wie es `settings-layout.css` für Listen-Panels ausdrücklich vorsieht
+- **Der Zustand steht als schmaler Streifen über der Liste** — vier Kennzahlen statt Hochkant-Block, Anker `sec-csv-zustand` und Badge unverändert
+- **Die Zeile bricht anständig um statt sich zu überlagern** ([SourceList.tsx](src/plugins/csv-sources-kuration/SourceList.tsx)) — `flex-wrap` + `basis-72`/`shrink-0`; bei schmalem Fenster rutscht die Knopfreihe rechtsbündig unter den Text
+- **Keine Aktion verschwindet** — alle vier Knöpfe bleiben sichtbar und beschriftet, die Metazeile ungekürzt
+### v4.60.1 — Kurator-Schalter oeffnet die Sitzung (August 2026)
 
 PATCH — In Builds **ohne** Kurator-Zusatzpasswort öffnete nichts die Kurator-Sitzung: der freie Schalter im Profil setzte nur die Menü-Sichtbarkeit. Die Kurations-Seiten standen offen, aber jede Schreib-Aktion darin blieb grau — ohne dass irgendwo stand, warum. Detail: [modul-freischaltung.md](docs/architecture/modul-freischaltung.md).
 
