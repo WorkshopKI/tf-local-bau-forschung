@@ -50,11 +50,18 @@
  *     Rolle → Farbe steht genau einmal (src/core/status/rollen-farbe.ts), die Werte
  *     genau in theme.css; und jede Rollenfarbe muss auf ihrer eigenen Flaeche in
  *     BEIDEN Modi >= 4,5:1 erreichen. Inline '// allow-rollen-farbe: <grund>'.
+ *   - spalten-hilfe-abdeckung           → Spaltenkoepfe erklaeren ihre Herkunft
+ *     (v4.54): jede Spalte der Foerdertabelle traegt einen Satz in
+ *     plugins/antraege/spaltenHilfe.ts. Eine neue Spalte ohne Erklaerung faellt
+ *     hier auf, nicht erst im Betrieb; und ein Satz zu einer geloeschten Spalte
+ *     faellt ebenfalls auf, statt als toter Text liegenzubleiben.
  */
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, sep } from 'node:path';
 import { PRESET_COLORS } from '../components/ui/theme';
+import { ANTRAG_TABLE_COLUMNS } from '../plugins/antraege/tableColumns';
+import { SPALTEN_MIT_SATZ, baueSpaltenHilfe } from '../plugins/antraege/spaltenHilfe';
 import {
   ROOT, ALL_TS_FILES, ALL_SOURCE_FILES, relPath, findInFile, fmt, hslToRgb, relLuminance, kontrast, mische, parseCssFarbe, themeFarbTokens, type Finding, type ThemeFarbSatz,
 } from './conventions-lib';
@@ -1120,5 +1127,50 @@ describe('rollen-farbe-eine-quelle (Chronik/Zeitstrahl, v4.48)', () => {
     }
   });
 });
+
+describe('spalten-hilfe-abdeckung (jeder Spaltenkopf erklaert seine Herkunft, v4.54)', () => {
+  it('jede Spalte der Foerdertabelle traegt einen Satz', () => {
+    const ohne = ANTRAG_TABLE_COLUMNS
+      .filter(c => !SPALTEN_MIT_SATZ.includes(c.key))
+      .map(c => `  ${c.key} („${c.label}")`);
+    if (ohne.length > 0) {
+      expect.fail(
+        `Spalten ohne Herkunftsangabe:\n${ohne.join('\n')}\n\n`
+        + `Einen Satz in SAETZE (src/plugins/antraege/spaltenHilfe.ts) ergaenzen —\n`
+        + `er steht im Kopf-Tooltip und am ⓘ des Spalten-Pickers. Wo die Spalte sich\n`
+        + `aus CSV-Feldern speist, kommt die Feldliste automatisch aus dem Schema.`,
+      );
+    }
+  });
+
+  it('kein Satz zeigt auf eine Spalte, die es nicht mehr gibt', () => {
+    const keys = new Set(ANTRAG_TABLE_COLUMNS.map(c => c.key));
+    const verwaist = SPALTEN_MIT_SATZ.filter(k => !keys.has(k));
+    if (verwaist.length > 0) {
+      expect.fail(
+        `Herkunftstexte ohne Spalte: ${verwaist.join(', ')}\n\n`
+        + `Die Spalte wurde entfernt oder umbenannt — den Eintrag in SAETZE\n`
+        + `(src/plugins/antraege/spaltenHilfe.ts) mitziehen, statt ihn liegenzulassen.`,
+      );
+    }
+  });
+
+  it('baut die Karte auch ohne geladenes Schema — mit Satz, ohne erfundene Felder', () => {
+    // Der Zustand vor dem ersten Import: eine Erklaerung ohne Belege ist
+    // richtig, eine erfundene Feldliste waere schlimmer als keine.
+    const karte = baueSpaltenHilfe({ schemas: [] });
+    for (const c of ANTRAG_TABLE_COLUMNS) {
+      const h = karte.get(c.key);
+      expect(h?.satz, `${c.key} ohne Satz`).toBeTruthy();
+    }
+    // Einzige Ausnahme: die Frist rechnet mit fest benannten Codes, die kein
+    // Schema liefert — sie darf ihre Felder auch ohne Import nennen.
+    const mitFeldernOhneSchema = ANTRAG_TABLE_COLUMNS
+      .filter(c => (karte.get(c.key)?.felder?.length ?? 0) > 0)
+      .map(c => c.key);
+    expect(mitFeldernOhneSchema).toEqual(['frist']);
+  });
+});
+
 
 

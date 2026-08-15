@@ -23,6 +23,30 @@ export type MessSchrift =
   | 'zelle' | 'zelleKlein' | 'mono' | 'monoKlein' | 'badge' | 'kopf'
   | 'bandLabel' | 'bandSpur' | 'bandKuerzel' | 'bandVerzug';
 
+/**
+ * Woraus entsteht diese Spalte? Die Antwort, die der Kopf beim Überfahren gibt
+ * und die der Spalten-Picker vor dem Einblenden zeigt.
+ *
+ * Eine Struktur für zwei Herkünfte: fest verdrahtete Spalten füllen `satz` von
+ * Hand und lassen `felder` zur Laufzeit aus dem Programm-Schema nachtragen
+ * (dann stimmen die Kürzel auch nach einer Mapping-Änderung noch); selbst
+ * angelegte Spalten erzeugen alle drei Angaben aus ihrer eigenen Definition.
+ */
+export interface SpaltenHilfe {
+  /** Ein Satz: was zeigt die Spalte. Pflichtteil — ohne ihn gibt es keine Hilfe. */
+  satz: string;
+  /** Die Felder, aus denen sich die Spalte speist: roher Code + Klartext. */
+  felder?: { code: string; label: string }[];
+  /** Wie der angezeigte Wert gewählt wird („jüngstes Datum gewinnt"). */
+  regel?: string;
+  /**
+   * Warum die Spalte hier nichts zeigt. Eine leere Spalte mit leerer Erklärung
+   * ist ein Rätsel; „in diesem Programm ist dafür keine Spalte gemappt" ist eine
+   * Antwort. Steht nur, wenn es wirklich etwas zu sagen gibt.
+   */
+  hinweis?: string;
+}
+
 export interface SortableColumn<T> {
   /** Stabiler Identifier — wird als Key, fuer Persistenz und Sort-State genutzt. */
   key: string;
@@ -32,6 +56,9 @@ export interface SortableColumn<T> {
    *  bekommt die Liste wie zuvor — ohne Überschriften. Die Reihenfolge der
    *  Rubriken folgt dem ersten Auftreten in der Spaltenliste. */
   gruppe?: string;
+  /** Herkunft der Spalte — Tooltip am Kopf, Zusatzzeile im Picker. Ohne sie
+   *  verhält sich der Kopf exakt wie zuvor (nacktes `title`). */
+  hilfe?: SpaltenHilfe;
   /** Sichtbar bei erstem Laden (kann vom User toggelt werden, ausser `locked`). */
   defaultVisible: boolean;
   /** Wenn `true`, kann die Spalte nicht ausgeblendet werden (z.B. Aktenzeichen). */

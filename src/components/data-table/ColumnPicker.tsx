@@ -17,8 +17,10 @@
  * `columnPickerLogik.ts` — node-testbar, weil Vitest keine `.tsx` einsammelt.
  */
 import { useMemo, useRef, useState, type ReactNode } from 'react';
-import { ChevronDown, Columns3, Search } from 'lucide-react';
+import { ChevronDown, Columns3, Info, Search } from 'lucide-react';
 import { useClickOutside } from '@/core/hooks/useClickOutside';
+import { Tooltip } from '@/components/ui/Tooltip';
+import { SpaltenHilfeInhalt } from './SpaltenHilfeInhalt';
 import {
   filtereRubriken,
   gruppiereSpalten,
@@ -121,6 +123,19 @@ export function ColumnPicker<T>({
           onChange={() => onToggleColumn(c.key)}
         />
         <span>{c.label}</span>
+        {/* Die Herkunft schon VOR dem Einblenden lesbar: wer hier steht,
+            entscheidet gerade, ob er die Spalte braucht. Das ⓘ ist reine
+            Hover-Andeutung — ein Klick darauf schaltet weiterhin die Zeile, weil
+            die ganze Zeile das `<label>` ist. */}
+        {c.hilfe && (
+          <Tooltip
+            content={<SpaltenHilfeInhalt hilfe={c.hilfe} />}
+            maxWidth={340}
+            wrapperClassName="inline-flex shrink-0 items-center"
+          >
+            <Info size={11} className="text-[var(--tf-text-tertiary)]" />
+          </Tooltip>
+        )}
         {c.locked ? (
           <span className="ml-auto text-[10px] text-[var(--tf-text-tertiary)]">fix</span>
         ) : auto ? (

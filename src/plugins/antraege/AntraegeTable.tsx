@@ -2,6 +2,8 @@ import { useEffect, useMemo } from 'react';
 import type { AntragListItem } from '@/core/services/csv/types';
 import { SortableTable, useTableSort, useColumnFilters, compareValues, useColumnWidths, useTotalTableWidth } from '@/components/data-table';
 import { resolveAntragTableColumns } from './tableColumns';
+import { mitSpaltenHilfe } from './spaltenHilfe';
+import type { SpaltenHilfe } from '@/components/data-table/types';
 import { useAntraegeColumnsStore } from './useAntraegeColumnsStore';
 import { useKategorieSpalten } from './useKategorieSpalten';
 import { useAntraegeStore } from './store';
@@ -43,6 +45,10 @@ interface Props {
   ansicht: TabellenAnsicht;
   /** „alle"-/Übersichtsmodus → MA-Spalte (tib_kuerz) automatisch einblenden. */
   showMaColumn: boolean;
+  /** Herkunft je Spalten-Key für die Kopf-Tooltips. Kommt fertig aus
+   *  `AntraegeMain` (dort einmal geladen), damit die Tabelle die Schemas nicht
+   *  ein zweites Mal aus IndexedDB liest. */
+  spaltenHilfe?: ReadonlyMap<string, SpaltenHilfe>;
   onOpenAntrag: (az: string) => void;
   onOpenVerbund: (id: string) => void;
   sentinelRef: React.RefObject<HTMLDivElement | null>;
@@ -129,6 +135,7 @@ export function AntraegeTable({
   grouping,
   ansicht,
   showMaColumn,
+  spaltenHilfe,
   onOpenAntrag,
   onOpenVerbund,
   sentinelRef,
@@ -158,8 +165,11 @@ export function AntraegeTable({
   // Im „alle"-Modus die MA-Spalte direkt nach der gelockten FKZ-Spalte
   // einblenden (auto-verwaltet, nicht im Spalten-Picker).
   const rohSpalten = useMemo(
-    () => resolveAntragTableColumns(visibleColumns, showMaColumn, kategorieSpalten),
-    [visibleColumns, showMaColumn, kategorieSpalten],
+    () => {
+      const aufgeloest = resolveAntragTableColumns(visibleColumns, showMaColumn, kategorieSpalten);
+      return spaltenHilfe ? mitSpaltenHilfe(aufgeloest, spaltenHilfe) : aufgeloest;
+    },
+    [visibleColumns, showMaColumn, kategorieSpalten, spaltenHilfe],
   );
 
   // VB-Titel ist nicht in `AntragListItem` projiziert (Verbund-Level-Feld) → einmal

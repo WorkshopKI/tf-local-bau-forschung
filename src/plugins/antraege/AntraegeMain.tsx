@@ -58,6 +58,8 @@ import {
   spaltenHinweis,
 } from './tableColumns';
 import { useKategorieSpalten } from './useKategorieSpalten';
+import { useSpaltenHilfe } from './useSpaltenHilfe';
+import { mitSpaltenHilfe } from './spaltenHilfe';
 import { useAntraegeColumnsStore } from './useAntraegeColumnsStore';
 import type { ViewMode } from './viewModes';
 import { isAuslastungFreigeschaltet } from '@/core/modul-freischaltung';
@@ -155,9 +157,16 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
   // Die kuratierten Ordner-Spalten stehen nicht in der Registry — sie folgen dem
   // Statuskatalog und kommen deshalb hier dazu.
   const kategorieSpalten = useKategorieSpalten();
+  // Einmal geladen, zweimal gebraucht: der Picker zeigt die Herkunft am ⓘ, der
+  // Tabellenkopf im Tooltip. Beide bekommen dieselbe Karte, statt sie jeweils
+  // aus IndexedDB neu zu bauen.
+  const spaltenHilfe = useSpaltenHilfe();
   const pickerColumns = useMemo(
-    () => [...ANTRAG_TABLE_COLUMNS, ...kategorieStatusColumns(kategorieSpalten)],
-    [kategorieSpalten],
+    () => mitSpaltenHilfe(
+      [...ANTRAG_TABLE_COLUMNS, ...kategorieStatusColumns(kategorieSpalten)],
+      spaltenHilfe,
+    ),
+    [kategorieSpalten, spaltenHilfe],
   );
   const erzwungeneSpalten = useMemo(() => (showMa ? [MA_COLUMN_KEY] : []), [showMa]);
   const [visibleRows, setVisibleRows] = useState(() => pageSizeForMode(viewMode));
@@ -452,6 +461,7 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
               grouping={tableGrouping}
               ansicht={tableAnsicht}
               showMaColumn={showMa}
+              spaltenHilfe={spaltenHilfe}
               onOpenAntrag={openAntrag}
               onOpenVerbund={openVerbund}
               sentinelRef={sentinelRef}

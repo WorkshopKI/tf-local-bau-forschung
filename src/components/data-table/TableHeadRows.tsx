@@ -9,8 +9,31 @@ import { useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'reac
 import { ChevronDown, Filter } from 'lucide-react';
 import { SortIcon } from './SortIcon';
 import { ColumnFilterDropdown } from './ColumnFilterDropdown';
+import { SpaltenHilfeInhalt } from './SpaltenHilfeInhalt';
 import { baueRubrikSpannen } from './rubrikSpannen';
+import { Tooltip } from '@/components/ui/Tooltip';
 import type { SortDirection, SortableColumn } from './types';
+
+/**
+ * Hüllt die Beschriftung in den Herkunfts-Tooltip — oder reicht sie unverändert
+ * durch, wenn die Spalte keine Hilfe trägt.
+ *
+ * `inline-flex` als Hülle statt der `inline-block`-Vorgabe: die Beschriftung ist
+ * hier Flex-Element, und ohne `min-w-0` behält sie die Breite ihres längsten
+ * Wortes — genau das Verhalten von vorher (siehe Kommentar am `<th>`).
+ */
+function mitHilfe<T>(c: SortableColumn<T>, kind: ReactNode): ReactNode {
+  if (!c.hilfe) return kind;
+  return (
+    <Tooltip
+      content={<SpaltenHilfeInhalt hilfe={c.hilfe} />}
+      maxWidth={340}
+      wrapperClassName="inline-flex"
+    >
+      {kind}
+    </Tooltip>
+  );
+}
 
 export interface TableHeadRowsProps<T> {
   columns: SortableColumn<T>[];
@@ -181,12 +204,18 @@ export function TableHeadRows<T>({
                   Die Spaltenbreite ist die richtige Stellschraube; im
                   Status-Katalog gibt der längste Kopf sie vor. */}
               <div className="flex items-center gap-1">
-                {c.sortable ? (
+                {mitHilfe(c, c.sortable ? (
                   <button
                     type="button"
                     onClick={() => onSort(c.key)}
                     className="flex items-center gap-1.5 cursor-pointer hover:text-[var(--tf-text)]"
-                    title={`Nach ${c.label} sortieren`}
+                    // Trägt die Spalte eine Herkunftsangabe, erklärt sie der
+                    // Portal-Tooltip — ein `title` daneben legte den nativen
+                    // Kasten über den erklärenden. Die Sortier-Andeutung bleibt
+                    // sichtbar (Pfeil, Zeiger, Hover-Farbe) und für Vorleser im
+                    // `aria-label`.
+                    title={c.hilfe ? undefined : `Nach ${c.label} sortieren`}
+                    aria-label={c.hilfe ? `${c.label} — nach dieser Spalte sortieren` : undefined}
                   >
                     <span>{c.label}</span>
                     <SortIcon active={active} direction={sortDirection} />
@@ -195,8 +224,8 @@ export function TableHeadRows<T>({
                   // `title` auch hier: bei schmaler Spalte legt sich der
                   // Filter-Chevron beim Überfahren über das Ende der
                   // Beschriftung. Der Sortier-Knopf trägt seinen Titel schon.
-                  <span title={c.label}>{c.label}</span>
-                )}
+                  <span title={c.hilfe ? undefined : c.label}>{c.label}</span>
+                ))}
               </div>
               {/* Der Chevron liegt AUSSERHALB des Textflusses (rechts neben der
                   Beschriftung, links vom Resize-Griff) und erscheint erst beim

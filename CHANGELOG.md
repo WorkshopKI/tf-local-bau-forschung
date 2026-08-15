@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.54.0 — Spaltenkoepfe erklaeren ihre Herkunft (August 2026)
+
+MINOR — „PreCheck Status" war ein Badge ohne Herkunft: welche Kürzel darin zusammenlaufen und welche Regel den Wert wählt, stand nirgends in der Oberfläche. Der Tooltip nennt jetzt die Felder, die das geladene Schema wirklich mappt — nicht eine abgeschriebene Liste, die beim nächsten Mapping-Wechsel still falsch wäre.
+
+- **Jeder Spaltenkopf erklärt sich beim Überfahren**: ein Satz, die Auswahlregel, die speisenden Felder als Code + Klartext ([SpaltenHilfeInhalt.tsx](src/components/data-table/SpaltenHilfeInhalt.tsx), [TableHeadRows.tsx](src/components/data-table/TableHeadRows.tsx))
+- **Die Feldlisten kommen aus dem Schema, nicht aus dem Code** — PreCheck zeigt seine 9, FB seine 11 gemappten Spalten mit den Beschriftungen des Programms ([spaltenHilfe.ts](src/plugins/antraege/spaltenHilfe.ts), [useSpaltenHilfe.ts](src/plugins/antraege/useSpaltenHilfe.ts))
+- **Eine leere Spalte sagt, warum sie leer ist**: „In diesem Programm ist dafür keine Spalte gemappt" statt einer stummen Zelle — gemessen an *Zuwendung* und drei Ordner-Spalten des Katalogs
+- **Auch im Spalten-Picker**, am ⓘ je Zeile: die Herkunft steht da, wo man entscheidet, ob man die Spalte braucht ([ColumnPicker.tsx](src/components/data-table/ColumnPicker.tsx))
+- **Guard `spalten-hilfe-abdeckung`** hält die Vollständigkeit in beide Richtungen — neue Spalte ohne Satz und Satz ohne Spalte fallen im Gate auf ([conventions-ui.test.ts](src/__tests__/conventions-ui.test.ts))
+
 ### v4.53.0 — Verbundkennzeichen suchbar, nw statt netz, keine Null vor der Messung (August 2026)
 
 MINOR — Nach dem FKZ ließ sich direkt suchen, nach dem Verbundkennzeichen nicht. Dieselbe Messung wie in v4.50, diesmal über die Spalten, die Codes tragen: von 512 Spalten bleiben genau vier — mehr Kennzeichen gibt es im Bestand nicht. Detail: [suche-relevanz.md](docs/architecture/suche-relevanz.md).

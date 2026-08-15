@@ -19,6 +19,18 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.54 — 2026-08
+
+### Neu
+- **Die Spaltenköpfe der Fördertabelle erklären sich.** Fahren Sie einen Kopf an, und es steht da, was die Spalte zeigt, nach welcher Regel sie ihren Wert wählt und aus welchen Feldern sie sich speist — mit den Kürzeln des Fachsystems und deren Klartext. Bei *PreCheck Status* sind das neun Felder, bei *FB Status* elf.
+- Die Feldliste ist nicht abgeschrieben, sondern kommt aus dem geladenen Programm. Ändert die Kuration ein Mapping, ändert sich der Hinweis mit.
+- Bleibt eine Spalte leer, sagt sie warum: „In diesem Programm ist dafür keine Spalte gemappt." Vorher war eine leere Spalte nicht von einer unbefüllten zu unterscheiden.
+- Dieselbe Erklärung steht im Menü **Spalten** hinter dem ⓘ — dort, wo Sie entscheiden, ob Sie die Spalte einblenden.
+### Verbesserungen
+<!-- - … -->
+### Bugfixes
+<!-- - … -->
+
 ## v4.53 — 2026-08
 
 ### Neu

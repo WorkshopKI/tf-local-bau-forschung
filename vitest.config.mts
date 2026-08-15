@@ -17,6 +17,13 @@ const ISOLATED_TESTS = [
   // dann eine leere Quell-Kopie, und der gehaltene Antrag kam ohne Felder zurück
   // (v4.16: die zweite Datei brachte die erste zu Fall, beide einzeln gruen).
   'src/core/services/csv/__tests__/importer-gefiltert-ist-keine-loeschung.test.ts',
+  // Dieselbe Familie, anderes Modul: mockt `build-lock` modulweit. Der Guard
+  // `spalten-hilfe-abdeckung` (v4.54) importiert in conventions-ui.test.ts die
+  // Spalten-Registry und damit einen grossen Teil des Antraege-Modulgraphen —
+  // das verschob die Ladereihenfolge, der Mock griff nicht mehr, und der
+  // Importer lief in den ECHTEN Lock („anderes Fenster unter deinem Namen").
+  // Einzeln immer gruen.
+  'src/core/services/csv/__tests__/importer-join-column-guard.test.ts',
   'src/core/services/csv/__tests__/importer-lock-held-by-caller.test.ts',
   'src/core/services/csv/__tests__/importer-loeschung-nur-wenn-ueberall-weg.test.ts',
   'src/core/services/csv/__tests__/importer-source-baseline.test.ts',

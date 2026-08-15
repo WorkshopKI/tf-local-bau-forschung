@@ -4,7 +4,8 @@
  * compareValues + SortIcon + ColumnPicker), Auslastungs-Plugin
  * (Klassifizierungs-Tabelle).
  */
-export type { SortableColumn, SortDirection, MessSchrift } from './types';
+export type { SortableColumn, SortDirection, MessSchrift, SpaltenHilfe } from './types';
+export { SpaltenHilfeInhalt } from './SpaltenHilfeInhalt';
 export {
   berechneAutoBreiten,
   kopfBreite,
