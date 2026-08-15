@@ -66,6 +66,19 @@ describe('verlauf-kennzahlen', () => {
     const k = verlaufKennzahlen([], [paar('AK4', 'TV1')], 2);
     expect(k).toEqual({
       schritte: 0, datumsangaben: 0, tvAnzahl: 2, von: null, bis: null, nichtGesetzt: 1,
+      zurueckgenommen: 0,
     });
+  });
+
+  it('zählt Zurückgenommenes daneben, nicht in die Datumsangaben', () => {
+    // Dieselbe Regel wie bei den offenen Paaren: die Zahl, die den Umfang der
+    // Chronik nennt, darf nicht durch Abwesendes wachsen.
+    const k = verlaufKennzahlen(
+      [e('AAE', '2026-02-24', ['TV1'])], [], 2,
+      [{ tag: '2026-02-01', feld: {} as never, tvIds: ['TV1'], art: 'zurueckgenommen', belegt: {} as never }],
+    );
+    expect(k.datumsangaben).toBe(1);
+    expect(k.schritte).toBe(1);
+    expect(k.zurueckgenommen).toBe(1);
   });
 });

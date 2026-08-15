@@ -9,12 +9,18 @@
  * Komponente nicht gemountet und es passiert nichts. Für 403 Tabellenzeilen
  * wird nie etwas vorberechnet.
  *
- * **Das Journal hängt am Antrag, die Spuren am Verbund.** `chronikFuerAntrag`
- * liefert die Chronik EINES Teilvorhabens; sie auf die Spuren seiner Nachbarn
- * anzuwenden hieße, Beobachtungen zu behaupten, die es nicht gibt. Deshalb wird
- * sie nur bei einem Ein-TV-Vorhaben durchgereicht — der Nullpunkt `journalAb`
- * dagegen immer, denn ohne ihn liest sich eine unvollständige Chronik als
- * vollständige (Abschnitt 12.2).
+ * **Das Journal hängt am Antrag, die Spuren am Verbund.** Die Chronik gehört
+ * EINEM Teilvorhaben; sie auf die Spuren seiner Nachbarn anzuwenden hieße,
+ * Beobachtungen zu behaupten, die es nicht gibt. Deshalb wird sie nur bei einem
+ * Ein-TV-Vorhaben in die Ableitung gereicht — der Nullpunkt `journalAb` dagegen
+ * immer, denn ohne ihn liest sich eine unvollständige Chronik als vollständige
+ * (Abschnitt 12.2).
+ *
+ * **Geladen wird über `useJournalChroniken` für ALLE Teilvorhaben der Zeile**,
+ * seit v4.57. Die Chronik-Ansicht zeigt zurückgenommene Termine, und eine
+ * Verbund-Zeile trägt die Teilvorhaben aller. Bis dahin lud der Hook bei
+ * `aktenzeichen === null` gar nichts. Die Ein-TV-Regel oben bleibt davon
+ * unberührt: sie entscheidet, WAS weitergereicht wird, nicht, was geladen wird.
  *
  * **Nullpunkt und letzte Änderung sind zwei Dinge.** `journalAb` sagt, ab wann
  * das Journal überhaupt spricht (eine Zahl für den ganzen Bestand);
@@ -22,14 +28,14 @@
  * bewegt hat. Beide sind `string | null`, weshalb der Typ ihre Verwechslung
  * nicht fangen konnte — der Guard `kein-nullpunkt-als-letzte-aenderung` tut es.
  */
-import { useEffect, useMemo, useState } from 'react';
-import { useStorage } from '@/core/hooks/useStorage';
-import { chronikFuerAntrag, findeStatusCode, type AntragsChronik } from '@/core/status';
+import { useMemo } from 'react';
+import { findeStatusCode, type AntragsChronik, type AntragsChronikMitId } from '@/core/status';
 import { fristFuerVorkommen, type FristBezug } from '@/core/status/frist-bezug';
 import { baueVerlaufFuerVorgang } from '@/core/status/verlauf/fuer-vorgang';
 import { haltedatumAusSpuren } from '@/core/status/verlauf/haltedatum-aus-verlauf';
 import type { VerlaufsBezug, VerlaufsSpur } from '@/core/status/verlauf';
 import type { FeldVorkommen } from '@/core/status/feld-aufloesung';
+import { useJournalChroniken } from '../status/useJournalChroniken';
 import { useStatusVerlauf, type StatusVerlauf } from '../status/useStatusVerlauf';
 
 export interface ZeilenVerlauf {
@@ -93,6 +99,23 @@ export interface ZeilenVerlauf {
   /** `false` = die Chronik gehört zu EINEM Teilvorhaben eines Mehr-TV-Vorhabens
    *  und wurde deshalb nicht in die Ableitung gegeben. */
   journalGenutzt: boolean;
+  /**
+   * Die Journal-Chroniken **aller** Teilvorhaben dieser Zeile — Grundlage der
+   * zurückgenommenen Termine in der Chronik-Ansicht.
+   *
+   * Bewusst neben {@link journalAenderung} und nicht an deren Stelle: die beiden
+   * beantworten verschiedene Fragen. Diese Liste sagt „was ist an dieser Zeile
+   * einmal gelöscht worden", die letzte Änderung sagt „läuft dieser eine Vorgang
+   * noch". Nur die zweite darf der Stillstands-Wächter sehen, und nur sie steht
+   * unter der Ein-TV-Regel (§12.2, Guard `kein-nullpunkt-als-letzte-aenderung`).
+   *
+   * `null` = auf diesem Share wird kein Journal geführt — aber **erst**, wenn
+   * {@link journalLaden} `false` ist (siehe dort).
+   */
+  chroniken: AntragsChronikMitId[] | null;
+  /** `true`, solange das Journal gelesen wird. Vorher ist `chroniken === null`
+   *  keine Aussage, sondern ein Zwischenstand. */
+  journalLaden: boolean;
   /** Die geladene Fassung und die Vorkommen — der Frist-Reiter braucht beides. */
   quelle: StatusVerlauf;
 }
@@ -164,9 +187,7 @@ export function useZeilenVerlauf(
   verbundId: string | null, aktenzeichen: string | null, stichtag: string,
   istVerbundZeile: boolean, statusRoh: unknown,
 ): ZeilenVerlauf {
-  const idb = useStorage().idb;
   const quelle = useStatusVerlauf(verbundId);
-  const [chronik, setChronik] = useState<AntragsChronik | null>(null);
 
   const einTv = quelle.jeTeilvorhaben.length === 1;
 
@@ -199,6 +220,31 @@ export function useZeilenVerlauf(
     && relevante.length === 1 && relevante[0]?.aktenzeichen === aktenzeichen;
 
   /**
+   * Die Chroniken ALLER Teilvorhaben dieser Zeile — ein Lesevorgang, geteilt
+   * mit der Historie-Sektion (`useJournalChroniken`).
+   *
+   * **Gelesen wird bis zum Stichtag, nicht bis zum Bezugszeitpunkt.** Bis v4.56
+   * ging das Haltedatum als `heuteIso` in `chronikFuerAntrag` — ein Altfall mit
+   * Haltedatum 2018 lud damit gar keine Monatsdatei, weil das Journal 2026
+   * beginnt. Das war kein Entwurf, sondern eine Verwechslung von Achsenende und
+   * Uhr. Die Wirkung ist einseitig: mehr belegte Statuswechsel können die
+   * Konfidenz eines Übergangs nur **anheben** und die Herkunft von „abgeleitet"
+   * auf „beobachtet" drehen — die Richtung, für die es das Journal gibt.
+   */
+  const journal = useJournalChroniken(
+    useMemo(() => relevante.map(t => t.aktenzeichen), [relevante]),
+    stichtag,
+  );
+
+  /** Die Chronik des Teilvorhabens, um das es in DIESER Zeile geht. */
+  const chronik = useMemo(
+    () => (aktenzeichen === null
+      ? null
+      : journal.chroniken?.find(c => c.antragId === aktenzeichen) ?? null),
+    [journal.chroniken, aktenzeichen],
+  );
+
+  /**
    * **Erster Durchgang, mit dem nackten Stichtag.** `baueUebergaenge` nimmt den
    * Bezugszeitpunkt gar nicht entgegen — nur `baueSegmente` tut das. Die
    * Übergänge dieses Laufs sind deshalb dieselben wie die des endgültigen, und
@@ -227,21 +273,6 @@ export function useZeilenVerlauf(
 
   const bezugsZeitpunkt = frist?.bezugsZeitpunkt ?? stichtag;
 
-  useEffect(() => {
-    let abgebrochen = false;
-    setChronik(null);
-    if (aktenzeichen === null) return;
-    void (async () => {
-      try {
-        const c = await chronikFuerAntrag(idb, aktenzeichen, bezugsZeitpunkt);
-        if (!abgebrochen) setChronik(c);
-      } catch {
-        if (!abgebrochen) setChronik(null);
-      }
-    })();
-    return () => { abgebrochen = true; };
-  }, [idb, aktenzeichen, bezugsZeitpunkt]);
-
   /**
    * **Zweiter Durchgang, jetzt mit dem Haltedatum.** Nur die Segmente ändern
    * sich; kam kein Haltedatum heraus, ist der Bezugszeitpunkt der Stichtag und
@@ -261,9 +292,15 @@ export function useZeilenVerlauf(
     vorkommen,
     jeTeilvorhaben: relevante,
     bezugsZeitpunkt,
-    journalAb: chronik?.journalAb ?? null,
+    // Der Nullpunkt gilt für den ganzen Bestand und steht deshalb auch an einer
+    // Verbund-Zeile (§12.2). Die letzte Änderung tut das NICHT — sie bleibt an
+    // die Ein-TV-Regel gebunden, sonst erbt der Stillstands-Wächter die
+    // Beobachtung eines Nachbarn (Guard `kein-nullpunkt-als-letzte-aenderung`).
+    journalAb: journal.journalAb,
     journalAenderung: journalDeckt ? (chronik?.letzteAenderung ?? null) : null,
     journalGenutzt: einTv && chronik !== null,
+    chroniken: journal.chroniken,
+    journalLaden: journal.laden,
     quelle,
   };
 }

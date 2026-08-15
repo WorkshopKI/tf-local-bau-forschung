@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.59.0 — Die Chronik zeigt zurueckgenommene Termine (August 2026)
+
+MINOR — Nimmt jemand in C16 eine Setzung zurück, überschreibt der Nacht-Export die Spalte und die Zeile ist spurlos. Das Journal hielt es fest, die Chronik zeigte es nicht — die Aussage, für die es das Journal gibt, war die einzige unsichtbare. Detail: [chronik-und-zeitstrahl.md](docs/status-system/chronik-und-zeitstrahl.md) + [vorgangssystem.md §12.10](docs/architecture/vorgangssystem.md).
+
+- **Durchgestrichene Zeile am alten Tag** für jeden Termin, den der Export nicht mehr führt — `geleert` als „zurückgenommen", `geaendert` als „verschoben auf …", über Träger gefaltet ([chronik-zurueckgenommen.ts](src/core/status/chronik-zurueckgenommen.ts))
+- **Fünfter Knotenzustand** (gestrichelter grauer Ring) samt Legende und Kennzahl „· 2 zurückgenommen"; beides zählt nicht in die Datumsangaben ([StatusChronik.tsx](src/plugins/antraege/status/StatusChronik.tsx), [verlauf-kennzahlen.ts](src/core/status/verlauf-kennzahlen.ts))
+- **Nullpunkt unter der Chronik**, in drei unterschiedenen Fassungen und im selben Wortlaut wie die Historie-Sektion ([JournalNullpunkt.tsx](src/plugins/antraege/status/JournalNullpunkt.tsx), [journalTexte.ts](src/plugins/antraege/status/journalTexte.ts))
+- **Ein Journal-Lesevorgang je Seite** statt drei — `stand.json` wiegt über 5 MB und ist bewusst nicht gecacht ([useJournalChroniken.ts](src/plugins/antraege/status/useJournalChroniken.ts))
+- **Fix: „kein Journal" war beim Kaltstart eine Falschaussage** — `leseSidecar` wirft fehlenden Share-Handle und fehlende Datei auf dasselbe `null`; ein Deep-Link-Reload traf das zuverlässig. Vier Versuche über 11 s, bis dahin „lädt" (Bug-Klasse 1); heilt die Historie-Sektion seit v4.13 mit
+
 ### v4.58.0 — Der manuelle CSV-Import zeigt seinen Lauf (August 2026)
 
 MINOR — Der Lauf dauert bei mehreren Quellen Minuten, und die manuellen Türen zeigten dabei nichts als einen Knopf, der „Importiere…" hieß. Das liest sich als Hänger. Detail: [csv-auto-refresh.md](docs/architecture/csv-auto-refresh.md).
@@ -523,124 +533,4 @@ MINOR — Fünf Befunde der CSV-Bug-Jagd, zwei Wurzeln: Der Import konnte „vom
 - **Ein unlesbares Delta ist kein leeres Delta** ([snapshot-sync.ts](src/core/services/csv/snapshot-sync.ts), [recurring-bug-classes.md](docs/architecture/recurring-bug-classes.md)): der Cursor bleibt stehen statt weiterzuspringen, der Lauf meldet sich als unvollständig — bisher waren die Änderungen des Tages danach dauerhaft weg
 - **Vier stumme Fehler melden sich** ([schemaRegistry.ts](src/core/services/csv/schemaRegistry.ts), [auto-refresh.ts](src/plugins/csv-sources-kuration/services/auto-refresh.ts), [Step4Progress.tsx](src/plugins/csv-sources-kuration/wizard/Step4Progress.tsx)): gescheiterte Quell-Kopie bricht ab, PapaParse-Zeilenfehler und nicht veröffentlichter Snapshot stehen im Abschluss und im Bericht
 - **„Antrags-Daten zurücksetzen" räumt vollständig** ([idb-csv.ts](src/core/services/csv/idb-csv.ts)): Slim-Projektion und Snapshot-Marken gehen mit — sonst zeigte die App den alten Bestand weiter und der nächste Abgleich hielt sich für erledigt
-
-### v4.17.0 — Suche: klare Schalter, Markierung in der Tabelle, kein KI-Tab (August 2026)
-
-MINOR — Vier Befunde aus dem Test der Suchseite. Zwei Schalter hießen fast gleich und taten Verschiedenes, ein Suchbereich beantwortete zwei Fragen auf einmal, die Markierung gab es nur in der Liste, und ein Klick auf „Warum?" riss ungefragt einen KI-Tab auf.
-
-- **„Wortformen mitsuchen" statt „Ähnliche Begriffe mitsuchen"** ([SuchOptionenZeile.tsx](src/plugins/suche/SuchOptionenZeile.tsx), [suche-relevanz.md](docs/architecture/suche-relevanz.md)): getrennt entlang der Achse — dasselbe Wort in anderer Form gegen dasselbe Thema in anderen Worten (Ähnlichkeitssuche); Deutungszeile und Kein-Treffer-Auswege ziehen mit
-- **„nur Einrichtung" und „nur Ort & Bundesland" sind zwei Bereiche** ([suchbereich.ts](src/core/services/search/suchbereich.ts)): zusammengelegt mischte „wer" und „wo" — am Bestand gemessen 82 gegen 1 976 Treffer für „Bayern"
-- **Die Tabelle markiert den Suchbegriff wie die Liste** ([SuchMarkierung.tsx](src/plugins/suche/SuchMarkierung.tsx), [columns.tsx](src/plugins/suche/columns.tsx)): Titel/Inhalt, FKZ, AST und Ort AST über einen Kontext; `accessor` bleibt roh, Sortierung/Filter/Export unverändert
-- **„Warum?" öffnet keinen KI-Tab mehr** ([useAnalysePipeline.ts](src/plugins/suche/useAnalysePipeline.ts)): der Verfügbarkeits-Check läuft über den vorhandenen Guard `kiVerbindungGeprueft` (passiver Ping) statt über `ping()` mit seiner öffnenden Vorgabe
-- **Der Grund steht, wo die Begründung erwartet wurde** ([TrefferZeile.tsx](src/plugins/suche/TrefferZeile.tsx)): ohne verbundene KI sagt der aufgeklappte Bereich das, statt „Noch keine Begründung."
-
-### v4.15.0 — Hilfe steht auf jeder Seite am Blattrand (August 2026)
-
-MINOR — „Rechtsbündig als letztes Element der Kopf-Aktionen" stand als Regel im Doc, aber rechtsbündig **wovon** stand nirgends. Auf elf Seiten steckte der Hilfe-Knopf darum in der schmalen Inhaltsspalte und hing mitten in der Fläche — auf den Förderanträgen 414 px vor dem Rand, gemessen auf einem 1520 px breiten Blatt. Gesucht wird er trotzdem am Rand, so wie ihn die Startseite zeigt.
-
-- **Elf Kopfzeilen spannen jetzt die volle Blattbreite** ([AntraegeHeader.tsx](src/plugins/antraege/AntraegeHeader.tsx), [SuchSeite.tsx](src/plugins/suche/SuchSeite.tsx), [EinstellungenPage.tsx](src/plugins/einstellungen/EinstellungenPage.tsx), [HomePage.tsx](src/plugins/home/HomePage.tsx) u. a.): der Rumpf behält seine Spaltenbreite (1024/896/672 px unverändert), nur der Kopf reicht bis an den Rand
-- **Vier zentrierte Kurator-Spalten stehen links** ([CsvSourcesPage.tsx](src/plugins/csv-sources-kuration/CsvSourcesPage.tsx), [ProgrammeAdminPage.tsx](src/plugins/programme-kuration/ProgrammeAdminPage.tsx), [IndexManager.tsx](src/plugins/kurator/IndexManager.tsx), [AnfragenEinstellungenPage.tsx](src/plugins/anfragen/AnfragenEinstellungenPage.tsx)): `mx-auto` raus, sonst fluchten Titel und Inhalt nach dem Umbau nicht mehr
-- **Die Regel steht jetzt geschrieben** ([ui-muster.md](docs/architecture/ui-muster.md)): Kopfzeile über die volle Blattbreite, schmalerer Rumpf erst darunter — samt Muster-Schnipsel
-- **Guard `hilfe-knopf-am-blattrand`** ([conventions-ui.test.ts](src/__tests__/conventions-ui.test.ts)): liest die Vorfahren-Kette des Knopfes über die Einrückung — auch hinter einer Klassen-Konstante — und fällt bei jedem `max-w-*` darüber; er hätte alle elf Fundstellen gemeldet
-- **Gemessen in `dev:local` statt angesagt**: 15 Routen, Abstand zum Blattrand überall 24 bzw. 32 px (= das Seiten-Padding), Detail-Schließen-Kreuz 103 px darunter ohne Kollision, `__tf.fehler()` 0
-
-### v4.14.0 — Suchindex: nur noch das gefuehrte Embedding-Modell (August 2026)
-
-MINOR — Die Modell-Auswahl im Kurator-Bereich bot vier Embedding-Modelle an, obwohl die Entscheidung längst gefallen ist: der gesamte Bestand (Suchindex, Auslastungs-Korpus auf dem Share, Kategorie-Centroids) ist mit EmbeddingGemma gebaut, und ein Wechsel entwertet alle drei gleichzeitig (Pitfall #19). Eine Liste, aus der nur ein Eintrag richtig ist, ist keine Wahl, sondern eine Falle.
-
-- **Nur noch das geführte Modell in der Registry** ([model-registry.ts](src/core/services/search/model-registry.ts)): MiniLM 384d und beide Harrier entfallen; ein persistierter Alt-Wert fällt still auf `DEFAULT_MODEL_ID`, der Indexer bemerkt den Wechsel gegen `index-model-id` und baut neu
-- **Angabe statt Aufklapper** ([ActionCardModels.tsx](src/plugins/kurator/actions/ActionCardModels.tsx)): bei genau einem Modell steht dort dessen Label als Text — ein Dropdown mit einer Zeile sieht nach Wahl aus und ist keine; ab zwei Einträgen kommt Select samt Wechsel-Dialog zurück
-- **Startwert ohne feste Modell-Id** ([IndexManager.tsx](src/plugins/kurator/IndexManager.tsx)): der Zustand startet auf `DEFAULT_MODEL_ID` statt auf einer genannten Id — die meldete zwischen zwei asynchronen Ladevorgängen kurz „Modell gewechselt"
-- **Was ein entferntes Modell auffängt, steht jetzt geschrieben** ([add-embedding-model.md](docs/agents/add-embedding-model.md)): aktive Wahl, lokaler Index, Share-Korpus und Share-Index — vier Stellen, alle vorhanden, keine neu gebaut
-
-### v4.13.0 — Detailseite kompakt, Historie belegt (August 2026)
-
-MINOR — Die Antrags-Detailseite kostete zu viel Scroll-Weg, bevor das Wichtigste sichtbar wurde: fast alle Sektionen starteten offen, zwischen ihnen lagen je 48 px, und ein unsichtbarer leerer Block zog Strich plus Abstand ein. Dabei fiel auf, dass die Sektion „Historie" strukturell nie etwas zeigen konnte — sie las einen Store, den kein ausgeliefertes CSV-Mapping befüllt.
-
-- **Beim Öffnen ist alles zu außer den Antragsdaten** ([detailSektionen.ts](src/plugins/antraege/detailSektionen.ts)): Klapp-Vorgaben und Speicher-Schlüssel an einer Stelle statt in acht Dateien; die Kurzbeschreibung öffnet nur mit Text, leer schrumpft sie auf eine Zeile ohne Schalter
-- **Leere Sektionen nehmen ihren Trennstrich mit** ([detailRahmen.tsx](src/plugins/antraege/detailRahmen.tsx)): Strich als Klasse statt inline + `empty:hidden` — der Widerspruchs-Block hinterließ ohne Bescheid 25 px Leerraum mit Strich zwischen Werkbank und „Alle Felder"
-- **Fokus-Modus räumt den Seitenkopf** ([AntraegeHeader.tsx](src/plugins/antraege/AntraegeHeader.tsx)): bei eingeklappter Liste bleiben Titel + Hilfe (139 → 57 px); Bereichs-Chip, Profil-Pille und „Aufnehmen" sind Listen-Werkzeuge
-- **„Historie" zeigt das Import-Diff-Journal** ([VerbundHistorie.tsx](src/plugins/antraege/VerbundHistorie.tsx), [vorgangssystem.md §12.9](docs/architecture/vorgangssystem.md)): belegte Änderungen je Teilvorhaben statt „Noch keine Verbund-Änderungen erfasst", Nullpunkt dabei; `chronikFuerAntraege` liest Stand und Monate einmal je Verbund statt einmal je TV
-- **Engere vertikale Maße** ([VerbundKopf.tsx](src/plugins/antraege/VerbundKopf.tsx), [CollapsibleDataSection.tsx](src/plugins/antraege/CollapsibleDataSection.tsx)): „Antragsdaten" steht 123 px höher (710 → 587), gemessen am echten Bestand in `dev:local`
-
-### v4.12.0 — Cross-Cutting-Review: unlesbar heisst nicht leer (August 2026)
-
-MINOR — Ergebnis eines Cross-Cutting-Reviews entlang Pitfall #10/#23/#30/#31: neun bestätigte Befunde, vier davon mit derselben Wurzel. `readText` bildete „Datei fehlt" und „Datei ließ sich nicht lesen" auf dasselbe `null` ab; vier Sidecar-Schreiber machten daraus „also leer" und schrieben das Ergebnis als vollständige Datei zurück — womit fremder Team-Bestand verschwand. Die Trennung gab es bereits im Feedback-Modul, sie war nur nie verallgemeinert.
-
-- **`readTextLage` trennt fehlend von unlesbar** ([atomic-write.ts](src/core/services/infrastructure/atomic-write.ts), [read-text-lage.test.ts](src/core/services/infrastructure/__tests__/read-text-lage.test.ts)): nur `NotFoundError` heißt „gibt es nicht"; `readText` bleibt für rein lesende Aufrufer unverändert tolerant
-- **Vier Schreiber brechen jetzt ab, statt leer zu überschreiben** ([feedbackOutboxCollect.ts](src/core/services/feedback/feedbackOutboxCollect.ts), [kuerzel-map.ts](src/plugins/auslastung/services/identitaet/kuerzel-map.ts), [zugang-config.ts](src/core/services/infrastructure/zugang-config.ts), [katalog-share.ts](src/core/status/katalog-share.ts)): Team-Feedback, anonIds (Pitfall #18), MA-Zugänge und Katalog-Archiv bleiben erhalten
-- **Kein Löschen ungesicherter Dateien mehr** ([snapshot.ts](src/core/services/csv/snapshot.ts), [migration.ts](src/core/services/infrastructure/migration.ts)): der Teil-Write-Aufräumer riss `antraege.jsonl` mit (kein `.backup`), die Legacy-Migration die nicht kopierten Quelldateien — beides verhinderte nichts und zerstörte etwas
-- **Zwei ungegatete Inhalts-Läufe geschlossen** ([SkillTestlauf.tsx](src/plugins/skill-verwaltung-kuration/SkillTestlauf.tsx), [llm-klassifizierung.ts](src/plugins/auslastung/services/klassifizierung/llm-klassifizierung.ts), [bridge.ts](src/core/services/ai/bridge.ts)): Real-Daten-Testlauf und Auslastungs-Klassifizierung liefen roh am DSGVO-Gate vorbei; neu `getTransportForDatenLauf` für Läufe ohne Skill-Record
-- **Guard-Scope war zu eng** ([conventions-daten.test.ts](src/__tests__/conventions-daten.test.ts)): `no-raw-active-transport` deckte fünf Verzeichnisse per Allow-Liste — jetzt auch `skill-verwaltung-kuration/` und `auslastung/`, die zwei echten Ausnahmen begründet markiert
-
-### v4.11.0 — Antraege sterben erst, wenn alle Quellen sie fallen lassen (August 2026)
-
-MINOR — Fortsetzung von v4.9.0, jetzt als fachliche Regel statt als Guard: die Quellen reichen unterschiedlich weit zurück (Master + Begleitung bis 2015, Projektbeschreibung bis 2012). „Fehlt in diesem Export" sagt deshalb nichts über die Existenz eines Antrags — bis v4.10 löschte genau das ihn samt Verbund-Referenz und Akronym-Index.
-
-- **Gelöscht wird erst, wenn der Antrag in ALLEN Quellen weg ist** ([importer.ts](src/core/services/csv/importer.ts), [csv-import.md](docs/architecture/csv-import.md)): `teileLoeschkandidaten` prüft die Löschkandidaten gegen die Row-Hashes der übrigen Aktenzeichen-Quellen
-- **Der Rückhalt löst sich von selbst auf** ([importer.ts](src/core/services/csv/importer.ts)): jede Quelle löscht die Hashes ihrer ausgefallenen Zeilen vollständig — die letzte, die eine Zeile fallen lässt, findet nirgends mehr einen Hash; Reihenfolge egal
-- **Ein gehaltener Antrag wird nicht neu gemergt** ([importer.ts](src/core/services/csv/importer.ts)): er behält seinen vollen Stand, statt auf die Felder der verbliebenen Quellen zusammenzuschrumpfen — ein Teil-Export soll den Bestand nicht aushöhlen
-- **Sichtbar statt still** ([Step4Progress.tsx](src/plugins/csv-sources-kuration/wizard/Step4Progress.tsx), [auto-refresh.ts](src/plugins/csv-sources-kuration/services/auto-refresh.ts)): `heldRemovals` im Import-Ergebnis, Audit-Eintrag, Zeile im Wizard-Abschluss, Summe im `[data-update]`-Log
-- **Reißleinen** ([importer-loeschung-nur-wenn-ueberall-weg.test.ts](src/core/services/csv/__tests__/importer-loeschung-nur-wenn-ueberall-weg.test.ts)): Rückhalt, Reihenfolge-Unabhängigkeit, unangetasteter Bestand — und die Gegenprobe, dass eine einzeln getragene Zeile weiterhin sofort verschwindet
-
-### v4.10.0 — Kanban-Fenster merkt eingeklappte Bahnen und traegt die Einstellungen (August 2026)
-
-MINOR — Das Kanban-Fenster aus v3.47 war eine Ansicht zum Anschauen; gewünscht war eine zum Einrichten. Beides hing an derselben Frage: Wo darf Zustand liegen, wenn das Fenster seine Startseite überlebt?
-
-- **Eingeklappte Bahnen überleben das Fenster** ([types.ts](src/plugins/home/widgets/types.ts), [home-widgets.md](docs/architecture/home-widgets.md)): `vollbildEingeklappt` in der Widget-Config, geschrieben über `mutiereConfig` auf den aktuellen Stand — im Widget bleibt das Einklappen flüchtig
-- **Das Board-Primitiv nimmt den Einklapp-Zustand von außen** ([TfBoard.tsx](src/components/kanban/TfBoard.tsx), [board-komponente.md](docs/architecture/board-komponente.md)): optionale `einklapp`-Naht, Speicherform ist eine Liste statt der vollen Wunsch-Karte
-- **Zahnrad im Fensterkopf zeigt dieselbe `WidgetConfigForm`** ([VollbildEinstellungen.tsx](src/plugins/home/widgets/VollbildEinstellungen.tsx), [fenster-in-fenster.md](docs/architecture/fenster-in-fenster.md)): der Storage-Kontext wird als Wert nachgereicht, kein Radix-Overlay im Fenster
-- **`Escape` schließt erst das Panel, dann das Fenster** ([KanbanVollbild.tsx](src/plugins/home/widgets/KanbanVollbild.tsx)): Zuhörer am Fenster-Dokument in der Einfang-Phase — Reacts delegierter Griff erreichte einen Tastendruck ohne Fokus im Baum nie (gemessen: das Fenster ging zu)
-- **Fenstertitel war leer** ([appFenster.ts](src/components/fenster/appFenster.ts)): `head.innerHTML` räumte das eben gesetzte `<title>` wieder weg, die Titelzeile zeigte „about:blank"
-
-### v4.9.1 — Startseiten-Menue oeffnet einstoeckig und bleibt am Ausloeser (August 2026)
-
-PATCH — Zwei Meldungen zum Rechtsklick-Menü aus v4.7.0, eine Wurzel: das Untermenü ging beim Öffnen automatisch mit auf, verdoppelte damit die gemessene Breite, und Radix schob die ganze Gruppe vom Auslöser weg nach links. Das Ergebnis sah nach zwei Fehlern aus und war einer.
-
-- **Untermenüs öffnen nicht mehr per Fokus** ([menueZeilen.tsx](src/plugins/home/anpassen/menueZeilen.tsx)): Radix fokussiert beim Öffnen die erste Zeile — Überfahren, Klick und `→` bleiben, der Fokus geht auf den Panel-Rahmen
-- **Untermenü hängt absolut am Hauptmenü** ([StartseiteMenue.tsx](src/plugins/home/anpassen/StartseiteMenue.tsx), [home-widgets.md](docs/architecture/home-widgets.md)): der Popover misst wieder 250 statt 524 px, das Hauptmenü steht bündig am Auslöser und bleibt beim Aufklappen stehen — gemessen 1171/1171
-- **Eigene Kollisionsrechnung fürs Untermenü** ([useStartseiteMenue.ts](src/plugins/home/anpassen/useStartseiteMenue.ts)): nach links nur, wenn rechts kein Platz ist und links einer wäre; dazu ein Höhendeckel gegen den unteren Rand (gemessen 353 statt 543 px)
-- **Vorab offenes Untermenü misst einen Tick später** ([StartseiteMenue.tsx](src/plugins/home/anpassen/StartseiteMenue.tsx)): Floating UI reicht die Position asynchron nach, im Layout-Effekt steht das Panel noch am Ursprung — betraf „Widget hinzufügen"
-- **Reißleinen** ([untermenueLage.test.ts](src/plugins/home/anpassen/__tests__/untermenueLage.test.ts)): Seitenwahl, Versatz und Deckel als reine Funktion, plus Quelltext-Guards gegen `onFocus` am Untermenü und gegen die Flex-Geschwister-Anordnung
-
-### v4.9.0 — Import und Publish stoppen den Bestandsverlust (August 2026)
-
-MINOR — Aus einer Bug-Jagd im Import-Pfad: `removedJoinValues` unterschied nicht zwischen „im Fachsystem gelöscht" und „vom Import gefiltert", der Merge löschte bedingungslos, und der Snapshot trug das Ergebnis team-weit. Fünf verschiedene Ursachen mündeten in denselben Datenverlust; zwei Guards schließen den katastrophalen Teil.
-
-- **Join-Spalte muss in der gelesenen Kopfzeile stehen** ([importer.ts](src/core/services/csv/importer.ts), [csv-import.md](docs/architecture/csv-import.md)): war sie nur im Mapping, lief der Import durch und löschte den kompletten Bestand der Quelle — gemessen 44 → 0 Anträge bei umbenanntem `FKZ`, mit Erfolgsmeldung
-- **Abbruch vor dem Share-Write und vor jedem Schema-Stempel** ([importer.ts](src/core/services/csv/importer.ts)): die Quell-Kopie bleibt unangetastet, die Quelle gilt nicht als erledigt und läuft im nächsten Auto-Refresh erneut an
-- **Mengen-Plausibilität für `antraege` beim Publish** ([snapshot.ts](src/core/services/csv/snapshot.ts), [csv-auto-refresh.md](docs/architecture/csv-auto-refresh.md)): `PUBLISH_PRESERVE_WHEN_EMPTY` übersprang `antraege` per `continue` — jeder geschrumpfte Bestand ging kommentarlos auf den Share
-- **Guard greift in beiden Publish-Pfaden** ([snapshot.ts](src/core/services/csv/snapshot.ts)): Voll-Write gegen den Manifest-Count, Delta-Write gegen die `removedKeys` — ab 20 Anträgen Basis, Abbruch unter der Hälfte
-- **Offen und bewusst nicht mitgefixt**: Löschung aus einer Sekundärquelle trifft weiter Anträge, die der Master trägt ([importer.ts:472](src/core/services/csv/importer.ts:472)) — das ist eine fachliche Entscheidung, keine technische
-
-### v4.8.0 — Dokumentensuche trennt Woerter deutsch (August 2026)
-
-MINOR — Nachgeholt, was v4.6.0 ausdrücklich offengelassen hat. Orama lief auf der englischen Worttrennung, und deren Zeichenklasse kennt `ä ö ü ß` nicht: „Fördergeber" zerfiel in `f` + `rdergeber`. Die Suche fand damit noch etwas — aber über Bruchstücke. Betrifft nur die Dokumentenstufe; die Antragsstufe vergleicht rohe Zeichenketten.
-
-- **Worttrennung deutsch, aus einer Konstante** ([orama-store.ts](src/core/services/search/orama-store.ts), [suche-relevanz.md §6](docs/architecture/suche-relevanz.md)): am echten Textbestand 14 778 statt 20 338 verschiedene Token, 1 217 zerrissene Wörter weniger; Bruchstücke wie `f` (859×) verbanden bisher jedes Umlautwort miteinander
-- **Bindestrich trennt jetzt** — „ZIM-Kooperationsprojekt" ist auch über `kooperationsprojekt` auffindbar, vorher war der ganze Ausdruck ein Token
-- **Alt-Index bleibt nutzbar statt stumm zu werden** ([orama-store.ts](src/core/services/search/orama-store.ts)): `load()` stellt seine Sprache wieder her, er bleibt in sich stimmig — niemand verliert die Dokumentensuche, bis der Kurator neu aufbaut
-- **Der nächste Indexlauf baut erzwungen komplett neu** ([batch-indexer.ts](src/core/services/search/batch-indexer.ts)): inkrementell entstünde ein halber Index mit zwei Trennungen; Manifest UND Checkpoint fallen mit
-- **Der Zustand ist sichtbar** ([IndexManager.tsx](src/plugins/kurator/IndexManager.tsx)): Ampel „Worttrennung geändert — Index neu aufbauen"; Guard `orama-create-mit-indexsprache` hält künftige `create(...)`-Stellen an die Konstante
-
-### v4.7.0 — Startseite per Rechtsklick anpassen (August 2026)
-
-MINOR — Umsetzung des Handoffs `_design/handoff/homepage-anpassen`. Ein Widget ein- oder auszublenden kostete vier Kontextwechsel: Startseite verlassen, Einstellungen öffnen, Liste suchen, zurück, Ergebnis prüfen — für eine Entscheidung, die beim Ansehen der Startseite fällt. Die Einstellungsseite bleibt und ist aus jedem Menü erreichbar; sie ist nur nicht mehr der einzige Weg.
-
-- **Startseiten-Menü mit vier Auslösern** ([anpassen/](src/plugins/home/anpassen/), [home-widgets.md](docs/architecture/home-widgets.md)): Rechtsklick auf Fläche und Widget, Knopf im Seitenkopf, `⋯` im Widget-Kopf, „Widget hinzufügen" am Spaltenende — ein Popover an einem Punkt-Anker, kein zweites Menü über Radix' `ContextMenu`
-- **Untermenüs Widgets und Darstellung** ([WidgetsUntermenue.tsx](src/plugins/home/anpassen/WidgetsUntermenue.tsx), [DarstellungUntermenue.tsx](src/plugins/home/anpassen/DarstellungUntermenue.tsx)): Checkliste beider Spalten mit Reihenfolge-Pfeilen und „alle"-Schalter, Primärfarbe und Hell/Dunkel — als Geschwister-Panel im selben Popover, nicht als zweite Layer
-- **Rückgängig hält den vorherigen Config-Stand** ([rueckgaengigStore.ts](src/plugins/home/anpassen/rueckgaengigStore.ts)): ein Weg für Ausblenden, „alle aus" und „Startseite zurücksetzen" — Letzteres braucht deshalb keine Nachfrage
-- **`⋯` löst den Stift ab** ([WidgetShell.tsx](src/plugins/home/widgets/WidgetShell.tsx)): der erschien nur bei Kanban und Ampel; die Widget-Einstellungen stehen jetzt als Eintrag im Menü und teilen weiter EINE `WidgetConfigForm` mit den Einstellungen. Leere Spalten bleiben bedienbar
-- **Dunkelmodus auf gestufte Flächen** ([theme.css](src/theme.css), landete in v4.6.0): `#161718` → `#1e1f21` → `#232427` → `#26272a` statt einer Fläche, helle Rahmenkante statt abgedunkelter, stärkerer Menüschatten
-- **Nicht übernommen:** „Dichte Normal/Kompakt" aus dem Prototyp — der löst sie über `body { font-size }`, was jede Seite der App träfe
-
-### v4.6.0 — Suche: Trefferliste, Relevanz, Facetten, Auswege (August 2026)
-
-MINOR — Umsetzung des Handoffs `_design/handoff/suche`. Der Handoff nennt den gleich aussehenden Score als Designproblem; er war ein Defekt: die Wortlaut-Stufe setzte ihn fest auf 1.0, und da die Ähnlichkeitssuche opt-in ist und der Dokumentenindex oft leer, hatten im Normalfall ALLE Treffer denselben Wert — die Standard-Sortierung „nach Score" gab damit die Reihenfolge des IDB-Cursors aus.
-
-- **Trefferstellen und Relevanz aus den Fundstellen** ([trefferstelle.ts](src/core/services/search/trefferstelle.ts), [suche-relevanz.md](docs/architecture/suche-relevanz.md)): „additive Fertigung" 570 Treffer → 158 hoch / 9 mittel / 403 gering statt 570× „1.00"; „Standards" trennt 9 Titeltreffer von 6 Firmennamen-Treffern
-- **Trefferliste mit Textstelle** ([TrefferListe.tsx](src/plugins/suche/TrefferListe.tsx)) neben der Tabelle; Dokumenttreffer werden unter ihren Antrag gefaltet — der zweite Orama-Lauf je Suche entfällt
-- **Drei benannte Optionen statt Fachjargon** ([SuchOptionenZeile.tsx](src/plugins/suche/SuchOptionenZeile.tsx)): „genaue Wortfolge" (554) ≤ „alle Wörter" (570) ≤ „irgendein Wort" (963), Wortstämme („Normen" 3 → 28) und „Suchen in"
-- **Deutungszeile „Gesucht wird"** ([DeutungsZeile.tsx](src/plugins/suche/DeutungsZeile.tsx)) mit abwählbaren Wort- und Stamm-Chips + **Facettenzeile** ([facetten.ts](src/plugins/suche/facetten.ts)) für Liste und Tabelle; die alten Treffer-Pillen entfallen
-- **Kein-Treffer-Auswege mit geprüfter Trefferzahl** ([auswege.ts](src/plugins/suche/auswege.ts)), Startzustand mit letzten/gespeicherten/häufigen Suchen, „Warum?" je Zeile und Mehrfachauswahl
 

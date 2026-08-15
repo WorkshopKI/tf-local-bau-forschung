@@ -20,9 +20,14 @@
  * Chronik nennt, darf nicht durch Abwesendes wachsen (dieselbe Regel wie bisher
  * bei den fehlenden Gegenstücken).
  *
+ * **Zurückgenommenes ebenso wenig.** Ein Termin, den der Export nicht mehr
+ * führt, ist keine Datumsangabe in einer Spalte — er stand einmal in einer.
+ * Dieselbe Begründung, dieselbe Behandlung: eigene Zahl, daneben.
+ *
  * Rein: keine Uhr, kein IDB — die Standzeiten stecken bereits in den Paaren.
  */
 import type { ChronikEintrag } from './chronik';
+import type { ZurueckgenommenerTermin } from './chronik-zurueckgenommen';
 import type { OffenesPaarJeTv } from './waechter';
 
 export interface VerlaufKennzahlen {
@@ -38,6 +43,8 @@ export interface VerlaufKennzahlen {
   bis: string | null;
   /** Halb offene Paare — **nicht** Teil von `datumsangaben`. */
   nichtGesetzt: number;
+  /** Termine, die der Export nicht mehr führt — **nicht** Teil von `datumsangaben`. */
+  zurueckgenommen: number;
 }
 
 /**
@@ -55,6 +62,7 @@ export function verlaufKennzahlen(
   chronik: readonly ChronikEintrag[],
   offenePaare: readonly OffenesPaarJeTv[],
   tvAnzahl: number,
+  zurueckgenommene: readonly ZurueckgenommenerTermin[] = [],
 ): VerlaufKennzahlen {
   const felder = new Set<string>();
   let datumsangaben = 0;
@@ -77,5 +85,6 @@ export function verlaufKennzahlen(
     von,
     bis,
     nichtGesetzt: offenePaare.length,
+    zurueckgenommen: zurueckgenommene.length,
   };
 }

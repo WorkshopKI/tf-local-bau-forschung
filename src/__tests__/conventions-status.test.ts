@@ -1003,9 +1003,15 @@ describe('journal-ohne-personen-achse (Pitfall #48)', () => {
     // Chroniken seiner Teilvorhaben. Sie steht hier, weil die Regel sonst genau
     // die Ansicht nicht prüfte, die am meisten auf einmal zeigt.
     'src/plugins/antraege/VerbundHistorie.tsx',
-    // Der geteilte Wortlaut beider Journal-Ansichten — formuliert Einträge und
+    // Der geteilte Wortlaut aller Journal-Ansichten — formuliert Einträge und
     // ist damit die Stelle, an der eine Personen-Angabe zuerst auftauchte.
     'src/plugins/antraege/status/journalTexte.ts',
+    // Die Chronik legt das Journal zurück auf die Zeitachse (§12.10). Sie ist
+    // die Ansicht, bei der eine Personen-Achse am nächsten läge: „wer hat das
+    // zurückgenommen" ist genau die Frage, die sie NICHT beantwortet.
+    'src/core/status/chronik-zurueckgenommen.ts',
+    'src/plugins/antraege/status/JournalNullpunkt.tsx',
+    'src/plugins/antraege/status/useJournalChroniken.ts',
     // Die Frische-Diagnose im Status-Cockpit: sie beantwortet „laeuft das
     // Journal noch", nie „wer war das". Deshalb steht sie in einer EIGENEN
     // Datei — an eine Sammel-Sektion gehaengt liesse sich die Regel nicht mehr

@@ -277,6 +277,10 @@ export {
   type ChronikEintrag, type ChronikMonat,
 } from './chronik';
 export {
+  baueZurueckgenommene, mischeVerlaufZeilen,
+  type VerlaufZeile, type ZurueckgenommenerTermin,
+} from './chronik-zurueckgenommen';
+export {
   baueSchrittMatrix, baueSpalten, phasenRinne,
   type MatrixSpalte, type MatrixZelle, type SchrittZeile,
 } from './chronik-matrix';

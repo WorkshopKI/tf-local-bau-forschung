@@ -19,6 +19,16 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.59 — 2026-08
+
+### Neu
+- **Zurückgenommene Vorgänge verschwinden nicht mehr aus dem Verlauf.** Wird im Fachsystem ein Kürzel gelöscht oder sein Datum korrigiert, überschreibt der Nacht-Export die Spalte — bisher war die alte Zeile am nächsten Tag spurlos weg. Jetzt steht sie durchgestrichen an ihrem alten Tag: „ART · Rücknahmeempfehlung techn. erstellt · zurückgenommen zwischen 12.08. und 14.08." bzw. „AL · Nachlieferung Eingang · verschoben auf 11.08.2026".
+- Datum und Kürzel bleiben dabei lesbar — mit ihnen findet man den Vorgang im Fachsystem wieder. Wie viele es sind, steht oben in der Zeile mit den Kennzahlen; die Legende am Fuß erklärt das Zeichen.
+- **Darunter steht immer, ab wann das belegt ist.** Vor diesem Tag hat der Export frühere Setzungen überschrieben und sie sind nicht mehr rekonstruierbar. Vorgänge, für die kein Änderungs-Journal geführt wird, sagen das ausdrücklich — das ist etwas anderes als „es wurde nichts zurückgenommen".
+
+### Bugfixes
+- **„Auf diesem Daten-Share wird kein Änderungs-Journal geführt" erschien manchmal, obwohl eines läuft.** Wer eine Antragsseite direkt nach dem Start öffnete, las diesen Satz, weil der Datenordner noch nicht bereitstand. Jetzt wartet die Anzeige, statt etwas Falsches zu behaupten. Betraf auch die Sektion „Historie".
+
 ## v4.58 — 2026-08
 
 ### Verbesserungen

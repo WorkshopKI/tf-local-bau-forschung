@@ -141,15 +141,23 @@ export function traegerLabel(tvIds: readonly string[]): string {
   return `${tvIds.length} Teilvorhaben`;
 }
 
-/** Ein Monatsblock der Chronik (`YYYY-MM`), Einträge in Tagesfolge. */
-export interface ChronikMonat {
+/**
+ * Ein Monatsblock der Chronik (`YYYY-MM`), Einträge in Tagesfolge.
+ *
+ * Über die Zeile generisch, weil die Ansicht neben den Terminen auch die
+ * **verschwundenen** führt (`chronik-zurueckgenommen.ts`) und beide dieselbe
+ * Achse teilen. Der Default hält jeden bestehenden Aufrufer unverändert.
+ */
+export interface ChronikMonat<Z extends { tag: string } = ChronikEintrag> {
   monat: string;
-  eintraege: ChronikEintrag[];
+  eintraege: Z[];
 }
 
 /** Gruppiert die (bereits sortierte) Chronik nach Monat — die Blöcke der Anzeige. */
-export function gruppiereNachMonat(eintraege: readonly ChronikEintrag[]): ChronikMonat[] {
-  const out: ChronikMonat[] = [];
+export function gruppiereNachMonat<Z extends { tag: string }>(
+  eintraege: readonly Z[],
+): ChronikMonat<Z>[] {
+  const out: ChronikMonat<Z>[] = [];
   for (const e of eintraege) {
     const monat = e.tag.slice(0, 7);
     const letzter = out[out.length - 1];

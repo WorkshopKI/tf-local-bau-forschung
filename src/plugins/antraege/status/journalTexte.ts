@@ -44,6 +44,32 @@ export function wannText(e: JournalEintrag): string {
     : `am ${tagDe(e.datum)}`;
 }
 
+/**
+ * Was das Journal über diesen Vorgang **überhaupt** sagen kann — drei Zustände,
+ * jeder benannt, keiner still.
+ *
+ * Der Nullpunkt gehört an jede Journal-Anzeige (vorgangssystem.md §12.2): ohne
+ * ihn liest sich eine Chronik ohne Rücknahmen als „es gab keine". Und „für
+ * diesen Vorgang wird nicht mitgeschrieben" ist eine andere Auskunft als „es hat
+ * sich nichts geändert" (§12.4) — die beiden zu verschmelzen wäre der teuerste
+ * Irrtum, den diese Zeile ermöglichen kann.
+ *
+ * @param journalAb Nullpunkt; `null` = auf diesem Share läuft kein Journal.
+ * @param gefuehrt Steht der Vorgang im Betrachtungsbereich, für den mitgeschrieben wird?
+ */
+export function nullpunktText(journalAb: string | null, gefuehrt: boolean): string {
+  if (journalAb === null) {
+    return 'Auf diesem Daten-Share wird kein Änderungs-Journal geführt — zurückgenommene '
+      + 'Termine lassen sich nicht belegen.';
+  }
+  if (!gefuehrt) {
+    return 'Für diesen Vorgang wird kein Änderungs-Journal geführt — er stand beim letzten '
+      + 'Nachtlauf nicht im Betrachtungsbereich.';
+  }
+  return `Änderungen sind ab ${tagDe(journalAb)} belegt — frühere Setzungen sind im Export `
+    + 'überschrieben und nicht rekonstruierbar.';
+}
+
 /** Ein Eintrag als eine Zeile: „geändert am 07.08.2026 · 05.08.2026 → 12.08.2026". */
 export function eintragText(e: JournalEintrag): string {
   const kopf = `${ART_TEXT[e.art]} ${wannText(e)}`;

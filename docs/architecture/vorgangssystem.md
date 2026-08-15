@@ -821,6 +821,46 @@ Sektion liest.
   sich wie zwei Sachverhalte. Beide Dateien stehen in der `ANSICHTEN`-Liste des
   Guards aus [§12.6](#126-keine-personen-achse).
 
+### 12.10 Die Chronik liest mit (v4.58)
+
+Die **fünfte** Journal-Ansicht — und die einzige, die das Journal nicht als
+Änderungsliste zeigt, sondern **zurück auf die Zeitachse** legt: die Chronik nach
+Datum stellt jeden Termin, den ein früherer Export trug und der heutige nicht
+mehr, durchgestrichen an seinen alten Tag
+([chronik-zurueckgenommen.ts](../../src/core/status/chronik-zurueckgenommen.ts)).
+
+Das war die letzte Stelle, an der `geleert` — laut [§12.3](#123-fünf-aussagen-nicht-eine)
+„die interessanteste" Aussage — praktisch unsichtbar blieb. Die Historie-Sektion
+zeigte sie, aber als `D_ART` in einer alphabetischen Feldliste; wer den Verlauf
+las, sah eine Lücke und keinen Hinweis darauf, dass dort einmal etwas stand.
+
+- **`geleert` und `geaendert` sind dieselbe Klasse.** Beide bedeuten „dieses
+  Datum zeigt der Export nicht mehr". Am Bestand ist die zweite die häufigere.
+- **Der Status bleibt außen vor.** `STATUS_TV`/`STATUS_VB` stehen im Journal,
+  sind aber keine Termine — sie fallen über `typ !== 'datum'` von selbst heraus
+  (Pitfall #44).
+- **Gefaltet wie ein Termin.** Das Journal wird je Antrag geführt, die Chronik
+  zeigt je Feld × Tag; ein Verbund-Code stünde sonst so oft da, wie der Verbund
+  Teilvorhaben hat.
+- **Ein Ladepfad für die ganze Seite** ([useJournalChroniken.ts](../../src/plugins/antraege/status/useJournalChroniken.ts)):
+  `stand.json` ist bewusst nicht gecacht und wiegt über 5 MB; drei Effekte auf
+  einer Detailseite wären drei Vollzugriffe über SMB. Entwertet wird über
+  `lastLoadedAt` des Antrags-Stores — derselbe Datenstand, an dem schon
+  `useVerbundDetailData` hängt.
+- **Der Ausklapp lädt jetzt auch auf Verbund-Zeilen.** Bis v4.57 rief
+  `useZeilenVerlauf` bei `aktenzeichen === null` gar nichts ab. Die Ein-TV-Regel
+  für `journalAenderung` bleibt davon unberührt — sie entscheidet, was
+  weitergereicht wird, nicht, was geladen wird ([§12.2](#122-der-nullpunkt)).
+- **Gelesen wird bis zum Stichtag, nicht bis zum Bezugszeitpunkt.** Vorher ging
+  das Haltedatum als `heuteIso` in `chronikFuerAntrag`; ein Altfall mit
+  Haltedatum 2018 lud damit keine einzige Monatsdatei. Das war eine Verwechslung
+  von Achsenende und Uhr, kein Entwurf.
+
+Der Wortlaut des Nullpunkts liegt seit v4.58 als `nullpunktText` in
+`journalTexte.ts` und gilt für Chronik **und** Historie-Sektion — drei
+unterschiedene Fassungen (kein Journal · nicht geführt · belegt ab), keine stille
+Leere.
+
 ## 13. Phasenvorschlag für Kürzel (v2.408)
 
 Die ZAH-Phase am **Kürzel** beantwortet „welches Datum gehört zum aktuellen

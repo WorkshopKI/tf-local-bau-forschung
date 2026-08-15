@@ -5,8 +5,13 @@ Leitfrage: *wer (PA / AB / FB / QS / Jur) hat was (Kürzel) in welchem
 Teilvorhaben gemacht* — auf einem Bildschirm, statt im Fachsystem den Verbund
 und danach jedes Teilvorhaben einzeln aufzurufen.
 
-Alle Ansichten lesen **dieselben Termine aus den Datumsfeldern**. Es gibt keine
-zweite Quelle und keine Ableitung: der Status kommt aus dem Export (Pitfall #44).
+Alle Ansichten lesen **dieselben Termine aus den Datumsfeldern**. Der Status
+kommt aus dem Export und wird nicht abgeleitet (Pitfall #44).
+
+Seit v4.58 hat die Chronik **nach Datum** eine zweite Quelle, und nur sie: das
+Import-Diff-Journal für Termine, die ein früherer Export trug und der heutige
+nicht mehr ([→ Zurückgenommene Termine](#zurückgenommene-termine)). Auch das ist
+keine Ableitung — es ist belegte Vergangenheit.
 
 ## Die drei Ansichten
 
@@ -166,8 +171,16 @@ Tabellen-Ausklapp ([VorgangsverlaufReiter](../../src/plugins/antraege/ausklapp/v
 
 Der **Ausklapp bekommt weder Matrix noch Filterleiste**: acht Datumsspalten
 passen nicht in eine aufgeklappte Tabellenzeile, und auf einer TV-Zeile hätte die
-Matrix genau eine Spalte. Er erbt die Marken, die Knotenzustände und die
-Kennzahlen-Zeile. Gemessen wird trotzdem dort — er ist der engere Wirt.
+Matrix genau eine Spalte. Er erbt die Marken, die Knotenzustände, die
+Kennzahlen-Zeile und die zurückgenommenen Termine samt Nullpunkt. Gemessen wird
+trotzdem dort — er ist der engere Wirt.
+
+Sein Journal kommt aus [useZeilenVerlauf](../../src/plugins/antraege/ausklapp/useZeilenVerlauf.ts),
+das seit v4.58 die Chroniken **aller** Teilvorhaben der Zeile lädt statt nur der
+einen — eine Verbund-Zeile trägt schließlich alle. Was davon in die
+Verlaufsableitung geht, entscheidet weiter die Ein-TV-Regel; und die belegte
+letzte Änderung bleibt an sie gebunden, sonst erbt der Stillstands-Wächter die
+Beobachtung eines Nachbarn (Guard `kein-nullpunkt-als-letzte-aenderung`).
 
 Weil er die Teilvorhaben des Verbunds nicht kennt, tragen seine Träger-Marken die
 **Endung des Aktenzeichens** (`…426`) statt einer Nummer. Eine dort selbst
@@ -181,21 +194,79 @@ vergebene „TV 2" wäre die Nummer dieser Liste, nicht die des Verbunds.
 | 7 px gefüllt grau | **Regelfall** | `prominenzDefault` |
 | 6 px hohl mit Rand · Text eine Stufe leiser | **Nachrichtenkanal** | `prominenzDefault: 'nebensaechlich'` |
 | 9 px hohl, roter Rand, rot getönt · kein Datum | **Kürzel nicht gesetzt** | [`offenePaareJeTeilvorhaben`](../../src/core/status/waechter.ts) |
+| 8 px hohl, **gestrichelter** grauer Rand · Bezeichnung durchgestrichen | **zurückgenommen / verschoben** | [`baueZurueckgenommene`](../../src/core/status/chronik-zurueckgenommen.ts) |
 
 `ignoriert` erscheint nirgends — erfasst wird es trotzdem.
+
+## Zurückgenommene Termine
+
+Nimmt jemand in C16 eine Setzung zurück oder korrigiert ihr Datum, überschreibt
+der Nacht-Export die Spalte — und die alte Zeile ist spurlos weg. Am Verbund
+ZKN125417 gemessen: `D_ART` (Rücknahmeempfehlung) wurde geleert und durch
+`D_ABLT` (Ablehnung) ersetzt, `D_AL` wanderte vom 03.08. auf den 11.08. Nach dem
+Import vom 15.08. war von beidem nichts mehr zu sehen — obwohl das Journal es
+seit dem 14.08. festhielt (`geleert` / `geaendert`, [vorgangssystem.md §12.3](../architecture/vorgangssystem.md)).
+
+Die Chronik zeigt beides jetzt **an seinem alten Tag**, durchgestrichen:
+
+```
+11.08.  ABLT  FB   Ablehnung tech. erstellt/…                                    TV2 TV3
+11.08.  ART   FB   R̶ü̶c̶k̶n̶a̶h̶m̶e̶e̶m̶p̶f̶e̶h̶l̶u̶n̶g̶ ̶t̶e̶c̶h̶n̶.̶ · zurückgenommen zwischen 12.08. und 14.08.  TV2 TV3
+03.08.  AL         N̶a̶c̶h̶l̶i̶e̶f̶e̶r̶u̶n̶g̶ ̶E̶i̶n̶g̶a̶n̶g̶ · verschoben auf 11.08.2026                       TV4
+```
+
+Sechs Entscheidungen, die der naive Bau anders getroffen hätte:
+
+1. **Ein Datum, das der Export nicht mehr zeigt** — das ist die Klasse, nicht
+   „storniert". `geleert` und `geaendert` fallen beide darunter; ein verschobener
+   Termin ist an seiner alten Stelle genauso verschwunden wie ein gelöschter.
+2. **Der Tag ist der alte Wert, nicht der Nachtlauf.** Der Nachtlauf beantwortet
+   „wann haben wir es gemerkt"; auf die Achse gehört „wann stand es da". Die
+   Merk-Angabe steht als Spanne im Text (`unscharf`, §12.3).
+3. **Durchgestrichen wird nur die Bezeichnung.** Tag und Kürzel bleiben lesbar —
+   genau mit ihnen findet man den Vorgang in C16 wieder.
+4. **Der Ring ist grau-gestrichelt, nicht rot.** Rot trägt hier schon eine
+   Bedeutung („Kürzel nicht gesetzt" = offene Aufgabe). Eine Rücknahme ist
+   erledigt, kein Auftrag.
+5. **Über Träger gefaltet.** `D_ART` stand auf TV2 und TV3; ungefaltet stünden
+   zwei identische Zeilen. Dieselbe Regel wie bei den Terminen (Regel 1 oben) —
+   nur folgt sie hier aus dem Journal, das je **Antrag** geführt wird.
+6. **Zählt nicht als Datumsangabe.** Die Kennzahl steht daneben („· 2
+   zurückgenommen"), wie „N Kürzel nicht gesetzt": die Zahl, die den Umfang der
+   Chronik nennt, darf nicht durch Abwesendes wachsen.
+
+**Der Nullpunkt steht darunter**, immer und in drei unterschiedenen Fassungen
+([JournalNullpunkt.tsx](../../src/plugins/antraege/status/JournalNullpunkt.tsx) ·
+Wortlaut in [journalTexte.ts](../../src/plugins/antraege/status/journalTexte.ts),
+geteilt mit der Historie-Sektion): kein Journal auf dem Share · Vorgang außerhalb
+des Betrachtungsbereichs · belegt ab TT.MM.JJJJ. Ohne ihn liest sich eine Chronik
+ohne durchgestrichene Zeilen als „hier wurde nie etwas zurückgenommen" — und das
+ist bei einem Journal, das erst am 05.08.2026 beginnt, meistens falsch.
+
+**Matrix und Zeitstrahl bleiben außen vor.** Die Matrix hätte für ein gelöschtes
+Datum keine Zelle (ihre Spalten sind Träger, ihre Zeilen Felder — ein
+zurückgenommener Termin belegt dieselbe Zelle wie sein Nachfolger), und die Bahn
+fällt schon heute auf 18 von 78 Terminen zurück. Beide zeigen weiterhin den
+Export-Stand.
+
+**Der Ladepfad ist geteilt**: `stand.json` wiegt über 5 MB und ist bewusst nicht
+gecacht. [useJournalChroniken.ts](../../src/plugins/antraege/status/useJournalChroniken.ts)
+liest einmal je Seite; Chronik, Historie-Sektion und der Ausklapp hängen daran.
 
 Die Legende steht im Fuß **dieser** Ansicht; die Matrix trägt dieselbe
 Gewichtung ohne Punkte (Meilenstein-Kürzel akzentfarbig, Ereignis in Medium).
 
 ## Kennzahlen
 
-„**N Schritte · M Datumsangaben** (Verbund + k TV) · Zeitraum · **j Kürzel nicht
-gesetzt**". Schritte sind verschiedene Felder, Datumsangaben die befüllten
-Zellen darüber — vier Teilvorhaben mit demselben Eingang sind ein Schritt und
-vier Angaben. Ist gefiltert, steht der Nenner dabei („8 von 57").
+„**N Schritte · M Datumsangaben** (Verbund + k TV) · Zeitraum · **z
+zurückgenommen** · **j Kürzel nicht gesetzt**". Schritte sind verschiedene
+Felder, Datumsangaben die befüllten Zellen darüber — vier Teilvorhaben mit
+demselben Eingang sind ein Schritt und vier Angaben. Ist gefiltert, steht der
+Nenner dabei („8 von 57").
 
-Lücken zählen **nicht** in die Datumsangaben: eine fehlende Seite ist kein
-Termin. Sie stehen daneben und sind klickbar.
+Weder Lücken noch Zurückgenommenes zählen **in** die Datumsangaben: eine fehlende
+Seite ist kein Termin, und ein zurückgenommener stand einmal in einer Spalte,
+steht aber nicht mehr darin. Beide stehen daneben; die Lücken sind klickbar.
 
 ## Der Zeitstrahl: drei Etagen je Bahn
 

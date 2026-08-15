@@ -15,35 +15,25 @@
  * Chronik als vollständige gelesen. Ebenso benannt bleibt der Unterschied
  * zwischen „für diesen Antrag wird kein Journal geführt" (außerhalb des
  * Betrachtungsbereichs) und „es hat sich nichts geändert".
+ *
+ * **Geladen wird über `useJournalChroniken`**, nicht mehr selbst: seit v4.57
+ * fragt auch die Chronik im Verlauf nach denselben Daten (zurückgenommene
+ * Termine), und `stand.json` wiegt über 5 MB und ist bewusst nicht gecacht.
+ * Zwei eigene Effekte auf derselben Seite hießen zwei Vollzugriffe über SMB.
  */
-import { useEffect, useState } from 'react';
-import { useStorage } from '@/core/hooks/useStorage';
-import { chronikFuerAntraege, type AntragsChronikMitId } from '@/core/status';
+import { useState } from 'react';
 import type { Antrag } from '@/core/services/csv/types';
-import { eintragText, tagDe } from './status/journalTexte';
+import { eintragText, nullpunktText, tagDe } from './status/journalTexte';
+import { useJournalChroniken } from './status/useJournalChroniken';
 
 export function VerbundHistorie({ tvs }: { tvs: Antrag[] }): React.ReactElement {
-  const idb = useStorage().idb;
-  const [chroniken, setChroniken] = useState<AntragsChronikMitId[] | null>(null);
-  const [geladen, setGeladen] = useState(false);
   // Einmal je Anzeige gestempelt und hineingereicht — nie eine Uhr im Lesepfad.
   const [stichtag] = useState(() => new Date().toISOString().slice(0, 10));
-  const ids = tvs.map(t => t.aktenzeichen).join('|');
+  const { laden, chroniken } = useJournalChroniken(
+    tvs.map(t => t.aktenzeichen), stichtag,
+  );
 
-  useEffect(() => {
-    let abgebrochen = false;
-    void (async () => {
-      try {
-        const c = await chronikFuerAntraege(idb, ids === '' ? [] : ids.split('|'), stichtag);
-        if (!abgebrochen) { setChroniken(c); setGeladen(true); }
-      } catch {
-        if (!abgebrochen) setGeladen(true);
-      }
-    })();
-    return () => { abgebrochen = true; };
-  }, [idb, ids, stichtag]);
-
-  if (!geladen) {
+  if (laden) {
     return <div className="text-[12.5px] text-[var(--tf-text-tertiary)]">Lädt …</div>;
   }
 
@@ -57,24 +47,23 @@ export function VerbundHistorie({ tvs }: { tvs: Antrag[] }): React.ReactElement 
     );
   }
 
-  const journalAb = chroniken[0]?.journalAb;
+  const journalAb = chroniken[0]?.journalAb ?? null;
+  const gefuehrt = chroniken.some(c => c.gefuehrt);
   const mitAenderung = chroniken.filter(c => c.felder.length > 0);
 
   return (
     <div className="text-[12.5px]">
-      {journalAb ? (
-        <p className="mb-2 text-[11px] text-[var(--tf-text-tertiary)]">
-          Historie ab {tagDe(journalAb)} — frühere Setzungen sind im Export überschrieben und
-          nicht rekonstruierbar.
-        </p>
-      ) : null}
+      {/* Nullpunkt und „wird hier nicht geführt" im selben Wortlaut wie unter der
+          Chronik — der Satz lebt in `journalTexte`, nicht zweimal (§12.9). */}
+      <p className="mb-2 text-[11px] text-[var(--tf-text-tertiary)]">
+        {nullpunktText(journalAb, gefuehrt)}
+      </p>
 
       {mitAenderung.length === 0 ? (
         <p className="text-[var(--tf-text-secondary)]">
-          {chroniken.every(c => !c.gefuehrt)
-            ? 'Für diesen Verbund wird kein Journal geführt — er stand beim letzten Nachtlauf '
-              + 'nicht im Betrachtungsbereich, für den mitgeschrieben wird.'
-            : `Seit ${journalAb ? tagDe(journalAb) : 'dem Nullpunkt'} hat sich an den erfassten Feldern nichts geändert.`}
+          {gefuehrt
+            ? `Seit ${journalAb ? tagDe(journalAb) : 'dem Nullpunkt'} hat sich an den erfassten Feldern nichts geändert.`
+            : 'Es gibt deshalb keine belegten Änderungen zu diesem Verbund.'}
         </p>
       ) : (
         <div style={{ border: '0.5px solid var(--tf-border)', borderRadius: 8 }}>

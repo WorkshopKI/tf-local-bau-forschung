@@ -152,6 +152,9 @@ export function AusklappInhalt({
             vorkommen={daten.vorkommen}
             version={daten.quelle.version}
             offenePaare={offenePaare}
+            chroniken={daten.chroniken}
+            journalAb={daten.journalAb}
+            journalLaden={daten.journalLaden}
           />
         </div>
       ) : (

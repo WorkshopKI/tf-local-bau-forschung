@@ -31,10 +31,12 @@
 import { useMemo, useState } from 'react';
 import { ChevronRight } from 'lucide-react';
 import {
-  baueChronik, verlaufKennzahlen,
-  type FeldVorkommen, type MappingVersion, type OffenesPaarJeTv,
+  baueChronik, baueZurueckgenommene, verlaufKennzahlen,
+  type AntragsChronikMitId, type FeldVorkommen, type MappingVersion,
+  type OffenesPaarJeTv,
 } from '@/core/status';
 import { StatusChronik } from '../../status/StatusChronik';
+import { JournalNullpunkt } from '../../status/JournalNullpunkt';
 import { VerlaufKennzahlenZeile } from '../../status/VerlaufKennzahlenZeile';
 import { VorgangsRaster } from './VorgangsRaster';
 import { OhneDatumBlock } from './OhneDatumBlock';
@@ -51,6 +53,12 @@ export interface VorgangsverlaufReiterProps {
   version: MappingVersion | null;
   /** Halb offene Kürzel-Paare der Teilvorhaben DIESER Zeile — fertig gerechnet. */
   offenePaare?: readonly OffenesPaarJeTv[];
+  /** Journal-Chroniken der Teilvorhaben dieser Zeile; `null` = kein Journal. */
+  chroniken?: readonly AntragsChronikMitId[] | null;
+  /** Nullpunkt des Journals — gehört unter jede Chronik (§12.2). */
+  journalAb?: string | null;
+  /** `true`, solange gelesen wird; dann ist `chroniken === null` kein Befund. */
+  journalLaden?: boolean;
 }
 
 const EYEBROW = 'uppercase tracking-wider text-[11px] text-[var(--tf-text-tertiary)]';
@@ -104,9 +112,20 @@ function KlappAbschnitt({ titel, hinweis, children }: {
 
 export function VorgangsverlaufReiter({
   modell, onZeitverlauf, vorkommen, version, offenePaare = [],
+  chroniken = null, journalAb = null, journalLaden = false,
 }: VorgangsverlaufReiterProps): React.ReactElement {
   const [zeigeNebensaechlich, setZeigeNebensaechlich] = useState(false);
   const ohneDatum = useMemo(() => baueOhneDatum(vorkommen), [vorkommen]);
+
+  /** Termine, die der Export nicht mehr führt — dieselbe Ableitung wie auf der Detailseite. */
+  const zurueckgenommene = useMemo(() => (
+    chroniken === null || !version ? [] : baueZurueckgenommene(
+      chroniken, version.felder,
+      baueChronik(vorkommen, { zeigeNebensaechlich: true }),
+      { zeigeNebensaechlich },
+    )
+  ), [chroniken, version, vorkommen, zeigeNebensaechlich]);
+
   // Die Kennzahlen kommen aus derselben reinen Funktion wie auf der
   // Detailseite. Wie viele Teilvorhaben der Verbund führt, weiß der Ausklapp
   // nicht — er bekommt die Vorkommen SEINER Zeile —, also zählt er die Träger,
@@ -114,8 +133,8 @@ export function VorgangsverlaufReiter({
   const kennzahlen = useMemo(() => {
     const chronik = baueChronik(vorkommen, { zeigeNebensaechlich });
     const traeger = new Set(chronik.flatMap(e => e.tvIds));
-    return verlaufKennzahlen(chronik, offenePaare, traeger.size);
-  }, [vorkommen, zeigeNebensaechlich, offenePaare]);
+    return verlaufKennzahlen(chronik, offenePaare, traeger.size, zurueckgenommene);
+  }, [vorkommen, zeigeNebensaechlich, offenePaare, zurueckgenommene]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -131,7 +150,9 @@ export function VorgangsverlaufReiter({
             zeigeNebensaechlich={zeigeNebensaechlich}
             onToggleNebensaechlich={() => setZeigeNebensaechlich(v => !v)}
             offenePaare={offenePaare}
+            zurueckgenommene={zurueckgenommene}
           />
+          <JournalNullpunkt journalAb={journalAb} chroniken={chroniken} laden={journalLaden} />
         </Abschnitt>
       )}
 

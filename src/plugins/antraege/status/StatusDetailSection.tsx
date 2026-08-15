@@ -25,11 +25,14 @@ import { useCollapsedSection } from '@/core/hooks/useCollapsedSection';
 import { sektionOffenDefault, sektionsKey } from '../detailSektionen';
 import { isVorgangssystemEnabled } from '@/config/feature-flags';
 import {
-  baueChronik, baueSchrittMatrix, baueSpalten, filterePaare, rollenSicht, rollenVonFeld,
+  baueChronik, baueSchrittMatrix, baueSpalten, baueZurueckgenommene, filterePaare,
+  rollenSicht, rollenVonFeld,
   teileChronik, trifftBereich, verlaufKennzahlen, zahPhaseLabel, zahPhaseFuerStatusText,
   offenePaareJeTeilvorhaben,
 } from '@/core/status';
 import { HerleitungPopover } from './HerleitungPopover';
+import { JournalNullpunkt } from './JournalNullpunkt';
+import { useJournalChroniken } from './useJournalChroniken';
 import { NaechsteSchritte } from './NaechsteSchritte';
 import { OffeneAufgaben } from './OffeneAufgaben';
 import { useStatusVerlauf } from './useStatusVerlauf';
@@ -77,6 +80,10 @@ export function StatusDetailSection({ verbundId, statusRoh }: {
     [tvIds],
   );
   const filter = useVerlaufFilter(bereichsIds);
+  // Das Import-Diff-Journal für alle Teilvorhaben — EIN Lesevorgang, geteilt mit
+  // der Historie-Sektion derselben Seite (`stand.json` wiegt über 5 MB und ist
+  // bewusst nicht gecacht). Hook VOR den Early Returns (React #310).
+  const journal = useJournalChroniken(tvIds, stichtag);
 
   if (v.laden) {
     return <div className="text-[13px] text-[var(--tf-text-tertiary)]">Lädt …</div>;
@@ -113,8 +120,23 @@ export function StatusDetailSection({ verbundId, statusRoh }: {
     rollenSicht(rollenVonFeld(e.feld), filter.rollen) !== 'weg'
     && trifftBereich(e.tvIds, filter.bereiche));
   const paareGefiltert = filterePaare(offenePaare, filter.rollen, filter.bereiche);
-  const kennzahlenGesamt = verlaufKennzahlen(basis, offenePaare, tvIds.length);
-  const kennzahlen = verlaufKennzahlen(gefiltert, paareGefiltert, tvIds.length);
+
+  // Termine, die der Export nicht mehr führt. Gegen den VOLLEN Bau geprüft
+  // (nicht gegen `basis`): ob ein Wert wieder dasteht, entscheidet der Bestand,
+  // nicht der Schalter „Nebensächliches".
+  const zurueckgenommene = journal.chroniken === null ? [] : baueZurueckgenommene(
+    journal.chroniken, version.felder,
+    baueChronik(v.vorkommen, { zeigeNebensaechlich: true }),
+    { zeigeNebensaechlich: prefsApi.prefs.zeigeNebensaechlich },
+  );
+  // Dieselben zwei Filter, die `StatusChronik` innen anlegt — hier nur, um die
+  // Kennzahl zu zählen. Die Liste selbst geht ungefiltert hinunter.
+  const zurueckGefiltert = zurueckgenommene.filter(s =>
+    rollenSicht(rollenVonFeld(s.feld), filter.rollen) !== 'weg'
+    && trifftBereich(s.tvIds, filter.bereiche));
+
+  const kennzahlenGesamt = verlaufKennzahlen(basis, offenePaare, tvIds.length, zurueckgenommene);
+  const kennzahlen = verlaufKennzahlen(gefiltert, paareGefiltert, tvIds.length, zurueckGefiltert);
 
   const matrixZeilen = baueSchrittMatrix(gefiltert, paareGefiltert, spalten, version)
     .filter(z => !filter.nurLuecken || z.fehlt > 0);
@@ -272,6 +294,7 @@ export function StatusDetailSection({ verbundId, statusRoh }: {
           zeigeNebensaechlich={prefsApi.prefs.zeigeNebensaechlich}
           onToggleNebensaechlich={() => prefsApi.setNebensaechlich(!prefsApi.prefs.zeigeNebensaechlich)}
           offenePaare={offenePaare}
+          zurueckgenommene={zurueckgenommene}
           zeigeSchalter={false}
           rollenWahl={filter.rollen}
           bereichWahl={filter.bereiche}
@@ -281,6 +304,17 @@ export function StatusDetailSection({ verbundId, statusRoh }: {
           tvNummern={tvNummern}
           tvGesamt={tvIds.length}
         />
+      )}
+
+      {/* Der Nullpunkt gehört unter die Chronik, nicht unter die Matrix: die
+          zurückgenommenen Zeilen zeigt nur sie (die Matrix hätte für ein
+          gelöschtes Datum keine Zelle). */}
+      {ansicht === 'chronik' && modus === 'datum' && (
+        <div className="mt-2">
+          <JournalNullpunkt
+            journalAb={journal.journalAb} chroniken={journal.chroniken} laden={journal.laden}
+          />
+        </div>
       )}
 
       {/* Was steht an — dieselbe Kaskade wie im Board, je Teilvorhaben und je

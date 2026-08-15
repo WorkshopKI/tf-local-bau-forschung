@@ -76,6 +76,16 @@ export function VerlaufKennzahlenZeile({ kennzahlen, gesamt, onLuecken }: {
           <span>{spanne}</span>
         </>
       )}
+      {/* Zurückgenommenes steht in derselben Reihe, aber in Normalfarbe: es ist
+          eine Auskunft über die Vergangenheit, keine offene Aufgabe. */}
+      {k.zurueckgenommen > 0 && (
+        <>
+          <span aria-hidden="true">·</span>
+          <span title="Termine, die ein früherer Export trug und der heutige nicht mehr — belegt aus dem Änderungs-Journal">
+            {k.zurueckgenommen} zurückgenommen
+          </span>
+        </>
+      )}
       {k.nichtGesetzt > 0 && (
         <>
           <span aria-hidden="true">·</span>

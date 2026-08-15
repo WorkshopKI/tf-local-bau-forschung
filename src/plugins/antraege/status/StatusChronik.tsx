@@ -50,19 +50,27 @@
  * unter dem Termin, der die andere Seite gesetzt hat — roter Ring, kein Datum.
  * Sie zählt **nicht** als Termin: eine Lücke ist keiner.
  *
- * Rein darstellend: `baueChronik` liefert die Daten, hier wird nur gerendert.
+ * **Was einmal dastand**, kommt aus dem Import-Diff-Journal und steht
+ * durchgestrichen an seinem alten Tag (`chronik-zurueckgenommen.ts`). Ohne diese
+ * Zeilen ist eine im Fachsystem zurückgenommene Setzung nach dem nächsten
+ * Nacht-Export spurlos — der Fall, für den das Journal überhaupt geführt wird.
+ * Sie zählen ebenfalls nicht als Termin.
+ *
+ * Rein darstellend: `baueChronik` und `baueZurueckgenommene` liefern die Daten,
+ * `mischeVerlaufZeilen` die Reihenfolge, hier wird nur gerendert.
  */
 import { Fragment } from 'react';
 import { ToggleChip } from '@/components/ui/ToggleChip';
 import { useProfile } from '@/core/hooks/useProfile';
 import {
-  baueChronik, gruppiereNachMonat, kategoriePfadLabel, monateDazwischen, teileChronik,
-  rollenSicht, trifftBereich, zahPhaseLabel,
+  baueChronik, gruppiereNachMonat, kategoriePfadLabel, mischeVerlaufZeilen,
+  monateDazwischen, teileChronik, rollenSicht, trifftBereich, zahPhaseLabel,
   ROLLE_LABEL, leseStatusRolle, normKey, rollenVonFeld,
   type ChronikEintrag, type FeldVorkommen, type MappingVersion,
-  type OffenesPaarJeTv, type Rolle,
+  type OffenesPaarJeTv, type Rolle, type ZurueckgenommenerTermin,
 } from '@/core/status';
 import { formatDatumsWert } from '@/core/services/csv/dateParse';
+import { tagDe, wannText } from './journalTexte';
 import { RollenBadges, TraegerBadges } from './VerlaufBadges';
 
 /** Ab wann eine Pause eigens benannt wird — ein übersprungener Monat ist Alltag. */
@@ -314,6 +322,70 @@ function FehlZeile({ p, meins, gedimmt, tvNummern }: {
   );
 }
 
+/** Wie eine Rücknahme sich liest — eine Zeile, in der Sprache der Historie. */
+function stornoText(s: ZurueckgenommenerTermin): string {
+  return s.art === 'verschoben' && s.nachTag !== undefined
+    ? `verschoben auf ${tagDe(s.nachTag)}`
+    : `zurückgenommen ${wannText(s.belegt)}`;
+}
+
+/**
+ * Ein Termin, den der Export nicht mehr führt — er stand einmal an diesem Tag.
+ *
+ * Der Ring ist **grau und gestrichelt**, nicht rot wie bei der {@link FehlZeile}:
+ * hier ist nichts offen. Jemand hat in C16 eine Setzung zurückgenommen oder ihr
+ * Datum korrigiert; das ist ein erledigter Vorgang, kein Auftrag.
+ *
+ * Durchgestrichen wird **nur die Bezeichnung**. Tag und Kürzel bleiben stehen,
+ * denn genau mit ihnen findet man den Vorgang im Fachsystem wieder — sie
+ * durchzustreichen nähme der Zeile ihren einzigen praktischen Nutzen.
+ */
+function StornoZeile({ s, meins, gedimmt, tvNummern, tvGesamt }: {
+  s: ZurueckgenommenerTermin;
+  meins: boolean;
+  gedimmt: boolean;
+  tvNummern?: ReadonlyMap<string, number>;
+  tvGesamt?: number;
+}): React.ReactElement {
+  const text = stornoText(s);
+  return (
+    <ZeilenRahmen
+      meins={meins}
+      imFokus={false}
+      punkt={(
+        <span
+          className="inline-block rounded-full"
+          style={{
+            width: 8, height: 8,
+            border: '1px dashed var(--tf-text-tertiary)',
+            background: 'var(--tf-bg)',
+          }}
+        />
+      )}
+    >
+      <span className={`${TAG_SPALTE} ${LEISE}`}>{tagLabel(s.tag)}</span>
+      <span className={`${CODE_SPALTE} ${LEISE}`}>{s.feld.code ?? ''}</span>
+      {/* Die Rollenmarke behält ihre Tönung — wer den Schritt gesetzt hat, ist
+          auch dann eine Auskunft, wenn er zurückgenommen wurde. Gedimmt wird
+          sie nur, wenn der Filter es sagt (dieselbe Regel wie bei einem
+          Termin); die Filterleiste ist die Legende. */}
+      <span className={ROLLEN_SPALTE}>
+        <RollenBadges rollen={rollenVonFeld(s.feld)} gedimmt={gedimmt} />
+      </span>
+      <span
+        className="min-w-0 flex-1 truncate"
+        title={`${s.feld.label}\n${text}\nStand des Exports — frühere Setzungen sind überschrieben`}
+      >
+        <span className={`text-[12.5px] line-through ${LEISE}`}>{s.feld.label}</span>
+        <span className={`text-[11.5px] ${LEISE}`}>{' · '}{text}</span>
+      </span>
+      <span className="shrink-0">
+        <TraegerBadges tvIds={s.tvIds} nummern={tvNummern} gesamt={tvGesamt} />
+      </span>
+    </ZeilenRahmen>
+  );
+}
+
 /** Schlüssel, unter dem eine Fehlzeile an ihren Termin gehängt wird. */
 function ankerKey(code: string, tag: string): string {
   return `${normKey(code)}|${tag}`;
@@ -326,6 +398,7 @@ function Legende(): React.ReactElement {
     [<span key="n" className="inline-block rounded-full" style={{ width: 7, height: 7, background: 'var(--tf-text-tertiary)' }} />, 'Regelfall'],
     [<span key="k" className="inline-block rounded-full" style={{ width: 6, height: 6, border: '1px solid var(--tf-text-tertiary)', background: 'var(--tf-bg)' }} />, 'Nachrichtenkanal'],
     [<span key="f" className="inline-block rounded-full" style={{ width: 9, height: 9, border: '1px solid var(--tf-danger-text)', background: 'var(--tf-danger-bg)' }} />, 'Kürzel nicht gesetzt'],
+    [<span key="z" className="inline-block rounded-full" style={{ width: 8, height: 8, border: '1px dashed var(--tf-text-tertiary)', background: 'var(--tf-bg)' }} />, 'zurückgenommen / verschoben'],
   ];
   return (
     <div className={`flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] ${LEISE}`}>
@@ -345,6 +418,7 @@ export function StatusChronik({
   zeigeNebensaechlich,
   onToggleNebensaechlich,
   offenePaare = [],
+  zurueckgenommene = [],
   rollenWahl,
   bereichWahl,
   nurLuecken = false,
@@ -367,6 +441,14 @@ export function StatusChronik({
    * Zeile trägt.
    */
   offenePaare?: readonly OffenesPaarJeTv[];
+  /**
+   * Termine, die der Export nicht mehr führt — aus dem Import-Diff-Journal
+   * (`baueZurueckgenommene`). Fertig gerechnet hereingereicht, weil das Journal
+   * vom Share kommt und diese Komponente rein darstellend bleibt.
+   *
+   * Fehlend = leer: ein Wirt ohne Journal-Zugriff verhält sich wie bisher.
+   */
+  zurueckgenommene?: readonly ZurueckgenommenerTermin[];
   /** Rollenwahl der Filterleiste; leer/fehlend = keine Einschränkung. */
   rollenWahl?: ReadonlySet<Rolle>;
   /** Bereichswahl der Filterleiste; leer/fehlend = alle Träger. */
@@ -413,7 +495,16 @@ export function StatusChronik({
   const eintraege = !nurLuecken
     ? sichtbar
     : sichtbar.filter(e => e.feld.code !== undefined && mitLuecke.has(ankerKey(e.feld.code, e.tag)));
-  const monate = gruppiereNachMonat(eintraege);
+
+  // Zurückgenommenes folgt DENSELBEN Filtern wie ein Termin — die Filterleiste
+  // ist die Legende, und sie darf keine Zeile stehen lassen, deren Rolle sie
+  // nicht anbietet. Bei „nur nicht gesetzt" fällt es ganz weg: die Ansicht
+  // fragt dort nach Offenem, nicht nach Erledigtem.
+  const stornos = nurLuecken ? [] : zurueckgenommene.filter(s =>
+    rollenSicht(rollenVonFeld(s.feld), rollen) !== 'weg'
+    && trifftBereich(s.tvIds, bereiche));
+
+  const monate = gruppiereNachMonat(mischeVerlaufZeilen(eintraege, stornos));
 
   const { profile } = useProfile();
   // Vorauswahl, keine Sperre — dieselbe Lesart wie in der Ordner-Liste. `alle`
@@ -462,7 +553,7 @@ export function StatusChronik({
 
       {/* Auch ohne einen einzigen Termin kann es eine Lücke geben — dann ist sie
           das Einzige, was zu sagen ist, und darf nicht mit der Liste wegfallen. */}
-      {eintraege.length === 0 && heimatlos.length === 0 && anMonat.size === 0 ? (
+      {eintraege.length === 0 && stornos.length === 0 && heimatlos.length === 0 && anMonat.size === 0 ? (
         <div className={`py-6 text-[12px] ${LEISE}`}>
           Keine datierten Statuseinträge zur aktuellen Auswahl. Wert- und Textfelder stehen
           unten in der Ordner-Ansicht.
@@ -485,7 +576,20 @@ export function StatusChronik({
                   ) : null}
                 </div>
                 <ol className="min-w-0 flex-1 border-l border-[var(--tf-border)] pt-2">
-                  {m.eintraege.map(e => {
+                  {m.eintraege.map(z => {
+                    if (z.art === 'storno') {
+                      const rs = rollenVonFeld(z.s.feld);
+                      return (
+                        <StornoZeile
+                          key={`storno:${z.s.feld.feldId}:${z.tag}:${z.s.art}`} s={z.s}
+                          meins={istMeins(rs)}
+                          gedimmt={rollenSicht(rs, rollen) === 'gedimmt'}
+                          {...(tvNummern ? { tvNummern } : {})}
+                          {...(tvGesamt !== undefined ? { tvGesamt } : {})}
+                        />
+                      );
+                    }
+                    const e = z.e;
                     const r = rollenVonFeld(e.feld);
                     return (
                       <Fragment key={`${e.feld.feldId}:${e.tag}`}>
