@@ -29,9 +29,18 @@ function treffer(
 }
 
 describe('autoSpalten — die Einstellung', () => {
-  it('blendet den Ort ein, sobald jemand „nur Ort & Bundesland" wählt', () => {
+  it('blendet den Ort ein, sobald jemand den Ortsbereich wählt', () => {
     // Auch ohne Treffer: die Einstellung ist eine Ansage, kein Zufall.
     expect(autoSpalten('standort', [])).toEqual(['standort']);
+  });
+
+  it('nimmt den Wahlkreis NICHT automatisch dazu', () => {
+    // Er gehört seit v4.50 zum selben Bereich, ist dort aber die seltenere
+    // Fundstelle — zwei Dauerspalten für eine Wahl wären eine zu viel. Er
+    // erscheint, sobald ein Treffer ihn wirklich trägt.
+    expect(autoSpalten('standort', [])).not.toContain('wahlkreis');
+    const menge = [treffer(['wahlkreis'], { wahlkreis: 'Goslar - Northeim - Göttingen II' })];
+    expect(autoSpalten('standort', menge)).toEqual(['standort', 'wahlkreis']);
   });
 
   it('blendet in den übrigen Bereichen nichts ein, was schon sichtbar ist', () => {
@@ -63,6 +72,17 @@ describe('autoSpalten — die Fundstelle', () => {
       treffer(['standort'], { standort: 'Fürth · Bayern' }),
     ];
     expect(autoSpalten('alles', menge)).toEqual(['standort', 'deskriptoren']);
+  });
+
+  it('blendet Netzwerk und Notiz ein, wenn dort getroffen wurde', () => {
+    // Beide stehen in keiner anderen Zelle: der Netzwerkname nicht im Snippet
+    // (das zeigt AST · Akronym · Geber), die Arbeitsnotiz überhaupt nur auf der
+    // Detailseite des Antrags.
+    const menge = [
+      treffer(['netzwerk'], { netzwerk: '"LOHCmobil" 16KN065602_AM' }),
+      treffer(['notiz'], { notiz: 'ZA nicht erinnern, da bereits Einbehalt bis VN' }),
+    ];
+    expect(autoSpalten('alles', menge)).toEqual(['netzwerk', 'notiz']);
   });
 
   it('blendet keine leere Spalte ein — Fundstelle ohne Text zählt nicht', () => {

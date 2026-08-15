@@ -232,7 +232,7 @@ function basisAntrag(
     ortAst: item?.ort_ast,
     zuwendung: typeof item?.foerdersumme === 'number' ? item.foerdersumme : undefined,
     vbPhase: item?.vb_phase,
-    // Die drei Belege, die sonst nirgends im Ergebnis stehen. Aus dem KORPUS,
+    // Die sechs Belege, die sonst nirgends im Ergebnis stehen. Aus dem KORPUS,
     // nicht aus der Listen-Projektion: gesucht wird in genau diesen Zeichenketten
     // (`ort_ast` allein trüge weder den Ausführungsort noch das Bundesland).
     // Fehlt der Korpus-Eintrag (reiner Vektortreffer), bleibt das Feld leer —
@@ -240,6 +240,9 @@ function basisAntrag(
     standort: korpus?.standort || undefined,
     deskriptoren: korpus?.descriptors || undefined,
     domain: korpus?.domain || undefined,
+    netzwerk: korpus?.netzwerk || undefined,
+    wahlkreis: korpus?.wahlkreis || undefined,
+    notiz: korpus?.notiz || undefined,
   };
 }
 

@@ -38,7 +38,7 @@ export const SUCHBEREICH_LABEL: Record<Suchbereich, string> = {
   inhalt: 'nur Titel & Kurzbeschreibung',
   dokumente: 'nur Dokumente',
   einrichtung: 'nur Einrichtung',
-  standort: 'nur Ort & Bundesland',
+  standort: 'nur Ort, Bundesland & Wahlkreis',
 };
 
 /**
@@ -71,7 +71,11 @@ export function bereichFelder(bereich: Suchbereich): ReadonlySet<Trefferfeld> {
       // Organisationsfeld, wohl aber in `gmbu.de`.
       return new Set<Trefferfeld>(['organisation', 'domain']);
     case 'standort':
-      return new Set<Trefferfeld>(['standort']);
+      // Der Wahlkreis gehoert zum „wo": er nennt in 5 274 von 14 218 Faellen
+      // einen Ort, der im Standort-Feld NICHT vorkommt. Ohne ihn faende „nur
+      // Ort & Bundesland" weniger als „alle Felder" — und der Nutzer haette
+      // keinen Weg, das zu sehen. Die Beschriftung nennt ihn deshalb mit.
+      return new Set<Trefferfeld>(['standort', 'wahlkreis']);
     case 'dokumente':
       return new Set<Trefferfeld>();
     case 'alles':
@@ -79,6 +83,7 @@ export function bereichFelder(bereich: Suchbereich): ReadonlySet<Trefferfeld> {
       return new Set<Trefferfeld>([
         'titel', 'kurzbeschreibung', 'deskriptoren',
         'akronym', 'aktenzeichen', 'organisation', 'domain', 'standort',
+        'netzwerk', 'wahlkreis', 'notiz',
       ]);
   }
 }

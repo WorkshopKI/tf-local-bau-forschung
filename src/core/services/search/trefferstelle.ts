@@ -35,6 +35,9 @@ export type Trefferfeld =
   | 'organisation'
   | 'domain'
   | 'standort'
+  | 'netzwerk'
+  | 'wahlkreis'
+  | 'notiz'
   | 'aehnlichkeit';
 
 /** Beschriftung der Trefferstellen-Tags. Kurz, weil sie zu mehreren in einer
@@ -49,6 +52,9 @@ export const TREFFERFELD_LABEL: Record<Trefferfeld, string> = {
   organisation: 'Einrichtung',
   domain: 'Web-Adresse',
   standort: 'Ort',
+  netzwerk: 'Netzwerk',
+  wahlkreis: 'Wahlkreis',
+  notiz: 'Notiz',
   aehnlichkeit: 'ähnliche Bedeutung',
 };
 
@@ -68,11 +74,19 @@ const GEWICHT: Record<Trefferfeld, number> = {
   dokument: 2,
   deskriptoren: 1.5,
   aehnlichkeit: 1.5,
+  // Der Netzwerkname ist die Identität einer VORHABENS-FAMILIE, nicht die des
+  // einzelnen Antrags — stärker als „wer" und „wo", schwächer als der Titel.
+  netzwerk: 1.5,
   organisation: 1,
   // Wie die Einrichtung: sagt WER, nicht worum es geht. Und schwaecher belegt —
   // die Domain ist aus der Kontakt-Mail abgeleitet, nicht erhoben.
   domain: 1,
   standort: 1,
+  // Wie der Standort: eine Herkunftsangabe.
+  wahlkreis: 1,
+  // Am schwächsten, und das mit Absicht: eine Arbeitsnotiz sagt etwas über den
+  // VORGANG („ZA nicht erinnern"), fast nie über das Thema des Vorhabens.
+  notiz: 1,
 };
 
 const MAX_GEWICHT = 3;
@@ -95,7 +109,8 @@ const AEHNLICHKEIT_DECKEL = 0.5;
  *  Gewicht in fester Reihenfolge (stabil über Renders). */
 const REIHENFOLGE: readonly Trefferfeld[] = [
   'titel', 'akronym', 'aktenzeichen', 'kurzbeschreibung', 'dokument',
-  'deskriptoren', 'aehnlichkeit', 'organisation', 'domain', 'standort',
+  'deskriptoren', 'netzwerk', 'aehnlichkeit',
+  'organisation', 'domain', 'standort', 'wahlkreis', 'notiz',
 ];
 
 /** Relevanzstufe. Drei Stufen, weil mehr niemand unterscheiden kann. */

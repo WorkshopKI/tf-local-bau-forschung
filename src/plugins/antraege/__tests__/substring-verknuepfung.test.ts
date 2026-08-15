@@ -13,6 +13,15 @@ import {
   domainSuchform, standortSuchform, type AntragTextEntry,
 } from '../services/search-corpus';
 
+/**
+ * Ein Korpus-Eintrag. VOLLSTÄNDIG gebaut, ohne `as`-Cast: ein neues Feld im
+ * `AntragTextEntry` soll hier einen Typfehler geben und nicht erst im Lauf ein
+ * `undefined.includes` (genau das passierte bei den v4.50-Feldern).
+ *
+ * Die selteneren Felder kommen über `extra`; ihre Suchformen leitet der Helfer
+ * daraus ab, damit ein Test nie eine Suchform setzen kann, die zum Wert nicht
+ * passt.
+ */
 function eintrag(
   vb: string,
   tv = '',
@@ -23,19 +32,40 @@ function eintrag(
   organisation = '',
   standort = '',
   domain = '',
+  extra: Partial<AntragTextEntry> = {},
 ): AntragTextEntry {
-  return {
+  const basis: AntragTextEntry = {
+    vb,
+    tv,
+    abstract: abs,
+    descriptors: descr,
+    akronym,
     vbLower: vb.toLowerCase(),
     tvLower: tv.toLowerCase(),
     absLower: abs.toLowerCase(),
     descriptorsLower: descr.toLowerCase(),
     akronymLower: akronym.toLowerCase(),
     akzLower: akz.toLowerCase(),
+    organisation,
     organisationLower: organisation.toLowerCase(),
+    standort,
     standortSuchform: standortSuchform(standort),
     domain,
     domainSuchform: domainSuchform(domain),
-  } as AntragTextEntry;
+    netzwerk: '',
+    netzwerkLower: '',
+    notiz: '',
+    notizLower: '',
+    wahlkreis: '',
+    wahlkreisSuchform: '',
+    ...extra,
+  };
+  return {
+    ...basis,
+    netzwerkLower: basis.netzwerk.toLowerCase(),
+    notizLower: basis.notiz.toLowerCase(),
+    wahlkreisSuchform: standortSuchform(basis.wahlkreis),
+  };
 }
 
 const KORPUS = new Map<string, AntragTextEntry>([
@@ -368,7 +398,7 @@ describe('searchAntraegeSubstring — Suchen in', () => {
       .toEqual([]);
   });
 
-  it('„nur Ort & Bundesland" sucht am Ort, nicht am Firmennamen', () => {
+  it('der Ortsbereich sucht am Ort, nicht am Firmennamen', () => {
     // v4.15.0: „wer" und „wo" sind getrennt. „Standards" steht im Firmennamen
     // von O1 — im Ortsbereich darf das keinen Treffer geben.
     expect(searchAntraegeSubstring('berlin', BEREICH_KORPUS, { bereich: 'standort' }))
@@ -433,5 +463,78 @@ describe('searchAntraegeSubstring — Feld in der Anfrage', () => {
 
   it('ein angefangenes Präfix ohne Wert sucht nichts — nicht alles', () => {
     expect(searchAntraegeSubstring('ast:', BEREICH_KORPUS)).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// v4.50: Netzwerk, Arbeitsnotiz und Wahlkreis
+// ---------------------------------------------------------------------------
+
+/**
+ * Drei Teilvorhaben desselben Netzwerks und ein Antrag ohne Netz. Die Werte
+ * sind der Form nach die des echten Bestandes: die Netzwerkangabe trägt Name
+ * UND Kennzeichen (`"LOHCmobil" 16KN065602_AM`), der Wahlkreis nennt Orte, die
+ * im Standort nicht vorkommen.
+ */
+const NEUE_FELDER_KORPUS = new Map<string, AntragTextEntry>([
+  ['N1', eintrag('H2 Verbrenner', '', '', '', '', '16KN065603', 'Ascentec GmbH', 'Goslar · Niedersachsen', '', {
+    netzwerk: '"LOHCmobil" 16KN065602_AM',
+    wahlkreis: 'Goslar - Northeim - Göttingen II',
+  })],
+  ['N2', eintrag('Thermo-Ölkessel', '', '', '', '', '16KN065604', 'Kessel AG', 'Wedel · Schleswig-Holstein', '', {
+    netzwerk: '"LOHCmobil" 16KN065602_AM',
+    notiz: 'ZA nicht erinnern, da bereits Einbehalt bis VN',
+  })],
+  ['N3', eintrag('Speicherdichte', '', '', '', '', '16KN065605', 'Speicher GmbH', 'Kiel · Schleswig-Holstein', '', {
+    netzwerk: '"PowerFrame" 16KN046501_FW',
+    notiz: 'Wichtig: Vorhaben vor Bewilligung zurückgezogen',
+  })],
+  ['X1', eintrag('Bilderkennung', '', '', '', '', '16KN099001', 'Optik GmbH', 'Jena · Thüringen')],
+]);
+
+describe('searchAntraegeSubstring — Netzwerk, Notiz, Wahlkreis (v4.50)', () => {
+  it('findet alle Teilvorhaben eines Netzwerks über sein Kennzeichen', () => {
+    // Das eigentlich Neue: das Netz-Kennzeichen steht in KEINEM anderen Feld.
+    // Vorher fand diese Anfrage nur den Netzwerkantrag selbst.
+    expect(searchAntraegeSubstring('16KN065602', NEUE_FELDER_KORPUS).sort())
+      .toEqual(['N1', 'N2']);
+  });
+
+  it('findet das Netzwerk über seinen Namen, auch angefangen', () => {
+    expect(searchAntraegeSubstring('LOHC', NEUE_FELDER_KORPUS).sort()).toEqual(['N1', 'N2']);
+    expect(searchAntraegeSubstring('netz:powerframe', NEUE_FELDER_KORPUS)).toEqual(['N3']);
+  });
+
+  it('sucht in den Arbeitsnotizen — dem einzigen Feld, das diesen Satz führt', () => {
+    expect(searchAntraegeSubstring('einbehalt', NEUE_FELDER_KORPUS)).toEqual(['N2']);
+    expect(searchAntraegeSubstring('notiz:zurückgezogen', NEUE_FELDER_KORPUS)).toEqual(['N3']);
+  });
+
+  it('findet den Wahlkreis-Ort, der im Standort NICHT steht', () => {
+    // „Northeim" kommt in keinem Ortsfeld vor — genau der Zugewinn.
+    expect(searchAntraegeSubstring('northeim', NEUE_FELDER_KORPUS)).toEqual(['N1']);
+    expect(searchAntraegeSubstring('wahlkreis:göttingen', NEUE_FELDER_KORPUS)).toEqual(['N1']);
+  });
+
+  it('der Wahlkreis gehört zum „wo" und nicht zum „wer"', () => {
+    expect(searchAntraegeSubstring('northeim', NEUE_FELDER_KORPUS, { bereich: 'standort' }))
+      .toEqual(['N1']);
+    expect(searchAntraegeSubstring('northeim', NEUE_FELDER_KORPUS, { bereich: 'einrichtung' }))
+      .toEqual([]);
+  });
+
+  it('vergleicht den Wahlkreis am Wortanfang, nicht als freien Substring', () => {
+    // Dieselbe Regel wie beim Standort: „heim" darf „Northeim" nicht holen,
+    // sonst kommen über kurze Silben wieder hunderte Nachbarorte herein.
+    expect(searchAntraegeSubstring('heim', NEUE_FELDER_KORPUS)).toEqual([]);
+    expect(searchAntraegeSubstring('north', NEUE_FELDER_KORPUS)).toEqual(['N1']);
+  });
+
+  it('Netzwerk und Notiz bleiben in den engen Bereichen außen vor', () => {
+    // „nur Titel & Kurzbeschreibung" ist eine Ansage — der Netzwerkname gehört
+    // nicht dazu, auch wenn er thematisch klingt.
+    expect(searchAntraegeSubstring('LOHC', NEUE_FELDER_KORPUS, { bereich: 'inhalt' })).toEqual([]);
+    expect(searchAntraegeSubstring('einbehalt', NEUE_FELDER_KORPUS, { bereich: 'inhalt' }))
+      .toEqual([]);
   });
 });

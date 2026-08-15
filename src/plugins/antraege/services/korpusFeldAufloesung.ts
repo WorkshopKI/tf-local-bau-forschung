@@ -41,7 +41,12 @@ export type KorpusSlot =
   | 'ortAst'
   | 'landAfs'
   | 'landAst'
-  | 'emailPl';
+  | 'emailPl'
+  | 'netzwerk'
+  | 'notizWichtig'
+  | 'notizBemerkung'
+  | 'wahlkreis'
+  | 'nace';
 
 /**
  * Spalten-CODES je Slot, in der REIHENFOLGE, in der sie ihren Schluessel
@@ -50,10 +55,10 @@ export type KorpusSlot =
  * Die Reihenfolge ist die Kollisions-Regel und kein Zufall: Quelle 7737 mappt
  * `ORG_AST` auf denselben Schluessel wie das kanonische `ORG_AFS`
  * (`antragsteller`). Wer beide Slots auf diesen Schluessel zeigen liesse,
- * verschlechterte die Suche gegenueber heute — `pickByNormalized` liefert den
- * ERSTEN passenden Schluessel, und der waere dann fuer beide Slots derselbe
- * Wert. Die 2,5 % der Saetze, in denen Rechtsperson und ausfuehrende Stelle
- * auseinandergehen, verloeren ihre zweite Organisation.
+ * verschlechterte die Suche gegenueber heute — gelesen wird der ERSTE passende
+ * Schluessel, und der waere dann fuer beide Slots derselbe Wert. Die 2,5 % der
+ * Saetze, in denen Rechtsperson und ausfuehrende Stelle auseinandergehen,
+ * verloeren ihre zweite Organisation.
  *
  * Also: wer zuerst kommt, behaelt den Schluessel; der spaetere Slot verzichtet.
  * `ORG_AFS` steht vorn, weil es das kanonische Feld ist. Fuer die betroffene
@@ -72,6 +77,14 @@ export const SPALTEN_CODES: Readonly<Record<KorpusSlot, readonly string[]>> = {
   landAfs: ['BULAND_AFS', 'BL_AFS'],
   landAst: ['BULAND_AST', 'BL_AST'],
   emailPl: ['EMAIL_PL'],
+  // Ab hier die v4.50-Felder. Alle vier standen laengst im Store und waren
+  // trotzdem unauffindbar — der Korpus las sie nur nicht. Zahlen zur Deckung
+  // stehen bei den Feldern selbst in `search-corpus.ts`.
+  netzwerk: ['NETZWERKNA'],
+  notizWichtig: ['T_YW'],
+  notizBemerkung: ['T_HINT'],
+  wahlkreis: ['WKNAAK_AFS'],
+  nace: ['NACE_LANG'],
 };
 
 /**
@@ -88,9 +101,11 @@ export const SLOT_REIHENFOLGE: readonly KorpusSlot[] = [
   'orgAfs', 'orgAst',
   'ortAfs', 'ortAst', 'landAfs', 'landAst',
   'emailPl',
+  'netzwerk', 'notizWichtig', 'notizBemerkung', 'wahlkreis', 'nace',
 ];
 
-/** Normalisierte Schluessel-Kandidaten je Slot — direkt fuer `pickByNormalized`. */
+/** Normalisierte Schluessel-Kandidaten je Slot — Vorlage fuer das Umkehr-
+ *  Verzeichnis, mit dem der Korpus jeden Record in EINEM Durchgang liest. */
 export type KorpusFeldKarte = Readonly<Record<KorpusSlot, ReadonlySet<string>>>;
 
 /**

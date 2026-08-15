@@ -33,6 +33,10 @@ import { veraenderungText, type GespeicherteSuche } from './gespeicherteSuchen';
  * naheliegende Fall `ast:GMBU` steht deshalb NICHT hier: „GMBU" kommt im ganzen
  * Bestand in keinem Organisationsfeld vor, nur in der Web-Adresse (v4.42) — das
  * Beispiel wäre ausgerechnet an der Stelle leer, an der es etwas beibringen soll.
+ *
+ * Die letzten beiden zeigen, was v4.50 dazugebracht hat: ein Netzwerk samt
+ * seiner Teilvorhaben und die eigenen Arbeitsnotizen. Beides fand die Suche
+ * vorher nicht — kein Feld führte den Text.
  */
 const SUCHARTEN: readonly { query: string; erklaerung: string }[] = [
   { query: 'Bilderkennung', erklaerung: 'ein Thema — in allen Feldern' },        // 31
@@ -41,6 +45,8 @@ const SUCHARTEN: readonly { query: string; erklaerung: string }[] = [
   { query: 'ast:Fraunhofer', erklaerung: 'nur die Einrichtung' },                // 307
   { query: 'ort:Dresden', erklaerung: 'nur Ort und Bundesland' },                // 451
   { query: 'titel:Laser ort:Dresden', erklaerung: 'zwei Felder in einer Anfrage' },    // 4
+  { query: 'netz:ProAnimalLife', erklaerung: 'ein Netzwerk mit allen Teilvorhaben' },  // 80
+  { query: 'notiz:Einbehalt', erklaerung: 'in den eigenen Arbeitsnotizen' },     // 50
 ];
 
 /** Die Feldnamen, die vor dem Doppelpunkt stehen dürfen — aus der einen Quelle

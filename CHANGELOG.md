@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.50.0 — Netzwerk, Notizen und Wahlkreis werden mitdurchsucht (August 2026)
+
+MINOR — Gefragt war, ob weitere Roh-CSV-Spalten mit sinnvollem Text in die Suche können. Entschieden hat nicht die Textmenge, sondern die Messung über alle drei aktiven Quellen (512 Spalten, 14.225 FKZ): welcher Text ist nirgendwo sonst auffindbar? Detail + verworfene Kandidaten: [suche-relevanz.md](docs/architecture/suche-relevanz.md).
+
+- **Netzwerk** (11.492 Anträge): Name UND Netz-Kennzeichen — `netz:ProAnimalLife` findet 80 Teilvorhaben, vorher fand dieselbe Anfrage nur den Netzwerkantrag ([search-corpus.ts](src/plugins/antraege/services/search-corpus.ts))
+- **Arbeitsnotizen** „Wichtig" + „Bemerkung" als EIN Feld (5.335): `notiz:Einbehalt` → 50 Treffer; dieser Text stand in keinem anderen durchsuchbaren Feld
+- **Wahlkreis** (14.218) gehört zum „wo": „Northeim" 1 → 51 Treffer, die Bereichs-Beschriftung heißt jetzt „nur Ort, Bundesland & Wahlkreis" ([suchbereich.ts](src/core/services/search/suchbereich.ts))
+- **NACE-Branchentext** fließt in die Deskriptoren (2.256): „Anstrichmitteln" 0 → 12; drei neue Belege in Zeile und Tabelle ([autoSpalten.ts](src/plugins/suche/autoSpalten.ts), [columns.tsx](src/plugins/suche/columns.tsx))
+- **Korpus liest jeden Datensatz in EINEM Durchgang** statt einmal je Feld: 8.225 ms → 1.168 ms über 14.225 Anträge, trotz fünf zusätzlicher Felder
+
 ### v4.49.1 — Kuerzel ueberall in der Schreibweise des Teams (August 2026)
 
 PATCH — Nachzug zu v4.48.3: dort lernte die Kürzel-Auswahl die Schreibweise des Teams, überall sonst stand weiter die Vergleichsform („Kürzel THÜ"). Die Bearbeitenden kennen ihr Kürzel gemischt geschrieben — 81 der 112 im Bestand sind es.

@@ -1,5 +1,5 @@
 /**
- * Feldsuche in der Eingabe: `ast:GMBU`, `fkz:16KN08`, `ort:Dresden`.
+ * Feldsuche in der Eingabe: `ast:Fraunhofer`, `fkz:16KN08`, `ort:Dresden`.
  *
  * Das Dropdown „Suche in" ist die GROBE Wahl — es gilt für die ganze Anfrage und
  * kennt fünf Bereiche. Wer weiß, in welcher Spalte sein Wort steht, will es
@@ -7,8 +7,8 @@
  * Genau das ist ein Präfix. Beides greift ineinander: ein Wort OHNE Präfix folgt
  * dem Dropdown, ein Wort MIT Präfix folgt seinem Präfix.
  *
- * **Das Präfix schlägt den Bereich.** Wer `ast:GMBU` tippt, während das Dropdown
- * auf „nur Ort & Bundesland" steht, hat zweimal etwas gesagt — und die genauere
+ * **Das Präfix schlägt den Bereich.** Wer `ast:Fraunhofer` tippt, während das
+ * Dropdown auf dem Ortsbereich steht, hat zweimal etwas gesagt — und die genauere
  * Angabe gewinnt. Die Gegenrichtung (der Bereich beschneidet das Präfix) ergäbe
  * eine Anfrage, die nachweislich nie trifft, und 0 Treffer, die aussehen wie
  * „steht nicht im Bestand". Die Deutungszeile schreibt das getroffene Feld
@@ -20,6 +20,12 @@
  * UND-Anfrage (`dokument:laser ast:gmbu`) könnten die beiden Quellen die
  * Bedingung gar nicht gemeinsam erfüllen: sie werden vereinigt, nicht
  * geschnitten. `aehnlichkeit` fehlt aus demselben Grund; sie hat ihren Schalter.
+ *
+ * Seit v4.50 stehen auch die Felder dahinter, die bis dahin gar nicht durchsucht
+ * wurden: `netz:` (Netzwerkname UND Netz-Kennzeichen), `wahlkreis:` und `notiz:`
+ * (die Arbeitsnotizen am Vorgang, „Wichtig" + „Bemerkung" als EIN Feld — der
+ * Suchende fragt „steht das irgendwo in meinen Notizen", nicht „steht das in
+ * T_YW").
  *
  * Die Aliasse führen die CSV-Spaltencodes MIT (`ORG_AST`, `VB_TITEL`, …), weil
  * der Bearbeiter die Fördertabelle vor Augen hat, wenn er weiß, wo sein Wert
@@ -92,6 +98,24 @@ const ALIASE: ReadonlyMap<string, Trefferfeld> = new Map<string, Trefferfeld>([
   ['web', 'domain'],
   ['domain', 'domain'],
   ['webadresse', 'domain'],
+
+  ['netz', 'netzwerk'],
+  ['netzwerk', 'netzwerk'],
+  ['netzwerkna', 'netzwerk'],
+
+  ['wahlkreis', 'wahlkreis'],
+  ['wk', 'wahlkreis'],
+  ['wknaak_afs', 'wahlkreis'],
+
+  // Beide Notizspalten fuehren auf DIESELBE Fundstelle: der Korpus zieht sie
+  // zusammen, weil der Suchende „steht das irgendwo in meinen Notizen" fragt
+  // und nicht „steht das in T_YW oder in T_HINT".
+  ['notiz', 'notiz'],
+  ['notizen', 'notiz'],
+  ['bemerkung', 'notiz'],
+  ['wichtig', 'notiz'],
+  ['t_yw', 'notiz'],
+  ['t_hint', 'notiz'],
 ]);
 
 /**
@@ -111,6 +135,9 @@ export const FELD_PRAEFIX: Partial<Record<Trefferfeld, string>> = {
   standort: 'ort',
   deskriptoren: 'deskriptor',
   domain: 'web',
+  netzwerk: 'netz',
+  wahlkreis: 'wahlkreis',
+  notiz: 'notiz',
 };
 
 /** Alle bekannten Aliasse eines Feldes — für die Hilfe und für die Tests. */

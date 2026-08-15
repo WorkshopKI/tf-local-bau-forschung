@@ -35,18 +35,26 @@ function schema(id: string, mapping: CsvSchema['column_mapping']): CsvSchema {
   };
 }
 
-/** Quelle 9052 („PrjBsp") — traegt die Projektbeschreibung. */
+/** Quelle 9052 („PrjBsp") — traegt die Projektbeschreibung. Und den Wahlkreis,
+ *  den NACE-Klartext und eine eigene Schreibweise der Netzwerkangabe. */
 const PRJBSP = schema('9052-prjbsp', {
   VB_TITEL: { canonical: 'verbund_titel', type: 'string' },
   VB_INHALT: { custom: 'inhalt_kurzzusammenfassung', type: 'string' },
   ORG_AFS: { canonical: 'antragsteller', type: 'string' },
   ORG_AST: { custom: 'org_ast', type: 'string' },
+  NETZWERKNA: { custom: 'netzwerk_kurzname_fkz_ztp', type: 'string' },
+  WKNAAK_AFS: { custom: 'wahlkreisname_afs', type: 'string' },
+  NACE_LANG: { custom: 'nace_code_beschreibung_nw_antragsebene', type: 'string' },
 });
 
-/** Quelle 9097 („AnB") — mappt ORG_AST auf einen dritten Namen. */
+/** Quelle 9097 („AnB") — mappt ORG_AST auf einen dritten Namen. Traegt die
+ *  Arbeitsnotizen und die Netzwerkangabe unter ihrem kurzen Namen. */
 const ANB = schema('9097-anb', {
   ORG_AFS: { canonical: 'antragsteller', type: 'string' },
   ORG_AST: { custom: 'antragsteller_ast', type: 'string' },
+  NETZWERKNA: { custom: 'netzwerk', type: 'string' },
+  T_YW: { custom: 'wichtig', type: 'string' },
+  T_HINT: { custom: 'bemerkung', type: 'string' },
 });
 
 /** Quelle 7737 („Bgl") — die Kollision: ORG_AST auf den Schluessel von ORG_AFS.
@@ -69,6 +77,11 @@ const BASIS: KorpusFeldKarte = {
   landAfs: new Set(['bulandafs']),
   landAst: new Set(['bulandast']),
   emailPl: new Set(['emailpl']),
+  netzwerk: new Set(['netzwerk']),
+  notizWichtig: new Set(['wichtig']),
+  notizBemerkung: new Set(['bemerkung']),
+  wahlkreis: new Set(['wahlkreisnameafs']),
+  nace: new Set(['nacelang']),
 };
 
 const ALLE = [PRJBSP, ANB, BGL];
@@ -121,6 +134,31 @@ describe('baueKorpusFeldKarte', () => {
     expect(karte.emailPl.has('emailpl')).toBe(true);
     expect(karte.emailPl.has('tibmail')).toBe(false);
     expect(karte.emailPl.has('bibmail')).toBe(false);
+  });
+
+  it('findet die Netzwerkangabe unter BEIDEN Schreibweisen des Bestandes', () => {
+    // Dieselbe Spalte, zwei Schluessel: `netzwerk` (7737/9097) und
+    // `netzwerk_kurzname_fkz_ztp` (9052). Wer nur einen kennt, verliert 11 491
+    // der 11 492 Angaben oder eben den Rest — je nachdem, welchen er raet.
+    const karte = baueKorpusFeldKarte(ALLE, BASIS);
+    expect(karte.netzwerk.has('netzwerk')).toBe(true);
+    expect(karte.netzwerk.has('netzwerkkurznamefkzztp')).toBe(true);
+  });
+
+  it('haelt die beiden Notizspalten getrennt, obwohl sie eine Fundstelle sind', () => {
+    // Zusammengezogen wird erst im Korpus (ein Suchfeld „Notiz"). Die
+    // Aufloesung muss beide Schluessel einzeln kennen, sonst faende der zweite
+    // Slot den ersten Wert — und `T_HINT` waere still verschwunden.
+    const karte = baueKorpusFeldKarte(ALLE, BASIS);
+    expect(karte.notizWichtig.has('wichtig')).toBe(true);
+    expect(karte.notizBemerkung.has('bemerkung')).toBe(true);
+    expect(karte.notizWichtig.has('bemerkung')).toBe(false);
+  });
+
+  it('loest Wahlkreis und NACE-Klartext auf', () => {
+    const karte = baueKorpusFeldKarte(ALLE, BASIS);
+    expect(karte.wahlkreis.has('wahlkreisnameafs')).toBe(true);
+    expect(karte.nace.has('nacecodebeschreibungnwantragsebene')).toBe(true);
   });
 
   it('ueberspringt ignorierte Spalten', () => {

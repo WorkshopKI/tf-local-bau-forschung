@@ -149,8 +149,13 @@ describe('Suchbereich', () => {
     // Die Web-Adresse steht seit v4.42.0 beim „wer", nicht beim „wo": sie
     // benennt die Einrichtung (`gmbu.de`), nicht ihren Sitz. Sie ist der
     // einzige Weg zu Einrichtungen, die ihr Kürzel nicht im Namen führen.
+    //
+    // Der Wahlkreis steht seit v4.50.0 beim „wo": er nennt in 5 274 von 14 218
+    // Anträgen einen Ort, den das Standort-Feld nicht führt. Ohne ihn fände der
+    // engere Bereich weniger als „alle Felder", und der Nutzer hätte keinen
+    // Weg, den Unterschied zu sehen.
     expect(Array.from(bereichFelder('einrichtung'))).toEqual(['organisation', 'domain']);
-    expect(Array.from(bereichFelder('standort'))).toEqual(['standort']);
+    expect(Array.from(bereichFelder('standort'))).toEqual(['standort', 'wahlkreis']);
   });
 
   it('„nur Dokumente" prüft KEIN Antragsfeld', () => {

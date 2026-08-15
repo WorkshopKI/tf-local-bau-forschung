@@ -2,15 +2,15 @@
  * Welche Belege das Ergebnis von sich aus zeigen muss.
  *
  * Ausgangspunkt ist eine Beobachtung am echten Bestand: eine Suche nach
- * „Dresden" im Bereich „nur Ort & Bundesland" liefert 485 Treffer, und in der
+ * „Dresden" im Ortsbereich liefert 485 Treffer, und in der
  * Liste ist das Suchwort bei 4 von 30 sichtbaren Zeilen markiert — bei denen,
  * wo die Stadt zufällig im Firmennamen steht. Bei allen anderen liegt die
  * Fundstelle im Ort, und der Ort steht nirgends in der Zeile. Ein Etikett
  * „Ort" sagt DASS, nicht WAS.
  *
- * Die Liste ist kurz, und das ist der Punkt: von den neun Trefferstellen
- * ([trefferstelle.ts](src/core/services/search/trefferstelle.ts)) haben sieben
- * längst einen Platz im Ergebnis —
+ * Die Liste zählt auf, was KEINEN Platz hat: von den zwölf Trefferstellen
+ * ([trefferstelle.ts](src/core/services/search/trefferstelle.ts)) haben sechs
+ * längst einen im Ergebnis —
  *
  *  - `titel`, `kurzbeschreibung` → Spalte „Titel / Inhalt" (fest eingeblendet),
  *  - `akronym`, `organisation`  → im Snippet derselben Spalte
@@ -19,9 +19,16 @@
  *  - `dokument`                 → Dateiname bzw. gefaltete Textstelle,
  *  - `aehnlichkeit`             → Spalten „Suche" und „Score".
  *
- * Übrig bleiben `standort`, `deskriptoren` und `domain`. NUR sie stehen unten in
- * `BELEG` — wer hier eine weitere Zeile ergänzt, muss vorher zeigen, dass der
- * Beleg wirklich nirgends sonst auftaucht, sonst wächst die Tabelle für nichts.
+ * Übrig bleiben `standort`, `deskriptoren`, `domain` und — seit v4.50 —
+ * `netzwerk`, `wahlkreis` und `notiz`. NUR sie stehen unten in `BELEG`; wer hier
+ * eine weitere Zeile ergänzt, muss vorher zeigen, dass der Beleg wirklich
+ * nirgends sonst auftaucht, sonst wächst die Tabelle für nichts.
+ *
+ * Für die drei neuen ist es gezeigt: der Netzwerkname steht in keiner Spalte
+ * (die Trefferliste zeigt AST · Akronym · Geber), der Wahlkreis erklärt einen
+ * Treffer, dessen Ortsfeld das Suchwort gar nicht enthält (5 274 von 14 218
+ * Anträgen nennen dort einen anderen Ort), und die Arbeitsnotiz steht überhaupt
+ * nur auf der Detailseite des Antrags.
  *
  * Für `domain` ist das gezeigt: die Web-Adresse wird aus der Kontakt-Mail
  * abgeleitet und steht in keiner Spalte und in keinem Snippet. Sie existiert
@@ -54,6 +61,9 @@ const BELEG: readonly BelegDefinition[] = [
   { feld: 'standort', spalte: 'standort', wert: r => r.standort },
   { feld: 'deskriptoren', spalte: 'deskriptoren', wert: r => r.deskriptoren },
   { feld: 'domain', spalte: 'domain', wert: r => r.domain },
+  { feld: 'netzwerk', spalte: 'netzwerk', wert: r => r.netzwerk },
+  { feld: 'wahlkreis', spalte: 'wahlkreis', wert: r => r.wahlkreis },
+  { feld: 'notiz', spalte: 'notiz', wert: r => r.notiz },
 ];
 
 /** Ein Beleg mit seinem Wert — was die Trefferzeile zusätzlich schreibt. */
@@ -85,9 +95,11 @@ export function belegWerte(treffer: UnifiedSearchResult): BelegWert[] {
  *
  * Zwei Auslöser, beide vom Nutzer entschieden:
  *
- *  1. **Die Einstellung.** Wer „nur Ort & Bundesland" wählt, bekommt die Spalte
- *     immer — auch wenn eine Anfrage gerade nichts findet. Die Einstellung ist
- *     eine Ansage, kein Zufall.
+ *  1. **Die Einstellung.** Wer „nur Ort, Bundesland & Wahlkreis" wählt, bekommt
+ *     die Ortsspalte immer — auch wenn eine Anfrage gerade nichts findet. Die
+ *     Einstellung ist eine Ansage, kein Zufall. Der Wahlkreis kommt NICHT
+ *     automatisch dazu: er ist in diesem Bereich die seltenere Fundstelle, und
+ *     zwei Dauerspalten für eine Wahl wären eine zu viel.
  *  2. **Die Fundstelle.** Im Standardbereich („alle Felder") entscheidet der
  *     Bestand: sobald EIN Treffer den Beleg trägt, erscheint die Spalte. Das ist
  *     der Normalfall — kaum jemand stellt das Dropdown um.

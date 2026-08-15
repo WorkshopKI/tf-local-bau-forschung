@@ -7,7 +7,8 @@
  *
  *  - `loadAntraegeTextCorpus` — projiziert den vollen `Antrag`-Record auf die
  *    suchrelevanten Text-Felder (Verbund-Titel, Titel, Projektbeschreibung,
- *    Deskriptoren, Akronym, Aktenzeichen, Organisation, Standort, Web-Adresse)
+ *    Deskriptoren, Akronym, Aktenzeichen, Organisation, Standort, Web-Adresse,
+ *    Netzwerk, Arbeitsnotizen, Wahlkreis)
  *    und cached zusaetzlich die lowercase-Variante
  *    (Substring-Match per Keystroke wird so von ~500 ms auf ~10–30 ms reduziert).
  *
@@ -26,7 +27,10 @@ import { listManifestEntries } from '@/phase2/scanner/manifest-store';
 import { listSchemasByProgramm } from '@/core/services/csv/idb-csv';
 import { normalizeKey } from '../fieldLookup';
 import { buildDescriptorsText } from './descriptor-text';
-import { baueKorpusFeldKarte, type KorpusFeldKarte } from './korpusFeldAufloesung';
+import {
+  baueKorpusFeldKarte, SLOT_REIHENFOLGE,
+  type KorpusFeldKarte, type KorpusSlot,
+} from './korpusFeldAufloesung';
 
 export interface AntragTextEntry {
   /** Verbund-Titel. */
@@ -36,7 +40,8 @@ export interface AntragTextEntry {
   /** Kurzbeschreibung / Abstract / VB-Inhalt. */
   abstract: string;
   /** Konkatenierte Deskriptor-Werte: TECHN/BRANCHE/ANWEND-Strings +
-   *  Klartexte der gesetzten ZT-Flags. Siehe `descriptor-text.ts`. */
+   *  Klartexte der gesetzten ZT-Flags (siehe `descriptor-text.ts`) + seit v4.50
+   *  der NACE-Branchentext, der dieselbe Frage feiner beantwortet. */
   descriptors: string;
   /** Akronym / Kurzname (CSV-Spalte `VB_KURZNAM`). Eigenes Feld, weil es NICHT
    *  verlaesslich im Titel steht: der Netzwerkantrag `16KN083001` heisst
@@ -112,6 +117,39 @@ export interface AntragTextEntry {
   /** Suchform der Web-Adresse — wie `standortSuchform` am Wortanfang verankert
    *  und OHNE die Top-Level-Domain: sonst traefe die Anfrage „de" jeden Antrag. */
   domainSuchform: string;
+  /**
+   * Netzwerkangabe eines ZIM-Netzwerkvorhabens, roh wie im Export:
+   * `"LOHCmobil" 16KN065602_AM` — Name UND Kennzeichen des Netzwerks.
+   *
+   * Am Bestand gemessen (14 225 FKZ): 11 492 Antraege tragen die Angabe. In
+   * 10 925 davon steht der Name ohnehin schon im Titel — der Zugewinn sind die
+   * restlichen 556 UND das Netz-Kennzeichen, das in keinem anderen Feld steht:
+   * darueber findet man erstmals alle Teilvorhaben EINES Netzwerks auf einmal.
+   *
+   * Freier Substring wie beim Titel, NICHT am Wortanfang verankert: „LOHC" soll
+   * `"LOHCmobil"` finden.
+   */
+  netzwerk: string;
+  netzwerkLower: string;
+  /**
+   * Die Arbeitsnotizen am Vorgang: `T_YW` („Wichtig", 3 343 Antraege) und
+   * `T_HINT` („Bemerkung", 3 161), zusammengezogen wie Antragsteller und
+   * ausfuehrende Stelle.
+   *
+   * Diese Saetze stehen in KEINEM anderen Feld — bis v4.50 fuehrte der einzige
+   * Weg dorthin ueber das Oeffnen des Antrags. Bis zu 250 Zeichen je Notiz.
+   */
+  notiz: string;
+  notizLower: string;
+  /**
+   * Wahlkreis der ausfuehrenden Stelle (`WKNAAK_AFS`, z. B. „Goslar - Northeim
+   * - Goettingen II"). 14 218 Antraege; in 5 274 Faellen nennt er einen Ort, der
+   * im Standort-Feld nicht vorkommt — genau dort liegt der Zugewinn.
+   */
+  wahlkreis: string;
+  /** Suchform des Wahlkreises — am Wortanfang verankert wie der Standort, aus
+   *  demselben Grund: es sind Ortsnamen, und die stecken ineinander. */
+  wahlkreisSuchform: string;
 }
 
 /**
@@ -167,6 +205,19 @@ const KORPUS_BASIS: KorpusFeldKarte = {
   /** Kontakt-Mail der Projektleitung des ANTRAGSTELLERS. Quelle des
    *  Domain-Kuerzels, siehe `domainLabel`. */
   emailPl: mengeAus('email_pl', 'email pl'),
+  /** Netzwerkangabe. Am Bestand unter ZWEI Schluesseln je nach Quelle:
+   *  `netzwerk` (7737/9097) und `netzwerk_kurzname_fkz_ztp` (9052). */
+  netzwerk: mengeAus('netzwerk', 'netzwerkna', 'netzwerk_kurzname_fkz_ztp'),
+  /** Arbeitsnotizen. `T_YW` liegt unter `wichtig`, `T_HINT` unter `bemerkung`. */
+  notizWichtig: mengeAus('wichtig', 't_yw', 't yw'),
+  notizBemerkung: mengeAus('bemerkung', 't_hint', 't hint'),
+  /** Wahlkreis der ausfuehrenden Stelle. */
+  wahlkreis: mengeAus('wahlkreisname_afs', 'wknaak_afs', 'wknaak afs'),
+  /** Klartext der NACE-Branche. Faellt NICHT in ein eigenes Feld, sondern zu den
+   *  Deskriptoren — dort steht die Branche schon (BRANCHE_/TECHN_/ANWEND_), nur
+   *  eben grob. 2 256 Antraege fuehren ihn, 1 512 davon mit Woertern, die in den
+   *  Deskriptoren fehlen. */
+  nace: mengeAus('nace_code_beschreibung_nw_antragsebene', 'nace_lang', 'nace lang'),
 };
 
 function mengeAus(...namen: string[]): ReadonlySet<string> {
@@ -298,18 +349,46 @@ export function domainSuchform(host: string): string {
   return standortSuchform(ohneTld);
 }
 
-function pickByNormalized(
+/**
+ * Umkehr-Verzeichnis Schluessel → Slot, EINMAL je Ladelauf gebaut.
+ *
+ * Vorher fragte der Korpus je Eintrag jeden Slot einzeln (`pickByNormalized`) —
+ * also je Antrag `Slots × Spalten` Vergleiche, jeder mit einem eigenen
+ * `normalizeKey`. Bei 14 225 Antraegen à ~200 Spalten war das mit 10 Slots schon
+ * teuer und waere mit 15 um die Haelfte teurer geworden. Ein Durchgang ueber die
+ * Schluessel des Records liefert dasselbe Ergebnis: `normalizeKey` faellt einmal
+ * je Spalte an, nicht einmal je Spalte UND Slot.
+ *
+ * Gleiche Semantik wie vorher: je Slot gewinnt der ERSTE passende Schluessel in
+ * der Schluessel-Reihenfolge des Records. Dass kein Schluessel zwei Slots
+ * bedient, sichert `baueKorpusFeldKarte` (Kollisions-Regel) — der Guard hier ist
+ * nur die Reihenfolge von `SLOT_REIHENFOLGE`.
+ */
+function baueSlotIndex(karte: KorpusFeldKarte): Map<string, KorpusSlot> {
+  const index = new Map<string, KorpusSlot>();
+  for (const slot of SLOT_REIHENFOLGE) {
+    for (const key of karte[slot]) if (!index.has(key)) index.set(key, slot);
+  }
+  return index;
+}
+
+/** Alle Slot-Werte eines Records in EINEM Durchgang. Fehlende Slots fehlen. */
+function leseSlots(
   record: Record<string, unknown>,
-  targets: ReadonlySet<string>,
-): string {
+  index: ReadonlyMap<string, KorpusSlot>,
+): Partial<Record<KorpusSlot, string>> {
+  const out: Partial<Record<KorpusSlot, string>> = {};
   for (const key of Object.keys(record)) {
     if (key.startsWith('_')) continue;
     const v = record[key];
     if (typeof v !== 'string' || v.length === 0) continue;
-    if (targets.has(normalizeKey(key))) return v;
+    const slot = index.get(normalizeKey(key));
+    if (slot === undefined || out[slot] !== undefined) continue;
+    out[slot] = v;
   }
-  return '';
+  return out;
 }
+
 
 /**
  * Zieht mehrere Angaben derselben Art zu EINEM Suchfeld zusammen und laesst
@@ -382,6 +461,7 @@ export async function loadAntraegeTextCorpus(
     await listSchemasByProgramm(idb, programmId),
     KORPUS_BASIS,
   );
+  const slotIndex = baueSlotIndex(karte);
   const db = idb.getDb();
   const result = new Map<string, AntragTextEntry>();
   await new Promise<void>((resolve, reject) => {
@@ -394,30 +474,39 @@ export async function loadAntraegeTextCorpus(
       if (!cursor) { resolve(); return; }
       const a = cursor.value as Antrag;
       const rec = a as unknown as Record<string, unknown>;
-      const vb = pickByNormalized(rec, karte.vbTitel);
+      const feld = leseSlots(rec, slotIndex);
+      const vb = feld.vbTitel ?? '';
       const tv = typeof a.titel === 'string' ? a.titel : '';
-      const ab = pickByNormalized(rec, karte.abstract);
-      const descriptors = buildDescriptorsText(a);
-      const ak = pickByNormalized(rec, karte.akronym);
-      const orgAfs = pickByNormalized(rec, karte.orgAfs);
-      const orgAst = pickByNormalized(rec, karte.orgAst);
-      const organisation = verbindeEindeutig(orgAfs, orgAst);
+      const ab = feld.abstract ?? '';
+      // Der NACE-Klartext haengt sich an die Deskriptoren an, statt ein eigenes
+      // Feld zu bekommen: er beantwortet dieselbe Frage („aus welcher Branche"),
+      // nur mit anderen Worten. Ein eigenes Etikett in der Trefferzeile waere
+      // eine Unterscheidung, die dem Suchenden nichts sagt.
+      const descriptors = verbindeMit(' • ', buildDescriptorsText(a), feld.nace ?? '');
+      const ak = feld.akronym ?? '';
+      const organisation = verbindeEindeutig(feld.orgAfs ?? '', feld.orgAst ?? '');
       // Mit sichtbarem Trenner: dieses Feld wird auch ANGEZEIGT (siehe
       // `verbindeMit`). Die Suchform darunter bleibt davon unberuehrt.
       const standort = verbindeMit(
         ' · ',
-        pickByNormalized(rec, karte.ortAfs),
-        pickByNormalized(rec, karte.ortAst),
-        bundeslandName(pickByNormalized(rec, karte.landAfs)),
-        bundeslandName(pickByNormalized(rec, karte.landAst)),
+        feld.ortAfs ?? '',
+        feld.ortAst ?? '',
+        bundeslandName(feld.landAfs ?? ''),
+        bundeslandName(feld.landAst ?? ''),
       );
-      const domain = domainLabel(pickByNormalized(rec, karte.emailPl));
+      const domain = domainLabel(feld.emailPl ?? '');
+      const netzwerk = feld.netzwerk ?? '';
+      // Zwei Notizfelder, eine Fundstelle — mit sichtbarem Trenner, weil dieser
+      // Text in der Trefferzeile ausgeschrieben wird.
+      const notiz = verbindeMit(' · ', feld.notizWichtig ?? '', feld.notizBemerkung ?? '');
+      const wahlkreis = feld.wahlkreis ?? '';
       if (
         includeEmpty
         || vb.length > 0 || tv.length > 0 || ab.length > 0
         || descriptors.length > 0 || ak.length > 0
         || organisation.length > 0 || standort.length > 0
-        || domain.length > 0
+        || domain.length > 0 || netzwerk.length > 0
+        || notiz.length > 0 || wahlkreis.length > 0
       ) {
         result.set(a.aktenzeichen, {
           vb,
@@ -437,6 +526,12 @@ export async function loadAntraegeTextCorpus(
           standortSuchform: standortSuchform(standort),
           domain,
           domainSuchform: domainSuchform(domain),
+          netzwerk,
+          netzwerkLower: netzwerk.toLowerCase(),
+          notiz,
+          notizLower: notiz.toLowerCase(),
+          wahlkreis,
+          wahlkreisSuchform: standortSuchform(wahlkreis),
         });
       }
       cursor.continue();

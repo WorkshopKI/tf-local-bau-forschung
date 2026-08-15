@@ -270,11 +270,12 @@ export async function autoBootstrapEmbeddingMirror(
  * Aufrufer entscheidet, ob die Wahl des Nutzers auf seiner Seite gilt (die
  * Suchseite reicht sie durch, die Förderanträge-Liste bleibt beim Standard).
  *
- * Die Ortsangabe wird als EINZIGES Feld am Wortanfang verglichen statt als
- * freier Substring (siehe `standortSuchform` in `search-corpus.ts`) — sonst
- * holt „essen" die hessischen Anträge herein. Die Nadeln dafür entstehen einmal
- * je Anfrage, nicht je Eintrag; über 14 000 Einträge wäre das sonst genau der
- * GC-Druck, den die vorberechneten Felder vermeiden.
+ * Die ORTSFELDER (Standort, Web-Adresse, Wahlkreis) werden am Wortanfang
+ * verglichen statt als freier Substring (siehe `standortSuchform` in
+ * `search-corpus.ts`) — sonst holt „essen" die hessischen Anträge herein. Alle
+ * übrigen Felder tragen Fließtext und vergleichen frei. Die Nadeln dafür
+ * entstehen einmal je Anfrage, nicht je Eintrag; über 14 000 Einträge wäre das
+ * sonst genau der GC-Druck, den die vorberechneten Felder vermeiden.
  *
  * Seit v4.49 trägt jeder Suchteil seine EIGENE Feldmenge: ein getipptes Präfix
  * (`ast:GMBU`, siehe [feldpraefix.ts](src/core/services/search/feldpraefix.ts))
@@ -327,6 +328,9 @@ function substringMatches(
       || (t.erlaubt.has('akronym') && entry.akronymLower.includes(nadel))
       || (t.erlaubt.has('aktenzeichen') && entry.akzLower.includes(nadel))
       || (t.erlaubt.has('organisation') && entry.organisationLower.includes(nadel))
+      // Netzwerk und Notiz sind Fliesstext wie der Titel — freier Substring.
+      || (t.erlaubt.has('netzwerk') && entry.netzwerkLower.includes(nadel))
+      || (t.erlaubt.has('notiz') && entry.notizLower.includes(nadel))
     ))
       // Leere Nadel verwerfen: `''.includes('')` wäre `true` und träfe alles.
       // Der Standort vergleicht bewusst das ROHE Wort, nicht den Stamm: seine
@@ -339,7 +343,11 @@ function substringMatches(
       // „gmbu" soll `gmbu.de` finden, aber nicht mitten in einer fremden Domain
       // treffen.
       || (t.erlaubt.has('domain') && t.ortNadel.length > 0
-        && entry.domainSuchform.includes(t.ortNadel));
+        && entry.domainSuchform.includes(t.ortNadel))
+      // Der Wahlkreis besteht aus Ortsnamen („Goslar - Northeim - Göttingen II")
+      // und wird deshalb wie der Standort am Wortanfang verglichen.
+      || (t.erlaubt.has('wahlkreis') && t.ortNadel.length > 0
+        && entry.wahlkreisSuchform.includes(t.ortNadel));
     if (verknuepfung === 'oder' ? teile.some(trifft) : teile.every(trifft)) {
       out.set(akz, feldZuordnung(entry, teile));
       if (stammSuche && gescannt < VARIANTEN_SCAN_MAX && varianten.size < VARIANTEN_MAX) {
@@ -354,8 +362,9 @@ function substringMatches(
 /** Ein zerlegtes Suchwort: der Wortlaut (für Anzeige und Zählung), die Nadeln
  *  (Wortlaut, Stamm oder ausgewählte Varianten), die am Wortanfang verankerte
  *  Nadel und die Felder, in denen DIESES Wort nachsehen darf. Die verankerte
- *  Nadel bedient Standort UND Web-Adresse — beide sind kurze, ineinander
- *  steckende Zeichenketten, in denen freies Substring-Matching Unsinn liefert. */
+ *  Nadel bedient Standort, Web-Adresse UND Wahlkreis — alle drei sind kurze,
+ *  ineinander steckende Zeichenketten, in denen freies Substring-Matching
+ *  Unsinn liefert. */
 interface SuchTeil {
   wort: string;
   nadeln: string[];
@@ -476,8 +485,11 @@ function feldZuordnung(
     merke('akronym', in_(entry.akronymLower));
     merke('aktenzeichen', in_(entry.akzLower));
     merke('organisation', in_(entry.organisationLower));
+    merke('netzwerk', in_(entry.netzwerkLower));
+    merke('notiz', in_(entry.notizLower));
     merke('domain', t.ortNadel.length > 0 && entry.domainSuchform.includes(t.ortNadel));
     merke('standort', t.ortNadel.length > 0 && entry.standortSuchform.includes(t.ortNadel));
+    merke('wahlkreis', t.ortNadel.length > 0 && entry.wahlkreisSuchform.includes(t.ortNadel));
     if (trifftIrgendwo) getroffen++;
   }
   return { felder, abdeckung: teile.length > 0 ? getroffen / teile.length : 0 };

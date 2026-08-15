@@ -19,6 +19,18 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.50 — 2026-08
+
+### Neu
+- Die Suche kennt jetzt das **Netzwerk**. `netz:ProAnimalLife` findet alle 80 Teilvorhaben dieses Netzwerks — und weil auch das Netz-Kennzeichen mitdurchsucht wird, führt `16KN062302` erstmals zu allen Vorhaben des Netzes statt nur zum Netzwerkantrag.
+- **Ihre Arbeitsnotizen** („Wichtig" und „Bemerkung") sind durchsuchbar: `notiz:Einbehalt` findet die 50 Vorhaben, bei denen das notiert ist. Dieser Text stand bisher nirgends außer auf der Detailseite des Antrags.
+- Der **Wahlkreis** zählt zum Ort: „Northeim" findet 51 statt 1 Vorhaben. Die Auswahl heißt deshalb jetzt „nur Ort, Bundesland & Wahlkreis".
+
+### Verbesserungen
+- Sie sehen weiter, **warum** ein Treffer erscheint: Netzwerk, Wahlkreis und Notiz stehen als Beleg in der Trefferzeile und blenden sich in der Tabelle als Spalte ein — wie bisher schon Ort, Deskriptoren und Web-Adresse.
+- Die Branchenbezeichnung aus der Fördertabelle zählt zu den Deskriptoren; damit findet „Anstrichmitteln" 12 Vorhaben statt keines.
+- Die Suche ist beim ersten Aufruf deutlich schneller startklar, obwohl sie mehr Felder liest.
+
 ## v4.49 — 2026-08
 
 ### Neu

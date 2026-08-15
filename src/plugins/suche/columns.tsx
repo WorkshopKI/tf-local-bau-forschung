@@ -349,6 +349,53 @@ export const SEARCH_COLUMNS: SearchColumn[] = [
       : null,
   },
   {
+    // Netzwerkname UND Netz-Kennzeichen, roh wie im Export
+    // („LOHCmobil" 16KN065602_AM). Das Kennzeichen ist der Grund, warum die
+    // Spalte einen Filter trägt: es ist der einzige Weg, alle Teilvorhaben
+    // EINES Netzwerks beisammen zu sehen.
+    key: 'netzwerk', label: 'Netzwerk', width: 190, defaultVisible: false,
+    sortable: true, filterable: true, appliesTo: 'antrag',
+    accessor: r => safeString(r.netzwerk),
+    render: r => r.netzwerk
+      ? (
+        <span className="text-[12px] text-[var(--tf-text)] truncate block" title={r.netzwerk}>
+          <MarkierterText text={r.netzwerk} />
+        </span>
+      )
+      : null,
+  },
+  {
+    // Der Wahlkreis der ausführenden Stelle. Steht neben „Ort & Bundesland",
+    // weil er dieselbe Frage beantwortet — und weil er sie in 5 274 von 14 218
+    // Fällen mit einem Ortsnamen beantwortet, der in der Ortsspalte fehlt.
+    key: 'wahlkreis', label: 'Wahlkreis', width: 185, defaultVisible: false,
+    sortable: true, filterable: true, appliesTo: 'antrag',
+    accessor: r => safeString(r.wahlkreis),
+    render: r => r.wahlkreis
+      ? (
+        <span className="text-[12px] text-[var(--tf-text)] truncate block" title={r.wahlkreis}>
+          <MarkierterText text={r.wahlkreis} />
+        </span>
+      )
+      : null,
+  },
+  {
+    // Die Arbeitsnotizen am Vorgang („Wichtig" + „Bemerkung"). Umbrechend wie
+    // die Deskriptoren: es sind ganze Sätze, gekürzt wären sie oft genau um die
+    // Stelle gekürzt, die getroffen hat. Nicht filterbar — jeder Wert ist
+    // einmalig, eine Facette daraus hätte so viele Einträge wie Zeilen.
+    key: 'notiz', label: 'Notiz', width: 260, defaultVisible: false,
+    sortable: true, filterable: false, appliesTo: 'antrag', wrap: true,
+    accessor: r => safeString(r.notiz),
+    render: r => r.notiz
+      ? (
+        <span className="text-[12px] text-[var(--tf-text-secondary)] whitespace-normal">
+          <MarkierterText text={r.notiz} />
+        </span>
+      )
+      : null,
+  },
+  {
     key: 'laufzeitbeginn', label: 'Laufzeitbeginn', width: 150, defaultVisible: false,
     sortable: true, filterable: true, appliesTo: 'antrag',
     accessor: r => safeString(r.laufzeitbeginn),

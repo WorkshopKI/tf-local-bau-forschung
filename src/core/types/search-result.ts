@@ -75,6 +75,16 @@ export interface UnifiedSearchResult {
    *  Kürzel „GMBU" hierher gefunden hat, sieht in der Zeile sonst nur den
    *  ausgeschriebenen Namen — und damit keinen Grund für den Treffer. */
   domain?: string;
+  /** Netzwerkangabe roh wie im Export (`"LOHCmobil" 16KN065602_AM`) — Name und
+   *  Kennzeichen des Netzwerks. Beleg wie oben: steht in keiner anderen Zelle. */
+  netzwerk?: string;
+  /** Wahlkreis der ausführenden Stelle. Beleg wie oben — und der Grund, warum
+   *  ein Treffer erscheint, dessen Ortsfeld das Suchwort gar nicht enthält. */
+  wahlkreis?: string;
+  /** Die Arbeitsnotizen am Vorgang („Wichtig" + „Bemerkung", zusammengezogen).
+   *  Der stärkste Fall dieser Regel: der Satz steht nirgends sonst in der App
+   *  außer auf der Detailseite des Antrags. */
+  notiz?: string;
 
   // ----- Antrags-spezifisch (nur wenn type === 'antrag') -----
   /** Foerderkennzeichen / Aktenzeichen. */

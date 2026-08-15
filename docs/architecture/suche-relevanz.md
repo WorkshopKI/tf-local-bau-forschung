@@ -21,8 +21,9 @@ Sortierung, keine Relevanzangabe, keine Erklärung, warum ein Treffer kam.
 Der Antrags-Korpus hält die suchbaren Felder ohnehin getrennt
 ([search-corpus.ts](../../src/plugins/antraege/services/search-corpus.ts)):
 Titel (VB + TV), Kurzbeschreibung, Deskriptoren, Akronym, Aktenzeichen,
-Organisation, Standort, Web-Adresse. Die Feld-Zuordnung war also nie eine
-Rechnung, sondern nur eine Information, die niemand mitgeführt hat.
+Organisation, Standort, Web-Adresse — und seit v4.50 Netzwerk, Arbeitsnotiz und
+Wahlkreis. Die Feld-Zuordnung war also nie eine Rechnung, sondern nur eine
+Information, die niemand mitgeführt hat.
 
 **Woher der Korpus seine Felder nimmt (v4.42.0).** Unter welchem Schlüssel eine
 CSV-Spalte im Antrags-Record landet, entscheidet das Wizard-Mapping —
@@ -58,12 +59,12 @@ aufzugeben, um nebenbei Felder zu sammeln, hätte die Suche spürbar verlangsamt
 ### Wo der Beleg im Ergebnis steht (v4.23)
 
 Ein Etikett „Ort" sagt, DASS im Ort getroffen wurde — nicht WAS dort steht. Am
-echten Bestand gemessen: „Dresden" im Bereich „nur Ort & Bundesland" lieferte 485
+echten Bestand gemessen: „Dresden" im Ortsbereich lieferte 485
 Treffer, und in der Liste war das Suchwort bei **4 von 30** sichtbaren Zeilen
 markiert — bei denen, wo die Stadt zufällig im Firmennamen vorkam.
 
-Die Ursache ist keine Lücke im Layout, sondern eine im Datenfluss: sieben der
-neun Trefferstellen haben längst einen Platz im Ergebnis, zwei nicht.
+Die Ursache ist keine Lücke im Layout, sondern eine im Datenfluss: sechs der
+zwölf Trefferstellen haben längst einen Platz im Ergebnis, sechs nicht.
 
 | Trefferstelle | steht im Ergebnis als |
 |---|---|
@@ -75,19 +76,24 @@ neun Trefferstellen haben längst einen Platz im Ergebnis, zwei nicht.
 | **`standort`** | **Spalte „Ort & Bundesland"** — wird eingeblendet |
 | **`deskriptoren`** | **Spalte „Deskriptoren"** — wird eingeblendet |
 | **`domain`** | **Spalte „Web-Adresse"** — wird eingeblendet |
+| **`netzwerk`** | **Spalte „Netzwerk"** — wird eingeblendet |
+| **`wahlkreis`** | **Spalte „Wahlkreis"** — wird eingeblendet |
+| **`notiz`** | **Spalte „Notiz"** — wird eingeblendet |
 
-[autoSpalten.ts](../../src/plugins/suche/autoSpalten.ts) führt diese drei — und
-nur diese drei. Eine weitere Zeile braucht den Nachweis, dass der Beleg wirklich
+[autoSpalten.ts](../../src/plugins/suche/autoSpalten.ts) führt diese sechs — und
+nur diese sechs. Eine weitere Zeile braucht den Nachweis, dass der Beleg wirklich
 nirgends sonst auftaucht; sonst verbreitert sich die Tabelle für nichts.
 
 Für `domain` ist der Nachweis geführt: die Web-Adresse steht in keiner anderen
 Spalte und in keinem Snippet. Sie ist sogar der schärfere Fall — bei einem
 Domain-Treffer steht das Suchwort in **keinem** sichtbaren Feld der Zeile.
 
-**Zwei Auslöser.** Die Einstellung: „nur Ort & Bundesland" blendet die Spalte
-immer ein, auch wenn eine Anfrage nichts findet. Die Fundstelle: im
+**Zwei Auslöser.** Die Einstellung: „nur Ort, Bundesland & Wahlkreis" blendet die
+Ortsspalte immer ein, auch wenn eine Anfrage nichts findet. Die Fundstelle: im
 Standardbereich erscheint sie, sobald **ein** Treffer den Beleg trägt — das ist
-der Normalfall, denn kaum jemand stellt das Dropdown um.
+der Normalfall, denn kaum jemand stellt das Dropdown um. Der Wahlkreis hängt
+allein am zweiten Auslöser: er gehört zu demselben Bereich, ist dort aber die
+seltenere Fundstelle, und zwei Dauerspalten für eine Wahl wären eine zu viel.
 
 **Die Spalten gehören der Anfrage, nicht der Person.** Sie kommen über
 `erzwungeneKeys` des geteilten [ColumnPicker](../../src/components/data-table/ColumnPicker.tsx)
@@ -147,6 +153,47 @@ auf „chemnitz" anspricht.
 **Reichweite:** `EMAIL_PL` führt nur die Bewilligungs-Quelle — **8 024 von
 14 097** FKZ. Anträge ohne Bewilligungssatz bleiben über die Domain unerreichbar.
 
+### Netzwerk, Arbeitsnotiz, Wahlkreis (v4.50.0)
+
+Gefragt war: „können wir weitere Felder aus den Roh-CSVs dazunehmen, solche mit
+sinnvollem Text?" Die Antwort kam aus einer Messung über alle drei aktiven
+Quellen (512 Spalten, 14 225 FKZ) — nicht danach, welche Spalte viel Text hat,
+sondern danach, welcher Text **nirgendwo sonst durchsuchbar** ist.
+
+| Spalte | Schlüssel im Store | Deckung | Zugewinn |
+|---|---|---|---|
+| `NETZWERKNA` | `netzwerk` · `netzwerk_kurzname_fkz_ztp` | 11 492 (81 %) | 556 Namen stehen in keinem Titel — plus das Netz-Kennzeichen |
+| `T_YW` / `T_HINT` | `wichtig` / `bemerkung` | 3 343 / 3 161 | steht in **keinem** anderen Feld |
+| `WKNAAK_AFS` | `wahlkreisname_afs` | 14 218 (100 %) | 5 274 Wahlkreisnamen nennen einen Ort, den das Standortfeld nicht führt |
+| `NACE_LANG` | `nace_code_beschreibung…` | 2 256 (16 %) | 1 512 Branchentexte fehlen in den Deskriptoren |
+
+Vier Entscheidungen dahinter:
+
+- **Das Netz-Kennzeichen ist der eigentliche Gewinn.** Die Angabe lautet
+  `"LOHCmobil" 16KN065602_AM` — Name UND Kennzeichen des Netzwerks. Über das
+  Kennzeichen findet man erstmals alle Teilvorhaben EINES Netzwerks auf einmal;
+  vorher fand dieselbe Anfrage nur den Netzwerkantrag selbst. Der Name allein
+  hätte den Aufwand nicht getragen: in 10 925 von 11 492 Fällen steht er ohnehin
+  im Titel.
+- **Beide Notizspalten sind EIN Suchfeld.** Der Suchende fragt „steht das
+  irgendwo in meinen Notizen", nicht „steht das in `T_YW` oder in `T_HINT`". Die
+  Auflösung hält sie trotzdem getrennt — sonst fände der zweite Slot den Wert des
+  ersten und eine der beiden Spalten wäre still verschwunden.
+- **Der Wahlkreis gehört zum „wo".** Deshalb steht er im Ortsbereich und deshalb
+  nennt ihn dessen Beschriftung. Verglichen wird **am Wortanfang** wie beim
+  Standort: es sind Ortsnamen, und die stecken ineinander.
+- **NACE bekommt kein eigenes Feld.** Der Branchentext beantwortet dieselbe Frage
+  wie die Deskriptoren, nur feiner — er hängt sich dort an. Ein eigenes Etikett
+  in der Trefferzeile wäre eine Unterscheidung, die dem Suchenden nichts sagt.
+
+**Was NICHT dazukam** und warum: die Straße (`STR_AST`, 100 % gefüllt) — sie
+holte über Namen wie „Berliner Str." Fehltreffer in fremde Städte; `ATTR_TEXT`
+(„KMU", 99,5 %) und `NAT_ZUORD` — ein Vokabular aus ~30 Werten ist eine Facette,
+kein Suchfeld; die Anrede `BRANR_PL` („Sehr geehrter Herr …") — Personenangabe
+ohne Sachaussage. `ALTAKZ` wäre interessant (der alte Vorgangscode), ist im
+Import aber ausdrücklich auf „ignorieren" gesetzt und bräuchte erst eine
+Mapping-Änderung.
+
 ## 3 Relevanz — das Urteil
 
 `berechneRelevanz(felder, abdeckung)` in
@@ -159,12 +206,14 @@ breite   = min(1, (Anzahl Felder − 1) / 2)
 ```
 
 **Feldgewichte** (nur ihr Verhältnis zählt): Titel · Akronym · Aktenzeichen 3 —
-Kurzbeschreibung · Dokument 2 — Deskriptoren · Ähnlichkeit 1,5 — Organisation ·
-Web-Adresse · Standort 1.
+Kurzbeschreibung · Dokument 2 — Deskriptoren · Netzwerk · Ähnlichkeit 1,5 —
+Organisation · Web-Adresse · Standort · Wahlkreis · Notiz 1.
 
 Die Staffelung sagt, wie stark eine Fundstelle für das THEMA spricht: im Titel
 steht, worum es geht; in der Einrichtung steht, wer es macht. „HPC Standards
-GmbH" ist kein fachlicher Standards-Treffer.
+GmbH" ist kein fachlicher Standards-Treffer. Das Netzwerk liegt bei den
+Deskriptoren, weil es eine Vorhabens-FAMILIE benennt; die Arbeitsnotiz ganz
+unten, weil sie vom VORGANG handelt („ZA nicht erinnern"), fast nie vom Thema.
 
 **`abdeckung`** ist der Anteil der Suchwörter mit Fundstelle — bei UND immer 1,
 bei ODER der Unterschied zwischen „ein Wort von dreien" und „alle drei".
@@ -281,8 +330,11 @@ nicht aus einem Merkschlüssel daneben — eine zweite Quelle könnte davon abwe
 
 ## 7 Was NICHT gemacht wurde
 
-- **Feldsuche-Syntax** (`fkz:16KN*`, `jahr:2024`) — existiert nicht und steht
-  deshalb auch nicht in der Hilfe.
+- **Platzhalter und Vergleiche** (`fkz:16KN*`, `jahr:>2024`) — die Feldsuche
+  seit v4.49 nennt ein Feld und einen Wert, mehr nicht
+  ([feldpraefix.ts](../../src/core/services/search/feldpraefix.ts)). Ein `*` ist
+  überflüssig, weil ohnehin im Wort gesucht wird; Vergleiche wären eine
+  Abfragesprache und gehören zu den Facetten, nicht ins Suchfeld.
 - **Monitoring gespeicherter Suchen** — es gibt keinen Benachrichtigungsweg.
   „+2 seit zuletzt" ist die Differenz zum letzten Ausführen, nicht „2 neue
   Anträge", und die Beschriftung sagt genau das.
