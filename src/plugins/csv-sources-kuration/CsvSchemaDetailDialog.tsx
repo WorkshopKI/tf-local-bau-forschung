@@ -41,6 +41,15 @@ interface GroupBucket {
 const NO_GROUP_KEY = '__none__';
 const NO_GROUP_LABEL = 'Ohne Gruppierung';
 
+/**
+ * Warum ein Knopf hier grau ist. Steht als sichtbarer Text neben ihm, nicht in
+ * seinem `title`: ein `disabled`-Button empfängt keine Mausereignisse, sein
+ * Tooltip erscheint also nie — und der Seiten-Banner, der dasselbe sagt, liegt
+ * hinter diesem Dialog.
+ */
+const KURATOR_NOETIG =
+  'Nur mit Kurator-Sitzung — freischalten in Einstellungen → Mein Profil → Zusatz-Module.';
+
 type DisplayMode = 'canonical' | 'custom' | 'ignore';
 
 function detectMode(entry: ColumnMappingEntry): DisplayMode {
@@ -296,19 +305,25 @@ export function CsvSchemaDetailDialog({ schema: initialSchema, onClose, onSaved 
             </Button>
           </div>
         ) : (
-          <div className="flex w-full items-center justify-between">
+          <div className="flex w-full items-center justify-between gap-3">
             <Button variant="outline" size="sm" onClick={onClose}>
               Schließen
             </Button>
-            <Button
-              variant="default"
-              size="sm"
-              onClick={startEdit}
-              disabled={!session.isActive}
-              title={!session.isActive ? 'Kurator-Modus aktivieren, um das Mapping zu bearbeiten' : undefined}
-            >
-              <Pencil size={13} /> Mapping bearbeiten
-            </Button>
+            <div className="flex min-w-0 items-center gap-2">
+              {/* Der Grund steht SICHTBAR daneben, nicht im `title` des Knopfes:
+                  ein deaktivierter Button empfängt keine Mausereignisse, sein
+                  Tooltip erscheint also nie. Der Dialog verdeckt zudem den
+                  Seiten-Banner, der sonst dasselbe sagt — hier war der Knopf
+                  grau und stumm. */}
+              {!session.isActive && (
+                <span className="min-w-0 text-right text-[11.5px] leading-tight text-[var(--tf-text-tertiary)]">
+                  {KURATOR_NOETIG}
+                </span>
+              )}
+              <Button variant="default" size="sm" onClick={startEdit} disabled={!session.isActive}>
+                <Pencil size={13} /> Mapping bearbeiten
+              </Button>
+            </div>
           </div>
         )
       }
@@ -367,10 +382,12 @@ export function CsvSchemaDetailDialog({ schema: initialSchema, onClose, onSaved 
                   size="sm"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={!session.isActive || importConfig.busy}
-                  title={!session.isActive ? 'Kurator-Modus aktivieren, um zu importieren' : undefined}
                 >
                   <Upload size={13} /> {importConfig.busy ? 'Importiere…' : 'Konfiguration importieren'}
                 </Button>
+                {!session.isActive && (
+                  <span className="text-[11.5px] text-[var(--tf-text-tertiary)]">{KURATOR_NOETIG}</span>
+                )}
                 <input
                   ref={fileInputRef}
                   type="file"

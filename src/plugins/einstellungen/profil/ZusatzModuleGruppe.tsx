@@ -25,6 +25,7 @@ import { verifyModulPassword } from '@/core/services/infrastructure/app-password
 import { refreshAllPermissions } from '@/core/services/infrastructure/smb-handle';
 import { useConnectionState } from '@/core/services/connection-status';
 import { hatModulSchloss, hatIrgendeinModulSchloss, isKuratorMenusEnabled } from '@/config/feature-flags';
+import { spiegleKuratorSchalterInSession } from '@/core/modul-freischaltung';
 import { runtimeConfig, MODUL_SLOTS, type ModulSlot } from '@/config/runtime-config';
 import {
   SettingsGruppe,
@@ -190,12 +191,36 @@ function ModulZeile({ slot }: { slot: ModulSlot }): React.ReactElement | null {
 }
 
 function KuratorSchalter(): React.ReactElement {
+  const storage = useStorage();
   const { profile, updateProfile } = useProfile();
+  const applyRefreshResult = useConnectionState(s => s.applyRefreshResult);
+
+  /**
+   * Ohne Schloss ist dieser Schalter der EINZIGE Kurator-Gate — er muss deshalb
+   * dasselbe tun wie der Passwort-Weg oben: Profil-Flagge UND Sitzung. Bis v4.59
+   * setzte er nur die Flagge; die Menüs erschienen, aber jede Schreib-Aktion
+   * darin blieb grau, weil sie an `session.isActive` hängt.
+   */
+  const umschalten = useAsyncAction(async (v: boolean) => {
+    await updateProfile({ is_kurator: v });
+    await spiegleKuratorSchalterInSession(storage.idb, v);
+    if (v) {
+      // Handle im selben User-Gesture auf readwrite hochstufen (Pitfall #25) —
+      // ein Start ohne Kurator-Recht hat evtl. nur `read` erhalten.
+      try {
+        applyRefreshResult(await refreshAllPermissions(storage.idb, { isKurator: true }));
+      } catch {
+        /* best-effort — der nächste Start stuft hoch. */
+      }
+    }
+  });
+
   return (
     <SettingsOption id="sec-kurator" label="Kurator-Menüs" hint={HINT_KURATOR_FREI}>
       <Switch
         checked={!!(profile?.is_kurator ?? profile?.is_admin)}
-        onCheckedChange={v => updateProfile({ is_kurator: v })}
+        onCheckedChange={v => umschalten.run(v)}
+        disabled={umschalten.busy}
         aria-label="Kurator-Menüs aktivieren"
       />
     </SettingsOption>

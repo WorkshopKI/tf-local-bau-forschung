@@ -22,6 +22,7 @@
  */
 
 import { modulSichtbar, type ModulSlot } from '@/config/modul-schloss';
+import { runtimeConfig } from '@/config/runtime-config';
 import { hatModulSchloss, isAuslastungEnabled, isKuratorMenusEnabled } from '@/config/feature-flags';
 import { useKuratorSession } from '@/core/hooks/useKuratorSession';
 import { useModulFreischaltung } from '@/core/hooks/useModulFreischaltung';
@@ -73,6 +74,38 @@ export async function schliesseGesperrteModule(
   if (hatSchloss('kurator')) {
     await useKuratorSession.getState().deactivate(idb);
   }
+}
+
+/**
+ * Ohne Schloss folgt die Kurator-SITZUNG dem Schalter im Profil.
+ *
+ * **Warum das nötig ist:** die Sitzung traegt die Schreibrechte (jede
+ * Schreib-Aktion prueft `session.isActive`), geoeffnet wird sie aber nur vom
+ * Passwort-Weg (`ZusatzModuleGruppe/ModulZeile`). In einem Build OHNE
+ * `moduleAuth.kurator` gibt es diesen Weg nicht — dort steht statt des
+ * Passwortfelds der freie Schalter, und der setzte bis v4.59 nur die
+ * Profil-Flagge. Ergebnis: die Kurations-Menues waren sichtbar, aber JEDE
+ * Schreib-Aktion darin blieb grau („Mapping bearbeiten", „Spalten neu mappen",
+ * „Antrags-Daten zuruecksetzen") — ohne dass irgendwo stand, warum.
+ *
+ * Mit Schloss aendert diese Funktion nichts: dort entscheidet allein das
+ * Passwort, und die Profil-Flagge waere die offene Hintertuer daneben.
+ *
+ * `hatSchloss` ist injizierbar (Vitest verdrahtet `__TEAMFLOW_CONFIG__` fest auf
+ * eine Config ohne `moduleAuth`).
+ */
+export async function spiegleKuratorSchalterInSession(
+  idb: IDBStore,
+  istKurator: boolean,
+  hatSchloss: (slot: ModulSlot) => boolean = hatModulSchloss,
+): Promise<void> {
+  if (hatSchloss('kurator')) return;
+  const session = useKuratorSession.getState();
+  if (istKurator && !session.isActive) {
+    await session.aktiviere(idb, `${runtimeConfig.build.label} · Kurator`);
+    return;
+  }
+  if (!istKurator && session.isActive) await session.deactivate(idb);
 }
 
 /** Auslastungs-Modul sichtbar? (einkompiliert UND freigeschaltet) */

@@ -41,7 +41,7 @@ import { runtimeConfig } from '@/config/runtime-config';
 import { isDemoDataBundled, dataConfig, isMaLoginEnabled, canWriteDatenShare } from '@/config/feature-flags';
 import { useMAIdentity } from '@/core/hooks/useMAIdentity';
 import { anmeldungSteht } from '@/core/hooks/useAppGateSession';
-import { schliesseGesperrteModule } from '@/core/modul-freischaltung';
+import { schliesseGesperrteModule, spiegleKuratorSchalterInSession } from '@/core/modul-freischaltung';
 import { useKuratorSession } from '@/core/hooks/useKuratorSession';
 import { useModulFreischaltung } from '@/core/hooks/useModulFreischaltung';
 import { seedTestData } from '@/core/services/seed/seed-data';
@@ -417,6 +417,20 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
           useKuratorSession.getState().rehydrate(storage.idb),
           useModulFreischaltung.getState().rehydrate(storage.idb),
         ]);
+      }
+      // v4.59: In Builds OHNE Kurator-Schloss gibt es kein Passwort, das die
+      // Sitzung oeffnen koennte — dort ist der Schalter im Profil die einzige
+      // Aussage, und die Sitzung folgt ihm. Ohne das lief eine 12-h-Sitzung ab
+      // (oder entstand nie), waehrend der Schalter weiter „an" zeigte: die
+      // Kurations-Menues standen offen, jede Schreib-Aktion darin war grau.
+      // No-op mit Schloss. Dritte IDB-Punktlesung, gleiche Stelle wie oben.
+      try {
+        const p = await storage.idb.get<UserProfile>('profile');
+        await spiegleKuratorSchalterInSession(
+          storage.idb, p?.is_kurator === true || p?.is_admin === true,
+        );
+      } catch (e) {
+        console.warn('[App] Kurator-Schalter/Sitzung abgleichen fehlgeschlagen', e);
       }
 
       // v2.13: Plugin onInit-Hooks parallel + fehlertolerant. Non-blocking

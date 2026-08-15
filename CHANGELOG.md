@@ -5,6 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.60.1 — Kurator-Schalter oeffnet die Sitzung (August 2026)
+
+PATCH — In Builds **ohne** Kurator-Zusatzpasswort öffnete nichts die Kurator-Sitzung: der freie Schalter im Profil setzte nur die Menü-Sichtbarkeit. Die Kurations-Seiten standen offen, aber jede Schreib-Aktion darin blieb grau — ohne dass irgendwo stand, warum. Detail: [modul-freischaltung.md](docs/architecture/modul-freischaltung.md).
+
+- **Ohne Schloss folgt die Sitzung dem Schalter** (`spiegleKuratorSchalterInSession`, [modul-freischaltung.ts](src/core/modul-freischaltung.ts)) — beim Umlegen und bei jedem Start; mit Schloss unverändert ein No-op, dort entscheidet allein das Passwort
+- **Der Schalter tut jetzt beides**, wie der Passwort-Weg: Profil-Flagge, Sitzung und Handle-Hochstufung auf `readwrite` in derselben Geste ([ZusatzModuleGruppe.tsx](src/plugins/einstellungen/profil/ZusatzModuleGruppe.tsx), Pitfall #25)
+- **Ein grauer Knopf nennt seinen Grund sichtbar** ([CsvSchemaDetailDialog.tsx](src/plugins/csv-sources-kuration/CsvSchemaDetailDialog.tsx)) — er stand im `title` eines `disabled`-Buttons, und den zeigt kein Browser an; der Dialog verdeckte zusätzlich den Seiten-Banner
+- **Vier Tests** halten die Invariante: mit Schloss unangetastet, ohne Schloss beidseitig gespiegelt, und eine laufende Sitzung wird nicht bei jedem Start verlängert ([modul-freischaltung.test.ts](src/core/__tests__/modul-freischaltung.test.ts))
+
 ### v4.60.0 — Spalten fuellen die Breite, der Griff schaltet um (August 2026)
 
 MINOR — Die Fördertabelle stand fest auf Inhaltsbreite: jede Spalte nahm, was ihr längster Eintrag brauchte, und was übrig blieb, landete in einer leeren Füllspalte. Jetzt teilen sich die Spalten die verfügbare Breite und skalieren mit ihr; die alte Darstellung liegt einen Klick entfernt. Detail: [ui-muster.md](docs/architecture/ui-muster.md).

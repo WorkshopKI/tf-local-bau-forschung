@@ -88,6 +88,13 @@ der Bearbeiter-Filter (`isKuerzelDropdownEnabled`), der auch bei gesperrtem Modu
   statt zweier.
 - **In den Einstellungen** (`ZusatzModuleGruppe`, Abschnitt `sec-freischaltung`): Status,
   Restlaufzeit, Passwortfeld, „Sperren".
+- **In Builds OHNE Schloss** steht statt des Passwortfelds der freie Schalter „Kurator-Menüs"
+  (`sec-kurator`). Er ist dort der **einzige** Kurator-Gate und muss deshalb dasselbe tun wie der
+  Passwort-Weg: Profil-Flagge, **Sitzung** und Handle-Hochstufung. Bis v4.60.1 setzte er nur die
+  Flagge — die Kurations-Seiten erschienen, aber jede Schreib-Aktion darin blieb grau, weil sie an
+  `session.isActive` hängt („Mapping bearbeiten", „Spalten neu mappen", „Antrags-Daten
+  zurücksetzen"). Beim Start spiegelt `spiegleKuratorSchalterInSession` dieselbe Regel, sonst wäre
+  die Sitzung nach ihren 12 Stunden weg, während der Schalter weiter „an" zeigt.
 
 Beide laden nach dem Schalten **neu**. Das ist kein Schönheitsfehler, sondern der Grund, warum
 alle Prädikate schlichte Konstanten bleiben dürfen: Plugin-Registrierung, `onInit`-Hooks und
