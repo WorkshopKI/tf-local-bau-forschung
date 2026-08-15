@@ -3,7 +3,7 @@ import type { AntragListItem } from '@/core/services/csv/types';
 import { SortableTable, useTableSort, useColumnFilters, compareValues, useColumnWidths, useTotalTableWidth } from '@/components/data-table';
 import { resolveAntragTableColumns } from './tableColumns';
 import { mitSpaltenHilfe } from './spaltenHilfe';
-import type { SpaltenHilfe } from '@/components/data-table/types';
+import type { SpaltenHilfe, SortableColumn } from '@/components/data-table/types';
 import { useAntraegeColumnsStore } from './useAntraegeColumnsStore';
 import { useKategorieSpalten } from './useKategorieSpalten';
 import { useAntraegeStore } from './store';
@@ -49,6 +49,9 @@ interface Props {
    *  `AntraegeMain` (dort einmal geladen), damit die Tabelle die Schemas nicht
    *  ein zweites Mal aus IndexedDB liest. */
   spaltenHilfe?: ReadonlyMap<string, SpaltenHilfe>;
+  /** Selbst angelegte Spalten — fertig gebaut aus `AntraegeMain`, damit Picker
+   *  und Tabelle dieselben Instanzen zeigen (und denselben Stichtag). */
+  eigeneSpalten?: readonly SortableColumn<AntragTableRow>[];
   onOpenAntrag: (az: string) => void;
   onOpenVerbund: (id: string) => void;
   sentinelRef: React.RefObject<HTMLDivElement | null>;
@@ -136,6 +139,7 @@ export function AntraegeTable({
   ansicht,
   showMaColumn,
   spaltenHilfe,
+  eigeneSpalten,
   onOpenAntrag,
   onOpenVerbund,
   sentinelRef,
@@ -167,9 +171,14 @@ export function AntraegeTable({
   const rohSpalten = useMemo(
     () => {
       const aufgeloest = resolveAntragTableColumns(visibleColumns, showMaColumn, kategorieSpalten);
-      return spaltenHilfe ? mitSpaltenHilfe(aufgeloest, spaltenHilfe) : aufgeloest;
+      const mitHilfe = spaltenHilfe ? mitSpaltenHilfe(aufgeloest, spaltenHilfe) : aufgeloest;
+      // Die eigenen Spalten hängen hinten an — in ihrer Definitionsreihenfolge,
+      // gefiltert nach derselben Sichtbarkeits-Auswahl wie alle anderen.
+      const sichtbar = new Set(visibleColumns);
+      const eigene = (eigeneSpalten ?? []).filter(c => sichtbar.has(c.key));
+      return eigene.length > 0 ? [...mitHilfe, ...eigene] : mitHilfe;
     },
-    [visibleColumns, showMaColumn, kategorieSpalten, spaltenHilfe],
+    [visibleColumns, showMaColumn, kategorieSpalten, spaltenHilfe, eigeneSpalten],
   );
 
   // VB-Titel ist nicht in `AntragListItem` projiziert (Verbund-Level-Feld) → einmal

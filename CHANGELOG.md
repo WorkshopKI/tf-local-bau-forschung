@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.55.0 — Eigene Spalten: Feld und Sammel (August 2026)
+
+MINOR — Der Spaltenvorrat war geschlossen: wer ein Feld brauchte, das die Registry nicht führt, hatte keinen Weg. Jetzt legt der Nutzer eigene Spalten an — aus einem rohen Feld oder als jüngstes Datum aus mehreren. Detail: [eigene-spalten.md](docs/architecture/eigene-spalten.md).
+
+- **Feld- und Sammel-Spalten**, persönlich und gerätelokal; Anlegen aus dem Fuß des Spalten-Menüs, mit Pflicht-Vorschau an echten Zeilen ([SpaltenDialog.tsx](src/plugins/antraege/eigene-spalten/SpaltenDialog.tsx), Flag `eigeneSpalten`, dev+pl)
+- **Projiziert werden die Rohwerte, nicht das Ergebnis** ([anzeige.ts](src/core/spalten/anzeige.ts)) — dadurch bleiben Datumsregeln taggenau und das Ändern von Text oder Farbe kostet **keinen** Neuaufbau; nur ein neues Feld tut das (gemessen: 6,0 s bei 14.225 Anträgen)
+- **Alle vier Slim-Schreibpfade** führen den Beutel `frei_roh`, Projektion 6 → 7 ([list-view-migration.ts](src/core/services/csv/list-view-migration.ts)); Regressionstest gegen die Vollersatz-Falle ([merge-behaelt-freie-spalten.test.ts](src/core/services/csv/__tests__/merge-behaelt-freie-spalten.test.ts))
+- **Eigene Spalten erklären sich selbst** — ihre Herkunftsangabe entsteht aus der Definition, dieselbe Struktur wie bei den eingebauten (v4.54)
+- **Guard `eigene-spalten-lokal`**: die persönlichen Definitionen gehen nie auf den Share oder in den Snapshot ([conventions-daten.test.ts](src/__tests__/conventions-daten.test.ts))
+
 ### v4.54.0 — Spaltenkoepfe erklaeren ihre Herkunft (August 2026)
 
 MINOR — „PreCheck Status" war ein Badge ohne Herkunft: welche Kürzel darin zusammenlaufen und welche Regel den Wert wählt, stand nirgends in der Oberfläche. Der Tooltip nennt jetzt die Felder, die das geladene Schema wirklich mappt — nicht eine abgeschriebene Liste, die beim nächsten Mapping-Wechsel still falsch wäre.

@@ -349,6 +349,20 @@ export function isVorgangssystemEnabled(): boolean {
   return features.vorgangssystem === true && isStatusCockpitEnabled();
 }
 
+/**
+ * Eigene Spalten der Fördertabelle: der Nutzer legt Spalten an, die die Registry
+ * nicht kennt — ein rohes CSV-Feld, das jüngste Datum aus einer Feldmenge, oder
+ * eine Regelkaskade („erste zutreffende Regel gewinnt").
+ *
+ * Gated den Fuß des Spalten-Pickers, den Editor und die Projektion der
+ * referenzierten Rohfelder. Ohne den Flag verhält sich die Tabelle exakt wie
+ * zuvor: die Slim-Projektion trägt kein zusätzliches Feld, und die gespeicherten
+ * Definitionen bleiben unangetastet liegen. dev + pl.
+ */
+export function isEigeneSpaltenEnabled(): boolean {
+  return features.eigeneSpalten === true;
+}
+
 /** v2.18: CSV-Auto-Refresh-Banner + „CSV-Quelle verknüpfen"-Picker auch ohne
  *  Kurator-Menüs (z.B. pl-Variante). Der Kurator-Banner läuft unabhängig über
  *  `isKuratorMenusEnabled()` — dieser Flag ist eine *zusätzliche* Bedingung für

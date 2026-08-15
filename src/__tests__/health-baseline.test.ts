@@ -24,7 +24,7 @@ describe('health-baseline (Drift-Warnung, kein Verbot)', () => {
   // (CLAUDE.md Doku-Konvention 1). Beim Anheben also den Ist-Wert aktualisieren und
   // die Begruendung ERSETZEN, nicht eine weitere anhaengen — die angehaengte Kette
   // war bis v4.4 selbst der Grund, warum jeder Bump eine eigene Runde kostete.
-  const MAX_FEATURE_FLAGS = 27;    // Ist 27. Ein Flag lohnt sich nur, wenn er in den Varianten UNTERSCHIEDLICHE Werte hat — sonst ist er einkompilierte Wahrheit und gehoert weg (v3.0 hat auf diesem Weg elf Flags entfernt).
+  const MAX_FEATURE_FLAGS = 28;    // Ist 28 (v4.55: + eigeneSpalten, dev/pl an, prod aus). Ein Flag lohnt sich nur, wenn er in den Varianten UNTERSCHIEDLICHE Werte hat — sonst ist er einkompilierte Wahrheit und gehoert weg (v3.0 hat auf diesem Weg elf Flags entfernt).
   const MAX_SERVICE_DIRS = 22;     // Ist 22. Ein eigener Ordner lohnt erst, wenn die Regeln darin Konsumenten in mehreren Plugins UND in core/ haben; sonst Plugin-Datei oder Submodul unter einem bestehenden Dach.
   // Getrennte Schwellen fuer Produktionscode und Tests (v4.5). Bis dahin galt EINE
   // Zahl fuer beides, und weil die Guard-Datei mit jeder Konvention wuchs, stand sie

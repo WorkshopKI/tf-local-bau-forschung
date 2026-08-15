@@ -19,6 +19,7 @@ import {
   KATEGORIE_COLUMN_PREFIX,
   LOCKED_COLUMN_KEYS,
 } from './tableColumns';
+import { FREIE_SPALTE_PREFIX } from '@/core/spalten';
 
 const VISIBLE_COLUMNS_KEY = 'teamflow_antraege_table_columns';
 const STATISCHE_KEYS: ReadonlySet<string> = new Set(ANTRAG_TABLE_COLUMNS.map(c => c.key));
@@ -69,13 +70,19 @@ function saveRev(rev: number): void {
 }
 
 /**
- * Gültig sind die festen Spalten UND die Ordner-Spalten des Statuskatalogs.
- * Letztere sind nicht im Code aufzählbar — welche es gibt, entscheidet die
- * Kuration. Eine feste Schlüsselliste würde sie beim Laden herausfiltern, und
- * die Auswahl wäre nach jedem Reload weg.
+ * Gültig sind die festen Spalten, die Ordner-Spalten des Statuskatalogs UND die
+ * selbst angelegten.
+ *
+ * Die beiden letzteren sind nicht im Code aufzählbar — welche es gibt,
+ * entscheiden Kuration bzw. Nutzer. Eine feste Schlüsselliste filtert sie beim
+ * Laden heraus, und die Auswahl ist nach jedem Reload weg: genau so verhielt
+ * sich die erste Fassung der eigenen Spalten (angelegt, eingeblendet, nach dem
+ * Neuladen verschwunden), weil hier ein Präfix fehlte.
  */
 function istGueltigerKey(key: string): boolean {
-  return STATISCHE_KEYS.has(key) || key.startsWith(KATEGORIE_COLUMN_PREFIX);
+  return STATISCHE_KEYS.has(key)
+    || key.startsWith(KATEGORIE_COLUMN_PREFIX)
+    || key.startsWith(FREIE_SPALTE_PREFIX);
 }
 
 function loadVisibleColumns(): string[] {

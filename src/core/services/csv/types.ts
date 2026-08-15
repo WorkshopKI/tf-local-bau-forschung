@@ -307,6 +307,18 @@ export interface AntragListItem {
    * benannten Felder. Kurze Schlüssel, weil das je Antrag gespeichert wird.
    */
   kat_status?: Record<string, { l: string; d: string }>;
+  /**
+   * Rohwerte der Felder, die **selbst angelegte Spalten** lesen — `feldId` →
+   * Wert, wie er im Record stand. Nach Feld gekeyt, nicht nach Spalte: zwei
+   * Spalten auf demselben Feld kosten einen Eintrag.
+   *
+   * Bewusst die ROHWERTE und nicht das Ergebnis: die Anzeige (welches Datum
+   * gewinnt, welche Regel greift) entsteht beim Rendern. Sonst wäre eine
+   * Datumsregel zur Projektionszeit eingefroren, und das Ändern eines
+   * Regeltextes zöge einen Neuaufbau der ganzen Projektion nach sich.
+   * Siehe docs/architecture/eigene-spalten.md.
+   */
+  frei_roh?: Record<string, string>;
   // Meta
   _updated_at: string;
 }

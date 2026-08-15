@@ -57,6 +57,10 @@ export interface ColumnPickerProps<T> {
    *  „auto". Sie ganz herauszufiltern waere falsch: der Zaehler zaehlte sie dann
    *  nicht mit und behauptete „11 von 23", waehrend die Tabelle 12 Spalten zeigt. */
   erzwungeneKeys?: readonly string[];
+  /** Fußbereich unter der Liste — bleibt beim Scrollen stehen. Gedacht für
+   *  Aktionen, die den Vorrat SELBST ändern (eigene Spalte anlegen), nicht für
+   *  weitere Auswahl. */
+  renderFooter?: () => ReactNode;
 }
 
 export function ColumnPicker<T>({
@@ -67,6 +71,7 @@ export function ColumnPicker<T>({
   isGrayed,
   onSetColumns,
   erzwungeneKeys,
+  renderFooter,
 }: ColumnPickerProps<T>): React.ReactElement {
   const containerRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
@@ -223,6 +228,16 @@ export function ColumnPicker<T>({
           {gefiltert.length === 0 && (
             <div className="px-3 py-4 text-[12px] text-[var(--tf-text-tertiary)]">
               Keine Spalte passt zu „{suche.trim()}".
+            </div>
+          )}
+          {renderFooter && (
+            // Klebt unten: bei 40 Zeilen scrollt die Liste, und eine Aktion, die
+            // erst nach dem Scrollen erscheint, findet niemand.
+            <div
+              className="sticky bottom-0 bg-[var(--tf-bg)] px-3 py-1.5"
+              style={{ borderTop: '0.5px solid var(--tf-border)' }}
+            >
+              {renderFooter()}
             </div>
           )}
         </div>

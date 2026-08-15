@@ -35,8 +35,16 @@ export function herkunftVon(feld: StatusFeldEintrag): 'verbund-record' | 'tv-rec
   return feld.herkunft ?? (feld.ebene === 'verbund' ? 'verbund-record' : 'tv-record');
 }
 
-/** Index CSV-Spalte (normalisiert) → Record-Key, Master-Schema zuerst. */
-function baueSpaltenIndex(schemas: readonly CsvSchema[]): Map<string, string> {
+/**
+ * Index CSV-Spalte (normalisiert) → Record-Key, Master-Schema zuerst.
+ *
+ * Exportiert, weil die selbst angelegten Spalten (`core/spalten/aufloesung.ts`)
+ * dieselbe Frage stellen — „unter welchem Key steht diese CSV-Spalte im
+ * Record?" — nur ohne Katalog-Feldeintrag drumherum. Zwei Indizes liefen bei der
+ * ersten Mapping-Feinheit auseinander, und ein Feld, das die eine Seite findet
+ * und die andere nicht, ist eine dauerhaft leere Spalte ohne Fehlermeldung.
+ */
+export function baueSpaltenIndex(schemas: readonly CsvSchema[]): Map<string, string> {
   const geordnet = [...schemas].sort((a, b) => (b.is_master ? 1 : 0) - (a.is_master ? 1 : 0));
   const idx = new Map<string, string>();
   for (const schema of geordnet) {

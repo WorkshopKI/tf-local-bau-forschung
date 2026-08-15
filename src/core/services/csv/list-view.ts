@@ -3,6 +3,8 @@ import {
   computeStatusDatum,
   type ResolvedKategorieSpalten, type ResolvedStatusDatumGruppe,
 } from './status-datum-gruppen';
+import { baueFreiRoh } from '@/core/spalten/projektion';
+import type { FreiesFeld } from '@/core/spalten/aufloesung';
 
 /**
  * Projiziert einen vollen `Antrag` auf das schmale `AntragListItem`.
@@ -27,6 +29,7 @@ export function toAntragListItem(
   antrag: Antrag,
   gruppen?: readonly ResolvedStatusDatumGruppe[],
   kategorieSpalten?: readonly ResolvedKategorieSpalten[],
+  freieFelder?: readonly FreiesFeld[],
 ): AntragListItem {
   const item: AntragListItem = {
     aktenzeichen: antrag.aktenzeichen,
@@ -92,6 +95,14 @@ export function toAntragListItem(
       if (res) kat[k.kategorieId] = { l: res.label, d: res.datum };
     }
     if (Object.keys(kat).length > 0) item.kat_status = kat;
+  }
+  // Selbst angelegte Spalten (Projektion v7): NUR die Rohwerte der Felder, die
+  // eine solche Spalte liest — nicht ihr Ergebnis. Damit bleiben Datumsregeln
+  // beim Rendern taggenau, und das Ändern eines Regeltextes kostet keinen
+  // Neuaufbau. Begründung: docs/architecture/eigene-spalten.md.
+  if (Array.isArray(freieFelder) && freieFelder.length > 0) {
+    const frei = baueFreiRoh(antrag as unknown as Record<string, unknown>, freieFelder);
+    if (frei) item.frei_roh = frei;
   }
   return item;
 }

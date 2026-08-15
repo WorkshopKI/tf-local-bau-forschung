@@ -22,6 +22,7 @@ Decision-Tree für häufige Aufgaben. Erst hier nachsehen, **bevor** du die Code
 | Neue Einstellung / neuer Einstellungs-Abschnitt (vier Seiten, zweispaltig, ⓘ-Popover, Klappe mit Zähler) | [docs/agents/add-settings-section.md](docs/agents/add-settings-section.md) |
 | UI-Muster wählen (Seitenkopf, Listen-Sicht-Tabs-mit-Zähler, Status-Badge/Dot, Filter-Chip) | [docs/architecture/ui-muster.md](docs/architecture/ui-muster.md) + [docs/layout-audit.md](docs/layout-audit.md) |
 | Spaltenkopf soll seine Herkunft erklären (`SortableColumn.hilfe`, Feldliste aus dem Schema statt abgeschrieben) | [ui-muster.md → Spalten erklären ihre Herkunft](docs/architecture/ui-muster.md) |
+| Eigene Spalte der Fördertabelle (Feld/Sammel/Regel; Rohwert-Projektion `frei_roh`, Signatur-Regel, Reichweiten) | [eigene-spalten.md](docs/architecture/eigene-spalten.md) + Flag `eigeneSpalten` |
 | `file://`-Constraint vergessen? | [docs/agents/file-protocol-pitfalls.md](docs/agents/file-protocol-pitfalls.md) + Critical Constraints unten |
 | Bug-Risiko-Check vor Commit | [Common Pitfalls](#common-pitfalls) unten (nummerierte Liste) überfliegen |
 | Wiederkehrende Bug-Klassen (Cold-Start-Refresh, FSAPI, Parallel-Varianten, Embedding-Caches) | [docs/architecture/recurring-bug-classes.md](docs/architecture/recurring-bug-classes.md) |

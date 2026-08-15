@@ -28,6 +28,7 @@ import { toAntragListItem } from './list-view';
 import type {
   ResolvedKategorieSpalten, ResolvedStatusDatumGruppe,
 } from './status-datum-gruppen';
+import type { FreiesFeld } from '@/core/spalten/aufloesung';
 import {
   putAntraege,
   deleteAntraegeByKeys,
@@ -105,10 +106,11 @@ export async function applyListViewDiff(
   diff: AntraegeDiff,
   gruppen?: readonly ResolvedStatusDatumGruppe[],
   kategorieSpalten?: readonly ResolvedKategorieSpalten[],
+  freieFelder?: readonly FreiesFeld[],
 ): Promise<void> {
   if (diff.changed.length > 0) {
     await putAntraegeListView(
-      idb, diff.changed.map(a => toAntragListItem(a, gruppen, kategorieSpalten)),
+      idb, diff.changed.map(a => toAntragListItem(a, gruppen, kategorieSpalten, freieFelder)),
     );
   }
   if (diff.removedKeys.length > 0) {

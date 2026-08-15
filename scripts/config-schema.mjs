@@ -293,6 +293,12 @@ export const DEFAULT_CONFIG = {
      *  Optional, default false (kein requiredFlags-Eintrag → `=== true`
      *  Backward-Kompat). */
     vorgangssystem: false,
+    /** Eigene Spalten der Fördertabelle: der Nutzer legt Spalten an, die es in
+     *  der Registry nicht gibt — ein rohes CSV-Feld, das jüngste Datum aus einer
+     *  Feldmenge, oder eine Regelkaskade. Gated Picker-Fuß, Editor und die
+     *  Projektion der referenzierten Rohfelder. dev/pl. Optional, default false
+     *  (kein requiredFlags-Eintrag → `=== true` Backward-Kompat). */
+    eigeneSpalten: false,
   },
 
   menuLabels: {

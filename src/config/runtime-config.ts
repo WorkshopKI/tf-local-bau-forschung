@@ -192,6 +192,10 @@ export interface TeamflowFeatures {
    *  dem importierten `STATUS_TV`/`STATUS_VB`. Setzt `statusCockpit` voraus
    *  (ohne Katalog keine Codes). dev/pl. Optional, default false. */
   vorgangssystem?: boolean;
+  /** Eigene Spalten der Fördertabelle: Feld-, Sammel- und Regel-Spalten, die der
+   *  Nutzer selbst anlegt. Gated Picker-Fuß, Editor und die Projektion der
+   *  referenzierten Rohfelder. dev/pl. Optional, default false. */
+  eigeneSpalten?: boolean;
 }
 
 export interface TeamflowMenuLabels {

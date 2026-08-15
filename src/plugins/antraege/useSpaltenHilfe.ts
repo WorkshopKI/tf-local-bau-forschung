@@ -1,20 +1,24 @@
 /**
- * Lädt die Grundlage für die Spalten-Herkunft: die Schemas des aktiven
- * Programms und die daraus aufgelösten Ordner-Spalten des Statuskatalogs.
+ * Alles, was die Spalten der Fördertabelle aus den Programm-Schemas brauchen —
+ * aus EINEM Lesevorgang.
+ *
+ * Drei Verbraucher stellen dieselbe Frage an dieselbe Quelle: der Kopf-Tooltip
+ * und das ⓘ im Picker brauchen die Herkunft, der Editor der eigenen Spalten den
+ * Feld-Vorrat. Drei Hooks hießen drei IndexedDB-Lesevorgänge über dieselben
+ * Schemas bei jedem Programmwechsel.
  *
  * Der Lade-Effekt ist hier die Hausform — dieselbe wie in `useHerleitung` und
  * `useStatusVerlauf`: die Schemas liegen in IndexedDB, nicht im Speicher, und
- * sie wechseln mit dem Programm. Gelesen wird EINMAL je Programmwechsel; die
- * fertige Karte reicht `AntraegeMain` an Picker und Tabelle weiter, statt sie
- * an beiden Stellen erneut zu bauen.
+ * sie wechseln mit dem Programm.
  *
- * Ohne geladenes Programm bleibt die Karte nicht leer, sondern trägt die Sätze
- * ohne Feldlisten — eine Erklärung ohne Belege ist besser als keine.
+ * Ohne geladenes Programm bleibt die Herkunft nicht leer, sondern trägt die
+ * Sätze ohne Feldlisten — eine Erklärung ohne Belege ist besser als keine.
  */
 import { useEffect, useMemo, useState } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
 import { listSchemasByProgramm } from '@/core/services/csv/idb-csv';
+import { baueSpaltenKatalog, type SpaltenEintrag } from '@/core/services/csv/spalten-inventar';
 import type { CsvSchema } from '@/core/services/csv/types';
 import type { ResolvedKategorieSpalten } from '@/core/services/csv/status-datum-gruppen';
 import { isStatusCockpitEnabled } from '@/config/feature-flags';
@@ -31,7 +35,14 @@ interface Quellen {
 
 const LEER: Quellen = { schemas: [], kategorieSpalten: [], katalogOrdner: [] };
 
-export function useSpaltenHilfe(): Map<string, SpaltenHilfe> {
+export interface SpaltenKontext {
+  /** Herkunft je Spalten-Key — Kopf-Tooltip und Picker-ⓘ. */
+  hilfe: Map<string, SpaltenHilfe>;
+  /** Alle gemappten Felder über alle Schemas — Feld-Auswahl im Editor. */
+  vorrat: SpaltenEintrag[];
+}
+
+function useQuellen(): Quellen {
   const storage = useStorage();
   const activeProgrammId = useActiveProgramm(s => s.activeProgrammId);
   const [quellen, setQuellen] = useState<Quellen>(LEER);
@@ -57,5 +68,12 @@ export function useSpaltenHilfe(): Map<string, SpaltenHilfe> {
     return () => { abgebrochen = true; };
   }, [storage.idb, activeProgrammId]);
 
-  return useMemo(() => baueSpaltenHilfe(quellen), [quellen]);
+  return quellen;
+}
+
+export function useSpaltenKontext(): SpaltenKontext {
+  const quellen = useQuellen();
+  const hilfe = useMemo(() => baueSpaltenHilfe(quellen), [quellen]);
+  const vorrat = useMemo(() => baueSpaltenKatalog(quellen.schemas), [quellen.schemas]);
+  return useMemo(() => ({ hilfe, vorrat }), [hilfe, vorrat]);
 }

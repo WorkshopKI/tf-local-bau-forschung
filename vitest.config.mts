@@ -25,6 +25,11 @@ const ISOLATED_TESTS = [
   // Einzeln immer gruen.
   'src/core/services/csv/__tests__/importer-join-column-guard.test.ts',
   'src/core/services/csv/__tests__/importer-lock-held-by-caller.test.ts',
+  // Mockt `feature-flags` modulweit, um die Projektion der selbst angelegten
+  // Spalten einzuschalten (v4.55). Ohne Isolation haengt es an der
+  // Ladereihenfolge, ob der Mock greift — der Beutel `frei_roh` kam dann leer
+  // zurueck. Einzeln immer gruen.
+  'src/core/services/csv/__tests__/merge-behaelt-freie-spalten.test.ts',
   'src/core/services/csv/__tests__/importer-loeschung-nur-wenn-ueberall-weg.test.ts',
   'src/core/services/csv/__tests__/importer-source-baseline.test.ts',
   'src/core/services/csv/__tests__/merger-scoped-load.test.ts',

@@ -110,6 +110,12 @@ function formatEur(n: number): string {
   return n.toLocaleString('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
 }
 
+// Exportiert für die selbst angelegten Spalten (`eigeneSpalten.tsx`): sie sollen
+// aussehen wie die eingebauten, nicht wie ein Fremdkörper. Die Mess-Profile
+// gehören mit — sonst misst eine eigene Spalte ihre Breite nach einem anderen
+// Schriftschnitt als die Nachbarspalte mit demselben Inhalt.
+export { textCell, dateCell, MESS_TEXT, MESS_DATUM };
+
 function textCell(v: string | null): ReactNode {
   return v ? <span className="text-[12px] text-[var(--tf-text)]" title={v}>{v}</span> : null;
 }

@@ -15,6 +15,8 @@ import {
 } from './status-datum-gruppen';
 import { ladeAktiveVersion } from '@/core/status/katalog-store';
 import { kategorieSpaltenSignatur, loeseKategorieSpalten } from '@/core/status/kategorie-projektion';
+import { freieFelderSignatur } from '@/core/spalten/aufloesung';
+import { loeseFreieFelderFuer } from '@/core/spalten/programm';
 import { murmurhash3 } from './hash';
 import { tfPerfStart } from '@/core/utils/tfPerf';
 import type { Programm } from './types';
@@ -32,9 +34,13 @@ import type { Programm } from './types';
  * leer, v2.158.2) — der Count-basierte Backfill-Check unten erkennt
  * Feld-Aenderungen NICHT, nur fehlende Records. Marker-Mismatch → einmaliger
  * Voll-Rebuild beim ersten Start nach dem Update (~5 s bei 13k, bestehende
- * Boot-Statuszeile).
+ * Boot-Statuszeile). v7: + `frei_roh`, die Rohwerte der Felder, die selbst
+ * angelegte Spalten lesen (v4.55). Der Bump ist hier bewusst gesetzt, obwohl die
+ * Schema-Signatur unten die Feldmenge ohnehin führt: eine Bestandsinstallation
+ * ohne eigene Spalten hat eine LEERE Feldmenge, ihre Signatur ändert sich also
+ * nicht — sie soll trotzdem einmal auf die neue Projektionsform kommen.
  */
-export const LIST_VIEW_PROJECTION_VERSION = 6;
+export const LIST_VIEW_PROJECTION_VERSION = 7;
 /**
  * Signatur der aus ALLEN Programm-Schemas aufgelösten Status-Datum-Felder
  * (FB/PC). Ergänzt den reinen Code-Versions-Marker: Eine Mapping-Änderung (eine
@@ -69,7 +75,12 @@ async function computeStatusDatumSchemaSig(
       .map(gr => `${gr.labelKey}=${gr.felder.map(f => `${f.code}>${f.feld}#${f.label}`).join('|')}`)
       .join(';');
     const k = kategorieSpaltenSignatur(loeseKategorieSpalten(version, schemas));
-    parts.push(`${p.id}{${g}}[${k}]`);
+    // Die Felder der selbst angelegten Spalten gehören dazu — sie sind das
+    // Einzige an ihnen, was projiziert wird. Beschriftungen, Regeltexte und
+    // Farben stehen bewusst NICHT drin: sie ändern die Anzeige, nicht die
+    // Rohwerte, und dürfen deshalb keinen Neuaufbau auslösen.
+    const f = freieFelderSignatur(await loeseFreieFelderFuer(idb, schemas));
+    parts.push(`${p.id}{${g}}[${k}]<${f}>`);
   }
   return murmurhash3(parts.join('~'));
 }
@@ -110,6 +121,21 @@ export async function isListViewProjectionCurrent(idb: IDBStore): Promise<boolea
   return gespeichert === await computeStatusDatumSchemaSig(idb, programme);
 }
 
+/**
+ * Schreibt Marker + Signatur auf den aktuellen Stand — für Aufrufer, die die
+ * Projektion SELBST neu gebaut haben (z.B. nach dem Anlegen einer eigenen
+ * Spalte).
+ *
+ * Ohne diesen Schritt bliebe die gespeicherte Signatur auf dem alten Stand, und
+ * der Boot-Guard baute beim nächsten Start ein zweites Mal neu — dieselbe Arbeit
+ * ein zweites Mal, nur diesmal im Startfenster, wo sie am meisten stört.
+ */
+export async function stempleProjektionsStand(idb: IDBStore): Promise<void> {
+  const programme = await listProgramme(idb);
+  await idb.set(LIST_VIEW_VERSION_KEY, LIST_VIEW_PROJECTION_VERSION);
+  await idb.set(LIST_VIEW_SCHEMA_SIG_KEY, await computeStatusDatumSchemaSig(idb, programme));
+}
+
 export interface MigrationProgress {
   /** Programm aktuell in Bearbeitung. */
   programmId: string;
@@ -134,11 +160,15 @@ async function projectProgrammStreamed(
   const total = await countAntraegeByProgramm(idb, programmId);
   // Datums-Status-Gruppen einmal pro Programm aus dem Schema auflösen (Custom-/
   // Standard-Mapping-robust), dann je Record berechnen.
-  const gruppen = resolveStatusDatumGruppen(await listSchemasByProgramm(idb, programmId));
+  const schemas = await listSchemasByProgramm(idb, programmId);
+  const gruppen = resolveStatusDatumGruppen(schemas);
   const kategorieSpalten = await loeseKategorieSpaltenFuer(idb, programmId);
+  const freieFelder = await loeseFreieFelderFuer(idb, schemas);
   let done = 0;
   await forEachAntragChunkByProgramm(idb, programmId, async records => {
-    await putAntraegeListView(idb, records.map(r => toAntragListItem(r, gruppen, kategorieSpalten)));
+    await putAntraegeListView(
+      idb, records.map(r => toAntragListItem(r, gruppen, kategorieSpalten, freieFelder)),
+    );
     done += records.length;
     onProgress?.(done, total);
   });

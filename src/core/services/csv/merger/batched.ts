@@ -34,6 +34,8 @@ import type {
 import { asAntragStatusRaw } from '../types';
 import { toAntragListItem } from '../list-view';
 import { loeseKategorieSpaltenFuer } from '../list-view-migration';
+import { loeseFreieFelderFuer } from '@/core/spalten/programm';
+import type { FreiesFeld } from '@/core/spalten/aufloesung';
 import {
   resolveStatusDatumGruppen,
   type ResolvedKategorieSpalten,
@@ -67,6 +69,9 @@ interface RecomputeCaches {
    *  Muss mit, weil `putAntraegeListView` ein Vollersatz ist: ein Slim-Item
    *  ohne sie löschte die Ordner-Spalten der berührten Anträge. */
   kategorieSpalten: ResolvedKategorieSpalten[];
+  /** Felder der selbst angelegten Spalten (`frei_roh`) — aus demselben Grund
+   *  wie `kategorieSpalten`: der Slim-Write ist Vollersatz. */
+  freieFelder: FreiesFeld[];
   /** Pro Schema-ID: pre-indexed Map joinValue → matching rows. Macht aus dem
    *  ehemaligen findMatchingRows() (Linear-Scan ueber alle Rows) ein
    *  O(1)-Lookup. Bei 13k Antraegen × 5 Schemas spart das ~850M Vergleiche
@@ -126,11 +131,12 @@ async function loadRecomputeCaches(
   programmId: string,
   schemas: SchemaWithRows[],
 ): Promise<RecomputeCaches> {
-  const [antraege, verbuende, akronymEntries, kategorieSpalten] = await Promise.all([
+  const [antraege, verbuende, akronymEntries, kategorieSpalten, freieFelder] = await Promise.all([
     listAntraegeByProgramm(idb, programmId),
     listVerbuendeByProgramm(idb, programmId),
     listAkronymIndexByProgramm(idb, programmId),
     loeseKategorieSpaltenFuer(idb, programmId),
+    loeseFreieFelderFuer(idb, schemas.map(s => s.schema)),
   ]);
   const rowIndices = new Map<string, Map<string, Record<string, string>[]>>();
   for (const { schema, rows } of schemas) {
@@ -140,6 +146,7 @@ async function loadRecomputeCaches(
     schemas,
     statusGruppen: resolveStatusDatumGruppen(schemas.map(s => s.schema)),
     kategorieSpalten,
+    freieFelder,
     rowIndices,
     antraegeByAz: new Map(antraege.map(a => [a.aktenzeichen, a])),
     verbuendeById: new Map(verbuende.map(v => [v.verbund_id, v])),
@@ -297,7 +304,7 @@ function recomputeAntragIntoBatch(
   batch.antraegeDelete.delete(aktenzeichen);
   batch.listViewUpsert.set(
     aktenzeichen,
-    toAntragListItem(merged, caches.statusGruppen, caches.kategorieSpalten),
+    toAntragListItem(merged, caches.statusGruppen, caches.kategorieSpalten, caches.freieFelder),
   );
   batch.listViewDelete.delete(aktenzeichen);
   caches.antraegeByAz.set(aktenzeichen, merged);

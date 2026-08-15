@@ -57,7 +57,8 @@
     "mapFoerderfaehig": true,
     "statusCockpit": true,
     "meilensteinMonitoring": true,
-    "vorgangssystem": true
+    "vorgangssystem": true,
+    "eigeneSpalten": true
   },
   "menuLabels": {
     "antraege": "Förderanträge",

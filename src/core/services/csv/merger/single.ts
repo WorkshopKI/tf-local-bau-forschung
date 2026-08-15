@@ -26,6 +26,7 @@ import {
 } from '../idb-csv';
 import { toAntragListItem } from '../list-view';
 import { loeseKategorieSpaltenFuer } from '../list-view-migration';
+import { loeseFreieFelderFuer } from '@/core/spalten/programm';
 import { resolveStatusDatumGruppen } from '../status-datum-gruppen';
 import type {
   Antrag,
@@ -56,6 +57,9 @@ export async function recomputeAntrag(
   // Ordner-Spalten mitführen: `putAntraegeListView` ist Vollersatz, ein
   // Slim-Item ohne `kat_status` löschte die Ordner-Spalte des Antrags.
   const kategorieSpalten = await loeseKategorieSpaltenFuer(idb, programmId);
+  // Gleicher Grund für die Felder der selbst angelegten Spalten: ein Slim-Item
+  // ohne `frei_roh` löschte sie für diesen Antrag.
+  const freieFelder = await loeseFreieFelderFuer(idb, schemas.map(s => s.schema));
   const existing = await getAntrag(idb, aktenzeichen);
 
   const merged: Antrag = {
@@ -141,7 +145,9 @@ export async function recomputeAntrag(
   }
 
   await putAntraege(idb, [merged]);
-  await putAntraegeListView(idb, [toAntragListItem(merged, statusGruppen, kategorieSpalten)]);
+  await putAntraegeListView(
+    idb, [toAntragListItem(merged, statusGruppen, kategorieSpalten, freieFelder)],
+  );
   if (history.length > 0) await appendHistory(idb, history);
 
   // Akronym-Index aktualisieren (bei geändertem Akronym: altes Entry säubern)

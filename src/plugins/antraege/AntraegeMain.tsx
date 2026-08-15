@@ -58,8 +58,13 @@ import {
   spaltenHinweis,
 } from './tableColumns';
 import { useKategorieSpalten } from './useKategorieSpalten';
-import { useSpaltenHilfe } from './useSpaltenHilfe';
+import { useSpaltenKontext } from './useSpaltenHilfe';
 import { mitSpaltenHilfe } from './spaltenHilfe';
+import { useEigeneSpalten } from './useEigeneSpalten';
+import { baueEigeneSpalten } from './eigeneSpalten';
+import { SpaltenDialog } from './eigene-spalten/SpaltenDialog';
+import { isEigeneSpaltenEnabled } from '@/config/feature-flags';
+import { Plus } from 'lucide-react';
 import { useAntraegeColumnsStore } from './useAntraegeColumnsStore';
 import type { ViewMode } from './viewModes';
 import { isAuslastungFreigeschaltet } from '@/core/modul-freischaltung';
@@ -160,13 +165,31 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
   // Einmal geladen, zweimal gebraucht: der Picker zeigt die Herkunft am ⓘ, der
   // Tabellenkopf im Tooltip. Beide bekommen dieselbe Karte, statt sie jeweils
   // aus IndexedDB neu zu bauen.
-  const spaltenHilfe = useSpaltenHilfe();
+  const { hilfe: spaltenHilfe, vorrat: feldVorrat } = useSpaltenKontext();
+  // Selbst angelegte Spalten: Definitionen + Anlege-Dialog.
+  const eigene = useEigeneSpalten();
+  const [spaltenDialog, setSpaltenDialog] = useState(false);
+  // EIN Stichtag je Render statt `new Date()` je Zelle — sonst bewertete eine
+  // lange Liste ihre erste und letzte Zeile an verschiedenen Tagen.
+  const heute = useMemo(() => new Date().toISOString().slice(0, 10), []);
+  const labelVonFeld = useMemo(() => {
+    const map = new Map(feldVorrat.map(e => [e.feldId, e.label]));
+    return (f: string): string => map.get(f) ?? f;
+  }, [feldVorrat]);
+  const eigeneTabellenSpalten = useMemo(
+    () => baueEigeneSpalten(eigene.spalten, heute, labelVonFeld),
+    [eigene.spalten, heute, labelVonFeld],
+  );
   const pickerColumns = useMemo(
     () => mitSpaltenHilfe(
-      [...ANTRAG_TABLE_COLUMNS, ...kategorieStatusColumns(kategorieSpalten)],
+      [
+        ...ANTRAG_TABLE_COLUMNS,
+        ...kategorieStatusColumns(kategorieSpalten),
+        ...eigeneTabellenSpalten,
+      ],
       spaltenHilfe,
     ),
-    [kategorieSpalten, spaltenHilfe],
+    [kategorieSpalten, spaltenHilfe, eigeneTabellenSpalten],
   );
   const erzwungeneSpalten = useMemo(() => (showMa ? [MA_COLUMN_KEY] : []), [showMa]);
   const [visibleRows, setVisibleRows] = useState(() => pageSizeForMode(viewMode));
@@ -381,6 +404,16 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
                       </span>
                     ) : null;
                   }}
+                  renderFooter={isEigeneSpaltenEnabled() ? () => (
+                    <button
+                      type="button"
+                      onClick={() => setSpaltenDialog(true)}
+                      className="flex w-full items-center gap-1.5 rounded px-1 py-0.5 text-[11.5px] text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)] hover:text-[var(--tf-text)] cursor-pointer"
+                    >
+                      <Plus size={12} />
+                      <span>Eigene Spalte anlegen</span>
+                    </button>
+                  ) : undefined}
                 />
               ) : null}
             </div>
@@ -462,6 +495,7 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
               ansicht={tableAnsicht}
               showMaColumn={showMa}
               spaltenHilfe={spaltenHilfe}
+              eigeneSpalten={eigeneTabellenSpalten}
               onOpenAntrag={openAntrag}
               onOpenVerbund={openVerbund}
               sentinelRef={sentinelRef}
@@ -496,6 +530,21 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
           )}
         </div>
       </div>
+      {/* Der Anlege-Dialog hängt an der Seite, nicht am Picker: der schließt bei
+          einem Klick nach außen, und das wäre jeder Klick im Dialog. Die Vorschau
+          bekommt die bereits geladenen Zeilen — sie zeigt, was in der Zelle
+          stünde, bevor die Projektion neu gebaut wird. */}
+      {spaltenDialog && (
+        <SpaltenDialog
+          open
+          onClose={() => setSpaltenDialog(false)}
+          vorrat={feldVorrat}
+          zeilen={filtered}
+          heute={heute}
+          brauchtNeuaufbau={eigene.brauchtNeuaufbau}
+          onSpeichern={eigene.speichere}
+        />
+      )}
     </div>
   );
 }

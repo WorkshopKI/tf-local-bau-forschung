@@ -72,6 +72,10 @@
  *     Anwendungscode liest ueber getUserFoldersRoots(idb) — ein zurueckkehrender
  *     Einzel-Leser saehe still nur die erste Gruppe, und Teil-Einsammeln saehe
  *     wieder aus wie Erfolg.
+ *   - eigene-spalten-lokal              → Die PERSOENLICHEN Spalten-Definitionen
+ *     der Foerdertabelle sind geraetelokal (kv `eigene-spalten:personal`): nie
+ *     Share, nie Snapshot, nie Personal-Mirror. Funktionsbedingung, nicht
+ *     Bequemlichkeit — in prod fehlen dem Nutzer die Schreibrechte.
  *   - home-widgets-local-only           → Home-Widget-Config + Notizen sind
  *     persoenliche Darstellungs-Daten: IDB primaer, Mirror NUR ueber
  *     savePersonalSettings; keine Share-/Snapshot-Writer unter
@@ -1349,6 +1353,49 @@ describe('home-widgets-local-only (Home-Widget-Config: nie Daten-Share/Snapshot)
       `notizenStore.ts muss strikt geraetelokal bleiben (nur idb.get/set/delete).\n`
       + `Verbotene Referenz(en): ${treffer.join(', ')}`,
     ).toEqual([]);
+  });
+});
+
+describe('eigene-spalten-lokal (persoenliche Spalten: nie Daten-Share/Snapshot)', () => {
+  // Die PERSOENLICHEN Spalten-Definitionen sind geraetelokal (IDB, kv-Key
+  // `eigene-spalten:personal`) — nicht aus Bequemlichkeit, sondern als
+  // Funktionsbedingung: in prod hat ein normaler Nutzer keine Schreibrechte auf
+  // den Daten-Share, eine geteilte Ablage waere dort tot. Team-Spalten sind der
+  // ANDERE Weg (Sidecar, Kurator) und leben in einer eigenen Datei.
+  const STORE = join(ROOT, 'core', 'spalten', 'store.ts');
+
+  it('store.ts referenziert keine Share-/Snapshot-Writer', () => {
+    const verboten = [
+      'atomicWrite',
+      'appendToFile',
+      'writeProgrammSnapshot',
+      'getDatenShareHandle',
+      'mirrorJsonToPersonal',
+      'savePersonalSettings',
+    ];
+    const lines = readFileSync(STORE, 'utf-8').split(/\r?\n/);
+    const treffer = verboten.filter(v =>
+      lines.some(l => {
+        const t = l.trim();
+        if (t.startsWith('//') || t.startsWith('*') || t.startsWith('/*')) return false;
+        return l.includes(v);
+      }),
+    );
+    expect(
+      treffer,
+      `Die persoenlichen Spalten muessen geraetelokal bleiben (nur idb.get/set/delete).\n`
+      + `Verbotene Referenz(en): ${treffer.join(', ')}\n`
+      + `Team-Spalten gehoeren in eine eigene Datei mit Kurator-Gate.`,
+    ).toEqual([]);
+  });
+
+  it('Snapshot-Allowlist (snapshot.ts) kennt den Key nicht', () => {
+    const snapshot = readFileSync(join(ROOT, 'core', 'services', 'csv', 'snapshot.ts'), 'utf-8');
+    expect(
+      snapshot.includes('eigene-spalten'),
+      `snapshot.ts darf 'eigene-spalten' nicht kennen — die persoenlichen `
+      + `Definitionen sind geraetelokal (kv-Store, strukturell ausserhalb von SNAPSHOT_FILES).`,
+    ).toBe(false);
   });
 });
 

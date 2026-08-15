@@ -19,6 +19,15 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.55 — 2026-08
+
+### Neu
+- **Sie können eigene Spalten anlegen.** Unten im Menü *Spalten* steht „Eigene Spalte anlegen". Zur Wahl stehen alle Felder, die das Förderprogramm führt — auch solche, die es bisher in keiner Spalte gab.
+- Zwei Sorten: ein **einzelnes Feld** unverändert anzeigen, oder aus **mehreren Datumsfeldern** den jeweils jüngsten (oder ältesten) Termin. Die zweite Sorte funktioniert wie *FB Status*, nur mit Ihrer eigenen Auswahl.
+- Bevor Sie speichern, zeigt eine **Vorschau an echten Zeilen**, was in der Spalte stünde. Eine Spalte, die überall leer bliebe, sehen Sie damit vorher statt nachher.
+- Ihre Spalten gehören **Ihnen und diesem Rechner**. Sie werden nicht geteilt und nicht auf das Laufwerk geschrieben.
+- Beim Anlegen einer Spalte mit einem bisher ungenutzten Feld wird die Tabelle **einmalig neu aufgebaut** (wenige Sekunden). Beschriftung später zu ändern kostet das nicht.
+
 ## v4.54 — 2026-08
 
 ### Neu

@@ -18,6 +18,7 @@ import { listSchemasByProgramm } from './idb-csv';
 import { resolveStatusDatumGruppen } from './status-datum-gruppen';
 import { ladeAktiveVersion } from '@/core/status/katalog-store';
 import { loeseKategorieSpalten } from '@/core/status/kategorie-projektion';
+import { loeseFreieFelderFuer } from '@/core/spalten/programm';
 import {
   diffAntraegeLines,
   buildAntraegeHashes,
@@ -383,7 +384,10 @@ export async function syncProgrammSnapshot(
       const schemas = await listSchemasByProgramm(idb, programmId);
       const gruppen = resolveStatusDatumGruppen(schemas);
       const katSpalten = loeseKategorieSpalten(await ladeAktiveVersion(idb), schemas);
-      await applyListViewDiff(idb, antraegeDiff, gruppen, katSpalten);
+      // Auch der inkrementelle Pfad schreibt Vollersatz-Slim-Items — ohne die
+      // freien Felder verlören genau die geänderten Anträge ihren `frei_roh`.
+      const freieFelder = await loeseFreieFelderFuer(idb, schemas);
+      await applyListViewDiff(idb, antraegeDiff, gruppen, katSpalten, freieFelder);
       onProgress?.({ phase: 'finalizing', storesDone: storeKeys.length, storesTotal: storeKeys.length, fraction: 1 });
     } else {
       // Voll-Rebuild: nach Voll-Replace (Cold-Start) ODER bei Schema-Mismatch der
@@ -558,7 +562,8 @@ async function syncAntraegeViaDelta(
       const schemas = await listSchemasByProgramm(idb, programmId);
       const gruppen = resolveStatusDatumGruppen(schemas);
       const katSpalten = loeseKategorieSpalten(await ladeAktiveVersion(idb), schemas);
-      await applyListViewDiff(idb, diff, gruppen, katSpalten);
+      const freieFelder = await loeseFreieFelderFuer(idb, schemas);
+      await applyListViewDiff(idb, diff, gruppen, katSpalten, freieFelder);
     }
     timings.idbWriteMs += performance.now() - tWrite;
 
