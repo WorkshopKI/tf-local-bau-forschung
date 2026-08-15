@@ -92,6 +92,34 @@ export function baueSpalten(tvIds: readonly string[]): MatrixSpalte[] {
   ];
 }
 
+/**
+ * Die Teilvorhaben-Achse eines Verbunds: Aktenzeichen **sortiert**, Nummer =
+ * Position darin.
+ *
+ * Steht als eigene Funktion, weil sie an zwei Stellen gebraucht wird — auf der
+ * Verbund-Detailseite und im Tabellen-Ausklapp — und weil „TV 2" beide Male
+ * dasselbe Teilvorhaben meinen muss. Ohne feste Sortierung wechselte die Nummer
+ * mit der Reihenfolge, in der IndexedDB die Anträge zurückgibt; jeder Wirt, der
+ * sich seine eigene Karte baut, ist eine Nummer, die man nicht zitieren kann.
+ *
+ * Gefüttert wird sie IMMER mit den Teilvorhaben des ganzen Verbunds, auch wo
+ * eine Zeile nur eines davon trägt — sonst hieße „TV 1" im Ausklapp das erste
+ * dieser Liste statt das erste des Vorhabens.
+ */
+export interface TvAchse {
+  /** Aktenzeichen, aufsteigend sortiert — die Reihenfolge der Nummern. */
+  tvIds: string[];
+  /** Aktenzeichen → laufende Nummer, ab 1. */
+  nummern: ReadonlyMap<string, number>;
+}
+
+export function tvAchse(
+  jeTeilvorhaben: readonly { aktenzeichen: string }[],
+): TvAchse {
+  const tvIds = jeTeilvorhaben.map(t => t.aktenzeichen).sort((a, b) => a.localeCompare(b));
+  return { tvIds, nummern: new Map(tvIds.map((id, i) => [id, i + 1] as const)) };
+}
+
 /** Interner Zeilen-Rohbau, bevor die abgeleiteten Zahlen entstehen. */
 interface Rohzeile {
   feld: StatusFeldEintrag;

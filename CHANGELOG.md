@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.61.0 — Chronik nach Datum als Standard, Ausklapp zeigt den juengsten Abschnitt (August 2026)
+
+MINOR — Die chronologische Chronik rendert an zwei Stellen dieselbe Komponente — Detailseite und Tabellen-Ausklapp — und sah trotzdem verschieden aus: andere Träger-Marken, andere Standard-Ordnung, anderer Reiter-Name. Jetzt eine Bildsprache, zwei Tiefen: in der Tabelle der jüngste Abschnitt, auf der Detailseite alles. Detail: [chronik-und-zeitstrahl.md](docs/status-system/chronik-und-zeitstrahl.md).
+
+- **„Nach Datum" ist der Standard** der Chronik — und erreicht auch gespeicherte Stände, weil `modusGewaehlt` den Klick auf den Schalter von der Mitschrift trennt ([timelinePrefs.ts](src/plugins/antraege/status/timelinePrefs.ts))
+- **Der Ausklapp zeigt die acht jüngsten Zeilen** statt Median 22/p90 32, mit Schalter „N ältere Einträge zeigen" darüber; die Kennzahlen nennen weiter den ganzen Vorgang (`juengsteZeilen`, [StatusChronik.tsx](src/plugins/antraege/status/StatusChronik.tsx))
+- **Träger-Marken lesen überall `TV 1 … TV n` / „alle N"** statt der Aktenzeichen-Endung — die Karte kommt aus `tvAchse` über den ganzen Verbund ([chronik-matrix.ts](src/core/status/chronik-matrix.ts))
+- **Der Bahn-Reiter heißt in beiden Wirten „Zeitstrahl"** ([AusklappInhalt.tsx](src/plugins/antraege/ausklapp/AusklappInhalt.tsx)); der gespeicherte Wert bleibt `zeitverlauf`
+- **Guard `chronik-zwei-wirte-ein-vokabular`** hält beide Zusagen fest ([conventions-status.test.ts](src/__tests__/conventions-status.test.ts))
+
 ### v4.60.2 — Die Quellen-Zeile bekommt ihre Breite zurueck (August 2026)
 
 PATCH — Auf **Datenpflege → CSV-Quellen** zerfiel jede Quellen-Zeile: die Metazeile brach zeichenweise in eine ~47 px schmale Säule, die vier Aktionsknöpfe legten sich darüber. Grund war kein Umbruch-Detail, sondern ein Breitenbudget: die Knöpfe brauchen ~494 px, die Nebenspalten-Form des Hubs gab der Zeile ~541 px — auch bei maximaler Seitenbreite.
@@ -13,7 +23,8 @@ PATCH — Auf **Datenpflege → CSV-Quellen** zerfiel jede Quellen-Zeile: die Me
 - **Der Zustand steht als schmaler Streifen über der Liste** — vier Kennzahlen statt Hochkant-Block, Anker `sec-csv-zustand` und Badge unverändert
 - **Die Zeile bricht anständig um statt sich zu überlagern** ([SourceList.tsx](src/plugins/csv-sources-kuration/SourceList.tsx)) — `flex-wrap` + `basis-72`/`shrink-0`; bei schmalem Fenster rutscht die Knopfreihe rechtsbündig unter den Text
 - **Keine Aktion verschwindet** — alle vier Knöpfe bleiben sichtbar und beschriftet, die Metazeile ungekürzt
-### v4.60.1 — Kurator-Schalter oeffnet die Sitzung (August 2026)
+
+### v4.60.1 — Kurator-Schalter oeffnet die Sitzung (August 2026)
 
 PATCH — In Builds **ohne** Kurator-Zusatzpasswort öffnete nichts die Kurator-Sitzung: der freie Schalter im Profil setzte nur die Menü-Sichtbarkeit. Die Kurations-Seiten standen offen, aber jede Schreib-Aktion darin blieb grau — ohne dass irgendwo stand, warum. Detail: [modul-freischaltung.md](docs/architecture/modul-freischaltung.md).
 

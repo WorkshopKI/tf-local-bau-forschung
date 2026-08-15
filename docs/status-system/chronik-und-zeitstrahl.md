@@ -17,9 +17,18 @@ keine Ableitung — es ist belegte Vergangenheit.
 
 | Ansicht | Ordnung | Bauteil |
 |---|---|---|
-| **Chronik · nach Schritt** (Standard) | eine Zeile je Kürzel, eine Spalte je Träger | [StatusSchrittMatrix.tsx](../../src/plugins/antraege/status/StatusSchrittMatrix.tsx) |
-| **Chronik · nach Datum** | chronologisch, Monat in der linken Rinne | [StatusChronik.tsx](../../src/plugins/antraege/status/StatusChronik.tsx) |
+| **Chronik · nach Datum** (Standard) | chronologisch, Monat in der linken Rinne | [StatusChronik.tsx](../../src/plugins/antraege/status/StatusChronik.tsx) |
+| **Chronik · nach Schritt** | eine Zeile je Kürzel, eine Spalte je Träger | [StatusSchrittMatrix.tsx](../../src/plugins/antraege/status/StatusSchrittMatrix.tsx) |
 | **Zeitstrahl** | waagerechte Bahn je Verbund/TV | [VerlaufsBand.tsx](../../src/plugins/antraege/verlauf-band/VerlaufsBand.tsx) (rahmt) + [BandBahn.tsx](../../src/plugins/antraege/verlauf-band/BandBahn.tsx) (zeichnet) |
+
+Der Standard ist seit v4.61 **nach Datum**. Er war bis dahin die Matrix, und
+damit öffneten die beiden Wirte desselben Vorgangs zwei verschiedene Bilder: der
+Tabellen-Ausklapp zeigt ausschließlich die chronologische Ansicht. Ein geänderter
+Default allein hätte niemanden erreicht, der die Sektion je benutzt hat —
+`mutiere` schreibt das ganze Objekt, also trägt jeder gespeicherte Stand ein
+explizites `modus`. Das Feld `modusGewaehlt` unterscheidet deshalb den Klick auf
+den Schalter von der bloßen Mitschrift ([timelinePrefs.ts](../../src/plugins/antraege/status/timelinePrefs.ts));
+ein Key-Bump hätte `ansicht` und „Nebensächliches" mit zurückgesetzt.
 
 Gerechnet wird rein und node-testbar in `src/core/status/`:
 [chronik.ts](../../src/core/status/chronik.ts) (Termine),
@@ -164,16 +173,48 @@ nicht in einen leeren Bildschirm klicken können.
 Der **Fokus** überlebt den Moduswechsel: in der Matrix eine Streuung sehen, nach
 Datum nachlesen, wann sie entstand. `Esc` hebt ihn auf.
 
-## Zwei Wirte, ein Bauteil
+## Zwei Wirte, ein Bauteil — eine Bildsprache, zwei Tiefen
 
 Die chronologische Ansicht rendert an zwei Stellen — auf der Detailseite und im
 Tabellen-Ausklapp ([VorgangsverlaufReiter](../../src/plugins/antraege/ausklapp/vorgangsverlauf/VorgangsverlaufReiter.tsx)).
+Sie fragen Verschiedenes: in der Tabelle *was ist gerade los*, auf der
+Detailseite *was ist alles passiert*. Der **Zeilenbau ist deshalb identisch**,
+der **Umfang nicht**.
 
 Der **Ausklapp bekommt weder Matrix noch Filterleiste**: acht Datumsspalten
 passen nicht in eine aufgeklappte Tabellenzeile, und auf einer TV-Zeile hätte die
-Matrix genau eine Spalte. Er erbt die Marken, die Knotenzustände, die
-Kennzahlen-Zeile und die zurückgenommenen Termine samt Nullpunkt. Gemessen wird
-trotzdem dort — er ist der engere Wirt.
+Matrix genau eine Spalte. Auch kein Fokus — er verbindet Matrix, Chronik und
+Zeitstrahl, und hier gibt es keine zweite Sicht, mit der er sich teilen ließe. Er
+erbt die Marken, die Knotenzustände, die Kennzahlen-Zeile und die
+zurückgenommenen Termine samt Nullpunkt. Gemessen wird trotzdem dort — er ist der
+engere Wirt.
+
+### Das Fenster: die jüngsten acht
+
+Bis v4.60 stand die Chronik auch dort **ungekürzt**, mit der Begründung, ein
+Kasten mit zehn von 22 Terminen lese sich als der ganze Verlauf. Die Begründung
+stimmt, die Folgerung nicht: Median 22 und p90 32 Zeilen sind 500–700 px, die
+sich zwischen Kopfkarte und Fristblock in eine Tabellenzeile schieben — wer eine
+Zeile aufklappt, bekam den vollen Aktenvorgang.
+
+Gekürzt wird jetzt, aber **ansagbar**: `juengsteZeilen` schneidet auf die acht
+jüngsten Zeilen, ein Schalter darüber nennt die Zahl der älteren („24 ältere
+Einträge zeigen"). Fünf Entscheidungen daran:
+
+1. **Geschnitten wird die gemischte Liste**, nicht die Termine allein — ein
+   zurückgenommener Termin ist eine Zeile wie jede andere.
+2. **Vor der Monatsgruppierung**, damit Rinne und „N Monate ohne Termin" den
+   sichtbaren Ausschnitt beschreiben und nicht einen, den es nicht gibt.
+3. **Der Schalter steht oben.** Die Liste läuft aufsteigend; das Fenster zeigt
+   ihr Ende, das Fehlende liegt darüber.
+4. **Die Kennzahlen bleiben ungefenstert.** Sie sagen die Größe des *Vorgangs*
+   an, nicht die der Darstellung — genau das macht den Ausschnitt lesbar.
+5. **Eine Lücke ohne sichtbaren Monat entfällt** (der Rückfall „ohne Bezug"):
+   unter einem Ausschnitt, der sie nicht erklärt, wäre sie ein Rätsel. Gezählt
+   wird sie weiter — in Rot, in der Kennzahlen-Zeile darüber.
+
+Die Detailseite bekommt **kein** Fenster: dort ist die Chronik das Ziel des
+Klicks, nicht die Begleitung einer Tabelle.
 
 Sein Journal kommt aus [useZeilenVerlauf](../../src/plugins/antraege/ausklapp/useZeilenVerlauf.ts),
 das seit v4.58 die Chroniken **aller** Teilvorhaben der Zeile lädt statt nur der
@@ -182,9 +223,20 @@ Verlaufsableitung geht, entscheidet weiter die Ein-TV-Regel; und die belegte
 letzte Änderung bleibt an sie gebunden, sonst erbt der Stillstands-Wächter die
 Beobachtung eines Nachbarn (Guard `kein-nullpunkt-als-letzte-aenderung`).
 
-Weil er die Teilvorhaben des Verbunds nicht kennt, tragen seine Träger-Marken die
-**Endung des Aktenzeichens** (`…426`) statt einer Nummer. Eine dort selbst
-vergebene „TV 2" wäre die Nummer dieser Liste, nicht die des Verbunds.
+Seine Träger-Marken lesen `TV 1 … TV n` und „alle N" wie auf der Detailseite. Die
+Karte kommt aus `tvAchse` ([chronik-matrix.ts](../../src/core/status/chronik-matrix.ts)),
+gebaut über die Teilvorhaben des **ganzen Verbunds** — auch auf einer TV-Zeile,
+die nur eines davon trägt. Sonst hieße „TV 1" hier das erste dieser Liste und
+dort das erste des Vorhabens. Bis v4.60 stand hier die **Endung des
+Aktenzeichens** (`…426`), weil der Ausklapp den Verbund angeblich nicht kannte;
+seit `useZeilenVerlauf` an `useStatusVerlauf(verbundId)` hängt, kennt er ihn. Die
+Endung bleibt als Rückfall, wo kein Verbund geladen ist — selbst zu nummerieren
+wäre die Nummer dieser Liste. Guard: `chronik-zwei-wirte-ein-vokabular`
+([conventions-status.test.ts](../../src/__tests__/conventions-status.test.ts)).
+
+Der Reiter mit der Bahn heißt in beiden Wirten **„Zeitstrahl"** (bis v4.60 im
+Ausklapp „Zeitverlauf"); es ist dasselbe `VerlaufsBand`. Der gespeicherte Wert
+dahinter bleibt `zeitverlauf` — dieselbe Regel wie bei `band` oben.
 
 ## Knotenzustände (nur „nach Datum")
 

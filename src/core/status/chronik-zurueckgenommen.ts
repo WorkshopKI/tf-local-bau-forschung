@@ -196,3 +196,28 @@ export function mischeVerlaufZeilen(
     a.tag.localeCompare(b.tag)
     || (a.art === b.art ? 0 : a.art === 'termin' ? -1 : 1));
 }
+
+/**
+ * Das **jüngste Ende** einer Chronik — der Ausschnitt, den der Tabellen-Ausklapp
+ * zeigt, statt Median 22 und p90 32 Zeilen in eine aufgeklappte Tabellenzeile zu
+ * legen.
+ *
+ * Geschnitten wird am **Anfang**, nicht am Ende: die Liste läuft aufsteigend
+ * (ältestes oben), das Jüngste steht also hinten. Deshalb gehört auch der
+ * Aufklapp-Schalter in der Anzeige ÜBER die erste sichtbare Zeile.
+ *
+ * `weggelassen` ist die Zahl, die der Schalter ansagt — ohne sie läse sich ein
+ * Ausschnitt als der ganze Verlauf, und genau das war der Grund, aus dem die
+ * Chronik bisher nirgends gekürzt wurde.
+ *
+ * Generisch, weil hier nur gezählt wird: die Zeilen selbst bleiben unangetastet.
+ */
+export function juengsteZeilen<Z>(zeilen: readonly Z[], anzahl: number): {
+  sichtbar: readonly Z[];
+  weggelassen: number;
+} {
+  // `anzahl <= 0` heißt „kein Fenster", nicht „nichts zeigen" — eine leere
+  // Chronik mit einem Schalter darüber wäre keine Auskunft.
+  if (anzahl <= 0 || zeilen.length <= anzahl) return { sichtbar: zeilen, weggelassen: 0 };
+  return { sichtbar: zeilen.slice(zeilen.length - anzahl), weggelassen: zeilen.length - anzahl };
+}

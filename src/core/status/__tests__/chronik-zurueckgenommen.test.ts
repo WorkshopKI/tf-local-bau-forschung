@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { baueChronik } from '@/core/status/chronik';
 import {
-  baueZurueckgenommene, mischeVerlaufZeilen,
+  baueZurueckgenommene, juengsteZeilen, mischeVerlaufZeilen,
 } from '@/core/status/chronik-zurueckgenommen';
 import type { FeldVorkommen } from '@/core/status/feld-aufloesung';
 import type { AntragsChronikMitId, JournalEintrag } from '@/core/status/journal';
@@ -210,5 +210,40 @@ describe('mischeVerlaufZeilen — eine Achse für beides', () => {
   it('lässt die Terminfolge unangetastet, wenn es nichts Zurückgenommenes gibt', () => {
     const zeilen = mischeVerlaufZeilen(aktuell, []);
     expect(zeilen.map(z => z.tag)).toEqual(aktuell.map(e => e.tag));
+  });
+});
+
+describe('juengsteZeilen — das Fenster des Tabellen-Ausklapps', () => {
+  const liste = ['a', 'b', 'c', 'd', 'e'];
+
+  it('schneidet am ANFANG ab — das Jüngste steht hinten', () => {
+    expect(juengsteZeilen(liste, 2)).toEqual({ sichtbar: ['d', 'e'], weggelassen: 3 });
+  });
+
+  it('lässt eine Liste, die ins Fenster passt, unangetastet', () => {
+    expect(juengsteZeilen(liste, 5)).toEqual({ sichtbar: liste, weggelassen: 0 });
+    expect(juengsteZeilen(liste, 9)).toEqual({ sichtbar: liste, weggelassen: 0 });
+  });
+
+  it('behandelt `0` als „kein Fenster", nicht als „nichts zeigen"', () => {
+    expect(juengsteZeilen(liste, 0)).toEqual({ sichtbar: liste, weggelassen: 0 });
+    expect(juengsteZeilen(liste, -3)).toEqual({ sichtbar: liste, weggelassen: 0 });
+  });
+
+  it('nennt die weggelassenen, damit der Schalter sie ansagen kann', () => {
+    const { sichtbar, weggelassen } = juengsteZeilen(liste, 1);
+    expect(sichtbar.length + weggelassen).toBe(liste.length);
+  });
+
+  it('greift auf echten Chronik-Zeilen und behält die jüngsten Tage', () => {
+    const termine = baueChronik([
+      vk(AL, '17.07.2026', 'TV1'),
+      vk(XPC, '10.08.2026', 'TV1'),
+      vk(ART, '11.08.2026', 'TV1'),
+    ]);
+    const zeilen = mischeVerlaufZeilen(termine, []);
+    const { sichtbar, weggelassen } = juengsteZeilen(zeilen, 2);
+    expect(sichtbar.map(z => z.tag)).toEqual(['2026-08-10', '2026-08-11']);
+    expect(weggelassen).toBe(1);
   });
 });

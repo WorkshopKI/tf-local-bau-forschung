@@ -17,16 +17,18 @@
  * 3. **Fristrechnung** — unverändert, nur mit Überschrift, damit sie nicht als
  *    Teil der Chronik gelesen wird.
  *
- * **Die Chronik steht offen und ungekürzt, die beiden anderen Blöcke sind zu.**
- * Der Reiter wird wegen des Verlaufs geöffnet — der gehört vollständig da, ohne
- * eigenen Scrollbereich, in dem die sichtbaren Zeilen für alle gehalten werden.
- * Die Länge fangen stattdessen die beiden Blöcke darunter auf: Nachschlagen
- * (terminlose Codes) und Nachrechnen (Frist) klappt auf, wer sie braucht.
+ * **Die Chronik steht offen, aber im Ausschnitt; die beiden anderen Blöcke sind
+ * zu.** Hier wird eine Tabellenzeile aufgeklappt, um schnell zu sehen, was mit
+ * dem Antrag los ist — dafür zeigt die Chronik ihre {@link FENSTER} jüngsten
+ * Zeilen, mit einem Schalter darüber, der die Zahl der älteren ansagt. Einen
+ * Scrollbereich bekommt sie weiterhin nicht: ein Kasten, in dem zehn von 22
+ * Terminen stehen, ohne dass es jemand sagt, liest sich als der ganze Verlauf.
+ * Die volle Geschichte steht hinter dem Schalter und auf der Detailseite.
  *
  * **Der Ausklapp persistiert nichts** (`ausklappZustand.ts`) — weder die beiden
- * Klapp-Zustände noch den Schalter „Nebensächliches": alle drei hängen an einem
- * lokalen `useState`, nicht an `useTimelinePrefs`. Sonst schriebe das Aufklappen
- * einer Tabellenzeile die Voreinstellung der Detailseite um.
+ * Klapp-Zustände noch „Nebensächliches" noch das aufgeklappte Fenster: alle
+ * hängen an lokalem `useState`, nicht an `useTimelinePrefs`. Sonst schriebe das
+ * Aufklappen einer Tabellenzeile die Voreinstellung der Detailseite um.
  */
 import { useMemo, useState } from 'react';
 import { ChevronRight } from 'lucide-react';
@@ -59,7 +61,26 @@ export interface VorgangsverlaufReiterProps {
   journalAb?: string | null;
   /** `true`, solange gelesen wird; dann ist `chroniken === null` kein Befund. */
   journalLaden?: boolean;
+  /**
+   * Aktenzeichen → laufende Nummer, über den GANZEN Verbund gebaut (`tvAchse`).
+   * Damit tragen die Träger-Marken hier dieselbe Beschriftung wie auf der
+   * Detailseite; ohne sie fallen sie auf die Endung des Aktenzeichens zurück.
+   */
+  tvNummern?: ReadonlyMap<string, number>;
+  /** Anzahl Teilvorhaben des Verbunds — für „alle N". */
+  tvGesamt?: number;
 }
+
+/**
+ * Wie viele Chronik-Zeilen dieser Wirt zuerst zeigt.
+ *
+ * **Acht.** Gemessen über 13 090 Vorgänge trägt die Chronik im Median 22
+ * Termine, p90 32 — bei 19 px Zeilenhöhe 500–700 px, die sich zwischen Kopfkarte
+ * und Fristblock in eine aufgeklappte Tabellenzeile schieben. Wer eine Zeile
+ * aufklappt, fragt „was ist zuletzt passiert"; die ganze Geschichte steht einen
+ * Klick weiter — hier über den Schalter, sonst auf der Detailseite.
+ */
+const FENSTER = 8;
 
 const EYEBROW = 'uppercase tracking-wider text-[11px] text-[var(--tf-text-tertiary)]';
 
@@ -112,9 +133,13 @@ function KlappAbschnitt({ titel, hinweis, children }: {
 
 export function VorgangsverlaufReiter({
   modell, onZeitverlauf, vorkommen, version, offenePaare = [],
-  chroniken = null, journalAb = null, journalLaden = false,
+  chroniken = null, journalAb = null, journalLaden = false, tvNummern, tvGesamt,
 }: VorgangsverlaufReiterProps): React.ReactElement {
   const [zeigeNebensaechlich, setZeigeNebensaechlich] = useState(false);
+  // Wie die beiden Klappblöcke darunter: `useState`, nicht `useTimelinePrefs`.
+  // Der Ausklapp persistiert nichts — sonst schriebe das Aufklappen einer
+  // Tabellenzeile die Voreinstellung der Detailseite um.
+  const [alleZeigen, setAlleZeigen] = useState(false);
   const ohneDatum = useMemo(() => baueOhneDatum(vorkommen), [vorkommen]);
 
   /** Termine, die der Export nicht mehr führt — dieselbe Ableitung wie auf der Detailseite. */
@@ -142,7 +167,12 @@ export function VorgangsverlaufReiter({
         <Abschnitt titel="Chronik">
           {/* Keine Filterleiste und keine Matrix: fünf Datumsspalten passen
               nicht in einen Tabellen-Ausklapp, und auf einer TV-Zeile hätte die
-              Matrix genau eine Spalte. Hier steht der Hergang. */}
+              Matrix genau eine Spalte. Hier steht der Hergang.
+
+              Die Kennzahlen bleiben ungefenstert — sie sagen die Größe des
+              VORGANGS an, nicht die der Darstellung. Genau das macht den
+              Ausschnitt darunter lesbar: „16 Schritte" oben, acht Zeilen unten
+              und ein Schalter, der die Differenz benennt. */}
           <VerlaufKennzahlenZeile kennzahlen={kennzahlen} />
           <StatusChronik
             vorkommen={vorkommen}
@@ -151,6 +181,13 @@ export function VorgangsverlaufReiter({
             onToggleNebensaechlich={() => setZeigeNebensaechlich(v => !v)}
             offenePaare={offenePaare}
             zurueckgenommene={zurueckgenommene}
+            fenster={{
+              anzahl: FENSTER,
+              offen: alleZeigen,
+              onUmschalten: () => setAlleZeigen(a => !a),
+            }}
+            {...(tvNummern ? { tvNummern } : {})}
+            {...(tvGesamt !== undefined ? { tvGesamt } : {})}
           />
           <JournalNullpunkt journalAb={journalAb} chroniken={chroniken} laden={journalLaden} />
         </Abschnitt>

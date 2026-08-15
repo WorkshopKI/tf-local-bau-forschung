@@ -80,7 +80,7 @@ export function VorgangsRaster({ modell, onZeitverlauf }: {
           onClick={onZeitverlauf}
           className="self-start text-[12px] text-[var(--tf-primary)] cursor-pointer hover:underline underline-offset-2"
         >
-          Dieselben Daten als Zeitverlauf ansehen →
+          Dieselben Daten als Zeitstrahl ansehen →
         </button>
       )}
     </div>

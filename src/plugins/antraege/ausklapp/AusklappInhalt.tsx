@@ -3,7 +3,7 @@
  *
  * Die Reihenfolge ist die des Entwurfs und zugleich die Reihenfolge der Fragen:
  * *Wie weit über der Frist? · Woran hängt es? · Was ist zu tun?* — und darunter
- * der Nachweis, in Zahlen (Vorgangsverlauf) oder auf einer Achse (Zeitverlauf).
+ * der Nachweis, in Zahlen (Vorgangsverlauf) oder auf einer Achse (Zeitstrahl).
  *
  * **Die Karte steht über beiden Reitern**, nicht in einem. Sie beantwortet die
  * Frage, wegen der jemand aufklappt; der Reiter darunter beantwortet nur, warum
@@ -13,7 +13,7 @@
  */
 import { useMemo } from 'react';
 import { SegmentedToggle } from '@/components/ui/SegmentedToggle';
-import { offenePaareJeTeilvorhaben, type WaechterErgebnis } from '@/core/status';
+import { offenePaareJeTeilvorhaben, tvAchse, type WaechterErgebnis } from '@/core/status';
 import { KopfAktionen } from './kopfkarte/KopfAktionen';
 import { KopfKarte } from './kopfkarte/KopfKarte';
 import { baueKopfModell } from './kopfkarte/kopfkarteModell';
@@ -94,6 +94,13 @@ export function AusklappInhalt({
       : offenePaareJeTeilvorhaben(daten.quelle.version, daten.jeTeilvorhaben, stichtag)),
     [daten.quelle.version, daten.jeTeilvorhaben, stichtag],
   );
+  // Die Teilvorhaben-Achse über den GANZEN Verbund (`quelle.jeTeilvorhaben`),
+  // nicht über die Teilvorhaben dieser Zeile: sonst hieße „TV 1" hier das erste
+  // der Zeile und auf der Detailseite das erste des Vorhabens. Dieselbe reine
+  // Funktion wie dort — eine zweite Sortierung liefe beim ersten Sonderfall
+  // auseinander. Ohne geladenen Verbund bleibt die Karte leer, und die
+  // Träger-Marke fällt auf die Endung des Aktenzeichens zurück.
+  const achse = useMemo(() => tvAchse(daten.quelle.jeTeilvorhaben), [daten.quelle.jeTeilvorhaben]);
 
   const aktiv: ReiterId = zeitverlaufAn ? reiter : 'vorgangsverlauf';
   const fassung = daten.quelle.version === null ? null : `Fassung ${daten.quelle.version.version}`;
@@ -137,7 +144,11 @@ export function AusklappInhalt({
           ariaLabel="Nachweis"
           options={[
             { id: 'vorgangsverlauf', label: 'Vorgangsverlauf' },
-            { id: 'zeitverlauf', label: 'Zeitverlauf' },
+            // „Zeitstrahl", nicht „Zeitverlauf": derselbe Name wie auf der
+            // Detailseite für dasselbe Bild (`VerlaufsBand`). Der WERT bleibt
+            // `zeitverlauf` — ihn mitzubenennen kostete eine Migration, die
+            // niemand sähe (dieselbe Regel wie `band` in `timelinePrefs`).
+            { id: 'zeitverlauf', label: 'Zeitstrahl' },
           ]}
         />
       )}
@@ -155,6 +166,8 @@ export function AusklappInhalt({
             chroniken={daten.chroniken}
             journalAb={daten.journalAb}
             journalLaden={daten.journalLaden}
+            tvNummern={achse.nummern}
+            tvGesamt={achse.tvIds.length}
           />
         </div>
       ) : (

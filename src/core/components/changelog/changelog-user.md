@@ -19,6 +19,16 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.61 — 2026-08
+
+### Neu
+- Klappen Sie eine Tabellenzeile auf, zeigt die Chronik jetzt die **acht jüngsten Einträge** — was zuletzt passiert ist, ohne den ganzen Aktenvorgang. Darüber steht, wie viele ältere es gibt; ein Klick zeigt sie.
+
+### Verbesserungen
+- „Status & Verlauf" auf der Detailseite öffnet mit der **Chronik nach Datum** — dieselbe Ansicht wie im Ausklapp der Tabelle. Die Matrix „nach Schritt" bleibt einen Klick entfernt, und Ihre eigene Wahl gilt danach wieder.
+- Die Teilvorhaben in der Chronik heißen im Ausklapp jetzt **„TV 1", „TV 2" …** wie überall sonst, statt der Endung des Aktenzeichens („…430").
+- Der Reiter mit der Zeitachse heißt an beiden Stellen **„Zeitstrahl"** — es war dasselbe Bild unter zwei Namen.
+
 ## v4.60 — 2026-08
 
 ### Bugfixes

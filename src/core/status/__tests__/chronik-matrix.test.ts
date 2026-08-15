@@ -8,7 +8,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import {
-  baueSchrittMatrix, baueSpalten, phasenRinne,
+  baueSchrittMatrix, baueSpalten, phasenRinne, tvAchse,
 } from '@/core/status/chronik-matrix';
 import type { ChronikEintrag } from '@/core/status/chronik';
 import type { OffenesPaarJeTv } from '@/core/status/waechter';
@@ -215,5 +215,38 @@ describe('chronik-matrix — Phasen-Rinne', () => {
       [e(ohne, '2026-02-24', [TV[0]!])], [], SPALTEN, fassung([ohne]),
     );
     expect(phasenRinne(zeilen)).toEqual([null]);
+  });
+});
+
+describe('tvAchse — dieselbe Nummer in jedem Wirt', () => {
+  it('nummeriert nach sortiertem Aktenzeichen, nicht nach Eingangsreihenfolge', () => {
+    const a = tvAchse([
+      { aktenzeichen: '16KN084433' },
+      { aktenzeichen: '16KN084430' },
+      { aktenzeichen: '16KN084432' },
+    ]);
+    expect(a.tvIds).toEqual(['16KN084430', '16KN084432', '16KN084433']);
+    expect(a.nummern.get('16KN084430')).toBe(1);
+    expect(a.nummern.get('16KN084433')).toBe(3);
+  });
+
+  it('liefert für dieselbe Menge in anderer Reihenfolge dieselbe Karte', () => {
+    const tvs = [{ aktenzeichen: 'B' }, { aktenzeichen: 'A' }, { aktenzeichen: 'C' }];
+    const eine = tvAchse(tvs);
+    const andere = tvAchse([...tvs].reverse());
+    expect([...andere.nummern]).toEqual([...eine.nummern]);
+  });
+
+  it('bleibt bei leerer Eingabe leer — dann fällt die Marke auf das Aktenzeichen zurück', () => {
+    const a = tvAchse([]);
+    expect(a.tvIds).toEqual([]);
+    expect(a.nummern.size).toBe(0);
+  });
+
+  it('stimmt mit der Spaltenachse überein, die aus denselben Ids gebaut wird', () => {
+    const a = tvAchse([{ aktenzeichen: 'Y' }, { aktenzeichen: 'X' }]);
+    const spalten = baueSpalten(a.tvIds);
+    expect(spalten.map(s => s.kurz)).toEqual(['Verbund', 'TV 1', 'TV 2']);
+    expect(a.nummern.get('X')).toBe(1);
   });
 });

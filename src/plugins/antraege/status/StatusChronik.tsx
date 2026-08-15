@@ -9,11 +9,14 @@
  * Sie stehen in den Datumsfeldern und ergeben, chronologisch gelesen, die
  * eigentliche Geschichte des Antrags.
  *
- * **Ungekürzt, überall.** Die Liste bekommt keinen Höhendeckel und keinen
- * eigenen Scrollbereich — auch nicht im aufgeklappten Bereich der Tabelle, wo
- * sie länger wird als die Zeile. Ein Kasten, der zehn von 22 Terminen zeigt,
- * liest sich als der ganze Verlauf; die Länge fangen dort die Blöcke darunter
- * ab, indem sie zugeklappt anfangen ({@link VorgangsverlaufReiter}).
+ * **Kein Deckel, aber ein Fenster.** Die Liste bekommt weder Höhenbegrenzung
+ * noch eigenen Scrollbereich: ein Kasten, der zehn von 22 Terminen zeigt, liest
+ * sich als der ganze Verlauf. Der Tabellen-Ausklapp braucht trotzdem eine
+ * kürzere Auskunft — dort schneidet `fenster` auf die **jüngsten** Zeilen, und
+ * ein Schalter darüber sagt, wie viele ältere er weglässt. Das ist die
+ * Bedingung, unter der gekürzt werden darf; die Kennzahlen-Zeile daneben nennt
+ * weiterhin die volle Größe des Vorgangs, nicht die der Darstellung. Auf der
+ * Detailseite gibt es kein Fenster — dort ist die Chronik das Ziel des Klicks.
  *
  * **Deshalb ist die Höhe hier ein Entwurfsziel.** Gemessen über 13 090 Vorgänge:
  * Median 22 Termine in 6 Monaten, p90 32 in 9. Drei Entscheidungen folgen daraus
@@ -63,7 +66,7 @@ import { Fragment } from 'react';
 import { ToggleChip } from '@/components/ui/ToggleChip';
 import { useProfile } from '@/core/hooks/useProfile';
 import {
-  baueChronik, gruppiereNachMonat, kategoriePfadLabel, mischeVerlaufZeilen,
+  baueChronik, gruppiereNachMonat, juengsteZeilen, kategoriePfadLabel, mischeVerlaufZeilen,
   monateDazwischen, teileChronik, rollenSicht, trifftBereich, zahPhaseLabel,
   ROLLE_LABEL, leseStatusRolle, normKey, rollenVonFeld,
   type ChronikEintrag, type FeldVorkommen, type MappingVersion,
@@ -391,6 +394,36 @@ function ankerKey(code: string, tag: string): string {
   return `${normKey(code)}|${tag}`;
 }
 
+/**
+ * Der Schalter über einem Ausschnitt: **wie viele ältere Einträge fehlen**.
+ *
+ * Er steht OBEN, weil die Liste aufsteigend läuft — das Fenster zeigt ihr Ende,
+ * und was fehlt, liegt darüber. Die Zahl ist nicht Zierde, sondern die
+ * Bedingung, unter der ein Ausschnitt überhaupt gezeigt werden darf: ohne sie
+ * läse er sich als der ganze Verlauf.
+ *
+ * „Einträge", nicht „Schritte": „Schritte" ist in der Kennzahlen-Zeile darüber
+ * für etwas anderes vergeben (verschiedene Felder, nicht Zeilen).
+ */
+function FensterSchalter({ weggelassen, offen, onKlick }: {
+  weggelassen: number;
+  offen: boolean;
+  onKlick: () => void;
+}): React.ReactElement {
+  return (
+    <button
+      type="button"
+      onClick={onKlick}
+      aria-expanded={offen}
+      className={`self-start cursor-pointer text-[11.5px] underline-offset-2 hover:underline ${LEISE}`}
+    >
+      {offen
+        ? 'weniger zeigen'
+        : `${weggelassen} ältere ${weggelassen === 1 ? 'Eintrag' : 'Einträge'} zeigen`}
+    </button>
+  );
+}
+
 /** Die vier Knotenzustände, ausgeschrieben — nur in dieser Ansicht. */
 function Legende(): React.ReactElement {
   const eintraege: [React.ReactNode, string][] = [
@@ -427,6 +460,7 @@ export function StatusChronik({
   tvNummern,
   tvGesamt,
   zeigeSchalter = true,
+  fenster = null,
 }: {
   /** `readonly`, weil der Ausklapp seine Vorkommen unveränderlich durchreicht
    *  (`ZeilenVerlauf.vorkommen`) — gelesen wird hier ohnehin nur. */
@@ -470,6 +504,20 @@ export function StatusChronik({
    * bleibt er hier.
    */
   zeigeSchalter?: boolean;
+  /**
+   * Nur den jüngsten Abschnitt zeigen — der Tabellen-Ausklapp, wo der volle
+   * Verlauf (Median 22, p90 32 Zeilen) die aufgeklappte Zeile sprengt.
+   *
+   * `null`/fehlend = alles, und das bleibt der Fall auf der Detailseite: dort
+   * ist die Chronik das Ziel des Klicks, nicht die Begleitung einer Tabelle.
+   *
+   * `offen` und der Umschalter gehören dem **Wirt**: der Ausklapp persistiert
+   * nichts, die Detailseite hat gar kein Fenster — ein Zustand hier drin wäre in
+   * beiden Fällen falsch angesiedelt. `offen` kommt mit, statt die Prop bei
+   * „alles zeigen" auf `null` fallen zu lassen: sonst verschwände mit dem
+   * Fenster auch sein Schalter, und der Weg zurück wäre weg.
+   */
+  fenster?: { anzahl: number; offen: boolean; onUmschalten: () => void } | null;
 }): React.ReactElement {
   const rollen = rollenWahl ?? new Set<Rolle>();
   const bereiche = bereichWahl ?? new Set<string>();
@@ -504,7 +552,20 @@ export function StatusChronik({
     rollenSicht(rollenVonFeld(s.feld), rollen) !== 'weg'
     && trifftBereich(s.tvIds, bereiche));
 
-  const monate = gruppiereNachMonat(mischeVerlaufZeilen(eintraege, stornos));
+  // Das Fenster schneidet die GEMISCHTE Liste, nicht die Termine allein: ein
+  // zurückgenommener Termin ist eine Zeile wie jede andere, und getrennt
+  // gefenstert stünden am Rand des Ausschnitts Stornos ohne ihre Nachbarn.
+  // Geschnitten wird VOR der Monatsgruppierung, damit Rinne und
+  // „N Monate ohne Termin" den sichtbaren Ausschnitt beschreiben.
+  const alleZeilen = mischeVerlaufZeilen(eintraege, stornos);
+  const grenze = fenster === null || fenster.offen ? 0 : fenster.anzahl;
+  const geschnitten = juengsteZeilen(alleZeilen, grenze);
+  const monate = gruppiereNachMonat(geschnitten.sichtbar);
+  const gefenstert = geschnitten.weggelassen > 0;
+  // Der Schalter steht auch aufgeklappt da — aber nur, wenn Zuklappen etwas
+  // verstecken würde. Sonst böte er einen Zustand an, der genauso aussieht.
+  const zeigeFensterSchalter = fenster !== null
+    && (gefenstert || (fenster.offen && alleZeilen.length > fenster.anzahl));
 
   const { profile } = useProfile();
   // Vorauswahl, keine Sperre — dieselbe Lesart wie in der Ordner-Liste. `alle`
@@ -513,8 +574,11 @@ export function StatusChronik({
   const istMeins = (r: readonly Rolle[]): boolean =>
     meineRolle !== 'alle' && r.includes(meineRolle);
 
+  // Nur die Termine, die das Fenster übrig gelassen hat, können eine Lücke
+  // tragen — sonst hinge sie an einer Zeile, die gar nicht dasteht.
   const vorhanden = new Set(
-    eintraege.filter(e => e.feld.code).map(e => ankerKey(e.feld.code!, e.tag)),
+    geschnitten.sichtbar
+      .flatMap(z => (z.art === 'termin' && z.e.feld.code ? [ankerKey(z.e.feld.code, z.tag)] : [])),
   );
   const anTermin = new Map<string, OffenesPaarJeTv[]>();
   const anMonat = new Map<string, OffenesPaarJeTv[]>();
@@ -524,6 +588,12 @@ export function StatusChronik({
     const key = ankerFuer(p);
     const monat = p.seit.slice(0, 7);
     const ziel = vorhanden.has(key) ? anTermin : monatsNamen.has(monat) ? anMonat : null;
+    // Im Fenster entfällt der LETZTE Rückfall („ohne Bezug"): eine Lücke, deren
+    // Termin und deren Monat beide außerhalb des Ausschnitts liegen, stünde
+    // unter einem Ausschnitt, der sie nicht erklärt. Der Rückfall auf den Monat
+    // bleibt — der ist ja sichtbar. Verloren ist nichts: die Kennzahlen-Zeile
+    // darüber nennt alle nicht gesetzten Kürzel in Rot.
+    if (ziel === null && gefenstert) continue;
     if (ziel === null) { heimatlos.push(p); continue; }
     const unter = ziel === anTermin ? key : monat;
     const liste = ziel.get(unter);
@@ -560,6 +630,19 @@ export function StatusChronik({
         </div>
       ) : (
         <div className="flex flex-col">
+          {/* Der Schalter steht ÜBER der Liste, weil sie aufsteigend läuft: das
+              Fenster zeigt ihr jüngstes Ende, das Fehlende liegt darüber. Er
+              steht auch im aufgeklappten Zustand — ein Weg hin ohne Weg zurück
+              wäre eine Einbahn. */}
+          {zeigeFensterSchalter && fenster !== null && (
+            <FensterSchalter
+              weggelassen={
+                gefenstert ? geschnitten.weggelassen : alleZeilen.length - fenster.anzahl
+              }
+              offen={fenster.offen}
+              onKlick={fenster.onUmschalten}
+            />
+          )}
           {monate.map((m, i) => {
             const vorheriger = monate[i - 1]?.monat;
             const luecke = vorheriger === undefined ? 0 : monateDazwischen(vorheriger, m.monat);

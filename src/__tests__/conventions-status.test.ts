@@ -47,6 +47,11 @@
  *     Datei nennt zahPhase). Bis v4.3 fehlte er, und genau deshalb standen
  *     „Fachpruefung"/„Nachforderung" in der Handlungs-Formel (in KEINER Fassung
  *     ein Phasenlabel) und vier eingetippte Ids im Fristlauf des Vorgangs-Boards.
+ *   - chronik-zwei-wirte-ein-vokabular  → v4.61: die chronologische Chronik rendert
+ *     an zwei Stellen (Detailseite + Tabellen-Ausklapp). Jeder Wirt reicht
+ *     `tvNummern` herein, und die Karte kommt aus `tvAchse` — sonst heisst
+ *     dieselbe Zeile hier „TV 1" und dort „…430", und „TV 2" meint je nach Wirt
+ *     ein anderes Teilvorhaben.
  *   - kuerzel-genau-ein-speicherort     → Pitfall #44 / v2.376: die vier kanonisch
  *     belegten Kuerzel (AAE/ABB/AZ1/VBE) duerfen im Vorgangssystem-Scope kein
  *     zweites `D_<code>`-Feld bekommen — das kanonische Feld gewinnt den Wert,
@@ -1176,5 +1181,65 @@ describe('kein-nullpunkt-als-letzte-aenderung (Wächter, v3.43.2)', () => {
     expect(istNullpunktAlsAenderung('  journalAenderung: chronik?.journalAb ?? null,')).toBe(true);
     expect(istNullpunktAlsAenderung('    journalAenderung: daten.journalAenderung,')).toBe(false);
     expect(istNullpunktAlsAenderung('  journalAb={daten.journalAb}')).toBe(false);
+  });
+});
+
+describe('chronik-zwei-wirte-ein-vokabular (v4.61)', () => {
+  // Die chronologische Chronik rendert an ZWEI Stellen dieselbe Komponente —
+  // Verbund-Detailseite und Tabellen-Ausklapp. Sie sah trotzdem verschieden
+  // aus: die Detailseite reichte `tvNummern` herein („TV 1", „alle 4"), der
+  // Ausklapp nicht, und dort standen Aktenzeichen-Endungen („…430"). Zwei
+  // Vokabulare für dieselbe Auskunft, weil ein Wirt eine Prop vergaß.
+  //
+  // Der Guard hält zwei Zusagen fest: JEDER Wirt beschriftet seine Träger, und
+  // die Nummer kommt aus `tvAchse` — nicht aus einer zweiten Sortierung, die
+  // beim ersten Sonderfall auseinanderliefe.
+
+  it('jeder Wirt der StatusChronik reicht tvNummern herein', () => {
+    const ohne: string[] = [];
+    for (const file of ALL_TS_FILES) {
+      if (file.includes(`${sep}__tests__${sep}`)) continue;
+      const text = readFileSync(file, 'utf8');
+      if (!/<StatusChronik\b/.test(text)) continue;
+      if (!/tvNummern/.test(text)) ohne.push(relPath(file));
+    }
+    if (ohne.length > 0) {
+      expect.fail(
+        `Die Chronik beschriftet ihre Träger überall gleich (v4.61).\n`
+        + `Ohne \`tvNummern\` fällt \`TraegerBadges\` auf die Endung des\n`
+        + `Aktenzeichens zurück („…430") — dieselbe Zeile liest sich dann in der\n`
+        + `Tabelle anders als auf der Detailseite.\n`
+        + `Stattdessen: \`tvAchse(quelle.jeTeilvorhaben)\` und die Karte durchreichen.\n`
+        + `\nWirte ohne tvNummern:\n${ohne.join('\n')}`,
+      );
+    }
+  });
+
+  const EIGENE_NUMMERN = /\.map\(\s*\(?\s*\w+\s*,\s*i\s*\)?\s*=>\s*\[\s*\w+\s*,\s*i\s*\+\s*1/;
+
+  it('kein Wirt baut sich seine eigene TV-Nummerierung', () => {
+    const findings: Finding[] = [];
+    for (const file of ALL_TS_FILES) {
+      if (file.endsWith(`${sep}core${sep}status${sep}chronik-matrix.ts`)) continue;
+      if (file.includes(`${sep}__tests__${sep}`)) continue;
+      findings.push(...findInFile(
+        file, l => EIGENE_NUMMERN.test(l), 'allow-eigene-tv-nummern',
+      ));
+    }
+    if (findings.length > 0) {
+      expect.fail(
+        `Aktenzeichen → laufende Nummer kommt aus \`tvAchse\` (v4.61).\n`
+        + `Eine zweite Karte ist eine zweite Sortierregel: „TV 2" hieße dann in\n`
+        + `einem Wirt ein anderes Teilvorhaben als im nächsten — und zitieren\n`
+        + `lässt sich die Nummer schon heute nicht.\n\nTreffer:\n${fmt(findings)}`,
+      );
+    }
+  });
+
+  it('erkennt die historische Fundstelle und verschont die richtige', () => {
+    // So stand die Karte bis v4.60 in StatusDetailSection.
+    expect(EIGENE_NUMMERN.test('    () => new Map(tvIds.map((id, i) => [id, i + 1] as const)),'))
+      .toBe(true);
+    expect(EIGENE_NUMMERN.test('  const spalten = baueSpalten(tvIds);')).toBe(false);
   });
 });

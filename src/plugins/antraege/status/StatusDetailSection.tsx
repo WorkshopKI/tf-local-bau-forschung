@@ -27,7 +27,7 @@ import { isVorgangssystemEnabled } from '@/config/feature-flags';
 import {
   baueChronik, baueSchrittMatrix, baueSpalten, baueZurueckgenommene, filterePaare,
   rollenSicht, rollenVonFeld,
-  teileChronik, trifftBereich, verlaufKennzahlen, zahPhaseLabel, zahPhaseFuerStatusText,
+  teileChronik, trifftBereich, tvAchse, verlaufKennzahlen, zahPhaseLabel, zahPhaseFuerStatusText,
   offenePaareJeTeilvorhaben,
 } from '@/core/status';
 import { HerleitungPopover } from './HerleitungPopover';
@@ -65,20 +65,15 @@ export function StatusDetailSection({ verbundId, statusRoh }: {
   // eine Uhr in der Berechnung (Hook vor den Early Returns, React #310).
   const stichtagRef = useRef<string>(new Date().toISOString());
   const stichtag = stichtagRef.current;
-  // Die Spaltenachse: Verbund, dann die Teilvorhaben **nach Aktenzeichen
-  // sortiert**. Ohne feste Ordnung wechselte „TV 2" mit der Reihenfolge, in der
-  // IndexedDB die Anträge zurückgibt — eine Nummer, die man nicht zitieren kann.
+  // Die Teilvorhaben-Achse — Aktenzeichen sortiert, Nummer = Position. Über
+  // `tvAchse`, weil der Tabellen-Ausklapp dieselbe Karte braucht und „TV 2"
+  // beide Male dasselbe Teilvorhaben meinen muss.
   // Hook vor den Early Returns (React #310).
-  const tvIds = useMemo(
-    () => v.jeTeilvorhaben.map(t => t.aktenzeichen).sort((a, b) => a.localeCompare(b)),
-    [v.jeTeilvorhaben],
-  );
+  const achse = useMemo(() => tvAchse(v.jeTeilvorhaben), [v.jeTeilvorhaben]);
+  const tvIds = achse.tvIds;
+  const tvNummern = achse.nummern;
   const spalten = useMemo(() => baueSpalten(tvIds), [tvIds]);
   const bereichsIds = useMemo(() => spalten.map(s => s.id), [spalten]);
-  const tvNummern = useMemo(
-    () => new Map(tvIds.map((id, i) => [id, i + 1] as const)),
-    [tvIds],
-  );
   const filter = useVerlaufFilter(bereichsIds);
   // Das Import-Diff-Journal für alle Teilvorhaben — EIN Lesevorgang, geteilt mit
   // der Historie-Sektion derselben Seite (`stand.json` wiegt über 5 MB und ist

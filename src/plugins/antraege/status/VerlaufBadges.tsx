@@ -226,7 +226,9 @@ export function TraegerBadges({ tvIds, nummern, gesamt }: {
   if (tvIds.length === 0) return <Traeger text="Verbund" />;
 
   // Ohne Nummernkarte steht die **Endung** des Aktenzeichens statt einer Nummer.
-  // Eine hier selbst vergebene Nummer wäre die Nummer dieser Liste, nicht die
+  // Das ist der Rückfall, nicht die Regel: beide Wirte reichen die Karte herein
+  // (`tvAchse`, über den ganzen Verbund gebaut). Er greift, wo kein Verbund
+  // geladen ist. Selbst zu nummerieren wäre die Nummer DIESER Liste, nicht die
   // des Verbunds — und „TV 2" in der Zeile, das ein anderes Teilvorhaben meint
   // als „TV 2" in der Filterleiste, ist schlimmer als ein Kürzel ohne Nummer.
   const beschriftung = (id: string): string => {
