@@ -10,6 +10,8 @@ import { DateRangeFacet } from './facets/DateRangeFacet';
 import { NumberRangeFacet } from './facets/NumberRangeFacet';
 import { TextContainsFacet } from './facets/TextContainsFacet';
 import { StatusFilterFacet } from './facets/StatusFilterFacet';
+import { PinNadel } from './PinNadel';
+import { facetteAlsUmschalterMoeglich } from './pinnedFilters';
 
 interface Props {
   def: FilterDefinition;
@@ -124,29 +126,40 @@ export function FilterSidebarItem({ def, antraege, activeFilters, definitions, v
       style={hideHeader ? undefined : { borderBottom: '0.5px solid var(--tf-border)' }}
     >
       {hideHeader ? null : (
-        <button
-          type="button"
-          onClick={() => setCollapsed(c => !c)}
-          className="w-full flex items-center justify-between gap-2 py-1.5 text-left"
-          disabled={disabled}
-        >
-          <div className="flex items-center gap-1.5 min-w-0 flex-1">
-            {collapsed ? (
-              <ChevronRight size={14} className="text-[var(--tf-text-tertiary)] shrink-0" />
-            ) : (
-              <ChevronDown size={14} className="text-[var(--tf-text-tertiary)] shrink-0" />
-            )}
-            <span className={`text-[12.5px] truncate ${disabled ? 'text-[var(--tf-text-tertiary)] italic' : 'text-[var(--tf-text)] font-medium'}`}>
-              {def.name}
-            </span>
-            {def.typ === 'boolean_ja_nein' && isSparse ? (
-              <span className="text-[10.5px] text-[var(--tf-text-tertiary)] shrink-0">({jaCount})</span>
+        // Die Nadel am Merkmalskopf steht NEBEN dem Aufklapp-Knopf, nicht darin:
+        // ein Knopf im Knopf ist ungültiges HTML, und der Klick müsste sich sonst
+        // gegen das Aufklappen wehren.
+        <div className="group/pin flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => setCollapsed(c => !c)}
+            className="min-w-0 flex-1 flex items-center justify-between gap-2 py-1.5 text-left"
+            disabled={disabled}
+          >
+            <div className="flex items-center gap-1.5 min-w-0 flex-1">
+              {collapsed ? (
+                <ChevronRight size={14} className="text-[var(--tf-text-tertiary)] shrink-0" />
+              ) : (
+                <ChevronDown size={14} className="text-[var(--tf-text-tertiary)] shrink-0" />
+              )}
+              <span className={`text-[12.5px] truncate ${disabled ? 'text-[var(--tf-text-tertiary)] italic' : 'text-[var(--tf-text)] font-medium'}`}>
+                {def.name}
+              </span>
+              {def.typ === 'boolean_ja_nein' && isSparse ? (
+                <span className="text-[10.5px] text-[var(--tf-text-tertiary)] shrink-0">({jaCount})</span>
+              ) : null}
+            </div>
+            {summary ? (
+              <span className="text-[11px] text-[var(--tf-text-secondary)] truncate max-w-[120px]">{summary}</span>
             ) : null}
-          </div>
-          {summary ? (
-            <span className="text-[11px] text-[var(--tf-text-secondary)] truncate max-w-[120px]">{summary}</span>
+          </button>
+          {/* Ganze Facette als Umschalter — nur wo die Werte in eine Zeile
+              passen. `counts.size` ist die Zahl der BELEGTEN Werte; genau die
+              zeigt der Umschalter später auch. */}
+          {!disabled && facetteAlsUmschalterMoeglich(def, counts.size) ? (
+            <PinNadel pin={{ art: 'facette', filterId: def.id }} bezeichnung={def.name} />
           ) : null}
-        </button>
+        </div>
       )}
 
       {disabled ? (

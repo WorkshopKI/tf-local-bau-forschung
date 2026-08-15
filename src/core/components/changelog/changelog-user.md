@@ -19,6 +19,17 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.63 — 2026-08
+
+### Neu
+- **Anträge auswählen und weiterverarbeiten:** Häkchen je Zeile, eines im Spaltenkopf für die ganze Liste. Unten erscheint eine Leiste — die Auswahl als Excel-Tabelle exportieren oder ihre Förderkennzeichen kopieren.
+- **Filter anpinnen:** Was Sie oft brauchen, ziehen Sie mit der Nadel aus der Filterleiste nach oben — als Schalter über der Tabelle. Einzelne Werte, ganze Merkmale oder eine gespeicherte Kombination.
+### Verbesserungen
+- **Die Filterleiste steht jetzt links**, dort wo man mit dem Einschränken anfängt. Der Knopf oben rechts heißt „Filter" und nennt, wie viele aktiv sind.
+- **Kurzname und Förderkennzeichen stehen zusammen** in der ersten Spalte, die beim Blättern nach rechts stehen bleibt. Beides gibt es weiterhin auch einzeln.
+- **Zeilenhöhe wählbar** (Darstellung → Zeilendichte), und die ⓘ-Zeichen in den Status-Zellen zeigen sich erst, wenn Sie über die Zeile fahren — die Tabelle wirkt dadurch ruhiger.
+### Bugfixes
+
 ## v4.62 — 2026-08
 
 ### Neu

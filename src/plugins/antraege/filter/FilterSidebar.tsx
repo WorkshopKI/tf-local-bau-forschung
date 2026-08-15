@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { RotateCcw, BookmarkPlus } from 'lucide-react';
+import { RotateCcw, BookmarkPlus, PanelLeftClose } from 'lucide-react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { Input } from '@/components/ui/input';
 import type { AntragListItem } from '@/core/services/csv/types';
@@ -26,6 +26,10 @@ interface Props {
   onSearchChange: (s: string) => void;
   /** Wenn true: Quicksearch-Input ausblenden (Drawer-Modus, wenn Search im Header schon vorhanden ist). */
   hideSearch?: boolean;
+  /** Einklappen aus der Leiste heraus. Ohne die Prop zeigt der Kopf kein
+   *  Einklapp-Icon — im Drawer schließt die Überlagerung selbst, ein zweiter
+   *  Weg dorthin wäre eine Attrappe. */
+  onCollapse?: () => void;
 }
 
 function SectionHeader({
@@ -52,7 +56,7 @@ function Hairline(): React.ReactElement {
   return <div className="my-2 h-px bg-[var(--tf-border)]" />;
 }
 
-export function FilterSidebar({ antraege, search, onSearchChange, hideSearch = false }: Props): React.ReactElement {
+export function FilterSidebar({ antraege, search, onSearchChange, hideSearch = false, onCollapse }: Props): React.ReactElement {
   const storage = useStorage();
   const {
     definitions,
@@ -137,17 +141,32 @@ export function FilterSidebar({ antraege, search, onSearchChange, hideSearch = f
   return (
     <div
       className="flex flex-col h-full bg-[var(--tf-bg)]"
-      style={{ borderLeft: '0.5px solid var(--tf-border)' }}
+      // Die Leiste steht links von der Liste — die Trennkante gehört an ihre
+      // rechte Seite (bis v4.62 stand sie rechts und die Kante links).
+      style={{ borderRight: '0.5px solid var(--tf-border)' }}
     >
       {/* Header */}
       <div
-        className="shrink-0 flex items-baseline justify-between"
-        style={{ padding: '14px 16px 10px', borderBottom: '0.5px solid var(--tf-border)' }}
+        className="shrink-0 flex items-center justify-between gap-2"
+        style={{ padding: '12px 12px 10px 16px', borderBottom: '0.5px solid var(--tf-border)' }}
       >
         <span className="text-[13.5px] font-medium text-[var(--tf-text)]">Filter</span>
-        <span className="text-[11.5px] text-[var(--tf-text-tertiary)]">
-          {active.length} aktiv
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-[11.5px] text-[var(--tf-text-tertiary)]">
+            {active.length} aktiv
+          </span>
+          {onCollapse ? (
+            <button
+              type="button"
+              onClick={onCollapse}
+              aria-label="Filterleiste einklappen"
+              title="Filterleiste einklappen"
+              className="shrink-0 p-1 rounded-[6px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text)] hover:bg-[var(--tf-bg-secondary)] transition-colors cursor-pointer"
+            >
+              <PanelLeftClose size={15} />
+            </button>
+          ) : null}
+        </div>
       </div>
 
       {/* Optional Quicksearch (Antraege-Volltext) — nur im non-Drawer-Modus. */}

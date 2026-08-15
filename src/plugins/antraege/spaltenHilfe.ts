@@ -36,6 +36,8 @@ import { KATEGORIE_COLUMN_PREFIX } from './tableColumns';
  * eine neue Spalte ohne Eintrag fällt im Gate auf, nicht erst im Betrieb.
  */
 const SAETZE: Record<string, string> = {
+  antrag:
+    'Kurzname und Förderkennzeichen des Vorhabens in einer Spalte, sortiert nach dem Kurznamen. In einer Verbund-Zeile steht die Spanne über alle Teilvorhaben und dahinter ihre Anzahl. Beide Felder gibt es weiterhin auch als eigene Spalten.',
   aktenzeichen:
     'Förderkennzeichen des Teilvorhabens. In einer Verbund-Zeile steht stattdessen die Spanne über alle Teilvorhaben und dahinter ihre Anzahl.',
   tib_kuerz: 'Kürzel der zuständigen Person in der Rolle FB während der Antragsphase.',

@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { FilterDefinition } from '@/core/services/csv';
+import { PinNadel } from '../PinNadel';
 
 interface Props {
   def: FilterDefinition;
@@ -72,7 +73,7 @@ export function MultiSelectFacet({ def, counts, selected, valueLabels, onChange 
           return (
             <label
               key={v}
-              className="flex items-center justify-between gap-2 py-1 text-[12.5px] cursor-pointer hover:bg-[var(--tf-bg-secondary)] rounded px-1.5"
+              className="group/pin flex items-center justify-between gap-2 py-1 text-[12.5px] cursor-pointer hover:bg-[var(--tf-bg-secondary)] rounded px-1.5"
             >
               <div className="flex items-center gap-1.5 min-w-0 flex-1">
                 <input
@@ -91,6 +92,10 @@ export function MultiSelectFacet({ def, counts, selected, valueLabels, onChange 
                 </span>
               </div>
               <span className="text-[11px] text-[var(--tf-text-tertiary)] tabular-nums">{n}</span>
+              <PinNadel
+                pin={{ art: 'wert', filterId: def.id, wert: v }}
+                bezeichnung={`${def.name} ${label ?? v}`}
+              />
             </label>
           );
         })}

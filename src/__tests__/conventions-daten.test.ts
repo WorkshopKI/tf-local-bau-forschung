@@ -945,8 +945,15 @@ describe('screen-context-coverage (Feedback-KI-Kontext: docs/feedback-kontext/)'
   // Die groesste Seite der App traegt legitim so viel. 40000 haelt den Unfall
   // weiter (ein reinkopiertes Doc bringt fuenfstellig mit) und liegt ueber dem
   // groessten echten Doc statt darauf.
+  //
+  // Mit v4.63 erneut gerissen (42304): die Foerderantraege-Seite bekam in EINER
+  // Version drei Bereiche dazu — Mehrfachauswahl samt Massen-Leiste, den
+  // Schnellzugriff zum Anpinnen und die Zeilendichte. Wieder nachgesehen statt
+  // vermutet: alles WAS-Text, kein Architektur-Doc, keine Route/Komponente
+  // ausserhalb von „Technik". 46000 liegt wieder ueber dem groessten echten Doc
+  // statt darauf. Wer sie erneut reisst, sieht erst nach, WAS gewachsen ist.
   const DOCS_DIR = join(ROOT, '..', 'docs', 'feedback-kontext');
-  const REISSLEINE_DOC_CHARS = 40000;
+  const REISSLEINE_DOC_CHARS = 46000;
 
   // Text-Scan statt Import: plugins.config.ts importiert alle Plugin-Komponenten
   // (u.a. pdfjs-dist-Worker), was unter Vitest bricht. Jede Plugin-ID steht

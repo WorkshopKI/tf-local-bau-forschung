@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.63.0 — Filter links, Schnellzugriff, Auswahl (August 2026)
+
+MINOR — Zweite Runde aus dem Redesign-Handoff `_design/handoff/Förderanträge/`: der Filterblock (Leiste links, beschrifteter Knopf, Anpinnen) und die Mehrfachauswahl. Die Massen-Aktionen bleiben auf das begrenzt, was die App wirklich kann — sie liest das Fachsystem, sie schreibt nicht hinein (Pitfall #44).
+
+- **Die Filterleiste steht links** neben der Liste, der Drawer fährt von links herein; der Knopf trägt Beschriftung und Zahl statt eines Punkts ([AntraegePage.tsx](src/plugins/antraege/AntraegePage.tsx))
+- **Schnellzugriff zum Anpinnen** — Einzelwert als Umschalt-Chip, ganze Facette als Umschalter-Pille, Kombination als Schalter, der dazulegt und nur sein eigenes Zutun zurücknimmt ([pinnedFilters.ts](src/plugins/antraege/filter/pinnedFilters.ts))
+- **Mehrfachauswahl** mit Häkchen in der Identitätsspalte und Leiste unten: Auswahl als XLSX exportieren, FKZ-Liste kopieren, aufheben ([auswahl/](src/plugins/antraege/auswahl/))
+- **Kurzname und Kennzeichen in einer Spalte „Antrag"**, gelockt und klebend; die Einzelspalten bleiben wählbar, gespeicherte Spaltenwahlen werden einmalig umgeschrieben ([useAntraegeColumnsStore.ts](src/plugins/antraege/useAntraegeColumnsStore.ts))
+- **Zeilendichte Kompakt/Normal** als Achse im Darstellungs-Menü, und das ⓘ der Status-Zellen erscheint erst beim Überfahren der Zeile ([useDichteStore.ts](src/plugins/antraege/useDichteStore.ts))
+
 ### v4.62.0 — Die Frist rueckt nach vorn, Spalten kommen als Satz (August 2026)
 
 MINOR — Übernahme aus dem Redesign-Handoff `_design/handoff/Förderanträge/`, auf das Tragfähige eingekürzt: die Frist stand als **letzte** Spalte am rechten Rand, und der Weg zu einem Arbeits-Spaltensatz führte durch 26 Einzelhaken. Nicht übernommen wurden die Massen-Leiste (die App schreibt nicht ins Fachsystem, Pitfall #44) und „Zeile öffnet die Detailseite" (die Klickzonen sind vergeben).

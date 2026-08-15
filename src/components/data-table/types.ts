@@ -52,6 +52,17 @@ export interface SortableColumn<T> {
   key: string;
   /** Anzeige-Label im Header und im Spalten-Picker. */
   label: string;
+  /**
+   * Optionaler Inhalt VOR der Beschriftung in der Kopfzelle — für ein
+   * Bedienelement, das zur Spalte gehört, aber nicht ihre Überschrift ist
+   * (heute: das „alle auswählen"-Häkchen der Förderanträge-Tabelle).
+   *
+   * Bewusst ein Vorspann statt eines Ersatzes für `label`: Sortier-Knopf,
+   * Herkunfts-Tooltip und Filter-Chevron der Spalte bleiben unangetastet, und
+   * der Spalten-Picker zeigt weiter den Text. Wer nichts setzt, bekommt die
+   * Kopfzeile wie zuvor.
+   */
+  kopfPrefix?: ReactNode;
   /** Optionale Rubrik im Spalten-Picker (z.B. „Termine"). Wer sie nicht setzt,
    *  bekommt die Liste wie zuvor — ohne Überschriften. Die Reihenfolge der
    *  Rubriken folgt dem ersten Auftreten in der Spaltenliste. */

@@ -46,6 +46,7 @@ import {
   erkenneProfil,
   spaltenProfilOptionen,
 } from './spaltenProfile';
+import { DICHTE_OPTIONS, DEFAULT_DICHTE } from './useDichteStore';
 
 export type {
   DarstellungAchse,
@@ -59,7 +60,7 @@ export {
   zuruecksetzenAufrufe,
 } from '@/components/ui/darstellungsAchsen';
 
-export type DarstellungAchseId = 'ansicht' | 'gruppierung' | 'spalten' | 'beendet';
+export type DarstellungAchseId = 'ansicht' | 'gruppierung' | 'spalten' | 'dichte' | 'beendet';
 
 export interface DarstellungEingabe {
   viewMode: ViewMode;
@@ -71,6 +72,8 @@ export interface DarstellungEingabe {
    *  nicht daneben gespeichert. Ein zweiter Zustand („gewähltes Profil") liefe
    *  auseinander, sobald jemand im Picker einen Haken setzt. */
   sichtbareSpalten: readonly string[];
+  /** Zeilendichte der Tabelle (`useDichteStore`). */
+  dichte: string;
   /** `true` = beendete Anträge stehen nicht in der Liste. */
   beendetAusgeblendet: boolean;
 }
@@ -124,6 +127,17 @@ export function baueDarstellungsAchsen(e: DarstellungEingabe): DarstellungAchse<
       value: profil ?? EIGENE_AUSWAHL,
       standard: DEFAULT_SPALTEN_PROFIL,
       stapel: true,
+    });
+    // Zeilendichte: ebenfalls eine reine Anzeige-Achse und ebenfalls nur in der
+    // Tabelle — Karten und Liste haben keine Zeilen, deren Höhe man stellen
+    // könnte. Zwei Werte passen neben die Beschriftung, kein Stapeln nötig.
+    achsen.push({
+      id: 'dichte',
+      art: 'segment',
+      label: 'Zeilendichte',
+      options: DICHTE_OPTIONS,
+      value: e.dichte,
+      standard: DEFAULT_DICHTE,
     });
   }
   if (hatBeendetAchse(e.activeView) && e.viewMode !== 'cards') {

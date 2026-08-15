@@ -81,8 +81,9 @@ export function AntraegePage(): React.ReactElement {
     const onMove = (ev: MouseEvent): void => {
       const drag = dragRef.current;
       if (!drag) return;
-      // Sidebar rechts: nach links draggen → breiter (Delta invertiert).
-      const delta = drag.startX - ev.clientX;
+      // Leiste links: nach rechts ziehen → breiter. (Bis v4.62 stand sie rechts
+      // und das Vorzeichen war umgekehrt.)
+      const delta = ev.clientX - drag.startX;
       const next = Math.min(FILTER_MAX_WIDTH, Math.max(FILTER_MIN_WIDTH, drag.startWidth + delta));
       setFilterWidth(next);
     };
@@ -157,6 +158,39 @@ export function AntraegePage(): React.ReactElement {
       />
 
       <div className="flex-1 min-h-0 flex overflow-hidden">
+        {/* Persistente Filter-Leiste (LINKS) — nur wenn KEIN Detail offen ist
+            und Filter aufgeklappt. Im Detail-Modus übernimmt der FilterDrawer
+            (overlay). Ziehgriff am RECHTEN Rand der Aside, also an der Kante
+            zur Liste.
+
+            Links, weil die Lesefolge damit „womit schränke ich ein → was bleibt
+            übrig → was steht drin" ist; rechts stand die Leiste dort, wo im
+            Detail-Modus das Detail aufgeht, und tauschte beim Öffnen eines
+            Antrags die Bedeutung derselben Bildschirmhälfte. */}
+        {!hasDetail && filterOpen && (
+          <aside
+            className="shrink-0 h-full overflow-hidden flex"
+            style={{ width: filterWidth }}
+          >
+            <div className="flex-1 min-w-0 h-full">
+              <FilterSidebar
+                antraege={antraege}
+                search={search}
+                onSearchChange={setSearch}
+                onCollapse={toggleFilter}
+                hideSearch
+              />
+            </div>
+            <div
+              role="separator"
+              aria-orientation="vertical"
+              aria-label="Filter-Panel-Breite ändern"
+              onMouseDown={onResizeMouseDown}
+              className="shrink-0 w-[4px] h-full cursor-col-resize hover:bg-[var(--tf-border-hover)] transition-colors"
+              style={{ borderLeft: '0.5px solid var(--tf-border)' }}
+            />
+          </aside>
+        )}
         {listeSichtbar ? (
           <AntraegeMain narrow={hasDetail} onCollapse={hasDetail ? () => setCollapsed(true) : undefined} />
         ) : (
@@ -188,32 +222,6 @@ export function AntraegePage(): React.ReactElement {
           />
         ) : null}
 
-        {/* Persistente Filter-Sidebar (rechts) — nur wenn KEIN Detail offen
-            ist und Filter aufgeklappt. Im Detail-Modus übernimmt der
-            FilterDrawer (overlay). Resize-Handle am linken Rand der Aside. */}
-        {!hasDetail && filterOpen && (
-          <aside
-            className="shrink-0 h-full overflow-hidden flex"
-            style={{ width: filterWidth }}
-          >
-            <div
-              role="separator"
-              aria-orientation="vertical"
-              aria-label="Filter-Panel-Breite ändern"
-              onMouseDown={onResizeMouseDown}
-              className="shrink-0 w-[4px] h-full cursor-col-resize hover:bg-[var(--tf-border-hover)] transition-colors"
-              style={{ borderRight: '0.5px solid var(--tf-border)' }}
-            />
-            <div className="flex-1 min-w-0 h-full">
-              <FilterSidebar
-                antraege={antraege}
-                search={search}
-                onSearchChange={setSearch}
-                hideSearch
-              />
-            </div>
-          </aside>
-        )}
       </div>
 
       {/* Drawer-Variante — nur sichtbar wenn Detail offen UND Filter

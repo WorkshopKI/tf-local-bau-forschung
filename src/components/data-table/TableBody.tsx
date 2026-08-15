@@ -37,7 +37,19 @@ export interface TableBodyProps<T> {
   /** Innenbreite des Scrollports in px — der Deckel des aufgeklappten Bereichs.
    *  `undefined` = nicht gemessen; dann bleibt der Bereich inhaltsbreit. */
   portBreite?: number;
+  /** Senkrechtes Zell-Polster. `kompakt` ist das bisherige Maß und der Default —
+   *  Tabellen ohne eigene Wahl sehen unverändert aus. */
+  dichte?: 'kompakt' | 'normal';
 }
+
+/** Das senkrechte Polster je Dichtestufe. Waagerecht bleibt es bei `px-3`: die
+ *  Spaltenbreiten-Messung rechnet damit (`ZELL_POLSTER_PX`), und eine Dichte,
+ *  die auch die Breiten verschiebt, würde die Tabelle beim Umschalten neu
+ *  umbrechen statt nur zu strecken. */
+const ZEILEN_POLSTER: Readonly<Record<'kompakt' | 'normal', string>> = {
+  kompakt: 'py-1',
+  normal: 'py-2.5',
+};
 
 /**
  * Grund der sticky-Zelle — NUR über Klassen.
@@ -83,7 +95,9 @@ export function TableBody<T>({
   isRowExpanded,
   renderRowDetail,
   portBreite,
+  dichte = 'kompakt',
 }: TableBodyProps<T>): React.ReactElement {
+  const polster = ZEILEN_POLSTER[dichte];
   const detailEnabled = isRowExpanded !== undefined && renderRowDetail !== undefined;
   const sectionsEnabled = sectionKeyOf !== undefined && renderSectionHeader !== undefined;
   const sectionCounts = useMemo(() => {
@@ -170,8 +184,8 @@ export function TableBody<T>({
                     key={c.key}
                     className={
                       sticky
-                        ? `px-3 py-1 align-top leading-tight ${stickyZellGrund(selected)}`
-                        : 'px-3 py-1 align-top leading-tight'
+                        ? `px-3 ${polster} align-top leading-tight ${stickyZellGrund(selected)}`
+                        : `px-3 ${polster} align-top leading-tight`
                     }
                     style={{
                       whiteSpace: noWrap ? 'nowrap' : 'normal',

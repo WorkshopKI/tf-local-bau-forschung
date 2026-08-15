@@ -49,12 +49,12 @@ export function ausklappReiter(
 /**
  * Die Spalten, aus denen heraus navigiert wird.
  *
- * **Zwei, nicht eine.** Der Prompt nennt das Akronym — aber die Akronym-Spalte
- * lässt sich über den Spalten-Picker ausblenden, und dann führte aus der Tabelle
- * kein Weg mehr ins Detail. Die FKZ-Spalte ist `locked` und damit die einzige,
- * die garantiert dasteht.
+ * **Drei, nicht eine.** Seit v4.63 trägt die zusammengelegte `antrag`-Spalte
+ * (Akronym + FKZ) die Identität und ist `locked`, steht also garantiert da. Die
+ * beiden Einzelspalten bleiben wählbar und behalten ihre Zone — wer sie
+ * einblendet, erwartet dort denselben Weg ins Detail wie zuvor.
  */
-export const NAVIGATIONS_SPALTEN: readonly string[] = ['akronym', 'aktenzeichen'];
+export const NAVIGATIONS_SPALTEN: readonly string[] = ['antrag', 'akronym', 'aktenzeichen'];
 
 export interface KlickzonenApi<T> {
   zeilenKey: (row: T) => string;

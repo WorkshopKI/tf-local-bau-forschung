@@ -194,21 +194,35 @@ export function AntraegeHeader({ filterOpen, onToggleFilter, listeSichtbar }: Pr
                   : <Download size={13} />}
               </Button>
               <ViewModeToggle />
+              {/* Beschriftet statt nur Trichter, und die Anzahl als ZAHL statt
+                  als Punkt: der Punkt sagte „irgendetwas filtert", die Zahl sagt
+                  wie viel — und sie bleibt sichtbar, wenn die Leiste offen ist
+                  (der Punkt verschwand genau dann). Die Marke nimmt in beiden
+                  Zuständen ein Token-Paar, das für Kontrast ausgelegt ist:
+                  gefüllt auf hellem Grund, aufgehellt auf der Primärfläche. */}
               <Button
                 variant={filterOpen ? 'default' : 'outline'}
                 size="sm"
                 onClick={onToggleFilter}
                 aria-label={`Filter${filterCount > 0 ? ` (${filterCount} aktiv)` : ''}`}
-                title={`Filter${filterCount > 0 ? ` (${filterCount} aktiv)` : ''}`}
-                className="relative h-8 w-8 p-0"
+                title={filterOpen
+                  ? `Filterleiste schließen${filterCount > 0 ? ` (${filterCount} aktiv)` : ''}`
+                  : `Filterleiste öffnen${filterCount > 0 ? ` (${filterCount} aktiv)` : ''}`}
+                className="h-8 gap-1.5 px-2.5"
               >
                 <Filter size={13} />
-                {filterCount > 0 && !filterOpen ? (
+                <span className="text-[12px]">Filter</span>
+                {filterCount > 0 ? (
                   <span
                     aria-hidden="true"
-                    className="absolute top-1 right-1 h-1.5 w-1.5 rounded-full"
-                    style={{ background: 'var(--tf-primary)' }}
-                  />
+                    className={`ml-0.5 min-w-[16px] rounded-full px-1 text-center text-[10.5px] leading-[16px] tabular-nums ${
+                      filterOpen
+                        ? 'bg-primary-foreground/25 text-primary-foreground'
+                        : 'bg-primary text-primary-foreground'
+                    }`}
+                  >
+                    {filterCount}
+                  </span>
                 ) : null}
               </Button>
             </div>

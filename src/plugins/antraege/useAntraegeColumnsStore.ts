@@ -40,17 +40,47 @@ const NACHZUEGLER: readonly { rev: number; keys: readonly string[] }[] = [
   // v3.3 — das AB-Kürzel (BIB) gehört ab Werk neben das FB-Kürzel.
   { rev: 1, keys: ['bib_kuerz'] },
 ];
-const AKTUELLE_REV: number = NACHZUEGLER.reduce((max, n) => Math.max(max, n.rev), 0);
 
 /**
- * Rein: hängt die seit `gespeicherteRev` neu hinzugekommenen Standardspalten an
- * (ohne Duplikate, Reihenfolge der übrigen bleibt) und meldet die neue Revision.
+ * Zusammengelegte Spalten: mehrere alte Keys werden zu einem neuen.
+ *
+ * Braucht eine eigene Liste, weil `NACHZUEGLER` nur ANHÄNGT. Ohne sie bekäme
+ * ein Bestandsnutzer die neue Spalte zusätzlich zu ihren Einzelteilen — FKZ
+ * stünde zweimal in derselben Zeile, und niemand würde vermuten, dass man dafür
+ * zwei Häkchen im Picker wegnehmen muss.
+ *
+ * Die Ersetzung sitzt an der POSITION des ersten Treffers, damit die persönliche
+ * Spaltenreihenfolge erhalten bleibt.
+ */
+const ZUSAMMENGELEGT: readonly { rev: number; alt: readonly string[]; neu: string }[] = [
+  // v4.63 — Akronym und FKZ sind eine Identitätsspalte „Antrag".
+  { rev: 2, alt: ['aktenzeichen', 'akronym'], neu: 'antrag' },
+];
+
+const AKTUELLE_REV: number = Math.max(
+  NACHZUEGLER.reduce((max, n) => Math.max(max, n.rev), 0),
+  ZUSAMMENGELEGT.reduce((max, z) => Math.max(max, z.rev), 0),
+);
+
+/**
+ * Rein: wendet die seit `gespeicherteRev` fälligen Zusammenlegungen an, hängt
+ * danach die neu hinzugekommenen Standardspalten an (ohne Duplikate,
+ * Reihenfolge der übrigen bleibt) und meldet die neue Revision.
  */
 export function reicheNeueStandardspaltenNach(
   gespeichert: readonly string[],
   gespeicherteRev: number,
 ): { keys: string[]; rev: number } {
-  const keys = [...gespeichert];
+  let keys = [...gespeichert];
+  for (const z of ZUSAMMENGELEGT) {
+    if (z.rev <= gespeicherteRev) continue;
+    const ersteStelle = keys.findIndex(k => z.alt.includes(k));
+    if (ersteStelle < 0) continue;
+    keys = keys.filter(k => !z.alt.includes(k));
+    // Der neue Key darf nicht doppelt landen, falls er (etwa aus einem Profil)
+    // schon dasteht.
+    if (!keys.includes(z.neu)) keys.splice(ersteStelle, 0, z.neu);
+  }
   for (const n of NACHZUEGLER) {
     if (n.rev <= gespeicherteRev) continue;
     for (const k of n.keys) if (!keys.includes(k)) keys.push(k);

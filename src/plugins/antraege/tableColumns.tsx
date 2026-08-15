@@ -143,7 +143,17 @@ function HerleitungZelle({ r }: { r: AntragListItem }): React.ReactElement | nul
   const vbid = typeof r.verbund_id === 'string' && r.verbund_id ? r.verbund_id : null;
   if (!vbid) return null;
   return (
-    <span className="ml-1 inline-flex align-middle">
+    // Erst beim Überfahren der Zeile sichtbar, aber IMMER im Fluss: `opacity`
+    // statt bedingtem Rendern, damit die Zeile beim Hover nicht springt
+    // (Pitfall #14). Bei 13 000 Zeilen ist ein dauerhaft gezeigtes ⓘ je Zeile
+    // ein Raster aus Punkten, das mit dem Status konkurriert — der Griff soll
+    // erst da sein, wenn jemand nach ihm greift.
+    //
+    // Drei Ausnahmen halten es sichtbar: Tastatur-Fokus, offenes Popover
+    // (sonst verschwindet der Auslöser, sobald die Maus in den Inhalt fährt —
+    // der liegt im Portal, also außerhalb der Zeile) und `@media (hover: none)`
+    // über `group-hover` hinaus, weshalb der Auslöser klickbar bleibt.
+    <span className="ml-1 inline-flex align-middle opacity-0 transition-opacity group-hover/row:opacity-100 focus-within:opacity-100 has-[[data-state=open]]:opacity-100">
       {/* Die Status-Spalte der Liste zeigt den TV-Status — das steht seit v2.382
           auch im Popover-Kopf, statt dass man es wissen muss. */}
       <HerleitungPopover
@@ -352,13 +362,109 @@ function ordneNachRubrik(
     .map(x => x.c);
 }
 
+/** Ampelpunkt + FKZ + TV-Zähler einer Zeile — der Teil der Identität, den die
+ *  zusammengelegte `antrag`-Spalte mit der alten FKZ-Spalte teilt. */
+function fkzTeil(r: AntragTableRow): { fkzText: string; meta: AntragTableRow['_verbund'] } {
+  const meta = r._verbund;
+  return { fkzText: meta ? meta.fkzRange : r.aktenzeichen, meta };
+}
+
 const ROH_SPALTEN: SortableColumn<AntragTableRow>[] = [
+  {
+    // Die IDENTITÄTSSPALTE: Akronym groß, FKZ klein dahinter, TV-Zähler als
+    // Marke. Bis v4.62 waren das zwei Spalten (FKZ gepinnt, Akronym irgendwo in
+    // den Antragsdaten) — man las den Namen eines Vorgangs also an einer
+    // anderen Stelle als seine Nummer, und der gepinnte Anker trug die Nummer,
+    // die niemand im Kopf hat.
+    //
+    // Beide Einzelspalten bleiben im Picker (Default AUS): wer nach Akronym
+    // filtern oder FKZ allein exportieren will, blendet sie ein. Umgestellt
+    // wird der Standard, nicht das Angebot.
+    key: 'antrag',
+    label: 'Antrag',
+    gruppe: G_ANTRAG,
+    defaultVisible: true,
+    locked: true,
+    sortable: true,
+    width: 210,
+    wrap: false,
+    minWidth: 150,
+    maxWidth: 320,
+    // Ampelpunkt (8) + Abstände + TV-Marke; der Kopier-Knopf liegt wie zuvor
+    // ÜBER der Zelle und kostet keine Breite. Das Häkchen davor kommt erst in
+    // `AntraegeTable` dazu und wird dort zugeschlagen.
+    messZuschlag: 26,
+    messText: r => {
+      const { fkzText, meta } = fkzTeil(r);
+      const akr = strOrNull(r.akronym);
+      return `${akr ? `${akr} ` : ''}${fkzText}${meta ? ` ·${meta.tvCount}` : ''}`;
+    },
+    // Sortiert nach dem, was groß dasteht — dem Akronym. Ohne Akronym rückt das
+    // FKZ ein, damit namenlose Zeilen nicht alle am selben Ende klumpen.
+    accessor: r => strOrNull(r.akronym) ?? r.aktenzeichen,
+    exportValue: r => {
+      const { fkzText } = fkzTeil(r);
+      const akr = strOrNull(r.akronym);
+      return akr ? `${akr} (${fkzText})` : fkzText;
+    },
+    render: r => {
+      const { fkzText, meta } = fkzTeil(r);
+      const ampel = meta ? worstAmpel(meta.tvs) : getEingangAmpel(r);
+      const ampelDays = !meta && ampel !== null ? daysSinceEingang(r) : null;
+      const akr = strOrNull(r.akronym);
+      return (
+        <span className="relative inline-flex w-full max-w-full min-w-0 items-center gap-1.5">
+          <span className="shrink-0 w-2 h-2 inline-flex items-center justify-center">
+            {ampel !== null ? (
+              <span
+                className="w-2 h-2 rounded-full"
+                style={{ background: AMPEL_COLOR[ampel] }}
+                title={ampelDays !== null ? `${AMPEL_TOOLTIP[ampel]} (${ampelDays} Tage)` : AMPEL_TOOLTIP[ampel]}
+                aria-hidden="true"
+              />
+            ) : null}
+          </span>
+          {akr ? (
+            <span className="min-w-0 shrink font-medium text-[12.5px] text-[var(--tf-text)] truncate" title={akr}>
+              {akr}
+            </span>
+          ) : null}
+          {/* Das FKZ steht klein dahinter und weicht zuerst: bei Platznot soll
+              der Name überleben, nicht die Nummer. Deshalb `shrink-[3]` gegen
+              das `shrink` des Akronyms. */}
+          <span
+            className="min-w-0 shrink-[3] font-mono text-[11px] text-[var(--tf-text-tertiary)] truncate"
+            title={fkzText}
+          >
+            {fkzText}
+          </span>
+          {meta ? (
+            <span
+              className="shrink-0 rounded-[4px] bg-[var(--tf-bg-secondary)] px-1 font-mono text-[10px] text-[var(--tf-text-tertiary)]"
+              title={`${meta.tvCount} Teilvorhaben`}
+            >
+              {meta.tvCount} TV
+            </span>
+          ) : null}
+          <span className="absolute -right-3 top-1/2 -translate-y-1/2 rounded bg-[var(--tf-bg)] group-hover/row:bg-[var(--tf-bg-secondary)] opacity-0 group-hover/row:opacity-100 focus-within:opacity-100 transition-opacity">
+            <KopierIconButton
+              text={fkzText}
+              title={meta ? 'Verbund-FKZ kopieren' : 'FKZ kopieren'}
+              ariaLabel={`${meta ? 'Verbund-FKZ' : 'FKZ'} ${fkzText} kopieren`}
+            />
+          </span>
+        </span>
+      );
+    },
+  },
   {
     key: 'aktenzeichen',
     label: 'FKZ',
     gruppe: G_ANTRAG,
-    defaultVisible: true,
-    locked: true,
+    // Seit v4.63 im Standard durch die zusammengelegte `antrag`-Spalte ersetzt;
+    // als Einzelspalte wählbar (und nicht mehr `locked` — sonst stünde das FKZ
+    // zwangsweise zweimal in der Zeile).
+    defaultVisible: false,
     sortable: true,
     // Rückfall ohne Messung (kein Canvas): grob die gemessene Breite.
     width: 132,
@@ -509,7 +615,11 @@ const ROH_SPALTEN: SortableColumn<AntragTableRow>[] = [
     key: 'akronym',
     label: 'Akronym',
     gruppe: G_ANTRAGSDATEN,
-    defaultVisible: true,
+    // Seit v4.63 im Standard Teil der `antrag`-Spalte. Einzeln bleibt sie
+    // wählbar — sie ist die einzige, die einen Kopf-Filter auf das Akronym
+    // anbietet (die zusammengelegte Spalte trägt zwei Felder und könnte sich
+    // für keines entscheiden).
+    defaultVisible: false,
     sortable: true,
     filterable: true,
     width: 130,

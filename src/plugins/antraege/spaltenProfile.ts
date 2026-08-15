@@ -49,7 +49,7 @@ export const SPALTEN_PROFILE: readonly SpaltenProfil[] = [
   {
     id: 'standard',
     label: 'Standard',
-    hinweis: 'Der gewohnte Satz: FKZ, Frist, AB-Kürzel, Akronym, Antragsteller, Status.',
+    hinweis: 'Der gewohnte Satz: Antrag, Frist, AB-Kürzel, Antragsteller, Status.',
     keys: () => [...DEFAULT_VISIBLE_COLUMN_KEYS],
   },
   {
@@ -57,9 +57,8 @@ export const SPALTEN_PROFILE: readonly SpaltenProfil[] = [
     label: 'Triage',
     hinweis: 'Zum Sichten: Frist, Status mit nächstem Schritt, Zuständigkeit und FB/PreCheck verdichtet, dazu der Titel.',
     keys: () => [
-      'aktenzeichen',
+      'antrag',
       'frist',
-      'akronym',
       'status_naechster_schritt',
       'zustaendig',
       'fb_precheck',
@@ -71,9 +70,8 @@ export const SPALTEN_PROFILE: readonly SpaltenProfil[] = [
     label: 'Fristen',
     hinweis: 'Zur Terminkontrolle: Frist neben Antragseingang und Erstentscheidung.',
     keys: () => [
-      'aktenzeichen',
+      'antrag',
       'frist',
-      'akronym',
       'status_naechster_schritt',
       'antragsdatum',
       'erstentscheidung',

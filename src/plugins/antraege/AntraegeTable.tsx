@@ -36,6 +36,8 @@ import { machKlickbar } from './ausklapp/klickzonen';
 import { ZeilenBereich } from './ausklapp/ZeilenBereich';
 import { istAusklappbar } from './ausklapp/verfuegbar';
 import { AusklappKontext } from './ausklapp/kontext';
+import { AuswahlKopf, AuswahlZelle, zeilenSchluessel } from './auswahl';
+import { useDichteStore } from './useDichteStore';
 import type { ZeilenMeldung } from './trefferZahl';
 
 interface Props {
@@ -173,6 +175,7 @@ export function AntraegeTable({
   );
   // Einblendbare Ordner-Spalten aus dem Statuskatalog (leer ohne Flag).
   const kategorieSpalten = useKategorieSpalten();
+  const dichte = useDichteStore(s => s.dichte);
   // Registry-Reihenfolge beibehalten (nicht Toggle-Reihenfolge des Stores).
   // Im „alle"-Modus die MA-Spalte direkt nach der gelockten FKZ-Spalte
   // einblenden (auto-verwaltet, nicht im Spalten-Picker).
@@ -373,6 +376,37 @@ export function AntraegeTable({
     [rohSpalten, ausklapp, ausklappbar, onOpenAntrag, onOpenVerbund],
   );
 
+  // Mehrfachauswahl: das Häkchen hängt in der IDENTITÄTSSPALTE (Index 0), nicht
+  // in einer eigenen Spur. Eine eigene Spalte müsste die erste sein — und damit
+  // die klebende; beim Blättern nach rechts stünde dann ein 34px-Häkchen still,
+  // während Akronym und FKZ wegscrollen. So bleibt die Identität der Anker und
+  // nimmt das Häkchen mit.
+  //
+  // Eingehängt HIER, nicht in der Spaltenregistry: die Registry beschreibt
+  // Daten, und `machKlickbar` hat die Zelle bereits in eine Navigationszone
+  // gehüllt — das Häkchen muss außerhalb davon liegen, sonst öffnet es den
+  // Antrag statt ihn auszuwählen.
+  const alleSchluessel = useMemo(() => orderedRows.flatMap(zeilenSchluessel), [orderedRows]);
+  const columnsMitAuswahl = useMemo(
+    () => columns.map((c, i) => (i === 0
+      ? {
+          ...c,
+          kopfPrefix: <AuswahlKopf keys={alleSchluessel} />,
+          // Häkchen (13) + Abstand (8): sonst misst die Spalte nur ihren Text
+          // und schneidet ihn um genau diese Breite ab.
+          messZuschlag: (c.messZuschlag ?? 0) + 21,
+          ...(c.minWidth !== undefined ? { minWidth: c.minWidth + 21 } : {}),
+          render: (row: AntragTableRow) => (
+            <span className="flex min-w-0 items-center gap-2">
+              <AuswahlZelle keys={zeilenSchluessel(row)} />
+              <span className="min-w-0 flex-1">{c.render(row)}</span>
+            </span>
+          ),
+        }
+      : c)),
+    [columns, alleSchluessel],
+  );
+
   const sectionProps = sectionOf !== null
     ? {
         sectionKeyOf: (r: AntragTableRow) => sectionOf(r),
@@ -425,7 +459,8 @@ export function AntraegeTable({
     <div className={stickyHeader ? 'flex flex-col flex-1 min-h-0' : 'flex flex-col'}>
       <SortableTable<AntragTableRow>
         rows={rows}
-        columns={columns}
+        columns={columnsMitAuswahl}
+        dichte={dichte}
         sortKey={sortKey}
         sortDirection={sortDirection}
         onSort={toggleSort}

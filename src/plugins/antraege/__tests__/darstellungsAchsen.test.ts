@@ -9,9 +9,10 @@ import { TABLE_GROUPING_OPTIONS, TABLE_ANSICHT_OPTIONS } from '../tableGrouping'
 import { GROUPING_OPTIONS } from '../sort';
 import { ARBEITSVORRAT_LABEL, BEENDET_ACHSE_LABEL } from '../arbeitsvorrat';
 import { DEFAULT_VISIBLE_COLUMN_KEYS } from '../tableColumns';
+import { DEFAULT_DICHTE } from '../useDichteStore';
 
 /** Alles auf Standard, Tabellen-Ansicht im „Alle"-Reiter — also der Zustand mit
- *  allen vier Achsen. */
+ *  allen fünf Achsen. */
 const STANDARD: DarstellungEingabe = {
   viewMode: 'compact',
   activeView: 'alle',
@@ -20,13 +21,16 @@ const STANDARD: DarstellungEingabe = {
   listGruppierung: 'none',
   // Werkseinstellung = Profil „Standard"; die Profil-Achse weicht also nicht ab.
   sichtbareSpalten: DEFAULT_VISIBLE_COLUMN_KEYS,
+  dichte: DEFAULT_DICHTE,
   beendetAusgeblendet: true,
 };
 
 describe('welche Achsen gelten', () => {
-  it('Tabelle im „Alle"-Reiter: alle vier, in Menü-Reihenfolge', () => {
+  it('Tabelle im „Alle"-Reiter: alle fünf, in Menü-Reihenfolge', () => {
+    // Spaltensatz und Zeilendichte stehen nebeneinander: beide sind reine
+    // Anzeige-Achsen der Tabelle und gelten unter genau derselben Bedingung.
     expect(baueDarstellungsAchsen(STANDARD).map(a => a.id))
-      .toEqual(['ansicht', 'gruppierung', 'spalten', 'beendet']);
+      .toEqual(['ansicht', 'gruppierung', 'spalten', 'dichte', 'beendet']);
   });
 
   it('Zeilen-Körnung nur in der Tabelle — Liste und Karten verdichten nicht', () => {
@@ -39,7 +43,7 @@ describe('welche Achsen gelten', () => {
 
   it('Beendet nur im „Alle"-Reiter — anderswo steht praktisch nichts Terminales', () => {
     expect(baueDarstellungsAchsen({ ...STANDARD, activeView: 'meine_offenen' }).map(a => a.id))
-      .toEqual(['ansicht', 'gruppierung', 'spalten']);
+      .toEqual(['ansicht', 'gruppierung', 'spalten', 'dichte']);
   });
 
   it('liefert nie eine leere Liste — die Gruppierung gibt es in jeder Ansicht', () => {
@@ -79,6 +83,7 @@ describe('Optionen kommen aus der bestehenden Quelle', () => {
     expect(achsen.find(a => a.id === 'ansicht')!.art).toBe('segment');
     expect(achsen.find(a => a.id === 'gruppierung')!.art).toBe('segment');
     expect(achsen.find(a => a.id === 'spalten')!.art).toBe('segment');
+    expect(achsen.find(a => a.id === 'dichte')!.art).toBe('segment');
     expect(achsen.find(a => a.id === 'beendet')!.art).toBe('schalter');
   });
 

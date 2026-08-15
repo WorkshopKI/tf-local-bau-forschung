@@ -105,6 +105,8 @@ export interface SortableTableProps<T> {
   /** Optional: schmale farbige Kante am Zeilenanfang („Rinne"), z.B. für
    *  Dringlichkeit. Siehe `TableBodyProps.rowAccent`. */
   rowAccent?: (row: T) => string | null;
+  /** Senkrechtes Zell-Polster. Default `kompakt` = bisheriges Maß. */
+  dichte?: 'kompakt' | 'normal';
   /** Optional: Inhalt fuer den Empty-State (wenn `rows.length === 0`). */
   emptyContent?: ReactNode;
   /** Optional: User-Overrides fuer Spaltenbreiten in Pixel. Wenn gesetzt UND
@@ -254,6 +256,7 @@ export function SortableTable<T>({
   onRowClick,
   isRowSelected,
   rowAccent,
+  dichte,
   emptyContent,
   columnWidths,
   onColumnWidthChange,
@@ -478,6 +481,7 @@ export function SortableTable<T>({
               onRowClick={onRowClick}
               isRowSelected={isRowSelected}
               rowAccent={rowAccent}
+              {...(dichte ? { dichte } : {})}
               emptyContent={emptyContent}
               sectionKeyOf={sectionKeyOf}
               renderSectionHeader={renderSectionHeader}

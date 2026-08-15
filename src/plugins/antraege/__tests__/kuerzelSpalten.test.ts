@@ -42,13 +42,16 @@ describe('Zustaendigkeits-Spalten (TIB/BIB/ZTP/PFM)', () => {
     expect(DEFAULT_VISIBLE_COLUMN_KEYS).not.toContain('tib_kuerz');
   });
 
-  it('steht in der Registry hinter FKZ und Frist, in Verfahrens-Reihenfolge', () => {
-    // Seit v4.62 schiebt sich die Frist zwischen FKZ und Zustaendigkeit: die
-    // Fristenkontrolle ist die haeufigste Frage an diese Tabelle und stand
+  it('steht in der Registry hinter Antrag und Frist, in Verfahrens-Reihenfolge', () => {
+    // Seit v4.62 schiebt sich die Frist zwischen Identitaet und Zustaendigkeit:
+    // die Fristenkontrolle ist die haeufigste Frage an diese Tabelle und stand
     // vorher als LETZTE Spalte am rechten Rand. Die Kuerzel bleiben davor
     // beisammen und ruecken nicht hinter die Antragsdaten.
+    //
+    // Vor der Frist stehen seit v4.63 ZWEI Spalten der Rubrik „Antrag": die
+    // zusammengelegte `antrag` (Standard) und das FKZ als abwaehlbare Einzelspalte.
     const keys = ANTRAG_TABLE_COLUMNS.map(c => c.key);
-    expect(keys.slice(0, 6)).toEqual(['aktenzeichen', 'frist', ...KUERZEL_KEYS]);
+    expect(keys.slice(0, 7)).toEqual(['antrag', 'aktenzeichen', 'frist', ...KUERZEL_KEYS]);
   });
 
   it('sortiert und filtert ueber den Roh-Kuerzelwert', () => {
@@ -111,12 +114,17 @@ describe('Rubriken des Spalten-Pickers', () => {
     expect(strecken).toEqual([...new Set(strecken)]);
   });
 
-  it('laesst das FKZ als einzige Spalte der Rubrik „Antrag" ganz vorne', () => {
-    // Die Rubrik-Kopfzeile darf nur dann mit der FKZ-Spalte mitkleben, wenn ihre
-    // erste Strecke GENAU eine Spalte umfasst.
+  it('stellt die zusammengelegte Antrag-Spalte an den Anfang', () => {
+    // Sie ist die klebende Identitätsspalte (`stickyFirstColumn`) und traegt seit
+    // v4.63 Akronym UND FKZ; die beiden Einzelspalten stehen als abwaehlbare
+    // Alternativen daneben in derselben Rubrik.
     const antrag = gruppiereSpalten(ANTRAG_TABLE_COLUMNS)[0]!;
-    expect(antrag.columns.map(c => c.key)).toEqual(['aktenzeichen']);
-    expect(ANTRAG_TABLE_COLUMNS[0]!.key).toBe('aktenzeichen');
+    expect(antrag.columns.map(c => c.key)).toEqual(['antrag', 'aktenzeichen']);
+    expect(ANTRAG_TABLE_COLUMNS[0]!.key).toBe('antrag');
+    expect(ANTRAG_TABLE_COLUMNS[0]!.locked).toBe(true);
+    // Genau EINE Spalte ist gelockt — zwei erzwungene Identitaetsspalten
+    // stuenden zwangsweise doppelt in der Zeile.
+    expect(ANTRAG_TABLE_COLUMNS.filter(c => c.locked).map(c => c.key)).toEqual(['antrag']);
   });
 
   it('legt die vier Kuerzel-Spalten und die verdichtete in EINE Rubrik', () => {
@@ -167,29 +175,61 @@ describe('Rubriken des Spalten-Pickers', () => {
 });
 
 describe('Nachreichen neuer Standardspalten', () => {
+  // Fixtures ohne `aktenzeichen`/`akronym`: die faellt seit v4.63 unter die
+  // Zusammenlegung (eigener Block unten) und wuerde hier zwei Regeln auf einmal
+  // pruefen.
   it('reicht das AB-Kuerzel an eine bestehende Auswahl nach', () => {
-    const { keys, rev } = reicheNeueStandardspaltenNach(['aktenzeichen', 'akronym'], 0);
-    expect(keys).toEqual(['aktenzeichen', 'akronym', 'bib_kuerz']);
-    expect(rev).toBe(1);
+    const { keys, rev } = reicheNeueStandardspaltenNach(['antrag', 'titel'], 0);
+    expect(keys).toEqual(['antrag', 'titel', 'bib_kuerz']);
+    expect(rev).toBe(2);
   });
 
   it('reicht kein zweites Mal nach — abgewaehlt bleibt abgewaehlt', () => {
-    const ersteRunde = reicheNeueStandardspaltenNach(['aktenzeichen'], 0);
+    const ersteRunde = reicheNeueStandardspaltenNach(['antrag'], 0);
     const abgewaehlt = ersteRunde.keys.filter(k => k !== 'bib_kuerz');
     const zweiteRunde = reicheNeueStandardspaltenNach(abgewaehlt, ersteRunde.rev);
-    expect(zweiteRunde.keys).toEqual(['aktenzeichen']);
+    expect(zweiteRunde.keys).toEqual(['antrag']);
     expect(zweiteRunde.rev).toBe(ersteRunde.rev);
   });
 
   it('dupliziert nicht, wenn die Spalte schon gewaehlt ist', () => {
-    const { keys } = reicheNeueStandardspaltenNach(['bib_kuerz', 'aktenzeichen'], 0);
-    expect(keys).toEqual(['bib_kuerz', 'aktenzeichen']);
+    const { keys } = reicheNeueStandardspaltenNach(['bib_kuerz', 'antrag'], 0);
+    expect(keys).toEqual(['bib_kuerz', 'antrag']);
   });
 
   it('laesst die Reihenfolge der bestehenden Auswahl unangetastet', () => {
-    const vorher = ['frist', 'akronym', 'aktenzeichen'];
+    const vorher = ['frist', 'titel', 'antrag'];
     const { keys } = reicheNeueStandardspaltenNach(vorher, 0);
     expect(keys.slice(0, 3)).toEqual(vorher);
+  });
+
+  describe('Zusammenlegung FKZ + Akronym → Antrag (v4.63)', () => {
+    it('ersetzt beide Einzelspalten durch die zusammengelegte', () => {
+      // Ohne diese Regel bekaeme ein Bestandsnutzer die gelockte neue Spalte
+      // ZUSAETZLICH zu ihren Einzelteilen — das FKZ stuende zweimal in der Zeile.
+      const { keys } = reicheNeueStandardspaltenNach(['aktenzeichen', 'akronym'], 0);
+      expect(keys).toEqual(['antrag', 'bib_kuerz']);
+    });
+
+    it('setzt die neue Spalte an die Stelle der ERSTEN ersetzten', () => {
+      const { keys } = reicheNeueStandardspaltenNach(['frist', 'akronym', 'titel', 'aktenzeichen'], 1);
+      expect(keys).toEqual(['frist', 'antrag', 'titel']);
+    });
+
+    it('greift auch, wenn nur eine der beiden gewaehlt war', () => {
+      expect(reicheNeueStandardspaltenNach(['akronym'], 1).keys).toEqual(['antrag']);
+      expect(reicheNeueStandardspaltenNach(['aktenzeichen'], 1).keys).toEqual(['antrag']);
+    });
+
+    it('laeuft genau einmal — wer FKZ danach wieder einblendet, behaelt es', () => {
+      const nachher = reicheNeueStandardspaltenNach(['antrag', 'aktenzeichen'], 2);
+      expect(nachher.keys).toEqual(['antrag', 'aktenzeichen']);
+    });
+
+    it('ruehrt eine Auswahl ohne die beiden Keys nicht an', () => {
+      const { keys } = reicheNeueStandardspaltenNach(['frist', 'status'], 1);
+      expect(keys).toEqual(['frist', 'status']);
+    });
   });
 
   it('jeder Nachzuegler-Key ist eine echte Spalte', () => {

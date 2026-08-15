@@ -204,6 +204,7 @@ export function TableHeadRows<T>({
                   Die Spaltenbreite ist die richtige Stellschraube; im
                   Status-Katalog gibt der längste Kopf sie vor. */}
               <div className="flex items-center gap-1">
+                {c.kopfPrefix}
                 {mitHilfe(c, c.sortable ? (
                   <button
                     type="button"

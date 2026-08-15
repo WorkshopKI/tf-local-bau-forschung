@@ -5,6 +5,8 @@ import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
 import { useAntraegeStore, getEffectiveSortKey, getEffectiveGroupingMode, getEffectiveViewMode, getEffectiveTableGroupingMode, getEffectiveTableAnsicht } from './store';
 import { useFilterState } from './filter/useFilterState';
 import { ActiveFilterChips } from './filter/ActiveFilterChips';
+import { PinLeiste } from './filter/PinLeiste';
+import { aktivIstAngepinnt, usePinnedFilters } from './filter/pinnedFilters';
 import { FilterChip } from '@/components/ui/FilterChip';
 import { AMPEL_BUCKET_LABEL } from './eingangAmpel';
 import { QuickfilterToolbar } from './filter/QuickfilterToolbar';
@@ -42,6 +44,7 @@ import {
   formatArchivAufschluesselung,
 } from './arbeitsvorrat';
 import { AntraegeTable } from './AntraegeTable';
+import { MassenLeiste } from './auswahl';
 import { CardGrid } from './CardGrid';
 import { KompaktListe } from './KompaktListe';
 import { getView } from './views';
@@ -69,6 +72,7 @@ import { isEigeneSpaltenEnabled } from '@/config/feature-flags';
 import { herkunftVon, type EigeneSpalte } from '@/core/spalten';
 import { Plus, Pencil } from 'lucide-react';
 import { useAntraegeColumnsStore } from './useAntraegeColumnsStore';
+import { useDichteStore, istDichte } from './useDichteStore';
 import type { ViewMode } from './viewModes';
 import { isAuslastungFreigeschaltet } from '@/core/modul-freischaltung';
 import { Alert } from '@/components/ui/alert';
@@ -125,7 +129,10 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
   const visibleColumns = useAntraegeColumnsStore(s => s.visibleColumns);
   const toggleColumn = useAntraegeColumnsStore(s => s.toggleColumn);
   const setVisibleColumns = useAntraegeColumnsStore(s => s.setVisibleColumns);
-  // Die vier Darstellungs-Achsen teilen sich EIN Menü. Welche davon im aktuellen
+  // Ebenfalls VOR den Achsen: die Dichte ist eine davon.
+  const dichte = useDichteStore(s => s.dichte);
+  const setzeDichte = useDichteStore(s => s.setzeDichte);
+  // Die fünf Darstellungs-Achsen teilen sich EIN Menü. Welche davon im aktuellen
   // Zustand gilt, entscheidet die pure `darstellungsAchsen.ts` — hier bleibt nur
   // das Verteilen der Wahl auf die Store-Slots.
   const darstellungsAchsen = useMemo(
@@ -136,9 +143,10 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
       tableGruppierung: tableGrouping,
       listGruppierung: listGrouping,
       sichtbareSpalten: visibleColumns,
+      dichte,
       beendetAusgeblendet,
     }),
-    [viewMode, activeView, tableAnsicht, tableGrouping, listGrouping, visibleColumns, beendetAusgeblendet],
+    [viewMode, activeView, tableAnsicht, tableGrouping, listGrouping, visibleColumns, dichte, beendetAusgeblendet],
   );
   const setzeDarstellung = (id: DarstellungAchseId, key: string): void => {
     if (id === 'ansicht') setTableAnsichtForView(activeView, key as TabellenAnsicht);
@@ -146,12 +154,16 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
     // `Eigene` ist kein Satz, den man setzen kann — nur ein erreichbarer
     // Zustand. Der Klick darauf bleibt wirkungslos, statt die Auswahl zu leeren.
     else if (id === 'spalten') { if (key !== EIGENE_AUSWAHL) setVisibleColumns(keysVonProfil(key)); }
+    else if (id === 'dichte') { if (istDichte(key)) setzeDichte(key); }
     else if (viewMode === 'compact') setTableGroupingForView(activeView, key as TableGroupingMode);
     else setGroupingForView(activeView, key as GroupingMode);
   };
   const openAntrag = (az: string): void => navigate(`/antraege/${encodeURIComponent(az)}`);
   const openVerbund = (id: string): void => navigate(`/antraege/verbund/${encodeURIComponent(id)}`);
   const { definitions, active, clearFilter, init } = useFilterState();
+  // Angepinnte Schnellzugriffe: sie stehen in derselben Zeile wie die aktiven
+  // Chips und bestimmen mit, welche davon dort noch gebraucht werden.
+  const pins = usePinnedFilters(s => s.pins);
   const { filtered, bearbeiterFilter, bearbeiterKuerzelMissing } = useFilteredAntraege();
   // Ampel-Quickfilter (v2.229): sichtbarer, entfernbarer Chip — sonst filtert
   // der Widget-Klick unsichtbar weiter.
@@ -332,9 +344,14 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
     return active.filter(af => {
       if (af.filterId === STATUS_FILTER_ID && phaseAbsorbed) return false;
       if (af.filterId === KATEGORIE_FILTER_ID && kategorieAbsorbed) return false;
+      // Dieselbe Absorption wie oben, nur für den Schnellzugriff: was als
+      // angepinnter Schalter in derselben Zeile steht, braucht daneben keinen
+      // zweiten Chip mit ×. Was der Schalter NICHT abdeckt, bleibt sichtbar
+      // (`aktivIstAngepinnt`).
+      if (aktivIstAngepinnt(af, pins)) return false;
       return true;
     });
-  }, [active]);
+  }, [active, pins]);
 
   // Detail offen → schmale Kompakt-Spalte (Journey-Paket 2 Phase 8) statt der
   // schmaler skalierten Voll-Tabelle. Reihenfolge/Umfang bleiben die der
@@ -414,7 +431,7 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
               <DarstellungDropdown
                 achsen={darstellungsAchsen}
                 onChange={setzeDarstellung}
-                titel="Ansicht, Gruppierung, Spaltensatz und Sichtbarkeit beendeter Anträge"
+                titel="Ansicht, Gruppierung, Spaltensatz, Zeilendichte und Sichtbarkeit beendeter Anträge"
               />
               {viewMode === 'compact' ? (
                 <ColumnPicker
@@ -477,8 +494,13 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
               früher nicht, weil die Trefferzahl darin saß — das war die
               Leerzeile über der Tabelle. Der Abstand zur Tabelle steht jetzt am
               Container (`pb-3`), damit er in beiden Fällen derselbe ist. */}
-          {(chipActive.length > 0 || ampelQuickfilter !== null) ? (
+          {(chipActive.length > 0 || ampelQuickfilter !== null || pins.length > 0) ? (
             <div className="mt-2 min-w-0 flex items-center flex-wrap gap-1.5">
+              {/* Angepinnte Schnellzugriffe stehen VOR den aktiven Chips: sie
+                  sind die Schalter, zwischen denen man den Tag über springt,
+                  und liegen deshalb immer an derselben Stelle — Chips kommen
+                  und gehen mit dem Filterstand. */}
+              <PinLeiste />
               {ampelQuickfilter !== null ? (
                 <FilterChip
                   label="Antragseingang"
@@ -541,6 +563,7 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
               Keine Anträge matchen die aktuellen Filter.
             </div>
           ) : viewMode === 'compact' ? (
+            <>
             <AntraegeTable
               filtered={filtered}
               visibleRows={visibleRows}
@@ -559,6 +582,12 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
               scrollContainerRef={stickyKopf ? wideScrollRef : undefined}
               onScroll={stickyKopf ? merkeScroll : undefined}
             />
+            {/* Die Massen-Leiste schwebt am unteren Rand des Inhalts — sie
+                erscheint nur, wenn wirklich etwas gewählt ist, und nimmt sonst
+                keine Höhe (siehe `MassenLeiste`). Nur in der Tabelle: die
+                Auswahl-Häkchen gibt es nur dort. */}
+            <MassenLeiste />
+            </>
           ) : viewMode === 'cards' ? (
             <CardGrid
               filtered={filtered}
