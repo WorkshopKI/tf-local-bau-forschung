@@ -19,6 +19,17 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.62 — 2026-08
+
+### Neu
+- **Spaltensätze statt Einzelhaken:** Im Menü „Darstellung" stehen jetzt vier fertige Sätze — Standard, Triage, Fristen und Alle. „Triage" zeigt Frist, Status, Zuständigkeit und Titel und passt ohne seitliches Scrollen auf den Bildschirm.
+- **Gruppierung nach Frist:** Die Tabelle lässt sich nach Dringlichkeit bändern — überfällig, noch ≤ 14 Tage, noch ≤ 30 Tage, mehr als 30 Tage, ohne laufende Frist.
+- **Zwei zusammengefasste Spalten:** „Zuständig" zeigt FB- und AB-Kürzel nebeneinander, „FB / PreCheck" beide Stände in einer Spalte. Der volle Wortlaut steht beim Überfahren.
+
+### Verbesserungen
+- **Die Frist steht jetzt vorn** statt am rechten Rand — direkt hinter dem Förderkennzeichen.
+- **Farbige Kante am Zeilenanfang** zeigt die Dringlichkeit auf einen Blick: rot bei überfällig, orange unter 14 Tagen, gelb unter 30. Wer Luft hat, bekommt keine — so fällt auf, wo etwas ansteht.
+
 ## v4.61 — 2026-08
 
 ### Neu

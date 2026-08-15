@@ -27,10 +27,11 @@ import { isVorgangssystemEnabled } from '@/config/feature-flags';
 import { HerleitungPopover } from './status/HerleitungPopover';
 import { useAusklappSteuerung } from './ausklapp/kontext';
 import { getKategorieLabel } from './filter/kategorieQuickfilter';
+import { classifyPrecheckBucket } from './filter/precheckQuickfilter';
 import { MaKuerzelBadge } from './MaKuerzelBadge';
 import type { AntragTableRow } from './tableGrouping';
-import { worstAmpel, criticalFristAware, criticalFristErgebnis } from './groupAggregates';
-import { fristAnzeigeVon, fristErgebnisVon, fristTageVon } from './fristAnzeige';
+import { worstAmpel, criticalFristAware, fristErgebnisFuerZeile } from './groupAggregates';
+import { fristAnzeigeVon, fristTageVon } from './fristAnzeige';
 import {
   getEingangAmpel,
   daysSinceEingang,
@@ -66,17 +67,6 @@ function yearOf(v: string | undefined): string {
  *  wählbar (z.B. „Anträge ohne Erstentscheidung"). */
 function yearOfOrEmpty(v: string | undefined): string {
   return yearOf(v) || FILTER_EMPTY_LABEL;
-}
-
-/**
- * Der Frist-Zustand einer Tabellenzeile — Verbund-Aggregat oder Einzel-TV.
- *
- * Die eine Weiche zwischen beiden Fällen; vorher stand sie dreimal in der
- * Spalte (accessor, exportValue, render) und musste dreimal gleich gepflegt
- * werden.
- */
-function fristErgebnisFuer(r: AntragListItem & { _verbund?: { tvs: AntragListItem[] } }): FristErgebnis {
-  return r._verbund ? criticalFristErgebnis(r._verbund.tvs) : fristErgebnisVon(r);
 }
 
 /**
@@ -175,6 +165,25 @@ function renderHerleitung(r: AntragListItem): ReactNode {
  *  deren Toggle ohne Wirkung bliebe, weil die Spalte dort erzwungen wird). */
 export const MA_COLUMN_KEY = 'tib_kuerz';
 
+/** Key der verdichteten Zuständigkeits-Spalte (FB + AB der Antragsphase). */
+export const ZUSTAENDIG_COLUMN_KEY = 'zustaendig';
+
+/**
+ * Wird die MA-Spalte im Übersichtsmodus erzwungen?
+ *
+ * Nur, wenn die verdichtete `zustaendig`-Spalte NICHT sichtbar ist — die trägt
+ * das TIB-Kürzel schon. Dieselbe Frage stellen `resolveAntragTableColumns` (für
+ * die Tabelle) und `AntraegeMain` (für die „auto"-Marke im Picker); stünde sie
+ * zweimal geschrieben, zeigte der Picker irgendwann eine Marke an einer Spalte,
+ * die gar nicht mehr erzwungen wird.
+ */
+export function maSpalteErzwungen(
+  visibleKeys: readonly string[],
+  showMaColumn: boolean,
+): boolean {
+  return showMaColumn && !visibleKeys.includes(ZUSTAENDIG_COLUMN_KEY);
+}
+
 /**
  * Rubriken des Spalten-Pickers. Reine Anzeige-Ordnung im Menü — die Reihenfolge
  * der Spalten in der Tabelle bleibt die Registry-Reihenfolge unten. Welche
@@ -188,6 +197,14 @@ const G_ANTRAG = 'Antrag';
  *  Antragsdaten-Spalten, und die gewohnte Lesefolge FKZ · TIB · BIB · … wäre
  *  dahin. */
 const G_ANTRAGSDATEN = 'Antragsdaten';
+/** Eigene Rubrik für die Frist, damit sie direkt hinter dem gepinnten FKZ stehen
+ *  kann. In `G_TERMINE` belassen stünde sie am rechten Rand hinter neun anderen
+ *  Spalten — die Fristenkontrolle ist aber die häufigste Frage an diese Tabelle
+ *  und gehört an den Anfang der Zeile. Eine EIGENE Rubrik statt eines Umzugs
+ *  nach `G_ANTRAG`: die Frist ist keine Stammangabe des Antrags, und ein
+ *  einzelnes `Termine`-Feld mitten in der Zeile zerrisse die Rubrik-Kopfzeile
+ *  (genau das, wogegen `RUBRIK_ORDNUNG` unten angelegt wurde). */
+const G_FRIST = 'Frist';
 const G_ZUSTAENDIGKEIT = 'Zuständigkeit';
 /** Exportiert, weil die Klickzonen die ganze Rubrik aufklappbar machen
  *  (`klickzonen.tsx`) — eine neue Status-Spalte soll das erben, ohne dass
@@ -311,7 +328,7 @@ function statusDatumColumn(opts: {
  * „Antrag | Zuständigkeit | Antrag | Status | Termine | Antrag | …".
  */
 const RUBRIK_ORDNUNG: readonly string[] = [
-  G_ANTRAG, G_ZUSTAENDIGKEIT, G_ANTRAGSDATEN, G_STATUS, G_TERMINE,
+  G_ANTRAG, G_FRIST, G_ZUSTAENDIGKEIT, G_ANTRAGSDATEN, G_STATUS, G_TERMINE,
 ];
 
 /**
@@ -437,6 +454,57 @@ const ROH_SPALTEN: SortableColumn<AntragTableRow>[] = [
     key: 'pfm_kuerz', label: 'PFM', rolle: 'AB (Begleitphase)',
     defaultVisible: false, width: 76,
   }),
+  {
+    // Die beiden Kürzel der ANTRAGSPHASE in einer Spur, mit Rollen-Vorsilbe
+    // statt Spaltenkopf: `FB THü` · `AB StE`. Wer die Tabelle zum Sichten
+    // benutzt, braucht die Zuständigkeit, nicht zwei Spalten davon.
+    //
+    // Nur Antragsphase: `ztp_kuerz`/`pfm_kuerz` (Begleitphase) bleiben eigene
+    // Picker-Spalten. Vier Kürzel in einer Zelle wären keine Verdichtung mehr,
+    // und eine Ausweichkette FB = `tib || ztp` rührte zwei Quellen zu einer
+    // Aussage zusammen — man wüsste nicht mehr, welche Phase man liest.
+    key: 'zustaendig',
+    label: 'Zuständig',
+    gruppe: G_ZUSTAENDIGKEIT,
+    defaultVisible: false,
+    sortable: true,
+    // Nicht filterbar: die Zelle trägt zwei Felder, ein Spaltenkopf-Filter
+    // müsste sich für eines entscheiden. Wer nach einem Kürzel filtert, nimmt
+    // die Einzelspalte oder die Filterleiste (Zuständigkeit FB/AB).
+    width: 150,
+    wrap: false,
+    messSchrift: 'badge',
+    // Zwei Badges (`px-1.5`) + zwei Vorsilben + Abstände.
+    messZuschlag: 46,
+    // Sortiert nach FB, dann AB — dieselbe Lesefolge wie die Zelle.
+    accessor: r => `${strOrNull(r.tib_kuerz) ?? ''} ${strOrNull(r.bib_kuerz) ?? ''}`.trim(),
+    exportValue: r => {
+      const fb = strOrNull(r.tib_kuerz);
+      const ab = strOrNull(r.bib_kuerz);
+      return [fb ? `FB ${fb}` : null, ab ? `AB ${ab}` : null].filter(Boolean).join(' · ');
+    },
+    render: r => {
+      const fb = strOrNull(r.tib_kuerz);
+      const ab = strOrNull(r.bib_kuerz);
+      if (!fb && !ab) return null;
+      return (
+        <span className="inline-flex items-center gap-2">
+          {fb ? (
+            <span className="inline-flex items-center gap-1">
+              <span className="text-[9.5px] tracking-[0.06em] text-[var(--tf-text-tertiary)]">FB</span>
+              <MaKuerzelBadge kuerzel={fb} title={`FB (Antragsphase): ${fb}`} />
+            </span>
+          ) : null}
+          {ab ? (
+            <span className="inline-flex items-center gap-1">
+              <span className="text-[9.5px] tracking-[0.06em] text-[var(--tf-text-tertiary)]">AB</span>
+              <MaKuerzelBadge kuerzel={ab} title={`AB (Antragsphase): ${ab}`} />
+            </span>
+          ) : null}
+        </span>
+      );
+    },
+  },
   {
     key: 'akronym',
     label: 'Akronym',
@@ -615,9 +683,73 @@ const ROH_SPALTEN: SortableColumn<AntragTableRow>[] = [
     getDatum: r => r.precheck_status_datum,
   }),
   {
+    // FB-Status und PreCheck in EINER Spur — die beiden Einzelspalten darüber
+    // bleiben im Picker, wer den vollen Badge-Satz will, nimmt sie.
+    //
+    // Ruhige Fläche: kein gefülltes Badge (das trägt der amtliche Status),
+    // sondern Rollen-Vorsilbe + Text. Ein Farbpunkt steht NUR am PreCheck —
+    // dort gibt es mit `classifyPrecheckBucket` eine kuratierte Klassifikation
+    // (positiv/negativ/offen, dieselbe wie in der Filter-Pille). Für den
+    // FB-Status gibt es keine; ihn über Wort-Präfixe des Fremddaten-Labels
+    // („Ablehnung…", „Rücknahme…") einzufärben behauptete eine Klassifikation,
+    // die das Datenmodell nicht hergibt, und liefe bei der nächsten
+    // Label-Pflege still falsch.
+    key: 'fb_precheck',
+    label: 'FB / PreCheck',
+    gruppe: G_STATUS,
+    defaultVisible: false,
+    sortable: true,
+    width: 190,
+    wrap: false,
+    messSchrift: 'zelleKlein',
+    messZuschlag: 34,
+    // Sortiert nach PreCheck-Klasse (die getragene Aussage), FB als Tie-Break.
+    accessor: r =>
+      `${classifyPrecheckBucket(r.precheck_status_label)} ${strOrNull(r.fb_status_label) ?? ''}`,
+    // Export trägt den VOLLEN Wortlaut beider Felder — die Zelle kürzt, die
+    // Datei ist das Einzige, was die App verlässt.
+    exportValue: r => {
+      const fb = strOrNull(r.fb_status_label);
+      const pc = strOrNull(r.precheck_status_label);
+      return [fb ? `FB: ${fb}` : null, pc ? `PC: ${pc}` : null].filter(Boolean).join(' · ');
+    },
+    render: r => {
+      const fb = strOrNull(r.fb_status_label);
+      const pc = strOrNull(r.precheck_status_label);
+      if (!fb && !pc) return null;
+      const klasse = classifyPrecheckBucket(r.precheck_status_label);
+      const pcFarbe = klasse === 'positiv'
+        ? 'var(--tf-success-text)'
+        : klasse === 'negativ' ? 'var(--tf-danger-text)' : 'var(--tf-border-hover)';
+      const datum = (v: string | undefined): string =>
+        strOrNull(v) ? ` (${formatGermanDate(strOrNull(v)!)})` : '';
+      return (
+        <span className="inline-flex items-center gap-2.5 text-[11px] max-w-full">
+          {fb ? (
+            <span className="inline-flex items-baseline gap-1 min-w-0" title={`FB Status: ${fb}${datum(r.fb_status_datum)}`}>
+              <span className="shrink-0 text-[9.5px] tracking-[0.06em] text-[var(--tf-text-tertiary)]">FB</span>
+              <span className="truncate text-[var(--tf-text-secondary)]">{fb}</span>
+            </span>
+          ) : null}
+          {pc ? (
+            <span className="inline-flex items-center gap-1 min-w-0" title={`PreCheck: ${pc}${datum(r.precheck_status_datum)}`}>
+              <span
+                className="shrink-0 w-1.5 h-1.5 rounded-full"
+                style={{ background: pcFarbe }}
+                aria-hidden="true"
+              />
+              <span className="shrink-0 text-[9.5px] tracking-[0.06em] text-[var(--tf-text-tertiary)]">PC</span>
+              <span className="truncate text-[var(--tf-text-secondary)]">{pc}</span>
+            </span>
+          ) : null}
+        </span>
+      );
+    },
+  },
+  {
     key: 'frist',
     label: 'Frist',
-    gruppe: G_TERMINE,
+    gruppe: G_FRIST,
     defaultVisible: true,
     sortable: true,
     width: 96,
@@ -640,9 +772,9 @@ const ROH_SPALTEN: SortableColumn<AntragTableRow>[] = [
     // Export = lesbarer Text („in 45 T" / „seit 12 T" / „angehalten" / „—"),
     // nie der Sortier-Sentinel. Die drei Zustände stehen auch im XLSX: wer die
     // Liste weiterreicht, soll dieselbe Aussage haben wie am Bildschirm.
-    exportValue: r => fristAnzeigeVon(fristErgebnisFuer(r)).text,
+    exportValue: r => fristAnzeigeVon(fristErgebnisFuerZeile(r)).text,
     render: r => {
-      const e = fristErgebnisFuer(r);
+      const e = fristErgebnisFuerZeile(r);
       const a = fristAnzeigeVon(e);
       const overdue = a.ampel === 'rot';
       // Angehalten und unberechenbar sind keine Warnung, sondern eine Auskunft:
@@ -864,6 +996,10 @@ export function spaltenHinweis(key: string): string | null {
     case 'bib_kuerz': return 'AB';
     case 'ztp_kuerz': return 'FB · Begleitung';
     case 'pfm_kuerz': return 'AB · Begleitung';
+    // Die beiden verdichteten Spalten sagen im Picker, was sie zusammenfassen —
+    // sonst steht „Zuständig" ununterscheidbar neben „TIB" und „BIB".
+    case ZUSTAENDIG_COLUMN_KEY: return 'FB + AB';
+    case 'fb_precheck': return 'zwei Felder';
     default: return null;
   }
 }
@@ -926,6 +1062,10 @@ function ordneNachOrdnerRubrik(
  * automatisch erzwungen (auch ohne Picker-Auswahl) und erscheint dank Registry-
  * Reihenfolge direkt nach der gelockten FKZ-Spalte. Set-Union → kein Duplikat,
  * falls die Spalte ohnehin schon im Picker gewählt ist.
+ *
+ * Die verdichtete `zustaendig`-Spalte führt dasselbe TIB-Kürzel bereits mit —
+ * ist sie sichtbar, entfällt das Erzwingen (`maSpalteErzwungen`), sonst stünde
+ * das Kürzel zweimal in derselben Zeile.
  */
 export function resolveAntragTableColumns(
   visibleKeys: readonly string[],
@@ -933,7 +1073,7 @@ export function resolveAntragTableColumns(
   kategorien: readonly { kategorieId: string; label: string }[] = [],
 ): SortableColumn<AntragTableRow>[] {
   const keys = new Set(visibleKeys);
-  if (showMaColumn) keys.add(MA_COLUMN_KEY);
+  if (maSpalteErzwungen(visibleKeys, showMaColumn)) keys.add(MA_COLUMN_KEY);
   // Ordner-Spalten hinten anhängen: die Registry-Reihenfolge ist die Lesefolge
   // der festen Spalten, die kuratierten kommen als Zusatz dazu.
   return [...ANTRAG_TABLE_COLUMNS, ...kategorieStatusColumns(kategorien)]

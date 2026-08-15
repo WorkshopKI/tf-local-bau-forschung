@@ -10,6 +10,7 @@ import { AMPEL_BUCKET_LABEL } from './eingangAmpel';
 import { QuickfilterToolbar } from './filter/QuickfilterToolbar';
 import { DarstellungDropdown } from '@/components/ui/DarstellungDropdown';
 import { baueDarstellungsAchsen, type DarstellungAchseId } from './darstellungsAchsen';
+import { EIGENE_AUSWAHL, keysVonProfil } from './spaltenProfile';
 import { getPhaseFromActive, STATUS_FILTER_ID } from './filter/phaseQuickfilter';
 import { getKategorieFromActive, KATEGORIE_FILTER_ID } from './filter/kategorieQuickfilter';
 import { AntragGroupCard } from './AntragGroupCard';
@@ -55,6 +56,7 @@ import {
   ANTRAG_TABLE_COLUMNS,
   MA_COLUMN_KEY,
   kategorieStatusColumns,
+  maSpalteErzwungen,
   spaltenHinweis,
 } from './tableColumns';
 import { useKategorieSpalten } from './useKategorieSpalten';
@@ -117,9 +119,15 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
   // Achse „Beendet" — eigener Schalter statt Kopplung an „Gruppierung: Keine".
   const beendetAusgeblendet = useBeendetSichtbarkeit(s => s.ausgeblendet);
   const setBeendetAusgeblendet = useBeendetSichtbarkeit(s => s.setAusgeblendet);
-  // Die drei Darstellungs-Achsen teilen sich EIN Menü. Welche davon im aktuellen
+  // Spalten-Picker (nur Tabellen-Ansicht) sitzt in der Toolbar-Zeile rechts —
+  // teilt den State reaktiv mit der Tabelle über den globalen Store. Steht VOR
+  // den Darstellungs-Achsen, weil die Profil-Achse die sichtbaren Spalten liest.
+  const visibleColumns = useAntraegeColumnsStore(s => s.visibleColumns);
+  const toggleColumn = useAntraegeColumnsStore(s => s.toggleColumn);
+  const setVisibleColumns = useAntraegeColumnsStore(s => s.setVisibleColumns);
+  // Die vier Darstellungs-Achsen teilen sich EIN Menü. Welche davon im aktuellen
   // Zustand gilt, entscheidet die pure `darstellungsAchsen.ts` — hier bleibt nur
-  // das Verteilen der Wahl auf die drei Store-Slots.
+  // das Verteilen der Wahl auf die Store-Slots.
   const darstellungsAchsen = useMemo(
     () => baueDarstellungsAchsen({
       viewMode,
@@ -127,21 +135,20 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
       tableAnsicht,
       tableGruppierung: tableGrouping,
       listGruppierung: listGrouping,
+      sichtbareSpalten: visibleColumns,
       beendetAusgeblendet,
     }),
-    [viewMode, activeView, tableAnsicht, tableGrouping, listGrouping, beendetAusgeblendet],
+    [viewMode, activeView, tableAnsicht, tableGrouping, listGrouping, visibleColumns, beendetAusgeblendet],
   );
   const setzeDarstellung = (id: DarstellungAchseId, key: string): void => {
     if (id === 'ansicht') setTableAnsichtForView(activeView, key as TabellenAnsicht);
     else if (id === 'beendet') setBeendetAusgeblendet(key === 'aus');
+    // `Eigene` ist kein Satz, den man setzen kann — nur ein erreichbarer
+    // Zustand. Der Klick darauf bleibt wirkungslos, statt die Auswahl zu leeren.
+    else if (id === 'spalten') { if (key !== EIGENE_AUSWAHL) setVisibleColumns(keysVonProfil(key)); }
     else if (viewMode === 'compact') setTableGroupingForView(activeView, key as TableGroupingMode);
     else setGroupingForView(activeView, key as GroupingMode);
   };
-  // Spalten-Picker (nur Tabellen-Ansicht) sitzt in der Toolbar-Zeile rechts —
-  // teilt den State reaktiv mit der Tabelle über den globalen Store.
-  const visibleColumns = useAntraegeColumnsStore(s => s.visibleColumns);
-  const toggleColumn = useAntraegeColumnsStore(s => s.toggleColumn);
-  const setVisibleColumns = useAntraegeColumnsStore(s => s.setVisibleColumns);
   const openAntrag = (az: string): void => navigate(`/antraege/${encodeURIComponent(az)}`);
   const openVerbund = (id: string): void => navigate(`/antraege/verbund/${encodeURIComponent(id)}`);
   const { definitions, active, clearFilter, init } = useFilterState();
@@ -208,7 +215,10 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
     ),
     [kategorieSpalten, spaltenHilfe, eigeneTabellenSpalten],
   );
-  const erzwungeneSpalten = useMemo(() => (showMa ? [MA_COLUMN_KEY] : []), [showMa]);
+  const erzwungeneSpalten = useMemo(
+    () => (maSpalteErzwungen(visibleColumns, showMa) ? [MA_COLUMN_KEY] : []),
+    [visibleColumns, showMa],
+  );
   const [visibleRows, setVisibleRows] = useState(() => pageSizeForMode(viewMode));
   // Tabelle und gruppierte Liste melden hierher, was sie zeigen (TV-Anzahl nach
   // Spaltenfiltern + daraus entstandene Zeilen). Die Karten-Ansicht meldet
@@ -404,7 +414,7 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
               <DarstellungDropdown
                 achsen={darstellungsAchsen}
                 onChange={setzeDarstellung}
-                titel="Ansicht, Gruppierung und Sichtbarkeit beendeter Anträge"
+                titel="Ansicht, Gruppierung, Spaltensatz und Sichtbarkeit beendeter Anträge"
               />
               {viewMode === 'compact' ? (
                 <ColumnPicker

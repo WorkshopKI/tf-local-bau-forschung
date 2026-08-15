@@ -102,6 +102,9 @@ export interface SortableTableProps<T> {
   /** Optional: markiert eine Zeile als selektiert (Soft-Grey-Background). Backward-
    *  kompatibel — Caller ohne dieses Prop bekommen keine Selektions-Hervorhebung. */
   isRowSelected?: (row: T) => boolean;
+  /** Optional: schmale farbige Kante am Zeilenanfang („Rinne"), z.B. für
+   *  Dringlichkeit. Siehe `TableBodyProps.rowAccent`. */
+  rowAccent?: (row: T) => string | null;
   /** Optional: Inhalt fuer den Empty-State (wenn `rows.length === 0`). */
   emptyContent?: ReactNode;
   /** Optional: User-Overrides fuer Spaltenbreiten in Pixel. Wenn gesetzt UND
@@ -250,6 +253,7 @@ export function SortableTable<T>({
   rowKey,
   onRowClick,
   isRowSelected,
+  rowAccent,
   emptyContent,
   columnWidths,
   onColumnWidthChange,
@@ -473,6 +477,7 @@ export function SortableTable<T>({
               rowKey={rowKey}
               onRowClick={onRowClick}
               isRowSelected={isRowSelected}
+              rowAccent={rowAccent}
               emptyContent={emptyContent}
               sectionKeyOf={sectionKeyOf}
               renderSectionHeader={renderSectionHeader}

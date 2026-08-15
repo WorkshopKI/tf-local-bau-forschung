@@ -8,22 +8,25 @@ import {
 import { TABLE_GROUPING_OPTIONS, TABLE_ANSICHT_OPTIONS } from '../tableGrouping';
 import { GROUPING_OPTIONS } from '../sort';
 import { ARBEITSVORRAT_LABEL, BEENDET_ACHSE_LABEL } from '../arbeitsvorrat';
+import { DEFAULT_VISIBLE_COLUMN_KEYS } from '../tableColumns';
 
 /** Alles auf Standard, Tabellen-Ansicht im „Alle"-Reiter — also der Zustand mit
- *  allen drei Achsen. */
+ *  allen vier Achsen. */
 const STANDARD: DarstellungEingabe = {
   viewMode: 'compact',
   activeView: 'alle',
   tableAnsicht: 'antrag',
   tableGruppierung: 'none',
   listGruppierung: 'none',
+  // Werkseinstellung = Profil „Standard"; die Profil-Achse weicht also nicht ab.
+  sichtbareSpalten: DEFAULT_VISIBLE_COLUMN_KEYS,
   beendetAusgeblendet: true,
 };
 
 describe('welche Achsen gelten', () => {
-  it('Tabelle im „Alle"-Reiter: alle drei, in Menü-Reihenfolge', () => {
+  it('Tabelle im „Alle"-Reiter: alle vier, in Menü-Reihenfolge', () => {
     expect(baueDarstellungsAchsen(STANDARD).map(a => a.id))
-      .toEqual(['ansicht', 'gruppierung', 'beendet']);
+      .toEqual(['ansicht', 'gruppierung', 'spalten', 'beendet']);
   });
 
   it('Zeilen-Körnung nur in der Tabelle — Liste und Karten verdichten nicht', () => {
@@ -36,7 +39,7 @@ describe('welche Achsen gelten', () => {
 
   it('Beendet nur im „Alle"-Reiter — anderswo steht praktisch nichts Terminales', () => {
     expect(baueDarstellungsAchsen({ ...STANDARD, activeView: 'meine_offenen' }).map(a => a.id))
-      .toEqual(['ansicht', 'gruppierung']);
+      .toEqual(['ansicht', 'gruppierung', 'spalten']);
   });
 
   it('liefert nie eine leere Liste — die Gruppierung gibt es in jeder Ansicht', () => {
@@ -75,6 +78,7 @@ describe('Optionen kommen aus der bestehenden Quelle', () => {
     // „Antrag / Antrag mit TV" ist zweiwertig und trotzdem KEIN Schalter.
     expect(achsen.find(a => a.id === 'ansicht')!.art).toBe('segment');
     expect(achsen.find(a => a.id === 'gruppierung')!.art).toBe('segment');
+    expect(achsen.find(a => a.id === 'spalten')!.art).toBe('segment');
     expect(achsen.find(a => a.id === 'beendet')!.art).toBe('schalter');
   });
 

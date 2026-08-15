@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.62.0 — Die Frist rueckt nach vorn, Spalten kommen als Satz (August 2026)
+
+MINOR — Übernahme aus dem Redesign-Handoff `_design/handoff/Förderanträge/`, auf das Tragfähige eingekürzt: die Frist stand als **letzte** Spalte am rechten Rand, und der Weg zu einem Arbeits-Spaltensatz führte durch 26 Einzelhaken. Nicht übernommen wurden die Massen-Leiste (die App schreibt nicht ins Fachsystem, Pitfall #44) und „Zeile öffnet die Detailseite" (die Klickzonen sind vergeben).
+
+- **Die Frist steht als zweite Spalte**, in eigener Rubrik zwischen FKZ und Zuständigkeit — die Rubrik-Bänder bleiben dabei zusammenhängend ([tableColumns.tsx](src/plugins/antraege/tableColumns.tsx))
+- **Dringlichkeits-Rinne** am Zeilenanfang, rot/orange/gelb nach denselben Schwellen wie der Ampelpunkt; grün und stehende Uhren bleiben ohne (`rowAccent`, [TableBody.tsx](src/components/data-table/TableBody.tsx))
+- **Gruppierung „Frist"** als vierte Sektionierungs-Achse — Abschnitte und Beschriftungen aus `FRIST_AMPEL_STUFEN`, nicht aus zweiten Grenzen ([tableGrouping.ts](src/plugins/antraege/tableGrouping.ts))
+- **Vier Spaltenprofile** (Standard · Triage · Fristen · Alle) als Achse im Darstellungs-Menü; „Triage" passt bei 1340 px ohne waagerechtes Scrollen ([spaltenProfile.ts](src/plugins/antraege/spaltenProfile.ts))
+- **Zwei verdichtete Spalten** „Zuständig" (FB+AB der Antragsphase) und „FB / PreCheck" — Farbpunkt nur am PreCheck, weil nur der eine kuratierte Einteilung hat
+
 ### v4.61.0 — Chronik nach Datum als Standard, Ausklapp zeigt den juengsten Abschnitt (August 2026)
 
 MINOR — Die chronologische Chronik rendert an zwei Stellen dieselbe Komponente — Detailseite und Tabellen-Ausklapp — und sah trotzdem verschieden aus: andere Träger-Marken, andere Standard-Ordnung, anderer Reiter-Name. Jetzt eine Bildsprache, zwei Tiefen: in der Tabelle der jüngste Abschnitt, auf der Detailseite alles. Detail: [chronik-und-zeitstrahl.md](docs/status-system/chronik-und-zeitstrahl.md).

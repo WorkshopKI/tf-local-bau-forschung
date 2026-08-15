@@ -40,6 +40,12 @@ import {
   BEENDET_ACHSE_LABEL,
   hatBeendetAchse,
 } from './arbeitsvorrat';
+import {
+  DEFAULT_SPALTEN_PROFIL,
+  EIGENE_AUSWAHL,
+  erkenneProfil,
+  spaltenProfilOptionen,
+} from './spaltenProfile';
 
 export type {
   DarstellungAchse,
@@ -53,7 +59,7 @@ export {
   zuruecksetzenAufrufe,
 } from '@/components/ui/darstellungsAchsen';
 
-export type DarstellungAchseId = 'ansicht' | 'gruppierung' | 'beendet';
+export type DarstellungAchseId = 'ansicht' | 'gruppierung' | 'spalten' | 'beendet';
 
 export interface DarstellungEingabe {
   viewMode: ViewMode;
@@ -61,6 +67,10 @@ export interface DarstellungEingabe {
   tableAnsicht: string;
   tableGruppierung: string;
   listGruppierung: string;
+  /** Sichtbare Spalten der Tabelle — daraus wird das aktive Profil ERKANNT,
+   *  nicht daneben gespeichert. Ein zweiter Zustand („gewähltes Profil") liefe
+   *  auseinander, sobald jemand im Picker einen Haken setzt. */
+  sichtbareSpalten: readonly string[];
   /** `true` = beendete Anträge stehen nicht in der Liste. */
   beendetAusgeblendet: boolean;
 }
@@ -94,7 +104,28 @@ export function baueDarstellungsAchsen(e: DarstellungEingabe): DarstellungAchse<
     options: tabelle ? TABLE_GROUPING_OPTIONS : GROUPING_OPTIONS,
     value: tabelle ? e.tableGruppierung : e.listGruppierung,
     standard: tabelle ? DEFAULT_TABLE_GROUPING : DEFAULT_GROUPING_BY_VIEW[e.activeView],
+    // Sechs Werte („Keine · Status · Frist · NW · FB · AB") passen neben der
+    // Beschriftung nicht mehr in die 378-px-Zeile — bei fünf waren es gemessen
+    // 312 px. Gestapelt statt dem Umbruch überlassen (siehe `stapel`).
+    ...(tabelle ? { stapel: true } : {}),
   });
+  // Spaltenprofil: eine ANZEIGE-Achse, deshalb hier und nicht in der
+  // Filterzeile. Sie steht im selben Menü wie Ansicht und Gruppierung, damit
+  // ein abweichendes Profil über `darstellungsZusammenfassung` am Knopf
+  // auftaucht — ein stiller Spaltensatz wäre genau die Art Zustand, die man
+  // sucht, wenn eine gewohnte Spalte plötzlich fehlt.
+  if (tabelle) {
+    const profil = erkenneProfil(e.sichtbareSpalten);
+    achsen.push({
+      id: 'spalten',
+      art: 'segment',
+      label: 'Spalten',
+      options: spaltenProfilOptionen(profil),
+      value: profil ?? EIGENE_AUSWAHL,
+      standard: DEFAULT_SPALTEN_PROFIL,
+      stapel: true,
+    });
+  }
   if (hatBeendetAchse(e.activeView) && e.viewMode !== 'cards') {
     achsen.push({
       id: 'beendet',

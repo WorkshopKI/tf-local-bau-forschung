@@ -93,6 +93,27 @@ export function criticalFristErgebnis(
 }
 
 /**
+ * Der Frist-Zustand EINER Tabellenzeile — Verbund-Aggregat oder Einzel-TV.
+ *
+ * Die eine Weiche zwischen beiden Fällen. Sie stand bis v4.62 modul-privat in
+ * `tableColumns.tsx` und diente nur der Frist-Zelle; seit die Tabelle auch nach
+ * Dringlichkeit gruppieren kann, brauchen Zelle UND Abschnitt denselben Wert.
+ * Zwei Fassungen liefen genau dann auseinander, wenn es darauf ankommt: die
+ * Zelle sagte „in 3 T", der Abschnitt „ohne laufende Frist".
+ *
+ * Sie wohnt hier und nicht in `fristAnzeige.ts`, weil sie die Verbund-Form
+ * (`_verbund.tvs`) kennt — und hier, statt in `tableGrouping.ts`, damit die
+ * Gruppierung nicht auf `tableColumns.tsx` zeigen muss (das holt seinerseits
+ * `AntragTableRow` von dort — ein Laufzeit-Zyklus, und die Allowlist ist leer).
+ */
+export function fristErgebnisFuerZeile(
+  r: AntragListItem & { _verbund?: { tvs: AntragListItem[] } },
+  nowMs: number = Date.now(),
+): FristErgebnis {
+  return r._verbund ? criticalFristErgebnis(r._verbund.tvs, nowMs) : fristErgebnisVon(r, nowMs);
+}
+
+/**
  * Set der vorkommenden Status-Kategorien in der Gruppe. Wird genutzt, um zu
  * entscheiden ob die Verbund-Tile einen Status-Dot-Row oder ein einzelnes
  * Status-Label rendert.

@@ -2,8 +2,10 @@ import { describe, it, expect } from 'vitest';
 import {
   buildVerbundTableRows,
   buildStatusSectionRows,
+  buildFristSectionRows,
   buildNetzwerkSectionRows,
   buildKuerzelSectionRows,
+  OHNE_LAUFENDE_FRIST,
 } from '../tableGrouping';
 import { statusPhaseForAntrag, STATUS_SECTION_ORDER } from '../antragGroups';
 import { asAntragStatusRaw } from '@/core/services/csv/types';
@@ -231,5 +233,104 @@ describe('buildKuerzelSectionRows (Gruppiert: FB / AB)', () => {
     expect(rows).toHaveLength(2);
     expect(rows.map(r => sectionOf(r))).toEqual(['BIB', 'ZTP']);
     expect(rows[0]!._verbund!.tvCount).toBe(2);
+  });
+});
+
+/**
+ * Gruppierung nach Dringlichkeit (v4.62) — die vierte Sektionierungs-Achse und
+ * die einzige, die eine GERECHNETE Größe bändert.
+ *
+ * Die Grenzfälle stehen hier, weil die Abschnitte und der Ampelpunkt in der
+ * Zelle dieselbe Tabelle lesen müssen (`FRIST_AMPEL_STUFEN`). Liefen sie
+ * auseinander, stünde eine orange gepunktete Zeile unter „noch ≤ 30 T".
+ */
+describe('buildFristSectionRows (Gruppierung: Frist)', () => {
+  /** Antragsdatum auf UTC-Mitternacht → exakte Tages-Arithmetik. Frist der
+   *  Antragsphase = Antragsdatum + 90 Tage. */
+  const EINGANG = '2026-01-01T00:00:00.000Z';
+  const EINGANG_MS = new Date(EINGANG).getTime();
+  const TAG_MS = 86_400_000;
+  /** `now`, bei dem die 90-Tage-Frist noch `rest` Tage entfernt ist. */
+  const nowFor = (rest: number): number => EINGANG_MS + (90 - rest) * TAG_MS;
+  /** Offener Antrag mit laufender Uhr. */
+  const offen = (az: string): AntragListItem =>
+    mk(az, { status: st('beantragt'), antragsdatum: EINGANG });
+
+  it('bändert nach Ampelstufe, dringendste zuerst, „ohne Uhr" ans Ende', () => {
+    const now = nowFor(0);
+    const input = [
+      // Reihenfolge der Eingabe bewusst gemischt.
+      mk('GRUEN', { status: st('beantragt'), antragsdatum: '2026-06-01T00:00:00.000Z' }),
+      mk('HALT', { status: st('Schlussvermerk'), antragsdatum: EINGANG }),
+      mk('ROT', { status: st('beantragt'), antragsdatum: '2025-01-01T00:00:00.000Z' }),
+      // +90 Tage → Frist 2026-04-21, also 20 Tage Rest bei now = 2026-04-01.
+      mk('GELB', { status: st('beantragt'), antragsdatum: '2026-01-21T00:00:00.000Z' }),
+      offen('ORANGE'),
+    ];
+    const { rows, sectionOf, labelOf } = buildFristSectionRows(input, now);
+    expect(rows.map(r => r.aktenzeichen)).toEqual(['ROT', 'ORANGE', 'GELB', 'GRUEN', 'HALT']);
+    expect(rows.map(r => sectionOf(r)))
+      .toEqual(['rot', 'orange', 'gelb', 'gruen', OHNE_LAUFENDE_FRIST]);
+    expect(labelOf('rot')).toBe('überfällig');
+    expect(labelOf('orange')).toBe('noch ≤ 14 T');
+    expect(labelOf('gelb')).toBe('noch ≤ 30 T');
+    expect(labelOf('gruen')).toBe('mehr als 30 T');
+    expect(labelOf(OHNE_LAUFENDE_FRIST)).toBe('Ohne laufende Frist');
+  });
+
+  it('trifft die Grenzen der Ampel-Tabelle exakt', () => {
+    // −1 / 0 / 14 / 15 / 30 / 31 — die Kanten, an denen ein „<" statt „<=" die
+    // Zeile in den Nachbar-Abschnitt schöbe.
+    const faelle: [number, string][] = [
+      [-1, 'rot'], [0, 'orange'], [14, 'orange'],
+      [15, 'gelb'], [30, 'gelb'], [31, 'gruen'],
+    ];
+    for (const [rest, erwartet] of faelle) {
+      const { sectionOf, rows } = buildFristSectionRows([offen('X')], nowFor(rest));
+      expect(sectionOf(rows[0]!), `Rest ${rest} T`).toBe(erwartet);
+    }
+  });
+
+  it('legt angehaltene und unberechenbare Zeilen in EINEN Abschluss-Abschnitt', () => {
+    // Beide haben keine Restzeit; eine erfundene sortierte sie unter die
+    // dringenden (dieselbe Regel wie in `fristTageVon`).
+    const input = [
+      mk('TERMINAL', { status: st('Schlussvermerk'), antragsdatum: EINGANG }),
+      mk('OHNE_DATUM', { status: st('beantragt') }),
+    ];
+    const { rows, sectionOf } = buildFristSectionRows(input, nowFor(0));
+    expect(rows.map(r => sectionOf(r))).toEqual([OHNE_LAUFENDE_FRIST, OHNE_LAUFENDE_FRIST]);
+  });
+
+  it('lässt leere Abschnitte weg und verliert keine Zeile', () => {
+    const input = [offen('A'), offen('B')];
+    const { rows, sectionOf } = buildFristSectionRows(input, nowFor(5));
+    expect(rows).toHaveLength(2);
+    expect(new Set(rows.map(r => sectionOf(r)))).toEqual(new Set(['orange']));
+  });
+
+  it('bändert eine Verbund-Zeile nach der DRINGENDSTEN Frist ihrer Teilvorhaben', () => {
+    // Die Zeile zeigt in der Frist-Spalte dieselbe Zahl (`criticalFristErgebnis`);
+    // stünde sie unter einem anderen Band, widerspräche das Band der Zelle.
+    const verbund = buildVerbundTableRows(
+      [
+        mk('A', { verbund_id: 'V1', status: st('beantragt'), antragsdatum: '2026-06-01T00:00:00.000Z' }),
+        mk('B', { verbund_id: 'V1', status: st('beantragt'), antragsdatum: '2025-01-01T00:00:00.000Z' }),
+      ],
+      new Map(),
+    );
+    const { rows, sectionOf } = buildFristSectionRows(verbund, nowFor(0));
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!._verbund!.tvCount).toBe(2);
+    // B ist längst überfällig — der Verbund gilt als überfällig, nicht als grün.
+    expect(sectionOf(rows[0]!)).toBe('rot');
+  });
+
+  it('gibt für eine fremde Zeile denselben Abschnitt wie der Builder', () => {
+    // `sectionOf` bedient sich aus einem Cache; die Tabelle darf ihm trotzdem
+    // eine Zeile reichen, die nicht durch den Builder lief.
+    const now = nowFor(5);
+    const { sectionOf } = buildFristSectionRows([offen('A')], now);
+    expect(sectionOf(offen('FREMD'))).toBe('orange');
   });
 });

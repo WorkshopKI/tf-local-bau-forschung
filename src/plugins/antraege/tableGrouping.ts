@@ -33,7 +33,10 @@ import {
   type StatusSectionId,
 } from './antragGroups';
 import { extractNetzwerkId } from './netzwerk';
-import { dominantStatus, sumFoerdersumme, verbundFkz } from './groupAggregates';
+import {
+  dominantStatus, fristErgebnisFuerZeile, sumFoerdersumme, verbundFkz,
+} from './groupAggregates';
+import { FRIST_AMPEL_STUFEN, fristAnzeigeVon } from './fristAnzeige';
 
 // --------------------------------------------------------------------------
 // Achse 1: Ansicht (Zeilen-Körnung)
@@ -66,7 +69,7 @@ export function istTabellenAnsicht(v: unknown): v is TabellenAnsicht {
 // Achse 2: Gruppierung (Abschnitts-Bänder)
 // --------------------------------------------------------------------------
 
-export type TableGroupingMode = 'none' | 'status' | 'netzwerk' | 'fb' | 'ab';
+export type TableGroupingMode = 'none' | 'status' | 'frist' | 'netzwerk' | 'fb' | 'ab';
 
 /** Source-of-Truth für die „Gruppierung"-Pille im Compact-Modus (Reihenfolge =
  *  UI-Reihenfolge). Wird auch von der Persistenz als Whitelist gelesen (store.ts)
@@ -74,6 +77,7 @@ export type TableGroupingMode = 'none' | 'status' | 'netzwerk' | 'fb' | 'ab';
 export const TABLE_GROUPING_OPTIONS: readonly { key: TableGroupingMode; label: string }[] = [
   { key: 'none', label: 'Keine' },
   { key: 'status', label: 'Status' },
+  { key: 'frist', label: 'Frist' },
   { key: 'netzwerk', label: 'NW' },
   { key: 'fb', label: 'FB' },
   { key: 'ab', label: 'AB' },
@@ -195,6 +199,72 @@ export function buildStatusSectionRows(filtered: AntragTableRow[]): SektionsZeil
     rows,
     sectionOf: statusPhaseForAntrag,
     labelOf: key => statusSectionLabel(key as StatusSectionId),
+  };
+}
+
+/** Abschnitts-Schlüssel für Zeilen, an denen gerade keine Uhr läuft
+ *  (angehalten oder ohne berechenbare Grundlage). */
+export const OHNE_LAUFENDE_FRIST = '__ohne_frist__';
+
+/**
+ * Abschnitts-Schlüssel einer Zeile in der Dringlichkeits-Gruppierung.
+ *
+ * **Die Schwellen werden hier nicht erfunden**: der Schlüssel IST die Ampelstufe
+ * aus `FRIST_AMPEL_STUFEN` (`rot`/`orange`/`gelb`/`gruen`), und die Beschriftung
+ * ist deren `text`. Ein zweiter Satz Grenzen daneben — der Handoff schlug 7/30
+ * vor — hieße: die Zelle zeigt einen orangen Punkt, das Band darüber sagt etwas
+ * anderes. Wer die Stufen ändert, ändert Punkt, Rinne und Abschnitt zugleich.
+ *
+ * Angehalten und nicht berechenbar landen zusammen in einem Abschluss-Abschnitt.
+ * Sie haben keine Restzeit, und eine erfundene sortierte sie unter die dringenden
+ * (dieselbe Regel wie in `fristTageVon`).
+ */
+export function fristAbschnittVon(row: AntragTableRow, nowMs: number = Date.now()): string {
+  const e = fristErgebnisFuerZeile(row, nowMs);
+  const anzeige = fristAnzeigeVon(e, nowMs);
+  return anzeige.ampel ?? OHNE_LAUFENDE_FRIST;
+}
+
+/** Abschnitts-Reihenfolge: dringendste zuerst, „keine Uhr" ans Ende. Aus der
+ *  Ampel-Tabelle abgeleitet, nicht daneben aufgezählt. */
+const FRIST_ABSCHNITTE: readonly string[] = [
+  ...FRIST_AMPEL_STUFEN.map(s => s.ampel),
+  OHNE_LAUFENDE_FRIST,
+];
+
+/**
+ * Dringlichkeits-Modus: Bänder nach Ampelstufe der Frist, dringendste zuerst.
+ *
+ * Die vierte Gruppierungsachse (neben Status/NW/FB/AB) und die einzige, die eine
+ * GERECHNETE Größe bändert. Leere Abschnitte fallen weg, wie überall.
+ */
+export function buildFristSectionRows(
+  filtered: AntragTableRow[],
+  nowMs: number = Date.now(),
+): SektionsZeilen {
+  // Einmal je Zeile rechnen, nicht je Zugriff: `sectionOf` wird von der Tabelle
+  // beim Rendern, beim Zählen und beim section-stabilen Sortieren gerufen —
+  // dreimal `criticalFristErgebnis` über alle TVs eines Verbundes wäre teuer,
+  // und ein Stichtags-Wechsel mittendrin (Mitternacht) risse die Abschnitte.
+  const schluessel = new Map<string, string>();
+  const buckets = new Map<string, AntragTableRow[]>();
+  for (const abschnitt of FRIST_ABSCHNITTE) buckets.set(abschnitt, []);
+  for (const row of filtered) {
+    const key = fristAbschnittVon(row, nowMs);
+    schluessel.set(row.aktenzeichen, key);
+    buckets.get(key)!.push(row);
+  }
+  const rows: AntragTableRow[] = [];
+  for (const abschnitt of FRIST_ABSCHNITTE) rows.push(...buckets.get(abschnitt)!);
+  return {
+    rows,
+    // Rückfall auf die Live-Rechnung, falls die Tabelle eine Zeile reicht, die
+    // nicht durch diesen Builder lief (Zeilenschlüssel ist das Aktenzeichen).
+    sectionOf: row => schluessel.get(row.aktenzeichen) ?? fristAbschnittVon(row, nowMs),
+    labelOf: key => {
+      if (key === OHNE_LAUFENDE_FRIST) return 'Ohne laufende Frist';
+      return FRIST_AMPEL_STUFEN.find(s => s.ampel === key)?.text ?? key;
+    },
   };
 }
 

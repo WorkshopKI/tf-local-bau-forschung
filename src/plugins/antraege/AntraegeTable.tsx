@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import type { AntragListItem } from '@/core/services/csv/types';
 import { SortableTable, useTableSort, useColumnFilters, compareValues, useColumnWidths, useTotalTableWidth, DEFAULT_MIN_COLUMN_WIDTH } from '@/components/data-table';
 import { resolveAntragTableColumns } from './tableColumns';
@@ -11,6 +11,7 @@ import { zaehleJeAbschnitt } from './antragGroups';
 import {
   buildVerbundTableRows,
   buildStatusSectionRows,
+  buildFristSectionRows,
   buildNetzwerkSectionRows,
   buildKuerzelSectionRows,
   type AntragTableRow,
@@ -25,6 +26,9 @@ import {
   istBeendetVersteckt,
   hatBeendetAchse,
 } from './arbeitsvorrat';
+import { fristAnzeigeVon } from './fristAnzeige';
+import { fristErgebnisFuerZeile } from './groupAggregates';
+import { AMPEL_COLOR } from './eingangAmpel';
 import { ArbeitsvorratSectionHeader } from './ArbeitsvorratSectionHeader';
 import { useBeendetSichtbarkeit } from './useBeendetSichtbarkeit';
 import { useZeilenAusklapp } from './ausklapp/useZeilenAusklapp';
@@ -242,12 +246,14 @@ export function AntraegeTable({
     // Versteckte Zeilen bleiben aus der Tabelle draußen (kein Pagination-
     // Verbrauch); ihr Kopf wird als Streifen unter der Tabelle gerendert.
     const sichtbar = beendetVersteckt ? inArbeit : baseRows;
-    if (grouping === 'status' || grouping === 'netzwerk' || grouping === 'fb' || grouping === 'ab') {
+    if (grouping !== 'none') {
       const built = grouping === 'status'
         ? buildStatusSectionRows(sichtbar)
-        : grouping === 'netzwerk'
-          ? buildNetzwerkSectionRows(sichtbar, netzwerkNameById)
-          : buildKuerzelSectionRows(sichtbar, grouping === 'fb' ? 'tib_kuerz' : 'bib_kuerz');
+        : grouping === 'frist'
+          ? buildFristSectionRows(sichtbar)
+          : grouping === 'netzwerk'
+            ? buildNetzwerkSectionRows(sichtbar, netzwerkNameById)
+            : buildKuerzelSectionRows(sichtbar, grouping === 'fb' ? 'tib_kuerz' : 'bib_kuerz');
       return { allRows: built.rows, sectionOf: built.sectionOf, labelOf: built.labelOf };
     }
     // Ohne Gruppierung und mit sichtbarem Beendet-Teil: die zwei Bänder. Sie
@@ -324,6 +330,19 @@ export function AntraegeTable({
   const rows = useMemo(() => orderedRows.slice(0, visibleRows), [orderedRows, visibleRows]);
   const hasMore = visibleRows < orderedRows.length;
 
+  // Dringlichkeits-Rinne am Zeilenanfang. Sie liest denselben Frist-Zustand wie
+  // die Frist-Zelle und die Dringlichkeits-Bänder (`fristErgebnisFuerZeile`) —
+  // eine zweite Ableitung wäre genau dann falsch, wenn es zählt.
+  //
+  // NUR rot/orange/gelb. Grün und „keine laufende Uhr" bekommen keine Kante:
+  // eine Rinne an jeder Zeile wäre Dekoration, so heißt sie „hier ist etwas zu
+  // tun". Dieselbe Zurückhaltung wie in der Zelle, die bei stehender Uhr auch
+  // keinen Ampelpunkt zeichnet.
+  const rowAccent = useCallback((r: AntragTableRow): string | null => {
+    const ampel = fristAnzeigeVon(fristErgebnisFuerZeile(r)).ampel;
+    return ampel === null || ampel === 'gruen' ? null : AMPEL_COLOR[ampel];
+  }, []);
+
   // Aufklappbarer Bereich. Die Signatur bündelt alles, dessen Wechsel die Zeile
   // verschiebt oder verschwinden lässt — der Bereich hängt am Zeilenschlüssel,
   // nicht an einer Bildschirmposition. `bereichSignatur` ist bewusst grob: ein
@@ -369,7 +388,10 @@ export function AntraegeTable({
               <StatusBand
                 label={labelOf(key)}
                 count={count}
-                grossbuchstaben={grouping === 'status'}
+                // Status und Frist sind feste Rubriken und stehen wie eh in
+                // Versalien. Netzwerk, FB und AB tragen ECHTE Bezeichner —
+                // dort verfälschen Versalien (siehe Kopf von `StatusBand`).
+                grossbuchstaben={grouping === 'status' || grouping === 'frist'}
               />
             );
           }
@@ -414,6 +436,7 @@ export function AntraegeTable({
         isRowSelected={r =>
           r._verbund ? r._verbund.verbundId === selectedVerbundId : r.aktenzeichen === selectedAktenzeichen
         }
+        rowAccent={rowAccent}
         emptyContent="Keine Anträge."
         // Standard ist EINPASSEN: die Spalten teilen sich die verfügbare Breite
         // und skalieren mit, wenn sie sich ändert. Ein Klick auf den Griff am

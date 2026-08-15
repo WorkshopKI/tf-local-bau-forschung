@@ -17,9 +17,15 @@ import {
 import { getEffectiveTableGroupingMode, getEffectiveTableAnsicht } from '../store';
 
 describe('Gruppierungs-Optionen der Tabelle', () => {
-  it('bietet Keine/Status/NW/FB/AB — und „Verbund" NICHT mehr', () => {
-    expect(TABLE_GROUPING_OPTIONS.map(o => o.key)).toEqual(['none', 'status', 'netzwerk', 'fb', 'ab']);
-    expect(TABLE_GROUPING_OPTIONS.map(o => o.label)).toEqual(['Keine', 'Status', 'NW', 'FB', 'AB']);
+  it('bietet Keine/Status/Frist/NW/FB/AB — und „Verbund" NICHT mehr', () => {
+    // „Frist" ist seit v4.62 die vierte Sektionierungs-Achse und steht direkt
+    // hinter „Status": beide bändern eine Eigenschaft der Zeile selbst, NW/FB/AB
+    // dagegen eine Zugehörigkeit. Sie ist die einzige, die eine GERECHNETE
+    // Größe bändert — die Schwellen kommen aus FRIST_AMPEL_STUFEN.
+    expect(TABLE_GROUPING_OPTIONS.map(o => o.key))
+      .toEqual(['none', 'status', 'frist', 'netzwerk', 'fb', 'ab']);
+    expect(TABLE_GROUPING_OPTIONS.map(o => o.label))
+      .toEqual(['Keine', 'Status', 'Frist', 'NW', 'FB', 'AB']);
   });
 
   it('„NW-Größe" bleibt der Karten-/Listen-Ansicht vorbehalten', () => {

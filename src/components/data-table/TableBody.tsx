@@ -21,6 +21,13 @@ export interface TableBodyProps<T> {
   renderSectionHeader?: (sectionKey: string, count: number) => ReactNode;
   /** Erste Spalte beim waagerechten Scrollen stehen lassen. */
   stickyFirstColumn?: boolean;
+  /** Optional: Farbe einer schmalen Kante am Zeilenanfang („Rinne") — CSS-Farbe
+   *  oder `null` für keine. Sie sitzt als Innenkante IN der ersten Zelle, belegt
+   *  also keine eigene Spur und fährt mit, wenn diese Zelle klebt.
+   *
+   *  Ohne diesen Callback ändert sich nichts; die Rinne ist eine Zutat für
+   *  Tabellen, in denen eine Zeile eine Dringlichkeit trägt (Förderanträge). */
+  rowAccent?: (row: T) => string | null;
   /** Trägt diese Zeile einen aufgeklappten Bereich? Nur zusammen mit
    *  `renderRowDetail` wirksam. */
   isRowExpanded?: (row: T) => boolean;
@@ -72,6 +79,7 @@ export function TableBody<T>({
   sectionKeyOf,
   renderSectionHeader,
   stickyFirstColumn = false,
+  rowAccent,
   isRowExpanded,
   renderRowDetail,
   portBreite,
@@ -146,6 +154,17 @@ export function TableBody<T>({
                 // Default: Umbruch. Explizit `wrap: false` → kompakt mit ellipsis.
                 const noWrap = c.wrap === false;
                 const sticky = stickyFirstColumn && ci === 0;
+                // Die Rinne ist eine INNENkante der ersten Zelle, kein eigenes
+                // Element: als `<td>` bräuchte sie eine Spur, als absolut
+                // gesetzter Balken einen positionierten Vorfahren — beides in
+                // einer `table-layout: fixed`-Tabelle mehr Umbau als Nutzen.
+                // Als Schatten liegt sie vor den Kanten-Schatten und fährt mit,
+                // wenn die Zelle klebt.
+                const rinne = ci === 0 ? rowAccent?.(row) ?? null : null;
+                const schatten = [
+                  rinne ? `inset 3px 0 0 ${rinne}` : null,
+                  sticky ? STICKY_ZELL_KANTEN : null,
+                ].filter(Boolean).join(', ');
                 return (
                   <td
                     key={c.key}
@@ -160,9 +179,8 @@ export function TableBody<T>({
                       overflow: 'hidden',
                       textOverflow: noWrap ? 'ellipsis' : undefined,
                       borderBottom: !isLast && !sticky ? '0.5px solid var(--tf-border)' : undefined,
-                      ...(sticky
-                        ? { position: 'sticky', left: 0, zIndex: 10, boxShadow: STICKY_ZELL_KANTEN }
-                        : null),
+                      ...(sticky ? { position: 'sticky', left: 0, zIndex: 10 } : null),
+                      ...(schatten ? { boxShadow: schatten } : null),
                     }}
                   >
                     {c.render(row)}

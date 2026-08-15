@@ -6,7 +6,9 @@ import {
   G_ORDNER,
   G_ORDNER_TV,
   G_ORDNER_VB,
+  G_STATUS,
   kategorieStatusColumns,
+  maSpalteErzwungen,
   resolveAntragTableColumns,
   spaltenHinweis,
 } from '../tableColumns';
@@ -40,9 +42,13 @@ describe('Zustaendigkeits-Spalten (TIB/BIB/ZTP/PFM)', () => {
     expect(DEFAULT_VISIBLE_COLUMN_KEYS).not.toContain('tib_kuerz');
   });
 
-  it('steht in der Registry direkt hinter dem FKZ, in Verfahrens-Reihenfolge', () => {
+  it('steht in der Registry hinter FKZ und Frist, in Verfahrens-Reihenfolge', () => {
+    // Seit v4.62 schiebt sich die Frist zwischen FKZ und Zustaendigkeit: die
+    // Fristenkontrolle ist die haeufigste Frage an diese Tabelle und stand
+    // vorher als LETZTE Spalte am rechten Rand. Die Kuerzel bleiben davor
+    // beisammen und ruecken nicht hinter die Antragsdaten.
     const keys = ANTRAG_TABLE_COLUMNS.map(c => c.key);
-    expect(keys.slice(0, 5)).toEqual(['aktenzeichen', ...KUERZEL_KEYS]);
+    expect(keys.slice(0, 6)).toEqual(['aktenzeichen', 'frist', ...KUERZEL_KEYS]);
   });
 
   it('sortiert und filtert ueber den Roh-Kuerzelwert', () => {
@@ -82,14 +88,27 @@ describe('Rubriken des Spalten-Pickers', () => {
     expect(ohne.map(c => c.key)).toEqual([]);
   });
 
-  it('haelt die Rubrik-Reihenfolge Antrag → Zustaendigkeit → Antragsdaten → Status → Termine', () => {
+  it('haelt die Rubrik-Reihenfolge Antrag → Frist → Zustaendigkeit → Antragsdaten → Status → Termine', () => {
     // Seit v3.5 ist die Registry nach Rubrik geordnet (RUBRIK_ORDNUNG), damit
     // die Rubrik-Kopfzeile der Tabelle zusammenhaengende Baender zeigt. „Antrag"
     // traegt nur noch das FKZ; die Sachdaten stehen als „Antragsdaten" HINTER
     // der Zustaendigkeit, sonst ruecken TIB/BIB hinter neun Spalten.
+    //
+    // „Frist" ist seit v4.62 eine EIGENE Rubrik zwischen beiden. Sie musste nach
+    // vorn, blieb aber inhaltlich ein Termin — als einzelnes „Termine"-Feld an
+    // Position zwei haette sie das Band in zwei Strecken zerrissen, also genau
+    // das erzeugt, wogegen RUBRIK_ORDNUNG angelegt wurde.
     const rubriken = gruppiereSpalten(ANTRAG_TABLE_COLUMNS);
     expect(rubriken.map(r => r.name))
-      .toEqual(['Antrag', 'Zuständigkeit', 'Antragsdaten', 'Status', 'Termine']);
+      .toEqual(['Antrag', 'Frist', 'Zuständigkeit', 'Antragsdaten', 'Status', 'Termine']);
+  });
+
+  it('haelt jede Rubrik als EINE zusammenhaengende Strecke', () => {
+    // Der eigentliche Zweck von RUBRIK_ORDNUNG, hier direkt geprueft statt ueber
+    // die Namensliste: kommt eine Rubrik zweimal vor, zerfaellt die Kopfzeile.
+    const folge = ANTRAG_TABLE_COLUMNS.map(c => c.gruppe ?? '');
+    const strecken = folge.filter((g, i) => i === 0 || folge[i - 1] !== g);
+    expect(strecken).toEqual([...new Set(strecken)]);
   });
 
   it('laesst das FKZ als einzige Spalte der Rubrik „Antrag" ganz vorne', () => {
@@ -100,10 +119,12 @@ describe('Rubriken des Spalten-Pickers', () => {
     expect(ANTRAG_TABLE_COLUMNS[0]!.key).toBe('aktenzeichen');
   });
 
-  it('legt die vier Kuerzel-Spalten in EINE Rubrik', () => {
+  it('legt die vier Kuerzel-Spalten und die verdichtete in EINE Rubrik', () => {
     const rubriken = gruppiereSpalten(ANTRAG_TABLE_COLUMNS);
     const zust = rubriken.find(r => r.name === 'Zuständigkeit')!;
-    expect(zust.columns.map(c => c.key)).toEqual([...KUERZEL_KEYS]);
+    // `zustaendig` fasst FB+AB der Antragsphase zusammen und steht hinter den
+    // Einzelspalten — sie ist eine Alternative zu ihnen, kein Ersatz.
+    expect(zust.columns.map(c => c.key)).toEqual([...KUERZEL_KEYS, 'zustaendig']);
   });
 
   it('haengt die kuratierten Ordner-Spalten hinten an, nach Ebene getrennt', () => {
@@ -175,5 +196,74 @@ describe('Nachreichen neuer Standardspalten', () => {
     const alle = new Set(ANTRAG_TABLE_COLUMNS.map(c => c.key));
     const { keys } = reicheNeueStandardspaltenNach([], 0);
     for (const k of keys) expect(alle.has(k)).toBe(true);
+  });
+});
+
+/**
+ * Die zwei verdichteten Spalten (v4.62): sie fassen zusammen, was in der
+ * Registry als Einzelspalten bleibt — und dürfen dabei nichts behaupten, was
+ * die Daten nicht hergeben.
+ */
+describe('Verdichtete Spalten', () => {
+  const zustaendig = () => ANTRAG_TABLE_COLUMNS.find(c => c.key === 'zustaendig')!;
+  const fbPc = () => ANTRAG_TABLE_COLUMNS.find(c => c.key === 'fb_precheck')!;
+
+  it('ist keine von beiden ab Werk eingeblendet — der Umbau ist additiv', () => {
+    expect(DEFAULT_VISIBLE_COLUMN_KEYS).not.toContain('zustaendig');
+    expect(DEFAULT_VISIBLE_COLUMN_KEYS).not.toContain('fb_precheck');
+  });
+
+  it('exportiert „Zustaendig" beide Kuerzel mit ihrer Rolle', () => {
+    expect(zustaendig().exportValue!(row({ tib_kuerz: 'THü', bib_kuerz: 'StE' })))
+      .toBe('FB THü · AB StE');
+    // Nur eines belegt → keine leere Haelfte und kein einsames Trennzeichen.
+    expect(zustaendig().exportValue!(row({ bib_kuerz: 'StE' }))).toBe('AB StE');
+    expect(zustaendig().exportValue!(row())).toBe('');
+  });
+
+  it('nimmt „Zustaendig" NUR die Antragsphase, nicht die Begleitphase', () => {
+    // Eine Ausweichkette FB = tib || ztp ruehrte zwei Quellen zu einer Aussage
+    // zusammen — man wuesste nicht mehr, welche Phase man liest.
+    expect(zustaendig().exportValue!(row({ ztp_kuerz: 'FW', pfm_kuerz: 'AAt' }))).toBe('');
+  });
+
+  it('exportiert „FB / PreCheck" den VOLLEN Wortlaut beider Felder', () => {
+    const r = row({ fb_status_label: 'Ablehnungsreif', precheck_status_label: 'PreCheck negativ - Verbund' });
+    expect(fbPc().exportValue!(r)).toBe('FB: Ablehnungsreif · PC: PreCheck negativ - Verbund');
+    expect(fbPc().exportValue!(row())).toBe('');
+  });
+
+  it('erbt „FB / PreCheck" die Status-Rubrik — und damit die Ausklapp-Klickzone', () => {
+    expect(fbPc().gruppe).toBe(G_STATUS);
+  });
+
+  it('sortiert „FB / PreCheck" nach der PreCheck-Klasse, nicht nach dem Rohlabel', () => {
+    // Die Klasse ist die kuratierte Aussage (positiv/negativ/offen); das Label
+    // ist Label-XLS-getrieben und sortierte alphabetisch sinnlos.
+    const negativ = fbPc().accessor(row({ precheck_status_label: 'PreCheck negativ' }));
+    const positiv = fbPc().accessor(row({ precheck_status_label: 'PreCheck positiv' }));
+    const leer = fbPc().accessor(row());
+    expect(String(negativ).startsWith('negativ')).toBe(true);
+    expect(String(positiv).startsWith('positiv')).toBe(true);
+    expect(String(leer).startsWith('offen')).toBe(true);
+  });
+});
+
+describe('maSpalteErzwungen — kein doppeltes TIB-Kuerzel', () => {
+  it('erzwingt die MA-Spalte im Uebersichtsmodus wie bisher', () => {
+    expect(maSpalteErzwungen(['aktenzeichen'], true)).toBe(true);
+    expect(maSpalteErzwungen(['aktenzeichen'], false)).toBe(false);
+  });
+
+  it('erzwingt sie NICHT, wenn die verdichtete Spalte das Kuerzel schon traegt', () => {
+    expect(maSpalteErzwungen(['aktenzeichen', 'zustaendig'], true)).toBe(false);
+  });
+
+  it('haelt die Aufloesung an dieselbe Regel', () => {
+    const mitZust = resolveAntragTableColumns(['aktenzeichen', 'zustaendig'], true)
+      .map(c => c.key);
+    expect(mitZust).not.toContain('tib_kuerz');
+    const ohneZust = resolveAntragTableColumns(['aktenzeichen'], true).map(c => c.key);
+    expect(ohneZust).toContain('tib_kuerz');
   });
 });

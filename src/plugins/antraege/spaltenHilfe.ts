@@ -42,6 +42,8 @@ const SAETZE: Record<string, string> = {
   bib_kuerz: 'Kürzel der zuständigen Person in der Rolle AB während der Antragsphase.',
   ztp_kuerz: 'Kürzel der zuständigen Person in der Rolle FB während der Begleitphase.',
   pfm_kuerz: 'Kürzel der zuständigen Person in der Rolle AB während der Begleitphase.',
+  zustaendig:
+    'Beide Kürzel der Antragsphase in einer Spalte: FB und AB. Die Begleitphase steht bewusst nicht darin — sie hat ihre eigenen beiden Spalten.',
   akronym: 'Kurzname des Vorhabens.',
   antragsteller: 'Einrichtung oder Unternehmen, das den Antrag gestellt hat.',
   status_naechster_schritt:
@@ -49,6 +51,8 @@ const SAETZE: Record<string, string> = {
   status: 'Der amtliche Status des Teilvorhabens aus dem Fachsystem, ohne den nächsten Schritt.',
   fb_status: 'Der zuletzt gesetzte Bearbeitungsstand aus der FB-Spur.',
   precheck_status: 'Der zuletzt gesetzte Stand der Vorprüfung (pre-check).',
+  fb_precheck:
+    'FB-Spur und Vorprüfung nebeneinander in einer Spalte — dieselben zwei Werte wie in den Einzelspalten. Der Punkt markiert nur die Vorprüfung: für sie gibt es die Einteilung positiv, negativ und offen, für die FB-Spur nicht.',
   frist:
     'Verbleibende Zeit der Bearbeitungsfrist. Kein importiertes Datum, sondern gerechnet — und nur dort, wo die Uhr in dieser Phase überhaupt läuft.',
   titel: 'Vollständiger Titel des Teilvorhabens.',
