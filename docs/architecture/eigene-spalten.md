@@ -8,7 +8,9 @@ Drei Arten, eine Mechanik:
 |---|---|---|
 | `feld` | ein rohes Feld unverändert | v4.55 |
 | `sammel` | jüngstes/ältestes Datum aus einer Feldmenge (wie „FB Status", nur mit eigener Auswahl) | v4.55 |
-| `regel` | Text der ersten zutreffenden Regel einer geordneten Kaskade | Stufe C, offen |
+| `regel` | Text der ersten zutreffenden Regel einer geordneten Kaskade | v4.56 |
+
+**Offen:** die Team-Ebene (Sidecar, Kurator-Gate) und die Übernahme einer persönlichen Spalte ins Team. Das Substrat trägt beide bereits — `frei:team:`-Ids und die gemeinsame Auflösung stehen; es fehlen Sidecar-Schreibpfad und Übernahme-UI.
 
 ---
 
@@ -25,7 +27,7 @@ Die Tür daneben sind die Ordner-Spalten (`katstatus:*`): Config → Projektions
 Drei Gründe, und alle drei zählen:
 
 1. **Datumsregeln bleiben frisch.** `tageSeit`/`datumVor heute` zur Projektionszeit eingefroren wäre still falsch, bis jemand neu importiert. Beim Rendern ist „heute" heute.
-2. **Regeln bearbeiten kostet keinen Rebuild.** Beschriftung, Text, Farbe, Reihenfolge ändern die Anzeige, nicht die gelesenen Felder. Nur ein **neu referenziertes Feld** ändert die Signatur. Gemessen: 6,0 s Neuaufbau bei 14.225 Anträgen — das will man nicht für eine Textkorrektur.
+2. **Regeln bearbeiten kostet keinen Rebuild.** Beschriftung, Text, Farbe, Reihenfolge ändern die Anzeige, nicht die gelesenen Felder. Nur ein **neu referenziertes Feld** ändert die Signatur. Am echten Bestand (14.225 Anträge) gemessen: **6,0 s** mit neuem Feld gegen **0,5 s** für eine reine Textänderung — Faktor 12, und genau das ist der Fall, der im Alltag häufig vorkommt.
 3. **Verbund-Zeilen können über alle Teilvorhaben werten.** `baueKontext(roh, tvRoh)` bekommt beim Rendern die schon vorhandenen `_verbund.tvs`; zur Projektionszeit läge nur der eine Record vor.
 
 Kosten: ein kleiner zusätzlicher Beutel je Zeile, begrenzt durch das, was Nutzer konfigurieren. Sortieren und Filtern rufen ohnehin je Zeile den `accessor` über den vollen Bestand.
@@ -70,3 +72,11 @@ Wer selbst neu baut, **stempelt danach den Stand** (`stempleProjektionsStand`) �
 - **Der Sichtbarkeits-Store filtert unbekannte Keys.** `istGueltigerKey` ([useAntraegeColumnsStore.ts](../../src/plugins/antraege/useAntraegeColumnsStore.ts)) muss das `frei:`-Präfix kennen — sonst ist eine angelegte, eingeblendete Spalte nach dem nächsten Neuladen weg. Genau so verhielt sich die erste Fassung.
 - **Die Vorschau kann nur zeigen, was schon projiziert ist.** Für ein noch nie gelesenes Feld sagt der Dialog das ausdrücklich, statt „überall leer" zu behaupten.
 - **Die Id wird nie nachgeführt.** Ändert der Autor die Beschriftung, bleibt der Slug — an der Id hängen gespeicherte Sichtbarkeit und Breite.
+- **Die Art einer bestehenden Spalte wird übernommen, nicht geraten.** Der Formular-Startwert `bestehend?.art` muss ALLE Arten kennen; ein Rückfall auf `'feld'` verwandelte eine Regel-Spalte beim Speichern stillschweigend in eine Feld-Spalte. Genau so verhielt sich die erste Fassung des Bearbeiten-Wegs.
+- **Anlegen ohne Bearbeiten und Entfernen ist keine Funktion.** Der Picker kann eine Spalte nur aus-, nicht wegblenden; der Stift an der Zeile ist der einzige Weg zu beidem.
+
+## Der Bedingungs-Editor wird geteilt, nicht kopiert
+
+Regel-Spalten benutzen [BedingungEditor](../../src/plugins/meilensteine/BedingungEditor.tsx) unverändert — dieselbe Komponente wie Meilensteine und Vorgangs-Regeln, ausdrücklich domänenfrei gebaut (sie kennt nur `Bedingung`). Der Querimport folgt dem bestehenden Weg von `status-cockpit/TodoRegelDetail`.
+
+**Warum sie (noch) nicht in `src/components/` liegt:** sie zieht `OPERATOR_LABEL`/`feldStil` aus `plugins/meilensteine/labels`, das seinerseits schon von einem Dutzend Stellen quer importiert wird. Nur die Komponente zu verschieben, ließe die geteilte Schicht von einem Plugin abhängen — schlechter als der Status quo. Der saubere Zug ist, `labels` mitzuheben; das ist ein eigener Schnitt und steht aus.

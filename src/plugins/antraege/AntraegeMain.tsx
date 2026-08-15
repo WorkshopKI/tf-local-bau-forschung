@@ -64,7 +64,8 @@ import { useEigeneSpalten } from './useEigeneSpalten';
 import { baueEigeneSpalten } from './eigeneSpalten';
 import { SpaltenDialog } from './eigene-spalten/SpaltenDialog';
 import { isEigeneSpaltenEnabled } from '@/config/feature-flags';
-import { Plus } from 'lucide-react';
+import type { EigeneSpalte } from '@/core/spalten';
+import { Plus, Pencil } from 'lucide-react';
 import { useAntraegeColumnsStore } from './useAntraegeColumnsStore';
 import type { ViewMode } from './viewModes';
 import { isAuslastungFreigeschaltet } from '@/core/modul-freischaltung';
@@ -169,6 +170,8 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
   // Selbst angelegte Spalten: Definitionen + Anlege-Dialog.
   const eigene = useEigeneSpalten();
   const [spaltenDialog, setSpaltenDialog] = useState(false);
+  // Welche eigene Spalte gerade bearbeitet wird (`null` = keine).
+  const [bearbeite, setBearbeite] = useState<EigeneSpalte | null>(null);
   // EIN Stichtag je Render statt `new Date()` je Zelle — sonst bewertete eine
   // lange Liste ihre erste und letzte Zeile an verschiedenen Tagen.
   const heute = useMemo(() => new Date().toISOString().slice(0, 10), []);
@@ -397,6 +400,22 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
                   onSetColumns={setVisibleColumns}
                   erzwungeneKeys={erzwungeneSpalten}
                   renderColumnExtra={c => {
+                    // Eigene Spalten: der Weg zum Bearbeiten UND Entfernen. Ohne
+                    // ihn wäre eine angelegte Spalte für immer da — ausblenden
+                    // ist nicht löschen.
+                    const eigeneDef = eigene.spalten.find(s => s.id === c.key);
+                    if (eigeneDef) {
+                      return (
+                        <button
+                          type="button"
+                          onClick={e => { e.preventDefault(); e.stopPropagation(); setBearbeite(eigeneDef); }}
+                          className="ml-auto shrink-0 pl-2 text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text)] cursor-pointer"
+                          title={`„${eigeneDef.label}" bearbeiten oder entfernen`}
+                        >
+                          <Pencil size={11} />
+                        </button>
+                      );
+                    }
                     const hinweis = spaltenHinweis(c.key);
                     return hinweis ? (
                       <span className="ml-auto pl-2 text-[10px] text-[var(--tf-text-tertiary)]">
@@ -534,15 +553,22 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
           einem Klick nach außen, und das wäre jeder Klick im Dialog. Die Vorschau
           bekommt die bereits geladenen Zeilen — sie zeigt, was in der Zelle
           stünde, bevor die Projektion neu gebaut wird. */}
-      {spaltenDialog && (
+      {(spaltenDialog || bearbeite) && (
         <SpaltenDialog
+          // Der Schlüssel erzwingt einen frischen Zustand je bearbeiteter
+          // Spalte — die Formularfelder lesen ihre Startwerte aus `bestehend`,
+          // und ohne Remount zeigte die zweite geöffnete Spalte die Eingaben
+          // der ersten.
+          key={bearbeite?.id ?? 'neu'}
           open
-          onClose={() => setSpaltenDialog(false)}
+          onClose={() => { setSpaltenDialog(false); setBearbeite(null); }}
+          bestehend={bearbeite ?? undefined}
           vorrat={feldVorrat}
           zeilen={filtered}
           heute={heute}
           brauchtNeuaufbau={eigene.brauchtNeuaufbau}
           onSpeichern={eigene.speichere}
+          onLoeschen={bearbeite ? eigene.entferne : undefined}
         />
       )}
     </div>

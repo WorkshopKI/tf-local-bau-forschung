@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.56.0 — Regel-Spalten, Bearbeiten und Entfernen (August 2026)
+
+MINOR — Die dritte Spaltenart: eine geordnete Regelkaskade, die je nach Zustand einen anderen Text zeigt. Dazu die beiden Wege, die bis hierher fehlten — eine angelegte Spalte ließ sich weder bearbeiten noch entfernen. Detail: [eigene-spalten.md](docs/architecture/eigene-spalten.md).
+
+- **Regel-Spalten**: „erste zutreffende Regel gewinnt", Bedingungen über den geteilten [BedingungEditor](src/plugins/meilensteine/BedingungEditor.tsx) — dieselbe Komponente wie Meilensteine und Vorgangs-Regeln, kein Fork
+- **Sortiert nach dem Rang der Regel**, nicht nach ihrem Text: die Reihenfolge ist die Aussage des Autors, alphabetisch stünde sie zufällig ([anzeige.ts](src/core/spalten/anzeige.ts))
+- **Bearbeiten und Entfernen** über den Stift an der Spalte im Menü — ausblenden ist nicht löschen ([AntraegeMain.tsx](src/plugins/antraege/AntraegeMain.tsx))
+- **Belegt, dass Textänderungen frei sind**: am echten Bestand 0,5 s gegen 6,0 s mit neuem Feld (14.225 Anträge) — genau die Zusage, für die die Rohwert-Projektion gebaut wurde
+- **Behoben**: das Bearbeiten-Formular übernahm die Art einer bestehenden Spalte nicht und hätte eine Regel-Spalte beim Speichern in eine Feld-Spalte verwandelt ([SpaltenDialog.tsx](src/plugins/antraege/eigene-spalten/SpaltenDialog.tsx))
+
 ### v4.55.0 — Eigene Spalten: Feld und Sammel (August 2026)
 
 MINOR — Der Spaltenvorrat war geschlossen: wer ein Feld brauchte, das die Registry nicht führt, hatte keinen Weg. Jetzt legt der Nutzer eigene Spalten an — aus einem rohen Feld oder als jüngstes Datum aus mehreren. Detail: [eigene-spalten.md](docs/architecture/eigene-spalten.md).

@@ -19,6 +19,17 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.56 — 2026-08
+
+### Neu
+- **Eigene Spalten können jetzt nach Regeln anzeigen.** Sie legen Regeln in einer Reihenfolge fest — „wenn Ablehnung gesetzt ist, zeig *abgelehnt*" — und die erste zutreffende gewinnt. Trifft keine zu, steht Ihr Auffangtext da (oder die Zelle bleibt leer).
+- Die Reihenfolge ist die Aussage: **sortiert wird nach Ihrer Rangfolge**, nicht alphabetisch. Was Sie oben einsortieren, steht beim Sortieren auch oben.
+- Die Bedingungen bauen Sie mit demselben Baukasten wie bei Meilensteinen und Vorgangs-Regeln — Feld, Vergleich, Wert, ohne Tippen von Formeln.
+
+### Verbesserungen
+- **Eigene Spalten lassen sich bearbeiten und entfernen**: im Menü *Spalten* steht neben jeder eigenen Spalte ein Stift. Vorher konnte man sie nur ausblenden — und Ausblenden ist nicht Löschen.
+- **Text oder Farbe einer Regel zu ändern geht sofort.** Nur wenn Sie ein bisher ungenutztes Feld hinzunehmen, wird die Tabelle einmalig neu aufgebaut.
+
 ## v4.55 — 2026-08
 
 ### Neu
