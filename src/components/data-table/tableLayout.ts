@@ -5,7 +5,7 @@
  *
  * | Modus | Wann | Tabelle |
  * |---|---|---|
- * | **einpassen** (Default) | kein `fitContentWidth`, keine gepinnte Breite | Wunschbreite, schrumpft per `flex-shrink` auf den Container, Boden `floorWidth` — darunter Scroll |
+ * | **einpassen** (Default) | kein `fitContentWidth`, keine gepinnte Breite | füllt den Container per `flex: 1 1 auto` — wächst UND schrumpft, Boden `floorWidth`, darunter Scroll |
  * | **gepinnt** | `totalWidth` gesetzt (Griff gezogen) | exakt diese Pixelbreite, Spalten skalieren proportional |
  * | **scroll** | `fitContentWidth` | Wunschbreite in Pixeln, horizontaler Scroll statt Stauchen |
  *
@@ -57,11 +57,21 @@ export function leiteTabellenStil(o: TabellenStilOptionen): CSSProperties {
       flex: '0 0 auto',
     };
   }
+  // `1 1 auto` statt `0 1 auto`: Einpassen heißt in BEIDE Richtungen einpassen.
+  // Mit reinem `flex-shrink` blieb die Tabelle bei ihrer Wunschbreite stehen,
+  // sobald die Spaltensumme kleiner war als der Container — rechts blieb eine
+  // Lücke, obwohl die Spalten sie hätten gebrauchen können. `flex-grow` verteilt
+  // den freien Platz; weil die `<col>` Prozent sind, skalieren alle Spalten mit
+  // demselben Faktor mit (die gemessenen Breiten bleiben also das Gewicht).
+  //
+  // `width` ist damit nur noch die Flex-Basis, aus der heraus gewachsen bzw.
+  // gestaucht wird — `minWidth` bleibt der harte Boden, unter dem der
+  // waagerechte Scrollbalken greift.
   return {
     ...basis,
     width: `${o.sizing.desiredWidth}px`,
     minWidth: `${o.sizing.floorWidth}px`,
-    flex: '0 1 auto',
+    flex: '1 1 auto',
   };
 }
 

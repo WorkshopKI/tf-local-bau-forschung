@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from 'react';
 import type { AntragListItem } from '@/core/services/csv/types';
-import { SortableTable, useTableSort, useColumnFilters, compareValues, useColumnWidths, useTotalTableWidth } from '@/components/data-table';
+import { SortableTable, useTableSort, useColumnFilters, compareValues, useColumnWidths, useTotalTableWidth, DEFAULT_MIN_COLUMN_WIDTH } from '@/components/data-table';
 import { resolveAntragTableColumns } from './tableColumns';
 import { mitSpaltenHilfe } from './spaltenHilfe';
 import type { SpaltenHilfe, SortableColumn } from '@/components/data-table/types';
@@ -160,9 +160,13 @@ export function AntraegeTable({
   const beendetAchse = hatBeendetAchse(activeView);
   // Persistierte Spalten-Pixelbreiten (Resize via Drag-Handles der SortableTable).
   const { widths, setWidth, resetWidth } = useColumnWidths('teamflow_antraege_table_col_widths', {});
-  // Persistierte Gesamt-Tabellenbreite (Griff am rechten Rand). null = Default
-  // (Tabelle füllt die Content-Box); Zahl = gepinnt, Spalten skalieren proportional.
-  const { totalWidth, setTotalWidth } = useTotalTableWidth('teamflow_antraege_table_total_width');
+  // Griff am rechten Rand, zwei Zustände: `totalWidth` = gepinnte Pixelbreite
+  // (null = keine), `inhaltsBreite` = Klick-Umschalter zwischen „Spalten teilen
+  // sich die verfügbare Breite" (Standard) und „jede Spalte nimmt ihre
+  // Inhaltsbreite, die Tabelle scrollt waagerecht".
+  const { totalWidth, setTotalWidth, inhaltsBreite, toggleInhaltsBreite } = useTotalTableWidth(
+    'teamflow_antraege_table_total_width',
+  );
   // Einblendbare Ordner-Spalten aus dem Statuskatalog (leer ohne Flag).
   const kategorieSpalten = useKategorieSpalten();
   // Registry-Reihenfolge beibehalten (nicht Toggle-Reihenfolge des Stores).
@@ -411,12 +415,20 @@ export function AntraegeTable({
           r._verbund ? r._verbund.verbundId === selectedVerbundId : r.aktenzeichen === selectedAktenzeichen
         }
         emptyContent="Keine Anträge."
-        fitContentWidth
-        // Spaltenbreiten aus dem Inhalt. Gemessen wird `allRows` — der volle
-        // gefilterte Satz VOR Header-Sortierung und Pagination. Auf `rows`
-        // gemessen würde jede nachgeladene Seite die Breiten neu setzen, auf
-        // `orderedRows` jeder Sortierklick. Die Signatur trennt zusätzlich zwei
-        // Filterergebnisse gleicher Länge (zwei O(1)-Zugriffe).
+        // Standard ist EINPASSEN: die Spalten teilen sich die verfügbare Breite
+        // und skalieren mit, wenn sie sich ändert. Ein Klick auf den Griff am
+        // rechten Rand schaltet auf Inhaltsbreite mit waagerechtem Scrollen um
+        // (der frühere Festzustand) — persistiert, siehe `useTotalTableWidth`.
+        fitContentWidth={inhaltsBreite}
+        onTotalWidthToggle={toggleInhaltsBreite}
+        // Spaltenbreiten aus dem Inhalt. Im Einpass-Modus sind sie das GEWICHT
+        // der Verteilung (nicht der Platz selbst): alle Spalten werden mit
+        // demselben Faktor gestaucht oder gestreckt, breite bleiben breit.
+        // Gemessen wird `allRows` — der volle gefilterte Satz VOR
+        // Header-Sortierung und Pagination. Auf `rows` gemessen würde jede
+        // nachgeladene Seite die Breiten neu setzen, auf `orderedRows` jeder
+        // Sortierklick. Die Signatur trennt zusätzlich zwei Filterergebnisse
+        // gleicher Länge (zwei O(1)-Zugriffe).
         autoColumnWidth
         // FKZ bleibt beim Blättern nach rechts stehen — sonst weiß man bei
         // 25 Spalten nicht mehr, welche Zeile man gerade liest.
@@ -431,6 +443,13 @@ export function AntraegeTable({
         onColumnWidthReset={resetWidth}
         totalWidth={totalWidth}
         onTotalWidthChange={setTotalWidth}
+        // Boden des Einpassens: die Summe der Spalten-Mindestbreiten statt der
+        // pauschalen 720px. Bei den ~12 Standardspalten läuft das auf dasselbe
+        // hinaus; bei 25 eingeblendeten Spalten verhindert es, dass sie auf
+        // 29px je Spalte gestaucht werden, bevor der Scrollbalken greift.
+        // `floorWidth` deckelt den Wert ohnehin auf die Wunschbreite, ein
+        // schmaler Spaltensatz bekommt also keinen künstlichen Mindestbedarf.
+        responsiveMinWidth={columns.length * DEFAULT_MIN_COLUMN_WIDTH}
         columnFilters={columnFilters}
         onColumnFilterChange={setColumnFilter}
         filterCandidates={filterCandidates}

@@ -79,12 +79,21 @@ describe('leiteTabellenStil', () => {
     expect(String(s.minWidth)).not.toContain('calc');
   });
 
-  it('einpassen: Wunschbreite, aber schrumpfbar bis zum Boden', () => {
+  it('einpassen: Wunschbreite als Basis, schrumpfbar bis zum Boden', () => {
     const s = leiteTabellenStil({ modus: 'einpassen', sizing: SIZING, totalWidth: null });
     expect(s.width).toBe('1284px');
     expect(s.minWidth).toBe('720px');
-    // `0 1 auto` ist der Unterschied zu den Scroll-Modi: nur hier greift flex-shrink.
-    expect(s.flex).toBe('0 1 auto');
+  });
+
+  it('einpassen WÄCHST auch — sonst bleibt rechts eine Lücke', () => {
+    // Der `flex-grow`-Anteil ist der Unterschied zu den Scroll-Modi und zum
+    // früheren `0 1 auto`: ohne ihn stand die Tabelle bei ihrer Wunschbreite
+    // still, sobald die Spaltensumme kleiner war als der Container.
+    const s = leiteTabellenStil({ modus: 'einpassen', sizing: SIZING, totalWidth: null });
+    expect(s.flex).toBe('1 1 auto');
+    for (const modus of ['gepinnt', 'scroll'] as const) {
+      expect(leiteTabellenStil({ modus, sizing: SIZING, totalWidth: 900 }).flex).toBe('0 0 auto');
+    }
   });
 
   it('rendert die Tabellenbreite NIE prozentual — das löst in der w-max-Zeile zirkulär auf', () => {

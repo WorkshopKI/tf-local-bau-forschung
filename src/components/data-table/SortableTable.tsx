@@ -45,7 +45,10 @@ import { TableHeadRows } from './TableHeadRows';
 import { TableBody } from './TableBody';
 import type { SortDirection, SortableColumn } from './types';
 
-const DEFAULT_MIN_COLUMN_WIDTH = 60;
+/** Untergrenze einer einzelnen Spalte beim Ziehen. Exportiert, weil Aufrufer
+ *  daraus ihren `responsiveMinWidth` bilden (Summe der Mindestbreiten) — mit
+ *  einer eigenen 60 daneben liefen die beiden Zahlen irgendwann auseinander. */
+export const DEFAULT_MIN_COLUMN_WIDTH = 60;
 
 /**
  * Innenbreite des Scroll-Containers — Grundlage der Überschuss-Verteilung
@@ -144,8 +147,14 @@ export interface SortableTableProps<T> {
    *  `fitContentWidth`). Backward-kompatibel: Caller ohne diese Props bekommen
    *  keinen Griff. */
   totalWidth?: number | null;
-  /** Commit on mouseup (Pixel) bzw. `null` bei Doppelklick (Reset auf Default). */
+  /** Commit on mouseup (Pixel) bzw. `null` bei Klick auf den Griff (Pin verwerfen). */
   onTotalWidthChange?: (width: number | null) => void;
+  /** Klick auf den Griff, wenn KEINE Breite gepinnt ist: schaltet zwischen
+   *  „Spalten teilen sich die Breite" und `fitContentWidth` um. Ohne dieses Prop
+   *  verwirft der Klick nur einen Pin und tut sonst nichts. Der Aufrufer hält den
+   *  Zustand selbst (`useTotalTableWidth().inhaltsBreite`) und reicht ihn als
+   *  `fitContentWidth` wieder herein. */
+  onTotalWidthToggle?: () => void;
   /** Untergrenze der Gesamtbreite beim Drag. Default 360px. */
   minTotalWidth?: number;
   /** Obergrenze der Gesamtbreite beim Drag. Default 6000px. */
@@ -157,15 +166,19 @@ export interface SortableTableProps<T> {
    *  `column.width` (siehe `messung/spaltenBreite.ts`). Gezogene Breiten
    *  gewinnen weiterhin. Default `false`.
    *
-   *  NUR SINNVOLL IN DEN SCROLL-MODI. Im Einpass-Modus wird die Tabelle ohnehin
-   *  auf den Container gestaucht — die Messung ändert dort nicht den Platz,
-   *  sondern nur seine Verteilung, und gewichtet dabei jede Spalte nach ihrem
-   *  LÄNGSTEN Eintrag. Eine Spalte mit einem einzelnen Ausreißer zieht so Platz
-   *  von allen anderen ab. Nachgemessen an der Skill-Tabelle (Container 928px):
-   *  abgeschnittene Zellen 74 → 83, auch nachdem die Bauteil-Spalten
-   *  ausgenommen waren. Deshalb tragen es nur `AntraegeTable` und `KatalogTab`
-   *  (beide `fitContentWidth`); die vier stauchenden Tabellen behalten ihre
-   *  gepflegten Breiten. */
+   *  IM EINPASS-MODUS IST DIE MESSUNG DAS GEWICHT, NICHT DER PLATZ. Dort steht
+   *  die Tabellenbreite fest (der Container), die Messung entscheidet nur, wie
+   *  die Spalten sie untereinander aufteilen — und gewichtet dabei jede Spalte
+   *  nach ihrem LÄNGSTEN Eintrag. Das ist eine bewusste Wahl, keine
+   *  Selbstverständlichkeit: nachgemessen an der Skill-Tabelle (Container 928px)
+   *  stiegen die abgeschnittenen Zellen 74 → 83, weil einzelne Ausreißer Platz
+   *  von allen anderen abzogen. Gedeckelt ist der Schaden durch
+   *  `MESS_DEFAULTS.maxBreite` (420px).
+   *
+   *  Deshalb tragen es nur die Tabellen, deren Spaltensatz stark schwankt:
+   *  `AntraegeTable` (Einpassen, per Griff auf `fitContentWidth` umschaltbar) und
+   *  `KatalogTab` (`fitContentWidth`). Die übrigen stauchenden Tabellen behalten
+   *  ihre gepflegten Breiten. */
   autoColumnWidth?: boolean;
   /** Basis der Messung. Default: `rows`. Wer paginiert, MUSS hier den vollen
    *  Satz übergeben — sonst misst jede nachgeladene Seite neu und die Spalten
@@ -251,6 +264,7 @@ export function SortableTable<T>({
   fitContentWidth = false,
   totalWidth = null,
   onTotalWidthChange,
+  onTotalWidthToggle,
   minTotalWidth = 360,
   maxTotalWidth = 6000,
   responsiveMinWidth = RESPONSIVE_MIN_WIDTH,
@@ -333,6 +347,9 @@ export function SortableTable<T>({
   );
   const colRefs = useRef<Map<string, HTMLTableColElement>>(new Map());
   const tableRef = useRef<HTMLTableElement | null>(null);
+  // Die Flex-Zeile, die Tabelle + Griff trägt. Der Griff klinkt sie beim Ziehen
+  // kurz auf `max-content` aus (Begründung im Dateikopf von `TotalWidthGrip`).
+  const wrapperRef = useRef<HTMLDivElement | null>(null);
 
   const { startResize } = useColumnResize({
     columns,
@@ -351,6 +368,22 @@ export function SortableTable<T>({
   });
 
   const tableStyle = leiteTabellenStil({ modus, sizing, totalWidth });
+
+  // Der Klick am Griff räumt zuerst auf: eine gepinnte Breite ist die speziellste
+  // Ansage, sie geht als erste zurück. Erst ohne Pin schaltet er die Darstellung
+  // um. Zwei Klicks statt einem, dafür geht nie eine Einstellung ungefragt
+  // verloren.
+  const griffKlick = useCallback((): void => {
+    if (totalWidthActive) onTotalWidthChange?.(null);
+    else onTotalWidthToggle?.();
+  }, [totalWidthActive, onTotalWidthChange, onTotalWidthToggle]);
+  const griffTitel = totalWidthActive
+    ? 'Ziehen: Tabelle breiter/schmaler · Klick: gezogene Breite verwerfen'
+    : onTotalWidthToggle
+      ? (fitContentWidth
+        ? 'Ziehen: Tabelle breiter/schmaler · Klick: Spalten auf die verfügbare Breite verteilen'
+        : 'Ziehen: Tabelle breiter/schmaler · Klick: Spalten auf ihre Inhaltsbreite bringen')
+      : 'Ziehen: Tabelle breiter/schmaler';
 
   // Der Griff steht NEBEN dem Scroll-Container, nicht darin — sonst wandert er
   // mit der Tabelle aus dem Sichtfeld, sobald mehr Spalten da sind als hinein-
@@ -382,7 +415,7 @@ export function SortableTable<T>({
         // gar nicht und der Streifen wäre grundlos.
         style={stickyHeader ? { scrollbarGutter: 'stable' } : undefined}
       >
-        <div className={wrapperKlassen(modus)}>
+        <div ref={wrapperRef} className={wrapperKlassen(modus)}>
           <table ref={tableRef} className="text-[12.5px]" style={tableStyle}>
             <colgroup>
               {columns.map(c => {
@@ -461,9 +494,12 @@ export function SortableTable<T>({
       {onTotalWidthChange !== undefined ? (
         <TotalWidthGrip
           onTotalWidthChange={onTotalWidthChange}
+          onKlick={griffKlick}
+          titel={griffTitel}
           minTotalWidth={minTotalWidth}
           maxTotalWidth={maxTotalWidth}
           tableRef={tableRef}
+          wrapperRef={wrapperRef}
         />
       ) : null}
     </div>

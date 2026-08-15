@@ -20,7 +20,11 @@ export { compareValues, DATA_TABLE_COLLATOR } from './compareValues';
 export { useTableSort, type UseTableSortResult } from './useTableSort';
 export { useColumnVisibility, type UseColumnVisibilityResult } from './useColumnVisibility';
 export { useColumnWidths, type UseColumnWidthsResult } from './useColumnWidths';
-export { useTotalTableWidth, type UseTotalTableWidthResult } from './useTotalTableWidth';
+export {
+  useTotalTableWidth,
+  inhaltsBreiteKey,
+  type UseTotalTableWidthResult,
+} from './useTotalTableWidth';
 export { SortIcon, type SortIconProps } from './SortIcon';
 export {
   ColumnPicker,
@@ -28,7 +32,11 @@ export {
   type ColumnPickerProps,
   type SpaltenRubrik,
 } from './ColumnPicker';
-export { SortableTable, type SortableTableProps } from './SortableTable';
+export {
+  SortableTable,
+  DEFAULT_MIN_COLUMN_WIDTH,
+  type SortableTableProps,
+} from './SortableTable';
 export { ColumnFilterDropdown, type ColumnFilterDropdownProps } from './ColumnFilterDropdown';
 export {
   useColumnFilters,
