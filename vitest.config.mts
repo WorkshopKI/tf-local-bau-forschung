@@ -80,6 +80,12 @@ const ISOLATED_TESTS = [
   'src/core/services/skill-feedback/__tests__/export.test.ts',
   'src/core/services/skill-feedback/__tests__/read.test.ts',
   'src/core/services/skill-feedback/__tests__/selfcheck.test.ts',
+  // Mockt `smb-handle` + `atomic-write` modulweit, um das Schreib-Gate der
+  // Team-Sidecar zu pruefen (v4.57). Ohne Isolation gewinnt die zuerst
+  // registrierte Fabrik einer anderen Datei — `readText` lieferte dann nicht
+  // das gestellte `null`, und die Zusage „eine fehlende Datei leert den Cache"
+  // fiel. Einzeln immer gruen.
+  'src/core/spalten/__tests__/team-store.test.ts',
   'src/core/status/__tests__/byte-identitaet.test.ts',
   // Beide mocken die Share-Schicht des Journals; ohne Isolation greifen ihre
   // Mocks ineinander.

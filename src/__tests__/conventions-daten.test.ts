@@ -1397,6 +1397,33 @@ describe('eigene-spalten-lokal (persoenliche Spalten: nie Daten-Share/Snapshot)'
       + `Definitionen sind geraetelokal (kv-Store, strukturell ausserhalb von SNAPSHOT_FILES).`,
     ).toBe(false);
   });
+
+  it('team-store.ts ist der EINZIGE Share-Beruehrpunkt unter core/spalten/', () => {
+    // Die Trennung „geraetelokal vs. geteilt" ist nur so lange wahr, wie sie an
+    // EINER Datei haengt. Ein zweiter Share-Zugriff (etwa ein bequemer
+    // Direkt-Write aus der Aufloesung) waere ein Weg an Recht und Gate vorbei —
+    // und niemand saehe ihn, weil er woanders steht.
+    const DIR = join(ROOT, 'core', 'spalten');
+    const share = ['getDatenShareHandle', 'atomicWrite', 'appendToFile', 'getPersoenlichHandle'];
+    const treffer: string[] = [];
+    for (const name of readdirSync(DIR)) {
+      if (name === 'team-store.ts' || !name.endsWith('.ts')) continue;
+      if (statSync(join(DIR, name)).isDirectory()) continue;
+      const lines = readFileSync(join(DIR, name), 'utf-8').split(/\r?\n/);
+      for (const bezeichner of share) {
+        if (lines.some(l => {
+          const t = l.trim();
+          if (t.startsWith('//') || t.startsWith('*') || t.startsWith('/*')) return false;
+          return l.includes(bezeichner);
+        })) treffer.push(`${name}: ${bezeichner}`);
+      }
+    }
+    expect(
+      treffer,
+      `Share-Zugriff unter core/spalten/ gehoert ausschliesslich in team-store.ts `
+      + `(dort self-gated ueber queryPermission).\nGefunden: ${treffer.join(', ')}`,
+    ).toEqual([]);
+  });
 });
 
 describe('djb2-single-source (Feedback-Signatur nicht duplizieren)', () => {

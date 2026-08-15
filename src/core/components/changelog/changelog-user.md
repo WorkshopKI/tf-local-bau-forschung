@@ -19,6 +19,17 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.57 — 2026-08
+
+### Neu
+- **Eine eigene Spalte lässt sich jetzt ans Team weitergeben.** Wenn Sie eine Spalte angelegt und erprobt haben, steht beim Bearbeiten *Ins Team übernehmen* — danach sieht sie jede Kollegin im Menü *Spalten* unter „Team-Spalten" und kann sie einblenden.
+- Angelegt wird weiterhin **erst für Sie allein**. So können Sie in Ruhe ausprobieren; geteilt wird bewusst in einem zweiten Schritt.
+
+### Verbesserungen
+- Beim Bearbeiten steht jetzt oben, **wen die Spalte betrifft** — nur Sie auf diesem Gerät, oder das ganze Team.
+- Nach dem Übernehmen bleibt die Spalte in Ihrer Tabelle stehen, wo sie war — sie wechselt nur die Rubrik.
+- Team-Spalten pflegt, wer auch sonst im Daten-Ordner schreiben darf. Alle anderen sehen und benutzen sie ganz normal.
+
 ## v4.56 — 2026-08
 
 ### Neu

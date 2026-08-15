@@ -6,8 +6,13 @@
  * sonst erst nach dem Neuaufbau der Projektion. Deshalb zeigt der Dialog an
  * echten geladenen Zeilen, was in der Zelle stünde, BEVOR gespeichert wird.
  *
- * Die Regel-Spalte (dritte Art) kommt in Stufe C dazu; ihr Editor ist der
- * vorhandene `BedingungEditor`, nicht ein zweiter.
+ * Der Regel-Editor ist der vorhandene `BedingungEditor`, nicht ein zweiter.
+ *
+ * **Angelegt wird immer persönlich.** Das ist keine Einschränkung, sondern der
+ * Weg, auf dem eine Spalte in jeder Variante entsteht — auch dort, wo niemand
+ * auf den Share schreiben darf. Wer das Recht hat, hebt eine erprobte Spalte
+ * danach mit einem Griff ins Team; das ist eine bewusste zweite Handlung und
+ * keine Checkbox, die man beim Anlegen übersieht.
  */
 import { useMemo, useState } from 'react';
 import { Dialog } from '@/components/ui/dialog';
@@ -22,7 +27,7 @@ import { Plus, X } from 'lucide-react';
 import { BedingungEditor } from '@/plugins/meilensteine/BedingungEditor';
 import type { SpaltenEintrag } from '@/core/services/csv/spalten-inventar';
 import {
-  berechneZelle, slugVon, spaltenId, type EigeneSpalte, type SpaltenRegel,
+  berechneZelle, herkunftVon, slugVon, spaltenId, type EigeneSpalte, type SpaltenRegel,
 } from '@/core/spalten';
 import type { AntragTableRow } from '../tableGrouping';
 
@@ -45,6 +50,10 @@ interface Props {
   /** Nur beim Bearbeiten — ohne diesen Weg wäre eine angelegte Spalte für
    *  immer da (der Picker kann sie ausblenden, nicht entfernen). */
   onLoeschen?: (id: string) => Promise<void>;
+  /** Darf dieser Mensch Team-Spalten pflegen? Blendet die Übernahme ein. */
+  darfTeam?: boolean;
+  /** Hebt die bearbeitete persönliche Spalte ins Team. */
+  onInsTeam?: (spalte: EigeneSpalte) => Promise<void>;
 }
 
 type Art = 'feld' | 'sammel' | 'regel';
@@ -57,7 +66,9 @@ function neueRegel(feldId: string): SpaltenRegel {
 
 export function SpaltenDialog({
   open, onClose, bestehend, vorrat, zeilen, heute, brauchtNeuaufbau, onSpeichern, onLoeschen,
+  darfTeam = false, onInsTeam,
 }: Props): React.ReactElement {
+  const istTeamSpalte = bestehend !== undefined && herkunftVon(bestehend.id) === 'team';
   // Die Art einer bestehenden Spalte wird ÜBERNOMMEN, nicht geraten: ein
   // Rückfall auf 'feld' hätte beim Speichern eine Regel-Spalte stillschweigend
   // in eine Feld-Spalte verwandelt.
@@ -145,6 +156,15 @@ export function SpaltenDialog({
     onClose();
   });
 
+  // Übernahme heißt: ERST den aktuellen Stand des Formulars festhalten, dann
+  // heben. Sonst landete im Team die zuletzt gespeicherte Fassung, während der
+  // Mensch die geänderte vor sich sieht.
+  const insTeam = useAsyncAction(async () => {
+    if (!entwurf || !onInsTeam) return;
+    await onInsTeam(entwurf);
+    onClose();
+  });
+
   function schalteFeld(id: string): void {
     setFelder(f => (f.includes(id) ? f.filter(x => x !== id) : [...f, id]));
   }
@@ -153,21 +173,45 @@ export function SpaltenDialog({
     <Dialog
       open={open}
       onClose={onClose}
-      title={bestehend ? 'Spalte bearbeiten' : 'Eigene Spalte anlegen'}
+      title={
+        bestehend
+          ? (istTeamSpalte ? 'Team-Spalte bearbeiten' : 'Spalte bearbeiten')
+          : 'Eigene Spalte anlegen'
+      }
       footer={
         <div className="flex items-center gap-2">
           {bestehend && onLoeschen && (
             <Button
               variant="ghost"
               onClick={() => loeschen.run()}
-              disabled={speichern.busy || loeschen.busy}
+              disabled={speichern.busy || loeschen.busy || insTeam.busy}
               className="mr-auto text-[var(--tf-danger-text)]"
             >
-              {loeschen.busy ? 'Entfernt …' : 'Spalte entfernen'}
+              {loeschen.busy
+                ? 'Entfernt …'
+                : istTeamSpalte ? 'Aus dem Team entfernen' : 'Spalte entfernen'}
             </Button>
           )}
-          <Button variant="ghost" onClick={onClose} disabled={speichern.busy}>Abbrechen</Button>
-          <Button onClick={() => speichern.run()} disabled={!entwurf || speichern.busy}>
+          {/* Nur beim Bearbeiten einer PERSÖNLICHEN Spalte: eine erprobte Spalte
+              wandert ins Team. Beim Anlegen bewusst nicht — erst benutzen, dann
+              teilen. */}
+          {bestehend && !istTeamSpalte && darfTeam && onInsTeam && (
+            <Button
+              variant="secondary"
+              onClick={() => insTeam.run()}
+              disabled={!entwurf || speichern.busy || loeschen.busy || insTeam.busy}
+              title="Kopiert diese Spalte in die Team-Ablage; die persönliche entfällt."
+            >
+              {insTeam.busy ? 'Übernimmt …' : 'Ins Team übernehmen'}
+            </Button>
+          )}
+          <Button variant="ghost" onClick={onClose} disabled={speichern.busy || insTeam.busy}>
+            Abbrechen
+          </Button>
+          <Button
+            onClick={() => speichern.run()}
+            disabled={!entwurf || speichern.busy || insTeam.busy}
+          >
             {speichern.busy ? 'Baut die Tabelle neu …' : 'Speichern'}
           </Button>
         </div>
@@ -175,6 +219,16 @@ export function SpaltenDialog({
     >
       <div className="space-y-4 text-[12.5px]">
         {speichern.error && <Alert variant="danger">{speichern.error}</Alert>}
+        {insTeam.error && <Alert variant="danger">{insTeam.error}</Alert>}
+        {loeschen.error && <Alert variant="danger">{loeschen.error}</Alert>}
+
+        {/* Die Reichweite gehört an den Anfang, nicht ans Ende: sie entscheidet,
+            wessen Tabelle sich ändert. */}
+        <div className="text-[11.5px] text-[var(--tf-text-tertiary)]">
+          {istTeamSpalte
+            ? 'Team-Spalte — was du hier änderst, sehen alle. Sie liegt im Daten-Ordner, nicht auf diesem Gerät.'
+            : 'Nur für dich, nur auf diesem Gerät. Niemand sonst sieht diese Spalte.'}
+        </div>
 
         <label className="block">
           <span className="block mb-1 text-[var(--tf-text-secondary)]">Spaltenkopf</span>

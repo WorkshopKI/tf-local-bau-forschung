@@ -10,7 +10,7 @@ Drei Arten, eine Mechanik:
 | `sammel` | jüngstes/ältestes Datum aus einer Feldmenge (wie „FB Status", nur mit eigener Auswahl) | v4.55 |
 | `regel` | Text der ersten zutreffenden Regel einer geordneten Kaskade | v4.56 |
 
-**Offen:** die Team-Ebene (Sidecar, Kurator-Gate) und die Übernahme einer persönlichen Spalte ins Team. Das Substrat trägt beide bereits — `frei:team:`-Ids und die gemeinsame Auflösung stehen; es fehlen Sidecar-Schreibpfad und Übernahme-UI.
+Zwei Reichweiten: **persönlich** (gerätelokal, v4.55) und **Team** (Sidecar auf dem Share, v4.57) — siehe [Reichweite](#reichweite).
 
 ---
 
@@ -41,8 +41,10 @@ Kosten: ein kleiner zusätzlicher Beutel je Zeile, begrenzt durch das, was Nutze
 | [aufloesung.ts](../../src/core/spalten/aufloesung.ts) | `feldId` → Record-Key gegen die Schemas; teilt sich `baueSpaltenIndex` mit dem Statuskatalog (zwei Indizes liefen bei der ersten Mapping-Feinheit auseinander) |
 | [anzeige.ts](../../src/core/spalten/anzeige.ts) | `berechneZelle` — rein, Stichtag injiziert, **kein `new Date()`** |
 | [projektion.ts](../../src/core/spalten/projektion.ts) | `baueFreiRoh` — leerer Beutel wird weggelassen, kein leeres Objekt je Antrag |
-| [store.ts](../../src/core/spalten/store.ts) | persönliche Persistenz, toleranter Leser |
-| [programm.ts](../../src/core/spalten/programm.ts) | **der eine Einstieg** für alle Schreibpfade |
+| [lesen.ts](../../src/core/spalten/lesen.ts) | toleranter Leser + `nurHerkunft` — **eine** Fassung für beide Ablagen; zwei Parser liefen genau dort auseinander, wo es weh tut (eine Definition, die je nach Ablage sichtbar ist oder nicht) |
+| [store.ts](../../src/core/spalten/store.ts) | persönliche Persistenz (IDB), **kennt den Share nicht** |
+| [team-store.ts](../../src/core/spalten/team-store.ts) | Team-Sidecar: Lesen für alle, Schreiben self-gated; der **einzige** Share-Berührpunkt des Moduls (Guard) |
+| [programm.ts](../../src/core/spalten/programm.ts) | **der eine Einstieg** für alle Schreibpfade; führt beide Ablagen zu einer Liste zusammen |
 
 ## Anzeige und Sortierung sind getrennt
 
@@ -64,8 +66,32 @@ Wer selbst neu baut, **stempelt danach den Stand** (`stempleProjektionsStand`) �
 
 ## Reichweite
 
-- **Persönlich** (v4.55): IDB `eigene-spalten:personal`, gerätelokal. Keine Bequemlichkeit, sondern Funktionsbedingung — in prod hat ein normaler Nutzer keine Schreibrechte auf den Daten-Share, eine geteilte Ablage wäre dort tot. Guard `eigene-spalten-lokal`.
-- **Team** (Stufe C, offen): Sidecar über `atomicWrite`, Schreiben nur mit `canWriteDatenShare`, Lesen für alle. Übernahme ist eine **Einweg-Kopie** auf eine neue `frei:team:`-Id, keine lebende Verknüpfung.
+| | Persönlich (v4.55) | Team (v4.57) |
+|---|---|---|
+| Ablage | IDB `eigene-spalten:personal` | Sidecar `_intern/eigene-spalten.json` |
+| Id | `frei:ich:<slug>` | `frei:team:<slug>` |
+| Anlegen | jeder, in jeder Variante | über die Übernahme |
+| Ändern/Entfernen | der Besitzer | nur mit `canManageTeamSpalten` |
+| Lesen | nur dieses Gerät | alle |
+| Rubrik im Picker | „Meine Spalten" | „Team-Spalten" |
+
+**Persönlich ist gerätelokal — keine Bequemlichkeit, sondern Funktionsbedingung**: in prod hat ein normaler Nutzer keine Schreibrechte auf den Daten-Share, eine geteilte Ablage wäre dort tot. Guard `eigene-spalten-lokal`.
+
+**Die Herkunft steckt in der Id, und jede Ablage filtert beim Lesen auf ihre eigene** (`nurHerkunft`). Das ist kein Gürtel-und-Hosenträger: die Sidecar liegt im Klartext auf dem Share und lässt sich von Hand editieren. Ohne den Filter schöbe eine `frei:ich:`-Zeile darin allen Kolleginnen eine Spalte unter, die als „meine" erscheint und die niemand von ihnen löschen kann — und umgekehrt ließe sich eine Team-Spalte lokal überschreiben, ohne dass das Team es merkt.
+
+**Angelegt wird immer persönlich.** Das ist der Weg, auf dem eine Spalte in *jeder* Variante entsteht. Wer das Recht hat, hebt eine erprobte Spalte danach mit „Ins Team übernehmen" — eine bewusste zweite Handlung, keine Checkbox, die man beim Anlegen übersieht.
+
+Die Übernahme ist eine **Einweg-Kopie mit Wegfall der persönlichen Fassung**: dieselbe Definition unter einer neuen `frei:team:`-Id, die eigene verschwindet. Beides zusammen, damit dieselbe Spalte nicht doppelt in der Kopfzeile steht. Eine lebende Verknüpfung bräuchte eine Konflikt-Auflösung, die niemand angefragt hat.
+
+### Schreiben scheitert laut, nicht still
+
+`schreibeTeamSpalten` ist self-gated (`queryPermission`) und meldet `false`, wenn nichts geschrieben wurde. Der Hook macht daraus einen **Abbruch mit Grund**, bevor er die persönliche Ablage anfasst — sonst bliebe ein halb übernommener Zustand zurück: die Spalte lokal weg, im Team nie angekommen.
+
+`canManageTeamSpalten` (aus `canWriteDatenShare`, kein eigener Flag) steuert nur die Bedienelemente; der physische Guard ist das Gate. Wer das Recht nicht hat, sieht Team-Spalten, benutzt sie und blendet sie aus — statt eines Stifts steht „Team" an der Zeile.
+
+### Der Cache ist ein Cache
+
+Der Share-Stand liegt zusätzlich in `kv` (`eigene-spalten:team-cache`), damit die Spalten auch bei unerreichbarem Ordner stehen und die Projektions-Signatur beim Booten schon feststeht. Der Unterschied, auf den es ankommt: eine **fehlende Datei** leert den Cache (eine gelöschte Team-Spalte bleibt gelöscht), ein **unerreichbarer Share** lässt ihn stehen (er ist das Beste, was wir wissen).
 
 ## Fallen
 
@@ -74,6 +100,8 @@ Wer selbst neu baut, **stempelt danach den Stand** (`stempleProjektionsStand`) �
 - **Die Id wird nie nachgeführt.** Ändert der Autor die Beschriftung, bleibt der Slug — an der Id hängen gespeicherte Sichtbarkeit und Breite.
 - **Die Art einer bestehenden Spalte wird übernommen, nicht geraten.** Der Formular-Startwert `bestehend?.art` muss ALLE Arten kennen; ein Rückfall auf `'feld'` verwandelte eine Regel-Spalte beim Speichern stillschweigend in eine Feld-Spalte. Genau so verhielt sich die erste Fassung des Bearbeiten-Wegs.
 - **Anlegen ohne Bearbeiten und Entfernen ist keine Funktion.** Der Picker kann eine Spalte nur aus-, nicht wegblenden; der Stift an der Zeile ist der einzige Weg zu beidem.
+- **Die Übernahme ins Team ändert die Id — also muss die Spaltenwahl mitziehen.** Sonst verschwindet die Spalte im Moment des Teilens aus der eigenen Tabelle, und der Mensch hält die Übernahme für einen Fehlschlag. `AntraegeMain` tauscht den Key in `visibleColumns`, wenn die alte Spalte sichtbar war.
+- **Die Team-Sidecar wird beim Booten gelesen** (die Signatur braucht ihre Feld-Refs). Wer über mehrere Programme schleift, lädt die Definitionen **einmal** und reicht sie in `loeseFreieFelderFuer` herein — sonst liest jede Runde den Share erneut.
 
 ## Der Bedingungs-Editor wird geteilt, nicht kopiert
 

@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
@@ -64,7 +64,7 @@ import { useEigeneSpalten } from './useEigeneSpalten';
 import { baueEigeneSpalten } from './eigeneSpalten';
 import { SpaltenDialog } from './eigene-spalten/SpaltenDialog';
 import { isEigeneSpaltenEnabled } from '@/config/feature-flags';
-import type { EigeneSpalte } from '@/core/spalten';
+import { herkunftVon, type EigeneSpalte } from '@/core/spalten';
 import { Plus, Pencil } from 'lucide-react';
 import { useAntraegeColumnsStore } from './useAntraegeColumnsStore';
 import type { ViewMode } from './viewModes';
@@ -183,6 +183,20 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
     () => baueEigeneSpalten(eigene.spalten, heute, labelVonFeld),
     [eigene.spalten, heute, labelVonFeld],
   );
+  /**
+   * Übernahme ins Team: die Spalte bekommt dabei eine NEUE Id — und an der Id
+   * hängt die persönliche Spaltenwahl. Ohne dieses Nachziehen verschwände die
+   * Spalte im Moment des Teilens aus der eigenen Tabelle, und der Mensch hielte
+   * die Übernahme für einen Fehlschlag.
+   */
+  const uebernimmInsTeam = useCallback(async (spalte: EigeneSpalte): Promise<void> => {
+    const alteId = spalte.id;
+    const neueId = await eigene.uebernimmInsTeam(spalte);
+    if (neueId === alteId) return;
+    const sichtbar = useAntraegeColumnsStore.getState().visibleColumns;
+    if (!sichtbar.includes(alteId)) return;
+    setVisibleColumns(sichtbar.map(k => (k === alteId ? neueId : k)));
+  }, [eigene, setVisibleColumns]);
   const pickerColumns = useMemo(
     () => mitSpaltenHilfe(
       [
@@ -405,6 +419,18 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
                     // ist nicht löschen.
                     const eigeneDef = eigene.spalten.find(s => s.id === c.key);
                     if (eigeneDef) {
+                      // Eine Team-Spalte darf nur bearbeiten, wer sie auch
+                      // schreiben kann — sonst führte der Stift in einen Dialog,
+                      // dessen „Speichern" scheitern MUSS. Wer das Recht nicht
+                      // hat, sieht die Spalte, benutzt sie und blendet sie aus.
+                      const istTeam = herkunftVon(eigeneDef.id) === 'team';
+                      if (istTeam && !eigene.darfTeam) {
+                        return (
+                          <span className="ml-auto shrink-0 pl-2 text-[10px] text-[var(--tf-text-tertiary)]">
+                            Team
+                          </span>
+                        );
+                      }
                       return (
                         <button
                           type="button"
@@ -569,6 +595,8 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
           brauchtNeuaufbau={eigene.brauchtNeuaufbau}
           onSpeichern={eigene.speichere}
           onLoeschen={bearbeite ? eigene.entferne : undefined}
+          darfTeam={eigene.darfTeam}
+          onInsTeam={bearbeite ? uebernimmInsTeam : undefined}
         />
       )}
     </div>

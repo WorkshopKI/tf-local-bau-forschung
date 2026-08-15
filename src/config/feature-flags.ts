@@ -150,6 +150,22 @@ export function canWriteDatenShare(isKurator: boolean): boolean {
 export function canManageFeedback(isKurator: boolean): boolean {
   return canWriteDatenShare(isKurator);
 }
+/**
+ * Darf der aktuelle Build/Nutzer TEAM-Spalten der Fördertabelle anlegen, ändern
+ * oder eine persönliche ins Team übernehmen?
+ *
+ * Komponiert aus `canWriteDatenShare` wie `canManageFeedback` — kein eigener
+ * Flag: wer die Sidecar `_intern/eigene-spalten.json` schreiben darf, pflegt
+ * auch die Team-Spalten. Der eigene Flag wäre eine zweite Wahrheit über
+ * dieselbe Datei.
+ *
+ * Das Prädikat steuert nur die Sichtbarkeit der Bedienelemente; der physische
+ * Guard ist das self-gated `schreibeTeamSpalten`. **Persönliche** Spalten hängen
+ * an keinem Recht — sie sind gerätelokal und funktionieren in jeder Variante.
+ */
+export function canManageTeamSpalten(isKurator: boolean): boolean {
+  return canWriteDatenShare(isKurator);
+}
 /** v2.11: MA-Login-Wall beim Start (Kuerzel aus Passwort entschluesselt). Nur
  *  prod + dev. Greift erst wenn die Zugangsdatei existiert (sonst Fallback aufs
  *  alte Kuerzelfeld). Siehe MaLoginGate + useMAIdentity + App.tsx-Startup-Gate. */

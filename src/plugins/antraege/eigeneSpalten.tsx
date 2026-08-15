@@ -14,7 +14,8 @@ import type { ReactNode } from 'react';
 import { Badge, type BadgeVariant } from '@/components/ui/badge';
 import type { SortableColumn } from '@/components/data-table/types';
 import {
-  berechneZelle, hilfeAus, type EigeneSpalte, type LabelVon, type Rohwerte, type Zellwert,
+  berechneZelle, herkunftVon, hilfeAus,
+  type EigeneSpalte, type LabelVon, type Rohwerte, type Zellwert,
 } from '@/core/spalten';
 import type { AntragTableRow } from './tableGrouping';
 import { textCell, dateCell, MESS_TEXT, MESS_DATUM } from './tableColumns';
@@ -69,7 +70,9 @@ export function baueEigeneSpalten(
   labelVon: LabelVon = f => f,
 ): SortableColumn<AntragTableRow>[] {
   return defs.map((def): SortableColumn<AntragTableRow> => {
-    const gruppe = def.id.startsWith('frei:team:') ? G_TEAM_SPALTEN : G_MEINE_SPALTEN;
+    // Rubrik aus der Herkunft in der Id — über `herkunftVon`, nicht über einen
+    // abgeschriebenen Präfix: die Form der Id gehört `typen.ts`.
+    const gruppe = herkunftVon(def.id) === 'team' ? G_TEAM_SPALTEN : G_MEINE_SPALTEN;
     const basis = {
       key: def.id,
       label: def.label,

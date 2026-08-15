@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.57.0 — Eigene Spalten fuer das Team (August 2026)
+
+MINOR — Eine eigene Spalte war bisher eine Privatsache: gerätelokal, für niemanden sonst sichtbar. Wer eine erprobt hatte, konnte sie nur beschreiben, nicht weitergeben. Jetzt hebt sie ein Griff ins Team. Detail: [eigene-spalten.md](docs/architecture/eigene-spalten.md).
+
+- **Team-Spalten** in der Sidecar `_intern/eigene-spalten.json`, idempotent-overwrite, Schreiben self-gated + `canManageTeamSpalten` ([team-store.ts](src/core/spalten/team-store.ts)); Lesen für alle, eigene Rubrik im Spalten-Menü
+- **„Ins Team übernehmen"** am Stift einer persönlichen Spalte: Einweg-Kopie auf eine `frei:team:`-Id, die persönliche entfällt — und die Spaltenwahl zieht mit, sonst verschwände die Spalte im Moment des Teilens ([AntraegeMain.tsx](src/plugins/antraege/AntraegeMain.tsx))
+- **Jede Ablage filtert beim Lesen auf ihre Herkunft** ([lesen.ts](src/core/spalten/lesen.ts)) — die Sidecar liegt im Klartext auf dem Share, eine `frei:ich:`-Zeile darin schöbe sonst allen eine „persönliche" Spalte unter, die niemand löschen kann
+- **Ein gescheiterter Share-Write bricht ab, statt halb zu übernehmen** ([useEigeneSpalten.ts](src/plugins/antraege/useEigeneSpalten.ts)); neuer Guard: `team-store.ts` ist der einzige Share-Berührpunkt unter `core/spalten/`
+- **Der Team-Cache unterscheidet zwei Fälle**: fehlende Datei leert ihn (gelöscht bleibt gelöscht), unerreichbarer Share lässt ihn stehen
+
 ### v4.56.0 — Regel-Spalten, Bearbeiten und Entfernen (August 2026)
 
 MINOR — Die dritte Spaltenart: eine geordnete Regelkaskade, die je nach Zustand einen anderen Text zeigt. Dazu die beiden Wege, die bis hierher fehlten — eine angelegte Spalte ließ sich weder bearbeiten noch entfernen. Detail: [eigene-spalten.md](docs/architecture/eigene-spalten.md).

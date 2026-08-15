@@ -16,7 +16,7 @@ import {
 import { ladeAktiveVersion } from '@/core/status/katalog-store';
 import { kategorieSpaltenSignatur, loeseKategorieSpalten } from '@/core/status/kategorie-projektion';
 import { freieFelderSignatur } from '@/core/spalten/aufloesung';
-import { loeseFreieFelderFuer } from '@/core/spalten/programm';
+import { ladeAlleEigenenSpalten, loeseFreieFelderFuer } from '@/core/spalten/programm';
 import { murmurhash3 } from './hash';
 import { tfPerfStart } from '@/core/utils/tfPerf';
 import type { Programm } from './types';
@@ -67,6 +67,10 @@ async function computeStatusDatumSchemaSig(
   // benennt einen Ordner, ändert sich kein einziger Antrag-Record — die
   // Ordner-Spalten blieben sonst auf dem alten Stand stehen.
   const version = await ladeAktiveVersion(idb);
+  // Die Definitionen der eigenen Spalten sind programm-unabhängig, ihre
+  // Auflösung nicht. Einmal laden statt je Programm — sonst läse diese Schleife
+  // die Team-Sidecar bei jedem Durchgang erneut vom Share.
+  const eigeneSpalten = await ladeAlleEigenenSpalten(idb);
   const parts: string[] = [];
   for (const p of sorted) {
     const schemas = await listSchemasByProgramm(idb, p.id);
@@ -79,7 +83,7 @@ async function computeStatusDatumSchemaSig(
     // Einzige an ihnen, was projiziert wird. Beschriftungen, Regeltexte und
     // Farben stehen bewusst NICHT drin: sie ändern die Anzeige, nicht die
     // Rohwerte, und dürfen deshalb keinen Neuaufbau auslösen.
-    const f = freieFelderSignatur(await loeseFreieFelderFuer(idb, schemas));
+    const f = freieFelderSignatur(await loeseFreieFelderFuer(idb, schemas, eigeneSpalten));
     parts.push(`${p.id}{${g}}[${k}]<${f}>`);
   }
   return murmurhash3(parts.join('~'));
