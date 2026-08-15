@@ -327,6 +327,7 @@ function substringMatches(
       || (t.erlaubt.has('deskriptoren') && entry.descriptorsLower.includes(nadel))
       || (t.erlaubt.has('akronym') && entry.akronymLower.includes(nadel))
       || (t.erlaubt.has('aktenzeichen') && entry.akzLower.includes(nadel))
+      || (t.erlaubt.has('verbundkennzeichen') && entry.verbundNrLower.includes(nadel))
       || (t.erlaubt.has('organisation') && entry.organisationLower.includes(nadel))
       // Netzwerk und Notiz sind Fliesstext wie der Titel — freier Substring.
       || (t.erlaubt.has('netzwerk') && entry.netzwerkLower.includes(nadel))
@@ -484,6 +485,7 @@ function feldZuordnung(
     merke('deskriptoren', in_(entry.descriptorsLower));
     merke('akronym', in_(entry.akronymLower));
     merke('aktenzeichen', in_(entry.akzLower));
+    merke('verbundkennzeichen', in_(entry.verbundNrLower));
     merke('organisation', in_(entry.organisationLower));
     merke('netzwerk', in_(entry.netzwerkLower));
     merke('notiz', in_(entry.notizLower));

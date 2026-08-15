@@ -32,6 +32,7 @@ export type Trefferfeld =
   | 'deskriptoren'
   | 'akronym'
   | 'aktenzeichen'
+  | 'verbundkennzeichen'
   | 'organisation'
   | 'domain'
   | 'standort'
@@ -49,6 +50,11 @@ export const TREFFERFELD_LABEL: Record<Trefferfeld, string> = {
   deskriptoren: 'Deskriptoren',
   akronym: 'Akronym',
   aktenzeichen: 'Aktenzeichen',
+  // „Verbundkennzeichen" wäre das genauere Wort, aber diese Beschriftung steht
+  // auch als 10px-Marke vor ihrem Wert: 124 px Etikett vor 60 px Nummer,
+  // gemessen. Der Beleg heißt deshalb wie die Spalte in der Fördertabelle
+  // (`VB_NUMMER`) — und liest sich als Satz: „Verbund-Nr. ZKN073232".
+  verbundkennzeichen: 'Verbund-Nr.',
   organisation: 'Einrichtung',
   domain: 'Web-Adresse',
   standort: 'Ort',
@@ -70,6 +76,11 @@ const GEWICHT: Record<Trefferfeld, number> = {
   titel: 3,
   akronym: 3,
   aktenzeichen: 3,
+  // Wie das Aktenzeichen und aus demselben Grund: eine Nummer ist eindeutig.
+  // Wer `ZKN073232` eintippt, meint GENAU die neun Teilvorhaben dieses
+  // Verbunds — sie „mittel" zu nennen, verginge sich an einer Anfrage, die
+  // keinen Deutungsspielraum hat.
+  verbundkennzeichen: 3,
   kurzbeschreibung: 2,
   dokument: 2,
   deskriptoren: 1.5,
@@ -108,7 +119,8 @@ const AEHNLICHKEIT_DECKEL = 0.5;
 /** Anzeige-Reihenfolge der Tags: stärkste Fundstelle zuerst, bei gleichem
  *  Gewicht in fester Reihenfolge (stabil über Renders). */
 const REIHENFOLGE: readonly Trefferfeld[] = [
-  'titel', 'akronym', 'aktenzeichen', 'kurzbeschreibung', 'dokument',
+  'titel', 'akronym', 'aktenzeichen', 'verbundkennzeichen',
+  'kurzbeschreibung', 'dokument',
   'deskriptoren', 'netzwerk', 'aehnlichkeit',
   'organisation', 'domain', 'standort', 'wahlkreis', 'notiz',
 ];

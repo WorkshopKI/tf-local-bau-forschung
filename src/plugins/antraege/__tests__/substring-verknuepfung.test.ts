@@ -58,6 +58,8 @@ function eintrag(
     notizLower: '',
     wahlkreis: '',
     wahlkreisSuchform: '',
+    verbundNr: '',
+    verbundNrLower: '',
     ...extra,
   };
   return {
@@ -65,6 +67,7 @@ function eintrag(
     netzwerkLower: basis.netzwerk.toLowerCase(),
     notizLower: basis.notiz.toLowerCase(),
     wahlkreisSuchform: standortSuchform(basis.wahlkreis),
+    verbundNrLower: basis.verbundNr.toLowerCase(),
   };
 }
 
@@ -535,6 +538,57 @@ describe('searchAntraegeSubstring — Netzwerk, Notiz, Wahlkreis (v4.50)', () =>
     // nicht dazu, auch wenn er thematisch klingt.
     expect(searchAntraegeSubstring('LOHC', NEUE_FELDER_KORPUS, { bereich: 'inhalt' })).toEqual([]);
     expect(searchAntraegeSubstring('einbehalt', NEUE_FELDER_KORPUS, { bereich: 'inhalt' }))
+      .toEqual([]);
+  });
+});
+
+/**
+ * Die Kennzeichen (v4.53): drei Teilvorhaben eines Verbunds, eines aus einem
+ * anderen. Das `akz`-Argument trägt BEIDE Schreibweisen des Antrags — genau so
+ * baut der Korpus das Feld (`16KN073269` aus dem FKZ, `KNF073269` aus `AKZ`).
+ */
+const KENNZEICHEN_KORPUS = new Map<string, AntragTextEntry>([
+  ['16KN073269', eintrag('Leichtbau-Rahmen', '', '', '', '', '16KN073269 KNF073269',
+    'Rahmen GmbH', '', '', { verbundNr: 'ZKN073232' })],
+  ['16KN073270', eintrag('Fügetechnik', '', '', '', '', '16KN073270 KNF073270',
+    'Füge AG', '', '', { verbundNr: 'ZKN073232' })],
+  ['16KN073271', eintrag('Prüfstand', '', '', '', '', '16KN073271 INF073271',
+    'Institut für Prüftechnik', '', '', { verbundNr: 'ZKN073232' })],
+  ['16KN046501', eintrag('Bilderkennung', '', '', '', '', '16KN046501 KNF046501',
+    'Optik GmbH', '', '', { verbundNr: 'ZKN046488' })],
+]);
+
+describe('searchAntraegeSubstring — Verbundkennzeichen und Fachsystem-AKZ (v4.53)', () => {
+  it('holt über das Verbundkennzeichen alle Teilvorhaben auf einmal', () => {
+    // Der Kern: die Nummer steht in KEINEM anderen durchsuchten Feld. Vorher
+    // führte der einzige Weg über den Verbund im Antrags-Modul.
+    expect(searchAntraegeSubstring('ZKN073232', KENNZEICHEN_KORPUS).sort())
+      .toEqual(['16KN073269', '16KN073270', '16KN073271']);
+    expect(searchAntraegeSubstring('vb:ZKN046488', KENNZEICHEN_KORPUS)).toEqual(['16KN046501']);
+  });
+
+  it('trennt Verbund und Teilvorhaben — `fkz:` holt keine Geschwister', () => {
+    expect(searchAntraegeSubstring('fkz:16KN073269', KENNZEICHEN_KORPUS)).toEqual(['16KN073269']);
+    expect(searchAntraegeSubstring('fkz:ZKN073232', KENNZEICHEN_KORPUS)).toEqual([]);
+    expect(searchAntraegeSubstring('vb:16KN073269', KENNZEICHEN_KORPUS)).toEqual([]);
+  });
+
+  it('findet den Antrag auch unter dem Aktenzeichen des Fachsystems', () => {
+    // Am Bestand: in 12 321 von 12 358 Sätzen ist der ZIFFERNteil derselbe —
+    // wer die Ziffern tippt, fand den Antrag schon vorher. Die ganze
+    // Zeichenkette `KNF073269` fand vor v4.53 nichts.
+    expect(searchAntraegeSubstring('KNF073269', KENNZEICHEN_KORPUS)).toEqual(['16KN073269']);
+    expect(searchAntraegeSubstring('akz:INF073271', KENNZEICHEN_KORPUS)).toEqual(['16KN073271']);
+    // Beide Schreibweisen sind DASSELBE Feld — auch über `fkz:` erreichbar.
+    expect(searchAntraegeSubstring('fkz:KNF073270', KENNZEICHEN_KORPUS)).toEqual(['16KN073270']);
+  });
+
+  it('das Verbundkennzeichen gehört zur Identität, nicht zu „wer" oder „wo"', () => {
+    expect(searchAntraegeSubstring('ZKN073232', KENNZEICHEN_KORPUS, { bereich: 'inhalt' }).sort())
+      .toEqual(['16KN073269', '16KN073270', '16KN073271']);
+    expect(searchAntraegeSubstring('ZKN073232', KENNZEICHEN_KORPUS, { bereich: 'einrichtung' }))
+      .toEqual([]);
+    expect(searchAntraegeSubstring('ZKN073232', KENNZEICHEN_KORPUS, { bereich: 'standort' }))
       .toEqual([]);
   });
 });

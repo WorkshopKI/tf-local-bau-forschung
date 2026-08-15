@@ -7,8 +7,8 @@
  *
  *  - `loadAntraegeTextCorpus` — projiziert den vollen `Antrag`-Record auf die
  *    suchrelevanten Text-Felder (Verbund-Titel, Titel, Projektbeschreibung,
- *    Deskriptoren, Akronym, Aktenzeichen, Organisation, Standort, Web-Adresse,
- *    Netzwerk, Arbeitsnotizen, Wahlkreis)
+ *    Deskriptoren, Akronym, Aktenzeichen, Verbundkennzeichen, Organisation,
+ *    Standort, Web-Adresse, Netzwerk, Arbeitsnotizen, Wahlkreis)
  *    und cached zusaetzlich die lowercase-Variante
  *    (Substring-Match per Keystroke wird so von ~500 ms auf ~10–30 ms reduziert).
  *
@@ -57,12 +57,37 @@ export interface AntragTextEntry {
   absLower: string;
   descriptorsLower: string;
   akronymLower: string;
-  /** Aktenzeichen klein geschrieben. Als einziges Feld OHNE Roh-Variante: der
-   *  Rohwert ist bereits der Schluessel dieser Map. Er liegt trotzdem hier,
-   *  weil `substringMatches` sonst pro Eintrag und Wort ein
-   *  `akz.toLowerCase()` allozieren muesste — genau der GC-Druck, den die
-   *  vorberechneten Felder vermeiden. */
+  /**
+   * Die Kennzeichen DIESES Antrags, klein geschrieben: das Foerderkennzeichen
+   * (`16KN065624`, zugleich der Schluessel dieser Map) und daneben das
+   * Aktenzeichen des Fachsystems (`AKZ`, `KNF065624`).
+   *
+   * Zwei Schreibweisen derselben Sache, deshalb EIN Feld: wer eine Nummer
+   * eintippt, fragt „welcher Antrag ist das", nicht „steht das in FKZ oder AKZ".
+   * Am Bestand gemessen (12 358 Saetze mit AKZ) ist der ZIFFERNTEIL in 12 321
+   * Faellen identisch — wer die Ziffern tippt, fand den Antrag also schon
+   * vorher; die ganze Zeichenkette `KNF065624` fand in genau 38 Faellen etwas.
+   * Der Buchstabenteil traegt zudem die Foerderart (`16KN` → KNF/INF/NWF/KNM/…)
+   * und ist damit nicht aus dem FKZ ableitbar.
+   *
+   * Ohne Roh-Variante: gesucht wird hier, angezeigt wird die FKZ-Spalte.
+   * Vorberechnet, weil `substringMatches` sonst pro Eintrag und Wort ein
+   * `toLowerCase()` allozieren muesste — genau der GC-Druck, den die
+   * vorberechneten Felder vermeiden.
+   */
   akzLower: string;
+  /**
+   * Kennzeichen des VERBUNDS (`VB_NUMMER`, z. B. `ZKN073232`) — die Klammer um
+   * die Teilvorhaben.
+   *
+   * Am Bestand gemessen: alle 14 225 Antraege tragen es, 7 535 verschiedene
+   * Verbuende, davon 3 451 mit mehr als einem Teilvorhaben (bis zu 9). Es steht
+   * in KEINEM anderen durchsuchten Feld — nicht im FKZ, nicht im Netzwerkfeld,
+   * nicht im Titel (je 0 von 14 225). Ohne dieses Feld gab es keinen Weg, die
+   * Geschwister eines Teilvorhabens ueber die Nummer beisammen zu sehen.
+   */
+  verbundNr: string;
+  verbundNrLower: string;
   /** Antragsteller + ausfuehrende Stelle, zu EINEM Suchfeld zusammengezogen.
    *
    *  Zwei Spalten, weil sie zwei verschiedene Organisationen benennen koennen:
@@ -218,6 +243,12 @@ const KORPUS_BASIS: KorpusFeldKarte = {
    *  eben grob. 2 256 Antraege fuehren ihn, 1 512 davon mit Woertern, die in den
    *  Deskriptoren fehlen. */
   nace: mengeAus('nace_code_beschreibung_nw_antragsebene', 'nace_lang', 'nace lang'),
+  /** Verbundkennzeichen. `VB_NUMMER` ist im Repo das kanonische `verbund_id`
+   *  ([constants.ts](src/core/services/csv/constants.ts)). */
+  verbundNr: mengeAus('verbund_id', 'vb_nummer', 'vb nummer'),
+  /** Aktenzeichen des Fachsystems. Kein kanonisches Feld — landet als Custom-
+   *  Spalte `akz`. */
+  akzC16: mengeAus('akz'),
 };
 
 function mengeAus(...namen: string[]): ReadonlySet<string> {
@@ -500,6 +531,9 @@ export async function loadAntraegeTextCorpus(
       // Text in der Trefferzeile ausgeschrieben wird.
       const notiz = verbindeMit(' · ', feld.notizWichtig ?? '', feld.notizBemerkung ?? '');
       const wahlkreis = feld.wahlkreis ?? '';
+      const verbundNr = feld.verbundNr ?? '';
+      // Beide Schreibweisen desselben Antrags in EINEM Feld — siehe `akzLower`.
+      const kennzeichen = verbindeEindeutig(a.aktenzeichen, feld.akzC16 ?? '');
       if (
         includeEmpty
         || vb.length > 0 || tv.length > 0 || ab.length > 0
@@ -507,6 +541,7 @@ export async function loadAntraegeTextCorpus(
         || organisation.length > 0 || standort.length > 0
         || domain.length > 0 || netzwerk.length > 0
         || notiz.length > 0 || wahlkreis.length > 0
+        || verbundNr.length > 0
       ) {
         result.set(a.aktenzeichen, {
           vb,
@@ -519,7 +554,9 @@ export async function loadAntraegeTextCorpus(
           absLower: ab.toLowerCase(),
           descriptorsLower: descriptors.toLowerCase(),
           akronymLower: ak.toLowerCase(),
-          akzLower: a.aktenzeichen.toLowerCase(),
+          akzLower: kennzeichen.toLowerCase(),
+          verbundNr,
+          verbundNrLower: verbundNr.toLowerCase(),
           organisation,
           organisationLower: organisation.toLowerCase(),
           standort,

@@ -19,6 +19,18 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.53 — 2026-08
+
+### Neu
+- **Suche nach dem Verbundkennzeichen.** `vb:ZKN073232` holt alle Teilvorhaben eines Verbunds auf einmal — bisher gab es dafür keinen Weg über die Suche. Die Spalte „Verbund-Nr." blendet sich dabei von selbst ein.
+- **Das Aktenzeichen aus dem Fachsystem findet jetzt auch.** Wer `KNF065624` einfügt, landet beim selben Antrag wie mit `16KN065624`.
+
+### Verbesserungen
+- Das Netzwerk-Kürzel heißt in der Suche jetzt `nw:` statt `netz:` — die alte Schreibweise funktioniert weiter.
+
+### Bugfixes
+- Beim Tippen stand für einen Moment „0 Treffer", bevor die richtige Liste kam. Jetzt steht dort „… Treffer", bis wirklich gezählt wurde.
+
 ## v4.51 — 2026-08
 
 ### Neu

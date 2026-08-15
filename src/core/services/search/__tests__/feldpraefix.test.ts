@@ -86,6 +86,32 @@ describe('zerlegeFeldAnfrage', () => {
   });
 });
 
+describe('Kennzeichen-Präfixe (v4.53)', () => {
+  it('`vb:` meint das Verbundkennzeichen, `fkz:` das Teilvorhaben', () => {
+    expect(zerlegeFeldAnfrage('vb:ZKN073232')).toEqual([
+      { roh: 'vb:ZKN073232', wert: 'ZKN073232', feld: 'verbundkennzeichen' },
+    ]);
+    expect(zerlegeFeldAnfrage('fkz:16KN073269')[0]?.feld).toBe('aktenzeichen');
+  });
+
+  it('beide Schreibweisen des Antrags führen auf DASSELBE Feld', () => {
+    // `16KN065624` (Förderkennzeichen) und `KNF065624` (Fachsystem) sind
+    // derselbe Antrag — wer eine Nummer tippt, fragt nicht nach der Spalte.
+    for (const alias of ['fkz', 'akz', 'aktenzeichen', 'kennzeichen']) {
+      expect(feldAusPraefix(alias)).toBe('aktenzeichen');
+    }
+  });
+
+  it('das Netzwerk schreibt sich `nw:`, liest sich aber weiter als `netz:`', () => {
+    // Umbenennung v4.53: die App schlägt nur noch `nw:` vor. Eine gemerkte
+    // Suche mit `netz:` darf davon nicht ins Leere laufen.
+    expect(FELD_PRAEFIX.netzwerk).toBe('nw');
+    expect(feldAusPraefix('nw')).toBe('netzwerk');
+    expect(feldAusPraefix('netz')).toBe('netzwerk');
+    expect(zerlegeFeldAnfrage('netz:ProAnimalLife')[0]?.feld).toBe('netzwerk');
+  });
+});
+
 describe('hatFeldPraefix', () => {
   it('erkennt, ob die Anfrage ein Feld nennt', () => {
     expect(hatFeldPraefix('laser schweißen')).toBe(false);

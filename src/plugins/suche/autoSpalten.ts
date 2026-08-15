@@ -8,7 +8,7 @@
  * Fundstelle im Ort, und der Ort steht nirgends in der Zeile. Ein Etikett
  * „Ort" sagt DASS, nicht WAS.
  *
- * Die Liste zählt auf, was KEINEN Platz hat: von den zwölf Trefferstellen
+ * Die Liste zählt auf, was KEINEN Platz hat: von den dreizehn Trefferstellen
  * ([trefferstelle.ts](src/core/services/search/trefferstelle.ts)) haben sechs
  * längst einen im Ergebnis —
  *
@@ -19,16 +19,20 @@
  *  - `dokument`                 → Dateiname bzw. gefaltete Textstelle,
  *  - `aehnlichkeit`             → Spalten „Suche" und „Score".
  *
- * Übrig bleiben `standort`, `deskriptoren`, `domain` und — seit v4.50 —
- * `netzwerk`, `wahlkreis` und `notiz`. NUR sie stehen unten in `BELEG`; wer hier
- * eine weitere Zeile ergänzt, muss vorher zeigen, dass der Beleg wirklich
- * nirgends sonst auftaucht, sonst wächst die Tabelle für nichts.
+ * Übrig bleiben `standort`, `deskriptoren`, `domain`, seit v4.50 `netzwerk`,
+ * `wahlkreis` und `notiz` und seit v4.53 das `verbundkennzeichen`. NUR sie
+ * stehen unten in `BELEG`; wer hier eine weitere Zeile ergänzt, muss vorher
+ * zeigen, dass der Beleg wirklich nirgends sonst auftaucht, sonst wächst die
+ * Tabelle für nichts.
  *
- * Für die drei neuen ist es gezeigt: der Netzwerkname steht in keiner Spalte
+ * Für die drei aus v4.50 ist es gezeigt: der Netzwerkname steht in keiner Spalte
  * (die Trefferliste zeigt AST · Akronym · Geber), der Wahlkreis erklärt einen
  * Treffer, dessen Ortsfeld das Suchwort gar nicht enthält (5 274 von 14 218
  * Anträgen nennen dort einen anderen Ort), und die Arbeitsnotiz steht überhaupt
- * nur auf der Detailseite des Antrags.
+ * nur auf der Detailseite des Antrags. Und für das Verbundkennzeichen: die
+ * Tabelle führt eine Spalte „FKZ" (das Teilvorhaben), aber keine für seinen
+ * Verbund — wer `ZKN073232` tippt, bekommt neun Zeilen, in denen die getippte
+ * Nummer nirgends steht.
  *
  * Für `domain` ist das gezeigt: die Web-Adresse wird aus der Kontakt-Mail
  * abgeleitet und steht in keiner Spalte und in keinem Snippet. Sie existiert
@@ -64,6 +68,7 @@ const BELEG: readonly BelegDefinition[] = [
   { feld: 'netzwerk', spalte: 'netzwerk', wert: r => r.netzwerk },
   { feld: 'wahlkreis', spalte: 'wahlkreis', wert: r => r.wahlkreis },
   { feld: 'notiz', spalte: 'notiz', wert: r => r.notiz },
+  { feld: 'verbundkennzeichen', spalte: 'verbundkennzeichen', wert: r => r.verbundkennzeichen },
 ];
 
 /** Ein Beleg mit seinem Wert — was die Trefferzeile zusätzlich schreibt. */

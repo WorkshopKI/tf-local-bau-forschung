@@ -22,10 +22,11 @@
  * geschnitten. `aehnlichkeit` fehlt aus demselben Grund; sie hat ihren Schalter.
  *
  * Seit v4.50 stehen auch die Felder dahinter, die bis dahin gar nicht durchsucht
- * wurden: `netz:` (Netzwerkname UND Netz-Kennzeichen), `wahlkreis:` und `notiz:`
+ * wurden: `nw:` (Netzwerkname UND Netz-Kennzeichen), `wahlkreis:` und `notiz:`
  * (die Arbeitsnotizen am Vorgang, „Wichtig" + „Bemerkung" als EIN Feld — der
  * Suchende fragt „steht das irgendwo in meinen Notizen", nicht „steht das in
- * T_YW").
+ * T_YW"). Seit v4.53 kommt `vb:` dazu — das Verbundkennzeichen, die Klammer um
+ * die Teilvorhaben.
  *
  * Die Aliasse führen die CSV-Spaltencodes MIT (`ORG_AST`, `VB_TITEL`, …), weil
  * der Bearbeiter die Fördertabelle vor Augen hat, wenn er weiß, wo sein Wert
@@ -71,9 +72,19 @@ const ALIASE: ReadonlyMap<string, Trefferfeld> = new Map<string, Trefferfeld>([
   ['vb_kurznam', 'akronym'],
   ['kurzname', 'akronym'],
 
+  // Ein Feld für BEIDE Schreibweisen desselben Antrags: das Förderkennzeichen
+  // (`16KN065624`) und das Aktenzeichen des Fachsystems (`KNF065624`).
   ['fkz', 'aktenzeichen'],
   ['akz', 'aktenzeichen'],
   ['aktenzeichen', 'aktenzeichen'],
+  ['kennzeichen', 'aktenzeichen'],
+
+  ['vb', 'verbundkennzeichen'],
+  ['verbund', 'verbundkennzeichen'],
+  ['verbundkennzeichen', 'verbundkennzeichen'],
+  ['vb_nummer', 'verbundkennzeichen'],
+  ['vbnummer', 'verbundkennzeichen'],
+  ['verbundnummer', 'verbundkennzeichen'],
 
   ['ast', 'organisation'],
   ['afs', 'organisation'],
@@ -99,6 +110,7 @@ const ALIASE: ReadonlyMap<string, Trefferfeld> = new Map<string, Trefferfeld>([
   ['domain', 'domain'],
   ['webadresse', 'domain'],
 
+  ['nw', 'netzwerk'],
   ['netz', 'netzwerk'],
   ['netzwerk', 'netzwerk'],
   ['netzwerkna', 'netzwerk'],
@@ -131,11 +143,14 @@ export const FELD_PRAEFIX: Partial<Record<Trefferfeld, string>> = {
   kurzbeschreibung: 'inhalt',
   akronym: 'akronym',
   aktenzeichen: 'fkz',
+  verbundkennzeichen: 'vb',
   organisation: 'ast',
   standort: 'ort',
   deskriptoren: 'deskriptor',
   domain: 'web',
-  netzwerk: 'netz',
+  // `nw` ist die Schreibweise des Teams (v4.53); `netz:` liest die Suche
+  // weiterhin, sie schreibt es nur nicht mehr.
+  netzwerk: 'nw',
   wahlkreis: 'wahlkreis',
   notiz: 'notiz',
 };

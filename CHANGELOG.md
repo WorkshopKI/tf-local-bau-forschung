@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.53.0 — Verbundkennzeichen suchbar, nw statt netz, keine Null vor der Messung (August 2026)
+
+MINOR — Nach dem FKZ ließ sich direkt suchen, nach dem Verbundkennzeichen nicht. Dieselbe Messung wie in v4.50, diesmal über die Spalten, die Codes tragen: von 512 Spalten bleiben genau vier — mehr Kennzeichen gibt es im Bestand nicht. Detail: [suche-relevanz.md](docs/architecture/suche-relevanz.md).
+
+- **Verbundkennzeichen als eigene Fundstelle** (100 % gefüllt, 7.535 Verbünde): `vb:ZKN073232` → 9 Teilvorhaben, vorher 0 — die Nummer stand in keinem durchsuchten Feld ([search-corpus.ts](src/plugins/antraege/services/search-corpus.ts), [korpusFeldAufloesung.ts](src/plugins/antraege/services/korpusFeldAufloesung.ts))
+- **Das Fachsystem-Aktenzeichen fällt mit dem FKZ zusammen** — `KNF065624` findet denselben Antrag wie `16KN065624`, über `fkz:`/`akz:`/`kennzeichen:` ([feldpraefix.ts](src/core/services/search/feldpraefix.ts))
+- **Netzwerk-Präfix heißt jetzt `nw:`**; `netz:` wird weiter gelesen, damit gemerkte Suchen nicht ins Leere laufen
+- **Keine Null vor der Messung**: der Ergebniskopf schrieb „0 Treffer", solange der erste Lauf noch lief (gemessen 357–666 ms) — jetzt steht dort „… Treffer" ([SuchSeite.tsx](src/plugins/suche/SuchSeite.tsx))
+- **Spalte „Verbund-Nr."** blendet sich wie die übrigen Belege selbst ein ([autoSpalten.ts](src/plugins/suche/autoSpalten.ts), [columns.tsx](src/plugins/suche/columns.tsx)); `ALTAKZ` bleibt draußen — der Import setzt es auf „ignorieren"
+
 ### v4.52.0 — Bestandslauf: Befund oben, Zahlen eingeklappt (August 2026)
 
 MINOR — Der Reiter *Kürzel* zeigte zwei Mess-Kacheln mit rund 40 gleichrangigen Zahlen in elf Abschnitten, alle immer offen: die eine Zeile, die eine Zusage bricht, stand neben einem Median. Jetzt steht die Wertung vor den Zahlen, und die Zahlen bleiben vollständig — §14.3 zitiert aus ihnen. Detail: [vorgangssystem.md §14.3/§15.4](docs/architecture/vorgangssystem.md).

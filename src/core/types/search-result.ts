@@ -85,6 +85,10 @@ export interface UnifiedSearchResult {
    *  Der stärkste Fall dieser Regel: der Satz steht nirgends sonst in der App
    *  außer auf der Detailseite des Antrags. */
   notiz?: string;
+  /** Kennzeichen des Verbunds (`ZKN073232`). Beleg wie oben: die Trefferliste
+   *  zeigt das FKZ des Teilvorhabens, nie die Nummer seines Verbunds — wer über
+   *  sie hierher gefunden hat, sähe sonst keinen Grund für den Treffer. */
+  verbundkennzeichen?: string;
 
   // ----- Antrags-spezifisch (nur wenn type === 'antrag') -----
   /** Foerderkennzeichen / Aktenzeichen. */

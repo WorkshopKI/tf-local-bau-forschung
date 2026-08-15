@@ -46,7 +46,9 @@ export type KorpusSlot =
   | 'notizWichtig'
   | 'notizBemerkung'
   | 'wahlkreis'
-  | 'nace';
+  | 'nace'
+  | 'verbundNr'
+  | 'akzC16';
 
 /**
  * Spalten-CODES je Slot, in der REIHENFOLGE, in der sie ihren Schluessel
@@ -85,6 +87,11 @@ export const SPALTEN_CODES: Readonly<Record<KorpusSlot, readonly string[]>> = {
   notizBemerkung: ['T_HINT'],
   wahlkreis: ['WKNAAK_AFS'],
   nace: ['NACE_LANG'],
+  // Die beiden Kennzeichen (v4.53). `VB_NUMMER` ist in allen drei Quellen auf
+  // das kanonische `verbund_id` gemappt, `AKZ` auf die Custom-Spalte `akz` —
+  // beide standen im Store und waren trotzdem nicht auffindbar.
+  verbundNr: ['VB_NUMMER'],
+  akzC16: ['AKZ'],
 };
 
 /**
@@ -102,6 +109,7 @@ export const SLOT_REIHENFOLGE: readonly KorpusSlot[] = [
   'ortAfs', 'ortAst', 'landAfs', 'landAst',
   'emailPl',
   'netzwerk', 'notizWichtig', 'notizBemerkung', 'wahlkreis', 'nace',
+  'verbundNr', 'akzC16',
 ];
 
 /** Normalisierte Schluessel-Kandidaten je Slot — Vorlage fuer das Umkehr-

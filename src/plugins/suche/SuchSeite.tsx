@@ -479,6 +479,20 @@ export function SuchSeite(): React.ReactElement {
 
   const noQuery = !queryNotEmpty;
   const showResults = !noQuery && sichtbar.length > 0;
+  /**
+   * Darf der Ergebniskopf eine Trefferzahl BEHAUPTEN?
+   *
+   * Nicht, solange der erste Lauf dieser Anfrage offen ist und noch nichts
+   * angekommen ist: `results` steht dann auf der leeren Startmenge, und die
+   * Zeile schriebe „0 Treffer" — durch die 300 ms Entprellung plus Korpus-Lauf
+   * lange genug, um gelesen zu werden, bevor die echte Liste erscheint.
+   * Gemeldet als „kurz 0 Treffer, dann die richtige Trefferliste"; es war nie
+   * ein Ergebnis, sondern eine Zahl vor der Messung.
+   *
+   * Beim Weitertippen bleibt die Zahl des vorigen Laufs stehen (`sichtbar` ist
+   * dann nicht leer) — eine kurz veraltete Zahl ist ehrlicher als eine falsche.
+   */
+  const trefferzahlSteht = !showSpinner || sichtbar.length > 0;
   const analyseProgressLabel = analyse.running
     ? (analyse.progress?.totalBatches
         ? `KI erstellt Begründungen… Batch ${analyse.progress.currentBatch ?? 0}/${analyse.progress.totalBatches}`
@@ -635,7 +649,9 @@ export function SuchSeite(): React.ReactElement {
           {queryNotEmpty && (
             <div className="mt-3 flex w-full max-w-6xl flex-wrap items-center gap-2">
               <span className="text-[13px] text-[var(--tf-text)]">
-                <b className="font-medium">{sichtbar.length.toLocaleString('de-DE')} Treffer</b>
+                <b className="font-medium">
+                  {trefferzahlSteht ? sichtbar.length.toLocaleString('de-DE') : '…'} Treffer
+                </b>
                 <span className="text-[var(--tf-text-secondary)]">
                   {' '}in {indexInfo.antraegeGeladen.toLocaleString('de-DE')} Anträgen
                 </span>

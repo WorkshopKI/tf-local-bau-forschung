@@ -21,9 +21,9 @@ Sortierung, keine Relevanzangabe, keine Erklärung, warum ein Treffer kam.
 Der Antrags-Korpus hält die suchbaren Felder ohnehin getrennt
 ([search-corpus.ts](../../src/plugins/antraege/services/search-corpus.ts)):
 Titel (VB + TV), Kurzbeschreibung, Deskriptoren, Akronym, Aktenzeichen,
-Organisation, Standort, Web-Adresse — und seit v4.50 Netzwerk, Arbeitsnotiz und
-Wahlkreis. Die Feld-Zuordnung war also nie eine Rechnung, sondern nur eine
-Information, die niemand mitgeführt hat.
+Organisation, Standort, Web-Adresse — seit v4.50 Netzwerk, Arbeitsnotiz und
+Wahlkreis, seit v4.53 das Verbundkennzeichen. Die Feld-Zuordnung war also nie
+eine Rechnung, sondern nur eine Information, die niemand mitgeführt hat.
 
 **Woher der Korpus seine Felder nimmt (v4.42.0).** Unter welchem Schlüssel eine
 CSV-Spalte im Antrags-Record landet, entscheidet das Wizard-Mapping —
@@ -64,7 +64,7 @@ Treffer, und in der Liste war das Suchwort bei **4 von 30** sichtbaren Zeilen
 markiert — bei denen, wo die Stadt zufällig im Firmennamen vorkam.
 
 Die Ursache ist keine Lücke im Layout, sondern eine im Datenfluss: sechs der
-zwölf Trefferstellen haben längst einen Platz im Ergebnis, sechs nicht.
+dreizehn Trefferstellen haben längst einen Platz im Ergebnis, sieben nicht.
 
 | Trefferstelle | steht im Ergebnis als |
 |---|---|
@@ -79,9 +79,10 @@ zwölf Trefferstellen haben längst einen Platz im Ergebnis, sechs nicht.
 | **`netzwerk`** | **Spalte „Netzwerk"** — wird eingeblendet |
 | **`wahlkreis`** | **Spalte „Wahlkreis"** — wird eingeblendet |
 | **`notiz`** | **Spalte „Notiz"** — wird eingeblendet |
+| **`verbundkennzeichen`** | **Spalte „Verbund-Nr."** — wird eingeblendet |
 
-[autoSpalten.ts](../../src/plugins/suche/autoSpalten.ts) führt diese sechs — und
-nur diese sechs. Eine weitere Zeile braucht den Nachweis, dass der Beleg wirklich
+[autoSpalten.ts](../../src/plugins/suche/autoSpalten.ts) führt diese sieben — und
+nur diese sieben. Eine weitere Zeile braucht den Nachweis, dass der Beleg wirklich
 nirgends sonst auftaucht; sonst verbreitert sich die Tabelle für nichts.
 
 Für `domain` ist der Nachweis geführt: die Web-Adresse steht in keiner anderen
@@ -193,6 +194,64 @@ kein Suchfeld; die Anrede `BRANR_PL` („Sehr geehrter Herr …") — Personenan
 ohne Sachaussage. `ALTAKZ` wäre interessant (der alte Vorgangscode), ist im
 Import aber ausdrücklich auf „ignorieren" gesetzt und bräuchte erst eine
 Mapping-Änderung.
+
+### Die Kennzeichen: Verbund und Fachsystem-AKZ (v4.53.0)
+
+Nach dem FKZ ließ sich direkt suchen, nach dem **Verbundkennzeichen** nicht.
+Dieselbe Messung wie oben, diesmal auf die Spalten beschränkt, die Codes tragen
+(kurz, Buchstabe + Ziffer, kein Datum): über 512 Spalten der drei Quellen bleiben
+genau **vier** übrig — `FKZ`, `AKZ`, `VB_NUMMER`, `ALTAKZ`. Mehr Kennzeichen gibt
+es im Bestand nicht.
+
+| Spalte | Schlüssel im Store | Deckung | Zugewinn |
+|---|---|---|---|
+| `VB_NUMMER` | `verbund_id` (kanonisch) | 14 225 (100 %), 7 535 Verbünde | steht in **keinem** durchsuchten Feld — nicht im FKZ, nicht im Netzwerkfeld, nicht im Titel (je 0 von 14 225) |
+| `AKZ` | `akz` (custom) | 12 358 | der Ziffernteil ist in 12 321 Fällen mit dem FKZ identisch; die ganze Zeichenkette `KNF065624` fand vorher in 38 Fällen etwas |
+| `ALTAKZ` | — | 5 109 | im Import auf „ignorieren" — steht gar nicht im Store |
+
+Drei Entscheidungen:
+
+- **Das Verbundkennzeichen wird eine eigene Fundstelle** (`verbundkennzeichen`,
+  Präfix `vb:`), keine Erweiterung des Aktenzeichens. Es benennt eine ANDERE
+  Sache: `vb:ZKN073232` liefert neun Teilvorhaben, von denen keines dieses
+  Aktenzeichen trägt — ein Etikett „Aktenzeichen" wäre an dieser Zeile falsch.
+  3 451 der 7 535 Verbünde haben mehr als ein Teilvorhaben (bis zu neun), und die
+  Nummer war bis dahin der einzige Weg, sie beisammen zu sehen, den es nicht gab.
+  Gewicht **3** wie das Aktenzeichen: eine Nummer hat keinen Deutungsspielraum.
+  In der Oberfläche heißt der Beleg **„Verbund-Nr."** und nicht
+  „Verbundkennzeichen" — als 10px-Marke stünden sonst 124 px Etikett vor 60 px
+  Wert (gemessen); die Kurzform liest sich zudem als Satz: „Verbund-Nr.
+  ZKN073232".
+- **Das Fachsystem-AKZ fällt mit dem FKZ zusammen.** `16KN065624` und `KNF065624`
+  sind derselbe Antrag; wer eine Nummer tippt, fragt „welcher Antrag ist das",
+  nicht „steht das in FKZ oder AKZ". Deshalb EIN Feld, erreichbar über `fkz:`,
+  `akz:`, `aktenzeichen:` und `kennzeichen:`. Der Buchstabenteil ist nicht
+  ableitbar (`16KN` → KNF / INF / NWF / KNM / INM / INS …, er kodiert die
+  Förderart), der Ziffernteil dagegen fast immer gleich — deshalb keine eigene
+  Spalte: die FKZ-Spalte zeigt dieselben sechs Ziffern.
+- **`ALTAKZ` bleibt draußen**, solange das Mapping es ausschließt. Ein Feld
+  aufzunehmen, das im Store nicht existiert, wäre genau die stille
+  Feature-Deaktivierung aus Klasse 5 — nur andersherum.
+
+Dazu eine Umbenennung ohne Substanz: das Netzwerk-Präfix heißt jetzt `nw:` (die
+Schreibweise des Teams). `netz:` liest die Suche weiter — gemerkte Suchen und
+Notizen sollen nicht ins Leere laufen —, sie schlägt es nur nicht mehr vor.
+
+### Keine Trefferzahl vor der Messung (v4.53.0)
+
+Der Ergebniskopf schrieb `sichtbar.length`, sobald etwas im Suchfeld stand. Bei
+einer frischen Anfrage ist diese Liste leer, bis die Pipeline das erste Mal
+liefert — 300 ms Entprellung plus Korpuslauf, am echten Bestand **357–666 ms**
+gemessen. So lange stand dort „**0 Treffer**", danach die richtige Zahl. Gemeldet
+als „kurz 0 Treffer, dann die echte Trefferliste"; es war nie ein Ergebnis,
+sondern eine Zahl vor der Messung.
+
+Jetzt steht in diesem Fenster „**… Treffer**"
+([SuchSeite.tsx](../../src/plugins/suche/SuchSeite.tsx)). Beim Weitertippen bleibt
+dagegen die Zahl des vorigen Laufs stehen — eine kurz veraltete Zahl ist ehrlicher
+als eine falsche, und sie flackert nicht. Eine echte 0 erscheint unverändert,
+sobald der Lauf fertig ist (gemessen: 357 ms, mit dem Kein-Treffer-Zustand
+darunter).
 
 ## 3 Relevanz — das Urteil
 

@@ -44,11 +44,11 @@ export const SUCHBEREICH_LABEL: Record<Suchbereich, string> = {
 /**
  * Welche Antragsfelder die Wortlaut-Stufe prüft.
  *
- * Akronym und Aktenzeichen gehören zu den INHALTLICHEN Bereichen, weil sie die
- * Identität eines Vorhabens sind: wer ein FKZ eintippt, meint dieses Vorhaben,
- * egal welchen Bereich er eingestellt hat. In „nur Einrichtung" und „nur Ort &
- * Bundesland" haben sie nichts zu suchen — dort ist die Frage „wer" bzw. „wo",
- * nicht „welches".
+ * Akronym, Aktenzeichen und Verbundkennzeichen gehören zu den INHALTLICHEN
+ * Bereichen, weil sie die Identität eines Vorhabens sind: wer ein FKZ eintippt,
+ * meint dieses Vorhaben, egal welchen Bereich er eingestellt hat. In „nur
+ * Einrichtung" und „nur Ort, Bundesland & Wahlkreis" haben sie nichts zu suchen
+ * — dort ist die Frage „wer" bzw. „wo", nicht „welches".
  *
  * `dokumente` liefert eine LEERE Menge: die Wortlaut-Stufe trägt dann nichts
  * bei, alle Treffer kommen aus dem Dokumentenindex. Sonst stünde unter „nur
@@ -63,7 +63,9 @@ export const SUCHBEREICH_LABEL: Record<Suchbereich, string> = {
 export function bereichFelder(bereich: Suchbereich): ReadonlySet<Trefferfeld> {
   switch (bereich) {
     case 'inhalt':
-      return new Set<Trefferfeld>(['titel', 'kurzbeschreibung', 'akronym', 'aktenzeichen']);
+      return new Set<Trefferfeld>([
+        'titel', 'kurzbeschreibung', 'akronym', 'aktenzeichen', 'verbundkennzeichen',
+      ]);
     case 'einrichtung':
       // Die Web-Adresse gehoert hierher, weil sie dieselbe Frage beantwortet:
       // wer ist das. Sie ist der einzige Weg zu Einrichtungen, die ihr Kuerzel
@@ -82,7 +84,8 @@ export function bereichFelder(bereich: Suchbereich): ReadonlySet<Trefferfeld> {
     default:
       return new Set<Trefferfeld>([
         'titel', 'kurzbeschreibung', 'deskriptoren',
-        'akronym', 'aktenzeichen', 'organisation', 'domain', 'standort',
+        'akronym', 'aktenzeichen', 'verbundkennzeichen',
+        'organisation', 'domain', 'standort',
         'netzwerk', 'wahlkreis', 'notiz',
       ]);
   }

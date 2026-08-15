@@ -181,6 +181,22 @@ export const SEARCH_COLUMNS: SearchColumn[] = [
       ),
   },
   {
+    // Das Kennzeichen des VERBUNDS — steht direkt neben dem des Teilvorhabens,
+    // weil man beide nebeneinander liest. Filterbar: die Nummer ist der einzige
+    // Weg, die Geschwister eines Teilvorhabens beisammen zu sehen (3 451 der
+    // 7 535 Verbünde haben mehr als eines).
+    key: 'verbundkennzeichen', label: 'Verbund-Nr.', width: 115, defaultVisible: false,
+    sortable: true, filterable: true, appliesTo: 'antrag',
+    accessor: r => safeString(r.verbundkennzeichen),
+    render: r => r.verbundkennzeichen
+      ? (
+        <span className="font-mono text-[12px] text-[var(--tf-text)]">
+          <MarkierterText text={r.verbundkennzeichen} />
+        </span>
+      )
+      : null,
+  },
+  {
     // Format „Programm/Unterprogramm" (z.B. „ZIM/ZIM FuE-Projekte 2025"). Ohne
     // Unterprogramm nur der Programm-Name. Sort/Filter/Export laufen ueber den
     // kombinierten Accessor-Wert — dadurch wird Filtern nach Unterprogramm moeglich.

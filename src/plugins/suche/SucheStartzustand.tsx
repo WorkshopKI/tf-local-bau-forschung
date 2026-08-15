@@ -34,18 +34,20 @@ import { veraenderungText, type GespeicherteSuche } from './gespeicherteSuchen';
  * Bestand in keinem Organisationsfeld vor, nur in der Web-Adresse (v4.42) — das
  * Beispiel wäre ausgerechnet an der Stelle leer, an der es etwas beibringen soll.
  *
- * Die letzten beiden zeigen, was v4.50 dazugebracht hat: ein Netzwerk samt
- * seiner Teilvorhaben und die eigenen Arbeitsnotizen. Beides fand die Suche
- * vorher nicht — kein Feld führte den Text.
+ * Die drei Kennzeichen-Zeilen stehen beieinander, weil sie dieselbe Frage in
+ * drei Weiten stellen: dieses Teilvorhaben, sein Verbund, sein Netzwerk. Die
+ * letzte Zeile zeigt die eigenen Arbeitsnotizen — der Text, den die Suche vor
+ * v4.50 in keinem Feld führte.
  */
 const SUCHARTEN: readonly { query: string; erklaerung: string }[] = [
   { query: 'Bilderkennung', erklaerung: 'ein Thema — in allen Feldern' },        // 31
   { query: 'additive Fertigung', erklaerung: 'zwei Wörter — beide müssen vorkommen' }, // 639
   { query: '16KN055710', erklaerung: 'Förderkennzeichen — auch ein Anfang davon' },    // 1
+  { query: 'vb:ZKN073232', erklaerung: 'ein Verbund mit allen Teilvorhaben' },   // 9
+  { query: 'nw:ProAnimalLife', erklaerung: 'ein Netzwerk mit allen Teilvorhaben' },    // 80
   { query: 'ast:Fraunhofer', erklaerung: 'nur die Einrichtung' },                // 307
   { query: 'ort:Dresden', erklaerung: 'nur Ort und Bundesland' },                // 451
   { query: 'titel:Laser ort:Dresden', erklaerung: 'zwei Felder in einer Anfrage' },    // 4
-  { query: 'netz:ProAnimalLife', erklaerung: 'ein Netzwerk mit allen Teilvorhaben' },  // 80
   { query: 'notiz:Einbehalt', erklaerung: 'in den eigenen Arbeitsnotizen' },     // 50
 ];
 

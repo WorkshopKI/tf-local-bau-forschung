@@ -45,6 +45,7 @@ const PRJBSP = schema('9052-prjbsp', {
   NETZWERKNA: { custom: 'netzwerk_kurzname_fkz_ztp', type: 'string' },
   WKNAAK_AFS: { custom: 'wahlkreisname_afs', type: 'string' },
   NACE_LANG: { custom: 'nace_code_beschreibung_nw_antragsebene', type: 'string' },
+  VB_NUMMER: { canonical: 'verbund_id', type: 'string' },
 });
 
 /** Quelle 9097 („AnB") — mappt ORG_AST auf einen dritten Namen. Traegt die
@@ -55,6 +56,11 @@ const ANB = schema('9097-anb', {
   NETZWERKNA: { custom: 'netzwerk', type: 'string' },
   T_YW: { custom: 'wichtig', type: 'string' },
   T_HINT: { custom: 'bemerkung', type: 'string' },
+  VB_NUMMER: { canonical: 'verbund_id', type: 'string' },
+  AKZ: { custom: 'akz', type: 'string' },
+  // Im echten Bestand ausgeschlossen — das Alt-Aktenzeichen kommt so gar nicht
+  // erst in den Store.
+  ALTAKZ: { type: 'string', ignore: true },
 });
 
 /** Quelle 7737 („Bgl") — die Kollision: ORG_AST auf den Schluessel von ORG_AFS.
@@ -82,6 +88,8 @@ const BASIS: KorpusFeldKarte = {
   notizBemerkung: new Set(['bemerkung']),
   wahlkreis: new Set(['wahlkreisnameafs']),
   nace: new Set(['nacelang']),
+  verbundNr: new Set(['verbundid']),
+  akzC16: new Set(['akz']),
 };
 
 const ALLE = [PRJBSP, ANB, BGL];
@@ -159,6 +167,18 @@ describe('baueKorpusFeldKarte', () => {
     const karte = baueKorpusFeldKarte(ALLE, BASIS);
     expect(karte.wahlkreis.has('wahlkreisnameafs')).toBe(true);
     expect(karte.nace.has('nacecodebeschreibungnwantragsebene')).toBe(true);
+  });
+
+  it('loest die beiden Kennzeichen auf — Verbund kanonisch, AKZ als Custom', () => {
+    // `VB_NUMMER` traegt im Repo den Canonical-Namen `verbund_id`, `AKZ` hat
+    // keinen und landet als Custom-Spalte. Zwei verschiedene Wege derselben
+    // Kaskade — beide muessen in der Karte ankommen.
+    const karte = baueKorpusFeldKarte(ALLE, BASIS);
+    expect(karte.verbundNr.has('verbundid')).toBe(true);
+    expect(karte.akzC16.has('akz')).toBe(true);
+    // Und sie bleiben getrennt: das Verbundkennzeichen ist eine eigene
+    // Fundstelle, das Fachsystem-Aktenzeichen faellt mit dem FKZ zusammen.
+    expect(karte.verbundNr.has('akz')).toBe(false);
   });
 
   it('ueberspringt ignorierte Spalten', () => {

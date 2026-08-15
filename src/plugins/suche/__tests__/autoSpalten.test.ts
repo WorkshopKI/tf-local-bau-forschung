@@ -85,6 +85,17 @@ describe('autoSpalten — die Fundstelle', () => {
     expect(autoSpalten('alles', menge)).toEqual(['netzwerk', 'notiz']);
   });
 
+  it('blendet das Verbundkennzeichen ein, aber nicht das Aktenzeichen', () => {
+    // Die Spalte „FKZ" zeigt das Teilvorhaben — der Verbund, zu dem es gehört,
+    // steht in keiner Zelle. Wer `ZKN073232` tippt, bekäme sonst Zeilen ohne
+    // ein einziges Zeichen seiner Anfrage.
+    const menge = [treffer(['verbundkennzeichen'], { verbundkennzeichen: 'ZKN073232' })];
+    expect(autoSpalten('alles', menge)).toEqual(['verbundkennzeichen']);
+    // Das Aktenzeichen bleibt draußen — auch in der Schreibweise des
+    // Fachsystems ist es dieselbe Nummer wie in der FKZ-Spalte.
+    expect(autoSpalten('alles', [treffer(['aktenzeichen'])])).toEqual([]);
+  });
+
   it('blendet keine leere Spalte ein — Fundstelle ohne Text zählt nicht', () => {
     // Reine Vektortreffer haben keinen Korpus-Eintrag. Eine Spalte voller
     // leerer Zellen erklärt nichts.
