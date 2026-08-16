@@ -19,6 +19,20 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.66 — 2026-08
+
+### Neu
+- **Sie können der Suche jetzt eine Frage stellen.** Über dem Suchfeld auf „mit natürlicher Sprache suchen" umschalten, die Frage eintippen — „Welche Vorhaben drehen sich hauptsächlich um Normung und Standards?" — und Enter drücken. Bisher fand genau dieser Satz nichts: gesucht wurde nach den Wörtern, die darin stehen.
+- **Sie müssen die Schreibweisen nicht mehr erraten.** Die interne KI benennt sie: Wer nach Normung fragt, findet auch „Normen", „Normierung" und „Standardisierung" — Wörter, die im Bestand stehen, aber nicht in der Frage.
+- **Sie sehen, wonach gesucht wurde, und können es korrigieren.** Über dem Ergebnis stehen die gefundenen Begriffe als Chips. Ein Klick nimmt einen heraus, und die Liste rechnet sofort neu — ohne dass die KI noch einmal gefragt wird. Was aus Ihrer Frage nicht übersetzt werden konnte, steht dort ebenfalls.
+- **Vorhaben, die wirklich davon handeln, stehen oben.** Wer nach zwei Themen fragt, bekommt die Vorhaben zuerst, die beide behandeln — nicht die, die eines davon einmal am Rand erwähnen. Ortsangaben wie „in Bayern" schränken dabei ein, statt weitere Treffer dazuzuholen.
+
+### Verbesserungen
+- Auf der Startseite der Suche stehen unter „Oder stell eine Frage" drei Beispiele zum Ausprobieren.
+- Nach einer Frage öffnet sich das KI-Panel rechts mit Ihrer Frage im Eingabefeld — abgeschickt wird sie nicht, Sie entscheiden, ob Sie nachfassen wollen.
+
+> Die Frage-Suche braucht die interne KI. Ist sie nicht verbunden, sagt die App das und bietet das Verbinden an; Ihre Eingabe bleibt stehen. Die gewohnte Stichwortsuche ändert sich dadurch nicht.
+
 ## v4.65 — 2026-08
 
 ### Neu

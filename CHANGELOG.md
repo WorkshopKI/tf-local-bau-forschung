@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.66.0 — Eine Frage stellen statt Wortformen raten (August 2026)
+
+MINOR — Der Platzhalter lud seit v3.50 zu einer „analytischen Frage" ein und konnte keine beantworten: am echten Bestand liefert „Welche Vorhaben drehen sich hauptsächlich um Normung und Standards?" wörtlich **0 Treffer**, „Normung" allein 5 — obwohl die Sache tausendfach da ist, unter „Normen", „Normierung", „Standardisierung". Die interne KI ist damit die Synonymquelle, die [suche-relevanz.md §5](docs/architecture/suche-relevanz.md) als fehlend benannt hat: das Embedding kann Nachbarschaft messen, aber keine Begriffe BENENNEN.
+
+- **Ein Leitbegriff = ein Suchteil, seine Schreibweisen = dessen Nadeln** ([frageplan.ts](src/core/services/search/frageplan.ts)): `abdeckung` zählt damit die gefragten SACHEN statt der Schreibweisen — gemessen 4 hoch / 20 mittel gegen 0 / 0 bei flacher Liste, bei identischen 583 Treffern ([suche-relevanz.md §8](docs/architecture/suche-relevanz.md))
+- **`pflicht` trennt Einschränkung von Alternative** ([antraege-search-service.ts](src/plugins/antraege/services/antraege-search-service.ts)): „Was läuft in Bayern zum Thema Leichtbau?" liefert 87 statt 2.625; ohne Plan verhält sich die Stufe bitweise wie zuvor
+- **Ein Aufruf, nur intern, Ziel `standard`, kein Retry, wirft nie** ([frageplan-lauf.ts](src/core/services/search/frageplan-lauf.ts))
+- **Die Leitbegriffe als abwählbare Chips mit Schreibweisen-Zähler** ([DeutungsZeile.tsx](src/plugins/suche/DeutungsZeile.tsx)): Abwählen rechnet ohne neuen KI-Aufruf; was aus der Frage nicht übersetzt wurde, steht daneben
+- **Verknüpfung und Wortformen geben sichtbar ab** („von der KI bestimmt", [SuchOptionenZeile.tsx](src/plugins/suche/SuchOptionenZeile.tsx)); Flag `sucheNatuerlicheSprache`, dev + pl
+
 ### v4.65.0 — Vier Reiter, tote Segmente weg, Sortierung ins Menue (August 2026)
 
 MINOR — Vierte Runde am Redesign-Handoff, diesmal die Überschneidung der drei Filter-Ebenen: Reiter, Quickfilter-Pillen und Filterleiste beantworteten teils dieselbe Frage. „Begleitung" stand dreimal auf einem Bildschirm — als Reiter, als gespiegelter Chip in der Leiste und als Segment mit einer 0, weil der Reiter selbst schon nach Status schneidet.
