@@ -74,7 +74,13 @@ export function EigeneReiterMenue(): React.ReactElement {
           type="button"
           aria-label="Eigene Reiter"
           title="Eigene Reiter: diesen Stand merken oder einen gemerkten verwalten"
-          className="shrink-0 mb-1.5 p-1 rounded-[6px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text)] hover:bg-[var(--tf-hover)] transition-colors cursor-pointer"
+          /* Der Knopf übernimmt die Maße der Reiter-Zeile statt eines eigenen
+             Abstands: `mb-2.5` = deren `pb-2.5`, Höhe = deren Zeilenhöhe (21 px
+             bei 14 px Schrift). Damit fällt die Mitte des Lesezeichens auf die
+             Mitte der Beschriftungen. Ein Rand, der nur die UNTERkanten
+             bündig macht, setzt das Zeichen zu tief — unter der Schrift liegt
+             noch die Unterlänge. */
+          className="shrink-0 mb-2.5 flex h-[21px] w-[21px] items-center justify-center rounded-[6px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text)] hover:bg-[var(--tf-hover)] transition-colors cursor-pointer"
         >
           <Bookmark size={15} />
         </button>
