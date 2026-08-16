@@ -27,7 +27,7 @@ Verfügung.
 
 - **Fünf Reiter mit Zähler.** Die ersten drei zeigen dieselbe Menge nach
   Zuständigkeit, die letzten beiden dieselbe Menge unter einer anderen Frage.
-- **Betrachtungsbereich-Chip** im Seitenkopf: „Anzeige: letzte 3 Richtlinien (12 Programme) · 1.866 ausgeblendet". Er sagt, welche Förder-Richtlinien zum Arbeitsvorrat zählen und wie viele Anträge das ausblendet. Gemeint sind die drei jüngsten ZIM-Generationen — 2015, 2020, 2025; draußen bleibt nur die Generation 2012.
+- **Betrachtungsbereich-Chip** im Seitenkopf: „Anzeige: letzte 3 Richtlinien". Er sagt, welche Förder-Richtlinien zum Arbeitsvorrat zählen — die drei jüngsten ZIM-Generationen 2015, 2020, 2025; draußen bleibt nur die Generation 2012. Wie viele Anträge das ausblendet, steht im Tooltip; im Chip selbst erst dann, wenn jemand einzelne Programme abwählt.
   - **Klick öffnet die Auswahl:** Standard-Bereich / alle Richtlinien / eigene Liste, mit Klartext-Namen und **nach Generation gruppiert**.
   - **Für die Generation 2015 führt die Trigger-Zuarbeit nichts** — dort steht am Vorgang „für Programm N keine Trigger importiert", und es entsteht kein To-do.
   - Die **Suche bleibt immer am ganzen Bestand** — Treffer außerhalb sind gekennzeichnet und lassen sich öffnen.

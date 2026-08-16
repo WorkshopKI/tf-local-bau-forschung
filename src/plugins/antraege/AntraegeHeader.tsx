@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Download, Filter, FileUp, Loader2, Search } from 'lucide-react';
-import { useAntraegeStore, getEffectiveViewMode } from './store';
+import { useAntraegeStore } from './store';
 import { useAufnahmeUiStore } from './aufnahme-einfach';
 import { useAntraegeColumnsStore } from './useAntraegeColumnsStore';
 import { useFilterState } from './filter/useFilterState';
@@ -53,11 +53,6 @@ export function AntraegeHeader({ filterOpen, onToggleFilter, listeSichtbar }: Pr
   const setSearchIgnoreBearbeiter = useAntraegeStore(s => s.setSearchIgnoreBearbeiterFilter);
   const hybridLoading = useAntraegeStore(s => s.hybridSearch.loading);
   const filterCount = useFilterState(s => s.active.length);
-  // Im Compact-Modus (Tabelle) sollen die Header-Icons mit dem Tabellen-Rand
-  // fluchten (kein pr-4); in List/Cards bleibt pr-4 für Bündigkeit mit den
-  // px-4-Status-Badges der Cards.
-  const viewMode = useAntraegeStore(s => getEffectiveViewMode(s.activeView, s.viewModeByTab));
-  const actionPr = viewMode === 'compact' ? '' : 'pr-4';
   // Zähler UND Ausblend-Zahl kommen aus derselben Pipeline wie die Liste — der
   // Kopf rechnet nichts nach (Pitfall #46).
   const { filtered, bearbeiterFilter, counts, ausgeblendet } = useFilteredAntraege();
@@ -99,18 +94,17 @@ export function AntraegeHeader({ filterOpen, onToggleFilter, listeSichtbar }: Pr
   const showIgnoreBearbeiterToggle = searchActive && bearbeiterFilter.active;
 
   return (
-    // FLÄCHE STATT WEISS (v4.68): der Kopf steht auf derselben leichten
-    // Grundfläche wie die Filterleiste links und der Tabellenkopf — das Grau
-    // läuft vom oberen Rand über den Kopf in beide hinein und legt sich als L
-    // um die weisse Datenfläche. Vorher endete es an der Kopf-Unterkante, und
-    // die Leiste sah aus wie ein angesetzter Kasten statt wie die Fortsetzung
-    // derselben Fläche.
+    // WEISSER KOPF (v4.70, Rücknahme von v4.68): das Grau steht dort, wo es die
+    // Vorlage hat — Filterleiste und Tabellenkopf. Über den Kopf gezogen ergab
+    // es keine Fläche mehr, sondern verschluckte die Oberkante der Tabelle: das
+    // Werkzeug-Band und der (ebenfalls graue) Tabellenkopf stiessen ohne Abstand
+    // aneinander und lasen sich als ein Block.
     //
-    // `pb-3` statt `pb-0`: die Such-Zeile sass sonst unmittelbar auf der
+    // `pb-3` statt `pb-0` bleibt: die Such-Zeile sass sonst unmittelbar auf der
     // Trennlinie. Der Abstand gilt in BEIDEN Zuständen — im Fokus-Modus (ohne
     // Such-Zeile) trug ihn früher ein eigenes Padding am Titel-Block.
     <div
-      className="shrink-0 pt-4 pb-3 bg-[var(--tf-bg-secondary)]"
+      className="shrink-0 pt-4 pb-3"
       style={{ borderBottom: '0.5px solid var(--tf-border)' }}
     >
       {/* Kopfzeile über die VOLLE Blattbreite (nur px-8), nicht in der
@@ -134,7 +128,44 @@ export function AntraegeHeader({ filterOpen, onToggleFilter, listeSichtbar }: Pr
               <BearbeiterSichtChip />
             </span>
           ) : undefined}
-          actions={<SeitenHilfeButton pluginId="antraege" />}
+          // Kopf-Aktionen am Blattrand, links neben der Hilfe (v4.70). Am Ende
+          // der Reiter-Zeile standen sie verloren: dort trennte sie nichts von
+          // den Reitern, und die Zeile handelt von der Sicht, nicht von
+          // Werkzeugen. Im Fokus-Modus bleiben Titel + Hilfe — „Aufnehmen"
+          // braucht zwar keine Liste, aber der Kopf soll dort zusammenschrumpfen.
+          actions={(
+            <div className="flex items-center gap-2">
+              {listeSichtbar && isGutachtenWorkflowEnabled() ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => useAufnahmeUiStore.getState().toggle()}
+                  aria-label="Dokumente aufnehmen"
+                  title="Antragsdokumente (ZIP) aufnehmen"
+                  className="h-8 gap-1.5 px-2.5"
+                >
+                  <FileUp size={13} />
+                  <span className="text-[12px]">Aufnehmen</span>
+                </Button>
+              ) : null}
+              {listeSichtbar ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleExport}
+                  disabled={exportBusy || filtered.length === 0 || !activeProgrammId}
+                  aria-label={`Liste als XLSX exportieren (${filtered.length} Anträge)`}
+                  title={`Liste als XLSX exportieren (${filtered.length} Anträge)`}
+                  className="h-8 w-8 p-0"
+                >
+                  {exportBusy
+                    ? <Loader2 size={13} className="animate-spin" />
+                    : <Download size={13} />}
+                </Button>
+              ) : null}
+              <SeitenHilfeButton pluginId="antraege" />
+            </div>
+          )}
         />
       </div>
 
@@ -143,14 +174,12 @@ export function AntraegeHeader({ filterOpen, onToggleFilter, listeSichtbar }: Pr
           „Spalten"-Dropdown und Tabellen-Rand. Die Unterkanten-Border läuft
           voll durch, weil sie auf dem äußeren (padding-freien) Container sitzt. */}
       <div className="max-w-6xl px-8">
-        {/* Toolbar: Tabs links, Aktionen rechts (ml-auto). Seit v4.64 stehen dort
-            nur noch „Aufnehmen" und der Export — der Ansichts-Umschalter ist eine
-            Achse im „Darstellung"-Menü geworden, der Filter-Knopf in die Suchzeile
-            gezogen. pr-4 (nur List/Cards) kompensiert das px-4-Innenpadding der
-            AntragCard, damit die Knopf-Kante mit der Status-Badge-Kante fluchtet;
-            im Compact-Modus kein pr → Icons treffen den Tabellen-Rand. */}
-        {/* Toolbar-Zeile komplett nur bei sichtbarer Liste — im Fokus-Modus bliebe
-            sonst eine leere Zeile mit ihrem Innenabstand stehen. */}
+        {/* Reiter-Zeile: die Sichten und am Ende das Lesezeichen für die eigenen.
+            Werkzeuge stehen hier keine mehr — der Ansichts-Umschalter ist eine
+            Achse im „Darstellung"-Menü geworden (v4.64), der Filter-Knopf in die
+            Suchzeile gezogen, „Aufnehmen" und Export in den Seitenkopf (v4.70).
+            Zeile komplett nur bei sichtbarer Liste — im Fokus-Modus bliebe sonst
+            eine leere Zeile mit ihrem Innenabstand stehen. */}
         {listeSichtbar ? (
           <div className="flex items-end gap-4">
             <ScopeTabs
@@ -191,38 +220,6 @@ export function AntraegeHeader({ filterOpen, onToggleFilter, listeSichtbar }: Pr
                 Werkzeugzeile rechts: er handelt von den Reitern, nicht von der
                 Liste. */}
             <EigeneReiterMenue />
-
-            <div className={`flex items-center gap-2 shrink-0 pb-2 ml-auto ${actionPr}`}>
-              {/* „Aufnehmen" nimmt Antragsdokumente auf und braucht dafür keine
-                  Liste — es steht hier trotzdem im Listen-Zweig, weil der Kopf im
-                  Fokus-Modus auf Titel + Hilfe zusammenschrumpfen soll. */}
-              {isGutachtenWorkflowEnabled() && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => useAufnahmeUiStore.getState().toggle()}
-                  aria-label="Dokumente aufnehmen"
-                  title="Antragsdokumente (ZIP) aufnehmen"
-                  className="h-8 gap-1.5 px-2.5"
-                >
-                  <FileUp size={13} />
-                  <span className="text-[12px]">Aufnehmen</span>
-                </Button>
-              )}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleExport}
-                disabled={exportBusy || filtered.length === 0 || !activeProgrammId}
-                aria-label={`Liste als XLSX exportieren (${filtered.length} Anträge)`}
-                title={`Liste als XLSX exportieren (${filtered.length} Anträge)`}
-                className="h-8 w-8 p-0"
-              >
-                {exportBusy
-                  ? <Loader2 size={13} className="animate-spin" />
-                  : <Download size={13} />}
-              </Button>
-            </div>
           </div>
         ) : null}
 
@@ -276,12 +273,7 @@ export function AntraegeHeader({ filterOpen, onToggleFilter, listeSichtbar }: Pr
                   placeholder="Anträge durchsuchen (Titel, Akronym, FKZ, Antragsteller, Ort, Dokumente)"
                   value={search}
                   onChange={e => setSearch(e.target.value)}
-                  // Weisser Grund: das Feld steht seit v4.68 auf der leichten
-                  // Grundfläche des Kopfes, und ein durchsichtiges Eingabefeld
-                  // wäre dort nur ein Rahmen ohne Fläche. Mit `color:`-Hinweis,
-                  // sonst erkennt tailwind-merge den Konflikt mit dem
-                  // `bg-transparent` des Bauteils nicht und beide bleiben stehen.
-                  className="pl-7 pr-7 h-8 w-full text-[12.5px] bg-[color:var(--tf-bg)]"
+                  className="pl-7 pr-7 h-8 w-full text-[12.5px]"
                   title={'Wortlaut über Aktenzeichen/Akronym/Titel/Antragsteller/Ort/Bundesland/'
                     + 'Verbund-Titel/Kurzbeschreibung UND den Volltext der aufgenommenen Dokumente. '
                     + 'Inhaltlich ähnliche Anträge kommen über den Hinweis unter dem Feld dazu.'}

@@ -317,19 +317,14 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
   // Nur die List-View trägt den max-w-6xl-Lesbarkeits-Cap; Tabelle (Compact)
   // + Cards nutzen die volle Breite → Toolbar-Box muss denselben Cap-Zustand
   // wie der Content darunter haben. narrow px-4.
-  const toolbarClass = narrow
+  const toolbarClass = (narrow
     ? 'px-4 pt-3 pb-3'
     : viewMode === 'list'
       ? 'px-8 pt-3 pb-3 max-w-6xl'
-      : 'px-8 pt-3 pb-3';
-  // Das Band um die Toolbar trägt die Fläche, die Toolbar selbst die Maße: in
-  // der List-View ist sie auf max-w-6xl gedeckelt, und ein Grau, das dort
-  // endete, wäre ein Streifen statt einer Fläche. Dieselbe leichte Grundfläche
-  // wie Kopf, Filterleiste und Tabellenkopf — das Weiß beginnt erst an den
-  // Datenzeilen.
-  // Bei stehendem Kopf scrollt die Spalte nicht mehr — das Band bleibt dann von
-  // sich aus oben und darf nur nicht mitschrumpfen.
-  const toolbarBandClass = 'bg-[var(--tf-bg-secondary)]' + (stickyKopf ? ' shrink-0' : '');
+      : 'px-8 pt-3 pb-3')
+    // Bei stehendem Kopf scrollt die Spalte nicht mehr — die Toolbar bleibt
+    // dann von sich aus oben und darf nur nicht mitschrumpfen.
+    + (stickyKopf ? ' shrink-0' : '');
   // Karten- UND Tabellen-View nutzen die volle Browserbreite, damit auf breiten
   // Monitoren alle Spalten/Anträge mit wenig Scrollen sichtbar sind. Nur die
   // List-View behält max-w-6xl als Lesbarkeits-Cap für die Listen-Zeilen
@@ -407,7 +402,6 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
             gibt. Toolbar in eigenem Container ohne max-w-*, damit die volle
             Viewport-Breite genutzt wird. Bearbeiter-Pill sitzt im Header neben
             dem Titel. */}
-        <div className={toolbarBandClass}>
         <div className={toolbarClass}>
           <div className="flex items-start justify-between gap-3 flex-wrap">
             <div className="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
@@ -422,24 +416,23 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
                   <PanelLeftClose size={16} />
                 </button>
               )}
-              {/* Die Trefferzahl reitet im Umbruch-Fluss der Quickfilter mit
-                  (deshalb der `abschluss`-Slot und kein Geschwister-Element):
-                  passt alles nebeneinander, sitzt sie rechts daneben; brechen
-                  die Pillen um, landet sie rechts auf deren letzter Zeile —
-                  genau dort, wo der rechte Block ohnehin nichts mehr belegt.
-                  Schlimmstenfalls nimmt sie wie früher eine eigene Zeile. */}
-              <QuickfilterToolbar
-                abschluss={treffer.tv > 0 ? (
-                  <span
-                    className="ml-auto pl-2 shrink-0 text-[12px] text-[var(--tf-text-tertiary)] tabular-nums whitespace-nowrap"
-                    title={trefferZahlTitel(treffer)}
-                  >
-                    {formatTrefferZahl(treffer)}
-                  </span>
-                ) : null}
-              />
+              <QuickfilterToolbar />
             </div>
             <div className="shrink-0 flex items-center justify-end gap-2 flex-wrap">
+              {/* Die Trefferzahl steht bei den Werkzeugen statt in einer eigenen
+                  Zeile darunter, wo sie allein über der Tabelle hing (v4.70).
+                  Sie ist hier kein Nachbar der Quickfilter-Segmente, sondern die
+                  andere Seite derselben `justify-between`-Zeile — der
+                  Umbruch-Befund von damals (ein Geschwister der Segmente bricht
+                  IMMER auf eine eigene Zeile um) trifft sie deshalb nicht. */}
+              {treffer.tv > 0 ? (
+                <span
+                  className="shrink-0 pr-1 text-[12px] text-[var(--tf-text-tertiary)] tabular-nums whitespace-nowrap"
+                  title={trefferZahlTitel(treffer)}
+                >
+                  {formatTrefferZahl(treffer)}
+                </span>
+              ) : null}
               {/* Ansicht, Gruppierung und Beendet-Sichtbarkeit teilen sich EIN
                   Menü — als drei Dropdowns belegten sie rund 640px und drängten
                   die Quickfilter in einen Umbruch. Welche Achse gerade gilt,
@@ -540,7 +533,6 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
               ) : null}
             </div>
           ) : null}
-        </div>
         </div>
         <div className={contentClass}>
           {bearbeiterKuerzelMissing && antraege.length > 0 ? (

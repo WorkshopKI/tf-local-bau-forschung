@@ -19,6 +19,18 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.70 — 2026-08
+
+### Verbesserungen
+- **„Aufnehmen" und der Export stehen jetzt rechts oben** in der Titelzeile neben „Hilfe" — am Ende der Reiterleiste standen sie zwischen Sichten und Suche etwas verloren.
+- **Die Trefferzahl belegt keine eigene Zeile mehr.** „38 Teilvorhaben · 22 Verbund-Zeilen" steht jetzt rechts bei „Darstellung" und „Spalten".
+- **Der Chip im Kopf sagt nur noch „Anzeige: letzte 3 Richtlinien".** Wie viele Programme das sind und wie viele alte Anträge dadurch draußen bleiben, steht beim Darüberfahren — und wieder im Chip, sobald Sie einzelne Programme abwählen.
+- **Aus „Status in dieser Sicht" wurde „Status".** Die Zeile braucht ihre Breite für die Filter; dass die Zahlen innerhalb des gewählten Reiters zählen, steht beim Darüberfahren.
+
+### Bugfixes
+- **Die Tabelle klebte oben am grauen Bereich.** Kopfzeile und Werkzeugleiste sind wieder weiß, grau bleiben nur die Filterleiste und der Tabellenkopf — die Tabelle hat ihre eigene Oberkante zurück.
+- In der Filterleiste standen unter „Filter" **zwei Trennlinien direkt übereinander**; jetzt ist es eine.
+
 ## v4.69 — 2026-08
 
 ### Verbesserungen

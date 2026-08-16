@@ -39,6 +39,10 @@ export interface CollapsibleSegItem {
 
 interface Props {
   label: string;
+  /** Langfassung der Beschriftung als `title` am Label — für Pillen, deren
+   *  vollständiger Name in der Zeile zu viel Breite kostet. Weggelassen → kein
+   *  `title`-Attribut, wie bisher. */
+  titel?: string;
   /** Aktueller Wert als Label-String (muss exakt einem `items[].label` entsprechen). */
   value: string;
   items: CollapsibleSegItem[];
@@ -68,6 +72,7 @@ interface Props {
 
 export function CollapsibleSeg({
   label,
+  titel,
   value,
   items,
   onChange,
@@ -123,6 +128,7 @@ export function CollapsibleSeg({
           type="button"
           onClick={openPill}
           aria-label={`${label} filtern`}
+          title={titel}
           aria-expanded={false}
           className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-[8px] text-[12px] cursor-pointer whitespace-nowrap transition-[border-color,background] duration-150 ease-out hover:bg-[var(--tf-hover)] ${
             isFiltered ? 'bg-[var(--tf-primary-light)]' : 'bg-[var(--tf-bg)]'
@@ -156,6 +162,7 @@ export function CollapsibleSeg({
         type="button"
         onClick={closePill}
         aria-label={`${label} ausblenden`}
+        title={titel}
         aria-expanded={true}
         className={`inline-flex items-center gap-1 text-[12px] cursor-pointer bg-transparent border-0 p-0 hover:text-[var(--tf-text)] ${
           isFiltered ? 'text-[var(--tf-primary)] font-medium' : 'text-[var(--tf-text-tertiary)]'

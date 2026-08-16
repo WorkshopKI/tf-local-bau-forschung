@@ -25,7 +25,7 @@
  * Die **Gruppieren**-Steuerung ist seit Phase 2 kein Segment mehr, sondern eine
  * Achse im „Darstellung"-Menü rechts in `AntraegeMain` (`DarstellungDropdown`).
  */
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useAntraegeStore } from '../store';
 import { useFilteredAntraege } from '../useFilteredAntraege';
 import { useFilterState } from './useFilterState';
@@ -56,19 +56,7 @@ import {
   type QuickfilterSegId,
 } from './quickfilterExpanded';
 
-interface Props {
-  /** Wird als LETZTES, rechtsbündiges Element in DENSELBEN Umbruch-Fluss wie die
-   *  Segmente gehängt.
-   *
-   *  Als Geschwister neben der Toolbar gerendert nützt das nichts: die Segmente
-   *  liegen in diesem inneren `flex-wrap`-Container, der nach außen EIN Flex-Item
-   *  ist. Ein Nachbar bricht deshalb immer auf eine eigene Zeile um, egal wie viel
-   *  Platz neben der letzten Segment-Zeile frei ist (in der App nachgemessen).
-   *  Der Slot ist die Stelle, an der er mitreitet. */
-  abschluss?: ReactNode;
-}
-
-export function QuickfilterToolbar({ abschluss }: Props = {}): React.ReactElement {
+export function QuickfilterToolbar(): React.ReactElement {
   // Counts auf der "Kürzel-gefilterten" Basis berechnen, nicht auf der
   // Roh-Liste — sonst zeigen die Pillen Counts der gesamten Kohorte
   // obwohl die Tabs oben (Offen / Alle …) bereits den Kürzel-Filter
@@ -151,12 +139,15 @@ export function QuickfilterToolbar({ abschluss }: Props = {}): React.ReactElemen
 
   return (
     <div className="flex items-center gap-2 flex-wrap">
-      {/* „Status in dieser Sicht", nicht bloß „Status": die Zähler beziehen sich
-          auf `countBase`, also auf die oben gewählte Sicht. Ohne den Zusatz
-          standen „Offen 909" (Sicht-Reiter) und „Offen 852" (Chip) zwei Zeilen
-          auseinander und widersprachen sich scheinbar (v2.372.2). */}
+      {/* Beschriftet „Status", der Zusatz steht im Tooltip (v4.70): die Zeile
+          braucht ihre Breite für die Filter. Der Zusatz ist damit verlagert, nicht
+          gestrichen — die Zähler beziehen sich auf `countBase`, also auf die oben
+          gewählte Sicht, und ohne diesen Hinweis standen „Offen 909"
+          (Sicht-Reiter) und „Offen 852" (Pille) zwei Zeilen auseinander und
+          widersprachen sich scheinbar (v2.372.2). */}
       <CollapsibleSeg
-        label="Status in dieser Sicht"
+        label="Status"
+        titel="Status in dieser Sicht — die Zahlen zählen innerhalb des oben gewählten Reiters"
         value={phase}
         items={phaseItems}
         onChange={onPhaseChange}
@@ -192,7 +183,6 @@ export function QuickfilterToolbar({ abschluss }: Props = {}): React.ReactElemen
         expanded={expandedSegs.has('precheck')}
         onExpandToggle={() => handleToggle('precheck')}
       />
-      {abschluss}
     </div>
   );
 }

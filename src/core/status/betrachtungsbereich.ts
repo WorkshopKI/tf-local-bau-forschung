@@ -216,11 +216,18 @@ export function gruppiereNachGeneration(
 /**
  * Der Text des Bereichs-Chips — **eine** Quelle für Zahl und Wort.
  *
- * Vorher stand die „3" als Literal neben einem gerechneten „(N Programme)".
+ * Die „3" stand einmal als Literal neben einem gerechneten „(N Programme)".
  * Zwei Quellen für dieselbe Aussage laufen auseinander, und genau das ist
  * passiert: der Standard-Bereich deckte zwei Generationen ab, der Chip
- * versprach drei. Wo sich keine Generationszahl belegen lässt, nennt der Chip
- * lieber keine — die Programme selbst stehen im Tooltip.
+ * versprach drei. Alles, was der Chip sagt, wird deshalb hier abgeleitet.
+ *
+ * **Wo der Chip die Richtlinien beim Namen nennt, nennt er keine Programm-Zahl**
+ * (v4.70): `exakt` verbürgt, dass die Generationen die Menge vollständig
+ * beschreiben — „(12 Programme)" wiederholte das nur und kostete im Kopf Platz,
+ * den die Zeile für Wichtigeres braucht. Die Zahl bleibt, wo sie etwas trägt:
+ * bei einer eigenen Auswahl (dort markiert sie die Abweichung) und dort, wo sich
+ * keine Generation belegen lässt (dort ist sie die einzige belegbare Aussage).
+ * Die Programme selbst stehen im Tooltip und im Auswahl-Panel.
  */
 export function bereichsLabel(modus: BereichModus, programme: readonly string[]): string {
   if (modus === 'alle') return 'Anzeige: alle Richtlinien';
@@ -235,11 +242,11 @@ export function bereichsLabel(modus: BereichModus, programme: readonly string[])
   if (!exakt) return `Anzeige: ${zahl}`;
   if (juengste) {
     return jahre.length === 1
-      ? `Anzeige: letzte Richtlinie (${zahl})`
-      : `Anzeige: letzte ${jahre.length} Richtlinien (${zahl})`;
+      ? 'Anzeige: letzte Richtlinie'
+      : `Anzeige: letzte ${jahre.length} Richtlinien`;
   }
   const liste = jahre.join(' + ');
   return jahre.length === 1
-    ? `Anzeige: Richtlinie ${liste} (${zahl})`
-    : `Anzeige: Richtlinien ${liste} (${zahl})`;
+    ? `Anzeige: Richtlinie ${liste}`
+    : `Anzeige: Richtlinien ${liste}`;
 }

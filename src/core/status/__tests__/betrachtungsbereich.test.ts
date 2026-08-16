@@ -186,28 +186,30 @@ describe('gruppiereNachGeneration', () => {
 });
 
 describe('bereichsLabel', () => {
-  it('der Standard-Bereich nennt Generationen UND Programme', () => {
+  it('wo Generationen benannt sind, steht keine Programm-Zahl daneben', () => {
+    // Die Generationen beschreiben die Menge bereits vollständig (`exakt`);
+    // „(12 Programme)" wiederholte das nur und kostete im Kopf Platz.
     expect(bereichsLabel('standard', BETRACHTUNGSBEREICH_SEED))
-      .toBe('Anzeige: letzte 3 Richtlinien (12 Programme)');
+      .toBe('Anzeige: letzte 3 Richtlinien');
   });
 
   it('Singular, wo eine Zahl 1 ist', () => {
     // „letzte 1 Richtlinien" ist der Fehler, den man ein Jahr später im
     // Screenshot findet.
     expect(bereichsLabel('standard', ['136', '137', '138', '139']))
-      .toBe('Anzeige: letzte Richtlinie (4 Programme)');
+      .toBe('Anzeige: letzte Richtlinie');
     expect(bereichsLabel('auswahl', ['76'])).toBe('Anzeige: eigene Auswahl (1 Programm)');
     expect(bereichsLabel('standard', [UNBEKANNT])).toBe('Anzeige: 1 Programm');
   });
 
   it('exakte, aber nicht die jüngsten Generationen werden benannt', () => {
     expect(bereichsLabel('standard', ['46', '47', '48']))
-      .toBe('Anzeige: Richtlinie 2015 (3 Programme)');
+      .toBe('Anzeige: Richtlinie 2015');
     expect(bereichsLabel('standard', ['34', '35', '36', '37', '46', '47', '48']))
-      .toBe('Anzeige: Richtlinien 2012 + 2015 (7 Programme)');
+      .toBe('Anzeige: Richtlinien 2012 + 2015');
   });
 
-  it('wo sich keine Generation belegen lässt, behauptet der Chip keine', () => {
+  it('wo sich keine Generation belegen lässt, nennt der Chip die Programm-Zahl', () => {
     expect(bereichsLabel('standard', [...BETRACHTUNGSBEREICH_SEED, UNBEKANNT]))
       .toBe('Anzeige: 13 Programme');
     expect(bereichsLabel('standard', ['136', '137'])).toBe('Anzeige: 2 Programme');

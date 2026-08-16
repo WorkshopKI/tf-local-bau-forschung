@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.70.0 — Der Kopf der Foerderantraege wird stimmig (August 2026)
+
+MINOR — Gemeldet: „links sind zwei Linien direkt übereinander", „die Ergebnistabelle klebt direkt oben am grauen Bereich", „das Layout/Design ist noch nicht stimmig". Der Handoff, pixelweise ausgelesen, hat oben gar keine graue Fläche — v4.68 hatte das Grau weiter gezogen als das Vorbild und damit die Oberkante der Tabelle verschluckt.
+
+- **Seitenkopf und Werkzeugzeile wieder weiß** (Rücknahme v4.68): grau bleiben Filterleiste und Tabellenkopf, dazwischen stehen 12 px Weiß statt 0 ([AntraegeHeader.tsx](src/plugins/antraege/AntraegeHeader.tsx), [AntraegeMain.tsx](src/plugins/antraege/AntraegeMain.tsx))
+- **Eine Linie statt zwei** in der Filterleiste — der Trenner steht nur noch ZWISCHEN Blöcken, nicht mehr direkt unter der Kopf-Unterkante ([FilterSidebar.tsx](src/plugins/antraege/filter/FilterSidebar.tsx))
+- **Trefferzahl in die Werkzeugzeile** neben „Darstellung"/„Spalten" statt allein in einer eigenen Zeile; `abschluss`-Slot entfällt ([QuickfilterToolbar.tsx](src/plugins/antraege/filter/QuickfilterToolbar.tsx))
+- **„Aufnehmen" + Export in den Seitenkopf**, links neben „Hilfe" — im Fokus-Modus bleiben weiter nur Titel + Hilfe ([AntraegeHeader.tsx](src/plugins/antraege/AntraegeHeader.tsx))
+- **Der Bereichs-Chip beziffert nur die Abweichung**: „Anzeige: letzte 3 Richtlinien", Programm- und Ausgeblendet-Zahl im Tooltip — im Chip erst bei eigener Auswahl ([betrachtungsbereich.ts](src/core/status/betrachtungsbereich.ts), [BereichChip.tsx](src/components/bereich/BereichChip.tsx)); Pille „Status" statt „Status in dieser Sicht", Zusatz als Tooltip ([CollapsibleSeg.tsx](src/plugins/antraege/filter/CollapsibleSeg.tsx))
+
 ### v4.69.1 — der Trenner hebt sich von den Kastenraendern ab (August 2026)
 
 PATCH — Der neue Gruppen-Trenner stand in `--tf-border` — derselben Farbe, in der die Auswahlkästen ihre Ränder zeichnen. Zwischen zwei umrandeten Kästen war er damit eine Kante unter vielen und trennte nichts.

@@ -158,12 +158,12 @@ export function FilterSidebar({ antraege, search, onSearchChange, hideSearch = f
   return (
     <div
       // FLÄCHE STATT STRICH (v4.64): die Leiste steht auf derselben leichten
-      // Grundfläche wie Seitenkopf, Werkzeug-Band und Tabellenkopf. Zusammen
-      // legen sie ein graues L um die weiße Datenfläche — das trennt schon von
-      // sich aus, und die Trennlinie an der rechten Kante ist deshalb entfallen.
-      // (Seit v4.68 reicht das Grau bis an den oberen Blattrand; vorher begann
-      // es an der Kopf-Unterkante und die Leiste wirkte wie ein angesetzter
-      // Kasten.)
+      // Grundfläche wie der Tabellenkopf — zusammen legen die beiden ein graues L
+      // um die weiße Datenfläche. Das trennt schon von sich aus, und die
+      // Trennlinie an der rechten Kante ist deshalb entfallen. Das L beginnt
+      // unter der Trennlinie des Seitenkopfes: der Kopf selbst ist weiß, wie in
+      // der Vorlage (v4.70 — die Ausweitung des Graus nach oben verschluckte die
+      // Oberkante der Tabelle).
       // Achtung bei Ergänzungen hier drin: `--tf-bg-secondary` ist DECKEND und
       // damit auf dieser Fläche unsichtbar. Hover/aktiv gehen über das
       // durchscheinende `--tf-hover`, abgesetzte Pillen über `--tf-bg`.
@@ -254,10 +254,12 @@ export function FilterSidebar({ antraege, search, onSearchChange, hideSearch = f
           </div>
         ) : (
           <>
-            {/* Status (Phasen-Akkordeon) */}
+            {/* Status (Phasen-Akkordeon) — ohne führende `Hairline`: der Kopf der
+                Leiste zieht seine eigene Unterkante, und beide zusammen ergaben
+                zwei Striche im Abstand von 18 px mit nichts dazwischen (v4.70).
+                Ein Trenner steht nur ZWISCHEN Blöcken. */}
             {statusDef ? (
               <>
-                <Hairline />
                 <SectionHeader
                   title="Status"
                   trailing={
@@ -286,7 +288,7 @@ export function FilterSidebar({ antraege, search, onSearchChange, hideSearch = f
             {/* Restliche Filter-Gruppen (One-Liner) */}
             {otherDefs.length > 0 ? (
               <>
-                <Hairline />
+                {statusDef ? <Hairline /> : null}
                 {otherDefs.map(def => (
                   <FilterSidebarItem
                     key={def.id}
@@ -305,7 +307,7 @@ export function FilterSidebar({ antraege, search, onSearchChange, hideSearch = f
 
         {zeigeInaktivSchalter ? (
           <>
-            <Hairline />
+            {visibleDefs.length > 0 ? <Hairline /> : null}
             <SectionHeader title="Bestand" />
             <label className="flex cursor-pointer select-none items-center gap-2 px-1.5 py-1 text-[12px] text-[var(--tf-text-secondary)]">
               <input

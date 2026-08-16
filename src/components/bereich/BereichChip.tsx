@@ -4,7 +4,15 @@
  * „Kein Zustand ohne Anzeige" (Pitfall #46): eine Liste, die 1 866 Anträge
  * ausblendet, muss das sagen — sonst hält der Leser die gezeigte Menge für den
  * ganzen Bestand und sucht vergeblich nach einem alten Vorhaben. Der Chip nennt
- * darum beides: was gilt und was fehlt.
+ * darum immer, **was gilt**.
+ *
+ * **Beziffert wird nur die Abweichung** (v4.70). Im Standard-Bereich — dem
+ * Zustand, in dem praktisch immer gearbeitet wird — steht nur „Anzeige: letzte 3
+ * Richtlinien"; die Ausgeblendet-Zahl wiederholte dort täglich dieselbe
+ * Selbstverständlichkeit. Sie ist nicht verschwunden: der Tooltip trägt sie in
+ * jedem Zustand, das Panel ohnehin. Wählt jemand einzelne Programme ab, steht sie
+ * wieder im Chip — dort ist sie eine echte Auskunft über eine selbst gesetzte
+ * Einschränkung.
  *
  * Die **Beschriftung kommt aus `bereichsLabel`**, nicht aus dieser Datei: Zahl
  * und Wort haben damit eine Quelle. Eine hartcodierte „3" neben einem
@@ -35,10 +43,17 @@ export function BereichChip({ ausgeblendet }: {
   const [offen, setOffen] = useState(false);
 
   const text = bereichsLabel(bereich.modus, bereich.programme);
+  // Der Standard-Bereich ist der Normalfall; er beziffert sich nicht selbst.
+  // Sobald jemand davon abweicht, steht die Zahl wieder da (siehe unten).
+  const beziffert = bereich.modus !== 'standard';
 
-  const titel = bereich.modus === 'alle'
-    ? 'Der ganze Bestand — auch stillgelegte Altprogramme. Klick zum Wechseln.'
-    : `${bereich.programme.map(p => richtlinienLabel(p, labels, true)).join(' · ')} — Klick zum Wechseln.`;
+  const zahlSatz = ausgeblendet !== undefined && ausgeblendet > 0
+    ? ` Ausgeblendet: ${ausgeblendet.toLocaleString('de-DE')}.`
+    : '';
+  const titel = (bereich.modus === 'alle'
+    ? 'Der ganze Bestand — auch stillgelegte Altprogramme.'
+    : `${bereich.programme.map(p => richtlinienLabel(p, labels, true)).join(' · ')}.`)
+    + `${zahlSatz} Klick zum Wechseln.`;
 
   return (
     <Popover open={offen} onOpenChange={setOffen}>
@@ -50,7 +65,7 @@ export function BereichChip({ ausgeblendet }: {
         >
           <Layers size={11} />
           <span>{text}</span>
-          {ausgeblendet !== undefined && ausgeblendet > 0 && (
+          {beziffert && ausgeblendet !== undefined && ausgeblendet > 0 && (
             <span className="text-[var(--tf-text-tertiary)]">
               · {ausgeblendet.toLocaleString('de-DE')} ausgeblendet
             </span>

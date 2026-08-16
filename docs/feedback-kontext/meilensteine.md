@@ -10,7 +10,7 @@ Teilvorhaben.
 
 ## Bereiche
 
-- **Betrachtungsbereich-Chip** im Seitenkopf: er sagt, welche Förder-Richtlinien zum Arbeitsvorrat zählen und wie viele Verbünde das ausblendet. Klick öffnet die Auswahl. Der Eingangs-Zeitraum darunter ist davon unabhängig — „Alle Eingänge" holt weiter jeden Jahrgang, aber innerhalb des gewählten Bereichs.
+- **Betrachtungsbereich-Chip** im Seitenkopf: er sagt, welche Förder-Richtlinien zum Arbeitsvorrat zählen. Wie viele Verbünde das ausblendet, steht im Tooltip — im Chip selbst erst, wenn jemand vom Standard-Bereich abweicht. Klick öffnet die Auswahl. Der Eingangs-Zeitraum darunter ist davon unabhängig — „Alle Eingänge" holt weiter jeden Jahrgang, aber innerhalb des gewählten Bereichs.
 
 - **Eingang** (Kopfzeile, gilt für alle drei Listen-Bereiche samt deren Zählern):
   Jahres-Chips als Kurzwahl auf ein einzelnes Jahr, „Letzte 3 Jahre" als Rückweg
