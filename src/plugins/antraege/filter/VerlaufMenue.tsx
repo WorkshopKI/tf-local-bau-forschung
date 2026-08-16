@@ -43,7 +43,14 @@ export function VerlaufMenue({ eintraege, onAnwenden }: Props): React.ReactEleme
           <History size={15} />
         </button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-[280px] gap-1.5">
+      {/* Breiter als ein übliches Menü (280 → 440), weil die Einträge sich am
+          ENDE unterscheiden: „Status · Stellungnahme zur Rücknahme …" und
+          „Status · Stellungnahme zur Ablehnung …" sind auf 207 px Textbreite
+          dieselbe Zeile. Am echten Verlauf gemessen brauchte der längste Eintrag
+          274 px — 440 deckt das mit Reserve. `align="start"`, weil der Knopf seit
+          v4.70.1 links neben dem Titel sitzt: rechtsbündig liefe das Menü über
+          den linken Fensterrand hinaus. */}
+      <PopoverContent align="start" className="w-[440px] gap-1.5">
         <div className="px-1.5 text-[10.5px] font-medium uppercase text-[var(--tf-text-tertiary)]" style={{ letterSpacing: '0.08em' }}>
           Zuletzt benutzt
         </div>

@@ -5,6 +5,14 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.71.1 — Verlauf breiter, Uhr neben den Titel (August 2026)
+
+PATCH — Gemeldet: „Historie-Anzeige breiter machen, damit man mehr von der Suchanfrage lesen kann (die unterscheiden sich meist in den hinteren Worten)" und „das Uhr-Icon direkt hinter Filter, das braucht man oft". Am Verlauf gemessen brauchte der längste Eintrag 274 px bei 207 px Textbreite — abgeschnitten wurde genau der unterscheidende Schluss.
+
+- **Verlaufs-Menü 280 → 440 px**, linksbündig am Knopf statt rechtsbündig ([VerlaufMenue.tsx](src/plugins/antraege/filter/VerlaufMenue.tsx))
+- **Lange Einträge brechen auf zwei Zeilen um** statt mit „…" zu enden — 2 × 367 px lesbarer Text, Langfassung weiter im `title` ([FrequentFiltersSection.tsx](src/plugins/antraege/filter/FrequentFiltersSection.tsx))
+- **Uhr-Zeichen direkt neben den Titel „Filter"**, „N aktiv" rückt nach rechts zum Einklapp-Knopf ([FilterSidebar.tsx](src/plugins/antraege/filter/FilterSidebar.tsx))
+
 ### v4.71.0 — Das Suchfeld schlaegt vor (August 2026)
 
 MINOR — Gewünscht: eine Autovervollständigung im Suchfeld, „evtl. auch für die Feldsyntax (`ort:`, `nw:`)". Am Bestand gemessen ist der Wert das eigentliche Ratespiel: die Deskriptoren sind ein festes Vokabular von 43 Werten, das nirgends in der App steht, und die Einrichtung mit 305 Anträgen heißt „… angewandten Forschung **eingetragener Verein**", nicht „e.V.".

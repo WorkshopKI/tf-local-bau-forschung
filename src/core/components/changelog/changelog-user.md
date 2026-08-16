@@ -26,6 +26,10 @@
 - `deskriptor:` zeigt den ganzen Katalog: 43 feste Schlagworte, die bisher nirgends in der App standen. Genauso die Netzwerknamen, die Einrichtungen, die Orte und die Wahlkreise.
 - Mehrere Wörter als ein Wert: `ort:"Frankfurt am Main"`. Die Anführungszeichen setzt die Vorschlagsliste selbst. Ohne Feld geht das auch — `"additive Fertigung"` sucht die Wortfolge.
 
+### Verbesserungen
+- Der Filter-Verlauf (Uhr-Zeichen) ist deutlich breiter und bricht lange Einträge auf zwei Zeilen um. Vorher endeten mehrere Einträge gleich, weil genau der unterscheidende Teil hinten abgeschnitten wurde.
+- Das Uhr-Zeichen steht jetzt direkt neben „Filter" statt am rechten Rand; die Anzeige „N aktiv" ist dorthin gerückt.
+
 ### Bugfixes
 - Ein Feldwert aus mehreren Wörtern zerfiel bisher in Einzelwörter und suchte etwas anderes: `ort:Frankfurt am Main` lieferte bei „irgendein Wort genügt" 6.365 statt 40 Anträge.
 

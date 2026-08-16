@@ -174,12 +174,18 @@ export function FilterSidebar({ antraege, search, onSearchChange, hideSearch = f
         className="shrink-0 flex items-center justify-between gap-2"
         style={{ padding: '12px 12px 10px 16px', borderBottom: '0.5px solid var(--tf-border)' }}
       >
-        <span className="text-[13.5px] font-medium text-[var(--tf-text)]">Filter</span>
+        {/* Der Verlauf steht DIREKT beim Titel, nicht bei den Zustands-Anzeigen
+            rechts: er ist ein täglich benutzter Einstieg, kein Statuswert. Die
+            Zahl „N aktiv" berichtet nur und rückt dafür nach rechts zum
+            Einklapp-Knopf. */}
+        <div className="flex min-w-0 items-center gap-1">
+          <span className="text-[13.5px] font-medium text-[var(--tf-text)]">Filter</span>
+          <VerlaufMenue eintraege={verlauf} onAnwenden={applyVerlauf} />
+        </div>
         <div className="flex items-center gap-2">
           <span className="text-[11.5px] text-[var(--tf-text-tertiary)]">
             {active.length} aktiv
           </span>
-          <VerlaufMenue eintraege={verlauf} onAnwenden={applyVerlauf} />
           {onCollapse ? (
             <button
               type="button"

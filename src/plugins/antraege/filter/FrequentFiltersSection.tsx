@@ -36,7 +36,12 @@ export function FrequentFiltersSection({ entries, onApply }: Props): React.React
             title={`${e.label} · ${e.count}-mal angewendet · ersetzt die aktuelle Auswahl`}
             className="group min-w-0 flex-1 flex items-center gap-2 py-1 text-left cursor-pointer"
           >
-            <span className="flex-1 truncate text-[12px] text-[var(--tf-text-secondary)] group-hover:text-[var(--tf-text)]">
+            {/* Zwei Zeilen statt Kürzung mit „…": die Einträge unterscheiden
+                sich am ENDE („… zur Rücknahme" / „… zur Ablehnung"), und genau
+                das schnitt eine einzeilige Kürzung weg. Bei zwei Zeilen à 400 px
+                bleibt kein realer Eintrag mehr unlesbar; die Langfassung steht
+                weiterhin im `title` des Knopfes. */}
+            <span className="min-w-0 flex-1 line-clamp-2 text-[12px] leading-[1.35] text-[var(--tf-text-secondary)] group-hover:text-[var(--tf-text)]">
               {e.label}
             </span>
             <Plus
