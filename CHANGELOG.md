@@ -5,6 +5,17 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.68.1 — die zwei Haken nennen ihre Achse selbst (August 2026)
+
+PATCH — Gemeldet: „man muss sich als User genau beide Tooltips durchlesen, um den Unterschied zu verstehen". Der Befund lag in den Namen: „Wortformen mitsuchen" nannte Wörter, „Ähnlichkeitssuche" nannte Ähnlichkeit — wovon, sagte keiner. Weil keiner für sich stand, brauchte jeder Tooltip einen Verweis auf den anderen („Nicht zu verwechseln mit …"); genau das war das Symptom.
+
+- **„auch andere Wortformen" ⇄ „auch ähnliche Themen"** ([SuchOptionenZeile.tsx](src/plugins/suche/SuchOptionenZeile.tsx)): gleicher Satzbau, Wörter gegen Themen — der Unterschied steht in den Beschriftungen statt in zwei Tooltips
+- **Der Zusatz „(lädt 200 MB)" nennt die Kosten statt der Technik** — er ist zugleich das zweite Unterscheidungsmerkmal, denn die Wortformen wirken sofort und laden nichts
+- **Beide Tooltips öffnen mit ihrem eigenen Gegensatzpaar** („Gleiches Wort, andere Form" / „Gleiches Thema, andere Wörter") und verweisen nicht mehr aufeinander
+- Kein-Treffer-Ausweg und Startzustand ziehen die neue Benennung mit ([auswege.ts](src/plugins/suche/auswege.ts), [SucheStartzustand.tsx](src/plugins/suche/SucheStartzustand.tsx)); die fünf Regler bleiben gemessen auf einer Zeile (1131 von 1152 px)
+
+- <!-- max. 5 Bullets à 1 Zeile: WAS + Datei-Link; kein WIE -->
+
 ### v4.68.0 — die Frage-Zeile wird kuerzer, die Wortformen echter (August 2026)
 
 MINOR — Drei Meldungen zur Suche, eine Wurzel: die Oberfläche behauptete Dinge, die nicht galten. Im Frage-Modus standen vier Regler, von denen keiner noch etwas bestimmte; ein toter lokaler KI-Server lieferte statt der Verbinden-Aufforderung den Browser-Text „Failed to fetch"; und „Wortformen mitsuchen" schlug zu „Normen" das Wort „enormes" vor — am echten Bestand **134 von 285** Treffern für den Stamm `norm` waren solche Buchstaben-Treffer.

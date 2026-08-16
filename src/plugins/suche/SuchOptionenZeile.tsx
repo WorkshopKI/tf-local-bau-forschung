@@ -94,6 +94,34 @@ const AUSGEBLENDET_TITEL = 'Im Frage-Modus bestimmt die KI, wonach gesucht wird:
   + 'Die abgewählten Begriffe stehen in der Zeile darunter. Zurück auf „mit Stichworten '
   + 'suchen" schalten, um Verknüpfung und Wortformen wieder selbst zu bestimmen.';
 
+/**
+ * Die beiden Haken beschreiben ZWEI ACHSEN, und bis v4.68 stand das nur in den
+ * Tooltips: „Wortformen mitsuchen" nannte Wörter, „Ähnlichkeitssuche" nannte
+ * Ähnlichkeit — wovon, sagte keiner der beiden Namen. Wer den Unterschied
+ * wissen wollte, musste beide Tooltips lesen und vergleichen; genau das wurde
+ * gemeldet. Und weil keiner für sich stand, brauchte jeder Tooltip einen
+ * Verweis auf den anderen („Nicht zu verwechseln mit …") — das Symptom.
+ *
+ * Jetzt tragen die Beschriftungen die Achse selbst, in derselben Form:
+ * **auch andere Wortformen** ⇄ **auch ähnliche Themen**. Wörter gegen Themen,
+ * nebeneinander im selben Satzbau — der Unterschied ist lesbar, ohne dass
+ * irgendwo gehalten werden muss.
+ *
+ * Die Tooltips öffnen entsprechend mit ihrem eigenen Gegensatzpaar („Gleiches
+ * Wort, andere Form" / „Gleiches Thema, andere Wörter") und verweisen NICHT
+ * mehr aufeinander. Ein Tooltip, der den Nachbarn erklären muss, sagt damit,
+ * dass die Beschriftung ihre Arbeit nicht tut.
+ */
+const WORTFORMEN_TITEL = 'Gleiches Wort, andere Form. „Normen" findet damit auch '
+  + '„Normung", „Normierung" und „Kalibrierstandards". Rein sprachlich: wirkt sofort, '
+  + 'kostet nichts und lädt nichts nach. Was gefunden wurde, steht als abwählbare '
+  + 'Wörter in der Zeile darunter.';
+
+const AEHNLICHKEIT_TITEL = 'Gleiches Thema, andere Wörter. Findet verwandte Vorhaben, '
+  + 'die kein einziges Wort mit der Anfrage teilen — dafür vergleicht die Suche die '
+  + 'Bedeutung statt der Buchstaben. Lädt dazu beim ersten Mal ein Sprachmodell '
+  + '(~200 MB) auf diesen Rechner.';
+
 const OHNE_AEHNLICHKEIT_TITEL = 'Die Ähnlichkeitssuche läuft bei dieser Frage nicht mit: '
   + 'die KI hat sie an ein Feld gebunden oder eine Einschränkung gesetzt, und beides kann '
   + 'ein Vergleich ganzer Texte nicht einhalten — er steuerte genau die Treffer bei, die '
@@ -185,7 +213,7 @@ export function SuchOptionenZeile({
         <label
           className="inline-flex h-7 items-center gap-1.5 rounded-[8px] px-2 text-[12px] cursor-pointer"
           style={{ ...SELECT_STYLE, color: 'var(--tf-text-secondary)' }}
-          title="Dasselbe Wort in anderer Form: „Normen“ findet dann auch „Normung“. Rein sprachlich — kostet nichts und lädt nichts nach. (Nicht zu verwechseln mit der Ähnlichkeitssuche rechts, die nach dem Thema geht.)"
+          title={WORTFORMEN_TITEL}
         >
           <input
             type="checkbox"
@@ -193,7 +221,7 @@ export function SuchOptionenZeile({
             onChange={e => onStammSuche(e.target.checked)}
             className="h-3.5 w-3.5 cursor-pointer accent-[var(--tf-primary)]"
           />
-          Wortformen mitsuchen
+          auch andere Wortformen
         </label>
       )}
 
@@ -229,7 +257,7 @@ export function SuchOptionenZeile({
         <label
           className="inline-flex h-7 items-center gap-1.5 rounded-[8px] px-2 text-[12px] text-[var(--tf-text-secondary)] cursor-pointer"
           style={SELECT_STYLE}
-          title="Dasselbe Thema in anderen Worten: findet verwandte Vorhaben auch ohne gemeinsames Wort. Lädt beim ersten Mal ein Sprachmodell (~200 MB) nach — anders als „Wortformen mitsuchen“ links, das rein sprachlich arbeitet."
+          title={AEHNLICHKEIT_TITEL}
         >
           <input
             type="checkbox"
@@ -237,10 +265,16 @@ export function SuchOptionenZeile({
             onChange={e => onSemantisch(e.target.checked)}
             className="h-3.5 w-3.5 cursor-pointer accent-[var(--tf-primary)]"
           />
-          Ähnlichkeitssuche
-          {semantischLaedt && (
-            <span className="text-[11px] text-[var(--tf-text-tertiary)]">lädt …</span>
-          )}
+          auch ähnliche Themen
+          {/* Der Zusatz ist keine Zier: dieser Haken lädt ein Sprachmodell nach,
+              und das darf nicht hinter einer harmlosen Beschriftung passieren.
+              Er nennt die KOSTEN statt der Technik — „(Sprachmodell)" wäre ein
+              Fachwort ohne Preisschild. Und er ist zugleich das zweite
+              Unterscheidungsmerkmal: die Wortformen links wirken sofort und
+              laden nichts. */}
+          <span className="text-[11px] text-[var(--tf-text-tertiary)]">
+            {semantischLaedt ? 'lädt …' : '(lädt 200 MB)'}
+          </span>
         </label>
       ) : (
         // Verschwinden ohne Wort wäre hier falsch: der Haken war womöglich

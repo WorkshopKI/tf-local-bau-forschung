@@ -21,6 +21,12 @@
 
 ## v4.68 — 2026-08
 
+### Verbesserungen
+- **Die beiden Haken in der Suche heißen jetzt so, dass man sie unterscheiden kann.** Aus „Wortformen mitsuchen" und „Ähnlichkeitssuche" wurde **„auch andere Wortformen"** und **„auch ähnliche Themen"** — links geht es um dasselbe **Wort** in anderer Form, rechts um dasselbe **Thema** in anderen Wörtern. Bisher musste man beide Erklärungstexte lesen und vergleichen.
+- **Am rechten Haken steht jetzt „(lädt 200 MB)".** Er lädt beim ersten Mal ein Sprachmodell auf Ihren Rechner; das sollte an der Beschriftung stehen und nicht erst im Tooltip.
+
+## v4.68 — 2026-08
+
 ### Neu
 - **Sie können die gefundenen Wortformen von der KI prüfen lassen.** Der Wortstamm-Vergleich ist sprachlich: „normotherme" und „Normung" fangen wirklich gleich an, handeln aber von Verschiedenem. Ein Klick auf „von der KI prüfen" sortiert solche Wörter aus — sie stehen danach durchgestrichen da und lassen sich einzeln zurückholen. Ohne KI funktionieren die Wortformen wie bisher sofort.
 

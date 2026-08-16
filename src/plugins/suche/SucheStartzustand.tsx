@@ -190,7 +190,8 @@ export function SucheStartzustand({
 
           <p className="mt-2 px-2 text-[12px] leading-relaxed text-[var(--tf-text-secondary)]">
             Nach Titel, Akronym, FKZ, Antragsteller oder Ort — mit
-            Ähnlichkeitssuche findest du auch thematisch verwandte Vorhaben.
+            „auch ähnliche Themen" findest du auch verwandte Vorhaben, die kein
+            Wort mit deiner Anfrage teilen.
           </p>
         </Spalte>
       </div>
