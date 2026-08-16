@@ -6,7 +6,10 @@ import {
   type DarstellungEingabe,
 } from '../darstellungsAchsen';
 import { TABLE_GROUPING_OPTIONS, TABLE_ANSICHT_OPTIONS } from '../tableGrouping';
-import { GROUPING_OPTIONS } from '../sort';
+import {
+  GROUPING_OPTIONS, SORT_OPTIONS, DEFAULT_SORT_BY_VIEW, getSortOptionsForView,
+} from '../sort';
+import type { ViewKey } from '../views';
 import { ARBEITSVORRAT_LABEL, BEENDET_ACHSE_LABEL } from '../arbeitsvorrat';
 import { DEFAULT_VISIBLE_COLUMN_KEYS } from '../tableColumns';
 import { DEFAULT_DICHTE } from '../useDichteStore';
@@ -19,6 +22,7 @@ const STANDARD: DarstellungEingabe = {
   tableAnsicht: 'antrag',
   tableGruppierung: 'none',
   listGruppierung: 'none',
+  sortierung: DEFAULT_SORT_BY_VIEW.alle,
   // Werkseinstellung = Profil „Standard"; die Profil-Achse weicht also nicht ab.
   sichtbareSpalten: DEFAULT_VISIBLE_COLUMN_KEYS,
   dichte: DEFAULT_DICHTE,
@@ -56,15 +60,41 @@ describe('welche Achsen gelten', () => {
 
   it('Zeilen-Körnung nur in der Tabelle — Liste und Karten verdichten nicht', () => {
     expect(baueDarstellungsAchsen({ ...STANDARD, viewMode: 'list' }).map(a => a.id))
-      .toEqual(['ansichtsform', 'gruppierung', 'beendet']);
+      .toEqual(['ansichtsform', 'gruppierung', 'sortierung', 'beendet']);
     // Karten kannten den Beendet-Split noch nie.
     expect(baueDarstellungsAchsen({ ...STANDARD, viewMode: 'cards' }).map(a => a.id))
-      .toEqual(['ansichtsform', 'gruppierung']);
+      .toEqual(['ansichtsform', 'gruppierung', 'sortierung']);
+  });
+
+  it('die Sortierung gilt NUR ausserhalb der Tabelle — dort sortieren die Spaltenköpfe', () => {
+    // Zwei Griffe für dieselbe Sache wären zwei Wahrheiten; in der Tabelle
+    // gewinnt der Spaltenkopf, weil er am sortierten Ding steht.
+    expect(baueDarstellungsAchsen(STANDARD).map(a => a.id)).not.toContain('sortierung');
+    for (const viewMode of ['list', 'cards'] as const) {
+      expect(baueDarstellungsAchsen({ ...STANDARD, viewMode }).map(a => a.id))
+        .toContain('sortierung');
+    }
   });
 
   it('Beendet nur im „Alle"-Reiter — anderswo steht praktisch nichts Terminales', () => {
     expect(baueDarstellungsAchsen({ ...STANDARD, activeView: 'meine_offenen' }).map(a => a.id))
       .toEqual(['ansichtsform', 'ansicht', 'gruppierung', 'spalten', 'dichte']);
+  });
+
+  it('die Fristen-Sicht bringt ihre Staffelung als STANDARD mit, nicht als Abweichung', () => {
+    // Sonst meldete der Knopf dort dauerhaft „Gruppierung: Frist" — eine Meldung
+    // über den Normalfall (dieselbe Falle wie die Ansichtsform in v4.64).
+    const achsen = baueDarstellungsAchsen({
+      ...STANDARD, activeView: 'fristen', tableGruppierung: 'frist',
+      sortierung: DEFAULT_SORT_BY_VIEW.fristen,
+    });
+    expect(achsen.find(a => a.id === 'gruppierung')!.standard).toBe('frist');
+    expect(darstellungsZusammenfassung(achsen).text).toBe('');
+    // Und wer dort flach stellt, sieht das sehr wohl am Knopf.
+    expect(darstellungsZusammenfassung(baueDarstellungsAchsen({
+      ...STANDARD, activeView: 'fristen', tableGruppierung: 'none',
+      sortierung: DEFAULT_SORT_BY_VIEW.fristen,
+    })).text).toBe('Keine');
   });
 
   it('liefert nie eine leere Liste — die Gruppierung gibt es in jeder Ansicht', () => {
@@ -123,6 +153,50 @@ describe('Optionen kommen aus der bestehenden Quelle', () => {
       expect(a.options.map(o => o.key)).toContain(a.value);
       expect(a.options.map(o => o.key)).toContain(a.standard);
     }
+  });
+});
+
+/** Übernommen aus `sortSeg.test.ts`, das mit der „Sortiert nach"-Pille entfallen
+ *  ist (v4.65). Der Defekt, den es hielt, ist derselbe geblieben: eine
+ *  Sortierung, die WIRKT, aber in der Liste der wählbaren Werte fehlt — dann
+ *  steht das Menü auf nichts und der wirksame Schlüssel ist nicht mehr
+ *  anwählbar. */
+describe('Sortier-Achse — Anzeige und Wirkung können nicht auseinanderlaufen', () => {
+  const ALLE_VIEWS: ViewKey[] = ['meine_offenen', 'fristen', 'begleitung', 'alle'];
+
+  it('die Sicht-Vorgabe ist in JEDER Sicht ein wählbarer Wert', () => {
+    for (const activeView of ALLE_VIEWS) {
+      const vorgabe = DEFAULT_SORT_BY_VIEW[activeView];
+      expect(getSortOptionsForView(activeView).map(o => o.key), `Sicht ${activeView}`)
+        .toContain(vorgabe);
+      const achse = baueDarstellungsAchsen({
+        ...STANDARD, viewMode: 'list', activeView, sortierung: vorgabe,
+      }).find(a => a.id === 'sortierung')!;
+      expect(achse.value).toBe(achse.standard);
+    }
+  });
+
+  it('jeder für die Sicht erlaubte Schlüssel ist auch ein Segment', () => {
+    for (const activeView of ALLE_VIEWS) {
+      for (const option of getSortOptionsForView(activeView)) {
+        const achse = baueDarstellungsAchsen({
+          ...STANDARD, viewMode: 'list', activeView, sortierung: option.key,
+        }).find(a => a.id === 'sortierung')!;
+        expect(achse.options.map(o => o.key), `${activeView}/${option.key}`).toContain(achse.value);
+      }
+    }
+  });
+
+  it('Bewilligungs-Sortierungen nur dort, wo Bewilligtes regelmäßig vorkommt', () => {
+    const keys = baueDarstellungsAchsen({
+      ...STANDARD, viewMode: 'list', activeView: 'meine_offenen', sortierung: 'frist_asc',
+    }).find(a => a.id === 'sortierung')!.options.map(o => o.key);
+    expect(keys).not.toContain('bewilligung_desc');
+    expect(keys).not.toContain('bewilligung_asc');
+    expect(keys).toContain('frist_asc');
+    expect(baueDarstellungsAchsen({
+      ...STANDARD, viewMode: 'list', activeView: 'alle',
+    }).find(a => a.id === 'sortierung')!.options).toHaveLength(SORT_OPTIONS.length);
   });
 });
 

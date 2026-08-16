@@ -2,6 +2,7 @@ import { Lightbulb, X } from 'lucide-react';
 
 interface Props {
   count: number;
+  onPin: () => void;
   onSave: () => void;
   onDismiss: () => void;
 }
@@ -9,10 +10,16 @@ interface Props {
 /**
  * One-Time-Hint: erscheint wenn die aktuelle Filter-Kombi >= N mal angewendet
  * wurde und der User den Hint für diese Signatur noch nicht weggeklickt hat.
- * Aktion "Speichern" öffnet den SavePresetDialog UND dismissed den Hint
- * (egal ob der Dialog am Ende confirmed wird — der User hat ja agiert).
+ * Beide Aktionen dismissen den Hint (egal ob der Dialog am Ende bestätigt wird
+ * — der User hat ja agiert).
+ *
+ * **Anpinnen steht vorn** (v4.65): der Vorschlag kommt, weil derselbe Satz
+ * mehrfach gebraucht wurde — das ist die Beschreibung eines Schalters, nicht
+ * eines Archiveintrags. Der Pin sitzt danach als Chip über der Tabelle und ist
+ * ein Klick entfernt; ein Preset muss man erst benennen und dann suchen. Beides
+ * bleibt erreichbar, die Reihenfolge sagt nur, was gemeint war.
  */
-export function PresetSuggestionBanner({ count, onSave, onDismiss }: Props): React.ReactElement {
+export function PresetSuggestionBanner({ count, onPin, onSave, onDismiss }: Props): React.ReactElement {
   return (
     <div
       className="mx-3 mt-3 rounded-md p-2.5"
@@ -28,7 +35,7 @@ export function PresetSuggestionBanner({ count, onSave, onDismiss }: Props): Rea
           style={{ color: 'var(--tf-primary)' }}
         />
         <div className="flex-1 min-w-0 text-[11.5px] text-[var(--tf-text)] leading-snug">
-          Diese Filter-Kombi hast du {count}-mal verwendet — als Preset speichern?
+          Diesen Filterstand hast du {count}-mal verwendet — als Schnellzugriff anpinnen?
         </div>
         <button
           type="button"
@@ -43,9 +50,18 @@ export function PresetSuggestionBanner({ count, onSave, onDismiss }: Props): Rea
       <div className="flex gap-1.5 mt-2 ml-[21px]">
         <button
           type="button"
-          onClick={onSave}
+          onClick={onPin}
+          title="Als Schalter über die Tabelle legen — ein Klick schaltet ihn an und aus"
           className="text-[11px] px-2.5 py-1 rounded text-white cursor-pointer"
           style={{ background: 'var(--tf-primary)' }}
+        >
+          Anpinnen
+        </button>
+        <button
+          type="button"
+          onClick={onSave}
+          title="Unter einem Namen ablegen und später wieder laden"
+          className="text-[11px] px-2 py-1 rounded text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)] cursor-pointer"
         >
           Als Preset speichern
         </button>

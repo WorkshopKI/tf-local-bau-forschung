@@ -125,13 +125,11 @@ export const SORT_OPTIONS: readonly SortOption[] = [
 
 export const DEFAULT_SORT_BY_VIEW: Record<ViewKey, SortKey> = {
   meine_offenen: 'frist_asc',
+  fristen: 'frist_asc',
   // `frist_asc` ist hier richtig, obwohl die Begleitung eine andere Uhr hat:
   // `computeFristDatum` schreibt in `frist_datum` bereits die VN-Frist
   // (vn_eingang_datum + 6 Monate). Die Sortierung liest das fertige Feld.
   begleitung: 'frist_asc',
-  diese_woche_faellig: 'frist_asc',
-  ueberfaellig: 'frist_asc',
-  bewilligt_jahr: 'bewilligung_desc',
   // „Alle": neueste Antragseingänge zuerst (Journey-Paket 2 Phase 4) — das
   // aktuellste Geschehen oben statt FKZ-alphabetisch. Bestehende explizite
   // Nutzer-Overrides auf „Alle" bleiben Vorrang (store: `sortByView`).
@@ -142,7 +140,16 @@ export function getSortOption(key: SortKey): SortOption {
   return SORT_OPTIONS.find(o => o.key === key) ?? SORT_OPTIONS[5]!;
 }
 
-const BEWILLIGUNG_VIEWS: ReadonlySet<ViewKey> = new Set<ViewKey>(['bewilligt_jahr', 'alle']);
+const SORT_KEYS: ReadonlySet<string> = new Set(SORT_OPTIONS.map(o => o.key));
+
+/** Whitelist für Werte, die von außen als Sortier-Schlüssel hereinkommen (das
+ *  Darstellungs-Menü reicht `string` durch). Aus den Optionen abgeleitet, damit
+ *  ein neuer Schlüssel nicht an einer zweiten Literal-Liste vorbeidriftet. */
+export function istSortKey(v: unknown): v is SortKey {
+  return typeof v === 'string' && SORT_KEYS.has(v);
+}
+
+const BEWILLIGUNG_VIEWS: ReadonlySet<ViewKey> = new Set<ViewKey>(['alle']);
 const BEWILLIGUNG_KEYS: ReadonlySet<SortKey> = new Set<SortKey>(['bewilligung_desc', 'bewilligung_asc']);
 
 /** Liefert die im Sort-Dropdown sichtbaren Optionen pro View.
@@ -186,10 +193,8 @@ export const GROUPING_OPTIONS: readonly GroupingOption[] = [
  *  fallen alle Views auf `none` zurück — explizit und vorhersagbar. */
 export const DEFAULT_GROUPING_BY_VIEW: Record<ViewKey, GroupingMode> = {
   meine_offenen: 'none',
+  fristen: 'none',
   begleitung: 'none',
-  diese_woche_faellig: 'none',
-  ueberfaellig: 'none',
-  bewilligt_jahr: 'none',
   alle: 'none',
 };
 

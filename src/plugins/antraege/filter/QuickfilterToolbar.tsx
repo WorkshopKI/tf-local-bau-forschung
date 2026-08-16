@@ -3,9 +3,15 @@
  * Zeile (Journey-Paket 2 Phase 2).
  *
  * Segmente (`CollapsibleSeg`, controlled): Status · Antragstyp · Projektart ·
- * PreCheck · (nur List-/Karten-Ansicht) Sortiert-nach. **Mehrere Pillen dürfen
- * gleichzeitig offen sein** (seit v3.13); der Zustand ist eine Menge offener
- * Segment-Ids, pro View persistiert (`quickfilterExpanded.ts`).
+ * PreCheck. **Mehrere Pillen dürfen gleichzeitig offen sein** (seit v3.13); der
+ * Zustand ist eine Menge offener Segment-Ids, pro View persistiert
+ * (`quickfilterExpanded.ts`).
+ *
+ * **Die Zeile trägt nur noch die MENGE.** Alles zur FORM steht im
+ * „Darstellung"-Menü rechts (`darstellungsAchsen.ts`) — die Gruppierung seit
+ * Journey-Paket 2, die Ansichtsform seit v4.64, die Sortierung seit v4.65. Zwei
+ * Orte für „wie wird gezeigt" waren genau die Art Überschneidung, wegen der
+ * niemand mehr wusste, wo er suchen soll.
  *
  * Filter-Backend:
  * - Status  → `useFilterState` (`system-status`, `phaseQuickfilter.ts`)
@@ -20,10 +26,9 @@
  * Achse im „Darstellung"-Menü rechts in `AntraegeMain` (`DarstellungDropdown`).
  */
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { useAntraegeStore, getEffectiveSortKey, getEffectiveViewMode } from '../store';
+import { useAntraegeStore } from '../store';
 import { useFilteredAntraege } from '../useFilteredAntraege';
 import { useFilterState } from './useFilterState';
-import { sortSegModell, sortKeyFuerLabel } from './sortSeg';
 import { CollapsibleSeg } from './CollapsibleSeg';
 import {
   getPhaseFromActive,
@@ -71,13 +76,6 @@ export function QuickfilterToolbar({ abschluss }: Props = {}): React.ReactElemen
   // ohne die Sidebar-Active-Filter (Stabilität).
   const { countBase, tvCountOf } = useFilteredAntraege();
   const activeView = useAntraegeStore(s => s.activeView);
-  const sortByView = useAntraegeStore(s => s.sortByView);
-  const setSortForView = useAntraegeStore(s => s.setSortForView);
-
-  const sortKey = getEffectiveSortKey(activeView, sortByView);
-  // Tabellen-Ansicht ("compact") ist flach → jeder Spaltenkopf sortiert selbst,
-  // daher das "Sortiert nach"-Segment dort ausblenden.
-  const viewMode = useAntraegeStore(s => getEffectiveViewMode(s.activeView, s.viewModeByTab));
 
   const active = useFilterState(s => s.active);
   const setActiveValue = useFilterState(s => s.setActiveValue);
@@ -105,16 +103,21 @@ export function QuickfilterToolbar({ abschluss }: Props = {}): React.ReactElemen
     });
   };
 
-  // Phase
-  const phaseItems = useMemo(() => getPhaseItems(countBase), [countBase]);
+  // Phase. Der aktuelle Wert geht MIT hinein: steht in der Leiste eine
+  // Auswahl, die kein Bucket ist, braucht die Pille ein Segment dafür — sonst
+  // zeigte sie einen Wert an, den ihre eigene Liste nicht enthält, und wirkte
+  // dann auf gar nichts.
   const phase = getPhaseFromActive(active);
+  const phaseItems = useMemo(() => getPhaseItems(countBase, phase), [countBase, phase]);
   const onPhaseChange = (label: string): void => {
     applyPhase(label as PhaseLabel, (id, v) => setActiveValue(id, v), clearFilter);
   };
 
   // Antragstyp (Kategorie)
-  const kategorieItems = useMemo(() => getKategorieItems(countBase), [countBase]);
   const kategorie = getKategorieFromActive(active);
+  const kategorieItems = useMemo(
+    () => getKategorieItems(countBase, kategorie), [countBase, kategorie],
+  );
   const onKategorieChange = (label: string): void => {
     applyKategorie(label as KategorieLabel, (id, v) => setActiveValue(id, v), clearFilter);
   };
@@ -144,16 +147,6 @@ export function QuickfilterToolbar({ abschluss }: Props = {}): React.ReactElemen
   const precheckItems = useMemo(() => getPrecheckItems(countBase), [countBase]);
   const onPrecheckChange = (label: string): void => {
     setPrecheckBucket(asPrecheckBucket(label));
-  };
-
-  // Sortiert nach (nur List-/Karten-Ansicht) — Einträge, aktuelles Label und
-  // Kollaps-Wert kommen aus `sortSeg.ts`, damit die Pille nicht wieder eine
-  // eigene, von `sort.ts` abweichende Options-Liste führen kann.
-  const sortSeg = useMemo(() => sortSegModell(activeView, sortKey), [activeView, sortKey]);
-  const onSortChange = (label: string): void => {
-    const key = sortKeyFuerLabel(activeView, label);
-    if (key === null) return;
-    setSortForView(activeView, key);
   };
 
   return (
@@ -199,17 +192,6 @@ export function QuickfilterToolbar({ abschluss }: Props = {}): React.ReactElemen
         expanded={expandedSegs.has('precheck')}
         onExpandToggle={() => handleToggle('precheck')}
       />
-      {viewMode === 'compact' ? null : (
-        <CollapsibleSeg
-          label="Sortiert nach"
-          value={sortSeg.aktuellesLabel}
-          defaultValue={sortSeg.defaultLabel}
-          items={sortSeg.items}
-          onChange={onSortChange}
-          expanded={expandedSegs.has('sort')}
-          onExpandToggle={() => handleToggle('sort')}
-        />
-      )}
       {abschluss}
     </div>
   );

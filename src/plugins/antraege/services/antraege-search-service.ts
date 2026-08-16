@@ -54,6 +54,7 @@ import {
 import { berechneRelevanz, type Trefferfeld } from '@/core/services/search/trefferstelle';
 import { bereichFelder, type Suchbereich } from '@/core/services/search/suchbereich';
 import { zerlegeFeldAnfrage } from '@/core/services/search/feldpraefix';
+import type { PlanBegriff } from '@/core/services/search/frageplan';
 import { suchNadel, sammleVarianten } from '@/core/services/search/wortstamm';
 import type { HybridUnavailableSource } from '../store';
 
@@ -307,24 +308,22 @@ function substringMatches(
   const leer: WortlautErgebnis = { treffer: out, varianten: [] };
   const bereichsFelder = bereichFelder(bereich);
 
-  // „Genaue Wortfolge" sucht die Anfrage als EINE Zeichenkette — das Verhalten,
-  // das bis v3.49 der einzige Weg war. Als ausdrücklich gewählte Option ist es
-  // richtig; als stiller Standard war es der Defekt.
-  const teile: SuchTeil[] = zerlegeFeldAnfrage(query, verknuepfung === 'wortfolge')
-    .map(t => {
-      const wort = t.wert.toLowerCase();
-      return {
-        wort,
-        nadeln: baueNadeln(wort, stammSuche, optionen.aktiveVarianten),
-        ortNadel: standortNadel(wort),
-        erlaubt: t.feld ? new Set<Trefferfeld>([t.feld]) : bereichsFelder,
-      };
-    })
-    .filter(t => t.wort.length > 0);
+  // Ein Frageplan ERSETZT die Zerlegung der Eingabe: dort steht dann die Frage
+  // („Welche Vorhaben …"), und ihre Wörter sind keine Suchbegriffe. Ohne Plan
+  // bleibt alles wie zuvor.
+  const teile: SuchTeil[] = optionen.planTeile
+    ? planSuchTeile(optionen.planTeile, bereichsFelder)
+    : anfrageSuchTeile(query, verknuepfung, stammSuche, optionen.aktiveVarianten, bereichsFelder);
   if (teile.length === 0) return leer;
   // Alle Teile ohne Feld ⇒ nichts zu prüfen (der Bereich „nur Dokumente" ist
   // genau dieser Fall). Der Kurzschluss spart den Lauf über 14 000 Einträge.
   if (teile.every(t => t.erlaubt.size === 0)) return leer;
+
+  // Einmal vorab getrennt: Einschränkungen müssen ALLE zutreffen, die Themen
+  // folgen der eingestellten Verknüpfung. Ohne Pflichtteile — also überall außer
+  // im Frageplan — ist der Ausdruck unten Zeichen für Zeichen der alte.
+  const pflichtTeile = teile.filter(t => t.pflicht);
+  const themenTeile = pflichtTeile.length === 0 ? teile : teile.filter(t => !t.pflicht);
 
   const varianten = new Map<string, string>();
   let gescannt = 0;
@@ -342,25 +341,29 @@ function substringMatches(
       || (t.erlaubt.has('netzwerk') && entry.netzwerkLower.includes(nadel))
       || (t.erlaubt.has('notiz') && entry.notizLower.includes(nadel))
     ))
-      // Leere Nadel verwerfen: `''.includes('')` wäre `true` und träfe alles.
-      // Der Standort vergleicht bewusst das ROHE Wort, nicht den Stamm: seine
-      // Suchform ist am Wortanfang verankert, ein gekürzter Stamm holte über
-      // dieselbe Verankerung genau die Nachbarorte herein, die v4.4.4
+      // Leere Nadeln sind beim Bau ausgesiebt: `''.includes('')` wäre `true` und
+      // träfe alles. Der Standort vergleicht bewusst das ROHE Wort, nicht den
+      // Stamm: seine Suchform ist am Wortanfang verankert, ein gekürzter Stamm
+      // holte über dieselbe Verankerung genau die Nachbarorte herein, die v4.4.4
       // ausgeschlossen hat.
-      || (t.erlaubt.has('standort') && t.ortNadel.length > 0
-        && entry.standortSuchform.includes(t.ortNadel))
+      || (t.erlaubt.has('standort')
+        && t.ortNadeln.some(n => entry.standortSuchform.includes(n)))
       // Die Web-Adresse nutzt dieselbe verankerte Nadel — aus demselben Grund:
       // „gmbu" soll `gmbu.de` finden, aber nicht mitten in einer fremden Domain
       // treffen.
-      || (t.erlaubt.has('domain') && t.ortNadel.length > 0
-        && entry.domainSuchform.includes(t.ortNadel))
+      || (t.erlaubt.has('domain')
+        && t.ortNadeln.some(n => entry.domainSuchform.includes(n)))
       // Der Wahlkreis besteht aus Ortsnamen („Goslar - Northeim - Göttingen II")
       // und wird deshalb wie der Standort am Wortanfang verglichen.
-      || (t.erlaubt.has('wahlkreis') && t.ortNadel.length > 0
-        && entry.wahlkreisSuchform.includes(t.ortNadel));
-    if (verknuepfung === 'oder' ? teile.some(trifft) : teile.every(trifft)) {
+      || (t.erlaubt.has('wahlkreis')
+        && t.ortNadeln.some(n => entry.wahlkreisSuchform.includes(n)));
+    const trifftThemen = verknuepfung === 'oder'
+      ? themenTeile.some(trifft)
+      : themenTeile.every(trifft);
+    if (pflichtTeile.every(trifft) && trifftThemen) {
       out.set(akz, feldZuordnung(entry, teile));
-      if (stammSuche && gescannt < VARIANTEN_SCAN_MAX && varianten.size < VARIANTEN_MAX) {
+      if (stammSuche && !optionen.planTeile
+        && gescannt < VARIANTEN_SCAN_MAX && varianten.size < VARIANTEN_MAX) {
         gescannt++;
         sammleAusEintrag(entry, teile, varianten);
       }
@@ -369,18 +372,94 @@ function substringMatches(
   return { treffer: out, varianten: Array.from(varianten.values()) };
 }
 
-/** Ein zerlegtes Suchwort: der Wortlaut (für Anzeige und Zählung), die Nadeln
- *  (Wortlaut, Stamm oder ausgewählte Varianten), die am Wortanfang verankerte
- *  Nadel und die Felder, in denen DIESES Wort nachsehen darf. Die verankerte
- *  Nadel bedient Standort, Web-Adresse UND Wahlkreis — alle drei sind kurze,
- *  ineinander steckende Zeichenketten, in denen freies Substring-Matching
- *  Unsinn liefert. */
+/** Ein Suchteil: der Wortlaut (für Anzeige und Zählung), die Nadeln (Wortlaut,
+ *  Stamm, ausgewählte Varianten oder die Schreibweisen eines Frageplan-
+ *  Leitbegriffs), die am Wortanfang verankerten Nadeln und die Felder, in denen
+ *  DIESER Teil nachsehen darf. Die verankerten Nadeln bedienen Standort,
+ *  Web-Adresse UND Wahlkreis — alle drei sind kurze, ineinander steckende
+ *  Zeichenketten, in denen freies Substring-Matching Unsinn liefert. */
 interface SuchTeil {
   wort: string;
   nadeln: string[];
-  ortNadel: string;
-  /** Der Bereich — oder das eine getippte Feld, wenn der Teil ein Präfix trug. */
+  /** Verankerte Formen ALLER Nadeln, leere bereits ausgesiebt. */
+  ortNadeln: string[];
+  /** Der Bereich — oder das eine Feld, wenn der Teil eines nennt. */
   erlaubt: ReadonlySet<Trefferfeld>;
+  /**
+   * Muss dieser Teil zutreffen? Nur ein Frageplan setzt das. Eine Ortsangabe
+   * schränkt ein, sie ist keine weitere Alternative — als ODER-Teil lieferte
+   * „in Bayern zu Normung" auch bayerische Vorhaben ohne Normungsbezug.
+   */
+  pflicht: boolean;
+}
+
+/** Die Suchteile aus der getippten Anfrage — der Weg, den es immer gab.
+ *
+ *  „Genaue Wortfolge" sucht die Anfrage als EINE Zeichenkette; das Verhalten war
+ *  bis v3.49 der einzige Weg. Als ausdrücklich gewählte Option ist es richtig,
+ *  als stiller Standard war es der Defekt. */
+function anfrageSuchTeile(
+  query: string,
+  verknuepfung: SuchVerknuepfung,
+  stammSuche: boolean,
+  aktiveVarianten: readonly string[] | undefined,
+  bereichsFelder: ReadonlySet<Trefferfeld>,
+): SuchTeil[] {
+  return zerlegeFeldAnfrage(query, verknuepfung === 'wortfolge')
+    .map(t => {
+      const wort = t.wert.toLowerCase();
+      return {
+        wort,
+        nadeln: baueNadeln(wort, stammSuche, aktiveVarianten),
+        ortNadeln: verankere([wort]),
+        erlaubt: t.feld ? new Set<Trefferfeld>([t.feld]) : bereichsFelder,
+        pflicht: false,
+      };
+    })
+    .filter(t => t.wort.length > 0);
+}
+
+/**
+ * Die Suchteile aus einem Frageplan: ein Leitbegriff wird EIN Teil, seine
+ * Schreibweisen werden dessen Nadeln.
+ *
+ * Das ist der ganze Trick. Ein Teil gilt als getroffen, sobald irgendeine seiner
+ * Nadeln trifft — `abdeckung` zählt damit die gefragten SACHEN, nicht die
+ * Schreibweisen. Lägen die Schreibweisen als eigene Teile daneben, teilte die
+ * Abdeckung durch ihre Anzahl und ein einschlägiges Vorhaben rutschte auf
+ * „gering" (siehe [frageplan.ts](src/core/services/search/frageplan.ts)).
+ *
+ * Der Wortstamm läuft hier NICHT mit: die Wortformen hat der Plan schon benannt,
+ * und ein zusätzlich abgeleiteter Stamm holte Treffer herein, die in keinem Chip
+ * stehen.
+ */
+function planSuchTeile(
+  plan: readonly PlanBegriff[],
+  bereichsFelder: ReadonlySet<Trefferfeld>,
+): SuchTeil[] {
+  return plan
+    .map(p => {
+      const nadeln = p.nadeln.map(n => n.toLowerCase()).filter(n => n.length > 0);
+      return {
+        wort: p.begriff.toLowerCase(),
+        nadeln,
+        ortNadeln: verankere(nadeln),
+        erlaubt: p.feld ? new Set<Trefferfeld>([p.feld]) : bereichsFelder,
+        pflicht: p.pflicht,
+      };
+    })
+    .filter(t => t.nadeln.length > 0);
+}
+
+/** Verankerte Formen für Standort, Web-Adresse und Wahlkreis. Leere Nadeln
+ *  fallen hier heraus, damit die Match-Kette sie nicht mehr prüfen muss. */
+function verankere(woerter: readonly string[]): string[] {
+  const out: string[] = [];
+  for (const w of woerter) {
+    const n = standortNadel(w);
+    if (n.length > 0 && !out.includes(n)) out.push(n);
+  }
+  return out;
 }
 
 /**
@@ -456,6 +535,15 @@ export interface WortlautOptionen {
    * abgewählt" und ist etwas anderes.
    */
   aktiveVarianten?: readonly string[];
+  /**
+   * Die Leitbegriffe eines Frageplans. Gesetzt heißt: die Suchteile kommen VON
+   * HIER, nicht aus `query` — im Feld steht dann die Frage, deren Wörter keine
+   * Suchbegriffe sind.
+   *
+   * `undefined` ist der Normalfall und lässt die Stufe bitweise so laufen wie
+   * vor dem Frageplan; ein Konventionstest hält das fest.
+   */
+  planTeile?: readonly PlanBegriff[];
 }
 
 /** Was ein Wortlaut-Lauf liefert: die Treffer und die Wörter, die der Bestand
@@ -481,6 +569,11 @@ function feldZuordnung(
 ): WortlautTreffer {
   const felder = new Set<Trefferfeld>();
   let getroffen = 0;
+  // Gezählt werden nur die THEMEN. Eine Einschränkung ist bei jedem überlebenden
+  // Treffer erfüllt — sie mitzuzählen hübe die Relevanz aller Treffer gleich an,
+  // und die Stufe „hoch" sagte nichts mehr aus. Ohne Pflichtteile ist `zaehlbar`
+  // gleich `teile.length`, also die Rechnung von zuvor.
+  let zaehlbar = 0;
   for (const t of teile) {
     let trifftIrgendwo = false;
     const merke = (feld: Trefferfeld, bedingung: boolean): void => {
@@ -498,12 +591,14 @@ function feldZuordnung(
     merke('organisation', in_(entry.organisationLower));
     merke('netzwerk', in_(entry.netzwerkLower));
     merke('notiz', in_(entry.notizLower));
-    merke('domain', t.ortNadel.length > 0 && entry.domainSuchform.includes(t.ortNadel));
-    merke('standort', t.ortNadel.length > 0 && entry.standortSuchform.includes(t.ortNadel));
-    merke('wahlkreis', t.ortNadel.length > 0 && entry.wahlkreisSuchform.includes(t.ortNadel));
+    merke('domain', t.ortNadeln.some(n => entry.domainSuchform.includes(n)));
+    merke('standort', t.ortNadeln.some(n => entry.standortSuchform.includes(n)));
+    merke('wahlkreis', t.ortNadeln.some(n => entry.wahlkreisSuchform.includes(n)));
+    if (t.pflicht) continue;
+    zaehlbar++;
     if (trifftIrgendwo) getroffen++;
   }
-  return { felder, abdeckung: teile.length > 0 ? getroffen / teile.length : 0 };
+  return { felder, abdeckung: zaehlbar > 0 ? getroffen / zaehlbar : 0 };
 }
 
 /** Effektiver Score-Cutoff fuer einen Lauf: nie unter dem absoluten Floor,

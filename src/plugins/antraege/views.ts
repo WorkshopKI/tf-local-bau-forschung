@@ -2,7 +2,6 @@ import type { AntragListItem } from '@/core/services/csv/types';
 import { antragMatchesBearbeiter, type BearbeiterFilterMode } from './bearbeiterFilter';
 import {
   isOpenStatus,
-  isBewilligtStatus,
   isBegleitungStatus,
 } from '@/core/utils/status-canonical';
 import { isIrrlaeufer } from '@/core/utils/vb-phase-mappings';
@@ -10,10 +9,8 @@ import { fristTageVon } from './fristAnzeige';
 
 export type ViewKey =
   | 'meine_offenen'
+  | 'fristen'
   | 'begleitung'
-  | 'diese_woche_faellig'
-  | 'ueberfaellig'
-  | 'bewilligt_jahr'
   | 'alle';
 
 export function daysUntilFrist(a: AntragListItem): number | null {
@@ -22,19 +19,6 @@ export function daysUntilFrist(a: AntragListItem): number | null {
   const ms = new Date(frist).getTime();
   if (Number.isNaN(ms)) return null;
   return Math.ceil((ms - Date.now()) / (1000 * 60 * 60 * 24));
-}
-
-function yearOfBewilligung(a: AntragListItem): number | null {
-  const d = a.bewilligung_datum;
-  if (typeof d !== 'string' || !d) return null;
-  const y = Number(d.slice(0, 4));
-  return Number.isFinite(y) ? y : null;
-}
-
-/** Pro-Aufruf ausgewertet, damit Tests via `vi.setSystemTime` ein
- *  deterministisches Heute injecten koennen (sonst frozen-at-module-load). */
-function getCurrentYear(): number {
-  return new Date().getFullYear();
 }
 
 export interface AntragView {
@@ -53,6 +37,26 @@ export const VIEWS: AntragView[] = [
     predicate: a => isOpenStatus(a.status) && !isBegleitungStatus(a.status),
   },
   {
+    // Alles mit LAUFENDER Uhr, nach Dringlichkeit gestaffelt.
+    //
+    // Bis v4.65 standen hier zwei Reiter nebeneinander: „Diese Woche" (0–6 Tage)
+    // und „Überfällig" (< 0). Das ist dasselbe Fenster an zwei Stellen derselben
+    // Skala — und die Staffelung dafuer gibt es seit v4.62 als Gruppierung
+    // (`FRIST_AMPEL_STUFEN`: ueberfaellig · ≤ 14 T · ≤ 30 T · > 30 T). Der Reiter
+    // oeffnet deshalb gruppiert, mit „Ueberfaellig" als erstem Abschnitt; beide
+    // frueheren Klicks sind darin enthalten, und was in den naechsten Wochen
+    // anrollt, sieht man dazu.
+    //
+    // Ein angehaltener Vorgang hat keine Restzeit (`fristTageVon` liefert `null`)
+    // und gehoert deshalb nicht hierher — er ist fertig oder wartend, nicht faellig.
+    //
+    // Begleitphase bleibt aussen vor: sie hat ihre eigene Sicht und mit 3–4
+    // Jahren Laufzeit einen anderen Takt.
+    key: 'fristen',
+    label: 'Fristen',
+    predicate: a => !isBegleitungStatus(a.status) && fristTageVon(a) !== null,
+  },
+  {
     // Begleitphase = nach der Bewilligung, während der Antragsteller umsetzt
     // (3–4 Jahre, ZTP/PFM). Eigene Uhr: `computeFristDatum` rechnet hier ab
     // vn_eingang_datum + 6 Monate statt antragsdatum + 90 Tage. Beide Uhren in
@@ -60,45 +64,6 @@ export const VIEWS: AntragView[] = [
     key: 'begleitung',
     label: 'Begleitung',
     predicate: a => isBegleitungStatus(a.status),
-  },
-  {
-    // Die Frist faellt in den naechsten sieben Tagen.
-    //
-    // Bis v3.6 zaehlte diese Sicht das EINGANGSALTER (84–90 Tage seit
-    // `antragsdatum`) — waehrend die Frist-Spalte daneben die Frist zeigte. Zwei
-    // Antworten auf dieselbe Frage, und die Zaehler stimmten mit der Liste nur
-    // zufaellig ueberein. Jetzt fragen beide dieselbe Engine.
-    //
-    // Begleitphase bleibt aussen vor: sie hat ihre eigene Sicht und mit 3–4
-    // Jahren Laufzeit einen anderen Takt.
-    key: 'diese_woche_faellig',
-    label: 'Diese Woche',
-    predicate: a => {
-      if (isBegleitungStatus(a.status)) return false;
-      const t = fristTageVon(a);
-      return t !== null && t >= 0 && t <= 6;
-    },
-  },
-  {
-    // Die Frist ist ueberschritten UND die Uhr laeuft noch. Ein angehaltener
-    // Vorgang ist nicht ueberfaellig, sondern fertig oder wartend — das war der
-    // Grund, warum hier jahrelang Vorgaenge von 2018 mitzaehlten.
-    //
-    // `isOpenStatus` ist entfallen: eine stehende Uhr kann per Definition nicht
-    // ueberfaellig sein, der Zustand sagt es schon. Ein zweiter Filter davor
-    // waere eine zweite Regel, die irgendwann auseinanderlaeuft.
-    key: 'ueberfaellig',
-    label: 'Überfällig',
-    predicate: a => {
-      if (isBegleitungStatus(a.status)) return false;
-      const t = fristTageVon(a);
-      return t !== null && t < 0;
-    },
-  },
-  {
-    key: 'bewilligt_jahr',
-    label: `Bewilligt ${getCurrentYear()}`,
-    predicate: a => isBewilligtStatus(a.status) && yearOfBewilligung(a) === getCurrentYear(),
   },
   {
     key: 'alle',
@@ -159,13 +124,10 @@ export function viewCounts(
 ): Record<ViewKey, number> {
   const counts: Record<ViewKey, number> = {
     meine_offenen: 0,
+    fristen: 0,
     begleitung: 0,
-    diese_woche_faellig: 0,
-    ueberfaellig: 0,
-    bewilligt_jahr: 0,
     alle: 0,
   };
-  const currentYear = getCurrentYear();
   for (const a of antraege) {
     if (applyVbPhasePreFilter && isIrrlaeufer(a.vb_phase)) continue;
     if (bearbeiter && !antragMatchesBearbeiter(a, bearbeiter)) continue;
@@ -177,17 +139,7 @@ export function viewCounts(
     if (open && !begl) counts.meine_offenen++;
     if (begl) counts.begleitung++;
 
-    if (!begl) {
-      const t = fristTageVon(a);
-      if (t !== null) {
-        if (t >= 0 && t <= 6) counts.diese_woche_faellig++;
-        if (t < 0) counts.ueberfaellig++;
-      }
-    }
-
-    if (isBewilligtStatus(a.status) && yearOfBewilligung(a) === currentYear) {
-      counts.bewilligt_jahr++;
-    }
+    if (!begl && fristTageVon(a) !== null) counts.fristen++;
   }
   return counts;
 }

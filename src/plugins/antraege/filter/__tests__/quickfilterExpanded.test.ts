@@ -41,13 +41,13 @@ describe('toggleExpandedSeg — auf/zu, ohne die anderen anzufassen', () => {
 
   it('gibt eine NEUE Menge zurück (React-State darf nicht mutiert werden)', () => {
     const vorher = menge('status');
-    const nachher = toggleExpandedSeg(vorher, 'sort');
+    const nachher = toggleExpandedSeg(vorher, 'precheck');
     expect(nachher).not.toBe(vorher);
     expect(sortiert(vorher)).toEqual(['status']);
   });
 
   it('alle nacheinander geöffnet → alle offen', () => {
-    const segs: QuickfilterSegId[] = ['status', 'antragstyp', 'projektart', 'precheck', 'sort'];
+    const segs: QuickfilterSegId[] = ['status', 'antragstyp', 'projektart', 'precheck'];
     let state: ReadonlySet<QuickfilterSegId> = menge();
     for (const s of segs) state = toggleExpandedSeg(state, s);
     expect(state.size).toBe(segs.length);
@@ -81,9 +81,9 @@ describe('loadExpandedSegs / saveExpandedSegs — Persistenz', () => {
   });
 
   it('pro View getrennt', () => {
-    saveExpandedSegs('alle', menge('sort'));
+    saveExpandedSegs('alle', menge('projektart'));
     saveExpandedSegs('meine_offenen', menge('antragstyp'));
-    expect(sortiert(loadExpandedSegs('alle'))).toEqual(['sort']);
+    expect(sortiert(loadExpandedSegs('alle'))).toEqual(['projektart']);
     expect(sortiert(loadExpandedSegs('meine_offenen'))).toEqual(['antragstyp']);
   });
 
@@ -100,9 +100,9 @@ describe('loadExpandedSegs / saveExpandedSegs — Persistenz', () => {
   });
 
   it('derselbe Zustand ergibt denselben String (stabile Reihenfolge)', () => {
-    saveExpandedSegs('a', menge('sort', 'status'));
+    saveExpandedSegs('a', menge('precheck', 'status'));
     const ersterStand = globalThis.localStorage.getItem('teamflow_antraege_quickfilter_expanded_a');
-    saveExpandedSegs('a', menge('status', 'sort'));
+    saveExpandedSegs('a', menge('status', 'precheck'));
     expect(globalThis.localStorage.getItem('teamflow_antraege_quickfilter_expanded_a'))
       .toBe(ersterStand);
   });

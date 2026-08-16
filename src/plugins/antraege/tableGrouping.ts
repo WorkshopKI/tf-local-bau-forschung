@@ -87,6 +87,29 @@ export const TABLE_GROUPING_OPTIONS: readonly { key: TableGroupingMode; label: s
  *  Darstellungs-Menü (das daran erkennt, ob die Achse vom Standard abweicht). */
 export const DEFAULT_TABLE_GROUPING: TableGroupingMode = 'none';
 
+/**
+ * Abweichender Standard je Reiter.
+ *
+ * „Fristen" IST die Staffelung nach Dringlichkeit — flach waere der Reiter nur
+ * eine zweite „Alle"-Liste, und die beiden Klicks, die er ersetzt („Diese
+ * Woche", „Ueberfaellig"), sind genau seine Abschnitte.
+ *
+ * Warum ein eigener Standard und nicht ein einmalig gesetzter Override: der
+ * Knopf des Darstellungs-Menues meldet die erste ABWEICHUNG vom Standard. Mit
+ * `none` als Standard stuende dort in diesem Reiter dauerhaft „Gruppierung:
+ * Frist" — eine Meldung ueber den Normalfall (siehe v4.64, Ansichtsform).
+ */
+export const DEFAULT_TABLE_GROUPING_BY_VIEW: Readonly<Record<string, TableGroupingMode>> = {
+  fristen: 'frist',
+};
+
+/** Der geltende Standard fuer eine Sicht. Einzelquelle fuer Store-Selektor und
+ *  Darstellungs-Menue — laufen die auseinander, meldet der Knopf eine
+ *  Abweichung, die keine ist. */
+export function standardTableGrouping(view: string): TableGroupingMode {
+  return DEFAULT_TABLE_GROUPING_BY_VIEW[view] ?? DEFAULT_TABLE_GROUPING;
+}
+
 const TABLE_GROUPING_KEYS: ReadonlySet<string> = new Set(TABLE_GROUPING_OPTIONS.map(o => o.key));
 
 /**

@@ -48,6 +48,19 @@ export type PhaseLabel = string;
 export const ALLE_LABEL = 'Alle';
 
 /**
+ * Beschriftung für einen Status-Filter, den die Pille nicht ausdrücken kann —
+ * gesetzt in der Filterleiste, wo man einzelne Zustände frei kombiniert.
+ *
+ * Bis v4.65 fiel die Pille in diesem Fall auf `Alle` zurück und behauptete
+ * damit das Gegenteil dessen, was die Liste zeigte: sie war gefiltert, die
+ * Pille sagte „Alle 38". Die Schnellzugriff-Leiste löst dasselbe Problem seit
+ * Längerem mit „Mehrere" — dieselbe Idee, dieselbe Regel: **ein Klick darauf
+ * ist wirkungslos**, denn die Auswahl beschreibt sich selbst, sie ist keine
+ * Wahl, die man treffen könnte.
+ */
+export const EIGENE_AUSWAHL_LABEL = 'Eigene Auswahl';
+
+/**
  * Kurzform je Bucket — Label und Zähler müssen zusammen in eine Zeile, sonst
  * bricht die Toolbar um, sobald die Pille mit Zahlen wie `10.845` aufklappt.
  * Abgeleitet aus der Einzelquelle, nicht als eigene Tabelle geführt (v2.409).
@@ -83,8 +96,9 @@ function statusValuesForPhase(phase: PhaseLabel): string[] {
 
 /** Liest die aktuelle Phase aus dem aktiven Filter-Set. Wenn der Filter nicht
  *  exakt einem Phase-Bucket entspricht (z.B. weil der User in der Sidebar
- *  manuell Status-Werte gemischt hat), wird 'Alle' returned — der Quickfilter
- *  zeigt dann seinen Default-Zustand. Die Sidebar bleibt davon unberührt.
+ *  manuell Status-Werte gemischt hat), wird `EIGENE_AUSWAHL_LABEL` returned —
+ *  die Pille sagt dann, dass hier etwas gilt, das sie nicht in einem ihrer
+ *  Segmente ausdrücken kann. Die Sidebar bleibt davon unberührt.
  *
  *  Der frühere Wertesatz (Bucket + `sonstige`) zählt weiter als Treffer:
  *  die aktiven Filter überleben den Reload (`activeFilterPersistence.ts`), und
@@ -93,7 +107,9 @@ function statusValuesForPhase(phase: PhaseLabel): string[] {
 export function getPhaseFromActive(active: ActiveFilter[]): PhaseLabel {
   const entry = active.find(a => a.filterId === STATUS_FILTER_ID);
   if (!entry) return ALLE_LABEL;
-  if (!Array.isArray(entry.value)) return ALLE_LABEL;
+  // Ein Nicht-Array im Status-Slot ist kein Bucket, aber auch nicht „nichts" —
+  // es filtert, also darf hier nicht `Alle` stehen.
+  if (!Array.isArray(entry.value)) return EIGENE_AUSWAHL_LABEL;
   const activeSet = new Set<string>();
   for (const v of entry.value) {
     if (typeof v === 'string') activeSet.add(v.toLowerCase().trim());
@@ -106,7 +122,8 @@ export function getPhaseFromActive(active: ActiveFilter[]): PhaseLabel {
       return phaseLabelVon(chip.id);
     }
   }
-  return ALLE_LABEL;
+  // Leeres Werte-Array = ein Slot ohne Wirkung; das ist tatsächlich „Alle".
+  return activeSet.size === 0 ? ALLE_LABEL : EIGENE_AUSWAHL_LABEL;
 }
 
 function setsEqual(a: ReadonlySet<string>, b: ReadonlySet<string>): boolean {
@@ -121,7 +138,9 @@ function setsEqual(a: ReadonlySet<string>, b: ReadonlySet<string>): boolean {
  *  Zählt über `chipStatusValues`, also über **exakt** die Menge, die
  *  `applyPhase` in den Filter schreibt. Diese Deckungsgleichheit ist die
  *  Invariante der Pille; `phaseQuickfilter.test.ts` hält sie fest. */
-export function getPhaseItems(antraege: AntragListItem[]): CollapsibleSegItem[] {
+export function getPhaseItems(
+  antraege: AntragListItem[], aktuellePhase: PhaseLabel = ALLE_LABEL,
+): CollapsibleSegItem[] {
   // Einmal vor der Schleife: `chipStatusValues` leitet seit dem Wegfall der
   // Modul-Konstante bei jedem Aufruf aus dem aktiven Katalog ab.
   const buckets = STATUS_QUICK_CHIPS.map(chip => ({
@@ -145,6 +164,12 @@ export function getPhaseItems(antraege: AntragListItem[]): CollapsibleSegItem[] 
     // Die Kurzform steht in der Leiste, der volle Name im Tooltip — sonst
     // müsste man „Bei Antragst." raten.
     ...buckets.map(b => ({ label: b.label, count: b.count, title: b.voll })),
+    // Nur wenn er gerade gilt: ein Segment, das man nicht wählen kann, wäre
+    // sonst dauerhaft ein toter Knopf. Ohne Zähler — was die Leiste gesetzt hat,
+    // zählt die Pille nicht nach (das täte sie auf einer anderen Basis).
+    ...(aktuellePhase === EIGENE_AUSWAHL_LABEL
+      ? [{ label: EIGENE_AUSWAHL_LABEL, title: 'In der Filterleiste gesetzt — dort auch wieder aufzuheben' }]
+      : []),
   ];
 }
 
@@ -156,6 +181,9 @@ export function applyPhase(
   setActiveValue: (filterId: string, value: string[]) => void,
   clearFilter: (filterId: string) => void,
 ): void {
+  // „Eigene Auswahl" ist eine Auskunft, keine Wahl — ein Klick darauf darf die
+  // Auswahl nicht leeren, die er gerade beschreibt (wie `MEHRERE` in PinLeiste).
+  if (phase === EIGENE_AUSWAHL_LABEL) return;
   if (phase === ALLE_LABEL) {
     clearFilter(STATUS_FILTER_ID);
     return;

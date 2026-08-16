@@ -26,18 +26,23 @@ import type { CollapsibleSegItem } from './CollapsibleSeg';
 
 export const KATEGORIE_FILTER_ID = 'system-vb-phase';
 
-/** Die vier Antragstypen plus die „Alle"-Option des Quickfilters. Die
- *  vb_phase-Zuordnung selbst lebt in `vb-phase-mappings.ts`. */
-export type KategorieLabel = 'Alle' | AntragstypBucket;
+/** Beschriftung für eine vb_phase-Auswahl, die keinem Bucket entspricht —
+ *  gesetzt in der Filterleiste, wo einzelne Phasen frei kombinierbar sind
+ *  (inkl. der Irrläufer, die kein Bucket kennt). Begründung und Regel:
+ *  `EIGENE_AUSWAHL_LABEL` in `phaseQuickfilter.ts`. */
+export const EIGENE_AUSWAHL_LABEL = 'Eigene Auswahl';
 
-const KATEGORIE_VALUES: Record<Exclude<KategorieLabel, 'Alle'>, string[]> = {
+/** Die vier Antragstypen plus „Alle" und den nicht wählbaren Auskunfts-Wert. */
+export type KategorieLabel = 'Alle' | 'Eigene Auswahl' | AntragstypBucket;
+
+const KATEGORIE_VALUES: Record<AntragstypBucket, string[]> = {
   FuE: ['3'],
   DS: ['5'],
   DL: ['4'],
   NW: ['1', '2'],
 };
 
-const KATEGORIE_ORDER: KategorieLabel[] = ['Alle', 'FuE', 'DS', 'DL', 'NW'];
+const KATEGORIE_ORDER: readonly ('Alle' | AntragstypBucket)[] = ['Alle', 'FuE', 'DS', 'DL', 'NW'];
 
 function setsEqual(a: ReadonlySet<string>, b: ReadonlySet<string>): boolean {
   if (a.size !== b.size) return false;
@@ -53,18 +58,20 @@ function setsEqual(a: ReadonlySet<string>, b: ReadonlySet<string>): boolean {
 export function getKategorieFromActive(active: ActiveFilter[]): KategorieLabel {
   const entry = active.find(a => a.filterId === KATEGORIE_FILTER_ID);
   if (!entry) return 'Alle';
-  if (!Array.isArray(entry.value)) return 'Alle';
+  if (!Array.isArray(entry.value)) return EIGENE_AUSWAHL_LABEL;
   const activeSet = new Set<string>();
   for (const v of entry.value) {
     if (typeof v === 'string') activeSet.add(v);
   }
   for (const [label, values] of Object.entries(KATEGORIE_VALUES) as [
-    Exclude<KategorieLabel, 'Alle'>,
+    AntragstypBucket,
     string[],
   ][]) {
     if (setsEqual(activeSet, new Set(values))) return label;
   }
-  return 'Alle';
+  // Freie Kombination aus der Filterleiste (z.B. „NW1 + FuE" oder die
+  // Irrläufer): filtert, ist aber kein Bucket — `Alle` wäre hier gelogen.
+  return activeSet.size === 0 ? 'Alle' : EIGENE_AUSWAHL_LABEL;
 }
 
 /** Bucket-Label für eine vb_phase (FuE/DS/DL/NW). Liefert null für
@@ -83,13 +90,18 @@ export function getKategorieLabel(vbPhase: unknown): AntragstypBucket | null {
  * es nicht zwei Wege gibt, dieselbe Menge zu bilden.
  */
 export function matchesKategorie(a: AntragListItem, kategorie: KategorieLabel): boolean {
-  if (kategorie === 'Alle') return true;
+  // „Eigene Auswahl" beschreibt eine Menge, die diese Achse nicht kennt — die
+  // Kaskade kann darauf nicht eingrenzen und lässt die Basis deshalb ganz.
+  if (kategorie === 'Alle' || kategorie === EIGENE_AUSWAHL_LABEL) return true;
   return getAntragstypBucket(a.vb_phase) === kategorie;
 }
 
-/** Liefert die Items für `CollapsibleSeg`: Alle + 4 Kategorien mit Counts. */
-export function getKategorieItems(antraege: AntragListItem[]): CollapsibleSegItem[] {
-  const counts: Record<KategorieLabel, number> = {
+/** Liefert die Items für `CollapsibleSeg`: Alle + 4 Kategorien mit Counts,
+ *  plus den Auskunfts-Wert, solange er gilt (siehe `getPhaseItems`). */
+export function getKategorieItems(
+  antraege: AntragListItem[], aktuelle: KategorieLabel = 'Alle',
+): CollapsibleSegItem[] {
+  const counts: Record<'Alle' | AntragstypBucket, number> = {
     Alle: antraege.length,
     FuE: 0,
     DS: 0,
@@ -101,7 +113,12 @@ export function getKategorieItems(antraege: AntragListItem[]): CollapsibleSegIte
     if (bucket === null) continue;
     counts[bucket]++;
   }
-  return KATEGORIE_ORDER.map(label => ({ label, count: counts[label] }));
+  return [
+    ...KATEGORIE_ORDER.map(label => ({ label, count: counts[label] })),
+    ...(aktuelle === EIGENE_AUSWAHL_LABEL
+      ? [{ label: EIGENE_AUSWAHL_LABEL, title: 'In der Filterleiste gesetzt — dort auch wieder aufzuheben' }]
+      : []),
+  ];
 }
 
 /** Wendet die User-Auswahl auf den Filter-State an. */
@@ -110,6 +127,8 @@ export function applyKategorie(
   setActiveValue: (filterId: string, value: string[]) => void,
   clearFilter: (filterId: string) => void,
 ): void {
+  // Auskunft, keine Wahl — siehe `applyPhase`.
+  if (kategorie === EIGENE_AUSWAHL_LABEL) return;
   if (kategorie === 'Alle') {
     clearFilter(KATEGORIE_FILTER_ID);
     return;

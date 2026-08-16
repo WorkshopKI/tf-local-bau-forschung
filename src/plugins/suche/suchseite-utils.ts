@@ -33,7 +33,12 @@ export function countResultsByType(rs: ReadonlyArray<UnifiedSearchResult>): {
   return { antraege, dokumente };
 }
 
-const SUCHE_ANTRAGSTYP_ORDER: KategorieLabel[] = ['Alle', 'FuE', 'DS', 'DL', 'NW'];
+/** Die Such-Seite kennt nur die wählbaren Werte — den Auskunfts-Wert „Eigene
+ *  Auswahl" gibt es dort nicht: hier steht keine Filterleiste daneben, die einen
+ *  Zustand setzen könnte, den diese Pille nicht ausdrückt. */
+type SucheAntragstyp = Exclude<KategorieLabel, 'Eigene Auswahl'>;
+
+const SUCHE_ANTRAGSTYP_ORDER: SucheAntragstyp[] = ['Alle', 'FuE', 'DS', 'DL', 'NW'];
 
 /**
  * Items fuer den Antragstyp-`CollapsibleSeg` auf der Such-Seite: Alle +
@@ -45,7 +50,7 @@ const SUCHE_ANTRAGSTYP_ORDER: KategorieLabel[] = ['Alle', 'FuE', 'DS', 'DL', 'NW
 export function getSucheAntragstypItems(
   results: ReadonlyArray<UnifiedSearchResult>,
 ): CollapsibleSegItem[] {
-  const counts: Record<KategorieLabel, number> = { Alle: 0, FuE: 0, DS: 0, DL: 0, NW: 0 };
+  const counts: Record<SucheAntragstyp, number> = { Alle: 0, FuE: 0, DS: 0, DL: 0, NW: 0 };
   for (const r of results) {
     if (r.type !== 'antrag') continue;
     counts.Alle++;

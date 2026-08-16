@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.65.0 — Vier Reiter, tote Segmente weg, Sortierung ins Menue (August 2026)
+
+MINOR — Vierte Runde am Redesign-Handoff, diesmal die Überschneidung der drei Filter-Ebenen: Reiter, Quickfilter-Pillen und Filterleiste beantworteten teils dieselbe Frage. „Begleitung" stand dreimal auf einem Bildschirm — als Reiter, als gespiegelter Chip in der Leiste und als Segment mit einer 0, weil der Reiter selbst schon nach Status schneidet.
+
+- **Vier Reiter statt sechs**: Antragsphase · Fristen · Begleitung · Alle. „Fristen" fasst „Diese Woche" und „Überfällig" zusammen und öffnet nach Dringlichkeit gebändert; „Bewilligt <Jahr>" entfällt ([views.ts](src/plugins/antraege/views.ts))
+- **Tote Segmente stehen nicht mehr da**: was in dieser Sicht 0 liefert, entfällt — Anker und getroffene Auswahl bleiben ([segAnzeige.ts](src/plugins/antraege/filter/segAnzeige.ts))
+- **„Eigene Auswahl" statt stillem „Alle"**: setzt die Filterleiste etwas, das die Pille nicht ausdrücken kann, sagt sie das, statt das Gegenteil zu behaupten ([phaseQuickfilter.ts](src/plugins/antraege/filter/phaseQuickfilter.ts), [kategorieQuickfilter.ts](src/plugins/antraege/filter/kategorieQuickfilter.ts))
+- **Sortierung ins Darstellungs-Menü** (nur Liste/Karten — die Tabelle sortiert über ihre Spaltenköpfe): die Pillenzeile trägt nur noch die Menge, das Menü nur noch die Form ([darstellungsAchsen.ts](src/plugins/antraege/darstellungsAchsen.ts))
+- **Verlauf statt „Häufig benutzt"**: die zuletzt benutzten Filterstände hinter einem Uhr-Knopf im Kopf der Leiste, der Vorschlag führt zum Anpinnen; die gespiegelte Schnellauswahl entfällt ([VerlaufMenue.tsx](src/plugins/antraege/filter/VerlaufMenue.tsx))
+
 ### v4.64.0 — Suchzeile entschlackt, Ansicht ins Menue, graues L (August 2026)
 
 MINOR — Dritte Runde am Redesign-Handoff, diesmal Rückbau statt Zubau: über der Tabelle standen rund 15 Bedienelemente, im Entwurf 8. Weg kommt, was selten angefasst wird oder woanders hingehört; dabei kam ein Zusagenbruch heraus — die Dokumentsuche hing am Opt-in der Ähnlichkeitssuche und war im Normalzustand aus.

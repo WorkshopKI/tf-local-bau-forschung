@@ -27,7 +27,7 @@ import {
   type GroupingMode,
 } from './antragGroups';
 import { useFilteredAntraege } from './useFilteredAntraege';
-import { sortDisablesGrouping } from './sort';
+import { sortDisablesGrouping, istSortKey } from './sort';
 import {
   type TableGroupingMode,
   type TabellenAnsicht,
@@ -117,6 +117,10 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
   const tableGrouping = useAntraegeStore(s => getEffectiveTableGroupingMode(s.activeView, s.tableGroupingByView));
   const listGrouping = useAntraegeStore(s => getEffectiveGroupingMode(s.activeView, s.groupingByView));
   const tableAnsicht = useAntraegeStore(s => getEffectiveTableAnsicht(s.activeView, s.tableAnsichtByView));
+  // Sortierung ist seit v4.65 eine Achse des Darstellungs-Menüs (nur Liste und
+  // Karten — die Tabelle sortiert über ihre Spaltenköpfe).
+  const sortKey = useAntraegeStore(s => getEffectiveSortKey(s.activeView, s.sortByView));
+  const setSortForView = useAntraegeStore(s => s.setSortForView);
   const setViewModeForTab = useAntraegeStore(s => s.setViewModeForTab);
   const setGroupingForView = useAntraegeStore(s => s.setGroupingForView);
   const setTableGroupingForView = useAntraegeStore(s => s.setTableGroupingForView);
@@ -143,11 +147,12 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
       tableAnsicht,
       tableGruppierung: tableGrouping,
       listGruppierung: listGrouping,
+      sortierung: sortKey,
       sichtbareSpalten: visibleColumns,
       dichte,
       beendetAusgeblendet,
     }),
-    [viewMode, activeView, tableAnsicht, tableGrouping, listGrouping, visibleColumns, dichte, beendetAusgeblendet],
+    [viewMode, activeView, tableAnsicht, tableGrouping, listGrouping, sortKey, visibleColumns, dichte, beendetAusgeblendet],
   );
   const setzeDarstellung = (id: DarstellungAchseId, key: string): void => {
     if (id === 'ansichtsform') { if (isViewMode(key)) setViewModeForTab(activeView, key); }
@@ -157,6 +162,7 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
     // Zustand. Der Klick darauf bleibt wirkungslos, statt die Auswahl zu leeren.
     else if (id === 'spalten') { if (key !== EIGENE_AUSWAHL) setVisibleColumns(keysVonProfil(key)); }
     else if (id === 'dichte') { if (istDichte(key)) setzeDichte(key); }
+    else if (id === 'sortierung') { if (istSortKey(key)) setSortForView(activeView, key); }
     else if (viewMode === 'compact') setTableGroupingForView(activeView, key as TableGroupingMode);
     else setGroupingForView(activeView, key as GroupingMode);
   };
@@ -433,7 +439,7 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
               <DarstellungDropdown
                 achsen={darstellungsAchsen}
                 onChange={setzeDarstellung}
-                titel="Ansichtsform, Zeilen-Körnung, Gruppierung, Spaltensatz, Zeilendichte und Sichtbarkeit beendeter Anträge"
+                titel="Ansichtsform, Zeilen-Körnung, Gruppierung, Sortierung, Spaltensatz, Zeilendichte und Sichtbarkeit beendeter Anträge"
               />
               {viewMode === 'compact' ? (
                 <ColumnPicker

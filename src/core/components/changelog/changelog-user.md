@@ -19,6 +19,21 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.65 — 2026-08
+
+### Neu
+- **Der Reiter „Fristen"** zeigt alles, bei dem die Uhr läuft — überfällig zuoberst, darunter, was in den nächsten Wochen ansteht. Er ersetzt „Diese Woche" und „Überfällig", die dasselbe an zwei Stellen zeigten.
+- **Ein Verlauf Ihrer Filter**: das Uhr-Symbol oben in der Filterleiste öffnet die zuletzt benutzten Filterstände. Ein Klick stellt einen davon wieder her; wer denselben öfter braucht, kann ihn anpinnen.
+
+### Verbesserungen
+- **Vier Reiter statt sechs**: Antragsphase, Fristen, Begleitung, Alle. „Bewilligt 2026" ist entfallen — dort war nie etwas zu tun; die Menge lässt sich über Status und Bewilligungsdatum filtern und anpinnen.
+- **Filter, die in Ihrer Sicht nichts bringen, werden ausgeblendet.** In der Antragsphase stand bisher „Bewilligt 0", „Begleitung 0" und „Beendet 0" — Knöpfe, die zu einer garantiert leeren Liste führten.
+- **Die Sortierung steht im Menü „Darstellung"** (in der Listen- und Kartenansicht). In der Tabelle sortieren wie bisher die Spaltenköpfe. Die Zeile über der Tabelle wählt damit nur noch aus, WELCHE Anträge zu sehen sind.
+- **Die Schnellauswahl in der Filterleiste ist entfallen** — sie war eine Kopie der Reiter darüber und zeigte dieselben Zahlen zweimal.
+
+### Bugfixes
+- **Die Status-Pille sagt nicht mehr „Alle", wenn gefiltert wird.** Haben Sie in der Filterleiste einzelne Stati angehakt, steht jetzt „Eigene Auswahl" — vorher behauptete die Pille das Gegenteil dessen, was die Liste zeigte.
+
 ## v4.64 — 2026-08
 
 ### Verbesserungen

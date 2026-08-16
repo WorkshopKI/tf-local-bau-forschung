@@ -19,7 +19,9 @@ import type { ActiveFilter, FilterDefinition } from '@/core/services/csv/filter/
 import { getStatusValuesByCategory, setStatusKatalogSnapshotMap, type StatusCategory } from '@/core/utils/status-canonical';
 import type { AntragListItem } from '@/core/services/csv/types';
 import { REAL_CSV_ANTRAEGE } from '../../__tests__/fixtures/real-csv-antraege';
-import { getPhaseItems, applyPhase, getPhaseFromActive, STATUS_FILTER_ID } from '../phaseQuickfilter';
+import {
+  getPhaseItems, applyPhase, getPhaseFromActive, STATUS_FILTER_ID, EIGENE_AUSWAHL_LABEL,
+} from '../phaseQuickfilter';
 import {
   STATUS_QUICK_CHIPS, chipStatusValues, chipLabelKurz, type StatusQuickChipId,
 } from '../statusQuickChips';
@@ -135,13 +137,43 @@ describe('getPhaseFromActive', () => {
     expect(getPhaseFromActive([{ filterId: STATUS_FILTER_ID, value: alt }])).toBe(chipLabelKurz('nachforderung'));
   });
 
-  it('gemischte Hand-Auswahl aus der Sidebar bleibt „Alle"', () => {
+  it('gemischte Hand-Auswahl aus der Sidebar heißt „Eigene Auswahl", nicht „Alle"', () => {
+    // Bis v4.65 stand hier „Alle" — die Pille behauptete damit das Gegenteil
+    // dessen, was die Liste zeigte: gefiltert, aber „Alle 38" daneben.
     const gemischt = [[...chipStatusValues('bewilligt')][0]!, [...chipStatusValues('nachforderung')][0]!];
-    expect(getPhaseFromActive([{ filterId: STATUS_FILTER_ID, value: gemischt }])).toBe('Alle');
+    expect(getPhaseFromActive([{ filterId: STATUS_FILTER_ID, value: gemischt }]))
+      .toBe(EIGENE_AUSWAHL_LABEL);
   });
 
   it('ohne Status-Filter „Alle"', () => {
     expect(getPhaseFromActive([])).toBe('Alle');
+  });
+
+  it('ein leerer Werte-Satz filtert nichts und heißt deshalb „Alle"', () => {
+    expect(getPhaseFromActive([{ filterId: STATUS_FILTER_ID, value: [] }])).toBe('Alle');
+  });
+});
+
+describe('„Eigene Auswahl" ist eine Auskunft, keine Wahl', () => {
+  it('steht nur dann als Segment in der Liste, wenn sie auch gilt', () => {
+    const ohne = getPhaseItems([], 'Alle').map(i => i.label);
+    expect(ohne).not.toContain(EIGENE_AUSWAHL_LABEL);
+    const mit = getPhaseItems([], EIGENE_AUSWAHL_LABEL).map(i => i.label);
+    expect(mit).toContain(EIGENE_AUSWAHL_LABEL);
+  });
+
+  it('trägt keinen Zähler — was die Leiste gesetzt hat, zählt die Pille nicht nach', () => {
+    const eintrag = getPhaseItems([], EIGENE_AUSWAHL_LABEL)
+      .find(i => i.label === EIGENE_AUSWAHL_LABEL)!;
+    expect(eintrag.count).toBeUndefined();
+  });
+
+  it('ein Klick darauf lässt den Filter unangetastet', () => {
+    let gesetzt = 0;
+    let geleert = 0;
+    applyPhase(EIGENE_AUSWAHL_LABEL, () => { gesetzt++; }, () => { geleert++; });
+    expect(gesetzt).toBe(0);
+    expect(geleert).toBe(0);
   });
 });
 

@@ -9,10 +9,9 @@ import { useShowInaktiveMasStore } from '../useShowInaktiveMasStore';
 import { useFilterState } from './useFilterState';
 import { FilterSidebarItem } from './FilterSidebarItem';
 import { SavePresetDialog } from './SavePresetDialog';
-import { QuickViewChips } from './QuickViewChips';
-import { FrequentFiltersSection } from './FrequentFiltersSection';
+import { VerlaufMenue } from './VerlaufMenue';
 import {
-  getTopFrequent,
+  getVerlauf,
   recordFilterApply,
   getEntryCount,
   isHintDismissed,
@@ -22,6 +21,7 @@ import {
   type FrequentEntryView,
 } from './frequentFilters';
 import { PresetSuggestionBanner } from './PresetSuggestionBanner';
+import { usePinnedFilters } from './pinnedFilters';
 
 interface Props {
   antraege: AntragListItem[];
@@ -83,8 +83,9 @@ export function FilterSidebar({ antraege, search, onSearchChange, hideSearch = f
   // Mit aktivem Kürzel-Filter wirkt er nicht (die Sicht ist dann ohnehin auf
   // eine Person geschnitten) — ein Häkchen ohne Wirkung wäre irreführend.
   const zeigeInaktivSchalter = isAuslastungFreigeschaltet() && !bearbeiterMode.active;
+  const umschaltenPin = usePinnedFilters(s => s.umschalten);
   const [presetDialogOpen, setPresetDialogOpen] = useState(false);
-  const [frequent, setFrequent] = useState<FrequentEntryView[]>(() => getTopFrequent(3, [], {}));
+  const [verlauf, setVerlauf] = useState<FrequentEntryView[]>(() => getVerlauf(5, [], {}));
   /** Tick zum Re-Render nach dismissHint (localStorage-Lookup happens in render). */
   const [hintTick, setHintTick] = useState(0);
 
@@ -112,22 +113,25 @@ export function FilterSidebar({ antraege, search, onSearchChange, hideSearch = f
     return af.value ? 1 : 0;
   }, [statusDef, active]);
 
-  // Häufig-Tracking: bei jedem aktiven Set mit Debounce in localStorage schreiben
-  // und Top-3 frisch laden. Leeres Set wird nicht getrackt (siehe recordFilterApply).
+  // Verlaufs-Aufzeichnung: bei jedem aktiven Set mit Debounce in localStorage
+  // schreiben und die jüngsten fünf frisch laden. Leeres Set wird nicht
+  // aufgezeichnet (siehe recordFilterApply).
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       if (active.length > 0) recordFilterApply(active, definitions);
-      setFrequent(getTopFrequent(3, definitions, valueLabels));
+      setVerlauf(getVerlauf(5, definitions, valueLabels));
     }, 250);
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
   }, [active, definitions, valueLabels]);
 
-  const applyFrequent = (entry: FrequentEntryView): void => {
-    // Bei Anwenden zuerst alles leeren, dann die gespeicherten Werte setzen.
+  const applyVerlauf = (entry: FrequentEntryView): void => {
+    // Wiederherstellen heißt: GENAU dieser Stand. Der Eintrag ist der ganze
+    // Filterstand von damals, nicht ein einzelner Wert — deshalb erst leeren,
+    // dann setzen. Wer dazulegen will, pinnt den Satz an.
     clearAll();
     for (const af of entry.appliedFilters) {
       setActiveValue(af.filterId, af.value);
@@ -172,6 +176,7 @@ export function FilterSidebar({ antraege, search, onSearchChange, hideSearch = f
           <span className="text-[11.5px] text-[var(--tf-text-tertiary)]">
             {active.length} aktiv
           </span>
+          <VerlaufMenue eintraege={verlauf} onAnwenden={applyVerlauf} />
           {onCollapse ? (
             <button
               type="button"
@@ -210,6 +215,17 @@ export function FilterSidebar({ antraege, search, onSearchChange, hideSearch = f
       {presetHint ? (
         <PresetSuggestionBanner
           count={presetHint.count}
+          onPin={() => {
+            dismissHint(presetHint.signature);
+            setHintTick(t => t + 1);
+            // Derselbe Pin, den die Nadel im Verlauf setzt — eine Mechanik, zwei
+            // Einstiege. `umschalten` legt an oder nimmt weg; hier ist er neu.
+            umschaltenPin({
+              art: 'kombination',
+              signatur: presetHint.signature,
+              gesetzt: active.map(af => ({ ...af })),
+            });
+          }}
           onSave={() => {
             dismissHint(presetHint.signature);
             setHintTick(t => t + 1);
@@ -222,24 +238,13 @@ export function FilterSidebar({ antraege, search, onSearchChange, hideSearch = f
         />
       ) : null}
 
-      {/* Scrollbarer Body */}
+      {/* Scrollbarer Body.
+          Die „Schnellauswahl" stand hier bis v4.65 als erster Abschnitt — fünf
+          Chips, die wörtlich die Sicht-Reiter zwei Zeilen weiter oben spiegelten
+          (gleicher `activeView`, gleiche Zähler, gleiche Beschriftung). Dasselbe
+          Wort stand dadurch dreimal auf einem Bildschirm. Der Verlauf sitzt jetzt
+          im Kopf der Leiste, nicht mehr in ihrem Rumpf. */}
       <div className="flex-1 overflow-y-auto" style={{ padding: '10px 12px 8px' }}>
-        {/* Schnellauswahl */}
-        <SectionHeader title="Schnellauswahl" />
-        <div className="px-1 pb-3">
-          <QuickViewChips />
-        </div>
-
-        {/* Häufig benutzt — nur wenn Daten vorhanden */}
-        {frequent.length > 0 ? (
-          <>
-            <SectionHeader title="Häufig benutzt" />
-            <div className="pb-2">
-              <FrequentFiltersSection entries={frequent} onApply={applyFrequent} />
-            </div>
-          </>
-        ) : null}
-
         {visibleDefs.length === 0 ? (
           <div className="py-6 text-center text-[12px] text-[var(--tf-text-tertiary)]">
             Keine Filter vorhanden.

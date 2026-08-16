@@ -5,7 +5,6 @@ import { codeFuerStatusText } from '@/core/status/kategorie-ableitung';
 const STORAGE_KEY = 'teamflow_antraege_frequent_filters_v1';
 const HINT_DISMISSED_KEY = 'teamflow_antraege_preset_hint_dismissed_v1';
 const MAX_ENTRIES = 20;
-const DECAY_HALFLIFE_DAYS = 14;
 
 /** Schwelle, ab welcher Apply-Anzahl ein Auto-Preset-Vorschlag erscheint. */
 export const PRESET_HINT_THRESHOLD = 3;
@@ -182,24 +181,29 @@ export function recordFilterApply(active: ActiveFilter[], _definitions: FilterDe
   saveEntries(entries.slice(0, MAX_ENTRIES));
 }
 
-export function getTopFrequent(
+/**
+ * Der **Verlauf**: die zuletzt benutzten Filterstände, jüngster zuerst.
+ *
+ * Bis v4.65 stand hier eine Häufigkeits-Rangliste (`count` mal Halbwertszeit).
+ * Die beantwortete eine andere Frage als die, die gestellt wird: „wie hatte ich
+ * das neulich gemacht?" — und die Abfrage von gestern fehlte darin, wenn sie
+ * einmalig war. Gezählt wird `count` weiterhin, aber nur noch als Auskunft am
+ * Eintrag und als Auslöser des Anpinn-Vorschlags.
+ *
+ * Die Reihenfolge ist bereits die des Speichers (`recordFilterApply` sortiert
+ * nach `lastUsed`); hier wird nur zugeschnitten und beschriftet.
+ */
+export function getVerlauf(
   n = 5,
   definitions: FilterDefinition[] = [],
   valueLabels: FieldValueLabels = {},
 ): FrequentEntryView[] {
   const entries = loadEntries();
   if (entries.length === 0) return [];
-  const now = Date.now();
-  const scored = entries.map(e => {
-    const ageDays = (now - e.lastUsed) / (1000 * 60 * 60 * 24);
-    const decay = Math.pow(0.5, ageDays / DECAY_HALFLIFE_DAYS);
-    return { entry: e, score: e.count * decay };
-  });
-  scored.sort((a, b) => b.score - a.score);
-  return scored.slice(0, n).map(s => ({
-    ...s.entry,
-    label: generateLabel(s.entry.appliedFilters, definitions, valueLabels),
-  }));
+  return [...entries]
+    .sort((a, b) => b.lastUsed - a.lastUsed)
+    .slice(0, n)
+    .map(e => ({ ...e, label: generateLabel(e.appliedFilters, definitions, valueLabels) }));
 }
 
 export function clearFrequent(): void {

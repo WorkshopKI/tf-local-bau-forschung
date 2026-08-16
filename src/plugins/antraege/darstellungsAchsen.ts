@@ -27,12 +27,17 @@
 import type { DarstellungAchse } from '@/components/ui/darstellungsAchsen';
 import type { ViewKey } from './views';
 import { type ViewMode, VIEW_MODE_OPTIONS, DEFAULT_VIEW_MODE } from './viewModes';
-import { GROUPING_OPTIONS, DEFAULT_GROUPING_BY_VIEW } from './sort';
+import {
+  GROUPING_OPTIONS,
+  DEFAULT_GROUPING_BY_VIEW,
+  DEFAULT_SORT_BY_VIEW,
+  getSortOptionsForView,
+} from './sort';
 import {
   TABLE_ANSICHT_OPTIONS,
   DEFAULT_TABLE_ANSICHT,
   TABLE_GROUPING_OPTIONS,
-  DEFAULT_TABLE_GROUPING,
+  standardTableGrouping,
 } from './tableGrouping';
 import {
   BEENDET_OPTIONS,
@@ -61,7 +66,7 @@ export {
 } from '@/components/ui/darstellungsAchsen';
 
 export type DarstellungAchseId =
-  | 'ansichtsform' | 'ansicht' | 'gruppierung' | 'spalten' | 'dichte' | 'beendet';
+  | 'ansichtsform' | 'ansicht' | 'gruppierung' | 'sortierung' | 'spalten' | 'dichte' | 'beendet';
 
 export interface DarstellungEingabe {
   viewMode: ViewMode;
@@ -69,6 +74,9 @@ export interface DarstellungEingabe {
   tableAnsicht: string;
   tableGruppierung: string;
   listGruppierung: string;
+  /** Wirksamer Sortier-Schlüssel (`getEffectiveSortKey`) — nur in Liste und
+   *  Karten eine Achse, die Tabelle sortiert über ihre Spaltenköpfe. */
+  sortierung: string;
   /** Sichtbare Spalten der Tabelle — daraus wird das aktive Profil ERKANNT,
    *  nicht daneben gespeichert. Ein zweiter Zustand („gewähltes Profil") liefe
    *  auseinander, sobald jemand im Picker einen Haken setzt. */
@@ -120,12 +128,31 @@ export function baueDarstellungsAchsen(e: DarstellungEingabe): DarstellungAchse<
     label: 'Gruppierung',
     options: tabelle ? TABLE_GROUPING_OPTIONS : GROUPING_OPTIONS,
     value: tabelle ? e.tableGruppierung : e.listGruppierung,
-    standard: tabelle ? DEFAULT_TABLE_GROUPING : DEFAULT_GROUPING_BY_VIEW[e.activeView],
+    standard: tabelle
+      ? standardTableGrouping(e.activeView)
+      : DEFAULT_GROUPING_BY_VIEW[e.activeView],
     // Sechs Werte („Keine · Status · Frist · NW · FB · AB") passen neben der
     // Beschriftung nicht mehr in die 378-px-Zeile — bei fünf waren es gemessen
     // 312 px. Gestapelt statt dem Umbruch überlassen (siehe `stapel`).
     ...(tabelle ? { stapel: true } : {}),
   });
+  // Sortierung — seit v4.65 hier statt als „Sortiert nach"-Pille in der
+  // Filterzeile. Sie gilt NUR in Liste und Karten: die Tabelle sortiert über
+  // ihre Spaltenköpfe, und ein zweiter Griff daneben wäre eine zweite Wahrheit.
+  // Damit trägt die Pillenzeile nur noch die MENGE, dieses Menü nur noch die FORM.
+  if (!tabelle) {
+    achsen.push({
+      id: 'sortierung',
+      art: 'segment',
+      label: 'Sortierung',
+      options: getSortOptionsForView(e.activeView),
+      value: e.sortierung,
+      standard: DEFAULT_SORT_BY_VIEW[e.activeView],
+      // Sechs bis acht Beschriftungen wie „Bewilligung (neueste)" — die passen
+      // in keiner Fassung neben das Wort „Sortierung".
+      stapel: true,
+    });
+  }
   // Spaltenprofil: eine ANZEIGE-Achse, deshalb hier und nicht in der
   // Filterzeile. Sie steht im selben Menü wie Ansicht und Gruppierung, damit
   // ein abweichendes Profil über `darstellungsZusammenfassung` am Knopf

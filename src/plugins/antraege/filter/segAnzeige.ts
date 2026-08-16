@@ -20,6 +20,7 @@
  */
 import type { CollapsibleSegItem } from './CollapsibleSeg';
 
+
 export interface SegAnzeige {
   /** Unterpunkt, der gerade filtert — `null`, wenn der Oberpunkt selbst gilt. */
   aktiverUnterpunkt: CollapsibleSegItem | null;
@@ -37,4 +38,50 @@ export function segAnzeige(item: CollapsibleSegItem, value: string): SegAnzeige 
     gezeigt: aktiverUnterpunkt ?? item,
     active: value === item.label || aktiverUnterpunkt !== null,
   };
+}
+
+/** Trägt das Segment (oder einer seiner Unterpunkte) den gewählten Wert? */
+function istGewaehlt(item: CollapsibleSegItem, value: string): boolean {
+  return item.label === value || (item.unterpunkte ?? []).some(u => u.label === value);
+}
+
+/**
+ * Die Segmente, die in DIESER Sicht überhaupt etwas liefern.
+ *
+ * Ein Segment mit Zähler 0 ist ein Klick in eine garantiert leere Liste. In der
+ * Antragsphase sind das dauerhaft drei von fünf Status-Segmenten — „Bewilligt",
+ * „Begleitung" und „Beendet" können dort nicht vorkommen, weil der Reiter selbst
+ * schon nach Status schneidet. Sie standen trotzdem da und lasen sich wie ein
+ * Widerspruch zum Reiter darüber.
+ *
+ * Drei Ausnahmen, jede aus demselben Grund — es muss einen Rückweg geben:
+ * - **Das erste Segment bleibt immer.** Es ist der „Alle"-Anker; ohne ihn käme
+ *   man aus einer Auswahl nicht mehr heraus.
+ * - **Das gewählte Segment bleibt**, auch wenn es gerade 0 liefert. Sonst
+ *   verschwände die eigene Auswahl aus der Leiste, während sie weiter filtert.
+ * - **Segmente ohne Zähler bleiben** — sie machen keine Mengenaussage
+ *   (z.B. „Mehrere" in der Schnellzugriff-Leiste), also kann 0 sie nicht meinen.
+ *
+ * Die Zählbasis ist die Sicht (`countBase`, ohne die Leisten-Filter), damit ein
+ * Segment nicht bei jedem eigenen Klick verschwindet und wiederkommt.
+ */
+export function sichtbareSegmente(
+  items: readonly CollapsibleSegItem[], value: string,
+): CollapsibleSegItem[] {
+  return items
+    .filter((it, i) => i === 0 || it.count === undefined || it.count > 0 || istGewaehlt(it, value))
+    .map(it => {
+      if (!it.unterpunkte) return it;
+      // Unterpunkte nach derselben Regel, aber ohne Anker: der Oberpunkt steht
+      // im Menü selbst noch einmal und ist der Rückweg.
+      const unter = it.unterpunkte.filter(
+        u => u.count === undefined || u.count > 0 || u.label === value || u.label === it.label,
+      );
+      // Bleibt nur der Oberpunkt übrig, ist das Menü eine leere Geste.
+      if (unter.length <= 1) {
+        const { unterpunkte: _weg, ...ohne } = it;
+        return ohne;
+      }
+      return { ...it, unterpunkte: unter };
+    });
 }

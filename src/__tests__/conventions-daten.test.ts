@@ -952,8 +952,15 @@ describe('screen-context-coverage (Feedback-KI-Kontext: docs/feedback-kontext/)'
   // vermutet: alles WAS-Text, kein Architektur-Doc, keine Route/Komponente
   // ausserhalb von „Technik". 46000 liegt wieder ueber dem groessten echten Doc
   // statt darauf. Wer sie erneut reisst, sieht erst nach, WAS gewachsen ist.
+  //
+  // Mit v4.65 erneut gerissen (46486). Nachgesehen: die Seite hat in dieser
+  // Version mehr WEGgenommen als bekommen (zwei Reiter, eine Pille, die
+  // gespiegelte Schnellauswahl) — dazugekommen sind vier kurze Regeln, die
+  // erklaeren, WARUM ein Segment fehlt. Beim Nachsehen fielen zwei ueberholte
+  // Historien-Saetze raus (Doku-Konvention 1: Ist-Zustand). Der Rest ist
+  // WAS-Text; 47000 liegt wieder ueber dem groessten echten Doc statt darauf.
   const DOCS_DIR = join(ROOT, '..', 'docs', 'feedback-kontext');
-  const REISSLEINE_DOC_CHARS = 46000;
+  const REISSLEINE_DOC_CHARS = 47000;
 
   // Text-Scan statt Import: plugins.config.ts importiert alle Plugin-Komponenten
   // (u.a. pdfjs-dist-Worker), was unter Vitest bricht. Jede Plugin-ID steht

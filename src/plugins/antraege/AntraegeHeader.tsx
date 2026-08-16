@@ -139,16 +139,16 @@ export function AntraegeHeader({ filterOpen, onToggleFilter, listeSichtbar }: Pr
           <div className="flex items-end gap-4">
             <ScopeTabs
               variant="tabs"
-              // Trenner vor „Diese Woche": links teilen „Antragsphase" und
-              // „Begleitung" den Bestand in zwei Hälften mit je eigener Uhr
-              // (Antragsdatum + 90 Tage vs. VN-Eingang + 6 Monate), rechts
-              // stehen Zeitschnitte darauf und „Alle". Ohne die Linie liest
-              // sich „Begleitung" wie ein weiterer Zeitschnitt.
+              // Trenner vor „Begleitung": links steht die Antragsphase mit ihrer
+              // Uhr (Antragsdatum + 90 Tage) und der Fristen-Sicht darauf, rechts
+              // der andere Lebensabschnitt mit eigener Uhr (VN-Eingang + 6 Monate)
+              // und die Gesamtmenge. Ohne die Linie liest sich „Begleitung" wie
+              // ein weiterer Schnitt durch die Antragsphase.
               items={VIEWS.map(v => ({
                 key: v.key,
                 label: v.label,
                 count: counts[v.key],
-                trennerDavor: v.key === 'diese_woche_faellig',
+                trennerDavor: v.key === 'begleitung',
               }))}
               activeKey={activeView}
               onChange={key => setActiveView(key as ViewKey)}

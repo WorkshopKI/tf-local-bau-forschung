@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Check, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useClickOutside } from '@/core/hooks/useClickOutside';
-import { segAnzeige } from './segAnzeige';
+import { segAnzeige, sichtbareSegmente } from './segAnzeige';
 
 /**
  * Kollabierbare Filter-Pille. Default-Zustand: nur "{label}: {value} ▸" sichtbar.
@@ -195,6 +195,10 @@ export function SegGroup({
   onChange: (label: string) => void;
   ariaLabel: string;
 }): React.ReactElement {
+  // Was in dieser Sicht nichts liefert, steht auch nicht da (siehe
+  // `sichtbareSegmente`). Eine Stelle für alle Pillen — Status, Antragstyp,
+  // Projektart, PreCheck und die Facetten-Umschalter der Schnellzugriff-Leiste.
+  const gezeigte = sichtbareSegmente(items, value);
   return (
     <div
       role="tablist"
@@ -205,14 +209,14 @@ export function SegGroup({
       className="inline-flex rounded-[8px] bg-[var(--tf-bg)] overflow-hidden"
       style={{ border: '0.5px solid var(--tf-border)' }}
     >
-      {items.map((it, i) => (
+      {gezeigte.map((it, i) => (
         <SegItem
           key={it.label}
           item={it}
           value={value}
           onChange={onChange}
           erstes={i === 0}
-          letztes={i === items.length - 1}
+          letztes={i === gezeigte.length - 1}
         />
       ))}
     </div>

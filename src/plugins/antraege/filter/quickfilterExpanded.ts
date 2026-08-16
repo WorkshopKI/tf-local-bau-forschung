@@ -3,7 +3,7 @@
  * Förderanträge-Liste.
  *
  * Die Toolbar zeigt mehrere Filter-Pillen (Status / Antragstyp / Projektart /
- * PreCheck / Sortiert-nach) in EINER Zeile. Bis v3.12 war es ein Akkordeon:
+ * PreCheck) in EINER Zeile. Bis v3.12 war es ein Akkordeon:
  * höchstens EINE Pille offen, strukturell garantiert durch einen Einzelwert.
  * Das war eine Einschränkung ohne Nutzen — wer nach Antragstyp UND Projektart
  * eingrenzt, will beide Leisten sehen, gerade weil die Zahlen der einen von der
@@ -15,8 +15,10 @@
  * React/Store-Import) → testbar.
  */
 
-/** Die aufklappbaren Segmente der Quickfilter-Zeile. */
-export type QuickfilterSegId = 'status' | 'antragstyp' | 'projektart' | 'precheck' | 'sort';
+/** Die aufklappbaren Segmente der Quickfilter-Zeile. `sort` ist mit v4.65
+ *  entfallen (die Sortierung ist eine Achse des Darstellungs-Menüs) — ein
+ *  persistiertes `sort` fällt beim Lesen still durch, wie jede unbekannte Id. */
+export type QuickfilterSegId = 'status' | 'antragstyp' | 'projektart' | 'precheck';
 
 /** Reihenfolge = Anzeige-Reihenfolge in der Toolbar; sie bestimmt auch, wie der
  *  persistierte String sortiert wird. */
@@ -25,7 +27,6 @@ const SEG_ORDER: readonly QuickfilterSegId[] = [
   'antragstyp',
   'projektart',
   'precheck',
-  'sort',
 ];
 
 const VALID_SEGS: ReadonlySet<QuickfilterSegId> = new Set<QuickfilterSegId>(SEG_ORDER);
