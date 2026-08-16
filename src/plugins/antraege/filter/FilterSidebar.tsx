@@ -158,9 +158,12 @@ export function FilterSidebar({ antraege, search, onSearchChange, hideSearch = f
   return (
     <div
       // FLÄCHE STATT STRICH (v4.64): die Leiste steht auf derselben leichten
-      // Grundfläche wie der Tabellenkopf rechts von ihr. Beide zusammen bilden
-      // ein graues L um die weiße Datenfläche — das trennt schon von sich aus,
-      // und die Trennlinie an der rechten Kante ist deshalb entfallen.
+      // Grundfläche wie Seitenkopf, Werkzeug-Band und Tabellenkopf. Zusammen
+      // legen sie ein graues L um die weiße Datenfläche — das trennt schon von
+      // sich aus, und die Trennlinie an der rechten Kante ist deshalb entfallen.
+      // (Seit v4.68 reicht das Grau bis an den oberen Blattrand; vorher begann
+      // es an der Kopf-Unterkante und die Leiste wirkte wie ein angesetzter
+      // Kasten.)
       // Achtung bei Ergänzungen hier drin: `--tf-bg-secondary` ist DECKEND und
       // damit auf dieser Fläche unsichtbar. Hover/aktiv gehen über das
       // durchscheinende `--tf-hover`, abgesetzte Pillen über `--tf-bg`.

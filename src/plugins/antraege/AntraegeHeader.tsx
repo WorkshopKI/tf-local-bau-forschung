@@ -99,8 +99,18 @@ export function AntraegeHeader({ filterOpen, onToggleFilter, listeSichtbar }: Pr
   const showIgnoreBearbeiterToggle = searchActive && bearbeiterFilter.active;
 
   return (
+    // FLÄCHE STATT WEISS (v4.68): der Kopf steht auf derselben leichten
+    // Grundfläche wie die Filterleiste links und der Tabellenkopf — das Grau
+    // läuft vom oberen Rand über den Kopf in beide hinein und legt sich als L
+    // um die weisse Datenfläche. Vorher endete es an der Kopf-Unterkante, und
+    // die Leiste sah aus wie ein angesetzter Kasten statt wie die Fortsetzung
+    // derselben Fläche.
+    //
+    // `pb-3` statt `pb-0`: die Such-Zeile sass sonst unmittelbar auf der
+    // Trennlinie. Der Abstand gilt in BEIDEN Zuständen — im Fokus-Modus (ohne
+    // Such-Zeile) trug ihn früher ein eigenes Padding am Titel-Block.
     <div
-      className="shrink-0 pt-4 pb-0"
+      className="shrink-0 pt-4 pb-3 bg-[var(--tf-bg-secondary)]"
       style={{ borderBottom: '0.5px solid var(--tf-border)' }}
     >
       {/* Kopfzeile über die VOLLE Blattbreite (nur px-8), nicht in der
@@ -108,10 +118,7 @@ export function AntraegeHeader({ filterOpen, onToggleFilter, listeSichtbar }: Pr
           rechten Blattrand (docs/architecture/ui-muster.md, Guard
           `hilfe-knopf-am-blattrand`). Der Titel steht dadurch unverändert an
           seiner Stelle — nur die Kopf-Aktionen rücken nach außen. */}
-      {/* Im Fokus-Modus fällt die Such-Zeile weg, die sonst den Abstand zur
-          Kopf-Unterkante stellt → eigenes Bottom-Padding, damit die Border
-          nicht an den Knöpfen klebt. */}
-      <div className={`px-8${listeSichtbar ? '' : ' pb-3'}`}>
+      <div className="px-8">
         {/* Title — Tabs zeigen Ansicht + Counts. Bearbeiter-Filter-Pill sitzt
             direkt neben dem Titel, damit der User immer sieht, dass der
             Kuerzel-Filter aktiv ist — auch wenn die Quickfilter-Toolbar
@@ -269,7 +276,12 @@ export function AntraegeHeader({ filterOpen, onToggleFilter, listeSichtbar }: Pr
                   placeholder="Anträge durchsuchen (Titel, Akronym, FKZ, Antragsteller, Ort, Dokumente)"
                   value={search}
                   onChange={e => setSearch(e.target.value)}
-                  className="pl-7 pr-7 h-8 w-full text-[12.5px]"
+                  // Weisser Grund: das Feld steht seit v4.68 auf der leichten
+                  // Grundfläche des Kopfes, und ein durchsichtiges Eingabefeld
+                  // wäre dort nur ein Rahmen ohne Fläche. Mit `color:`-Hinweis,
+                  // sonst erkennt tailwind-merge den Konflikt mit dem
+                  // `bg-transparent` des Bauteils nicht und beide bleiben stehen.
+                  className="pl-7 pr-7 h-8 w-full text-[12.5px] bg-[color:var(--tf-bg)]"
                   title={'Wortlaut über Aktenzeichen/Akronym/Titel/Antragsteller/Ort/Bundesland/'
                     + 'Verbund-Titel/Kurzbeschreibung UND den Volltext der aufgenommenen Dokumente. '
                     + 'Inhaltlich ähnliche Anträge kommen über den Hinweis unter dem Feld dazu.'}

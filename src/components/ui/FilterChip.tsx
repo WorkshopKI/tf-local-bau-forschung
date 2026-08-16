@@ -34,7 +34,11 @@ export function FilterChip({
       title={title}
       className={cn(
         'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11.5px]',
-        'bg-[var(--tf-bg-secondary)] text-[var(--tf-text)] hover:bg-[var(--tf-hover)] transition-colors',
+        // Weisser Grund, nicht die leichte Grundfläche: der Chip steht auf
+        // Werkzeug-Bändern, die selbst diese Fläche tragen (Förderanträge seit
+        // v4.68) — dort wäre er sonst nur ein Rahmen. Auf weissem Grund trennt
+        // ihn weiterhin seine Kontur.
+        'bg-[var(--tf-bg)] text-[var(--tf-text)] hover:bg-[var(--tf-hover)] transition-colors',
         className,
       )}
       style={{ border: '0.5px solid var(--tf-border)' }}
