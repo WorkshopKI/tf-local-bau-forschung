@@ -28,6 +28,7 @@ import {
   type SucheSortierung, type SucheDichte,
 } from './darstellungsAchsen';
 import { LEERE_WAHL, type FacettenWahl } from './facetten';
+import type { Frageplan } from '@/core/services/search/frageplan';
 
 const VISIBLE_COLUMNS_KEY = 'teamflow_suche_visible_columns';
 const RECENT_SEARCHES_KEY = 'teamflow_suche_recent_queries';
@@ -114,6 +115,25 @@ interface SucheState {
    */
   abgewaehlteWoerter: string[];
   toggleWort: (wort: string) => void;
+  /**
+   * Der Frageplan der natürlichsprachigen Suche — sitzungs-lokal wie die Anfrage.
+   *
+   * `null` heißt „Stichwortsuche": die Wortlaut-Stufe zerlegt dann wieder die
+   * Eingabe. Der Plan trägt die Frage, aus der er entstand, und `setQuery`
+   * verwirft ihn, sobald der Feldtext davon abweicht — eine Deutungszeile, die
+   * eine andere Frage beschreibt als die im Feld, ist eine Legende, die lügt.
+   */
+  frageplan: Frageplan | null;
+  setFrageplan: (p: Frageplan | null) => void;
+  /** In der Deutungszeile abgewählte LEITBEGRIFFE des Plans, klein geschrieben. */
+  abgewaehlteBegriffe: string[];
+  toggleBegriff: (begriff: string) => void;
+  /** Läuft gerade die Übersetzung? Nur für die Rückmeldung im Feld. */
+  planLaeuft: boolean;
+  setPlanLaeuft: (an: boolean) => void;
+  /** Meldung des letzten Übersetzungsversuchs, oder `null`. */
+  planFehler: string | null;
+  setPlanFehler: (f: string | null) => void;
   /** Liste oder Tabelle. Persistiert: eine Arbeitsgewohnheit. */
   ansicht: 'liste' | 'tabelle';
   setAnsicht: (a: 'liste' | 'tabelle') => void;
@@ -180,7 +200,19 @@ export const useSucheStore = create<SucheState>((set, get) => ({
     // Neue Anfrage ⇒ die Wort-Abwahl der alten ist hinfällig. Sonst schnitte ein
     // vor zwei Suchen abgewähltes Wort still an der neuen Anfrage mit.
     const woerter = get().abgewaehlteWoerter;
-    set(woerter.length > 0 ? { query, abgewaehlteWoerter: [] } : { query });
+    const plan = get().frageplan;
+    // Und der Plan der alten Frage genauso: weicht der Feldtext von der Frage
+    // ab, aus der er entstand, beschriebe er etwas anderes als das, was im Feld
+    // steht. Er stirbt beim ersten Tastendruck — die Suche fällt damit auf die
+    // Stichwortsuche zurück, bis eine neue Frage gestellt wird.
+    const planHinfaellig = plan !== null && plan.frage !== query.trim();
+    set({
+      query,
+      ...(woerter.length > 0 ? { abgewaehlteWoerter: [] } : {}),
+      ...(planHinfaellig
+        ? { frageplan: null, abgewaehlteBegriffe: [], planFehler: null }
+        : {}),
+    });
   },
 
   facettenWahl: LEERE_WAHL,
@@ -196,6 +228,27 @@ export const useSucheStore = create<SucheState>((set, get) => ({
         : [...aktuell, klein],
     });
   },
+
+  frageplan: null,
+  // Ein neuer Plan räumt die Abwahl des vorigen mit weg: die Leitbegriffe sind
+  // andere, und ein gemerkter Name träfe bestenfalls zufällig zu.
+  setFrageplan: (frageplan) => set({ frageplan, abgewaehlteBegriffe: [] }),
+
+  abgewaehlteBegriffe: [],
+  toggleBegriff: (begriff: string) => {
+    const klein = begriff.toLowerCase();
+    const aktuell = get().abgewaehlteBegriffe;
+    set({
+      abgewaehlteBegriffe: aktuell.includes(klein)
+        ? aktuell.filter(b => b !== klein)
+        : [...aktuell, klein],
+    });
+  },
+
+  planLaeuft: false,
+  setPlanLaeuft: (planLaeuft) => set({ planLaeuft }),
+  planFehler: null,
+  setPlanFehler: (planFehler) => set({ planFehler }),
 
   ansicht: ladeAnsicht(),
   setAnsicht: (ansicht) => {

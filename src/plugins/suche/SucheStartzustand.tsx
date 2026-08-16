@@ -16,7 +16,7 @@
  * ([feldpraefix.ts](src/core/services/search/feldpraefix.ts)), und damit steht
  * die Spalte unten: „So kannst du suchen", jede Zeile ausführbar.
  */
-import { Search, Clock, Bookmark, TrendingUp, FileText, Info, X } from 'lucide-react';
+import { Search, Clock, Bookmark, TrendingUp, FileText, Info, X, Sparkles } from 'lucide-react';
 import { FELD_PRAEFIX } from '@/core/services/search/feldpraefix';
 import { veraenderungText, type GespeicherteSuche } from './gespeicherteSuchen';
 
@@ -51,6 +51,33 @@ const SUCHARTEN: readonly { query: string; erklaerung: string }[] = [
   { query: 'notiz:Einbehalt', erklaerung: 'in den eigenen Arbeitsnotizen' },     // 50
 ];
 
+/**
+ * Fragen statt Stichworte — die zweite Art zu suchen.
+ *
+ * Steht in einer EIGENEN Liste neben `SUCHARTEN`, nicht darin: die Zeilen oben
+ * zeigen eine Syntax, diese hier zeigen, dass man keine braucht. In eine Liste
+ * gemischt wäre beides eine Aufzählung von Beispielen, und der Unterschied — der
+ * einzige Grund für den Umschalter — verschwände.
+ *
+ * Bewusst drei Formen: ein reines Thema mit vielen Schreibweisen, ein Thema mit
+ * Bereichsbezug, ein Thema mit Ortsbezug (der Fall, der eine Einschränkung
+ * erzeugt).
+ */
+const FRAGEN: readonly { frage: string; erklaerung: string }[] = [
+  {
+    frage: 'Welche Vorhaben drehen sich hauptsächlich um Normung und Standards?',
+    erklaerung: 'findet auch „Normen", „Normierung", „Standardisierung"',
+  },
+  {
+    frage: 'Zeig mir Projekte zu künstlicher Intelligenz in der Medizintechnik',
+    erklaerung: 'zwei Themen — wer beide trägt, steht oben',
+  },
+  {
+    frage: 'Was läuft in Bayern zum Thema Leichtbau?',
+    erklaerung: 'der Ort schränkt ein, das Thema sucht',
+  },
+];
+
 /** Die Feldnamen, die vor dem Doppelpunkt stehen dürfen — aus der einen Quelle
  *  gezogen, damit die Hilfe nicht von der Syntax abdriften kann. */
 const FELDNAMEN = Object.values(FELD_PRAEFIX).join(' · ');
@@ -69,6 +96,7 @@ export function SucheStartzustand({
   gespeichert,
   gespeicherteTreffer,
   onSuche,
+  onFrage,
   onEntferneLetzte,
   onEntferneGespeicherte,
   kuratorVariant,
@@ -82,6 +110,9 @@ export function SucheStartzustand({
   /** Aktuelle Trefferzahl je gespeicherter Suche (Probelauf). */
   gespeicherteTreffer: ReadonlyMap<string, number>;
   onSuche: (query: string) => void;
+  /** Eine Frage stellen (setzt Text UND Modus). Fehlt, wenn der Build die
+   *  natürlichsprachige Suche nicht mitbringt — dann entfällt der Abschnitt. */
+  onFrage?: (frage: string) => void;
   onEntferneLetzte: (query: string) => void;
   onEntferneGespeicherte: (id: string) => void;
   kuratorVariant: boolean;
@@ -200,6 +231,41 @@ export function SucheStartzustand({
           über dem Ergebnis.
         </p>
       </section>
+
+      {/* Die zweite Art zu suchen — nur, wenn dieser Build sie mitbringt. Ein
+          Klick setzt Frage UND Modus: eine Frage, die als Stichwortsuche liefe,
+          fände nichts und lehrte damit das Gegenteil. */}
+      {onFrage && (
+        <section className="mt-8 pt-4" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
+          <h2 className="mb-1 px-2 text-[10.5px] uppercase tracking-[0.1em] text-[var(--tf-text-tertiary)]">
+            Oder stell eine Frage
+          </h2>
+          <div className="grid gap-x-10">
+            {FRAGEN.map(f => (
+              <button
+                key={f.frage}
+                type="button"
+                onClick={() => onFrage(f.frage)}
+                title={`„${f.frage}" stellen`}
+                className="flex min-w-0 items-center gap-2 rounded-[6px] px-2 py-1.5 text-left hover:bg-[var(--tf-hover)] cursor-pointer"
+              >
+                <Sparkles size={11} className="shrink-0 text-[var(--tf-text-tertiary)]" aria-hidden />
+                <span className="min-w-0 truncate text-[12px] text-[var(--tf-text)]">{f.frage}</span>
+                <span className="shrink-0 text-[12px] text-[var(--tf-text-secondary)]">
+                  {f.erklaerung}
+                </span>
+              </button>
+            ))}
+          </div>
+          <p className="mt-2 px-2 text-[11.5px] leading-relaxed text-[var(--tf-text-tertiary)]">
+            Die interne KI übersetzt die Frage in Suchbegriffe — sie benennt dabei
+            Schreibweisen und verwandte Wörter, die im Bestand stehen, aber nicht in
+            der Frage. Was daraus wurde, steht danach über dem Ergebnis und lässt
+            sich einzeln abwählen. Das dauert einen Moment länger als eine
+            Stichwortsuche.
+          </p>
+        </section>
+      )}
 
       {/* Index-Hinweis — NUR bei leerem Dokumentenindex, dezent, keine CTA.
           Index-Einrichtung ist Kurator-Aufgabe, nicht Nutzer-Aufgabe. */}

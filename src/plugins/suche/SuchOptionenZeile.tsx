@@ -66,6 +66,23 @@ const SELECT_STYLE_ENG: React.CSSProperties = {
   color: 'var(--tf-primary)',
 };
 
+/**
+ * Was die Wortverknüpfung im Frage-Modus tut, entscheidet der Plan: seine
+ * Leitbegriffe sind IMMER Alternativen, sonst misst die Abdeckung nicht mehr,
+ * wie viele der gefragten Sachen ein Vorhaben behandelt. Der Regler steht
+ * deshalb nicht still daneben und verspricht etwas anderes — er gibt sichtbar ab.
+ */
+const ABGEGEBEN_STYLE: React.CSSProperties = {
+  background: 'var(--tf-desk)',
+  border: '0.5px dashed var(--tf-border)',
+  color: 'var(--tf-text-tertiary)',
+};
+
+const ABGEGEBEN_TITEL = 'Im Frage-Modus bestimmt die KI, wie die Begriffe verknüpft '
+  + 'werden — die Leitbegriffe sind Alternativen, damit die Wertung zählen kann, wie '
+  + 'viele der gefragten Sachen ein Vorhaben behandelt. Zurück zur Stichwortsuche '
+  + 'schalten, um wieder selbst zu bestimmen.';
+
 export function SuchOptionenZeile({
   verknuepfung,
   onVerknuepfung,
@@ -76,6 +93,10 @@ export function SuchOptionenZeile({
   semantischAn,
   onSemantisch,
   semantischLaedt,
+  nlVerfuegbar,
+  nlModus,
+  onNlModus,
+  planAktiv,
   indexHinweis,
 }: {
   verknuepfung: SuchVerknuepfung;
@@ -87,18 +108,53 @@ export function SuchOptionenZeile({
   semantischAn: boolean;
   onSemantisch: (an: boolean) => void;
   semantischLaedt: boolean;
+  /** Bringt dieser Build die natürlichsprachige Suche mit? */
+  nlVerfuegbar: boolean;
+  nlModus: boolean;
+  onNlModus: (an: boolean) => void;
+  /** Liegt gerade ein übersetzter Plan vor? Erst dann geben die Regler wirklich ab. */
+  planAktiv: boolean;
   indexHinweis: string;
 }): React.ReactElement {
+  // Abgegeben wird erst, wenn ein Plan da IST. Solange nur der Modus steht, die
+  // Frage aber noch nicht übersetzt ist, sucht die Seite weiter nach Stichworten
+  // — und dann müssen die Regler auch gelten.
+  const uebernommen = nlModus && planAktiv;
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <label className="inline-flex items-center gap-1.5 text-[12px] text-[var(--tf-text-secondary)]">
+      {nlVerfuegbar && (
+        <select
+          value={nlModus ? 'frage' : 'stichwort'}
+          onChange={e => onNlModus(e.target.value === 'frage')}
+          aria-label="Art der Suche"
+          className={SELECT_CLASS}
+          style={nlModus ? SELECT_STYLE_ENG : SELECT_STYLE}
+          title={nlModus
+            ? 'Die interne KI übersetzt die Frage in Suchbegriffe — sie benennt auch '
+              + 'Schreibweisen und verwandte Wörter, die im Bestand stehen, aber nicht in '
+              + 'der Frage. Was gesucht wurde, steht danach als abwählbare Chips darunter.'
+            : 'Gesucht wird nach dem, was im Feld steht. Umschalten auf „mit natürlicher '
+              + 'Sprache", um stattdessen eine Frage zu stellen.'}
+        >
+          <option value="stichwort">mit Stichworten suchen</option>
+          <option value="frage">mit natürlicher Sprache suchen</option>
+        </select>
+      )}
+
+      <label
+        className="inline-flex items-center gap-1.5 text-[12px]"
+        style={{ color: uebernommen ? 'var(--tf-text-tertiary)' : 'var(--tf-text-secondary)' }}
+      >
         Wortverknüpfung:
         <select
-          value={verknuepfung}
+          value={uebernommen ? 'oder' : verknuepfung}
           onChange={e => onVerknuepfung(e.target.value as SuchVerknuepfung)}
+          disabled={uebernommen}
           className={SELECT_CLASS}
-          style={SELECT_STYLE}
-          title="Gilt für Wortlaut-Treffer. Die Ähnlichkeitssuche vergleicht die Anfrage als Ganzes und bleibt unberührt."
+          style={uebernommen ? ABGEGEBEN_STYLE : SELECT_STYLE}
+          title={uebernommen
+            ? ABGEGEBEN_TITEL
+            : 'Gilt für Wortlaut-Treffer. Die Ähnlichkeitssuche vergleicht die Anfrage als Ganzes und bleibt unberührt.'}
         >
           {(Object.keys(VERKNUEPFUNG_LABEL) as SuchVerknuepfung[]).map(v => (
             <option key={v} value={v}>{VERKNUEPFUNG_LABEL[v]}</option>
@@ -106,16 +162,28 @@ export function SuchOptionenZeile({
         </select>
       </label>
 
+      {uebernommen && (
+        <span className="text-[11px] text-[var(--tf-text-tertiary)]" title={ABGEGEBEN_TITEL}>
+          von der KI bestimmt
+        </span>
+      )}
+
       <label
-        className="inline-flex h-7 items-center gap-1.5 rounded-[8px] px-2 text-[12px] text-[var(--tf-text-secondary)] cursor-pointer"
-        style={SELECT_STYLE}
-        title="Dasselbe Wort in anderer Form: „Normen“ findet dann auch „Normung“. Rein sprachlich — kostet nichts und lädt nichts nach. (Nicht zu verwechseln mit der Ähnlichkeitssuche rechts, die nach dem Thema geht.)"
+        className="inline-flex h-7 items-center gap-1.5 rounded-[8px] px-2 text-[12px] cursor-pointer"
+        style={uebernommen
+          ? { ...ABGEGEBEN_STYLE, cursor: 'default' }
+          : { ...SELECT_STYLE, color: 'var(--tf-text-secondary)' }}
+        title={uebernommen
+          ? 'Im Frage-Modus benennt die KI die Wortformen selbst — sie stehen als Chips '
+            + 'in der Zeile darunter und lassen sich dort einzeln abwählen.'
+          : 'Dasselbe Wort in anderer Form: „Normen“ findet dann auch „Normung“. Rein sprachlich — kostet nichts und lädt nichts nach. (Nicht zu verwechseln mit der Ähnlichkeitssuche rechts, die nach dem Thema geht.)'}
       >
         <input
           type="checkbox"
           checked={stammSuche}
           onChange={e => onStammSuche(e.target.checked)}
-          className="h-3.5 w-3.5 cursor-pointer accent-[var(--tf-primary)]"
+          disabled={uebernommen}
+          className="h-3.5 w-3.5 cursor-pointer accent-[var(--tf-primary)] disabled:cursor-default"
         />
         Wortformen mitsuchen
       </label>

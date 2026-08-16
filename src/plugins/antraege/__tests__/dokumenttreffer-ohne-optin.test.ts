@@ -42,7 +42,12 @@ vi.mock('../services/search-corpus', () => ({
   // dem Dokument-Index kommen.
   loadAntraegeTextCorpus: async () => new Map(),
   loadDmsFilenameToAkz: async () => new Map([['antrag-16EP123456.pdf', '16EP123456']]),
-  standortNadel: () => null,
+  // Die leere Nadel ist das, was die echte Funktion für ein leeres Wort liefert.
+  // Stand hier bis v4.65 als `null`: der Wert wurde nie gelesen, weil der Korpus
+  // leer ist und die Match-Kette nie lief. Seit die Suchstufe die verankerten
+  // Nadeln EINMAL beim Bauen statt je Eintrag berechnet, wird er gelesen — und
+  // ein `null` aus einem Stub, dessen Signatur `string` verspricht, fiel auf.
+  standortNadel: () => '',
 }));
 
 import {

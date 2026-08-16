@@ -33,10 +33,13 @@ import { protokolliereEreignis } from '@/core/services/assistent/protokoll';
 import { useActiveProgramm } from './useActiveProgramm';
 import { useSearch } from './useSearch';
 import { useSemanticSearchMode } from './useSemanticSearchMode';
-import { useSuchVerknuepfung, verknuepfungAlsThreshold } from './useSuchVerknuepfung';
+import {
+  useSuchVerknuepfung, verknuepfungAlsThreshold, type SuchVerknuepfung,
+} from './useSuchVerknuepfung';
 import { useSuchOptionen } from './useSuchOptionen';
 import { bereichNutztDokumente } from '@/core/services/search/suchbereich';
 import { hatFeldPraefix } from '@/core/services/search/feldpraefix';
+import type { PlanBegriff } from '@/core/services/search/frageplan';
 import { embeddingService } from '@/core/services/search/embedding-service';
 import { embedQueryCached } from '@/core/services/search/query-embedder';
 import { getActiveModelId, getModelById } from '@/core/services/search/model-registry';
@@ -293,7 +296,20 @@ async function embedQueryIfReady(
   }
 }
 
-export function useUnifiedSearch(query: string): UseUnifiedSearchResult {
+/**
+ * Die Suche. `planTeile` ist der Frageplan der natürlichsprachigen Suche
+ * ([frageplan.ts](src/core/services/search/frageplan.ts)) — gesetzt heißt: in
+ * `query` steht eine FRAGE, deren Wörter keine Suchbegriffe sind, und die
+ * Wortlaut-Stufe nimmt ihre Teile von dort.
+ *
+ * Der Aufrufer reicht die Liste **memoisiert** herein: sie steht im Dep-Array,
+ * damit das Abwählen eines Leitbegriffs die laufende Suche neu ausführt — eine
+ * bei jedem Render neu gebaute Liste liefe endlos.
+ */
+export function useUnifiedSearch(
+  query: string,
+  planTeile?: readonly PlanBegriff[],
+): UseUnifiedSearchResult {
   const storage = useStorage();
   const activeProgrammId = useActiveProgramm(s => s.activeProgrammId);
   const programme = useActiveProgramm(s => s.programme);
@@ -379,8 +395,21 @@ export function useUnifiedSearch(query: string): UseUnifiedSearchResult {
     }
     setSemanticStatus(null);
 
+    // Ein Frageplan verknüpft seine Themen IMMER mit ODER: die Leitbegriffe sind
+    // Alternativen („Normung ODER Standards"), und nur so misst `abdeckung`, wie
+    // viele der gefragten Sachen ein Vorhaben behandelt. Die eingestellte
+    // Verknüpfung gehört zur getippten Anfrage und gibt hier sichtbar ab.
+    const effektiveVerknuepfung: SuchVerknuepfung = planTeile ? 'oder' : verknuepfung;
+
     // Nennt die Anfrage ein Feld? Einmal gelesen, in zwei Stufen gebraucht.
-    const feldSuche = hatFeldPraefix(q, verknuepfung === 'wortfolge');
+    //
+    // Ein Frageplan zählt mit, sobald er ein Feld bindet ODER etwas verlangt:
+    // beides sind Einschränkungen, die weder das Embedding noch der
+    // Dokumentenindex einhalten können — sie steuerten genau die Treffer bei,
+    // die ausserhalb liegen. Ein reines Themen-Bündel ohne Einschränkung lässt
+    // beide Stufen dagegen mitlaufen, und das ist dort auch erwünscht.
+    const planSchraenktEin = planTeile?.some(t => t.feld !== undefined || t.pflicht) === true;
+    const feldSuche = hatFeldPraefix(q, effektiveVerknuepfung === 'wortfolge') || planSchraenktEin;
 
     const abort = new AbortController();
     let cancelled = false;
@@ -451,7 +480,7 @@ export function useUnifiedSearch(query: string): UseUnifiedSearchResult {
               ? undefined
               : gefundeneVarianten.current.filter(v => !abgewaehlt.has(v.toLowerCase()));
             const wortlaut = searchAntraegeWortlaut(q, programmCaches.textCorpus, {
-              verknuepfung, stammSuche, bereich, aktiveVarianten,
+              verknuepfung: effektiveVerknuepfung, stammSuche, bereich, aktiveVarianten, planTeile,
             });
             for (const [akz, treffer] of wortlaut.treffer) {
               const akku = akkuFuer(akz);
@@ -537,7 +566,7 @@ export function useUnifiedSearch(query: string): UseUnifiedSearchResult {
             getOramaDB() !== null && bereichNutztDokumente(bereich) && !feldSuche
               ? hybridSearch(q, queryVec, {
                   limit: DOC_HIT_LIMIT,
-                  threshold: verknuepfungAlsThreshold(verknuepfung),
+                  threshold: verknuepfungAlsThreshold(effektiveVerknuepfung),
                 })
               : [];
           // Faltung: ein Dokumenttreffer, dessen Antrag bekannt ist, wird zur
@@ -601,7 +630,7 @@ export function useUnifiedSearch(query: string): UseUnifiedSearchResult {
       clearTimeout(timer);
     };
   }, [query, activeProgrammId, storage, programmNameById, semanticEnabled,
-    verknuepfung, stammSuche, bereich, abgewaehlteVarianten]);
+    verknuepfung, stammSuche, bereich, abgewaehlteVarianten, planTeile]);
 
   const counts = useMemo<UnifiedSearchCounts>(() => {
     let antraege = 0;

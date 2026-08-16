@@ -167,6 +167,11 @@ export interface TeamflowFeatures {
    *  `assistentProtokoll` voraus (von `validateConfig` erzwungen). Optional,
    *  default false. */
   assistentGedaechtnis?: boolean;
+  /** Suche mit natürlicher Sprache: die interne KI übersetzt eine Frage in einen
+   *  Frageplan (Leitbegriffe mit ihren Schreibweisen, Einschränkungen, Facetten);
+   *  die Suchstufe läuft unverändert weiter und wertet wie immer nach Abdeckung.
+   *  dev + pl. Optional, default false. */
+  sucheNatuerlicheSprache?: boolean;
   /** MAP „Neuer Prüf-Workflow": Einreichungs-Import (Drag & Drop), Rechenchecks
    *  und editierbare, versionierte Förderfähigkeits-Checkliste. Eigene Entität
    *  im kv-Store, kein Eingriff in die Antrags-Pipeline. Nur dev. Optional,

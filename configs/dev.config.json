@@ -55,7 +55,8 @@
     "statusCockpit": true,
     "meilensteinMonitoring": true,
     "vorgangssystem": true,
-    "eigeneSpalten": true
+    "eigeneSpalten": true,
+    "sucheNatuerlicheSprache": true
   },
   "menuLabels": {
     "antraege": "Förderanträge",

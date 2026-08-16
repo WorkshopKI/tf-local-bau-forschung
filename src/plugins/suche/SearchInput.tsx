@@ -38,9 +38,22 @@ export interface SearchInputProps {
   onValueChange: (next: string) => void;
   disabled: boolean;
   showSpinner: boolean;
+  /**
+   * Enter auf einer fertigen Eingabe (kein Vorschlag ausgewählt).
+   *
+   * Die Stichwortsuche braucht das nicht — sie läuft beim Tippen. Die
+   * natürlichsprachige Suche schon: ihr KI-Aufruf hängt an genau dieser einen
+   * Geste, nicht am Tastendruck. Bewusst NICHT beim Verlassen des Feldes: ein
+   * Klick daneben ist keine Frage.
+   */
+  onSubmit?: () => void;
+  /** Ersetzt den Standardtext, wenn eine andere Art zu fragen erwartet wird. */
+  platzhalter?: string;
 }
 
-export function SearchInput({ value, onValueChange, disabled, showSpinner }: SearchInputProps): React.ReactElement {
+export function SearchInput({
+  value, onValueChange, disabled, showSpinner, onSubmit, platzhalter,
+}: SearchInputProps): React.ReactElement {
   const recentSearches = useSucheStore(s => s.recentSearches);
   const addRecentSearch = useSucheStore(s => s.addRecentSearch);
   const removeRecentSearch = useSucheStore(s => s.removeRecentSearch);
@@ -129,6 +142,7 @@ export function SearchInput({ value, onValueChange, disabled, showSpinner }: Sea
         if (q) addRecentSearch(q);
         setSuggestOpen(false);
         setActiveIndex(-1);
+        if (q) onSubmit?.();
       }
     } else if (e.key === 'Escape') {
       if (suggestOpen) { e.preventDefault(); setSuggestOpen(false); setActiveIndex(-1); }
@@ -164,7 +178,7 @@ export function SearchInput({ value, onValueChange, disabled, showSpinner }: Sea
         onKeyDown={onSearchKeyDown}
         onBlur={onSearchBlur}
         disabled={disabled}
-        placeholder="Suche oder analytische Frage…"
+        placeholder={platzhalter ?? 'Suche oder analytische Frage…'}
         autoFocus
         autoComplete="off"
         role="combobox"

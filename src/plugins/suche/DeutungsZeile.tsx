@@ -11,7 +11,8 @@
 import { X } from 'lucide-react';
 import { VERKNUEPFUNG_OPERATOR, type SuchVerknuepfung } from '@/core/hooks/useSuchVerknuepfung';
 import { TREFFERFELD_LABEL } from '@/core/services/search/trefferstelle';
-import { baueWortChips } from './deutung';
+import type { Frageplan } from '@/core/services/search/frageplan';
+import { baueWortChips, type DeutungsChip } from './deutung';
 
 /**
  * Wie viele Varianten-Chips die Zeile zeigt.
@@ -23,11 +24,43 @@ import { baueWortChips } from './deutung';
  */
 const VARIANTEN_SICHTBAR = 8;
 
+/**
+ * Die Chips eines Frageplans.
+ *
+ * Dieselbe Form wie die Wort-Chips — die Zeile hat EINEN Chip-Mechanismus, nicht
+ * zwei. Ein Leitbegriff ist die Einheit, die abgewählt wird; seine Schreibweisen
+ * hängen als Zusatz am Chip und stehen vollständig im Tooltip.
+ */
+interface PlanChip extends DeutungsChip {
+  /** Wie viele Schreibweisen hinter diesem Begriff stehen (ohne ihn selbst). */
+  weitere: number;
+  /** Alle Nadeln, für den Tooltip. */
+  nadeln: readonly string[];
+  /** Einschränkung statt Alternative. */
+  pflicht: boolean;
+}
+
+function bauePlanChips(plan: Frageplan, abgewaehlt: readonly string[]): PlanChip[] {
+  const aus = new Set(abgewaehlt.map(w => w.toLowerCase()));
+  return plan.leitbegriffe.map(b => ({
+    wort: b.begriff,
+    wert: b.begriff,
+    feld: b.feld,
+    aktiv: !aus.has(b.begriff.toLowerCase()),
+    weitere: Math.max(0, b.nadeln.length - 1),
+    nadeln: b.nadeln,
+    pflicht: b.pflicht,
+  }));
+}
+
 export function DeutungsZeile({
   query,
   verknuepfung,
   abgewaehlteWoerter,
   onToggleWort,
+  plan,
+  abgewaehlteBegriffe,
+  onToggleBegriff,
   varianten,
   abgewaehlteVarianten,
   onToggleVariante,
@@ -38,64 +71,94 @@ export function DeutungsZeile({
   verknuepfung: SuchVerknuepfung;
   abgewaehlteWoerter: readonly string[];
   onToggleWort: (wort: string) => void;
+  /** Der Frageplan, falls mit natürlicher Sprache gesucht wurde. */
+  plan?: Frageplan | null;
+  abgewaehlteBegriffe?: readonly string[];
+  onToggleBegriff?: (begriff: string) => void;
   varianten: readonly string[];
   abgewaehlteVarianten: readonly string[];
   onToggleVariante: (v: string) => void;
   stammSuche: boolean;
   onStammSucheAn: () => void;
 }): React.ReactElement | null {
-  const chips = baueWortChips(query, verknuepfung, abgewaehlteWoerter);
+  const planChips = plan ? bauePlanChips(plan, abgewaehlteBegriffe ?? []) : null;
+  const chips: readonly DeutungsChip[] = planChips
+    ?? baueWortChips(query, verknuepfung, abgewaehlteWoerter);
   if (chips.length === 0) return null;
-  const operator = VERKNUEPFUNG_OPERATOR[verknuepfung];
+  const toggle = planChips ? (onToggleBegriff ?? onToggleWort) : onToggleWort;
+  // Ein Plan verknüpft seine Themen immer mit ODER — die eingestellte Verknüpfung
+  // gilt dort nicht, und die Zeile darf nichts anderes behaupten.
+  const operator = VERKNUEPFUNG_OPERATOR[planChips ? 'oder' : verknuepfung];
   const ausVarianten = new Set(abgewaehlteVarianten.map(v => v.toLowerCase()));
   // Sobald ein Teil sein Feld nennt, laufen Dokumente und Ähnlichkeit nicht mit
   // (siehe feldpraefix.ts). Das steht hier, weil die Zeile ohnehin sagt, was aus
-  // der Eingabe geworden ist — eine stille Abschaltung wäre der Defekt.
-  const feldSuche = chips.some(c => c.feld !== undefined);
+  // der Eingabe geworden ist — eine stille Abschaltung wäre der Defekt. Ein Plan
+  // schränkt zusätzlich über seine Pflichtteile ein.
+  const feldSuche = chips.some(c => c.feld !== undefined)
+    || (planChips?.some(c => c.pflicht) ?? false);
 
   return (
     <div
       className="flex flex-wrap items-center gap-x-2 gap-y-1.5 rounded-[10px] px-3 py-2"
       style={{ background: 'var(--tf-desk)', border: '0.5px solid var(--tf-border)' }}
     >
-      <span className="text-[11.5px] text-[var(--tf-text-tertiary)]">Gesucht wird</span>
+      <span className="text-[11.5px] text-[var(--tf-text-tertiary)]">
+        {planChips ? 'Gesucht wurde nach' : 'Gesucht wird'}
+      </span>
 
-      {chips.map((chip, i) => (
-        <span key={chip.wort} className="inline-flex items-center gap-x-2">
-          {i > 0 && (
-            <span className="text-[10.5px] uppercase tracking-[0.08em] text-[var(--tf-text-tertiary)]">
-              {operator}
-            </span>
-          )}
-          <button
-            type="button"
-            onClick={() => onToggleWort(chip.wort)}
-            title={
-              (chip.feld ? `Nur im Feld „${TREFFERFELD_LABEL[chip.feld]}". ` : '')
-              + (chip.aktiv ? `„${chip.wert}" nicht mitsuchen` : `„${chip.wert}" wieder mitsuchen`)
-            }
-            aria-pressed={chip.aktiv}
-            className={`inline-flex items-center gap-1 rounded-[6px] px-1.5 py-0.5 text-[12px] cursor-pointer transition-opacity ${chip.aktiv ? '' : 'opacity-45 line-through'}`}
-            style={{ background: chip.aktiv ? 'var(--tf-highlight)' : 'transparent',
-              border: chip.aktiv ? '0.5px solid transparent' : '0.5px solid var(--tf-border)' }}
-          >
-            {/* Das Feld steht im Chip, nicht als eigenes Etikett daneben: es
-                gehört zu diesem einen Wort, nicht zur Anfrage. */}
-            {chip.feld && (
-              <span className="text-[var(--tf-text-secondary)]">
-                {TREFFERFELD_LABEL[chip.feld]}:
+      {chips.map((chip, i) => {
+        const p = planChips?.[i];
+        // Aus Teilen zusammengesetzt statt aneinandergehängt: leere Teile
+        // hinterlassen sonst führende Leerzeichen im Tooltip.
+        const titelTeile = [
+          chip.feld ? `Nur im Feld „${TREFFERFELD_LABEL[chip.feld]}".` : '',
+          p?.pflicht ? 'Einschränkung — muss zutreffen.' : '',
+          p && p.weitere > 0 ? `Schreibweisen: ${p.nadeln.join(', ')}.` : '',
+          chip.aktiv ? `„${chip.wert}" nicht mitsuchen` : `„${chip.wert}" wieder mitsuchen`,
+        ].filter(Boolean);
+        return (
+          <span key={chip.wort} className="inline-flex items-center gap-x-2">
+            {i > 0 && (
+              <span className="text-[10.5px] uppercase tracking-[0.08em] text-[var(--tf-text-tertiary)]">
+                {/* Eine Einschränkung ist keine Alternative — sie MUSS zutreffen. */}
+                {p?.pflicht ? 'UND NUR' : operator}
               </span>
             )}
-            <span className="text-[var(--tf-text)]">{chip.wert}</span>
-            <X size={11} className="text-[var(--tf-text-tertiary)]" aria-hidden />
-          </button>
-        </span>
-      ))}
+            <button
+              type="button"
+              onClick={() => toggle(chip.wort)}
+              title={titelTeile.join(' ')}
+              aria-pressed={chip.aktiv}
+              className={`inline-flex items-center gap-1 rounded-[6px] px-1.5 py-0.5 text-[12px] cursor-pointer transition-opacity ${chip.aktiv ? '' : 'opacity-45 line-through'}`}
+              style={{ background: chip.aktiv ? 'var(--tf-highlight)' : 'transparent',
+                border: chip.aktiv ? '0.5px solid transparent' : '0.5px solid var(--tf-border)' }}
+            >
+              {/* Das Feld steht im Chip, nicht als eigenes Etikett daneben: es
+                  gehört zu diesem einen Wort, nicht zur Anfrage. */}
+              {chip.feld && (
+                <span className="text-[var(--tf-text-secondary)]">
+                  {TREFFERFELD_LABEL[chip.feld]}:
+                </span>
+              )}
+              <span className="text-[var(--tf-text)]">{chip.wert}</span>
+              {/* Die Zahl sagt, dass hinter dem Begriff mehr steckt als sein
+                  Wortlaut — der Tooltip nennt es vollständig. Vierzig Chips
+                  nebeneinander läse niemand. */}
+              {p && p.weitere > 0 && (
+                <span className="text-[10.5px] text-[var(--tf-text-tertiary)]">+{p.weitere}</span>
+              )}
+              <X size={11} className="text-[var(--tf-text-tertiary)]" aria-hidden />
+            </button>
+          </span>
+        );
+      })}
 
       {/* Die Stamm-Varianten. Sie stehen nur da, wenn der Bestand sie
           tatsächlich hergegeben hat — eine leere Liste bleibt leer statt eine
-          Überschrift ohne Inhalt zu zeigen. */}
-      {stammSuche && varianten.length > 0 && (
+          Überschrift ohne Inhalt zu zeigen. Im Frage-Modus gibt es sie nicht:
+          dort hat die KI die Wortformen bereits benannt, und sie stehen an ihren
+          Leitbegriffen. */}
+      {!planChips && stammSuche && varianten.length > 0 && (
         <>
           <span className="text-[11.5px] text-[var(--tf-text-tertiary)]">auch als</span>
           {varianten.slice(0, VARIANTEN_SICHTBAR).map(v => {
@@ -128,9 +191,22 @@ export function DeutungsZeile({
         </span>
       )}
 
+      {/* Was aus der Frage NICHT umgesetzt wurde. Steht hier, weil die Zeile
+          ohnehin sagt, was aus der Eingabe geworden ist — eine stillschweigend
+          verworfene Hälfte der Frage wäre genau der Defekt, gegen den sie
+          geschrieben ist. */}
+      {planChips && plan && plan.ignoriert.length > 0 && (
+        <span
+          className="text-[11px] text-[var(--tf-text-tertiary)]"
+          title={`Nicht in die Suche übersetzt: ${plan.ignoriert.join('; ')}`}
+        >
+          · nicht berücksichtigt: {plan.ignoriert.join(' · ')}
+        </span>
+      )}
+
       {/* Einladung statt Leerstelle: wer die Stammsuche nicht kennt, sieht hier,
           dass es sie gibt — an der Stelle, wo ihre Wirkung erscheinen würde. */}
-      {!stammSuche && (
+      {!planChips && !stammSuche && (
         <button
           type="button"
           onClick={onStammSucheAn}

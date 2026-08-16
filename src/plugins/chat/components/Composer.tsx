@@ -32,11 +32,21 @@ export interface ComposerProps {
   selectedDirs: DirectoryEntry[];
   toggleDir: (dir: DirectoryEntry) => void;
   autoFocus?: boolean;
+  /**
+   * Vorbelegter Text — die natürlichsprachige Suche legt ihre Frage hier ab,
+   * damit der Nutzer nachfassen kann, ohne sie abzutippen.
+   *
+   * **Gesetzt, nicht gesendet.** Die Trefferliste ist gerade erst erschienen;
+   * wer sie erst ansehen will, soll nicht auf eine zweite Antwort warten, die er
+   * vielleicht gar nicht braucht. Und überschrieben wird nie: ein angefangener
+   * eigener Text ist wichtiger als jede Vorbelegung.
+   */
+  vorbelegung?: string;
 }
 
 export function Composer({
   onSend, onStop, busy, providerName, useRAG, setUseRAG,
-  docDirs, selectedDirs, toggleDir, autoFocus,
+  docDirs, selectedDirs, toggleDir, autoFocus, vorbelegung,
 }: ComposerProps): React.ReactElement {
   const storage = useStorage();
   const thinkingEnabled = useChatStore(s => s.thinkingEnabled);
@@ -60,6 +70,12 @@ export function Composer({
     ta.style.height = `${Math.min(ta.scrollHeight, 200)}px`;
   }, [input]);
   useEffect(() => { if (autoFocus) taRef.current?.focus(); }, [autoFocus]);
+  // Vorbelegung nur in ein LEERES Feld — sonst überschriebe eine neue Suche den
+  // Satz, den der Nutzer gerade tippt.
+  useEffect(() => {
+    if (!vorbelegung) return;
+    setInput(prev => (prev.trim().length === 0 ? vorbelegung : prev));
+  }, [vorbelegung]);
   useEffect(() => {
     if (!menu && !sysOpen) return;
     const onDoc = (e: MouseEvent): void => {

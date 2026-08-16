@@ -28,9 +28,16 @@ interface ChatPanelHostProps {
   contextResults: UnifiedSearchResult[];
   /** Aktuelle Suchanfrage — bei Änderung wird ein zuvor entfernter Kontext neu angeheftet. */
   contextQuery: string;
+  /**
+   * Vorbelegung des Eingabefeldes — die natürlichsprachige Suche legt hier ihre
+   * Frage ab. Wird gesetzt, nicht gesendet (siehe `Composer.vorbelegung`).
+   */
+  vorbelegung?: string;
 }
 
-export function ChatPanelHost({ onClose, contextResults, contextQuery }: ChatPanelHostProps): React.ReactElement {
+export function ChatPanelHost({
+  onClose, contextResults, contextQuery, vorbelegung,
+}: ChatPanelHostProps): React.ReactElement {
   const storage = useStorage();
   const conversations = useChatStore(s => s.conversations);
   const activeId = useChatStore(s => s.activeId);
@@ -95,6 +102,7 @@ export function ChatPanelHost({ onClose, contextResults, contextQuery }: ChatPan
     docDirs,
     selectedDirs: controller.selectedDirs,
     toggleDir: controller.toggleDir,
+    vorbelegung,
   };
 
   // Init: Metas laden, letzte Unterhaltung reaktivieren (wie ChatView früher).

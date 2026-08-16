@@ -16,7 +16,10 @@ import { Loader2, Sparkles, Bookmark, Download, List, Table } from 'lucide-react
 import { Badge } from '@/components/ui/badge';
 import { ViewModeToggle, type ViewModeOption } from '@/components/ui/ViewModeToggle';
 import { DarstellungDropdown } from '@/components/ui/DarstellungDropdown';
-import { isDokumentenscanEnabled } from '@/config/feature-flags';
+import { isDokumentenscanEnabled, isSucheNatuerlicheSpracheEnabled } from '@/config/feature-flags';
+import { useAIBridge } from '@/core/hooks/useAIBridge';
+import { aktiveLeitbegriffe, planMarkierWoerter } from '@/core/services/search/frageplan';
+import { ermittleFrageplan } from '@/core/services/search/frageplan-lauf';
 import { isKuratorFreigeschaltet } from '@/core/modul-freischaltung';
 import { useUnifiedSearch, type SearchPhase } from '@/core/hooks/useUnifiedSearch';
 import { useStorage } from '@/core/hooks/useStorage';
@@ -116,6 +119,12 @@ export function SuchSeite(): React.ReactElement {
   const setBereich = useSuchOptionen(s => s.setBereich);
   const abgewaehlteVarianten = useSuchOptionen(s => s.abgewaehlteVarianten);
   const toggleVariante = useSuchOptionen(s => s.toggleVariante);
+  // Natürliche Sprache: nur sichtbar, wenn der Build sie mitbringt. Der Schalter
+  // darf gemerkt sein, ohne dass die Oberfläche ihn zeigt — deshalb wird das Flag
+  // an JEDER Stelle mitgeprüft, nicht nur beim Rendern des Umschalters.
+  const nlFreigeschaltet = isSucheNatuerlicheSpracheEnabled();
+  const nlModus = useSuchOptionen(s => s.natuerlicheSprache) && nlFreigeschaltet;
+  const setNlModus = useSuchOptionen(s => s.setNatuerlicheSprache);
 
   const query = useSucheStore(s => s.query);
   const setQuery = useSucheStore(s => s.setQuery);
@@ -129,13 +138,43 @@ export function SuchSeite(): React.ReactElement {
   const setSortierung = useSucheStore(s => s.setSortierung);
   const dichte = useSucheStore(s => s.dichte);
   const setDichte = useSucheStore(s => s.setDichte);
+  const frageplan = useSucheStore(s => s.frageplan);
+  const abgewaehlteBegriffe = useSucheStore(s => s.abgewaehlteBegriffe);
+  const toggleBegriff = useSucheStore(s => s.toggleBegriff);
+  const planLaeuft = useSucheStore(s => s.planLaeuft);
+  const planFehler = useSucheStore(s => s.planFehler);
+  const aiBridge = useAIBridge();
+
+  /**
+   * Der aktive Plan — nur, solange er zur Eingabe passt.
+   *
+   * Der Store verwirft ihn beim Tippen; diese zweite Prüfung deckt den Fall ab,
+   * dass die Eingabe auf einem anderen Weg gesetzt wurde (Beispiel-Klick,
+   * gemerkte Suche, Deep-Link). Ein Plan, der eine andere Frage beschreibt als
+   * die im Feld, wäre eine Legende, die lügt.
+   */
+  const aktiverPlan = frageplan !== null && frageplan.frage === query.trim() ? frageplan : null;
+
+  /**
+   * Die Leitbegriffe, mit denen tatsächlich gesucht wird — memoisiert, weil sie
+   * im Dep-Array des Such-Effekts stehen. Eine bei jedem Render neu gebaute
+   * Liste liefe endlos.
+   */
+  const planTeile = useMemo(
+    () => (aktiverPlan ? aktiveLeitbegriffe(aktiverPlan, abgewaehlteBegriffe) : undefined),
+    [aktiverPlan, abgewaehlteBegriffe],
+  );
 
   // Die Suche läuft auf der WIRKSAMEN Anfrage — ohne die in der Deutungszeile
   // abgewählten Wörter. Was im Feld steht, bleibt unangetastet: der Nutzer soll
   // seine Eingabe wiedererkennen und die Abwahl zurücknehmen können.
+  //
+  // Mit Plan entfällt das: dort steht eine FRAGE im Feld, deren Wörter nie
+  // Suchbegriffe waren — abgewählt werden die Leitbegriffe des Plans, und das
+  // geschieht über `planTeile`, nicht über den Anfragetext.
   const wirksam = useMemo(
-    () => wirksameAnfrage(query, verknuepfung, abgewaehlteWoerter),
-    [query, verknuepfung, abgewaehlteWoerter],
+    () => (aktiverPlan ? query : wirksameAnfrage(query, verknuepfung, abgewaehlteWoerter)),
+    [aktiverPlan, query, verknuepfung, abgewaehlteWoerter],
   );
   const deferredQuery = useDeferredValue(wirksam);
   const [toast, setToast] = useState<string | null>(null);
@@ -196,7 +235,7 @@ export function SuchSeite(): React.ReactElement {
   const {
     results: searchResults, loading, counts, indexInfo, vectorReady,
     searchPhase, semanticStatus, varianten,
-  } = useUnifiedSearch(deferredQuery);
+  } = useUnifiedSearch(deferredQuery, planTeile);
   const deferredPhase = useDeferredValue(searchPhase);
   const phaseLabel = PHASE_LABELS[deferredPhase];
   const queryNotEmpty = query.trim() !== '';
@@ -241,9 +280,14 @@ export function SuchSeite(): React.ReactElement {
   );
   const sichtbar = ansicht === 'liste' ? listeSortiert : sorted;
 
+  // Markiert wird, wonach GESUCHT wurde. Bei einer Frage sind das die Nadeln des
+  // Plans — aus „Welche Vorhaben drehen sich um Normung?" würden sonst „welche"
+  // und „drehen" im Treffertext angestrichen.
   const markWoerter = useMemo(
-    () => markierWoerter(query, verknuepfung, abgewaehlteWoerter),
-    [query, verknuepfung, abgewaehlteWoerter],
+    () => (aktiverPlan
+      ? planMarkierWoerter(aktiverPlan, abgewaehlteBegriffe)
+      : markierWoerter(query, verknuepfung, abgewaehlteWoerter)),
+    [aktiverPlan, abgewaehlteBegriffe, query, verknuepfung, abgewaehlteWoerter],
   );
   const aktiveVariantenChips = useMemo(
     () => varianten.filter(v => !abgewaehlteVarianten.includes(v.toLowerCase())),
@@ -350,6 +394,78 @@ export function SuchSeite(): React.ReactElement {
     setAuswahl(new Set());
     if (analyseActive) analyse.reset();
   }, [setQuery, addRecentSearch, setFacettenWahl, analyseActive, analyse]);
+
+  /**
+   * Ein Frage-Beispiel anklicken: Text UND Modus setzen, dann übersetzen.
+   *
+   * Beides zusammen, nicht nur der Text — eine Frage, die als Stichwortsuche
+   * liefe, fände nichts und brächte damit genau das Gegenteil dessen bei, wofür
+   * das Beispiel dasteht.
+   */
+  /**
+   * Die Frage von der internen KI in einen Frageplan übersetzen lassen.
+   *
+   * Bewusst an EINER Geste (Enter / Knopf) und nicht am Tippen: ein KI-Aufruf je
+   * Tastendruck wäre weder bezahlbar noch erträglich. Danach rechnet die Suche
+   * ohne weiteren Aufruf — auch das Abwählen eines Leitbegriffs.
+   */
+  const frageStellen = useCallback(async (frageArg?: string): Promise<void> => {
+    // Der Beispiel-Klick reicht seine Frage MIT: `query` trägt sie in demselben
+    // Render noch nicht, und ein Lauf auf dem alten Text übersetzte die vorige
+    // Frage ein zweites Mal.
+    const frage = (frageArg ?? query).trim();
+    if (frage.length === 0 || useSucheStore.getState().planLaeuft) return;
+    const store = useSucheStore.getState();
+    store.setPlanLaeuft(true);
+    store.setPlanFehler(null);
+    try {
+      const res = await ermittleFrageplan(aiBridge, frage, new Date().getFullYear());
+      if (!res.ok) {
+        // Der Verbindungsfall hat schon den app-weiten Verbinden-Dialog geöffnet;
+        // eine zweite Meldung daneben wäre Lärm. Die Eingabe bleibt in jedem Fall
+        // stehen — sie ist das, was der Nutzer gerade formuliert hat.
+        store.setPlanFehler(res.verbindungFehlt ? null : res.fehler);
+        return;
+      }
+      store.setFrageplan(res.plan);
+      addRecentSearch(frage);
+      // Facetten des Plans setzen. Sie erscheinen dadurch als dieselben
+      // entfernbaren Chips wie selbst gesetzte Filter — ein von der KI gesetzter
+      // Filter darf nicht unsichtbarer sein als ein eigener.
+      setFacettenWahl({
+        ...LEERE_WAHL,
+        status: [...res.plan.facetten.status],
+        jahr: [...res.plan.facetten.jahr],
+      });
+      if (res.plan.bereich) setBereich(res.plan.bereich);
+      setAuswahl(new Set());
+      setAusgeklappt(new Set());
+      if (analyseActive) analyse.reset();
+      // Wer eine Frage gestellt hat, will sie oft weiterverfolgen. Das Panel geht
+      // mit der Frage im Eingabefeld auf — abgeschickt wird sie NICHT: die Treffer
+      // sind gerade erst da, und eine zweite Antwort, auf die niemand gewartet
+      // hat, kostete einen weiteren Lauf.
+      sucheAssistentUiStore.getState().setOpen(true);
+    } finally {
+      useSucheStore.getState().setPlanLaeuft(false);
+    }
+  }, [query, aiBridge, addRecentSearch, setFacettenWahl, setBereich, analyseActive, analyse]);
+
+  /**
+   * Ein Frage-Beispiel anklicken: Text UND Modus setzen, dann übersetzen.
+   *
+   * Beides zusammen, nicht nur der Text — eine Frage, die als Stichwortsuche
+   * liefe, fände nichts und brächte damit genau das Gegenteil dessen bei, wofür
+   * das Beispiel dasteht.
+   */
+  const starteFrage = useCallback((f: string): void => {
+    setNlModus(true);
+    setQuery(f);
+    setFacettenWahl(LEERE_WAHL);
+    setAuswahl(new Set());
+    if (analyseActive) analyse.reset();
+    void frageStellen(f);
+  }, [setNlModus, setQuery, setFacettenWahl, analyseActive, analyse, frageStellen]);
 
   useEffect(() => {
     if (!toast) return;
@@ -585,9 +701,33 @@ export function SuchSeite(): React.ReactElement {
               value={query}
               onValueChange={handleQueryChange}
               disabled={analyse.running}
-              showSpinner={showSpinner}
+              showSpinner={showSpinner || planLaeuft}
+              onSubmit={nlModus ? () => { void frageStellen(); } : undefined}
+              platzhalter={nlModus ? 'Frage stellen, z. B. „Welche Vorhaben drehen sich um Normung?"' : undefined}
             />
+            {/* Der Knopf steht nur im Frage-Modus da — und nur, solange die Frage
+                noch nicht übersetzt ist. Enter tut dasselbe; der Knopf sagt, DASS
+                es eine Geste braucht, statt es den Nutzer raten zu lassen. */}
+            {nlModus && queryNotEmpty && aktiverPlan === null && (
+              <button
+                type="button"
+                onClick={() => { void frageStellen(); }}
+                disabled={planLaeuft || analyse.running}
+                className="mt-[1px] inline-flex shrink-0 items-center gap-1.5 rounded-[var(--tf-radius-lg)] px-3 py-[9px] text-[13px] cursor-pointer disabled:opacity-60 disabled:cursor-default"
+                style={{ background: 'var(--tf-primary)', color: 'var(--tf-on-primary)' }}
+              >
+                {planLaeuft ? <Loader2 size={14} className="animate-spin" aria-hidden /> : <Sparkles size={14} aria-hidden />}
+                {planLaeuft ? 'Übersetze…' : 'Frage stellen'}
+              </button>
+            )}
           </div>
+
+          {nlModus && planFehler !== null && (
+            <div className="mt-2 flex w-full max-w-4xl items-start gap-1.5 text-[11.5px] text-[var(--tf-text-tertiary)]">
+              <span aria-hidden="true">ⓘ</span>
+              <span>{planFehler}</span>
+            </div>
+          )}
 
           {/* ── Optionen ─────────────────────────────────────────────────── */}
           <div className="mt-2 w-full max-w-6xl">
@@ -601,6 +741,10 @@ export function SuchSeite(): React.ReactElement {
               semantischAn={semanticEnabled}
               onSemantisch={setSemanticEnabled}
               semantischLaedt={semanticEnabled && !vectorReady}
+              nlVerfuegbar={nlFreigeschaltet}
+              nlModus={nlModus}
+              onNlModus={setNlModus}
+              planAktiv={aktiverPlan !== null}
               indexHinweis={`Index: ${indexInfo.antraegeGeladen.toLocaleString('de-DE')} Anträge · ${indexInfo.textabschnitteImIndex.toLocaleString('de-DE')} Textabschnitte`}
             />
           </div>
@@ -624,6 +768,9 @@ export function SuchSeite(): React.ReactElement {
                 verknuepfung={verknuepfung}
                 abgewaehlteWoerter={abgewaehlteWoerter}
                 onToggleWort={toggleWort}
+                plan={aktiverPlan}
+                abgewaehlteBegriffe={abgewaehlteBegriffe}
+                onToggleBegriff={toggleBegriff}
                 varianten={varianten}
                 abgewaehlteVarianten={abgewaehlteVarianten}
                 onToggleVariante={toggleVariante}
@@ -785,6 +932,7 @@ export function SuchSeite(): React.ReactElement {
               gespeichert={gespeichert}
               gespeicherteTreffer={gespeicherteTreffer}
               onSuche={starteSuche}
+              onFrage={nlFreigeschaltet ? starteFrage : undefined}
               onEntferneLetzte={removeRecentSearch}
               onEntferneGespeicherte={loescheGespeicherte}
               kuratorVariant={isKuratorFreigeschaltet() && isDokumentenscanEnabled()}
@@ -918,7 +1066,12 @@ export function SuchSeite(): React.ReactElement {
             style={{ borderLeft: '0.5px solid var(--tf-border)' }}
           />
           <div className="h-full min-w-0 flex-1">
-            <ChatPanelHost onClose={closeAssistent} contextResults={sichtbar} contextQuery={wirksam.trim()} />
+            <ChatPanelHost
+              onClose={closeAssistent}
+              contextResults={sichtbar}
+              contextQuery={wirksam.trim()}
+              vorbelegung={aktiverPlan?.frage}
+            />
           </div>
         </aside>
       )}

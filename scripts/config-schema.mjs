@@ -299,6 +299,15 @@ export const DEFAULT_CONFIG = {
      *  Projektion der referenzierten Rohfelder. dev/pl. Optional, default false
      *  (kein requiredFlags-Eintrag → `=== true` Backward-Kompat). */
     eigeneSpalten: false,
+    /** Suche mit natürlicher Sprache: die interne KI übersetzt eine Frage in
+     *  einen Frageplan (Leitbegriffe mit ihren Schreibweisen, Einschränkungen,
+     *  Facetten), die Suchstufe läuft unverändert weiter. Die KI ist damit die
+     *  Synonymquelle, die der Suche fehlt — sie kann Begriffe BENENNEN, und nur
+     *  benennbare Begriffe lassen sich anzeigen und abwählen. Gated Umschalter,
+     *  Frage-Beispiele und den KI-Lauf; ohne Plan verhält sich die Suche
+     *  bitweise wie heute. Braucht die interne KI (Bridge). dev + pl. Optional,
+     *  default false (kein requiredFlags-Eintrag → `=== true` Backward-Kompat). */
+    sucheNatuerlicheSprache: false,
   },
 
   menuLabels: {

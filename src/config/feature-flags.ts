@@ -319,6 +319,17 @@ export function isAssistentGedaechtnisEnabled(): boolean {
   return features.assistentGedaechtnis === true;
 }
 
+/** Suche mit natürlicher Sprache: die interne KI übersetzt eine Frage in einen
+ *  Frageplan (Leitbegriffe mit ihren Schreibweisen, Einschränkungen, Facetten),
+ *  den die vorhandene Suchstufe abarbeitet. Sie ist damit die dritte Nadel-Quelle
+ *  neben Wortstamm und Ähnlichkeit — und die einzige, die Begriffe BENENNEN kann,
+ *  weshalb sie als abwählbare Chips erscheinen. Gated Umschalter, Frage-Beispiele
+ *  und den KI-Lauf; ohne Plan sucht die App bitweise wie zuvor. dev + pl.
+ *  Default false (`=== true`, Backward-Kompat). */
+export function isSucheNatuerlicheSpracheEnabled(): boolean {
+  return features.sucheNatuerlicheSprache === true;
+}
+
 /** MAP „Neuer Prüf-Workflow": Einreichungs-Import per Drag & Drop, deterministische
  *  Rechenchecks und eine im Betrieb editierbare, versionierte Förderfähigkeits-
  *  Checkliste. Die Einreichung ist eine eigene kv-Entität — der Flag gated kein

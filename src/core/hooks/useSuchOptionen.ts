@@ -27,12 +27,23 @@ import { parseSuchbereich, type Suchbereich } from '@/core/services/search/suchb
  */
 const BEREICH_KEY = 'teamflow_suche_bereich_v2';
 const STAMM_KEY = 'teamflow_suche_stammsuche';
+/** Sucht der Nutzer mit natürlicher Sprache? Persistiert wie die anderen
+ *  Optionen — es ist eine Arbeitsgewohnheit, keine Eigenschaft der Anfrage. */
+const NL_KEY = 'teamflow_suche_nl';
 
 function ladeBereich(): Suchbereich {
   try {
     return parseSuchbereich(localStorage.getItem(BEREICH_KEY));
   } catch {
     return 'alles';
+  }
+}
+
+function ladeNatuerlicheSprache(): boolean {
+  try {
+    return localStorage.getItem(NL_KEY) === '1';
+  } catch {
+    return false;
   }
 }
 
@@ -45,6 +56,17 @@ function ladeStammSuche(): boolean {
 }
 
 interface SuchOptionenState {
+  /**
+   * Mit natürlicher Sprache suchen: die interne KI übersetzt die Frage in einen
+   * Frageplan, statt die Eingabe wörtlich zu zerlegen.
+   *
+   * Kein weiterer Modifikator neben den übrigen, sondern eine andere Art zu
+   * fragen: im Plan-Modus bestimmt die KI Verknüpfung und Wortformen, und die
+   * beiden Regler geben in der Oberfläche sichtbar ab. Ein Regler, der etwas
+   * anderes verspricht als gilt, wäre schlimmer als keiner.
+   */
+  natuerlicheSprache: boolean;
+  setNatuerlicheSprache: (an: boolean) => void;
   /** Worin gesucht wird. */
   bereich: Suchbereich;
   setBereich: (b: Suchbereich) => void;
@@ -64,6 +86,12 @@ interface SuchOptionenState {
 }
 
 export const useSuchOptionen = create<SuchOptionenState>((set, get) => ({
+  natuerlicheSprache: ladeNatuerlicheSprache(),
+  setNatuerlicheSprache: (natuerlicheSprache) => {
+    try { localStorage.setItem(NL_KEY, natuerlicheSprache ? '1' : '0'); } catch { /* ignore */ }
+    set({ natuerlicheSprache });
+  },
+
   bereich: ladeBereich(),
   setBereich: (bereich) => {
     try { localStorage.setItem(BEREICH_KEY, bereich); } catch { /* ignore */ }

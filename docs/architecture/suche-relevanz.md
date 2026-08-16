@@ -308,9 +308,13 @@ Zwei Folgen:
 
 ## 5 „Wortformen mitsuchen" = Wortstämme
 
-Eine Synonymquelle hat die App nicht (das Glossar führt 41 Abkürzungen ohne
-Synonymfeld), und das Embedding-Modell kann Nachbarschaft messen, aber keine
-Begriffe BENENNEN — ohne benennbare Begriffe gibt es nichts abzuwählen.
+Eine deterministische Synonymquelle hat die App nicht (das Glossar führt 41
+Abkürzungen ohne Synonymfeld), und das Embedding-Modell kann Nachbarschaft
+messen, aber keine Begriffe BENENNEN — ohne benennbare Begriffe gibt es nichts
+abzuwählen. Seit v4.65 füllt der **Frageplan** genau diese Lücke (§8): die interne
+KI kann Begriffe benennen, und weil sie es kann, erscheinen sie als Chips.
+Der Wortstamm bleibt daneben, was er war — die kostenlose, rein sprachliche
+Stufe, die kein Modell braucht.
 
 Der Schalter hieß bis v4.16.0 „Ähnliche Begriffe mitsuchen" und stand neben der
 „Ähnlichkeitssuche": zwei Namen, die dasselbe versprachen und Verschiedenes
@@ -397,3 +401,71 @@ nicht aus einem Merkschlüssel daneben — eine zweite Quelle könnte davon abwe
 - **Monitoring gespeicherter Suchen** — es gibt keinen Benachrichtigungsweg.
   „+2 seit zuletzt" ist die Differenz zum letzten Ausführen, nicht „2 neue
   Anträge", und die Beschriftung sagt genau das.
+
+## 8 Die dritte Nadel-Quelle: der Frageplan (v4.65)
+
+Das Suchfeld lud seit v3.50 im Platzhalter zu einer „analytischen Frage" ein und
+konnte keine beantworten. Am echten Bestand gemessen (14 225 Anträge):
+
+| Eingabe | Treffer |
+|---|---|
+| „Welche Vorhaben drehen sich hauptsächlich um Normung und Standards?" (alle Wörter) | **0** |
+| dieselbe Frage als genaue Wortfolge | **0** |
+| `Normung` | 5 |
+| `Normung` + Wortformen | 285 |
+
+Die Sache ist tausendfach da — unter „Normen", „Normierung", „Standardisierung".
+Was fehlte, war eine Quelle, die diese Wörter **benennen** kann (§5).
+
+**Die KI liefert Begriffe, keine Suchläufe.** `substringMatches` prüft alle
+Suchteile in EINEM Durchgang über den Korpus; getrennte Läufe je Begriff wären
+langsamer und müssten die Wertung neu erfinden, die es längst gibt.
+
+**Ein Leitbegriff = ein Suchteil, seine Schreibweisen = dessen Nadeln.** Das ist
+die ganze Mechanik, und sie ist keine Kosmetik. Ein Teil gilt als getroffen,
+sobald IRGENDEINE seiner Nadeln trifft (`t.nadeln.some`) — `abdeckung` zählt
+damit die gefragten SACHEN, nicht die Schreibweisen. Am Bestand gemessen, beide
+Male mit denselben neun Nadeln:
+
+| Aufbau | Treffer | hoch | mittel | gering |
+|---|---|---|---|---|
+| 2 Leitbegriffe mit ihren Schreibweisen | 583 | **4** | **20** | 559 |
+| 9 gleichrangige Begriffe (flach) | 583 | 0 | 0 | **583** |
+
+Dieselbe Treffermenge — aber flach kollabiert die gesamte Wertung: kein Treffer
+kommt über 2/9 Abdeckung, alles wird „gering", und die Sortierung nach Score
+liefert wieder die Reihenfolge des Cursors (§1). Die Gruppierung ist die
+Bedingung dafür, dass „hauptsächlich" in der Frage überhaupt gemessen wird.
+
+**Einschränkungen sind keine Alternativen.** Ein `PlanBegriff` trägt `pflicht`;
+Pflichtteile müssen ALLE zutreffen, die Themen folgen der Verknüpfung. Ohne diese
+Trennung wäre „in Bayern" nur ein weiteres ODER-Wort:
+
+| „Was läuft in Bayern zum Thema Leichtbau?" | Treffer |
+|---|---|
+| Thema allein | 736 |
+| Ort allein | 1 976 |
+| Thema **UND NUR** Ort (Pflicht) | **87** |
+| Thema ODER Ort (die naive Fassung) | 2 625 |
+
+**`abdeckung` zählt nur die Themen.** Eine erfüllte Einschränkung ist bei jedem
+überlebenden Treffer erfüllt — sie mitzuzählen hübe die Relevanz aller Treffer
+gleichmäßig an, und die Stufe „hoch" sagte nichts mehr aus.
+
+**Ohne Plan bewegt sich nichts.** `WortlautOptionen.planTeile` ist optional; fehlt
+es, ist `pflichtTeile` leer, `themenTeile === teile` und `zaehlbar ===
+teile.length` — der Ausdruck ist Zeichen für Zeichen der alte. Das ist die
+Abnahmebedingung, nicht ein Nebeneffekt.
+
+**Was der Plan NICHT ins Feld schreibt.** Die Feldbindung reist im Plan-Objekt
+mit, nicht als `ort:`-Präfix im Anfragetext: `hatFeldPraefix()` schaltet Vektor-
+und Dokumentstufe ab, und ein Plan, der seine Bindung in den Text schriebe,
+verlöre beide stillschweigend. Umgekehrt gilt: sobald der Plan ein Feld bindet
+oder etwas verlangt, werden beide Stufen bewusst abgeschaltet — sie könnten die
+Einschränkung nicht einhalten. Ein reines Themen-Bündel lässt sie mitlaufen.
+
+Modul: [frageplan.ts](../../src/core/services/search/frageplan.ts) (rein, ohne
+Uhr und ohne Plugin-Import), Lauf:
+[frageplan-lauf.ts](../../src/core/services/search/frageplan-lauf.ts) (ein
+Aufruf, nur intern, `ziel: 'standard'`, kein Retry). Flag
+`sucheNatuerlicheSprache`, dev + pl.
