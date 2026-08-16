@@ -969,8 +969,15 @@ describe('screen-context-coverage (Feedback-KI-Kontext: docs/feedback-kontext/)'
   // Architektur-Doc, kein Dump. 49000 statt 48000, damit die naechste Version
   // nicht schon wieder an dieser Schraube dreht — als Unfall-Faenger taugt die
   // Zahl weiter: ein reinkopiertes Doc bringt fuenfstellig mit.
+  //
+  // Mit v4.72 die vierte Reisse (49134). Nachgesehen wie beim letzten Mal: dazu
+  // kamen drei Zeilen zum Anpinnen an Phasen und Spannen, WAS-Text zu einer
+  // Funktion, nach der der Nutzer gefragt hat. Zwei davon waren wortreich und
+  // sind gekuerzt (48992) — und genau deshalb steigt die Schwelle trotzdem: bei
+  // acht Zeichen Luft risse die naechste Doc-Pflege aus einem fremden Grund, und
+  // dann wird gekuerzt, um eine Zahl zu treffen. 52000 statt 49000.
   const DOCS_DIR = join(ROOT, '..', 'docs', 'feedback-kontext');
-  const REISSLEINE_DOC_CHARS = 49000;
+  const REISSLEINE_DOC_CHARS = 52000;
 
   // Text-Scan statt Import: plugins.config.ts importiert alle Plugin-Komponenten
   // (u.a. pdfjs-dist-Worker), was unter Vitest bricht. Jede Plugin-ID steht

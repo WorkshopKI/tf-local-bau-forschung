@@ -12,6 +12,7 @@ import { TextContainsFacet } from './facets/TextContainsFacet';
 import { StatusFilterFacet } from './facets/StatusFilterFacet';
 import { PinNadel } from './PinNadel';
 import { facetteAlsUmschalterMoeglich } from './pinnedFilters';
+import { generateLabel, signatureOf } from './frequentFilters';
 
 interface Props {
   def: FilterDefinition;
@@ -158,6 +159,21 @@ export function FilterSidebarItem({ def, antraege, activeFilters, definitions, v
               zeigt der Umschalter später auch. */}
           {!disabled && facetteAlsUmschalterMoeglich(def, counts.size) ? (
             <PinNadel pin={{ art: 'facette', filterId: def.id }} bezeichnung={def.name} />
+          ) : !disabled && active ? (
+            // Spannen (Datum, Zahl, Freitext) und lange Auswahllisten haben
+            // keine Werte, die in eine Umschalter-Pille passen — anpinnen lässt
+            // sich hier deshalb die AKTUELLE Einstellung: „Fristdatum · bis
+            // 31.12.2025" wird ein Schalter, der genau diese Spanne dazulegt.
+            // Ohne gesetzten Wert gäbe es nichts einzufrieren, dann bleibt die
+            // Zeile ohne Nadel.
+            <PinNadel
+              pin={{
+                art: 'kombination',
+                signatur: signatureOf([active]),
+                gesetzt: [{ filterId: active.filterId, value: active.value }],
+              }}
+              bezeichnung={generateLabel([active], definitions, valueLabels ? { [def.feld]: valueLabels } : {})}
+            />
           ) : null}
         </div>
       )}
@@ -198,6 +214,7 @@ function renderFacet(
             counts={counts}
             selected={selectedValues}
             onChange={v => onChange(v.length === 0 ? null : v)}
+            filterId={def.id}
           />
         );
       }

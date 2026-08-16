@@ -98,7 +98,11 @@ export function PinLeiste(): React.ReactElement | null {
           return (
             <span key={pinKey(p)} className="group/pin inline-flex items-center gap-0.5">
               <FilterChip
-                label="Satz"
+                // „Satz:" nur, wo wirklich mehrere Achsen zusammengefasst sind.
+                // Ein Ein-Filter-Pin (eine Status-Phase, eine Datumsspanne)
+                // trägt seinen Namen schon im Wert — „Satz: Phase Eingang (2)"
+                // benennt ihn zweimal.
+                label={p.gesetzt.length > 1 ? 'Satz' : undefined}
                 value={label}
                 onClick={() => {
                   if (an) {

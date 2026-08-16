@@ -124,6 +124,14 @@ export interface TfTreeSlots<T> {
    * bleiben Sache der Zeile.
    */
   zeilenStil?: (p: TfTreeNodeRenderProps<T>) => React.CSSProperties | undefined;
+  /**
+   * Zusatz-Klassen der Zeile — Geschwister von {@link zeilenStil} für alles, was
+   * kein Inline-Stil sein kann. Der Anlass ist die Tailwind-Gruppe: ein Slot,
+   * der beim Überfahren der ZEILE erscheinen soll (`group-hover/x:…`), braucht
+   * den Gruppennamen am Zeilen-Element, und dorthin kommt der Verbraucher sonst
+   * nur, indem er die ganze Zeile ersetzt.
+   */
+  zeilenKlasse?: (p: TfTreeNodeRenderProps<T>) => string | undefined;
 }
 
 /** Rückmeldungen des Baums — bewusst in Ids statt in Lib-Instanzen. */

@@ -3,6 +3,7 @@ import { Search } from 'lucide-react';
 import { TfTree } from '@/components/tree';
 import type { TfTreeNodeRenderProps } from '@/components/tree';
 import { groupStatusValues, type GroupedItem, type GroupedPhase, type PhaseId } from '../statusGroups';
+import { PinNadel } from '../PinNadel';
 import {
   baueStatusBaum, checkedAusFilter, filterAusChecked, filtereStatusPhasen,
   istGesetzt, phaseKnotenId, statusHoverDaten, type StatusKnoten,
@@ -12,6 +13,8 @@ interface Props {
   counts: Map<string, number>;
   selected: string[];
   onChange: (values: string[]) => void;
+  /** Filter-Slot, auf den ein Phasen-Schnellzugriff schreibt. */
+  filterId: string;
 }
 
 const fmt = (n: number): string => n.toLocaleString('de-DE');
@@ -33,7 +36,7 @@ const fmt = (n: number): string => n.toLocaleString('de-DE');
  * Leeren kehrt der gemerkte Zustand zurück. Die Suche verändert also nicht,
  * womit die Nutzerin danach weiterarbeitet.
  */
-export function StatusFilterFacet({ counts, selected, onChange }: Props): React.ReactElement {
+export function StatusFilterFacet({ counts, selected, onChange, filterId }: Props): React.ReactElement {
   const [query, setQuery] = useState('');
 
   const phases = useMemo(() => groupStatusValues(counts), [counts]);
@@ -140,7 +143,18 @@ export function StatusFilterFacet({ counts, selected, onChange }: Props): React.
             onZeilenKlick={shiftAufPhase}
             slots={{
               label: p => <Beschriftung p={p} gesetzt={gesetzt} />,
-              trailing: p => <Zahl p={p} gesetzt={gesetzt} />,
+              trailing: p => (
+                <>
+                  <Zahl p={p} gesetzt={gesetzt} />
+                  {p.data.art === 'phase'
+                    ? <PhasenNadel filterId={filterId} phase={p.data.phase} name={p.name} />
+                    : null}
+                </>
+              ),
+              // Trägt den Gruppennamen, auf den die Nadel ihre Sichtbarkeit
+              // bezieht — ohne ihn erschiene sie erst beim Überfahren ihrer
+              // eigenen 18 px, also praktisch nie.
+              zeilenKlasse: p => (p.data.art === 'phase' ? 'group/pin' : undefined),
               // Nur Blätter tragen einen Tooltip. Die Entscheidung fällt HIER
               // und nicht in der Komponente: ein Element, das intern `null`
               // liefert, ist für den Baum trotzdem Inhalt — und ergäbe über
@@ -160,6 +174,37 @@ export function StatusFilterFacet({ counts, selected, onChange }: Props): React.
         Checkbox an der Phase wählt alle Stati der Phase.
       </div>
     </div>
+  );
+}
+
+/**
+ * Die Nadel an einer Phasen-Zeile: legt die ganze Phase als Schalter über die
+ * Tabelle.
+ *
+ * **Ein Kombinations-Pin, kein Wert-Pin** — eine Phase ist ein SATZ von Stati,
+ * und der Kombinations-Chip legt ihn dazu und nimmt beim Ausschalten nur sein
+ * eigenes Zutun zurück (`pinnedFilters.ts`). Ein Wert-Pin könnte nur einen
+ * einzelnen Status halten.
+ *
+ * **Die Identität hängt an der Phase, nicht an ihrer Werteliste.** Welche Stati
+ * eine Phase gerade führt, hängt von den übrigen Filtern ab (`counts`); mit
+ * `signatureOf` als Signatur läse sich derselbe Pin nach dem nächsten Filter als
+ * „nicht angepinnt", und die Nadel legte ihn ein zweites Mal an. Der Satz selbst
+ * wird beim Anpinnen eingefroren — wie bei jedem Kombinations-Pin.
+ */
+function PhasenNadel({ filterId, phase, name }: {
+  filterId: string; phase: GroupedPhase; name: string;
+}): React.ReactElement {
+  const werte = phase.items.flatMap(it => it.schreibweisen);
+  return (
+    <PinNadel
+      pin={{
+        art: 'kombination',
+        signatur: `phase:${filterId}:${phase.id}`,
+        gesetzt: [{ filterId, value: werte }],
+      }}
+      bezeichnung={`Phase ${name}`}
+    />
   );
 }
 

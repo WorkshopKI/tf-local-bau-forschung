@@ -19,6 +19,16 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.72 — 2026-08
+
+### Neu
+- Eine ganze **Status-Phase** lässt sich anpinnen: die Nadel an der Phasen-Zeile macht daraus einen Schalter „Phase Eingang (2)" über der Tabelle.
+- **Datumsspannen und lange Auswahllisten** lassen sich jetzt ebenfalls anpinnen. Dort wird die Einstellung festgehalten, die gerade gesetzt ist — etwa „Fristdatum · ab 01.01.2025". Steht nichts drin, gibt es auch nichts anzupinnen, und die Nadel bleibt weg.
+
+### Verbesserungen
+- Eine steckende Nadel bleibt sichtbar, ohne dass man mit der Maus darüberfahren muss — man sieht also, was oben liegt.
+- Datumsangaben in den Filter-Chips stehen deutsch statt `2025-01-01`.
+
 ## v4.71 — 2026-08
 
 ### Neu

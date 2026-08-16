@@ -41,6 +41,24 @@ describe('Schnellzugriff — Identität eines Pins', () => {
     expect(pinKey({ art: 'wert', filterId: 'f1', wert: 'a' }))
       .toBe(pinKey({ art: 'wert', filterId: 'f1', wert: 'a' }));
   });
+
+  it('einer Kombination genügt ihre Signatur — der gesetzte Satz zählt nicht mit', () => {
+    // Trägt die Nadel an einer Status-PHASE: welche Stati die Phase gerade
+    // führt, hängt von den übrigen Filtern ab. Zählte der Satz zur Identität,
+    // läse sich derselbe Pin nach dem nächsten Filter als „nicht angepinnt" —
+    // und die Nadel legte ihn ein zweites Mal an.
+    const vorher: PinnedFilter = {
+      art: 'kombination',
+      signatur: 'phase:status:eingang',
+      gesetzt: [{ filterId: 'status', value: ['beantragt', 'skizze'] }],
+    };
+    const nachher: PinnedFilter = {
+      art: 'kombination',
+      signatur: 'phase:status:eingang',
+      gesetzt: [{ filterId: 'status', value: ['beantragt'] }],
+    };
+    expect(pinKey(nachher)).toBe(pinKey(vorher));
+  });
 });
 
 describe('Einzelwert-Chip: Schalter, nicht Sprung', () => {

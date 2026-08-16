@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.72.0 — Anpinnen an Phasen und Spannen (August 2026)
+
+MINOR — Gemeldet: „bei denen erscheint keine Nadel zum Anpinnen" (Bewilligungs-, Antrags-, Fristdatum) — und der Status-Block, der als einziger von sich aus offen steht, hatte nie eine. Von 8 Nadeln in der Leiste waren im Ausgangszustand genau 2 erreichbar.
+
+- **Jede Status-Phase trägt eine Nadel**: angepinnt wird sie als Schalter „Phase Eingang (2)", der alle Stati der Phase dazulegt ([StatusFilterFacet.tsx](src/plugins/antraege/filter/facets/StatusFilterFacet.tsx))
+- **Spannen und lange Listen** (Datum, Zahl, Freitext, 16 Richtlinien) pinnen die AKTUELLE Einstellung, sobald eine gesetzt ist — ohne Wert gibt es nichts einzufrieren ([FilterSidebarItem.tsx](src/plugins/antraege/filter/FilterSidebarItem.tsx), [pinnedFilters.ts](src/plugins/antraege/filter/pinnedFilters.ts))
+- **Die Identität einer Phase hängt an der Phase**, nicht an ihrer Werteliste — sonst läse sich derselbe Pin nach dem nächsten Filter als „nicht angepinnt" ([pinnedFilters.test.ts](src/plugins/antraege/__tests__/pinnedFilters.test.ts))
+- **Ein-Filter-Chips ohne „Satz:"** — der Wert benennt sich schon selbst ([PinLeiste.tsx](src/plugins/antraege/filter/PinLeiste.tsx), `label` an [FilterChip.tsx](src/components/ui/FilterChip.tsx) optional)
+- **Datumsspannen deutsch statt ISO** in Chips und Verlauf, über die vorhandene Anzeige-Kette ([ActiveFilterChips.tsx](src/plugins/antraege/filter/ActiveFilterChips.tsx), [frequentFilters.ts](src/plugins/antraege/filter/frequentFilters.ts)); neuer Zeilen-Klassen-Slot am Baum ([tf-tree-types.ts](src/components/tree/tf-tree-types.ts))
+
 ### v4.71.1 — Verlauf breiter, Uhr neben den Titel (August 2026)
 
 PATCH — Gemeldet: „Historie-Anzeige breiter machen, damit man mehr von der Suchanfrage lesen kann (die unterscheiden sich meist in den hinteren Worten)" und „das Uhr-Icon direkt hinter Filter, das braucht man oft". Am Verlauf gemessen brauchte der längste Eintrag 274 px bei 207 px Textbreite — abgeschnitten wurde genau der unterscheidende Schluss.

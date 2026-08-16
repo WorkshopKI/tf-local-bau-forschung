@@ -2,8 +2,9 @@ import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export interface FilterChipProps {
-  /** Filter-Name; wird als „Label:" vorangestellt. */
-  label: string;
+  /** Filter-Name; wird als „Label:" vorangestellt. Weggelassen → nur der Wert,
+   *  für Chips, deren Wert sich schon selbst benennt („Phase Eingang (2)"). */
+  label?: string;
   /** Aktueller Wert (rechts vom Label). */
   value?: React.ReactNode;
   /** Klick auf den Chip (z.B. Dropdown öffnen / Toggle). Ignoriert, wenn
@@ -39,7 +40,7 @@ export function FilterChip({
       )}
       style={{ border: '0.5px solid var(--tf-border)' }}
     >
-      <span className="text-[var(--tf-text-secondary)]">{label}:</span>
+      {label != null && <span className="text-[var(--tf-text-secondary)]">{label}:</span>}
       {value != null && <span className="truncate max-w-[180px]">{value}</span>}
       {onRemove != null && <X size={12} className="text-[var(--tf-text-tertiary)]" />}
     </button>

@@ -1,4 +1,5 @@
 import type { ActiveFilter, FilterDefinition } from '@/core/services/csv';
+import { formatDatumsWert } from '@/core/services/csv';
 import { FilterChip } from '@/components/ui/FilterChip';
 
 interface Props {
@@ -43,10 +44,14 @@ function summarize(af: ActiveFilter, def: FilterDefinition): string {
     case 'boolean_ja_nein':
       return af.value === 'ja' ? 'Ja' : af.value === 'nein' ? 'Nein' : 'Beide';
     case 'date_range': {
+      // Deutsch, nicht ISO — der Chip steht in derselben Zeile wie die
+      // Schnellzugriffe, die dasselbe Datum lesbar zeigen.
       const r = af.value as { from?: string; to?: string };
-      if (r.from && r.to) return `${r.from} – ${r.to}`;
-      if (r.from) return `ab ${r.from}`;
-      if (r.to) return `bis ${r.to}`;
+      const from = formatDatumsWert(r.from);
+      const to = formatDatumsWert(r.to);
+      if (from && to) return `${from} – ${to}`;
+      if (from) return `ab ${from}`;
+      if (to) return `bis ${to}`;
       return '—';
     }
     case 'number_range': {

@@ -6,8 +6,14 @@
  * | Art | Nadel sitzt an | Oben wird daraus |
  * |---|---|---|
  * | `wert` | einem einzelnen Facetten-Wert | Umschalt-Chip (`Fristdatum überfällig 4`) |
- * | `facette` | dem Merkmalskopf | Umschalter (`Projektart · Alle · Einzel 11 · Koop 2`) |
- * | `kombination` | einem „Häufig benutzt"-Eintrag | Schalter, der seinen Satz DAZULEGT |
+ * | `facette` | dem Merkmalskopf (nur wo die Werte in eine Zeile passen) | Umschalter (`Projektart · Alle · Einzel 11 · Koop 2`) |
+ * | `kombination` | einem „Häufig benutzt"-Eintrag, einer Status-PHASE, und dem Kopf jedes Merkmals, das kein Umschalter sein kann | Schalter, der seinen Satz DAZULEGT |
+ *
+ * Die Kombination ist damit auch die Antwort für alles, was sich nicht in
+ * abzählbare Werte zerlegen lässt: eine Datumsspanne, eine Zahlenspanne, ein
+ * Freitext, eine Auswahlliste mit 16 Werten. Angepinnt wird dort die AKTUELLE
+ * Einstellung — es gibt keinen zweiten Zustand, zwischen dem ein Umschalter
+ * wechseln könnte.
  *
  * **Die Wahl liegt pro Rechner** (`localStorage`), wie der Filterstand selbst
  * (`activeFilterPersistence.ts`) und die Häufig-Liste (`frequentFilters.ts`).
@@ -74,7 +80,15 @@ export interface KombiDelta {
 
 export interface KombiPin {
   art: 'kombination';
-  /** `signatureOf(appliedFilters)` aus `frequentFilters.ts` — die Identität. */
+  /**
+   * Die Identität — eine undurchsichtige Zeichenkette, kein Inhalt.
+   *
+   * Aus dem Verlauf und von Merkmalsköpfen kommt `signatureOf(appliedFilters)`
+   * (`frequentFilters.ts`). Status-Phasen bilden sie dagegen aus der Phase
+   * selbst (`phase:<filterId>:<phaseId>`): welche Stati eine Phase gerade führt,
+   * hängt von den übrigen Filtern ab, und eine wertbasierte Signatur läse
+   * denselben Pin nach dem nächsten Filter als „nicht angepinnt".
+   */
   signatur: string;
   /** Der Satz, den der Chip setzt. Mitgespeichert, weil der Häufig-Eintrag
    *  altern und aus der Top-Liste fallen darf, ohne den Chip zu entwerten. */

@@ -71,7 +71,8 @@ export function TfTreeNode<T>({
       className={`flex items-center gap-1.5 rounded-sm cursor-pointer select-none outline-none
         hover:bg-[var(--tf-hover)] focus-visible:ring-1 focus-visible:ring-[var(--tf-primary)]
         ${isFocused ? 'bg-[var(--tf-hover)]' : ''}
-        ${isDropZiel ? 'ring-2 ring-[var(--tf-primary)] bg-[var(--tf-primary-soft)]' : ''}`}
+        ${isDropZiel ? 'ring-2 ring-[var(--tf-primary)] bg-[var(--tf-primary-soft)]' : ''}
+        ${slots?.zeilenKlasse?.(node) ?? ''}`}
       style={{
         paddingTop: 4, paddingBottom: 4, paddingRight: 6, paddingLeft: 6 + level * indent,
         ...slots?.zeilenStil?.(node),

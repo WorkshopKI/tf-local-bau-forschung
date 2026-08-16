@@ -1,4 +1,5 @@
 import type { ActiveFilter, ActiveFilterValue, FilterDefinition } from '@/core/services/csv';
+import { formatDatumsWert } from '@/core/services/csv';
 import { getPhaseForStatus, getPhaseLabel, type PhaseId } from './statusGroups';
 import { codeFuerStatusText } from '@/core/status/kategorie-ableitung';
 
@@ -74,8 +75,10 @@ function valueSummary(
   if (value && typeof value === 'object') {
     const obj = value as Record<string, unknown>;
     if ('from' in obj || 'to' in obj) {
-      const from = typeof obj.from === 'string' ? obj.from : '';
-      const to = typeof obj.to === 'string' ? obj.to : '';
+      // Gespeichert wird ISO (sortierbar), gelesen wird deutsch — über dieselbe
+      // Anzeige-Kette wie überall sonst, keine zweite Formatierung hier.
+      const from = typeof obj.from === 'string' ? formatDatumsWert(obj.from) : '';
+      const to = typeof obj.to === 'string' ? formatDatumsWert(obj.to) : '';
       if (from && to) return `${from} – ${to}`;
       if (from) return `ab ${from}`;
       if (to) return `bis ${to}`;
