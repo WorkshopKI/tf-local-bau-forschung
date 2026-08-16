@@ -38,6 +38,12 @@ import { istAusklappbar } from './ausklapp/verfuegbar';
 import { AusklappKontext } from './ausklapp/kontext';
 import { AuswahlKopf, AuswahlZelle, zeilenSchluessel } from './auswahl';
 import { useDichteStore } from './useDichteStore';
+import { useKopfFilter } from './kopfFilter';
+import {
+  SPEICHER_SPALTENBREITEN,
+  SPEICHER_GESAMTBREITE,
+  SPEICHER_KOPF_SORTIERUNG,
+} from './tabellenSpeicher';
 import type { ZeilenMeldung } from './trefferZahl';
 
 interface Props {
@@ -165,13 +171,13 @@ export function AntraegeTable({
   const setBeendetAusgeblendet = useBeendetSichtbarkeit(s => s.setAusgeblendet);
   const beendetAchse = hatBeendetAchse(activeView);
   // Persistierte Spalten-Pixelbreiten (Resize via Drag-Handles der SortableTable).
-  const { widths, setWidth, resetWidth } = useColumnWidths('teamflow_antraege_table_col_widths', {});
+  const { widths, setWidth, resetWidth } = useColumnWidths(SPEICHER_SPALTENBREITEN, {});
   // Griff am rechten Rand, zwei Zustände: `totalWidth` = gepinnte Pixelbreite
   // (null = keine), `inhaltsBreite` = Klick-Umschalter zwischen „Spalten teilen
   // sich die verfügbare Breite" (Standard) und „jede Spalte nimmt ihre
   // Inhaltsbreite, die Tabelle scrollt waagerecht".
   const { totalWidth, setTotalWidth, inhaltsBreite, toggleInhaltsBreite } = useTotalTableWidth(
-    'teamflow_antraege_table_total_width',
+    SPEICHER_GESAMTBREITE,
   );
   // Einblendbare Ordner-Spalten aus dem Statuskatalog (leer ohne Flag).
   const kategorieSpalten = useKategorieSpalten();
@@ -208,8 +214,20 @@ export function AntraegeTable({
   // Spaltenkopf-Filter (Header-Dropdown, wie in der Suche). Kandidaten aus der
   // EINGABE-Liste `enriched` (= Segment-/Sidebar-/Such-gefiltert) → view-scoped
   // und stabil; angewandt VOR der Gruppierung, also pro Einzel-Antrag.
+  //
+  // Der Stand liegt seit v4.67 im Store daneben (`kopfFilter.ts`) statt im Hook:
+  // ein gemerkter Reiter muss ihn lesen und setzen können.
+  // Zwei Einzel-Auswahlen statt eines Objekt-Selektors: ein im Selektor
+  // gebautes Objekt ist bei jedem Store-Ereignis neu und rendert die Tabelle
+  // ohne Anlass mit.
+  const kopfStand = useKopfFilter(s => s.stand);
+  const setzeKopfSpalte = useKopfFilter(s => s.setzeSpalte);
+  const kopfSteuerung = useMemo(
+    () => ({ stand: kopfStand, setzeSpalte: setzeKopfSpalte }),
+    [kopfStand, setzeKopfSpalte],
+  );
   const { columnFilters, setColumnFilter, filterCandidates, filteredRows, filterCounts } =
-    useColumnFilters(enriched, rohSpalten);
+    useColumnFilters(enriched, rohSpalten, kopfSteuerung);
 
   // Achse 1 (Ansicht): Zeilen-Körnung. Läuft VOR der Gruppierung — eine
   // Verbund-Zeile wird also nach den Werten ihres Lead-TVs einsortiert.
@@ -305,7 +323,7 @@ export function AntraegeTable({
   // wechsel (Nutzer-Wunsch). Global (nicht per-View), konsistent mit den
   // ebenfalls global persistierten Spaltenbreiten oben.
   const { sortKey, sortDirection, toggleSort, sortedRows } =
-    useTableSort(allRows, rohSpalten, null, 'desc', 'teamflow_antraege_table_sort');
+    useTableSort(allRows, rohSpalten, null, 'desc', SPEICHER_KOPF_SORTIERUNG);
 
   // Sektionierte Modi (Status-Gruppierung ODER Arbeitsvorrat/Archiv): section-
   // stabile Sortierung — Section-Reihenfolge bleibt, nur INNERHALB jeder Section

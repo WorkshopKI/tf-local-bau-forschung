@@ -30,7 +30,10 @@ export interface UseTotalTableWidthResult {
   toggleInhaltsBreite: () => void;
 }
 
-function loadFromStorage(storageKey: string): number | null {
+/** Gepinnte Gesamtbreite lesen. Exportiert, weil auch außerhalb der Tabelle
+ *  gelesen wird (Fördertabelle: ein gemerkter Reiter nimmt die Breite mit) —
+ *  und dann bitte über DIESE Funktion statt über einen zweiten `getItem`. */
+export function ladeGesamtBreite(storageKey: string): number | null {
   try {
     const raw = localStorage.getItem(storageKey);
     if (raw === null) return null;
@@ -38,6 +41,16 @@ function loadFromStorage(storageKey: string): number | null {
     return Number.isFinite(n) && n > 0 ? n : null;
   } catch {
     return null;
+  }
+}
+
+/** Gegenstück zum Lesen: `null` LÖSCHT den Eintrag (siehe `setTotalWidth`). */
+export function speichereGesamtBreite(storageKey: string, width: number | null): void {
+  try {
+    if (width === null) localStorage.removeItem(storageKey);
+    else localStorage.setItem(storageKey, String(Math.round(width)));
+  } catch {
+    /* ignore */
   }
 }
 
@@ -69,19 +82,14 @@ export function speichereInhaltsBreite(storageKey: string, an: boolean): void {
 }
 
 export function useTotalTableWidth(storageKey: string): UseTotalTableWidthResult {
-  const [totalWidth, setWidthState] = useState<number | null>(() => loadFromStorage(storageKey));
+  const [totalWidth, setWidthState] = useState<number | null>(() => ladeGesamtBreite(storageKey));
   const [inhaltsBreite, setInhaltsBreiteState] = useState<boolean>(
     () => ladeInhaltsBreite(storageKey),
   );
 
   const setTotalWidth = useCallback((width: number | null): void => {
     setWidthState(width);
-    try {
-      if (width === null) localStorage.removeItem(storageKey);
-      else localStorage.setItem(storageKey, String(Math.round(width)));
-    } catch {
-      /* ignore */
-    }
+    speichereGesamtBreite(storageKey, width);
   }, [storageKey]);
 
   const toggleInhaltsBreite = useCallback((): void => {

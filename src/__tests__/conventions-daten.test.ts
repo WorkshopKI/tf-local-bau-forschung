@@ -959,8 +959,18 @@ describe('screen-context-coverage (Feedback-KI-Kontext: docs/feedback-kontext/)'
   // erklaeren, WARUM ein Segment fehlt. Beim Nachsehen fielen zwei ueberholte
   // Historien-Saetze raus (Doku-Konvention 1: Ist-Zustand). Der Rest ist
   // WAS-Text; 47000 liegt wieder ueber dem groessten echten Doc statt darauf.
+  //
+  // Mit v4.67 erneut gerissen (47960) — die dritte Reisse in drei Versionen, und
+  // damit ist die Schwelle selbst der Befund: antraege.md waechst pro Version um
+  // rund tausend Zeichen ECHTEN WAS-Text, weil die Seite die groesste der App ist
+  // und jede Version etwas dazubekommt. Wieder nachgesehen: dazu kamen fuenf
+  // Punkte zu den eigenen Reitern und ein Satz zur Spaltenkopf-Auswahl, raus
+  // flogen drei Historien-Nebensaetze (Doku-Konvention 1: Ist-Zustand). Kein
+  // Architektur-Doc, kein Dump. 49000 statt 48000, damit die naechste Version
+  // nicht schon wieder an dieser Schraube dreht — als Unfall-Faenger taugt die
+  // Zahl weiter: ein reinkopiertes Doc bringt fuenfstellig mit.
   const DOCS_DIR = join(ROOT, '..', 'docs', 'feedback-kontext');
-  const REISSLEINE_DOC_CHARS = 47000;
+  const REISSLEINE_DOC_CHARS = 49000;
 
   // Text-Scan statt Import: plugins.config.ts importiert alle Plugin-Komponenten
   // (u.a. pdfjs-dist-Worker), was unter Vitest bricht. Jede Plugin-ID steht

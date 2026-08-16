@@ -19,6 +19,16 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.67 — 2026-08
+
+### Neu
+- **Sie können sich einen eigenen Reiter einrichten.** Stellen Sie die Förderanträge-Liste so ein, wie Sie sie brauchen — Reiter, Filter, Ansicht, Spalten, Spaltenbreiten, Auswahl in den Spaltenköpfen — und merken Sie sich das Ganze über das Lesezeichen am Ende der Reiterleiste unter einem Namen. Ein Klick auf den Reiter stellt alles wieder her.
+- **Der Reiter ist markiert, solange Sie darin arbeiten.** Sobald Sie etwas umstellen, leuchtet wieder der feste Reiter darunter — und Sie können Ihren eigenen im Menü mit einem Klick auf den neuen Stand bringen. Eine gezogene Spaltenbreite gilt dabei nicht als anderer Arbeitsplatz.
+- Bis zu vier eigene Reiter, jederzeit umzubenennen und zu entfernen.
+
+### Verbesserungen
+- **Die Auswahl in den Spaltenköpfen der Fördertabelle bleibt jetzt über einen Neustart erhalten** — wie die Sortierung und die Filterleiste. Wo eine Auswahl liegt, zeigt der gefüllte Trichter am Spaltenkopf samt Anzahl.
+
 ## v4.66 — 2026-08
 
 ### Neu

@@ -73,6 +73,7 @@ import { herkunftVon, type EigeneSpalte } from '@/core/spalten';
 import { Plus, Pencil } from 'lucide-react';
 import { useAntraegeColumnsStore } from './useAntraegeColumnsStore';
 import { useDichteStore, istDichte } from './useDichteStore';
+import { useEigeneReiter } from './eigeneReiter';
 import { type ViewMode, isViewMode } from './viewModes';
 import { isAuslastungFreigeschaltet } from '@/core/modul-freischaltung';
 import { Alert } from '@/components/ui/alert';
@@ -137,6 +138,7 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
   // Ebenfalls VOR den Achsen: die Dichte ist eine davon.
   const dichte = useDichteStore(s => s.dichte);
   const setzeDichte = useDichteStore(s => s.setzeDichte);
+  const reiterGeneration = useEigeneReiter(s => s.generation);
   // Die fünf Darstellungs-Achsen teilen sich EIN Menü. Welche davon im aktuellen
   // Zustand gilt, entscheidet die pure `darstellungsAchsen.ts` — hier bleibt nur
   // das Verteilen der Wahl auf die Store-Slots.
@@ -573,6 +575,12 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
           ) : viewMode === 'compact' ? (
             <>
             <AntraegeTable
+              // Spaltenbreiten, Gesamtbreite und Kopf-Sortierung liegen in
+              // Hooks, die ihren Wert nur beim Mount lesen. Ein angewendeter
+              // eigener Reiter zählt deshalb `generation` hoch und baut die
+              // Tabelle neu auf — sonst käme seine Geometrie erst beim nächsten
+              // Seitenwechsel an (`reiterZustand.ts`).
+              key={reiterGeneration}
               filtered={filtered}
               visibleRows={visibleRows}
               selectedAktenzeichen={selectedAktenzeichen}

@@ -4,7 +4,10 @@ import { useAntraegeStore, getEffectiveViewMode } from './store';
 import { useAufnahmeUiStore } from './aufnahme-einfach';
 import { useAntraegeColumnsStore } from './useAntraegeColumnsStore';
 import { useFilterState } from './filter/useFilterState';
-import { VIEWS, type ViewKey } from './views';
+import { VIEWS, getView, type ViewKey } from './views';
+import { EigeneReiterMenue } from './EigeneReiterMenue';
+import { useEigeneReiter, passenderReiter, beschreibeZustand } from './eigeneReiter';
+import { useAktuellerKern, wendeReiterAn } from './reiterZustand';
 import { ScopeTabs } from '@/components/ui/ScopeTabs';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { BereichChip } from '@/components/bereich/BereichChip';
@@ -70,6 +73,12 @@ export function AntraegeHeader({ filterOpen, onToggleFilter, listeSichtbar }: Pr
   // Der Export bildet exakt die Spalten der Ansicht ab — die kuratierten
   // Ordner-Spalten gehören dazu.
   const kategorieSpalten = useKategorieSpalten();
+  // Eigene Reiter: sie stehen HINTER den festen und tragen keine Zahl (siehe
+  // `eigeneReiter.ts`). Markiert ist einer, solange der aktuelle Stand seine
+  // Identität trifft — sonst leuchtet wieder der feste Reiter darunter.
+  const eigeneReiter = useEigeneReiter(s => s.reiter);
+  const kern = useAktuellerKern();
+  const aktiverEigener = passenderReiter(eigeneReiter, kern);
 
   const handleExport = async (): Promise<void> => {
     if (!activeProgrammId) return;
@@ -144,16 +153,37 @@ export function AntraegeHeader({ filterOpen, onToggleFilter, listeSichtbar }: Pr
               // der andere Lebensabschnitt mit eigener Uhr (VN-Eingang + 6 Monate)
               // und die Gesamtmenge. Ohne die Linie liest sich „Begleitung" wie
               // ein weiterer Schnitt durch die Antragsphase.
-              items={VIEWS.map(v => ({
-                key: v.key,
-                label: v.label,
-                count: counts[v.key],
-                trennerDavor: v.key === 'begleitung',
-              }))}
-              activeKey={activeView}
-              onChange={key => setActiveView(key as ViewKey)}
+              //
+              // Zweiter Trenner vor dem ersten eigenen Reiter: links steht, was
+              // die App mitbringt, rechts, was sich jemand selbst eingerichtet
+              // hat. Ohne die Linie sähe ein eigener Reiter aus wie eine fünfte
+              // Werkseinstellung.
+              items={[
+                ...VIEWS.map(v => ({
+                  key: v.key,
+                  label: v.label,
+                  count: counts[v.key],
+                  trennerDavor: v.key === 'begleitung',
+                })),
+                ...eigeneReiter.map((r, i) => ({
+                  key: r.id,
+                  label: r.name,
+                  title: beschreibeZustand(r.zustand, getView(r.zustand.basis).label),
+                  trennerDavor: i === 0,
+                })),
+              ]}
+              activeKey={aktiverEigener?.id ?? activeView}
+              onChange={key => {
+                const eigener = eigeneReiter.find(r => r.id === key);
+                if (eigener) { wendeReiterAn(eigener.zustand); return; }
+                setActiveView(key as ViewKey);
+              }}
               aria-label="Ansicht"
             />
+            {/* Der Weg zum eigenen Reiter sitzt am ENDE der Leiste, nicht in der
+                Werkzeugzeile rechts: er handelt von den Reitern, nicht von der
+                Liste. */}
+            <EigeneReiterMenue />
 
             <div className={`flex items-center gap-2 shrink-0 pb-2 ml-auto ${actionPr}`}>
               {/* „Aufnehmen" nimmt Antragsdokumente auf und braucht dafür keine

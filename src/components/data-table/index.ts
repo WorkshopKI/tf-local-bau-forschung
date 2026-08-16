@@ -17,12 +17,23 @@ export {
 } from './messung/spaltenBreite';
 export { useAutoColumnWidths, type AutoColumnWidthsParams } from './messung/useAutoColumnWidths';
 export { compareValues, DATA_TABLE_COLLATOR } from './compareValues';
-export { useTableSort, type UseTableSortResult } from './useTableSort';
+export {
+  useTableSort,
+  ladeSortStand,
+  speichereSortStand,
+  type UseTableSortResult,
+  type SortStand,
+} from './useTableSort';
 export { useColumnVisibility, type UseColumnVisibilityResult } from './useColumnVisibility';
 export { useColumnWidths, type UseColumnWidthsResult } from './useColumnWidths';
+export { ladeBreiten, speichereBreiten, entferneBreite } from './columnWidthStorage';
 export {
   useTotalTableWidth,
   inhaltsBreiteKey,
+  ladeGesamtBreite,
+  speichereGesamtBreite,
+  ladeInhaltsBreite,
+  speichereInhaltsBreite,
   type UseTotalTableWidthResult,
 } from './useTotalTableWidth';
 export { SortIcon, type SortIconProps } from './SortIcon';
@@ -43,6 +54,7 @@ export {
   facettenBasis,
   zaehleFacette,
   type UseColumnFiltersResult,
+  type ColumnFilterSteuerung,
   type FilterWertVon,
 } from './useColumnFilters';
 export {

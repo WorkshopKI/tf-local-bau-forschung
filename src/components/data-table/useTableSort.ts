@@ -28,6 +28,32 @@ export interface UseTableSortResult<T> {
   sortedRows: T[];
 }
 
+/** Der persistierte Sortier-Stand einer Tabelle. */
+export interface SortStand {
+  key: string | null;
+  dir: SortDirection;
+}
+
+/** Sortier-Stand lesen, ohne den Hook. Exportiert für Verbraucher, die ihn
+ *  außerhalb der Tabelle brauchen (Fördertabelle: ein gemerkter Reiter nimmt
+ *  die Kopf-Sortierung mit). `null` = kein Schlüssel gesetzt/lesbar. */
+export function ladeSortStand(storageKey: string): SortStand | null {
+  const geladen = loadPersistedSort(storageKey, null, 'desc');
+  try {
+    return localStorage.getItem(storageKey) === null ? null : geladen;
+  } catch {
+    return null;
+  }
+}
+
+/** Gegenstück zum Lesen. Der Hook liest den Wert erst beim MOUNT — wer von
+ *  außen schreibt, muss die Tabelle danach neu aufbauen lassen. */
+export function speichereSortStand(storageKey: string, stand: SortStand): void {
+  try {
+    localStorage.setItem(storageKey, JSON.stringify(stand));
+  } catch { /* ignore */ }
+}
+
 /** Persistierten Sort-State lesen; fehlt/kaputt → Defaults. Eine stale Spalte
  *  (Key existiert nicht mehr) ist harmlos: `sortedRows` fällt über den
  *  `columns.find`-Guard auf die unsortierte Reihenfolge zurück. */

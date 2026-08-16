@@ -37,6 +37,21 @@ import type { SortableColumn } from './types';
  *  mit dem Default rechneten Facette und Filter dort auseinander. */
 export type FilterWertVon<T> = (col: SortableColumn<T>, row: T) => string;
 
+/**
+ * Optionale FREMDHALTUNG des Filterstands.
+ *
+ * Ohne sie hält der Hook seinen Stand selbst — unverändertes Verhalten für alle
+ * Bestands-Aufrufer. Mit ihr liegt er beim Verbraucher (Fördertabelle:
+ * `kopfFilter.ts`), weil ihn dort etwas anderes als der Spaltenkopf lesen und
+ * setzen können muss (ein gemerkter Reiter). Ein zweiter, hook-eigener Stand
+ * daneben liefe unweigerlich auseinander, deshalb ist es ein Entweder-oder.
+ */
+export interface ColumnFilterSteuerung {
+  stand: Record<string, Set<string>>;
+  /** Leeres Set = Filter dieser Spalte entfernen (wie im hook-eigenen Modus). */
+  setzeSpalte: (key: string, werte: Set<string>) => void;
+}
+
 export interface UseColumnFiltersResult<T> {
   columnFilters: Record<string, Set<string>>;
   setColumnFilter: (key: string, values: Set<string>) => void;
@@ -133,16 +148,22 @@ export function zaehleFacette<T>(
 export function useColumnFilters<T>(
   rows: T[],
   columns: SortableColumn<T>[],
+  steuerung?: ColumnFilterSteuerung,
 ): UseColumnFiltersResult<T> {
-  const [columnFilters, setColumnFilters] = useState<Record<string, Set<string>>>({});
+  // Der hook-eigene Stand wird IMMER angelegt (Hook-Reihenfolge bleibt gleich),
+  // aber nur gelesen, wenn keine Fremdhaltung übergeben ist.
+  const [eigenerStand, setEigenerStand] = useState<Record<string, Set<string>>>({});
+  const columnFilters = steuerung ? steuerung.stand : eigenerStand;
 
+  const fremdSetzen = steuerung?.setzeSpalte;
   const setColumnFilter = useCallback((key: string, values: Set<string>): void => {
-    setColumnFilters(prev => {
+    if (fremdSetzen) { fremdSetzen(key, values); return; }
+    setEigenerStand(prev => {
       const next = { ...prev };
       if (values.size === 0) delete next[key]; else next[key] = values;
       return next;
     });
-  }, []);
+  }, [fremdSetzen]);
 
   const filterCandidates = useMemo(() => deriveFilterCandidates(rows, columns), [rows, columns]);
   const filteredRows = useMemo(() => applyColumnFilters(rows, columns, columnFilters), [rows, columns, columnFilters]);

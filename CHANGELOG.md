@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.67.0 — Eigene Reiter: den eingerichteten Arbeitsplatz merken (August 2026)
+
+MINOR — Nachtrag zu v4.65: dort blieb der Wunsch nach eigenen Reitern liegen, weil von neun Dingen, die einen eingerichteten Arbeitsplatz ausmachen, nur vier am Reiter hingen — Spalten, Breiten, Dichte, Filter und die Auswahl in den Spaltenköpfen galten global, letztere überlebte nicht einmal einen Neustart. Ein Reiter, der elf von zwölf Achsen wiederherstellt, verspricht mehr, als er hält.
+
+- **Eigener Reiter hinter dem Lesezeichen am Ende der Leiste**: er sitzt auf einer der vier festen Sichten und nimmt Filter, Ansichtsform, Gruppierung, Sortierung, Spaltensatz, Breiten, Dichte und Kopf-Auswahl mit ([eigeneReiter.ts](src/plugins/antraege/eigeneReiter.ts), [reiterZustand.ts](src/plugins/antraege/reiterZustand.ts))
+- **Markiert, solange der Stand passt** — verglichen werden nur die Achsen, die im jeweiligen Zustand gelten (aus `baueDarstellungsAchsen`, keine zweite Tabelle); gezogene Breiten und die Kopf-Sortierung zählen nicht mit, werden aber wiederhergestellt
+- **Die Spaltenkopf-Auswahl liegt jetzt im Store und überlebt einen Neustart** ([kopfFilter.ts](src/plugins/antraege/kopfFilter.ts)); `useColumnFilters` bekam dafür einen optionalen gesteuerten Modus, alle anderen Tabellen bleiben unberührt ([useColumnFilters.ts](src/components/data-table/useColumnFilters.ts))
+- **Merken, Nachziehen, Umbenennen, Entfernen in EINEM Menü** ([EigeneReiterMenue.tsx](src/plugins/antraege/EigeneReiterMenue.tsx)); höchstens vier, ohne Trefferzahl — die müsste den ganzen Ausschnitt versprechen
+- **Die drei Speicher-Schlüssel der Tabelle an einer Stelle** ([tabellenSpeicher.ts](src/plugins/antraege/tabellenSpeicher.ts)); Breiten, Gesamtbreite und Kopf-Sortierung werden über die Funktionen ihres Hooks geschrieben, die Tabelle danach neu aufgebaut
+
 ### v4.66.0 — Eine Frage stellen statt Wortformen raten (August 2026)
 
 MINOR — Der Platzhalter lud seit v3.50 zu einer „analytischen Frage" ein und konnte keine beantworten: am echten Bestand liefert „Welche Vorhaben drehen sich hauptsächlich um Normung und Standards?" wörtlich **0 Treffer**, „Normung" allein 5 — obwohl die Sache tausendfach da ist, unter „Normen", „Normierung", „Standardisierung". Die interne KI ist damit die Synonymquelle, die [suche-relevanz.md §5](docs/architecture/suche-relevanz.md) als fehlend benannt hat: das Embedding kann Nachbarschaft messen, aber keine Begriffe BENENNEN.
