@@ -8,8 +8,8 @@
  * ODER. Zwei Stellen, zwei stillschweigend verschiedene Antworten auf dieselbe
  * Frage.
  *
- * Der Schalter macht sie zu EINER: „alle Wörter" (UND, Standard), „irgendein
- * Wort" (ODER) oder „genaue Wortfolge".
+ * Der Schalter macht sie zu EINER: alle Wörter müssen vorkommen (UND,
+ * Standard), irgendein Wort genügt (ODER) oder genau diese Wortfolge.
  *
  * `wortfolge` ist die WIEDERBELEBUNG des alten Verhaltens, nicht eine neue
  * Erfindung: die ganze Anfrage als ein Substring. Was bis v3.49 der einzige und
@@ -35,12 +35,25 @@ export type SuchVerknuepfung = 'und' | 'oder' | 'wortfolge';
 
 const KEY = 'teamflow_suche_verknuepfung';
 
-/** Beschriftung der Optionen — in der Sprache der Sachbearbeitung, nicht in der
- *  der Boolschen Algebra. Eine Quelle für Dropdown, Deutungszeile und Hilfe. */
+/**
+ * Beschriftung der Optionen — in der Sprache der Sachbearbeitung, nicht in der
+ * der Boolschen Algebra. Eine Quelle für Dropdown, Deutungszeile und Hilfe.
+ *
+ * Seit v4.69 **ganze Sätze**. Vorher standen hier drei Substantiv-Fetzen („alle
+ * Wörter", „irgendein Wort", „genaue Wortfolge"), die erst durch das Label
+ * „Wortverknüpfung:" daneben einen Sinn ergaben — gemeldet wurde genau diese
+ * Sperrigkeit. Ein Fetzen, der ein Label braucht, um lesbar zu sein, ist
+ * aufgeklappt verloren: die Liste liegt dann über der Seite, das Label ist weit
+ * weg oder verdeckt (dieselbe Lehre wie bei `BEREICH_PRAEFIX`).
+ *
+ * Ein Satz sagt die Regel, statt sie zu benennen — so, wie die Auswege bei null
+ * Treffern längst sprechen („irgendeines der Wörter genügen lassen",
+ * [auswege.ts](src/plugins/suche/auswege.ts)).
+ */
 export const VERKNUEPFUNG_LABEL: Record<SuchVerknuepfung, string> = {
-  und: 'alle Wörter',
-  oder: 'irgendein Wort',
-  wortfolge: 'genaue Wortfolge',
+  und: 'alle Wörter müssen vorkommen',
+  oder: 'irgendein Wort genügt',
+  wortfolge: 'genau diese Wortfolge',
 };
 
 /** Was zwischen zwei Wort-Chips der Deutungszeile steht. */

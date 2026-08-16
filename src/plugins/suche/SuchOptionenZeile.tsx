@@ -6,6 +6,18 @@
  * jemand hat. Jetzt sagen drei benannte Optionen, WIE die Wörter verknüpft
  * werden, WOMIT zusätzlich gesucht wird und WORIN.
  *
+ * **Die Zeile liest sich seit v4.69 als Folge von Fragen**, von links nach
+ * rechts erst die Wahl, dann die Feinjustierung — getrennt durch einen dünnen
+ * Strich:
+ *
+ *     Suche mit: …  ·  Suche in: …   │   alle Wörter müssen vorkommen  ·  ☑ …  ·  ☐ …
+ *     ╰── womit, worin ──╯               ╰──────── wie streng, wie weit ────────╯
+ *
+ * Die Reihenfolge ist Absicht: der Bereich ist die zweite Grundentscheidung
+ * („worin"), nicht eine Feinheit, und stand vorher hinter zwei Reglern, die er
+ * in seiner Wirkung überragt — ein eingeengter Bereich lässt Treffer ganz
+ * verschwinden.
+ *
  * Die Ähnlichkeitssuche (Embedding) bleibt daneben ihr eigener Schalter: sie
  * lädt ein Modell von ~200 MB nach, und das darf nicht hinter einer harmlosen
  * Beschriftung passieren.
@@ -37,9 +49,9 @@ const SELECT_STYLE: React.CSSProperties = {
 };
 
 /**
- * Jede Bereichs-Option trägt ihre Frage selbst.
+ * Jede Auswahl trägt ihre Frage selbst — seit v4.69 alle drei.
  *
- * Vorher stand „Suchen in:" daneben und die Optionen hießen nur „alle Felder",
+ * Beim Bereich stand vorher „Suchen in:" daneben und die Optionen hießen nur „alle Felder",
  * „nur Dokumente". Aufgeklappt liegt die Liste über der Seite — die Beschriftung
  * daneben ist dann verdeckt oder weit weg, und jede Zeile steht für sich allein.
  * Zugeklappt trägt der Kasten denselben Text und bleibt lesbar, wenn die Zeile
@@ -47,8 +59,20 @@ const SELECT_STYLE: React.CSSProperties = {
  *
  * Deshalb steht das Wort IN den Optionen und nicht mehr davor: zweimal wäre es
  * „Suchen in: Suche in: alle Felder".
+ *
+ * Gemeldet wurde zu v4.69, dass die Wortverknüpfung daneben noch „sperrig" ist —
+ * und das war sie aus genau demselben Grund: drei Substantiv-Fetzen, die erst
+ * durch das Label „Wortverknüpfung:" einen Sinn ergaben. Die Zeile trägt ihre
+ * Fragen jetzt durchgehend: **Suche mit: …** · **Suche in: …** · und die
+ * Verknüpfung sagt ihre Regel als ganzen Satz (`VERKNUEPFUNG_LABEL`), womit dort
+ * gar kein Label mehr nötig ist.
  */
 const BEREICH_PRAEFIX = 'Suche in: ';
+
+/** Womit gefragt wird — mit Stichworten oder mit einem ganzen Satz. Gleiche
+ *  Schablone wie `BEREICH_PRAEFIX`, damit die beiden Kästen nebeneinander eine
+ *  Frage-Folge bilden: „Suche mit: … / Suche in: …". */
+const SUCHART_PRAEFIX = 'Suche mit: ';
 
 /**
  * Der Bereich, solange es NICHT alle Felder sind.
@@ -91,8 +115,8 @@ const SELECT_STYLE_ENG: React.CSSProperties = {
 const AUSGEBLENDET_TITEL = 'Im Frage-Modus bestimmt die KI, wonach gesucht wird: sie '
   + 'benennt die Schreibweisen selbst, und ihre Leitbegriffe sind Alternativen, damit '
   + 'die Wertung zählen kann, wie viele der gefragten Sachen ein Vorhaben behandelt. '
-  + 'Die abgewählten Begriffe stehen in der Zeile darunter. Zurück auf „mit Stichworten '
-  + 'suchen" schalten, um Verknüpfung und Wortformen wieder selbst zu bestimmen.';
+  + 'Die abgewählten Begriffe stehen in der Zeile darunter. Zurück auf „Suche mit: '
+  + 'Stichworten" schalten, um Verknüpfung und Wortformen wieder selbst zu bestimmen.';
 
 /**
  * Die beiden Haken beschreiben ZWEI ACHSEN, und bis v4.68 stand das nur in den
@@ -168,6 +192,15 @@ export function SuchOptionenZeile({
   // statt ausgegraut etwas anderes zu versprechen als gilt.
   const stichwortRegler = !nlModus;
   const aehnlichkeitZeigen = !(nlModus && planAktiv && planOhneAehnlichkeit);
+  // Der Bereich bleibt im Frage-Modus nur stehen, wenn er EINENGT: dann lässt er
+  // Treffer verschwinden, und ein unsichtbarer Grund für eine kürzere Liste ist
+  // genau der Defekt, den `SELECT_STYLE_ENG` verhindert. Steht er auf „alle
+  // Felder", nimmt er nichts weg und darf gehen.
+  const bereichZeigen = stichwortRegler || bereich !== 'alles';
+  // Der Strich trennt die WAHL (womit, worin gesucht wird) von der FEINJUSTIERUNG
+  // (wie streng, wie weit). Er steht nur da, wo auf beiden Seiten wirklich etwas
+  // steht — ein Trenner, der nichts trennt, ist Zierrat.
+  const trenner = (nlVerfuegbar || bereichZeigen) && (stichwortRegler || aehnlichkeitZeigen);
   return (
     <div className="flex flex-wrap items-center gap-2">
       {nlVerfuegbar && (
@@ -181,55 +214,22 @@ export function SuchOptionenZeile({
             ? 'Die interne KI übersetzt die Frage in Suchbegriffe — sie benennt auch '
               + 'Schreibweisen und verwandte Wörter, die im Bestand stehen, aber nicht in '
               + 'der Frage. Was gesucht wurde, steht danach als abwählbare Chips darunter.'
-            : 'Gesucht wird nach dem, was im Feld steht. Umschalten auf „mit natürlicher '
-              + 'Sprache", um stattdessen eine Frage zu stellen.'}
+            : 'Gesucht wird nach dem, was im Feld steht. Umschalten auf „Suche mit: '
+              + 'einer Frage", um stattdessen in ganzen Sätzen zu fragen — die interne KI '
+              + 'übersetzt sie dann in Suchbegriffe.'}
         >
-          <option value="stichwort">mit Stichworten suchen</option>
-          <option value="frage">mit natürlicher Sprache suchen</option>
+          {/* „einer Frage" statt „natürlicher Sprache": die Seite nennt dieses
+              Verfahren überall sonst schon FRAGE („Frage stellen", „Diese Frage
+              ist noch nicht gestellt", „Oder stell eine Frage") — zwei Namen für
+              dieselbe Sache waren der Rest einer Fachbezeichnung. Nebenbei
+              schrumpft der Kasten um 39 px, weil seine Breite am längsten Eintrag
+              hängt. */}
+          <option value="stichwort">{SUCHART_PRAEFIX}Stichworten</option>
+          <option value="frage">{SUCHART_PRAEFIX}einer Frage</option>
         </select>
       )}
 
-      {stichwortRegler && (
-        <label
-          className="inline-flex items-center gap-1.5 text-[12px]"
-          style={{ color: 'var(--tf-text-secondary)' }}
-        >
-          Wortverknüpfung:
-          <select
-            value={verknuepfung}
-            onChange={e => onVerknuepfung(e.target.value as SuchVerknuepfung)}
-            className={SELECT_CLASS}
-            style={SELECT_STYLE}
-            title="Gilt für Wortlaut-Treffer. Die Ähnlichkeitssuche vergleicht die Anfrage als Ganzes und bleibt unberührt."
-          >
-            {(Object.keys(VERKNUEPFUNG_LABEL) as SuchVerknuepfung[]).map(v => (
-              <option key={v} value={v}>{VERKNUEPFUNG_LABEL[v]}</option>
-            ))}
-          </select>
-        </label>
-      )}
-
-      {stichwortRegler && (
-        <label
-          className="inline-flex h-7 items-center gap-1.5 rounded-[8px] px-2 text-[12px] cursor-pointer"
-          style={{ ...SELECT_STYLE, color: 'var(--tf-text-secondary)' }}
-          title={WORTFORMEN_TITEL}
-        >
-          <input
-            type="checkbox"
-            checked={stammSuche}
-            onChange={e => onStammSuche(e.target.checked)}
-            className="h-3.5 w-3.5 cursor-pointer accent-[var(--tf-primary)]"
-          />
-          auch andere Wortformen
-        </label>
-      )}
-
-      {/* Der Bereich bleibt im Frage-Modus nur stehen, wenn er EINENGT: dann
-          lässt er Treffer verschwinden, und ein unsichtbarer Grund für eine
-          kürzere Liste ist genau der Defekt, den `SELECT_STYLE_ENG` verhindert.
-          Steht er auf „alle Felder", nimmt er nichts weg und darf gehen. */}
-      {(stichwortRegler || bereich !== 'alles') && (
+      {bereichZeigen && (
         <select
           value={bereich}
           onChange={e => onBereich(e.target.value as Suchbereich)}
@@ -251,6 +251,44 @@ export function SuchOptionenZeile({
             <option key={b} value={b}>{BEREICH_PRAEFIX}{SUCHBEREICH_LABEL[b]}</option>
           ))}
         </select>
+      )}
+
+      {trenner && (
+        <span aria-hidden="true" className="h-4 w-px shrink-0 bg-[var(--tf-border)]" />
+      )}
+
+      {/* Kein Label davor: die drei Optionen sagen ihre Regel im ganzen Satz
+          („alle Wörter müssen vorkommen"). `aria-label` bleibt, damit die
+          Vorlesehilfe die Kategorie kennt — sichtbar wäre sie doppelt. */}
+      {stichwortRegler && (
+        <select
+          value={verknuepfung}
+          onChange={e => onVerknuepfung(e.target.value as SuchVerknuepfung)}
+          aria-label="Wortverknüpfung"
+          className={SELECT_CLASS}
+          style={SELECT_STYLE}
+          title="Gilt für Wortlaut-Treffer. Die Ähnlichkeitssuche vergleicht die Anfrage als Ganzes und bleibt unberührt."
+        >
+          {(Object.keys(VERKNUEPFUNG_LABEL) as SuchVerknuepfung[]).map(v => (
+            <option key={v} value={v}>{VERKNUEPFUNG_LABEL[v]}</option>
+          ))}
+        </select>
+      )}
+
+      {stichwortRegler && (
+        <label
+          className="inline-flex h-7 items-center gap-1.5 rounded-[8px] px-2 text-[12px] cursor-pointer"
+          style={{ ...SELECT_STYLE, color: 'var(--tf-text-secondary)' }}
+          title={WORTFORMEN_TITEL}
+        >
+          <input
+            type="checkbox"
+            checked={stammSuche}
+            onChange={e => onStammSuche(e.target.checked)}
+            className="h-3.5 w-3.5 cursor-pointer accent-[var(--tf-primary)]"
+          />
+          auch andere Wortformen
+        </label>
       )}
 
       {aehnlichkeitZeigen ? (

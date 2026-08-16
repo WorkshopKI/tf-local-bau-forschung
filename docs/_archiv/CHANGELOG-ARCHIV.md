@@ -2,6 +2,126 @@
 
 Ältere Versionsblöcke (append-only, chronologisch absteigend). Die jüngsten Versionen stehen im Root-[CHANGELOG.md](../CHANGELOG.md). Bump-Regeln + Architektur: [CLAUDE.md](../CLAUDE.md).
 
+### v4.29.0 — Mein Profil zweispaltig (August 2026)
+
+MINOR — Zweite Etappe des Einstellungs-Redesigns: „Mein Profil" steht zweispaltig. Links, was du über dich pflegst (Account, Fachprofil), rechts, was daraus folgt (welche Anträge du siehst, welche Module offen sind, was der Assistent mitschreibt). Kein Bereich entfällt — was selten gebraucht wird, steht eingeklappt mit Zähler.
+
+- **Fünf Gruppen statt neun ALL-CAPS-Sektionen** ([profil/](src/plugins/einstellungen/profil/)): `ProfilTab`, `MeineTechnologienTab`, `AssistentTab`, `GedaechtnisSektion` und `ModulFreischaltungSection` gehen darin auf; Zustand + Auto-Save des Fachprofils liegen in [useFachprofil.ts](src/plugins/einstellungen/profil/useFachprofil.ts)
+- **Zähler aus dem echten Zustand**: „13 von 30 aktiv" (Themen), „3 Begriffe" (Kompetenzen), „N Ereignisse" (Protokoll), Restlaufzeit je Modul als Status-Badge
+- **Gedächtnis-Verwaltung bleibt vollständig**, nur eingeklappt ([GedaechtnisVerwaltung.tsx](src/plugins/einstellungen/profil/GedaechtnisVerwaltung.tsx)) — der Prototyp zeigt an dieser Stelle nur den Schalter
+- **Der Kopf zeigt den echten Speicher-Zustand** statt einer festen Textmarke ([ProfilPanel.tsx](src/plugins/einstellungen/profil/ProfilPanel.tsx)); vor dem ersten Schreiben steht dort die Zusage „Automatisch gespeichert"
+- **Zwei Anzeigefehler nebenbei**: die Kürzel-Pille behauptete „Kürzel ALLE" (der Aus-Zustand des Filters), und die Zusammenfassung nannte Hauptkategorie und Antragstypen auch ohne Programm-Id
+
+### v4.28.0 — Einstellungen: vier Seiten statt fünf, Details hinter dem ⓘ (August 2026)
+
+MINOR — Erste Etappe des Redesigns aus `_design/handoff/einstellungen-zweispaltig`: Registry, Navigation und die Bauteile, auf denen die vier Seiten danach entstehen. Die Inhalte selbst stehen noch wie bisher; sichtbar ändert sich der Menüschnitt und die Art, wie Erklärungen erscheinen.
+
+- **„Meine Technologien" ist kein eigener Menüpunkt mehr** ([settingsPanels.tsx](src/plugins/einstellungen/settingsPanels.tsx)): vier Seiten statt fünf, flache Liste statt zweier Gruppen — die fünf `sec-`Anker wandern unverändert nach „Mein Profil" und behalten den alten Menünamen als Suchbegriff
+- **Das ⓘ öffnet auf Klick statt auf Hover** ([settings-primitives.tsx](src/plugins/einstellungen/_shared/settings-primitives.tsx)): Voraussetzung dafür, dass die Erklärabsätze der Seiten dort hineinziehen — ein Tooltip verschwindet beim Lesen
+- **Neue Layout-Schicht** ([settings-layout.tsx](src/plugins/einstellungen/_shared/settings-layout.tsx), [einstellungen-layout.css](src/plugins/einstellungen/einstellungen-layout.css)): Zweispalten-Rumpf, Gruppen-Karte, Options-Zeile, Klappe, Stepper — Umbruch über eine Container-Query, weil die App-Sidebar ziehbar ist
+- **Der Sprung der Suche klappt sein Ziel auf** ([EinstellungenPage.tsx](src/plugins/einstellungen/EinstellungenPage.tsx)): Sprung-Kontext statt nur Scroll; der Scroll läuft jetzt über `setTimeout` statt `requestAnimationFrame`, das im Hintergrund-Tab ruht
+- **Zwei tote Suchtreffer geheilt**: `sec-gedaechtnis-eval` stand nie im Index, `sec-arbeitsverlauf`/`sec-verzeichnisse` hatten keinen Anker ([SpeicherTab.tsx](src/plugins/einstellungen/SpeicherTab.tsx))
+
+### v4.27.0 — Der Rest der CSV-Bugjagd (August 2026)
+
+MINOR — Die letzten neun Befunde der CSV-Bug-Jagd. Zwei ändern das Verhalten spürbar: eine korrigierte Spalten-Typ-Angabe wirkt jetzt, und der Beispieldaten-Knopf kann keinen belegten Suchindex mehr leeren.
+
+- **Der Typ geht in den Row-Hash ein** ([hash.ts](src/core/services/csv/hash.ts), [csv-import.md](docs/architecture/csv-import.md)): eine Korrektur `string → date` galt bisher als „keine Änderung", also lief die Koerzion nie — Preis ist ein einmaliger Voll-Merge beim ersten Import nach dem Update
+- **Der Seed rührt einen belegten Suchindex nicht mehr an** ([seed-data.ts](src/core/services/seed/seed-data.ts), [IndexManager.tsx](src/plugins/kurator/IndexManager.tsx)): das Bestands-Gate stand hinter `createOramaDB`, und der Knopf war sichtbar, weil er den alten Seed-Flag las
+- **Abbruch und Checksum beschreiben wieder die Quelldatei** ([importer.ts](src/core/services/csv/importer.ts)): die Share-Kopie wird erst nach der Abbruch-Schranke ersetzt, und `file_checksum` wird nur für ein echtes `File` gestempelt
+- **Ein Master bleibt ein Master** ([CsvSourceWizard.tsx](src/plugins/csv-sources-kuration/wizard/CsvSourceWizard.tsx), [schema-config-transfer.ts](src/plugins/csv-sources-kuration/services/schema-config-transfer.ts)): der Wizard löst die bisherige Master-Quelle wirklich ab, und ein Konfig-Import zieht keinen fremden `join_key` hinein
+- **Vier Dialog-Importe nehmen das Daten-Mutations-Gate**, `isListViewProjectionCurrent` prüft auch die Schema-Signatur, und vier UI-Zusagen zur Spalten-Reihenfolge stimmen wieder
+
+### v4.26.0 — Das Kanban-Fenster hat eigene Bahnen (August 2026)
+
+MINOR — Im Kanban-Fenster widersprach das Einstellungs-Panel dem Bild daneben: „Wartet auf Antragsteller" stand angehakt da und war nicht zu sehen, „Bewilligt" ohne Haken war die größte Bahn. Das Fenster las die Einstellung gar nicht — es leitete seine Bahnen aus dem Bestand ab. Jetzt hat es eine eigene.
+
+- **Eigene Bahnen je Fenster** ([types.ts](src/plugins/home/widgets/types.ts), [home-widgets.md](docs/architecture/home-widgets.md)): Auswahl, Reihenfolge und Kartenspalten (1–3) in `vollbildLanes` — die Startseite behält ihre; Farben und Datenbasis bleiben geteilt
+- **Vier reine Funktionen statt einer Ableitung** ([kanbanLanes.ts](src/plugins/home/widgets/kanbanLanes.ts)): Clustering, Startvorschlag, Projektion, toleranter Leser; `ZWEISPALTIG_AB` schlägt nur noch vor, statt zu überstimmen
+- **Das Fenster projiziert selbst** ([KanbanVollbild.tsx](src/plugins/home/widgets/KanbanVollbild.tsx), [fenster-in-fenster.md](docs/architecture/fenster-in-fenster.md)): es bekommt die Karten aller Kategorien, damit eine wieder eingeblendete Bahn auch dann Karten hat, wenn die Startseite ausgehängt ist
+- **Panel ohne Kontext-Nachbau** ([VollbildEinstellungen.tsx](src/plugins/home/widgets/VollbildEinstellungen.tsx)): reine Props statt `StorageContext`-Provider im zweiten React-Baum, mit Pfeilspalte und „Anordnung zurücksetzen"; Panel 340 px (die Pfeile kosten den Namen 44 px)
+- **Verschieben hat eine Heimat** ([laneFolge.ts](src/components/ui/laneFolge.ts)): `verschiebeUmEinen` teilt sich mit dem Feedback-Board, statt die Index-Arithmetik ein zweites Mal zu buchstabieren
+
+### v4.25.0 — Kurations-Klicks raeumen auf, was sie anrichten (August 2026)
+
+MINOR — Fünf Befunde der CSV-Bug-Jagd an den Kurations-Klicks: jeder tat weniger, als er zusagte, und was liegen blieb, fiel erst Tage später beim nächsten Import auf.
+
+- **„Quelle löschen" räumt auf** ([quelle-entfernen.ts](src/plugins/csv-sources-kuration/services/quelle-entfernen.ts), [csv-import.md](docs/architecture/csv-import.md)): Row-Hashes und Anträge fallen sofort statt Stück für Stück beim nächsten Import einer anderen Quelle — der Bestätigungstext sagt jetzt, was wirklich passiert
+- **Ein abgebrochenes Re-Mapping nimmt sein Schema zurück** ([RemapCsvColumnsDialog.tsx](src/plugins/csv-sources-kuration/RemapCsvColumnsDialog.tsx), [CsvAddColumnsDialog.tsx](src/plugins/csv-sources-kuration/CsvAddColumnsDialog.tsx)): sonst trug das Schema das neue Mapping und die Daten das alte, dauerhaft
+- **Der Auto-Adopt überschreibt keine frisch gemappte Spalte mehr** ([new-column-mapping.ts](src/plugins/csv-sources-kuration/services/new-column-mapping.ts)): der Banner arbeitet mit einer Momentaufnahme des Schemas
+- **Auch Dialog-Importe journalisieren** ([CsvSourceReimportDialog.tsx](src/plugins/csv-sources-kuration/CsvSourceReimportDialog.tsx), [CsvSourceWizard.tsx](src/plugins/csv-sources-kuration/wizard/CsvSourceWizard.tsx)): bisher stempelten sie den Nacht-Export als erledigt, ohne ihn je aufzuzeichnen
+- **Die Schema-Wiederherstellung verlangt einen `join_key`** ([schemaRecovery.ts](src/plugins/csv-sources-kuration/services/schemaRecovery.ts)): ohne ihn wurden die Row-Hashes auf einer beliebigen Spalte gekeyt
+
+### v4.24.0 — Suche: der Treffer zeigt seinen Beleg (August 2026)
+
+MINOR — „Dresden" im Bereich „nur Ort & Bundesland" lieferte 485 Treffer, und markiert war das Suchwort in 4 von 30 Zeilen — bei denen, wo die Stadt zufällig im Firmennamen stand. Von den neun Trefferstellen haben sieben längst einen Platz im Ergebnis; `standort` und `deskriptoren` hatten keinen. Ein Etikett „Ort" sagt DASS, nicht WAS.
+
+- **Zwei Belege stehen jetzt am Treffer** ([search-result.ts](src/core/types/search-result.ts), [search-corpus.ts](src/plugins/antraege/services/search-corpus.ts)): der gesuchte Ortstext (Ort AFS + Ort AST + beide Bundesländer) und die Deskriptoren — Suchform unverändert, nur der Trenner ist jetzt sichtbar
+- **Die Tabelle blendet die erklärende Spalte selbst ein** ([autoSpalten.ts](src/plugins/suche/autoSpalten.ts), [columns.tsx](src/plugins/suche/columns.tsx)): ausgelöst durch die Einstellung „nur Ort & Bundesland" oder durch die Fundstelle; im Spalten-Aufklapper als „auto" markiert, ohne die persönliche Spaltenwahl zu ändern
+- **Neue Spalten „Ort & Bundesland" + „Deskriptoren"** ([columns.tsx](src/plugins/suche/columns.tsx)): „Ort AST" bleibt unangetastet — sie trägt nur `ort_ast` und könnte weder „Bayern" noch einen abweichenden Ausführungsort markieren
+- **Trefferliste eine Zeile kürzer** ([TrefferZeile.tsx](src/plugins/suche/TrefferZeile.tsx)): die Etiketten ziehen in die Kopfzeile, der Belegwert in die Fundstellen-Zeile — 111 px → 82 px je Zeile, 30 von 30 Zeilen markiert statt 4
+- **Regel + Messung stehen einmal** ([suche-relevanz.md](docs/architecture/suche-relevanz.md), [autoSpalten.test.ts](src/plugins/suche/__tests__/autoSpalten.test.ts)): welche Trefferstelle wo sichtbar ist, und warum die Liste genau zwei Einträge hat
+
+### v4.23.0 — Demo-Umwandlung raeumt auf, Meldungen sagen die Wahrheit (August 2026)
+
+MINOR — Neun Befunde der CSV-Bug-Jagd, gemeinsamer Nenner: die App tat etwas anderes, als sie sagte. Die Demo-Umwandlung ließ ihre Daten liegen, „Bereits aktuell." stand für drei verschiedene Lagen, und ein Feld-Label konnte umbenannt werden, ohne dass die Spalte es je erfuhr.
+
+- **Demo→Echt räumt die Demo-Daten mit ab** ([convert-fixture-source.ts](src/plugins/csv-sources-kuration/services/convert-fixture-source.ts), [loeschregel.ts](src/core/services/csv/loeschregel.ts), [csv-import.md](docs/architecture/csv-import.md)): nach derselben Löschregel wie der Import — der Erfolgs-Banner empfiehlt nicht mehr den herkunftsblinden Reset, und die abgeleitete Id kollidiert nicht mehr mit einer Quelle in einem anderen Programm
+- **„Bereits aktuell." nur noch, wenn es stimmt** ([datenUpdateMeldung.ts](src/plugins/csv-sources-kuration/services/datenUpdateMeldung.ts), [csv-auto-refresh.md](docs/architecture/csv-auto-refresh.md)): ein gar nicht gelaufener Lauf, blockierte Quellen, Fehler und ein unvollständig geladener Snapshot werden benannt
+- **Die ● CSV-Ampel prüft nach einem Banner-Import neu** ([useCsvAutoRefreshCheck.ts](src/plugins/csv-sources-kuration/hooks/useCsvAutoRefreshCheck.ts)): bisher blieb sie den Rest der Sitzung rot und zeigte einen Import-Stand von vor dem Lauf
+- **Zwei Lock-Wahrheiten** ([lockKonfliktText.ts](src/plugins/csv-sources-kuration/components/lockKonfliktText.ts), [schemaRecovery.ts](src/plugins/csv-sources-kuration/services/schemaRecovery.ts)): „eigener Tab" heißt laufender Vorgang und fragt vor dem Übernehmen; „Snapshot neu schreiben" überstempelt keinen fremden Lock mehr
+- **Feld-Umbenennungen erreichen die Ordner-Spalte** ([kategorie-projektion.ts](src/core/status/kategorie-projektion.ts), [useStatusCockpit.ts](src/plugins/status-cockpit/useStatusCockpit.ts)): das Label geht in die Projektions-Signatur ein, und eine Katalog-Kuration baut die Projektion sofort neu — dazu blockieren ignorierte Spalten den Import nicht mehr und der Netzwerk-Namen-Index latcht keinen leeren Bestand
+
+### v4.22.0 — Ein Snapshot gehoert einem Programm, eine Quelle einer Datei (August 2026)
+
+MINOR — Vier weitere Befunde der CSV-Bug-Jagd. Drei behandelten den Snapshot, als wäre er der ganze Datenbestand des Rechners; der vierte band eine Quelle an die falsche Datei und schrieb die Fehlbindung als Selbstheilung fest.
+
+- **Der Sync fasst nur das eigene Programm an** ([snapshot-sync.ts](src/core/services/csv/snapshot-sync.ts), [csv-auto-refresh.md](docs/architecture/csv-auto-refresh.md)): `clear()` auf den ganzen Store löschte auf einem Rechner mit zwei Programmen den Bestand des Nachbarn — der danach nie wieder gesynct wurde
+- **Eine Löschung überlebt das gebündelte Delta** ([snapshot.ts](src/core/services/csv/snapshot.ts)): wurde dasselbe Aktenzeichen im Lauf auch berührt, fiel es durch beide Raster; jetzt entscheidet der Bestand statt der Meldung
+- **Ein reiner Demo-Rechner publiziert gar nicht** ([snapshot.ts](src/core/services/csv/snapshot.ts)): der Fixture-Filter schützte nur die Schema-Datei, Anträge und Verbünde gingen ungefiltert auf den Team-Share
+- **Der Header-Fallback muss überzeugen** ([csv-source-handle.ts](src/plugins/csv-sources-kuration/csv-source-handle.ts), [csv-import.md](docs/architecture/csv-import.md)): eine Datei wird nur zugeordnet, wenn sie alle Schema-Spalten führt und keine zweite das auch tut
+- **Der kuratierte Dateiname schlägt die lokale Filemap** ([csv-source-handle.ts](src/plugins/csv-sources-kuration/csv-source-handle.ts)): sonst gewann eine einmal falsch geheilte Bindung dauerhaft
+
+### v4.21.0 — Eine Bahn kann drei Kartenspalten breit sein (August 2026)
+
+MINOR — Der Spaltenschalter je Lane bot 1 oder 2. Wer eine volle Bahn breiter stellen wollte, war damit am Ende — und die Menge `1 | 2` stand sechsmal wortgleich im Code, also an sechs Stellen zu ändern. Detail: [board-komponente.md](docs/architecture/board-komponente.md).
+
+- **Dritte Kartenspalte im Primitiv** ([tf-board.css](src/components/kanban/tf-board.css), [TfBoard.tsx](src/components/kanban/TfBoard.tsx)): eigener Boden je Layout-Form (662 px gedeckelt, 488 px geteilt), gerechnet wie der zweispaltige — die Karte behält ihre Breite, die Bahn wird kürzer
+- **Eine Heimat für die Spaltenzahl** ([tfBoardBahn.ts](src/components/kanban/tfBoardBahn.ts)): `TfBahnSpalten` plus tolerantes `leseSpalten`; Lane-Typen, Schalter und Persistenz beziehen sie von dort statt sie zu buchstabieren
+- **Schalter 1/2/3 überall, wo Lanes eingestellt werden** ([LaneListe.tsx](src/components/ui/LaneListe.tsx)): Feedback-Board-Popover, Startseiten-Menü, Einstellungen › Widgets und das Zahnrad des Kanban-Fensters — die Kopfbreite ist aus der Segmentzahl gerechnet
+- **Die Einstellungs-Ansicht des Startseiten-Menüs ist 290 px breit** ([StartseiteMenue.tsx](src/plugins/home/anpassen/StartseiteMenue.tsx)): in den 250 px des Menüs kürzte das dritte Segment vier von neun Kategorienamen; gekürzte Namen tragen jetzt ihren `title`
+- **Im Kanban-Fenster bleibt es bei 1|2** ([kanbanLanes.ts](src/plugins/home/widgets/kanbanLanes.ts)): dort wird die Spaltenzahl aus dem Bestand abgeleitet, und der echte Bestand liefe über jede Schwelle
+
+### v4.20.0 — Merge schreibt vollstaendig, Drift prueft Spalten-Identitaet (August 2026)
+
+MINOR — Vier Befunde der CSV-Bug-Jagd, die den Bestand im Normalbetrieb still verändert haben statt im Störfall. Drei Mal schrieb der Merge etwas Plausibles, dem niemand ansah, dass es nicht aus der Quelle stammte; einmal verglich die Drift-Prüfung Spalten**namen**, während die Zuordnung an der Position hängt.
+
+- **Ordner-Spalten überleben den Import** ([batched.ts](src/core/services/csv/merger/batched.ts), [single.ts](src/core/services/csv/merger/single.ts), [csv-import.md](docs/architecture/csv-import.md)): beide Merge-Pfade schreiben die Slim-Projektion jetzt mit `kat_status` — bisher verlor jeder berührte Antrag seine kuratierten Ordner-Werte bis zum nächsten App-Start
+- **Eine korrigierte VB_KURZNAM erreicht den Verbund-Record** ([batched.ts](src/core/services/csv/merger/batched.ts)): first-write-wins ließ Liste und Detailseite dauerhaft zwei verschiedene Akronyme zeigen; ein leerer Wert überschreibt weiterhin nichts
+- **Der Verbund-Heal erfindet keinen Titel und keinen Status mehr** ([verbuende-rebuild.ts](src/core/services/csv/verbuende-rebuild.ts)): er nahm beides vom ersten Teilvorhaben und lief vor jedem Publish — die Konsumenten fallen ohnehin zur Lesezeit auf den Lead-TV zurück
+- **Mis-filed Verbund-Records werden repariert statt ersetzt** ([verbuende-rebuild.ts](src/core/services/csv/verbuende-rebuild.ts)): ein Record mit falscher `programm_id` galt im Index als fehlend und verlor dabei seinen kuratierten Inhalt
+- **Die Drift-Prüfung vergleicht Spalten-Identität** ([csv-drift-check.ts](src/plugins/csv-sources-kuration/services/csv-drift-check.ts), [csv-auto-refresh.md](docs/architecture/csv-auto-refresh.md)): verschobene PapaParse-Aliasgruppen (`X`, `X_1`, …) blockieren die Quelle — als einzige Drift-Art auch gegen „Trotzdem importieren"
+
+### v4.19.0 — Ein Verfuegbarkeits-Check oeffnet keinen KI-Tab mehr (August 2026)
+
+MINOR — Nachlese zu v4.17.0: der ungefragt aufgerissene KI-Tab war kein Einzelfall der Suchseite. `ping()` trägt `openIfNeeded: true` als Vorgabe und ruft `window.open` — die Klasse stand seit v2.103.2 als Nr. 8 in den Bug-Klassen und war trotzdem an fünf weiteren Stellen offen.
+
+- **Fünf Stellen pingen jetzt passiv oder hinter dem Guard** ([turn.ts](src/plugins/chat/assistent/turn.ts), [SkillTestlauf.tsx](src/plugins/skill-verwaltung-kuration/SkillTestlauf.tsx), [llm-klassifizierung.ts](src/plugins/auslastung/services/klassifizierung/llm-klassifizierung.ts), [useNachforderungen.ts](src/plugins/antraege/nachforderungen/useNachforderungen.ts), [eval-batch.ts](src/core/services/skill-eval/eval-batch.ts)): Assistent-Turn, Skill-Testlauf, Auslastungs-Klassifizierung, NF-Generierung und Skill-Eval
+- **Statt eines Tabs der Verbinden-Dialog**: die vier Klick-Pfade rufen vorher `kiVerbindungGeprueft` ([ki-guard.ts](src/core/services/ai/ki-guard.ts)) — der geöffnete Tab trug ohnehin kein Bookmarklet und hätte nie geantwortet
+- **Guard `kein-oeffnender-ping`** ([conventions-daten.test.ts](src/__tests__/conventions-daten.test.ts)): flaggt `.ping()` und `openIfNeeded: true` in jeder Datei ohne `kiVerbindung*`; Inline-Ausnahme für die beiden „Verbindung testen"-Knöpfe der Einstellungen
+- **Der Assistenten-Turn hat einen eigenen Test** ([turn.test.ts](src/plugins/chat/assistent/__tests__/turn.test.ts)): er prüft die Ping-Argumente, nicht nur das Ergebnis
+- **Bug-Klasse 8 umgeschrieben** ([recurring-bug-classes.md](docs/architecture/recurring-bug-classes.md)): „eine Nutzer-Geste darf den Tab öffnen" ist überholt — jetzt öffnet kein Verfügbarkeits-Check ein Fenster
+
+### v4.18.0 — Gefiltert heisst nicht geloescht, unlesbar nicht leer (August 2026)
+
+MINOR — Fünf Befunde der CSV-Bug-Jagd, zwei Wurzeln: Der Import konnte „vom Filter verworfen" nicht von „im Fachsystem gelöscht" unterscheiden, und mehrere Stellen lasen einen Fehler als leeres Ergebnis. Beides endete darin, dass Bestand verschwand und der Lauf Erfolg meldete.
+
+- **Gefiltert heisst nicht gelöscht** ([importer.ts](src/core/services/csv/importer.ts), [csv-import.md](docs/architecture/csv-import.md)): eine leere oder im Katalog unbekannte Unterprogramm-Zelle löscht den Antrag nicht mehr — nur der bewusst deaktivierte Code tut es; Zeilen ohne Förderkennzeichen werden exakt gezählt statt als gedeckelte Stichprobe gemeldet
+- **Whitespace im Spaltenkopf leert keine Spalte mehr** ([parser.ts](src/core/services/csv/parser.ts)): alle vier Parse-Wege lasen die Werte unter dem getrimmten, PapaParse legt sie unter dem rohen Namen ab — in der Join-Spalte hätte das den Bestand der Quelle als entfernt gemeldet
+- **Ein unlesbares Delta ist kein leeres Delta** ([snapshot-sync.ts](src/core/services/csv/snapshot-sync.ts), [recurring-bug-classes.md](docs/architecture/recurring-bug-classes.md)): der Cursor bleibt stehen statt weiterzuspringen, der Lauf meldet sich als unvollständig — bisher waren die Änderungen des Tages danach dauerhaft weg
+- **Vier stumme Fehler melden sich** ([schemaRegistry.ts](src/core/services/csv/schemaRegistry.ts), [auto-refresh.ts](src/plugins/csv-sources-kuration/services/auto-refresh.ts), [Step4Progress.tsx](src/plugins/csv-sources-kuration/wizard/Step4Progress.tsx)): gescheiterte Quell-Kopie bricht ab, PapaParse-Zeilenfehler und nicht veröffentlichter Snapshot stehen im Abschluss und im Bericht
+- **„Antrags-Daten zurücksetzen" räumt vollständig** ([idb-csv.ts](src/core/services/csv/idb-csv.ts)): Slim-Projektion und Snapshot-Marken gehen mit — sonst zeigte die App den alten Bestand weiter und der nächste Abgleich hielt sich für erledigt
+
 ### v4.17.0 — Suche: klare Schalter, Markierung in der Tabelle, kein KI-Tab (August 2026)
 
 MINOR — Vier Befunde aus dem Test der Suchseite. Zwei Schalter hießen fast gleich und taten Verschiedenes, ein Suchbereich beantwortete zwei Fragen auf einmal, die Markierung gab es nur in der Liste, und ein Klick auf „Warum?" riss ungefragt einen KI-Tab auf.

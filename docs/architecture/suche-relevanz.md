@@ -459,8 +459,8 @@ konnte keine beantworten. Am echten Bestand gemessen (14 225 Anträge):
 
 | Eingabe | Treffer |
 |---|---|
-| „Welche Vorhaben drehen sich hauptsächlich um Normung und Standards?" (alle Wörter) | **0** |
-| dieselbe Frage als genaue Wortfolge | **0** |
+| „Welche Vorhaben drehen sich hauptsächlich um Normung und Standards?" (alle Wörter müssen vorkommen) | **0** |
+| dieselbe Frage als genau diese Wortfolge | **0** |
 | `Normung` | 5 |
 | `Normung` + Wortformen | 285 |
 

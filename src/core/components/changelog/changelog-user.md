@@ -19,6 +19,14 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.69 — 2026-08
+
+### Verbesserungen
+- **Die Einstellungen unter dem Suchfeld stellen jetzt Fragen.** Jeder Auswahlkasten sagt selbst, worum es geht: **„Suche mit: Stichworten"** · **„Suche in: alle Felder"** — und rechts davon, abgesetzt durch einen dünnen Strich, die Feinheiten. Vorher stand „Wortverknüpfung:" daneben, und aufgeklappt war diese Beschriftung verdeckt.
+- **Die Wortverknüpfung sagt, was sie tut,** statt es zu benennen: **„alle Wörter müssen vorkommen"**, **„irgendein Wort genügt"**, **„genau diese Wortfolge"**.
+- **Der Suchbereich steht jetzt weiter links,** gleich hinter der Art der Suche. Er entscheidet mit, ob ein Antrag überhaupt gefunden werden kann — das ist keine Feinheit.
+- **Aus „mit natürlicher Sprache suchen" wurde „Suche mit: einer Frage".** Überall sonst auf der Seite hieß es ohnehin schon Frage.
+
 ## v4.68 — 2026-08
 
 ### Verbesserungen
