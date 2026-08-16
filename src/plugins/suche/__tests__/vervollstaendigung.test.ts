@@ -8,11 +8,11 @@
  */
 import { describe, it, expect } from 'vitest';
 import {
-  berechneVorschlaege, tokenAmCursor, alsAnfrageWert,
+  berechneVorschlaege, tokenAmCursor, alsAnfrageWert, vorschlagsHinweis, MAX_WERTE,
 } from '../vervollstaendigung';
 import {
   leererWertIndexRoh, nimmWerte, verdichteWertIndex, vorschlaegeFuer, netzwerkName,
-  type WertIndex,
+  anzahlPassend, type WertIndex,
 } from '@/plugins/antraege/services/wert-index';
 import { zerlegeFeldAnfrage } from '@/core/services/search/feldpraefix';
 
@@ -151,6 +151,55 @@ describe('Werte vorschlagen', () => {
       text: 'ast:"Technische Uni', cursor: 19, index, verlauf: OHNE_VERLAUF,
     });
     expect(v[0]?.anfrage).toBe('ast:"Technische Universität Chemnitz"');
+  });
+});
+
+describe('Kein stiller Deckel (v4.71.1)', () => {
+  /** Mehr Netzwerke, als die Liste zeigt — die Zahl hängt am Deckel selbst. */
+  const MEHR_ALS_PASSEN = MAX_WERTE + 15;
+  function vieleNetzwerke(): WertIndex {
+    const roh = leererWertIndexRoh();
+    for (let i = 0; i < MEHR_ALS_PASSEN; i++) {
+      for (let n = 0; n <= i; n++) nimmWerte(roh, 'netzwerk', [`Netz${String(i).padStart(3, '0')}`]);
+    }
+    return verdichteWertIndex(roh);
+  }
+
+  it('zeigt den ganzen Deskriptoren-Katalog — 42 Werte am echten Bestand', () => {
+    // Die eine Zahl muss BEIDE Fälle bedienen: den kleinen Katalog vollständig
+    // und den großen Vorrat angeschnitten (mit Hinweis).
+    expect(MAX_WERTE).toBeGreaterThanOrEqual(42);
+  });
+
+  it('zeigt bei großem Vorrat genau den Deckel', () => {
+    const v = berechneVorschlaege({
+      text: 'nw:', cursor: 3, index: vieleNetzwerke(), verlauf: OHNE_VERLAUF,
+    });
+    expect(v.filter(x => x.art === 'wert')).toHaveLength(MAX_WERTE);
+  });
+
+  it('sagt, wie viele es insgesamt gibt — ein Deckel liest sich sonst als alles', () => {
+    expect(vorschlagsHinweis({
+      text: 'nw:', cursor: 3, index: vieleNetzwerke(), verlauf: OHNE_VERLAUF,
+    })).toBe(`${MAX_WERTE} von ${MEHR_ALS_PASSEN} — tippe weiter, um einzugrenzen`);
+  });
+
+  it('schweigt, wenn wirklich alles dasteht', () => {
+    expect(vorschlagsHinweis({
+      text: 'ort:dre', cursor: 7, index: indexMit(), verlauf: OHNE_VERLAUF,
+    })).toBeNull();
+    expect(vorschlagsHinweis({
+      text: 'laser', cursor: 5, index: indexMit(), verlauf: OHNE_VERLAUF,
+    })).toBeNull();
+  });
+
+  it('zählt den gefilterten Vorrat, nicht den ganzen', () => {
+    const index = vieleNetzwerke();
+    // „Netz00" trifft die ersten zehn — weniger als der Deckel, also kein Hinweis.
+    expect(anzahlPassend(index, 'netzwerk', 'Netz00')).toBe(10);
+    expect(vorschlagsHinweis({
+      text: 'nw:Netz00', cursor: 9, index, verlauf: OHNE_VERLAUF,
+    })).toBeNull();
   });
 });
 

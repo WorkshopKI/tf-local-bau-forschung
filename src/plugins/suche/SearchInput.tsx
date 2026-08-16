@@ -28,7 +28,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Loader2, Search } from 'lucide-react';
 import { useSucheStore } from './store';
 import { SearchSuggestions } from './SearchSuggestions';
-import { berechneVorschlaege, type Vorschlag } from './vervollstaendigung';
+import { berechneVorschlaege, vorschlagsHinweis, type Vorschlag } from './vervollstaendigung';
 import type { WertIndex } from '@/plugins/antraege/services/wert-index';
 import {
   FELD_MIN_BREITE,
@@ -40,6 +40,24 @@ import {
 import { useClickOutside } from '@/core/hooks/useClickOutside';
 
 const GROESSE_KEY = 'teamflow_suche_feld_groesse';
+
+/** Wie viele Trefferzahlen je Schub gerechnet werden (≈ 45 ms, siehe unten). */
+const PROBEN_JE_SCHUB = 4;
+
+/**
+ * Der nächste Schub — über einen Message-Task, NICHT über `setTimeout(0)`.
+ *
+ * Verschachtelte Timer klemmt der Browser ab der fünften Ebene auf 4 ms und in
+ * einem verborgenen Fenster auf rund eine Sekunde. Gemessen in `dev:local`
+ * (verborgener Tab): von 42 Deskriptoren hatten nach 30 Sekunden erst 28 eine
+ * Zahl — die Liste tröpfelte, statt sich zu füllen. Ein Message-Task ist kein
+ * Timer und bleibt schnell; dieselbe Mechanik nutzt der React-Scheduler.
+ */
+function naechsterSchub(fn: () => void): void {
+  const kanal = new MessageChannel();
+  kanal.port1.onmessage = () => { kanal.port1.close(); fn(); };
+  kanal.port2.postMessage(0);
+}
 
 export interface SearchInputProps {
   value: string;
@@ -131,10 +149,16 @@ export function SearchInput({
     () => berechneVorschlaege({ text: value, cursor, index: wertIndex, verlauf: recentSearches }),
     [value, cursor, wertIndex, recentSearches],
   );
+  const hinweis = useMemo(
+    () => vorschlagsHinweis({ text: value, cursor, index: wertIndex, verlauf: recentSearches }),
+    [value, cursor, wertIndex, recentSearches],
+  );
 
-  // Die Trefferzahlen kommen NACH der Liste — jeder Probelauf geht über 14 000
-  // Einträge, acht davon synchron bei jedem Tastendruck wären ein Ruckeln im
-  // Feld. Die Liste steht sofort, die Zahlen einen Wimpernschlag später.
+  // Die Trefferzahlen kommen NACH der Liste — und in Portionen. Ein Probelauf
+  // über die 14 225 Einträge kostet gemessen 11 ms; die 25 Werte einer vollen
+  // Katalog-Liste wären 274 ms am Stück, also ein sichtbarer Hänger nach jeder
+  // Tipp-Pause. In Schüben von vier bleibt jeder Block unter ~45 ms, und die
+  // Zahlen füllen sich von oben nach unten — dort, wo hingesehen wird.
   const [trefferZahlen, setTrefferZahlen] = useState<ReadonlyMap<string, number>>(new Map());
   const wertVorschlaege = useMemo(() => suggestions.filter(v => v.art === 'wert'), [suggestions]);
   useEffect(() => {
@@ -142,15 +166,23 @@ export function SearchInput({
       setTrefferZahlen(vorher => (vorher.size === 0 ? vorher : new Map()));
       return;
     }
-    const timer = window.setTimeout(() => {
-      const naechste = new Map<string, number>();
-      for (const v of wertVorschlaege) {
+    let abgebrochen = false;
+    const stand = new Map<string, number>();
+    let i = 0;
+    const schritt = (): void => {
+      if (abgebrochen) return;
+      const bis = Math.min(i + PROBEN_JE_SCHUB, wertVorschlaege.length);
+      for (; i < bis; i++) {
+        const v = wertVorschlaege[i];
+        if (!v) continue;
         const n = zaehle(v.anfrage);
-        if (n !== null) naechste.set(v.key, n);
+        if (n !== null) stand.set(v.key, n);
       }
-      setTrefferZahlen(naechste);
-    }, 150);
-    return () => window.clearTimeout(timer);
+      setTrefferZahlen(new Map(stand));
+      if (i < wertVorschlaege.length) naechsterSchub(schritt);
+    };
+    const timer = window.setTimeout(schritt, 150);
+    return () => { abgebrochen = true; window.clearTimeout(timer); };
   }, [wertVorschlaege, zaehle]);
 
   useClickOutside(searchBoxRef, () => { setSuggestOpen(false); setActiveIndex(-1); }, suggestOpen);
@@ -280,6 +312,7 @@ export function SearchInput({
           onClear={() => { clearRecentSearches(); setSuggestOpen(false); setActiveIndex(-1); }}
           onHover={setActiveIndex}
           treffer={trefferZahlen}
+          hinweis={hinweis}
         />
       )}
     </div>

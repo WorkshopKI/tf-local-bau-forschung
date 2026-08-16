@@ -579,11 +579,29 @@ läuft. Der Unterschied ist nicht theoretisch: nach den Rohspalten tragen 485
 Anträge den Ort „Dresden", die Suche findet 451.
 
 Die Probeläufe laufen **nach** der Liste (150 ms Verzögerung, nur für
-Wert-Vorschläge): acht Läufe über 14 225 Einträge synchron bei jedem Tastendruck
-wären ein Ruckeln im Feld. Dasselbe Verfahren nutzt der Startzustand für seine
-Trefferzahlen.
+Wert-Vorschläge) und **in Schüben zu vier**: ein Lauf kostet gemessen 11–20 ms,
+eine volle Liste also rund 700 ms — am Stück ein sichtbarer Hänger nach jeder
+Tipp-Pause, in Schüben bleibt jeder Block unter ~45 ms. Dasselbe Verfahren nutzt
+der Startzustand für seine Trefferzahlen.
 
-### 9.4 Wo was wohnt
+Der nächste Schub kommt über einen **Message-Task, nicht über `setTimeout(0)`**.
+Verschachtelte Timer klemmt der Browser ab der fünften Ebene auf 4 ms und in
+einem verborgenen Fenster auf rund eine Sekunde: in `dev:local` (verborgener Tab)
+hatten von 42 Deskriptoren nach 30 Sekunden erst 28 eine Zahl. Mit dem
+Message-Task stehen alle 42 nach **934 ms**.
+
+### 9.4 Wie viele Werte die Liste zeigt
+
+**50**, und was darüber liegt, wird benannt: „50 von 1.243 — tippe weiter, um
+einzugrenzen". Die erste Fassung zeigte acht (die Zahl der Verlaufsliste) — für
+einen Katalog zu wenig, und ohne Hinweis las sich der Deckel als Vollständigkeit.
+
+Die 50 bedient beide Fälle mit einer Zahl: die **42 Deskriptoren** stehen damit
+vollständig da (dieser Katalog ist der Grund für die ganze Liste), und bei
+`nw:` (1 243), `ort:` (2 055), `ast:` (5 461) füllen 50 die scrollbare Liste,
+während der Rest im Fuß beziffert wird. Die Liste ist 320 px hoch und scrollt.
+
+### 9.5 Wo was wohnt
 
 - Wertevorrat: [wert-index.ts](../../src/plugins/antraege/services/wert-index.ts)
   — gefüllt **im selben Cursor-Walk**, der den Suchkorpus baut

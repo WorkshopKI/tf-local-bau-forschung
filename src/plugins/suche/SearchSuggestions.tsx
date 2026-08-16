@@ -34,6 +34,8 @@ export interface SearchSuggestionsProps {
   onHover: (index: number) => void;
   /** Trefferzahl je Vorschlag (Schlüssel = `Vorschlag.key`), sobald gerechnet. */
   treffer?: ReadonlyMap<string, number>;
+  /** „25 von 1.270 …" — steht nur da, wenn die Liste wirklich gekappt ist. */
+  hinweis?: string | null;
 }
 
 const ICON = {
@@ -50,13 +52,17 @@ export function SearchSuggestions({
   onClear,
   onHover,
   treffer,
+  hinweis,
 }: SearchSuggestionsProps): React.ReactElement {
   const hatVerlauf = items.some(v => v.art === 'verlauf');
   return (
+    // 320 statt 240 px: die Werte-Liste ist seit v4.71.1 ein Katalog zum
+    // Durchblättern (bis 25 Einträge), und acht sichtbare Zeilen machten daraus
+    // ein Guckloch. Sie scrollt weiterhin, statt die Seite zu überwachsen.
     <div
       role="listbox"
       aria-label="Vorschläge"
-      className="absolute left-0 right-0 top-full mt-1 z-[100] max-h-[240px] overflow-y-auto py-1 rounded-[var(--tf-radius)] bg-[var(--tf-bg)]"
+      className="absolute left-0 right-0 top-full mt-1 z-[100] max-h-[320px] overflow-y-auto py-1 rounded-[var(--tf-radius)] bg-[var(--tf-bg)]"
       style={{ border: '0.5px solid var(--tf-border)', boxShadow: '0 8px 30px rgba(0, 0, 0, 0.12)' }}
     >
       {items.map((v, i) => {
@@ -109,15 +115,23 @@ export function SearchSuggestions({
           </div>
         );
       })}
-      {hatVerlauf && (
-        <div className="mt-1 px-3 pt-1" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
-          <button
-            type="button"
-            onClick={onClear}
-            className="text-[11px] bg-transparent border-0 p-0 cursor-pointer text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text)]"
-          >
-            Verlauf leeren
-          </button>
+      {(hatVerlauf || (hinweis !== null && hinweis !== undefined)) && (
+        <div
+          className="mt-1 flex items-center gap-3 px-3 pt-1"
+          style={{ borderTop: '0.5px solid var(--tf-border)' }}
+        >
+          {hinweis !== null && hinweis !== undefined && (
+            <span className="text-[11px] text-[var(--tf-text-tertiary)]">{hinweis}</span>
+          )}
+          {hatVerlauf && (
+            <button
+              type="button"
+              onClick={onClear}
+              className="ml-auto text-[11px] bg-transparent border-0 p-0 cursor-pointer text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text)]"
+            >
+              Verlauf leeren
+            </button>
+          )}
         </div>
       )}
     </div>

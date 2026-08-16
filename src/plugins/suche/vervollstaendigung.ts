@@ -34,7 +34,7 @@ import {
 } from '@/core/services/search/feldpraefix';
 import { TREFFERFELD_LABEL, type Trefferfeld } from '@/core/services/search/trefferstelle';
 import {
-  istWertFeld, vorschlaegeFuer, type WertIndex,
+  anzahlPassend, istWertFeld, vorschlaegeFuer, type WertIndex,
 } from '@/plugins/antraege/services/wert-index';
 import { filterRecentSearches } from './suchseite-utils';
 
@@ -60,8 +60,24 @@ export interface Vorschlag {
   key: string;
 }
 
-/** Wie viele Werte höchstens vorgeschlagen werden. */
-export const MAX_WERTE = 8;
+/**
+ * Wie viele Werte höchstens vorgeschlagen werden.
+ *
+ * Die 8 stammten aus der Verlaufsliste und waren für einen KATALOG zu wenig:
+ * `nw:` hat 1 243 Werte, `ort:` 2 055 — acht davon zu zeigen heißt, das
+ * Durchblättern anzubieten und dann zu verweigern.
+ *
+ * 50, weil dort die eine Zahl beide Fälle bedient: die **42 Deskriptoren**
+ * stehen damit vollständig da (dieser Katalog ist der Grund für die ganze
+ * Liste — er steht nirgends sonst in der App), und bei den großen Feldern
+ * füllen 50 die scrollbare Liste, während der Rest BENANNT wird
+ * (`vorschlagsHinweis`) statt still abgeschnitten zu werden.
+ *
+ * Die Kosten trägt der Probelauf je Wert (gemessen 11 ms über 14 225 Anträge) —
+ * er läuft verzögert, in Schüben und wird beim nächsten Tastendruck verworfen
+ * ([SearchInput.tsx](src/plugins/suche/SearchInput.tsx)).
+ */
+export const MAX_WERTE = 50;
 /** Wie viele Feldnamen höchstens vorgeschlagen werden. */
 const MAX_FELDER = 5;
 /** Wie viel Verlauf daneben noch Platz hat. */
@@ -193,6 +209,25 @@ function wertVorschlaege(
       key: `wert:${geteilt.feld}:${e.wert.toLowerCase()}`,
     };
   });
+}
+
+/**
+ * Was unter der Liste steht, wenn es mehr gibt als gezeigt.
+ *
+ * Ein Deckel, der sich nicht zu erkennen gibt, liest sich als Vollständigkeit:
+ * acht Netzwerke unter `nw:` sähen aus, als gäbe es acht. `null` heißt „alles
+ * da" — dann steht auch nichts da.
+ */
+export function vorschlagsHinweis(opt: VorschlagEingabe): string | null {
+  const { text, cursor, index } = opt;
+  if (!index) return null;
+  const token = tokenAmCursor(text, cursor);
+  if (!token) return null;
+  const geteilt = teileToken(token.roh);
+  if (!geteilt || !istWertFeld(geteilt.feld)) return null;
+  const gesamt = anzahlPassend(index, geteilt.feld, rohWert(geteilt.rest));
+  if (gesamt <= MAX_WERTE) return null;
+  return `${MAX_WERTE} von ${gesamt.toLocaleString('de-DE')} — tippe weiter, um einzugrenzen`;
 }
 
 /**

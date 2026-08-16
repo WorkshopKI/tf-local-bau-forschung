@@ -123,6 +123,30 @@ export function netzwerkName(roh: string): string {
 export function vorschlaegeFuer(
   index: WertIndex, feld: WertFeld, teil: string, max: number,
 ): WertEintrag[] {
+  return sammlePassende(index, feld, teil, max);
+}
+
+/**
+ * Wie viele Werte es insgesamt gäbe.
+ *
+ * Die Liste zeigt nur die ersten paar; ohne diese Zahl sähe ein Deckel aus wie
+ * Vollständigkeit — bei `nw:` stünden acht Netzwerke da, und die übrigen 1 262
+ * blieben unerwähnt. Eigene Funktion statt eines zweiten Rückgabewerts, weil
+ * `vorschlaegeFuer` beim Deckel abbricht und deshalb gar nicht zählen kann.
+ */
+export function anzahlPassend(index: WertIndex, feld: WertFeld, teil: string): number {
+  const liste = index.get(feld);
+  if (!liste) return 0;
+  const q = teil.trim().toLowerCase();
+  if (q.length === 0) return liste.length;
+  let n = 0;
+  for (const e of liste) if (e.wert.toLowerCase().includes(q)) n++;
+  return n;
+}
+
+function sammlePassende(
+  index: WertIndex, feld: WertFeld, teil: string, max: number,
+): WertEintrag[] {
   const liste = index.get(feld);
   if (!liste || liste.length === 0) return [];
   const q = teil.trim().toLowerCase();
