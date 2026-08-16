@@ -29,6 +29,7 @@ import { Loader2, Search } from 'lucide-react';
 import { useSucheStore } from './store';
 import { SearchSuggestions } from './SearchSuggestions';
 import { berechneVorschlaege, vorschlagsHinweis, type Vorschlag } from './vervollstaendigung';
+import { useProbeZahlen } from './useProbeZahlen';
 import type { WertIndex } from '@/plugins/antraege/services/wert-index';
 import {
   FELD_MIN_BREITE,
@@ -40,24 +41,6 @@ import {
 import { useClickOutside } from '@/core/hooks/useClickOutside';
 
 const GROESSE_KEY = 'teamflow_suche_feld_groesse';
-
-/** Wie viele Trefferzahlen je Schub gerechnet werden (≈ 45 ms, siehe unten). */
-const PROBEN_JE_SCHUB = 4;
-
-/**
- * Der nächste Schub — über einen Message-Task, NICHT über `setTimeout(0)`.
- *
- * Verschachtelte Timer klemmt der Browser ab der fünften Ebene auf 4 ms und in
- * einem verborgenen Fenster auf rund eine Sekunde. Gemessen in `dev:local`
- * (verborgener Tab): von 42 Deskriptoren hatten nach 30 Sekunden erst 28 eine
- * Zahl — die Liste tröpfelte, statt sich zu füllen. Ein Message-Task ist kein
- * Timer und bleibt schnell; dieselbe Mechanik nutzt der React-Scheduler.
- */
-function naechsterSchub(fn: () => void): void {
-  const kanal = new MessageChannel();
-  kanal.port1.onmessage = () => { kanal.port1.close(); fn(); };
-  kanal.port2.postMessage(0);
-}
 
 export interface SearchInputProps {
   value: string;
@@ -154,36 +137,13 @@ export function SearchInput({
     [value, cursor, wertIndex, recentSearches],
   );
 
-  // Die Trefferzahlen kommen NACH der Liste — und in Portionen. Ein Probelauf
-  // über die 14 225 Einträge kostet gemessen 11 ms; die 25 Werte einer vollen
-  // Katalog-Liste wären 274 ms am Stück, also ein sichtbarer Hänger nach jeder
-  // Tipp-Pause. In Schüben von vier bleibt jeder Block unter ~45 ms, und die
-  // Zahlen füllen sich von oben nach unten — dort, wo hingesehen wird.
-  const [trefferZahlen, setTrefferZahlen] = useState<ReadonlyMap<string, number>>(new Map());
+  // Die Trefferzahlen kommen NACH der Liste — und in Portionen; die Mechanik
+  // dazu steht in [useProbeZahlen](src/plugins/suche/useProbeZahlen.ts), weil
+  // der Reiter „Stöbern" im Startzustand dieselbe Zusage macht. Die 150 ms
+  // Verzögerung sind hier die halbe Miete: sie verhindern, dass jeder
+  // Tastendruck 14 225 Einträge durchgeht.
   const wertVorschlaege = useMemo(() => suggestions.filter(v => v.art === 'wert'), [suggestions]);
-  useEffect(() => {
-    if (!zaehle || wertVorschlaege.length === 0) {
-      setTrefferZahlen(vorher => (vorher.size === 0 ? vorher : new Map()));
-      return;
-    }
-    let abgebrochen = false;
-    const stand = new Map<string, number>();
-    let i = 0;
-    const schritt = (): void => {
-      if (abgebrochen) return;
-      const bis = Math.min(i + PROBEN_JE_SCHUB, wertVorschlaege.length);
-      for (; i < bis; i++) {
-        const v = wertVorschlaege[i];
-        if (!v) continue;
-        const n = zaehle(v.anfrage);
-        if (n !== null) stand.set(v.key, n);
-      }
-      setTrefferZahlen(new Map(stand));
-      if (i < wertVorschlaege.length) naechsterSchub(schritt);
-    };
-    const timer = window.setTimeout(schritt, 150);
-    return () => { abgebrochen = true; window.clearTimeout(timer); };
-  }, [wertVorschlaege, zaehle]);
+  const trefferZahlen = useProbeZahlen(wertVorschlaege, zaehle, 150);
 
   useClickOutside(searchBoxRef, () => { setSuggestOpen(false); setActiveIndex(-1); }, suggestOpen);
 

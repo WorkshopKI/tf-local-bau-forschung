@@ -1028,12 +1028,13 @@ export function SuchSeite(): React.ReactElement {
           {/* ── Startzustand ─────────────────────────────────────────────── */}
           {noQuery && !loading && (
             <SucheStartzustand
-              antraegeGeladen={indexInfo.antraegeGeladen}
               textabschnitteImIndex={indexInfo.textabschnitteImIndex}
               letzte={startEintraege.letzte}
               haeufig={startEintraege.haeufig}
               gespeichert={gespeichert}
               gespeicherteTreffer={gespeicherteTreffer}
+              wertIndex={wertIndex}
+              zaehle={zaehleVorschlag}
               onSuche={starteSuche}
               onFrage={nlFreigeschaltet ? starteFrage : undefined}
               onEntferneLetzte={removeRecentSearch}

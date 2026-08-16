@@ -1,101 +1,71 @@
 /**
- * Der Einstieg, solange nichts getippt ist.
+ * Der Einstieg, solange nichts getippt ist — EIN Panel mit Reitern.
  *
- * ERWEITERT den bisherigen Leerzustand, ersetzt ihn nicht: die Beispiel-Chips,
- * der Index-Hinweis und der Kurator-Link bleiben erhalten — sie beantworten
- * Fragen, die der Handoff gar nicht kennt (ist der Dokumentenindex überhaupt
- * eingerichtet? wer richtet ihn ein?).
+ * Bis v4.72 standen hier sechs gleichrangige Blöcke untereinander: vier Spalten
+ * (Letzte Suchen, Gespeicherte Suchen, Häufig gesucht, Aus dem Index) und zwei
+ * Sektionen über die volle Breite. Nichts stach heraus, die Seite scrollte, und
+ * der Blick musste sich jedes Mal neu orientieren. Zwei der Blöcke trugen dabei
+ * nichts Eigenes: „Aus dem Index" nannte die Zahlen, die seit v4.69 ohnehin am
+ * rechten Ende der Optionszeile stehen, und „Häufig gesucht" ist die zweite
+ * Hälfte derselben Verlaufsliste wie „Letzte Suchen".
  *
- * Neu sind die drei Spalten: was zuletzt gesucht wurde, was gemerkt ist, was
- * häufig gesucht wird — jeweils mit der ECHTEN Trefferzahl aus einem Probelauf.
- * Eine gepflegte Zahl wäre irgendwann falsch; eine gerechnete ist es nie.
+ * Jetzt: ein Ort, fünf Reiter, feste Fläche. Die Rubriken bleiben, sie
+ * konkurrieren nur nicht mehr um dieselbe.
  *
- * Die Handoff-Spalte „So findest du schneller" fehlte bis v4.48, weil sie eine
- * Feldsuche-Syntax erklärte, die es nicht gab — eine Hilfe, die Nichtvorhandenes
- * beschreibt, ist schlimmer als keine. Seit v4.49 gibt es sie
- * ([feldpraefix.ts](src/core/services/search/feldpraefix.ts)), und damit steht
- * die Spalte unten: „So kannst du suchen", jede Zeile ausführbar.
+ * **Diese Datei ist die Hülle** — Rahmen, Reiterleiste, Verteilung. Was in
+ * einem Reiter steht, lebt in `start/` je in einer eigenen Datei; das Panel
+ * weiß davon nur, wie es sie aufruft.
+ *
+ * **Das Panel filtert NICHT mit, während getippt wird.** Der Handoff schlug das
+ * vor; die Vervollständigung im Suchfeld beantwortet denselben Tastendruck seit
+ * v4.71 und tut mehr — Feldnamen, echte Werte des Bestands, Trefferzahlen — und
+ * ihre Liste liegt ohnehin über dieser Fläche. Zwei Antworten auf eine Eingabe
+ * wären eine zu viel.
  */
-import { Search, Clock, Bookmark, TrendingUp, FileText, Info, X, Sparkles } from 'lucide-react';
-import { FELD_PRAEFIX } from '@/core/services/search/feldpraefix';
-import { veraenderungText, type GespeicherteSuche } from './gespeicherteSuchen';
+import { useCallback, useState } from 'react';
+import { Info } from 'lucide-react';
+import { ScopeTabs } from '@/components/ui/ScopeTabs';
+import type { WertIndex } from '@/plugins/antraege/services/wert-index';
+import type { GespeicherteSuche } from './gespeicherteSuchen';
+import {
+  baueStartReiter, leseStartReiter, START_REITER_KEY, type StartReiterId,
+} from './start/startReiter';
+import { StartZuletzt, type StartEintrag } from './start/StartZuletzt';
+import { StartSuchsprache } from './start/StartSuchsprache';
+import { StartFragen, FRAGEN } from './start/StartFragen';
+import { StartStoebern } from './start/StartStoebern';
+import { STOEBER_FELDER } from './start/stoebern';
+import { SUCHARTEN } from './start/suchsprache';
+
+export type { StartEintrag };
 
 /**
- * Die Suchweisen, je Zeile eine — vom Alltagsfall zur gezielten Angabe.
+ * Wie viele Zeilen je Rubrik im Reiter „Alle" stehen.
  *
- * Jede Zeile ist AUSFÜHRBAR: sie startet dieselbe Suche über denselben Pfad wie
- * eine getippte Anfrage. Eine Syntax-Tabelle, die man abschreiben muss, wäre
- * eine Bedienungsanleitung; ein Klick, der es vormacht, ist die Erklärung.
- *
- * Die Beispiele sind statisch und bewusst so gewählt, dass sie am echten
- * Bestand Treffer haben (in dev:local an 14.225 Anträgen nachgemessen, Zahlen
- * unten) — ein Beispiel, das ins Leere führt, lehrt die falsche Lektion. Der
- * naheliegende Fall `ast:GMBU` steht deshalb NICHT hier: „GMBU" kommt im ganzen
- * Bestand in keinem Organisationsfeld vor, nur in der Web-Adresse (v4.42) — das
- * Beispiel wäre ausgerechnet an der Stelle leer, an der es etwas beibringen soll.
- *
- * Die drei Kennzeichen-Zeilen stehen beieinander, weil sie dieselbe Frage in
- * drei Weiten stellen: dieses Teilvorhaben, sein Verbund, sein Netzwerk. Die
- * letzte Zeile zeigt die eigenen Arbeitsnotizen — der Text, den die Suche vor
- * v4.50 in keinem Feld führte.
+ * Vier, weil vier Zeilen eine Rubrik erkennbar machen, ohne dass eine von ihnen
+ * die Fläche gewinnt.
  */
-const SUCHARTEN: readonly { query: string; erklaerung: string }[] = [
-  { query: 'Bilderkennung', erklaerung: 'ein Thema — in allen Feldern' },        // 31
-  { query: 'additive Fertigung', erklaerung: 'zwei Wörter — beide müssen vorkommen' }, // 639
-  { query: '16KN055710', erklaerung: 'Förderkennzeichen — auch ein Anfang davon' },    // 1
-  { query: 'vb:ZKN073232', erklaerung: 'ein Verbund mit allen Teilvorhaben' },   // 9
-  { query: 'nw:ProAnimalLife', erklaerung: 'ein Netzwerk mit allen Teilvorhaben' },    // 80
-  { query: 'ast:Fraunhofer', erklaerung: 'nur die Einrichtung' },                // 307
-  { query: 'ort:Dresden', erklaerung: 'nur Ort und Bundesland' },                // 451
-  { query: 'ort:"Frankfurt am Main"', erklaerung: 'mehrere Wörter als EIN Wert' },     // 40
-  { query: 'titel:Laser ort:Dresden', erklaerung: 'zwei Felder in einer Anfrage' },    // 4
-  { query: 'notiz:Einbehalt', erklaerung: 'in den eigenen Arbeitsnotizen' },     // 50
-];
+const KURZ = 4;
 
 /**
- * Fragen statt Stichworte — die zweite Art zu suchen.
+ * Damit der Reiterwechsel die Fläche nicht springen lässt.
  *
- * Steht in einer EIGENEN Liste neben `SUCHARTEN`, nicht darin: die Zeilen oben
- * zeigen eine Syntax, diese hier zeigen, dass man keine braucht. In eine Liste
- * gemischt wäre beides eine Aufzählung von Beispielen, und der Unterschied — der
- * einzige Grund für den Umschalter — verschwände.
- *
- * Bewusst drei Formen: ein reines Thema mit vielen Schreibweisen, ein Thema mit
- * Bereichsbezug, ein Thema mit Ortsbezug (der Fall, der eine Einschränkung
- * erzeugt).
+ * In dev:local am echten Bestand gemessen: „Alle" 420 px, „Suchsprache" 408,
+ * die übrigen drei kämen mit rund 300 aus. Ohne festes Maß wanderte die
+ * Unterkante bei jedem Reiterwechsel um gut 120 px — genau das, was ein Panel
+ * mit fester Fläche verhindern soll. Der leere Rest auf einem dünn besetzten
+ * Reiter ist der Preis dafür; der Standard-Reiter „Alle" füllt ihn ohnehin.
  */
-const FRAGEN: readonly { frage: string; erklaerung: string }[] = [
-  {
-    frage: 'Welche Vorhaben drehen sich hauptsächlich um Normung und Standards?',
-    erklaerung: 'findet auch „Normen", „Normierung", „Standardisierung"',
-  },
-  {
-    frage: 'Zeig mir Projekte zu künstlicher Intelligenz in der Medizintechnik',
-    erklaerung: 'zwei Themen — wer beide trägt, steht oben',
-  },
-  {
-    frage: 'Was läuft in Bayern zum Thema Leichtbau?',
-    erklaerung: 'der Ort schränkt ein, das Thema sucht',
-  },
-];
-
-/** Die Feldnamen, die vor dem Doppelpunkt stehen dürfen — aus der einen Quelle
- *  gezogen, damit die Hilfe nicht von der Syntax abdriften kann. */
-const FELDNAMEN = Object.values(FELD_PRAEFIX).join(' · ');
-
-export interface StartEintrag {
-  query: string;
-  /** Trefferzahl aus dem Probelauf. `null` = nicht ermittelbar. */
-  treffer: number | null;
-}
+const PANEL_MIN_HOEHE = 420;
 
 export function SucheStartzustand({
-  antraegeGeladen,
   textabschnitteImIndex,
   letzte,
   haeufig,
   gespeichert,
   gespeicherteTreffer,
+  wertIndex,
+  zaehle,
   onSuche,
   onFrage,
   onEntferneLetzte,
@@ -103,177 +73,113 @@ export function SucheStartzustand({
   kuratorVariant,
   onOpenDokumentenquellen,
 }: {
-  antraegeGeladen: number;
   textabschnitteImIndex: number;
   letzte: readonly StartEintrag[];
   haeufig: readonly StartEintrag[];
   gespeichert: readonly GespeicherteSuche[];
   /** Aktuelle Trefferzahl je gespeicherter Suche (Probelauf). */
   gespeicherteTreffer: ReadonlyMap<string, number>;
+  /** Der Wertevorrat des Bestands — Grundlage des Reiters „Stöbern". */
+  wertIndex: WertIndex | null;
+  /** Probelauf für die Zahlen im Reiter „Stöbern". */
+  zaehle?: (anfrage: string) => number | null;
   onSuche: (query: string) => void;
   /** Eine Frage stellen (setzt Text UND Modus). Fehlt, wenn der Build die
-   *  natürlichsprachige Suche nicht mitbringt — dann entfällt der Abschnitt. */
+   *  natürlichsprachige Suche nicht mitbringt — dann entfällt der Reiter. */
   onFrage?: (frage: string) => void;
   onEntferneLetzte: (query: string) => void;
   onEntferneGespeicherte: (id: string) => void;
   kuratorVariant: boolean;
   onOpenDokumentenquellen: () => void;
 }): React.ReactElement {
-  const indexLeer = textabschnitteImIndex === 0;
+  const mitFragen = onFrage !== undefined;
+  const [aktiv, setAktiv] = useState<StartReiterId>(() => {
+    let raw: string | null = null;
+    try { raw = localStorage.getItem(START_REITER_KEY); } catch { /* ignore */ }
+    return leseStartReiter(raw, mitFragen);
+  });
+
+  const waehle = useCallback((key: string): void => {
+    const id = leseStartReiter(key, mitFragen);
+    setAktiv(id);
+    try { localStorage.setItem(START_REITER_KEY, id); } catch { /* ignore */ }
+  }, [mitFragen]);
+
+  const reiter = baueStartReiter({
+    zuletzt: letzte.length + haeufig.length + gespeichert.length,
+    suchsprache: SUCHARTEN.length,
+    fragen: FRAGEN.length,
+    stoebern: wertIndex === null ? 0 : STOEBER_FELDER.length,
+  }, mitFragen);
+
+  const zuletzt = (max?: number): React.ReactElement => (
+    <StartZuletzt
+      letzte={letzte}
+      haeufig={haeufig}
+      gespeichert={gespeichert}
+      gespeicherteTreffer={gespeicherteTreffer}
+      onSuche={onSuche}
+      onEntferneLetzte={onEntferneLetzte}
+      onEntferneGespeicherte={onEntferneGespeicherte}
+      max={max}
+      onMehr={() => waehle('zuletzt')}
+    />
+  );
 
   return (
     <div className="py-6">
-      <div className="grid gap-x-10 gap-y-7 md:grid-cols-2">
-        <Spalte titel="Letzte Suchen" leer="Noch nichts gesucht.">
-          {letzte.map(e => (
-            <Zeile
-              key={e.query}
-              icon={<Clock size={12} aria-hidden />}
-              text={e.query}
-              rechts={trefferText(e.treffer)}
-              onClick={() => onSuche(e.query)}
-              onEntfernen={() => onEntferneLetzte(e.query)}
-            />
-          ))}
-        </Spalte>
+      <div
+        className="w-full max-w-6xl overflow-hidden rounded-[var(--tf-radius-lg)]"
+        style={{ border: '0.5px solid var(--tf-border)' }}
+      >
+        <div
+          className="px-3 py-2"
+          style={{
+            borderBottom: '0.5px solid var(--tf-border)',
+            background: 'var(--tf-bg-secondary)',
+          }}
+        >
+          <ScopeTabs
+            items={reiter}
+            activeKey={aktiv}
+            onChange={waehle}
+            variant="pills"
+            aria-label="Einstieg in die Suche"
+          />
+        </div>
 
-        <Spalte titel="Gespeicherte Suchen" leer="Noch nichts gemerkt.">
-          {gespeichert.map(g => {
-            const aktuell = gespeicherteTreffer.get(g.id) ?? null;
-            const diff = veraenderungText(g, aktuell);
-            return (
-              <Zeile
-                key={g.id}
-                icon={<Bookmark size={12} aria-hidden />}
-                text={g.name}
-                rechts={
-                  <>
-                    {diff && (
-                      <span className="mr-2 text-[var(--tf-success-text)]">{diff}</span>
-                    )}
-                    {trefferText(aktuell)}
-                  </>
-                }
-                onClick={() => onSuche(g.query)}
-                onEntfernen={() => onEntferneGespeicherte(g.id)}
+        <div className="px-3 py-4" style={{ minHeight: PANEL_MIN_HOEHE }}>
+          {aktiv === 'alle' && (
+            <div className="flex flex-col gap-6">
+              {zuletzt(KURZ)}
+              <StartSuchsprache onSuche={onSuche} max={KURZ} onMehr={() => waehle('suchsprache')} />
+              {onFrage && (
+                <StartFragen onFrage={onFrage} max={KURZ} onMehr={() => waehle('fragen')} />
+              )}
+              <StartStoebern
+                index={wertIndex}
+                onSuche={onSuche}
+                kurz
+                onMehr={() => waehle('stoebern')}
               />
-            );
-          })}
-        </Spalte>
+            </div>
+          )}
 
-        <Spalte titel="Häufig gesucht" leer="Zu wenig Verlauf.">
-          {haeufig.map(e => (
-            <Zeile
-              key={e.query}
-              icon={<TrendingUp size={12} aria-hidden />}
-              text={e.query}
-              rechts={trefferText(e.treffer)}
-              onClick={() => onSuche(e.query)}
-            />
-          ))}
-        </Spalte>
-
-        <Spalte titel="Aus dem Index">
-          <div className="flex items-center gap-2 px-2 py-1.5 text-[13px] text-[var(--tf-text)]">
-            <FileText size={12} className="text-[var(--tf-text-tertiary)]" aria-hidden />
-            <span className="flex-1">
-              {antraegeGeladen.toLocaleString('de-DE')} Anträge
-            </span>
-            <span className="text-[11.5px] text-[var(--tf-text-tertiary)]">durchsuchbar</span>
-          </div>
-          <div className="flex items-center gap-2 px-2 py-1.5 text-[13px] text-[var(--tf-text)]">
-            <FileText size={12} className="text-[var(--tf-text-tertiary)]" aria-hidden />
-            <span className="flex-1">
-              {textabschnitteImIndex.toLocaleString('de-DE')} Textabschnitte
-            </span>
-            <span className="text-[11.5px] text-[var(--tf-text-tertiary)]">im Volltext</span>
-          </div>
-
-          <p className="mt-2 px-2 text-[12px] leading-relaxed text-[var(--tf-text-secondary)]">
-            Nach Titel, Akronym, FKZ, Antragsteller oder Ort — mit
-            „auch ähnliche Themen" findest du auch verwandte Vorhaben, die kein
-            Wort mit deiner Anfrage teilen.
-          </p>
-        </Spalte>
+          {aktiv === 'zuletzt' && zuletzt()}
+          {aktiv === 'suchsprache' && <StartSuchsprache onSuche={onSuche} />}
+          {aktiv === 'fragen' && onFrage && <StartFragen onFrage={onFrage} />}
+          {aktiv === 'stoebern' && (
+            <StartStoebern index={wertIndex} zaehle={zaehle} onSuche={onSuche} />
+          )}
+        </div>
       </div>
 
-      {/* Was und wie man suchen kann — Beispiele statt Syntax-Tabelle. Über die
-          ganze Breite, weil jede Zeile aus Eingabe UND Erklärung besteht und in
-          einer Spalte auf zwei Zeilen umbräche. */}
-      <section className="mt-8 pt-4" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
-        <h2 className="mb-1 px-2 text-[10.5px] uppercase tracking-[0.1em] text-[var(--tf-text-tertiary)]">
-          So kannst du suchen
-        </h2>
-        <div className="grid gap-x-10 md:grid-cols-2">
-          {SUCHARTEN.map(s => (
-            <button
-              key={s.query}
-              type="button"
-              onClick={() => onSuche(s.query)}
-              title={`„${s.query}" suchen`}
-              className="flex min-w-0 items-center gap-2 rounded-[6px] px-2 py-1.5 text-left hover:bg-[var(--tf-hover)] cursor-pointer"
-            >
-              <Search size={11} className="shrink-0 text-[var(--tf-text-tertiary)]" aria-hidden />
-              <span
-                className="shrink-0 rounded-full px-2 py-0.5 text-[12px] text-[var(--tf-text)]"
-                style={{ border: '0.5px solid var(--tf-border)' }}
-              >
-                {s.query}
-              </span>
-              <span className="truncate text-[12px] text-[var(--tf-text-secondary)]">
-                {s.erklaerung}
-              </span>
-            </button>
-          ))}
-        </div>
-        <p className="mt-2 px-2 text-[11.5px] leading-relaxed text-[var(--tf-text-tertiary)]">
-          Vor dem Doppelpunkt steht das Feld: {FELDNAMEN}. Die Spaltennamen der
-          Fördertabelle gehen auch (<code>ORG_AST:</code>, <code>VB_TITEL:</code>,
-          <code> ORT_AST:</code>). Ohne Feldangabe gilt die Auswahl „Suche in"
-          über dem Ergebnis. Merken muss man sich nichts: das Suchfeld schlägt
-          Feldnamen und die Werte des Bestands vor, sobald du tippst.
-        </p>
-      </section>
-
-      {/* Die zweite Art zu suchen — nur, wenn dieser Build sie mitbringt. Ein
-          Klick setzt Frage UND Modus: eine Frage, die als Stichwortsuche liefe,
-          fände nichts und lehrte damit das Gegenteil. */}
-      {onFrage && (
-        <section className="mt-8 pt-4" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
-          <h2 className="mb-1 px-2 text-[10.5px] uppercase tracking-[0.1em] text-[var(--tf-text-tertiary)]">
-            Oder stell eine Frage
-          </h2>
-          <div className="grid gap-x-10">
-            {FRAGEN.map(f => (
-              <button
-                key={f.frage}
-                type="button"
-                onClick={() => onFrage(f.frage)}
-                title={`„${f.frage}" stellen`}
-                className="flex min-w-0 items-center gap-2 rounded-[6px] px-2 py-1.5 text-left hover:bg-[var(--tf-hover)] cursor-pointer"
-              >
-                <Sparkles size={11} className="shrink-0 text-[var(--tf-text-tertiary)]" aria-hidden />
-                <span className="min-w-0 truncate text-[12px] text-[var(--tf-text)]">{f.frage}</span>
-                <span className="shrink-0 text-[12px] text-[var(--tf-text-secondary)]">
-                  {f.erklaerung}
-                </span>
-              </button>
-            ))}
-          </div>
-          <p className="mt-2 px-2 text-[11.5px] leading-relaxed text-[var(--tf-text-tertiary)]">
-            Die interne KI übersetzt die Frage in Suchbegriffe — sie benennt dabei
-            Schreibweisen und verwandte Wörter, die im Bestand stehen, aber nicht in
-            der Frage. Was daraus wurde, steht danach über dem Ergebnis und lässt
-            sich einzeln abwählen. Das dauert einen Moment länger als eine
-            Stichwortsuche.
-          </p>
-        </section>
-      )}
-
       {/* Index-Hinweis — NUR bei leerem Dokumentenindex, dezent, keine CTA.
+          Steht UNTER dem Panel, weil er eine andere Frage beantwortet als die
+          Reiter: nicht „womit fange ich an", sondern „warum fehlt etwas".
           Index-Einrichtung ist Kurator-Aufgabe, nicht Nutzer-Aufgabe. */}
-      {indexLeer && (
-        <div className="mt-8 max-w-2xl pt-4" style={{ borderTop: '0.5px solid var(--tf-border)' }}>
+      {textabschnitteImIndex === 0 && (
+        <div className="mt-4 max-w-2xl">
           <p className="inline-flex items-start gap-1.5 text-[11.5px] leading-relaxed text-[var(--tf-text-tertiary)]">
             <Info size={12} className="mt-[2px] shrink-0" aria-hidden />
             <span>
@@ -297,60 +203,4 @@ export function SucheStartzustand({
       )}
     </div>
   );
-}
-
-function Spalte({ titel, leer, children }: {
-  titel: string;
-  leer?: string;
-  children?: React.ReactNode;
-}): React.ReactElement {
-  const hatInhalt = Array.isArray(children) ? children.length > 0 : children !== undefined;
-  return (
-    <section>
-      <h2 className="mb-1 px-2 text-[10.5px] uppercase tracking-[0.1em] text-[var(--tf-text-tertiary)]">
-        {titel}
-      </h2>
-      {hatInhalt
-        ? <div className="flex flex-col">{children}</div>
-        : <p className="px-2 py-1.5 text-[12.5px] text-[var(--tf-text-tertiary)]">{leer}</p>}
-    </section>
-  );
-}
-
-function Zeile({ icon, text, rechts, onClick, onEntfernen }: {
-  icon: React.ReactNode;
-  text: string;
-  rechts: React.ReactNode;
-  onClick: () => void;
-  onEntfernen?: () => void;
-}): React.ReactElement {
-  return (
-    <div className="group flex items-center gap-2 rounded-[6px] hover:bg-[var(--tf-hover)]">
-      <button
-        type="button"
-        onClick={onClick}
-        className="flex min-w-0 flex-1 items-center gap-2 px-2 py-1.5 text-left cursor-pointer"
-      >
-        <span className="shrink-0 text-[var(--tf-text-tertiary)]">{icon}</span>
-        <span className="truncate text-[13px] text-[var(--tf-text)]">{text}</span>
-      </button>
-      <span className="shrink-0 pr-1 text-[11.5px] text-[var(--tf-text-tertiary)]">{rechts}</span>
-      {onEntfernen && (
-        <button
-          type="button"
-          onClick={onEntfernen}
-          title="Aus der Liste entfernen"
-          className="mr-1 rounded p-0.5 text-[var(--tf-text-tertiary)] opacity-0 transition-opacity hover:text-[var(--tf-text)] group-hover:opacity-100 cursor-pointer"
-        >
-          <X size={12} aria-hidden />
-        </button>
-      )}
-    </div>
-  );
-}
-
-/** „6 Treffer" — oder gar nichts, solange die Zahl nicht feststeht. Ein
- *  Platzhalter wie „—" liest sich wie „null Treffer". */
-function trefferText(n: number | null): React.ReactNode {
-  return n === null ? null : `${n.toLocaleString('de-DE')} Treffer`;
 }

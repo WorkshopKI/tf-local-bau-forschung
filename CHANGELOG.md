@@ -5,6 +5,18 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.73.0 — Der Einstieg in die Suche ist ein Panel mit Reitern (August 2026)
+
+MINOR — Aus einem Design-Handoff (`_design/handoff/suche-startseite`): der Startzustand zeigte sechs gleichrangige Blöcke untereinander, nichts stach heraus, die Seite scrollte. Zwei der Blöcke trugen dabei nichts Eigenes — „Aus dem Index" nannte die Zahlen der Optionszeile ein zweites Mal, „Häufig gesucht" ist die zweite Hälfte derselben Verlaufsliste wie „Letzte Suchen".
+
+- **Ein Panel mit fünf Reitern** (Alle · Zuletzt · Suchsprache · Fragen · Stöbern) auf fester Fläche, zuletzt benutzter Reiter gerätelokal gemerkt ([SucheStartzustand.tsx](src/plugins/suche/SucheStartzustand.tsx), Reiter-Inhalte je eigene Datei in [start/](src/plugins/suche/start/))
+- **Neuer Reiter „Stöbern"**: Deskriptoren · Netzwerk · Einrichtung · Ort & Bundesland mit je den fünf häufigsten Werten und echter Trefferzahl; der volle Katalog bleibt die Vorschlagsliste im Suchfeld ([StartStoebern.tsx](src/plugins/suche/start/StartStoebern.tsx), [stoebern.ts](src/plugins/suche/start/stoebern.ts))
+- **Die Suchsprache-Beispiele stehen nach Zweck gruppiert** statt als flache Zehnerliste ([suchsprache.ts](src/plugins/suche/start/suchsprache.ts))
+- **Spalte „Aus dem Index" entfällt** — die Bestandszahlen stehen seit v4.69 in der Optionszeile; die leere Spalte „Gespeicherte Suchen" wurde ein Satz
+- **Trefferzahlen in Schüben** einmal statt zweimal gebaut: die Vorschlagsliste und der neue Reiter teilen sich [useProbeZahlen.ts](src/plugins/suche/useProbeZahlen.ts)
+
+Nicht übernommen aus dem Handoff: der Live-Filter des Panels beim Tippen (die Vorschlagsliste beantwortet denselben Tastendruck seit v4.71 und liegt darüber), die Zusammenfassung „3 Varianten" (der Verlauf entdoppelt bereits) und Zeitangaben je Suche (der Verlauf führt keine Zeitstempel).
+
 ### v4.72.0 — Anpinnen an Phasen und Spannen (August 2026)
 
 MINOR — Gemeldet: „bei denen erscheint keine Nadel zum Anpinnen" (Bewilligungs-, Antrags-, Fristdatum) — und der Status-Block, der als einziger von sich aus offen steht, hatte nie eine. Von 8 Nadeln in der Leiste waren im Ausgangszustand genau 2 erreichbar.

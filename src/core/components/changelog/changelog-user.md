@@ -19,6 +19,16 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.73 — 2026-08
+
+### Neu
+- Der Einstieg in die Suche steht jetzt in **einem Kasten mit Reitern**: *Alle · Zuletzt · Suchsprache · Fragen · Stöbern*. Vorher lagen sechs Blöcke untereinander, und die Seite scrollte. Der Reiter, den du zuletzt offen hattest, ist beim nächsten Mal wieder da.
+- **Stöbern** zeigt, was im Bestand überhaupt steht: die häufigsten Deskriptoren, Netzwerke, Einrichtungen und Orte — jeweils mit der Trefferzahl, die nach dem Klick auch dasteht. Für die vollständige Liste tippst du weiterhin `deskriptor:` ins Suchfeld.
+
+### Verbesserungen
+- Die Suchbeispiele stehen nach Zweck sortiert: *ein Thema suchen*, *über eine Kennung*, *wer und wo*, *eigenes* — statt als eine Liste von zehn.
+- „Aus dem Index" ist als eigener Block weggefallen: die Bestandszahlen standen ohnehin schon in der Optionszeile über dem Ergebnis.
+
 ## v4.72 — 2026-08
 
 ### Neu
