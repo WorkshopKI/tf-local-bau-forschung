@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.71.0 — Das Suchfeld schlaegt vor (August 2026)
+
+MINOR — Gewünscht: eine Autovervollständigung im Suchfeld, „evtl. auch für die Feldsyntax (`ort:`, `nw:`)". Am Bestand gemessen ist der Wert das eigentliche Ratespiel: die Deskriptoren sind ein festes Vokabular von 43 Werten, das nirgends in der App steht, und die Einrichtung mit 305 Anträgen heißt „… angewandten Forschung **eingetragener Verein**", nicht „e.V.".
+
+- **Feldnamen vervollständigen sich beim Tippen**: „or" → `ort:` („nur Ort"); gesucht über alle Schreibweisen („netz" findet `nw:`), eingesetzt die eine, die die App selbst schreibt ([vervollstaendigung.ts](src/plugins/suche/vervollstaendigung.ts))
+- **Werte kommen aus dem Bestand**, mit Trefferzahl aus einem echten Probelauf: `ort:` (2.055) · `ast:` (5.461) · `nw:` (1.270) · `wahlkreis:` (299) · `deskriptor:` (43, als Katalog durchblätterbar) ([wert-index.ts](src/plugins/antraege/services/wert-index.ts), im Korpus-Durchlauf gefüllt)
+- **Anführungszeichen halten einen Wert zusammen** — `ort:"Frankfurt am Main"`, auch ohne Feld (`"additive Fertigung"`); ein zitierter Wert ist ein Chip und läuft ohne Wortstamm ([feldpraefix.ts](src/core/services/search/feldpraefix.ts))
+- **Das war ein Defekt, kein Komfort**: `ort:Frankfurt am Main` fand bei „irgendein Wort genügt" **6.365** statt 40 Anträgen, bei „alle Wörter" 48 statt 40 ([suche-relevanz.md §9](docs/architecture/suche-relevanz.md))
+- Eine Liste für drei Quellen — Feld, Wert, Verlauf — mit durchgehender Tastatur-Navigation; im Frage-Modus bleibt nur der Verlauf ([SearchSuggestions.tsx](src/plugins/suche/SearchSuggestions.tsx), [SearchInput.tsx](src/plugins/suche/SearchInput.tsx))
+
 ### v4.70.0 — Der Kopf der Foerderantraege wird stimmig (August 2026)
 
 MINOR — Gemeldet: „links sind zwei Linien direkt übereinander", „die Ergebnistabelle klebt direkt oben am grauen Bereich", „das Layout/Design ist noch nicht stimmig". Der Handoff, pixelweise ausgelesen, hat oben gar keine graue Fläche — v4.68 hatte das Grau weiter gezogen als das Vorbild und damit die Oberkante der Tabelle verschluckt.

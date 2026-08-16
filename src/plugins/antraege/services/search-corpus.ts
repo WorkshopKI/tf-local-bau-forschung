@@ -26,7 +26,8 @@ import type { Antrag } from '@/core/services/csv/types';
 import { listManifestEntries } from '@/phase2/scanner/manifest-store';
 import { listSchemasByProgramm } from '@/core/services/csv/idb-csv';
 import { normalizeKey } from '../fieldLookup';
-import { buildDescriptorsText } from './descriptor-text';
+import { buildDescriptorsText, deskriptorenAnzeige } from './descriptor-text';
+import { netzwerkName, nimmWerte, type WertIndexRoh } from './wert-index';
 import {
   baueKorpusFeldKarte, SLOT_REIHENFOLGE,
   type KorpusFeldKarte, type KorpusSlot,
@@ -460,6 +461,17 @@ export function verbindeMit(trenner: string, ...werte: string[]): string {
 export interface LoadCorpusOptions {
   /** Cancel-Signal fuer lange Laufzeiten (Programm-Switch). */
   signal?: AbortSignal;
+  /**
+   * Zaehlwerk fuer die Vervollstaendigung. Wird MITGEFUELLT, wenn es dasteht —
+   * dieser Cursor-Walk liest die atomaren Feldwerte ohnehin, ein zweiter Lauf
+   * ueber 14 000 Antraege waere reine Wiederholung. Wer den Index nicht braucht
+   * (der XLSX-Export), laesst das Feld weg und zahlt nichts.
+   *
+   * Die zusammengezogenen Korpus-Felder taugen dafuer NICHT: `organisation`
+   * verbindet Antragsteller und ausfuehrende Stelle mit einem Leerzeichen und
+   * ist danach nicht mehr in zwei Namen zu zerlegen.
+   */
+  werteIndex?: WertIndexRoh;
   /** Wenn `true`, kommen auch Antraege ohne jeglichen Text in die Map
    *  (mit leeren Strings). Default `false` — die Hybrid-Suche braucht keine
    *  Eintraege ohne Text, der XLSX-Export aber schon (sonst Lücken in der
@@ -485,7 +497,7 @@ export async function loadAntraegeTextCorpus(
   programmId: string,
   opts: LoadCorpusOptions = {},
 ): Promise<Map<string, AntragTextEntry>> {
-  const { signal, includeEmpty = false } = opts;
+  const { signal, includeEmpty = false, werteIndex } = opts;
   // VOR der Transaktion: ein `await` zwischen zwei Cursor-Schritten wuerde die
   // IDB-Transaktion beenden. Die Karte gilt ohnehin fuer den ganzen Lauf.
   const karte = baueKorpusFeldKarte(
@@ -532,6 +544,16 @@ export async function loadAntraegeTextCorpus(
       const notiz = verbindeMit(' · ', feld.notizWichtig ?? '', feld.notizBemerkung ?? '');
       const wahlkreis = feld.wahlkreis ?? '';
       const verbundNr = feld.verbundNr ?? '';
+      if (werteIndex) {
+        nimmWerte(werteIndex, 'standort', [
+          feld.ortAfs, feld.ortAst,
+          bundeslandName(feld.landAfs ?? ''), bundeslandName(feld.landAst ?? ''),
+        ]);
+        nimmWerte(werteIndex, 'organisation', [feld.orgAfs, feld.orgAst]);
+        nimmWerte(werteIndex, 'wahlkreis', [wahlkreis]);
+        if (netzwerk.length > 0) nimmWerte(werteIndex, 'netzwerk', [netzwerkName(netzwerk)]);
+        nimmWerte(werteIndex, 'deskriptoren', deskriptorenAnzeige(a));
+      }
       // Beide Schreibweisen desselben Antrags in EINEM Feld — siehe `akzLower`.
       const kennzeichen = verbindeEindeutig(a.aktenzeichen, feld.akzC16 ?? '');
       if (

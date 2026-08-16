@@ -51,6 +51,7 @@ import {
   standortNadel,
   type AntragTextEntry,
 } from './search-corpus';
+import { leererWertIndexRoh, verdichteWertIndex, type WertIndex } from './wert-index';
 import { berechneRelevanz, type Trefferfeld } from '@/core/services/search/trefferstelle';
 import { bereichFelder, type Suchbereich } from '@/core/services/search/suchbereich';
 import { zerlegeFeldAnfrage } from '@/core/services/search/feldpraefix';
@@ -145,6 +146,9 @@ interface ProgrammCaches {
   programmId: string;
   textCorpus: Map<string, AntragTextEntry>;
   filenameToAkz: Map<string, string>;
+  /** Welche Werte die aufzählbaren Felder führen — für die Vervollständigung
+   *  im Suchfeld. Fällt im selben Cursor-Walk ab wie der Korpus. */
+  werteIndex: WertIndex;
 }
 
 // ----- Modul-Caches -----------------------------------------------------------
@@ -171,11 +175,14 @@ export async function getProgrammCaches(
   }
   if (cachedProgrammLoadPromise) return cachedProgrammLoadPromise;
   cachedProgrammLoadPromise = (async () => {
+    const werteRoh = leererWertIndexRoh();
     const [textCorpus, filenameToAkz] = await Promise.all([
-      loadAntraegeTextCorpus(idb, programmId),
+      loadAntraegeTextCorpus(idb, programmId, { werteIndex: werteRoh }),
       loadDmsFilenameToAkz(idb),
     ]);
-    const result = { programmId, textCorpus, filenameToAkz };
+    const result = {
+      programmId, textCorpus, filenameToAkz, werteIndex: verdichteWertIndex(werteRoh),
+    };
     cachedProgrammCaches = result;
     return result;
   })();
@@ -407,6 +414,13 @@ interface SuchTeil {
    * „in Bayern zu Normung" auch bayerische Vorhaben ohne Normungsbezug.
    */
   pflicht: boolean;
+  /**
+   * Wörtlich gemeint (der Teil stand in Anführungszeichen). Der Wortstamm bleibt
+   * dann draußen — und mit ihm das Einsammeln der Wortformen: ein Chip
+   * „Universitäten" unter `ast:"Technische Universität Chemnitz"` behauptete
+   * eine Suche, die gar nicht läuft.
+   */
+  exakt: boolean;
 }
 
 /** Die Suchteile aus der getippten Anfrage — der Weg, den es immer gab.
@@ -424,12 +438,14 @@ function anfrageSuchTeile(
   return zerlegeFeldAnfrage(query, verknuepfung === 'wortfolge')
     .map(t => {
       const wort = t.wert.toLowerCase();
+      const exakt = t.exakt === true;
       return {
         wort,
-        nadeln: baueNadeln(wort, stammSuche, aktiveVarianten),
+        nadeln: baueNadeln(wort, stammSuche && !exakt, aktiveVarianten),
         ortNadeln: verankere([wort]),
         erlaubt: t.feld ? new Set<Trefferfeld>([t.feld]) : bereichsFelder,
         pflicht: false,
+        exakt,
       };
     })
     .filter(t => t.wort.length > 0);
@@ -462,6 +478,7 @@ function planSuchTeile(
         ortNadeln: verankere(nadeln),
         erlaubt: p.feld ? new Set<Trefferfeld>([p.feld]) : bereichsFelder,
         pflicht: p.pflicht,
+        exakt: false,
       };
     })
     .filter(t => t.nadeln.length > 0);
@@ -536,6 +553,7 @@ function sammleAusEintrag(
 ): void {
   const text = `${entry.vb} ${entry.tv} ${entry.abstract} ${entry.descriptors}`;
   for (const t of teile) {
+    if (t.exakt) continue; // wörtlich gesucht — es gibt keine Wortformen dazu
     const stamm = suchNadel(t.wort, true);
     if (stamm === t.wort) continue; // nichts abgelöst — keine Varianten möglich
     for (const v of sammleVarianten(text, stamm, t.wort, VARIANTEN_MAX)) {

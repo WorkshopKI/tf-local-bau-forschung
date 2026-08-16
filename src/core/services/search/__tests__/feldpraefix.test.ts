@@ -86,6 +86,78 @@ describe('zerlegeFeldAnfrage', () => {
   });
 });
 
+/**
+ * Der Grund für die Anführungszeichen steht im Modul-Kommentar und ist gemessen:
+ * `ort:Frankfurt am Main` liefert 48 Treffer bei „alle Wörter" und 6 365 bei
+ * „irgendein Wort genügt" — `ort:"Frankfurt am Main"` in beiden Fällen die 40,
+ * die es sind.
+ */
+describe('Anführungszeichen halten einen Wert zusammen (v4.71)', () => {
+  it('macht aus einem mehrwortigen Feldwert EINEN Suchteil', () => {
+    expect(zerlegeFeldAnfrage('ast:"Technische Universität Chemnitz"')).toEqual([
+      {
+        roh: 'ast:"Technische Universität Chemnitz"',
+        wert: 'Technische Universität Chemnitz',
+        feld: 'organisation',
+        exakt: true,
+      },
+    ]);
+  });
+
+  it('liest auch die noch offene Form — das ist der Zustand beim Tippen', () => {
+    expect(zerlegeFeldAnfrage('ort:"Sankt Aug')).toEqual([
+      { roh: 'ort:"Sankt Aug', wert: 'Sankt Aug', feld: 'standort', exakt: true },
+    ]);
+  });
+
+  it('nimmt die Wortfolge auch hinter einem Leerzeichen nach dem Doppelpunkt', () => {
+    expect(zerlegeFeldAnfrage('ast: "Universität Leipzig"')).toEqual([
+      {
+        roh: 'ast: "Universität Leipzig"',
+        wert: 'Universität Leipzig',
+        feld: 'organisation',
+        exakt: true,
+      },
+    ]);
+  });
+
+  it('bindet eine Wortfolge ohne Feld an den Bereich, statt sie zu zerlegen', () => {
+    expect(zerlegeFeldAnfrage('"additive Fertigung"')).toEqual([
+      { roh: '"additive Fertigung"', wert: 'additive Fertigung', feld: undefined, exakt: true },
+    ]);
+  });
+
+  it('lässt die übrigen Teile daneben unberührt', () => {
+    expect(zerlegeFeldAnfrage('laser ast:"TU Chemnitz" 2024')).toEqual([
+      { roh: 'laser', wert: 'laser', feld: undefined },
+      { roh: 'ast:"TU Chemnitz"', wert: 'TU Chemnitz', feld: 'organisation', exakt: true },
+      { roh: '2024', wert: '2024', feld: undefined },
+    ]);
+  });
+
+  it('setzt `exakt` NUR bei Anführungszeichen — sonst bleibt alles wie zuvor', () => {
+    for (const t of zerlegeFeldAnfrage('laser ast:GMBU FKZ: 16KN08')) {
+      expect(t.exakt).toBeUndefined();
+    }
+  });
+
+  it('lässt ein leeres Zitat fallen, statt alles zu treffen', () => {
+    expect(zerlegeFeldAnfrage('ast:""')).toEqual([]);
+    expect(zerlegeFeldAnfrage('""')).toEqual([]);
+  });
+
+  it('deutet einen Doppelpunkt INNERHALB des Zitats nicht als Präfix', () => {
+    expect(zerlegeFeldAnfrage('"Projekt: Laser"')).toEqual([
+      { roh: '"Projekt: Laser"', wert: 'Projekt: Laser', feld: undefined, exakt: true },
+    ]);
+  });
+
+  it('`roh` setzt auch die zitierte Anfrage wieder zusammen', () => {
+    const eingabe = 'ast:"TU Chemnitz" laser';
+    expect(zerlegeFeldAnfrage(eingabe).map(t => t.roh).join(' ')).toBe(eingabe);
+  });
+});
+
 describe('Kennzeichen-Präfixe (v4.53)', () => {
   it('`vb:` meint das Verbundkennzeichen, `fkz:` das Teilvorhaben', () => {
     expect(zerlegeFeldAnfrage('vb:ZKN073232')).toEqual([

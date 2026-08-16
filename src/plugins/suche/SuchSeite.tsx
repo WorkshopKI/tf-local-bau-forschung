@@ -51,6 +51,7 @@ import {
   searchAntraegeSubstring,
 } from '@/plugins/antraege/services/antraege-search-service';
 import type { AntragTextEntry } from '@/plugins/antraege/services/search-corpus';
+import type { WertIndex } from '@/plugins/antraege/services/wert-index';
 import { ensureEmbeddingReady } from '@/core/services/embedding-corpus';
 import { useSemanticSearchMode } from '@/core/hooks/useSemanticSearchMode';
 import { useSuchVerknuepfung } from '@/core/hooks/useSuchVerknuepfung';
@@ -346,6 +347,9 @@ export function SuchSeite(): React.ReactElement {
   // wäre bei mehreren Probeläufen hintereinander deutlich spürbar.
   const korpusRef = useRef<Map<string, AntragTextEntry> | null>(null);
   const [korpusBereit, setKorpusBereit] = useState(false);
+  // Der Wertevorrat für die Vervollständigung — er fällt im selben Ladevorgang
+  // ab wie der Korpus und wartet deshalb auf niemanden.
+  const [wertIndex, setWertIndex] = useState<WertIndex | null>(null);
   useEffect(() => {
     if (!activeProgrammId) return;
     let abgebrochen = false;
@@ -353,6 +357,7 @@ export function SuchSeite(): React.ReactElement {
       .then(c => {
         if (abgebrochen) return;
         korpusRef.current = c.textCorpus;
+        setWertIndex(c.werteIndex);
         setKorpusBereit(true);
       })
       .catch(() => { /* best effort — ohne Korpus entfallen die Zahlen */ });
@@ -367,6 +372,19 @@ export function SuchSeite(): React.ReactElement {
     if (!korpus || q.trim().length === 0) return 0;
     return searchAntraegeSubstring(q, korpus, opt).length;
   }, []);
+
+  /**
+   * Die Trefferzahl an einem Vorschlag — mit den EINGESTELLTEN Reglern gerechnet,
+   * nicht mit den Standardwerten. Steht die Verknüpfung auf „irgendein Wort",
+   * findet `ort:"Dresden" laser` etwas anderes als bei „alle Wörter", und die
+   * Zahl in der Liste muss die Zahl nach dem Klick sein.
+   */
+  const zaehleVorschlag = useCallback(
+    (anfrage: string): number | null => (
+      korpusRef.current ? probelauf(anfrage, { verknuepfung, stammSuche, bereich }) : null
+    ),
+    [probelauf, verknuepfung, stammSuche, bereich],
+  );
 
   const auswege = useMemo<Ausweg[]>(() => {
     if (!korpusBereit || sichtbar.length > 0 || !queryNotEmpty || showSpinner) return [];
@@ -765,6 +783,11 @@ export function SuchSeite(): React.ReactElement {
               showSpinner={showSpinner || planLaeuft}
               onSubmit={nlModus ? () => { void frageStellen(); } : undefined}
               platzhalter={nlModus ? 'Frage stellen, z. B. „Welche Vorhaben drehen sich um Normung?"' : undefined}
+              // Im Frage-Modus schweigt die Vervollständigung: dort schreibt
+              // niemand `ort:`, und ein Vorschlag zur Feldsyntax mitten in einem
+              // Satz wäre eine Antwort auf eine Frage, die keiner gestellt hat.
+              wertIndex={nlModus ? null : wertIndex}
+              zaehle={nlModus ? undefined : zaehleVorschlag}
             />
             {/* Der Knopf steht nur im Frage-Modus da — und nur, solange die Frage
                 noch nicht übersetzt ist. Enter tut dasselbe; der Knopf sagt, DASS

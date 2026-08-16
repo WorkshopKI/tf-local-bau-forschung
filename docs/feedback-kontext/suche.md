@@ -9,6 +9,12 @@ Nutzer durchsucht Förderanträge und Dokumente programmweit mit einer hybriden 
 - **Kopfzeile:** Titel „Suche" · **Gespeicherte Suchen** (Menü, gerätelokal, mit Trefferzahl und letztem Lauf) · **Diese Suche speichern** · Hilfe.
 - **Suchfeld** oben — mehrzeilig und an der Ecke in beide Richtungen ziehbar (die Größe wird gemerkt). Enter startet/übernimmt, Shift+Enter macht einen Zeilenumbruch.
 - **Feld direkt in der Eingabe:** `ast:Fraunhofer`, `fkz:16KN08`, `ort:Dresden` — vor dem Doppelpunkt steht das Feld, dahinter der Wert (auch mit Leerzeichen: `FKZ: 16KN08`). Feldnamen: `titel` · `inhalt` · `akronym` · `fkz` · `vb` · `ast` · `ort` · `deskriptor` · `web` · `nw` · `wahlkreis` · `notiz`, dazu die Spaltencodes der Fördertabelle (`ORG_AST:`, `VB_TITEL:`, `ORT_AST:` …). Mehrere Felder in einer Anfrage sind erlaubt (`titel:Laser ort:Dresden`).
+- **Anführungszeichen halten einen Wert zusammen:** `ort:"Frankfurt am Main"`, `ast:"Technische Universität Chemnitz"` — sonst zerfällt der Wert an den Leerzeichen und die übrigen Wörter werden zu eigenen Suchbegriffen. Auch ohne Feld möglich (`"additive Fertigung"` sucht die Wortfolge, ohne den Modus umzustellen). Ein zitierter Wert ist **ein** Chip in der Deutungszeile und läuft **ohne** Wortformen — er ist wörtlich gemeint.
+- **Das Suchfeld schlägt vor**, sobald getippt wird — eine Liste unter dem Feld, mit Pfeiltasten und Enter bedienbar:
+  - **Feldnamen:** „or" → `ort:` („nur Ort"). Gesucht wird über alle Schreibweisen („netz" findet `nw:`), eingesetzt wird immer die eine, die die App selbst schreibt. Nach der Auswahl bleibt die Liste offen und zeigt gleich die Werte.
+  - **Werte aus dem Bestand** mit ihrer Trefferzahl: `ort:dre` → „Dresden 451". Es gibt sie für `ort:` (2.055 Werte), `ast:` (5.461), `nw:` (1.270 Netzwerknamen), `wahlkreis:` (299) und `deskriptor:` (43 — ein festes Vokabular, das sonst nirgends steht; `deskriptor:` allein zeigt den ganzen Katalog). Felder mit Fließtext (Titel, Beschreibung, Notiz) und Kennzeichen schlagen **keine** Werte vor.
+  - Mehrwortige Werte werden **in Anführungszeichen** eingesetzt. Die Zahl daneben stammt aus einem echten Probelauf mit den eingestellten Reglern — sie ist die Zahl, die nach dem Klick auch dasteht.
+  - Darunter wie bisher der **Verlauf** (zuletzt gesucht, einzeln entfernbar, „Verlauf leeren"). Im Frage-Modus gibt es nur ihn.
 - **Die Kennzeichen:** `fkz:` findet das Teilvorhaben in beiden Schreibweisen — als Förderkennzeichen (`16KN065624`) und als Aktenzeichen des Fachsystems (`KNF065624`); `akz:` und `kennzeichen:` sind dasselbe Feld. `vb:` findet den **Verbund** und damit alle seine Teilvorhaben auf einmal (`vb:ZKN073232` → 9). Das Netzwerk heißt seit v4.53 `nw:` (`netz:` wird weiter gelesen).
 - Ein genanntes Feld **schlägt die Auswahl „Suche in"** und gilt nur für sein Wort; Wörter ohne Präfix folgen weiter dem Dropdown. Solange ein Feld genannt ist, laufen **Dokumentenindex und Ähnlichkeitssuche nicht mit** — beide können eine Feldangabe nicht einhalten; die Deutungszeile schreibt „· nur in den Antragsfeldern" dazu. Ein unbekanntes Wort vor dem Doppelpunkt bleibt gewöhnlicher Suchtext (`projekt:laser`).
 - **Optionszeile** darunter, fünf Elemente. Sie liest sich von links nach rechts als Folge von Fragen, und **jede Auswahl trägt ihre Frage im Kasten selbst** — daneben steht keine Beschriftung mehr: „Suche mit: …" · „Suche in: …" ‖ dann die Feinjustierung, abgesetzt durch einen dünnen senkrechten Strich (wie streng verknüpft, wie weit gesucht wird).
@@ -50,6 +56,9 @@ Nutzer durchsucht Förderanträge und Dokumente programmweit mit einer hybriden 
 - Zwischen „alle Wörter müssen vorkommen", „irgendein Wort genügt" und „genau diese Wortfolge" umschalten
 - Den Suchbereich einschränken, z. B. den Firmennamen ausschließen (die Auswahl färbt sich, solange sie nicht auf „alle Felder" steht)
 - Ein Feld direkt in der Eingabe nennen (`ast:Fraunhofer`, `fkz:16KN08`) — oder ein Beispiel unter „So kannst du suchen" anklicken, das es vormacht
+- Den Feldnamen aus der Vorschlagsliste übernehmen, statt ihn nachzuschlagen („or" → `ort:`)
+- Einen Wert aus der Vorschlagsliste wählen, statt ihn zu erraten — die Netzwerknamen, die Einrichtungsnamen und die 43 Deskriptoren stehen sonst nirgends
+- `deskriptor:` tippen und den Katalog durchblättern
 - Nach Status, Antragstyp, Jahr oder Trefferstelle filtern
 - Zwischen Liste und Tabelle wechseln, Sortierung und Dichte im Darstellungs-Menü einstellen
 - Einen Treffer per „Warum?" begründen lassen oder alle auf einmal

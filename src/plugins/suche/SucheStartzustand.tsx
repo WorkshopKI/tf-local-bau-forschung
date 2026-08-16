@@ -47,6 +47,7 @@ const SUCHARTEN: readonly { query: string; erklaerung: string }[] = [
   { query: 'nw:ProAnimalLife', erklaerung: 'ein Netzwerk mit allen Teilvorhaben' },    // 80
   { query: 'ast:Fraunhofer', erklaerung: 'nur die Einrichtung' },                // 307
   { query: 'ort:Dresden', erklaerung: 'nur Ort und Bundesland' },                // 451
+  { query: 'ort:"Frankfurt am Main"', erklaerung: 'mehrere Wörter als EIN Wert' },     // 40
   { query: 'titel:Laser ort:Dresden', erklaerung: 'zwei Felder in einer Anfrage' },    // 4
   { query: 'notiz:Einbehalt', erklaerung: 'in den eigenen Arbeitsnotizen' },     // 50
 ];
@@ -229,7 +230,8 @@ export function SucheStartzustand({
           Vor dem Doppelpunkt steht das Feld: {FELDNAMEN}. Die Spaltennamen der
           Fördertabelle gehen auch (<code>ORG_AST:</code>, <code>VB_TITEL:</code>,
           <code> ORT_AST:</code>). Ohne Feldangabe gilt die Auswahl „Suche in"
-          über dem Ergebnis.
+          über dem Ergebnis. Merken muss man sich nichts: das Suchfeld schlägt
+          Feldnamen und die Werte des Bestands vor, sobald du tippst.
         </p>
       </section>
 

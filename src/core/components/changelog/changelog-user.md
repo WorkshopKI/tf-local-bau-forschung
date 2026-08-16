@@ -19,6 +19,16 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.71 — 2026-08
+
+### Neu
+- Das Suchfeld schlägt vor, während du tippst: „or" wird zu `ort:`, und danach kommen die Werte, die es im Bestand wirklich gibt — mit der Trefferzahl daneben.
+- `deskriptor:` zeigt den ganzen Katalog: 43 feste Schlagworte, die bisher nirgends in der App standen. Genauso die Netzwerknamen, die Einrichtungen, die Orte und die Wahlkreise.
+- Mehrere Wörter als ein Wert: `ort:"Frankfurt am Main"`. Die Anführungszeichen setzt die Vorschlagsliste selbst. Ohne Feld geht das auch — `"additive Fertigung"` sucht die Wortfolge.
+
+### Bugfixes
+- Ein Feldwert aus mehreren Wörtern zerfiel bisher in Einzelwörter und suchte etwas anderes: `ort:Frankfurt am Main` lieferte bei „irgendein Wort genügt" 6.365 statt 40 Anträge.
+
 ## v4.70 — 2026-08
 
 ### Verbesserungen

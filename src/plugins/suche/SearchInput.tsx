@@ -1,8 +1,16 @@
 /**
- * Such-Eingabefeld inkl. Recent-Vorschläge (Konsolidierung 2026-07 aus SuchSeite.tsx
+ * Such-Eingabefeld inkl. Vorschlägen (Konsolidierung 2026-07 aus SuchSeite.tsx
  * extrahiert — die erste der drei TODO-Verantwortungs-Grenzen). Kapselt das
- * Eingabefeld, den Lade-Spinner und das komplette Recent-Search-Dropdown mit
+ * Eingabefeld, den Lade-Spinner und das komplette Vorschlags-Dropdown mit
  * Tastatur-Navigation, Blur-Commit und Klick-außerhalb-Logik.
+ *
+ * Seit v4.71 sind es drei Quellen statt einer: Feldnamen, Werte aus dem Bestand,
+ * Verlauf ([vervollstaendigung.ts](src/plugins/suche/vervollstaendigung.ts)).
+ * Der Schreibcursor entscheidet mit — vorgeschlagen wird zu dem Stück, an dem
+ * gerade geschrieben wird, und nur dieses wird ersetzt. Die `selectionStart`
+ * liest ein eigener Zustand mit, weil ein kontrolliertes `<textarea>` bei jeder
+ * Änderung neu rendert und die Cursorposition sonst einen Tastendruck
+ * hinterherhinkte.
  *
  * Seit v3.50 ein `<textarea>` statt eines `<input>`: der Platzhalter lädt zu
  * einer „analytischen Frage" ein, das Feld war aber eine Zeile hoch und nicht
@@ -16,14 +24,15 @@
  * Such-Pipeline); dieses Feld ist ein kontrolliertes Element, das Änderungen über
  * `onValueChange` meldet.
  */
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Loader2, Search } from 'lucide-react';
 import { useSucheStore } from './store';
 import { SearchSuggestions } from './SearchSuggestions';
+import { berechneVorschlaege, type Vorschlag } from './vervollstaendigung';
+import type { WertIndex } from '@/plugins/antraege/services/wert-index';
 import {
   FELD_MIN_BREITE,
   FELD_MIN_HOEHE,
-  filterRecentSearches,
   parseFeldGroesse,
   serializeFeldGroesse,
   type FeldGroesse,
@@ -49,10 +58,24 @@ export interface SearchInputProps {
   onSubmit?: () => void;
   /** Ersetzt den Standardtext, wenn eine andere Art zu fragen erwartet wird. */
   platzhalter?: string;
+  /**
+   * Der Wertevorrat des Bestands für die Vervollständigung. `null` = noch nicht
+   * geladen (dann bleibt es beim Verlauf) oder bewusst aus, wie im Frage-Modus:
+   * dort tippt niemand `ort:`.
+   */
+  wertIndex?: WertIndex | null;
+  /**
+   * Probelauf für die Trefferzahl am Vorschlag — dieselbe Funktion, die schon
+   * die Zahlen des Startzustands rechnet. Eine gerechnete Zahl ist nie falsch,
+   * eine gezählte wäre es: 485 Anträge tragen den Ort „Dresden", `ort:Dresden`
+   * findet 451.
+   */
+  zaehle?: (anfrage: string) => number | null;
 }
 
 export function SearchInput({
   value, onValueChange, disabled, showSpinner, onSubmit, platzhalter,
+  wertIndex = null, zaehle,
 }: SearchInputProps): React.ReactElement {
   const recentSearches = useSucheStore(s => s.recentSearches);
   const addRecentSearch = useSucheStore(s => s.addRecentSearch);
@@ -61,6 +84,9 @@ export function SearchInput({
 
   const [suggestOpen, setSuggestOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
+  // Wo geschrieben wird. Getrennt vom Text, weil die Vorschläge davon abhängen
+  // und ein Klick mitten in die Anfrage den Text nicht ändert.
+  const [cursor, setCursor] = useState(0);
   const searchBoxRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   // Gezogene Breite. Sie muss am WRAPPER hängen, nicht nur am Feld: der Wrapper
@@ -101,20 +127,59 @@ export function SearchInput({
     return () => ro.disconnect();
   }, []);
 
-  const suggestions = filterRecentSearches(recentSearches, value);
+  const suggestions = useMemo(
+    () => berechneVorschlaege({ text: value, cursor, index: wertIndex, verlauf: recentSearches }),
+    [value, cursor, wertIndex, recentSearches],
+  );
+
+  // Die Trefferzahlen kommen NACH der Liste — jeder Probelauf geht über 14 000
+  // Einträge, acht davon synchron bei jedem Tastendruck wären ein Ruckeln im
+  // Feld. Die Liste steht sofort, die Zahlen einen Wimpernschlag später.
+  const [trefferZahlen, setTrefferZahlen] = useState<ReadonlyMap<string, number>>(new Map());
+  const wertVorschlaege = useMemo(() => suggestions.filter(v => v.art === 'wert'), [suggestions]);
+  useEffect(() => {
+    if (!zaehle || wertVorschlaege.length === 0) {
+      setTrefferZahlen(vorher => (vorher.size === 0 ? vorher : new Map()));
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      const naechste = new Map<string, number>();
+      for (const v of wertVorschlaege) {
+        const n = zaehle(v.anfrage);
+        if (n !== null) naechste.set(v.key, n);
+      }
+      setTrefferZahlen(naechste);
+    }, 150);
+    return () => window.clearTimeout(timer);
+  }, [wertVorschlaege, zaehle]);
+
   useClickOutside(searchBoxRef, () => { setSuggestOpen(false); setActiveIndex(-1); }, suggestOpen);
 
-  const handleInput = (next: string): void => {
+  /** Cursorposition aus dem Feld nachziehen — nach Tippen, Klicken, Pfeiltasten. */
+  const merkeCursor = (): void => {
+    const el = inputRef.current;
+    if (el) setCursor(el.selectionStart ?? el.value.length);
+  };
+
+  const handleInput = (next: string, pos: number): void => {
     onValueChange(next);
+    setCursor(pos);
     setSuggestOpen(true);
     setActiveIndex(-1);
   };
 
-  const selectSuggestion = (s: string): void => {
-    onValueChange(s);
-    setSuggestOpen(false);
+  const selectSuggestion = (v: Vorschlag): void => {
+    onValueChange(v.anfrage);
+    setCursor(v.cursor);
+    // Nach einem Feldnamen (`ort:`) bleibt die Liste offen — der nächste Schritt
+    // ist sein Wert, und ihn sofort zu zeigen ist der halbe Sinn der Sache.
+    setSuggestOpen(v.weiter);
     setActiveIndex(-1);
-    inputRef.current?.focus();
+    const el = inputRef.current;
+    el?.focus();
+    // Erst nach dem Rendern des neuen Textes — vorher zeigte die Auswahl noch
+    // auf die alte, kürzere Zeichenkette.
+    window.requestAnimationFrame(() => el?.setSelectionRange(v.cursor, v.cursor));
   };
 
   const onSearchKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>): void => {
@@ -173,9 +238,15 @@ export function SearchInput({
         data-tour="search-input"
         rows={1}
         value={value}
-        onChange={e => handleInput(e.target.value)}
-        onFocus={() => setSuggestOpen(true)}
+        onChange={e => handleInput(e.target.value, e.target.selectionStart ?? e.target.value.length)}
+        onFocus={() => { setSuggestOpen(true); merkeCursor(); }}
         onKeyDown={onSearchKeyDown}
+        // Der Cursor bewegt sich auch ohne Textänderung — Pfeiltasten, Klick,
+        // Auswahl. Ohne dieses Nachziehen zeigte die Liste Vorschläge zu einem
+        // Stück, an dem gar nicht mehr geschrieben wird.
+        onKeyUp={merkeCursor}
+        onClick={merkeCursor}
+        onSelect={merkeCursor}
         onBlur={onSearchBlur}
         disabled={disabled}
         placeholder={platzhalter ?? 'Suche oder analytische Frage…'}
@@ -208,6 +279,7 @@ export function SearchInput({
           onRemove={q => { removeRecentSearch(q); inputRef.current?.focus(); }}
           onClear={() => { clearRecentSearches(); setSuggestOpen(false); setActiveIndex(-1); }}
           onHover={setActiveIndex}
+          treffer={trefferZahlen}
         />
       )}
     </div>

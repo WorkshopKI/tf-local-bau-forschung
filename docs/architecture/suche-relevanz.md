@@ -519,3 +519,89 @@ Uhr und ohne Plugin-Import), Lauf:
 [frageplan-lauf.ts](../../src/core/services/search/frageplan-lauf.ts) (ein
 Aufruf, nur intern, `ziel: 'standard'`, kein Retry). Flag
 `sucheNatuerlicheSprache`, dev + pl.
+
+## 9 Das Suchfeld schlägt vor (v4.71)
+
+Die Feldsuche aus §7 setzt zweierlei voraus: dass man die Präfixe kennt **und**
+dass man den Wert richtig schreibt. Beides war eine Zumutung, und am Bestand
+gemessen ist klar, warum.
+
+### 9.1 Der Wertevorrat, den niemand raten kann
+
+| Feld | verschiedene Werte | mehrwortig (nach Häufigkeit gewichtet) |
+|---|---|---|
+| `deskriptor:` | **43** | 63 % |
+| `wahlkreis:` | 299 | 49 % |
+| `nw:` | 1 270 Netzwerknamen | ~0 % |
+| `ort:` | 2 055 | 8 % |
+| `ast:` | 5 461 | **100 %** |
+
+Die Deskriptoren sind ein **festes Vokabular**, das nirgends in der App stand
+(„Digitale Wirtschaft und Gesellschaft (IKT)", „Energie/Ress. Effizienz"); ein
+Netzwerk heißt im Export `"ProAnimalLife" 16KN062302_KR`; und die Einrichtung
+mit 305 Anträgen heißt nicht „Fraunhofer-Gesellschaft … e.V.", sondern
+„Fraunhofer-Gesellschaft zur Förderung der angewandten Forschung **eingetragener
+Verein**". Wer das eintippen soll, tippt es falsch — beim Schreiben dieses
+Abschnitts ist genau das passiert, und die Anfrage lieferte 0 Treffer.
+
+Felder mit Fließtext (Titel, Beschreibung, Notiz) stehen bewusst **nicht** in der
+Liste: eine Vorschlagsliste daraus wäre eine Wortwolke. Kennzeichen (`fkz:`,
+`vb:`) sind abzählbar, aber 7 535 undurchsichtige Codes sind nichts zum
+Durchblättern.
+
+### 9.2 Anführungszeichen sind die Voraussetzung, nicht die Kür
+
+Bis v4.70 zerfiel jede Anfrage an Leerzeichen. Ein Wert aus mehreren Wörtern
+wurde damit zu etwas anderem, als dastand — gemessen an `ort:Frankfurt am Main`:
+
+| Verknüpfung | ohne Anführungszeichen | mit `ort:"Frankfurt am Main"` |
+|---|---|---|
+| alle Wörter müssen vorkommen | 48 | **40** |
+| irgendein Wort genügt | **6 365** | **40** |
+
+Bei UND fängt der Zufall den Fehler meist ab (die übrigen Wörter stehen ohnehin
+in denselben Sätzen), bei ODER nicht mehr. Ein Vorschlag, den man anklickt und
+der dann 6 365 statt 40 Treffer bringt, wäre schlimmer als kein Vorschlag —
+deshalb kam der Parser zuerst.
+
+`ast:"Technische Universität Chemnitz"` ist seither **ein** Suchteil: ein Chip in
+der Deutungszeile, eine Fundstelle „Einrichtung", kein Wortstamm (`exakt` in
+[feldpraefix.ts](../../src/core/services/search/feldpraefix.ts)). Auch ohne Feld
+funktioniert das Zitat — `"additive Fertigung"` sucht die Wortfolge, ohne den
+Modus umzustellen.
+
+### 9.3 Die Zahl kommt aus einem Probelauf, nicht aus dem Zähler
+
+Der Werte-Index zählt, in wie vielen Anträgen ein Wert vorkommt — das **ordnet**
+die Liste. Was als Zahl daneben steht, kommt aus `searchAntraegeSubstring` mit
+den eingestellten Reglern, also aus derselben Maschinerie, die nach dem Klick
+läuft. Der Unterschied ist nicht theoretisch: nach den Rohspalten tragen 485
+Anträge den Ort „Dresden", die Suche findet 451.
+
+Die Probeläufe laufen **nach** der Liste (150 ms Verzögerung, nur für
+Wert-Vorschläge): acht Läufe über 14 225 Einträge synchron bei jedem Tastendruck
+wären ein Ruckeln im Feld. Dasselbe Verfahren nutzt der Startzustand für seine
+Trefferzahlen.
+
+### 9.4 Wo was wohnt
+
+- Wertevorrat: [wert-index.ts](../../src/plugins/antraege/services/wert-index.ts)
+  — gefüllt **im selben Cursor-Walk**, der den Suchkorpus baut
+  ([search-corpus.ts](../../src/plugins/antraege/services/search-corpus.ts)); ein
+  zweiter Lauf über 14 000 Anträge wäre reine Wiederholung. Die zusammengezogenen
+  Korpus-Felder taugen nicht als Quelle: `organisation` verbindet Antragsteller
+  und ausführende Stelle mit einem Leerzeichen und ist danach nicht mehr in zwei
+  Namen zu zerlegen.
+- Auswahl-Logik: [vervollstaendigung.ts](../../src/plugins/suche/vervollstaendigung.ts)
+  — rein, ohne React. Vorgeschlagen wird zum **Stück unter dem Schreibcursor**,
+  ersetzt wird nur dieses.
+- Die Deskriptoren kommen über `deskriptorenAnzeige`
+  ([descriptor-text.ts](../../src/plugins/antraege/services/descriptor-text.ts)):
+  WELCHE Werte es sind, entscheidet weiterhin `readAntragDeskriptoren` — dieselbe
+  Funktion, aus der der Suchtext entsteht; zurückgeholt wird nur die
+  Schreibweise, weil „iuk-technologien" in einer Liste wie ein Datenfehler
+  aussieht.
+
+Kein Feature-Flag: das ist kein zweiter Weg neben der Suche, sondern derselbe —
+nur mit Vorschlägen. Im Frage-Modus (§8) schweigt die Vervollständigung, dort
+schreibt niemand `ort:`.

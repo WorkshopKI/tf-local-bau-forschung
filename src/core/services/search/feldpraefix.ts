@@ -32,6 +32,24 @@
  * der Bearbeiter die Fördertabelle vor Augen hat, wenn er weiß, wo sein Wert
  * steht — und daneben die kurzen Alltagswörter, die niemand nachschlagen muss.
  *
+ * **Anführungszeichen halten einen Wert zusammen** (v4.71). Bis dahin zerfiel
+ * jede Anfrage an Leerzeichen, und ein Feldwert aus mehreren Wörtern wurde zu
+ * etwas anderem, als dastand: `ort:Frankfurt am Main` suchte „Frankfurt" im Ort
+ * und „am" und „Main" irgendwo. Am Bestand gemessen (14 225 Anträge):
+ *
+ * | Verknüpfung | ohne | mit `ort:"Frankfurt am Main"` |
+ * |---|---|---|
+ * | alle Wörter müssen vorkommen | 48 | **40** |
+ * | irgendein Wort genügt | **6 365** | **40** |
+ *
+ * Bei UND fängt der Zufall den Fehler meist ab — die übrigen Wörter stehen
+ * ohnehin in denselben Sätzen; bei ODER nicht mehr.
+ *
+ * Das ist die Voraussetzung dafür, dass die Vervollständigung im Suchfeld einen
+ * Wert überhaupt einsetzen darf: 100 % der 5 461 Einrichtungsnamen und 63 % der
+ * gewichteten Deskriptor-Treffer sind mehrwortig
+ * ([vervollstaendigung.ts](src/plugins/suche/vervollstaendigung.ts)).
+ *
  * Rein — kein React, kein IDB, kein Korpus.
  */
 import type { Trefferfeld } from './trefferstelle';
@@ -44,10 +62,17 @@ export interface FeldTeil {
    * die einzelne Teile abwählbar macht.
    */
   roh: string;
-  /** Wonach gesucht wird — der Wert ohne Präfix. */
+  /** Wonach gesucht wird — der Wert ohne Präfix und ohne Anführungszeichen. */
   wert: string;
   /** Das genannte Feld. `undefined` = kein Präfix, es gilt der Suchbereich. */
   feld?: Trefferfeld;
+  /**
+   * Stand der Wert in Anführungszeichen? Dann ist er wörtlich gemeint, und der
+   * Wortstamm bleibt draußen: wer `ast:"Technische Universität Chemnitz"` aus
+   * der Vorschlagsliste übernimmt, will genau diese Einrichtung — ein Stamm
+   * über die ganze Wortfolge holte fremde Sätze herein.
+   */
+  exakt?: boolean;
 }
 
 /**
@@ -155,6 +180,16 @@ export const FELD_PRAEFIX: Partial<Record<Trefferfeld, string>> = {
   notiz: 'notiz',
 };
 
+/**
+ * Alle Schreibweisen, die vor dem Doppelpunkt stehen dürfen.
+ *
+ * Für die Vervollständigung: sie sucht über ALLE Schreibweisen (wer „netz"
+ * tippt, meint das Netzwerk), setzt aber immer die eine aus `FELD_PRAEFIX` ein.
+ * Als Sicht auf dieselbe Tabelle, nicht als Kopie — eine zweite Liste driftete
+ * ab, sobald ein Alias dazukommt.
+ */
+export const ALLE_PRAEFIXE: ReadonlyMap<string, Trefferfeld> = ALIASE;
+
 /** Alle bekannten Aliasse eines Feldes — für die Hilfe und für die Tests. */
 export function aliasseFuer(feld: Trefferfeld): string[] {
   const out: string[] = [];
@@ -165,6 +200,60 @@ export function aliasseFuer(feld: Trefferfeld): string[] {
 /** Löst ein getipptes Präfix auf. `undefined` = kein bekanntes Feld. */
 export function feldAusPraefix(roh: string): Trefferfeld | undefined {
   return ALIASE.get(roh.trim().toLowerCase());
+}
+
+/**
+ * Ein Stück der Eingabe, wie der Leser es sieht — mit seiner Lage im Text.
+ *
+ * Die Lage braucht die Vervollständigung: sie muss wissen, welches Stück unter
+ * dem Schreibcursor liegt, und nur dieses ersetzen.
+ */
+export interface AnfrageToken {
+  roh: string;
+  /** Erste Position im Eingabetext. */
+  start: number;
+  /** Erste Position DAHINTER. */
+  ende: number;
+}
+
+/**
+ * Was als ein Stück gilt: eine geschlossene Wortfolge in Anführungszeichen,
+ * eine noch offene, oder eine Folge ohne Leerraum.
+ *
+ * Die OFFENE Form ist kein Sonderfall für Feinschmecker — sie ist der Zustand
+ * beim Tippen. Ohne sie zerfiele `ast:"Technische Uni` in drei Stücke, die
+ * Suche liefe auf etwas anderem, und die Vorschlagsliste beschriebe einen
+ * Zustand, den es nur bis zum nächsten Tastendruck gibt.
+ *
+ * Modul-global compiliert, aber je Lauf frisch gestellt (`lastIndex = 0`) —
+ * ein `/g`-Ausdruck trägt seinen Stand mit sich.
+ */
+const TOKEN_MUSTER = /[^\s"]*"[^"]*(?:"|$)|\S+/g;
+
+/** Zerlegt die Eingabe in ihre Stücke, Anführungszeichen zusammengehalten. */
+export function anfrageTokens(query: string): AnfrageToken[] {
+  TOKEN_MUSTER.lastIndex = 0;
+  const out: AnfrageToken[] = [];
+  for (let m = TOKEN_MUSTER.exec(query); m !== null; m = TOKEN_MUSTER.exec(query)) {
+    if (m[0].length === 0) { TOKEN_MUSTER.lastIndex++; continue; }
+    out.push({ roh: m[0], start: m.index, ende: m.index + m[0].length });
+  }
+  return out;
+}
+
+/**
+ * Nimmt die Anführungszeichen ab und sagt, ob welche dastanden.
+ *
+ * Tolerant gegenüber der offenen Form: `"Technische Uni` (der Nutzer tippt
+ * noch) gilt bereits als wörtlich gemeint. Anders wäre die Suche während des
+ * Tippens eine andere als nach dem Schlusszeichen.
+ */
+function ohneAnfuehrung(wert: string): { wert: string; exakt: boolean } {
+  let t = wert.trim();
+  if (!t.startsWith('"')) return { wert: t, exakt: false };
+  t = t.slice(1);
+  if (t.endsWith('"')) t = t.slice(0, -1);
+  return { wert: t.trim(), exakt: true };
 }
 
 /**
@@ -187,27 +276,36 @@ export function zerlegeFeldAnfrage(query: string, alsWortfolge = false): FeldTei
   if (alsWortfolge) {
     const geteilt = teilePraefix(roh);
     if (geteilt && geteilt.wert.length > 0) {
-      return [{ roh, wert: geteilt.wert, feld: geteilt.feld }];
+      return [baueTeil(roh, geteilt.wert, geteilt.feld, geteilt.exakt)];
     }
-    return [{ roh, wert: roh }];
+    const blank = ohneAnfuehrung(roh);
+    return [baueTeil(roh, blank.wert.length > 0 ? blank.wert : roh, undefined, blank.exakt)];
   }
 
-  const token = roh.split(/\s+/).filter(t => t.length > 0);
+  const token = anfrageTokens(roh).map(t => t.roh);
   const out: FeldTeil[] = [];
   for (let i = 0; i < token.length; i++) {
     const t = token[i] ?? '';
     const geteilt = teilePraefix(t);
-    if (!geteilt) { out.push({ roh: t, wert: t }); continue; }
+    if (!geteilt) {
+      // Eine Wortfolge ohne Feld („additive Fertigung") sucht dieselbe Sache in
+      // allen Feldern des Bereichs — ein Suchbegriff, keine zwei.
+      const blank = ohneAnfuehrung(t);
+      if (blank.wert.length > 0) out.push(baueTeil(t, blank.wert, undefined, blank.exakt));
+      continue;
+    }
     if (geteilt.wert.length > 0) {
-      out.push({ roh: t, wert: geteilt.wert, feld: geteilt.feld });
+      out.push(baueTeil(t, geteilt.wert, geteilt.feld, geteilt.exakt));
       continue;
     }
     // „ast: GMBU" — mit Leerzeichen getippt. Das Präfix nimmt sich das nächste
-    // Wort; so gelesen, wie es dasteht. Steht keines mehr da (der Nutzer tippt
+    // Stück; so gelesen, wie es dasteht. Steht keines mehr da (der Nutzer tippt
     // gerade), fällt der angefangene Teil weg, statt als Wort „ast:" zu suchen.
     const naechstes = token[i + 1];
     if (naechstes === undefined) continue;
-    out.push({ roh: `${t} ${naechstes}`, wert: naechstes, feld: geteilt.feld });
+    const wert = ohneAnfuehrung(naechstes);
+    if (wert.wert.length === 0) { i++; continue; }
+    out.push(baueTeil(`${t} ${naechstes}`, wert.wert, geteilt.feld, wert.exakt));
     i++;
   }
   return out;
@@ -219,11 +317,23 @@ export function hatFeldPraefix(query: string, alsWortfolge = false): boolean {
   return zerlegeFeldAnfrage(query, alsWortfolge).some(t => t.feld !== undefined);
 }
 
+/**
+ * Baut einen Suchteil. `exakt` steht nur dran, wenn es zutrifft — der Normalfall
+ * bleibt damit Feld für Feld derselbe wie vor den Anführungszeichen.
+ */
+function baueTeil(
+  roh: string, wert: string, feld: Trefferfeld | undefined, exakt: boolean,
+): FeldTeil {
+  return exakt ? { roh, wert, feld, exakt: true } : { roh, wert, feld };
+}
+
 /** Spaltet `praefix:wert` auf, wenn das Präfix bekannt ist. */
-function teilePraefix(token: string): { feld: Trefferfeld; wert: string } | null {
+function teilePraefix(
+  token: string,
+): { feld: Trefferfeld; wert: string; exakt: boolean } | null {
   const trenner = token.indexOf(':');
   if (trenner <= 0) return null;
   const feld = ALIASE.get(token.slice(0, trenner).toLowerCase());
   if (feld === undefined) return null;
-  return { feld, wert: token.slice(trenner + 1).trim() };
+  return { feld, ...ohneAnfuehrung(token.slice(trenner + 1)) };
 }
