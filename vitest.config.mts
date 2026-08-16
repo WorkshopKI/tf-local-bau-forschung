@@ -102,6 +102,11 @@ const ISOLATED_TESTS = [
   'src/core/status/__tests__/label-identitaet.test.ts',
   'src/core/status/__tests__/reconcile-store.test.ts',
   'src/core/status/__tests__/trigger-share.test.ts',
+  // Mockt `search-corpus` + `orama-store` + `embedding-corpus` modulweit, um die
+  // drei Such-Quellen einzeln zu prüfen (v4.64). Andere Dateien laden dieselben
+  // Module vorher echt — ohne Isolation griff die Fabrik nicht und der Aufruf
+  // landete in der echten IDB-Schicht. Einzeln immer grün.
+  'src/plugins/antraege/__tests__/dokumenttreffer-ohne-optin.test.ts',
   'src/plugins/auslastung/__tests__/assign-verbund.test.ts',
   'src/plugins/auslastung/__tests__/auslastung-coldstart-guard.test.ts',
   'src/plugins/auslastung/__tests__/auslastung-crosstab-reload.test.ts',

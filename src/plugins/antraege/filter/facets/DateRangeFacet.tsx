@@ -24,7 +24,7 @@ export function DateRangeFacet({ value, minDate, maxDate, onChange }: Props): Re
             <button
               type="button"
               onClick={() => onChange({})}
-              className="px-1.5 py-0.5 rounded text-[11px] text-[var(--tf-text-secondary)] border-[0.5px] border-[var(--tf-border)] hover:bg-[var(--tf-bg-secondary)]"
+              className="px-1.5 py-0.5 rounded text-[11px] text-[var(--tf-text-secondary)] border-[0.5px] border-[var(--tf-border)] hover:bg-[var(--tf-hover)]"
               title="Datums-Filter zurücksetzen"
             >
               Alle
@@ -34,7 +34,7 @@ export function DateRangeFacet({ value, minDate, maxDate, onChange }: Props): Re
             <button
               type="button"
               onClick={() => onChange({ ...value, from: minDate })}
-              className="px-1.5 py-0.5 rounded text-[11px] text-[var(--tf-text-secondary)] border-[0.5px] border-[var(--tf-border)] hover:bg-[var(--tf-bg-secondary)]"
+              className="px-1.5 py-0.5 rounded text-[11px] text-[var(--tf-text-secondary)] border-[0.5px] border-[var(--tf-border)] hover:bg-[var(--tf-hover)]"
               title={`Von auf ältestes Datum (${formatLabel(minDate)}) setzen`}
             >
               Ältestes: {formatLabel(minDate)}
@@ -44,7 +44,7 @@ export function DateRangeFacet({ value, minDate, maxDate, onChange }: Props): Re
             <button
               type="button"
               onClick={() => onChange({ ...value, to: maxDate })}
-              className="px-1.5 py-0.5 rounded text-[11px] text-[var(--tf-text-secondary)] border-[0.5px] border-[var(--tf-border)] hover:bg-[var(--tf-bg-secondary)]"
+              className="px-1.5 py-0.5 rounded text-[11px] text-[var(--tf-text-secondary)] border-[0.5px] border-[var(--tf-border)] hover:bg-[var(--tf-hover)]"
               title={`Bis auf neuestes Datum (${formatLabel(maxDate)}) setzen`}
             >
               Neuestes: {formatLabel(maxDate)}

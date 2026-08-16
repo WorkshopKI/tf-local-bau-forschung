@@ -43,7 +43,11 @@ export function FilterDrawer({ open, onClose, antraege, search, onSearchChange }
         aria-label="Filter"
         // Links wie die persistente Leiste: dasselbe Werkzeug darf nicht je nach
         // Detail-Zustand von der anderen Seite hereinfahren.
-        className="fixed top-0 left-0 z-50 h-full bg-[var(--tf-bg)] shadow-xl flex flex-col"
+        // Grundfläche wie die persistente Leiste (v4.64) — sonst säße ihr eigener
+        // Kopf hier auf einem weißen Streifen. Der Schlagschatten bleibt: über
+        // dem Detail liegend braucht die Überlagerung eine eigene Kante, die die
+        // Flächenfarbe allein nicht liefert.
+        className="fixed top-0 left-0 z-50 h-full bg-[var(--tf-bg-secondary)] shadow-xl flex flex-col"
         style={{ width: DRAWER_WIDTH, borderRight: '0.5px solid var(--tf-border)' }}
       >
         <div

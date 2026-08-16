@@ -19,6 +19,16 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.64 — 2026-08
+
+### Verbesserungen
+- **Weniger Knöpfe über der Tabelle.** Die drei Symbole für Liste, Tabelle und Karten stehen jetzt im Menü „Darstellung" unter „Ansicht" — die Tabelle ist dabei die neue Standard-Ansicht. Der Knopf „Filter" ist ans Suchfeld gerückt, an die Seite, auf der die Filterleiste aufgeht.
+- **Das Auswahlfeld „Ohne Ähnlichkeitssuche" ist verschwunden.** Sobald Sie suchen, steht unter dem Feld, was gerade gefunden wird, und daneben „Auch inhaltlich ähnliche einbeziehen". Der Weg zurück steht an derselben Stelle.
+- **Filterleiste und Tabellenkopf stehen auf einer gemeinsamen hellgrauen Fläche**; der Trennstrich dazwischen entfällt. Das Häkchen „inaktive MAs" ist als Abschnitt **Bestand** in die Filterleiste gezogen.
+
+### Bugfixes
+- **Die Suche findet wieder in Dokumenten.** Sie durchsucht jetzt immer auch den Volltext der aufgenommenen Dokumente — bisher ging das nur mit eingeschalteter Ähnlichkeitssuche, obwohl das Suchfeld die Dokumente stets mit angeboten hat.
+
 ## v4.63 — 2026-08
 
 ### Neu

@@ -57,7 +57,7 @@ export function SingleSelectFacet({ def, counts, selected, valueLabels, onChange
       ) : null}
       <div className="max-h-[240px] overflow-y-auto">
         <label
-          className="flex items-center justify-between gap-2 py-1 text-[12.5px] cursor-pointer hover:bg-[var(--tf-bg-secondary)] rounded px-1.5"
+          className="flex items-center justify-between gap-2 py-1 text-[12.5px] cursor-pointer hover:bg-[var(--tf-hover)] rounded px-1.5"
         >
           <div className="flex items-center gap-1.5 min-w-0 flex-1">
             <input
@@ -76,7 +76,7 @@ export function SingleSelectFacet({ def, counts, selected, valueLabels, onChange
           return (
             <label
               key={v}
-              className="group/pin flex items-center justify-between gap-2 py-1 text-[12.5px] cursor-pointer hover:bg-[var(--tf-bg-secondary)] rounded px-1.5"
+              className="group/pin flex items-center justify-between gap-2 py-1 text-[12.5px] cursor-pointer hover:bg-[var(--tf-hover)] rounded px-1.5"
             >
               <div className="flex items-center gap-1.5 min-w-0 flex-1">
                 <input

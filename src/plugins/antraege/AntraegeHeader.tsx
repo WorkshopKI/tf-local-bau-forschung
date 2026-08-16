@@ -14,11 +14,9 @@ import { isAuslastungFreigeschaltet } from '@/core/modul-freischaltung';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useFilteredAntraege } from './useFilteredAntraege';
-import { useShowInaktiveMasStore } from './useShowInaktiveMasStore';
-import { ViewModeToggle } from './ViewModeToggle';
+import { AehnlichkeitsHinweis } from './AehnlichkeitsHinweis';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
-import { useSemanticSearchMode } from '@/core/hooks/useSemanticSearchMode';
 import { exportFilteredAntraegeXlsx } from './services/export-xlsx';
 import { useKategorieSpalten } from './useKategorieSpalten';
 import { SeitenHilfeButton } from '@/components/help/SeitenHilfeButton';
@@ -51,11 +49,6 @@ export function AntraegeHeader({ filterOpen, onToggleFilter, listeSichtbar }: Pr
   const searchIgnoreBearbeiter = useAntraegeStore(s => s.searchIgnoreBearbeiterFilter);
   const setSearchIgnoreBearbeiter = useAntraegeStore(s => s.setSearchIgnoreBearbeiterFilter);
   const hybridLoading = useAntraegeStore(s => s.hybridSearch.loading);
-  const hybridUnavailable = useAntraegeStore(s => s.hybridSearch.unavailable);
-  const downloadingCorpus = useAntraegeStore(s => s.hybridSearch.downloadingCorpus);
-  // v2.62: Ähnlichkeitssuche opt-in (Session-Schalter, geteilt mit der Suchseite).
-  const semanticEnabled = useSemanticSearchMode(s => s.enabled);
-  const setSemanticEnabled = useSemanticSearchMode(s => s.setEnabled);
   const filterCount = useFilterState(s => s.active.length);
   // Im Compact-Modus (Tabelle) sollen die Header-Icons mit dem Tabellen-Rand
   // fluchten (kein pr-4); in List/Cards bleibt pr-4 für Bündigkeit mit den
@@ -65,8 +58,6 @@ export function AntraegeHeader({ filterOpen, onToggleFilter, listeSichtbar }: Pr
   // Zähler UND Ausblend-Zahl kommen aus derselben Pipeline wie die Liste — der
   // Kopf rechnet nichts nach (Pitfall #46).
   const { filtered, bearbeiterFilter, counts, ausgeblendet } = useFilteredAntraege();
-  const showInaktive = useShowInaktiveMasStore(s => s.showInaktive);
-  const setShowInaktive = useShowInaktiveMasStore(s => s.setShowInaktive);
   const verbundById = useAntraegeStore(s => s.verbundById);
   // Export folgt der Tabellen-Ansicht: dieselben sichtbaren Spalten (+ MA-Spalte
   // im „alle"-/Übersichtsmodus, identisch zu AntraegeMain).
@@ -94,7 +85,6 @@ export function AntraegeHeader({ filterOpen, onToggleFilter, listeSichtbar }: Pr
       setExportBusy(false);
     }
   };
-  const showEmbeddingBanner = search.trim().length >= 2 && hybridUnavailable.includes('embedding');
   // Checkbox nur zeigen wenn ein Bearbeiter-Filter ueberhaupt aktiv ist — sonst
   // gaebe es nichts zu ignorieren und der UI-Punkt waere irrefuehrend.
   const showIgnoreBearbeiterToggle = searchActive && bearbeiterFilter.active;
@@ -137,10 +127,12 @@ export function AntraegeHeader({ filterOpen, onToggleFilter, listeSichtbar }: Pr
           „Spalten"-Dropdown und Tabellen-Rand. Die Unterkanten-Border läuft
           voll durch, weil sie auf dem äußeren (padding-freien) Container sitzt. */}
       <div className="max-w-6xl px-8">
-        {/* Toolbar: Tabs links, Suche + Filter rechts (ml-auto). pr-4 (nur
-            List/Cards) kompensiert das px-4-Innenpadding der AntragCard, damit
-            die Filter-Button-Kante mit der Status-Badge-Kante fluchtet; im
-            Compact-Modus kein pr → Icons treffen den Tabellen-Rand. */}
+        {/* Toolbar: Tabs links, Aktionen rechts (ml-auto). Seit v4.64 stehen dort
+            nur noch „Aufnehmen" und der Export — der Ansichts-Umschalter ist eine
+            Achse im „Darstellung"-Menü geworden, der Filter-Knopf in die Suchzeile
+            gezogen. pr-4 (nur List/Cards) kompensiert das px-4-Innenpadding der
+            AntragCard, damit die Knopf-Kante mit der Status-Badge-Kante fluchtet;
+            im Compact-Modus kein pr → Icons treffen den Tabellen-Rand. */}
         {/* Toolbar-Zeile komplett nur bei sichtbarer Liste — im Fokus-Modus bliebe
             sonst eine leere Zeile mit ihrem Innenabstand stehen. */}
         {listeSichtbar ? (
@@ -193,8 +185,21 @@ export function AntraegeHeader({ filterOpen, onToggleFilter, listeSichtbar }: Pr
                   ? <Loader2 size={13} className="animate-spin" />
                   : <Download size={13} />}
               </Button>
-              <ViewModeToggle />
-              {/* Beschriftet statt nur Trichter, und die Anzahl als ZAHL statt
+            </div>
+          </div>
+        ) : null}
+
+        {/* Such-Zeile (eigene Zeile unter den Tabs): Filter-Knopf, breites
+            Suchfeld, darunter der Hinweis zur laufenden Suche. Im Fokus-Modus
+            komplett raus — die Suche trifft nur die Liste. Der Suchtext bleibt im
+            Store und wirkt beim Wiedereinblenden weiter. */}
+        {listeSichtbar ? (
+          <>
+            <div className="mt-2 flex items-center gap-2 pr-4">
+              {/* Der Filter-Knopf steht seit v4.64 hier statt in der Zeile
+                  darüber — die Leiste geht LINKS auf, also gehört ihr Schalter
+                  an dieselbe Kante und nicht ans andere Ende des Kopfes.
+                  Beschriftet statt nur Trichter, und die Anzahl als ZAHL statt
                   als Punkt: der Punkt sagte „irgendetwas filtert", die Zahl sagt
                   wie viel — und sie bleibt sichtbar, wenn die Leiste offen ist
                   (der Punkt verschwand genau dann). Die Marke nimmt in beiden
@@ -208,7 +213,7 @@ export function AntraegeHeader({ filterOpen, onToggleFilter, listeSichtbar }: Pr
                 title={filterOpen
                   ? `Filterleiste schließen${filterCount > 0 ? ` (${filterCount} aktiv)` : ''}`
                   : `Filterleiste öffnen${filterCount > 0 ? ` (${filterCount} aktiv)` : ''}`}
-                className="h-8 gap-1.5 px-2.5"
+                className="h-8 shrink-0 gap-1.5 px-2.5"
               >
                 <Filter size={13} />
                 <span className="text-[12px]">Filter</span>
@@ -225,17 +230,6 @@ export function AntraegeHeader({ filterOpen, onToggleFilter, listeSichtbar }: Pr
                   </span>
                 ) : null}
               </Button>
-            </div>
-          </div>
-        ) : null}
-
-        {/* Such-Zeile + Suchhinweise (eigene Zeile unter den Tabs): breites
-            Suchfeld links, im „alle"-Modus der Inaktiv-MA-Toggle rechts daneben.
-            Im Fokus-Modus komplett raus — die Suche trifft nur die Liste. Der
-            Suchtext bleibt im Store und wirkt beim Wiedereinblenden weiter. */}
-        {listeSichtbar ? (
-          <>
-            <div className="mt-2 flex items-center gap-3 pr-4">
               <div className="relative flex-1 min-w-0 max-w-[640px]">
                 <Search
                   size={13}
@@ -246,9 +240,9 @@ export function AntraegeHeader({ filterOpen, onToggleFilter, listeSichtbar }: Pr
                   value={search}
                   onChange={e => setSearch(e.target.value)}
                   className="pl-7 pr-7 h-8 w-full text-[12.5px]"
-                  title={semanticEnabled
-                    ? 'Suche kombiniert Substring (Aktenzeichen/Akronym/Titel/Antragsteller/Ort/Bundesland/Verbund-Titel/Kurzbeschreibung), Embedding-Match aus dem Auslastungs-Korpus und DMS-Volltext-Treffer.'
-                    : 'Substring-Suche (Aktenzeichen/Akronym/Titel/Antragsteller/Ort/Bundesland/Verbund-Titel/Kurzbeschreibung). Für inhaltlich ähnliche Anträge rechts „Mit Ähnlichkeitssuche" wählen.'}
+                  title={'Wortlaut über Aktenzeichen/Akronym/Titel/Antragsteller/Ort/Bundesland/'
+                    + 'Verbund-Titel/Kurzbeschreibung UND den Volltext der aufgenommenen Dokumente. '
+                    + 'Inhaltlich ähnliche Anträge kommen über den Hinweis unter dem Feld dazu.'}
                 />
                 {hybridLoading ? (
                   <Loader2
@@ -258,32 +252,10 @@ export function AntraegeHeader({ filterOpen, onToggleFilter, listeSichtbar }: Pr
                   />
                 ) : null}
               </div>
-              <select
-                value={semanticEnabled ? 'mit' : 'ohne'}
-                onChange={e => setSemanticEnabled(e.target.value === 'mit')}
-                aria-label="Ähnlichkeitssuche"
-                title={semanticEnabled
-                  ? 'Ähnlichkeitssuche aktiv — semantische Treffer (Embedding-Modell geladen).'
-                  : 'Nur Wortlaut-Treffer. „Mit Ähnlichkeitssuche" lädt das Embedding-Modell (~einmalig 5–10 s, deutlich mehr Arbeitsspeicher) und findet auch inhaltlich ähnliche Anträge.'}
-                className="h-8 shrink-0 rounded border-[0.5px] border-[var(--tf-border)] bg-transparent px-2 text-[11.5px] text-[var(--tf-text)] cursor-pointer"
-              >
-                <option value="ohne">Ohne Ähnlichkeitssuche</option>
-                <option value="mit">Mit Ähnlichkeitssuche</option>
-              </select>
-              {!bearbeiterFilter.active && isAuslastungFreigeschaltet() ? (
-                <label className="inline-flex items-center gap-1.5 text-[11.5px] text-[var(--tf-text-secondary)] cursor-pointer select-none shrink-0 whitespace-nowrap">
-                  <input
-                    type="checkbox"
-                    checked={showInaktive}
-                    onChange={e => setShowInaktive(e.target.checked)}
-                    className="accent-[var(--tf-primary)] cursor-pointer"
-                  />
-                  inaktive MAs
-                </label>
-              ) : null}
-              {/* Im Suchzeilen-Slot (rechts neben dem Ähnlichkeits-Select) — exklusiv
-                  zur „inaktive MAs"-Checkbox (die nur ohne Bearbeiter-Filter erscheint),
-                  spart so die eigene Zeile darunter. */}
+              {/* Kontext-Häkchen zur laufenden Suche: erscheint nur, wenn ein
+                  Bearbeiter-Filter die Treffer beschneiden würde. Die frühere
+                  Nachbarschaft („inaktive MAs") ist mit v4.64 in die Filterleiste
+                  gezogen — sie filtert die Liste, nicht die Suche. */}
               {showIgnoreBearbeiterToggle ? (
                 <label className="inline-flex items-center gap-1.5 text-[11.5px] text-[var(--tf-text-secondary)] cursor-pointer select-none shrink-0 whitespace-nowrap">
                   <input
@@ -297,21 +269,9 @@ export function AntraegeHeader({ filterOpen, onToggleFilter, listeSichtbar }: Pr
               ) : null}
             </div>
 
-            {downloadingCorpus ? (
-              <div className="mt-1 mb-2 text-[11.5px] text-[var(--tf-text-tertiary)] flex items-center gap-1.5">
-                <Loader2 size={11} className="animate-spin" aria-hidden="true" />
-                <span>
-                  Ähnlichkeitssuche wird vorbereitet (Modell laden + Embedding-Korpus vom Daten-Share, einmalig ~5–15 s) — solange liefert die Suche Wortlaut-Treffer.
-                </span>
-              </div>
-            ) : showEmbeddingBanner ? (
-              <div className="mt-1 mb-2 text-[11.5px] text-[var(--tf-text-tertiary)] flex items-center gap-1.5">
-                <span aria-hidden="true">ⓘ</span>
-                <span>
-                  Semantische Suche inaktiv — Embedding-Korpus im Auslastungs-Modul bauen für mehr Treffer.
-                </span>
-              </div>
-            ) : null}
+            {/* Was die Suche gerade findet + der Weg zur Ähnlichkeit. Steht nur
+                bei laufender Suche und ersetzt das Dauer-Auswahlfeld. */}
+            <AehnlichkeitsHinweis />
           </>
         ) : null}
       </div>

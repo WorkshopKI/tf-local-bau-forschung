@@ -11,9 +11,27 @@ import type { ViewKey } from './views';
  */
 export type ViewMode = 'list' | 'compact' | 'cards';
 
-export const DEFAULT_VIEW_MODE: ViewMode = 'list';
+/**
+ * **Die Tabelle ist der Standard** (seit v4.64; davor `list`). Zwei Gründe, und
+ * beide kamen erst mit dem Umzug des Umschalters ins „Darstellung"-Menü:
+ * der Knopf trägt die erste Abweichung vom Standard, und mit `list` als Standard
+ * hätte er bei fast jedem dauerhaft „Tabelle" angezeigt — eine Meldung über den
+ * Normalfall. Und die Arbeit am Bestand findet in der Tabelle statt; Liste und
+ * Karten sind die Sonderfälle.
+ */
+export const DEFAULT_VIEW_MODE: ViewMode = 'compact';
 
 const VALID_VIEW_MODES = new Set<ViewMode>(['list', 'compact', 'cards']);
+
+/**
+ * Die drei Formen als Menü-Optionen. EINE Liste für Menü und Whitelist — eine
+ * zweite Aufzählung liefe auseinander, sobald eine Form dazukommt.
+ */
+export const VIEW_MODE_OPTIONS: ReadonlyArray<{ key: ViewMode; label: string }> = [
+  { key: 'compact', label: 'Tabelle' },
+  { key: 'list', label: 'Liste' },
+  { key: 'cards', label: 'Karten' },
+];
 
 export function isViewMode(v: unknown): v is ViewMode {
   return typeof v === 'string' && VALID_VIEW_MODES.has(v as ViewMode);

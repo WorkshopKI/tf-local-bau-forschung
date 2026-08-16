@@ -26,7 +26,7 @@
  */
 import type { DarstellungAchse } from '@/components/ui/darstellungsAchsen';
 import type { ViewKey } from './views';
-import type { ViewMode } from './viewModes';
+import { type ViewMode, VIEW_MODE_OPTIONS, DEFAULT_VIEW_MODE } from './viewModes';
 import { GROUPING_OPTIONS, DEFAULT_GROUPING_BY_VIEW } from './sort';
 import {
   TABLE_ANSICHT_OPTIONS,
@@ -60,7 +60,8 @@ export {
   zuruecksetzenAufrufe,
 } from '@/components/ui/darstellungsAchsen';
 
-export type DarstellungAchseId = 'ansicht' | 'gruppierung' | 'spalten' | 'dichte' | 'beendet';
+export type DarstellungAchseId =
+  | 'ansichtsform' | 'ansicht' | 'gruppierung' | 'spalten' | 'dichte' | 'beendet';
 
 export interface DarstellungEingabe {
   viewMode: ViewMode;
@@ -82,6 +83,19 @@ export interface DarstellungEingabe {
  *  die Gruppierung gibt es in jeder Ansicht. */
 export function baueDarstellungsAchsen(e: DarstellungEingabe): DarstellungAchse<DarstellungAchseId>[] {
   const achsen: DarstellungAchse<DarstellungAchseId>[] = [];
+  // Die Form der Liste selbst — seit v4.64 hier statt als Drei-Icon-Gruppe im
+  // Seitenkopf. Sie steht an erster Stelle, weil sie bestimmt, WELCHE Achsen
+  // darunter überhaupt gelten: Zeilen-Körnung, Spaltensatz und Zeilendichte
+  // kennt nur die Tabelle. Das Menü ändert sich also unter der Hand — das ist
+  // gewollt und der Grund, warum die Achse ganz oben steht und nicht mittendrin.
+  achsen.push({
+    id: 'ansichtsform',
+    art: 'segment',
+    label: 'Ansicht',
+    options: VIEW_MODE_OPTIONS,
+    value: e.viewMode,
+    standard: DEFAULT_VIEW_MODE,
+  });
   // Zeilen-Körnung kennt nur die Tabelle: Karten- und Listen-Ansicht verdichten
   // Verbünde nicht, dort wäre der Schalter eine Attrappe.
   if (e.viewMode === 'compact') {
@@ -122,7 +136,10 @@ export function baueDarstellungsAchsen(e: DarstellungEingabe): DarstellungAchse<
     achsen.push({
       id: 'spalten',
       art: 'segment',
-      label: 'Spalten',
+      // „Spaltensatz", nicht „Spalten": daneben in der Werkzeugleiste steht der
+      // Picker mit demselben Wort, und der wählt EINZELNE Spalten. Zwei Knöpfe
+      // mit gleichem Namen für zwei verschiedene Griffe.
+      label: 'Spaltensatz',
       options: spaltenProfilOptionen(profil),
       value: profil ?? EIGENE_AUSWAHL,
       standard: DEFAULT_SPALTEN_PROFIL,

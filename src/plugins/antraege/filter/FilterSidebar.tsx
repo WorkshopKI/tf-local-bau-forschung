@@ -3,6 +3,9 @@ import { RotateCcw, BookmarkPlus, PanelLeftClose } from 'lucide-react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { Input } from '@/components/ui/input';
 import type { AntragListItem } from '@/core/services/csv/types';
+import { useBearbeiterSicht } from '@/core/hooks/useBearbeiterSicht';
+import { isAuslastungFreigeschaltet } from '@/core/modul-freischaltung';
+import { useShowInaktiveMasStore } from '../useShowInaktiveMasStore';
 import { useFilterState } from './useFilterState';
 import { FilterSidebarItem } from './FilterSidebarItem';
 import { SavePresetDialog } from './SavePresetDialog';
@@ -70,6 +73,16 @@ export function FilterSidebar({ antraege, search, onSearchChange, hideSearch = f
     loadPreset,
     deletePreset,
   } = useFilterState();
+  // „Anträge inaktiver Bearbeiter" ist ein Mengen-Schalter wie jeder andere hier
+  // und stand bis v4.64 als Häkchen „inaktive MAs" in der Suchzeile — neben dem
+  // Suchfeld, wo er nichts zu suchen hatte. Der Zustand selbst bleibt geteilt
+  // (`useShowInaktiveMasStore`, zweite Oberfläche in den Einstellungen).
+  const { mode: bearbeiterMode } = useBearbeiterSicht();
+  const showInaktive = useShowInaktiveMasStore(s => s.showInaktive);
+  const setShowInaktive = useShowInaktiveMasStore(s => s.setShowInaktive);
+  // Mit aktivem Kürzel-Filter wirkt er nicht (die Sicht ist dann ohnehin auf
+  // eine Person geschnitten) — ein Häkchen ohne Wirkung wäre irreführend.
+  const zeigeInaktivSchalter = isAuslastungFreigeschaltet() && !bearbeiterMode.active;
   const [presetDialogOpen, setPresetDialogOpen] = useState(false);
   const [frequent, setFrequent] = useState<FrequentEntryView[]>(() => getTopFrequent(3, [], {}));
   /** Tick zum Re-Render nach dismissHint (localStorage-Lookup happens in render). */
@@ -140,10 +153,14 @@ export function FilterSidebar({ antraege, search, onSearchChange, hideSearch = f
 
   return (
     <div
-      className="flex flex-col h-full bg-[var(--tf-bg)]"
-      // Die Leiste steht links von der Liste — die Trennkante gehört an ihre
-      // rechte Seite (bis v4.62 stand sie rechts und die Kante links).
-      style={{ borderRight: '0.5px solid var(--tf-border)' }}
+      // FLÄCHE STATT STRICH (v4.64): die Leiste steht auf derselben leichten
+      // Grundfläche wie der Tabellenkopf rechts von ihr. Beide zusammen bilden
+      // ein graues L um die weiße Datenfläche — das trennt schon von sich aus,
+      // und die Trennlinie an der rechten Kante ist deshalb entfallen.
+      // Achtung bei Ergänzungen hier drin: `--tf-bg-secondary` ist DECKEND und
+      // damit auf dieser Fläche unsichtbar. Hover/aktiv gehen über das
+      // durchscheinende `--tf-hover`, abgesetzte Pillen über `--tf-bg`.
+      className="flex flex-col h-full bg-[var(--tf-bg-secondary)]"
     >
       {/* Header */}
       <div
@@ -161,7 +178,7 @@ export function FilterSidebar({ antraege, search, onSearchChange, hideSearch = f
               onClick={onCollapse}
               aria-label="Filterleiste einklappen"
               title="Filterleiste einklappen"
-              className="shrink-0 p-1 rounded-[6px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text)] hover:bg-[var(--tf-bg-secondary)] transition-colors cursor-pointer"
+              className="shrink-0 p-1 rounded-[6px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text)] hover:bg-[var(--tf-hover)] transition-colors cursor-pointer"
             >
               <PanelLeftClose size={15} />
             </button>
@@ -183,7 +200,7 @@ export function FilterSidebar({ antraege, search, onSearchChange, hideSearch = f
       {/* Preset-Indicator */}
       {activePreset ? (
         <div className="mx-3 mt-3 flex items-center gap-2 text-[11.5px] text-[var(--tf-text-secondary)]">
-          <span className="px-2 py-0.5 rounded-full bg-[var(--tf-bg-secondary)] truncate">
+          <span className="px-2 py-0.5 rounded-full bg-[var(--tf-bg)] truncate">
             Preset: {activePreset.name}
           </span>
         </div>
@@ -277,6 +294,22 @@ export function FilterSidebar({ antraege, search, onSearchChange, hideSearch = f
             ) : null}
           </>
         )}
+
+        {zeigeInaktivSchalter ? (
+          <>
+            <Hairline />
+            <SectionHeader title="Bestand" />
+            <label className="flex cursor-pointer select-none items-center gap-2 px-1.5 py-1 text-[12px] text-[var(--tf-text-secondary)]">
+              <input
+                type="checkbox"
+                checked={showInaktive}
+                onChange={e => setShowInaktive(e.target.checked)}
+                className="accent-[var(--tf-primary)] cursor-pointer"
+              />
+              Anträge inaktiver Bearbeiter einblenden
+            </label>
+          </>
+        ) : null}
       </div>
 
       {/* Footer */}
@@ -329,7 +362,7 @@ export function FilterSidebar({ antraege, search, onSearchChange, hideSearch = f
                   type="button"
                   title="Preset löschen"
                   onClick={() => void deletePreset(storage.idb, activePresetId)}
-                  className="px-2 h-7 rounded border-[0.5px] border-[var(--tf-border)] text-[11px] text-[var(--tf-text-secondary)] hover:bg-[var(--tf-bg-secondary)]"
+                  className="px-2 h-7 rounded border-[0.5px] border-[var(--tf-border)] text-[11px] text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)]"
                 >
                   ×
                 </button>

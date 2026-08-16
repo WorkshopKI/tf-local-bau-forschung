@@ -12,7 +12,7 @@ import { DEFAULT_VISIBLE_COLUMN_KEYS } from '../tableColumns';
 import { DEFAULT_DICHTE } from '../useDichteStore';
 
 /** Alles auf Standard, Tabellen-Ansicht im „Alle"-Reiter — also der Zustand mit
- *  allen fünf Achsen. */
+ *  allen sechs Achsen. */
 const STANDARD: DarstellungEingabe = {
   viewMode: 'compact',
   activeView: 'alle',
@@ -26,24 +26,45 @@ const STANDARD: DarstellungEingabe = {
 };
 
 describe('welche Achsen gelten', () => {
-  it('Tabelle im „Alle"-Reiter: alle fünf, in Menü-Reihenfolge', () => {
+  it('Tabelle im „Alle"-Reiter: alle sechs, in Menü-Reihenfolge', () => {
     // Spaltensatz und Zeilendichte stehen nebeneinander: beide sind reine
     // Anzeige-Achsen der Tabelle und gelten unter genau derselben Bedingung.
     expect(baueDarstellungsAchsen(STANDARD).map(a => a.id))
-      .toEqual(['ansicht', 'gruppierung', 'spalten', 'dichte', 'beendet']);
+      .toEqual(['ansichtsform', 'ansicht', 'gruppierung', 'spalten', 'dichte', 'beendet']);
+  });
+
+  it('die Ansichtsform steht IMMER und ganz oben — sie bestimmt, was darunter gilt', () => {
+    for (const viewMode of ['list', 'compact', 'cards'] as const) {
+      for (const activeView of ['alle', 'meine_offenen'] as const) {
+        expect(baueDarstellungsAchsen({ ...STANDARD, viewMode, activeView })[0]?.id)
+          .toBe('ansichtsform');
+      }
+    }
+  });
+
+  it('die Tabelle ist der Standard — sie meldet sich nicht als Abweichung', () => {
+    // Der Knopf trägt die erste Abweichung. Stünde `list` als Standard, hätte er
+    // bei fast jedem dauerhaft „Tabelle" angezeigt (v4.64).
+    const achse = baueDarstellungsAchsen(STANDARD)[0];
+    expect(achse?.value).toBe(achse?.standard);
+    expect(darstellungsZusammenfassung(baueDarstellungsAchsen(STANDARD)).text).toBe('');
+    // Die Sonderfälle melden sich sehr wohl.
+    expect(darstellungsZusammenfassung(
+      baueDarstellungsAchsen({ ...STANDARD, viewMode: 'list' }),
+    ).text).toBe('Liste');
   });
 
   it('Zeilen-Körnung nur in der Tabelle — Liste und Karten verdichten nicht', () => {
     expect(baueDarstellungsAchsen({ ...STANDARD, viewMode: 'list' }).map(a => a.id))
-      .toEqual(['gruppierung', 'beendet']);
+      .toEqual(['ansichtsform', 'gruppierung', 'beendet']);
     // Karten kannten den Beendet-Split noch nie.
     expect(baueDarstellungsAchsen({ ...STANDARD, viewMode: 'cards' }).map(a => a.id))
-      .toEqual(['gruppierung']);
+      .toEqual(['ansichtsform', 'gruppierung']);
   });
 
   it('Beendet nur im „Alle"-Reiter — anderswo steht praktisch nichts Terminales', () => {
     expect(baueDarstellungsAchsen({ ...STANDARD, activeView: 'meine_offenen' }).map(a => a.id))
-      .toEqual(['ansicht', 'gruppierung', 'spalten', 'dichte']);
+      .toEqual(['ansichtsform', 'ansicht', 'gruppierung', 'spalten', 'dichte']);
   });
 
   it('liefert nie eine leere Liste — die Gruppierung gibt es in jeder Ansicht', () => {

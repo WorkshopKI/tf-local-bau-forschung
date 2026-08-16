@@ -186,8 +186,10 @@ export function AntraegePage(): React.ReactElement {
               aria-orientation="vertical"
               aria-label="Filter-Panel-Breite ändern"
               onMouseDown={onResizeMouseDown}
-              className="shrink-0 w-[4px] h-full cursor-col-resize hover:bg-[var(--tf-border-hover)] transition-colors"
-              style={{ borderLeft: '0.5px solid var(--tf-border)' }}
+              // Kein Trennstrich mehr (v4.64): die Leiste steht auf der leichten
+              // Grundfläche, die Liste auf Weiß — der Farbwechsel IST die Kante.
+              // Der Griff bleibt fühlbar (Cursor) und zeigt sich beim Überfahren.
+              className="shrink-0 w-[4px] h-full cursor-col-resize bg-[var(--tf-bg-secondary)] hover:bg-[var(--tf-border-hover)] transition-colors"
             />
           </aside>
         )}

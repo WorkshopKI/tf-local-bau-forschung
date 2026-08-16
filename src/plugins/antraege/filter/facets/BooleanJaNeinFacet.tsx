@@ -19,7 +19,7 @@ export function BooleanJaNeinFacet({ filterId, counts, selected, onChange }: Pro
       {options.map(o => (
         <label
           key={o.mode}
-          className="flex items-center justify-between gap-2 py-1 text-[12.5px] cursor-pointer hover:bg-[var(--tf-bg-secondary)] rounded px-1.5"
+          className="flex items-center justify-between gap-2 py-1 text-[12.5px] cursor-pointer hover:bg-[var(--tf-hover)] rounded px-1.5"
         >
           <div className="flex items-center gap-1.5">
             <input

@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.64.0 — Suchzeile entschlackt, Ansicht ins Menue, graues L (August 2026)
+
+MINOR — Dritte Runde am Redesign-Handoff, diesmal Rückbau statt Zubau: über der Tabelle standen rund 15 Bedienelemente, im Entwurf 8. Weg kommt, was selten angefasst wird oder woanders hingehört; dabei kam ein Zusagenbruch heraus — die Dokumentsuche hing am Opt-in der Ähnlichkeitssuche und war im Normalzustand aus.
+
+- **Dokumenttreffer ohne Vorbedingung**: die DMS-Stufe läuft immer (Orama-Wortlaut, kein Modell), nur die Embedding-Stufe bleibt Opt-in ([antraege-search-service.ts](src/plugins/antraege/services/antraege-search-service.ts))
+- **Das Dauer-Auswahlfeld „Ohne Ähnlichkeitssuche" ist weg** — der Weg dorthin erscheint als Satz unter dem Suchfeld, sobald gesucht wird, mit Rückweg an derselben Stelle ([AehnlichkeitsHinweis.tsx](src/plugins/antraege/AehnlichkeitsHinweis.tsx))
+- **Ansichtsform als Achse im Darstellungs-Menü** statt drei Symbolen im Kopf; die Tabelle ist jetzt der Standard ([viewModes.ts](src/plugins/antraege/viewModes.ts), [darstellungsAchsen.ts](src/plugins/antraege/darstellungsAchsen.ts))
+- **Filter-Knopf links neben das Suchfeld**, an die Kante, an der die Leiste aufgeht; „inaktive MAs" ist als „Bestand" in die Filterleiste gezogen ([AntraegeHeader.tsx](src/plugins/antraege/AntraegeHeader.tsx), [FilterSidebar.tsx](src/plugins/antraege/filter/FilterSidebar.tsx))
+- **Fläche statt Strich**: Filterleiste und Tabellenkopf teilen eine getönte Grundfläche, die Trennlinie entfällt; die Achse „Spalten" heißt „Spaltensatz" ([AntraegePage.tsx](src/plugins/antraege/AntraegePage.tsx))
+
 ### v4.63.0 — Filter links, Schnellzugriff, Auswahl (August 2026)
 
 MINOR — Zweite Runde aus dem Redesign-Handoff `_design/handoff/Förderanträge/`: der Filterblock (Leiste links, beschrifteter Knopf, Anpinnen) und die Mehrfachauswahl. Die Massen-Aktionen bleiben auf das begrenzt, was die App wirklich kann — sie liest das Fachsystem, sie schreibt nicht hinein (Pitfall #44).

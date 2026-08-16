@@ -11,6 +11,11 @@
  *  3. **DMS-Index-Treffer** via Orama-`hybridSearch` mit `filenameToAkz`-Mapping
  *     (asynchron, Score = orama-Score 0..1, method = 'hybrid')
  *
+ * **Quelle 1 und 3 laufen immer, Quelle 2 nur nach Opt-in.** Der Schnitt liegt
+ * dort, wo die Kosten liegen: Quelle 2 lädt ein 768d-Modell, Quelle 3 fragt
+ * einen bereits gebauten Index ab. Seit v4.64 hängen sie deshalb nicht mehr am
+ * selben Schalter.
+ *
  * Dedup-Strategie bei mehreren Quellen pro Aktenzeichen: **max-score**, method
  * der jeweils besten Quelle.
  *
@@ -65,11 +70,12 @@ import type { HybridUnavailableSource } from '../store';
 const SEMANTIC_SOURCES_ENABLED = true;
 
 /**
- * Laufzeit-Gate der semantischen Quellen (v2.62): Build-Flag UND Session-Opt-in.
- * Die Ähnlichkeitssuche ist opt-in — Standard „Ohne", der User schaltet sie
- * über das Dropdown neben dem Suchfeld ein. Erst dann dürfen Modell-Init,
- * Embedding-Map und Vector-/DMS-Stages laufen. Alle Konsumenten (searchAntraege,
- * useUnifiedSearch, Preload-Hooks) routen durch diesen Helper.
+ * Laufzeit-Gate der EMBEDDING-Quelle (v2.62): Build-Flag UND Session-Opt-in.
+ * Die Ähnlichkeitssuche ist opt-in — Standard aus; der User schaltet sie über
+ * den Hinweis unter dem Suchfeld ein, der erst bei laufender Suche erscheint.
+ * Erst dann dürfen Modell-Init und Embedding-Map laufen. Der DMS-Index gehört
+ * seit v4.64 NICHT mehr dazu (er kostet kein Modell). Alle Konsumenten
+ * (searchAntraege, useUnifiedSearch, Preload-Hooks) routen durch diesen Helper.
  */
 export function isSemanticSearchActive(): boolean {
   return SEMANTIC_SOURCES_ENABLED && useSemanticSearchMode.getState().enabled;
@@ -93,7 +99,10 @@ export function isSemanticSearchActive(): boolean {
 const EMBEDDING_SCORE_FLOOR = 0.35;
 const EMBEDDING_RELATIVE_CUTOFF = 0.9;
 const EMBEDDING_TOP_K = 50;
-const MIN_QUERY_LEN_FOR_SEMANTIC = 2;
+/** Untergrenze für die INDEX-Stufen (Embedding-Korpus + DMS-Volltext). Ein
+ *  einzelnes Zeichen liefert dort nur Rauschen; die Substring-Stufe darüber
+ *  arbeitet weiter ab dem ersten Zeichen. */
+const MIN_QUERY_LEN_FOR_INDEX = 2;
 const COSINE_YIELD_INTERVAL = 2000;
 const DMS_HIT_LIMIT = 100;
 
@@ -579,39 +588,47 @@ export async function searchAntraege(
     });
   }
 
-  // Ohne Opt-in enden wir nach der Substring-Quelle — bewusst auch ohne
-  // `unavailable`-Eintrag (kein irreführender „Embedding fehlt"-Hinweis,
-  // der User hat die Ähnlichkeitssuche schlicht nicht eingeschaltet).
-  if (!isSemanticSearchActive()) {
-    return { hits: sortByScore(merged), unavailable };
-  }
-  if (query.length < MIN_QUERY_LEN_FOR_SEMANTIC) {
+  // Zu kurz für die Index-Stufen → es bleibt beim Wortlaut.
+  if (query.length < MIN_QUERY_LEN_FOR_INDEX) {
     return { hits: sortByScore(merged), unavailable };
   }
 
-  // Embedding-Service initialisieren (lazy, idempotent).
+  // **Opt-in gilt NUR für die Ähnlichkeit.** Bis v4.64 hing die DMS-Stufe am
+  // selben Schalter und war im Normalzustand mit aus — das Suchfeld versprach
+  // im Platzhalter Dokumente, die es dann nicht geben konnte. Der Dokument-Index
+  // braucht das Modell aber gar nicht: `hybridSearch(query, null)` läuft als
+  // reiner Wortlaut-Lauf über Orama, ohne Ladezeit und ohne Arbeitsspeicher.
+  // Was das Opt-in schützt, ist das Modell — nicht der Index.
+  const semantisch = isSemanticSearchActive();
+
+  // Embedding-Service initialisieren (lazy, idempotent). Ohne Opt-in bleibt
+  // `queryVec` null — bewusst auch ohne `unavailable`-Eintrag (kein
+  // irreführender „Embedding fehlt"-Hinweis, der User hat die
+  // Ähnlichkeitssuche schlicht nicht eingeschaltet).
   let modelReady = false;
-  try {
-    await ensureEmbeddingReady(idb);
-    modelReady = true;
-  } catch (err) {
-    console.warn('[antraege-search-service] embedding init failed:', err);
-    unavailable.push('embedding');
-  }
-  if (abortSignal.aborted) throw new DOMException('Aborted', 'AbortError');
-
   let queryVec: number[] | null = null;
-  if (modelReady) {
+  if (semantisch) {
     try {
-      queryVec = await embedText(query, 'query');
+      await ensureEmbeddingReady(idb);
+      modelReady = true;
     } catch (err) {
-      console.warn('[antraege-search-service] query embed failed:', err);
+      console.warn('[antraege-search-service] embedding init failed:', err);
+      unavailable.push('embedding');
     }
+    if (abortSignal.aborted) throw new DOMException('Aborted', 'AbortError');
+
+    if (modelReady) {
+      try {
+        queryVec = await embedText(query, 'query');
+      } catch (err) {
+        console.warn('[antraege-search-service] query embed failed:', err);
+      }
+    }
+    if (abortSignal.aborted) throw new DOMException('Aborted', 'AbortError');
   }
-  if (abortSignal.aborted) throw new DOMException('Aborted', 'AbortError');
 
   // Quelle 2: Embedding-Korpus
-  if (queryVec && modelReady) {
+  if (semantisch && queryVec && modelReady) {
     try {
       const embeddings = await getEmbeddings(idb);
       if (embeddings.size === 0) {
@@ -633,12 +650,13 @@ export async function searchAntraege(
       console.warn('[antraege-search-service] embedding search failed:', err);
       if (!unavailable.includes('embedding')) unavailable.push('embedding');
     }
-  } else if (modelReady) {
+  } else if (semantisch && modelReady) {
     if (!unavailable.includes('embedding')) unavailable.push('embedding');
   }
   if (abortSignal.aborted) throw new DOMException('Aborted', 'AbortError');
 
-  // Quelle 3: DMS-Index (Orama hybridSearch)
+  // Quelle 3: DMS-Index (Orama). Läuft IMMER — mit `queryVec` als Hybrid-Lauf,
+  // ohne ihn als Wortlaut-Lauf.
   if (getOramaDB() === null) {
     unavailable.push('dms');
   } else {
@@ -757,5 +775,7 @@ export function searchAntraegeDms(
  *  `SEMANTIC_SOURCES_ENABLED` ist hier raus — Caller nutzen das Laufzeit-Gate
  *  `isSemanticSearchActive()` (Build-Flag + Session-Opt-in, v2.62). */
 export const STREAMING_CONSTS = {
-  MIN_QUERY_LEN_FOR_SEMANTIC,
+  /** Schlüssel bleibt: die Suchseite gated damit ihre EMBEDDING-Stufe, und für
+   *  die ist es dieselbe Untergrenze wie für die Index-Stufen hier. */
+  MIN_QUERY_LEN_FOR_SEMANTIC: MIN_QUERY_LEN_FOR_INDEX,
 } as const;

@@ -73,7 +73,7 @@ import { herkunftVon, type EigeneSpalte } from '@/core/spalten';
 import { Plus, Pencil } from 'lucide-react';
 import { useAntraegeColumnsStore } from './useAntraegeColumnsStore';
 import { useDichteStore, istDichte } from './useDichteStore';
-import type { ViewMode } from './viewModes';
+import { type ViewMode, isViewMode } from './viewModes';
 import { isAuslastungFreigeschaltet } from '@/core/modul-freischaltung';
 import { Alert } from '@/components/ui/alert';
 import { AlertTriangle, Settings, PanelLeftClose } from 'lucide-react';
@@ -117,6 +117,7 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
   const tableGrouping = useAntraegeStore(s => getEffectiveTableGroupingMode(s.activeView, s.tableGroupingByView));
   const listGrouping = useAntraegeStore(s => getEffectiveGroupingMode(s.activeView, s.groupingByView));
   const tableAnsicht = useAntraegeStore(s => getEffectiveTableAnsicht(s.activeView, s.tableAnsichtByView));
+  const setViewModeForTab = useAntraegeStore(s => s.setViewModeForTab);
   const setGroupingForView = useAntraegeStore(s => s.setGroupingForView);
   const setTableGroupingForView = useAntraegeStore(s => s.setTableGroupingForView);
   const setTableAnsichtForView = useAntraegeStore(s => s.setTableAnsichtForView);
@@ -149,7 +150,8 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
     [viewMode, activeView, tableAnsicht, tableGrouping, listGrouping, visibleColumns, dichte, beendetAusgeblendet],
   );
   const setzeDarstellung = (id: DarstellungAchseId, key: string): void => {
-    if (id === 'ansicht') setTableAnsichtForView(activeView, key as TabellenAnsicht);
+    if (id === 'ansichtsform') { if (isViewMode(key)) setViewModeForTab(activeView, key); }
+    else if (id === 'ansicht') setTableAnsichtForView(activeView, key as TabellenAnsicht);
     else if (id === 'beendet') setBeendetAusgeblendet(key === 'aus');
     // `Eigene` ist kein Satz, den man setzen kann — nur ein erreichbarer
     // Zustand. Der Klick darauf bleibt wirkungslos, statt die Auswahl zu leeren.
@@ -431,7 +433,7 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
               <DarstellungDropdown
                 achsen={darstellungsAchsen}
                 onChange={setzeDarstellung}
-                titel="Ansicht, Gruppierung, Spaltensatz, Zeilendichte und Sichtbarkeit beendeter Anträge"
+                titel="Ansichtsform, Zeilen-Körnung, Gruppierung, Spaltensatz, Zeilendichte und Sichtbarkeit beendeter Anträge"
               />
               {viewMode === 'compact' ? (
                 <ColumnPicker
