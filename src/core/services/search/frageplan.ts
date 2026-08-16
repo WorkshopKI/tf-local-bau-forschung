@@ -418,3 +418,19 @@ export function planMarkierWoerter(
 export function hatPflichtteile(plan: Frageplan): boolean {
   return plan.leitbegriffe.some(b => b.pflicht);
 }
+
+/**
+ * Bindet der Plan die Suche an bestimmte Felder oder Einschränkungen?
+ *
+ * Das hat eine Nebenwirkung, die man sehen können muss: Ein genanntes Feld kann
+ * weder der Dokumentenindex noch die Ähnlichkeitssuche einhalten — beide fallen
+ * dann weg (`feldSuche` in `useUnifiedSearch`). Bis v4.68 blieb der Haken
+ * „Ähnlichkeitssuche" dabei gesetzt und wirkungslos.
+ *
+ * Steht hier und nicht zweimal an den Aufrufstellen: Suchlauf und Oberfläche
+ * müssen dieselbe Antwort geben, sonst zeigt die eine an, was die andere nicht
+ * tut.
+ */
+export function planSchraenktEin(teile: readonly PlanBegriff[] | undefined): boolean {
+  return teile?.some(t => t.feld !== undefined || t.pflicht) === true;
+}

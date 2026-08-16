@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { wortStamm, sammleVarianten, suchNadel } from '../wortstamm';
+import { wortStamm, sammleVarianten, suchNadel, enthaeltAlsWortteil } from '../wortstamm';
 import {
   bereichFelder,
   bereichNutztDokumente,
@@ -93,6 +93,66 @@ describe('sammleVarianten', () => {
     expect(sammleVarianten('', 'norm', 'normen', 5)).toEqual([]);
     expect(sammleVarianten(TEXT, '', 'normen', 5)).toEqual([]);
     expect(sammleVarianten(TEXT, 'norm', 'normen', 0)).toEqual([]);
+  });
+
+  it('schlägt „enormes" nicht mehr als Wortform von „Normen" vor', () => {
+    // Gemeldet mit Screenshot (v4.68): die Vorschlagsliste zu „Normen und
+    // Standards" führte „enormes" und „Standardmaschinen" nebeneinander. Das
+    // erste ist ein Buchstaben-Treffer, das zweite eine echte Wortform.
+    const text = 'Ein enormes Potenzial; die Normung folgt Kalibrationsstandards.';
+    const v = sammleVarianten(text, 'norm', 'normen', 9).map(s => s.toLowerCase());
+    expect(v).not.toContain('enormes');
+    expect(v).toContain('normung');
+  });
+
+  it('behält zusammengesetzte Wörter — dafür gibt es die Wortformen', () => {
+    const v = sammleVarianten('Kalibrationsstandards und Prüfstandards.', 'standard', 'standards', 9);
+    expect(v.map(s => s.toLowerCase())).toEqual(['kalibrationsstandards', 'prüfstandards']);
+  });
+});
+
+describe('enthaeltAlsWortteil — wo ein Wort beginnen kann', () => {
+  it('nimmt den Wortanfang', () => {
+    expect(enthaeltAlsWortteil('normung folgt', 'norm')).toBe(true);
+  });
+
+  it('nimmt das Grundwort in einer Zusammensetzung', () => {
+    expect(enthaeltAlsWortteil('kalibrierstandards', 'standard')).toBe(true);
+  });
+
+  it('nimmt kurze Vorsilben — „genormt" ist eine Wortform', () => {
+    expect(enthaeltAlsWortteil('genormte bauteile', 'norm')).toBe(true);
+    expect(enthaeltAlsWortteil('vornorm', 'norm')).toBe(true);
+  });
+
+  it('lehnt den Ein-Buchstaben-Rest ab — „enorm" ist keine Wortform von „Norm"', () => {
+    expect(enthaeltAlsWortteil('enormes potenzial', 'norm')).toBe(false);
+  });
+
+  it('misst nur bis zur Wortgrenze, nicht bis zum Textanfang', () => {
+    // Die Falle: vor dem ersten „norm" in „die enorme …" stehen fünf Zeichen,
+    // aber nur eines gehört zum Wort. Wer den ganzen Text davor misst, nimmt
+    // jeden Treffer an — die Regel wäre wirkungslos.
+    expect(enthaeltAlsWortteil('die enorme leistung', 'norm')).toBe(false);
+  });
+
+  it('nimmt einen späteren Fund, wenn der erste nicht zählt', () => {
+    expect(enthaeltAlsWortteil('die enorme normung', 'norm')).toBe(true);
+  });
+
+  it('der Bindestrich trennt hart', () => {
+    expect(enthaeltAlsWortteil('e-normung', 'norm')).toBe(true);
+    expect(enthaeltAlsWortteil('din-standards', 'standard')).toBe(true);
+  });
+
+  it('lässt Aktenzeichen und Kennzeichen unberührt', () => {
+    expect(enthaeltAlsWortteil('16kn083001', '16kn')).toBe(true);
+    expect(enthaeltAlsWortteil('16kn083001', 'kn083001')).toBe(true);
+    expect(enthaeltAlsWortteil('16kn083001', '083001')).toBe(true);
+  });
+
+  it('leere Nadel trifft nichts — sonst träfe sie alles', () => {
+    expect(enthaeltAlsWortteil('irgendwas', '')).toBe(false);
   });
 });
 

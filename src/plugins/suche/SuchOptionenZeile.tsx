@@ -67,21 +67,37 @@ const SELECT_STYLE_ENG: React.CSSProperties = {
 };
 
 /**
- * Was die Wortverknüpfung im Frage-Modus tut, entscheidet der Plan: seine
- * Leitbegriffe sind IMMER Alternativen, sonst misst die Abdeckung nicht mehr,
- * wie viele der gefragten Sachen ein Vorhaben behandelt. Der Regler steht
- * deshalb nicht still daneben und verspricht etwas anderes — er gibt sichtbar ab.
+ * Was im Frage-Modus stehen bleibt — und warum der Rest verschwindet.
+ *
+ * Bis v4.66 standen „Wortverknüpfung" und „Wortformen mitsuchen" auch dort, nur
+ * ausgegraut und mit dem Zusatz „von der KI bestimmt". Gemeldet wurde dazu, dass
+ * die Zeile den Nutzer verwirrt — zu Recht: im Frage-Modus bestimmt keiner der
+ * beiden noch irgendetwas, weder vor dem Absenden (da läuft keine Suche) noch
+ * danach (da gilt der Plan). Ein Bedienelement, das nichts mehr tut, erklärt
+ * sich nicht dadurch, dass es grau ist.
+ *
+ * Die Regel, nach der hier ausgeblendet wird, ist deshalb eng: **weg darf nur,
+ * was in diesem Zustand nichts bewirkt UND nichts verbirgt.**
+ *
+ *  - Wortverknüpfung → der Plan verknüpft immer mit ODER (sonst zählte die
+ *    Abdeckung nicht mehr, wie viele der gefragten Sachen ein Vorhaben trägt)
+ *  - Wortformen → die Schreibweisen benennt die KI, der Stamm läuft nicht mit
+ *  - Suche in → bleibt, SOBALD er einengt: ein eingeengter Bereich lässt Treffer
+ *    verschwinden, und das darf nie unsichtbar sein (siehe `SELECT_STYLE_ENG`)
+ *  - Ähnlichkeitssuche → bleibt, solange sie wirkt; bindet der Plan Felder, ist
+ *    sie abgeschaltet und verschwindet mitsamt ihrem Haken
+ *  - Der Modus-Umschalter bleibt IMMER — er ist der Weg zurück
  */
-const ABGEGEBEN_STYLE: React.CSSProperties = {
-  background: 'var(--tf-desk)',
-  border: '0.5px dashed var(--tf-border)',
-  color: 'var(--tf-text-tertiary)',
-};
+const AUSGEBLENDET_TITEL = 'Im Frage-Modus bestimmt die KI, wonach gesucht wird: sie '
+  + 'benennt die Schreibweisen selbst, und ihre Leitbegriffe sind Alternativen, damit '
+  + 'die Wertung zählen kann, wie viele der gefragten Sachen ein Vorhaben behandelt. '
+  + 'Die abgewählten Begriffe stehen in der Zeile darunter. Zurück auf „mit Stichworten '
+  + 'suchen" schalten, um Verknüpfung und Wortformen wieder selbst zu bestimmen.';
 
-const ABGEGEBEN_TITEL = 'Im Frage-Modus bestimmt die KI, wie die Begriffe verknüpft '
-  + 'werden — die Leitbegriffe sind Alternativen, damit die Wertung zählen kann, wie '
-  + 'viele der gefragten Sachen ein Vorhaben behandelt. Zurück zur Stichwortsuche '
-  + 'schalten, um wieder selbst zu bestimmen.';
+const OHNE_AEHNLICHKEIT_TITEL = 'Die Ähnlichkeitssuche läuft bei dieser Frage nicht mit: '
+  + 'die KI hat sie an ein Feld gebunden oder eine Einschränkung gesetzt, und beides kann '
+  + 'ein Vergleich ganzer Texte nicht einhalten — er steuerte genau die Treffer bei, die '
+  + 'ausserhalb liegen.';
 
 export function SuchOptionenZeile({
   verknuepfung,
@@ -97,6 +113,7 @@ export function SuchOptionenZeile({
   nlModus,
   onNlModus,
   planAktiv,
+  planOhneAehnlichkeit,
   indexHinweis,
 }: {
   verknuepfung: SuchVerknuepfung;
@@ -112,14 +129,17 @@ export function SuchOptionenZeile({
   nlVerfuegbar: boolean;
   nlModus: boolean;
   onNlModus: (an: boolean) => void;
-  /** Liegt gerade ein übersetzter Plan vor? Erst dann geben die Regler wirklich ab. */
+  /** Liegt gerade ein übersetzter Plan vor? Steuert nur den erklärenden Zusatz. */
   planAktiv: boolean;
+  /** Hat der Plan die Ähnlichkeitssuche abgeschaltet (Feldbindung/Einschränkung)? */
+  planOhneAehnlichkeit: boolean;
   indexHinweis: string;
 }): React.ReactElement {
-  // Abgegeben wird erst, wenn ein Plan da IST. Solange nur der Modus steht, die
-  // Frage aber noch nicht übersetzt ist, sucht die Seite weiter nach Stichworten
-  // — und dann müssen die Regler auch gelten.
-  const uebernommen = nlModus && planAktiv;
+  // Im Frage-Modus gelten Verknüpfung und Wortformen NIE — vor dem Absenden
+  // läuft keine Suche, danach gilt der Plan. Sie verschwinden deshalb ganz,
+  // statt ausgegraut etwas anderes zu versprechen als gilt.
+  const stichwortRegler = !nlModus;
+  const aehnlichkeitZeigen = !(nlModus && planAktiv && planOhneAehnlichkeit);
   return (
     <div className="flex flex-wrap items-center gap-2">
       {nlVerfuegbar && (
@@ -141,91 +161,100 @@ export function SuchOptionenZeile({
         </select>
       )}
 
-      <label
-        className="inline-flex items-center gap-1.5 text-[12px]"
-        style={{ color: uebernommen ? 'var(--tf-text-tertiary)' : 'var(--tf-text-secondary)' }}
-      >
-        Wortverknüpfung:
-        <select
-          value={uebernommen ? 'oder' : verknuepfung}
-          onChange={e => onVerknuepfung(e.target.value as SuchVerknuepfung)}
-          disabled={uebernommen}
-          className={SELECT_CLASS}
-          style={uebernommen ? ABGEGEBEN_STYLE : SELECT_STYLE}
-          title={uebernommen
-            ? ABGEGEBEN_TITEL
-            : 'Gilt für Wortlaut-Treffer. Die Ähnlichkeitssuche vergleicht die Anfrage als Ganzes und bleibt unberührt.'}
+      {stichwortRegler && (
+        <label
+          className="inline-flex items-center gap-1.5 text-[12px]"
+          style={{ color: 'var(--tf-text-secondary)' }}
         >
-          {(Object.keys(VERKNUEPFUNG_LABEL) as SuchVerknuepfung[]).map(v => (
-            <option key={v} value={v}>{VERKNUEPFUNG_LABEL[v]}</option>
+          Wortverknüpfung:
+          <select
+            value={verknuepfung}
+            onChange={e => onVerknuepfung(e.target.value as SuchVerknuepfung)}
+            className={SELECT_CLASS}
+            style={SELECT_STYLE}
+            title="Gilt für Wortlaut-Treffer. Die Ähnlichkeitssuche vergleicht die Anfrage als Ganzes und bleibt unberührt."
+          >
+            {(Object.keys(VERKNUEPFUNG_LABEL) as SuchVerknuepfung[]).map(v => (
+              <option key={v} value={v}>{VERKNUEPFUNG_LABEL[v]}</option>
+            ))}
+          </select>
+        </label>
+      )}
+
+      {stichwortRegler && (
+        <label
+          className="inline-flex h-7 items-center gap-1.5 rounded-[8px] px-2 text-[12px] cursor-pointer"
+          style={{ ...SELECT_STYLE, color: 'var(--tf-text-secondary)' }}
+          title="Dasselbe Wort in anderer Form: „Normen“ findet dann auch „Normung“. Rein sprachlich — kostet nichts und lädt nichts nach. (Nicht zu verwechseln mit der Ähnlichkeitssuche rechts, die nach dem Thema geht.)"
+        >
+          <input
+            type="checkbox"
+            checked={stammSuche}
+            onChange={e => onStammSuche(e.target.checked)}
+            className="h-3.5 w-3.5 cursor-pointer accent-[var(--tf-primary)]"
+          />
+          Wortformen mitsuchen
+        </label>
+      )}
+
+      {/* Der Bereich bleibt im Frage-Modus nur stehen, wenn er EINENGT: dann
+          lässt er Treffer verschwinden, und ein unsichtbarer Grund für eine
+          kürzere Liste ist genau der Defekt, den `SELECT_STYLE_ENG` verhindert.
+          Steht er auf „alle Felder", nimmt er nichts weg und darf gehen. */}
+      {(stichwortRegler || bereich !== 'alles') && (
+        <select
+          value={bereich}
+          onChange={e => onBereich(e.target.value as Suchbereich)}
+          aria-label="Suche in"
+          className={SELECT_CLASS}
+          style={bereich === 'alles' ? SELECT_STYLE : SELECT_STYLE_ENG}
+          title={
+            bereich === 'alles'
+              ? 'Sucht in allen Feldern: Titel, Kurzbeschreibung, Deskriptoren, '
+                + 'Akronym, Aktenzeichen, Einrichtung, Web-Adresse, Ort und '
+                + 'Bundesland — dazu in den Dokumenten. Der Standard, wenn man '
+                + 'nicht weiß, wo das Wort steht.'
+              : `Eingeschränkt auf „${SUCHBEREICH_LABEL[bereich]}“. Was außerhalb `
+                + 'steht, erscheint nicht — auch dann nicht, wenn es das Wort '
+                + 'enthält. „alle Felder" nimmt die Einschränkung zurück.'
+          }
+        >
+          {(Object.keys(SUCHBEREICH_LABEL) as Suchbereich[]).map(b => (
+            <option key={b} value={b}>{BEREICH_PRAEFIX}{SUCHBEREICH_LABEL[b]}</option>
           ))}
         </select>
-      </label>
+      )}
 
-      {uebernommen && (
-        <span className="text-[11px] text-[var(--tf-text-tertiary)]" title={ABGEGEBEN_TITEL}>
-          von der KI bestimmt
+      {aehnlichkeitZeigen ? (
+        <label
+          className="inline-flex h-7 items-center gap-1.5 rounded-[8px] px-2 text-[12px] text-[var(--tf-text-secondary)] cursor-pointer"
+          style={SELECT_STYLE}
+          title="Dasselbe Thema in anderen Worten: findet verwandte Vorhaben auch ohne gemeinsames Wort. Lädt beim ersten Mal ein Sprachmodell (~200 MB) nach — anders als „Wortformen mitsuchen“ links, das rein sprachlich arbeitet."
+        >
+          <input
+            type="checkbox"
+            checked={semantischAn}
+            onChange={e => onSemantisch(e.target.checked)}
+            className="h-3.5 w-3.5 cursor-pointer accent-[var(--tf-primary)]"
+          />
+          Ähnlichkeitssuche
+          {semantischLaedt && (
+            <span className="text-[11px] text-[var(--tf-text-tertiary)]">lädt …</span>
+          )}
+        </label>
+      ) : (
+        // Verschwinden ohne Wort wäre hier falsch: der Haken war womöglich
+        // gesetzt, und der Nutzer soll erfahren, dass die Stufe nicht mitläuft.
+        <span className="text-[11px] text-[var(--tf-text-tertiary)]" title={OHNE_AEHNLICHKEIT_TITEL}>
+          ohne Ähnlichkeitssuche
         </span>
       )}
 
-      <label
-        className="inline-flex h-7 items-center gap-1.5 rounded-[8px] px-2 text-[12px] cursor-pointer"
-        style={uebernommen
-          ? { ...ABGEGEBEN_STYLE, cursor: 'default' }
-          : { ...SELECT_STYLE, color: 'var(--tf-text-secondary)' }}
-        title={uebernommen
-          ? 'Im Frage-Modus benennt die KI die Wortformen selbst — sie stehen als Chips '
-            + 'in der Zeile darunter und lassen sich dort einzeln abwählen.'
-          : 'Dasselbe Wort in anderer Form: „Normen“ findet dann auch „Normung“. Rein sprachlich — kostet nichts und lädt nichts nach. (Nicht zu verwechseln mit der Ähnlichkeitssuche rechts, die nach dem Thema geht.)'}
-      >
-        <input
-          type="checkbox"
-          checked={stammSuche}
-          onChange={e => onStammSuche(e.target.checked)}
-          disabled={uebernommen}
-          className="h-3.5 w-3.5 cursor-pointer accent-[var(--tf-primary)] disabled:cursor-default"
-        />
-        Wortformen mitsuchen
-      </label>
-
-      <select
-        value={bereich}
-        onChange={e => onBereich(e.target.value as Suchbereich)}
-        aria-label="Suche in"
-        className={SELECT_CLASS}
-        style={bereich === 'alles' ? SELECT_STYLE : SELECT_STYLE_ENG}
-        title={
-          bereich === 'alles'
-            ? 'Sucht in allen Feldern: Titel, Kurzbeschreibung, Deskriptoren, '
-              + 'Akronym, Aktenzeichen, Einrichtung, Web-Adresse, Ort und '
-              + 'Bundesland — dazu in den Dokumenten. Der Standard, wenn man '
-              + 'nicht weiß, wo das Wort steht.'
-            : `Eingeschränkt auf „${SUCHBEREICH_LABEL[bereich]}“. Was außerhalb `
-              + 'steht, erscheint nicht — auch dann nicht, wenn es das Wort '
-              + 'enthält. „alle Felder" nimmt die Einschränkung zurück.'
-        }
-      >
-        {(Object.keys(SUCHBEREICH_LABEL) as Suchbereich[]).map(b => (
-          <option key={b} value={b}>{BEREICH_PRAEFIX}{SUCHBEREICH_LABEL[b]}</option>
-        ))}
-      </select>
-
-      <label
-        className="inline-flex h-7 items-center gap-1.5 rounded-[8px] px-2 text-[12px] text-[var(--tf-text-secondary)] cursor-pointer"
-        style={SELECT_STYLE}
-        title="Dasselbe Thema in anderen Worten: findet verwandte Vorhaben auch ohne gemeinsames Wort. Lädt beim ersten Mal ein Sprachmodell (~200 MB) nach — anders als „Wortformen mitsuchen“ links, das rein sprachlich arbeitet."
-      >
-        <input
-          type="checkbox"
-          checked={semantischAn}
-          onChange={e => onSemantisch(e.target.checked)}
-          className="h-3.5 w-3.5 cursor-pointer accent-[var(--tf-primary)]"
-        />
-        Ähnlichkeitssuche
-        {semantischLaedt && (
-          <span className="text-[11px] text-[var(--tf-text-tertiary)]">lädt …</span>
-        )}
-      </label>
+      {nlModus && planAktiv && (
+        <span className="text-[11px] text-[var(--tf-text-tertiary)]" title={AUSGEBLENDET_TITEL}>
+          Verknüpfung und Wortformen bestimmt die KI
+        </span>
+      )}
 
       <span className="text-[11.5px] text-[var(--tf-text-tertiary)]">{indexHinweis}</span>
     </div>

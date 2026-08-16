@@ -332,6 +332,56 @@ Stamm — was nie eingesammelt wurde, fehlt dann. Mit Sammel-Deckel 8 fiel „No
 beim Abwählen EINER Variante von 28 auf 15 Treffer. Deshalb: **einsammeln 64,
 anzeigen 8**; die nicht gezeigten bleiben aktiv.
 
+### Die Wortgrenze (v4.68)
+
+Bis v4.67 genügte `klein.includes(stamm)`: der Stamm durfte **irgendwo** im Wort
+stehen. „Normen" wird zu `norm`, und damit zählte auch „e-**norm**-es" — kein
+Wortform-Treffer, ein Buchstaben-Treffer. Gemeldet wurde das als „die Vorschläge
+sind überwiegend nicht sinnvoll", und es betraf nicht nur die Chips: **gesucht**
+wurde mit demselben Stamm, die Treffer kamen also wirklich zustande.
+
+Die naheliegende Gegenregel — „muss am Wortanfang stehen" — wäre falsch: im
+Deutschen steht das Grundwort hinten, und „Kalibrierstandards" ist genau der
+Fall, den die Stufe finden soll. Unterscheidbar sind die beiden am **Rest direkt
+davor, bis zur nächsten Wortgrenze**: bei „enormes" ist er ein einzelnes „e", bei
+„kalibrierstandards" ein ganzes Wort. `enthaeltAlsWortteil` nimmt einen Fund an,
+wenn dieser Rest leer ist (Wortanfang, hinter Bindestrich) oder **mindestens zwei
+Zeichen** hat — zwei, damit „ge-normt" und „vor-norm" bleiben.
+
+Am echten Bestand (14 225 Anträge) gemessen:
+
+| Nadel | vorher | nachher | verloren |
+|---|---|---|---|
+| `norm` | 285 | 151 | 134 — jede Stichprobe „enorm…" |
+| `standard` | 517 | 517 | 0 (Zusammensetzungen bleiben) |
+| `laser` | 486 | 485 | 1 — der Nachname „Glaser" |
+| `bahn` | 261 | 261 | 0 |
+
+Die Regel gilt in der Suchstufe **und** beim Einsammeln der Chips. Sonst
+erklärte die Zeile einen Treffer nicht mehr, den sie erzeugt hat.
+
+### Die Reihenfolge der Chips (v4.68)
+
+Angezeigt werden 8 von 64 — bis v4.67 die ersten in Korpus-Reihenfolge, also ein
+beliebiger Ausschnitt. Gemessen hieß das: „normotherme" (ein einziger Antrag)
+stand vorn, „Standardisierung" (dutzende) war unsichtbar. `sammleAusEintrag`
+zählt seitdem mit, in wie vielen Anträgen eine Variante vorkommt, und sortiert
+danach.
+
+**Was das nicht löst, ist Bedeutung.** Der Wortstamm ist sprachlich: „normotherme"
+und „Normung" teilen ihn wirklich, nur handelt das eine von Körpertemperatur.
+Dafür gibt es den Knopf **„von der KI prüfen"**
+([wortformen-pruefung.ts](../../src/core/services/search/wortformen-pruefung.ts),
+Flag `sucheNatuerlicheSprache`): EIN interner Lauf auf Wunsch, nie automatisch —
+die Wortformen müssen ohne Verbindung sofort funktionieren. Das Ergebnis landet
+in derselben Abwahl-Liste, die auch der Klick auf einen Chip füllt; die KI drückt
+also nur Knöpfe, die der Nutzer auch selbst drücken könnte, und jedes Wort steht
+danach durchgestrichen da statt zu verschwinden.
+
+Aussortiert wird, was das Modell **nennt** — nicht, was es vergisst. Andersherum
+würde ein Auslassungsfehler zur kürzeren Trefferliste. Eine Antwort, die *alles*
+aussortiert, gilt als umgedrehte Aufgabe und wird verworfen.
+
 ## 6 Worttrennung des Dokumenten-Index
 
 Betrifft **nur** die Dokumentenstufe (Orama). Die Antragsstufe vergleicht rohe

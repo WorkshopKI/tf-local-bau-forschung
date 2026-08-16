@@ -19,6 +19,20 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.68 — 2026-08
+
+### Neu
+- **Sie können die gefundenen Wortformen von der KI prüfen lassen.** Der Wortstamm-Vergleich ist sprachlich: „normotherme" und „Normung" fangen wirklich gleich an, handeln aber von Verschiedenem. Ein Klick auf „von der KI prüfen" sortiert solche Wörter aus — sie stehen danach durchgestrichen da und lassen sich einzeln zurückholen. Ohne KI funktionieren die Wortformen wie bisher sofort.
+
+### Verbesserungen
+- **Im Frage-Modus stehen nur noch die Einstellungen, die dort auch gelten.** „Wortverknüpfung" und „Wortformen mitsuchen" bestimmt die KI aus Ihrer Frage — sie sind deshalb ausgeblendet statt ausgegraut. Der Suchbereich bleibt sichtbar, sobald er Treffer wegnimmt.
+- **Eine Frage wird erst gesucht, wenn Sie sie stellen.** Vorher lief Ihr halb getippter Satz schon als Stichwortsuche mit und zeigte 0 Treffer. Jetzt steht dort der Hinweis, dass die Frage noch nicht gestellt ist.
+- **Die acht gezeigten Wortformen sind die häufigsten** aus Ihren Treffern statt einer zufälligen Auswahl.
+
+### Bugfixes
+- **„Wortformen mitsuchen" schlug Wörter vor, die nur zufällig dieselben Buchstaben enthielten** — zu „Normen" etwa „enormes". Der Wortstamm zählt jetzt nur noch dort, wo ein Wort beginnen kann. Zusammensetzungen wie „Kalibrierstandards" bleiben selbstverständlich erhalten.
+- **Ist die interne KI nicht erreichbar, kommt wieder die Aufforderung, sie zu verbinden** — statt einer technischen Fehlermeldung („Failed to fetch"). Ist ein direkter KI-Server eingestellt, der nicht antwortet, nennt der Hinweis seine Adresse.
+
 ## v4.67 — 2026-08
 
 ### Neu

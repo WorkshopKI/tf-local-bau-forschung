@@ -55,7 +55,7 @@ import { berechneRelevanz, type Trefferfeld } from '@/core/services/search/treff
 import { bereichFelder, type Suchbereich } from '@/core/services/search/suchbereich';
 import { zerlegeFeldAnfrage } from '@/core/services/search/feldpraefix';
 import type { PlanBegriff } from '@/core/services/search/frageplan';
-import { suchNadel, sammleVarianten } from '@/core/services/search/wortstamm';
+import { suchNadel, sammleVarianten, enthaeltAlsWortteil } from '@/core/services/search/wortstamm';
 import type { HybridUnavailableSource } from '../store';
 
 /**
@@ -325,21 +325,28 @@ function substringMatches(
   const pflichtTeile = teile.filter(t => t.pflicht);
   const themenTeile = pflichtTeile.length === 0 ? teile : teile.filter(t => !t.pflicht);
 
-  const varianten = new Map<string, string>();
+  const varianten = new Map<string, { text: string; anzahl: number }>();
   let gescannt = 0;
 
   for (const [akz, entry] of textCorpus.entries()) {
+    // `enthaeltAlsWortteil` statt `.includes`: die Nadel muss an einer Stelle
+    // stehen, an der ein Wort beginnen kann (v4.68). Vorher zählte jede
+    // Buchstabenfolge — „Normen" wurde zum Stamm `norm` und traf damit auch
+    // „e-norm-es". Der Fund erschien dann als Treffer, den die Deutungszeile
+    // nicht erklären konnte. Zusammengesetzte Wörter bleiben unberührt:
+    // „Kalibrierstandards" trägt vor `standard` ein ganzes Wort, kein Fragment.
     const trifft = (t: SuchTeil): boolean => t.nadeln.some(nadel => (
-      (t.erlaubt.has('titel') && (entry.vbLower.includes(nadel) || entry.tvLower.includes(nadel)))
-      || (t.erlaubt.has('kurzbeschreibung') && entry.absLower.includes(nadel))
-      || (t.erlaubt.has('deskriptoren') && entry.descriptorsLower.includes(nadel))
-      || (t.erlaubt.has('akronym') && entry.akronymLower.includes(nadel))
-      || (t.erlaubt.has('aktenzeichen') && entry.akzLower.includes(nadel))
-      || (t.erlaubt.has('verbundkennzeichen') && entry.verbundNrLower.includes(nadel))
-      || (t.erlaubt.has('organisation') && entry.organisationLower.includes(nadel))
-      // Netzwerk und Notiz sind Fliesstext wie der Titel — freier Substring.
-      || (t.erlaubt.has('netzwerk') && entry.netzwerkLower.includes(nadel))
-      || (t.erlaubt.has('notiz') && entry.notizLower.includes(nadel))
+      (t.erlaubt.has('titel')
+        && (enthaeltAlsWortteil(entry.vbLower, nadel) || enthaeltAlsWortteil(entry.tvLower, nadel)))
+      || (t.erlaubt.has('kurzbeschreibung') && enthaeltAlsWortteil(entry.absLower, nadel))
+      || (t.erlaubt.has('deskriptoren') && enthaeltAlsWortteil(entry.descriptorsLower, nadel))
+      || (t.erlaubt.has('akronym') && enthaeltAlsWortteil(entry.akronymLower, nadel))
+      || (t.erlaubt.has('aktenzeichen') && enthaeltAlsWortteil(entry.akzLower, nadel))
+      || (t.erlaubt.has('verbundkennzeichen') && enthaeltAlsWortteil(entry.verbundNrLower, nadel))
+      || (t.erlaubt.has('organisation') && enthaeltAlsWortteil(entry.organisationLower, nadel))
+      // Netzwerk und Notiz sind Fliesstext wie der Titel — dieselbe Regel.
+      || (t.erlaubt.has('netzwerk') && enthaeltAlsWortteil(entry.netzwerkLower, nadel))
+      || (t.erlaubt.has('notiz') && enthaeltAlsWortteil(entry.notizLower, nadel))
     ))
       // Leere Nadeln sind beim Bau ausgesiebt: `''.includes('')` wäre `true` und
       // träfe alles. Der Standort vergleicht bewusst das ROHE Wort, nicht den
@@ -362,14 +369,23 @@ function substringMatches(
       : themenTeile.every(trifft);
     if (pflichtTeile.every(trifft) && trifftThemen) {
       out.set(akz, feldZuordnung(entry, teile));
-      if (stammSuche && !optionen.planTeile
-        && gescannt < VARIANTEN_SCAN_MAX && varianten.size < VARIANTEN_MAX) {
+      // Der Scan-Deckel bleibt die einzige Abbruchbedingung: Der frühere
+      // Zusatz `varianten.size < VARIANTEN_MAX` hörte auf zu scannen, sobald 64
+      // verschiedene Wörter beisammen waren — dann hätte der Zähler unten nur
+      // die ersten Anträge gesehen und die Reihenfolge wäre wieder zufällig.
+      if (stammSuche && !optionen.planTeile && gescannt < VARIANTEN_SCAN_MAX) {
         gescannt++;
         sammleAusEintrag(entry, teile, varianten);
       }
     }
   }
-  return { treffer: out, varianten: Array.from(varianten.values()) };
+  // Häufigste zuerst: Die Deutungszeile zeigt nur die ersten acht, und die
+  // sollen die gebräuchlichen Wörter des Bestands sein, nicht die des zufällig
+  // ersten Treffers.
+  const nachHaeufigkeit = Array.from(varianten.values())
+    .sort((a, b) => b.anzahl - a.anzahl)
+    .map(v => v.text);
+  return { treffer: out, varianten: nachHaeufigkeit };
 }
 
 /** Ein Suchteil: der Wortlaut (für Anzeige und Zählung), die Nadeln (Wortlaut,
@@ -502,12 +518,21 @@ const VARIANTEN_MAX = 64;
  *  das ohne Deckel der teuerste Teil der Suche. */
 const VARIANTEN_SCAN_MAX = 200;
 
-/** Sammelt die Wörter, die dieser Eintrag über den Stamm mitbringt. Aus den
- *  ROHEN Feldern, damit die Chips die Schreibweise des Antrags zeigen. */
+/**
+ * Sammelt die Wörter, die dieser Eintrag über den Stamm mitbringt. Aus den
+ * ROHEN Feldern, damit die Chips die Schreibweise des Antrags zeigen.
+ *
+ * Mitgezählt wird, in wie vielen Anträgen eine Variante vorkommt — die
+ * Deutungszeile zeigt nur acht der bis zu 64 gesammelten, und bis v4.68 waren
+ * das schlicht die ersten in Korpus-Reihenfolge. Am Bestand gemessen hieß das:
+ * „Normen und Standards" zeigte „normotherme" (ein einziger Antrag) und ließ
+ * „Standardisierung" (dutzende) unsichtbar. Ein Zähler kostet nichts und macht
+ * aus dem beliebigen Ausschnitt die acht gebräuchlichsten Wörter.
+ */
 function sammleAusEintrag(
   entry: AntragTextEntry,
   teile: readonly SuchTeil[],
-  ziel: Map<string, string>,
+  ziel: Map<string, { text: string; anzahl: number }>,
 ): void {
   const text = `${entry.vb} ${entry.tv} ${entry.abstract} ${entry.descriptors}`;
   for (const t of teile) {
@@ -515,8 +540,11 @@ function sammleAusEintrag(
     if (stamm === t.wort) continue; // nichts abgelöst — keine Varianten möglich
     for (const v of sammleVarianten(text, stamm, t.wort, VARIANTEN_MAX)) {
       const key = v.toLowerCase();
-      if (!ziel.has(key)) ziel.set(key, v);
-      if (ziel.size >= VARIANTEN_MAX) return;
+      const da = ziel.get(key);
+      if (da) { da.anzahl++; continue; }
+      // Neue Varianten nur bis zum Deckel — vorhandene weiterzählen aber immer,
+      // sonst hinge die Reihenfolge davon ab, wann der Deckel erreicht wurde.
+      if (ziel.size < VARIANTEN_MAX) ziel.set(key, { text: v, anzahl: 1 });
     }
   }
 }

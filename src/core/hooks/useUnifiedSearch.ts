@@ -39,7 +39,7 @@ import {
 import { useSuchOptionen } from './useSuchOptionen';
 import { bereichNutztDokumente } from '@/core/services/search/suchbereich';
 import { hatFeldPraefix } from '@/core/services/search/feldpraefix';
-import type { PlanBegriff } from '@/core/services/search/frageplan';
+import { planSchraenktEin, type PlanBegriff } from '@/core/services/search/frageplan';
 import { embeddingService } from '@/core/services/search/embedding-service';
 import { embedQueryCached } from '@/core/services/search/query-embedder';
 import { getActiveModelId, getModelById } from '@/core/services/search/model-registry';
@@ -408,8 +408,8 @@ export function useUnifiedSearch(
     // Dokumentenindex einhalten können — sie steuerten genau die Treffer bei,
     // die ausserhalb liegen. Ein reines Themen-Bündel ohne Einschränkung lässt
     // beide Stufen dagegen mitlaufen, und das ist dort auch erwünscht.
-    const planSchraenktEin = planTeile?.some(t => t.feld !== undefined || t.pflicht) === true;
-    const feldSuche = hatFeldPraefix(q, effektiveVerknuepfung === 'wortfolge') || planSchraenktEin;
+    const feldSuche = hatFeldPraefix(q, effektiveVerknuepfung === 'wortfolge')
+      || planSchraenktEin(planTeile);
 
     const abort = new AbortController();
     let cancelled = false;

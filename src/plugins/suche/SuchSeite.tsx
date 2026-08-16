@@ -18,7 +18,7 @@ import { ViewModeToggle, type ViewModeOption } from '@/components/ui/ViewModeTog
 import { DarstellungDropdown } from '@/components/ui/DarstellungDropdown';
 import { isDokumentenscanEnabled, isSucheNatuerlicheSpracheEnabled } from '@/config/feature-flags';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
-import { aktiveLeitbegriffe, planMarkierWoerter } from '@/core/services/search/frageplan';
+import { aktiveLeitbegriffe, planMarkierWoerter, planSchraenktEin } from '@/core/services/search/frageplan';
 import { ermittleFrageplan } from '@/core/services/search/frageplan-lauf';
 import { isKuratorFreigeschaltet } from '@/core/modul-freischaltung';
 import { useUnifiedSearch, type SearchPhase } from '@/core/hooks/useUnifiedSearch';
@@ -68,7 +68,8 @@ import { SeitenHilfeButton } from '@/components/help/SeitenHilfeButton';
 import { useFeedbackDialog } from '@/components/feedback/useFeedbackDialog';
 import { wendeFacettenAn, aktiveFilterTexte, LEERE_WAHL, type FacettenId } from './facetten';
 import { autoSpalten } from './autoSpalten';
-import { markierWoerter, wirksameAnfrage } from './deutung';
+import { baueWortChips, markierWoerter, wirksameAnfrage } from './deutung';
+import { pruefeWortformen } from '@/core/services/search/wortformen-pruefung';
 import { baueSucheDarstellungsAchsen, vergleiche, type SucheAchsenId } from './darstellungsAchsen';
 import { berechneAuswege, type Ausweg } from './auswege';
 import {
@@ -165,6 +166,17 @@ export function SuchSeite(): React.ReactElement {
     [aktiverPlan, abgewaehlteBegriffe],
   );
 
+  /**
+   * Eine Frage steht im Feld, ist aber noch nicht gestellt.
+   *
+   * In diesem Zustand sucht die Seite GAR NICHT. Vorher lief hier der getippte
+   * Satz als Stichwortsuche mit — „Welche Vorhaben drehen sich um Normung?"
+   * ergab null Treffer, und daneben standen Regler, die auf diese Nullsuche
+   * wirkten. Wer eine Frage formuliert, hat noch nichts gefragt; die Seite tut
+   * bis dahin nichts und sagt das auch.
+   */
+  const frageOffen = nlModus && query.trim() !== '' && aktiverPlan === null;
+
   // Die Suche läuft auf der WIRKSAMEN Anfrage — ohne die in der Deutungszeile
   // abgewählten Wörter. Was im Feld steht, bleibt unangetastet: der Nutzer soll
   // seine Eingabe wiedererkennen und die Abwahl zurücknehmen können.
@@ -173,8 +185,11 @@ export function SuchSeite(): React.ReactElement {
   // Suchbegriffe waren — abgewählt werden die Leitbegriffe des Plans, und das
   // geschieht über `planTeile`, nicht über den Anfragetext.
   const wirksam = useMemo(
-    () => (aktiverPlan ? query : wirksameAnfrage(query, verknuepfung, abgewaehlteWoerter)),
-    [aktiverPlan, query, verknuepfung, abgewaehlteWoerter],
+    () => {
+      if (frageOffen) return '';
+      return aktiverPlan ? query : wirksameAnfrage(query, verknuepfung, abgewaehlteWoerter);
+    },
+    [frageOffen, aktiverPlan, query, verknuepfung, abgewaehlteWoerter],
   );
   const deferredQuery = useDeferredValue(wirksam);
   const [toast, setToast] = useState<string | null>(null);
@@ -182,6 +197,10 @@ export function SuchSeite(): React.ReactElement {
   const [ausgeklappt, setAusgeklappt] = useState<ReadonlySet<string>>(new Set());
   const [auswahl, setAuswahl] = useState<ReadonlySet<string>>(new Set());
   const [gespeichert, setGespeichert] = useState<GespeicherteSuche[]>(() => ladeGespeicherte());
+  // Die KI-Prüfung der Wortformen. Sitzungs-lokal wie die Abwahl selbst: sie
+  // gilt für DIESE Anfrage, nicht für immer.
+  const [variantenPruefungLaeuft, setVariantenPruefungLaeuft] = useState(false);
+  const [gepruefteAnfrage, setGepruefteAnfrage] = useState<string | null>(null);
   const [gespeicherteMenuOffen, setGespeicherteMenuOffen] = useState(false);
 
   // Andockendes Assistenten-Panel (Journey-Paket 1, Phase 4).
@@ -239,7 +258,11 @@ export function SuchSeite(): React.ReactElement {
   const deferredPhase = useDeferredValue(searchPhase);
   const phaseLabel = PHASE_LABELS[deferredPhase];
   const queryNotEmpty = query.trim() !== '';
-  const showSpinner = loading || (queryNotEmpty && deferredPhase !== 'done' && deferredPhase !== 'error');
+  // Eine offene Frage sucht nicht — also dreht sich auch kein Rad. Ohne diese
+  // Ausnahme liefe der Spinner endlos, weil `deferredPhase` bei leerer Anfrage
+  // nie auf `done` läuft.
+  const showSpinner = !frageOffen
+    && (loading || (queryNotEmpty && deferredPhase !== 'done' && deferredPhase !== 'error'));
   const analyseActive = analyse.begruendungById !== null;
   const analyseDone = analyse.result !== null && !analyse.running;
 
@@ -458,6 +481,39 @@ export function SuchSeite(): React.ReactElement {
    * liefe, fände nichts und brächte damit genau das Gegenteil dessen bei, wofür
    * das Beispiel dasteht.
    */
+  /**
+   * „Von der KI prüfen": EIN Lauf über die eingesammelten Wortformen.
+   *
+   * Das Ergebnis landet in derselben Abwahl-Liste, die auch der Klick auf einen
+   * Chip füllt — die KI drückt nur Knöpfe, die der Nutzer auch selbst drücken
+   * könnte. Deshalb braucht der Suchpfad davon nichts zu wissen, und jedes
+   * aussortierte Wort steht danach durchgestrichen da statt zu verschwinden.
+   */
+  const variantenPruefen = useCallback(async (): Promise<void> => {
+    if (varianten.length === 0 || variantenPruefungLaeuft) return;
+    const woerter = baueWortChips(query, verknuepfung, abgewaehlteWoerter)
+      .filter(c => c.aktiv)
+      .map(c => c.wert);
+    if (woerter.length === 0) return;
+    setVariantenPruefungLaeuft(true);
+    try {
+      const res = await pruefeWortformen(aiBridge, woerter, varianten);
+      if (!res.ok) {
+        // Der Verbindungsfall hat schon den app-weiten Dialog geöffnet; eine
+        // zweite Meldung daneben wäre Lärm.
+        if (!res.verbindungFehlt) setToast(res.fehler);
+        return;
+      }
+      useSuchOptionen.getState().waehleVariantenAb(res.aussortiert);
+      setGepruefteAnfrage(wirksam);
+      setToast(res.aussortiert.length === 0
+        ? 'Die KI hat keine unpassenden Wortformen gefunden.'
+        : `${res.aussortiert.length} Wortformen aussortiert — durchgestrichen und einzeln zurückholbar.`);
+    } finally {
+      setVariantenPruefungLaeuft(false);
+    }
+  }, [varianten, variantenPruefungLaeuft, query, verknuepfung, abgewaehlteWoerter, aiBridge, wirksam]);
+
   const starteFrage = useCallback((f: string): void => {
     setNlModus(true);
     setQuery(f);
@@ -594,7 +650,12 @@ export function SuchSeite(): React.ReactElement {
   );
 
   const noQuery = !queryNotEmpty;
-  const showResults = !noQuery && sichtbar.length > 0;
+  const showResults = !noQuery && !frageOffen && sichtbar.length > 0;
+  // Alles, was ein Ergebnis beschreibt — Deutung, Facetten, Trefferzahl, Liste,
+  // Kein-Treffer-Hilfe — hängt an derselben Bedingung: es MUSS ein Ergebnis
+  // geben. Eine offene Frage hat keines, und „0 Treffer" wäre dort keine
+  // Auskunft, sondern eine Falschaussage.
+  const zeigeErgebnisTeile = queryNotEmpty && !frageOffen;
   /**
    * Darf der Ergebniskopf eine Trefferzahl BEHAUPTEN?
    *
@@ -745,6 +806,7 @@ export function SuchSeite(): React.ReactElement {
               nlModus={nlModus}
               onNlModus={setNlModus}
               planAktiv={aktiverPlan !== null}
+              planOhneAehnlichkeit={planSchraenktEin(planTeile)}
               indexHinweis={`Index: ${indexInfo.antraegeGeladen.toLocaleString('de-DE')} Anträge · ${indexInfo.textabschnitteImIndex.toLocaleString('de-DE')} Textabschnitte`}
             />
           </div>
@@ -761,7 +823,7 @@ export function SuchSeite(): React.ReactElement {
           )}
 
           {/* ── Deutung ──────────────────────────────────────────────────── */}
-          {queryNotEmpty && (
+          {zeigeErgebnisTeile && (
             <div className="mt-2.5 w-full max-w-6xl">
               <DeutungsZeile
                 query={query}
@@ -774,6 +836,9 @@ export function SuchSeite(): React.ReactElement {
                 varianten={varianten}
                 abgewaehlteVarianten={abgewaehlteVarianten}
                 onToggleVariante={toggleVariante}
+                onVariantenPruefen={nlFreigeschaltet ? () => { void variantenPruefen(); } : undefined}
+                variantenPruefungLaeuft={variantenPruefungLaeuft}
+                variantenGeprueft={gepruefteAnfrage !== null && gepruefteAnfrage === wirksam}
                 stammSuche={stammSuche}
                 onStammSucheAn={() => setStammSuche(true)}
               />
@@ -781,7 +846,7 @@ export function SuchSeite(): React.ReactElement {
           )}
 
           {/* ── Facetten ─────────────────────────────────────────────────── */}
-          {queryNotEmpty && (
+          {zeigeErgebnisTeile && (
             <div className="mt-2.5 w-full max-w-6xl">
               <FacettenZeile
                 results={searchResults}
@@ -792,8 +857,23 @@ export function SuchSeite(): React.ReactElement {
             </div>
           )}
 
+          {/* ── Offene Frage ─────────────────────────────────────────────── */}
+          {frageOffen && (
+            <div
+              className="mt-3 flex w-full max-w-6xl items-start gap-2 rounded-[10px] px-3 py-2.5 text-[12.5px] text-[var(--tf-text-secondary)]"
+              style={{ background: 'var(--tf-desk)', border: '0.5px solid var(--tf-border)' }}
+            >
+              <Sparkles size={14} className="mt-[2px] shrink-0 text-[var(--tf-text-tertiary)]" aria-hidden />
+              <span>
+                Diese Frage ist noch nicht gestellt. „Frage stellen" (oder Eingabetaste)
+                übersetzt sie mit der internen KI in Suchbegriffe — danach steht hier, wonach
+                gesucht wurde, und jeder Begriff lässt sich einzeln abwählen.
+              </span>
+            </div>
+          )}
+
           {/* ── Ergebniskopf ─────────────────────────────────────────────── */}
-          {queryNotEmpty && (
+          {zeigeErgebnisTeile && (
             <div className="mt-3 flex w-full max-w-6xl flex-wrap items-center gap-2">
               <span className="text-[13px] text-[var(--tf-text)]">
                 <b className="font-medium">
@@ -941,7 +1021,7 @@ export function SuchSeite(): React.ReactElement {
           )}
 
           {/* ── Kein Treffer ─────────────────────────────────────────────── */}
-          {!noQuery && !loading && !showSpinner && sichtbar.length === 0 && (
+          {zeigeErgebnisTeile && !loading && !showSpinner && sichtbar.length === 0 && (
             <KeinTrefferZustand
               query={query}
               woerter={markWoerter}

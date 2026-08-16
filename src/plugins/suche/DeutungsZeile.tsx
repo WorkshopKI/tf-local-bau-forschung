@@ -8,7 +8,7 @@
  * Wortstamm dazugekommen. Zwei Orte, eine Bedeutung — sonst müsste man die
  * Legende zweimal lernen.
  */
-import { X } from 'lucide-react';
+import { X, Loader2 } from 'lucide-react';
 import { VERKNUEPFUNG_OPERATOR, type SuchVerknuepfung } from '@/core/hooks/useSuchVerknuepfung';
 import { TREFFERFELD_LABEL } from '@/core/services/search/trefferstelle';
 import type { Frageplan } from '@/core/services/search/frageplan';
@@ -64,6 +64,9 @@ export function DeutungsZeile({
   varianten,
   abgewaehlteVarianten,
   onToggleVariante,
+  onVariantenPruefen,
+  variantenPruefungLaeuft = false,
+  variantenGeprueft = false,
   stammSuche,
   onStammSucheAn,
 }: {
@@ -78,6 +81,11 @@ export function DeutungsZeile({
   varianten: readonly string[];
   abgewaehlteVarianten: readonly string[];
   onToggleVariante: (v: string) => void;
+  /** „Von der KI prüfen" — fehlt, wenn der Build die interne Prüfung nicht mitbringt. */
+  onVariantenPruefen?: () => void;
+  variantenPruefungLaeuft?: boolean;
+  /** Schon geprüft? Dann kein zweiter Lauf auf dasselbe Ergebnis. */
+  variantenGeprueft?: boolean;
   stammSuche: boolean;
   onStammSucheAn: () => void;
 }): React.ReactElement | null {
@@ -179,6 +187,33 @@ export function DeutungsZeile({
               </button>
             );
           })}
+
+          {/* Der Wortstamm ist sprachlich, nicht fachlich: „normotherme" teilt
+              ihn mit „Normung" und handelt von etwas anderem. Was übrig bleibt,
+              braucht Bedeutung — auf Wunsch, nicht bei jedem Tastendruck. Die
+              KI wählt danach dieselben Chips ab, die auch der Nutzer abwählen
+              könnte; nichts davon ist endgültig. */}
+          {onVariantenPruefen && (
+            <button
+              type="button"
+              onClick={onVariantenPruefen}
+              disabled={variantenPruefungLaeuft || variantenGeprueft}
+              title={variantenGeprueft
+                ? 'Die interne KI hat diese Liste geprüft. Was sie aussortiert hat, steht '
+                  + 'durchgestrichen daneben und lässt sich einzeln zurückholen.'
+                : 'Die interne KI sortiert die Wörter aus, die nur zufällig denselben '
+                  + 'Wortstamm haben. Ein Lauf, ein paar Sekunden — die Wortformen selbst '
+                  + 'bleiben auch ohne KI nutzbar.'}
+              className="inline-flex items-center gap-1 rounded-[6px] px-1.5 py-0.5 text-[11.5px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text)] cursor-pointer disabled:cursor-default disabled:hover:text-[var(--tf-text-tertiary)]"
+              style={{ border: '0.5px dashed var(--tf-border)' }}
+            >
+              {variantenPruefungLaeuft && (
+                <Loader2 size={11} className="animate-spin" aria-hidden />
+              )}
+              {variantenGeprueft ? 'von der KI geprüft'
+                : variantenPruefungLaeuft ? 'prüfe …' : 'von der KI prüfen'}
+            </button>
+          )}
         </>
       )}
 

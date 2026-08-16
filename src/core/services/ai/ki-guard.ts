@@ -59,14 +59,52 @@ export function kiVerbindungBereit(bridge: AIBridge): boolean {
  * Für Läufe, die Minuten dauern, ist diese Sekunde gut investiert. `transportName`
  * erlaubt den Check auf dem Transport, der den Lauf WIRKLICH fährt (der aktive muss
  * das nicht sein — siehe `getTransportForSkillRun`).
+ *
+ * **Gilt für JEDEN internen Transport, nicht nur die Bridge** (v4.68). Bis dahin
+ * stand hier `if (name !== 'Streamlit') return true;` — ein lokaler llama.cpp-
+ * Server (`name === 'llama.cpp'`) lief also ungeprüft durch, und wenn er nicht
+ * lief, bekam der Nutzer statt der Verbinden-Aufforderung den rohen Browser-Text
+ * „Failed to fetch" zu lesen. `DirectLLMTransport.ping()` fragt `/v1/models` und
+ * beantwortet genau die Frage, an der der Lauf sonst eine Zeile später scheitert.
  */
 export async function kiVerbindungGeprueft(bridge: AIBridge, transportName?: string): Promise<boolean> {
   const name = transportName ?? bridge.getActiveTransport().name;
-  if (name !== 'Streamlit') return true;
-  // Bewusst der PERSISTENTE Streamlit-Transport: nur er trägt das Fenster-Handle
-  // aus dem `tf-bridge-ready`-Announce (und der Vordergrund-Wrapper reicht
-  // `hasLiveBridgeWindow` nicht durch).
-  if (await bridge.getStreamlitTransport().ping({ openIfNeeded: false })) return true;
+  // Bei der Bridge bewusst der PERSISTENTE Streamlit-Transport: nur er trägt das
+  // Fenster-Handle aus dem `tf-bridge-ready`-Announce (und der Vordergrund-
+  // Wrapper reicht `hasLiveBridgeWindow` nicht durch). Sonst der aktive.
+  const transport = name === 'Streamlit'
+    ? bridge.getStreamlitTransport()
+    : bridge.getActiveTransport();
+  if (await transport.ping({ openIfNeeded: false }).catch(() => false)) return true;
   useKiConnectPrompt.getState().oeffnen();
   return false;
+}
+
+/**
+ * Riecht ein Fehler nach „die KI war nicht erreichbar" statt nach „das Modell hat
+ * schlecht geantwortet"?
+ *
+ * Der Preflight oben deckt den Normalfall ab, aber ein Server kann mitten im Lauf
+ * verschwinden — und dann steht wieder ein roher Browser-Text in der Oberfläche.
+ * Ein Aufrufer, der das hier abfragt, kann stattdessen dieselbe Aufforderung
+ * zeigen wie der Preflight.
+ *
+ * Bewusst eine Mustererkennung auf der Meldung: `fetch` wirft für „Server tot",
+ * „falscher Port" und „CORS verboten" denselben `TypeError`, ohne unterscheidbares
+ * Feld. Falsch-positiv ist hier billig (der Nutzer bekommt einen Verbinden-Dialog,
+ * den er wegklicken kann), falsch-negativ teuer (er liest „Failed to fetch").
+ */
+const VERBINDUNGS_MUSTER: readonly RegExp[] = [
+  /failed to fetch/i,
+  /networkerror/i,
+  /network request failed/i,
+  /load failed/i,
+  /err_connection/i,
+  /fetch failed/i,
+  /ECONNREFUSED/i,
+];
+
+export function istVerbindungsFehler(err: unknown): boolean {
+  const text = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
+  return VERBINDUNGS_MUSTER.some(m => m.test(text));
 }

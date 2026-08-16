@@ -6,9 +6,17 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const kiVerbindungGeprueft = vi.fn(async (_b: unknown, _n?: string) => true);
-vi.mock('@/core/services/ai/ki-guard', () => ({
-  kiVerbindungGeprueft: (b: unknown, n?: string) => kiVerbindungGeprueft(b, n),
-}));
+const dialogGeoeffnet = vi.fn();
+vi.mock('@/core/services/ai/ki-guard', async (echt) => {
+  // `istVerbindungsFehler` bewusst ECHT: sie ist die Regel, die hier geprüft
+  // wird. Nur die beiden Seiteneffekte (Preflight, Dialog) sind Attrappen.
+  const original = await echt<typeof import('@/core/services/ai/ki-guard')>();
+  return {
+    istVerbindungsFehler: original.istVerbindungsFehler,
+    kiVerbindungGeprueft: (b: unknown, n?: string) => kiVerbindungGeprueft(b, n),
+    useKiConnectPrompt: { getState: () => ({ oeffnen: dialogGeoeffnet }) },
+  };
+});
 
 import { ermittleFrageplan, FRAGEPLAN_MELDUNG } from '../frageplan-lauf';
 import type { AIBridge } from '@/core/services/ai/bridge';
@@ -54,6 +62,7 @@ beforeEach(() => {
   submitArgs = [];
   resetZiel = undefined;
   kiVerbindungGeprueft.mockResolvedValue(true);
+  dialogGeoeffnet.mockClear();
 });
 
 describe('ermittleFrageplan — der glückliche Fall', () => {
@@ -122,6 +131,20 @@ describe('ermittleFrageplan — Fehlerfälle enden als Ergebnis, nicht als Wurf'
     const t = baueTransport(new Error('Bridge-Timeout'));
     const res = await ermittleFrageplan(baueBridge(t), 'Normung?', 2026);
     expect(res.ok === false && res.fehler).toContain('Bridge-Timeout');
+    // Ein Modell-/Zeitfehler ist KEIN Verbindungsfehler — kein Dialog.
+    expect(dialogGeoeffnet).not.toHaveBeenCalled();
+  });
+
+  it('macht aus „Failed to fetch" die Verbinden-Aufforderung, nicht die Browser-Meldung', async () => {
+    // Gemeldet aus dev:local: der lokale Server war aus, der Nutzer las „Failed
+    // to fetch" statt zu erfahren, dass er die KI verbinden soll. Der Preflight
+    // fängt den Normalfall, DIESER Pfad den Ausfall zwischen Ping und Antwort.
+    const t = baueTransport(new TypeError('Failed to fetch'));
+    const res = await ermittleFrageplan(baueBridge(t), 'Normung?', 2026);
+    expect(res.ok === false && res.verbindungFehlt).toBe(true);
+    expect(res.ok === false && res.fehler).toBe(FRAGEPLAN_MELDUNG.nichtVerbunden);
+    expect(res.ok === false && res.fehler).not.toContain('Failed to fetch');
+    expect(dialogGeoeffnet).toHaveBeenCalledTimes(1);
   });
 
   it('lehnt eine leere Frage ab, ohne die Bridge anzufassen', async () => {

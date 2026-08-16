@@ -11,10 +11,12 @@
  *     Plan wird aber aus dem Bestand heraus beantwortet — und ein externer
  *     Provider ist hier strukturell unerreichbar, nicht bloß unerwünscht
  *     (Pitfall #30).
- *  2. **Passiver Ping vor dem Lauf.** `kiVerbindungGeprueft` fragt die Bridge
+ *  2. **Passiver Ping vor dem Lauf.** `kiVerbindungGeprueft` fragt den Transport
  *     wirklich (öffnet KEINEN Tab, Konventionstest `kein-oeffnender-ping`) und
  *     öffnet bei `false` den app-weiten Verbinden-Dialog statt eines eigenen
- *     Fehlerbanners.
+ *     Fehlerbanners. Fällt die Verbindung ZWISCHEN Ping und Antwort aus, fängt
+ *     `istVerbindungsFehler` das unten ab — ein roher „Failed to fetch" darf den
+ *     Nutzer nie erreichen.
  *  3. **Frischer Chat vor dem Submit.** Der Streamlit-Chat ist stateful; ohne
  *     Reset deutet der vorige Verlauf in den Plan hinein (Pitfall #36).
  *  4. **Ziel ausdrücklich auf `standard`.** `undefined` heißt an der Bridge
@@ -31,7 +33,7 @@
  */
 import type { AIBridge } from '@/core/services/ai/bridge';
 import { starteFrischenChat } from '@/core/services/ai/chat-reset';
-import { kiVerbindungGeprueft } from '@/core/services/ai/ki-guard';
+import { kiVerbindungGeprueft, istVerbindungsFehler, useKiConnectPrompt } from '@/core/services/ai/ki-guard';
 import type { BridgeZiel } from '@/core/services/ai/transports/streamlit';
 import { baueFrageplanPrompt, parseFrageplan, type Frageplan } from './frageplan';
 
@@ -100,6 +102,14 @@ export async function ermittleFrageplan(
     });
   } catch (err) {
     if (signal?.aborted) return { ok: false, fehler: MELDUNG.abgebrochen };
+    // Der Preflight oben hat gerade noch „erreichbar" gesagt — ein Server kann
+    // trotzdem zwischen Ping und Submit verschwinden. Dann darf hier NICHT der
+    // rohe Browser-Text stehen („Failed to fetch"), sondern dieselbe
+    // Aufforderung, die der Preflight gezeigt hätte.
+    if (istVerbindungsFehler(err)) {
+      useKiConnectPrompt.getState().oeffnen();
+      return { ok: false, fehler: MELDUNG.nichtVerbunden, verbindungFehlt: true };
+    }
     return { ok: false, fehler: err instanceof Error ? err.message : String(err) };
   }
 

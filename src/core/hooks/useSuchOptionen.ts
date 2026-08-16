@@ -82,6 +82,16 @@ interface SuchOptionenState {
    */
   abgewaehlteVarianten: string[];
   toggleVariante: (v: string) => void;
+  /**
+   * Mehrere Varianten auf einmal abwählen — das Ergebnis der KI-Prüfung.
+   *
+   * Bewusst DIESELBE Ablage wie der Klick des Nutzers: Die KI drückt damit nur
+   * die Knöpfe, die er auch selbst drücken könnte. Nichts am Suchpfad ändert
+   * sich, das Ergebnis steht durchgestrichen in der Zeile, und jeder einzelne
+   * Chip lässt sich zurückholen. Ein eigener „KI-Filter" daneben wäre ein
+   * zweiter Mechanismus mit demselben Zweck — und einer ohne Rückweg.
+   */
+  waehleVariantenAb: (liste: readonly string[]) => void;
   setzeVariantenZurueck: () => void;
 }
 
@@ -114,6 +124,12 @@ export const useSuchOptionen = create<SuchOptionenState>((set, get) => ({
         ? aktuell.filter(x => x !== klein)
         : [...aktuell, klein],
     });
+  },
+  waehleVariantenAb: (liste) => {
+    const aktuell = get().abgewaehlteVarianten;
+    const neu = liste.map(v => v.toLowerCase()).filter(v => !aktuell.includes(v));
+    if (neu.length === 0) return; // Referenz-Identität wahren (siehe unten)
+    set({ abgewaehlteVarianten: [...aktuell, ...neu] });
   },
   setzeVariantenZurueck: () => {
     // Referenz-Identität wahren: ein leeres Array bei jedem Aufruf neu zu setzen

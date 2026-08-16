@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.68.0 — die Frage-Zeile wird kuerzer, die Wortformen echter (August 2026)
+
+MINOR — Drei Meldungen zur Suche, eine Wurzel: die Oberfläche behauptete Dinge, die nicht galten. Im Frage-Modus standen vier Regler, von denen keiner noch etwas bestimmte; ein toter lokaler KI-Server lieferte statt der Verbinden-Aufforderung den Browser-Text „Failed to fetch"; und „Wortformen mitsuchen" schlug zu „Normen" das Wort „enormes" vor — am echten Bestand **134 von 285** Treffern für den Stamm `norm` waren solche Buchstaben-Treffer.
+
+- **Der Frage-Modus sucht erst auf Anforderung** und zeigt nur noch, was dort wirkt: Verknüpfung und Wortformen verschwinden, der Bereich bleibt sobald er einengt, die Ähnlichkeitssuche solange sie läuft ([SuchOptionenZeile.tsx](src/plugins/suche/SuchOptionenZeile.tsx), [SuchSeite.tsx](src/plugins/suche/SuchSeite.tsx))
+- **Der Wortstamm zählt nur an einer Wortgrenze** ([wortstamm.ts](src/core/services/search/wortstamm.ts)): `standard` und `bahn` verlieren keinen Treffer, `norm` 134 — jede Stichprobe „enorm…"; dieselbe Regel beim Suchen und beim Einsammeln der Chips ([suche-relevanz.md §5](docs/architecture/suche-relevanz.md))
+- **Die acht gezeigten Wortformen sind die häufigsten**, nicht die des zufällig ersten Treffers ([antraege-search-service.ts](src/plugins/antraege/services/antraege-search-service.ts))
+- **„von der KI prüfen" sortiert aus, was nur den Stamm teilt** — ein Lauf auf Wunsch, das Ergebnis landet in derselben Abwahl wie ein Nutzer-Klick und ist einzeln rücknehmbar ([wortformen-pruefung.ts](src/core/services/search/wortformen-pruefung.ts))
+- **Der KI-Preflight prüft jeden internen Transport**, nicht nur die Bridge ([ki-guard.ts](src/core/services/ai/ki-guard.ts)); ein nicht erreichbarer direkter Server bekommt einen eigenen Dialogtext samt Adresse ([KiConnectPromptDialog.tsx](src/core/components/KiConnectPromptDialog.tsx))
+
 ### v4.67.0 — Eigene Reiter: den eingerichteten Arbeitsplatz merken (August 2026)
 
 MINOR — Nachtrag zu v4.65: dort blieb der Wunsch nach eigenen Reitern liegen, weil von neun Dingen, die einen eingerichteten Arbeitsplatz ausmachen, nur vier am Reiter hingen — Spalten, Breiten, Dichte, Filter und die Auswahl in den Spaltenköpfen galten global, letztere überlebte nicht einmal einen Neustart. Ein Reiter, der elf von zwölf Achsen wiederherstellt, verspricht mehr, als er hält.
