@@ -253,8 +253,11 @@ export function SuchOptionenZeile({
         </select>
       )}
 
+      {/* `--tf-border-hover` (0,15) statt `--tf-border` (0,08): der Strich steht
+          zwischen zwei umrandeten Kästen, und in der Farbe IHRER Ränder wäre er
+          eine weitere Kante unter vielen — nicht als Grenze lesbar. */}
       {trenner && (
-        <span aria-hidden="true" className="h-4 w-px shrink-0 bg-[var(--tf-border)]" />
+        <span aria-hidden="true" className="h-5 w-px shrink-0 bg-[var(--tf-border-hover)]" />
       )}
 
       {/* Kein Label davor: die drei Optionen sagen ihre Regel im ganzen Satz

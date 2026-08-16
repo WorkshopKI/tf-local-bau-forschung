@@ -5,6 +5,12 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.69.1 — der Trenner hebt sich von den Kastenraendern ab (August 2026)
+
+PATCH — Der neue Gruppen-Trenner stand in `--tf-border` — derselben Farbe, in der die Auswahlkästen ihre Ränder zeichnen. Zwischen zwei umrandeten Kästen war er damit eine Kante unter vielen und trennte nichts.
+
+- **Trenner in `--tf-border-hover` (0,15) statt `--tf-border` (0,08), 20 px statt 16 px hoch** ([SuchOptionenZeile.tsx](src/plugins/suche/SuchOptionenZeile.tsx)); Layout unverändert: die fünf Regler enden weiter bei 1068 von 1152 px
+
 ### v4.69.0 — die Optionszeile stellt drei Fragen (August 2026)
 
 MINOR — Gemeldet: „das Wording in diesem Dropdown ist noch etwas sperrig", dazu der Wunsch, die Auswahlboxen nach Fragen zu gruppieren. Sperrig war die Bauform: „Wortverknüpfung:" plus drei Substantiv-Fetzen, die erst durch das Label daneben einen Sinn ergaben — aufgeklappt liegt die Liste über der Seite, und das Label ist dann weit weg. Genau das hatte der Suchbereich mit „Suche in: …" schon gelöst.
