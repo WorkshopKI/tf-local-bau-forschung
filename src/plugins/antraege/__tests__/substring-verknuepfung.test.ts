@@ -50,6 +50,8 @@ function eintrag(
     organisationLower: organisation.toLowerCase(),
     standort,
     standortSuchform: standortSuchform(standort),
+    bundesland: '',
+    bundeslandSuchform: '',
     domain,
     domainSuchform: domainSuchform(domain),
     netzwerk: '',
@@ -66,6 +68,7 @@ function eintrag(
     ...basis,
     netzwerkLower: basis.netzwerk.toLowerCase(),
     notizLower: basis.notiz.toLowerCase(),
+    bundeslandSuchform: standortSuchform(basis.bundesland),
     wahlkreisSuchform: standortSuchform(basis.wahlkreis),
     verbundNrLower: basis.verbundNr.toLowerCase(),
   };

@@ -123,9 +123,15 @@ const ALIASE: ReadonlyMap<string, Trefferfeld> = new Map<string, Trefferfeld>([
   ['ort_ast', 'standort'],
   ['ort_afs', 'standort'],
   ['standort', 'standort'],
-  ['bl', 'standort'],
-  ['buland', 'standort'],
-  ['bundesland', 'standort'],
+
+  // Seit v4.81 ein EIGENES Feld. Vorher waren `bl:` und `ort:` Schreibweisen
+  // derselben Sache: die Vorschlagsliste unter `bl:` zeigte Staedte, die unter
+  // `ort:` Bundeslaender, und beide beschriftete sie mit „Ort".
+  ['bl', 'bundesland'],
+  ['buland', 'bundesland'],
+  ['bundesland', 'bundesland'],
+  ['buland_ast', 'bundesland'],
+  ['buland_afs', 'bundesland'],
 
   ['deskriptor', 'deskriptoren'],
   ['deskriptoren', 'deskriptoren'],
@@ -171,6 +177,9 @@ export const FELD_PRAEFIX: Partial<Record<Trefferfeld, string>> = {
   verbundkennzeichen: 'vb',
   organisation: 'ast',
   standort: 'ort',
+  // `bl` ist die Schreibweise des Teams und die der Quellspalten (`BL_AFS`);
+  // `bundesland:` liest die Suche weiter, sie schlaegt es nur nicht vor.
+  bundesland: 'bl',
   deskriptoren: 'deskriptor',
   domain: 'web',
   // `nw` ist die Schreibweise des Teams (v4.53); `netz:` liest die Suche

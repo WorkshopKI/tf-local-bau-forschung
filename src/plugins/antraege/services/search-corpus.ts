@@ -105,8 +105,13 @@ export interface AntragTextEntry {
    *  Trennstelle enthaelt immer das Leerzeichen, ein Suchwort nie. */
   organisation: string;
   organisationLower: string;
-  /** Ort + Bundesland (Klartext), beide Seiten zusammengezogen — „welche
-   *  Vorhaben wurden in Berlin gefoerdert".
+  /** Der ORT, Rechtsperson und ausfuehrende Stelle zusammengezogen — „welche
+   *  Vorhaben wurden in Dresden gefoerdert".
+   *
+   *  Ohne das Bundesland: bis v4.80 lagen beide hier, und weil die 16
+   *  Laendernamen jede Haeufigkeitsliste anfuehren, bestand die
+   *  Vorschlagsliste unter `ort:` fast nur aus Bundeslaendern. Sie haben seit
+   *  v4.81 ihr eigenes Feld (`bundesland`).
    *
    *  Seit v4.23 zugleich die ANZEIGEFORM dieses Belegs (`' · '`-getrennt): die
    *  Fundstelle „Ort" ist die einzige, die sonst nirgends im Ergebnis steht, und
@@ -129,6 +134,14 @@ export interface AntragTextEntry {
    *  Regensburg. Das ist die normale Erwartung an ein Suchfeld, das mit jedem
    *  Tastendruck sucht — „dresd" soll Dresden schon finden. */
   standortSuchform: string;
+  /** Bundesland im KLARTEXT (`SN` → „Sachsen"), beide Seiten zusammengezogen.
+   *  Anzeigeform wie der Standort, aus demselben Grund. */
+  bundesland: string;
+  /** Suchform des Bundeslands — am Wortanfang verankert wie `standortSuchform`,
+   *  und zusaetzlich mit dem ROHEN Kuerzel bestueckt: `bl:SN` soll weiter
+   *  finden, obwohl die Vorschlagsliste nur noch Namen anbietet. Das Kuerzel
+   *  steht deshalb in der Suchform, nicht im angezeigten Wert. */
+  bundeslandSuchform: string;
   /** Web-Adresse der Einrichtung, aus der Kontakt-Mail der Projektleitung
    *  abgeleitet (`bergmann@gmbu.de` → `gmbu.de`). ANZEIGEFORM, wie beim
    *  Standort — eine Fundstelle, die sonst nirgends in der Zeile stuende,
@@ -293,6 +306,28 @@ export function bundeslandName(kuerzel: string): string {
   const k = kuerzel.trim().toUpperCase();
   if (k.length === 0) return '';
   return BUNDESLAND_NAMEN[k] ?? kuerzel.trim();
+}
+
+/**
+ * Anzeige- und Suchform des Bundeslands aus den beiden Kuerzel-Spalten.
+ *
+ * Zwei Formen, weil sie Verschiedenes leisten: ANGEZEIGT und vorgeschlagen wird
+ * nur der Klartext — eine Vorschlagsliste, in der „Sachsen" und „SN" als zwei
+ * Werte nebeneinanderstehen, teilt dasselbe Land in zwei Zeilen. GESUCHT wird
+ * ueber beides, damit `bl:SN` weiter findet, wer das Kuerzel aus dem Export
+ * gewohnt ist.
+ *
+ * Pure — testbar ohne IDB.
+ */
+export function bundeslandFelder(landAfs: string, landAst: string): {
+  bundesland: string;
+  bundeslandSuchform: string;
+} {
+  const bundesland = verbindeMit(' · ', bundeslandName(landAfs), bundeslandName(landAst));
+  return {
+    bundesland,
+    bundeslandSuchform: standortSuchform(verbindeEindeutig(bundesland, landAfs, landAst)),
+  };
 }
 
 /** Alles ausser Buchstaben und Ziffern trennt Woerter — „Sachsen-Anhalt" und
@@ -530,12 +565,9 @@ export async function loadAntraegeTextCorpus(
       const organisation = verbindeEindeutig(feld.orgAfs ?? '', feld.orgAst ?? '');
       // Mit sichtbarem Trenner: dieses Feld wird auch ANGEZEIGT (siehe
       // `verbindeMit`). Die Suchform darunter bleibt davon unberuehrt.
-      const standort = verbindeMit(
-        ' · ',
-        feld.ortAfs ?? '',
-        feld.ortAst ?? '',
-        bundeslandName(feld.landAfs ?? ''),
-        bundeslandName(feld.landAst ?? ''),
+      const standort = verbindeMit(' · ', feld.ortAfs ?? '', feld.ortAst ?? '');
+      const { bundesland, bundeslandSuchform } = bundeslandFelder(
+        feld.landAfs ?? '', feld.landAst ?? '',
       );
       const domain = domainLabel(feld.emailPl ?? '');
       const netzwerk = feld.netzwerk ?? '';
@@ -545,8 +577,10 @@ export async function loadAntraegeTextCorpus(
       const wahlkreis = feld.wahlkreis ?? '';
       const verbundNr = feld.verbundNr ?? '';
       if (werteIndex) {
-        nimmWerte(werteIndex, 'standort', [
-          feld.ortAfs, feld.ortAst,
+        nimmWerte(werteIndex, 'standort', [feld.ortAfs, feld.ortAst]);
+        // Nur der Klartext — das Kuerzel lebt in der Suchform, nicht in der
+        // Vorschlagsliste (siehe `bundeslandFelder`).
+        nimmWerte(werteIndex, 'bundesland', [
           bundeslandName(feld.landAfs ?? ''), bundeslandName(feld.landAst ?? ''),
         ]);
         nimmWerte(werteIndex, 'organisation', [feld.orgAfs, feld.orgAst]);
@@ -560,7 +594,7 @@ export async function loadAntraegeTextCorpus(
         includeEmpty
         || vb.length > 0 || tv.length > 0 || ab.length > 0
         || descriptors.length > 0 || ak.length > 0
-        || organisation.length > 0 || standort.length > 0
+        || organisation.length > 0 || standort.length > 0 || bundesland.length > 0
         || domain.length > 0 || netzwerk.length > 0
         || notiz.length > 0 || wahlkreis.length > 0
         || verbundNr.length > 0
@@ -583,6 +617,8 @@ export async function loadAntraegeTextCorpus(
           organisationLower: organisation.toLowerCase(),
           standort,
           standortSuchform: standortSuchform(standort),
+          bundesland,
+          bundeslandSuchform,
           domain,
           domainSuchform: domainSuchform(domain),
           netzwerk,

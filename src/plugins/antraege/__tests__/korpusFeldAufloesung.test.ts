@@ -120,6 +120,32 @@ describe('baueKorpusFeldKarte', () => {
     expect(karte.orgAst.has('antragsteller')).toBe(false);
   });
 
+  it('vergibt einen Schluessel NICHT, auf den mehrere Spalten desselben Schemas zeigen', () => {
+    // Der echte Fall (v4.81): 7737 wirft PLZ_AFS, ORT_AFS und BULAND_AFS
+    // gemeinsam auf `ausfuhrende_stelle` — ein Artefakt der Label-XLS-
+    // Gruppierung. Der Import schreibt Spalte fuer Spalte, die letzte gewinnt:
+    // im Store steht das Bundesland-KUERZEL. Weil der Ort-Slot vor dem
+    // Land-Slot bedient wird, las der Korpus „SN" als Ortsnamen und bot es
+    // unter `ort:` als Ortsvorschlag an (1 508 Antraege).
+    const mitAdressKollision = schema('7737-bgl', {
+      ORG_AFS: { canonical: 'antragsteller', type: 'string' },
+      PLZ_AFS: { custom: 'ausfuhrende_stelle', type: 'number' },
+      ORT_AFS: { custom: 'ausfuhrende_stelle', type: 'string' },
+      BULAND_AFS: { custom: 'ausfuhrende_stelle', type: 'string' },
+    });
+    const karte = baueKorpusFeldKarte([mitAdressKollision], BASIS);
+    expect(karte.ortAfs.has('ausfuhrendestelle')).toBe(false);
+    expect(karte.landAfs.has('ausfuhrendestelle')).toBe(false);
+  });
+
+  it('sperrt nur die schema-aufgeloesten Zugaenge, nie die Basis', () => {
+    // `antragsteller` ist in 7737 ebenfalls doppelt belegt (ORG_AST + ORG_AFS).
+    // Faellt es mit der Sperre, verliert die Einrichtungs-Suche ihr Feld fuer
+    // ALLE Quellen — die Basis muss es deshalb weiter hereintragen.
+    const karte = baueKorpusFeldKarte(ALLE, BASIS);
+    expect(karte.orgAfs.has('antragsteller')).toBe(true);
+  });
+
   it('behaelt die Basis-Aliase — ein Programm ohne Schema sucht wie bisher', () => {
     const karte = baueKorpusFeldKarte([], BASIS);
     for (const slot of Object.keys(BASIS) as Array<keyof KorpusFeldKarte>) {

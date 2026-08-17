@@ -214,8 +214,12 @@ describe('Suchbereich', () => {
     // Anträgen einen Ort, den das Standort-Feld nicht führt. Ohne ihn fände der
     // engere Bereich weniger als „alle Felder", und der Nutzer hätte keinen
     // Weg, den Unterschied zu sehen.
+    //
+    // Das Bundesland ist seit v4.81.0 ein eigenes Feld und muss hier mit stehen:
+    // wer „nur Ort, Bundesland & Wahlkreis" wählt, hat die Beschriftung gelesen.
     expect(Array.from(bereichFelder('einrichtung'))).toEqual(['organisation', 'domain']);
-    expect(Array.from(bereichFelder('standort'))).toEqual(['standort', 'wahlkreis']);
+    expect(Array.from(bereichFelder('standort')))
+      .toEqual(['standort', 'bundesland', 'wahlkreis']);
   });
 
   it('„nur Dokumente" prüft KEIN Antragsfeld', () => {

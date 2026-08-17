@@ -20,7 +20,9 @@
  *  - `aehnlichkeit`             → Spalten „Suche" und „Score".
  *
  * Übrig bleiben `standort`, `deskriptoren`, `domain`, seit v4.50 `netzwerk`,
- * `wahlkreis` und `notiz` und seit v4.53 das `verbundkennzeichen`. NUR sie
+ * `wahlkreis` und `notiz`, seit v4.53 das `verbundkennzeichen` und seit v4.81
+ * das `bundesland` (bis dahin im Standort miterfasst, siehe
+ * [search-corpus.ts](src/plugins/antraege/services/search-corpus.ts)). NUR sie
  * stehen unten in `BELEG`; wer hier eine weitere Zeile ergänzt, muss vorher
  * zeigen, dass der Beleg wirklich nirgends sonst auftaucht, sonst wächst die
  * Tabelle für nichts.
@@ -63,6 +65,7 @@ interface BelegDefinition {
 
 const BELEG: readonly BelegDefinition[] = [
   { feld: 'standort', spalte: 'standort', wert: r => r.standort },
+  { feld: 'bundesland', spalte: 'bundesland', wert: r => r.bundesland },
   { feld: 'deskriptoren', spalte: 'deskriptoren', wert: r => r.deskriptoren },
   { feld: 'domain', spalte: 'domain', wert: r => r.domain },
   { feld: 'netzwerk', spalte: 'netzwerk', wert: r => r.netzwerk },

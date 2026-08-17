@@ -25,7 +25,8 @@ function eintrag(felder: Partial<AntragTextEntry>): AntragTextEntry {
     vb: '', tv: '', abstract: '', descriptors: '', akronym: '',
     vbLower: '', tvLower: '', absLower: '', descriptorsLower: '', akronymLower: '',
     akzLower: '', organisation: '', organisationLower: '',
-    standort: '', standortSuchform: '', domain: '', domainSuchform: '',
+    standort: '', standortSuchform: '', bundesland: '', bundeslandSuchform: '',
+    domain: '', domainSuchform: '',
     netzwerk: '', netzwerkLower: '', notiz: '', notizLower: '',
     wahlkreis: '', wahlkreisSuchform: '', verbundNr: '', verbundNrLower: '',
     ...felder,
@@ -44,6 +45,7 @@ function eintrag(felder: Partial<AntragTextEntry>): AntragTextEntry {
     notizLower: basis.notiz.toLowerCase(),
     verbundNrLower: basis.verbundNr.toLowerCase(),
     standortSuchform: standortSuchform(basis.standort),
+    bundeslandSuchform: standortSuchform(basis.bundesland),
     wahlkreisSuchform: standortSuchform(basis.wahlkreis),
     domainSuchform: domainSuchform(basis.domain),
   };

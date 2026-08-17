@@ -362,6 +362,10 @@ function substringMatches(
       // ausgeschlossen hat.
       || (t.erlaubt.has('standort')
         && t.ortNadeln.some(n => entry.standortSuchform.includes(n)))
+      // Das Bundesland ist eine Ortsangabe wie der Standort und verlangt
+      // dieselbe Verankerung: „essen" darf Hessen nicht hereinholen.
+      || (t.erlaubt.has('bundesland')
+        && t.ortNadeln.some(n => entry.bundeslandSuchform.includes(n)))
       // Die Web-Adresse nutzt dieselbe verankerte Nadel — aus demselben Grund:
       // „gmbu" soll `gmbu.de` finden, aber nicht mitten in einer fremden Domain
       // treffen.
@@ -639,6 +643,7 @@ function feldZuordnung(
     merke('notiz', in_(entry.notizLower));
     merke('domain', t.ortNadeln.some(n => entry.domainSuchform.includes(n)));
     merke('standort', t.ortNadeln.some(n => entry.standortSuchform.includes(n)));
+    merke('bundesland', t.ortNadeln.some(n => entry.bundeslandSuchform.includes(n)));
     merke('wahlkreis', t.ortNadeln.some(n => entry.wahlkreisSuchform.includes(n)));
     if (t.pflicht) continue;
     zaehlbar++;

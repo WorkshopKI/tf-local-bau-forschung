@@ -15,6 +15,7 @@ import {
   verbindeEindeutig,
   verbindeMit,
   bundeslandName,
+  bundeslandFelder,
   standortSuchform,
   standortNadel,
   domainLabel,
@@ -51,6 +52,35 @@ describe('verbindeEindeutig', () => {
 
   it('Berlin bleibt einmal stehen, obwohl es Stadt UND Land ist', () => {
     expect(verbindeEindeutig('Berlin', 'Berlin', 'Berlin', 'Berlin')).toBe('Berlin');
+  });
+});
+
+describe('bundeslandFelder (v4.81)', () => {
+  it('zeigt den Klartext, sucht aber auch über das rohe Kürzel', () => {
+    // Der gemeldete Defekt hatte zwei Hälften: die Bundesländer standen in der
+    // Ortsliste, und daneben standen die rohen Kürzel als eigene Werte. Beides
+    // gehört nicht in die Vorschlagsliste — das Kürzel bleibt trotzdem
+    // suchbar, weil das Team es aus dem Export kennt.
+    const { bundesland, bundeslandSuchform } = bundeslandFelder('SN', 'SN');
+    expect(bundesland).toBe('Sachsen');
+    expect(bundeslandSuchform).toContain(' sachsen ');
+    expect(bundeslandSuchform).toContain(' sn ');
+  });
+
+  it('zieht zwei gleiche Angaben zusammen und führt zwei verschiedene beide', () => {
+    expect(bundeslandFelder('HH', 'SH').bundesland).toBe('Hamburg · Schleswig-Holstein');
+    expect(bundeslandFelder('BE', '').bundesland).toBe('Berlin');
+  });
+
+  it('liefert für fehlende Angaben leere Felder', () => {
+    // Wichtig für den `includeEmpty`-Guard: `.length > 0` muss falsch bleiben.
+    expect(bundeslandFelder('', '')).toEqual({ bundesland: '', bundeslandSuchform: '' });
+  });
+
+  it('trifft am Wortanfang — „essen" holt Hessen nicht herein', () => {
+    const { bundeslandSuchform } = bundeslandFelder('HE', 'HE');
+    expect(bundeslandSuchform.includes(standortNadel('essen'))).toBe(false);
+    expect(bundeslandSuchform.includes(standortNadel('hess'))).toBe(true);
   });
 });
 

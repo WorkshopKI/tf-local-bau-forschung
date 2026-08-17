@@ -19,6 +19,16 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.82 — 2026-08
+
+### Neu
+- Das Bundesland ist ein eigenes Suchfeld: `bl:Sachsen` (oder `bl:SN`) sucht nur noch Länder, `ort:Dresden` nur noch Orte. Beide haben eine eigene Spalte in der Ergebnistabelle.
+### Verbesserungen
+- Die Vorschlagsliste unter `ort:` zeigt jetzt Städte statt Bundesländer — vorher standen dort fast nur die 16 Länder, weil jeder Antrag eines trägt.
+- Im Reiter „Stöbern" stehen Ort und Bundesland als zwei getrennte Spalten.
+### Bugfixes
+- Aus der Ortsliste sind die rohen Länderkürzel („SN", „BW", „NW", „BY") verschwunden. Sie stammten aus einer Quelle, deren Import Ort, PLZ und Bundesland in dasselbe Feld schrieb.
+
 ## v4.81 — 2026-08
 
 ### Neu

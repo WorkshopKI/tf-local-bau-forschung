@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.82.0 — Ort und Bundesland sind zwei Suchfelder (August 2026)
+
+MINOR — Gemeldet: `ort:` schlug Bundesländer vor, `bl:` schlug dieselben vor — beschriftet mit „Ort". Beide Präfixe zeigten auf **ein** Feld `standort`, und weil jeder Antrag ein Land trägt, die Orte sich aber auf 2 055 Werte verteilen, führten die 16 Ländernamen jede Ortsliste an. Daneben standen rohe Kürzel („SN" 1 508) — ein Mapping-Schaden der Quelle 7737.
+
+- **Trefferfeld `bundesland` mit eigenem Präfix `bl:`, Etikett, Facette und Spalte** — `ort:` schlägt nur noch Städte vor ([trefferstelle.ts](src/core/services/search/trefferstelle.ts), [feldpraefix.ts](src/core/services/search/feldpraefix.ts), [suche-relevanz.md](docs/architecture/suche-relevanz.md))
+- **Korpus trennt Ort und Land**, `bundeslandFelder()` liefert Klartext zum Anzeigen und Klartext+Kürzel zum Suchen — `bl:SN` findet weiter ([search-corpus.ts](src/plugins/antraege/services/search-corpus.ts))
+- **„nur Ort, Bundesland & Wahlkreis" und „alle Felder"** führen das neue Feld mit ([suchbereich.ts](src/core/services/search/suchbereich.ts))
+- **Stöbern zeigt Ort und Bundesland als eigene Spalten**, der Sonderfall „Ort & Bundesland" entfällt ([stoebern.ts](src/plugins/suche/start/stoebern.ts))
+- **Mehrdeutige Schema-Schlüssel werden an keinen Korpus-Slot vergeben** — 7737 wirft `PLZ_AFS`/`ORT_AFS`/`BULAND_AFS` auf einen Schlüssel; die Basis-Aliasse bleiben unangetastet ([korpusFeldAufloesung.ts](src/plugins/antraege/services/korpusFeldAufloesung.ts))
+
 ### v4.81.0 — Ruhende Kürzel: die Arbeitsmenge halbiert (August 2026)
 
 MINOR — Gemeldet: 511 Kürzel erschlagen jede Abstimmung, viele davon seien von früher. Gemessen an Fassung 22 trifft „seit Richtlinie 2020 nicht gesetzt" nur 15 — die Masse sind **243 Kürzel ohne jede `D_`/`T_`-Spalte im Export**, die C16 vielleicht täglich setzt, die wir aber nie sehen. 85 davon trugen ein Relevanz-Häkchen, das nirgends wirken kann.

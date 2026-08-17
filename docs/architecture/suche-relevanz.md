@@ -64,7 +64,7 @@ Treffer, und in der Liste war das Suchwort bei **4 von 30** sichtbaren Zeilen
 markiert — bei denen, wo die Stadt zufällig im Firmennamen vorkam.
 
 Die Ursache ist keine Lücke im Layout, sondern eine im Datenfluss: sechs der
-dreizehn Trefferstellen haben längst einen Platz im Ergebnis, sieben nicht.
+vierzehn Trefferstellen haben längst einen Platz im Ergebnis, acht nicht.
 
 | Trefferstelle | steht im Ergebnis als |
 |---|---|
@@ -73,7 +73,8 @@ dreizehn Trefferstellen haben längst einen Platz im Ergebnis, sieben nicht.
 | `aktenzeichen` | Spalte „FKZ" |
 | `dokument` | Dateiname bzw. gefaltete Textstelle |
 | `aehnlichkeit` | Spalten „Suche" / „Score" |
-| **`standort`** | **Spalte „Ort & Bundesland"** — wird eingeblendet |
+| **`standort`** | **Spalte „Ort"** — wird eingeblendet |
+| **`bundesland`** | **Spalte „Bundesland"** — wird eingeblendet |
 | **`deskriptoren`** | **Spalte „Deskriptoren"** — wird eingeblendet |
 | **`domain`** | **Spalte „Web-Adresse"** — wird eingeblendet |
 | **`netzwerk`** | **Spalte „Netzwerk"** — wird eingeblendet |
@@ -81,8 +82,8 @@ dreizehn Trefferstellen haben längst einen Platz im Ergebnis, sieben nicht.
 | **`notiz`** | **Spalte „Notiz"** — wird eingeblendet |
 | **`verbundkennzeichen`** | **Spalte „Verbund-Nr."** — wird eingeblendet |
 
-[autoSpalten.ts](../../src/plugins/suche/autoSpalten.ts) führt diese sieben — und
-nur diese sieben. Eine weitere Zeile braucht den Nachweis, dass der Beleg wirklich
+[autoSpalten.ts](../../src/plugins/suche/autoSpalten.ts) führt diese acht — und
+nur diese acht. Eine weitere Zeile braucht den Nachweis, dass der Beleg wirklich
 nirgends sonst auftaucht; sonst verbreitert sich die Tabelle für nichts.
 
 Für `domain` ist der Nachweis geführt: die Web-Adresse steht in keiner anderen
@@ -103,12 +104,11 @@ dazu (angehakt, deaktiviert, Marke „auto", im Zähler mitgezählt) und schreib
 die Spalte.
 
 **Warum nicht die vorhandene Spalte „Ort AST".** Gesucht wird gegen
-`AntragTextEntry.standort` = Ort-AFS + Ort-AST + beide Bundesländer im Klartext.
-Bei „Bayern" oder bei abweichendem Ausführungsort (1 052 von 14 224 Sätzen)
-stünde in einer `ort_ast`-Zelle ein Wert **ohne** Markierung — eine Erklärung,
-die keine ist. „Ort AST" bleibt daneben die CSV-Spalte für Sortieren, Filtern und
-Export; die neue Spalte ist der Beleg. Dieselbe Unterscheidung wie bei
-`antragsteller` (= ORG_AFS) in v4.4.3.
+`AntragTextEntry.standort` = Ort-AFS + Ort-AST. Bei abweichendem Ausführungsort
+(1 052 von 14 224 Sätzen) stünde in einer `ort_ast`-Zelle ein Wert **ohne**
+Markierung — eine Erklärung, die keine ist. „Ort AST" bleibt daneben die
+CSV-Spalte für Sortieren, Filtern und Export; die neue Spalte ist der Beleg.
+Dieselbe Unterscheidung wie bei `antragsteller` (= ORG_AFS) in v4.4.3.
 
 Das Feld trägt seinen Trenner deshalb schon im Korpus (`verbindeMit(' · ', …)`).
 Die **Suchform ist davon unberührt**: `standortSuchform` ersetzt jede
@@ -194,6 +194,47 @@ kein Suchfeld; die Anrede `BRANR_PL` („Sehr geehrter Herr …") — Personenan
 ohne Sachaussage. `ALTAKZ` wäre interessant (der alte Vorgangscode), ist im
 Import aber ausdrücklich auf „ignorieren" gesetzt und bräuchte erst eine
 Mapping-Änderung.
+
+### Ort und Bundesland sind zwei Felder (v4.82.0)
+
+Gemeldet an der Vorschlagsliste: `ort:` schlug Bundesländer vor, `bl:` schlug
+dieselben Bundesländer vor — beide beschriftet mit „Ort". Kein Anzeigefehler,
+sondern die Bauart: `ort`, `bl`, `buland` und `bundesland` waren Aliasse
+**desselben** Trefferfeldes `standort`, der Korpus zog Ort und Land in ein Feld
+zusammen, und das Etikett kommt aus `TREFFERFELD_LABEL[feld]`.
+
+Warum das die Liste unbrauchbar machte, sagt die Verteilung: **jeder** Antrag
+trägt ein Bundesland, die Orte verteilen sich auf 2 055 Werte. Die 16
+Ländernamen führten deshalb jede Häufigkeitsliste an (Sachsen 3 282, Bayern
+1 976, …) — die ersten 50 Vorschläge unter `ort:` enthielten kaum einen Ort.
+
+Seit v4.82 ist `bundesland` ein eigenes Trefferfeld mit eigenem Präfix (`bl:`),
+eigenem Etikett, eigener Facette und eigener Spalte. Zwei Entscheidungen dabei:
+
+- **Das Kürzel bleibt suchbar, aber unsichtbar.** `bundeslandFelder()` liefert
+  zwei Formen: angezeigt und vorgeschlagen wird nur der Klartext (sonst stünden
+  „Sachsen" und „SN" als zwei Werte nebeneinander und teilten dasselbe Land in
+  zwei Zeilen), gesucht wird über beides — `bl:SN` findet weiter, wer das Kürzel
+  aus dem Export gewohnt ist.
+- **Verglichen wird am Wortanfang**, wie beim Standort und aus demselben Grund:
+  „essen" darf Hessen nicht hereinholen.
+
+**Rohe Kürzel in der Ortsliste — ein Mapping-Schaden, kein Suchfehler.** Neben
+„Sachsen" standen „SN" (1 508), „BW" (974), „NW" (935), „BY" (922) als eigene
+Ortswerte. Die Zahlen sind exakt die Zeilenzahlen der Quelle `7737-bgl`: ihr
+Schema wirft `PLZ_AFS`, `ORT_AFS` und `BULAND_AFS` auf **denselben**
+Speicher-Schlüssel `ausfuhrende_stelle` (Artefakt der Label-XLS-Gruppierung —
+alle drei tragen dieselbe Gruppenbeschriftung). Der Import schreibt Spalte für
+Spalte, die letzte gewinnt: im Store steht das Kürzel, und weil `ortAfs` vor
+`landAfs` bedient wird, las der Korpus es als Ortsnamen.
+
+`baueKorpusFeldKarte` vergibt solche Schlüssel seit v4.82 an **keinen** Slot —
+was mehrere Spalten eines Schemas beanspruchen, trägt nichts Verlässliches. Die
+Sperre gilt nur für die schema-aufgelösten Zugänge, nie für die fest verdrahtete
+Basis: `antragsteller` ist in 7737 ebenfalls doppelt belegt und käme sonst mit
+zu Fall. Repariert ist der Datenschaden damit nicht — die Quelle liefert ihren
+Ort erst wieder, wenn ihr Mapping im Wizard auf getrennte Schlüssel gestellt und
+neu importiert wird.
 
 ### Die Kennzeichen: Verbund und Fachsystem-AKZ (v4.53.0)
 
@@ -545,6 +586,7 @@ gemessen ist klar, warum.
 
 | Feld | verschiedene Werte | mehrwortig (nach Häufigkeit gewichtet) |
 |---|---|---|
+| `bl:` | 16 | 19 % |
 | `deskriptor:` | **43** | 63 % |
 | `wahlkreis:` | 299 | 49 % |
 | `nw:` | 1 270 Netzwerknamen | ~0 % |

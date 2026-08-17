@@ -6,13 +6,12 @@
  * Einstieg — wer nicht weiß, was im Bestand steht, kann auch nichts danach
  * fragen.
  *
- * **Vier Felder, weil nur sie einen abzählbaren Wertevorrat haben**
+ * **Fünf Felder, weil nur sie einen abzählbaren Wertevorrat haben**
  * ([stoebern.ts](src/plugins/suche/start/stoebern.ts)). Zwei davon errät
  * niemand: die Deskriptoren sind ein festes Vokabular, das nirgends sonst in
  * der App steht, und ein Netzwerk heißt im Export `"ProAnimalLife"
- * 16KN062302_KR`. Bundesland und Ort liegen im selben Topf (`standort`), ein
- * Antragsjahr führt der Index gar nicht — die drei Facetten des Handoffs gibt
- * es so nicht.
+ * 16KN062302_KR`. Ort und Bundesland sind seit v4.81 getrennte Felder und
+ * stehen deshalb in eigenen Spalten; ein Antragsjahr führt der Index gar nicht.
  *
  * **Die Liste hier ist die kurze Fassung, nicht die einzige.** Seit v4.71 zeigt
  * das Suchfeld unter `deskriptor:` den vollen Katalog (bis 50 Werte, mit
@@ -86,6 +85,10 @@ export function StartStoebern({ index, zaehle, onSuche, kurz, onMehr }: {
 
   return (
     <div>
+      {/* Vier Spalten, obwohl es fünf Felder sind: bei fünf blieben am xl-Rand
+          (1 280 px) 42 px für die Beschriftung, und „Nordrhein-Westfalen"
+          (120 px) stand als „Nordr…" da. Das fünfte Feld rutscht lieber in eine
+          zweite Zeile, als dass alle fünf unlesbar werden. */}
       <div className="grid gap-x-8 gap-y-5 md:grid-cols-2 xl:grid-cols-4">
         {spalten.map(s => (
           <Spalte key={s.feld} titel={stoeberLabel(s.feld)}>

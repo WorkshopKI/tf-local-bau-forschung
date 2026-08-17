@@ -184,6 +184,29 @@ describe('Kennzeichen-Präfixe (v4.53)', () => {
   });
 });
 
+describe('Ort und Bundesland sind zwei Felder (v4.81)', () => {
+  it('`bl:` meint das Bundesland, `ort:` den Ort', () => {
+    // Vorher waren beide Schreibweisen Aliasse DESSELBEN Feldes: `bl:` zeigte
+    // Städte, `ort:` zeigte Bundesländer, und die Vorschlagsliste beschriftete
+    // beides mit „Ort".
+    expect(FELD_PRAEFIX.bundesland).toBe('bl');
+    expect(FELD_PRAEFIX.standort).toBe('ort');
+    for (const alias of ['bl', 'buland', 'bundesland', 'buland_ast', 'buland_afs']) {
+      expect(feldAusPraefix(alias), alias).toBe('bundesland');
+    }
+    for (const alias of ['ort', 'standort', 'ort_ast', 'ort_afs']) {
+      expect(feldAusPraefix(alias), alias).toBe('standort');
+    }
+  });
+
+  it('trennt eine Anfrage, die beide nennt, in zwei Teile', () => {
+    expect(zerlegeFeldAnfrage('ort:Dresden bl:Sachsen')).toEqual([
+      { roh: 'ort:Dresden', wert: 'Dresden', feld: 'standort' },
+      { roh: 'bl:Sachsen', wert: 'Sachsen', feld: 'bundesland' },
+    ]);
+  });
+});
+
 describe('hatFeldPraefix', () => {
   it('erkennt, ob die Anfrage ein Feld nennt', () => {
     expect(hatFeldPraefix('laser schweißen')).toBe(false);

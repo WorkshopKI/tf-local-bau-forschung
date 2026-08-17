@@ -132,10 +132,14 @@ export function baueKorpusFeldKarte(
   const karte = {} as Record<KorpusSlot, ReadonlySet<string>>;
   // Schon vergebene Schluessel — siehe Kollisions-Regel bei `SLOT_CODES`.
   const vergeben = new Set<string>();
+  const mehrdeutig = mehrdeutigeSchluessel(schemas);
 
   for (const slot of SLOT_REIHENFOLGE) {
     const kandidaten = new Set<string>(basis[slot]);
-    for (const key of aufgeloesteSchluessel(schemas, SPALTEN_CODES[slot])) kandidaten.add(key);
+    for (const key of aufgeloesteSchluessel(schemas, SPALTEN_CODES[slot])) {
+      if (mehrdeutig.has(key)) continue;
+      kandidaten.add(key);
+    }
 
     const eigen = new Set<string>();
     for (const key of kandidaten) {
@@ -147,6 +151,46 @@ export function baueKorpusFeldKarte(
   }
 
   return karte;
+}
+
+/**
+ * Schluessel, auf die MEHRERE Spalten desselben Schemas zeigen — und die
+ * deshalb nichts Verlaessliches mehr tragen.
+ *
+ * Am Bestand gemessen: das Schema `7737-bgl` wirft `PLZ_AFS`, `ORT_AFS` und
+ * `BULAND_AFS` gemeinsam auf `ausfuhrende_stelle` (Artefakt der Label-XLS-
+ * Gruppierung — alle drei tragen die Gruppenbeschriftung „ausfuehrende Stelle").
+ * Der Import schreibt Spalte fuer Spalte, die letzte gewinnt: im Store steht das
+ * BUNDESLAND-Kuerzel. Weil `SLOT_REIHENFOLGE` den Ort vor dem Land bedient,
+ * las der Korpus „SN" als Ortsnamen und bot ihn in der Vorschlagsliste unter
+ * `ort:` an (1 508 Antraege, v4.81).
+ *
+ * Solche Schluessel werden fuer KEINEN Slot vergeben. Die Sperre gilt nur fuer
+ * die schema-aufgeloesten Zugaenge, nie fuer die fest verdrahtete `basis`:
+ * `antragsteller` ist in 7737 ebenfalls doppelt belegt (`ORG_AST` + `ORG_AFS`),
+ * kommt aber ueber die Basis herein und bleibt deshalb erhalten — sonst verloere
+ * die Einrichtungs-Suche ihr Feld fuer alle Quellen.
+ *
+ * Repariert wird der Datenschaden damit nicht: die betroffene Quelle liefert
+ * ihren Ort erst wieder, wenn ihr Mapping im CSV-Wizard auf getrennte Schluessel
+ * gestellt und neu importiert wird.
+ */
+function mehrdeutigeSchluessel(schemas: readonly CsvSchema[]): ReadonlySet<string> {
+  const out = new Set<string>();
+  for (const schema of schemas) {
+    const mapping = schema.column_mapping ?? {};
+    const zaehler = new Map<string, number>();
+    for (const col of Object.keys(mapping)) {
+      const entry = mapping[col];
+      if (!entry || entry.ignore) continue;
+      const feld = resolveFieldKey(col, entry);
+      if (!feld) continue;
+      const key = normalizeKey(feld);
+      zaehler.set(key, (zaehler.get(key) ?? 0) + 1);
+    }
+    for (const [key, n] of zaehler) if (n > 1) out.add(key);
+  }
+  return out;
 }
 
 /** Alle Feld-Schluessel, unter denen diese Spalten-Codes im Store landen. */

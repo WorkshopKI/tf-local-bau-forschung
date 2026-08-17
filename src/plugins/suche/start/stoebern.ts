@@ -21,30 +21,23 @@ import { alsAnfrageWert } from '../vervollstaendigung';
  * kennen.
  */
 export const STOEBER_FELDER: readonly WertFeld[] = [
-  'deskriptoren', 'netzwerk', 'organisation', 'standort',
+  'deskriptoren', 'netzwerk', 'organisation', 'standort', 'bundesland',
 ];
 
 /** Wie viele Werte je Feld im Reiter stehen. */
 export const WERTE_JE_FELD = 5;
 
 /**
- * Die Überschrift der Spalte — nur dort abweichend, wo `TREFFERFELD_LABEL` zu
- * eng ist.
+ * Die Überschrift der Spalte.
  *
- * `standort` heißt in der Trefferzeile „Ort", weil dort ein Ortsname steht.
- * Hier steht die HÄUFIGKEITSLISTE desselben Feldes, und die führen die
- * Bundesländer an: am echten Bestand gemessen sind die fünf häufigsten Werte
- * ausnahmslos Länder (Sachsen 3.282, Bayern 1.976, …), weil jeder Antrag ein
- * Land trägt und die Orte sich auf 2.055 Werte verteilen. Eine Spalte „Ort",
- * in der kein Ort steht, wäre eine falsche Beschriftung — das Feld deckt beides
- * ab und sagt das anderswo auch („nur Ort und Bundesland").
+ * Bis v4.80 stand hier ein Sonderfall: `standort` hieß „Ort & Bundesland", weil
+ * beides in einem Feld lag und die Häufigkeitsliste ausnahmslos von den 16
+ * Ländern angeführt wurde — eine Spalte „Ort", in der kein Ort stand. Seit die
+ * Länder ihr eigenes Feld haben, stimmen die Etiketten der Trefferstellen auch
+ * hier, und der Sonderfall ist weg.
  */
-const SPALTEN_LABEL: Partial<Record<WertFeld, string>> = {
-  standort: 'Ort & Bundesland',
-};
-
 export function stoeberLabel(feld: WertFeld): string {
-  return SPALTEN_LABEL[feld] ?? TREFFERFELD_LABEL[feld];
+  return TREFFERFELD_LABEL[feld];
 }
 
 /** Das Präfix, das die App für dieses Feld schreibt (`ort`, `deskriptor`, …). */

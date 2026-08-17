@@ -241,6 +241,7 @@ function basisAntrag(
     // Fehlt der Korpus-Eintrag (reiner Vektortreffer), bleibt das Feld leer —
     // ein Ersatzwert wäre eine Behauptung.
     standort: korpus?.standort || undefined,
+    bundesland: korpus?.bundesland || undefined,
     deskriptoren: korpus?.descriptors || undefined,
     // Kein Beleg wie die anderen, sondern der Inhalt: die Liste zeigt ihn nicht,
     // der Assistenten-Kontext braucht ihn (siehe `assistentKontext.ts`).

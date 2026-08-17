@@ -23,6 +23,11 @@ function indexMit(): WertIndex {
   for (let i = 0; i < 485; i++) nimmWerte(roh, 'standort', ['Dresden']);
   for (let i = 0; i < 5; i++) nimmWerte(roh, 'standort', ['Meiningen-Dreißigacker']);
   for (let i = 0; i < 20; i++) nimmWerte(roh, 'standort', ['Frankfurt am Main']);
+  // Getrenntes Feld seit v4.81 — am Bestand trägt JEDER Antrag ein Land, die
+  // Orte verteilen sich auf 2 055 Werte. Zusammen in einem Topf führten die 16
+  // Ländernamen deshalb jede Ortsliste an.
+  for (let i = 0; i < 3282; i++) nimmWerte(roh, 'bundesland', ['Sachsen']);
+  for (let i = 0; i < 1976; i++) nimmWerte(roh, 'bundesland', ['Bayern']);
   for (let i = 0; i < 266; i++) nimmWerte(roh, 'organisation', ['Technische Universität Chemnitz']);
   for (let i = 0; i < 64; i++) nimmWerte(roh, 'netzwerk', ['ProAnimalLife']);
   for (let i = 0; i < 1914; i++) nimmWerte(roh, 'deskriptoren', ['IuK-Technologien']);
@@ -95,6 +100,24 @@ describe('Werte vorschlagen', () => {
       text: 'ort:main', cursor: 8, index, verlauf: OHNE_VERLAUF,
     });
     expect(v[0]?.anzeige).toBe('Frankfurt am Main');
+  });
+
+  it('trennt Ort und Bundesland — jede Liste zeigt nur ihre Art und ihr Etikett', () => {
+    // Der gemeldete Defekt (v4.81): unter `ort:` standen die Bundesländer,
+    // unter `bl:` dieselbe Liste — beides beschriftet mit „Ort", weil beide
+    // Präfixe auf dasselbe Feld zeigten.
+    const orte = berechneVorschlaege({
+      text: 'ort:', cursor: 4, index, verlauf: OHNE_VERLAUF,
+    }).filter(x => x.art === 'wert');
+    expect(orte.map(x => x.anzeige)).toContain('Dresden');
+    expect(orte.map(x => x.anzeige)).not.toContain('Sachsen');
+    expect(new Set(orte.map(x => x.erklaerung))).toEqual(new Set(['Ort']));
+
+    const laender = berechneVorschlaege({
+      text: 'bl:', cursor: 3, index, verlauf: OHNE_VERLAUF,
+    }).filter(x => x.art === 'wert');
+    expect(laender.map(x => x.anzeige)).toEqual(['Sachsen', 'Bayern']);
+    expect(new Set(laender.map(x => x.erklaerung))).toEqual(new Set(['Bundesland']));
   });
 
   it('setzt einen mehrwortigen Wert in Anführungszeichen', () => {

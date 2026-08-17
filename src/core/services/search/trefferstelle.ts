@@ -36,6 +36,7 @@ export type Trefferfeld =
   | 'organisation'
   | 'domain'
   | 'standort'
+  | 'bundesland'
   | 'netzwerk'
   | 'wahlkreis'
   | 'notiz'
@@ -58,6 +59,7 @@ export const TREFFERFELD_LABEL: Record<Trefferfeld, string> = {
   organisation: 'Einrichtung',
   domain: 'Web-Adresse',
   standort: 'Ort',
+  bundesland: 'Bundesland',
   netzwerk: 'Netzwerk',
   wahlkreis: 'Wahlkreis',
   notiz: 'Notiz',
@@ -93,7 +95,8 @@ const GEWICHT: Record<Trefferfeld, number> = {
   // die Domain ist aus der Kontakt-Mail abgeleitet, nicht erhoben.
   domain: 1,
   standort: 1,
-  // Wie der Standort: eine Herkunftsangabe.
+  // Beide wie der Standort: Herkunftsangaben.
+  bundesland: 1,
   wahlkreis: 1,
   // Am schwächsten, und das mit Absicht: eine Arbeitsnotiz sagt etwas über den
   // VORGANG („ZA nicht erinnern"), fast nie über das Thema des Vorhabens.
@@ -122,7 +125,7 @@ const REIHENFOLGE: readonly Trefferfeld[] = [
   'titel', 'akronym', 'aktenzeichen', 'verbundkennzeichen',
   'kurzbeschreibung', 'dokument',
   'deskriptoren', 'netzwerk', 'aehnlichkeit',
-  'organisation', 'domain', 'standort', 'wahlkreis', 'notiz',
+  'organisation', 'domain', 'standort', 'bundesland', 'wahlkreis', 'notiz',
 ];
 
 /** Relevanzstufe. Drei Stufen, weil mehr niemand unterscheiden kann. */

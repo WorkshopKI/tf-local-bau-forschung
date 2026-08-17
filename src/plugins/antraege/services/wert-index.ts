@@ -29,11 +29,12 @@ import type { Trefferfeld } from '@/core/services/search/trefferstelle';
 
 /** Die Felder, deren Werte sich aufzählen lassen. */
 export type WertFeld = Extract<
-  Trefferfeld, 'standort' | 'organisation' | 'netzwerk' | 'wahlkreis' | 'deskriptoren'
+  Trefferfeld,
+  'standort' | 'bundesland' | 'organisation' | 'netzwerk' | 'wahlkreis' | 'deskriptoren'
 >;
 
 export const WERT_FELDER: readonly WertFeld[] = [
-  'standort', 'organisation', 'netzwerk', 'wahlkreis', 'deskriptoren',
+  'standort', 'bundesland', 'organisation', 'netzwerk', 'wahlkreis', 'deskriptoren',
 ];
 
 /** Ein Wert des Bestands mit seiner Häufigkeit. */

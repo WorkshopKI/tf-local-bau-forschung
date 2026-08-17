@@ -77,7 +77,7 @@ export function bereichFelder(bereich: Suchbereich): ReadonlySet<Trefferfeld> {
       // einen Ort, der im Standort-Feld NICHT vorkommt. Ohne ihn faende „nur
       // Ort & Bundesland" weniger als „alle Felder" — und der Nutzer haette
       // keinen Weg, das zu sehen. Die Beschriftung nennt ihn deshalb mit.
-      return new Set<Trefferfeld>(['standort', 'wahlkreis']);
+      return new Set<Trefferfeld>(['standort', 'bundesland', 'wahlkreis']);
     case 'dokumente':
       return new Set<Trefferfeld>();
     case 'alles':
@@ -85,7 +85,7 @@ export function bereichFelder(bereich: Suchbereich): ReadonlySet<Trefferfeld> {
       return new Set<Trefferfeld>([
         'titel', 'kurzbeschreibung', 'deskriptoren',
         'akronym', 'aktenzeichen', 'verbundkennzeichen',
-        'organisation', 'domain', 'standort',
+        'organisation', 'domain', 'standort', 'bundesland',
         'netzwerk', 'wahlkreis', 'notiz',
       ]);
   }

@@ -57,16 +57,20 @@ export interface UnifiedSearchResult {
    *  wenn ein Dokumenttreffer unter den Antrag gefaltet wurde. */
   textstelle?: Textstelle;
   /**
-   * Ort + Bundesland, genau in der Form, in der die Suche darin nachsieht
-   * (`AntragTextEntry.standort`, z. B. „Dresden · Sachsen").
+   * Der Ort, genau in der Form, in der die Suche darin nachsieht
+   * (`AntragTextEntry.standort`, z. B. „Hamburg · Wedel").
    *
    * Reines BELEG-Feld, kein Sortier-/Filtervertrag: es steht hier, weil die
    * Fundstelle „Ort" sonst in keiner Zeile und keiner Spalte auftaucht. Bewusst
    * NICHT `ortAst` (= nur die CSV-Spalte `ort_ast`): gesucht wird auch im
-   * Ausführungsort und im Bundesland, und eine Zelle, in der das Suchwort dann
-   * fehlt, behauptet eine Erklärung, die sie nicht liefert.
+   * Ausführungsort, und eine Zelle, in der das Suchwort dann fehlt, behauptet
+   * eine Erklärung, die sie nicht liefert.
    */
   standort?: string;
+  /** Bundesland im Klartext (`AntragTextEntry.bundesland`, z. B. „Sachsen").
+   *  Seit v4.81 vom Ort getrennt und deshalb ein eigener Beleg — dieselbe
+   *  Begründung wie bei `standort`. */
+  bundesland?: string;
   /** Deskriptoren-Text (Technologie/Branche/Anwendung + ZT-Klartexte). Zweiter
    *  Beleg ohne eigenen Platz im Ergebnis — dieselbe Begründung wie `standort`. */
   deskriptoren?: string;
