@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.74.0 — Darstellung rueckt nach rechts, Warum nur zur Frage (August 2026)
+
+MINOR — Gemeldet: „Ausführlich und Kompakt zeigt keinen Unterschied" — in der Tabelle stimmte das, dort wirkte auch die Sortierung des Menüs nicht (die Tabelle sortiert über ihre Spaltenköpfe). Ebenfalls gemeldet: „das ‚Warum?' macht doch nur bei einer Frage in natürlicher Sprache Sinn, nicht bei meiner Suche `ast:`".
+
+- **Das Darstellungs-Menü steht rechts vor dem Export** statt links am Anfang der Leiste — es ist der einzige Knopf, der mit dem Zustand wächst ([SuchSeite.tsx](src/plugins/suche/SuchSeite.tsx))
+- **…und fehlt in der Tabelle ganz**: beide Achsen gelten nur für die Liste, ein Bedienelement ohne Wirkung ist schlimmer als keins ([darstellungsAchsen.ts](src/plugins/suche/darstellungsAchsen.ts))
+- **„Warum?" gibt es nur zu einer Frage** — bei einer Feldsuche heißt derselbe Ausklapp „Mehr", trägt weiter die drei Zeilen-Aktionen und ruft keine KI ([TrefferZeile.tsx](src/plugins/suche/TrefferZeile.tsx))
+- **„Alle begründen" folgt derselben Regel**: nur einen der beiden Wege zu sperren erzeugte Begründungen, die die Zeile dann nicht anzeigt
+- Neuer Guard für die Achsen-Bindung an die Ansicht ([darstellungsAchsen.test.ts](src/plugins/suche/__tests__/darstellungsAchsen.test.ts))
+
 ### v4.73.0 — Der Einstieg in die Suche ist ein Panel mit Reitern (August 2026)
 
 MINOR — Aus einem Design-Handoff (`_design/handoff/suche-startseite`): der Startzustand zeigte sechs gleichrangige Blöcke untereinander, nichts stach heraus, die Seite scrollte. Zwei der Blöcke trugen dabei nichts Eigenes — „Aus dem Index" nannte die Zahlen der Optionszeile ein zweites Mal, „Häufig gesucht" ist die zweite Hälfte derselben Verlaufsliste wie „Letzte Suchen".

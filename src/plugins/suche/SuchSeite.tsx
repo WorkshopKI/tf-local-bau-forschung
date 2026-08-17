@@ -157,6 +157,12 @@ export function SuchSeite(): React.ReactElement {
    */
   const aktiverPlan = frageplan !== null && frageplan.frage === query.trim() ? frageplan : null;
 
+  /** Darf die KI Treffer begründen? Nur zu einer Frage — Begründung siehe
+   *  `TrefferZeile`. Gilt für BEIDE Wege in dieselbe Ausgabe („Warum?" je Zeile,
+   *  „Alle begründen" als Stapel); nur einen zu sperren erzeugte Begründungen,
+   *  die die Zeile dann nicht anzeigt. */
+  const mitBegruendung = aktiverPlan !== null;
+
   /**
    * Die Leitbegriffe, mit denen tatsächlich gesucht wird — memoisiert, weil sie
    * im Dep-Array des Such-Effekts stehen. Eine bei jedem Render neu gebaute
@@ -554,13 +560,15 @@ export function SuchSeite(): React.ReactElement {
   }
 
   /** „Warum?": klappt auf und startet — falls noch keine Begründung da ist —
-   *  einen Lauf für GENAU DIESE Zeile über dieselbe Pipeline wie der Batch. */
+   *  einen Lauf für GENAU DIESE Zeile über dieselbe Pipeline wie der Batch.
+   *  Ohne Frage klappt derselbe Knopf nur die Aktionen auf und ruft keine KI. */
   function warum(r: UnifiedSearchResult): void {
     setAusgeklappt(prev => {
       const next = new Set(prev);
       if (next.has(r.id)) next.delete(r.id); else next.add(r.id);
       return next;
     });
+    if (!mitBegruendung) return;
     const schonDa = analyse.begruendungById?.[r.id] !== undefined;
     if (!schonDa && !analyse.running && wirksam.trim().length > 0) {
       analyse.start(wirksam.trim(), [r], analysePrompt);
@@ -663,8 +671,8 @@ export function SuchSeite(): React.ReactElement {
   }
 
   const darstellungsAchsen = useMemo(
-    () => baueSucheDarstellungsAchsen({ sortierung, dichte }),
-    [sortierung, dichte],
+    () => baueSucheDarstellungsAchsen({ sortierung, dichte, ansicht }),
+    [sortierung, dichte, ansicht],
   );
 
   const noQuery = !queryNotEmpty;
@@ -927,15 +935,6 @@ export function SuchSeite(): React.ReactElement {
               )}
 
               <div className="ml-auto flex items-center gap-2">
-                <DarstellungDropdown
-                  achsen={darstellungsAchsen}
-                  onChange={(id: SucheAchsenId, key: string) => {
-                    if (id === 'sortierung') setSortierung(key as typeof sortierung);
-                    else setDichte(key as typeof dichte);
-                  }}
-                  titel="Sortierung und Dichte"
-                  className="h-8"
-                />
                 <ViewModeToggle
                   value={ansicht}
                   onChange={setAnsicht}
@@ -956,7 +955,7 @@ export function SuchSeite(): React.ReactElement {
                   <Sparkles size={13} />
                   Mit KI analysieren
                 </button>
-                {!analyseActive && !analyse.running && sichtbar.length > 0 && (
+                {mitBegruendung && !analyseActive && !analyse.running && sichtbar.length > 0 && (
                   <button
                     type="button"
                     onClick={openAnalysePrompt}
@@ -977,6 +976,21 @@ export function SuchSeite(): React.ReactElement {
                   >
                     Begründungen entfernen
                   </button>
+                )}
+                {/* Rechts vor dem Download: der einzige Knopf der Leiste, der mit
+                    dem Zustand WÄCHST („Darstellung: Kompakt") — links verschob
+                    er bei jeder Wahl alles dahinter. Fehlt ganz, wo keine Achse
+                    gilt (Tabelle, siehe `darstellungsAchsen.ts`). */}
+                {darstellungsAchsen.length > 0 && (
+                  <DarstellungDropdown
+                    achsen={darstellungsAchsen}
+                    onChange={(id: SucheAchsenId, key: string) => {
+                      if (id === 'sortierung') setSortierung(key as typeof sortierung);
+                      else setDichte(key as typeof dichte);
+                    }}
+                    titel="Sortierung und Dichte der Trefferliste"
+                    className="h-8"
+                  />
                 )}
                 <SearchDownloadMenu
                   disabled={sichtbar.length === 0}
@@ -1072,6 +1086,7 @@ export function SuchSeite(): React.ReactElement {
                 onUnpassend={alsUnpassendMelden}
                 onWaehlen={waehle}
                 begruendungHinweis={analyse.error}
+                mitBegruendung={mitBegruendung}
               />
             </div>
           )}

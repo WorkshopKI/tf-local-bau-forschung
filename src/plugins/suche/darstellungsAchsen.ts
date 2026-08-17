@@ -12,6 +12,16 @@
  * Liste/Tabelle-Umschalter (geteiltes `ViewModeToggle`) und die Spaltenauswahl,
  * die ohnehin nur in der Tabelle gilt.
  *
+ * **Beide Achsen gelten NUR in der Liste** (v4.74). Die Tabelle sortiert über
+ * ihre Spaltenköpfe (`useSearchResults.sorted`, bewusst getrennt — siehe
+ * `SuchSeite.tsx`), und „Zeile zeigt" stellt die Trefferzeile der Liste ein
+ * (`TrefferZeile`, `kompakt`-Prop); die Tabellenzeile kennt keine Dichte. In der
+ * Tabelle stellte das Menü also zwei Schalter zur Wahl, die nichts bewegten —
+ * gemeldet für „Ausführlich/Kompakt", galt für „Sortierung" genauso. Deshalb
+ * liefert `baueSucheDarstellungsAchsen` dort eine LEERE Liste, und der Aufrufer
+ * blendet den Knopf aus, statt ihn leer zu zeigen: ein Bedienelement, das nichts
+ * tut, ist schlimmer als keins.
+ *
  * Rein — kein React. Vorbild: `plugins/antraege/darstellungsAchsen.ts`.
  */
 import type { DarstellungAchse } from '@/components/ui/darstellungsAchsen';
@@ -39,10 +49,14 @@ export const STANDARD_DICHTE: SucheDichte = 'ausfuehrlich';
 export function baueSucheDarstellungsAchsen({
   sortierung,
   dichte,
+  ansicht,
 }: {
   sortierung: SucheSortierung;
   dichte: SucheDichte;
+  /** In der Tabelle gilt keine der beiden Achsen — dann bleibt die Liste leer. */
+  ansicht: 'liste' | 'tabelle';
 }): Array<DarstellungAchse<SucheAchsenId>> {
+  if (ansicht === 'tabelle') return [];
   return [
     {
       id: 'sortierung',

@@ -19,6 +19,12 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.74 — 2026-08
+
+### Verbesserungen
+- Das Menü **„Darstellung"** sitzt jetzt rechts, direkt vor dem Export — und erscheint nur noch in der Listenansicht. In der Tabelle hatten seine beiden Einstellungen keine Wirkung: dort sortieren Sie über die Spaltenköpfe, und eine Zeilenhöhe gibt es nicht.
+- **„Warum?" erscheint nur noch nach einer Frage in natürlicher Sprache.** Dort erklärt die KI, warum ein Treffer zu Ihrer Frage passt. Bei einer Feldsuche wie `ast:"EurA AG"` trifft jede Zeile aus demselben Grund — und der steht angestrichen schon in der Zeile. Der Knopf heißt dann **„Mehr"** und öffnet weiterhin *Antrag öffnen*, *Ähnliche Anträge* und *Als unpassend melden*, ohne die KI zu bemühen.
+
 ## v4.73 — 2026-08
 
 ### Neu

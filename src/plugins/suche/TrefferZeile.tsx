@@ -17,6 +17,15 @@
  * Kommt keine Begründung, steht der GRUND im aufgeklappten Bereich (`hinweis`,
  * v4.15.0) — bis dahin sagte er „Noch keine Begründung." und verschwieg, dass
  * gar keine KI verbunden ist.
+ *
+ * **„Warum?" gibt es nur zu einer FRAGE** (`mitBegruendung`, v4.74). Die
+ * Begründung erklärt einen Treffer gegen die Absicht der Suche — und nur bei
+ * einer natürlichsprachigen Frage ist dieser Schritt nicht offensichtlich: dort
+ * hat ein Plan die Frage erst in Suchbegriffe übersetzt. Bei `ast:"EurA AG"`
+ * trifft jede Zeile aus demselben, in der Zeile bereits angestrichenen Grund;
+ * „Warum?" versprach dort eine Auskunft, die die Zeile schon gibt, und kostete
+ * je Klick einen KI-Lauf. Ohne Frage bleibt derselbe Ausklapp als reine
+ * Aktionsschublade — die drei Zeilen-Aktionen brauchen einen Ort.
  */
 import { Sparkles, ChevronDown, ExternalLink, Search, ThumbsDown } from 'lucide-react';
 import type { UnifiedSearchResult } from '@/core/types/search-result';
@@ -50,11 +59,15 @@ export function TrefferZeile({
   onWaehlen,
   begruendungLaeuft,
   hinweis,
+  mitBegruendung,
 }: {
   treffer: UnifiedSearchResult;
   woerter: readonly string[];
   varianten: readonly string[];
   kompakt: boolean;
+  /** Trägt die Suche eine Frage? Dann erklärt die KI den Treffer („Warum?"),
+   *  sonst ist der Ausklapp nur die Aktionsschublade („Mehr"). */
+  mitBegruendung: boolean;
   ausgeklappt: boolean;
   gewaehlt: boolean;
   onOeffnen: () => void;
@@ -181,16 +194,18 @@ export function TrefferZeile({
               className="mt-2 rounded-[8px] px-2.5 py-2"
               style={{ background: 'var(--tf-desk)', border: '0.5px solid var(--tf-border)' }}
             >
-              <div className="flex items-start gap-1.5">
-                <Sparkles size={12} className="mt-0.5 shrink-0 text-[var(--tf-primary)]" aria-hidden />
-                <p className="text-[12px] leading-relaxed text-[var(--tf-text-secondary)]">
-                  {treffer.begruendung
-                    ?? (begruendungLaeuft
-                      ? 'Begründung wird erzeugt …'
-                      : (hinweis ?? 'Noch keine Begründung.'))}
-                </p>
-              </div>
-              <div className="mt-2 flex flex-wrap gap-1.5">
+              {mitBegruendung && (
+                <div className="flex items-start gap-1.5">
+                  <Sparkles size={12} className="mt-0.5 shrink-0 text-[var(--tf-primary)]" aria-hidden />
+                  <p className="text-[12px] leading-relaxed text-[var(--tf-text-secondary)]">
+                    {treffer.begruendung
+                      ?? (begruendungLaeuft
+                        ? 'Begründung wird erzeugt …'
+                        : (hinweis ?? 'Noch keine Begründung.'))}
+                  </p>
+                </div>
+              )}
+              <div className={`flex flex-wrap gap-1.5${mitBegruendung ? ' mt-2' : ''}`}>
                 <ZeilenAktion label="Antrag öffnen" icon={<ExternalLink size={11} />} onClick={onOeffnen} />
                 <ZeilenAktion label="Ähnliche Anträge" icon={<Search size={11} />} onClick={onAehnliche} />
                 <ZeilenAktion
@@ -215,11 +230,14 @@ export function TrefferZeile({
             type="button"
             onClick={onWarum}
             aria-expanded={ausgeklappt}
+            title={mitBegruendung
+              ? 'Die KI erklärt, warum dieser Treffer zur Frage passt'
+              : 'Aktionen zu diesem Treffer'}
             className="inline-flex items-center gap-1 rounded-[6px] px-1.5 py-0.5 text-[11px] text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)] cursor-pointer"
             style={{ border: '0.5px solid var(--tf-border)' }}
           >
-            <Sparkles size={11} aria-hidden />
-            Warum?
+            {mitBegruendung && <Sparkles size={11} aria-hidden />}
+            {mitBegruendung ? 'Warum?' : 'Mehr'}
             <ChevronDown
               size={11}
               aria-hidden

@@ -30,11 +30,14 @@ export function TrefferListe({
   onUnpassend,
   onWaehlen,
   begruendungHinweis,
+  mitBegruendung,
 }: {
   treffer: readonly UnifiedSearchResult[];
   woerter: readonly string[];
   varianten: readonly string[];
   kompakt: boolean;
+  /** Nur zu einer Frage erklärt die KI den Treffer — siehe `TrefferZeile`. */
+  mitBegruendung: boolean;
   ausgeklappt: ReadonlySet<string>;
   auswahl: ReadonlySet<string>;
   laufendeBegruendung: ReadonlySet<string>;
@@ -85,6 +88,7 @@ export function TrefferListe({
           gewaehlt={auswahl.has(t.id)}
           begruendungLaeuft={laufendeBegruendung.has(t.id)}
           hinweis={begruendungHinweis}
+          mitBegruendung={mitBegruendung}
           onOeffnen={() => onOeffnen(t)}
           onWarum={() => onWarum(t)}
           onAehnliche={() => onAehnliche(t)}
