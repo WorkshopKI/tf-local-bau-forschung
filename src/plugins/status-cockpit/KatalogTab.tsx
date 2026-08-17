@@ -72,9 +72,11 @@ function PhasenAustausch({ api }: { api: StatusCockpitApi }): React.ReactElement
       )}
       <Button
         variant="ghost" size="sm" icon={Download}
-        disabled={!api.aktiveVersion}
+        disabled={!api.entwurf}
         title={'Nur den Verfahrensschnitt: Phasen, ihre Zuordnungen und die Zieltage. '
-          + 'Die Kürzel sind nicht darin — die bleiben am Zielort, wie sie sind.'}
+          + 'Die Kürzel sind nicht darin — die bleiben am Zielort, wie sie sind. '
+          + 'Mitgenommen wird der Stand, den diese Seite zeigt; ist er noch nicht '
+          + 'gespeichert, heißt die Datei „…-entwurf".'}
         onClick={() => api.phasenExportieren()}
       >
         Phasen exportieren

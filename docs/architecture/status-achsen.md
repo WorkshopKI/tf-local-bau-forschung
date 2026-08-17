@@ -302,6 +302,29 @@ Kürzel-Zuordnungen und 22 Zieltage im Paket; davon geändert 10 Codes, 10 Kürz
 22 Zieltage — bei 5 danach verwaisten Zuordnungen und allen 509 Kürzeln
 byte-gleich. Das Paket wiegt 3,7 KB gegen 152,8 KB Voll-Export.
 
+### Der Export nimmt, was auf dem Bildschirm steht (v4.86.1)
+
+Beide Exporte dieser Seite lasen bis v4.86.0 die **gespeicherte** Fassung
+(`aktiveVersion`), während der Baum daneben den **Entwurf** zeigt. Bei
+ungesichertem Stand lieferten sie damit etwas anderes aus als das, worauf der
+Nutzer sah — und zwar lautlos: „Phasen exportieren" schrieb den alten Schnitt in
+die Datei, der Import am Zielort meldete korrekt Erfolg, und die Kuratierung war
+trotzdem nicht angekommen. Zwei Symptome („der Export geht nicht", „der Import
+tut nichts"), eine Wurzel.
+
+Seither gilt: **exportiert wird der Entwurf.** Zwei Gründe, unabhängig
+voneinander:
+
+1. Ein Export, der etwas anderes ausliefert als die Seite zeigt, ist kein Export,
+   sondern eine Falle.
+2. Wo niemand speichern darf (`darfSchreiben === false`), gäbe es sonst gar
+   keinen Weg, den gesehenen Stand aus der Installation herauszubekommen.
+
+Damit der Name nicht lügt, trägt eine Datei mit ungespeichertem Stand `-entwurf`
+(`status-phasen-v22-entwurf.json`, `exportDateiname` in
+[katalogExport.ts](../../src/plugins/status-cockpit/katalogExport.ts)) — die
+Fassungsnummer allein wäre eine Zusage, die der Inhalt nicht hält.
+
 ## Wo was steht
 
 | Was | Wo |

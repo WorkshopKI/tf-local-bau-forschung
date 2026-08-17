@@ -49,7 +49,13 @@ function ExportImportButtons({ api }: { api: StatusCockpitApi }): React.ReactEle
   const importieren = useAsyncAction(async () => { await api.importieren(); });
   return (
     <div className="flex items-center gap-1.5">
-      <Button variant="ghost" size="sm" icon={Download} onClick={() => api.exportieren()} disabled={!api.aktiveVersion}>
+      <Button
+        variant="ghost" size="sm" icon={Download}
+        disabled={!api.entwurf}
+        title={'Der ganze Katalog als JSON — der Stand, den diese Seite zeigt. Ist er '
+          + 'noch nicht gespeichert, heißt die Datei „…-entwurf".'}
+        onClick={() => api.exportieren()}
+      >
         Exportieren
       </Button>
       <Button variant="ghost" size="sm" icon={Upload} disabled={importieren.busy} onClick={() => importieren.run()}>

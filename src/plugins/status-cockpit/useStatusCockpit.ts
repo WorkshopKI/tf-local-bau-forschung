@@ -63,6 +63,7 @@ import {
   type Bedingung, type PlatzhalterGruppe, type Rolle,
 } from '@/core/status';
 import { uebernahmeSatz } from './katalogDriftAnsicht';
+import { exportDateiname } from './katalogExport';
 
 /** Der Konflikt, wie ihn die Oberfläche braucht: wer, wie weit, und was von mir. */
 export interface KatalogKonfliktStand {
@@ -720,19 +721,40 @@ export function useStatusCockpit(): StatusCockpitApi {
     setArchivFassungen(archiv.fassungen);
   }, [idb, archivGeladen]);
 
+  /**
+   * Beide Exporte nehmen den **Entwurf** mit, also den Stand auf dem Bildschirm.
+   *
+   * `aktiveVersion` wäre die gespeicherte Fassung — bei ungesichertem Entwurf
+   * also etwas anderes, als der Baum daneben zeigt. Genau das ist einmal
+   * passiert: „Phasen exportieren" lieferte den alten Schnitt, der Import am
+   * Zielort meldete brav Erfolg, und die Kuratierung war trotzdem nicht dort
+   * angekommen. Ein Export, der etwas anderes ausliefert als die Seite zeigt,
+   * ist kein Export, sondern eine Falle.
+   *
+   * Zweiter Grund, unabhängig vom ersten: wo niemand speichern darf
+   * (`darfSchreiben === false`), gäbe es sonst überhaupt keinen Weg, den
+   * gesehenen Stand aus der Installation herauszubekommen.
+   *
+   * Damit der Name nicht lügt, trägt eine Datei mit ungespeichertem Stand
+   * `-entwurf` (siehe {@link exportDateiname}).
+   */
   const exportieren = useCallback((): void => {
-    if (!aktiveVersion) return;
-    downloadAsFile(exportiereVersion(aktiveVersion), `status-katalog-v${aktiveVersion.version}.json`, 'application/json');
-  }, [aktiveVersion]);
-
-  const phasenExportieren = useCallback((): void => {
-    if (!aktiveVersion) return;
+    if (!entwurf) return;
     downloadAsFile(
-      exportierePhasenPaket(aktiveVersion),
-      `status-phasen-v${aktiveVersion.version}.json`,
+      exportiereVersion(entwurf),
+      exportDateiname('katalog', entwurf.version, geaendert),
       'application/json',
     );
-  }, [aktiveVersion]);
+  }, [entwurf, geaendert]);
+
+  const phasenExportieren = useCallback((): void => {
+    if (!entwurf) return;
+    downloadAsFile(
+      exportierePhasenPaket(entwurf),
+      exportDateiname('phasen', entwurf.version, geaendert),
+      'application/json',
+    );
+  }, [entwurf, geaendert]);
 
   /**
    * Ein Paket in den Entwurf mischen — der gemeinsame Weg von Datei-Import und

@@ -5,6 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.86.1 — Der Export nimmt den Stand vom Bildschirm (August 2026)
+
+PATCH — Beide Exporte der Vorgangs-Regeln lasen `aktiveVersion`, während der Baum daneben den Entwurf zeigt. Bei ungesichertem Stand lieferten sie lautlos etwas anderes aus als das, worauf der Nutzer sah: „Phasen exportieren" schrieb den alten Schnitt, der Import am Zielort meldete korrekt Erfolg — und die Kuratierung kam trotzdem nicht an. Zwei Symptome, eine Wurzel.
+
+- **Beide Exporte nehmen den Entwurf**, also den Stand auf dem Bildschirm ([useStatusCockpit.ts](src/plugins/status-cockpit/useStatusCockpit.ts))
+- **Ungespeicherter Stand heißt `…-entwurf.json`** — die Fassungsnummer allein wäre eine Zusage, die der Inhalt nicht hält ([katalogExport.ts](src/plugins/status-cockpit/katalogExport.ts))
+- **Zweiter, unabhängiger Grund**: wo niemand speichern darf, gäbe es sonst gar keinen Weg, den gesehenen Stand herauszubekommen ([status-achsen.md](docs/architecture/status-achsen.md))
+- **Guard hält beide Griffe am Entwurf** und beide Dateinamen am einen Helfer ([katalogExport.test.ts](src/plugins/status-cockpit/__tests__/katalogExport.test.ts))
+
 ### v4.86.0 — die Frage-Suche zeigt, wie eine Frage aussieht (August 2026)
 
 MINOR — Wer im Test auf „Suche mit: einer Frage" umschaltete, stand vor einem leeren Feld und musste selbst erraten, wie eine Frage aussehen darf, die diese Suche beantwortet. Der Reiter „Fragen" beantwortet genau das und blieb ungesehen. Dazu zwei Meldungen am selben Ablauf: der Hinweis unter dem Feld brach immer um, und Normen-Kürzel wie „DIN" fielen aus jedem Frageplan heraus.

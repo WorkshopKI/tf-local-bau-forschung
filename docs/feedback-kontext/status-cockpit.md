@@ -84,6 +84,10 @@ wird.
     Regeln sind nicht darin. Gedacht ist sie für den Fall, dass Schritte und
     Kürzel auf verschiedenen Ständen richtig sind — Schritte ändern sich selten,
     an den Kürzeln wird laufend gearbeitet.
+    - Exportiert wird der Stand, den die Seite gerade **zeigt** — samt
+      ungespeicherter Änderungen. Die Datei heißt dann `…-entwurf.json`, damit
+      die Fassungsnummer im Namen nichts verspricht, was der Inhalt nicht hält.
+      Das gilt genauso für „Exportieren" im Seitenkopf.
     - „Phasen importieren" öffnet denselben Dialog wie **„Importieren"** im
       Seitenkopf; der nimmt beide Formate an, weil die Datei selbst sagt, was
       sie ist. Danach steht ein Satz über der Seite, was sich dadurch geändert

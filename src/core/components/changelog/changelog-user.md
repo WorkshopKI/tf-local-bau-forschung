@@ -21,6 +21,9 @@
 
 ## v4.86 — 2026-08
 
+### Bugfixes
+- **„Phasen exportieren" schrieb den zuletzt gespeicherten Stand in die Datei, nicht den, der auf dem Bildschirm stand.** Wer die Verfahrensschritte gepflegt und noch nicht für das Team gespeichert hatte, bekam die alte Fassung — und beim Einspielen auf dem anderen Rechner meldete die App völlig zu Recht Erfolg, obwohl die Kuratierung nicht ankam. Beide Exporte nehmen jetzt das mit, was die Seite zeigt. Ist der Stand noch nicht gespeichert, heißt die Datei „…-entwurf", damit die Fassungsnummer im Namen nichts verspricht, was der Inhalt nicht hält.
+
 ### Verbesserungen
 - **Wenn Sie auf „Suche mit: einer Frage" umschalten, zeigt die Seite Ihnen sofort Beispielfragen.** Bisher landeten Sie vor einem leeren Feld; die Beispiele gab es zwar, aber in einem Reiter, den man erst finden musste. Ihre eigene Reiter-Auswahl bleibt dabei erhalten.
 - **Fünf Beispielfragen statt drei** — neu dabei: eine Frage nach einem Zeitraum („… seit 2023?") und eine nach dem Bearbeitungsstand („… bei den noch offenen Anträgen …?"). Beides konnte die Suche längst, es stand nur nirgends.

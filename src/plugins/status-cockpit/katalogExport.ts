@@ -34,6 +34,20 @@ function baueDateiname(version: number | null, now: Date = new Date()): string {
   return `status-katalog${version !== null ? `-v${version}` : ''}-${ts}.xlsx`;
 }
 
+/**
+ * Dateiname der beiden JSON-Exporte dieser Seite (ganzer Katalog, nur Phasen).
+ *
+ * `-entwurf` steht im Namen, sobald der Stand auf dem Bildschirm von der
+ * gespeicherten Fassung abweicht. Beides gehört zusammen: exportiert wird, was
+ * die Seite ZEIGT — und dann darf der Name nicht behaupten, das sei die Fassung
+ * v22, die das Team kennt.
+ */
+export function exportDateiname(
+  art: 'katalog' | 'phasen', fassung: number, ungespeichert: boolean,
+): string {
+  return `status-${art}-v${fassung}${ungespeichert ? '-entwurf' : ''}.json`;
+}
+
 /** Die Export-Spalten: Anzeige-Spalten plus die rohe CSV-Spalte hinter „Feld". */
 export function exportSpalten(
   spalten: readonly SortableColumn<KatalogZeile>[],
