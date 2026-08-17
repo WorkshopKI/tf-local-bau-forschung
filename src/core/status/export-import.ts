@@ -6,6 +6,7 @@
 import { ALLE_STRAENGE, type Bedingung, type MappingVersion } from './typen';
 import { findeZyklus } from './kategorien';
 import { bedingungFeldRefs, referenzierbareFelder } from './bedingung';
+import { istPhasenPaket } from './phasen-paket';
 import { strangAusEintrag } from './regelsatz';
 
 export function exportiereVersion(version: MappingVersion): string {
@@ -33,6 +34,16 @@ export function validiereImport(text: string): ImportErgebnis {
     return { ok: false, fehler: 'Kein gültiges JSON.' };
   }
   if (!data || typeof data !== 'object') return { ok: false, fehler: 'Kein Objekt.' };
+  // Die Phasen-Achse reist in einem eigenen, viel kleineren Paket
+  // (`phasen-paket.ts`). Landet eines hier, ist „Struktur unvollständig" die
+  // technisch richtige und fachlich nutzlose Antwort — es fehlt nichts, es ist
+  // etwas anderes.
+  if (istPhasenPaket(data)) {
+    return {
+      ok: false,
+      fehler: 'Das ist ein Phasen-Paket, kein vollständiger Katalog.',
+    };
+  }
   const v = data as Partial<MappingVersion>;
   if (!Array.isArray(v.felder) || !Array.isArray(v.werte)) {
     return { ok: false, fehler: 'Struktur unvollständig (felder/werte fehlen).' };

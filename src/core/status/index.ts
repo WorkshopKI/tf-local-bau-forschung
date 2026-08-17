@@ -271,6 +271,13 @@ export {
   erzeugtZyklus, findeZyklus,
 } from './kategorien';
 export { exportiereVersion, validiereImport, type ImportErgebnis } from './export-import';
+export {
+  PHASEN_PAKET_ART, PHASEN_PAKET_FORMAT,
+  bauePhasenPaket, exportierePhasenPaket, istPhasenPaket, validierePhasenPaket,
+  uebernimmPhasen,
+  type PhasenPaket, type PhasenPaketErgebnis, type PhasenUebernahme,
+  type UebernahmeBericht,
+} from './phasen-paket';
 export { eventProminenz } from './timeline';
 export {
   baueChronik, gruppiereNachMonat, monateDazwischen, teileChronik, traegerLabel,

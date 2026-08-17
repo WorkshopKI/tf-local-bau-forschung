@@ -19,6 +19,16 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.79 — 2026-08
+
+### Neu
+- **Die Verfahrensschritte lassen sich getrennt von den Kürzeln sichern und einspielen.** In den Vorgangs-Regeln gibt es im Reiter „Statuswerte" jetzt „Phasen exportieren" — die Datei enthält nur die Schritte, die Zuordnung der Statuswerte und die Zieltage. Eingelesen wird sie über denselben „Importieren"-Knopf wie bisher; die Kürzel bleiben dabei unangetastet.
+- **In der Fassungsliste steht neben „Als Entwurf laden" jetzt „Nur Phasen übernehmen".** Damit holen Sie aus einer älteren Fassung allein den Verfahrensschnitt zurück, wenn die heutige Fassung die richtigen Kürzel hat, aber die falschen Schritte. Danach steht über der Seite, was sich dadurch geändert hat.
+### Verbesserungen
+<!-- - … -->
+### Bugfixes
+<!-- - … -->
+
 ## v4.78 — 2026-08
 
 ### Neu

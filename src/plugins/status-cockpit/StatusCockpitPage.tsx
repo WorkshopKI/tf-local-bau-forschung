@@ -159,6 +159,33 @@ function ShareStandHinweis({ api }: { api: StatusCockpitApi }): React.ReactEleme
   );
 }
 
+/**
+ * Was eine Phasen-Übernahme bewirkt hat — der Satz, der die Rückfrage davor
+ * ersetzt.
+ *
+ * Angewendet wird auf den ENTWURF; veröffentlicht erst die Speicherleiste, und
+ * „Als Entwurf laden" ist der Rückweg. Ein Bestätigungsdialog vor einer
+ * Änderung, die noch niemanden erreicht, wäre eine Hürde ohne Schutzwirkung —
+ * ein ehrliches Ergebnis hinterher ist mehr wert.
+ */
+function PhasenMeldungStreifen({ api }: { api: StatusCockpitApi }): React.ReactElement | null {
+  const m = api.phasenMeldung;
+  if (!m) return null;
+  return (
+    <div
+      className="mx-6 mt-3 rounded px-3 py-2 flex items-center gap-2 flex-wrap text-[12.5px]"
+      style={feldStil}
+    >
+      <span className={m.ok ? 'text-[var(--tf-text-secondary)]' : 'text-[var(--tf-danger-text)]'}>
+        {m.ok ? '' : '⚠ '}{m.text}
+      </span>
+      <Button variant="ghost" size="sm" className="ml-auto" onClick={api.phasenMeldungWeg}>
+        Verstanden
+      </Button>
+    </div>
+  );
+}
+
 function VersionsPanel({ api }: { api: StatusCockpitApi }): React.ReactElement {
   // Zu per Default, aber gemerkt — wer die Fassungen offen lässt, findet sie
   // beim nächsten Aufruf wieder offen.
@@ -166,6 +193,7 @@ function VersionsPanel({ api }: { api: StatusCockpitApi }): React.ReactElement {
     'status-cockpit:versionen', { defaultOpen: false },
   );
   const laden = useAsyncAction(async (version: number) => { await api.reaktivieren(version); });
+  const phasen = useAsyncAction(async (version: number) => { await api.phasenAusFassung(version); });
   const aktivNr = api.aktiveVersion?.version ?? null;
 
   // Das Archiv wird gelesen, wenn die Liste OFFEN ist — nicht beim App-Start.
@@ -224,9 +252,21 @@ function VersionsPanel({ api }: { api: StatusCockpitApi }): React.ReactElement {
                 {v.kommentar && (
                   <span className="text-[12px] text-[var(--tf-text-secondary)] italic min-w-0 truncate">„{v.kommentar}"</span>
                 )}
+                {/* Zwei Wege aus derselben Fassung: die ganze zurückholen —
+                    oder nur ihren Verfahrensschnitt, wenn die Kürzel des
+                    aktuellen Standes die richtigen sind. */}
+                <Button
+                  variant="ghost" size="sm" className="ml-auto"
+                  disabled={phasen.busy}
+                  title={'Nur Phasen, Zuordnungen und Zieltage dieser Fassung in den Entwurf '
+                    + 'holen. Kürzel, Ordner und Regeln bleiben unberührt.'}
+                  onClick={() => phasen.run(v.version)}
+                >
+                  Nur Phasen übernehmen
+                </Button>
                 {!istAktiv && (
                   <Button
-                    variant="ghost" size="sm" className="ml-auto"
+                    variant="ghost" size="sm"
                     disabled={laden.busy} onClick={() => laden.run(v.version)}
                   >
                     Als Entwurf laden
@@ -237,6 +277,9 @@ function VersionsPanel({ api }: { api: StatusCockpitApi }): React.ReactElement {
           })}
           {laden.error != null && (
             <p className="text-[11.5px] text-[var(--tf-danger-text)] px-3 py-1.5">⚠ {laden.error}</p>
+          )}
+          {phasen.error != null && (
+            <p className="text-[11.5px] text-[var(--tf-danger-text)] px-3 py-1.5">⚠ {phasen.error}</p>
           )}
           {archiv.error != null && (
             <p className="text-[11.5px] text-[var(--tf-danger-text)] px-3 py-1.5">
@@ -430,6 +473,7 @@ export function StatusCockpitPage(): React.ReactElement {
       {api.nurLokal && <NurLokalHinweis api={api} />}
       <AktivWechselHinweis />
       <ShareStandHinweis api={api} />
+      <PhasenMeldungStreifen api={api} />
 
       {api.konflikt && (
         <KatalogKonfliktDialog

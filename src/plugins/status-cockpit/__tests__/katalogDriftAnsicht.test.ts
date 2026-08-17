@@ -12,10 +12,14 @@
  * 5. Leere Gruppen fallen weg.
  */
 import { describe, it, expect } from 'vitest';
-import { driftSatz, driftGruppen, DRIFT_ZWECK } from '@/plugins/status-cockpit/katalogDriftAnsicht';
-import { leereKatalogDrift, type KatalogDrift } from '@/core/status';
+import {
+  driftSatz, driftGruppen, uebernahmeSatz, DRIFT_ZWECK,
+} from '@/plugins/status-cockpit/katalogDriftAnsicht';
+import {
+  bauePhasenPaket, leereKatalogDrift, uebernimmPhasen, type KatalogDrift,
+} from '@/core/status';
 import { SEED_ZAH_PHASEN } from '@/core/status/zah-phasen';
-import type { ZahPhase } from '@/core/status';
+import type { MappingVersion, StatusWertEintrag, ZahPhase } from '@/core/status';
 
 /** Die Fassung vom 05.08. als Bilanz — ohne den Katalog dafür bauen zu müssen. */
 function bilanzV16(): KatalogDrift {
@@ -120,5 +124,96 @@ describe('driftGruppen', () => {
 
   it('der Zweck-Satz sagt ausdrücklich, dass nichts übernommen wird', () => {
     expect(DRIFT_ZWECK).toContain('nichts davon wird automatisch übernommen');
+  });
+});
+
+// --- Der Satz nach einer Phasen-Übernahme -----------------------------------
+
+/**
+ * Dieselbe Grammatik, anderer Bezugspunkt: nicht „gegenüber der Auslieferung",
+ * sondern „gegenüber dem Stand von eben". Geprüft wird mit ECHTEN Paketen und
+ * echten Übernahmen — ein handgebauter Bericht bewiese nur, dass der Satz eine
+ * Zahl formatiert, nicht dass er die richtige nennt.
+ */
+describe('uebernahmeSatz', () => {
+  const phase = (id: string, label: string, reihenfolge: number): ZahPhase => ({
+    id, label, reihenfolge, zieltageRelevant: false, kategorieVorgabe: 'offen', fristLaeuft: true,
+  });
+  const wert = (code: number, zahPhaseId: string | null): StatusWertEintrag => ({
+    id: `status::${code}`, feldId: 'status', wert: `w${code}`, kategorie: 'offen',
+    prominenz: 'normal', aktiv: true, unkuratiert: false, code, zahPhaseId,
+  });
+  const fassung = (p: Partial<MappingVersion>): MappingVersion => ({
+    version: 1, autor: null, zeitstempel: 'x', felder: [], werte: [], ...p,
+  });
+
+  const DREI = [phase('a', 'Eingang', 10), phase('b', 'In Prüfung', 20), phase('c', 'Ende', 30)];
+
+  const satzFuer = (quelle: MappingVersion, ziel: MappingVersion): string => {
+    const paket = bauePhasenPaket(quelle);
+    const { version: neu, bericht } = uebernimmPhasen(ziel, paket);
+    return uebernahmeSatz(paket, bericht, ziel, neu);
+  };
+
+  it('sagt es, wenn der Schnitt hier schon so stand — statt eine leere Bilanz zu zeigen', () => {
+    const gleich = fassung({ version: 12, zahPhasen: DREI, werte: [wert(11, 'a')] });
+    expect(satzFuer(gleich, fassung({ zahPhasen: DREI, werte: [wert(11, 'a')] })))
+      .toBe('Phasen aus v12 übernommen — der Schnitt stand hier schon so.');
+  });
+
+  it('nennt Herkunft und Bilanz in einem Satz', () => {
+    const quelle = fassung({
+      version: 12,
+      zahPhasen: [phase('a', 'Eingang', 10), phase('b', 'In Prüfung', 20), phase('c', 'Ende', 30)],
+      werte: [wert(11, 'a'), wert(50, 'b')],
+    });
+    const ziel = fassung({
+      zahPhasen: [phase('a', 'Eingang', 10), phase('b', 'Prüfung', 20), phase('c', 'Ende', 30)],
+      werte: [wert(11, 'a'), wert(50, 'c')],
+    });
+    const satz = satzFuer(quelle, ziel);
+    expect(satz).toContain('Phasen aus v12 übernommen:');
+    expect(satz).toContain('1 Phase umbenannt');
+    expect(satz).toContain('1 Zuordnung geändert');
+  });
+
+  it('zählt die umgehängten Kürzel eigens — die Bilanz kennt nur die Statuswerte', () => {
+    const quelle = fassung({
+      version: 12, zahPhasen: DREI,
+      felder: [{
+        feldId: 'D_XTEC', label: 'x', typ: 'datum', ebene: 'tv', zahPhaseId: 'b',
+        prominenzDefault: 'normal', aktiv: true, unkuratiert: false,
+      }],
+    });
+    const ziel = fassung({
+      zahPhasen: DREI,
+      felder: [{
+        feldId: 'D_XTEC', label: 'x', typ: 'datum', ebene: 'tv', zahPhaseId: 'c',
+        prominenzDefault: 'normal', aktiv: true, unkuratiert: false,
+      }],
+    });
+    expect(satzFuer(quelle, ziel)).toContain('1 Kürzel umgehängt');
+  });
+
+  it('meldet fremde Codes namentlich — das ist der Satz, der einen falschen '
+    + 'Datenstand verrät', () => {
+    const quelle = fassung({ version: 12, zahPhasen: DREI, werte: [wert(11, 'a'), wert(81, 'c')] });
+    const ziel = fassung({ zahPhasen: DREI, werte: [wert(11, 'a')] });
+    expect(satzFuer(quelle, ziel)).toContain('1 Code aus dem Paket kennt dieser Katalog nicht (81)');
+  });
+
+  it('kürzt eine lange Liste ab, statt über die Zeile hinauszulaufen', () => {
+    const codes = [70, 71, 72, 73, 74, 75, 76, 77, 78, 79];
+    const quelle = fassung({
+      version: 12, zahPhasen: DREI, werte: codes.map(c => wert(c, 'c')),
+    });
+    const satz = satzFuer(quelle, fassung({ zahPhasen: DREI }));
+    expect(satz).toContain('70, 71, 72, 73, 74, 75, 76, 77 … und 2 weitere');
+  });
+
+  it('sagt bei einem abgelehnten Paket, dass NICHTS übernommen wurde', () => {
+    const quelle = fassung({ version: 12, zahPhasen: [phase('a', 'Nur eine', 10)] });
+    expect(satzFuer(quelle, fassung({ zahPhasen: DREI })))
+      .toContain('Phasen aus v12 nicht übernommen:');
   });
 });

@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.79.0 — Der Verfahrensschnitt reist allein (August 2026)
+
+MINOR — Ein neu aufgesetzter Rechner lud nicht die jüngste Fassung; auf diesem Stand wurden viele Kürzel gepflegt und veröffentlicht. Die live geltende Fassung trug danach die richtigen Kürzel und den zurückgefallenen Verfahrensschnitt — und es gab keinen Weg, nur den einen zurückzuholen, weil Export, Import und „Als Entwurf laden" immer die ganze `MappingVersion` bewegten.
+
+- **Die Phasen-Achse ist ein eigenes, transportables Paket** — Phasenliste, Code→Phase, Kürzel→Phase und Zieltage, geschlüsselt nach Code statt Wert-Id ([phasen-paket.ts](src/core/status/phasen-paket.ts))
+- **„Phasen exportieren"** neben dem Ansichtsumschalter im Reiter Statuswerte ([KatalogTab.tsx](src/plugins/status-cockpit/KatalogTab.tsx)); 3,7 KB gegen 152,8 KB Voll-Export
+- **Ein Import-Knopf, zwei Formate** — die Datei trägt die Marke `art: "zah-phasen"` und sagt selbst, was sie ist ([useStatusCockpit.ts](src/plugins/status-cockpit/useStatusCockpit.ts))
+- **„Nur Phasen übernehmen"** je Fassung im Versions-Panel, ohne Dateiweg ([StatusCockpitPage.tsx](src/plugins/status-cockpit/StatusCockpitPage.tsx))
+- Hintergrund: [status-achsen.md](docs/architecture/status-achsen.md)
+
 ### v4.78.0 — der Assistent sagt, wie viel er gesehen hat (August 2026)
 
 MINOR — Getestet gemeldet: der Kontext-Chip über dem Assistenten nannte 558 Suchtreffer, im Prompt standen 8. Der Schaden war nicht der Zähler — die KI hielt die 8 für die Gesamtmenge und urteilte über die „übrigen" 550, die sie nie gesehen hatte. Dazu führte die Deutungszeile zwei Wörter als „nicht berücksichtigt", die niemand verloren hatte.

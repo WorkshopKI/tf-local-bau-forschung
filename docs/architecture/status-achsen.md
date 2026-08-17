@@ -210,6 +210,64 @@ als Literal erlaubt. Ausgenommen sind die drei Auslieferungs-Seeds
 (`zah-phasen.ts`, `seed-codes.ts`, `seed-kanonisch.ts`); alles andere braucht
 `// allow-zah-phase-literal: <grund>` in derselben Zeile.
 
+## Der Verfahrensschnitt reist allein (v4.79)
+
+Die beiden kuratierten Achsen — **Phasen** und **Kürzel** — ändern sich in ganz
+verschiedenem Takt. Der Schnitt steht monatelang; an den Kürzeln wird laufend
+gearbeitet. Bis v4.78 gab es trotzdem nur einen Transportweg, und der nahm immer
+beides mit: `exportiereVersion` / `validiereImport` sowie „Als Entwurf laden" im
+Versions-Panel arbeiten auf der ganzen `MappingVersion`.
+
+Das fiel auf, als es schiefging: ein neu aufgesetzter Rechner lud nicht die
+jüngste Fassung, auf diesem Stand wurden viele Kürzel gepflegt und
+veröffentlicht — die live geltende Fassung trug danach die richtigen Kürzel und
+den zurückgefallenen Schnitt. Eine ältere Fassung zu laden hätte die Phasen
+zurückgeholt und die Kürzel-Arbeit verworfen.
+
+Seither ist die Phasen-Achse ein eigenes Gepäckstück
+([phasen-paket.ts](../../src/core/status/phasen-paket.ts)):
+
+| Im Paket | Nicht im Paket |
+|---|---|
+| Die Phasenliste (`zahPhasen`) vollständig | Kürzel-Stammdaten (Bezeichnung, Rollen, Ordner, Relevanz) |
+| Code → Phase, je Code einmal, `null` = Marker | Kategorien / Ordnerbaum |
+| Kürzel → Phase, nur das Feld `zahPhaseId` | `kurzLabel`, `prominenz`, `aktiv` |
+| Zieltage je Code (nur gesetzte) | To-do-Regeln, Textbausteine, Betrachtungsbereich, Trigger |
+
+Vier Festlegungen, die dabei wichtiger sind als die Liste selbst:
+
+1. **Der Schlüssel ist der Code bzw. die `feldId`, nie die Wert-Id.** `wertId()`
+   ist `${feldId}::${normalisiert(wert)}`; weicht die Schreibweise eines Rohwerts
+   zwischen zwei Installationen ab, liefe ein Id-Abgleich ins Leere.
+2. **Merge, kein Rundumschlag.** Das Paket ist eine Aussage über die Einträge,
+   die es nennt. Was es nicht nennt, bleibt; was das Ziel nicht kennt, wird
+   gemeldet statt angelegt — ein Paket erzeugt keine Katalogzeilen.
+3. **Nur ausdrückliche Aussagen reisen.** Ein Statuswert ohne `zahPhaseId`
+   (`undefined` = „hat noch niemand entschieden") kommt nicht ins Paket; sonst
+   würde am Zielort aus einer offenen Frage eine Antwort. `null` dagegen ist
+   gepflegt und reist mit.
+4. **Alles oder nichts.** Grenzverletzung (`pruefeZahPhasen`) oder eine
+   Zuordnung auf eine Phase, die das Paket selbst nicht führt ⇒ es wird *nichts*
+   angewendet. Ein halb übernommener Schnitt sähe gepflegt aus und wäre verwaist.
+
+Bedienung: **„Phasen exportieren"** steht neben dem Ansichtsumschalter im Reiter
+„Statuswerte", also dort, wo der Schnitt gepflegt wird. Eingelesen wird über den
+vorhandenen **„Importieren"**-Knopf — die Datei trägt die Marke
+`art: "zah-phasen"` und sagt selbst, was sie ist; ein zweiter Import-Knopf wäre
+eine Entscheidung, die niemand treffen will. Ohne Dateiweg geht es über **„Nur
+Phasen übernehmen"** je Zeile im Versions-Panel (Fassung aus IDB oder Archiv).
+
+Angewendet wird auf den **Entwurf**, nicht auf den Team-Stand: die Speicherleiste
+bleibt das Gate, „Als Entwurf laden" der Rückweg. Statt einer Rückfrage davor
+steht ein Ergebnissatz danach, und zwar in der Grammatik der Katalog-Bilanz
+(`driftSatz` über *nachher* gegen *vorher*, nicht über die Auslieferung):
+
+> Phasen aus v16 übernommen: 1 Phase entfernt · 2 umbenannt · 10 Zuordnungen
+> geändert · 22 Zieltage gepflegt.
+
+Am echten Katalog gemessen (v16 → v22): 3,7 KB Paket gegenüber 152,8 KB
+Voll-Export, alle 509 Kürzel byte-gleich geblieben.
+
 ## Wo was steht
 
 | Was | Wo |
@@ -221,6 +279,7 @@ als Literal erlaubt. Ausgenommen sind die drei Auslieferungs-Seeds
 | Die Phasen-Tabelle + das Register | [zah-phasen.ts](../../src/core/status/zah-phasen.ts) |
 | Die Handlung „nächster Schritt" (nur die Aktion) | [naechsterSchritt.ts](../../src/core/utils/naechsterSchritt.ts) |
 | Grenzen, Umhängen, Verwaiste | [zah-phasen-edit.ts](../../src/core/status/zah-phasen-edit.ts) |
+| Der Schnitt als transportables Paket | [phasen-paket.ts](../../src/core/status/phasen-paket.ts) |
 | Phase + Code → Kategorie | [kategorie-ableitung.ts](../../src/core/status/kategorie-ableitung.ts) |
 | Die sieben Abschnitte | [antragGroups.ts](../../src/plugins/antraege/antragGroups.ts) |
 | Der Baum-Editor | [PhasenBaum.tsx](../../src/plugins/status-cockpit/PhasenBaum.tsx) |

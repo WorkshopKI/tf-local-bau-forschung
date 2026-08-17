@@ -15,8 +15,10 @@
  */
 import { zaehlwort } from '@/core/utils/zaehlwort';
 import { getStatusCategoryLabel } from '@/core/utils/status-category-labels';
-import { zahPhaseLabel } from '@/core/status';
-import type { KatalogDrift, ZahPhase, ZahPhaseId } from '@/core/status';
+import { katalogDrift, zahPhaseLabel } from '@/core/status';
+import type {
+  KatalogDrift, MappingVersion, PhasenPaket, UebernahmeBericht, ZahPhase, ZahPhaseId,
+} from '@/core/status';
 import { PROMINENZ_LABEL } from './labels';
 
 /** Der Satz, der im ausgeklappten Bereich steht — wofür die Bilanz da ist. */
@@ -59,6 +61,60 @@ export function driftSatz(d: KatalogDrift): string {
       ? [`${zaehlwort(d.prominenz.length, 'Prominenz', 'Prominenzen')} geändert`] : []),
   ];
   return teile.join(' · ');
+}
+
+/** Wie viele fremde Codes/Kürzel beim Namen genannt werden, bevor abgekürzt
+ *  wird. Eine Liste, die über die Zeile hinausläuft, wird nicht gelesen. */
+const NAMENTLICH_MAX = 8;
+
+function auflistung(namen: readonly (string | number)[]): string {
+  const gezeigt = namen.slice(0, NAMENTLICH_MAX).join(', ');
+  return namen.length > NAMENTLICH_MAX
+    ? `${gezeigt} … und ${namen.length - NAMENTLICH_MAX} weitere`
+    : gezeigt;
+}
+
+/**
+ * Der Satz nach einer Phasen-Übernahme — **dieselbe Grammatik wie die Bilanz**,
+ * nur mit einem anderen Bezugspunkt: nicht „gegenüber der Auslieferung", sondern
+ * „gegenüber dem Stand von eben". Deshalb `driftSatz` über (nachher, vorher)
+ * statt eine zweite Zählweise für dieselben Zahlen.
+ *
+ * Was die Bilanz nicht misst, steht daneben: die umgehängten Datums-Kürzel (die
+ * Drift kennt nur die Statuswert-Achse) und was das Paket nannte, ohne dass es
+ * hier existiert. Letzteres ist der Satz, der einen falschen Datenstand verrät —
+ * er muss dastehen, auch wenn sonst alles glattging.
+ */
+export function uebernahmeSatz(
+  paket: PhasenPaket,
+  bericht: UebernahmeBericht,
+  vorher: MappingVersion,
+  nachher: MappingVersion,
+): string {
+  if (bericht.fehler.length > 0) {
+    return `Phasen aus v${paket.herkunft.fassung} nicht übernommen: ${bericht.fehler.join(' ')}`;
+  }
+
+  const bilanz = driftSatz(katalogDrift(nachher, vorher));
+  const teile = [
+    ...(bilanz === '' ? [] : [bilanz]),
+    ...(bericht.felder > 0
+      ? [`${zaehlwort(bericht.felder, 'Kürzel', 'Kürzel')} umgehängt`] : []),
+  ];
+  const kopf = teile.length > 0
+    ? `Phasen aus v${paket.herkunft.fassung} übernommen: ${teile.join(' · ')}.`
+    : `Phasen aus v${paket.herkunft.fassung} übernommen — der Schnitt stand hier schon so.`;
+
+  const rest = [
+    ...(bericht.unbekannteCodes.length > 0
+      ? [`${zaehlwort(bericht.unbekannteCodes.length, 'Code', 'Codes')} aus dem Paket `
+        + `kennt dieser Katalog nicht (${auflistung(bericht.unbekannteCodes)}).`] : []),
+    ...(bericht.unbekannteFelder.length > 0
+      ? [`${zaehlwort(bericht.unbekannteFelder.length, 'Kürzel', 'Kürzel')} aus dem Paket `
+        + `fehlt hier (${auflistung(bericht.unbekannteFelder)}).`] : []),
+  ];
+
+  return [kopf, ...rest].join(' ');
 }
 
 /** Eine Zeile der Aufstellung. Die Id kommt aus den Daten, nie aus dem Text:

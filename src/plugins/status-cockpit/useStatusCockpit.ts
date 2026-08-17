@@ -49,6 +49,8 @@ import {
   type TriggerStand, type VorgangssystemLuecke,
   SEED_KATEGORIEN,
   exportiereVersion, validiereImport,
+  bauePhasenPaket, exportierePhasenPaket, istPhasenPaket, validierePhasenPaket,
+  uebernimmPhasen, type PhasenPaket,
   wertId, schreibeKatalogAufShare, vereinigeMitShare, leseKatalogVomShare, leseKatalogNummer,
   leseKatalogArchiv,
   synchronisiereKatalogVomShare, umnummeriereEigeneFassung, zaehleAbweichungen,
@@ -59,6 +61,7 @@ import {
   type TodoRegel, type TextbausteinEintrag,
   type Bedingung, type PlatzhalterGruppe, type Rolle,
 } from '@/core/status';
+import { uebernahmeSatz } from './katalogDriftAnsicht';
 
 /** Der Konflikt, wie ihn die Oberfläche braucht: wer, wie weit, und was von mir. */
 export interface KatalogKonfliktStand {
@@ -257,6 +260,20 @@ export interface StatusCockpitApi {
   reaktivieren: (version: number) => Promise<void>;
   exportieren: () => void;
   importieren: () => Promise<void>;
+  /** Nur den Verfahrensschnitt der aktiven Fassung als Datei ablegen. */
+  phasenExportieren: () => void;
+  /** Nur den Verfahrensschnitt einer älteren Fassung in den Entwurf holen. */
+  phasenAusFassung: (version: number) => Promise<void>;
+  /** Ergebnis der letzten Phasen-Übernahme — steht als Satz über der Seite. */
+  phasenMeldung: PhasenMeldung | null;
+  phasenMeldungWeg: () => void;
+}
+
+/** Was die letzte Übernahme bewirkt hat. `ok: false` heißt „es wurde nichts
+ *  geändert", nicht „teilweise" — das Paket geht ganz oder gar nicht. */
+export interface PhasenMeldung {
+  ok: boolean;
+  text: string;
 }
 
 interface Bestand {
@@ -340,6 +357,7 @@ export function useStatusCockpit(): StatusCockpitApi {
   // Archivierte Fassungen — erst gelesen, wenn jemand die Versionsliste öffnet.
   const [archivFassungen, setArchivFassungen] = useState<MappingVersion[]>([]);
   const [archivGeladen, setArchivGeladen] = useState(false);
+  const [phasenMeldung, setPhasenMeldung] = useState<PhasenMeldung | null>(null);
 
   const ladeBestand = useCallback(async (version: MappingVersion): Promise<Bestand> => {
     const programme = await listProgramme(idb);
@@ -652,13 +670,22 @@ export function useStatusCockpit(): StatusCockpitApi {
     };
   }, [idb]);
 
+  /**
+   * Eine Fassung nach Nummer holen: erst der lokale Cache, dann das Archiv.
+   *
+   * Auf einem frisch aufgesetzten Rechner kennt die IDB nur die Fassungen der
+   * Hauptdatei — eine ältere ist dann ausschließlich über das Archiv erreichbar,
+   * und genau dafür ist die Versionierung da. Zwei Aufrufer (ganze Fassung
+   * reaktivieren, nur ihre Phasen übernehmen), eine Suche.
+   */
+  const ladeFassung = useCallback(async (version: number): Promise<MappingVersion | null> => (
+    (await getVersion(idb, version))
+    ?? (await leseKatalogArchiv(idb))?.fassungen.find(f => f.version === version)
+    ?? null
+  ), [idb]);
+
   const reaktivieren = useCallback(async (version: number): Promise<void> => {
-    // Erst der lokale Cache, dann das Archiv. Auf einem frisch aufgesetzten
-    // Rechner kennt die IDB nur die Fassungen der Hauptdatei — eine ältere ist
-    // dann ausschließlich über das Archiv erreichbar, und genau dafür ist die
-    // Versionierung da.
-    const alt = (await getVersion(idb, version))
-      ?? (await leseKatalogArchiv(idb))?.fassungen.find(f => f.version === version);
+    const alt = await ladeFassung(version);
     if (!alt) return;
     // Ins IDB übernehmen: wer eine archivierte Fassung einmal geholt hat, soll
     // sie beim nächsten Mal nicht erneut über den Share suchen müssen.
@@ -667,7 +694,7 @@ export function useStatusCockpit(): StatusCockpitApi {
     // `basisRef` bleibt, wo sie ist: welche Fassung als Entwurf dient, ändert
     // nichts daran, welchen Team-Stand dieses Fenster kennt.
     setEntwurf({ ...alt });
-  }, [idb]);
+  }, [idb, ladeFassung]);
 
   /**
    * Die archivierten Fassungen nachladen — auf Anforderung, nicht beim Start.
@@ -689,17 +716,73 @@ export function useStatusCockpit(): StatusCockpitApi {
     downloadAsFile(exportiereVersion(aktiveVersion), `status-katalog-v${aktiveVersion.version}.json`, 'application/json');
   }, [aktiveVersion]);
 
+  const phasenExportieren = useCallback((): void => {
+    if (!aktiveVersion) return;
+    downloadAsFile(
+      exportierePhasenPaket(aktiveVersion),
+      `status-phasen-v${aktiveVersion.version}.json`,
+      'application/json',
+    );
+  }, [aktiveVersion]);
+
+  /**
+   * Ein Paket in den Entwurf mischen — der gemeinsame Weg von Datei-Import und
+   * „Phasen übernehmen" an einer Fassung.
+   *
+   * Angewendet wird auf den ENTWURF, nicht auf die aktive Fassung: die
+   * Speicherleiste bleibt das Gate, und der Rückweg ist „Als Entwurf laden".
+   * Deshalb genügt der Ergebnissatz und es braucht keine Rückfrage davor.
+   */
+  const phasenPaketAnwenden = useCallback((paket: PhasenPaket): void => {
+    setEntwurf(v => {
+      if (!v) return v;
+      const { version: neu, bericht } = uebernimmPhasen(v, paket);
+      setPhasenMeldung({
+        ok: bericht.fehler.length === 0,
+        text: uebernahmeSatz(paket, bericht, v, neu),
+      });
+      return neu;
+    });
+  }, []);
+
   const importieren = useCallback(async (): Promise<void> => {
     const picked = await pickSchemaSnapshotFile();
     if (!picked) return;
+    // EINE Tür, zwei Formate: die Datei sagt an ihrer Marke selbst, ob sie ein
+    // ganzer Katalog oder nur der Verfahrensschnitt ist. Ein zweiter
+    // Import-Knopf wäre eine Entscheidung, die niemand treffen will.
+    let daten: unknown = null;
+    try { daten = JSON.parse(picked.text); } catch { /* `validiereImport` sagt es */ }
+    if (istPhasenPaket(daten)) {
+      const paket = validierePhasenPaket(daten);
+      if (!paket.ok || !paket.paket) {
+        setFehler(`Phasen-Paket abgelehnt: ${paket.fehler ?? 'unbekannt'}`);
+        return;
+      }
+      setFehler(null);
+      phasenPaketAnwenden(paket.paket);
+      return;
+    }
     const ergebnis = validiereImport(picked.text);
     if (!ergebnis.ok || !ergebnis.version) {
       setFehler(`Import abgelehnt: ${ergebnis.fehler ?? 'unbekannt'}`);
       return;
     }
     setFehler(null);
+    setPhasenMeldung(null);
     setEntwurf(ergebnis.version);
-  }, []);
+  }, [phasenPaketAnwenden]);
+
+  /** Nur den Verfahrensschnitt einer älteren Fassung holen — ohne Dateiweg und
+   *  ohne ihre Kürzel-Stände mitzunehmen. */
+  const phasenAusFassung = useCallback(async (version: number): Promise<void> => {
+    const alt = await ladeFassung(version);
+    if (!alt) {
+      setPhasenMeldung({ ok: false, text: `Fassung v${version} ist nicht auffindbar.` });
+      return;
+    }
+    phasenPaketAnwenden(bauePhasenPaket(alt));
+  }, [ladeFassung, phasenPaketAnwenden]);
 
   const setWert = useCallback((id: string, patch: Partial<StatusWertEintrag>) => {
     setEntwurf(v => (v ? aendereWert(v, id, patch) : v));
@@ -1016,6 +1099,8 @@ export function useStatusCockpit(): StatusCockpitApi {
     setTodoRegel, verschiebeTodoRegel: verschiebeTodo, todoRegelnNachziehen, todoDrift,
     katalogDrift: katalogDriftBilanz,
     verwerfen, speichern, reaktivieren, exportieren, importieren,
+    phasenExportieren, phasenAusFassung, phasenMeldung,
+    phasenMeldungWeg: () => setPhasenMeldung(null),
     archivFassungen, archivGeladen, archivLaden,
   };
 }

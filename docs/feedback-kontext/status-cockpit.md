@@ -78,6 +78,19 @@ wird.
       Das ist ein gültiger Zustand, kein Fehler. Was dort als **verwaist**
       markiert ist, zeigt dagegen auf einen gelöschten Schritt und gehört zurück
       ins Verfahren.
+  - Rechts neben der Umschaltung steht **„Phasen exportieren"**. Die Datei
+    enthält nur den Verfahrensschnitt: die Schritte, welcher Statuswert in
+    welchem hängt und die Zieltage. Kürzel, Ordner und Regeln sind nicht darin.
+    Gedacht ist sie für den Fall, dass Schritte und Kürzel auf verschiedenen
+    Ständen richtig sind — Schritte ändern sich selten, an den Kürzeln wird
+    laufend gearbeitet.
+    - Eingelesen wird sie über **„Importieren"** im Seitenkopf, denselben Knopf
+      wie für den ganzen Katalog: die Datei sagt selbst, was sie ist. Danach
+      steht ein Satz über der Seite, was sich dadurch geändert hat, und ob die
+      Datei Status kannte, die es hier nicht gibt.
+    - Übernommen wird in den Entwurf. Nichts gilt für das Team, bevor „Für das
+      Team speichern" gedrückt wurde; wer es sich anders überlegt, lädt eine
+      Fassung neu.
   - **Tabelle**: alle Statuswerte mit Inline-Bearbeitung (Label, **Kurzform**,
     Kategorie, Prominenz, **Zieltage**, aktiv), **Vorkommen**, **zuletzt
     gesehen**, Feldname und **CSV-Spalte** als Herkunft, dazu Filterchips und
@@ -230,6 +243,13 @@ wird.
 
 Änderungen sind ein **Entwurf**; „Für das Team speichern" legt eine Fassung an.
 Ältere Fassungen sind als Entwurf ladbar.
+
+Je Fassung stehen dafür zwei Knöpfe. **Als Entwurf laden** holt sie ganz zurück,
+mit allem, was sie enthält. **Nur Phasen übernehmen** holt allein den
+Verfahrensschnitt — die Schritte, ihre Zuordnungen und die Zieltage; Kürzel,
+Ordner und Regeln des aktuellen Standes bleiben, wie sie sind. Das ist der Weg,
+wenn eine ältere Fassung die richtigen Schritte hat und die heutige die richtigen
+Kürzel. Auch hier steht danach ein Satz über der Seite, was sich geändert hat.
 
 Weil den Katalog mehrere Personen pflegen, wird vor dem Veröffentlichen
 nachgesehen, was inzwischen auf dem Daten-Ordner liegt. Fremde Fassungen, die

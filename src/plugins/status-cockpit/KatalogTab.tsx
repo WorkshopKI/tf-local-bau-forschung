@@ -155,19 +155,33 @@ export function KatalogTab({ api }: { api: StatusCockpitApi }): React.ReactEleme
         />
       )}
 
-      {/* Die Umschaltung steht ganz oben: sie entscheidet, was darunter kommt. */}
+      {/* Die Umschaltung steht ganz oben: sie entscheidet, was darunter kommt.
+          Rechts daneben der Export der Phasen-Achse — er gehört dorthin, wo sie
+          gepflegt wird, nicht in den Seitenkopf zum Voll-Export. */}
       {zeigeZieltage && (
-        <ScopeTabs
-          variant="segmented"
-          aria-label="Ansicht des Status-Katalogs"
-          className="shrink-0 self-start"
-          activeKey={sicht}
-          onChange={k => setSicht(k as Sicht)}
-          items={[
-            { key: 'baum', label: 'Phasen und Zuordnung' },
-            { key: 'tabelle', label: 'Tabelle', count: werte.length },
-          ]}
-        />
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          <ScopeTabs
+            variant="segmented"
+            aria-label="Ansicht des Status-Katalogs"
+            className="shrink-0"
+            activeKey={sicht}
+            onChange={k => setSicht(k as Sicht)}
+            items={[
+              { key: 'baum', label: 'Phasen und Zuordnung' },
+              { key: 'tabelle', label: 'Tabelle', count: werte.length },
+            ]}
+          />
+          <Button
+            variant="ghost" size="sm" icon={Download} className="ml-auto"
+            disabled={!api.aktiveVersion}
+            title={'Nur den Verfahrensschnitt: Phasen, ihre Zuordnungen und die Zieltage. '
+              + 'Eingelesen wird die Datei über „Importieren" im Seitenkopf — die Kürzel '
+              + 'bleiben dabei, wie sie sind.'}
+            onClick={() => api.phasenExportieren()}
+          >
+            Phasen exportieren
+          </Button>
+        </div>
       )}
 
       {zeigeZieltage && sicht === 'baum' && <PhasenBaum api={api} />}
