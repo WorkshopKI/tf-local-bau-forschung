@@ -107,10 +107,29 @@ describe('baueFeldAufloesung', () => {
     expect(a.get('antragsdatum')?.recordKey).toBe('antragsdatum');
   });
 
-  it('erzeugt aus dem Auslieferungs-Seed keine doppelten Record-Keys', () => {
-    const a = baueFeldAufloesung(FIXTURE_SCHEMAS, baueSeedVersion().felder);
-    const keys = [...a.values()].map(v => v.recordKey);
-    expect(new Set(keys).size).toBe(keys.length);
+  it('erzeugt aus dem Auslieferungs-Seed keine doppelten Record-Keys JE HERKUNFT', () => {
+    // Eindeutig war der Record-Key bis v4.82.0 global. Das war eine Zusage zu
+    // viel: `verbund_status` liest `status` aus dem VERBUND-Record, das
+    // kanonische `status` aus dem TV-Record — derselbe Key, zwei Records, kein
+    // Doppelzählen. Global geprüft fiel `verbund_status` aus der Auflösung, und
+    // der Verlaufs-Bestandslauf, der es namentlich sucht, bekam immer den
+    // leeren String. Die Zusage gilt jetzt dort, wo sie etwas bedeutet.
+    const felder = baueSeedVersion().felder;
+    const a = baueFeldAufloesung(FIXTURE_SCHEMAS, felder);
+    const nachHerkunft = new Map<string, string[]>();
+    for (const [feldId, { recordKey }] of a) {
+      const f = felder.find(x => x.feldId === feldId);
+      if (!f) continue;
+      const h = herkunftVon(f);
+      nachHerkunft.set(h, [...(nachHerkunft.get(h) ?? []), recordKey]);
+    }
+    for (const [herkunft, keys] of nachHerkunft) {
+      expect(new Set(keys).size, `doppelter Record-Key in ${herkunft}`).toBe(keys.length);
+    }
+    // Gegenprobe, damit die Lockerung nicht unbemerkt zur Leerprüfung wird:
+    // genau ein Key kommt über beide Herkünfte hinweg zweimal vor.
+    const alle = [...a.values()].map(v => v.recordKey);
+    expect(alle.length - new Set(alle).size, 'nur die Verbund/TV-Doppelung').toBe(1);
   });
 
   it('wirft bei einer Spalte, die kein Schema kennt, nicht — sie bleibt sie selbst', () => {

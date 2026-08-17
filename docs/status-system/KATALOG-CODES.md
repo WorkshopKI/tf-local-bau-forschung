@@ -214,7 +214,46 @@ doppelt.
 
 Denselben Fall fängt zur Laufzeit der **Kollisionsschutz** in
 [feld-aufloesung.ts](../../src/core/status/feld-aufloesung.ts): zeigen zwei
-Felder auf denselben Record-Key, gewinnt das kanonische.
+Felder **derselben Herkunft** auf denselben Record-Key, gewinnt das kanonische.
+
+### Der Schlüssel darf keine Satzzeichen wegwerfen
+
+Bis v4.82.0 lief die Auflösung über `normCode`, das `-`, `_` und Leerzeichen
+streift. Im Vokabular des Fachsystems tragen diese Zeichen aber Bedeutung: `QS`
+heißt „kaufm. QS erfolgt", `QS-` heißt „kaufm. QS zurück an AB" — zwei Kürzel,
+zwei Spalten. `D_QS` und `D_QS-` fielen auf denselben Index-Schlüssel, der
+Kollisionsschutz warf eines hinaus, und der Verlierer trug in der **ganzen App**
+nie einen Wert. Gemessen an Fassung 22:
+
+| Kürzel | Zeilen im Export | davon Richtlinie 2020/2025 |
+|---|---|---|
+| `QS` | 7 135 | 3 954 |
+| `AQ4` | 6 758 | 3 954 |
+| `VQK` | 3 208 | 2 047 |
+| `ARQ` | 1 260 | 857 |
+| `ABLQ` | 821 | 474 |
+
+Schlimmer als das Verschwinden war die **Fehl-Lesung**: `D_ARQ-` und `D_VQK-`
+haben gar keine eigene Spalte im Export. Über den unscharfen Schlüssel griffen
+sie die Spalte ihres Geschwisters ab und zeigten dessen Daten unter ihrem Namen.
+
+Gebraucht wurde die Unschärfe nur für **Groß-/Kleinschreibung** (`vb_phase` gegen
+die Spalte `VB_PHASE`) — gemessen fünf Felder, vier davon genau die schädlichen.
+`spaltenSchluessel` normalisiert deshalb nur noch Unicode-Form, Rand-Leerraum und
+Groß-/Kleinschreibung. `normCode` selbst bleibt unverändert: wo Kürzel-*Schreib­
+weisen* verglichen werden, ist es richtig.
+
+**Zweiter Teil: die Herkunft gehört in den Kollisions-Schlüssel.**
+`verbund_status` liest `status` aus dem Verbund-Record, das kanonische `status`
+aus dem TV-Record — derselbe Key, zwei Records, kein Konflikt. Trotzdem fiel
+`verbund_status` heraus, und der Verlaufs-Bestandslauf, der es namentlich sucht,
+bekam immer den leeren String.
+
+Von 12 unauflösbaren Feldern bleiben damit **vier**, und die sind kein
+Auflösungsfehler: `D_XRN-`/`D_XRN+`, `D_YPM_A`/`D_XYPM_A`, `D_LZX`/`D_ÄZX` und
+`D_LG`/`D_ÄG` sind Paare, die das **Mapping** auf denselben kanonischen Key legt.
+Ihre Werte sind schon beim Import verschmolzen; das kann die Auflösung nicht
+rückgängig machen.
 
 ## Ebene gegen Herkunft
 

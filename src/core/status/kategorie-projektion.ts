@@ -11,10 +11,8 @@
  * Rein: keine IO. Fassung und Schemas reicht der Aufrufer herein.
  */
 import type { CsvSchema } from '@/core/services/csv/types';
-import {
-  normCode, type ResolvedKategorieSpalten, type StatusDatumFeld,
-} from '@/core/services/csv/status-datum-gruppen';
-import { baueFeldAufloesung } from './feld-aufloesung';
+import type { ResolvedKategorieSpalten, StatusDatumFeld } from '@/core/services/csv/status-datum-gruppen';
+import { baueFeldAufloesung, spaltenSchluessel } from './feld-aufloesung';
 import type { MappingVersion, StatusFeldEintrag } from './typen';
 
 /**
@@ -22,10 +20,16 @@ import type { MappingVersion, StatusFeldEintrag } from './typen';
  * nur, wenn das Schema seine Spalte mappt — sonst fällt die Auflösung auf den
  * Spaltennamen zurück und die Spalte bliebe garantiert leer. Kanonische Felder
  * (ohne `code`) sind per Definition Record-Keys und zählen immer.
+ *
+ * Gefragt wird mit **demselben Schlüssel wie die Auflösung**
+ * (`spaltenSchluessel`), sonst antworten die beiden verschieden: mit dem
+ * unscharfen `normCode` galten `D_ARQ-`, `D_GZ-`, `D_VQK-` und `D_VQT-` als
+ * gemappt, obwohl keiner von ihnen eine eigene Spalte im Export hat — sie
+ * belegten je einen Platz im Spaltenpicker und blieben garantiert leer.
  */
 function istImProgramm(feld: StatusFeldEintrag, gemappt: ReadonlySet<string>): boolean {
   if (feld.code === undefined) return true;
-  return gemappt.has(normCode(feld.feldId));
+  return gemappt.has(spaltenSchluessel(feld.feldId));
 }
 
 /**
@@ -48,7 +52,7 @@ export function loeseKategorieSpalten(
   const gemappt = new Set<string>();
   for (const s of schemas) {
     for (const [spalte, entry] of Object.entries(s.column_mapping ?? {})) {
-      if (entry && !entry.ignore) gemappt.add(normCode(spalte));
+      if (entry && !entry.ignore) gemappt.add(spaltenSchluessel(spalte));
     }
   }
 

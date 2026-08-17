@@ -16,9 +16,33 @@
  * Rein: keine IDB-, keine SMB-Zugriffe. Die Schemas reicht der Aufrufer herein.
  */
 import type { CsvSchema } from '@/core/services/csv/types';
-import { normCode } from '@/core/services/csv/status-datum-gruppen';
 import { resolveFieldKey } from '@/core/services/csv/merger/helpers';
 import type { MappingVersion, StatusFeldEintrag } from './typen';
+
+/**
+ * Der Schlüssel, unter dem eine CSV-Spalte nachgeschlagen wird.
+ *
+ * Normalisiert **nur** Unicode-Form, Rand-Leerraum und Groß-/Kleinschreibung —
+ * ausdrücklich **keine** Satzzeichen. Im Vokabular des Fachsystems tragen `-`
+ * und `_` Bedeutung: `QS` heißt „kaufm. QS erfolgt", `QS-` heißt „kaufm. QS
+ * zurück an AB". Das sind zwei Kürzel mit zwei Spalten.
+ *
+ * Bis v4.82.0 lief die Auflösung über `normCode`, das genau diese Zeichen
+ * wegwirft. `D_QS` und `D_QS-` fielen damit auf denselben Schlüssel; der
+ * Kollisionsschutz unten warf einen von beiden hinaus, und der Verlierer trug in
+ * der ganzen App nie einen Wert — `D_QS` in 7 135 Export-Zeilen, `D_AQ4` in
+ * 6 758, `D_VQK` in 3 208, `D_ARQ` in 1 260, `D_ABLQ` in 821. Schlimmer noch:
+ * `D_ARQ-` und `D_VQK-` haben gar keine eigene Spalte und griffen über den
+ * unscharfen Schlüssel die des Geschwisters ab — fremde Daten unter eigenem
+ * Namen.
+ *
+ * Gebraucht wurde die Unschärfe nur für Groß-/Kleinschreibung (`vb_phase` gegen
+ * die Spalte `VB_PHASE`); genau die bleibt. `normCode` selbst ist unverändert —
+ * dort, wo Kürzel-SCHREIBWEISEN verglichen werden, ist es richtig.
+ */
+export function spaltenSchluessel(s: string): string {
+  return s.normalize('NFC').trim().toLowerCase();
+}
 
 /** Wo ein Feld im Record steht (aufgelöst gegen die Schemas). */
 export interface AufgeloestesFeld {
@@ -52,7 +76,7 @@ export function baueSpaltenIndex(schemas: readonly CsvSchema[]): Map<string, str
       if (!entry || entry.ignore) continue;
       const key = resolveFieldKey(spalte, entry);
       if (!key) continue;
-      const norm = normCode(spalte);
+      const norm = spaltenSchluessel(spalte);
       if (!idx.has(norm)) idx.set(norm, key);
     }
   }
@@ -68,32 +92,47 @@ export function baueSpaltenIndex(schemas: readonly CsvSchema[]): Map<string, str
  * 2. Die `feldId` ist als CSV-Spalte gemappt ⇒ deren Record-Key.
  * 3. Sonst ⇒ die `feldId` selbst (kanonische Felder heißen im Record wie sie).
  *
- * **Kollisionsschutz**: landen zwei Felder auf demselben Record-Key, gewinnt das
- * kanonische (das ohne `code`) und das andere fällt aus der Auflösung. Sonst
- * zählte dieselbe Spalte zweimal — als Ereignis und als Ableitungs-Beitrag.
- * Das kann passieren, wenn ein Programm eine Code-Spalte kanonisch mappt.
+ * **Kollisionsschutz**: landen zwei Felder **derselben Herkunft** auf demselben
+ * Record-Key, gewinnt das kanonische (das ohne `code`) und das andere fällt aus
+ * der Auflösung. Sonst zählte dieselbe Spalte zweimal — als Ereignis und als
+ * Ableitungs-Beitrag. Das kann passieren, wenn ein Programm eine Code-Spalte
+ * kanonisch mappt.
+ *
+ * **Die Herkunft gehört in den Schlüssel** (v4.82.0): `verbund_status` liest
+ * `status` aus dem VERBUND-Record, das kanonische `status` aus dem TV-Record.
+ * Derselbe Key, zwei Records, kein Konflikt — trotzdem fiel `verbund_status`
+ * heraus. Der Verlaufs-Bestandslauf sucht es namentlich (`feldId ===
+ * 'verbund_status'`) und bekam dadurch immer den leeren String.
+ *
+ * Was **nicht** hierher gehört: zwei verschiedene CSV-Spalten, die das Mapping
+ * auf denselben kanonischen Key legt (`D_LZX` und `D_ÄZX` beide auf
+ * `bewilligung_ohne_bescheid`, gemessen vier Paare). Dort sind die Werte schon
+ * beim Import verschmolzen; die Auflösung kann das nicht rückgängig machen und
+ * meldet weiterhin nur eines der beiden Felder.
  */
 export function baueFeldAufloesung(
   schemas: readonly CsvSchema[], felder: readonly StatusFeldEintrag[],
 ): FeldAufloesung {
   const spalten = baueSpaltenIndex(schemas);
   const aufgeloest = new Map<string, AufgeloestesFeld>();
-  const besetzt = new Map<string, StatusFeldEintrag>();   // recordKey → Gewinner
+  const besetzt = new Map<string, StatusFeldEintrag>();   // herkunft::recordKey → Gewinner
 
   const recordKeyVon = (feld: StatusFeldEintrag): string =>
-    feld.quelleKey ?? spalten.get(normCode(feld.feldId)) ?? feld.feldId;
+    feld.quelleKey ?? spalten.get(spaltenSchluessel(feld.feldId)) ?? feld.feldId;
 
   for (const feld of felder) {
     const recordKey = recordKeyVon(feld);
-    const bisher = besetzt.get(recordKey);
+    const belegung = `${herkunftVon(feld)}::${recordKey}`;
+    const bisher = besetzt.get(belegung);
     if (bisher) {
       // Kanonisch (ohne Code) schlägt Code-Feld; sonst bleibt der erste stehen.
       const neuerGewinnt = bisher.code !== undefined && feld.code === undefined;
       if (!neuerGewinnt) continue;
       aufgeloest.delete(bisher.feldId);
     }
-    besetzt.set(recordKey, feld);
-    const textKey = feld.textSpalte ? spalten.get(normCode(feld.textSpalte)) : undefined;
+    besetzt.set(belegung, feld);
+    const textKey = feld.textSpalte
+      ? spalten.get(spaltenSchluessel(feld.textSpalte)) : undefined;
     aufgeloest.set(feld.feldId, { recordKey, ...(textKey ? { textKey } : {}) });
   }
   return aufgeloest;

@@ -9,8 +9,7 @@
  * Rein: keine IO. Die Schemas reicht der Aufrufer herein.
  */
 import type { CsvSchema } from '@/core/services/csv/types';
-import { normCode } from '@/core/services/csv/status-datum-gruppen';
-import { baueSpaltenIndex } from '@/core/status/feld-aufloesung';
+import { baueSpaltenIndex, spaltenSchluessel } from '@/core/status/feld-aufloesung';
 
 /** Ein zu projizierendes Feld: wie es heißt und wo es steht. */
 export interface FreiesFeld {
@@ -41,7 +40,7 @@ export function loeseFreieFelder(
   for (const feldId of feldIds) {
     if (gesehen.has(feldId)) continue;
     gesehen.add(feldId);
-    out.push({ feldId, recordKey: spalten.get(normCode(feldId)) ?? feldId });
+    out.push({ feldId, recordKey: spalten.get(spaltenSchluessel(feldId)) ?? feldId });
   }
   // Stabile Reihenfolge: die Signatur der Projektion hängt daran, und eine
   // Umsortierung dürfte keinen Rebuild auslösen.
@@ -53,7 +52,7 @@ export function loeseFreieFelder(
  * Mapping-Frage — ob im Bestand Werte stehen, weiß erst die Projektion.
  */
 export function istGemappt(feldId: string, schemas: readonly CsvSchema[]): boolean {
-  return baueSpaltenIndex(schemas).has(normCode(feldId));
+  return baueSpaltenIndex(schemas).has(spaltenSchluessel(feldId));
 }
 
 /**
