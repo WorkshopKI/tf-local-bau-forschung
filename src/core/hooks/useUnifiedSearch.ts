@@ -242,6 +242,9 @@ function basisAntrag(
     // ein Ersatzwert wäre eine Behauptung.
     standort: korpus?.standort || undefined,
     deskriptoren: korpus?.descriptors || undefined,
+    // Kein Beleg wie die anderen, sondern der Inhalt: die Liste zeigt ihn nicht,
+    // der Assistenten-Kontext braucht ihn (siehe `assistentKontext.ts`).
+    kurzbeschreibung: korpus?.abstract || undefined,
     domain: korpus?.domain || undefined,
     netzwerk: korpus?.netzwerk || undefined,
     wahlkreis: korpus?.wahlkreis || undefined,

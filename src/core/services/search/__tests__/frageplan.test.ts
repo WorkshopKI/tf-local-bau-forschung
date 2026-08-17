@@ -50,6 +50,14 @@ describe('baueFrageplanPrompt', () => {
     expect(baueFrageplanPrompt('x', 2031).systemPrompt).toContain('2031');
   });
 
+  it('sagt an, dass Frage- und Gewichtungswörter nicht nach „ignoriert" gehören', () => {
+    const p = baueFrageplanPrompt('irgendwas', 2026).systemPrompt;
+    expect(p).toContain('„vorhaben"');
+    expect(p).toContain('„hauptsächlich"');
+    // Der Grund muss mitstehen — sonst liest sich die Regel als Willkür.
+    expect(p).toContain('Rangfolge');
+  });
+
   it('enthält kein Beispiel-JSON, das als Antwort durchgehen könnte', () => {
     const p = baueFrageplanPrompt('x', 2026).systemPrompt;
     expect(p).not.toContain('{');
@@ -200,6 +208,38 @@ describe('parseFrageplan — Felder, Status, Jahr, Bereich', () => {
 
   it('nimmt einen planbaren Bereich', () => {
     expect(parseFrageplan(antwort({ ...NORMUNG, bereich: 'inhalt' }), 'f')!.bereich).toBe('inhalt');
+  });
+
+  it('streicht Frageworte aus „ignoriert" — „Vorhaben" ist kein Verlust', () => {
+    const plan = parseFrageplan(antwort({ ...NORMUNG, ignoriert: ['Vorhaben', 'Projekte'] }), 'f');
+    expect(plan!.ignoriert).toEqual([]);
+  });
+
+  it('streicht Gewichtungswörter — die Rangfolge beantwortet sie', () => {
+    const plan = parseFrageplan(antwort({ ...NORMUNG, ignoriert: ['hauptsächlich', 'vor allem'] }), 'f');
+    expect(plan!.ignoriert).toEqual([]);
+  });
+
+  it('streicht auch die Mischung aus beidem samt Bindewörtern', () => {
+    const plan = parseFrageplan(antwort({ ...NORMUNG, ignoriert: ['hauptsächlich und Vorhaben'] }), 'f');
+    expect(plan!.ignoriert).toEqual([]);
+  });
+
+  it('behält eine Meldung, die einen echten Verlust benennt', () => {
+    const plan = parseFrageplan(antwort({
+      ...NORMUNG, ignoriert: ['Der Zeitraum „zuletzt" ist unklar', 'hauptsächlich'],
+    }), 'f');
+    expect(plan!.ignoriert).toEqual(['Der Zeitraum „zuletzt" ist unklar']);
+  });
+
+  it('lässt die technisch verworfenen Werte unangetastet', () => {
+    // „din" ist eine zu kurze Nadel, kein Fragewort — der Filter gilt nur für
+    // die Liste des Modells.
+    const plan = parseFrageplan(antwort({
+      begriffe: [{ begriff: 'Normung', nadeln: ['normung', 'din'], pflicht: false }],
+      ignoriert: ['Vorhaben'],
+    }), 'f');
+    expect(plan!.ignoriert).toEqual(['din']);
   });
 
   it('führt die Meldungen des Modells vor den technisch verworfenen Werten', () => {

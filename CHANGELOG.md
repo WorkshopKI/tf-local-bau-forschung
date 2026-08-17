@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.78.0 — der Assistent sagt, wie viel er gesehen hat (August 2026)
+
+MINOR — Getestet gemeldet: der Kontext-Chip über dem Assistenten nannte 558 Suchtreffer, im Prompt standen 8. Der Schaden war nicht der Zähler — die KI hielt die 8 für die Gesamtmenge und urteilte über die „übrigen" 550, die sie nie gesehen hatte. Dazu führte die Deutungszeile zwei Wörter als „nicht berücksichtigt", die niemand verloren hatte.
+
+- **Chip und Prompt entstehen aus EINER Auswahl** — neue `waehleKontextTreffer`, gelesen von Block und Etikett ([assistentKontext.ts](src/plugins/suche/assistentKontext.ts), [ChatPanelHost.tsx](src/plugins/chat/ChatPanelHost.tsx))
+- **40 statt 8 Treffer** im Kontext, gedeckelt durch ein Zeichen-Budget; der Kopf nennt „40 von 517" und verbietet das Urteil über die übrigen
+- **Kurzbeschreibung, Relevanz und Fundstellen je Treffer** — bisher trug der Kontext nur Titel und Antragsteller, und das Modell reimte sich den Inhalt zusammen ([search-result.ts](src/core/types/search-result.ts), [useUnifiedSearch.ts](src/core/hooks/useUnifiedSearch.ts))
+- **Frage- und Gewichtungswörter fallen aus „nicht berücksichtigt"** — als Konstanten, die der Prompt rendert und der Parser filtert ([frageplan.ts](src/core/services/search/frageplan.ts))
+- Hintergrund: [suche-relevanz.md §8](docs/architecture/suche-relevanz.md)
+
 ### v4.77.1 — Die Tabelle stoesst gerade an die Leiste, die Trefferzahl steht in der Flucht (August 2026)
 
 PATCH — Zwei Nachlesen am Kopfband (v4.76): die 12-px-Rundung des Tabellenkastens stand als Kerbe neben der geraden Kante der Filterleiste, und die Trefferzahl unter der Liste begann an der Außenkante des Kastens statt in der Flucht der Auswahl-Häkchen, die sie zählt.

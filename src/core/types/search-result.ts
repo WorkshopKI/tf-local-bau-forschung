@@ -70,6 +70,16 @@ export interface UnifiedSearchResult {
   /** Deskriptoren-Text (Technologie/Branche/Anwendung + ZT-Klartexte). Zweiter
    *  Beleg ohne eigenen Platz im Ergebnis — dieselbe Begründung wie `standort`. */
   deskriptoren?: string;
+  /**
+   * Kurzbeschreibung / Abstract des Vorhabens (`AntragTextEntry.abstract`).
+   *
+   * Die Trefferliste zeigt sie nicht — sie lebt hier für Konsumenten, die den
+   * INHALT brauchen statt der Zeile. Erster davon ist der Kontext, den die Suche
+   * dem Assistenten anheftet: bis v4.77 trug er je Treffer nur Titel und
+   * Antragsteller, und ein Modell, das nach dem Thema gefragt wird, reimte sich
+   * den Rest aus dem Titel zusammen.
+   */
+  kurzbeschreibung?: string;
   /** Web-Adresse der Einrichtung, aus der Kontakt-Mail abgeleitet
    *  (`bergmann@gmbu.de` → `gmbu.de`). Dritter Beleg dieser Art: wer über das
    *  Kürzel „GMBU" hierher gefunden hat, sieht in der Zeile sonst nur den

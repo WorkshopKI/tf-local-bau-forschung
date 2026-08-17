@@ -94,7 +94,14 @@ export interface Frageplan {
   facetten: PlanFacetten;
   /** Worin gesucht wird, falls die Frage es nahelegt. Fehlt = Einstellung behalten. */
   bereich?: Suchbereich;
-  /** Was aus der Frage NICHT umgesetzt wurde, im Klartext. Wird angezeigt. */
+  /**
+   * Was aus der Frage NICHT umgesetzt wurde, im Klartext. Wird angezeigt.
+   *
+   * Enthält nur echte Verluste: Frage- und Gewichtungswörter sind hier
+   * herausgefiltert (`benenntKeinenVerlust`). Eine Zeile „nicht berücksichtigt:
+   * hauptsächlich · Vorhaben" ließ die Suche dümmer aussehen, als sie ist — an
+   * der einen Stelle, die Vertrauen herstellen soll.
+   */
   ignoriert: readonly string[];
 }
 
@@ -135,6 +142,65 @@ export const MAX_FRAGE_LEN = 600;
  *  Leitbegriffe wirkungslos, um die es hier geht. */
 const PLANBARE_BEREICHE: readonly Suchbereich[] = ['alles', 'inhalt', 'einrichtung', 'standort'];
 
+/**
+ * Wörter, die die gesuchten DINGE benennen statt ein Thema.
+ *
+ * Sie sind keine Begriffe — und sie sind auch kein Verlust: „Vorhaben" ist das
+ * Wort für das, was die Suche ohnehin findet. Bis v4.78 sagte der Prompt beides
+ * zugleich („sind keine Begriffe" und „melde alles Nicht-Übersetzte"), und das
+ * Modell meldete gehorsam das Wort, das auszulassen ihm befohlen war: unter der
+ * Trefferliste stand „nicht berücksichtigt: Vorhaben".
+ */
+const FRAGEWORTE: readonly string[] = [
+  'welche', 'welcher', 'welches', 'zeig mir', 'zeige', 'gibt es', 'finde',
+  'suche', 'liste', 'vorhaben', 'projekt', 'projekte', 'antrag', 'anträge',
+];
+
+/**
+ * Wörter, die eine Gewichtung ausdrücken („hauptsächlich um Normung").
+ *
+ * Auch sie sind kein Verlust, aus dem entgegengesetzten Grund: sie werden
+ * BEANTWORTET, nämlich von der Rangfolge. `abdeckung` misst, wie viele der
+ * gefragten Sachen ein Vorhaben behandelt, und hebt die, die alle behandeln
+ * (siehe Kopfkommentar). Sie als „nicht berücksichtigt" auszuweisen, wäre eine
+ * Legende, die das Gegenteil dessen behauptet, was die Liste tut.
+ */
+const GEWICHTUNGSWOERTER: readonly string[] = [
+  'hauptsächlich', 'vor allem', 'schwerpunktmäßig', 'primär', 'überwiegend',
+  'vorrangig', 'in erster linie', 'vornehmlich', 'insbesondere', 'besonders',
+];
+
+/** Bindewörter, die eine Meldung nicht tragen — sie entscheiden nicht, ob ein
+ *  Eintrag einen Verlust benennt („vor allem und Vorhaben" tut es nicht). */
+const FUELLWOERTER: ReadonlySet<string> = new Set([
+  'und', 'oder', 'die', 'der', 'das', 'den', 'dem', 'ein', 'eine', 'einen',
+  'es', 'sich', 'um', 'in', 'im', 'von', 'für', 'zu', 'ist', 'sind', 'nicht',
+]);
+
+/** Aufgeteilt, weil Mehrwortphrasen VOR der Wortzerlegung verschwinden müssen —
+ *  sonst bliebe von „vor allem" ein „allem" stehen, das in keiner Liste steht. */
+const KEIN_VERLUST_MEHRWORT: readonly string[] = [...FRAGEWORTE, ...GEWICHTUNGSWOERTER]
+  .filter(w => w.includes(' '));
+const KEIN_VERLUST_EINWORT: ReadonlySet<string> = new Set(
+  [...FRAGEWORTE, ...GEWICHTUNGSWOERTER].filter(w => !w.includes(' ')),
+);
+
+/**
+ * Benennt dieser Eintrag gar keinen Verlust?
+ *
+ * Wahr, wenn nach Abzug der Frage- und Gewichtungswörter nichts Tragendes übrig
+ * bleibt. Der Prompt sagt dem Modell dasselbe; dieser Filter ist der Gurt für
+ * die Wortform, die tatsächlich auftrat („hauptsächlich", „Vorhaben") — die
+ * Reparatur hängt damit nicht an der Laune des Modells.
+ */
+function benenntKeinenVerlust(eintrag: string): boolean {
+  let text = eintrag.toLowerCase();
+  for (const p of KEIN_VERLUST_MEHRWORT) text = text.split(p).join(' ');
+  const woerter = text.split(/[^a-zäöüß]+/).filter(Boolean);
+  if (woerter.length === 0) return true;
+  return woerter.every(w => KEIN_VERLUST_EINWORT.has(w) || FUELLWOERTER.has(w));
+}
+
 // ── Prompt ───────────────────────────────────────────────────────────────────
 
 /**
@@ -160,6 +226,13 @@ function statusListe(): string {
 
 function bereichListe(): string {
   return PLANBARE_BEREICHE.map(b => `${b} (${SUCHBEREICH_LABEL[b]})`).join(' · ');
+}
+
+/** Eine Wortliste, wie sie im Prompt erscheint — aus der Konstante, nicht
+ *  abgeschrieben: sonst filterte der Parser nach anderen Wörtern, als der Prompt
+ *  nennt. */
+function wortListe(woerter: readonly string[]): string {
+  return woerter.map(w => `„${w}"`).join(', ');
 }
 
 /**
@@ -210,7 +283,13 @@ export function baueFrageplanPrompt(
     '  („künstliche intelligenz" statt „ki") oder mit Wortkontext geben („ki-basiert").',
     '  Kürzere Nadeln träfen als Teilzeichenkette beliebige fremde Wörter.',
     '- Nimm nur Begriffe auf, die in einem Antragstext wirklich vorkommen können.',
-    '  Frageworte („welche", „zeig mir", „Vorhaben", „Projekte") sind keine Begriffe.',
+    '  Frageworte benennen das, wonach ohnehin gesucht wird. Sie sind keine',
+    '  Begriffe und gehören auch NICHT nach "ignoriert":',
+    `    ${wortListe(FRAGEWORTE)}`,
+    '- Gewichtungswörter beantwortet die Rangfolge selbst: Vorhaben, die MEHR',
+    '  der gefragten Sachen behandeln, stehen oben. Auch sie gehören nicht nach',
+    '  "ignoriert" — sie gehen nicht verloren:',
+    `    ${wortListe(GEWICHTUNGSWOERTER)}`,
     '- Erfinde keine Feld-, Status- oder Bereichswerte. Was nicht in den Listen steht,',
     '  gehört nach "ignoriert".',
     EIN_ZUG_REGEL,
@@ -359,10 +438,17 @@ export function parseFrageplan(roh: string, frage: string): Frageplan | null {
 
   // Die Meldungen des Modells zuerst — sie sind die verständlicheren; die
   // technisch verworfenen Werte dahinter.
+  //
+  // Gefiltert wird NUR die Liste des Modells: was der Parser oben verworfen hat
+  // (ein unbekanntes Feld, eine zu kurze Nadel), ist immer ein Verlust. Die
+  // Meldungen des Modells sind es nicht immer — es meldet auch Wörter, die es
+  // nach Anweisung übergangen hat.
   const ignoriert: string[] = [];
   for (const i of alsListe(obj.ignoriert)) {
     const t = alsText(i);
-    if (t.length > 0 && !ignoriert.includes(t)) ignoriert.push(t);
+    if (t.length === 0 || ignoriert.includes(t)) continue;
+    if (benenntKeinenVerlust(t)) continue;
+    ignoriert.push(t);
   }
   for (const v of verworfen) if (!ignoriert.includes(v)) ignoriert.push(v);
 

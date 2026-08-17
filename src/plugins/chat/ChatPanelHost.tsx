@@ -18,7 +18,7 @@ import { MessageList, type ActivePanel } from './components/MessageList';
 import { Composer } from './components/Composer';
 import { EmptyState } from './components/EmptyState';
 import { SourcePanel } from './components/SourcePanel';
-import { buildTrefferKontext, kontextChipLabel } from '@/plugins/suche/assistentKontext';
+import { waehleKontextTreffer, baueKontextBlock, kontextChipLabel } from '@/plugins/suche/assistentKontext';
 import './chat.css';
 
 interface ChatPanelHostProps {
@@ -54,9 +54,17 @@ export function ChatPanelHost({
 
   // Angehefteter Kontext aus den obersten Treffern (RAG-`extraContext`-Pfad,
   // nicht `setConversationFkz`). Leer, wenn entfernt oder keine Treffer.
-  const pinnedKontext = useMemo(
-    () => (!kontextDismissed && contextResults.length > 0 ? buildTrefferKontext(contextResults) : ''),
+  //
+  // Die Auswahl fällt EINMAL; Block und Chip lesen dieselbe Liste. Getrennt
+  // gerechnet stand über einem Prompt mit acht Treffern der Chip „Kontext: 558
+  // Suchtreffer" — der Chip zählte die Trefferliste, der Block seinen Auszug.
+  const kontextTreffer = useMemo(
+    () => (kontextDismissed ? [] : waehleKontextTreffer(contextResults)),
     [kontextDismissed, contextResults],
+  );
+  const pinnedKontext = useMemo(
+    () => baueKontextBlock(kontextTreffer, contextResults.length),
+    [kontextTreffer, contextResults],
   );
   const controller = useChatController({ getPinnedContext: () => pinnedKontext });
 
@@ -236,7 +244,7 @@ export function ChatPanelHost({
         {pinnedKontext && (
           <div className="assistant-ctxchip">
             <Paperclip size={12} />
-            <span>{kontextChipLabel(contextResults.length)}</span>
+            <span>{kontextChipLabel(kontextTreffer.length, contextResults.length)}</span>
             <button type="button" onClick={() => setKontextDismissed(true)}
               title="Kontext entfernen" aria-label="Kontext entfernen">
               <X size={12} />

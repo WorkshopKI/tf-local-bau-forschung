@@ -514,6 +514,21 @@ verlöre beide stillschweigend. Umgekehrt gilt: sobald der Plan ein Feld bindet
 oder etwas verlangt, werden beide Stufen bewusst abgeschaltet — sie könnten die
 Einschränkung nicht einhalten. Ein reines Themen-Bündel lässt sie mitlaufen.
 
+**Was „nicht berücksichtigt" nennen darf** (v4.78). Die Zeile unter den Chips
+führt `ignoriert` — und trug bis dahin Wörter, die niemand verloren hatte. Der
+Prompt verlangte Unvereinbares: Frageworte („Vorhaben", „Projekte") seien keine
+Begriffe, **und** alles Nicht-Übersetzte sei zu melden. Das Modell meldete also
+gehorsam das Wort, das auszulassen ihm befohlen war. „hauptsächlich" war der
+schwerere Fall: es **wird** beantwortet — von der Abdeckung, siehe die Tabelle
+oben — und die Zeile behauptete das Gegenteil, an der einen Stelle, die Vertrauen
+herstellen soll.
+
+Beide Wortklassen leben jetzt als Konstanten (`FRAGEWORTE`,
+`GEWICHTUNGSWOERTER`), die der Prompt **rendert** und `parseFrageplan`
+**filtert** — der Prompt für die Satzform, der Filter für die Wortform. Gefiltert
+wird nur die Liste des Modells; was der Parser selbst verwarf (unbekanntes Feld,
+zu kurze Nadel), ist immer ein Verlust und bleibt stehen.
+
 Modul: [frageplan.ts](../../src/core/services/search/frageplan.ts) (rein, ohne
 Uhr und ohne Plugin-Import), Lauf:
 [frageplan-lauf.ts](../../src/core/services/search/frageplan-lauf.ts) (ein

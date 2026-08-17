@@ -19,6 +19,16 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.78 — 2026-08
+
+### Neu
+<!-- - Kurzer, verständlicher Satz (nur bei nutzersichtbaren Änderungen) -->
+### Verbesserungen
+- **Der Assistent bekommt jetzt 40 Ihrer Suchtreffer statt 8** — und zu jedem die Kurzbeschreibung, die Relevanz und die Stellen, an denen das Suchwort gefunden wurde. Vorher kannte er nur Titel und Antragsteller und musste sich den Rest zusammenreimen.
+- **Der Hinweis über dem Gespräch sagt jetzt, wie viel davon wirklich ankommt** („Kontext: 40 von 517 Treffern"). Bisher nannte er die volle Trefferzahl, obwohl nur acht Treffer mitgingen — die KI hielt diese acht für die ganze Liste und urteilte über die übrigen, die sie nie gesehen hatte. Jetzt steht ihr das ausdrücklich im Auftrag, und sie sagt es Ihnen in der Antwort.
+### Bugfixes
+- Bei der Suche mit einer Frage stand unter den Suchbegriffen „nicht berücksichtigt: hauptsächlich · Vorhaben". Beides stimmte nicht: „Vorhaben" ist das Wort für das, was ohnehin gesucht wird, und „hauptsächlich" beantwortet die Reihenfolge der Treffer — Vorhaben, die alle gefragten Themen behandeln, stehen oben.
+
 ## v4.77 — 2026-08
 
 ### Neu
