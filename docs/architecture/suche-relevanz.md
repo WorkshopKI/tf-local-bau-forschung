@@ -611,6 +611,47 @@ Uhr und ohne Plugin-Import), Lauf:
 Aufruf, nur intern, `ziel: 'standard'`, kein Retry). Flag
 `sucheNatuerlicheSprache`, dev + pl.
 
+### 8.1 Die Frage wird auch beantwortet (v4.89)
+
+Bis v4.88 endete der Frage-Modus bei der Trefferliste. Daneben ging das
+Assistenten-Panel auf, trug **dieselbe Frage** im Eingabefeld und wartete auf
+eine zweite Absendung. Wer sie abschickte, bekam eine Antwort über **40 von 663**
+Treffern — der Prompt sagte das korrekt an („die übrigen 623 liegen NICHT vor"),
+aber „drehen sich *hauptsächlich* um Normung" blieb damit unbeantwortet. Zwei
+Absendungen für eine Frage, und die zweite antwortete auf 6 % der Menge.
+
+Der Hebel lag ungenutzt herum: über alle 663 Treffer weiß die App längst genug,
+exakt und kostenlos. `baueBefund`
+([frageBefund.ts](../../src/plugins/suche/frageBefund.ts)) sammelt es ein —
+Relevanzverteilung, Fundstellen, Jahre, Länder, Orte, Antragsteller und vor allem
+**wie viele Treffer ALLE gefragten Sachen tragen**. Genau das meint
+„hauptsächlich", und es ist eine abzählbare Aussage.
+
+Dafür trägt ein Treffer seine `abdeckung` jetzt pur mit
+([search-result.ts](../../src/core/types/search-result.ts)). Gerechnet wurde sie
+immer schon (`feldZuordnung`), sie verschwand aber im `score`, vermischt mit den
+Feldgewichten — von dort ist sie nicht mehr zu trennen.
+
+Der Antwort-Lauf
+([frageantwort-lauf.ts](../../src/core/services/search/frageantwort-lauf.ts))
+hat dieselben sechs Pflichten wie der Frageplan und zwei eigene:
+
+- **Die Zahlen sind gegeben, nicht zu erfinden.** Unter der Antwort steht
+  dieselbe Trefferliste; von zwei Zahlen für dieselbe Sache ist immer eine falsch.
+- **Jede Aussage über ein Vorhaben nennt sein FKZ.** In der Karte werden die
+  Kennzeichen anklickbar — ohne das wäre die Belegpflicht eine Formalie.
+
+Gerechnet wird über **`sichtbar`**, also die Menge nach den Facetten: dieselbe,
+die der Ergebniskopf beziffert. Über `searchResults` wäre die Karte schneller
+fertig, sagte aber „aus 663 Treffern" über eine Liste mit 87.
+
+Die Antwort steht als Karte **über der Trefferliste**
+([antwort/](../../src/plugins/suche/antwort/)), nicht im Panel: gefragt wurde die
+Suche, nicht ein Gesprächspartner. Das Panel geht nicht mehr von selbst auf und
+behält die Frage im Feld (`vorbelegung`) — für Rückfragen, nicht für die erste
+Antwort. Scheitert der Lauf, benennt die Karte das und **die Trefferliste bleibt
+stehen**: sie ist deterministisch entstanden und hängt an keinem Modell.
+
 ## 9 Das Suchfeld schlägt vor (v4.71)
 
 Die Feldsuche aus §7 setzt zweierlei voraus: dass man die Präfixe kennt **und**

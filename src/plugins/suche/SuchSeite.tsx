@@ -11,7 +11,7 @@
  */
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, Sparkles, Bookmark, Download, List, Table } from 'lucide-react';
+import { Loader2, Sparkles, Download, List, Table } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { ViewModeToggle, type ViewModeOption } from '@/components/ui/ViewModeToggle';
 import { DarstellungDropdown } from '@/components/ui/DarstellungDropdown';
@@ -34,6 +34,8 @@ import { AnalysePromptDialog } from './AnalysePromptDialog';
 import { SearchInput } from './SearchInput';
 import { SucheStartzustand, type StartEintrag } from './SucheStartzustand';
 import type { StartReiterId } from './start/startReiter';
+import { FrageAntwortKarte } from './antwort/FrageAntwortKarte';
+import { useFrageAntwort } from './antwort/useFrageAntwort';
 import { KeinTrefferZustand } from './KeinTrefferZustand';
 import { TrefferListe } from './TrefferListe';
 import { SuchMarkierungProvider } from './SuchMarkierung';
@@ -70,10 +72,9 @@ import { baueWortChips, markierWoerter, wirksameAnfrage } from './deutung';
 import { pruefeWortformen } from '@/core/services/search/wortformen-pruefung';
 import { baueSucheDarstellungsAchsen, vergleiche, type SucheAchsenId } from './darstellungsAchsen';
 import { berechneAuswege, type Ausweg } from './auswege';
-import {
-  ladeGespeicherte, speichereGespeicherte, merkeSuche, entferneSuche, vermerkeLauf,
-  type GespeicherteSuche,
-} from './gespeicherteSuchen';
+import type { GespeicherteSuche } from './gespeicherteSuchen';
+import { useGespeicherteSuchen } from './useGespeicherteSuchen';
+import { GespeicherteSuchenMenu } from './GespeicherteSuchenMenu';
 import { haeufigsteSuchen } from './suchseite-utils';
 
 /** UI-Text fuer die Search-Phase-Badge. */
@@ -209,7 +210,7 @@ export function SuchSeite(): React.ReactElement {
   const [promptDialogOpen, setPromptDialogOpen] = useState(false);
   const [ausgeklappt, setAusgeklappt] = useState<ReadonlySet<string>>(new Set());
   const [auswahl, setAuswahl] = useState<ReadonlySet<string>>(new Set());
-  const [gespeichert, setGespeichert] = useState<GespeicherteSuche[]>(() => ladeGespeicherte());
+
   // Die KI-Prüfung der Wortformen. Sitzungs-lokal wie die Abwahl selbst: sie
   // gilt für DIESE Anfrage, nicht für immer.
   const [variantenPruefungLaeuft, setVariantenPruefungLaeuft] = useState(false);
@@ -381,16 +382,7 @@ export function SuchSeite(): React.ReactElement {
     };
   }, [recentSearches, korpusBereit, probelauf, verknuepfung, stammSuche, bereich]);
 
-  const gespeicherteTreffer = useMemo(() => {
-    const m = new Map<string, number>();
-    if (!korpusBereit) return m;
-    for (const g of gespeichert) {
-      m.set(g.id, probelauf(g.query, {
-        verknuepfung: g.verknuepfung, stammSuche: g.stammSuche, bereich: g.bereich,
-      }));
-    }
-    return m;
-  }, [gespeichert, korpusBereit, probelauf]);
+  const gemerkt = useGespeicherteSuchen(probelauf, korpusBereit);
 
   // ---- Aktionen -------------------------------------------------------------
 
@@ -456,11 +448,12 @@ export function SuchSeite(): React.ReactElement {
       setAuswahl(new Set());
       setAusgeklappt(new Set());
       if (analyseActive) analyse.reset();
-      // Wer eine Frage gestellt hat, will sie oft weiterverfolgen. Das Panel geht
-      // mit der Frage im Eingabefeld auf — abgeschickt wird sie NICHT: die Treffer
-      // sind gerade erst da, und eine zweite Antwort, auf die niemand gewartet
-      // hat, kostete einen weiteren Lauf.
-      sucheAssistentUiStore.getState().setOpen(true);
+      // Das Panel geht NICHT mehr von selbst auf (v4.89). Es tat es bis dahin mit
+      // der Frage im Eingabefeld, und der Nutzer musste dieselbe Frage ein
+      // zweites Mal abschicken, um eine Antwort zu bekommen — links ein
+      // Suchauftrag, rechts eine Wissensfrage, gemeint war sie einmal. Die
+      // Antwort steht jetzt als Karte über der Trefferliste; das Panel bleibt
+      // für Rückfragen da und hat die Frage weiterhin im Feld (`vorbelegung`).
     } finally {
       useSucheStore.getState().setPlanLaeuft(false);
     }
@@ -618,7 +611,7 @@ export function SuchSeite(): React.ReactElement {
   function diesenSuchlaufMerken(): void {
     const q = query.trim();
     if (!q) return;
-    const eintrag: GespeicherteSuche = {
+    gemerkt.merken({
       id: q.toLowerCase(),
       name: q,
       query: q,
@@ -627,30 +620,19 @@ export function SuchSeite(): React.ReactElement {
       bereich,
       letzteTrefferzahl: sichtbar.length,
       zuletzt: new Date().toISOString().slice(0, 10),
-    };
-    const naechste = merkeSuche(gespeichert, eintrag);
-    setGespeichert(naechste);
-    speichereGespeicherte(naechste);
+    });
     setToast(`„${q}" gemerkt`);
   }
 
+  /** Eine gemerkte Suche ausführen: sie bringt ihre eigenen Regler mit, deshalb
+   *  steht das hier und nicht im Hook — dort wohnen diese Regler nicht. */
   function fuehreGespeicherteAus(g: GespeicherteSuche): void {
     setVerknuepfung(g.verknuepfung);
     setStammSuche(g.stammSuche);
     setBereich(g.bereich);
     starteSuche(g.query);
-    const naechste = vermerkeLauf(
-      gespeichert, g.id, gespeicherteTreffer.get(g.id) ?? 0, new Date().toISOString().slice(0, 10),
-    );
-    setGespeichert(naechste);
-    speichereGespeicherte(naechste);
+    gemerkt.vermerke(g.id);
     setGespeicherteMenuOffen(false);
-  }
-
-  function loescheGespeicherte(id: string): void {
-    const naechste = entferneSuche(gespeichert, id);
-    setGespeichert(naechste);
-    speichereGespeicherte(naechste);
   }
 
   const darstellungsAchsen = useMemo(
@@ -679,6 +661,17 @@ export function SuchSeite(): React.ReactElement {
    * dann nicht leer) — eine kurz veraltete Zahl ist ehrlicher als eine falsche.
    */
   const trefferzahlSteht = !showSpinner || sichtbar.length > 0;
+
+  /**
+   * Die Antwort auf die gestellte Frage.
+   *
+   * Gerechnet wird über `sichtbar` — dieselbe Menge, die der Ergebniskopf
+   * beziffert und die Tabelle darunter zeigt. Über `searchResults` (vor den
+   * Facetten) wäre die Karte schneller fertig, sagte aber „aus 663 Treffern"
+   * über eine Liste mit 87: zwei Zahlen für dieselbe Sache, und eine davon
+   * falsch. Der Lauf startet erst, wenn die Suche fertig ist.
+   */
+  const frageAntwort = useFrageAntwort(aiBridge, aktiverPlan, sichtbar, trefferzahlSteht && !loading);
   const analyseProgressLabel = analyse.running
     ? (analyse.progress?.totalBatches
         ? `KI erstellt Begründungen… Batch ${analyse.progress.currentBatch ?? 0}/${analyse.progress.totalBatches}`
@@ -714,57 +707,14 @@ export function SuchSeite(): React.ReactElement {
             <h1 className="text-[22px] font-medium text-[var(--tf-text)]">Suche</h1>
             <span className="text-[12.5px] text-[var(--tf-text-tertiary)]" title="So viele Anträge stehen im Suchindex dieses Rechners — die Zahl gilt der ganzen Seite und ändert sich mit keiner Option darunter.">Index: {indexInfo.antraegeGeladen.toLocaleString('de-DE')} Anträge</span>
             <div className="ml-auto flex shrink-0 items-center gap-1">
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => setGespeicherteMenuOffen(o => !o)}
-                  className="inline-flex h-8 items-center gap-1.5 rounded-[8px] px-2.5 text-[12.5px] text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)] cursor-pointer"
-                >
-                  <Bookmark size={13} aria-hidden />
-                  Gespeicherte Suchen
-                  <span className="text-[var(--tf-text-tertiary)]">{gespeichert.length}</span>
-                </button>
-                {gespeicherteMenuOffen && (
-                  <div
-                    className="absolute right-0 top-full z-20 mt-1 w-[320px] rounded-[11px] py-1"
-                    style={{
-                      background: 'var(--tf-sheet)',
-                      border: '0.5px solid var(--tf-border)',
-                      boxShadow: 'var(--tf-shadow-dialog)',
-                    }}
-                  >
-                    {gespeichert.length === 0
-                      ? (
-                        <p className="px-3 py-2 text-[12.5px] text-[var(--tf-text-tertiary)]">
-                          Noch nichts gemerkt.
-                        </p>
-                      )
-                      : gespeichert.map(g => (
-                        <div key={g.id} className="group flex items-center gap-2 px-1">
-                          <button
-                            type="button"
-                            onClick={() => fuehreGespeicherteAus(g)}
-                            className="min-w-0 flex-1 rounded-[6px] px-2 py-1.5 text-left hover:bg-[var(--tf-hover)] cursor-pointer"
-                          >
-                            <span className="block truncate text-[13px] text-[var(--tf-text)]">{g.name}</span>
-                            <span className="block text-[11px] text-[var(--tf-text-tertiary)]">
-                              {gespeicherteTreffer.get(g.id) ?? '—'} Treffer
-                              {g.zuletzt ? ` · zuletzt ${g.zuletzt}` : ''}
-                            </span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => loescheGespeicherte(g.id)}
-                            title="Aus den gespeicherten Suchen entfernen"
-                            className="mr-1 rounded p-1 text-[var(--tf-text-tertiary)] opacity-0 hover:text-[var(--tf-text)] group-hover:opacity-100 cursor-pointer"
-                          >
-                            ✕
-                          </button>
-                        </div>
-                      ))}
-                  </div>
-                )}
-              </div>
+              <GespeicherteSuchenMenu
+                liste={gemerkt.liste}
+                treffer={gemerkt.treffer}
+                offen={gespeicherteMenuOffen}
+                onToggle={() => setGespeicherteMenuOffen(o => !o)}
+                onAusfuehren={fuehreGespeicherteAus}
+                onLoeschen={gemerkt.loeschen}
+              />
               <button
                 type="button"
                 onClick={diesenSuchlaufMerken}
@@ -900,6 +850,20 @@ export function SuchSeite(): React.ReactElement {
                 mit der internen KI in Suchbegriffe, die danach hier stehen und abwählbar sind.
               </span>
             </div>
+          )}
+
+          {/* ── Antwort auf die Frage ────────────────────────────────────── */}
+          {/* Steht ÜBER der Trefferliste und unter der Deutungszeile: erst was
+              gesucht wurde, dann was dabei herauskam, dann die Treffer selbst.
+              Nur im Frage-Modus — eine Stichwortsuche stellt keine Frage. */}
+          {aktiverPlan !== null && (
+            <FrageAntwortKarte
+              laeuft={frageAntwort.laeuft}
+              antwort={frageAntwort.antwort}
+              fehler={frageAntwort.fehler}
+              gesamt={frageAntwort.gesamt}
+              onFkz={fkz => navigate(antragDetailPfad({ aktenzeichen: fkz }))}
+            />
           )}
 
           {/* ── Ergebniskopf ─────────────────────────────────────────────── */}
@@ -1044,15 +1008,15 @@ export function SuchSeite(): React.ReactElement {
               textabschnitteImIndex={indexInfo.textabschnitteImIndex}
               letzte={startEintraege.letzte}
               haeufig={startEintraege.haeufig}
-              gespeichert={gespeichert}
-              gespeicherteTreffer={gespeicherteTreffer}
+              gespeichert={gemerkt.liste}
+              gespeicherteTreffer={gemerkt.treffer}
               wertIndex={wertIndex}
               zaehle={zaehleVorschlag}
               onSuche={starteSuche}
               onFrage={nlFreigeschaltet ? starteFrage : undefined}
               gewuenschterReiter={reiterWunsch}
               onEntferneLetzte={removeRecentSearch}
-              onEntferneGespeicherte={loescheGespeicherte}
+              onEntferneGespeicherte={gemerkt.loeschen}
               kuratorVariant={isKuratorFreigeschaltet() && isDokumentenscanEnabled()}
               onOpenDokumentenquellen={() => navigate('/kuration/dokumentenquellen')}
             />

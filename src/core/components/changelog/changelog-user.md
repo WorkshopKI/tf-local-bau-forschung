@@ -19,6 +19,16 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.89 — 2026-08
+
+### Neu
+- **Wenn Sie eine Frage stellen, bekommen Sie jetzt auch eine Antwort darauf.** Sie erscheint direkt über der Trefferliste, sobald die Suche gelaufen ist — Sie müssen die Frage nicht mehr ein zweites Mal im Assistenten abschicken.
+- **Die Antwort stützt sich auf alle Treffer, nicht auf die ersten vierzig.** Wie viele Vorhaben *alle* gefragten Themen behandeln, wie sich die Treffer über Jahre, Länder und Orte verteilen — das wird ausgezählt und der Antwort mitgegeben. Genannte Förderkennzeichen sind anklickbar.
+
+### Verbesserungen
+- Der Assistent geht nach einer Frage nicht mehr von selbst auf. Er steht weiter bereit, mit Ihrer Frage im Eingabefeld, wenn Sie nachfassen möchten.
+- Schlägt die Antwort fehl, sagt die Karte das — Ihre Trefferliste bleibt davon unberührt.
+
 ## v4.88 — 2026-08
 
 ### Verbesserungen

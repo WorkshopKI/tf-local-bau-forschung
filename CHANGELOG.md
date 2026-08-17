@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.89.0 — eine Frage wird beantwortet, nicht zweimal gestellt (August 2026)
+
+MINOR — Gemeldet: „der User will eine Frage beantwortet haben (und sehen, wonach gesucht wird)". Bisher endete der Frage-Modus bei der Trefferliste; daneben ging das Assistenten-Panel auf, trug dieselbe Frage im Feld und wartete auf eine zweite Absendung — die dann über 40 von 663 Treffern antwortete. Zwei Absendungen für eine Frage, und die zweite sah 6 % der Menge.
+
+- **Die Antwort steht als Karte über der Trefferliste** und läuft von selbst — mit Fortschritt, anklickbaren Kennzeichen und dem Hinweis, dass die Zahlen gezählt und der Text formuliert ist ([antwort/](src/plugins/suche/antwort/))
+- **Sie steht auf einem Befund über ALLE Treffer**, nicht auf 40 Zeilen: Relevanzverteilung, Fundstellen, Jahre, Länder, Orte — und wie viele Treffer **alle** gefragten Themen tragen ([frageBefund.ts](src/plugins/suche/frageBefund.ts))
+- **`abdeckung` reist am Treffer mit** — gerechnet wurde sie immer, sie verschwand nur im `score` ([search-result.ts](src/core/types/search-result.ts))
+- **Der Antwort-Lauf darf keine eigenen Mengen behaupten** und muss jede Aussage über ein Vorhaben mit FKZ belegen; er läuft nur intern, einmal, ohne Retry ([frageantwort-lauf.ts](src/core/services/search/frageantwort-lauf.ts))
+- **Das Panel geht nicht mehr ungefragt auf** ([SuchSeite.tsx](src/plugins/suche/SuchSeite.tsx)); gemerkte Suchen und ihr Menü ziehen aus der Seite aus ([useGespeicherteSuchen.ts](src/plugins/suche/useGespeicherteSuchen.ts), [GespeicherteSuchenMenu.tsx](src/plugins/suche/GespeicherteSuchenMenu.tsx))
+
 ### v4.88.0 — die Vorschlagsliste zeigt alle Werte, von A bis Z (August 2026)
 
 MINOR — Gemeldet: „die Suchvorschläge sollten alphabetisch sein" — und auf Nachfrage „können wir nicht alle nw anzeigen?". Die Häufigkeits-Sortierung beantwortete bisher nur, WELCHE 50 von 1.243 zu sehen sind; zeigt die Liste alle, wird die Frage gegenstandslos. Die alphabetische Ordnung holte dabei zwei Fehlstände ans Licht, die vorher nur weit unten standen.

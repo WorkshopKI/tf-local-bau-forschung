@@ -53,6 +53,17 @@ export interface UnifiedSearchResult {
   /** Drei Stufen aus `score`. Vorberechnet, damit Liste und Tabelle dieselbe
    *  Stufe zeigen und niemand die Schwellen ein zweites Mal führt. */
   relevanzStufe?: RelevanzStufe;
+  /**
+   * Anteil der gefragten SACHEN, für die dieser Treffer eine wörtliche
+   * Fundstelle hat (0..1) — bei einem Frageplan also „wie viele der
+   * Leitbegriffe trägt er".
+   *
+   * Steckt sonst nur im `score`, vermischt mit den Feldgewichten, und ist von
+   * dort nicht mehr zu trennen. Der Befund über eine Treffermenge (v4.89)
+   * braucht sie aber pur: „hauptsächlich um Normung UND Standards" heißt
+   * `abdeckung === 1`, und das ist eine abzählbare Aussage, keine Schätzung.
+   */
+  abdeckung?: number;
   /** Belegstelle aus einem Dokument, das zu diesem Antrag gehört. Nur gesetzt,
    *  wenn ein Dokumenttreffer unter den Antrag gefaltet wurde. */
   textstelle?: Textstelle;

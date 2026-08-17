@@ -202,6 +202,7 @@ function baueAntragTreffer(
     method,
     trefferfelder: sortiereFelder(akku.felder),
     relevanzStufe: relevanzStufe(score),
+    abdeckung: akku.wortAbdeckung,
     textstelle: akku.textstelle,
   };
 }
