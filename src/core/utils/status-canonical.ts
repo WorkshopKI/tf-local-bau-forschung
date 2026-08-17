@@ -39,9 +39,14 @@
  *
  * Zwei frei einstellbare Achsen mit ueberlappenden Woertern waeren ausserdem
  * genau das Durcheinander, gegen das die Umbenennung von v2.409 geschrieben ist.
- * Die Verbindung zwischen beiden ist `ZahPhase.kategorieVorgabe`: die PL
- * entscheidet, in welche Arbeitsliste ein Schritt einzahlt — nicht, welche
- * Arbeitslisten es gibt. Konventionstest: `status-category-not-curated`.
+ *
+ * **Die beiden Achsen sind seit v4.87 wirklich getrennt.** Bis dahin verband sie
+ * ein Feld `ZahPhase.kategorieVorgabe` — die bewegliche Achse steuerte also die
+ * feste, und ein Phasen-Zuschnitt verschob 448 Antraege zwischen Reitern, ohne
+ * dass es jemand beschlossen haette (v3.25). Die Arbeitsliste haengt jetzt am
+ * Statuscode (`CODE_ZU_ARBEITSLISTE` in `core/status/kategorie-ableitung.ts`);
+ * die Phase beschriftet den Verfahrensschritt und steuert Zieltage und
+ * Fristlauf. Konventionstest: `status-category-not-curated`.
  *
  * Die Bezeichnungen stehen in `status-category-labels.ts`, nicht hier.
  */
@@ -57,10 +62,12 @@ export type StatusCategory =
                     // als die Antrags-Phase (TIB/BIB).
   | 'abgelehnt'     // negativ entschieden. **Vom Foerder-Katalog unbesetzt**: dort
                     // endet der negative Pfad ueber `abgelehnt/zurueckgezogen` in
-                    // `abgeschlossen`. Die Kategorie bleibt als semantischer Platz
-                    // (Farbe/Label/Kanban-Lane haengen an ihr) und traegt Werte
-                    // aus kuratierten Katalog-Fassungen, die einen Code ohne
-                    // ZAH-Phase fuehren.
+                    // `abgeschlossen`. Seit v4.87 ist sie damit von KEINEM Code
+                    // erreichbar — vorher konnte eine kuratierte Fassung sie ueber
+                    // `kategorieVorgabe` besetzen, und genau dieser Weg ist zu.
+                    // Sie bleibt als semantischer Platz: Farbe, Label und
+                    // Kanban-Lane haengen an ihr, `isAbgelehntZurueckgezogen`
+                    // fragt sie ab, und fremde Domaenen duerfen sie fuellen.
   | 'abgeschlossen' // abgeschlossen (Schlussvermerk, abgebrochen, zurueckgezogen)
   | 'sonstige';     // Irrlaeufer, unvollstaendig, leer, unbekannt
 

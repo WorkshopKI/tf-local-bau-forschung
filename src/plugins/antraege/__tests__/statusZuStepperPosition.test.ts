@@ -145,8 +145,6 @@ describe('Die Leiste trägt jeden Zuschnitt zwischen 3 und 9 Phasen', () => {
     label: `Schritt ${i + 1}`,
     reihenfolge: (i + 1) * 10,
     zieltageRelevant: i < n - 1,
-    kategorieVorgabe: i === 0 ? 'offen' as const
-      : i === n - 1 ? 'abgeschlossen' as const : 'in_pruefung' as const,
   }));
 
   it('drei Phasen: Stationszahl folgt, terminal landet auf der letzten', () => {
@@ -164,7 +162,9 @@ describe('Die Leiste trägt jeden Zuschnitt zwischen 3 und 9 Phasen', () => {
   });
 
   it('eine Zuordnung auf eine gelöschte Phase gibt KEINE Station 0', () => {
-    // Der Schnitt kennt `p1…p3`; die Codes zeigen weiter auf `eingang` & Co.
+    // Der Schnitt kennt `p1…p3`; die Codes zeigen weiter auf `eingang` & Co.,
+    // sind also sämtlich verwaist. Kein Schritt trägt danach eine Arbeitsliste —
+    // die Näherung in `stationFuerKategorie` fängt das an den Rändern ab.
     setZahPhasenSnapshot(schnitt(3));
     const { station } = statusZuStepperPosition('beantragt');
     expect(station).not.toBe(0);

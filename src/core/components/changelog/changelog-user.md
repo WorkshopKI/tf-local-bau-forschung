@@ -19,6 +19,16 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.90 — 2026-08
+
+### Neu
+- Auf der Startseite gibt es jetzt **ein** Widget „Fristen" statt zweier. Es zeigt beides in einer Liste — Vorgänge, an denen zu lange nichts passiert ist, und überfällige Meilensteine —, am weitesten über der Frist zuerst. Jede Zeile sagt, woher die Warnung kommt.
+- Im Status-Cockpit erklärt der neue Reiter **„Ebenen"**, welche Angaben über einem Antrag liegen, wer sie pflegt und was sich ändert, wenn man an einer dreht. Dort wird nichts eingestellt — er gibt nur Auskunft, mit den Zahlen des geltenden Stands.
+
+### Verbesserungen
+- **Ein neuer Verfahrensschnitt verschiebt keine Anträge mehr zwischen den Reitern.** Bisher hing beides zusammen: wer im Baum einen Status umhängte, änderte nebenbei, in welcher Arbeitsliste er auftaucht — einmal waren davon 448 Anträge betroffen, ohne dass es jemand entschieden hätte. Die Arbeitsliste steht jetzt fest am Status selbst; der Schnitt lässt sich frei umbauen.
+- Im Phasen-Editor entfällt deshalb die Auswahl „Arbeitsliste". An ihrer Stelle steht ein Satz, der sagt, wo die Zuordnung jetzt herkommt.
+
 ## v4.89 — 2026-08
 
 ### Neu

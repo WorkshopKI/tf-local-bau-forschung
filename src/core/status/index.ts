@@ -62,7 +62,7 @@ export {
   ZAH_PHASEN_REIHENFOLGE, ZAH_PHASE_LABEL, ZAH_MARKER_LABEL, SEED_ZAH_PHASEN,
   SEED_CODE_ZU_ZAH_PHASE, SEED_MARKER_CODES, SEED_PHASEN_SCHNITT,
   zahPhaseRang, zahPhaseLabel, zahPhasenVon, zahPhasenGeneration,
-  geltenderSchnitt, phaseFuerCode, istMarkerCode, kategorieVorgabeVon,
+  geltenderSchnitt, phaseFuerCode, istMarkerCode,
   fristLaeuftVon,
   type PhasenSchnitt,
 } from './zah-phasen';
@@ -74,9 +74,9 @@ export {
   type VerwaisteZuordnungen,
 } from './zah-phasen-edit';
 export {
-  kategorieFuerCode, kategorieFuerPhase, codeFuerStatusText, zahPhaseFuerStatusText,
+  kategorieFuerCode, phasenFuerKategorie, codeFuerStatusText, zahPhaseFuerStatusText,
   baueFoerderKategorieEintraege, baueFoerderSeedEintraege,
-  NACHFORDERUNG_CODES, BEWILLIGT_CODE,
+  CODE_ZU_ARBEITSLISTE, NACHFORDERUNG_CODES, BEWILLIGT_CODE,
   type KategorieEintrag,
 } from './kategorie-ableitung';
 export { indexNachSchreibweise } from './wert-index';

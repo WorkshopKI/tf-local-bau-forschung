@@ -14,7 +14,6 @@
  * Rein: keine IO, keine Uhr, kein React.
  */
 import { zaehlwort } from '@/core/utils/zaehlwort';
-import { getStatusCategoryLabel } from '@/core/utils/status-category-labels';
 import { katalogDrift, zahPhaseLabel } from '@/core/status';
 import type {
   KatalogDrift, MappingVersion, PhasenPaket, UebernahmeBericht, ZahPhase, ZahPhaseId,
@@ -173,21 +172,14 @@ export function driftGruppen(
       id: `umsortiert:${x.id}`,
       text: `${q(x.label)} steht an ${stelle(x.nachher)} statt an ${stelle(x.vorher)} Stelle`,
     })),
-    ...p.vorgabeGeaendert.map(x => {
-      const teile = [
-        ...(x.arbeitsliste
-          ? [`Arbeitsliste ${getStatusCategoryLabel(x.arbeitsliste.alt)} → `
-            + `${getStatusCategoryLabel(x.arbeitsliste.neu)}`]
-          : []),
-        ...(x.zieltageRelevant
-          ? [x.zieltageRelevant.neu ? 'Zieltage gelten jetzt' : 'Zieltage gelten nicht mehr']
-          : []),
-      ];
-      return {
-        id: `vorgabe:${x.id}`,
-        text: `${q(x.label)}: ${teile.join(', ')} (${zaehlwort(x.codeAnzahl, 'Code', 'Codes')})`,
-      };
-    }),
+    // Die Arbeitsliste stand hier bis v4.86 als zweiter Teil daneben; sie hängt
+    // seit v4.87 am Code und kann zwischen Fassungen nicht mehr abweichen.
+    ...p.vorgabeGeaendert.map(x => ({
+      id: `vorgabe:${x.id}`,
+      text: `${q(x.label)}: `
+        + `${x.zieltageRelevant?.neu ? 'Zieltage gelten jetzt' : 'Zieltage gelten nicht mehr'}`
+        + ` (${zaehlwort(x.codeAnzahl, 'Code', 'Codes')})`,
+    })),
   ];
 
   return [

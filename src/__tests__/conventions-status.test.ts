@@ -409,23 +409,37 @@ describe('status-achsen (Arbeitsliste fest, Verfahrensschritt beweglich)', () =>
   // am Phasenschnitt nebenbei die taegliche Arbeitsliste der ABs leeren.
   const LABEL_QUELLE = `${sep}core${sep}utils${sep}status-category-labels.ts`;
 
-  it('status-category-not-curated: die Fassung fuehrt keine Kategorien-LISTE', () => {
-    // Der Katalog darf die Kategorie ABLEITEN (ZahPhase.kategorieVorgabe traegt
-    // EINEN Wert je Phase) — aber kein Feld der Fassung darf eine Liste von
-    // StatusCategory fuehren. Das waere die zweite, bewegliche Achse.
-    // Strukturell geprueft am Fassungs-Typ selbst statt per Tree-Grep: nur hier
+  it('status-category-not-curated: KEIN Feld der Fassung entscheidet ueber eine Arbeitsliste', () => {
+    // Bis v4.86 war dieser Wachter halb offen: er verbot der Fassung eine LISTE
+    // von StatusCategory, erlaubte aber EINEN Wert je Phase
+    // (`ZahPhase.kategorieVorgabe`). Genau durch diese Tuer verschob
+    // Katalog-Fassung 19 im August 2026 448 Antraege zwischen Arbeitslisten —
+    // die bewegliche Achse steuerte die feste. Seither ist die Tuer zu, und
+    // dieser Test misst das: in `typen.ts` darf `StatusCategory` in KEINEM
+    // Fassungs-Typ mehr als Feldtyp vorkommen, weder einzeln noch als Liste.
+    //
+    // Strukturell geprueft an den Typen selbst statt per Tree-Grep: nur hier
     // entstuende so ein Feld.
     const typen = readFileSync(join(ROOT, 'core', 'status', 'typen.ts'), 'utf8');
-    const block = typen.slice(typen.indexOf('export interface MappingVersion'));
-    const ende = block.indexOf('\n}');
-    const felder = block.slice(0, ende);
-    const treffer = felder.split('\n').filter(l => /StatusCategory\s*\[\]/.test(l));
+    const treffer: string[] = [];
+    for (const iface of ['MappingVersion', 'ZahPhase', 'StatusFeldEintrag']) {
+      const start = typen.indexOf(`export interface ${iface}`);
+      if (start < 0) continue;
+      const block = typen.slice(start);
+      const felder = block.slice(0, block.indexOf('\n}'));
+      for (const zeile of felder.split('\n')) {
+        // Nur Feld-Deklarationen (`name?: StatusCategory`), nicht Kommentare.
+        if (/^\s*\w+\??\s*:\s*StatusCategory/.test(zeile)) treffer.push(`${iface}: ${zeile.trim()}`);
+      }
+    }
     if (treffer.length > 0) {
       expect.fail(
-        `MappingVersion fuehrt eine Kategorien-Liste:\n${treffer.join('\n')}\n\n` +
-        `Die Arbeitslisten-Achse (StatusCategory) bleibt im Code. Die PL\n` +
-        `entscheidet ueber ZahPhase.kategorieVorgabe, in WELCHE Arbeitsliste ein\n` +
-        `Verfahrensschritt einzahlt — nicht, welche Arbeitslisten es gibt.`,
+        `Ein Fassungs-Typ traegt wieder eine Arbeitsliste:\n${treffer.join('\n')}\n\n` +
+        `Die Arbeitslisten-Achse (StatusCategory) bleibt im Code —\n` +
+        ``+`CODE_ZU_ARBEITSLISTE in core/status/kategorie-ableitung.ts, gekeyt am\n` +
+        `Statuscode. Was in der Fassung steht, ist kuratierbar; was kuratierbar\n` +
+        `ist, aendert sich — und dann wandern Antraege zwischen Reitern, ohne\n` +
+        `dass es jemand beschlossen hat. Siehe docs/architecture/status-achsen.md.`,
       );
     }
   });
@@ -720,11 +734,12 @@ describe('zah-phase-single-source (Verfahrensschritt: eine Quelle, keine Kopien)
 
   const HINWEIS =
     `Statt einer Kopie die Register-Leser aus core/status/zah-phasen.ts:\n` +
-    `  zahPhaseLabel()      — Beschriftung des geltenden Schnitts\n` +
-    `  phaseFuerCode()      — Code -> Phase, kuratiert\n` +
-    `  kategorieVorgabeVon()— welche Arbeitsliste die Phase speist\n` +
-    `  fristLaeuftVon()     — laeuft in dieser Phase die Antragsfrist?\n` +
-    `Der Verfahrensschritt ist beweglich, die Arbeitsliste steht still\n` +
+    `  zahPhaseLabel()       — Beschriftung des geltenden Schnitts\n` +
+    `  phaseFuerCode()       — Code -> Phase, kuratiert\n` +
+    `  fristLaeuftVon()      — laeuft in dieser Phase die Antragsfrist?\n` +
+    `  phasenFuerKategorie() — Rueckrichtung: welche Schritte tragen diese Arbeitsliste\n` +
+    `Der Verfahrensschritt ist beweglich, die Arbeitsliste steht still — und\n` +
+    `seit v4.87 haengt sie am Code statt an der Phase\n` +
     `(docs/architecture/status-achsen.md).\n`;
 
   it('keine Phasen-ID als Literal', () => {

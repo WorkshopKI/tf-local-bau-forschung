@@ -60,6 +60,13 @@ export type ZahPhaseId = string;
 /**
  * Ein Eintrag der ZAH-Phasen-Tabelle. Kuratierbar im Baum-Editor des
  * Status-Cockpits; die Auslieferung steht in `SEED_ZAH_PHASEN`.
+ *
+ * **Eine Phase sagt nichts über Arbeitslisten** (seit v4.87). Sie trug dafür bis
+ * v4.86 ein Feld `kategorieVorgabe` — damit konnte ein Umhängen im Baum Anträge
+ * zwischen Reitern verschieben, ohne dass es jemand beschlossen hätte (v3.25:
+ * 448 Stück). Die Arbeitsliste hängt am Code (`CODE_ZU_ARBEITSLISTE`); was hier
+ * steht, wirkt auf Anzeige, Zieltage und Fristlauf. Ein Altfeld aus einer
+ * früheren Fassung wird beim Lesen ignoriert.
  */
 export interface ZahPhase {
   id: ZahPhaseId;
@@ -73,13 +80,6 @@ export interface ZahPhase {
    * Fehlt in Fassungen vor v2.409 — `zahPhasenVon` ergänzt aus dem Seed.
    */
   zieltageRelevant?: boolean;
-  /**
-   * In welche Arbeitsliste ({@link StatusCategory}) Status dieser Phase fallen.
-   * Löste die feste Tabelle `ZAH_PHASE_ZU_KATEGORIE` ab.
-   *
-   * Fehlt in Fassungen vor v2.409 — `zahPhasenVon` ergänzt aus dem Seed.
-   */
-  kategorieVorgabe?: StatusCategory;
   /**
    * Läuft die Bearbeitungsfrist (90 Tage) in dieser Phase überhaupt noch?
    *

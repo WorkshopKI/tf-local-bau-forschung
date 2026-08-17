@@ -16,7 +16,7 @@ import { setzeCodePhasen } from '@/core/status';
 import type { MappingVersion, StatusWertEintrag, ZahPhase } from '@/core/status';
 
 const phase = (id: string, reihenfolge: number, label = id): ZahPhase => ({
-  id, label, reihenfolge, zieltageRelevant: true, kategorieVorgabe: 'offen',
+  id, label, reihenfolge, zieltageRelevant: true,
 });
 
 const wert = (

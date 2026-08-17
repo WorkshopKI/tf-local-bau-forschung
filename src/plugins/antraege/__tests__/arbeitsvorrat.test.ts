@@ -24,12 +24,16 @@ function a(status: string): { status: ReturnType<typeof asAntragStatusRaw> } {
 
 describe('arbeitsvorratSectionOf', () => {
   it('terminale Status → Archiv', () => {
-    for (const s of ['Schlussvermerk', 'beendet', 'abgebrochen', 'abgelehnt/zurückgezogen']) {
+    // `beendet`/`abgebrochen` stehen hier seit v4.87 NICHT mehr: vor dem
+    // Schlussvermerk (99) ist die Arbeit nicht fertig, sie zaehlen zur
+    // Begleitung. Siehe CODE_ZU_ARBEITSLISTE.
+    for (const s of ['Schlussvermerk', 'abgelehnt/zurückgezogen']) {
       expect(arbeitsvorratSectionOf(a(s))).toBe('archiv');
     }
   });
   it('nicht-terminale Status → Arbeitsvorrat (inkl. bewilligt + Begleitung)', () => {
-    for (const s of ['beantragt', 'bearbeitungsreif', 'NF gestellt', 'bewilligungsreif', 'bewilligt', 'VN geprüft']) {
+    for (const s of ['beantragt', 'bearbeitungsreif', 'NF gestellt', 'bewilligungsreif',
+      'bewilligt', 'VN geprüft', 'beendet', 'abgebrochen']) {
       expect(arbeitsvorratSectionOf(a(s))).toBe('in_arbeit');
     }
   });
@@ -59,7 +63,9 @@ describe('archivAufschluesselung', () => {
       a('abgelehnt/zurückgezogen'),
       a('beantragt'), a('bewilligt'),
     ];
-    expect(archivAufschluesselung(rows)).toEqual({ schlussvermerk: 3, abgelehntZurueckgezogen: 1 });
+    // `beendet`/`abgebrochen` sind seit v4.87 nicht terminal und zaehlen daher
+    // nicht mit — genau das prueft „ignoriert nicht-terminale".
+    expect(archivAufschluesselung(rows)).toEqual({ schlussvermerk: 1, abgelehntZurueckgezogen: 1 });
   });
   it('leere Liste → beide null', () => {
     expect(archivAufschluesselung([])).toEqual({ schlussvermerk: 0, abgelehntZurueckgezogen: 0 });

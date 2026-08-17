@@ -103,7 +103,8 @@ describe('fristAnzeige — Einzelantrag (phasen-aware Frist)', () => {
  */
 describe('fristAnzeige — die drei Zustände sind unterscheidbar', () => {
   it('terminaler Status → angehalten, kein Ampelpunkt', () => {
-    for (const s of ['Schlussvermerk', 'abgelehnt/zurückgezogen', 'abgebrochen']) {
+    // `abgebrochen` ist seit v4.87 nicht terminal (der Schlussvermerk fehlt noch).
+    for (const s of ['Schlussvermerk', 'abgelehnt/zurückgezogen']) {
       const a = fristAnzeige(antrag(s), nowFor(10));
       expect(a.zustand, s).toBe('angehalten');
       expect(a.ampel, s).toBeNull();

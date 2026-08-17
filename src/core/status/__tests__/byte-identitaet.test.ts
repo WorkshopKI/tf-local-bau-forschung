@@ -26,6 +26,7 @@ import {
   type StatusCategory,
 } from '@/core/utils/status-canonical';
 import { setStatusKatalogSnapshot } from '@/core/status/snapshot';
+import { zahPhaseFuerStatusText } from '@/core/status/kategorie-ableitung';
 import { baueSeedVersion } from '@/core/status/seed';
 import { STATUS_CODE_KATALOG } from '@/core/status/status-codes';
 import { SEED_MARKER_CODES } from '@/core/status/zah-phasen';
@@ -123,17 +124,24 @@ describe('Byte-Identität Katalog-Snapshot vs. eingebaute CATEGORY_MAP', () => {
     expect(getStatusCategory('Schlussvermerk')).toBe('abgeschlossen');
   });
 
-  it('eine PL-Umhängung der ZAH-Phase zieht die Kategorie mit', () => {
-    // Die Zusage des Vorgangssystems: umhängen ist eine Katalog-Zeile, kein
-    // Deployment. Sie trägt nur, wenn die Kategorie der Phase folgt.
+  it('eine PL-Umhängung bewegt den Verfahrensschritt — und NUR ihn', () => {
+    // Bis v4.86 zog die Umhängung die Arbeitsliste mit. Das las sich wie die
+    // Zusage des Vorgangssystems („umhängen ist eine Katalog-Zeile, kein
+    // Deployment") und war zugleich der Weg, auf dem Katalog-Fassung 19
+    // unbemerkt 448 Anträge zwischen Reitern verschob. Die Zusage gilt weiter
+    // für alles, was die Phase trägt — Verfahrensleiste, Gruppierung, Zieltage,
+    // Fristlauf. Die Arbeitsliste gehört seit v4.87 nicht mehr dazu.
     const alt = baueSeedVersion();
     const umgehaengt = {
       ...alt,
       werte: alt.werte.map(w => (w.code === 40 ? { ...w, zahPhaseId: 'entscheidung' as const } : w)),
     };
     setStatusKatalogSnapshot(umgehaengt);
-    expect(getStatusCategory('Gutachten fertig')).toBe('entscheidung');
+    expect(zahPhaseFuerStatusText('Gutachten fertig'), 'der Schritt folgt').toBe('entscheidung');
+    expect(getStatusCategory('Gutachten fertig'), 'die Arbeitsliste nicht').toBe('in_pruefung');
+
     setStatusKatalogSnapshot(baueSeedVersion());
+    expect(zahPhaseFuerStatusText('Gutachten fertig')).toBe('pruefung');
     expect(getStatusCategory('Gutachten fertig')).toBe('in_pruefung');
   });
 });

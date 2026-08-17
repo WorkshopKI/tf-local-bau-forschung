@@ -29,7 +29,9 @@
 import { getStatusCategory, isAbgelehntZurueckgezogenStatus } from '@/core/utils/status-canonical';
 // Direktimporte auf die Quellmodule, NICHT über das Barrel `@/core/status` — das
 // zieht `snapshot.ts` mit und damit einen Laufzeit-Zyklus (Zyklen-Wächter).
-import { zahPhaseFuerStatusText, codeFuerStatusText } from '@/core/status/kategorie-ableitung';
+import {
+  zahPhaseFuerStatusText, codeFuerStatusText, phasenFuerKategorie,
+} from '@/core/status/kategorie-ableitung';
 import { istMarkerCode, zahPhasenVon } from '@/core/status/zah-phasen';
 import type { StatusCategory } from '@/core/utils/status-canonical';
 import type { ZahPhaseId } from '@/core/status/typen';
@@ -82,20 +84,30 @@ function stationVon(phase: ZahPhaseId): StepperStation {
 }
 
 /**
- * Die letzte Phase, deren Arbeitsliste zu dieser Kategorie führt.
+ * Die Station der Phase, auf deren Codes diese Arbeitsliste fällt.
  *
  * Ersetzt die früher fest verdrahteten Ids (`stationVon('abgeschlossen')` …):
  * ein Schnitt aus drei Phasen hat keine Phase namens `abgeschlossen`, aber sehr
- * wohl eine, die auf `abgeschlossen` einzahlt. Die LETZTE gewinnt, weil die
- * Kategorie den Endzustand meint — bei `offen` (Eingang und Vollständigkeit
- * teilen sie sich) wollen wir dagegen die erste, deshalb der Parameter.
+ * wohl eine, auf deren Codes `abgeschlossen` fällt. Die LETZTE gewinnt, weil die
+ * Kategorie den Endzustand meint — bei `offen` (mehrere Schritte teilen sie
+ * sich) wollen wir dagegen die erste, deshalb der Parameter.
+ *
+ * Die Zuordnung kommt seit v4.87 aus `phasenFuerKategorie` — gemessen an den
+ * Codes des geltenden Schnitts statt an einer Vorgabe am Verfahrensschritt.
  */
 function stationFuerKategorie(kategorie: StatusCategory, welche: 'erste' | 'letzte'): StepperStation {
-  const treffer = zahPhasenVon()
-    .map((p, i) => ({ p, station: i + 1 }))
-    .filter(x => x.p.kategorieVorgabe === kategorie);
-  const gewaehlt = welche === 'erste' ? treffer[0] : treffer[treffer.length - 1];
-  return gewaehlt?.station ?? null;
+  const ids = phasenFuerKategorie(kategorie);
+  const id = welche === 'erste' ? ids[0] : ids[ids.length - 1];
+  if (id !== undefined) return stationVon(id);
+  // Kein Schritt des Zuschnitts trägt Codes dieser Arbeitsliste. Zwei Fälle,
+  // ein sinnvoller Ausgang: `abgelehnt` ist vom Förder-Katalog gar nicht besetzt,
+  // und ein Zuschnitt, dessen Zuordnungen sämtlich verwaist sind, weiß es nicht
+  // besser. Statt gar keiner Station der Rand des Verfahrens — die Leiste zeigt
+  // damit „ganz am Anfang" bzw. „ganz am Ende", was für einen Wert ohne
+  // Katalog-Treffer die ehrlichste Näherung ist.
+  const anzahl = getStepperStations().length;
+  if (anzahl === 0) return null;
+  return welche === 'erste' ? 1 : anzahl;
 }
 
 /**
@@ -134,23 +146,25 @@ export function statusZuStepperPosition(status: unknown): StepperPosition {
 /**
  * Fallback für unkuratierte Werte ohne amtlichen Code.
  *
- * Läuft über `kategorieVorgabe` statt über feste Phasen-Ids: welche Phase eine
- * Kategorie trägt, entscheidet seit v2.409 der Katalog. `nachforderung` (seit
- * v2.411 allein Code 35 „NF gestellt") und `bewilligt` haben keine eigene Phase
- * — sie sind Code-Ausnahmen innerhalb von Vollständigkeit bzw. Begleitung und
- * erben deshalb die Station der Phase, in der sie fachlich stecken.
+ * Läuft über die Codes des geltenden Zuschnitts, nicht über feste Phasen-Ids:
+ * welcher Schritt eine Arbeitsliste trägt, ergibt sich aus den Status, die an
+ * ihm hängen. `nachforderung` und `bewilligt` brauchen dafür seit v4.87 keinen
+ * Sonderfall mehr — sie haben zwar keine eigene Phase, aber ihre Codes (35 bzw.
+ * 59) hängen an einer, und genau die findet die Ableitung.
  */
 function stationAusKategorie(status: unknown): StepperStation {
   const kategorie = getStatusCategory(status);
   switch (kategorie) {
-    case 'offen': return stationFuerKategorie('offen', 'erste');
-    case 'nachforderung': return stationFuerKategorie('offen', 'letzte');
+    case 'offen':
+    case 'nachforderung':
     case 'in_pruefung':
     case 'entscheidung':
+    case 'bewilligt':
     case 'begleitung':
     case 'abgeschlossen': return stationFuerKategorie(kategorie, 'erste');
-    case 'bewilligt': return stationFuerKategorie('begleitung', 'erste');
-    case 'abgelehnt': return stationFuerKategorie('abgeschlossen', 'letzte');
+    // Vom Förder-Katalog unbesetzt (siehe `StatusCategory`) — die Näherung in
+    // `stationFuerKategorie` setzt ihn ans Ende, dorthin gehört er fachlich.
+    case 'abgelehnt': return stationFuerKategorie('abgelehnt', 'letzte');
     default: return null;   // `sonstige`/leer: keine Aussage, keine Station
   }
 }

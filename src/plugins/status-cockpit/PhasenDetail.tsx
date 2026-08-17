@@ -3,9 +3,11 @@
  *
  * Zwei Gestalten, weil der Baum zwei Sorten Knoten führt:
  *
- * - **Phase** — Beschriftung, Arbeitslisten-Vorgabe, Zieltage-Relevanz. Das sind
- *   die drei Angaben, die eine Phase seit v2.409 selbst trägt; früher standen
- *   sie in festen Code-Tabellen.
+ * - **Phase** — Beschriftung, Zieltage-Relevanz, Fristlauf. Eine Arbeitslisten-
+ *   Vorgabe stand hier bis v4.86 und ist entfallen: sie ließ den beweglichen
+ *   Zuschnitt die feste Achse steuern. An ihrer Stelle steht ein Satz, der sagt
+ *   wohin — ein Feld, das ersatzlos verschwindet, schickt den Kurator auf die
+ *   Suche.
  * - **Status-Code** — Label, Prominenz, Zieltage, aktiv. Dieselben Felder wie in
  *   der Tabelle, nur an EINER Stelle statt an zwei Zeilen: der Code steht unter
  *   TV- und Verbund-Feld, und beide werden gemeinsam gesetzt. Darunter steht,
@@ -18,8 +20,8 @@ import { Badge } from '@/components/ui/badge';
 import type { StatusCockpitApi } from './useStatusCockpit';
 import type { PhasenBaumKnoten } from './phasenKnoten';
 import { StatusHerkunftBlock } from '@/components/vorgang/StatusHerkunftBlock';
-import { KATEGORIE_LABEL, KATEGORIE_WERTE, PROMINENZ_LABEL, PROMINENZ_WERTE, feldKlasse, feldStil } from './labels';
-import type { Prominenz, StatusCategory, StatusWertEintrag } from '@/core/status';
+import { PROMINENZ_LABEL, PROMINENZ_WERTE, feldKlasse, feldStil } from './labels';
+import type { Prominenz, StatusWertEintrag } from '@/core/status';
 import { zaehlwort } from '@/core/utils/zaehlwort';
 
 const feldLabelKlasse = 'text-[11px] uppercase tracking-wide text-[var(--tf-text-tertiary)]';
@@ -59,19 +61,15 @@ function PhaseDetail({ knoten, api }: {
         />
       </Feld>
 
-      <Feld
-        titel="Arbeitsliste"
-        hinweis="In welchen Reiter von Förderanträge Status dieser Phase fallen."
-      >
-        <select
-          value={p.kategorieVorgabe} className={feldKlasse} style={feldStil}
-          onChange={e => api.setZahPhase(p.id, {
-            kategorieVorgabe: e.target.value as StatusCategory,
-          })}
-        >
-          {KATEGORIE_WERTE.map(k => <option key={k} value={k}>{KATEGORIE_LABEL[k]}</option>)}
-        </select>
-      </Feld>
+      <div className="flex flex-col gap-1">
+        <span className={feldLabelKlasse}>Arbeitsliste</span>
+        <span className="text-[11.5px] text-[var(--tf-text-tertiary)]">
+          Wird hier nicht mehr gesetzt. In welchen Reiter von <em>Förderanträge</em> ein
+          Status fällt, hängt am Statuscode selbst — damit ein neuer Zuschnitt keine
+          Anträge zwischen Reitern verschiebt. Der Wert steht in der Tabellen-Sicht je
+          Statuswert.
+        </span>
+      </div>
 
       <label className="flex items-start gap-2">
         <input

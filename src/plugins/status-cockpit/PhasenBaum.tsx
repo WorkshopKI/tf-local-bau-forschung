@@ -78,7 +78,7 @@ export function PhasenBaum({ api }: { api: StatusCockpitApi }): React.ReactEleme
           title={vollBesetzt
             ? `Höchstens ${MAX_PHASEN} Schritte — darüber wird die Verfahrensleiste unlesbar.`
             : undefined}
-          onClick={() => api.addZahPhase('Neuer Schritt', 'sonstige')}
+          onClick={() => api.addZahPhase('Neuer Schritt')}
         >
           <Plus size={13} /> Schritt anlegen
         </Button>

@@ -11,6 +11,10 @@
  * sechstes Delta auffliegt: wer die Ableitung ändert und hier nichts ergänzt,
  * verschiebt stillschweigend, wo Anträge in den Arbeitslisten stehen.
  *
+ * `neu` ist immer der **heutige** Stand, nicht der von v2.383: bei Code 72 hat
+ * ihn v4.87 ein zweites Mal bewegt. Der Vergleichspunkt `alt` bleibt die
+ * Handtabelle — was diese Liste misst, ist der Abstand zu ihr.
+ *
  * `alt` ist, was die Handtabelle lieferte — inklusive ihres VN/ZB-Pattern-
  * Fallbacks. Die Zählungen stammen aus dem Bestand vom 02.08.2026 (14 221
  * Anträge / 7 534 Verbünde, Katalog-Fassung 7) und sind ein **Protokoll**: sie
@@ -38,13 +42,16 @@ export const KATEGORIE_DELTAS: readonly KategorieDelta[] = [
   // Vorgangsart) — 36 steht wieder auf `offen`, ist also kein Delta mehr.
   {
     statusRoh: 'Stellungnahme zur Rücknahmeempfehlung', code: 72,
-    alt: 'sonstige', neu: 'entscheidung',
+    alt: 'sonstige', neu: 'in_pruefung',
     anzahl: { tv: 15, vb: 1 },
     erklaerung:
       'Die Handtabelle führte nur die ABGEKÜRZTE Schreibweise („…Rücknahmeempf."); '
       + 'der Export schreibt sie aus. 16 Vorgänge fielen deshalb auf `sonstige` und '
       + 'tauchten in keiner Arbeitsliste auf — der einzige der sechs Deltas, der '
-      + 'schon vorher ein Fehler war.',
+      + 'schon vorher ein Fehler war. Die Fassaden-Umstellung setzte ihn auf '
+      + '`entscheidung`; mit v4.87 steht er auf `in_pruefung`, weil eine '
+      + 'eingegangene Stellungnahme bearbeitet wird und die Entscheidung erst '
+      + 'danach ansteht (so kuratiert in Katalog-Fassung 23, jetzt am Code).',
   },
   {
     statusRoh: 'unvollständig', code: 33, alt: 'sonstige', neu: 'offen',

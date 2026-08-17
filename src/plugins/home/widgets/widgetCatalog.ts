@@ -192,15 +192,30 @@ export const WIDGET_KATALOG: Record<WidgetTyp, WidgetKatalogEintrag> = {
     sichtbarWenn: () => isStatusCockpitEnabled(),
     defaultConfig: KEINE,
   },
+  fristen: {
+    typ: 'fristen',
+    label: 'Fristen',
+    icon: Milestone,
+    bereich: 'haupt',
+    verfuegbar: true,
+    // Zwei Fristsysteme, eine Liste: Zieltage je Status (Stillstands-Waechter)
+    // und Meilenstein-Sollwochen. Sichtbar, sobald EINES von beiden an ist —
+    // das Widget sagt dann selbst, dass es nur eine Haelfte zeigt.
+    sichtbarWenn: () => isVorgangssystemEnabled() || isMeilensteinMonitoringEnabled(),
+    defaultConfig: KEINE,
+  },
+  // --- Abgeloest von `fristen` (v4.87) ------------------------------------
+  // Sie beantworteten dieselbe Frage aus zwei Systemen, nebeneinander, ohne dass
+  // eines seine Herkunft nannte. Die Eintraege bleiben stehen, damit
+  // gespeicherte Instanzen weiter aufloesen; `verfuegbar: false` nimmt sie aus
+  // Startseite UND Einstellungs-Liste (einzige Konsumenten des Flags).
   meilensteine: {
     typ: 'meilensteine',
     label: 'Meilensteine diese Woche',
     icon: Milestone,
     bereich: 'haupt',
-    verfuegbar: true,
-    // An den Meilenstein-Plan gebunden; ohne Flag gibt es keine Soll-Termine,
-    // also auch nichts zu warnen.
-    sichtbarWenn: () => isMeilensteinMonitoringEnabled(),
+    verfuegbar: false,
+    sichtbarWenn: () => false,
     defaultConfig: KEINE,
   },
   nachtlauf: {
@@ -221,10 +236,8 @@ export const WIDGET_KATALOG: Record<WidgetTyp, WidgetKatalogEintrag> = {
     label: 'Hängt fest',
     icon: TimerOff,
     bereich: 'haupt',
-    verfuegbar: true,
-    // An den Stillstands-Wächter gebunden: ohne Zieltage im Katalog gäbe es
-    // nichts zu beurteilen, und ohne Flag keine Zieltage.
-    sichtbarWenn: () => isVorgangssystemEnabled(),
+    verfuegbar: false,   // abgeloest von `fristen` (v4.87), siehe oben
+    sichtbarWenn: () => false,
     defaultConfig: KEINE,
   },
 };

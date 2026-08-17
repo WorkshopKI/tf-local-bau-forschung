@@ -9,7 +9,7 @@
  * Kuration auseinander (Pitfalls #43/#45).
  */
 import {
-  bedingungFeldRefs, bedingungSatz, istNeutral, kategorieFuerPhase, kategoriePfadLabel,
+  bedingungFeldRefs, bedingungSatz, istNeutral, kategorieFuerCode, kategoriePfadLabel,
   phaseFuerCode, regelsatzVon, rollenLabel, rollenVonFeld, sonderKuerzel, todoFeld,
   KANONISCHE_CODE_FELDER,
   zahPhaseLabel, zahPhaseRang, zahPhasenVon, zieltageFuer,
@@ -84,8 +84,9 @@ export function statuswertZeilen(
     // noch nicht zugeordnet ⇒ Auslieferungs-Schnitt.
     const phaseId = w.zahPhaseId === undefined ? phaseFuerCode(w.code) : w.zahPhaseId;
     // Abgeleitet, nie `w.kategorie` geglaubt: eine alte Fassung schleppte sonst
-    // ihre eigene mit (Pitfall #45).
-    const kategorie = kategorieFuerPhase(phaseId, w.code, phasen);
+    // ihre eigene mit (Pitfall #45). Seit v4.87 hängt sie am Code, nicht an der
+    // oben ermittelten Phase — die beschriftet nur noch den Verfahrensschritt.
+    const kategorie = kategorieFuerCode(w.code);
 
     jeCode.set(w.code, {
       code: w.code,

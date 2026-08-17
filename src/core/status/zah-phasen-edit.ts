@@ -24,7 +24,7 @@
  * Rein und deterministisch: keine IO, keine Uhr.
  */
 import { zahPhasenVon } from './zah-phasen';
-import type { MappingVersion, StatusCategory, ZahPhase, ZahPhaseId } from './typen';
+import type { MappingVersion, ZahPhase, ZahPhaseId } from './typen';
 
 /**
  * Untergrenze der Phasenzahl. Weniger als drei Schritte sind kein Verfahren
@@ -151,7 +151,7 @@ export function aendereZahPhase(
  * Zuordnung (Anti-Pattern „Nummern sind keine Identität", umgekehrt gedacht).
  */
 export function fuegeZahPhaseHinzu(
-  version: MappingVersion, label: string, kategorieVorgabe: StatusCategory,
+  version: MappingVersion, label: string,
 ): MappingVersion {
   const bestand = zahPhasenVon(version.zahPhasen);
   if (bestand.length >= MAX_PHASEN) return version;
@@ -165,7 +165,6 @@ export function fuegeZahPhaseHinzu(
       label: label.trim() === '' ? `Phase ${bestand.length + 1}` : label.trim(),
       reihenfolge: 0,   // gleich überschrieben
       zieltageRelevant: false,
-      kategorieVorgabe,
       // Ausdrücklich statt weggelassen, obwohl `normalisiere` denselben Wert
       // ergänzte: eine neue Phase steht im Verfahren, und die Uhr anzuhalten
       // ist die Entscheidung, die jemand treffen muss — nicht der Default.

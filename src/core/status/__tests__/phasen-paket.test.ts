@@ -30,7 +30,7 @@ import type {
 // --- Bausteine --------------------------------------------------------------
 
 const phase = (id: string, label: string, reihenfolge: number): ZahPhase => ({
-  id, label, reihenfolge, zieltageRelevant: false, kategorieVorgabe: 'offen', fristLaeuft: true,
+  id, label, reihenfolge, zieltageRelevant: false, fristLaeuft: true,
 });
 
 const wert = (p: Partial<StatusWertEintrag> & { id: string }): StatusWertEintrag => ({

@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.90.0 — Die Arbeitsliste haengt am Code, nicht am Verfahrensschritt (August 2026)
+
+MINOR — Gefragt: „wir haben Kürzel, Stati, Phasen und Meilensteine — ist das zu kompliziert?" Nicht die Anzahl war das Problem, sondern dass eine unserer Erfindungen eine andere heimlich steuerte: die Arbeitsliste hing an der kuratierbaren ZAH-Phase. Genau so verschob Katalog-Fassung 19 unbemerkt 448 Anträge zwischen Reitern; die Reparatur von damals war eine Ausnahmeliste, also ein vierter Mechanismus statt der Abschaffung der Kopplung.
+
+- **`kategorieVorgabe` entfällt** — die Arbeitsliste hängt für alle 26 Codes am Statuscode; kein Phasenschnitt kann sie mehr verschieben ([kategorie-ableitung.ts](src/core/status/kategorie-ableitung.ts), [zah-phasen.ts](src/core/status/zah-phasen.ts))
+- **Der Wächter `status-category-not-curated` ist absolut**: kein Fassungs-Typ trägt mehr eine `StatusCategory`, weder einzeln noch als Liste ([conventions-status.test.ts](src/__tests__/conventions-status.test.ts))
+- **Fünf Codes waren zwischen `prod` und `pl` uneinig** (32/72/75/90/91, gemessen an 64.385 Zeilen); die gelebte Fassung 23 gewinnt, `prod` zieht nach ([status-achsen.md](docs/architecture/status-achsen.md))
+- **Ein Fristen-Widget statt zweier** — Zieltage und Meilenstein-Sollwochen in einer Liste, jede Zeile nennt ihre Herkunft ([fristAnlaesse.ts](src/plugins/home/widgets/fristAnlaesse.ts), [FristenWidget.tsx](src/plugins/home/widgets/FristenWidget.tsx))
+- **Neuer Reiter „Ebenen" im Status-Cockpit** — die Karte mit Live-Zahlen: was aus C16 kommt, was wir darüber legen, wer was pflegt ([ebenenModell.ts](src/plugins/status-cockpit/ebenenModell.ts))
+
 ### v4.89.0 — eine Frage wird beantwortet, nicht zweimal gestellt (August 2026)
 
 MINOR — Gemeldet: „der User will eine Frage beantwortet haben (und sehen, wonach gesucht wird)". Bisher endete der Frage-Modus bei der Trefferliste; daneben ging das Assistenten-Panel auf, trug dieselbe Frage im Feld und wartete auf eine zweite Absendung — die dann über 40 von 663 Treffern antwortete. Zwei Absendungen für eine Frage, und die zweite sah 6 % der Menge.

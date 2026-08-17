@@ -140,8 +140,13 @@ function leererBericht(): UebernahmeBericht {
  * - Werte ohne `code` — der Code ist der einzige übertragbare Schlüssel.
  *
  * Die Phasenliste kommt über `zahPhasenVon`, also im geltenden Zuschnitt — eine
- * Fassung von vor v2.409 führt `kategorieVorgabe`/`fristLaeuft` nicht, und ein
- * Paket mit halben Phasen wäre am Zielort nicht mehr rekonstruierbar.
+ * Fassung von vor v3.6 führt `fristLaeuft` nicht, und ein Paket mit halben
+ * Phasen wäre am Zielort nicht mehr rekonstruierbar.
+ *
+ * **Das Paket transportiert keine Arbeitslisten** und konnte es auch vor v4.87
+ * nur versehentlich: die damalige `kategorieVorgabe` reiste als Teil der
+ * Phasenliste mit und verschob am Zielort Anträge zwischen Reitern. Das Feld ist
+ * entfallen; die Arbeitsliste steht im Code und reist gar nicht.
  */
 export function bauePhasenPaket(v: MappingVersion): PhasenPaket {
   const phasen = [...zahPhasenVon(v.zahPhasen)];

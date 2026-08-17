@@ -37,7 +37,7 @@ Decision-Tree für häufige Aufgaben. Erst hier nachsehen, **bevor** du die Code
 | Antrag-Status-Vergleich | Pitfall #12 + [docs/architecture/antrag-status-domaenen.md](docs/architecture/antrag-status-domaenen.md) |
 | Status-System (Katalog/Historie/Cockpit/Timeline/Widget; Flag `statusCockpit`) | [docs/status-system/README.md](docs/status-system/README.md) + Pitfall #40 |
 | Verlaufs-Ansichten am Verbund (Matrix Schritt × TV, Chronik nach Datum, Zeitstrahl; Rollenfarben, WER/WO-Filter, Fokus) | [chronik-und-zeitstrahl.md](docs/status-system/chronik-und-zeitstrahl.md) |
-| Die zwei Status-Achsen (Verfahrensschritt kuratierbar, Arbeitsliste fest; Umbenennung, Abschnitts-Ids, Aggregatnamen) | [status-achsen.md](docs/architecture/status-achsen.md) + Pitfall #50 |
+| **Status-Ebenen: was haengt woran?** (Kuerzel/Status/Trigger aus C16 gegen unsere Erfindungen Verfahrensschritt/Arbeitsliste/Zieltage/Meilenstein; wer pflegt was; Umbenennung, Abschnitts-Ids, Aggregatnamen) | [status-achsen.md](docs/architecture/status-achsen.md) + Pitfall #50 + Reiter „Ebenen" im Status-Cockpit |
 | Vorgangssystem (Companion zum Fachsystem: Status-Erklärung, Kürzel-Navigator, To-do-Kaskade, Stillstands-Wächter, Fristen-Cockpit; Flag `vorgangssystem`) | [vorgangssystem.md](docs/architecture/vorgangssystem.md) + Pitfall #44 |
 | Betrachtungsbereich (welche Richtlinien zählen zum Arbeitsvorrat; Chip im Seitenkopf, flag-unabhängig) | [vorgangssystem.md §10](docs/architecture/vorgangssystem.md) + Pitfall #46 |
 | Regelsatz je Rolle / FB-Spur (abgeleitete Platzhalter, Rollout-Sperre, Erhebungsexport) | [vorgangssystem.md §11](docs/architecture/vorgangssystem.md) + Pitfall #47 |

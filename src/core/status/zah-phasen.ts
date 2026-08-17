@@ -43,12 +43,19 @@
  *
  * Rein und deterministisch: keine IO, keine Uhr.
  */
-import type { GeltendeZahPhase, StatusCategory, ZahPhase, ZahPhaseId } from './typen';
+import type { GeltendeZahPhase, ZahPhase, ZahPhaseId } from './typen';
 
 /**
  * Der ausgelieferte Phasen-Schnitt. Bildet den Stand vor der Kuratierbarkeit
  * exakt ab: `zieltageRelevant` war die Menge `ZIELTAGE_PHASEN` (Eingang bis
- * Entscheidung), `kategorieVorgabe` die Tabelle `ZAH_PHASE_ZU_KATEGORIE`.
+ * Entscheidung).
+ *
+ * **Eine Phase sagt nichts mehr über die Arbeitsliste** (seit v4.87). Sie trug
+ * dafür bis v4.86 ein Feld `kategorieVorgabe`; damit steuerte der bewegliche
+ * Schnitt die feste Achse, und ein Umhängen verschob Anträge zwischen Reitern
+ * (v3.25: 448 Stück, unbemerkt). Die Arbeitsliste hängt jetzt am Code
+ * (`CODE_ZU_ARBEITSLISTE` in `kategorie-ableitung.ts`); was die Phase trägt,
+ * steht unten und wirkt auf Anzeige, Zieltage und Fristlauf.
  *
  * Zehnerlücken in `reihenfolge` für spätere Einschübe. Die Ids sind **stabil und
  * opak** — eine eingeschobene Phase ändert keine bestehende Id, und der Nutzer
@@ -67,20 +74,20 @@ import type { GeltendeZahPhase, StatusCategory, ZahPhase, ZahPhaseId } from './t
 export const SEED_ZAH_PHASEN: readonly GeltendeZahPhase[] = [
   {
     id: 'eingang', reihenfolge: 10, label: 'Eingang',
-    zieltageRelevant: true, kategorieVorgabe: 'offen', fristLaeuft: true,
+    zieltageRelevant: true, fristLaeuft: true,
   },
   {
     // Im Auftrag zur Stoppuhr nicht belegt (er kannte fünf Phasen, es sind
     // sechs). `true`, weil sie zur Antragsphase gehört: Nachforderung und
     // Vollständigkeitsprüfung sind laufende Bearbeitung.
     id: 'vollstaendigkeit', reihenfolge: 20, label: 'Vollständigkeit',
-    zieltageRelevant: true, kategorieVorgabe: 'offen', fristLaeuft: true,
+    zieltageRelevant: true, fristLaeuft: true,
   },
   {
     // „Prüfung" heißt bewusst nicht „Fachprüfung": sie umfasst den fachlichen
     // UND den administrativen Strang (siehe Modulkopf).
     id: 'pruefung', reihenfolge: 30, label: 'Prüfung',
-    zieltageRelevant: true, kategorieVorgabe: 'in_pruefung', fristLaeuft: true,
+    zieltageRelevant: true, fristLaeuft: true,
   },
   {
     // Offener Punkt der Fachabstimmung: die Phase bündelt „bewilligungsreif"
@@ -88,17 +95,17 @@ export const SEED_ZAH_PHASEN: readonly GeltendeZahPhase[] = [
     // Angehalten gilt für beide. Wer sie trennen will, teilt die Phase — genau
     // dafür ist der Schnitt kuratierbar.
     id: 'entscheidung', reihenfolge: 40, label: 'Entscheidung',
-    zieltageRelevant: true, kategorieVorgabe: 'entscheidung', fristLaeuft: false,
+    zieltageRelevant: true, fristLaeuft: false,
   },
   {
     // `false` heißt hier nicht „keine Frist": die Begleitphase hat ihre eigene
     // (VN-Eingang + 6 Monate), und die rechnet `berechneFrist` getrennt.
     id: 'begleitung', reihenfolge: 50, label: 'Begleitung',
-    zieltageRelevant: false, kategorieVorgabe: 'begleitung', fristLaeuft: false,
+    zieltageRelevant: false, fristLaeuft: false,
   },
   {
     id: 'abgeschlossen', reihenfolge: 60, label: 'Abgeschlossen',
-    zieltageRelevant: false, kategorieVorgabe: 'abgeschlossen', fristLaeuft: false,
+    zieltageRelevant: false, fristLaeuft: false,
   },
 ];
 
@@ -228,29 +235,34 @@ export function resetZahPhasenSnapshotFuerTests(): void {
  * Ergänzt fehlende Felder aus dem Seed und sortiert nach `reihenfolge`.
  *
  * Bestandsfassungen tragen nur `{id, label, reihenfolge}` — `zieltageRelevant`
- * und `kategorieVorgabe` kamen bis v2.409 aus dem Code. Sie hier zu ergänzen
- * spart die Migration: eine alte Fassung verhält sich weiter wie zuvor, und
- * eine im Editor gespeicherte trägt die Felder ab dann selbst.
+ * kam bis v2.409 aus dem Code. Es hier zu ergänzen spart die Migration: eine
+ * alte Fassung verhält sich weiter wie zuvor, und eine im Editor gespeicherte
+ * trägt die Felder ab dann selbst.
  *
- * Eine Phase mit unbekannter Id und ohne Angaben bekommt `sonstige` und
- * `zieltageRelevant: false` — „wir wissen es nicht" statt einer geratenen
- * Einordnung in eine Arbeitsliste.
+ * Eine Phase mit unbekannter Id und ohne Angaben bekommt `zieltageRelevant:
+ * false` — „wir wissen es nicht" statt einer geratenen Frist.
  *
  * `fristLaeuft` fällt dagegen auf `true` zurück, und zwar in dieselbe Richtung,
  * die das Vorgangs-Board schon fuhr („Phase unbekannt → altes Kriterium"): eine
  * laufende Uhr ist sichtbar und korrigierbar, eine stillschweigend angehaltene
  * nimmt Arbeit aus jeder Liste, ohne dass es jemand merkt.
+ *
+ * **Die Felder werden einzeln genannt, nicht gespreadet.** Eine Fassung vor
+ * v4.87 trägt ein `kategorieVorgabe`, und ein Spread schleppte es durch jedes
+ * Speichern weiter — ein totes Feld in der Datei, das beim nächsten Lesen wie
+ * eine Angabe aussieht. Es fällt hier ersatzlos weg (Read-Time-Migration); ein
+ * Reader gibt es ohnehin nicht mehr.
  */
 function normalisiere(phasen: readonly ZahPhase[]): GeltendeZahPhase[] {
   const seed = new Map(SEED_ZAH_PHASEN.map(p => [p.id, p]));
-  const sonstige: StatusCategory = 'sonstige';
   return [...phasen]
     .map(p => {
       const s = seed.get(p.id);
       return {
-        ...p,
+        id: p.id,
+        label: p.label,
+        reihenfolge: p.reihenfolge,
         zieltageRelevant: p.zieltageRelevant ?? s?.zieltageRelevant ?? false,
-        kategorieVorgabe: p.kategorieVorgabe ?? s?.kategorieVorgabe ?? sonstige,
         fristLaeuft: p.fristLaeuft ?? s?.fristLaeuft ?? true,
       };
     })
@@ -307,14 +319,6 @@ export function zahPhaseLabel(
 ): string {
   if (!id) return ZAH_MARKER_LABEL;
   return zahPhasenVon(phasen).find(p => p.id === id)?.label ?? ZAH_MARKER_LABEL;
-}
-
-/** Die Arbeitslisten-Vorgabe einer Phase; unbekannt → `sonstige`. */
-export function kategorieVorgabeVon(
-  id: ZahPhaseId | null | undefined, phasen?: readonly ZahPhase[],
-): StatusCategory {
-  if (!id) return 'sonstige';
-  return zahPhasenVon(phasen).find(p => p.id === id)?.kategorieVorgabe ?? 'sonstige';
 }
 
 /**

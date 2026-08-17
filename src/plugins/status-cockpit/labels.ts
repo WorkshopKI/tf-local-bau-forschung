@@ -60,9 +60,9 @@ export const PROMINENZ_WERTE: readonly Prominenz[] = [
 ];
 
 /** Die Reiter der Seite. Der Schlüssel ist stabil, die Beschriftung nicht. */
-export type TabKey = 'katalog' | 'felder' | 'regeln' | 'klaerfragen';
+export type TabKey = 'ebenen' | 'katalog' | 'felder' | 'regeln' | 'klaerfragen';
 
-const TAB_KEYS: readonly TabKey[] = ['katalog', 'felder', 'regeln', 'klaerfragen'];
+const TAB_KEYS: readonly TabKey[] = ['ebenen', 'katalog', 'felder', 'regeln', 'klaerfragen'];
 
 /**
  * Der Reiter aus `?tab=` — für Deep-Links von außerhalb (`/status-cockpit?tab=regeln`
@@ -82,6 +82,7 @@ export function tabAusParameter(roh: string | null): TabKey | null {
  * Deep-Links, und eine Umbenennung dort brächte nichts als Bruch.
  */
 export const TAB_LABEL: Record<TabKey, string> = {
+  ebenen: 'Ebenen',
   katalog: 'Statuswerte',
   felder: 'Kürzel',
   regeln: 'To-do-Regeln',
@@ -97,6 +98,10 @@ export const TAB_LABEL: Record<TabKey, string> = {
  * hier wird die Kaskade gepflegt, die sie erzeugt.
  */
 export const TAB_ZWECK: Record<TabKey, string> = {
+  // Der einzige Reiter, der NICHTS pflegt. Er beantwortet die Frage, die keiner
+  // der anderen beantwortet: was haengt woran, und wer pflegt es.
+  ebenen: 'Welche Angaben über einem Antrag liegen, wer sie pflegt und was passiert, '
+    + 'wenn man eine ändert.',
   katalog: 'Was ein Status bedeutet, in welchem Verfahrensschritt er steht und wie lange '
     + 'er dauern darf.',
   felder: 'Die Felder des Fachsystems, wer sie setzt und welche als Aktivität zählen.',

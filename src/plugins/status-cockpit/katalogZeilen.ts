@@ -16,7 +16,7 @@
  * Rein: keine IO, keine Uhr, kein React.
  */
 import {
-  kategorieFuerPhase, zahPhasenVon, SEED_CODE_ZU_ZAH_PHASE, ZAH_MARKER_LABEL,
+  kategorieFuerCode, zahPhasenVon, SEED_CODE_ZU_ZAH_PHASE, ZAH_MARKER_LABEL,
 } from '@/core/status';
 import type { StatusWertEintrag, StatusCategory, ZahPhase } from '@/core/status';
 import { wertId } from './useStatusCockpit';
@@ -59,22 +59,21 @@ export function phaseVon(w: StatusWertEintrag): string | null {
 }
 
 /**
- * Die Arbeitsliste, die für diesen Wert **wirklich gilt** — dieselbe dreiwertige
- * Regel wie `kategorieAusFassung` in `snapshot.ts`: Werte mit amtlichem Code
- * leiten sie aus Verfahrensschritt + Code ab, alle anderen tragen das gepflegte
- * Feld.
+ * Die Arbeitsliste, die für diesen Wert **wirklich gilt** — dieselbe Regel wie
+ * `kategorieAusFassung` in `snapshot.ts`: Werte mit amtlichem Code nehmen die
+ * Arbeitsliste des Codes, alle anderen tragen das gepflegte Feld.
  *
  * Exportiert, weil Anzeige **und** Filter dieselbe Kategorie lesen müssen.
  * Solange der Chip-Filter `w.kategorie` prüfte, während die Zelle die abgeleitete
  * zeigte, zählte die Auswahl ein anderes Vokabular als die Tabelle darunter —
  * sichtbar wurde das erst, als 36/37 die Kategorie wechselten und unter „Wartet
  * auf Antragsteller" stehen blieben.
+ *
+ * Der Verfahrensschritt geht seit v4.87 nicht mehr ein; deshalb braucht die
+ * Funktion die Phasen der Fassung nicht.
  */
-export function effektiveKategorieVon(
-  w: StatusWertEintrag,
-  phasen: readonly ZahPhase[] | undefined,
-): StatusCategory {
-  return w.code === undefined ? w.kategorie : kategorieFuerPhase(phaseVon(w), w.code, phasen);
+export function effektiveKategorieVon(w: StatusWertEintrag): StatusCategory {
+  return w.code === undefined ? w.kategorie : kategorieFuerCode(w.code);
 }
 
 /** Was die Zeilen aus ihrer Umgebung brauchen — alles als reine Eingabe. */
@@ -101,7 +100,7 @@ export function baueKatalogZeilen(
   return werte.map(w => {
     const key = wertId(w.feldId, w.wert);
     const phase = phaseVon(w);
-    const effektiveKategorie = effektiveKategorieVon(w, ctx.phasen);
+    const effektiveKategorie = effektiveKategorieVon(w);
     // Ohne amtlichen Code gibt es keinen Schritt — nicht „Marker", sondern gar
     // keine Aussage. Deshalb `—` und nicht die Marker-Beschriftung.
     const phaseLabel = w.code === undefined

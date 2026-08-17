@@ -63,7 +63,8 @@ describe('baueArbeitsvorratUebersicht', () => {
       .toEqual({ gesamtInArbeit: 0, ueberfaellig: 0, dringend: 0, naechsteFristen: [] });
     const nurTerminal = [
       antrag('T1', { restTage: 5, status: 'Schlussvermerk' }),
-      antrag('T2', { restTage: -3, status: 'abgebrochen' }),
+      // NICHT `abgebrochen`: der ist seit v4.87 Begleitung, also in Arbeit.
+      antrag('T2', { restTage: -3, status: 'abgelehnt/zurückgezogen' }),
     ];
     expect(baueArbeitsvorratUebersicht(nurTerminal, NOW).gesamtInArbeit).toBe(0);
   });

@@ -122,7 +122,7 @@ describe('baueSeedDiff — Verfahrensschritte', () => {
     const zeile = TEXT.split('\n').find(z => z.includes("id: 'eingang'"));
     expect(zeile).toContain('reihenfolge: 10');
     expect(zeile).toContain('zieltageRelevant: true');
-    expect(zeile).toContain("kategorieVorgabe: 'offen'");
+    expect(zeile).toContain('fristLaeuft: true');
   });
 });
 

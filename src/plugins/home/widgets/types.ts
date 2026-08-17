@@ -79,6 +79,11 @@ export type WidgetTyp =
   | 'registry-aenderungen'
   | 'neue-antraege'
   | 'status-verlauf'
+  | 'fristen'
+  // Abgelöst von `fristen` (v4.87): sie zeigten dieselbe Frage aus zwei
+  // Fristsystemen nebeneinander. Die Typen bleiben lesbar, damit gespeicherte
+  // Configs nicht brechen — im Katalog stehen sie auf `verfuegbar: false` und
+  // erscheinen weder auf der Startseite noch in den Einstellungen.
   | 'meilensteine'
   | 'haengt-fest'
   | 'nachtlauf';

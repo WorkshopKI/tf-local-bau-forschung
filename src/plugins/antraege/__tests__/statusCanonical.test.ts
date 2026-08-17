@@ -27,7 +27,8 @@ describe('getStatusCategory — Foerderantraege (CSV-Rohwerte)', () => {
     ['Skizze eingegangen', 'offen'],
     ['Ablehnung versandt', 'entscheidung'],
     ['Rücknahmeempfehlung versandt', 'entscheidung'],
-    ['Stellungnahme zur Rücknahmeempfehlung', 'entscheidung'],
+    // 72/75: eingegangen und in Bearbeitung — die Entscheidung steht danach an (v4.87).
+    ['Stellungnahme zur Rücknahmeempfehlung', 'in_pruefung'],
     ['VN technisch geprüft', 'begleitung'],
     // Antrags-Pruefung (vor Bewilligung) bleibt in_pruefung
     ['techn geprüft', 'in_pruefung'],
@@ -39,7 +40,8 @@ describe('getStatusCategory — Foerderantraege (CSV-Rohwerte)', () => {
     ['Widerruf', 'begleitung'],
     ['Anhörung zum Widerruf', 'begleitung'],
     ['bewilligungsreif', 'entscheidung'],
-    ['ablehnungsreif', 'entscheidung'],
+    // 32: die Ablehnung ist noch zu schreiben, also Arbeit (v4.87).
+    ['ablehnungsreif', 'in_pruefung'],
     ['Bewilligungsentwurf VDI/VDE-IT', 'entscheidung'],
     // Ablehnung + Ruecknahme zaehlen als entscheidung (noch im Verfahren, pre-
     // Bewilligung), NICHT als final-abgelehnt — Foerderantraege haben keinen
@@ -53,9 +55,11 @@ describe('getStatusCategory — Foerderantraege (CSV-Rohwerte)', () => {
     ['keine weiteren NF', 'offen'],
     ['bewilligt', 'bewilligt'],
     ['Schlussvermerk', 'abgeschlossen'],
-    ['beendet', 'abgeschlossen'],
+    // 90/91: der Schlussvermerk (99) steht noch aus — sie bleiben im
+    // Arbeitsvorrat statt ins Archiv zu fallen (v4.87).
+    ['beendet', 'begleitung'],
     ['abgelehnt/zurückgezogen', 'abgeschlossen'],
-    ['abgebrochen', 'abgeschlossen'],
+    ['abgebrochen', 'begleitung'],
     // Marker (29/88/93/94) laufen ohne Phase neben dem Verfahren — `sonstige`
     // ist hier die Aussage, nicht die Lücke.
     ['Irrläufer', 'sonstige'],
@@ -130,7 +134,7 @@ describe('isOpenStatus — deckt offen + in_pruefung + nachforderung + entscheid
   });
   it.each([
     'bewilligt',
-    'Schlussvermerk', 'abgebrochen', 'abgelehnt/zurückgezogen',
+    'Schlussvermerk', 'abgelehnt/zurückgezogen',
     // Marker laufen neben dem Verfahren — kein Arbeitsvorrat.
     'Irrläufer', 'Sonderstatus', '', undefined,
     // Unkuratiert (`sonstige`) ist ebenfalls nicht offen.
@@ -211,7 +215,7 @@ describe('isClosedStatus — final entschieden (bewilligt + abgelehnt + abgeschl
     // bewilligt (final)
     'bewilligt',
     // abgeschlossen (final)
-    'Schlussvermerk', 'beendet', 'abgelehnt/zurückgezogen', 'abgebrochen',
+    'Schlussvermerk', 'abgelehnt/zurückgezogen',
   ])('"%s" ist closed', s => {
     expect(isClosedStatus(s)).toBe(true);
   });

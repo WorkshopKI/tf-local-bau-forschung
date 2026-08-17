@@ -116,17 +116,19 @@ describe('katalogDrift — Phasen', () => {
   });
 
   it('eine geänderte Vorgabe steht mit dem Gewicht daneben, ohne Umhängung', () => {
+    // Übrig ist die Zieltage-Relevanz. Die Arbeitsliste stand hier bis v4.86 als
+    // zweite Vorgabe daneben — sie hängt jetzt am Code und kann zwischen zwei
+    // Fassungen nicht mehr abweichen.
     const fassung: MappingVersion = {
       ...SEED,
       zahPhasen: SEED_ZAH_PHASEN.map(p => (p.id === 'begleitung'
-        ? { ...p, kategorieVorgabe: 'abgeschlossen' as const, zieltageRelevant: true }
+        ? { ...p, zieltageRelevant: true }
         : { ...p })),
     };
     const d = katalogDrift(fassung, SEED);
     expect(d.phasen.vorgabeGeaendert).toHaveLength(1);
     expect(d.phasen.vorgabeGeaendert[0]).toMatchObject({
       id: 'begleitung',
-      arbeitsliste: { alt: 'begleitung', neu: 'abgeschlossen' },
       zieltageRelevant: { alt: false, neu: true },
     });
     // 59/89/92/95/97 hängen an „Begleitung" — die Zahl macht das Gewicht sichtbar.

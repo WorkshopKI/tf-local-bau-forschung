@@ -21,10 +21,11 @@
  * (Normalisierung + Sortierung). Rechnete diese Datei selbst, liefe sie
  * irgendwann anders als die App, die sie beschreibt.
  *
- * **Nicht in der Bilanz: `StatusWertEintrag.kategorie`.** Das Feld ist
- * abgeleitet und wird vom Snapshot neu gerechnet (Pitfall #45) — ein Vergleich
- * darauf meldete Rauschen. Die Arbeitsliste erscheint dort, wo sie wirklich
- * kuratiert wird: an der `kategorieVorgabe` der Phase.
+ * **Die Arbeitsliste kommt in der Bilanz gar nicht mehr vor** (seit v4.87). Sie
+ * hängt am Statuscode und damit im Code, nicht in der Fassung — zwischen zwei
+ * Fassungen kann sie folglich nicht abweichen. `StatusWertEintrag.kategorie` war
+ * schon vorher draußen: das Feld ist abgeleitet und wird vom Snapshot neu
+ * gerechnet (Pitfall #45), ein Vergleich darauf meldete Rauschen.
  *
  * Import-Disziplin wie bei den Nachbarn: nur Blätter (`./zah-phasen`,
  * `./phasen-schnitt`, `./status-codes`) und `./typen` type-only — nie über das
@@ -37,7 +38,7 @@ import { zahPhasenVon } from './zah-phasen';
 import { schnittVon } from './phasen-schnitt';
 import { statusCodeEintrag } from './status-codes';
 import type {
-  MappingVersion, Prominenz, StatusCategory, StatusWertEintrag, ZahPhaseId,
+  MappingVersion, Prominenz, StatusWertEintrag, ZahPhaseId,
 } from './typen';
 
 /** Eine Phase, auf ihre Kennung und ihre Beschriftung eingedampft. */
@@ -65,13 +66,14 @@ export interface PhaseVerschoben {
 /**
  * Eine beibehaltene Phase, deren **Vorgabe** sich geändert hat.
  *
- * Die stille Sorte: kein Code wurde umgehängt, trotzdem wechseln alle Codes
- * dieser Phase die Arbeitsliste. Ohne diese Gruppe fiele das nirgends auf.
+ * Die stille Sorte: kein Code wurde umgehängt, trotzdem ändert sich, was für
+ * alle Codes dieser Phase gilt. Bis v4.86 zählte hierzu auch die Arbeitsliste —
+ * der Weg, auf dem eine Phasen-Iteration 448 Anträge zwischen Reitern verschob.
+ * Sie hängt jetzt am Code; übrig bleibt die Zieltage-Relevanz.
  */
 export interface PhaseVorgabe {
   id: ZahPhaseId;
   label: string;
-  arbeitsliste?: { alt: StatusCategory; neu: StatusCategory };
   zieltageRelevant?: { alt: boolean; neu: boolean };
   /** Wie viele Status-Codes an dieser Phase hängen — das Gewicht der Änderung. */
   codeAnzahl: number;
@@ -209,18 +211,17 @@ function phasenDrift(fassung: MappingVersion, seed: MappingVersion): PhasenDrift
     const a = altNach.get(p.id);
     if (!a) continue;
     if (a.label !== p.label) umbenannt.push({ id: p.id, alt: a.label, neu: p.label });
-    const arbeitsliste = a.kategorieVorgabe !== p.kategorieVorgabe
-      ? { alt: a.kategorieVorgabe, neu: p.kategorieVorgabe }
-      : undefined;
+    // Die Arbeitsliste stand hier bis v4.86 als zweite Vorgabe daneben. Sie hängt
+    // seit v4.87 am Code und kann zwischen zwei Fassungen gar nicht mehr
+    // abweichen — eine Zeile, die immer „unverändert" meldet, ist keine Bilanz.
     const zieltage = a.zieltageRelevant !== p.zieltageRelevant
       ? { alt: a.zieltageRelevant, neu: p.zieltageRelevant }
       : undefined;
-    if (arbeitsliste || zieltage) {
+    if (zieltage) {
       vorgabeGeaendert.push({
         id: p.id,
         label: p.label,
-        ...(arbeitsliste ? { arbeitsliste } : {}),
-        ...(zieltage ? { zieltageRelevant: zieltage } : {}),
+        zieltageRelevant: zieltage,
         codeAnzahl: codesJePhase.get(p.id) ?? 0,
       });
     }

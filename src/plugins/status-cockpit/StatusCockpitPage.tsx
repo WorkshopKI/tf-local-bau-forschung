@@ -24,6 +24,7 @@ import { useCollapsedSection } from '@/core/hooks/useCollapsedSection';
 import { Download, Upload, History } from 'lucide-react';
 import { useStatusCockpit, type StatusCockpitApi } from './useStatusCockpit';
 import { KatalogTab } from './KatalogTab';
+import { EbenenUebersichtTab } from './EbenenUebersicht';
 import { FelderTab } from './FelderTab';
 import { KlaerfragenTab } from './KlaerfragenTab';
 import { RegelnTab } from './RegelnTab';
@@ -455,6 +456,8 @@ export function StatusCockpitPage(): React.ReactElement {
           activeKey={tab}
           onChange={k => setTab(k as TabKey)}
           items={[
+            // Ohne Zaehler: „Ebenen" ist keine Menge, sondern eine Auskunft.
+            { key: 'ebenen', label: TAB_LABEL.ebenen },
             { key: 'katalog', label: TAB_LABEL.katalog, count: werteCount },
             { key: 'felder', label: TAB_LABEL.felder, count: felderCount },
             { key: 'regeln', label: TAB_LABEL.regeln, count: api.entwurf?.todoRegeln?.length ?? 0 },
@@ -503,6 +506,7 @@ export function StatusCockpitPage(): React.ReactElement {
         </div>
       ) : (
         <div className="flex-1 min-h-0 overflow-y-auto px-6 pb-6">
+          {tab === 'ebenen' && <EbenenUebersichtTab api={api} />}
           {tab === 'katalog' && <KatalogTab api={api} />}
           {tab === 'felder' && <FelderTab api={api} />}
           {tab === 'klaerfragen' && <KlaerfragenTab api={api} />}

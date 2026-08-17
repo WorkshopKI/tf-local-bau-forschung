@@ -38,18 +38,20 @@ afterEach(() => { setStatusKatalogSnapshot(null); });
 describe('Schreibweisen eines codierten Werts kommen aus dem Code-Katalog', () => {
   it('die amtliche Langform löst auf, auch wenn die Fassung sie nicht führt', () => {
     setStatusKatalogSnapshot(fassung([KURZFORM]));
-    expect(getStatusCategory('Stellungnahme zur Rücknahmeempfehlung')).toBe('entscheidung');
+    expect(getStatusCategory('Stellungnahme zur Rücknahmeempfehlung')).toBe('in_pruefung');
   });
 
   it('die kuratierte Schreibweise löst weiterhin auf', () => {
     setStatusKatalogSnapshot(fassung([KURZFORM]));
-    expect(getStatusCategory('stellungnahme zur rücknahmeempf.')).toBe('entscheidung');
+    expect(getStatusCategory('stellungnahme zur rücknahmeempf.')).toBe('in_pruefung');
   });
 
-  it('die Kuration der Fassung gewinnt gegen den Seed', () => {
-    // Der Seed hängt Code 72 an `entscheidung`. Hängt die PL ihn um, gilt ihre
-    // Fassung — ergänzt werden NUR Schreibweisen, nie Kategorien.
+  it('eine umgehängte Phase ändert die Arbeitsliste NICHT', () => {
+    // Bis v4.86 gewann hier die Fassung: Code 72 an `abgeschlossen` gehängt
+    // hieß Arbeitsliste `abgeschlossen`. Genau dieser Weg ist mit v4.87 zu —
+    // die Arbeitsliste hängt am Code. Ergänzt werden weiterhin NUR
+    // Schreibweisen, nie Kategorien.
     setStatusKatalogSnapshot(fassung([{ ...KURZFORM, zahPhaseId: 'abgeschlossen' }]));
-    expect(getStatusCategory('Stellungnahme zur Rücknahmeempfehlung')).toBe('abgeschlossen');
+    expect(getStatusCategory('Stellungnahme zur Rücknahmeempfehlung')).toBe('in_pruefung');
   });
 });

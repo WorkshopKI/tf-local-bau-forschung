@@ -31,7 +31,10 @@ Startseite — Arbeitseinstieg: oben ein **Hero-Band**, darunter ein persönlich
   - **Neue Anträge für dich:** Selbsteintragung; nur wo Auslastung aktiv.
   - **Weitermachen:** Opt-in — das Hero-Band ersetzt es im Default.
   - **Änderungen der letzten Nacht:** Opt-in — was der jüngste Export gebracht hat, gruppiert nach Feld mit Anzahl und Beispiel-Aktenzeichen. Bewusst **ohne Bearbeiter-Bezug**: das Journal hält fest, was sich geändert hat, nicht wer es war. Der Nullpunkt der Historie steht dabei; solange kein Journal geführt wird, sagt das Widget das statt eine leere Liste zu zeigen.
-  - **Hängt fest:** Opt-in — eigene Vorgänge, an denen seit länger als den Zieltagen ihres Status nichts passiert ist, der längste zuerst; wo ein Kürzel-Paar halb offen ist, steht die hängende Rolle daneben. Vorgänge ohne gepflegte Zieltage zählt es als „nicht bewertbar" mit, statt sie als unauffällig zu führen.
+  - **Fristen:** Opt-in — eine Liste für beide Arten von „zu spät", am weitesten über der Frist zuerst. Vorher standen dafür zwei Widgets nebeneinander („Hängt fest" und „Meilensteine diese Woche"), und keines sagte, aus welchem System seine Warnung kam.
+    - Jede Zeile trägt ihre **Herkunft**: entweder `Zieltag` — an dem Vorgang ist seit länger als den Zieltagen seines Status nichts passiert — oder die **Nummer eines Meilensteins**, dessen Soll-Termin überschritten oder in den nächsten sieben Tagen fällig ist.
+    - Rot heißt gerissen, gelb steht bevor. Rechts steht der Abstand in Tagen, in derselben Richtung für beide Arten.
+    - Vorgänge ohne gepflegte Zieltage zählt es als „nicht bewertbar" mit, statt sie als unauffällig zu führen. Ist nur eines der beiden Systeme freigeschaltet, sagt eine Zeile darunter, dass die Liste nur eine Hälfte zeigt.
 - **Programm-Übersichtskarten** unterhalb der Widgets.
 
 ## Typische Aktionen

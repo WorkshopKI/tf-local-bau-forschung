@@ -47,10 +47,10 @@ import {
 } from '@/core/utils/status-wert-labels';
 import {
   normalisiereWert,
-  type MappingVersion, type StatusCategory, type StatusWertEintrag, type ZahPhase,
+  type MappingVersion, type StatusCategory, type StatusWertEintrag,
 } from './typen';
 import { indexNachSchreibweise } from './wert-index';
-import { kategorieFuerCode, kategorieFuerPhase } from './kategorie-ableitung';
+import { kategorieFuerCode } from './kategorie-ableitung';
 import { setCodePhasenSnapshot, setZahPhasenSnapshot } from './zah-phasen';
 import { schnittVon } from './phasen-schnitt';
 import { statusCodeEintrag } from './status-codes';
@@ -74,7 +74,7 @@ export function setStatusKatalogSnapshot(version: MappingVersion | null): void {
   const m = new Map<string, StatusCategory>();
   const beschriftung = new Map<string, StatusBeschriftung>();
   for (const [key, w] of idx) {
-    m.set(key, kategorieAusFassung(w, version.zahPhasen));
+    m.set(key, kategorieAusFassung(w));
     beschriftung.set(key, { lang: w.label ?? '', kurz: w.kurzLabel ?? '' });
   }
   setStatusKatalogSnapshotMap(m);
@@ -153,7 +153,7 @@ export function mitAmtlichenSchreibweisen(w: StatusWertEintrag): StatusWertEintr
 
 /**
  * Die Kategorie eines Eintrags **aus der Fassung**: für Werte mit amtlichem Code
- * abgeleitet aus (kuratierter) ZAH-Phase + Code, sonst das gepflegte Feld.
+ * die Arbeitsliste des Codes, sonst das gepflegte Feld.
  *
  * Warum nicht einfach `w.kategorie`: das Feld stammt aus dem Seed-Stand, unter
  * dem die Fassung angelegt wurde. Eine Fassung von gestern trüge damit die
@@ -164,15 +164,13 @@ export function mitAmtlichenSchreibweisen(w: StatusWertEintrag): StatusWertEintr
  * mit v2.411 erneut gewandert — genau deshalb rechnet diese Funktion und liest
  * nicht ab.)
  *
- * `zahPhaseId` ist dreiwertig und wird auch so gelesen: gesetzt = kuratiert,
- * `null` = bewusst Marker, `undefined` = noch nicht zugeordnet ⇒ Auslieferungs-
- * Schnitt (dieselbe Regel wie in `baueHerleitung`).
+ * **Die kuratierte `zahPhaseId` geht seit v4.87 NICHT mehr ein.** Sie tat es bis
+ * dahin, und damit verschob ein Phasenschnitt die Arbeitslisten (v3.25: 448
+ * Anträge). Die Phase steuert weiter Verfahrensleiste, Gruppierung, Zieltage und
+ * Fristlauf — nur nicht mehr, wer auf welcher Arbeitsliste steht.
  */
-function kategorieAusFassung(
-  w: StatusWertEintrag, phasen: readonly ZahPhase[] | undefined,
-): StatusCategory {
+function kategorieAusFassung(w: StatusWertEintrag): StatusCategory {
   if (w.code === undefined) return w.kategorie;   // unkuratierter Wert, kein Code
-  if (w.zahPhaseId !== undefined) return kategorieFuerPhase(w.zahPhaseId, w.code, phasen);
   return kategorieFuerCode(w.code);
 }
 

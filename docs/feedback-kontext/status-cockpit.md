@@ -9,17 +9,21 @@ dass das eine die To-dos zeigt, die das andere definiert.
 ## Zweck
 
 Der Statuswert-Katalog ordnet jedem Statuswert seinen **Verfahrensschritt** (die ZAH-Phase)
-und seine **Zieltage** zu — mehr wird nicht kuratiert. Die **Kategorie** (offen,
-in Prüfung, Nachforderung …) folgt aus Phase und amtlichem Code; hängt die
-Projektleitung einen Code auf eine andere Phase um, zieht sie automatisch nach.
+und seine **Zieltage** zu — mehr wird nicht kuratiert.
 
-**Der Verfahrensschnitt selbst ist seit v2.409 kuratierbar**: zwischen 3 und 9
-Schritte, Beschriftung frei. Ausgeliefert werden sechs (Eingang → Vollständigkeit
-→ Prüfung → Entscheidung → Begleitung → Abgeschlossen). Jeder Schritt trägt
-zusätzlich, in welche **Arbeitsliste** seine Status fallen, ob **Zieltage** für
-ihn eine sinnvolle Frage sind und ob in ihm die **Bearbeitungsfrist läuft**.
-Vorher stand das in fest verdrahteten Tabellen, und jede Änderung brauchte ein
-Release.
+**Die Arbeitsliste wird hier NICHT gesetzt.** In welchen Reiter von Förderanträge
+ein Antrag fällt (Zu bearbeiten, In Arbeit, Wartet auf Antragsteller …), hängt am
+Statuscode selbst und steht damit fest. Bis dahin gab ein Verfahrensschritt sie
+vor, und ein neuer Zuschnitt verschob nebenbei Hunderte Anträge zwischen Reitern,
+ohne dass jemand das entschieden hätte. Wer den Schnitt heute umbaut, ändert
+Leiste, Gruppierung, Zieltage und Fristlauf — die Arbeitslisten bleiben stehen.
+
+**Der Verfahrensschnitt selbst ist kuratierbar**: zwischen 3 und 9 Schritte,
+Beschriftung frei. Ausgeliefert werden sechs (Eingang → Vollständigkeit → Prüfung
+→ Entscheidung → Begleitung → Abgeschlossen). Jeder Schritt trägt zusätzlich, ob
+**Zieltage** für ihn eine sinnvolle Frage sind und ob in ihm die
+**Bearbeitungsfrist läuft**. Vorher stand das in fest verdrahteten Tabellen, und
+jede Änderung brauchte ein Release.
 
 Was hier beschriftet oder umgehängt wird, gilt sofort in der ganzen App:
 Verfahrensleiste am Antrag, Gruppierung und Filter der Förderanträge, Zieltage,
@@ -34,8 +38,19 @@ entfallen: angezeigt wird, was das Fachsystem führt.
 
 ## Bereiche
 
-Drei Reiter, jeder mit einem Zwecksatz darunter, der sagt, was dort gepflegt
+Fünf Reiter, jeder mit einem Zwecksatz darunter, der sagt, was dort gepflegt
 wird.
+
+- **Ebenen** — der einzige Reiter, der nichts pflegt. Er beantwortet die Frage,
+  die keiner der anderen beantwortet: welche Angaben über einem Antrag liegen,
+  wer sie pflegt und was passiert, wenn man eine ändert. Vier Blöcke mit den
+  Zahlen der geltenden Fassung: was aus dem Fachsystem kommt (Kürzel, Status,
+  To-do-Regeln), was wir darüber legen (Verfahrensschritt und Arbeitsliste), eine
+  Gegenüberstellung **Verfahrensschritt × Arbeitsliste**, und wann etwas zu spät
+  ist (Zieltage gegen Meilenstein-Plan).
+  - Die Gegenüberstellung ist der Beleg dafür, dass die beiden Achsen getrennt
+    sind: ein Schritt trägt oft mehrere Arbeitslisten, und ein anderer Zuschnitt
+    ändert daran nichts.
 
 - **Statuswerte** (bis v2.412 „Katalog") — zwei Sichten, umschaltbar oben; der
   Baum ist vorbelegt.
@@ -58,8 +73,9 @@ wird.
     Doppelklick umbenannt. Ein Blatt steht für einen **Code**, nicht für eine
     Katalogzeile: derselbe Status steht unter TV- und Verbund-Feld, und beide
     Zeilen ziehen gemeinsam um. Rechts steht der Editor zum ausgewählten Knoten —
-    bei einem Schritt Beschriftung, Arbeitsliste und Zieltage-Relevanz, bei einem
-    Statuswert Label, Prominenz, Zieltage und aktiv.
+    bei einem Schritt Beschriftung, Zieltage-Relevanz und Fristlauf, bei einem
+    Statuswert Label, Prominenz, Zieltage und aktiv. Wo früher die Arbeitsliste
+    einstellbar war, steht jetzt ein Satz, der sagt, wo sie herkommt.
     - Unter den Feldern eines Statuswerts steht **„Wodurch dieser Status
       entsteht"** — die einzige nur lesende Angabe hier und die einzige, die
       nicht aus unserer Kuration stammt: welche Kürzel des Fachsystems diesen

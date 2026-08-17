@@ -15,11 +15,11 @@
  */
 import { describe, it, expect, afterEach } from 'vitest';
 import {
-  SEED_ZAH_PHASEN, zahPhasenVon, zahPhaseLabel, zahPhaseRang, kategorieVorgabeVon,
+  SEED_ZAH_PHASEN, zahPhasenVon, zahPhaseLabel, zahPhaseRang,
   fristLaeuftVon, phaseFuerCode, istMarkerCode, geltenderSchnitt, zahPhasenGeneration,
   setZahPhasenSnapshot, setCodePhasenSnapshot, resetZahPhasenSnapshotFuerTests,
 } from '@/core/status/zah-phasen';
-import { kategorieFuerPhase, kategorieFuerCode } from '@/core/status/kategorie-ableitung';
+import { kategorieFuerCode } from '@/core/status/kategorie-ableitung';
 import { schnittVon } from '@/core/status/phasen-schnitt';
 import {
   MIN_PHASEN, MAX_PHASEN, pruefeZahPhasen, normalisiereReihenfolge, verwaisteZuordnungen,
@@ -31,7 +31,7 @@ import type { MappingVersion, StatusWertEintrag, ZahPhase } from '@/core/status/
 afterEach(() => resetZahPhasenSnapshotFuerTests());
 
 const phase = (p: Partial<ZahPhase> & { id: string }): ZahPhase => ({
-  label: p.id, reihenfolge: 10, zieltageRelevant: false, kategorieVorgabe: 'offen', ...p,
+  label: p.id, reihenfolge: 10, zieltageRelevant: false, ...p,
 });
 
 const wert = (p: Partial<StatusWertEintrag> & { id: string }): StatusWertEintrag => ({
@@ -60,10 +60,9 @@ describe('Ohne Snapshot liefert jeder Leser die Auslieferung', () => {
     expect(istMarkerCode(11)).toBe(false);
   });
 
-  it('Beschriftung, Rang und Kategorie-Vorgabe kommen aus dem Seed', () => {
+  it('Beschriftung und Rang kommen aus dem Seed', () => {
     expect(zahPhaseLabel('pruefung')).toBe('Prüfung');
     expect(zahPhaseRang('eingang')).toBe(10);
-    expect(kategorieVorgabeVon('pruefung')).toBe('in_pruefung');
   });
 
   it('ein leerer Snapshot ist wie kein Snapshot — nicht wie „keine Phasen"', () => {
@@ -111,80 +110,59 @@ describe('`fristLaeuftVon` — die Uhr hängt an der Phase', () => {
 });
 
 describe('Bestandsfassungen ohne die neuen Felder', () => {
-  it('erben `zieltageRelevant` und `kategorieVorgabe` aus dem Seed', () => {
+  it('erben `zieltageRelevant` und `fristLaeuft` aus dem Seed', () => {
     const alt = SEED_ZAH_PHASEN.map(({ id, label, reihenfolge }) => ({ id, label, reihenfolge }));
     expect(zahPhasenVon(alt)).toEqual(SEED_ZAH_PHASEN);
   });
 
-  it('eine unbekannte Id ohne Angaben bekommt `sonstige`, nicht geraten', () => {
+  it('eine unbekannte Id ohne Angaben bekommt keine Zieltage, nicht geraten', () => {
     const [ergaenzt] = zahPhasenVon([{ id: 'fremd', label: 'Fremd', reihenfolge: 10 }]);
-    expect(ergaenzt).toMatchObject({ kategorieVorgabe: 'sonstige', zieltageRelevant: false });
+    expect(ergaenzt).toMatchObject({ zieltageRelevant: false });
+  });
+
+  it('ein `kategorieVorgabe` aus einer Fassung vor v4.87 wird verworfen, nicht getragen', () => {
+    // Keine Migration nötig — und genau das ist der Gewinn: eine alte Fassung
+    // kann die Arbeitslisten nicht mehr verschieben.
+    const altfeld = [{ id: 'eingang', label: 'Eingang', reihenfolge: 10, kategorieVorgabe: 'abgelehnt' }];
+    expect(zahPhasenVon(altfeld as unknown as ZahPhase[])[0]).not.toHaveProperty('kategorieVorgabe');
   });
 });
 
 // --- 2. Die Ableitungen folgen den Daten ------------------------------------
 
-describe('Die Kategorie kommt aus `kategorieVorgabe`', () => {
-  it('ohne Angabe gilt die Auslieferung — byte-identisch zu vorher', () => {
-    expect(kategorieFuerPhase('eingang', 11)).toBe('offen');
-    expect(kategorieFuerPhase('pruefung', 38)).toBe('in_pruefung');
-    expect(kategorieFuerPhase('abgeschlossen', 99)).toBe('abgeschlossen');
-    expect(kategorieFuerPhase(null, 29)).toBe('sonstige');
-  });
-
-  it('eine geänderte Vorgabe wirkt', () => {
-    const eigene = SEED_ZAH_PHASEN.map(p => (
-      p.id === 'pruefung' ? { ...p, kategorieVorgabe: 'entscheidung' as const } : p
-    ));
-    expect(kategorieFuerPhase('pruefung', 38, eigene)).toBe('entscheidung');
-  });
-
-  it('eine frei angelegte Phase bringt ihre eigene Arbeitsliste mit', () => {
-    const mitNeuer = [...SEED_ZAH_PHASEN, phase({ id: 'p7', kategorieVorgabe: 'begleitung' })];
-    expect(kategorieFuerPhase('p7', 4711, mitNeuer)).toBe('begleitung');
-  });
-
+/**
+ * Was die Phase NICHT mehr trägt.
+ *
+ * Bis v4.86 stand an ihr eine `kategorieVorgabe`, und ein ganzer Block hier
+ * prüfte, welche Arbeitsliste aus welchem Zuschnitt fällt. Die Frage stellt sich
+ * nicht mehr: die Arbeitsliste hängt am Statuscode. Was von diesem Block bleibt,
+ * ist die Gegenprobe — der Zuschnitt darf sie unter keinen Umständen bewegen.
+ * Die Tabelle selbst prüft `kategorie-ableitung.test.ts`.
+ */
+describe('Der Phasen-Zuschnitt bewegt keine Arbeitsliste', () => {
   /**
-   * Die verankerten Codes hingen bis v3.24 an den Phasen `vollstaendigkeit` und
-   * `begleitung` — „35 ist eine Nachforderung, WENN er in der Vollständigkeit
-   * liegt". Die Katalog-Fassung 19 vom 05.08.2026 löste diese Phase auf und
-   * hängte ihre Codes an „Prüfung"; der Anker griff ins Leere, und vier der fünf
-   * Status der täglichen Arbeit rutschten nach `in_pruefung` — 448 Anträge im
-   * Bestand, die Lane „Wartet auf Antragsteller" fiel auf 0. Seitdem hängt die
-   * Arbeitsliste dieser Codes am CODE: der Verfahrensschritt bleibt beweglich,
-   * die Arbeitsliste steht still (Pitfall #50).
+   * Der Fall, der v3.24 den Altanträge-Balken geleert hat: die Katalog-Fassung
+   * 19 vom 05.08.2026 löste „Vollständigkeit" auf und hängte ihre Codes an
+   * „Prüfung". Weil `pruefung` damals `in_pruefung` vorgab, rutschten vier der
+   * fünf Status der täglichen Arbeit mit — 448 Anträge im Bestand, die Lane
+   * „Wartet auf Antragsteller" fiel auf 0.
    */
-  it('die verankerten Codes behalten ihre Arbeitsliste in JEDER Phase', () => {
-    expect(kategorieFuerPhase('vollstaendigkeit', 35)).toBe('nachforderung');
-    expect(kategorieFuerPhase('vollstaendigkeit', 34)).toBe('offen');
-    // Der Fall, der v3.24 den Altanträge-Balken geleert hat: umgehängt nach
-    // „Prüfung" gilt die Vorgabe der neuen Phase für die verankerten Codes NICHT.
-    expect(kategorieFuerPhase('pruefung', 35)).toBe('nachforderung');
-    expect(kategorieFuerPhase('pruefung', 34)).toBe('offen');
-    expect(kategorieFuerPhase('pruefung', 36)).toBe('offen');
-    expect(kategorieFuerPhase('pruefung', 37)).toBe('offen');
-    // Auch ein gelöschter Phasenbezug nimmt sie ihnen nicht — sonst führte der
-    // Marker-Weg dasselbe Loch ein Stockwerk tiefer wieder ein.
-    expect(kategorieFuerPhase(null, 35)).toBe('nachforderung');
+  it('auch der Zuschnitt von Fassung 19 lässt jede Arbeitsliste stehen', () => {
+    setZahPhasenSnapshot([phase({ id: 'pruefung', reihenfolge: 10, label: 'In Prüfung' })]);
+    setCodePhasenSnapshot({
+      codeZuPhase: new Map([[33, 'pruefung'], [34, 'pruefung'], [35, 'pruefung'],
+        [36, 'pruefung'], [37, 'pruefung'], [38, 'pruefung']]),
+      markerCodes: new Set(),
+    });
+    expect(kategorieFuerCode(35)).toBe('nachforderung');
+    for (const code of [33, 34, 36, 37]) expect(kategorieFuerCode(code)).toBe('offen');
+    expect(kategorieFuerCode(38)).toBe('in_pruefung');
   });
 
-  it('nicht verankerte Codes folgen weiter dem kuratierten Schnitt', () => {
-    // Die Gegenprobe zum Test darüber: der Anker ist eine Untergrenze für das
-    // fachlich Feste, kein Ausschalter für die Kuration.
-    expect(kategorieFuerPhase('pruefung', 38)).toBe('in_pruefung');
-    expect(kategorieFuerPhase('eingang', 38)).toBe('offen');
-    expect(kategorieFuerPhase(null, 38)).toBe('sonstige');
-  });
-
-  it('59 ist die Bewilligung selbst, auch außerhalb von „Begleitung"', () => {
-    expect(kategorieFuerPhase('begleitung', 59)).toBe('bewilligt');
-    expect(kategorieFuerPhase('entscheidung', 59)).toBe('bewilligt');
-    expect(kategorieFuerPhase('begleitung', 89)).toBe('begleitung');
-  });
-
-  it('`kategorieFuerCode` bleibt am Seed — sie speist die eingebaute Map', () => {
-    // Auch mit gesetztem Snapshot: dieser Pfad läuft beim Modul-Laden.
-    setZahPhasenSnapshot([phase({ id: 'eingang', kategorieVorgabe: 'abgelehnt' })]);
+  it('ein Snapshot kann die Arbeitsliste eines Codes nicht überschreiben', () => {
+    // Der Weg, den es bis v4.86 gab: eine Phase mit fremder Vorgabe darüberlegen.
+    setZahPhasenSnapshot([phase({ id: 'eingang' })]);
+    setCodePhasenSnapshot({ codeZuPhase: new Map([[11, 'eingang']]), markerCodes: new Set() });
     expect(kategorieFuerCode(11)).toBe('offen');
   });
 });
@@ -253,12 +231,16 @@ describe('Verwaiste Zuordnungen werden gezählt, nicht stillschweigend geheilt',
    * Anzeige sagt ehrlich „steht neben dem Verfahren", die Arbeitsliste läuft
    * trotzdem nicht leer. Ein gelöschter Schritt darf keine Anträge aus Reitern
    * und Zählern nehmen — der Hinweis dazu steht im Kopf des Katalog-Tabs.
+   *
+   * Bis v4.86 hing das an einem Fallback auf den Auslieferungs-Schnitt und galt
+   * deshalb nur, solange die Auslieferung die Phase kannte. Seit die Arbeitsliste
+   * am Code hängt, gilt es ohne Wenn und Aber.
    */
-  it('behält aber die Arbeitsliste, solange die Auslieferung die Phase kennt', () => {
-    const nurDrei = [phase({ id: 'a' }), phase({ id: 'b' }), phase({ id: 'c' })];
-    expect(kategorieFuerPhase('begleitung', 89, nurDrei)).toBe('begleitung');
-    // Eine Id, die auch die Auslieferung nicht kennt, wird `sonstige`.
-    expect(kategorieFuerPhase('phase-7', 89, nurDrei)).toBe('sonstige');
+  it('behält die Arbeitsliste, egal was mit der Phase passiert', () => {
+    setZahPhasenSnapshot([phase({ id: 'a' }), phase({ id: 'b' }), phase({ id: 'c' })]);
+    setCodePhasenSnapshot({ codeZuPhase: new Map([[89, 'weg-damit']]), markerCodes: new Set() });
+    expect(zahPhaseLabel('weg-damit')).toBe('Marker (ohne Phase)');
+    expect(kategorieFuerCode(89)).toBe('begleitung');
   });
 });
 
@@ -283,9 +265,9 @@ describe('Die Phasen-Tabelle ändern', () => {
 
   it('Anlegen hängt ans Ende und stoppt an der Obergrenze', () => {
     let v = basis;
-    for (let i = 0; i < MAX_PHASEN; i++) v = fuegeZahPhaseHinzu(v, `Neu ${i}`, 'offen');
+    for (let i = 0; i < MAX_PHASEN; i++) v = fuegeZahPhaseHinzu(v, `Neu ${i}`);
     expect(v.zahPhasen).toHaveLength(MAX_PHASEN);
-    const nochmal = fuegeZahPhaseHinzu(v, 'zu viel', 'offen');
+    const nochmal = fuegeZahPhaseHinzu(v, 'zu viel');
     expect(nochmal.zahPhasen).toHaveLength(MAX_PHASEN);
   });
 

@@ -40,7 +40,7 @@ import {
   setzeFeldPhasen, berechnePhasenVorschlag, schnittVon,
   pruefeZahPhasen, verwaisteZuordnungen, zahPhasenVon, type VerwaisteZuordnungen,
   aendereZahPhase, fuegeZahPhaseHinzu, entferneZahPhase, verschiebeZahPhase, setzeCodePhasen,
-  type ZahPhase, type StatusCategory,
+  type ZahPhase,
   type PhasenAuswahl,
   relevanzLuecke, markiereRelevanz, AB_DASHBOARD_RELEVANZ,
   lasseRuhen, raeumeRelevanzDerRuhenden,
@@ -149,10 +149,10 @@ export interface StatusCockpitApi {
   setKategorie: (id: string, patch: Partial<StatusKategorie>) => void;
   addKategorie: (kategorie: StatusKategorie) => void;
   removeKategorie: (id: string) => void;
-  /** Beschriftung, Arbeitslisten-Vorgabe und Zieltage-Relevanz einer Phase. */
+  /** Beschriftung, Zieltage-Relevanz und Fristlauf einer Phase. */
   setZahPhase: (id: string, patch: Partial<ZahPhase>) => void;
   /** Legt eine Phase ans Ende an; über der Obergrenze ein No-op. */
-  addZahPhase: (label: string, kategorieVorgabe: StatusCategory) => void;
+  addZahPhase: (label: string) => void;
   /** Entfernt eine Phase und hängt ihre Codes nach `zielId` um (`null` = ohne Phase). */
   removeZahPhase: (id: string, zielId: string | null) => void;
   /** Schiebt eine Phase an Position `index` (0-basiert, Anzeige-Reihenfolge). */
@@ -840,8 +840,8 @@ export function useStatusCockpit(): StatusCockpitApi {
   const setZahPhase = useCallback((id: string, patch: Partial<ZahPhase>) => {
     setEntwurf(v => (v ? aendereZahPhase(v, id, patch) : v));
   }, []);
-  const addZahPhase = useCallback((label: string, kategorieVorgabe: StatusCategory) => {
-    setEntwurf(v => (v ? fuegeZahPhaseHinzu(v, label, kategorieVorgabe) : v));
+  const addZahPhase = useCallback((label: string) => {
+    setEntwurf(v => (v ? fuegeZahPhaseHinzu(v, label) : v));
   }, []);
   const removeZahPhase = useCallback((id: string, zielId: string | null) => {
     setEntwurf(v => (v ? entferneZahPhase(v, id, zielId) : v));

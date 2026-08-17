@@ -1,33 +1,62 @@
-# Die beiden Status-Achsen
+# Die Status-Ebenen: was woran hängt
 
-Über einem Antrag stehen zwei Angaben, die leicht für dasselbe gehalten werden:
-sein **Verfahrensschritt** und seine **Arbeitsliste**. Sie beantworten
-verschiedene Fragen, gehören verschiedenen Leuten, und genau eine von ihnen ist
-beweglich.
+Über einem Antrag liegen mehrere Angaben übereinander, die leicht für dasselbe
+gehalten werden. Dieses Doc ist die Karte dazu: **wer sie pflegt, was sie
+steuern, und was passiert, wenn man eine ändert.**
+
+## Die Ebenen und wer sie pflegt
+
+Die erste Frage ist nicht „wie viele Begriffe gibt es", sondern **wem sie
+gehören**. Drei der fünf Ebenen sind Fremddaten aus dem Fachsystem C16 und
+kosten uns keine Pflege — sie kommen per Import, und die App leitet aus ihnen
+nichts ab ([Pitfall #44](vorgangssystem.md)).
+
+| Ebene | Umfang | Herkunft | Wer pflegt |
+|---|---|---|---|
+| **Kürzel** (`D_AAE`, `T_HINT`) | 509 | Kürzel-Zuarbeit | C16 — wir kuratieren nur Ordner, Relevanz, Ruhe, Kurzform |
+| **Status** (11 Skizze … 99 Schlussvermerk) | ~30 | Nachtexport `STATUS_TV`/`STATUS_VB` | C16 — gilt wie importiert |
+| **Trigger** (Kürzel → Statuswechsel + Mail) | ~2450 Zeilen / 9 Richtlinien | XLSX-Import | C16 |
+| **Verfahrensschritt** (ZAH-Phase) | 3–9, ausgeliefert 6 | **unsere Erfindung** | PL im Baum-Editor, jederzeit |
+| **Arbeitsliste** (`StatusCategory`) | fest 9 | **unsere Erfindung** | niemand zur Laufzeit — sie steht im Code |
+
+Dazu zwei Ebenen, die nicht „wo steht er", sondern „ist er zu spät" beantworten
+— getrennt gerechnet, seit v4.87 gemeinsam gezeigt:
+
+| Ebene | Frage | Gepflegt in | Gilt ab |
+|---|---|---|---|
+| **Zieltage** je Status | Liegt der Vorgang zu lange still? | Katalog-Fassung | dem Speichern |
+| **Meilenstein**-Sollwoche | Ist ein Termin ab Eingang gerissen? | [Meilenstein-Plan](meilensteine.md) | der **Freigabe** |
+
+Beide laufen in **eine** Liste (Home-Widget „Fristen",
+[fristAnlaesse.ts](../../src/plugins/home/widgets/fristAnlaesse.ts)) — zusammen
+gezeigt, nicht zusammen gerechnet: sie messen Verschiedenes, und jede Zeile
+nennt deshalb ihre Herkunft.
+
+## Verfahrensschritt gegen Arbeitsliste
+
+Die beiden werden am häufigsten verwechselt. Sie beantworten verschiedene
+Fragen, gehören verschiedenen Leuten, und genau eine von ihnen ist beweglich.
 
 | | Verfahrensschritt (ZAH-Phase) | Arbeitsliste (`StatusCategory`) |
 |---|---|---|
 | **Frage** | Wo im Verfahren steht der Vorgang? | Wer ist am Zug — oder ist es erledigt? |
 | **Wirkt auf** | Verfahrensleiste, Filter-Gruppierung, Zieltage, Stillstands-Wächter, Fristlauf im Vorgangs-Board | Reiter, Abschnitte, Farben und Kanban-Lanes in *Förderanträge*, Gutachten-Karte am Verbund |
-| **Wohnt in** | der Katalog-Fassung (`MappingVersion.zahPhasen`) | dem Code (`core/utils/status-canonical.ts`) |
+| **Wohnt in** | der Katalog-Fassung (`MappingVersion.zahPhasen`) | dem Code (`core/status/kategorie-ableitung.ts`) |
 | **Ändert wer** | die PL im Baum-Editor der Vorgangs-Regeln | niemand zur Laufzeit |
 | **Anzahl** | 3 bis 9, ausgeliefert 6 | fest 9 |
 
-Beide hängen zusammen, aber nur in eine Richtung: jede Phase trägt eine
-`kategorieVorgabe` — die PL entscheidet, in **welche** Arbeitsliste ein Schritt
-einzahlt, nicht **welche** Arbeitslisten es gibt.
+**Sie hängen seit v4.87 nicht mehr zusammen.** Beide führen vom amtlichen Code
+weg, keine über die andere:
 
 ```
-Rohtext → amtlicher Code → Verfahrensschritt → Arbeitsliste
-          (status-codes)    (zahPhasen,         (KATEGORIE_ANKER am Code,
-                             kuratierbar)        sonst kategorieVorgabe)
+                        ┌→ Verfahrensschritt   (zahPhasen, kuratierbar)
+Rohtext → amtlicher Code ┤
+        (status-codes)   └→ Arbeitsliste       (CODE_ZU_ARBEITSLISTE, im Code)
 ```
 
-Sechs Codes gehen den zweiten Pfeil **nicht** mit: 33–37 (der
-Vollständigkeits-Zyklus) und 59 (bewilligt) tragen ihre Arbeitsliste am Code,
-nicht an der Phase — `KATEGORIE_ANKER` in
-[kategorie-ableitung.ts](../../src/core/status/kategorie-ableitung.ts). Warum,
-steht unten.
+Bis v4.86 stand der Verfahrensschritt **zwischen** Code und Arbeitsliste: jede
+Phase trug eine `kategorieVorgabe`. Damit steuerte die bewegliche Achse die
+feste — was das kostet, steht unten.
 
 ## Warum die eine beweglich ist
 
@@ -44,20 +73,21 @@ und niemand sähe den Zusammenhang. Zwei frei einstellbare Achsen mit
 überlappenden Wörtern wären außerdem genau das Durcheinander, gegen das die
 Umbenennung unten geschrieben ist.
 
-Festgehalten von `status-category-not-curated`: kein Feld der Fassung führt eine
-Liste von `StatusCategory`.
+Festgehalten von `status-category-not-curated`: **kein** Feld der Fassung trägt
+eine `StatusCategory` — weder einzeln noch als Liste. Bis v4.86 verbot der
+Wächter nur die Liste, und durch die verbliebene Tür lief der Schaden unten.
 
-## Was v3.25 gelehrt hat: `kategorieVorgabe` war das Schlupfloch
+## Warum die Kopplung weg ist (v4.87)
 
-Der Absatz darüber beschreibt genau den Schaden, der am 05.08.2026 eintrat — der
-Wächter stand nur an der falschen Tür. Er verbot der Fassung eine **Liste** von
-Kategorien; verschoben wurde die Arbeitsliste aber über den erlaubten Weg, den
-Phasenschnitt.
+Der Absatz darüber beschreibt einen Schaden, der am 05.08.2026 tatsächlich
+eintrat — der Wächter stand nur an der falschen Tür. Er verbot der Fassung eine
+**Liste** von Kategorien; verschoben wurde die Arbeitsliste aber über den
+erlaubten Weg, den Phasenschnitt.
 
 Die **Katalog-Fassung 19** löste die Phase „Vollständigkeit" auf und hängte ihre
 Codes 33–37 an „Prüfung" — ein gewollter Schnitt (fünf statt sechs Phasen) aus
-der AB/FB-Abstimmung. Weil `pruefung` die Arbeitsliste `in_pruefung` vorgibt und
-`snapshot.ts` die Kategorie aus Phase + Code neu rechnet, wanderten **448
+der AB/FB-Abstimmung. Weil `pruefung` die Arbeitsliste `in_pruefung` vorgab und
+`snapshot.ts` die Kategorie aus Phase + Code neu rechnete, wanderten **448
 Anträge** mit: „Wartet auf Antragsteller" fiel von 52 auf **0**, „Zu bearbeiten"
 verlor rund 400 seiner Einträge. Niemand hatte das entschieden; es war die
 Nebenwirkung einer Entscheidung über etwas anderes.
@@ -74,11 +104,52 @@ Gemeldet hat es am Ende der **Altanträge-Balken der Auslastung** (395 → 22
 Teilvorhaben, bei 22 von 32 MAs ganz leer) — ein Modul, das die Kategorie nur
 mitbenutzte.
 
-**Die Lehre:** Wessen Arbeitsliste fachlich feststeht, hängt am Code, nicht an
-der Phase. Ein Anker, der eine Phasen-Id nennt, ist kein Anker, sondern eine
-Sollbruchstelle. Die Kuration bleibt für alle übrigen Codes unberührt — die
-Anker-Tabelle ist eine Untergrenze, kein Ausschalter (Gegenprobe im Test
-`nicht verankerte Codes folgen weiter dem kuratierten Schnitt`).
+Die Reparatur von v3.25 war eine **Ausnahmeliste**: sechs Codes bekamen ihre
+Arbeitsliste direkt am Code. Sie nannte sich selbst „eine Untergrenze, kein
+Ersatz" — also ein vierter Mechanismus neben der Kopplung statt ihrer
+Abschaffung. Ein Jahr später stand dieselbe Frage wieder an, und die Antwort war
+diesmal, etwas **wegzunehmen**:
+
+- `kategorieVorgabe` ist entfallen. Die Ausnahmeliste ist vollständig geworden
+  ([`CODE_ZU_ARBEITSLISTE`](../../src/core/status/kategorie-ableitung.ts), 26
+  Codes + 4 Marker). Kein Phasenschnitt kann eine Arbeitsliste mehr bewegen.
+- Der Wächter `status-category-not-curated` ist absolut: in `typen.ts` darf
+  **kein** Fassungs-Typ ein Feld vom Typ `StatusCategory` führen, weder einzeln
+  noch als Liste. Die Gegenprobe steht daneben — der Test
+  *„ein anderer Phasen-Zuschnitt ändert KEINE einzige Arbeitsliste"* legt alle
+  30 Codes auf eine einzige Phase und vergleicht vorher/nachher.
+- Eine `kategorieVorgabe` aus einer Fassung vor v4.87 wird beim Lesen verworfen
+  (`normalisiere` in `zah-phasen.ts`) — keine Migration nötig, und genau das ist
+  der Gewinn: eine alte Fassung kann die Arbeitslisten nicht mehr verschieben.
+
+**Die Lehre:** Ein Wächter, der einen Weg verbietet und einen zweiten offen
+lässt, bewacht nichts. Und wo eine Kopplung wiederholt Schaden anrichtet, ist die
+richtige Antwort, sie zu entfernen — nicht, sie abzufedern.
+
+### Was die Umstellung an den Daten gefunden hat
+
+Die Ankerwerte mussten aus einer der beiden Quellen kommen, und sie waren sich
+uneinig: der ausgelieferte Seed (`prod`) und die gelebte Katalog-Fassung 23
+(`pl`) ordneten **fünf Codes** verschieden ein. Gemessen an den drei
+Import-Quellen (64 385 Zeilen):
+
+| Code | Fassung 23 → | Seed → | STATUS_VB | STATUS_TV |
+|---|---|---|---|---|
+| 91 beendet | Begleitung | Erledigt | 2 187 | 806 |
+| 32 ablehnungsreif | In Arbeit | Zu entscheiden | 457 | 138 |
+| 90 abgebrochen | Begleitung | Erledigt | 25 | 6 |
+| 75 Widerspruch z. Abl. | In Arbeit | Zu entscheiden | 19 | 18 |
+| 72 Stellungnahme RNE | In Arbeit | Zu entscheiden | 13 | 43 |
+
+Solange die Arbeitsliste an der Phase hing, konnte diese Uneinigkeit unbemerkt
+bestehen — `prod` läuft ohne Fassung, `pl` mit. Am Code hängt sie an genau einer
+Stelle, also musste entschieden werden. **Die Fassung hat gewonnen**: sie ist der
+spätere, im Team abgestimmte Stand. Fachlich gelesen heißt das: nach „beendet"
+(91) und „abgebrochen" (90) steht der Schlussvermerk (99) noch aus, der Vorgang
+bleibt also im Arbeitsvorrat; „ablehnungsreif" (32) ist Arbeit, keine anstehende
+Entscheidung — die Ablehnung muss erst geschrieben werden.
+
+Für `pl` und `local` ändert sich dadurch nichts. `prod` zieht nach.
 
 ## Die Umbenennung von v2.409
 
@@ -337,9 +408,13 @@ Fassungsnummer allein wäre eine Zusage, die der Inhalt nicht hält.
 | Die Handlung „nächster Schritt" (nur die Aktion) | [naechsterSchritt.ts](../../src/core/utils/naechsterSchritt.ts) |
 | Grenzen, Umhängen, Verwaiste | [zah-phasen-edit.ts](../../src/core/status/zah-phasen-edit.ts) |
 | Der Schnitt als transportables Paket | [phasen-paket.ts](../../src/core/status/phasen-paket.ts) |
-| Phase + Code → Kategorie | [kategorie-ableitung.ts](../../src/core/status/kategorie-ableitung.ts) |
+| **Code → Arbeitsliste** (die eine Tabelle) | [kategorie-ableitung.ts](../../src/core/status/kategorie-ableitung.ts) |
 | Die sieben Abschnitte | [antragGroups.ts](../../src/plugins/antraege/antragGroups.ts) |
 | Der Baum-Editor | [PhasenBaum.tsx](../../src/plugins/status-cockpit/PhasenBaum.tsx) |
+| Die Ebenen-Übersicht mit Live-Zahlen | [ebenenModell.ts](../../src/plugins/status-cockpit/ebenenModell.ts) + [EbenenUebersicht.tsx](../../src/plugins/status-cockpit/EbenenUebersicht.tsx) |
+| Die zwei Fristsysteme in einer Liste | [fristAnlaesse.ts](../../src/plugins/home/widgets/fristAnlaesse.ts) |
+| Die Kürzel-Ebene (509 Codes, Ordner, Rollen, Ruhe) | [KATALOG-CODES.md](../status-system/KATALOG-CODES.md) |
+| Die Meilenstein-Ebene | [meilensteine.md](meilensteine.md) |
 
 ## Ids statt Namen als Schlüssel
 

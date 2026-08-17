@@ -290,24 +290,24 @@ describe('quartalBand', () => {
 /**
  * Die Katalog-Fassung 19 (05.08.2026) hat die ZAH-Phase „Vollstaendigkeit"
  * aufgeloest und ihre Codes 33–37 an „Pruefung" gehaengt — eine gewollte
- * fachliche Entscheidung (5-Phasen-Schnitt der AB/FB-Abstimmung). Weil
- * `pruefung` die Arbeitsliste `in_pruefung` vorgibt und `snapshot.ts` die
- * Kategorie aus Phase + Code NEU rechnet, verloren dabei vier der fuenf
- * Altlast-Status ihre Kategorie (`offen`/`nachforderung`): der Altanträge-Balken
- * fiel im Bestand von 395 auf 22 Teilvorhaben und war bei 22 von 32 MAs ganz
- * leer, obwohl sich an den Antraegen nichts geaendert hatte.
+ * fachliche Entscheidung (5-Phasen-Schnitt der AB/FB-Abstimmung). Damals hing
+ * die Arbeitsliste an der Phase (`kategorieVorgabe`), also verloren vier der
+ * fuenf Altlast-Status ihre Kategorie: der Altantraege-Balken fiel im Bestand
+ * von 395 auf 22 Teilvorhaben und war bei 22 von 32 MAs ganz leer, obwohl sich
+ * an den Antraegen nichts geaendert hatte.
  *
- * Diese Tests halten die Trennung fest: der **Verfahrensschritt** ist beweglich,
- * die **Arbeitsliste** steht still (Pitfall #50). Sie muessen unter JEDEM
- * Phasenschnitt gruen sein — deshalb setzen sie den Schnitt hier aktiv, statt
- * (wie die Tests oben) auf dem Seed zu laufen, wo die Luecke unsichtbar bleibt.
+ * Seit v4.87 kann das strukturell nicht mehr passieren — die Arbeitsliste haengt
+ * am Statuscode (`CODE_ZU_ARBEITSLISTE`), der Phasenschnitt geht nicht mehr ein.
+ * Diese Tests bleiben trotzdem stehen, und zwar als Wirkungs-Nachweis: sie
+ * setzen den damals schaedlichen Schnitt aktiv und zeigen, dass er heute nichts
+ * mehr bewegt. Ein Test, der nur auf dem Seed liefe, koennte das nicht belegen.
  */
 const FASSUNG19_PHASEN: ZahPhase[] = [
-  { id: 'eingang', reihenfolge: 10, label: 'Eingang', kategorieVorgabe: 'offen' },
-  { id: 'pruefung', reihenfolge: 20, label: 'In Prüfung', kategorieVorgabe: 'in_pruefung' },
-  { id: 'entscheidung', reihenfolge: 30, label: 'Erstentscheidung', kategorieVorgabe: 'entscheidung' },
-  { id: 'begleitung', reihenfolge: 40, label: 'Begleitung', kategorieVorgabe: 'begleitung' },
-  { id: 'abgeschlossen', reihenfolge: 50, label: 'Abgeschlossen', kategorieVorgabe: 'abgeschlossen' },
+  { id: 'eingang', reihenfolge: 10, label: 'Eingang' },
+  { id: 'pruefung', reihenfolge: 20, label: 'In Prüfung' },
+  { id: 'entscheidung', reihenfolge: 30, label: 'Erstentscheidung' },
+  { id: 'begleitung', reihenfolge: 40, label: 'Begleitung' },
+  { id: 'abgeschlossen', reihenfolge: 50, label: 'Abgeschlossen' },
 ];
 
 /** Ein Wert-Eintrag, wie die Fassung ihn fuehrt (Code + kuratierte Phase). */

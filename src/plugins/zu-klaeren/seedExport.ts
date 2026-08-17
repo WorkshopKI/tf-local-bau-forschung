@@ -38,7 +38,7 @@ function fuelleAuf(zeile: string): string {
 /** Ein Phasen-Literal, wie es in `SEED_ZAH_PHASEN` steht. */
 function phasenZeile(p: GeltendeZahPhase): string {
   return `  { id: '${p.id}', reihenfolge: ${p.reihenfolge}, label: '${p.label}', `
-    + `zieltageRelevant: ${p.zieltageRelevant}, kategorieVorgabe: '${p.kategorieVorgabe}' },`;
+    + `zieltageRelevant: ${p.zieltageRelevant}, fristLaeuft: ${p.fristLaeuft} },`;
 }
 
 /**
@@ -69,9 +69,6 @@ function phasenAbschnitt(d: KatalogDrift, phasen: readonly GeltendeZahPhase[]): 
         neu.has(phase.id) ? 'neu' : null,
         umbenannt.has(phase.id) ? `war label: '${umbenannt.get(phase.id) ?? ''}'` : null,
         verschoben.has(phase.id) ? 'umsortiert' : null,
-        vorgabe.get(phase.id)?.arbeitsliste
-          ? `war kategorieVorgabe: '${vorgabe.get(phase.id)?.arbeitsliste?.alt ?? ''}'`
-          : null,
         vorgabe.get(phase.id)?.zieltageRelevant
           ? `war zieltageRelevant: ${String(vorgabe.get(phase.id)?.zieltageRelevant?.alt)}`
           : null,

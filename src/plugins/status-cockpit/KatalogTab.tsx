@@ -139,7 +139,7 @@ export function KatalogTab({ api }: { api: StatusCockpitApi }): React.ReactEleme
     return werte.filter(w => {
       // Die WIRKSAME Arbeitsliste, nicht das gepflegte Feld — sonst filtert der
       // Chip nach einem anderen Vokabular, als die Zelle daneben anzeigt.
-      if (katFilter.size > 0 && !katFilter.has(effektiveKategorieVon(w, zahPhasen))) return false;
+      if (katFilter.size > 0 && !katFilter.has(effektiveKategorieVon(w))) return false;
       if (promFilter.size > 0 && !promFilter.has(w.prominenz)) return false;
       if (nurUnkuratiert && !w.unkuratiert) return false;
       if (q) {
