@@ -105,7 +105,13 @@ export function uebernahmeSatz(
     ? `Phasen aus v${paket.herkunft.fassung} übernommen: ${teile.join(' · ')}.`
     : `Phasen aus v${paket.herkunft.fassung} übernommen — der Schnitt stand hier schon so.`;
 
+  // Verwaiste zuerst: sie sind das Einzige hier, wozu jemand etwas TUN kann.
+  const verwaist = bericht.verwaist.werte + bericht.verwaist.felder;
   const rest = [
+    ...(verwaist > 0
+      ? [`${zaehlwort(verwaist, 'Zuordnung zeigt', 'Zuordnungen zeigen')} jetzt auf einen `
+        + 'Schritt, den dieser Zuschnitt nicht mehr führt — im Baum unter „Ohne Phase" '
+        + 'als verwaist markiert.'] : []),
     ...(bericht.unbekannteCodes.length > 0
       ? [`${zaehlwort(bericht.unbekannteCodes.length, 'Code', 'Codes')} aus dem Paket `
         + `kennt dieser Katalog nicht (${auflistung(bericht.unbekannteCodes)}).`] : []),

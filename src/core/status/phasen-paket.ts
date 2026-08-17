@@ -26,7 +26,10 @@
  * Rein und deterministisch: keine IO, keine Uhr.
  */
 import { zahPhasenVon } from './zah-phasen';
-import { normalisiereReihenfolge, pruefeZahPhasen, setzeCodePhasen } from './zah-phasen-edit';
+import {
+  normalisiereReihenfolge, pruefeZahPhasen, setzeCodePhasen, verwaisteZuordnungen,
+  type VerwaisteZuordnungen,
+} from './zah-phasen-edit';
 import { setzeFeldPhasen, setzeZieltage } from './katalog-edit';
 import type { MappingVersion, ZahPhase, ZahPhaseId } from './typen';
 
@@ -82,6 +85,17 @@ export interface UebernahmeBericht {
   unbekannteCodes: number[];
   /** Dasselbe für Datums-Kürzel — alphabetisch. */
   unbekannteFelder: string[];
+  /**
+   * Zuordnungen, die **danach** auf einen Schritt zeigen, den der neue Zuschnitt
+   * nicht führt.
+   *
+   * Sie entstehen, weil die Phasenliste ERSETZT wird: hat das Ziel einen Wert an
+   * einer Phase, die das Paket abgeschafft hat, und sagt das Paket zu diesem Code
+   * nichts, bleibt der Verweis stehen. Das ist ein getragener Zustand (die App
+   * liest ihn wie „ohne Phase"), aber keiner, den jemand erst drei Klicks später
+   * im Kopf des Katalog-Tabs entdecken soll.
+   */
+  verwaist: VerwaisteZuordnungen;
   /** Was der Übernahme im Weg stand. Nicht leer ⇒ es wurde **nichts** geändert. */
   fehler: string[];
 }
@@ -101,7 +115,7 @@ export interface PhasenPaketErgebnis {
 function leererBericht(): UebernahmeBericht {
   return {
     phasen: 0, codes: 0, felder: 0, zieltage: 0,
-    unbekannteCodes: [], unbekannteFelder: [], fehler: [],
+    unbekannteCodes: [], unbekannteFelder: [], verwaist: { werte: 0, felder: 0 }, fehler: [],
   };
 }
 
@@ -110,16 +124,32 @@ function leererBericht(): UebernahmeBericht {
 /**
  * Zieht den Verfahrensschnitt aus einer Fassung.
  *
- * Aufgenommen wird nur, was die Fassung ausdrücklich SAGT: ein Statuswert ohne
- * `zahPhaseId` (`undefined` = „hat noch niemand entschieden") kommt nicht ins
- * Paket, sonst würde beim Einsetzen aus einer offenen Frage eine Antwort.
- * `null` dagegen ist eine gepflegte Aussage und reist mit.
+ * Aufgenommen wird nur, was die Fassung ausdrücklich SAGT — und zwar in einer
+ * Form, die am Zielort noch etwas bedeutet. Drei Fälle fallen deshalb raus:
+ *
+ * - `zahPhaseId === undefined` („hat noch niemand entschieden"): käme es mit,
+ *   würde am Zielort aus einer offenen Frage eine Antwort. `null` dagegen ist
+ *   die gepflegte Aussage „läuft neben dem Verfahren" und reist mit.
+ * - **Verwaiste Zuordnungen** — ein Eintrag, der auf eine Phase zeigt, die
+ *   diese Fassung nicht (mehr) führt. Das ist ein normaler, von der App
+ *   ausdrücklich getragener Katalogzustand (`verwaisteZuordnungen`): gelesen
+ *   wird er wie „ohne Phase", umgeschrieben wird er nicht. Als Paket-Inhalt
+ *   wäre er wertlos und schädlich zugleich — er trüge einen toten Verweis in
+ *   eine Fassung, in der der Eintrag vielleicht sauber zugeordnet ist. Er ist
+ *   **keine Aussage**, also transportiert ihn das Paket nicht.
+ * - Werte ohne `code` — der Code ist der einzige übertragbare Schlüssel.
  *
  * Die Phasenliste kommt über `zahPhasenVon`, also im geltenden Zuschnitt — eine
  * Fassung von vor v2.409 führt `kategorieVorgabe`/`fristLaeuft` nicht, und ein
  * Paket mit halben Phasen wäre am Zielort nicht mehr rekonstruierbar.
  */
 export function bauePhasenPaket(v: MappingVersion): PhasenPaket {
+  const phasen = [...zahPhasenVon(v.zahPhasen)];
+  const gefuehrt = new Set(phasen.map(p => p.id));
+  /** Zeigt die Zuordnung auf eine Phase, die diese Fassung nicht führt? `null`
+   *  ist ausdrücklich KEIN Verweis ins Leere, sondern die Marker-Gruppe. */
+  const verwaist = (id: ZahPhaseId | null): boolean => id !== null && !gefuehrt.has(id);
+
   const codePhasen: PhasenPaket['codePhasen'] = [];
   const zieltage: PhasenPaket['zieltage'] = [];
   // Je Code EINMAL: derselbe Code steht im Katalog unter `status` UND
@@ -129,7 +159,7 @@ export function bauePhasenPaket(v: MappingVersion): PhasenPaket {
 
   for (const w of v.werte) {
     if (w.code === undefined) continue;
-    if (w.zahPhaseId !== undefined && !phaseGesehen.has(w.code)) {
+    if (w.zahPhaseId !== undefined && !verwaist(w.zahPhaseId) && !phaseGesehen.has(w.code)) {
       phaseGesehen.add(w.code);
       codePhasen.push({ code: w.code, phaseId: w.zahPhaseId });
     }
@@ -140,14 +170,14 @@ export function bauePhasenPaket(v: MappingVersion): PhasenPaket {
   }
 
   const feldPhasen = v.felder
-    .filter(f => f.zahPhaseId != null)
+    .filter(f => f.zahPhaseId != null && !verwaist(f.zahPhaseId))
     .map(f => ({ feldId: f.feldId, phaseId: f.zahPhaseId! }));
 
   return {
     art: PHASEN_PAKET_ART,
     version: PHASEN_PAKET_FORMAT,
     herkunft: { fassung: v.version, autor: v.autor, zeitstempel: v.zeitstempel },
-    phasen: [...zahPhasenVon(v.zahPhasen)],
+    phasen,
     codePhasen: codePhasen.sort((a, b) => a.code - b.code),
     feldPhasen: feldPhasen.sort((a, b) => a.feldId.localeCompare(b.feldId)),
     zieltage: zieltage.sort((a, b) => a.code - b.code),
@@ -226,6 +256,12 @@ export function validierePhasenPaket(daten: unknown): PhasenPaketErgebnis {
  * Die Phasenliste wird **ersetzt**, nicht vereinigt — das ist der Zweck („1
  * Phase entfernt · 2 umbenannt"). Die Zuordnungen dagegen werden gemischt: ein
  * Code, den das Paket nicht nennt, behält seine.
+ *
+ * Genau daraus können im Ziel **neue Verwaiste** entstehen: schafft das Paket
+ * eine Phase ab, an der das Ziel noch Einträge führt, und sagt es zu deren Codes
+ * nichts, zeigen sie danach ins Leere. Das ist kein Grund abzubrechen — die App
+ * trägt diesen Zustand (`verwaisteZuordnungen`) — aber einer, es zu SAGEN; die
+ * Zahl steht im Bericht.
  */
 export function uebernimmPhasen(ziel: MappingVersion, paket: PhasenPaket): PhasenUebernahme {
   const fehler = pruefeZahPhasen(paket.phasen);
@@ -236,6 +272,8 @@ export function uebernimmPhasen(ziel: MappingVersion, paket: PhasenPaket): Phase
       .map(z => z.phaseId as ZahPhaseId),
     ...paket.feldPhasen.filter(z => !bekannt.has(z.phaseId)).map(z => z.phaseId),
   ])].sort();
+  // Kann nach `bauePhasenPaket` nur noch eine von Hand editierte Datei
+  // auslösen: verwaiste Zuordnungen einer Fassung räumt schon der Ausbau weg.
   if (fremde.length > 0) {
     fehler.push(
       'Das Paket ordnet Einträge Phasen zu, die es selbst nicht führt: '
@@ -304,6 +342,9 @@ export function uebernimmPhasen(ziel: MappingVersion, paket: PhasenPaket): Phase
       zieltage: zieltageGeaendert.size,
       unbekannteCodes,
       unbekannteFelder,
+      // Am ERGEBNIS gezählt, nicht als Differenz: was danach ins Leere zeigt,
+      // ist die Aussage, die der Kuratorin hilft — woher es kam, nicht.
+      verwaist: verwaisteZuordnungen(version),
       fehler: [],
     },
   };

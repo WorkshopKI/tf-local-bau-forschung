@@ -211,6 +211,18 @@ describe('uebernahmeSatz', () => {
     expect(satz).toContain('70, 71, 72, 73, 74, 75, 76, 77 … und 2 weitere');
   });
 
+  it('sagt, wenn Zuordnungen durch den neuen Zuschnitt ins Leere zeigen — das '
+    + 'ist das Einzige im Satz, wozu jemand etwas tun kann', () => {
+    const quelle = fassung({ version: 12, zahPhasen: DREI, werte: [wert(11, 'a')] });
+    const ziel = fassung({
+      zahPhasen: [...DREI, phase('weg', 'Fällt weg', 40)],
+      werte: [wert(11, 'a'), wert(77, 'weg')],
+    });
+    const satz = satzFuer(quelle, ziel);
+    expect(satz).toContain('1 Zuordnung zeigt jetzt auf einen Schritt');
+    expect(satz).toContain('Ohne Phase');
+  });
+
   it('sagt bei einem abgelehnten Paket, dass NICHTS übernommen wurde', () => {
     const quelle = fassung({ version: 12, zahPhasen: [phase('a', 'Nur eine', 10)] });
     expect(satzFuer(quelle, fassung({ zahPhasen: DREI })))

@@ -157,6 +157,65 @@ describe('Der Schnitt kommt am Zielort an', () => {
   });
 });
 
+// --- Verwaiste Zuordnungen: getragen, nicht verboten ------------------------
+
+/**
+ * Der Fall, der die erste Fassung dieses Pakets zu Fall brachte (v4.79.1): eine
+ * echte Katalogfassung (v21) führte fünf Phasen und drei Datums-Kürzel, die noch
+ * auf die entfernte „vollstaendigkeit" zeigten. Der Ausbau erklärte das Paket
+ * daraufhin für in sich widersprüchlich und brach ab — an einem Zustand, den die
+ * App an jeder anderen Stelle ausdrücklich trägt (`verwaisteZuordnungen`).
+ */
+describe('Ein Verweis ins Leere ist keine Aussage', () => {
+  /** Wie v21: fünf Phasen, aber Einträge zeigen auf eine sechste, die weg ist. */
+  const mitVerwaisten = (): MappingVersion => {
+    const q = quelle();
+    q.werte.push(wert({ id: 'status::60', code: 60, zahPhaseId: 'vollstaendigkeit' }));
+    q.felder.push(feld({ feldId: 'D_VOLL', zahPhaseId: 'vollstaendigkeit' }));
+    return q;
+  };
+
+  it('nimmt ihn nicht ins Paket — das Paket bleibt in sich stimmig', () => {
+    const paket = bauePhasenPaket(mitVerwaisten());
+    expect(paket.codePhasen.some(z => z.code === 60)).toBe(false);
+    expect(paket.feldPhasen.some(z => z.feldId === 'D_VOLL')).toBe(false);
+  });
+
+  it('bricht deshalb nicht mehr ab — der Rest der Fassung reist normal', () => {
+    const { version: neu, bericht } = uebernimmPhasen(ziel(), bauePhasenPaket(mitVerwaisten()));
+    expect(bericht.fehler).toEqual([]);
+    expect(neu.zahPhasen?.map(p => p.id)).toEqual(['eingang', 'pruefung', 'ende']);
+  });
+
+  it('lässt die Zuordnung des Ziels dafür in Ruhe — kein toter Verweis reist ein', () => {
+    const vorher = ziel();
+    const { version: neu } = uebernimmPhasen(vorher, bauePhasenPaket(mitVerwaisten()));
+    expect(neu.werte.find(w => w.code === 77)).toEqual(vorher.werte.find(w => w.code === 77));
+  });
+
+  it('behält den Abbruch für ein von Hand verbogenes Paket', () => {
+    const paket = bauePhasenPaket(quelle());
+    paket.feldPhasen.push({ feldId: 'D_XTEC', phaseId: 'erfunden' });
+    expect(uebernimmPhasen(ziel(), paket).bericht.fehler[0]).toContain('erfunden');
+  });
+
+  it('meldet, was durch den neuen Zuschnitt im ZIEL verwaist', () => {
+    // Das Ziel führt 77 an „alt-c" und D_ALT an „alt-b"; das Paket schafft alle
+    // alt-Phasen ab und sagt zu beiden nichts — die Verweise bleiben stehen und
+    // zeigen ins Leere. Genau die Zahl, die sonst niemand bemerkt.
+    const z = ziel();
+    z.felder.push(feld({ feldId: 'D_ALT', zahPhaseId: 'alt-b' }));
+    const { bericht } = uebernimmPhasen(z, bauePhasenPaket(quelle()));
+    expect(bericht.verwaist).toEqual({ werte: 1, felder: 1 });
+  });
+
+  it('meldet nichts, wo nichts verwaist — eine Fassung auf sich selbst', () => {
+    const q = quelle();
+    expect(uebernimmPhasen(q, bauePhasenPaket(q)).bericht.verwaist)
+      .toEqual({ werte: 0, felder: 0 });
+  });
+});
+
 // --- 2. Der eigentliche Zweck ----------------------------------------------
 
 describe('Die Kürzel bleiben unberührt', () => {

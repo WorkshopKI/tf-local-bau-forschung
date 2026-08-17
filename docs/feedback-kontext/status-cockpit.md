@@ -91,6 +91,11 @@ wird.
     - Übernommen wird in den Entwurf. Nichts gilt für das Team, bevor „Für das
       Team speichern" gedrückt wurde; wer es sich anders überlegt, lädt eine
       Fassung neu.
+    - Weil die Schritte dabei **ersetzt** werden, kann es passieren, dass danach
+      Zuordnungen auf einen Schritt zeigen, den es nicht mehr gibt. Das steht in
+      derselben Meldung und ist kein Fehler — die betroffenen Einträge stehen im
+      Baum unter „Ohne Phase" als verwaist und lassen sich von dort zurück ins
+      Verfahren hängen.
   - **Tabelle**: alle Statuswerte mit Inline-Bearbeitung (Label, **Kurzform**,
     Kategorie, Prominenz, **Zieltage**, aktiv), **Vorkommen**, **zuletzt
     gesehen**, Feldname und **CSV-Spalte** als Herkunft, dazu Filterchips und

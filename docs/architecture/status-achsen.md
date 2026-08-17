@@ -245,10 +245,34 @@ Vier Festlegungen, die dabei wichtiger sind als die Liste selbst:
 3. **Nur ausdrückliche Aussagen reisen.** Ein Statuswert ohne `zahPhaseId`
    (`undefined` = „hat noch niemand entschieden") kommt nicht ins Paket; sonst
    würde am Zielort aus einer offenen Frage eine Antwort. `null` dagegen ist
-   gepflegt und reist mit.
-4. **Alles oder nichts.** Grenzverletzung (`pruefeZahPhasen`) oder eine
-   Zuordnung auf eine Phase, die das Paket selbst nicht führt ⇒ es wird *nichts*
+   gepflegt und reist mit. Ebenso wenig reist eine **verwaiste** Zuordnung — dazu
+   unten.
+4. **Alles oder nichts.** Grenzverletzung (`pruefeZahPhasen`) oder ein Paket, das
+   Einträge Phasen zuordnet, die es selbst nicht führt ⇒ es wird *nichts*
    angewendet. Ein halb übernommener Schnitt sähe gepflegt aus und wäre verwaist.
+
+### Verwaiste Zuordnungen: getragen, nicht verboten (v4.79.1)
+
+Die erste Fassung des Pakets brach an einer echten Katalogfassung ab: v21 führte
+fünf Phasen, aber drei Datums-Kürzel zeigten noch auf die entfernte
+`vollstaendigkeit`. Das Paket erklärte sich daraufhin für in sich widersprüchlich
+— an einem Zustand, den die App an jeder anderen Stelle ausdrücklich trägt
+(`verwaisteZuordnungen`: „gelesen wie *ohne Phase*, nicht stillschweigend
+umgeschrieben"). Eine Regel, die einen normalen Katalogzustand wie einen
+Formatfehler behandelt, ist die falsche Regel.
+
+Seither gilt: **ein Verweis ins Leere ist keine Aussage.** `bauePhasenPaket`
+nimmt ihn gar nicht erst auf — er wäre wertlos und schädlich zugleich, weil er
+einen toten Verweis in eine Fassung trüge, in der derselbe Eintrag vielleicht
+sauber zugeordnet ist. Der Abbruch-Guard bleibt und trifft jetzt nur noch von
+Hand verbogene Dateien.
+
+Die Gegenrichtung braucht dafür eine Meldung: weil die Phasenliste **ersetzt**
+wird, können im Ziel neue Verwaiste entstehen — dort, wo es Einträge an einer
+Phase führt, die das Paket abschafft, und das Paket zu deren Codes nichts sagt.
+Auch das ist kein Abbruchgrund, aber `uebernimmPhasen` zählt es am Ergebnis und
+der Satz sagt es, statt es der Kuratorin drei Klicks später im Kopf des
+Katalog-Tabs zu überlassen.
 
 Bedienung: **„Phasen exportieren"** steht neben dem Ansichtsumschalter im Reiter
 „Statuswerte", also dort, wo der Schnitt gepflegt wird. Eingelesen wird über den
@@ -265,8 +289,10 @@ steht ein Ergebnissatz danach, und zwar in der Grammatik der Katalog-Bilanz
 > Phasen aus v16 übernommen: 1 Phase entfernt · 2 umbenannt · 10 Zuordnungen
 > geändert · 22 Zieltage gepflegt.
 
-Am echten Katalog gemessen (v16 → v22): 3,7 KB Paket gegenüber 152,8 KB
-Voll-Export, alle 509 Kürzel byte-gleich geblieben.
+Am echten Katalog gemessen (v21 → v22): 5 Phasen, 26 Code-Zuordnungen, 40
+Kürzel-Zuordnungen und 22 Zieltage im Paket; davon geändert 10 Codes, 10 Kürzel,
+22 Zieltage — bei 5 danach verwaisten Zuordnungen und allen 509 Kürzeln
+byte-gleich. Das Paket wiegt 3,7 KB gegen 152,8 KB Voll-Export.
 
 ## Wo was steht
 

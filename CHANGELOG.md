@@ -5,6 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.85.4 — Ein Verweis ins Leere ist keine Aussage (August 2026)
+
+PATCH — „Nur Phasen übernehmen" (v4.79.0) brach an der ersten echten Fassung ab, auf die es angesetzt wurde: v21 führt fünf Phasen, aber drei Datums-Kürzel zeigen noch auf die entfernte `vollstaendigkeit`. Das Paket erklärte sich für in sich widersprüchlich — an einem Zustand, den die App überall sonst ausdrücklich trägt (`verwaisteZuordnungen`: gelesen wie „ohne Phase", nicht umgeschrieben).
+
+- **Ein Verweis ins Leere reist nicht mit** — `bauePhasenPaket` überspringt verwaiste Zuordnungen, statt das Paket zu verwerfen ([phasen-paket.ts](src/core/status/phasen-paket.ts)); der Abbruch-Guard trifft jetzt nur noch von Hand verbogene Dateien
+- **Was durch den neuen Zuschnitt im ZIEL verwaist, steht im Ergebnissatz** — am Ergebnis gezählt, nicht als Differenz ([katalogDriftAnsicht.ts](src/plugins/status-cockpit/katalogDriftAnsicht.ts))
+- Am echten Katalog (v21 → v22): 10 Codes, 10 Kürzel, 22 Zieltage geändert, 5 danach verwaist, alle 509 Kürzel byte-gleich
+- Hintergrund: [status-achsen.md](docs/architecture/status-achsen.md)
+
 ### v4.85.3 — QS und QS- sind zwei Kürzel, nicht eines (August 2026)
 
 PATCH — Nachtrag zu `bed9bde0` (lag zwischen v4.81.0 und v4.82.0 ohne eigenen Block). Die Spalten-Auflösung schlüsselte über `normCode`, das `-`/`_` streift — richtig zum Vergleichen von Kürzel-Schreibweisen, falsch hier: im Fachsystem heißt `QS` „kaufm. QS erfolgt" und `QS-` „kaufm. QS zurück an AB". Der Kollisionsschutz warf dann eines von beiden hinaus, und `D_ARQ-`/`D_VQK-` — ohne eigene Spalte — griffen die des Geschwisters ab. Betroffen: `QS` (7 135 Export-Zeilen), `AQ4` (6 758), `VQK` (3 208), `ARQ` (1 260), `ABLQ` (821), app-weit ohne Wert.
