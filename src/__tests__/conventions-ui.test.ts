@@ -17,6 +17,10 @@
  *   - no-raw-clipboard                  → v2.301.3, Zwischenablage nur ueber
  *     kopiereText() aus src/core/utils/kopieren.ts (execCommand-Rueckfall +
  *     wirft statt still zu scheitern); "kopieren und oeffnen" erst kopieren.
+ *   - dom-attribut-per-callback-ref     → Bug-Klasse 23: DOM-Attribute
+ *     nicht ueber eine useRef setzen. Hinter bedingtem Rendern steht der Knoten
+ *     beim Mount-Effekt nicht da, und []-Deps laufen nie wieder — eine
+ *     Callback-Ref laeuft bei JEDEM Montieren.
  *   - no-headless-tree-outside-wrapper  → Tree-Basis (v2.393): @headless-tree/*
  *     nur in src/components/tree/; Verbraucher nutzen TfTree statt einen zweiten
  *     Baum mit eigenem Aufklapp-/Auswahl-/DnD-Verhalten zu bauen.
@@ -170,6 +174,75 @@ describe('no-raw-clipboard (v2.301.3 — „Document is not focused")', () => {
         `Braucht die Stelle wirklich die rohe API (z.B. ClipboardItem fuer text/html),\n` +
         `Zeile mit '// allow-raw-clipboard: <grund>' markieren.\n\nTreffer:\n${fmt(findings)}`;
       expect.fail(msg);
+    }
+  });
+});
+
+describe('dom-attribut-per-callback-ref (Bug-Klasse 23)', () => {
+  // Ein DOM-Attribut ueber eine `useRef` zu setzen, verlangt, dass der Knoten
+  // da IST, wenn der Code laeuft — und der Mount-Effekt der Elternkomponente
+  // ist genau der Moment, in dem das NICHT garantiert ist: steckt der Knoten
+  // hinter einem bedingten Rendern (`SettingsKlappe` mit `{offen && …}`, ein
+  // Tab, ein `{laedt ? … : …}`), greift der Effekt ins Leere und laeuft bei
+  // `[]`-Deps nie wieder.
+  //
+  // Real passiert (seit v4.31): das Bridge-Lesezeichen bekam sein
+  // `javascript:`-href aus einem Mount-Effekt, sass aber in einer zugeklappten
+  // SettingsKlappe. Der Anker montierte spaeter — ohne `href` — und liess sich
+  // nicht in die Chrome-Lesezeichenleiste ziehen. Vorher lag derselbe Anker in
+  // einem `<details>`, das seine Kinder MONTIERT haelt; nur der Behaelter
+  // wechselte, und die stille Annahme kippte.
+  //
+  // Eine Callback-Ref hat das Problem nicht: sie laeuft bei jedem Montieren des
+  // Knotens und bekommt ihn als Argument.
+  // KEIN `\b` vor `current`-Traeger: der Treffer heisst real `linkRef.current`,
+  // und `\bref` faende darin nichts (zwischen 'k' und 'R' liegt keine
+  // Wortgrenze). Der Selbsttest unten haelt genau das fest.
+  const pattern = /\.\s*current\s*[!?]?\s*\.\s*(setAttribute|removeAttribute)\s*\(|\.\s*current\s*[!?]?\s*\.\s*(href|src)\s*=[^=]/;
+
+  it('kein DOM-Attribut-Schreiben ueber eine Ref (Callback-Ref stattdessen)', () => {
+    const findings: Finding[] = [];
+    for (const file of ALL_TS_FILES) {
+      if (!file.endsWith('.tsx')) continue;
+      if (file.includes(`${sep}__tests__${sep}`)) continue;
+      findings.push(...findInFile(file, l => pattern.test(l), 'allow-ref-dom-attribut'));
+    }
+
+    if (findings.length > 0) {
+      const msg =
+        `DOM-Attribute nicht ueber eine useRef setzen (Bug-Klasse 23).\n` +
+        `Der Knoten muss dafuer schon dastehen — hinter einem bedingten Rendern\n` +
+        `(SettingsKlappe '{offen && …}', Tab, Ladezustand) tut er das nicht, und\n` +
+        `ein Mount-Effekt mit []-Deps laeuft nie wieder.\n\n` +
+        `Stattdessen eine CALLBACK-Ref, die bei jedem Montieren laeuft:\n` +
+        `  const setzeX = useCallback((el: HTMLAnchorElement | null) => {\n` +
+        `    if (el) el.setAttribute('href', URL);\n` +
+        `  }, []);\n` +
+        `  <a ref={setzeX} />\n\n` +
+        `Faesst die Stelle wirklich einen dauerhaft montierten Fremd-Knoten an,\n` +
+        `Zeile mit '// allow-ref-dom-attribut: <grund>' markieren.\n\nTreffer:\n${fmt(findings)}`;
+      expect.fail(msg);
+    }
+  });
+
+  // Ein Guard, der den Fall nicht faengt, den er verhindern soll, ist keiner.
+  // Die erste Fassung dieses Musters begann mit `\bref` und verfehlte damit
+  // ausgerechnet den echten Treffer (`linkRef.current`) — hier festgenagelt.
+  it('haette den historischen Defekt gefangen', () => {
+    const defekt = `    if (linkRef.current) linkRef.current.setAttribute('href', BRIDGE_BOOKMARKLET);`;
+    expect(pattern.test(defekt)).toBe(true);
+    expect(pattern.test(`  bildRef.current!.src = quelle;`)).toBe(true);
+
+    // Und laesst die legitimen `.current`-Zugriffe der Codebase in Ruhe.
+    for (const harmlos of [
+      `  const rect = wrapperRef.current.getBoundingClientRect();`,
+      `  wideScrollRef.current.scrollTop = wideScrollTop.current;`,
+      `  handlersRef.current.uebernehmen = onUebernehmen;`,
+      `  signal: abortRef.current.signal,`,
+      `  if (!containerRef.current.contains(e.target as Node)) onClose();`,
+      `  el.setAttribute('href', BRIDGE_BOOKMARKLET);`,
+    ]) {
+      expect(pattern.test(harmlos), harmlos).toBe(false);
     }
   });
 });

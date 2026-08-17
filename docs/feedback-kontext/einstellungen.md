@@ -25,7 +25,7 @@ Persönliche App-Konfiguration: wer Sie sind, was Ihnen angezeigt wird, wie die 
 
 - **Daten & Verbindungen:** links die Ordner (Datenordner mit „Letzter CSV-Import" und Aktualisieren, persönlicher Ordner, CSV-Quellen; eingeklappt der lokale Arbeitsverlauf) und die verbundenen Verzeichnisse. Rechts der Team-Status (Ordner verbinden, eingeklappt wer online ist), die Tags (umbenennen, löschen, neu zählen) und die persönlichen Dokumentenquellen.
 
-- **Interne KI:** links die Verbindung mit einer Statuskarte (Punkt, Klartext, Adresse), den Knöpfen „Verbindung testen" und „Interne KI öffnen", dem Adressfeld mit eigenem Speichern-Knopf und, eingeklappt, der Einrichtung in fünf Schritten samt ziehbarem Lesezeichen. Rechts das Antwortverhalten (Thinking, KI-Variante, Kontextfenster als Automatik oder Manuell samt Klartext-Angabe, für wie viele Zeichen es reicht) und die externen Recherche-Ziele.
+- **Interne KI:** links die Verbindung mit einer Statuskarte (Punkt, Klartext, Adresse), den Knöpfen „Verbindung testen" und „Interne KI öffnen", dem Adressfeld mit eigenem Speichern-Knopf und, eingeklappt, der Einrichtung in fünf Schritten samt ziehbarem Lesezeichen — daneben ein „Kopieren"-Knopf als Rückfallebene, wenn das Ablegen in der Lesezeichenleiste nicht klappt (verwaltetes Chrome). Rechts das Antwortverhalten (Thinking, KI-Variante, Kontextfenster als Automatik oder Manuell samt Klartext-Angabe, für wie viele Zeichen es reicht) und die externen Recherche-Ziele.
 
 ## Typische Aktionen
 

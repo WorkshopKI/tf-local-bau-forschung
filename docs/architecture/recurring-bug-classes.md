@@ -441,3 +441,24 @@ Der Schalter wäre hier die falsche Antwort gewesen — und zwar gefährlich: di
 **Prüffrage beim Review:** Liegt zwischen dem neuen `fixed`-Overlay und `<body>` ein Element mit `transform`, `filter`, `backdrop-filter` oder `will-change`? Und umgekehrt: fügt dieser Patch eine dieser Eigenschaften **hinzu**?
 
 **Kanonische Dateien:** [FeedbackBildLightbox.tsx](../../src/components/feedback/FeedbackBildLightbox.tsx) (Portal + ESC-Einfang), [FeedbackAnnotator.tsx](../../src/components/feedback/FeedbackAnnotator.tsx), [FeedbackPanel.tsx](../../src/components/feedback/FeedbackPanel.tsx) (`PANEL_DECKKRAFT`).
+
+## 23. Mount-Effekt richtet einen Knoten ein, der erst später montiert
+
+**Symptom:** Ein Element ist sichtbar da und sieht richtig aus, hat aber ein Attribut nicht, das ein Effekt ihm setzen sollte. Gemessen am Bridge-Lesezeichen (seit v4.31): der Anker stand mit `draggable="true"` in der Seite, sein `href` war `null` — Chrome zeigte beim Ziehen in die Lesezeichenleiste das Verboten-Symbol, weil ein `<a>` ohne `href` kein Link ist.
+
+**Root-Cause:** Der Effekt lief mit `[]`-Deps beim Mount der **Eltern**-Komponente. Der Knoten selbst steckte hinter einem **bedingten Rendern** — `SettingsKlappe` montiert ihre Kinder erst beim Aufklappen (`{offen && …}`), die Klappe startete zu. Also war `ref.current` beim Effekt `null`, der Effekt tat nichts, und lief nie wieder.
+
+Ausgelöst hat es ein **Behälter-Wechsel**: vorher lag derselbe Anker — JSX byte-identisch — in einem nativen `<details>`, und das hält seine Kinder montiert (es klappt nur optisch zu). Der Effekt fand den Knoten immer. Das Redesign tauschte `<details>` gegen die Klappe; kein einziger Effekt-Zeile änderte sich, und die stille Annahme „der Knoten steht beim Mount da" kippte.
+
+**Warum es so lange unentdeckt blieb:** `useCollapsedSection` merkt sich den Aufgeklappt-Zustand. Wer die Klappe einmal geöffnet hat, findet sie beim nächsten Besuch offen vor — dann steht der Knoten im ersten Commit, der Effekt greift, und es funktioniert **dauerhaft**. Der Fehler trifft jeden Nutzer also genau **einmal**, beim ersten Mal, und ist danach nicht mehr reproduzierbar. Genau so wurde er gemeldet.
+
+**Fix-Pattern:**
+- **Callback-Ref statt Mount-Effekt.** Sie läuft bei jedem Montieren des Knotens und bekommt ihn als Argument — zustandsunabhängig, kein Deps-Array, das falsch sein kann.
+- **Wer ein `<details>`/`hidden`/CSS-Verstecken gegen bedingtes Rendern tauscht, sucht im Teilbaum nach `ref.current`.** Ein Grep, kein Gefühl — das Symptom steht in einer anderen Datei als der Auslöser.
+- **Am frischen, zugeklappten Zustand messen** (Klappen-Key aus localStorage entfernen, neu laden), nicht am eingelaufenen. Gemeinsam mit Klasse 21.
+
+**Prüffrage beim Review:** Fasst ein `useEffect` mit `[]`-Deps ein `ref.current` an? Dann: Kann dieser Knoten hinter einem `{bedingung && …}`, einem Tab oder einem Ladezustand liegen?
+
+**Maschinell:** Guard `dom-attribut-per-callback-ref` in [conventions-ui.test.ts](../../src/__tests__/conventions-ui.test.ts) fängt die Attribut-Variante.
+
+**Kanonische Dateien:** [VerbindungGruppe.tsx](../../src/plugins/einstellungen/ki/VerbindungGruppe.tsx) (`setzeBookmarkletHref`), [settings-layout.tsx](../../src/components/settings/settings-layout.tsx) (`SettingsKlappe`, `{offen && …}`).

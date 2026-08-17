@@ -11,13 +11,14 @@
  * und tauscht die Daten aus; ein Lesezeichen aktiviert die Verbindung dort —
  * pro KI-Tab einmal anklicken, nach jedem Neuladen erneut.
  */
-import { useEffect, useRef, useState } from 'react';
-import { Bookmark, ExternalLink, GripVertical } from 'lucide-react';
+import { useCallback, useState } from 'react';
+import { AlertTriangle, Bookmark, Check, Copy, ExternalLink, GripVertical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
+import { useKopierAktion } from '@/core/hooks/useKopierAktion';
 import { BRIDGE_BOOKMARKLET } from '@/core/services/ai/streamlit-bridge/snippet';
 import { connectInternalKi } from '@/core/services/ai/connect-ki';
 import type { AIProviderConfig } from '@/core/types/config';
@@ -39,15 +40,24 @@ export function VerbindungGruppe({
   const aiBridge = useAIBridge();
   const [testErgebnis, setTestErgebnis] = useState<'success' | 'error' | null>(null);
   const [gespeichert, setGespeichert] = useState(false);
-  const linkRef = useRef<HTMLAnchorElement>(null);
-
   const url = (aiConfig.endpoint || 'https://gpt.vdivde-it.de/').trim();
 
-  // React sanitisiert `javascript:`-hrefs (Warnung). Bookmarklet-URL daher
-  // imperativ via setAttribute setzen — landet zuverlässig im DOM zum Ziehen.
-  useEffect(() => {
-    if (linkRef.current) linkRef.current.setAttribute('href', BRIDGE_BOOKMARKLET);
+  // React sanitisiert `javascript:`-hrefs (Warnung). Die Bookmarklet-URL muss
+  // deshalb imperativ ins DOM — aber als CALLBACK-Ref, nicht aus einem
+  // Mount-Effekt heraus: der Anker steckt in einer `SettingsKlappe`, und die
+  // montiert ihre Kinder erst beim AUFKLAPPEN (`{offen && …}`). Ein
+  // `[]`-Effekt lief ins Leere, solange die Klappe zu war, und nie wieder —
+  // der Anker stand dann ohne `href` da und liess sich nicht in die
+  // Lesezeichenleiste ziehen (seit v4.31, Bug-Klasse 23). Eine Callback-Ref
+  // laeuft bei JEDEM Montieren des Knotens und ist damit zustandsunabhaengig.
+  const setzeBookmarkletHref = useCallback((el: HTMLAnchorElement | null) => {
+    if (el) el.setAttribute('href', BRIDGE_BOOKMARKLET);
   }, []);
+
+  // Rueckfallebene zum Ziehen: in verwaltetem Chrome/Citrix ist das Ablegen in
+  // der Lesezeichenleiste unzuverlaessig, und dieser eine Schritt schaltet den
+  // gesamten KI-Zugang frei.
+  const kopieren = useKopierAktion(BRIDGE_BOOKMARKLET, 'Lesezeichen-Adresse in die Zwischenablage kopieren');
 
   const speichern = useAsyncAction(async () => {
     const cfg: AIProviderConfig = { type: 'streamlit', endpoint: url, model: '', apiKey: '' };
@@ -142,7 +152,7 @@ export function VerbindungGruppe({
                 nicht „klick mich" (der javascript:-href tut beim Klick nichts). */}
             <Button asChild variant="secondary" size="sm" className="cursor-grab select-none">
               {/* href wird imperativ gesetzt (javascript:-Bookmarklet), kein echtes Anker-Ziel */}
-              <a ref={linkRef} draggable onClick={e => e.preventDefault()} title="In die Lesezeichenleiste ziehen">
+              <a ref={setzeBookmarkletHref} draggable onClick={e => e.preventDefault()} title="In die Lesezeichenleiste ziehen">
                 <GripVertical className="text-[var(--tf-text-tertiary)]" aria-hidden />
                 <Bookmark className="text-[var(--tf-primary)]" aria-hidden />
                 Interne KI
@@ -151,10 +161,29 @@ export function VerbindungGruppe({
             <span className="text-[11.5px] text-[var(--tf-text-tertiary)]">
               In die Lesezeichenleiste ziehen (nicht anklicken)
             </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              icon={kopieren.fehler ? AlertTriangle : kopieren.kopiert ? Check : Copy}
+              onClick={() => kopieren.run()}
+              disabled={kopieren.busy}
+              title={kopieren.titel}
+            >
+              {kopieren.kopiert ? 'Kopiert' : 'Kopieren'}
+            </Button>
           </div>
+          {kopieren.fehler && (
+            <p className="text-[12px] text-[var(--tf-danger-text)] -mt-1 mb-3">
+              Kopieren fehlgeschlagen: {kopieren.fehler}
+            </p>
+          )}
           <ol className="text-[12px] leading-[1.6] text-[var(--tf-text-secondary)] list-decimal pl-5 space-y-1">
             <li>Adresse der internen KI eintragen und <strong className="font-medium text-[var(--tf-text)]">Speichern</strong>.</li>
-            <li>Das ziehbare Lesezeichen einmalig in die Lesezeichenleiste <strong className="font-medium text-[var(--tf-text)]">ziehen</strong> (nicht anklicken).</li>
+            <li>
+              Das ziehbare Lesezeichen einmalig in die Lesezeichenleiste <strong className="font-medium text-[var(--tf-text)]">ziehen</strong> (nicht anklicken).
+              {' '}Klappt das Ablegen nicht (in verwaltetem Chrome kommt das vor): <strong className="font-medium text-[var(--tf-text)]">Kopieren</strong> drücken,
+              in der Leiste ein beliebiges Lesezeichen mit der rechten Maustaste <em>Bearbeiten</em>, als Adresse einfügen und „Interne KI" als Namen setzen.
+            </li>
             <li><strong className="font-medium text-[var(--tf-text)]">Interne KI öffnen</strong> klicken — der Tab muss <em>aus der App</em> geöffnet werden.</li>
             <li>Im KI-Tab das Lesezeichen anklicken; unten rechts erscheint eine Status-Pille, die auf grün „Verbunden" ruht.</li>
             <li>Zurück hier: <strong className="font-medium text-[var(--tf-text)]">Verbindung testen</strong> → „Verbunden". Danach laufen die KI-Läufe darüber.</li>

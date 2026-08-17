@@ -199,6 +199,8 @@ unverändert); geändert hat sich nur, dass die Runner immer eins liefern.
 
 Das Bookmarklet muss **einmal pro Streamlit-Tab** angeklickt werden (nach jedem Neuladen erneut) — unter `file://` kann die App kein JS in den fremden cross-origin-Tab injizieren; das Bookmarklet ist der vom Nutzer autorisierte Weg. Ablauf siehe Installer-UI bzw. README.
 
+**Zwei Wege in die Lesezeichenleiste**: das Lesezeichen **ziehen** ist der Hauptweg, **Kopieren** die Rückfallebene — in verwaltetem Chrome ist das Ablegen in der Leiste nicht überall erlaubt, und dieser eine Schritt schaltet den gesamten KI-Zugang frei. Der `javascript:`-href kommt über eine **Callback-Ref** ins DOM, nicht aus einem Mount-Effekt: der Anker steckt in einer `SettingsKlappe`, die ihre Kinder erst beim Aufklappen montiert — ein `[]`-Effekt lief ins Leere, solange die Klappe zu war, und der Anker stand ohne `href` da (seit v4.31, [Bug-Klasse 23](recurring-bug-classes.md)). Weil `useCollapsedSection` den Aufgeklappt-Zustand merkt, traf das jeden Nutzer genau **einmal** — beim ersten Einrichten — und war danach nicht mehr reproduzierbar.
+
 ## Sichtbarkeit / Flag
 
 Feature-Flag `streamlitBridge` (`isStreamlitBridgeEnabled()`, optional, default false). Aktiv in **dev + prod + kurator + pl**. Schaltet den KI-Assistent-Tab frei (auch ohne `isDevContext`/`isLlmKontextSettingEnabled`) und blendet die Bridge-Sektion ein. In prod/kurator erscheint **nur** die Bridge-Sektion; der volle Provider-Switcher bleibt dev-exklusiv (`isDevContext`).
