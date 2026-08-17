@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.85.0 — Das Lesezeichen lässt sich wieder ziehen (August 2026)
+
+MINOR — Gemeldet: das Bookmarklet der KI-Bridge ließ sich nicht in die Chrome-Lesezeichenleiste ziehen (Verboten-Symbol beim Ablegen), danach war der Fehler nicht mehr reproduzierbar. Gemessen: bei zugeklappter Einrichtungs-Klappe stand der Anker mit `draggable="true"`, aber **`href=null`** in der Seite — ein `<a>` ohne `href` ist kein Link, Chrome hat nichts abzulegen. Weil `useCollapsedSection` den Aufgeklappt-Zustand merkt, traf das jeden Nutzer genau **einmal**: beim ersten Einrichten, also genau dann, wenn der Schritt sitzen muss.
+
+- **Die Adresse kommt über eine Callback-Ref ins DOM** statt aus einem Mount-Effekt — der Anker steckt in einer `SettingsKlappe`, die ihre Kinder erst beim Aufklappen montiert ([VerbindungGruppe.tsx](src/plugins/einstellungen/ki/VerbindungGruppe.tsx))
+- **Kopieren als Rückfallebene** neben dem Ziehen — in verwaltetem Chrome ist das Ablegen in der Leiste nicht überall erlaubt; ein Fehlschlag wird sichtbar statt still ([useKopierAktion.ts](src/core/hooks/useKopierAktion.ts))
+- **Eingeschleppt mit v4.31**: derselbe Anker lag vorher — JSX byte-identisch — in einem `<details>`, und das hält seine Kinder montiert; nur der Behälter wechselte ([streamlit-bridge.md](docs/architecture/streamlit-bridge.md))
+- **Guard `dom-attribut-per-callback-ref`** mit Selbsttest gegen die historische Zeile — die erste Fassung des Musters begann mit `\bref` und verfehlte ausgerechnet `linkRef.current` ([conventions-ui.test.ts](src/__tests__/conventions-ui.test.ts))
+- **Bug-Klasse 23** „Mount-Effekt richtet einen Knoten ein, der erst später montiert" ([recurring-bug-classes.md](docs/architecture/recurring-bug-classes.md))
+
 ### v4.84.0 — Das Bundesland wird verglichen, nicht durchsucht (August 2026)
 
 MINOR — Gefragt wurde, warum `bl:SN` und `bl:Sachsen` verschieden viel finden — niemand kann wissen, in welcher Schreibweise der Export sein Land ablegt. Beim Nachmessen kam der schwerere Fehler heraus: `bl:Sachsen` lieferte 3 278 statt 2 742 Treffer, weil die am Wortanfang verankerte Nadel `" sachsen"` auch in `" sachsen anhalt st "` steckt — **536 Anträge aus Sachsen-Anhalt liefen als Sachsen mit**, ohne dass die Trefferzeile es verriet.
