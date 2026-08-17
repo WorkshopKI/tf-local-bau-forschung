@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.87.0 — der Assistent scrollt sich selbst, nicht die Seite (August 2026)
+
+MINOR — Drei Meldungen aus dem Test am selben Panel: eine doppelte Scrollleiste rechts, deren äußere die ganze Seite wegscrollte; ein Eingabefeld, das zwei Zeilen zeigte und den Rest abschnitt; und vier Beispiel-Chips, die Fähigkeiten versprachen, die der Assistent noch nicht hat.
+
+- **Die zweite Scrollleiste ist weg** — der Trefferliste fehlte `relative`, ihre absolut positionierten Nachfahren hingen deshalb am Seiten-Scroller des Shells statt an ihr; gemessen 10 px → 0 px äußere Leiste, innere unverändert ([SuchSeite.tsx](src/plugins/suche/SuchSeite.tsx))
+- **Das Mausrad bleibt im Panel**: `overscroll-behavior: contain` an der Nachrichtenliste, und der Leerzustand ist selbst ein Scroll-Container statt gar keiner ([chat.css](src/plugins/chat/chat.css))
+- **Das Eingabefeld wächst bis fünf Zeilen und ist danach ziehbar** — gemessen 111 px bei 5 Zeilen, ab der sechsten scrollt es intern; die gezogene Höhe wirkt als Mindesthöhe ([useAutoGrow.ts](src/core/hooks/useAutoGrow.ts), [autoGrowHoehe.ts](src/core/utils/autoGrowHoehe.ts))
+- **Der Zeilendeckel steht einmal statt zweimal** — er wird aus der gerenderten Zeilenhöhe gerechnet; die zwei alten `200`-Konstanten meinten fünf Zeilen und waren neun ([Composer.tsx](src/plugins/chat/components/Composer.tsx))
+- **Die vier Beispiel-Chips im Such-Panel entfallen** ([EmptyState.tsx](src/plugins/chat/components/EmptyState.tsx)); die kontextgebundenen Quick-Actions des Shell-Docks bleiben — die werden beantwortet
+
 ### v4.86.1 — Der Export nimmt den Stand vom Bildschirm (August 2026)
 
 PATCH — Beide Exporte der Vorgangs-Regeln lasen `aktiveVersion`, während der Baum daneben den Entwurf zeigt. Bei ungesichertem Stand lieferten sie lautlos etwas anderes aus als das, worauf der Nutzer sah: „Phasen exportieren" schrieb den alten Schnitt, der Import am Zielort meldete korrekt Erfolg — und die Kuratierung kam trotzdem nicht an. Zwei Symptome, eine Wurzel.

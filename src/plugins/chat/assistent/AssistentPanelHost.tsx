@@ -15,6 +15,7 @@ import { AlertTriangle, Brain, Loader2, RefreshCw, Send, Sparkles, SquarePen, X 
 import { useAntraegeStore } from '@/plugins/antraege/store';
 import { getOramaDB } from '@/core/services/search/orama-store';
 import { beschreibeKontext } from '@/core/services/assistent/kontext';
+import { useAutoGrow } from '@/core/hooks/useAutoGrow';
 import { MessageList, type ActivePanel } from '../components/MessageList';
 import { SourcePanel } from '../components/SourcePanel';
 import { useAssistentController, ladeAssistentGedaechtnis } from './useAssistentController';
@@ -23,6 +24,11 @@ import { quickActionsFuer } from './quickActions';
 import { assistentPanelUiStore, clampPanelWidth, SPINE_WIDTH } from './panelUiStore';
 import { AssistentSpine } from './AssistentSpine';
 import '../chat.css';
+
+/** Wie weit das Eingabefeld von selbst wächst; darüber zieht der Nutzer.
+ *  Dieselbe Zahl wie im vollen Composer der Suche — ein Feld, das im Dock
+ *  anders wächst als in der Suche, wäre eine Unterscheidung ohne Sache. */
+const ASSISTENT_MAX_ZEILEN = 5;
 
 export function AssistentPanelHost(): React.ReactElement | null {
   const open = useStore(assistentPanelUiStore, s => s.open);
@@ -116,6 +122,7 @@ export function AssistentPanelHost(): React.ReactElement | null {
 
   const composerRef = useRef<HTMLTextAreaElement>(null);
   useEffect(() => { if (open) composerRef.current?.focus(); }, [open]);
+  const autoGrow = useAutoGrow(composerRef, input, ASSISTENT_MAX_ZEILEN);
 
   const empty = c.messages.length === 0 && !c.busy;
 
@@ -142,7 +149,9 @@ export function AssistentPanelHost(): React.ReactElement | null {
         style={{ borderLeft: '0.5px solid var(--tf-border)', boxShadow: 'var(--tf-sheet-shadow)' }}
       >
         <div className="chat-app assistant-panel" style={{ height: '100%' }}>
-          <div className="convo" style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
+          {/* Kein Inline-Stil mehr: `height/minHeight` der Kette stehen seit
+              v4.86 an `.convo` in chat.css — eine Quelle für beide Hosts. */}
+          <div className="convo">
             <div className="convo-head">
               <span className="assistant-badge">Assistent</span>
               <div className="head-spacer" />
@@ -239,6 +248,10 @@ export function AssistentPanelHost(): React.ReactElement | null {
             <div className="composer-wrap">
               <div className="flex items-end gap-2 rounded-[var(--tf-radius)] px-2 py-1.5"
                 style={{ border: '0.5px solid var(--tf-border)', background: 'var(--tf-bg)' }}>
+                {/* `resize-y` + `useAutoGrow`: bis v4.86 stand hier `rows={2}`
+                    ohne Mitwachsen — eine dritte Zeile war nur zu erahnen.
+                    `max-h` ist die ZIEH-Grenze, der Auto-Deckel steckt in
+                    ASSISTENT_MAX_ZEILEN. */}
                 <textarea
                   ref={composerRef}
                   rows={2}
@@ -247,9 +260,10 @@ export function AssistentPanelHost(): React.ReactElement | null {
                   onKeyDown={e => {
                     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); absenden(input); }
                   }}
+                  onPointerDown={autoGrow.onPointerDown}
                   placeholder="Frag zu deiner aktuellen Arbeit …"
                   aria-label="Frage an den Assistenten"
-                  className="flex-1 min-w-0 resize-none bg-transparent text-[length:var(--tf-text-base)] text-[var(--tf-text)] outline-none placeholder:text-[var(--tf-text-tertiary)]"
+                  className="flex-1 min-w-0 max-h-[min(50vh,420px)] resize-y bg-transparent text-[length:var(--tf-text-base)] leading-[1.5] text-[var(--tf-text)] outline-none placeholder:text-[var(--tf-text-tertiary)]"
                 />
                 <button
                   type="button"

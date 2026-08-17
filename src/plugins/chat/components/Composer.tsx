@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { ArrowUp, Brain, Check, File as FileIcon, FileText, Folder, Loader2, Plus, Search, SlidersHorizontal, Sparkles, Square, X } from 'lucide-react';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
+import { useAutoGrow } from '@/core/hooks/useAutoGrow';
 import { useStorage } from '@/core/hooks/useStorage';
 import type { DirectoryEntry } from '@/core/types/config';
 import type { ChatAttachment } from '../types';
@@ -9,6 +10,14 @@ import { useAttachments } from '../attachments/useAttachments';
 import { SystemPromptPopover } from './SystemPromptPopover';
 
 const ACCEPT_EXTENSIONS = '.pdf,.docx,.md,.txt';
+
+/**
+ * Bis hierher wächst das Eingabefeld von selbst; darüber scrollt es intern und
+ * lässt sich am Anfasser ziehen. Fünf, weil das die Länge einer ausformulierten
+ * Frage ist — darüber schreibt niemand mehr in ein Chatfeld, ohne es sich
+ * vorher größer zu ziehen.
+ */
+const COMPOSER_MAX_ZEILEN = 5;
 
 /**
  * Footer-Label für den aktiven LLM-Backend. Erlaubt sind nur das interne
@@ -62,13 +71,11 @@ export function Composer({
   const toggleThinking = useAsyncAction(() =>
     useChatStore.getState().setThinkingEnabled(!thinkingEnabled, storage));
 
-  // Auto-grow
-  useEffect(() => {
-    const ta = taRef.current;
-    if (!ta) return;
-    ta.style.height = 'auto';
-    ta.style.height = `${Math.min(ta.scrollHeight, 200)}px`;
-  }, [input]);
+  // Mitwachsen bis fünf Zeilen, danach ziehbar. Der Deckel wird aus der
+  // gerenderten Zeilenhöhe gerechnet, nicht als px-Konstante gepflegt: bis
+  // v4.86 stand hier `200` und in chat.css nochmal `max-height: 200px` — beide
+  // meinten fünf Zeilen, es waren neun (13,5 px × 1.5 je Zeile).
+  const autoGrow = useAutoGrow(taRef, input, COMPOSER_MAX_ZEILEN);
   useEffect(() => { if (autoFocus) taRef.current?.focus(); }, [autoFocus]);
   // Vorbelegung nur in ein LEERES Feld — sonst überschriebe eine neue Suche den
   // Satz, den der Nutzer gerade tippt.
@@ -131,7 +138,8 @@ export function Composer({
         )}
 
         <textarea ref={taRef} rows={1} value={input} placeholder="Nachricht eingeben …"
-          onChange={e => setInput(e.target.value)} onKeyDown={onKey} />
+          onChange={e => setInput(e.target.value)} onKeyDown={onKey}
+          onPointerDown={autoGrow.onPointerDown} />
 
         <div className="composer-bar">
           <div ref={menuWrap} style={{ position: 'relative' }}>

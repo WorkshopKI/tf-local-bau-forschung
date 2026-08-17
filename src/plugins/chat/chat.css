@@ -100,7 +100,11 @@
 .chat-app .c2rename input { width: 100%; height: 28px; border: .5px solid var(--tf-primary); border-radius: 6px; padding: 0 8px; font: var(--tf-text-base)/1 var(--tf-font-sans); color: var(--tf-text); background: var(--tf-bg); outline: none; box-shadow: 0 0 0 3px var(--tf-primary-light); }
 
 /* ---------- Conversation pane ---------- */
-.chat-app .convo { flex: 1; min-width: 0; display: flex; flex-direction: column; background: var(--tf-bg); }
+/* `min-height: 0` ist Pflicht, nicht Feinschliff: ohne sie ist die automatische
+   Mindestgröße eines Flex-Kindes seine INHALTShöhe, und der Scroll-Container
+   darunter (.convo-scroll) bekommt nie einen Deckel. Stand bis v4.86 nur inline
+   im Dock-Host — hier, damit beide Hosts dieselbe Kette haben. */
+.chat-app .convo { flex: 1; min-width: 0; min-height: 0; height: 100%; display: flex; flex-direction: column; background: var(--tf-bg); }
 .chat-app .convo-head { display: flex; align-items: center; gap: var(--tf-space-md); height: 52px; padding: 0 var(--tf-space-lg); border-bottom: var(--tf-border-thin) solid var(--tf-border); flex-shrink: 0; }
 .chat-app .head-left { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 .chat-app .convo-title { font: var(--tf-weight-medium) var(--tf-text-lg)/1 var(--tf-font-sans); color: var(--tf-text); white-space: nowrap; }
@@ -110,7 +114,10 @@
 .chat-app .icon-btn { display: grid; place-items: center; width: 30px; height: 30px; border-radius: var(--tf-radius); border: 0; background: transparent; color: var(--tf-text-tertiary); cursor: default; flex-shrink: 0; }
 .chat-app .icon-btn:hover { background: var(--tf-hover); color: var(--tf-text-secondary); }
 
-.chat-app .convo-scroll { flex: 1; overflow: auto; }
+/* `overscroll-behavior: contain` hält das Mausrad im Panel: ohne sie kettet
+   jedes Wheel-Event, das das Listenende erreicht, an den Seiten-Scroller weiter
+   — gemeldet als „der Assistent scrollt die ganze Seite weg". */
+.chat-app .convo-scroll { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; }
 .chat-app .thread { max-width: var(--convo-w); margin: 0 auto; padding: var(--tf-space-2xl) var(--tf-space-xl) var(--tf-space-lg); display: flex; flex-direction: column; gap: var(--tf-space-2xl); }
 .chat-app .thread-end { height: 6px; }
 
@@ -219,7 +226,18 @@
 .chat-app .composer { border: var(--tf-border-thin) solid var(--tf-border); border-radius: 24px; background: var(--tf-bg); padding: 10px 10px 8px 16px; box-shadow: var(--tf-shadow-dialog); transition: border-color 120ms, box-shadow 120ms; }
 .chat-app .composer.dragover { border-color: var(--tf-primary); }
 .chat-app .composer:focus-within { border-color: var(--tf-text-tertiary); }
-.chat-app .composer textarea { display: block; width: 100%; border: 0; outline: none; resize: none; background: transparent; font: var(--tf-text-md)/1.5 var(--tf-font-sans); color: var(--tf-text); max-height: 200px; padding: 6px 6px 4px 0; }
+/* Zwei verschiedene Grenzen, die bis v4.86 eine waren.
+   - Der AUTO-Deckel (5 Zeilen) steht nicht hier: `max-height` würde auch das
+     Ziehen abschneiden, und dann wäre das Feld genau bis zu der Höhe ziehbar,
+     die es ohnehin schon von selbst erreicht. Er wird im Composer aus der
+     gerenderten Zeilenhöhe des Feldes gerechnet (COMPOSER_MAX_ZEILEN) — eine
+     Zahl, die bei einer Schriftgrößen-Änderung mitwandert.
+   - `max-height` ist nur noch die ZIEH-Grenze: darüber fräße das Eingabefeld
+     die Nachrichtenliste (`.composer-wrap` schrumpft nicht).
+   `resize: vertical` statt `none` — die gezogene Höhe wirkt als MINDESThöhe
+   (berechneAutoHoehe), sonst überschrieben Ziehen und Mitwachsen einander bei
+   jedem Tastendruck. */
+.chat-app .composer textarea { display: block; width: 100%; border: 0; outline: none; resize: vertical; background: transparent; font: var(--tf-text-md)/1.5 var(--tf-font-sans); color: var(--tf-text); max-height: min(50vh, 420px); padding: 6px 6px 4px 0; }
 .chat-app .composer textarea::placeholder { color: var(--tf-text-tertiary); }
 .chat-app .composer-atts { display: flex; flex-wrap: wrap; gap: 6px; padding: 4px 0 2px; }
 .chat-app .composer-att { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; border-radius: 99px; font: var(--tf-text-xxs)/1.3 var(--tf-font-sans); background: var(--tf-info-bg); color: var(--tf-info-text); }
@@ -271,7 +289,11 @@
 .chat-app .sp-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 6px 4px; }
 
 /* ---------- Empty state ---------- */
-.chat-app .empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; }
+/* Der Leerzustand ist selbst der Scroll-Container — sonst gibt es im leeren
+   Panel GAR KEINEN, und das Mausrad findet als nächsten scrollbaren Vorfahren
+   die Seite. `justify-content: center` würde bei Überlauf zudem oben
+   abschneiden (der Composer verschwände im kleinen Fenster), deshalb `safe`. */
+.chat-app .empty { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; display: flex; flex-direction: column; align-items: center; justify-content: safe center; padding: 24px; }
 .chat-app .empty-mark { width: 46px; height: 46px; border-radius: 13px; background: var(--tf-primary); color: #fff; display: grid; place-items: center; margin-bottom: 20px; }
 .chat-app .empty-title { font: var(--tf-weight-medium) var(--tf-text-2xl)/1.2 var(--tf-font-sans); letter-spacing: -0.01em; color: var(--tf-text); margin: 0 0 6px; text-align: center; }
 .chat-app .empty-sub { font-size: var(--tf-text-md); color: var(--tf-text-secondary); margin-bottom: 26px; text-align: center; max-width: 440px; }

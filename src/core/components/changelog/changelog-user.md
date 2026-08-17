@@ -19,6 +19,16 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.87 — 2026-08
+
+### Verbesserungen
+- **Das Eingabefeld des Assistenten wächst jetzt beim Schreiben mit** — bis zu fünf Zeilen. Wird es Ihnen zu klein, ziehen Sie es an der rechten unteren Ecke größer.
+- Die vier Beispiel-Vorschläge im leeren Assistenten sind entfallen. Sie versprachen Dinge, die der Assistent so noch nicht kann.
+
+### Bugfixes
+- **Rechts gab es zwei Scrollleisten** — die äußere scrollte die ganze Seite weg, obwohl die Trefferliste ihre eigene hat. Jetzt gibt es nur noch eine.
+- **Scrollen im Assistenten bewegt nicht mehr die Seite darunter**, auch nicht am Ende der Unterhaltung.
+
 ## v4.86 — 2026-08
 
 ### Bugfixes

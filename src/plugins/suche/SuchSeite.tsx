@@ -691,7 +691,19 @@ export function SuchSeite(): React.ReactElement {
 
   return (
     <div className="flex h-full min-h-0">
-      <div className="flex-1 min-w-0 overflow-y-auto">
+      {/* `relative` ist hier kein Zierrat, sondern das, was die zweite
+          Scrollleiste verhindert. Gemeldet: „es gibt eine doppelte Scrollleiste
+          rechts, die ganz außen scrollt die gesamte Seite weg."
+
+          Der nächste positionierte Vorfahre war der Seiten-Scroller des Shells
+          (`flex-1 overflow-y-auto relative`, ShellLayout). Absolut positionierte
+          Nachfahren der Trefferliste hingen damit an IHM — und ein overflow-
+          Vorfahre klemmt einen absolut positionierten Nachfahren nur, wenn er
+          auch sein Bezugsrahmen ist. Sie entkamen also diesem Scroller hier und
+          bliesen den äußeren auf 10.632 px auf, obwohl dessen einziges Kind
+          exakt containerhoch war. Gemessen: mit `relative` fällt die äußere
+          Leiste von 10 px auf 0, die innere scrollt unverändert. */}
+      <div className="relative flex-1 min-w-0 overflow-y-auto">
         <div className="px-8 pt-4 pb-6">
 
           {/* ── Kopf ─────────────────────────────────────────────────────── */}

@@ -332,7 +332,7 @@ export function ChatPanelHost({
         )}
 
         {empty ? (
-          <EmptyState {...composerProps} onSuggestion={text => { void sendeUndBinde(text); }} />
+          <EmptyState {...composerProps} />
         ) : (
           <>
             <MessageList
