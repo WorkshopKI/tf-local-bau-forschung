@@ -41,11 +41,13 @@ export function Sektionsrahmen({ id, children }: {
 /**
  * Panel-Hülle des Details: Rückweg links, Schließen rechts, darunter der Inhalt.
  *
- * Der Rückweg trägt den NAMEN der Herkunftsseite, der Pfeil macht daraus die
- * Aussage („← Vorgangs-Board"). Er stand bis v4.82 als 12,5-px-Sekundärtext hier
- * und wurde übersehen — der einzige Weg zurück zu einer Trefferliste, in
- * Hint-Größe. Jetzt Brotkrumen-Gewicht: Primärfarbe, 13,5 px, mit einer
- * Hover-Fläche als echtes Klickziel.
+ * Der Rückweg sagt seine Aussage aus („Zurück zu Vorgangs-Board"); die Herkunft
+ * liefert dazu nur den NAMEN der Seite, den Satz baut diese Zeile. Er stand bis
+ * v4.82 als 12,5-px-Sekundärtext hier und wurde übersehen — der einzige Weg
+ * zurück zu einer Trefferliste, in Hint-Größe. Jetzt Brotkrumen-Gewicht:
+ * Primärfarbe, 13,5 px, normale Strichstärke (der volle Satz trägt sich selbst,
+ * halbfett drängte er sich vor den Titel darunter), mit einer Hover-Fläche als
+ * echtes Klickziel.
  */
 export function PanelShell({ onClose, zurueck, children }: {
   onClose: () => void;
@@ -56,16 +58,16 @@ export function PanelShell({ onClose, zurueck, children }: {
     <div className="flex-1 min-w-0 h-full overflow-y-auto" style={{ borderLeft: '0.5px solid var(--tf-border)' }}>
       {/* Links der Rückweg (nur wenn es einen gibt), rechts das Schließen. Zwei
           verschiedene Aussagen: „zurück, wo ich herkam" vs. „Detail zu". */}
-      <div className="sticky top-0 z-10 flex items-center justify-between gap-3 px-4 pt-2 pb-0 bg-[var(--tf-bg)]">
+      {/* `pb-[5px]`: Luft zwischen Rückweg-Zeile und dem Titel darunter — die zwei
+          gehören nicht zusammen, standen aber auf Kante. */}
+      <div className="sticky top-0 z-10 flex items-center justify-between gap-3 px-4 pt-2 pb-[5px] bg-[var(--tf-bg)]">
         {zurueck ? (
           <button
             type="button"
             onClick={zurueck.onClick}
-            aria-label={`Zurück zu ${zurueck.label}`}
-            title={`Zurück zu ${zurueck.label}`}
-            className="-ml-1.5 inline-flex items-center gap-1.5 rounded-[7px] px-1.5 py-1 text-[13.5px] font-medium text-[var(--tf-text)] hover:bg-[var(--tf-hover)] cursor-pointer"
+            className="-ml-1.5 inline-flex items-center gap-1.5 rounded-[7px] px-1.5 py-1 text-[13.5px] font-normal text-[var(--tf-text)] hover:bg-[var(--tf-hover)] cursor-pointer"
           >
-            <ArrowLeft size={15} aria-hidden /> {zurueck.label}
+            <ArrowLeft size={15} aria-hidden /> Zurück zu {zurueck.label}
           </button>
         ) : <span />}
         <button

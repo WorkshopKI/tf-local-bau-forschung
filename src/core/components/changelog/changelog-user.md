@@ -21,6 +21,9 @@
 
 ## v4.85 — 2026-08
 
+### Verbesserungen
+- **Der Weg zurück ist als Weg zurück zu erkennen.** In der Antragsansicht stand oben links nur der Name der Seite, von der Sie kamen, mit einem Pfeil davor. Jetzt steht dort der ganze Satz — „Zurück zu Vorgangs-Board" — in normaler Schrift, und der Titel darunter hat etwas Luft bekommen, statt direkt anzuschließen.
+
 ### Bugfixes
 - **Neu eingerichtete Rechner arbeiteten mit einem veralteten Status-Katalog.** Nach der Installation las die App den Katalog, bevor der Datenordner freigegeben war — sie fiel dann auf den mitgelieferten Stand zurück und blieb den Rest der Sitzung dabei. Betroffen waren Kürzel, Verfahrensphasen und die Aufgaben-Regeln gleichermaßen. Die vom Team gepflegte Fassung wird jetzt automatisch nachgeladen, sobald der Ordner offen ist.
 - **Das Lesezeichen für die interne KI ließ sich nicht in die Lesezeichenleiste ziehen.** Beim Ablegen kam ein Verboten-Symbol. Betroffen war genau der erste Versuch: hatte man den Abschnitt „Verbindung einrichten" einmal aufgeklappt und die Seite später erneut geöffnet, funktionierte es — deshalb ließ sich der Fehler danach nicht mehr nachstellen. Das Ziehen klappt jetzt in jedem Fall.

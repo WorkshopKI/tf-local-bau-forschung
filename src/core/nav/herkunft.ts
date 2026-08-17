@@ -97,9 +97,9 @@ export function herkunftJetzt(): Herkunft | null {
  * `null` heißt: kein Knopf. Das gilt ohne Herkunft und für die Förderanträge-
  * Liste selbst (siehe Modulkopf).
  *
- * `label` ist der NAME der Seite, kein Satz. Die Brotkrume setzt den Pfeil davor
- * („← Vorgangs-Board"); ein „Zurück zu …" im Text hieße, dass jede Seite ihren
- * Artikel mitbringen müsste („zu Suche" statt „zur Suche").
+ * `label` ist der NAME der Seite, kein Satz — den baut die Brotkrume daraus
+ * („Zurück zu Vorgangs-Board", siehe `detailRahmen.tsx`). Hier bleibt der Name
+ * roh, weil ihn auch das Schließen-Ziel und künftige Aufrufer brauchen.
  */
 export function rueckwegAus(h: Herkunft | null): Herkunft | null {
   if (!h) return null;

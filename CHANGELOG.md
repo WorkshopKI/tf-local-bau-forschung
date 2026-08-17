@@ -5,6 +5,13 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.85.2 — der Rueckweg sagt, wohin er fuehrt (August 2026)
+
+PATCH — Der Rückweg aus dem Antrags-Detail zeigte nur den Namen der Herkunftsseite („← Vorgangs-Board") und ließ den Pfeil die Aussage machen. Halbfett und auf Kante zum Titel darunter las er sich als Überschrift des Panels, nicht als Weg zurück.
+
+- **Der Knopf sagt den ganzen Satz**: „Zurück zu Vorgangs-Board" statt „← Vorgangs-Board" — Herkunft liefert weiter nur den Namen, den Satz baut die Brotkrume ([detailRahmen.tsx](src/plugins/antraege/detailRahmen.tsx))
+- **Normale Strichstärke statt halbfett** (der volle Satz trägt sich selbst) und **5 px Luft zum Titel darunter**, der bisher direkt anschloss ([detailRahmen.tsx](src/plugins/antraege/detailRahmen.tsx))
+
 ### v4.85.1 — Der Status-Katalog kommt auch beim Kaltstart vom Share (August 2026)
 
 PATCH — Gefragt wurde, ob eine frisch installierte PL die aktuellste Katalog-Fassung automatisch bekommt. Nein: `initStatusKatalog` lief als einziger Abgleich, und zwar **vor** dem Ordner-Picker — ohne Handle ging er leer aus, und `ladeAktiveVersion` schrieb daraufhin den Auslieferungs-Seed als kuratierte Fassung 1 fest. Betroffen war die ganze `MappingVersion`: Kürzel, ZAH-Phasen, Code→Phase-Schnitt und AB-Regeln. Nach einem echten Browser-Neustart traf es jede Installation, weil die FSAPI-Berechtigung unter `file://` wieder auf `prompt` steht.
