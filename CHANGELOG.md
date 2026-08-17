@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.76.0 — Kopfband: Filterleiste und Tabellenkopf beginnen gemeinsam (August 2026)
+
+MINOR — Gemeldet: „die Kopfzeile der Tabelle soll harmonischer mit der Filtersidebar aussehen, wenn diese eingeblendet ist" (Entwurf in `_design/handoff/anträge-kopfzeile`). Die Leiste begann direkt unter der Suchzeile, der graue Tabellenkopf rund 90 px tiefer — das „graue L" schloss nie, und die Unterkante des Leistenkopfes lief gegen nichts.
+
+- **Die Filterleiste ist eine Spalte der Liste geworden** (neue [FilterSpalte.tsx](src/plugins/antraege/filter/FilterSpalte.tsx), aus [AntraegePage.tsx](src/plugins/antraege/AntraegePage.tsx) herausgelöst) — nur so kann die Zeile der Filter-Pillen über Leiste **und** Tabelle spannen
+- **Leiste und Tabellenkopf bilden ein Kopfband**: „FILTER" in der Rubrikzeile, Verlauf + „N aktiv" + Einklappen in der Spaltenzeile ([FilterSidebar.tsx](src/plugins/antraege/filter/FilterSidebar.tsx)); ohne Tabellenkopf daneben (Liste/Karten, Leerzustände, Drawer) bleibt der gewohnte Kopf
+- **Bandhöhe wird gemessen, nicht gesetzt** — neue Meldung `onKopfHoehe` an [TableHeadRows.tsx](src/components/data-table/TableHeadRows.tsx) / [SortableTable.tsx](src/components/data-table/SortableTable.tsx); gemessen 23 + 43,5 px statt der 22 + 30 des Entwurfs
+- **Die weiße Rinne zwischen beiden entfällt** bei gebildetem Band (`pl-0` am Tabellenkasten), die Werkzeug-Zeile verliert ihren `max-w-6xl`-Deckel ([AntraegeMain.tsx](src/plugins/antraege/AntraegeMain.tsx))
+- Kontext-Doc der Seite nachgezogen ([antraege.md](docs/feedback-kontext/antraege.md))
+
 ### v4.75.2 — Antragsdokumente statt Aufnehmen (August 2026)
 
 PATCH — Gemeldet: „Button Aufnehmen und Download oben rechts muss nicht fett sein" und „Aufnehmen → ‚Antragsdokumente', als Tooltip eine Erklärung, was der Button macht". Der Knopf nannte die Tätigkeit, nicht den Gegenstand — und was dabei mit den Dateien geschieht, stand nur im Overlay dahinter.

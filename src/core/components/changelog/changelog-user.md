@@ -19,6 +19,13 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.76 — 2026-08
+
+### Verbesserungen
+- Filterleiste und Tabellenkopf beginnen jetzt auf derselben Höhe: Die eingeblendete Filterleiste sitzt nicht mehr über der Tabelle, sondern bildet mit deren Kopfzeile ein durchgehendes Band. Der weiße Streifen dazwischen ist weg.
+- Die Zeile mit den Filter-Pillen steht jetzt über der Filterleiste statt daneben — sie bleibt beim Ein- und Ausklappen der Leiste an ihrer Stelle.
+- Im Kopf der Leiste steht „FILTER" auf einer Linie mit den Spalten-Rubriken; die Anzahl der aktiven Filter erscheint dort farbig, sobald etwas filtert.
+
 ## v4.75 — 2026-08
 
 ### Verbesserungen

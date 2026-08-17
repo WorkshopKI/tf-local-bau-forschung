@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo } from 'react';
 import type { AntragListItem } from '@/core/services/csv/types';
-import { SortableTable, useTableSort, useColumnFilters, compareValues, useColumnWidths, useTotalTableWidth, DEFAULT_MIN_COLUMN_WIDTH } from '@/components/data-table';
+import { SortableTable, useTableSort, useColumnFilters, compareValues, useColumnWidths, useTotalTableWidth, DEFAULT_MIN_COLUMN_WIDTH, type KopfHoehen } from '@/components/data-table';
 import { resolveAntragTableColumns } from './tableColumns';
 import { mitSpaltenHilfe } from './spaltenHilfe';
 import type { SpaltenHilfe, SortableColumn } from '@/components/data-table/types';
@@ -79,6 +79,9 @@ interface Props {
   /** Meldet der Toolbar in AntraegeMain, was die Tabelle gerade zeigt: die
    *  spaltengefilterte TV-Anzahl und die Zeilen, die daraus werden. */
   onZeilenMeldung?: (m: ZeilenMeldung) => void;
+  /** Meldet die gemessenen Höhen des Tabellenkopfes — der Kopf der Filterleiste
+   *  legt sich darauf und bildet mit ihm ein Band (v4.76). */
+  onKopfHoehe?: (m: KopfHoehen) => void;
 }
 
 /** Section-Key-Funktion pro Zeile (Gruppierungs-Abschnitt oder Arbeitsvorrat-
@@ -159,6 +162,7 @@ export function AntraegeTable({
   stickyHeader = false,
   scrollContainerRef,
   onScroll,
+  onKopfHoehe,
 }: Props): React.ReactElement {
   const visibleColumns = useAntraegeColumnsStore(s => s.visibleColumns);
   const verbundById = useAntraegeStore(s => s.verbundById);
@@ -535,6 +539,7 @@ export function AntraegeTable({
         stickyHeader={stickyHeader}
         scrollContainerRef={scrollContainerRef}
         onScroll={onScroll}
+        onKopfHoehe={onKopfHoehe}
         footerSlot={stickyHeader ? ladeStreifen : undefined}
         isRowExpanded={ausklappbar ? (r => ausklapp.istOffen(r.aktenzeichen)) : undefined}
         renderRowDetail={ausklappbar ? (r => (

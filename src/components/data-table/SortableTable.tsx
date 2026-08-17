@@ -42,7 +42,7 @@ import { leiteModus, leiteTabellenStil, leiteKastenStil, wrapperKlassen } from '
 import { useAutoColumnWidths } from './messung/useAutoColumnWidths';
 import { useColumnResize } from './useColumnResize';
 import { TotalWidthGrip } from './TotalWidthGrip';
-import { TableHeadRows } from './TableHeadRows';
+import { TableHeadRows, type KopfHoehen } from './TableHeadRows';
 import { TableBody } from './TableBody';
 import type { SortDirection, SortableColumn } from './types';
 
@@ -230,6 +230,9 @@ export interface SortableTableProps<T> {
    *  scrollt dieser Kasten senkrecht nicht. */
   scrollContainerRef?: React.RefObject<HTMLDivElement | null>;
   onScroll?: (e: React.UIEvent<HTMLDivElement>) => void;
+  /** Meldet die gemessenen Höhen des Tabellenkopfes — für Nachbarn ausserhalb
+   *  der Tabelle, die sich auf dasselbe Band legen (siehe `TableHeadRows`). */
+  onKopfHoehe?: (m: KopfHoehen) => void;
   /** Inhalt UNTER der Tabelle, aber INNERHALB des Scrollers. */
   footerSlot?: ReactNode;
   /**
@@ -285,6 +288,7 @@ export function SortableTable<T>({
   stickyHeader = false,
   scrollContainerRef,
   onScroll,
+  onKopfHoehe,
   footerSlot,
   isRowExpanded,
   renderRowDetail,
@@ -483,6 +487,7 @@ export function SortableTable<T>({
               stickyFirstColumn={stickyFirstColumn}
               showGroupHeader={showGroupHeader}
               stickyHeader={stickyHeader}
+              onKopfHoehe={onKopfHoehe}
             />
             <TableBody
               rows={rows}

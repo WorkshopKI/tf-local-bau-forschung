@@ -1,10 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { AntraegeMain } from './AntraegeMain';
 import { AntraegeHeader } from './AntraegeHeader';
 import { VerbundDetail } from './VerbundDetail';
 import { FilterDrawer } from './FilterDrawer';
-import { FilterSidebar } from './filter/FilterSidebar';
 import { useAntraegeStore } from './store';
 import { useAntraegeHybridSearch } from './useAntraegeHybridSearch';
 import { pseudoVerbundIdFor } from './pseudoVerbund';
@@ -20,10 +19,6 @@ import { detailSchliessenZiel, kamAusDerSuche, SUCHE_ROUTE } from '@/plugins/suc
 import { PanelLeftOpen } from 'lucide-react';
 
 const FILTER_OPEN_KEY = 'teamflow_antraege_filter_open';
-const FILTER_WIDTH_KEY = 'teamflow_antraege_filter_width';
-const FILTER_DEFAULT_WIDTH = 460;
-const FILTER_MIN_WIDTH = 280;
-const FILTER_MAX_WIDTH = 720;
 
 function loadFilterOpen(): boolean {
   try {
@@ -32,14 +27,6 @@ function loadFilterOpen(): boolean {
     if (v === '1') return true;
   } catch { /* ignore */ }
   return false;
-}
-
-function loadFilterWidth(): number {
-  try {
-    const v = Number(localStorage.getItem(FILTER_WIDTH_KEY));
-    if (Number.isFinite(v) && v >= FILTER_MIN_WIDTH && v <= FILTER_MAX_WIDTH) return v;
-  } catch { /* ignore */ }
-  return FILTER_DEFAULT_WIDTH;
 }
 
 function loadListCollapsed(): boolean {
@@ -63,44 +50,14 @@ export function AntraegePage(): React.ReactElement {
   useAntraegeHybridSearch();
   const hasDetail = !!(selectedAz || selectedVb);
   const [filterOpen, setFilterOpen] = useState(loadFilterOpen);
-  const [filterWidth, setFilterWidth] = useState(loadFilterWidth);
   // Einklapp-Zustand der Antrags-Liste (nur im Detail-Modus wirksam) — additiv
   // neben der persistierten Listenbreite (AntraegeMain `narrowWidth`).
   const [listCollapsed, setListCollapsed] = useState(loadListCollapsed);
-  const dragRef = useRef<{ startX: number; startWidth: number } | null>(null);
 
   const setCollapsed = (next: boolean): void => {
     setListCollapsed(next);
     try { localStorage.setItem(ANTRAEGE_LIST_COLLAPSED_KEY, serializeCollapsedFlag(next)); } catch { /* ignore */ }
   };
-
-  const onResizeMouseDown = useCallback((e: React.MouseEvent): void => {
-    dragRef.current = { startX: e.clientX, startWidth: filterWidth };
-    document.body.style.cursor = 'col-resize';
-    document.body.style.userSelect = 'none';
-    const onMove = (ev: MouseEvent): void => {
-      const drag = dragRef.current;
-      if (!drag) return;
-      // Leiste links: nach rechts ziehen → breiter. (Bis v4.62 stand sie rechts
-      // und das Vorzeichen war umgekehrt.)
-      const delta = ev.clientX - drag.startX;
-      const next = Math.min(FILTER_MAX_WIDTH, Math.max(FILTER_MIN_WIDTH, drag.startWidth + delta));
-      setFilterWidth(next);
-    };
-    const onUp = (): void => {
-      dragRef.current = null;
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
-    };
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
-  }, [filterWidth]);
-
-  useEffect(() => {
-    try { localStorage.setItem(FILTER_WIDTH_KEY, String(filterWidth)); } catch { /* ignore */ }
-  }, [filterWidth]);
 
   // EINE Ableitung für „Liste sichtbar?" — steuert sowohl den Render-Zweig unten
   // als auch den Fokus-Modus im Seitenkopf: Listen-Werkzeuge (Sicht-Tabs, Suche,
@@ -143,11 +100,7 @@ export function AntraegePage(): React.ReactElement {
 
   // Wenn das Detail geöffnet wird während der Drawer/Sidebar offen war,
   // bleibt `filterOpen` erhalten — Filter werden im Drawer-Modus weiter
-  // gerendert. Beim Schließen des Drawers muss localStorage konsistent
-  // bleiben — handled in toggleFilter.
-  useEffect(() => {
-    // Persistenz-Sync nur über toggleFilter; useEffect hier nur als Hook.
-  }, [filterOpen]);
+  // gerendert. Die Persistenz läuft ausschliesslich über `toggleFilter`.
 
   return (
     <div className="flex flex-col h-full min-h-[calc(100vh-60px)] overflow-hidden">
@@ -158,43 +111,18 @@ export function AntraegePage(): React.ReactElement {
       />
 
       <div className="flex-1 min-h-0 flex overflow-hidden">
-        {/* Persistente Filter-Leiste (LINKS) — nur wenn KEIN Detail offen ist
-            und Filter aufgeklappt. Im Detail-Modus übernimmt der FilterDrawer
-            (overlay). Ziehgriff am RECHTEN Rand der Aside, also an der Kante
-            zur Liste.
-
-            Links, weil die Lesefolge damit „womit schränke ich ein → was bleibt
-            übrig → was steht drin" ist; rechts stand die Leiste dort, wo im
-            Detail-Modus das Detail aufgeht, und tauschte beim Öffnen eines
-            Antrags die Bedeutung derselben Bildschirmhälfte. */}
-        {!hasDetail && filterOpen && (
-          <aside
-            className="shrink-0 h-full overflow-hidden flex"
-            style={{ width: filterWidth }}
-          >
-            <div className="flex-1 min-w-0 h-full">
-              <FilterSidebar
-                antraege={antraege}
-                search={search}
-                onSearchChange={setSearch}
-                onCollapse={toggleFilter}
-                hideSearch
-              />
-            </div>
-            <div
-              role="separator"
-              aria-orientation="vertical"
-              aria-label="Filter-Panel-Breite ändern"
-              onMouseDown={onResizeMouseDown}
-              // Kein Trennstrich mehr (v4.64): die Leiste steht auf der leichten
-              // Grundfläche, die Liste auf Weiß — der Farbwechsel IST die Kante.
-              // Der Griff bleibt fühlbar (Cursor) und zeigt sich beim Überfahren.
-              className="shrink-0 w-[4px] h-full cursor-col-resize bg-[var(--tf-bg-secondary)] hover:bg-[var(--tf-border-hover)] transition-colors"
-            />
-          </aside>
-        )}
+        {/* Die persistente Filter-Leiste steht seit v4.76 IN der Liste
+            (`AntraegeMain` → `FilterSpalte`), nicht mehr neben ihr: nur so kann
+            die Werkzeug-Zeile über Leiste UND Tabelle spannen und der Kopf der
+            Leiste mit dem Tabellenkopf ein Band bilden. Im Detail-Modus
+            übernimmt weiterhin der `FilterDrawer` (Overlay). */}
         {listeSichtbar ? (
-          <AntraegeMain narrow={hasDetail} onCollapse={hasDetail ? () => setCollapsed(true) : undefined} />
+          <AntraegeMain
+            narrow={hasDetail}
+            onCollapse={hasDetail ? () => setCollapsed(true) : undefined}
+            filterOpen={!hasDetail && filterOpen}
+            onToggleFilter={toggleFilter}
+          />
         ) : (
           // Eingeklappt (nur im Detail-Modus): schmale Leiste zum Wiedereinblenden.
           // Das Detail-Panel daneben (flex-1) nimmt den frei werdenden Platz.

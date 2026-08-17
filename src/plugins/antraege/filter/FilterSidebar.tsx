@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { RotateCcw, BookmarkPlus, PanelLeftClose } from 'lucide-react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { Input } from '@/components/ui/input';
+import type { KopfHoehen } from '@/components/data-table';
 import type { AntragListItem } from '@/core/services/csv/types';
 import { useBearbeiterSicht } from '@/core/hooks/useBearbeiterSicht';
 import { isAuslastungFreigeschaltet } from '@/core/modul-freischaltung';
@@ -33,6 +34,16 @@ interface Props {
    *  Einklapp-Icon — im Drawer schließt die Überlagerung selbst, ein zweiter
    *  Weg dorthin wäre eine Attrappe. */
   onCollapse?: () => void;
+  /**
+   * Gemessene Höhen des Tabellenkopfes daneben. Gesetzt heisst KOPFBAND: der
+   * Kopf der Leiste wird zum ersten Abschnitt des Tabellenkopfes — dieselbe
+   * Fläche, dieselben Zeilenhöhen, eine durchlaufende Haarlinie.
+   *
+   * `null` (Voreinstellung) heisst: es gibt keinen Tabellenkopf, an dem sich das
+   * ausrichten liesse — Listen- und Karten-Ansicht, Leerzustände, der Drawer.
+   * Dann trägt die Leiste ihren gewohnten Kopf.
+   */
+  band?: KopfHoehen | null;
 }
 
 function SectionHeader({
@@ -59,7 +70,14 @@ function Hairline(): React.ReactElement {
   return <div className="my-2 h-px bg-[var(--tf-border)]" />;
 }
 
-export function FilterSidebar({ antraege, search, onSearchChange, hideSearch = false, onCollapse }: Props): React.ReactElement {
+export function FilterSidebar({
+  antraege,
+  search,
+  onSearchChange,
+  hideSearch = false,
+  onCollapse,
+  band = null,
+}: Props): React.ReactElement {
   const storage = useStorage();
   const {
     definitions,
@@ -169,36 +187,106 @@ export function FilterSidebar({ antraege, search, onSearchChange, hideSearch = f
       // durchscheinende `--tf-hover`, abgesetzte Pillen über `--tf-bg`.
       className="flex flex-col h-full bg-[var(--tf-bg-secondary)]"
     >
-      {/* Header */}
-      <div
-        className="shrink-0 flex items-center justify-between gap-2"
-        style={{ padding: '10px 12px 8px 16px', borderBottom: '0.5px solid var(--tf-border)' }}
-      >
-        {/* Der Verlauf steht DIREKT beim Titel, nicht bei den Zustands-Anzeigen
-            rechts: er ist ein täglich benutzter Einstieg, kein Statuswert. Die
-            Zahl „N aktiv" berichtet nur und rückt dafür nach rechts zum
-            Einklapp-Knopf. */}
-        <div className="flex min-w-0 items-center gap-1">
-          <span className="text-[13.5px] font-medium text-[var(--tf-text)]">Filter</span>
-          <VerlaufMenue eintraege={verlauf} onAnwenden={applyVerlauf} />
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-[11.5px] text-[var(--tf-text-tertiary)]">
-            {active.length} aktiv
-          </span>
-          {onCollapse ? (
-            <button
-              type="button"
-              onClick={onCollapse}
-              aria-label="Filterleiste einklappen"
-              title="Filterleiste einklappen"
-              className="shrink-0 p-1 rounded-[6px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text)] hover:bg-[var(--tf-hover)] transition-colors cursor-pointer"
+      {/* KOPFBAND (v4.76): zwei Zeilen in der GEMESSENEN Höhe des Tabellenkopfes
+          daneben — Zeile 1 ist seine Rubrikzeile, Zeile 2 seine Spaltenzeile.
+          Die senkrechte Kante rechts ist die Fortsetzung der Rubriktrenner und
+          gilt NUR im Band; darunter trennt weiter der Farbwechsel.
+          Der 13,5-px-Titel „Filter" entfällt hier: die Rubrikzeile trägt ihn,
+          und zwei Kopf-Sorten auf einer Höhe sagten sich gegenseitig nichts. */}
+      {band ? (
+        // Die Geometrie ist die des Tabellenkastens daneben, Stück für Stück:
+        // sein 0,5-px-Rahmen liegt AUSSERHALB des Kopfes (deshalb `borderTop`
+        // hier aussen), seine Unterkante liegt INNERHALB (Schatten statt
+        // Rahmen, gleiche Begründung wie `STICKY_KOPF_UNTERKANTE`). Ohne diese
+        // Unterscheidung sitzen die beiden Haarlinien 1 px versetzt.
+        <div
+          className="shrink-0"
+          style={{
+            borderTop: '0.5px solid var(--tf-border)',
+            borderRight: '0.5px solid var(--tf-border)',
+          }}
+        >
+          <div
+            className="flex flex-col items-stretch"
+            style={{ height: band.gesamt, boxShadow: 'inset 0 -0.5px 0 var(--tf-border)' }}
+          >
+            {/* Zeile 1 = Rubrikzeile: unten ausgerichtet wie die `align-bottom`-
+                Zellen daneben, gleiche 2 px Grundabstand. */}
+            <div
+              className="flex shrink-0 items-end truncate text-[10px] uppercase text-[var(--tf-text-tertiary)]"
+              style={{
+                height: band.rubrik,
+                padding: '0 16px 2px',
+                letterSpacing: '0.08em',
+              }}
             >
-              <PanelLeftClose size={15} />
-            </button>
-          ) : null}
+              Filter
+            </div>
+            {/* Zeile 2 = Spaltenzeile: mittig wie die `align-middle`-Zellen. */}
+            <div
+              className="flex min-h-0 flex-1 items-center gap-2"
+              style={{ padding: '0 12px 0 16px' }}
+            >
+              <VerlaufMenue eintraege={verlauf} onAnwenden={applyVerlauf} />
+              {/* „0 AKTIV" im Akzent behauptete einen Zustand, der keiner ist —
+                  die Zahl erscheint erst, wenn etwas filtert. */}
+              {active.length > 0 ? (
+                <span
+                  className="ml-auto text-[10.5px] font-medium uppercase"
+                  style={{ color: 'var(--tf-primary)', letterSpacing: '0.06em' }}
+                >
+                  {active.length} aktiv
+                </span>
+              ) : null}
+              {onCollapse ? (
+                <button
+                  type="button"
+                  onClick={onCollapse}
+                  aria-label="Filterleiste einklappen"
+                  title="Filterleiste einklappen"
+                  className={
+                    'shrink-0 p-1 rounded-[6px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text)]'
+                    + ' hover:bg-[var(--tf-hover)] transition-colors cursor-pointer'
+                    + (active.length > 0 ? '' : ' ml-auto')
+                  }
+                >
+                  <PanelLeftClose size={15} />
+                </button>
+              ) : null}
+            </div>
+          </div>
         </div>
-      </div>
+      ) : (
+        <div
+          className="shrink-0 flex items-center justify-between gap-2"
+          style={{ padding: '10px 12px 8px 16px', borderBottom: '0.5px solid var(--tf-border)' }}
+        >
+          {/* Der Verlauf steht DIREKT beim Titel, nicht bei den Zustands-Anzeigen
+              rechts: er ist ein täglich benutzter Einstieg, kein Statuswert. Die
+              Zahl „N aktiv" berichtet nur und rückt dafür nach rechts zum
+              Einklapp-Knopf. */}
+          <div className="flex min-w-0 items-center gap-1">
+            <span className="text-[13.5px] font-medium text-[var(--tf-text)]">Filter</span>
+            <VerlaufMenue eintraege={verlauf} onAnwenden={applyVerlauf} />
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-[11.5px] text-[var(--tf-text-tertiary)]">
+              {active.length} aktiv
+            </span>
+            {onCollapse ? (
+              <button
+                type="button"
+                onClick={onCollapse}
+                aria-label="Filterleiste einklappen"
+                title="Filterleiste einklappen"
+                className="shrink-0 p-1 rounded-[6px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text)] hover:bg-[var(--tf-hover)] transition-colors cursor-pointer"
+              >
+                <PanelLeftClose size={15} />
+              </button>
+            ) : null}
+          </div>
+        </div>
+      )}
 
       {/* Optional Quicksearch (Antraege-Volltext) — nur im non-Drawer-Modus. */}
       {!hideSearch && (
@@ -253,7 +341,14 @@ export function FilterSidebar({ antraege, search, onSearchChange, hideSearch = f
           (gleicher `activeView`, gleiche Zähler, gleiche Beschriftung). Dasselbe
           Wort stand dadurch dreimal auf einem Bildschirm. Der Verlauf sitzt jetzt
           im Kopf der Leiste, nicht mehr in ihrem Rumpf. */}
-      <div className="flex-1 overflow-y-auto" style={{ padding: '6px 12px 8px' }}>
+      <div
+        className="flex-1 overflow-y-auto"
+        // Im Band-Zustand rückt der Rumpf nach oben, damit die Abschnittszeile
+        // „STATUS" auf der Grundlinie des ersten Tabellenbands sitzt — am
+        // gerenderten Bild gemessen, nicht gerechnet: mit den bisherigen 6 px
+        // lag sie 2,5 px zu tief.
+        style={{ padding: band ? '3.5px 12px 8px' : '6px 12px 8px' }}
+      >
         {visibleDefs.length === 0 ? (
           <div className="py-6 text-center text-[12px] text-[var(--tf-text-tertiary)]">
             Keine Filter vorhanden.

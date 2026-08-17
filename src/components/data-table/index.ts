@@ -48,6 +48,7 @@ export {
   DEFAULT_MIN_COLUMN_WIDTH,
   type SortableTableProps,
 } from './SortableTable';
+export type { KopfHoehen } from './TableHeadRows';
 export { ColumnFilterDropdown, type ColumnFilterDropdownProps } from './ColumnFilterDropdown';
 export {
   useColumnFilters,

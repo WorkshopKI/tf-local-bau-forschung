@@ -10,6 +10,7 @@ import { aktivIstAngepinnt, usePinnedFilters } from './filter/pinnedFilters';
 import { FilterChip } from '@/components/ui/FilterChip';
 import { AMPEL_BUCKET_LABEL } from './eingangAmpel';
 import { QuickfilterToolbar } from './filter/QuickfilterToolbar';
+import { FilterSpalte } from './filter/FilterSpalte';
 import { DarstellungDropdown } from '@/components/ui/DarstellungDropdown';
 import { baueDarstellungsAchsen, type DarstellungAchseId } from './darstellungsAchsen';
 import { EIGENE_AUSWAHL, keysVonProfil } from './spaltenProfile';
@@ -54,7 +55,7 @@ import {
   trefferZahlTitel,
   type ZeilenMeldung,
 } from './trefferZahl';
-import { ColumnPicker } from '@/components/data-table';
+import { ColumnPicker, type KopfHoehen } from '@/components/data-table';
 import {
   ANTRAG_TABLE_COLUMNS,
   MA_COLUMN_KEY,
@@ -77,7 +78,7 @@ import { useEigeneReiter } from './eigeneReiter';
 import { type ViewMode, isViewMode } from './viewModes';
 import { isAuslastungFreigeschaltet } from '@/core/modul-freischaltung';
 import { Alert } from '@/components/ui/alert';
-import { AlertTriangle, Settings, PanelLeftClose } from 'lucide-react';
+import { AlertTriangle, Settings } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const ROW_PAGE = 60;
@@ -100,9 +101,20 @@ interface Props {
   /** Im Detail-Modus gesetzt: Icon zum Einklappen der Liste in die
    *  „Anträge einblenden"-Leiste (AntraegePage rendert die Leiste). */
   onCollapse?: () => void;
+  /** Ist die persistente Filterleiste ausgeklappt? Sie ist seit v4.76 eine
+   *  Spalte DIESER Liste (`FilterSpalte`) — im Detail-Modus übernimmt der
+   *  `FilterDrawer`, dann kommt hier `false` an. */
+  filterOpen?: boolean;
+  /** Schalter der Filterleiste (derselbe wie im Seitenkopf). */
+  onToggleFilter?: () => void;
 }
 
-export function AntraegeMain({ narrow = false, onCollapse }: Props): React.ReactElement {
+export function AntraegeMain({
+  narrow = false,
+  onCollapse,
+  filterOpen = false,
+  onToggleFilter,
+}: Props): React.ReactElement {
   const storage = useStorage();
   const navigate = useNavigate();
   const {
@@ -262,6 +274,23 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
   // sind; ihre Toolbar festzunageln ist eine eigene Entscheidung, nach der
   // niemand gefragt hat.
   const stickyKopf = !narrow && viewMode === 'compact';
+  // KOPFBAND (v4.76): der Kopf der Filterleiste wird zum ersten Abschnitt des
+  // Tabellenkopfes — gleiche Fläche, gleiche Höhe, eine durchlaufende
+  // Haarlinie. Die Höhen werden GEMESSEN und nicht gesetzt: sie hängen an
+  // Schrift, Zoom und an der Frage, ob ein Spaltenkopf umbricht (gemessen: 23 +
+  // 44 px, nicht die 22 + 30 des Entwurfs). Ein Zahlwert im Code ergäbe zwei
+  // Haarlinien im Abstand von 1 px.
+  const [kopfHoehen, setKopfHoehen] = useState<KopfHoehen>({ gesamt: 0, rubrik: 0 });
+  // Ein Band entsteht nur, wenn der Tabellenkopf auch wirklich am Anfang dieser
+  // Zeile steht. Die drei Mengen-Bedingungen sind deshalb keine Kosmetik: bei
+  // Leerzustand oder Bearbeiter-Warnung rendert die Inhaltsspalte etwas ÜBER
+  // der Tabelle, und die beiden Hälften träfen sich nicht mehr.
+  const bandAktiv = !narrow
+    && filterOpen
+    && viewMode === 'compact'
+    && antraege.length > 0
+    && filtered.length > 0
+    && !bearbeiterKuerzelMissing;
   const merkeScroll = (e: React.UIEvent<HTMLDivElement>): void => {
     wideScrollTop.current = e.currentTarget.scrollTop;
   };
@@ -310,30 +339,29 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
     : {};
   const containerClass = narrow
     ? 'h-full flex'
-    : 'flex-1 min-w-0 h-full flex';
+    : 'flex-1 min-w-0 h-full flex flex-col';
 
-  // Toolbar teilt dieselbe Content-Box wie die Liste/Tabelle, damit das
-  // rechtsbündige „Spalten"-Dropdown (Compact) mit dem Tabellen-Rand fluchtet.
-  // Nur die List-View trägt den max-w-6xl-Lesbarkeits-Cap; Tabelle (Compact)
-  // + Cards nutzen die volle Breite → Toolbar-Box muss denselben Cap-Zustand
-  // wie der Content darunter haben. narrow px-4.
-  const toolbarClass = (narrow
-    ? 'px-4 pt-3 pb-3'
-    : viewMode === 'list'
-      ? 'px-8 pt-3 pb-3 max-w-6xl'
-      : 'px-8 pt-3 pb-3')
-    // Bei stehendem Kopf scrollt die Spalte nicht mehr — die Toolbar bleibt
-    // dann von sich aus oben und darf nur nicht mitschrumpfen.
-    + (stickyKopf ? ' shrink-0' : '');
+  // Die Toolbar steht seit v4.76 ÜBER der Zeile aus Filterleiste und Inhalt und
+  // spannt damit über beide (das war die Voraussetzung dafür, dass Leistenkopf
+  // und Tabellenkopf ein Band bilden können). Sie teilt deshalb nicht mehr die
+  // Content-Box der Liste: der `max-w-6xl`-Deckel der Listen-Ansicht richtete
+  // das „Spalten"-Menü am Listenrand aus, und der liegt jetzt hinter der Leiste.
+  const toolbarClass = (narrow ? 'px-4 pt-3 pb-3' : 'px-8 pt-3 pb-3 shrink-0');
   // Karten- UND Tabellen-View nutzen die volle Browserbreite, damit auf breiten
   // Monitoren alle Spalten/Anträge mit wenig Scrollen sichtbar sind. Nur die
   // List-View behält max-w-6xl als Lesbarkeits-Cap für die Listen-Zeilen
   // (Text-Zeilen werden sonst unangenehm lang).
+  //
+  // `pl-0` bei gebildetem Band: der Tabellenkasten stösst dann an den Ziehgriff
+  // der Leiste, statt 32 px weisse Rinne zwischen die beiden Hälften des Bandes
+  // zu legen.
   const contentClass = (narrow
     ? 'px-4 pb-4'
     : viewMode === 'list'
       ? 'px-8 pb-6 max-w-6xl'
-      : 'px-8 pb-6')
+      : bandAktiv
+        ? 'pl-0 pr-8 pb-6'
+        : 'px-8 pb-6')
     // Die Tabelle bekommt die Resthöhe. `min-h-0` ist Pflicht: ohne sie wächst
     // ein Flex-Kind bis zu seiner Inhaltshöhe und der Scroller darin bekäme nie
     // eine Kante.
@@ -385,37 +413,16 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
 
   return (
     <div className={containerClass} style={containerStyle}>
-      {/* Bei stehendem Kopf scrollt nicht mehr diese Spalte, sondern der
-          Tabellenkasten weiter unten — `wideScrollRef` und der Scroll-Merker
-          wandern deshalb mit dorthin (an EINER Stelle gesetzt, nie an beiden). */}
-      <div
-        ref={stickyKopf ? undefined : wideScrollRef}
-        onScroll={stickyKopf ? undefined : merkeScroll}
-        className={stickyKopf
-          ? 'flex-1 min-w-0 h-full flex flex-col overflow-hidden'
-          : 'flex-1 min-w-0 h-full overflow-y-auto'}
-      >
-        {/* EINE Toolbar-Zeile: links das Quickfilter-Akkordeon, rechts
-            „Darstellung" + (nur Tabelle) der Spalten-Picker. Die Trefferzahl
-            reitet im UMBRUCH der Quickfilter mit (siehe unten), die aktiven
-            Sidebar-Chips bekommen nur dann eine eigene Zeile, wenn es welche
-            gibt. Toolbar in eigenem Container ohne max-w-*, damit die volle
-            Viewport-Breite genutzt wird. Bearbeiter-Pill sitzt im Header neben
-            dem Titel. */}
-        <div className={toolbarClass}>
+      {/* EINE Toolbar-Zeile: links das Quickfilter-Akkordeon, rechts
+          „Darstellung" + (nur Tabelle) der Spalten-Picker. Sie steht ÜBER der
+          Zeile aus Filterleiste und Inhalt und spannt damit über beide — die
+          Quickfilter gehören in die Kopfzone der Seite, nicht in den
+          Tabellenteil. Die Trefferzahl steht unter der Liste, die aktiven
+          Sidebar-Chips bekommen nur dann eine eigene Zeile, wenn es welche
+          gibt. Bearbeiter-Pill sitzt im Header neben dem Titel. */}
+      <div className={toolbarClass}>
           <div className="flex items-start justify-between gap-3 flex-wrap">
             <div className="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
-              {onCollapse && (
-                <button
-                  type="button"
-                  onClick={onCollapse}
-                  aria-label="Liste einklappen"
-                  title="Liste einklappen"
-                  className="shrink-0 -ml-1 p-1 rounded-[6px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text)] hover:bg-[var(--tf-bg-secondary)] transition-colors cursor-pointer"
-                >
-                  <PanelLeftClose size={16} />
-                </button>
-              )}
               <QuickfilterToolbar />
             </div>
             <div className="shrink-0 flex items-center justify-end gap-2 flex-wrap">
@@ -523,7 +530,27 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
               ) : null}
             </div>
           ) : null}
-        </div>
+      </div>
+
+      {/* Die Zeile aus Filterleiste und Inhalt. Beide beginnen hier auf
+          derselben Höhe — daraus wird bei gebildetem Band die durchlaufende
+          Kopfzeile. */}
+      <div className="flex-1 min-h-0 flex">
+        <FilterSpalte
+          open={filterOpen}
+          onCollapse={onToggleFilter ?? (() => {})}
+          band={bandAktiv ? kopfHoehen : null}
+        />
+        {/* Bei stehendem Kopf scrollt nicht diese Spalte, sondern der
+            Tabellenkasten weiter unten — `wideScrollRef` und der Scroll-Merker
+            wandern deshalb mit dorthin (an EINER Stelle gesetzt, nie an beiden). */}
+        <div
+          ref={stickyKopf ? undefined : wideScrollRef}
+          onScroll={stickyKopf ? undefined : merkeScroll}
+          className={stickyKopf
+            ? 'flex-1 min-w-0 h-full flex flex-col overflow-hidden'
+            : 'flex-1 min-w-0 h-full overflow-y-auto'}
+        >
         <div className={contentClass}>
           {bearbeiterKuerzelMissing && antraege.length > 0 ? (
             <Alert variant="warning" className="mb-3">
@@ -586,6 +613,7 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
               stickyHeader={stickyKopf}
               scrollContainerRef={stickyKopf ? wideScrollRef : undefined}
               onScroll={stickyKopf ? merkeScroll : undefined}
+              onKopfHoehe={setKopfHoehen}
             />
             {/* Die Massen-Leiste schwebt am unteren Rand des Inhalts — sie
                 erscheint nur, wenn wirklich etwas gewählt ist, und nimmt sonst
@@ -630,6 +658,7 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
               {formatTrefferZahl(treffer)}
             </div>
           ) : null}
+        </div>
         </div>
       </div>
       {/* Der Anlege-Dialog hängt an der Seite, nicht am Picker: der schließt bei

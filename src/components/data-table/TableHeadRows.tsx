@@ -5,7 +5,7 @@
  * Der Zustand des Filter-Dropdowns (welche Spalte offen, an welchem Anker) lebt
  * hier — außerhalb des Kopfes braucht ihn niemand.
  */
-import { useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { ChevronDown, Filter } from 'lucide-react';
 import { SortIcon } from './SortIcon';
 import { ColumnFilterDropdown } from './ColumnFilterDropdown';
@@ -62,6 +62,20 @@ export interface TableHeadRowsProps<T> {
    *  Verbraucher den Tabellenkasten zum Scroller gemacht hat — siehe
    *  `SortableTable`). */
   stickyHeader?: boolean;
+  /** Meldet die GEMESSENEN Höhen des Kopfes — für Nachbarn ausserhalb der
+   *  Tabelle, die sich auf dieselbe Bandhöhe legen wollen (Förderanträge: Kopf
+   *  der Filterleiste). Beide Werte, nicht nur die Summe: nur so kann der
+   *  Nachbar seine erste Zeile auf die Rubrikzeile und seine zweite auf die
+   *  Spaltenzeile legen. Ohne Verbraucher wird nicht gemessen. */
+  onKopfHoehe?: (m: KopfHoehen) => void;
+}
+
+/** Gemessene Höhen des Tabellenkopfes in Pixeln. */
+export interface KopfHoehen {
+  /** Der ganze `thead`. */
+  gesamt: number;
+  /** Nur die Rubrikzeile — `0`, wenn es keine gibt. */
+  rubrik: number;
 }
 
 /** Stapelreihenfolge der klebenden Zellen. Der Kopf muss über den Datenzellen
@@ -98,6 +112,7 @@ export function TableHeadRows<T>({
   stickyFirstColumn = false,
   showGroupHeader = false,
   stickyHeader = false,
+  onKopfHoehe,
 }: TableHeadRowsProps<T>): React.ReactElement {
   const [openFilterKey, setOpenFilterKey] = useState<string | null>(null);
   const [filterAnchor, setFilterAnchor] = useState<HTMLElement | null>(null);
@@ -111,10 +126,21 @@ export function TableHeadRows<T>({
     [showGroupHeader, columns],
   );
   const rubrikRef = useRef<HTMLTableRowElement | null>(null);
-  const rubrikHoehe = useRubrikHoehe(rubrikRef, showGroupHeader);
+  const rubrikHoehe = useGemesseneHoehe(rubrikRef, showGroupHeader);
+  const kopfRef = useRef<HTMLTableSectionElement | null>(null);
+  const kopfHoehe = useGemesseneHoehe(kopfRef, onKopfHoehe !== undefined);
+  // Der Melde-Weg läuft über einen Ref, damit eine wechselnde Funktions-
+  // Identität beim Verbraucher (Inline-Lambda) keinen Effekt-Sturm auslöst:
+  // gemeldet wird, wenn sich die HÖHE ändert.
+  const meldeRef = useRef(onKopfHoehe);
+  meldeRef.current = onKopfHoehe;
+  useEffect(() => {
+    meldeRef.current?.({ gesamt: kopfHoehe, rubrik: rubrikHoehe });
+  }, [kopfHoehe, rubrikHoehe]);
 
   return (
     <thead
+      ref={kopfRef}
       // Am `<thead>` statt an jedem `<th>`: so trägt EIN Element beide
       // Kopfzeilen, ohne dass die zweite ihre Oberkante gegen die Höhe der
       // ersten rechnen müsste — und die grauen `<tr>`-Gründe bleiben gültig
@@ -299,28 +325,50 @@ export function TableHeadRows<T>({
 }
 
 /**
- * Höhe der Rubrikzeile in Pixeln — der Betrag, um den die Spaltengriffe nach
- * OBEN aus ihrer Zelle herausragen müssen.
+ * Höhe eines Kopf-Elements in Pixeln.
+ *
+ * Zwei Verbraucher, dieselbe Frage: die **Rubrikzeile** liefert den Betrag, um
+ * den die Spaltengriffe nach OBEN aus ihrer Zelle herausragen müssen; der ganze
+ * **`thead`** liefert die Höhe des Kopfbands, an der sich Nachbarn ausserhalb
+ * der Tabelle ausrichten (`onKopfHoehe`).
  *
  * Gemessen statt gerechnet: die Zeile ist so hoch, wie ihre Zeilenhöhe und ihre
  * Polsterung sie machen (hier 23 px), und das hängt an der geladenen Schrift und
  * am Zoom. Ein Zahlwert im Code stimmte nur für den Stand, in dem er entstand.
+ *
+ * `getBoundingClientRect()` und nicht `offsetHeight`: der rundet auf ganze
+ * Pixel. Gemessen an der Fördertabelle war der Kopf 66,5 px hoch und wurde als
+ * 67 gemeldet — genau die halbe Linie Versatz, die das Kopfband sichtbar macht.
  */
-function useRubrikHoehe(
-  ref: React.RefObject<HTMLTableRowElement | null>,
+function useGemesseneHoehe(
+  ref: React.RefObject<HTMLElement | null>,
   aktiv: boolean,
 ): number {
   const [hoehe, setHoehe] = useState(0);
+  // NACH JEDEM Durchlauf messen, ohne Abhängigkeitsliste. Die endgültige
+  // Kopfhöhe steht erst fest, wenn die Spaltenbreiten stehen — und die rechnet
+  // ein Layout-Effekt in `SortableTable`, also NACH diesem hier. Eine einmalige
+  // Messung beim Einhängen bliebe auf dem Zwischenstand stehen (gemessen: 67
+  // statt 66,5 px). Der Durchlauf konvergiert: gleicher Wert, kein Re-Render.
   useLayoutEffect(() => {
-    const tr = ref.current;
-    if (!aktiv || !tr) { setHoehe(0); return; }
-    const messen = (): void => setHoehe(tr.offsetHeight);
-    messen();
+    const el = ref.current;
+    setHoehe(aktiv && el ? el.getBoundingClientRect().height : 0);
+  });
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!aktiv || !el || typeof ResizeObserver === 'undefined') return;
+    // GEMESSEN wird das Kopf-Element, BEOBACHTET werden gewöhnliche Kästen um
+    // es herum: ein `ResizeObserver` auf `<thead>`/`<tr>` meldet nichts, die
+    // beiden sind keine. Das fängt, was ohne React-Durchlauf passiert — Zoom,
+    // nachgeladene Schrift, und vor allem der Zug an der Filterleiste, der nur
+    // die BREITE des Behälters ändert und damit einen Spaltenkopf umbrechen
+    // lässt. Deshalb beide: die Tabelle folgt der Höhe, ihre Hülle der Breite.
     // Kein Rückkopplungs-Risiko: der Griff ist absolut positioniert und geht
     // nicht in die Zeilenhöhe ein.
-    if (typeof ResizeObserver === 'undefined') return;
-    const ro = new ResizeObserver(messen);
-    ro.observe(tr);
+    const tabelle = el.closest('table');
+    const ro = new ResizeObserver(() => setHoehe(el.getBoundingClientRect().height));
+    ro.observe(tabelle ?? el);
+    if (tabelle?.parentElement) ro.observe(tabelle.parentElement);
     return () => ro.disconnect();
   }, [ref, aktiv]);
   return hoehe;
