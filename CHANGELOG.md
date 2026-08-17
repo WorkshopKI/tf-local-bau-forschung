@@ -5,6 +5,14 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.75.2 — Antragsdokumente statt Aufnehmen (August 2026)
+
+PATCH — Gemeldet: „Button Aufnehmen und Download oben rechts muss nicht fett sein" und „Aufnehmen → ‚Antragsdokumente', als Tooltip eine Erklärung, was der Button macht". Der Knopf nannte die Tätigkeit, nicht den Gegenstand — und was dabei mit den Dateien geschieht, stand nur im Overlay dahinter.
+
+- **„Aufnehmen" heißt „Antragsdokumente"**, mit Tooltip: ZIP/PDF/DOCX ablegen → FKZ aus dem Dateinamen → Text im persönlichen Ordner ([AntraegeHeader.tsx](src/plugins/antraege/AntraegeHeader.tsx))
+- **Beide Kopf-Knöpfe wiegen leichter**: Schrift `font-normal` statt `font-medium`, Icons `strokeWidth` 1.75 statt 2 ([AntraegeHeader.tsx](src/plugins/antraege/AntraegeHeader.tsx))
+- Kontext-Doc der Seite nachgezogen ([antraege.md](docs/feedback-kontext/antraege.md))
+
 ### v4.75.1 — Feedback-Knopf sitzt in der Blattecke (August 2026)
 
 PATCH — Gemeldet: „das Feedback-Icon kann etwas weiter runter, so dass es in der Rundung des Blattes liegt". Es stand 14px über der Blattkante und ragte zugleich 4px darüber hinaus — eine Lage, die zu keiner der beiden Kanten gehörte.

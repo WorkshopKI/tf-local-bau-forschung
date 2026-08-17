@@ -22,6 +22,7 @@
 ## v4.75 — 2026-08
 
 ### Verbesserungen
+- Der Knopf **„Aufnehmen" heißt jetzt „Antragsdokumente"** und erklärt beim Draufzeigen, was er tut: ZIP oder einzelne PDF/DOCX ablegen, das Förderkennzeichen kommt aus dem Dateinamen, die Dateien landen als Text unter dem Antrag in Ihrem persönlichen Ordner.
 - Der **Feedback-Knopf** liegt jetzt in der abgerundeten Ecke des Blattes, statt darüber zu schweben.
 - Wer die Fördertabelle schmaler zieht, macht jetzt die **ganze** Tabelle schmaler: der Rahmen endet mit der letzten Spalte, statt eine leere Fläche einzurahmen.
 - Der Griff dafür sind wieder **drei Punkte oben rechts** an der Tabelle — der Streifen über die volle Höhe neben dem Scrollbalken ist weg.

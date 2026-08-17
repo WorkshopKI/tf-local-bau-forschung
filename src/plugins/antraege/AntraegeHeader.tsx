@@ -16,6 +16,7 @@ import { menuLabel, isGutachtenWorkflowEnabled } from '@/config/feature-flags';
 import { isAuslastungFreigeschaltet } from '@/core/modul-freischaltung';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Tooltip } from '@/components/ui/Tooltip';
 import { useFilteredAntraege } from './useFilteredAntraege';
 import { AehnlichkeitsHinweis } from './AehnlichkeitsHinweis';
 import { useStorage } from '@/core/hooks/useStorage';
@@ -23,6 +24,15 @@ import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
 import { exportFilteredAntraegeXlsx } from './services/export-xlsx';
 import { useKategorieSpalten } from './useKategorieSpalten';
 import { SeitenHilfeButton } from '@/components/help/SeitenHilfeButton';
+
+/** Der Knopf heißt nach dem, was er aufnimmt — was dabei passiert, sagt der
+ *  Tooltip. „Aufnehmen" allein nannte nur die Tätigkeit und ließ offen, wovon
+ *  die Rede ist (v4.75.2). */
+const AUFNAHME_DETAIL =
+  'Antragsdokumente aufnehmen: ein ZIP (oder einzelne PDF/DOCX) ablegen — das ' +
+  'Förderkennzeichen wird aus dem Dateinamen gelesen, die Dateien werden in Text ' +
+  'umgewandelt und unter dem jeweiligen Antrag in Ihrem persönlichen Ordner abgelegt. ' +
+  'Von dort lesen Aufbereitung und Gutachten sie.';
 
 interface Props {
   filterOpen: boolean;
@@ -135,22 +145,23 @@ export function AntraegeHeader({ filterOpen, onToggleFilter, listeSichtbar }: Pr
           // Kopf-Aktionen am Blattrand, links neben der Hilfe (v4.70). Am Ende
           // der Reiter-Zeile standen sie verloren: dort trennte sie nichts von
           // den Reitern, und die Zeile handelt von der Sicht, nicht von
-          // Werkzeugen. Im Fokus-Modus bleiben Titel + Hilfe — „Aufnehmen"
+          // Werkzeugen. Im Fokus-Modus bleiben Titel + Hilfe — „Antragsdokumente"
           // braucht zwar keine Liste, aber der Kopf soll dort zusammenschrumpfen.
           actions={(
             <div className="flex items-center gap-2">
               {listeSichtbar && isGutachtenWorkflowEnabled() ? (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => useAufnahmeUiStore.getState().toggle()}
-                  aria-label="Dokumente aufnehmen"
-                  title="Antragsdokumente (ZIP) aufnehmen"
-                  className="h-8 gap-1.5 px-2.5"
-                >
-                  <FileUp size={13} />
-                  <span className="text-[12px]">Aufnehmen</span>
-                </Button>
+                <Tooltip text={AUFNAHME_DETAIL} maxWidth={340} wrapperClassName="flex items-center">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => useAufnahmeUiStore.getState().toggle()}
+                    aria-label="Antragsdokumente aufnehmen"
+                    className="h-8 gap-1.5 px-2.5 font-normal"
+                  >
+                    <FileUp size={13} strokeWidth={1.75} />
+                    <span className="text-[12px]">Antragsdokumente</span>
+                  </Button>
+                </Tooltip>
               ) : null}
               {listeSichtbar ? (
                 <Button
@@ -160,11 +171,11 @@ export function AntraegeHeader({ filterOpen, onToggleFilter, listeSichtbar }: Pr
                   disabled={exportBusy || filtered.length === 0 || !activeProgrammId}
                   aria-label={`Liste als XLSX exportieren (${filtered.length} Anträge)`}
                   title={`Liste als XLSX exportieren (${filtered.length} Anträge)`}
-                  className="h-8 w-8 p-0"
+                  className="h-8 w-8 p-0 font-normal"
                 >
                   {exportBusy
-                    ? <Loader2 size={13} className="animate-spin" />
-                    : <Download size={13} />}
+                    ? <Loader2 size={13} strokeWidth={1.75} className="animate-spin" />
+                    : <Download size={13} strokeWidth={1.75} />}
                 </Button>
               ) : null}
               <SeitenHilfeButton pluginId="antraege" />
@@ -181,7 +192,7 @@ export function AntraegeHeader({ filterOpen, onToggleFilter, listeSichtbar }: Pr
         {/* Reiter-Zeile: die Sichten und am Ende das Lesezeichen für die eigenen.
             Werkzeuge stehen hier keine mehr — der Ansichts-Umschalter ist eine
             Achse im „Darstellung"-Menü geworden (v4.64), der Filter-Knopf in die
-            Suchzeile gezogen, „Aufnehmen" und Export in den Seitenkopf (v4.70).
+            Suchzeile gezogen, „Antragsdokumente" und Export in den Seitenkopf (v4.70).
             Zeile komplett nur bei sichtbarer Liste — im Fokus-Modus bliebe sonst
             eine leere Zeile mit ihrem Innenabstand stehen. */}
         {listeSichtbar ? (
