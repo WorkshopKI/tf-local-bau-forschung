@@ -1,12 +1,12 @@
-import { useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { AntraegeMain } from './AntraegeMain';
 import { AntraegeHeader } from './AntraegeHeader';
 import { VerbundDetail } from './VerbundDetail';
 import { FilterDrawer } from './FilterDrawer';
 import { useAntraegeStore } from './store';
 import { useAntraegeHybridSearch } from './useAntraegeHybridSearch';
-import { pseudoVerbundIdFor } from './pseudoVerbund';
+import { loeseDetailAuf } from './detailAufloesung';
 import { AufnahmeHost } from './aufnahme-einfach';
 import { isGutachtenWorkflowEnabled } from '@/config/feature-flags';
 import {
@@ -15,7 +15,8 @@ import {
   serializeCollapsedFlag,
   shouldShowList,
 } from './listCollapse';
-import { detailSchliessenZiel, kamAusDerSuche, SUCHE_ROUTE } from '@/plugins/suche/herkunft';
+import { detailSchliessenZiel, herkunftJetzt, rueckwegAus } from '@/core/nav/herkunft';
+import { antragDetailPfad } from './detailPfad';
 import { EinklappIcon } from '@/components/ui/EinklappIcon';
 
 const FILTER_OPEN_KEY = 'teamflow_antraege_filter_open';
@@ -38,7 +39,6 @@ function loadListCollapsed(): boolean {
 
 export function AntraegePage(): React.ReactElement {
   const navigate = useNavigate();
-  const location = useLocation();
   const selectedAz = useAntraegeStore(s => s.selectedAktenzeichen);
   const selectedVb = useAntraegeStore(s => s.selectedVerbundId);
   const antraege = useAntraegeStore(s => s.antraege);
@@ -65,30 +65,25 @@ export function AntraegePage(): React.ReactElement {
   // sie tote Knöpfe. Kein zweiter Ableitungsweg (vgl. listCollapse.ts).
   const listeSichtbar = shouldShowList(hasDetail, listCollapsed);
 
-  // Herkunft des Aufrufs (siehe `plugins/suche/herkunft.ts`): wer aus der Suche
-  // kam, soll auch dorthin zurückkommen — sonst landet er in einer Liste, die er
-  // nie geöffnet hat. Ein Weiterspringen IM Detail (`openAntrag`) gibt die
-  // Herkunft bewusst nicht weiter: ab dort ist man nicht mehr „bei seinem
-  // Treffer", sondern woanders.
-  const vonSuche = kamAusDerSuche(location.state);
-  const closeDetail = (): void => navigate(detailSchliessenZiel(location.state));
-  const openAntrag = (az: string): void => navigate(`/antraege/${encodeURIComponent(az)}`);
+  // Herkunft des Aufrufs (siehe `core/nav/herkunft.ts`): wer aus der Suche oder
+  // dem Vorgangs-Board kam, soll auch dorthin zurückkommen — sonst landet er in
+  // einer Liste, die er nie geöffnet hat. Die Herkunft ist die letzte Seite
+  // AUSSERHALB der Detail-Routen, ein Weiterspringen im Detail lässt sie also
+  // stehen. Bei jedem Render frisch gelesen: sie ändert sich nur beim
+  // Navigieren, und dann rendert diese Seite ohnehin neu.
+  const herkunft = herkunftJetzt();
+  const rueckweg = rueckwegAus(herkunft);
+  const closeDetail = (): void => navigate(detailSchliessenZiel(herkunft));
+  const openAntrag = (az: string): void => navigate(antragDetailPfad({ aktenzeichen: az }));
 
-  // Aufloesung Antrag → Verbund: Wenn aus der Liste eine TV-Row geklickt wird,
-  // sitzt der Antrag bereits im preloaded Slim-Store (`antraege` mit
-  // `verbund_id`). Daraus wird der Verbund-Container abgeleitet; faellt der
-  // Antrag aus dem Verbund-Verband heraus oder ist kein verbund_id gesetzt,
-  // wird ein Pseudo-Verbund mit einem TV gerendert.
-  const detailProps = ((): { verbundId: string; expanded: string | undefined } | null => {
-    if (selectedVb) return { verbundId: selectedVb, expanded: selectedAz ?? undefined };
-    if (selectedAz) {
-      const li = antraege.find(a => a.aktenzeichen === selectedAz);
-      const vid = typeof li?.verbund_id === 'string' && li.verbund_id.length > 0 ? li.verbund_id : null;
-      if (vid) return { verbundId: vid, expanded: selectedAz };
-      return { verbundId: pseudoVerbundIdFor(selectedAz), expanded: selectedAz };
-    }
-    return null;
-  })();
+  // Aufloesung Schluessel → Verbund-Container: rein und getestet in
+  // `detailAufloesung.ts` (inkl. der Heilung einer Verbund-Nummer, die im
+  // Aktenzeichen-Slot der Adresse steht). Gerechnet auf der schon geladenen
+  // Slim-Projektion, ohne IDB-Runde.
+  const detailProps = useMemo(
+    () => loeseDetailAuf(antraege, selectedAz, selectedVb),
+    [antraege, selectedAz, selectedVb],
+  );
 
   const toggleFilter = (): void => {
     setFilterOpen(prev => {
@@ -147,8 +142,8 @@ export function AntraegePage(): React.ReactElement {
             initialExpandedTvAz={detailProps.expanded}
             onClose={closeDetail}
             onOpenAntrag={openAntrag}
-            zurueck={vonSuche
-              ? { label: 'Zurück zur Suche', onClick: () => navigate(SUCHE_ROUTE) }
+            zurueck={rueckweg
+              ? { label: rueckweg.label, onClick: () => navigate(rueckweg.route) }
               : undefined}
           />
         ) : null}

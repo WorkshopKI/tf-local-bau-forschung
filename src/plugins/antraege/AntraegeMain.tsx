@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
 import { useAntraegeStore, getEffectiveSortKey, getEffectiveGroupingMode, getEffectiveViewMode, getEffectiveTableGroupingMode, getEffectiveTableAnsicht } from './store';
+import { antragDetailPfad } from './detailPfad';
 import { useFilterState } from './filter/useFilterState';
 import { ActiveFilterChips } from './filter/ActiveFilterChips';
 import { PinLeiste } from './filter/PinLeiste';
@@ -180,8 +181,8 @@ export function AntraegeMain({
     else if (viewMode === 'compact') setTableGroupingForView(activeView, key as TableGroupingMode);
     else setGroupingForView(activeView, key as GroupingMode);
   };
-  const openAntrag = (az: string): void => navigate(`/antraege/${encodeURIComponent(az)}`);
-  const openVerbund = (id: string): void => navigate(`/antraege/verbund/${encodeURIComponent(id)}`);
+  const openAntrag = (az: string): void => navigate(antragDetailPfad({ aktenzeichen: az }));
+  const openVerbund = (id: string): void => navigate(antragDetailPfad({ verbundId: id }));
   const { definitions, active, clearFilter, init } = useFilterState();
   // Angepinnte Schnellzugriffe: sie stehen in derselben Zeile wie die aktiven
   // Chips und bestimmen mit, welche davon dort noch gebraucht werden.

@@ -5,11 +5,14 @@
  * localStorage ist hier ausreichend (Daten klein, OK unter `file://`, siehe
  * CLAUDE.md "localStorage OK for simple flags").
  *
- * AUSNAHME seit v3.50: `query`, die Facettenwahl und die abgewählten Wörter sind
- * SITZUNGS-lokal und bewusst NICHT in localStorage. Sie liegen hier statt in
- * `useState`, weil der Klick auf einen Treffer die Suchseite ausbaut — mit
- * lokalem State war der Weg zurück eine Sackgasse (leeres Feld, keine Treffer).
- * Nicht persistiert, damit ein Kaltstart weiter auf dem Leerzustand landet und
+ * AUSNAHME seit v3.50: `query`, die Facettenwahl, die abgewählten Wörter und der
+ * Frageplan sind SITZUNGS-lokal und bewusst NICHT in localStorage. Sie liegen
+ * hier statt in `useState`, weil der Klick auf einen Treffer die Suchseite
+ * ausbaut — mit lokalem State war der Weg zurück eine Sackgasse (leeres Feld,
+ * keine Treffer). Seit v4.83 tragen sie einen Spiegel in `sessionStorage`
+ * ([sitzungsAnfrage.ts](./sitzungsAnfrage.ts)): als reiner Modul-State starben
+ * sie bei jedem Neuladen, und genau dann war die Trefferliste unerreichbar.
+ * Weiterhin NICHT in localStorage — ein Kaltstart soll im Leerzustand landen und
  * nicht in einer Suche von vorgestern.
  *
  * Ansicht, Sortierung und Dichte sind das Gegenteil: sie beschreiben, wie
@@ -27,7 +30,11 @@ import {
   parseSortierung, parseDichte,
   type SucheSortierung, type SucheDichte,
 } from './darstellungsAchsen';
-import { LEERE_WAHL, type FacettenWahl } from './facetten';
+import type { FacettenWahl } from './facetten';
+import {
+  liesFacettenWahl, liesFrageplan, liesQuery, liesWortliste, merke,
+  S_BEGRIFFE, S_FACETTEN, S_PLAN, S_QUERY, S_WOERTER,
+} from './sitzungsAnfrage';
 import type { Frageplan } from '@/core/services/search/frageplan';
 
 const VISIBLE_COLUMNS_KEY = 'teamflow_suche_visible_columns';
@@ -194,8 +201,8 @@ export const useSucheStore = create<SucheState>((set, get) => ({
     set({ analysePrompt: s });
   },
 
-  // Sitzungs-lokal (kein localStorage) — Begründung siehe Modul-Kopf.
-  query: '',
+  // Sitzungs-lokal, mit Spiegel in sessionStorage — Begründung siehe Modul-Kopf.
+  query: liesQuery(),
   setQuery: (query: string) => {
     // Neue Anfrage ⇒ die Wort-Abwahl der alten ist hinfällig. Sonst schnitte ein
     // vor zwei Suchen abgewähltes Wort still an der neuen Anfrage mit.
@@ -206,6 +213,9 @@ export const useSucheStore = create<SucheState>((set, get) => ({
     // steht. Er stirbt beim ersten Tastendruck — die Suche fällt damit auf die
     // Stichwortsuche zurück, bis eine neue Frage gestellt wird.
     const planHinfaellig = plan !== null && plan.frage !== query.trim();
+    merke(S_QUERY, query);
+    if (woerter.length > 0) merke(S_WOERTER, []);
+    if (planHinfaellig) { merke(S_PLAN, null); merke(S_BEGRIFFE, []); }
     set({
       query,
       ...(woerter.length > 0 ? { abgewaehlteWoerter: [] } : {}),
@@ -215,34 +225,41 @@ export const useSucheStore = create<SucheState>((set, get) => ({
     });
   },
 
-  facettenWahl: LEERE_WAHL,
-  setFacettenWahl: (facettenWahl: FacettenWahl) => set({ facettenWahl }),
+  facettenWahl: liesFacettenWahl(),
+  setFacettenWahl: (facettenWahl: FacettenWahl) => {
+    merke(S_FACETTEN, facettenWahl);
+    set({ facettenWahl });
+  },
 
-  abgewaehlteWoerter: [],
+  abgewaehlteWoerter: liesWortliste(S_WOERTER),
   toggleWort: (wort: string) => {
     const klein = wort.toLowerCase();
     const aktuell = get().abgewaehlteWoerter;
-    set({
-      abgewaehlteWoerter: aktuell.includes(klein)
-        ? aktuell.filter(w => w !== klein)
-        : [...aktuell, klein],
-    });
+    const next = aktuell.includes(klein)
+      ? aktuell.filter(w => w !== klein)
+      : [...aktuell, klein];
+    merke(S_WOERTER, next);
+    set({ abgewaehlteWoerter: next });
   },
 
-  frageplan: null,
+  frageplan: liesFrageplan(),
   // Ein neuer Plan räumt die Abwahl des vorigen mit weg: die Leitbegriffe sind
   // andere, und ein gemerkter Name träfe bestenfalls zufällig zu.
-  setFrageplan: (frageplan) => set({ frageplan, abgewaehlteBegriffe: [] }),
+  setFrageplan: (frageplan) => {
+    merke(S_PLAN, frageplan);
+    merke(S_BEGRIFFE, []);
+    set({ frageplan, abgewaehlteBegriffe: [] });
+  },
 
-  abgewaehlteBegriffe: [],
+  abgewaehlteBegriffe: liesWortliste(S_BEGRIFFE),
   toggleBegriff: (begriff: string) => {
     const klein = begriff.toLowerCase();
     const aktuell = get().abgewaehlteBegriffe;
-    set({
-      abgewaehlteBegriffe: aktuell.includes(klein)
-        ? aktuell.filter(b => b !== klein)
-        : [...aktuell, klein],
-    });
+    const next = aktuell.includes(klein)
+      ? aktuell.filter(b => b !== klein)
+      : [...aktuell, klein];
+    merke(S_BEGRIFFE, next);
+    set({ abgewaehlteBegriffe: next });
   },
 
   planLaeuft: false,

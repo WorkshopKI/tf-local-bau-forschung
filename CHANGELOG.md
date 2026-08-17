@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.83.0 — Der Rückweg führt dorthin, wo man hergekommen ist (August 2026)
+
+MINOR — Gemeldet: aus der Suche ins Detail und nicht zurück, Schließen landet in der Förderanträge-Tabelle, und der Board-Link „kommt ein Fehler". Gemessen: der Rückweg lag im `location.state` und wurde von **einem** von sieben Aufrufern gesetzt; das Board schickte die **Verbund-Nummer** in den Aktenzeichen-Slot (`#/antraege/ZDS26026` → „Antrag ZDS26026 nicht gefunden", kein Rückweg).
+
+- **Herkunft app-weit statt pro Aufrufer** — die Navigation merkt die letzte Seite (Detail-Routen ausgenommen), das Detail bietet „← <Seite>"; `sessionStorage` trägt sie über ein Neuladen ([herkunft.ts](src/core/nav/herkunft.ts), [ui-muster.md](docs/architecture/ui-muster.md))
+- **Ein Bauteil baut den Detail-Pfad** für alle sechs Aufrufer — der Board-Klick trifft jetzt die Verbund-Route ([detailPfad.ts](src/plugins/antraege/detailPfad.ts), [VorgangsBoardPage.tsx](src/plugins/vorgangs-board/VorgangsBoardPage.tsx))
+- **Ein Verbund-Schlüssel im Antrags-Slot heilt**, statt in „nicht gefunden" zu enden — alte Lesezeichen und History bleiben brauchbar ([detailAufloesung.ts](src/plugins/antraege/detailAufloesung.ts))
+- **Anfrage, Facetten und Frageplan überleben F5** — ohne sie war die Trefferliste nach einem Neuladen unerreichbar ([sitzungsAnfrage.ts](src/plugins/suche/sitzungsAnfrage.ts))
+- **Der Rückweg ist als Brotkrume lesbar** (13,5 px, Primärfarbe, Hover-Fläche) statt als 12,5-px-Sekundärtext ([detailRahmen.tsx](src/plugins/antraege/detailRahmen.tsx))
+
 ### v4.82.0 — Ort und Bundesland sind zwei Suchfelder (August 2026)
 
 MINOR — Gemeldet: `ort:` schlug Bundesländer vor, `bl:` schlug dieselben vor — beschriftet mit „Ort". Beide Präfixe zeigten auf **ein** Feld `standort`, und weil jeder Antrag ein Land trägt, die Orte sich aber auf 2 055 Werte verteilen, führten die 16 Ländernamen jede Ortsliste an. Daneben standen rohe Kürzel („SN" 1 508) — ein Mapping-Schaden der Quelle 7737.

@@ -19,6 +19,17 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.83 — 2026-08
+
+### Neu
+- Die Antrags-Detailseite hat oben links einen Rückweg, der sagt, woher man kam: „← Suche", „← Vorgangs-Board", „← Startseite". Auch das Schließen (×) führt jetzt dorthin — nicht mehr pauschal in die Förderanträge-Tabelle. Wer aus der Antragsliste kommt, sieht keinen Knopf: die Liste steht ja daneben.
+### Verbesserungen
+- Suchanfrage, Filter und Deutung überstehen ein Neuladen der Seite. Man kommt also auch nach einem F5 wieder auf dieselben Treffer; erst ein neues Fenster fängt leer an.
+- Der Rückweg bleibt auch dann stehen, wenn man im Detail von einem Teilvorhaben zum nächsten springt.
+### Bugfixes
+- Ein Klick auf ein Aktenzeichen im Vorgangs-Board öffnet den Antrag wieder, statt „Antrag … nicht gefunden" zu melden. Betroffen war jeder Antrag, der zu einem Verbund gehört.
+- Alte Lesezeichen und Verlaufs-Einträge mit einer Verbund-Nummer in der Adresse öffnen jetzt den Verbund, statt in derselben Fehlermeldung zu enden.
+
 ## v4.82 — 2026-08
 
 ### Neu

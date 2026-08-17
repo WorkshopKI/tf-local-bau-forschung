@@ -40,6 +40,12 @@ export function Sektionsrahmen({ id, children }: {
 
 /**
  * Panel-Hülle des Details: Rückweg links, Schließen rechts, darunter der Inhalt.
+ *
+ * Der Rückweg trägt den NAMEN der Herkunftsseite, der Pfeil macht daraus die
+ * Aussage („← Vorgangs-Board"). Er stand bis v4.82 als 12,5-px-Sekundärtext hier
+ * und wurde übersehen — der einzige Weg zurück zu einer Trefferliste, in
+ * Hint-Größe. Jetzt Brotkrumen-Gewicht: Primärfarbe, 13,5 px, mit einer
+ * Hover-Fläche als echtes Klickziel.
  */
 export function PanelShell({ onClose, zurueck, children }: {
   onClose: () => void;
@@ -55,9 +61,11 @@ export function PanelShell({ onClose, zurueck, children }: {
           <button
             type="button"
             onClick={zurueck.onClick}
-            className="inline-flex items-center gap-1.5 text-[12.5px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] cursor-pointer"
+            aria-label={`Zurück zu ${zurueck.label}`}
+            title={`Zurück zu ${zurueck.label}`}
+            className="-ml-1.5 inline-flex items-center gap-1.5 rounded-[7px] px-1.5 py-1 text-[13.5px] font-medium text-[var(--tf-text)] hover:bg-[var(--tf-hover)] cursor-pointer"
           >
-            <ArrowLeft size={14} /> {zurueck.label}
+            <ArrowLeft size={15} aria-hidden /> {zurueck.label}
           </button>
         ) : <span />}
         <button

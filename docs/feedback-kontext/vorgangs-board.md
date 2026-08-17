@@ -46,6 +46,9 @@ Verfügung.
   Rolle bzw. „wartet auf …", und ein **„warum?"** — es klappt die treffende Regel
   samt der gelesenen Feldwerte auf. Ohne diese Herleitung wäre ein To-do eine
   Behauptung.
+  - Im Detail steht oben links **„← Vorgangs-Board"**: der Weg zurück auf genau
+    diese Liste, mit allen Filtern und Reitern, wie sie waren. Auch das Schließen
+    des Details (×) führt dorthin, nicht in die Förderanträge-Tabelle.
 - **Rollen-Sicht**: jede Rolle hat einen eigenen Regelsatz. Die Rollen-Chips
   schalten die Sicht um; ausgewertet wird immer genau ein Satz. „Alle Rollen"
   zeigt den AB-Satz — er ist der einzige mit einer vollstaendigen Kaskade.

@@ -62,7 +62,7 @@ import {
   effectiveAssistentWidth,
   sucheAssistentUiStore,
 } from './assistentPanel';
-import { VON_SUCHE_STATE_KEY } from './herkunft';
+import { antragDetailPfad } from '@/plugins/antraege/detailPfad';
 import { SeitenHilfeButton } from '@/components/help/SeitenHilfeButton';
 // Direkt am Quellmodul statt am Feedback-Barrel: das Barrel zieht `FeedbackPanel`
 // mit, und das lädt die Plugin-Config nach (siehe SeitenHilfeButton.tsx).
@@ -555,7 +555,7 @@ export function SuchSeite(): React.ReactElement {
 
   function oeffneTreffer(r: UnifiedSearchResult): void {
     if (r.type === 'antrag' && r.fkz) {
-      navigate(`/antraege/${encodeURIComponent(r.fkz)}`, { state: { [VON_SUCHE_STATE_KEY]: true } });
+      navigate(antragDetailPfad({ aktenzeichen: r.fkz })); // Rückweg: core/nav/herkunft.ts
     }
   }
 

@@ -22,6 +22,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { SeitenHilfeButton } from '@/components/help/SeitenHilfeButton';
 import { ROLLEN, ROLLE_LABEL, ROLLE_LANG, type Rolle } from '@/core/status';
+import { antragDetailPfad } from '@/plugins/antraege/detailPfad';
 import { AbgeleitetMarke, TodoHerleitung, WartetAuf } from '@/components/vorgang/TodoAnzeige';
 import { bearbeiterScopeLabel } from '@/plugins/antraege/bearbeiterFilter';
 import { useVorgangsBoard, sichtVon, type BoardTab, type BoardZeile } from './useVorgangsBoard';
@@ -161,11 +162,12 @@ export function VorgangsBoardPage(): React.ReactElement {
   const navigate = useNavigate();
 
   const oeffnen = (z: BoardZeile): void => {
-    // Beides über den Pfad: `?az=` liest niemand — der Parameter war ein toter
-    // Link, der still auf einer leeren Liste landete. `/antraege/<akz>` setzt
-    // die Auswahl über den Router und öffnet den Antrag auch dann, wenn er
-    // außerhalb des Betrachtungsbereichs liegt.
-    navigate(`/antraege/${z.verbundId ?? z.aktenzeichen}`);
+    // Über den Pfad, nicht über `?az=`: den Parameter liest niemand, er war ein
+    // toter Link, der still auf einer leeren Liste landete. Welche der beiden
+    // Detail-Routen ein Schlüssel trifft, entscheidet `antragDetailPfad` — die
+    // Verbund-Nummer landete hier bis v4.82 im Aktenzeichen-Slot und damit in
+    // „Antrag ZDS26026 nicht gefunden."
+    navigate(antragDetailPfad({ verbundId: z.verbundId, aktenzeichen: z.aktenzeichen }));
   };
 
   // Trifft die Auswahl genau die Vorbelegung? Dann trägt sie deren Namen.

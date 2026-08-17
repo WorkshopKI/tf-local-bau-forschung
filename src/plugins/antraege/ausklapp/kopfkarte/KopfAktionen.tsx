@@ -22,7 +22,7 @@ import { useKopierAktion } from '@/core/hooks/useKopierAktion';
 import { sortiereKnoten } from '@/core/meilensteine';
 import type { VerlaufsSpur } from '@/core/status/verlauf';
 import { baueVerlaufsText } from '../../verlauf-band/bandText';
-import { isPseudoVerbundId } from '../../pseudoVerbund';
+import { antragDetailPfad } from '../../detailPfad';
 import { RisikoFormular } from '../../meilensteine/RisikoFormular';
 import type { MeilensteinLage } from '../meilensteinLage';
 
@@ -68,12 +68,9 @@ export function KopfAktionen({
       .map(k => ({ id: k.id, nummer: k.nummer, label: k.label }))
     : [];
 
-  // Die Detailseite scrollt über `?ziel=` auf ihren Anker; die Verbund-Route
-  // gilt nur für echte Verbünde, ein Pseudo-Verbund läuft über sein Aktenzeichen
-  // (Muster aus `WeitermachenSection.buildTarget`).
-  const detailZiel = verbundId !== null && !isPseudoVerbundId(verbundId)
-    ? `/antraege/verbund/${encodeURIComponent(verbundId)}?ziel=meilensteine`
-    : `/antraege/${encodeURIComponent(zeilenKey)}?ziel=meilensteine`;
+  // Die Detailseite scrollt über `?ziel=` auf ihren Anker; welche der beiden
+  // Detail-Routen gilt, entscheidet `antragDetailPfad`.
+  const detailZiel = antragDetailPfad({ verbundId, aktenzeichen: zeilenKey, ziel: 'meilensteine' });
 
   return (
     <div className="flex flex-col items-end gap-1.5">

@@ -15,6 +15,7 @@ import { ShellLayout } from '@/core/ShellLayout';
 import { NavigationContext } from '@/core/hooks/useNavigation';
 import type { NavigationParams } from '@/core/hooks/useNavigation';
 import { legacyRedirectTarget, pluginIdToRoute, routeToPluginId } from '@/core/routes';
+import { merkeSeite } from '@/core/nav/herkunft';
 import { FLAT_ROUTE_PLUGIN_IDS } from '@/plugins.config';
 import { useAntraegeStore } from '@/plugins/antraege/store';
 import { AufbereitungPage } from '@/plugins/antraege/aufbereitung/AufbereitungPage';
@@ -39,6 +40,13 @@ function NavigationBridge({
   // Namensauflösung gehört hierher: der Router kennt die Plugin-Liste ohnehin,
   // die Verbraucher (Feedback-Kontext) sollen sie nicht dafür laden müssen.
   const activeName = plugins.find(p => p.id === activeId)?.name ?? activeId;
+
+  // Herkunft für den Rückweg aus der Antrags-Detailseite: hier liegen Pfad UND
+  // Anzeigename schon beieinander, also merkt es EIN Ort statt jeder Aufrufer
+  // (siehe `core/nav/herkunft.ts`; Detail-Routen übergeht `merkeSeite` selbst).
+  useEffect(() => {
+    merkeSeite(location.pathname + location.search, activeName);
+  }, [location.pathname, location.search, activeName]);
 
   const value = useMemo(
     () => ({

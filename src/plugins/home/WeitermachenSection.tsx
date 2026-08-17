@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { ArrowRight, Lock } from 'lucide-react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAntraegeStore } from '@/plugins/antraege/store';
+import { antragDetailPfad } from '@/plugins/antraege/detailPfad';
 import { getWorkflowRun } from '@/plugins/antraege/gutachten/workflow-store';
 import {
   listeArbeitskontext, type ArbeitskontextEintrag,
@@ -30,9 +31,9 @@ export interface WeitermachenRow {
  * scrollt die Detailseite zum Abschnitt, `abschnitt` springt (nur GA) den Schritt.
  */
 function buildTarget(eintrag: ArbeitskontextEintrag, istEchterVerbund: boolean): string {
-  const base = istEchterVerbund
-    ? `/antraege/verbund/${encodeURIComponent(eintrag.verbundKey)}`
-    : `/antraege/${encodeURIComponent(eintrag.verbundKey)}`;
+  const base = antragDetailPfad(istEchterVerbund
+    ? { verbundId: eintrag.verbundKey }
+    : { aktenzeichen: eintrag.verbundKey });
   const params = new URLSearchParams();
   params.set('ziel', eintrag.typ === 'nachforderung' ? 'nf' : 'gutachten');
   if (eintrag.typ === 'gutachten' && eintrag.abschnittId) {

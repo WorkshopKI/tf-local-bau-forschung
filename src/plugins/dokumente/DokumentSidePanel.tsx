@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { TagInput } from '@/components/ui/TagInput';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useTags } from '@/core/hooks/useTags';
+import { antragDetailPfad } from '@/plugins/antraege/detailPfad';
 import { useDokumenteStore } from './store';
 import type { DocumentFull } from './store';
 import { parseMarkdown, type OutlineEntry } from './markdownMeta';
@@ -144,7 +145,9 @@ export function DokumentSidePanel(): React.ReactElement | null {
 
   const goToVorgang = (): void => {
     if (!meta.vorgangId) return;
-    navigate(`/antraege/${encodeURIComponent(meta.vorgangId)}`);
+    // `vorgangId` ist das Aktenzeichen aus dem DMS-Matcher. Trägt es doch einmal
+    // eine Verbund-Nummer, heilt die Detailseite das selbst (`loeseDetailAuf`).
+    navigate(antragDetailPfad({ aktenzeichen: meta.vorgangId }));
   };
 
   const openOutline = (_o: OutlineEntry): void => {

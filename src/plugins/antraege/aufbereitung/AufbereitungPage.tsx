@@ -20,6 +20,7 @@ import { useAntraegeStore } from '../store';
 import { useVerbundDetailData } from '../useVerbundDetailData';
 import { buildKurzfassungContext } from '../kurzfassung/context-builder';
 import { isPseudoVerbundId, pseudoVerbundIdFor } from '../pseudoVerbund';
+import { antragDetailPfad } from '../detailPfad';
 import { useAufbereitung } from './useAufbereitung';
 import { kontextZustand } from './kontext-zustand';
 import { QuellenPanel } from './QuellenPanel';
@@ -123,9 +124,9 @@ export function AufbereitungPage({ antragKey }: { antragKey: string }): React.Re
   // Defense-in-depth: die Route ist bereits flag-gated registriert.
   if (!isAntragAufbereitungEnabled()) return <Navigate to="/antraege" replace />;
 
-  const backHref = istVerbund
-    ? `/antraege/verbund/${encodeURIComponent(antragKey)}`
-    : `/antraege/${encodeURIComponent(antragKey)}`;
+  const backHref = antragDetailPfad(istVerbund
+    ? { verbundId: antragKey }
+    : { aktenzeichen: antragKey });
 
   const titel = ctx?.akronym ?? antragKey;
 
