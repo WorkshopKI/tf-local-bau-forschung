@@ -5,6 +5,14 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.85.5 — Phasen importieren steht neben Phasen exportieren (August 2026)
+
+PATCH — Es gibt nur EINEN Import (die Datei sagt an ihrer Marke selbst, was sie ist), also stand neben „Phasen exportieren" bewusst kein Gegenstück. Der erste Nutzer suchte es prompt vergeblich. Ein Knopf ohne sichtbares Gegenstück schickt Monate später jemanden auf die Suche nach einer Funktion, die es nur unter anderem Namen gibt.
+
+- **„Phasen importieren" steht als Paar neben „Phasen exportieren"** — neue `PhasenAustausch`-Komponente, die dieselbe `api.importieren()` ruft wie der Seitenkopf ([KatalogTab.tsx](src/plugins/status-cockpit/KatalogTab.tsx)); eine Weiche, zwei Beschriftungen
+- Beide Knöpfe erklären im Titel, was mitreist und was am Zielort bleibt
+- Hintergrund: [status-achsen.md](docs/architecture/status-achsen.md)
+
 ### v4.85.4 — Ein Verweis ins Leere ist keine Aussage (August 2026)
 
 PATCH — „Nur Phasen übernehmen" (v4.79.0) brach an der ersten echten Fassung ab, auf die es angesetzt wurde: v21 führt fünf Phasen, aber drei Datums-Kürzel zeigen noch auf die entfernte `vollstaendigkeit`. Das Paket erklärte sich für in sich widersprüchlich — an einem Zustand, den die App überall sonst ausdrücklich trägt (`verwaisteZuordnungen`: gelesen wie „ohne Phase", nicht umgeschrieben).

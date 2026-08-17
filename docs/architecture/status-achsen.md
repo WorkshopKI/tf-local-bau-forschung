@@ -274,12 +274,20 @@ Auch das ist kein Abbruchgrund, aber `uebernimmPhasen` zählt es am Ergebnis und
 der Satz sagt es, statt es der Kuratorin drei Klicks später im Kopf des
 Katalog-Tabs zu überlassen.
 
-Bedienung: **„Phasen exportieren"** steht neben dem Ansichtsumschalter im Reiter
-„Statuswerte", also dort, wo der Schnitt gepflegt wird. Eingelesen wird über den
-vorhandenen **„Importieren"**-Knopf — die Datei trägt die Marke
-`art: "zah-phasen"` und sagt selbst, was sie ist; ein zweiter Import-Knopf wäre
-eine Entscheidung, die niemand treffen will. Ohne Dateiweg geht es über **„Nur
-Phasen übernehmen"** je Zeile im Versions-Panel (Fassung aus IDB oder Archiv).
+Bedienung: **„Phasen exportieren" und „Phasen importieren"** stehen als Paar
+neben dem Ansichtsumschalter im Reiter „Statuswerte", also dort, wo der Schnitt
+gepflegt wird. Ohne Dateiweg geht es über **„Nur Phasen übernehmen"** je Zeile im
+Versions-Panel (Fassung aus IDB oder Archiv).
+
+**Eine Weiche, zwei Beschriftungen** (v4.85.5). Es gibt nur EINEN Import: die
+Datei trägt die Marke `art: "zah-phasen"` und sagt selbst, was sie ist, also
+nimmt der vorhandene „Importieren"-Knopf im Seitenkopf beide Formate. Genau
+deshalb stand hier zuerst kein zweiter Knopf — und genau deshalb suchte der
+erste Nutzer vergeblich nach dem Gegenstück zu „Phasen exportieren". Ein Knopf
+ohne sichtbares Gegenstück schickt Monate später jemanden auf die Suche nach
+einer Funktion, die es nur unter anderem Namen gibt. `PhasenAustausch` ruft
+daher dieselbe `api.importieren()` wie der Seitenkopf: die Logik bleibt eine, die
+Beschriftung steht dort, wo gesucht wird.
 
 Angewendet wird auf den **Entwurf**, nicht auf den Team-Stand: die Speicherleiste
 bleibt das Gate, „Als Entwurf laden" der Rückweg. Statt einer Rückfrage davor

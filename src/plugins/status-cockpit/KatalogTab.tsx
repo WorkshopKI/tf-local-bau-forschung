@@ -29,8 +29,9 @@
 import { useCallback, useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Download } from 'lucide-react';
+import { Download, Upload } from 'lucide-react';
 import { ToggleChip } from '@/components/ui/ToggleChip';
+import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { ScopeTabs } from '@/components/ui/ScopeTabs';
 import {
   SortableTable, useTableSort, useColumnFilters, useColumnWidths,
@@ -51,6 +52,46 @@ import {
   KATEGORIE_LABEL, KATEGORIE_WERTE, PROMINENZ_LABEL, PROMINENZ_WERTE,
   feldStil, formatDatum,
 } from './labels';
+
+/**
+ * Die Phasen-Achse in beide Richtungen — **als Paar**.
+ *
+ * Der Import ist derselbe wie im Seitenkopf: eine Datei, eine Weiche, kein
+ * zweiter Weg. Trotzdem steht er hier ein zweites Mal, und zwar aus dem Grund,
+ * aus dem es diese Komponente überhaupt gibt: ein Knopf „Phasen exportieren"
+ * ohne sichtbares Gegenstück schickt Monate später jemanden auf die Suche nach
+ * einem „Phasen importieren", das es nur unter anderem Namen gibt. Die
+ * Beschriftung gehört dorthin, wo gesucht wird — die Logik bleibt eine.
+ */
+function PhasenAustausch({ api }: { api: StatusCockpitApi }): React.ReactElement {
+  const importieren = useAsyncAction(async () => { await api.importieren(); });
+  return (
+    <div className="ml-auto flex flex-wrap items-center gap-1.5">
+      {importieren.error != null && (
+        <span className="text-[11.5px] text-[var(--tf-danger-text)]">⚠ {importieren.error}</span>
+      )}
+      <Button
+        variant="ghost" size="sm" icon={Download}
+        disabled={!api.aktiveVersion}
+        title={'Nur den Verfahrensschnitt: Phasen, ihre Zuordnungen und die Zieltage. '
+          + 'Die Kürzel sind nicht darin — die bleiben am Zielort, wie sie sind.'}
+        onClick={() => api.phasenExportieren()}
+      >
+        Phasen exportieren
+      </Button>
+      <Button
+        variant="ghost" size="sm" icon={Upload}
+        disabled={importieren.busy}
+        title={'Ein Phasen-Paket einlesen. Derselbe Dialog wie „Importieren" im '
+          + 'Seitenkopf: ein ganzer Katalog wird ebenso erkannt. Übernommen wird in '
+          + 'den Entwurf — für das Team gilt es erst nach dem Speichern.'}
+        onClick={() => importieren.run()}
+      >
+        {importieren.busy ? 'Liest …' : 'Phasen importieren'}
+      </Button>
+    </div>
+  );
+}
 
 function toggleIn<T>(set: ReadonlySet<T>, val: T): Set<T> {
   const next = new Set(set);
@@ -156,8 +197,8 @@ export function KatalogTab({ api }: { api: StatusCockpitApi }): React.ReactEleme
       )}
 
       {/* Die Umschaltung steht ganz oben: sie entscheidet, was darunter kommt.
-          Rechts daneben der Export der Phasen-Achse — er gehört dorthin, wo sie
-          gepflegt wird, nicht in den Seitenkopf zum Voll-Export. */}
+          Rechts daneben die Phasen-Achse in beide Richtungen — sie gehört
+          dorthin, wo sie gepflegt wird, nicht in den Seitenkopf zum Voll-Export. */}
       {zeigeZieltage && (
         <div className="flex shrink-0 flex-wrap items-center gap-2">
           <ScopeTabs
@@ -171,16 +212,7 @@ export function KatalogTab({ api }: { api: StatusCockpitApi }): React.ReactEleme
               { key: 'tabelle', label: 'Tabelle', count: werte.length },
             ]}
           />
-          <Button
-            variant="ghost" size="sm" icon={Download} className="ml-auto"
-            disabled={!api.aktiveVersion}
-            title={'Nur den Verfahrensschnitt: Phasen, ihre Zuordnungen und die Zieltage. '
-              + 'Eingelesen wird die Datei über „Importieren" im Seitenkopf — die Kürzel '
-              + 'bleiben dabei, wie sie sind.'}
-            onClick={() => api.phasenExportieren()}
-          >
-            Phasen exportieren
-          </Button>
+          <PhasenAustausch api={api} />
         </div>
       )}
 

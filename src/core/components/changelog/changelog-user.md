@@ -21,6 +21,9 @@
 
 ## v4.85 — 2026-08
 
+### Neu
+- **Die Verfahrensschritte lassen sich getrennt von den Kürzeln sichern und einspielen.** In den Vorgangs-Regeln stehen im Reiter „Statuswerte" jetzt „Phasen exportieren" und „Phasen importieren" nebeneinander. Die Datei enthält nur die Schritte, die Zuordnung der Statuswerte und die Zieltage — die Kürzel bleiben am Zielort unangetastet. In der Fassungsliste gibt es dasselbe ohne Dateiweg: „Nur Phasen übernehmen" holt aus einer älteren Fassung allein den Verfahrensschnitt zurück.
+
 ### Verbesserungen
 - **Der Weg zurück ist als Weg zurück zu erkennen.** In der Antragsansicht stand oben links nur der Name der Seite, von der Sie kamen, mit einem Pfeil davor. Jetzt steht dort der ganze Satz — „Zurück zu Vorgangs-Board" — in normaler Schrift, und der Titel darunter hat etwas Luft bekommen, statt direkt anzuschließen.
 
