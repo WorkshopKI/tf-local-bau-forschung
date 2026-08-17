@@ -82,6 +82,9 @@ interface Props {
   /** Meldet die gemessenen Höhen des Tabellenkopfes — der Kopf der Filterleiste
    *  legt sich darauf und bildet mit ihm ein Band (v4.76). */
   onKopfHoehe?: (m: KopfHoehen) => void;
+  /** Linke Ecken des Kastens gerade — gesetzt, solange die Tabelle an die
+   *  Filterleiste stösst (siehe `SortableTable.linkeKanteGerade`). */
+  linkeKanteGerade?: boolean;
 }
 
 /** Section-Key-Funktion pro Zeile (Gruppierungs-Abschnitt oder Arbeitsvorrat-
@@ -163,6 +166,7 @@ export function AntraegeTable({
   scrollContainerRef,
   onScroll,
   onKopfHoehe,
+  linkeKanteGerade = false,
 }: Props): React.ReactElement {
   const visibleColumns = useAntraegeColumnsStore(s => s.visibleColumns);
   const verbundById = useAntraegeStore(s => s.verbundById);
@@ -540,6 +544,7 @@ export function AntraegeTable({
         scrollContainerRef={scrollContainerRef}
         onScroll={onScroll}
         onKopfHoehe={onKopfHoehe}
+        linkeKanteGerade={linkeKanteGerade}
         footerSlot={stickyHeader ? ladeStreifen : undefined}
         isRowExpanded={ausklappbar ? (r => ausklapp.istOffen(r.aktenzeichen)) : undefined}
         renderRowDetail={ausklappbar ? (r => (

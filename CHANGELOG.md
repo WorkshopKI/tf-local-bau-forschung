@@ -5,6 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.77.1 — Die Tabelle stoesst gerade an die Leiste, die Trefferzahl steht in der Flucht (August 2026)
+
+PATCH — Zwei Nachlesen am Kopfband (v4.76): die 12-px-Rundung des Tabellenkastens stand als Kerbe neben der geraden Kante der Filterleiste, und die Trefferzahl unter der Liste begann an der Außenkante des Kastens statt in der Flucht der Auswahl-Häkchen, die sie zählt.
+
+- **Linke Ecken gerade, solange die Tabelle an die Leiste stößt** — neue Prop `linkeKanteGerade` an [SortableTable.tsx](src/components/data-table/SortableTable.tsx), gesetzt aus demselben `bandAktiv` wie `pl-0` ([AntraegeMain.tsx](src/plugins/antraege/AntraegeMain.tsx)); rechts bleibt sie gerundet
+- **Trefferzahl in der Flucht der ersten Spalte** (nur Tabellen-Ansicht — Liste und Karten haben keine) — [AntraegeMain.tsx](src/plugins/antraege/AntraegeMain.tsx)
+- **`ZELL_POLSTER_PX` zieht nach [tableLayout.ts](src/components/data-table/tableLayout.ts)** und bekommt dort mit `ERSTE_SPALTE_INSET_PX` einen zweiten Konsumenten — vorher modul-privat in `TableBody`
+- Nachgemessen am `dev:local`: Häkchen und Trefferzahl auf derselben Kante (388/388 mit Leiste, 98/98 ohne), Radien 0/12 bzw. 12/12
+
 ### v4.77.0 — Einklappen ist ein Chevron (August 2026)
 
 MINOR — Entwurf in `_design/handoff/hide`: der Einklapp-Knopf war doppelt laut — ein dauerhaft umrandeter Kasten um ein lucide-Panel-Icon, das selbst ein Kasten ist. Auf 16 px zählt nur die Silhouette, und die hatte das Icon nicht. Dazu drifteten acht verstreute Aufrufe auf drei Achsen auseinander: Icon-Größe 15/16/18, Hover-Fläche, Radius.

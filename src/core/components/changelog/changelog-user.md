@@ -25,6 +25,8 @@
 <!-- - Kurzer, verständlicher Satz (nur bei nutzersichtbaren Änderungen) -->
 ### Verbesserungen
 - Die Knöpfe zum Ein- und Ausklappen der Leisten zeigen jetzt überall dasselbe schlichte Pfeilzeichen — ohne Kasten drumherum, und in derselben Größe, egal ob Navigation, Filterleiste oder Antragsliste.
+- Wo die Fördertabelle an die Filterleiste stößt, sind ihre linken Ecken gerade statt gerundet — die kleine Kerbe neben der geraden Kante der Leiste ist weg.
+- Die Trefferzahl unter der Liste („60 Teilvorhaben · 40 Verbund-Zeilen") steht jetzt genau unter den Auswahl-Kästchen der Tabelle statt ein Stück weiter links.
 ### Bugfixes
 <!-- - … -->
 

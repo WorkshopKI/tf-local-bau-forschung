@@ -55,7 +55,7 @@ import {
   trefferZahlTitel,
   type ZeilenMeldung,
 } from './trefferZahl';
-import { ColumnPicker, type KopfHoehen } from '@/components/data-table';
+import { ColumnPicker, ERSTE_SPALTE_INSET_PX, type KopfHoehen } from '@/components/data-table';
 import {
   ANTRAG_TABLE_COLUMNS,
   MA_COLUMN_KEY,
@@ -614,6 +614,7 @@ export function AntraegeMain({
               scrollContainerRef={stickyKopf ? wideScrollRef : undefined}
               onScroll={stickyKopf ? merkeScroll : undefined}
               onKopfHoehe={setKopfHoehen}
+              linkeKanteGerade={bandAktiv}
             />
             {/* Die Massen-Leiste schwebt am unteren Rand des Inhalts — sie
                 erscheint nur, wenn wirklich etwas gewählt ist, und nimmt sonst
@@ -653,6 +654,12 @@ export function AntraegeMain({
           {treffer.tv > 0 ? (
             <div
               className="shrink-0 pt-1.5 text-[11.5px] text-[var(--tf-text-tertiary)] tabular-nums"
+              // In der Tabellen-Ansicht steht die Zahl in der Flucht der
+              // Auswahl-Häkchen, nicht an der Aussenkante des Kastens: sie zählt
+              // die Zeilen darüber, und eine Statuszeile, die 13 px links davon
+              // beginnt, liest sich als eigene Spalte. Liste und Karten haben
+              // keine erste Spalte, an die sie sich halten könnte.
+              style={viewMode === 'compact' ? { paddingLeft: ERSTE_SPALTE_INSET_PX } : undefined}
               title={trefferZahlTitel(treffer)}
             >
               {formatTrefferZahl(treffer)}

@@ -9,6 +9,7 @@
  */
 import { Fragment, useMemo, type ReactNode } from 'react';
 import type { SortableColumn } from './types';
+import { ZELL_POLSTER_PX } from './tableLayout';
 
 export interface TableBodyProps<T> {
   rows: T[];
@@ -74,12 +75,6 @@ function stickyZellGrund(selected: boolean): string {
  * Trennkante zur scrollenden Fläche.
  */
 const STICKY_ZELL_KANTEN = 'inset 0 0.5px 0 var(--tf-border), 1px 0 0 var(--tf-border)';
-
-/** Waagerechtes Zell-Polster (`px-3`) in Pixeln. Der klebende Band-Inhalt muss
- *  darauf ausgerichtet werden: `left: 0` misst ab dem Scrollport-Rand und zöge
- *  die Beschriftung um genau dieses Polster nach links aus der Flucht der
- *  übrigen Zellen. */
-const ZELL_POLSTER_PX = 12;
 
 export function TableBody<T>({
   rows,

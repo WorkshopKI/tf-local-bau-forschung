@@ -233,6 +233,11 @@ export interface SortableTableProps<T> {
   /** Meldet die gemessenen Höhen des Tabellenkopfes — für Nachbarn ausserhalb
    *  der Tabelle, die sich auf dasselbe Band legen (siehe `TableHeadRows`). */
   onKopfHoehe?: (m: KopfHoehen) => void;
+  /** Linke Ecken des Kastens gerade statt gerundet — für den Fall, dass die
+   *  Tabelle links an einen Nachbarn STÖSST (Fördertabelle neben der
+   *  Filterleiste). Die 12-px-Rundung wäre dort eine Kerbe neben einer geraden
+   *  Kante; die rechten Ecken bleiben gerundet, weil dort nichts anstösst. */
+  linkeKanteGerade?: boolean;
   /** Inhalt UNTER der Tabelle, aber INNERHALB des Scrollers. */
   footerSlot?: ReactNode;
   /**
@@ -289,6 +294,7 @@ export function SortableTable<T>({
   scrollContainerRef,
   onScroll,
   onKopfHoehe,
+  linkeKanteGerade = false,
   footerSlot,
   isRowExpanded,
   renderRowDetail,
@@ -419,6 +425,10 @@ export function SortableTable<T>({
       }
       style={{
         border: '0.5px solid var(--tf-border)',
+        // Als Stil, nicht als `rounded-l-none`: die Reihenfolge von Kurz- und
+        // Seitenschreibweise in der erzeugten CSS-Datei ist nicht garantiert,
+        // ein Inline-Stil gewinnt in jedem Fall.
+        ...(linkeKanteGerade ? { borderTopLeftRadius: 0, borderBottomLeftRadius: 0 } : {}),
         ...leiteKastenStil(totalWidthActive ? totalWidth : null),
       }}
     >

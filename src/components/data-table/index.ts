@@ -72,6 +72,8 @@ export {
   leiteKastenStil,
   wrapperKlassen,
   istScrollModus,
+  ZELL_POLSTER_PX,
+  ERSTE_SPALTE_INSET_PX,
   type TabellenModus,
   type TabellenStilOptionen,
 } from './tableLayout';

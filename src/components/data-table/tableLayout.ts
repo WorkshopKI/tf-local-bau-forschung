@@ -25,6 +25,24 @@ import type { TableSizing } from './tableSizing';
 
 export type TabellenModus = 'scroll' | 'einpassen';
 
+/** Waagerechtes Zell-Polster (`px-3`) in Pixeln. Zwei Konsumenten rechnen damit:
+ *  der klebende Band-Inhalt in `TableBody` (`left: 0` misst ab dem Scrollport-Rand
+ *  und zöge die Beschriftung um genau dieses Polster nach links aus der Flucht)
+ *  und {@link ERSTE_SPALTE_INSET_PX}. */
+export const ZELL_POLSTER_PX = 12;
+
+/**
+ * Waagerechter Abstand von der AUSSENKANTE des Kastens bis zum Inhalt der ersten
+ * Spalte — für Beschriftungen ausserhalb der Tabelle, die in deren Flucht stehen
+ * sollen (die Trefferzahl unter der Fördertabelle steht in der Flucht der
+ * Auswahl-Häkchen).
+ *
+ * Der Rahmen des Kastens ist `0.5px` breit, Chrome rendert ihn aber als ganzes
+ * Pixel (nachgemessen) — deshalb 1 und nicht 0,5. Eine halbe Pixelabweichung
+ * wäre hier sichtbar: sie verschiebt die Grundlinie nicht, aber die Flucht.
+ */
+export const ERSTE_SPALTE_INSET_PX = 1 + ZELL_POLSTER_PX;
+
 export function leiteModus(fitContentWidth: boolean): TabellenModus {
   return fitContentWidth ? 'scroll' : 'einpassen';
 }
