@@ -5,6 +5,7 @@ import {
   baueKontextBlock,
   waehleKontextTreffer,
   kontextChipLabel,
+  threadHinweis,
   KONTEXT_MAX_TREFFER,
 } from '../assistentKontext';
 
@@ -144,6 +145,36 @@ describe('kontextChipLabel', () => {
 
   it('nimmt ohne zweite Zahl Vollständigkeit an', () => {
     expect(kontextChipLabel(8)).toBe('Kontext: 8 Suchtreffer');
+  });
+});
+
+describe('threadHinweis — die Unterhaltung sagt, zu welcher Suche sie gehört', () => {
+  it('schweigt, solange nichts gesendet wurde', () => {
+    expect(threadHinweis(null, 'standard', false)).toBeNull();
+    expect(threadHinweis(null, 'standard', true)).toBeNull();
+  });
+
+  it('schweigt, wenn die Treffer noch die besprochenen sind', () => {
+    expect(threadHinweis('standard', 'standard', true)).toBeNull();
+  });
+
+  it('schweigt ohne Nachrichten — ein leerer Thread braucht keine Einordnung', () => {
+    expect(threadHinweis('standard', 'normung', false)).toBeNull();
+  });
+
+  it('nennt die Suche, unter der die Unterhaltung begann', () => {
+    expect(threadHinweis('standard', 'normung', true))
+      .toBe('Diese Unterhaltung gehört zur Suche „standard".');
+  });
+
+  it('sagt es auch, wenn beim Start gar keine Suche lief', () => {
+    expect(threadHinweis('', 'normung', true))
+      .toBe('Diese Unterhaltung entstand ohne Suchtreffer.');
+  });
+
+  it('meldet sich auch, wenn die Suche geleert wurde — die Antwort steht ja noch da', () => {
+    expect(threadHinweis('standard', '', true))
+      .toBe('Diese Unterhaltung gehört zur Suche „standard".');
   });
 });
 

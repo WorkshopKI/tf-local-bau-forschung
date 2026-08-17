@@ -19,6 +19,17 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.80 — 2026-08
+
+### Neu
+<!-- - Kurzer, verständlicher Satz (nur bei nutzersichtbaren Änderungen) -->
+### Verbesserungen
+- **Der Assistent in der Suche beginnt jetzt jedes Mal neu.** Bisher stand beim Öffnen die letzte Unterhaltung wieder da — oft zu einer ganz anderen Suche, und die KI trug ihre alte Antwort in die neue Frage hinein. Frühere Unterhaltungen sind über das Uhr-Symbol weiterhin erreichbar.
+- **Löschen liegt jetzt im Kopf des Panels** (Papierkorb neben dem Verlauf), nicht mehr nur im Aufklapper. Er erscheint, sobald in der Unterhaltung etwas steht.
+- **Zieht Ihre Suche weiter, während ein Gespräch läuft**, steht darüber, zu welcher Suche es gehört — mit einem Knopf „neu beginnen". Automatisch gelöscht wird nichts: die Stichwortsuche läuft mit jedem Tastendruck, und eine Antwort, die Sie gerade lesen, soll nicht verschwinden, weil Sie die Anfrage nachschärfen.
+### Bugfixes
+<!-- - … -->
+
 ## v4.79 — 2026-08
 
 ### Neu

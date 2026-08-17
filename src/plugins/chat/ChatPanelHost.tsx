@@ -5,6 +5,12 @@
  * statt der breiten `ConversationSidebar`, ein optionaler Kontext-Chip aus den
  * aktuellen Suchtreffern und dieselben Bausteine (MessageList/Composer/
  * EmptyState/SourcePanel). Gescopt unter `.chat-app.assistant-panel`.
+ *
+ * **Die Unterhaltung ist an die Suche gebunden, unter der sie entstand** (v4.80).
+ * Das Panel öffnet immer frisch, verwerfen steht im Kopf, und zieht die Suche
+ * weiter, sagt eine Zeile über dem Thread, wohin er gehört. Automatisch gelöscht
+ * wird er NICHT: die Stichwortsuche läuft je Tastendruck, ein Reset an „neue
+ * Anfrage" nähme dem Nutzer die Antwort weg, die er gerade liest.
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { History, Paperclip, Pencil, Pin, SquarePen, Trash2, MessageSquare, X } from 'lucide-react';
@@ -18,7 +24,9 @@ import { MessageList, type ActivePanel } from './components/MessageList';
 import { Composer } from './components/Composer';
 import { EmptyState } from './components/EmptyState';
 import { SourcePanel } from './components/SourcePanel';
-import { waehleKontextTreffer, baueKontextBlock, kontextChipLabel } from '@/plugins/suche/assistentKontext';
+import {
+  waehleKontextTreffer, baueKontextBlock, kontextChipLabel, threadHinweis,
+} from '@/plugins/suche/assistentKontext';
 import './chat.css';
 
 interface ChatPanelHostProps {
@@ -47,6 +55,15 @@ export function ChatPanelHost({
   const [verlaufOpen, setVerlaufOpen] = useState(false);
   const [activePanel, setActivePanel] = useState<ActivePanel | null>(null);
   const [kontextDismissed, setKontextDismissed] = useState(false);
+  /**
+   * Die Suche, unter der diese Unterhaltung begonnen hat — `null`, solange nichts
+   * gesendet wurde (oder bei einer aus dem Verlauf geholten, deren Suche niemand
+   * kennt: dort zu raten wäre schlimmer als zu schweigen).
+   *
+   * Gemerkt wird beim ERSTEN Senden, nicht bei jedem: sonst wanderte die Bindung
+   * mit der Anfrage mit und der Hinweis erschiene nie.
+   */
+  const [threadQuery, setThreadQuery] = useState<string | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameDraft, setRenameDraft] = useState('');
   const verlaufWrap = useRef<HTMLDivElement>(null);
@@ -69,6 +86,7 @@ export function ChatPanelHost({
   const controller = useChatController({ getPinnedContext: () => pinnedKontext });
 
   const empty = activeMessages.length === 0 && !controller.busy;
+  const hinweis = threadHinweis(threadQuery, contextQuery, activeMessages.length > 0);
 
   // Neue Suche → zuvor entfernten Kontext wieder anheften.
   useEffect(() => { setKontextDismissed(false); }, [contextQuery]);
@@ -99,8 +117,15 @@ export function ChatPanelHost({
     void useChatStore.getState().setMessageFeedback(mid, fb, storage);
   };
 
+  // Beim ersten Senden bindet sich die Unterhaltung an die Suche, unter der sie
+  // entsteht. Nur so kann später auffallen, dass die Treffer weitergezogen sind.
+  const sendeUndBinde = async (text: string): Promise<void> => {
+    setThreadQuery(q => (q === null ? contextQuery : q));
+    await controller.send(text);
+  };
+
   const composerProps = {
-    onSend: controller.send,
+    onSend: sendeUndBinde,
     onStop: controller.stop,
     busy: controller.busy,
     providerName: controller.providerName,
@@ -113,17 +138,21 @@ export function ChatPanelHost({
     vorbelegung,
   };
 
-  // Init: Metas laden, letzte Unterhaltung reaktivieren (wie ChatView früher).
+  // Init: Metas laden, dann IMMER frisch beginnen.
+  //
+  // Bis v4.79 schlug das Panel die jüngste Unterhaltung wieder auf (gemeldet) — geerbt von
+  // der früheren Vollbild-Chatseite, wo „weitermachen, wo ich war" richtig ist.
+  // Hier hängt der Chat an den Treffern, die gerade darunter liegen: der alte
+  // Thread gehörte zu einer anderen Suche, stand aber unkommentiert über den
+  // neuen Treffern — und seine Antwort ging als Verlauf in den nächsten Prompt.
+  // Verloren geht nichts: persistierte Unterhaltungen liegen im Verlauf.
   const initRef = useRef(false);
   useEffect(() => {
     if (initRef.current) return;
     initRef.current = true;
     void (async () => {
       await useChatStore.getState().loadAll(storage);
-      const s = useChatStore.getState();
-      if (s.activeId) return;
-      if (s.conversations.length > 0) await s.select(s.conversations[0]!.id, storage);
-      else s.newConversation();
+      useChatStore.getState().newConversation();
     })();
   }, [storage]);
 
@@ -141,7 +170,24 @@ export function ChatPanelHost({
     if (val) void renameAction.run(id, val);
   };
 
-  const newChat = (): void => { useChatStore.getState().newConversation(); setVerlaufOpen(false); };
+  /** Verwerfen = löschen UND frisch beginnen; ohne das Zweite bliebe das Panel
+   *  ohne aktive Unterhaltung stehen (`deleteConversation` setzt `activeId` auf
+   *  null) und der nächste Tastendruck hätte nichts, woran er hängt. */
+  const verwerfenAction = useAsyncAction(async (id: string) => {
+    await useChatStore.getState().deleteConversation(id, storage);
+    useChatStore.getState().newConversation();
+  });
+
+  const newChat = (): void => {
+    useChatStore.getState().newConversation();
+    setThreadQuery(null);
+    setVerlaufOpen(false);
+  };
+  const verwerfeAktive = (): void => {
+    if (!activeId) return;
+    setThreadQuery(null);
+    void verwerfenAction.run(activeId);
+  };
   const { sections } = groupConversations(conversations, { filter: 'all', query: '', now: Date.now() });
 
   return (
@@ -192,7 +238,14 @@ export function ChatPanelHost({
                                 <button
                                   className={`pop-item flex-1 min-w-0 ${c.id === activeId ? 'text-[var(--tf-primary)]' : ''}`}
                                   title={c.title}
-                                  onClick={() => { selectAction.run(c.id); setVerlaufOpen(false); }}
+                                  onClick={() => {
+                                    selectAction.run(c.id);
+                                    // Zu welcher Suche eine geholte Unterhaltung
+                                    // gehört, weiß niemand — also keine Bindung
+                                    // behaupten.
+                                    setThreadQuery(null);
+                                    setVerlaufOpen(false);
+                                  }}
                                 >
                                   <MessageSquare size={15} />
                                   <span className="truncate flex-1 text-left">{c.title}</span>
@@ -232,6 +285,21 @@ export function ChatPanelHost({
                 </div>
               )}
             </div>
+            {/* Verwerfen gehört in den Kopf, nicht nur zwei Klicks tief in den
+                Verlauf: gemeldet wurde „es gibt keine Möglichkeit, den zu
+                löschen". Nur da, wenn es etwas zu verwerfen gibt — eine leere
+                Unterhaltung ist noch gar nicht gespeichert. */}
+            {activeMessages.length > 0 && (
+              <button
+                className="icon-btn"
+                title="Diese Unterhaltung löschen"
+                aria-label="Diese Unterhaltung löschen"
+                disabled={verwerfenAction.busy}
+                onClick={verwerfeAktive}
+              >
+                <Trash2 size={16} />
+              </button>
+            )}
             <button className="icon-btn" title="Neue Unterhaltung" aria-label="Neue Unterhaltung" onClick={newChat}>
               <SquarePen size={16} />
             </button>
@@ -240,6 +308,17 @@ export function ChatPanelHost({
             </button>
           </div>
         </div>
+
+        {/* Die Treffer unter dem Panel sind weitergezogen, die Unterhaltung
+            nicht. Statt sie still zu verwerfen (die Stichwortsuche läuft je
+            Tastendruck — ein Nachschärfen der Anfrage löschte sonst die Antwort,
+            die man gerade liest) wird gesagt, wohin sie gehört. */}
+        {hinweis && (
+          <div className="assistant-threadhint">
+            <span>{hinweis}</span>
+            <button type="button" onClick={newChat}>neu beginnen</button>
+          </div>
+        )}
 
         {pinnedKontext && (
           <div className="assistant-ctxchip">
@@ -253,7 +332,7 @@ export function ChatPanelHost({
         )}
 
         {empty ? (
-          <EmptyState {...composerProps} onSuggestion={text => { void controller.send(text); }} />
+          <EmptyState {...composerProps} onSuggestion={text => { void sendeUndBinde(text); }} />
         ) : (
           <>
             <MessageList

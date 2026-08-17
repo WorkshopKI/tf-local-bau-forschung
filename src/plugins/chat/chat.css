@@ -324,6 +324,12 @@
 .chat-app.assistant-panel .assistant-ctxchip > svg { color: var(--tf-text-tertiary); flex-shrink: 0; }
 .chat-app.assistant-panel .assistant-ctxchip button { display: grid; place-items: center; width: 20px; height: 20px; margin-left: auto; border: 0; border-radius: 6px; background: transparent; color: var(--tf-text-tertiary); cursor: default; }
 .chat-app.assistant-panel .assistant-ctxchip button:hover { background: var(--tf-hover); color: var(--tf-text); }
+/* Hinweis, dass die Unterhaltung zu einer ANDEREN Suche gehört als der, die
+   gerade unter ihr liegt. Kein Chip: er trägt keinen Wert, sondern eine
+   Einordnung — und einen Weg heraus. */
+.chat-app.assistant-panel .assistant-threadhint { display: flex; align-items: baseline; gap: 6px; flex-shrink: 0; padding: 7px var(--tf-space-md); font-size: 11.5px; line-height: 1.45; color: var(--tf-text-tertiary); border-bottom: var(--tf-border-thin) solid var(--tf-border); }
+.chat-app.assistant-panel .assistant-threadhint > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chat-app.assistant-panel .assistant-threadhint button { flex-shrink: 0; margin-left: auto; padding: 0; border: 0; background: transparent; font-size: 11.5px; color: var(--tf-primary); cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
 
 @media (prefers-reduced-motion: reduce) {
   .chat-app *, .chat-app *::before, .chat-app *::after { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }

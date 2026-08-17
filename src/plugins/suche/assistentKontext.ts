@@ -157,6 +157,34 @@ export function buildTrefferKontext(
 }
 
 /**
+ * Der Hinweis, dass die Unterhaltung zu einer ANDEREN Suche gehört als die
+ * Treffer, die gerade unter ihr liegen — oder `null`, wenn es nichts zu sagen
+ * gibt.
+ *
+ * Steht hier und nicht im JSX, weil es eine Entscheidung mit vier Bedingungen
+ * ist und keine Auszeichnung. Die Regel:
+ *  - `threadQuery === null` → die Unterhaltung ist an keine Suche gebunden
+ *    (nichts gesendet, oder aus dem Verlauf geholt — dort zu raten wäre
+ *    schlimmer als zu schweigen);
+ *  - keine Nachrichten → es gibt keinen Thread, den man einordnen müsste;
+ *  - gleiche Anfrage → die Treffer sind noch die, über die gesprochen wurde.
+ *
+ * Verworfen wurde das automatische Löschen bei neuer Anfrage: die Stichwortsuche
+ * läuft je Tastendruck (`wirksam` in `SuchSeite`), ein Reset daran nähme dem
+ * Nutzer die Antwort weg, die er gerade liest.
+ */
+export function threadHinweis(
+  threadQuery: string | null,
+  contextQuery: string,
+  hatNachrichten: boolean,
+): string | null {
+  if (threadQuery === null || !hatNachrichten) return null;
+  if (threadQuery === contextQuery) return null;
+  if (threadQuery === '') return 'Diese Unterhaltung entstand ohne Suchtreffer.';
+  return `Diese Unterhaltung gehört zur Suche „${threadQuery}".`;
+}
+
+/**
  * Chip-Label über dem Thread. „Suchtreffer" ist im Deutschen numerus-invariant.
  *
  * Zwei Zahlen, weil der Chip sonst etwas verspricht, was der Prompt nicht hält.

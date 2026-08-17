@@ -5,6 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.80.0 — die Unterhaltung gehoert zu der Suche, unter der sie entstand (August 2026)
+
+MINOR — Gemeldet: beim erneuten Öffnen der Suche stand der alte Chat wieder da, ohne Weg ihn zu löschen. Der Init des Panels reaktivierte die jüngste Unterhaltung — geerbt von der früheren Vollbild-Chatseite. Hier hängt der Chat an den Treffern darunter, und die alte Antwort ging als Verlauf in den nächsten Prompt.
+
+- **Das Panel öffnet immer frisch** — kein Wiederaufnehmen der letzten Unterhaltung; die alten bleiben im Verlauf ([ChatPanelHost.tsx](src/plugins/chat/ChatPanelHost.tsx))
+- **Löschen steht im Kopf** statt zwei Klicks tief im Verlauf-Aufklapper, und nur dann, wenn es etwas zu verwerfen gibt
+- **Hinweis „Diese Unterhaltung gehört zur Suche »X«" + „neu beginnen"**, sobald die Treffer weitergezogen sind ([chat.css](src/plugins/chat/chat.css))
+- **Kein automatisches Verwerfen** bei neuer Anfrage: die Stichwortsuche läuft je Tastendruck, ein Reset nähme dem Nutzer die Antwort weg, die er gerade liest
+
 ### v4.79.0 — Der Verfahrensschnitt reist allein (August 2026)
 
 MINOR — Ein neu aufgesetzter Rechner lud nicht die jüngste Fassung; auf diesem Stand wurden viele Kürzel gepflegt und veröffentlicht. Die live geltende Fassung trug danach die richtigen Kürzel und den zurückgefallenen Verfahrensschnitt — und es gab keinen Weg, nur den einen zurückzuholen, weil Export, Import und „Als Entwurf laden" immer die ganze `MappingVersion` bewegten.
@@ -529,161 +538,4 @@ MINOR — Gemeldet war „der Antragsteller GMBU wird nicht gefunden, obwohl er 
 - **Neue Trefferstelle „Web-Adresse"** aus der Kontakt-Mail (`bergmann@gmbu.de` → `gmbu.de`), im Bereich „nur Einrichtung" — „GMBU" findet 35 statt 0 Anträge ([trefferstelle.ts](src/core/services/search/trefferstelle.ts), [suchbereich.ts](src/core/services/search/suchbereich.ts))
 - **Nur der Host, nie die Adresse**, ohne Top-Level-Domain in der Suchform, mit Sperrliste gegen Projektträger- und Freemail-Domains (`vdivde-it.de` steht 26.933× in der Quelle)
 - **Der Beleg zeigt sich selbst**: Spalte „Web-Adresse" blendet sich bei einem Domain-Treffer ein ([autoSpalten.ts](src/plugins/suche/autoSpalten.ts)) — sonst stünde das Suchwort in keinem sichtbaren Feld der Zeile
-
-### v4.41.0 — Karten-Menues fuer das obere Band, Rechtsklick app-weit gezaehmt (August 2026)
-
-MINOR — Die zwei Karten über den Spalten trugen als einzige kein `⋯` und ließen sich als einzige nicht abschalten. Und das Browser-Menü, das v4.40.2 auf den Karten zurückgab, hilft hier niemandem: „Zurück", „Neu laden", „Seitenquelltext" sind in einer Datei-App ohne Seiten keine Antwort.
-
-- **Beide Hero-Karten haben ihr eigenes `⋯`** — Resume: ausblenden + Arbeitsverlauf löschen; Alert: ausblenden, Kacheln abwählen, Fristen-Schwellen ([HeroMenue.tsx](src/plugins/home/anpassen/HeroMenue.tsx))
-- **Ein Knopf für beide Wirte** statt zweier Kopien: `WidgetMenueKnopf` → [KartenMenueKnopf.tsx](src/plugins/home/anpassen/KartenMenueKnopf.tsx), Ziel-Vergleich über die reine `zielGleich`
-- **`HomeWidgetConfig.hero`** additiv (fehlt = alles an); letzte Kachel weg ⇒ Karte aus, Karte an ⇒ Kacheln zurück ([homeWidgetsStore.ts](src/plugins/home/widgets/homeWidgetsStore.ts)) — Rückweg ist die Gruppe „Oben" im Widgets-Untermenü
-- **Rechtsklick app-weit gezähmt**: Browser-Menü nur noch in Eingabefeldern, bei markiertem Text und mit Umschalt ([useBrowserKontextmenue.ts](src/core/hooks/useBrowserKontextmenue.ts), einmal am Dokument in der [ShellLayout](src/core/ShellLayout.tsx))
-- **„Arbeitsverlauf löschen" wirkt sofort** — Zähler-Signal in den Effekt-Deps, sonst stünde die Karte unverändert da ([arbeitskontextSignal.ts](src/plugins/home/arbeitskontextSignal.ts)); Rückfrage-Wortlaut einmal geteilt
-
-### v4.40.2 — Widget-Menue fuehrt nur noch eigene Punkte (August 2026)
-
-PATCH — Das `⋯` eines Widgets führte „Widgets ▸" und „Darstellung ▸" mit: dieselben seitenweiten Punkte in jeder einzelnen Karte. Und der Rechtsklick auf eine Karte öffnete dasselbe Menü ein zweites Mal — dafür nahm er der Karte das Browser-Menü samt Kopieren.
-
-- **Widget-Menü führt nur widget-eigene Punkte** (Ausblenden, Ein-/Aufklappen, Verschieben, Widget-Einstellungen); der Trenner gehört zum Eintrag, das Menü endet nie mit einer Linie ([WidgetMenue.tsx](src/plugins/home/anpassen/WidgetMenue.tsx))
-- **„Widgets ▸"/„Darstellung ▸" stehen allein im Menü der freien Fläche** ([FlaechenMenue.tsx](src/plugins/home/anpassen/FlaechenMenue.tsx))
-- **Rechtsklick auf eine Karte öffnet kein Menü mehr** — `[data-widget-id]` ist jetzt die Sperre des Rechtsklicks statt seiner Zielwahl (`darfMenueOeffnen`, [useStartseiteMenue.ts](src/plugins/home/anpassen/useStartseiteMenue.ts))
-- **Reißleine gegen die Rückkehr**: reine Regel + Quelltext-Guards für beide Zuständigkeiten ([menueZustaendigkeit.test.ts](src/plugins/home/anpassen/__tests__/menueZustaendigkeit.test.ts))
-- Zuständigkeits-Schnitt dokumentiert ([home-widgets.md](docs/architecture/home-widgets.md))
-
-### v4.40.1 — Startup-Freigabe: Karte laeuft mit den Browser-Dialogen mit (August 2026)
-
-PATCH — Chrome zeigt unter `file://` inzwischen mehrere Freigabe-Dialoge hintereinander, die Karte buchte den Fortschritt aber erst hinter der Kette: sie stand während aller drei Abfragen auf „Schritt 1 von 3" und sprang dann in die App. Und ein fehlgeschlagener Rescan buchte alle offenen Ordner als gewährt — der dritte wurde nie gefragt.
-
-- **Fortschritt wird nach jedem Grant gebucht und gerendert** (`buchErgebnis`), laufende Zeile sagt „wartet auf Ihre Bestätigung" ([GuidedGrantSteps.tsx](src/core/components/GuidedGrantSteps.tsx))
-- **Enge Kette**: kein Rescan mehr zwischen zwei Prompts — er verbrauchte das Activation-Fenster des nächsten; einer am Ende genügt ([GuidedGrantSteps.tsx](src/core/components/GuidedGrantSteps.tsx))
-- **Gescheiterter Rescan bucht keinen Erfolg mehr** — Fehlerpfad liefert `null` statt eines leeren Sets ([guided-grant-progress.ts](src/core/components/guided-grant-progress.ts))
-- **Rest-Ordner wird benannt** statt still übersprungen („Noch ein Ordner offen…", Enter genügt) ([GuidedGrantSteps.tsx](src/core/components/GuidedGrantSteps.tsx))
-- **Bug-Klasse fortgeschrieben**: Activation ist zeit-, nicht zählbegrenzt; Reload ≠ Neustart als Repro-Falle ([recurring-bug-classes.md §2](docs/architecture/recurring-bug-classes.md))
-
-### v4.40.0 — Kuration und Developer klappen zu, Datenpflege statt zweimal Kuration (August 2026)
-
-MINOR — Nachlese zum Kuration-Umbau, aus dem Blick auf die fertige Seitenleiste: „Kuration" stand dort zweimal untereinander (Überschrift und einziger Eintrag darunter), die beiden unteren Gruppen ließen sich als einzige nicht wegräumen, und „Verzeichnisse" heißt in dieser App sonst überall Ordner auf der Platte.
-
-- **Gruppen „Kuration" und „Developer" sind zuklappbar** (Standard offen, gemerkt je Gerät; zugeklappt bleibt der aktive Eintrag stehen) ([ShellLayout.tsx](src/core/ShellLayout.tsx))
-- **Der Hub heißt in der Seitenleiste „Datenpflege"** — die Gruppe behält den Oberbegriff; Seitenname aus EINER Quelle ([kurationPanels.tsx](src/plugins/kuration/kurationPanels.tsx))
-- **Panel „Verzeichnisse" → „Förderprogramme"**, Ordner und Panel-Id ziehen mit ([FoerderprogrammePanel.tsx](src/plugins/kuration/foerderprogramme/FoerderprogrammePanel.tsx)); die Redirects zeigen aufs neue Ziel ([routes.ts](src/core/routes.ts))
-- **„Werkbank (dev)" → „Developer"** ([groupNavPlugins.ts](src/core/nav/groupNavPlugins.ts))
-- **Vier Wegweiser im Text nachgezogen**, die noch die alte Menüführung nannten (CSV-Wizard, Drift-Dialog, leere Antragsliste, Eval-README)
-
-### v4.39.2 — Feedback-Fenster: breiter, Titel ermuntert, Boxen ziehbar (August 2026)
-
-PATCH — Weitere Nachlese aus dem Testbetrieb: 420 px waren beim Tippen zu eng, „(optional)" im Titel-Platzhalter beantwortete die Frage „muss ich?" mit nein, und das Schluss-Leerzeichen des Seiten-Präfix fiel beim Rendern weg.
-
-- **Panel 420 → 470 px**, Schlüssel-Bump `…_v3` ([FeedbackPanel.tsx](src/components/feedback/FeedbackPanel.tsx))
-- **Titel-Platzhalter ermuntert statt zu relativieren** („bitte kurz benennen, worum es geht"); technisch bleibt der Titel optional ([FeedbackInputStep.tsx](src/components/feedback/FeedbackInputStep.tsx))
-- **Abstand hinter dem Seiten-Präfix aus dem Rand** statt aus dem Leerzeichen — der zusammengesetzte Titel behält es ([FeedbackInputStep.tsx](src/components/feedback/FeedbackInputStep.tsx))
-- **Textboxen vertikal ziehbar** (`resize-y`), Startgröße unverändert knapp; die Screenshot-Ablage bleibt fest ([feedback-system.md](docs/architecture/feedback-system.md))
-
-### v4.39.1 — Feedback-Erfassung: Aufnahme zuerst, Bild gross, Panel durchscheinend (August 2026)
-
-PATCH — Nachlese zu v4.37 aus dem Testbetrieb: die Aufnahme stand hinter der Einfüge-Fläche, das Präfix im Titelfeld verdeckte den Platzhalter, und der Typ-Wechsel warf den getippten Text weg (der Screenshot blieb — was den Verlust wie einen Fehler aussehen ließ).
-
-- **Aufnahme zuerst, prominenter, mit Mehrfach-Hinweis** ([FeedbackScreenshotInput.tsx](src/components/feedback/FeedbackScreenshotInput.tsx)): ab dem ersten Bild heißt der Knopf „Weiteren Bereich aufnehmen"
-- **Miniaturbild öffnet die Vollansicht** — eine Lightbox für Erfassung UND Ticket-Screenshots ([FeedbackBildLightbox.tsx](src/components/feedback/FeedbackBildLightbox.tsx))
-- **Typ-Wechsel verwirft nichts mehr**, Seiten-Präfix steht fest im Titel-Rahmen statt im Wert ([FeedbackInputStep.tsx](src/components/feedback/FeedbackInputStep.tsx))
-- **Panel zu 88 % deckend + Weichzeichner**, Titel auf 15 px ([FeedbackPanel.tsx](src/components/feedback/FeedbackPanel.tsx))
-- **Annotator und Lightbox per Portal an den Body** — `backdrop-filter` macht den Wirt zum Bezugsrahmen für `fixed` (neue [Bug-Klasse 22](docs/architecture/recurring-bug-classes.md))
-
-### v4.39.0 — Werkbank-Gruppe, ein Sperr-Hinweis, gleicher Rahmen (August 2026)
-
-MINOR — Abschluss des Kuration-Umbaus: der Rand um den Hub. Die Entwickler-Panels standen unter „Kuration", obwohl sie weder kuratorpflichtig sind noch etwas kuratieren; die verbliebene eigenständige Seite trug einen anderen Rahmen als der Hub daneben.
-
-- **Sidebar-Gruppe „Werkbank (dev)"** ([groupNavPlugins.ts](src/core/nav/groupNavPlugins.ts)): die zwei DEV-Panels stehen unter eigenem Namen; ihre Flags sind in allen vier Variant-Configs genau dort `true`, wo `kuratorMenus` es ist — die Verfügbarkeit ändert sich in keiner
-- **Dokument-Review trägt denselben Seitenkopf wie der Hub** ([DokumentReviewPage.tsx](src/plugins/dokument-review/DokumentReviewPage.tsx)): Titel links, Hilfe-Knopf am Blattrand — vorher stand dort nur der Knopf, ohne Titel
-- **Der Sperr-Hinweis ist ein Bauteil** ([KuratorGesperrtHinweis.tsx](src/components/kurator/KuratorGesperrtHinweis.tsx)): die letzte Handkopie (Skill-Verwaltung) nutzt ihn mit `gesperrt`, weil ihr Schreibrecht zusätzlich an der Build-Variante hängt
-- **Doku nachgezogen**: die geteilte Seitenform steht in der Entscheidungstabelle ([ui-muster.md](docs/architecture/ui-muster.md)), das Cheatsheet gilt für beide Hubs ([add-settings-section.md](docs/agents/add-settings-section.md)), Kuration ist auditiert ([layout-audit.md](docs/layout-audit.md))
-- **Zwei Leichen entfernt**: das Kontext-Doc des seit v2.394 nicht mehr existierenden `feedback-kuration` und seine Guard-Ausnahme — eine Ausnahme für eine tote Id entschuldigt still den nächsten Bewohner desselben Namens
-
-### v4.38.0 — CSV-Quellen wird ein Panel (August 2026)
-
-MINOR — Auf Nutzerwunsch zieht auch die CSV-Quellen-Seite in den Hub. Damit ist die Kuration eine Seite mit fünf Panels; die Navigationsspalte liest sich als Weg, den die Daten nehmen: Übersicht → CSV-Quellen → Verzeichnisse → Suche & Index → Dienste.
-
-- **Panel „CSV-Quellen"** ([CsvQuellenPanel.tsx](src/plugins/kuration/csv-quellen/CsvQuellenPanel.tsx)): links die Quellen mit ihren Aktionen, rechts der Zustand — Quellen, Zeilen, letzter Import, offene Aktualisierungen; Wartung und Wiederherstellung eingeklappt
-- **Der Ordner `csv-sources-kuration/` bleibt** ([project-structure.md](docs/architecture/project-structure.md)): umgezogen ist, was nur Seite war — dort liegt auch die Auto-Refresh-Maschine, die App und Shell beim Start hochfahren
-- **Ein Satz über die CSV-Frische, drei Orte**: Panel, Übersicht und der Punkt „● CSV" lesen `csvFreshnessAussage` ([csv-freshness-state.ts](src/plugins/csv-sources-kuration/services/csv-freshness-state.ts))
-- **Sidebar-Kuration: vier Einträge statt neun** ([plugins.config.ts](src/plugins.config.ts)) — Kuration · Dokument-Review · DEV: State · DEV: Infra
-- **Veralteter Plugin-Baum berichtigt** ([project-structure.md](docs/architecture/project-structure.md)): er führte `kurator/`, `dokumentenquellen-kuration/` und den Feedback-Redirect noch als Plugins
-
-### v4.37.0 — Feedback-Erfassung: schmaler, kuerzer, Screenshot ohne Sichtblockade (August 2026)
-
-MINOR — Der Erfassungs-Dialog kam aus dem Testbetrieb mit fünf Rückmeldungen zurück: zu breit, zu lang, zu viel zu tippen — und er verdeckte genau den Bildschirm, den man screenshotten wollte. Gemessen: 520 × 877 px → 420 × 535 px bei gleichem Funktionsumfang.
-
-- **„Bereich aufnehmen (Win+Shift+S)" klappt das Panel weg** und fängt den Strg+V global ab ([FeedbackScreenshotInput.tsx](src/components/feedback/FeedbackScreenshotInput.tsx)) — der Entwurf bleibt dabei stehen ([FeedbackPanel.tsx](src/components/feedback/FeedbackPanel.tsx))
-- **„Was hast du gemacht?" ist in „Was ist passiert?" aufgegangen** — `legacy`-Felder bleiben im Schema, nur nicht mehr im Formular ([constants.ts](src/components/feedback/constants.ts))
-- **Bereichsauswahl als unauffälliges Dropdown oben rechts** („Seite: Home" statt „— Auto-erkannt: Home —"), Titel mit der erkannten Seite vorbelegt ([FeedbackInputStep.tsx](src/components/feedback/FeedbackInputStep.tsx))
-- **Sieben Zeilen weniger**: App-Kontext und Verbessern-Erklärung als ⓘ, Dateiformate in der Ablage-Fläche ([FeedbackFileInput.tsx](src/components/feedback/FeedbackFileInput.tsx))
-- **Breite 520 → 420 mit Schlüssel-Bump** (`teamflow_feedback_panel_width_v2`) — ohne ihn schlüge die gemerkte Breite den neuen Default; Detail in [feedback-system.md](docs/architecture/feedback-system.md)
-
-### v4.36.0 — Programme und Filter werden ein Panel (August 2026)
-
-MINOR — Zwei weitere Kurator-Seiten werden ein Panel. Beide beschreiben dieselbe Sache — die Ordnung, in der die importierten Daten stehen — und hängen an derselben Voraussetzung: dem aktiven Programm. Die Filterseite nannte es nie, obwohl ihre Liste daran hing.
-
-- **Panel „Verzeichnisse"** ([VerzeichnissePanel.tsx](src/plugins/kuration/verzeichnisse/VerzeichnissePanel.tsx)): Programme, Unterprogramme und Filter auf einer Seite; jede Gruppe nennt das Programm, für das sie gilt
-- **Drei Filter-Reiter werden drei Klappen mit Zähler** ([FilterGruppe.tsx](src/plugins/kuration/verzeichnisse/filter/FilterGruppe.tsx)): alle drei Bestände sind gleichzeitig sichtbar, statt zwei davon hinter Reitern zu liegen
-- **Ein Sperr-Hinweis statt vier Handkopien** ([KuratorGesperrtHinweis.tsx](src/components/kurator/KuratorGesperrtHinweis.tsx)): die alten Kopien wiesen seit v4.28 auf einen Einstellungs-Weg, den es nicht mehr gibt
-- **Panel ohne Nebenspalte bleibt einspaltig** ([settings-layout.css](src/components/settings/settings-layout.css)): bis hierher räumte das Raster der leeren zweiten Spalte 43 % ein — Listen-Panels standen auf halber Seite
-- **Zwei Wege repariert**: `/admin/unterprogramme` hat wieder ein Ziel ([routes.ts](src/core/routes.ts)); „Öffnen" auf der Suchindex-Zeile der Übersicht landete seit v4.35 auf der Startseite ([UebersichtPanel.tsx](src/plugins/kuration/uebersicht/UebersichtPanel.tsx))
-
-### v4.35.0 — Suchindex und Dokumentenquellen werden ein Panel (August 2026)
-
-MINOR — Zwei Seiten, die dieselbe Frage beantworten, werden ein Panel: welche Ordner der Index einliest und wie er danach steht. Der Tab-Schnitt „Übersicht"/„Verwaltung" entfällt — er trennte die Aktion von dem Zustand, auf den sie wirkt.
-
-- **Panel „Suche & Index"** ([SucheIndexPanel.tsx](src/plugins/kuration/suche-index/SucheIndexPanel.tsx)): links Aktionen und Dokumentenquellen, rechts der Zustand — man sieht beim Indexieren zu, statt danach den Reiter zu wechseln
-- **Zwei Plugins weniger** ([plugins.config.ts](src/plugins.config.ts)): `kurator` und `dokumentenquellen-kuration` sind in den Hub gezogen; `/kuration/suchindex` und `/kuration/dokumentenquellen` leiten ins Panel bzw. auf die Gruppe
-- **Seltenes steht eingeklappt**: Modell-Konfiguration, Suchqualität, Zurücksetzen und der Embedding-Korpus-Status liegen hinter zwei Klappen statt dauerhaft im Blick
-- **Legacy-Whitelist zieht mit** ([conventions-ui.test.ts](src/__tests__/conventions-ui.test.ts)): ein Umzug darf alte Schuld weder als neu melden noch still aus der Bewachung fallen lassen
-
-### v4.34.0 — Kuration wird ein Hub mit Lage-Uebersicht (August 2026)
-
-MINOR — Die Kuration bekommt die Seitenform der Einstellungen und endlich einen Ort, der sagt, was ansteht. Bis hierher war der Zustand der Daten auf sieben Seiten verstreut: man musste jede aufsuchen, um zu erfahren, dass dort nichts zu tun war.
-
-- **Hub `/kuration`** ([kuration/](src/plugins/kuration/)): Navigationsspalte, Suche über alle Abschnitte, Sprungmarke — Panels „Übersicht" und „Dienste"
-- **Panel „Übersicht"** ([UebersichtPanel.tsx](src/plugins/kuration/uebersicht/UebersichtPanel.tsx)): Suchindex, CSV-Import und Dokument-Prüfung mit echtem Zustand (auch im Ruhezustand sichtbar), rechts die Kurator-Sitzung samt „Sperren"
-- **Eine Quelle je Aussage**: die Index-Ampel ([indexAmpel.ts](src/core/services/search/indexAmpel.ts)) und der CSV-Satz ([csv-freshness-state.ts](src/plugins/csv-sources-kuration/services/csv-freshness-state.ts)) werden gelesen, nicht neu hergeleitet — Guard `kuration-hub-eine-schicht` hält den Hub auf der geteilten Schicht
-- **„E-Mail Anfragen: Einstellungen" ist Panel „Dienste"** — ein Menüpunkt für ein Textfeld weniger; `/kuration/anfragen` leitet dorthin ([routes.ts](src/core/routes.ts))
-- **Zwei tote Wege repariert**: `/admin/feedback` zeigte auf `/kuration/feedback`, das es seit v2.364 nicht gibt (jetzt `/feedback-board`); `/admin/unterprogramme` ist entfallen
-
-### v4.33.0 — Einstellungs-Seitenform wird geteilte Schicht (August 2026)
-
-MINOR — Vorbereitung des Kuration-Hubs: die Seitenform, die das Einstellungs-Redesign hervorgebracht hat, bekommt einen zweiten Wirt. Bis hierher ändert sich nichts Sichtbares — die Einstellungen sind die Nullprobe.
-
-- **Layout-Schicht geteilt** ([components/settings/](src/components/settings/)): die 16 Bauteile, die Navigationsspalte und der Panel-Vertrag stehen nicht mehr unter `plugins/einstellungen/_shared`, sondern als domänenfreie Schicht in `src/components/`
-- **`SettingsHubPage` extrahiert** ([SettingsHubPage.tsx](src/components/settings/SettingsHubPage.tsx)): Kopf, Spaltenraster, Sprung-Zähler, Scroll und stehende Markierung liegen genau einmal; `EinstellungenPage` ist ein Aufrufer von 23 Zeilen
-- **CSS kommt vom Modul, nicht von der Seite** ([settings-layout.css](src/components/settings/settings-layout.css)): ein Wirt, der den seitenlokalen Import nicht spiegelt, stünde einspaltig und ohne Trefferring da, ohne dass etwas fehlschlägt
-- **Hilfe-Knopf-Guard kennt den Hub-Einbau** ([seitenHilfe.test.ts](src/core/services/feedback/__tests__/seitenHilfe.test.ts)): eine Seite darf ihre `pluginId` an den Rahmen reichen, statt den Knopf selbst zu schreiben
-
-### v4.32.0 — Einstellungs-Suche nennt ihr Ziel, KI-Variante entdoppelt (August 2026)
-
-MINOR — Nachlese am Redesign. Die Suche sprang auf die richtige Seite, ließ den Nutzer dort aber suchen: der Treffer blitzte 1,8 s auf, und wenn die Seite gar nicht scrollen musste, bewegte sich überhaupt nichts. Dazu zwei Stellen, die sich selbst erklärten statt zu wirken.
-
-- **Trefferzeile nennt den Weg** ([SettingsNav.tsx](src/plugins/einstellungen/SettingsNav.tsx), [settingsPanels.tsx](src/plugins/einstellungen/settingsPanels.tsx)): „Mein Profil › Persönlicher Assistent" statt nur der Seite; neues Registry-Feld `gruppe`, gehalten vom Guard `settings-treffer-weg`
-- **Markierung bleibt stehen**, bis der Nutzer das nächste Mal klickt oder tippt ([settings-layout.tsx](src/plugins/einstellungen/_shared/settings-layout.tsx), [einstellungen-layout.css](src/plugins/einstellungen/einstellungen-layout.css)) — deklarativ aus dem Sprung-Kontext statt per `classList`-Griff, Scroll zentriert statt oben
-- **Fußzeile „Suche mit Strg + , · Details überall hinter ⓘ" entfernt** samt Kürzel: es stand 22 px unter dem Suchfeld und setzte den Cursor in genau dieses Feld
-- **KI-Variante entdoppelt** ([KiVariantSelector.tsx](src/core/components/KiVariantSelector.tsx)): neue Stufe `nurSteuerung` — Label und Erklärung liefert die Zeile, der eigene Erklärabsatz lief in der Nebenspalte über den Kartenrand
-- **`SettingsOption` bricht um statt zu überlappen**: zu breite Steuerung rutscht in die zweite Zeile (Mindestbreite am engsten Wirt gemessen, nicht geschätzt)
-
-### v4.31.0 — Interne KI zweispaltig, Suche klappt ihr Ziel auf (August 2026)
-
-MINOR — Letzte Etappe des Einstellungs-Redesigns. Die vierte Seite steht zweispaltig, und beim Abnehmen fiel auf, dass die Suche ihr Sprungziel nur dann aufklappte, wenn es auf derselben Seite lag — ausgerechnet der Sprung auf eine andere Seite blieb wirkungslos.
-
-- **Seite „Interne KI" zweispaltig** ([ki/](src/plugins/einstellungen/ki/)): links die Verbindung mit Statuskarte und der Einrichtung in fünf Schritten, rechts Antwortverhalten und Recherche-Ziele; die dev-Werkbank (Provider, zwei Eval-Panels, Zweit-LLM) steht eingeklappt darunter
-- **Kontextfenster als Automatik/Manuell** ([AntwortverhaltenGruppe.tsx](src/plugins/einstellungen/ki/AntwortverhaltenGruppe.tsx)) mit der Zeichenzahl in Klartext statt nur in Tokens
-- **Sprungziel klappt idempotent auf** ([useCollapsedSection.ts](src/core/hooks/useCollapsedSection.ts), [settings-layout.tsx](src/plugins/einstellungen/_shared/settings-layout.tsx)): ein Toggle aus dem Mount-Effekt hebt sich im StrictMode auf — neue Bug-Klasse 21 in [recurring-bug-classes.md](docs/architecture/recurring-bug-classes.md)
-- **Doku nachgezogen**: neun Architektur-Docs auf die neuen Dateipfade, [einstellungen.md](docs/feedback-kontext/einstellungen.md) (zugleich Seiten-Hilfe) neu geschrieben, Cheatsheet [add-settings-section.md](docs/agents/add-settings-section.md) angelegt
-- Damit sind die vierzehn `*Tab.tsx`/`*Section.tsx`-Dateien der alten Einstellungen vollständig in vier Seiten-Ordner aufgelöst
-
-### v4.30.0 — Darstellung und Daten zweispaltig (August 2026)
-
-MINOR — Dritte Etappe des Einstellungs-Redesigns: „Darstellung & Bedienung" und „Daten & Verbindungen" stehen zweispaltig. Die sieben `*Tab.tsx`-Dateien dahinter sind in Gruppen aufgegangen; die langen Erklärabsätze stehen im ⓘ, das Seltene in Klappen mit Zähler.
-
-- **Zwei Seiten, sieben Gruppen** ([darstellung/](src/plugins/einstellungen/darstellung/), [daten/](src/plugins/einstellungen/daten/)): `DarstellungTab`, `TastaturTab`, `WidgetsSettingsSection`, `SpeicherTab`, `TagsTab`, `OnlineTab` und `DokumentenquellenTab` sind darin aufgelöst
-- **Ein Schalter je Widget statt zweier Zustands-Pillen** ([WidgetsGruppe.tsx](src/plugins/einstellungen/darstellung/WidgetsGruppe.tsx)); ausgeschaltete Zeilen sind gedimmt, der Zähler nennt jetzt auch den Nenner („13 von 15 sichtbar")
-- **Reihenfolge bleibt bei den Pfeilen**: der Griff aus dem Prototyp verspricht ein Ziehen, das die Widget-Verwaltung nicht kennt
-- **Team-Status-Liste und Tag-Liste stehen in Klappen** („1 online · 1 zuletzt aktiv", Tag-Anzahl) — beide vollständig, nur nicht mehr dauerhaft aufgeschlagen
-- **Key-Bump für die Widget-Klappe**: der alte Abschnitt war offen und hatte das persistiert — ohne neuen Schlüssel bliebe er bei jedem Bestandsnutzer offen ([default-aendern-braucht-key-bump](docs/architecture/recurring-bug-classes.md))
 
