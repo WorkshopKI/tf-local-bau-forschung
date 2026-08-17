@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.85.3 — QS und QS- sind zwei Kürzel, nicht eines (August 2026)
+
+PATCH — Nachtrag zu `bed9bde0` (lag zwischen v4.81.0 und v4.82.0 ohne eigenen Block). Die Spalten-Auflösung schlüsselte über `normCode`, das `-`/`_` streift — richtig zum Vergleichen von Kürzel-Schreibweisen, falsch hier: im Fachsystem heißt `QS` „kaufm. QS erfolgt" und `QS-` „kaufm. QS zurück an AB". Der Kollisionsschutz warf dann eines von beiden hinaus, und `D_ARQ-`/`D_VQK-` — ohne eigene Spalte — griffen die des Geschwisters ab. Betroffen: `QS` (7 135 Export-Zeilen), `AQ4` (6 758), `VQK` (3 208), `ARQ` (1 260), `ABLQ` (821), app-weit ohne Wert.
+
+- **Eigener `spaltenSchluessel`** (NFC + trim + lowercase, keine Satzzeichen) — die Unschärfe wurde nur für Groß-/Kleinschreibung gebraucht (`vb_phase` ↔ `VB_PHASE`), `normCode` bleibt an seinem Platz ([feld-aufloesung.ts](src/core/status/feld-aufloesung.ts))
+- **Die Herkunft gehört in den Kollisions-Schlüssel** — `verbund_status` liest `status` aus dem Verbund-Record, das kanonische `status` aus dem TV-Record; kein Konflikt, trotzdem fiel es heraus ([feld-aufloesung.ts](src/core/status/feld-aufloesung.ts))
+- **Derselbe Schlüssel bei „ist gemappt?"** — sonst antworten Projektion und Auflösung verschieden; 4 Felder galten fälschlich als gemappt ([kategorie-projektion.ts](src/core/status/kategorie-projektion.ts), [spalten/aufloesung.ts](src/core/spalten/aufloesung.ts))
+- **Unaufgelöste Felder am Echtbestand 12 → 4**; die vier sind Import-Mappings auf denselben kanonischen Key (`D_LZX`/`D_ÄZX`, `D_LG`/`D_ÄG`, `D_XRN-`/`D_XRN+`, `D_YPM_A`/`D_XYPM_A`), kein Auflösungsfehler ([KATALOG-CODES.md](docs/status-system/KATALOG-CODES.md))
+- **8 Regressionstests** (vor dem Fix 6 rot); der Seed-Test prüft Eindeutigkeit jetzt **je Herkunft** plus Gegenprobe „genau ein Key doppelt", damit die Lockerung keine Leerprüfung wird ([feld-aufloesung-kollision.test.ts](src/core/status/__tests__/feld-aufloesung-kollision.test.ts))
+
 ### v4.85.2 — der Rueckweg sagt, wohin er fuehrt (August 2026)
 
 PATCH — Der Rückweg aus dem Antrags-Detail zeigte nur den Namen der Herkunftsseite („← Vorgangs-Board") und ließ den Pfeil die Aussage machen. Halbfett und auf Kante zum Titel darunter las er sich als Überschrift des Panels, nicht als Weg zurück.
