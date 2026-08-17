@@ -6,9 +6,14 @@
  * Liste gemischt wäre beides eine Aufzählung von Beispielen, und der
  * Unterschied — der einzige Grund für den Umschalter — verschwände.
  *
- * Bewusst drei Formen: ein reines Thema mit vielen Schreibweisen, ein Thema mit
- * Bereichsbezug, ein Thema mit Ortsbezug (der Fall, der eine Einschränkung
- * erzeugt).
+ * Bewusst je eine Form pro Sache, die ein Frageplan ausdrücken kann: ein reines
+ * Thema mit vielen Schreibweisen, ein Thema mit Bereichsbezug, ein Thema mit
+ * Ortsbezug (der Fall, der eine Einschränkung erzeugt), ein Zeitraum
+ * (`PlanFacetten.jahr`) und ein Bearbeitungsstand (`PlanFacetten.status`).
+ *
+ * Die letzten beiden standen bis v4.86 nicht hier — die Facetten gab es, aber
+ * kein Beispiel zeigte, dass eine Frage sie setzen darf. Ein Beispiel für ein
+ * Können, das niemand sieht, fehlt genauso wie das Können selbst.
  */
 import { Sparkles } from 'lucide-react';
 import { FussSatz, GruppenTitel, MehrZeile } from './StartBausteine';
@@ -25,6 +30,14 @@ export const FRAGEN: readonly { frage: string; erklaerung: string }[] = [
   {
     frage: 'Was läuft in Bayern zum Thema Leichtbau?',
     erklaerung: 'der Ort schränkt ein, das Thema sucht',
+  },
+  {
+    frage: 'Welche Vorhaben zur Wasserstofftechnologie laufen seit 2023?',
+    erklaerung: 'der Zeitraum wird zur Jahresliste',
+  },
+  {
+    frage: 'Was ist bei den noch offenen Anträgen zur Sensorik in Sachsen?',
+    erklaerung: 'Stand und Ort schränken ein, das Thema sucht',
   },
 ];
 

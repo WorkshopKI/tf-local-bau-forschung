@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.86.0 — die Frage-Suche zeigt, wie eine Frage aussieht (August 2026)
+
+MINOR — Wer im Test auf „Suche mit: einer Frage" umschaltete, stand vor einem leeren Feld und musste selbst erraten, wie eine Frage aussehen darf, die diese Suche beantwortet. Der Reiter „Fragen" beantwortet genau das und blieb ungesehen. Dazu zwei Meldungen am selben Ablauf: der Hinweis unter dem Feld brach immer um, und Normen-Kürzel wie „DIN" fielen aus jedem Frageplan heraus.
+
+- **Umschalten auf „einer Frage" öffnet den Reiter „Fragen"** — Wunsch mit `nonce`, der die gemerkte Reiterwahl NICHT überschreibt ([SuchSeite.tsx](src/plugins/suche/SuchSeite.tsx), [SucheStartzustand.tsx](src/plugins/suche/SucheStartzustand.tsx))
+- **Fünf Beispielfragen statt drei** — je eine Form, die ein Frageplan ausdrücken kann; Zeitraum und Bearbeitungsstand hatten bis dahin kein Beispiel ([StartFragen.tsx](src/plugins/suche/start/StartFragen.tsx))
+- **Der Hinweis „Noch nicht gestellt …" ist einzeilig** — 149 statt 211 Zeichen; am gerenderten `<span>` gemessen, einzeilig bei 1000/1280/1600 px ([SuchSeite.tsx](src/plugins/suche/SuchSeite.tsx))
+- **Normen-Kürzel kommen MIT Kontext statt gar nicht** („din en", „iso 9001", „din-norm"); `MIN_NADEL_LEN` bleibt bei 4, weil „din" sonst „bedingt" träfe ([frageplan.ts](src/core/services/search/frageplan.ts))
+- **Panel-Geometrie zieht aus der Suchseite aus** ([useAssistentPanel.ts](src/plugins/suche/useAssistentPanel.ts)) — sie beantwortet eine andere Frage als der Suchlauf; `assistentPanel.ts` bleibt React-frei
+
 ### v4.85.7 — der Rueckweg nennt die Seite im Dativ (August 2026)
 
 PATCH — Der Rückweg im Antrags-Detail setzte seit v4.85.2 einheitlich „Zurück zu <Seite>" — für die halbe Navigation falsches Deutsch („Zurück zu Suche"). Der Artikel hängt am Wort, nicht an einer Regel, die sich aus dem Namen raten ließe.

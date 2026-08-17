@@ -19,6 +19,14 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.86 — 2026-08
+
+### Verbesserungen
+- **Wenn Sie auf „Suche mit: einer Frage" umschalten, zeigt die Seite Ihnen sofort Beispielfragen.** Bisher landeten Sie vor einem leeren Feld; die Beispiele gab es zwar, aber in einem Reiter, den man erst finden musste. Ihre eigene Reiter-Auswahl bleibt dabei erhalten.
+- **Fünf Beispielfragen statt drei** — neu dabei: eine Frage nach einem Zeitraum („… seit 2023?") und eine nach dem Bearbeitungsstand („… bei den noch offenen Anträgen …?"). Beides konnte die Suche längst, es stand nur nirgends.
+- **Fragen nach Normen finden mehr.** Kürzel wie DIN, ISO oder EN fielen bisher aus der Übersetzung heraus; jetzt sucht die App nach „DIN EN", „ISO 9001" und ähnlichen Schreibweisen mit.
+- Der Hinweis unter dem Suchfeld passt jetzt in eine Zeile.
+
 ## v4.85 — 2026-08
 
 ### Neu

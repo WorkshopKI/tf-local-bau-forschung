@@ -58,6 +58,29 @@ describe('baueFrageplanPrompt', () => {
     expect(p).toContain('Rangfolge');
   });
 
+  it('verlangt Normen-Kürzel MIT Kontext, statt sie wegzulassen', () => {
+    const p = baueFrageplanPrompt('x', 2026).systemPrompt;
+    // Gemeldet war „müsste das Modell nicht auch DIN zurückgeben?". Antwort:
+    // ja — aber nie blank, sonst trifft die Nadel „bedingt" und „Isolierung".
+    expect(p).toContain('DIN');
+    expect(p).toContain('ISO');
+    expect(p).toContain('„din en"');
+    expect(p).toContain('„iso 9001"');
+  });
+
+  it('gibt nur Normen-Beispiele an, die den Nadel-Filter auch überleben', () => {
+    const p = baueFrageplanPrompt('x', 2026).systemPrompt;
+    // Ein Vorbild, das der eigene Parser verwürfe, brächte dem Modell genau das
+    // falsche Muster bei. Geprüft wird die Normen-Zeile, nicht jeder Anführungs-
+    // strich im Prompt: die Kürzel-Regel darüber zitiert „ki" absichtlich als
+    // GEGENbeispiel, und das darf zu kurz sein.
+    const zeile = p.split('\n').find(z => z.includes('„din en"'));
+    expect(zeile).toBeDefined();
+    const beispiele = [...(zeile as string).matchAll(/„([^"]+)"/g)].map(m => m[1] as string);
+    expect(beispiele.length).toBeGreaterThanOrEqual(4);
+    for (const b of beispiele) expect(b.length).toBeGreaterThanOrEqual(MIN_NADEL_LEN);
+  });
+
   it('enthält kein Beispiel-JSON, das als Antwort durchgehen könnte', () => {
     const p = baueFrageplanPrompt('x', 2026).systemPrompt;
     expect(p).not.toContain('{');

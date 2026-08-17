@@ -130,6 +130,12 @@ export const MAX_NADELN = 12;
  *
  * Der Prompt sagt das Modell deshalb an, Kürzel auszuschreiben; was trotzdem zu
  * kurz kommt, fällt heraus und steht in `ignoriert`.
+ *
+ * **Die Grenze ist kein Verzicht auf Kürzel, sondern auf blanke Kürzel.**
+ * „DIN" und „ISO" stehen wirklich in Antragstexten, und sie wegzulassen wäre ein
+ * echter Verlust. Der Prompt verlangt sie deshalb MIT Kontext („din en",
+ * „iso 9001", „din-norm") — damit sind sie lang genug und treffen kein
+ * „bedingt". Die Grenze zu senken wäre die falsche Reparatur derselben Lücke.
  */
 export const MIN_NADEL_LEN = 4;
 
@@ -282,6 +288,10 @@ export function baueFrageplanPrompt(
     `- Jede Nadel hat mindestens ${MIN_NADEL_LEN} Zeichen. Kürzel deshalb ausschreiben`,
     '  („künstliche intelligenz" statt „ki") oder mit Wortkontext geben („ki-basiert").',
     '  Kürzere Nadeln träfen als Teilzeichenkette beliebige fremde Wörter.',
+    '- Normen- und Regelwerkskürzel (DIN, ISO, EN, VDE, IEC, ASTM) NICHT weglassen —',
+    '  sie stehen so in den Antragstexten. Gib sie mit Kontext, damit sie lang genug',
+    '  sind: „din en", „din iso", „iso 9001", „din-norm", „en-norm", „vde-norm".',
+    '  Als blankes Kürzel wären sie zu kurz und fielen heraus.',
     '- Nimm nur Begriffe auf, die in einem Antragstext wirklich vorkommen können.',
     '  Frageworte benennen das, wonach ohnehin gesucht wird. Sie sind keine',
     '  Begriffe und gehören auch NICHT nach "ignoriert":',

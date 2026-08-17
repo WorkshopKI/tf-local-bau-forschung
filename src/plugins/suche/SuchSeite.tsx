@@ -10,8 +10,7 @@
  * Grenze, und der Umbau hätte sie verdreifacht.
  */
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useStore } from 'zustand';
+import { useNavigate } from 'react-router-dom';
 import { Loader2, Sparkles, Bookmark, Download, List, Table } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { ViewModeToggle, type ViewModeOption } from '@/components/ui/ViewModeToggle';
@@ -34,6 +33,7 @@ import { useAnalysePipeline } from './useAnalysePipeline';
 import { AnalysePromptDialog } from './AnalysePromptDialog';
 import { SearchInput } from './SearchInput';
 import { SucheStartzustand, type StartEintrag } from './SucheStartzustand';
+import type { StartReiterId } from './start/startReiter';
 import { KeinTrefferZustand } from './KeinTrefferZustand';
 import { TrefferListe } from './TrefferListe';
 import { SuchMarkierungProvider } from './SuchMarkierung';
@@ -57,11 +57,8 @@ import { useSemanticSearchMode } from '@/core/hooks/useSemanticSearchMode';
 import { useSuchVerknuepfung } from '@/core/hooks/useSuchVerknuepfung';
 import { useSuchOptionen } from '@/core/hooks/useSuchOptionen';
 import { ChatPanelHost } from '@/plugins/chat/ChatPanelHost';
-import {
-  clampAssistentWidth,
-  effectiveAssistentWidth,
-  sucheAssistentUiStore,
-} from './assistentPanel';
+import { effectiveAssistentWidth, sucheAssistentUiStore } from './assistentPanel';
+import { useAssistentPanel } from './useAssistentPanel';
 import { antragDetailPfad } from '@/plugins/antraege/detailPfad';
 import { SeitenHilfeButton } from '@/components/help/SeitenHilfeButton';
 // Direkt am Quellmodul statt am Feedback-Barrel: das Barrel zieht `FeedbackPanel`
@@ -127,6 +124,15 @@ export function SuchSeite(): React.ReactElement {
   const nlFreigeschaltet = isSucheNatuerlicheSpracheEnabled();
   const nlModus = useSuchOptionen(s => s.natuerlicheSprache) && nlFreigeschaltet;
   const setNlModus = useSuchOptionen(s => s.setNatuerlicheSprache);
+  /**
+   * Welchen Reiter der Startzustand zeigen soll — Wunsch, nicht Zustand.
+   *
+   * Der Nonce ist kein Zierrat: zweimal auf „einer Frage" zu schalten muss den
+   * Reiter zweimal öffnen, auch wenn die Id dieselbe bleibt (gleiches Muster wie
+   * `WerkbankSection.vorbelegung`). Gemerkt wird er NICHT — die eigene Reiterwahl
+   * soll den Moduswechsel überleben.
+   */
+  const [reiterWunsch, setReiterWunsch] = useState<{ id: StartReiterId; nonce: number } | null>(null);
 
   const query = useSucheStore(s => s.query);
   const setQuery = useSucheStore(s => s.setQuery);
@@ -210,53 +216,15 @@ export function SuchSeite(): React.ReactElement {
   const [gepruefteAnfrage, setGepruefteAnfrage] = useState<string | null>(null);
   const [gespeicherteMenuOffen, setGespeicherteMenuOffen] = useState(false);
 
-  // Andockendes Assistenten-Panel (Journey-Paket 1, Phase 4).
-  const [searchParams, setSearchParams] = useSearchParams();
-  const assistentOpen = useStore(sucheAssistentUiStore, s => s.open);
-  const assistentWidth = useStore(sucheAssistentUiStore, s => s.width);
-  const assistentDragRef = useRef<{ startX: number; startWidth: number } | null>(null);
-  const [viewportWidth, setViewportWidth] = useState(() =>
-    typeof window !== 'undefined' ? window.innerWidth : 1440);
-  useEffect(() => {
-    const handler = (): void => setViewportWidth(window.innerWidth);
-    window.addEventListener('resize', handler);
-    return () => window.removeEventListener('resize', handler);
-  }, []);
-
-  useEffect(() => {
-    if (searchParams.get('assistent') !== '1') return;
-    sucheAssistentUiStore.getState().setOpen(true);
-    const next = new URLSearchParams(searchParams);
-    next.delete('assistent');
-    setSearchParams(next, { replace: true });
-  }, [searchParams, setSearchParams]);
-
-  const closeAssistent = useCallback((): void => {
-    sucheAssistentUiStore.getState().setOpen(false);
-  }, []);
-
-  const onAssistentResize = useCallback((e: React.MouseEvent): void => {
-    e.preventDefault();
-    assistentDragRef.current = { startX: e.clientX, startWidth: assistentWidth };
-    document.body.style.cursor = 'col-resize';
-    document.body.style.userSelect = 'none';
-    const onMove = (ev: MouseEvent): void => {
-      const drag = assistentDragRef.current;
-      if (!drag) return;
-      sucheAssistentUiStore.getState().setWidth(
-        clampAssistentWidth(drag.startWidth + (drag.startX - ev.clientX), window.innerWidth),
-      );
-    };
-    const onUp = (): void => {
-      assistentDragRef.current = null;
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
-    };
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
-  }, [assistentWidth]);
+  // Andockendes Assistenten-Panel (Journey-Paket 1, Phase 4) — Breite, Ziehen,
+  // Deep-Link wohnen in `useAssistentPanel`.
+  const {
+    open: assistentOpen,
+    width: assistentWidth,
+    viewportWidth,
+    close: closeAssistent,
+    onResize: onAssistentResize,
+  } = useAssistentPanel();
 
   const {
     results: searchResults, loading, counts, indexInfo, vectorReady,
@@ -547,6 +515,21 @@ export function SuchSeite(): React.ReactElement {
     void frageStellen(f);
   }, [setNlModus, setQuery, setFacettenWahl, analyseActive, analyse, frageStellen]);
 
+  /**
+   * Die Suchart umschalten — und den Einstieg mitnehmen.
+   *
+   * Wer auf „einer Frage" stellt, hat gerade entschieden, dass er anders suchen
+   * will, und weiß in aller Regel noch nicht, wie eine Frage aussehen darf, die
+   * diese Suche beantwortet. Der Reiter „Fragen" steht genau dafür da; ihn
+   * selbst suchen zu lassen, ist eine Aufgabe, die der Umschalter schon
+   * beantwortet hat. Zurück auf „Stichworten" schaltet den Reiter NICHT zurück:
+   * das wäre eine Entscheidung über den Einstieg, die niemand getroffen hat.
+   */
+  const wechsleSuchart = useCallback((an: boolean): void => {
+    setNlModus(an);
+    if (an) setReiterWunsch(prev => ({ id: 'fragen', nonce: (prev?.nonce ?? 0) + 1 }));
+  }, [setNlModus]);
+
   useEffect(() => {
     if (!toast) return;
     const t = setTimeout(() => setToast(null), 3000);
@@ -836,7 +819,7 @@ export function SuchSeite(): React.ReactElement {
               semantischLaedt={semanticEnabled && !vectorReady}
               nlVerfuegbar={nlFreigeschaltet}
               nlModus={nlModus}
-              onNlModus={setNlModus}
+              onNlModus={wechsleSuchart}
               planAktiv={aktiverPlan !== null}
               planOhneAehnlichkeit={planSchraenktEin(planTeile)}
             />
@@ -891,14 +874,18 @@ export function SuchSeite(): React.ReactElement {
           {/* ── Offene Frage ─────────────────────────────────────────────── */}
           {frageOffen && (
             <div
-              className="mt-3 flex w-full max-w-6xl items-start gap-2 rounded-[10px] px-3 py-2.5 text-[12.5px] text-[var(--tf-text-secondary)]"
+              className="mt-3 flex w-full max-w-6xl items-center gap-2 rounded-[10px] px-3 py-2.5 text-[12.5px] text-[var(--tf-text-secondary)]"
               style={{ background: 'var(--tf-desk)', border: '0.5px solid var(--tf-border)' }}
             >
-              <Sparkles size={14} className="mt-[2px] shrink-0 text-[var(--tf-text-tertiary)]" aria-hidden />
+              <Sparkles size={14} className="shrink-0 text-[var(--tf-text-tertiary)]" aria-hidden />
+              {/* Eine Zeile, gemessen: max-w-6xl (1 152 px) minus px-3, Icon und
+                  gap lassen bei 12,5 px rund 1 106 px — etwa 175 Zeichen. Die
+                  Vorfassung hatte 211 und brach deshalb immer um. Wer hier Text
+                  ergänzt, misst am gerenderten `<span>` nach (getClientRects),
+                  nicht an der Absicht. */}
               <span>
-                Diese Frage ist noch nicht gestellt. „Frage stellen" (oder Eingabetaste)
-                übersetzt sie mit der internen KI in Suchbegriffe — danach steht hier, wonach
-                gesucht wurde, und jeder Begriff lässt sich einzeln abwählen.
+                Noch nicht gestellt — „Frage stellen" oder Eingabetaste übersetzt sie
+                mit der internen KI in Suchbegriffe, die danach hier stehen und abwählbar sind.
               </span>
             </div>
           )}
@@ -1051,6 +1038,7 @@ export function SuchSeite(): React.ReactElement {
               zaehle={zaehleVorschlag}
               onSuche={starteSuche}
               onFrage={nlFreigeschaltet ? starteFrage : undefined}
+              gewuenschterReiter={reiterWunsch}
               onEntferneLetzte={removeRecentSearch}
               onEntferneGespeicherte={loescheGespeicherte}
               kuratorVariant={isKuratorFreigeschaltet() && isDokumentenscanEnabled()}

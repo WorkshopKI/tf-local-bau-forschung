@@ -22,7 +22,7 @@
  * ihre Liste liegt ohnehin über dieser Fläche. Zwei Antworten auf eine Eingabe
  * wären eine zu viel.
  */
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Info } from 'lucide-react';
 import { ScopeTabs } from '@/components/ui/ScopeTabs';
 import type { WertIndex } from '@/plugins/antraege/services/wert-index';
@@ -68,6 +68,7 @@ export function SucheStartzustand({
   zaehle,
   onSuche,
   onFrage,
+  gewuenschterReiter,
   onEntferneLetzte,
   onEntferneGespeicherte,
   kuratorVariant,
@@ -87,6 +88,16 @@ export function SucheStartzustand({
   /** Eine Frage stellen (setzt Text UND Modus). Fehlt, wenn der Build die
    *  natürlichsprachige Suche nicht mitbringt — dann entfällt der Reiter. */
   onFrage?: (frage: string) => void;
+  /**
+   * Ein von außen gewünschter Reiter — z. B. „Fragen", wenn gerade auf die
+   * Suchart „einer Frage" umgeschaltet wurde.
+   *
+   * Der `nonce` macht denselben Wunsch wiederholbar; ohne ihn öffnete das
+   * zweite Umschalten auf dieselbe Id nichts mehr. Der Wunsch überschreibt den
+   * aktiven Reiter, aber NICHT den gemerkten: was der Nutzer selbst gewählt
+   * hat, steht beim nächsten Besuch wieder da.
+   */
+  gewuenschterReiter?: { id: StartReiterId; nonce: number } | null;
   onEntferneLetzte: (query: string) => void;
   onEntferneGespeicherte: (id: string) => void;
   kuratorVariant: boolean;
@@ -104,6 +115,17 @@ export function SucheStartzustand({
     setAktiv(id);
     try { localStorage.setItem(START_REITER_KEY, id); } catch { /* ignore */ }
   }, [mitFragen]);
+
+  // Der Wunsch von außen wirkt auf den ANGEZEIGTEN Reiter, nicht auf den
+  // gemerkten — deshalb `setAktiv` statt `waehle`. Ein Reiter, den der Build
+  // gar nicht führt, wird ignoriert statt auf „alle" umgebogen: der Wunsch käme
+  // dann von einer Stelle, die es hier nicht gibt.
+  useEffect(() => {
+    if (!gewuenschterReiter) return;
+    if (gewuenschterReiter.id === 'fragen' && !mitFragen) return;
+    setAktiv(gewuenschterReiter.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- der nonce IST der Auslöser
+  }, [gewuenschterReiter?.nonce]);
 
   const reiter = baueStartReiter({
     zuletzt: letzte.length + haeufig.length + gespeichert.length,
