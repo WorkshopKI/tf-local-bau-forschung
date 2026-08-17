@@ -6,7 +6,8 @@ import {
   filterKompaktGroups,
   type KompaktGroupVM,
 } from './kompaktRows';
-import { Filter, PanelLeftClose, X } from 'lucide-react';
+import { Filter, X } from 'lucide-react';
+import { EinklappButton } from '@/components/ui/EinklappIcon';
 
 interface Props {
   /** Bereits gefilterte + sortierte Liste der Vollansicht (Reihenfolge bleibt). */
@@ -132,15 +133,7 @@ export function KompaktListe({
             ) : null}
           </div>
           {onCollapse ? (
-            <button
-              type="button"
-              onClick={onCollapse}
-              aria-label="Liste einklappen"
-              title="Liste einklappen"
-              className="shrink-0 p-1 rounded-[6px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text)] hover:bg-[var(--tf-bg-secondary)] transition-colors cursor-pointer"
-            >
-              <PanelLeftClose size={15} />
-            </button>
+            <EinklappButton offen onClick={onCollapse} label="Liste einklappen" />
           ) : null}
         </div>
         <div className="mt-2 px-0.5 flex items-center gap-1.5 text-[10.5px] uppercase tracking-[0.08em] text-[var(--tf-text-tertiary)]">

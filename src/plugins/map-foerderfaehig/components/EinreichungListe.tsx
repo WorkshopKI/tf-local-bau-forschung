@@ -8,7 +8,8 @@
 import { Button } from '@/components/ui/button';
 import { FileDropZone } from '@/components/ui/FileDropZone';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
-import { FileJson, PanelLeftClose, Trash2 } from 'lucide-react';
+import { FileJson, Trash2 } from 'lucide-react';
+import { EinklappButton } from '@/components/ui/EinklappIcon';
 import { formatDatum } from '../import/laufzeit';
 import type { MapEinreichung } from '../types';
 
@@ -32,15 +33,12 @@ export function EinreichungListe({
     <div className="flex flex-col gap-3 p-4">
       {onEinklappen !== undefined && (
         <div className="flex items-center -mb-1">
-          <button
-            type="button"
+          <EinklappButton
+            offen
             onClick={onEinklappen}
-            aria-label="Einreichungs-Liste einklappen"
-            title="Liste einklappen"
-            className="-ml-1 p-1 rounded-[6px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text)] hover:bg-[var(--tf-bg-secondary)] transition-colors cursor-pointer"
-          >
-            <PanelLeftClose size={16} />
-          </button>
+            label="Einreichungs-Liste einklappen"
+            className="-ml-1"
+          />
         </div>
       )}
 

@@ -19,6 +19,15 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.77 — 2026-08
+
+### Neu
+<!-- - Kurzer, verständlicher Satz (nur bei nutzersichtbaren Änderungen) -->
+### Verbesserungen
+- Die Knöpfe zum Ein- und Ausklappen der Leisten zeigen jetzt überall dasselbe schlichte Pfeilzeichen — ohne Kasten drumherum, und in derselben Größe, egal ob Navigation, Filterleiste oder Antragsliste.
+### Bugfixes
+<!-- - … -->
+
 ## v4.76 — 2026-08
 
 ### Verbesserungen

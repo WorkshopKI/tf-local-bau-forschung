@@ -16,7 +16,7 @@ import {
   shouldShowList,
 } from './listCollapse';
 import { detailSchliessenZiel, kamAusDerSuche, SUCHE_ROUTE } from '@/plugins/suche/herkunft';
-import { PanelLeftOpen } from 'lucide-react';
+import { EinklappIcon } from '@/components/ui/EinklappIcon';
 
 const FILTER_OPEN_KEY = 'teamflow_antraege_filter_open';
 
@@ -131,10 +131,11 @@ export function AntraegePage(): React.ReactElement {
             onClick={() => setCollapsed(false)}
             aria-label="Anträge einblenden"
             title="Anträge einblenden"
+            aria-expanded={false}
             className="shrink-0 w-8 h-full flex flex-col items-center gap-3 py-3 cursor-pointer bg-[var(--tf-bg)] hover:bg-[var(--tf-bg-secondary)] transition-colors"
             style={{ borderRight: '0.5px solid var(--tf-border)' }}
           >
-            <PanelLeftOpen size={16} className="text-[var(--tf-text-tertiary)]" />
+            <EinklappIcon offen={false} className="text-[var(--tf-text-tertiary)]" />
             <span className="text-[11px] text-[var(--tf-text-secondary)] tracking-wide [writing-mode:vertical-rl] rotate-180">
               Anträge einblenden
             </span>

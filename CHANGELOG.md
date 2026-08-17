@@ -5,6 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.77.0 — Einklappen ist ein Chevron (August 2026)
+
+MINOR — Entwurf in `_design/handoff/hide`: der Einklapp-Knopf war doppelt laut — ein dauerhaft umrandeter Kasten um ein lucide-Panel-Icon, das selbst ein Kasten ist. Auf 16 px zählt nur die Silhouette, und die hatte das Icon nicht. Dazu drifteten acht verstreute Aufrufe auf drei Achsen auseinander: Icon-Größe 15/16/18, Hover-Fläche, Radius.
+
+- **Ein Chevron statt `PanelLeftClose`/`PanelLeftOpen`**, ohne Rahmen in jedem Zustand — neues geteiltes Bauteil [EinklappIcon.tsx](src/components/ui/EinklappIcon.tsx) (`EinklappButton` 24 × 24 bzw. 30 × 30, `EinklappIcon` für die Schienen)
+- **Alle acht Einsatzorte** ziehen daraus: [ShellLayout.tsx](src/core/ShellLayout.tsx), [FilterSidebar.tsx](src/plugins/antraege/filter/FilterSidebar.tsx) (beide Kopfvarianten), [KompaktListe.tsx](src/plugins/antraege/KompaktListe.tsx), [AnfragenPage.tsx](src/plugins/anfragen/AnfragenPage.tsx), [EinreichungListe.tsx](src/plugins/map-foerderfaehig/components/EinreichungListe.tsx), [AntraegePage.tsx](src/plugins/antraege/AntraegePage.tsx), [MasterDetailLayout.tsx](src/components/master-detail/MasterDetailLayout.tsx)
+- **Vorlese-Text nachgeholt**: der Navigations-Knopf hatte kein `aria-label`, keiner der acht ein `aria-expanded` — beides sitzt jetzt im Bauteil
+- Regel im Gestaltungsleitfaden festgehalten ([DESIGN_GUIDE.md](DESIGN_GUIDE.md) Kap. 8)
+
 ### v4.76.0 — Kopfband: Filterleiste und Tabellenkopf beginnen gemeinsam (August 2026)
 
 MINOR — Gemeldet: „die Kopfzeile der Tabelle soll harmonischer mit der Filtersidebar aussehen, wenn diese eingeblendet ist" (Entwurf in `_design/handoff/anträge-kopfzeile`). Die Leiste begann direkt unter der Suchzeile, der graue Tabellenkopf rund 90 px tiefer — das „graue L" schloss nie, und die Unterkante des Leistenkopfes lief gegen nichts.

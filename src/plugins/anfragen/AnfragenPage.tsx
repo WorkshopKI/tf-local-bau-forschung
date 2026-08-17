@@ -6,7 +6,7 @@
  * `featureFlag: 'anfragen'` (nur dev).
  */
 import { useEffect } from 'react';
-import { PanelLeftClose } from 'lucide-react';
+import { EinklappButton } from '@/components/ui/EinklappIcon';
 import { useStorage } from '@/core/hooks/useStorage';
 import { isDevFixturesEnabled } from '@/config/feature-flags';
 import { MasterDetailLayout } from '@/components/master-detail';
@@ -78,15 +78,12 @@ export function AnfragenPage(): React.ReactElement {
           <div className={selected ? 'px-2 py-2' : 'px-8 py-2'}>
             {selected && (
               <div className="flex items-center mb-2">
-                <button
-                  type="button"
+                <EinklappButton
+                  offen
                   onClick={api.toggleCollapsed}
-                  aria-label="Anfragen-Liste einklappen"
-                  title="Liste einklappen"
-                  className="-ml-1 p-1 rounded-[6px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text)] hover:bg-[var(--tf-bg-secondary)] transition-colors cursor-pointer"
-                >
-                  <PanelLeftClose size={16} />
-                </button>
+                  label="Anfragen-Liste einklappen"
+                  className="-ml-1"
+                />
               </div>
             )}
             {loading

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { RotateCcw, BookmarkPlus, PanelLeftClose } from 'lucide-react';
+import { RotateCcw, BookmarkPlus } from 'lucide-react';
+import { EinklappButton } from '@/components/ui/EinklappIcon';
 import { useStorage } from '@/core/hooks/useStorage';
 import { Input } from '@/components/ui/input';
 import type { KopfHoehen } from '@/components/data-table';
@@ -239,19 +240,12 @@ export function FilterSidebar({
                 </span>
               ) : null}
               {onCollapse ? (
-                <button
-                  type="button"
+                <EinklappButton
+                  offen
                   onClick={onCollapse}
-                  aria-label="Filterleiste einklappen"
-                  title="Filterleiste einklappen"
-                  className={
-                    'shrink-0 p-1 rounded-[6px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text)]'
-                    + ' hover:bg-[var(--tf-hover)] transition-colors cursor-pointer'
-                    + (active.length > 0 ? '' : ' ml-auto')
-                  }
-                >
-                  <PanelLeftClose size={15} />
-                </button>
+                  label="Filterleiste einklappen"
+                  className={active.length > 0 ? undefined : 'ml-auto'}
+                />
               ) : null}
             </div>
           </div>
@@ -274,15 +268,7 @@ export function FilterSidebar({
               {active.length} aktiv
             </span>
             {onCollapse ? (
-              <button
-                type="button"
-                onClick={onCollapse}
-                aria-label="Filterleiste einklappen"
-                title="Filterleiste einklappen"
-                className="shrink-0 p-1 rounded-[6px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text)] hover:bg-[var(--tf-hover)] transition-colors cursor-pointer"
-              >
-                <PanelLeftClose size={15} />
-              </button>
+              <EinklappButton offen onClick={onCollapse} label="Filterleiste einklappen" />
             ) : null}
           </div>
         </div>

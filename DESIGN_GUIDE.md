@@ -772,6 +772,19 @@ Referenz-Adopter: [src/plugins/antraege/](src/plugins/antraege/) (Original), [sr
 - ❌ NICHT als Dekoration
 - ❌ NICHT mehr als 1 Icon pro Button
 
+### Einklappen ist ein Chevron, kein Panel-Icon
+
+Jeder Ein-/Ausklapp-Knopf einer Leiste kommt aus [`EinklappIcon.tsx`](src/components/ui/EinklappIcon.tsx)
+— `EinklappButton` für den quadratischen Knopf (24 × 24, mit `gross` 30 × 30 an der
+App-Navigation), `EinklappIcon` für die 32-px-Schienen, wo die ganze Leiste die
+Trefferfläche ist. Nie wieder `PanelLeftClose`/`PanelLeftOpen` aus lucide: das sind
+Rechteck + Trennlinie + Balken, und auf 16 px zählt nur die Silhouette.
+
+Der Knopf trägt **keinen Rahmen**, in keinem Zustand; Fläche (`--tf-hover`) und Textfarbe
+erscheinen erst beim Überfahren. Das Glyph ist ein Pfad, für die Gegenrichtung gespiegelt
+— kein zweites Icon. Die Prop `offen` beschreibt den Zustand der Leiste und setzt
+zugleich `aria-expanded`.
+
 ---
 
 ## 9. Dark Mode (Warm-grau)

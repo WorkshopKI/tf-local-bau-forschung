@@ -17,6 +17,7 @@ import { SyncStatusIndicator } from '@/components/ui/SyncStatusIndicator';
 import { BridgeStatusIndicator } from '@/components/ui/BridgeStatusIndicator';
 import { CsvFreshnessIndicator } from '@/components/ui/CsvFreshnessIndicator';
 import { BridgeDisconnectHint } from '@/components/ui/BridgeDisconnectHint';
+import { EinklappButton } from '@/components/ui/EinklappIcon';
 import { KiConnectPromptDialog } from '@/core/components/KiConnectPromptDialog';
 import { useTourContext } from '@/core/hooks/useTour';
 import { useProfile } from '@/core/hooks/useProfile';
@@ -536,13 +537,12 @@ export function ShellLayout({ plugins, children }: ShellLayoutProps): React.Reac
                 <span className="text-[15px] font-medium text-[var(--tf-text)]">{runtimeConfig.build.label}</span>
               </div>
             )}
-            <button onClick={toggleSidebar}
-              title={sidebarMode === 'expanded' ? 'Sidebar einklappen' : 'Sidebar ausklappen'}
-              className="p-1.5 rounded-[var(--tf-radius)] hover:bg-[var(--tf-hover)] text-[var(--tf-text-tertiary)] cursor-pointer">
-              {sidebarMode === 'expanded'
-                ? <Icons.PanelLeftClose size={18} />
-                : <Icons.PanelLeftOpen size={18} />}
-            </button>
+            <EinklappButton
+              gross
+              offen={sidebarMode === 'expanded'}
+              onClick={toggleSidebar}
+              label={sidebarMode === 'expanded' ? 'Sidebar einklappen' : 'Sidebar ausklappen'}
+            />
           </div>
 
           {sidebarMode === 'expanded' && <ProgrammSwitcher />}

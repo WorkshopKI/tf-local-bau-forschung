@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { PanelLeftOpen } from 'lucide-react';
+import { EinklappIcon } from '@/components/ui/EinklappIcon';
 import {
   effectiveListWidth,
   clampDragWidth,
@@ -15,8 +15,8 @@ import {
 } from './masterDetailLayout-logic';
 
 /** Steuer-API, die `list` als Render-Funktion bekommt — damit ein Collapse-
- *  Trigger (z.B. `PanelLeftClose`) in der Listen-Toolbar des Konsumenten sitzen
- *  kann, ohne dass das Shell dessen internes Layout kennt. */
+ *  Trigger (der geteilte `EinklappButton`) in der Listen-Toolbar des Konsumenten
+ *  sitzen kann, ohne dass das Shell dessen internes Layout kennt. */
 export interface MasterDetailListApi {
   collapsed: boolean;
   toggleCollapsed: () => void;
@@ -193,10 +193,11 @@ export function MasterDetailLayout({
           onClick={toggleCollapsed}
           aria-label={collapsedRailLabel}
           title={collapsedRailLabel}
+          aria-expanded={false}
           className="shrink-0 w-8 h-full flex flex-col items-center gap-3 py-3 cursor-pointer bg-[var(--tf-bg)] hover:bg-[var(--tf-bg-secondary)] transition-colors"
           style={{ borderRight: '0.5px solid var(--tf-border)' }}
         >
-          <PanelLeftOpen size={16} className="text-[var(--tf-text-tertiary)]" />
+          <EinklappIcon offen={false} className="text-[var(--tf-text-tertiary)]" />
           <span className="text-[11px] text-[var(--tf-text-secondary)] tracking-wide [writing-mode:vertical-rl] rotate-180">
             {collapsedRailLabel}
           </span>
