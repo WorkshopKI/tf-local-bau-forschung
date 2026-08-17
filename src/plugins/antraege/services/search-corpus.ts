@@ -140,8 +140,23 @@ export interface AntragTextEntry {
   /** Suchform des Bundeslands — am Wortanfang verankert wie `standortSuchform`,
    *  und zusaetzlich mit dem ROHEN Kuerzel bestueckt: `bl:SN` soll weiter
    *  finden, obwohl die Vorschlagsliste nur noch Namen anbietet. Das Kuerzel
-   *  steht deshalb in der Suchform, nicht im angezeigten Wert. */
+   *  steht deshalb in der Suchform, nicht im angezeigten Wert.
+   *
+   *  Nur noch der RUECKFALL fuer Unaufloesbares (Tippen im Wortlauf, fremde
+   *  Werte) — was sich auf eines der 16 Laender aufloesen laesst, wird ueber
+   *  `bundeslandCodes` GENAU verglichen. */
   bundeslandSuchform: string;
+  /** Die aufgeloesten Laender-Kuerzel, jedes einzeln von Leerzeichen gerahmt
+   *  (`" sn "`, bei zwei verschiedenen Seiten `" sn st "`).
+   *
+   *  Warum ueberhaupt eine zweite Form: das Bundesland ist ein GESCHLOSSENES
+   *  Vokabular aus 16 Werten, und in dem stecken zwei ineinander — die Nadel
+   *  `" sachsen"` findet in `" sachsen anhalt st "` genauso ihren Wortanfang wie
+   *  in `" sachsen sn "`. Am Bestand gemessen (Stand 2026-08) lieferte
+   *  `bl:Sachsen` deshalb 3 278 statt 2 742 Treffer: 536 Antraege aus
+   *  Sachsen-Anhalt, ohne dass die Zeile das verraten haette. Ein Vokabular mit
+   *  abzaehlbaren Werten wird verglichen, nicht durchsucht. */
+  bundeslandCodes: string;
   /** Web-Adresse der Einrichtung, aus der Kontakt-Mail der Projektleitung
    *  abgeleitet (`bergmann@gmbu.de` → `gmbu.de`). ANZEIGEFORM, wie beim
    *  Standort — eine Fundstelle, die sonst nirgends in der Zeile stuende,
@@ -308,25 +323,68 @@ export function bundeslandName(kuerzel: string): string {
   return BUNDESLAND_NAMEN[k] ?? kuerzel.trim();
 }
 
+/** Klartext (kleingeschrieben, NFC) → Kuerzel. Die Umkehrung von
+ *  `BUNDESLAND_NAMEN`, einmal gebaut statt bei jedem Aufruf gesucht. */
+const BUNDESLAND_CODES: ReadonlyMap<string, string> = new Map(
+  Object.entries(BUNDESLAND_NAMEN).map(([code, name]) => [name.toLowerCase().normalize('NFC'), code]),
+);
+
 /**
- * Anzeige- und Suchform des Bundeslands aus den beiden Kuerzel-Spalten.
+ * Ein Bundesland-Kuerzel zu dem, was jemand geschrieben hat — egal ob er das
+ * Kuerzel oder den Namen tippt: `SN`, `sn`, `Sachsen`, `sachsen` → `'SN'`.
  *
- * Zwei Formen, weil sie Verschiedenes leisten: ANGEZEIGT und vorgeschlagen wird
- * nur der Klartext — eine Vorschlagsliste, in der „Sachsen" und „SN" als zwei
- * Werte nebeneinanderstehen, teilt dasselbe Land in zwei Zeilen. GESUCHT wird
- * ueber beides, damit `bl:SN` weiter findet, wer das Kuerzel aus dem Export
- * gewohnt ist.
+ * **Leer, wenn es keines der 16 Laender ist** — und genau daran haengt die
+ * Rueckfall-Entscheidung: `bl:sach` (halb getippt) und fremde Werte loesen nicht
+ * auf und werden weiter am Wortanfang gesucht, damit die Suche waehrend des
+ * Tippens etwas zeigt. Nie geraten, nie ein Teiltreffer.
+ *
+ * Umlaute ueber NFC (Pitfall #22): „Baden-Württemberg" kommt aus zwei Quellen
+ * mit zwei Zerlegungen.
+ *
+ * Pure — testbar ohne IDB.
+ */
+export function bundeslandCode(wert: string): string {
+  const w = wert.trim().normalize('NFC');
+  if (w.length === 0) return '';
+  const gross = w.toUpperCase();
+  if (BUNDESLAND_NAMEN[gross] !== undefined) return gross;
+  return BUNDESLAND_CODES.get(w.toLowerCase()) ?? '';
+}
+
+/** Gerahmte Form eines Kuerzels fuer den genauen Vergleich: `'SN'` → `' sn '`.
+ *  Beide Seiten gerahmt, damit `' sn '` in `' sn st '` steckt, aber kein
+ *  laengeres Kuerzel anschneidet. */
+export function bundeslandCodeNadel(code: string): string {
+  return code.length > 0 ? ` ${code.toLowerCase()} ` : '';
+}
+
+/**
+ * Anzeige-, Vergleichs- und Suchform des Bundeslands aus den beiden
+ * Kuerzel-Spalten.
+ *
+ * Drei Formen, weil sie Verschiedenes leisten:
+ * - `bundesland` wird ANGEZEIGT und vorgeschlagen: nur der Klartext — eine
+ *   Vorschlagsliste, in der „Sachsen" und „SN" als zwei Werte nebeneinander
+ *   stehen, teilt dasselbe Land in zwei Zeilen.
+ * - `bundeslandCodes` wird VERGLICHEN: das aufgeloeste Kuerzel, gerahmt. Ueber
+ *   diese Form sind `bl:Sachsen` und `bl:SN` dieselbe Frage — niemand muss
+ *   wissen, in welcher Schreibweise der Export sein Land ablegt.
+ * - `bundeslandSuchform` ist der RUECKFALL fuer alles, was sich nicht aufloesen
+ *   laesst (halb getippte Woerter, fremde Werte).
  *
  * Pure — testbar ohne IDB.
  */
 export function bundeslandFelder(landAfs: string, landAst: string): {
   bundesland: string;
   bundeslandSuchform: string;
+  bundeslandCodes: string;
 } {
   const bundesland = verbindeMit(' · ', bundeslandName(landAfs), bundeslandName(landAst));
+  const codes = [...new Set([bundeslandCode(landAfs), bundeslandCode(landAst)])].filter(c => c.length > 0);
   return {
     bundesland,
     bundeslandSuchform: standortSuchform(verbindeEindeutig(bundesland, landAfs, landAst)),
+    bundeslandCodes: codes.length > 0 ? ` ${codes.map(c => c.toLowerCase()).join(' ')} ` : '',
   };
 }
 
@@ -566,7 +624,7 @@ export async function loadAntraegeTextCorpus(
       // Mit sichtbarem Trenner: dieses Feld wird auch ANGEZEIGT (siehe
       // `verbindeMit`). Die Suchform darunter bleibt davon unberuehrt.
       const standort = verbindeMit(' · ', feld.ortAfs ?? '', feld.ortAst ?? '');
-      const { bundesland, bundeslandSuchform } = bundeslandFelder(
+      const { bundesland, bundeslandSuchform, bundeslandCodes } = bundeslandFelder(
         feld.landAfs ?? '', feld.landAst ?? '',
       );
       const domain = domainLabel(feld.emailPl ?? '');
@@ -619,6 +677,7 @@ export async function loadAntraegeTextCorpus(
           standortSuchform: standortSuchform(standort),
           bundesland,
           bundeslandSuchform,
+          bundeslandCodes,
           domain,
           domainSuchform: domainSuchform(domain),
           netzwerk,

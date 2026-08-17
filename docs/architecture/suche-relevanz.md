@@ -211,13 +211,48 @@ Ländernamen führten deshalb jede Häufigkeitsliste an (Sachsen 3 282, Bayern
 Seit v4.82 ist `bundesland` ein eigenes Trefferfeld mit eigenem Präfix (`bl:`),
 eigenem Etikett, eigener Facette und eigener Spalte. Zwei Entscheidungen dabei:
 
-- **Das Kürzel bleibt suchbar, aber unsichtbar.** `bundeslandFelder()` liefert
-  zwei Formen: angezeigt und vorgeschlagen wird nur der Klartext (sonst stünden
-  „Sachsen" und „SN" als zwei Werte nebeneinander und teilten dasselbe Land in
-  zwei Zeilen), gesucht wird über beides — `bl:SN` findet weiter, wer das Kürzel
-  aus dem Export gewohnt ist.
+- **Das Kürzel bleibt suchbar, aber unsichtbar.** Angezeigt und vorgeschlagen
+  wird nur der Klartext — sonst stünden „Sachsen" und „SN" als zwei Werte
+  nebeneinander und teilten dasselbe Land in zwei Zeilen.
 - **Verglichen wird am Wortanfang**, wie beim Standort und aus demselben Grund:
-  „essen" darf Hessen nicht hereinholen.
+  „essen" darf Hessen nicht hereinholen. Für das Bundesland reicht das nicht —
+  siehe den nächsten Abschnitt.
+
+### Ein geschlossenes Vokabular wird verglichen, nicht durchsucht (v4.84.0)
+
+Gefragt wurde, warum `bl:SN` (2 742) und `bl:Sachsen` (3 278) verschieden viel
+finden: **niemand kann wissen, in welcher Schreibweise der Export sein Land
+ablegt**, und beide Schreibweisen müssen dieselbe Menge liefern.
+
+Nachgemessen war die Antwort nicht die naheliegende. In allen acht Quelldateien
+steht ausschließlich das Kürzel, nie ein ausgeschriebener Name — die Lücke kam
+von der anderen Seite: die am Wortanfang verankerte Nadel `" sachsen"` steckt
+auch in `" sachsen anhalt st "`. **`bl:Sachsen` lieferte 536 Anträge aus
+Sachsen-Anhalt mit**, ohne dass die Trefferzeile es verriet (2 742 + 550 − 14
+Sätze mit je einem Land je Seite = 3 278).
+
+Die Verankerung ist damit nicht falsch, sondern für dieses Feld das falsche
+Werkzeug: **das Bundesland ist ein geschlossenes Vokabular aus 16 Werten, und
+zwei davon stecken ineinander.** Ein Feld mit abzählbaren Werten hat Werte, keine
+Textstellen — es wird verglichen.
+
+- `bundeslandCode()` führt Kürzel und Name auf dieselbe Antwort (`SN`, `sn`,
+  `Sachsen`, `sachsen` → `'SN'`; NFC wegen der Umlaute, Pitfall #22).
+- Der Korpus führt `bundeslandCodes` — jedes aufgelöste Kürzel einzeln gerahmt
+  (`' sn '`, bei zwei Seiten `' sn st '`).
+- `trifftBundesland()` vergleicht genau, **sobald sich das gefragte Wort
+  auflöst** — sonst fällt es auf die verankerte Suche über
+  `bundeslandSuchform` zurück.
+
+**Der Rückfall ist kein Rest, sondern die Bedingung dafür, dass die Suche beim
+Tippen etwas zeigt.** `bl:sach` benennt kein Land und findet weiter beide
+Sachsen; sobald das Wort vollständig ist, schnappt die Anfrage auf 2 742. Ebenso
+bleibt ein fremder Wert auffindbar, den der Katalog nicht kennt — der genaue
+Vergleich darf nie zum stillen Suchausfall werden.
+
+Nebenwirkung, erwünscht: die Facetten-Zahl in der Vorschlagsliste stimmt jetzt
+mit dem überein, was der Klick liefert. Vorher versprach sie 3 278 und hielt es
+auch — mit Anträgen aus zwei Ländern.
 
 **Rohe Kürzel in der Ortsliste — ein Mapping-Schaden, kein Suchfehler.** Neben
 „Sachsen" standen „SN" (1 508), „BW" (974), „NW" (935), „BY" (922) als eigene

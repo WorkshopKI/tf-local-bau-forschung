@@ -10,7 +10,7 @@
 import { describe, it, expect } from 'vitest';
 import { searchAntraegeSubstring } from '../services/antraege-search-service';
 import {
-  domainSuchform, standortSuchform, type AntragTextEntry,
+  bundeslandFelder, domainSuchform, standortSuchform, type AntragTextEntry,
 } from '../services/search-corpus';
 
 /**
@@ -52,6 +52,7 @@ function eintrag(
     standortSuchform: standortSuchform(standort),
     bundesland: '',
     bundeslandSuchform: '',
+    bundeslandCodes: '',
     domain,
     domainSuchform: domainSuchform(domain),
     netzwerk: '',
@@ -68,7 +69,8 @@ function eintrag(
     ...basis,
     netzwerkLower: basis.netzwerk.toLowerCase(),
     notizLower: basis.notiz.toLowerCase(),
-    bundeslandSuchform: standortSuchform(basis.bundesland),
+    // Anzeigewert, Suchform UND Kürzel aus EINER Quelle (siehe `bundeslandFelder`).
+    ...bundeslandFelder(basis.bundesland, ''),
     wahlkreisSuchform: standortSuchform(basis.wahlkreis),
     verbundNrLower: basis.verbundNr.toLowerCase(),
   };

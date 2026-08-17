@@ -48,6 +48,11 @@ vi.mock('../services/search-corpus', () => ({
   // Nadeln EINMAL beim Bauen statt je Eintrag berechnet, wird er gelesen — und
   // ein `null` aus einem Stub, dessen Signatur `string` verspricht, fiel auf.
   standortNadel: () => '',
+  // Aus demselben Grund wie `standortNadel`: seit v4.84 löst die Suchstufe beim
+  // Bauen der Teile auch das Bundesland auf. „Kein Land erkannt" ist die
+  // richtige Antwort für einen Stub ohne Korpus.
+  bundeslandCode: () => '',
+  bundeslandCodeNadel: () => '',
 }));
 
 import {

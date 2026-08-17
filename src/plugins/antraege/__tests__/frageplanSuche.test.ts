@@ -16,7 +16,7 @@
 import { describe, it, expect } from 'vitest';
 import { searchAntraegeWortlaut } from '../services/antraege-search-service';
 import {
-  domainSuchform, standortSuchform, type AntragTextEntry,
+  bundeslandFelder, domainSuchform, standortSuchform, type AntragTextEntry,
 } from '../services/search-corpus';
 import type { PlanBegriff } from '@/core/services/search/frageplan';
 
@@ -25,7 +25,8 @@ function eintrag(felder: Partial<AntragTextEntry>): AntragTextEntry {
     vb: '', tv: '', abstract: '', descriptors: '', akronym: '',
     vbLower: '', tvLower: '', absLower: '', descriptorsLower: '', akronymLower: '',
     akzLower: '', organisation: '', organisationLower: '',
-    standort: '', standortSuchform: '', bundesland: '', bundeslandSuchform: '',
+    standort: '', standortSuchform: '',
+    bundesland: '', bundeslandSuchform: '', bundeslandCodes: '',
     domain: '', domainSuchform: '',
     netzwerk: '', netzwerkLower: '', notiz: '', notizLower: '',
     wahlkreis: '', wahlkreisSuchform: '', verbundNr: '', verbundNrLower: '',
@@ -45,7 +46,9 @@ function eintrag(felder: Partial<AntragTextEntry>): AntragTextEntry {
     notizLower: basis.notiz.toLowerCase(),
     verbundNrLower: basis.verbundNr.toLowerCase(),
     standortSuchform: standortSuchform(basis.standort),
-    bundeslandSuchform: standortSuchform(basis.bundesland),
+    // Anzeigewert, Suchform UND Kürzel aus EINER Quelle — sonst könnte ein Test
+    // ein Bundesland setzen, das die Vergleichsform gar nicht kennt.
+    ...bundeslandFelder(basis.bundesland, ''),
     wahlkreisSuchform: standortSuchform(basis.wahlkreis),
     domainSuchform: domainSuchform(basis.domain),
   };

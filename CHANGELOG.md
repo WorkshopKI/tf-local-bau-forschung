@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.84.0 — Das Bundesland wird verglichen, nicht durchsucht (August 2026)
+
+MINOR — Gefragt wurde, warum `bl:SN` und `bl:Sachsen` verschieden viel finden — niemand kann wissen, in welcher Schreibweise der Export sein Land ablegt. Beim Nachmessen kam der schwerere Fehler heraus: `bl:Sachsen` lieferte 3 278 statt 2 742 Treffer, weil die am Wortanfang verankerte Nadel `" sachsen"` auch in `" sachsen anhalt st "` steckt — **536 Anträge aus Sachsen-Anhalt liefen als Sachsen mit**, ohne dass die Trefferzeile es verriet.
+
+- **Das Bundesland wird verglichen statt durchsucht** — ein geschlossenes Vokabular aus 16 Werten hat abzählbare Werte, keine Textstellen ([antraege-search-service.ts](src/plugins/antraege/services/antraege-search-service.ts))
+- **Kürzel und Name sind dieselbe Frage** — `bl:SN`, `bl:sn`, `bl:Sachsen`, `bl:sachsen` lösen alle auf `SN` auf ([search-corpus.ts](src/plugins/antraege/services/search-corpus.ts))
+- **Sachsen-Anhalt zählt nicht mehr als Sachsen**: `bl:Sachsen` 3 278 → 2 742, `bl:Sachsen-Anhalt` 550 ([bundeslandSuche.test.ts](src/plugins/antraege/__tests__/bundeslandSuche.test.ts))
+- **Halb Getipptes und fremde Werte fallen auf die verankerte Suche zurück** — `bl:sach` zeigt beim Tippen weiter beides ([suche-relevanz.md](docs/architecture/suche-relevanz.md))
+- **Die Facetten-Zahl stimmt jetzt mit dem Klick überein** — die Vorschlagsliste versprach 3 278 und lieferte 3 278 aus zwei Ländern ([suche.md](docs/feedback-kontext/suche.md))
+
 ### v4.83.0 — Der Rückweg führt dorthin, wo man hergekommen ist (August 2026)
 
 MINOR — Gemeldet: aus der Suche ins Detail und nicht zurück, Schließen landet in der Förderanträge-Tabelle, und der Board-Link „kommt ein Fehler". Gemessen: der Rückweg lag im `location.state` und wurde von **einem** von sieben Aufrufern gesetzt; das Board schickte die **Verbund-Nummer** in den Aktenzeichen-Slot (`#/antraege/ZDS26026` → „Antrag ZDS26026 nicht gefunden", kein Rückweg).

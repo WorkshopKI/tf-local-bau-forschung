@@ -19,6 +19,13 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.84 — 2026-08
+
+### Bugfixes
+- **`bl:Sachsen` lieferte 536 Anträge aus Sachsen-Anhalt mit.** Der Grund: „Sachsen" steckt in „Sachsen-Anhalt". Die Suche nach einem Bundesland vergleicht jetzt das Land, statt im Namen zu suchen — `bl:Sachsen` findet 2.742 statt 3.278 Anträge, und alle 2.742 sind wirklich aus Sachsen.
+### Verbesserungen
+- **Kürzel oder ausgeschrieben ist jetzt egal.** `bl:SN` und `bl:Sachsen` liefern dasselbe; man muss nicht mehr wissen, in welcher Schreibweise das Land in den Daten steht. Beim Tippen zeigt die Suche wie bisher schon nach den ersten Buchstaben etwas an.
+
 ## v4.83 — 2026-08
 
 ### Neu

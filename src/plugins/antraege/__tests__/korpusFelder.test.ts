@@ -15,6 +15,8 @@ import {
   verbindeEindeutig,
   verbindeMit,
   bundeslandName,
+  bundeslandCode,
+  bundeslandCodeNadel,
   bundeslandFelder,
   standortSuchform,
   standortNadel,
@@ -74,7 +76,16 @@ describe('bundeslandFelder (v4.81)', () => {
 
   it('liefert für fehlende Angaben leere Felder', () => {
     // Wichtig für den `includeEmpty`-Guard: `.length > 0` muss falsch bleiben.
-    expect(bundeslandFelder('', '')).toEqual({ bundesland: '', bundeslandSuchform: '' });
+    expect(bundeslandFelder('', ''))
+      .toEqual({ bundesland: '', bundeslandSuchform: '', bundeslandCodes: '' });
+  });
+
+  it('führt jedes Land einzeln gerahmt in der Vergleichsform', () => {
+    expect(bundeslandFelder('SN', 'SN').bundeslandCodes).toBe(' sn ');
+    expect(bundeslandFelder('SN', 'ST').bundeslandCodes).toBe(' sn st ');
+    // Fremder Wert: kein Kürzel — der Satz bleibt über die Suchform auffindbar,
+    // fällt aber aus dem genauen Vergleich heraus.
+    expect(bundeslandFelder('Sachsn', '').bundeslandCodes).toBe('');
   });
 
   it('trifft am Wortanfang — „essen" holt Hessen nicht herein', () => {
@@ -118,6 +129,59 @@ describe('bundeslandName', () => {
   it('bleibt bei fehlender Angabe leer', () => {
     expect(bundeslandName('')).toBe('');
     expect(bundeslandName('   ')).toBe('');
+  });
+});
+
+/**
+ * Der genaue Vergleich (v4.84). Ohne ihn hing das Ergebnis daran, in welcher
+ * Schreibweise der Export sein Land ablegt — und `bl:Sachsen` zog Sachsen-Anhalt
+ * mit herein, weil die Verankerung am Wortanfang die beiden nicht trennt.
+ */
+describe('bundeslandCode', () => {
+  const IM_BESTAND = ['BW', 'BY', 'BE', 'BB', 'HB', 'HH', 'HE', 'MV',
+    'NI', 'NW', 'RP', 'SL', 'SN', 'ST', 'SH', 'TH'];
+
+  it('führt Kürzel und Namen auf dieselbe Antwort', () => {
+    // Das ist der ganze Zweck: niemand muss wissen, was in der Quelle steht.
+    for (const k of IM_BESTAND) {
+      expect(bundeslandCode(k), `Kürzel ${k}`).toBe(k);
+      expect(bundeslandCode(bundeslandName(k)), `Name zu ${k}`).toBe(k);
+      expect(bundeslandCode(bundeslandName(k).toLowerCase()), `klein zu ${k}`).toBe(k);
+    }
+  });
+
+  it('nimmt Kleinschreibung, Leerraum und zerlegte Umlaute an', () => {
+    expect(bundeslandCode(' sn ')).toBe('SN');
+    expect(bundeslandCode('sachsen')).toBe('SN');
+    // Zerlegte Form (NFD) — kommt aus Quellen mit anderer Zeichen-Zerlegung.
+    expect(bundeslandCode('Baden-Württemberg'.normalize('NFD'))).toBe('BW');
+    expect(bundeslandCode('Thüringen'.normalize('NFD'))).toBe('TH');
+  });
+
+  it('trennt Sachsen von Sachsen-Anhalt — der gemeldete Defekt', () => {
+    expect(bundeslandCode('Sachsen')).toBe('SN');
+    expect(bundeslandCode('Sachsen-Anhalt')).toBe('ST');
+    const sachsen = bundeslandFelder('SN', 'SN');
+    const anhalt = bundeslandFelder('ST', 'ST');
+    const nadel = bundeslandCodeNadel(bundeslandCode('Sachsen'));
+    expect(sachsen.bundeslandCodes.includes(nadel)).toBe(true);
+    expect(anhalt.bundeslandCodes.includes(nadel)).toBe(false);
+    // Zum Vergleich der alte Weg: die verankerte Nadel trennt die beiden NICHT.
+    // Genau daran hingen am Bestand 536 falsche Treffer.
+    expect(anhalt.bundeslandSuchform.includes(standortNadel('Sachsen'))).toBe(true);
+  });
+
+  it('bleibt leer, wo nichts aufzulösen ist — Rückfall auf die Suchform', () => {
+    // Halb getippt: `bl:sach` soll beim Tippen weiter etwas zeigen.
+    expect(bundeslandCode('sach')).toBe('');
+    expect(bundeslandCode('XX')).toBe('');
+    expect(bundeslandCode('')).toBe('');
+    expect(bundeslandCodeNadel('')).toBe('');
+  });
+
+  it('rahmt beidseitig, damit ein Kürzel kein anderes anschneidet', () => {
+    expect(bundeslandCodeNadel('SN')).toBe(' sn ');
+    expect(bundeslandFelder('SN', 'ST').bundeslandCodes).toContain(' st ');
   });
 });
 

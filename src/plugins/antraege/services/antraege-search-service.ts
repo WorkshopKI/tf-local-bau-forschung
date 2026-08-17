@@ -46,6 +46,8 @@ import type { IDBStore } from '@/core/services/storage/idb-store';
 import { useSemanticSearchMode } from '@/core/hooks/useSemanticSearchMode';
 import { verknuepfungAlsThreshold, type SuchVerknuepfung } from '@/core/hooks/useSuchVerknuepfung';
 import {
+  bundeslandCode,
+  bundeslandCodeNadel,
   loadAntraegeTextCorpus,
   loadDmsFilenameToAkz,
   standortNadel,
@@ -362,10 +364,7 @@ function substringMatches(
       // ausgeschlossen hat.
       || (t.erlaubt.has('standort')
         && t.ortNadeln.some(n => entry.standortSuchform.includes(n)))
-      // Das Bundesland ist eine Ortsangabe wie der Standort und verlangt
-      // dieselbe Verankerung: „essen" darf Hessen nicht hereinholen.
-      || (t.erlaubt.has('bundesland')
-        && t.ortNadeln.some(n => entry.bundeslandSuchform.includes(n)))
+      || (t.erlaubt.has('bundesland') && trifftBundesland(t, entry))
       // Die Web-Adresse nutzt dieselbe verankerte Nadel — aus demselben Grund:
       // „gmbu" soll `gmbu.de` finden, aber nicht mitten in einer fremden Domain
       // treffen.
@@ -410,6 +409,10 @@ interface SuchTeil {
   nadeln: string[];
   /** Verankerte Formen ALLER Nadeln, leere bereits ausgesiebt. */
   ortNadeln: string[];
+  /** Die Länder-Kürzel, auf die sich dieser Teil auflösen lässt (gerahmt).
+   *  Leer = der Teil benennt kein Bundesland, dann sucht `trifftBundesland`
+   *  verankert weiter. */
+  blNadeln: string[];
   /** Der Bereich — oder das eine Feld, wenn der Teil eines nennt. */
   erlaubt: ReadonlySet<Trefferfeld>;
   /**
@@ -447,6 +450,10 @@ function anfrageSuchTeile(
         wort,
         nadeln: baueNadeln(wort, stammSuche && !exakt, aktiveVarianten),
         ortNadeln: verankere([wort]),
+        // Aus dem ROHEN Wort, nicht aus den Nadeln: der Stamm von „Sachsen"
+        // benennt kein Land mehr, und ein halb getipptes Wort soll bewusst in
+        // den Rückfall laufen.
+        blNadeln: bundeslandNadeln([wort]),
         erlaubt: t.feld ? new Set<Trefferfeld>([t.feld]) : bereichsFelder,
         pflicht: false,
         exakt,
@@ -480,12 +487,47 @@ function planSuchTeile(
         wort: p.begriff.toLowerCase(),
         nadeln,
         ortNadeln: verankere(nadeln),
+        // Hier zählen die Schreibweisen mit: ein Frageplan nennt „Sachsen" und
+        // „SN" als zwei Nadeln DESSELBEN Leitbegriffs.
+        blNadeln: bundeslandNadeln([p.begriff, ...nadeln]),
         erlaubt: p.feld ? new Set<Trefferfeld>([p.feld]) : bereichsFelder,
         pflicht: p.pflicht,
         exakt: false,
       };
     })
     .filter(t => t.nadeln.length > 0);
+}
+
+/**
+ * Trifft dieser Suchteil das Bundesland des Eintrags?
+ *
+ * **Erst vergleichen, dann suchen.** Löst sich das gefragte Wort auf eines der
+ * 16 Länder auf — egal ob als Kürzel oder als Name getippt —, wird genau dieses
+ * Land verglichen. Nur was sich NICHT auflöst (halb getippt, fremder Wert),
+ * fällt auf die verankerte Suche zurück, damit die Suche beim Tippen weiter
+ * etwas zeigt.
+ *
+ * Der Grund ist eine Eigenheit des Vokabulars: „Sachsen" steckt in
+ * „Sachsen-Anhalt", und die Verankerung am Wortanfang trennt die beiden nicht —
+ * `bl:Sachsen` lieferte am Bestand 3 278 statt 2 742 Treffer, darunter 536
+ * Anträge aus Sachsen-Anhalt (v4.83). Wer ein Land aus der Vorschlagsliste
+ * wählt, meint dieses Land, nicht seinen Namensvetter.
+ */
+function trifftBundesland(t: SuchTeil, entry: AntragTextEntry): boolean {
+  if (t.blNadeln.length > 0) return t.blNadeln.some(n => entry.bundeslandCodes.includes(n));
+  return t.ortNadeln.some(n => entry.bundeslandSuchform.includes(n));
+}
+
+/** Die aufgelösten Länder-Kürzel eines Suchteils, gerahmt und ohne Dubletten.
+ *  Leer, sobald kein Wort ein Bundesland benennt — dann bleibt es beim
+ *  Rückfall. */
+function bundeslandNadeln(woerter: readonly string[]): string[] {
+  const out: string[] = [];
+  for (const w of woerter) {
+    const n = bundeslandCodeNadel(bundeslandCode(w));
+    if (n.length > 0 && !out.includes(n)) out.push(n);
+  }
+  return out;
 }
 
 /** Verankerte Formen für Standort, Web-Adresse und Wahlkreis. Leere Nadeln
@@ -643,7 +685,7 @@ function feldZuordnung(
     merke('notiz', in_(entry.notizLower));
     merke('domain', t.ortNadeln.some(n => entry.domainSuchform.includes(n)));
     merke('standort', t.ortNadeln.some(n => entry.standortSuchform.includes(n)));
-    merke('bundesland', t.ortNadeln.some(n => entry.bundeslandSuchform.includes(n)));
+    merke('bundesland', trifftBundesland(t, entry));
     merke('wahlkreis', t.ortNadeln.some(n => entry.wahlkreisSuchform.includes(n)));
     if (t.pflicht) continue;
     zaehlbar++;
