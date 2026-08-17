@@ -123,7 +123,12 @@ export function FilterSidebarItem({ def, antraege, activeFilters, definitions, v
 
   return (
     <div
-      className="py-2"
+      // `py-1` statt `py-2`: der Abstand ZWISCHEN den Merkmalen war mit 16 px
+      // größer als die Trennlinie brauchte, und in der Leiste zählt jede Zeile —
+      // gemessen 47,5 px Rasterabstand je zugeklapptem Merkmal, jetzt 39,5 px.
+      // Bei zehn Merkmalen sind das zwei zusätzliche sichtbare Zeilen. Die
+      // Klickfläche selbst bleibt unangetastet (`py-1.5` am Knopf, 31 px).
+      className="py-1"
       style={hideHeader ? undefined : { borderBottom: '0.5px solid var(--tf-border)' }}
     >
       {hideHeader ? null : (

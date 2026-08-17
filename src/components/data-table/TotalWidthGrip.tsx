@@ -1,19 +1,23 @@
 /**
  * Griff für die GESAMT-Breite der Tabelle (opt-in über `onTotalWidthChange`).
  *
- * Zwei Gesten, eine Kante:
+ * Zwei Gesten, ein Griff:
  *
- * - **Ziehen** pinnt die Tabelle live auf eine explizite Pixelbreite;
- *   `table-layout: fixed` skaliert alle Spalten proportional mit.
+ * - **Ziehen** pinnt den KASTEN live auf eine explizite Pixelbreite. Die Tabelle
+ *   darin bleibt in ihrem Modus und füllt ihn aus — `table-layout: fixed`
+ *   skaliert alle Spalten proportional mit, unter dem Lesbarkeits-Boden greift
+ *   der waagerechte Scrollbalken. Gepinnt wird also, wo die Tabelle AUFHÖRT,
+ *   nicht wie breit sie innerhalb eines gleich breiten Rahmens ist (vorher blieb
+ *   rechts der Rest des Rahmens als leere Fläche stehen).
  * - **Klick** löst `onKlick` aus. Was das bedeutet, entscheidet der Aufrufer
  *   (`SortableTable`): gepinnte Breite verwerfen bzw. zwischen „Spalten teilen
  *   sich die Breite" und „Spalten auf Inhaltsbreite" umschalten.
  *
  * Der frühere Doppelklick-Reset ist darin aufgegangen — mit Klick UND Doppelklick
- * auf derselben Kante hätte jede Umschaltung erst den Doppelklick abwarten müssen.
+ * auf demselben Griff hätte jede Umschaltung erst den Doppelklick abwarten müssen.
  *
  * **Klick ist nicht Ziehen.** Ohne Schwelle committet jeder Mouseup auf dem Griff
- * eine Breite — ein bloßer Klick pinnte die Tabelle dann auf ihre aktuelle Breite,
+ * eine Breite — ein bloßer Klick pinnte den Kasten dann auf seine aktuelle Breite,
  * und die Klick-Geste käme nie durch. Erst ab `DRAG_SCHWELLE` gilt eine Geste als
  * Ziehen; danach schluckt der Griff das nachfolgende `click`-Ereignis. Dieselbe
  * Mechanik wie bei den Spaltengriffen (`useColumnResize`).
@@ -24,14 +28,10 @@
  * folgt dem Cursor beim Ziehen nicht mehr sichtbar mit. Die Arithmetik
  * (`startWidth + Δx`) bleibt davon unberührt.
  *
- * Der Startwert kommt aus der aktuell GERENDERTEN Tabellenbreite
- * (`offsetWidth`) — kein Sprung beim Greifen, egal ob vorher Default oder schon
- * gepinnt. Beim Greifen schaltet die Tabelle sofort auf eine explizite Breite
- * um: `min-width` weg (sonst kann sie nicht unter ihren Boden schrumpfen) und
- * `flex: 0 0 auto` (sonst staucht die Flex-Zeile sie beim Verbreitern wieder auf
- * die Container-Breite zurück). Die Flex-Zeile selbst geht dabei auf
- * `max-content`: im Einpass-Modus ist sie `w-full`, und darin hätte ein
- * Verbreitern über den Container hinaus keinen Platz zu wachsen.
+ * Der Startwert kommt aus der aktuell GERENDERTEN Kastenbreite (`offsetWidth`) —
+ * kein Sprung beim Greifen, egal ob vorher ungepinnt, gepinnt oder auf `100%`
+ * gedeckelt. Mehr als diese eine Zahl braucht das Ziehen nicht: der Kasten trägt
+ * die Breite, alles darin ist Folge.
  */
 import { useCallback, useRef, type ReactNode } from 'react';
 import { DRAG_SCHWELLE } from './useColumnResize';
@@ -45,9 +45,8 @@ export interface TotalWidthGripProps {
   titel: string;
   minTotalWidth: number;
   maxTotalWidth: number;
-  tableRef: { current: HTMLTableElement | null };
-  /** Flex-Zeile, die Tabelle + Griff trägt (siehe Dateikopf). */
-  wrapperRef: { current: HTMLDivElement | null };
+  /** Der äußere Kasten (Rahmen + Scroller + Griff) — er trägt die Breite. */
+  kastenRef: { current: HTMLDivElement | null };
 }
 
 export function TotalWidthGrip({
@@ -56,8 +55,7 @@ export function TotalWidthGrip({
   titel,
   minTotalWidth,
   maxTotalWidth,
-  tableRef,
-  wrapperRef,
+  kastenRef,
 }: TotalWidthGripProps): React.ReactElement {
   // Überlebt den Mouseup, damit das nachfolgende `click` weiß, dass es zu einem
   // Ziehen gehörte. Ein Ref, kein State: eine Zustandsänderung mitten in der
@@ -68,9 +66,8 @@ export function TotalWidthGrip({
     (e: React.MouseEvent<HTMLDivElement>): void => {
       e.preventDefault();
       e.stopPropagation();
-      const table = tableRef.current;
-      const wrapper = wrapperRef.current;
-      const startWidth = table ? table.offsetWidth : minTotalWidth;
+      const kasten = kastenRef.current;
+      const startWidth = kasten ? kasten.offsetWidth : minTotalWidth;
       const startX = e.clientX;
       let latestWidth = startWidth;
       let bewegt = false;
@@ -79,21 +76,22 @@ export function TotalWidthGrip({
       function onMove(ev: MouseEvent): void {
         const dx = ev.clientX - startX;
         if (!bewegt) {
+          // Erst ab der Schwelle überhaupt anfassen — vor ihr wäre ein bloßer
+          // Klick als sichtbares Zucken zu sehen.
           if (Math.abs(dx) < DRAG_SCHWELLE) return;
           bewegt = true;
           gezogenRef.current = true;
-          // Erst jetzt aus dem Layout ausklinken — vor der Schwelle wäre ein
-          // bloßer Klick sonst als sichtbares Zucken zu sehen.
-          if (wrapper) wrapper.style.width = 'max-content';
-          if (table) {
-            table.style.minWidth = '0px';
-            table.style.flex = '0 0 auto';
-            table.style.width = `${startWidth}px`;
-          }
+          // Denselben Deckel wie der Commit (`leiteKastenStil`) schon während
+          // des Zugs: sonst schöbe ein Ziehen über den verfügbaren Platz hinaus
+          // die Seite auf und der Kasten spränge beim Loslassen zurück.
+          if (kasten) kasten.style.maxWidth = '100%';
         }
         const next = Math.min(maxTotalWidth, Math.max(minTotalWidth, startWidth + dx));
         latestWidth = next;
-        if (table) table.style.width = `${next}px`;
+        // Der Kasten ist im ungepinnten Zustand `w-full`; eine Inline-Breite
+        // schlägt die Klasse, der Commit rendert sie danach als Stil-Prop
+        // derselben Eigenschaft — kein Zwischenbild, kein Aufräumen nötig.
+        if (kasten) kasten.style.width = `${next}px`;
       }
       function onUp(): void {
         document.removeEventListener('mousemove', onMove);
@@ -101,17 +99,14 @@ export function TotalWidthGrip({
         document.body.style.cursor = '';
         document.body.style.userSelect = '';
         if (!bewegt) return;
-        // Erst committen, dann die Zeile zurückgeben: der Commit rendert sie mit
-        // `w-max` neu, die Inline-Breite kann also ohne Zwischenbild weichen.
         onTotalWidthChange(Math.round(latestWidth));
-        if (wrapper) wrapper.style.width = '';
       }
       document.addEventListener('mousemove', onMove);
       document.addEventListener('mouseup', onUp);
       document.body.style.cursor = 'col-resize';
       document.body.style.userSelect = 'none';
     },
-    [onTotalWidthChange, minTotalWidth, maxTotalWidth, tableRef, wrapperRef],
+    [onTotalWidthChange, minTotalWidth, maxTotalWidth, kastenRef],
   );
 
   const onClick = useCallback((): void => {
@@ -130,14 +125,16 @@ export function TotalWidthGrip({
       title={titel}
       onMouseDown={startTotalResize}
       onClick={onClick}
-      // KEIN `h-full`: als Flex-Kind eines `items-stretch`-Wrappers ohne feste
-      // Höhe löst `height:100%` auf `auto` auf — der Griff war damit 15px hoch
-      // (die Höhe seiner drei Punkte) statt so hoch wie die Tabelle. Das
-      // Strecken macht `align-items: stretch` von selbst.
-      // 6px: gleich breit wie die Spaltengriffe (`TableHeadRows`). Er trägt
-      // jetzt zwei Gesten statt einer — eine Kante, die man auch treffen will,
-      // ohne zu zielen.
-      className="shrink-0 w-[6px] flex items-center justify-center cursor-col-resize bg-[var(--tf-bg-secondary)] hover:bg-[var(--tf-border-hover)]"
+      // `self-start` + feste Höhe: nur drei Punkte oben rechts, KEIN Streifen
+      // über die ganze Kastenhöhe. Der `items-stretch`-Kasten würde ihn sonst
+      // von selbst strecken — und ein senkrechter Streifen direkt neben dem
+      // senkrechten Scrollbalken liest sich als zweiter Balken.
+      // Die 6px-Spalte bleibt trotzdem über die volle Höhe reserviert (Breite
+      // eines Flex-Kindes, unabhängig von seiner Höhe): so liegt der Griff nie
+      // über dem Scrollbalken. 6px ist zugleich die Breite der Spaltengriffe
+      // (`TableHeadRows`).
+      // Sichtbar UND anfassbar nur oben — was man sieht, ist die Geste.
+      className="shrink-0 self-start w-[6px] h-[30px] flex items-center justify-center cursor-col-resize bg-[var(--tf-bg-secondary)] hover:bg-[var(--tf-border-hover)]"
       style={{ borderLeft: '0.5px solid var(--tf-border)', touchAction: 'none' }}
     >
       <GriffPunkte />

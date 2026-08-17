@@ -419,21 +419,11 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
               <QuickfilterToolbar />
             </div>
             <div className="shrink-0 flex items-center justify-end gap-2 flex-wrap">
-              {/* Die Trefferzahl steht bei den Werkzeugen statt in einer eigenen
-                  Zeile darunter, wo sie allein über der Tabelle hing (v4.70).
-                  Sie ist hier kein Nachbar der Quickfilter-Segmente, sondern die
-                  andere Seite derselben `justify-between`-Zeile — der
-                  Umbruch-Befund von damals (ein Geschwister der Segmente bricht
-                  IMMER auf eine eigene Zeile um) trifft sie deshalb nicht. */}
-              {treffer.tv > 0 ? (
-                <span
-                  className="shrink-0 pr-1 text-[12px] text-[var(--tf-text-tertiary)] tabular-nums whitespace-nowrap"
-                  title={trefferZahlTitel(treffer)}
-                >
-                  {formatTrefferZahl(treffer)}
-                </span>
-              ) : null}
-              {/* Ansicht, Gruppierung und Beendet-Sichtbarkeit teilen sich EIN
+              {/* Die Trefferzahl steht NICHT mehr hier: sie beschreibt das
+                  Ergebnis, nicht die Einstellungen, und stand in der Filterzeile
+                  zwischen lauter Schaltern. Sie steht jetzt als Statuszeile unter
+                  der Tabelle — dort, wo Tabellenprogramme sie führen. */}
+              {/* Ansichtsform, Gruppierung und Beendet-Sichtbarkeit teilen sich EIN
                   Menü — als drei Dropdowns belegten sie rund 640px und drängten
                   die Quickfilter in einen Umbruch. Welche Achse gerade gilt,
                   entscheidet `baueDarstellungsAchsen`. */}
@@ -627,6 +617,19 @@ export function AntraegeMain({ narrow = false, onCollapse }: Props): React.React
               onZeilenMeldung={setZeilenMeldung}
             />
           )}
+          {/* Statuszeile unter der Liste — dieselbe Stelle wie in
+              Tabellenprogrammen: links unten, außerhalb des Tabellenkastens,
+              beim Ergebnis statt bei den Schaltern. Bei stehendem Kopf scrollt
+              die Spalte nicht, die Zeile bleibt also stehen; sonst steht sie am
+              Ende des gescrollten Inhalts. */}
+          {treffer.tv > 0 ? (
+            <div
+              className="shrink-0 pt-1.5 text-[11.5px] text-[var(--tf-text-tertiary)] tabular-nums"
+              title={trefferZahlTitel(treffer)}
+            >
+              {formatTrefferZahl(treffer)}
+            </div>
+          ) : null}
         </div>
       </div>
       {/* Der Anlege-Dialog hängt an der Seite, nicht am Picker: der schließt bei

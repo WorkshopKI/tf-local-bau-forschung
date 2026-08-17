@@ -104,7 +104,11 @@ export function AntraegeHeader({ filterOpen, onToggleFilter, listeSichtbar }: Pr
     // Trennlinie. Der Abstand gilt in BEIDEN Zuständen — im Fokus-Modus (ohne
     // Such-Zeile) trug ihn früher ein eigenes Padding am Titel-Block.
     <div
-      className="shrink-0 pt-4 pb-3"
+      // Knapper als früher (`pt-4 pb-3`): der Kopf steht über der Filterleiste,
+      // und was er an Höhe nimmt, fehlt ihr unten — gemessen 145 px für drei
+      // Zeilen à 32 px. Die 8 px hier sind eine viertel Filterzeile, die
+      // Ersparnis am Merkmals-Raster (`FilterSidebarItem`) trägt den Rest.
+      className="shrink-0 pt-3 pb-2"
       style={{ borderBottom: '0.5px solid var(--tf-border)' }}
     >
       {/* Kopfzeile über die VOLLE Blattbreite (nur px-8), nicht in der
@@ -118,7 +122,7 @@ export function AntraegeHeader({ filterOpen, onToggleFilter, listeSichtbar }: Pr
             Kuerzel-Filter aktiv ist — auch wenn die Quickfilter-Toolbar
             darunter expandiert ist. */}
         <PageHeader
-          className={listeSichtbar ? 'mb-3' : ''}
+          className={listeSichtbar ? 'mb-2' : ''}
           title={menuLabel('antraege', 'Förderanträge')}
           meta={listeSichtbar ? (
             <span className="inline-flex items-center gap-1.5 flex-wrap">

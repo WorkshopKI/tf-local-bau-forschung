@@ -19,6 +19,15 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.75 — 2026-08
+
+### Verbesserungen
+- Wer die Fördertabelle schmaler zieht, macht jetzt die **ganze** Tabelle schmaler: der Rahmen endet mit der letzten Spalte, statt eine leere Fläche einzurahmen.
+- Der Griff dafür sind wieder **drei Punkte oben rechts** an der Tabelle — der Streifen über die volle Höhe neben dem Scrollbalken ist weg.
+- Das Menü **„Darstellung" heißt jetzt „Ansicht"**.
+- Die Trefferzahl („60 Teilvorhaben · 40 Verbund-Zeilen") steht nun **unten links unter der Liste** statt zwischen den Filtern.
+- In der **Filterleiste sind rund zwei Merkmale mehr sichtbar**: Seitenkopf und Merkmals-Abstände sind knapper.
+
 ## v4.74 — 2026-08
 
 ### Verbesserungen

@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.75.0 — Die Tabelle wird als Ganzes schmaler, der Griff sitzt oben rechts (August 2026)
+
+MINOR — Gemeldet: „wenn ich die Fördertabelle schmal mache sollte kein weißer Bereich entstehen, sondern die ganze Tabelle schmaler werden" und „den Drag über die gesamte Höhe wegnehmen, wie früher nur die 3 Punkte oben rechts — der Drag und der Scrollbalken vertragen sich visuell nicht". Dazu drei kleinere Bitten zur selben Seite: „Darstellung" heißt jetzt „Ansicht", die Trefferzahl gehört nicht in die Filterzeile, und die Filterleiste braucht mehr Höhe.
+
+- **Ein Pin ist die Breite des KASTENS**, nicht die der Tabelle — der Rahmen endet mit der letzten Spalte, die leere Fläche darin entfällt konstruktiv ([tableLayout.ts](src/components/data-table/tableLayout.ts), [SortableTable.tsx](src/components/data-table/SortableTable.tsx))
+- Damit nur noch **zwei Größen-Modi** (Einpassen · Scroll); der Sonderzweig im Spalten-Drag entfällt ([useColumnResize.ts](src/components/data-table/useColumnResize.ts))
+- **Der Griff sind drei Punkte oben rechts** statt eines Streifens neben dem Scrollbalken — sichtbar und anfassbar nur dort ([TotalWidthGrip.tsx](src/components/data-table/TotalWidthGrip.tsx))
+- **„Darstellung" heißt „Ansicht"**; die gleichnamige Achse darin wurde zu „Ansichtsform" ([DarstellungDropdown.tsx](src/components/ui/DarstellungDropdown.tsx), [darstellungsAchsen.ts](src/plugins/antraege/darstellungsAchsen.ts))
+- **Die Trefferzahl steht als Statuszeile unter der Liste**, und die Filterleiste gewinnt ~100px Höhe (Kopf 145 → 133px, Merkmals-Raster 47,5 → 39,5px) ([AntraegeMain.tsx](src/plugins/antraege/AntraegeMain.tsx), [FilterSidebarItem.tsx](src/plugins/antraege/filter/FilterSidebarItem.tsx))
+
 ### v4.74.1 — Bestandszahl rueckt an den Titel (August 2026)
 
 PATCH — Gemeldet: „den Text ‚Index: 14.225 Anträge' nach oben nehmen, direkt hinter den Titel der Seite; der Text ‚14.005 Textabschnitte' kann weg". Die Optionszeile trägt sonst nur Regler — Dinge, die man verstellt; die Größe des Index verstellt niemand.

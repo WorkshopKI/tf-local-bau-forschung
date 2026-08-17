@@ -134,8 +134,8 @@ describe('DarstellungDropdown', () => {
 
   it('trägt im Standardzustand nur seinen Namen — der Knopf bleibt schmal', () => {
     const html = renderToStaticMarkup(h(DarstellungDropdown, { achsen, onChange: noop }));
-    expect(html).toContain('Darstellung');
-    expect(html).not.toContain('Darstellung:');
+    expect(html).toContain('Ansicht');
+    expect(html).not.toContain('Ansicht:');
     expect(html).not.toContain('Bereich');
   });
 
@@ -144,7 +144,7 @@ describe('DarstellungDropdown', () => {
       achsen: [{ ...achsen[0]!, value: 'bereich' }],
       onChange: noop,
     }));
-    expect(html).toContain('Darstellung:');
+    expect(html).toContain('Ansicht:');
     expect(html).toContain('Bereich');
     // Eine einzelne Abweichung bekommt keinen Zähler.
     expect(html).not.toContain('+1');

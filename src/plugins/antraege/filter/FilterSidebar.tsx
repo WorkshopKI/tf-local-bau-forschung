@@ -172,7 +172,7 @@ export function FilterSidebar({ antraege, search, onSearchChange, hideSearch = f
       {/* Header */}
       <div
         className="shrink-0 flex items-center justify-between gap-2"
-        style={{ padding: '12px 12px 10px 16px', borderBottom: '0.5px solid var(--tf-border)' }}
+        style={{ padding: '10px 12px 8px 16px', borderBottom: '0.5px solid var(--tf-border)' }}
       >
         {/* Der Verlauf steht DIREKT beim Titel, nicht bei den Zustands-Anzeigen
             rechts: er ist ein täglich benutzter Einstieg, kein Statuswert. Die
@@ -253,7 +253,7 @@ export function FilterSidebar({ antraege, search, onSearchChange, hideSearch = f
           (gleicher `activeView`, gleiche Zähler, gleiche Beschriftung). Dasselbe
           Wort stand dadurch dreimal auf einem Bildschirm. Der Verlauf sitzt jetzt
           im Kopf der Leiste, nicht mehr in ihrem Rumpf. */}
-      <div className="flex-1 overflow-y-auto" style={{ padding: '10px 12px 8px' }}>
+      <div className="flex-1 overflow-y-auto" style={{ padding: '6px 12px 8px' }}>
         {visibleDefs.length === 0 ? (
           <div className="py-6 text-center text-[12px] text-[var(--tf-text-tertiary)]">
             Keine Filter vorhanden.

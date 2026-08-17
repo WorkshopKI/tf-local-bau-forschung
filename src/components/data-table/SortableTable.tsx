@@ -7,7 +7,7 @@
  * | Datei | Verantwortung |
  * |---|---|
  * | `tableSizing.ts` | Prozent-`<col>`, Wunsch-/Bodenbreite (pur) |
- * | `tableLayout.ts` | die drei Größen-Modi als Stil + Wrapper-Klassen (pur) |
+ * | `tableLayout.ts` | Größen-Modi + gepinnte Kastenbreite als Stil (pur) |
  * | `useColumnResize.ts` | Spalten-Drag: `scale`-Rückrechnung, Live-DOM, Klick-Guard |
  * | `TotalWidthGrip.tsx` | Griff für die Gesamtbreite |
  * | `TableHeadRows.tsx` | Kopfzeile: Sortierung, Filter, Resize-Griffe |
@@ -15,8 +15,9 @@
  *
  * `table-layout: fixed`; die `<col>` werden IMMER als Prozent ihrer Pixel-Summe
  * gerendert (Begründung + Messung: `tableSizing.ts`). Die bevorzugten Breiten
- * bleiben Pixel im State, nur das Rendern rechnet um. Die drei Größen-Modi
- * (Einpassen / Gepinnt / Scroll) stehen in `tableLayout.ts`.
+ * bleiben Pixel im State, nur das Rendern rechnet um. Die Größen-Modi
+ * (Einpassen / Scroll) stehen in `tableLayout.ts` — dort steht auch, warum eine
+ * gepinnte Breite am KASTEN hängt und nicht an der Tabelle.
  *
  * Spalten mit `wrap: false` (explizit) zeigen weiter ellipsis statt umbrechen —
  * fuer kompakte Mono-Felder, Buttons, Indikatoren.
@@ -37,7 +38,7 @@
  */
 import { useCallback, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { computeTableSizing, FUELLER_KEY, RESPONSIVE_MIN_WIDTH } from './tableSizing';
-import { leiteModus, leiteTabellenStil, wrapperKlassen } from './tableLayout';
+import { leiteModus, leiteTabellenStil, leiteKastenStil, wrapperKlassen } from './tableLayout';
 import { useAutoColumnWidths } from './messung/useAutoColumnWidths';
 import { useColumnResize } from './useColumnResize';
 import { TotalWidthGrip } from './TotalWidthGrip';
@@ -145,11 +146,12 @@ export interface SortableTableProps<T> {
    *  weiterhin den Container, wenn die Summe schmaler als der Container ist.
    *  Default `false` = bisheriges fill-Verhalten (alle Spalten teilen sich 100 %). */
   fitContentWidth?: boolean;
-  /** Opt-in „Gesamt-Breite"-Griff am rechten Tabellenrand. Aktiv nur wenn
-   *  `onTotalWidthChange` gesetzt ist. `totalWidth` = explizite Pixel-Breite der
-   *  GANZEN Tabelle; die Spalten skalieren proportional (CSS `table-layout:
-   *  fixed`). `null` = Default: Tabelle füllt den Container (wie
-   *  `fitContentWidth`). Backward-kompatibel: Caller ohne diese Props bekommen
+  /** Opt-in „Gesamt-Breite"-Griff oben rechts an der Tabelle. Aktiv nur wenn
+   *  `onTotalWidthChange` gesetzt ist. `totalWidth` = explizite Pixel-Breite des
+   *  KASTENS (Rahmen, Scroller und Griff eingeschlossen); die Tabelle darin
+   *  bleibt in ihrem Modus und füllt ihn aus, die Spalten skalieren proportional
+   *  (CSS `table-layout: fixed`). `null` = Default: der Kasten füllt den
+   *  verfügbaren Platz. Backward-kompatibel: Caller ohne diese Props bekommen
    *  keinen Griff. */
   totalWidth?: number | null;
   /** Commit on mouseup (Pixel) bzw. `null` bei Klick auf den Griff (Pin verwerfen). */
@@ -319,7 +321,7 @@ export function SortableTable<T>({
     optionen: { gefilterteKeys },
   });
   const gemessen = auto?.breiten;
-  const modus = leiteModus(totalWidthActive, fitContentWidth);
+  const modus = leiteModus(fitContentWidth);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   // Der Scroller wird an ZWEI Stellen gebraucht: intern für die Breitenmessung,
   // extern für Scroll-Stand und Beobachtungs-Bereich. `useCallback`, damit React
@@ -354,9 +356,9 @@ export function SortableTable<T>({
   );
   const colRefs = useRef<Map<string, HTMLTableColElement>>(new Map());
   const tableRef = useRef<HTMLTableElement | null>(null);
-  // Die Flex-Zeile, die Tabelle + Griff trägt. Der Griff klinkt sie beim Ziehen
-  // kurz auf `max-content` aus (Begründung im Dateikopf von `TotalWidthGrip`).
-  const wrapperRef = useRef<HTMLDivElement | null>(null);
+  // Der äußere Kasten — er trägt die gepinnte Breite, live beim Ziehen und als
+  // Stil nach dem Commit (Begründung im Dateikopf von `TotalWidthGrip`).
+  const kastenRef = useRef<HTMLDivElement | null>(null);
 
   const { startResize } = useColumnResize({
     columns,
@@ -367,14 +369,13 @@ export function SortableTable<T>({
     sizing,
     responsiveMinWidth,
     fitContentWidth,
-    totalWidthActive,
     minColumnWidth,
     onColumnWidthChange,
     colRefs,
     tableRef,
   });
 
-  const tableStyle = leiteTabellenStil({ modus, sizing, totalWidth });
+  const tableStyle = leiteTabellenStil({ modus, sizing });
 
   // Der Klick am Griff räumt zuerst auf: eine gepinnte Breite ist die speziellste
   // Ansage, sie geht als erste zurück. Erst ohne Pin schaltet er die Darstellung
@@ -396,9 +397,15 @@ export function SortableTable<T>({
   // mit der Tabelle aus dem Sichtfeld, sobald mehr Spalten da sind als hinein-
   // passen (gemessen: 731px rechts außerhalb). Preis: er folgt dem Cursor beim
   // Ziehen nicht mehr mit; die Drag-Arithmetik (`startWidth + Δx`) bleibt
-  // unberührt. Rahmen + Radius trägt deshalb der äußere Wrapper.
+  // unberührt. Rahmen + Radius trägt deshalb der äußere Kasten.
+  //
+  // Und dieser Kasten trägt auch die gepinnte Breite: `w-full`, solange keine
+  // gesetzt ist, sonst genau die gezogene. Die Tabelle darin bleibt in ihrem
+  // Modus und füllt ihn aus — deshalb endet der Rahmen mit der letzten Spalte,
+  // statt eine leere Fläche neben einer geschrumpften Tabelle einzurahmen.
   return (
     <div
+      ref={kastenRef}
       className={
         'w-full flex items-stretch rounded-[12px] overflow-hidden'
         // Der Kasten nimmt die Resthöhe seines Elternteils, statt mit dem Inhalt
@@ -406,7 +413,10 @@ export function SortableTable<T>({
         // könnte.
         + (stickyHeader ? ' flex-1 min-h-0' : '')
       }
-      style={{ border: '0.5px solid var(--tf-border)' }}
+      style={{
+        border: '0.5px solid var(--tf-border)',
+        ...leiteKastenStil(totalWidthActive ? totalWidth : null),
+      }}
     >
       <div
         ref={setScrollEl}
@@ -422,7 +432,7 @@ export function SortableTable<T>({
         // gar nicht und der Streifen wäre grundlos.
         style={stickyHeader ? { scrollbarGutter: 'stable' } : undefined}
       >
-        <div ref={wrapperRef} className={wrapperKlassen(modus)}>
+        <div className={wrapperKlassen(modus)}>
           <table ref={tableRef} className="text-[12.5px]" style={tableStyle}>
             <colgroup>
               {columns.map(c => {
@@ -507,8 +517,7 @@ export function SortableTable<T>({
           titel={griffTitel}
           minTotalWidth={minTotalWidth}
           maxTotalWidth={maxTotalWidth}
-          tableRef={tableRef}
-          wrapperRef={wrapperRef}
+          kastenRef={kastenRef}
         />
       ) : null}
     </div>

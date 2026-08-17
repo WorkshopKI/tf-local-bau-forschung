@@ -40,8 +40,6 @@ export interface ColumnResizeParams<T> {
   sizing: TableSizing;
   responsiveMinWidth: number;
   fitContentWidth: boolean;
-  /** Bei gepinnter Gesamtbreite bleibt die Tabellenbreite fix; nur die Gewichte verschieben sich. */
-  totalWidthActive: boolean;
   minColumnWidth: number;
   onColumnWidthChange?: (key: string, width: number) => void;
   colRefs: { current: Map<string, HTMLTableColElement> };
@@ -55,7 +53,7 @@ export interface ColumnResizeResult {
 export function useColumnResize<T>(p: ColumnResizeParams<T>): ColumnResizeResult {
   const {
     columns, columnWidths, gemessen, wunsch, containerBreite, sizing, responsiveMinWidth,
-    fitContentWidth, totalWidthActive, minColumnWidth, onColumnWidthChange, colRefs, tableRef,
+    fitContentWidth, minColumnWidth, onColumnWidthChange, colRefs, tableRef,
   } = p;
   const resizeEnabled = onColumnWidthChange !== undefined;
 
@@ -110,10 +108,6 @@ export function useColumnResize<T>(p: ColumnResizeParams<T>): ColumnResizeResult
         // schöbe die letzte Spalte aus dem Bild.
         const fueller = colRefs.current.get(FUELLER_KEY);
         if (fueller) fueller.style.width = live.fuellerPercent ?? '0%';
-        // Bei gepinnter Gesamtbreite bleibt die Tabelle auf `totalWidth` — die
-        // geänderten Prozent-Gewichte verteilen sich darin (Spalte breiter =
-        // Nachbarn geben ab). Sonst wächst die Wunschbreite mit.
-        if (totalWidthActive) return;
         const table = tableRef.current;
         if (table) {
           table.style.width = `${live.desiredWidth}px`;
@@ -135,7 +129,7 @@ export function useColumnResize<T>(p: ColumnResizeParams<T>): ColumnResizeResult
     },
     [
       resizeEnabled, minColumnWidth, onColumnWidthChange, columns, columnWidths, gemessen,
-      wunsch, containerBreite, totalWidthActive, sizing, responsiveMinWidth, fitContentWidth,
+      wunsch, containerBreite, sizing, responsiveMinWidth, fitContentWidth,
       colRefs, tableRef,
     ],
   );

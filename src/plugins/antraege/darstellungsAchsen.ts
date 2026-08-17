@@ -99,7 +99,9 @@ export function baueDarstellungsAchsen(e: DarstellungEingabe): DarstellungAchse<
   achsen.push({
     id: 'ansichtsform',
     art: 'segment',
-    label: 'Ansicht',
+    // „Ansichtsform", nicht „Ansicht": so heißt seit v4.75 das Menü selbst, und
+    // eine Zeile mit dem Namen ihrer Überschrift erklärt nichts mehr.
+    label: 'Ansichtsform',
     options: VIEW_MODE_OPTIONS,
     value: e.viewMode,
     standard: DEFAULT_VIEW_MODE,

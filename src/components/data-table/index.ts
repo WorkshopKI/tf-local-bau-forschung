@@ -68,6 +68,7 @@ export {
 export {
   leiteModus,
   leiteTabellenStil,
+  leiteKastenStil,
   wrapperKlassen,
   istScrollModus,
   type TabellenModus,

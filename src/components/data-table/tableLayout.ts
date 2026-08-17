@@ -1,46 +1,60 @@
 /**
- * Größen-Modi der `SortableTable` — pure Ableitung von Modus, Tabellen-Stil und
- * Wrapper-Klassen. Kein DOM, damit die drei Modi testbar sind; warum die `<col>`
- * überhaupt in Prozent gerendert werden, steht in `tableSizing.ts`.
+ * Größen-Modi der `SortableTable` — pure Ableitung von Modus, Tabellen-Stil,
+ * Wrapper-Klassen und Kastenbreite. Kein DOM, damit die Modi testbar sind; warum
+ * die `<col>` überhaupt in Prozent gerendert werden, steht in `tableSizing.ts`.
  *
  * | Modus | Wann | Tabelle |
  * |---|---|---|
- * | **einpassen** (Default) | kein `fitContentWidth`, keine gepinnte Breite | füllt den Container per `flex: 1 1 auto` — wächst UND schrumpft, Boden `floorWidth`, darunter Scroll |
- * | **gepinnt** | `totalWidth` gesetzt (Griff gezogen) | exakt diese Pixelbreite, Spalten skalieren proportional |
+ * | **einpassen** (Default) | kein `fitContentWidth` | füllt den Container per `flex: 1 1 auto` — wächst UND schrumpft, Boden `floorWidth`, darunter Scroll |
  * | **scroll** | `fitContentWidth` | Wunschbreite in Pixeln, horizontaler Scroll statt Stauchen |
  *
+ * **Die gepinnte Breite ist die des KASTENS, nicht die der Tabelle**
+ * (`leiteKastenStil`). Sie steht deshalb neben den Modi und nicht als dritter:
+ * die Tabelle bleibt in ihrem Modus und füllt den schmaleren Kasten aus. Vorher
+ * pinnte der Griff die Tabelle, während der Kasten containerbreit stehen blieb —
+ * zwischen letzter Spalte und Rahmen klaffte die gezogene Breite als leere
+ * Fläche.
+ *
  * Der Wrapper muss zum Modus passen: im Einpass-Modus füllt die Flex-Zeile den
- * Container (`w-full`), in den Scroll-Modi ist sie `w-max` und darf überlaufen.
+ * Container (`w-full`), im Scroll-Modus ist sie `w-max` und darf überlaufen.
  * Umgekehrt gilt: in einer `w-max`-Zeile darf die Tabellenbreite NIE prozentual
  * sein — das löst zirkulär auf (gemessen: Zeile wächst auf ~1.000.000px).
  */
 import type { CSSProperties } from 'react';
 import type { TableSizing } from './tableSizing';
 
-export type TabellenModus = 'gepinnt' | 'scroll' | 'einpassen';
+export type TabellenModus = 'scroll' | 'einpassen';
 
-export function leiteModus(totalWidthActive: boolean, fitContentWidth: boolean): TabellenModus {
-  if (totalWidthActive) return 'gepinnt';
+export function leiteModus(fitContentWidth: boolean): TabellenModus {
   return fitContentWidth ? 'scroll' : 'einpassen';
 }
 
 /** `true`, sobald die Tabelle über den Container hinauswachsen darf. */
 export function istScrollModus(modus: TabellenModus): boolean {
-  return modus !== 'einpassen';
+  return modus === 'scroll';
+}
+
+/**
+ * Breite des äußeren Kastens (Rahmen + Scroller + Griff).
+ *
+ * `null` = keine gepinnte Breite, der Kasten füllt seinen Platz. Sonst genau die
+ * gezogene Pixelbreite — gedeckelt auf `100%`, weil ein Pin breiter als der
+ * verfügbare Platz sonst die Seite aufspannte. Der Deckel ist ohne Nebenwirkung
+ * für die Geste: der Griff misst seine Startbreite am GERENDERTEN Kasten, zieht
+ * also aus dem Zustand weiter, den man sieht.
+ */
+export function leiteKastenStil(totalWidth: number | null): CSSProperties {
+  if (totalWidth === null) return {};
+  return { width: `${totalWidth}px`, maxWidth: '100%' };
 }
 
 export interface TabellenStilOptionen {
   modus: TabellenModus;
   sizing: TableSizing;
-  /** Nur im Modus `gepinnt` ausgewertet. */
-  totalWidth: number | null;
 }
 
 export function leiteTabellenStil(o: TabellenStilOptionen): CSSProperties {
   const basis = { tableLayout: 'fixed', borderCollapse: 'collapse' } as const;
-  if (o.modus === 'gepinnt') {
-    return { ...basis, width: `${o.totalWidth}px`, flex: '0 0 auto' };
-  }
   if (o.modus === 'scroll') {
     // `renderWidth`, nicht `desiredWidth`: die `<col>`-Prozente beziehen sich
     // auf genau diese Zahl (bei verteiltem Überschuss die Containerbreite). Wer
@@ -75,7 +89,7 @@ export function leiteTabellenStil(o: TabellenStilOptionen): CSSProperties {
   };
 }
 
-/** Klassen der Flex-Zeile, die Tabelle + Griff trägt. */
+/** Klassen der Flex-Zeile, die die Tabelle trägt. */
 export function wrapperKlassen(modus: TabellenModus): string {
   return istScrollModus(modus)
     ? 'flex items-stretch w-max min-w-full'

@@ -2,9 +2,16 @@
  * EIN Menü für mehrere Darstellungs-Achsen einer Liste (Gruppierung, Dichte,
  * Sichtbarkeit …) — statt je Achse ein eigenes „…: …"-Dropdown in der Toolbar.
  *
- * Der Knopf trägt im Normalfall nur „Darstellung" und ist damit schmaler als
+ * **Sichtbar heißt es „Ansicht"** (seit v4.75), im Code weiter „Darstellung" —
+ * das Wort steht in Datei-, Typ- und Prop-Namen quer durch drei Seiten. Wer den
+ * Knopf sucht, sucht ihn unter `DarstellungDropdown`. Die eine Stelle, an der
+ * das Wort sonst noch sichtbar war, ist mit umgezogen: die Achse „Ansicht" der
+ * Antragsliste heißt jetzt „Ansichtsform", sonst stünde im Menü „Ansicht"
+ * zweimal (Überschrift und erste Zeile).
+ *
+ * Der Knopf trägt im Normalfall nur „Ansicht" und ist damit schmaler als
  * jeder einzelne Vorgänger. Weicht eine Achse ab, steht ihr Wert dahinter
- * („Darstellung: Antrag mit TV"); weichen mehrere ab, folgt die Zahl der
+ * („Ansicht: Antrag mit TV"); weichen mehrere ab, folgt die Zahl der
  * übrigen als „+2" statt einer wachsenden Kette — was gerade anders ist, bleibt
  * sichtbar, ohne dass der Knopf mit jeder Achse breiter wird.
  *
@@ -137,7 +144,7 @@ export function DarstellungDropdown<Id extends string>({
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-controls={open ? menueId : undefined}
-        title={titel ?? 'Darstellung der Liste'}
+        title={titel ?? 'Ansicht der Liste'}
         className={`flex items-center gap-1.5 px-3 py-1.5 text-[12px] text-[var(--tf-text)] rounded hover:bg-[var(--tf-hover)] whitespace-nowrap focus-visible:outline-2 focus-visible:outline-[var(--tf-primary)] focus-visible:outline-offset-1${className ? ` ${className}` : ''}`}
         style={open
           ? { border: '0.5px solid var(--tf-primary)', boxShadow: '0 0 0 2.5px var(--tf-primary-light)' }
@@ -145,7 +152,7 @@ export function DarstellungDropdown<Id extends string>({
       >
         <SlidersHorizontal size={14} className="text-[var(--tf-text-tertiary)]" />
         <span className="text-[var(--tf-text-tertiary)]">
-          Darstellung{alleAufStandard ? '' : ':'}
+          Ansicht{alleAufStandard ? '' : ':'}
         </span>
         {alleAufStandard ? null : <span className="font-medium">{text}</span>}
         {weitere > 0 ? (
@@ -157,7 +164,7 @@ export function DarstellungDropdown<Id extends string>({
         <div
           id={menueId}
           role="dialog"
-          aria-label="Darstellung"
+          aria-label="Ansicht"
           className="absolute top-full right-0 mt-1.5 z-[100] w-[380px] max-w-[calc(100vw-24px)] bg-[var(--tf-bg)] rounded-[var(--tf-radius-lg)] overflow-hidden"
           style={{ border: '0.5px solid var(--tf-border)', boxShadow: 'var(--tf-shadow-dialog)' }}
         >
@@ -169,7 +176,7 @@ export function DarstellungDropdown<Id extends string>({
             }}
           >
             <span className="text-[11px] font-medium uppercase tracking-[0.06em] text-[var(--tf-text-tertiary)]">
-              Darstellung
+              Ansicht
             </span>
             <button
               type="button"
