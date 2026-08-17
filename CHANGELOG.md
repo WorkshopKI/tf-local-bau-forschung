@@ -5,6 +5,12 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.75.1 — Feedback-Knopf sitzt in der Blattecke (August 2026)
+
+PATCH — Gemeldet: „das Feedback-Icon kann etwas weiter runter, so dass es in der Rundung des Blattes liegt". Es stand 14px über der Blattkante und ragte zugleich 4px darüber hinaus — eine Lage, die zu keiner der beiden Kanten gehörte.
+
+- **Der Feedback-Knopf liegt in der Blattecke**: `bottom-1.5` statt `bottom-6` legt ihn nahezu konzentrisch auf den 14px-Eckbogen, rechts und unten je ~4px über die Kante ([FeedbackButton.tsx](src/components/feedback/FeedbackButton.tsx))
+
 ### v4.75.0 — Die Tabelle wird als Ganzes schmaler, der Griff sitzt oben rechts (August 2026)
 
 MINOR — Gemeldet: „wenn ich die Fördertabelle schmal mache sollte kein weißer Bereich entstehen, sondern die ganze Tabelle schmaler werden" und „den Drag über die gesamte Höhe wegnehmen, wie früher nur die 3 Punkte oben rechts — der Drag und der Scrollbalken vertragen sich visuell nicht". Dazu drei kleinere Bitten zur selben Seite: „Darstellung" heißt jetzt „Ansicht", die Trefferzahl gehört nicht in die Filterzeile, und die Filterleiste braucht mehr Höhe.
