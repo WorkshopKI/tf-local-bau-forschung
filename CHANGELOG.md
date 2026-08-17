@@ -5,6 +5,14 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.73.1 — der Wertevorrat führt jedes Bundesland einmal (August 2026)
+
+PATCH — Im Werte-Index des Feldes `standort` stand jedes Bundesland doppelt: ausgeschrieben („Sachsen" 2 742) und als Rohcode („SN" 1 508). Sichtbar in der Vorschlagsliste zu `ort:` und im Reiter „Stöbern". Der Code kam nicht über die Land-Spalten, sondern über einen ORT-Slot — die Quelle `7737-bgl` mappt `PLZ_AFS`, `ORT_AFS` und `BULAND_AFS` auf denselben Schlüssel `ausfuhrende_stelle`, der letzte nicht-leere Schreiber gewinnt.
+
+- **Landescodes werden auch dann ausgeschrieben, wenn sie über einen Ort-Slot ankommen** — `standortVorratWerte` vor `nimmWerte` ([search-corpus.ts](src/plugins/antraege/services/search-corpus.ts))
+- **Nur der Vorrat ändert sich, nicht der Text**: `standort` führt das Kürzel weiter, `ort:SN` findet unverändert ([korpusFelder.test.ts](src/plugins/antraege/__tests__/korpusFelder.test.ts))
+- Am Bestand gemessen (14 225 Sätze): das Kollisionsfeld ist in 7 919 Sätzen belegt, trägt darin ausnahmslos einen Landescode und weicht in **0** Sätzen vom eigenen `BL_AFS` ab — es entfallen genau die 16 Kürzel-Einträge (2 055 → 2 039 Werte), die Zahlen der Namen bleiben gleich
+
 ### v4.73.0 — Der Einstieg in die Suche ist ein Panel mit Reitern (August 2026)
 
 MINOR — Aus einem Design-Handoff (`_design/handoff/suche-startseite`): der Startzustand zeigte sechs gleichrangige Blöcke untereinander, nichts stach heraus, die Seite scrollte. Zwei der Blöcke trugen dabei nichts Eigenes — „Aus dem Index" nannte die Zahlen der Optionszeile ein zweites Mal, „Häufig gesucht" ist die zweite Hälfte derselben Verlaufsliste wie „Letzte Suchen".

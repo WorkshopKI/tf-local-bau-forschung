@@ -35,7 +35,7 @@ export const WERTE_JE_FELD = 5;
  * Hier steht die HÄUFIGKEITSLISTE desselben Feldes, und die führen die
  * Bundesländer an: am echten Bestand gemessen sind die fünf häufigsten Werte
  * ausnahmslos Länder (Sachsen 3.282, Bayern 1.976, …), weil jeder Antrag ein
- * Land trägt und die Orte sich auf 2.055 Werte verteilen. Eine Spalte „Ort",
+ * Land trägt und die Orte sich auf 2.039 Werte verteilen. Eine Spalte „Ort",
  * in der kein Ort steht, wäre eine falsche Beschriftung — das Feld deckt beides
  * ab und sagt das anderswo auch („nur Ort und Bundesland").
  */

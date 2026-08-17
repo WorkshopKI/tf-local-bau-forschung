@@ -119,6 +119,10 @@ Zwei Lehren ueber Klasse 5 hinaus:
 
 Aufloesung jetzt in [korpusFeldAufloesung.ts](../../src/plugins/antraege/services/korpusFeldAufloesung.ts) (Spalten-CODE → `resolveFieldKey`, alte Listen als Fallback). Reissleine: `korpus-felder-ueber-schema` in [conventions-daten.test.ts](../../src/__tests__/conventions-daten.test.ts).
 
+**Dritter Fall, v4.73.1 — die Kollision entscheidet nicht nur, WER den Schluessel bekommt, sondern WAS drinsteht.** `7737-bgl` mappt `PLZ_AFS`, `ORT_AFS` und `BULAND_AFS` auf denselben Schluessel `ausfuhrende_stelle`; im Merge gewinnt der letzte nicht-leere Schreiber, also traegt der Schluessel einen **Landescode** — in allen 7 919 belegten Saetzen, ohne eine einzige Ausnahme. Der Slot heisst trotzdem `ortAfs` (er loest `ORT_AFS` auf und steht in der Vergabe vorn), und so kam „SN" roh in den Wertevorrat, waehrend die Land-Slots laengst „Sachsen" ablegten: jedes Bundesland stand doppelt.
+
+Die Lehre ueber die Prioritaets-Regel hinaus: **ein Slot-Name sagt nichts ueber die Semantik des Wertes, wenn mehrere Spalten auf seinen Schluessel zeigen.** Wer eine Kollision aufloest, hat den Wert damit nicht typisiert — die Aufbereitung, die der Ziel-Slot mitbringt (hier `bundeslandName`), muss auch auf dem kollidierten Weg greifen. Behoben in `standortVorratWerte` ([search-corpus.ts](../../src/plugins/antraege/services/search-corpus.ts)) — und nur fuer den **Vorrat**: der Korpus-Text fuehrt das Kuerzel weiter, sonst haette der Fix `ort:SN` stillgelegt.
+
 ## 6. Tracking-Baseline nach dem Snapshot geschrieben (Snapshot-only-Leser sehen veralteten Stand)
 
 **Symptom:** Auf Snapshot-only-Konsumenten (pl-Variante / nach „clear site data" / neuer Rechner) erscheint ein „hat sich geändert"-Banner (Auto-Refresh „CSV-Quelle hat neue Daten", „Neuer Datenbestand") bei **jedem** frischen Start, obwohl sich nichts geändert hat. Der schreibende Client (Kurator) sieht es **nie**. Klick auf „Aktualisieren" hilft nur bis zum nächsten clear-site-data.

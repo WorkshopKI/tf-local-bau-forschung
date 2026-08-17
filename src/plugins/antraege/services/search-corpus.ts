@@ -295,6 +295,39 @@ export function bundeslandName(kuerzel: string): string {
   return BUNDESLAND_NAMEN[k] ?? kuerzel.trim();
 }
 
+/**
+ * Die vier Standort-Angaben eines Antrags in der Form, in der sie in den
+ * WERTEVORRAT gehoeren (Vorschlagsliste, Reiter „Stoebern") — Landescodes
+ * ausgeschrieben, alles andere unveraendert.
+ *
+ * Warum das auch fuer die beiden ORT-Slots gilt: die Quelle `7737-bgl` mappt
+ * `PLZ_AFS`, `ORT_AFS` und `BULAND_AFS` auf EINEN Schluessel
+ * (`ausfuhrende_stelle`), und im Merge gewinnt der letzte nicht-leere Schreiber
+ * — also `BULAND_AFS`. Der Schluessel traegt damit einen Landescode, und weil
+ * `ORT_AFS` ihn aufloest, beansprucht ihn der frueher stehende `ortAfs`-Slot
+ * ([korpusFeldAufloesung.ts](src/plugins/antraege/services/korpusFeldAufloesung.ts)).
+ * So kam das Kuerzel roh in den Vorrat, waehrend die Land-Slots laengst
+ * ausgeschrieben ablegten: jedes Bundesland stand doppelt („Sachsen" 2 742 und
+ * „SN" 1 508).
+ *
+ * Am Bestand gemessen (14 225 Saetze, Stand 2026-08) ist das Feld in 7 919
+ * Saetzen belegt und traegt darin AUSNAHMSLOS einen Landescode — nie einen Ort,
+ * nie eine PLZ — und in keinem einzigen Satz etwas anderes als das eigene
+ * `BL_AFS` des Satzes. Es geht also keine Angabe verloren; die Kuerzel-Eintraege
+ * fallen weg, die Zahlen der ausgeschriebenen Namen bleiben unveraendert.
+ * Verwechslungsgefahr gibt es nicht: kein Ortswert des Bestandes ist ein
+ * Landescode, die kuerzesten sind „Ulm", „Hof", „Aue".
+ *
+ * Der TEXT bleibt davon unberuehrt — `standort` fuehrt das Kuerzel weiter, also
+ * findet `ort:SN` weiterhin dieselben Saetze wie bisher. Nur der Vorrat zum
+ * Durchblaettern wird um die Dublette leichter. Pure.
+ */
+export function standortVorratWerte(
+  ortAfs: string, ortAst: string, landAfs: string, landAst: string,
+): string[] {
+  return [ortAfs, ortAst, landAfs, landAst].map(bundeslandName);
+}
+
 /** Alles ausser Buchstaben und Ziffern trennt Woerter — „Sachsen-Anhalt" und
  *  „Ellwangen (Jagst)" zerfallen damit in zwei suchbare Woerter. */
 const STANDORT_TRENNER = /[^\p{L}\p{N}]+/gu;
@@ -545,10 +578,14 @@ export async function loadAntraegeTextCorpus(
       const wahlkreis = feld.wahlkreis ?? '';
       const verbundNr = feld.verbundNr ?? '';
       if (werteIndex) {
-        nimmWerte(werteIndex, 'standort', [
-          feld.ortAfs, feld.ortAst,
-          bundeslandName(feld.landAfs ?? ''), bundeslandName(feld.landAst ?? ''),
-        ]);
+        // Auch die beiden ORT-Slots laufen durch die Kuerzel-Aufloesung: einer
+        // von ihnen traegt am Bestand einen Landescode (Spalten-Kollision der
+        // Quelle 7737, siehe `standortVorratWerte`). Der Korpus-TEXT oben
+        // behaelt das Kuerzel — `ort:SN` findet unveraendert.
+        nimmWerte(werteIndex, 'standort', standortVorratWerte(
+          feld.ortAfs ?? '', feld.ortAst ?? '',
+          feld.landAfs ?? '', feld.landAst ?? '',
+        ));
         nimmWerte(werteIndex, 'organisation', [feld.orgAfs, feld.orgAst]);
         nimmWerte(werteIndex, 'wahlkreis', [wahlkreis]);
         if (netzwerk.length > 0) nimmWerte(werteIndex, 'netzwerk', [netzwerkName(netzwerk)]);

@@ -29,6 +29,9 @@
 - Die Suchbeispiele stehen nach Zweck sortiert: *ein Thema suchen*, *über eine Kennung*, *wer und wo*, *eigenes* — statt als eine Liste von zehn.
 - „Aus dem Index" ist als eigener Block weggefallen: die Bestandszahlen standen ohnehin schon in der Optionszeile über dem Ergebnis.
 
+### Bugfixes
+- Beim Stöbern und in der Vorschlagsliste zu `ort:` stand jedes Bundesland **zweimal** — einmal ausgeschrieben („Sachsen") und einmal als Kürzel („SN"). Jetzt steht nur noch der Name da; `ort:SN` findet weiterhin dieselben Anträge wie bisher.
+
 ## v4.72 — 2026-08
 
 ### Neu

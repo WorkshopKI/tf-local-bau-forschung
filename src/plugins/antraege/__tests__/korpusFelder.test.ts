@@ -17,9 +17,13 @@ import {
   bundeslandName,
   standortSuchform,
   standortNadel,
+  standortVorratWerte,
   domainLabel,
   domainSuchform,
 } from '../services/search-corpus';
+import {
+  leererWertIndexRoh, nimmWerte, verdichteWertIndex,
+} from '../services/wert-index';
 
 describe('verbindeEindeutig', () => {
   it('speichert einen identischen Wert nur einmal', () => {
@@ -170,6 +174,48 @@ describe('verbindeMit — Anzeigeform des Standorts', () => {
     expect(feld).toBe('Frankfurt am Main · Hessen');
     expect(standortSuchform(feld).includes(standortNadel('Frankfurt'))).toBe(true);
     expect(standortSuchform(feld).includes(standortNadel('Main'))).toBe(true);
+  });
+});
+
+/**
+ * Der Wertevorrat des Standorts — jedes Bundesland genau EINMAL.
+ *
+ * Der Rohcode kam nicht über die Land-Spalten (die löst `bundeslandName` längst
+ * auf), sondern über einen ORT-Slot: die Quelle `7737-bgl` mappt `PLZ_AFS`,
+ * `ORT_AFS` und `BULAND_AFS` auf denselben Schlüssel `ausfuhrende_stelle`, und
+ * der letzte nicht-leere Schreiber gewinnt. Am Bestand gemessen (14 225 Sätze):
+ * das Feld ist in 7 919 Sätzen belegt und trägt darin AUSNAHMSLOS einen
+ * Landescode — in keinem einzigen Satz einen Ort, eine PLZ, oder einen anderen
+ * Wert als das eigene `BL_AFS` des Satzes. Im Vorrat stand deshalb jedes Land
+ * doppelt (Sachsen 2 742 / „SN" 1 508).
+ */
+describe('standortVorratWerte — Wertevorrat ohne Kürzel-Dublette', () => {
+  it('schreibt einen Landescode aus, der über einen ORT-Slot ankommt', () => {
+    // Der reale 7737-Satz: `ausfuhrende_stelle` = „SN" landet im ortAfs-Slot.
+    expect(standortVorratWerte('SN', 'Chemnitz', 'SN', 'SN'))
+      .toEqual(['Sachsen', 'Chemnitz', 'Sachsen', 'Sachsen']);
+  });
+
+  it('lässt echte Ortsnamen unangetastet', () => {
+    expect(standortVorratWerte('Dresden', 'Wedel', 'SN', 'SH'))
+      .toEqual(['Dresden', 'Wedel', 'Sachsen', 'Schleswig-Holstein']);
+    // Drei Buchstaben, kein Landescode — der kürzeste Ort des Bestandes.
+    expect(standortVorratWerte('Ulm', 'Hof', '', '')).toEqual(['Ulm', 'Hof', '', '']);
+  });
+
+  it('gibt Unbekanntes unverändert weiter, statt es zu verwerfen', () => {
+    expect(standortVorratWerte('XX', '', '', '')).toEqual(['XX', '', '', '']);
+  });
+
+  it('legt jedes Bundesland danach nur EINMAL in den Vorrat', () => {
+    const roh = leererWertIndexRoh();
+    // Zwei Sätze derselben Quelle — Code über den Ort-Slot, Name über das Land.
+    nimmWerte(roh, 'standort', standortVorratWerte('SN', 'Chemnitz', 'SN', 'SN'));
+    nimmWerte(roh, 'standort', standortVorratWerte('SN', 'Dresden', 'SN', 'SN'));
+    const werte = verdichteWertIndex(roh).get('standort') ?? [];
+    expect(werte.map(e => e.wert)).not.toContain('SN');
+    expect(werte.find(e => e.wert === 'Sachsen')?.anzahl).toBe(2);
+    expect(werte.map(e => e.wert).sort()).toEqual(['Chemnitz', 'Dresden', 'Sachsen']);
   });
 });
 

@@ -17,7 +17,7 @@
  * **Die Liste hier ist die kurze Fassung, nicht die einzige.** Seit v4.71 zeigt
  * das Suchfeld unter `deskriptor:` den vollen Katalog (bis 50 Werte, mit
  * Restangabe). Dieser Reiter zeigt die häufigsten fünf und NENNT diesen Weg —
- * er ersetzt ihn nicht. Fünf Werte mit „alle 2.055 ansehen" zu beschriften wäre
+ * er ersetzt ihn nicht. Fünf Werte mit „alle 2.039 ansehen" zu beschriften wäre
  * ein Versprechen, das kein Panel einlöst.
  *
  * **Die Zahl rechts kommt aus dem Probelauf, nicht aus dem Werte-Index.** Der
