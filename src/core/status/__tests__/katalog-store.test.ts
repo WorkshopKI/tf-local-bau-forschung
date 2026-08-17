@@ -6,7 +6,8 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import 'fake-indexeddb/auto';
 import { IDBStore } from '@/core/services/storage/idb-store';
 import {
-  ladeAktiveVersion, listeVersionen, speichereVersion, getVersion,
+  ladeAktiveVersion, ladeGespeicherteFassung, sorgeFuerGespeicherteFassung,
+  listeVersionen, speichereVersion, getVersion,
   setzeAktiv, getAktiveVersionsnummer, naechsteVersionsnummer,
   ladeUnkuratiert, speichereUnkuratiert,
 } from '@/core/status/katalog-store';
@@ -25,29 +26,41 @@ beforeEach(async () => {
 });
 
 describe('Katalog-Store', () => {
-  it('seedet beim ersten Laden Version 1 und aktiviert sie', async () => {
+  it('sorgeFuerGespeicherteFassung seedet Version 1 und aktiviert sie', async () => {
     const idb = await frisch();
-    const v = await ladeAktiveVersion(idb);
+    const v = await sorgeFuerGespeicherteFassung(idb);
     expect(v.version).toBe(1);
     expect(await getAktiveVersionsnummer(idb)).toBe(1);
     expect(await listeVersionen(idb)).toHaveLength(1);
   });
 
+  // Der Kaltstart-Fall: `initStatusKatalog` und `ensureListViewProjection`
+  // lesen, BEVOR der Ordner freigegeben ist. Schriebe das Lesen den Seed fest,
+  // wäre der Auslieferungsstand die kuratierte Fassung 1 (siehe v4.85.1).
+  it('ladeAktiveVersion liefert den Seed, ohne ihn abzulegen', async () => {
+    const idb = await frisch();
+    const v = await ladeAktiveVersion(idb);
+    expect(v.version).toBe(1);
+    expect(await getAktiveVersionsnummer(idb)).toBeNull();
+    expect(await listeVersionen(idb)).toHaveLength(0);
+    expect(await ladeGespeicherteFassung(idb)).toBeNull();
+  });
+
   it('lädt beim zweiten Mal die gespeicherte Fassung (kein Re-Seed)', async () => {
     const idb = await frisch();
-    await ladeAktiveVersion(idb);
+    await sorgeFuerGespeicherteFassung(idb);
     // Aktive Version editieren (Kommentar) und als v1 zurückschreiben.
     const v1 = await getVersion(idb, 1);
     expect(v1).not.toBeNull();
     await speichereVersion(idb, { ...v1!, kommentar: 'editiert' });
-    const wieder = await ladeAktiveVersion(idb);
-    expect(wieder.kommentar).toBe('editiert');
+    expect((await ladeAktiveVersion(idb)).kommentar).toBe('editiert');
+    expect((await sorgeFuerGespeicherteFassung(idb)).kommentar).toBe('editiert');
     expect(await listeVersionen(idb)).toHaveLength(1);
   });
 
   it('speichert neue Versionen und aktiviert sie', async () => {
     const idb = await frisch();
-    await ladeAktiveVersion(idb);
+    await sorgeFuerGespeicherteFassung(idb);
     const nr = await naechsteVersionsnummer(idb);
     expect(nr).toBe(2);
     const v2 = { ...baueSeedVersion(), version: nr, kommentar: 'v2' };

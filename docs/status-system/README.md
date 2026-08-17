@@ -78,12 +78,25 @@ unerreichbar. Schreib-Profil: [add-sidecar-persistence.md](../agents/add-sidecar
   ([katalog-share.ts](../../src/core/status/katalog-share.ts)), Profil
   idempotent-overwrite + Backup-Rotation, self-gated über `queryPermission`.
   Nie `registry.json`, nie SMB-Snapshot, nie Personal-Mirror (Guard
-  `status-katalog-share-only`). Der Abgleich läuft **einmal beim App-Start**
-  (`initStatusKatalog`) — `ladeAktiveVersion` bleibt IDB-only, weil sie an jedem
-  Import hängt. Vor der ersten Übernahme sichert
+  `status-katalog-share-only`). Vor der ersten Übernahme sichert
   `uebernehmeKatalogVomShare` den lokalen Stand einmalig unter
   `status-katalog:vor-share-uebernahme`; lokale Fassungen mit Nummern, die der
   Share nicht kennt, bleiben stehen.
+- **Der Abgleich läuft zweimal, weil einmal zu früh ist** (v4.85.1).
+  `initStatusKatalog` hängt in [App.tsx](../../src/core/App.tsx) **vor** dem
+  Ordner-Picker: auf einer frischen Installation gibt es dort kein Handle, nach
+  einem echten Browser-Neustart steht die FSAPI-Berechtigung unter `file://`
+  wieder auf `prompt` ([recurring-bug-classes.md](../architecture/recurring-bug-classes.md)
+  Klasse 2). Deshalb setzt `synchronisiereKatalogNachGrant` nach, sobald der
+  Share offen ist — vor `runDataUpdate`, weil die List-View-Projektion ihre
+  `kat_status`-Ordnerspalten aus der aktiven Fassung auflöst. Der Nachlauf liest
+  erst 4 KB Dateikopf (`leseKatalogNummer`) und die Megabyte dahinter nur bei
+  abweichender Nummer; er entfällt, wenn der Startlauf die Datei schon hatte.
+  `ladeAktiveVersion` bleibt IDB-only, weil sie an jedem Import hängt — und
+  **schreibt beim Lesen nichts**: den Seed als Fassung 1 ablegen darf nur
+  `sorgeFuerGespeicherteFassung` (einziger Aufrufer: das Cockpit beim Öffnen).
+  Sonst nagelte ein Lesevorgang vor dem Grant den Auslieferungsstand als
+  kuratierte Fassung 1 fest.
 - **Veröffentlichen ist read-before-write** ([katalog-konflikt.ts](../../src/core/status/katalog-konflikt.ts)),
   seit den Katalog mehrere PL-Personen asynchron pflegen. Jeder Schreibvorgang
   liest die Datei zuerst und **vereinigt die Fassungsliste** — fremde Fassungen,

@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.85.1 — Der Status-Katalog kommt auch beim Kaltstart vom Share (August 2026)
+
+PATCH — Gefragt wurde, ob eine frisch installierte PL die aktuellste Katalog-Fassung automatisch bekommt. Nein: `initStatusKatalog` lief als einziger Abgleich, und zwar **vor** dem Ordner-Picker — ohne Handle ging er leer aus, und `ladeAktiveVersion` schrieb daraufhin den Auslieferungs-Seed als kuratierte Fassung 1 fest. Betroffen war die ganze `MappingVersion`: Kürzel, ZAH-Phasen, Code→Phase-Schnitt und AB-Regeln. Nach einem echten Browser-Neustart traf es jede Installation, weil die FSAPI-Berechtigung unter `file://` wieder auf `prompt` steht.
+
+- **Nachlauf, sobald der Share offen ist** — `synchronisiereKatalogNachGrant`, aufgerufen vor `runDataUpdate`, weil die List-View-Projektion ihre `kat_status`-Spalten aus der aktiven Fassung auflöst ([status/index.ts](src/core/status/index.ts), [App.tsx](src/core/App.tsx))
+- **Lesen schreibt nichts mehr**: `ladeAktiveVersion` gibt den Seed zurück, statt ihn abzulegen; das Ablegen macht `sorgeFuerGespeicherteFassung` mit genau einem Aufrufer ([katalog-store.ts](src/core/status/katalog-store.ts), [useStatusCockpit.ts](src/plugins/status-cockpit/useStatusCockpit.ts))
+- **Erst 4 KB Dateikopf, die Megabyte nur bei abweichender Nummer** — der Nachlauf entfällt, wenn der Startlauf die Datei schon hatte ([katalog-share.ts](src/core/status/katalog-share.ts))
+- **Fünf Fälle abgesichert**, darunter „zieht die kuratierten ZAH-Phasen mit, nicht nur die Kürzel" ([katalog-nachlauf.test.ts](src/core/status/__tests__/katalog-nachlauf.test.ts))
+- **Bug-Klasse 1, fünfter Mechanismus**: der Pre-Grant-Read schrieb einen Ersatzwert fest ([recurring-bug-classes.md](docs/architecture/recurring-bug-classes.md), [status-system/README.md](docs/status-system/README.md))
+
 ### v4.85.0 — Das Lesezeichen lässt sich wieder ziehen (August 2026)
 
 MINOR — Gemeldet: das Bookmarklet der KI-Bridge ließ sich nicht in die Chrome-Lesezeichenleiste ziehen (Verboten-Symbol beim Ablegen), danach war der Fehler nicht mehr reproduzierbar. Gemessen: bei zugeklappter Einrichtungs-Klappe stand der Anker mit `draggable="true"`, aber **`href=null`** in der Seite — ein `<a>` ohne `href` ist kein Link, Chrome hat nichts abzulegen. Weil `useCollapsedSection` den Aufgeklappt-Zustand merkt, traf das jeden Nutzer genau **einmal**: beim ersten Einrichten, also genau dann, wenn der Schritt sitzen muss.

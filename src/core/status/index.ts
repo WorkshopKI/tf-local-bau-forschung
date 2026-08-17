@@ -18,6 +18,7 @@ export { setStatusKatalogSnapshot, getAktiveVersion } from './snapshot';
 export {
   listeVersionen, getVersion, speichereVersion,
   getAktiveVersionsnummer, setzeAktiv, ladeAktiveVersion, naechsteVersionsnummer,
+  ladeGespeicherteFassung, sorgeFuerGespeicherteFassung,
   ladeUnkuratiert, speichereUnkuratiert, ladeUnkuratierteFelder, speichereUnkuratierteFelder,
 } from './katalog-store';
 export {
@@ -313,8 +314,8 @@ export { ROLLE_GEDIMMT, rollenFarbe, type RollenFarbe } from './rollen-farbe';
 import type { IDBStore } from '@/core/services/storage';
 import { isStatusCockpitEnabled } from '@/config/feature-flags';
 import { ladeAktiveVersion } from './katalog-store';
-import { synchronisiereKatalogVomShare } from './katalog-share';
-import { setStatusKatalogSnapshot } from './snapshot';
+import { leseKatalogNummer, synchronisiereKatalogVomShare } from './katalog-share';
+import { getAktiveVersion, setStatusKatalogSnapshot } from './snapshot';
 
 /**
  * Einmalige Initialisierung beim App-Start (nach `storage.init()`):
@@ -329,7 +330,66 @@ import { setStatusKatalogSnapshot } from './snapshot';
  */
 export async function initStatusKatalog(idb: IDBStore): Promise<void> {
   if (!isStatusCockpitEnabled()) return;
-  await synchronisiereKatalogVomShare(idb);
+  startAbgleichHatShareGelesen = (await synchronisiereKatalogVomShare(idb)) != null;
   const version = await ladeAktiveVersion(idb);
   setStatusKatalogSnapshot(version);
+}
+
+/**
+ * Hat der Startlauf oben die Team-Datei tatsächlich gelesen? Nur dann erübrigt
+ * sich der Nachlauf. Sitzungs-lokal und bewusst nicht persistiert — die Frage
+ * gilt für diesen Start, nicht für den nächsten.
+ */
+let startAbgleichHatShareGelesen = false;
+let nachlaufLaeuft = false;
+
+/** Nur für Tests: beide Sitzungs-Merker zurücksetzen. */
+export function resetKatalogNachlaufFuerTests(): void {
+  startAbgleichHatShareGelesen = false;
+  nachlaufLaeuft = false;
+}
+
+/**
+ * Zweiter Anlauf, sobald der Daten-Share wirklich offen ist.
+ *
+ * `initStatusKatalog` läuft in `App.tsx` **vor** dem Ordner-Picker und vor dem
+ * Permission-Grant — auf einer frischen Installation gibt es dort noch gar kein
+ * Handle, und nach einem echten Browser-Neustart steht die FSAPI-Berechtigung
+ * unter `file://` wieder auf `prompt`. Der Startlauf lieferte deshalb regelmäßig
+ * nichts, und weil er der einzige war, galt die ganze Sitzung der
+ * Auslieferungs-Seed statt der kuratierten Team-Fassung: Kürzel, ZAH-Phasen,
+ * Code→Phase-Schnitt und AB-Regeln hingen am Build-Stand. Gleiches Muster wie
+ * `nachStartDatenupdateVorwaermen` im Auslastungs-Modul.
+ *
+ * Aufgerufen in `App.tsx`, sobald das Handle steht und **bevor** `runDataUpdate`
+ * läuft: die List-View-Projektion löst ihre `kat_status`-Ordnerspalten aus der
+ * aktiven Fassung auf, die also vorher stimmen muss.
+ *
+ * Best-effort und höchstens einmal je Sitzung. Gelesen werden zuerst 4 KB
+ * Dateikopf (`leseKatalogNummer`) statt der Megabyte dahinter — die volle Datei
+ * nur, wenn der Share eine andere Fassung führt als die gerade geltende.
+ */
+export async function synchronisiereKatalogNachGrant(idb: IDBStore): Promise<void> {
+  if (!isStatusCockpitEnabled()) return;
+  if (startAbgleichHatShareGelesen || nachlaufLaeuft) return;
+  // VOR dem ersten `await` setzen: der Effekt in App.tsx feuert bei
+  // Gate-Übergängen mehrfach, sonst liefen zwei Nachläufe nebeneinander.
+  nachlaufLaeuft = true;
+  try {
+    const nummerAufShare = await leseKatalogNummer(idb);
+    // Keine Datei, kein Handle, unerwarteter Kopf — nichts zu holen.
+    if (nummerAufShare == null) return;
+    if (nummerAufShare === getAktiveVersion()?.version) {
+      // Gleiche Nummer: der Startlauf hat sie offenbar doch gesehen.
+      startAbgleichHatShareGelesen = true;
+      return;
+    }
+    if ((await synchronisiereKatalogVomShare(idb)) == null) return;
+    startAbgleichHatShareGelesen = true;
+    setStatusKatalogSnapshot(await ladeAktiveVersion(idb));
+  } catch (err) {
+    // Offen lassen: ein späterer Gate-Übergang darf es erneut versuchen.
+    nachlaufLaeuft = false;
+    console.warn('[status] synchronisiereKatalogNachGrant fehlgeschlagen:', err);
+  }
 }

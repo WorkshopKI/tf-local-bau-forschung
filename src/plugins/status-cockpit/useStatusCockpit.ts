@@ -21,7 +21,7 @@ import { pickSchemaSnapshotFile } from '@/plugins/csv-sources-kuration/csv-file-
 import { programmNummernVon } from '@/plugins/antraege/status/programmNummer';
 import { downloadAsFile } from '@/core/services/search/eval/eval-export';
 import {
-  ladeAktiveVersion, listeVersionen, speichereVersion, setzeAktiv, naechsteVersionsnummer,
+  sorgeFuerGespeicherteFassung, listeVersionen, speichereVersion, setzeAktiv, naechsteVersionsnummer,
   getVersion, ladeUnkuratiert, speichereUnkuratiert, setStatusKatalogSnapshot, getAlleEvents,
   ladeUnkuratierteFelder, speichereUnkuratierteFelder, pruneKuratierteFelder,
   baueVerbundFelder, zaehleVorkommen, zuletztGesehen,
@@ -433,7 +433,11 @@ export function useStatusCockpit(): StatusCockpitApi {
     setLaden(true);
     setFehler(null);
     try {
-      const version = await ladeAktiveVersion(idb);
+      // Hier — und nur hier — muss die aktive Fassung wirklich ABGELEGT sein:
+      // die Fassungsliste daneben und der Rückweg auf eine ältere Nummer lesen
+      // aus dem Store. Überall sonst ist der Seed ein Rückfall, keine Fassung
+      // (siehe `ladeAktiveVersion`).
+      const version = await sorgeFuerGespeicherteFassung(idb);
       const [alleVersionen, unk, unkFelder, b, triggerStand] = await Promise.all([
         listeVersionen(idb), ladeUnkuratiert(idb), ladeUnkuratierteFelder(idb), ladeBestand(version),
         ladeTrigger(idb),

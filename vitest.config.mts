@@ -91,7 +91,10 @@ const ISOLATED_TESTS = [
   // Mocks ineinander.
   'src/core/status/__tests__/journal-lauf.test.ts',
   'src/core/status/__tests__/journal-lesen.test.ts',
-  // Mockt dieselbe Share-Schicht (`sidecar-datei`) wie die Journal-Tests.
+  // Mockt dieselbe Share-Schicht (`sidecar-datei`) wie die Journal-Tests — und
+  // dazu `feature-flags`; der Nachlauf führt obendrein Sitzungs-Merker im Modul
+  // und setzt den Katalog-Snapshot (die Phasen-Register aus byte-identitaet).
+  'src/core/status/__tests__/katalog-nachlauf.test.ts',
   'src/core/status/__tests__/katalog-share.test.ts',
   'src/core/status/__tests__/katalog-store.test.ts',
   // Setzt dieselben Modul-Register wie byte-identitaet (Snapshot in

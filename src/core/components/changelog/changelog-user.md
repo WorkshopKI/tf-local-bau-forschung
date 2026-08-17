@@ -22,6 +22,7 @@
 ## v4.85 — 2026-08
 
 ### Bugfixes
+- **Neu eingerichtete Rechner arbeiteten mit einem veralteten Status-Katalog.** Nach der Installation las die App den Katalog, bevor der Datenordner freigegeben war — sie fiel dann auf den mitgelieferten Stand zurück und blieb den Rest der Sitzung dabei. Betroffen waren Kürzel, Verfahrensphasen und die Aufgaben-Regeln gleichermaßen. Die vom Team gepflegte Fassung wird jetzt automatisch nachgeladen, sobald der Ordner offen ist.
 - **Das Lesezeichen für die interne KI ließ sich nicht in die Lesezeichenleiste ziehen.** Beim Ablegen kam ein Verboten-Symbol. Betroffen war genau der erste Versuch: hatte man den Abschnitt „Verbindung einrichten" einmal aufgeklappt und die Seite später erneut geöffnet, funktionierte es — deshalb ließ sich der Fehler danach nicht mehr nachstellen. Das Ziehen klappt jetzt in jedem Fall.
 ### Neu
 - **„Kopieren" neben dem Lesezeichen.** Falls das Ziehen in die Leiste nicht erlaubt ist, lässt sich die Adresse kopieren und von Hand in ein Lesezeichen einsetzen — die Anleitung im Abschnitt nennt die Schritte.

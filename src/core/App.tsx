@@ -31,7 +31,7 @@ import { scheduleIdle } from '@/core/utils/scheduleIdle';
 import { ensureListViewProjection } from '@/core/services/csv/list-view-migration';
 import { initProtokoll } from '@/core/services/assistent/protokoll';
 import { initGedaechtnis, starteKonsolidierungWennFaellig } from '@/core/services/assistent/gedaechtnis';
-import { initStatusKatalog } from '@/core/status';
+import { initStatusKatalog, synchronisiereKatalogNachGrant } from '@/core/status';
 import { bumpCsvSourcesSignal } from '@/core/services/csv/csv-sources-signal';
 import { useStartupDataStatus } from '@/core/services/csv/startup-data-status';
 import { runDataUpdate } from '@/plugins/csv-sources-kuration/services/data-update';
@@ -601,6 +601,16 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
           useStartupDataStatus.getState().setPhase('done');
           return;
         }
+        // Jetzt erst ist der Share offen: `initStatusKatalog` lief oben VOR dem
+        // Ordner-Picker und ging auf einer frischen Installation zwangsläufig
+        // leer aus. Muss VOR runDataUpdate stehen — die List-View-Projektion
+        // löst ihre `kat_status`-Spalten aus der aktiven Fassung auf.
+        try {
+          await synchronisiereKatalogNachGrant(storage.idb);
+        } catch (e) {
+          console.warn('[App] synchronisiereKatalogNachGrant fehlgeschlagen', e);
+        }
+        if (cancelled) return;
         // EIN orchestrierter Pfad (v2.95): Datenbestand (Snapshot, je Programm)
         // → Export-CSV (Check + Auto-Import, nur pl/kurator). Reihenfolge,
         // force-Throttle-Bypass, Cold-Start-ensureDefaultProgramm, Store-Reload,

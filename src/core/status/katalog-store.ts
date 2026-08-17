@@ -69,16 +69,45 @@ export async function setzeAktiv(idb: IDBStore, version: number): Promise<void> 
 }
 
 /**
- * Lädt die aktive Katalog-Version. Beim allerersten Aufruf ohne gespeicherten
- * Katalog wird der Seed (Version 1) geschrieben und aktiviert — ab dann ist die
- * gespeicherte Fassung maßgeblich (Editor-Änderungen überleben Neustarts).
+ * Die gespeicherte aktive Fassung — oder `null`, wenn noch keine abgelegt ist.
+ * Reiner Lesepfad ohne Seiteneffekt.
+ */
+export async function ladeGespeicherteFassung(idb: IDBStore): Promise<MappingVersion | null> {
+  const nr = await getAktiveVersionsnummer(idb);
+  if (nr == null) return null;
+  return getVersion(idb, nr);
+}
+
+/**
+ * Die aktive Katalog-Version zum LESEN. Ohne gespeicherte Fassung ist das der
+ * Seed — als Rückfall, **nicht** als abgelegte Fassung.
+ *
+ * **Lesen schreibt hier nichts** (seit v4.85.1). Bis dahin legte dieser Aufruf
+ * den Seed als Fassung 1 ab und aktivierte ihn. Das lief am Kaltstart schief:
+ * `ensureListViewProjection` und `initStatusKatalog` rufen ihn, BEVOR der
+ * Ordner-Picker gelaufen ist — der Seed wurde also festgeschrieben, während der
+ * Share nur noch nicht lesbar war. Damit galt auf einer frischen Installation
+ * der Auslieferungsstand als kuratierte Fassung 1, und ein Speichern im Cockpit
+ * konnte ihn über die Team-Fassung veröffentlichen. Wer eine wirklich
+ * **abgelegte** Fassung braucht (Fassungsliste, Reaktivieren), ruft
+ * {@link sorgeFuerGespeicherteFassung}.
  */
 export async function ladeAktiveVersion(idb: IDBStore): Promise<MappingVersion> {
-  const nr = await getAktiveVersionsnummer(idb);
-  if (nr != null) {
-    const v = await getVersion(idb, nr);
-    if (v) return v;
-  }
+  return (await ladeGespeicherteFassung(idb)) ?? baueSeedVersion();
+}
+
+/**
+ * Wie {@link ladeAktiveVersion}, legt den Seed aber als Fassung 1 ab und
+ * aktiviert ihn, wenn noch nichts gespeichert ist — ab dann ist die gespeicherte
+ * Fassung maßgeblich (Editor-Änderungen überleben Neustarts).
+ *
+ * Genau ein Aufrufer: das Status-Cockpit beim Öffnen. Dort hängt die Oberfläche
+ * an einer abgelegten Fassung (Versionsliste, Rückweg auf eine ältere Nummer),
+ * und wer das Cockpit öffnet, hat den Ordner längst freigegeben.
+ */
+export async function sorgeFuerGespeicherteFassung(idb: IDBStore): Promise<MappingVersion> {
+  const gespeichert = await ladeGespeicherteFassung(idb);
+  if (gespeichert) return gespeichert;
   const seed = baueSeedVersion();
   await speichereVersion(idb, seed);
   await setzeAktiv(idb, seed.version);
