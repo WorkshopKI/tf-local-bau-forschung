@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.81.0 — Ruhende Kürzel: die Arbeitsmenge halbiert (August 2026)
+
+MINOR — Gemeldet: 511 Kürzel erschlagen jede Abstimmung, viele davon seien von früher. Gemessen an Fassung 22 trifft „seit Richtlinie 2020 nicht gesetzt" nur 15 — die Masse sind **243 Kürzel ohne jede `D_`/`T_`-Spalte im Export**, die C16 vielleicht täglich setzt, die wir aber nie sehen. 85 davon trugen ein Relevanz-Häkchen, das nirgends wirken kann.
+
+- **Ruhe-Achse abgeleitet, nur als Ausnahme kuriert** — `ruht` dreiwertig, Regelfall aus der Beobachtbarkeit ([ruhende-kuerzel.ts](src/core/status/ruhende-kuerzel.ts), [KATALOG-CODES.md](docs/status-system/KATALOG-CODES.md))
+- **Sektion „Nicht im Blick"** unter dem Ordnerbaum, zwei Gründe getrennt beschriftet, je Zeile „trotzdem beachten" ([RuhendeKuerzel.tsx](src/plugins/status-cockpit/RuhendeKuerzel.tsx))
+- **Einsatz-Bestandslauf** am vorhandenen Knopf, misst gegen die zwei jüngsten Richtlinien statt gegen den persönlichen Bereich ([useEinsatzErhebung.ts](src/plugins/status-cockpit/useEinsatzErhebung.ts))
+- **Regel-Auswahl und Klärfragen lassen ruhende Kürzel aus** — eine Bedingung auf `YE` träfe stillschweigend nie zu ([todoFeldVorrat.ts](src/plugins/status-cockpit/todoFeldVorrat.ts), [klaerfragen/](src/core/status/klaerfragen/))
+- **Guard: Ruhe ist Sichtbarkeit, nicht Wahrheit** — Chronik, Navigator, Wächter, `reconcile` und `referenzierbareFelder` bleiben unberührt (Pitfall #53)
+
 ### v4.80.0 — die Unterhaltung gehoert zu der Suche, unter der sie entstand (August 2026)
 
 MINOR — Gemeldet: beim erneuten Öffnen der Suche stand der alte Chat wieder da, ohne Weg ihn zu löschen. Der Init des Panels reaktivierte die jüngste Unterhaltung — geerbt von der früheren Vollbild-Chatseite. Hier hängt der Chat an den Treffern darunter, und die alte Antwort ging als Verlauf in den nächsten Prompt.

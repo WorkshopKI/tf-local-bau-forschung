@@ -14,7 +14,7 @@
 import { useCallback, useState } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAsyncAction, type UseAsyncActionResult } from '@/core/hooks/useAsyncAction';
-import type { MappingVersion } from '@/core/status';
+import { hatSpalteAus, ruhendeCodes, type MappingVersion } from '@/core/status';
 import { indexNachSchreibweise } from '@/core/status/wert-index';
 import { mitAmtlichenSchreibweisen } from '@/core/status/snapshot';
 import {
@@ -27,14 +27,21 @@ export interface KlaerfragenLauf {
   bestand: KlaerfragenBestand | null;
   /** Laufzeit des Durchgangs in Millisekunden. */
   dauerMs: number | null;
+  /** Wie viele Kürzel ruhen und deshalb keine Frage gestellt haben. */
+  ruhendeKuerzel: number;
   aktion: UseAsyncActionResult<[]>;
 }
 
-export function useKlaerfragen(version: MappingVersion | null): KlaerfragenLauf {
+export function useKlaerfragen(
+  version: MappingVersion | null,
+  /** Spalten-Herkunft je Feld — entscheidet mit, welche Kürzel ruhen. */
+  csvSpalten: ReadonlyMap<string, string[]>,
+): KlaerfragenLauf {
   const idb = useStorage().idb;
   const [fragen, setFragen] = useState<readonly Klaerfrage[] | null>(null);
   const [bestand, setBestand] = useState<KlaerfragenBestand | null>(null);
   const [dauerMs, setDauerMs] = useState<number | null>(null);
+  const [ruhende, setRuhende] = useState(0);
 
   const starte = useCallback(async (): Promise<void> => {
     if (!version) return;
@@ -53,10 +60,12 @@ export function useKlaerfragen(version: MappingVersion | null): KlaerfragenLauf 
     const fassungsWerte = new Set(
       indexNachSchreibweise(version.werte.map(mitAmtlichenSchreibweisen)).keys(),
     );
+    const ruhend = ruhendeCodes(version.felder, hatSpalteAus(csvSpalten));
     setBestand(gemessen);
-    setFragen(baueKlaerfragen({ bestand: gemessen, fassungsWerte }));
+    setFragen(baueKlaerfragen({ bestand: gemessen, fassungsWerte, ruhendeCodes: ruhend }));
+    setRuhende(ruhend.size);
     setDauerMs(Math.round(performance.now() - begonnen));
-  }, [idb, version]);
+  }, [idb, version, csvSpalten]);
 
-  return { fragen, bestand, dauerMs, aktion: useAsyncAction(starte) };
+  return { fragen, bestand, dauerMs, ruhendeKuerzel: ruhende, aktion: useAsyncAction(starte) };
 }

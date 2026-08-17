@@ -45,6 +45,7 @@ Decision-Tree für häufige Aufgaben. Erst hier nachsehen, **bevor** du die Code
 | Klärungs-Modul „Zu klären" (Fachfragen asynchron beantworten, Export statt Rückschreiben) | [klaerung.md](docs/architecture/klaerung.md) + Pitfall #49 |
 | Fachliche Entscheidungen der AB-Abstimmung (A1–A5, V1–V10, offene Punkte) | [fachabstimmung-2026-08.md](docs/architecture/fachabstimmung-2026-08.md) |
 | Code-Katalog des Fachsystems (505 Statuseinträge aus der Kürzel-Zuarbeit, Ordnerbaum, Rollen AB/FB/QS/PA/Juristen, `D_`/`T_`/`X`-Spaltenkonvention, Ordner-Spalten der Fördertabelle) | [docs/status-system/KATALOG-CODES.md](docs/status-system/KATALOG-CODES.md) + Pitfalls #42/#43 |
+| Ruhende Kürzel (243 ohne Export-Spalte, Sektion „Nicht im Blick", `ruht`-Ausnahme, Einsatz-Bestandslauf) | [KATALOG-CODES.md → Was wir sehen können](docs/status-system/KATALOG-CODES.md) + Pitfall #53 |
 | Bearbeitungs-Meilensteine (Soll-Wochen ab Eingang, Frist-Prognose, Team-Sidecar, Flag `meilensteinMonitoring`) | [meilensteine.md](docs/architecture/meilensteine.md) + Pitfall #41 |
 | Datei-Pfade auf SMB-Share | [docs/architecture/data-layout.md](docs/architecture/data-layout.md) |
 | CSV-Auto-Refresh (täglicher Selbst-Import, Frische-Ampel „● CSV", Projektions-Rebuild bei Mapping-Nachzug) | [docs/architecture/csv-auto-refresh.md](docs/architecture/csv-auto-refresh.md) |
@@ -372,7 +373,7 @@ Versionshistorie: jüngste Versionen in **[CHANGELOG.md](CHANGELOG.md)**, älter
 - **Import-Diff-Journal**: #48 Stand auf dem Share statt IDB, keine Personen-Achse, Baseline ohne Einträge, Bereich aus der Team-Kuration, erst JSONL dann Stand
 - **Klärungen („Zu klären")**: #49 Datei je Autor, Faltung nach Dateireihenfolge, kein Rückschreiben in Seed/Fassung
 - **Modul-Freischaltung (Laufzeit ≠ Bauzeit)**: #51 Flag = einkompiliert, Freischaltung = sichtbar; vorhandener Slot = gesperrt, fehlender = offen; modul-globale Konstanten lesen den ROHEN Flag
-- **Status-Code-Katalog (Ordnerbaum, Rollen, Spalten-Auflösung)**: #42 Baum = Daten, `feldId` = roher Spalten-Code, `ebene` ≠ `herkunft`, Rang 0 = wirkungslos · #43 Zuarbeit = Fremddaten, leere Rollen = jeder
+- **Status-Code-Katalog (Ordnerbaum, Rollen, Spalten-Auflösung)**: #42 Baum = Daten, `feldId` = roher Spalten-Code, `ebene` ≠ `herkunft`, Rang 0 = wirkungslos · #43 Zuarbeit = Fremddaten, leere Rollen = jeder · #53 Ruhe ist Sichtbarkeit, nicht Wahrheit
 
 **Volltext der 25 maschinell erzwungenen Pitfalls**: [docs/architecture/pitfalls.md](docs/architecture/pitfalls.md).
 Sie stehen dort statt hier, weil das Gate sie ohnehin fängt. Darunter folgen die **28**,

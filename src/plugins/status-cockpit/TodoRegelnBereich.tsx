@@ -22,7 +22,7 @@ import { ScopeTabs } from '@/components/ui/ScopeTabs';
 import { MasterDetailLayout } from '@/components/master-detail';
 import {
   ROLLEN, ROLLE_LABEL, ROLLE_LANG, bedingungFeldRefs, referenzierbareFelder,
-  regelsatzVon, REGELSATZ_DEFAULT,
+  regelsatzVon, REGELSATZ_DEFAULT, hatSpalteAus, ruhendeFeldIds,
   type MappingVersion, type Rolle,
 } from '@/core/status';
 import { baueTodoFeldVorrat } from './todoFeldVorrat';
@@ -40,11 +40,13 @@ export type { TodoRegelnApi } from './todoRegelnAnsicht';
 
 export function TodoRegelnBereich({
   version, api, platzhalter, onExportieren, satz, onSatzWechsel, wirkung, probe,
-  termin, zieltageBeantragt, zieltageGepflegt,
+  termin, zieltageBeantragt, zieltageGepflegt, csvSpalten,
 }: {
   version: MappingVersion;
   api: TodoRegelnApi;
   platzhalter: PlatzhalterLauf;
+  /** Spalten-Herkunft je Feld — entscheidet, welche Kürzel die Auswahl anbietet. */
+  csvSpalten: ReadonlyMap<string, string[]>;
   /** Erhebung als XLSX + Markdown herunterladen — schreibrechtsunabhängig. */
   onExportieren: (rolle: Rolle) => void;
   /** Der gezeigte Regelsatz. Liegt im Tab, weil der Wirkungs-Lauf ihn braucht. */
@@ -68,7 +70,20 @@ export function TodoRegelnBereich({
   const regeln = useMemo(() => sichtbareRegeln(alleRegeln, satz), [alleRegeln, satz]);
   const eigeneRegeln = regeln.filter(r => (r.sperrt?.length ?? 0) === 0);
   const aktiveEigene = eigeneRegeln.filter(r => r.aktiv).length;
-  const vorrat = useMemo(() => baueTodoFeldVorrat(version.felder), [version.felder]);
+  // Ruhende Kürzel stehen NICHT in der Auswahl: gemessen an Fassung 22 sind das
+  // 243 von 509, und eine Bedingung auf eines von ihnen träfe stillschweigend
+  // nie zu — genau der Defekt, gegen den dieser Vorrat gebaut wurde. Wer sie
+  // doch braucht, holt sie mit dem Schalter zurück; `referenzierbareFelder`
+  // unten bleibt unberührt, sonst würde eine BESTEHENDE Regel ungültig.
+  const [auchRuhende, setAuchRuhende] = useState(false);
+  const ruhend = useMemo(
+    () => ruhendeFeldIds(version.felder, hatSpalteAus(csvSpalten)),
+    [version.felder, csvSpalten],
+  );
+  const vorrat = useMemo(
+    () => baueTodoFeldVorrat(version.felder, auchRuhende ? undefined : ruhend),
+    [version.felder, ruhend, auchRuhende],
+  );
   const pruefeFeld = useMemo(() => {
     const erlaubt = referenzierbareFelder(version.felder);
     return (feldId: string): string | null => erlaubt.has(feldId)
@@ -129,6 +144,21 @@ export function TodoRegelnBereich({
             {' '}<strong>aktiv</strong> und wirkt damit in jeder Installation — auch in denen, die den
             Regelsatz noch nicht kennen und sie als AB-Regel werten.
           </p>
+        )}
+
+        {/* Nur bei geöffneter Regel: sonst erklärte die Zeile dauerhaft eine
+            Auswahlliste, die gar nicht auf dem Bildschirm steht. */}
+        {auswahl !== null && ruhend.size > 0 && (
+          <label className="flex items-center gap-1.5 text-[11.5px] text-[var(--tf-text-tertiary)] cursor-pointer">
+            <input
+              type="checkbox" className="accent-[var(--tf-primary)] cursor-pointer"
+              checked={auchRuhende} onChange={e => setAuchRuhende(e.target.checked)}
+            />
+            <span>
+              Auch ruhende Kürzel anbieten ({ruhend.size}) — sie kommen in keiner CSV-Quelle
+              vor; eine Bedingung darauf träfe nie zu.
+            </span>
+          </label>
         )}
       </div>
 

@@ -19,6 +19,18 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.81 — 2026-08
+
+### Neu
+- **Die Kürzel-Liste zeigt nur noch, was wirklich läuft.** Von den gut 500 Kürzeln kommt knapp die Hälfte in keiner unserer CSV-Quellen vor — das Fachsystem setzt sie vielleicht, unsere Daten zeigen sie nie. Sie stehen jetzt zugeklappt unter „Nicht im Blick" statt zwischen den arbeitenden. Gelöscht wird nichts, und ein Häkchen holt jedes Kürzel zurück.
+- **Ein Durchgang „Am Bestand messen" sagt zusätzlich**, welche Kürzel zwar eine Spalte haben, in den letzten beiden Richtlinien aber nicht mehr gesetzt wurden — mit einem Knopf lassen Sie diese ruhen.
+### Verbesserungen
+- **Die Auswahlliste beim Bauen einer To-do-Regel ist nur noch halb so lang.** Sie bot bisher auch Kürzel an, auf die eine Bedingung nie zutreffen konnte.
+- **Die Klärfragen fragen nicht mehr nach Kürzeln, über die sich am Bestand nichts belegen lässt.** Wie viele ausgelassen wurden, steht über der Liste.
+- **Ruhende Kürzel mit Relevanz-Häkchen werden benannt** — das Häkchen wirkt dort nicht, und ein Knopf räumt sie ab.
+### Bugfixes
+<!-- - … -->
+
 ## v4.80 — 2026-08
 
 ### Neu

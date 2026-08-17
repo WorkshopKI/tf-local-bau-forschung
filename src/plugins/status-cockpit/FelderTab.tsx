@@ -26,6 +26,12 @@
  * die vorhandene Spalte **CSV-Spalte** (leer = nirgends gemappt); dafür braucht
  * es keine zweite Spalte, nur den passenden Filter.
  *
+ * **Der Ordnerbaum führt nur, was im Blick ist.** Knapp die Hälfte des Katalogs
+ * kommt in keiner CSV-Quelle vor und kann deshalb weder eine Phase noch eine
+ * Regel noch eine Frage tragen; diese Kürzel stehen zugeklappt in
+ * [RuhendeKuerzel](./RuhendeKuerzel.tsx) statt zwischen den arbeitenden. Was
+ * ruht und warum, leitet `ruhende-kuerzel.ts` ab — hier wird nur gezeigt.
+ *
  * Der Abgleich mit den Fremddaten (Auslieferung, CSV-Quellen) steht in
  * [FelderAbgleich](./FelderAbgleich.tsx) — andere Frage, andere Datei.
  *
@@ -42,6 +48,7 @@ import { zaehlwort } from '@/core/utils/zaehlwort';
 import {
   flacheBaumListe, NICHT_ZUGEORDNET_ID, ROLLEN, ROLLE_LABEL, ROLLE_LANG,
   betrifftRolle, rollenVonFeld, sortiereRollen, wirkungZeilen, baueLegende,
+  hatSpalteAus, ruheGrund, schlafendeKuerzel,
   type Prominenz, type Rolle, type ZahPhaseId,
   zahPhasenVon,
   type StatusFeldEintrag, type StatusKategorie, type TriggerZeile, type WirkungsZeile,
@@ -54,8 +61,10 @@ import {
 import { KategorieEditor } from './KategorieEditor';
 import { FelderAbgleich } from './FelderAbgleich';
 import { BestandslaufBlock } from './BestandslaufBlock';
+import { RuhendeKuerzel, type RuhendeZeile } from './RuhendeKuerzel';
 import { useVerlaufErhebung } from './useVerlaufErhebung';
 import { useFristErhebung } from './useFristErhebung';
+import { useEinsatzErhebung } from './useEinsatzErhebung';
 
 const thKlasse = 'text-left font-medium text-[11px] text-[var(--tf-text-tertiary)] px-2 py-1.5 whitespace-nowrap';
 const tdKlasse = 'px-2 py-1.5 align-middle';
@@ -317,11 +326,28 @@ export function FelderTab({ api }: { api: StatusCockpitApi }): React.ReactElemen
   // und `tsc` fängt einen Verstoß nicht (React #310).
   const verlauf = useVerlaufErhebung(api.entwurf);
   const frist = useFristErhebung(api.entwurf);
+  const einsatz = useEinsatzErhebung(api.entwurf);
 
   const entwurf = api.entwurf;
   const kategorien = useMemo(() => entwurf?.kategorien ?? [], [entwurf]);
   const trigger = api.trigger.datei?.trigger ?? [];
   const legende = useMemo(() => baueLegende(entwurf?.textbausteine), [entwurf?.textbausteine]);
+
+  /**
+   * Ruhe wird bei jedem Rendern abgeleitet, nie gespeichert (Pitfall #45): ein
+   * neu gemapptes Kürzel wacht damit auf, sobald das Schema es führt.
+   */
+  const hatSpalte = useMemo(() => hatSpalteAus(api.csvSpalten), [api.csvSpalten]);
+  const alleRuhenden = useMemo(
+    () => (entwurf?.felder ?? []).filter(f => ruheGrund(f, hatSpalte(f)) !== null),
+    [entwurf, hatSpalte],
+  );
+  const schlafend = useMemo(
+    () => (entwurf && einsatz.treffer
+      ? schlafendeKuerzel(entwurf.felder, einsatz.treffer, hatSpalte)
+      : []),
+    [entwurf, einsatz.treffer, hatSpalte],
+  );
 
   /** Ordner-Auswahl je Ebene, in Baum-Reihenfolge und eingerückt beschriftet. */
   const ordnerWahl = useMemo(() => {
@@ -355,8 +381,24 @@ export function FelderTab({ api }: { api: StatusCockpitApi }): React.ReactElemen
 
   if (!entwurf) return null;
 
+  // Der Ordnerbaum führt nur, was im Blick ist; die ruhenden stehen zugeklappt
+  // darunter. Beide Mengen kommen aus DERSELBEN Filterung — sonst zeigte eine
+  // Suche in der einen Hälfte Treffer und in der anderen nicht.
+  const ordnerLabel = new Map(kategorien.map(k => [k.id, k.label]));
   const proOrdner = new Map<string, StatusFeldEintrag[]>();
+  const ruhendeZeilen: RuhendeZeile[] = [];
   for (const f of gefiltert) {
+    const grund = ruheGrund(f, hatSpalte(f));
+    if (grund !== null) {
+      const code = f.code?.normalize('NFC');
+      const t = code !== undefined ? einsatz.treffer?.get(code) : undefined;
+      ruhendeZeilen.push({
+        feld: f, grund,
+        ordner: ordnerLabel.get(ordnerVon(f)) ?? 'Nicht zugeordnet',
+        frueher: t === undefined ? null : t.frueher,
+      });
+      continue;
+    }
     const id = ordnerVon(f);
     const liste = proOrdner.get(id);
     if (liste) liste.push(f); else proOrdner.set(id, [f]);
@@ -365,11 +407,16 @@ export function FelderTab({ api }: { api: StatusCockpitApi }): React.ReactElemen
   const mitPhase = entwurf.felder.filter(f => f.zahPhaseId != null).length;
   const relevanteAnzahl = entwurf.felder.filter(f => f.relevant === true).length;
   const phasenZahlen = api.feldPhasenAuswahl.kennzahlen;
+  const ruhendeIds = new Set(alleRuhenden.map(f => f.feldId));
+  const relevanteRuhende = alleRuhenden.filter(f => f.relevant === true).map(f => f.feldId);
 
   return (
     <div className="flex flex-col gap-3 pt-3">
       <p className="text-[12.5px] text-[var(--tf-text-secondary)]">
         {entwurf.felder.length} Kürzel in {zaehlwort(kategorien.length, 'Ordner', 'Ordnern')}
+        {alleRuhenden.length > 0 && (
+          <> · {entwurf.felder.length - alleRuhenden.length} im Blick, {alleRuhenden.length} ruhen</>
+        )}
         {' · '}davon mit ZAH-Phase: {mitPhase}. Ein Kürzel ohne Phase wird erfasst und angezeigt,
         erklärt aber kein „seit wann".
         {vorgangssystem && (
@@ -400,7 +447,9 @@ export function FelderTab({ api }: { api: StatusCockpitApi }): React.ReactElemen
           nur über den Bestand statt über den Katalog. Ein Beleg im Befund
           filtert deshalb die Tabelle weiter unten, statt woandershin zu führen. */}
       {vorgangssystem && (
-        <BestandslaufBlock verlauf={verlauf} frist={frist} onKuerzelFilter={setSuche} />
+        <BestandslaufBlock
+          verlauf={verlauf} frist={frist} einsatz={einsatz} onKuerzelFilter={setSuche}
+        />
       )}
 
       <div className="flex flex-col gap-2">
@@ -470,6 +519,14 @@ export function FelderTab({ api }: { api: StatusCockpitApi }): React.ReactElemen
               ))}
           </section>
         ))}
+
+      <RuhendeKuerzel
+        zeilen={ruhendeZeilen} schlafend={schlafend} jahre={einsatz.jahre}
+        relevanteRuhende={relevanteRuhende} suchModus={suchModus}
+        onBeachten={feldId => api.setFeld(feldId, { ruht: false })}
+        onRuhenLassen={() => api.ruhenLassen(schlafend.map(s => s.feldId))}
+        onRelevanzRaeumen={() => api.relevanzDerRuhendenRaeumen(ruhendeIds)}
+      />
 
       {gefiltert.length === 0 && (
         <p className="text-[12.5px] text-[var(--tf-text-tertiary)] px-3 py-4">

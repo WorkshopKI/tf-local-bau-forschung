@@ -180,6 +180,18 @@ export interface KlaerfragenEingabe {
    * einer kaputten zu unterscheiden.
    */
   offeneBedeutungen?: readonly UneinigesKuerzel[];
+  /**
+   * Kürzel, die **ruhen** — sie stellen keine Frage mehr.
+   *
+   * Gemeint sind die Codes ohne jede CSV-Spalte und die von der PL ruhend
+   * gestellten (`ruhende-kuerzel.ts`). Über sie lässt sich am Bestand nichts
+   * belegen und nichts entscheiden; sie in den Bogen zu schreiben verbrauchte
+   * Termin-Zeit für Kürzel, deren Antwort nirgends ankommt.
+   *
+   * Fehlt = **nichts ruht**. Kein Zugriff auf die Fassung von hier aus: dieses
+   * Modul ist rein, und der Aufrufer soll sehen, was er ausblendet.
+   */
+  ruhendeCodes?: ReadonlySet<string>;
 }
 
 /** Eine Bedeutung samt Herkunftsform — für die Kontextspalte. */

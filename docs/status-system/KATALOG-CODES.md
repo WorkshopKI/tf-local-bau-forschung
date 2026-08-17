@@ -148,6 +148,58 @@ nicht mappt, löst nicht auf und trägt nie einen Wert — das ist kein Fehler. 
 drei Fixture-Exporte decken die Antragsbearbeitung ab, nicht die Kommunikations-
 und Widerspruchs-Familien.
 
+## Was wir sehen können: die ruhenden Kürzel
+
+Der Satz oben stimmt nicht nur für Fixtures, sondern für den Produktionsbestand,
+und er wiegt schwerer als er klingt. Gemessen an Fassung 22 (509 Felder) und den
+drei Import-Quellen `9097-anb`, `7737-bgl`, `9052-prjbsp`:
+
+| Lage | Kürzel |
+|---|---|
+| **keine `D_`/`T_`-Spalte in irgendeinem Schema-Mapping** | **243** |
+| Spalte vorhanden, im ganzen Bestand nie gesetzt | 4 (`VRM`, `P2M`, `WZBS`, `WZBTS`) |
+| Spalte vorhanden, zuletzt vor Richtlinie 2020 gesetzt | 11 (`INFOB` 305×, `PBDB` 70×, `XBG` 10×, …) |
+| in Richtlinie 2020/2025 gesetzt | 247 |
+
+Die 243 sind **nicht** „außer Gebrauch". Es sind die Kommunikations-Familie
+(`YE`, `YT`, `YB`, `YF`), Widerspruch (`YWSP*`), Rückzahlung (`RZ*`),
+Aktennotizen (`AKT*`) — C16 setzt sie sehr wahrscheinlich täglich, nur exportiert
+es die Spalten nicht. Für uns sind sie trotzdem tot: keine Phase kann greifen,
+keine To-do-Regel kann zutreffen, keine Klärfrage kann belegt werden.
+
+Sichtbar wurde das an der Kuration selbst — **85 dieser 243 trugen ein von Hand
+gesetztes Relevanz-Häkchen** und sieben eine ZAH-Phase. Kein Fehler im Code, ein
+Fehler in der Aufmerksamkeit: die Tabelle bot 511 Zeilen gleichrangig an, und
+niemand konnte ihr ansehen, welche davon je etwas tragen können.
+
+### Die Ruhe-Achse
+
+[ruhende-kuerzel.ts](../../src/core/status/ruhende-kuerzel.ts) leitet daraus ein
+Urteil ab, und `StatusFeldEintrag.ruht` ist die dreiwertige Ausnahme dazu:
+
+| `ruht` | gilt |
+|---|---|
+| fehlend | Ableitung: ohne gemappte Spalte ruht das Kürzel |
+| `true` | die PL hat es ruhen lassen (Bestandsvorschlag angenommen) |
+| `false` | „trotzdem beachten" — übersteuert auch die Ableitung |
+
+Der Regelfall ist damit **abgeleitet und nicht gespeichert** (Pitfall #45): ein
+neu gemapptes Kürzel wacht auf, sobald das Schema es führt. Gespeichert wird nur
+die Entscheidung — und die trifft die PL mit einem Knopf, nicht 500-mal einzeln.
+Die 15 gemessenen kommen aus dem Einsatz-Bestandslauf
+([useEinsatzErhebung](../../src/plugins/status-cockpit/useEinsatzErhebung.ts)),
+der gegen die jüngsten `EINSATZ_GENERATIONEN` (2) misst — **nicht** gegen den
+persönlichen Betrachtungsbereich, sonst sähe jede Person eine andere Liste
+(Pitfall #46).
+
+**Wirkung genau dort, wo Aufmerksamkeit verteilt wird**: Ordnerbaum des
+Kürzel-Tabs, Auswahlliste des Regel-Editors (`baueTodoFeldVorrat`), Klärfragen
+(`bedeutungsFragen`, `ktFragen`). **Nirgends sonst** — Chronik, Zeitstrahl,
+Navigator, Wächter, `reconcile` und `referenzierbareFelder` kennen `ruht` nicht,
+und ein Guard hält das fest (Pitfall #53). Ein Altantrag von 2017 behält seinen
+`D_INFOB`-Eintrag; eine bestehende To-do-Regel auf ein ruhendes Feld bleibt beim
+Share-Import gültig.
+
 ## Vier Spalten gehören schon kanonischen Feldern
 
 `D_AAE`, `D_ABB`, `D_AZ1_1` und `D_VBE` sind app-weit auf `antragsdatum`,
@@ -288,6 +340,7 @@ Zwei Konsequenzen daraus:
 | Baum-Mechanik (Pfad, Kinder, Zyklenschutz) | [kategorien.ts](../../src/core/status/kategorien.ts) |
 | Code → Record-Key, Ebene/Herkunft-Regel | [feld-aufloesung.ts](../../src/core/status/feld-aufloesung.ts) |
 | Spalten-Entdeckung | [entdecke.ts](../../src/core/status/entdecke.ts) |
+| Ruhe-Achse (abgeleitet + Ausnahme) | [ruhende-kuerzel.ts](../../src/core/status/ruhende-kuerzel.ts), [RuhendeKuerzel.tsx](../../src/plugins/status-cockpit/RuhendeKuerzel.tsx) |
 | Phase ↔ Kategorie | [spine-kategorie.ts](../../src/core/status/spine-kategorie.ts) |
 | Ordner-Spalten der Tabelle | [kategorie-projektion.ts](../../src/core/status/kategorie-projektion.ts) |
 | Kuration | [FelderTab.tsx](../../src/plugins/status-cockpit/FelderTab.tsx), [KategorieEditor.tsx](../../src/plugins/status-cockpit/KategorieEditor.tsx) |

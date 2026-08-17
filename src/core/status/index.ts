@@ -81,8 +81,13 @@ export {
 export { indexNachSchreibweise } from './wert-index';
 export {
   BETRACHTUNGSBEREICH_SEED, bereichsProgramme, bereichsMenge, istImBereich,
-  bereichWeichtVomSeedAb,
+  bereichWeichtVomSeedAb, RICHTLINIEN_GENERATIONEN,
 } from './betrachtungsbereich';
+export {
+  EINSATZ_GENERATIONEN, aktuelleProgramme, einsatzJahre,
+  hatSpalteAus, ruheGrund, ruhtFeld, ruhendeCodes, ruhendeFeldIds, schlafendeKuerzel,
+  type RuheGrund, type HatSpalte, type EinsatzTreffer, type SchlafendesKuerzel,
+} from './ruhende-kuerzel';
 export {
   waehleZieltageVorschlaege, MIN_STICHPROBE,
   type ZieltageAuswahl, type ZieltageUebernahme,
@@ -197,7 +202,7 @@ export {
   vorgangssystemLuecke, ergaenzeVorgangssystemSeed, type VorgangssystemLuecke,
   todoRegelDrift, zieheTodoRegelnNach, type TodoRegelDrift,
   setzeZieltage, setzeFeldPhasen, setzeKurzLabel,
-  relevanzLuecke, markiereRelevanz,
+  relevanzLuecke, markiereRelevanz, lasseRuhen, raeumeRelevanzDerRuhenden,
   kanonischeCodeDoppel, entdoppleKanonischeCodes,
   aendereTodoRegel, verschiebeTodoRegel, fuegeTodoRegelHinzu, codesMitRolle,
 } from './katalog-edit';

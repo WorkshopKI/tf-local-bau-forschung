@@ -85,9 +85,11 @@ function naechsteSchreibweisen(roh: string): string[] {
  */
 export function bedeutungsFragen(
   b: KlaerfragenBestand, offen: readonly UneinigesKuerzel[] = offeneBedeutungen(),
+  ruhend: ReadonlySet<string> = new Set(),
 ): Klaerfrage[] {
   const out: Klaerfrage[] = [];
   for (const u of offen) {
+    if (ruhend.has(u.kuerzel.normalize('NFC'))) continue;
     const dsVorkommen = b.proKuerzelDs.get(u.kuerzel) ?? 0;
     if (dsVorkommen === 0) continue;
 

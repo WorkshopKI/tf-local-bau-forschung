@@ -2,8 +2,10 @@
  * Der Bestandslauf, an **einer** Stelle — Befund oben, Zahlen darunter.
  *
  * Bis v4.51 standen hier zwei Kacheln mit zwei Knöpfen und rund 40 gleichrangigen
- * Zahlen in elf Abschnitten. Beide messen denselben Bestand, also misst sie jetzt
- * ein Knopf, und die Wertung steht vor den Zahlen statt zwischen ihnen:
+ * Zahlen in elf Abschnitten. Alle Durchgänge messen denselben Bestand, also misst
+ * sie ein Knopf — inzwischen drei: Verlauf, Haltedatum und der Einsatz der Kürzel
+ * (`useEinsatzErhebung`, speist die ruhenden Kürzel weiter unten). Die Wertung
+ * steht vor den Zahlen statt zwischen ihnen:
  *
  * - **Oben, immer sichtbar**: was der Lauf bedeutet — Zusagen, Auffälligkeiten,
  *   Kennzahlen. Gerechnet wird das in `bestandslaufBefund.ts`, nicht hier.
@@ -22,6 +24,7 @@ import type { VerlaufsBeispiel } from '@/core/status/verlauf';
 import { baueBefunde, type Befund } from './bestandslaufBefund';
 import { FristBefundeBlock } from './FristBefundeBlock';
 import { feldStil } from './labels';
+import type { EinsatzLauf } from './useEinsatzErhebung';
 import type { FristLauf } from './useFristErhebung';
 import type { VerlaufLauf } from './useVerlaufErhebung';
 import { VerlaufBefundeBlock } from './VerlaufBefundeBlock';
@@ -105,28 +108,31 @@ function BefundZeile({ befund, onKuerzel }: {
   );
 }
 
-export function BestandslaufBlock({ verlauf, frist, onKuerzelFilter }: {
+export function BestandslaufBlock({ verlauf, frist, einsatz, onKuerzelFilter }: {
   verlauf: VerlaufLauf;
   frist: FristLauf;
+  /** Der dritte Durchgang: welche Kürzel setzt der Bestand noch (ohne Bereich)? */
+  einsatz: EinsatzLauf;
   /** Setzt die Suche der Kürzel-Tabelle unter dem Block. */
   onKuerzelFilter: (kuerzel: string) => void;
 }): React.ReactElement {
   const [zahlenOffen, toggleZahlen] = useCollapsedSection(
     'status-cockpit:bestandslauf-zahlen', { defaultOpen: false },
   );
-  // Ein Knopf, zwei Durchgänge: beide lesen denselben Bestand, und getrennt
-  // gedrückt stünden zwei Hälften eines Befundes nebeneinander, von denen eine
+  // Ein Knopf, drei Durchgänge: alle lesen denselben Bestand, und getrennt
+  // gedrückt stünden Hälften eines Befundes nebeneinander, von denen eine
   // älter ist als die andere. `run()` wirft nie — jeder Lauf hält seinen Fehler
   // selbst, deshalb steht unten auch je einer.
   const messen = useAsyncAction(async () => {
     await verlauf.aktion.run();
     await frist.aktion.run();
+    await einsatz.aktion.run();
   });
 
   const v = verlauf.befunde;
   const f = frist.befunde;
   const befunde = baueBefunde(v, f);
-  const busy = messen.busy || verlauf.aktion.busy || frist.aktion.busy;
+  const busy = messen.busy || verlauf.aktion.busy || frist.aktion.busy || einsatz.aktion.busy;
   const gemessen = v !== null || f !== null;
 
   return (
@@ -134,8 +140,8 @@ export function BestandslaufBlock({ verlauf, frist, onKuerzelFilter }: {
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <span className="text-[12.5px] text-[var(--tf-text)]">
           {v === null
-            ? 'Was der Bestand zur Verlaufsableitung und zum Haltedatum sagt — '
-              + 'ein Durchgang zählt es aus.'
+            ? 'Was der Bestand zur Verlaufsableitung, zum Haltedatum und zum Einsatz '
+              + 'der Kürzel sagt — ein Durchgang zählt es aus.'
             : <>{zahl(v.teilvorhaben)} Teilvorhaben in {zahl(v.verbuende)} Vorhaben
               {/* Ohne den Betrachtungsbereich ist keine dieser Zahlen
                   einzuordnen (Pitfall #46). */}
@@ -154,6 +160,7 @@ export function BestandslaufBlock({ verlauf, frist, onKuerzelFilter }: {
           Stichtag {verlauf.stichtag}
           {verlauf.dauerMs !== null && ` · Verlauf ${(verlauf.dauerMs / 1000).toFixed(1)} s`}
           {frist.dauerMs !== null && ` · Haltedatum ${zahl(frist.dauerMs)} ms`}
+          {einsatz.dauerMs !== null && ` · Einsatz ${(einsatz.dauerMs / 1000).toFixed(1)} s`}
         </span>
       )}
 
@@ -162,6 +169,9 @@ export function BestandslaufBlock({ verlauf, frist, onKuerzelFilter }: {
       )}
       {frist.aktion.error !== null && (
         <p className="text-[12px] text-[var(--tf-danger-text)]">⚠ Haltedatum: {frist.aktion.error}</p>
+      )}
+      {einsatz.aktion.error !== null && (
+        <p className="text-[12px] text-[var(--tf-danger-text)]">⚠ Einsatz: {einsatz.aktion.error}</p>
       )}
 
       {befunde.length > 0 && (

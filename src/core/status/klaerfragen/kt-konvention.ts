@@ -115,8 +115,18 @@ const SEITE_TEXT: Readonly<Record<KtSeite | 'beide', string>> = {
  * Je Verstoß eine Frage. Heute leer — die eine belegte Vertauschung ist
  * korrigiert, die 18 übrigen Paare tragen die Konvention.
  */
-export function ktFragen(verstoesse: readonly KtVerstoss[] = ktVerstoesse()): Klaerfrage[] {
-  return verstoesse.map(v => ({
+export function ktFragen(
+  verstoesse: readonly KtVerstoss[] = ktVerstoesse(),
+  /**
+   * Ruhende Kürzel. Ein Paar fällt nur heraus, wenn **beide** Seiten ruhen —
+   * sonst hinge die Frage an einem Kürzel, das sehr wohl läuft, und würde
+   * stumm verschwinden, weil sein Partner nicht exportiert wird.
+   */
+  ruhend: ReadonlySet<string> = new Set(),
+): Klaerfrage[] {
+  return verstoesse.filter(v => !(
+    ruhend.has(`${v.stamm}K`.normalize('NFC')) && ruhend.has(`${v.stamm}T`.normalize('NFC'))
+  )).map(v => ({
     id: `kt-konvention:${v.stamm}:${v.form}`,
     herkunft: 'kt-konvention' as const,
     betrifft: `${v.stamm}K / ${v.stamm}T (${v.form})`,

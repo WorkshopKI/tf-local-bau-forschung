@@ -43,6 +43,7 @@ import {
   type ZahPhase, type StatusCategory,
   type PhasenAuswahl,
   relevanzLuecke, markiereRelevanz, AB_DASHBOARD_RELEVANZ,
+  lasseRuhen, raeumeRelevanzDerRuhenden,
   findeStatusCode, medianLiegezeit, letzteAktivitaetVon, vorkommenAus,
   baueSeedVersion, KANONISCHE_CODE_FELDER, AB_TODO_REGELN,
   STATUS_CODE_KATALOG, SEED_ZAH_PHASEN, SEED_CODE_ZU_ZAH_PHASE,
@@ -240,6 +241,10 @@ export interface StatusCockpitApi {
    */
   relevanzLueckeRolle: (rolle: Rolle) => number;
   relevanzAusRolle: (rolle: Rolle) => void;
+  /** Den Bestandsvorschlag annehmen: diese Felder ruhen lassen (`ruht: true`). */
+  ruhenLassen: (feldIds: readonly string[]) => void;
+  /** Relevanz-Häkchen abräumen, die an ruhenden Kürzeln hängen und nie wirken. */
+  relevanzDerRuhendenRaeumen: (feldIds: ReadonlySet<string>) => void;
   /** Eine Regel aus einem abgeleiteten Platzhalter erzeugen (stillgelegt). */
   todoRegelAusPlatzhalter: (g: PlatzhalterGruppe) => void;
   /**
@@ -1025,6 +1030,18 @@ export function useStatusCockpit(): StatusCockpitApi {
     setEntwurf(v => (v ? markiereRelevanz(v, codesMitRolle(v, rolle)) : v));
   }, []);
 
+  // --- Ruhende Kürzel ------------------------------------------------------
+  // Beide Aktionen sind EIN setState (Pitfall #20). Die Ruhe selbst wird nicht
+  // hier entschieden, sondern in `ruhende-kuerzel.ts` abgeleitet; gespeichert
+  // wird nur die Ausnahme bzw. der angenommene Vorschlag.
+  const ruhenLassen = useCallback((feldIds: readonly string[]) => {
+    setEntwurf(v => (v ? lasseRuhen(v, feldIds) : v));
+  }, []);
+
+  const relevanzDerRuhendenRaeumen = useCallback((feldIds: ReadonlySet<string>) => {
+    setEntwurf(v => (v ? raeumeRelevanzDerRuhenden(v, feldIds) : v));
+  }, []);
+
   /**
    * Aus einem Platzhalter eine echte Regel machen.
    *
@@ -1094,6 +1111,7 @@ export function useStatusCockpit(): StatusCockpitApi {
     vorgangssystemLuecke: vsLuecke, vorgangssystemNachziehen,
     relevanzLuecke: relLuecke, relevanzAusAbDashboard, liegezeitVorschlag,
     relevanzLueckeRolle, relevanzAusRolle, todoRegelAusPlatzhalter,
+    ruhenLassen, relevanzDerRuhendenRaeumen,
     zieltageAuswahl, zieltageUebernehmen,
     feldPhasenAuswahl, feldPhasenUebernehmen, verwaiste,
     setTodoRegel, verschiebeTodoRegel: verschiebeTodo, todoRegelnNachziehen, todoDrift,

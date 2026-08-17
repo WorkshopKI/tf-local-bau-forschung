@@ -12,6 +12,12 @@
  * plus seine Begleit-Textspalte (`T_XPC+` zu `D_XPC+` — anderer Wert, gleiches
  * Feld). Derselbe Satz, den `referenzierbareFelder` prüft.
  *
+ * **Ruhende Kürzel bleiben draußen** — aus demselben Grund. Wer keine Spalte in
+ * irgendeiner CSV-Quelle hat, kann nie einen Wert tragen; eine Bedingung darauf
+ * wäre wieder die Regel, die nie zutrifft. Der Vorrat ist damit **enger** als
+ * `referenzierbareFelder`, und das ist Absicht: der Prüfbegriff darf nicht
+ * schrumpfen, sonst wiese der Share-Import bestehende Regeln zurück.
+ *
  * Rein: keine IO, kein React.
  */
 import type { SpaltenEintrag } from '@/core/services/csv/spalten-inventar';
@@ -29,10 +35,15 @@ function spaltenTyp(f: StatusFeldEintrag): SpaltenEintrag['typ'] {
  * danach die Code-Spalten alphabetisch — sonst springt die Liste mit jeder
  * Katalog-Änderung.
  */
-export function baueTodoFeldVorrat(felder: readonly StatusFeldEintrag[]): SpaltenEintrag[] {
+export function baueTodoFeldVorrat(
+  felder: readonly StatusFeldEintrag[],
+  /** Feld-Ids, die ruhen (`ruhendeFeldIds`). Fehlt = alles anbieten. */
+  ruhend?: ReadonlySet<string>,
+): SpaltenEintrag[] {
   const out = new Map<string, SpaltenEintrag>();
   for (const f of felder) {
     if (!f.aktiv) continue;
+    if (ruhend?.has(f.feldId)) continue;
     if (!out.has(f.feldId)) {
       out.set(f.feldId, {
         feldId: f.feldId,

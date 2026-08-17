@@ -720,3 +720,47 @@ export function markiereRelevanz(
     )),
   };
 }
+
+/**
+ * Legt eine Liste von Feldern schlafen (`ruht: true`) — der Bestandslauf hat sie
+ * als seit zwei Richtlinien ungesetzt ausgewiesen, die PL nimmt den Vorschlag an.
+ *
+ * Über `feldId` statt Code, weil der Vorschlag aus derselben Fassung kommt und
+ * die Id dort eindeutig ist; `markiereRelevanz` geht über Codes, weil ihre Liste
+ * aus der Zuarbeit stammt.
+ *
+ * **Setzt nur, nimmt nie zurück.** Ein `ruht: false` ist die ausdrückliche
+ * Ausnahme der PL und soll eine Messung überleben — `schlafendeKuerzel` lässt
+ * solche Felder deshalb schon aus dem Vorschlag heraus. Idempotent: gleiche
+ * Referenz, wenn nichts zu tun ist.
+ */
+export function lasseRuhen(
+  version: MappingVersion, feldIds: readonly string[],
+): MappingVersion {
+  const gesucht = new Set(feldIds);
+  if (!version.felder.some(f => gesucht.has(f.feldId) && f.ruht !== true)) return version;
+  return {
+    ...version,
+    felder: version.felder.map(f => (gesucht.has(f.feldId) ? { ...f, ruht: true } : f)),
+  };
+}
+
+/**
+ * Räumt die Relevanz-Häkchen der ruhenden Felder ab.
+ *
+ * Gemessen an Fassung 22 trugen **85** Kürzel ohne jede Export-Spalte ein
+ * Häkchen, das nirgends wirken kann (Navigator und Wächter sehen sie nie). Das
+ * ist keine Kosmetik: die Zahl „224 als relevant markiert" im Kopf des Reiters
+ * versprach eine Kuration, die zu einem Drittel ins Leere lief.
+ */
+export function raeumeRelevanzDerRuhenden(
+  version: MappingVersion, feldIds: ReadonlySet<string>,
+): MappingVersion {
+  if (!version.felder.some(f => feldIds.has(f.feldId) && f.relevant === true)) return version;
+  return {
+    ...version,
+    felder: version.felder.map(f => (
+      feldIds.has(f.feldId) && f.relevant === true ? { ...f, relevant: false } : f
+    )),
+  };
+}

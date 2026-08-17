@@ -35,10 +35,14 @@ const RANG: ReadonlyMap<string, number> = new Map(HERKUENFTE.map((h, i) => [h, i
  * Kürzel mit drei Vorkommen über einem mit dreitausend.
  */
 export function baueKlaerfragen(e: KlaerfragenEingabe): Klaerfrage[] {
+  // Ruhende Kürzel stellen keine Frage: über sie lässt sich am Bestand nichts
+  // belegen. Die WERT-Herkünfte bleiben unberührt — sie hängen an Rohstatus-
+  // Werten, nicht an Kürzeln, und die stehen unabhängig davon in den Daten.
+  const ruhend = e.ruhendeCodes ?? new Set<string>();
   const alle = [
-    ...bedeutungsFragen(e.bestand, e.offeneBedeutungen),
+    ...bedeutungsFragen(e.bestand, e.offeneBedeutungen, ruhend),
     ...dsFrage(e.bestand),
-    ...ktFragen(),
+    ...ktFragen(undefined, ruhend),
     ...wertFragen(e),
     ...abweichungsFragen(e.bestand),
   ];

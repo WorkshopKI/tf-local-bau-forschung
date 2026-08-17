@@ -194,6 +194,24 @@ export interface StatusFeldEintrag {
    * bietet im Kürzel-Tab eine Aktion „AB-Dashboard-Spalten markieren" an.
    */
   relevant?: boolean;
+  /**
+   * **Ruht** dieses Kürzel — soll es Tabelle, Auswahlliste und Fragebogen in
+   * Ruhe lassen? Dreiwertig, und das ist der Punkt:
+   *
+   * - **fehlend** — die Ableitung entscheidet: ohne gemappte CSV-Spalte ruht das
+   *   Kürzel, sonst nicht. Ein neu gemapptes wacht damit von selbst auf.
+   * - **`true`** — die PL hat es ruhen lassen (typisch: der Bestandslauf hat es
+   *   als seit zwei Richtlinien ungesetzt vorgeschlagen).
+   * - **`false`** — „trotzdem beachten": die Ausnahme, die auch die Ableitung
+   *   übersteuert. Für ein frisch eingeführtes Kürzel, das noch keine Spalte hat.
+   *
+   * **Sichtbarkeit, nicht Wahrheit** (Pitfall #53): Chronik, Zeitstrahl,
+   * Navigator, Wächter und `reconcile` lesen dieses Feld NICHT — ein Altantrag
+   * behält seinen Eintrag. Nicht zu verwechseln mit {@link aktiv}, das das
+   * Event-Schreiben beim Import stoppt. Einzige Lesestelle:
+   * `ruhende-kuerzel.ts`.
+   */
+  ruht?: boolean;
   /** @deprecated seit v2.348 — `rollen`. Wird nur noch gelesen, nie geschrieben. */
   zustaendigkeit?: Zustaendigkeit;
   /**

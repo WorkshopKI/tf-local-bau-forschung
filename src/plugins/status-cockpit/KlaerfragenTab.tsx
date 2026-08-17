@@ -136,7 +136,7 @@ function SchreibfehlerBlock({ bestand }: { bestand: KlaerfragenBestand }): React
 }
 
 export function KlaerfragenTab({ api }: { api: StatusCockpitApi }): React.ReactElement {
-  const lauf = useKlaerfragen(api.entwurf);
+  const lauf = useKlaerfragen(api.entwurf, api.csvSpalten);
   const [bericht, setBericht] = useState<string | null>(null);
 
   const exportieren = useAsyncAction(async () => {
@@ -163,7 +163,11 @@ export function KlaerfragenTab({ api }: { api: StatusCockpitApi }): React.ReactE
               ? 'Was am Status- und Kürzelkatalog fachlich offen ist — aus dem Bestand abgeleitet, nicht gepflegt.'
               : <>{zaehlwort(fragen.length, 'Klärfrage', 'Klärfragen')} aus{' '}
                 {zahl(lauf.bestand?.gesamtVorgaenge ?? 0)} Vorgängen · Bestand vom{' '}
-                {kurzDatum(lauf.bestand?.importiertAm ?? null)} · ganzer Bestand, ohne Betrachtungsbereich</>}
+                {kurzDatum(lauf.bestand?.importiertAm ?? null)} · ganzer Bestand, ohne Betrachtungsbereich
+                {/* Die Auslassung wird GENANNT, nicht verschluckt: sonst läse sich
+                    eine kurze Liste wie ein vollständig geklärter Katalog. */}
+                {lauf.ruhendeKuerzel > 0 && <> · {zahl(lauf.ruhendeKuerzel)} ruhende Kürzel
+                  ausgelassen</>}</>}
           </span>
           <div className="flex items-center gap-2">
             <Button

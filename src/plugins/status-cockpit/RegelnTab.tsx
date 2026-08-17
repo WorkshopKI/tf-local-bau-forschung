@@ -73,6 +73,7 @@ export function RegelnTab({ api }: { api: StatusCockpitApi }): React.ReactElemen
     <div className="flex-1 min-h-0 flex flex-col">
       <TodoRegelnBereich
         version={entwurf} api={api} platzhalter={platzhalter} onExportieren={onExportieren}
+        csvSpalten={api.csvSpalten}
         satz={satz} onSatzWechsel={setSatz} wirkung={wirkung} probe={probe}
         termin={termin} zieltageBeantragt={api.liegezeitVorschlag.get(BEANTRAGT_CODE) ?? null}
         zieltageGepflegt={zieltageFuer(entwurf, BEANTRAGT_CODE)}

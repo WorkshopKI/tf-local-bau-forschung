@@ -994,6 +994,65 @@ describe('bereich-nie-im-daten-layer (Pitfall #46)', () => {
   });
 });
 
+describe('ruhe-nur-sichtbarkeit (Pitfall #53)', () => {
+  // Ein ruhendes Kuerzel verschwindet aus Tabelle, Auswahlliste und Fragebogen —
+  // NICHT aus dem, was am Antrag steht. Filterte die Ableitung mit, verloere ein
+  // Altantrag von 2017 seinen D_INFOB-Eintrag in Chronik und Zeitstrahl, und der
+  // Import schriebe das Event gar nicht erst. Genau diese Vermischung ist der
+  // Unterschied zu `aktiv`, das Datenwirkung HAT.
+  const TABU = [
+    'src/core/status/verlauf/',
+    'src/core/status/reconcile.ts',
+    'src/core/status/navigator.ts',
+    'src/core/status/waechter.ts',
+    'src/core/status/herleitung.ts',
+    'src/core/status/snapshot.ts',
+    'src/core/status/feld-aufloesung.ts',
+    'src/plugins/antraege/status/',
+  ];
+  const VERBOTEN = /\bruht\b|\bruhende(Codes|FeldIds)\b|\bruhtFeld\b|\bruheGrund\b/;
+
+  it('Chronik, Navigator, Waechter und Import lesen die Ruhe nicht', () => {
+    // Positiv-Kontrolle: greift der Pfad-Filter nicht, meldete der Guard fuer
+    // immer „alles gut".
+    const gescannt = ALL_TS_FILES.map(relPath);
+    expect(gescannt, 'Pfad-Filter trifft keine Datei — der Guard prueft nichts')
+      .toContain('src/core/status/reconcile.ts');
+
+    const treffer = ALL_TS_FILES.filter(f => {
+      const p = relPath(f);
+      if (p.includes('__tests__')) return false;
+      if (!TABU.some(t => p.startsWith(t))) return false;
+      return readFileSync(f, 'utf-8').split(/\r?\n/).some(l => {
+        const t = l.trim();
+        if (t.startsWith('//') || t.startsWith('*') || t.startsWith('/*')) return false;
+        if (l.includes('allow-ruhe-nur-sichtbarkeit:')) return false;
+        return VERBOTEN.test(l);
+      });
+    }).map(relPath);
+    expect(
+      treffer,
+      'Ruhe ist Sichtbarkeit, nicht Wahrheit (Pitfall #53): sie steuert Kuerzel-Tabelle, '
+      + 'Regel-Auswahl und Klaerfragen. Was am Antrag steht, bleibt sichtbar — sonst '
+      + `verliert eine Altchronik ihre Eintraege. Gefunden in: ${treffer.join(', ')}`,
+    ).toEqual([]);
+  });
+
+  it('der Pruefbegriff der Bedingungen schrumpft nicht mit', () => {
+    // `referenzierbareFelder` entscheidet, was der Share-IMPORT akzeptiert. Zoege
+    // die Ruhe dort ein, wiese er bestehende Regeln zurueck — der Editor bietet
+    // weniger an (`baueTodoFeldVorrat`), erlaubt aber weiterhin alles.
+    const quelle = readFileSync(
+      join(process.cwd(), 'src/core/status/bedingung.ts'), 'utf-8',
+    );
+    expect(
+      VERBOTEN.test(quelle),
+      'bedingung.ts darf die Ruhe nicht kennen: der Editor blendet aus, die '
+      + 'Validierung nicht (sonst kippen bestehende Regeln beim Import).',
+    ).toBe(false);
+  });
+});
+
 describe('journal-ohne-personen-achse (Pitfall #48)', () => {
   // Das Import-Diff-Journal beantwortet „was hat sich geaendert", nicht „wer war
   // das". Mit Bearbeiter-Spalte plus Datumsverlauf entstuende ein
