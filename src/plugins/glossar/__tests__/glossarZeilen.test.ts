@@ -8,6 +8,9 @@
  * 3. Fehlende Zieltage bleiben `null` („nicht prüfbar"), werden nie zu 0.
  * 4. Neutrale Kürzel bleiben aus der Rollensicht heraus und stehen getrennt —
  *    leere Rollen heißen „jeder darf", nie „niemand" (Pitfall #43).
+ * 5. Ein KÜRZEL steht ebenfalls einmal da, auch wenn die Fassung es doppelt
+ *    führt (Pitfall #44) — gezeigt wird die wertführende Zeile, die andere wird
+ *    als Fehlstand benannt statt verschwiegen.
  */
 import { describe, it, expect } from 'vitest';
 import type {
@@ -116,6 +119,68 @@ describe('kuerzelZeilen', () => {
       felder: [feld({ feldId: 'ABB', code: 'ABB', quelleKey: 'bewilligung_datum' })],
     });
     expect(kuerzelZeilen(mitQuelle, null)[0]?.csvSpalte).toBe('bewilligung_datum');
+  });
+
+  it('meldet im Normalfall nichts Verdraengtes', () => {
+    expect(kuerzelZeilen(v, null).every(z => z.verdraengt.length === 0)).toBe(true);
+  });
+
+  // Am echten Bestand (Fassung 22, August 2026) traf das genau EINEN Code: `VBE`
+  // stand als kanonisches `vn_eingang_datum` UND als `D_VBE`. Zwei Eintraege
+  // gaben zwei Antworten auf eine Frage — und der Liste zweimal dieselbe Id.
+  it('zeigt einen doppelt gefuehrten Code EINMAL, mit der wertfuehrenden Zeile', () => {
+    const doppelt = fassung({
+      felder: [
+        feld({ feldId: 'D_VBE', code: 'VBE', label: 'Eingang VN-Sach' }),
+        feld({ feldId: 'vn_eingang_datum', code: 'VBE', label: 'VN-Eingang (Begleitphase)' }),
+      ],
+    });
+    const zeilen = kuerzelZeilen(doppelt, null);
+    expect(zeilen).toHaveLength(1);
+    // Das kanonische Feld traegt den Wert — es gewinnt, egal in welcher
+    // Reihenfolge die Fassung die beiden Zeilen fuehrt.
+    expect(zeilen[0]?.csvSpalte).toBe('vn_eingang_datum');
+    expect(zeilen[0]?.label).toBe('VN-Eingang (Begleitphase)');
+    expect(zeilen[0]?.verdraengt).toEqual(['D_VBE']);
+  });
+
+  it('gewinnt auch, wenn das kanonische Feld ZUERST steht', () => {
+    const doppelt = fassung({
+      felder: [
+        feld({ feldId: 'vn_eingang_datum', code: 'VBE', label: 'VN-Eingang (Begleitphase)' }),
+        feld({ feldId: 'D_VBE', code: 'VBE', label: 'Eingang VN-Sach' }),
+      ],
+    });
+    const zeilen = kuerzelZeilen(doppelt, null);
+    expect(zeilen[0]?.csvSpalte).toBe('vn_eingang_datum');
+    expect(zeilen[0]?.verdraengt).toEqual(['D_VBE']);
+  });
+
+  // Ohne kanonische Zeile ist keine der beiden besser — dann traegt der Hinweis
+  // die Auskunft, nicht die Auswahl.
+  it('faellt bei einer Dublette OHNE kanonische Zeile auf die erste zurueck', () => {
+    const doppelt = fassung({
+      felder: [
+        feld({ feldId: 'D_ZZ9', code: 'ZZ9', label: 'zuerst' }),
+        feld({ feldId: 'T_ZZ9', code: 'ZZ9', label: 'danach' }),
+      ],
+    });
+    const zeilen = kuerzelZeilen(doppelt, null);
+    expect(zeilen).toHaveLength(1);
+    expect(zeilen[0]?.label).toBe('zuerst');
+    expect(zeilen[0]?.verdraengt).toEqual(['T_ZZ9']);
+  });
+
+  it('vergibt je Code genau eine Glossar-Id (der doppelte React-Key)', () => {
+    const doppelt = fassung({
+      felder: [
+        feld({ feldId: 'D_VBE', code: 'VBE' }),
+        feld({ feldId: 'vn_eingang_datum', code: 'VBE' }),
+        feld({ feldId: 'D_ABB', code: 'ABB' }),
+      ],
+    });
+    const ids = kuerzelZeilen(doppelt, null).map(z => `kuerzel:${z.code}`);
+    expect(new Set(ids).size).toBe(ids.length);
   });
 });
 

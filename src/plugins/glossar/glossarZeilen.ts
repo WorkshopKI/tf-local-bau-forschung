@@ -11,6 +11,7 @@
 import {
   bedingungFeldRefs, bedingungSatz, istNeutral, kategorieFuerPhase, kategoriePfadLabel,
   phaseFuerCode, regelsatzVon, rollenLabel, rollenVonFeld, sonderKuerzel, todoFeld,
+  KANONISCHE_CODE_FELDER,
   zahPhaseLabel, zahPhaseRang, zahPhasenVon, zieltageFuer,
   type MappingVersion, type Rolle, type StatusFeldEintrag, type StatusKategorie,
   type TodoRegel, type VorkommenStand, type ZahPhaseId,
@@ -49,6 +50,16 @@ export interface KuerzelZeile {
   /** Pfad im Ordnerbaum der Fassung; leer, wenn nicht zugeordnet. */
   ordner: string;
   vorkommen: number | null;
+  /**
+   * Die Spalten der überzähligen Katalog-Zeilen desselben Codes — leer im
+   * Normalfall.
+   *
+   * Nicht-leer heißt: die Fassung führt den Code mehrfach, und das ist ein
+   * **Fehlstand**, kein zweiter Blickwinkel (Pitfall #44). Das Glossar zeigt
+   * trotzdem nur EINEN Eintrag, benennt den Widerspruch aber — verschwiege es
+   * ihn, stünde hier eine von zwei Beschriftungen als die Wahrheit.
+   */
+  verdraengt: readonly string[];
 }
 
 /**
@@ -93,33 +104,75 @@ export function statuswertZeilen(
 }
 
 /**
- * Die Kürzel der Fassung. Nur Felder MIT Kürzel — kanonische Felder wie `status`
- * tragen keines und sind hier nichts, wonach jemand nachschlägt.
+ * Die Kürzel der Fassung, EINMAL je Code. Nur Felder MIT Kürzel — kanonische
+ * Felder wie `status` tragen keines und sind hier nichts, wonach jemand
+ * nachschlägt.
+ *
+ * **Warum entdoppelt wird** (wie schon bei {@link statuswertZeilen}): Wer „VBE"
+ * nachschlägt, fragt nach dem Kürzel, nicht nach der Katalog-Zeile, die es
+ * gerade trägt. Zwei Einträge gäben zwei Antworten auf eine Frage — und in der
+ * Liste zwei Zeilen mit derselben Id.
+ *
+ * **Welche Zeile gewinnt**: die, die den WERT trägt. Führt eine Fassung einen
+ * Code doppelt (kanonisches Feld UND eigenes `D_`-Feld, Pitfall #44), gibt die
+ * Kollisionsregel der Feld-Auflösung dem kanonischen Feld den Wert; das
+ * `D_`-Feld bleibt für immer leer. Das Glossar folgt genau dieser Regel, statt
+ * eine dritte Antwort zu erfinden — und meldet den Fehlstand über
+ * `verdraengt`. Bei einer Dublette OHNE kanonische Zeile gewinnt die erste;
+ * dann ist keine besser als die andere, und der Hinweis trägt die Auskunft.
  */
 export function kuerzelZeilen(
   version: MappingVersion, vorkommen: VorkommenStand | null,
 ): KuerzelZeile[] {
   const baum = version.kategorien ?? [];
-  const zeilen: KuerzelZeile[] = [];
+  const jeCode = new Map<string, { zeile: KuerzelZeile; verdraengt: string[] }>();
 
   for (const f of version.felder) {
     if (f.code === undefined || f.code === '') continue;
     const code = f.code.normalize('NFC');
-    const rollen = rollenVonFeld(f);
-    zeilen.push({
-      code,
-      feld: f,
-      label: f.label,
-      csvSpalte: f.quelleKey ?? f.feldId,
-      rollen,
-      rollenText: rollenLabel(f),
-      neutral: istNeutral(f),
-      ordner: ordnerPfad(f.kategorieId, baum),
-      vorkommen: vorkommen?.proKuerzel.get(code) ?? null,
+    const spalte = f.quelleKey ?? f.feldId;
+    const kanonisch = KANONISCHE_CODE_FELDER.get(code) === f.feldId;
+
+    const vorhanden = jeCode.get(code);
+    if (vorhanden) {
+      // Das kanonische Feld verdrängt die überzählige Spalte, sonst bleibt es
+      // beim Ersten. So oder so wird die unterlegene Spalte NICHT verschwiegen.
+      if (kanonisch) {
+        vorhanden.verdraengt.push(vorhanden.zeile.csvSpalte);
+        vorhanden.zeile = baueKuerzelZeile(f, code, spalte, baum, vorkommen);
+      } else {
+        vorhanden.verdraengt.push(spalte);
+      }
+      continue;
+    }
+    jeCode.set(code, {
+      zeile: baueKuerzelZeile(f, code, spalte, baum, vorkommen),
+      verdraengt: [],
     });
   }
 
-  return zeilen.sort((a, b) => a.code.localeCompare(b.code, 'de'));
+  return [...jeCode.values()]
+    .map(({ zeile, verdraengt }) => ({ ...zeile, verdraengt }))
+    .sort((a, b) => a.code.localeCompare(b.code, 'de'));
+}
+
+/** Eine Katalog-Zeile als Kürzel-Zeile — ohne die Dubletten-Frage. */
+function baueKuerzelZeile(
+  f: StatusFeldEintrag, code: string, csvSpalte: string,
+  baum: readonly StatusKategorie[], vorkommen: VorkommenStand | null,
+): KuerzelZeile {
+  return {
+    code,
+    feld: f,
+    label: f.label,
+    csvSpalte,
+    rollen: rollenVonFeld(f),
+    rollenText: rollenLabel(f),
+    neutral: istNeutral(f),
+    ordner: ordnerPfad(f.kategorieId, baum),
+    vorkommen: vorkommen?.proKuerzel.get(code) ?? null,
+    verdraengt: [],
+  };
 }
 
 /** Der Ordnerpfad eines Feldes; leer, wenn es keinem zugeordnet ist. */

@@ -153,6 +153,25 @@ export function KuerzelDetail({ zeile, version, regeln, trigger, onStatus, onReg
         </p>
       )}
 
+      {/* Ein Fehlstand der Fassung, kein zweiter Blickwinkel — deshalb steht er
+          hier und nicht bei den Feldern. Das Glossar zeigt die Zeile, die den
+          Wert trägt; die andere zu verschweigen hieße, einen Widerspruch als
+          Auskunft auszugeben (Pitfall #44). Aufgeräumt wird im Status-Cockpit,
+          das denselben Befund meldet — hier steht kein zweiter Knopf dafür. */}
+      {zeile.verdraengt.length > 0 && (
+        <p className="flex items-baseline gap-1.5 text-[12px] text-[var(--tf-text-secondary)]">
+          <Badge variant="warning">Doppelt geführt</Badge>
+          <span>
+            Die Fassung führt dieses Kürzel noch ein zweites Mal, als
+            {zeile.verdraengt.length === 1 ? ' Spalte ' : ' Spalten '}
+            <span className="font-mono text-[11.5px]">{zeile.verdraengt.join(', ')}</span>.
+            {' '}Gezeigt wird die Zeile, die den Wert trägt — die andere bleibt leer.
+            {' '}Aufräumen lässt sich das im Status-Cockpit unter „Referenzdaten" mit
+            {' '}„Nachziehen".
+          </span>
+        </p>
+      )}
+
       <Felder>
         <Feld label="Spalte">
           <span className="font-mono text-[11.5px]">{zeile.csvSpalte}</span>

@@ -25,7 +25,8 @@ const feld = (feldId: string): StatusFeldEintrag => ({
 
 const kuerzel = (o: Partial<KuerzelZeile> & { code: string }): KuerzelZeile => ({
   feld: feld(`D_${o.code}`), label: '', csvSpalte: `D_${o.code}`,
-  rollen: [], rollenText: '', neutral: true, ordner: '', vorkommen: null, ...o,
+  rollen: [], rollenText: '', neutral: true, ordner: '', vorkommen: null,
+  verdraengt: [], ...o,
 });
 
 describe('Glossar-Seed', () => {

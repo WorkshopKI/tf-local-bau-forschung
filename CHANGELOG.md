@@ -5,6 +5,23 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.85.7 — der Rueckweg nennt die Seite im Dativ (August 2026)
+
+PATCH — Der Rückweg im Antrags-Detail setzte seit v4.85.2 einheitlich „Zurück zu <Seite>" — für die halbe Navigation falsches Deutsch („Zurück zu Suche"). Der Artikel hängt am Wort, nicht an einer Regel, die sich aus dem Namen raten ließe.
+
+- **Je Seite die fertige Fügung im Dativ** („zur Suche", „zum Vorgangs-Board", „zu den Dokumenten"); ohne Eintrag bleibt es bei „zu <Name>", für Eigennamen wie „Home" die richtige Form ([rueckwegSatz.ts](src/core/nav/rueckwegSatz.ts))
+- **Guard `rueckweg-satz-abdeckung`** hält die Tabelle an den Plugin-Namen: neue Seite ohne Fügung fällt auf, Fügung ohne Seite ebenso ([conventions-ui.test.ts](src/__tests__/conventions-ui.test.ts))
+
+### v4.85.6 — Ein Kuerzel steht einmal im Glossar (August 2026)
+
+PATCH — Gemeldet als React-Warnung („two children with the same key, `kuerzel:VBE`"). Dahinter steckte kein Anzeige-Fehler, sondern ein bekannter Fehlstand der Fassung: `VBE` ist eines der vier kanonisch belegten Kürzel und stand trotzdem zusätzlich als `D_VBE` (Pitfall #44). Gemessen am echten Bestand traf das genau **1 von 505** Codes, und **0 von 30** To-do-Regeln fassen ihn an — die Folge war also latent. `statuswertZeilen` entdoppelte längst je Code; `kuerzelZeilen` hatte dieselbe Behandlung nie bekommen.
+
+- **Ein Kürzel steht einmal im Glossar** — gezeigt wird die Zeile, die den WERT trägt (das kanonische Feld), also exakt die Kollisionsregel der Feld-Auflösung ([glossarZeilen.ts](src/plugins/glossar/glossarZeilen.ts))
+- **Der Widerspruch wird benannt statt verschluckt**: Badge „Doppelt geführt" nennt die überzählige Spalte und verweist aufs Nachziehen im Cockpit ([KuerzelDetail.tsx](src/plugins/glossar/KuerzelDetail.tsx))
+- **Auch ohne kanonische Zeile bleibt die Liste heil** — dann gewinnt die erste, und der Hinweis trägt die Auskunft
+- **Belegt am echten Bestand**: 607 → 606 Einträge, 506 → 505 Kürzel, `window.__tf.fehler()` leer; die gewählte VBE-Zeile trägt 5.788 Vorgänge, die verdrängte wäre leer
+- **Fünf Fälle festgenagelt**, inklusive „je Code genau eine Glossar-Id" ([glossarZeilen.test.ts](src/plugins/glossar/__tests__/glossarZeilen.test.ts))
+
 ### v4.85.5 — Phasen importieren steht neben Phasen exportieren (August 2026)
 
 PATCH — Es gibt nur EINEN Import (die Datei sagt an ihrer Marke selbst, was sie ist), also stand neben „Phasen exportieren" bewusst kein Gegenstück. Der erste Nutzer suchte es prompt vergeblich. Ein Knopf ohne sichtbares Gegenstück schickt Monate später jemanden auf die Suche nach einer Funktion, die es nur unter anderem Namen gibt.
