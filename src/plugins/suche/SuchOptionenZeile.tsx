@@ -33,6 +33,15 @@
  * taten. Sie trennt jetzt die Achse, auf der sie wirken: der eine sucht dasselbe
  * WORT in anderer Form (rein sprachlich, kostenlos), der andere dasselbe THEMA
  * in anderen Worten (Sprachmodell, Nachladen).
+ *
+ * **Die Bestandszahl steht seit v4.75 nicht mehr hier**, sondern am Seitentitel.
+ * Diese Zeile trägt ausschließlich Regler — Dinge, die der Nutzer verstellt. Die
+ * Größe des Index verstellt er nicht; sie gilt der ganzen Seite und stand hier
+ * nur, weil rechts Platz war. Mit ihr gefallen ist die zweite Zahl
+ * („n Textabschnitte"): sie zählte Dokumentstücke, während die Seite Anträge
+ * findet, und beantwortete damit eine Frage, die niemand an die Suche stellt.
+ * Die Diagnose-Zeile für den FEHLENDEN Dokumentenindex bleibt davon unberührt
+ * (`IndexInfoZeile`) — die beantwortet „warum finde ich nichts in Dokumenten?".
  */
 import {
   VERKNUEPFUNG_LABEL,
@@ -166,7 +175,6 @@ export function SuchOptionenZeile({
   onNlModus,
   planAktiv,
   planOhneAehnlichkeit,
-  indexHinweis,
 }: {
   verknuepfung: SuchVerknuepfung;
   onVerknuepfung: (v: SuchVerknuepfung) => void;
@@ -185,7 +193,6 @@ export function SuchOptionenZeile({
   planAktiv: boolean;
   /** Hat der Plan die Ähnlichkeitssuche abgeschaltet (Feldbindung/Einschränkung)? */
   planOhneAehnlichkeit: boolean;
-  indexHinweis: string;
 }): React.ReactElement {
   // Im Frage-Modus gelten Verknüpfung und Wortformen NIE — vor dem Absenden
   // läuft keine Suche, danach gilt der Plan. Sie verschwinden deshalb ganz,
@@ -330,8 +337,6 @@ export function SuchOptionenZeile({
           Verknüpfung und Wortformen bestimmt die KI
         </span>
       )}
-
-      <span className="text-[11.5px] text-[var(--tf-text-tertiary)]">{indexHinweis}</span>
     </div>
   );
 }

@@ -717,6 +717,7 @@ export function SuchSeite(): React.ReactElement {
               rechten Blattrand (ui-muster.md, Guard `hilfe-knopf-am-blattrand`). */}
           <div className="mb-4 flex w-full items-center gap-3">
             <h1 className="text-[22px] font-medium text-[var(--tf-text)]">Suche</h1>
+            <span className="text-[12.5px] text-[var(--tf-text-tertiary)]" title="So viele Anträge stehen im Suchindex dieses Rechners — die Zahl gilt der ganzen Seite und ändert sich mit keiner Option darunter.">Index: {indexInfo.antraegeGeladen.toLocaleString('de-DE')} Anträge</span>
             <div className="ml-auto flex shrink-0 items-center gap-1">
               <div className="relative">
                 <button
@@ -838,7 +839,6 @@ export function SuchSeite(): React.ReactElement {
               onNlModus={setNlModus}
               planAktiv={aktiverPlan !== null}
               planOhneAehnlichkeit={planSchraenktEin(planTeile)}
-              indexHinweis={`Index: ${indexInfo.antraegeGeladen.toLocaleString('de-DE')} Anträge · ${indexInfo.textabschnitteImIndex.toLocaleString('de-DE')} Textabschnitte`}
             />
           </div>
 

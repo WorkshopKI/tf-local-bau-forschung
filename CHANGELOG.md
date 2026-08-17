@@ -5,6 +5,14 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.74.1 — Bestandszahl rueckt an den Titel (August 2026)
+
+PATCH — Gemeldet: „den Text ‚Index: 14.225 Anträge' nach oben nehmen, direkt hinter den Titel der Seite; der Text ‚14.005 Textabschnitte' kann weg". Die Optionszeile trägt sonst nur Regler — Dinge, die man verstellt; die Größe des Index verstellt niemand.
+
+- **Die Bestandszahl steht am Seitentitel** statt rechts in der Optionszeile ([SuchSeite.tsx](src/plugins/suche/SuchSeite.tsx))
+- **Die Zahl der Textabschnitte entfällt** — sie zählte Dokumentstücke, während die Seite Anträge findet ([SuchOptionenZeile.tsx](src/plugins/suche/SuchOptionenZeile.tsx))
+- Die Diagnose-Zeile für den **fehlenden** Dokumentenindex bleibt unberührt ([IndexInfoZeile.tsx](src/plugins/suche/IndexInfoZeile.tsx))
+
 ### v4.74.0 — Darstellung rueckt nach rechts, Warum nur zur Frage (August 2026)
 
 MINOR — Gemeldet: „Ausführlich und Kompakt zeigt keinen Unterschied" — in der Tabelle stimmte das, dort wirkte auch die Sortierung des Menüs nicht (die Tabelle sortiert über ihre Spaltenköpfe). Ebenfalls gemeldet: „das ‚Warum?' macht doch nur bei einer Frage in natürlicher Sprache Sinn, nicht bei meiner Suche `ast:`".
