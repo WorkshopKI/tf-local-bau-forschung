@@ -46,7 +46,7 @@ Verfügung.
   Rolle bzw. „wartet auf …", und ein **„warum?"** — es klappt die treffende Regel
   samt der gelesenen Feldwerte auf. Ohne diese Herleitung wäre ein To-do eine
   Behauptung.
-  - Im Detail steht oben links **„Zurück zu Vorgangs-Board"**: der Weg zurück auf genau
+  - Im Detail steht oben links **„Zurück zum Vorgangs-Board"**: der Weg zurück auf genau
     diese Liste, mit allen Filtern und Reitern, wie sie waren. Auch das Schließen
     des Details (×) führt dorthin, nicht in die Förderanträge-Tabelle.
 - **Rollen-Sicht**: jede Rolle hat einen eigenen Regelsatz. Die Rollen-Chips

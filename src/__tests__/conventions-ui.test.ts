@@ -59,6 +59,11 @@
  *     plugins/antraege/spaltenHilfe.ts. Eine neue Spalte ohne Erklaerung faellt
  *     hier auf, nicht erst im Betrieb; und ein Satz zu einer geloeschten Spalte
  *     faellt ebenfalls auf, statt als toter Text liegenzubleiben.
+ *   - rueckweg-satz-abdeckung           → der Rueckweg aus dem Antrags-Detail
+ *     nennt die Herkunftsseite im Dativ (v4.85.7): jede Seite hat ihre Fuegung in
+ *     core/nav/rueckwegSatz.ts. Ein neues Plugin ohne Eintrag faellt hier auf
+ *     (sonst stuende „Zurueck zu Suche" statt „zur Suche"), eine Fuegung ohne
+ *     Seite ebenso.
  */
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
@@ -66,6 +71,7 @@ import { join, sep } from 'node:path';
 import { PRESET_COLORS } from '../components/ui/theme';
 import { ANTRAG_TABLE_COLUMNS } from '../plugins/antraege/tableColumns';
 import { SPALTEN_MIT_SATZ, baueSpaltenHilfe } from '../plugins/antraege/spaltenHilfe';
+import { SEITEN_FUEGUNG, rueckwegSatz } from '../core/nav/rueckwegSatz';
 import {
   ROOT, ALL_TS_FILES, ALL_SOURCE_FILES, relPath, findInFile, fmt, hslToRgb, relLuminance, kontrast, mische, parseCssFarbe, themeFarbTokens, type Finding, type ThemeFarbSatz,
 } from './conventions-lib';
@@ -1242,6 +1248,75 @@ describe('spalten-hilfe-abdeckung (jeder Spaltenkopf erklaert seine Herkunft, v4
       .filter(c => (karte.get(c.key)?.felder?.length ?? 0) > 0)
       .map(c => c.key);
     expect(mitFeldernOhneSchema).toEqual(['frist']);
+  });
+});
+
+describe('rueckweg-satz-abdeckung (der Rueckweg nennt die Seite im Dativ, v4.85.7)', () => {
+  // Die Anzeigenamen kommen aus den Plugin-Manifesten — TEXTUELL gelesen, nicht
+  // importiert: `plugins.config.ts` zieht die React-Komponenten aller Plugins
+  // nach, und dieser Guard braucht nur die Namen.
+  const PLUGIN_DIR = join(ROOT, 'plugins'); // ROOT ist src/
+
+  function seitenNamen(): string[] {
+    const namen: string[] = [];
+    for (const ordner of readdirSync(PLUGIN_DIR)) {
+      for (const datei of ['index.ts', 'index.tsx']) {
+        const pfad = join(PLUGIN_DIR, ordner, datei);
+        let quelle: string;
+        try { quelle = readFileSync(pfad, 'utf-8'); } catch { continue; }
+        // Manifest-Ebene (zwei Leerzeichen Einrueckung), Literal oder Konstante.
+        const treffer = /^ {2}name: (?:'([^']+)'|([A-Z][A-Z0-9_]*))/m.exec(quelle);
+        if (!treffer) continue;
+        if (treffer[1]) { namen.push(treffer[1]); continue; }
+        // Konstante im Plugin-Ordner aufloesen (z. B. KURATION_SEITENNAME).
+        const konstante = treffer[2];
+        for (const geschwister of readdirSync(join(PLUGIN_DIR, ordner))) {
+          if (!/\.tsx?$/.test(geschwister)) continue;
+          const q = readFileSync(join(PLUGIN_DIR, ordner, geschwister), 'utf-8');
+          const wert = new RegExp(`export const ${konstante} = '([^']+)'`).exec(q);
+          if (wert?.[1]) { namen.push(wert[1]); break; }
+        }
+      }
+    }
+    return namen;
+  }
+
+  it('findet die Manifest-Namen ueberhaupt (sonst prueft der Guard nichts)', () => {
+    const namen = seitenNamen();
+    expect(namen.length, `Nur ${namen.length} Plugin-Namen gefunden`).toBeGreaterThan(15);
+    expect(namen).toContain('Vorgangs-Board');
+    expect(namen).toContain('Datenpflege'); // ueber die Konstante aufgeloest
+  });
+
+  it('jede Seite traegt ihre Fuegung', () => {
+    const ohne = seitenNamen().filter(n => !(n in SEITEN_FUEGUNG));
+    if (ohne.length > 0) {
+      expect.fail(
+        `Seiten ohne Rueckweg-Fuegung: ${ohne.map(n => `„${n}"`).join(', ')}\n\n`
+        + `Einen Eintrag in SEITEN_FUEGUNG (src/core/nav/rueckwegSatz.ts) ergaenzen —\n`
+        + `die fertige Dativ-Fuegung, z. B. 'zum Vorgangs-Board'. Ohne Eintrag steht\n`
+        + `im Detail-Kopf „Zurueck zu <Name>", was fuer die halbe Navigation falsch ist.`,
+      );
+    }
+  });
+
+  it('keine Fuegung zeigt auf eine Seite, die es nicht mehr gibt', () => {
+    const namen = new Set(seitenNamen());
+    const verwaist = Object.keys(SEITEN_FUEGUNG).filter(n => !namen.has(n));
+    if (verwaist.length > 0) {
+      expect.fail(
+        `Fuegungen ohne Seite: ${verwaist.map(n => `„${n}"`).join(', ')}\n\n`
+        + `Die Seite wurde umbenannt oder entfernt — den Eintrag in SEITEN_FUEGUNG\n`
+        + `(src/core/nav/rueckwegSatz.ts) mitziehen. Ein verwaister Eintrag greift nie,\n`
+        + `und der neue Name faellt still auf „zu <Name>" zurueck.`,
+      );
+    }
+  });
+
+  it('unbekannte Namen fallen auf die zurueckhaltende Form zurueck', () => {
+    expect(rueckwegSatz('Suche')).toBe('Zurück zur Suche');
+    expect(rueckwegSatz('Vorgangs-Board')).toBe('Zurück zum Vorgangs-Board');
+    expect(rueckwegSatz('Irgendwas Neues')).toBe('Zurück zu Irgendwas Neues');
   });
 });
 

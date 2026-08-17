@@ -98,8 +98,9 @@ export function herkunftJetzt(): Herkunft | null {
  * Liste selbst (siehe Modulkopf).
  *
  * `label` ist der NAME der Seite, kein Satz — den baut die Brotkrume daraus
- * („Zurück zu Vorgangs-Board", siehe `detailRahmen.tsx`). Hier bleibt der Name
- * roh, weil ihn auch das Schließen-Ziel und künftige Aufrufer brauchen.
+ * („Zurück zum Vorgangs-Board", siehe `rueckwegSatz.ts` + `detailRahmen.tsx`).
+ * Hier bleibt der Name roh, weil ihn auch das Schließen-Ziel und künftige
+ * Aufrufer brauchen.
  */
 export function rueckwegAus(h: Herkunft | null): Herkunft | null {
   if (!h) return null;

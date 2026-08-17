@@ -16,6 +16,7 @@
  * heute etwas zu sagen hat.
  */
 import { ArrowLeft, X } from 'lucide-react';
+import { rueckwegSatz } from '@/core/nav/rueckwegSatz';
 
 /**
  * Rahmen einer Werkstatt-Sektion: Trennstrich nach oben + Sprung-Anker.
@@ -41,8 +42,10 @@ export function Sektionsrahmen({ id, children }: {
 /**
  * Panel-Hülle des Details: Rückweg links, Schließen rechts, darunter der Inhalt.
  *
- * Der Rückweg sagt seine Aussage aus („Zurück zu Vorgangs-Board"); die Herkunft
- * liefert dazu nur den NAMEN der Seite, den Satz baut diese Zeile. Er stand bis
+ * Der Rückweg sagt seine Aussage aus („Zurück zum Vorgangs-Board"); die Herkunft
+ * liefert dazu nur den NAMEN der Seite, die Fügung kommt aus `rueckwegSatz`
+ * (im Deutschen entscheidet das Wort über den Artikel: „zur Suche", „zu den
+ * Dokumenten"). Er stand bis
  * v4.82 als 12,5-px-Sekundärtext hier und wurde übersehen — der einzige Weg
  * zurück zu einer Trefferliste, in Hint-Größe. Jetzt Brotkrumen-Gewicht:
  * Primärfarbe, 13,5 px, normale Strichstärke (der volle Satz trägt sich selbst,
@@ -67,7 +70,7 @@ export function PanelShell({ onClose, zurueck, children }: {
             onClick={zurueck.onClick}
             className="-ml-1.5 inline-flex items-center gap-1.5 rounded-[7px] px-1.5 py-1 text-[13.5px] font-normal text-[var(--tf-text)] hover:bg-[var(--tf-hover)] cursor-pointer"
           >
-            <ArrowLeft size={15} aria-hidden /> Zurück zu {zurueck.label}
+            <ArrowLeft size={15} aria-hidden /> {rueckwegSatz(zurueck.label)}
           </button>
         ) : <span />}
         <button
