@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { Clock, Filter, ListFilter, X } from 'lucide-react';
 import type { Vorschlag } from './vervollstaendigung';
 
@@ -34,9 +35,21 @@ export interface SearchSuggestionsProps {
   onHover: (index: number) => void;
   /** Trefferzahl je Vorschlag (Schlüssel = `Vorschlag.key`), sobald gerechnet. */
   treffer?: ReadonlyMap<string, number>;
-  /** „25 von 1.270 …" — steht nur da, wenn die Liste wirklich gekappt ist. */
-  hinweis?: string | null;
+  /**
+   * Meldet, welche Zeilen im Sichtfenster stehen (bzw. standen) — die Grundlage
+   * dafür, dass die Liste ungekappt sein darf.
+   *
+   * Die Menge wächst nur: eine hinausgescrollte Zeile wird nicht zurückgemeldet,
+   * weil ihre Zahl schon errechnet ist und beim Zurückscrollen sonst neu
+   * gerechnet würde. Wird der Melder nicht übergeben, rechnet der Aufrufer wie
+   * bisher alles.
+   */
+  onSichtbareKeys?: (keys: ReadonlySet<string>) => void;
 }
+
+/** Wie weit über das Sichtfenster hinaus schon gerechnet wird (px) — knapp
+ *  eine Listenhöhe, damit beim Scrollen keine Lücke aufreißt. */
+const VORLAUF = 260;
 
 const ICON = {
   feld: ListFilter,
@@ -52,17 +65,53 @@ export function SearchSuggestions({
   onClear,
   onHover,
   treffer,
-  hinweis,
+  onSichtbareKeys,
 }: SearchSuggestionsProps): React.ReactElement {
   const hatVerlauf = items.some(v => v.art === 'verlauf');
+  const listeRef = useRef<HTMLDivElement>(null);
+  const gemeldet = useRef(new Set<string>());
+
+  // Welche Zeilen im Sichtfenster stehen — aus der Scroll-Geometrie, NICHT über
+  // einen `IntersectionObserver`. Der feuert in einem nicht dargestellten
+  // Fenster gar nicht (in dev:local gemessen: 0 Meldungen), und dann stünde die
+  // Liste ohne eine einzige Zahl da, sobald sie im Hintergrund geöffnet wurde.
+  // `offsetTop` lesen und ein Scroll-Ereignis abwarten tut beides nicht.
+  //
+  // `VORLAUF` läuft der Bewegung ein Stück voraus, damit die Zahl schon da ist,
+  // wenn die Zeile ankommt. Zurückgemeldet wird nie: die Zahl einer einmal
+  // gesehenen Zeile bleibt gültig (siehe `onSichtbareKeys`).
+  useEffect(() => {
+    const root = listeRef.current;
+    if (!root || !onSichtbareKeys) return;
+    gemeldet.current = new Set();
+    const melde = (): void => {
+      const oben = root.scrollTop - VORLAUF;
+      const unten = root.scrollTop + root.clientHeight + VORLAUF;
+      let neu = false;
+      for (const el of root.querySelectorAll<HTMLElement>('[data-probe-key]')) {
+        const key = el.dataset.probeKey;
+        if (key === undefined || gemeldet.current.has(key)) continue;
+        if (el.offsetTop + el.offsetHeight < oben || el.offsetTop > unten) continue;
+        gemeldet.current.add(key);
+        neu = true;
+      }
+      if (neu) onSichtbareKeys(new Set(gemeldet.current));
+    };
+    melde();
+    root.addEventListener('scroll', melde, { passive: true });
+    return () => root.removeEventListener('scroll', melde);
+  }, [items, onSichtbareKeys]);
+
   return (
-    // 320 statt 240 px: die Werte-Liste ist seit v4.71.1 ein Katalog zum
-    // Durchblättern (bis 25 Einträge), und acht sichtbare Zeilen machten daraus
-    // ein Guckloch. Sie scrollt weiterhin, statt die Seite zu überwachsen.
+    // 320 statt 240 px: die Werte-Liste ist ein Katalog zum Durchblättern —
+    // seit v4.88 ohne Deckel, also bis 5 461 Zeilen —, und acht sichtbare
+    // Zeilen machten daraus ein Guckloch. Sie scrollt, statt die Seite zu
+    // überwachsen.
     <div
+      ref={listeRef}
       role="listbox"
       aria-label="Vorschläge"
-      className="absolute left-0 right-0 top-full mt-1 z-[100] max-h-[320px] overflow-y-auto py-1 rounded-[var(--tf-radius)] bg-[var(--tf-bg)]"
+      className="absolute left-0 right-0 top-full mt-1 z-[100] max-h-[320px] overflow-y-auto overscroll-contain py-1 rounded-[var(--tf-radius)] bg-[var(--tf-bg)]"
       style={{ border: '0.5px solid var(--tf-border)', boxShadow: '0 8px 30px rgba(0, 0, 0, 0.12)' }}
     >
       {items.map((v, i) => {
@@ -72,6 +121,7 @@ export function SearchSuggestions({
           <div
             key={v.key}
             role="option"
+            data-probe-key={v.key}
             aria-selected={i === activeIndex}
             onMouseEnter={() => onHover(i)}
             // mousedown-preventDefault haelt den Input-Fokus → kein Blur-Close,
@@ -115,23 +165,18 @@ export function SearchSuggestions({
           </div>
         );
       })}
-      {(hatVerlauf || (hinweis !== null && hinweis !== undefined)) && (
+      {hatVerlauf && (
         <div
           className="mt-1 flex items-center gap-3 px-3 pt-1"
           style={{ borderTop: '0.5px solid var(--tf-border)' }}
         >
-          {hinweis !== null && hinweis !== undefined && (
-            <span className="text-[11px] text-[var(--tf-text-tertiary)]">{hinweis}</span>
-          )}
-          {hatVerlauf && (
-            <button
-              type="button"
-              onClick={onClear}
-              className="ml-auto text-[11px] bg-transparent border-0 p-0 cursor-pointer text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text)]"
-            >
-              Verlauf leeren
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={onClear}
+            className="ml-auto text-[11px] bg-transparent border-0 p-0 cursor-pointer text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text)]"
+          >
+            Verlauf leeren
+          </button>
         </div>
       )}
     </div>

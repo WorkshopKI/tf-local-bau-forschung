@@ -33,9 +33,7 @@ import {
   ALLE_PRAEFIXE, FELD_PRAEFIX, anfrageTokens, feldAusPraefix,
 } from '@/core/services/search/feldpraefix';
 import { TREFFERFELD_LABEL, type Trefferfeld } from '@/core/services/search/trefferstelle';
-import {
-  anzahlPassend, istWertFeld, vorschlaegeFuer, type WertIndex,
-} from '@/plugins/antraege/services/wert-index';
+import { istWertFeld, vorschlaegeFuer, type WertIndex } from '@/plugins/antraege/services/wert-index';
 import { filterRecentSearches } from './suchseite-utils';
 
 export type VorschlagArt = 'feld' | 'wert' | 'verlauf';
@@ -61,23 +59,21 @@ export interface Vorschlag {
 }
 
 /**
- * Wie viele Werte höchstens vorgeschlagen werden.
+ * **Werte haben keinen Deckel mehr** (v4.88).
  *
- * Die 8 stammten aus der Verlaufsliste und waren für einen KATALOG zu wenig:
- * `nw:` hat 1 243 Werte, `ort:` 2 055 — acht davon zu zeigen heißt, das
- * Durchblättern anzubieten und dann zu verweigern.
+ * Erst waren es 8, dann 50 — und jede Zahl war die Antwort auf „welche zeigen
+ * wir", statt auf die Frage, die der Nutzer stellt: „welche gibt es". Gefragt
+ * wurde ausdrücklich nach allen Netzwerken; und wenn die Liste alphabetisch ist
+ * und scrollt, gibt es keinen Grund, sie vorher zu beschneiden. Damit entfällt
+ * auch die Fußzeile „50 von 1.243" — sie erklärte einen Deckel, den es nicht
+ * mehr gibt.
  *
- * 50, weil dort die eine Zahl beide Fälle bedient: die **42 Deskriptoren**
- * stehen damit vollständig da (dieser Katalog ist der Grund für die ganze
- * Liste — er steht nirgends sonst in der App), und bei den großen Feldern
- * füllen 50 die scrollbare Liste, während der Rest BENANNT wird
- * (`vorschlagsHinweis`) statt still abgeschnitten zu werden.
- *
- * Die Kosten trägt der Probelauf je Wert (gemessen 11 ms über 14 225 Anträge) —
- * er läuft verzögert, in Schüben und wird beim nächsten Tastendruck verworfen
- * ([SearchInput.tsx](src/plugins/suche/SearchInput.tsx)).
+ * Bezahlt wird das an anderer Stelle: die Trefferzahl je Wert kostet einen
+ * echten Probelauf (gemessen 11–20 ms über 14 225 Anträge), und 1 270 davon
+ * wären ~20 s Hintergrundarbeit. Gerechnet wird deshalb nur noch für Zeilen,
+ * die tatsächlich im Sichtfenster stehen
+ * ([useProbeZahlen.ts](src/plugins/suche/useProbeZahlen.ts)).
  */
-export const MAX_WERTE = 50;
 /** Wie viele Feldnamen höchstens vorgeschlagen werden. */
 const MAX_FELDER = 5;
 /** Wie viel Verlauf daneben noch Platz hat. */
@@ -196,7 +192,7 @@ function wertVorschlaege(
   const geteilt = teileToken(token.roh);
   if (!geteilt || !istWertFeld(geteilt.feld)) return [];
   const teil = rohWert(geteilt.rest);
-  return vorschlaegeFuer(index, geteilt.feld, teil, MAX_WERTE).map(e => {
+  return vorschlaegeFuer(index, geteilt.feld, teil).map(e => {
     const neu = `${geteilt.praefix}:${alsAnfrageWert(e.wert)}`;
     const { anfrage, cursor } = ersetze(text, token.start, token.ende, neu);
     return {
@@ -209,25 +205,6 @@ function wertVorschlaege(
       key: `wert:${geteilt.feld}:${e.wert.toLowerCase()}`,
     };
   });
-}
-
-/**
- * Was unter der Liste steht, wenn es mehr gibt als gezeigt.
- *
- * Ein Deckel, der sich nicht zu erkennen gibt, liest sich als Vollständigkeit:
- * acht Netzwerke unter `nw:` sähen aus, als gäbe es acht. `null` heißt „alles
- * da" — dann steht auch nichts da.
- */
-export function vorschlagsHinweis(opt: VorschlagEingabe): string | null {
-  const { text, cursor, index } = opt;
-  if (!index) return null;
-  const token = tokenAmCursor(text, cursor);
-  if (!token) return null;
-  const geteilt = teileToken(token.roh);
-  if (!geteilt || !istWertFeld(geteilt.feld)) return null;
-  const gesamt = anzahlPassend(index, geteilt.feld, rohWert(geteilt.rest));
-  if (gesamt <= MAX_WERTE) return null;
-  return `${MAX_WERTE} von ${gesamt.toLocaleString('de-DE')} — tippe weiter, um einzugrenzen`;
 }
 
 /**

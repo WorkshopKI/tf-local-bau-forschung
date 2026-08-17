@@ -8,7 +8,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import {
-  berechneVorschlaege, tokenAmCursor, alsAnfrageWert, vorschlagsHinweis, MAX_WERTE,
+  berechneVorschlaege, tokenAmCursor, alsAnfrageWert,
 } from '../vervollstaendigung';
 import {
   leererWertIndexRoh, nimmWerte, verdichteWertIndex, vorschlaegeFuer, netzwerkName,
@@ -116,7 +116,9 @@ describe('Werte vorschlagen', () => {
     const laender = berechneVorschlaege({
       text: 'bl:', cursor: 3, index, verlauf: OHNE_VERLAUF,
     }).filter(x => x.art === 'wert');
-    expect(laender.map(x => x.anzeige)).toEqual(['Sachsen', 'Bayern']);
+    // Alphabetisch seit v4.88 — Sachsen ist hier das häufigere Land und steht
+    // trotzdem hinten.
+    expect(laender.map(x => x.anzeige)).toEqual(['Bayern', 'Sachsen']);
     expect(new Set(laender.map(x => x.erklaerung))).toEqual(new Set(['Bundesland']));
   });
 
@@ -177,52 +179,46 @@ describe('Werte vorschlagen', () => {
   });
 });
 
-describe('Kein stiller Deckel (v4.71.1)', () => {
-  /** Mehr Netzwerke, als die Liste zeigt — die Zahl hängt am Deckel selbst. */
-  const MEHR_ALS_PASSEN = MAX_WERTE + 15;
+describe('Gar kein Deckel (v4.88)', () => {
+  const VIELE = 300;
   function vieleNetzwerke(): WertIndex {
     const roh = leererWertIndexRoh();
-    for (let i = 0; i < MEHR_ALS_PASSEN; i++) {
+    for (let i = 0; i < VIELE; i++) {
       for (let n = 0; n <= i; n++) nimmWerte(roh, 'netzwerk', [`Netz${String(i).padStart(3, '0')}`]);
     }
     return verdichteWertIndex(roh);
   }
 
-  it('zeigt den ganzen Deskriptoren-Katalog — 42 Werte am echten Bestand', () => {
-    // Die eine Zahl muss BEIDE Fälle bedienen: den kleinen Katalog vollständig
-    // und den großen Vorrat angeschnitten (mit Hinweis).
-    expect(MAX_WERTE).toBeGreaterThanOrEqual(42);
-  });
-
-  it('zeigt bei großem Vorrat genau den Deckel', () => {
+  it('zeigt ALLE Werte — gefragt war „können wir nicht alle nw anzeigen?"', () => {
     const v = berechneVorschlaege({
       text: 'nw:', cursor: 3, index: vieleNetzwerke(), verlauf: OHNE_VERLAUF,
     });
-    expect(v.filter(x => x.art === 'wert')).toHaveLength(MAX_WERTE);
+    expect(v.filter(x => x.art === 'wert')).toHaveLength(VIELE);
   });
 
-  it('sagt, wie viele es insgesamt gibt — ein Deckel liest sich sonst als alles', () => {
-    expect(vorschlagsHinweis({
-      text: 'nw:', cursor: 3, index: vieleNetzwerke(), verlauf: OHNE_VERLAUF,
-    })).toBe(`${MAX_WERTE} von ${MEHR_ALS_PASSEN} — tippe weiter, um einzugrenzen`);
+  it('zeigt auch beim Tippen alles Passende, nicht die ersten paar', () => {
+    const v = berechneVorschlaege({
+      text: 'nw:Netz0', cursor: 8, index: vieleNetzwerke(), verlauf: OHNE_VERLAUF,
+    });
+    // Netz000…Netz099 = 100 Stück; kein Deckel schneidet sie ab.
+    expect(v.filter(x => x.art === 'wert')).toHaveLength(100);
   });
 
-  it('schweigt, wenn wirklich alles dasteht', () => {
-    expect(vorschlagsHinweis({
-      text: 'ort:dre', cursor: 7, index: indexMit(), verlauf: OHNE_VERLAUF,
-    })).toBeNull();
-    expect(vorschlagsHinweis({
-      text: 'laser', cursor: 5, index: indexMit(), verlauf: OHNE_VERLAUF,
-    })).toBeNull();
+  it('zählt den gefilterten Vorrat — die Zahl trägt jetzt der Reiter „Stöbern"', () => {
+    expect(anzahlPassend(vieleNetzwerke(), 'netzwerk', 'Netz00')).toBe(10);
   });
 
-  it('zählt den gefilterten Vorrat, nicht den ganzen', () => {
-    const index = vieleNetzwerke();
-    // „Netz00" trifft die ersten zehn — weniger als der Deckel, also kein Hinweis.
-    expect(anzahlPassend(index, 'netzwerk', 'Netz00')).toBe(10);
-    expect(vorschlagsHinweis({
-      text: 'nw:Netz00', cursor: 9, index, verlauf: OHNE_VERLAUF,
-    })).toBeNull();
+  it('sammelt die hinteren Ränge auch dann, wenn der erste voll ist', () => {
+    // Die Reißleine gegen den alten Abbruch: „main" darf „Frankfurt am Main"
+    // nicht verlieren, nur weil genug Werte mit „Main" ANFANGEN.
+    const roh = leererWertIndexRoh();
+    for (let i = 0; i < 80; i++) nimmWerte(roh, 'standort', [`Main${String(i).padStart(3, '0')}`]);
+    nimmWerte(roh, 'standort', ['Frankfurt am Main']);
+    const werte = vorschlaegeFuer(verdichteWertIndex(roh), 'standort', 'main').map(e => e.wert);
+    expect(werte).toHaveLength(81);
+    expect(werte).toContain('Frankfurt am Main');
+    // …und der Wortanfang-Rang steht hinter dem Wertanfang-Rang.
+    expect(werte[werte.length - 1]).toBe('Frankfurt am Main');
   });
 });
 
@@ -257,14 +253,65 @@ describe('wert-index', () => {
     expect(netzwerkName('ohne Anführung')).toBe('ohne Anführung');
   });
 
-  it('ordnet nach Häufigkeit, bei Gleichstand nach Name', () => {
+  it('kommt mit einem fehlenden Anführungszeichen aus — 25 von 1 243 am Bestand', () => {
+    // Alphabetisch sortiert stünden diese Bruchstücke sonst ganz vorn im
+    // Katalog: ein führendes `"` kommt vor jedem Buchstaben. Es fehlt mal das
+    // schließende, mal das öffnende — deshalb kein Paar-Muster.
+    expect(netzwerkName('"3DLiveVis2 16KN045423_LT')).toBe('3DLiveVis2');
+    expect(netzwerkName('"Eco++ 16KN131101_ED')).toBe('Eco++');
+    expect(netzwerkName('CANNABIS-NET" 16KN089602_KR')).toBe('CANNABIS-NET');
+    expect(netzwerkName('netSENSORS" 16KN111503_ED')).toBe('netSENSORS');
+  });
+
+  it('faltet Schreibweisen — 80 Netzwerke stehen im Export doppelt', () => {
+    // Alphabetisch stehen die beiden Fassungen direkt untereinander und sehen
+    // aus wie ein Anzeigefehler; die Suche unterscheidet sie ohnehin nicht.
+    const roh = leererWertIndexRoh();
+    for (let i = 0; i < 3; i++) nimmWerte(roh, 'netzwerk', ['3D-Fab']);
+    nimmWerte(roh, 'netzwerk', ['3D-FAB']);
+    const werte = verdichteWertIndex(roh).get('netzwerk') ?? [];
+    // Eine Zeile, die Summe beider — und die HÄUFIGERE Schreibweise.
+    expect(werte).toEqual([{ wert: '3D-Fab', anzahl: 4 }]);
+  });
+
+  it('lässt fallen, was nur aus Satzzeichen besteht', () => {
+    expect(netzwerkName('"')).toBe('');
+    expect(netzwerkName('"" _')).toBe('');
+  });
+
+  it('findet den Namen auch, wenn das Kennzeichen VORN steht', () => {
+    // Der Fall, den ein reines „Anführungszeichen weg, Kennzeichen hinten ab"
+    // verlöre — dann stünde die ganze Zeile als Netzwerkname im Katalog.
+    expect(netzwerkName('16KN054101 "IWiT" _PSc')).toBe('IWiT');
+    expect(netzwerkName('16KN054102 "RehaReform" _AM')).toBe('RehaReform');
+  });
+
+  it('lässt einen reinen Kennzeichen-Wert stehen — er ist der Wert', () => {
+    // 68 Netzwerke führen im Export gar keinen Namen. Sie zu schlucken hieße,
+    // sie unauffindbar zu machen; sie stehen alphabetisch bei den Ziffern.
+    expect(netzwerkName('16KN087150')).toBe('16KN087150');
+    expect(netzwerkName('16KN099324_AM/FFAK')).toBe('16KN099324_AM/FFAK');
+  });
+
+  it('ordnet alphabetisch, nicht nach Häufigkeit (v4.88)', () => {
+    // Berlin ist der häufigste Wert und steht trotzdem in der Mitte: die
+    // Häufigkeit ordnet nichts mehr, seit die Liste vollständig ist.
     const roh = leererWertIndexRoh();
     nimmWerte(roh, 'standort', ['Zwickau']);
     nimmWerte(roh, 'standort', ['Aachen']);
     nimmWerte(roh, 'standort', ['Berlin']);
     nimmWerte(roh, 'standort', ['Berlin']);
-    expect(vorschlaegeFuer(verdichteWertIndex(roh), 'standort', '', 3).map(e => e.wert))
-      .toEqual(['Berlin', 'Aachen', 'Zwickau']);
+    expect(vorschlaegeFuer(verdichteWertIndex(roh), 'standort', '').map(e => e.wert))
+      .toEqual(['Aachen', 'Berlin', 'Zwickau']);
+  });
+
+  it('sortiert nach deutschen Regeln — Umlaute stehen bei ihrem Grundbuchstaben', () => {
+    const roh = leererWertIndexRoh();
+    for (const o of ['Zwickau', 'Ölsnitz', 'Aachen', 'Überlingen', 'Osnabrück']) {
+      nimmWerte(roh, 'standort', [o]);
+    }
+    expect(vorschlaegeFuer(verdichteWertIndex(roh), 'standort', '').map(e => e.wert))
+      .toEqual(['Aachen', 'Ölsnitz', 'Osnabrück', 'Überlingen', 'Zwickau']);
   });
 });
 

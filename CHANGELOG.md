@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.88.0 — die Vorschlagsliste zeigt alle Werte, von A bis Z (August 2026)
+
+MINOR — Gemeldet: „die Suchvorschläge sollten alphabetisch sein" — und auf Nachfrage „können wir nicht alle nw anzeigen?". Die Häufigkeits-Sortierung beantwortete bisher nur, WELCHE 50 von 1.243 zu sehen sind; zeigt die Liste alle, wird die Frage gegenstandslos. Die alphabetische Ordnung holte dabei zwei Fehlstände ans Licht, die vorher nur weit unten standen.
+
+- **Alle Werte, alphabetisch** — kein Deckel, keine Fußzeile „50 von 1.243" mehr ([wert-index.ts](src/plugins/antraege/services/wert-index.ts), [vervollstaendigung.ts](src/plugins/suche/vervollstaendigung.ts))
+- **Die Liste kommt in Stufen zu 200** — sonst blockiert ein Tastendruck bei `ast:` gemessen 1.338 ms; jetzt 51 ms mit 200 Zeilen sofort ([SearchInput.tsx](src/plugins/suche/SearchInput.tsx))
+- **Trefferzahlen nur fürs Sichtfenster**, nachgerechnet beim Scrollen — sonst ~80 s Probeläufe; gemeldet über Scroll-Geometrie, weil ein `IntersectionObserver` im nicht dargestellten Fenster nie feuert ([useProbeZahlen.ts](src/plugins/suche/useProbeZahlen.ts), [SearchSuggestions.tsx](src/plugins/suche/SearchSuggestions.tsx))
+- **25 Netzwerkwerten fehlt ein Anführungszeichen** — sie standen alphabetisch als Bruchstücke ganz vorn; das Paar bleibt die erste Regel, weil es nicht immer vorn steht ([wert-index.ts](src/plugins/antraege/services/wert-index.ts))
+- **80 Netzwerke standen in zwei Schreibweisen** (`3D-Fab`/`3D-FAB`) — jetzt eine Zeile mit der häufigeren; behob nebenbei 688 React-Warnungen wegen doppelter Schlüssel
+
 ### v4.87.0 — der Assistent scrollt sich selbst, nicht die Seite (August 2026)
 
 MINOR — Drei Meldungen aus dem Test am selben Panel: eine doppelte Scrollleiste rechts, deren äußere die ganze Seite wegscrollte; ein Eingabefeld, das zwei Zeilen zeigte und den Rest abschnitt; und vier Beispiel-Chips, die Fähigkeiten versprachen, die der Assistent noch nicht hat.
@@ -534,148 +544,4 @@ MINOR — Gefragt war, ob weitere Roh-CSV-Spalten mit sinnvollem Text in die Suc
 - **Wahlkreis** (14.218) gehört zum „wo": „Northeim" 1 → 51 Treffer, die Bereichs-Beschriftung heißt jetzt „nur Ort, Bundesland & Wahlkreis" ([suchbereich.ts](src/core/services/search/suchbereich.ts))
 - **NACE-Branchentext** fließt in die Deskriptoren (2.256): „Anstrichmitteln" 0 → 12; drei neue Belege in Zeile und Tabelle ([autoSpalten.ts](src/plugins/suche/autoSpalten.ts), [columns.tsx](src/plugins/suche/columns.tsx))
 - **Korpus liest jeden Datensatz in EINEM Durchgang** statt einmal je Feld: 8.225 ms → 1.168 ms über 14.225 Anträge, trotz fünf zusätzlicher Felder
-
-### v4.49.1 — Kuerzel ueberall in der Schreibweise des Teams (August 2026)
-
-PATCH — Nachzug zu v4.48.3: dort lernte die Kürzel-Auswahl die Schreibweise des Teams, überall sonst stand weiter die Vergleichsform („Kürzel THÜ"). Die Bearbeitenden kennen ihr Kürzel gemischt geschrieben — 81 der 112 im Bestand sind es.
-
-- **`anzeigeTokens` am Filter-Modus**, aus den Anträgen gelesen und rein zum Beschriften; verglichen wird weiter mit `tokens` ([bearbeiterFilter.ts](src/plugins/antraege/bearbeiterFilter.ts), Fassade [useBearbeiterSicht.ts](src/core/hooks/useBearbeiterSicht.ts))
-- **Chip, Popover-Option und sechs Widget-Meta-Zeilen** nennen dieselbe Fassung — Meine Anträge, Antragseingang, Kanban, QS, Hängt fest, Meilensteine, Status & Verlauf
-- **Drei Widgets bauten das Label selbst** und tragen es jetzt aus `bearbeiterScopeLabel` ([HaengtFestWidget.tsx](src/plugins/home/widgets/HaengtFestWidget.tsx), [MeilensteineWidget.tsx](src/plugins/home/widgets/MeilensteineWidget.tsx), [StatusVerlaufWidget.tsx](src/plugins/home/widgets/StatusVerlaufWidget.tsx))
-- **Das Vorgangs-Board liest die Schreibweise aus den EIGENEN Zeilen** — wer die Seite direkt aufruft, hat den Anträge-Store nicht geladen ([useVorgangsBoard.ts](src/plugins/vorgangs-board/useVorgangsBoard.ts))
-- **Guard `anzeigetokens-nur-anzeigen`**: die Anzeige-Fassung steht in keinem Vergleich ([conventions-daten.test.ts](src/__tests__/conventions-daten.test.ts))
-
-### v4.49.0 — Feldsuche in der Eingabe, Suchbeispiele auf der Startseite (August 2026)
-
-MINOR — Wer weiß, in welcher Spalte sein Wort steht, konnte das bisher nur grob sagen: das Dropdown „Suche in" kennt fünf Bereiche und gilt für die ganze Anfrage. `FKZ: 16KN083001` oder `AST:GMBU` einzutippen fand nichts — „fkz:" war ein Suchwort wie jedes andere. Der Startzustand erklärte die Syntax bewusst nicht, weil es sie nicht gab; jetzt gibt es sie und er macht sie vor.
-
-- **Feld direkt in der Eingabe**: `ast:Fraunhofer` (307), `ort:Dresden` (451), `titel:Laser ort:Dresden` (4) — Alltagswörter und Spaltencodes der Fördertabelle (`ORG_AST:`, `VB_TITEL:`), auch mit Leerzeichen getippt ([feldpraefix.ts](src/core/services/search/feldpraefix.ts))
-- **Je Wort ein eigener Bereich**: das genannte Feld schlägt das Dropdown, Wörter ohne Präfix folgen ihm weiter ([antraege-search-service.ts](src/plugins/antraege/services/antraege-search-service.ts))
-- **Dokumente und Ähnlichkeit bleiben außen vor**, solange ein Feld genannt ist — keine der beiden Quellen kann eine Feldangabe einhalten; die Deutungszeile schreibt es an ([useUnifiedSearch.ts](src/core/hooks/useUnifiedSearch.ts), [DeutungsZeile.tsx](src/plugins/suche/DeutungsZeile.tsx))
-- **„So kannst du suchen"** auf der Startseite: sechs ausführbare Beispiele vom Thema bis zur Zwei-Felder-Anfrage ([SucheStartzustand.tsx](src/plugins/suche/SucheStartzustand.tsx))
-- **Guard**: jedes Feld aus „alle Felder" braucht ein Präfix — sonst kann die Suche mehr, als sie sagt ([feldpraefix.test.ts](src/core/services/search/__tests__/feldpraefix.test.ts))
-
-### v4.48.4 — Verlaufs-Leiste in Markenform: eckig, enger, lesbar (August 2026)
-
-PATCH — Rückfrage zur neuen Leiste: warum sind die Chips rund? Weil sie das Filter-Idiom der App erben — nur ist diese Leiste zugleich die **Legende** der Marken in den Zeilen, und eine runde Legende neben einer eckigen Marke behauptet zwei verschiedene Dinge. Detail: [chronik-und-zeitstrahl.md](docs/status-system/chronik-und-zeitstrahl.md).
-
-- **Zweite Form am geteilten Chip** (`form="marke"`): eckig, häkchenlos, enger — gemessen 54–62 px statt Pillen mit Haken; die Pillen-Form bleibt überall sonst ([ToggleChip.tsx](src/components/ui/ToggleChip.tsx))
-- **Zustand ohne Haken heißt Breite ohne Sprung**: die Schriftstärke bleibt in beiden Zuständen 500, sonst wandert die Nachbarschaft beim Klick (Pitfall #14, [DESIGN_GUIDE.md](DESIGN_GUIDE.md) Kap. 5)
-- **Zahl im Chip war unter AA** — grau auf Weiß 2,85:1, jetzt 5,0:1; im getönten Zustand trägt sie `currentColor` statt 0,75 Deckkraft (die drückte 4,7:1 auf ~3,3:1) ([ToggleChip.tsx](src/components/ui/ToggleChip.tsx))
-- **Träger-Chips nennen die Endung des Aktenzeichens** („TV 1 …426") — die laufende Nummer ordnet, zitieren lässt sie sich nicht ([VerlaufFilterLeiste.tsx](src/plugins/antraege/status/VerlaufFilterLeiste.tsx))
-- **Marken enger und mit Umriss**: 3 statt 4 px Polster (17–20 px je Rollenmarke, 25 px für `TV1`), Rand auf `--tf-border-hover` — mit 0,08 Alpha las sich die Marke als loser grauer Text ([VerlaufBadges.tsx](src/plugins/antraege/status/VerlaufBadges.tsx))
-
-### v4.48.3 — Kuerzel in der Schreibweise des Teams, Sprung mit Ziel (August 2026)
-
-PATCH — Zwei Nachbesserungen an der Kürzel-Auswahl. Sie zeigte jedes Kürzel großgeschrieben — 81 der 112 Kürzel im Bestand sind aber gemischt geschrieben („THü", „JuHe"), und wer sein eigenes in einer Liste von 112 sucht, sucht es in seiner Schreibweise. Und „Kürzel ändern → Einstellungen" landete auf einer Seite mit acht Karten, ohne zu sagen, welche gemeint ist.
-
-- **Die Auswahl zeigt die Schreibweise der Quelle** — verglichen und ins Profil geschrieben wird weiter die Normalform, damit die Identität nicht an einem Quellendetail hängt ([kuerzelOptionen.ts](src/plugins/auslastung/hooks/kuerzelOptionen.ts))
-- **„THü" und „THu" sind wieder zu unterscheiden**: großgeschrieben trennte die beiden nur der Umlaut ([AntraegeSichtGruppe.tsx](src/plugins/einstellungen/profil/AntraegeSichtGruppe.tsx))
-- **Alle drei Wege zur Kürzel-Einstellung springen mit `?sektion=sec-filter`** — der Hub scrollt die Karte an und lässt ihre Markierung stehen wie bei einem Suchtreffer ([BearbeiterSichtChip.tsx](src/components/bearbeiter/BearbeiterSichtChip.tsx), [HomePage.tsx](src/plugins/home/HomePage.tsx), [MeineAntraegeSection.tsx](src/plugins/home/MeineAntraegeSection.tsx))
-- **Kollisionsregel im Test**: eine gemischte Schreibweise schlägt die normalisierte der `kuerzel-map`, egal welche Quelle zuerst gelesen wird ([kuerzelOptionen.test.ts](src/plugins/auslastung/__tests__/kuerzelOptionen.test.ts))
-
-### v4.48.2 — Chronik: Rollenspalte fasst drei Marken, Monatslinie, dickerer Zeitstrahl (August 2026)
-
-PATCH — Vier Rückmeldungen aus dem Gebrauch der neuen Chronik, drei davon Maße: die dritte Rollenmarke schob sich in den Ereignistext, die Monatsblöcke liefen ohne Trennung ineinander, und der Zeitstrahl-Balken blieb hinter dem Entwurf zurück. Detail: [chronik-und-zeitstrahl.md](docs/status-system/chronik-und-zeitstrahl.md).
-
-- **Die Rollenspalte fasst drei Marken** (76 statt 62 px, gemessen 67,5 belegt); mehr fällt zu „+n" zusammen, dessen Titel alle nennt — betrifft genau einen der 506 Codes ([VerlaufBadges.tsx](src/plugins/antraege/status/VerlaufBadges.tsx))
-- **Rollen- und Träger-Marken sind schmaler** — ein Maß für beide, 4 statt 6 px Polster ([VerlaufBadges.tsx](src/plugins/antraege/status/VerlaufBadges.tsx))
-- **Jeder Monatsblock beginnt mit einer Linie** über die ganze Breite, Monatsspalte eingeschlossen ([StatusChronik.tsx](src/plugins/antraege/status/StatusChronik.tsx))
-- **Der Zeitstrahl-Balken ist 26 px hoch** statt 20 — das Maß des Entwurfs; die Schrift darin folgt der Konstanten statt einer eigenen Klasse ([VerlaufsBand.tsx](src/plugins/antraege/verlauf-band/VerlaufsBand.tsx))
-
-### v4.48.1 — Startseiten-Kopf verschlankt, Sicht-Menue entrumpelt (August 2026)
-
-PATCH — Die Startseite ist Einstieg, nicht Arbeitsfläche: unter der Begrüßung stand seit v4.47 eine eigene Zeile mit zwei Chips, obwohl der Betrachtungsbereich dort dieselbe Auskunft gibt wie im Förderanträge-Kopf und auch dort gewechselt wird. Das Sicht-Menü erklärte sich zudem mit einem Absatz, dessen Zusage („Ihr Kürzel bleibt dabei stehen") nach dem Umschalten sichtbar nicht mehr stimmte.
-
-- **Der Kürzel-Chip steht neben der Begrüßung** statt in einer eigenen Zeile darunter — dieselbe Geometrie wie der `meta`-Slot im Förderanträge-Kopf ([HomePage.tsx](src/plugins/home/HomePage.tsx))
-- **Bereichs-Chip nur noch dort, wo die Liste an ihm hängt**; das Startseiten-Aggregat verliert seine Ausblend-Zahl wieder ([useDashboardData.ts](src/plugins/home/useDashboardData.ts))
-- **Sicht-Menü entrumpelt**: zwei Optionen, eine Zeile zu Reichweite und Gerätebindung, ein Weg in die Einstellungen ([BearbeiterSichtChip.tsx](src/components/bearbeiter/BearbeiterSichtChip.tsx))
-- **Die unhaltbare Zusage ist raus** — nach dem Umschalten nennt der Chip „Alle Bearbeiter", das eigene Kürzel steht nur noch in der Option darunter ([home.md](docs/feedback-kontext/home.md))
-
-### v4.48.0 — Chronik nach Schritt: Matrix ueber die Teilvorhaben, Rollenfarben, geteilter Filter (August 2026)
-
-MINOR — Die Chronik kannte die Träger jedes Termins längst und faltete sie zu „3 Teilvorhaben" zusammen — genau die Auskunft, wegen der im Fachsystem der Verbund und danach jedes Teilvorhaben einzeln aufgerufen wird. Aus dem Design-Handoff `_design/handoff/chronik`, Teil 1 von 2 (der Zeitstrahl folgt).
-
-- **Neue Ordnung „nach Schritt"** (Standard): eine Zeile je Kürzel, eine Spalte je Träger, dazu die TV-Streuung — an ZKN084412 gemessen 91 Schritte × 8 Spalten ([StatusSchrittMatrix.tsx](src/plugins/antraege/status/StatusSchrittMatrix.tsx), rein in [chronik-matrix.ts](src/core/status/chronik-matrix.ts))
-- **Geteilte WER/WO-Leiste mit Fokus**: neutrale Einträge werden abgeblendet statt gefiltert — 144 der 505 Codes lässt das Fachsystem von jedem setzen ([verlauf-filter.ts](src/core/status/verlauf-filter.ts), [VerlaufFilterLeiste.tsx](src/plugins/antraege/status/VerlaufFilterLeiste.tsx))
-- **Rollenfarben als Tokenfamilie** `--tf-rolle-*` für alle fünf Rollen inkl. Jur; die Filterleiste ist die Legende ([rollen-farbe.ts](src/core/status/rollen-farbe.ts), [theme.css](src/theme.css))
-- **„Nach Datum" nennt die Teilvorhaben einzeln** statt „3 Teilvorhaben", und die Kopfzeile trennt Schritte von Datumsangaben ([VerlaufBadges.tsx](src/plugins/antraege/status/VerlaufBadges.tsx), [verlauf-kennzahlen.ts](src/core/status/verlauf-kennzahlen.ts))
-- **Guard `rollen-farbe-eine-quelle`** misst den Kontrast jeder Rollenfarbe nach — fünf der zehn Werte des Entwurfs lagen unter 4,5:1 ([conventions-ui.test.ts](src/__tests__/conventions-ui.test.ts), Doc: [chronik-und-zeitstrahl.md](docs/status-system/chronik-und-zeitstrahl.md))
-
-### v4.47.0 — Meine/Alle umschaltbar, Kuerzel-Auswahl vollstaendig (August 2026)
-
-MINOR — „Meine Anträge" oder „alle" war bisher kein Zustand, sondern der WERT des Profil-Kürzels: umschalten hieß, die eigene Identität zu überschreiben und danach neu einzutippen. Dazu fand sich die halbe Zielgruppe in der Kürzel-Auswahl gar nicht — inaktive Kürzel waren ausgeblendet (fast jede PL ist als ehemalige Bearbeitung geführt), und die AB-Spalte wurde nie gesammelt.
-
-- **Chip „Kürzel THÜ / Alle Bearbeiter" im Kopf von Förderanträgen und Startseite**, in beiden Zuständen sichtbar ([BearbeiterSichtChip.tsx](src/components/bearbeiter/BearbeiterSichtChip.tsx))
-- **Eine Quelle für den Ausschnitt**: Liste, Startseiten-Aggregat, Kanban, Antragseingang und QS lesen denselben Modus ([useBearbeiterSicht.ts](src/core/hooks/useBearbeiterSicht.ts), pures `sichtModus` in [bearbeiterFilter.ts](src/plugins/antraege/bearbeiterFilter.ts))
-- **Die Startseite zeigt jetzt auch ihren Betrachtungsbereich** — sie wandte ihn an, ohne es zu sagen ([HomePage.tsx](src/plugins/home/HomePage.tsx), `ausgeblendet` aus [useDashboardData.ts](src/plugins/home/useDashboardData.ts))
-- **Kürzel-Auswahl führt AB-Kürzel und Ehemalige**: 33 rein administrative Kürzel waren nie wählbar, inaktive stehen als „· ehem." drin ([kuerzelOptionen.ts](src/plugins/auslastung/hooks/kuerzelOptionen.ts), [AntraegeSichtGruppe.tsx](src/plugins/einstellungen/profil/AntraegeSichtGruppe.tsx))
-- **Der Inaktiv-Schalter wirkt nur noch auf Antragsmengen**, nicht mehr auf die Auswahl — samt Wegfall des Stale-Guards, der eine solche Wahl still zurücksetzte ([auslastung.md](docs/architecture/auslastung.md))
-
-### v4.46.1 — Abgeleitete To-dos heissen ueberall abgeleitet (August 2026)
-
-PATCH — Am To-do stand die Marke „geliehen", während die Rollen-Bilanz derselben Seite „davon 68 abgeleitet" zählte: zwei Wörter für eine Sache, und das ungewöhnlichere davon an der sichtbarsten Stelle. `quelle`, Tooltip und Herkunftsspalte des Exports sagten ohnehin schon „abgeleitet".
-
-- **Die Marke am To-do heißt „abgeleitet"** — Antrag-Detail, Ausklapp-Kopfkarte und Gruppenkopf im Vorgangs-Board ([TodoAnzeige.tsx](src/components/vorgang/TodoAnzeige.tsx), [aufgabe.ts](src/plugins/antraege/ausklapp/kopfkarte/aufgabe.ts), [VorgangsBoardPage.tsx](src/plugins/vorgangs-board/VorgangsBoardPage.tsx))
-- **Gleicher Wortlaut im Status-Cockpit und in der FB-Erhebung** ([TodoPlatzhalterListe.tsx](src/plugins/status-cockpit/TodoPlatzhalterListe.tsx), [fbErhebungExport.ts](src/plugins/status-cockpit/fbErhebungExport.ts))
-- **Die geliehene Kürzel-Bezeichnung bleibt „geliehen"** — anderer Sachverhalt (ein Wortlaut aus einer fremden Projektform), eigener Schirm ([kuerzel-katalog.ts](src/core/status/kuerzel-katalog.ts), [VerlaufBefundeBlock.tsx](src/plugins/status-cockpit/VerlaufBefundeBlock.tsx))
-
-### v4.46.0 — Statuseintraege einklappbar, Detailseite vertikal verdichtet (August 2026)
-
-MINOR — „Statuseinträge" war der einzige Block der Statussektion ohne Klapp-Zustand und rollte ungefragt aus: gemessen 1.383 px für „Status & Verlauf", davon über zwei Drittel Ordner-Liste. Dazu trugen mehrere Klapp-Köpfe ihren Bodenabstand am Button statt am Rumpf — die Marge blieb stehen, wenn der Rumpf verschwand.
-
-- **„Statuseinträge" ist einklappbar, Default zu** — Kopfzeile behält die Anzahl, die Rollen-Chips erscheinen mit dem Inhalt, den sie filtern ([StatusCodeListe.tsx](src/plugins/antraege/status/StatusCodeListe.tsx))
-- **„Offene Aufgaben" zieht mit**: startet zu und merkt sich den Zustand wie seine zwei Nachbarn ([OffeneAufgaben.tsx](src/plugins/antraege/status/OffeneAufgaben.tsx), zwei neue Einträge in [detailSektionen.ts](src/plugins/antraege/detailSektionen.ts))
-- **Eingeklappt kostet nur noch die Kopfzeile** — die hängenden Margen von Statussektion, Aufgaben und Kurzbeschreibung gelten jetzt nur bei offenem Rumpf
-- **Der Rumpf der Statussektion trägt `gap` statt `mt-5`-Wrapper**: ein Block, der `null` liefert, zeichnete bisher trotzdem seine 20 px ([StatusDetailSection.tsx](src/plugins/antraege/status/StatusDetailSection.tsx))
-- **Trenn-Abstände enger**: Sektionsrahmen 32 → 24 px, Daten-Sektionskopf 40 → 36 px ([detailRahmen.tsx](src/plugins/antraege/detailRahmen.tsx), [CollapsibleDataSection.tsx](src/plugins/antraege/CollapsibleDataSection.tsx))
-
-Gemessen am echten Bestand (1400 px, ein Verbund mit 25 Statuseinträgen): „Status & Verlauf" aufgeklappt **1.383 → 400 px**, Detailseite zugeklappt 835 → 791 px.
-
-### v4.45.0 — Kuerzel-Wortlaut folgt der Kuration in der ganzen App (August 2026)
-
-MINOR — Chronik und Zeitstrahl liegen in derselben Sektion und zeigten für dasselbe Kürzel verschiedene Texte: die Chronik den kuratierten Wortlaut der Fassung, die Spur die einkompilierten Fremddaten. Auf dem echten Bestand betraf das 111 von 505 Kürzeln.
-
-- **Die kuratierte Fassung gewinnt** — was die PL im Kürzel-Tab freigibt, wirkt jetzt auch in der Verlaufs-Spur ([kuerzel-katalog.ts](src/core/status/kuerzel-katalog.ts), [uebergaenge.ts](src/core/status/verlauf/uebergaenge.ts))
-- **Außer bei form-divergenten Kürzeln**: dort bleibt der Katalog, weil eine flache Kuration „AB in DL" nicht von „AB in NW" unterscheiden kann — 26 Kürzel, gewollt
-- **Dem Katalog unbekannte Kürzel** bekommen den kuratierten Namen statt gar keinen (36 Codes der flachen Zuarbeit)
-- **Rollen bleiben beim Katalog**: `rollenLage` unterscheidet „jede Rolle" von „Rolle unbekannt", was die Fassung nicht ausdrücken kann
-- **Guard** `kuerzel-text-folgt-der-kuration` ([conventions-status.test.ts](src/__tests__/conventions-status.test.ts)) + Verhalten in [kuerzel-overlay.test.ts](src/core/status/__tests__/kuerzel-overlay.test.ts)
-
-### v4.44.1 — Suchbereich-Optionen tragen Suche in selbst (August 2026)
-
-PATCH — Aufgeklappt liegt die Optionsliste über der Seite; die Beschriftung „Suchen in:" daneben ist dann verdeckt, und jede Zeile las sich für sich allein als „alle Felder", „nur Dokumente" — ohne die Frage, die sie beantwortet.
-
-- **Jede Option trägt „Suche in: …"** — zugeklappt wie aufgeklappt, damit der Kasten auch nach einem Zeilenumbruch lesbar bleibt ([SuchOptionenZeile.tsx](src/plugins/suche/SuchOptionenZeile.tsx))
-- **Die vorangestellte Beschriftung entfällt** — sonst stünde dort „Suchen in: Suche in: alle Felder"; die Auswahl trägt sie jetzt als `aria-label`
-- **Der Präfix ist reine Darstellung**: `SUCHBEREICH_LABEL` bleibt der nackte Name, den Tooltip und Guards lesen ([suchbereich.ts](src/core/services/search/suchbereich.ts))
-
-### v4.44.0 — Suchbereich heisst alle Felder und ist wieder der Standard (August 2026)
-
-MINOR — Gewünscht war ein Eintrag „in allen Feldern suchen", standardmäßig gewählt. Den gab es bereits — er hieß nur „Titel, Beschreibung, Dokumente" und nannte damit drei von acht Feldern. Zweimal wurde deshalb gemeldet, ein Feld werde nicht durchsucht; beide Male stimmte es nicht.
-
-- **Der Standardbereich heißt „alle Felder"**, im Gegensatz zu den vier „nur …"-Wahlen; die Zusage hält ein Guard ([suchbereich.ts](src/core/services/search/suchbereich.ts), [wortstamm.test.ts](src/core/services/search/__tests__/wortstamm.test.ts))
-- **Ein eingeengter Bereich markiert sich farbig** — er ist der einzige Schalter der Zeile, der Treffer verschwinden lässt, ohne dass am Ergebnis etwas davon steht ([SuchOptionenZeile.tsx](src/plugins/suche/SuchOptionenZeile.tsx))
-- **Der gemerkte Bereich wird einmalig zurückgesetzt** (Schlüssel-Bump): eine irgendwann gewählte Einschränkung schlug bisher für immer den Code-Standard ([useSuchOptionen.ts](src/core/hooks/useSuchOptionen.ts))
-- **Kein zweiter Eintrag im Aufklapper**: ein Duplikat neben „alles" hätte dasselbe zweimal angeboten — die Felder waren nie das Problem, die Beschriftung war es
-
-### v4.43.0 — Chronik zeigt das Kuerzel, Naechste Schritte klappt zu, DL-Praefix korrigiert (August 2026)
-
-MINOR — Gemeldet war dreierlei: der Chronik fehlt das Kürzel, „Nächste Schritte" steht immer offen, und „DL-Gutachten" nennt eine Projektform, die nicht dazugehört. Die dritte Meldung führte auf eine Datenursache: die App trägt **zwei** Kürzel-Zuarbeiten, die sich bei 76 Codes widersprechen — und keine der beiden ist pauschal die richtige.
-
-- **Die Chronik führt das Kürzel** in eigener Spalte zwischen Datum und Rolle, wie im Fachsystem — auch an den kanonischen Feldern (`AAE`, `ABB`) und an den Fehlzeilen ([StatusChronik.tsx](src/plugins/antraege/status/StatusChronik.tsx))
-- **„Nächste Schritte (in C16 zu setzen)" klappt zu**, Default zu; die Anzahl bleibt im Kopf stehen, die Rollen-Chips wandern in den Rumpf ([NaechsteSchritte.tsx](src/plugins/antraege/status/NaechsteSchritte.tsx), Vorgabe zentral in [detailSektionen.ts](src/plugins/antraege/detailSektionen.ts))
-- **`XKS` heißt wieder „Gutachten fertig"** statt „DL-Gutachten fertig - FB/AB", `XQS` „Gutachten QS fertig" — dazu vier belegte Schreibfehler ([seed-label-korrekturen.ts](src/core/status/seed-label-korrekturen.ts)); ausgeliefert über den bestehenden Cockpit-Block, nicht automatisch
-- **Der Abgleich beider Zuarbeiten ist gemessen**: 335 wortgleich, 58 zu Recht formabhängig, 36 nur flach geführt, **76 widersprüchlich** — davon 6 entschieden, 70 als Wasserstand im Test festgehalten ([KATALOG-CODES.md](docs/status-system/KATALOG-CODES.md))
-- **Keine Vorrangregel zwischen den Quellen**: mal ist die flache veraltet (`XKS`), mal trägt die form-bewusste den Tippfehler (`Biref`, `Verwedungsnachweis`) — eine globale Übernahme tauschte Fehler gegen Fehler
-
-### v4.42.0 — Suche findet die Projektbeschreibung wieder, Einrichtungen auch per Kuerzel (August 2026)
-
-MINOR — Gemeldet war „der Antragsteller GMBU wird nicht gefunden, obwohl er da ist". Beim Nachmessen am Bestand fiel ein größerer Defekt auf: die alten Feld-Aliase des Suchkorpus trafen **0 von 14.225** Anträgen — die gesamte Projektbeschreibung fehlte im Suchindex. Sichtbar war das nur als dünner Bestand.
-
-- **Korpus-Felder werden aus dem CSV-Schema aufgelöst** statt geraten (Spalten-CODE → `resolveFieldKey`, alte Listen als Fallback) — [korpusFeldAufloesung.ts](src/plugins/antraege/services/korpusFeldAufloesung.ts); zweiter Fall von [recurring-bug-classes](docs/architecture/recurring-bug-classes.md) Klasse 5
-- **Projektbeschreibung ist wieder durchsuchbar**: 9.225 Anträge tragen sie; „Netzwerkpartner" findet in „nur Titel & Kurzbeschreibung" 696 statt 0 ([search-corpus.ts](src/plugins/antraege/services/search-corpus.ts))
-- **Neue Trefferstelle „Web-Adresse"** aus der Kontakt-Mail (`bergmann@gmbu.de` → `gmbu.de`), im Bereich „nur Einrichtung" — „GMBU" findet 35 statt 0 Anträge ([trefferstelle.ts](src/core/services/search/trefferstelle.ts), [suchbereich.ts](src/core/services/search/suchbereich.ts))
-- **Nur der Host, nie die Adresse**, ohne Top-Level-Domain in der Suchform, mit Sperrliste gegen Projektträger- und Freemail-Domains (`vdivde-it.de` steht 26.933× in der Quelle)
-- **Der Beleg zeigt sich selbst**: Spalte „Web-Adresse" blendet sich bei einem Domain-Treffer ein ([autoSpalten.ts](src/plugins/suche/autoSpalten.ts)) — sonst stünde das Suchwort in keinem sichtbaren Feld der Zeile
 

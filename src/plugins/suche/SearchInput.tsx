@@ -28,8 +28,8 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Loader2, Search } from 'lucide-react';
 import { useSucheStore } from './store';
 import { SearchSuggestions } from './SearchSuggestions';
-import { berechneVorschlaege, vorschlagsHinweis, type Vorschlag } from './vervollstaendigung';
-import { useProbeZahlen } from './useProbeZahlen';
+import { berechneVorschlaege, type Vorschlag } from './vervollstaendigung';
+import { naechsterSchub, useProbeZahlen } from './useProbeZahlen';
 import type { WertIndex } from '@/plugins/antraege/services/wert-index';
 import {
   FELD_MIN_BREITE,
@@ -41,6 +41,16 @@ import {
 import { useClickOutside } from '@/core/hooks/useClickOutside';
 
 const GROESSE_KEY = 'teamflow_suche_feld_groesse';
+
+/**
+ * Wie viele Vorschläge je Stufe gerendert werden.
+ *
+ * 200 füllt die 320 px hohe Liste rund sechsmal — es ist also nie ein Loch zu
+ * sehen — und kostet gemessen unter 60 ms je Stufe. Beim größten Feld (`ast:`,
+ * 5 460 Werte) sind das 28 Stufen, die über Message-Tasks nachlaufen, während
+ * die Liste schon bedienbar ist.
+ */
+const STUFE = 200;
 
 export interface SearchInputProps {
   value: string;
@@ -132,18 +142,52 @@ export function SearchInput({
     () => berechneVorschlaege({ text: value, cursor, index: wertIndex, verlauf: recentSearches }),
     [value, cursor, wertIndex, recentSearches],
   );
-  const hinweis = useMemo(
-    () => vorschlagsHinweis({ text: value, cursor, index: wertIndex, verlauf: recentSearches }),
-    [value, cursor, wertIndex, recentSearches],
-  );
-
   // Die Trefferzahlen kommen NACH der Liste — und in Portionen; die Mechanik
   // dazu steht in [useProbeZahlen](src/plugins/suche/useProbeZahlen.ts), weil
   // der Reiter „Stöbern" im Startzustand dieselbe Zusage macht. Die 150 ms
   // Verzögerung sind hier die halbe Miete: sie verhindern, dass jeder
   // Tastendruck 14 225 Einträge durchgeht.
+  //
+  // Seit v4.88 ist die Liste ungekappt (bis 5 461 Werte), deshalb rechnet sie
+  // nur für Zeilen, die das Dropdown als sichtbar meldet — sonst liefen ~80 s
+  // Probeläufe für Zahlen neben Zeilen, die niemand ansieht.
   const wertVorschlaege = useMemo(() => suggestions.filter(v => v.art === 'wert'), [suggestions]);
-  const trefferZahlen = useProbeZahlen(wertVorschlaege, zaehle, 150);
+  const [sichtbareKeys, setSichtbareKeys] = useState<ReadonlySet<string>>(() => new Set());
+  const trefferZahlen = useProbeZahlen(wertVorschlaege, zaehle, 150, sichtbareKeys);
+
+  /**
+   * Die Liste kommt in Stufen — sonst kostet EIN Tastendruck über eine Sekunde.
+   *
+   * Ohne Deckel rendert `ast:` 5 460 Zeilen; am echten Bestand gemessen blockiert
+   * das den Hauptthread **1 338 ms** (`ort:` 713 ms, `nw:` 458 ms, `deskriptor:`
+   * 52 ms). Das ist genau der Hänger, den die ungekappte Liste einbringt — und
+   * der Grund, sie trotzdem nicht wieder zu kappen: gefragt war der ganze
+   * Katalog, nicht sein Anfang.
+   *
+   * Also erscheint der Anfang sofort und der Rest wächst über Message-Tasks
+   * nach — dieselbe Mechanik wie bei den Trefferzahlen, aus demselben Grund
+   * (verschachtelte Timer klemmt der Browser ab, ein Message-Task nicht).
+   * Sichtbar ist immer nur, was gerendert ist, also gilt die Stufe auch für
+   * Tastatur-Navigation und Zähler — eine Auswahlmarke, die auf eine noch nicht
+   * gerenderte Zeile zeigt, gäbe es sonst.
+   */
+  const [gezeigt, setGezeigt] = useState(STUFE);
+  useEffect(() => {
+    setGezeigt(STUFE);
+    if (suggestions.length <= STUFE) return;
+    let abgebrochen = false;
+    const weiter = (n: number): void => {
+      if (abgebrochen) return;
+      setGezeigt(n);
+      if (n < suggestions.length) naechsterSchub(() => weiter(n + STUFE));
+    };
+    naechsterSchub(() => weiter(STUFE * 2));
+    return () => { abgebrochen = true; };
+  }, [suggestions]);
+  const gezeigteVorschlaege = useMemo(
+    () => (gezeigt >= suggestions.length ? suggestions : suggestions.slice(0, gezeigt)),
+    [suggestions, gezeigt],
+  );
 
   useClickOutside(searchBoxRef, () => { setSuggestOpen(false); setActiveIndex(-1); }, suggestOpen);
 
@@ -177,11 +221,11 @@ export function SearchInput({
   const onSearchKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>): void => {
     // Pfeiltasten gehören im mehrzeiligen Feld dem Cursor — sie werden nur
     // abgefangen, solange die Vorschlagsliste tatsächlich offen ist.
-    const listeOffen = suggestOpen && suggestions.length > 0;
+    const listeOffen = suggestOpen && gezeigteVorschlaege.length > 0;
     if (e.key === 'ArrowDown') {
       if (!listeOffen) return;
       e.preventDefault();
-      setActiveIndex(i => Math.min(i + 1, suggestions.length - 1));
+      setActiveIndex(i => Math.min(i + 1, gezeigteVorschlaege.length - 1));
     } else if (e.key === 'ArrowUp') {
       if (!listeOffen) return;
       e.preventDefault();
@@ -191,7 +235,7 @@ export function SearchInput({
       // schreiben); Enter allein behält seine bisherige Bedeutung.
       if (e.shiftKey) return;
       e.preventDefault();
-      const picked = suggestOpen && activeIndex >= 0 ? suggestions[activeIndex] : undefined;
+      const picked = suggestOpen && activeIndex >= 0 ? gezeigteVorschlaege[activeIndex] : undefined;
       if (picked !== undefined) {
         selectSuggestion(picked);
       } else {
@@ -245,7 +289,7 @@ export function SearchInput({
         autoFocus
         autoComplete="off"
         role="combobox"
-        aria-expanded={suggestOpen && suggestions.length > 0}
+        aria-expanded={suggestOpen && gezeigteVorschlaege.length > 0}
         aria-autocomplete="list"
         className="block w-full py-[9px] pl-10 pr-10 text-[14px] leading-[22px] bg-transparent text-[var(--tf-text)] rounded-[var(--tf-radius-lg)] outline-none placeholder:text-[var(--tf-text-tertiary)] focus:border-[var(--tf-primary)] disabled:opacity-60"
         style={{
@@ -263,16 +307,16 @@ export function SearchInput({
           aria-label="Suche laeuft"
         />
       )}
-      {suggestOpen && suggestions.length > 0 && (
+      {suggestOpen && gezeigteVorschlaege.length > 0 && (
         <SearchSuggestions
-          items={suggestions}
+          items={gezeigteVorschlaege}
           activeIndex={activeIndex}
           onSelect={selectSuggestion}
           onRemove={q => { removeRecentSearch(q); inputRef.current?.focus(); }}
           onClear={() => { clearRecentSearches(); setSuggestOpen(false); setActiveIndex(-1); }}
           onHover={setActiveIndex}
           treffer={trefferZahlen}
-          hinweis={hinweis}
+          onSichtbareKeys={setSichtbareKeys}
         />
       )}
     </div>

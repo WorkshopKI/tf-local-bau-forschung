@@ -664,10 +664,11 @@ Modus umzustellen.
 
 ### 9.3 Die Zahl kommt aus einem Probelauf, nicht aus dem Zähler
 
-Der Werte-Index zählt, in wie vielen Anträgen ein Wert vorkommt — das **ordnet**
-die Liste. Was als Zahl daneben steht, kommt aus `searchAntraegeSubstring` mit
-den eingestellten Reglern, also aus derselben Maschinerie, die nach dem Klick
-läuft. Der Unterschied ist nicht theoretisch: nach den Rohspalten tragen 485
+Der Werte-Index zählt, in wie vielen Anträgen ein Wert vorkommt. Diese Zahl
+**ordnete** die Liste bis v4.87; seither sortiert sie alphabetisch (§9.4) und die
+Häufigkeit dient nur noch dem Reiter „Stöbern" als Größenangabe. Was als Zahl
+neben einem Vorschlag steht, kommt aus `searchAntraegeSubstring` mit den
+eingestellten Reglern, also aus derselben Maschinerie, die nach dem Klick läuft. Der Unterschied ist nicht theoretisch: nach den Rohspalten tragen 485
 Anträge den Ort „Dresden", die Suche findet 451.
 
 Die Probeläufe laufen **nach** der Liste (150 ms Verzögerung, nur für
@@ -682,16 +683,44 @@ einem verborgenen Fenster auf rund eine Sekunde: in `dev:local` (verborgener Tab
 hatten von 42 Deskriptoren nach 30 Sekunden erst 28 eine Zahl. Mit dem
 Message-Task stehen alle 42 nach **934 ms**.
 
-### 9.4 Wie viele Werte die Liste zeigt
+### 9.4 Wie viele Werte die Liste zeigt (v4.88: alle)
 
-**50**, und was darüber liegt, wird benannt: „50 von 1.243 — tippe weiter, um
-einzugrenzen". Die erste Fassung zeigte acht (die Zahl der Verlaufsliste) — für
-einen Katalog zu wenig, und ohne Hinweis las sich der Deckel als Vollständigkeit.
+**Alle.** Erst waren es acht, dann 50 — und jede Zahl beantwortete „welche
+zeigen wir", statt der Frage, die der Suchende stellt: „welche gibt es". Gefragt
+wurde ausdrücklich nach allen Netzwerken; ist die Liste alphabetisch und
+scrollbar, gibt es keinen Grund, sie vorher zu beschneiden. Die Fußzeile
+„50 von 1.243" entfällt mit dem Deckel, den sie erklärte.
 
-Die 50 bedient beide Fälle mit einer Zahl: die **42 Deskriptoren** stehen damit
-vollständig da (dieser Katalog ist der Grund für die ganze Liste), und bei
-`nw:` (1 243), `ort:` (2 055), `ast:` (5 461) füllen 50 die scrollbare Liste,
-während der Rest im Fuß beziffert wird. Die Liste ist 320 px hoch und scrollt.
+Drei Dinge mussten dafür nachziehen, jedes an einer gemessenen Zahl:
+
+| Was | Ohne die Änderung | Damit |
+|---|---|---|
+| **Rendern** — die Liste kommt in Stufen zu 200 über Message-Tasks (`STUFE` in [SearchInput.tsx](../../src/plugins/suche/SearchInput.tsx)) | ein Tastendruck blockiert bei `ast:` **1 338 ms** (`ort:` 713, `nw:` 458) | **51 / 46 / 43 ms**, 200 Zeilen sofort, der Rest wächst nach |
+| **Trefferzahlen** — nur für Zeilen im Sichtfenster ([useProbeZahlen.ts](../../src/plugins/suche/useProbeZahlen.ts)) | ein Probelauf kostet 11–20 ms, also ~20 s für `nw:`, ~80 s für `ast:` | rund 20 Zahlen je Sicht, beim Scrollen kommen sie nach |
+| **Sortierung** — alphabetisch statt nach Häufigkeit ([wert-index.ts](../../src/plugins/antraege/services/wert-index.ts)) | die Häufigkeit ordnete, WELCHE 50 zu sehen sind | sie beziffert nur noch; gefunden wird nach Namen |
+
+Der Sichtbarkeits-Melder liest **Scroll-Geometrie, keinen `IntersectionObserver`**:
+der feuert in einem nicht dargestellten Fenster gar nicht (in `dev:local`
+gemessen: 0 Meldungen), und die Liste stünde dann ohne eine einzige Zahl da.
+
+**Was die alphabetische Ordnung ans Licht holte.** Beide Fehlstände gab es
+vorher schon; die Häufigkeits-Sortierung hatte sie nur nach unten geschoben.
+
+- **25 von 1 243 Netzwerkwerten fehlt ein Anführungszeichen** — mal das
+  schließende (`"3DLiveVis2 16KN045423_LT`), mal das öffnende
+  (`CANNABIS-NET" 16KN089602_KR`). Alphabetisch sortiert ein führendes `"` ganz
+  nach vorn: die ersten Zeilen des Katalogs waren Bruchstücke. `netzwerkName`
+  nimmt weiterhin zuerst das Paar (es steht nicht immer vorn —
+  `16KN054101 "IWiT" _PSc`) und räumt nur sonst auf.
+- **80 Netzwerke stehen in zwei Schreibweisen** (`3D-Fab`/`3D-FAB`).
+  Alphabetisch stehen sie direkt untereinander und sehen aus wie ein
+  Anzeigefehler; die Suche unterscheidet sie ohnehin nicht. `verdichteWertIndex`
+  faltet sie zu einer Zeile mit der häufigeren Schreibweise — das behob nebenbei
+  **688** React-Warnungen wegen doppelter Schlüssel.
+
+**Was bleibt**: 68 Netzwerke führen im Export gar keinen Namen, nur ein
+Kennzeichen (`16KN087150`). Sie stehen alphabetisch bei den Ziffern und damit am
+Anfang der Liste. Sie zu verstecken hieße, sie unauffindbar zu machen.
 
 ### 9.5 Wo was wohnt
 

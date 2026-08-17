@@ -19,6 +19,16 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.88 — 2026-08
+
+### Verbesserungen
+- **Die Vorschläge im Suchfeld stehen jetzt alphabetisch — und es sind alle.** Tippen Sie `nw:`, sehen Sie den vollständigen Katalog aller Netzwerke von A bis Z zum Durchblättern; bisher waren es die 50 häufigsten. Das gilt genauso für Orte, Einrichtungen, Bundesländer, Wahlkreise und Deskriptoren.
+- Die Trefferzahl neben einem Vorschlag wird für das gerechnet, was Sie gerade sehen, und füllt sich beim Scrollen nach — so bleibt die Liste auch bei 5.000 Einträgen sofort bedienbar.
+
+### Bugfixes
+- **Netzwerke standen teils doppelt in der Liste**, wenn der Export sie unterschiedlich groß schrieb (`3D-Fab` und `3D-FAB`). Jetzt steht jedes Netzwerk einmal da.
+- **Bei 25 Netzwerken fehlte im Export ein Anführungszeichen**; ihr Name erschien als Bruchstück mitsamt Kennzeichen. Jetzt steht auch dort der Name.
+
 ## v4.87 — 2026-08
 
 ### Verbesserungen
