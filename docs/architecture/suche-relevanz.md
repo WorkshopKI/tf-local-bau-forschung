@@ -831,3 +831,45 @@ im Standard-Bereich, Chip „· 56 ausgeblendet". 485 − 56 = 429.
 (Bindung an den geteilten `BereichAuswahlChip`),
 [useKorpusZahlen.ts](../../src/plugins/suche/useKorpusZahlen.ts) (Probelauf +
 Vorschlagszahl, auf die Auswahl heruntergezählt).
+
+## 11 Der Netzwerkantrag traegt den Namen seines Netzwerks (v4.93)
+
+`nw:mobiInspec` versprach „das Netzwerk" und lieferte nur dessen
+Teilvorhaben — der Netzwerkantrag selbst war ueber dieses Feld **nie**
+erreichbar. Sichtbar wurde es am Antragstyp-Filter: unter `nw:` bot er nur
+„FuE" an, nie „NW", und wer das Netzwerk selbst sehen wollte, hatte dort nichts
+zum Umschalten.
+
+**Die Ursache ist strukturell, kein Datenfehler.** Die Spalte `NETZWERKNA`
+fuehren nur die Teilvorhaben: sie zeigt auf das Netzwerk, zu dem sie gehoeren.
+Der Netzwerkantrag laesst sie leer — er *ist* das Netzwerk, es gibt fuer ihn
+nichts zu referenzieren. Am Bestand gemessen (13 016 16KN-Saetze): von 1 775
+Netzwerkantraegen tragen **1 581 gar nichts** in der Spalte; die uebrigen 194
+tragen ein Kennzeichen statt eines Namens (`"16KN111101"` — der Verweis der
+Phase 2 auf ihre Phase 1).
+
+**Der Name wird abgeleitet, aus zwei Quellen in fester Reihenfolge**
+([netzwerk-leads.ts](../../src/plugins/antraege/services/netzwerk-leads.ts)):
+
+| Quelle | Faelle | Warum in dieser Reihenfolge |
+|---|---|---|
+| `NETZWERKNA` der Mitglieder | 1 306 | garantiert **dieselbe Zeichenkette** wie bei den Mitgliedern — sonst zerfiele ein Netzwerk in der Vorschlagsliste in zwei Eintraege |
+| eigenes `VB_KURZNAM` | 468 | Netzwerke ohne Mitglieder; umschliessende Klammern fallen weg (`(mobiInspec)`), sie markieren den abgelehnten Versuch |
+| — | 1 | 16KN086601 hat weder noch und bleibt namenlos. Geraten wird nicht |
+
+Fuehren die Mitglieder **mehrere** Schreibweisen (494 Netzwerke), gewinnt die
+haeufigste, bei Gleichstand die alphabetisch erste — dieselbe Regel wie in
+`verdichteWertIndex`. **Der Tippfehler wird damit nicht weggewaschen:** bei
+`mobiInspec` stehen 29 Saetze gegen einen einzelnen `mobilnspec`; der
+Netzwerkantrag bekommt `mobiInspec`, und `nw:mobilnspec` findet weiter genau
+seinen einen Satz. Beide Schreibweisen bleiben in der Vorschlagsliste
+nebeneinander sichtbar (§9.4) — die App zeigt den Datenstand, sie korrigiert ihn
+nicht.
+
+Der Nachlauf laeuft **im Speicher**, ueber die schon geladenen Saetze, nicht ein
+zweites Mal ueber die IDB — der Cursor-Walk bleibt ein Durchgang.
+
+Gemessen in `dev:local`: `nw:mobiInspec` **29 → 32** (die zwei Netzwerkantraege
+des Netzes 0830 plus den abgelehnten Vorlaeufer 16KN080301), Antragstyp-Facette
+jetzt **FuE 29 · NW 3**, und die Zahl am Vorschlag `mobiInspec` steht wieder auf
+derselben Menge wie das Ergebnis (32).

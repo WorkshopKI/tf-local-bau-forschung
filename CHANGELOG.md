@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.93.0 — Der Netzwerkantrag traegt den Namen seines Netzwerks (August 2026)
+
+MINOR — Gemeldet: „das Netzwerk selbst wird nicht gefunden, es werden nur die FuE-Anträge aus dem Netzwerk gefunden — und im Antragstyp auf NW umschalten geht nicht, der ist leer." Beides stimmte: `nw:<name>` fand nie den Netzwerkantrag. Kein Datenfehler, sondern strukturell — die Spalte `NETZWERKNA` führen nur die Teilvorhaben, der Netzwerkantrag lässt sie leer, weil er das Netzwerk IST.
+
+- **Der Netzwerkantrag bekommt den Namen seines Netzwerks** — aus dem `NETZWERKNA` seiner Mitglieder, ersatzweise aus dem eigenen Akronym ([netzwerk-leads.ts](src/plugins/antraege/services/netzwerk-leads.ts), [suche-relevanz.md §11](docs/architecture/suche-relevanz.md))
+- **Gemessen an 1.775 Netzwerkanträgen**: 1.306 aus den Mitgliedern, 468 aus dem Akronym, **einer** bleibt namenlos — geraten wird nicht ([netzwerkLeads.test.ts](src/plugins/antraege/__tests__/netzwerkLeads.test.ts))
+- **Der Tippfehler wird nicht weggewaschen**: bei mehreren Schreibweisen gewinnt die häufigste (29 `mobiInspec` gegen 1 `mobilnspec`), beide bleiben einzeln auffindbar
+- **Der Nachlauf läuft im Speicher** über die schon geladenen Sätze — der Cursor-Walk über die IDB bleibt ein Durchgang ([search-corpus.ts](src/plugins/antraege/services/search-corpus.ts))
+- Wirkung, gemessen in `dev:local`: `nw:mobiInspec` **29 → 32**, Antragstyp-Facette **FuE 29 · NW 3**, Vorschlagszahl wieder deckungsgleich mit dem Ergebnis
+
 ### v4.92.0 — Die Kuerzel-Zeile fuehrt nur, was auch entschieden wird (August 2026)
 
 MINOR — Gemeldet: die Pflege der Kürzel falle schwer, zu viele neue Begriffe — klar sei nur „wird gesetzt von". Die Messung der Fassung 23 gegen die Auslieferung erklärt beides: an Ordner und Prominenz wurde in 23 Fassungen **keine einzige** Änderung vorgenommen (sie kommen richtig aus der Zuarbeit), und die ZAH-Phase kann für 91 % der Kürzel gar keine Antwort haben. Drei Auswahlfelder in 509 Zeilen waren vor allem eines: eine Aufforderung.

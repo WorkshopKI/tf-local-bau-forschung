@@ -28,6 +28,7 @@ import { listSchemasByProgramm } from '@/core/services/csv/idb-csv';
 import { normalizeKey } from '../fieldLookup';
 import { buildDescriptorsText, deskriptorenAnzeige } from './descriptor-text';
 import { netzwerkName, nimmWerte, type WertIndexRoh } from './wert-index';
+import { leiteNetzwerkNamenAb, type NetzwerkZeile } from './netzwerk-leads';
 import {
   baueKorpusFeldKarte, SLOT_REIHENFOLGE,
   type KorpusFeldKarte, type KorpusSlot,
@@ -612,6 +613,11 @@ export async function loadAntraegeTextCorpus(
   const slotIndex = baueSlotIndex(karte);
   const db = idb.getDb();
   const result = new Map<string, AntragTextEntry>();
+  // Fuer den Nachlauf unten: der Netzwerkantrag traegt seinen Netzwerknamen
+  // nicht selbst, er muss aus den Mitgliedern abgeleitet werden
+  // ([netzwerk-leads.ts](./netzwerk-leads.ts)). Gesammelt wird IM Walk, damit
+  // es bei einem Durchgang durch die IDB bleibt.
+  const netzZeilen: NetzwerkZeile[] = [];
   await new Promise<void>((resolve, reject) => {
     const tx = db.transaction(CSV_STORES.ANTRAEGE, 'readonly');
     const idx = tx.objectStore(CSV_STORES.ANTRAEGE).index('programm_id');
@@ -646,6 +652,9 @@ export async function loadAntraegeTextCorpus(
       const notiz = verbindeMit(' · ', feld.notizWichtig ?? '', feld.notizBemerkung ?? '');
       const wahlkreis = feld.wahlkreis ?? '';
       const verbundNr = feld.verbundNr ?? '';
+      netzZeilen.push({
+        aktenzeichen: a.aktenzeichen, vbPhase: a.vb_phase, netzwerkRoh: netzwerk, akronym: ak,
+      });
       if (werteIndex) {
         nimmWerte(werteIndex, 'standort', [feld.ortAfs, feld.ortAst]);
         // Nur der Klartext — das Kuerzel lebt in der Suchform, nicht in der
@@ -706,6 +715,24 @@ export async function loadAntraegeTextCorpus(
     req.onerror = () => reject(req.error);
     tx.onerror = () => reject(tx.error);
   });
+
+  // ----- Nachlauf: der Netzwerkantrag bekommt den Namen seines Netzwerks -----
+  //
+  // Ohne ihn fand `nw:<name>` nur die Teilvorhaben, nie das Netzwerk selbst —
+  // eine gebrochene Zusage des Feldes (Begruendung + Zahlen: netzwerk-leads.ts).
+  // Der Lauf geht ueber die bereits geladenen Saetze im Speicher, nicht noch
+  // einmal ueber die IDB.
+  for (const [akz, name] of leiteNetzwerkNamenAb(netzZeilen)) {
+    const eintrag = result.get(akz);
+    // Der Netzwerkantrag traegt in `NETZWERKNA` nichts (oder nur ein
+    // Kennzeichen); ein vorhandener Wert wird NICHT ueberschrieben.
+    if (!eintrag || eintrag.netzwerk.length > 0) continue;
+    eintrag.netzwerk = name;
+    eintrag.netzwerkLower = name.toLowerCase();
+    // Damit die Zahl in der Vorschlagsliste die Zahl nach dem Klick bleibt.
+    if (werteIndex) nimmWerte(werteIndex, 'netzwerk', [name]);
+  }
+
   return result;
 }
 

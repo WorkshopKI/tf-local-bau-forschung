@@ -19,6 +19,15 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.93 — 2026-08
+
+### Bugfixes
+- **Die Suche nach einem Netzwerk findet jetzt auch das Netzwerk selbst.** Bisher lieferte `nw:<Name>` nur die Teilvorhaben; der Netzwerkantrag fehlte, und im Filter „Antragstyp" gab es deshalb kein „NW" zum Umschalten. Grund: die Quellspalte führen nur die Teilvorhaben — der Netzwerkantrag lässt sie leer, weil er das Netzwerk ist. Sein Name wird jetzt aus seinen Teilvorhaben abgeleitet.
+### Verbesserungen
+<!-- - … -->
+### Bugfixes
+<!-- - … -->
+
 ## v4.92 — 2026-08
 
 ### Verbesserungen
