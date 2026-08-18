@@ -46,6 +46,12 @@ export interface FrageVorschlaegeSteuerung {
   beiEingabe: () => void;
   /** An `onKeyDown` des Feldes — behandelt ↑ ↓ ⏎ und Esc. */
   beiTaste: (e: React.KeyboardEvent<HTMLInputElement>) => void;
+  /**
+   * Was die Eingabetaste ohne markierte Zeile tut: in die nächste Lücke
+   * springen, sonst fragen. Der Knopf „Frage stellen" ruft dasselbe — zwei Wege
+   * zur selben Geste dürfen sich nicht verschieden verhalten.
+   */
+  absenden: () => void;
 }
 
 export interface FrageVorschlaegeOptionen {
@@ -114,6 +120,13 @@ export function useFrageVorschlaege(opt: FrageVorschlaegeOptionen): FrageVorschl
     springeInLuecke(v.text);
   }, [setText, stelleFrage, springeInLuecke]);
 
+  const absenden = useCallback((): void => {
+    setOffen(false);
+    if (springeInLuecke(text)) return;
+    setHinweis(null);
+    stelleFrage(text);
+  }, [springeInLuecke, text, stelleFrage]);
+
   const beiTaste = useCallback((e: React.KeyboardEvent<HTMLInputElement>): void => {
     if (!aktiviert) return;
     if (e.key === 'ArrowDown' && flach.length > 0) {
@@ -141,11 +154,8 @@ export function useFrageVorschlaege(opt: FrageVorschlaegeOptionen): FrageVorschl
       waehle(markiert);
       return;
     }
-    setOffen(false);
-    if (springeInLuecke(text)) return;
-    setHinweis(null);
-    stelleFrage(text);
-  }, [aktiviert, flach, offen, aktiv, waehle, springeInLuecke, text, stelleFrage]);
+    absenden();
+  }, [aktiviert, flach, offen, aktiv, waehle, absenden]);
 
   const beiFokus = useCallback((): void => { setOffen(true); }, []);
   const beiVerlust = useCallback((): void => { setOffen(false); setAktivRoh(-1); }, []);
@@ -158,6 +168,6 @@ export function useFrageVorschlaege(opt: FrageVorschlaegeOptionen): FrageVorschl
   return {
     offen, abschnitte, aktiv, hinweis,
     setAktiv: setAktivRoh, waehle, entferne, leere,
-    beiFokus, beiVerlust, beiEingabe, beiTaste,
+    beiFokus, beiVerlust, beiEingabe, beiTaste, absenden,
   };
 }

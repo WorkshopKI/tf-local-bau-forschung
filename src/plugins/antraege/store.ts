@@ -258,6 +258,26 @@ interface AntraegeState {
    * Transient wie die beiden darüber: sie gehören zu EINER Frage.
    */
   planTeile: readonly PlanBegriff[] | null;
+  /**
+   * Steht der Umschalter auf „einer Frage"? (v4.107)
+   *
+   * Liegt hier und nicht mehr in einem eigenen Store, weil er entscheidet, ob
+   * der Feldtext überhaupt eine Anfrage IST — und das müssen Liste und
+   * Hybrid-Suche genauso wissen wie der Kopf (`wirksamerSuchtext`). Zwei
+   * Wahrheiten darüber ergaben eine Liste, die auf eine ungestellte Frage
+   * filtert. Sitzungslokal: eine gemerkte Frage-Einstellung empfinge den Nutzer
+   * beim Start mit einem Feld, das auf eine KI-Verbindung wartet.
+   */
+  frageModus: boolean;
+  /**
+   * Die zuletzt ERFOLGREICH übersetzte Frage (v4.107). `null` = keine.
+   *
+   * Der Vergleich mit dem Feldtext sagt, ob die Frage im Feld schon gestellt
+   * wurde — dieselbe Identitätsprüfung wie `Frageplan.frage` in der
+   * Dokumenten-Suche. Solange sie abweicht, ist der Text eine Absicht und kein
+   * Suchbegriff.
+   */
+  frageGestellt: string | null;
   activeView: ViewKey;
   /** User-Override pro View. Leer → Default aus DEFAULT_SORT_BY_VIEW. */
   sortByView: Partial<Record<ViewKey, SortKey>>;
@@ -300,6 +320,8 @@ interface AntraegeState {
   setStillstandTage: (tage: number | null) => void;
   setFrageKuerzel: (tokens: string[] | null) => void;
   setPlanTeile: (teile: readonly PlanBegriff[] | null) => void;
+  setFrageModus: (an: boolean) => void;
+  setFrageGestellt: (frage: string | null) => void;
   /** `null` = Filter entfernen. NACH `setActiveView` aufrufen (das resettet). */
   setAmpelQuickfilter: (quick: AmpelQuickfilter | null) => void;
   /** Partial-Merger: ueberschreibt nur die uebergebenen Felder, lasst den
@@ -386,6 +408,8 @@ export const useAntraegeStore = create<AntraegeState>((set) => ({
   stillstandTage: null,
   frageKuerzel: null,
   planTeile: null,
+  frageModus: false,
+  frageGestellt: null,
   ampelQuickfilter: null,
   activeView: loadActiveView(),
   sortByView: loadSortByView(),
@@ -506,6 +530,10 @@ export const useAntraegeStore = create<AntraegeState>((set) => ({
   // legte die Wortlaut-Stufe still, statt sie normal laufen zu lassen.
   setPlanTeile: (teile: readonly PlanBegriff[] | null) =>
     set({ planTeile: teile && teile.length > 0 ? teile : null }),
+
+  setFrageModus: (an: boolean) => set({ frageModus: an }),
+
+  setFrageGestellt: (frage: string | null) => set({ frageGestellt: frage }),
 
   // Leere Liste = kein Ausschnitt: „kein Filter" hat genau eine Schreibweise,
   // sonst filterte ein leeres Token-Array jeden Antrag weg.

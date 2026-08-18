@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Download, Filter, FileUp, Loader2, Search, X } from 'lucide-react';
+import { Download, Filter, FileUp, Loader2, Search, Sparkles, X } from 'lucide-react';
 import { useAntraegeStore } from './store';
 import { useAufnahmeUiStore } from './aufnahme-einfach';
 import { useAntraegeColumnsStore } from './useAntraegeColumnsStore';
@@ -17,6 +17,7 @@ import { FrageUmschalter, FrageDeutung } from './frage/FrageZeile';
 import { useAntragsFrage } from './frage/useAntragsFrage';
 import { FrageVorschlaege } from './frage/FrageVorschlaege';
 import { useFrageVorschlaege } from './frage/useFrageVorschlaege';
+import { useFrageOffen } from './frage/suchtext';
 import { isAuslastungFreigeschaltet } from '@/core/modul-freischaltung';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -32,6 +33,12 @@ import { SeitenHilfeButton } from '@/components/help/SeitenHilfeButton';
 /** Der Knopf heißt nach dem, was er aufnimmt — was dabei passiert, sagt der
  *  Tooltip. „Aufnehmen" allein nannte nur die Tätigkeit und ließ offen, wovon
  *  die Rede ist (v4.75.2). */
+/** Warum die Liste noch unverändert dasteht — Wortlaut nach der Dokumenten-Suche,
+ *  nur der Schluss unterscheidet sich: dort entstehen Suchbegriffe, hier Filter. */
+const FRAGE_OFFEN_HINWEIS =
+  'Noch nicht gestellt — „Frage stellen" oder Eingabetaste übersetzt sie mit der '
+  + 'internen KI in Filter, die danach als Pillen dastehen und einzeln änderbar sind.';
+
 const AUFNAHME_DETAIL =
   'Antragsdokumente aufnehmen: ein ZIP (oder einzelne PDF/DOCX) ablegen — das ' +
   'Förderkennzeichen wird aus dem Dateinamen gelesen, die Dateien werden in Text ' +
@@ -71,6 +78,9 @@ export function AntraegeHeader({ filterOpen, onToggleFilter, listeSichtbar }: Pr
   // ganzen Satz erwartet, ist die schwerste Eingabe der Seite. Der Stichwort-
   // Modus hat mit Feldsyntax und Ähnlichkeits-Hinweis seine eigenen Wegweiser.
   const feldRef = useRef<HTMLInputElement>(null);
+  // Steht im Feld eine Frage, die noch niemand übersetzt hat? Dann trägt der
+  // Kopf den Knopf und die Erklärung — und die Liste ignoriert den Text.
+  const frageIstOffen = useFrageOffen();
   const vorschlaege = useFrageVorschlaege({
     feldRef,
     text: search,
@@ -322,7 +332,6 @@ export function AntraegeHeader({ filterOpen, onToggleFilter, listeSichtbar }: Pr
                   </span>
                 ) : null}
               </Button>
-              {frageAn ? <FrageUmschalter frage={frage} /> : null}
               <div className="relative flex-1 min-w-0 max-w-[640px]">
                 <Search
                   size={13}
@@ -358,6 +367,27 @@ export function AntraegeHeader({ filterOpen, onToggleFilter, listeSichtbar }: Pr
                 ) : null}
                 <FrageVorschlaege steuerung={vorschlaege} />
               </div>
+              {/* Umschalter und Knopf stehen RECHTS vom Feld: die Reihenfolge
+                  bildet den Ablauf ab — erst schreiben, dann die Suchart, dann
+                  abschicken. Links standen sie vor dem Feld und wirkten wie eine
+                  Beschriftung des Filter-Knopfs daneben. */}
+              {frageAn ? <FrageUmschalter frage={frage} /> : null}
+              {/* Der Knopf steht nur da, solange die Frage NICHT übersetzt ist —
+                  wortgleich zur Dokumenten-Suche. Die Eingabetaste tut dasselbe;
+                  der Knopf sagt, DASS es eine Geste braucht, statt es den Nutzer
+                  raten zu lassen. */}
+              {frageAn && frage.nlModus && frageIstOffen ? (
+                <Button
+                  variant="primary"
+                  size="sm"
+                  icon={Sparkles}
+                  loading={frage.laeuft}
+                  onClick={vorschlaege.absenden}
+                  className="h-8 shrink-0"
+                >
+                  Frage stellen
+                </Button>
+              ) : null}
               {/* Kontext-Häkchen zur laufenden Suche: erscheint nur, wenn ein
                   Bearbeiter-Filter die Treffer beschneiden würde. Die frühere
                   Nachbarschaft („inaktive MAs") ist mit v4.64 in die Filterleiste
@@ -375,11 +405,14 @@ export function AntraegeHeader({ filterOpen, onToggleFilter, listeSichtbar }: Pr
               ) : null}
             </div>
 
-            {/* Warum die Eingabetaste gerade nicht gefragt hat: in der Frage
-                steht noch eine Lücke aus einer Vorlage. */}
-            {vorschlaege.hinweis !== null ? (
-              <div className="mt-1 text-[11.5px] text-[var(--tf-text-secondary)]">
-                {vorschlaege.hinweis}
+            {/* Zwei Gründe, warum die Liste noch steht, wie sie steht — der
+                Lücken-Hinweis schlägt den allgemeinen, weil er der konkretere
+                ist. Ohne diese Zeile sah eine getippte Frage aus wie eine
+                gestellte (v4.107). */}
+            {vorschlaege.hinweis !== null || frageIstOffen ? (
+              <div className="mt-1 flex items-start gap-1.5 text-[11.5px] text-[var(--tf-text-secondary)]">
+                <Sparkles size={13} className="mt-[1px] shrink-0 text-[var(--tf-text-tertiary)]" aria-hidden />
+                <span>{vorschlaege.hinweis ?? FRAGE_OFFEN_HINWEIS}</span>
               </div>
             ) : null}
 

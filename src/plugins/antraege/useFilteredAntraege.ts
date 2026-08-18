@@ -20,6 +20,7 @@ import { applyPrecheckBucket } from './filter/precheckQuickfilter';
 import { applyProjektart, type TvCountOf } from './filter/projektartQuickfilter';
 import { filtereStillstand } from './frage/letzteAktivitaet';
 import { useAktivitaetsIndex } from './frage/useAktivitaetsIndex';
+import { useWirksamerSuchtext } from './frage/suchtext';
 import { filtereAmpelQuickfilter } from './eingangAmpel';
 import { isIrrlaeufer } from '@/core/utils/vb-phase-mappings';
 import { tfPerfStart } from '@/core/utils/tfPerf';
@@ -111,7 +112,9 @@ export function useFilteredAntraege(): FilteredAntraegeResult {
       || (selectedAktenzeichen !== null && a.aktenzeichen === selectedAktenzeichen)
       || (selectedVerbundId !== null && a.verbund_id === selectedVerbundId));
   }, [alleAntraege, bereich.menge, selectedAktenzeichen, selectedVerbundId]);
-  const search = useAntraegeStore(s => s.search);
+  // NICHT `s.search`: eine getippte, aber noch nicht übersetzte Frage ist kein
+  // Suchbegriff (siehe `suchtext.ts`).
+  const search = useWirksamerSuchtext();
   const hybridMatchAkz = useAntraegeStore(s => s.hybridSearch.matchedAkz);
   const searchIgnoreBearbeiterFilter = useAntraegeStore(s => s.searchIgnoreBearbeiterFilter);
   const activeView = useAntraegeStore(s => s.activeView);

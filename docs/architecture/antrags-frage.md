@@ -126,6 +126,41 @@ Ausschnitt **nicht** — dort ist er ans Passwort gebunden, und eine Frage darf 
 wenig aufmachen wie die „alle"-Wahl. Der Chip sagt „aus der Frage" und nimmt sie
 per Klick zurück (Pitfall #46).
 
+## Der Fragesatz ist kein Suchbegriff
+
+Bis v4.107 lief der Feldtext im Frage-Modus **sofort** als Wortlaut-Suche mit —
+und „alle Netzwerke die für Phase 2 abgelehnt wurden" trifft über Titel und
+Antragsteller erwartungsgemäß nichts. Die Liste war leer, alle Pillen standen auf
+„Alle", und es sah aus, als hätte die KI etwas getan. Sie war nie gefragt worden.
+
+`wirksamerSuchtext`
+([suchtext.ts](../../src/plugins/antraege/frage/suchtext.ts)) ist deshalb die
+**einzige** Stelle, die entscheidet, womit gesucht wird — gelesen von der Liste
+(`useFilteredAntraege`) **und** von der Hybrid-Suche
+(`useAntraegeHybridSearch`). Zwei Kopien derselben Bedingung wären zwei
+Gelegenheiten, sie verschieden zu ändern.
+
+Zwei Regeln:
+
+1. **Ungestellt heißt unwirksam.** Solange `frageGestellt` nicht wortgleich zum
+   Feldtext ist, sucht nichts — dieselbe Identitätsprüfung wie
+   `frageplan.frage === query.trim()` in der Dokumenten-Suche. Wer nach dem
+   Übersetzen weitertippt, hat wieder eine offene Frage.
+2. **Ohne Leitbegriffe bleibt der Satz draußen, auch nach einem erfolgreichen
+   Lauf.** Der Normalfall ist eine Frage nach Status, Jahr und PreCheck — sie
+   nennt kein Thema, `planTeile` ist leer, und die Wortlaut-Stufe hat nichts zu
+   tun. Liefe der Satz trotzdem mit, käme die Liste nach einem **gelungenen**
+   KI-Lauf leer zurück; ein Fehler, der doppelt schwer zu finden ist.
+
+`frageModus` und `frageGestellt` wohnen deshalb im Antrags-Store und nicht in
+einem eigenen: die Frage entscheidet mit, ob der Feldtext eine Anfrage ist, und
+das müssen Liste und Suche wissen, nicht nur der Kopf.
+
+Sichtbar wird das im Kopf: **rechts vom Feld** stehen der Umschalter und —
+solange die Frage offen ist — der Knopf **„Frage stellen"**; darunter die Zeile
+„Noch nicht gestellt …". Die Eingabetaste tut dasselbe wie der Knopf (beide über
+`absenden`); der Knopf sagt, DASS es eine Geste braucht.
+
 ## Die Vorschlagsliste
 
 Ein leeres Feld, das einen ganzen Satz erwartet, ist die schwerste Eingabe der

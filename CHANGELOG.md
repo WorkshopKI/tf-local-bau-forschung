@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.107.0 — Die getippte Frage filtert die Liste nicht mehr (August 2026)
+
+MINOR — Gemeldet: „habe getestet, es wurde gar keine KI genutzt." Der Fragesatz lief beim Tippen sofort als Wortlaut-Suche mit und traf über Titel und Antragsteller nichts: die Liste war leer, alle Pillen standen auf „Alle" — es sah aus wie ein KI-Ergebnis. Gefragt worden war nie jemand.
+
+- **Der Fragesatz ist kein Suchbegriff** — eine Quelle für Liste und Hybrid-Suche, statt zweier Leser von `search` ([suchtext.ts](src/plugins/antraege/frage/suchtext.ts), [antrags-frage.md](docs/architecture/antrags-frage.md))
+- **Auch ein erfolgreicher Lauf ohne Themen sucht nicht im Wortlaut**: der Normalfall (Status + Jahr + PreCheck) nennt kein Thema und hätte leer zurückgegeben
+- **Knopf „Frage stellen"** wie in der Dokumenten-Suche, dazu die Zeile „Noch nicht gestellt …" ([AntraegeHeader.tsx](src/plugins/antraege/AntraegeHeader.tsx))
+- **Umschalter und Knopf stehen rechts vom Feld** — erst schreiben, dann die Suchart, dann abschicken
+- **`frageModus`/`frageGestellt` im Antrags-Store** statt in einem eigenen: die Frage entscheidet mit, ob der Feldtext eine Anfrage ist ([store.ts](src/plugins/antraege/store.ts))
+
 ### v4.106.1 — Frage stellen ist ein Knopf wie die anderen (August 2026)
 
 PATCH — Gemeldet: der Knopf neben dem Suchfeld ist größer als die CTAs sonst in der App. Er war auch keiner — ein hand-gebauter `<button>` mit eigenem Fill, am `<Button>` vorbei, den [DESIGN_GUIDE.md](DESIGN_GUIDE.md) dafür vorschreibt.

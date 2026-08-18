@@ -10,12 +10,14 @@
  * Liste bleibt stehen — sie ist deterministisch entstanden und hängt an keinem
  * Modell. Die Meldung sagt das ausdrücklich.
  *
- * **Der Modus ist sitzungslokal.** Er wird bewusst nicht persistiert: eine
- * gemerkte Frage-Einstellung empfinge den Nutzer beim nächsten Start mit einem
- * Feld, das auf eine KI-Verbindung wartet, die vielleicht gar nicht steht.
+ * **Der Modus steht im Antrags-Store** (`frageModus`, sitzungslokal): er
+ * entscheidet mit, ob der Feldtext überhaupt eine Anfrage ist, und das müssen
+ * Liste und Hybrid-Suche genauso wissen wie dieser Hook. Persistiert wird er
+ * nicht — eine gemerkte Frage-Einstellung empfinge den Nutzer beim nächsten
+ * Start mit einem Feld, das auf eine KI-Verbindung wartet, die vielleicht gar
+ * nicht steht.
  */
 import { useCallback, useRef, useState } from 'react';
-import { create } from 'zustand';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
 import { monatsWert } from '../spaltenFilterWerte';
 import { useAntraegeStore } from '../store';
@@ -25,17 +27,6 @@ import { ermittleAntragsplan } from './antragsplan-lauf';
 import { useFrageVerlauf } from './frageVerlauf';
 import type { Antragsplan } from './antragsplan';
 import { wendeAntragsplanAn, type PlanWirkung } from './wendeAntragsplanAn';
-
-interface FrageModusStore {
-  /** Steht der Umschalter auf „einer Frage"? Sitzungslokal. */
-  nlModus: boolean;
-  setNlModus: (v: boolean) => void;
-}
-
-export const useFrageModus = create<FrageModusStore>(set => ({
-  nlModus: false,
-  setNlModus: (v: boolean) => set({ nlModus: v }),
-}));
 
 export interface AntragsFrageErgebnis {
   nlModus: boolean;
@@ -54,8 +45,9 @@ export interface AntragsFrageErgebnis {
 }
 
 export function useAntragsFrage(): AntragsFrageErgebnis {
-  const nlModus = useFrageModus(s => s.nlModus);
-  const setNlModusRoh = useFrageModus(s => s.setNlModus);
+  const nlModus = useAntraegeStore(s => s.frageModus);
+  const setNlModusRoh = useAntraegeStore(s => s.setFrageModus);
+  const setFrageGestellt = useAntraegeStore(s => s.setFrageGestellt);
   const bridge = useAIBridge();
 
   const [laeuft, setLaeuft] = useState(false);
@@ -79,6 +71,15 @@ export function useAntragsFrage(): AntragsFrageErgebnis {
     if (!v) verwirfDeutung();
   }, [setNlModusRoh, verwirfDeutung]);
 
+  /**
+   * Stellt die Frage.
+   *
+   * Der Feldtext ist erst nach dem Übersetzen überhaupt eine Anfrage — bis dahin
+   * steht `frageGestellt` auf `null`, und die Liste bleibt, wie sie war
+   * ([suchtext.ts](./suchtext.ts)). Ein gescheiterter Lauf setzt ihn NICHT:
+   * sonst durchsuchte die Liste hinterher den Fragesatz als Wortlaut und käme
+   * leer zurück, ohne dass jemals eine KI gefragt wurde.
+   */
   const stelleFrage = useCallback(async (frage: string): Promise<void> => {
     laufRef.current?.abort();
     const ctrl = new AbortController();
@@ -120,6 +121,9 @@ export function useAntragsFrage(): AntragsFrageErgebnis {
       });
       setPlan(res.plan);
       setWirkung(w);
+      // Ab hier zählt der Text im Feld als gestellte Frage — die Leitbegriffe
+      // brauchen ihn, um durch die Wortlaut-Stufe zu kommen.
+      setFrageGestellt(frage.trim());
       // Erst jetzt in den Verlauf: gemerkt wird, was übersetzt werden KONNTE.
       // Eine an der KI-Verbindung gescheiterte Frage stünde sonst als Vorschlag
       // da und verspräche eine Wiederholung, die nichts wiederholt.
@@ -127,7 +131,7 @@ export function useAntragsFrage(): AntragsFrageErgebnis {
     } finally {
       if (!ctrl.signal.aborted) setLaeuft(false);
     }
-  }, [bridge]);
+  }, [bridge, setFrageGestellt]);
 
   return { nlModus, setNlModus, laeuft, fehler, plan, wirkung, stelleFrage, verwirfDeutung };
 }

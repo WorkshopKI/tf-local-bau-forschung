@@ -19,6 +19,14 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.107 — 2026-08
+
+### Neu
+- Neben dem Suchfeld der Förderanträge steht im Frage-Modus jetzt der Knopf **„Frage stellen"** — dasselbe, was die Eingabetaste tut, nur sichtbar. Der Umschalter „Suche mit:" ist mit ihm auf die rechte Seite des Feldes gewandert.
+### Bugfixes
+- **Eine getippte Frage filtert die Liste nicht mehr, bevor sie gestellt wurde.** Bisher durchsuchte die Liste sofort den Wortlaut mit dem ganzen Fragesatz — der trifft naturgemäß keinen Antragstitel, also stand die Liste leer da, obwohl gar keine KI gefragt worden war. Jetzt bleibt sie unverändert, bis „Frage stellen" oder die Eingabetaste sie übersetzt hat; die Zeile darunter sagt, dass die Frage noch offen ist.
+- Auch **nach** einer erfolgreich übersetzten Frage wird der Satz nicht mehr als Stichwort gesucht: Fragen nach Status, Jahr oder PreCheck nennen kein Thema, und die Liste kam deshalb leer zurück.
+
 ## v4.106 — 2026-08
 
 ### Neu

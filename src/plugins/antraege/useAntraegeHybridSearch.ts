@@ -16,6 +16,7 @@ import { useEffect, useRef } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
 import { useAntraegeStore } from './store';
+import { useWirksamerSuchtext } from './frage/suchtext';
 import {
   searchAntraege,
   getProgrammCaches,
@@ -36,7 +37,9 @@ const DEBOUNCE_MS = 500;
 export function useAntraegeHybridSearch(): void {
   const storage = useStorage();
   const activeProgrammId = useActiveProgramm(s => s.activeProgrammId);
-  const search = useAntraegeStore(s => s.search);
+  // NICHT `s.search` — eine ungestellte Frage darf keinen Suchlauf auslösen
+  // (siehe `frage/suchtext.ts`).
+  const search = useWirksamerSuchtext();
   const setHybridSearch = useAntraegeStore(s => s.setHybridSearch);
   // Die Leitbegriffe einer Frage ersetzen die Zerlegung der Eingabe. Als Hook
   // abonniert, damit eine neue Frage die laufende Suche neu ausfuehrt.
