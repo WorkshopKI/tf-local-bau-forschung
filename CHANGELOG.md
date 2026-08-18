@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.94.0 — Ein Klick auf die laufende Richtlinie (August 2026)
+
+MINOR — Gewünscht: eine Kurzwahl für „nur die aktuell gültige Richtlinie". Bisher kostete das acht Häkchen — und landete in „eigene Auswahl", inklusive Abweichungs-Notiz. Eine so gesetzte Liste veraltet außerdem still: sie zeigt beim nächsten Richtlinien-Wechsel weiter auf die Programme von 2025.
+
+- **Dritte Kurzwahl „Aktuelle Richtlinie"** im Bereichs-Popover, zwischen Standard-Bereich und Alle Richtlinien ([BereichPanel.tsx](src/components/bereich/BereichPanel.tsx))
+- **Eine eigene Stufe, keine vorgesetzte Häkchen-Liste**: `aktuell` leitet seine Programme aus `RICHTLINIEN_GENERATIONEN.slice(-1)` ab und folgt einem Richtlinien-Wechsel von selbst ([betrachtungsbereich.ts](src/core/status/betrachtungsbereich.ts), [vorgangssystem.md §10.1](docs/architecture/vorgangssystem.md))
+- **Der Chip nennt das Jahr** statt „letzte Richtlinie" — die Satzform gab es schon für einzelne Generationen („Anzeige: Richtlinie 2015"), sie gilt jetzt auch für die jüngste
+- **In beiden Chips**, weil das Panel geteilt ist: Arbeitsvorrat („Anzeige: Richtlinie 2025") und Suche („Treffer: Richtlinie 2025")
+- Gemessen in `dev:local` an 14.225 Anträgen: Standard-Bereich blendet **1.866** aus, die neue Kurzwahl **11.688**; die Wahl überlebt den Reload, der Grundzustand bleibt unberührt
+
 ### v4.93.0 — Der Netzwerkantrag traegt den Namen seines Netzwerks (August 2026)
 
 MINOR — Gemeldet: „das Netzwerk selbst wird nicht gefunden, es werden nur die FuE-Anträge aus dem Netzwerk gefunden — und im Antragstyp auf NW umschalten geht nicht, der ist leer." Beides stimmte: `nw:<name>` fand nie den Netzwerkantrag. Kein Datenfehler, sondern strukturell — die Spalte `NETZWERKNA` führen nur die Teilvorhaben, der Netzwerkantrag lässt sie leer, weil er das Netzwerk IST.

@@ -33,8 +33,9 @@ export interface BereichsWahlStore extends BereichsWahl {
 
 /**
  * Der Grundzustand einer Auswahl — der Modus, auf den ohne gespeicherten Wert
- * und beim Zurückfallen gilt. Bewusst auf die beiden *listenlosen* Stufen
- * beschränkt: `auswahl` ohne Liste wäre ein Bereich ohne Inhalt.
+ * und beim Zurückfallen gilt. `auswahl` ohne Liste wäre ein Bereich ohne Inhalt,
+ * und `aktuell` ist zwar listenlos, aber eine *Verengung*: als Startzustand
+ * nähme es Datensätze weg, nach denen niemand gefragt hat. Bleiben die beiden.
  */
 export type BereichsGrundModus = Extract<BereichModus, 'standard' | 'alle'>;
 
@@ -45,7 +46,8 @@ function lade(key: string, grund: BereichsGrundModus): BereichsWahl {
     const roh = localStorage.getItem(key);
     if (!roh) return leer;
     const p = JSON.parse(roh) as Partial<BereichsWahl>;
-    const modus: BereichModus = p.modus === 'alle' || p.modus === 'auswahl' || p.modus === 'standard'
+    const modus: BereichModus = p.modus === 'alle' || p.modus === 'auswahl'
+      || p.modus === 'standard' || p.modus === 'aktuell'
       ? p.modus
       : grund;
     const auswahl = Array.isArray(p.auswahl) ? p.auswahl.filter(x => typeof x === 'string') : [];

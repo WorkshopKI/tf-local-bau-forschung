@@ -12,7 +12,8 @@
  */
 import { useMemo } from 'react';
 import {
-  bereichsMenge, bereichsProgramme, bereichWeichtVomSeedAb, getAktiveVersion,
+  AKTUELLE_RICHTLINIE, bereichsMenge, bereichsProgramme, bereichWeichtVomSeedAb,
+  getAktiveVersion,
 } from '@/core/status';
 import { useBetrachtungsbereichStore, type BereichModus } from './useBetrachtungsbereich';
 
@@ -45,7 +46,12 @@ export function komponiereBereich(
   // Code-Seed. Genau so wirkt der Bereich auch in prod/as.
   const version = getAktiveVersion();
   const standard = bereichsProgramme(version);
-  const programme = modus === 'alle' ? [] : (modus === 'auswahl' ? auswahl : standard);
+  // `aktuell` greift die Code-Liste ab, nicht `standard`: die Kurzwahl meint die
+  // jüngste Richtlinien-Generation, nicht „das jüngste, was im Bereich liegt".
+  const programme = modus === 'alle' ? []
+    : modus === 'auswahl' ? auswahl
+      : modus === 'aktuell' ? AKTUELLE_RICHTLINIE
+        : standard;
   return {
     modus,
     programme,

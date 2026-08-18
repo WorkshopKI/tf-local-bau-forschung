@@ -441,8 +441,26 @@ Programme zählen. Nebenbei ist die flache Form die ausdrucksstärkere: nur sie 
 eine **unvollständige** Generation überhaupt beschreiben — und genau darauf beruht,
 dass der Chip in dem Fall keine Generationszahl behauptet.
 
-Die **Auswahl** (Standard / Alle / eigene Liste) ist dagegen persönlich und
-gerätelokal — sie geht niemanden sonst etwas an. Definition = Team-Kuration,
+Die **Auswahl** ist dagegen persönlich und gerätelokal — sie geht niemanden sonst
+etwas an. Vier Stufen, drei davon **listenlos und abgeleitet**:
+
+| Stufe | Programme | Kurzwahl im Panel |
+|---|---|---|
+| `standard` | die gepflegte Liste, sonst `slice(-3)` | „Standard-Bereich" |
+| `aktuell` | `slice(-1)` der Generationen (heute 136–139) | „Aktuelle Richtlinie" |
+| `alle` | kein Filter | „Alle Richtlinien" |
+| `auswahl` | die gespeicherte Liste | entsteht durch ein Häkchen |
+
+`aktuell` verengt auf die **jüngste** Generation, für den häufigen Fall „nur das
+laufende Jahrgangsgeschäft" — als eigene Stufe und nicht als vorgesetzte
+Häkchen-Liste, weil eine gespeicherte Liste beim nächsten Richtlinien-Wechsel
+still auf die alten Programme zeigte und der Chip sie „eigene Auswahl" nennen
+müsste. Sie greift bewusst die **Code-Liste** ab, nicht die Katalog-Fassung:
+welche Programme zum Arbeitsvorrat zählen, kuriert das Team; welche Richtlinie
+die jüngste ist, ist eine Tatsache der Förderlandschaft. Grundzustand kann sie
+nicht sein — eine Verengung, nach der niemand gefragt hat, ist kein Startwert.
+
+Definition = Team-Kuration,
 Auswahl = Person; getrennte Lebensdauern, getrennte Speicher. Ein Wechsel des
 Standard-Bereichs bumpt den localStorage-Key deshalb **nicht**: `standard`
 speichert bewusst keine Liste und greift den neuen Bereich von selbst ab, und wer

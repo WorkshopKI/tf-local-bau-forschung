@@ -14,6 +14,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   BETRACHTUNGSBEREICH_SEED, BEREICH_GENERATIONEN, RICHTLINIEN_GENERATIONEN,
+  AKTUELLE_RICHTLINIE,
   bereichsProgramme, bereichsMenge, istImBereich, bereichWeichtVomSeedAb,
   generationVon, generationenVon, gruppiereNachGeneration, bereichsLabel,
 } from '@/core/status/betrachtungsbereich';
@@ -45,6 +46,18 @@ describe('Richtlinien-Generationen und der abgeleitete Seed', () => {
     // `juengste` lügt danach in jedem Modus.
     const jahre = RICHTLINIEN_GENERATIONEN.map(g => g.jahr);
     expect([...jahre].sort((a, b) => a - b)).toEqual(jahre);
+  });
+
+  it('die Kurzwahl „Aktuelle Richtlinie" folgt der Liste, statt Codes abzuschreiben', () => {
+    // Sonst zeigt der Knopf 2030 noch auf die Programme von 2025 — und zwar
+    // stumm, weil die Beschriftung dieselbe bleibt.
+    const juengste = RICHTLINIEN_GENERATIONEN[RICHTLINIEN_GENERATIONEN.length - 1];
+    expect(AKTUELLE_RICHTLINIE).toEqual(juengste?.programme);
+    // Und sie liegt im Standard-Bereich: die Kurzwahl verengt ihn, sie holt
+    // nichts von außerhalb dazu.
+    for (const p of AKTUELLE_RICHTLINIE) {
+      expect(BETRACHTUNGSBEREICH_SEED, p).toContain(p);
+    }
   });
 
   it('jedes Programm gehört zu genau einer Generation', () => {
@@ -196,10 +209,19 @@ describe('bereichsLabel', () => {
   it('Singular, wo eine Zahl 1 ist', () => {
     // „letzte 1 Richtlinien" ist der Fehler, den man ein Jahr später im
     // Screenshot findet.
-    expect(bereichsLabel('standard', ['136', '137', '138', '139']))
-      .toBe('Anzeige: letzte Richtlinie');
     expect(bereichsLabel('auswahl', ['76'])).toBe('Anzeige: eigene Auswahl (1 Programm)');
     expect(bereichsLabel('standard', [UNBEKANNT])).toBe('Anzeige: 1 Programm');
+  });
+
+  it('EINE Generation wird beim Jahr genannt, auch wenn es die jüngste ist', () => {
+    // „letzte Richtlinie" liest sich als „die endgültige", und der Knopf, der
+    // diesen Zustand herstellt, heißt „Aktuelle Richtlinie" — das Jahr ist die
+    // Auskunft, nach der man am Chip sucht. „letzte N" bleibt dem Plural.
+    expect(bereichsLabel('aktuell', AKTUELLE_RICHTLINIE)).toBe('Anzeige: Richtlinie 2025');
+    expect(bereichsLabel('standard', ['136', '137', '138', '139']))
+      .toBe('Anzeige: Richtlinie 2025');
+    expect(bereichsLabel('aktuell', AKTUELLE_RICHTLINIE, 'Treffer'))
+      .toBe('Treffer: Richtlinie 2025');
   });
 
   it('exakte, aber nicht die jüngsten Generationen werden benannt', () => {

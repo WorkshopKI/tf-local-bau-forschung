@@ -71,8 +71,29 @@ export const BEREICH_GENERATIONEN = 3;
 export const BETRACHTUNGSBEREICH_SEED: readonly string[] =
   RICHTLINIEN_GENERATIONEN.slice(-BEREICH_GENERATIONEN).flatMap(g => g.programme);
 
-/** Die drei Stufen der persönlichen Auswahl (reiner Domänen-Typ). */
-export type BereichModus = 'standard' | 'alle' | 'auswahl';
+/**
+ * Die Programme der **jüngsten** Generation — die Kurzwahl „Aktuelle Richtlinie".
+ *
+ * Abgeleitet wie der Seed, nur mit `slice(-1)`: wer nur die laufende Richtlinie
+ * ansehen will, klickt einmal statt acht Häkchen zu entfernen — und bekommt
+ * beim nächsten Richtlinien-Wechsel automatisch die neue.
+ *
+ * Bewusst aus der **Code-Liste**, nicht aus der Katalog-Fassung: *welche*
+ * Programme zum Arbeitsvorrat zählen, kuriert das Team; *welche Richtlinie die
+ * jüngste ist*, ist eine Tatsache der Förderlandschaft. Dieselbe Trennung wie
+ * bei `aktuelleProgramme()` in [ruhende-kuerzel.ts](./ruhende-kuerzel.ts).
+ */
+export const AKTUELLE_RICHTLINIE: readonly string[] =
+  RICHTLINIEN_GENERATIONEN.slice(-1).flatMap(g => g.programme);
+
+/**
+ * Die Stufen der persönlichen Auswahl (reiner Domänen-Typ).
+ *
+ * Drei davon sind **listenlos und abgeleitet** (`standard`, `aktuell`, `alle`) —
+ * sie folgen einem Richtlinien-Wechsel von selbst. Nur `auswahl` trägt eine
+ * gespeicherte Liste und ist deshalb die einzige Stufe, die veralten kann.
+ */
+export type BereichModus = 'standard' | 'aktuell' | 'alle' | 'auswahl';
 
 /** Die gepflegte Programm-Liste, sonst die ausgelieferte. */
 export function bereichsProgramme(version?: MappingVersion | null): readonly string[] {
@@ -248,11 +269,10 @@ export function bereichsLabel(
 
   const { jahre, exakt, juengste } = generationenVon(programme);
   if (!exakt) return `${praefix}: ${zahl}`;
-  if (juengste) {
-    return jahre.length === 1
-      ? `${praefix}: letzte Richtlinie`
-      : `${praefix}: letzte ${jahre.length} Richtlinien`;
-  }
+  // „letzte N" nur im Plural. Bei EINER Generation ist ihr Jahr die bessere
+  // Auskunft — „letzte Richtlinie" liest sich außerdem als „die endgültige",
+  // und der Knopf, der diesen Zustand herstellt, heißt „Aktuelle Richtlinie".
+  if (juengste && jahre.length > 1) return `${praefix}: letzte ${jahre.length} Richtlinien`;
   const liste = jahre.join(' + ');
   return jahre.length === 1
     ? `${praefix}: Richtlinie ${liste}`

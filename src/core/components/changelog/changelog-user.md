@@ -19,6 +19,12 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.94 — 2026-08
+
+### Neu
+- **„Aktuelle Richtlinie" mit einem Klick.** Im Auswahl-Fenster des Anzeigebereichs steht neben „Standard-Bereich" und „Alle Richtlinien" jetzt eine dritte Kurzwahl: sie zeigt nur die Anträge der laufenden Richtlinie. Der Chip im Seitenkopf nennt sie beim Jahr („Anzeige: Richtlinie 2025"). Kommt eine neue Richtlinie, schaltet die Kurzwahl von selbst auf sie um — nachpflegen muss das niemand.
+- Dieselbe Kurzwahl gibt es im Richtlinien-Fenster der **Suche** („Treffer: Richtlinie 2025").
+
 ## v4.93 — 2026-08
 
 ### Bugfixes

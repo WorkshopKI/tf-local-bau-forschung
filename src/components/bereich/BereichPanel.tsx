@@ -1,5 +1,5 @@
 /**
- * Die Auswahl des Betrachtungsbereichs: drei Stufen plus die Programm-Liste.
+ * Die Auswahl des Betrachtungsbereichs: drei Kurzwahlen plus die Programm-Liste.
  *
  * **Klartext führt, der Code steht daneben** — die Nummern älterer Richtlinien
  * kennt außerhalb der AB kaum jemand. Gespeichert werden trotzdem die Codes:
@@ -35,7 +35,9 @@ export function BereichPanel({ bereich, labels, einleitung }: {
    *  der Suche die Trefferliste — dieselbe Bedienung, zwei Wirkungen. */
   einleitung?: React.ReactNode;
 }): React.ReactElement {
-  const eigene = bereich.modus === 'auswahl' ? bereich.programme : bereich.standard;
+  // Angehakt ist, was gilt — außer in der Stufe „alle", wo alles gilt und die
+  // Liste deshalb den Standard-Bereich als Bezugsrahmen zeigt.
+  const eigene = bereich.modus === 'alle' ? bereich.standard : bereich.programme;
   // In der Stufe „alle" stehen ALLE bekannten Generationen in der Liste, nicht
   // nur die des Standard-Bereichs: sonst zeigte das Panel zwölf angehakte
   // Programme, während sechzehn gelten — vier davon unsichtbar. Ein Haken, der
@@ -57,10 +59,18 @@ export function BereichPanel({ bereich, labels, einleitung }: {
         <p className="text-[12px] text-[var(--tf-text-secondary)]">{einleitung}</p>
       )}
 
+      {/* Reihenfolge: der Rückweg links, daneben die Verengung, rechts die
+          Erweiterung. „Aktuelle Richtlinie" ist eine eigene Stufe und keine
+          vorgesetzte Häkchen-Liste — sonst hieße der Chip „eigene Auswahl" und
+          zeigte 2030 noch auf die Programme von 2025. */}
       <div className="flex flex-wrap gap-1.5">
         <ToggleChip
           label="Standard-Bereich" selected={bereich.modus === 'standard'}
           onToggle={() => bereich.setModus('standard')}
+        />
+        <ToggleChip
+          label="Aktuelle Richtlinie" selected={bereich.modus === 'aktuell'}
+          onToggle={() => bereich.setModus('aktuell')}
         />
         <ToggleChip
           label="Alle Richtlinien" selected={bereich.modus === 'alle'}

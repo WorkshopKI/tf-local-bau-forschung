@@ -81,8 +81,8 @@ export {
 } from './kategorie-ableitung';
 export { indexNachSchreibweise } from './wert-index';
 export {
-  BETRACHTUNGSBEREICH_SEED, bereichsProgramme, bereichsMenge, istImBereich,
-  bereichWeichtVomSeedAb, RICHTLINIEN_GENERATIONEN,
+  BETRACHTUNGSBEREICH_SEED, AKTUELLE_RICHTLINIE, bereichsProgramme, bereichsMenge,
+  istImBereich, bereichWeichtVomSeedAb, RICHTLINIEN_GENERATIONEN,
 } from './betrachtungsbereich';
 export {
   EINSATZ_GENERATIONEN, aktuelleProgramme, einsatzJahre,
