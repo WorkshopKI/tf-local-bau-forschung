@@ -103,6 +103,24 @@ export type SearchPhase = 'idle' | 'substring' | 'vector' | 'orama' | 'done' | '
  *  kurz / noch keine Suche), `ok` = Vector-Stage ist durchgelaufen. */
 export type SemanticStatus = 'ok' | 'model-failed' | 'corpus-empty' | null;
 
+/**
+ * Was die Ähnlichkeitsstufe bei DIESEM Lauf beigetragen hat.
+ *
+ * Sie stand bis v4.110 nur in der Konsole. Sichtbar war ihr Ergebnis nur, wenn
+ * sich die Trefferzahl änderte — und genau das tut sie oft nicht: was über der
+ * Schwelle liegt, steht meist schon im Wortlaut-Ergebnis. Aus „nichts passiert"
+ * wurde so „kaputt", obwohl die Stufe gelaufen war. Ein Messfeld ohne Urteil
+ * meldet keinen Stillstand.
+ */
+export interface SemantikBefund {
+  /** Wie viele Vorhaben überhaupt einen Vektor haben (Korpus auf DIESEM Rechner). */
+  korpus: number;
+  /** Wie viele davon über der Schwelle lagen. */
+  kandidaten: number;
+  /** Wie viele davon vorher NICHT in der Trefferliste standen. */
+  neu: number;
+}
+
 export interface UseUnifiedSearchResult {
   results: UnifiedSearchResult[];
   loading: boolean;
@@ -114,6 +132,8 @@ export interface UseUnifiedSearchResult {
   searchPhase: SearchPhase;
   /** Warum die Ähnlichkeits-Stage ggf. keine Treffer liefern konnte. */
   semanticStatus: SemanticStatus;
+  /** Rechenschaft der Ähnlichkeitsstufe; `null` = sie lief nicht. */
+  semantikBefund: SemantikBefund | null;
   /** Wörter, die der Bestand über den Wortstamm beigesteuert hat — die
    *  abwählbaren Chips der Deutungszeile. Leer, wenn „Wortformen mitsuchen" aus
    *  ist oder nichts dazukam. */
@@ -343,6 +363,7 @@ export function useUnifiedSearch(
   const [antraegeGeladen, setAntraegeGeladen] = useState(0);
   const [searchPhase, setSearchPhase] = useState<SearchPhase>('idle');
   const [semanticStatus, setSemanticStatus] = useState<SemanticStatus>(null);
+  const [semantikBefund, setSemantikBefund] = useState<SemantikBefund | null>(null);
   // Assistent-Protokoll: dedupe je abgeschlossener Query (der Effekt läuft pro
   // Tastendruck, aber nur der zuletzt fertige Lauf soll ein Ereignis erzeugen).
   const zuletztProtokollierteSuche = useRef<string | null>(null);
@@ -396,9 +417,11 @@ export function useUnifiedSearch(
       setError(null);
       setSearchPhase('idle');
       setSemanticStatus(null);
+      setSemantikBefund(null);
       return;
     }
     setSemanticStatus(null);
+    setSemantikBefund(null);
 
     // Ein Frageplan verknüpft seine Themen IMMER mit ODER: die Leitbegriffe sind
     // Alternativen („Normung ODER Standards"), und nur so misst `abdeckung`, wie
@@ -547,6 +570,13 @@ export function useUnifiedSearch(
               } else {
                 const vecHits = await searchAntraegeVector(queryVec, embeddings, abort.signal);
                 if (isCancelled()) return;
+                // VOR dem Einsortieren gezählt: danach ist jeder Kandidat im
+                // Sammler, und „neu" wäre immer gleich „alle".
+                setSemantikBefund({
+                  korpus: embeddings.size,
+                  kandidaten: vecHits.length,
+                  neu: vecHits.filter(h => !antraege.has(h.akz)).length,
+                });
                 for (const h of vecHits) {
                   const akku = akkuFuer(h.akz);
                   akku.felder.add('aehnlichkeit');
@@ -681,6 +711,7 @@ export function useUnifiedSearch(
     vectorReady,
     searchPhase,
     semanticStatus,
+    semantikBefund,
     varianten,
   };
 }

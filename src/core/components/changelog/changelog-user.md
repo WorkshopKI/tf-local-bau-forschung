@@ -19,6 +19,13 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.110 — 2026-08
+
+### Verbesserungen
+- **„auch ähnliche Themen" sagt jetzt, was es gefunden hat.** Unter der Optionszeile steht nach dem Lauf eine Zeile wie „Ähnlichkeit: 9 thematisch verwandte Vorhaben, 8 davon neu in der Liste" — oder eben „alle standen schon im Wortlaut-Ergebnis, die Trefferzahl ändert sich dadurch nicht". Bisher blieb die Stufe stumm, und eine unveränderte Trefferzahl sah aus wie ein Defekt.
+- **Die Zeile nennt auch die Reichweite:** „Vergleichbar sind 1.086 von 14.225 Vorhaben — nur sie haben auf diesem Rechner einen Vektor." Was keinen Vektor hat, kann nie als ähnlich gefunden werden.
+- **Die Stufe ist großzügiger geworden.** Sie behielt bisher nur Vorhaben, die höchstens 10 % unter dem besten Treffer lagen — an echten Daten waren das meist eine Handvoll, die ohnehin schon in der Liste standen. Bei derselben Suche kommen jetzt 9 statt 2 Vorschläge, 8 davon neu. Ein rein thematischer Treffer steht weiterhin nie über einem, der Ihre Wörter wirklich enthält.
+
 ## v4.109 — 2026-08
 
 ### Neu

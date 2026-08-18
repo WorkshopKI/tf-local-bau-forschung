@@ -46,6 +46,7 @@ import { TrefferListe } from './TrefferListe';
 import { SuchMarkierungProvider } from './SuchMarkierung';
 import { ErgebnisZahl } from './ErgebnisZahl';
 import { SuchOptionenZeile } from './SuchOptionenZeile';
+import { AehnlichkeitsZeile } from './AehnlichkeitsZeile';
 import { DeutungsZeile } from './DeutungsZeile';
 import { FacettenZeile } from './FacettenZeile';
 import { ANALYSE_MAX_RESULTS, useSearchResults } from './useSearchResults';
@@ -239,7 +240,7 @@ export function SuchSeite(): React.ReactElement {
   } = useAssistentPanel();
 
   const {
-    results: searchResults, loading, counts, indexInfo, vectorReady,
+    results: searchResults, loading, counts, indexInfo, vectorReady, semantikBefund,
     searchPhase, semanticStatus, varianten,
   } = useUnifiedSearch(deferredQuery, planTeile);
   const deferredPhase = useDeferredValue(searchPhase);
@@ -795,16 +796,10 @@ export function SuchSeite(): React.ReactElement {
             />
           </div>
 
-          {semanticEnabled && (semanticStatus === 'corpus-empty' || semanticStatus === 'model-failed') && (
-            <div className="mt-2 flex w-full max-w-4xl items-center gap-1.5 text-[11.5px] text-[var(--tf-text-tertiary)]">
-              <span aria-hidden="true">ⓘ</span>
-              <span>
-                {semanticStatus === 'corpus-empty'
-                  ? 'Ähnlichkeitssuche ohne Wirkung: Auf diesem Rechner liegen keine Embedding-Vektoren (Korpus). Er wird beim Start automatisch vom Datenspeicher geladen, sofern dort vorhanden — sonst im Auslastungs-Modul „Vom Datenspeicher laden".'
-                  : 'Ähnlichkeitssuche ohne Wirkung: Das Embedding-Modell konnte nicht geladen werden (Details in der Browser-Konsole, F12). Es werden nur Wortlaut-Treffer angezeigt.'}
-              </span>
-            </div>
-          )}
+          <AehnlichkeitsZeile
+            an={semanticEnabled} status={semanticStatus} befund={semantikBefund}
+            bestand={indexInfo.antraegeGeladen}
+          />
 
           {/* ── Deutung ──────────────────────────────────────────────────── */}
           {zeigeErgebnisTeile && (

@@ -839,6 +839,47 @@ Lücke ab und der Knopf „Frage stellen" ist dann gesperrt — nicht nur die
 Eingabetaste springt in die Lücke, sondern jeder Weg zur KI kennt sie. Ein
 Modell, das `‹Thema›` liest, denkt sich eines aus.
 
+### 8.5 Die Ähnlichkeitsstufe legt Rechenschaft ab (v4.110)
+
+Gemeldet: „ich schalte ‚auch ähnliche Themen' ein, die Trefferzahl ändert sich
+nicht, und nach 20 Sekunden steht dieselbe KI-Antwort da." Nachgemessen am
+laufenden Server (`Normung Standards Zertifizierung`, 135 Treffer):
+
+```
+[useUnifiedSearch] Ähnlichkeitssuche: 2 Vector-Treffer (Korpus 1086) in 7ms
+Pipeline gesamt: 41525ms, 136 Treffer
+```
+
+Die Stufe **lief** — sie fand zwei Kandidaten, einer davon war neu. Die Antwort
+lief nicht neu, weil ihr Schlüssel `Frage :: Trefferzahl` sich nicht geändert
+hatte. Nichts davon war sichtbar: **ein Messfeld ohne Urteil meldet keinen
+Stillstand.**
+
+**Zwei Änderungen, beide gemessen.**
+
+1. **Der Schalter sagt, was er getan hat** ([aehnlichkeitsSatz.ts](../../src/plugins/suche/aehnlichkeitsSatz.ts)).
+   Drei Fälle, jeder eine Auskunft: „9 thematisch verwandte Vorhaben, 8 davon neu
+   in der Liste" · „12 … — alle standen schon im Wortlaut-Ergebnis, die
+   Trefferzahl ändert sich dadurch nicht" · „kein Vorhaben lag über der
+   Schwelle". Dazu die **Reichweite**, solange der Korpus kleiner ist als der
+   Bestand: „Vergleichbar sind 1 086 von 14 225 Vorhaben — nur sie haben auf
+   diesem Rechner einen Vektor." Ein Vorhaben ohne Vektor kann nie ähnlich sein;
+   das ist die halbe Antwort auf „warum findet er nichts", und sie stand
+   nirgends. Der Befund kommt aus der Vektorstufe selbst und zählt **vor** dem
+   Einsortieren, sonst wäre „neu" immer gleich „alle".
+
+2. **Die relative Schwelle steht auf 0,85 statt 0,90.** Nicht der Floor (0,35)
+   und nicht `TOP_K` (50) waren die Bremse, sondern das enge Band um die beste
+   Cosine — die Messtabelle über fünf Fragen steht im Service
+   ([antraege-search-service.ts](../../src/plugins/antraege/services/antraege-search-service.ts)).
+   Am selben Lauf wie oben: **2 Kandidaten → 9, davon 8 neu; 136 → 143 Treffer.**
+   Vertretbar wurde das erst mit v4.104 (§8.2): die Kandidaten fahren als eigene,
+   gekennzeichnete Menge zum Modell und verdrängen keinen belegten Treffer.
+
+Was **nicht** geändert wurde: der Deckel `AEHNLICHKEIT_DECKEL` (0,5). Ein reiner
+Ähnlichkeitstreffer bleibt „gering" und steht nie über einem Wortlaut-Treffer —
+Wortlaut schlägt Bedeutung (§2).
+
 ## 9 Das Suchfeld schlägt vor (v4.71)
 
 Die Feldsuche aus §7 setzt zweierlei voraus: dass man die Präfixe kennt **und**

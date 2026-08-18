@@ -99,12 +99,30 @@ export function isSemanticSearchActive(): boolean {
  * wirkte tot. Daher relativ zur besten Cosine des Laufs schneiden:
  *  - `FLOOR` = absolute Untergrenze (Garbage-Schutz: liegt selbst die beste
  *    Cosine darunter, ist die Query semantisch nicht im Korpus → 0 Treffer).
- *  - `RELATIVE_CUTOFF` = behalte Treffer ≥ 90% der besten Cosine — adaptiert
- *    sich an die Query-Laenge (kurze Query: Band z.B. 0.39–0.44; lange
- *    Query: Band z.B. 0.63–0.70). `TOP_K` deckelt die Menge zusaetzlich.
+ *  - `RELATIVE_CUTOFF` = behalte Treffer ≥ 85% der besten Cosine — adaptiert
+ *    sich an die Query-Laenge (kurze Query: Band z.B. 0.37–0.44; lange
+ *    Query: Band z.B. 0.60–0.70). `TOP_K` deckelt die Menge zusaetzlich.
+ *
+ * **85 statt 90 % seit v4.110** — am echten Korpus gemessen (1 086 Vektoren,
+ * dev:local; Zahl = Kandidaten ueber der Schwelle):
+ *
+ * | Frage | beste Cosine | 0,90 | **0,85** | 0,80 | nur Floor |
+ * |---|---|---|---|---|---|
+ * | Normung und Standards | 0,403 | 6 | **10** | 10 | 10 |
+ * | KI in der Medizintechnik | 0,525 | 4 | **13** | 32 | 246 |
+ * | Leichtbau | 0,437 | 3 | **6** | 21 | 21 |
+ * | Wasserstofftechnologie | 0,493 | 7 | **9** | 12 | 76 |
+ * | Sensorik Landwirtschaft | 0,439 | 18 | **37** | 67 | 69 |
+ *
+ * Mit 0,90 blieb je Lauf eine Handvoll uebrig, und die stand meist schon im
+ * Wortlaut-Ergebnis — der Schalter schien wirkungslos. 0,85 verdoppelt den
+ * Vorrat, ohne die breite Frage explodieren zu lassen (13 statt 246); 0,80
+ * kippt bereits (67). Vertretbar wurde das erst mit v4.104: die Kandidaten
+ * fahren als EIGENE, gekennzeichnete Menge zum Modell, das sie einzeln
+ * prueft — sie verdraengen keinen belegten Treffer.
  */
 const EMBEDDING_SCORE_FLOOR = 0.35;
-const EMBEDDING_RELATIVE_CUTOFF = 0.9;
+const EMBEDDING_RELATIVE_CUTOFF = 0.85;
 const EMBEDDING_TOP_K = 50;
 /** Untergrenze für die INDEX-Stufen (Embedding-Korpus + DMS-Volltext). Ein
  *  einzelnes Zeichen liefert dort nur Rauschen; die Substring-Stufe darüber

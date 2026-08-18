@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.110.0 — Die Aehnlichkeitsstufe legt Rechenschaft ab (August 2026)
+
+MINOR — Gemeldet: „auch ähnliche Themen" eingeschaltet, Trefferzahl unverändert, nach 20 s dieselbe KI-Antwort. Nachgemessen: die Stufe lief und fand 2 Kandidaten, einer neu — sichtbar war davon nichts. Ein Messfeld ohne Urteil meldet keinen Stillstand.
+
+- **Der Schalter legt Rechenschaft ab**: „9 thematisch verwandte Vorhaben, 8 davon neu" / „alle standen schon im Wortlaut-Ergebnis" / „kein Vorhaben über der Schwelle" ([aehnlichkeitsSatz.ts](src/plugins/suche/aehnlichkeitsSatz.ts))
+- **Die Reichweite steht dabei** — „Vergleichbar sind 1.086 von 14.225 Vorhaben"; ohne Vektor kann nichts ähnlich sein ([suche-relevanz.md §8.5](docs/architecture/suche-relevanz.md))
+- **Relative Schwelle 0,85 statt 0,90** — nicht Floor und nicht TOP_K bremsten, sondern das enge Band; Messtabelle über fünf Fragen im Service ([antraege-search-service.ts](src/plugins/antraege/services/antraege-search-service.ts))
+- Am selben Lauf gemessen: **2 Kandidaten → 9, davon 8 neu; 136 → 143 Treffer**
+- Unverändert: der Deckel für reine Ähnlichkeitstreffer (nie über einem Wortlaut-Treffer)
+
 ### v4.109.0 — Das Suchfeld schlaegt Fragen vor (August 2026)
 
 MINOR — Gewünscht: das Dropdown im Frage-Modus der Suche nach dem Vorbild der Förderanträge. Dort schwieg die Vervollständigung (niemand tippt `ort:` in einen Satz), übrig blieb der nackte Verlauf — und der beantwortet nicht, was man hier überhaupt fragen kann.
