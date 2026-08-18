@@ -113,3 +113,48 @@ describe('zerlegeAntwort', () => {
       .toBe('Zweite Aussage');
   });
 });
+
+/**
+ * Der zweite echte Lauf (v4.102.1) — die Meldung dazu lautete „KI-Antwort ist
+ * nur für 5 Einträge der 6 sichtbar". Die Zerlegung war daran unschuldig, aber
+ * das ist nichts, was man glaubt: hier steht die Antwort im Wortlaut, und die
+ * Zahl der Belege wird abgezählt statt angenommen.
+ */
+const ZWEITE_ANTWORT = [
+  'Die exemplarisch aufgeführten Treffer zeigen, welche Inhalte die 27 Vorhaben prägen:',
+  '',
+  '- Entwicklung von Normierungsalgorithmen für den Spektrentransfer zwischen SERS- und Raman-Standard-Spektren (16KN042124).',
+  '- Standardisiertes Verfahren zur Probennahme, -vorbereitung und Ergebnis-Validierung in der Fisch- bzw. Koi-Diagnostik (16KN062342).',
+  '- Prüf- und Simulations-Setups auf Basis geltender medizinischer Normen (16KN079232).',
+  '- Entwicklung eines sensorbasierten Prozessstandards für die Tränkwasser-Analytik (16KN101135).',
+  '- Automatisierte Fräseinheit zur standardisierten Probenvorbereitung für Aluminiumanalysen (16KN119513).',
+  '- Kalibrierstandards für die Mykotoxin-Analytik (16KN047829).',
+  '- Entwicklung einer Prozess-Standard-Web-Applikation für SERS-Identifizierung (16KN042124).',
+  '- Einbindung von EU-ATEX-Vorschriften in die sensorüberwachte Zellen…',
+].join('\n');
+
+describe('zerlegeAntwort — der Lauf zur Meldung „5 von 6"', () => {
+  it('belegt SECHS Vorhaben, jedes mit einem Satz', () => {
+    const belege = zerlegeAntwort(ZWEITE_ANTWORT);
+    expect([...belege.keys()]).toEqual([
+      '16KN042124', '16KN062342', '16KN079232',
+      '16KN101135', '16KN119513', '16KN047829',
+    ]);
+    for (const [fkz, b] of belege) {
+      expect(b.satz.length, `${fkz} ohne Satz`).toBeGreaterThan(0);
+      expect(b.kurz.length, `${fkz} ohne Kurzform`).toBeGreaterThan(0);
+    }
+  });
+
+  it('gibt einem zweimal genannten Vorhaben den ERSTEN Satz', () => {
+    // Zwei Zeilen nennen 16KN042124. Ein Beleg, und zwar der, den der Leser
+    // oben in der Antwort zuerst sieht — sonst zeigte die Zeile in der Tabelle
+    // auf eine andere Stelle als der Blick.
+    expect(zerlegeAntwort(ZWEITE_ANTWORT).get('16KN042124')?.satz)
+      .toBe('Entwicklung von Normierungsalgorithmen für den Spektrentransfer zwischen SERS- und Raman-Standard-Spektren');
+  });
+
+  it('erfindet keinen Beleg fuer die Zeile ohne Kennzeichen', () => {
+    expect(zerlegeAntwort(ZWEITE_ANTWORT).size).toBe(6);
+  });
+});

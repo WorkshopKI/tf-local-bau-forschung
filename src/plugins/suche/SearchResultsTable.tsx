@@ -53,7 +53,9 @@ function getEffectiveWidth(c: SearchColumn, overrides: Record<string, number>): 
 }
 
 export interface SearchResultsTableProps {
-  results: UnifiedSearchResult[];
+  /** Nur gelesen — `readonly`, damit die Tabelle dieselbe (gefilterte) Menge
+   *  entgegennehmen kann wie Liste, Kopfzahl und Export. */
+  results: readonly UnifiedSearchResult[];
   columns: SearchColumn[];
   sortKey: string | null;
   sortDirection: 'asc' | 'desc';

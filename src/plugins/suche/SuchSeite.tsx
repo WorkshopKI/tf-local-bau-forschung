@@ -1096,7 +1096,7 @@ export function SuchSeite(): React.ReactElement {
               <AntwortBelegProvider belege={antwortBelege}>
               <SuchMarkierungProvider wortlaut={markWoerter} aehnlich={aktiveVariantenChips}>
                 <SearchResultsTable
-                  results={sorted}
+                  results={angezeigt}
                   columns={spalten}
                   sortKey={sortKey}
                   sortDirection={sortDirection}

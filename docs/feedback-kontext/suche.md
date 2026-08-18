@@ -45,6 +45,7 @@ Nutzer durchsucht Förderanträge und Dokumente programmweit mit einer hybriden 
   - „n Treffer in m Anträgen" — solange der erste Lauf einer Anfrage noch läuft, steht dort „… Treffer" statt einer Zahl (eine 0 vor der Messung wäre kein Ergebnis).
   - Schränkt der Richtlinien-Chip ein, nennt die Zeile **beide** Mengen: „94 Treffer in 2.537 von 14.225 Anträgen". Durchsucht wurde nur der erste Teil; der Index ist nicht geschrumpft.
   Das **Darstellungs-Menü gibt es nur in der Liste**: die Tabelle sortiert über ihre Spaltenköpfe, und ihre Zeile kennt keine Dichte — beide Achsen wären dort wirkungslos.
+- **Antwortkarte** (nur nach einer beantworteten Frage, über dem Ergebnis): der Text der internen KI samt Kennzeichen; ein Klick darauf springt zur Zeile in der Liste, statt die Suche zu verlassen. Der Chip **„nur die genannten (n)"** neben den Facetten engt auf die Vorhaben ein, die in der Antwort stehen — er wirkt auf **Liste, Tabelle, Kopfzahl und Export gleichermaßen** (bis v4.102.0 zeigte die Tabelle weiter alle). Der Antwort-Lauf selbst bleibt bewusst auf der ungefilterten Menge, sonst änderte jeder Klick die Antwort.
 - **Trefferliste** (Standard), drei Zeilen je Treffer:
   - Kopfzeile: FKZ · Status · Bewilligungsdatum · Trefferstellen-Tags mit Anzahl.
   - Titel, Suchwörter markiert — klickt in den Antrag.

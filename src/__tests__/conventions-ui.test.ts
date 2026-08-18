@@ -1322,3 +1322,54 @@ describe('rueckweg-satz-abdeckung (der Rueckweg nennt die Seite im Dativ, v4.85.
 
 
 
+
+describe('suche-eine-gezeigte-menge (Kopfzahl, Liste, Tabelle und Export zeigen dasselbe, v4.102.1)', () => {
+  // Die Suche fuehrt ZWEI Mengen: `sichtbar` speist den Antwort-Lauf der KI,
+  // `angezeigt` ist dieselbe Menge nach dem Chip „nur die genannten" (die
+  // Trennung ist Absicht, siehe useAntwortBruecke.ts). Genau deshalb kann eine
+  // Anzeigestelle die falsche erwischen: in v4.101 bekam die TABELLE weiter die
+  // ungefilterte, waehrend Kopfzahl und Chip „6 Treffer" behaupteten.
+  //
+  // Der Guard prueft nicht, WELCHE Menge — nur, dass alle Anzeigestellen
+  // DIESELBE nennen. Eine Stelle, die bewusst abweicht, traegt
+  // `// allow-suche-eine-gezeigte-menge: <grund>`.
+  const DATEI = 'plugins/suche/SuchSeite.tsx';
+  const quelle = readFileSync(join(ROOT, DATEI), 'utf-8');
+
+  const STELLEN: readonly (readonly [string, RegExp])[] = [
+    ['Kopfzahl', /<ErgebnisZahl[\s\S]{0,300}?anzahl=\{(\w+)\.length\}/],
+    ['Liste', /<TrefferListe[\s\S]{0,300}?treffer=\{(\w+)\}/],
+    ['Tabelle', /<SearchResultsTable[\s\S]{0,400}?results=\{(\w+)\}/],
+    ['CSV-Export', /exportCSV\((\w+),/],
+    ['XLSX-Export', /exportXLSX\((\w+),/],
+    ['Zwischenablage', /exportClipboard\((\w+),/],
+    ['KI-Kontext', /contextResults=\{(\w+)\}/],
+  ];
+
+  const gefunden = (): { stelle: string; menge: string }[] => STELLEN
+    .map(([stelle, muster]) => ({ stelle, menge: muster.exec(quelle)?.[1] }))
+    .filter((t): t is { stelle: string; menge: string } => t.menge !== undefined);
+
+  it('findet jede Anzeigestelle (sonst prueft der Guard nichts)', () => {
+    const fehlend = STELLEN.map(([s]) => s).filter(s => !gefunden().some(g => g.stelle === s));
+    expect(fehlend, `Anzeigestellen in ${DATEI} nicht mehr auffindbar: ${fehlend.join(', ')}`
+      + ` — das Muster im Guard nachziehen, sonst prueft er stillschweigend weniger.`).toEqual([]);
+  });
+
+  it('alle Anzeigestellen nennen dieselbe Menge', () => {
+    const treffer = gefunden().filter(g => !new RegExp(
+      `${g.menge}\b.*// allow-suche-eine-gezeigte-menge`,
+    ).test(quelle));
+    const mengen = [...new Set(treffer.map(g => g.menge))];
+    if (mengen.length > 1) {
+      expect.fail(
+        `Die Suche zeigt an verschiedenen Stellen verschiedene Mengen:\n`
+        + treffer.map(g => `  ${g.stelle}: ${g.menge}`).join('\n')
+        + `\n\nKopfzahl, Liste, Tabelle, Export und KI-Kontext muessen dieselbe Menge`
+        + `\nnennen — sonst behauptet die Zahl ueber der Tabelle etwas, das die Tabelle`
+        + `\nnicht einloest (v4.102.1: Chip „nur die genannten 6", Kopf „6 Treffer",`
+        + `\nTabelle alle 671).`,
+      );
+    }
+  });
+});
