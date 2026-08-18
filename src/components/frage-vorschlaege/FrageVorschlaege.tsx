@@ -1,6 +1,6 @@
 /**
  * Die Vorschlagsliste unter dem Suchfeld im Frage-Modus — drei Abschnitte in
- * EINER Liste ([vorschlagsAbschnitte.ts](./vorschlagsAbschnitte.ts)).
+ * EINER Liste ([abschnitte.ts](./abschnitte.ts)).
  *
  * Eine Liste und nicht drei nebeneinander: zwei übereinanderliegende Listen
  * hätten zwei Auswahlmarken und eine Pfeiltaste, die mal die eine und mal die
@@ -21,7 +21,7 @@
  * z-[100].
  */
 import { Clock, Lightbulb, SquarePen, X } from 'lucide-react';
-import type { FrageVorschlag, FrageVorschlagArt } from './vorschlagsAbschnitte';
+import type { FrageVorschlag, FrageVorschlagArt } from './abschnitte';
 import type { FrageVorschlaegeSteuerung } from './useFrageVorschlaege';
 
 const ICON: Record<FrageVorschlagArt, typeof Clock> = {

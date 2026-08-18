@@ -24,7 +24,7 @@
  * Such-Pipeline); dieses Feld ist ein kontrolliertes Element, das Änderungen über
  * `onValueChange` meldet.
  */
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Loader2, Search } from 'lucide-react';
 import { useSucheStore } from './store';
 import { SearchSuggestions } from './SearchSuggestions';
@@ -39,6 +39,8 @@ import {
   type FeldGroesse,
 } from './suchseite-utils';
 import { useClickOutside } from '@/core/hooks/useClickOutside';
+import { FrageVorschlaege, useFrageVorschlaege } from '@/components/frage-vorschlaege';
+import { SUCHE_FRAGE_KATALOG } from './frage/katalog';
 
 const GROESSE_KEY = 'teamflow_suche_feld_groesse';
 
@@ -87,11 +89,16 @@ export interface SearchInputProps {
    * findet 451.
    */
   zaehle?: (anfrage: string) => number | null;
+  /**
+   * Im Frage-Modus schlaegt das Feld Fragen vor statt Feldnamen und Werte —
+   * derselbe Bau wie in der Foerderantrags-Liste (siehe `frage` unten).
+   */
+  frageModus?: boolean;
 }
 
 export function SearchInput({
   value, onValueChange, disabled, showSpinner, onSubmit, platzhalter,
-  wertIndex = null, zaehle,
+  wertIndex = null, zaehle, frageModus = false,
 }: SearchInputProps): React.ReactElement {
   const recentSearches = useSucheStore(s => s.recentSearches);
   const addRecentSearch = useSucheStore(s => s.addRecentSearch);
@@ -199,6 +206,38 @@ export function SearchInput({
   // `aria-expanded`.
   const listeOffen = vorschlagslisteSteht(suggestOpen, value, gezeigteVorschlaege.length);
 
+  /**
+   * Der Frage-Modus bekommt eine ANDERE Liste — dieselbe wie die
+   * Förderantrags-Liste ([@/components/frage-vorschlaege](src/components/frage-vorschlaege/abschnitte.ts)):
+   * Zuletzt gefragt · Beispielfragen · Zum Ausfüllen, mit Lücken zum
+   * Überschreiben. Die Vervollständigung aus Feldnamen und Werten schweigt
+   * dort ohnehin (`wertIndex` ist im Frage-Modus `null`), übrig blieb der nackte
+   * Verlauf — und der beantwortet nicht, was man hier überhaupt fragen kann.
+   *
+   * **Erst ab dem ersten Zeichen.** Beim leeren Feld steht der Startzustand
+   * darunter, und sein Reiter „Fragen" führt denselben Katalog ungekürzt; ein
+   * Dropdown darüber nähme genau die Reiterleiste weg, die es erklärt (dieselbe
+   * Regel wie in `vorschlagslisteSteht`).
+   */
+  const frageAktiv = frageModus && value.trim() !== '';
+  const stelleFrage = useCallback((q: string): void => {
+    const t = q.trim();
+    if (!t) return;
+    addRecentSearch(t);
+    onSubmit?.(t);
+  }, [addRecentSearch, onSubmit]);
+  const frage = useFrageVorschlaege({
+    feldRef: inputRef,
+    text: value,
+    setText: onValueChange,
+    stelleFrage,
+    aktiviert: frageAktiv,
+    katalog: SUCHE_FRAGE_KATALOG,
+    verlauf: recentSearches,
+    entferneAusVerlauf: removeRecentSearch,
+    leereVerlauf: clearRecentSearches,
+  });
+
   useClickOutside(searchBoxRef, () => { setSuggestOpen(false); setActiveIndex(-1); }, suggestOpen);
 
   /** Cursorposition aus dem Feld nachziehen — nach Tippen, Klicken, Pfeiltasten. */
@@ -211,6 +250,7 @@ export function SearchInput({
     onValueChange(next);
     setCursor(pos);
     setSuggestOpen(true);
+    frage.beiEingabe();
     setActiveIndex(-1);
   };
 
@@ -235,6 +275,10 @@ export function SearchInput({
   };
 
   const onSearchKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>): void => {
+    // Im Frage-Modus gehoert die Tastatur der Frage-Liste: sie kennt die dritte
+    // Bedeutung der Eingabetaste (in die naechste Luecke springen), die es hier
+    // nicht gibt. Zwei Handler fuer dieselbe Taste waeren zwei Bedeutungen.
+    if (frageAktiv) { frage.beiTaste(e); return; }
     // Pfeiltasten gehören im mehrzeiligen Feld dem Cursor — sie werden nur
     // abgefangen, solange die Vorschlagsliste tatsächlich offen ist (oben).
     if (e.key === 'ArrowDown') {
@@ -274,6 +318,7 @@ export function SearchInput({
     const q = value.trim();
     if (q) addRecentSearch(q);
     setSuggestOpen(false);
+    frage.beiVerlust();
     setActiveIndex(-1);
   };
 
@@ -290,7 +335,7 @@ export function SearchInput({
         rows={1}
         value={value}
         onChange={e => handleInput(e.target.value, e.target.selectionStart ?? e.target.value.length)}
-        onFocus={() => { setSuggestOpen(true); merkeCursor(); }}
+        onFocus={() => { setSuggestOpen(true); frage.beiFokus(); merkeCursor(); }}
         onKeyDown={onSearchKeyDown}
         // Der Cursor bewegt sich auch ohne Textänderung — Pfeiltasten, Klick,
         // Auswahl. Ohne dieses Nachziehen zeigte die Liste Vorschläge zu einem
@@ -304,7 +349,7 @@ export function SearchInput({
         autoFocus
         autoComplete="off"
         role="combobox"
-        aria-expanded={listeOffen}
+        aria-expanded={frageModus ? frage.offen : listeOffen}
         aria-autocomplete="list"
         className="block w-full py-[9px] pl-10 pr-10 text-[14px] leading-[22px] bg-transparent text-[var(--tf-text)] rounded-[var(--tf-radius-lg)] outline-none placeholder:text-[var(--tf-text-tertiary)] focus:border-[var(--tf-primary)] disabled:opacity-60"
         style={{
@@ -322,7 +367,12 @@ export function SearchInput({
           aria-label="Suche laeuft"
         />
       )}
-      {listeOffen && (
+      {/* Der Hinweis zur Lücke steht am Feld, nicht in der Liste: er gilt, WÄHREND
+          geschrieben wird, und die Liste ist dann längst zu. */}
+      {frage.hinweis !== null && (
+        <div className="mt-1 text-[11.5px] text-[var(--tf-text-tertiary)]">{frage.hinweis}</div>
+      )}
+      {frageModus ? <FrageVorschlaege steuerung={frage} /> : listeOffen && (
         <SearchSuggestions
           items={gezeigteVorschlaege}
           activeIndex={activeIndex}

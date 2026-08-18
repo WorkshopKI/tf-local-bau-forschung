@@ -6,40 +6,14 @@
  * Liste gemischt wäre beides eine Aufzählung von Beispielen, und der
  * Unterschied — der einzige Grund für den Umschalter — verschwände.
  *
- * Bewusst je eine Form pro Sache, die ein Frageplan ausdrücken kann: ein reines
- * Thema mit vielen Schreibweisen, ein Thema mit Bereichsbezug, ein Thema mit
- * Ortsbezug (der Fall, der eine Einschränkung erzeugt), ein Zeitraum
- * (`PlanFacetten.jahr`) und ein Bearbeitungsstand (`PlanFacetten.status`).
- *
- * Die letzten beiden standen bis v4.86 nicht hier — die Facetten gab es, aber
- * kein Beispiel zeigte, dass eine Frage sie setzen darf. Ein Beispiel für ein
- * Können, das niemand sieht, fehlt genauso wie das Können selbst.
+ * Die Fragen selbst stehen im [Katalog](../frage/katalog.ts) — derselbe Vorrat,
+ * den das Vorschlags-Dropdown des Suchfelds zeigt. Hier stehen sie ungekürzt:
+ * dieser Reiter ist die ungedeckte Fläche, das Dropdown zeigt drei davon.
  */
 import { Sparkles } from 'lucide-react';
 import { FussSatz, GruppenTitel, MehrZeile } from './StartBausteine';
+import { FRAGEN } from '../frage/katalog';
 
-export const FRAGEN: readonly { frage: string; erklaerung: string }[] = [
-  {
-    frage: 'Welche Vorhaben drehen sich hauptsächlich um Normung und Standards?',
-    erklaerung: 'findet auch „Normen", „Normierung", „Standardisierung"',
-  },
-  {
-    frage: 'Zeig mir Projekte zu künstlicher Intelligenz in der Medizintechnik',
-    erklaerung: 'zwei Themen — wer beide trägt, steht oben',
-  },
-  {
-    frage: 'Was läuft in Bayern zum Thema Leichtbau?',
-    erklaerung: 'der Ort schränkt ein, das Thema sucht',
-  },
-  {
-    frage: 'Welche Vorhaben zur Wasserstofftechnologie laufen seit 2023?',
-    erklaerung: 'der Zeitraum wird zur Jahresliste',
-  },
-  {
-    frage: 'Was ist bei den noch offenen Anträgen zur Sensorik in Sachsen?',
-    erklaerung: 'Stand und Ort schränken ein, das Thema sucht',
-  },
-];
 
 export function StartFragen({ onFrage, max, onMehr }: {
   /** Setzt Text UND Modus — eine Frage, die als Stichwortsuche liefe, fände

@@ -15,6 +15,7 @@ Decision-Tree für häufige Aufgaben. Erst hier nachsehen, **bevor** du die Code
 | Plugin / CSV-Feld / Filter / IDB-Store / Feedback-Status / Embedding-Modell / Tab / … anlegen | [docs/agents/](docs/agents/README.md) — passenden Cheatsheet wählen |
 | Bildschirmseiten-Kontext-Doc pflegen (Feedback-KI-Kontext) | [docs/agents/update-screen-context.md](docs/agents/update-screen-context.md) |
 | UI-Patch (Komponenten, Farben, Tokens) | [DESIGN_GUIDE.md](DESIGN_GUIDE.md) |
+| Vorschlagsliste im Frage-Modus (Beispielfragen, Vorlagen mit Lücken `‹…›`, Tastatur) | [frage-vorschlaege](src/components/frage-vorschlaege/abschnitte.ts) — Mechanik geteilt, `FrageKatalog` je Seite |
 | Baumartige Ansicht (Aufklappen, Tastatur, Checkboxen, Umbenennen, Ziehen) | [tree-komponenten.md](docs/architecture/tree-komponenten.md) — `TfTree` aus `@/components/tree` |
 | Kanban-/Board-Ansicht (Bahnen, Schmalschiene, Einklappen, Karten ziehen) | [board-komponente.md](docs/architecture/board-komponente.md) — `TfBoard` aus `@/components/kanban` |
 | App-Inhalt in einem eigenen Browser-Fenster zeigen | [fenster-in-fenster.md](docs/architecture/fenster-in-fenster.md) — `oeffneAppFenster` aus `@/components/fenster` |

@@ -802,6 +802,43 @@ trägt, und verlangt, die Gekennzeichneten einzeln mit Kennzeichen zu nennen sta
 nur ihre Anzahl zu wiederholen. Die Schwelle für „trägt alles" lebt einmal
 (`traegtAlleThemen`) — der Befund zählt damit, die Zeile beschriftet damit.
 
+### 8.4 Das Feld schlägt Fragen vor (v4.109)
+
+Im Frage-Modus schwieg die Vervollständigung bisher (`wertIndex` ist dort `null`
+— niemand tippt `ort:` in einen Satz), übrig blieb der nackte Verlauf. Der
+beantwortet aber nicht die eine Frage, die vor einem leeren Feld steht: **was
+kann man hier überhaupt fragen?**
+
+Seit v4.109 zeigt das Feld denselben Bau wie die Förderantrags-Liste —
+[@/components/frage-vorschlaege](../../src/components/frage-vorschlaege/abschnitte.ts),
+drei Abschnitte in **einer** Liste mit einer Auswahlmarke:
+
+| Abschnitt | Inhalt | Auswahl |
+|---|---|---|
+| Zuletzt gefragt | eigener Verlauf, max. 3 | stellt die Frage |
+| Beispielfragen | drei aus `FRAGEN` | stellt die Frage |
+| Zum Ausfüllen | drei Vorlagen mit Lücken `‹…›` | setzt nur ein |
+
+Drei Regeln halten das zusammen:
+
+- **Der Katalog ist geteilt, die Fragen sind es nicht.** Die Antragsliste fragt
+  nach Metadaten-Achsen (Status, Variante, PreCheck), diese Suche nach einem
+  THEMA plus Einschränkungen (Ort, Jahr, Stand). Ein gemeinsamer Vorrat wäre auf
+  jeder Seite zur Hälfte eine Einladung ins Leere
+  ([katalog.ts](../../src/plugins/suche/frage/katalog.ts)).
+- **Eine Liste, zwei Orte.** `FRAGEN` ist zugleich der Vorrat des Reiters
+  „Fragen" im Startzustand; das Dropdown zeigt drei davon, der Reiter alle fünf.
+  Zwei Vorräte liefen auseinander.
+- **Erst ab dem ersten Zeichen.** Beim leeren Feld steht der Startzustand
+  darunter — und sein Reiter „Fragen" ist die ungedeckte Fläche für genau diesen
+  Katalog. Ein Dropdown darüber nähme die Reiterleiste weg, die es erklärt
+  (dieselbe Regel wie in `vorschlagslisteSteht`, v4.107.1).
+
+**Eine halbe Frage erreicht die KI nie.** `frageStellen` bricht bei einer offenen
+Lücke ab und der Knopf „Frage stellen" ist dann gesperrt — nicht nur die
+Eingabetaste springt in die Lücke, sondern jeder Weg zur KI kennt sie. Ein
+Modell, das `‹Thema›` liest, denkt sich eines aus.
+
 ## 9 Das Suchfeld schlägt vor (v4.71)
 
 Die Feldsuche aus §7 setzt zweierlei voraus: dass man die Präfixe kennt **und**

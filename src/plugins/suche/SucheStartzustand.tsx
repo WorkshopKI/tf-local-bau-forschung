@@ -32,7 +32,8 @@ import {
 } from './start/startReiter';
 import { StartZuletzt, type StartEintrag } from './start/StartZuletzt';
 import { StartSuchsprache } from './start/StartSuchsprache';
-import { StartFragen, FRAGEN } from './start/StartFragen';
+import { StartFragen } from './start/StartFragen';
+import { FRAGEN } from './frage/katalog';
 import { StartStoebern } from './start/StartStoebern';
 import { STOEBER_FELDER } from './start/stoebern';
 import { SUCHARTEN } from './start/suchsprache';

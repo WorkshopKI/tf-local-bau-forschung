@@ -66,9 +66,9 @@ import { ChatPanelHost } from '@/plugins/chat/ChatPanelHost';
 import { effectiveAssistentWidth, sucheAssistentUiStore } from './assistentPanel';
 import { useAssistentPanel } from './useAssistentPanel';
 import { antragDetailPfad } from '@/plugins/antraege/detailPfad';
+import { hatLuecke } from '@/components/frage-vorschlaege';
 import { SeitenHilfeButton } from '@/components/help/SeitenHilfeButton';
-// Direkt am Quellmodul statt am Feedback-Barrel: das Barrel zieht `FeedbackPanel`
-// mit, und das lädt die Plugin-Config nach (siehe SeitenHilfeButton.tsx).
+// Direkt am Quellmodul: das Barrel zöge `FeedbackPanel` mit (SeitenHilfeButton.tsx).
 import { useFeedbackDialog } from '@/components/feedback/useFeedbackDialog';
 import { wendeFacettenAn, aktiveFilterTexte, LEERE_WAHL, type FacettenId } from './facetten';
 import { useErreichbareAntraege, useSuchRichtlinien, wendeRichtlinienAn } from './richtlinienWahl';
@@ -409,7 +409,7 @@ export function SuchSeite(): React.ReactElement {
     // Render noch nicht, und ein Lauf auf dem alten Text übersetzte die vorige
     // Frage ein zweites Mal.
     const frage = (frageArg ?? query).trim();
-    if (frage.length === 0 || useSucheStore.getState().planLaeuft) return;
+    if (frage.length === 0 || hatLuecke(frage) || useSucheStore.getState().planLaeuft) return;
     const store = useSucheStore.getState();
     store.setPlanLaeuft(true);
     store.setPlanFehler(null);
@@ -742,8 +742,8 @@ export function SuchSeite(): React.ReactElement {
             <SearchInput
               value={query}
               onValueChange={handleQueryChange}
-              disabled={analyse.running}
-              showSpinner={showSpinner || planLaeuft}
+              disabled={analyse.running} showSpinner={showSpinner || planLaeuft}
+              frageModus={nlModus}
               onSubmit={nlModus ? (f: string) => { void frageStellen(f); } : undefined}
               platzhalter={nlModus ? 'Frage stellen, z. B. „Welche Vorhaben drehen sich um Normung?"' : undefined}
               // Im Frage-Modus schweigt die Vervollständigung: dort schreibt
@@ -759,7 +759,7 @@ export function SuchSeite(): React.ReactElement {
               <Button
                 variant="primary" size="sm" icon={Sparkles}
                 loading={planLaeuft}
-                disabled={analyse.running}
+                disabled={analyse.running || hatLuecke(query)}
                 onClick={() => { void frageStellen(); }}
                 className="mt-[1px]"
               >

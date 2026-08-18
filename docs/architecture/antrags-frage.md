@@ -165,10 +165,16 @@ solange die Frage offen ist — der Knopf **„Frage stellen"**; darunter die Ze
 
 Ein leeres Feld, das einen ganzen Satz erwartet, ist die schwerste Eingabe der
 Seite: der Platzhalter zeigt **ein** Beispiel, und welche Achsen es sonst gibt,
-steht nirgends. Die Liste unter dem Feld
-([vorschlagsAbschnitte.ts](../../src/plugins/antraege/frage/vorschlagsAbschnitte.ts))
-beantwortet deshalb nicht „was hast du zuletzt gesucht", sondern „was kann man
-hier überhaupt fragen" — drei Abschnitte, **eine** Liste mit einer Auswahlmarke:
+steht nirgends. Die Liste unter dem Feld beantwortet deshalb nicht „was hast du
+zuletzt gesucht", sondern „was kann man hier überhaupt fragen" — drei
+Abschnitte, **eine** Liste mit einer Auswahlmarke:
+
+> **Mechanik geteilt, Katalog je Seite** (v4.109). Abschnitte, Lücken und
+> Tastatur stehen in [@/components/frage-vorschlaege](../../src/components/frage-vorschlaege/abschnitte.ts)
+> und tragen auch das Suchfeld der Dokumenten-Suche; hier steht nur noch der
+> Vorrat dieser Seite ([vorschlagsAbschnitte.ts](../../src/plugins/antraege/frage/vorschlagsAbschnitte.ts)).
+> Die Fragen sind nie dieselben: dort ein Thema mit Einschränkungen, hier
+> Metadaten-Achsen.
 
 | Abschnitt | Inhalt | Auswahl |
 |---|---|---|

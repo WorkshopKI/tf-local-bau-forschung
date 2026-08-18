@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.109.0 — Das Suchfeld schlaegt Fragen vor (August 2026)
+
+MINOR — Gewünscht: das Dropdown im Frage-Modus der Suche nach dem Vorbild der Förderanträge. Dort schwieg die Vervollständigung (niemand tippt `ort:` in einen Satz), übrig blieb der nackte Verlauf — und der beantwortet nicht, was man hier überhaupt fragen kann.
+
+- **Mechanik geteilt, Katalog je Seite**: Abschnitte, Lücken `‹…›` und Tastatur liegen jetzt in [frage-vorschlaege](src/components/frage-vorschlaege/abschnitte.ts), beide Seiten reichen ihren `FrageKatalog` herein
+- **Der Katalog der Suche** kennt Thema, Ort, Jahr und Stand — die Achsen, die ihr Frageplan wirklich setzt ([katalog.ts](src/plugins/suche/frage/katalog.ts))
+- **Eine Liste, zwei Orte**: `FRAGEN` speist Dropdown und Reiter „Fragen" des Startzustands; zwei Vorräte liefen auseinander
+- **Eine halbe Frage erreicht die KI nie** — `frageStellen` bricht bei offener Lücke ab, der Knopf ist gesperrt ([suche-relevanz.md §8.4](docs/architecture/suche-relevanz.md))
+- **Erst ab dem ersten Zeichen**, damit die Reiterleiste des Startzustands frei bleibt (Regel aus v4.107.1)
+
 ### v4.108.0 — Suchfeld ziehbar, Quickfilter gehoeren zum Reiter (August 2026)
 
 MINOR — Gewünscht: „Suchfeld breiter machen (die Breite von Suche in Stichworten nehmen). Bei Suche mit Frage Textfeld vertikal resizable machen." Dazu die Zusage von v4.107.2, die Quickfilter in die Reiter-Räumung zu ziehen — beim Bauen zeigte sich, dass sie stattdessen zum Reiter gehören müssen.

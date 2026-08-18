@@ -25,7 +25,7 @@
 import { useCallback, useRef } from 'react';
 import { Loader2, Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { FrageVorschlaege } from './frage/FrageVorschlaege';
+import { FrageVorschlaege } from '@/components/frage-vorschlaege';
 import type { FrageVorschlaegeSteuerung, SuchFeldElement } from './frage/useFrageVorschlaege';
 
 const HOEHE_KEY = 'teamflow_antraege_fragefeld_hoehe';

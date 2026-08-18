@@ -19,6 +19,12 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.109 — 2026-08
+
+### Neu
+- **Das Suchfeld schlägt jetzt auch in der Suche Fragen vor** — dieselbe Liste wie bei den Förderanträgen: **Zuletzt gefragt**, **Beispielfragen** und **Zum Ausfüllen**. Eine Vorlage wie „Was läuft in ‹Bundesland› zum Thema ‹Thema›?" wird nur eingesetzt, nicht abgeschickt: der Cursor steht markiert auf der ersten Lücke, Enter springt zur nächsten. Solange eine Lücke offen ist, geht die Frage nicht an die KI — „Frage stellen" bleibt gesperrt, und unter dem Feld steht, was noch fehlt.
+- Die Liste erscheint, sobald Sie das erste Zeichen tippen. Beim leeren Feld bleiben die Reiter des Startbilds frei — dort steht unter „Fragen" derselbe Vorrat, nur vollständig.
+
 ## v4.108 — 2026-08
 
 ### Neu
