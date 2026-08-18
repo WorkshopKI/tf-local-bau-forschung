@@ -19,6 +19,14 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.103 — 2026-08
+
+### Verbesserungen
+- **Vorgangs-Board und Vorgangs-Regeln öffnen beim Wiederbesuch sofort.** Bisher rechnete jede Rückkehr den ganzen Bestand neu durch; jetzt wird das Ergebnis behalten.
+- Beide Seiten zeigen an, wie alt ihre Zahlen sind, und haben einen Knopf „neu berechnen".
+- Auch die erste Berechnung ist rund doppelt so schnell.
+
+
 ## v4.102 — 2026-08
 
 ### Bugfixes

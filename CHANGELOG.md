@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.103.0 — Vorgangs-Board und Vorgangs-Regeln laden beim Wiederbesuch sofort (August 2026)
+
+MINOR — Beide Seiten rechneten bei JEDEM Menü-Aufruf den ganzen Bestand neu — gemessen 7,8–18,2 s (Board) bzw. 10,8–12,4 s (Regeln), auch beim Wiederbesuch. Gemeldet als „dauert es bei jedem Aufruf 5 Sekunden ehe die Seiten Inhalte anzeigen".
+
+- **Ergebnis überlebt den Seitenwechsel**: Wiederbesuch < 1 s (Board) bzw. 126 ms (Regeln), mit sichtbarem Alter + „neu berechnen" ([boardCache.ts](src/plugins/vorgangs-board/boardCache.ts), [cockpitCache.ts](src/plugins/status-cockpit/cockpitCache.ts), [BestandsFrische.tsx](src/components/ui/BestandsFrische.tsx))
+- **Fassungs-Indizes einmal je Fassung statt je Antrag** — Wächter 2 459 → 602 ms, Neuberechnung gesamt 10,5 → 5,3 s ([version-index.ts](src/core/status/version-index.ts))
+- **Kompilierter Vorkommen-Plan + Kaskaden-Index** statt Closure/Sortierung je Antrag ([feld-aufloesung.ts](src/core/status/feld-aufloesung.ts), [todo-engine.ts](src/core/status/todo-engine.ts))
+- **`stand.json` + Trigger-Parse je Sitzung einmal**, `filterRecord` auf die sechs Kürzel-Spalten eingedampft ([stand.ts](src/core/status/journal/stand.ts), [trigger-share.ts](src/core/status/trigger-share.ts), [boardFilter.ts](src/plugins/vorgangs-board/boardFilter.ts))
+- **Gechunktes Lesen wurde gemessen und VERWORFEN** (28 Transaktionen statt einer, ~7 s teurer) — der Absatz steht im Code, damit es niemand erneut „verbessert" ([vorgangs-quelle.ts](src/core/status/vorgangs-quelle.ts))
+
 ### v4.102.2 — Der Chip filtert auch die Tabelle (August 2026)
 
 PATCH — Der Chip „nur die genannten 6" filterte Kopfzahl, Liste und Export, die **Tabelle** aber nicht: über 671 Zeilen stand „6 Treffer". Gemeldet als „obwohl ‚nur 6' an ist, werden in der Tabelle weiterhin alle Ergebnisse angezeigt".

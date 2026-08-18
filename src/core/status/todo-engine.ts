@@ -197,8 +197,60 @@ export function ermittleTodo(
   opts: TodoOptionen = {},
 ): TodoErgebnis {
   const rolle = opts.rolle ?? REGELSATZ_DEFAULT;
-  const aktive = regeln.filter(r => r.aktiv).sort((a, b) => a.reihenfolge - b.reihenfolge);
+  const { aktive } = kaskade(regeln);
   return trefferLauf(aktive, ctx, stichtag, rolle, sperrLage(aktive, ctx, stichtag, rolle));
+}
+
+/**
+ * Was sich aus der Regelliste ableiten lässt, **ohne** den einzelnen Vorgang zu
+ * kennen — einmal je Regel-Array statt einmal je Antrag.
+ *
+ * Über den Bestand gerechnet entstanden `filter().sort()` und die `nachId`-Map
+ * ~12 000-mal neu, für ein Ergebnis, das allein an der Liste hängt.
+ */
+interface KaskadenIndex {
+  /** Aktive Regeln in Kaskaden-Reihenfolge. Eingefroren — siehe unten. */
+  aktive: readonly TodoRegel[];
+  nachId: ReadonlyMap<string, TodoRegel>;
+  /** Trägt IRGENDEINE Sperre ein `giltFuer`? Sonst ist die Sperr-Lage rollengleich. */
+  rollenSperre: boolean;
+  /** Regelsätze mit mindestens einer eigenen (Nicht-Sperr-)Regel. */
+  mitRegeln: ReadonlySet<Rolle>;
+}
+
+const kaskadenCache = new WeakMap<readonly TodoRegel[], KaskadenIndex>();
+
+function kaskade(regeln: readonly TodoRegel[]): KaskadenIndex {
+  const treffer = kaskadenCache.get(regeln);
+  if (treffer) return treffer;
+
+  // `Array.prototype.sort` ist seit ES2019 stabil, `filter().sort()` über
+  // dieselbe Eingabe also deterministisch — das Hochziehen ändert die
+  // Reihenfolge nicht.
+  const aktive = regeln.filter(r => r.aktiv).sort((a, b) => a.reihenfolge - b.reihenfolge);
+  // Eingefroren, weil dieses EINE Array jetzt von allen Läufen geteilt wird: ein
+  // künftiges `.sort()` darauf würde sonst still die Kaskade aller anderen
+  // Aufrufer umstellen. So scheitert es laut, im Test statt im Betrieb.
+  Object.freeze(aktive);
+
+  const mitRegeln = new Set<Rolle>();
+  let rollenSperre = false;
+  for (const r of aktive) {
+    if (istSperre(r)) {
+      if ((r.giltFuer?.length ?? 0) > 0) rollenSperre = true;
+    } else {
+      mitRegeln.add(regelsatzVon(r));
+    }
+  }
+
+  const index: KaskadenIndex = {
+    aktive,
+    nachId: new Map(aktive.map(r => [r.id, r])),
+    rollenSperre,
+    mitRegeln,
+  };
+  kaskadenCache.set(regeln, index);
+  return index;
 }
 
 /**
@@ -221,8 +273,6 @@ export function ermittleTodo(
 export function ermittleTodosAlleRollen(
   regeln: readonly TodoRegel[], ctx: BedingungsKontext, stichtag: string,
 ): Record<Rolle, TodoErgebnis> {
-  const aktive = regeln.filter(r => r.aktiv).sort((a, b) => a.reihenfolge - b.reihenfolge);
-
   // Zwei Abkürzungen, damit die Mehrspurigkeit nicht das Fünffache kostet. Sie
   // ändern das Ergebnis nicht, sie sparen Läufe, die nachweislich dasselbe
   // liefern:
@@ -230,9 +280,7 @@ export function ermittleTodosAlleRollen(
   //    dieselbe — einmal rechnen genügt.
   //  - Ein Regelsatz ohne eigene Regeln kann keinen Treffer haben; der
   //    Treffer-Pass liefe nur, um alles zu überspringen.
-  const rollenSperre = aktive.some(r => istSperre(r) && (r.giltFuer?.length ?? 0) > 0);
-  const mitRegeln = new Set<Rolle>();
-  for (const r of aktive) if (!istSperre(r)) mitRegeln.add(regelsatzVon(r));
+  const { aktive, nachId, rollenSperre, mitRegeln } = kaskade(regeln);
   const gemeinsameLage = rollenSperre
     ? null
     : sperrLage(aktive, ctx, stichtag, REGELSATZ_DEFAULT);
@@ -247,10 +295,8 @@ export function ermittleTodosAlleRollen(
   }
 
   // Die Herkunftsregel wird für den Sperr-Filter gebraucht — seit v2.412 nicht
-  // mehr nur ihre Id, sondern ihr `strang`. Einmal aufgebaut statt je Paar
-  // gesucht: die Schleife darunter läuft über ROLLEN².
-  const nachId = new Map(aktive.map(r => [r.id, r]));
-
+  // mehr nur ihre Id, sondern ihr `strang`. `nachId` kommt aus dem
+  // Kaskaden-Index: die Schleife darunter läuft über ROLLEN².
   for (const rolle of ROLLEN) {
     if (pro[rolle].todo !== null) continue;
     for (const quelle of ROLLEN) {

@@ -2488,3 +2488,58 @@ in [chronik-und-zeitstrahl.md](../status-system/chronik-und-zeitstrahl.md).
   `aufzeichnungsGrenze` und das ganze `fristen-band/`-Verzeichnis; die
   Ereignis-Events lädt `useStatusVerlauf` nicht mehr. `eventProminenz` bleibt —
   das Home-Widget liest es.
+
+## 17. Was der Bestandslauf kostet (v4.103)
+
+Beide Bestands-Seiten — [Vorgangs-Board](../../src/plugins/vorgangs-board/) und
+Vorgangs-Regeln — rechneten bei **jedem** Menü-Aufruf den ganzen Bestand neu.
+Gemessen am echten Stand (14 225 Anträge, 12 359 im Bereich, 7 535 Verbünde):
+7,8–18,2 s bzw. 10,8–12,4 s, **auch beim Wiederbesuch**. Der Router hält keine
+Seite am Leben, also startete jede Rückkehr bei null.
+
+### Die drei Hebel, nach gemessenem Gewinn
+
+1. **Ergebnis über den Seitenwechsel halten** ([boardCache.ts](../../src/plugins/vorgangs-board/boardCache.ts),
+   [cockpitCache.ts](../../src/plugins/status-cockpit/cockpitCache.ts)). Der mit
+   Abstand größte Hebel: Wiederbesuch < 1 s bzw. 126 ms. Schlüssel = Fassung
+   (Nummer **und** Zeitstempel) + Betrachtungsbereich + Bestands-Generation +
+   Stichtag-Tag; TTL 5 min als Obergrenze der Schalheit.
+   **Scharf gestellt wird nach GELESENEN Sätzen, nicht nach Ergebniszeilen** —
+   „0 Zeilen" heißt entweder Cold Start (darf nicht festgeschrieben werden) oder
+   „der Bereich schließt alles aus" (eine echte Antwort). Nach `zeilen.length`
+   wären beide ununterscheidbar.
+2. **Fassungs-Indizes einmal je Fassung** ([version-index.ts](../../src/core/status/version-index.ts)):
+   Wächter 2 459 → 602 ms. `felderNachCode` wurde je Antrag mit ~550
+   `normalize('NFC')`-Aufrufen neu gebaut.
+   **`ersterWertNachCode` und `zieltageNachCode` sind zwei Maps, nicht eine** —
+   `zieltageFuer` überspringt Einträge ohne numerische Zieltage, das Board nimmt
+   den ersten Treffer und lässt danach den Seed-Rückfall greifen. Eine
+   gemeinsame Map wäre still falsch.
+3. **Kompilierter Vorkommen-Plan + Kaskaden-Index** ([feld-aufloesung.ts](../../src/core/status/feld-aufloesung.ts),
+   [todo-engine.ts](../../src/core/status/todo-engine.ts)): sammeln 1 547 → 1 036 ms,
+   todo 253 → 163 ms.
+
+### Zwei Messfallen, beide selbst hineingelaufen
+
+- **Gechunktes Lesen ist hier LANGSAMER.** `forEachAntragChunkByProgramm` sieht
+  passend aus (beschränkter Speicher-Ausschlag) und kostete gemessen **~7 s
+  mehr**: 28 einzelne Transaktionen statt einer. Die Zeit lag zudem *zwischen*
+  den Chunk-Callbacks und fiel damit aus jeder Chunk-Messung heraus — sichtbar
+  nur als Lücke zwischen `bestand` und der Summe seiner Teile. Verworfen; der
+  Grund steht in [vorgangs-quelle.ts](../../src/core/status/vorgangs-quelle.ts),
+  damit es niemand erneut „verbessert".
+- **`trigger 11 098 ms` war Wartezeit, keine Arbeit.** `ladeTrigger` und
+  `ladeBestand` liegen im selben `Promise.all` auf einem Thread; der
+  Bestandslauf blockiert ihn synchron. Mit gecachtem Bestand steht dort
+  `trigger 124`. Wer die erste Zahl für Trigger-Kosten hält, optimiert die
+  falsche Stelle.
+
+### Die Seiten sagen, dass sie cachen
+
+`BestandsFrische` ([Komponente](../../src/components/ui/BestandsFrische.tsx))
+zeigt Umfang, Alter und „neu berechnen". Ein Cache, der sein Alter verschweigt,
+lässt eine Momentaufnahme wie eine Messung aussehen — dieselbe Unehrlichkeit,
+gegen die `trigger-share.ts` beim stillen Rückfall argumentiert.
+
+**Bewusst NICHT gemacht:** `listeVersionen` beim Mount durch ein `count()`
+ersetzen. Gemessen 17–39 ms für 25 Fassungen — Aufwand ohne Gegenwert.

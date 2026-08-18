@@ -16,6 +16,7 @@
  * IndexedDB ist der lokale Cache: ohne Share (offline, kein Handle) arbeitet die
  * App mit dem zuletzt gesehenen Stand weiter und zeigt dessen Herkunft an.
  */
+import { tfPerfLog } from '@/core/utils/tfPerf';
 import type { IDBStore } from '@/core/services/storage';
 import type { TriggerZeile } from './typen';
 import { normKey } from './normalisierung';
@@ -72,10 +73,19 @@ export function istTriggerDatei(raw: unknown): raw is TriggerDatei {
  *    längst mehr versteht. Genau so blieb der Zähler „30 nicht interpretiert"
  *    nach dem Zulässigkeits-Fix (v2.386) unbewegt stehen.
  *
- * Kosten: ein Regex-Parse je Zeile beim Laden (~2450 Zeilen), einmal pro Sitzung.
+ * Kosten: ein Regex-Parse je Zeile (~2450 Zeilen) — dank des Memos darunter
+ * tatsächlich einmal je Tabellen-Stand statt, wie bis v4.103, bei jedem Aufbau
+ * der Vorgangs-Regeln-Seite.
  */
 export function heileTriggerDatei(datei: TriggerDatei): TriggerDatei {
-  return {
+  // Geschlüsselt auf das **Zeilen-Array selbst**, nicht auf `version` +
+  // `importiertAm`: die wären zwar im Betrieb eindeutig, aber zwei verschiedene
+  // Tabellen mit gleichem Zähler und Zeitpunkt sind konstruierbar — und dann
+  // bekäme die zweite still die Deutung der ersten. Die Objekt-Identität kann
+  // nicht kollidieren, und eine WeakMap hält die alte Tabelle nicht am Leben.
+  const treffer = geheiltCache.get(datei.trigger);
+  if (treffer) return treffer;
+  const geheilt: TriggerDatei = {
     ...datei,
     trigger: datei.trigger.map(z => parseTriggerZeile({
       programm: typeof z.programm === 'string' ? z.programm : '',
@@ -85,6 +95,15 @@ export function heileTriggerDatei(datei: TriggerDatei): TriggerDatei {
       parameter: z.parameterRoh,
     })),
   };
+  geheiltCache.set(datei.trigger, geheilt);
+  return geheilt;
+}
+
+let geheiltCache = new WeakMap<readonly TriggerZeile[], TriggerDatei>();
+
+/** Nur für Tests: das Parse-Memo verwerfen. */
+export function leereTriggerCache(): void {
+  geheiltCache = new WeakMap<readonly TriggerZeile[], TriggerDatei>();
 }
 
 /** Wie viele Zeilen ohne Programm-Angabe geführt werden (Alt-Import). */
@@ -102,10 +121,21 @@ export function zeilenOhneProgramm(trigger: readonly TriggerZeile[]): number {
  */
 export async function ladeTrigger(idb: IDBStore): Promise<TriggerStand> {
   try {
+    const tLesen = performance.now();
     const vomShare = await leseSidecar(idb, STATUS_TRIGGER_PATH, istTriggerDatei);
+    const msLesen = performance.now() - tLesen;
     if (vomShare) {
+      const tCache = performance.now();
       await idb.set(TRIGGER_CACHE_KEY, vomShare);
-      return { datei: heileTriggerDatei(vomShare), herkunft: 'share' };
+      const tHeilen = performance.now();
+      const geheilt = heileTriggerDatei(vomShare);
+      tfPerfLog(
+        `ladeTrigger: lesen ${msLesen.toFixed(0)}ms`
+        + ` · idb-cache ${(tHeilen - tCache).toFixed(0)}ms`
+        + ` · heilen ${(performance.now() - tHeilen).toFixed(0)}ms`
+        + ` · ${vomShare.trigger.length} Zeilen`,
+      );
+      return { datei: geheilt, herkunft: 'share' };
     }
   } catch (err) {
     console.warn('[status] ladeTrigger: Share nicht lesbar:', err);

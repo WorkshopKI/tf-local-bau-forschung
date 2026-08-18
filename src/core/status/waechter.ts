@@ -31,7 +31,8 @@ import { normKey } from './normalisierung';
 import { rollenVonFeld } from './rollen';
 import type { FeldVorkommen } from './feld-aufloesung';
 import type { TodoErgebnis } from './todo-engine';
-import type { MappingVersion, Rolle, StatusWertEintrag } from './typen';
+import type { MappingVersion, Rolle } from './typen';
+import { versionIndex } from './version-index';
 
 const MS_TAG = 86_400_000;
 
@@ -158,10 +159,7 @@ export function tageZwischen(tag: string, stichtag: string): number | null {
 /** Zieltage des Status aus dem Katalog; `null` = keine gepflegt. */
 export function zieltageFuer(version: MappingVersion, statusCode: number | null): number | null {
   if (statusCode === null) return null;
-  const treffer: StatusWertEintrag | undefined = version.werte.find(
-    w => w.code === statusCode && typeof w.zieltage === 'number',
-  );
-  return treffer?.zieltage ?? null;
+  return versionIndex(version).zieltageNachCode.get(statusCode) ?? null;
 }
 
 /**
@@ -177,10 +175,9 @@ export function zieltageFuer(version: MappingVersion, statusCode: number | null)
 export function findeOffenePaare(
   version: MappingVersion, vorkommen: readonly FeldVorkommen[], stichtag: string,
 ): OffenesPaar[] {
-  const felderNachCode = new Map<string, FeldVorkommen['feld']>();
-  for (const f of version.felder) {
-    if (f.code) felderNachCode.set(normKey(f.code), f);
-  }
+  // Einmal je Fassung statt einmal je Vorgang: über den Bestand gerechnet waren
+  // das ~12 000 Neuaufbauten desselben Index (gemessen ~2,5 s).
+  const felderNachCode = versionIndex(version).felderNachCode;
   const gesetztAm = new Map<string, string>();
   for (const v of vorkommen) {
     const tag = v.feld.code ? tagVon(v) : null;
@@ -278,9 +275,7 @@ export interface Zeitachse {
 export function letzteAktivitaetVon(
   vorkommen: readonly FeldVorkommen[], version: MappingVersion, stichtag: string,
 ): Zeitachse {
-  const relevante = new Set(
-    version.felder.filter(f => f.relevant === true).map(f => f.feldId),
-  );
+  const relevante = versionIndex(version).relevanteFeldIds;
   const betrachtet = relevante.size > 0
     ? vorkommen.filter(v => relevante.has(v.feld.feldId))
     : vorkommen;

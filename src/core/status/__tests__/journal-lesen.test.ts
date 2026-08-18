@@ -10,15 +10,18 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { IDBStore } from '@/core/services/storage/idb-store';
 import type { JournalStand } from '@/core/status/journal/typen';
 
-const share: { stand: JournalStand | null; dateien: Record<string, string> } = {
-  stand: null, dateien: {},
-};
+const share: {
+  stand: JournalStand | null;
+  dateien: Record<string, string>;
+  /** Wie oft der Stand wirklich vom Share gelesen wurde — der Cache-Nachweis. */
+  standGelesen: number;
+} = { stand: null, dateien: {}, standGelesen: 0 };
 
 vi.mock('@/core/status/sidecar-datei', async (echt) => {
   const original = await echt<typeof import('@/core/status/sidecar-datei')>();
   return {
     ...original,
-    leseSidecar: async () => share.stand,
+    leseSidecar: async () => { share.standGelesen += 1; return share.stand; },
     leseSidecarText: async (_idb: IDBStore, pfad: string) => share.dateien[pfad] ?? null,
   };
 });
@@ -28,6 +31,7 @@ const {
   bewerteAlter, journalFrische, JOURNAL_FRISCHE_WARNUNG_TAGE,
 } = await import('@/core/status/journal/lesen');
 const { pruefeStillstand } = await import('@/core/status/waechter');
+const { markiereBestandGeaendert } = await import('@/core/services/bestand-generation');
 
 const IDB = {} as IDBStore;
 const PFAD = '_intern/vorgangssystem/journal/journal-2026-08.jsonl';
@@ -36,6 +40,7 @@ const z = (o: Record<string, unknown>): string => JSON.stringify(o);
 
 beforeEach(() => {
   leereJournalCache();
+  share.standGelesen = 0;
   share.stand = {
     schema: 1,
     journalAb: '2026-08-01',
@@ -180,5 +185,37 @@ describe('Frische — ein ausgefallener Lauf muss auffallen', () => {
     const f = await journalFrische(IDB, '2026-09-02');
     expect(f?.monat).toBe('2026-09');
     expect(f?.eintraegeImMonat).toBe(0);
+  });
+});
+
+
+describe('Der Stand wird je Sitzung EINMAL gelesen', () => {
+  // Er wiegt ueber tausende Antraege mehrere MB und liegt auf einem SMB-Share.
+  // Bis v4.103 las ihn jeder Board-Aufruf und jede Antragsseite neu.
+  it('zwei Leser derselben Generation teilen einen Lesevorgang', async () => {
+    await letzteAenderungJeAntrag(IDB, '2026-08-06');
+    expect(share.standGelesen).toBe(1);
+    await letzteAenderungJeAntrag(IDB, '2026-08-06');
+    await chronikFuerAntrag(IDB, 'A1', '2026-08-06');
+    expect(share.standGelesen).toBe(1);
+  });
+
+  it('nach einem Bestandswechsel wird neu gelesen', async () => {
+    await letzteAenderungJeAntrag(IDB, '2026-08-06');
+    expect(share.standGelesen).toBe(1);
+    markiereBestandGeaendert();
+    await letzteAenderungJeAntrag(IDB, '2026-08-06');
+    expect(share.standGelesen).toBe(2);
+  });
+
+  it('auch ein FEHLENDER Stand wird gecacht', async () => {
+    // Sonst zahlt eine Installation ohne Journal je Aufruf einen
+    // fehlschlagenden SMB-Zugriff — und genau dort ist er am teuersten.
+    share.stand = null;
+    leereJournalCache();
+    share.standGelesen = 0;
+    expect(await letzteAenderungJeAntrag(IDB, '2026-08-06')).toBeNull();
+    expect(await letzteAenderungJeAntrag(IDB, '2026-08-06')).toBeNull();
+    expect(share.standGelesen).toBe(1);
   });
 });

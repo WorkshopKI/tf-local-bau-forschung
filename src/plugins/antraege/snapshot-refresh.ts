@@ -1,3 +1,4 @@
+import { markiereBestandGeaendert } from '@/core/services/bestand-generation';
 import { useAntraegeStore } from './store';
 import type { IDBStore } from '@/core/services/storage/idb-store';
 import type { SnapshotStoreName } from '@/core/services/csv/snapshot';
@@ -23,6 +24,11 @@ export async function refreshAntraegeStoreAfterSync(
   reloadedStores: readonly SnapshotStoreName[],
 ): Promise<void> {
   if (!reloadedStores.includes('antraege') && !reloadedStores.includes('verbuende')) return;
+  // HIER, nicht unter dem `coldOrMatching`-Ausstieg: die Zeile darüber IST die
+  // Aussage „der Bestand hat sich geändert". Der Ausstieg darunter entscheidet
+  // nur, ob DIESER Store neu laden muss — die Bestands-Seiten müssten es
+  // trotzdem, und ihr Cache bliebe still auf dem alten Stand stehen.
+  markiereBestandGeaendert();
   const store = useAntraegeStore.getState();
   const coldOrMatching =
     store.programmId === programmId

@@ -28,12 +28,15 @@ import {
   type MappingVersion, type Rolle, type TodoErgebnis, type WaechterErgebnis, type ZahPhaseId,
   type RollenBilanz,
 } from '@/core/status';
+import { versionIndex } from '@/core/status/version-index';
+import { bestandGeneration } from '@/core/services/bestand-generation';
+import { useBoardCache, cacheGilt } from './boardCache';
 import {
   parseBearbeiterFilter, anzeigeTokensFuer, type BearbeiterFilterMode,
 } from '@/plugins/antraege/bearbeiterFilter';
 import {
   letzteDreiJahrgaenge, reichtInAltbestand, passtJahr, passtVariante, passtPhase, passtRest,
-  zaehleNach, fristLaeuftFuer,
+  zaehleNach, fristLaeuftFuer, schmalerFilterSatz,
 } from './boardFilter';
 import {
   GRUPPE_FERTIG, GRUPPE_OHNE, ZUSTAENDIGKEIT_DEFAULT, zustaendigkeitVon,
@@ -207,6 +210,14 @@ export interface VorgangsBoardApi {
   ausgeblendet: number;
   /** Rechenzeit des letzten Laufs über den Bestand, in Millisekunden. */
   ladeMs: number | null;
+  /**
+   * Wann die angezeigten Zahlen gerechnet wurden (`Date.now()`); `0` = in diesem
+   * Aufruf. Gehört sichtbar an die Seite — ein Cache, der sein Alter verschweigt,
+   * lässt eine Momentaufnahme wie eine Messung aussehen.
+   */
+  berechnetAm: number;
+  /** Den Bestand neu durchrechnen, am Cache vorbei. */
+  neuBerechnen: () => void;
 }
 
 /**
@@ -268,22 +279,61 @@ export function useVorgangsBoard(): VorgangsBoardApi {
   const [phasen, setPhasen] = useState<string[]>([]);
   const [nurHaengt, setNurHaengt] = useState(false);
 
-  const laden_ = useCallback(async (): Promise<void> => {
+  const laden_ = useCallback(async (neuRechnen = false): Promise<void> => {
     setLaden(true);
     setFehler(null);
     try {
+      // Gemessen statt geschätzt: die Ladezeit über den Bestand ist die Zahl, an
+      // der sich sowohl der Bereich als auch jede Optimierung rechtfertigen muss
+      // — und sie ist nur brauchbar, wenn sie in Phasen zerfällt. Eine Summe sagt
+      // „5 s", nicht „davon 2 s IDB".
+      const begonnen = performance.now();
       const v = getAktiveVersion() ?? await ladeAktiveVersion(idb);
       const regeln = v.todoRegeln ?? [];
+      const vIndex = versionIndex(v);
+      const msKatalog = Math.round(performance.now() - begonnen);
+
+      // Der Schlüssel trägt alles, was das Ergebnis verändern kann:
+      //  - die Fassung (Nummer UND Zeitstempel: bei einer Nummern-Kollision
+      //    kann dieselbe Nummer verschiedenen Inhalt tragen),
+      //  - den Betrachtungsbereich (er entscheidet mit, was gerechnet wird),
+      //  - die Bestands-Generation (CSV-Import / Snapshot-Sync),
+      //  - den Stichtag-TAG: alle Liegezeiten und Fristen sind relativ zu ihm,
+      //    eine über Mitternacht offene Sitzung zeigte sonst die Zahlen von
+      //    gestern.
+      const schluessel = [
+        v.version,
+        v.zeitstempel ?? '',
+        bereichMenge === null ? 'alle' : [...bereichMenge].sort().join(','),
+        bestandGeneration(),
+        heuteRef.current.slice(0, 10),
+      ].join('|');
+      const cache = useBoardCache.getState();
+      if (!neuRechnen && cacheGilt(cache, schluessel, Date.now()) && cache.daten) {
+        setVersion(cache.daten.version);
+        setAlle(cache.daten.zeilen);
+        setAusgeblendet(cache.daten.ausgeblendet);
+        setLadeMs(cache.daten.ladeMs);
+        console.info(
+          `[vorgangs-board] aus dem Cache (${cache.daten.zeilen.length} Vorgänge,`
+          + ` berechnet vor ${Math.round((Date.now() - cache.berechnetAm) / 1000)} s)`,
+        );
+        return;
+      }
       // Einmal fuer den ganzen Bestand statt einmal je Zeile: das Journal liegt
       // in Monatsdateien, und ein Lesevorgang je Antrag waere die teuerste Art,
       // dieselben Dateien zu lesen. `null` = kein Journal, dann bleibt es bei
       // der Naeherung aus `max(D_)`.
+      const tJournal = performance.now();
       const journal = await letzteAenderungJeAntrag(idb, heuteRef.current.slice(0, 10));
+      const msJournal = Math.round(performance.now() - tJournal);
       const zeilen: BoardZeile[] = [];
-      // Gemessen und angezeigt, nicht geschätzt: die Ladezeit über den Bestand
-      // ist die Zahl, an der sich der Bereich rechtfertigen muss.
-      const begonnen = performance.now();
+      const tBestand = performance.now();
       let uebergangen = 0;
+      let msIdb = 0;
+      let msSammeln = 0;
+      let msTodo = 0;
+      let msWaechter = 0;
 
       await jederVorgang(idb, v, (satz) => {
         const { aktenzeichen, unterprogrammId, verbundId: vbId, record: rec, vorkommen } = satz;
@@ -293,7 +343,9 @@ export function useVorgangsBoard(): VorgangsBoardApi {
         // nicht im Bereich liegt, wird gar nicht erst gerechnet — hier spart
         // der Bereich Zeit, nicht nur Zeilen.
         if (!istImBereich(unterprogrammId, bereichMenge)) { uebergangen += 1; return; }
+        const tT = performance.now();
         const todos = ermittleTodosAlleRollen(regeln, baueTodoKontext(vorkommen), heuteRef.current);
+        msTodo += performance.now() - tT;
         const statusRoh = typeof a.status === 'string' ? a.status : '';
         const code = findeStatusCode(statusRoh)?.eintrag.code ?? null;
         // Der Wächter bekommt bewusst den AB-Satz und nicht die gewählte
@@ -301,11 +353,13 @@ export function useVorgangsBoard(): VorgangsBoardApi {
         // und die Rollen-Zuordnung des Staus soll sich nicht verschieben, nur
         // weil jemand die Anzeige umschaltet. Die Stau-Zahlen bleiben damit
         // vergleichbar mit denen vor der Mehrspurigkeit.
+        const tW = performance.now();
         const waechter = pruefeStillstand({
           version: v, vorkommen, statusCode: code, todo: todos[REGELSATZ_DEFAULT],
           journalAenderung: journal?.get(aktenzeichen) ?? null,
           stichtag: heuteRef.current,
         });
+        msWaechter += performance.now() - tW;
         // Der wirksame Eingang braucht `D_XTE` — custom gemappt und NICHT in
         // der Listen-Projektion. Hier ist er da, weil `sammleVorkommen` ihn
         // über das Schema aufgelöst hat (Bug-Klasse 5).
@@ -320,8 +374,11 @@ export function useVorgangsBoard(): VorgangsBoardApi {
         const restTage = frist
           ? Math.ceil((new Date(frist).getTime() - new Date(heuteRef.current).getTime()) / 86_400_000)
           : null;
+        // `ersterWertNachCode` bildet das frühere `werte.find` exakt ab — auch
+        // den Fall, dass der erste Treffer KEINE `zahPhaseId` trägt: dann greift
+        // der Rückfall auf die Auslieferung, wie bisher.
         const zahPhase = code !== null
-          ? v.werte.find(w => w.code === code)?.zahPhaseId
+          ? vIndex.ersterWertNachCode.get(code)?.zahPhaseId
             ?? SEED_CODE_ZU_ZAH_PHASE.get(code) ?? null
           : null;
         zeilen.push({
@@ -338,22 +395,42 @@ export function useVorgangsBoard(): VorgangsBoardApi {
           wirksamerEingang: eingang,
           restTage,
           fristLaeuft: fristLaeuftFuer(zahPhase, a.status, v.zahPhasen),
-          filterRecord: a,
+          filterRecord: schmalerFilterSatz(rec),
         });
+      }, (t) => {
+        msIdb += t.ioMs;
+        msSammeln += t.sammelMs;
       });
 
       setVersion(v);
       setAlle(zeilen);
+      useBoardCache.getState().setzen(
+        schluessel,
+        { version: v, zeilen, ausgeblendet: uebergangen, ladeMs: Math.round(performance.now() - begonnen) },
+        // GELESEN, nicht „übrig": ein Bereich, der alles wegnimmt, ist eine
+        // Antwort — ein leerer Store ist keine.
+        zeilen.length + uebergangen,
+      );
+      const msBestand = Math.round(performance.now() - tBestand);
       const ms = Math.round(performance.now() - begonnen);
       setAusgeblendet(uebergangen);
       setLadeMs(ms);
-      // Die Rechenzeit über den Bestand ist die Zahl, an der sich der Bereich
-      // rechtfertigen muss — messbar statt behauptet.
+      // Die Ladezeit ist die Zahl, an der sich der Bereich rechtfertigen muss —
+      // messbar statt behauptet. In Phasen, weil eine Summe niemandem sagt, wo
+      // die Zeit hingeht: `idb` ist Deserialisierung, `journal` ist SMB,
+      // `sammeln`/`todo`/`wächter` sind reines Rechnen.
+      const r = (x: number): number => Math.round(x);
       console.info(
-        `[vorgangs-board] ${zeilen.length} Vorgänge in ${ms} ms gerechnet`
+        `[vorgangs-board] gesamt ${ms} ms | katalog ${msKatalog} | journal ${msJournal}`
+        + ` | bestand ${msBestand} (idb ${r(msIdb)} · sammeln ${r(msSammeln)}`
+        + ` · todo ${r(msTodo)} · wächter ${r(msWaechter)})`
+        + ` | ${zeilen.length} Vorgänge`
         + (uebergangen > 0 ? ` · ${uebergangen} außerhalb des Bereichs übersprungen` : ''),
       );
     } catch (err) {
+      // Entwerten, damit ein gescheiterter Lauf beim nächsten Aufruf heilt statt
+      // hinter einem scharfen, aber leeren Eintrag zu stranden.
+      useBoardCache.getState().entwerten();
       setFehler((err as Error).message ?? 'Board konnte nicht geladen werden.');
     } finally {
       setLaden(false);
@@ -361,6 +438,9 @@ export function useVorgangsBoard(): VorgangsBoardApi {
   }, [idb, bereichMenge]);
 
   useEffect(() => { void laden_(); }, [laden_]);
+
+  const berechnetAm = useBoardCache(st => st.berechnetAm);
+  const neuBerechnen = useCallback(() => { void laden_(true); }, [laden_]);
 
   const kuerzelModus = useMemo<BearbeiterFilterMode>(() => ({
     // `useMeinKuerzel` ist die einzige Lesestelle (Pitfall #27) — im
@@ -590,6 +670,7 @@ export function useVorgangsBoard(): VorgangsBoardApi {
     jahrOptionen, variantenOptionen, phasenOptionen,
     letzteDrei, zeigtAltbestand: reichtInAltbestand(jahre, heuteRef.current),
     kuerzelModus, ausgeblendet, ladeMs,
+    berechnetAm, neuBerechnen,
     nurHaengt, setNurHaengt, stau, unbewertet, rollenBilanz,
   };
 }

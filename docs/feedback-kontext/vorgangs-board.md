@@ -128,3 +128,10 @@ Verfügung.
 - Die Berechnung ist **deterministisch zum Stichtag** des Seitenaufrufs. Zwei
   Rechner mit demselben Datenstand sehen dasselbe; Unterschiede können nur
   Unterschiede im Importstand sein.
+- **Das Ergebnis wird für die Sitzung behalten** (seit v4.103). Wer die Seite
+  verlässt und zurückkommt, sieht sie sofort statt nach Sekunden. Damit daraus
+  keine stille Momentaufnahme wird, steht über der Liste, **wie alt** die Zahlen
+  sind („12.359 Vorgänge · berechnet vor 3 min"), und daneben **„neu berechnen"**.
+  Von selbst neu gerechnet wird nach einem CSV-Import, bei einer anderen
+  Katalog-Fassung, bei geändertem Betrachtungsbereich, mit dem Datumswechsel und
+  spätestens nach fünf Minuten.

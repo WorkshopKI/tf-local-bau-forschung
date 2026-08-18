@@ -7,6 +7,7 @@ import type { CsvSchema } from '@/core/services/csv/types';
 import type { MappingVersion } from './typen';
 import { wertId } from './typen';
 import { sammleVorkommen, type FeldAufloesung, type FeldVorkommen } from './feld-aufloesung';
+import { versionIndex } from './version-index';
 import type { StatusEvent } from './event-typen';
 
 export interface VerbundFelder {
@@ -54,7 +55,9 @@ export function baueVerbundFelder(
 export function vorkommenAus(
   version: MappingVersion, vf: VerbundFelder,
 ): FeldVorkommen[] {
-  const nachId = new Map(version.felder.map(f => [f.feldId, f]));
+  // Einmal je Fassung statt je Verbund: das Cockpit ruft dies ueber alle
+  // ~7 500 Verbuende, und der Index haengt allein an der Fassung.
+  const nachId = versionIndex(version).felderNachId;
   const out: FeldVorkommen[] = [];
   const sammle = (rec: Record<string, string>, tvId?: string): void => {
     for (const [feldId, wert] of Object.entries(rec)) {

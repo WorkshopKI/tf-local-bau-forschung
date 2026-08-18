@@ -21,6 +21,7 @@ vi.mock('@/core/status/sidecar-datei', () => ({
 const {
   ladeTrigger, speichereTrigger, triggerFuerKuerzel, triggerFuerProgramm, programmeInTrigger,
   heileTriggerDatei, zeilenOhneProgramm, istTriggerDatei, TRIGGER_CACHE_KEY,
+  leereTriggerCache,
 } = await import('@/core/status/trigger-share');
 
 const ZEILE = (kuerzel: string, folge: number, programm = '76'): TriggerZeile => ({
@@ -206,5 +207,34 @@ describe('heileTriggerDatei — Bestand vor der Programm-Dimension', () => {
     const stand = await ladeTrigger(alsStore(idb));
     expect(stand.herkunft).toBe('cache');
     expect(stand.datei?.trigger[0]?.programm).toBe('');
+  });
+});
+
+
+/** Zwei Tabellen, die sich in `version`/`importiertAm` NICHT unterscheiden. */
+const memoDatei = (trigger: TriggerZeile[]): Parameters<typeof heileTriggerDatei>[0] => ({
+  format: 1, version: 7, importiertAm: '2026-08-01T00:00:00.000Z',
+  importiertVon: 'MUE', trigger,
+});
+
+describe('Das Parse-Memo (v4.103)', () => {
+  // `heileTriggerDatei` leitet `geparst`/`satz` je Zeile neu ab — ~2450
+  // Regex-Parses. Bis v4.103 lief das bei JEDEM Aufbau der Vorgangs-Regeln-Seite.
+  it('dieselbe Tabelle zweimal liefert dasselbe Ergebnis-Objekt', () => {
+    leereTriggerCache();
+    const datei = memoDatei([ZEILE('ARZ', 1)]);
+    expect(heileTriggerDatei(datei)).toBe(heileTriggerDatei(datei));
+  });
+
+  it('eine ANDERE Tabelle mit gleichem Zaehler und Zeitpunkt wird neu geparst', () => {
+    // Der Grund fuer die Objekt-Identitaet als Schluessel: `version` +
+    // `importiertAm` sehen im Betrieb eindeutig aus, sind es aber nicht
+    // zwingend — und dann bekaeme die zweite Tabelle still die Deutung der
+    // ersten.
+    leereTriggerCache();
+    const a = memoDatei([ZEILE('ARZ', 1)]);
+    const b = memoDatei([ZEILE('XYZ', 1)]);   // gleiche version + importiertAm!
+    expect(heileTriggerDatei(b).trigger[0]?.kuerzel).toBe('XYZ');
+    expect(heileTriggerDatei(a).trigger[0]?.kuerzel).toBe('ARZ');
   });
 });

@@ -11,10 +11,11 @@
  * lieber ein doppelter Eintrag als ein verlorener — und hier wird aufgeräumt.
  */
 import type { IDBStore } from '@/core/services/storage/idb-store';
+import { tfPerfLog } from '@/core/utils/tfPerf';
 import { leseSidecarText } from '../sidecar-datei';
 import { dedupliziere } from './diff';
 import { journalMonatsPfad, monateZwischen } from './pfade';
-import { leseStand } from './stand';
+import { leereStandCache, leseStand } from './stand';
 import type { JournalEintrag, JournalStand, Stempel } from './typen';
 
 /**
@@ -69,6 +70,10 @@ async function frischerStand(idb: IDBStore): Promise<JournalStand | null> {
 export function leereJournalCache(): void {
   monatsCache.clear();
   cacheStempel = null;
+  // Der Stand hat seinen eigenen Cache (`stand.ts`) — ihn hier stehen zu lassen
+  // hiesse, dass ein Test die Monatsdateien leert und trotzdem den alten
+  // Stempel serviert bekommt.
+  leereStandCache();
 }
 
 // --- Frische ---------------------------------------------------------------
@@ -271,8 +276,18 @@ export async function chronikFuerAntraege(
 export async function letzteAenderungJeAntrag(
   idb: IDBStore, heuteIso: string,
 ): Promise<Map<string, string> | null> {
+  // Getrennt gemessen, weil es zwei verschiedene Kosten sind: `frischerStand`
+  // liest eine mehrere MB grosse Datei ueber SMB, die Monatsdateien liegen im
+  // Sitzungs-Cache. Eine Summe verwischt genau den Unterschied, an dem sich
+  // entscheidet, ob Caching oder Parsen das Problem ist.
+  const tStand = performance.now();
   const stand = await frischerStand(idb);
-  if (!stand) return null;
+  const msStand = performance.now() - tStand;
+  if (!stand) {
+    tfPerfLog(`journal letzteAenderungJeAntrag: stand ${msStand.toFixed(0)}ms, kein Journal`);
+    return null;
+  }
+  const tMonate = performance.now();
   const out = new Map<string, string>();
   for (const monat of monateZwischen(stand.journalAb, heuteIso)) {
     for (const e of await ladeMonat(idb, monat)) {
@@ -280,6 +295,10 @@ export async function letzteAenderungJeAntrag(
       if (bisher === undefined || e.datum > bisher) out.set(e.antragId, e.datum);
     }
   }
+  tfPerfLog(
+    `journal letzteAenderungJeAntrag: stand ${msStand.toFixed(0)}ms`
+    + ` · monate ${(performance.now() - tMonate).toFixed(0)}ms · ${out.size} Anträge`,
+  );
   return out;
 }
 

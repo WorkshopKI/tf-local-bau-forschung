@@ -170,33 +170,88 @@ export function sammleVorkommen(
   antraege: readonly { aktenzeichen: string; record: Record<string, unknown> }[],
   aufloesung?: FeldAufloesung,
 ): FeldVorkommen[] {
-  const out: FeldVorkommen[] = [];
-  const schluessel = (feld: StatusFeldEintrag): AufgeloestesFeld =>
-    aufloesung?.get(feld.feldId) ?? { recordKey: feld.quelleKey ?? feld.feldId };
+  return sammleVorkommenGeplant(baueVorkommenPlan(felder, aufloesung), verbundRecord, antraege);
+}
 
+/**
+ * Ein Feld, fertig entschieden — die Vorarbeit von {@link sammleVorkommen},
+ * herausgezogen aus der Schleife über die Anträge.
+ *
+ * `art` ist die Verzweigung `ebene` × `herkunftVon`, EINMAL beantwortet statt je
+ * Antrag: sie hängt allein am Feldeintrag und gab über 14 000 Sätze hinweg
+ * 14 000-mal dieselbe Antwort.
+ */
+export interface VorkommenSchritt {
+  feld: StatusFeldEintrag;
+  recordKey: string;
+  textKey: string | undefined;
+  art: 'verbund-aus-verbund' | 'verbund-aus-tv' | 'tv';
+}
+
+/** Die kompilierte Feldliste für {@link sammleVorkommenGeplant}. */
+export type VorkommenPlan = readonly VorkommenSchritt[];
+
+/**
+ * Kompiliert die Feldliste **einmal** — Reihenfolge exakt wie `felder`, weil sie
+ * die Reihenfolge der Vorkommen bestimmt und mehrere Konsumenten `[0]` nehmen.
+ */
+export function baueVorkommenPlan(
+  felder: readonly StatusFeldEintrag[], aufloesung?: FeldAufloesung,
+): VorkommenPlan {
+  const plan: VorkommenSchritt[] = [];
   for (const feld of felder) {
-    const { recordKey, textKey } = schluessel(feld);
-    const ausRecord = (rec: Record<string, unknown>, tvId?: string): FeldVorkommen | null => {
-      const wert = roh(rec, recordKey);
-      if (!wert) return null;
-      const text = textKey ? roh(rec, textKey) : '';
-      return { feld, wert, ...(text ? { text } : {}), ...(tvId ? { tvId } : {}) };
-    };
+    const auf = aufloesung?.get(feld.feldId) ?? { recordKey: feld.quelleKey ?? feld.feldId };
+    plan.push({
+      feld,
+      recordKey: auf.recordKey,
+      textKey: auf.textKey,
+      art: feld.ebene !== 'verbund'
+        ? 'tv'
+        : (herkunftVon(feld) === 'verbund-record' ? 'verbund-aus-verbund' : 'verbund-aus-tv'),
+    });
+  }
+  return plan;
+}
 
-    if (feld.ebene === 'verbund') {
-      const quellen: Record<string, unknown>[] = herkunftVon(feld) === 'verbund-record'
-        ? [verbundRecord]
-        : antraege.map(a => a.record);
-      for (const rec of quellen) {
-        const treffer = ausRecord(rec);
+/** Ein Vorkommen bauen — modul-lokal statt Closure je Feld (14 000 × ~550 Stück). */
+function vorkommenAusRecord(
+  s: VorkommenSchritt, rec: Record<string, unknown>, tvId?: string,
+): FeldVorkommen | null {
+  const wert = roh(rec, s.recordKey);
+  if (!wert) return null;
+  const text = s.textKey ? roh(rec, s.textKey) : '';
+  // Explizite Zweige statt bedingter Spreads: gleiches Ergebnis, EIN Objekt
+  // statt bis zu drei je Treffer.
+  if (text) return tvId ? { feld: s.feld, wert, text, tvId } : { feld: s.feld, wert, text };
+  return tvId ? { feld: s.feld, wert, tvId } : { feld: s.feld, wert };
+}
+
+/**
+ * Wie {@link sammleVorkommen}, nur mit vorab kompiliertem Plan — für Aufrufer,
+ * die über den ganzen Bestand laufen und den Plan je Programm wiederverwenden.
+ */
+export function sammleVorkommenGeplant(
+  plan: VorkommenPlan,
+  verbundRecord: Record<string, unknown>,
+  antraege: readonly { aktenzeichen: string; record: Record<string, unknown> }[],
+): FeldVorkommen[] {
+  const out: FeldVorkommen[] = [];
+  for (const s of plan) {
+    if (s.art === 'verbund-aus-verbund') {
+      const treffer = vorkommenAusRecord(s, verbundRecord);
+      if (treffer) out.push(treffer);
+      continue;
+    }
+    if (s.art === 'verbund-aus-tv') {
+      for (const a of antraege) {
+        const treffer = vorkommenAusRecord(s, a.record);
         if (treffer) { out.push(treffer); break; }   // erster Treffer genügt
       }
       continue;
     }
-
     // TV-Ebene: je Teilvorhaben ein eigener Eintrag.
     for (const a of antraege) {
-      const treffer = ausRecord(a.record, a.aktenzeichen);
+      const treffer = vorkommenAusRecord(s, a.record, a.aktenzeichen);
       if (treffer) out.push(treffer);
     }
   }

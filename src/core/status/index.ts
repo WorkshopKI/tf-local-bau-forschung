@@ -221,7 +221,7 @@ export {
   REGELSATZ_DEFAULT, STRANG_PREFIX,
   regelsatzVon, sperreGiltFuer, sperrEintragTrifft, strangAusEintrag,
 } from './regelsatz';
-export { jederVorgang, type VorgangsRohsatz } from './vorgangs-quelle';
+export { jederVorgang, type VorgangsRohsatz, type VorgangsTakt } from './vorgangs-quelle';
 export {
   ladeVorkommen, zaehleCodes, codeAusSatz, kuerzelEinesVorgangs, type VorkommenStand,
 } from './vorkommen';

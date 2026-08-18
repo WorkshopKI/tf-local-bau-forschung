@@ -16,6 +16,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { BestandsFrische } from '@/components/ui/BestandsFrische';
 import { ScopeTabs } from '@/components/ui/ScopeTabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -474,6 +475,17 @@ export function StatusCockpitPage(): React.ReactElement {
             danach sucht — das Modul ist neu, und kein Reitername erklärt sich
             von selbst. */}
         <p className="text-[12.5px] text-[var(--tf-text-secondary)]">{TAB_ZWECK[tab]}</p>
+        {/* Der Bestandslauf wird über den Seitenwechsel hinweg gehalten. Wie alt
+            er ist, steht deshalb dabei — samt Weg, ihn aufzulösen. */}
+        {api.verbundFelder.length > 0 && (
+          <BestandsFrische
+            umfang={`${api.verbundFelder.length.toLocaleString('de-DE')} Verbünde`}
+            berechnetAm={api.bestandBerechnetAm}
+            ladeMs={null}
+            neuBerechnen={api.bestandNeuBerechnen}
+            laden={api.laden}
+          />
+        )}
       </div>
 
       {api.fehler != null && (

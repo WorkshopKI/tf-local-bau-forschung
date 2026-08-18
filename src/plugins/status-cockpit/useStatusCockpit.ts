@@ -8,24 +8,21 @@
  * und veröffentlicht sie auf dem Daten-Share (der Katalog gilt team-weit).
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ladeBestand, type Bestand } from './ladeBestand';
+import { useCockpitCache } from './cockpitCache';
+
+export type { Bestand } from './ladeBestand';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useMeinKuerzel } from '@/core/hooks/useMeinKuerzel';
 import { useKuratorSession } from '@/core/hooks/useKuratorSession';
 import { canWriteDatenShare } from '@/config/feature-flags';
-import {
-  listProgramme, listVerbuendeByProgramm, listAntraegeByProgramm, listSchemasByProgramm,
-} from '@/core/services/csv/idb-csv';
 import { rebuildAntraegeListView } from '@/core/services/csv/list-view-migration';
-import type { CsvSchema } from '@/core/services/csv/types';
 import { pickSchemaSnapshotFile } from '@/plugins/csv-sources-kuration/csv-file-picker';
-import { programmNummernVon } from '@/plugins/antraege/status/programmNummer';
 import { downloadAsFile } from '@/core/services/search/eval/eval-export';
 import {
   sorgeFuerGespeicherteFassung, listeVersionen, speichereVersion, setzeAktiv, naechsteVersionsnummer,
-  getVersion, ladeUnkuratiert, speichereUnkuratiert, setStatusKatalogSnapshot, getAlleEvents,
+  getVersion, ladeUnkuratiert, speichereUnkuratiert, setStatusKatalogSnapshot,
   ladeUnkuratierteFelder, speichereUnkuratierteFelder, pruneKuratierteFelder,
-  baueVerbundFelder, zaehleVorkommen, zuletztGesehen,
-  csvSpaltenJeFeld, baueFeldAufloesung,
   aendereWert, aendereCodeWerte, aendereFeld, aendereTodoRegel, verschiebeTodoRegel,
   fuegeTodoRegelHinzu, codesMitRolle, ROLLE_LABEL,
   fuegeWertHinzu, fuegeFeldHinzu,
@@ -77,6 +74,14 @@ export interface KatalogKonfliktStand {
 export interface StatusCockpitApi {
   laden: boolean;
   fehler: string | null;
+  /**
+   * Wann der Bestandslauf zuletzt wirklich gerechnet hat (`Date.now()`);
+   * `0` = in diesem Aufruf. Der Bestand wird über den Seitenwechsel hinweg
+   * gehalten — sein Alter gehört sichtbar an die Seite.
+   */
+  bestandBerechnetAm: number;
+  /** Den Bestand neu durchrechnen, am Cache vorbei. */
+  bestandNeuBerechnen: () => void;
   aktiveVersion: MappingVersion | null;
   entwurf: MappingVersion | null;
   versionen: MappingVersion[];
@@ -284,26 +289,6 @@ export interface PhasenMeldung {
   text: string;
 }
 
-interface Bestand {
-  verbundFelder: VerbundFelder[];
-  /** Roh mitgeführt: der Bedingungs-Editor braucht den Spalten-Vorrat. */
-  schemas: CsvSchema[];
-  vorkommen: Map<string, number>;
-  zuletzt: Map<string, string>;
-  csvSpalten: Map<string, string[]>;
-  /** Programm-Nummer (`FM_NUMMER`) → Anzahl Anträge; für den Trigger-Import. */
-  programmAntraege: Map<string, number>;
-  /** Anträge ganz ohne Programm-Nummer — dort greift das Vorgangssystem nie. */
-  antraegeOhneProgramm: number;
-  /**
-   * Verbünde, deren Teilvorhaben verschiedene Programm-Nummern tragen.
-   *
-   * Verletzt die Invariante „ein Verbund läuft in genau einer Richtlinie" — dann
-   * hinge die Trigger-Auswahl an der Zeilenreihenfolge. Gemeldet statt geheilt
-   * (`programmNummer`); erwartet ist 0.
-   */
-  programmUneinheitlich: { verbundId: string; nummern: string[] }[];
-}
 
 /**
  * Der Auslieferungsstand als Vergleichsmaß — einmal gebaut, nicht je Render.
@@ -367,72 +352,8 @@ export function useStatusCockpit(): StatusCockpitApi {
   const [archivGeladen, setArchivGeladen] = useState(false);
   const [phasenMeldung, setPhasenMeldung] = useState<PhasenMeldung | null>(null);
 
-  const ladeBestand = useCallback(async (version: MappingVersion): Promise<Bestand> => {
-    const programme = await listProgramme(idb);
-    const vf: VerbundFelder[] = [];
-    const schemas: CsvSchema[] = [];
-    // Fällt hier kostenlos ab: die Schleife liest die Anträge ohnehin. Ein
-    // zweiter Durchlauf für dieselbe Zahl wäre eine zweite Wahrheit.
-    const programmAntraege = new Map<string, number>();
-    let antraegeOhneProgramm = 0;
-    const programmUneinheitlich: { verbundId: string; nummern: string[] }[] = [];
-    for (const p of programme) {
-      const [verbuende, antraege, programmSchemas] = await Promise.all([
-        listVerbuendeByProgramm(idb, p.id),
-        listAntraegeByProgramm(idb, p.id),
-        listSchemasByProgramm(idb, p.id),
-      ]);
-      schemas.push(...programmSchemas);
-      // Je Programm auflösen: dieselbe Spalte kann in verschiedenen Programmen
-      // unter verschiedenen Record-Keys liegen.
-      const aufloesung = baueFeldAufloesung(programmSchemas, version.felder);
-      const byVb = new Map<string, { aktenzeichen: string; record: Record<string, unknown> }[]>();
-      const einzeln: { aktenzeichen: string; record: Record<string, unknown> }[] = [];
-      for (const a of antraege) {
-        const up = typeof a.unterprogramm_id === 'string' ? a.unterprogramm_id.trim() : '';
-        if (up) programmAntraege.set(up, (programmAntraege.get(up) ?? 0) + 1);
-        else antraegeOhneProgramm += 1;
-        const rec = a as unknown as Record<string, unknown>;
-        const vbid = typeof a.verbund_id === 'string' && a.verbund_id ? a.verbund_id : null;
-        const eintrag = { aktenzeichen: a.aktenzeichen, record: rec };
-        if (vbid) {
-          const list = byVb.get(vbid);
-          if (list) list.push(eintrag); else byVb.set(vbid, [eintrag]);
-        } else {
-          einzeln.push(eintrag);
-        }
-      }
-      // Invariante „ein Verbund läuft in genau einer Richtlinie" — hier prüfbar,
-      // weil die Gruppierung ohnehin steht. Erwartet ist eine leere Liste.
-      for (const [vbid, tvs] of byVb) {
-        const nummern = programmNummernVon(tvs.map(t => ({
-          unterprogramm_id: typeof t.record.unterprogramm_id === 'string'
-            ? t.record.unterprogramm_id : undefined,
-        })));
-        if (nummern.length > 1) programmUneinheitlich.push({ verbundId: vbid, nummern });
-      }
-      for (const v of verbuende) {
-        vf.push(baueVerbundFelder(version, v.verbund_id, v as unknown as Record<string, unknown>, byVb.get(v.verbund_id) ?? [], aufloesung));
-        byVb.delete(v.verbund_id);
-      }
-      // Verbund-IDs ohne Verbund-Record (Waisen) + antragslose Einzelantraege
-      for (const [vbid, tvs] of byVb) vf.push(baueVerbundFelder(version, vbid, {}, tvs, aufloesung));
-      for (const e of einzeln) vf.push(baueVerbundFelder(version, e.aktenzeichen, {}, [e], aufloesung));
-    }
-    const events = await getAlleEvents(idb);
-    return {
-      verbundFelder: vf,
-      schemas,
-      vorkommen: zaehleVorkommen(vf),
-      zuletzt: zuletztGesehen(events),
-      csvSpalten: csvSpaltenJeFeld(schemas),
-      programmAntraege,
-      antraegeOhneProgramm,
-      programmUneinheitlich,
-    };
-  }, [idb]);
 
-  const ladeAlles = useCallback(async (): Promise<void> => {
+  const ladeAlles = useCallback(async (neuRechnen = false): Promise<void> => {
     setLaden(true);
     setFehler(null);
     try {
@@ -440,11 +361,31 @@ export function useStatusCockpit(): StatusCockpitApi {
       // die Fassungsliste daneben und der Rückweg auf eine ältere Nummer lesen
       // aus dem Store. Überall sonst ist der Seed ein Rückfall, keine Fassung
       // (siehe `ladeAktiveVersion`).
+      // In Phasen gemessen, nicht als Summe: die Seite braucht heute Sekunden,
+      // und eine einzige Zahl sagt nicht, ob das der Bestandslauf, der
+      // SMB-Trigger oder die Fassungsliste ist.
+      const begonnen = performance.now();
       const version = await sorgeFuerGespeicherteFassung(idb);
+      const msFassung = Math.round(performance.now() - begonnen);
+      let msVersionen = 0;
+      let msBestand = 0;
+      let msTrigger = 0;
+      const messe = async <T,>(f: () => Promise<T>, an: (ms: number) => void): Promise<T> => {
+        const t = performance.now();
+        try { return await f(); } finally { an(performance.now() - t); }
+      };
       const [alleVersionen, unk, unkFelder, b, triggerStand] = await Promise.all([
-        listeVersionen(idb), ladeUnkuratiert(idb), ladeUnkuratierteFelder(idb), ladeBestand(version),
-        ladeTrigger(idb),
+        messe(() => listeVersionen(idb), ms => { msVersionen = ms; }),
+        ladeUnkuratiert(idb), ladeUnkuratierteFelder(idb),
+        messe(() => ladeBestand(idb, version, neuRechnen), ms => { msBestand = ms; }),
+        messe(() => ladeTrigger(idb), ms => { msTrigger = ms; }),
       ]);
+      console.info(
+        `[status-cockpit] gesamt ${Math.round(performance.now() - begonnen)} ms`
+        + ` | fassung ${msFassung} | versionen ${Math.round(msVersionen)} (${alleVersionen.length})`
+        + ` | bestand ${Math.round(msBestand)} (${b.verbundFelder.length} Verbünde)`
+        + ` | trigger ${Math.round(msTrigger)}`,
+      );
       setTrigger(triggerStand);
       // Der Snapshot folgt der geladenen Fassung. Beim Mount ist das ein No-op
       // (`initStatusKatalog` hat ihn gesetzt); nach dem Übernehmen einer fremden
@@ -460,16 +401,25 @@ export function useStatusCockpit(): StatusCockpitApi {
       setUnkuratierteFelder(pruneKuratierteFelder(version, unkFelder));
       setBestand(b);
     } catch (e) {
+      // Entwerten, damit ein gescheiterter Lauf beim nächsten Aufruf heilt.
+      useCockpitCache.getState().entwerten();
       setFehler((e as Error).message ?? 'Laden fehlgeschlagen.');
     } finally {
       setLaden(false);
     }
-  }, [idb, ladeBestand]);
+  }, [idb]);
 
   useEffect(() => { void ladeAlles(); }, [ladeAlles]);
 
+  const bestandBerechnetAm = useCockpitCache(st => st.berechnetAm);
+  const bestandNeuBerechnen = useCallback(() => { void ladeAlles(true); }, [ladeAlles]);
+
   const geaendert = useMemo(
-    () => JSON.stringify(entwurf) !== JSON.stringify(aktiveVersion),
+    // Kurzschluss vor den beiden `JSON.stringify`: die Fassung wiegt ~200 KB,
+    // und beim Mount wie nach dem Verwerfen ist es buchstäblich dasselbe Objekt.
+    () => (entwurf === aktiveVersion
+      ? false
+      : JSON.stringify(entwurf) !== JSON.stringify(aktiveVersion)),
     [entwurf, aktiveVersion],
   );
 
@@ -942,7 +892,9 @@ export function useStatusCockpit(): StatusCockpitApi {
     () => (entwurf
       ? todoRegelDrift(entwurf, AB_TODO_REGELN, ENTFALLENE_REGEL_IDS)
       : { neu: [], geaendert: [], entfallen: [] }),
-    [entwurf],
+    // `todoRegelDrift` liest nachweislich NUR `version.todoRegeln`
+    // (katalog-edit.ts) — an Wert- oder Feld-Änderungen hat es nichts zu tun.
+    [entwurf?.todoRegeln],   // eslint-disable-line react-hooks/exhaustive-deps
   );
 
   /**
@@ -994,7 +946,12 @@ export function useStatusCockpit(): StatusCockpitApi {
       for (const tv of Object.values(vf.tvFelder)) nimm(tv.status);
     }
     return medianLiegezeit(proben);
-  }, [entwurf, bestand]);
+    // Nur `felder`, nicht der ganze Entwurf: die Schleife liest ihn ausschliesslich
+    // über `vorkommenAus` (→ `felderNachId`) und `letzteAktivitaetVon`
+    // (→ `relevanteFeldIds`), und beide hängen allein an `felder`. Mit `entwurf`
+    // in der Liste lief dieser Lauf über ~7 500 Verbünde bei JEDEM Tastendruck im
+    // Editor neu — ein Zieltage-Feld zu tippen legte den Renderer lahm.
+  }, [entwurf?.felder, bestand]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   /**
    * Die Sammel-Übernahme der Zieltage: was gesetzt würde und was mangels
@@ -1123,6 +1080,7 @@ export function useStatusCockpit(): StatusCockpitApi {
   const verwerfen = useCallback(() => setEntwurf(aktiveVersion), [aktiveVersion]);
 
   return {
+    bestandBerechnetAm, bestandNeuBerechnen,
     laden, fehler, aktiveVersion, entwurf, versionen, unkuratiert, unkuratierteFelder,
     seedLuecke, textAbweichungen,
     vorkommen: bestand?.vorkommen ?? new Map(),

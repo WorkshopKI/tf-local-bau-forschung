@@ -13,6 +13,7 @@
  * - `journal-YYYY-MM.jsonl` — **append-only**, monatliche Rotation.
  */
 import type { IDBStore } from '@/core/services/storage/idb-store';
+import { bestandGeneration } from '@/core/services/bestand-generation';
 import {
   haengeAnSidecar, leseSidecar, schreibeSidecarGestreamt,
 } from '../sidecar-datei';
@@ -30,9 +31,33 @@ function istStand(roh: unknown): roh is JournalStand {
     && typeof s.werte === 'object' && s.werte !== null;
 }
 
+/**
+ * Sitzungs-Cache des Stands, entwertet von der Bestands-Generation.
+ *
+ * Der Stand wiegt über tausende Anträge mehrere MB und wurde bei JEDEM
+ * Board-Aufruf und jedem Öffnen einer Antragsseite neu über SMB gelesen und
+ * geparst (gemessen ~0,7 s kalt). Entwertet wird er von derselben Generation wie
+ * die Bestands-Seiten: ein neuer Export kommt über den Import herein, und der
+ * bumpt sie. `schreibeStand` schreibt zusätzlich durch — der Nachtlauf hat die
+ * Datei dann gerade selbst ersetzt.
+ *
+ * **`null` wird mitgecacht**: eine Installation ohne Journal zahlte sonst je
+ * Aufruf einen fehlschlagenden SMB-Zugriff, und genau dort ist er am teuersten.
+ */
+let standCache: { generation: number; stand: JournalStand | null } | null = null;
+
+/** Nur für Tests + `schreibeStand`: den Sitzungs-Cache verwerfen. */
+export function leereStandCache(): void {
+  standCache = null;
+}
+
 /** Der Stand vom Share; `null` = keiner da (dann folgt ein Baseline-Lauf). */
 export async function leseStand(idb: IDBStore): Promise<JournalStand | null> {
-  return leseSidecar(idb, JOURNAL_STAND_PATH, istStand);
+  const gen = bestandGeneration();
+  if (standCache && standCache.generation === gen) return standCache.stand;
+  const stand = await leseSidecar(idb, JOURNAL_STAND_PATH, istStand);
+  standCache = { generation: gen, stand };
+  return stand;
 }
 
 /**
@@ -43,6 +68,8 @@ export async function leseStand(idb: IDBStore): Promise<JournalStand | null> {
  * MB, und `JSON.stringify` baute ihn zusätzlich am Stück im Speicher auf.
  */
 export async function schreibeStand(idb: IDBStore, stand: JournalStand): Promise<boolean> {
+  // Wir ersetzen die Datei gerade selbst — der gecachte Stand ist ab hier alt.
+  leereStandCache();
   return schreibeSidecarGestreamt(idb, JOURNAL_STAND_PATH, async sink => {
     await sink.write('{"schema":1');
     await sink.write(`,"journalAb":${JSON.stringify(stand.journalAb)}`);

@@ -380,6 +380,13 @@ Laden. Umgeschaltet wird nie von allein.
   Der Reiter To-dos füllt die Höhe stattdessen mit der geteilten Regel-Ansicht,
   deren beide Spalten für sich scrollen.
 
+- **Der Bestandslauf wird für die Sitzung behalten** (seit v4.103): der Gang über
+  alle Verbünde kostet Sekunden, und die Seite wird bei jeder Rückkehr neu
+  aufgebaut. Unter der Reiterleiste steht deshalb, wie alt die Zahlen sind
+  („7.535 Verbünde · berechnet vor 2 min"), daneben **„neu berechnen"**.
+  **Gecacht wird nur der Bestand, nie die Fassung** — die ist hier das
+  Arbeitsstück und wird immer frisch gelesen.
+
 ## Technik
 
 **Route & Sichtbarkeit:** `/status-cockpit`, Flag `statusCockpit`; dev/pl/kurator.

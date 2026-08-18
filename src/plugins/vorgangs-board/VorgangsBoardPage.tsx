@@ -14,6 +14,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronRight } from 'lucide-react';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { BestandsFrische } from '@/components/ui/BestandsFrische';
 import { BereichChip } from '@/components/bereich/BereichChip';
 import { ScopeTabs } from '@/components/ui/ScopeTabs';
 import { ToggleChip } from '@/components/ui/ToggleChip';
@@ -328,6 +329,17 @@ export function VorgangsBoardPage(): React.ReactElement {
       <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4 flex flex-col gap-2">
         {api.laden && (
           <p className="text-[13px] text-[var(--tf-text-tertiary)]">Lädt …</p>
+        )}
+        {/* Das Board hält sein Ergebnis über den Seitenwechsel hinweg. Wie alt es
+            ist, steht deshalb dabei — und daneben der Weg, es aufzulösen. */}
+        {!api.laden && api.fehler == null && api.gesamt > 0 && (
+          <BestandsFrische
+            umfang={`${api.gesamt.toLocaleString('de-DE')} Vorgänge`}
+            berechnetAm={api.berechnetAm}
+            ladeMs={api.ladeMs}
+            neuBerechnen={api.neuBerechnen}
+            laden={api.laden}
+          />
         )}
         {api.fehler != null && (
           <p className="text-[12.5px] text-[var(--tf-danger-text)]">⚠ {api.fehler}</p>
