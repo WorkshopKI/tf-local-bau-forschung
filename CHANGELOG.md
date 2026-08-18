@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.101.0 — Ein Fragezeichen mitten im Wort (August 2026)
+
+MINOR — 306 der 733 Netzwerke führen mehr als eine Schreibweise ihres Namens; bei `mobiInspec` gegen `mobilnspec` erreichte keine feste Nadel beide Hälften. Dazu zwei Meldungen aus dem Test: die Marke der KI-Antwort fehlte in der Tabellenansicht, und der Richtlinien-Chip stand nicht bei der Zahl, auf die er wirkt.
+
+- **`?` steht für genau ein Zeichen** — überall außer am Wortende, wo es das Fragezeichen einer Frage bleibt ([wortstamm.ts](src/core/services/search/wortstamm.ts))
+- **Vor dem Bau gemessen**: der Muster-Pfad kostet 4,7 ms gegen 5,8 ms heute (12 358 Anträge × 6 Felder) — teuer ist nur eine zu weite Anfrage, dagegen steht die Drei-Zeichen-Grenze ([suche-relevanz.md](docs/architecture/suche-relevanz.md))
+- **Spalte „KI-Antwort" in der Tabelle** — dieselbe Auskunft wie die Marke in der Liste, Kurzform in der Zelle, ganzer Satz im Tooltip und im Export ([antwortSpalte.ts](src/plugins/suche/antwort/antwortSpalte.ts))
+- **Der Richtlinien-Chip steht im Ergebniskopf**, direkt hinter „180 Treffer in 14.225 Anträgen"; ohne Ergebnis weiter über den Facetten ([SuchSeite.tsx](src/plugins/suche/SuchSeite.tsx))
+- **Am Bestand nachgemessen**: `mobi?nspec` 33 · `16KN0830?1` 14 · `Normung?` 0 · `????` 0
+
 ### v4.100.0 — Verwaltungsnotizen raus aus der Suche, Antwort rein in die Liste (August 2026)
 
 MINOR — Zwei Meldungen, eine Wurzel: die Suche zeigte Dinge nebeneinander, die nicht zusammengehören, und trennte, was zusammengehört. Gemeldet als „warum kann ich die Spalte Notiz nicht abwählen, da steht oft was mit Vollmachten" und „wie kann der User die Liste der KI ganz oben mit den Suchergebnissen darunter zusammenbringen?".

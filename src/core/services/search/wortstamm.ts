@@ -86,6 +86,86 @@ export function enthaeltAlsWortteil(text: string, nadel: string): boolean {
 }
 
 /**
+ * Der Platzhalter für GENAU EIN Zeichen.
+ *
+ * **Er gilt überall außer am Wortende.** `mobi?nspec` ist eine Suche mit
+ * Platzhalter, `Normung?` ist eine Frage. Diese eine Regel trägt den ganzen
+ * Unterschied: ein Suchwort zerfällt an den Leerzeichen, also steht das
+ * Fragezeichen einer Frage IMMER am Ende seines Wortes — „Welche Vorhaben
+ * drehen sich um Normung?" bleibt damit eine Frage und wird nicht stillschweigend
+ * zur Muster-Suche.
+ *
+ * Die frühere, engere Fassung („nur zwischen zwei Wortzeichen") war zu streng:
+ * sie verwarf `gmb?.de`, wo der Nutzer offensichtlich ein Zeichen meint.
+ */
+const PLATZHALTER = '?';
+
+/**
+ * Wie viele FESTE Zeichen eine Nadel mit Platzhalter mindestens tragen muss.
+ *
+ * Gemessen am echten Bestand: `????` trifft alle 12 358 Anträge — nicht weil
+ * es teuer wäre (0,8 ms, die Regex bricht beim ersten Fund ab), sondern weil
+ * die Trefferliste dann der ganze Bestand ist. Die Grenze schützt nicht die
+ * Rechenzeit, sondern die Auskunft: eine Anfrage, die alles trifft, ist keine.
+ */
+const MIN_FESTE_ZEICHEN = 3;
+
+/** Steht an dieser Stelle ein Platzhalter — also ein `?`, das NICHT das letzte
+ *  Zeichen der Nadel ist? */
+function istPlatzhalter(nadel: string, i: number): boolean {
+  return nadel[i] === PLATZHALTER && i + 1 < nadel.length;
+}
+
+/**
+ * Übersetzt eine Nadel mit Platzhaltern in ein Muster — oder `null`, wenn sie
+ * keine trägt oder zu wenig Festes.
+ *
+ * `null` ist der NORMALFALL und der Grund, warum der heiße Pfad unverändert
+ * bleibt: ohne Platzhalter compiliert nichts, und `enthaeltAlsWortteil` läuft
+ * Zeichen für Zeichen wie zuvor. Gemessen über 12 358 Einträge × 6 Felder
+ * kostet der Muster-Pfad übrigens nicht mehr als der heutige (4,7 ms gegen
+ * 5,8 ms) — teuer ist an einer Platzhalter-Suche nichts außer einer zu weiten.
+ */
+export function baueNadelMuster(nadel: string): RegExp | null {
+  let quelle = '';
+  let platzhalter = 0;
+  for (let i = 0; i < nadel.length; i++) {
+    if (istPlatzhalter(nadel, i)) { quelle += '.'; platzhalter++; continue; }
+    quelle += (nadel[i] as string).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+  if (platzhalter === 0) return null;
+  if (nadel.length - platzhalter < MIN_FESTE_ZEICHEN) return null;
+  return new RegExp(quelle, 'gu');
+}
+
+/**
+ * Wie `enthaeltAlsWortteil`, nur mit einem Muster statt einer festen Nadel —
+ * dieselbe Wortanfang-Regel, damit ein Platzhalter nicht plötzlich Treffer
+ * liefert, die eine feste Nadel nie geliefert hätte.
+ */
+export function enthaeltMusterAlsWortteil(text: string, muster: RegExp): boolean {
+  muster.lastIndex = 0;
+  for (let m = muster.exec(text); m !== null; m = muster.exec(text)) {
+    const i = m.index;
+    let j = i;
+    while (j > 0 && WORTZEICHEN.test(text[j - 1] as string)) j--;
+    if (i - j === 0 || i - j >= MIN_VORSILBE) return true;
+    // Ohne dieses Zurücksetzen übersprünge die Suche bei einem abgelehnten Fund
+    // den ganzen Rest des Wortes — „die enorme normung" fände `norm` nicht mehr.
+    muster.lastIndex = i + 1;
+  }
+  return false;
+}
+
+/** Unverankert — für die Feldzuordnung, die den Beleg sucht und nicht den
+ *  Treffer entscheidet. Sie darf nicht strenger sein als der Treffer selbst,
+ *  sonst stünde eine Zeile ohne Trefferstelle da. */
+export function musterTrifft(text: string, muster: RegExp): boolean {
+  muster.lastIndex = 0;
+  return muster.test(text);
+}
+
+/**
  * Kürzt ein Suchwort auf seinen Stamm. Passt keine Endung oder bliebe der Rest
  * zu kurz, kommt das Wort unverändert zurück — der Aufrufer muss also nie
  * prüfen, ob „gestammt" wurde.

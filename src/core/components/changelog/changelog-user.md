@@ -19,6 +19,15 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.101 — 2026-08
+
+### Neu
+- **Ein `?` mitten im Wort steht jetzt für genau ein Zeichen.** Damit finden Sie Namen, deren Schreibweise im Bestand schwankt: `mobi?nspec` liefert die Vorhaben, die als *mobiInspec* geführt werden, **und** die als *mobilnspec* — zusammen 33 statt 32 oder 3. Bei Kennzeichen geht dasselbe: `16KN0830?1`. Am Ende eines Wortes bleibt das Fragezeichen ein Fragezeichen, Ihre Fragen im Frage-Modus ändern sich also nicht.
+
+### Verbesserungen
+- Nach einer beantworteten Frage zeigt auch die **Tabellenansicht**, was die KI über ein Vorhaben gesagt hat — in der neuen Spalte *KI-Antwort*, mit dem ganzen Satz im Tooltip und im Export. Bisher stand das nur in der Listenansicht.
+- Der Chip **„Treffer: alle Richtlinien"** steht jetzt direkt hinter der Trefferzahl, auf die er wirkt, statt über den Filtern.
+
 ## v4.100 — 2026-08
 
 ### Neu

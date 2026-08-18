@@ -14,10 +14,11 @@
  * Rohwert, markiert wird nur, was am Bildschirm steht.
  */
 import { memo, type ReactNode } from 'react';
-import { FileText } from 'lucide-react';
+import { FileText, Sparkles } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { StufenBalken } from '@/components/ui/StufenBalken';
 import { RELEVANZ_LABEL } from '@/core/services/search/trefferstelle';
+import { antwortSatzFuer, useAntwortBeleg } from './antwort/AntwortBelegKontext';
 import { MarkierterText } from './SuchMarkierung';
 import type { UnifiedSearchResult } from '@/core/types/search-result';
 import type { SortableColumn } from '@/components/data-table';
@@ -440,6 +441,20 @@ export const SEARCH_COLUMNS: SearchColumn[] = [
       : null,
   },
   {
+    // Die Tabellen-Entsprechung zur Marke „in der Antwort" in der Liste. Sie
+    // wird von der Suchseite automatisch eingeblendet, sobald eine Antwort
+    // Vorhaben nennt (`autoSpalten` in SuchSeite.tsx) — eine Zeile MIT Inhalt
+    // ist genau eine genannte Zeile, eine zweite Marken-Spalte braucht es
+    // deshalb nicht. Nicht filterbar: der Chip „nur die genannten" tut das
+    // bereits und zählt dabei mit.
+    key: 'kiAntwort', label: 'KI-Antwort', width: 300, defaultVisible: false,
+    sortable: false, filterable: false, appliesTo: 'antrag', wrap: true,
+    // Der GANZE Satz, nicht die Kurzform: Export und Zwischenablage sollen
+    // tragen, was die KI gesagt hat, nicht was in die Spalte passte.
+    accessor: r => antwortSatzFuer(r.fkz),
+    render: r => <KiAntwortZelle fkz={r.fkz} />,
+  },
+  {
     key: 'laufzeitbeginn', label: 'Laufzeitbeginn', width: 150, defaultVisible: false,
     sortable: true, filterable: true, appliesTo: 'antrag',
     accessor: r => safeString(r.laufzeitbeginn),
@@ -516,3 +531,25 @@ export const BEGRUENDUNG_COLUMN: SearchColumn = {
     ? <span className="text-[12px] text-[var(--tf-text)] whitespace-normal" title={r.begruendung}>{r.begruendung}</span>
     : <span className="text-[12px] text-[var(--tf-text-tertiary)]">…</span>,
 };
+
+/**
+ * Die Zelle der Spalte „KI-Antwort".
+ *
+ * Eine eigene Komponente, weil `render` keinen Hook aufrufen darf: der Kontext
+ * wird hier gelesen, nicht in der Spalten-Definition. Kurzform in der Zelle,
+ * ganzer Satz im `title` — dieselbe Aufteilung wie in der Trefferliste, damit
+ * beide Ansichten dasselbe versprechen.
+ */
+function KiAntwortZelle({ fkz }: { fkz: string | undefined }): React.ReactElement | null {
+  const beleg = useAntwortBeleg(fkz);
+  if (beleg === undefined) return null;
+  return (
+    <span
+      className="flex items-start gap-1 text-[12px] italic text-[var(--tf-text-secondary)] whitespace-normal"
+      title={beleg.satz}
+    >
+      <Sparkles size={10} aria-hidden className="mt-[3px] shrink-0" style={{ color: 'var(--tf-primary)' }} />
+      <span>{beleg.kurz}</span>
+    </span>
+  );
+}

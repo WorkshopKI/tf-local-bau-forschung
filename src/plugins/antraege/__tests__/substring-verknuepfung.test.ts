@@ -136,6 +136,68 @@ describe('searchAntraegeSubstring — Verknüpfung', () => {
  * die Energieversorgung". Jeder andere Satz desselben Netzwerks trägt das
  * Akronym im Titel — ausgerechnet die gesuchte Phase 1 nicht.
  */
+/**
+ * Der Platzhalter (v4.101). Anlass ist der reale Namensdrift im Bestand: das
+ * Netzwerk `mobiInspec` steht in einem Satz als `mobilnspec` (I gegen l) — wer
+ * die Binnenschreibweise nicht kennt, findet mit einer festen Nadel immer nur
+ * die eine Hälfte.
+ */
+describe('searchAntraegeSubstring — Platzhalter „?"', () => {
+  const DRIFT_KORPUS = new Map<string, AntragTextEntry>([
+    ['D1', eintrag('Mobile Messtechnik', '', '', '', 'mobiInspec', '16KN083001')],
+    ['D2', eintrag('mobilnspec - MagPV', '', '', '', 'MagPV', '16KN083020')],
+    ['D3', eintrag('Bilderkennung', '', '', '', 'QualiCam', '16EP123456')],
+    ['D4', eintrag('Fragen zur Normung?', '', '', '', 'NormQ', '16KN090001')],
+  ]);
+
+  it('findet BEIDE Schreibweisen, die eine feste Nadel trennt', () => {
+    expect(searchAntraegeSubstring('mobiinspec', DRIFT_KORPUS)).toEqual(['D1']);
+    expect(searchAntraegeSubstring('mobilnspec', DRIFT_KORPUS)).toEqual(['D2']);
+    expect(searchAntraegeSubstring('mobi?nspec', DRIFT_KORPUS).sort()).toEqual(['D1', 'D2']);
+  });
+
+  it('trifft im Aktenzeichen — dort ist das Muster am nützlichsten', () => {
+    expect(searchAntraegeSubstring('16kn0830?1', DRIFT_KORPUS)).toEqual(['D1']);
+  });
+
+  it('am Wortende ist der Platzhalter unnoetig — die Suche ist ohnehin Teilstring', () => {
+    // `16kn08300?` waere ein Platzhalter am Ende und ist deshalb keiner. Das
+    // kostet nichts: `16kn08300` findet dieselbe Menge, weil eine Nadel immer
+    // als Teilstring gesucht wird. Wer hier einen Platzhalter braeuchte, haette
+    // ihn auch bei `mobi*` gebraucht — und auch dort ist er ueberfluessig.
+    expect(searchAntraegeSubstring('16kn08300?', DRIFT_KORPUS)).toEqual([]);
+    expect(searchAntraegeSubstring('16kn08300', DRIFT_KORPUS)).toEqual(['D1']);
+  });
+
+  it('das Fragezeichen einer FRAGE bleibt ein Fragezeichen', () => {
+    // Die Nadel `normung?` endet auf dem Zeichen — kein Platzhalter, also
+    // sucht sie woertlich und findet nichts (im Korpus steht „Normung?" nur
+    // mit dem Satzzeichen im Titel, die Nadel traegt es mit).
+    expect(searchAntraegeSubstring('normung?', DRIFT_KORPUS)).toEqual(['D4']);
+    // Und sie zieht nicht versehentlich alles herein.
+    expect(searchAntraegeSubstring('normung?', DRIFT_KORPUS).length).toBe(1);
+  });
+
+  it('eine Nadel mit zu wenig Festem trifft nichts — statt alles', () => {
+    // „????" wuerde als Muster jeden Antrag treffen; die Grenze faengt das ab,
+    // und woertlich steht die Zeichenfolge nirgends.
+    expect(searchAntraegeSubstring('????', DRIFT_KORPUS)).toEqual([]);
+    expect(searchAntraegeSubstring('a?c', DRIFT_KORPUS)).toEqual([]);
+  });
+
+  it('in Anfuehrungszeichen ist das Fragezeichen woertlich gemeint', () => {
+    expect(searchAntraegeSubstring('"mobi?nspec"', DRIFT_KORPUS)).toEqual([]);
+  });
+
+  it('haelt die Wortanfang-Regel ein — ein Platzhalter lockert sie nicht', () => {
+    const K = new Map<string, AntragTextEntry>([
+      ['E1', eintrag('Ein enormes Potenzial')],
+      ['E2', eintrag('Die Normung folgt')],
+    ]);
+    expect(searchAntraegeSubstring('n?rm', K)).toEqual(['E2']);
+  });
+});
+
 describe('searchAntraegeSubstring — Akronym', () => {
   const AKRONYM_KORPUS = new Map<string, AntragTextEntry>([
     ['NW1', eintrag('Mobile Messtechnik für die Energieversorgung', '', '', '', 'mobiInspec')],

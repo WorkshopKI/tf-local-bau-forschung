@@ -38,9 +38,12 @@ import { FrageAntwortKarte } from './antwort/FrageAntwortKarte';
 import { useFrageAntwort } from './antwort/useFrageAntwort';
 import { useAntwortBruecke } from './antwort/useAntwortBruecke';
 import { GenannteChip } from './antwort/GenannteChip';
+import { AntwortBelegProvider } from './antwort/AntwortBelegKontext';
+import { spaltenMitAntwort, erzwungeneSpalten } from './antwort/antwortSpalte';
 import { KeinTrefferZustand } from './KeinTrefferZustand';
 import { TrefferListe } from './TrefferListe';
 import { SuchMarkierungProvider } from './SuchMarkierung';
+import { ErgebnisZahl } from './ErgebnisZahl';
 import { SuchOptionenZeile } from './SuchOptionenZeile';
 import { DeutungsZeile } from './DeutungsZeile';
 import { FacettenZeile } from './FacettenZeile';
@@ -278,10 +281,7 @@ export function SuchSeite(): React.ReactElement {
   // Spalten, die diese Anfrage selbst einblendet: die Belege, die sonst in
   // keiner Zeile stünden (Ort, Deskriptoren). Gerechnet auf der Menge NACH den
   // Facetten — die Spalte soll das erklären, was in der Tabelle steht.
-  const autoColumnKeys = useMemo(
-    () => autoSpalten(bereich, nachFacetten),
-    [bereich, nachFacetten],
-  );
+  const autoBasis = useMemo(() => autoSpalten(bereich, nachFacetten), [bereich, nachFacetten]);
 
   const {
     dataSource,
@@ -294,7 +294,7 @@ export function SuchSeite(): React.ReactElement {
     begruendungById: analyse.begruendungById,
     analyseActive,
     visibleColumns,
-    autoColumnKeys,
+    autoColumnKeys: autoBasis,
   });
 
   // Die Liste sortiert nach der Darstellungs-Achse, die Tabelle nach ihrer
@@ -680,6 +680,8 @@ export function SuchSeite(): React.ReactElement {
     wechsleZurListe: () => { if (ansicht !== 'liste') setAnsicht('liste'); },
   });
   const { belege: antwortBelege, angezeigt, genannteAnzahl } = bruecke;
+  // Warum die KI-Spalte NACH der Pipeline dazukommt: `antwortSpalte.ts`.
+  const spalten = useMemo(() => spaltenMitAntwort(visibleColumnDefs, genannteAnzahl), [visibleColumnDefs, genannteAnzahl]);
 
   return (
     <div className="flex h-full min-h-0">
@@ -828,18 +830,19 @@ export function SuchSeite(): React.ReactElement {
           )}
 
           {/* ── Richtlinien + Facetten ───────────────────────────────────── */}
-          {/* Diese Zeile steht IMMER, auch ohne Anfrage: der Richtlinien-Chip
-              wirkt schon auf den Startzustand — die Zahlen dort („Additive
-              Fertigung · 531 Treffer") sind bereits auf die Auswahl
-              heruntergezählt. Ein Chip, der erst mit dem ersten Treffer
-              erschiene, ließe sie ohne sichtbaren Grund (Pitfall #46). Die
-              Facetten dagegen brauchen ein Ergebnis und blenden sich selbst aus. */}
+          {/* Der Richtlinien-Chip wohnt im Ergebniskopf, direkt hinter der Zahl,
+              auf die er wirkt. OHNE Ergebnis gibt es diesen Kopf nicht — dann
+              steht er hier, denn schon die Zahlen des Startzustands („Additive
+              Fertigung · 531 Treffer") sind auf die Auswahl heruntergezählt und
+              brauchen ihren sichtbaren Grund (Pitfall #46). */}
           <div className="mt-2.5 flex w-full max-w-6xl flex-wrap items-center gap-2">
-            <SuchRichtlinienChip
-              bereich={richtlinien}
-              ausgeblendet={richtlinienAusgeblendet}
-              ergebnisKopf={ergebnisKopf}
-            />
+            {!zeigeErgebnisTeile && (
+              <SuchRichtlinienChip
+                bereich={richtlinien}
+                ausgeblendet={richtlinienAusgeblendet}
+                ergebnisKopf={ergebnisKopf}
+              />
+            )}
             {zeigeErgebnisTeile && (
               <FacettenZeile
                 results={nachRichtlinien}
@@ -892,22 +895,20 @@ export function SuchSeite(): React.ReactElement {
           {/* ── Ergebniskopf ─────────────────────────────────────────────── */}
           {zeigeErgebnisTeile && (
             <div ref={ergebnisKopf} className="mt-3 flex w-full max-w-6xl flex-wrap items-center gap-2">
-              {/* Unter einer Richtlinien-Auswahl steht die erreichbare Menge
-                  VOR der ganzen: „in 2.537 von 14.225 Anträgen" sagt beides —
-                  worauf sich die Trefferzahl bezieht und wovon abgezogen
-                  wurde. Nur die kleinere Zahl zu zeigen, ließe den Leser
-                  glauben, der Index sei geschrumpft. */}
-              <span className="text-[13px] text-[var(--tf-text)]">
-                <b className="font-medium">
-                  {trefferzahlSteht ? angezeigt.length.toLocaleString('de-DE') : '…'} Treffer
-                </b>
-                <span className="text-[var(--tf-text-secondary)]">
-                  {' '}in {erreichbar.toLocaleString('de-DE')}
-                  {erreichbar !== indexInfo.antraegeGeladen
-                    && ` von ${indexInfo.antraegeGeladen.toLocaleString('de-DE')}`}
-                  {' '}Anträgen
-                </span>
-              </span>
+              <ErgebnisZahl
+                steht={trefferzahlSteht}
+                anzahl={angezeigt.length}
+                erreichbar={erreichbar}
+                gesamt={indexInfo.antraegeGeladen}
+              />
+              {/* Direkt hinter der Zahl, auf die er wirkt. In der Facettenzeile
+                  stand er neben Filtern, die nur diese eine Anfrage betreffen —
+                  er gilt aber bis auf Widerruf. */}
+              <SuchRichtlinienChip
+                bereich={richtlinien}
+                ausgeblendet={richtlinienAusgeblendet}
+                ergebnisKopf={ergebnisKopf}
+              />
 
               {!vectorReady && semanticEnabled && !analyseActive && (
                 <Badge variant="default">Embedding-Modell lädt…</Badge>
@@ -936,7 +937,7 @@ export function SuchSeite(): React.ReactElement {
                   ariaLabel="Ansicht"
                 />
                 {ansicht === 'tabelle' && (
-                  <ColumnPicker typeFilter="" erzwungeneKeys={autoColumnKeys} />
+                  <ColumnPicker typeFilter="" erzwungeneKeys={erzwungeneSpalten(autoBasis, genannteAnzahl)} />
                 )}
                 <button
                   type="button"
@@ -988,12 +989,12 @@ export function SuchSeite(): React.ReactElement {
                 )}
                 <SearchDownloadMenu
                   disabled={sichtbar.length === 0}
-                  onExportCSV={() => exportCSV(angezeigt, visibleColumnDefs, query)}
-                  onExportXLSX={() => exportXLSX(angezeigt, visibleColumnDefs, query)}
+                  onExportCSV={() => exportCSV(angezeigt, spalten, query)}
+                  onExportXLSX={() => exportXLSX(angezeigt, spalten, query)}
                   onExportClipboard={() => {
                     void (async () => {
                       try {
-                        await exportClipboard(angezeigt, visibleColumnDefs);
+                        await exportClipboard(angezeigt, spalten);
                         setToast(`${angezeigt.length} Ergebnisse in Zwischenablage kopiert`);
                       } catch (err) {
                         setToast(`Kopieren fehlgeschlagen: ${err instanceof Error ? err.message : String(err)}`);
@@ -1092,10 +1093,11 @@ export function SuchSeite(): React.ReactElement {
             <div className="mt-3">
               {/* Dieselbe Markierung wie in der Liste: die Zellen-Renderer holen
                   die Wörter aus diesem Kontext (siehe SuchMarkierung.tsx). */}
+              <AntwortBelegProvider belege={antwortBelege}>
               <SuchMarkierungProvider wortlaut={markWoerter} aehnlich={aktiveVariantenChips}>
                 <SearchResultsTable
                   results={sorted}
-                  columns={visibleColumnDefs}
+                  columns={spalten}
                   sortKey={sortKey}
                   sortDirection={sortDirection}
                   onSort={handleSort}
@@ -1108,6 +1110,7 @@ export function SuchSeite(): React.ReactElement {
                   onRowClick={oeffneTreffer}
                 />
               </SuchMarkierungProvider>
+              </AntwortBelegProvider>
             </div>
           )}
 
@@ -1142,7 +1145,7 @@ export function SuchSeite(): React.ReactElement {
             type="button"
             onClick={() => {
               const gewaehlt = angezeigt.filter(r => auswahl.has(r.id));
-              exportXLSX(gewaehlt, visibleColumnDefs, query);
+              exportXLSX(gewaehlt, spalten, query);
             }}
             className="inline-flex items-center gap-1.5 rounded-[7px] px-2 py-1 text-[12px] text-[var(--tf-sheet)] hover:opacity-80 cursor-pointer"
             style={{ border: '0.5px solid var(--tf-sheet)' }}

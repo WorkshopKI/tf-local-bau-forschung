@@ -58,7 +58,10 @@ import { berechneRelevanz, type Trefferfeld } from '@/core/services/search/treff
 import { bereichFelder, type Suchbereich } from '@/core/services/search/suchbereich';
 import { zerlegeFeldAnfrage } from '@/core/services/search/feldpraefix';
 import type { PlanBegriff } from '@/core/services/search/frageplan';
-import { suchNadel, sammleVarianten, enthaeltAlsWortteil } from '@/core/services/search/wortstamm';
+import {
+  suchNadel, sammleVarianten, enthaeltAlsWortteil,
+  baueNadelMuster, enthaeltMusterAlsWortteil, musterTrifft,
+} from '@/core/services/search/wortstamm';
 import type { HybridUnavailableSource } from '../store';
 
 /**
@@ -344,19 +347,26 @@ function substringMatches(
     // „e-norm-es". Der Fund erschien dann als Treffer, den die Deutungszeile
     // nicht erklären konnte. Zusammengesetzte Wörter bleiben unberührt:
     // „Kalibrierstandards" trägt vor `standard` ein ganzes Wort, kein Fragment.
-    const trifft = (t: SuchTeil): boolean => t.nadeln.some(nadel => (
-      (t.erlaubt.has('titel')
-        && (enthaeltAlsWortteil(entry.vbLower, nadel) || enthaeltAlsWortteil(entry.tvLower, nadel)))
-      || (t.erlaubt.has('kurzbeschreibung') && enthaeltAlsWortteil(entry.absLower, nadel))
-      || (t.erlaubt.has('deskriptoren') && enthaeltAlsWortteil(entry.descriptorsLower, nadel))
-      || (t.erlaubt.has('akronym') && enthaeltAlsWortteil(entry.akronymLower, nadel))
-      || (t.erlaubt.has('aktenzeichen') && enthaeltAlsWortteil(entry.akzLower, nadel))
-      || (t.erlaubt.has('verbundkennzeichen') && enthaeltAlsWortteil(entry.verbundNrLower, nadel))
-      || (t.erlaubt.has('organisation') && enthaeltAlsWortteil(entry.organisationLower, nadel))
-      // Netzwerk und Notiz sind Fliesstext wie der Titel — dieselbe Regel.
-      || (t.erlaubt.has('netzwerk') && enthaeltAlsWortteil(entry.netzwerkLower, nadel))
-      || (t.erlaubt.has('notiz') && enthaeltAlsWortteil(entry.notizLower, nadel))
-    ))
+    const trifft = (t: SuchTeil): boolean => t.nadeln.some((nadel, i) => {
+      // Ein Platzhalter aendert NUR, WOMIT verglichen wird — nie, WO. Deshalb
+      // steht hier eine Weiche und keine zweite Feldliste: eine Suche mit `?`
+      // muss dieselben Felder in derselben Reihenfolge sehen wie eine ohne,
+      // sonst faende sie an anderer Stelle etwas anderes.
+      const m = t.nadelMuster[i];
+      const passt = m !== null && m !== undefined
+        ? (text: string): boolean => enthaeltMusterAlsWortteil(text, m)
+        : (text: string): boolean => enthaeltAlsWortteil(text, nadel);
+      return (t.erlaubt.has('titel') && (passt(entry.vbLower) || passt(entry.tvLower)))
+        || (t.erlaubt.has('kurzbeschreibung') && passt(entry.absLower))
+        || (t.erlaubt.has('deskriptoren') && passt(entry.descriptorsLower))
+        || (t.erlaubt.has('akronym') && passt(entry.akronymLower))
+        || (t.erlaubt.has('aktenzeichen') && passt(entry.akzLower))
+        || (t.erlaubt.has('verbundkennzeichen') && passt(entry.verbundNrLower))
+        || (t.erlaubt.has('organisation') && passt(entry.organisationLower))
+        // Netzwerk und Notiz sind Fliesstext wie der Titel — dieselbe Regel.
+        || (t.erlaubt.has('netzwerk') && passt(entry.netzwerkLower))
+        || (t.erlaubt.has('notiz') && passt(entry.notizLower));
+    })
       // Leere Nadeln sind beim Bau ausgesiebt: `''.includes('')` wäre `true` und
       // träfe alles. Der Standort vergleicht bewusst das ROHE Wort, nicht den
       // Stamm: seine Suchform ist am Wortanfang verankert, ein gekürzter Stamm
@@ -407,6 +417,13 @@ function substringMatches(
 interface SuchTeil {
   wort: string;
   nadeln: string[];
+  /**
+   * Je Nadel ihr Platzhalter-Muster — `null`, wo keines noetig ist (der
+   * Normalfall). EINMAL beim Bau compiliert, nicht je Eintrag: der Vergleich
+   * laeuft ueber 14 000 Eintraege x Felder x Nadeln, und ein `new RegExp` oder
+   * auch nur ein Map-Zugriff je Pruefung waere dort teurer als die Pruefung.
+   */
+  nadelMuster: Array<RegExp | null>;
   /** Verankerte Formen ALLER Nadeln, leere bereits ausgesiebt. */
   ortNadeln: string[];
   /** Die Länder-Kürzel, auf die sich dieser Teil auflösen lässt (gerahmt).
@@ -446,9 +463,13 @@ function anfrageSuchTeile(
     .map(t => {
       const wort = t.wert.toLowerCase();
       const exakt = t.exakt === true;
+      const nadeln = baueNadeln(wort, stammSuche && !exakt, aktiveVarianten);
       return {
         wort,
-        nadeln: baueNadeln(wort, stammSuche && !exakt, aktiveVarianten),
+        nadeln,
+        // Ein zitierter Teil ist woertlich gemeint — dort ist `?` ein
+        // Fragezeichen und kein Platzhalter.
+        nadelMuster: nadeln.map(n => (exakt ? null : baueNadelMuster(n))),
         ortNadeln: verankere([wort]),
         // Aus dem ROHEN Wort, nicht aus den Nadeln: der Stamm von „Sachsen"
         // benennt kein Land mehr, und ein halb getipptes Wort soll bewusst in
@@ -486,6 +507,10 @@ function planSuchTeile(
       return {
         wort: p.begriff.toLowerCase(),
         nadeln,
+        // Die Schreibweisen kommen aus dem Frageplan; ein `?` darin waere ein
+        // Modell-Artefakt, kein Nutzerwunsch. Trotzdem dieselbe Weiche: die
+        // KI darf Kennzeichen-Muster wie `16KN0830??` benennen.
+        nadelMuster: nadeln.map(n => baueNadelMuster(n)),
         ortNadeln: verankere(nadeln),
         // Hier zählen die Schreibweisen mit: ein Frageplan nennt „Sachsen" und
         // „SN" als zwei Nadeln DESSELBEN Leitbegriffs.
@@ -673,7 +698,13 @@ function feldZuordnung(
       felder.add(feld);
       trifftIrgendwo = true;
     };
-    const in_ = (feld: string): boolean => t.nadeln.some(n => feld.includes(n));
+    // Der BELEG darf nie strenger sein als der Treffer: eine Nadel mit
+    // Platzhalter faende `.includes('mobi?nspec')` nirgends, und die Zeile
+    // stuende ohne Trefferstelle da — gefunden, aber unerklaert.
+    const in_ = (feld: string): boolean => t.nadeln.some((n, i) => {
+      const m = t.nadelMuster[i];
+      return m !== null && m !== undefined ? musterTrifft(feld, m) : feld.includes(n);
+    });
     merke('titel', in_(entry.vbLower) || in_(entry.tvLower));
     merke('kurzbeschreibung', in_(entry.absLower));
     merke('deskriptoren', in_(entry.descriptorsLower));

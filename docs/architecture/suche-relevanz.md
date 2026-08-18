@@ -436,6 +436,57 @@ Am echten Bestand (14 225 Anträge) gemessen:
 Die Regel gilt in der Suchstufe **und** beim Einsammeln der Chips. Sonst
 erklärte die Zeile einen Treffer nicht mehr, den sie erzeugt hat.
 
+### Der Platzhalter „?" (v4.101)
+
+Anlass ist die Namensdrift im Bestand: 306 der 733 Netzwerke führen mehr als
+eine Schreibweise ihres Namens, darunter drei mit verwechselbaren Zeichen
+(`mobiInspec` gegen `mobilnspec`, `DIGIPRO-EW` gegen `DiGlPro-EW`). Wer die
+Binnenschreibweise nicht kennt, findet mit einer festen Nadel immer nur die eine
+Hälfte — am Bestand: `mobiInspec` 32 Treffer, `mobilnspec` 3, und keine Anfrage
+erreicht beide.
+
+**`?` steht für genau ein Zeichen — überall außer am Wortende.** Diese eine
+Regel trägt den ganzen Unterschied: ein Suchwort zerfällt an den Leerzeichen,
+also steht das Fragezeichen einer Frage immer am Ende seines Wortes. „Welche
+Vorhaben drehen sich um Normung?" bleibt damit eine Frage und wird nicht
+stillschweigend zur Muster-Suche. Der Preis ist benannt: `16kn08300?` ist
+**kein** Platzhalter — braucht es aber auch nicht, weil eine Nadel ohnehin als
+Teilstring gesucht wird und `16kn08300` dieselbe Menge liefert. Genau deshalb
+ist auch ein `*` am Wortende überflüssig (es ist keine Suchsyntax und trifft
+sich selbst).
+
+Zwei Leitplanken:
+
+- **Mindestens drei feste Zeichen.** `????` träfe sonst alle 12 358 Anträge.
+  Die Grenze schützt nicht die Rechenzeit, sondern die Auskunft — eine Anfrage,
+  die alles trifft, ist keine.
+- **Dieselbe Wortanfang-Regel wie oben.** Ein Platzhalter lockert sie nicht:
+  `n?rm` findet „Normung", nicht „enormes".
+
+**Die Kosten wurden vor dem Bau gemessen**, über 12 358 echte Anträge × 6 Felder,
+20 Läufe je Zeile:
+
+| | ms je Durchlauf |
+|---|---:|
+| heute: `enthaeltAlsWortteil`, feste Nadel | 5,8 |
+| dieselbe Arbeit durch die neue Weiche | 5,0 |
+| `mobi?nspec` als Muster | 4,7 |
+| `?obiinspec` (Platzhalter ganz vorn) | 4,5 |
+
+Der Muster-Pfad ist **nicht teurer** als der heutige — beide brechen beim ersten
+Fund ab, und die Regex-Maschine ist schneller als die Schleife aus `indexOf` plus
+Wortgrenzen-Rücklauf. Teuer an einer Platzhalter-Suche ist nichts außer einer zu
+weiten, und dagegen steht die Drei-Zeichen-Grenze.
+
+Der heiße Pfad bleibt unberührt, weil `baueNadelMuster` für eine Nadel ohne
+Platzhalter `null` liefert: dann läuft `enthaeltAlsWortteil` Zeichen für Zeichen
+wie zuvor. Compiliert wird **einmal je Suchteil**, nicht je Eintrag — bei 14 000
+Einträgen × Feldern × Nadeln wäre schon ein `Map`-Zugriff je Prüfung teurer als
+die Prüfung selbst.
+
+Am Bestand nachgemessen: `mobi?nspec` **33**, `16KN0830?1` **14**, `Normung?`
+**0** (wörtlich gesucht, wie gewollt), `????` **0**.
+
 ### Die Reihenfolge der Chips (v4.68)
 
 Angezeigt werden 8 von 64 — bis v4.67 die ersten in Korpus-Reihenfolge, also ein

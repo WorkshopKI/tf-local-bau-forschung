@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { wortStamm, sammleVarianten, suchNadel, enthaeltAlsWortteil } from '../wortstamm';
+import {
+  wortStamm, sammleVarianten, suchNadel, enthaeltAlsWortteil,
+  baueNadelMuster, enthaeltMusterAlsWortteil, musterTrifft,
+} from '../wortstamm';
 import {
   bereichFelder,
   bereichNutztDokumente,
@@ -155,6 +158,71 @@ describe('enthaeltAlsWortteil — wo ein Wort beginnen kann', () => {
 
   it('leere Nadel trifft nichts — sonst träfe sie alles', () => {
     expect(enthaeltAlsWortteil('irgendwas', '')).toBe(false);
+  });
+});
+
+describe('Platzhalter „?" — genau ein Zeichen', () => {
+  it('compiliert überall — nur nicht am Wortende', () => {
+    expect(baueNadelMuster('mobi?nspec')).not.toBeNull();
+    expect(baueNadelMuster('?obiinspec')).not.toBeNull();
+    // Das Satzzeichen einer Frage ist kein Platzhalter: ein Suchwort zerfällt
+    // an den Leerzeichen, also steht es immer am Wortende. Ohne diese Regel
+    // wäre jede im Frage-Modus getippte Frage eine Muster-Suche.
+    expect(baueNadelMuster('normung?')).toBeNull();
+    expect(baueNadelMuster('normung')).toBeNull();
+    expect(baueNadelMuster('?')).toBeNull();
+  });
+
+  it('lehnt ab, was zu wenig Festes trägt — „????" träfe den ganzen Bestand', () => {
+    expect(baueNadelMuster('????')).toBeNull();
+    expect(baueNadelMuster('a?c')).toBeNull();     // zwei feste Zeichen
+    expect(baueNadelMuster('ab?cd')).not.toBeNull(); // vier feste Zeichen
+  });
+
+  it('das Fragezeichen steht für GENAU ein Zeichen, nicht für keines und nicht für mehrere', () => {
+    const m = baueNadelMuster('mobi?nspec') as RegExp;
+    expect(enthaeltMusterAlsWortteil('mobiinspec messtechnik', m)).toBe(true);
+    expect(enthaeltMusterAlsWortteil('mobilnspec messtechnik', m)).toBe(true);
+    expect(enthaeltMusterAlsWortteil('mobinspec', m)).toBe(false);
+    expect(enthaeltMusterAlsWortteil('mobiXXnspec', m)).toBe(false);
+  });
+
+  it('hält dieselbe Wortanfang-Regel wie eine feste Nadel', () => {
+    // „n?rm" trifft „norm" — in „normung" am Wortanfang, in „enorme" nicht.
+    const m = baueNadelMuster('n?rm') as RegExp;
+    expect(enthaeltMusterAlsWortteil('die normung folgt', m)).toBe(true);
+    expect(enthaeltMusterAlsWortteil('ein enormes potenzial', m)).toBe(false);
+    // …und der abgelehnte Fund darf den späteren nicht verschlucken.
+    expect(enthaeltMusterAlsWortteil('die enorme normung', m)).toBe(true);
+  });
+
+  it('behandelt Regex-Sonderzeichen als das, was sie sind: Text', () => {
+    expect(baueNadelMuster('gmbu.d?')).toBeNull(); // „?" am Ende — kein Platzhalter
+    const punkt = baueNadelMuster('gmb?.de') as RegExp;
+    expect(enthaeltMusterAlsWortteil('gmbu.de', punkt)).toBe(true);
+    // Der Punkt darf NICHT zum Regex-Punkt geworden sein.
+    expect(enthaeltMusterAlsWortteil('gmbuxde', punkt)).toBe(false);
+  });
+
+  it('trifft Kennzeichen-Muster', () => {
+    const m = baueNadelMuster('16kn0830?1') as RegExp;
+    expect(enthaeltMusterAlsWortteil('16kn083001', m)).toBe(true);
+    expect(enthaeltMusterAlsWortteil('16kn083021', m)).toBe(true);
+    expect(enthaeltMusterAlsWortteil('16kn083002', m)).toBe(false);
+  });
+
+  it('musterTrifft ist unverankert — der Beleg darf nie strenger sein als der Treffer', () => {
+    const m = baueNadelMuster('n?rm') as RegExp;
+    expect(musterTrifft('ein enormes potenzial', m)).toBe(true);
+    expect(enthaeltMusterAlsWortteil('ein enormes potenzial', m)).toBe(false);
+  });
+
+  it('ein geteiltes Muster merkt sich zwischen zwei Aufrufen keine Position', () => {
+    const m = baueNadelMuster('mobi?nspec') as RegExp;
+    expect(enthaeltMusterAlsWortteil('mobiinspec', m)).toBe(true);
+    expect(enthaeltMusterAlsWortteil('mobiinspec', m)).toBe(true);
+    expect(musterTrifft('mobiinspec', m)).toBe(true);
+    expect(musterTrifft('mobiinspec', m)).toBe(true);
   });
 });
 
