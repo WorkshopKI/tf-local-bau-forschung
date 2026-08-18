@@ -9,8 +9,8 @@
  * Nichts.
  */
 import { describe, it, expect, beforeEach } from 'vitest';
-import { verlasseEigenenReiter, zustandJetzt } from '../reiterZustand';
-import { passenderReiter, useEigeneReiter } from '../eigeneReiter';
+import { verlasseEigenenReiter, wendeReiterAn, zustandJetzt } from '../reiterZustand';
+import { passenderReiter, reiterSignatur, useEigeneReiter } from '../eigeneReiter';
 import { useAntraegeStore } from '../store';
 import { useFilterState } from '../filter/useFilterState';
 import { useKopfFilter } from '../kopfFilter';
@@ -65,6 +65,56 @@ describe('verlasseEigenenReiter', () => {
 
     expect(zustandJetzt().spalten).toEqual(spaltenVorher);
     expect(zustandJetzt().dichte).toBe(dichteVorher);
+  });
+
+  it('räumt auch die Quickfilter ab — sie schneiden die Menge wie ein Filter', () => {
+    const a = useAntraegeStore.getState();
+    a.setProjektart('einzel');
+    a.setPrecheckBucket('offen');
+    a.setStillstandTage(60);
+    a.setFrageKuerzel(['THÜ']);
+    a.setPlanTeile([{ begriff: 'wasserstoff', nadeln: ['wasserstoff'], pflicht: false }]);
+    a.setFrageGestellt('alle Anträge von THÜ');
+
+    verlasseEigenenReiter('meine_offenen');
+
+    const nach = useAntraegeStore.getState();
+    expect(nach.projektart).toBe('alle');
+    expect(nach.precheckBucket).toBe('Alle');
+    expect(nach.stillstandTage).toBeNull();
+    expect(nach.frageKuerzel).toBeNull();
+    expect(nach.planTeile).toBeNull();
+    expect(nach.frageGestellt).toBeNull();
+  });
+
+  it('unterscheidet zwei Reiter, die sich NUR in einer Quickfilter-Pille unterscheiden', () => {
+    const a = useAntraegeStore.getState();
+    a.setActiveView('meine_offenen');
+    a.setPrecheckBucket('Alle');
+    const ohne = zustandJetzt();
+    a.setPrecheckBucket('offen');
+    const mit = zustandJetzt();
+    expect(reiterSignatur(mit)).not.toBe(reiterSignatur(ohne));
+  });
+
+  it('stellt die Pillen wieder her, wenn der Reiter zurückkommt', () => {
+    const a = useAntraegeStore.getState();
+    a.setPrecheckBucket('offen');
+    a.setProjektart('einzel');
+    const gemerkt = zustandJetzt();
+
+    verlasseEigenenReiter('meine_offenen');
+    expect(useAntraegeStore.getState().precheckBucket).toBe('Alle');
+
+    wendeReiterAn(gemerkt);
+    expect(useAntraegeStore.getState().precheckBucket).toBe('offen');
+    expect(useAntraegeStore.getState().projektart).toBe('einzel');
+  });
+
+  it('lässt den Suchtext stehen — er gehört zu keinem Reiter', () => {
+    useAntraegeStore.getState().setSearch('laser');
+    verlasseEigenenReiter('alle');
+    expect(useAntraegeStore.getState().search).toBe('laser');
   });
 
   it('stellt die Beendet-Sicht auf ihren Standard zurück — sie entscheidet über die Menge', () => {

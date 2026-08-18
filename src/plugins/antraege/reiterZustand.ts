@@ -70,6 +70,9 @@ export function useAktuellerKern(): ReiterKern {
   const spalten = useAntraegeColumnsStore(s => s.visibleColumns);
   const dichte = useDichteStore(s => s.dichte);
   const beendetAusgeblendet = useBeendetSichtbarkeit(s => s.ausgeblendet);
+  const projektart = useAntraegeStore(s => s.projektart);
+  const precheck = useAntraegeStore(s => s.precheckBucket);
+  const stillstandTage = useAntraegeStore(s => s.stillstandTage);
   const kopfStand = useKopfFilter(s => s.stand);
   return {
     basis,
@@ -83,6 +86,9 @@ export function useAktuellerKern(): ReiterKern {
     dichte,
     beendetAusgeblendet,
     kopfAuswahl: alsAuswahl(kopfStand),
+    projektart,
+    precheck,
+    stillstandTage,
   };
 }
 
@@ -108,6 +114,9 @@ export function zustandJetzt(): ReiterZustand {
     dichte: useDichteStore.getState().dichte,
     beendetAusgeblendet: useBeendetSichtbarkeit.getState().ausgeblendet,
     kopfAuswahl: alsAuswahl(useKopfFilter.getState().stand),
+    projektart: a.projektart,
+    precheck: a.precheckBucket,
+    stillstandTage: a.stillstandTage,
     breiten: ladeBreiten(SPEICHER_SPALTENBREITEN, {}),
     gesamtBreite: ladeGesamtBreite(SPEICHER_GESAMTBREITE),
     inhaltsBreite: ladeInhaltsBreite(SPEICHER_GESAMTBREITE),
@@ -146,6 +155,12 @@ export function wendeReiterAn(z: ReiterZustand): void {
   useBeendetSichtbarkeit.getState().setAusgeblendet(z.beendetAusgeblendet);
   useKopfFilter.getState().setzeStand(z.kopfAuswahl);
 
+  // Die Quickfilter-Pillen gehören seit v4.108 zum Reiter — vorher trug er ihren
+  // Namen und stellte sie nicht her.
+  a.setProjektart(z.projektart);
+  a.setPrecheckBucket(z.precheck);
+  a.setStillstandTage(z.stillstandTage);
+
   speichereBreiten(SPEICHER_SPALTENBREITEN, z.breiten);
   speichereGesamtBreite(SPEICHER_GESAMTBREITE, z.gesamtBreite);
   speichereInhaltsBreite(SPEICHER_GESAMTBREITE, z.inhaltsBreite);
@@ -178,9 +193,27 @@ export function wendeReiterAn(z: ReiterZustand): void {
  * deshalb auch hier nicht angefasst.
  */
 export function verlasseEigenenReiter(ziel: ViewKey): void {
-  useAntraegeStore.getState().setActiveView(ziel);
+  const a = useAntraegeStore.getState();
+  a.setActiveView(ziel);
   useFilterState.getState().clearAll();
   useKopfFilter.getState().setzeStand({});
+
+  // Die Quickfilter-Pillen stehen NICHT im `ReiterKern` — ein eigener Reiter
+  // nimmt sie also weder mit noch stellt er sie her. Umso mehr müssen sie hier
+  // fallen: sie schneiden die Menge genauso wie ein Filter aus der Leiste, und
+  // eine Pille „PreCheck: offen", die einen frisch gewählten festen Reiter
+  // überlebt, ist genau die stille Einschränkung, die man später der Liste
+  // ankreidet statt der Pille.
+  a.setProjektart('alle');
+  a.setPrecheckBucket('Alle');
+  a.setStillstandTage(null);
+  a.setAmpelQuickfilter(null);
+  // Was eine Frage gesetzt hat, gehört ebenfalls zum Ausschnitt: der
+  // Kürzel-Ausschnitt, ihre Leitbegriffe — und die Frage selbst gilt danach
+  // wieder als ungestellt, damit der Satz im Feld nichts filtert.
+  a.setFrageKuerzel(null);
+  a.setPlanTeile(null);
+  a.setFrageGestellt(null);
   // Die Standardstellung wohnt bei den Optionen, nicht hier — dieselbe Quelle,
   // aus der `useBeendetSichtbarkeit` sie beim Start liest.
   useBeendetSichtbarkeit.getState().setAusgeblendet(DEFAULT_BEENDET_SICHT === 'aus');

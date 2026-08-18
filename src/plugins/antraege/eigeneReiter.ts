@@ -43,6 +43,8 @@ import type { GroupingMode } from './antragGroups';
 import type { TableGroupingMode, TabellenAnsicht } from './tableGrouping';
 import type { Dichte } from './useDichteStore';
 import type { KopfAuswahl } from './kopfFilter';
+import type { Projektart } from './filter/projektartQuickfilter';
+import type { PrecheckBucket } from './filter/precheckQuickfilter';
 import type { SortStand } from '@/components/data-table';
 import { signatureOf } from './filter/frequentFilters';
 import { baueDarstellungsAchsen } from './darstellungsAchsen';
@@ -82,6 +84,22 @@ export interface ReiterKern {
   beendetAusgeblendet: boolean;
   /** Auswahl in den Spaltenköpfen (nur Tabelle). */
   kopfAuswahl: KopfAuswahl;
+  /**
+   * Die Quickfilter-Pillen (seit v4.108).
+   *
+   * Sie standen anfangs draußen, weil sie in eigenen Store-Slots leben statt in
+   * der Filterleiste. Am Gebrauch fiel auf, dass das nicht trägt: sie schneiden
+   * die Menge wie jeder Filter, ein Reiter „PreCheck offen" hätte den PreCheck
+   * nicht wiederhergestellt (nur seinen Namen), und zwei Reiter, die sich NUR in
+   * einer Pille unterscheiden, wären derselbe gewesen.
+   *
+   * Ältere gespeicherte Reiter kennen die Felder nicht — `ladeReiter` füllt den
+   * Standard nach, damit sie weiter den Stand herstellen, den sie meinten.
+   */
+  projektart: Projektart;
+  precheck: PrecheckBucket;
+  /** Stillstands-Schwelle in Tagen. `null` = keine. */
+  stillstandTage: number | null;
 }
 
 /** Kern + Geometrie: das, was ein gemerkter Reiter wirklich speichert. */
@@ -119,7 +137,13 @@ export function reiterSignatur(z: ReiterKern): string {
     dichte: z.dichte,
     beendetAusgeblendet: z.beendetAusgeblendet,
   });
-  const teile: string[] = [`basis:${z.basis}`, `filter:${signatureOf(z.filter)}`];
+  const teile: string[] = [
+    `basis:${z.basis}`,
+    `filter:${signatureOf(z.filter)}`,
+    // Die Pillen gelten in JEDER Ansichtsform — anders als die Kopf-Auswahl
+    // unten hängen sie nicht an der Tabelle.
+    `quick:${z.projektart}/${z.precheck}/${z.stillstandTage ?? '-'}`,
+  ];
   for (const a of achsen) {
     teile.push(a.id === 'spalten'
       ? `spalten:${[...z.spalten].sort().join(',')}`
@@ -178,13 +202,34 @@ function istReiter(v: unknown): v is EigenerReiter {
   return !!z && typeof z.basis === 'string' && Array.isArray(z.filter) && Array.isArray(z.spalten);
 }
 
+/**
+ * Vor v4.108 gemerkte Reiter kennen die Quickfilter-Felder nicht. Sie bekommen
+ * den Standard „keine Einschränkung" — genau das, was damals galt: die Pillen
+ * wurden weder gespeichert noch hergestellt.
+ */
+export function ergaenzeQuickfilter(r: EigenerReiter): EigenerReiter {
+  const z = r.zustand;
+  if (z.projektart !== undefined && z.precheck !== undefined && z.stillstandTage !== undefined) {
+    return r;
+  }
+  return {
+    ...r,
+    zustand: {
+      ...z,
+      projektart: z.projektart ?? 'alle',
+      precheck: z.precheck ?? 'Alle',
+      stillstandTage: z.stillstandTage ?? null,
+    },
+  };
+}
+
 export function ladeReiter(): EigenerReiter[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return [];
     const parsed: unknown = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
-    return parsed.filter(istReiter).slice(0, MAX_EIGENE_REITER);
+    return parsed.filter(istReiter).map(ergaenzeQuickfilter).slice(0, MAX_EIGENE_REITER);
   } catch {
     return [];
   }

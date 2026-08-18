@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.108.0 — Suchfeld ziehbar, Quickfilter gehoeren zum Reiter (August 2026)
+
+MINOR — Gewünscht: „Suchfeld breiter machen (die Breite von Suche in Stichworten nehmen). Bei Suche mit Frage Textfeld vertikal resizable machen." Dazu die Zusage von v4.107.2, die Quickfilter in die Reiter-Räumung zu ziehen — beim Bauen zeigte sich, dass sie stattdessen zum Reiter gehören müssen.
+
+- **Ein Feld, zwei Betriebsarten**: Stichworte einzeilig, Frage mehrzeilig mit ziehbarer Unterkante und gemerkter Höhe ([SuchFeld.tsx](src/plugins/antraege/SuchFeld.tsx))
+- **Gleiche Breite in beiden**: die Zeile bricht um, statt das Feld zu stauchen (gemessen 640 px hier wie dort)
+- **Die Quickfilter-Pillen gehören zum eigenen Reiter** — gespeichert, wiederhergestellt und identitätsstiftend; ein Reiter „PreCheck offen" trug bisher nur den Namen ([eigeneReiter.ts](src/plugins/antraege/eigeneReiter.ts))
+- **Ältere gemerkte Reiter** bekommen beim Laden „keine Einschränkung" nachgefüllt (`ergaenzeQuickfilter`)
+- **Höhe im Callback-Ref herstellen und überwachen**, nicht im Effekt (Bug-Klasse 23): das Element wechselt mit dem Modus die Sorte
+
 ### v4.107.2 — Vom eigenen Reiter zurueck auf einen festen (August 2026)
 
 PATCH — Gemeldet: „wenn ich eigene Suche als Tab gespeichert habe, geht die Umschaltung zu anderen Tabs (insb. zum ersten Tab Antragsphase) nicht mehr." Die Markierung des eigenen Reiters hängt an der Signatur des Stands — sitzt er auf derselben Basis, ändert `setActiveView` nichts an ihr, und der Klick war ein Nichts.

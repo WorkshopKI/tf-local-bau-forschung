@@ -3,6 +3,7 @@ import {
   reiterSignatur,
   reiterPasst,
   passenderReiter,
+  ergaenzeQuickfilter,
   beschreibeZustand,
   useEigeneReiter,
   MAX_EIGENE_REITER,
@@ -22,6 +23,9 @@ function zustand(ueber: Partial<ReiterZustand> = {}): ReiterZustand {
     dichte: 'kompakt',
     beendetAusgeblendet: true,
     kopfAuswahl: {},
+    projektart: 'alle',
+    precheck: 'Alle',
+    stillstandTage: null,
     breiten: {},
     gesamtBreite: null,
     inhaltsBreite: false,
@@ -29,6 +33,28 @@ function zustand(ueber: Partial<ReiterZustand> = {}): ReiterZustand {
     ...ueber,
   };
 }
+
+describe('Eigene Reiter — ältere Stände', () => {
+  it('füllt fehlende Quickfilter-Felder mit „keine Einschränkung" nach (v4.108)', () => {
+    // Ein vor v4.108 gemerkter Reiter: die drei Felder gab es noch nicht.
+    const alt = zustand();
+    const roh = alt as unknown as Record<string, unknown>;
+    delete roh.projektart;
+    delete roh.precheck;
+    delete roh.stillstandTage;
+
+    const ergaenzt = ergaenzeQuickfilter({ id: 'r1', name: 'Alt', zustand: alt });
+
+    expect(ergaenzt.zustand.projektart).toBe('alle');
+    expect(ergaenzt.zustand.precheck).toBe('Alle');
+    expect(ergaenzt.zustand.stillstandTage).toBeNull();
+  });
+
+  it('lässt einen vollständigen Reiter unangetastet (gleiche Referenz)', () => {
+    const r = { id: 'r2', name: 'Neu', zustand: zustand() };
+    expect(ergaenzeQuickfilter(r)).toBe(r);
+  });
+});
 
 describe('Eigene Reiter — was zur Identität zählt', () => {
   it('nimmt die Geometrie MIT, zählt sie aber nicht mit', () => {

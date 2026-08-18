@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Download, Filter, FileUp, Loader2, Search, Sparkles, X } from 'lucide-react';
+import { Download, Filter, FileUp, Loader2, Sparkles, X } from 'lucide-react';
 import { useAntraegeStore } from './store';
 import { useAufnahmeUiStore } from './aufnahme-einfach';
 import { useAntraegeColumnsStore } from './useAntraegeColumnsStore';
@@ -15,11 +15,10 @@ import { BearbeiterSichtChip } from '@/components/bearbeiter/BearbeiterSichtChip
 import { menuLabel, isGutachtenWorkflowEnabled, isSucheNatuerlicheSpracheEnabled } from '@/config/feature-flags';
 import { FrageUmschalter, FrageDeutung } from './frage/FrageZeile';
 import { useAntragsFrage } from './frage/useAntragsFrage';
-import { FrageVorschlaege } from './frage/FrageVorschlaege';
-import { useFrageVorschlaege } from './frage/useFrageVorschlaege';
+import { SuchFeld } from './SuchFeld';
+import { useFrageVorschlaege, type SuchFeldElement } from './frage/useFrageVorschlaege';
 import { useFrageOffen } from './frage/suchtext';
 import { isAuslastungFreigeschaltet } from '@/core/modul-freischaltung';
-import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Tooltip } from '@/components/ui/Tooltip';
 import { useFilteredAntraege } from './useFilteredAntraege';
@@ -77,7 +76,7 @@ export function AntraegeHeader({ filterOpen, onToggleFilter, listeSichtbar }: Pr
   // Die Vorschlagsliste gibt es NUR im Frage-Modus: ein leeres Feld, das einen
   // ganzen Satz erwartet, ist die schwerste Eingabe der Seite. Der Stichwort-
   // Modus hat mit Feldsyntax und Ähnlichkeits-Hinweis seine eigenen Wegweiser.
-  const feldRef = useRef<HTMLInputElement>(null);
+  const feldRef = useRef<SuchFeldElement | null>(null);
   // Steht im Feld eine Frage, die noch niemand übersetzt hat? Dann trägt der
   // Kopf den Knopf und die Erklärung — und die Liste ignoriert den Text.
   const frageIstOffen = useFrageOffen();
@@ -302,7 +301,14 @@ export function AntraegeHeader({ filterOpen, onToggleFilter, listeSichtbar }: Pr
             Store und wirkt beim Wiedereinblenden weiter. */}
         {listeSichtbar ? (
           <>
-            <div className="mt-2 flex items-center gap-2 pr-4">
+            {/* `flex-wrap` + `items-start`: das Suchfeld behält seine Breite
+                (bis 640 px), und was rechts daneben steht — Umschalter, Knopf,
+                Kontext-Häkchen — rutscht bei engem Fenster in die nächste Zeile,
+                statt das Feld zusammenzudrücken. Vorher schrumpfte es im
+                Frage-Modus um rund ein Viertel, gerade dort, wo ein ganzer Satz
+                hineingeschrieben wird. `items-start`, damit ein aufgezogenes
+                Feld die Nachbarn nicht mit nach unten nimmt. */}
+            <div className="mt-2 flex flex-wrap items-start gap-2 pr-4">
               {/* Der Filter-Knopf steht seit v4.64 hier statt in der Zeile
                   darüber — die Leiste geht LINKS auf, also gehört ihr Schalter
                   an dieselbe Kante und nicht ans andere Ende des Kopfes.
@@ -337,41 +343,14 @@ export function AntraegeHeader({ filterOpen, onToggleFilter, listeSichtbar }: Pr
                   </span>
                 ) : null}
               </Button>
-              <div className="relative flex-1 min-w-0 max-w-[640px]">
-                <Search
-                  size={13}
-                  className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--tf-text-tertiary)] pointer-events-none"
-                />
-                <Input
-                  ref={feldRef}
-                  placeholder={frage.nlModus
-                    ? 'Frage stellen, z. B. „alle Netzwerke, die für Phase 2 abgelehnt wurden" — Enter'
-                    : 'Anträge durchsuchen (Titel, Akronym, FKZ, Antragsteller, Ort, Dokumente)'}
-                  value={search}
-                  onChange={e => { setSearch(e.target.value); vorschlaege.beiEingabe(); }}
-                  onFocus={vorschlaege.beiFokus}
-                  onBlur={vorschlaege.beiVerlust}
-                  // Im Frage-Modus laeuft NICHTS beim Tippen: ein KI-Aufruf je
-                  // Tastendruck waere weder bezahlbar noch sinnvoll. Erst Enter —
-                  // und was Enter dann bedeutet, entscheidet `beiTaste`
-                  // (Zeile waehlen / in die Luecke springen / fragen).
-                  onKeyDown={vorschlaege.beiTaste}
-                  className="pl-7 pr-7 h-8 w-full text-[12.5px]"
-                  title={frage.nlModus
-                    ? 'Ganze Frage eingeben und Enter drücken. Die interne KI übersetzt sie in Filter.'
-                    : 'Wortlaut über Aktenzeichen/Akronym/Titel/Antragsteller/Ort/Bundesland/'
-                      + 'Verbund-Titel/Kurzbeschreibung UND den Volltext der aufgenommenen Dokumente. '
-                      + 'Inhaltlich ähnliche Anträge kommen über den Hinweis unter dem Feld dazu.'}
-                />
-                {hybridLoading ? (
-                  <Loader2
-                    size={12}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--tf-text-tertiary)] animate-spin pointer-events-none"
-                    aria-label="Suche läuft"
-                  />
-                ) : null}
-                <FrageVorschlaege steuerung={vorschlaege} />
-              </div>
+              <SuchFeld
+                wert={search}
+                setzeWert={setSearch}
+                frageModus={frageAn && frage.nlModus}
+                laedt={hybridLoading}
+                feldRef={feldRef}
+                vorschlaege={vorschlaege}
+              />
               {/* Umschalter und Knopf stehen RECHTS vom Feld: die Reihenfolge
                   bildet den Ablauf ab — erst schreiben, dann die Suchart, dann
                   abschicken. Links standen sie vor dem Feld und wirkten wie eine

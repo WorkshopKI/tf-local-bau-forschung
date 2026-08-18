@@ -19,6 +19,14 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.108 — 2026-08
+
+### Neu
+- Im Frage-Modus ist das Suchfeld der Förderanträge **mehrzeilig und an der unteren Kante aufziehbar** — lange Fragen stehen damit vollständig vor Ihnen statt in einer scrollenden Zeile. Die gewählte Höhe bleibt gemerkt.
+### Verbesserungen
+- Das Suchfeld ist in beiden Betriebsarten **gleich breit**. Umschalter, Knopf und Häkchen rutschen bei schmalem Fenster in die nächste Zeile, statt das Feld zu stauchen.
+- **Ein eigener Reiter merkt sich jetzt auch die Quickfilter-Pillen** (Projektart, PreCheck, Stillstand) und stellt sie beim Klick wieder her. Bisher trug ein Reiter „PreCheck offen" nur den Namen. Bereits gemerkte Reiter bleiben gültig; bei ihnen gilt „keine Einschränkung".
+
 ## v4.107 — 2026-08
 
 ### Neu

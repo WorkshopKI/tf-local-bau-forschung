@@ -23,6 +23,13 @@ import {
 } from './vorschlagsAbschnitte';
 import { useFrageVerlauf } from './frageVerlauf';
 
+/**
+ * Das Suchfeld ist je nach Modus ein `<input>` oder ein `<textarea>`
+ * ([SuchFeld.tsx](../SuchFeld.tsx)). Beide können, was hier gebraucht wird:
+ * Fokus setzen und einen Bereich markieren.
+ */
+export type SuchFeldElement = HTMLInputElement | HTMLTextAreaElement;
+
 /** Was unter dem Feld steht, wenn die Eingabetaste auf eine Lücke trifft. */
 export const LUECKEN_HINWEIS =
   'Noch auszufüllen — die markierte Lücke überschreiben, Enter springt zur nächsten.';
@@ -45,7 +52,7 @@ export interface FrageVorschlaegeSteuerung {
   /** Nach dem `setSearch` in `onChange` aufzurufen. */
   beiEingabe: () => void;
   /** An `onKeyDown` des Feldes — behandelt ↑ ↓ ⏎ und Esc. */
-  beiTaste: (e: React.KeyboardEvent<HTMLInputElement>) => void;
+  beiTaste: (e: React.KeyboardEvent<SuchFeldElement>) => void;
   /**
    * Was die Eingabetaste ohne markierte Zeile tut: in die nächste Lücke
    * springen, sonst fragen. Der Knopf „Frage stellen" ruft dasselbe — zwei Wege
@@ -56,7 +63,7 @@ export interface FrageVorschlaegeSteuerung {
 
 export interface FrageVorschlaegeOptionen {
   /** Das Eingabefeld — für das Markieren der Lücke. */
-  feldRef: React.RefObject<HTMLInputElement | null>;
+  feldRef: React.RefObject<SuchFeldElement | null>;
   /** Der aktuelle Feldtext. */
   text: string;
   setText: (t: string) => void;
@@ -127,7 +134,7 @@ export function useFrageVorschlaege(opt: FrageVorschlaegeOptionen): FrageVorschl
     stelleFrage(text);
   }, [springeInLuecke, text, stelleFrage]);
 
-  const beiTaste = useCallback((e: React.KeyboardEvent<HTMLInputElement>): void => {
+  const beiTaste = useCallback((e: React.KeyboardEvent<SuchFeldElement>): void => {
     if (!aktiviert) return;
     if (e.key === 'ArrowDown' && flach.length > 0) {
       e.preventDefault();
