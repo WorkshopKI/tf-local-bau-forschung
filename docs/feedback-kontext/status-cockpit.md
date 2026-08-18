@@ -76,6 +76,11 @@ wird.
     bei einem Schritt Beschriftung, Zieltage-Relevanz und Fristlauf, bei einem
     Statuswert Label, Prominenz, Zieltage und aktiv. Wo früher die Arbeitsliste
     einstellbar war, steht jetzt ein Satz, der sagt, wo sie herkommt.
+    - Am Schritt steht **„Datum für ,seit wann'"**: die Kürzel, deren Datum die
+      Erklärung für Status dieses Schritts zeigen kann. Ist keines zugeordnet,
+      steht das rot da — dann fehlt die „seit"-Zeile im ganzen Bestand. Nur
+      lesend; umgehängt wird am Kürzel. Über dem Baum nennt eine Zeile die
+      Gesamtzahl und **namentlich** die Schritte ohne Datum.
     - Unter den Feldern eines Statuswerts steht **„Wodurch dieser Status
       entsteht"** — die einzige nur lesende Angabe hier und die einzige, die
       nicht aus unserer Kuration stammt: welche Kürzel des Fachsystems diesen
@@ -143,13 +148,22 @@ wird.
     Stichproben stehen namentlich als „zu wenig Daten".
 - **Kürzel**: der **Ordnerbaum des Fachsystems** (505 Einträge), Verbund und
   Teilvorhaben getrennt.
-  - Editierbar je Eintrag: Bezeichnung, Ordner, **wird gesetzt von**
-    (AB/FB/QS/PA/Juristen, Mehrfachauswahl; leer = jeder darf), **relevant**,
-    Prominenz und die **ZAH-Phase** des Datums. Die Phase beantwortet „welches
-    Datum gehört zum aktuellen Status?" — sie speist die „seit"-Angabe der
-    Status-Erklärung und die Marke in der Chronik. Leer heißt ehrlich „trägt
-    nichts bei", weil eine geratene Zuordnung schlechter wäre als keine. Bei
-    Wert-Feldern hängt die Phase am Wert.
+  - **In der Zeile** steht nur, was hier auch entschieden wird: Code, CSV-Spalte,
+    Bezeichnung, **relevant**, Typ, **wird gesetzt von** (AB/FB/QS/PA/Juristen,
+    Mehrfachauswahl; leer = jeder darf) und aktiv.
+  - **In der Klappe der Zeile** (Pfeil vor dem Code, immer vorhanden) stehen
+    **Ordner**, **Prominenz** und der **Verfahrensschritt des Datums** — dazu
+    die Trigger-Wirkung, falls es welche gibt. Sie stehen dort, seit gemessen
+    wurde, dass an Ordner und Prominenz über 23 Fassungen hinweg **keine
+    einzige** Änderung vorgenommen wurde: beide kommen richtig aus der
+    Kürzel-Zuarbeit. Ein Satz in der Klappe sagt das, damit niemand eine
+    Entscheidung sucht, die das Fachsystem schon getroffen hat.
+  - Der Verfahrensschritt beantwortet „welches Datum gehört zum aktuellen
+    Status?" — er speist die „seit"-Angabe der Status-Erklärung und die Marke
+    in der Chronik. Leer heißt ehrlich „trägt nichts bei"; für die große
+    Mehrheit der Kürzel gibt es gar keine ableitbare Antwort. Welche Datumsfelder
+    einen Schritt speisen — und welcher Schritt leer ausgeht — steht am Schritt
+    selbst im Reiter **Statuswerte**. Bei Wert-Feldern hängt die Phase am Wert.
   - Zwei **Phasenvorschläge** über der Tabelle, je mit Vorschau, Beleg als Satz
     und zeilenweiser Auswahl: einer aus der **Trigger-Tabelle** (das Kürzel setzt
     Status X, X liegt in Phase P), einer aus der **Auslieferung** — nur dort, wo
@@ -163,7 +177,7 @@ wird.
     Antragsbearbeitung zählen; es grenzt Navigator, Wächter und die
     Status-Erklärung ein.
   - Trägt ein Kürzel Trigger-Zeilen, steht neben dem Code ein **Blitz mit
-    Anzahl** — Klick klappt auf, was das Setzen in C16 auslöst (Satzform).
+    Anzahl**; die Klappe zeigt unten, was das Setzen in C16 auslöst (Satzform).
     Jede Zeile beginnt mit `Richtlinie/Folge`, weil dasselbe Kürzel je
     Richtlinie etwas anderes auslöst.
   - „Ordner bearbeiten" ist ein **Baum**: Zweige klappen zu, Ziehen **am Griff**

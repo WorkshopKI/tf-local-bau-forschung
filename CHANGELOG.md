@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.92.0 — Die Kuerzel-Zeile fuehrt nur, was auch entschieden wird (August 2026)
+
+MINOR — Gemeldet: die Pflege der Kürzel falle schwer, zu viele neue Begriffe — klar sei nur „wird gesetzt von". Die Messung der Fassung 23 gegen die Auslieferung erklärt beides: an Ordner und Prominenz wurde in 23 Fassungen **keine einzige** Änderung vorgenommen (sie kommen richtig aus der Zuarbeit), und die ZAH-Phase kann für 91 % der Kürzel gar keine Antwort haben. Drei Auswahlfelder in 509 Zeilen waren vor allem eines: eine Aufforderung.
+
+- **Die Zeile führt nur noch, was hier entschieden wird** — Ordner, Prominenz und Verfahrensschritt stehen in der Klappe der Zeile, mit ihrer Herkunft dabei ([FelderTab.tsx](src/plugins/status-cockpit/FelderTab.tsx))
+- **Die Klappe ist immer erreichbar** statt nur bei vorhandener Trigger-Wirkung — sonst sähen die übrigen Zeilen aus, als hätten sie nichts zu zeigen ([FelderTab.tsx](src/plugins/status-cockpit/FelderTab.tsx))
+- **„Welches Datum speist einen Schritt?" steht am Schritt** statt am Kürzel; über dem Baum werden ungedeckte Schritte **namentlich** genannt ([phasenDatumsfelder.ts](src/plugins/status-cockpit/phasenDatumsfelder.ts), [PhasenDetail.tsx](src/plugins/status-cockpit/PhasenDetail.tsx))
+- **Gezählt wird nur, was wirkt**: ein stillgelegtes oder als `ignoriert` ausgeblendetes Kürzel deckt keinen Schritt ([phasenDatumsfelder.test.ts](src/plugins/status-cockpit/__tests__/phasenDatumsfelder.test.ts))
+- **Prominenz `meilenstein` heißt „Hauptereignis"** — das Wort gehört dem Meilenstein-Plan; der Bezeichner bleibt, ein Test hält die Beschriftung ([labels.ts](src/plugins/status-cockpit/labels.ts), [status-achsen.md](docs/architecture/status-achsen.md))
+
 ### v4.91.0 — Die Suche waehlt ihre Richtlinien selbst (August 2026)
 
 MINOR — Gefragt: „können wir bei der Suche eine Richtlinienauswahl machen wie bei den Förderanträgen, damit der User leicht alte Richtlinien ausblenden kann?" Der Betrachtungsbereich stand dafür nicht zur Verfügung: er schneidet den Arbeitsvorrat und steht auf „letzte 3 Richtlinien" — die Suche muss im Grundzustand alles finden. Zwei Fragen, also zwei Speicher, aber eine Bedienung.

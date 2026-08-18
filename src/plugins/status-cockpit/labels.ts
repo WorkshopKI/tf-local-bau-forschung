@@ -25,8 +25,18 @@ export const KATEGORIE_LABEL: Record<StatusCategory, string> = Object.fromEntrie
   (Object.keys(KATEGORIE_TEXTE) as StatusCategory[]).map(k => [k, getStatusCategoryLabel(k)]),
 ) as Record<StatusCategory, string>;
 
+/**
+ * Wie laut ein Eintrag in der Chronik auftritt.
+ *
+ * **`meilenstein` heißt „Hauptereignis", nicht „Meilenstein".** Der Bezeichner
+ * ist älter als das Meilenstein-Modul und bleibt (er steht in jeder gespeicherten
+ * Fassung); die Beschriftung darf das Wort nicht mehr tragen. Ein Kollege, der
+ * im Kürzel-Verzeichnis „Meilenstein" liest, sucht sonst den Zusammenhang mit
+ * dem Meilenstein-Plan und seinen Sollwochen — es gibt keinen: hier geht es
+ * allein um die Darstellungsstärke des Punktes in der Chronik.
+ */
 export const PROMINENZ_LABEL: Record<Prominenz, string> = {
-  meilenstein: 'Meilenstein',
+  meilenstein: 'Hauptereignis',
   normal: 'Normal',
   nebensaechlich: 'Nebensächlich',
   ignoriert: 'Ignoriert',

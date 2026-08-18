@@ -427,7 +427,7 @@ function FensterSchalter({ weggelassen, offen, onKlick }: {
 /** Die vier Knotenzustände, ausgeschrieben — nur in dieser Ansicht. */
 function Legende(): React.ReactElement {
   const eintraege: [React.ReactNode, string][] = [
-    [<span key="m" className="inline-block rounded-full" style={{ width: 10, height: 10, background: 'var(--tf-primary)', boxShadow: '0 0 0 3px var(--tf-primary-light)' }} />, 'Meilenstein'],
+    [<span key="m" className="inline-block rounded-full" style={{ width: 10, height: 10, background: 'var(--tf-primary)', boxShadow: '0 0 0 3px var(--tf-primary-light)' }} />, 'Hauptereignis'],
     [<span key="n" className="inline-block rounded-full" style={{ width: 7, height: 7, background: 'var(--tf-text-tertiary)' }} />, 'Regelfall'],
     [<span key="k" className="inline-block rounded-full" style={{ width: 6, height: 6, border: '1px solid var(--tf-text-tertiary)', background: 'var(--tf-bg)' }} />, 'Nachrichtenkanal'],
     [<span key="f" className="inline-block rounded-full" style={{ width: 9, height: 9, border: '1px solid var(--tf-danger-text)', background: 'var(--tf-danger-bg)' }} />, 'Kürzel nicht gesetzt'],

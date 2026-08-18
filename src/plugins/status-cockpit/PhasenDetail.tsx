@@ -21,7 +21,8 @@ import type { StatusCockpitApi } from './useStatusCockpit';
 import type { PhasenBaumKnoten } from './phasenKnoten';
 import { StatusHerkunftBlock } from '@/components/vorgang/StatusHerkunftBlock';
 import { PROMINENZ_LABEL, PROMINENZ_WERTE, feldKlasse, feldStil } from './labels';
-import type { Prominenz, StatusWertEintrag } from '@/core/status';
+import { datumsfelderFuerPhase } from './phasenDatumsfelder';
+import type { Prominenz, StatusWertEintrag, ZahPhaseId } from '@/core/status';
 import { zaehlwort } from '@/core/utils/zaehlwort';
 
 const feldLabelKlasse = 'text-[11px] uppercase tracking-wide text-[var(--tf-text-tertiary)]';
@@ -37,6 +38,50 @@ function Feld({ titel, hinweis, children }: {
         <span className="text-[11.5px] text-[var(--tf-text-tertiary)]">{hinweis}</span>
       )}
     </label>
+  );
+}
+
+/**
+ * Welche Kürzel liefern für diesen Schritt das „seit wann"?
+ *
+ * Die Zuordnung wurde bis v4.92 in jeder der 509 Kürzel-Zeilen abgefragt und
+ * konnte dort für die meisten gar keine Antwort haben. Am Schritt ist sie eine
+ * Aussage: entweder es gibt ein Datum, das die Erklärung zeigen kann — oder
+ * eben keines, und dann fehlt die Zeile im ganzen Bestand.
+ *
+ * Nur lesend. Umgehängt wird weiterhin am Kürzel (Reiter *Kürzel*, Klappe der
+ * Zeile) — ein zweiter Schreibweg liefe beim ersten Umhängen auseinander.
+ */
+function DatumsfelderBlock({ phaseId, api }: {
+  phaseId: ZahPhaseId; api: StatusCockpitApi;
+}): React.ReactElement {
+  const felder = datumsfelderFuerPhase(api.entwurf?.felder ?? [], phaseId);
+  return (
+    <div className="flex flex-col gap-1.5 pt-1 border-t border-[var(--tf-border)]">
+      <span className={feldLabelKlasse}>Datum für „seit wann"</span>
+      {felder.length === 0 ? (
+        <span className="text-[11.5px] text-[var(--tf-danger-text)]">
+          Kein Kürzel zugeordnet — für Status in diesem Schritt kann die Erklärung kein
+          „seit wann" nennen. Zuordnen im Reiter <em>Kürzel</em>, in der Klappe der Zeile.
+        </span>
+      ) : (
+        <>
+          <ul className="flex flex-col gap-0.5">
+            {felder.map(f => (
+              <li key={f.feldId} className="text-[12px] text-[var(--tf-text-secondary)]">
+                <span className="font-mono text-[11px] text-[var(--tf-text-tertiary)] mr-1.5">
+                  {f.code ?? f.feldId}
+                </span>
+                {f.label}
+              </li>
+            ))}
+          </ul>
+          <span className="text-[11.5px] text-[var(--tf-text-tertiary)]">
+            Gezeigt wird das jüngste dieser Daten. Geändert wird die Zuordnung am Kürzel.
+          </span>
+        </>
+      )}
+    </div>
   );
 }
 
@@ -103,6 +148,8 @@ function PhaseDetail({ knoten, api }: {
           </span>
         </span>
       </label>
+
+      <DatumsfelderBlock phaseId={p.id} api={api} />
     </div>
   );
 }

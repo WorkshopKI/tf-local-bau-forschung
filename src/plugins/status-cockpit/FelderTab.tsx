@@ -2,25 +2,29 @@
  * Kürzel-Tab — das Verzeichnis der Vorgangskürzel des Fachsystems, kuratierbar.
  *
  * Gezeigt wird der Ordnerbaum (Verbund und Teilvorhaben getrennt), darin je
- * Kürzel eine Zeile mit allem, was die PL entscheidet: Name, Ordner, wer den
- * Eintrag setzt (AB/FB/QS/PA/Juristen — Mehrfachauswahl, leer = jeder),
- * **Relevanz**, Prominenz und die **ZAH-Phase** des Datums.
+ * Kürzel eine schmale Zeile: Code, CSV-Spalte, Bezeichnung, **Relevanz**, Typ,
+ * wer den Eintrag setzt (AB/FB/QS/PA/Juristen — Mehrfachauswahl, leer = jeder)
+ * und aktiv.
  *
- * Die ZAH-Phase am Feld beantwortet „welches Datum gehört zum aktuellen
- * Status?" — sie speist die „seit"-Angabe der Erklärung und die Marke in der
- * Chronik. Leer heißt „trägt nichts bei"; so ist der Großteil des Code-Katalogs
- * ausgeliefert, weil eine geratene Zuordnung schlechter wäre als keine. Sie
- * leitet **keinen Status ab** (Pitfall #44) — Spine-Phase, Rang und das
- * Terminal-Häkchen, die das taten, sind mit v2.385 entfallen.
+ * **Die Zeile führt nur, was hier auch entschieden wird** (seit v4.92). Ordner,
+ * Prominenz und der Verfahrensschritt des Datums stehen in der aufklappbaren
+ * [ZeilenKlappe](#) darunter — die Messung an der laufenden Fassung 23 hatte
+ * ergeben, dass an den ersten beiden über 23 Fassungen hinweg **keine einzige**
+ * Änderung vorgenommen wurde (sie kommen richtig aus der Kürzel-Zuarbeit),
+ * während der dritte für 91 % der Kürzel gar keine Antwort haben kann. Drei
+ * Auswahlfelder in 509 Zeilen waren damit vor allem eines: eine Aufforderung.
+ * Was wirklich Handarbeit ist, ist die **Relevanz** — und die bleibt in der Zeile.
  *
- * Zwei Dinge macht der Tab seit dem Vorgangssystem zusätzlich:
+ * Die Relevanz (Konzept 4.1) markiert die Kürzel, die für die Antragsbearbeitung
+ * zählen. Sie grenzen Navigator, Wächter und die Status-Erklärung ein — ohne sie
+ * bleibt die Kandidatenliste unbrauchbar groß.
  *
- * - **Relevanz-Häkchen** (Konzept 4.1): markiert die Kürzel, die für die
- *   Antragsbearbeitung zählen. Sie grenzen Navigator, Wächter und die
- *   Status-Erklärung ein — ohne sie bleibt die Kandidatenliste unbrauchbar groß.
- * - **Trigger-Wirkung**: was ein Kürzel in C16 auslöst, in Satzform aus der
- *   importierten Trigger-Tabelle. Aufklappbar in der Zeile, damit die Tabelle
- *   nicht noch eine Spalte breiter wird.
+ * Der Verfahrensschritt am Feld beantwortet „welches Datum gehört zum aktuellen
+ * Status?" — er speist die „seit"-Angabe der Erklärung und die Marke in der
+ * Chronik. Leer heißt „trägt nichts bei". Wer wissen will, welche Datumsfelder
+ * einen Schritt speisen (und welcher Schritt leer ausgeht), sieht das am Schritt
+ * selbst im Reiter *Statuswerte* — dort, wo die Phase lebt. Sie leitet **keinen
+ * Status ab** (Pitfall #44).
  *
  * Die Frage „hat das Kürzel überhaupt eine `D_`-Spalte im Export?" beantwortet
  * die vorhandene Spalte **CSV-Spalte** (leer = nirgends gemappt); dafür braucht
@@ -68,6 +72,7 @@ import { useEinsatzErhebung } from './useEinsatzErhebung';
 
 const thKlasse = 'text-left font-medium text-[11px] text-[var(--tf-text-tertiary)] px-2 py-1.5 whitespace-nowrap';
 const tdKlasse = 'px-2 py-1.5 align-middle';
+const klappenLabelKlasse = 'text-[11px] uppercase tracking-wide text-[var(--tf-text-tertiary)]';
 
 /** Ohne Zuordnung sichtbar bleiben: Felder ohne Ordner landen im Sammelordner. */
 function ordnerVon(feld: StatusFeldEintrag): string {
@@ -110,6 +115,103 @@ function RollenWahl({ f, set }: {
   );
 }
 
+/**
+ * Die Klappe einer Kürzel-Zeile: was selten gebraucht wird, und was das
+ * Fachsystem schon beantwortet hat.
+ *
+ * **Warum das nicht mehr in der Zeile steht.** Gemessen an der laufenden Fassung
+ * hat in 23 Fassungen niemand einen Ordner und niemand eine Prominenz geändert —
+ * beide kamen richtig aus der Kürzel-Zuarbeit. Als Auswahlfeld in 509 Zeilen
+ * waren sie trotzdem 1.018 Aufforderungen zu einer Entscheidung, die nie nötig
+ * war. Die ZAH-Phase wiederum kann für 91 % der Kürzel gar keine Antwort haben:
+ * die Trigger-Tabelle sagt nur für eine Handvoll, welchen Status ein Kürzel
+ * setzt. Eine Spalte, die dauerhaft leer bleiben muss, liest sich als Rückstand.
+ *
+ * Wegnehmen wäre falsch — umhängen kommt vor, nur eben selten. Also steht es
+ * hier, mit der Herkunft dabei.
+ */
+function ZeilenKlappe({ f, api, ordnerWahl, wirkung, spalten }: {
+  f: StatusFeldEintrag;
+  api: StatusCockpitApi;
+  ordnerWahl: { id: string; label: string }[];
+  wirkung: WirkungsZeile[];
+  spalten: number;
+}): React.ReactElement {
+  const set = (patch: Partial<StatusFeldEintrag>): void => api.setFeld(f.feldId, patch);
+  return (
+    <tr className="border-b border-[var(--tf-border)] bg-[var(--tf-bg-secondary)]">
+      <td colSpan={spalten} className="px-3 py-2.5">
+        <div className="flex flex-col gap-2.5">
+          <div className="flex flex-wrap items-end gap-x-5 gap-y-2">
+            <label className="flex flex-col gap-1">
+              <span className={klappenLabelKlasse}>Ordner</span>
+              <select
+                value={ordnerVon(f)} className={`${feldKlasse} min-w-[200px]`} style={feldStil}
+                onChange={e => set({ kategorieId: e.target.value })}
+              >
+                {ordnerWahl.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className={klappenLabelKlasse}>Prominenz</span>
+              <select
+                value={f.prominenzDefault} className={`${feldKlasse} min-w-[140px]`} style={feldStil}
+                title="Wie stark wird der Punkt in der Chronik gezeichnet? Hat nichts mit dem Meilenstein-Plan zu tun."
+                onChange={e => set({ prominenzDefault: e.target.value as Prominenz })}
+              >
+                {PROMINENZ_WERTE.map(p => <option key={p} value={p}>{PROMINENZ_LABEL[p]}</option>)}
+              </select>
+            </label>
+            {/* Wert-Felder tragen ihre Phase am WERT, nicht am Feld — hier wäre
+                die Eingabe wirkungslos und würde nur in die Irre führen. */}
+            {f.typ !== 'wert' && (
+              <label className="flex flex-col gap-1">
+                <span className={klappenLabelKlasse}>Verfahrensschritt des Datums</span>
+                <select
+                  value={f.zahPhaseId ?? ''} className={`${feldKlasse} min-w-[150px]`} style={feldStil}
+                  title="Beantwortet „seit wann gilt der Status“ und beschriftet die Chronik-Marke. Leer = trägt nichts bei."
+                  onChange={e => set({ zahPhaseId: e.target.value === '' ? null : e.target.value as ZahPhaseId })}
+                >
+                  <option value="">—</option>
+                  {zahPhasenVon(api.entwurf?.zahPhasen).map(p => (
+                    <option key={p.id} value={p.id}>{p.label}</option>
+                  ))}
+                </select>
+              </label>
+            )}
+          </div>
+          <p className="text-[11.5px] text-[var(--tf-text-tertiary)]">
+            Ordner und Prominenz kommen aus der Kürzel-Zuarbeit und stimmen dort bereits —
+            ändern nur, wenn das Fachsystem etwas anderes sagt. Der Verfahrensschritt
+            entscheidet allein, welches Datum die Erklärung als „seit wann" zeigt;
+            leer lassen ist der Normalfall.
+          </p>
+          {wirkung.length > 0 && (
+            <div className="flex flex-col gap-1 pt-0.5 border-t border-[var(--tf-border)]">
+              <span className={`${klappenLabelKlasse} pt-1.5`}>
+                Was das Kürzel in C16 auslöst
+              </span>
+              {/* Das Programm steht an JEDER Zeile: dasselbe Kürzel wirkt je
+                  Richtlinie verschieden, und ohne die Nummer stünden hier
+                  widersprüchliche Sätze untereinander. */}
+              <ul className="flex flex-col gap-0.5">
+                {wirkung.map((w, i) => (
+                  <li key={`${f.feldId}-${i}`} className="text-[11.5px] text-[var(--tf-text-secondary)]">
+                    <span className="text-[var(--tf-text-tertiary)] font-mono mr-1.5">
+                      {w.programm || '—'}/{w.folge}
+                    </span>
+                    {w.satz}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      </td>
+    </tr>
+  );
+}
+
 function FeldZeile({ f, csvSpalte, api, ordnerWahl, wirkung, spalten }: {
   f: StatusFeldEintrag;
   csvSpalte: string;
@@ -117,7 +219,7 @@ function FeldZeile({ f, csvSpalte, api, ordnerWahl, wirkung, spalten }: {
   ordnerWahl: { id: string; label: string }[];
   /** Trigger-Wirkung dieses Kürzels je Programm; leer ohne importierte Tabelle. */
   wirkung: WirkungsZeile[];
-  /** Spaltenzahl der Tabelle — für die aufgeklappte Wirkungs-Zeile. */
+  /** Spaltenzahl der Tabelle — für die aufgeklappte Zeile. */
   spalten: number;
 }): React.ReactElement {
   const [offen, setOffen] = useState(false);
@@ -128,19 +230,31 @@ function FeldZeile({ f, csvSpalte, api, ordnerWahl, wirkung, spalten }: {
       <tr className="border-b border-[var(--tf-border)] hover:bg-[var(--tf-hover)]">
         <td className={`${tdKlasse} text-[12px] text-[var(--tf-text-secondary)] font-mono whitespace-nowrap`} title={f.feldId}>
           <div className="flex items-center gap-1.5">
+            {/* EIN Griff für alles Seltene. Er ist immer da — bis v4.92 erschien
+                er nur bei vorhandener Trigger-Wirkung, und die Zeilen ohne ihn
+                sahen aus, als hätten sie nichts zu zeigen. */}
+            <button
+              type="button" onClick={() => setOffen(v => !v)} aria-expanded={offen}
+              title={offen ? 'Zuklappen' : 'Ordner, Prominenz, Verfahrensschritt und Wirkung zeigen'}
+              className="inline-flex items-center text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text)] cursor-pointer"
+            >
+              <ChevronRight
+                size={12} className="transition-transform duration-200"
+                style={{ transform: offen ? 'rotate(90deg)' : 'rotate(0deg)' }}
+              />
+            </button>
             <span>{f.code ?? f.feldId}</span>
             {f.unkuratiert && <Badge variant="warning">neu</Badge>}
             {/* Die Wirkung sitzt am Code, nicht in einer eigenen Spalte: dort
                 sucht sie der Leser, und die Tabelle bleibt schmal. */}
             {vorgangssystem && wirkung.length > 0 && (
-              <button
-                type="button" onClick={() => setOffen(v => !v)} aria-expanded={offen}
-                title={`${zaehlwort(wirkung.length, 'Trigger-Zeile', 'Trigger-Zeilen')} anzeigen`}
-                className="inline-flex items-center gap-0.5 text-[10.5px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text)] cursor-pointer"
+              <span
+                title={`${zaehlwort(wirkung.length, 'Trigger-Zeile', 'Trigger-Zeilen')} — aufklappen`}
+                className="inline-flex items-center gap-0.5 text-[10.5px] text-[var(--tf-text-tertiary)]"
               >
                 <Zap size={11} />
                 {wirkung.length}
-              </button>
+              </span>
             )}
           </div>
         </td>
@@ -159,36 +273,8 @@ function FeldZeile({ f, csvSpalte, api, ordnerWahl, wirkung, spalten }: {
           </td>
         )}
         <td className={`${tdKlasse} text-[12px] text-[var(--tf-text-secondary)]`}>{TYP_LABEL[f.typ]}</td>
-        <td className={`${tdKlasse} min-w-[190px]`}>
-          <select value={ordnerVon(f)} className={feldKlasse} style={feldStil}
-            onChange={e => set({ kategorieId: e.target.value })}>
-            {ordnerWahl.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
-          </select>
-        </td>
         <td className={`${tdKlasse} whitespace-nowrap`}>
           <RollenWahl f={f} set={set} />
-        </td>
-        <td className={`${tdKlasse} min-w-[124px]`}>
-          <select value={f.prominenzDefault} className={feldKlasse} style={feldStil}
-            onChange={e => set({ prominenzDefault: e.target.value as Prominenz })}>
-            {PROMINENZ_WERTE.map(p => <option key={p} value={p}>{PROMINENZ_LABEL[p]}</option>)}
-          </select>
-        </td>
-        {/* Wert-Felder tragen ihre Phase am WERT, nicht am Feld — hier wäre die
-            Eingabe wirkungslos und würde nur in die Irre führen. */}
-        <td className={`${tdKlasse} min-w-[132px]`}>
-          {f.typ === 'wert' ? <span className="text-[12px] text-[var(--tf-text-tertiary)]">je Wert</span> : (
-            <select
-              value={f.zahPhaseId ?? ''} className={feldKlasse} style={feldStil}
-              title="Zu welcher Phase gehört dieses Datum? Beantwortet „seit wann gilt der Status“ und beschriftet die Chronik-Marke. Leer = trägt nichts bei."
-              onChange={e => set({ zahPhaseId: e.target.value === '' ? null : e.target.value as ZahPhaseId })}
-            >
-              <option value="">—</option>
-              {zahPhasenVon(api.entwurf?.zahPhasen).map(p => (
-                <option key={p.id} value={p.id}>{p.label}</option>
-              ))}
-            </select>
-          )}
         </td>
         <td className={`${tdKlasse} text-center`}>
           <input type="checkbox" className="accent-[var(--tf-primary)] cursor-pointer"
@@ -196,23 +282,9 @@ function FeldZeile({ f, csvSpalte, api, ordnerWahl, wirkung, spalten }: {
         </td>
       </tr>
       {offen && (
-        <tr className="border-b border-[var(--tf-border)] bg-[var(--tf-bg-secondary)]">
-          <td colSpan={spalten} className="px-2 py-2">
-            {/* Das Programm steht an JEDER Zeile: dasselbe Kürzel wirkt je
-                Richtlinie verschieden, und ohne die Nummer stünden hier
-                widersprüchliche Sätze untereinander. */}
-            <ul className="flex flex-col gap-0.5">
-              {wirkung.map((w, i) => (
-                <li key={`${f.feldId}-${i}`} className="text-[11.5px] text-[var(--tf-text-secondary)]">
-                  <span className="text-[var(--tf-text-tertiary)] font-mono mr-1.5">
-                    {w.programm || '—'}/{w.folge}
-                  </span>
-                  {w.satz}
-                </li>
-              ))}
-            </ul>
-          </td>
-        </tr>
+        <ZeilenKlappe
+          f={f} api={api} ordnerWahl={ordnerWahl} wirkung={wirkung} spalten={spalten}
+        />
       )}
     </>
   );
@@ -245,9 +317,9 @@ function OrdnerGruppe({ kategorie, tiefe, felder, api, ordnerWahl, suchModus, tr
   );
   const zeigeOffen = offen || suchModus;
   const vorgangssystem = isVorgangssystemEnabled();
-  // Code, CSV-Spalte, Bezeichnung, [relevant], Typ, Ordner, Rollen, Prominenz,
-  // ZAH-Phase, aktiv.
-  const spalten = vorgangssystem ? 10 : 9;
+  // Code, CSV-Spalte, Bezeichnung, [relevant], Typ, Rollen, aktiv. Ordner,
+  // Prominenz und Verfahrensschritt stehen in der Klappe (siehe ZeilenKlappe).
+  const spalten = vorgangssystem ? 7 : 6;
 
   return (
     <div style={{ marginLeft: tiefe * 14 }}>
@@ -281,15 +353,12 @@ function OrdnerGruppe({ kategorie, tiefe, felder, api, ordnerWahl, suchModus, tr
                 </th>
               )}
               <th className={thKlasse}>Typ</th>
-              <th className={thKlasse}>Ordner</th>
               <th
                 className={thKlasse}
                 title="Rollen des Fachsystems: AB, FB, QS, PA, Juristen. Keine Auswahl = jeder darf setzen."
               >
                 wird gesetzt von <span className="font-normal">(leer = alle)</span>
               </th>
-              <th className={thKlasse}>Prominenz</th>
-              <th className={thKlasse}>ZAH-Phase</th>
               <th className={`${thKlasse} text-center`}>aktiv</th>
             </tr>
           </thead>
@@ -315,7 +384,6 @@ export function FelderTab({ api }: { api: StatusCockpitApi }): React.ReactElemen
   const [rolleFilter, setRolleFilter] = useState<'alle' | Rolle>('alle');
   const [nurRelevante, setNurRelevante] = useState(false);
   const [nurMitSpalte, setNurMitSpalte] = useState(false);
-  const [nurOhnePhase, setNurOhnePhase] = useState(false);
   // Auf-/Zu bleibt über Seitenaufrufe erhalten (localStorage, gerätelokal).
   const [ordnerOffen, toggleOrdnerOffen] = useCollapsedSection(
     'status-cockpit:ordner-editor', { defaultOpen: false },
@@ -370,14 +438,11 @@ export function FelderTab({ api }: { api: StatusCockpitApi }): React.ReactElemen
       // „Hat das Kürzel eine Spalte im Export?" ist genau die Frage, die die
       // Spalte CSV-Spalte beantwortet — ohne Eintrag ist es nirgends gemappt.
       if (nurMitSpalte && (api.csvSpalten.get(f.feldId)?.length ?? 0) === 0) return false;
-      // Deckungsgleich mit dem Zähler der Kopfzeile, damit Chip und Zahl
-      // dasselbe meinen: `null` (bewusst ohne Phase) zählt wie `undefined`.
-      if (nurOhnePhase && f.zahPhaseId != null) return false;
       if (!q) return true;
       const spalten = api.csvSpalten.get(f.feldId)?.join(' ') ?? '';
       return `${f.code ?? ''} ${f.feldId} ${f.label} ${spalten}`.toLowerCase().includes(q);
     });
-  }, [entwurf, suche, ebeneFilter, rolleFilter, nurRelevante, nurMitSpalte, nurOhnePhase, api.csvSpalten]);
+  }, [entwurf, suche, ebeneFilter, rolleFilter, nurRelevante, nurMitSpalte, api.csvSpalten]);
 
   if (!entwurf) return null;
 
@@ -417,8 +482,8 @@ export function FelderTab({ api }: { api: StatusCockpitApi }): React.ReactElemen
         {alleRuhenden.length > 0 && (
           <> · {entwurf.felder.length - alleRuhenden.length} im Blick, {alleRuhenden.length} ruhen</>
         )}
-        {' · '}davon mit ZAH-Phase: {mitPhase}. Ein Kürzel ohne Phase wird erfasst und angezeigt,
-        erklärt aber kein „seit wann".
+        {' · '}{mitPhase} sind einem Verfahrensschritt zugeordnet und liefern damit das
+        „seit wann" (zu sehen im Reiter <em>Statuswerte</em> am Schritt selbst).
         {vorgangssystem && (
           <>
             {' '}{relevanteAnzahl} als relevant markiert
@@ -477,7 +542,6 @@ export function FelderTab({ api }: { api: StatusCockpitApi }): React.ReactElemen
             <ToggleChip label="nur relevante" selected={nurRelevante} onToggle={() => setNurRelevante(v => !v)} />
           )}
           <ToggleChip label="nur mit CSV-Spalte" selected={nurMitSpalte} onToggle={() => setNurMitSpalte(v => !v)} />
-          <ToggleChip label="ohne Phase" selected={nurOhnePhase} onToggle={() => setNurOhnePhase(v => !v)} />
         </div>
       </div>
 

@@ -19,6 +19,17 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.92 — 2026-08
+
+### Verbesserungen
+- Die Kürzel-Tabelle in den **Vorgangs-Regeln** ist schmaler: sie zeigt nur noch, was dort auch entschieden wird. **Ordner**, **Prominenz** und der **Verfahrensschritt des Datums** stehen jetzt in der Klappe der Zeile (Pfeil vor dem Code) — zusammen mit dem Hinweis, dass die ersten beiden aus der Kürzel-Zuarbeit kommen und dort bereits stimmen.
+- Die Frage, **welches Datum den „seit wann"-Hinweis speist**, wird jetzt am Verfahrensschritt beantwortet statt an jedem einzelnen Kürzel. Über dem Schritt-Baum steht, wie viele Kürzel das leisten — und welcher Schritt ohne Datum dasteht.
+- Der Prominenz-Wert „Meilenstein" heißt jetzt **„Hauptereignis"**. Er hatte nie etwas mit dem Meilenstein-Plan zu tun, sondern sagt nur, wie stark ein Punkt in der Chronik gezeichnet wird.
+### Verbesserungen
+<!-- - … -->
+### Bugfixes
+<!-- - … -->
+
 ## v4.91 — 2026-08
 
 ### Neu

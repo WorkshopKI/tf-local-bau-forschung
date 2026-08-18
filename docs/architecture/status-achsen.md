@@ -32,6 +32,55 @@ Beide laufen in **eine** Liste (Home-Widget „Fristen",
 gezeigt, nicht zusammen gerechnet: sie messen Verschiedenes, und jede Zeile
 nennt deshalb ihre Herkunft.
 
+## Was an den Kürzeln überhaupt Handarbeit ist (v4.92)
+
+Die Kollegen meldeten, die Pflege der Kürzel falle schwer: zu viele neue
+Begriffe. Genannt wurden **relevant**, **Ordner**, **Prominenz** und
+**ZAH-Phase**; als klar und gut gepflegt galt **wird gesetzt von**.
+
+Die Messung der laufenden Fassung 23 gegen die Auslieferung erklärt beides —
+das Unbehagen wie das Wohlgefühl:
+
+| Spalte | von Hand geändert | woher der Wert kommt |
+|---|---|---|
+| wird gesetzt von | **0** von 509 | Kürzel-Zuarbeit, Spalte „wird gesetzt von:" |
+| Ordner | **0** von 509 (auch der Baum: 19 Ordner, 0 umbenannt, 0 verschoben) | Kürzel-Zuarbeit, Ordnerstruktur |
+| Prominenz | **0** von 509 | Auslieferung (32 Ausnahmen im Code kuratiert) |
+| ZAH-Phase | 22 | 24 aus der Auslieferung + 22 von Hand |
+| relevant | **224** | ausschließlich Handarbeit (Auslieferung: 0) |
+
+„Wird gesetzt von" fühlt sich gut gepflegt an, **weil sie es ist** — nur nicht
+durch uns: sie kam so aus der Zuarbeit. Ordner und Prominenz sind derselbe Fall,
+mit einem Unterschied: sie **sahen bedienbar aus**. Ein Auswahlfeld in einer
+Zeile ist eine Aufforderung; 509 Zeilen mal zwei Felder waren über 1.000
+Aufforderungen zu einer Entscheidung, die nie nötig war.
+
+Die ZAH-Phase am Kürzel ist ein dritter Fall: sie **kann** für die meisten gar
+keine Antwort haben. Der Phasenvorschlag gegen die 2.447 Trigger-Zeilen ist
+erschöpft — von 479 Kürzeln mit Code kämen noch **3** Vorschläge dazu; 293
+haben keinen Trigger, 178 setzen mit ihren Triggern keinen Status. 463 leere
+Zellen bleiben leer, und das ist richtig so: das „seit wann" braucht **ein**
+Datumsfeld je Schritt, nicht 509.
+
+**Konsequenz.** Die Zeile führt nur noch, was hier entschieden wird; Ordner,
+Prominenz und Verfahrensschritt stehen in der Klappe der Zeile, mit ihrer
+Herkunft dabei. Die Frage „welches Datum speist einen Schritt — und welcher
+Schritt geht leer aus?" steht am **Schritt** statt am Kürzel
+([phasenDatumsfelder.ts](../../src/plugins/status-cockpit/phasenDatumsfelder.ts)):
+dort sind es fünf Zeilen statt 509, und dort ist die Lücke eine Aussage.
+Gezählt wird nur, was auch wirkt — ein stillgelegtes oder als `ignoriert`
+ausgeblendetes Kürzel erscheint gar nicht in der Chronik und deckt deshalb
+keinen Schritt.
+
+### Ein Wort, zwei Bedeutungen
+
+Der Prominenz-Wert `meilenstein` hieß **„Meilenstein"** und stand damit im
+Kürzel-Verzeichnis neben einem Meilenstein-Modul, das etwas völlig anderes
+meint (Sollwochen ab Eingang, eigener Plan, eigene Freigabe). Er heißt jetzt
+**„Hauptereignis"** — er sagt nur, wie stark ein Punkt in der Chronik gezeichnet
+wird. Der Bezeichner bleibt `meilenstein`, weil er in jeder gespeicherten
+Fassung steht; ein Test hält die Beschriftung fest.
+
 ## Verfahrensschritt gegen Arbeitsliste
 
 Die beiden werden am häufigsten verwechselt. Sie beantworten verschiedene

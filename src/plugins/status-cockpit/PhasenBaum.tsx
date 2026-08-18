@@ -30,6 +30,7 @@ import {
   bauePhasenBaum, OHNE_PHASE_ID, WURZEL_ID, type PhasenBaumKnoten,
 } from './phasenKnoten';
 import { darfAblegen, darfZiehen, deuteZug } from './phasenDrag';
+import { datumsBilanzText } from './phasenDatumsfelder';
 import { PhasenDetail } from './PhasenDetail';
 import { PhaseLoeschenDialog } from './PhaseLoeschenDialog';
 
@@ -71,6 +72,11 @@ export function PhasenBaum({ api }: { api: StatusCockpitApi }): React.ReactEleme
         <p className="flex-1 text-[12.5px] text-[var(--tf-text-secondary)]">
           Ziehen Sie einen Statuswert auf einen anderen Verfahrensschritt, um ihn umzuhängen.
           Beide Katalog-Zeilen des Codes (TV und Verbund) ziehen mit.
+          {/* Der Ausfall wird BENANNT, nicht gezählt: „2 Schritte ohne Datum"
+              schickt den Leser auf die Suche, die Namen nicht. */}
+          <span className="block pt-0.5 text-[var(--tf-text-tertiary)]">
+            {datumsBilanzText(entwurf.felder, phasen)}
+          </span>
         </p>
         <Button
           variant="secondary" size="sm"
