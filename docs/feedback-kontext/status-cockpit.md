@@ -196,6 +196,17 @@ wird.
     hängt um, F2 benennt um, Rechtsklick öffnet Umbenennen · Stilllegen ·
     Entfernen. Verbund und Teilvorhaben bleiben getrennte Bäume — ein Ordner
     wechselt die Ebene nicht.
+    - Darüber steht, **was der Baum bewirkt**: „15 von 19 Ordnern tragen eine
+      Spalte in der Fördertabelle · ohne Spalte: internationale Projekte,
+      Betreuung, Vor-Ort-Besuch, SV - Keller - Archiv". Aus `kategorieId`
+      entstehen die **Ordner-Spalten der Fördertabelle**; ein Ordner ohne
+      tragendes Kürzel ist deshalb eine Spalte, die nie erscheinen kann. Wer sie
+      vermisst, soll den Grund hier lesen und nicht im Spaltenpicker suchen.
+    - Am Ordner selbst steht dann **„ohne Spalte"**. Nötig ist mindestens ein
+      **aktives Datums-Kürzel**, dessen Prominenz nicht „Ignoriert" ist — „leer"
+      und „ohne Spalte" fallen also auseinander, sobald in einem Ordner nur
+      Text-Kürzel liegen. Stillgelegte Ordner tragen die Marke nicht: dass aus
+      ihnen nichts wird, ist ihr Zweck.
   - Übernahme-Blöcke erscheinen nur, solange sie etwas bewirken: Auslieferung
     nachziehen, Bezeichnung/Rollen der Kürzel-Zuarbeit übernehmen, die beiden
     Phasenvorschläge, **AB-Dashboard-Spalten als relevant markieren** (setzt nur,

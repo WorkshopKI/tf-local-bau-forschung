@@ -19,7 +19,17 @@ export const wurzelId = (ebene: Ebene): string => `wurzel:${ebene}`;
 /** Nutzlast eines Knotens. Die Wurzel wird nie gerendert, braucht aber eine. */
 export type KategorieBaumKnoten =
   | { art: 'wurzel'; ebene: Ebene }
-  | { art: 'ordner'; kategorie: StatusKategorie; belegt: number };
+  | {
+    art: 'ordner';
+    kategorie: StatusKategorie;
+    belegt: number;
+    /**
+     * Wird aus diesem Ordner eine Spalte der Fördertabelle? Kommt wie `belegt`
+     * von aussen — das Kriterium wohnt in `kategorie-projektion.ts` und wird
+     * hier nicht zum zweiten Mal geschrieben.
+     */
+    traegtSpalte: boolean;
+  };
 
 export interface KategorieBaum {
   items: TfTreeItems<KategorieBaumKnoten>;
@@ -34,6 +44,7 @@ export function baueKategorieBaum(
   kategorien: readonly StatusKategorie[],
   ebene: Ebene,
   belegtJeOrdner: ReadonlyMap<string, number>,
+  ordnerMitSpalte: ReadonlySet<string> = new Set(),
 ): KategorieBaum {
   const items: Record<string, TfTreeItem<KategorieBaumKnoten>> = {};
 
@@ -47,7 +58,12 @@ export function baueKategorieBaum(
       // und ein Blatt-Symbol wäre eine Lüge über seine Rolle.
       isFolder: true,
       children: kinder,
-      data: { art: 'ordner', kategorie: k, belegt: belegtJeOrdner.get(k.id) ?? 0 },
+      data: {
+        art: 'ordner',
+        kategorie: k,
+        belegt: belegtJeOrdner.get(k.id) ?? 0,
+        traegtSpalte: ordnerMitSpalte.has(k.id),
+      },
     };
     return k.id;
   });

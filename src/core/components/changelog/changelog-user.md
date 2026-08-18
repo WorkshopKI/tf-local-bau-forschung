@@ -19,6 +19,11 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.99 — 2026-08
+
+### Verbesserungen
+- Der **Ordnerbaum** der Kürzel sagt jetzt, was er bewirkt: aus jedem Ordner kann eine Spalte in der Fördertabelle werden — und über dem Baum steht, welche Ordner das **nicht** können, weil kein passendes Kürzel darin liegt. Wer eine Spalte vermisst, findet den Grund dort statt im Spaltenpicker.
+
 ## v4.98 — 2026-08
 
 ### Verbesserungen

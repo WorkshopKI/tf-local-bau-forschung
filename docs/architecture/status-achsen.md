@@ -64,7 +64,16 @@ Datumsfeld je Schritt, nicht 509.
 
 **Konsequenz.** Die Zeile führt nur noch, was hier entschieden wird; Ordner,
 Prominenz und Verfahrensschritt stehen in der Klappe der Zeile, mit ihrer
-Herkunft dabei. Die Frage „welches Datum speist einen Schritt — und welcher
+Herkunft dabei. **Entfernt wurde keine der drei** — und beim Ordner
+wäre das ein Fehler gewesen: aus `kategorieId` leitet
+[kategorie-projektion.ts](../../src/core/status/kategorie-projektion.ts) die
+**Ordner-Spalten der Fördertabelle** ab, und jeder CSV-Import schreibt sie in
+die Slim-Projektion. Die Drift-Messung sagt, wer eine Achse *pflegt* — nicht,
+wer sie *liest*. Statt Rückbau sagt der Ordner-Editor seit v4.99, welche Ordner
+gar keine Spalte tragen können
+([ordnerBilanz.ts](../../src/plugins/status-cockpit/ordnerBilanz.ts): 15 von 19,
+ohne Spalte sind *internationale Projekte*, *Betreuung*, *Vor-Ort-Besuch*,
+*SV - Keller - Archiv*). Die Frage „welches Datum speist einen Schritt — und welcher
 Schritt geht leer aus?" steht am **Schritt** statt am Kürzel
 ([phasenDatumsfelder.ts](../../src/plugins/status-cockpit/phasenDatumsfelder.ts)):
 dort sind es fünf Zeilen statt 509, und dort ist die Lücke eine Aussage.

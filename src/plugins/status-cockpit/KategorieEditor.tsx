@@ -29,6 +29,7 @@ import {
   baueKategorieBaum, belegungJeOrdner, wurzelId,
   type Ebene, type KategorieBaumKnoten,
 } from './kategorieBaum';
+import { ordnerBilanzText, ordnerMitSpalte } from './ordnerBilanz';
 
 /** Id aus dem Label ableiten: kleingeschrieben, ohne Sonderzeichen, Ebene voran. */
 function baueId(
@@ -57,6 +58,12 @@ export function KategorieEditor({ api }: { api: StatusCockpitApi }): React.React
 
   const alle = useMemo(() => entwurf?.kategorien ?? [], [entwurf]);
   const belegt = useMemo(() => belegungJeOrdner(entwurf?.felder ?? []), [entwurf]);
+  // Was der Ordnerbaum wirklich bewirkt: die Ordner-Spalten der Fördertabelle.
+  // Ein leerer Ordner ist deshalb eine Spalte, die nie erscheinen kann.
+  const traegtSpalte = useMemo(
+    () => (entwurf ? ordnerMitSpalte(entwurf) : new Set<string>()), [entwurf],
+  );
+  const bilanz = useMemo(() => (entwurf ? ordnerBilanzText(entwurf) : null), [entwurf]);
 
   if (!entwurf) return null;
 
@@ -102,12 +109,21 @@ export function KategorieEditor({ api }: { api: StatusCockpitApi }): React.React
         Ordner verschwindet aus der Anzeige, behält aber seine Felder.
       </p>
 
+      {/* Namentlich, nicht als Anzahl — dieselbe Regel wie bei den Schritten
+          ohne Datum (v4.92) und den wirkungslosen Regeln (v4.95). Wer eine
+          Spalte in der Fördertabelle vermisst, soll den Grund hier lesen und
+          nicht im Spaltenpicker suchen. */}
+      {bilanz !== null && (
+        <p className="text-[11.5px] text-[var(--tf-text-tertiary)]">{bilanz}</p>
+      )}
+
       {(['verbund', 'tv'] as const).map(ebene => (
         <EbenenBaum
           key={ebene}
           ebene={ebene}
           alle={alle}
           belegt={belegt}
+          traegtSpalte={traegtSpalte}
           offen={offen[ebene]}
           setOffen={ids => setOffen(o => ({ ...o, [ebene]: ids }))}
           api={api}
@@ -154,17 +170,20 @@ export function KategorieEditor({ api }: { api: StatusCockpitApi }): React.React
   );
 }
 
-function EbenenBaum({ ebene, alle, belegt, offen, setOffen, api, onUmhaengen }: {
+function EbenenBaum({ ebene, alle, belegt, traegtSpalte, offen, setOffen, api, onUmhaengen }: {
   ebene: Ebene;
   alle: readonly StatusKategorie[];
   belegt: ReadonlyMap<string, number>;
+  /** Ordner-Ids, aus denen eine Spalte der Fördertabelle wird. */
+  traegtSpalte: ReadonlySet<string>;
   offen: string[];
   setOffen: (ids: string[]) => void;
   api: StatusCockpitApi;
   onUmhaengen: (id: string, zielId: string | null) => void;
 }): React.ReactElement {
   const { items, rootId } = useMemo(
-    () => baueKategorieBaum(alle, ebene, belegt), [alle, ebene, belegt],
+    () => baueKategorieBaum(alle, ebene, belegt, traegtSpalte),
+    [alle, ebene, belegt, traegtSpalte],
   );
   const leer = (items[rootId]?.children ?? []).length === 0;
 
@@ -251,6 +270,17 @@ function Steuerung({ p, api }: {
       <span className="text-[11px] font-mono text-[var(--tf-text-tertiary)]">
         {zaehlwort(p.data.belegt, 'Feld', 'Felder')}
       </span>
+      {/* Nur wo etwas fehlt: ein Haken an jedem tragenden Ordner wäre Rauschen
+          in einer Liste, in der das der Regelfall ist. */}
+      {!p.data.traegtSpalte && k.aktiv !== false && (
+        <span
+          className="shrink-0 text-[10px] uppercase tracking-wide text-[var(--tf-warning-text)]"
+          title={'Aus diesem Ordner entsteht keine Spalte der Fördertabelle. Dafür braucht er '
+            + 'mindestens ein aktives Datums-Kürzel, dessen Prominenz nicht „Ignoriert" ist.'}
+        >
+          ohne Spalte
+        </span>
+      )}
       <input
         type="number"
         value={k.reihenfolge}
