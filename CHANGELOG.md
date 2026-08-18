@@ -5,6 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.103.1 — Der Schalter sagt, was er bei einer Frage tut (August 2026)
+
+PATCH — Gefragt wurde, ob „auch ähnliche Themen" bei einer Frage überhaupt Sinn ergibt und was der Haken dort bewirkt. Er tut dort etwas anderes als bei Stichworten — verglichen wird die ganze Frage —, und das stand nirgends außer im Quelltext.
+
+- **Eigener Tooltip im Frage-Modus**: ganze Frage statt Suchbegriffe, bis zu 50 zusätzliche Vorhaben, gedeckelt auf „mittel", nichts davon bei einer einschränkenden Frage ([SuchOptionenZeile.tsx](src/plugins/suche/SuchOptionenZeile.tsx))
+- **Nicht gebaut, weil vorhanden**: schränkt der Plan ein, steht an der Stelle des Hakens schon seit v4.66 „ohne Ähnlichkeitssuche" samt Begründung
+- **Nicht automatisch eingeschaltet** — die Antwort-KI liest die ersten 20 Treffer, gedeckelte Ähnlichkeits-Treffer erreichen sie fast nie, zählen aber im Befund mit ([useFrageAntwort.ts](src/plugins/suche/antwort/useFrageAntwort.ts))
+- **Die Zahlen stehen im Seiten-Kontext-Doc** ([suche.md](docs/feedback-kontext/suche.md))
+
 ### v4.103.0 — Vorgangs-Board und Vorgangs-Regeln laden beim Wiederbesuch sofort (August 2026)
 
 MINOR — Beide Seiten rechneten bei JEDEM Menü-Aufruf den ganzen Bestand neu — gemessen 7,8–18,2 s (Board) bzw. 10,8–12,4 s (Regeln), auch beim Wiederbesuch. Gemeldet als „dauert es bei jedem Aufruf 5 Sekunden ehe die Seiten Inhalte anzeigen".

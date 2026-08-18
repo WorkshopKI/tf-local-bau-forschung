@@ -155,6 +155,29 @@ const AEHNLICHKEIT_TITEL = 'Gleiches Thema, andere Wörter. Findet verwandte Vor
   + 'Bedeutung statt der Buchstaben. Lädt dazu beim ersten Mal ein Sprachmodell '
   + '(~200 MB) auf diesen Rechner.';
 
+/**
+ * Derselbe Schalter, andere Wirkung — und deshalb ein eigener Text.
+ *
+ * Im Frage-Modus geht nicht die Wortliste an das Modell, sondern der GANZE
+ * Fragesatz; das ist genau die Form, für die ein Embedding gebaut ist, und es
+ * ist etwas anderes als das, was `AEHNLICHKEIT_TITEL` beschreibt. Gefragt wurde
+ * „macht der Schalter bei einer Frage Sinn und was bewirkt er?" — die Antwort
+ * stand bis v4.103.1 nur im Quelltext.
+ *
+ * Die Obergrenze gehört dazu: ein reiner Ähnlichkeits-Treffer ist auf halbe
+ * Relevanz gedeckelt (`AEHNLICHKEIT_DECKEL`) und kann die Stufe „hoch" nie
+ * erreichen. Der Schalter kann die Liste also verlängern, aber ihren Anfang
+ * nicht durcheinanderbringen — das ist der Grund, warum man ihn gefahrlos
+ * ausprobieren kann.
+ */
+const AEHNLICHKEIT_FRAGE_TITEL = 'Gleiches Thema, andere Wörter — bei einer Frage wird '
+  + 'die GANZE Frage als Text verglichen, nicht ihre Suchbegriffe. Das holt bis zu 50 '
+  + 'verwandte Vorhaben dazu, die keines der gesuchten Wörter tragen; sie stehen mit der '
+  + 'Fundstelle „Ähnlichkeit" in der Liste und erreichen höchstens die Stufe „mittel" — '
+  + 'ein Wortlaut-Treffer bleibt immer davor. Nennt die Frage einen Ort oder eine andere '
+  + 'Einschränkung, läuft die Stufe gar nicht mit. Lädt beim ersten Mal ein Sprachmodell '
+  + '(~200 MB) auf diesen Rechner.';
+
 const OHNE_AEHNLICHKEIT_TITEL = 'Die Ähnlichkeitssuche läuft bei dieser Frage nicht mit: '
   + 'die KI hat sie an ein Feld gebunden oder eine Einschränkung gesetzt, und beides kann '
   + 'ein Vergleich ganzer Texte nicht einhalten — er steuerte genau die Treffer bei, die '
@@ -305,7 +328,7 @@ export function SuchOptionenZeile({
         <label
           className="inline-flex h-7 items-center gap-1.5 rounded-[8px] px-2 text-[12px] text-[var(--tf-text-secondary)] cursor-pointer"
           style={SELECT_STYLE}
-          title={AEHNLICHKEIT_TITEL}
+          title={nlModus ? AEHNLICHKEIT_FRAGE_TITEL : AEHNLICHKEIT_TITEL}
         >
           <input
             type="checkbox"

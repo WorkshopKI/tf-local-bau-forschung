@@ -22,6 +22,7 @@
 ## v4.103 — 2026-08
 
 ### Verbesserungen
+- **„auch ähnliche Themen" erklärt sich im Frage-Modus selbst.** Der Haken tut dort etwas anderes als bei einer Stichwortsuche: verglichen wird die **ganze Frage** als Text, nicht die Suchbegriffe daraus. Er holt bis zu 50 verwandte Vorhaben dazu, die kein einziges der gesuchten Wörter tragen — sie erscheinen mit der Fundstelle „Ähnlichkeit" und stehen nie vor einem Wortlaut-Treffer. Nennt Ihre Frage einen Ort oder eine andere Einschränkung, läuft die Stufe gar nicht mit; dann steht dort „ohne Ähnlichkeitssuche".
 - **Vorgangs-Board und Vorgangs-Regeln öffnen beim Wiederbesuch sofort.** Bisher rechnete jede Rückkehr den ganzen Bestand neu durch; jetzt wird das Ergebnis behalten.
 - Beide Seiten zeigen an, wie alt ihre Zahlen sind, und haben einen Knopf „neu berechnen".
 - Auch die erste Berechnung ist rund doppelt so schnell.
