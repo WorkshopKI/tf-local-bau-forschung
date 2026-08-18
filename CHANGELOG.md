@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.106.0 — Vorschlaege fuer den Frage-Modus der Foerderantraege (August 2026)
+
+MINOR — Gewünscht waren Vorschläge für den Frage-Modus: vergangene Fragen, konkrete Beispiele und Vorlagen zum Ausfüllen. Ein leeres Feld, das einen ganzen Satz erwartet, zeigte bis dahin genau ein Beispiel im Platzhalter — welche Achsen es sonst gibt, stand nirgends.
+
+- **Drei Abschnitte in einer Liste** — Zuletzt gefragt · Beispielfragen · Zum Ausfüllen, mit einer Auswahlmarke über alle ([vorschlagsAbschnitte.ts](src/plugins/antraege/frage/vorschlagsAbschnitte.ts), [antrags-frage.md](docs/architecture/antrags-frage.md))
+- **Fertige Frage gegen halbe Frage**: Verlauf und Beispiel werden gestellt, eine Vorlage nur eingesetzt — der Cursor landet markiert auf der ersten Lücke `‹…›` ([useFrageVorschlaege.ts](src/plugins/antraege/frage/useFrageVorschlaege.ts))
+- **Enter springt zur nächsten Lücke**, statt eine halbe Frage an die KI zu schicken ([FrageVorschlaege.tsx](src/plugins/antraege/frage/FrageVorschlaege.tsx))
+- **Gemerkt wird erst, was übersetzt werden konnte** — gerätelokal und getrennt vom Verlauf der Dokumenten-Suche ([frageVerlauf.ts](src/plugins/antraege/frage/frageVerlauf.ts))
+- **Die Verlaufs-Mechanik steht jetzt einmal** statt in der Such-Seite, die eine React-Komponente hinter sich herzöge ([anfrage-verlauf.ts](src/core/services/search/anfrage-verlauf.ts))
+
 ### v4.105.1 — Die gezaehlte Gruppe steht in den Belegen (August 2026)
 
 PATCH — Gemeldet: „die Antwort ist nicht hilfreich, wenn die 4 nicht gelistet sind". Der Befund zählte „4 von 499 tragen ALLE gefragten Themen", die Antwort erklärte sie für nicht im Auszug enthalten — sie standen auf den Plätzen 1 bis 4. Keine Belegzeile wies die Gruppe aus, also konnte das Modell sie zählen, aber nicht benennen.

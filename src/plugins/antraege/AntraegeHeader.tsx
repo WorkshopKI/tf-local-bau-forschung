@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Download, Filter, FileUp, Loader2, Search, X } from 'lucide-react';
 import { useAntraegeStore } from './store';
 import { useAufnahmeUiStore } from './aufnahme-einfach';
@@ -15,6 +15,8 @@ import { BearbeiterSichtChip } from '@/components/bearbeiter/BearbeiterSichtChip
 import { menuLabel, isGutachtenWorkflowEnabled, isSucheNatuerlicheSpracheEnabled } from '@/config/feature-flags';
 import { FrageUmschalter, FrageDeutung } from './frage/FrageZeile';
 import { useAntragsFrage } from './frage/useAntragsFrage';
+import { FrageVorschlaege } from './frage/FrageVorschlaege';
+import { useFrageVorschlaege } from './frage/useFrageVorschlaege';
 import { isAuslastungFreigeschaltet } from '@/core/modul-freischaltung';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -65,6 +67,17 @@ export function AntraegeHeader({ filterOpen, onToggleFilter, listeSichtbar }: Pr
   // Verfahren, dieselbe Freischaltung.
   const frageAn = isSucheNatuerlicheSpracheEnabled();
   const frage = useAntragsFrage();
+  // Die Vorschlagsliste gibt es NUR im Frage-Modus: ein leeres Feld, das einen
+  // ganzen Satz erwartet, ist die schwerste Eingabe der Seite. Der Stichwort-
+  // Modus hat mit Feldsyntax und Ähnlichkeits-Hinweis seine eigenen Wegweiser.
+  const feldRef = useRef<HTMLInputElement>(null);
+  const vorschlaege = useFrageVorschlaege({
+    feldRef,
+    text: search,
+    setText: setSearch,
+    stelleFrage: q => { void frage.stelleFrage(q); },
+    aktiviert: frageAn && frage.nlModus,
+  });
   const searchIgnoreBearbeiter = useAntraegeStore(s => s.searchIgnoreBearbeiterFilter);
   const setSearchIgnoreBearbeiter = useAntraegeStore(s => s.setSearchIgnoreBearbeiterFilter);
   const hybridLoading = useAntraegeStore(s => s.hybridSearch.loading);
@@ -316,19 +329,19 @@ export function AntraegeHeader({ filterOpen, onToggleFilter, listeSichtbar }: Pr
                   className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--tf-text-tertiary)] pointer-events-none"
                 />
                 <Input
+                  ref={feldRef}
                   placeholder={frage.nlModus
                     ? 'Frage stellen, z. B. „alle Netzwerke, die für Phase 2 abgelehnt wurden" — Enter'
                     : 'Anträge durchsuchen (Titel, Akronym, FKZ, Antragsteller, Ort, Dokumente)'}
                   value={search}
-                  onChange={e => setSearch(e.target.value)}
+                  onChange={e => { setSearch(e.target.value); vorschlaege.beiEingabe(); }}
+                  onFocus={vorschlaege.beiFokus}
+                  onBlur={vorschlaege.beiVerlust}
                   // Im Frage-Modus laeuft NICHTS beim Tippen: ein KI-Aufruf je
-                  // Tastendruck waere weder bezahlbar noch sinnvoll. Erst Enter.
-                  onKeyDown={e => {
-                    if (frage.nlModus && e.key === 'Enter') {
-                      e.preventDefault();
-                      void frage.stelleFrage(search);
-                    }
-                  }}
+                  // Tastendruck waere weder bezahlbar noch sinnvoll. Erst Enter —
+                  // und was Enter dann bedeutet, entscheidet `beiTaste`
+                  // (Zeile waehlen / in die Luecke springen / fragen).
+                  onKeyDown={vorschlaege.beiTaste}
                   className="pl-7 pr-7 h-8 w-full text-[12.5px]"
                   title={frage.nlModus
                     ? 'Ganze Frage eingeben und Enter drücken. Die interne KI übersetzt sie in Filter.'
@@ -343,6 +356,7 @@ export function AntraegeHeader({ filterOpen, onToggleFilter, listeSichtbar }: Pr
                     aria-label="Suche läuft"
                   />
                 ) : null}
+                <FrageVorschlaege steuerung={vorschlaege} />
               </div>
               {/* Kontext-Häkchen zur laufenden Suche: erscheint nur, wenn ein
                   Bearbeiter-Filter die Treffer beschneiden würde. Die frühere
@@ -360,6 +374,14 @@ export function AntraegeHeader({ filterOpen, onToggleFilter, listeSichtbar }: Pr
                 </label>
               ) : null}
             </div>
+
+            {/* Warum die Eingabetaste gerade nicht gefragt hat: in der Frage
+                steht noch eine Lücke aus einer Vorlage. */}
+            {vorschlaege.hinweis !== null ? (
+              <div className="mt-1 text-[11.5px] text-[var(--tf-text-secondary)]">
+                {vorschlaege.hinweis}
+              </div>
+            ) : null}
 
             {/* Was die Frage gesetzt hat — und was von ihr nicht ankam. */}
             {frageAn ? <FrageDeutung frage={frage} /> : null}

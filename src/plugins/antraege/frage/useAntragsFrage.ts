@@ -22,6 +22,7 @@ import { useAntraegeStore } from '../store';
 import { useKopfFilter } from '../kopfFilter';
 import { useFilterState } from '../filter/useFilterState';
 import { ermittleAntragsplan } from './antragsplan-lauf';
+import { useFrageVerlauf } from './frageVerlauf';
 import type { Antragsplan } from './antragsplan';
 import { wendeAntragsplanAn, type PlanWirkung } from './wendeAntragsplanAn';
 
@@ -119,6 +120,10 @@ export function useAntragsFrage(): AntragsFrageErgebnis {
       });
       setPlan(res.plan);
       setWirkung(w);
+      // Erst jetzt in den Verlauf: gemerkt wird, was übersetzt werden KONNTE.
+      // Eine an der KI-Verbindung gescheiterte Frage stünde sonst als Vorschlag
+      // da und verspräche eine Wiederholung, die nichts wiederholt.
+      useFrageVerlauf.getState().merke(frage);
     } finally {
       if (!ctrl.signal.aborted) setLaeuft(false);
     }

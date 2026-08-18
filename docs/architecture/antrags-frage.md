@@ -126,6 +126,49 @@ Ausschnitt **nicht** — dort ist er ans Passwort gebunden, und eine Frage darf 
 wenig aufmachen wie die „alle"-Wahl. Der Chip sagt „aus der Frage" und nimmt sie
 per Klick zurück (Pitfall #46).
 
+## Die Vorschlagsliste
+
+Ein leeres Feld, das einen ganzen Satz erwartet, ist die schwerste Eingabe der
+Seite: der Platzhalter zeigt **ein** Beispiel, und welche Achsen es sonst gibt,
+steht nirgends. Die Liste unter dem Feld
+([vorschlagsAbschnitte.ts](../../src/plugins/antraege/frage/vorschlagsAbschnitte.ts))
+beantwortet deshalb nicht „was hast du zuletzt gesucht", sondern „was kann man
+hier überhaupt fragen" — drei Abschnitte, **eine** Liste mit einer Auswahlmarke:
+
+| Abschnitt | Inhalt | Auswahl |
+|---|---|---|
+| Zuletzt gefragt | eigener Verlauf, max. 3 | stellt die Frage |
+| Beispielfragen | drei fertige, je mit den Achsen dahinter | stellt die Frage |
+| Zum Ausfüllen | drei Vorlagen mit Lücken `‹…›` | setzt nur ein |
+
+**Fertige Frage gegen halbe Frage** ist die Trennlinie, die alles trägt. Verlauf
+und Beispiel waren schon einmal ein Auftrag → die Auswahl tut, was die
+Eingabetaste täte. Eine Vorlage ist ein halber Satz → sie wird eingesetzt, und
+der Schreibcursor landet markiert auf der ersten Lücke. Dieselbe Regel wie in
+der Dokumenten-Suche, wo Verlaufs-Einträge mitfeuern und die Syntax-Beispiele
+nicht.
+
+**Die Eingabetaste hat damit drei Bedeutungen**, in dieser Reihenfolge
+([useFrageVorschlaege.ts](../../src/plugins/antraege/frage/useFrageVorschlaege.ts)):
+markierte Zeile wählen → in die nächste Lücke springen → fragen. Eine Vorlage mit
+`‹Kürzel›` erreicht die KI nie; ein Modell, das den Platzhalter liest, dächte
+sich einen Bearbeiter aus.
+
+**Vorgeschlagen wird nur, was der Plan ausführen kann.** Jede Frage hier spricht
+ausschließlich die Achsen oben an — eine Beispielfrage nach dem Ort landete
+geradewegs in „nicht berücksichtigt" und lehrte das Falsche. Ein Guard im
+Modul-Test hält das fest. Der Varianten-Hinweis der Vorlage kommt aus
+`VB_PHASE_LABELS` ohne `IRRLAEUFER_PHASE` — abgeleitet, nicht abgeschrieben.
+
+**Gemerkt wird erst, was übersetzt werden konnte**, nicht der Tastendruck
+([frageVerlauf.ts](../../src/plugins/antraege/frage/frageVerlauf.ts)): sonst
+stünden Fragen im Abschnitt „Zuletzt gefragt", die an einer fehlenden
+KI-Verbindung gescheitert sind, und versprächen eine Wiederholung, die nichts
+wiederholt. Der Verlauf liegt **gerätelokal** in `localStorage` und ist von dem
+der Dokumenten-Suche getrennt: dort stehen Stichworte und Feldausdrücke, hier
+ganze Sätze. Die Mechanik teilen sich beide über
+[anfrage-verlauf.ts](../../src/core/services/search/anfrage-verlauf.ts).
+
 ## Der Lauf
 
 `ermittleAntragsplan` ([antragsplan-lauf.ts](../../src/plugins/antraege/frage/antragsplan-lauf.ts))

@@ -19,6 +19,14 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.106 — 2026-08
+
+### Neu
+- Das Suchfeld der Förderanträge **schlägt Fragen vor**, sobald man es im Frage-Modus anklickt — in drei Abschnitten: **Zuletzt gefragt** (die eigenen Fragen, nur auf diesem Rechner gemerkt), **Beispielfragen** (drei fertige, jeweils mit den Filtern dahinter) und **Zum Ausfüllen** (drei Vorlagen mit Lücken).
+- Eine Vorlage wird beim Auswählen nur **eingesetzt**: der Cursor steht auf der ersten Lücke, und Enter springt zur nächsten, statt eine halbe Frage abzuschicken. Erst wenn alle Lücken gefüllt sind, wird gefragt. Eine fertige Frage aus dem Verlauf oder den Beispielen wird dagegen sofort gestellt.
+### Verbesserungen
+- Der Verlauf lässt sich zeilenweise oder ganz löschen. Gemerkt werden nur Fragen, die auch übersetzt werden konnten.
+
 ## v4.105 — 2026-08
 
 ### Neu
