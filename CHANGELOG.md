@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.100.0 — Verwaltungsnotizen raus aus der Suche, Antwort rein in die Liste (August 2026)
+
+MINOR — Zwei Meldungen, eine Wurzel: die Suche zeigte Dinge nebeneinander, die nicht zusammengehören, und trennte, was zusammengehört. Gemeldet als „warum kann ich die Spalte Notiz nicht abwählen, da steht oft was mit Vollmachten" und „wie kann der User die Liste der KI ganz oben mit den Suchergebnissen darunter zusammenbringen?".
+
+- **Die Arbeitsnotizen laufen nicht mehr im Standard mit** — sie hängen am Vorgang, nicht am Vorhaben: 1.054 der 5.345 Notizen nennen eine Vollmacht ([suchbereich.ts](src/core/services/search/suchbereich.ts))
+- **Der Standardbereich heißt „alle Vorhabensfelder"** statt „alle Felder"; die drei Ausnahmen stehen benannt in `NICHT_IM_STANDARD`, der Guard hält es bei dreien
+- **Der Klick auf ein Kennzeichen in der Antwort springt in die Liste** statt die Suche zu verlassen — die Liste lädt dafür bis zur Zielzeile nach ([useAntwortBruecke.ts](src/plugins/suche/antwort/useAntwortBruecke.ts))
+- **Genannte Treffer tragen die Marke „in der Antwort"** und den Satz der KI als Kurzform, den vollen im Tooltip — ohne zweiten KI-Aufruf ([genannteTreffer.ts](src/plugins/suche/antwort/genannteTreffer.ts))
+- **Chip „nur die genannten (13)"** hinter den Facetten; der Antwort-Lauf bleibt bewusst auf der ungefilterten Menge ([GenannteChip.tsx](src/plugins/suche/antwort/GenannteChip.tsx))
+
 ### v4.99.0 — Ein Ordner sagt, ob er eine Spalte traegt (August 2026)
 
 MINOR — Der Ordnerbaum sah nach Zierrat aus: über 25 Fassungen hat ihn niemand umgebaut, vier seiner 19 Ordner sind leer. Er ist es nicht — aus `kategorieId` entstehen die Ordner-Spalten der Fördertabelle. Ein leerer Ordner ist damit eine Spalte, die nie erscheinen kann, und das stand nirgends.

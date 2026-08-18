@@ -19,6 +19,14 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.100 — 2026-08
+
+### Neu
+- Nennt die **KI-Antwort** über der Trefferliste ein Vorhaben, führt ein Klick auf sein Kennzeichen jetzt **in die Liste darunter** — die Zeile wird angesteuert und kurz hervorgehoben, statt dass die Suche verlassen wird. Die genannten Vorhaben tragen dort die Marke „in der Antwort", darunter in einer Zeile, was die KI über sie gesagt hat (der ganze Satz steht im Tooltip). Mit dem Chip **„nur die genannten"** neben den Filtern sehen Sie ausschließlich diese.
+
+### Verbesserungen
+- Die **Arbeitsnotizen werden nicht mehr mitgesucht**. Dort steht Verwaltungsverkehr — Vollmachten, IBAN, Zahlungsstopps, Namen —, und wer fachlich suchte, bekam davon Treffer, deren einziger Grund ein Name in einer Vollmacht war. Gezielt erreichbar bleiben sie über `notiz:` (auch `bemerkung:` oder `wichtig:`). Weil der Standardbereich damit nicht mehr wörtlich alles durchsucht, heißt er jetzt **„alle Vorhabensfelder"**.
+
 ## v4.99 — 2026-08
 
 ### Verbesserungen

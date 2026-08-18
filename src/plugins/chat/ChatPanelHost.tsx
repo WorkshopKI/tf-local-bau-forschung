@@ -33,7 +33,7 @@ interface ChatPanelHostProps {
   /** Panel schließen (X im Kopf). */
   onClose: () => void;
   /** Aktuelle Suchtreffer — Quelle des angehefteten Kontexts (leer = kein Chip). */
-  contextResults: UnifiedSearchResult[];
+  contextResults: readonly UnifiedSearchResult[];
   /** Aktuelle Suchanfrage — bei Änderung wird ein zuvor entfernter Kontext neu angeheftet. */
   contextQuery: string;
   /**

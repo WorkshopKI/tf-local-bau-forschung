@@ -19,14 +19,20 @@ export type Suchbereich = 'alles' | 'inhalt' | 'dokumente' | 'einrichtung' | 'st
  * Die Beschriftungen — Reihenfolge = Reihenfolge im Aufklapper: erst der weite
  * Standard, dann die Einschränkungen vom Inhalt zur Herkunft.
  *
- * Der Standard heißt seit v4.44.0 „alle Felder" und nicht mehr „Titel,
- * Beschreibung, Dokumente". Die Aufzählung nannte drei von acht Feldern und las
- * sich damit als Einschränkung, die sie nie war: Einrichtung, Ort, Akronym,
- * Aktenzeichen, Deskriptoren und Web-Adresse waren immer mit dabei. Zweimal
- * gemeldet als „Feld X wird nicht durchsucht", beide Male stimmte es nicht —
- * gesucht wurde in einem der „nur …"-Bereiche. Erst der Gegensatz „alle Felder"
- * ⇄ „nur …" macht sichtbar, welche Wahl etwas WEGNIMMT. Was der Name zusagt,
- * hält der Guard in `wortstamm.test.ts` fest.
+ * Der Standard hieß bis v4.44.0 „Titel, Beschreibung, Dokumente". Die
+ * Aufzählung nannte drei von acht Feldern und las sich damit als Einschränkung,
+ * die sie nie war: Einrichtung, Ort, Akronym, Aktenzeichen, Deskriptoren und
+ * Web-Adresse waren immer mit dabei. Zweimal gemeldet als „Feld X wird nicht
+ * durchsucht", beide Male stimmte es nicht — gesucht wurde in einem der
+ * „nur …"-Bereiche. Erst der Gegensatz „alle …" ⇄ „nur …" macht sichtbar,
+ * welche Wahl etwas WEGNIMMT.
+ *
+ * Seit v4.100 heißt er **„alle Vorhabensfelder"** statt „alle Felder". Der
+ * Zusatz ist keine Verzierung, sondern die Gegenbuchung zu `NICHT_IM_STANDARD`:
+ * die Arbeitsnotizen hängen am Vorgang und laufen nicht mehr mit. „alle Felder"
+ * wäre damit genau die Sorte Name, die diesen Bereich schon zweimal in eine
+ * Fehlmeldung geführt hat — einer, der mehr zusagt, als er hält. Was der Name
+ * zusagt, hält der Guard in `wortstamm.test.ts` fest.
  *
  * „Wer" und „wo" sind seit v4.15.0 GETRENNT. Zusammengelegt beantwortete der
  * Bereich zwei Fragen auf einmal: wer nach einem Ort suchte, bekam die
@@ -34,12 +40,43 @@ export type Suchbereich = 'alles' | 'inhalt' | 'dokumente' | 'einrichtung' | 'st
  * Beschränkung. Der Korpus hält beide Felder ohnehin einzeln vor.
  */
 export const SUCHBEREICH_LABEL: Record<Suchbereich, string> = {
-  alles: 'alle Felder',
+  alles: 'alle Vorhabensfelder',
   inhalt: 'nur Titel & Kurzbeschreibung',
   dokumente: 'nur Dokumente',
   einrichtung: 'nur Einrichtung',
   standort: 'nur Ort, Bundesland & Wahlkreis',
 };
+
+/**
+ * Die drei Trefferfelder, die in KEINEM Bereich mitlaufen — jedes aus einem
+ * eigenen Grund, und jedes auf einem anderen Weg trotzdem erreichbar.
+ *
+ *  - `dokument` hängt am Dokumentenindex (`bereichNutztDokumente`),
+ *  - `aehnlichkeit` an ihrem eigenen Schalter,
+ *  - `notiz` **nur noch am Feld-Präfix** `notiz:` (bzw. `bemerkung:`,
+ *    `wichtig:`, `t_yw:`, `t_hint:` — [feldpraefix.ts](./feldpraefix.ts)).
+ *
+ * Warum die Arbeitsnotiz seit v4.100 nicht mehr im Standard steht: sie hängt am
+ * VORGANG, nicht am Vorhaben, und trägt entsprechend Verwaltungsverkehr. Am
+ * Bestand gezählt (12 358 Anträge, `T_YW` + `T_HINT`): 5 345 tragen eine Notiz,
+ * und **1 054 davon nennen eine Vollmacht** — „vollmacht" ist mit 1 010
+ * Vorkommen das dritthäufigste Wort dieser Felder überhaupt, hinter den beiden
+ * Feldnamen selbst. Danach kommen `iban` (187), `zahlungsstopp` (167),
+ * `fristverlängerung` (110) und durchgehend Personennamen.
+ *
+ * Wer fachlich sucht, bekam davon Treffer, deren einziger Grund ein
+ * Bevollmächtigten-Name war — und die Beleg-Spalte „Notiz" schrieb ihn in die
+ * Tabelle. Gemeldet als „warum kann ich die Spalte Notiz nicht abwählen".
+ * Nicht die Spalte war das Problem, sondern der Treffer darunter: die Spalte
+ * ist sein Beleg ([autoSpalten.ts](src/plugins/suche/autoSpalten.ts)) und
+ * verschwindet jetzt mit ihm.
+ *
+ * Der Preis ist benannt statt versteckt: der Standardbereich heißt seit
+ * derselben Version **„alle Vorhabensfelder"** und nicht mehr „alle Felder" —
+ * ein Name, der mehr zusagt, als er hält, war zweimal die Ursache einer
+ * Fehlmeldung (siehe `SUCHBEREICH_LABEL`).
+ */
+export const NICHT_IM_STANDARD: readonly Trefferfeld[] = ['dokument', 'aehnlichkeit', 'notiz'];
 
 /**
  * Welche Antragsfelder die Wortlaut-Stufe prüft.
@@ -56,9 +93,9 @@ export const SUCHBEREICH_LABEL: Record<Suchbereich, string> = {
  *
  * `alles` führt JEDES Antragsfeld, das der Korpus kennt — der Name ist eine
  * Zusage, keine Beschreibung. Ein neues `Trefferfeld` gehört deshalb hier
- * eingetragen, sonst sucht „alle Felder" stillschweigend weniger als alle.
- * (`dokument` und `aehnlichkeit` stehen bewusst nicht drin: der Dokumentenindex
- * hängt an `bereichNutztDokumente`, die Ähnlichkeit an ihrem eigenen Schalter.)
+ * eingetragen, sonst sucht der Standardbereich stillschweigend weniger als er
+ * verspricht. Die einzigen Ausnahmen stehen benannt in `NICHT_IM_STANDARD`;
+ * der Guard in `wortstamm.test.ts` prüft, dass es bei diesen dreien bleibt.
  */
 export function bereichFelder(bereich: Suchbereich): ReadonlySet<Trefferfeld> {
   switch (bereich) {
@@ -75,18 +112,19 @@ export function bereichFelder(bereich: Suchbereich): ReadonlySet<Trefferfeld> {
     case 'standort':
       // Der Wahlkreis gehoert zum „wo": er nennt in 5 274 von 14 218 Faellen
       // einen Ort, der im Standort-Feld NICHT vorkommt. Ohne ihn faende „nur
-      // Ort & Bundesland" weniger als „alle Felder" — und der Nutzer haette
+      // Ort & Bundesland" weniger als der Standardbereich — und der Nutzer haette
       // keinen Weg, das zu sehen. Die Beschriftung nennt ihn deshalb mit.
       return new Set<Trefferfeld>(['standort', 'bundesland', 'wahlkreis']);
     case 'dokumente':
       return new Set<Trefferfeld>();
     case 'alles':
     default:
+      // `notiz` steht hier NICHT — die Begruendung oben in `NICHT_IM_STANDARD`.
       return new Set<Trefferfeld>([
         'titel', 'kurzbeschreibung', 'deskriptoren',
         'akronym', 'aktenzeichen', 'verbundkennzeichen',
         'organisation', 'domain', 'standort', 'bundesland',
-        'netzwerk', 'wahlkreis', 'notiz',
+        'netzwerk', 'wahlkreis',
       ]);
   }
 }

@@ -22,7 +22,7 @@ export interface ExportRows {
 }
 
 export function buildExportRows(
-  results: UnifiedSearchResult[],
+  results: readonly UnifiedSearchResult[],
   columns: SearchColumn[],
 ): ExportRows {
   const headers = columns.map(c => c.label);
@@ -72,7 +72,7 @@ function downloadBlob(blob: Blob, filename: string): void {
 }
 
 export function exportCSV(
-  results: UnifiedSearchResult[],
+  results: readonly UnifiedSearchResult[],
   columns: SearchColumn[],
   query: string,
 ): void {
@@ -87,7 +87,7 @@ export function exportCSV(
 }
 
 export async function exportClipboard(
-  results: UnifiedSearchResult[],
+  results: readonly UnifiedSearchResult[],
   columns: SearchColumn[],
 ): Promise<void> {
   const { headers, rows } = buildExportRows(results, columns);
@@ -99,7 +99,7 @@ export async function exportClipboard(
 }
 
 export function exportXLSX(
-  results: UnifiedSearchResult[],
+  results: readonly UnifiedSearchResult[],
   columns: SearchColumn[],
   query: string,
 ): void {

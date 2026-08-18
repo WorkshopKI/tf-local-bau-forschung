@@ -13,6 +13,7 @@
  * an keinem Modell.
  */
 import { Loader2, Sparkles, TriangleAlert } from 'lucide-react';
+import { fkzMuster } from './genannteTreffer';
 
 export interface FrageAntwortKarteProps {
   /** `true`, solange der Lauf läuft. */
@@ -27,9 +28,6 @@ export interface FrageAntwortKarteProps {
   onFkz?: (fkz: string) => void;
 }
 
-/** Ein Förderkennzeichen im Antworttext: `16KN065624`, auch mit Suffix. */
-const FKZ_MUSTER = /\b(\d{2}[A-Z]{2}\d{4,8}[A-Z0-9]{0,3})\b/g;
-
 /**
  * Macht die Kennzeichen im Antworttext anklickbar.
  *
@@ -37,11 +35,16 @@ const FKZ_MUSTER = /\b(\d{2}[A-Z]{2}\d{4,8}[A-Z0-9]{0,3})\b/g;
  * [frageantwort-lauf.ts](src/core/services/search/frageantwort-lauf.ts)) — hier
  * werden sie zu dem, wofür sie da sind: dem Weg in die Liste darunter. Rein
  * dekorativ wäre die Belegpflicht eine Formalie.
+ *
+ * Das Muster kommt seit v4.100 aus [genannteTreffer.ts](./genannteTreffer.ts) —
+ * dieselbe Fassung, die die Marke an der Trefferzeile setzt. Zwei eigene
+ * Muster hätten früher oder später zwei verschiedene Mengen Kennzeichen
+ * gesehen: hier anklickbar, dort ohne Marke.
  */
 function mitKennzeichen(text: string, onFkz?: (fkz: string) => void): React.ReactNode[] {
   const teile: React.ReactNode[] = [];
   let zuletzt = 0;
-  for (const m of text.matchAll(FKZ_MUSTER)) {
+  for (const m of text.matchAll(fkzMuster())) {
     const i = m.index ?? 0;
     if (i > zuletzt) teile.push(text.slice(zuletzt, i));
     const fkz = m[0];

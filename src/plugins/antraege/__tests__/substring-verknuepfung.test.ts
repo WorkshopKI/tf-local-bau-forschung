@@ -514,8 +514,15 @@ describe('searchAntraegeSubstring — Netzwerk, Notiz, Wahlkreis (v4.50)', () =>
     expect(searchAntraegeSubstring('netz:powerframe', NEUE_FELDER_KORPUS)).toEqual(['N3']);
   });
 
-  it('sucht in den Arbeitsnotizen — dem einzigen Feld, das diesen Satz führt', () => {
-    expect(searchAntraegeSubstring('einbehalt', NEUE_FELDER_KORPUS)).toEqual(['N2']);
+  it('erreicht die Arbeitsnotizen nur noch über ihr Feld (v4.100)', () => {
+    // Bis v4.97 lief die Notiz im freien Text mit. Sie hängt aber am VORGANG,
+    // nicht am Vorhaben: 1 054 der 5 345 Notizen im Bestand nennen eine
+    // Vollmacht, dazu IBAN, Zahlungsstopp und Personennamen. Wer fachlich
+    // sucht, bekam davon Treffer — Begründung in `NICHT_IM_STANDARD`
+    // (src/core/services/search/suchbereich.ts).
+    expect(searchAntraegeSubstring('einbehalt', NEUE_FELDER_KORPUS)).toEqual([]);
+    // Der gezielte Weg bleibt offen — sonst wäre es eine Amputation.
+    expect(searchAntraegeSubstring('notiz:einbehalt', NEUE_FELDER_KORPUS)).toEqual(['N2']);
     expect(searchAntraegeSubstring('notiz:zurückgezogen', NEUE_FELDER_KORPUS)).toEqual(['N3']);
   });
 

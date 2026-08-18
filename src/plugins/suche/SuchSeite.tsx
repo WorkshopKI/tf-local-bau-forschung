@@ -36,6 +36,8 @@ import { SucheStartzustand, type StartEintrag } from './SucheStartzustand';
 import type { StartReiterId } from './start/startReiter';
 import { FrageAntwortKarte } from './antwort/FrageAntwortKarte';
 import { useFrageAntwort } from './antwort/useFrageAntwort';
+import { useAntwortBruecke } from './antwort/useAntwortBruecke';
+import { GenannteChip } from './antwort/GenannteChip';
 import { KeinTrefferZustand } from './KeinTrefferZustand';
 import { TrefferListe } from './TrefferListe';
 import { SuchMarkierungProvider } from './SuchMarkierung';
@@ -668,6 +670,17 @@ export function SuchSeite(): React.ReactElement {
     [analyse.running, ausgeklappt],
   );
 
+  // Die Verbindung zwischen der Antwort oben und der Liste darunter — Belege
+  // je Zeile, der Filter „nur die genannten" und der Sprung. Warum sie auf
+  // `sichtbar` und nicht auf ihrem eigenen Ergebnis arbeitet, steht im Modul.
+  const bruecke = useAntwortBruecke({
+    treffer: sichtbar,
+    antwort: frageAntwort.antwort,
+    aufAntragsseite: fkz => navigate(antragDetailPfad({ aktenzeichen: fkz })),
+    wechsleZurListe: () => { if (ansicht !== 'liste') setAnsicht('liste'); },
+  });
+  const { belege: antwortBelege, angezeigt, genannteAnzahl } = bruecke;
+
   return (
     <div className="flex h-full min-h-0">
       {/* `relative` ist hier kein Zierrat, sondern das, was die zweite
@@ -693,18 +706,12 @@ export function SuchSeite(): React.ReactElement {
             <h1 className="text-[22px] font-medium text-[var(--tf-text)]">Suche</h1>
             <span className="text-[12.5px] text-[var(--tf-text-tertiary)]" title="So viele Anträge stehen im Suchindex dieses Rechners — die Zahl gilt der ganzen Seite und ändert sich mit keiner Option darunter.">Index: {indexInfo.antraegeGeladen.toLocaleString('de-DE')} Anträge</span>
             <div className="ml-auto flex shrink-0 items-center gap-1">
-              {/* „Speichern" steht LINKS vom Menü, das die Gespeicherten zeigt —
-                  erst merken, dann nachschlagen. Der Platz ist aber nicht nur
-                  Lesereihenfolge: die Gruppe ist rechtsbündig (`ml-auto`), also
-                  wächst sie nach links. Stünde der Knopf in der Mitte, schöbe er
-                  „Gespeicherte Suchen" bei jedem Erscheinen um seine Breite zur
-                  Seite. So bleiben die beiden Nachbarn stehen.
-
-                  Er erscheint erst, wenn es etwas zu speichern GIBT — an
-                  derselben Bedingung wie Deutung, Facetten, Trefferzahl und
-                  Liste. Eine getippte, aber nicht gestellte Frage (`frageOffen`)
-                  ist kein Suchlauf; sie zu merken hieße, die Fragezeile mit
-                  `letzteTrefferzahl: 0` abzulegen. */}
+              {/* „Speichern" LINKS vom Menü: erst merken, dann nachschlagen —
+                  und weil die Gruppe rechtsbündig ist (`ml-auto`), wächst sie
+                  nach links, statt beim Erscheinen die Nachbarn zu verschieben.
+                  Sichtbar erst, wenn es etwas zu speichern GIBT (dieselbe
+                  Bedingung wie Deutung, Facetten und Liste): eine getippte,
+                  nicht gestellte Frage ist kein Suchlauf. */}
               {zeigeErgebnisTeile && (
                 <button
                   type="button"
@@ -841,6 +848,12 @@ export function SuchSeite(): React.ReactElement {
                 onLeeren={() => setFacettenWahl(LEERE_WAHL)}
               />
             )}
+            {/* Warum der Chip hier und nicht vor den Facetten steht: im Modul. */}
+            <GenannteChip
+              anzahl={genannteAnzahl}
+              aktiv={bruecke.nurGenannte}
+              onToggle={bruecke.schalteNurGenannte}
+            />
           </div>
 
           {/* ── Offene Frage ─────────────────────────────────────────────── */}
@@ -872,7 +885,7 @@ export function SuchSeite(): React.ReactElement {
               antwort={frageAntwort.antwort}
               fehler={frageAntwort.fehler}
               gesamt={frageAntwort.gesamt}
-              onFkz={fkz => navigate(antragDetailPfad({ aktenzeichen: fkz }))}
+              onFkz={bruecke.springeZuFkz}
             />
           )}
 
@@ -886,7 +899,7 @@ export function SuchSeite(): React.ReactElement {
                   glauben, der Index sei geschrumpft. */}
               <span className="text-[13px] text-[var(--tf-text)]">
                 <b className="font-medium">
-                  {trefferzahlSteht ? sichtbar.length.toLocaleString('de-DE') : '…'} Treffer
+                  {trefferzahlSteht ? angezeigt.length.toLocaleString('de-DE') : '…'} Treffer
                 </b>
                 <span className="text-[var(--tf-text-secondary)]">
                   {' '}in {erreichbar.toLocaleString('de-DE')}
@@ -975,13 +988,13 @@ export function SuchSeite(): React.ReactElement {
                 )}
                 <SearchDownloadMenu
                   disabled={sichtbar.length === 0}
-                  onExportCSV={() => exportCSV(sichtbar, visibleColumnDefs, query)}
-                  onExportXLSX={() => exportXLSX(sichtbar, visibleColumnDefs, query)}
+                  onExportCSV={() => exportCSV(angezeigt, visibleColumnDefs, query)}
+                  onExportXLSX={() => exportXLSX(angezeigt, visibleColumnDefs, query)}
                   onExportClipboard={() => {
                     void (async () => {
                       try {
-                        await exportClipboard(sichtbar, visibleColumnDefs);
-                        setToast(`${sichtbar.length} Ergebnisse in Zwischenablage kopiert`);
+                        await exportClipboard(angezeigt, visibleColumnDefs);
+                        setToast(`${angezeigt.length} Ergebnisse in Zwischenablage kopiert`);
                       } catch (err) {
                         setToast(`Kopieren fehlgeschlagen: ${err instanceof Error ? err.message : String(err)}`);
                       }
@@ -1055,7 +1068,7 @@ export function SuchSeite(): React.ReactElement {
           {showResults && ansicht === 'liste' && (
             <div className="mt-3 w-full max-w-6xl">
               <TrefferListe
-                treffer={listeSortiert}
+                treffer={angezeigt}
                 woerter={markWoerter}
                 varianten={aktiveVariantenChips}
                 kompakt={dichte === 'kompakt'}
@@ -1069,6 +1082,8 @@ export function SuchSeite(): React.ReactElement {
                 onWaehlen={waehle}
                 begruendungHinweis={analyse.error}
                 mitBegruendung={mitBegruendung}
+                antwortBelege={antwortBelege}
+                sprungZiel={bruecke.sprung}
               />
             </div>
           )}
@@ -1102,7 +1117,7 @@ export function SuchSeite(): React.ReactElement {
             open={promptDialogOpen}
             query={wirksam.trim()}
             results={analyseResults}
-            totalCount={sichtbar.length}
+            totalCount={angezeigt.length}
             instruction={analysePrompt}
             onInstructionChange={setAnalysePrompt}
             providerName={analyse.providerName}
@@ -1126,7 +1141,7 @@ export function SuchSeite(): React.ReactElement {
           <button
             type="button"
             onClick={() => {
-              const gewaehlt = sichtbar.filter(r => auswahl.has(r.id));
+              const gewaehlt = angezeigt.filter(r => auswahl.has(r.id));
               exportXLSX(gewaehlt, visibleColumnDefs, query);
             }}
             className="inline-flex items-center gap-1.5 rounded-[7px] px-2 py-1 text-[12px] text-[var(--tf-sheet)] hover:opacity-80 cursor-pointer"
@@ -1169,7 +1184,7 @@ export function SuchSeite(): React.ReactElement {
           <div className="h-full min-w-0 flex-1">
             <ChatPanelHost
               onClose={closeAssistent}
-              contextResults={sichtbar}
+              contextResults={angezeigt}
               contextQuery={wirksam.trim()}
               vorbelegung={aktiverPlan?.frage}
             />

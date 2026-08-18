@@ -4,9 +4,11 @@ import {
   bereichFelder,
   bereichNutztDokumente,
   parseSuchbereich,
+  NICHT_IM_STANDARD,
   SUCHBEREICH_LABEL,
   type Suchbereich,
 } from '../suchbereich';
+import { feldAusPraefix } from '../feldpraefix';
 import { TREFFERFELD_LABEL, type Trefferfeld } from '../trefferstelle';
 
 describe('wortStamm', () => {
@@ -170,27 +172,45 @@ describe('Suchbereich', () => {
     }
   });
 
-  it('„alle Felder" führt JEDES Antragsfeld — der Name ist eine Zusage', () => {
-    // Der Bereich heißt seit v4.44.0 „alle Felder". Ein neu eingeführtes
-    // `Trefferfeld`, das hier nicht landet, macht die Beschriftung zur
-    // Falschaussage — und zwar stumm: die Suche liefert dann einfach weniger.
-    //
-    // `dokument` und `aehnlichkeit` sind ausgenommen, weil sie nicht aus dem
-    // Antrags-Korpus stammen: der Dokumentenindex hängt an
-    // `bereichNutztDokumente`, die Ähnlichkeit an ihrem eigenen Schalter.
-    const ausserhalb: readonly Trefferfeld[] = ['dokument', 'aehnlichkeit'];
+  it('der Standardbereich führt JEDES Antragsfeld — bis auf drei benannte', () => {
+    // Ein neu eingeführtes `Trefferfeld`, das hier nicht landet, macht die
+    // Beschriftung zur Falschaussage — und zwar stumm: die Suche liefert dann
+    // einfach weniger. Ausnahmen gibt es genau die aus `NICHT_IM_STANDARD`,
+    // und diese Zeile ist der Grund, warum eine vierte nicht unbemerkt
+    // dazukommen kann.
     const alles = bereichFelder('alles');
     const fehlend = (Object.keys(TREFFERFELD_LABEL) as Trefferfeld[])
-      .filter(f => !ausserhalb.includes(f) && !alles.has(f));
+      .filter(f => !NICHT_IM_STANDARD.includes(f) && !alles.has(f));
     expect(fehlend).toEqual([]);
     expect(bereichNutztDokumente('alles')).toBe(true);
   });
 
-  it('nur „alles" verspricht alle Felder, alle anderen sagen „nur"', () => {
-    // Der Gegensatz IST die Bedienhilfe: „alle Felder" ⇄ „nur …" zeigt auf
-    // einen Blick, welche Wahl etwas wegnimmt. Eine Aufzählung an der Stelle
-    // von „alle Felder" las sich zweimal als Einschränkung, die sie nicht war.
-    expect(SUCHBEREICH_LABEL.alles).toBe('alle Felder');
+  it('die drei Ausnahmen sind genau diese drei — jede neue braucht eine Begründung', () => {
+    expect([...NICHT_IM_STANDARD].sort())
+      .toEqual(['aehnlichkeit', 'dokument', 'notiz']);
+  });
+
+  it('kein Bereich sucht in den Arbeitsnotizen — nur das Feld-Präfix tut es', () => {
+    // Die Notiz hängt am Vorgang, nicht am Vorhaben: 1 054 der 5 345 Notizen
+    // nennen eine Vollmacht, dazu IBAN, Zahlungsstopp und Personennamen. Sie
+    // aus dem Standard zu nehmen ist nur dann keine Amputation, wenn der
+    // gezielte Weg dorthin offen BLEIBT — deshalb steht beides in EINEM Test.
+    for (const b of ALLE) expect(bereichFelder(b).has('notiz')).toBe(false);
+    for (const wort of ['notiz', 'notizen', 'bemerkung', 'wichtig', 't_yw', 't_hint']) {
+      expect(feldAusPraefix(wort)).toBe('notiz');
+    }
+  });
+
+  it('nur „alles" verspricht alle, alle anderen sagen „nur"', () => {
+    // Der Gegensatz IST die Bedienhilfe: „alle …" ⇄ „nur …" zeigt auf einen
+    // Blick, welche Wahl etwas wegnimmt. Eine Aufzählung an der Stelle von
+    // „alle …" las sich zweimal als Einschränkung, die sie nicht war.
+    //
+    // Der Name nennt seit v4.100 die VORHABENSfelder: „alle Felder" schloss die
+    // Arbeitsnotizen mit ein, die seither nicht mehr mitlaufen — ein Name, der
+    // mehr zusagt, als er hält, war hier schon zweimal die Fehlerquelle.
+    expect(SUCHBEREICH_LABEL.alles).toBe('alle Vorhabensfelder');
+    expect(SUCHBEREICH_LABEL.alles.startsWith('alle ')).toBe(true);
     for (const b of ALLE) {
       if (b === 'alles') continue;
       expect(SUCHBEREICH_LABEL[b].startsWith('nur ')).toBe(true);

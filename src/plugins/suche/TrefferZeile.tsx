@@ -38,6 +38,7 @@ import {
 import { StufenBalken } from '@/components/ui/StufenBalken';
 import { SuchMarkierung } from './SuchMarkierung';
 import { belegWerte } from './autoSpalten';
+import type { AntwortBeleg } from './antwort/genannteTreffer';
 
 /** Welche Felder überhaupt eine Vorkommens-Zahl tragen können. Für Akronym,
  *  Aktenzeichen und Ähnlichkeit wäre „1" keine Information. */
@@ -60,11 +61,21 @@ export function TrefferZeile({
   begruendungLaeuft,
   hinweis,
   mitBegruendung,
+  antwortBeleg,
+  hervorgehoben,
 }: {
   treffer: UnifiedSearchResult;
   woerter: readonly string[];
   varianten: readonly string[];
   kompakt: boolean;
+  /** Was die Antwortkarte über GENAU dieses Vorhaben schreibt — abgetrennt aus
+   *  ihrem Text, nicht neu erfragt ([genannteTreffer.ts](./antwort/genannteTreffer.ts)).
+   *  Fehlt, wenn die Antwort es nicht genannt hat. */
+  antwortBeleg?: AntwortBeleg;
+  /** Kurz nach dem Sprung aus der Antwortkarte: die Zeile sagt, dass sie
+   *  gemeint war. Verblasst von selbst — ein Zustand, der bliebe, wäre ein
+   *  Filter ohne Anzeige. */
+  hervorgehoben?: boolean;
   /** Trägt die Suche eine Frage? Dann erklärt die KI den Treffer („Warum?"),
    *  sonst ist der Ausklapp nur die Aktionsschublade („Mehr"). */
   mitBegruendung: boolean;
@@ -90,8 +101,17 @@ export function TrefferZeile({
 
   return (
     <li
+      // Das Sprungziel der Antwortkarte. Die Id des Treffers, nicht sein FKZ:
+      // ein Dokumenttreffer trägt dasselbe FKZ wie sein Antrag, und zwei
+      // gleiche `id`-Attribute wären ein zufälliges Sprungziel.
+      id={`treffer-${treffer.id}`}
       className="group px-3 py-2 transition-colors hover:bg-[var(--tf-hover)]"
-      style={{ borderBottom: '0.5px solid var(--tf-border)' }}
+      style={{
+        borderBottom: '0.5px solid var(--tf-border)',
+        ...(hervorgehoben
+          ? { background: 'var(--tf-hover)', boxShadow: 'inset 2px 0 0 var(--tf-primary)' }
+          : null),
+      }}
     >
       <div className="flex gap-2.5">
         <input
@@ -131,6 +151,20 @@ export function TrefferZeile({
                 außerhalb des Bereichs
               </span>
             )}
+            {/* Die Marke steht in der KOPFzeile, nicht am Satz darunter: sie
+                gilt auch dort, wo die Antwort ein Vorhaben nennt, ohne etwas
+                über es zu sagen — dann gibt es keinen Satz, das Genanntsein
+                bleibt aber wahr. */}
+            {antwortBeleg !== undefined && (
+              <span
+                className="inline-flex items-center gap-1 rounded-full px-1.5 py-px text-[10.5px]"
+                style={{ border: '0.5px solid var(--tf-primary)', color: 'var(--tf-primary)' }}
+                title="Die Antwort der KI oben nennt dieses Vorhaben."
+              >
+                <Sparkles size={9} aria-hidden />
+                in der Antwort
+              </span>
+            )}
             {/* Trefferstellen-Tags stehen HIER und nicht unter der Zeile: als
                 eigene Reihe kosteten sie eine ganze Zeilenhöhe für ein einzelnes
                 Etikett. Die Kopfzeile ist kurz und bricht nicht um — an die
@@ -158,6 +192,28 @@ export function TrefferZeile({
           >
             <SuchMarkierung text={treffer.title} wortlaut={woerter} aehnlich={varianten} />
           </button>
+
+          {/* Was die Antwort über dieses Vorhaben sagt — die Kurzform steht da,
+              der volle Satz im `title`. Kein zweiter KI-Aufruf: der Text stammt
+              aus der Karte oben, die ihn ohnehin schon geschrieben hat.
+
+              Er ist als Modelltext markiert und steht deshalb kursiv mit dem
+              Funken davor. Ohne diese Kennzeichnung läse er sich wie ein Feld
+              aus dem Bestand — und genau das ist er nicht. */}
+          {antwortBeleg !== undefined && antwortBeleg.kurz.length > 0 && (
+            <p
+              className="mt-0.5 flex items-start gap-1 text-[12px] italic leading-snug text-[var(--tf-text-secondary)]"
+              title={antwortBeleg.satz}
+            >
+              <Sparkles
+                size={10}
+                aria-hidden
+                className="mt-[3px] shrink-0"
+                style={{ color: 'var(--tf-primary)' }}
+              />
+              <span>{antwortBeleg.kurz}</span>
+            </p>
+          )}
 
           {/* Die Fundstelle: Quelle klein und gesperrt, dann der Satz — und
               dahinter die Belege, die sonst nirgends stünden. Bis v4.22 sagte
