@@ -5,6 +5,13 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.106.1 — Frage stellen ist ein Knopf wie die anderen (August 2026)
+
+PATCH — Gemeldet: der Knopf neben dem Suchfeld ist größer als die CTAs sonst in der App. Er war auch keiner — ein hand-gebauter `<button>` mit eigenem Fill, am `<Button>` vorbei, den [DESIGN_GUIDE.md](DESIGN_GUIDE.md) dafür vorschreibt.
+
+- **„Frage stellen" ist jetzt `<Button variant="primary" size="sm">`** — 28 statt 36 px, wie die 412 anderen `size="sm"` in der App ([SuchSeite.tsx](src/plugins/suche/SuchSeite.tsx))
+- **Kein Text-Tausch mehr im Ladezustand** („Übersetze…"): Spinner + Sperre kommen aus `loading`, wie im Design-Guide vorgeschrieben
+
 ### v4.106.0 — Vorschlaege fuer den Frage-Modus der Foerderantraege (August 2026)
 
 MINOR — Gewünscht waren Vorschläge für den Frage-Modus: vergangene Fragen, konkrete Beispiele und Vorlagen zum Ausfüllen. Ein leeres Feld, das einen ganzen Satz erwartet, zeigte bis dahin genau ein Beispiel im Platzhalter — welche Achsen es sonst gibt, stand nirgends.

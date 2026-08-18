@@ -13,6 +13,7 @@ import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } f
 import { useNavigate } from 'react-router-dom';
 import { Loader2, Sparkles, Download, List, Table } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { ViewModeToggle, type ViewModeOption } from '@/components/ui/ViewModeToggle';
 import { DarstellungDropdown } from '@/components/ui/DarstellungDropdown';
 import { isDokumentenscanEnabled, isSucheNatuerlicheSpracheEnabled } from '@/config/feature-flags';
@@ -755,16 +756,15 @@ export function SuchSeite(): React.ReactElement {
                 noch nicht übersetzt ist. Enter tut dasselbe; der Knopf sagt, DASS
                 es eine Geste braucht, statt es den Nutzer raten zu lassen. */}
             {nlModus && queryNotEmpty && aktiverPlan === null && (
-              <button
-                type="button"
+              <Button
+                variant="primary" size="sm" icon={Sparkles}
+                loading={planLaeuft}
+                disabled={analyse.running}
                 onClick={() => { void frageStellen(); }}
-                disabled={planLaeuft || analyse.running}
-                className="mt-[1px] inline-flex shrink-0 items-center gap-1.5 rounded-[var(--tf-radius-lg)] px-3 py-[9px] text-[13px] cursor-pointer disabled:opacity-60 disabled:cursor-default"
-                style={{ background: 'var(--tf-primary)', color: 'var(--tf-on-primary)' }}
+                className="mt-[1px]"
               >
-                {planLaeuft ? <Loader2 size={14} className="animate-spin" aria-hidden /> : <Sparkles size={14} aria-hidden />}
-                {planLaeuft ? 'Übersetze…' : 'Frage stellen'}
-              </button>
+                Frage stellen
+              </Button>
             )}
           </div>
 
