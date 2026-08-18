@@ -35,6 +35,10 @@ import {
   letzteDreiJahrgaenge, reichtInAltbestand, passtJahr, passtVariante, passtPhase, passtRest,
   zaehleNach, fristLaeuftFuer,
 } from './boardFilter';
+import {
+  GRUPPE_FERTIG, GRUPPE_OHNE, ZUSTAENDIGKEIT_DEFAULT, zustaendigkeitVon,
+  type Zustaendigkeit,
+} from './zustaendigkeit';
 
 /** Eine Zeile des Boards — ein Teilvorhaben mit seinem ermittelten To-do. */
 export interface BoardZeile {
@@ -87,7 +91,12 @@ export interface BoardZeile {
   filterRecord: AntragListItem;
 }
 
-export type BoardTab = 'meine' | 'warten' | 'ohne' | 'fristen' | 'auswertung';
+/**
+ * Die drei **Fragen**, die das Board beantwortet — nicht mehr die Mischung aus
+ * Partition, Teilmenge und Gesamtmenge, die bis v4.95 in einer Leiste stand.
+ * Wer an diesem Vorgang dran ist, steht daneben als Filter ({@link Zustaendigkeit}).
+ */
+export type BoardTab = 'arbeit' | 'fristen' | 'auswertung';
 
 /**
  * Das To-do, das die gewählte Sicht zeigt.
@@ -138,6 +147,13 @@ export interface VorgangsBoardApi {
   /** Zeilen des aktiven Tabs, gruppiert in Kaskaden-Reihenfolge. */
   gruppen: { todo: string; zeilen: BoardZeile[] }[];
   zaehler: Record<BoardTab, number>;
+  /**
+   * Wer dran ist — die Vierteilung als Filter, mit Zahlen, die sich zur
+   * Gesamtmenge addieren. Bis v4.95 waren drei davon eigene Reiter.
+   */
+  zustaendig: Zustaendigkeit[];
+  setZustaendig: (v: Zustaendigkeit[]) => void;
+  zustZaehler: Record<Zustaendigkeit, number>;
   /** Wie viele Anträge insgesamt geprüft wurden (vor Filtern). */
   gesamt: number;
   /** Die Fassung führt keine To-do-Regeln — dann kann das Board nichts zeigen. */
@@ -243,7 +259,8 @@ export function useVorgangsBoard(): VorgangsBoardApi {
   /** Die Jahre der Vorbelegung — aus dem Stichtag, einmal je Seitenaufruf. */
   const letzteDrei = useMemo(() => letzteDreiJahrgaenge(heuteRef.current), []);
 
-  const [tab, setTab] = useState<BoardTab>('meine');
+  const [tab, setTab] = useState<BoardTab>('arbeit');
+  const [zustaendig, setZustaendig] = useState<Zustaendigkeit[]>([...ZUSTAENDIGKEIT_DEFAULT]);
   const [rolle, setRolle] = useState<Rolle | 'alle'>(() => leseStatusRolle(profile?.status_rolle));
   const [nurMeine, setNurMeine] = useState(true);
   const [jahre, setJahre] = useState<string[]>(letzteDrei);
@@ -413,55 +430,54 @@ export function useVorgangsBoard(): VorgangsBoardApi {
    * mit Zuständigkeit — sonst wäre der erste Tab für einen Nutzer ohne
    * gesetzte Rolle leer.
    */
-  const tabVon = useCallback((z: BoardZeile): BoardTab => {
-    const e = sichtVon(z, rolle);
-    if (!e.todo) return 'ohne';
-    // Ein abgeleiteter Platzhalter trägt `zustaendig: [rolle]` — er landet also
-    // unter „Meine Aufgaben". Das ist die Aussage: die Regel wartet auf DICH,
-    // auch wenn dein Regelsatz sie noch nicht selbst beschreibt.
-    if (rolle === 'alle') return e.zustaendig.length > 0 ? 'meine' : 'warten';
-    return e.zustaendig.includes(rolle) ? 'meine' : 'warten';
-  }, [rolle]);
+  const zustVon = useCallback(
+    (z: BoardZeile): Zustaendigkeit => zustaendigkeitVon(sichtVon(z, rolle), rolle),
+    [rolle],
+  );
 
-  const zaehler = useMemo(() => {
-    const z: Record<BoardTab, number> = {
-      meine: 0, warten: 0, ohne: 0,
-      // Fristen zählt, was ein Fristrisiko trägt; Auswertung die ganze Menge.
-      fristen: zeilen.filter(x => x.fristLaeuft && (x.restTage ?? Infinity) <= AMPEL_GELB_TAGE).length,
-      auswertung: zeilen.length,
-    };
-    for (const zeile of zeilen) {
-      const t = tabVon(zeile);
-      if (t === 'meine' || t === 'warten' || t === 'ohne') z[t] += 1;
-    }
+  /**
+   * Die vier Teile des Bestands — sie addieren sich zur Gesamtmenge, und genau
+   * das ist der Gewinn gegenüber der alten Reiterleiste: dort standen eine
+   * Partition, eine Risiko-Teilmenge und die Gesamtmenge nebeneinander, ohne
+   * dass man sie gegeneinander lesen konnte.
+   */
+  const zustZaehler = useMemo(() => {
+    const z: Record<Zustaendigkeit, number> = { meine: 0, warten: 0, ohne: 0, fertig: 0 };
+    for (const zeile of zeilen) z[zustVon(zeile)] += 1;
     return z;
-  }, [zeilen, tabVon]);
+  }, [zeilen, zustVon]);
+
+  const zaehler = useMemo((): Record<BoardTab, number> => ({
+    // „Arbeit" zählt, was die Chips gerade zeigen — der Reiter verspricht damit
+    // genau die Zeilenzahl, die darunter steht.
+    arbeit: zustaendig.reduce((n, z) => n + zustZaehler[z], 0),
+    // Fristen zählt, was ein Fristrisiko trägt; Auswertung die ganze Menge.
+    fristen: zeilen.filter(x => x.fristLaeuft && (x.restTage ?? Infinity) <= AMPEL_GELB_TAGE).length,
+    auswertung: zeilen.length,
+  }), [zeilen, zustZaehler, zustaendig]);
 
   const gruppen = useMemo(() => {
     // Die beiden Cockpit-Sichten gruppieren nicht nach To-do — sie zeigen
     // dieselbe Menge unter einer anderen Frage.
     if (tab === 'fristen' || tab === 'auswertung') return [];
-    const imTab = zeilen.filter(z => tabVon(z) === tab);
-    if (tab === 'ohne') {
-      // Zwei Sorten, zwei Gruppen: eine greifende Sperre ist ein ERGEBNIS
-      // („Verfahren abgeschlossen"), kein fehlendes Urteil. Zusammengeworfen
-      // wäre die Lücken-Anzeige unbrauchbar — seit S0/S0b liegen tausende
-      // abgeschlossene Vorgänge über den paar hundert echten Unbekannten.
-      const gesperrt = imTab.filter(z => sichtVon(z, rolle).gesperrtDurch.length > 0);
-      const offen = imTab.filter(z => sichtVon(z, rolle).gesperrtDurch.length === 0);
-      return [
-        ...(offen.length > 0 ? [{ todo: 'Kein To-do ermittelt', zeilen: offen }] : []),
-        ...(gesperrt.length > 0
-          ? [{ todo: 'Keine Aufgabe mehr (Verfahren abgeschlossen)', zeilen: gesperrt }]
-          : []),
-      ];
-    }
+    const gewaehlt = new Set(zustaendig);
+    const imTab = zeilen.filter(z => gewaehlt.has(zustVon(z)));
+    // Zwei Sorten, zwei Gruppen: eine greifende Sperre ist ein ERGEBNIS
+    // („Verfahren abgeschlossen"), kein fehlendes Urteil. Zusammengeworfen wäre
+    // die Lücken-Anzeige unbrauchbar — hinter S0/S0b liegen tausende
+    // abgeschlossene Vorgänge über den paar hundert echten Unbekannten.
+    const ohneTodo = imTab.filter(z => zustVon(z) === 'ohne');
+    const fertig = imTab.filter(z => zustVon(z) === 'fertig');
     // Kaskaden-Reihenfolge statt Häufigkeit: so steht das Board in derselben
     // Ordnung wie der Regelsatz, und ein Vergleich beider ist möglich.
     const regeln = version?.todoRegeln ?? [];
     const proTodo = new Map<string, BoardZeile[]>();
     for (const z of imTab) {
-      const key = sichtVon(z, rolle).todo ?? '';
+      // Nur Zeilen MIT To-do: die beiden anderen Sorten haben ihre eigenen
+      // Gruppen. Über den Leerschlüssel zu gehen hätte funktioniert, solange
+      // keine Regel ein leeres To-do trägt — eine stille Kopplung.
+      const key = sichtVon(z, rolle).todo;
+      if (!key) continue;
       const list = proTodo.get(key);
       if (list) list.push(z); else proTodo.set(key, [z]);
     }
@@ -483,10 +499,14 @@ export function useVorgangsBoard(): VorgangsBoardApi {
       ...eigene,
       ...[...geliehen].sort((a, b) => a[1] - b[1] || a[0].localeCompare(b[0])).map(([t]) => t),
     ];
-    return reihenfolge
-      .filter(t => proTodo.has(t))
-      .map(t => ({ todo: t, zeilen: proTodo.get(t)! }));
-  }, [zeilen, tab, tabVon, version, rolle]);
+    return [
+      ...reihenfolge.filter(t => proTodo.has(t)).map(t => ({ todo: t, zeilen: proTodo.get(t)! })),
+      // Die beiden To-do-losen Sorten stehen HINTEN — die Kaskade zuerst, dann
+      // das, worüber sie nichts sagt.
+      ...(ohneTodo.length > 0 ? [{ todo: GRUPPE_OHNE, zeilen: ohneTodo }] : []),
+      ...(fertig.length > 0 ? [{ todo: GRUPPE_FERTIG, zeilen: fertig }] : []),
+    ];
+  }, [zeilen, tab, zustVon, zustaendig, version, rolle]);
 
   /**
    * Stau je Rolle: wie viele hängende Vorgänge auf wessen Schreibtisch liegen.
@@ -562,6 +582,7 @@ export function useVorgangsBoard(): VorgangsBoardApi {
 
   return {
     laden, fehler, version, zeilen, gruppen, zaehler,
+    zustaendig, setZustaendig, zustZaehler,
     gesamt: alle.length,
     ohneRegeln: version !== null && (version.todoRegeln ?? []).length === 0,
     tab, setTab, rolle, setRolle, nurMeine, setNurMeine,

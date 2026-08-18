@@ -26,6 +26,10 @@ import { antragDetailPfad } from '@/plugins/antraege/detailPfad';
 import { AbgeleitetMarke, TodoHerleitung, WartetAuf } from '@/components/vorgang/TodoAnzeige';
 import { bearbeiterScopeLabel } from '@/plugins/antraege/bearbeiterFilter';
 import { useVorgangsBoard, sichtVon, type BoardTab, type BoardZeile } from './useVorgangsBoard';
+import {
+  istArbeitsvorrat, schalteZustaendigkeit, ZUSTAENDIGKEIT_DEFAULT, ZUSTAENDIGKEIT_LABEL,
+  ZUSTAENDIGKEIT_TITEL, ZUSTAENDIGKEITEN,
+} from './zustaendigkeit';
 import { AuswertungSicht, FristenSicht } from './CockpitSichten';
 
 /** Rahmen der Gruppen-Karten und des „keine Regeln"-Hinweises. */
@@ -174,12 +178,12 @@ export function VorgangsBoardPage(): React.ReactElement {
   const istLetzteDrei = api.jahre.length === api.letzteDrei.length
     && api.letzteDrei.every(j => api.jahre.includes(j));
 
+  // Drei FRAGEN, nicht fünf Mengen. Bis v4.95 standen hier eine Partition
+  // (meine/wartet/kein To-do), eine Risiko-Teilmenge (Fristen) und die
+  // Gesamtmenge (Auswertung) nebeneinander — gleich aussehend, aber nicht
+  // gegeneinander lesbar. Wer dran ist, steht jetzt als Filter darunter.
   const TABS: { key: BoardTab; label: string }[] = [
-    { key: 'meine', label: 'Meine Aufgaben' },
-    { key: 'warten', label: 'Wartet auf andere' },
-    { key: 'ohne', label: 'Kein To-do ermittelt' },
-    // Dieselbe Menge unter zwei anderen Fragen: wann läuft es ab, und wo steht
-    // der Bestand insgesamt.
+    { key: 'arbeit', label: 'Arbeit' },
     { key: 'fristen', label: 'Fristen' },
     { key: 'auswertung', label: 'Auswertung' },
   ];
@@ -216,6 +220,39 @@ export function VorgangsBoardPage(): React.ReactElement {
           onChange={(k: string) => api.setTab(k as BoardTab)}
           items={TABS.map(t => ({ ...t, count: api.zaehler[t.key] }))}
         />
+
+        {/* Eigene Zeile, weil sie eine eigene Sorte Frage stellt: die Reiter
+            sagen WAS gefragt wird, diese Chips WELCHER TEIL des Vorrats, die
+            Filterzeile darunter WELCHER AUSSCHNITT des Bestands. Die vier
+            Zahlen addieren sich zur Gesamtmenge — genau das konnte die alte
+            Reiterleiste nicht. */}
+        {api.tab === 'arbeit' && (
+          <div className="flex flex-wrap items-center gap-1.5">
+            {ZUSTAENDIGKEITEN.map(z => (
+              <ToggleChip
+                key={z}
+                label={`${ZUSTAENDIGKEIT_LABEL[z]} ${api.zustZaehler[z].toLocaleString('de-DE')}`}
+                title={ZUSTAENDIGKEIT_TITEL[z]}
+                selected={api.zustaendig.includes(z)}
+                onToggle={() => api.setZustaendig(schalteZustaendigkeit(api.zustaendig, z))}
+              />
+            ))}
+            {/* Rückweg aus jedem abweichenden Zustand — ein Filter, der sich
+                nur über vier Einzelklicks zurücknehmen lässt, ist eine
+                Einbahnstraße. */}
+            {!istArbeitsvorrat(api.zustaendig) && (
+              <button
+                type="button"
+                onClick={() => api.setZustaendig([...ZUSTAENDIGKEIT_DEFAULT])}
+                className="text-[11.5px] underline underline-offset-2 cursor-pointer
+                  text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text)]"
+              >
+                zurück zum Arbeitsvorrat
+              </button>
+            )}
+          </div>
+        )}
+
         <div className="flex flex-wrap items-center gap-1.5">
           {([ 'alle', ...ROLLEN ] as const).map(r => (
             <ToggleChip
@@ -370,8 +407,8 @@ export function VorgangsBoardPage(): React.ReactElement {
         {!api.laden && (
           <p className="text-[11px] text-[var(--tf-text-tertiary)] pt-1">
             {api.zeilen.length} von {api.gesamt} Anträgen nach Filter ·
-            {' '}{api.zaehler.meine} eigene · {api.zaehler.warten} wartend ·
-            {' '}{api.zaehler.ohne} ohne To-do
+            {' '}{api.zustZaehler.meine} eigene · {api.zustZaehler.warten} wartend ·
+            {' '}{api.zustZaehler.ohne} ohne To-do · {api.zustZaehler.fertig} abgeschlossen
           </p>
         )}
       </div>

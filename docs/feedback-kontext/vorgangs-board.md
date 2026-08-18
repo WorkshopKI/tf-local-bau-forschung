@@ -25,23 +25,38 @@ Verfügung.
 
 ## Bereiche
 
-- **Fünf Reiter mit Zähler.** Die ersten drei zeigen dieselbe Menge nach
-  Zuständigkeit, die letzten beiden dieselbe Menge unter einer anderen Frage.
+- **Drei Reiter mit Zähler — drei Fragen**: *Arbeit* (was ist zu tun), *Fristen*
+  (was läuft ab), *Auswertung* (wie steht der Bestand). Bis v4.95 waren es
+  fünf, und sie mischten drei Sorten Menge in einer Leiste: eine Partition
+  (meine/wartet/kein To-do), eine Risiko-Teilmenge (Fristen) und die
+  Gesamtmenge (Auswertung). Gleich aussehend, aber nicht gegeneinander lesbar.
 - **Betrachtungsbereich-Chip** im Seitenkopf: „Anzeige: letzte 3 Richtlinien". Er sagt, welche Förder-Richtlinien zum Arbeitsvorrat zählen — die drei jüngsten ZIM-Generationen 2015, 2020, 2025; draußen bleibt nur die Generation 2012. Wie viele Anträge das ausblendet, steht im Tooltip; im Chip selbst erst dann, wenn jemand einzelne Programme abwählt.
   - **Klick öffnet die Auswahl:** drei Kurzwahlen — Standard-Bereich / Aktuelle Richtlinie (nur die jüngste Generation, Chip: „Anzeige: Richtlinie 2025") / Alle Richtlinien — darunter die Programme mit Klartext-Namen, **nach Generation gruppiert**; ein Häkchen macht daraus eine eigene Liste.
   - **Für die Generation 2015 führt die Trigger-Zuarbeit nichts** — dort steht am Vorgang „für Programm N keine Trigger importiert", und es entsteht kein To-do.
   - Die **Suche bleibt immer am ganzen Bestand** — Treffer außerhalb sind gekennzeichnet und lassen sich öffnen.
-- **Drei Aufgaben-Sichten**, alle aus demselben Regelsatz:
+- **Wer dran ist**, eigene Chip-Zeile unter den Reitern (nur im Reiter *Arbeit*).
+  Vier Teile mit ihrer Zahl, und **die vier addieren sich zur Gesamtmenge** —
+  genau das konnte die alte Reiterleiste nicht:
   - **Meine Aufgaben** — To-dos, für die die gewählte Rolle zuständig ist.
   - **Wartet auf andere** — dieselben Anträge aus der Fremdrollen-Sicht: was für
     den AB „RNE ergänzen" ist, erscheint dem FB als „wartet auf AB".
-  - **Kein To-do ermittelt** — die Ehrlichkeits-Anzeige, immer erreichbar. Sie
-    trennt zwei Sorten: „Kein To-do ermittelt" (keine Regel traf — eine Lücke im
-    Regelsatz) und „Keine Aufgabe mehr (Verfahren abgeschlossen)" (eine Sperre
-    griff, weil Schlussvermerk oder Zuwendungsbescheid vorliegen — ein Ergebnis).
-- **Gruppen**: innerhalb einer Sicht nach To-do-Wert, in **Kaskaden-Reihenfolge**
+  - **Kein To-do** — keine Regel traf. Eine Lücke im Regelsatz.
+  - **Abgeschlossen** — eine Sperre griff, weil Schlussvermerk oder
+    Zuwendungsbescheid vorliegen. Ein **Ergebnis**, keine Lücke.
+  - **Vorbelegt sind die ersten beiden** — was Arbeit ist. Die anderen beiden
+    stehen mit ihrer Zahl daneben und sind einen Klick entfernt; abgewählt ist
+    nicht versteckt. Bis v4.95 lagen sie in EINEM Reiter zusammen, und weil die
+    abgeschlossenen 96 % davon stellten, trug der größte Zähler des Boards die
+    Beschriftung eines Mangels.
+  - **Der letzte Chip lässt sich nicht abwählen** — eine leere Liste läse sich
+    als „nichts zu tun" statt als „nichts ausgewählt". Weicht die Auswahl von
+    der Vorbelegung ab, steht daneben **„zurück zum Arbeitsvorrat"**.
+- **Gruppen**: innerhalb der Auswahl nach To-do-Wert, in **Kaskaden-Reihenfolge**
   des Regelsatzes (nicht nach Häufigkeit) — so liest sich das Board in derselben
   Ordnung wie die Regeln. Jede Gruppe ist einklappbar und zeigt ihre Anzahl.
+  „Kein To-do ermittelt" und „Keine Aufgabe mehr (Verfahren abgeschlossen)"
+  stehen als eigene Gruppen **hinten**: erst die Kaskade, dann das, worüber sie
+  nichts sagt.
 - **Zeile**: Aktenzeichen (Klick öffnet den Verbund), Titel, Status, zuständige
   Rolle bzw. „wartet auf …", und ein **„warum?"** — es klappt die treffende Regel
   samt der gelesenen Feldwerte auf. Ohne diese Herleitung wäre ein To-do eine

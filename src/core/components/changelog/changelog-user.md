@@ -19,6 +19,12 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.96 — 2026-08
+
+### Verbesserungen
+- Das **Vorgangs-Board** hat statt fünf Reitern nur noch drei: *Arbeit*, *Fristen*, *Auswertung*. Wer an einem Vorgang dran ist, wählen Sie jetzt darunter mit vier Chips — und deren Zahlen ergeben zusammen den ganzen Bestand.
+- Der Reiter „Kein To-do ermittelt" hat zwei sehr verschiedene Dinge zusammengeworfen: eine Handvoll Vorgänge, für die keine Regel greift, und mehrere Tausend, die schlicht **abgeschlossen** sind. Beides steht jetzt getrennt da, mit eigener Zahl.
+
 ## v4.95 — 2026-08
 
 ### Neu
