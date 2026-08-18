@@ -547,11 +547,13 @@ scheint.
 Das Prinzip aus Pitfall #46 gilt unverändert, nur an einem zweiten Ort: der
 Filter sitzt im **Konsumenten** (`SuchSeite`), nie im Suchkorpus — der
 Konventionstest führt `useSuchRichtlinien` deshalb in derselben Verbotsliste wie
-`useBereich`. Und **kein Zustand ohne Anzeige**: der Chip steht auch ohne
-Anfrage, weil schon die Zahlen des Startzustands („Additive Fertigung · 531
-Treffer") auf die Auswahl heruntergezählt sind. Gemessen an „laser": 485 Treffer
-bei „alle", 429 im Standard-Bereich, und der Chip beziffert die Differenz mit
-„· 56 ausgeblendet".
+`useBereich`. Und **keine heruntergezählte Zahl ohne Anzeige**: der Chip steht
+auch ohne Anfrage, weil schon die Zahlen des Startzustands („Additive Fertigung ·
+531 Treffer") auf die Auswahl heruntergezählt sind. Gemessen an „laser": 485
+Treffer bei „alle", 429 im Standard-Bereich, und der Chip beziffert die Differenz
+mit „· 56 ausgeblendet". Die Umkehrung gilt seit v4.102 genauso: bei einer
+getippten, noch nicht gestellten Frage steht keine Zahl auf dem Blatt — dort
+entfällt der Chip, statt eine Auswahl zu erklären, die noch nichts gefiltert hat.
 
 **Ohne Programm-Nummer bleibt ein Treffer stehen.** Ein Dokument ohne
 verknüpften Antrag trägt keine Richtlinie; es wegzuwerfen hieße, eine

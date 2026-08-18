@@ -19,6 +19,12 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.102 — 2026-08
+
+### Verbesserungen
+- **Eine Anfrage, die Sie aus dem Verlauf auswählen, läuft sofort.** Das gilt für die Vorschlagsliste im Suchfeld ebenso wie für „Zuletzt gesucht" im Startbild. Im Frage-Modus heißt das: die Frage geht direkt an die interne KI, statt im Feld zu stehen und auf einen zweiten Klick zu warten. Feldnamen wie `ort:` und einzelne Werte übernehmen wir weiterhin nur in das Feld — sie sind ein Stück Ihrer Anfrage, noch kein Auftrag.
+- **Der Chip „Treffer: alle Richtlinien" hält sich zurück, solange eine Frage nur getippt ist.** Er sagt, welche Richtlinien in Ihre Trefferliste dürfen — vor der ersten Zahl gibt es nichts, worauf er sich beziehen könnte. Sobald das Ergebnis steht, steht er wieder direkt hinter der Trefferzahl.
+
 ## v4.101 — 2026-08
 
 ### Neu

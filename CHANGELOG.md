@@ -5,6 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.102.0 — Die Auswahl fragt selbst (August 2026)
+
+MINOR — Zwei Meldungen aus dem Test, beide über eine Geste zu viel: eine Frage aus dem Verlauf stand nach der Auswahl nur im Feld und wartete auf einen zweiten Klick, und über ihr stand ein Richtlinien-Chip, der noch gar nichts gefiltert hatte.
+
+- **Eine ausgewählte Anfrage läuft sofort** — Verlaufs-Zeile im Vorschlagsfeld wie Zeile unter „Zuletzt gesucht"; im Frage-Modus geht sie damit direkt an die interne KI ([SearchInput.tsx](src/plugins/suche/SearchInput.tsx), [SucheStartzustand.tsx](src/plugins/suche/SucheStartzustand.tsx))
+- **Feldnamen und Werte laufen weiterhin nicht los** — sie sind ein Stück Anfrage, kein Auftrag; die Auswahl tut genau das, was die Eingabetaste täte
+- **Der Richtlinien-Chip verschwindet bei offener Frage** und steht sonst wie bisher im Ergebniskopf bzw. im Startzustand ([SuchSeite.tsx](src/plugins/suche/SuchSeite.tsx))
+- **Pitfall #46 präzisiert**: keine heruntergezählte Zahl ohne Chip — und kein Chip, wo keine Zahl steht ([vorgangssystem.md §10](docs/architecture/vorgangssystem.md))
+
 ### v4.101.0 — Ein Fragezeichen mitten im Wort (August 2026)
 
 MINOR — 306 der 733 Netzwerke führen mehr als eine Schreibweise ihres Namens; bei `mobiInspec` gegen `mobilnspec` erreichte keine feste Nadel beide Hälften. Dazu zwei Meldungen aus dem Test: die Marke der KI-Antwort fehlte in der Tabellenansicht, und der Richtlinien-Chip stand nicht bei der Zahl, auf die er wirkt.
@@ -537,150 +546,4 @@ MINOR — Übernahme aus dem Redesign-Handoff `_design/handoff/Förderanträge/`
 - **Gruppierung „Frist"** als vierte Sektionierungs-Achse — Abschnitte und Beschriftungen aus `FRIST_AMPEL_STUFEN`, nicht aus zweiten Grenzen ([tableGrouping.ts](src/plugins/antraege/tableGrouping.ts))
 - **Vier Spaltenprofile** (Standard · Triage · Fristen · Alle) als Achse im Darstellungs-Menü; „Triage" passt bei 1340 px ohne waagerechtes Scrollen ([spaltenProfile.ts](src/plugins/antraege/spaltenProfile.ts))
 - **Zwei verdichtete Spalten** „Zuständig" (FB+AB der Antragsphase) und „FB / PreCheck" — Farbpunkt nur am PreCheck, weil nur der eine kuratierte Einteilung hat
-
-### v4.61.0 — Chronik nach Datum als Standard, Ausklapp zeigt den juengsten Abschnitt (August 2026)
-
-MINOR — Die chronologische Chronik rendert an zwei Stellen dieselbe Komponente — Detailseite und Tabellen-Ausklapp — und sah trotzdem verschieden aus: andere Träger-Marken, andere Standard-Ordnung, anderer Reiter-Name. Jetzt eine Bildsprache, zwei Tiefen: in der Tabelle der jüngste Abschnitt, auf der Detailseite alles. Detail: [chronik-und-zeitstrahl.md](docs/status-system/chronik-und-zeitstrahl.md).
-
-- **„Nach Datum" ist der Standard** der Chronik — und erreicht auch gespeicherte Stände, weil `modusGewaehlt` den Klick auf den Schalter von der Mitschrift trennt ([timelinePrefs.ts](src/plugins/antraege/status/timelinePrefs.ts))
-- **Der Ausklapp zeigt die acht jüngsten Zeilen** statt Median 22/p90 32, mit Schalter „N ältere Einträge zeigen" darüber; die Kennzahlen nennen weiter den ganzen Vorgang (`juengsteZeilen`, [StatusChronik.tsx](src/plugins/antraege/status/StatusChronik.tsx))
-- **Träger-Marken lesen überall `TV 1 … TV n` / „alle N"** statt der Aktenzeichen-Endung — die Karte kommt aus `tvAchse` über den ganzen Verbund ([chronik-matrix.ts](src/core/status/chronik-matrix.ts))
-- **Der Bahn-Reiter heißt in beiden Wirten „Zeitstrahl"** ([AusklappInhalt.tsx](src/plugins/antraege/ausklapp/AusklappInhalt.tsx)); der gespeicherte Wert bleibt `zeitverlauf`
-- **Guard `chronik-zwei-wirte-ein-vokabular`** hält beide Zusagen fest ([conventions-status.test.ts](src/__tests__/conventions-status.test.ts))
-
-### v4.60.2 — Die Quellen-Zeile bekommt ihre Breite zurueck (August 2026)
-
-PATCH — Auf **Datenpflege → CSV-Quellen** zerfiel jede Quellen-Zeile: die Metazeile brach zeichenweise in eine ~47 px schmale Säule, die vier Aktionsknöpfe legten sich darüber. Grund war kein Umbruch-Detail, sondern ein Breitenbudget: die Knöpfe brauchen ~494 px, die Nebenspalten-Form des Hubs gab der Zeile ~541 px — auch bei maximaler Seitenbreite.
-
-- **Die Quellen-Liste bekommt die volle Breite** ([CsvQuellenPanel.tsx](src/plugins/kuration/csv-quellen/CsvQuellenPanel.tsx)) — die Nebenspalte entfällt, wie es `settings-layout.css` für Listen-Panels ausdrücklich vorsieht
-- **Der Zustand steht als schmaler Streifen über der Liste** — vier Kennzahlen statt Hochkant-Block, Anker `sec-csv-zustand` und Badge unverändert
-- **Die Zeile bricht anständig um statt sich zu überlagern** ([SourceList.tsx](src/plugins/csv-sources-kuration/SourceList.tsx)) — `flex-wrap` + `basis-72`/`shrink-0`; bei schmalem Fenster rutscht die Knopfreihe rechtsbündig unter den Text
-- **Keine Aktion verschwindet** — alle vier Knöpfe bleiben sichtbar und beschriftet, die Metazeile ungekürzt
-
-### v4.60.1 — Kurator-Schalter oeffnet die Sitzung (August 2026)
-
-PATCH — In Builds **ohne** Kurator-Zusatzpasswort öffnete nichts die Kurator-Sitzung: der freie Schalter im Profil setzte nur die Menü-Sichtbarkeit. Die Kurations-Seiten standen offen, aber jede Schreib-Aktion darin blieb grau — ohne dass irgendwo stand, warum. Detail: [modul-freischaltung.md](docs/architecture/modul-freischaltung.md).
-
-- **Ohne Schloss folgt die Sitzung dem Schalter** (`spiegleKuratorSchalterInSession`, [modul-freischaltung.ts](src/core/modul-freischaltung.ts)) — beim Umlegen und bei jedem Start; mit Schloss unverändert ein No-op, dort entscheidet allein das Passwort
-- **Der Schalter tut jetzt beides**, wie der Passwort-Weg: Profil-Flagge, Sitzung und Handle-Hochstufung auf `readwrite` in derselben Geste ([ZusatzModuleGruppe.tsx](src/plugins/einstellungen/profil/ZusatzModuleGruppe.tsx), Pitfall #25)
-- **Ein grauer Knopf nennt seinen Grund sichtbar** ([CsvSchemaDetailDialog.tsx](src/plugins/csv-sources-kuration/CsvSchemaDetailDialog.tsx)) — er stand im `title` eines `disabled`-Buttons, und den zeigt kein Browser an; der Dialog verdeckte zusätzlich den Seiten-Banner
-- **Vier Tests** halten die Invariante: mit Schloss unangetastet, ohne Schloss beidseitig gespiegelt, und eine laufende Sitzung wird nicht bei jedem Start verlängert ([modul-freischaltung.test.ts](src/core/__tests__/modul-freischaltung.test.ts))
-
-### v4.60.0 — Spalten fuellen die Breite, der Griff schaltet um (August 2026)
-
-MINOR — Die Fördertabelle stand fest auf Inhaltsbreite: jede Spalte nahm, was ihr längster Eintrag brauchte, und was übrig blieb, landete in einer leeren Füllspalte. Jetzt teilen sich die Spalten die verfügbare Breite und skalieren mit ihr; die alte Darstellung liegt einen Klick entfernt. Detail: [ui-muster.md](docs/architecture/ui-muster.md).
-
-- **Einpassen wächst jetzt auch** (`flex: 1 1 auto`) — vorher blieb die Tabelle bei ihrer Wunschbreite stehen, sobald die Spaltensumme kleiner war als der Container ([tableLayout.ts](src/components/data-table/tableLayout.ts))
-- **Der Griff trägt zwei Gesten**: Ziehen pinnt eine Pixelbreite, Klick verwirft erst einen Pin und schaltet danach Einpassen ↔ Inhaltsbreite um (der Doppelklick-Reset geht darin auf); 4px → 6px ([TotalWidthGrip.tsx](src/components/data-table/TotalWidthGrip.tsx))
-- **Fix: ein Klick ohne Bewegung pinnte die Tabelle** — der Griff kannte die `DRAG_SCHWELLE` der Spaltengriffe nicht und committete auf jedem Mouseup
-- **Umschalt-Zustand je Tabelle persistiert** in einem eigenen Schlüssel neben der gepinnten Breite ([useTotalTableWidth.ts](src/components/data-table/useTotalTableWidth.ts))
-- **Boden der Fördertabelle** ist die Summe der Spalten-Mindestbreiten statt pauschal 720px ([AntraegeTable.tsx](src/plugins/antraege/AntraegeTable.tsx))
-
-### v4.59.0 — Die Chronik zeigt zurueckgenommene Termine (August 2026)
-
-MINOR — Nimmt jemand in C16 eine Setzung zurück, überschreibt der Nacht-Export die Spalte und die Zeile ist spurlos. Das Journal hielt es fest, die Chronik zeigte es nicht — die Aussage, für die es das Journal gibt, war die einzige unsichtbare. Detail: [chronik-und-zeitstrahl.md](docs/status-system/chronik-und-zeitstrahl.md) + [vorgangssystem.md §12.10](docs/architecture/vorgangssystem.md).
-
-- **Durchgestrichene Zeile am alten Tag** für jeden Termin, den der Export nicht mehr führt — `geleert` als „zurückgenommen", `geaendert` als „verschoben auf …", über Träger gefaltet ([chronik-zurueckgenommen.ts](src/core/status/chronik-zurueckgenommen.ts))
-- **Fünfter Knotenzustand** (gestrichelter grauer Ring) samt Legende und Kennzahl „· 2 zurückgenommen"; beides zählt nicht in die Datumsangaben ([StatusChronik.tsx](src/plugins/antraege/status/StatusChronik.tsx), [verlauf-kennzahlen.ts](src/core/status/verlauf-kennzahlen.ts))
-- **Nullpunkt unter der Chronik**, in drei unterschiedenen Fassungen und im selben Wortlaut wie die Historie-Sektion ([JournalNullpunkt.tsx](src/plugins/antraege/status/JournalNullpunkt.tsx), [journalTexte.ts](src/plugins/antraege/status/journalTexte.ts))
-- **Ein Journal-Lesevorgang je Seite** statt drei — `stand.json` wiegt über 5 MB und ist bewusst nicht gecacht ([useJournalChroniken.ts](src/plugins/antraege/status/useJournalChroniken.ts))
-- **Fix: „kein Journal" war beim Kaltstart eine Falschaussage** — `leseSidecar` wirft fehlenden Share-Handle und fehlende Datei auf dasselbe `null`; ein Deep-Link-Reload traf das zuverlässig. Vier Versuche über 11 s, bis dahin „lädt" (Bug-Klasse 1); heilt die Historie-Sektion seit v4.13 mit
-
-### v4.58.0 — Der manuelle CSV-Import zeigt seinen Lauf (August 2026)
-
-MINOR — Der Lauf dauert bei mehreren Quellen Minuten, und die manuellen Türen zeigten dabei nichts als einen Knopf, der „Importiere…" hieß. Das liest sich als Hänger. Detail: [csv-auto-refresh.md](docs/architecture/csv-auto-refresh.md).
-
-- **Fortschritt im „● CSV"-Dialog** (Spinner + Phase + Balken + Prozent, Quellen-Zähler „2/3") — beide manuellen Türen riefen `runDataUpdate` mit leerem Options-Objekt, also ohne den `onPhase`-Kanal, den der Orchestrator seit je anbietet ([CsvFreshnessIndicator.tsx](src/components/ui/CsvFreshnessIndicator.tsx), [OrdnerGruppe.tsx](src/plugins/einstellungen/daten/OrdnerGruppe.tsx))
-- **„Fertig" nach dem Lauf**: der Import-Knopf verschwindet, sobald der Status auf `fresh` kippt — nichts sagte danach, dass man das Fenster zumachen kann
-- **Drift ist keine Sackgasse mehr**: der Dialog zeigt den Bericht selbst, statt auf einen Banner zu verweisen, den nur der Banner-Lauf füllt; `driftAkzeptiertFuer` reicht „Trotzdem importieren" durch ([data-update.ts](src/plugins/csv-sources-kuration/services/data-update.ts))
-- **„Verarbeitet" ist nicht „geändert"**: `RefreshReport.changedAntraege` trennt beides, die Meldung sagt „keine inhaltlichen Änderungen" statt neue Daten zu versprechen ([datenUpdateMeldung.ts](src/plugins/csv-sources-kuration/services/datenUpdateMeldung.ts))
-- **`loadAll` schweigt nicht mehr, wenn es scheitert** ([store.ts](src/plugins/antraege/store.ts)): `console.warn` + `lastLoadedAt: 0`, sonst strandete ein fehlgeschlagener Post-Import-Refresh hinter dem TTL-Skip bis zum Browser-Reload
-
-### v4.57.1 — Kanonische Felder zeigen ihre Kuerzel (August 2026)
-
-PATCH — In der Feldauswahl standen die kanonischen Felder ohne Herkunft: `antragsdatum` sagt nicht, aus welcher Spalte des Fachsystems es entsteht. Die rohen Codes standen daneben, die Standardfelder schwiegen.
-
-- **Kanonische Felder nennen ihre Quell-Kürzel** (`antragsdatum ← D_AAE`) in der Feldauswahl des Anlege-Dialogs; voller Satz im Tooltip, wenn mehrere Programme verschiedene Spalten mappen ([SpaltenDialog.tsx](src/plugins/antraege/eigene-spalten/SpaltenDialog.tsx))
-- **Suchbar nach dem Code**: wer „D_AAE" eintippt, findet `antragsdatum` — die Herkunft anzuzeigen, aber nicht danach suchen zu lassen, wäre eine halbe Auskunft
-- **Eine Auflösung statt zweier**: `rohSpaltenJeKanonisch` ist vom Plugin in den Kern gezogen ([spalten-inventar.ts](src/core/services/csv/spalten-inventar.ts)) — Kopf-Tooltip und Feldauswahl lesen jetzt dieselbe, statt bei der ersten Mapping-Feinheit auseinanderzulaufen
-
-### v4.57.0 — Eigene Spalten fuer das Team (August 2026)
-
-MINOR — Eine eigene Spalte war bisher eine Privatsache: gerätelokal, für niemanden sonst sichtbar. Wer eine erprobt hatte, konnte sie nur beschreiben, nicht weitergeben. Jetzt hebt sie ein Griff ins Team. Detail: [eigene-spalten.md](docs/architecture/eigene-spalten.md).
-
-- **Team-Spalten** in der Sidecar `_intern/eigene-spalten.json`, idempotent-overwrite, Schreiben self-gated + `canManageTeamSpalten` ([team-store.ts](src/core/spalten/team-store.ts)); Lesen für alle, eigene Rubrik im Spalten-Menü
-- **„Ins Team übernehmen"** am Stift einer persönlichen Spalte: Einweg-Kopie auf eine `frei:team:`-Id, die persönliche entfällt — und die Spaltenwahl zieht mit, sonst verschwände die Spalte im Moment des Teilens ([AntraegeMain.tsx](src/plugins/antraege/AntraegeMain.tsx))
-- **Jede Ablage filtert beim Lesen auf ihre Herkunft** ([lesen.ts](src/core/spalten/lesen.ts)) — die Sidecar liegt im Klartext auf dem Share, eine `frei:ich:`-Zeile darin schöbe sonst allen eine „persönliche" Spalte unter, die niemand löschen kann
-- **Ein gescheiterter Share-Write bricht ab, statt halb zu übernehmen** ([useEigeneSpalten.ts](src/plugins/antraege/useEigeneSpalten.ts)); neuer Guard: `team-store.ts` ist der einzige Share-Berührpunkt unter `core/spalten/`
-- **Der Team-Cache unterscheidet zwei Fälle**: fehlende Datei leert ihn (gelöscht bleibt gelöscht), unerreichbarer Share lässt ihn stehen
-
-### v4.56.0 — Regel-Spalten, Bearbeiten und Entfernen (August 2026)
-
-MINOR — Die dritte Spaltenart: eine geordnete Regelkaskade, die je nach Zustand einen anderen Text zeigt. Dazu die beiden Wege, die bis hierher fehlten — eine angelegte Spalte ließ sich weder bearbeiten noch entfernen. Detail: [eigene-spalten.md](docs/architecture/eigene-spalten.md).
-
-- **Regel-Spalten**: „erste zutreffende Regel gewinnt", Bedingungen über den geteilten [BedingungEditor](src/plugins/meilensteine/BedingungEditor.tsx) — dieselbe Komponente wie Meilensteine und Vorgangs-Regeln, kein Fork
-- **Sortiert nach dem Rang der Regel**, nicht nach ihrem Text: die Reihenfolge ist die Aussage des Autors, alphabetisch stünde sie zufällig ([anzeige.ts](src/core/spalten/anzeige.ts))
-- **Bearbeiten und Entfernen** über den Stift an der Spalte im Menü — ausblenden ist nicht löschen ([AntraegeMain.tsx](src/plugins/antraege/AntraegeMain.tsx))
-- **Belegt, dass Textänderungen frei sind**: am echten Bestand 0,5 s gegen 6,0 s mit neuem Feld (14.225 Anträge) — genau die Zusage, für die die Rohwert-Projektion gebaut wurde
-- **Behoben**: das Bearbeiten-Formular übernahm die Art einer bestehenden Spalte nicht und hätte eine Regel-Spalte beim Speichern in eine Feld-Spalte verwandelt ([SpaltenDialog.tsx](src/plugins/antraege/eigene-spalten/SpaltenDialog.tsx))
-
-### v4.55.0 — Eigene Spalten: Feld und Sammel (August 2026)
-
-MINOR — Der Spaltenvorrat war geschlossen: wer ein Feld brauchte, das die Registry nicht führt, hatte keinen Weg. Jetzt legt der Nutzer eigene Spalten an — aus einem rohen Feld oder als jüngstes Datum aus mehreren. Detail: [eigene-spalten.md](docs/architecture/eigene-spalten.md).
-
-- **Feld- und Sammel-Spalten**, persönlich und gerätelokal; Anlegen aus dem Fuß des Spalten-Menüs, mit Pflicht-Vorschau an echten Zeilen ([SpaltenDialog.tsx](src/plugins/antraege/eigene-spalten/SpaltenDialog.tsx), Flag `eigeneSpalten`, dev+pl)
-- **Projiziert werden die Rohwerte, nicht das Ergebnis** ([anzeige.ts](src/core/spalten/anzeige.ts)) — dadurch bleiben Datumsregeln taggenau und das Ändern von Text oder Farbe kostet **keinen** Neuaufbau; nur ein neues Feld tut das (gemessen: 6,0 s bei 14.225 Anträgen)
-- **Alle vier Slim-Schreibpfade** führen den Beutel `frei_roh`, Projektion 6 → 7 ([list-view-migration.ts](src/core/services/csv/list-view-migration.ts)); Regressionstest gegen die Vollersatz-Falle ([merge-behaelt-freie-spalten.test.ts](src/core/services/csv/__tests__/merge-behaelt-freie-spalten.test.ts))
-- **Eigene Spalten erklären sich selbst** — ihre Herkunftsangabe entsteht aus der Definition, dieselbe Struktur wie bei den eingebauten (v4.54)
-- **Guard `eigene-spalten-lokal`**: die persönlichen Definitionen gehen nie auf den Share oder in den Snapshot ([conventions-daten.test.ts](src/__tests__/conventions-daten.test.ts))
-
-### v4.54.0 — Spaltenkoepfe erklaeren ihre Herkunft (August 2026)
-
-MINOR — „PreCheck Status" war ein Badge ohne Herkunft: welche Kürzel darin zusammenlaufen und welche Regel den Wert wählt, stand nirgends in der Oberfläche. Der Tooltip nennt jetzt die Felder, die das geladene Schema wirklich mappt — nicht eine abgeschriebene Liste, die beim nächsten Mapping-Wechsel still falsch wäre.
-
-- **Jeder Spaltenkopf erklärt sich beim Überfahren**: ein Satz, die Auswahlregel, die speisenden Felder als Code + Klartext ([SpaltenHilfeInhalt.tsx](src/components/data-table/SpaltenHilfeInhalt.tsx), [TableHeadRows.tsx](src/components/data-table/TableHeadRows.tsx))
-- **Die Feldlisten kommen aus dem Schema, nicht aus dem Code** — PreCheck zeigt seine 9, FB seine 11 gemappten Spalten mit den Beschriftungen des Programms ([spaltenHilfe.ts](src/plugins/antraege/spaltenHilfe.ts), [useSpaltenHilfe.ts](src/plugins/antraege/useSpaltenHilfe.ts))
-- **Eine leere Spalte sagt, warum sie leer ist**: „In diesem Programm ist dafür keine Spalte gemappt" statt einer stummen Zelle — gemessen an *Zuwendung* und drei Ordner-Spalten des Katalogs
-- **Auch im Spalten-Picker**, am ⓘ je Zeile: die Herkunft steht da, wo man entscheidet, ob man die Spalte braucht ([ColumnPicker.tsx](src/components/data-table/ColumnPicker.tsx))
-- **Guard `spalten-hilfe-abdeckung`** hält die Vollständigkeit in beide Richtungen — neue Spalte ohne Satz und Satz ohne Spalte fallen im Gate auf ([conventions-ui.test.ts](src/__tests__/conventions-ui.test.ts))
-
-### v4.53.0 — Verbundkennzeichen suchbar, nw statt netz, keine Null vor der Messung (August 2026)
-
-MINOR — Nach dem FKZ ließ sich direkt suchen, nach dem Verbundkennzeichen nicht. Dieselbe Messung wie in v4.50, diesmal über die Spalten, die Codes tragen: von 512 Spalten bleiben genau vier — mehr Kennzeichen gibt es im Bestand nicht. Detail: [suche-relevanz.md](docs/architecture/suche-relevanz.md).
-
-- **Verbundkennzeichen als eigene Fundstelle** (100 % gefüllt, 7.535 Verbünde): `vb:ZKN073232` → 9 Teilvorhaben, vorher 0 — die Nummer stand in keinem durchsuchten Feld ([search-corpus.ts](src/plugins/antraege/services/search-corpus.ts), [korpusFeldAufloesung.ts](src/plugins/antraege/services/korpusFeldAufloesung.ts))
-- **Das Fachsystem-Aktenzeichen fällt mit dem FKZ zusammen** — `KNF065624` findet denselben Antrag wie `16KN065624`, über `fkz:`/`akz:`/`kennzeichen:` ([feldpraefix.ts](src/core/services/search/feldpraefix.ts))
-- **Netzwerk-Präfix heißt jetzt `nw:`**; `netz:` wird weiter gelesen, damit gemerkte Suchen nicht ins Leere laufen
-- **Keine Null vor der Messung**: der Ergebniskopf schrieb „0 Treffer", solange der erste Lauf noch lief (gemessen 357–666 ms) — jetzt steht dort „… Treffer" ([SuchSeite.tsx](src/plugins/suche/SuchSeite.tsx))
-- **Spalte „Verbund-Nr."** blendet sich wie die übrigen Belege selbst ein ([autoSpalten.ts](src/plugins/suche/autoSpalten.ts), [columns.tsx](src/plugins/suche/columns.tsx)); `ALTAKZ` bleibt draußen — der Import setzt es auf „ignorieren"
-
-### v4.52.0 — Bestandslauf: Befund oben, Zahlen eingeklappt (August 2026)
-
-MINOR — Der Reiter *Kürzel* zeigte zwei Mess-Kacheln mit rund 40 gleichrangigen Zahlen in elf Abschnitten, alle immer offen: die eine Zeile, die eine Zusage bricht, stand neben einem Median. Jetzt steht die Wertung vor den Zahlen, und die Zahlen bleiben vollständig — §14.3 zitiert aus ihnen. Detail: [vorgangssystem.md §14.3/§15.4](docs/architecture/vorgangssystem.md).
-
-- **Ein Block, ein Knopf, Befund in Sätzen** — Zusagen (✓), Auffälligkeiten (⚠) und Kennzahlen (ohne Symbol, weil kein Schwellwert erfunden wird) statt einer Zahlenwand ([BestandslaufBlock.tsx](src/plugins/status-cockpit/BestandslaufBlock.tsx)); die volle Auswertung liegt unter „Zahlen im Detail"
-- **Die Wertung ist eine reine Funktion** und damit erstmals im Node-Test prüfbar — der Bestand selbst ist es nicht ([bestandslaufBefund.ts](src/plugins/status-cockpit/bestandslaufBefund.ts))
-- **Auffälligkeiten tragen bis zu drei Belege**; ist der Beleg ein Kürzel, filtert ein Klick die Tabelle darunter ([erhebung.ts](src/core/status/verlauf/erhebung.ts))
-- **„Vergleich: C16" hieß seit v3.23 falsch** — die Zeilen verglichen C16 mit sich selbst; jetzt „Obergrenze", und der Prozentwert der TV-Zeile entfällt, weil er Datumsfelder gegen Übergänge rechnete ([VerlaufBefundeBlock.tsx](src/plugins/status-cockpit/VerlaufBefundeBlock.tsx))
-- **Neu gemessen: die dritte Haltedatum-Quelle greift nirgends** — 0 statt 1 638 aus §15.4, weil Stufe 2 inzwischen 5 585 Fälle beantwortet; offen sind 42 angehaltene Vorgänge, nicht 1 030 ([fristErhebung.ts](src/plugins/status-cockpit/fristErhebung.ts))
-
-### v4.51.0 — Zeitstrahl zeigt jeden Termin, mit Rolle und Filter (August 2026)
-
-MINOR — Teil 2 des Handoffs `_design/handoff/chronik`. Die Bahn zeigte nur die Termine, die einen Statuswechsel auslösen — gemessen 7,3 %; die übrigen standen vollständig in den Daten und wurden nicht gezeichnet. Rolle, Filter und Fokus der Chronik erbt sie jetzt mit. Detail + die vier Abweichungen vom Entwurf: [chronik-und-zeitstrahl.md](docs/status-system/chronik-und-zeitstrahl.md).
-
-- **Jeder Termin als Marke über der Bahn**, getönt nach Rolle; ein Tag = eine Marke mit „+n", was kollidiert entfällt ([bandTermine.ts](src/plugins/antraege/verlauf-band/bandTermine.ts), gemessen an ZKN084412/TV2: 18 Marken für 22 von 78 Terminen)
-- **Klartext-Zeile mit Rangfolge** — Warnung, fehlende Kürzel (rot), fokussierter Termin, übrige Termine, Abschnittsnamen, Dauern ([bandBeschriftung.ts](src/plugins/antraege/verlauf-band/bandBeschriftung.ts)); dazu die **Rollenbilanz je Bahn** ([VerlaufBadges.tsx](src/plugins/antraege/status/VerlaufBadges.tsx))
-- **Wer/Wo/Fokus wirken auf beide Ansichten**: Wer blendet ab, Wo blendet Bahnen aus, und die Achse bleibt dieselbe (gemessen: 0 px Abweichung bei „nur TV 3") ([bandGeometrie.ts](src/plugins/antraege/verlauf-band/bandGeometrie.ts), [StatusDetailSection.tsx](src/plugins/antraege/status/StatusDetailSection.tsx))
-- **„Wer setzt" hat nur noch eine Quelle**: `baueUebergaenge` liest die Rollen aus der geladenen Fassung statt aus der Zuarbeit — die widersprachen sich an ZKN084412 um 37 Termine „Juristen" gegen null ([uebergaenge.ts](src/core/status/verlauf/uebergaenge.ts))
-- **Balkenfarbe bleibt der Status** (der Entwurf färbt nach Rolle): PA ist Neutralgrau und von „neutral" nicht zu unterscheiden, ein Kürzel trägt bis zu vier Rollen, und der Balken nennt seinen Status als Text — `--tf-rolle-*-bar` entfällt ([theme.css](src/theme.css)); die Bahn zieht nach [BandBahn.tsx](src/plugins/antraege/verlauf-band/BandBahn.tsx)
-
-### v4.50.0 — Netzwerk, Notizen und Wahlkreis werden mitdurchsucht (August 2026)
-
-MINOR — Gefragt war, ob weitere Roh-CSV-Spalten mit sinnvollem Text in die Suche können. Entschieden hat nicht die Textmenge, sondern die Messung über alle drei aktiven Quellen (512 Spalten, 14.225 FKZ): welcher Text ist nirgendwo sonst auffindbar? Detail + verworfene Kandidaten: [suche-relevanz.md](docs/architecture/suche-relevanz.md).
-
-- **Netzwerk** (11.492 Anträge): Name UND Netz-Kennzeichen — `netz:ProAnimalLife` findet 80 Teilvorhaben, vorher fand dieselbe Anfrage nur den Netzwerkantrag ([search-corpus.ts](src/plugins/antraege/services/search-corpus.ts))
-- **Arbeitsnotizen** „Wichtig" + „Bemerkung" als EIN Feld (5.335): `notiz:Einbehalt` → 50 Treffer; dieser Text stand in keinem anderen durchsuchbaren Feld
-- **Wahlkreis** (14.218) gehört zum „wo": „Northeim" 1 → 51 Treffer, die Bereichs-Beschriftung heißt jetzt „nur Ort, Bundesland & Wahlkreis" ([suchbereich.ts](src/core/services/search/suchbereich.ts))
-- **NACE-Branchentext** fließt in die Deskriptoren (2.256): „Anstrichmitteln" 0 → 12; drei neue Belege in Zeile und Tabelle ([autoSpalten.ts](src/plugins/suche/autoSpalten.ts), [columns.tsx](src/plugins/suche/columns.tsx))
-- **Korpus liest jeden Datensatz in EINEM Durchgang** statt einmal je Feld: 8.225 ms → 1.168 ms über 14.225 Anträge, trotz fünf zusätzlicher Felder
 

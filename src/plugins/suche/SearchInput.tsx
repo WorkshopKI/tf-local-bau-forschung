@@ -59,14 +59,19 @@ export interface SearchInputProps {
   disabled: boolean;
   showSpinner: boolean;
   /**
-   * Enter auf einer fertigen Eingabe (kein Vorschlag ausgewählt).
+   * Die Anfrage ist fertig und soll laufen — Enter, oder die Auswahl eines
+   * VOLLSTÄNDIGEN Vorschlags aus dem Verlauf.
    *
    * Die Stichwortsuche braucht das nicht — sie läuft beim Tippen. Die
    * natürlichsprachige Suche schon: ihr KI-Aufruf hängt an genau dieser einen
    * Geste, nicht am Tastendruck. Bewusst NICHT beim Verlassen des Feldes: ein
    * Klick daneben ist keine Frage.
+   *
+   * Der Text kommt MIT, statt vom Aufrufer aus seinem Zustand gelesen zu
+   * werden: bei der Vorschlags-Auswahl trägt der ihn in demselben Render noch
+   * nicht, und der Lauf ginge auf den vorigen Text.
    */
-  onSubmit?: () => void;
+  onSubmit?: (anfrage: string) => void;
   /** Ersetzt den Standardtext, wenn eine andere Art zu fragen erwartet wird. */
   platzhalter?: string;
   /**
@@ -207,6 +212,12 @@ export function SearchInput({
   const selectSuggestion = (v: Vorschlag): void => {
     onValueChange(v.anfrage);
     setCursor(v.cursor);
+    // Ein Verlaufs-Eintrag IST eine fertige Anfrage — die Auswahl tut deshalb
+    // dasselbe wie die Eingabetaste. Im Frage-Modus hieß „auswählen" sonst nur
+    // „in das Feld schreiben": die Frage stand da, und es brauchte eine zweite
+    // Geste, um sie zu stellen. Für `feld`/`wert` gilt das nicht — die sind ein
+    // Stück Anfrage, kein Auftrag.
+    if (v.art === 'verlauf') onSubmit?.(v.anfrage);
     // Nach einem Feldnamen (`ort:`) bleibt die Liste offen — der nächste Schritt
     // ist sein Wert, und ihn sofort zu zeigen ist der halbe Sinn der Sache.
     setSuggestOpen(v.weiter);
@@ -243,7 +254,7 @@ export function SearchInput({
         if (q) addRecentSearch(q);
         setSuggestOpen(false);
         setActiveIndex(-1);
-        if (q) onSubmit?.();
+        if (q) onSubmit?.(q);
       }
     } else if (e.key === 'Escape') {
       if (suggestOpen) { e.preventDefault(); setSuggestOpen(false); setActiveIndex(-1); }

@@ -67,6 +67,7 @@ export function SucheStartzustand({
   wertIndex,
   zaehle,
   onSuche,
+  onWiederholen,
   onFrage,
   gewuenschterReiter,
   onEntferneLetzte,
@@ -85,6 +86,16 @@ export function SucheStartzustand({
   /** Probelauf für die Zahlen im Reiter „Stöbern". */
   zaehle?: (anfrage: string) => number | null;
   onSuche: (query: string) => void;
+  /**
+   * Eine SCHON GELAUFENE Anfrage wieder aufnehmen — Verlauf, häufig Gesuchtes,
+   * Gemerktes.
+   *
+   * Getrennt von `onSuche`, weil sie etwas anderes ist als ein Beispiel aus der
+   * Suchsprache: sie ist fertig und war schon einmal ein Auftrag. Deshalb läuft
+   * sie auch gleich, statt im Feld auf eine zweite Geste zu warten. Fehlt sie,
+   * bleibt es beim reinen Übernehmen.
+   */
+  onWiederholen?: (query: string) => void;
   /** Eine Frage stellen (setzt Text UND Modus). Fehlt, wenn der Build die
    *  natürlichsprachige Suche nicht mitbringt — dann entfällt der Reiter. */
   onFrage?: (frage: string) => void;
@@ -140,7 +151,7 @@ export function SucheStartzustand({
       haeufig={haeufig}
       gespeichert={gespeichert}
       gespeicherteTreffer={gespeicherteTreffer}
-      onSuche={onSuche}
+      onSuche={onWiederholen ?? onSuche}
       onEntferneLetzte={onEntferneLetzte}
       onEntferneGespeicherte={onEntferneGespeicherte}
       max={max}

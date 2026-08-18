@@ -632,9 +632,9 @@ export function SuchSeite(): React.ReactElement {
   const showResults = !noQuery && !frageOffen && sichtbar.length > 0;
   // Alles, was ein Ergebnis beschreibt — Deutung, Facetten, Trefferzahl, Liste,
   // Kein-Treffer-Hilfe — hängt an derselben Bedingung: es MUSS ein Ergebnis
-  // geben. Eine offene Frage hat keines, und „0 Treffer" wäre dort keine
-  // Auskunft, sondern eine Falschaussage.
+  // geben. „0 Treffer" wäre bei offener Frage keine Auskunft, sondern falsch.
   const zeigeErgebnisTeile = queryNotEmpty && !frageOffen;
+  const zeigeStartzustand = noQuery && !loading;
   /**
    * Darf der Ergebniskopf eine Trefferzahl BEHAUPTEN?
    *
@@ -743,7 +743,7 @@ export function SuchSeite(): React.ReactElement {
               onValueChange={handleQueryChange}
               disabled={analyse.running}
               showSpinner={showSpinner || planLaeuft}
-              onSubmit={nlModus ? () => { void frageStellen(); } : undefined}
+              onSubmit={nlModus ? (f: string) => { void frageStellen(f); } : undefined}
               platzhalter={nlModus ? 'Frage stellen, z. B. „Welche Vorhaben drehen sich um Normung?"' : undefined}
               // Im Frage-Modus schweigt die Vervollständigung: dort schreibt
               // niemand `ort:`, und ein Vorschlag zur Feldsyntax mitten in einem
@@ -830,13 +830,12 @@ export function SuchSeite(): React.ReactElement {
           )}
 
           {/* ── Richtlinien + Facetten ───────────────────────────────────── */}
-          {/* Der Richtlinien-Chip wohnt im Ergebniskopf, direkt hinter der Zahl,
-              auf die er wirkt. OHNE Ergebnis gibt es diesen Kopf nicht — dann
-              steht er hier, denn schon die Zahlen des Startzustands („Additive
-              Fertigung · 531 Treffer") sind auf die Auswahl heruntergezählt und
-              brauchen ihren sichtbaren Grund (Pitfall #46). */}
+          {/* Der Chip steht im Ergebniskopf hinter der Zahl, auf die er wirkt —
+              sonst nur im Startzustand, dessen Zahlen („Additive Fertigung ·
+              531 Treffer") ebenso heruntergezählt sind (Pitfall #46). Bei
+              offener Frage steht keine Zahl da, also auch kein Grund dafür. */}
           <div className="mt-2.5 flex w-full max-w-6xl flex-wrap items-center gap-2">
-            {!zeigeErgebnisTeile && (
+            {zeigeStartzustand && (
               <SuchRichtlinienChip
                 bereich={richtlinien}
                 ausgeblendet={richtlinienAusgeblendet}
@@ -1035,7 +1034,7 @@ export function SuchSeite(): React.ReactElement {
           )}
 
           {/* ── Startzustand ─────────────────────────────────────────────── */}
-          {noQuery && !loading && (
+          {zeigeStartzustand && (
             <SucheStartzustand
               textabschnitteImIndex={indexInfo.textabschnitteImIndex}
               letzte={startEintraege.letzte}
@@ -1045,6 +1044,7 @@ export function SuchSeite(): React.ReactElement {
               wertIndex={wertIndex}
               zaehle={zaehleVorschlag}
               onSuche={starteSuche}
+              onWiederholen={q => { starteSuche(q); if (nlModus) void frageStellen(q); }}
               onFrage={nlFreigeschaltet ? starteFrage : undefined}
               gewuenschterReiter={reiterWunsch}
               onEntferneLetzte={removeRecentSearch}
