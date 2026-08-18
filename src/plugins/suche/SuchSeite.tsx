@@ -9,7 +9,7 @@
  * Rechnung ihr eigenes reines Modul — die Seite war mit 532 Zeilen schon an der
  * Grenze, und der Umbau hätte sie verdreifacht.
  */
-import { useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react';
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Loader2, Sparkles, Download, List, Table } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -65,7 +65,7 @@ import { SeitenHilfeButton } from '@/components/help/SeitenHilfeButton';
 // mit, und das lädt die Plugin-Config nach (siehe SeitenHilfeButton.tsx).
 import { useFeedbackDialog } from '@/components/feedback/useFeedbackDialog';
 import { wendeFacettenAn, aktiveFilterTexte, LEERE_WAHL, type FacettenId } from './facetten';
-import { useSuchRichtlinien, wendeRichtlinienAn } from './richtlinienWahl';
+import { useErreichbareAntraege, useSuchRichtlinien, wendeRichtlinienAn } from './richtlinienWahl';
 import { SuchRichtlinienChip } from './SuchRichtlinienChip';
 import { autoSpalten } from './autoSpalten';
 import { baueWortChips, markierWoerter, wirksameAnfrage } from './deutung';
@@ -254,6 +254,18 @@ export function SuchSeite(): React.ReactElement {
     [searchResults, richtlinienMenge],
   );
   const richtlinienAusgeblendet = searchResults.length - nachRichtlinien.length;
+  // Der Nenner der Ergebniszeile: unter einer Einschränkung sind nicht mehr
+  // alle Anträge des Index durchsucht worden, und „0 Treffer in 14 225
+  // Anträgen" behauptete genau das.
+  const erreichbar = useErreichbareAntraege({
+    idb: storage.idb,
+    programmId: activeProgrammId,
+    gesamt: indexInfo.antraegeGeladen,
+    menge: richtlinienMenge,
+  });
+  // Das Auswahl-Panel geht unter diesem Kopf auf, nicht über ihm — die Zahl,
+  // die sich beim Umschalten ändert, muss dabei sichtbar bleiben.
+  const ergebnisKopf = useRef<HTMLDivElement>(null);
 
   // Facetten stehen VOR der Tabellen-Pipeline: sie gelten für Liste UND Tabelle.
   const nachFacetten = useMemo(
@@ -803,7 +815,11 @@ export function SuchSeite(): React.ReactElement {
               erschiene, ließe sie ohne sichtbaren Grund (Pitfall #46). Die
               Facetten dagegen brauchen ein Ergebnis und blenden sich selbst aus. */}
           <div className="mt-2.5 flex w-full max-w-6xl flex-wrap items-center gap-2">
-            <SuchRichtlinienChip bereich={richtlinien} ausgeblendet={richtlinienAusgeblendet} />
+            <SuchRichtlinienChip
+              bereich={richtlinien}
+              ausgeblendet={richtlinienAusgeblendet}
+              ergebnisKopf={ergebnisKopf}
+            />
             {zeigeErgebnisTeile && (
               <FacettenZeile
                 results={nachRichtlinien}
@@ -849,13 +865,21 @@ export function SuchSeite(): React.ReactElement {
 
           {/* ── Ergebniskopf ─────────────────────────────────────────────── */}
           {zeigeErgebnisTeile && (
-            <div className="mt-3 flex w-full max-w-6xl flex-wrap items-center gap-2">
+            <div ref={ergebnisKopf} className="mt-3 flex w-full max-w-6xl flex-wrap items-center gap-2">
+              {/* Unter einer Richtlinien-Auswahl steht die erreichbare Menge
+                  VOR der ganzen: „in 2.537 von 14.225 Anträgen" sagt beides —
+                  worauf sich die Trefferzahl bezieht und wovon abgezogen
+                  wurde. Nur die kleinere Zahl zu zeigen, ließe den Leser
+                  glauben, der Index sei geschrumpft. */}
               <span className="text-[13px] text-[var(--tf-text)]">
                 <b className="font-medium">
                   {trefferzahlSteht ? sichtbar.length.toLocaleString('de-DE') : '…'} Treffer
                 </b>
                 <span className="text-[var(--tf-text-secondary)]">
-                  {' '}in {indexInfo.antraegeGeladen.toLocaleString('de-DE')} Anträgen
+                  {' '}in {erreichbar.toLocaleString('de-DE')}
+                  {erreichbar !== indexInfo.antraegeGeladen
+                    && ` von ${indexInfo.antraegeGeladen.toLocaleString('de-DE')}`}
+                  {' '}Anträgen
                 </span>
               </span>
 

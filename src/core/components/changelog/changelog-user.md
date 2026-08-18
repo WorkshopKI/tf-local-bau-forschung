@@ -19,6 +19,15 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.97 — 2026-08
+
+### Verbesserungen
+- Die **Richtlinien-Auswahl** (der Chip „Anzeige: …" bzw. „Treffer: …") zeigt jetzt alles auf einen Blick: die drei Kurzwahlen nebeneinander in einer Zeile, die Programme in zwei Spalten — kein Scrollen mehr, um nachzusehen, ob eine Richtlinie noch dabei ist.
+- In der Suche legt sich die Auswahl nicht mehr über die Trefferzeile, sondern geht darunter auf. So sehen Sie beim Umschalten, wie sich die Trefferzahl ändert.
+
+### Bugfixes
+- Die Suche schrieb „0 Treffer in 14.225 Anträgen", auch wenn die Richtlinien-Auswahl den Bestand längst eingegrenzt hatte. Jetzt steht dort, worauf sich die Zahl wirklich bezieht: „0 Treffer in 2.537 von 14.225 Anträgen".
+
 ## v4.96 — 2026-08
 
 ### Verbesserungen

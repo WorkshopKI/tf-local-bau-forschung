@@ -63,25 +63,36 @@ export function BereichPanel({ bereich, labels, einleitung }: {
           Erweiterung. „Aktuelle Richtlinie" ist eine eigene Stufe und keine
           vorgesetzte Häkchen-Liste — sonst hieße der Chip „eigene Auswahl" und
           zeigte 2030 noch auf die Programme von 2025. */}
+      {/* `px-2.5` statt der Chip-Vorgabe `px-3`: die drei Beschriftungen
+          brauchen zusammen 380 px (gemessen) und passen damit in EINE Zeile.
+          Umgebrochen stünde die Erweiterung unter der Verengung und läse sich
+          wie deren Unterpunkt. */}
       <div className="flex flex-wrap gap-1.5">
         <ToggleChip
-          label="Standard-Bereich" selected={bereich.modus === 'standard'}
+          className="px-2.5" label="Standard-Bereich" selected={bereich.modus === 'standard'}
           onToggle={() => bereich.setModus('standard')}
         />
         <ToggleChip
-          label="Aktuelle Richtlinie" selected={bereich.modus === 'aktuell'}
+          className="px-2.5" label="Aktuelle Richtlinie" selected={bereich.modus === 'aktuell'}
           onToggle={() => bereich.setModus('aktuell')}
         />
         <ToggleChip
-          label="Alle Richtlinien" selected={bereich.modus === 'alle'}
+          className="px-2.5" label="Alle Richtlinien" selected={bereich.modus === 'alle'}
           onToggle={() => bereich.setModus('alle')}
         />
       </div>
 
-      {/* 320px, nicht 260: mit drei Gruppen-Überschriften braucht die Liste
-          307 px (gemessen). Bei 260 lag die zuletzt ergänzte Generation unter
-          der Kante — genau die, deren Vorhandensein man hier nachsieht. */}
-      <div className="flex flex-col gap-1 max-h-[320px] overflow-y-auto">
+      {/* **Zwei Spalten, damit nichts scrollt.** Untereinander braucht die
+          volle Liste (16 Programme + 4 Überschriften) 440 px und lag damit
+          unter jeder Popover-Kante; nebeneinander sind es 246 px. Eine Gruppe
+          bleibt dabei ganz — deshalb ein Raster mit den Generationen als
+          Zellen und nicht `columns-2`, das mitten in eine Generation umbricht.
+          `flex-1 min-h-0` ist die Reißleine: das Popover ist auf die von Radix
+          gemessene Resthöhe gedeckelt, und die Liste nimmt sich davon, was
+          Einleitung und Kurzwahlen übrig lassen. Sie scrollt also erst, wenn
+          der Platz wirklich nicht reicht — ein fester Deckel hier wäre auf
+          jedem zweiten Bildschirm der falsche. */}
+      <div className="grid grid-cols-2 gap-x-5 gap-y-1 items-start flex-1 min-h-0 overflow-y-auto">
         {eigene.length === 0 && (
           <p className="text-[11.5px] text-[var(--tf-text-tertiary)]">
             Keine Programme im Bereich.
@@ -89,7 +100,7 @@ export function BereichPanel({ bereich, labels, einleitung }: {
         )}
         {gruppen.map(gruppe => (
           <div key={gruppe.titel} className="flex flex-col gap-1">
-            <p className="text-[10.5px] font-semibold uppercase tracking-wide text-[var(--tf-text-tertiary)] mt-1 first:mt-0">
+            <p className="text-[10.5px] font-semibold uppercase tracking-wide text-[var(--tf-text-tertiary)]">
               {gruppe.titel}
             </p>
             {gruppe.programme.map(code => {
@@ -109,7 +120,12 @@ export function BereichPanel({ bereich, labels, einleitung }: {
                       bereich.setAuswahl(next);
                     }}
                   />
-                  <span className="truncate">{richtlinienLabel(code, labels)}</span>
+                  {/* `title` als Reißleine: die Breite ist auf den heute
+                      längsten Namen gemessen — ein künftiger Label-Import darf
+                      dann kürzen, aber nicht verschweigen. */}
+                  <span className="truncate" title={richtlinienLabel(code, labels)}>
+                    {richtlinienLabel(code, labels)}
+                  </span>
                   <span className="ml-auto text-[11px] font-mono text-[var(--tf-text-tertiary)]">{code}</span>
                 </label>
               );

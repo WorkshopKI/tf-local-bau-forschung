@@ -20,7 +20,7 @@
  * und Wort haben damit eine Quelle. Eine hartcodierte „3" neben einem
  * gerechneten „(N Programme)" hat schon einmal auseinandergelaufen.
  */
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Layers } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { bereichsLabel, type BereichModus } from '@/core/status/betrachtungsbereich';
@@ -28,8 +28,11 @@ import type { Bereich } from '@/core/hooks/useBereich';
 import { useRichtlinienLabels, richtlinienLabel } from '@/core/hooks/useRichtlinienLabels';
 import { BereichPanel } from './BereichPanel';
 
+/** Der Abstand, den ein Popover ohne Anker zu seinem Auslöser hält. */
+const ABSTAND = 4;
+
 export function BereichAuswahlChip({
-  bereich, ausgeblendet, einleitung, grundModus = 'standard', praefix,
+  bereich, ausgeblendet, einleitung, grundModus = 'standard', praefix, unterhalbVon,
 }: {
   bereich: Bereich;
   /**
@@ -44,9 +47,33 @@ export function BereichAuswahlChip({
   grundModus?: Extract<BereichModus, 'standard' | 'alle'>;
   /** Worauf die Auswahl wirkt — „Anzeige" am Arbeitsvorrat, „Treffer" an der Suche. */
   praefix?: string;
+  /**
+   * Ein Element, das das Panel **nicht verdecken** soll — es geht darunter auf.
+   *
+   * An der Suche ist das der Ergebniskopf: „0 Treffer in 2.537 von 14 225
+   * Anträgen" ist genau die Zahl, wegen der jemand diese Auswahl anfasst; ein
+   * Panel, das sie zudeckt, versteckt seine eigene Wirkung. Gemessen wird beim
+   * Öffnen statt fest verdrahtet — die Zeile steht mal direkt unter dem Chip,
+   * mal unter einer KI-Antwortkarte, und ein Pixelwert wäre in einem der
+   * beiden Fälle falsch. Fehlt das Element, gilt der normale Abstand.
+   */
+  unterhalbVon?: React.RefObject<HTMLElement | null>;
 }): React.ReactElement {
   const labels = useRichtlinienLabels();
   const [offen, setOffen] = useState(false);
+  const ausloeser = useRef<HTMLButtonElement>(null);
+  const [abstand, setAbstand] = useState(ABSTAND);
+
+  // **Einmal beim Öffnen gemessen, dann eingefroren.** Bei jedem Rerender neu
+  // zu messen sah richtig aus und war es nicht: ein Klick im Panel ändert die
+  // Trefferzahl, und die Messung erwischte einen Zwischenstand des Layouts —
+  // das Panel sprang dann auf die Zeile, die es freihalten soll.
+  const messeAbstand = (): number => {
+    const a = ausloeser.current?.getBoundingClientRect();
+    const z = unterhalbVon?.current?.getBoundingClientRect();
+    if (!a || !z) return ABSTAND;
+    return Math.max(ABSTAND, z.bottom - a.bottom + ABSTAND);
+  };
 
   const text = bereichsLabel(bereich.modus, bereich.programme, praefix);
   // Der Grundzustand ist der Normalfall; er beziffert sich nicht selbst.
@@ -62,9 +89,13 @@ export function BereichAuswahlChip({
     + `${zahlSatz} Klick zum Wechseln.`;
 
   return (
-    <Popover open={offen} onOpenChange={setOffen}>
+    <Popover
+      open={offen}
+      onOpenChange={o => { if (o) setAbstand(messeAbstand()); setOffen(o); }}
+    >
       <PopoverTrigger asChild>
         <button
+          ref={ausloeser}
           type="button"
           title={titel}
           className="inline-flex items-center gap-1 px-2.5 py-[3px] rounded-full text-[11px] bg-[var(--tf-bg-secondary)] text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)] transition-colors shrink-0"
@@ -78,7 +109,15 @@ export function BereichAuswahlChip({
           )}
         </button>
       </PopoverTrigger>
-      <PopoverContent align="start" className="w-[420px]">
+      {/* 620 px statt 420: der längste Programmname („ZIM Leistungen zur
+          Markteinführung 2025") braucht 223 px Textbreite, dazu Kästchen und
+          Nummer — zwei Spalten gehen erst ab 290 px je Spalte ohne Kürzung
+          auf. Die Höhe bindet an den Platz, den Radix misst; ein fester Wert
+          wäre unter dem tief stehenden Suche-Chip zu hoch. */}
+      <PopoverContent
+        align="start" sideOffset={abstand}
+        className="w-[620px] max-h-[var(--radix-popover-content-available-height)]"
+      >
         <BereichPanel bereich={bereich} labels={labels} einleitung={einleitung} />
       </PopoverContent>
     </Popover>

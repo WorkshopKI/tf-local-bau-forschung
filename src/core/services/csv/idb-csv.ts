@@ -383,6 +383,34 @@ export async function countAntraegeListViewByProgramm(
   return req(idx.count(programmId));
 }
 
+/**
+ * Dieselbe Zählung, aufgeschlüsselt nach Unterprogramm — die Grundmenge einer
+ * Richtlinien-Auswahl.
+ *
+ * Bewusst aus demselben Store wie {@link countAntraegeListViewByProgramm}:
+ * eine zweite Quelle (etwa der Wortlaut-Korpus, der textleere Anträge
+ * auslässt) ergäbe im Grundzustand eine ANDERE Gesamtzahl als die Zeile
+ * daneben — die Zahl spränge beim Umschalten, ohne dass sich etwas geändert
+ * hätte. Anträge ohne Nummer zählen unter `''`; sie bleiben in jeder Auswahl
+ * sichtbar (siehe `wendeRichtlinienAn`).
+ *
+ * Es gibt keinen Index auf `unterprogramm_id` — ein Voll-Lauf über die schmale
+ * Projektion des Programms ist billiger als eine IDB-Version mehr, und er
+ * läuft nur, wenn jemand die Auswahl überhaupt einschränkt.
+ */
+export async function countAntraegeListViewByUnterprogramm(
+  idb: IDBStore,
+  programmId: string,
+): Promise<Map<string, number>> {
+  const items = await listAntraegeListViewByProgramm(idb, programmId);
+  const je = new Map<string, number>();
+  for (const a of items) {
+    const code = typeof a.unterprogramm_id === 'string' ? a.unterprogramm_id.trim() : '';
+    je.set(code, (je.get(code) ?? 0) + 1);
+  }
+  return je;
+}
+
 // ---------- Historie ----------
 
 export async function appendHistory(idb: IDBStore, entries: AntragHistorieEntry[]): Promise<void> {

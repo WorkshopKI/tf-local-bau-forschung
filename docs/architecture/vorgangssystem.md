@@ -469,6 +469,18 @@ das Panel, wovon sie abweicht („Ihre Auswahl weicht vom Standard-Bereich ab
 (12 Programme, Richtlinien 2015 + 2020 + 2025)") — ein Klick auf
 „Standard-Bereich" ist der Rückweg.
 
+**Das Panel zeigt seine Liste vollständig.** Die drei Kurzwahlen stehen in einer
+Zeile, die Programme in zwei Spalten mit den Generationen als Zellen — 620 px
+breit, damit der längste Programmname nicht gekürzt wird, und ungescrollt,
+solange der Platz reicht. Untereinander brauchte die volle Liste (16 Programme,
+4 Überschriften) 440 px und lag damit unter jeder Popover-Kante; wer nachsieht,
+ob eine Generation noch da ist, darf sie nicht suchen müssen. Der Deckel ist
+kein fester Wert, sondern die von Radix gemessene Resthöhe
+(`--radix-popover-content-available-height`): erst wenn die wirklich nicht
+reicht, scrollt die Liste. An der Suche geht das Panel zusätzlich **unter dem
+Ergebniskopf** auf — beim Öffnen einmal gemessen, nicht fest verdrahtet — damit
+„94 Treffer in 2.537 von 14.225 Anträgen" sichtbar bleibt, während man umschaltet.
+
 ### 10.2 Was die Umstellung gemessen hat
 
 Beide Zustände **unmittelbar hintereinander** an derselben Sitzung gemessen (der

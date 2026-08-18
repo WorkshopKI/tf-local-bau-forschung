@@ -13,15 +13,18 @@
 import { BereichAuswahlChip } from '@/components/bereich/BereichAuswahlChip';
 import type { Bereich } from '@/core/hooks/useBereich';
 
-export function SuchRichtlinienChip({ bereich, ausgeblendet }: {
+export function SuchRichtlinienChip({ bereich, ausgeblendet, ergebnisKopf }: {
   bereich: Bereich;
   /** Wie viele Treffer die Auswahl gerade wegnimmt. */
   ausgeblendet: number;
+  /** Der Ergebniskopf — das Panel geht darunter auf, statt ihn zu verdecken. */
+  ergebnisKopf?: React.RefObject<HTMLElement | null>;
 }): React.ReactElement {
   return (
     <BereichAuswahlChip
       bereich={bereich}
       ausgeblendet={ausgeblendet}
+      unterhalbVon={ergebnisKopf}
       grundModus="alle"
       praefix="Treffer"
       einleitung={(
