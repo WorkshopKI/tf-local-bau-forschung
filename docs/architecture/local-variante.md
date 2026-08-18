@@ -197,7 +197,7 @@ Ein Transportfehler darf **nie** als `NotFoundError` ankommen — sonst liest
 | `persoenlich` | `persoenlich` | Home des Users; die App navigiert selbst nach `ZAH/` |
 | `user-folders-root` | `userFoldersRoot` | Alt-Wurzel der Home-Laufwerke (v2.0-Einzelslot, Id „legacy") |
 | `user-folders-root-<id>` | `userFoldersRoots` | Wurzeln je Gruppe (v4.1; Kinder = User) |
-| `csv-source-dir` | `csvSourceDir` | CSV-Quelldateien (eigener IDB-Key) |
+| `csv-source-dir` | `csvSourceDir` | CSV-Quelldateien (eigener IDB-Key) — der **Export**-Ordner, **nie** ein Ordner im Daten-Share |
 | `gutachten-vorlagen` | `vorlagenDir` | DOCX-Vorlagen (eigener IDB-Key) |
 | `dms-source-<id>` | `dmsSources` | DMS-Quellen |
 
@@ -207,6 +207,16 @@ die Handles ohne Übersetzungstabelle in die Map.
 
 Der Legacy-Slot `dokumentenquelle` wird **nie** synthetisiert: sonst zöge
 `migrateLegacyDmsSource` bei jedem Start einen Map-Rückschrieb.
+
+`csvSourceDir` zeigt auf den Ordner der **täglichen Exporte** — nicht auf
+`<datenShare>/programm/antraege/imports`. Dort liegt die App-eigene, nach UTF-8
+normalisierte Kopie jeder Quelle (`saveCsvSourceFile`, `CSV_SOURCES_SUBDIR`); zeigt der
+Slot dorthin, importiert `dev:local` sein eigenes Erzeugnis und gerät mit jeder zweiten
+Instanz (die den echten Export liest) in ein Dauer-Reimport-Pingpong samt kippendem
+`encoding` — Hergang, Messung und Erstdiagnose in
+[csv-auto-refresh.md](csv-auto-refresh.md). Ein Convention-Test
+(`csv-quellordner-nicht-kopieordner`) hält die Configs davon frei, `istEigenerKopieOrdner`
+meldet den Fall zur Laufzeit.
 
 ## Fallstricke
 

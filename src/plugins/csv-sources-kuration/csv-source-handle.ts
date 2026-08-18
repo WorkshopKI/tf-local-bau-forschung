@@ -32,8 +32,10 @@ import {
   CSV_SOURCE_DIR_HANDLE_IDB_KEY as DIR_HANDLE_IDB_KEY,
   CSV_SOURCE_DIR_FILEMAP_IDB_KEY as DIR_FILEMAP_IDB_KEY,
 } from '@/core/services/infrastructure/types';
-import { leseHandleKey, schreibeHandleKey, lokalerSlotHandle } from '@/core/services/infrastructure/local-fs/slots';
-import { SLOT_CSV_SOURCE_DIR } from '@/core/services/infrastructure/local-fs/typen';
+import { leseHandleKey, schreibeHandleKey, lokalerSlotHandle, lokalerSlotPfad } from '@/core/services/infrastructure/local-fs/slots';
+import { SLOT_CSV_SOURCE_DIR, SLOT_DATEN_SHARE } from '@/core/services/infrastructure/local-fs/typen';
+import { getDatenShareHandle, getProgrammHandle } from '@/core/services/infrastructure/smb-handle';
+import { CSV_SOURCES_SUBDIR } from '@/core/services/csv/constants';
 
 type PermState = 'granted' | 'denied' | 'prompt';
 
@@ -120,6 +122,60 @@ export async function setCsvSourceDirHandle(
 ): Promise<void> {
   // No-op fuer synthetische Handles — die sind nicht structured-cloneable.
   await schreibeHandleKey(idb, DIR_HANDLE_IDB_KEY, handle);
+}
+
+/** Pfad-Vergleich für Windows-Pfade: Trenner vereinheitlichen, Fall ignorieren. */
+function gleicherPfad(a: string, b: string): boolean {
+  const norm = (p: string) => p.replace(/[\\/]+/g, '/').replace(/\/+$/, '').toLowerCase();
+  return norm(a) === norm(b);
+}
+
+/**
+ * Zeigt der CSV-Quellordner auf den Ordner, in den die App ihre EIGENE
+ * normalisierte Kopie schreibt (`<share>/programm/antraege/imports`,
+ * `saveCsvSourceFile`)?
+ *
+ * Dann liest jeder Lauf das eigene Erzeugnis statt des Exports. Die Baseline im
+ * Schema (mtime/Größe/Checksum/Encoding) beschreibt danach eine ANDERE Datei als
+ * die, die eine zweite Instanz mit dem echten Export-Ordner stempelt — beide
+ * werten den Stand des jeweils anderen als „neuer Export", importieren voll und
+ * kippen dabei per Encoding-Heilung das `encoding`-Feld hin und her. Gemessen am
+ * 18.08.2026: 195 `csv_schema_encoding_korrigiert` zwischen `zah-pl` (Export,
+ * windows-1252) und `dev:local` (Kopie, UTF-8), streng abwechselnd, bei jedem
+ * Reload ein voller Re-Import ohne eine einzige inhaltliche Änderung.
+ *
+ * Zwei Wege, weil keiner allein reicht:
+ *  - `isSameEntry` trägt für ECHTE FSAPI-Handles (der Kurator pickt den Ordner
+ *    von Hand) — dort ist der Ordner physisch derselbe Eintrag.
+ *  - Der Pfad-Vergleich trägt in der Variante „local": synthetische Handles
+ *    vergleichen in `isSameEntry` den SLOT mit, und `csv-source-dir` ist nie
+ *    `daten-share` — dieselbe Platte, verschiedene Slots, `false`.
+ *
+ * Wirft nie: fehlender Share / fehlender Ordner ⇒ `false`.
+ */
+export async function istEigenerKopieOrdner(
+  idb: IDBStore,
+  dirHandle: FileSystemDirectoryHandle,
+): Promise<boolean> {
+  // Variante „local": beide Pfade stehen in der Config, ohne jedes I/O.
+  const csvPfad = lokalerSlotPfad(SLOT_CSV_SOURCE_DIR);
+  const sharePfad = lokalerSlotPfad(SLOT_DATEN_SHARE);
+  if (csvPfad && sharePfad && gleicherPfad(csvPfad, `${sharePfad}/programm/${CSV_SOURCES_SUBDIR}`)) {
+    return true;
+  }
+  try {
+    const share = await getDatenShareHandle(idb);
+    if (!share) return false;
+    let ordner = await getProgrammHandle(share);
+    for (const segment of CSV_SOURCES_SUBDIR.split('/')) {
+      ordner = await ordner.getDirectoryHandle(segment);
+    }
+    return await ordner.isSameEntry(dirHandle);
+  } catch {
+    // Ordner existiert noch nicht / kein Zugriff — dann ist er auch nicht der
+    // Quellordner. Der Guard darf den Lauf unter keinen Umständen kippen.
+    return false;
+  }
 }
 
 export async function clearCsvSourceDirHandle(idb: IDBStore): Promise<void> {

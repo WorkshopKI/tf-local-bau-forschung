@@ -74,6 +74,17 @@ function pfadFuerSlot(slot: string): string | null {
 }
 
 /**
+ * Der KONFIGURIERTE absolute Pfad eines Slots — oder `null` (kein Lokal-Modus /
+ * Slot nicht gesetzt). Nötig, weil `isSameEntry` bei synthetischen Handles den
+ * SLOT vergleicht: zwei Slots, die auf denselben Ordner zeigen, gelten damit als
+ * verschieden. Genau diese Deckungsgleichheit muss der Kopie-Ordner-Guard aber
+ * sehen (`istEigenerKopieOrdner`).
+ */
+export function lokalerSlotPfad(slot: string): string | null {
+  return pfadFuerSlot(slot);
+}
+
+/**
  * Synthetischer Handle für einen Slot — oder `null`, wenn nicht konfiguriert.
  * Jeder Aufruf liefert einen frischen Handle; sie sind zustandslos (nur
  * Slot + relativer Pfad) und damit beliebig oft erzeugbar.

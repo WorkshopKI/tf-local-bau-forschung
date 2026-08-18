@@ -5,6 +5,24 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.102.2 — Der Chip filtert auch die Tabelle (August 2026)
+
+PATCH — Der Chip „nur die genannten 6" filterte Kopfzahl, Liste und Export, die **Tabelle** aber nicht: über 671 Zeilen stand „6 Treffer". Gemeldet als „obwohl ‚nur 6' an ist, werden in der Tabelle weiterhin alle Ergebnisse angezeigt".
+
+- **Die Tabelle bekommt dieselbe Menge wie alle anderen Anzeigestellen** ([SuchSeite.tsx](src/plugins/suche/SuchSeite.tsx))
+- **Guard `suche-eine-gezeigte-menge`**: Kopfzahl, Liste, Tabelle, Export und KI-Kontext müssen denselben Namen nennen — nachgewiesen scharf (Rückbau ⇒ rot) ([conventions-ui.test.ts](src/__tests__/conventions-ui.test.ts))
+- **Die zweite Meldung („KI-Antwort nur für 5 der 6") war dieselbe Ursache** — der sechste Beleg stand weiter unten in der ungefilterten Tabelle; die Zerlegung liefert für den echten Antworttext sechs Belege ([genannteTreffer.test.ts](src/plugins/suche/antwort/__tests__/genannteTreffer.test.ts))
+- **Antwortkarte + Chip stehen jetzt im Seiten-Kontext-Doc** ([suche.md](docs/feedback-kontext/suche.md))
+
+### v4.102.1 — CSV-Quellordner darf nicht der eigene Kopie-Ordner sein (August 2026)
+
+PATCH — Auf der Entwickler-Maschine importierte die App bei JEDEM Reload alle drei CSV-Quellen, obwohl sich kein Export geändert hatte. Nicht die Erkennung war schuld: `dev:local` las den Ordner, in den die App ihre eigene UTF-8-Kopie schreibt, `zah-pl` den echten Export — zwei Dateien, ein Schema-Record, 195× hin- und hergekipptes `encoding` bei null inhaltlicher Änderung.
+
+- **`csvSourceDir` der Variante „local" zeigt auf den Export-Ordner**, nicht mehr in den Daten-Share ([local.config.json](configs/local.config.json))
+- **`istEigenerKopieOrdner` meldet den Fall zur Laufzeit** — einmal je Lauf in `collectCandidates`, als Warnung + Audit-Eintrag, ohne den Lauf abzubrechen ([csv-source-handle.ts](src/plugins/csv-sources-kuration/csv-source-handle.ts))
+- **Convention-Test `csv-quellordner-nicht-kopieordner`** hält alle Configs davon frei ([conventions-daten.test.ts](src/__tests__/conventions-daten.test.ts))
+- **Wiederholte Encoding-Heilung ist ein eigener Befund** — Hergang, Messung und Audit-Grep als Erstdiagnose ([csv-auto-refresh.md](docs/architecture/csv-auto-refresh.md), [local-variante.md](docs/architecture/local-variante.md))
+
 ### v4.102.0 — Die Auswahl fragt selbst (August 2026)
 
 MINOR — Zwei Meldungen aus dem Test, beide über eine Geste zu viel: eine Frage aus dem Verlauf stand nach der Auswahl nur im Feld und wartete auf einen zweiten Klick, und über ihr stand ein Richtlinien-Chip, der noch gar nichts gefiltert hatte.

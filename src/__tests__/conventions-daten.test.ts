@@ -90,11 +90,19 @@
  *     liegen append-only auf dem Share und zeigen auf die Id; ein eingefuegter Punkt
  *     verschoebe sonst lautlos alle Antworten dahinter, und korrigieren laesst sich das
  *     nicht. Aus DATEN abgeleitete Ids (`code-${code}`) sind ausdruecklich erlaubt.
+ *   - csv-quellordner-nicht-kopieordner → keine Variante darf ihren CSV-Quellordner
+ *     (`local.csvSourceDir`) auf `<datenShare>/programm/antraege/imports` legen. Dort
+ *     liegt die App-EIGENE, nach UTF-8 normalisierte Kopie (`saveCsvSourceFile`): die
+ *     App importiert dann ihr eigenes Erzeugnis, die Schema-Baseline beschreibt eine
+ *     andere Datei als die einer zweiten Instanz mit dem echten Export — beide melden
+ *     bei JEDEM Start „neuer Export" und kippen abwechselnd das `encoding`
+ *     (gemessen 18.08.2026: 195x csv_schema_encoding_korrigiert, 0 inhaltliche Deltas).
  */
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, sep } from 'node:path';
 import { KURATION_PLUGIN_IDS } from '../core/services/feedback/screenContext';
+import { CSV_SOURCES_SUBDIR } from '../core/services/csv/constants';
 import {
   ROOT, ALL_TS_FILES, ALL_SOURCE_FILES, relPath, findInFile, fmt, findFilesViolating, type Finding,
 } from './conventions-lib';
@@ -1584,6 +1592,40 @@ describe('kein-oeffnender-ping (ein Verfügbarkeits-Check reißt keinen KI-Tab a
         + `statt eines Tabs den app-weiten Verbinden-Dialog.\n`
         + `Echte Ausnahme (ein ausdrücklicher „Verbindung testen"-Knopf):\n`
         + `'// allow-oeffnender-ping: <grund>'.\n\nTreffer:\n${fmt(findings)}`,
+      );
+    }
+  });
+});
+
+describe('csv-quellordner-nicht-kopieordner', () => {
+  /** Windows-Pfade vergleichbar machen: Trenner vereinheitlichen, Fall ignorieren. */
+  const norm = (p: string) => p.replace(/[\\/]+/g, '/').replace(/\/+$/, '').toLowerCase();
+
+  it('keine Variante liest ihre CSV-Quellen aus dem App-eigenen Kopie-Ordner', () => {
+    const configsDir = join(ROOT, '..', 'configs');
+    const treffer: string[] = [];
+    // Nur `.json` — `_template.config.jsonc` traegt Kommentare und ist kein Build-Input.
+    for (const datei of readdirSync(configsDir).filter(f => f.endsWith('.config.json'))) {
+      const cfg = JSON.parse(readFileSync(join(configsDir, datei), 'utf-8')) as {
+        local?: { csvSourceDir?: string | null };
+      };
+      const quelle = cfg.local?.csvSourceDir;
+      if (!quelle) continue;
+      if (norm(quelle).endsWith(`/programm/${norm(CSV_SOURCES_SUBDIR)}`)) {
+        treffer.push(`configs/${datei}: local.csvSourceDir = ${quelle}`);
+      }
+    }
+    if (treffer.length > 0) {
+      expect.fail(
+        `Der CSV-Quellordner zeigt auf den App-EIGENEN Kopie-Ordner.\n`
+        + `Dorthin schreibt \`saveCsvSourceFile\` die nach UTF-8 normalisierte Kopie jeder\n`
+        + `Quelle (CSV_SOURCES_SUBDIR). Die App importiert damit ihr eigenes Erzeugnis:\n`
+        + `die Baseline im Schema (mtime/Groesse/Checksum/Encoding) beschreibt danach eine\n`
+        + `ANDERE Datei als die, die eine zweite Instanz mit dem echten Export stempelt —\n`
+        + `beide melden bei JEDEM Start "neuer Export", importieren voll und kippen per\n`
+        + `Encoding-Heilung abwechselnd das \`encoding\`-Feld.\n`
+        + `Richtig ist der Ordner, in dem der taegliche EXPORT liegt.\n\nTreffer:\n`
+        + treffer.map(t => `  ${t}`).join('\n'),
       );
     }
   });

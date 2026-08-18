@@ -55,13 +55,14 @@ import {
 import { getDatenShareHandle } from '@/core/services/infrastructure/smb-handle';
 import { writeProgrammSnapshot, writeProgrammSnapshotDelta } from '@/core/services/csv/snapshot';
 import { isDeltaSnapshotWriteEnabled } from '@/config/feature-flags';
-import { BUILD_LOCK_STUFE } from '@/core/services/csv/constants';
+import { BUILD_LOCK_STUFE, CSV_SOURCES_SUBDIR } from '@/core/services/csv/constants';
 import { journalisiereImport, type AnbindungsErgebnis } from '@/core/status/journal';
 import {
   loadFileFromStoredHandle,
   setCsvSourceHandle,
   checkSourceForUpdate,
   getCsvSourceDirHandle,
+  istEigenerKopieOrdner,
   getCsvDirFileMap,
   setCsvDirFileMapEntries,
   type UpdateCheckResult,
@@ -151,6 +152,21 @@ export async function collectCandidates(
   try {
     const dir = await getCsvSourceDirHandle(idb);
     if (dir) {
+      // EINMAL pro Lauf (nicht je Quelle): zeigt der Quellordner auf den Ordner,
+      // in den die App ihre eigene normalisierte Kopie schreibt? Dann ist jeder
+      // Start ein Re-Import und das `encoding` kippt bei jedem Lauf — die
+      // Erkennung ist dabei in Ordnung, die Verknüpfung nicht. Nur melden, nicht
+      // abbrechen: die Entscheidung bleibt beim Nutzer, wie bei `fixtures`.
+      if (await istEigenerKopieOrdner(idb, dir)) {
+        console.warn(
+          '[csv-auto-refresh] Der CSV-Quellordner ist der App-eigene Kopie-Ordner '
+          + `(<share>/programm/${CSV_SOURCES_SUBDIR}). Die App importiert damit ihr eigenes `
+          + 'Erzeugnis: jeder Start meldet „neuer Export", importiert voll und kippt das '
+          + 'Encoding. Quellordner auf den ECHTEN Export-Ordner verknüpfen.',
+        );
+        await logAudit(idb, { action: 'csv_quellordner_ist_kopieordner', details: { ordner: dir.name } })
+          .catch(() => undefined);
+      }
       const [shared, local] = await Promise.all([loadSharedCsvFilenames(idb), getCsvDirFileMap(idb)]);
       const toSeed: Record<string, string> = {};
       for (const [sid, fn] of Object.entries(shared)) {

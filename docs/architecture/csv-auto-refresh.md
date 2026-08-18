@@ -58,6 +58,28 @@ Pro Kandidat: Datei via gespeichertem Handle laden (kein Picker) → Header gege
      das erkannte Encoding **vor** dem Import ins Schema (`csv_schema_encoding_korrigiert`), damit
      `importCsvSource` es über `loadSchema` selbst aufgreift. Der Re-Import-Dialog konnte das seit je,
      der automatische Weg nicht — dort war es eine Sackgasse.
+
+     > **Wenn die Heilung sich WIEDERHOLT, ist nicht der Export schuld.** Eine echte
+     > Kodierungs-Umstellung passiert einmal. Kippt das `encoding` bei jedem Start,
+     > lesen **zwei Instanzen denselben Schema-Record, aber zwei verschiedene Dateien**.
+     > Gemessen am 18.08.2026 auf der Entwickler-Maschine: `zah-pl` las den echten Export
+     > (`…\Täglicher Export\7737_Bgl.csv`, windows-1252), `dev:local` den Ordner
+     > `…\ZAH\programm\antraege\imports` — also die App-**eigene**, nach UTF-8 normalisierte
+     > Kopie aus `saveCsvSourceFile` (`CSV_SOURCES_SUBDIR`). Beide stempeln mtime/Größe/
+     > Checksum/Encoding in dasselbe Schema und publizieren es; jeder Start fand die
+     > Baseline des anderen vor, meldete „neuer Export", importierte voll (`buckets:
+     > {new:0, changed:0, removed:0}`) und schrieb einen 0-Byte-Delta-Snapshot. Bilanz:
+     > 195× `csv_schema_encoding_korrigiert`, streng abwechselnd, ohne eine einzige
+     > inhaltliche Änderung.
+     >
+     > **Erstdiagnose** (das Audit-Log auf dem Share trägt es vollständig):
+     > `grep '"action":"csv_schema_encoding_korrigiert"' _intern/audit-log.jsonl | tail -20`
+     > — stehen dort abwechselnde Richtungen und **verschiedene** `user`, ist es dieser Fall;
+     > die begleitenden `csv_source_auto_updated`-Zeilen nennen die jeweils gestempelte Datei.
+     > Der Quellordner-Guard (`istEigenerKopieOrdner`, einmal je Lauf in `collectCandidates`)
+     > meldet den Ordner-Fall seither von selbst — als `console.warn` + Audit-Eintrag
+     > `csv_quellordner_ist_kopieordner`, ohne den Lauf abzubrechen; der Convention-Test
+     > `csv-quellordner-nicht-kopieordner` hält die Configs davon frei.
   2. **Mehrdeutige Aliasgruppe** (v4.20.0) blockiert **härter als alles andere** — sie ist die einzige
      Stufe, die auch „Trotzdem importieren" nicht aufhebt. C16 kürzt Spaltenköpfe auf 10 Zeichen, dadurch
      stehen Namen mehrfach im Export (`9052_PrjBsp`: 163 Spalten, 35 mehrfach vergebene Namen, 72 betroffene
