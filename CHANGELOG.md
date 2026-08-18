@@ -5,6 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.105.1 — Die gezaehlte Gruppe steht in den Belegen (August 2026)
+
+PATCH — Gemeldet: „die Antwort ist nicht hilfreich, wenn die 4 nicht gelistet sind". Der Befund zählte „4 von 499 tragen ALLE gefragten Themen", die Antwort erklärte sie für nicht im Auszug enthalten — sie standen auf den Plätzen 1 bis 4. Keine Belegzeile wies die Gruppe aus, also konnte das Modell sie zählen, aber nicht benennen.
+
+- **Die Belegzeile beschriftet die Gruppe** („trägt ALLE gefragten Themen", erst ab zwei gefragten Sachen) ([assistentKontext.ts](src/plugins/suche/assistentKontext.ts))
+- **Die Auswahl zieht sie nach vorn** — Relevanz allein garantiert nicht, dass sie unter die 40 Belege kommt ([suche-relevanz.md §8.3](docs/architecture/suche-relevanz.md))
+- **Die Prompt-Regel hängt an der Marke selbst**: einzeln nennen statt zählen, und nie behaupten, sie fehlten ([frageantwort-lauf.ts](src/core/services/search/frageantwort-lauf.ts))
+- **Eine Schwelle für Zählen und Beschriften** (`traegtAlleThemen`) statt zweier Vergleiche auf dieselbe Gruppe ([trefferstelle.ts](src/core/services/search/trefferstelle.ts))
+
 ### v4.105.0 — Frage an die Foerderantrags-Liste (August 2026)
 
 MINOR — Gewünscht war die Frage in natürlicher Sprache auch für die Förderanträge. Die Fragen dort sind aber anderer Art als in der Dokumenten-Suche: sie nennen kein Thema, sondern Metadaten-Kombinationen („alle Netzwerke, die für Phase 2 abgelehnt wurden"). Übernommen wurde deshalb das Muster, nicht der Frageplan.

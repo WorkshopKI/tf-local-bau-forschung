@@ -28,6 +28,7 @@
  */
 import type { AIBridge } from '@/core/services/ai/bridge';
 import { einZugRegel, fuehreEinSchussLauf } from '@/core/services/ai/ein-schuss-lauf';
+import { ABDECKUNG_MARKE } from './trefferstelle';
 
 /** Benennt den Lauf in der Fehlermeldung der Transport-Policy. */
 const ZWECK = 'Die Antwort auf eine Suchfrage';
@@ -67,6 +68,10 @@ export function baueAntwortPrompt(
   kandidaten = '',
 ): { systemPrompt: string; userPrompt: string } {
   const mitKandidaten = kandidaten.trim().length > 0;
+  // Die Regel gilt genau dann, wenn die Marke auch dasteht — gelesen wird sie
+  // am fertigen Block, nicht an einem zweiten Schalter, der irgendwann anders
+  // entscheidet als die Zeile.
+  const mitAbdeckung = belege.includes(ABDECKUNG_MARKE);
   const systemPrompt = [
     'Du beantwortest eine Frage an eine Datenbank deutscher Förderanträge (ZIM).',
     'Die Suche ist bereits gelaufen. Du bekommst ihr gezähltes Ergebnis und die',
@@ -86,6 +91,13 @@ export function baueAntwortPrompt(
     '- Deutsch, Fließtext mit kurzen Absätzen. Keine Tabelle: die Trefferliste',
     '  darunter ist bereits eine.',
     '- Trägt der Befund die Frage nicht, sag das in einem Satz statt zu raten.',
+    ...(mitAbdeckung ? [
+      `- Belege mit dem Zusatz „${ABDECKUNG_MARKE}" sind die Vorhaben, um die es`,
+      '  „hauptsächlich" geht — sie tragen JEDE gefragte Sache, die übrigen nur',
+      '  einen Teil. Zielt die Frage auf sie, nenne sie EINZELN mit Kennzeichen,',
+      '  statt nur ihre Anzahl zu wiederholen. Die so gekennzeichneten liegen',
+      '  dir vor — behaupte nie, sie fehlten im Auszug.',
+    ] : []),
     ...(mitKandidaten ? [
       '- Der Abschnitt „Thematisch verwandt" ist etwas anderes als die Belege:',
       '  diese Vorhaben tragen KEIN gesuchtes Wort, die Suche hält sie nur',

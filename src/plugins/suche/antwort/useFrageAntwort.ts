@@ -88,8 +88,12 @@ export function useFrageAntwort(
       // Fund. Getrennt kann es entscheiden, und es muss die Entscheidung
       // kennzeichnen (siehe `baueAntwortPrompt`).
       const { wortlaut, aehnlich } = teileNachFundstelle(treffer);
+      // Die Zahl der gefragten Sachen kommt aus DEM Befund, der gleich daneben
+      // gezählt wird: dieselbe Gruppe darf nicht zweimal verschieden bestimmt
+      // werden — der Befund zählt sie, die Belegzeile beschriftet sie.
+      const themen = befund.themen.length;
       const belege = baueKontextBlock(
-        waehleKontextTreffer(wortlaut, BELEG_TREFFER), wortlaut.length,
+        waehleKontextTreffer(wortlaut, BELEG_TREFFER, undefined, themen), wortlaut.length, themen,
       );
       const kandidaten = baueAehnlichkeitsBlock(
         waehleKontextTreffer(aehnlich, AEHNLICH_TREFFER), aehnlich.length,

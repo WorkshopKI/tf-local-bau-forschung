@@ -760,6 +760,48 @@ nach, und bei einer einschränkenden Frage läuft sie ohnehin nicht mit
 (`planSchraenktEin`). Was sie im Frage-Modus tut, sagt seit v4.103.1 ihr eigener
 Tooltip.
 
+### 8.3 Wer eine Gruppe zählt, muss sie kenntlich machen (v4.105.1)
+
+„Welche Vorhaben drehen sich **hauptsächlich** um Normung und Standards?" — 499
+Treffer, und der Befund wusste die Antwort schon: „Davon tragen ALLE gefragten
+Themen: 4 von 499". Die Antwort daneben nannte die Vier und schrieb dann, sie
+seien „in den dargestellten 40 Belegen nicht enthalten". **Sie standen auf den
+Plätzen 1 bis 4.**
+
+Der Fehler lag nicht am Modell. Der Befund benannte eine Gruppe über eine
+Eigenschaft (`abdeckung === 1`), die **keine Belegzeile trug**: dort standen
+Titel, Snippet, Relevanz, Fundstellen, Kurzbeschreibung — nichts, woran sich die
+vier von den 36 anderen unterscheiden ließen. Das Modell konnte die Gruppe
+zählen, aber nicht benennen; es sagte das (»lassen sich aus dem Auszug nicht
+identifizieren«) und verschärfte es zu einer Aussage über Abwesenheit.
+
+Dass die Trefferliste sie unterscheidbar zeigt („Relevanz **mittel**", während
+495 „gering" sind), ist kein Gegenargument, sondern Arithmetik, die im Prompt
+nirgends steht: eine Fundstelle nur in der Kurzbeschreibung ergibt roh 0,5, mal
+`abdeckung` 1 bleibt 0,5 (**mittel**, ab `SCHWELLE_MITTEL` 0,4), mal 0,5 bei nur
+einem der beiden Themen sind es 0,25 (**gering**). Hier fielen beide Gruppen
+zusammen; verlassen kann man sich darauf nicht.
+
+Zwei Änderungen, beide an derselben Zahl (`themen`, die Anzahl der gefragten
+Sachen aus dem Befund):
+
+- **Die Zeile beschriftet die Gruppe.** Ab zwei gefragten Sachen trägt ein
+  Beleg mit voller Abdeckung den Zusatz `ABDECKUNG_MARKE` („trägt ALLE gefragten
+  Themen"). Bei einer einzigen Sache bleibt sie weg — dort trüge sie jede Zeile
+  und unterschiede keine.
+- **Die Auswahl zieht die Gruppe nach vorn.** Die Relevanz allein garantiert das
+  nicht: `abdeckung` ist nur ein Faktor in ihr. Ein Vorhaben, das EINE der beiden
+  Sachen im Titel und in weiteren Feldern führt, kommt auf bis zu 0,5 — eines,
+  das BEIDE nur in einer Notiz führt, auf 0,25. Bei 60 solchen Halb-Treffern vor
+  4 Voll-Treffern fiele die Gruppe komplett aus den 40 Belegen, und derselbe
+  Antwort-Satz stünde wieder da.
+
+Die Prompt-Regel hängt an der **Marke selbst** (`belege.includes(ABDECKUNG_MARKE)`),
+nicht an einem zweiten Schalter: sie steht genau dann da, wenn eine Zeile sie
+trägt, und verlangt, die Gekennzeichneten einzeln mit Kennzeichen zu nennen statt
+nur ihre Anzahl zu wiederholen. Die Schwelle für „trägt alles" lebt einmal
+(`traegtAlleThemen`) — der Befund zählt damit, die Zeile beschriftet damit.
+
 ## 9 Das Suchfeld schlägt vor (v4.71)
 
 Die Feldsuche aus §7 setzt zweierlei voraus: dass man die Präfixe kennt **und**

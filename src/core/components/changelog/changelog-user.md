@@ -26,6 +26,8 @@
 - Neue Filter-Pille **Stillstand**: Anträge, an denen seit ein bis sechs Monaten kein Kürzel mehr gesetzt wurde. Anträge ohne datierbares Kürzel gelten dabei ausdrücklich als *nicht prüfbar* und nicht als unauffällig — ihre Zahl steht am Chip im Seitenkopf.
 ### Verbesserungen
 - Eine Frage kann jetzt auch nach den Anträgen einer **anderen Person** fragen („für Bearbeiter THÜ"). Der Chip sagt, dass der Ausschnitt aus der Frage kommt, und nimmt ihn per Klick zurück.
+### Bugfixes
+- **Fragt die KI-Antwort nach den Vorhaben, um die es „hauptsächlich" geht, nennt sie diese jetzt beim Namen.** Bisher konnte sie die Gruppe nur zählen („4 von 499") und schrieb dazu, die vier seien in den gezeigten Belegen nicht enthalten — sie waren die ersten vier Treffer. Vorhaben, die **alle** gefragten Themen tragen, sind für die KI jetzt als solche gekennzeichnet und stehen vorn.
 
 ## v4.104 — 2026-08
 

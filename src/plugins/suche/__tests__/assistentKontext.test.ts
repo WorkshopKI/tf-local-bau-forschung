@@ -261,3 +261,61 @@ describe('baueAehnlichkeitsBlock', () => {
     expect(baueAehnlichkeitsBlock([kandidat(7)], 1)).toContain('(16KN07)');
   });
 });
+
+/**
+ * Der gemeldete Lauf (v4.105.1): 499 Treffer, davon 4 mit BEIDEN gefragten
+ * Sachen. Der Befund nannte die Vier, keine Belegzeile wies sie aus — und die
+ * Antwort schrieb, sie seien „in den dargestellten 40 Belegen nicht enthalten".
+ * Sie waren enthalten. Wer eine Gruppe zählt, muss sie kenntlich machen.
+ */
+describe('Abdeckungs-Marke — die gezählte Gruppe ist in den Belegen wiederzufinden', () => {
+  const mitBeiden = (i: number): UnifiedSearchResult => treffer({
+    id: `voll${i}`, title: `Normung und Standards ${i}`, fkz: `16KN0${i}`, abdeckung: 1,
+  });
+  const mitEinem = (i: number): UnifiedSearchResult => treffer({
+    id: `halb${i}`, title: `Nur Normung ${i}`, fkz: `16DS0${i}`, abdeckung: 0.5,
+  });
+
+  it('beschriftet nur die Treffer, die JEDE gefragte Sache tragen', () => {
+    const block = baueKontextBlock([mitBeiden(1), mitEinem(2)], 2, 2);
+    const zeilen = block.split('\n').filter(l => /^\d+\. /.test(l) || l.includes('trägt ALLE'));
+    expect(block).toContain('trägt ALLE gefragten Themen');
+    expect(zeilen.filter(l => l.includes('trägt ALLE gefragten Themen'))).toHaveLength(1);
+  });
+
+  it('schweigt bei nur einer gefragten Sache — dort trägt jeder Treffer „alle"', () => {
+    expect(baueKontextBlock([mitBeiden(1)], 1, 1)).not.toContain('trägt ALLE');
+    expect(baueKontextBlock([mitBeiden(1)], 1)).not.toContain('trägt ALLE');
+  });
+
+  it('zieht die Gruppe in den Auszug, auch wenn sie nach Relevanz hinten steht', () => {
+    // 60 Treffer mit einer Sache, danach 4 mit beiden: ohne Vorzug fiele die
+    // Gruppe komplett aus den 40 Belegen — genau der gemeldete Fall.
+    const viele = [
+      ...Array.from({ length: 60 }, (_, i) => mitEinem(i)),
+      ...Array.from({ length: 4 }, (_, i) => mitBeiden(i)),
+    ];
+    const ohne = waehleKontextTreffer(viele, 40);
+    expect(ohne.filter(r => r.abdeckung === 1)).toHaveLength(0);
+
+    const gewaehlt = waehleKontextTreffer(viele, 40, undefined, 2);
+    expect(gewaehlt).toHaveLength(40);
+    expect(gewaehlt.slice(0, 4).map(r => r.id)).toEqual(['voll0', 'voll1', 'voll2', 'voll3']);
+    // Die Reihenfolge innerhalb der Gruppen bleibt, wie die Suche sie sortiert hat.
+    expect(gewaehlt[4]?.id).toBe('halb0');
+  });
+
+  it('sagt im Kopf, dass die Gruppe vorn steht — und schweigt, wenn keine da ist', () => {
+    expect(baueKontextBlock([mitBeiden(1), mitEinem(2)], 99, 2))
+      .toContain('stehen vorn und sind so gekennzeichnet');
+    expect(baueKontextBlock([mitEinem(2)], 99, 2)).not.toContain('stehen vorn');
+  });
+
+  it('misst die Auswahl an der Zeile MIT Marke — Etikett und Block bleiben gleich', () => {
+    const viele = Array.from({ length: 50 }, (_, i) => mitBeiden(i));
+    const gewaehlt = waehleKontextTreffer(viele, KONTEXT_MAX_TREFFER, 1_200, 2);
+    const block = baueKontextBlock(gewaehlt, viele.length, 2);
+    expect(zeilenImBlock(block)).toBe(gewaehlt.length);
+    expect(gewaehlt.length).toBeLessThan(KONTEXT_MAX_TREFFER);
+  });
+});

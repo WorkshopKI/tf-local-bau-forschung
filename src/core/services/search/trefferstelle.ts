@@ -191,6 +191,31 @@ export function nurUeberAehnlichkeit(felder: readonly Trefferfeld[] | undefined)
   return felder !== undefined && felder.length === 1 && felder[0] === 'aehnlichkeit';
 }
 
+/**
+ * Trägt dieser Treffer JEDE gefragte Sache?
+ *
+ * `>= 0.999` statt `=== 1`: die Abdeckung ist ein Quotient (2/2, 3/3), und ein
+ * Gleitkomma-Vergleich auf exakte 1 ist die Sorte Zusage, die irgendwann still
+ * danebenliegt. Die Schwelle steht HIER und nur hier — der Befund zählt diese
+ * Gruppe, die Belegzeile beschriftet sie, und zwei Schwellen für dieselbe
+ * Gruppe wären eine zu viel.
+ */
+export function traegtAlleThemen(abdeckung: number | undefined): boolean {
+  return (abdeckung ?? 0) >= 0.999;
+}
+
+/**
+ * Wie diese Gruppe in einer Belegzeile heißt.
+ *
+ * Eine Zeichenkette, weil zwei Stellen sie nennen müssen: die Zeile schreibt
+ * sie hin, die Prompt-Regel verweist auf sie
+ * ([frageantwort-lauf.ts](./frageantwort-lauf.ts)). Ohne diese Marke nannte der
+ * Befund eine Menge („4 von 499 tragen ALLE gefragten Themen"), die in keiner
+ * Belegzeile wiederzufinden war — das Modell konnte sie zählen, aber nicht
+ * benennen, und erklärte sie kurzerhand für nicht enthalten.
+ */
+export const ABDECKUNG_MARKE = 'trägt ALLE gefragten Themen';
+
 /** Drei Stufen aus der Relevanz. Monoton — Schwellen als Konstanten oben. */
 export function relevanzStufe(relevanz: number): RelevanzStufe {
   if (relevanz >= SCHWELLE_HOCH) return 3;

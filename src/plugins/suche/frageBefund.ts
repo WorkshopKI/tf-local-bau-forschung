@@ -23,7 +23,7 @@
  */
 import type { UnifiedSearchResult } from '@/core/types/search-result';
 import {
-  RELEVANZ_LABEL, TREFFERFELD_LABEL, nurUeberAehnlichkeit, type RelevanzStufe,
+  RELEVANZ_LABEL, TREFFERFELD_LABEL, nurUeberAehnlichkeit, traegtAlleThemen, type RelevanzStufe,
 } from '@/core/services/search/trefferstelle';
 import type { Frageplan } from '@/core/services/search/frageplan';
 
@@ -110,11 +110,11 @@ export function baueBefund(
     .map(stufe => ({ stufe, anzahl: treffer.filter(r => r.relevanzStufe === stufe).length }))
     .filter(x => x.anzahl > 0);
 
-  // `>= 0.999` statt `=== 1`: die Abdeckung ist ein Quotient (2/2, 3/3), und ein
-  // Gleitkomma-Vergleich auf exakte 1 ist die Sorte Zusage, die irgendwann still
-  // danebenliegt.
+  // Dieselbe Schwelle wie die Belegzeile, aus derselben Funktion: der Befund
+  // ZÄHLT diese Gruppe, die Zeile BESCHRIFTET sie — zwei Schwellen dafür wären
+  // zwei Gruppen, die sich zufällig gleich nennen.
   const alleThemen = themen.length > 1
-    ? treffer.filter(r => (r.abdeckung ?? 0) >= 0.999).length
+    ? treffer.filter(r => traegtAlleThemen(r.abdeckung)).length
     : null;
 
   const verteilungen = [

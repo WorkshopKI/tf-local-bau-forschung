@@ -3,6 +3,7 @@ import {
   berechneRelevanz,
   relevanzAusAehnlichkeit,
   nurUeberAehnlichkeit,
+  traegtAlleThemen,
   relevanzStufe,
   sortiereFelder,
   zaehleVorkommen,
@@ -151,5 +152,20 @@ describe('nurUeberAehnlichkeit', () => {
     // ihn zu den Vorschlaegen zu schieben hiesse, ihn stillschweigend abzuwerten.
     expect(nurUeberAehnlichkeit(undefined)).toBe(false);
     expect(nurUeberAehnlichkeit([])).toBe(false);
+  });
+});
+
+describe('traegtAlleThemen — eine Schwelle für Zählen UND Beschriften', () => {
+  it('gilt für den vollen Quotienten, auch wenn er aus einer Division kommt', () => {
+    expect(traegtAlleThemen(1)).toBe(true);
+    expect(traegtAlleThemen(2 / 2)).toBe(true);
+    expect(traegtAlleThemen(3 / 3)).toBe(true);
+  });
+
+  it('gilt nicht für einen Teil — und nicht für einen fehlenden Wert', () => {
+    expect(traegtAlleThemen(0.5)).toBe(false);
+    expect(traegtAlleThemen(2 / 3)).toBe(false);
+    expect(traegtAlleThemen(0)).toBe(false);
+    expect(traegtAlleThemen(undefined)).toBe(false);
   });
 });

@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { baueAntwortPrompt, saeubereAntwort, MAX_ANTWORT_ZEICHEN } from '../frageantwort-lauf';
+import { ABDECKUNG_MARKE } from '../trefferstelle';
 
 describe('baueAntwortPrompt', () => {
   const p = baueAntwortPrompt('Welche Vorhaben?', 'Treffer insgesamt: 663', '1. Irgendwas (16KN000101)');
@@ -88,5 +89,33 @@ describe('baueAntwortPrompt mit Aehnlichkeits-Kandidaten', () => {
     );
     expect(nurKandidaten.userPrompt).not.toContain('Belege (Auszug');
     expect(nurKandidaten.userPrompt).toContain('Thematisch verwandt');
+  });
+});
+
+/**
+ * Die Regel zur Abdeckungs-Marke (v4.105.1) haengt an der Marke selbst: sie
+ * steht genau dann im System-Prompt, wenn eine Belegzeile sie traegt. Ein
+ * zweiter Schalter dafuer koennte irgendwann anders entscheiden als die Zeile.
+ */
+describe('baueAntwortPrompt mit Abdeckungs-Marke', () => {
+  const mit = baueAntwortPrompt(
+    'Welche Vorhaben drehen sich hauptsächlich um Normung und Standards?',
+    'Davon tragen ALLE gefragten Themen: 4 von 499',
+    `1. Beides (16KN042124)\nRelevanz mittel · ${ABDECKUNG_MARKE} · gefunden in: Kurzbeschreibung`,
+  );
+
+  it('verlangt, die gekennzeichneten EINZELN zu nennen statt nur zu zaehlen', () => {
+    expect(mit.systemPrompt).toContain(ABDECKUNG_MARKE);
+    expect(mit.systemPrompt).toContain('EINZELN mit Kennzeichen');
+  });
+
+  it('verbietet ausdruecklich die gemeldete Aussage „nicht im Auszug enthalten"', () => {
+    expect(mit.systemPrompt).toContain('behaupte nie, sie fehlten im Auszug');
+  });
+
+  it('schweigt, wenn keine Belegzeile die Marke traegt', () => {
+    const ohne = baueAntwortPrompt('Welche Vorhaben?', 'Treffer insgesamt: 499', '1. Nur eins (16DS1)');
+    expect(ohne.systemPrompt).not.toContain(ABDECKUNG_MARKE);
+    expect(ohne.systemPrompt).not.toContain('EINZELN mit Kennzeichen');
   });
 });

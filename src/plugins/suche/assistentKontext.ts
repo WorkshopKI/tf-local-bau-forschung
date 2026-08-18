@@ -17,7 +17,7 @@
  */
 import type { UnifiedSearchResult } from '@/core/types/search-result';
 import {
-  RELEVANZ_LABEL, TREFFERFELD_LABEL, nurUeberAehnlichkeit,
+  ABDECKUNG_MARKE, RELEVANZ_LABEL, TREFFERFELD_LABEL, nurUeberAehnlichkeit, traegtAlleThemen,
 } from '@/core/services/search/trefferstelle';
 
 /**
@@ -68,14 +68,24 @@ function kuerze(text: string | undefined): string {
  *
  * Die Deskriptoren stehen bewusst NICHT dabei: sie beantworteten dieselbe Frage
  * ein zweites Mal und kosteten bei vierzig Treffern das halbe Zeichen-Budget.
+ *
+ * **Die Abdeckungs-Marke** (`themen > 1`, seit v4.105.1) ist die Antwort auf
+ * einen Lauf, der den Befund korrekt las und trotzdem nichts sagen konnte: „4
+ * von 499 tragen ALLE gefragten Themen" stand da, aber keine der 40 Belegzeilen
+ * verriet, WELCHE vier — und das Modell schrieb, sie seien „in den Belegen
+ * nicht enthalten". Sie standen auf den Plätzen 1 bis 4. Wer eine Gruppe zählt,
+ * muss sie auch kenntlich machen.
  */
-function zeile(r: UnifiedSearchResult, i: number): string {
+function zeile(r: UnifiedSearchResult, i: number, themen = 0): string {
   const fkzTeil = r.fkz ? ` (${r.fkz})` : '';
   const teile: string[] = [`${i + 1}. ${r.title}${fkzTeil}`];
 
   const merkmale = [
     kuerze(r.snippet),
     r.relevanzStufe ? `Relevanz ${RELEVANZ_LABEL[r.relevanzStufe]}` : '',
+    // Erst ab zwei gefragten Sachen eine Aussage: bei einer trägt jeder Treffer
+    // „alle", und die Marke stünde in jeder Zeile, ohne eine zu unterscheiden.
+    themen > 1 && traegtAlleThemen(r.abdeckung) ? ABDECKUNG_MARKE : '',
     r.trefferfelder && r.trefferfelder.length > 0
       ? `gefunden in: ${r.trefferfelder.map(f => TREFFERFELD_LABEL[f]).join(', ')}`
       : '',
@@ -100,12 +110,26 @@ export function waehleKontextTreffer(
   results: readonly UnifiedSearchResult[],
   limit = KONTEXT_MAX_TREFFER,
   budget = KONTEXT_CHAR_BUDGET,
+  /** Wie viele SACHEN gefragt wurden — muss dieselbe Zahl sein wie bei
+   *  `baueKontextBlock`, sonst misst die Auswahl eine andere Zeile, als der
+   *  Block am Ende trägt. */
+  themen = 0,
 ): UnifiedSearchResult[] {
+  // Wer JEDE gefragte Sache trägt, fährt zuerst mit. Die Relevanz allein
+  // garantiert das nicht: `abdeckung` ist nur ein Faktor darin, und ein
+  // Titeltreffer auf EINE der zwei Sachen schlägt eine Kurzbeschreibung mit
+  // beiden. Genau nach dieser Gruppe fragt „hauptsächlich" — sie unter Rang 40
+  // rutschen zu lassen, hiesse die Frage mit dem Rest zu beantworten.
+  const reihenfolge = themen > 1
+    ? [...results.filter(r => traegtAlleThemen(r.abdeckung)),
+      ...results.filter(r => !traegtAlleThemen(r.abdeckung))]
+    : results;
+
   const out: UnifiedSearchResult[] = [];
   let zeichen = 0;
-  for (const r of results) {
+  for (const r of reihenfolge) {
     if (out.length >= Math.max(0, limit)) break;
-    const laenge = zeile(r, out.length).length;
+    const laenge = zeile(r, out.length, themen).length;
     if (out.length > 0 && zeichen + laenge > budget) break;
     zeichen += laenge;
     out.push(r);
@@ -124,14 +148,23 @@ export function waehleKontextTreffer(
 export function baueKontextBlock(
   gewaehlt: readonly UnifiedSearchResult[],
   gesamt: number,
+  /** Anzahl der gefragten Sachen; ab zwei beschriftet die Zeile, welche Treffer
+   *  jede davon tragen (siehe `zeile`). */
+  themen = 0,
 ): string {
   if (gewaehlt.length === 0) return '';
   const n = gewaehlt.length;
   const vollstaendig = n >= gesamt;
+  // Der Zusatz beschreibt, was `waehleKontextTreffer` mit derselben Zahl
+  // `themen` getan hat — gelesen an der Auswahl, nicht ein zweites Mal
+  // entschieden.
+  const vorn = gewaehlt.some(r => traegtAlleThemen(r.abdeckung)) && themen > 1
+    ? ' Vorhaben, die ALLE gefragten Themen tragen, stehen vorn und sind so gekennzeichnet.'
+    : '';
   const kopf = vollstaendig
-    ? `Alle ${gesamt} Suchtreffer, nach Relevanz sortiert.`
+    ? `Alle ${gesamt} Suchtreffer, nach Relevanz sortiert.${vorn}`
     : `Die ${n} relevantesten von ${gesamt} Suchtreffern, nach Relevanz sortiert. `
-      + `Die übrigen ${gesamt - n} liegen NICHT vor.`;
+      + `Die übrigen ${gesamt - n} liegen NICHT vor.${vorn}`;
   const regel = vollstaendig
     ? 'Beziehe dich bei Bedarf auf diese Treffer.'
     : 'Beziehe dich bei Bedarf auf diese Treffer. Betrifft die Frage die '
@@ -141,7 +174,7 @@ export function baueKontextBlock(
   return [
     '\n\n--- Aktuelle Suchtreffer (Kontext) ---',
     kopf,
-    ...gewaehlt.map((r, i) => zeile(r, i)),
+    ...gewaehlt.map((r, i) => zeile(r, i, themen)),
     '--- Ende Suchtreffer ---',
     regel,
   ].join('\n\n');
