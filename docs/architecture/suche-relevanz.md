@@ -72,7 +72,7 @@ vierzehn Trefferstellen haben längst einen Platz im Ergebnis, acht nicht.
 | `akronym`, `organisation` | Snippet derselben Spalte (`makeAntragSnippet`) |
 | `aktenzeichen` | Spalte „FKZ" |
 | `dokument` | Dateiname bzw. gefaltete Textstelle |
-| `aehnlichkeit` | Spalten „Suche" / „Score" |
+| `aehnlichkeit` | Spalten „Suche" / „Relevanz" |
 | **`standort`** | **Spalte „Ort"** — wird eingeblendet |
 | **`bundesland`** | **Spalte „Bundesland"** — wird eingeblendet |
 | **`deskriptoren`** | **Spalte „Deskriptoren"** — wird eingeblendet |

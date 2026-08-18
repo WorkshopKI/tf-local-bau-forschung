@@ -693,6 +693,28 @@ export function SuchSeite(): React.ReactElement {
             <h1 className="text-[22px] font-medium text-[var(--tf-text)]">Suche</h1>
             <span className="text-[12.5px] text-[var(--tf-text-tertiary)]" title="So viele Anträge stehen im Suchindex dieses Rechners — die Zahl gilt der ganzen Seite und ändert sich mit keiner Option darunter.">Index: {indexInfo.antraegeGeladen.toLocaleString('de-DE')} Anträge</span>
             <div className="ml-auto flex shrink-0 items-center gap-1">
+              {/* „Speichern" steht LINKS vom Menü, das die Gespeicherten zeigt —
+                  erst merken, dann nachschlagen. Der Platz ist aber nicht nur
+                  Lesereihenfolge: die Gruppe ist rechtsbündig (`ml-auto`), also
+                  wächst sie nach links. Stünde der Knopf in der Mitte, schöbe er
+                  „Gespeicherte Suchen" bei jedem Erscheinen um seine Breite zur
+                  Seite. So bleiben die beiden Nachbarn stehen.
+
+                  Er erscheint erst, wenn es etwas zu speichern GIBT — an
+                  derselben Bedingung wie Deutung, Facetten, Trefferzahl und
+                  Liste. Eine getippte, aber nicht gestellte Frage (`frageOffen`)
+                  ist kein Suchlauf; sie zu merken hieße, die Fragezeile mit
+                  `letzteTrefferzahl: 0` abzulegen. */}
+              {zeigeErgebnisTeile && (
+                <button
+                  type="button"
+                  onClick={diesenSuchlaufMerken}
+                  title="Diese Anfrage samt Optionen merken (nur auf diesem Gerät)"
+                  className="inline-flex h-8 items-center gap-1.5 rounded-[8px] px-2.5 text-[12.5px] text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)] cursor-pointer"
+                >
+                  Diese Suche speichern
+                </button>
+              )}
               <GespeicherteSuchenMenu
                 liste={gemerkt.liste}
                 treffer={gemerkt.treffer}
@@ -701,15 +723,6 @@ export function SuchSeite(): React.ReactElement {
                 onAusfuehren={fuehreGespeicherteAus}
                 onLoeschen={gemerkt.loeschen}
               />
-              <button
-                type="button"
-                onClick={diesenSuchlaufMerken}
-                disabled={!queryNotEmpty}
-                title="Diese Anfrage samt Optionen merken (nur auf diesem Gerät)"
-                className="inline-flex h-8 items-center gap-1.5 rounded-[8px] px-2.5 text-[12.5px] text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-              >
-                Diese Suche speichern
-              </button>
               <SeitenHilfeButton pluginId="suche" />
             </div>
           </div>

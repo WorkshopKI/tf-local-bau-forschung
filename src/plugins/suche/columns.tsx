@@ -16,6 +16,8 @@
 import { memo, type ReactNode } from 'react';
 import { FileText } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { StufenBalken } from '@/components/ui/StufenBalken';
+import { RELEVANZ_LABEL } from '@/core/services/search/trefferstelle';
 import { MarkierterText } from './SuchMarkierung';
 import type { UnifiedSearchResult } from '@/core/types/search-result';
 import type { SortableColumn } from '@/components/data-table';
@@ -259,12 +261,24 @@ export const SEARCH_COLUMNS: SearchColumn[] = [
     formatFilterLabel: statusKurzLabel,
   },
   {
-    key: 'score', label: 'Score', width: 80, defaultVisible: true,
+    // Dieselbe Einstufung wie in der Listenansicht, dasselbe Bauteil
+    // (`StufenBalken`) — „0.88" sagt niemandem, ob das viel ist; drei Striche
+    // und „hoch" sagen es sofort. Der rohe Score ist deshalb nicht weg: er
+    // steht im Titel der Zelle und bleibt der SORTIERWERT (`accessor`), damit
+    // die Reihenfolge innerhalb einer Stufe fein bleibt statt zufällig.
+    key: 'score', label: 'Relevanz', width: 90, defaultVisible: true,
     sortable: true, filterable: false, appliesTo: 'both',
     accessor: r => r.score,
-    render: r => (
-      <span className="font-mono text-[12px] text-[var(--tf-text)]">{r.score.toFixed(2)}</span>
-    ),
+    render: r => {
+      const stufe = r.relevanzStufe ?? 1;
+      return (
+        <StufenBalken
+          stufe={stufe}
+          label={RELEVANZ_LABEL[stufe]}
+          title={`Relevanz aus Fundstelle, Anzahl der Felder und Wort-Abdeckung — Score ${r.score.toFixed(2)}`}
+        />
+      );
+    },
   },
   {
     key: 'antragsteller', label: 'AST', width: 180, defaultVisible: false,

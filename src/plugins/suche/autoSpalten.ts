@@ -17,7 +17,7 @@
  *                                 (`makeAntragSnippet` = AST · Akronym · Geber),
  *  - `aktenzeichen`             → Spalte „FKZ",
  *  - `dokument`                 → Dateiname bzw. gefaltete Textstelle,
- *  - `aehnlichkeit`             → Spalten „Suche" und „Score".
+ *  - `aehnlichkeit`             → Spalten „Suche" und „Relevanz".
  *
  * Übrig bleiben `standort`, `deskriptoren`, `domain`, seit v4.50 `netzwerk`,
  * `wahlkreis` und `notiz`, seit v4.53 das `verbundkennzeichen` und seit v4.81

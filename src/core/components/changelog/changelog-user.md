@@ -24,6 +24,8 @@
 ### Verbesserungen
 - Die **Richtlinien-Auswahl** (der Chip „Anzeige: …" bzw. „Treffer: …") zeigt jetzt alles auf einen Blick: die drei Kurzwahlen nebeneinander in einer Zeile, die Programme in zwei Spalten — kein Scrollen mehr, um nachzusehen, ob eine Richtlinie noch dabei ist.
 - In der Suche legt sich die Auswahl nicht mehr über die Trefferzeile, sondern geht darunter auf. So sehen Sie beim Umschalten, wie sich die Trefferzahl ändert.
+- Im Kopf der Suche stehen **„Diese Suche speichern" und „Gespeicherte Suchen" jetzt in der natürlichen Reihenfolge** — erst merken, dann nachschlagen. Und der Speichern-Knopf erscheint erst, wenn eine Suche tatsächlich gelaufen ist: eine getippte, aber noch nicht abgeschickte Frage lässt sich nicht mehr als leeres Ergebnis merken.
+- Die Tabellenspalte **„Score" heißt jetzt „Relevanz"** und zeigt dieselben drei Striche mit „hoch / mittel / gering" wie die Listenansicht. Der genaue Wert steht weiterhin im Tooltip, und sortiert wird unverändert danach.
 
 ### Bugfixes
 - Die Suche schrieb „0 Treffer in 14.225 Anträgen", auch wenn die Richtlinien-Auswahl den Bestand längst eingegrenzt hatte. Jetzt steht dort, worauf sich die Zahl wirklich bezieht: „0 Treffer in 2.537 von 14.225 Anträgen".
