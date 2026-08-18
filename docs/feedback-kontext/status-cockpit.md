@@ -198,8 +198,8 @@ wird.
     wechselt die Ebene nicht.
     - Darüber steht, **was der Baum bewirkt**: „15 von 19 Ordnern tragen eine
       Spalte in der Fördertabelle · ohne Spalte: internationale Projekte,
-      Betreuung, Vor-Ort-Besuch, SV - Keller - Archiv". Aus `kategorieId`
-      entstehen die **Ordner-Spalten der Fördertabelle**; ein Ordner ohne
+      Betreuung, Vor-Ort-Besuch, SV - Keller - Archiv". Aus jedem Ordner
+      entsteht eine **Ordner-Spalte der Fördertabelle**; ein Ordner ohne
       tragendes Kürzel ist deshalb eine Spalte, die nie erscheinen kann. Wer sie
       vermisst, soll den Grund hier lesen und nicht im Spaltenpicker suchen.
     - Am Ordner selbst steht dann **„ohne Spalte"**. Nötig ist mindestens ein
@@ -384,4 +384,4 @@ Laden. Umgeschaltet wird nie von allein.
 
 **Route & Sichtbarkeit:** `/status-cockpit`, Flag `statusCockpit`; dev/pl/kurator.
 
-**Datenmodell dahinter:** Katalog als Team-Sidecar `_intern/status-katalog.json` (Zugriff nur über `katalog-share.ts`), Event-Log `status_event` + Unkuratiert-Puffer gerätelokal. Siehe `docs/status-system/README.md` und `KATALOG-CODES.md`.
+**Datenmodell dahinter:** Katalog als Team-Sidecar `_intern/status-katalog.json` (Zugriff nur über `katalog-share.ts`), Event-Log `status_event` + Unkuratiert-Puffer gerätelokal. Die Ordner-Spalten der Fördertabelle entstehen aus `kategorieId`. Siehe `docs/status-system/README.md` und `KATALOG-CODES.md`.
