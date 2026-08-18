@@ -8,7 +8,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import {
-  berechneVorschlaege, tokenAmCursor, alsAnfrageWert,
+  berechneVorschlaege, tokenAmCursor, alsAnfrageWert, vorschlagslisteSteht,
 } from '../vervollstaendigung';
 import {
   leererWertIndexRoh, nimmWerte, verdichteWertIndex, vorschlaegeFuer, netzwerkName,
@@ -323,5 +323,21 @@ describe('alsAnfrageWert', () => {
 
   it('wirft ein Anführungszeichen IM Wert weg — es beendete das Zitat', () => {
     expect(alsAnfrageWert('"LOHCmobil" Netz')).toBe('"LOHCmobil Netz"');
+  });
+});
+
+describe('vorschlagslisteSteht — beim leeren Feld bleibt die Liste zu', () => {
+  it('steht bei getipptem Text mit Vorschlägen', () => {
+    expect(vorschlagslisteSteht(true, 'nw', 3)).toBe(true);
+  });
+
+  it('bleibt zu, solange nichts im Feld steht — der Startzustand zeigt denselben Verlauf', () => {
+    expect(vorschlagslisteSteht(true, '', 8)).toBe(false);
+    expect(vorschlagslisteSteht(true, '   ', 8)).toBe(false);
+  });
+
+  it('bleibt zu ohne Vorschläge und ohne Fokus', () => {
+    expect(vorschlagslisteSteht(true, 'nw', 0)).toBe(false);
+    expect(vorschlagslisteSteht(false, 'nw', 3)).toBe(false);
   });
 });

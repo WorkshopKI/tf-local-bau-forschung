@@ -233,3 +233,21 @@ export function berechneVorschlaege(opt: VorschlagEingabe): Vorschlag[] {
   }));
   return [...gezielt, ...ausVerlauf];
 }
+
+/**
+ * Steht die Vorschlagsliste?
+ *
+ * Eine Bedingung für Anzeige, Tastatur und `aria-expanded` — eine unsichtbare
+ * Liste, in der die Pfeiltasten navigieren, ist keine.
+ *
+ * **Beim leeren Feld bleibt sie zu** (v4.106.2). Dort steht darunter der
+ * Startzustand, und sein Reiter „Zuletzt" führt denselben Verlauf — ungekürzt
+ * und ohne etwas zu verdecken. Das Dropdown legte sich stattdessen über dessen
+ * Reiterleiste („Alle · Zuletzt · Suchsprache · Fragen · Stöbern") und nahm die
+ * Suchhilfen weg, um eine Liste zu zeigen, die zwei Zeilen tiefer schon steht.
+ * Durchsichtig zu machen löste das nicht: die Fläche fängt die Klicks weiterhin
+ * ab, und Text auf Text fällt unter AA (DESIGN_GUIDE, „nie über `opacity`").
+ */
+export function vorschlagslisteSteht(offen: boolean, text: string, anzahl: number): boolean {
+  return offen && text.trim() !== '' && anzahl > 0;
+}

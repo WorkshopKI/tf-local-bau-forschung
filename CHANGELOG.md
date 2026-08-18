@@ -5,6 +5,13 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.107.1 — Das Vorschlags-Dropdown deckt die Suchhilfen nicht mehr zu (August 2026)
+
+PATCH — Gemeldet: das Verlaufs-Dropdown verdeckt die Reiterleiste der Suchhilfen komplett. Es zeigte dort denselben Verlauf, den der Reiter „Zuletzt" zwei Zeilen tiefer ungekürzt führt — und nahm dafür „Alle · Zuletzt · Suchsprache · Fragen · Stöbern" weg.
+
+- **Beim leeren Feld bleibt die Liste zu** — eine Bedingung für Anzeige, Tastatur und `aria-expanded` ([vervollstaendigung.ts](src/plugins/suche/vervollstaendigung.ts))
+- Nicht durchsichtig gemacht: die Fläche fängt die Klicks weiterhin ab, und Text auf Text fällt unter AA ([DESIGN_GUIDE.md](DESIGN_GUIDE.md))
+
 ### v4.107.0 — Die getippte Frage filtert die Liste nicht mehr (August 2026)
 
 MINOR — Gemeldet: „habe getestet, es wurde gar keine KI genutzt." Der Fragesatz lief beim Tippen sofort als Wortlaut-Suche mit und traf über Titel und Antragsteller nichts: die Liste war leer, alle Pillen standen auf „Alle" — es sah aus wie ein KI-Ergebnis. Gefragt worden war nie jemand.

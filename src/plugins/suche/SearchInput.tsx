@@ -28,7 +28,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Loader2, Search } from 'lucide-react';
 import { useSucheStore } from './store';
 import { SearchSuggestions } from './SearchSuggestions';
-import { berechneVorschlaege, type Vorschlag } from './vervollstaendigung';
+import { berechneVorschlaege, vorschlagslisteSteht, type Vorschlag } from './vervollstaendigung';
 import { naechsterSchub, useProbeZahlen } from './useProbeZahlen';
 import type { WertIndex } from '@/plugins/antraege/services/wert-index';
 import {
@@ -194,6 +194,11 @@ export function SearchInput({
     [suggestions, gezeigt],
   );
 
+  // Wann die Liste steht (und warum sie beim leeren Feld zubleibt), steht in
+  // `vorschlagslisteSteht` — dieselbe Bedingung für Anzeige, Tastatur und
+  // `aria-expanded`.
+  const listeOffen = vorschlagslisteSteht(suggestOpen, value, gezeigteVorschlaege.length);
+
   useClickOutside(searchBoxRef, () => { setSuggestOpen(false); setActiveIndex(-1); }, suggestOpen);
 
   /** Cursorposition aus dem Feld nachziehen — nach Tippen, Klicken, Pfeiltasten. */
@@ -231,8 +236,7 @@ export function SearchInput({
 
   const onSearchKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>): void => {
     // Pfeiltasten gehören im mehrzeiligen Feld dem Cursor — sie werden nur
-    // abgefangen, solange die Vorschlagsliste tatsächlich offen ist.
-    const listeOffen = suggestOpen && gezeigteVorschlaege.length > 0;
+    // abgefangen, solange die Vorschlagsliste tatsächlich offen ist (oben).
     if (e.key === 'ArrowDown') {
       if (!listeOffen) return;
       e.preventDefault();
@@ -246,7 +250,7 @@ export function SearchInput({
       // schreiben); Enter allein behält seine bisherige Bedeutung.
       if (e.shiftKey) return;
       e.preventDefault();
-      const picked = suggestOpen && activeIndex >= 0 ? gezeigteVorschlaege[activeIndex] : undefined;
+      const picked = listeOffen && activeIndex >= 0 ? gezeigteVorschlaege[activeIndex] : undefined;
       if (picked !== undefined) {
         selectSuggestion(picked);
       } else {
@@ -300,7 +304,7 @@ export function SearchInput({
         autoFocus
         autoComplete="off"
         role="combobox"
-        aria-expanded={suggestOpen && gezeigteVorschlaege.length > 0}
+        aria-expanded={listeOffen}
         aria-autocomplete="list"
         className="block w-full py-[9px] pl-10 pr-10 text-[14px] leading-[22px] bg-transparent text-[var(--tf-text)] rounded-[var(--tf-radius-lg)] outline-none placeholder:text-[var(--tf-text-tertiary)] focus:border-[var(--tf-primary)] disabled:opacity-60"
         style={{
@@ -318,7 +322,7 @@ export function SearchInput({
           aria-label="Suche laeuft"
         />
       )}
-      {suggestOpen && gezeigteVorschlaege.length > 0 && (
+      {listeOffen && (
         <SearchSuggestions
           items={gezeigteVorschlaege}
           activeIndex={activeIndex}
