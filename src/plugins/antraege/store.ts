@@ -30,6 +30,7 @@ import {
 import { asPrecheckBucket, type PrecheckBucket } from './filter/precheckQuickfilter';
 import { asProjektart, type Projektart } from './filter/projektartQuickfilter';
 import type { AmpelQuickfilter } from './eingangAmpel';
+import type { PlanBegriff } from '@/core/services/search/frageplan';
 import {
   DEFAULT_VIEW_MODE,
   loadViewModeByTab,
@@ -229,6 +230,34 @@ interface AntraegeState {
    *  konfigurierten Schwellen mit, damit die Liste identisch zum Widget
    *  zählt. Wird bei manuellem View-Wechsel (`setActiveView`) zurückgesetzt. */
   ampelQuickfilter: AmpelQuickfilter | null;
+  /**
+   * Stillstands-Schwelle in Tagen (v4.105): zeige nur Anträge, die seit MEHR als
+   * so vielen Tagen kein neues Kürzel bekommen haben. `null` = keine Schwelle.
+   *
+   * Transient (in-memory, wie `ampelQuickfilter`) und bewusst NICHT persistiert:
+   * die Achse braucht einen Bestandslauf über alle Vorkommen
+   * (`baueAktivitaetsIndex`), und eine über den Reload gerettete Schwelle
+   * erzwänge ihn beim nächsten Seitenaufruf ungefragt.
+   */
+  stillstandTage: number | null;
+  /**
+   * Kürzel-Ausschnitt aus einer Frage (v4.105) — überschreibt das Profil-Kürzel,
+   * solange er steht. `null` = zurück zur eigenen Sicht.
+   *
+   * Eigener Slot statt eines Schreibzugriffs aufs Profil: das Profil sagt, WER
+   * man ist, und eine Frage nach fremden Anträgen darf das nicht umschreiben
+   * (dieselbe Trennung wie bei `useBearbeiterSicht`, v4.47). Transient, aus
+   * demselben Grund wie oben: er gehört zu EINER Frage.
+   */
+  frageKuerzel: string[] | null;
+  /**
+   * Die Leitbegriffe der aktuellen Frage (v4.105) — sie ERSETZEN die Zerlegung
+   * der Eingabe in der Wortlaut-Stufe. `null` = getippte Stichworte, alles läuft
+   * wie zuvor.
+   *
+   * Transient wie die beiden darüber: sie gehören zu EINER Frage.
+   */
+  planTeile: readonly PlanBegriff[] | null;
   activeView: ViewKey;
   /** User-Override pro View. Leer → Default aus DEFAULT_SORT_BY_VIEW. */
   sortByView: Partial<Record<ViewKey, SortKey>>;
@@ -268,6 +297,9 @@ interface AntraegeState {
   setSearchIgnoreBearbeiterFilter: (v: boolean) => void;
   setPrecheckBucket: (bucket: PrecheckBucket) => void;
   setProjektart: (art: Projektart) => void;
+  setStillstandTage: (tage: number | null) => void;
+  setFrageKuerzel: (tokens: string[] | null) => void;
+  setPlanTeile: (teile: readonly PlanBegriff[] | null) => void;
   /** `null` = Filter entfernen. NACH `setActiveView` aufrufen (das resettet). */
   setAmpelQuickfilter: (quick: AmpelQuickfilter | null) => void;
   /** Partial-Merger: ueberschreibt nur die uebergebenen Felder, lasst den
@@ -351,6 +383,9 @@ export const useAntraegeStore = create<AntraegeState>((set) => ({
   hybridSearch: { matchedAkz: null, loading: false, unavailable: [], downloadingCorpus: false },
   precheckBucket: loadPrecheckBucket(),
   projektart: loadProjektart(),
+  stillstandTage: null,
+  frageKuerzel: null,
+  planTeile: null,
   ampelQuickfilter: null,
   activeView: loadActiveView(),
   sortByView: loadSortByView(),
@@ -464,6 +499,18 @@ export const useAntraegeStore = create<AntraegeState>((set) => ({
     try { localStorage.setItem(PROJEKTART_KEY, art); } catch { /* ignore */ }
     set({ projektart: art });
   },
+
+  setStillstandTage: (tage: number | null) => set({ stillstandTage: tage }),
+
+  // Leere Liste = kein Plan, wie beim Kürzel-Ausschnitt: ein leeres Teile-Array
+  // legte die Wortlaut-Stufe still, statt sie normal laufen zu lassen.
+  setPlanTeile: (teile: readonly PlanBegriff[] | null) =>
+    set({ planTeile: teile && teile.length > 0 ? teile : null }),
+
+  // Leere Liste = kein Ausschnitt: „kein Filter" hat genau eine Schreibweise,
+  // sonst filterte ein leeres Token-Array jeden Antrag weg.
+  setFrageKuerzel: (tokens: string[] | null) =>
+    set({ frageKuerzel: tokens && tokens.length > 0 ? tokens : null }),
 
   setAmpelQuickfilter: (quick: AmpelQuickfilter | null) => set({ ampelQuickfilter: quick }),
 

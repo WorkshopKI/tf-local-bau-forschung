@@ -245,7 +245,7 @@ export {
   AB_TODO_REGELN, baueTodoRegelSeed, ENTFALLENE_REGEL_IDS, feld as todoFeld,
 } from './todo-regeln.seed';
 export {
-  pruefeStillstand, letzteAktivitaetVon, zieltageFuer, medianLiegezeit, KUERZEL_PAARE,
+  pruefeStillstand, letzteAktivitaetVon, tageZwischen, zieltageFuer, medianLiegezeit, KUERZEL_PAARE,
   findeOffenePaare, offenePaareJeTeilvorhaben,
   type WaechterEingabe, type WaechterErgebnis, type WaechterUrteil,
   type OffenesPaar, type OffenesPaarJeTv,

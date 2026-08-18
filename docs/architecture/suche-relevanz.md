@@ -656,6 +656,12 @@ Beide Wortklassen leben jetzt als Konstanten (`FRAGEWORTE`,
 wird nur die Liste des Modells; was der Parser selbst verwarf (unbekanntes Feld,
 zu kurze Nadel), ist immer ein Verlust und bleibt stehen.
 
+**Die Förderantrags-Liste fragt anders.** Dort enthalten die Fragen oft gar kein
+Thema, sondern Metadaten-Kombinationen („alle Netzwerke, die für Phase 2 abgelehnt
+wurden"). Übernommen wurde deshalb das MUSTER, nicht dieses Modul: der
+[Antragsplan](antrags-frage.md) setzt die vorhandenen Filter-Achsen der Seite und
+teilt sich mit dem Frageplan nur die Leitbegriffe (`PlanBegriff`) und deren Regeln.
+
 Modul: [frageplan.ts](../../src/core/services/search/frageplan.ts) (rein, ohne
 Uhr und ohne Plugin-Import), Lauf:
 [frageplan-lauf.ts](../../src/core/services/search/frageplan-lauf.ts) (ein

@@ -1,4 +1,4 @@
-import { useDeferredValue, useMemo } from 'react';
+import { useDeferredValue, useMemo, useRef } from 'react';
 import { applyFilters } from '@/core/services/csv';
 import type { AntragListItem } from '@/core/services/csv/types';
 import type { ActiveFilter, FilterDefinition } from '@/core/services/csv/filter/types';
@@ -18,6 +18,8 @@ import { useInaktiveKuerzelSet } from '@/plugins/auslastung/hooks/useInaktiveKue
 import { useShowInaktiveMasStore } from './useShowInaktiveMasStore';
 import { applyPrecheckBucket } from './filter/precheckQuickfilter';
 import { applyProjektart, type TvCountOf } from './filter/projektartQuickfilter';
+import { filtereStillstand } from './frage/letzteAktivitaet';
+import { useAktivitaetsIndex } from './frage/useAktivitaetsIndex';
 import { filtereAmpelQuickfilter } from './eingangAmpel';
 import { isIrrlaeufer } from '@/core/utils/vb-phase-mappings';
 import { tfPerfStart } from '@/core/utils/tfPerf';
@@ -74,6 +76,16 @@ export interface FilteredAntraegeResult {
    * den Chip. Ohne sie wäre die Einschränkung unsichtbar (Pitfall #46).
    */
   ausgeblendet: number;
+  /**
+   * Wie viele Anträge sich beim Stillstands-Filter **nicht beurteilen** ließen —
+   * kein datierbares Kürzel, oder der Index steht noch nicht.
+   *
+   * `0`, solange keine Schwelle gesetzt ist. Muss angezeigt werden: sie
+   * stillschweigend zu den Laufenden zu schlagen hieße, eine Aussage zu treffen,
+   * für die die Grundlage fehlt — genau daran scheitern Ampeln, denen man später
+   * nicht mehr glaubt.
+   */
+  stillstandUnpruefbar: number;
 }
 
 /** Zentrales Memo der View+Filter+Search+Sort-Pipeline. Header und List-Panel
@@ -108,6 +120,13 @@ export function useFilteredAntraege(): FilteredAntraegeResult {
   const projektart = useAntraegeStore(s => s.projektart);
   const verbundById = useAntraegeStore(s => s.verbundById);
   const ampelQuickfilter = useAntraegeStore(s => s.ampelQuickfilter);
+  const stillstandTage = useAntraegeStore(s => s.stillstandTage);
+  // Traege: der Hook rechnet erst, wenn eine Schwelle gesetzt ist.
+  const { index: aktivitaetsIndex } = useAktivitaetsIndex();
+  // Einmal je Mount statt je Render — der Tageswechsel verschiebt jede
+  // Liegezeit, und `new Date()` im Memo machte aus dem Filter einen Wackler.
+  const stichtagRef = useRef<string>(new Date().toISOString());
+  const stichtag = stichtagRef.current;
   const active = useFilterState(s => s.active);
   const definitions = useFilterState(s => s.definitions);
   // Profil-Kürzel UND Meine/Alle-Umschalter in einem — die Sicht ist hier ein
@@ -186,7 +205,16 @@ export function useFilteredAntraege(): FilteredAntraegeResult {
     // transient wie PreCheck, VOR den Sidebar-Filtern; nutzt die konfigurierten
     // Schwellen aus dem Widget → Liste zählt identisch zum Widget.
     const byAmpel = filtereAmpelQuickfilter(byPrecheck, ampelQuickfilter);
-    const filteredBase = applyFilters(byAmpel, active, definitions);
+    // Stillstand (v4.105): dieselbe Stelle wie die anderen abgeleiteten
+    // Quickfilter — VOR den Sidebar-Filtern, NACH `countBase`. Er braucht einen
+    // Bestandslauf, der `AntragListItem` nicht hergibt; solange der Index fehlt,
+    // bleibt die Liste stehen und `stillstandUnpruefbar` sagt, dass niemand sie
+    // geprueft hat. Eine leere Liste waehrend des Rechnens saehe aus wie
+    // „nichts gefunden".
+    const stillstand = stillstandTage === null
+      ? { treffer: byAmpel, unpruefbar: 0 }
+      : filtereStillstand(byAmpel, aktivitaetsIndex, stillstandTage, stichtag);
+    const filteredBase = applyFilters(stillstand.treffer, active, definitions);
     // Hybrid-Suche: zusaetzlich zu den vier Slim-Feldern (akz/akronym/titel/
     // antragsteller) liefert `useAntraegeHybridSearch` ein Akz-Set mit
     // Treffern aus drei weiteren Quellen — Substring auf den CSV-Volltext-
@@ -224,6 +252,9 @@ export function useFilteredAntraege(): FilteredAntraegeResult {
       tvCountOf,
       counts,
       ausgeblendet: alleAntraege.length - antraege.length,
+      // Muss angezeigt werden: eine Liste, die die Unpruefbaren stumm weglaesst,
+      // behauptet implizit, sie liefen — und dafuer fehlt die Grundlage.
+      stillstandUnpruefbar: stillstand.unpruefbar,
     };
-  }, [antraege, alleAntraege.length, active, definitions, deferredSearch, deferredHybridAkz, searchIgnoreBearbeiterFilter, activeView, sortByView, precheckBucket, projektart, tvCountOf, ampelQuickfilter, bearbeiterFilter, inaktiveKuerzel, showInaktive]);
+  }, [antraege, alleAntraege.length, active, definitions, deferredSearch, deferredHybridAkz, searchIgnoreBearbeiterFilter, activeView, sortByView, precheckBucket, projektart, tvCountOf, ampelQuickfilter, bearbeiterFilter, inaktiveKuerzel, showInaktive, stillstandTage, aktivitaetsIndex, stichtag]);
 }

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Download, Filter, FileUp, Loader2, Search } from 'lucide-react';
+import { Download, Filter, FileUp, Loader2, Search, X } from 'lucide-react';
 import { useAntraegeStore } from './store';
 import { useAufnahmeUiStore } from './aufnahme-einfach';
 import { useAntraegeColumnsStore } from './useAntraegeColumnsStore';
@@ -12,7 +12,9 @@ import { ScopeTabs } from '@/components/ui/ScopeTabs';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { BereichChip } from '@/components/bereich/BereichChip';
 import { BearbeiterSichtChip } from '@/components/bearbeiter/BearbeiterSichtChip';
-import { menuLabel, isGutachtenWorkflowEnabled } from '@/config/feature-flags';
+import { menuLabel, isGutachtenWorkflowEnabled, isSucheNatuerlicheSpracheEnabled } from '@/config/feature-flags';
+import { FrageUmschalter, FrageDeutung } from './frage/FrageZeile';
+import { useAntragsFrage } from './frage/useAntragsFrage';
 import { isAuslastungFreigeschaltet } from '@/core/modul-freischaltung';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -59,13 +61,19 @@ export function AntraegeHeader({ filterOpen, onToggleFilter, listeSichtbar }: Pr
   const setActiveView = useAntraegeStore(s => s.setActiveView);
   const search = useAntraegeStore(s => s.search);
   const setSearch = useAntraegeStore(s => s.setSearch);
+  // Frage-Modus: derselbe Flag wie in der Dokumenten-Suche — dasselbe
+  // Verfahren, dieselbe Freischaltung.
+  const frageAn = isSucheNatuerlicheSpracheEnabled();
+  const frage = useAntragsFrage();
   const searchIgnoreBearbeiter = useAntraegeStore(s => s.searchIgnoreBearbeiterFilter);
   const setSearchIgnoreBearbeiter = useAntraegeStore(s => s.setSearchIgnoreBearbeiterFilter);
   const hybridLoading = useAntraegeStore(s => s.hybridSearch.loading);
   const filterCount = useFilterState(s => s.active.length);
   // Zähler UND Ausblend-Zahl kommen aus derselben Pipeline wie die Liste — der
   // Kopf rechnet nichts nach (Pitfall #46).
-  const { filtered, bearbeiterFilter, counts, ausgeblendet } = useFilteredAntraege();
+  const { filtered, bearbeiterFilter, counts, ausgeblendet, stillstandUnpruefbar } = useFilteredAntraege();
+  const stillstandTage = useAntraegeStore(s => s.stillstandTage);
+  const setStillstandTage = useAntraegeStore(s => s.setStillstandTage);
   const verbundById = useAntraegeStore(s => s.verbundById);
   // Export folgt der Tabellen-Ansicht: dieselben sichtbaren Spalten (+ MA-Spalte
   // im „alle"-/Übersichtsmodus, identisch zu AntraegeMain).
@@ -140,6 +148,28 @@ export function AntraegeHeader({ filterOpen, onToggleFilter, listeSichtbar }: Pr
               {/* Steht in BEIDEN Sichten — sonst führte „Alle Bearbeiter" in
                   einen Zustand ohne sichtbaren Rückweg. */}
               <BearbeiterSichtChip />
+              {/* Der Stillstands-Chip nennt die NICHT PRUEFBAREN. Ein Antrag
+                  ohne datierbares Kuerzel steht nicht still — er laesst sich
+                  nicht beurteilen, und ihn stumm zu den Unauffaelligen zu
+                  schlagen waere eine Aussage ohne Grundlage. */}
+              {stillstandTage !== null ? (
+                <button
+                  type="button"
+                  onClick={() => setStillstandTage(null)}
+                  title={stillstandUnpruefbar > 0
+                    ? `${stillstandUnpruefbar} Antraege tragen kein datierbares Kuerzel und lassen sich nicht beurteilen — sie fehlen in dieser Liste. Klick hebt den Filter auf.`
+                    : 'Klick hebt den Stillstands-Filter auf.'}
+                  className="inline-flex items-center gap-1 px-2.5 py-[3px] rounded-full text-[11px] bg-[var(--tf-bg-secondary)] text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)] transition-colors shrink-0"
+                >
+                  <span>{`Stillstand > ${stillstandTage} T.`}</span>
+                  {stillstandUnpruefbar > 0 ? (
+                    <span className="text-[var(--tf-text-tertiary)]">
+                      {`· ${stillstandUnpruefbar} nicht pruefbar`}
+                    </span>
+                  ) : null}
+                  <X size={11} />
+                </button>
+              ) : null}
             </span>
           ) : undefined}
           // Kopf-Aktionen am Blattrand, links neben der Hilfe (v4.70). Am Ende
@@ -279,19 +309,32 @@ export function AntraegeHeader({ filterOpen, onToggleFilter, listeSichtbar }: Pr
                   </span>
                 ) : null}
               </Button>
+              {frageAn ? <FrageUmschalter frage={frage} /> : null}
               <div className="relative flex-1 min-w-0 max-w-[640px]">
                 <Search
                   size={13}
                   className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--tf-text-tertiary)] pointer-events-none"
                 />
                 <Input
-                  placeholder="Anträge durchsuchen (Titel, Akronym, FKZ, Antragsteller, Ort, Dokumente)"
+                  placeholder={frage.nlModus
+                    ? 'Frage stellen, z. B. „alle Netzwerke, die für Phase 2 abgelehnt wurden" — Enter'
+                    : 'Anträge durchsuchen (Titel, Akronym, FKZ, Antragsteller, Ort, Dokumente)'}
                   value={search}
                   onChange={e => setSearch(e.target.value)}
+                  // Im Frage-Modus laeuft NICHTS beim Tippen: ein KI-Aufruf je
+                  // Tastendruck waere weder bezahlbar noch sinnvoll. Erst Enter.
+                  onKeyDown={e => {
+                    if (frage.nlModus && e.key === 'Enter') {
+                      e.preventDefault();
+                      void frage.stelleFrage(search);
+                    }
+                  }}
                   className="pl-7 pr-7 h-8 w-full text-[12.5px]"
-                  title={'Wortlaut über Aktenzeichen/Akronym/Titel/Antragsteller/Ort/Bundesland/'
-                    + 'Verbund-Titel/Kurzbeschreibung UND den Volltext der aufgenommenen Dokumente. '
-                    + 'Inhaltlich ähnliche Anträge kommen über den Hinweis unter dem Feld dazu.'}
+                  title={frage.nlModus
+                    ? 'Ganze Frage eingeben und Enter drücken. Die interne KI übersetzt sie in Filter.'
+                    : 'Wortlaut über Aktenzeichen/Akronym/Titel/Antragsteller/Ort/Bundesland/'
+                      + 'Verbund-Titel/Kurzbeschreibung UND den Volltext der aufgenommenen Dokumente. '
+                      + 'Inhaltlich ähnliche Anträge kommen über den Hinweis unter dem Feld dazu.'}
                 />
                 {hybridLoading ? (
                   <Loader2
@@ -317,6 +360,9 @@ export function AntraegeHeader({ filterOpen, onToggleFilter, listeSichtbar }: Pr
                 </label>
               ) : null}
             </div>
+
+            {/* Was die Frage gesetzt hat — und was von ihr nicht ankam. */}
+            {frageAn ? <FrageDeutung frage={frage} /> : null}
 
             {/* Was die Suche gerade findet + der Weg zur Ähnlichkeit. Steht nur
                 bei laufender Suche und ersetzt das Dauer-Auswahlfeld. */}

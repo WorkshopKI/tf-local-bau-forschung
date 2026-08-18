@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.105.0 — Frage an die Foerderantrags-Liste (August 2026)
+
+MINOR — Gewünscht war die Frage in natürlicher Sprache auch für die Förderanträge. Die Fragen dort sind aber anderer Art als in der Dokumenten-Suche: sie nennen kein Thema, sondern Metadaten-Kombinationen („alle Netzwerke, die für Phase 2 abgelehnt wurden"). Übernommen wurde deshalb das Muster, nicht der Frageplan.
+
+- **Die Frage setzt die vorhandenen Filter** statt einer eigenen Trefferliste — Pillen und Chips zeigen, was verstanden wurde, und bleiben einzeln korrigierbar ([antrags-frage.md](docs/architecture/antrags-frage.md))
+- **Stillstand als eigene Achse**: „seit wann kein neues Kürzel", auch ohne Frage per Klick. Ohne datierbares Kürzel lautet das Urteil **„nicht prüfbar"**, nie „läuft" ([letzteAktivitaet.ts](src/plugins/antraege/frage/letzteAktivitaet.ts))
+- **Kürzel-Ausschnitt aus einer Frage** — die Liste konnte bisher nur das eigene Profil-Kürzel; bei fester Identität (MA-Login) greift er bewusst nicht ([useBearbeiterSicht.ts](src/core/hooks/useBearbeiterSicht.ts))
+- **Eine tote Statuskategorie wird gar nicht erst angeboten**: `abgelehnt` hat im Katalog null Rohwerte, ein Filter darauf verglich nichts ([antragsplan.ts](src/plugins/antraege/frage/antragsplan.ts))
+- **Die sechs Pflichten eines einschüssigen KI-Laufs stehen jetzt einmal** statt in drei Dateien; Frageplan, Frageantwort und Wortformen-Prüfung laufen darüber ([ein-schuss-lauf.ts](src/core/services/ai/ein-schuss-lauf.ts))
+
 ### v4.104.0 — Belege und Vorschlaege getrennt an die KI (August 2026)
 
 MINOR — Vorgeschlagen wurde, dem großen Kontext mehr Treffer zuzumuten und die Ähnlichkeits-Treffer als zweite Menge zu schicken, damit das Modell selbst entscheidet, ob einer dazugehört. Beides trifft zu: 20 Belege waren eine Vorsicht ohne Grund, und untergemischte Vorschläge waren von Funden nicht zu unterscheiden.

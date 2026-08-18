@@ -31,7 +31,10 @@
  * `core` auf kein Plugin zeigen darf — dieselbe Begründung wie bei
  * [trefferstelle.ts](src/core/services/search/trefferstelle.ts).
  */
-import { stripMarkdownWrapper, parseJsonArrayTolerant } from '@/core/services/ai/json-tolerant';
+import {
+  stripMarkdownWrapper, parseJsonArrayTolerant, istRecord, alsListe, alsText,
+} from '@/core/services/ai/json-tolerant';
+import { einZugRegel } from '@/core/services/ai/ein-schuss-lauf';
 import type { StatusCategory } from '@/core/utils/status-canonical';
 import {
   KATEGORIE_REIHENFOLGE,
@@ -209,13 +212,6 @@ function benenntKeinenVerlust(eintrag: string): boolean {
 
 // ── Prompt ───────────────────────────────────────────────────────────────────
 
-/**
- * Regel gegen mehrstufige Plan-/Werkzeug-Schleifen. Wortgleich zur
- * `EIN_ZUG_REGEL` in [feedbackImprove.ts](src/core/services/feedback/feedbackImprove.ts) —
- * dieselbe Bridge, dasselbe Verhalten.
- */
-const EIN_ZUG_REGEL = 'Antworte in EINEM Zug: kein Plan, keine Zwischenschritte, keine Werkzeuge, kein sichtbares Nachdenken — nur der JSON-Block.';
-
 /** Die Feldnamen, die ein Plan ansprechen darf — aus dem Code, nicht abgeschrieben. */
 function feldListe(): string {
   return (Object.entries(FELD_PRAEFIX) as [Trefferfeld, string][])
@@ -223,7 +219,14 @@ function feldListe(): string {
     .join(' · ');
 }
 
-/** Die Arbeitslisten-Werte samt Bezeichnung — ebenfalls aus der Einzelquelle. */
+/**
+ * Die Arbeitslisten-Werte samt Bezeichnung — ebenfalls aus der Einzelquelle.
+ *
+ * Führt ALLE Kategorien. Der Antragsplan tut das bewusst nicht (er lässt
+ * Kategorien weg, die im aktiven Katalog keinen Rohwert haben) — dort steuert die
+ * Auswahl einen Feld-Wert-Filter, hier eine Suchfacette, und eine Facette ohne
+ * Treffer ist ein leeres Ergebnis, kein falsches.
+ */
 function statusListe(): string {
   return KATEGORIE_REIHENFOLGE
     .map(k => `${k} (${KATEGORIE_TEXTE[k].lang})`)
@@ -239,6 +242,62 @@ function bereichListe(): string {
  *  nennt. */
 function wortListe(woerter: readonly string[]): string {
   return woerter.map(w => `„${w}"`).join(', ');
+}
+
+/**
+ * Die Beschreibung des `begriffe`-Schlüssels — für JEDEN Prompt, der
+ * Leitbegriffe erntet.
+ *
+ * Geteilt, weil es zwei sind: die Dokumenten-Suche (hier) und die Frage an die
+ * Förderantrags-Liste ([antragsplan.ts](src/plugins/antraege/frage/antragsplan.ts)).
+ * Beide füttern denselben `PlanBegriff` in dieselbe Wortlaut-Stufe, und zwei
+ * Beschreibungen desselben Formats wären die Stelle, an der die eine Seite
+ * Nadeln erwartet, die die andere nicht mehr liefert.
+ */
+export function begriffeSchemaZeilen(): string[] {
+  return [
+    '- "begriffe": Liste der Sachen, nach denen gefragt wird. Je Eintrag ein Objekt mit:',
+    '    "begriff"  — wie die Sache heißt, kurz und im Klartext (erscheint dem Nutzer)',
+    '    "nadeln"   — Liste von Zeichenketten, die im Text vorkommen können: Schreibweisen,',
+    '                 Wortformen, Synonyme, Komposita-Bestandteile. Klein geschrieben.',
+    '    "pflicht"  — true, wenn die Frage das als EINSCHRÄNKUNG nennt (ein Ort, eine',
+    '                 Einrichtung, ein Kennzeichen). false, wenn es eines der gefragten',
+    '                 THEMEN ist. Im Zweifel false.',
+    '    "feld"     — optional, wenn die Sache nur in EINEM Feld stehen kann.',
+    `                 Erlaubt: ${feldListe()}`,
+  ];
+}
+
+/**
+ * Die Regeln zu `begriffe` — Deckel, Nadellänge, Kürzel, Frage- und
+ * Gewichtungswörter.
+ *
+ * Aus denselben Konstanten gerendert, die `parseFrageplan` und
+ * `baueIgnoriertListe` filtern. Der Prompt für die Satzform, der Filter für die
+ * Wortform — schriebe einer von beiden die Wörter ab, meldete das Modell
+ * gehorsam genau das Wort, das auszulassen ihm befohlen war (v4.78).
+ */
+export function begriffeRegelZeilen(): string[] {
+  return [
+    `- Höchstens ${MAX_LEITBEGRIFFE} Einträge in "begriffe". Fasse zusammen, was dieselbe Sache meint:`,
+    '  „Normung" und „Standards" sind ZWEI Sachen; „Normung", „Normen" und „Normierung" sind',
+    '  EINE Sache mit drei Schreibweisen und gehören in DENSELBEN Eintrag.',
+    `- Jede Nadel hat mindestens ${MIN_NADEL_LEN} Zeichen. Kürzel deshalb ausschreiben`,
+    '  („künstliche intelligenz" statt „ki") oder mit Wortkontext geben („ki-basiert").',
+    '  Kürzere Nadeln träfen als Teilzeichenkette beliebige fremde Wörter.',
+    '- Normen- und Regelwerkskürzel (DIN, ISO, EN, VDE, IEC, ASTM) NICHT weglassen —',
+    '  sie stehen so in den Antragstexten. Gib sie mit Kontext, damit sie lang genug',
+    '  sind: „din en", „din iso", „iso 9001", „din-norm", „en-norm", „vde-norm".',
+    '  Als blankes Kürzel wären sie zu kurz und fielen heraus.',
+    '- Nimm nur Begriffe auf, die in einem Antragstext wirklich vorkommen können.',
+    '  Frageworte benennen das, wonach ohnehin gesucht wird. Sie sind keine',
+    '  Begriffe und gehören auch NICHT nach "ignoriert":',
+    `    ${wortListe(FRAGEWORTE)}`,
+    '- Gewichtungswörter beantwortet die Rangfolge selbst: Vorhaben, die MEHR',
+    '  der gefragten Sachen behandeln, stehen oben. Auch sie gehören nicht nach',
+    '  "ignoriert" — sie gehen nicht verloren:',
+    `    ${wortListe(GEWICHTUNGSWOERTER)}`,
+  ];
 }
 
 /**
@@ -263,15 +322,7 @@ export function baueFrageplanPrompt(
     '',
     'Antworte mit GENAU EINEM JSON-Objekt mit diesen Schlüsseln:',
     '',
-    '- "begriffe": Liste der Sachen, nach denen gefragt wird. Je Eintrag ein Objekt mit:',
-    '    "begriff"  — wie die Sache heißt, kurz und im Klartext (erscheint dem Nutzer)',
-    '    "nadeln"   — Liste von Zeichenketten, die im Text vorkommen können: Schreibweisen,',
-    '                 Wortformen, Synonyme, Komposita-Bestandteile. Klein geschrieben.',
-    '    "pflicht"  — true, wenn die Frage das als EINSCHRÄNKUNG nennt (ein Ort, eine',
-    '                 Einrichtung, ein Kennzeichen). false, wenn es eines der gefragten',
-    '                 THEMEN ist. Im Zweifel false.',
-    '    "feld"     — optional, wenn die Sache nur in EINEM Feld stehen kann.',
-    `                 Erlaubt: ${feldListe()}`,
+    ...begriffeSchemaZeilen(),
     '- "status": Liste von Arbeitslisten-Werten, falls die Frage einen Bearbeitungsstand nennt.',
     `    Erlaubt: ${statusListe()}`,
     '- "jahr": Liste vierstelliger Jahreszahlen, falls die Frage einen Zeitraum nennt.',
@@ -282,27 +333,10 @@ export function baueFrageplanPrompt(
     '    in den Plan übersetzt hast. Lieber hier benennen als raten.',
     '',
     'Regeln:',
-    `- Höchstens ${MAX_LEITBEGRIFFE} Einträge in "begriffe". Fasse zusammen, was dieselbe Sache meint:`,
-    '  „Normung" und „Standards" sind ZWEI Sachen; „Normung", „Normen" und „Normierung" sind',
-    '  EINE Sache mit drei Schreibweisen und gehören in DENSELBEN Eintrag.',
-    `- Jede Nadel hat mindestens ${MIN_NADEL_LEN} Zeichen. Kürzel deshalb ausschreiben`,
-    '  („künstliche intelligenz" statt „ki") oder mit Wortkontext geben („ki-basiert").',
-    '  Kürzere Nadeln träfen als Teilzeichenkette beliebige fremde Wörter.',
-    '- Normen- und Regelwerkskürzel (DIN, ISO, EN, VDE, IEC, ASTM) NICHT weglassen —',
-    '  sie stehen so in den Antragstexten. Gib sie mit Kontext, damit sie lang genug',
-    '  sind: „din en", „din iso", „iso 9001", „din-norm", „en-norm", „vde-norm".',
-    '  Als blankes Kürzel wären sie zu kurz und fielen heraus.',
-    '- Nimm nur Begriffe auf, die in einem Antragstext wirklich vorkommen können.',
-    '  Frageworte benennen das, wonach ohnehin gesucht wird. Sie sind keine',
-    '  Begriffe und gehören auch NICHT nach "ignoriert":',
-    `    ${wortListe(FRAGEWORTE)}`,
-    '- Gewichtungswörter beantwortet die Rangfolge selbst: Vorhaben, die MEHR',
-    '  der gefragten Sachen behandeln, stehen oben. Auch sie gehören nicht nach',
-    '  "ignoriert" — sie gehen nicht verloren:',
-    `    ${wortListe(GEWICHTUNGSWOERTER)}`,
+    ...begriffeRegelZeilen(),
     '- Erfinde keine Feld-, Status- oder Bereichswerte. Was nicht in den Listen steht,',
     '  gehört nach "ignoriert".',
-    EIN_ZUG_REGEL,
+    einZugRegel('der JSON-Block'),
   ].join('\n');
 
   const userPrompt = [
@@ -316,18 +350,6 @@ export function baueFrageplanPrompt(
 }
 
 // ── Parser ───────────────────────────────────────────────────────────────────
-
-function istRecord(x: unknown): x is Record<string, unknown> {
-  return typeof x === 'object' && x !== null && !Array.isArray(x);
-}
-
-function alsListe(x: unknown): unknown[] {
-  return Array.isArray(x) ? x : [];
-}
-
-function alsText(x: unknown): string {
-  return typeof x === 'string' ? x.trim() : '';
-}
 
 /**
  * Die Nadeln eines Leitbegriffs: klein, entdoppelt, gedeckelt — und der Begriff
@@ -384,6 +406,53 @@ function leseBegriff(roh: unknown, verworfen: string[]): PlanBegriff | null {
 }
 
 /**
+ * Die Leitbegriffe aus dem rohen `begriffe`-Wert — gedeckelt und gesiebt.
+ *
+ * Geteilt mit dem Antragsplan, aus demselben Grund wie
+ * {@link begriffeSchemaZeilen}: beide erzeugen `PlanBegriff` für dieselbe
+ * Wortlaut-Stufe. Was hier herausfällt, landet in `verworfen` und damit sichtbar
+ * in `ignoriert` — verworfen wird still, aber nicht heimlich.
+ *
+ * **Ohne Urteil über die Menge.** Ob ein Plan ohne Thema noch ein Plan ist,
+ * entscheidet der Aufrufer: für die Dokumenten-Suche ist er keiner (es gäbe
+ * nichts zu durchsuchen), für eine reine Metadaten-Frage an die Antragsliste
+ * schon („alle Netzwerke, Phase 2 abgelehnt" nennt kein Thema).
+ */
+export function leseLeitbegriffe(roh: unknown, verworfen: string[]): PlanBegriff[] {
+  const out: PlanBegriff[] = [];
+  for (const eintrag of alsListe(roh)) {
+    if (out.length >= MAX_LEITBEGRIFFE) {
+      verworfen.push(`mehr als ${MAX_LEITBEGRIFFE} Begriffe`);
+      break;
+    }
+    const b = leseBegriff(eintrag, verworfen);
+    if (b) out.push(b);
+  }
+  return out;
+}
+
+/**
+ * Die Zeile „nicht berücksichtigt": Meldungen des Modells zuerst, technisch
+ * Verworfenes dahinter.
+ *
+ * Gefiltert wird **nur** die Liste des Modells (`benenntKeinenVerlust`): was der
+ * Parser verwarf — ein unbekanntes Feld, eine zu kurze Nadel — ist immer ein
+ * Verlust. Die Meldungen des Modells sind es nicht immer; es meldet auch Wörter,
+ * die es nach Anweisung übergangen hat.
+ */
+export function baueIgnoriertListe(roh: unknown, verworfen: readonly string[]): string[] {
+  const out: string[] = [];
+  for (const i of alsListe(roh)) {
+    const t = alsText(i);
+    if (t.length === 0 || out.includes(t)) continue;
+    if (benenntKeinenVerlust(t)) continue;
+    out.push(t);
+  }
+  for (const v of verworfen) if (!out.includes(v)) out.push(v);
+  return out;
+}
+
+/**
  * Liest den Frageplan aus der Modellantwort.
  *
  * `null` heißt „nichts Verwertbares" — der Aufrufer fällt dann auf die
@@ -406,15 +475,7 @@ export function parseFrageplan(roh: string, frage: string): Frageplan | null {
 
   const verworfen: string[] = [];
 
-  const leitbegriffe: PlanBegriff[] = [];
-  for (const eintrag of alsListe(obj.begriffe)) {
-    if (leitbegriffe.length >= MAX_LEITBEGRIFFE) {
-      verworfen.push(`mehr als ${MAX_LEITBEGRIFFE} Begriffe`);
-      break;
-    }
-    const b = leseBegriff(eintrag, verworfen);
-    if (b) leitbegriffe.push(b);
-  }
+  const leitbegriffe = leseLeitbegriffe(obj.begriffe, verworfen);
   // Ein Plan ohne ein einziges Thema ist kein Plan: eine reine Einschränkung
   // („alles in Bayern") liefe als ODER-Menge über nichts.
   if (leitbegriffe.length === 0) return null;
@@ -446,21 +507,7 @@ export function parseFrageplan(roh: string, frage: string): Frageplan | null {
     verworfen.push(`Bereich „${bereichRoh}"`);
   }
 
-  // Die Meldungen des Modells zuerst — sie sind die verständlicheren; die
-  // technisch verworfenen Werte dahinter.
-  //
-  // Gefiltert wird NUR die Liste des Modells: was der Parser oben verworfen hat
-  // (ein unbekanntes Feld, eine zu kurze Nadel), ist immer ein Verlust. Die
-  // Meldungen des Modells sind es nicht immer — es meldet auch Wörter, die es
-  // nach Anweisung übergangen hat.
-  const ignoriert: string[] = [];
-  for (const i of alsListe(obj.ignoriert)) {
-    const t = alsText(i);
-    if (t.length === 0 || ignoriert.includes(t)) continue;
-    if (benenntKeinenVerlust(t)) continue;
-    ignoriert.push(t);
-  }
-  for (const v of verworfen) if (!ignoriert.includes(v)) ignoriert.push(v);
+  const ignoriert = baueIgnoriertListe(obj.ignoriert, verworfen);
 
   return {
     frage: frage.trim(),

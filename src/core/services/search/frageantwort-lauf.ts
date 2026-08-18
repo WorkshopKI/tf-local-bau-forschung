@@ -27,12 +27,7 @@
  * deterministisch entstanden und steht unabhängig davon.
  */
 import type { AIBridge } from '@/core/services/ai/bridge';
-import { starteFrischenChat } from '@/core/services/ai/chat-reset';
-import { kiVerbindungGeprueft, istVerbindungsFehler, useKiConnectPrompt } from '@/core/services/ai/ki-guard';
-import type { BridgeZiel } from '@/core/services/ai/transports/streamlit';
-
-/** Ziel-Tab — wie beim Frageplan, aus demselben Grund (`ki-ziel.ts`). */
-const ANTWORT_ZIEL: BridgeZiel = 'standard';
+import { einZugRegel, fuehreEinSchussLauf } from '@/core/services/ai/ein-schuss-lauf';
 
 /** Benennt den Lauf in der Fehlermeldung der Transport-Policy. */
 const ZWECK = 'Die Antwort auf eine Suchfrage';
@@ -99,8 +94,7 @@ export function baueAntwortPrompt(
       '  „(thematisch verwandt)" hinter dem Kennzeichen. Passt keiner, lass den',
       '  Abschnitt weg und erwähne ihn nicht.',
     ] : []),
-    'Antworte in EINEM Zug: kein Plan, keine Zwischenschritte, keine Werkzeuge,'
-      + ' kein sichtbares Nachdenken — nur die Antwort.',
+    einZugRegel('die Antwort'),
   ].join('\n');
 
   const userPrompt = [
@@ -152,37 +146,19 @@ export async function ermittleFrageantwort(
     return { ok: false, fehler: MELDUNG.leer };
   }
 
-  let transport;
-  try {
-    transport = bridge.getTransportForDatenLauf(ZWECK);
-  } catch (err) {
-    return { ok: false, fehler: err instanceof Error ? err.message : String(err) };
-  }
-
-  if (!await kiVerbindungGeprueft(bridge, transport.name)) {
-    return { ok: false, fehler: MELDUNG.nichtVerbunden, verbindungFehlt: true };
-  }
-
   const { systemPrompt, userPrompt } = baueAntwortPrompt(frage, befundText, belege, kandidaten);
 
-  let roh: string;
-  try {
-    await starteFrischenChat(transport, ANTWORT_ZIEL);
-    if (signal?.aborted) return { ok: false, fehler: MELDUNG.abgebrochen };
-    roh = await transport.submitMessage(`${systemPrompt}\n\n${userPrompt}`, systemPrompt, {
-      ziel: ANTWORT_ZIEL,
-      signal,
-    });
-  } catch (err) {
-    if (signal?.aborted) return { ok: false, fehler: MELDUNG.abgebrochen };
-    if (istVerbindungsFehler(err)) {
-      useKiConnectPrompt.getState().oeffnen();
-      return { ok: false, fehler: MELDUNG.nichtVerbunden, verbindungFehlt: true };
-    }
-    return { ok: false, fehler: err instanceof Error ? err.message : String(err) };
-  }
+  const lauf = await fuehreEinSchussLauf({
+    bridge,
+    zweck: ZWECK,
+    systemPrompt,
+    userPrompt,
+    meldungen: { nichtVerbunden: MELDUNG.nichtVerbunden, abgebrochen: MELDUNG.abgebrochen },
+    ...(signal ? { signal } : {}),
+  });
+  if (!lauf.ok) return lauf;
 
-  const antwort = saeubereAntwort(roh);
+  const antwort = saeubereAntwort(lauf.roh);
   if (antwort.length === 0) return { ok: false, fehler: MELDUNG.keineAntwort };
   return { ok: true, antwort };
 }

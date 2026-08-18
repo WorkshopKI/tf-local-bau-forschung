@@ -9,6 +9,27 @@
  * damit beide dasselbe bewährte Salvage-Verhalten teilen.
  */
 
+/**
+ * Ist das ein Objekt, aus dem sich Schlüssel lesen lassen?
+ *
+ * `null` und Arrays fallen heraus — beide sind in JS `typeof 'object'`, und ein
+ * Modell, das statt des Objekts eine Liste liefert, dürfte nicht als leeres
+ * Objekt durchgehen.
+ */
+export function istRecord(x: unknown): x is Record<string, unknown> {
+  return typeof x === 'object' && x !== null && !Array.isArray(x);
+}
+
+/** Ein Listenwert, tolerant: was keine Liste ist, ist eine leere. */
+export function alsListe(x: unknown): unknown[] {
+  return Array.isArray(x) ? x : [];
+}
+
+/** Ein getrimmter Textwert, tolerant: was kein String ist, ist leer. */
+export function alsText(x: unknown): string {
+  return typeof x === 'string' ? x.trim() : '';
+}
+
 /** Entfernt einen umschließenden ```json … ``` (oder ``` … ```) Markdown-Fence. */
 export function stripMarkdownWrapper(text: string): string {
   // Entfernt Patterns wie ```json ... ``` oder ``` ... ```

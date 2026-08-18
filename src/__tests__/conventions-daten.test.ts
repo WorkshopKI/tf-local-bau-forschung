@@ -985,8 +985,13 @@ describe('screen-context-coverage (Feedback-KI-Kontext: docs/feedback-kontext/)'
   // sind gekuerzt (48992) — und genau deshalb steigt die Schwelle trotzdem: bei
   // acht Zeichen Luft risse die naechste Doc-Pflege aus einem fremden Grund, und
   // dann wird gekuerzt, um eine Zahl zu treffen. 52000 statt 49000.
+  //
+  // Mit v4.105 die fuenfte Reisse (53165): Frage an die Liste + Stillstands-
+  // Pille, WAS-Text zu zwei erfragten Funktionen. Erklaerendes gekuerzt (52489),
+  // angehoben trotzdem — mit 500 Zeichen Luft risse die naechste Doc-Pflege aus
+  // fremdem Grund. `antraege.md` ist mit Abstand das groesste (naechstes: 28k).
   const DOCS_DIR = join(ROOT, '..', 'docs', 'feedback-kontext');
-  const REISSLEINE_DOC_CHARS = 52000;
+  const REISSLEINE_DOC_CHARS = 55000;
 
   // Text-Scan statt Import: plugins.config.ts importiert alle Plugin-Komponenten
   // (u.a. pdfjs-dist-Worker), was unter Vitest bricht. Jede Plugin-ID steht

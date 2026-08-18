@@ -19,6 +19,14 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.105 — 2026-08
+
+### Neu
+- In den Förderanträgen lässt sich jetzt **eine Frage stellen** statt nur Stichworte einzutippen: „alle Netzwerke, die für Phase 2 abgelehnt wurden" oder „Einzelvorhaben aus 2025 und 2026 ohne PreCheck". Die Frage setzt die passenden Filter — was sie gesetzt hat, steht unter dem Feld und lässt sich einzeln ändern. Umschalten über „Suche mit:" links vom Suchfeld, absenden mit Enter.
+- Neue Filter-Pille **Stillstand**: Anträge, an denen seit ein bis sechs Monaten kein Kürzel mehr gesetzt wurde. Anträge ohne datierbares Kürzel gelten dabei ausdrücklich als *nicht prüfbar* und nicht als unauffällig — ihre Zahl steht am Chip im Seitenkopf.
+### Verbesserungen
+- Eine Frage kann jetzt auch nach den Anträgen einer **anderen Person** fragen („für Bearbeiter THÜ"). Der Chip sagt, dass der Ausschnitt aus der Frage kommt, und nimmt ihn per Klick zurück.
+
 ## v4.104 — 2026-08
 
 ### Verbesserungen

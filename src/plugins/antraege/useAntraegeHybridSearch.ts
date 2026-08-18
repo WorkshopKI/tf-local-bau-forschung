@@ -38,6 +38,9 @@ export function useAntraegeHybridSearch(): void {
   const activeProgrammId = useActiveProgramm(s => s.activeProgrammId);
   const search = useAntraegeStore(s => s.search);
   const setHybridSearch = useAntraegeStore(s => s.setHybridSearch);
+  // Die Leitbegriffe einer Frage ersetzen die Zerlegung der Eingabe. Als Hook
+  // abonniert, damit eine neue Frage die laufende Suche neu ausfuehrt.
+  const planTeile = useAntraegeStore(s => s.planTeile);
   // v2.62: Opt-in-Schalter der Ähnlichkeitssuche. Als Hook abonniert, damit das
   // Umschalten im Dropdown den Preload-Effekt sofort re-triggert.
   const semanticEnabled = useSemanticSearchMode(s => s.enabled);
@@ -122,6 +125,7 @@ export function useAntraegeHybridSearch(): void {
             idb: storage.idb,
             programmId: activeProgrammId,
             abortSignal: abort.signal,
+            ...(planTeile ? { planTeile } : {}),
           });
           if (cancelled || abort.signal.aborted) return;
           const matchedAkz = new Set(result.hits.map(h => h.aktenzeichen));
@@ -147,5 +151,5 @@ export function useAntraegeHybridSearch(): void {
     // semanticEnabled in den Deps: das Dropdown-Umschalten führt die laufende
     // Suche neu aus (searchAntraege liest den Modus zur Laufzeit) — sonst
     // blieben die angezeigten Treffer bis zur nächsten Eingabe Substring-only.
-  }, [search, activeProgrammId, storage, setHybridSearch, semanticEnabled]);
+  }, [search, activeProgrammId, storage, setHybridSearch, semanticEnabled, planTeile]);
 }

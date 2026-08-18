@@ -21,17 +21,14 @@
  * und aus einem Auslassungsfehler würde eine kürzere Trefferliste. So kostet
  * Vergesslichkeit nur, dass ein unpassendes Wort stehen bleibt.
  *
- * Die Pflichten des Laufs sind dieselben wie beim Frageplan (dort ausführlich
- * im Kopfkommentar): nur intern, passiver Ping mit Verbinden-Dialog, frischer
- * Chat vor dem Submit (Pitfall #36), Ziel ausdrücklich `standard`, System-Prompt
- * inlinen, ein Aufruf ohne Retry, wirft nie.
+ * Die sechs Pflichten des Laufs stehen in
+ * [ein-schuss-lauf.ts](src/core/services/ai/ein-schuss-lauf.ts) und werden von
+ * dort ausgeführt.
  */
 import type { AIBridge } from '@/core/services/ai/bridge';
-import { starteFrischenChat } from '@/core/services/ai/chat-reset';
-import { kiVerbindungGeprueft, istVerbindungsFehler, useKiConnectPrompt } from '@/core/services/ai/ki-guard';
-import type { BridgeZiel } from '@/core/services/ai/transports/streamlit';
+import { fuehreEinSchussLauf } from '@/core/services/ai/ein-schuss-lauf';
 
-const ZIEL: BridgeZiel = 'standard';
+/** Benennt den Lauf in der Fehlermeldung der Transport-Policy. */
 const ZWECK = 'Die Prüfung der Wortformen';
 
 /** Mehr Wörter braucht keine Prüfung — so viele sammelt die Suche höchstens. */
@@ -135,37 +132,22 @@ export async function pruefeWortformen(
     return { ok: false, fehler: PRUEF_MELDUNG.leer };
   }
 
-  let transport;
-  try {
-    transport = bridge.getTransportForDatenLauf(ZWECK);
-  } catch (err) {
-    return { ok: false, fehler: err instanceof Error ? err.message : String(err) };
-  }
-
-  if (!await kiVerbindungGeprueft(bridge, transport.name)) {
-    return { ok: false, fehler: PRUEF_MELDUNG.nichtVerbunden, verbindungFehlt: true };
-  }
-
   const { systemPrompt, userPrompt } = bauePruefPrompt(suchwoerter, liste);
 
-  let roh: string;
-  try {
-    await starteFrischenChat(transport, ZIEL);
-    if (signal?.aborted) return { ok: false, fehler: PRUEF_MELDUNG.abgebrochen };
-    roh = await transport.submitMessage(`${systemPrompt}\n\n${userPrompt}`, systemPrompt, {
-      ziel: ZIEL,
-      signal,
-    });
-  } catch (err) {
-    if (signal?.aborted) return { ok: false, fehler: PRUEF_MELDUNG.abgebrochen };
-    if (istVerbindungsFehler(err)) {
-      useKiConnectPrompt.getState().oeffnen();
-      return { ok: false, fehler: PRUEF_MELDUNG.nichtVerbunden, verbindungFehlt: true };
-    }
-    return { ok: false, fehler: err instanceof Error ? err.message : String(err) };
-  }
+  const lauf = await fuehreEinSchussLauf({
+    bridge,
+    zweck: ZWECK,
+    systemPrompt,
+    userPrompt,
+    meldungen: {
+      nichtVerbunden: PRUEF_MELDUNG.nichtVerbunden,
+      abgebrochen: PRUEF_MELDUNG.abgebrochen,
+    },
+    ...(signal ? { signal } : {}),
+  });
+  if (!lauf.ok) return lauf;
 
-  const aussortiert = leseAussortierte(roh, liste);
+  const aussortiert = leseAussortierte(lauf.roh, liste);
   if (aussortiert === null) return { ok: false, fehler: PRUEF_MELDUNG.unverstaendlich };
   return { ok: true, aussortiert };
 }

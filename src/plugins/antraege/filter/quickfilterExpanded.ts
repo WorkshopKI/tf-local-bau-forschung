@@ -18,7 +18,7 @@
 /** Die aufklappbaren Segmente der Quickfilter-Zeile. `sort` ist mit v4.65
  *  entfallen (die Sortierung ist eine Achse des Darstellungs-Menüs) — ein
  *  persistiertes `sort` fällt beim Lesen still durch, wie jede unbekannte Id. */
-export type QuickfilterSegId = 'status' | 'antragstyp' | 'projektart' | 'precheck';
+export type QuickfilterSegId = 'status' | 'antragstyp' | 'projektart' | 'precheck' | 'stillstand';
 
 /** Reihenfolge = Anzeige-Reihenfolge in der Toolbar; sie bestimmt auch, wie der
  *  persistierte String sortiert wird. */
@@ -27,6 +27,7 @@ const SEG_ORDER: readonly QuickfilterSegId[] = [
   'antragstyp',
   'projektart',
   'precheck',
+  'stillstand',
 ];
 
 const VALID_SEGS: ReadonlySet<QuickfilterSegId> = new Set<QuickfilterSegId>(SEG_ORDER);

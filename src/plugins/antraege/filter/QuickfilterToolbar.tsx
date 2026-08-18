@@ -25,11 +25,15 @@
  * Die **Gruppieren**-Steuerung ist seit Phase 2 kein Segment mehr, sondern eine
  * Achse im „Darstellung"-Menü rechts in `AntraegeMain` (`DarstellungDropdown`).
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAntraegeStore } from '../store';
 import { useFilteredAntraege } from '../useFilteredAntraege';
 import { useFilterState } from './useFilterState';
 import { CollapsibleSeg } from './CollapsibleSeg';
+import {
+  getStillstandItems, stillstandLabel, stillstandStufeVon,
+} from './stillstandQuickfilter';
+import { useAktivitaetsIndex } from '../frage/useAktivitaetsIndex';
 import {
   getPhaseFromActive,
   getPhaseItems,
@@ -73,6 +77,10 @@ export function QuickfilterToolbar(): React.ReactElement {
   const setPrecheckBucket = useAntraegeStore(s => s.setPrecheckBucket);
   const projektart = useAntraegeStore(s => s.projektart);
   const setProjektart = useAntraegeStore(s => s.setProjektart);
+  const stillstandTage = useAntraegeStore(s => s.stillstandTage);
+  const setStillstandTage = useAntraegeStore(s => s.setStillstandTage);
+  const { index: aktivitaetsIndex } = useAktivitaetsIndex();
+  const stichtagRef = useRef<string>(new Date().toISOString());
 
   // Offene Segmente, pro View persistiert. Mehrere dürfen gleichzeitig offen
   // sein — seit die Projektart-Zähler dem Antragstyp folgen, ist das Nebeneinander
@@ -132,6 +140,16 @@ export function QuickfilterToolbar(): React.ReactElement {
   };
 
   // PreCheck (abgeleiteter Bucket, eigener Store-Slot)
+  // Zaehler ueber dieselbe `countBase` wie die anderen Pillen — und ueber
+  // dieselbe Urteilsfunktion, die auch filtert (`beurteileStillstand`).
+  const stillstandItems = useMemo(
+    () => getStillstandItems(countBase, aktivitaetsIndex, stichtagRef.current),
+    [countBase, aktivitaetsIndex],
+  );
+  const onStillstandChange = (label: string): void => {
+    setStillstandTage(stillstandStufeVon(label));
+  };
+
   const precheckItems = useMemo(() => getPrecheckItems(countBase), [countBase]);
   const onPrecheckChange = (label: string): void => {
     setPrecheckBucket(asPrecheckBucket(label));
@@ -182,6 +200,19 @@ export function QuickfilterToolbar(): React.ReactElement {
         onChange={onPrecheckChange}
         expanded={expandedSegs.has('precheck')}
         onExpandToggle={() => handleToggle('precheck')}
+      />
+      {/* Stillstand: seit wann hat sich nichts mehr getan? Die Zaehler stehen
+          erst da, wenn der Aktivitaets-Index gerechnet ist (er kostet einen
+          Bestandslauf und startet erst mit der ersten Auswahl) — bis dahin
+          bewusst OHNE Zahl, statt eine zu zeigen, die der Klick nicht liefert. */}
+      <CollapsibleSeg
+        label="Stillstand"
+        titel="Seit wann wurde kein Kuerzel mehr neu gesetzt? Antraege ohne datierbares Kuerzel sind nicht pruefbar und fehlen in jeder Stufe."
+        value={stillstandLabel(stillstandTage)}
+        items={stillstandItems}
+        onChange={onStillstandChange}
+        expanded={expandedSegs.has('stillstand')}
+        onExpandToggle={() => handleToggle('stillstand')}
       />
     </div>
   );

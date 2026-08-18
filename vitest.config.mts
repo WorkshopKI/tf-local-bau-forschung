@@ -76,6 +76,14 @@ const ISOLATED_TESTS = [
   // Build-Config) — ohne Isolation gewinnt der zuerst geladene echte Modulstand.
   'src/core/services/infrastructure/__tests__/userFoldersRootPermission.test.ts',
   'src/core/services/personal-storage/__tests__/updateOutboxFeedback.test.ts',
+  // Mockt `ki-guard` modulweit, prueft damit aber `ein-schuss-lauf` — das
+  // gemeinsame Modul, das seit v4.104 ALLE einschuessigen KI-Laeufe ausfuehrt.
+  // Ohne Isolation hat eine fruehere Datei es mit dem ECHTEN ki-guard in die
+  // geteilte Registry gelegt, und die Attrappe greift nicht mehr: der Lauf rief
+  // `bridge.getStreamlitTransport` auf einer Bridge-Attrappe, die nur
+  // `getTransportForDatenLauf` kennt. Einzeln gruen, im Suite-Lauf rot.
+  'src/core/services/search/__tests__/frageplan-lauf.test.ts',
+  'src/core/services/search/__tests__/wortformen-pruefung.test.ts',
   'src/core/services/search/__tests__/ort-wasm-init.test.ts',
   'src/core/services/skill-feedback/__tests__/export.test.ts',
   'src/core/services/skill-feedback/__tests__/read.test.ts',

@@ -145,6 +145,14 @@ export interface SearchAntraegeOptions {
   idb: IDBStore;
   programmId: string;
   abortSignal: AbortSignal;
+  /**
+   * Die Leitbegriffe eines Antragsplans (v4.105). Gesetzt heißt: die Suchteile
+   * kommen VON DORT statt aus der Zerlegung der Eingabe — die Wortlaut-Stufe
+   * kennt das längst (`WortlautOptionen.planTeile`), es fehlte nur der Weg
+   * hierher. `undefined` ist der Normalfall und lässt alles bitweise so laufen
+   * wie zuvor.
+   */
+  planTeile?: readonly PlanBegriff[];
 }
 
 interface ProgrammCaches {
@@ -791,15 +799,16 @@ function mergeHit(
 export async function searchAntraege(
   opts: SearchAntraegeOptions,
 ): Promise<AntraegeSearchResult> {
-  const { query, idb, programmId, abortSignal } = opts;
+  const { query, idb, programmId, abortSignal, planTeile } = opts;
   const merged = new Map<string, AntragSearchHit>();
   const unavailable: HybridUnavailableSource[] = [];
 
   const caches = await getProgrammCaches(idb, programmId);
   if (abortSignal.aborted) throw new DOMException('Aborted', 'AbortError');
 
-  // Quelle 1: Substring (sync)
-  for (const [akz, treffer] of substringMatches(query, caches.textCorpus).treffer) {
+  // Quelle 1: Substring (sync). Mit Plan kommen die Suchteile aus ihm.
+  const wortlautOptionen = planTeile ? { planTeile } : {};
+  for (const [akz, treffer] of substringMatches(query, caches.textCorpus, wortlautOptionen).treffer) {
     mergeHit(merged, {
       aktenzeichen: akz,
       score: berechneRelevanz(treffer.felder, treffer.abdeckung),

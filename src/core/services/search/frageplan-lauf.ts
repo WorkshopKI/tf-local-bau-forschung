@@ -1,44 +1,14 @@
 /**
  * Der eine KI-Aufruf hinter der Suche mit natürlicher Sprache.
  *
- * Vorbild ist `submitInline` in
- * [feedbackImprove.ts](src/core/services/feedback/feedbackImprove.ts) — ein
- * kurzer, einschüssiger Lauf mit JSON-Antwort, nicht der mehrstufige
- * Assistenten-Turn. Sechs Dinge sind dabei nicht verhandelbar:
- *
- *  1. **Nur intern.** Über `getTransportForDatenLauf`, nie über den rohen
- *     aktiven Transport. Die Frage selbst trägt zwar keine Dokumentinhalte, der
- *     Plan wird aber aus dem Bestand heraus beantwortet — und ein externer
- *     Provider ist hier strukturell unerreichbar, nicht bloß unerwünscht
- *     (Pitfall #30).
- *  2. **Passiver Ping vor dem Lauf.** `kiVerbindungGeprueft` fragt den Transport
- *     wirklich (öffnet KEINEN Tab, Konventionstest `kein-oeffnender-ping`) und
- *     öffnet bei `false` den app-weiten Verbinden-Dialog statt eines eigenen
- *     Fehlerbanners. Fällt die Verbindung ZWISCHEN Ping und Antwort aus, fängt
- *     `istVerbindungsFehler` das unten ab — ein roher „Failed to fetch" darf den
- *     Nutzer nie erreichen.
- *  3. **Frischer Chat vor dem Submit.** Der Streamlit-Chat ist stateful; ohne
- *     Reset deutet der vorige Verlauf in den Plan hinein (Pitfall #36).
- *  4. **Ziel ausdrücklich auf `standard`.** `undefined` heißt an der Bridge
- *     „aktiver Tab", nicht „Standard-Tab" — der Denkfehler, den
- *     [ki-ziel.ts](src/core/services/ai/ki-ziel.ts) beschreibt. Das ist auch die
- *     Antwort auf „nimm die Standard-KI": welches Modell dort läuft, setzt der
- *     Server, die App wählt den Tab.
- *  5. **System-Prompt in die Message inlinen.** `StreamlitBridgeTransport`
- *     verwirft den zweiten Parameter; er bleibt trotzdem gesetzt, damit
- *     DirectLLM-Transporte ihn als System-Rolle bekommen.
- *  6. **Ein Aufruf, kein Retry, wirft nie.** Fehler kommen als Ergebnis zurück.
- *     Ein zweiter Lauf kostete den Nutzer die Wartezeit noch einmal und lieferte
- *     bei einem Modell, das gerade Prosa schreibt, wieder Prosa.
+ * Die sechs nicht verhandelbaren Pflichten eines solchen Laufs stehen in
+ * [ein-schuss-lauf.ts](src/core/services/ai/ein-schuss-lauf.ts) und werden von
+ * dort ausgeführt — hier bleibt nur, was diesen Lauf von anderen unterscheidet:
+ * sein Prompt, sein Parser und seine Meldungen.
  */
 import type { AIBridge } from '@/core/services/ai/bridge';
-import { starteFrischenChat } from '@/core/services/ai/chat-reset';
-import { kiVerbindungGeprueft, istVerbindungsFehler, useKiConnectPrompt } from '@/core/services/ai/ki-guard';
-import type { BridgeZiel } from '@/core/services/ai/transports/streamlit';
+import { fuehreEinSchussLauf } from '@/core/services/ai/ein-schuss-lauf';
 import { baueFrageplanPrompt, parseFrageplan, type Frageplan } from './frageplan';
-
-/** Ziel-Tab für den Frageplan — siehe Pflicht 4 im Kopfkommentar. */
-const FRAGEPLAN_ZIEL: BridgeZiel = 'standard';
 
 /** Benennt den Lauf in der Fehlermeldung der Transport-Policy. */
 const ZWECK = 'Die Suche mit natürlicher Sprache';
@@ -73,47 +43,19 @@ export async function ermittleFrageplan(
 ): Promise<FrageplanErgebnis> {
   if (frage.trim().length === 0) return { ok: false, fehler: MELDUNG.leer };
 
-  // Pflicht 1. Wirft bei externem Provider — das ist der einzige Wurf, den diese
-  // Funktion abfängt und in eine lesbare Meldung übersetzt.
-  let transport;
-  try {
-    transport = bridge.getTransportForDatenLauf(ZWECK);
-  } catch (err) {
-    return { ok: false, fehler: err instanceof Error ? err.message : String(err) };
-  }
-
-  // Pflicht 2. Öffnet bei `false` selbst den Verbinden-Dialog; der Aufrufer muss
-  // dafür nichts tun ausser die Eingabe stehen zu lassen.
-  if (!await kiVerbindungGeprueft(bridge, transport.name)) {
-    return { ok: false, fehler: MELDUNG.nichtVerbunden, verbindungFehlt: true };
-  }
-
   const { systemPrompt, userPrompt } = baueFrageplanPrompt(frage, heuteJahr);
 
-  let roh: string;
-  try {
-    // Pflicht 3 und 4.
-    await starteFrischenChat(transport, FRAGEPLAN_ZIEL);
-    if (signal?.aborted) return { ok: false, fehler: MELDUNG.abgebrochen };
-    // Pflicht 5 und 6.
-    roh = await transport.submitMessage(`${systemPrompt}\n\n${userPrompt}`, systemPrompt, {
-      ziel: FRAGEPLAN_ZIEL,
-      signal,
-    });
-  } catch (err) {
-    if (signal?.aborted) return { ok: false, fehler: MELDUNG.abgebrochen };
-    // Der Preflight oben hat gerade noch „erreichbar" gesagt — ein Server kann
-    // trotzdem zwischen Ping und Submit verschwinden. Dann darf hier NICHT der
-    // rohe Browser-Text stehen („Failed to fetch"), sondern dieselbe
-    // Aufforderung, die der Preflight gezeigt hätte.
-    if (istVerbindungsFehler(err)) {
-      useKiConnectPrompt.getState().oeffnen();
-      return { ok: false, fehler: MELDUNG.nichtVerbunden, verbindungFehlt: true };
-    }
-    return { ok: false, fehler: err instanceof Error ? err.message : String(err) };
-  }
+  const lauf = await fuehreEinSchussLauf({
+    bridge,
+    zweck: ZWECK,
+    systemPrompt,
+    userPrompt,
+    meldungen: { nichtVerbunden: MELDUNG.nichtVerbunden, abgebrochen: MELDUNG.abgebrochen },
+    ...(signal ? { signal } : {}),
+  });
+  if (!lauf.ok) return lauf;
 
-  const plan = parseFrageplan(roh, frage);
+  const plan = parseFrageplan(lauf.roh, frage);
   if (!plan) return { ok: false, fehler: MELDUNG.keinPlan };
   return { ok: true, plan };
 }

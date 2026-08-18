@@ -18,17 +18,39 @@
  * die Einstellungen führte; dieser Weg lebt als Fußzeile des Popovers weiter.
  */
 import { useState } from 'react';
-import { User } from 'lucide-react';
+import { User, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ToggleChip } from '@/components/ui/ToggleChip';
 import { useBearbeiterSicht } from '@/core/hooks/useBearbeiterSicht';
 import { bearbeiterScopeLabel } from '@/plugins/antraege/bearbeiterFilter';
+import { useAntraegeStore } from '@/plugins/antraege/store';
 
 export function BearbeiterSichtChip(): React.ReactElement | null {
-  const { sicht, kannUmschalten, mode, eigeneTokens, setSicht } = useBearbeiterSicht();
+  const { sicht, kannUmschalten, ausFrage, mode, eigeneTokens, setSicht } = useBearbeiterSicht();
+  const setFrageKuerzel = useAntraegeStore(s => s.setFrageKuerzel);
   const navigate = useNavigate();
   const [offen, setOffen] = useState(false);
+
+  // Ausschnitt aus einer Frage („für Bearbeiter THÜ"): eigener Chip mit
+  // Rückweg. Ihn wie die eigene Sicht aussehen zu lassen wäre die Liste, die
+  // stumm den halben Bestand ausblendet — und die Umschalt-Optionen darunter
+  // beschrieben eine Wahl, die gerade gar nicht gilt (Pitfall #46).
+  if (ausFrage) {
+    return (
+      <button
+        type="button"
+        onClick={() => setFrageKuerzel(null)}
+        title="Der Ausschnitt kommt aus Ihrer Frage. Klick nimmt ihn zurück."
+        className="inline-flex items-center gap-1 px-2.5 py-[3px] rounded-full text-[11px] bg-[var(--tf-bg-secondary)] text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)] transition-colors shrink-0"
+      >
+        <User size={11} />
+        <span>{bearbeiterScopeLabel(mode)}</span>
+        <span className="text-[var(--tf-text-tertiary)]">· aus der Frage</span>
+        <X size={11} />
+      </button>
+    );
+  }
 
   // Feste Identität (MA-Login, prod): der Ausschnitt ist ans angemeldete Kürzel
   // gebunden. Der Chip nennt ihn weiterhin — ein Popover mit zwei toten Optionen

@@ -26,6 +26,7 @@
 // 2. Arg bleibt gesetzt, damit DirectLLM-Transporte (Eval-CLI) ihn trotzdem
 // als System-Rolle nutzen.
 
+import { einZugRegel } from '@/core/services/ai/ein-schuss-lauf';
 import type { AITransport, BridgeZiel, SubmitMessageOptions } from '@/core/services/ai/transports/streamlit';
 import type { FeedbackCategory, FeedbackContext, LLMClassification } from '@/core/types/feedback';
 import { FEEDBACK_TYPES, TEAMFLOW_AREAS } from '@/components/feedback/constants';
@@ -121,7 +122,7 @@ function buildUserPrompt(payload: FeedbackImprovePayload, context: FeedbackConte
  * Leere greift) neigt sonst zu mehrstufigen Plan-/Werkzeug-Schleifen, die Minuten
  * kosten und in seiner Wiederholungs-Erkennung enden.
  */
-const EIN_ZUG_REGEL = 'Antworte in EINEM Zug: kein Plan, keine Zwischenschritte, keine Werkzeuge, kein sichtbares Nachdenken — nur der JSON-Block.';
+const EIN_ZUG_REGEL = einZugRegel('der JSON-Block');
 
 /** Typ-Definition zur deterministisch feststehenden Kategorie (aus der Typ-Wahl). */
 function typDef(category?: FeedbackCategory): (typeof FEEDBACK_TYPES)[number] | undefined {

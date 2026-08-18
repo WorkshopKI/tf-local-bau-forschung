@@ -87,6 +87,14 @@ export interface BearbeiterSichtErgebnis {
   kannUmschalten: boolean;
   /** Der anzuwendende Filter-Modus (Sicht bereits eingerechnet). */
   mode: BearbeiterFilterMode;
+  /**
+   * Kommt der Ausschnitt aus einer Frage statt aus dem Profil?
+   *
+   * Der Chip muss das sagen und den Rückweg anbieten — ein Ausschnitt auf ein
+   * fremdes Kürzel, den man nicht als solchen erkennt, ist eine Liste, die
+   * stumm den halben Bestand ausblendet (Pitfall #46).
+   */
+  ausFrage: boolean;
   /** Das eigene Kürzel — auch in der „alle"-Sicht, damit der Chip den Rückweg
    *  beschriften kann („Meine Anträge (THü)"). In der Schreibweise der Daten,
    *  wo sie bekannt ist; **nur zum Anzeigen**. Leer ohne gesetztes Kürzel. */
@@ -103,6 +111,7 @@ export function useBearbeiterSicht(): BearbeiterSichtErgebnis {
   const inklBegleitung = profile?.bearbeiter_inkl_begleitung;
   // Nur als Quelle der SCHREIBWEISE (siehe unten) — gefiltert wird hier nichts.
   const antraege = useAntraegeStore(s => s.antraege);
+  const frageKuerzel = useAntraegeStore(s => s.frageKuerzel);
 
   return useMemo(() => {
     const eigen = parseBearbeiterFilter(meinKuerzel, inklBegleitung);
@@ -118,13 +127,25 @@ export function useBearbeiterSicht(): BearbeiterSichtErgebnis {
     // Ohne Umschalt-Recht gilt der Profil-Wert unverändert — eine im
     // localStorage liegengebliebene „alle"-Wahl darf einem prod-User mit
     // festem Kürzel nicht den ganzen Bestand aufmachen.
-    const mode = kannUmschalten ? sichtModus(eigen, sicht) : eigen;
+    const eigenerModus = kannUmschalten ? sichtModus(eigen, sicht) : eigen;
+    // Der Ausschnitt aus einer Frage („für Bearbeiter THÜ", v4.105) verdrängt
+    // das eigene Kürzel, solange er steht — aber NUR, wo die Identität nicht
+    // festgezurrt ist. Im MA-Login ist der Ausschnitt ans Passwort gebunden;
+    // eine Frage darf ihn dort so wenig aufmachen wie die „alle"-Wahl oben.
+    // Dass die Prüfung hier steht und nicht beim Aufrufer, ist der Grund, warum
+    // es dafür genau eine Regel gibt.
+    const fremdErlaubt = !identitaetFest;
+    const ausFrage = fremdErlaubt && frageKuerzel !== null && frageKuerzel.length > 0;
+    const mode = ausFrage
+      ? { active: true, tokens: frageKuerzel, includeBegleitung: eigen.includeBegleitung }
+      : eigenerModus;
     return {
       sicht: kannUmschalten ? sicht : 'meine',
       kannUmschalten,
+      ausFrage,
       mode: mode.active ? { ...mode, anzeigeTokens: anzeige(mode.tokens) } : mode,
       eigeneTokens: anzeige(eigen.tokens),
       setSicht,
     };
-  }, [meinKuerzel, inklBegleitung, istAngemeldet, sicht, setSicht, antraege]);
+  }, [meinKuerzel, inklBegleitung, istAngemeldet, sicht, setSicht, antraege, frageKuerzel]);
 }
