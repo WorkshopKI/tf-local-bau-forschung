@@ -42,6 +42,8 @@ import { useDichteStore } from './useDichteStore';
 import { useBeendetSichtbarkeit } from './useBeendetSichtbarkeit';
 import { useKopfFilter, alsAuswahl } from './kopfFilter';
 import { useEigeneReiter, type ReiterKern, type ReiterZustand } from './eigeneReiter';
+import { DEFAULT_BEENDET_SICHT } from './arbeitsvorrat';
+import type { ViewKey } from './views';
 import {
   SPEICHER_SPALTENBREITEN,
   SPEICHER_GESAMTBREITE,
@@ -153,4 +155,33 @@ export function wendeReiterAn(z: ReiterZustand): void {
   speichereSortStand(SPEICHER_KOPF_SORTIERUNG, z.kopfSortierung ?? { key: null, dir: 'desc' });
 
   useEigeneReiter.getState().meldeAngewendet();
+}
+
+/**
+ * Einen eigenen Reiter **verlassen** — der Klick auf einen festen Reiter.
+ *
+ * Ohne das war der Klick ein Nichts (v4.108): der eigene Reiter gilt als aktiv,
+ * solange der Stand seine Signatur trifft. Sitzt er auf derselben Basis, die man
+ * anklickt — der gemeldete Fall war „Antragsphase" —, ändert `setActiveView`
+ * nichts, die Signatur passt weiter, und die Leiste markiert unverändert den
+ * eigenen Reiter. Es sah aus, als reagiere die Leiste nicht.
+ *
+ * Abgeräumt wird der **Ausschnitt**, nicht die Anordnung: Filterleiste,
+ * Kopf-Auswahl und die Beendet-Sicht entscheiden, WELCHE Anträge dastehen — und
+ * genau darüber legt ein fester Reiter seine Zusage ab. Spaltensatz, Dichte,
+ * Gruppierung und Sortierung bleiben: sie sind eine Vorliebe, die man zwischen
+ * den Reitern mitnimmt, und sie zurückzusetzen hieße, dem Nutzer beim
+ * Reiterwechsel seine Tabelle umzubauen. Dass die Signatur schon durch das
+ * geräumte Ausschnitts-Feld nicht mehr trifft, genügt.
+ *
+ * Der Suchtext gehört zu keinem Reiter (er steht nicht im `ReiterKern`) und wird
+ * deshalb auch hier nicht angefasst.
+ */
+export function verlasseEigenenReiter(ziel: ViewKey): void {
+  useAntraegeStore.getState().setActiveView(ziel);
+  useFilterState.getState().clearAll();
+  useKopfFilter.getState().setzeStand({});
+  // Die Standardstellung wohnt bei den Optionen, nicht hier — dieselbe Quelle,
+  // aus der `useBeendetSichtbarkeit` sie beim Start liest.
+  useBeendetSichtbarkeit.getState().setAusgeblendet(DEFAULT_BEENDET_SICHT === 'aus');
 }

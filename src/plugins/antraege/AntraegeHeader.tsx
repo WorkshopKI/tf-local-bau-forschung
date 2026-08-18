@@ -7,7 +7,7 @@ import { useFilterState } from './filter/useFilterState';
 import { VIEWS, getView, type ViewKey } from './views';
 import { EigeneReiterMenue } from './EigeneReiterMenue';
 import { useEigeneReiter, passenderReiter, beschreibeZustand } from './eigeneReiter';
-import { useAktuellerKern, wendeReiterAn } from './reiterZustand';
+import { useAktuellerKern, wendeReiterAn, verlasseEigenenReiter } from './reiterZustand';
 import { ScopeTabs } from '@/components/ui/ScopeTabs';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { BereichChip } from '@/components/bereich/BereichChip';
@@ -280,6 +280,11 @@ export function AntraegeHeader({ filterOpen, onToggleFilter, listeSichtbar }: Pr
               onChange={key => {
                 const eigener = eigeneReiter.find(r => r.id === key);
                 if (eigener) { wendeReiterAn(eigener.zustand); return; }
+                // Steht gerade ein eigener Reiter, muss der Klick ihn auch
+                // VERLASSEN: seine Markierung hängt an der Signatur des Stands,
+                // und `setActiveView` allein ändert die nicht, wenn er auf
+                // derselben Basis sitzt (v4.108).
+                if (aktiverEigener) { verlasseEigenenReiter(key as ViewKey); return; }
                 setActiveView(key as ViewKey);
               }}
               aria-label="Ansicht"

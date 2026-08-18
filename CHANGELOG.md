@@ -5,6 +5,14 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.107.2 — Vom eigenen Reiter zurueck auf einen festen (August 2026)
+
+PATCH — Gemeldet: „wenn ich eigene Suche als Tab gespeichert habe, geht die Umschaltung zu anderen Tabs (insb. zum ersten Tab Antragsphase) nicht mehr." Die Markierung des eigenen Reiters hängt an der Signatur des Stands — sitzt er auf derselben Basis, ändert `setActiveView` nichts an ihr, und der Klick war ein Nichts.
+
+- **Der Klick auf einen festen Reiter verlässt den eigenen** (`verlasseEigenenReiter`) ([reiterZustand.ts](src/plugins/antraege/reiterZustand.ts))
+- **Abgeräumt wird der Ausschnitt, nicht die Anordnung**: Filterleiste, Kopf-Auswahl und Beendet-Sicht gehen, Spaltensatz und Dichte bleiben eine Vorliebe
+- **Gemessen in dev:local**: eigener Reiter 799 → Antragsphase 845 → und zurück, Filterzähler 1 → 0 ([verlasseEigenenReiter.test.ts](src/plugins/antraege/__tests__/verlasseEigenenReiter.test.ts))
+
 ### v4.107.1 — Das Vorschlags-Dropdown deckt die Suchhilfen nicht mehr zu (August 2026)
 
 PATCH — Gemeldet: das Verlaufs-Dropdown verdeckt die Reiterleiste der Suchhilfen komplett. Es zeigte dort denselben Verlauf, den der Reiter „Zuletzt" zwei Zeilen tiefer ungekürzt führt — und nahm dafür „Alle · Zuletzt · Suchsprache · Fragen · Stöbern" weg.

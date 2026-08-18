@@ -26,6 +26,7 @@
 ### Bugfixes
 - **Eine getippte Frage filtert die Liste nicht mehr, bevor sie gestellt wurde.** Bisher durchsuchte die Liste sofort den Wortlaut mit dem ganzen Fragesatz — der trifft naturgemäß keinen Antragstitel, also stand die Liste leer da, obwohl gar keine KI gefragt worden war. Jetzt bleibt sie unverändert, bis „Frage stellen" oder die Eingabetaste sie übersetzt hat; die Zeile darunter sagt, dass die Frage noch offen ist.
 - Auch **nach** einer erfolgreich übersetzten Frage wird der Satz nicht mehr als Stichwort gesucht: Fragen nach Status, Jahr oder PreCheck nennen kein Thema, und die Liste kam deshalb leer zurück.
+- **Vom eigenen Reiter kommt man wieder zurück.** War eine gemerkte Ansicht aktiv, tat der Klick auf einen festen Reiter — vor allem auf „Antragsphase" — nichts: die Markierung des eigenen Reiters hängt daran, dass der Stand zu ihm passt, und der bloße Reiterwechsel änderte daran nichts. Jetzt räumt er dabei den Ausschnitt ab, den der eigene Reiter mitbrachte (Filter, Spaltenkopf-Auswahl, Beendet-Sicht); Spaltensatz und Dichte bleiben.
 - **Das Vorschlags-Dropdown der Suche verdeckt die Suchhilfen nicht mehr.** Bei leerem Suchfeld klappt es nicht mehr auf — die Reiter „Alle · Zuletzt · Suchsprache · Fragen · Stöbern" liegen frei, und der Reiter „Zuletzt" führt denselben Verlauf ungekürzt. Sobald Sie tippen, schlägt das Feld wie bisher vor.
 
 ## v4.106 — 2026-08
