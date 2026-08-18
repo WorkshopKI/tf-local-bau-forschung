@@ -147,6 +147,18 @@ export function wirkungsAnzeige(w: RegelWirkung | undefined, istSperre: boolean)
     };
   }
 
+  // „trifft 21 · gewinnt 0" las sich bis v4.93 wie eine gewöhnliche Verdeckung.
+  // Eine Regel, die NIE gewinnt, steht aber in der Kaskade, ohne je etwas zu
+  // bestimmen — das ist ein Befund und kein Zahlenpaar.
+  if (w.gewinnt === 0) {
+    return {
+      kurz: `trifft ${zahl(w.trifftZu)} · gewinnt 0`,
+      lang: `Die Bedingung trifft auf ${zahl(w.trifftZu)} Vorgänge zu, aber diese Regel bestimmt `
+        + 'bei keinem das To-do — eine Regel weiter vorn in der Kaskade verdeckt sie überall.',
+      nullbefund: true,
+    };
+  }
+
   if (w.gewinnt === w.trifftZu) {
     return {
       kurz: `${zahl(w.gewinnt)} Vorgänge`,
@@ -283,4 +295,83 @@ export function sperrSatz(r: TodoRegel): string {
   // Ein einzelnes Glied ruht, mehrere ruhen — und zwei Teile sind immer mehrere.
   const einzahl = teile.length === 1 && straenge.length + ids.length === 1;
   return `${undListe(teile)} ${einzahl ? 'ruht' : 'ruhen'}${rest}`;
+}
+
+/**
+ * Eine Regel, die im gemessenen Bestand nichts bewirkt — und warum.
+ *
+ * Die drei Gründe sind drei verschiedene Fehler, und sie zusammenzuwerfen
+ * verschenkt die Auskunft: „trifft nie" heißt, die Bedingung beschreibt etwas
+ * anderes als gemeint; „immer verdeckt" heißt, die Bedingung stimmt, aber die
+ * Kaskaden-Position ist falsch; „greift nie" ist dasselbe für eine Sperre.
+ */
+export interface WirkungsBefund {
+  regel: TodoRegel;
+  grund: 'trifft nie' | 'immer verdeckt' | 'greift nie';
+}
+
+/**
+ * Der Kurzname, unter dem eine Regel im Fachgespräch läuft — „R23b" aus
+ * „R23b · PreCheck Verbund offen (nur FuE/DS)".
+ *
+ * Ohne den Trenner bleibt die ganze Beschreibung stehen: lieber eine lange
+ * Bilanzzeile als eine Regel, die niemand wiederfindet.
+ */
+export function regelKurzname(r: TodoRegel): string {
+  const kopf = r.beschreibung.split(' · ')[0]?.trim();
+  return kopf !== undefined && kopf.length > 0 ? kopf : r.beschreibung;
+}
+
+/**
+ * Welche Regeln des Satzes im gemessenen Bestand nichts bewirken.
+ *
+ * **Stillgelegte bleiben draußen.** Eine ausgeschaltete Regel tut
+ * erwartungsgemäß nichts; sie mitzuzählen machte die Bilanz zur Anzeige des
+ * eigenen `aktiv`-Hakens. Gezählt wird nur, was tatsächlich ausgewertet wird —
+ * dieselbe Regel wie bei den Datumsfeldern je Verfahrensschritt (v4.92).
+ *
+ * Ohne Messlauf gibt es KEINE Befunde (leere Liste), nicht „alle wirkungslos".
+ */
+export function wirkungsloseRegeln(
+  alle: readonly TodoRegel[],
+  wirkung: ReadonlyMap<string, RegelWirkung> | null,
+  satz: Rolle,
+): WirkungsBefund[] {
+  if (wirkung === null) return [];
+  const befunde: WirkungsBefund[] = [];
+  for (const r of sichtbareRegeln(alle, satz)) {
+    if (!r.aktiv) continue;
+    const w = wirkung.get(r.id);
+    if (w === undefined) continue;
+    const { istSperre } = zustandsMarker(r, satz, []);
+    if (istSperre) {
+      if (w.greift === 0) befunde.push({ regel: r, grund: 'greift nie' });
+    } else if (w.trifftZu === 0) {
+      befunde.push({ regel: r, grund: 'trifft nie' });
+    } else if (w.gewinnt === 0) {
+      befunde.push({ regel: r, grund: 'immer verdeckt' });
+    }
+  }
+  return befunde;
+}
+
+/**
+ * Die Bilanzzeile über der Kaskade: **die wirkungslosen Regeln namentlich**.
+ *
+ * Sie zu zählen genügte nicht — „2 Regeln ohne Wirkung" schickt jemanden durch
+ * dreißig Zeilen. Der Name steht deshalb da, wie bei den Schritten ohne Datum.
+ * Und wenn nichts fehlt, sagt die Zeile das ausdrücklich: Schweigen läse sich
+ * als „noch nicht geprüft".
+ */
+export function wirkungsBilanzText(
+  alle: readonly TodoRegel[],
+  wirkung: ReadonlyMap<string, RegelWirkung> | null,
+  satz: Rolle,
+): string | null {
+  if (wirkung === null) return null;
+  const befunde = wirkungsloseRegeln(alle, wirkung, satz);
+  if (befunde.length === 0) return 'jede ausgewertete Regel wirkt';
+  const liste = befunde.map(b => `${regelKurzname(b.regel)} (${b.grund})`).join(' · ');
+  return `${befunde.length === 1 ? 'eine Regel bleibt' : `${befunde.length} Regeln bleiben`} `
+    + `ohne Wirkung: ${liste}`;
 }

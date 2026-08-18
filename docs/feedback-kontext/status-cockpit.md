@@ -230,6 +230,16 @@ wird.
     greift. Ohne Lauf steht nichts. Wird danach umsortiert oder bearbeitet,
     gelten die Zahlen als „Stand vor der letzten Änderung" — neu gerechnet wird
     nur auf Knopfdruck.
+    - Am Ende derselben Zeile steht die **Bilanz der Kaskade**, und sie nennt
+      die wirkungslosen Regeln **namentlich**: „2 Regeln bleiben ohne Wirkung:
+      R10 (trifft nie) · R23b (immer verdeckt)". Eine Anzahl allein schickte
+      jemanden durch dreißig Zeilen. Die drei Gründe sind drei verschiedene
+      Fehler — eine Bedingung, die etwas anderes beschreibt als gemeint; eine
+      richtige Bedingung an der falschen Kaskaden-Position; eine Sperre, die
+      nirgends greift. Wirkt alles, steht das ausdrücklich da, denn Schweigen
+      läse sich als „noch nicht geprüft".
+    - **Stillgelegte Regeln bleiben draußen.** Sie tun erwartungsgemäß nichts;
+      mitgezählt wäre die Bilanz eine Anzeige des eigenen aktiv-Hakens.
   - **Probe am Fall**: ein Aktenzeichen eingeben, und es steht da, welche Regel
     bei diesem Vorgang gewinnt, welche Sperren griffen und mit welchen
     Feldwerten — dieselbe Ansicht wie am Antrag. Ein unbekanntes Aktenzeichen

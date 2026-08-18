@@ -19,6 +19,15 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.95 — 2026-08
+
+### Neu
+- In den Vorgangs-Regeln sagt der Messlauf jetzt auch, **welche Regeln gar nichts bewirken** — mit Namen und Grund, statt sie nur zu zählen. Aktuell sind das zwei von dreißig: eine trifft auf keinen Vorgang zu, eine wird immer von einer Regel weiter vorn verdeckt.
+### Verbesserungen
+<!-- - … -->
+### Bugfixes
+<!-- - … -->
+
 ## v4.94 — 2026-08
 
 ### Neu

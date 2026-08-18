@@ -670,6 +670,35 @@ dann automatisch dazu. `istGesperrt` nimmt deshalb die **Regel**, nicht ihre Id.
 gewollte Lesart — und die Falle, vor der der Regel-Editor warnt, sobald im
 gezeigten Regelsatz tatsächlich eine Strang-Sperre greift.
 
+## 11b. Wirkungslose Regeln haben einen Namen (v4.95)
+
+Der Messlauf „Wirkung am Bestand" stand seit v2.396 hinter einem Knopf und
+lieferte je Regel zwei Zahlen. Was er **nicht** lieferte, war das Urteil: eine
+Regel mit „trifft 21 · gewinnt 0" las sich wie jede andere Teilverdeckung, war
+aber etwas anderes — sie steht in der Kaskade, ohne je etwas zu bestimmen.
+
+Die Bilanzzeile am Kopf der Liste nennt diese Regeln jetzt **namentlich**
+([todoRegelnAnsicht.ts](../../src/plugins/status-cockpit/todoRegelnAnsicht.ts),
+`wirkungsloseRegeln` / `wirkungsBilanzText`). Drei Gründe, drei verschiedene
+Fehler:
+
+| Grund | Was daran falsch ist |
+|---|---|
+| `trifft nie` | Die Bedingung beschreibt etwas anderes als gemeint — oder der Fall ist ausgestorben. |
+| `immer verdeckt` | Die Bedingung stimmt, die **Kaskaden-Position** ist falsch. |
+| `greift nie` | Dasselbe für eine Sperre; dort ist `greift` die Aussage, nicht `gewinnt`. |
+
+**Stillgelegte Regeln bleiben draußen** — sie tun erwartungsgemäß nichts;
+mitgezählt wäre die Bilanz eine Anzeige des eigenen `aktiv`-Hakens. Dieselbe
+Regel wie bei den Datumsfeldern je Verfahrensschritt (v4.92): gezählt wird nur,
+was tatsächlich ausgewertet wird.
+
+**Der Befund vom 18.08.2026** (12.359 Vorgänge, Richtlinien 2015 + 2020 + 2025,
+Regelsatz AB): zwei der 30 Regeln bleiben ohne Wirkung — `R10`
+(Nachlieferungstermin verstrichen) trifft auf keinen Vorgang zu, `R23b`
+(PreCheck Verbund offen) trifft auf 21 und gewinnt bei keinem. Beide gehören auf
+die Tagesordnung des Fachtermins, nicht in den nächsten Messlauf.
+
 **Die Stränge des ausgelieferten Satzes**: `precheck` (R1, R2, R23a, R23b),
 `nachforderung` (R22, R24, R25), `rne` (R6–R9), `ablehnung` (R11–R16),
 `gutachten` (R17–R21), `zuwb` (R3), `schluss` (R4, R5). **R10**

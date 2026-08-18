@@ -10,6 +10,7 @@
  * mit drei Badges, Haken, Id und „Bearbeiten" auf fünf Zeilen um und wäre höher
  * als vor dem Umbau — der Zweck der Sache schlüge ins Gegenteil um.
  */
+import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { REGELSATZ_DEFAULT, ROLLE_LABEL, type MappingVersion, type Rolle, type TodoRegel } from '@/core/status';
@@ -18,7 +19,7 @@ import { TodoRegelKarte } from './TodoRegelKarte';
 import { TodoRegelZeile } from './TodoRegelZeile';
 import { TodoPlatzhalterListe } from './TodoPlatzhalterListe';
 import { zaehlwort } from '@/core/utils/zaehlwort';
-import type { TodoRegelnApi } from './todoRegelnAnsicht';
+import { wirkungsBilanzText, wirkungsloseRegeln, type TodoRegelnApi } from './todoRegelnAnsicht';
 import type { PlatzhalterLauf } from './usePlatzhalterErhebung';
 import type { WirkungsLauf } from './useRegelWirkung';
 import type { ProbeLauf } from './useRegelProbelauf';
@@ -52,6 +53,17 @@ export function TodoRegelListe({
   unbekannteJeRegel: ReadonlyMap<string, readonly string[]>;
 }): React.ReactElement {
   const navigate = useNavigate();
+  // Die Gesundheit der Kaskade: welche Regeln stehen drin, ohne je etwas zu
+  // bestimmen. Ohne Messlauf ist beides leer bzw. `null` — keine Behauptung
+  // ohne Zahlen.
+  const befunde = useMemo(
+    () => wirkungsloseRegeln(regeln, wirkung.wirkung, satz),
+    [regeln, wirkung.wirkung, satz],
+  );
+  const bilanz = useMemo(
+    () => wirkungsBilanzText(regeln, wirkung.wirkung, satz),
+    [regeln, wirkung.wirkung, satz],
+  );
   const { neu, geaendert, entfallen } = api.todoDrift;
   const driftGesamt = neu.length + geaendert.length + entfallen.length;
   const driftSatz = [
@@ -99,6 +111,16 @@ export function TodoRegelListe({
                     <strong className="text-[var(--tf-warning-text)]">
                       {' '}· Regeln seit dem Lauf geändert — die Zahlen sind der Stand von vorher.
                     </strong>
+                  )}
+                  {/* Die Bilanz NAMENTLICH, nicht als Anzahl: „2 Regeln ohne
+                      Wirkung" schickt jemanden durch dreissig Zeilen. Dieselbe
+                      Regel wie bei den Schritten ohne Datum (v4.92). */}
+                  {bilanz !== null && (
+                    <span className={befunde.length > 0
+                      ? 'text-[var(--tf-warning-text)]'
+                      : 'text-[var(--tf-text-tertiary)]'}>
+                      {' '}· {bilanz}
+                    </span>
                   )}
                 </>
               )}
