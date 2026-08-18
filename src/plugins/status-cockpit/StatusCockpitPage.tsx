@@ -30,6 +30,7 @@ import { KlaerfragenTab } from './KlaerfragenTab';
 import { RegelnTab } from './RegelnTab';
 import { ReferenzdatenSektion } from './ReferenzdatenSektion';
 import { KatalogKonfliktDialog } from './KatalogKonfliktDialog';
+import { zaehleStatus } from './katalogZeilen';
 import {
   TAB_LABEL, TAB_ZWECK, feldStil, formatZeitpunkt, tabAusParameter, type TabKey,
 } from './labels';
@@ -434,7 +435,9 @@ export function StatusCockpitPage(): React.ReactElement {
     );
   }
 
-  const werteCount = api.entwurf?.werte.length ?? 0;
+  // Status, nicht Katalogzeilen: derselbe Code steht unter TV- und Verbund-Feld,
+  // und der Baum daneben zählt ihn seit jeher einmal.
+  const werteCount = zaehleStatus(api.entwurf?.werte ?? []);
   const felderCount = api.entwurf?.felder.length ?? 0;
 
   return (

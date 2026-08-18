@@ -195,7 +195,7 @@ export {
   type VerbundFelder,
 } from './cockpit-berechnung';
 export {
-  aendereWert, aendereFeld, fuegeWertHinzu, fuegeFeldHinzu,
+  aendereWert, aendereCodeWerte, aendereFeld, fuegeWertHinzu, fuegeFeldHinzu,
   fuegeKategorieHinzu, aendereKategorie, entferneKategorie,
   ergaenzeSeedFelder, type ErgaenzungsErgebnis,
   seedTextAbweichungen, uebernimmSeedTexte, type TextAbweichung,

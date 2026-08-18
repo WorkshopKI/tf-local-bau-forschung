@@ -22,6 +22,31 @@ export function aendereWert(
   };
 }
 
+/**
+ * Ändert **alle Katalogzeilen eines Status-Codes** in einem Zug.
+ *
+ * Derselbe Code steht im Katalog zweimal — unter `status` (TV) und unter
+ * `verbund_status` (Verbund). Gemessen an Fassung 25 sagen alle 30 Paare in
+ * jedem kuratierten Feld dasselbe; das ist kein Zufall, sondern die Absicht:
+ * ein Status bedeutet dasselbe, egal auf welcher Ebene er steht. Nur eine der
+ * beiden Zeilen zu ändern hieße, zwei Wahrheiten über einen Status zu führen —
+ * dieselbe Begründung wie bei {@link setzeKurzLabel} und `setzeCodePhasen`,
+ * die den Code aus genau diesem Grund schon als Schlüssel nehmen.
+ *
+ * `id` und `feldId` bleiben unangetastet: sie sind die Identität der Zeile,
+ * nicht ihr Inhalt.
+ */
+export function aendereCodeWerte(
+  version: MappingVersion, code: number, patch: Partial<StatusWertEintrag>,
+): MappingVersion {
+  return {
+    ...version,
+    werte: version.werte.map(w => (
+      w.code === code ? { ...w, ...patch, id: w.id, feldId: w.feldId, code: w.code } : w
+    )),
+  };
+}
+
 export function aendereFeld(
   version: MappingVersion, feldId: string, patch: Partial<StatusFeldEintrag>,
 ): MappingVersion {

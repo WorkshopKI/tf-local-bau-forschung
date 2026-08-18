@@ -45,7 +45,7 @@ import { feldLabel, ohneVerwaiste, SEED_ZAH_PHASEN } from '@/core/status';
 import type { StatusCategory, Prominenz, UnkuratierterFund } from '@/core/status';
 import { KatalogDriftZeile } from './KatalogDriftZeile';
 import { KurzLabelPflege } from './KurzLabelPflege';
-import { baueKatalogZeilen, effektiveKategorieVon } from './katalogZeilen';
+import { baueKatalogZeilen, effektiveKategorieVon, zaehleStatus } from './katalogZeilen';
 import { baueKatalogSpalten } from './katalogSpalten';
 import { exportiereKatalogXlsx } from './katalogExport';
 import {
@@ -168,7 +168,7 @@ export function KatalogTab({ api }: { api: StatusCockpitApi }): React.ReactEleme
 
   const spalten = useMemo(
     () => baueKatalogSpalten({
-      zeigeZieltage, setWert: api.setWert, setKurzLabel: api.setKurzLabel,
+      zeigeZieltage, setWert: api.setWert, setCodeWert: api.setCodeWert, setKurzLabel: api.setKurzLabel,
     }),
     [zeigeZieltage, api.setWert, api.setKurzLabel],
   );
@@ -211,7 +211,7 @@ export function KatalogTab({ api }: { api: StatusCockpitApi }): React.ReactEleme
             onChange={k => setSicht(k as Sicht)}
             items={[
               { key: 'baum', label: 'Phasen und Zuordnung' },
-              { key: 'tabelle', label: 'Tabelle', count: werte.length },
+              { key: 'tabelle', label: 'Tabelle', count: zaehleStatus(werte) },
             ]}
           />
           <PhasenAustausch api={api} />

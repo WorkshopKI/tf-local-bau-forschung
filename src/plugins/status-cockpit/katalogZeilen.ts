@@ -22,10 +22,35 @@ import type { StatusWertEintrag, StatusCategory, ZahPhase } from '@/core/status'
 import { wertId } from './useStatusCockpit';
 import { KATEGORIE_WERTE } from './labels';
 
-/** Eine Tabellenzeile: der Eintrag plus alles, was die Anzeige daraus macht. */
+/**
+ * Eine Tabellenzeile: **ein Status-Code**, nicht eine Katalogzeile.
+ *
+ * Derselbe Code steht im Katalog zweimal — unter `status` (TV) und unter
+ * `verbund_status`. Bis v4.96 stand er deshalb auch zweimal in der Tabelle, mit
+ * identischen Werten in jeder kuratierten Spalte: 60 Zeilen für 30 Status, und
+ * der Reiterzähler sagte 60, während der Baum daneben 30 zeigte. Gemessen über
+ * 25 Fassungen wich kein einziges Paar in irgendeinem Feld voneinander ab.
+ *
+ * Gefaltet wird die ANZEIGE, nicht die Ablage: geschrieben werden weiter beide
+ * Zeilen (`aendereCodeWerte`). Wo zwei Zeilen doch einmal auseinanderlaufen,
+ * sagt {@link KatalogZeile.abweichend} welche Felder — verschwiegen würde daraus
+ * sonst eine stille Halbwahrheit.
+ */
 export interface KatalogZeile {
-  /** Der kuratierte Eintrag — Quelle jeder Änderung (`api.setWert`). */
+  /**
+   * Der führende Eintrag — Quelle der Anzeige. Bei einem Code mit zwei Zeilen
+   * die TV-Zeile; Änderungen laufen über den CODE, nicht über diese Id.
+   */
   w: StatusWertEintrag;
+  /** Alle Katalogzeilen dieses Codes (1 oder 2). */
+  eintraege: readonly StatusWertEintrag[];
+  /** Auf welchen Ebenen der Status geführt wird — `['TV', 'Verbund']`. */
+  ebenen: readonly string[];
+  /**
+   * Kuratierte Felder, in denen die beiden Zeilen NICHT dasselbe sagen.
+   * Regelfall ist die leere Menge; ein Eintrag hier ist ein Befund.
+   */
+  abweichend: readonly string[];
   /** Kuratierter Feldname (angezeigt). */
   feldName: string;
   /** Rohe CSV-Spalte(n) — im Tooltip, im Export eine eigene Spalte. */
@@ -89,6 +114,33 @@ export interface ZeilenKontext {
   liegezeitVorschlag: ReadonlyMap<number, { median: number; n: number }>;
 }
 
+/**
+ * Die kuratierten Felder, die zwischen TV- und Verbund-Zeile übereinstimmen
+ * müssen — genau die, die die gefaltete Tabelle anzeigt und schreibt.
+ *
+ * `id`, `feldId` und `wert` stehen NICHT dabei: das ist die Identität der
+ * Zeile, dort ist der Unterschied gewollt.
+ */
+const GEFALTETE_FELDER = [
+  ['label', 'Label'], ['kurzLabel', 'Kurzform'], ['kategorie', 'Arbeitsliste'],
+  ['prominenz', 'Prominenz'], ['zieltage', 'Zieltage'], ['aktiv', 'aktiv'],
+  ['zahPhaseId', 'Verfahrensschritt'],
+] as const;
+
+/** Welche der gefalteten Felder zwischen den Zeilen eines Codes auseinanderlaufen. */
+function abweichungen(eintraege: readonly StatusWertEintrag[]): string[] {
+  if (eintraege.length < 2) return [];
+  const [erste, ...rest] = eintraege;
+  return GEFALTETE_FELDER
+    .filter(([feld]) => rest.some(w => w[feld] !== erste![feld]))
+    .map(([, label]) => label);
+}
+
+/** Die Ebene einer Katalogzeile, in der Sprache der Oberfläche. */
+function ebeneVon(w: StatusWertEintrag): string {
+  return w.feldId.startsWith('verbund') ? 'Verbund' : 'TV';
+}
+
 export function baueKatalogZeilen(
   werte: readonly StatusWertEintrag[],
   ctx: ZeilenKontext,
@@ -97,8 +149,23 @@ export function baueKatalogZeilen(
   const rangVonPhase = new Map(phasen.map((p, i) => [p.id, i]));
   const labelVonPhase = new Map(phasen.map(p => [p.id, p.label]));
 
-  return werte.map(w => {
-    const key = wertId(w.feldId, w.wert);
+  // Eine Zeile je CODE. Werte ohne Code (es gibt sie im Modell, nicht im
+  // heutigen Bestand) bleiben für sich — dort gibt es nichts zu falten.
+  const gruppen: StatusWertEintrag[][] = [];
+  const jeCode = new Map<number, StatusWertEintrag[]>();
+  for (const w of werte) {
+    if (w.code === undefined) { gruppen.push([w]); continue; }
+    const vorhanden = jeCode.get(w.code);
+    if (vorhanden) { vorhanden.push(w); continue; }
+    const neu = [w];
+    jeCode.set(w.code, neu);
+    gruppen.push(neu);
+  }
+
+  return gruppen.map(eintraege => {
+    // Die TV-Zeile führt, wo es sie gibt: sie trägt den Status, den die Regeln
+    // überwiegend lesen.
+    const w = eintraege.find(e => ebeneVon(e) === 'TV') ?? eintraege[0]!;
     const phase = phaseVon(w);
     const effektiveKategorie = effektiveKategorieVon(w);
     // Ohne amtlichen Code gibt es keinen Schritt — nicht „Marker", sondern gar
@@ -108,15 +175,38 @@ export function baueKatalogZeilen(
       : (phase !== null ? labelVonPhase.get(phase) ?? ZAH_MARKER_LABEL : ZAH_MARKER_LABEL);
     return {
       w,
-      feldName: ctx.feldName(w.feldId),
-      csvSpalte: ctx.csvSpalte(w.feldId),
+      eintraege,
+      ebenen: eintraege.map(ebeneVon),
+      abweichend: abweichungen(eintraege),
+      feldName: eintraege.map(e => ctx.feldName(e.feldId)).join(' · '),
+      csvSpalte: eintraege.map(e => ctx.csvSpalte(e.feldId)).join(' · '),
       effektiveKategorie,
       kategorieRang: KATEGORIE_WERTE.indexOf(effektiveKategorie),
       phaseLabel,
       phaseRang: (phase !== null ? rangVonPhase.get(phase) : undefined) ?? RANG_OHNE_SCHRITT,
-      vorkommen: ctx.vorkommen.get(key) ?? 0,
-      zuletzt: ctx.zuletzt.get(key) ?? '',
+      // Summiert bzw. das jüngste: die Zahl gilt jetzt für den Status, nicht
+      // für eine seiner beiden Katalogzeilen.
+      vorkommen: eintraege.reduce((n, e) => n + (ctx.vorkommen.get(wertId(e.feldId, e.wert)) ?? 0), 0),
+      zuletzt: eintraege
+        .map(e => ctx.zuletzt.get(wertId(e.feldId, e.wert)) ?? '')
+        .reduce((a, b) => (b > a ? b : a), ''),
       vorschlag: w.code !== undefined ? ctx.liegezeitVorschlag.get(w.code) : undefined,
     };
   });
+}
+
+/**
+ * Wie viele **Status** die Fassung führt — nicht wie viele Katalogzeilen.
+ *
+ * Der Reiterzähler sagte bis v4.95 „60", während der Baum daneben 30 zeigte und
+ * die Drift-Zeile ausdrücklich „gezählt werden Status, keine Katalogzeilen"
+ * schrieb. Drei Stellen, zwei Vokabulare. Das hier ist das eine.
+ */
+export function zaehleStatus(werte: readonly StatusWertEintrag[]): number {
+  const codes = new Set<number>();
+  let ohneCode = 0;
+  for (const w of werte) {
+    if (w.code === undefined) ohneCode += 1; else codes.add(w.code);
+  }
+  return codes.size + ohneCode;
 }

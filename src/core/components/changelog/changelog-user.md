@@ -19,6 +19,12 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.98 — 2026-08
+
+### Verbesserungen
+- In den **Vorgangs-Regeln** steht jeder Status jetzt **einmal** statt zweimal. Das Fachsystem führt ihn auf zwei Ebenen (Teilvorhaben und Verbund), und deshalb stand er doppelt in der Tabelle — mit überall denselben Werten. Eine neue Spalte „Ebene" sagt, wo er gilt; eine Änderung wirkt auf beide.
+- Damit sagen Reiter, Umschalter und Baum endlich dieselbe Zahl.
+
 ## v4.97 — 2026-08
 
 ### Verbesserungen

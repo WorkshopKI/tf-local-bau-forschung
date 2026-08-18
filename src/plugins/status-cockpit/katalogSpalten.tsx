@@ -39,33 +39,69 @@ export interface SpaltenKontext {
   /** Zieltage + Verfahrensschritt nur im Vorgangssystem — sonst ohne Konsument. */
   zeigeZieltage: boolean;
   setWert: (id: string, patch: Partial<StatusWertEintrag>) => void;
+  /**
+   * Der Weg der gefalteten Tabelle: eine Zeile je CODE, geschrieben werden
+   * beide Katalogzeilen (TV und Verbund). Für Werte ohne Code fällt die
+   * Änderung auf `setWert` zurück.
+   */
+  setCodeWert: (code: number, patch: Partial<StatusWertEintrag>) => void;
   /** Kurzform je CODE (nicht je Wert-Id) — siehe `setzeKurzLabel`. */
   setKurzLabel: (code: number, kurz: string) => void;
 }
 
 export function baueKatalogSpalten(ctx: SpaltenKontext): SortableColumn<KatalogZeile>[] {
-  const { zeigeZieltage, setWert, setKurzLabel } = ctx;
+  const { zeigeZieltage, setWert, setCodeWert, setKurzLabel } = ctx;
+  /**
+   * Eine Änderung an der gefalteten Zeile trifft den ganzen Status — beide
+   * Katalogzeilen. Nur wo kein Code die Klammer bildet, bleibt es bei der
+   * einzelnen Zeile.
+   */
+  const aendere = (z: KatalogZeile, patch: Partial<StatusWertEintrag>): void => {
+    if (z.w.code === undefined) setWert(z.w.id, patch); else setCodeWert(z.w.code, patch);
+  };
   const spalten: SortableColumn<KatalogZeile>[] = [
     {
       // Der kuratierte Feldname, nicht die technische feldId („status" ist der
       // TV-Status). feldId und rohe CSV-Spalte stehen im Tooltip — im Katalog
       // wird kuratiert, nicht gegen den Export-Dump gearbeitet. Als Beleg
       // reicht ein Tooltip nicht: der Export führt die Spalte weiter einzeln.
+      // Seit v4.96 sagt die Spalte, auf welchen EBENEN der Status geführt wird,
+      // statt den Feldnamen zu wiederholen: gefaltet steht jeder Status einmal
+      // da, und „TV · Verbund" ist die Auskunft, die vorher aus zwei
+      // gleichlautenden Zeilen erraten werden musste.
       key: 'feld',
-      label: 'Feld',
+      label: 'Ebene',
+      hilfe: {
+        satz: 'Auf welchen Ebenen das Fachsystem diesen Status führt.',
+        regel: 'Derselbe Code steht im Katalog unter dem TV-Feld und unter dem Verbund-Feld. '
+          + 'Beide sagen dasselbe; die Tabelle zeigt ihn einmal, und eine Änderung trifft beide. '
+          + 'Laufen sie doch auseinander, steht ein ≠ daneben.',
+      },
       defaultVisible: true,
       sortable: true,
       filterable: true,
-      width: 148,
+      width: 116,
       wrap: false,
-      accessor: z => z.feldName,
-      filterAccessor: z => z.feldName,
+      accessor: z => z.ebenen.join(' · '),
+      filterAccessor: z => z.ebenen.join(' · '),
       render: z => (
         <span
           className="text-[12px] text-[var(--tf-text-secondary)]"
-          title={`Feld-Id: ${z.w.feldId} · CSV-Spalte: ${z.csvSpalte}`}
+          title={`${z.feldName} · CSV-Spalte: ${z.csvSpalte}`}
         >
-          {z.feldName}
+          {z.ebenen.join(' · ')}
+          {/* Der Regelfall ist die leere Menge. Steht hier etwas, sagen die
+              beiden Katalogzeilen NICHT dasselbe — das darf die Faltung nicht
+              verschweigen. */}
+          {z.abweichend.length > 0 && (
+            <span
+              className="ml-1.5 text-[var(--tf-warning-text)]"
+              title={`TV und Verbund sagen Verschiedenes: ${z.abweichend.join(', ')}. `
+                + 'Die nächste Änderung hier gleicht beide an.'}
+            >
+              ≠
+            </span>
+          )}
         </span>
       ),
     },
@@ -99,7 +135,7 @@ export function baueKatalogSpalten(ctx: SpaltenKontext): SortableColumn<KatalogZ
       render: z => (
         <input
           value={z.w.label ?? ''} placeholder="wie Rohwert" className={feldKlasse} style={feldStil}
-          onChange={e => setWert(z.w.id, { label: e.target.value })}
+          onChange={e => aendere(z, { label: e.target.value })}
         />
       ),
     },
@@ -171,7 +207,7 @@ export function baueKatalogSpalten(ctx: SpaltenKontext): SortableColumn<KatalogZ
           {z.w.code === undefined ? (
             <select
               value={z.w.kategorie} className={feldKlasse} style={feldStil}
-              onChange={e => setWert(z.w.id, { kategorie: e.target.value as StatusCategory })}
+              onChange={e => aendere(z, { kategorie: e.target.value as StatusCategory })}
             >
               {KATEGORIE_WERTE.map(k => <option key={k} value={k}>{KATEGORIE_LABEL[k]}</option>)}
             </select>
@@ -211,7 +247,7 @@ export function baueKatalogSpalten(ctx: SpaltenKontext): SortableColumn<KatalogZ
       render: z => (
         <select
           value={z.w.prominenz} className={feldKlasse} style={feldStil}
-          onChange={e => setWert(z.w.id, { prominenz: e.target.value as Prominenz })}
+          onChange={e => aendere(z, { prominenz: e.target.value as Prominenz })}
         >
           {PROMINENZ_WERTE.map(p => <option key={p} value={p}>{PROMINENZ_LABEL[p]}</option>)}
         </select>
@@ -264,7 +300,7 @@ export function baueKatalogSpalten(ctx: SpaltenKontext): SortableColumn<KatalogZ
               type="number" min={0} value={z.w.zieltage ?? ''} placeholder="—"
               className={`${feldKlasseSchmal} w-[58px]`} style={feldStil}
               title="Nach wie vielen Tagen ohne Aktivität gilt dieser Status als hängend? Leer = nicht bewertbar."
-              onChange={e => setWert(z.w.id, {
+              onChange={e => aendere(z, {
                 zieltage: e.target.value === '' ? null
                   : (Number.isFinite(e.target.valueAsNumber) ? e.target.valueAsNumber : null),
               })}
@@ -274,7 +310,7 @@ export function baueKatalogSpalten(ctx: SpaltenKontext): SortableColumn<KatalogZ
             {z.vorschlag !== undefined && z.w.zieltage !== z.vorschlag.median && (
               <button
                 type="button"
-                onClick={() => setWert(z.w.id, { zieltage: z.vorschlag!.median })}
+                onClick={() => aendere(z, { zieltage: z.vorschlag!.median })}
                 title={`Median der Ist-Liegezeiten: ${z.vorschlag.median} Tage (n = ${z.vorschlag.n})`}
                 className="text-[10.5px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text)] cursor-pointer underline whitespace-nowrap"
               >
@@ -303,7 +339,7 @@ export function baueKatalogSpalten(ctx: SpaltenKontext): SortableColumn<KatalogZ
         <div className="flex justify-center">
           <input
             type="checkbox" className="accent-[var(--tf-primary)] cursor-pointer" checked={z.w.aktiv}
-            onChange={e => setWert(z.w.id, { aktiv: e.target.checked })}
+            onChange={e => aendere(z, { aktiv: e.target.checked })}
           />
         </div>
       ),

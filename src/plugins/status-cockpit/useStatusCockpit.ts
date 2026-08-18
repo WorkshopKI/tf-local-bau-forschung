@@ -26,7 +26,7 @@ import {
   ladeUnkuratierteFelder, speichereUnkuratierteFelder, pruneKuratierteFelder,
   baueVerbundFelder, zaehleVorkommen, zuletztGesehen,
   csvSpaltenJeFeld, baueFeldAufloesung,
-  aendereWert, aendereFeld, aendereTodoRegel, verschiebeTodoRegel,
+  aendereWert, aendereCodeWerte, aendereFeld, aendereTodoRegel, verschiebeTodoRegel,
   fuegeTodoRegelHinzu, codesMitRolle, ROLLE_LABEL,
   fuegeWertHinzu, fuegeFeldHinzu,
   fuegeKategorieHinzu, aendereKategorie, entferneKategorie, ergaenzeSeedFelder,
@@ -138,6 +138,8 @@ export interface StatusCockpitApi {
    */
   neueFassungAufShare: number | null;
   setWert: (id: string, patch: Partial<StatusWertEintrag>) => void;
+  /** Beide Katalogzeilen eines Codes auf einmal — der Weg der gefalteten Tabelle. */
+  setCodeWert: (code: number, patch: Partial<StatusWertEintrag>) => void;
   /**
    * Die kuratierte Kurzform je CODE (leer = Kuration zurücknehmen, dann gilt
    * wieder die Auslieferung). Nicht je Wert-Id: derselbe Code steht unter
@@ -818,6 +820,14 @@ export function useStatusCockpit(): StatusCockpitApi {
   const setWert = useCallback((id: string, patch: Partial<StatusWertEintrag>) => {
     setEntwurf(v => (v ? aendereWert(v, id, patch) : v));
   }, []);
+  /**
+   * Der Weg für die gefaltete Tabelle: eine Zeile je CODE, und die Änderung
+   * trifft beide Katalogzeilen (TV und Verbund). Ein Status bedeutet auf beiden
+   * Ebenen dasselbe — siehe `aendereCodeWerte`.
+   */
+  const setCodeWert = useCallback((code: number, patch: Partial<StatusWertEintrag>) => {
+    setEntwurf(v => (v ? aendereCodeWerte(v, code, patch) : v));
+  }, []);
   const setKurzLabel = useCallback((code: number, kurz: string) => {
     setEntwurf(v => (v ? setzeKurzLabel(v, new Map([[code, kurz]])) : v));
   }, []);
@@ -1125,7 +1135,7 @@ export function useStatusCockpit(): StatusCockpitApi {
     konfliktOeffnen: () => setKonfliktOffen(true),
     konfliktSchliessen: () => setKonfliktOffen(false),
     trotzdemVeroeffentlichen, fremdeFassungLaden, neueFassungAufShare,
-    setWert, setKurzLabel, setFeld, setKategorie, addKategorie, removeKategorie,
+    setWert, setCodeWert, setKurzLabel, setFeld, setKategorie, addKategorie, removeKategorie,
     setZahPhase, addZahPhase, removeZahPhase, moveZahPhase, setCodePhase,
     uebernehmen, uebernehmeFeld, seedNachziehen, texteUebernehmen,
     darfSchreiben, statusCodesUebernehmen, trigger, triggerUebernehmen,

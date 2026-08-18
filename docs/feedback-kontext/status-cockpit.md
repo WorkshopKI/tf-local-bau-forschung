@@ -67,6 +67,9 @@ wird.
     - Gezählt werden **Status, keine Katalogzeilen**: derselbe Status steht unter
       TV- und Verbund-Feld. Sagen beide dasselbe, zählt es einmal; sagen sie
       Verschiedenes, stehen beide da.
+    - **Dieselbe Sprache sprechen jetzt alle drei Zähler**: Reiter, Umschalter
+      und Baum sagen 30. Bis v4.95 sagte der Reiter 60 (Katalogzeilen) und der
+      Baum daneben 30 (Codes).
   - **Phasen und Zuordnung** (Baum): Ebene 1 sind die Verfahrensschritte, Ebene 2
     die Statuswerte darunter. Ein Statuswert wird per **Ziehen** auf einen anderen
     Schritt gehängt; Schritte selbst werden untereinander sortiert, per F2 oder
@@ -99,6 +102,15 @@ wird.
       Das ist ein gültiger Zustand, kein Fehler. Was dort als **verwaist**
       markiert ist, zeigt dagegen auf einen gelöschten Schritt und gehört zurück
       ins Verfahren.
+  - **Tabelle**: eine Zeile je **Status**, nicht je Katalogzeile. Die erste
+    Spalte heißt **Ebene** und sagt „TV · Verbund" — vorher stand dort der
+    Feldname, und jeder Status kam zweimal untereinander mit identischen Werten.
+    Eine Änderung an der Zeile trifft **beide** Katalogzeilen; ein Status
+    bedeutet auf beiden Ebenen dasselbe.
+    - Laufen die beiden doch einmal auseinander, steht ein **≠** neben der
+      Ebene und der Tooltip nennt die Felder. Verschwiegen würde aus der
+      Faltung sonst eine stille Halbwahrheit. Im Bestand vom 18.08.2026 tritt
+      der Fall bei keinem der 30 Status auf.
   - Rechts neben der Umschaltung stehen **„Phasen exportieren"** und **„Phasen
     importieren"**. Die Datei enthält nur den Verfahrensschnitt: die Schritte,
     welcher Statuswert in welchem hängt und die Zieltage. Kürzel, Ordner und
