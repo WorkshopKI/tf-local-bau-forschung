@@ -419,7 +419,7 @@ Leere. Ein Konventionstest hält das fest.
 | Home-Dashboard, Kanban, Eingangs-Ampel | ja | Arbeitsvorrat |
 | Auslastung: offene Arbeit, Kapazität | ja | Arbeitsvorrat |
 | **Auslastung: Kompetenz-Historie, AnonymMap** | **nein** | append-only, führt ehemalige Bearbeiter als Referenz (Pitfall #17/#18) — ein Bearbeiter, der nur in Altprogrammen gearbeitet hat, verlöre sonst sein Profil |
-| **Globale Suche** | **nein** | Evidenz. Treffer außerhalb tragen „· außerhalb des Anzeigebereichs" und lassen sich öffnen |
+| **Globale Suche** | **nein** | Evidenz. Treffer außerhalb tragen „· außerhalb des Anzeigebereichs" und lassen sich öffnen. Sie hat seit v4.91 eine EIGENE Richtlinien-Auswahl (§10.3) — anderer Speicher, anderer Grundzustand |
 | **Deep-Link / offener Datensatz** | **nein** | `/antraege/<akz>` erreicht jeden Antrag; der gerade geöffnete bleibt in der Liste sichtbar, sonst risse der Link ab |
 
 ### 10.1 Zwei Quellen, eine Reihenfolge
@@ -487,6 +487,46 @@ Drei Aussagen daraus:
   unabhängig vom Bereich (Pitfall #17/#18). Der Readout im Zuweisungs-Cockpit
   nennt beide Datenbasen nebeneinander, damit das nachprüfbar bleibt statt
   behauptet.
+
+### 10.3 Die Suche wählt ihre Richtlinien selbst
+
+Die Suche folgt dem Bereich nicht — sie hat seit v4.91 einen **eigenen**
+Richtlinien-Chip über der Trefferliste
+([richtlinienWahl.ts](../../src/plugins/suche/richtlinienWahl.ts)). Der Anlass
+war praktisch: wer die Trefferliste liest, will die stillgelegten Altprogramme
+loswerden, ohne sie damit auch aus der Suche zu verlieren, wenn er sie einmal
+braucht.
+
+**Drei Unterschiede, und alle drei sind Absicht:**
+
+| | Betrachtungsbereich | Richtlinien der Suche |
+|---|---|---|
+| schneidet | Arbeitsvorrat (Listen, Zähler, Fristen, Auslastung) | die Trefferliste |
+| Grundzustand | Standard-Bereich (letzte 3 Richtlinien) | **alle** — die Suche nimmt nichts stillschweigend weg |
+| Speicher | `teamflow_betrachtungsbereich_v1` | `teamflow_suche_richtlinien_v1` |
+
+Ein gemeinsamer Speicher könnte nicht zwei Grundzustände haben, und ein
+Bereichswechsel auf den Förderanträgen würde die Suche mitverstellen, ohne dass
+jemand danach gefragt hätte. **Geteilt werden Mechanik und Bedienung**
+([bereichsStore](../../src/core/hooks/bereichsStore.ts), `BereichAuswahlChip`,
+`BereichPanel`), nicht der Zustand; der Chip-Präfix trennt die beiden im Wortlaut
+(„Anzeige: …" gegen „Treffer: …"), damit „Treffer: alle Richtlinien" nicht neben
+der Zeilenmarke „außerhalb des Anzeigebereichs" steht und ihr zu widersprechen
+scheint.
+
+Das Prinzip aus Pitfall #46 gilt unverändert, nur an einem zweiten Ort: der
+Filter sitzt im **Konsumenten** (`SuchSeite`), nie im Suchkorpus — der
+Konventionstest führt `useSuchRichtlinien` deshalb in derselben Verbotsliste wie
+`useBereich`. Und **kein Zustand ohne Anzeige**: der Chip steht auch ohne
+Anfrage, weil schon die Zahlen des Startzustands („Additive Fertigung · 531
+Treffer") auf die Auswahl heruntergezählt sind. Gemessen an „laser": 485 Treffer
+bei „alle", 429 im Standard-Bereich, und der Chip beziffert die Differenz mit
+„· 56 ausgeblendet".
+
+**Ohne Programm-Nummer bleibt ein Treffer stehen.** Ein Dokument ohne
+verknüpften Antrag trägt keine Richtlinie; es wegzuwerfen hieße, eine
+Zugehörigkeit zu behaupten, die niemand kennt — dieselbe Regel, nach der die
+Marke „außerhalb des Anzeigebereichs" nur an Treffern MIT Code hängt.
 
 ## 11. Regelsätze je Rolle (v2.391)
 

@@ -7,10 +7,13 @@ const LAGE: AuswegLage = {
   stammSuche: false,
   bereich: 'alles',
   aktiveFilter: [],
+  richtlinien: null,
 };
 
 /** Probelauf, der nur für bestimmte Anfragen/Optionen etwas liefert. */
-function probeFuer(regel: (q: string, o: { verknuepfung: string; stammSuche: boolean; bereich: string }) => number): Probelauf {
+function probeFuer(
+  regel: (q: string, o: Parameters<Probelauf>[1]) => number,
+): Probelauf {
   return (q, o) => regel(q, o);
 }
 
@@ -90,5 +93,30 @@ describe('berechneAuswege', () => {
     expect(berechneAuswege(
       { ...LAGE, aktiveFilter: ['a', 'b'], bereich: 'inhalt', verknuepfung: 'wortfolge' }, probe,
     ).length).toBeLessThanOrEqual(4);
+  });
+});
+
+describe('berechneAuswege — Richtlinien', () => {
+  it('bietet das Öffnen an, sobald eine Einschränkung gilt', () => {
+    const eng = new Set(['136']);
+    const probe = probeFuer((_q, o) => (o.richtlinien === null ? 88 : 0));
+    const auswege = berechneAuswege({ ...LAGE, richtlinien: eng }, probe);
+    expect(auswege.map(a => a.id)).toContain('richtlinien');
+    expect(auswege.find(a => a.id === 'richtlinien')?.treffer).toBe(88);
+  });
+
+  it('schweigt, wenn ohnehin alle Richtlinien gelten', () => {
+    const probe = probeFuer(() => 5);
+    expect(berechneAuswege(LAGE, probe).map(a => a.id)).not.toContain('richtlinien');
+  });
+
+  it('reicht die geltende Einschränkung an JEDEN Probelauf durch — sonst verspricht ein anderer Ausweg zu viel', () => {
+    const eng = new Set(['136']);
+    const gesehen: Array<ReadonlySet<string> | null> = [];
+    berechneAuswege({ ...LAGE, richtlinien: eng }, (_q, o) => { gesehen.push(o.richtlinien); return 0; });
+    // Jeder ANDERE Ausweg rechnet mit der Einschränkung — sonst verspräche
+    // „Wort weglassen" eine Zahl, die nach dem Klick nicht eintritt.
+    expect(gesehen.some(r => r === eng)).toBe(true);
+    expect(gesehen.some(r => r === null)).toBe(true);
   });
 });

@@ -11,8 +11,12 @@
  * **Kein Zustand ohne Anzeige** (Pitfall #46): jede Datensicht, die den Bereich
  * anwendet, trägt den Chip im Kopf. Der Store liefert dafür die Bausteine, die
  * Konsumenten wenden ihn selbst an — nie ein stiller Filter im Daten-Layer.
+ *
+ * Die Speicher-Mechanik selbst steht in [bereichsStore.ts](./bereichsStore.ts)
+ * und wird mit der Richtlinien-Auswahl der Suche geteilt; verschieden ist nur
+ * der Grundzustand (hier `standard`, dort `alle`).
  */
-import { create } from 'zustand';
+import { erzeugeBereichsStore } from './bereichsStore';
 import type { BereichModus } from '@/core/status/betrachtungsbereich';
 
 export type { BereichModus };
@@ -32,53 +36,4 @@ export type { BereichModus };
  */
 const KEY = 'teamflow_betrachtungsbereich_v1';
 
-interface Gespeichert {
-  modus: BereichModus;
-  auswahl: string[];
-}
-
-function lade(): Gespeichert {
-  if (typeof localStorage === 'undefined') return { modus: 'standard', auswahl: [] };
-  try {
-    const roh = localStorage.getItem(KEY);
-    if (!roh) return { modus: 'standard', auswahl: [] };
-    const p = JSON.parse(roh) as Partial<Gespeichert>;
-    const modus: BereichModus = p.modus === 'alle' || p.modus === 'auswahl' ? p.modus : 'standard';
-    const auswahl = Array.isArray(p.auswahl) ? p.auswahl.filter(x => typeof x === 'string') : [];
-    // Eine leere eigene Auswahl wäre ein Bereich ohne Inhalt — das ist keine
-    // Absicht, sondern ein halb fertiger Klick. Zurück auf den Standard.
-    return modus === 'auswahl' && auswahl.length === 0 ? { modus: 'standard', auswahl: [] } : { modus, auswahl };
-  } catch {
-    return { modus: 'standard', auswahl: [] };
-  }
-}
-
-function speichere(s: Gespeichert): void {
-  if (typeof localStorage === 'undefined') return;
-  try {
-    localStorage.setItem(KEY, JSON.stringify(s));
-  } catch {
-    /* Quota/privater Modus — die Auswahl gilt dann nur für diese Sitzung. */
-  }
-}
-
-interface BereichState extends Gespeichert {
-  setModus: (modus: BereichModus) => void;
-  setAuswahl: (programme: string[]) => void;
-}
-
-export const useBetrachtungsbereichStore = create<BereichState>(set => ({
-  ...lade(),
-  setModus: modus => set(s => {
-    const next = { modus, auswahl: s.auswahl };
-    speichere(next);
-    return next;
-  }),
-  setAuswahl: programme => set(s => {
-    const next: Gespeichert = programme.length > 0
-      ? { modus: 'auswahl', auswahl: programme }
-      : { modus: 'standard', auswahl: [] };
-    speichere(next);
-    return { ...s, ...next };
-  }),
-}));
+export const useBetrachtungsbereichStore = erzeugeBereichsStore(KEY, 'standard');

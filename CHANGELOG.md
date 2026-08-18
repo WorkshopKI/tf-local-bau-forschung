@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.91.0 — Die Suche waehlt ihre Richtlinien selbst (August 2026)
+
+MINOR — Gefragt: „können wir bei der Suche eine Richtlinienauswahl machen wie bei den Förderanträgen, damit der User leicht alte Richtlinien ausblenden kann?" Der Betrachtungsbereich stand dafür nicht zur Verfügung: er schneidet den Arbeitsvorrat und steht auf „letzte 3 Richtlinien" — die Suche muss im Grundzustand alles finden. Zwei Fragen, also zwei Speicher, aber eine Bedienung.
+
+- **Chip „Treffer: alle Richtlinien" über der Trefferliste** — gemerkte, gerätelokale Auswahl mit demselben Panel wie auf den Förderanträgen ([richtlinienWahl.ts](src/plugins/suche/richtlinienWahl.ts), [suche-relevanz.md §10](docs/architecture/suche-relevanz.md))
+- **Ein Bauteil statt zweier Abschriften**: Speicher, Chip und Panel sind geteilt, verschieden sind nur Grundzustand und Präfix ([bereichsStore.ts](src/core/hooks/bereichsStore.ts), [BereichAuswahlChip.tsx](src/components/bereich/BereichAuswahlChip.tsx))
+- **Alle Zahlen folgen der Auswahl** — Facetten, Vorschläge, Startzustand und Kein-Treffer-Auswege; der Korpus führt dafür die `unterprogrammId` mit ([useKorpusZahlen.ts](src/plugins/suche/useKorpusZahlen.ts))
+- **Der Kein-Treffer-Zustand bietet „alle Richtlinien einbeziehen"** mit der echten Zahl — eigener Ausweg, damit „Filter entfernen" die gemerkte Wahl nicht mit wegräumt ([auswege.ts](src/plugins/suche/auswege.ts))
+- **Das Panel zeigt in der Stufe „alle" jetzt alle 16 Programme** statt zwölf angehakter bei sechzehn geltenden ([BereichPanel.tsx](src/components/bereich/BereichPanel.tsx))
+
 ### v4.90.0 — Die Arbeitsliste haengt am Code, nicht am Verfahrensschritt (August 2026)
 
 MINOR — Gefragt: „wir haben Kürzel, Stati, Phasen und Meilensteine — ist das zu kompliziert?" Nicht die Anzahl war das Problem, sondern dass eine unserer Erfindungen eine andere heimlich steuerte: die Arbeitsliste hing an der kuratierbaren ZAH-Phase. Genau so verschob Katalog-Fassung 19 unbemerkt 448 Anträge zwischen Reitern; die Reparatur von damals war eine Ausnahmeliste, also ein vierter Mechanismus statt der Abschaffung der Kopplung.

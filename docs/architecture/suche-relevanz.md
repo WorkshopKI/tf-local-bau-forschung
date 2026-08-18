@@ -712,6 +712,13 @@ neben einem Vorschlag steht, kommt aus `searchAntraegeSubstring` mit den
 eingestellten Reglern, also aus derselben Maschinerie, die nach dem Klick läuft. Der Unterschied ist nicht theoretisch: nach den Rohspalten tragen 485
 Anträge den Ort „Dresden", die Suche findet 451.
 
+Seit v4.91 zählt der Probelauf zusätzlich auf die **gewählten Richtlinien**
+herunter (§10). Ohne das verspräche ein Vorschlag „42 Treffer" und lieferte nach
+dem Klick 30 — und genauso die Startzustand-Zahlen: gemessen trägt „Additive
+Fertigung / 3D-Druck" 545 Anträge bei „alle Richtlinien" und 531 im
+Standard-Bereich. Dafür führt der Korpus-Eintrag die `unterprogrammId` MIT; der
+Filter selbst sitzt im Konsumenten, nie im Korpus (Pitfall #46).
+
 Die Probeläufe laufen **nach** der Liste (150 ms Verzögerung, nur für
 Wert-Vorschläge) und **in Schüben zu vier**: ein Lauf kostet gemessen 11–20 ms,
 eine volle Liste also rund 700 ms — am Stück ein sichtbarer Hänger nach jeder
@@ -785,3 +792,42 @@ Anfang der Liste. Sie zu verstecken hieße, sie unauffindbar zu machen.
 Kein Feature-Flag: das ist kein zweiter Weg neben der Suche, sondern derselbe —
 nur mit Vorschlägen. Im Frage-Modus (§8) schweigt die Vervollständigung, dort
 schreibt niemand `ort:`.
+
+## 10 Welche Richtlinien in der Trefferliste stehen (v4.91)
+
+Über der Trefferliste steht ein Chip „**Treffer: alle Richtlinien**". Er
+entscheidet, welche Förder-Richtlinien überhaupt erscheinen — voreingestellt
+alle, und wer das ändert, ändert es einmal: die Wahl ist gerätelokal gemerkt.
+
+**Der Grundzustand ist „alle", und das ist die eigentliche Aussage.** Die Suche
+ist Evidenz: sie soll finden, was es gibt, auch in stillgelegten Altprogrammen.
+Der *Betrachtungsbereich* der Arbeitslisten steht dagegen auf „letzte 3
+Richtlinien" — zwei verschiedene Fragen, deshalb zwei Speicher und zwei
+Grundzustände. Geteilt sind nur Mechanik und Bedienung; die vollständige
+Gegenüberstellung steht in
+[vorgangssystem.md §10.3](vorgangssystem.md).
+
+**Reihenfolge in der Pipeline:** Suchtreffer → Richtlinien-Auswahl → Facetten →
+Spaltenfilter → Sortierung. Die Auswahl steht **vor** den Facetten, weil eine
+Facettenzahl eine Zusage ist: steht „Bewilligt 12" da, kommen nach dem Klick 12
+Zeilen — auf der Menge, die tatsächlich erscheint.
+
+**Was die Auswahl NICHT tut:**
+
+- Sie sortiert, gewichtet und faltet nichts. Der Score bleibt unberührt.
+- Sie rät nicht: ein Treffer ohne Programm-Nummer (etwa ein Dokument ohne
+  verknüpften Antrag) bleibt stehen. Ihn wegzuwerfen hieße, eine Zugehörigkeit
+  zu behaupten, die niemand kennt.
+- Sie versteckt sich nicht. Weicht sie von „alle" ab, beziffert der Chip die
+  Differenz („· 56 ausgeblendet"), der Kein-Treffer-Zustand bietet „alle
+  Richtlinien einbeziehen" **mit der echten Zahl** an, und der Chip steht auch
+  ohne Anfrage da — die Startzustand-Zahlen hängen schon an ihr.
+
+Gemessen an „laser" über 14 225 Anträge: 485 Treffer bei „alle Richtlinien", 429
+im Standard-Bereich, Chip „· 56 ausgeblendet". 485 − 56 = 429.
+
+**Wo was wohnt:** [richtlinienWahl.ts](../../src/plugins/suche/richtlinienWahl.ts)
+(Speicher + reiner Filter), [SuchRichtlinienChip.tsx](../../src/plugins/suche/SuchRichtlinienChip.tsx)
+(Bindung an den geteilten `BereichAuswahlChip`),
+[useKorpusZahlen.ts](../../src/plugins/suche/useKorpusZahlen.ts) (Probelauf +
+Vorschlagszahl, auf die Auswahl heruntergezählt).

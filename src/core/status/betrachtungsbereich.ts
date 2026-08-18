@@ -228,25 +228,33 @@ export function gruppiereNachGeneration(
  * bei einer eigenen Auswahl (dort markiert sie die Abweichung) und dort, wo sich
  * keine Generation belegen lässt (dort ist sie die einzige belegbare Aussage).
  * Die Programme selbst stehen im Tooltip und im Auswahl-Panel.
+ *
+ * Der **Präfix** benennt, WORAUF die Auswahl wirkt: „Anzeige" am Arbeitsvorrat,
+ * „Treffer" an der Suche. Er ist ein Parameter und kein zweiter Textbaustein,
+ * damit die Zustandsnamen dahinter in beiden Chips wortgleich bleiben — und
+ * damit „Treffer: alle Richtlinien" nicht neben der Zeilenmarke „außerhalb des
+ * Anzeigebereichs" steht und ihr zu widersprechen scheint.
  */
-export function bereichsLabel(modus: BereichModus, programme: readonly string[]): string {
-  if (modus === 'alle') return 'Anzeige: alle Richtlinien';
+export function bereichsLabel(
+  modus: BereichModus, programme: readonly string[], praefix = 'Anzeige',
+): string {
+  if (modus === 'alle') return `${praefix}: alle Richtlinien`;
 
   const n = programme.length;
   const zahl = n === 1 ? '1 Programm' : `${n} Programme`;
   // Eine eigene Auswahl nennt bewusst keine Generation: die Information, auf die
   // es ankommt, ist „das ist nicht der Team-Standard".
-  if (modus === 'auswahl') return `Anzeige: eigene Auswahl (${zahl})`;
+  if (modus === 'auswahl') return `${praefix}: eigene Auswahl (${zahl})`;
 
   const { jahre, exakt, juengste } = generationenVon(programme);
-  if (!exakt) return `Anzeige: ${zahl}`;
+  if (!exakt) return `${praefix}: ${zahl}`;
   if (juengste) {
     return jahre.length === 1
-      ? 'Anzeige: letzte Richtlinie'
-      : `Anzeige: letzte ${jahre.length} Richtlinien`;
+      ? `${praefix}: letzte Richtlinie`
+      : `${praefix}: letzte ${jahre.length} Richtlinien`;
   }
   const liste = jahre.join(' + ');
   return jahre.length === 1
-    ? `Anzeige: Richtlinie ${liste}`
-    : `Anzeige: Richtlinien ${liste}`;
+    ? `${praefix}: Richtlinie ${liste}`
+    : `${praefix}: Richtlinien ${liste}`;
 }

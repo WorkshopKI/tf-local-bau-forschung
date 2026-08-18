@@ -9,7 +9,7 @@
  * Rechnung ihr eigenes reines Modul — die Seite war mit 532 Zeilen schon an der
  * Grenze, und der Umbau hätte sie verdreifacht.
  */
-import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Loader2, Sparkles, Download, List, Table } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -43,6 +43,7 @@ import { SuchOptionenZeile } from './SuchOptionenZeile';
 import { DeutungsZeile } from './DeutungsZeile';
 import { FacettenZeile } from './FacettenZeile';
 import { ANALYSE_MAX_RESULTS, useSearchResults } from './useSearchResults';
+import { useKorpusZahlen } from './useKorpusZahlen';
 import { scheduleIdle } from '@/core/utils/scheduleIdle';
 import {
   getProgrammCaches,
@@ -50,10 +51,7 @@ import {
   isSemanticSearchActive,
   autoBootstrapEmbeddingMirror,
   invalidateEmbeddingsCache,
-  searchAntraegeSubstring,
 } from '@/plugins/antraege/services/antraege-search-service';
-import type { AntragTextEntry } from '@/plugins/antraege/services/search-corpus';
-import type { WertIndex } from '@/plugins/antraege/services/wert-index';
 import { ensureEmbeddingReady } from '@/core/services/embedding-corpus';
 import { useSemanticSearchMode } from '@/core/hooks/useSemanticSearchMode';
 import { useSuchVerknuepfung } from '@/core/hooks/useSuchVerknuepfung';
@@ -67,6 +65,8 @@ import { SeitenHilfeButton } from '@/components/help/SeitenHilfeButton';
 // mit, und das lädt die Plugin-Config nach (siehe SeitenHilfeButton.tsx).
 import { useFeedbackDialog } from '@/components/feedback/useFeedbackDialog';
 import { wendeFacettenAn, aktiveFilterTexte, LEERE_WAHL, type FacettenId } from './facetten';
+import { useSuchRichtlinien, wendeRichtlinienAn } from './richtlinienWahl';
+import { SuchRichtlinienChip } from './SuchRichtlinienChip';
 import { autoSpalten } from './autoSpalten';
 import { baueWortChips, markierWoerter, wirksameAnfrage } from './deutung';
 import { pruefeWortformen } from '@/core/services/search/wortformen-pruefung';
@@ -119,6 +119,11 @@ export function SuchSeite(): React.ReactElement {
   const setBereich = useSuchOptionen(s => s.setBereich);
   const abgewaehlteVarianten = useSuchOptionen(s => s.abgewaehlteVarianten);
   const toggleVariante = useSuchOptionen(s => s.toggleVariante);
+  // Welche Förder-Richtlinien in der Trefferliste stehen dürfen. Eigene, gemerkte
+  // Auswahl — NICHT der Betrachtungsbereich der Arbeitslisten: der steht auf
+  // „letzte 3 Richtlinien", die Suche im Grundzustand auf alle (Pitfall #46).
+  const richtlinien = useSuchRichtlinien();
+  const richtlinienMenge = richtlinien.menge;
   // Natürliche Sprache: nur sichtbar, wenn der Build sie mitbringt. Der Schalter
   // darf gemerkt sein, ohne dass die Oberfläche ihn zeigt — deshalb wird das Flag
   // an JEDER Stelle mitgeprüft, nicht nur beim Rendern des Umschalters.
@@ -242,10 +247,18 @@ export function SuchSeite(): React.ReactElement {
   const analyseActive = analyse.begruendungById !== null;
   const analyseDone = analyse.result !== null && !analyse.running;
 
+  // Die Richtlinien-Auswahl steht VOR den Facetten: deren Zahlen sind eine
+  // Zusage, und sie müssen auf der Menge gelten, die tatsächlich erscheint.
+  const nachRichtlinien = useMemo(
+    () => wendeRichtlinienAn(searchResults, richtlinienMenge),
+    [searchResults, richtlinienMenge],
+  );
+  const richtlinienAusgeblendet = searchResults.length - nachRichtlinien.length;
+
   // Facetten stehen VOR der Tabellen-Pipeline: sie gelten für Liste UND Tabelle.
   const nachFacetten = useMemo(
-    () => wendeFacettenAn(searchResults, facettenWahl),
-    [searchResults, facettenWahl],
+    () => wendeFacettenAn(nachRichtlinien, facettenWahl),
+    [nachRichtlinien, facettenWahl],
   );
 
   // Spalten, die diese Anfrage selbst einblendet: die Belege, die sonst in
@@ -315,51 +328,10 @@ export function SuchSeite(): React.ReactElement {
     return cancel;
   }, [activeProgrammId, storage, semanticEnabled]);
 
-  // ---- Probelauf für Startzustand und Kein-Treffer-Auswege -------------------
-  //
-  // Nur die WORTLAUT-Stufe, synchron und ~10–30 ms. Orama blockiert je Lauf
-  // 150–300 ms, die Vektorstufe bräuchte je Variante ein neues Embedding — beides
-  // wäre bei mehreren Probeläufen hintereinander deutlich spürbar.
-  const korpusRef = useRef<Map<string, AntragTextEntry> | null>(null);
-  const [korpusBereit, setKorpusBereit] = useState(false);
-  // Der Wertevorrat für die Vervollständigung — er fällt im selben Ladevorgang
-  // ab wie der Korpus und wartet deshalb auf niemanden.
-  const [wertIndex, setWertIndex] = useState<WertIndex | null>(null);
-  useEffect(() => {
-    if (!activeProgrammId) return;
-    let abgebrochen = false;
-    void getProgrammCaches(storage.idb, activeProgrammId)
-      .then(c => {
-        if (abgebrochen) return;
-        korpusRef.current = c.textCorpus;
-        setWertIndex(c.werteIndex);
-        setKorpusBereit(true);
-      })
-      .catch(() => { /* best effort — ohne Korpus entfallen die Zahlen */ });
-    return () => { abgebrochen = true; };
-  }, [activeProgrammId, storage]);
-
-  const probelauf = useCallback((
-    q: string,
-    opt: { verknuepfung: typeof verknuepfung; stammSuche: boolean; bereich: typeof bereich },
-  ): number => {
-    const korpus = korpusRef.current;
-    if (!korpus || q.trim().length === 0) return 0;
-    return searchAntraegeSubstring(q, korpus, opt).length;
-  }, []);
-
-  /**
-   * Die Trefferzahl an einem Vorschlag — mit den EINGESTELLTEN Reglern gerechnet,
-   * nicht mit den Standardwerten. Steht die Verknüpfung auf „irgendein Wort",
-   * findet `ort:"Dresden" laser` etwas anderes als bei „alle Wörter", und die
-   * Zahl in der Liste muss die Zahl nach dem Klick sein.
-   */
-  const zaehleVorschlag = useCallback(
-    (anfrage: string): number | null => (
-      korpusRef.current ? probelauf(anfrage, { verknuepfung, stammSuche, bereich }) : null
-    ),
-    [probelauf, verknuepfung, stammSuche, bereich],
-  );
+  // ---- Zahlen aus dem Wortlaut-Korpus ---------------------------------------
+  const { korpusBereit, wertIndex, probelauf, zaehleVorschlag } = useKorpusZahlen({
+    storage, activeProgrammId, verknuepfung, stammSuche, bereich, richtlinienMenge,
+  });
 
   const auswege = useMemo<Ausweg[]>(() => {
     if (!korpusBereit || sichtbar.length > 0 || !queryNotEmpty || showSpinner) return [];
@@ -369,9 +341,10 @@ export function SuchSeite(): React.ReactElement {
       stammSuche,
       bereich,
       aktiveFilter: aktiveFilterTexte(facettenWahl),
+      richtlinien: richtlinienMenge,
     }, probelauf);
   }, [korpusBereit, sichtbar.length, queryNotEmpty, showSpinner, wirksam,
-    verknuepfung, stammSuche, bereich, facettenWahl, probelauf]);
+    verknuepfung, stammSuche, bereich, facettenWahl, richtlinienMenge, probelauf]);
 
   const startEintraege = useMemo<{ letzte: StartEintrag[]; haeufig: StartEintrag[] }>(() => {
     const zahl = (q: string): number | null =>
@@ -601,6 +574,7 @@ export function SuchSeite(): React.ReactElement {
 
   function wendeAuswegAn(a: Ausweg): void {
     if (a.aenderung.filterLeeren) setFacettenWahl(LEERE_WAHL);
+    if (a.aenderung.richtlinienOeffnen) richtlinien.setModus('alle');
     if (a.aenderung.query !== undefined) setQuery(a.aenderung.query);
     if (a.aenderung.verknuepfung !== undefined) setVerknuepfung(a.aenderung.verknuepfung);
     if (a.aenderung.stammSuche !== undefined) setStammSuche(a.aenderung.stammSuche);
@@ -821,17 +795,24 @@ export function SuchSeite(): React.ReactElement {
             </div>
           )}
 
-          {/* ── Facetten ─────────────────────────────────────────────────── */}
-          {zeigeErgebnisTeile && (
-            <div className="mt-2.5 w-full max-w-6xl">
+          {/* ── Richtlinien + Facetten ───────────────────────────────────── */}
+          {/* Diese Zeile steht IMMER, auch ohne Anfrage: der Richtlinien-Chip
+              wirkt schon auf den Startzustand — die Zahlen dort („Additive
+              Fertigung · 531 Treffer") sind bereits auf die Auswahl
+              heruntergezählt. Ein Chip, der erst mit dem ersten Treffer
+              erschiene, ließe sie ohne sichtbaren Grund (Pitfall #46). Die
+              Facetten dagegen brauchen ein Ergebnis und blenden sich selbst aus. */}
+          <div className="mt-2.5 flex w-full max-w-6xl flex-wrap items-center gap-2">
+            <SuchRichtlinienChip bereich={richtlinien} ausgeblendet={richtlinienAusgeblendet} />
+            {zeigeErgebnisTeile && (
               <FacettenZeile
-                results={searchResults}
+                results={nachRichtlinien}
                 wahl={facettenWahl}
                 onWahl={(id: FacettenId, werte) => setFacettenWahl({ ...facettenWahl, [id]: werte })}
                 onLeeren={() => setFacettenWahl(LEERE_WAHL)}
               />
-            </div>
-          )}
+            )}
+          </div>
 
           {/* ── Offene Frage ─────────────────────────────────────────────── */}
           {frageOffen && (
@@ -1028,7 +1009,7 @@ export function SuchSeite(): React.ReactElement {
               query={query}
               woerter={markWoerter}
               auswege={auswege}
-              hatFilter={aktiveFilterTexte(facettenWahl).length > 0}
+              hatFilter={aktiveFilterTexte(facettenWahl).length > 0 || richtlinienMenge !== null}
               onAnwenden={wendeAuswegAn}
             />
           )}

@@ -89,6 +89,18 @@ export interface AntragTextEntry {
    */
   verbundNr: string;
   verbundNrLower: string;
+  /**
+   * Die Nummer des Unterprogramms (`unterprogramm_id`, z. B. `136`) — der Code
+   * der Foerder-RICHTLINIE, unter der dieser Antrag laeuft.
+   *
+   * Wird hier NICHT durchsucht, sondern nur MITGEFUEHRT: die Suchseite zaehlt
+   * ihre Probelaeufe damit auf die gewaehlten Richtlinien herunter, sonst
+   * verspraeche ein Vorschlag „42 Treffer" und lieferte nach dem Klick 30. Wer
+   * daraus einen Filter macht, macht ihn im Konsumenten — nie hier (Pitfall
+   * #46). Leer, wenn der Satz keine Nummer traegt; am Bestand gemessen kommt
+   * das nicht vor.
+   */
+  unterprogrammId: string;
   /** Antragsteller + ausfuehrende Stelle, zu EINEM Suchfeld zusammengezogen.
    *
    *  Zwei Spalten, weil sie zwei verschiedene Organisationen benennen koennen:
@@ -671,6 +683,7 @@ export async function loadAntraegeTextCorpus(
           akzLower: kennzeichen.toLowerCase(),
           verbundNr,
           verbundNrLower: verbundNr.toLowerCase(),
+          unterprogrammId: typeof a.unterprogramm_id === 'string' ? a.unterprogramm_id.trim() : '',
           organisation,
           organisationLower: organisation.toLowerCase(),
           standort,

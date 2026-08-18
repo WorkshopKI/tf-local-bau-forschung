@@ -949,7 +949,10 @@ describe('bereich-nie-im-daten-layer (Pitfall #46)', () => {
   // (IDB-Leser, CSV-Dienste, Suchkorpus), gäbe es keine Stelle mehr, an der man
   // ihn abschalten könnte: die Suche fände dann nur noch, was ohnehin sichtbar
   // ist, und ein Deep-Link auf ein Altprogramm liefe ins Leere.
-  const VERBOTEN = /\bistImBereich\b|useBereich\b/;
+  // `useSuchRichtlinien` steht mit in der Liste: die Suche hat seit v4.91 eine
+  // eigene, gemerkte Richtlinien-Auswahl. Sie ist derselbe Fall — ein
+  // Konsumenten-Filter mit Chip, kein stiller Schnitt im Daten-Layer.
+  const VERBOTEN = /\bistImBereich\b|useBereich\b|useSuchRichtlinien\b/;
   const TABU = [
     'src/core/services/csv/',        // IDB-Leser + Projektionen
     'src/core/services/search/',     // Suchkorpus + Orama

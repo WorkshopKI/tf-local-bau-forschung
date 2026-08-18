@@ -30,26 +30,41 @@ export interface Bereich {
   setAuswahl: (programme: string[]) => void;
 }
 
+/**
+ * Setzt eine gespeicherte Wahl mit der gepflegten Definition zu einem `Bereich`
+ * zusammen. Rein — der Betrachtungsbereich und die Richtlinien-Auswahl der Suche
+ * teilen sich diese Regel, damit „Standard" in beiden dasselbe meint.
+ */
+export function komponiereBereich(
+  modus: BereichModus,
+  auswahl: readonly string[],
+  setModus: (m: BereichModus) => void,
+  setAuswahl: (p: string[]) => void,
+): Bereich {
+  // `getAktiveVersion()` ist ohne `statusCockpit` null — dann gilt der
+  // Code-Seed. Genau so wirkt der Bereich auch in prod/as.
+  const version = getAktiveVersion();
+  const standard = bereichsProgramme(version);
+  const programme = modus === 'alle' ? [] : (modus === 'auswahl' ? auswahl : standard);
+  return {
+    modus,
+    programme,
+    menge: modus === 'alle' ? null : bereichsMenge(programme),
+    standard,
+    weichtVomSeedAb: bereichWeichtVomSeedAb(version),
+    setModus,
+    setAuswahl,
+  };
+}
+
 export function useBereich(): Bereich {
   const modus = useBetrachtungsbereichStore(s => s.modus);
   const auswahl = useBetrachtungsbereichStore(s => s.auswahl);
   const setModus = useBetrachtungsbereichStore(s => s.setModus);
   const setAuswahl = useBetrachtungsbereichStore(s => s.setAuswahl);
 
-  return useMemo(() => {
-    // `getAktiveVersion()` ist ohne `statusCockpit` null — dann gilt der
-    // Code-Seed. Genau so wirkt der Bereich auch in prod/as.
-    const version = getAktiveVersion();
-    const standard = bereichsProgramme(version);
-    const programme = modus === 'alle' ? [] : (modus === 'auswahl' ? auswahl : standard);
-    return {
-      modus,
-      programme,
-      menge: modus === 'alle' ? null : bereichsMenge(programme),
-      standard,
-      weichtVomSeedAb: bereichWeichtVomSeedAb(version),
-      setModus,
-      setAuswahl,
-    };
-  }, [modus, auswahl, setModus, setAuswahl]);
+  return useMemo(
+    () => komponiereBereich(modus, auswahl, setModus, setAuswahl),
+    [modus, auswahl, setModus, setAuswahl],
+  );
 }

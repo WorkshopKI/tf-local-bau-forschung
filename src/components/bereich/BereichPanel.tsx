@@ -5,13 +5,18 @@
  * kennt außerhalb der AB kaum jemand. Gespeichert werden trotzdem die Codes:
  * sie sind stabil, Bezeichnungen ändern sich mit jedem Label-Import.
  *
+ * Der Einleitungssatz kommt vom Aufrufer: dieselbe Bedienung schneidet je nach
+ * Chip den Arbeitsvorrat oder die Trefferliste der Suche.
+ *
  * Gruppiert nach **Richtlinien-Generation**: das ist das Modell, in dem der
  * Fachbereich denkt („die letzten drei Richtlinien"), und es macht sichtbar,
  * warum der Chip ggf. keine Generationszahl mehr nennt — bei zwei von drei
  * Häkchen einer Gruppe sieht man den Grund an derselben Stelle.
  */
 import { ToggleChip } from '@/components/ui/ToggleChip';
-import { generationenVon, gruppiereNachGeneration } from '@/core/status/betrachtungsbereich';
+import {
+  RICHTLINIEN_GENERATIONEN, generationenVon, gruppiereNachGeneration,
+} from '@/core/status/betrachtungsbereich';
 import { richtlinienLabel } from '@/core/hooks/useRichtlinienLabels';
 import type { Bereich } from '@/core/hooks/useBereich';
 
@@ -22,12 +27,24 @@ function standardText(standard: readonly string[]): string {
   return exakt ? `${zahl}, Richtlinien ${jahre.join(' + ')}` : zahl;
 }
 
-export function BereichPanel({ bereich, labels }: {
+export function BereichPanel({ bereich, labels, einleitung }: {
   bereich: Bereich;
   labels: ReadonlyMap<string, string>;
+  /** Was diese Auswahl bewirkt. Der Satz gehoert dem Aufrufer: der
+   *  Betrachtungsbereich schneidet den Arbeitsvorrat, die Richtlinien-Auswahl
+   *  der Suche die Trefferliste — dieselbe Bedienung, zwei Wirkungen. */
+  einleitung?: React.ReactNode;
 }): React.ReactElement {
   const eigene = bereich.modus === 'auswahl' ? bereich.programme : bereich.standard;
-  const gruppen = gruppiereNachGeneration([...new Set([...bereich.standard, ...eigene])]);
+  // In der Stufe „alle" stehen ALLE bekannten Generationen in der Liste, nicht
+  // nur die des Standard-Bereichs: sonst zeigte das Panel zwölf angehakte
+  // Programme, während sechzehn gelten — vier davon unsichtbar. Ein Haken, der
+  // mehr behauptet als er zeigt, ist schlimmer als keiner.
+  const gruppen = gruppiereNachGeneration([...new Set([
+    ...(bereich.modus === 'alle' ? RICHTLINIEN_GENERATIONEN.flatMap(g => g.programme) : []),
+    ...bereich.standard,
+    ...eigene,
+  ])]);
   // Eine eigene Auswahl überlebt jede Änderung des Standard-Bereichs — sie
   // gehört der Person. Damit sie nicht STILL veraltet, sagt das Panel, wovon
   // sie abweicht; der „Standard-Bereich"-Chip darüber ist der Rückweg.
@@ -36,11 +53,9 @@ export function BereichPanel({ bereich, labels }: {
 
   return (
     <div className="flex flex-col gap-2.5">
-      <p className="text-[12px] text-[var(--tf-text-secondary)]">
-        Der Bereich bestimmt den <strong>Arbeitsvorrat</strong>: Listen, Zähler, Fristen und
-        Auslastung. Die <strong>Suche bleibt am Vollbestand</strong>, und ein Antrag lässt sich
-        immer direkt öffnen — auch außerhalb des Bereichs.
-      </p>
+      {einleitung !== undefined && (
+        <p className="text-[12px] text-[var(--tf-text-secondary)]">{einleitung}</p>
+      )}
 
       <div className="flex flex-wrap gap-1.5">
         <ToggleChip

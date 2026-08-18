@@ -19,6 +19,16 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.91 — 2026-08
+
+### Neu
+- **Die Suche lässt sich auf Richtlinien einschränken.** Über der Trefferliste steht ein Chip „Treffer: alle Richtlinien" — ein Klick öffnet dieselbe Auswahl wie auf den Förderanträgen. Voreingestellt bleibt der ganze Bestand; wer die alten Richtlinien ausblendet, muss das nur einmal sagen: die Einstellung wird gemerkt.
+- Weicht die Auswahl vom ganzen Bestand ab, sagt der Chip, wie viele Treffer sie wegnimmt — und alle Zahlen daneben (Facetten, Vorschläge, Startseite) zählen dieselbe Menge.
+### Verbesserungen
+<!-- - … -->
+### Bugfixes
+<!-- - … -->
+
 ## v4.90 — 2026-08
 
 ### Neu

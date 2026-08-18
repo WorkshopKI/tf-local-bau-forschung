@@ -27,6 +27,9 @@ export interface AuswegLage {
   bereich: Suchbereich;
   /** Beschriftungen der gesetzten Facettenfilter, z. B. „Jahr: 2013". */
   aktiveFilter: readonly string[];
+  /** Die gewählten Richtlinien; `null` = alle. Eigene Zeile, weil sie sich
+   *  eigens zurücknehmen lässt: sie überlebt die Anfrage, die Facetten nicht. */
+  richtlinien: ReadonlySet<string> | null;
 }
 
 /** Was ein Ausweg ändert. Der Aufrufer wendet genau das an, was hier steht —
@@ -38,6 +41,8 @@ export interface AuswegAenderung {
   bereich?: Suchbereich;
   /** Alle Facettenfilter zurücknehmen. */
   filterLeeren?: boolean;
+  /** Die Richtlinien-Einschränkung aufheben (zurück auf „alle"). */
+  richtlinienOeffnen?: boolean;
 }
 
 export interface Ausweg {
@@ -50,7 +55,12 @@ export interface Ausweg {
 /** Führt eine Probesuche aus und liefert nur die Trefferzahl. */
 export type Probelauf = (
   query: string,
-  optionen: { verknuepfung: SuchVerknuepfung; stammSuche: boolean; bereich: Suchbereich },
+  optionen: {
+    verknuepfung: SuchVerknuepfung;
+    stammSuche: boolean;
+    bereich: Suchbereich;
+    richtlinien: ReadonlySet<string> | null;
+  },
 ) => number;
 
 /** Wie viele Auswege höchstens angeboten werden. Mehr liest niemand. */
@@ -70,7 +80,16 @@ export function berechneAuswege(lage: AuswegLage, probe: Probelauf): Ausweg[] {
     verknuepfung: lage.verknuepfung,
     stammSuche: lage.stammSuche,
     bereich: lage.bereich,
+    richtlinien: lage.richtlinien,
   };
+  /** Was der Probelauf sehen soll. `richtlinienOeffnen` ist kein Regler,
+   *  sondern hebt einen auf — deshalb hier übersetzt statt hineingespreizt. */
+  const optionen = (a: AuswegAenderung): Parameters<Probelauf>[1] => ({
+    verknuepfung: a.verknuepfung ?? basis.verknuepfung,
+    stammSuche: a.stammSuche ?? basis.stammSuche,
+    bereich: a.bereich ?? basis.bereich,
+    richtlinien: a.richtlinienOeffnen ? null : basis.richtlinien,
+  });
   const kandidaten: Array<{ id: string; text: string; aenderung: AuswegAenderung }> = [];
 
   // 1. Gesetzte Filter lösen — der häufigste Grund für plötzlich null Treffer.
@@ -81,6 +100,18 @@ export function berechneAuswege(lage: AuswegLage, probe: Probelauf): Ausweg[] {
         ? `Filter „${lage.aktiveFilter[0]}" entfernen`
         : `${lage.aktiveFilter.length} Filter entfernen`,
       aenderung: { filterLeeren: true },
+    });
+  }
+
+  // 1b. Die Richtlinien öffnen. Steht neben dem Filter, nicht in ihm: die
+  //     Auswahl gilt bis auf Widerruf, ein Facettenfilter nur für diese
+  //     Anfrage — wer beides mit einem Klick verlöre, verlöre eine
+  //     Einstellung, die er einmal bewusst gesetzt hat.
+  if (lage.richtlinien !== null) {
+    kandidaten.push({
+      id: 'richtlinien',
+      text: 'alle Richtlinien einbeziehen',
+      aenderung: { richtlinienOeffnen: true },
     });
   }
 
@@ -131,7 +162,7 @@ export function berechneAuswege(lage: AuswegLage, probe: Probelauf): Ausweg[] {
 
   const geprueft: Ausweg[] = [];
   for (const k of kandidaten) {
-    const treffer = probe(k.aenderung.query ?? lage.query, { ...basis, ...k.aenderung });
+    const treffer = probe(k.aenderung.query ?? lage.query, optionen(k.aenderung));
     if (treffer > 0) geprueft.push({ ...k, treffer });
     if (geprueft.length >= MAX_AUSWEGE) break;
   }
@@ -144,7 +175,7 @@ export function berechneAuswege(lage: AuswegLage, probe: Probelauf): Ausweg[] {
     // Beim Zusammenlegen gewinnt die weiteste Fassung: die Anfrage bleibt ganz,
     // gelockert wird über die Optionen.
     delete zusammen.query;
-    const treffer = probe(lage.query, { ...basis, ...zusammen });
+    const treffer = probe(lage.query, optionen(zusammen));
     if (treffer > 0) {
       geprueft.push({
         id: 'kombiniert',

@@ -29,7 +29,7 @@ function eintrag(felder: Partial<AntragTextEntry>): AntragTextEntry {
     bundesland: '', bundeslandSuchform: '', bundeslandCodes: '',
     domain: '', domainSuchform: '',
     netzwerk: '', netzwerkLower: '', notiz: '', notizLower: '',
-    wahlkreis: '', wahlkreisSuchform: '', verbundNr: '', verbundNrLower: '',
+    wahlkreis: '', wahlkreisSuchform: '', verbundNr: '', verbundNrLower: '', unterprogrammId: '',
     ...felder,
   };
   // Suchformen IMMER aus den Werten ableiten — ein Test darf keine Suchform

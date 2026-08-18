@@ -25,7 +25,7 @@ function eintrag(titel: string, landAfs: string, landAst = landAfs): AntragTextE
   return {
     vb: titel, tv: '', abstract: '', descriptors: '', akronym: '',
     vbLower: titel.toLowerCase(), tvLower: '', absLower: '', descriptorsLower: '',
-    akronymLower: '', akzLower: '', verbundNr: '', verbundNrLower: '',
+    akronymLower: '', akzLower: '', verbundNr: '', verbundNrLower: '', unterprogrammId: '',
     organisation: '', organisationLower: '',
     standort: ort, standortSuchform: standortSuchform(ort),
     ...bundeslandFelder(landAfs, landAst),

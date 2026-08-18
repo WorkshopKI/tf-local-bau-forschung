@@ -63,6 +63,7 @@ function eintrag(
     wahlkreisSuchform: '',
     verbundNr: '',
     verbundNrLower: '',
+    unterprogrammId: '',
     ...extra,
   };
   return {
