@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.104.0 — Belege und Vorschlaege getrennt an die KI (August 2026)
+
+MINOR — Vorgeschlagen wurde, dem großen Kontext mehr Treffer zuzumuten und die Ähnlichkeits-Treffer als zweite Menge zu schicken, damit das Modell selbst entscheidet, ob einer dazugehört. Beides trifft zu: 20 Belege waren eine Vorsicht ohne Grund, und untergemischte Vorschläge waren von Funden nicht zu unterscheiden.
+
+- **40 statt 20 Belege** — gemessen 355 Zeichen je Zeile über 12 180 Anträge, also 14 209 statt 7 105 unter einem Deckel von 24 000 ([useFrageAntwort.ts](src/plugins/suche/antwort/useFrageAntwort.ts))
+- **Ähnlichkeits-Treffer fahren als eigene, benannte Menge mit** (bis zu 12) — das Modell prüft sie einzeln und muss „(thematisch verwandt)" hinter das Kennzeichen schreiben ([frageantwort-lauf.ts](src/core/services/search/frageantwort-lauf.ts), [assistentKontext.ts](src/plugins/suche/assistentKontext.ts))
+- **Eine Gesamtzahl bleibt eine**: der Befund nennt die Zusammensetzung in derselben Zeile („671, davon 75 nur thematisch ähnlich") ([frageBefund.ts](src/plugins/suche/frageBefund.ts))
+- **Kandidaten allein reichen für einen Lauf** — eine Frage, die nur thematisch trifft, bekommt trotzdem eine Antwort statt „keine Treffer"
+- **Warum das die Rang-Frage erledigt**: die Vorschläge konkurrieren nicht mehr um die 40 Plätze ([suche-relevanz.md §8.2](docs/architecture/suche-relevanz.md))
+
 ### v4.103.1 — Der Schalter sagt, was er bei einer Frage tut (August 2026)
 
 PATCH — Gefragt wurde, ob „auch ähnliche Themen" bei einer Frage überhaupt Sinn ergibt und was der Haken dort bewirkt. Er tut dort etwas anderes als bei Stichworten — verglichen wird die ganze Frage —, und das stand nirgends außer im Quelltext.

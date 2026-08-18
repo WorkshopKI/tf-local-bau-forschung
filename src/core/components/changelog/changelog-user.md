@@ -19,6 +19,12 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.104 — 2026-08
+
+### Verbesserungen
+- **Die Antwort auf Ihre Frage steht jetzt auf 40 statt 20 Treffern.** Bei einer Frage nach einer Liste ist jedes Beispiel mehr eines, das die KI nicht erraten muss.
+- **Ist „auch ähnliche Themen" eingeschaltet, entscheidet die KI selbst, welche der thematisch verwandten Vorhaben dazugehören.** Sie bekommt sie als eigene, ausdrücklich gekennzeichnete Liste — in keinem davon steht eines Ihrer Suchwörter. Nimmt sie eines auf, schreibt sie „(thematisch verwandt)" dahinter; passt keines, erwähnt sie sie nicht. Die Trefferzahl über der Liste bleibt dieselbe, die Antwort sagt nur zusätzlich, wie sie sich zusammensetzt.
+
 ## v4.103 — 2026-08
 
 ### Verbesserungen

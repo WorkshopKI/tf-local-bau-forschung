@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   berechneRelevanz,
   relevanzAusAehnlichkeit,
+  nurUeberAehnlichkeit,
   relevanzStufe,
   sortiereFelder,
   zaehleVorkommen,
@@ -135,5 +136,20 @@ describe('RELEVANZ_LABEL', () => {
     expect(RELEVANZ_LABEL[1]).toBe('gering');
     expect(RELEVANZ_LABEL[2]).toBe('mittel');
     expect(RELEVANZ_LABEL[3]).toBe('hoch');
+  });
+});
+
+describe('nurUeberAehnlichkeit', () => {
+  it('trifft genau den Fall „einzige Fundstelle ist die Aehnlichkeit"', () => {
+    expect(nurUeberAehnlichkeit(['aehnlichkeit'])).toBe(true);
+    expect(nurUeberAehnlichkeit(['aehnlichkeit', 'titel'])).toBe(false);
+    expect(nurUeberAehnlichkeit(['titel'])).toBe(false);
+  });
+
+  it('haelt eine fehlende oder leere Angabe NICHT fuer Aehnlichkeit', () => {
+    // Ein Treffer ohne Fundstellen ist unbekannter Herkunft, nicht geraten:
+    // ihn zu den Vorschlaegen zu schieben hiesse, ihn stillschweigend abzuwerten.
+    expect(nurUeberAehnlichkeit(undefined)).toBe(false);
+    expect(nurUeberAehnlichkeit([])).toBe(false);
   });
 });

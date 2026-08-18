@@ -703,6 +703,57 @@ behält die Frage im Feld (`vorbelegung`) — für Rückfragen, nicht für die e
 Antwort. Scheitert der Lauf, benennt die Karte das und **die Trefferliste bleibt
 stehen**: sie ist deterministisch entstanden und hängt an keinem Modell.
 
+### 8.2 Zwei Mengen an das Modell: Belege und Vorschläge (v4.104)
+
+Bis v4.103 fuhren **20** Treffer als Belege mit, und die Treffer der
+Ähnlichkeitssuche steckten unter ihnen — ununterscheidbar von denen, die ein
+gesuchtes Wort tragen. Beides war zu ändern, und der zweite Punkt ist der
+wichtigere: ein Ähnlichkeits-Treffer ist kein Fund, sondern ein **Vorschlag** des
+Embedding-Modells. In ihm kommt kein einziges der gesuchten Wörter vor.
+
+**Erst gemessen, dann erhöht.** Eine Belegzeile kostet über 12 180 echte Anträge
+im Mittel **355 Zeichen** (Median 363, p90 457, längste 609 — der Deckel von
+300 Zeichen je Textauszug wirkt). Daraus:
+
+| | Zeichen |
+|---|---:|
+| 20 Belege (bis v4.103) | 7 105 |
+| **40 Belege** (Mittel) | **14 209** |
+| 40 Belege, p90-Fall | 18 280 |
+| 40 Belege, längste Zeilen | 24 360 |
+| 12 Ähnlichkeits-Vorschläge | ~4 260 |
+
+`KONTEXT_CHAR_BUDGET` (24 000) wacht ohnehin darüber und schneidet den Rest ab.
+Die Halbierung auf 20 war also eine Vorsicht ohne Grund — bei einer Frage nach
+einer Liste ist jeder Beleg mehr ein Beispiel weniger, das erraten werden muss.
+
+**Getrennt heißt: das Modell entscheidet, und es muss die Entscheidung
+kennzeichnen.** Der Prompt führt „Belege (Auszug, die relevantesten Treffer)" und
+„Thematisch verwandt (kein gesuchtes Wort — selbst prüfen)" als zwei Abschnitte;
+die Regel dazu verlangt Einzelprüfung, den Zusatz „(thematisch verwandt)" hinter
+dem Kennzeichen und Schweigen, wenn keiner passt. Genau dafür taugt ein
+Sprachmodell und eine Kosinus-Schwelle nicht: `EMBEDDING_TOP_K = 50` liefert die
+50 nächstliegenden, ob sie zur Frage gehören, steht damit nicht fest.
+
+Zwei Invarianten halten das zusammen:
+
+- **Eine Gesamtzahl.** Der Befund zählt weiter über ALLE Treffer — die Liste
+  unter der Karte zeigt sie ja auch. Er nennt die Zusammensetzung in derselben
+  Zeile: „Treffer insgesamt: 671 (596 mit gesuchtem Wortlaut, 75 nur thematisch
+  ähnlich)". Zwei Zahlen in zwei Zeilen läsen sich als zwei Mengen.
+- **Kandidaten allein reichen.** Findet eine Frage nur über Ähnlichkeit etwas,
+  entfällt der Belege-Abschnitt und der Lauf läuft trotzdem. Ihn abzulehnen hieße,
+  über eine gefüllte Trefferliste zu schweigen.
+
+Nimmt das Modell einen Vorschlag auf, greift die Brücke von v4.100 unverändert:
+sein Kennzeichen steht in der Antwort, also trägt seine Zeile in der Liste die
+Marke „in der Antwort" und den Satz dazu.
+
+**Nicht automatisch eingeschaltet.** Die Stufe bleibt ein Haken — sie lädt 200 MB
+nach, und bei einer einschränkenden Frage läuft sie ohnehin nicht mit
+(`planSchraenktEin`). Was sie im Frage-Modus tut, sagt seit v4.103.1 ihr eigener
+Tooltip.
+
 ## 9 Das Suchfeld schlägt vor (v4.71)
 
 Die Feldsuche aus §7 setzt zweierlei voraus: dass man die Präfixe kennt **und**

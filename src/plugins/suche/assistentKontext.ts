@@ -16,7 +16,9 @@
  * im Prompt.
  */
 import type { UnifiedSearchResult } from '@/core/types/search-result';
-import { RELEVANZ_LABEL, TREFFERFELD_LABEL } from '@/core/services/search/trefferstelle';
+import {
+  RELEVANZ_LABEL, TREFFERFELD_LABEL, nurUeberAehnlichkeit,
+} from '@/core/services/search/trefferstelle';
 
 /**
  * Wie viele Top-Treffer höchstens in den Kontext-Block wandern.
@@ -143,6 +145,45 @@ export function baueKontextBlock(
     '--- Ende Suchtreffer ---',
     regel,
   ].join('\n\n');
+}
+
+/**
+ * Die Treffer in ihre zwei Herkünfte trennen — Wortlaut gegen Ähnlichkeit.
+ *
+ * Beide Reihenfolgen bleiben, wie sie waren (nach Relevanz): getrennt wird nur,
+ * WOHER ein Treffer kommt, nicht wie gut er ist.
+ */
+export function teileNachFundstelle(
+  treffer: readonly UnifiedSearchResult[],
+): { wortlaut: UnifiedSearchResult[]; aehnlich: UnifiedSearchResult[] } {
+  const wortlaut: UnifiedSearchResult[] = [];
+  const aehnlich: UnifiedSearchResult[] = [];
+  for (const r of treffer) (nurUeberAehnlichkeit(r.trefferfelder) ? aehnlich : wortlaut).push(r);
+  return { wortlaut, aehnlich };
+}
+
+/**
+ * Der zweite Block: Vorschläge der Ähnlichkeitssuche, ausdrücklich als solche.
+ *
+ * Sie stehen NICHT bei den Belegen, weil sie etwas anderes sind: in keinem von
+ * ihnen kommt ein gesuchtes Wort vor. Das Modell soll sie einzeln prüfen und nur
+ * das aufnehmen, was die Frage wirklich beantwortet — genau die Entscheidung,
+ * für die ein Sprachmodell taugt und eine Kosinus-Schwelle nicht.
+ *
+ * Der Kopf nennt beide Zahlen: wie viele vorliegen und wie viele es insgesamt
+ * sind. Ohne den Nenner läse das Modell die Auswahl als die ganze Menge — der
+ * Fehler, gegen den `baueKontextBlock` seit v4.78 geschrieben ist.
+ */
+export function baueAehnlichkeitsBlock(
+  gewaehlt: readonly UnifiedSearchResult[],
+  gesamt: number,
+): string {
+  if (gewaehlt.length === 0) return '';
+  const n = gewaehlt.length;
+  const kopf = n >= gesamt
+    ? `Alle ${gesamt} thematisch verwandten Vorschläge.`
+    : `Die ${n} nächstliegenden von ${gesamt} thematisch verwandten Vorschlägen.`;
+  return [kopf, ...gewaehlt.map((r, i) => zeile(r, i))].join('\n\n');
 }
 
 /**

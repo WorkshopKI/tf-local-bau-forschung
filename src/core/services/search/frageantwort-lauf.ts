@@ -62,7 +62,16 @@ export function baueAntwortPrompt(
   frage: string,
   befundText: string,
   belege: string,
+  /**
+   * Die Vorschläge der Ähnlichkeitssuche — leer, wenn sie nicht mitlief oder
+   * nichts beisteuerte. Sie stehen bewusst NICHT bei den Belegen: in keinem von
+   * ihnen kommt ein gesuchtes Wort vor, und ob sie zur Frage gehören, ist eine
+   * inhaltliche Entscheidung. Genau die soll das Modell treffen — deshalb
+   * bekommt es sie als eigene, benannte Menge statt untergemischt.
+   */
+  kandidaten = '',
 ): { systemPrompt: string; userPrompt: string } {
+  const mitKandidaten = kandidaten.trim().length > 0;
   const systemPrompt = [
     'Du beantwortest eine Frage an eine Datenbank deutscher Förderanträge (ZIM).',
     'Die Suche ist bereits gelaufen. Du bekommst ihr gezähltes Ergebnis und die',
@@ -82,6 +91,14 @@ export function baueAntwortPrompt(
     '- Deutsch, Fließtext mit kurzen Absätzen. Keine Tabelle: die Trefferliste',
     '  darunter ist bereits eine.',
     '- Trägt der Befund die Frage nicht, sag das in einem Satz statt zu raten.',
+    ...(mitKandidaten ? [
+      '- Der Abschnitt „Thematisch verwandt" ist etwas anderes als die Belege:',
+      '  diese Vorhaben tragen KEIN gesuchtes Wort, die Suche hält sie nur',
+      '  inhaltlich für verwandt. Prüfe sie einzeln und nenne einen davon NUR,',
+      '  wenn er die Frage tatsächlich beantwortet — dann mit dem Zusatz',
+      '  „(thematisch verwandt)" hinter dem Kennzeichen. Passt keiner, lass den',
+      '  Abschnitt weg und erwähne ihn nicht.',
+    ] : []),
     'Antworte in EINEM Zug: kein Plan, keine Zwischenschritte, keine Werkzeuge,'
       + ' kein sichtbares Nachdenken — nur die Antwort.',
   ].join('\n');
@@ -89,7 +106,15 @@ export function baueAntwortPrompt(
   const userPrompt = [
     'Frage:', '"""', frage.trim(), '"""',
     '', 'Befund (gezählt, gilt für alle Treffer):', '"""', befundText, '"""',
-    '', 'Belege (Auszug, die relevantesten Treffer):', '"""', belege, '"""',
+    // Der Belege-Abschnitt darf fehlen: findet die Frage NUR über Ähnlichkeit
+    // etwas, gibt es keine belegten Treffer — und ein leerer Abschnitt läse sich
+    // als „nichts gefunden", während zwölf Kandidaten darunter stehen.
+    ...(belege.trim().length > 0
+      ? ['', 'Belege (Auszug, die relevantesten Treffer):', '"""', belege, '"""']
+      : []),
+    ...(mitKandidaten
+      ? ['', 'Thematisch verwandt (kein gesuchtes Wort — selbst prüfen):', '"""', kandidaten.trim(), '"""']
+      : []),
   ].join('\n');
 
   return { systemPrompt, userPrompt };
@@ -115,9 +140,15 @@ export async function ermittleFrageantwort(
   frage: string,
   befundText: string,
   belege: string,
+  /** Die Vorschläge der Ähnlichkeitssuche als eigene Menge (siehe
+   *  `baueAntwortPrompt`). Leer = die Stufe lief nicht mit. */
+  kandidaten = '',
   signal?: AbortSignal,
 ): Promise<FrageantwortErgebnis> {
-  if (frage.trim().length === 0 || belege.trim().length === 0) {
+  // Kandidaten allein reichen: eine Frage, deren Wörter im Bestand nirgends
+  // stehen, hat keine Belege — aber möglicherweise thematisch Verwandtes. Diesen
+  // Lauf abzulehnen hiesse, über eine gefüllte Trefferliste zu schweigen.
+  if (frage.trim().length === 0 || (belege.trim().length === 0 && kandidaten.trim().length === 0)) {
     return { ok: false, fehler: MELDUNG.leer };
   }
 
@@ -132,7 +163,7 @@ export async function ermittleFrageantwort(
     return { ok: false, fehler: MELDUNG.nichtVerbunden, verbindungFehlt: true };
   }
 
-  const { systemPrompt, userPrompt } = baueAntwortPrompt(frage, befundText, belege);
+  const { systemPrompt, userPrompt } = baueAntwortPrompt(frage, befundText, belege, kandidaten);
 
   let roh: string;
   try {

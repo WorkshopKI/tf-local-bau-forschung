@@ -176,6 +176,21 @@ export function relevanzAusAehnlichkeit(cosine: number): number {
   return klemme(cosine) * AEHNLICHKEIT_DECKEL;
 }
 
+/**
+ * Steht dieser Treffer NUR über die Ähnlichkeitssuche da?
+ *
+ * Die Unterscheidung, die den Unterschied macht: ein Wortlaut-Treffer trägt ein
+ * gesuchtes Wort und ist damit belegt; dieser hier ist ein VORSCHLAG des
+ * Embedding-Modells — kein einziges der gesuchten Wörter steht in ihm. Wer beide
+ * in einen Topf wirft, zählt Fundstücke und Vermutungen zusammen.
+ *
+ * Gebraucht wird das an genau einer Stelle: der Antwort-Lauf schickt die beiden
+ * Mengen GETRENNT an das Modell ([useFrageAntwort](src/plugins/suche/antwort/useFrageAntwort.ts)).
+ */
+export function nurUeberAehnlichkeit(felder: readonly Trefferfeld[] | undefined): boolean {
+  return felder !== undefined && felder.length === 1 && felder[0] === 'aehnlichkeit';
+}
+
 /** Drei Stufen aus der Relevanz. Monoton — Schwellen als Konstanten oben. */
 export function relevanzStufe(relevanz: number): RelevanzStufe {
   if (relevanz >= SCHWELLE_HOCH) return 3;

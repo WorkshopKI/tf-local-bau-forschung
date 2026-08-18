@@ -16,17 +16,35 @@ import type { UnifiedSearchResult } from '@/core/types/search-result';
 import type { Frageplan } from '@/core/services/search/frageplan';
 import { ermittleFrageantwort } from '@/core/services/search/frageantwort-lauf';
 import { baueBefund, befundAlsText } from '../frageBefund';
-import { baueKontextBlock, waehleKontextTreffer } from '../assistentKontext';
+import {
+  baueAehnlichkeitsBlock, baueKontextBlock, teileNachFundstelle, waehleKontextTreffer,
+} from '../assistentKontext';
 
 /**
  * Wie viele Treffer als Belege im Volltext mitfahren.
  *
- * Weniger als die 40 des Chat-Kontexts: dort sind die Treffer das ganze
- * Material, hier stehen die gezählten Zahlen daneben und tragen die Aussage über
- * die Menge. Zwanzig Belege reichen, um die Antwort an einzelnen Vorhaben
- * festzumachen, und lassen dem Befund Platz im Kontextfenster.
+ * Seit v4.104 vierzig statt zwanzig — dieselbe Zahl wie im Chat-Kontext. Die
+ * Halbierung war eine Platz-Vorsicht, und die ist am echten Bestand gemessen
+ * unbegründet: eine Belegzeile kostet im Mittel **355 Zeichen** (12 180
+ * Anträge; Median 363, p90 457, längste 609). Vierzig Belege sind damit rund
+ * **14 200 Zeichen** statt 7 100 — gut 4 000 Token, in jedem Fall unter dem
+ * Deckel von `KONTEXT_CHAR_BUDGET` (24 000), der ohnehin darüber wacht.
+ *
+ * Der Befund daneben bleibt die Aussage über die MENGE; die Belege sind das,
+ * woran die Antwort einzelne Vorhaben festmacht. Vierzig davon machen aus einer
+ * Frage nach einer Liste eine Antwort mit Beispielen statt mit Stichproben.
  */
-export const BELEG_TREFFER = 20;
+export const BELEG_TREFFER = 40;
+
+/**
+ * Wie viele Vorschläge der Ähnlichkeitssuche als ZWEITE Menge mitfahren.
+ *
+ * Zwölf, nicht die bis zu 50, die die Stufe liefert: sie sind nach Kosinus
+ * sortiert, das Gute steht vorn, und jede Zeile kostet dieselben ~355 Zeichen
+ * wie ein Beleg. Zwölf sind rund 4 300 Zeichen — der Preis dafür, dass das
+ * Modell überhaupt entscheiden KANN, statt dass eine Schwelle es tut.
+ */
+export const AEHNLICH_TREFFER = 12;
 
 export interface FrageAntwortStand {
   laeuft: boolean;
@@ -64,11 +82,20 @@ export function useFrageAntwort(
 
     void (async () => {
       const befund = baueBefund(treffer, plan);
+      // Zwei Mengen, zwei Blöcke: Belege sind belegt (ein gesuchtes Wort steht
+      // drin), Kandidaten sind Vorschläge des Embeddings. Untergemischt wären
+      // sie ununterscheidbar — und das Modell zitierte eine Vermutung wie einen
+      // Fund. Getrennt kann es entscheiden, und es muss die Entscheidung
+      // kennzeichnen (siehe `baueAntwortPrompt`).
+      const { wortlaut, aehnlich } = teileNachFundstelle(treffer);
       const belege = baueKontextBlock(
-        waehleKontextTreffer(treffer, BELEG_TREFFER), treffer.length,
+        waehleKontextTreffer(wortlaut, BELEG_TREFFER), wortlaut.length,
+      );
+      const kandidaten = baueAehnlichkeitsBlock(
+        waehleKontextTreffer(aehnlich, AEHNLICH_TREFFER), aehnlich.length,
       );
       const res = await ermittleFrageantwort(
-        bridge, plan.frage, befundAlsText(befund), belege, abbruch.signal,
+        bridge, plan.frage, befundAlsText(befund), belege, kandidaten, abbruch.signal,
       );
       if (abbruch.signal.aborted) return;
       setStand(res.ok

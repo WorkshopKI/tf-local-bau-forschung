@@ -100,3 +100,37 @@ describe('befundAlsText', () => {
     expect(t).toContain('hoch 1');
   });
 });
+
+/**
+ * Die Zusammensetzung (v4.104): Aehnlichkeits-Treffer bleiben in ALLEN Zahlen —
+ * die Liste unter der Karte zeigt sie ja auch —, aber der Befund sagt, wie viele
+ * es sind. Sonst liest das Modell „gering 625" als 625 belegte Fundstuecke.
+ */
+describe('Befund: Wortlaut gegen Aehnlichkeit', () => {
+  const wort = { id: 'w', trefferfelder: ['titel' as const], relevanzStufe: 3 as const };
+  const nurAehnlich = { id: 'a', trefferfelder: ['aehnlichkeit' as const], relevanzStufe: 1 as const };
+
+  it('zaehlt die nur thematischen Treffer, ohne sie herauszurechnen', () => {
+    const b = baueBefund([
+      treffer(wort), treffer({ ...nurAehnlich, id: 'a1' }), treffer({ ...nurAehnlich, id: 'a2' }),
+    ]);
+    expect(b.gesamt).toBe(3);
+    expect(b.nurAehnlich).toBe(2);
+  });
+
+  it('nennt die Zerlegung in DERSELBEN Zeile wie die Gesamtzahl', () => {
+    const t = befundAlsText(baueBefund([treffer(wort), treffer(nurAehnlich)]));
+    expect(t).toContain('Treffer insgesamt: 2 (1 mit gesuchtem Wortlaut, 1 nur thematisch ähnlich)');
+  });
+
+  it('schweigt dazu, wenn die Aehnlichkeitssuche nicht mitlief', () => {
+    const t = befundAlsText(baueBefund([treffer(wort)]));
+    expect(t).toContain('Treffer insgesamt: 1');
+    expect(t).not.toContain('thematisch');
+  });
+
+  it('haelt einen gemischten Treffer fuer belegt — er traegt ein gesuchtes Wort', () => {
+    const b = baueBefund([treffer({ id: 'g', trefferfelder: ['titel', 'aehnlichkeit'] })]);
+    expect(b.nurAehnlich).toBe(0);
+  });
+});

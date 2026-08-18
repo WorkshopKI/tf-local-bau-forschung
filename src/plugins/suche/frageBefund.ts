@@ -22,7 +22,9 @@
  * (dieselbe Regel wie bei der Facetten-Zahl, suche-relevanz.md §9.3).
  */
 import type { UnifiedSearchResult } from '@/core/types/search-result';
-import { RELEVANZ_LABEL, TREFFERFELD_LABEL, type RelevanzStufe } from '@/core/services/search/trefferstelle';
+import {
+  RELEVANZ_LABEL, TREFFERFELD_LABEL, nurUeberAehnlichkeit, type RelevanzStufe,
+} from '@/core/services/search/trefferstelle';
 import type { Frageplan } from '@/core/services/search/frageplan';
 
 /** Wie viele Werte je Verteilung genannt werden. Mehr liest niemand, und im
@@ -54,6 +56,15 @@ export interface Befund {
   verteilungen: readonly BefundVerteilung[];
   /** Wo die Treffer gefunden wurden — die Fundstellen, absteigend. */
   fundstellen: readonly { wert: string; anzahl: number }[];
+  /**
+   * Wie viele der `gesamt` Treffer NUR über die Ähnlichkeitssuche kamen.
+   *
+   * Sie bleiben in allen Zahlen enthalten — die Liste unter der Karte zeigt sie
+   * ja auch, und zwei Gesamtzahlen für dieselbe Menge wären eine zu viel. Aber
+   * sie tragen kein gesuchtes Wort, und das gehört zur Zusammensetzung: sonst
+   * liest das Modell „gering 625" als 625 belegte Fundstücke.
+   */
+  nurAehnlich: number;
 }
 
 function zaehle(werte: Iterable<string | undefined>): { top: { wert: string; anzahl: number }[]; ohne: number } {
@@ -117,7 +128,11 @@ export function baueBefund(
     treffer.flatMap(r => (r.trefferfelder ?? []).map(f => TREFFERFELD_LABEL[f])),
   ).top;
 
-  return { gesamt: treffer.length, relevanz, alleThemen, themen, verteilungen, fundstellen };
+  const nurAehnlich = treffer.filter(r => nurUeberAehnlichkeit(r.trefferfelder)).length;
+
+  return {
+    gesamt: treffer.length, relevanz, alleThemen, themen, verteilungen, fundstellen, nurAehnlich,
+  };
 }
 
 /**
@@ -128,7 +143,13 @@ export function baueBefund(
  * Zahl ohne Nenner dasteht — „158" ist keine Aussage, „158 von 663" schon.
  */
 export function befundAlsText(b: Befund): string {
-  const zeilen: string[] = [`Treffer insgesamt: ${b.gesamt}`];
+  // Die Zusammensetzung steht in DERSELBEN Zeile wie die Gesamtzahl, nicht in
+  // einer eigenen: eine zweite Zeile mit einer zweiten Zahl liest sich als
+  // zweite Menge, und es ist dieselbe.
+  const zerlegt = b.nurAehnlich > 0
+    ? ` (${b.gesamt - b.nurAehnlich} mit gesuchtem Wortlaut, ${b.nurAehnlich} nur thematisch ähnlich)`
+    : '';
+  const zeilen: string[] = [`Treffer insgesamt: ${b.gesamt}${zerlegt}`];
 
   if (b.relevanz.length > 0) {
     zeilen.push(`Relevanz: ${b.relevanz.map(r => `${RELEVANZ_LABEL[r.stufe]} ${r.anzahl}`).join(' · ')}`);

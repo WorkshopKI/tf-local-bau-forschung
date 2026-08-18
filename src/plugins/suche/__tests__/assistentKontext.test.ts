@@ -3,6 +3,8 @@ import type { UnifiedSearchResult } from '@/core/types/search-result';
 import {
   buildTrefferKontext,
   baueKontextBlock,
+  baueAehnlichkeitsBlock,
+  teileNachFundstelle,
   waehleKontextTreffer,
   kontextChipLabel,
   threadHinweis,
@@ -207,5 +209,55 @@ describe('Chip und Prompt sagen dasselbe', () => {
     expect(zeilenImBlock(block)).toBe(gewaehlt.length);
     expect(kontextChipLabel(gewaehlt.length, viele.length))
       .toBe(`Kontext: ${gewaehlt.length} von 100 Treffern`);
+  });
+});
+
+/**
+ * Die zwei Herkuenfte (v4.104): Wortlaut-Treffer tragen ein gesuchtes Wort,
+ * Aehnlichkeits-Treffer sind Vorschlaege des Embeddings. Der Antwort-Lauf
+ * schickt sie GETRENNT ans Modell — hier steht, dass die Trennung haelt.
+ */
+describe('teileNachFundstelle', () => {
+  const wort = treffer({ id: 'w', title: 'Wortlaut', trefferfelder: ['titel'] });
+  const gemischt = treffer({ id: 'g', title: 'Beides', trefferfelder: ['titel', 'aehnlichkeit'] });
+  const nurAehnlich = treffer({ id: 'a', title: 'Nur aehnlich', trefferfelder: ['aehnlichkeit'] });
+  const ohneFeld = treffer({ id: 'o', title: 'Ohne Angabe' });
+
+  it('trennt nach der EINZIGEN Fundstelle, nicht nach ihrem Vorkommen', () => {
+    const { wortlaut, aehnlich } = teileNachFundstelle([wort, gemischt, nurAehnlich, ohneFeld]);
+    expect(wortlaut.map(r => r.id)).toEqual(['w', 'g', 'o']);
+    expect(aehnlich.map(r => r.id)).toEqual(['a']);
+  });
+
+  it('haelt die Reihenfolge beider Mengen', () => {
+    const viele = [nurAehnlich, wort, nurAehnlich, wort].map((r, i) => ({ ...r, id: `${r.id}${i}` }));
+    const { wortlaut, aehnlich } = teileNachFundstelle(viele);
+    expect(wortlaut.map(r => r.id)).toEqual(['w1', 'w3']);
+    expect(aehnlich.map(r => r.id)).toEqual(['a0', 'a2']);
+  });
+});
+
+describe('baueAehnlichkeitsBlock', () => {
+  const kandidat = (i: number): UnifiedSearchResult => treffer({
+    id: `k${i}`, title: `Verwandt ${i}`, fkz: `16KN0${i}`, trefferfelder: ['aehnlichkeit'],
+  });
+
+  it('bleibt leer, wenn die Stufe nichts beisteuerte', () => {
+    expect(baueAehnlichkeitsBlock([], 0)).toBe('');
+  });
+
+  it('nennt Auszug UND Gesamtzahl — sonst liest das Modell die Auswahl als alles', () => {
+    const alle = Array.from({ length: 50 }, (_, i) => kandidat(i));
+    const block = baueAehnlichkeitsBlock(alle.slice(0, 12), alle.length);
+    expect(block).toContain('Die 12 nächstliegenden von 50');
+    expect(zeilenImBlock(block)).toBe(12);
+  });
+
+  it('sagt „alle", wenn es alle sind', () => {
+    expect(baueAehnlichkeitsBlock([kandidat(1)], 1)).toContain('Alle 1 thematisch verwandten');
+  });
+
+  it('nennt das Kennzeichen mit — ohne ist ein Vorschlag nicht nachprüfbar', () => {
+    expect(baueAehnlichkeitsBlock([kandidat(7)], 1)).toContain('(16KN07)');
   });
 });
