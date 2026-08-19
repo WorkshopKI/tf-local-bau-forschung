@@ -19,6 +19,14 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.117 — 2026-08
+
+### Verbesserungen
+- **Sechs Bereiche brauchen keinen Schalter mehr.** Der Gutachten-Workflow, die Kurzfassung, die Meilensteine und „Alle Felder" am Antrag sowie „Suchsprache" und „Fragen" in der Suche sind ab jetzt immer da — sie gehören zum Tagesgeschäft, nicht in die Tiefe.
+- **Vier Bereiche stehen jetzt unter „Beta-Funktionen":** Statuseinträge, Werkbank und Widerspruch am Antrag sowie die Seite „Dokumente". Sie funktionieren, ändern sich aber noch.
+- **Zwei Bereiche der Datenpflege stehen jetzt unter „Expertenmodus":** „Programme" und der „CSV-Datenimport" auf der Übersicht. Beide wiegen schwer und werden selten angefasst.
+- Wer die beiden Schalter schon umgelegt hat, merkt davon nichts — mit beiden an ist weiterhin alles sichtbar.
+
 ## v4.116 — 2026-08
 
 ### Bugfixes

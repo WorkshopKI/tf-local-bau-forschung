@@ -60,7 +60,8 @@ export const SICHTBARKEITS_KATALOG: readonly KatalogEintrag[] = [
   // Hängt bereits am Modul-Schloss `auslastung` (Regel 1) — die Zielgruppe ist
   // dort schon entschieden.
   seite('auslastung', 'Auslastung'),
-  seite('dokumente', 'Dokumente'),
+  // Die Volltext-Ablage neben dem Vorgang: nützlich, aber noch in Bewegung.
+  seite('dokumente', 'Dokumente', BETA),
   seite('glossar', 'Glossar'),
   seite('feedback-board', 'Feedback'),
   seite('einstellungen', 'Einstellungen', OFFEN, true),
@@ -118,9 +119,8 @@ export const SICHTBARKEITS_KATALOG: readonly KatalogEintrag[] = [
 
   reiter('suche', 'alle', 'Alle'),
   reiter('suche', 'zuletzt', 'Zuletzt'),
-  // Die Feld-Syntax der Suche; wer sie nicht kennt, braucht den Reiter nicht.
-  reiter('suche', 'suchsprache', 'Suchsprache', EXPERTE),
-  reiter('suche', 'fragen', 'Fragen', BETA),
+  reiter('suche', 'suchsprache', 'Suchsprache'),
+  reiter('suche', 'fragen', 'Fragen'),
   reiter('suche', 'stoebern', 'Stöbern'),
 
   // Die Entwickler-Sichten hängen schon an der Board-Rolle (Regel 1).
@@ -228,7 +228,7 @@ export const SICHTBARKEITS_KATALOG: readonly KatalogEintrag[] = [
   // ------------------------------------------------ Abschnitte: Datenpflege --
   abschnitt('kuration', 'sec-lage', 'Zu tun'),
   abschnitt('kuration', 'sec-lage-index', 'Suchindex'),
-  abschnitt('kuration', 'sec-lage-csv', 'CSV-Datenimport'),
+  abschnitt('kuration', 'sec-lage-csv', 'CSV-Datenimport', EXPERTE),
   abschnitt('kuration', 'sec-lage-review', 'Dokument-Prüfung'),
   abschnitt('kuration', 'sec-sitzung', 'Kurator-Sitzung'),
 
@@ -238,7 +238,8 @@ export const SICHTBARKEITS_KATALOG: readonly KatalogEintrag[] = [
   abschnitt('kuration', 'sec-csv-wartung', 'Antrags-Daten zurücksetzen', EXPERTE),
   abschnitt('kuration', 'sec-csv-wiederherstellen', 'CSV-Schemas wiederherstellen', EXPERTE),
 
-  abschnitt('kuration', 'sec-programme', 'Programme'),
+  // Der äußerste Rahmen der Daten: wird selten angefasst, wiegt aber schwer.
+  abschnitt('kuration', 'sec-programme', 'Programme', EXPERTE),
   abschnitt('kuration', 'sec-unterprogramme', 'Unterprogramme'),
   abschnitt('kuration', 'sec-filter', 'Filter verwalten'),
   abschnitt('kuration', 'sec-filter-kurator', 'Kurator-Filter'),
@@ -264,16 +265,17 @@ export const SICHTBARKEITS_KATALOG: readonly KatalogEintrag[] = [
   abschnitt('antraege', 'detail-status', 'Status'),
   abschnitt('antraege', 'detail-offeneAufgaben', 'Offene Aufgaben', BETA),
   abschnitt('antraege', 'detail-naechsteSchritte', 'Nächste Schritte', BETA),
-  abschnitt('antraege', 'detail-statuseintraege', 'Statuseinträge'),
-  abschnitt('antraege', 'detail-meilensteine', 'Meilensteine', BETA),
-  // Der Gutachten-Workflow A–G: das Werkzeug der Gutachtenden.
-  abschnitt('antraege', 'detail-gutachten', 'Gutachten', EXPERTE),
-  abschnitt('antraege', 'detail-kurzfassung', 'Kurzfassung', BETA),
+  abschnitt('antraege', 'detail-statuseintraege', 'Statuseinträge', BETA),
+  abschnitt('antraege', 'detail-meilensteine', 'Meilensteine'),
+  // Der Gutachten-Workflow A–G steht offen: er ist das Tagesgeschäft der
+  // Gutachtenden, nicht ihr Sonderwerkzeug.
+  abschnitt('antraege', 'detail-gutachten', 'Gutachten'),
+  abschnitt('antraege', 'detail-kurzfassung', 'Kurzfassung'),
   abschnitt('antraege', 'detail-antragsdaten', 'Antragsdaten'),
-  abschnitt('antraege', 'detail-werkbank', 'Werkbank', EXPERTE),
-  abschnitt('antraege', 'detail-widerspruch', 'Widerspruch'),
+  abschnitt('antraege', 'detail-werkbank', 'Werkbank', BETA),
+  abschnitt('antraege', 'detail-widerspruch', 'Widerspruch', BETA),
   abschnitt('antraege', 'detail-nachforderungen', 'Nachforderungen', BETA),
-  abschnitt('antraege', 'detail-alleFelder', 'Alle Felder', EXPERTE),
+  abschnitt('antraege', 'detail-alleFelder', 'Alle Felder'),
   abschnitt('antraege', 'detail-historie', 'Historie'),
 
   // ------------------------------------- Karten auf den Fachseiten (v4.114) --

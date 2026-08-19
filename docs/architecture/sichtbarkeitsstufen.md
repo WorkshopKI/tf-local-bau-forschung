@@ -177,21 +177,28 @@ dabei:
 Interaktive Elemente im `trailing`-Slot brauchen `stopPropagation` — sonst klappt der Klick auf
 einen Marken-Chip zugleich den Zweig auf (tree-komponenten.md).
 
-## Vorbelegung (Stand v4.114)
+## Vorbelegung (Stand v4.117)
 
-**192 Einträge, 44 markiert**: 20 nur `beta`, 20 nur `experte`, 4 beides. 148 bleiben Standard.
-Mit beiden Schaltern aus verschwinden 7 der 18 Nav-Einträge samt ihrer Reiter.
+**199 Einträge, 46 markiert**: 23 nur `beta`, 18 nur `experte`, 5 beides. 153 bleiben Standard.
+Mit beiden Schaltern aus verschwinden 8 der 18 Nav-Einträge samt ihrer Reiter.
 
 | Marken | Seiten |
 |---|---|
-| `beta` | `meilensteine`, `zu-klaeren`, `vorgangs-board`, `anfragen`, Route `aufbereitung` |
+| `beta` | `meilensteine`, `zu-klaeren`, `vorgangs-board`, `anfragen`, `dokumente`, Route `aufbereitung` |
 | `beta`+`experte` | `status-cockpit`, `map-foerderfaehig` |
 | `experte` | `skill-verwaltung-kuration` |
 
-Die übrigen Marken sitzen an Reitern („Suchsprache", „Verwaltung", „Recherche", „Konfiguration",
-„Auswertung", „Fragen", „Textbausteine", „Dienste"), an Abschnitten (die Assistent-Gruppe, die
-„Selten gebraucht"-Karten der Datenpflege, Rohfeld- und Diagnose-Abschnitte) und an vier Widgets.
+Die übrigen Marken sitzen an Reitern („Verwaltung", „Recherche", „Konfiguration", „Auswertung",
+„Textbausteine", „Dienste"), an Abschnitten (die Assistent-Gruppe, die „Selten gebraucht"-Karten
+der Datenpflege, Rohfeld- und Diagnose-Abschnitte) und an vier Widgets.
 Die vollständige Liste steht genau einmal — in [katalog.ts](../../src/core/sichtbarkeit/katalog.ts).
+
+Die Vorbelegung ist **kuratierbar, nicht gesetzt**: Wo das Team im laufenden Betrieb anders
+entscheidet, wandert die Entscheidung in den Katalog zurück, statt als Abweichung auf dem Share zu
+verharren — sonst erklärt die Sidecar irgendwann die halbe App. So sind mit v4.117 der
+Gutachten-Workflow, die Kurzfassung, die Antrags-Meilensteine, „Alle Felder", „Suchsprache" und der
+Frage-Reiter der Suche auf Standard gerückt, „Statuseinträge", „Werkbank", „Widerspruch" und die
+Seite „Dokumente" auf `beta`, und „Programme" wie „CSV-Datenimport" der Datenpflege auf `experte`.
 
 ## Guards
 

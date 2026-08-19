@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.117.0 — Vorbelegung der Sichtbarkeit nachgezogen (August 2026)
+
+MINOR — Die Vorbelegung aus v4.112 war ein Vorschlag; das Team ist sie durchgegangen und entscheidet an 13 Stellen anders. Solche Entscheidungen gehören zurück in den Katalog statt als Abweichung auf dem Share zu verharren — sonst erklärt die Sidecar irgendwann die halbe App.
+
+- **Auf Standard**: Gutachten, Kurzfassung, Meilensteine, „Alle Felder" (Verbund-Detail) sowie „Suchsprache" und „Fragen" (Suche) ([katalog.ts](src/core/sichtbarkeit/katalog.ts))
+- **Auf `beta`**: Statuseinträge, Werkbank, Widerspruch (Verbund-Detail) und die Seite „Dokumente"
+- **Auf `experte`**: „Programme" und „CSV-Datenimport" der Datenpflege
+- Bilanz: 199 Einträge, 46 markiert (23 `beta` / 18 `experte` / 5 beides); mit beiden Schaltern aus fehlen 8 der 18 Nav-Einträge ([sichtbarkeitsstufen.md](docs/architecture/sichtbarkeitsstufen.md))
+- Kurator-Abweichungen auf dem Share bleiben unberührt — sie liegen über dem Katalog und schlagen ihn weiterhin
+
 ### v4.116.0 — Einstellungen: 48 Befunde der Bug-Jagd behoben (August 2026)
 
 MINOR — Die read-only-Jagd über 4.886 Zeilen fand ein Muster, nicht Einzelfälle: **zwei Stellen entscheiden dieselbe Frage, und nur eine wurde nachgezogen.** Registry gegen Anker, Seite gegen Bauteil, Einstellung gegen Startseite, Klick gegen Neustart. Dazu ein zweiter Faden — Zusagen, die niemand einlöst: ein Zähler ohne Nachzug, ein Häkchen an einer Farbe, die nicht mehr gilt, ein Suchtreffer, der auf nichts zeigt.

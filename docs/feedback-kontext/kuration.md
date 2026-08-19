@@ -9,7 +9,7 @@ Daneben steht in derselben Gruppe die Seite, die eine eigene Arbeitsfläche ist:
 Solange der Kurator-Modus nicht freigeschaltet ist, steht das als Zeile oben auf der Seite: alles ist lesbar, nichts ist änderbar. Freigeschaltet wird in den Einstellungen unter „Mein Profil → Zusatz-Module".
 
 ## Übersicht
-Die Landeseite: was gerade ansteht und wie die Daten stehen. Je eine Zeile für den Suchindex, den CSV-Datenimport und die Dokument-Prüfung — mit dem echten Zustand, auch wenn nichts zu tun ist, und einem Weg dorthin. Rechts steht die Kurator-Sitzung: ob sie läuft, wie lange noch, und der Knopf zum Sperren. Freigeschaltet wird sie nicht hier, sondern in den Einstellungen — solange sie zu ist, wäre die Tür sonst im verschlossenen Raum.
+Die Landeseite: was gerade ansteht und wie die Daten stehen. Je eine Zeile für den Suchindex und die Dokument-Prüfung — mit dem echten Zustand, auch wenn nichts zu tun ist, und einem Weg dorthin; die Zeile zum CSV-Datenimport kommt mit eingeschaltetem Expertenmodus dazu. Rechts steht die Kurator-Sitzung: ob sie läuft, wie lange noch, und der Knopf zum Sperren. Freigeschaltet wird sie nicht hier, sondern in den Einstellungen — solange sie zu ist, wäre die Tür sonst im verschlossenen Raum.
 
 ## CSV-Quellen
 Woher die Antragsdaten kommen. Jede Quelle ist ein CSV-Export des Fachsystems mit gemerkter Datei, Spalten-Mapping und letztem Import; ein Klick auf die Zeile öffnet ihre Details. „Neu registrieren" führt durch den Wizard.
@@ -23,7 +23,7 @@ Eingeklappt darunter das Seltene: **Antrags-Daten zurücksetzen** (bei Encoding-
 ## Förderprogramme
 Programme, Unterprogramme und die Filter, die daran hängen — alles darauf gilt für das **aktive Programm**; jede Gruppe sagt, für welches.
 
-**Programme** sind der äußerste Rahmen: an der Programm-Id hängen Aktenzeichen, CSV-Schemas, Anträge, Unterprogramme und Filter. Anlegen, umbenennen, aktiv schalten; löschen geht nur bei 0 Anträgen. Umgeschaltet wird in der Seitenleiste.
+**Programme** sind der äußerste Rahmen: an der Programm-Id hängen Aktenzeichen, CSV-Schemas, Anträge, Unterprogramme und Filter. Anlegen, umbenennen, aktiv schalten; löschen geht nur bei 0 Anträgen. Umgeschaltet wird in der Seitenleiste. Weil das selten nötig ist und schwer wiegt, erscheint der Abschnitt nur mit eingeschaltetem Expertenmodus.
 
 **Unterprogramme** legt man nicht an — sie entstehen beim CSV-Import aus der Spalte, die auf `unterprogramm_id` gemappt ist. Kuratierbar sind Label, geplanter Zeitraum und das Aktiv-Häkchen; Labels lassen sich auch aus einer XLSX übernehmen.
 
