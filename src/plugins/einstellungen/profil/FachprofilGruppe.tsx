@@ -9,6 +9,7 @@
  * Zustand + Speichern liegen in `useFachprofil` — hier steht nur Darstellung.
  */
 import { useState } from 'react';
+import { useMeinKuerzel } from '@/core/hooks/useMeinKuerzel';
 import { ToggleChip } from '@/components/ui/ToggleChip';
 import { TechChipInput } from '@/plugins/auslastung/components/TechChipInput';
 import { truncateWZ } from '@/plugins/auslastung/components/AutoTagToggleWand';
@@ -43,6 +44,8 @@ const AUTO_TAG_CAP = 10;
 
 export function FachprofilGruppe({ fp }: { fp: Fachprofil }): React.ReactElement {
   const aktiveThemen = fp.autoTags.filter(t => !fp.ausgeblendeteAutoTags.includes(t)).length;
+  const meinKuerzel = useMeinKuerzel()?.trim();
+  const kuerzelGesetzt = !!meinKuerzel && meinKuerzel.toLowerCase() !== 'alle';
 
   return (
     <SettingsGruppe
@@ -53,8 +56,25 @@ export function FachprofilGruppe({ fp }: { fp: Fachprofil }): React.ReactElement
     >
       {!fp.anonId ? (
         <SettingsLeer>
-          Bearbeiter-Kürzel rechts unter „Welche Anträge du siehst" hinterlegen — dann erscheint
-          hier dein Fachprofil.
+          {/* Zwei verschiedene Lagen, bis v4.116 mit einem Satz beantwortet: wer
+              sein Kürzel längst gesetzt hatte, las die Aufforderung, es zu
+              setzen. Die Zuordnung läuft über die AnonymMap, und die kennt
+              ausschließlich die FACHLICH bearbeitenden Kürzel (`tib_kuerz`,
+              Pitfall #17) — ein rein administrativ geführtes Kürzel löst dort
+              nie auf, egal wie oft man es einträgt. */}
+          {kuerzelGesetzt ? (
+            <>
+              Zu deinem Kürzel „{meinKuerzel}" gibt es keinen Eintrag im Auslastungs-Bestand.
+              Das Fachprofil hängt an den fachlich bearbeitenden Kürzeln (Spalte TiB); wer nur
+              administrativ geführt ist, erscheint dort nicht. Die PL kann dich im
+              Auslastungs-Modul aufnehmen.
+            </>
+          ) : (
+            <>
+              Bearbeiter-Kürzel rechts unter „Welche Anträge du siehst" hinterlegen — dann
+              erscheint hier dein Fachprofil.
+            </>
+          )}
         </SettingsLeer>
       ) : (
         <>
