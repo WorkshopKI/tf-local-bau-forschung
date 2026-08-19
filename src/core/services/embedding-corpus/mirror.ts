@@ -17,8 +17,9 @@
  *  - Antraege-Drift wird ueber `aktenzeichenSetHash` (SHA-256 ueber die
  *    sortierten aktenzeichen) erkannt — Mismatch → Hinweis im UI,
  *    inkrementell neu bauen empfohlen.
- *  - `corpusBuildVersion` markiert die inhaltliche Embedding-Text-Struktur
- *    (v1 = nur Titel/VB/Abstract, v2 = + Deskriptoren).
+ *  - `corpusBuildVersion` + `documentPrefix` markieren den VEKTORRAUM — welcher
+ *    Text und welcher Praefix die Vektoren erzeugt hat
+ *    ([signatur.ts](./signatur.ts)).
  *
  * Sicherheit: Klartext-Vektoren. Sie enthalten keine Klartext-Antrags-
  * inhalte zurueck (Embeddings sind nicht umkehrbar), aber strukturelle
@@ -30,21 +31,12 @@ import type { StorageService } from '@/core/services/storage';
 import { atomicWrite, readText, readBinary } from '@/core/services/infrastructure/atomic-write';
 import { getDatenShareHandle } from '@/core/services/infrastructure/smb-handle';
 import { storeEmbedding } from './storage';
+import { CORPUS_BUILD_VERSION } from './signatur';
 import type { IDBStore } from '@/core/services/storage/idb-store';
 
 export const CORPUS_MANIFEST_PATH = '_intern/auslastung-embedding-corpus.manifest.json';
 export const CORPUS_BIN_PATH = '_intern/auslastung-embedding-corpus.bin';
 
-/**
- * Inhaltliche Build-Version des Embedding-Texts. Aenderung bei jeder
- * Erweiterung der Embedding-Text-Builder — z.B. v1 = nur Titel + VB-
- * Titel + Abstract, v2 = + Deskriptoren (TECHN/BRANCHE/ANWEND + ZT-Klartexte).
- *
- * Separat vom Manifest-Schema-Version-Feld (`version: 1`) — alte v1-Korpora
- * sind weiterhin lesbar, aber die UI schlaegt einen Rebuild fuer den
- * Deskriptor-Anteil vor.
- */
-export const CORPUS_BUILD_VERSION = 2;
 
 export interface EmbeddingCorpusManifest {
   version: 1;
@@ -70,6 +62,16 @@ export interface EmbeddingCorpusManifest {
   /** Inhaltliche Build-Version (siehe `CORPUS_BUILD_VERSION`). Optional fuer
    *  Rueckwaerts-Kompat mit alten v1-Manifests, die das Feld nicht hatten. */
   corpusBuildVersion?: number;
+  /**
+   * Der Dokument-Praefix, mit dem diese Vektoren erzeugt wurden (v4.113).
+   *
+   * Gehoert ins Manifest, weil er den Vektorraum mitbestimmt und bis dahin
+   * NIRGENDS festgehalten war: zwei Korpora mit gleichem Modell, gleicher
+   * Dimension und verschiedenem Praefix galten als kompatibel. Optional, weil
+   * alte Manifests ihn nicht fuehren — dann macht er keine Aussage
+   * ([signatur.ts](./signatur.ts)).
+   */
+  documentPrefix?: string;
 }
 
 /** Liefert die Build-Version eines Manifests; alte Manifests ohne Feld
@@ -106,6 +108,11 @@ export async function serializeCorpus(
   modellId: string,
   dim: number,
   builderProfile?: string,
+  /** Der Praefix, mit dem DIESE Vektoren gebaut wurden — aus der lokalen
+   *  Korpus-Signatur, nicht aus dem gerade aktiven Modell. */
+  documentPrefix?: string,
+  /** Die Text-Build-Version DIESER Vektoren. Ohne Angabe die aktuelle. */
+  buildVersion?: number,
 ): Promise<{ manifest: EmbeddingCorpusManifest; bin: ArrayBuffer }> {
   const aktenzeichen = [...embeddings.keys()].sort();
   const count = aktenzeichen.length;
@@ -133,7 +140,8 @@ export async function serializeCorpus(
     aktenzeichen,
     binFormat: 'f32-stream',
     binBytes: buffer.byteLength,
-    corpusBuildVersion: CORPUS_BUILD_VERSION,
+    corpusBuildVersion: buildVersion ?? CORPUS_BUILD_VERSION,
+    documentPrefix,
   };
   return { manifest, bin: buffer };
 }

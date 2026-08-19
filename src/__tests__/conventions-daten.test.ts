@@ -704,15 +704,25 @@ describe('korpus-felder-ueber-schema (recurring-bug-classes Klasse 5)', () => {
   // Reissleine, kein Muster-Verbot: wer die Aufloesung entfernt und wieder raet,
   // faellt hier auf. Welche Spalte zu welchem Feld gehoert, prueft der
   // Modul-Test korpusFeldAufloesung.test.ts.
-  const KORPUS = join('plugins', 'antraege', 'services', 'search-corpus.ts');
+  //
+  // Und er gilt fuer BEIDE Korpora. Dass er nur den Wortlaut-Korpus bewachte, war
+  // v4.113 der Grund, warum derselbe Defekt im EMBEDDING-Korpus weitere Monate
+  // stand: `buildEmbeddingTextForAntrag` las `projektbeschreibung_text`, am echten
+  // Bestand in 0 von 14 225 Saetzen gefuellt — der Vektor eines Vorhabens kannte
+  // nie seinen Inhalt, nur seinen Titel. Ein Guard, der nur EINE Datei kennt,
+  // faengt keine KLASSE.
+  const KORPORA = [
+    join('plugins', 'antraege', 'services', 'search-corpus.ts'),
+    join('plugins', 'auslastung', 'services', 'matching', 'embedding-corpus.ts'),
+  ];
 
-  it('der Suchkorpus loest seine Spalten ueber das CSV-Schema auf', () => {
+  it.each(KORPORA)('%s loest seine Spalten ueber das CSV-Schema auf', (KORPUS) => {
     const quelle = readFileSync(join(ROOT, KORPUS), 'utf-8');
     if (quelle.includes('allow-korpus-felder')) return;
     const nutztResolver = quelle.includes('baueKorpusFeldKarte');
     if (!nutztResolver) {
       expect.fail(
-        `${KORPUS} baut den Suchkorpus ohne Schema-Aufloesung\n` +
+        `${KORPUS} baut seinen Korpus ohne Schema-Aufloesung\n` +
         `(recurring-bug-classes Klasse 5). Unter welchem Schluessel eine CSV-Spalte\n` +
         `im Antrags-Record landet, entscheidet das Wizard-Mapping — nicht der Code\n` +
         `(resolveFieldKey: canonical → custom → col.toLowerCase()). Ein geratener\n` +
@@ -720,6 +730,23 @@ describe('korpus-felder-ueber-schema (recurring-bug-classes Klasse 5)', () => {
         `Zuordnung ueber baueKorpusFeldKarte (korpusFeldAufloesung.ts) beziehen.\n` +
         `Echte Ausnahme: '// allow-korpus-felder: <grund>'.`,
       );
+    }
+  });
+
+  // Die zweite Haelfte derselben Reissleine: wer ueber das Schema aufloest, darf
+  // die Feld-Schluessel nicht DANEBEN noch hart lesen. Genau so sah der Embedding-
+  // Bauer aus — drei `antrag[KONSTANTE]`-Zugriffe, von denen zwei ins Leere gingen.
+  it('der Embedding-Korpus liest keine Textfelder an der Aufloesung vorbei', () => {
+    const pfad = join('plugins', 'auslastung', 'services', 'matching', 'embedding-corpus.ts');
+    const quelle = readFileSync(join(ROOT, pfad), 'utf-8');
+    if (quelle.includes('allow-korpus-felder')) return;
+    for (const konstante of ['CANONICAL_VERBUND_TITEL', 'FIELD_PROJEKTBESCHREIBUNG']) {
+      expect(
+        quelle.includes(konstante),
+        `${pfad} liest ${konstante} direkt. Am echten Bestand ist dieser Schluessel\n`
+        + `in 0 von 14 225 Saetzen gefuellt — der Wert kommt ueber leseSlots() aus der\n`
+        + `Schema-Aufloesung. Echte Ausnahme: '// allow-korpus-felder: <grund>'.`,
+      ).toBe(false);
     }
   });
 });

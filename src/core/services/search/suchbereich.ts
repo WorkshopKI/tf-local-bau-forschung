@@ -135,6 +135,29 @@ export function bereichNutztDokumente(bereich: Suchbereich): boolean {
   return bereich === 'alles' || bereich === 'dokumente';
 }
 
+/**
+ * Darf die Ähnlichkeitsstufe mitlaufen? Nur in den Bereichen, die nach dem
+ * **Thema** fragen.
+ *
+ * Ihr Vektor ist aus Titel, Kurzbeschreibung und Deskriptoren gebaut
+ * ([embedding-corpus.ts](src/plugins/auslastung/services/matching/embedding-corpus.ts))
+ * — sie kann eine Frage nach der Einrichtung, dem Ort oder einem Dokument gar
+ * nicht beantworten. Bis v4.113 lief sie trotzdem in jedem Bereich: `aehnlichkeit`
+ * steht in `NICHT_IM_STANDARD` („hängt an ihrem eigenen Schalter"), und der
+ * Schalter kannte den Bereich nicht.
+ *
+ * Am echten Bestand gemessen (Anfrage „Wasserstofftechnologie", Stufe an):
+ * „nur Einrichtung" lieferte 50 Treffer, **alle 50** aus der Vektorstufe — genau
+ * das Thema also, das der Nutzer gerade ausgeschlossen hatte. Unter „nur
+ * Dokumente" kamen 50 **Anträge**, von denen keiner einen Dokumenttreffer hatte,
+ * wo ohne Stufe „Kein Treffer" stand. Der Bereich ist damit die Whitelist, die
+ * er zu sein verspricht — und die Deutungszeile schreibt es an, statt es still
+ * zu tun (`SemanticStatus` `'bereich-ruht'`).
+ */
+export function bereichNutztAehnlichkeit(bereich: Suchbereich): boolean {
+  return bereich === 'alles' || bereich === 'inhalt';
+}
+
 /** Toleranter Leser für die Persistenz. Ein gemerkter Wert, den diese Fassung
  *  nicht mehr führt, fällt auf den weitesten Bereich zurück — nie auf einen
  *  engeren, der stillschweigend Treffer unterschlüge. */

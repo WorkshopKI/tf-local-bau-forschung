@@ -2,6 +2,151 @@
 
 Ältere Versionsblöcke (append-only, chronologisch absteigend). Die jüngsten Versionen stehen im Root-[CHANGELOG.md](../CHANGELOG.md). Bump-Regeln + Architektur: [CLAUDE.md](../CLAUDE.md).
 
+### v4.73.0 — Der Einstieg in die Suche ist ein Panel mit Reitern (August 2026)
+
+MINOR — Aus einem Design-Handoff (`_design/handoff/suche-startseite`): der Startzustand zeigte sechs gleichrangige Blöcke untereinander, nichts stach heraus, die Seite scrollte. Zwei der Blöcke trugen dabei nichts Eigenes — „Aus dem Index" nannte die Zahlen der Optionszeile ein zweites Mal, „Häufig gesucht" ist die zweite Hälfte derselben Verlaufsliste wie „Letzte Suchen".
+
+- **Ein Panel mit fünf Reitern** (Alle · Zuletzt · Suchsprache · Fragen · Stöbern) auf fester Fläche, zuletzt benutzter Reiter gerätelokal gemerkt ([SucheStartzustand.tsx](src/plugins/suche/SucheStartzustand.tsx), Reiter-Inhalte je eigene Datei in [start/](src/plugins/suche/start/))
+- **Neuer Reiter „Stöbern"**: Deskriptoren · Netzwerk · Einrichtung · Ort & Bundesland mit je den fünf häufigsten Werten und echter Trefferzahl; der volle Katalog bleibt die Vorschlagsliste im Suchfeld ([StartStoebern.tsx](src/plugins/suche/start/StartStoebern.tsx), [stoebern.ts](src/plugins/suche/start/stoebern.ts))
+- **Die Suchsprache-Beispiele stehen nach Zweck gruppiert** statt als flache Zehnerliste ([suchsprache.ts](src/plugins/suche/start/suchsprache.ts))
+- **Spalte „Aus dem Index" entfällt** — die Bestandszahlen stehen seit v4.69 in der Optionszeile; die leere Spalte „Gespeicherte Suchen" wurde ein Satz
+- **Trefferzahlen in Schüben** einmal statt zweimal gebaut: die Vorschlagsliste und der neue Reiter teilen sich [useProbeZahlen.ts](src/plugins/suche/useProbeZahlen.ts)
+
+Nicht übernommen aus dem Handoff: der Live-Filter des Panels beim Tippen (die Vorschlagsliste beantwortet denselben Tastendruck seit v4.71 und liegt darüber), die Zusammenfassung „3 Varianten" (der Verlauf entdoppelt bereits) und Zeitangaben je Suche (der Verlauf führt keine Zeitstempel).
+
+### v4.72.0 — Anpinnen an Phasen und Spannen (August 2026)
+
+MINOR — Gemeldet: „bei denen erscheint keine Nadel zum Anpinnen" (Bewilligungs-, Antrags-, Fristdatum) — und der Status-Block, der als einziger von sich aus offen steht, hatte nie eine. Von 8 Nadeln in der Leiste waren im Ausgangszustand genau 2 erreichbar.
+
+- **Jede Status-Phase trägt eine Nadel**: angepinnt wird sie als Schalter „Phase Eingang (2)", der alle Stati der Phase dazulegt ([StatusFilterFacet.tsx](src/plugins/antraege/filter/facets/StatusFilterFacet.tsx))
+- **Spannen und lange Listen** (Datum, Zahl, Freitext, 16 Richtlinien) pinnen die AKTUELLE Einstellung, sobald eine gesetzt ist — ohne Wert gibt es nichts einzufrieren ([FilterSidebarItem.tsx](src/plugins/antraege/filter/FilterSidebarItem.tsx), [pinnedFilters.ts](src/plugins/antraege/filter/pinnedFilters.ts))
+- **Die Identität einer Phase hängt an der Phase**, nicht an ihrer Werteliste — sonst läse sich derselbe Pin nach dem nächsten Filter als „nicht angepinnt" ([pinnedFilters.test.ts](src/plugins/antraege/__tests__/pinnedFilters.test.ts))
+- **Ein-Filter-Chips ohne „Satz:"** — der Wert benennt sich schon selbst ([PinLeiste.tsx](src/plugins/antraege/filter/PinLeiste.tsx), `label` an [FilterChip.tsx](src/components/ui/FilterChip.tsx) optional)
+- **Datumsspannen deutsch statt ISO** in Chips und Verlauf, über die vorhandene Anzeige-Kette ([ActiveFilterChips.tsx](src/plugins/antraege/filter/ActiveFilterChips.tsx), [frequentFilters.ts](src/plugins/antraege/filter/frequentFilters.ts)); neuer Zeilen-Klassen-Slot am Baum ([tf-tree-types.ts](src/components/tree/tf-tree-types.ts))
+
+### v4.71.1 — Verlauf breiter, Uhr neben den Titel (August 2026)
+
+PATCH — Gemeldet: „Historie-Anzeige breiter machen, damit man mehr von der Suchanfrage lesen kann (die unterscheiden sich meist in den hinteren Worten)" und „das Uhr-Icon direkt hinter Filter, das braucht man oft". Am Verlauf gemessen brauchte der längste Eintrag 274 px bei 207 px Textbreite — abgeschnitten wurde genau der unterscheidende Schluss.
+
+- **Verlaufs-Menü 280 → 440 px**, linksbündig am Knopf statt rechtsbündig ([VerlaufMenue.tsx](src/plugins/antraege/filter/VerlaufMenue.tsx))
+- **Lange Einträge brechen auf zwei Zeilen um** statt mit „…" zu enden — 2 × 367 px lesbarer Text, Langfassung weiter im `title` ([FrequentFiltersSection.tsx](src/plugins/antraege/filter/FrequentFiltersSection.tsx))
+- **Uhr-Zeichen direkt neben den Titel „Filter"**, „N aktiv" rückt nach rechts zum Einklapp-Knopf ([FilterSidebar.tsx](src/plugins/antraege/filter/FilterSidebar.tsx))
+
+### v4.71.0 — Das Suchfeld schlaegt vor (August 2026)
+
+MINOR — Gewünscht: eine Autovervollständigung im Suchfeld, „evtl. auch für die Feldsyntax (`ort:`, `nw:`)". Am Bestand gemessen ist der Wert das eigentliche Ratespiel: die Deskriptoren sind ein festes Vokabular von 43 Werten, das nirgends in der App steht, und die Einrichtung mit 305 Anträgen heißt „… angewandten Forschung **eingetragener Verein**", nicht „e.V.".
+
+- **Feldnamen vervollständigen sich beim Tippen**: „or" → `ort:` („nur Ort"); gesucht über alle Schreibweisen („netz" findet `nw:`), eingesetzt die eine, die die App selbst schreibt ([vervollstaendigung.ts](src/plugins/suche/vervollstaendigung.ts))
+- **Werte kommen aus dem Bestand**, mit Trefferzahl aus einem echten Probelauf: `ort:` (2.055) · `ast:` (5.461) · `nw:` (1.270) · `wahlkreis:` (299) · `deskriptor:` (43, als Katalog durchblätterbar) ([wert-index.ts](src/plugins/antraege/services/wert-index.ts), im Korpus-Durchlauf gefüllt)
+- **Anführungszeichen halten einen Wert zusammen** — `ort:"Frankfurt am Main"`, auch ohne Feld (`"additive Fertigung"`); ein zitierter Wert ist ein Chip und läuft ohne Wortstamm ([feldpraefix.ts](src/core/services/search/feldpraefix.ts))
+- **Das war ein Defekt, kein Komfort**: `ort:Frankfurt am Main` fand bei „irgendein Wort genügt" **6.365** statt 40 Anträgen, bei „alle Wörter" 48 statt 40 ([suche-relevanz.md §9](docs/architecture/suche-relevanz.md))
+- Eine Liste für drei Quellen — Feld, Wert, Verlauf — mit durchgehender Tastatur-Navigation; im Frage-Modus bleibt nur der Verlauf ([SearchSuggestions.tsx](src/plugins/suche/SearchSuggestions.tsx), [SearchInput.tsx](src/plugins/suche/SearchInput.tsx))
+
+### v4.70.0 — Der Kopf der Foerderantraege wird stimmig (August 2026)
+
+MINOR — Gemeldet: „links sind zwei Linien direkt übereinander", „die Ergebnistabelle klebt direkt oben am grauen Bereich", „das Layout/Design ist noch nicht stimmig". Der Handoff, pixelweise ausgelesen, hat oben gar keine graue Fläche — v4.68 hatte das Grau weiter gezogen als das Vorbild und damit die Oberkante der Tabelle verschluckt.
+
+- **Seitenkopf und Werkzeugzeile wieder weiß** (Rücknahme v4.68): grau bleiben Filterleiste und Tabellenkopf, dazwischen stehen 12 px Weiß statt 0 ([AntraegeHeader.tsx](src/plugins/antraege/AntraegeHeader.tsx), [AntraegeMain.tsx](src/plugins/antraege/AntraegeMain.tsx))
+- **Eine Linie statt zwei** in der Filterleiste — der Trenner steht nur noch ZWISCHEN Blöcken, nicht mehr direkt unter der Kopf-Unterkante ([FilterSidebar.tsx](src/plugins/antraege/filter/FilterSidebar.tsx))
+- **Trefferzahl in die Werkzeugzeile** neben „Darstellung"/„Spalten" statt allein in einer eigenen Zeile; `abschluss`-Slot entfällt ([QuickfilterToolbar.tsx](src/plugins/antraege/filter/QuickfilterToolbar.tsx))
+- **„Aufnehmen" + Export in den Seitenkopf**, links neben „Hilfe" — im Fokus-Modus bleiben weiter nur Titel + Hilfe ([AntraegeHeader.tsx](src/plugins/antraege/AntraegeHeader.tsx))
+- **Der Bereichs-Chip beziffert nur die Abweichung**: „Anzeige: letzte 3 Richtlinien", Programm- und Ausgeblendet-Zahl im Tooltip — im Chip erst bei eigener Auswahl ([betrachtungsbereich.ts](src/core/status/betrachtungsbereich.ts), [BereichChip.tsx](src/components/bereich/BereichChip.tsx)); Pille „Status" statt „Status in dieser Sicht", Zusatz als Tooltip ([CollapsibleSeg.tsx](src/plugins/antraege/filter/CollapsibleSeg.tsx))
+
+### v4.69.1 — der Trenner hebt sich von den Kastenraendern ab (August 2026)
+
+PATCH — Der neue Gruppen-Trenner stand in `--tf-border` — derselben Farbe, in der die Auswahlkästen ihre Ränder zeichnen. Zwischen zwei umrandeten Kästen war er damit eine Kante unter vielen und trennte nichts.
+
+- **Trenner in `--tf-border-hover` (0,15) statt `--tf-border` (0,08), 20 px statt 16 px hoch** ([SuchOptionenZeile.tsx](src/plugins/suche/SuchOptionenZeile.tsx)); Layout unverändert: die fünf Regler enden weiter bei 1068 von 1152 px
+
+### v4.69.0 — die Optionszeile stellt drei Fragen (August 2026)
+
+MINOR — Gemeldet: „das Wording in diesem Dropdown ist noch etwas sperrig", dazu der Wunsch, die Auswahlboxen nach Fragen zu gruppieren. Sperrig war die Bauform: „Wortverknüpfung:" plus drei Substantiv-Fetzen, die erst durch das Label daneben einen Sinn ergaben — aufgeklappt liegt die Liste über der Seite, und das Label ist dann weit weg. Genau das hatte der Suchbereich mit „Suche in: …" schon gelöst.
+
+- **Jede Auswahl trägt ihre Frage im Kasten**, die Zeile liest sich von links nach rechts: „Suche mit: …" · „Suche in: …" │ Feinjustierung ([SuchOptionenZeile.tsx](src/plugins/suche/SuchOptionenZeile.tsx))
+- **Die Wortverknüpfung sagt ihre Regel als ganzen Satz** — „alle Wörter müssen vorkommen" · „irgendein Wort genügt" · „genau diese Wortfolge"; das Label „Wortverknüpfung:" entfällt ersatzlos ([useSuchVerknuepfung.ts](src/core/hooks/useSuchVerknuepfung.ts))
+- **Der Suchbereich rückt nach links**, direkt hinter die Art der Suche: er ist die zweite Grundentscheidung, nicht eine Feinheit — ein eingeengter Bereich lässt Treffer ganz verschwinden
+- **„Suche mit: einer Frage" statt „mit natürlicher Sprache suchen"** — die Seite nennt das Verfahren überall sonst schon Frage („Frage stellen", „Oder stell eine Frage")
+- Gemessen in `dev:local`: die fünf Regler stehen bei 1152 px auf einer Zeile und brauchen **1068 px statt 1092** — trotz längerer Texte 24 px weniger ([suche.md](docs/feedback-kontext/suche.md))
+
+### v4.68.1 — die zwei Haken nennen ihre Achse selbst (August 2026)
+
+PATCH — Gemeldet: „man muss sich als User genau beide Tooltips durchlesen, um den Unterschied zu verstehen". Der Befund lag in den Namen: „Wortformen mitsuchen" nannte Wörter, „Ähnlichkeitssuche" nannte Ähnlichkeit — wovon, sagte keiner. Weil keiner für sich stand, brauchte jeder Tooltip einen Verweis auf den anderen („Nicht zu verwechseln mit …"); genau das war das Symptom.
+
+- **„auch andere Wortformen" ⇄ „auch ähnliche Themen"** ([SuchOptionenZeile.tsx](src/plugins/suche/SuchOptionenZeile.tsx)): gleicher Satzbau, Wörter gegen Themen — der Unterschied steht in den Beschriftungen statt in zwei Tooltips
+- **Der Zusatz „(lädt 200 MB)" nennt die Kosten statt der Technik** — er ist zugleich das zweite Unterscheidungsmerkmal, denn die Wortformen wirken sofort und laden nichts
+- **Beide Tooltips öffnen mit ihrem eigenen Gegensatzpaar** („Gleiches Wort, andere Form" / „Gleiches Thema, andere Wörter") und verweisen nicht mehr aufeinander
+- Kein-Treffer-Ausweg und Startzustand ziehen die neue Benennung mit ([auswege.ts](src/plugins/suche/auswege.ts), [SucheStartzustand.tsx](src/plugins/suche/SucheStartzustand.tsx)); die fünf Regler bleiben gemessen auf einer Zeile (1131 von 1152 px)
+
+### v4.68.0 — die Frage-Zeile wird kuerzer, die Wortformen echter (August 2026)
+
+MINOR — Drei Meldungen zur Suche, eine Wurzel: die Oberfläche behauptete Dinge, die nicht galten. Im Frage-Modus standen vier Regler, von denen keiner noch etwas bestimmte; ein toter lokaler KI-Server lieferte statt der Verbinden-Aufforderung den Browser-Text „Failed to fetch"; und „Wortformen mitsuchen" schlug zu „Normen" das Wort „enormes" vor — am echten Bestand **134 von 285** Treffern für den Stamm `norm` waren solche Buchstaben-Treffer.
+
+- **Der Frage-Modus sucht erst auf Anforderung** und zeigt nur noch, was dort wirkt: Verknüpfung und Wortformen verschwinden, der Bereich bleibt sobald er einengt, die Ähnlichkeitssuche solange sie läuft ([SuchOptionenZeile.tsx](src/plugins/suche/SuchOptionenZeile.tsx), [SuchSeite.tsx](src/plugins/suche/SuchSeite.tsx))
+- **Der Wortstamm zählt nur an einer Wortgrenze** ([wortstamm.ts](src/core/services/search/wortstamm.ts)): `standard` und `bahn` verlieren keinen Treffer, `norm` 134 — jede Stichprobe „enorm…"; dieselbe Regel beim Suchen und beim Einsammeln der Chips ([suche-relevanz.md §5](docs/architecture/suche-relevanz.md))
+- **Die acht gezeigten Wortformen sind die häufigsten**, nicht die des zufällig ersten Treffers ([antraege-search-service.ts](src/plugins/antraege/services/antraege-search-service.ts))
+- **„von der KI prüfen" sortiert aus, was nur den Stamm teilt** — ein Lauf auf Wunsch, das Ergebnis landet in derselben Abwahl wie ein Nutzer-Klick und ist einzeln rücknehmbar ([wortformen-pruefung.ts](src/core/services/search/wortformen-pruefung.ts))
+- **Der KI-Preflight prüft jeden internen Transport**, nicht nur die Bridge ([ki-guard.ts](src/core/services/ai/ki-guard.ts)); ein nicht erreichbarer direkter Server bekommt einen eigenen Dialogtext samt Adresse ([KiConnectPromptDialog.tsx](src/core/components/KiConnectPromptDialog.tsx))
+
+### v4.67.0 — Eigene Reiter: den eingerichteten Arbeitsplatz merken (August 2026)
+
+MINOR — Nachtrag zu v4.65: dort blieb der Wunsch nach eigenen Reitern liegen, weil von neun Dingen, die einen eingerichteten Arbeitsplatz ausmachen, nur vier am Reiter hingen — Spalten, Breiten, Dichte, Filter und die Auswahl in den Spaltenköpfen galten global, letztere überlebte nicht einmal einen Neustart. Ein Reiter, der elf von zwölf Achsen wiederherstellt, verspricht mehr, als er hält.
+
+- **Eigener Reiter hinter dem Lesezeichen am Ende der Leiste**: er sitzt auf einer der vier festen Sichten und nimmt Filter, Ansichtsform, Gruppierung, Sortierung, Spaltensatz, Breiten, Dichte und Kopf-Auswahl mit ([eigeneReiter.ts](src/plugins/antraege/eigeneReiter.ts), [reiterZustand.ts](src/plugins/antraege/reiterZustand.ts))
+- **Markiert, solange der Stand passt** — verglichen werden nur die Achsen, die im jeweiligen Zustand gelten (aus `baueDarstellungsAchsen`, keine zweite Tabelle); gezogene Breiten und die Kopf-Sortierung zählen nicht mit, werden aber wiederhergestellt
+- **Die Spaltenkopf-Auswahl liegt jetzt im Store und überlebt einen Neustart** ([kopfFilter.ts](src/plugins/antraege/kopfFilter.ts)); `useColumnFilters` bekam dafür einen optionalen gesteuerten Modus, alle anderen Tabellen bleiben unberührt ([useColumnFilters.ts](src/components/data-table/useColumnFilters.ts))
+- **Merken, Nachziehen, Umbenennen, Entfernen in EINEM Menü** ([EigeneReiterMenue.tsx](src/plugins/antraege/EigeneReiterMenue.tsx)); höchstens vier, ohne Trefferzahl — die müsste den ganzen Ausschnitt versprechen
+- **Die drei Speicher-Schlüssel der Tabelle an einer Stelle** ([tabellenSpeicher.ts](src/plugins/antraege/tabellenSpeicher.ts)); Breiten, Gesamtbreite und Kopf-Sortierung werden über die Funktionen ihres Hooks geschrieben, die Tabelle danach neu aufgebaut
+
+### v4.66.0 — Eine Frage stellen statt Wortformen raten (August 2026)
+
+MINOR — Der Platzhalter lud seit v3.50 zu einer „analytischen Frage" ein und konnte keine beantworten: am echten Bestand liefert „Welche Vorhaben drehen sich hauptsächlich um Normung und Standards?" wörtlich **0 Treffer**, „Normung" allein 5 — obwohl die Sache tausendfach da ist, unter „Normen", „Normierung", „Standardisierung". Die interne KI ist damit die Synonymquelle, die [suche-relevanz.md §5](docs/architecture/suche-relevanz.md) als fehlend benannt hat: das Embedding kann Nachbarschaft messen, aber keine Begriffe BENENNEN.
+
+- **Ein Leitbegriff = ein Suchteil, seine Schreibweisen = dessen Nadeln** ([frageplan.ts](src/core/services/search/frageplan.ts)): `abdeckung` zählt damit die gefragten SACHEN statt der Schreibweisen — gemessen 4 hoch / 20 mittel gegen 0 / 0 bei flacher Liste, bei identischen 583 Treffern ([suche-relevanz.md §8](docs/architecture/suche-relevanz.md))
+- **`pflicht` trennt Einschränkung von Alternative** ([antraege-search-service.ts](src/plugins/antraege/services/antraege-search-service.ts)): „Was läuft in Bayern zum Thema Leichtbau?" liefert 87 statt 2.625; ohne Plan verhält sich die Stufe bitweise wie zuvor
+- **Ein Aufruf, nur intern, Ziel `standard`, kein Retry, wirft nie** ([frageplan-lauf.ts](src/core/services/search/frageplan-lauf.ts))
+- **Die Leitbegriffe als abwählbare Chips mit Schreibweisen-Zähler** ([DeutungsZeile.tsx](src/plugins/suche/DeutungsZeile.tsx)): Abwählen rechnet ohne neuen KI-Aufruf; was aus der Frage nicht übersetzt wurde, steht daneben
+- **Verknüpfung und Wortformen geben sichtbar ab** („von der KI bestimmt", [SuchOptionenZeile.tsx](src/plugins/suche/SuchOptionenZeile.tsx)); Flag `sucheNatuerlicheSprache`, dev + pl
+
+### v4.65.0 — Vier Reiter, tote Segmente weg, Sortierung ins Menue (August 2026)
+
+MINOR — Vierte Runde am Redesign-Handoff, diesmal die Überschneidung der drei Filter-Ebenen: Reiter, Quickfilter-Pillen und Filterleiste beantworteten teils dieselbe Frage. „Begleitung" stand dreimal auf einem Bildschirm — als Reiter, als gespiegelter Chip in der Leiste und als Segment mit einer 0, weil der Reiter selbst schon nach Status schneidet.
+
+- **Vier Reiter statt sechs**: Antragsphase · Fristen · Begleitung · Alle. „Fristen" fasst „Diese Woche" und „Überfällig" zusammen und öffnet nach Dringlichkeit gebändert; „Bewilligt <Jahr>" entfällt ([views.ts](src/plugins/antraege/views.ts))
+- **Tote Segmente stehen nicht mehr da**: was in dieser Sicht 0 liefert, entfällt — Anker und getroffene Auswahl bleiben ([segAnzeige.ts](src/plugins/antraege/filter/segAnzeige.ts))
+- **„Eigene Auswahl" statt stillem „Alle"**: setzt die Filterleiste etwas, das die Pille nicht ausdrücken kann, sagt sie das, statt das Gegenteil zu behaupten ([phaseQuickfilter.ts](src/plugins/antraege/filter/phaseQuickfilter.ts), [kategorieQuickfilter.ts](src/plugins/antraege/filter/kategorieQuickfilter.ts))
+- **Sortierung ins Darstellungs-Menü** (nur Liste/Karten — die Tabelle sortiert über ihre Spaltenköpfe): die Pillenzeile trägt nur noch die Menge, das Menü nur noch die Form ([darstellungsAchsen.ts](src/plugins/antraege/darstellungsAchsen.ts))
+- **Verlauf statt „Häufig benutzt"**: die zuletzt benutzten Filterstände hinter einem Uhr-Knopf im Kopf der Leiste, der Vorschlag führt zum Anpinnen; die gespiegelte Schnellauswahl entfällt ([VerlaufMenue.tsx](src/plugins/antraege/filter/VerlaufMenue.tsx))
+
+### v4.64.0 — Suchzeile entschlackt, Ansicht ins Menue, graues L (August 2026)
+
+MINOR — Dritte Runde am Redesign-Handoff, diesmal Rückbau statt Zubau: über der Tabelle standen rund 15 Bedienelemente, im Entwurf 8. Weg kommt, was selten angefasst wird oder woanders hingehört; dabei kam ein Zusagenbruch heraus — die Dokumentsuche hing am Opt-in der Ähnlichkeitssuche und war im Normalzustand aus.
+
+- **Dokumenttreffer ohne Vorbedingung**: die DMS-Stufe läuft immer (Orama-Wortlaut, kein Modell), nur die Embedding-Stufe bleibt Opt-in ([antraege-search-service.ts](src/plugins/antraege/services/antraege-search-service.ts))
+- **Das Dauer-Auswahlfeld „Ohne Ähnlichkeitssuche" ist weg** — der Weg dorthin erscheint als Satz unter dem Suchfeld, sobald gesucht wird, mit Rückweg an derselben Stelle ([AehnlichkeitsHinweis.tsx](src/plugins/antraege/AehnlichkeitsHinweis.tsx))
+- **Ansichtsform als Achse im Darstellungs-Menü** statt drei Symbolen im Kopf; die Tabelle ist jetzt der Standard ([viewModes.ts](src/plugins/antraege/viewModes.ts), [darstellungsAchsen.ts](src/plugins/antraege/darstellungsAchsen.ts))
+- **Filter-Knopf links neben das Suchfeld**, an die Kante, an der die Leiste aufgeht; „inaktive MAs" ist als „Bestand" in die Filterleiste gezogen ([AntraegeHeader.tsx](src/plugins/antraege/AntraegeHeader.tsx), [FilterSidebar.tsx](src/plugins/antraege/filter/FilterSidebar.tsx))
+- **Fläche statt Strich**: Filterleiste und Tabellenkopf teilen eine getönte Grundfläche, die Trennlinie entfällt; die Achse „Spalten" heißt „Spaltensatz" ([AntraegePage.tsx](src/plugins/antraege/AntraegePage.tsx))
+
+### v4.63.0 — Filter links, Schnellzugriff, Auswahl (August 2026)
+
+MINOR — Zweite Runde aus dem Redesign-Handoff `_design/handoff/Förderanträge/`: der Filterblock (Leiste links, beschrifteter Knopf, Anpinnen) und die Mehrfachauswahl. Die Massen-Aktionen bleiben auf das begrenzt, was die App wirklich kann — sie liest das Fachsystem, sie schreibt nicht hinein (Pitfall #44).
+
+- **Die Filterleiste steht links** neben der Liste, der Drawer fährt von links herein; der Knopf trägt Beschriftung und Zahl statt eines Punkts ([AntraegePage.tsx](src/plugins/antraege/AntraegePage.tsx))
+- **Schnellzugriff zum Anpinnen** — Einzelwert als Umschalt-Chip, ganze Facette als Umschalter-Pille, Kombination als Schalter, der dazulegt und nur sein eigenes Zutun zurücknimmt ([pinnedFilters.ts](src/plugins/antraege/filter/pinnedFilters.ts))
+- **Mehrfachauswahl** mit Häkchen in der Identitätsspalte und Leiste unten: Auswahl als XLSX exportieren, FKZ-Liste kopieren, aufheben ([auswahl/](src/plugins/antraege/auswahl/))
+- **Kurzname und Kennzeichen in einer Spalte „Antrag"**, gelockt und klebend; die Einzelspalten bleiben wählbar, gespeicherte Spaltenwahlen werden einmalig umgeschrieben ([useAntraegeColumnsStore.ts](src/plugins/antraege/useAntraegeColumnsStore.ts))
+- **Zeilendichte Kompakt/Normal** als Achse im Darstellungs-Menü, und das ⓘ der Status-Zellen erscheint erst beim Überfahren der Zeile ([useDichteStore.ts](src/plugins/antraege/useDichteStore.ts))
+
+### v4.62.0 — Die Frist rueckt nach vorn, Spalten kommen als Satz (August 2026)
+
+MINOR — Übernahme aus dem Redesign-Handoff `_design/handoff/Förderanträge/`, auf das Tragfähige eingekürzt: die Frist stand als **letzte** Spalte am rechten Rand, und der Weg zu einem Arbeits-Spaltensatz führte durch 26 Einzelhaken. Nicht übernommen wurden die Massen-Leiste (die App schreibt nicht ins Fachsystem, Pitfall #44) und „Zeile öffnet die Detailseite" (die Klickzonen sind vergeben).
+
+- **Die Frist steht als zweite Spalte**, in eigener Rubrik zwischen FKZ und Zuständigkeit — die Rubrik-Bänder bleiben dabei zusammenhängend ([tableColumns.tsx](src/plugins/antraege/tableColumns.tsx))
+- **Dringlichkeits-Rinne** am Zeilenanfang, rot/orange/gelb nach denselben Schwellen wie der Ampelpunkt; grün und stehende Uhren bleiben ohne (`rowAccent`, [TableBody.tsx](src/components/data-table/TableBody.tsx))
+- **Gruppierung „Frist"** als vierte Sektionierungs-Achse — Abschnitte und Beschriftungen aus `FRIST_AMPEL_STUFEN`, nicht aus zweiten Grenzen ([tableGrouping.ts](src/plugins/antraege/tableGrouping.ts))
+- **Vier Spaltenprofile** (Standard · Triage · Fristen · Alle) als Achse im Darstellungs-Menü; „Triage" passt bei 1340 px ohne waagerechtes Scrollen ([spaltenProfile.ts](src/plugins/antraege/spaltenProfile.ts))
+- **Zwei verdichtete Spalten** „Zuständig" (FB+AB der Antragsphase) und „FB / PreCheck" — Farbpunkt nur am PreCheck, weil nur der eine kuratierte Einteilung hat
+
 ### v4.61.0 — Chronik nach Datum als Standard, Ausklapp zeigt den juengsten Abschnitt (August 2026)
 
 MINOR — Die chronologische Chronik rendert an zwei Stellen dieselbe Komponente — Detailseite und Tabellen-Ausklapp — und sah trotzdem verschieden aus: andere Träger-Marken, andere Standard-Ordnung, anderer Reiter-Name. Jetzt eine Bildsprache, zwei Tiefen: in der Tabelle der jüngste Abschnitt, auf der Detailseite alles. Detail: [chronik-und-zeitstrahl.md](docs/status-system/chronik-und-zeitstrahl.md).

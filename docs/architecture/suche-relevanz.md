@@ -866,11 +866,12 @@ Stillstand.**
    diesem Rechner einen Vektor." Ein Vorhaben ohne Vektor kann nie ähnlich sein;
    das ist die halbe Antwort auf „warum findet er nichts", und sie stand
    nirgends. Der Befund kommt aus der Vektorstufe selbst und zählt **vor** dem
-   Einsortieren, sonst wäre „neu" immer gleich „alle".
+   Einsortieren, sonst wäre „neu" immer gleich „alle". *(Die genannte Zahl war
+   bis v4.113 die GEDECKELTE — §8.6.)*
 
 2. **Die relative Schwelle steht auf 0,85 statt 0,90.** Nicht der Floor (0,35)
-   und nicht `TOP_K` (50) waren die Bremse, sondern das enge Band um die beste
-   Cosine — die Messtabelle über fünf Fragen steht im Service
+   war die Bremse, sondern das enge Band um die beste Cosine — `TOP_K` (50) war es
+   bei breiten Fragen allerdings doch, was erst v4.113 gemessen hat (§8.6) — die Messtabelle über fünf Fragen steht im Service
    ([antraege-search-service.ts](../../src/plugins/antraege/services/antraege-search-service.ts)).
    Am selben Lauf wie oben: **2 Kandidaten → 9, davon 8 neu; 136 → 143 Treffer.**
    Vertretbar wurde das erst mit v4.104 (§8.2): die Kandidaten fahren als eigene,
@@ -879,6 +880,151 @@ Stillstand.**
 Was **nicht** geändert wurde: der Deckel `AEHNLICHKEIT_DECKEL` (0,5). Ein reiner
 Ähnlichkeitstreffer bleibt „gering" und steht nie über einem Wortlaut-Treffer —
 Wortlaut schlägt Bedeutung (§2).
+
+### 8.6 Was die Stufe wirklich verglich (v4.113)
+
+Eine erschöpfende Bug-Jagd auf genau diese Stufe, alles am echten Bestand
+gemessen (14 225 Anträge, 14 065 Vektoren) und von unabhängigen Prüfern
+gegengelesen. Zehn Befunde; der schwerste stand seit dem ersten Korpus.
+
+**Der Vektor eines Vorhabens kannte nie seinen Inhalt.**
+`buildEmbeddingTextForAntrag` las drei Schlüssel hart: `verbund_titel`, `titel`,
+`projektbeschreibung_text`. Am Bestand war davon **einer** gefüllt:
+
+| Schlüssel | gefüllt |
+|---|---|
+| `projektbeschreibung_text` | **0 von 14 225** (existiert in keinem Record) |
+| `verbund_titel` | **0 von 14 225** |
+| `titel` | 14 220 |
+| `inhalt_kurzzusammenfassung` — *hier steht der Inhalt* | **9 259**, Median 834 Zeichen |
+
+Es ist wortgleich die Bug-Klasse, die für den **Wortlaut**-Korpus mit v4.42
+behoben wurde (§2): welcher Schlüssel es wird, entscheidet das Wizard-Mapping,
+nicht der Code. Der Guard `korpus-felder-ueber-schema` bewachte nur
+`search-corpus.ts` — ein Guard, der eine Datei kennt, fängt keine Klasse. Beide
+Korpora lösen jetzt über `baueKorpusFeldKarte` auf, der Guard deckt beide, und ein
+zweiter verbietet die harten Feldkonstanten daneben.
+
+Gemessen nach dem Fix, gleicher Bestand: **9 259** Einbettungstexte tragen den
+Inhalt (vorher 0), Median-Länge **811** statt **147** Zeichen (p90 1 343, max
+2 272 — der 4 000-Zeichen-Deckel greift nie). Der Titel bleibt **vorn**: nimmt man
+den Inhalt auf und lässt den Titel weg, sinkt die Trefferquote für Titel-Anfragen
+von 40/40 auf 24/40.
+
+**Wirksam wird das erst nach einem Rebuild** — Korpus-Build-Version **v3**.
+
+**Der Korpus führt jetzt eine Signatur** ([signatur.ts](../../src/core/services/embedding-corpus/signatur.ts)).
+Das war die schärfste offene Frage: sein IDB-Schlüssel ist das Aktenzeichen, sonst
+nichts, und `incremental` filterte allein über die Existenz dieses Schlüssels.
+Präfix, `dtype`, Pooling, Normalisierung und Textzusammensetzung gingen in keinen
+Schlüssel, Hash oder Merkschlüssel ein — wer eines änderte, liess alle alten
+Vektoren liegen, legte neue aus einem anderen Raum daneben, und nichts wurde rot,
+weil `checkCompat` nur `modellId` und `dim` verglich. Jetzt: Signatur = Modell +
+Dimension + Dokument-Präfix + Textversion; weicht sie ab (oder fehlt sie), baut der
+Lauf **voll** statt zu mischen, und das Manifest stempelt den **erzeugenden** Stand
+statt des gerade aktiven.
+
+**Der Bereich gilt auch für die Ähnlichkeit** (`bereichNutztAehnlichkeit`).
+`aehnlichkeit` steht in `NICHT_IM_STANDARD` — „hängt an ihrem eigenen Schalter" —
+und der Schalter kannte den Bereich nicht. Gemessen, Anfrage
+„Wasserstofftechnologie", Stufe an:
+
+| „Suche in" | Treffer | davon aus der Vektorstufe |
+|---|---|---|
+| alle Vorhabensfelder | 50 | 48 neu |
+| **nur Einrichtung** | 50 | **50 — alle** |
+| **nur Dokumente**, Stufe an | **50** | **50 — alle** |
+| nur Dokumente, Stufe aus | **0** | — |
+
+Wer bewusst auf „nur Einrichtung" einschränkte — der Fall, für den die
+Beschränkung dokumentiert ist —, bekam wieder das Thema. Jetzt ruht die Stufe
+dort, und die Zeile sagt es an (`SemanticStatus` `'bereich-ruht'`).
+
+**Der Deckel verwarf bevorzugt die neuen Treffer, und der Satz nannte die
+gedeckelte Zahl.** `topKEmbeddingMatches` schnitt die nach Cosine sortierte
+GESAMTmenge auf 50. Über 8 Anfragen gemessen:
+
+| | über der Schwelle | genannt | abgeschnitten | davon **neu** |
+|---|---|---|---|---|
+| Summe | **450** | **297** | 153 | **62 von 147 (42 %)** |
+
+Systematisch, nicht zufällig: neue Treffer lagen im Mittel auf Rang **54,3**,
+schon vorhandene auf **40,8**. Bei „Wasserstoff" meldete die App wörtlich „50
+thematisch verwandte Vorhaben — alle standen schon im Wortlaut-Ergebnis", während
+65 über der Schwelle lagen und die zwei abgeschnittenen (cos 0,453 / 0,447) die
+einzigen neuen gewesen wären — der Satz, der „es ändert sich nichts" erklären
+soll, berichtete die Ursache dieser Beschwerde als deren Widerlegung. Jetzt gilt
+der Deckel nur für die **neuen** (ein schon gelisteter Treffer kostet keine Zeile,
+nur eine Fundstelle), `kandidaten` ist die Zahl **vor** dem Deckel, und was er
+zurückhielt, steht dabei.
+
+**Der Anfrage-Präfix ist wieder der trainierte.** Hier stand ein selbst
+formulierter deutscher (`task: Suchergebnis aus deutschen Verwaltungsdokumenten |
+query: `). Trennschärfe d′ = (Ziel-Cosine − Korpus-Mittel) / SD, n = 15:
+
+| Präfix | Ziel-Cosine | Korpus-Mittel | SD | **d′** |
+|---|---|---|---|---|
+| deutsch (alt) | 0,766 | 0,3076 | 0,0469 | 9,92 |
+| **Original** `task: search result \| query: ` | **0,8198** | 0,2052 | 0,0548 | **11,40** |
+
+15 von 15 Einzelfällen für das Original. Der naheliegende Einwand — der Cutoff ist
+relativ, eine gleichmässige Verschiebung ändert nichts — ist gemessen widerlegt:
+von den ausgewählten Mengen blieben je Anfrage nur 32–52 % gleich (Jaccard) und
+3–5 der ersten 10 Treffer. Der `documentPrefix` bleibt, wie er ist: der
+„title"-Slot ist kein Feld, das das Modell auswertet, sondern eine Zeichenkette
+vor dem Text — ihn zu füllen brachte +0,02 MRR, also Rauschen.
+
+**Der Boden 0,35 bleibt — nachgemessen, nicht übernommen.** Er war gegen die
+gestauchte Skala des deutschen Präfixes gesetzt. Auf der weiteren Skala des
+Originals trennt er **besser**: 12 Anfragen gegen die 14 065 Vektoren, beste
+Cosine je Anfrage — Unsinn und Off-Domain („qwertz asdf zzz", „Apfelkuchen
+Rezept", „Fussballweltmeisterschaft 1974", „Urlaub auf Mallorca") erreichten
+höchstens **0,339**, echte Fachanfragen mindestens **0,369**. Der Boden liegt genau
+in dieser Lücke.
+
+**Sechs weitere, kurz.**
+
+- **„Das Modell konnte nicht geladen werden", während es lädt.** `init` kehrte bei
+  `this.loading` sofort zurück; `ensureEmbeddingReady` galt danach als erledigt,
+  `isReady()` war `false`, die Zeile meldete einen Fehler, der nicht stattfand —
+  mit Verweis auf die Konsole, die unter `file://` niemand offen hat. Der laufende
+  Ladelauf wird jetzt **abgewartet**.
+- **Das Modell lud bei jedem App-Start**, obwohl das Opt-in aus ist und am
+  Schalter „(lädt 200 MB)" steht: `useSearchProvider` ist app-weit gemountet und
+  rief `embeddingService.init` ohne jede Prüfung. Jetzt lädt, wer es braucht
+  (`ensureVectorModel`); wer bereit wird, meldet es über `subscribe`, sonst bliebe
+  das Abzeichen „Modell lädt…" stehen.
+- **Das Einschalten konnte Dokumenttreffer kosten.** `queryVector` **wählte**
+  zwischen `mode: 'fulltext'` und `mode: 'hybrid'` — dieselbe Anfrage, eine andere
+  Dokumentmenge. „Auch" heisst additiv: der Wortlaut-Lauf behält seine Plätze, der
+  Hybrid-Lauf füllt nur die freien auf.
+- **Ein Fragment-Korpus heilte nie.** Der Autoload griff nur bei genau 0 Vektoren;
+  ein Teilbestand entsteht ohne Zutun, weil `applyCorpusStreamed` pro Vektor eine
+  eigene IDB-Transaktion schreibt. Jetzt lädt er, solange der Share mehr hält — und
+  nur aus demselben Vektorraum. Die Zeile nennt den Ausweg auch im Teil-Fall.
+- **Der Indexer zählte Chunks doppelt.** Ein geändertes Dokument ersetzt seine
+  Chunks per `upsert`, der Index wuchs um 0, `doc-chunk-counts` um die volle
+  Chunkzahl — und `normalizeScore` zog dem GERADE aktualisierten Dokument dafür
+  ~19 % ab (nach zwei weiteren ~34 %). Der Zähler wird je Dokument neu gesetzt,
+  `index-chunk-count` kommt aus dem Index selbst.
+- **Der Indexer löschte nie alte Chunks.** Aus 12 Abschnitten wurden 5, und
+  `docId-5 … docId-11` blieben mit dem ALTEN Wortlaut unter dem Namen der AKTUELLEN
+  Datei stehen, während die Ampel „Index aktuell" meldete. Die Chunk-Ids je
+  Dokument stehen jetzt in `doc-chunk-ids`, und `removeDocAndChunks` räumt beides.
+
+**Verworfen** (adversarisch geprüft und gefallen): der `documentPrefix` als
+Wirkungsbefund (drei von drei Prüfern — es gibt keinen Titel-Slot); die Vermutung,
+der deutsche Präfix DRÜCKE die Skala (er hob sie in 6 von 8 Fällen); und dass der
+Boden knapp über dem Durchschnittsdokument liege (das Tor ist der relative
+Cutoff).
+
+**Offen geblieben**: ob die vom Deckel verworfenen Treffer *gut* sind (es gibt
+keine bewerteten Anfragen); der reale Effekt der Dokumentenstufen-Befunde (diese
+Maschine hat 1 Dokument im Index); der programmfremde Vektortreffer (nur ein
+Programm vorhanden); die Hauptthread-Blockade (Pitfall #8 — das Messinstrument war
+im Browser-Pane unbrauchbar, der Leerlauf-Referenzlauf zeigte ohne jede Arbeit
+1 062 ms Lücke); und welcher der beiden Präfixe die *relevanteren* Treffer liefert
+— d′ sagt „trennschärfer", nicht „besser".
 
 ## 9 Das Suchfeld schlägt vor (v4.71)
 

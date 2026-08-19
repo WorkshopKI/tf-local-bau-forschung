@@ -2,11 +2,12 @@
  * Was die Ähnlichkeitsstufe getan hat — die Zeile unter der Optionszeile.
  *
  * Zwei Sorten Meldung, dieselbe Zeile: die Stufe konnte gar nicht wirken
- * (`corpus-empty`/`model-failed`) — oder sie lief und legt Rechenschaft ab
- * ([aehnlichkeitsSatz.ts](./aehnlichkeitsSatz.ts), inkl. der drei Fälle und der
- * Reichweite des Korpus).
+ * (`corpus-empty`/`model-failed`/`bereich-ruht`) — oder sie lief und legt
+ * Rechenschaft ab ([aehnlichkeitsSatz.ts](./aehnlichkeitsSatz.ts), inkl. der
+ * drei Fälle, der Deckelung und der Reichweite des Korpus).
  */
 import type { SemanticStatus, SemantikBefund } from '@/core/hooks/useUnifiedSearch';
+import { SUCHBEREICH_LABEL, type Suchbereich } from '@/core/services/search/suchbereich';
 import { aehnlichkeitsSatz } from './aehnlichkeitsSatz';
 
 const OHNE_WIRKUNG: Record<'corpus-empty' | 'model-failed', string> = {
@@ -14,18 +15,34 @@ const OHNE_WIRKUNG: Record<'corpus-empty' | 'model-failed', string> = {
   'model-failed': 'Ähnlichkeitssuche ohne Wirkung: Das Embedding-Modell konnte nicht geladen werden (Details in der Browser-Konsole, F12). Es werden nur Wortlaut-Treffer angezeigt.',
 };
 
-export function AehnlichkeitsZeile({ an, status, befund, bestand }: {
+/**
+ * Der Bereich hat die Stufe stillgelegt — und sagt es, statt sie still mitlaufen
+ * zu lassen. Bis v4.113 lief sie in jedem Bereich mit und lieferte unter „nur
+ * Einrichtung" genau das Thema, das gerade ausgeschlossen war
+ * (`bereichNutztAehnlichkeit`).
+ */
+function bereichRuhtText(bereich: Suchbereich): string {
+  return `Ähnlichkeit ruht: „${SUCHBEREICH_LABEL[bereich]}" fragt nicht nach dem Thema — `
+    + 'der Vektor eines Vorhabens kennt nur Titel, Kurzbeschreibung und Deskriptoren. '
+    + 'Für thematisch verwandte Vorhaben „alle Vorhabensfelder" oder „nur Titel & '
+    + 'Kurzbeschreibung" wählen.';
+}
+
+export function AehnlichkeitsZeile({ an, status, befund, bestand, bereich }: {
   /** Der Schalter selbst — ohne ihn gibt es nichts zu berichten. */
   an: boolean;
   status: SemanticStatus;
   befund: SemantikBefund | null;
   /** Bestandszahl des Suchindex, für die Reichweite. */
   bestand: number;
+  /** „Suchen in" — entscheidet, ob die Stufe überhaupt mitlaufen darf. */
+  bereich: Suchbereich;
 }): React.ReactElement | null {
   if (!an) return null;
-  const text = status === 'corpus-empty' || status === 'model-failed'
-    ? OHNE_WIRKUNG[status]
-    : (status === 'ok' && befund !== null ? aehnlichkeitsSatz(befund, bestand) : null);
+  let text: string | null = null;
+  if (status === 'bereich-ruht') text = bereichRuhtText(bereich);
+  else if (status === 'corpus-empty' || status === 'model-failed') text = OHNE_WIRKUNG[status];
+  else if (status === 'ok' && befund !== null) text = aehnlichkeitsSatz(befund, bestand);
   if (text === null) return null;
 
   return (

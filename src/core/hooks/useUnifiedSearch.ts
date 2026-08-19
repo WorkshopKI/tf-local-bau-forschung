@@ -37,7 +37,7 @@ import {
   useSuchVerknuepfung, verknuepfungAlsThreshold, type SuchVerknuepfung,
 } from './useSuchVerknuepfung';
 import { useSuchOptionen } from './useSuchOptionen';
-import { bereichNutztDokumente } from '@/core/services/search/suchbereich';
+import { bereichNutztDokumente, bereichNutztAehnlichkeit } from '@/core/services/search/suchbereich';
 import { hatFeldPraefix } from '@/core/services/search/feldpraefix';
 import { planSchraenktEin, type PlanBegriff } from '@/core/services/search/frageplan';
 import { embeddingService } from '@/core/services/search/embedding-service';
@@ -101,7 +101,7 @@ export type SearchPhase = 'idle' | 'substring' | 'vector' | 'orama' | 'done' | '
  *  sahen für den User aus wie „Umschalten tut nichts". Der Status macht die
  *  Ursache im UI anzeigbar. `null` = Stage lief nicht (Opt-in aus / Query zu
  *  kurz / noch keine Suche), `ok` = Vector-Stage ist durchgelaufen. */
-export type SemanticStatus = 'ok' | 'model-failed' | 'corpus-empty' | null;
+export type SemanticStatus = 'ok' | 'model-failed' | 'corpus-empty' | 'bereich-ruht' | null;
 
 /**
  * Was die Ähnlichkeitsstufe bei DIESEM Lauf beigetragen hat.
@@ -115,10 +115,21 @@ export type SemanticStatus = 'ok' | 'model-failed' | 'corpus-empty' | null;
 export interface SemantikBefund {
   /** Wie viele Vorhaben überhaupt einen Vektor haben (Korpus auf DIESEM Rechner). */
   korpus: number;
-  /** Wie viele davon über der Schwelle lagen. */
+  /**
+   * Wie viele Vorhaben über der Schwelle lagen — die WAHRE Zahl, vor dem Deckel.
+   *
+   * Bis v4.113 stand hier die gedeckelte: `kandidaten` kam direkt aus
+   * `hits.slice(0, 50)`. Bei „Wasserstoff“ meldete die Zeile deshalb „50
+   * thematisch verwandte Vorhaben — alle standen schon im Wortlaut-Ergebnis“,
+   * während 65 über der Schwelle lagen und die zwei abgeschnittenen die einzigen
+   * neuen gewesen wären. Der Satz, der „es ändert sich nichts“ erklären soll,
+   * berichtete damit die Ursache dieser Beschwerde als deren Widerlegung.
+   */
   kandidaten: number;
   /** Wie viele davon vorher NICHT in der Trefferliste standen. */
   neu: number;
+  /** Wie viele NEUE Zeilen der Deckel verworfen hat. 0 = nichts verloren. */
+  verworfen: number;
 }
 
 export interface UseUnifiedSearchResult {
@@ -533,11 +544,22 @@ export function useUnifiedSearch(
           // Dokumentenindex diese Einschränkung einhalten — sie lieferten
           // Treffer, die genau außerhalb des genannten Feldes liegen. Die
           // Deutungszeile schreibt das an, statt es still zu tun.
-          const semanticActive =
+          //
+          // Der BEREICH nimmt sie ebenso heraus: ihr Vektor ist aus Titel,
+          // Kurzbeschreibung und Deskriptoren gebaut, sie kann „nur Einrichtung",
+          // „nur Ort" oder „nur Dokumente" gar nicht beantworten. Bis v4.113 lief
+          // sie dort mit — und lieferte unter „nur Einrichtung" genau das Thema,
+          // das der Nutzer ausgeschlossen hatte (`bereichNutztAehnlichkeit`).
+          const bereichLaesstAehnlichkeit = bereichNutztAehnlichkeit(bereich);
+          const semanticGewollt =
             semanticEnabled
             && !feldSuche
             && isSemanticSearchActive()
             && q.length >= STREAMING_CONSTS.MIN_QUERY_LEN_FOR_SEMANTIC;
+          const semanticActive = semanticGewollt && bereichLaesstAehnlichkeit;
+          // Eingeschaltet, aber vom Bereich stillgelegt: das schreibt die
+          // Deutungszeile an, statt es still zu tun.
+          if (semanticGewollt && !bereichLaesstAehnlichkeit) setSemanticStatus('bereich-ruht');
 
           // Diagnose-Logs hier bewusst via console.* (nicht pipelineLog — der
           // ist in Builds stumm): unter file:// ist das die einzige Spur, warum
@@ -568,14 +590,22 @@ export function useUnifiedSearch(
                 console.warn('[useUnifiedSearch] Ähnlichkeitssuche: Embedding-Korpus lokal leer (IDB) — keine Vector-Treffer möglich. Korpus kommt vom Daten-Share (Auslastungs-Modul / Auto-Download).');
                 setSemanticStatus('corpus-empty');
               } else {
-                const vecHits = await searchAntraegeVector(queryVec, embeddings, abort.signal);
+                // Die Menge, die schon in der Liste steht, ist zweierlei: Grundlage
+                // fuer „neu" UND Deckel-Ausweis — ein bekannter Treffer kostet keine
+                // Zeile, nur eine Fundstelle, und wird deshalb nicht gedeckelt.
+                const bekannt = new Set(antraege.keys());
+                const vecErg = await searchAntraegeVector(
+                  queryVec, embeddings, abort.signal, bekannt,
+                );
+                const vecHits = vecErg.treffer;
                 if (isCancelled()) return;
                 // VOR dem Einsortieren gezählt: danach ist jeder Kandidat im
                 // Sammler, und „neu" wäre immer gleich „alle".
                 setSemantikBefund({
                   korpus: embeddings.size,
-                  kandidaten: vecHits.length,
-                  neu: vecHits.filter(h => !antraege.has(h.akz)).length,
+                  kandidaten: vecErg.ueberSchwelle,
+                  neu: vecHits.filter(h => !bekannt.has(h.akz)).length,
+                  verworfen: vecErg.verworfen,
                 });
                 for (const h of vecHits) {
                   const akku = akkuFuer(h.akz);

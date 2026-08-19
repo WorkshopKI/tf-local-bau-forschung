@@ -228,6 +228,7 @@ export function EmbeddingCorpusSection({ storage, antraege, embeddableAz }: Prop
         : [];
       await buildEmbeddingCorpus(storage.idb, fullAntraege, {
         incremental,
+        programmId: buildProgrammId,
         onProgress: p => setPhaseProgress({ phase: 'antrag', done: p.done, total: p.total, last: p.lastAntrag, etaSec: p.etaSec }),
         signal: controller.signal,
       });
@@ -438,7 +439,7 @@ export function EmbeddingCorpusSection({ storage, antraege, embeddableAz }: Prop
 
       {mirrorManifest && compatStatus?.kind === 'compatible' && getCorpusBuildVersion(mirrorManifest) < CORPUS_BUILD_VERSION && (
         <div className="rounded p-2 mb-2 text-[11.5px]" style={{ background: 'var(--tf-info-bg, #dbeafe)', color: 'var(--tf-info-text, #1e40af)', border: '0.5px solid var(--tf-info-border, #bfdbfe)' }}>
-          ℹ Korpus-Build-Version v{getCorpusBuildVersion(mirrorManifest)} — aktuell wäre v{CORPUS_BUILD_VERSION} (Embedding-Text enthält jetzt zusätzlich Deskriptor-Spalten: TECHN/BRANCHE/ANWEND + ZT-Klartexte). Rebuild empfohlen, damit die semantische Suche auf diese Tags zugreifen kann. „Corpus aufbauen" klicken und danach automatisch auf den Share spiegeln lassen.
+          ℹ Korpus-Build-Version v{getCorpusBuildVersion(mirrorManifest)} — aktuell wäre v{CORPUS_BUILD_VERSION}. <strong>Rebuild nötig, nicht nur empfohlen:</strong> bis v2 las der Embedding-Text seine Quell-Spalten unter geratenen Schlüsseln, und am echten Bestand war die Projektbeschreibung in <strong>0 von 14 225</strong> Sätzen darunter zu finden — der Vektor eines Vorhabens kennt in einem v2-Korpus nur seinen Titel und die Deskriptoren, nie seinen Inhalt. Seit v3 wird die Spalte aus dem CSV-Schema aufgelöst. „Corpus aufbauen" klicken (der Lauf baut wegen des Raumwechsels voll neu) und danach auf den Share spiegeln lassen.
         </div>
       )}
 

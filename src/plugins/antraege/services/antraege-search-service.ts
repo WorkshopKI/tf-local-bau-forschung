@@ -764,12 +764,26 @@ export function computeEmbeddingCutoff(bestScore: number): number {
   return Math.max(EMBEDDING_SCORE_FLOOR, bestScore * EMBEDDING_RELATIVE_CUTOFF);
 }
 
+/** Ein Vektortreffer und, was der Lauf insgesamt gefunden hat. */
+export interface VektorErgebnis {
+  /** Die Treffer, die tatsächlich angewendet werden. */
+  treffer: Array<{ akz: string; score: number }>;
+  /** Wie viele Vorhaben über der Schwelle lagen — VOR dem Deckel. Das ist die
+   *  Zahl, die der Rechenschaftssatz nennen muss. */
+  ueberSchwelle: number;
+  /** Wie viele NEUE Zeilen der Deckel verworfen hat (0 = nichts verloren). */
+  verworfen: number;
+}
+
 async function topKEmbeddingMatches(
   queryVec: number[],
   embeddings: Map<string, number[]>,
   topK: number,
   signal?: AbortSignal,
-): Promise<Array<{ akz: string; score: number }>> {
+  /** Aktenzeichen, die schon in der Trefferliste stehen (Wortlaut-Stufe). Sie
+   *  kosten keine zusätzliche ZEILE — der Deckel gilt für sie nicht. */
+  bekannt?: ReadonlySet<string>,
+): Promise<VektorErgebnis> {
   // Pass 1: Kandidaten ≥ Floor sammeln + beste Cosine tracken (der relative
   // Cutoff ist erst NACH dem Scan bekannt). Kandidaten-Menge bleibt klein
   // (nur ≥ Floor), kein zweiter Cosine-Pass noetig.
@@ -788,7 +802,7 @@ async function topKEmbeddingMatches(
     if (s >= EMBEDDING_SCORE_FLOOR) candidates.push({ akz, score: s });
     if (++i % COSINE_YIELD_INTERVAL === 0) {
       await new Promise(r => setTimeout(r, 0));
-      if (signal?.aborted) return [];
+      if (signal?.aborted) return { treffer: [], ueberSchwelle: 0, verworfen: 0 };
     }
   }
   const cutoff = computeEmbeddingCutoff(best);
@@ -801,7 +815,37 @@ async function topKEmbeddingMatches(
     );
   }
   hits.sort((a, b) => b.score - a.score);
-  return hits.slice(0, topK);
+
+  // Der Deckel gilt für die NEUEN Treffer, nicht für alle.
+  //
+  // Vorher schnitt `hits.slice(0, topK)` die nach Cosine sortierte Gesamtmenge —
+  // und traf damit bevorzugt genau die Treffer, um die es geht. Am echten Korpus
+  // gemessen (8 Anfragen, 14 065 Vektoren): 450 lagen über der Schwelle, 297
+  // wurden angewendet, und von den 147 NEUEN fielen 62 weg (42 %). Systematisch,
+  // nicht zufällig: neue Treffer lagen im Mittel auf Rang 54,3, schon vorhandene
+  // auf 40,8. Bei „Wasserstoff" meldete die Oberfläche „50 thematisch verwandte
+  // Vorhaben — alle standen schon im Wortlaut-Ergebnis", während die beiden
+  // abgeschnittenen (cos 0,453 / 0,447) die einzigen neuen gewesen wären.
+  //
+  // Ein schon gelisteter Treffer kostet keine Zeile, nur eine Fundstelle — der
+  // Deckel schützt die Listenlänge und hat dort nichts zu regeln. Ohne
+  // `bekannt` bleibt es beim alten Verhalten (Deckel über alles).
+  if (bekannt === undefined) {
+    return {
+      treffer: hits.slice(0, topK),
+      ueberSchwelle: hits.length,
+      verworfen: Math.max(0, hits.length - topK),
+    };
+  }
+  const treffer: Array<{ akz: string; score: number }> = [];
+  let neuGenommen = 0;
+  let verworfen = 0;
+  for (const h of hits) {
+    if (bekannt.has(h.akz)) { treffer.push(h); continue; }
+    if (neuGenommen < topK) { treffer.push(h); neuGenommen++; continue; }
+    verworfen++;
+  }
+  return { treffer, ueberSchwelle: hits.length, verworfen };
 }
 
 /** Dedup-Strategie: max-score gewinnt, method-Tag wandert mit. */
@@ -892,10 +936,12 @@ export async function searchAntraege(
         );
         if (!unavailable.includes('embedding')) unavailable.push('embedding');
       } else {
+        // `merged` traegt hier schon die Wortlaut-Treffer: sie sind das
+        // „bekannt" dieses Laufs, der Deckel gilt also nur fuer die neuen.
         const embHits = await topKEmbeddingMatches(
-          queryVec, embeddings, EMBEDDING_TOP_K, abortSignal,
+          queryVec, embeddings, EMBEDDING_TOP_K, abortSignal, new Set(merged.keys()),
         );
-        for (const h of embHits) {
+        for (const h of embHits.treffer) {
           mergeHit(merged, { aktenzeichen: h.akz, score: h.score, method: 'vector' });
         }
       }
@@ -985,15 +1031,19 @@ export async function searchAntraegeVector(
   queryVec: number[],
   embeddings: Map<string, number[]>,
   signal: AbortSignal,
-): Promise<Array<{ akz: string; score: number }>> {
-  if (embeddings.size === 0) return [];
+  /** Was schon in der Liste steht — hebt den Deckel für diese Treffer auf
+   *  (siehe `topKEmbeddingMatches`). Ohne Angabe: Deckel über alles, wie vor v4.113. */
+  bekannt?: ReadonlySet<string>,
+): Promise<VektorErgebnis> {
+  const leer: VektorErgebnis = { treffer: [], ueberSchwelle: 0, verworfen: 0 };
+  if (embeddings.size === 0) return leer;
   if (cachedEmbeddingsDim !== null && cachedEmbeddingsDim !== queryVec.length) {
     console.warn(
       `[antraege-search-service] embedding dim mismatch: query=${queryVec.length} corpus=${cachedEmbeddingsDim}`,
     );
-    return [];
+    return leer;
   }
-  return topKEmbeddingMatches(queryVec, embeddings, EMBEDDING_TOP_K, signal);
+  return topKEmbeddingMatches(queryVec, embeddings, EMBEDDING_TOP_K, signal, bekannt);
 }
 
 /** Stage 3 (Antraege-Anteil): DMS-Index-Match → Antrag-Hits via filenameToAkz.

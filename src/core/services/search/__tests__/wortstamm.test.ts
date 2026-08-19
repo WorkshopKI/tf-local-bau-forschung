@@ -6,6 +6,7 @@ import {
 import {
   bereichFelder,
   bereichNutztDokumente,
+  bereichNutztAehnlichkeit,
   parseSuchbereich,
   NICHT_IM_STANDARD,
   SUCHBEREICH_LABEL,
@@ -324,6 +325,19 @@ describe('Suchbereich', () => {
     expect(bereichNutztDokumente('inhalt')).toBe(false);
     expect(bereichNutztDokumente('einrichtung')).toBe(false);
     expect(bereichNutztDokumente('standort')).toBe(false);
+  });
+
+  // v4.113: bis dahin lief die Ähnlichkeitsstufe in JEDEM Bereich mit. Am echten
+  // Bestand gemessen lieferte „nur Einrichtung" damit 50 Treffer, alle 50 aus der
+  // Vektorstufe — genau das Thema, das der Nutzer ausgeschlossen hatte; „nur
+  // Dokumente" 50 Anträge ohne einen einzigen Dokumenttreffer.
+  it('nur die themen-tragenden Bereiche lassen die Ähnlichkeitsstufe mitlaufen', () => {
+    expect(bereichNutztAehnlichkeit('alles')).toBe(true);
+    expect(bereichNutztAehnlichkeit('inhalt')).toBe(true);
+    expect(bereichNutztAehnlichkeit('einrichtung')).toBe(false);
+    expect(bereichNutztAehnlichkeit('standort')).toBe(false);
+    // Der Vektor beschreibt ein VORHABEN, kein Dokument.
+    expect(bereichNutztAehnlichkeit('dokumente')).toBe(false);
   });
 
   it('toleranter Leser: Unbekanntes fällt auf „alles" zurück', () => {

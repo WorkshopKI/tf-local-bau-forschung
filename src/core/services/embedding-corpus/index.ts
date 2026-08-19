@@ -3,6 +3,7 @@
  *
  * Drei Schichten:
  *  - `storage.ts` — IDB-CRUD fuer einzelne Vektoren
+ *  - `signatur.ts` — aus WELCHEM Vektorraum die Vektoren stammen
  *  - `wrapper.ts` — Modell-Init + embedText + Cosine + Centroid
  *  - `mirror.ts`  — SMB-Sync (Manifest + Bin)
  *
@@ -36,9 +37,19 @@ export {
 } from './wrapper';
 
 export {
+  CORPUS_BUILD_VERSION,
+  aktuelleKorpusSignatur,
+  signaturenGleich,
+  signaturText,
+  signaturAusManifest,
+  ladeKorpusSignatur,
+  merkeKorpusSignatur,
+} from './signatur';
+export type { KorpusSignatur } from './signatur';
+
+export {
   CORPUS_MANIFEST_PATH,
   CORPUS_BIN_PATH,
-  CORPUS_BUILD_VERSION,
   getCorpusBuildVersion,
   hashAktenzeichenSet,
   serializeCorpus,

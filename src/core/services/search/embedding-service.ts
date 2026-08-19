@@ -34,9 +34,44 @@ export class EmbeddingService {
   private autoTokenizer: unknown = null;
   private loading = false;
   private currentModelId: string | null = null;
+  /**
+   * Der LAUFENDE Init — damit ein zweiter Aufrufer WARTET statt sofort
+   * zurueckzukehren.
+   *
+   * Vorher stand hier `if (this.loading) return;`. Wer waehrend der
+   * Modell-Ladezeit suchte (2,9 s aus dem HTTP-Cache, beim ersten Start der
+   * ~200-MB-Download ueber SMB), bekam eine erfuellte Zusage auf ein Modell,
+   * das noch nicht da war: `ensureEmbeddingReady` galt als erledigt, `isReady()`
+   * war `false`, und die Suchseite meldete „Das Embedding-Modell konnte nicht
+   * geladen werden" — ueber einen Fehler, der gar nicht stattfand, mit Verweis
+   * auf die Konsole, die unter `file://` niemand offen hat.
+   */
+  private initPromise: Promise<void> | null = null;
+  /**
+   * Wer erfahren will, dass sich die Bereitschaft geaendert hat.
+   *
+   * Gebraucht, seit das Modell erst BEI BEDARF laedt (v4.113): der Ladelauf
+   * startet jetzt haeufig woanders als beim Anzeigenden — die Suchseite ueber
+   * `ensureEmbeddingReady`, der Indexlauf ueber `BatchIndexer.init`. React
+   * rendert davon nichts neu, und das Abzeichen „Embedding-Modell laedt…" blieb
+   * stehen, obwohl das Modell bereit war.
+   */
+  private hoerer = new Set<() => void>();
 
   getModelId(): string | null {
     return this.currentModelId;
+  }
+
+  /** Meldet jede Aenderung der Bereitschaft. Rueckgabe: abmelden. */
+  subscribe(fn: () => void): () => void {
+    this.hoerer.add(fn);
+    return () => { this.hoerer.delete(fn); };
+  }
+
+  private melde(): void {
+    for (const fn of this.hoerer) {
+      try { fn(); } catch { /* ein Hoerer darf den Rest nicht mitreissen */ }
+    }
   }
 
   async init(
@@ -44,9 +79,29 @@ export class EmbeddingService {
     preferGPU = false,
     onProgress?: ProgressCallback,
   ): Promise<void> {
+    // Ein laufender Init wird ABGEWARTET, nicht uebersprungen. Danach die
+    // Bedingung erneut pruefen: hat der Vorlauf ein ANDERES Modell geladen,
+    // faellt der Aufruf durch auf den eigenen Ladelauf.
+    while (this.initPromise) {
+      await this.initPromise;
+      if (this.currentModelId === modelConfig.id && (this.pipelineExtractor || this.autoModel)) return;
+    }
     if (this.currentModelId === modelConfig.id && (this.pipelineExtractor || this.autoModel)) return;
-    if (this.loading) return;
 
+    const lauf = this.ladeModell(modelConfig, preferGPU, onProgress);
+    this.initPromise = lauf;
+    try {
+      await lauf;
+    } finally {
+      if (this.initPromise === lauf) this.initPromise = null;
+    }
+  }
+
+  private async ladeModell(
+    modelConfig: EmbeddingModelConfig,
+    preferGPU: boolean,
+    onProgress?: ProgressCallback,
+  ): Promise<void> {
     if (this.currentModelId && this.currentModelId !== modelConfig.id) {
       this.destroy();
     }
@@ -96,9 +151,11 @@ export class EmbeddingService {
     } catch (err) {
       pipelineLog.warn('Embedding', `Laden fehlgeschlagen: ${err}`);
       this.loading = false;
+      this.melde();
       throw err;
     }
     this.loading = false;
+    this.melde();
   }
 
   isReady(): boolean {
@@ -247,6 +304,7 @@ export class EmbeddingService {
     this.currentModelId = null;
     this.loading = false;
     pipelineLog.info('Embedding', `Entladen: ${modelName}`);
+    this.melde();
   }
 }
 

@@ -5,6 +5,7 @@ import {
   insertDoc, getDocCount, persistOramaSoon, flushOramaPersist,
   INDEX_SPRACHE, spracheAusIndex, spracheVeraltet, getIndexSprache, indexSpracheVeraltet,
   loadOramaFromDB, hybridSearch, type OramaDoc,
+  removeDocAndChunks, setDocChunkIds, getDocChunkIds,
 } from '../orama-store';
 
 /** Minimal-IDB: nur `set`, mehr braucht der Persistenz-Pfad nicht. */
@@ -182,5 +183,103 @@ describe('orama-store: persistOramaSoon', () => {
     destroyOrama();
     await vi.advanceTimersByTimeAsync(2000);
     expect(idb.calls).toHaveLength(0);
+  });
+});
+
+/**
+ * Befund 7 der Bug-Jagd: `queryVector` WAEHLTE zwischen Wortlaut- und
+ * Hybrid-Lauf, statt den zweiten hinzuzunehmen. Dieselbe Anfrage befragte damit
+ * eine andere Dokumentmenge, obwohl die Beschriftung des Schalters „auch
+ * aehnliche Themen" verspricht — an einem Index aus 400 echten Antragstexten mit
+ * ihren echten Vektoren verlor „Sensorik" 4 der 20 Treffer.
+ *
+ * Die Fixtur unten reproduziert die Verdraengung im Kleinen: ein KURZER Text
+ * (hoher BM25, Vektor orthogonal zur Anfrage) gegen 30 lange Texte (schwacher
+ * BM25, perfekter Vektor). Mit dem alten Zweig-Wechsel verschwand `a.pdf` bei
+ * jedem Limit; additiv behaelt es seinen Platz.
+ */
+describe('orama-store: hybridSearch nimmt hinzu, statt zu ersetzen', () => {
+  const DIM = 8;
+  const anfrageVektor = (() => { const v = new Array<number>(DIM).fill(0); v[0] = 1; return v; })();
+
+  function dok(id: string, text: string, achse: number | null): Parameters<typeof insertDoc>[0] {
+    const embedding = new Array<number>(DIM).fill(0);
+    if (achse !== null) embedding[achse] = 1;
+    return { id, text, title: `${id}.pdf`, source: `${id}.pdf`, tags: '', type: 'dokument', embedding };
+  }
+
+  beforeEach(() => {
+    destroyOrama(); createOramaDB(DIM);
+    insertDoc(dok('a', 'Sensorik', DIM - 1));
+    for (let i = 0; i < 30; i++) {
+      insertDoc(dok(`v${i}`, `Sensorik in einem sehr langen Text ueber viele voellig andere Dinge ${i}`, 0));
+    }
+  });
+  afterEach(() => { destroyOrama(); });
+
+  it.each([1, 2, 5])('bei Limit %i geht kein Wortlaut-Treffer verloren', (limit) => {
+    const ohne = hybridSearch('Sensorik', null, { limit, maxPerDoc: 1, threshold: 0 }).map(t => t.source);
+    const mit = hybridSearch('Sensorik', anfrageVektor, { limit, maxPerDoc: 1, threshold: 0 }).map(t => t.source);
+    expect(ohne).toContain('a.pdf');
+    for (const quelle of ohne) expect(mit).toContain(quelle);
+  });
+
+  it('das Limit bleibt gewahrt', () => {
+    expect(hybridSearch('Sensorik', anfrageVektor, { limit: 3, maxPerDoc: 1, threshold: 0 }))
+      .toHaveLength(3);
+  });
+
+  it('ohne Vektor bleibt die Methode „fulltext"', () => {
+    expect(hybridSearch('Sensorik', null, { threshold: 0 }).every(t => t.method === 'fulltext'))
+      .toBe(true);
+  });
+});
+
+/**
+ * Befund 10 der Bug-Jagd: ein Dokument liegt im Index NICHT unter seiner `docId`,
+ * sondern als `docId-0`, `docId-1`, … — `removeDoc(docId)` fand nichts, schluckte
+ * den Fehlschlag, und die Chunks blieben als Geister stehen, auffindbar unter dem
+ * Namen einer Datei, die es nicht mehr gab.
+ */
+describe('orama-store: ein Dokument mit seinen Chunks entfernen', () => {
+  const DIM = 8;
+  const chunk = (id: string): Parameters<typeof insertDoc>[0] => ({
+    id, text: 'Abschnitt zur Sensorik', title: 'VB.pdf', source: 'VB.pdf',
+    tags: '', type: 'dokument', embedding: new Array<number>(DIM).fill(0),
+  });
+
+  beforeEach(() => { destroyOrama(); createOramaDB(DIM); setDocChunkIds({}); });
+  afterEach(() => { destroyOrama(); setDocChunkIds({}); });
+
+  it('nimmt alle Chunks des Dokuments aus dem Index', () => {
+    for (const id of ['doc1-0', 'doc1-1', 'doc1-2', 'doc2-0']) insertDoc(chunk(id));
+    setDocChunkIds({ doc1: ['doc1-0', 'doc1-1', 'doc1-2'], doc2: ['doc2-0'] });
+    expect(getDocCount()).toBe(4);
+
+    removeDocAndChunks('doc1');
+    expect(getDocCount()).toBe(1);
+    expect(hybridSearch('Sensorik', null, { threshold: 0 }).map(t => t.id)).toEqual(['doc2-0']);
+  });
+
+  it('vergisst die Zuordnung mit, damit ein zweiter Aufruf nicht ins Leere greift', () => {
+    insertDoc(chunk('doc1-0'));
+    setDocChunkIds({ doc1: ['doc1-0'] });
+    removeDocAndChunks('doc1');
+    expect(getDocChunkIds('doc1')).toEqual([]);
+    expect(() => removeDocAndChunks('doc1')).not.toThrow();
+  });
+
+  // Der lazy Ablage-Pfad (`indexDocument`) legt tatsaechlich EINEN Datensatz unter
+  // der reinen `docId` an — der muss weiter erreichbar bleiben.
+  it('entfernt auch einen Datensatz, der unter der reinen docId liegt', () => {
+    insertDoc(chunk('doc3'));
+    removeDocAndChunks('doc3');
+    expect(getDocCount()).toBe(0);
+  });
+
+  it('ohne bekannte Zuordnung bleibt es beim alten Verhalten', () => {
+    insertDoc(chunk('doc4-0'));
+    removeDocAndChunks('doc4');
+    expect(getDocCount()).toBe(1); // nichts gefunden, nichts kaputt
   });
 });

@@ -146,8 +146,10 @@ export function SearchSuggestions({
             )}
             <span className="flex-1" />
             {anzahl !== undefined && (
-              // Aus einem echten Probelauf, nicht aus dem Werte-Zähler: was hier
-              // steht, ist die Zahl, die nach dem Klick auch dasteht.
+              // Aus einem echten Probelauf, nicht aus dem Werte-Zähler — aber aus
+              // dem WORTLAUT-Probelauf. Mit eingeschalteter Ähnlichkeit kann die
+              // Liste danach länger sein; die Stufe legt dafür unter dem Suchfeld
+              // selbst Rechenschaft ab ([aehnlichkeitsSatz.ts](./aehnlichkeitsSatz.ts)).
               <span className="shrink-0 tabular-nums text-[11px] text-[var(--tf-text-tertiary)]">
                 {anzahl.toLocaleString('de-DE')}
               </span>

@@ -121,6 +121,10 @@ Zwei Lehren ueber Klasse 5 hinaus:
 
 Aufloesung jetzt in [korpusFeldAufloesung.ts](../../src/plugins/antraege/services/korpusFeldAufloesung.ts) (Spalten-CODE → `resolveFieldKey`, alte Listen als Fallback). Reissleine: `korpus-felder-ueber-schema` in [conventions-daten.test.ts](../../src/__tests__/conventions-daten.test.ts).
 
+**Dritter Fall, v4.113 — der EMBEDDING-Korpus, und die Lehre daraus ist der Guard.** Dieselbe Wurzel, ein zweiter Korpus: [embedding-corpus.ts](../../src/plugins/auslastung/services/matching/embedding-corpus.ts) las `verbund_titel`, `titel` und `projektbeschreibung_text` hart. Am echten Bestand waren zwei davon in **0 von 14 225** Records gefuellt — der Vektor eines Vorhabens kannte nie seinen Inhalt, nur seinen Titel (Einbettungstext Median **147** Zeichen; nach dem Fix **811**, und 9 259 Texte tragen den Inhalt). Zehn Monate lang unentdeckt, obwohl die WORTLAUT-Stufe denselben Inhalt sah.
+
+Der Grund, warum es so lange stand: **der Guard kannte nur eine Datei.** `korpus-felder-ueber-schema` prueft seit v4.42 `search-corpus.ts` — und nur die. Ein Guard, der eine Datei nennt, faengt keine Klasse; er faengt einen Fundort. Wer eine Reissleine gegen eine Bug-Klasse zieht, zaehlt zuerst auf, **wer sonst noch so liest** (`grep` nach dem kanonischen Feldnamen), und nimmt alle in dieselbe Liste. Seit v4.113 deckt der Guard beide Korpora, und ein zweiter verbietet die harten Feldkonstanten direkt neben der Aufloesung.
+
 ## 6. Tracking-Baseline nach dem Snapshot geschrieben (Snapshot-only-Leser sehen veralteten Stand)
 
 **Symptom:** Auf Snapshot-only-Konsumenten (pl-Variante / nach „clear site data" / neuer Rechner) erscheint ein „hat sich geändert"-Banner (Auto-Refresh „CSV-Quelle hat neue Daten", „Neuer Datenbestand") bei **jedem** frischen Start, obwohl sich nichts geändert hat. Der schreibende Client (Kurator) sieht es **nie**. Klick auf „Aktualisieren" hilft nur bis zum nächsten clear-site-data.
@@ -464,3 +468,23 @@ Ausgelöst hat es ein **Behälter-Wechsel**: vorher lag derselbe Anker — JSX b
 **Maschinell:** Guard `dom-attribut-per-callback-ref` in [conventions-ui.test.ts](../../src/__tests__/conventions-ui.test.ts) fängt die Attribut-Variante.
 
 **Kanonische Dateien:** [VerbindungGruppe.tsx](../../src/plugins/einstellungen/ki/VerbindungGruppe.tsx) (`setzeBookmarkletHref`), [settings-layout.tsx](../../src/components/settings/settings-layout.tsx) (`SettingsKlappe`, `{offen && …}`).
+
+## 24. Ein abgeleiteter Cache ohne Signatur seines Erzeugers — inkrementell wird gemischt
+
+**Symptom:** Keins. Genau das ist die Klasse. Die Zahlen sehen weiter wie Zahlen aus, das Ergebnis wird schlechter, und nichts wird rot.
+
+**Root-Cause:** Ein abgeleiteter Bestand wird unter dem Schlüssel seines Gegenstands abgelegt (Aktenzeichen, Doc-Id, Dateiname) — und der Schlüssel sagt nichts darüber, **womit** der Eintrag erzeugt wurde. Der inkrementelle Lauf fragt dann „gibt es den Schlüssel schon?" und nicht „passt der Eintrag noch zum jetzigen Verfahren?". Wer das Verfahren ändert, lässt die alten Einträge liegen und legt neue aus einem anderen Raum daneben.
+
+Gemessen am Embedding-Korpus (v4.113): Präfix, `dtype`, Pooling, Normalisierung und die Textzusammensetzung gingen in **keinen** Schlüssel, Hash oder Merkschlüssel ein. `checkCompat` verglich `modellId` und `dim` — beide bleiben bei einer Präfix-Änderung gleich. Ein Kosinus-Vergleich über zwei Vektorräume liefert Werte zwischen 0 und 1, die nach Ähnlichkeit aussehen.
+
+**Fix-Pattern:**
+- **Eine Signatur neben dem Cache**, die ALLES nennt, was die Werte bestimmt — nicht nur das, was offensichtlich ist (Modell, Dimension), sondern auch Präfixe, Quantisierung, Pooling und die Zusammensetzung des Eingabetexts. Vorbild: [signatur.ts](../../src/core/services/embedding-corpus/signatur.ts).
+- **Abweichende Signatur ⇒ VOLL bauen**, auch wenn inkrementell angefordert wurde, und dem Aufrufer sagen, dass es passiert ist. Mischen ist schlimmer als warten.
+- **Toleranter Leser für die Herkunft:** eine fehlende Signatur ist „unbekannt", nicht „passt". Ein Feld, das eine Seite nicht führt (alte Sidecars), darf keinen Unterschied *begründen* — aber auch keinen verdecken.
+- **Beim Spiegeln den ERZEUGENDEN Stand stempeln, nicht den aktiven.** Sonst prüft der Kompat-Check gegen eine Behauptung des Hochladenden.
+
+**Prüffrage beim Review:** Wenn ich morgen den Präfix / das Chunking / die Feldliste ändere — woran merkt der inkrementelle Lauf, dass die vorhandenen Einträge nicht mehr dazugehören? Steht diese Antwort in einem Schlüssel, einem Hash oder einem Merkschlüssel?
+
+**Querverweis:** Klasse 4 (machine-lokal), Klasse 9 (abgeleitete Daten rebuilden nicht bei Config-Nachzug), CLAUDE.md Pitfall #19 (Modell-Wechsel bricht alle Caches team-weit).
+
+**Kanonische Dateien:** [signatur.ts](../../src/core/services/embedding-corpus/signatur.ts), [embedding-corpus.ts](../../src/plugins/auslastung/services/matching/embedding-corpus.ts) (`vollErzwungen`), [mirror.ts](../../src/core/services/embedding-corpus/mirror.ts) (`documentPrefix` im Manifest).

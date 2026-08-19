@@ -807,7 +807,7 @@ export function SuchSeite(): React.ReactElement {
 
           <AehnlichkeitsZeile
             an={semanticEnabled} status={semanticStatus} befund={semantikBefund}
-            bestand={indexInfo.antraegeGeladen}
+            bestand={indexInfo.antraegeGeladen} bereich={bereich}
           />
 
           {/* ── Deutung ──────────────────────────────────────────────────── */}

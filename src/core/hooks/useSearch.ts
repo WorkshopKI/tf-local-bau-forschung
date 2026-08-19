@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
 import {
-  loadOramaFromDB, loadDocChunkCounts, hybridSearch, insertDoc, removeDoc, getDocCount,
+  loadOramaFromDB, loadDocChunkCounts, loadDocChunkIds, hybridSearch, insertDoc,
+  removeDocAndChunks, getDocCount,
   ensureOramaDB, saveOramaDimensions, persistOramaSoon,
   type OramaSearchResult,
 } from '@/core/services/search/orama-store';
@@ -83,25 +84,17 @@ export function useSearchProvider(storage: StorageService): SearchContextValue {
       } else {
         pipelineLog.warn('Suche', 'Kein Index vorhanden');
       }
-      // Chunk-Counts laden (für Score-Normalisierung langer Dokumente)
+      // Chunk-Counts laden (für Score-Normalisierung langer Dokumente) und die
+      // Chunk-Ids je Dokument — ohne sie kommt ein Dokument nicht wieder aus dem
+      // Index heraus (`removeDocAndChunks`).
       try { await loadDocChunkCounts(storage.idb); } catch { /* erste Nutzung */ }
+      try { await loadDocChunkIds(storage.idb); } catch { /* erste Nutzung */ }
       setDocCount(getDocCount());
 
-      // Embedding-Modell im Hintergrund laden
-      setVectorLoading(true);
-      let gpuAvailable = false;
-      if ('gpu' in navigator) {
-        try {
-          const adapter = await (navigator as { gpu: { requestAdapter: () => Promise<unknown> } }).gpu.requestAdapter();
-          gpuAvailable = !!adapter;
-        } catch { /* no GPU */ }
-      }
-
-      try {
-        await embeddingService.init(modelConfig, gpuAvailable);
-        setVectorReady(true);
-      } catch { /* Kein Embedding — Fulltext-Only */ }
-      finally { setVectorLoading(false); }
+      // Das Embedding-Modell wird hier NICHT mehr geladen — siehe
+      // `ensureVectorModel` unten. Ein bereits geladenes Modell (anderer
+      // Aufrufer war frueher dran) wird nur uebernommen.
+      setVectorReady(embeddingService.isReady());
 
       // Re-Ranker nur laden wenn in pipeline-config aktiviert
       const pipelineCfg = await storage.idb.get<{ useReRanker?: boolean; reRankerModelId?: string }>('pipeline-config');
@@ -118,12 +111,60 @@ export function useSearchProvider(storage: StorageService): SearchContextValue {
     })().catch(err => { pipelineLog.warn('Suche', `Initialisierung fehlgeschlagen: ${err}`); });
   }, [storage]);
 
+  /**
+   * Laedt das Embedding-Modell BEI BEDARF — nicht mehr bei jedem App-Start.
+   *
+   * Vorher lief `embeddingService.init` im Start-Effekt dieses Providers, der
+   * app-weit gemountet ist. Damit lud jeder Start die ~200 MB, auch fuer die
+   * grosse Mehrheit, die nie semantisch sucht — waehrend der Schalter auf der
+   * Suchseite „(laedt 200 MB)" verspricht und sein Store bewusst NICHT
+   * persistiert ist, jede Sitzung also auf „aus" startet. Das Etikett bot eine
+   * Wahl an, die laengst getroffen war; der Kommentar in
+   * `antraege-search-service.ts` („Was das Opt-in schuetzt, ist das Modell")
+   * beschrieb einen Zustand, den es nicht gab.
+   *
+   * Jetzt laedt, wer es braucht: die Suchseite ueber `ensureEmbeddingReady`
+   * (eigenes Opt-in), der Dokumenten-Indexlauf ueber `BatchIndexer.init`, und
+   * die RAG-Suche hier. `embeddingService.init` ist idempotent und haelt seinen
+   * laufenden Ladelauf fest — parallele Aufrufer warten auf denselben.
+   */
+  // Das Modell kann anderswo bereit werden — die Suchseite laedt es ueber
+  // `ensureEmbeddingReady`, der Indexlauf ueber `BatchIndexer.init`. Ohne dieses
+  // Abonnement blieb das Abzeichen „Embedding-Modell laedt…" stehen, weil dieser
+  // Provider von der fremden Bereitschaft nichts erfuhr und nicht neu rendert.
+  useEffect(() => embeddingService.subscribe(() => {
+    setVectorReady(embeddingService.isReady());
+    setVectorLoading(embeddingService.isLoading());
+  }), []);
+
+  const ensureVectorModel = useCallback(async (): Promise<boolean> => {
+    if (embeddingService.isReady()) return true;
+    const modelConfig = modelConfigRef.current
+      ?? getModelById(await getActiveModelId(storage.idb));
+    modelConfigRef.current = modelConfig;
+    setVectorLoading(true);
+    let gpuAvailable = false;
+    if ('gpu' in navigator) {
+      try {
+        const adapter = await (navigator as { gpu: { requestAdapter: () => Promise<unknown> } }).gpu.requestAdapter();
+        gpuAvailable = !!adapter;
+      } catch { /* no GPU */ }
+    }
+    try {
+      await embeddingService.init(modelConfig, gpuAvailable);
+      setVectorReady(true);
+      return true;
+    } catch { /* Kein Embedding — Fulltext-Only */ return false; }
+    finally { setVectorLoading(false); }
+  }, [storage]);
+
   const search = useCallback(async (query: string, filters?: { type?: string }): Promise<OramaSearchResult[]> => {
     if (!query.trim()) { setResults([]); return []; }
     setLoading(true);
     const t0 = performance.now();
     try {
       let queryVector: number[] | null = null;
+      await ensureVectorModel();
       if (embeddingService.isReady() && modelConfigRef.current) {
         queryVector = await embedQueryCached(
           query, modelConfigRef.current, 'query',
@@ -151,7 +192,7 @@ export function useSearchProvider(storage: StorageService): SearchContextValue {
       return r;
     } catch (err) { pipelineLog.warn('Suche', `Fehler: ${err}`); setResults([]); return []; }
     finally { setLoading(false); }
-  }, []);
+  }, [ensureVectorModel]);
 
   const indexDocument = useCallback(async (doc: {
     id: string; text: string; title: string; source: string; tags: string[]; type: string;
@@ -170,7 +211,9 @@ export function useSearchProvider(storage: StorageService): SearchContextValue {
   }, [storage]);
 
   const removeDocument = useCallback((id: string) => {
-    removeDoc(id);
+    // MIT den Chunks. Die reine `docId` steht nach einem Vollindexlauf nicht im
+    // Index — der Aufruf lief ins Leere und ließ Geistertreffer stehen.
+    removeDocAndChunks(id);
     setDocCount(getDocCount());
     persistOramaSoon(storage.idb);
   }, [storage]);
@@ -186,5 +229,15 @@ export function useSearchProvider(storage: StorageService): SearchContextValue {
     }
   }, []);
 
-  return { search, results, loading, vectorReady, vectorLoading, indexDocument, removeDocument, documentCount: docCount, toggleReRanker };
+  // Der Zustand des Singletons zaehlt, nicht nur der eigene Ladelauf: seit das
+  // Modell erst bei Bedarf laedt, startet es haeufig ANDERSWO — die Suchseite
+  // ueber `ensureEmbeddingReady`, der Indexlauf ueber `BatchIndexer.init`. Wer
+  // nur den lokalen State lieste, zeigte danach dauerhaft „Modell laedt…",
+  // obwohl es bereit ist.
+  return {
+    search, results, loading,
+    vectorReady: vectorReady || embeddingService.isReady(),
+    vectorLoading: (vectorLoading || embeddingService.isLoading()) && !embeddingService.isReady(),
+    indexDocument, removeDocument, documentCount: docCount, toggleReRanker,
+  };
 }

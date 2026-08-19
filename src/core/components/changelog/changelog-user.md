@@ -19,11 +19,31 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.115 — 2026-08
+
+### Verbesserungen
+- **„Datenpflege › Sichtbarkeit" passt jetzt auf einen Bildschirm.** Die Liste war fast 200 Zeilen lang; jetzt steht dort ein aufklappbarer Baum mit einer Zeile je Seite. An einer zugeklappten Seite sehen Sie, wie viel darunter markiert ist („3 markiert"), und „Alles aufklappen" öffnet bei Bedarf alles auf einmal.
+- **Man sieht jetzt auf einen Blick, was an und was aus ist.** Eine eingeschaltete „Beta"-Marke ist blau ausgefüllt — dieselbe Farbe wie das Beta-Abzeichen in der App —, eine eingeschaltete „Experte"-Marke dunkel. Ausgeschaltet sind beide nur ein feiner Umriss. Vorher unterschieden sich an und aus fast nur durch die Randstärke.
+
 ## v4.114 — 2026-08
 
 ### Verbesserungen
 - **Auch einzelne Karten lassen sich jetzt ausblenden.** Bisher konnte die Datenpflege ganze Seiten, Reiter und Startseiten-Widgets als „Beta" oder „Experte" kennzeichnen — jetzt auch die Blöcke mit eigener Überschrift darin, etwa „Statistik-Übersicht" in der Auslastung oder „Fristrisiko" im Vorgangs-Board.
 - **Kein Verweis mehr auf etwas, das Sie gar nicht sehen.** In der Antrag-Aufbereitung stand ein Kasten „Externe Recherche — folgt im Recherche-Tab", auch wenn dieser Reiter für Sie ausgeblendet war. Er erscheint jetzt zusammen mit dem Reiter, und die „Tab öffnen"-Verweise im Fortschritts-Stepper führen nur noch auf Reiter, die es für Sie gibt.
+
+## v4.113 — 2026-08
+
+### Verbesserungen
+- **„Auch ähnliche Themen" findet jetzt auch, was in der Projektbeschreibung steht.** Bisher verglich diese Suche nur die TITEL der Vorhaben — die Beschreibung floss nie ein, obwohl sie bei 9.259 Vorhaben dasteht und im Schnitt über 800 Zeichen lang ist. Wer „Verfahren zur Kadaversuche aus der Luft" suchte, fand das Vorhaben nicht, das genau das beschreibt. **Damit es wirkt, muss der Vektor-Bestand einmal neu gebaut werden** — der Hinweis dazu steht im Auslastungs-Modul unter „Themen-Vektoren".
+- **Die Ähnlichkeitssuche hält sich an „Suchen in".** Wer auf „nur Einrichtung" einschränkte, bekam trotzdem 50 Vorhaben zum Thema — also genau das, was er ausgeschlossen hatte; unter „nur Dokumente" kamen 50 Anträge ohne einen einzigen Dokumenttreffer. Jetzt ruht die Stufe dort, und die Zeile unter dem Suchfeld sagt, warum und wie Sie sie wieder bekommen.
+- **Das Embedding-Modell (200 MB) lädt erst, wenn Sie es brauchen.** Bisher lud es bei jedem Start der App, obwohl der Schalter dazu aus war — der Start ist jetzt spürbar leichter für alle, die nicht semantisch suchen.
+
+### Bugfixes
+- **Die Zeile unter dem Suchfeld sagt die Wahrheit über die Trefferzahl.** Sie meldete „50 thematisch verwandte Vorhaben — alle standen schon im Wortlaut-Ergebnis"; tatsächlich lagen 65 über der Schwelle, und die beiden abgeschnittenen wären die einzigen neuen gewesen. Jetzt steht dort die echte Zahl, und was nicht mehr in die Liste passte, wird benannt. Vor allem: neue Treffer werden nicht mehr als erste weggelassen.
+- **„Das Modell konnte nicht geladen werden" erscheint nicht mehr, während es lädt.** Wer in den ersten Sekunden suchte, bekam eine Fehlermeldung über einen Fehler, der nicht stattfand — samt Verweis auf die Browser-Konsole.
+- **Ein halb geladener Vektor-Bestand füllt sich von selbst auf.** Wer die App während des Ladens neu lud, blieb dauerhaft auf dem Teilbestand sitzen; die Zeile nannte den Ausweg nur, wenn gar nichts da war.
+- **„Auch ähnliche Themen" kann keinen Dokumenttreffer mehr kosten.** Das Einschalten konnte bestehende Treffer verdrängen, obwohl „auch" dasteht.
+- **Ein ersetztes Dokument hinterlässt keine Geister im Suchindex.** Wurde eine kürzere Fassung abgelegt, blieben Abschnitte der alten unter dem Namen der neuen Datei auffindbar — und ein gerade aktualisiertes Dokument rutschte im Ranking nach unten.
 
 ## v4.112 — 2026-08
 

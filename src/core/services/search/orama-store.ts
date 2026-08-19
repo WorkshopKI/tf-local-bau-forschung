@@ -55,6 +55,16 @@ export const INDEX_SPRACHE = 'german';
 let db: Orama<any> | null = null;
 let currentDimensions: number | null = null;
 let docChunkCounts: Record<string, number> | null = null;
+/**
+ * Welche Chunk-Ids zu welchem Dokument gehoeren (`doc-chunk-ids`).
+ *
+ * Gebraucht, weil ein Dokument im Index NICHT unter seiner `docId` liegt,
+ * sondern als `docId-0`, `docId-1`, … (plus `docId-summary`). Ohne diese Liste
+ * gibt es keinen Weg, ein Dokument wieder aus dem Index zu bekommen: `remove`
+ * auf die reine `docId` findet nichts, schlaegt stumm fehl, und die alten Chunks
+ * bleiben mit ihrem ALTEN Wortlaut unter dem Namen der AKTUELLEN Datei stehen.
+ */
+let docChunkIds: Record<string, string[]> | null = null;
 
 const IDB_DIMENSIONS_KEY = 'orama-dimensions';
 
@@ -112,6 +122,25 @@ export async function loadDocChunkCounts(
   idb: { get: <T>(key: string) => Promise<T | null> },
 ): Promise<void> {
   docChunkCounts = await idb.get<Record<string, number>>('doc-chunk-counts');
+}
+
+/** Laedt die Chunk-Ids pro Dokument aus IDB. Einmal beim App-Start, direkt
+ *  neben {@link loadDocChunkCounts}. */
+export async function loadDocChunkIds(
+  idb: { get: <T>(key: string) => Promise<T | null> },
+): Promise<void> {
+  docChunkIds = await idb.get<Record<string, string[]>>('doc-chunk-ids');
+}
+
+/** Uebernimmt die Zuordnung, die der Indexlauf gerade geschrieben hat — sonst
+ *  arbeitete `removeDocAndChunks` bis zum naechsten Start auf dem Alt-Stand. */
+export function setDocChunkIds(map: Record<string, string[]>): void {
+  docChunkIds = map;
+}
+
+/** Die Chunk-Ids eines Dokuments, wie der letzte Indexlauf sie geschrieben hat. */
+export function getDocChunkIds(docId: string): readonly string[] {
+  return docChunkIds?.[docId] ?? [];
 }
 
 /**
@@ -325,6 +354,27 @@ export function removeDoc(id: string): void {
 }
 
 /**
+ * Nimmt ein Dokument MIT allen seinen Chunks aus dem Index.
+ *
+ * `removeDoc(docId)` allein reichte nie: nach einem Vollindexlauf existiert
+ * unter der reinen `docId` kein Datensatz, `remove` schlaegt fehl, der Fehler
+ * wird geschluckt — und die Chunks bleiben als Geister im Index, auffindbar
+ * unter dem Namen einer Datei, die es nicht mehr gibt. Nur der lazy
+ * Ablage-Pfad (`indexDocument`) legt tatsaechlich EINEN Datensatz unter der
+ * `docId` an; deshalb wird beides versucht.
+ */
+export function removeDocAndChunks(docId: string): void {
+  if (!db) return;
+  removeDoc(docId);
+  for (const chunkId of getDocChunkIds(docId)) removeDoc(chunkId);
+  if (docChunkIds && docChunkIds[docId]) {
+    const rest = { ...docChunkIds };
+    delete rest[docId];
+    docChunkIds = rest;
+  }
+}
+
+/**
  * Dedupliziert Suchergebnisse: Maximal maxPerDoc Chunks pro Quelldokument.
  * Identifiziert Dokumente anhand des `source`-Feldes (Dateiname).
  */
@@ -362,10 +412,45 @@ export function hybridSearch(
   // explizit durch, statt sich auf den Default zu verlassen.
   const threshold = options?.threshold;
 
-  let results: Results<any> | Promise<Results<any>>;
+  // Der Wortlaut-Lauf laeuft IMMER, und seine Treffer BEHALTEN ihren Platz. Mit
+  // Vektor fuellt der Hybrid-Lauf nur die freien Plaetze auf.
+  //
+  // Vorher waehlte `queryVector` zwischen den beiden Zweigen: dieselbe Anfrage
+  // befragte eine ANDERE Dokumentmenge, obwohl die Beschriftung des Schalters
+  // „auch aehnliche Themen" verspricht. An einem Index aus 400 echten
+  // Antragstexten mit ihren echten Vektoren gemessen (limit 20) verlor die Anfrage
+  // „Sensorik" 4 der 20 Wortlaut-Treffer, sobald die Aehnlichkeit anging.
+  //
+  // Eine bloss VEREINIGTE Menge reichte dafuer nicht: nach dem Schnitt auf `limit`
+  // kann ein hoeher bewerteter Hybrid-Treffer einen Wortlaut-Treffer weiter
+  // verdraengen — und die beiden Score-Skalen sind ohnehin nicht vergleichbar.
+  // „Auch" heisst additiv: erst die Wortlaut-Menge, dann was noch hineinpasst.
+  const mappe = (treffer: Results<any>['hits'], istHybrid: boolean): OramaSearchResult[] =>
+    treffer.map(hit => {
+      const doc = hit.document as Record<string, unknown>;
+      return {
+        id: doc.id as string,
+        text: doc.text as string,
+        title: doc.title as string,
+        source: doc.source as string,
+        tags: ((doc.tags as string) ?? '').split(',').filter(Boolean),
+        type: doc.type as string,
+        score: normalizeScore(hit.score, doc.source as string),
+        method: istHybrid ? 'hybrid' as const : 'fulltext' as const,
+      };
+    }).sort((a, b) => b.score - a.score);
+
+  const wortLauf = search(db, {
+    mode: 'fulltext',
+    term: query,
+    limit: fetchLimit,
+    where,
+    threshold,
+  } as any) as Results<any>;
+  const final = deduplicateBySource(mappe(wortLauf.hits, false), maxPerDoc).slice(0, limit);
 
   if (queryVector && queryVector.length > 0) {
-    results = search(db, {
+    const hybridLauf = search(db, {
       mode: 'hybrid',
       term: query,
       vector: { value: queryVector, property: 'embedding' },
@@ -373,37 +458,24 @@ export function hybridSearch(
       limit: fetchLimit,
       where,
       threshold,
-    } as any);
-  } else {
-    results = search(db, {
-      mode: 'fulltext',
-      term: query,
-      limit: fetchLimit,
-      where,
-      threshold,
-    } as any);
+    } as any) as Results<any>;
+    const drin = new Map(final.map(f => [f.id, f]));
+    const jeQuelle = new Map<string, number>();
+    for (const f of final) jeQuelle.set(f.source, (jeQuelle.get(f.source) ?? 0) + 1);
+    for (const h of mappe(hybridLauf.hits, true)) {
+      // Von beiden gefunden: die Zeile bleibt, bekommt aber die Fundstelle
+      // „aehnliche Bedeutung" dazu.
+      const schon = drin.get(h.id);
+      if (schon) { schon.method = 'hybrid'; continue; }
+      if (final.length >= limit) continue;
+      if ((jeQuelle.get(h.source) ?? 0) >= maxPerDoc) continue;
+      final.push(h);
+      drin.set(h.id, h);
+      jeQuelle.set(h.source, (jeQuelle.get(h.source) ?? 0) + 1);
+    }
+    // Nur die Darstellung ordnen — Sortieren nimmt nichts weg.
+    final.sort((a, b) => b.score - a.score);
   }
-
-  // Orama's search() is sync in v3 but typed as sync|async — cast safely
-  const syncResults = results as Results<any>;
-
-  const mapped = syncResults.hits.map(hit => {
-    const doc = hit.document as Record<string, unknown>;
-    return {
-      id: doc.id as string,
-      text: doc.text as string,
-      title: doc.title as string,
-      source: doc.source as string,
-      tags: ((doc.tags as string) ?? '').split(',').filter(Boolean),
-      type: doc.type as string,
-      score: normalizeScore(hit.score, doc.source as string),
-      method: queryVector ? 'hybrid' as const : 'fulltext' as const,
-    };
-  });
-
-  // Nach Normalisierung neu sortieren (Scores haben sich verändert)
-  mapped.sort((a, b) => b.score - a.score);
-  const final = deduplicateBySource(mapped, maxPerDoc).slice(0, limit);
 
   if (final.length > 3) {
     const scores = final.map(r => r.score);
@@ -413,7 +485,7 @@ export function hybridSearch(
     }
   }
 
-  pipelineLog.info('Orama', `${queryVector ? 'hybrid' : 'fulltext'}: ${syncResults.hits.length} Treffer → ${final.length} nach Dedup`);
+  pipelineLog.info('Orama', `${queryVector ? 'fulltext+hybrid' : 'fulltext'}: ${final.length} Treffer`);
   return final;
 }
 

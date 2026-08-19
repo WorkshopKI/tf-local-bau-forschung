@@ -17,7 +17,16 @@ Pfad-Map des SMB-Daten-Shares: [data-layout.md](data-layout.md).
   Worttrennung **deutsch** über die Konstante `INDEX_SPRACHE` — Begründung, Messung
   und der Umgang mit Alt-Indizes stehen in
   [suche-relevanz.md §6](suche-relevanz.md#6-worttrennung-des-dokumenten-index).
-- **Embeddings**: EmbeddingGemma 300M via Transformers.js v4, runs in Main Thread (no Worker under `file://`)
+- **Embeddings**: EmbeddingGemma 300M via Transformers.js v4, runs in Main Thread (no Worker under `file://`).
+  **Geladen wird erst bei Bedarf** (seit v4.113): der app-weit gemountete
+  `useSearchProvider` rief `embeddingService.init` bis dahin bei JEDEM Start, obwohl
+  das Opt-in der Suchseite aus ist und am Schalter „(lädt 200 MB)" steht. Jetzt lädt,
+  wer es braucht — `ensureVectorModel` (RAG-Suche), `ensureEmbeddingReady`
+  (Suchseite), `BatchIndexer.init` (Indexlauf). `init` ist idempotent und hält seinen
+  **laufenden** Ladelauf fest: parallele Aufrufer warten darauf, statt sofort
+  zurückzukehren und ein nicht geladenes Modell als geladen zu behandeln
+  ([suche-relevanz.md §8.6](suche-relevanz.md)). Wer die Bereitschaft anzeigt,
+  abonniert `embeddingService.subscribe` — der Ladelauf startet oft woanders.
 - **Backend**: WebGPU (preferred) or WASM fallback, auto-detected at init
 - **Metadata-Extraktion**: LLM-basiert via OpenRouter API oder lokales llama.cpp (Nemotron)
 - **Re-Ranker**: Cross-Encoder (aktiv, steuerbar per Pipeline-Config in [src/core/hooks/useSearch.ts](../../src/core/hooks/useSearch.ts))

@@ -117,6 +117,84 @@ export const SLOT_REIHENFOLGE: readonly KorpusSlot[] = [
 export type KorpusFeldKarte = Readonly<Record<KorpusSlot, ReadonlySet<string>>>;
 
 /**
+ * Feld-Name-Kandidaten je Spalte — der FALLBACK, wenn kein Schema die Spalte
+ * fuehrt.
+ *
+ * Der CSV-Merger ([helpers.ts](src/core/services/csv/merger/helpers.ts))
+ * speichert ein Feld unter `entry.canonical ?? entry.custom ?? col.toLowerCase()`.
+ * C16 exportiert mit Leerzeichen im Spaltennamen (`VB INHALT`, `VB TITEL`) →
+ * ohne Wizard-Mapping landet das als `'vb inhalt'` / `'vb titel'` (mit Space,
+ * nicht Underscore). Wir gleichen deshalb gegen die NORMALISIERTE Form
+ * (lowercase + alle Trenner raus) ab — gleicher Algorithmus wie
+ * `findFieldValue` in `fieldLookup.ts`.
+ *
+ * Diese Liste zu RATEN war der Defekt: welcher Schluessel es wirklich wird,
+ * entscheidet das Wizard-Mapping, nicht der Code. Am Bestand lag `VB_INHALT`
+ * unter `inhalt_kurzzusammenfassung` und fehlte damit vollstaendig im Korpus.
+ * Die verbindliche Aufloesung macht jetzt
+ * [korpusFeldAufloesung.ts](src/plugins/antraege/services/korpusFeldAufloesung.ts)
+ * ueber den Spalten-CODE; was hier steht, greift zusaetzlich.
+ *
+ * Vorberechnete Sets — der Cursor-Walk macht 14 k × 10 Lookups, Re-Hashing der
+ * Kandidaten pro Eintrag waere Verschwendung.
+ */
+export const KORPUS_BASIS: KorpusFeldKarte = {
+  vbTitel: mengeAus('verbund_titel', 'vb_titel', 'vb titel'),
+  abstract: mengeAus(
+    'projektbeschreibung_text',
+    'vb_inhalt', 'vb inhalt',
+    'vorhaben_inhalt', 'vorhabeninhalt',
+    'inhalt_kurzzusammenfassung', 'kurzzusammenfassung',
+    'kurzbeschreibung', 'beschreibung', 'inhalt',
+  ),
+  akronym: mengeAus('akronym', 'vb_kurznam', 'vb kurznam'),
+  /** Ausfuehrende Stelle. `org_afs` traegt im Repo den Canonical-Namen
+   *  `antragsteller` ([constants.ts](src/core/services/csv/constants.ts)) — beide
+   *  Schreibweisen stehen hier, weil die Spalte je nach Wizard-Mapping unter dem
+   *  einen ODER dem anderen Schluessel im Store liegt. */
+  orgAfs: mengeAus('antragsteller', 'org_afs', 'org afs'),
+  /** Rechtsperson. Hat KEIN Canonical-Feld — landet als Custom-Spalte, und zwar
+   *  am Bestand unter drei verschiedenen Namen je Quelle. */
+  orgAst: mengeAus('org_ast', 'org ast', 'antragsteller_ast'),
+  /** Sitz der Rechtsperson bzw. der ausfuehrenden Stelle. Beide Spalten, weil sie
+   *  am Bestand gemessen in 1 052 von 14 224 Saetzen (7,4 %) auseinandergehen —
+   *  Firmensitz Hamburg, gearbeitet wird in Wedel. */
+  ortAst: mengeAus('ort_ast', 'ort ast'),
+  ortAfs: mengeAus('ort_afs', 'ort afs'),
+  /** Bundesland — im Export NUR als Kuerzel (`SN`, `BW`). Gemessene Abweichung
+   *  zwischen den beiden Spalten: 621 Saetze. `buland_ast` und `bl_ast` sind
+   *  dieselbe Angabe unter zwei Spaltennamen (je nach Quelldatei). */
+  landAst: mengeAus('buland_ast', 'buland ast', 'bl_ast', 'bl ast'),
+  landAfs: mengeAus('buland_afs', 'buland afs', 'bl_afs', 'bl afs'),
+  /** Kontakt-Mail der Projektleitung des ANTRAGSTELLERS. Quelle des
+   *  Domain-Kuerzels, siehe `domainLabel`. */
+  emailPl: mengeAus('email_pl', 'email pl'),
+  /** Netzwerkangabe. Am Bestand unter ZWEI Schluesseln je nach Quelle:
+   *  `netzwerk` (7737/9097) und `netzwerk_kurzname_fkz_ztp` (9052). */
+  netzwerk: mengeAus('netzwerk', 'netzwerkna', 'netzwerk_kurzname_fkz_ztp'),
+  /** Arbeitsnotizen. `T_YW` liegt unter `wichtig`, `T_HINT` unter `bemerkung`. */
+  notizWichtig: mengeAus('wichtig', 't_yw', 't yw'),
+  notizBemerkung: mengeAus('bemerkung', 't_hint', 't hint'),
+  /** Wahlkreis der ausfuehrenden Stelle. */
+  wahlkreis: mengeAus('wahlkreisname_afs', 'wknaak_afs', 'wknaak afs'),
+  /** Klartext der NACE-Branche. Faellt NICHT in ein eigenes Feld, sondern zu den
+   *  Deskriptoren — dort steht die Branche schon (BRANCHE_/TECHN_/ANWEND_), nur
+   *  eben grob. 2 256 Antraege fuehren ihn, 1 512 davon mit Woertern, die in den
+   *  Deskriptoren fehlen. */
+  nace: mengeAus('nace_code_beschreibung_nw_antragsebene', 'nace_lang', 'nace lang'),
+  /** Verbundkennzeichen. `VB_NUMMER` ist im Repo das kanonische `verbund_id`
+   *  ([constants.ts](src/core/services/csv/constants.ts)). */
+  verbundNr: mengeAus('verbund_id', 'vb_nummer', 'vb nummer'),
+  /** Aktenzeichen des Fachsystems. Kein kanonisches Feld — landet als Custom-
+   *  Spalte `akz`. */
+  akzC16: mengeAus('akz'),
+};
+
+function mengeAus(...namen: string[]): ReadonlySet<string> {
+  return new Set(namen.map(normalizeKey));
+}
+
+/**
  * Baut die Feldkarte aus den Schemas eines Programms.
  *
  * `basis` sind die bisherigen, fest verdrahteten Alias-Listen. Sie bleiben als
@@ -151,6 +229,46 @@ export function baueKorpusFeldKarte(
   }
 
   return karte;
+}
+
+/**
+ * Umkehr-Verzeichnis Schluessel → Slot, EINMAL je Ladelauf gebaut.
+ *
+ * Vorher fragte der Korpus je Eintrag jeden Slot einzeln (`pickByNormalized`) —
+ * also je Antrag `Slots × Spalten` Vergleiche, jeder mit einem eigenen
+ * `normalizeKey`. Bei 14 225 Antraegen à ~200 Spalten war das mit 10 Slots schon
+ * teuer und waere mit 15 um die Haelfte teurer geworden. Ein Durchgang ueber die
+ * Schluessel des Records liefert dasselbe Ergebnis: `normalizeKey` faellt einmal
+ * je Spalte an, nicht einmal je Spalte UND Slot.
+ *
+ * Je Slot gewinnt der ERSTE passende Schluessel in der Schluessel-Reihenfolge des
+ * Records. Dass kein Schluessel zwei Slots bedient, sichert
+ * {@link baueKorpusFeldKarte} (Kollisions-Regel) — der Guard hier ist nur die
+ * Reihenfolge von {@link SLOT_REIHENFOLGE}.
+ */
+export function baueSlotIndex(karte: KorpusFeldKarte): Map<string, KorpusSlot> {
+  const index = new Map<string, KorpusSlot>();
+  for (const slot of SLOT_REIHENFOLGE) {
+    for (const key of karte[slot]) if (!index.has(key)) index.set(key, slot);
+  }
+  return index;
+}
+
+/** Alle Slot-Werte eines Records in EINEM Durchgang. Fehlende Slots fehlen. */
+export function leseSlots(
+  record: Record<string, unknown>,
+  index: ReadonlyMap<string, KorpusSlot>,
+): Partial<Record<KorpusSlot, string>> {
+  const out: Partial<Record<KorpusSlot, string>> = {};
+  for (const key of Object.keys(record)) {
+    if (key.startsWith('_')) continue;
+    const v = record[key];
+    if (typeof v !== 'string' || v.length === 0) continue;
+    const slot = index.get(normalizeKey(key));
+    if (slot === undefined || out[slot] !== undefined) continue;
+    out[slot] = v;
+  }
+  return out;
 }
 
 /**

@@ -1,7 +1,7 @@
 import { embeddingService, TRANSFORMERS_LIB_VERSION } from './embedding-service';
 import type { EmbeddingProgress } from './embedding-service';
 import type { EmbeddingModelConfig } from './model-registry';
-import { createOramaDB, loadOramaFromDB, insertDoc, saveOramaToDB, getOramaDB, getStoredDimensions, saveOramaDimensions, INDEX_SPRACHE, spracheAusIndex, spracheVeraltet } from './orama-store';
+import { createOramaDB, loadOramaFromDB, insertDoc, saveOramaToDB, getOramaDB, getStoredDimensions, saveOramaDimensions, getDocCount, removeDoc, setDocChunkIds, INDEX_SPRACHE, spracheAusIndex, spracheVeraltet } from './orama-store';
 import type { StorageService } from '@/core/services/storage';
 import { extractMetadata, initMetadataLLM, disposeMetadataLLM, getCachedMetadata, setCachedMetadata, METADATA_LLM_MODELS } from './metadata-extractor';
 import type { DocumentMetadata, MetadataStorage } from './metadata-extractor';
@@ -165,6 +165,12 @@ export class BatchIndexer {
     const docChunkCounts: Record<string, number> = isFull
       ? {}
       : (await storage.idb.get<Record<string, number>>('doc-chunk-counts') ?? {});
+    // Welche Chunk-Ids gehoeren zu welchem Dokument. Beim Vollaufbau frisch, beim
+    // inkrementellen Lauf fortgeschrieben — sie ist der einzige Weg, die Chunks
+    // einer ueberholten Fassung wieder loszuwerden.
+    const docChunkIds: Record<string, string[]> = isFull
+      ? {}
+      : (await storage.idb.get<Record<string, string[]>>('doc-chunk-ids') ?? {});
 
     // Checkpoint: resume support
     let checkpoint: IndexCheckpoint | null = null;
@@ -301,9 +307,26 @@ export class BatchIndexer {
         signal,
       );
 
+      // Die Chunks der VORIGEN Fassung zuerst raus.
+      //
+      // `insertDoc` ist ein `upsert` und ersetzt nur, was dieselbe Id wieder
+      // bekommt. Wurde aus 12 Abschnitten eine Fassung mit 5, blieben `docId-5`
+      // bis `docId-11` mit dem ALTEN Wortlaut im Index — unter dem Namen der
+      // AKTUELLEN Datei, und weil der Manifest-Eintrag stimmt, meldete die Ampel
+      // dazu „Index aktuell".
+      const alteChunks = docChunkIds[doc.id];
+      if (alteChunks) for (const alt of alteChunks) removeDoc(alt);
+      // Der Zaehler dieses Dokuments wird NEU gesetzt, nicht erhoeht. Vorher
+      // wuchs er bei jedem inkrementellen Lauf um die volle Chunkzahl, obwohl
+      // der Index um 0 wuchs: nach einer Korrektur stand 24 statt 12, nach zwei
+      // weiteren 48 — und `normalizeScore` (score / log2(count+1)) zog dem
+      // GERADE aktualisierten Dokument dafuer ~19 % bzw. ~34 % ab.
+      docChunkCounts[doc.filename] = 0;
+      const neueChunkIds: string[] = [];
       for (let i = 0; i < chunkTexts.length; i++) {
+        const chunkId = chunkIds[i] ?? `${doc.id}-${i}`;
         insertDoc({
-          id: chunkIds[i] ?? `${doc.id}-${i}`,
+          id: chunkId,
           text: chunkTexts[i] ?? '',
           title: doc.filename,
           source: doc.filename,
@@ -311,11 +334,13 @@ export class BatchIndexer {
           type: 'dokument',
           embedding: vectors[i] ?? [],
         });
-        totalChunks++;
-        if (!chunkIds[i]?.endsWith('-summary')) {
+        neueChunkIds.push(chunkId);
+        if (!chunkId.endsWith('-summary')) {
           docChunkCounts[doc.filename] = (docChunkCounts[doc.filename] ?? 0) + 1;
         }
       }
+      docChunkIds[doc.id] = neueChunkIds;
+      totalChunks = getDocCount();
 
       manifest[doc.id] = doc.hash;
       processed++;
@@ -344,7 +369,12 @@ export class BatchIndexer {
     if (signal?.aborted) { pipelineLog.info('Indexer', 'Abgebrochen'); return totalChunks; }
 
     await saveOramaToDB(storage.idb);
+    // Die Zahl kommt aus dem Index selbst, nicht aus einem mitgezaehlten
+    // Akkumulator — der lief bei inkrementellen Laeufen auseinander.
+    totalChunks = getDocCount();
     await storage.idb.set('index-chunk-count', totalChunks);
+    await storage.idb.set('doc-chunk-ids', docChunkIds);
+    setDocChunkIds(docChunkIds);
     await storage.idb.set('index-manifest', manifest);
     await storage.idb.set('index-last-update', new Date().toISOString());
     await storage.idb.set('index-model-id', this.modelConfig.id);

@@ -78,7 +78,7 @@ export function EmbeddingCorpusStatusCard(): React.ReactElement {
             <dd className={versionOutdated ? 'text-amber-700 dark:text-amber-400' : 'text-[var(--tf-text)]'}>
               v{buildVersion}
               {versionOutdated && (
-                <span className="ml-2 text-[11px]">— veraltet (aktuell v{CORPUS_BUILD_VERSION}, Rebuild empfohlen)</span>
+                <span className="ml-2 text-[11px]">— veraltet (aktuell v{CORPUS_BUILD_VERSION}; v1/v2 kennen die Projektbeschreibung nicht, Rebuild nötig)</span>
               )}
             </dd>
           </>

@@ -43,8 +43,32 @@ export const EMBEDDING_MODELS: EmbeddingModelConfig[] = [
     dtype: 'q8',
     pooling: 'mean',
     normalize: true,
-    // Original (englisch): queryPrefix: 'task: search result | query: ',
-    queryPrefix: 'task: Suchergebnis aus deutschen Verwaltungsdokumenten | query: ',
+    /**
+     * Die TRAINIERTEN Praefixe des Modells, wortgetreu.
+     *
+     * Hier stand bis v4.113 ein selbst formulierter deutscher Anfrage-Praefix
+     * („task: Suchergebnis aus deutschen Verwaltungsdokumenten | query: "). Am
+     * echten Korpus gemessen (14 065 Vektoren, n = 15, Anfrage = TV-Titel eines
+     * Antrags, Ziel = dieser Antrag) kostete die Abweichung Trennschaerfe:
+     *
+     * | Praefix | Ziel-Cosine | Korpus-Mittel | SD | d′ |
+     * |---|---|---|---|---|
+     * | deutsch (alt) | 0,766 | 0,3076 | 0,0469 | 9,92 |
+     * | **Original** | 0,8198 | 0,2052 | 0,0548 | **11,40** |
+     *
+     * Das Original gewinnt in 15 von 15 Einzelfaellen. Der naheliegende Einwand
+     * — der Cutoff ist relativ (0,85 × beste Cosine), eine gleichmaessige
+     * Verschiebung aendert also nichts — ist gemessen widerlegt: die Verschiebung
+     * ist NICHT gleichmaessig. Von den ausgewaehlten Mengen blieben je Anfrage
+     * nur 32–52 % gleich (Jaccard) und 3–5 der ersten 10 Treffer.
+     *
+     * `documentPrefix` bleibt wie er ist. Der „title"-Slot ist KEIN Feld, das
+     * das Modell auswertet — er ist eine Zeichenkette, die vor den Text gehaengt
+     * wird (`embedSingle`); ihn zu fuellen ist genau so viel wert wie den Titel
+     * an den Textanfang zu setzen, was `buildEmbeddingTextForAntrag` ohnehin tut.
+     * Gemessen war der Unterschied +0,02 MRR, also Rauschen.
+     */
+    queryPrefix: 'task: search result | query: ',
     documentPrefix: 'title: none | text: ',
     description: 'Google, multilingual, 100+ Sprachen. Beste Balance aus Qualitaet und Geschwindigkeit.',
     matryoshka: [768, 512, 384, 256, 128],

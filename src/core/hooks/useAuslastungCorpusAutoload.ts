@@ -10,6 +10,10 @@
  * Auto-Download, sobald der lokale Antrags-Stand vom Share-Korpus abwich (der
  * häufige Normalzustand: Korpus wird selten neu gebaut, CSV-Importe oft).
  *
+ * Seit v4.113 heilt er auch einen HALBEN Korpus (lokal < Share-Manifest) — der
+ * häufigste Zustand nach einem Reload mitten im Download, und vorher einer, aus
+ * dem die App nie wieder herausfand.
+ *
  * Dieser Hook lädt den Korpus einmalig vom Share, sobald SMB online ist —
  * fire-and-forget, non-blocking. Reads vom Share, Writes nur in die lokale IDB
  * (kein `readwrite`-Handle nötig). Bewusst OHNE Hash-Gate (= Äquivalent zum
@@ -26,7 +30,10 @@ import { useCallback, useEffect, useRef } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useSmbStatus } from '@/core/hooks/useSmbStatus';
 import { isAuslastungFreigeschaltet } from '@/core/modul-freischaltung';
-import { countEmbeddings, checkCompat } from '@/core/services/embedding-corpus';
+import {
+  countEmbeddings, checkCompat,
+  ladeKorpusSignatur, signaturAusManifest, signaturenGleich,
+} from '@/core/services/embedding-corpus';
 import { getActiveModelId, getModelById } from '@/core/services/search/model-registry';
 import { useEmbeddingCorpusMirror } from '@/core/hooks/useEmbeddingCorpusMirror';
 import { ensureVerbundCorpus } from '@/plugins/auslastung/services/matching';
@@ -46,23 +53,41 @@ export function useAuslastungCorpusAutoload(): void {
       if ((await ensureVerbundCorpus(storage)) === 'downloaded') changed = true;
     } catch { /* best-effort */ }
 
-    // 2) per-Antrag-Korpus ("Themen-Vektoren") — nur wenn lokal leer
-    //    (Cold-Start-Schutz: einen frisch gebauten lokalen Korpus nicht clobbern).
+    // 2) per-Antrag-Korpus („Themen-Vektoren") — wenn lokal leer ODER unvollständig.
+    //
+    // Bis v4.113 stand hier `=== 0`. Ein HALB gefüllter Korpus blockierte sich
+    // damit dauerhaft selbst — und er entsteht ohne Zutun: `applyCorpusStreamed`
+    // schreibt pro Vektor eine eigene IDB-Transaktion und yieldet alle 100, ein
+    // Reload mitten in den 14 065 Einzelschreibungen hinterlässt genau so einen
+    // Teilbestand. Danach griff der Autoload nie wieder, und die Zeile unter dem
+    // Suchfeld nannte den Ausweg nur im Fall von exakt 0 Vektoren.
+    //
+    // Der Cold-Start-Schutz bleibt, nur präziser: geladen wird, solange der Share
+    // MEHR hält als der lokale Stand — ein frisch gebauter, vollständiger Korpus
+    // wird nicht angetastet. Und nur aus DEMSELBEN Vektorraum, sonst legte der
+    // Download alte Vektoren neben selbst gebaute neue ([signatur.ts](src/core/services/embedding-corpus/signatur.ts)).
     try {
-      if ((await countEmbeddings(storage.idb)) === 0) {
-        await useEmbeddingCorpusMirror.getState().loadManifest(storage);
-        const manifest = useEmbeddingCorpusMirror.getState().manifest;
-        if (manifest) {
-          const id = await getActiveModelId(storage.idb);
-          const dim = getModelById(id).dimensions;
-          // Modell-Bruch → inkompatible Vektoren nicht laden (Pitfall #19), Rebuild noetig.
-          if (checkCompat(manifest, id, dim).kind === 'compatible') {
-            // Bewusst OHNE aktenzeichenSetHash-Gate (User-Wahl v2.29): vorhandenen
-            // Share-Korpus laden, auch wenn er den lokalen Stand nicht exakt abdeckt —
-            // identisch zum manuellen Button "Vom Datenspeicher laden".
-            const r = await useEmbeddingCorpusMirror.getState().downloadAndApply(storage);
-            if (r && r.count > 0) changed = true;
-          }
+      const lokal = await countEmbeddings(storage.idb);
+      await useEmbeddingCorpusMirror.getState().loadManifest(storage);
+      const manifest = useEmbeddingCorpusMirror.getState().manifest;
+      if (manifest && lokal < manifest.antraegeCount) {
+        const id = await getActiveModelId(storage.idb);
+        const dim = getModelById(id).dimensions;
+        const eigene = await ladeKorpusSignatur(storage.idb);
+        const raumPasst = lokal === 0 || eigene === null
+          || signaturenGleich(eigene, signaturAusManifest(manifest));
+        // Modell-Bruch → inkompatible Vektoren nicht laden (Pitfall #19), Rebuild nötig.
+        if (checkCompat(manifest, id, dim).kind === 'compatible' && raumPasst) {
+          // Bewusst OHNE aktenzeichenSetHash-Gate (User-Wahl v2.29): vorhandenen
+          // Share-Korpus laden, auch wenn er den lokalen Stand nicht exakt abdeckt —
+          // identisch zum manuellen Button „Vom Datenspeicher laden".
+          const r = await useEmbeddingCorpusMirror.getState().downloadAndApply(storage);
+          if (r && r.count > 0) changed = true;
+        } else if (!raumPasst) {
+          console.info(
+            '[corpus-autoload] Share-Korpus stammt aus einem anderen Vektorraum als der '
+            + 'lokale Teilbestand — nicht gemischt. Rebuild im Auslastungs-Modul.',
+          );
         }
       }
     } catch (err) {

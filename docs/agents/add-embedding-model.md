@@ -39,6 +39,8 @@ Embedding-Modelle werden zentral in einer Registry geführt; das aktive Modell p
 
 - **Auslastungs-Stage-2-Korpus**: wird automatisch bei nächstem Build neu erzeugt wenn `useActiveModelId()` sich ändert — kein expliziter Reset nötig. Der `.bin`-Spiegel auf SMB enthält die Modell-ID im Manifest, mismatching Clients laden automatisch neu (CLAUDE.md Pitfall #19).
 
+- **Ein Präfix, `dtype` oder Pooling zu ändern, ist derselbe Bruch wie ein Modellwechsel** — und war bis v4.113 keiner, der auffiel. Was den Vektorraum bestimmt, steht jetzt in der Korpus-**Signatur** ([signatur.ts](../../src/core/services/embedding-corpus/signatur.ts)): Modell, Dimension, `documentPrefix`, Text-Build-Version. Wer eines davon an einem **aktiven** Modell ändert, erhöht `CORPUS_BUILD_VERSION` dort mit — dann baut `buildEmbeddingCorpus` voll neu statt zwei Räume zu mischen, und die UI weist den Rebuild aus. Nur der `queryPrefix` bleibt aussen vor: er wirkt auf die Anfrage, nicht auf den Bestand (recurring-bug-classes Klasse 24).
+
 ## Modell entfernen
 
 Mit v4.14.0 einmal durchgespielt (MiniLM + beide Harrier raus). Was ein entferntes Modell auffängt:

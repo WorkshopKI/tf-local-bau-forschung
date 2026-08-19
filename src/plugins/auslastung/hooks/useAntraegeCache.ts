@@ -63,7 +63,8 @@ import {
   readAntragDeskriptorenMitZt,
   readTruthyZtKlartexte,
 } from '../services/identitaet';
-import { isEmbeddableAntrag } from '../services/matching';
+import { isEmbeddableAntrag, ladeEmbeddingFeldIndex } from '../services/matching';
+import type { EmbeddingFeldIndex } from '../services/matching';
 import {
   resolveVollstaendigkeitsFelder,
   DEFAULT_VOLLSTAENDIGKEITS_FELDER,
@@ -243,6 +244,11 @@ async function computeArtefakteStreamed(
   storage: StorageService,
   programmId: string,
   felder: { xtecFeld: string; advFeld: string },
+  /** Wo die Textfelder des Embeddings liegen — aufgelöst aus dem CSV-Schema.
+   *  Muss dieselbe Auflösung sein, die der Korpus-Bau benutzt, sonst weicht
+   *  `embeddableAz` von der tatsächlich gebauten Menge ab und der
+   *  Hash-Vergleich gegen das Share-Manifest schlägt strukturell fehl. */
+  embFelder: EmbeddingFeldIndex,
 ): Promise<StreamArtefakte> {
   const intern = new Map<string, string>();
   const internStr = (s: string): string => {
@@ -265,7 +271,7 @@ async function computeArtefakteStreamed(
       if (zt.length > 0) ztKlartexteByAz.set(a.aktenzeichen, zt);
       const desk = readAntragDeskriptorenMitZt(rec, zt);
       if (desk.length > 0) deskriptorenByAz.set(a.aktenzeichen, desk.map(internStr));
-      if (isEmbeddableAntrag(a)) embeddableAz.push(a.aktenzeichen);
+      if (isEmbeddableAntrag(a, embFelder)) embeddableAz.push(a.aktenzeichen);
       const xv = rec[felder.xtecFeld];
       if (typeof xv === 'string' && parseGermanDate(xv) !== null) xtecAzSet.add(a.aktenzeichen);
       const av = rec[felder.advFeld];
@@ -298,7 +304,12 @@ async function loadOrComputeArtefakte(
   const felder = schemas.length > 0
     ? resolveVollstaendigkeitsFelder(schemas)
     : DEFAULT_VOLLSTAENDIGKEITS_FELDER;
-  const felderKey = `${felder.xtecFeld}|${felder.advFeld}`;
+  const embFelder = await ladeEmbeddingFeldIndex(storage.idb, programmId);
+  // Die Embedding-Feldauflösung gehört in den Frische-Anker: ändert das Mapping
+  // die Quell-Spalte, ändert sich `embeddableAz` — ein Cache-Treffer würde die
+  // alte Menge weiterreichen.
+  const embKey = [...embFelder.keys()].sort().join(',');
+  const felderKey = `${felder.xtecFeld}|${felder.advFeld}|${embKey}`;
   const key = streamArtefakteKey(programmId);
 
   const cached = await storage.idb.get<PersistedArtefakte>(key).catch(() => null);
@@ -321,7 +332,7 @@ async function loadOrComputeArtefakte(
     };
   }
 
-  const artefakte = await computeArtefakteStreamed(storage, programmId, felder);
+  const artefakte = await computeArtefakteStreamed(storage, programmId, felder, embFelder);
   const toPersist: PersistedArtefakte = {
     version: STREAM_ARTEFAKTE_VERSION,
     snapshotVersion,

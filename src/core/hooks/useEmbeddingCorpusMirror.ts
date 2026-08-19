@@ -24,6 +24,9 @@ import {
   saveCorpusToShare,
   serializeCorpus,
   applyCorpusStreamed,
+  ladeKorpusSignatur,
+  merkeKorpusSignatur,
+  signaturAusManifest,
   type EmbeddingCorpusManifest,
 } from '@/core/services/embedding-corpus';
 import {
@@ -104,6 +107,10 @@ export const useEmbeddingCorpusMirror = create<EmbeddingCorpusMirrorState>((set,
         (done, total) => set({ downloadProgress: { done, total } }),
       );
       logMem(`corpus:applied (count=${count})`);
+      // Der lokale Korpus stammt jetzt aus dem Raum, den das Manifest nennt.
+      // Ohne diesen Stempel wuerde der naechste inkrementelle Build-Lauf ihn als
+      // fremd behandeln und voll neu bauen (bzw., vor v4.113, still mischen).
+      await merkeKorpusSignatur(storage.idb as IDBStore, signaturAusManifest(m));
       set({ downloading: false, downloadProgress: null });
       return { count };
     } catch (err) {
@@ -136,7 +143,19 @@ export const useEmbeddingCorpusMirror = create<EmbeddingCorpusMirrorState>((set,
       // Heartbeat einmal in der Mitte (Serialize kann bei 13k Vektoren
       // ~1-2 sec brauchen; voller Block <10 sec; Lock-Stale ist 2h)
       await heartbeat(storage.idb as IDBStore);
-      const { manifest, bin } = await serializeCorpus(embs, modellId, dim, builderProfile);
+      // Gestempelt wird, was die Vektoren ERZEUGT hat — nicht, was gerade aktiv
+      // ist. Vorher nahm das Manifest das aktive Modell des Hochladenden; ein
+      // Korpus, der unter anderen Bedingungen gebaut wurde, bekam damit eine
+      // Behauptung mit, gegen die `checkCompat` dann prueft.
+      const signatur = await ladeKorpusSignatur(storage.idb as IDBStore);
+      const { manifest, bin } = await serializeCorpus(
+        embs,
+        signatur?.modellId ?? modellId,
+        signatur?.dim ?? dim,
+        builderProfile,
+        signatur?.documentPrefix ?? undefined,
+        signatur?.buildVersion,
+      );
       await saveCorpusToShare(storage, manifest, bin);
       set({ manifest, manifestLoaded: true, uploading: false });
     } catch (err) {
