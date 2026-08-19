@@ -100,7 +100,15 @@ export function normalisiereBedingung(raw: unknown): Bedingung | null {
   if (!feldId) return null;
   const op = b.op;
   if (op === 'ist' || op === 'istNicht') {
-    return { feldId, op, wert: asString(b.wert) };
+    const wert = asString(b.wert).trim();
+    // Ohne Wert behauptet das Blatt nichts — und `istNicht` ohne Wert ist für
+    // JEDEN Vorgang wahr, auch für den, dem das Feld ganz fehlt
+    // (`!werte.some(v => v === '')` über einer leeren Liste). Der Meilenstein
+    // stand damit portfolioweit auf „erreicht", während das Wertfeld im Editor
+    // sichtbar leer war. Dieselbe Richtung wie bei `datumNachFeld` und
+    // `foerdervarianteIn`: `null` statt eines Blattes, das etwas anderes tut,
+    // als es zeigt. Wer „Feld ist leer" meint, hat dafür `leer`/`gefuellt`.
+    return wert ? { feldId, op, wert } : null;
   }
   if (op === 'gefuellt' || op === 'leer') {
     return { feldId, op };

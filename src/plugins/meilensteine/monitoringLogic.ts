@@ -3,12 +3,10 @@
  * Ohne React, damit sie ohne DOM testbar ist (Muster `kanbanLanes.ts`).
  *
  * Zwei Ebenen, bewusst getrennt: der **Eingangs-Zeitraum** ist ein Vorfilter für
- * Übersicht und Auswertung (die Seite wendet ihn einmal an und reicht die
- * Ergebnisse durch), der **Übersicht-Filter** wirkt nur innerhalb der Liste. Das
- * Bezugsjahr kommt überall als Parameter herein, damit nichts an der Uhr hängt.
- *
- * „Diese Woche" ist vom Zeitraum ausgenommen: die Arbeitsliste soll einen
- * überfälligen Meilenstein zeigen, egal aus welchem Jahr der Antrag stammt.
+ * ALLE drei Auswertungs-Reiter — „Diese Woche" eingeschlossen (die Seite wendet
+ * ihn einmal an und reicht die Ergebnisse durch); der **Übersicht-Filter** wirkt
+ * nur innerhalb der Liste. Das Bezugsjahr kommt überall als Parameter herein,
+ * damit nichts an der Uhr hängt.
  *
  * Bewusst KEIN eigener Zustandsbegriff: „überfällig" ist genau `gerissen`,
  * „diese Woche fällig" genau `faellig` (das 7-Tage-Fenster der Engine). Eine
@@ -16,11 +14,10 @@
  * sobald jemand eine der beiden anfasst.
  */
 import { parseGermanDate } from '@/core/services/csv/dateParse';
+import { restTageBis } from '@/core/meilensteine';
 import type { MeilensteinPlan, MstZustand, Prognose } from '@/core/meilensteine';
 import type { AntragstypBucket } from '@/core/utils/vb-phase-mappings';
 import type { VerbundZeile } from './useMeilensteinStand';
-
-const MS_TAG = 86_400_000;
 
 /** Dringlichkeits-Rang: Prognose schlägt Restzeit. */
 const PROGNOSE_RANG: Record<Prognose, number> = {
@@ -147,6 +144,24 @@ export function setzeBis(bereich: DatumBereich, datum: string): DatumBereich {
 // Übersicht — die Filter innerhalb der Liste
 // ---------------------------------------------------------------------------
 
+/**
+ * Ein Bearbeiter-Kürzel in seinen **zwei Formen**: `vergleich` (NFC +
+ * uppercase — dieselbe Form wie `BearbeiterFilterMode.tokens`) und `anzeige`
+ * (die Schreibweise, die in den Daten steht). `null`, wenn nichts übrig bleibt.
+ *
+ * Zwei Formen, weil eine nicht reicht: verglichen werden darf nur die
+ * Vergleichsform (Guard `anzeigetokens-nur-anzeigen`), und beschriftet nur die
+ * andere — 81 der 112 Kürzel im Bestand sind gemischt geschrieben, die
+ * Einstellungen legen das Profilfeld aber großgeschrieben ab.
+ */
+export function kuerzelFormen(
+  roh: string | null | undefined,
+): { vergleich: string; anzeige: string } | null {
+  const anzeige = roh?.trim().normalize('NFC') ?? '';
+  if (!anzeige) return null;
+  return { vergleich: anzeige.toUpperCase(), anzeige };
+}
+
 export interface UebersichtFilter {
   suche: string;
   typen: AntragstypBucket[];
@@ -174,15 +189,16 @@ export function standardFilter(hatKuerzel: boolean): UebersichtFilter {
  * dran ist.
  */
 export function filtereZeilen(
-  zeilen: readonly VerbundZeile[], filter: UebersichtFilter, meinKuerzel: string,
+  zeilen: readonly VerbundZeile[], filter: UebersichtFilter, meineTokens: readonly string[],
 ): VerbundZeile[] {
   const suche = filter.suche.trim().toLowerCase();
-  const kuerzel = meinKuerzel.trim().normalize('NFC');
   return zeilen
     .filter(z => {
       if (filter.typen.length > 0 && (z.typ === null || !filter.typen.includes(z.typ))) return false;
       if (filter.prognosen.length > 0 && !filter.prognosen.includes(z.prognose)) return false;
-      if (filter.nurMeine && (!kuerzel || !z.kuerzel.includes(kuerzel))) return false;
+      // Ohne eigene Tokens bleibt der Filter wirkungslos, statt ALLES
+      // auszublenden — der Schalter dazu ist in dem Fall gar nicht sichtbar.
+      if (filter.nurMeine && meineTokens.length > 0 && !z.kuerzel.some(k => meineTokens.includes(k))) return false;
       if (suche && !`${z.akronym} ${z.titel} ${z.verbundId}`.toLowerCase().includes(suche)) return false;
       return true;
     })
@@ -237,7 +253,7 @@ export function sammleWochenPunkte(
         label: k.label,
         zustand: e.zustand,
         sollDatum: e.sollDatum,
-        restTage: Number.isNaN(sollMs) ? null : Math.ceil((sollMs - heuteMs) / MS_TAG),
+        restTage: restTageBis(Number.isNaN(sollMs) ? null : sollMs, heuteMs),
         kuerzel: z.kuerzel,
         prognose: z.prognose,
       });
@@ -252,10 +268,12 @@ export function sammleWochenPunkte(
   });
 }
 
-/** Auf das eigene Kürzel eingegrenzt; ohne Kürzel unverändert. */
-export function nurMeinePunkte(punkte: readonly WochenPunkt[], meinKuerzel: string): WochenPunkt[] {
-  const k = meinKuerzel.trim().normalize('NFC');
-  return k ? punkte.filter(p => p.kuerzel.includes(k)) : [...punkte];
+/** Auf die eigenen Kürzel eingegrenzt; ohne eigenes Kürzel unverändert. */
+export function nurMeinePunkte(
+  punkte: readonly WochenPunkt[], meineTokens: readonly string[],
+): WochenPunkt[] {
+  if (meineTokens.length === 0) return [...punkte];
+  return punkte.filter(p => p.kuerzel.some(k => meineTokens.includes(k)));
 }
 
 /** Alle offenen Punkte EINES Verbunds, zusammengefasst zu einer Arbeitszeile. */

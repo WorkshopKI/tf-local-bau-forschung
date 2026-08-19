@@ -81,6 +81,20 @@ describe('normalisiereBedingung', () => {
     expect(normalisiereBedingung({ feldId: 'a', op: 'foerdervarianteIn', varianten: ['x'] })).toBeNull();
   });
 
+  it('verwirft `ist`/`istNicht` ohne Wert — sonst gilt der Meilenstein für jeden', () => {
+    // `istNicht` ohne Wert ist `!werte.some(v => v === '')` und damit für jeden
+    // Vorgang wahr, auch für den, dem das Feld ganz fehlt. Der Editor legt genau
+    // diesen Zustand an, wenn man den Operator wählt und den Wert noch nicht —
+    // das Wertfeld stand sichtbar leer, während der Meilenstein portfolioweit
+    // auf „erreicht" sprang. Wer „Feld ist leer" meint, hat `leer`/`gefuellt`.
+    expect(normalisiereBedingung({ feldId: 'status', op: 'istNicht', wert: '' })).toBeNull();
+    expect(normalisiereBedingung({ feldId: 'status', op: 'istNicht' })).toBeNull();
+    expect(normalisiereBedingung({ feldId: 'status', op: 'ist', wert: '   ' })).toBeNull();
+    // Mit Wert bleibt alles wie gehabt.
+    expect(normalisiereBedingung({ feldId: 'status', op: 'istNicht', wert: 'bewilligt' }))
+      .toEqual({ feldId: 'status', op: 'istNicht', wert: 'bewilligt' });
+  });
+
   it('macht eine UND-Gruppe, die einen Zweig verliert, NIE erfüllt', () => {
     // `[].every(…)` ist `true` — ohne diese Regel gälte der Meilenstein nach dem
     // Verlust für jeden Verbund als erreicht.

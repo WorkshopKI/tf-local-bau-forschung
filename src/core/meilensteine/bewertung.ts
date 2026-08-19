@@ -41,6 +41,40 @@ export interface BewertungsEingabe {
   terminal?: boolean;
 }
 
+/**
+ * Ganze Tage von `heuteMs` bis zum Ziel-Zeitpunkt, aufgerundet; `null` ohne Ziel.
+ *
+ * **Normalisiert `-0` zu `0`.** `Math.ceil` liefert für einen Termin, der heute
+ * um Mitternacht lag und damit ein paar Stunden zurückliegt, `-0` — und
+ * `-0 < 0` ist `false`. Jede Anzeige, die daran „überfällig oder nicht"
+ * entscheidet, schrieb daraus „in 0 T", während die Zeile unter der Überschrift
+ * „Überfällig" stand. Die Fallunterscheidung gehört an die Zahl, nicht in jeden
+ * Formatierer.
+ */
+export function restTageBis(zielMs: number | null, heuteMs: number): number | null {
+  if (zielMs === null || Number.isNaN(zielMs) || Number.isNaN(heuteMs)) return null;
+  const tage = Math.ceil((zielMs - heuteMs) / MS_TAG);
+  return tage === 0 ? 0 : tage;
+}
+
+/**
+ * Frühester Tag, an dem der Plan überhaupt fertig sein kann: die späteste
+ * fristrelevante Soll-Woche in Tagen. Liegt er über der Gesamtfrist, ist der
+ * Plan in sich unerfüllbar — dann gilt JEDER Verbund als „Frist nicht haltbar",
+ * ganz gleich wie er läuft, und drei der fünf Prognose-Chips filtern dauerhaft
+ * auf eine leere Liste.
+ *
+ * Ohne Typ-Zuschnitt (anders als `bewerteVerbund`): die Frage ist eine an den
+ * Plan, nicht an einen einzelnen Verbund.
+ */
+export function planEndeTage(knoten: readonly MeilensteinKnoten[]): number {
+  const hatKinder = new Set(
+    knoten.filter(k => k.aktiv && k.elternId !== null).map(k => k.elternId as string),
+  );
+  const blaetter = knoten.filter(k => k.aktiv && k.relevantFuerFrist && !hatKinder.has(k.id));
+  return blaetter.length === 0 ? 0 : Math.max(...blaetter.map(k => k.sollWoche)) * 7;
+}
+
 /** Datum → ms; akzeptiert ISO und deutsches Format. `null` bei Unparsbarem. */
 function alsMs(raw: string | null | undefined): number | null {
   if (!raw) return null;
@@ -202,7 +236,7 @@ export function bewerteVerbund(
 
   const fristDatum = ankerIso === null ? null : addDays(ankerIso, plan.gesamtfristTage);
   const fristMs = alsMs(fristDatum);
-  const restTage = fristMs === null ? null : Math.ceil((fristMs - heuteMs) / MS_TAG);
+  const restTage = restTageBis(fristMs, heuteMs);
 
   return {
     verbundId: eingabe.verbundId,

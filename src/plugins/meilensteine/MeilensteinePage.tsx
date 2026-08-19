@@ -10,15 +10,15 @@
  *
  * Der Eingangs-Zeitraum liegt hier und nicht in den Tabs: die Seite grenzt einmal
  * ein und reicht die Ergebnisse durch. Sonst müsste ihn jeder Tab einzeln
- * anwenden, und die Zähler der Tab-Leiste würden weiter über alles rechnen.
- * Ausgenommen ist „Diese Woche" — die Arbeitsliste soll einen überfälligen
- * Meilenstein zeigen, egal aus welchem Jahr der Antrag stammt; dort ist die
- * Zeitraum-Leiste darum weder sichtbar noch wirksam.
+ * anwenden, und die Zähler der Tab-Leiste würden weiter über alles rechnen. Er
+ * gilt für alle drei Auswertungs-Reiter — „Diese Woche" eingeschlossen, weil
+ * Vorgänge von vor drei Jahren dort kein Rückstand wären, sondern Altbestand.
  *
  * Tab und Zeitraum werden gemerkt (`ansichtPersistenz`), damit die Seite beim
  * nächsten Öffnen dort weitermacht, wo man aufgehört hat.
  */
 import { useMemo, useState } from 'react';
+import { bearbeitungsdauerTage, istInhaltsgleich } from '@/core/meilensteine';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { BereichChip } from '@/components/bereich/BereichChip';
 import { SeitenHilfeButton } from '@/components/help/SeitenHilfeButton';
@@ -96,7 +96,12 @@ function StatusLeiste({ api }: { api: MeilensteinPlanApi }): React.ReactElement 
 
 function FassungenPanel({ api }: { api: MeilensteinPlanApi }): React.ReactElement | null {
   const [offen, setOffen] = useState(false);   // vor dem Early-Return (React #310)
-  const historie = api.gespeichert?.historie ?? [];
+  const historie = useMemo(() => api.gespeichert?.historie ?? [], [api.gespeichert]);
+  const gleicheFassungen = useMemo(() => {
+    const plan = api.gespeichert;
+    if (!plan) return new Set<number>();
+    return new Set(historie.filter(h => istInhaltsgleich(plan, h)).map(h => h.version));
+  }, [api.gespeichert, historie]);
   if (historie.length === 0) return null;
 
   return (
@@ -132,12 +137,24 @@ function FassungenPanel({ api }: { api: MeilensteinPlanApi }): React.ReactElemen
                 </span>
               )}
               {api.darfSchreiben && (
-                <Button
-                  variant="ghost" size="sm" className="ml-auto"
-                  onClick={() => api.fassungUebernehmen(h.version)}
-                >
-                  Als Entwurf übernehmen
-                </Button>
+                // Eine inhaltsgleiche Fassung zu übernehmen ist ein No-op
+                // (`neueFassung` gibt denselben Plan zurück). Der Knopf sagt es,
+                // statt beim Klick sichtbar nichts zu tun.
+                gleicheFassungen.has(h.version) ? (
+                  <span
+                    className="ml-auto text-[11.5px] text-[var(--tf-text-tertiary)]"
+                    title="Diese Fassung ist inhaltlich mit dem aktuellen Plan identisch — es gäbe nichts zu übernehmen."
+                  >
+                    inhaltsgleich zum aktuellen Plan
+                  </span>
+                ) : (
+                  <Button
+                    variant="ghost" size="sm" className="ml-auto"
+                    onClick={() => api.fassungUebernehmen(h.version)}
+                  >
+                    Als Entwurf übernehmen
+                  </Button>
+                )
               )}
             </div>
           ))}
@@ -176,7 +193,8 @@ function SpeicherLeiste({ api }: { api: MeilensteinPlanApi }): React.ReactElemen
         </Button>
       </div>
       <p className="text-[11.5px] text-[var(--tf-text-tertiary)]">
-        Gespeicherte Fassungen sind zunächst Entwürfe — erst die Freigabe lässt sie für das Team gelten.
+        Gespeicherte Fassungen sind zunächst Entwürfe — erst die Freigabe lässt sie für das Team
+        gelten. Ungespeicherte Änderungen gehen verloren, sobald Sie die Seite verlassen.
       </p>
       {speichern.error != null && (
         <p className="text-[11.5px] text-[var(--tf-danger-text)]">⚠ {speichern.error}</p>
@@ -227,10 +245,20 @@ export function MeilensteinePage(): React.ReactElement {
     () => stand.zeilen.filter(z => passtZuBereich(z.antragsdatum, bereich)),
     [stand.zeilen, bereich],
   );
-  const abschluesse = useMemo(
+  // Nur Fälle mit RECHENBARER Dauer — die Auswertung darunter zeigt ohnehin nur
+  // sie, und der Reiter-Zähler versprach bis v4.118 vier Vorgänge mehr, als die
+  // Kachel danebenstellte („2.083" gegen „von 2079 Vorgängen"). Die Differenz
+  // sind Datensätze mit Abschluss VOR dem Eingang; sie werden gezählt und
+  // benannt, statt still zu verschwinden.
+  const imZeitraum = useMemo(
     () => stand.abschluesse.filter(a => passtZuBereich(a.antragsdatum, bereich)),
     [stand.abschluesse, bereich],
   );
+  const abschluesse = useMemo(
+    () => imZeitraum.filter(a => bearbeitungsdauerTage(a) !== null),
+    [imZeitraum],
+  );
+  const ohneDauer = imZeitraum.length - abschluesse.length;
   const ohneDatum = useMemo(
     () => stand.zeilen.filter(z => antragsJahr(z.antragsdatum) === null).length,
     [stand.zeilen],
@@ -266,8 +294,13 @@ export function MeilensteinePage(): React.ReactElement {
     { key: 'auswertung', label: 'Auswertung', count: abschluesse.length },
     { key: 'konfiguration', label: 'Konfiguration', count: entwurf?.knoten.length ?? 0 },
   ];
+  // `setTabState` statt `waehleTab`: die Korrektur auf einen sichtbaren Reiter
+  // ist eine Notlage der laufenden Sitzung, keine Wahl des Nutzers. Sie zu
+  // merken überschriebe die gespeicherte Vorliebe — wer den Expertenmodus
+  // ausgeschaltet hat, fand danach nicht mehr „Konfiguration" gemerkt vor,
+  // sondern „Übersicht".
   const sichtbareTabs = useSichtbareReiter(
-    'meilensteine', alleTabs, t => t.key, tab, k => waehleTab(k as TabKey),
+    'meilensteine', alleTabs, t => t.key, tab, k => setTabState(k as TabKey),
   );
 
   return (
@@ -287,6 +320,17 @@ export function MeilensteinePage(): React.ReactElement {
             ohneDatum={ohneDatum} onChange={waehleBereich}
           />
         )}
+        {/* Welche Fassung diese Zahlen tragen. Ohne die Zeile stand ein frisch
+            gespeicherter Entwurf in der Konfiguration (95 Tage), während die
+            Auswertung daneben weiter mit der freigegebenen Fassung rechnete
+            (90 Tage) — auf keinem Reiter kam das Wort „Fassung" vor. */}
+        {tab !== 'konfiguration' && stand.plan && (
+          <p className="text-[11.5px] text-[var(--tf-text-tertiary)]">
+            Ausgewertet wird Fassung {stand.plan.version} (freigegeben {formatDatum(stand.plan.stand)}).
+            {planApi.gespeichert && planApi.gespeichert.version > stand.plan.version
+              && ` Fassung ${planApi.gespeichert.version} liegt als Entwurf vor und gilt noch nicht.`}
+          </p>
+        )}
       </div>
 
       {(planApi.fehler ?? stand.fehler) != null && (
@@ -304,7 +348,10 @@ export function MeilensteinePage(): React.ReactElement {
           ) : stand.keinPlan || !stand.plan ? (
             <KeinPlanHinweis onZurKonfiguration={() => waehleTab('konfiguration')} />
           ) : (
-            <UebersichtTab zeilen={zeilen} plan={stand.plan} meinKuerzel={stand.meinKuerzel} />
+            <UebersichtTab
+              zeilen={zeilen} plan={stand.plan}
+              meineTokens={stand.meineTokens} meineTokensAnzeige={stand.meineTokensAnzeige}
+            />
           )}
         </div>
       )}
@@ -317,8 +364,8 @@ export function MeilensteinePage(): React.ReactElement {
             <KeinPlanHinweis onZurKonfiguration={() => waehleTab('konfiguration')} />
           ) : (
             <DieseWocheTab
-              zeilen={zeilen} plan={stand.plan}
-              meinKuerzel={stand.meinKuerzel} stand={stand.stand}
+              zeilen={zeilen} plan={stand.plan} stand={stand.stand}
+              meineTokens={stand.meineTokens} meineTokensAnzeige={stand.meineTokensAnzeige}
             />
           )}
         </div>
@@ -332,7 +379,7 @@ export function MeilensteinePage(): React.ReactElement {
             <KeinPlanHinweis onZurKonfiguration={() => waehleTab('konfiguration')} />
           ) : (
             <AuswertungTab
-              zeilen={zeilen} abschluesse={abschluesse} plan={stand.plan}
+              zeilen={zeilen} abschluesse={abschluesse} plan={stand.plan} ohneDauer={ohneDauer}
             />
           )}
         </div>
@@ -366,9 +413,11 @@ export function MeilensteinePage(): React.ReactElement {
         </div>
       )}
 
-      {tab === 'konfiguration' && planApi.geaendert && planApi.darfSchreiben && (
-        <SpeicherLeiste api={planApi} />
-      )}
+      {/* Auf JEDEM Reiter: der Entwurf lebt beim Wechseln weiter, die Warnung
+          verschwand aber mit der Konfiguration — und beim Verlassen der Seite
+          war er still weg. Solange er abweicht, bleibt der Weg zum Speichern
+          oder Verwerfen sichtbar. */}
+      {planApi.geaendert && planApi.darfSchreiben && <SpeicherLeiste api={planApi} />}
     </div>
   );
 }

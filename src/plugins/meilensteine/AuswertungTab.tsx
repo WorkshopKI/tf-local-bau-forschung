@@ -14,10 +14,12 @@
 import { useMemo } from 'react';
 import { DistributionBar } from '@/components/ui/DistributionBar';
 import {
-  DAUER_BUCKETS, werteDauernAus, werteKnotenAus, zaehlePrognosen,
+  DAUER_BUCKETS, planEndeTage, werteDauernAus, werteKnotenAus, zaehlePrognosen,
   type AbschlussFall, type DauerAuswertung, type DauerBucket, type MeilensteinPlan,
 } from '@/core/meilensteine';
-import { PROGNOSE_FARBE, PROGNOSE_LABEL, PROGNOSE_REIHENFOLGE, TYP_LABEL, feldStil } from './labels';
+import {
+  PROGNOSE_FARBE, PROGNOSE_LABEL, PROGNOSE_REIHENFOLGE, TYP_LABEL, VOR_EINGANG_HINWEIS, feldStil,
+} from './labels';
 import type { VerbundZeile } from './useMeilensteinStand';
 
 const BUCKET_LABEL: Record<DauerBucket, string> = {
@@ -97,10 +99,12 @@ function TypZeile({ a, gesamtfristTage }: {
   );
 }
 
-export function AuswertungTab({ zeilen, abschluesse, plan }: {
+export function AuswertungTab({ zeilen, abschluesse, plan, ohneDauer = 0 }: {
   zeilen: VerbundZeile[];
   abschluesse: AbschlussFall[];
   plan: MeilensteinPlan;
+  /** Abgeschlossene Vorgänge im Zeitraum, deren Dauer nicht rechenbar war. */
+  ohneDauer?: number;
 }): React.ReactElement {
   const dauern = useMemo(
     () => werteDauernAus(abschluesse, plan.gesamtfristTage),
@@ -108,6 +112,7 @@ export function AuswertungTab({ zeilen, abschluesse, plan }: {
   );
   const knoten = useMemo(() => werteKnotenAus(plan, zeilen), [plan, zeilen]);
   const prognosen = useMemo(() => zaehlePrognosen(zeilen), [zeilen]);
+  const planEnde = useMemo(() => planEndeTage(plan.knoten), [plan.knoten]);
 
   const g = dauern.gesamt;
 
@@ -135,6 +140,13 @@ export function AuswertungTab({ zeilen, abschluesse, plan }: {
             zusatz={g.abweichungTage === null ? undefined : g.abweichungTage > 0 ? 'über dem Soll' : 'unter dem Soll'}
           />
         </div>
+        {ohneDauer > 0 && (
+          <p className="text-[11px] text-[var(--tf-text-tertiary)]">
+            {ohneDauer} weitere abgeschlossene {ohneDauer === 1 ? 'Vorgang trägt' : 'Vorgänge tragen'} kein
+            rechenbares Zeitpaar (Abschluss vor Eingang oder unlesbares Datum) und {ohneDauer === 1 ? 'zählt' : 'zählen'} hier
+            nirgends mit.
+          </p>
+        )}
       </section>
 
       <section className="flex flex-col gap-2">
@@ -159,6 +171,19 @@ export function AuswertungTab({ zeilen, abschluesse, plan }: {
             </div>
           ))}
         </div>
+        {/* Ein Plan, dessen letzter fristrelevanter Meilenstein hinter der
+            Gesamtfrist liegt, kann von KEINEM Verbund gehalten werden — dann
+            steht hier alles auf „Frist nicht haltbar", und drei der fünf Chips
+            filtern dauerhaft auf eine leere Liste. Das ist eine Aussage über den
+            Plan, nicht über die Vorgänge. */}
+        {planEnde > plan.gesamtfristTage && (
+          <p className="text-[11.5px] text-[var(--tf-warning-text)]">
+            Der Plan ist in sich nicht haltbar: sein letzter fristrelevanter Meilenstein liegt bei
+            Tag {planEnde} und damit hinter der Gesamtfrist von {plan.gesamtfristTage} Tagen. Jeder
+            Verbund, für den er gilt, wird deshalb als „Frist nicht haltbar" geführt — anzupassen
+            ist das in der Konfiguration, nicht an den Vorgängen.
+          </p>
+        )}
       </section>
 
       <section className="flex flex-col gap-2">
@@ -173,6 +198,11 @@ export function AuswertungTab({ zeilen, abschluesse, plan }: {
                 <th className="text-right font-normal py-1 px-2">Soll</th>
                 <th className="text-right font-normal py-1 px-2">Ø Ist</th>
                 <th className="text-right font-normal py-1 px-2">Δ</th>
+                {/* Der Nenner der Reißquote. Ohne ihn stand „0 | 1158 | 79 %"
+                    da — aus den gezeigten Zahlen nicht herleitbar. */}
+                <th className="text-right font-normal py-1 px-2" title="Verbünde, für die dieser Meilenstein gilt — der Nenner der Reißquote">
+                  Betrachtet
+                </th>
                 <th className="text-right font-normal py-1 px-2">Erreicht</th>
                 <th className="text-right font-normal py-1 px-2">Gerissen</th>
                 <th className="text-right font-normal py-1 pl-2">Reißquote</th>
@@ -186,8 +216,18 @@ export function AuswertungTab({ zeilen, abschluesse, plan }: {
                     {k.label}
                   </td>
                   <td className="py-1 px-2 text-right tabular-nums text-[var(--tf-text-secondary)]">W{k.sollWoche}</td>
-                  <td className="py-1 px-2 text-right tabular-nums text-[var(--tf-text)]">
+                  <td
+                    className="py-1 px-2 text-right tabular-nums text-[var(--tf-text)]"
+                    title={(k.durchschnittIstWoche ?? 0) < 0 ? VOR_EINGANG_HINWEIS : undefined}
+                  >
                     {k.durchschnittIstWoche === null ? '—' : `W${k.durchschnittIstWoche}`}
+                    {/* Eine Woche vor dem Eingang gibt es auf dieser Achse
+                        nicht — der Ist-Termin kommt aus einem Feld, das früher
+                        datiert als der Anker. Die Zahl bleibt stehen, aber sie
+                        wird nicht als normaler Messwert gelesen. */}
+                    {(k.durchschnittIstWoche ?? 0) < 0 && (
+                      <span className="ml-1 text-[var(--tf-warning-text)]" aria-label={VOR_EINGANG_HINWEIS}>⚠</span>
+                    )}
                   </td>
                   <td
                     className="py-1 px-2 text-right tabular-nums"
@@ -201,6 +241,7 @@ export function AuswertungTab({ zeilen, abschluesse, plan }: {
                       ? '—'
                       : `${k.abweichungWochen > 0 ? '+' : ''}${k.abweichungWochen} W`}
                   </td>
+                  <td className="py-1 px-2 text-right tabular-nums text-[var(--tf-text-secondary)]">{k.betrachtet}</td>
                   <td className="py-1 px-2 text-right tabular-nums text-[var(--tf-text-secondary)]">{k.erreicht}</td>
                   <td className="py-1 px-2 text-right tabular-nums text-[var(--tf-text-secondary)]">{k.gerissen}</td>
                   <td
@@ -215,9 +256,13 @@ export function AuswertungTab({ zeilen, abschluesse, plan }: {
           </table>
         </div>
         <p className="text-[11px] text-[var(--tf-text-tertiary)]">
+          „Betrachtet" sind die Verbünde, für die der Meilenstein gilt — er trägt die Reißquote.
           Ø Ist und Δ beziehen sich nur auf Meilensteine, deren Erfüllungstermin aus den Daten
           ableitbar war.
         </p>
+        {knoten.some(k => (k.durchschnittIstWoche ?? 0) < 0) && (
+          <p className="text-[11px] text-[var(--tf-text-tertiary)]">⚠ {VOR_EINGANG_HINWEIS}</p>
+        )}
       </section>
     </div>
   );

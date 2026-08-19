@@ -7,8 +7,8 @@
  */
 import { describe, it, expect } from 'vitest';
 import {
-  anlassBilanz, bilanzText, meilensteinAnlaesse, sortiereAnlaesse, ueberTageText,
-  zieltagAnlass, type FristAnlass,
+  anlassBilanz, bilanzText, buendleNachVerbund, meilensteinAnlaesse, sortiereAnlaesse,
+  ueberTageText, zieltagAnlass, type FristAnlass,
 } from '../fristAnlaesse';
 import type { WaechterErgebnis } from '@/core/status';
 import type { MeilensteinKnoten, VerbundMeilensteine } from '@/core/meilensteine';
@@ -114,6 +114,46 @@ describe('sortiereAnlaesse — ein Maßstab für beide Quellen', () => {
   it('springt bei gleichem Abstand nicht — das Akronym entscheidet', () => {
     const sortiert = sortiereAnlaesse([a('1', 5, 'ZETA'), a('2', 5, 'ALPHA')]);
     expect(sortiert.map(x => x.akronym)).toEqual(['ALPHA', 'ZETA']);
+  });
+});
+
+describe('buendleNachVerbund — eine Zeile je Vorgang', () => {
+  const anlass = (
+    verbundId: string, marke: string, ueberTage: number, art: FristAnlass['art'] = 'meilenstein',
+  ): FristAnlass => ({
+    id: `${art}:${verbundId}:${marke}`, verbundId, akronym: verbundId, art, marke,
+    grund: marke, ueberTage, gerissen: true,
+  });
+
+  it('behält je Vorgang den dringendsten Anlass und zählt die übrigen', () => {
+    // Am echten Bestand trugen die acht sichtbaren Zeilen des Widgets nur drei
+    // verschiedene Akronyme — ein Vorgang, der seit Jahren liegt, reißt eben
+    // einen Meilenstein nach dem anderen. Dasselbe Modul bündelte längst.
+    const sortiert = sortiereAnlaesse([
+      anlass('A', '1.1', 300), anlass('A', '1.2', 250), anlass('A', '2', 100),
+      anlass('B', '1.1', 280),
+    ]);
+    const zeilen = buendleNachVerbund(sortiert);
+    expect(zeilen.map(z => [z.akronym, z.marke, z.weitere])).toEqual([
+      ['A', '1.1', 2],
+      ['B', '1.1', 0],
+    ]);
+  });
+
+  it('hält die Sortierung der Eingabe — es wird nicht ein zweites Mal sortiert', () => {
+    const zeilen = buendleNachVerbund(sortiereAnlaesse([
+      anlass('A', '1', 10), anlass('B', '1', 500), anlass('A', '2', 400),
+    ]));
+    expect(zeilen.map(z => z.akronym)).toEqual(['B', 'A']);
+    expect(zeilen[1]!.ueberTage).toBe(400);   // der dringendste von A, nicht der erste
+  });
+
+  it('zieht Stillstand und Meilenstein desselben Vorgangs NICHT zusammen', () => {
+    // Zwei Systeme, zwei Pflegeorte — eine gemeinsame Zeile nähme der Warnung
+    // ihre Herkunft und damit den Weg, sie abzustellen.
+    const zeilen = buendleNachVerbund([anlass('A', '1.1', 10), anlass('A', 'Zieltag', 5, 'zieltag')]);
+    expect(zeilen).toHaveLength(2);
+    expect(zeilen.map(z => z.art)).toEqual(['meilenstein', 'zieltag']);
   });
 });
 

@@ -4,7 +4,7 @@
  * Woche 1 = 12.01., Woche 2 = 19.01., Woche 12 = 30.03.
  */
 import { describe, it, expect } from 'vitest';
-import { bewerteVerbund } from '@/core/meilensteine/bewertung';
+import { bewerteVerbund, planEndeTage, restTageBis } from '@/core/meilensteine/bewertung';
 import { baueSeedPlan } from '@/core/meilensteine/seed';
 import { baueKontext } from '@/core/status';
 import type { Bedingung } from '@/core/status';
@@ -244,5 +244,62 @@ describe('bewerteVerbund — Auslieferungs-Plan', () => {
       '2026-03-01T00:00:00.000Z',
     );
     expect(r.ergebnisse.map(e => e.knotenId)).toEqual(p.knoten.map(k => k.id));
+  });
+});
+
+describe('restTageBis', () => {
+  const tag = (iso: string): number => new Date(iso).getTime();
+
+  it('normalisiert `-0` zum heutigen Tag', () => {
+    // Der Soll-Termin lag heute um Mitternacht, „jetzt" ist der Nachmittag:
+    // `Math.ceil(-0.53)` ist `-0`, und `-0 < 0` ist `false`. Jede Anzeige, die
+    // daran „überfällig oder nicht" entscheidet, schrieb daraus „in 0 T" — unter
+    // der Überschrift „Überfällig".
+    const r = restTageBis(tag('2026-08-19T00:00:00.000Z'), tag('2026-08-19T12:45:00.000Z'));
+    expect(r).toBe(0);
+    expect(Object.is(r, -0)).toBe(false);
+  });
+
+  it('rundet auf ganze Tage auf und zählt rückwärts negativ', () => {
+    expect(restTageBis(tag('2026-08-26T00:00:00.000Z'), tag('2026-08-19T12:00:00.000Z'))).toBe(7);
+    expect(restTageBis(tag('2026-08-12T00:00:00.000Z'), tag('2026-08-19T00:00:00.000Z'))).toBe(-7);
+  });
+
+  it('liefert ohne Ziel `null`', () => {
+    expect(restTageBis(null, tag('2026-08-19T00:00:00.000Z'))).toBeNull();
+    expect(restTageBis(Number.NaN, tag('2026-08-19T00:00:00.000Z'))).toBeNull();
+  });
+});
+
+describe('planEndeTage', () => {
+  it('nimmt die späteste fristrelevante BLATT-Woche', () => {
+    const knotenListe = [
+      knoten({ id: 'sammel', sollWoche: 4 }),
+      knoten({ id: 'kind', elternId: 'sammel', sollWoche: 6 }),
+      knoten({ id: 'spaet', sollWoche: 18 }),
+    ];
+    expect(planEndeTage(knotenListe)).toBe(18 * 7);
+  });
+
+  it('lässt stillgelegte und nicht fristrelevante Knoten außen vor', () => {
+    expect(planEndeTage([
+      knoten({ id: 'a', sollWoche: 4 }),
+      knoten({ id: 'b', sollWoche: 30, aktiv: false }),
+      knoten({ id: 'c', sollWoche: 40, relevantFuerFrist: false }),
+    ])).toBe(4 * 7);
+  });
+
+  it('erkennt den in sich unerfüllbaren Plan', () => {
+    // Genau der Fall des Auslieferungs-Plans: der letzte fristrelevante
+    // Meilenstein liegt hinter der Gesamtfrist — damit ist JEDER Verbund
+    // „nicht haltbar", ganz gleich wie er läuft.
+    const p = plan([knoten({ id: 'a', sollWoche: 18 })], 90);
+    expect(planEndeTage(p.knoten)).toBeGreaterThan(p.gesamtfristTage);
+    const r = bewerteVerbund(p, eingabe({}), '2026-01-06T00:00:00.000Z');
+    expect(r.prognose).toBe('nichtHaltbar');
+  });
+
+  it('ist 0, wenn kein Knoten in die Frist zählt', () => {
+    expect(planEndeTage([])).toBe(0);
   });
 });

@@ -10,7 +10,9 @@ export {
   benoetigteFelder, feldRefsAusBedingung, feldRefsAusKnoten, loeseFelderAuf,
   baueMeilensteinKontext, type FeldAufloesung,
 } from './felder';
-export { bewerteVerbund, FAELLIG_FENSTER_TAGE, type BewertungsEingabe } from './bewertung';
+export {
+  bewerteVerbund, planEndeTage, restTageBis, FAELLIG_FENSTER_TAGE, type BewertungsEingabe,
+} from './bewertung';
 export {
   werteDauernAus, werteKnotenAus, zaehlePrognosen, bearbeitungsdauerTage, dauerBucket,
   DAUER_BUCKETS, DAUER_BUCKET_GRENZE,
@@ -22,7 +24,7 @@ export {
   MEILENSTEIN_PLAN_PATH, MEILENSTEIN_PLAN_CACHE_KEY, type GeladenerPlan,
 } from './plan-storage';
 export {
-  neueFassung, freigeben, zurueckInEntwurf, uebernimmFassung, MAX_HISTORIE,
+  neueFassung, freigeben, zurueckInEntwurf, uebernimmFassung, istInhaltsgleich, MAX_HISTORIE,
   type FassungsEingabe,
 } from './versionierung';
 export {

@@ -3,7 +3,7 @@
  * `--tf-*`-Tokens (Guard `theme-token-contract`).
  */
 import { parseGermanDate, formatGermanDate } from '@/core/services/csv/dateParse';
-import type { MstZustand, Prognose } from '@/core/meilensteine';
+import type { MstZustand, Prognose, VerbundMeilensteine } from '@/core/meilensteine';
 import type { AntragstypBucket } from '@/core/utils/vb-phase-mappings';
 
 export const ZUSTAND_LABEL: Record<MstZustand, string> = {
@@ -14,13 +14,41 @@ export const ZUSTAND_LABEL: Record<MstZustand, string> = {
   nichtRelevant: 'Nicht relevant',
 };
 
-/** Punkt-/Textfarbe je Zustand. */
+/**
+ * **Marken-Farbe** je Zustand — Punkte, Ringe, Verzugs-Strecken.
+ *
+ * `offen` und `nichtRelevant` tragen bewusst Rahmen-Tokens: als 8px-Ring auf dem
+ * Hintergrund sind sie „da, aber still". Für **Text** taugen sie nicht (siehe
+ * `ZUSTAND_TEXT_FARBE`).
+ */
 export const ZUSTAND_FARBE: Record<MstZustand, string> = {
   erreicht: 'var(--tf-success-text)',
   offen: 'var(--tf-border-hover)',
   faellig: 'var(--tf-warning-text)',
   gerissen: 'var(--tf-danger-text)',
   nichtRelevant: 'var(--tf-border)',
+};
+
+/**
+ * **Textfarbe** je Zustand — für beschriftete Zustands-Spalten.
+ *
+ * Getrennt von `ZUSTAND_FARBE`, weil Rahmen-Tokens als Schrift unlesbar sind:
+ * gemessen (Alpha gegen `--tf-bg` verrechnet) kam `offen` auf 1,41:1 und
+ * `nichtRelevant` auf 1,20:1 — AA verlangt 4,5:1. Bei einem Verbund, für den
+ * kein Meilenstein gilt, wirkte die ganze Spalte leer.
+ *
+ * Die beiden stillen Zustände tragen `--tf-text-secondary` (gemessen 5,33:1);
+ * `--tf-text-tertiary` läge mit 2,61:1 weiter unter AA. Unterschieden werden sie
+ * durch das **Wort**, nicht durch zwei Grautöne, die niemand benennen kann —
+ * zurückgenommen ist die Zeile eines nicht relevanten Meilensteins ohnehin
+ * bereits an ihrer Beschriftung.
+ */
+export const ZUSTAND_TEXT_FARBE: Record<MstZustand, string> = {
+  erreicht: 'var(--tf-success-text)',
+  offen: 'var(--tf-text-secondary)',
+  faellig: 'var(--tf-warning-text)',
+  gerissen: 'var(--tf-danger-text)',
+  nichtRelevant: 'var(--tf-text-secondary)',
 };
 
 export const PROGNOSE_LABEL: Record<Prognose, string> = {
@@ -38,6 +66,18 @@ export const PROGNOSE_FARBE: Record<Prognose, string> = {
   abgeschlossen: 'var(--tf-text-tertiary)',
   unbekannt: 'var(--tf-text-tertiary)',
 };
+
+/**
+ * Erklärt einen Ist-Termin **vor** Woche 0.
+ *
+ * Auf der Achse gibt es keine Woche vor dem Eingang — die Zahl entsteht, weil
+ * der Anker das SPÄTESTE Antragsdatum aller Teilvorhaben ist, das Ist-Datum aber
+ * aus einem Feld kommt, das früher datiert (etwa dem frühesten Antragsdatum).
+ * Der Wert wird darum markiert statt versteckt oder geglättet.
+ */
+export const VOR_EINGANG_HINWEIS =
+  'Ist-Termin liegt vor dem Eingang: der Anker ist das späteste Antragsdatum des Verbunds, '
+  + 'das Ist-Datum stammt aus einem Feld, das früher datiert.';
 
 /** Reihenfolge für Filter-Leisten und Verteilungs-Anzeigen. */
 export const PROGNOSE_REIHENFOLGE: readonly Prognose[] = [
@@ -78,6 +118,20 @@ export const feldStil: React.CSSProperties = {
 export function formatDatum(iso: string | null | undefined): string {
   const tag = iso ? parseGermanDate(iso) : null;
   return tag ? formatGermanDate(tag) : '—';
+}
+
+/**
+ * Die Restzeit-Angabe eines Verbunds im Kopf der Detail-Ansicht.
+ *
+ * Bei `unbekannt` steht **keine Tageszahl**: dann gilt kein Meilenstein des
+ * Plans für diesen Verbund, und die aus der Gesamtfrist gerechnete Zahl läse
+ * sich als geprüfte Frist („noch 7 Tage" neben lauter „Nicht relevant").
+ */
+export function restzeitText(b: Pick<VerbundMeilensteine, 'restTage' | 'prognose'>): string {
+  if (b.restTage === null) return 'Restzeit unbekannt';
+  if (b.prognose === 'unbekannt') return 'Frist rechnerisch — kein Meilenstein belegt sie';
+  if (b.restTage === 0) return 'heute fällig';
+  return b.restTage > 0 ? `noch ${b.restTage} Tage` : `${-b.restTage} Tage überfällig`;
 }
 
 /** „+3 Tage" / „−12 Tage" / „pünktlich". */

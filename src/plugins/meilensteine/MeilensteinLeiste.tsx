@@ -11,7 +11,10 @@
 import { Tooltip } from '@/components/ui/Tooltip';
 import type { MeilensteinKnoten, MstErgebnis, VerbundMeilensteine } from '@/core/meilensteine';
 import { sortiereKnoten, tiefeVon } from '@/core/meilensteine';
-import { ZUSTAND_FARBE, ZUSTAND_LABEL, feldStil, formatAbweichung, formatDatum } from './labels';
+import {
+  VOR_EINGANG_HINWEIS, ZUSTAND_FARBE, ZUSTAND_LABEL, ZUSTAND_TEXT_FARBE,
+  feldStil, formatAbweichung, formatDatum,
+} from './labels';
 
 /** Label-Spalte. Breit genug für den längsten Meilenstein-Titel des Seeds
  *  („Schriftstück abgestimmt und zur QS gesendet", eingerückt + Nummer) — der
@@ -29,23 +32,46 @@ function istWoche(e: MstErgebnis, sollWoche: number): number | null {
   return e.abweichungTage === null ? null : sollWoche + e.abweichungTage / 7;
 }
 
-function Marke({ links, farbe, gefuellt, titel }: {
+function Marke({ links, farbe, gefuellt, titel, vorAchse }: {
   links: number; farbe: string; gefuellt: boolean; titel: string;
+  /**
+   * Der wahre Wert liegt LINKS neben der Achse und wurde auf 0 % geklemmt.
+   * Dann steht statt des Punktes ein nach links zeigendes Dreieck: ein Punkt
+   * auf der „Eingang"-Marke behauptete einen Termin, den der Tooltip im selben
+   * Atemzug widerlegt (früheres Datum, negative Abweichung).
+   */
+  vorAchse?: boolean;
 }): React.ReactElement {
   return (
     <Tooltip content={titel}>
-      <span
-        className="absolute top-1/2 block rounded-full"
-        style={{
-          left: `${links}%`,
-          width: 9,
-          height: 9,
-          marginLeft: -4.5,
-          marginTop: -4.5,
-          background: gefuellt ? farbe : 'transparent',
-          border: `1.5px solid ${farbe}`,
-        }}
-      />
+      {vorAchse ? (
+        <span
+          className="absolute top-1/2 block"
+          style={{
+            left: `${links}%`,
+            width: 0,
+            height: 0,
+            marginLeft: -6,
+            marginTop: -4.5,
+            borderTop: '4.5px solid transparent',
+            borderBottom: '4.5px solid transparent',
+            borderRight: `6px solid ${farbe}`,
+          }}
+        />
+      ) : (
+        <span
+          className="absolute top-1/2 block rounded-full"
+          style={{
+            left: `${links}%`,
+            width: 9,
+            height: 9,
+            marginLeft: -4.5,
+            marginTop: -4.5,
+            background: gefuellt ? farbe : 'transparent',
+            border: `1.5px solid ${farbe}`,
+          }}
+        />
+      )}
     </Tooltip>
   );
 }
@@ -102,6 +128,11 @@ export function MeilensteinLeiste({ bewertung, knoten }: {
         const sollLinks = pos(k.sollWoche);
         const ist = istWoche(e, k.sollWoche);
         const istLinks = ist === null ? null : pos(ist);
+        // `pos` klemmt auf 0–100 %. Ein Ist VOR dem Eingang landete damit exakt
+        // auf der „Eingang"-Marke, während der Tooltip ein früheres Datum und
+        // eine negative Abweichung nannte — am echten Bestand 471 Ergebnisse in
+        // 426 von 1767 Verbünden. Die Klemmung wird darum sichtbar gemacht.
+        const vorAchse = ist !== null && ist < 0;
         const verzug = e.abweichungTage !== null && e.abweichungTage > 0;
 
         return (
@@ -165,7 +196,9 @@ export function MeilensteinLeiste({ bewertung, knoten }: {
                   links={istLinks}
                   farbe={farbe}
                   gefuellt
-                  titel={`Erreicht ${formatDatum(e.istDatum)} · ${formatAbweichung(e.abweichungTage)}`}
+                  vorAchse={vorAchse}
+                  titel={`Erreicht ${formatDatum(e.istDatum)} · ${formatAbweichung(e.abweichungTage)}${
+                    vorAchse ? ` — ${VOR_EINGANG_HINWEIS}` : ''}`}
                 />
               )}
               {/* Erreicht ohne Datum: Punkt auf dem Soll-Termin, damit der
@@ -178,9 +211,11 @@ export function MeilensteinLeiste({ bewertung, knoten }: {
               )}
             </div>
 
+            {/* Textfarbe aus `ZUSTAND_TEXT_FARBE`, nicht aus der Marken-Palette:
+                deren Rahmen-Tokens kamen als Schrift auf 1,2–1,4:1 Kontrast. */}
             <span
               className="shrink-0 text-right text-[11px]"
-              style={{ width: STATUS_W, color: farbe }}
+              style={{ width: STATUS_W, color: ZUSTAND_TEXT_FARBE[e.zustand] }}
               title={e.zustand === 'erreicht' ? formatAbweichung(e.abweichungTage) : undefined}
             >
               {ZUSTAND_LABEL[e.zustand]}

@@ -21,7 +21,7 @@ import { filtereZeilen, standardFilter, type UebersichtFilter } from './monitori
 import { ladeUebersichtFilter, speichereUebersichtFilter } from './ansichtPersistenz';
 import {
   PROGNOSE_FARBE, PROGNOSE_LABEL, PROGNOSE_REIHENFOLGE, TYP_LABEL, ZUSTAND_FARBE,
-  ZUSTAND_LABEL, feldStil, formatDatum,
+  ZUSTAND_LABEL, feldStil, formatDatum, restzeitText,
 } from './labels';
 import type { VerbundZeile } from './useMeilensteinStand';
 
@@ -72,21 +72,33 @@ function Zeile({ zeile, hauptKnotenIds, aktiv, onWaehlen }: {
       <span
         className="shrink-0 text-[11px] tabular-nums"
         style={{ color: PROGNOSE_FARBE[zeile.prognose] }}
-        title={`${PROGNOSE_LABEL[zeile.prognose]} · Frist ${formatDatum(zeile.fristDatum)}`}
+        title={
+          zeile.prognose === 'unbekannt'
+            ? `Unbekannt — kein Meilenstein des Plans gilt für diesen Verbund; die Frist ${formatDatum(zeile.fristDatum)} ist rechnerisch, aber durch keinen Meilenstein belegt.`
+            : `${PROGNOSE_LABEL[zeile.prognose]} · Frist ${formatDatum(zeile.fristDatum)}`
+        }
       >
-        {zeile.restTage === null ? PROGNOSE_LABEL[zeile.prognose] : `${zeile.restTage} T`}
+        {/* Eine Restzeit steht nur da, wo der Plan sie auch trägt: bei
+            `unbekannt` gilt kein einziger Meilenstein für diesen Verbund, und
+            die Tageszahl aus der Gesamtfrist läse sich als geprüfte Frist. */}
+        {zeile.restTage === null || zeile.prognose === 'unbekannt'
+          ? PROGNOSE_LABEL[zeile.prognose]
+          : `${zeile.restTage} T`}
       </span>
     </button>
   );
 }
 
-export function UebersichtTab({ zeilen, plan, meinKuerzel }: {
+export function UebersichtTab({ zeilen, plan, meineTokens, meineTokensAnzeige }: {
   zeilen: VerbundZeile[];
   plan: MeilensteinPlan;
-  meinKuerzel: string;
+  /** Eigene Kürzel in der Vergleichsform; leer = kein eigenes Kürzel. */
+  meineTokens: string[];
+  /** Dieselben in der Schreibweise der Daten — nur für die Beschriftung. */
+  meineTokensAnzeige: string[];
 }): React.ReactElement {
   const { navigate } = useNavigation();
-  const hatKuerzel = meinKuerzel !== '';
+  const hatKuerzel = meineTokens.length > 0;
   const [filter, setFilter] = useState<UebersichtFilter>(() => ladeUebersichtFilter(hatKuerzel));
   const [gewaehlt, setGewaehlt] = useState<string | null>(null);
 
@@ -95,8 +107,8 @@ export function UebersichtTab({ zeilen, plan, meinKuerzel }: {
     [plan.knoten],
   );
   const sichtbar = useMemo(
-    () => filtereZeilen(zeilen, filter, meinKuerzel),
-    [zeilen, filter, meinKuerzel],
+    () => filtereZeilen(zeilen, filter, meineTokens),
+    [zeilen, filter, meineTokens],
   );
   const aktiv = sichtbar.find(z => z.verbundId === gewaehlt) ?? null;
 
@@ -136,12 +148,12 @@ export function UebersichtTab({ zeilen, plan, meinKuerzel }: {
             onToggle={() => aendere({ typen: toggle(filter.typen, t) })}
           />
         ))}
-        {meinKuerzel && (
+        {hatKuerzel && (
           <ToggleChip
             label="nur meine"
             selected={filter.nurMeine}
             onToggle={() => aendere({ nurMeine: !filter.nurMeine })}
-            title={`Teilvorhaben mit Kürzel ${meinKuerzel}`}
+            title={`Teilvorhaben mit Kürzel ${(meineTokensAnzeige.length > 0 ? meineTokensAnzeige : meineTokens).join('/')}`}
           />
         )}
       </div>
@@ -210,15 +222,23 @@ export function UebersichtTab({ zeilen, plan, meinKuerzel }: {
         <span className="text-[var(--tf-text-secondary)]">
           Frist {formatDatum(aktiv.fristDatum)}
         </span>
-        <span className="text-[var(--tf-text-secondary)]">
-          {aktiv.restTage === null
-            ? 'Restzeit unbekannt'
-            : aktiv.restTage >= 0 ? `noch ${aktiv.restTage} Tage` : `${-aktiv.restTage} Tage überfällig`}
-        </span>
-        {aktiv.kuerzel.length > 0 && (
-          <span className="text-[var(--tf-text-tertiary)]">Bearbeitung: {aktiv.kuerzel.join(', ')}</span>
+        <span className="text-[var(--tf-text-secondary)]">{restzeitText(aktiv)}</span>
+        {aktiv.kuerzelAnzeige.length > 0 && (
+          <span className="text-[var(--tf-text-tertiary)]">
+            Bearbeitung: {aktiv.kuerzelAnzeige.join(', ')}
+          </span>
         )}
       </div>
+
+      {/* Was der Plan über diesen Verbund NICHT sagt, gehört neben die Zahlen —
+          sonst liest sich eine rechnerische Frist wie eine geprüfte. */}
+      {aktiv.prognose === 'unbekannt' && aktiv.fristDatum !== null && (
+        <p className="text-[11.5px] text-[var(--tf-text-tertiary)]">
+          Kein Meilenstein des freigegebenen Plans gilt für diesen Verbund
+          {aktiv.typ ? ` (Antragstyp ${TYP_LABEL[aktiv.typ]})` : ''} — die Frist ist aus der
+          Gesamtfrist gerechnet, aber durch keinen Meilenstein belegt.
+        </p>
+      )}
 
       <MeilensteinLeiste bewertung={aktiv} knoten={plan.knoten} />
     </div>

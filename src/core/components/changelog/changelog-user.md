@@ -19,6 +19,20 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.118 — 2026-08
+
+### Bugfixes
+- **„Nur meine" findet Ihre Vorgänge wieder.** Das Kürzel wurde buchstabengenau verglichen — wer „ATH" im Profil stehen hatte, aber „ATh" in den Daten, bekam eine leere Liste. Jetzt gilt dieselbe Regel wie überall sonst in der App, inklusive Vertretung („MUE, SCH") und der zweiten Bearbeiter-Spalte.
+- **Die Auswertung rechnet im selben Ausschnitt wie die Übersicht.** Die Bearbeitungsdauern liefen bisher über den gesamten Bestand, während die Liste darüber auf die eingestellten Richtlinien begrenzt war.
+- **Ein Meilenstein, der heute fällig ist, sagt das auch** — statt „in 0 T" unter der Überschrift „Überfällig".
+- **Kein erfundener Countdown mehr.** Vorgänge, für die der Plan gar keinen Meilenstein vorsieht, zeigten trotzdem „noch 7 Tage". Jetzt steht dort „Unbekannt" mit der Erklärung dazu.
+- **Der freigegebene Plan geht nicht mehr verloren**, wenn oft hintereinander gespeichert wird; ein Meilenstein mit halb ausgefüllter Regel gilt nicht mehr für jeden Vorgang als erreicht.
+
+### Verbesserungen
+- **Jede Seite sagt, welche Fassung sie auswertet** — und dass ein gespeicherter Entwurf noch nicht gilt. Nicht gespeicherte Änderungen bleiben beim Reiterwechsel sichtbar, statt still verloren zu gehen.
+- **Die Tabelle zeigt den Nenner ihrer Reißquote** („Betrachtet"), die Zustands-Spalte im Zeitstrahl ist lesbar, und der Plan warnt, wenn seine letzte Soll-Woche hinter der Gesamtfrist liegt.
+- **Das Startseiten-Widget „Fristen" bündelt je Vorgang** — vorher füllten drei Projekte alle acht Zeilen.
+
 ## v4.117 — 2026-08
 
 ### Verbesserungen

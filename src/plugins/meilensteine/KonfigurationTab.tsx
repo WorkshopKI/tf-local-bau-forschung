@@ -29,7 +29,8 @@ import { TfTree } from '@/components/tree';
 import { ContextMenuItem, ContextMenuLabel, ContextMenuSeparator } from '@/components/ui/context-menu';
 import {
   aendereKnoten, darfUmhaengen, entferneKnoten, fuegeKnotenHinzu, haengeKnotenUm,
-  hebeKnotenAn, verschiebeKnoten, type MeilensteinKnoten, type SpaltenEintrag,
+  hebeKnotenAn, planEndeTage, verschiebeKnoten,
+  type MeilensteinKnoten, type SpaltenEintrag,
 } from '@/core/meilensteine';
 import { ANTRAGSTYP_BUCKETS } from '@/core/utils/vb-phase-mappings';
 import { BedingungEditor } from './BedingungEditor';
@@ -203,20 +204,33 @@ function KnotenKoerper({ knoten, alle, spalten, schreibgeschuetzt, onKnoten }: {
 
           <div className="flex items-center gap-1.5 flex-wrap">
             <span className="text-[11.5px] text-[var(--tf-text-tertiary)]">Gilt für:</span>
-            {ANTRAGSTYP_BUCKETS.map(t => (
-              <ToggleChip
-                key={t}
-                label={TYP_LABEL[t]}
-                selected={knoten.nurTypen.length === 0 || knoten.nurTypen.includes(t)}
-                disabled={schreibgeschuetzt}
-                onToggle={() => {
-                  const aktuell = knoten.nurTypen.length === 0 ? [...ANTRAGSTYP_BUCKETS] : knoten.nurTypen;
-                  const naechste = aktuell.includes(t) ? aktuell.filter(x => x !== t) : [...aktuell, t];
-                  // Alle ausgewählt ⇒ wieder „gilt für alle" (leere Liste).
-                  patch({ nurTypen: naechste.length === ANTRAGSTYP_BUCKETS.length ? [] : naechste });
-                }}
-              />
-            ))}
+            {ANTRAGSTYP_BUCKETS.map(t => {
+              const gewaehlt = knoten.nurTypen.length === 0 || knoten.nurTypen.includes(t);
+              const letzter = gewaehlt && knoten.nurTypen.length === 1;
+              return (
+                <ToggleChip
+                  key={t}
+                  label={TYP_LABEL[t]}
+                  selected={gewaehlt}
+                  disabled={schreibgeschuetzt || letzter}
+                  title={letzter
+                    ? 'Mindestens ein Antragstyp muss ausgewählt bleiben — ohne Auswahl gälte der Meilenstein wieder für alle.'
+                    : undefined}
+                  onToggle={() => {
+                    const aktuell = knoten.nurTypen.length === 0 ? [...ANTRAGSTYP_BUCKETS] : knoten.nurTypen;
+                    const naechste = aktuell.includes(t) ? aktuell.filter(x => x !== t) : [...aktuell, t];
+                    // Leere Liste heißt „gilt für alle" — die Abwahl des LETZTEN
+                    // Typs schaltete damit alle vier wieder ein, und der
+                    // Meilenstein galt danach auch für DL und NW. Also: nicht
+                    // wählbar (der Schalter ist oben schon gesperrt), hier nur
+                    // die zweite Sicherung.
+                    if (naechste.length === 0) return;
+                    // Alle ausgewählt ⇒ wieder „gilt für alle" (leere Liste).
+                    patch({ nurTypen: naechste.length === ANTRAGSTYP_BUCKETS.length ? [] : naechste });
+                  }}
+                />
+              );
+            })}
           </div>
 
           {/* Beschriftung NEBEN dem Regelwerk, wie „Gilt für" darüber — eine
@@ -309,6 +323,7 @@ export function KonfigurationTab({
   const [frischeId, setFrischeId] = useState<string | null>(null);
   const { items, rootId } = useMemo(() => baueMeilensteinBaum(knoten), [knoten]);
   const unbestaetigt = knoten.filter(k => k.unbestaetigt).length;
+  const planEnde = useMemo(() => planEndeTage(knoten), [knoten]);
 
   const schalteKoerper = (id: string): void =>
     setKoerperOffen(o => (o.includes(id) ? o.filter(x => x !== id) : [...o, id]));
@@ -355,6 +370,18 @@ export function KonfigurationTab({
           </span>
         )}
       </div>
+
+      {/* Soll-Wochen und Gesamtfrist standen bis v4.118 kommentarlos
+          nebeneinander — obwohl der ausgelieferte Plan mit seiner spätesten
+          fristrelevanten Woche längst hinter der eigenen Gesamtfrist lag und
+          damit JEDEN Verbund auf „Frist nicht haltbar" stellte. */}
+      {planEnde > gesamtfristTage && (
+        <p className="text-[12px] text-[var(--tf-warning-text)]">
+          Der letzte fristrelevante Meilenstein liegt bei Woche {planEnde / 7} ({planEnde} Tage) und
+          damit hinter der Gesamtfrist von {gesamtfristTage} Tagen. Solange das so bleibt, gilt jeder
+          Verbund als „Frist nicht haltbar" — unabhängig davon, wie er läuft.
+        </p>
+      )}
 
       {knoten.length === 0 ? (
         <p className="text-[12.5px] text-[var(--tf-text-tertiary)]">

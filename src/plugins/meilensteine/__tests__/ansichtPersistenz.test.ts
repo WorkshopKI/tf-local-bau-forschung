@@ -120,6 +120,22 @@ describe('Ansicht der Meilenstein-Seite — defensiv gegen kaputte Werte', () =>
     expect(ladeBereich(2026)).toEqual(standardBereich(2026));
   });
 
+  it('verwirft einen Zeitraum, dessen Grenzen die Ziffernform erfüllen, aber keine Tage sind', () => {
+    // `2024-13-99` besteht `/^\d{4}-\d{2}-\d{2}$/`. Als gespeicherter Wert
+    // filterte er die ganze Seite auf null, ohne sichtbar zu sein: kein Chip
+    // stand aktiv, und die Datumsfelder blieben leer, weil `<input type="date">`
+    // den Wert nicht annimmt — eine leere Seite ohne ablesbare Ursache.
+    localStorage.setItem(KEY, JSON.stringify({ bereichV2: { von: '2024-13-99', bis: '2024-99-99' } }));
+    expect(ladeBereich(2026)).toEqual(standardBereich(2026));
+    localStorage.setItem(KEY, JSON.stringify({ bereichV2: { von: '2025-02-30', bis: '2025-12-31' } }));
+    expect(ladeBereich(2026)).toEqual(standardBereich(2026));
+  });
+
+  it('verwirft einen gedrehten Zeitraum (von nach bis)', () => {
+    localStorage.setItem(KEY, JSON.stringify({ bereichV2: { von: '2026-12-31', bis: '2024-01-01' } }));
+    expect(ladeBereich(2026)).toEqual(standardBereich(2026));
+  });
+
   it('lässt Typen und Prognosen weg, die es nicht mehr gibt', () => {
     localStorage.setItem(KEY, JSON.stringify({
       uebersicht: { typen: ['DS', 'ABGESCHAFFT'], prognosen: ['imPlan', 'weg'], nurMeine: true },

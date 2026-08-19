@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.118.0 — Meilensteine & Fristen: 21 Befunde der Bug-Jagd behoben (August 2026)
+
+MINOR — Die read-only-Jagd über die Meilenstein-Oberfläche fand ein Muster: **die Anzeige behauptet mehr, als das Modell trägt.** Eine Restzeit, für die kein Meilenstein gilt; eine Reißquote ohne ihren Nenner; ein Leer-Satz, der eine Tatsache meldet, wo ein Filter greift. Dazu zwei stille Verluste — der geltende Plan fiel nach 21 Speicherungen aus der Historie, und „nur meine" traf 81 der 112 Kürzel im Bestand nie.
+
+- **Kürzel folgen dem App-Vertrag** (uppercase, Komma-Trennung, „alle" = kein Filter, TIB **und** BIB; Vergleichs- und Anzeigeform getrennt) ([useMeilensteinStand.ts](src/plugins/meilensteine/useMeilensteinStand.ts), [monitoringLogic.ts](src/plugins/meilensteine/monitoringLogic.ts))
+- **Die jüngste freigegebene Fassung überlebt die Historien-Kappung**; eine Bedingung `ist`/`ist nicht` **ohne Wert** wird verworfen statt für jeden Verbund wahr zu sein ([versionierung.ts](src/core/meilensteine/versionierung.ts), [plan-storage.ts](src/core/meilensteine/plan-storage.ts))
+- **Betrachtungsbereich gilt für beide Hälften** — Abschlüsse waren ungefiltert (5.885 gegen 2.046) ([useMeilensteinStand.ts](src/plugins/meilensteine/useMeilensteinStand.ts))
+- **Anzeige sagt, was sie weiß**: Prognose statt erfundener Restzeit, „Betrachtet"-Spalte als Nenner, „heute fällig" statt „in 0 T", markierte Ist-Termine vor dem Eingang, lesbare Zustands-Spalte, benannte Fassung ([meilensteine.md → Was die Anzeige nicht behaupten darf](docs/architecture/meilensteine.md))
+- **Das Home-Widget „Fristen" bündelt je Vorgang** wie das Modul — acht Zeilen zeigten drei Akronyme ([fristAnlaesse.ts](src/plugins/home/widgets/fristAnlaesse.ts))
+
 ### v4.117.0 — Vorbelegung der Sichtbarkeit nachgezogen (August 2026)
 
 MINOR — Die Vorbelegung aus v4.112 war ein Vorschlag; das Team ist sie durchgegangen und entscheidet an 13 Stellen anders. Solche Entscheidungen gehören zurück in den Katalog statt als Abweichung auf dem Share zu verharren — sonst erklärt die Sidecar irgendwann die halbe App.

@@ -35,8 +35,8 @@ import {
 } from '@/core/status';
 import { freigegebeneFassung, holeProjektion, ladePlan } from '@/core/meilensteine';
 import {
-  bilanzText, meilensteinAnlaesse, sortiereAnlaesse, ueberTageText, zieltagAnlass,
-  type FristAnlass,
+  bilanzText, buendleNachVerbund, meilensteinAnlaesse, sortiereAnlaesse, ueberTageText,
+  zieltagAnlass, type FristAnlass,
 } from './fristAnlaesse';
 import { WidgetShell } from './WidgetShell';
 import type { WidgetProps } from './widgetProps';
@@ -161,8 +161,12 @@ export function FristenWidget({
   const meilensteineAn = isMeilensteinMonitoringEnabled();
   if (!zieltageAn && !meilensteineAn) return null;
 
-  const sichtbar = anlaesse.slice(0, MAX_ZEILEN);
-  const rest = anlaesse.length - sichtbar.length;
+  // Eine Zeile je Vorgang, wie im Modul „Fristen & Meilensteine". Die Kopfzahl
+  // zählt weiter die ANLÄSSE — sie beantwortet „wie viel steht offen", die Liste
+  // „wo steht es".
+  const zeilen = buendleNachVerbund(anlaesse);
+  const sichtbar = zeilen.slice(0, MAX_ZEILEN);
+  const rest = zeilen.length - sichtbar.length;
   const scope = bearbeiterScopeLabel(bearbeiterMode);
   // Ein Widget, das nur eine Hälfte zeigt, sagt es — sonst liest man eine
   // unvollständige Liste als vollständige.
@@ -219,13 +223,23 @@ export function FristenWidget({
               <span className="flex-1 min-w-0 truncate text-[12px] text-[var(--tf-text-secondary)]">
                 {z.grund}
               </span>
+              {(z.weitere ?? 0) > 0 && (
+                <span
+                  className="shrink-0 text-[11px] tabular-nums text-[var(--tf-text-tertiary)]"
+                  title={`${(z.weitere ?? 0) + 1} offene Anlässe in diesem Vorgang — gezeigt ist der dringendste`}
+                >
+                  {(z.weitere ?? 0) + 1} offen
+                </span>
+              )}
               <span className="shrink-0 text-[11px] tabular-nums" style={{ color: farbe(z) }}>
                 {ueberTageText(z.ueberTage)}
               </span>
             </button>
           ))}
           {rest > 0 && (
-            <p className="pt-0.5 text-[11px] text-[var(--tf-text-tertiary)]">+{rest} weitere</p>
+            <p className="pt-0.5 text-[11px] text-[var(--tf-text-tertiary)]">
+              +{rest} weitere {rest === 1 ? 'Vorgang' : 'Vorgänge'}
+            </p>
           )}
         </div>
       )}

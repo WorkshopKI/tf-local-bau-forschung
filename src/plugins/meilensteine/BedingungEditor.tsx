@@ -118,10 +118,17 @@ function BlattZeile({ blatt, spalten, pruefeFeld, onChange, onEntfernen }: {
     }
   };
 
+  // Ein `ist`/`istNicht` ohne Wert behauptet nichts — und `istNicht` ohne Wert
+  // wäre für JEDEN Vorgang wahr. Die Speicherung verwirft ein solches Blatt
+  // (`normalisiereBedingung`); der Editor muss das sagen, solange es dasteht.
+  const wertFehlt = (blatt.op === 'ist' || blatt.op === 'istNicht')
+    && !('wert' in blatt && (blatt.wert ?? '').trim() !== '');
+
   // Beide Feld-Referenzen prüfen — `datumNachFeld` nennt ein zweites.
   const monita = [
     pruefeFeld?.(blatt.feldId),
     zeigeVergleichsfeld && 'vergleichFeldId' in blatt ? pruefeFeld?.(blatt.vergleichFeldId) : null,
+    wertFehlt ? 'Ohne Wert zählt diese Bedingung nicht — sie wird beim Laden verworfen.' : null,
   ].filter((m): m is string => typeof m === 'string' && m.length > 0);
 
   return (

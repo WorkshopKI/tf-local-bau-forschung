@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  freigeben, MAX_HISTORIE, neueFassung, uebernimmFassung, zurueckInEntwurf,
+  freigeben, istInhaltsgleich, MAX_HISTORIE, neueFassung, uebernimmFassung, zurueckInEntwurf,
 } from '@/core/meilensteine/versionierung';
 import { baueSeedPlan } from '@/core/meilensteine/seed';
 import type { MeilensteinPlan } from '@/core/meilensteine/typen';
@@ -52,6 +52,24 @@ describe('neueFassung', () => {
       p = neueFassung(p, eingabe(p, { gesamtfristTage: 90 + i + 1 }));
     }
     expect(p.historie).toHaveLength(MAX_HISTORIE);
+    expect(p.historie[0]!.version).toBe(p.version - 1);
+  });
+
+  it('hält die jüngste freigegebene Fassung fest, auch über MAX_HISTORIE hinaus', () => {
+    // Der Auslieferungs-Plan ist freigegeben; jede weitere Speicherung ist ein
+    // Entwurf. Ohne Ausnahme schob die 21. Speicherung die letzte Freigabe aus
+    // der Historie — `freigegebeneFassung` lieferte danach `null`, alle Reiter
+    // meldeten „Noch kein Plan freigegeben" und der geltende Plan war weg.
+    let p = basis();
+    expect(p.status).toBe('freigegeben');
+    for (let i = 0; i < MAX_HISTORIE + 5; i++) {
+      p = neueFassung(p, eingabe(p, { gesamtfristTage: 90 + i + 1 }));
+    }
+    expect(p.historie).toHaveLength(MAX_HISTORIE);
+    const gehalten = p.historie.filter(h => h.status === 'freigegeben');
+    expect(gehalten).toHaveLength(1);
+    expect(gehalten[0]!.version).toBe(1);
+    // Sie verdrängt den ÄLTESTEN Entwurf; das Fenster bleibt vorne lückenlos.
     expect(p.historie[0]!.version).toBe(p.version - 1);
   });
 
@@ -109,5 +127,23 @@ describe('uebernimmFassung', () => {
   it('ist ein No-op bei unbekannter Fassung', () => {
     const p = basis();
     expect(uebernimmFassung(p, 99, 'PL', JETZT)).toBe(p);
+  });
+});
+
+describe('istInhaltsgleich', () => {
+  // Ein No-op ist an sich richtig — aber die Oberfläche muss ihn vorher
+  // erkennen können, sonst steht dort ein Knopf, der beim Klick sichtbar nichts
+  // tut (am echten Bestand traf das genau die oberste Historien-Zeile).
+  it('erkennt die Fassung, deren Übernahme nichts ändern würde', () => {
+    const p1 = basis();
+    const p2 = neueFassung(p1, eingabe(p1, { gesamtfristTage: 120 }));
+    const alt = p2.historie.find(h => h.version === 1)!;
+    expect(istInhaltsgleich(p2, alt)).toBe(false);
+    expect(uebernimmFassung(p2, 1, 'PL', JETZT)).not.toBe(p2);
+
+    const p3 = freigeben(p2, 'PL', JETZT);          // gleicher Inhalt, neue Fassung
+    const gleich = p3.historie.find(h => h.version === 2)!;
+    expect(istInhaltsgleich(p3, gleich)).toBe(true);
+    expect(uebernimmFassung(p3, 2, 'PL', JETZT)).toBe(p3);
   });
 });

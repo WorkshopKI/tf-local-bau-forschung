@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   LEERER_FILTER, antragsJahr, datumSpanne, filtereZeilen, gruppiereNachVerbund,
-  jahrAlsBereich, jahrChips, nurMeinePunkte, passtZuBereich, sammleWochenPunkte,
+  jahrAlsBereich, jahrChips, kuerzelFormen, nurMeinePunkte, passtZuBereich, sammleWochenPunkte,
   setzeBis, setzeVon, standJahr, standardBereich, standardFilter,
 } from '@/plugins/meilensteine/monitoringLogic';
 import type { VerbundZeile } from '@/plugins/meilensteine/useMeilensteinStand';
@@ -11,7 +11,7 @@ const HEUTE = '2026-08-01T00:00:00.000Z';
 
 function zeile(p: Partial<VerbundZeile> & { verbundId: string; prognose: Prognose }): VerbundZeile {
   return {
-    akronym: p.verbundId, titel: '', kuerzel: [], antragsdatum: '2026-01-05',
+    akronym: p.verbundId, titel: '', kuerzel: [], kuerzelAnzeige: [], antragsdatum: '2026-01-05',
     typ: 'FuE', wocheAktuell: 30, fristDatum: '2026-04-05', restTage: 10,
     ergebnisse: [], ...p,
   };
@@ -160,46 +160,78 @@ describe('filtereZeilen', () => {
   const zeilen = [
     zeile({ verbundId: 'AAA', prognose: 'imPlan', restTage: 40 }),
     zeile({ verbundId: 'BBB', prognose: 'nichtHaltbar', restTage: 60 }),
-    zeile({ verbundId: 'CCC', prognose: 'gefaehrdet', restTage: 5, typ: 'DS', kuerzel: ['THÜ'] }),
-    zeile({ verbundId: 'DDD', prognose: 'abgeschlossen', restTage: 1 }),
+    zeile({
+      verbundId: 'CCC', prognose: 'gefaehrdet', restTage: 5, typ: 'DS',
+      kuerzel: ['THÜ'], kuerzelAnzeige: ['THü'],
+    }),
+    zeile({ verbundId: 'DDD', prognose: 'abgeschlossen', restTage: 1, kuerzel: ['MB'] }),
   ];
 
   it('sortiert nach Dringlichkeit — Prognose schlägt Restzeit', () => {
-    const r = filtereZeilen(zeilen, LEERER_FILTER, '');
+    const r = filtereZeilen(zeilen, LEERER_FILTER, []);
     expect(r.map(z => z.verbundId)).toEqual(['BBB', 'CCC', 'AAA', 'DDD']);
   });
 
   it('filtert nach Antragstyp', () => {
-    const r = filtereZeilen(zeilen, { ...LEERER_FILTER, typen: ['DS'] }, '');
+    const r = filtereZeilen(zeilen, { ...LEERER_FILTER, typen: ['DS'] }, []);
     expect(r.map(z => z.verbundId)).toEqual(['CCC']);
   });
 
   it('filtert nach Prognose (Mehrfachauswahl)', () => {
-    const r = filtereZeilen(zeilen, { ...LEERER_FILTER, prognosen: ['imPlan', 'gefaehrdet'] }, '');
+    const r = filtereZeilen(zeilen, { ...LEERER_FILTER, prognosen: ['imPlan', 'gefaehrdet'] }, []);
     expect(r.map(z => z.verbundId)).toEqual(['CCC', 'AAA']);
   });
 
   it('sucht über Akronym, Titel und Verbund-ID', () => {
     const mitTitel = [zeile({ verbundId: 'X1', prognose: 'imPlan', titel: 'Wasserstoff-Speicher' })];
-    expect(filtereZeilen(mitTitel, { ...LEERER_FILTER, suche: 'wasserstoff' }, '')).toHaveLength(1);
-    expect(filtereZeilen(mitTitel, { ...LEERER_FILTER, suche: 'x1' }, '')).toHaveLength(1);
-    expect(filtereZeilen(mitTitel, { ...LEERER_FILTER, suche: 'nix' }, '')).toHaveLength(0);
+    expect(filtereZeilen(mitTitel, { ...LEERER_FILTER, suche: 'wasserstoff' }, [])).toHaveLength(1);
+    expect(filtereZeilen(mitTitel, { ...LEERER_FILTER, suche: 'x1' }, [])).toHaveLength(1);
+    expect(filtereZeilen(mitTitel, { ...LEERER_FILTER, suche: 'nix' }, [])).toHaveLength(0);
   });
 
-  it('grenzt „nur meine" NFC-normalisiert auf das eigene Kürzel ein', () => {
-    const r = filtereZeilen(zeilen, { ...LEERER_FILTER, nurMeine: true }, 'THÜ'.normalize('NFD'));
+  it('grenzt „nur meine" auf die eigenen Tokens ein', () => {
+    const r = filtereZeilen(zeilen, { ...LEERER_FILTER, nurMeine: true }, ['THÜ']);
     expect(r.map(z => z.verbundId)).toEqual(['CCC']);
   });
 
-  it('liefert bei „nur meine" ohne eigenes Kürzel nichts, statt alles', () => {
-    expect(filtereZeilen(zeilen, { ...LEERER_FILTER, nurMeine: true }, '')).toEqual([]);
+  it('trifft bei Vertretung mit jedem der Tokens', () => {
+    const r = filtereZeilen(zeilen, { ...LEERER_FILTER, nurMeine: true }, ['THÜ', 'MB']);
+    expect(r.map(z => z.verbundId)).toEqual(['CCC', 'DDD']);
+  });
+
+  it('lässt „nur meine" ohne eigene Tokens wirkungslos, statt alles auszublenden', () => {
+    // Der Schalter ist ohne eigenes Kürzel gar nicht sichtbar (`standardFilter`,
+    // `ladeUebersichtFilter`). Käme der Zustand doch zustande — alter Wert im
+    // localStorage, „alle" im Profil —, wäre eine unerklärlich leere Seite das
+    // schlechtere Ergebnis als eine ungefilterte. `nurMeinePunkte` hielt es
+    // schon immer so; bis v4.118 widersprachen sich die beiden.
+    expect(filtereZeilen(zeilen, { ...LEERER_FILTER, nurMeine: true }, [])).toHaveLength(zeilen.length);
   });
 
   it('startet mit „nur meine", sobald ein eigenes Kürzel gesetzt ist — sonst ohne', () => {
     expect(standardFilter(true)).toEqual({ ...LEERER_FILTER, nurMeine: true });
     // Ohne Kürzel MUSS der Standard aus sein, sonst wäre die Liste leer.
     expect(standardFilter(false)).toEqual(LEERER_FILTER);
-    expect(filtereZeilen(zeilen, standardFilter(false), '')).toHaveLength(zeilen.length);
+    expect(filtereZeilen(zeilen, standardFilter(false), [])).toHaveLength(zeilen.length);
+  });
+});
+
+describe('kuerzelFormen (App-Vertrag: vergleichen ≠ anzeigen)', () => {
+  it('liefert Vergleichsform in NFC + uppercase und die Schreibweise der Daten', () => {
+    const formen = kuerzelFormen('  THü '.normalize('NFD'));
+    expect(formen).toEqual({ vergleich: 'THÜ', anzeige: 'THü'.normalize('NFC') });
+  });
+
+  it('gibt für leere Werte null', () => {
+    expect(kuerzelFormen('   ')).toBeNull();
+    expect(kuerzelFormen(undefined)).toBeNull();
+  });
+
+  it('führt gemischt geschriebene Kürzel und das Profilfeld zusammen', () => {
+    // Die Einstellungen legen das Profilfeld großgeschrieben ab
+    // (`AntraegeSichtGruppe`), die Daten führen „ATh". Vor v4.118 verglich das
+    // Modul roh — und traf damit 81 der 112 Kürzel im Bestand nie.
+    expect(kuerzelFormen('ATh')?.vergleich).toBe('ATH');
   });
 });
 
@@ -260,7 +292,7 @@ describe('nurMeinePunkte', () => {
         ergebnisse: [ergebnis({ knotenId: 'k1', zustand: 'gerissen', sollDatum: HEUTE })],
       }),
     ], plan, HEUTE);
-    expect(nurMeinePunkte(punkte, 'ABC').map(p => p.verbundId)).toEqual(['AAA']);
+    expect(nurMeinePunkte(punkte, ['ABC']).map(p => p.verbundId)).toEqual(['AAA']);
   });
 
   it('lässt ohne eigenes Kürzel alles stehen', () => {
@@ -270,7 +302,7 @@ describe('nurMeinePunkte', () => {
         ergebnisse: [ergebnis({ knotenId: 'k1', zustand: 'gerissen', sollDatum: HEUTE })],
       }),
     ], plan, HEUTE);
-    expect(nurMeinePunkte(punkte, '')).toHaveLength(1);
+    expect(nurMeinePunkte(punkte, [])).toHaveLength(1);
   });
 });
 

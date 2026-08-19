@@ -36,9 +36,12 @@ import {
 import { PROGNOSE_FARBE, PROGNOSE_LABEL, ZUSTAND_FARBE, feldStil, formatDatum } from './labels';
 import type { VerbundZeile } from './useMeilensteinStand';
 
-/** „4692 T überfällig" / „in 3 T". */
+/** „4692 T überfällig" / „heute fällig" / „in 3 T". */
 function restText(restTage: number | null): string {
   if (restTage === null) return '—';
+  // Der heutige Soll-Tag ist ein eigener Fall: „in 0 T" liest sich als Frist,
+  // die noch läuft, und stand ausgerechnet unter der Überschrift „Überfällig".
+  if (restTage === 0) return 'heute fällig';
   return restTage < 0 ? `${-restTage} T überfällig` : `in ${restTage} T`;
 }
 
@@ -214,14 +217,18 @@ function Gruppe({ titel, sektion, punkte, gruppiert, offene, onToggle, onOeffnen
   );
 }
 
-export function DieseWocheTab({ zeilen, plan, meinKuerzel, stand }: {
+export function DieseWocheTab({ zeilen, plan, meineTokens, meineTokensAnzeige, stand }: {
   zeilen: VerbundZeile[];
   plan: MeilensteinPlan;
-  meinKuerzel: string;
+  /** Eigene Kürzel in der Vergleichsform; leer = kein eigenes Kürzel. */
+  meineTokens: string[];
+  /** Dieselben in der Schreibweise der Daten — nur für die Beschriftung. */
+  meineTokensAnzeige: string[];
   stand: string;
 }): React.ReactElement {
   const { navigate } = useNavigation();
-  const [nurMeine, setNurMeine] = useState(() => ladeWocheNurMeine(meinKuerzel !== ''));
+  const hatKuerzel = meineTokens.length > 0;
+  const [nurMeine, setNurMeine] = useState(() => ladeWocheNurMeine(hatKuerzel));
   const [gruppiert, setGruppiert] = useState(ladeWocheGruppiert);
   const [offene, setOffene] = useState<ReadonlySet<string>>(() => new Set<string>());
 
@@ -245,8 +252,10 @@ export function DieseWocheTab({ zeilen, plan, meinKuerzel, stand }: {
 
   const punkte = useMemo(() => {
     const alle = sammleWochenPunkte(zeilen, plan, stand);
-    return nurMeine ? nurMeinePunkte(alle, meinKuerzel) : alle;
-  }, [zeilen, plan, stand, nurMeine, meinKuerzel]);
+    return nurMeine ? nurMeinePunkte(alle, meineTokens) : alle;
+  }, [zeilen, plan, stand, nurMeine, meineTokens]);
+  /** Schneidet gerade ein Filter die Liste? Dann darf die Leere nichts Absolutes sagen. */
+  const gefiltert = nurMeine && hatKuerzel;
 
   const ueberfaellig = useMemo(() => punkte.filter(p => p.zustand === 'gerissen'), [punkte]);
   const faellig = useMemo(() => punkte.filter(p => p.zustand === 'faellig'), [punkte]);
@@ -255,12 +264,12 @@ export function DieseWocheTab({ zeilen, plan, meinKuerzel, stand }: {
   return (
     <div className="flex flex-col gap-4 pt-4">
       <div className="flex items-center gap-2 flex-wrap">
-        {meinKuerzel && (
+        {hatKuerzel && (
           <ToggleChip
             label="nur meine"
             selected={nurMeine}
             onToggle={() => waehleNurMeine(!nurMeine)}
-            title={`Teilvorhaben mit Kürzel ${meinKuerzel}`}
+            title={`Teilvorhaben mit Kürzel ${(meineTokensAnzeige.length > 0 ? meineTokensAnzeige : meineTokens).join('/')}`}
           />
         )}
         <ToggleChip
@@ -274,9 +283,15 @@ export function DieseWocheTab({ zeilen, plan, meinKuerzel, stand }: {
         </span>
       </div>
 
+      {/* Der Leer-Satz ist nie absolut: über der Liste stehen IMMER Filter — der
+          Eingangs-Zeitraum ist ab Werk auf drei Jahre gesetzt, „nur meine" mit
+          eigenem Kürzel ab Werk an. Ein „Kein Meilenstein ist überfällig"
+          behauptete eine Tatsache, wo eine Auswahl gilt. */}
       {punkte.length === 0 ? (
         <p className="text-[12.5px] text-[var(--tf-text-tertiary)]">
-          Kein Meilenstein ist überfällig oder in den nächsten sieben Tagen fällig.
+          Mit den aktuellen Einstellungen ist nichts überfällig und nichts in den nächsten sieben
+          Tagen fällig
+          {gefiltert ? ' — „nur meine" schneidet die Liste zusätzlich auf Ihre Kürzel zu.' : '.'}
         </p>
       ) : (
         <>

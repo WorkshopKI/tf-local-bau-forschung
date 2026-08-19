@@ -30,7 +30,13 @@ nach Antragseingang), `relevantFuerFrist`, `nurTypen` (FuE/DS/DL/NW, leer = alle
 
 `MeilensteinPlan`: versioniert + freigebbar wie der
 [Textbaustein-Katalog](textbaustein-katalog.md) — `status` ist eine eigene Achse
-neben der Version, `historie` newest-first, gekappt auf `MAX_HISTORIE`.
+neben der Version, `historie` newest-first, gekappt auf `MAX_HISTORIE` — **mit
+einer Ausnahme**: die jüngste freigegebene Fassung bleibt stehen, auch wenn sie
+aus dem Fenster fiele (`kappeHistorie`, v4.118). Ohne sie kostete die 21.
+Entwurfs-Speicherung in Folge den geltenden Plan: die Auswertung fällt auf die
+Historie zurück, und mit dem letzten `freigegeben`-Snapshot verschwand ihre
+Grundlage — alle Reiter meldeten „Noch kein Plan freigegeben", die Zähler standen
+auf 0, und die Fassung war nicht nur aus dem Blick, sondern aus der Datei.
 
 ## Bewertung ([bewertung.ts](../../src/core/meilensteine/bewertung.ts))
 
@@ -93,6 +99,15 @@ erreicht. Deshalb gilt jetzt: verliert eine UND-Gruppe einen Zweig, wird sie
 `{einige: []}` = nie erfüllt. Ein Roundtrip-Test über `Bedingung['op']` hält die
 Operator-Liste vollständig — ein zehnter bricht den Typecheck.
 
+Aus demselben Grund verwirft die Normalisierung seit v4.118 auch ein
+`ist`/`istNicht` **ohne Wert** (wie `datumNachFeld` ohne zweites Feld):
+`istNicht` ohne Wert ist `!werte.some(v => v === '')` und damit für jeden
+Vorgang wahr — auch für den, dem das Feld ganz fehlt. Der Editor legt genau
+diesen Zustand an, wenn man den Operator wählt und den Wert noch nicht; der
+Meilenstein sprang portfolioweit auf „erreicht", während das Wertfeld sichtbar
+leer stand. Der Editor markiert das Blatt jetzt zusätzlich als unvollständig.
+Wer „Feld ist leer" meint, hat dafür `leer`/`gefuellt`.
+
 **Signatur-Guard** ([projektion.ts](../../src/core/meilensteine/projektion.ts)):
 `planVersion@stand | schemaId:checksum:spaltenzahl | Kalendertag`. Der Tages-Anteil
 muss hinein, weil die Bewertung zeitabhängig ist — ohne ihn bliebe „fällig"
@@ -106,20 +121,64 @@ List-View). Gepflegt wird die Projektion in einem eigenen Post-Import-Pass neben
   Zustands-Punkten und Zeitstrahl), „Diese Woche" (überfällig/fällig über alle
   Verbünde), Auswertung (Ø-Dauer je Antragstyp, Soll gegen Ist je Knoten),
   Konfiguration (Baum- + Bedingungs-Editor, Fassungen, Freigabe).
-- **Home-Widget** „Meilensteine diese Woche" — Auszug für die eigenen Verbünde.
+- **Home-Widget „Fristen"** — eine Liste für beide Fristsysteme (Zieltage +
+  Meilensteine), Auszug für die eigenen Verbünde, **je Vorgang eine Zeile**
+  (gebündelt wie im Modul, `buendleNachVerbund`). Das frühere Einzel-Widget
+  „Meilensteine diese Woche" ist seit v4.87 abgelöst.
 - **Verbund-Detailseite**, Abschnitt `#meilensteine` unter `#status`: Zeitstrahl,
   Restzeit und Risiko-Meldung.
+
+### Was die Anzeige nicht behaupten darf (v4.118)
+
+Aus einer Bug-Jagd auf genau diese Oberfläche. Alle Regeln haben dieselbe Wurzel:
+**die Anzeige darf nichts sagen, was das Modell nicht trägt.**
+
+- **Keine Zahl ohne Deckung.** Bei Prognose `unbekannt` gilt kein Meilenstein des
+  Plans für diesen Verbund — dann steht dort das Label, nicht die aus der
+  Gesamtfrist gerechnete Restzeit (`restzeitText`). 300 von 1767 Verbünden traf
+  das, 44 davon mit einer freundlichen positiven Tageszahl.
+- **Kein Nenner im Verborgenen.** Die Reißquote je Knoten teilt durch
+  `betrachtet`; die Spalte steht deshalb in der Tabelle. Vorher las man
+  „0 | 1158 | 79 %".
+- **Der heutige Tag ist ein eigener Fall.** `restTageBis` normalisiert `-0` zu
+  `0`, die Anzeige schreibt „heute fällig" — `Math.ceil` liefert für einen
+  Termin von heute Mitternacht `-0`, und `-0 < 0` ist `false`.
+- **Geklemmt heißt markiert.** Ein Ist-Termin vor Woche 0 (Anker = spätestes
+  Antragsdatum, Ist-Feld datiert früher) wird in der Leiste als Dreieck am
+  Achsenanfang gezeichnet und in der Auswertung mit ⚠ + `VOR_EINGANG_HINWEIS`
+  erklärt, statt als Punkt auf „Eingang" zu sitzen (471 Ergebnisse in 426 von
+  1767 Verbünden).
+- **Zähler und Kachel zählen dasselbe.** Der Auswertungs-Reiter zählt nur
+  Abschlüsse mit rechenbarer Dauer; die übrigen (Abschluss vor Eingang) werden
+  benannt statt verschwiegen.
+- **Ein Filter darf keine Tatsache behaupten.** Die Leere der Wochenliste sagt,
+  dass „nur meine" sie zuschneidet, wenn das der Fall ist.
+- **Text braucht Text-Tokens.** Beschriftete Zustände nutzen
+  `ZUSTAND_TEXT_FARBE`, nicht die Marken-Palette (Rahmen-Tokens kamen als Schrift
+  auf 1,2–1,4:1).
+- **Der Plan sagt, wenn er sich selbst widerspricht.** Liegt die späteste
+  fristrelevante Soll-Woche hinter der Gesamtfrist (`planEndeTage`), steht das in
+  Konfiguration und Auswertung — sonst ist jeder Verbund „nicht haltbar" und drei
+  der fünf Prognose-Chips filtern dauerhaft ins Leere.
+- **Es steht da, welche Fassung gilt.** Die Auswertungs-Reiter nennen die
+  ausgewertete Fassung und einen abweichenden Entwurf; die Speicherleiste bleibt
+  auf jedem Reiter sichtbar, solange der Entwurf abweicht.
 
 ### Eingangs-Zeitraum und gemerkte Ansicht
 
 Der **Eingangs-Zeitraum** (Jahres-Chips, taggenaue Von-Bis-Felder, „Alle
 Eingänge") liegt auf der Seite und nicht in den Tabs: einmal eingrenzen, Ergebnis
-durchreichen. Er gilt für **Übersicht und Auswertung** — „Diese Woche" ist
-ausgenommen und blendet die Leiste dort auch aus, weil eine Arbeitsliste einen
-überfälligen Meilenstein zeigen muss, egal aus welchem Jahr der Antrag stammt
-(entsprechend rechnet ihr Tab-Zähler über alle offenen Verbünde). Vorbelegt ist
-das laufende Jahr — deckungsgleich mit dem ersten Chip, damit die Vorauswahl
-sichtbar ist.
+durchreichen. Er gilt für **alle drei Auswertungs-Reiter**, „Diese Woche"
+eingeschlossen (seit v2.358) — Vorgänge von vor drei Jahren sind kein Rückstand,
+sondern Altbestand mit unsauber gesetzten Status, und sie stellten 1771 der 1836
+Zeilen der Arbeitsliste. Über „Alle Eingänge" bleiben sie einen Klick entfernt.
+Vorbelegt sind das laufende Jahr und die beiden davor — deckungsgleich mit der
+Chip-Leiste, damit die Vorauswahl sichtbar ist.
+
+Der **Betrachtungsbereich** (Chip im Seitenkopf) liegt darüber und gilt für
+beide Hälften des Stands: offene Verbünde **und** Abschlüsse. Bis v4.118 lief die
+Dauer-Auswertung über den Vollbestand, während die Übersicht daneben gefiltert
+war (2.046 gegen 5.885) — zwei Grundgesamtheiten unter einem Chip.
 
 Die **Ansicht wird gemerkt**
 ([ansichtPersistenz.ts](../../src/plugins/meilensteine/ansichtPersistenz.ts)):
@@ -137,6 +196,25 @@ weg. Drei Feinheiten, die den Code erklären:
 - **„nur meine" startet an, sobald ein eigenes Kürzel gesetzt ist**
   (`standardFilter`), ohne Kürzel immer aus — sonst blendete der Filter alles aus
   und der Schalter dazu ist gar nicht sichtbar.
+- **Ein gemerkter Zeitraum muss ein echter Tag sein.** Die Ziffernform allein
+  genügt nicht (`2024-13-99` besteht sie): ein solcher Wert filterte die Seite
+  auf null, ohne sichtbar zu sein — kein Chip aktiv, beide Datumsfelder leer,
+  weil `<input type="date">` ihn nicht annimmt. `istIsoTag` prüft darum den Tag
+  selbst und `von <= bis` dazu.
+- **Ein unsichtbarer Reiter überschreibt die gemerkte Wahl nicht.**
+  `useSichtbareReiter` bekommt den reinen State-Setter, nicht den merkenden:
+  die Korrektur auf einen sichtbaren Reiter ist eine Notlage der Sitzung, keine
+  Wahl des Nutzers.
+
+**Das eigene Kürzel folgt dem app-weiten Vertrag**
+([bearbeiterFilter.ts](../../src/plugins/antraege/bearbeiterFilter.ts)): getrimmt,
+**uppercase**, komma-getrennt (Vertretung), und `alle` heißt „kein Kürzel". Die
+Kürzel der Verbünde kommen aus `tib_kuerz` **und** `bib_kuerz` und liegen in
+zwei Formen vor — `kuerzel` (Vergleich, NFC+upper) und `kuerzelAnzeige`
+(Schreibweise der Daten, nur zum Beschriften, Guard
+`anzeigetokens-nur-anzeigen`). Bis v4.118 verglich das Modul roh und
+zeichengenau: `ATh` traf, `ATH` nicht — bei 81 gemischt geschriebenen Kürzeln von
+112 war „nur meine" für die meisten eine leere Liste.
 
 Der **Bedingungs-Editor**
 ([BedingungEditor.tsx](../../src/plugins/meilensteine/BedingungEditor.tsx)) ist

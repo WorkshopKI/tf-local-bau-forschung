@@ -20,6 +20,8 @@ import {
   listAllAntraegeListView, listProgramme, listSchemasByProgramm,
 } from '@/core/services/csv/idb-csv';
 import { getAntragstypBucket, type AntragstypBucket } from '@/core/utils/vb-phase-mappings';
+import { anzeigeTokensFuer, parseBearbeiterFilter } from '@/plugins/antraege/bearbeiterFilter';
+import { kuerzelFormen } from './monitoringLogic';
 import {
   freigegebeneFassung, holeProjektion, ladePlan,
   type AbschlussFall, type MeilensteinPlan, type VerbundMeilensteine,
@@ -29,8 +31,14 @@ import {
 export interface VerbundZeile extends VerbundMeilensteine {
   akronym: string;
   titel: string;
-  /** TIB-Kürzel aller Teilvorhaben (für den „nur meine"-Filter). */
+  /**
+   * Bearbeiter-Kürzel aller Teilvorhaben in der **Vergleichsform** (NFC +
+   * uppercase, wie `BearbeiterFilterMode.tokens`) — der Wert, gegen den „nur
+   * meine" matcht. Nie zum Anzeigen; dafür steht `kuerzelAnzeige` daneben.
+   */
   kuerzel: string[];
+  /** Dieselben Kürzel in der Schreibweise der Daten — **nur** zum Anzeigen. */
+  kuerzelAnzeige: string[];
 }
 
 export interface MeilensteinStandApi {
@@ -44,7 +52,14 @@ export interface MeilensteinStandApi {
   ausgeblendet: number;
   /** Abgeschlossene Vorgänge für die Dauer-Auswertung (aus der Listen-Projektion). */
   abschluesse: AbschlussFall[];
-  meinKuerzel: string;
+  /**
+   * Das eigene Kürzel als Filter-Tokens (Vergleichsform). Leer heißt „kein
+   * eigenes Kürzel" — auch bei `alle` im Profil, das app-weit den
+   * Übersichts-Modus meint und keinen Namen (`parseBearbeiterFilter`).
+   */
+  meineTokens: string[];
+  /** Dieselben Tokens in der Schreibweise der Daten — nur für Beschriftungen. */
+  meineTokensAnzeige: string[];
   /** Zeitpunkt der Bewertung — alle Zustände beziehen sich darauf. */
   stand: string;
   neuLaden: () => Promise<void>;
@@ -102,17 +117,35 @@ export function useMeilensteinStand(): MeilensteinStandApi {
 
   useEffect(() => { void laden0(); }, [laden0]);
 
-  /** verbundId → Anzeige-Daten aus der schlanken Listen-Projektion. */
+  /**
+   * verbundId → Anzeige-Daten aus der schlanken Listen-Projektion.
+   *
+   * Die Kürzel kommen aus **beiden** Bearbeiter-Spalten (`tib_kuerz` +
+   * `bib_kuerz`, wie `bearbeiterFilter.ts` sie führt) und werden in der
+   * Vergleichsform (NFC + uppercase) abgelegt; die Schreibweise der Daten läuft
+   * getrennt mit. Bis v4.118 stand hier nur `tib_kuerz` in roher Schreibweise —
+   * gegen ein Profilfeld, das die Einstellungen großgeschrieben ablegen. 81 der
+   * 112 Kürzel im Bestand sind gemischt geschrieben und trafen deshalb nie.
+   */
   const meta = useMemo(() => {
-    const m = new Map<string, { akronym: string; titel: string; kuerzel: Set<string> }>();
+    const m = new Map<string, {
+      akronym: string; titel: string; kuerzel: Set<string>; kuerzelAnzeige: Map<string, string>;
+    }>();
     for (const a of listItems) {
       const id = a.verbund_id;
       if (!id) continue;
-      const vorhanden = m.get(id) ?? { akronym: '', titel: '', kuerzel: new Set<string>() };
+      const vorhanden = m.get(id)
+        ?? { akronym: '', titel: '', kuerzel: new Set<string>(), kuerzelAnzeige: new Map<string, string>() };
       if (!vorhanden.akronym && a.akronym) vorhanden.akronym = a.akronym;
       if (!vorhanden.titel) vorhanden.titel = a.verbund_titel ?? a.titel ?? '';
-      const k = a.tib_kuerz?.trim();
-      if (k) vorhanden.kuerzel.add(k.normalize('NFC'));
+      for (const roh of [a.tib_kuerz, a.bib_kuerz]) {
+        const formen = kuerzelFormen(roh);
+        if (!formen) continue;
+        vorhanden.kuerzel.add(formen.vergleich);
+        if (!vorhanden.kuerzelAnzeige.has(formen.vergleich)) {
+          vorhanden.kuerzelAnzeige.set(formen.vergleich, formen.anzeige);
+        }
+      }
       m.set(id, vorhanden);
     }
     return m;
@@ -139,16 +172,26 @@ export function useMeilensteinStand(): MeilensteinStandApi {
       akronym: m?.akronym || v.verbundId,
       titel: m?.titel ?? '',
       kuerzel: m ? [...m.kuerzel] : [],
+      kuerzelAnzeige: m ? [...m.kuerzelAnzeige.values()] : [],
     };
   }), [roh, meta, imBereich]);
 
   /**
    * Abschlüsse für die Dauer-Auswertung: ein Eintrag je Verbund, Anker ist das
    * späteste Antragsdatum seiner Teilvorhaben (dieselbe Regel wie in der Engine).
+   *
+   * **Derselbe Betrachtungsbereich wie die offenen Verbünde.** Bis v4.118 lief
+   * diese Hälfte über den Vollbestand, während die Übersicht darüber gefiltert
+   * war: bei „letzte 3 Richtlinien" standen 2.046 offene Verbünde neben 5.885
+   * Abschlüssen, von denen 658 gar nicht zum Arbeitsvorrat gehörten. Der Chip im
+   * Seitenkopf sagt „Anzeige: …" und muss dann auch für die Auswertung gelten.
+   * Gefiltert wird je Antrag (nicht über die Verbund-Menge oben), weil hier auch
+   * Anträge ohne `verbund_id` als Einzelfall zählen.
    */
   const abschluesse = useMemo<AbschlussFall[]>(() => {
     const proVerbund = new Map<string, { typ: AntragstypBucket | null; anker: string | null; abschluss: string | null }>();
     for (const a of listItems) {
+      if (bereich.menge !== null && !istImBereich(a.unterprogramm_id, bereich.menge)) continue;
       const id = a.verbund_id || `solo:${a.aktenzeichen}`;
       const vorhanden = proVerbund.get(id) ?? { typ: null, anker: null, abschluss: null };
       if (vorhanden.typ === null) vorhanden.typ = getAntragstypBucket(a.vb_phase);
@@ -163,10 +206,26 @@ export function useMeilensteinStand(): MeilensteinStandApi {
       .map(([verbundId, v]) => ({
         verbundId, typ: v.typ, antragsdatum: v.anker, abschlussDatum: v.abschluss,
       }));
-  }, [listItems]);
+  }, [listItems, bereich.menge]);
+
+  /**
+   * Das eigene Kürzel über den **app-weiten** Vertrag (`parseBearbeiterFilter`):
+   * getrimmt, uppercase, komma-getrennt, und `alle` heißt „kein Kürzel".
+   * Vorher verglich dieses Modul roh und zeichengenau — `ATh` traf, `ATH` nicht,
+   * `alle` blendete alles aus, und eine Vertretung („ATh, MB") traf nie.
+   */
+  const kuerzelModus = useMemo(() => parseBearbeiterFilter(meinKuerzel, false), [meinKuerzel]);
+  const meineTokens = kuerzelModus.active ? kuerzelModus.tokens : [];
+  const meineTokensAnzeige = useMemo(
+    () => anzeigeTokensFuer(listItems, meineTokens),
+    // `meineTokens` hängt an `kuerzelModus` und ist mit ihm stabil.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [listItems, kuerzelModus],
+  );
 
   return {
-    laden, fehler, keinPlan, plan, zeilen, abschluesse, meinKuerzel, stand, neuLaden: laden0,
+    laden, fehler, keinPlan, plan, zeilen, abschluesse, meineTokens, meineTokensAnzeige,
+    stand, neuLaden: laden0,
     ausgeblendet: imBereich === null ? 0 : roh.length - zeilen.length,
   };
 }

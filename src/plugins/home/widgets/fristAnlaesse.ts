@@ -55,6 +55,11 @@ export interface FristAnlass {
   ueberTage: number | null;
   /** Frist gerissen bzw. Stillstand festgestellt (rot) — sonst steht sie bevor (gelb). */
   gerissen: boolean;
+  /**
+   * Wie viele **weitere** Anlässe desselben Verbunds diese Zeile mitvertritt
+   * (0/undefined = keine). Wird von `buendleNachVerbund` gesetzt.
+   */
+  weitere?: number;
 }
 
 /**
@@ -135,6 +140,37 @@ export function sortiereAnlaesse(anlaesse: readonly FristAnlass[]): FristAnlass[
     if (ua !== ub) return ub - ua;
     return a.akronym.localeCompare(b.akronym, 'de');
   });
+}
+
+/**
+ * Bündelt die Anlässe je Verbund **und Quelle** — eine Zeile je Vorgang.
+ *
+ * Ein Verbund, der seit Jahren liegt, reißt nicht ein Problem, sondern einen
+ * Meilenstein nach dem anderen: am echten Bestand trugen die acht sichtbaren
+ * Zeilen des Widgets nur drei verschiedene Akronyme, während dasselbe Modul
+ * seine Liste längst bündelte („DynaMaint · 5 offen"). Zwei Ansichten derselben
+ * Sache dürfen nicht verschieden zählen.
+ *
+ * Getrennt nach `art`, weil Stillstand und Meilenstein zwei Systeme mit zwei
+ * Pflegeorten sind — sie zusammenzuziehen nähme der Zeile ihre Herkunft.
+ *
+ * Erwartet eine bereits **sortierte** Liste (`sortiereAnlaesse`): dadurch ist
+ * der erste Anlass je Verbund automatisch der dringendste, und die Einfüge-
+ * Reihenfolge der Map hält die Sortierung. Hier wird deshalb bewusst nicht ein
+ * zweites Mal sortiert.
+ */
+export function buendleNachVerbund(anlaesse: readonly FristAnlass[]): FristAnlass[] {
+  const proVorgang = new Map<string, FristAnlass>();
+  for (const a of anlaesse) {
+    const schluessel = `${a.art}:${a.verbundId}`;
+    const vorhanden = proVorgang.get(schluessel);
+    if (vorhanden) {
+      vorhanden.weitere = (vorhanden.weitere ?? 0) + 1;
+      continue;
+    }
+    proVorgang.set(schluessel, { ...a, weitere: 0 });
+  }
+  return [...proVorgang.values()];
 }
 
 /**

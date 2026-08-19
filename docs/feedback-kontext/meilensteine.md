@@ -68,7 +68,8 @@ Teilvorhaben.
 - Derselbe Zeitstrahl steht auf der Verbund-Detailseite; dort lässt sich auch ein
   **Risiko melden** — die Meldung geht in den persönlichen Ordner, die PL sammelt
   sie ein.
-- Das Home-Widget „Meilensteine diese Woche" zeigt den Auszug für eigene Verbünde.
+- Das Home-Widget „Fristen" zeigt den Auszug für eigene Verbünde — eine Zeile je
+  Vorgang, mit „N offen", wenn mehrere Meilensteine desselben Vorgangs anstehen.
 - Nicht zu verwechseln mit den Projekt-Meilensteinen der Begleitphase
   (`MS01`–`MS03`) und der Anzeige-Prominenz „Meilenstein" der Status-Timeline.
 

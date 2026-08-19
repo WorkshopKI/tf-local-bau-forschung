@@ -42,6 +42,21 @@ const ALLE = 'alle';
 
 const ISO_TAG = /^\d{4}-\d{2}-\d{2}$/;
 
+/**
+ * Ein **wirklich existierender** Kalendertag in ISO-Form.
+ *
+ * Die Ziffernform allein genügt nicht: `2024-13-99` besteht sie, ist aber kein
+ * Datum. Ein so gespeicherter Zeitraum filterte die ganze Seite auf null, ohne
+ * dass ihn jemand sehen konnte — kein Chip stand auf aktiv, und die
+ * Datumsfelder blieben leer, weil `<input type="date">` den Wert nicht annimmt.
+ * Der Roundtrip über `Date` prüft deshalb den Tag selbst.
+ */
+function istIsoTag(wert: unknown): wert is string {
+  if (typeof wert !== 'string' || !ISO_TAG.test(wert)) return false;
+  const d = new Date(`${wert}T00:00:00Z`);
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === wert;
+}
+
 interface Gespeichert {
   tab?: TabKey;
   /**
@@ -80,9 +95,11 @@ function writePatch(patch: Gespeichert): void {
 
 function istBereich(wert: unknown): wert is DatumBereich {
   const b = wert as DatumBereich | null;
+  // `von <= bis` gehört dazu: ein gedrehter Bereich trifft nichts, und die
+  // Leiste stellt ihn nicht als Ursache dar (die Setzer ziehen die Gegengrenze
+  // deshalb mit, siehe `setzeVon`/`setzeBis`).
   return !!b && typeof b === 'object'
-    && typeof b.von === 'string' && ISO_TAG.test(b.von)
-    && typeof b.bis === 'string' && ISO_TAG.test(b.bis);
+    && istIsoTag(b.von) && istIsoTag(b.bis) && b.von <= b.bis;
 }
 
 /** Werte, die es heute noch gibt — nach einem Umbau fallen alte still weg. */

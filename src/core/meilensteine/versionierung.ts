@@ -5,7 +5,9 @@
  *
  * Drei Regeln, die den Rest tragen:
  * - **Historie newest-first**, `historie[0]` ≙ dem Stand VOR der aktuellen
- *   Änderung. Gekappt auf `MAX_HISTORIE`.
+ *   Änderung. Gekappt auf `MAX_HISTORIE` — mit EINER Ausnahme: die jüngste
+ *   freigegebene Fassung bleibt stehen, sonst nähme die Kappung dem Modul seine
+ *   Auswertungsgrundlage (`kappeHistorie`).
  * - **Der Status ist eine eigene Achse.** Bearbeiten macht eine neue Fassung
  *   (und setzt sie auf `entwurf`); Freigeben ist ein eigener Schritt mit
  *   eigenem Snapshot — wer wann freigegeben hat, ist die auditrelevante Info.
@@ -30,11 +32,46 @@ function snapshot(plan: MeilensteinPlan): MeilensteinPlanSnapshot {
   };
 }
 
+/**
+ * Kappt die Historie auf `MAX_HISTORIE` — **hält aber die jüngste freigegebene
+ * Fassung fest**, auch wenn sie dabei aus dem Fenster fiele.
+ *
+ * Ohne diese Ausnahme kostete die 21. Entwurfs-Speicherung in Folge den
+ * geltenden Plan: `freigegebeneFassung` fällt auf die Historie zurück, und mit
+ * dem letzten `freigegeben`-Snapshot verschwindet die Grundlage der ganzen
+ * Auswertung. Alle Reiter meldeten dann „Noch kein Plan freigegeben", die Zähler
+ * standen auf 0 — ohne Warnung und ohne Rückweg, weil die Fassung nicht nur aus
+ * dem Blick, sondern aus der Datei war.
+ *
+ * Sie verdrängt den ältesten Eintrag des Fensters statt es zu verlängern: die
+ * Obergrenze bleibt eingehalten, und der älteste Entwurf ist der am wenigsten
+ * wertvolle Eintrag.
+ */
+function kappeHistorie(historie: readonly MeilensteinPlanSnapshot[]): MeilensteinPlanSnapshot[] {
+  if (historie.length <= MAX_HISTORIE) return [...historie];
+  const fenster = historie.slice(0, MAX_HISTORIE);
+  if (fenster.some(h => h.status === 'freigegeben')) return fenster;
+  const juengsteFreigabe = historie.find(h => h.status === 'freigegeben');
+  if (!juengsteFreigabe) return fenster;
+  return [...fenster.slice(0, MAX_HISTORIE - 1), juengsteFreigabe];
+}
+
 function mitSnapshot(plan: MeilensteinPlan, naechster: Omit<MeilensteinPlan, 'historie'>): MeilensteinPlan {
   return {
     ...naechster,
-    historie: [snapshot(plan), ...plan.historie].slice(0, MAX_HISTORIE),
+    historie: kappeHistorie([snapshot(plan), ...plan.historie]),
   };
+}
+
+/**
+ * Ist eine Historien-Fassung inhaltlich dasselbe wie der aktuelle Plan? Dann ist
+ * „Als Entwurf übernehmen" ein No-op (`neueFassung` gibt denselben Plan zurück),
+ * und die Oberfläche muss das sagen, statt einen wirkungslosen Knopf anzubieten.
+ */
+export function istInhaltsgleich(
+  plan: MeilensteinPlan, fassung: { knoten: MeilensteinKnoten[]; gesamtfristTage: number },
+): boolean {
+  return inhaltGleich(plan, fassung);
 }
 
 /** Strukturvergleich für den No-op-Check — Reihenfolge zählt, Zeitstempel nicht. */
