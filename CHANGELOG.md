@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.115.1 — Zeichen-Cap an der gemessenen Token-Quote (August 2026)
+
+PATCH — Ein 220.000-Zeichen-Antrag (~20.000 Wörter, 23 Tabellen) galt als „länger als das Kontextfenster", obwohl er in der internen KI nur 42k von 62k Tokens belegt. Der Cap ist abgeleitet, nicht gesetzt — und beide Faktoren der Ableitung waren geraten, nicht gemessen.
+
+- **Zeichen/Token-Quote 3 → 4,8** — gemessen statt als Sicherheitsmarge gesetzt (220.000 Zeichen ≙ 42k Tokens = 5,24, davon ~8 % Abzug); die alte Quote unterschätzte um Faktor 1,7 ([llm-context.ts](src/core/services/ai/llm-context.ts))
+- **Token-Reserve 4.096 → 12.288** — bei aktivem Thinking belegt allein der Output 10.240 Tokens, das deckte die alte Reserve nie ([run-skill.ts](src/core/services/skills/run/run-skill.ts))
+- Cap der Standard-KI damit 173.712 → **238.617** Zeichen, Default-Fenster → 334.233, agentisch → 1.198.617
+- `computeVbCharCap` rundet ab — die Quote ist gebrochen, ein Zeichen-Cap ist eine ganze Zahl
+- Beide Konstanten tragen Messwert + Verfahren im Kommentar: bei Wechsel des internen Modells neu messen
+
 ### v4.115.0 — Sichtbarkeits-Katalog als Baum (August 2026)
 
 MINOR — 192 Zeilen in 21 Kästen hießen, an neunzig Zeilen vorbeizuscrollen, um eine zu finden. Und der An-Zustand einer Marke unterschied sich vom Aus-Zustand nur durch einen Hauch kräftigeren Rand.

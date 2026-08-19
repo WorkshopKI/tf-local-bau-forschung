@@ -22,6 +22,7 @@
 ## v4.115 — 2026-08
 
 ### Verbesserungen
+- **Lange Anträge gelten nicht mehr vorschnell als „zu lang".** Beim Ablegen einer Vorhabensbeschreibung warnte die App ab rund 170.000 Zeichen, die KI würde den Schluss nicht mehr sehen — dabei belegt ein Antrag dieser Länge in der internen KI nur etwa zwei Drittel des Platzes. Die App rechnete Zeichen viel zu vorsichtig in Tokens um. Die Grenze liegt jetzt bei rund 238.000 Zeichen, gemessen an einem echten Antrag statt geschätzt.
 - **„Datenpflege › Sichtbarkeit" passt jetzt auf einen Bildschirm.** Die Liste war fast 200 Zeilen lang; jetzt steht dort ein aufklappbarer Baum mit einer Zeile je Seite. An einer zugeklappten Seite sehen Sie, wie viel darunter markiert ist („3 markiert"), und „Alles aufklappen" öffnet bei Bedarf alles auf einmal.
 - **Man sieht jetzt auf einen Blick, was an und was aus ist.** Eine eingeschaltete „Beta"-Marke ist blau ausgefüllt — dieselbe Farbe wie das Beta-Abzeichen in der App —, eine eingeschaltete „Experte"-Marke dunkel. Ausgeschaltet sind beide nur ein feiner Umriss. Vorher unterschieden sich an und aus fast nur durch die Randstärke.
 
