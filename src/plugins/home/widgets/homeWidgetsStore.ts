@@ -419,15 +419,24 @@ export function zurueckgesetzteConfig(): HomeWidgetConfig {
  * `position` mit dem nächsten Nachbarn DESSELBEN Bereichs; die andere Spalte
  * bleibt unberührt. Am Spaltenrand / bei unbekannter ID ein No-op (Referenz-
  * gleich). Der `bereich` bleibt unverändert (Pfeile wechseln nie die Spalte).
+ *
+ * `zaehlt` blendet Nachbarn aus, die gar nicht auf dem Schirm stehen (von der
+ * Beta-/Experten-Achse verborgen). Ohne das tauschte der Pfeil mit einem
+ * unsichtbaren Nachbarn: die Zeile blieb, wo sie war, und der Klick sah aus,
+ * als hätte er nicht funktioniert — die Liste rechnete mit der gekürzten
+ * Reihenfolge, der Tausch mit der vollen.
  */
 export function moveInstanz(
   cfg: HomeWidgetConfig,
   id: string,
   richtung: 'hoch' | 'runter',
+  zaehlt: (w: WidgetInstanz) => boolean = () => true,
 ): HomeWidgetConfig {
   const el = cfg.widgets.find(w => w.id === id);
   if (!el) return cfg;
-  const geschwister = sortiereInstanzen(cfg.widgets).filter(w => w.bereich === el.bereich);
+  const geschwister = sortiereInstanzen(cfg.widgets)
+    .filter(w => w.bereich === el.bereich)
+    .filter(w => w.id === id || zaehlt(w));
   const idx = geschwister.findIndex(w => w.id === id);
   const ziel = richtung === 'hoch' ? idx - 1 : idx + 1;
   if (ziel < 0 || ziel >= geschwister.length) return cfg;

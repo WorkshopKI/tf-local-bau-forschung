@@ -82,7 +82,7 @@ Warnung. Wer beides trägt, zeigt trotzdem nur „Beta".
 |---|---|
 | Seite | `visiblePlugins`-Memo in [ShellLayout.tsx](../../src/core/ShellLayout.tsx) — deckt Sidebar, Command-Palette und Shortcuts in einem Zug ab |
 | Reiter | `useSichtbareReiter()` an der jeweiligen Tab-Liste |
-| Abschnitt in Einstellungen/Datenpflege | [SettingsHubPage](../../src/components/settings/SettingsHubPage.tsx) filtert Panels + Abschnitte (Navigation **und** Suchindex), `SettingsGruppe`/`SettingsOption` prüfen sich über `HubPluginContext` selbst |
+| Abschnitt in Einstellungen/Datenpflege | [SettingsHubPage](../../src/components/settings/SettingsHubPage.tsx) filtert Panels + Abschnitte (Navigation **und** Suchindex); **alle vier** Layout-Bauteile (`SettingsGruppe`, `SettingsOption`, `SettingsBlock`, `SettingsKlappe`) prüfen sich über `HubPluginContext` selbst — Guard `sichtbarkeit-alle-bauteile` (bis v4.116 taten es nur die ersten beiden, 9 von 16 markierten Abschnitten blieben stehen) |
 | Abschnitt der Verbund-Detailseite | `Sektionsrahmen` bzw. `WennDetailSektion` in [detailRahmen.tsx](../../src/plugins/antraege/detailRahmen.tsx) |
 | Karte auf einer Fachseite | `<WennSichtbar id={abschnittId('<seite>', 'karte-<name>')}>` — siehe unten |
 | Startseiten-Widget | `widgetAnzeigbar()` in [homeWidgetsStore.ts](../../src/plugins/home/widgets/homeWidgetsStore.ts) — die eine Stelle, an der `verfuegbar`, `sichtbarWenn()` und die Marken zusammenkommen |

@@ -43,6 +43,7 @@ import {
   SettingsLeer,
   SettingsOption,
   SettingsTrustZeile,
+  useAbschnittSichtbar,
 } from '@/components/settings';
 import { GedaechtnisVerwaltung, useGedaechtnisZahl } from './GedaechtnisVerwaltung';
 
@@ -53,7 +54,15 @@ const HINT_GEDAECHTNIS =
 const HINT_TRUST =
   'Protokoll und Gedächtnis liegen in der IndexedDB dieses Browsers. Sie werden nicht auf den Team-Ordner geschrieben, nicht in Sicherungen aufgenommen und nicht exportiert — außer du exportierst sie hier selbst.';
 
-export function AssistentGruppe(): React.ReactElement {
+/** Wie viele Ereignisse die Tabelle zeigt — sie ist ein Auszug, kein Bestand. */
+const EREIGNIS_TABELLE_MAX = 100;
+
+export function AssistentGruppe(): React.ReactElement | null {
+  // Die Karte lebt für den Protokoll-Schalter. Ist der von der Beta-Achse
+  // verborgen, sind es auch alle anderen Zeilen darin — übrig bliebe eine
+  // Karte, die nur noch „Alles bleibt auf diesem Gerät" verspricht, ohne dass
+  // es etwas gäbe, worauf sich das bezieht.
+  const zeigeKarte = useAbschnittSichtbar('sec-assistent-protokoll');
   const [aktiv, setAktiv] = useState<boolean>(istProtokollAktiv());
   const [gedAktiv, setGedAktiv] = useState<boolean>(istGedaechtnisAktiv());
   const [stats, setStats] = useState<ProtokollStatistik | null>(null);
@@ -65,7 +74,7 @@ export function AssistentGruppe(): React.ReactElement {
 
   const laden = useCallback(async () => {
     setStats(await ladeStatistik());
-    setLetzte(await ladeLetzteEreignisse(100));
+    setLetzte(await ladeLetzteEreignisse(EREIGNIS_TABELLE_MAX));
   }, []);
 
   useEffect(() => { void laden(); }, [laden]);
@@ -107,6 +116,8 @@ export function AssistentGruppe(): React.ReactElement {
   const gesamt = stats?.gesamt ?? 0;
   const jeTyp = Object.entries(stats?.jeTyp ?? {}).sort((a, b) => b[1] - a[1]);
 
+  if (!zeigeKarte) return null;
+
   return (
     <SettingsGruppe
       titel="Persönlicher Assistent"
@@ -135,12 +146,20 @@ export function AssistentGruppe(): React.ReactElement {
           id="sec-assistent-gedaechtnis"
           label="Persönliches Gedächtnis"
           hint={HINT_GEDAECHTNIS}
-          gesperrt={!aktiv && !gedAktiv}
+          // Die Sperre haengt am ARBEITSPROTOKOLL, nicht am Zusammenspiel
+          // beider Schalter: die Konsolidierung prueft `istProtokollAktiv()`
+          // und meldet sonst „deaktiviert". Bis v4.116 griff die Erklaerung nur,
+          // wenn BEIDE aus waren — im Zustand „Gedaechtnis an, Protokoll aus"
+          // stand der Schalter unkommentiert auf AN und versprach etwas, das
+          // nicht galt.
+          gesperrt={!aktiv}
           kurzzeile={
             gedUmschalten.error
               ? <span className="text-[var(--tf-danger-text)]">Konnte die Einstellung nicht speichern: {gedUmschalten.error}</span>
-              : !aktiv && !gedAktiv
-                ? 'Erst möglich, wenn das Arbeitsprotokoll an ist'
+              : !aktiv
+                ? (gedAktiv
+                  ? 'Ruht, solange das Arbeitsprotokoll aus ist — es liefert die Grundlage'
+                  : 'Erst möglich, wenn das Arbeitsprotokoll an ist')
                 : undefined
           }
         >
@@ -184,6 +203,16 @@ export function AssistentGruppe(): React.ReactElement {
         )}
 
         {gesamt > 0 ? (
+          <>
+          {/* Die Tabelle zeigt die jüngsten EREIGNIS_TABELLE_MAX, der Zähler
+              oben alle. Ohne diese Zeile las sich der Ausschnitt wie der ganze
+              Bestand — der Export liefert dagegen wirklich alles. */}
+          {gesamt > EREIGNIS_TABELLE_MAX && (
+            <p className="text-[11.5px] text-[var(--tf-text-tertiary)] mb-1">
+              Auszug: die {EREIGNIS_TABELLE_MAX} neuesten von {gesamt.toLocaleString('de-DE')} Ereignissen.
+              Der Export enthält alle.
+            </p>
+          )}
           <div
             className="rounded-[var(--tf-radius)] overflow-hidden max-h-72 overflow-y-auto bg-[var(--tf-bg)] mb-3"
             style={{ border: '0.5px solid var(--tf-border)' }}
@@ -211,6 +240,7 @@ export function AssistentGruppe(): React.ReactElement {
               </tbody>
             </table>
           </div>
+          </>
         ) : (
           <SettingsLeer>
             {aktiv

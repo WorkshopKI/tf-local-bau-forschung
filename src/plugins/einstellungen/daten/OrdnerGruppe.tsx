@@ -92,6 +92,8 @@ export function OrdnerGruppe(): React.ReactElement {
 
   const [updateBusy, setUpdateBusy] = useState(false);
   const [updateMsg, setUpdateMsg] = useState<string | null>(null);
+  /** Quellen, die der letzte Lauf abgewiesen hat (Spalten-Drift oder Fehler). */
+  const [updateDetails, setUpdateDetails] = useState<string[]>([]);
 
   const [verlauf, setVerlauf] = useState<ArbeitskontextEintrag[]>([]);
   const [verlaufBusy, setVerlaufBusy] = useState(false);
@@ -120,8 +122,26 @@ export function OrdnerGruppe(): React.ReactElement {
     return () => { cancelled = true; };
   }, [storage]);
 
-  // CSV-Ordner-Handle + Status + alle CSV-Schemas vorab laden, damit der Picker
-  // im Klick-Gesture OHNE await-davor läuft (file://-User-Activation).
+  // CSV-Schemas IMMER laden — sie tragen „Letzter CSV-Import" in der Zeile des
+  // Datenordners. Bis v4.116 hingen sie am `showCsvFolder`-Zweig: im schlanken
+  // Build (kein CSV-Ordner-Abschnitt) blieb die Angabe leer und erschien erst
+  // nach einem Klick auf „Aktualisieren", obwohl der Wert längst gespeichert war.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const schemas: CsvSchema[] = [];
+      try {
+        for (const p of await listProgramme(storage.idb)) {
+          schemas.push(...await listSchemas(storage.idb, p.id));
+        }
+      } catch { /* leer lassen */ }
+      if (!cancelled) setCsvSchemas(schemas);
+    })();
+    return () => { cancelled = true; };
+  }, [storage]);
+
+  // CSV-Ordner-Handle + Status vorab laden, damit der Picker im Klick-Gesture
+  // OHNE await-davor läuft (file://-User-Activation).
   useEffect(() => {
     if (!showCsvFolder) return;
     let cancelled = false;
@@ -131,17 +151,10 @@ export function OrdnerGruppe(): React.ReactElement {
       if (handle) {
         try { online = (await queryCsvSourceDirPermission(handle)) === 'granted'; } catch { online = false; }
       }
-      const schemas: CsvSchema[] = [];
-      try {
-        for (const p of await listProgramme(storage.idb)) {
-          schemas.push(...await listSchemas(storage.idb, p.id));
-        }
-      } catch { /* leer lassen */ }
       if (cancelled) return;
       setCsvDirExists(!!handle);
       setCsvDirName(handle?.name ?? null);
       setCsvDirOnline(online);
-      setCsvSchemas(schemas);
     })();
     return () => { cancelled = true; };
   }, [storage, showCsvFolder]);
@@ -154,12 +167,27 @@ export function OrdnerGruppe(): React.ReactElement {
     return () => { cancelled = true; };
   }, [storage]);
 
+  /**
+   * Meldet einen Fehler in die Zeile, die diese Karte dafür schon hat.
+   *
+   * Bis v4.116 hatten sieben der acht Aktionen hier `try … finally` OHNE
+   * `catch`: der Spinner ging aus, die Zeile blieb leer, und was schiefging,
+   * stand nur in der Konsole. Auf einem Netzlaufwerk ist ein Fehlschlag der
+   * Normalfall, nicht die Ausnahme (Pitfall #15).
+   */
+  const melde = (err: unknown, ersatz: string): void => {
+    setFehler(err instanceof Error && err.message ? err.message : ersatz);
+  };
+
   const handleClearVerlauf = async (): Promise<void> => {
     if (!window.confirm(ARBEITSVERLAUF_LOESCHEN_FRAGE)) return;
+    setFehler('');
     setVerlaufBusy(true);
     try {
       await clearArbeitskontextLog(storage.idb);
       setVerlauf([]);
+    } catch (err) {
+      melde(err, 'Der Arbeitsverlauf konnte nicht gelöscht werden.');
     } finally {
       setVerlaufBusy(false);
     }
@@ -179,16 +207,23 @@ export function OrdnerGruppe(): React.ReactElement {
       setPersConnected(true);
       setPersFolderName(res.handle.name);
       setPersoenlichAvailable(true);
+    } catch (err) {
+      melde(err, 'Persönlicher Ordner konnte nicht verbunden werden.');
     } finally {
       setPersBusy(false);
     }
   };
 
   const handleDisconnectPers = async (): Promise<void> => {
-    await clearPersoenlichHandle(storage.idb);
-    setPersConnected(false);
-    setPersFolderName(null);
-    setPersoenlichAvailable(false);
+    setFehler('');
+    try {
+      await clearPersoenlichHandle(storage.idb);
+      setPersConnected(false);
+      setPersFolderName(null);
+      setPersoenlichAvailable(false);
+    } catch (err) {
+      melde(err, 'Persönlicher Ordner konnte nicht getrennt werden.');
+    }
   };
 
   // CSV-Ordner: Picker DIREKT (csvSchemas sind vorab geladen — kein await davor,
@@ -217,10 +252,19 @@ export function OrdnerGruppe(): React.ReactElement {
   };
 
   const handleDisconnectCsv = async (): Promise<void> => {
-    await clearCsvSourceDirHandle(storage.idb);
-    setCsvDirExists(false);
-    setCsvDirName(null);
-    setCsvDirOnline(false);
+    setFehler('');
+    try {
+      await clearCsvSourceDirHandle(storage.idb);
+      setCsvDirExists(false);
+      setCsvDirName(null);
+      setCsvDirOnline(false);
+      // Wie beim Verknüpfen: die Fußzeilen-Ampel „● CSV" hört auf dieses Signal.
+      // Ohne es sagte die Zeile hier „nicht verknüpft", während die Ampel
+      // unverändert „Aktuell" meldete — bis zum nächsten Browser-Reload.
+      bumpCsvSourcesSignal();
+    } catch (err) {
+      melde(err, 'CSV-Ordner konnte nicht getrennt werden.');
+    }
   };
 
   // Datenordner: Picker DIREKT (kein await davor — User-Gesture-Pattern).
@@ -241,6 +285,8 @@ export function OrdnerGruppe(): React.ReactElement {
       setDsFolderName(res.handle.name);
       const refreshed = await refreshAllPermissions(storage.idb, { isKurator });
       applyRefreshResult(refreshed);
+    } catch (err) {
+      melde(err, 'Datenordner konnte nicht verbunden werden.');
     } finally {
       setDsBusy(false);
     }
@@ -253,6 +299,8 @@ export function OrdnerGruppe(): React.ReactElement {
       const isKurator = profile?.is_kurator === true || profile?.is_admin === true;
       const result = await refreshAllPermissions(storage.idb, { isKurator });
       applyRefreshResult(result);
+    } catch (err) {
+      melde(err, 'Der Zugriff konnte nicht erneuert werden.');
     } finally {
       setDsBusy(false);
     }
@@ -263,6 +311,7 @@ export function OrdnerGruppe(): React.ReactElement {
   const handleRunDataUpdate = async (): Promise<void> => {
     setFehler('');
     setUpdateMsg(null);
+    setUpdateDetails([]);
     setUpdateBusy(true);
     try {
       const handle = await getDatenShareHandle(storage.idb);
@@ -295,7 +344,17 @@ export function OrdnerGruppe(): React.ReactElement {
         useStartupDataStatus.getState().setPhase('done');
       }
       bumpCsvSourcesSignal();
-      setUpdateMsg(beschreibeDatenUpdate(r));
+      // `detailsInline`, weil diese Seite kein Banner füllt: bis v4.116 meldete
+      // die Zeile „Details im Banner" und der Drift-Bericht wurde verworfen —
+      // der Verweis ging ins Leere. Die betroffenen Quellen stehen jetzt
+      // darunter, der vollständige Bericht samt „Trotzdem importieren" bleibt
+      // am „● CSV" der Fußzeile.
+      setUpdateMsg(beschreibeDatenUpdate(r, { detailsInline: true }));
+      const auffaellig = [
+        ...(r.csvReport?.drift ?? []).map(d => `${d.schemaName} (Spalten-Drift)`),
+        ...(r.csvReport?.errors ?? []).map(e => `${e.schemaName}: ${e.message}`),
+      ];
+      setUpdateDetails(auffaellig);
       // „Letzter CSV-Import" sofort frisch zeigen — last_imported_at neu einlesen,
       // statt auf einen Browser-Reload zu warten.
       try {
@@ -303,6 +362,8 @@ export function OrdnerGruppe(): React.ReactElement {
         for (const p of await listProgramme(storage.idb)) schemas.push(...(await listSchemas(storage.idb, p.id)));
         setCsvSchemas(schemas);
       } catch { /* Anzeige best-effort */ }
+    } catch (err) {
+      melde(err, 'Die Datenaktualisierung ist fehlgeschlagen.');
     } finally {
       setUpdateBusy(false);
     }
@@ -312,16 +373,21 @@ export function OrdnerGruppe(): React.ReactElement {
     if (!window.confirm('Datenordner trennen? Ohne verbundenen Datenordner laufen Anträge, Suche und Synchronisierung nicht. Die Auswahl muss anschließend neu getroffen werden.')) {
       return;
     }
-    await clearDatenShareHandle(storage.idb);
-    setDsHandleExists(false);
-    setDsFolderName(null);
-    const prev = useConnectionState.getState();
-    applyRefreshResult({
-      datenShare: 'missing',
-      persoenlich: prev.persoenlichAvailable ? 'granted' : 'missing',
-      userFoldersRoots: {},
-      dmsSources: {},
-    });
+    setFehler('');
+    try {
+      await clearDatenShareHandle(storage.idb);
+      setDsHandleExists(false);
+      setDsFolderName(null);
+      const prev = useConnectionState.getState();
+      applyRefreshResult({
+        datenShare: 'missing',
+        persoenlich: prev.persoenlichAvailable ? 'granted' : 'missing',
+        userFoldersRoots: {},
+        dmsSources: {},
+      });
+    } catch (err) {
+      melde(err, 'Datenordner konnte nicht getrennt werden.');
+    }
   };
 
   // „Letzter CSV-Import" — jüngstes last_imported_at über alle CSV-Schemas
@@ -350,6 +416,14 @@ export function OrdnerGruppe(): React.ReactElement {
               : <>Prüft beim Start automatisch auf neuere Exporte</>}
             {!dsConnected && ' · offline'}
             {updateMsg && <> · {updateMsg}</>}
+            {updateDetails.length > 0 && (
+              <ul className="mt-1 space-y-0.5">
+                {updateDetails.map(d => (
+                  <li key={d} className="text-[var(--tf-warning-text)]">{d}</li>
+                ))}
+                <li>Der vollständige Bericht steht am „● CSV" in der Fußzeile.</li>
+              </ul>
+            )}
           </>
         ) : 'Noch nicht verbunden — Ordner auf dem Netzlaufwerk wählen'}
         actions={
@@ -406,10 +480,21 @@ export function OrdnerGruppe(): React.ReactElement {
           value={csvDirExists ? (csvDirName ?? 'Verknüpft') : undefined}
           connected={csvDirExists && csvDirOnline}
           hint={HINT_CSV}
+          // Vorgabepfad UND Zustand: bis v4.116 verdrängte der Pfad die Zeile
+          // „Noch nicht verknüpft" bzw. „Offline" — dort, wo ein Vorgabepfad
+          // konfiguriert ist, sagte die Zeile also nie, dass gar nichts
+          // verknüpft war.
           meta={
-            dataConfig.fixedCsvImportPfad
-              ? <>Vorgabepfad <span className="font-medium text-[var(--tf-text-secondary)]">{dataConfig.fixedCsvImportPfad}</span></>
-              : (!csvDirExists ? 'Noch nicht verknüpft' : (!csvDirOnline ? 'Offline' : undefined))
+            <>
+              {dataConfig.fixedCsvImportPfad && (
+                <>Vorgabepfad <span className="font-medium text-[var(--tf-text-secondary)]">{dataConfig.fixedCsvImportPfad}</span></>
+              )}
+              {!csvDirExists
+                ? <>{dataConfig.fixedCsvImportPfad ? ' · ' : ''}Noch nicht verknüpft</>
+                : !csvDirOnline
+                  ? <>{dataConfig.fixedCsvImportPfad ? ' · ' : ''}Offline</>
+                  : null}
+            </>
           }
           actions={
             <>

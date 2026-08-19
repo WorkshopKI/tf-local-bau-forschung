@@ -23,6 +23,19 @@ export interface SettingsSectionRef {
   gruppe: string;
   /** Synonyme inkl. der ALTEN Seiten-/Tab-Namen (speicher, online, tastatur …). */
   keywords: string;
+  /**
+   * Id des Abschnitts, in dem dieser hier STECKT — für Klappen innerhalb einer
+   * Karte, die selbst einen Anker trägt.
+   *
+   * Fällt der Wirt weg (Beta-/Experten-Achse), fällt dieser mit: sonst stünde
+   * das Kind allein im Suchindex und der Sprung liefe auf einen Anker, den
+   * niemand rendert. Die Alternative wäre gewesen, dem Kind dieselbe Marke wie
+   * dem Wirt in den Sichtbarkeits-Katalog zu schreiben — also dieselbe Aussage
+   * an einer zweiten Stelle zu pflegen (Pitfall #54).
+   *
+   * Der Wirt muss in der Registry VOR dem Kind stehen.
+   */
+  in?: string;
 }
 
 export interface SettingsPanel {
@@ -55,11 +68,42 @@ export function buildSearchIndex(panels: SettingsPanel[]): SettingsSearchEntry[]
   return entries;
 }
 
-/** Filtert den Suchindex (ab 2 Zeichen), max. 6 Treffer. */
+/**
+ * Wie gut passt ein Eintrag zur Eingabe? 0 = gar nicht.
+ *
+ * Die Rangfolge ist der Grund, warum es sie ueberhaupt gibt: bis v4.116 filterte
+ * die Suche unsortiert ueber `label + keywords + panelLabel` und schnitt bei
+ * sechs ab. Der SEITENNAME zaehlte damit so viel wie der Abschnittsname — wer
+ * „Verbindung" tippte, bekam alle sechs Abschnitte der Seite „Daten &
+ * Verbindungen" (deren Name das Wort enthaelt) und ausgerechnet den Abschnitt
+ * NICHT, der „Verbindung" heisst: er stand in der Registry weiter hinten und
+ * fiel unter den Deckel.
+ */
+function trefferRang(e: SettingsSearchEntry, q: string): number {
+  const label = e.label.toLowerCase();
+  if (label === q) return 5;
+  if (label.startsWith(q)) return 4;
+  if (label.includes(q)) return 3;
+  if (e.gruppe.toLowerCase().includes(q)) return 2;
+  if (e.keywords.toLowerCase().includes(q)) return 2;
+  if (e.panelLabel.toLowerCase().includes(q)) return 1;
+  return 0;
+}
+
+/**
+ * Filtert den Suchindex (ab 2 Zeichen), max. 6 Treffer — der beste zuerst.
+ *
+ * Bei gleichem Rang bleibt die Registry-Reihenfolge stehen (`sort` ist in
+ * JS stabil): innerhalb einer Trefferklasse ist die Reihenfolge der Seiten
+ * die vertraute.
+ */
 export function searchSettings(index: SettingsSearchEntry[], query: string): SettingsSearchEntry[] {
   const q = query.trim().toLowerCase();
   if (q.length < 2) return [];
   return index
-    .filter(e => `${e.label} ${e.keywords} ${e.panelLabel}`.toLowerCase().includes(q))
-    .slice(0, 6);
+    .map(e => ({ e, rang: trefferRang(e, q) }))
+    .filter(t => t.rang > 0)
+    .sort((a, b) => b.rang - a.rang)
+    .slice(0, 6)
+    .map(t => t.e);
 }

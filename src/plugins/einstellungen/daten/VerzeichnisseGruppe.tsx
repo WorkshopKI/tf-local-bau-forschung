@@ -10,7 +10,7 @@
  * seit v4.28 im Suchindex, und ein Sprungziel, das je nach Datenlage fehlt,
  * ist ein toter Treffer.
  */
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Check, Database, FileText, FlaskConical, Pencil, Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -31,10 +31,34 @@ export function VerzeichnisseGruppe(): React.ReactElement {
   const [editId, setEditId] = useState<string | null>(null);
   const [editLabel, setEditLabel] = useState('');
   const [fehler, setFehler] = useState('');
+  /**
+   * Eingetragen, aber nicht eingehängt — der Zugriff ist abgelaufen.
+   *
+   * Vorab geladen (samt Handle), damit „Zugriff erneuern" im Klick-Gesture ohne
+   * `await` davor laufen kann. Bis v4.116 tauchten diese Verzeichnisse gar nicht
+   * auf: die Karte meldete „Keine weiteren Verzeichnisse verbunden" und bot
+   * keinen Rückweg an.
+   */
+  const [schlafend, setSchlafend] = useState<Array<{ entry: DirectoryEntry; handle: FileSystemDirectoryHandle }>>([]);
 
   const kurator = isKuratorFreigeschaltet();
   const zeigeOpfs = shouldShowOpfsOption();
-  const neu = (): void => setVerzeichnisse(storage.getDirectories());
+  const ladeSchlafende = useCallback(async () => {
+    setSchlafend(await storage.getUnmountedDirectories().catch(() => []));
+  }, [storage]);
+  const neu = (): void => {
+    setVerzeichnisse(storage.getDirectories());
+    void ladeSchlafende();
+  };
+
+  useEffect(() => { void ladeSchlafende(); }, [ladeSchlafende]);
+
+  const erneuern = async (eintrag: { entry: DirectoryEntry; handle: FileSystemDirectoryHandle }): Promise<void> => {
+    setFehler('');
+    const ok = await storage.reconnectDirectory(eintrag.entry, eintrag.handle);
+    if (ok) neu();
+    else setFehler(`Zugriff auf „${eintrag.entry.label}" wurde nicht erteilt.`);
+  };
 
   const hinzufuegen = async (typ: 'documents' | 'data'): Promise<void> => {
     setFehler('');
@@ -69,11 +93,42 @@ export function VerzeichnisseGruppe(): React.ReactElement {
       titel="Verbundene Verzeichnisse"
       rechts={verzeichnisse.length > 0 ? `${verzeichnisse.length} verbunden` : undefined}
     >
-      {verzeichnisse.length === 0 ? (
+      {schlafend.length > 0 && (
+        <div className="pt-1">
+          {schlafend.map((s, i) => (
+            <ListItem
+              key={s.entry.id}
+              icon={s.entry.type === 'documents'
+                ? <FileText size={14} className="text-[var(--tf-warning-text)]" />
+                : <Database size={14} className="text-[var(--tf-warning-text)]" />}
+              title={s.entry.label}
+              subtitle={s.entry.folderName ?? ''}
+              meta={
+                <div className="flex items-center gap-2">
+                  <Badge variant="warning">Zugriff abgelaufen</Badge>
+                  <Button variant="secondary" size="sm" onClick={() => erneuern(s)}>
+                    Zugriff erneuern
+                  </Button>
+                  <button
+                    onClick={() => entfernen(s.entry.id)}
+                    className="p-1 text-[var(--tf-text-tertiary)] hover:text-[var(--tf-danger-text)] cursor-pointer"
+                    title="Entfernen"
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                </div>
+              }
+              last={i === schlafend.length - 1 && verzeichnisse.length === 0}
+            />
+          ))}
+        </div>
+      )}
+
+      {verzeichnisse.length === 0 && schlafend.length === 0 ? (
         <SettingsLeer>
           Keine weiteren Verzeichnisse verbunden — die App arbeitet mit den Ordnern oben.
         </SettingsLeer>
-      ) : (
+      ) : verzeichnisse.length === 0 ? null : (
         <div className="pt-1">
           {verzeichnisse.map((dir, i) => (
             <ListItem

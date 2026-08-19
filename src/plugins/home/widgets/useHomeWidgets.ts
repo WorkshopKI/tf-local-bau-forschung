@@ -20,6 +20,7 @@ import {
   setzeSichtbarkeitBereich,
   sichtbareWidgets,
   sortiereInstanzen,
+  widgetAnzeigbar,
   zurueckgesetzteConfig,
 } from './homeWidgetsStore';
 import {
@@ -135,7 +136,12 @@ export function useHomeWidgets(): HomeWidgetsApi {
       hero: config?.hero ?? HERO_CONFIG_DEFAULT,
       setSichtbar: (id, sichtbar) => patchInstanz(id, { sichtbar }),
       setEingeklappt: (id, eingeklappt) => patchInstanz(id, { eingeklappt }),
-      move: (id, richtung) => mutiere(idb, cfg => moveInstanz(cfg, id, richtung)),
+      // Nur mit SICHTBAREN Nachbarn tauschen — verborgene Widgets stehen weder
+      // auf der Startseite noch in der Einstellungs-Liste, ein Tausch mit ihnen
+      // bewegte nichts.
+      move: (id, richtung) =>
+        mutiere(idb, cfg =>
+          moveInstanz(cfg, id, richtung, w => widgetAnzeigbar(w.typ, undefined, angezeigt))),
       updateConfig: (id, config_) => patchInstanz(id, { config: config_ }),
       mutiereConfig: (id, aendere) =>
         mutiere(idb, cfg => ({

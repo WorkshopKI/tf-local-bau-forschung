@@ -72,12 +72,21 @@ export function useFachprofil(): Fachprofil {
    *  false = keins → Fallback-Hydration aus auslastung.json erlaubt. */
   const [hasPersonalProfil, setHasPersonalProfil] = useState<boolean | null>(null);
 
+  // Auto-Save-Marke: gesetzt NUR von den User-Mutatoren (nicht von der
+  // Hydration), damit Laden/Browser-Wechsel keinen Save auslöst. Steht hier
+  // oben, weil beide Hydrationen sie lesen müssen: das Nachladen aus dem
+  // persönlichen Ordner bzw. aus `auslastung.json` läuft asynchron und kam bis
+  // v4.116 auch dann noch an, wenn der Nutzer in der Zwischenzeit schon geklickt
+  // hatte — es überschrieb dessen Auswahl wortlos.
+  const dirtyRef = useRef(false);
+  const markDirty = (): void => { dirtyRef.current = true; };
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
       const persHandle = await getPersoenlichHandle(storage.idb).catch(() => null);
       const profil = await loadAuslastungProfil(storage.idb, persHandle);
-      if (cancelled) return;
+      if (cancelled || dirtyRef.current) return;
       if (profil) {
         setManualTags(profil.manuelleTechnologien ?? []);
         setExcludedAutoTags(profil.ausgeblendeteAutoTags ?? []);
@@ -102,12 +111,19 @@ export function useFachprofil(): Fachprofil {
     if (hasPersonalProfil !== false) return;
     if (!myAnonId) return;
     if (hydratedRef.current === myAnonId) return;
+    if (dirtyRef.current) return;
     const existing = data.mitarbeiter[myAnonId];
     if (!existing) return;
     setExcludedAutoTags(existing.ausgeblendeteAutoTags ?? []);
     setHauptKategorie(existing.hauptKategorie ?? '');
     setNebenKategorien(existing.nebenKategorien ?? []);
     setAntragstypBevorzugt(existing.antragstypBevorzugt ?? []);
+    // Die Kompetenzen gehören dazu. Bis v4.116 fehlten sie in dieser Liste,
+    // `manualTags` blieb auf `[]` — gespeichert wurde später aber das VOLLE
+    // Objekt einschließlich `manuelleTechnologien`, und das Einsammeln durch
+    // die PL übernimmt den Wert wortgetreu. Die erste beliebige Änderung
+    // (ein Antragstyp genügt) schrieb die Kompetenzen damit auf leer.
+    setManualTags(existing.manuelleTechnologien ?? []);
     hydratedRef.current = myAnonId;
   }, [myAnonId, data.mitarbeiter, hasPersonalProfil]);
 
@@ -115,11 +131,6 @@ export function useFachprofil(): Fachprofil {
     if (!meinKuerzel) return [];
     return aggregateMaProfileFromLookup(cache.antraege, cache.deskriptorenByAz, meinKuerzel);
   }, [cache.antraege, cache.deskriptorenByAz, meinKuerzel]);
-
-  // Auto-Save: `dirtyRef` wird NUR von User-Mutatoren gesetzt (nicht von der
-  // Hydration), damit Laden/Browser-Wechsel keinen Save auslöst.
-  const dirtyRef = useRef(false);
-  const markDirty = (): void => { dirtyRef.current = true; };
 
   // Schreibt das Selbst-Profil in den persönlichen Ordner (immer readwrite).
   // Direktschreiben nach auslastung.json scheitert für Nicht-Kuratoren am
@@ -150,12 +161,28 @@ export function useFachprofil(): Fachprofil {
   const saveRef = useRef<() => void>(() => {});
   saveRef.current = () => { void saveAction.run(); };
   const pendingRef = useRef(false);
+  // Spiegel von `saveAction.busy` für den Timer, der außerhalb des Renders läuft.
+  const busyRef = useRef(false);
+  busyRef.current = saveAction.busy;
 
   useEffect(() => {
     if (!dirtyRef.current) return;
     pendingRef.current = true;
-    const t = setTimeout(() => { pendingRef.current = false; saveRef.current(); }, 800);
-    return () => clearTimeout(t);
+    let t = 0;
+    // Läuft noch ein Schreibvorgang, wird NACHGEFASST statt verworfen.
+    // `useAsyncAction.run` beginnt mit `if (busyRef.current) return;` — der
+    // zweite Speicherwunsch verfiel bis v4.116 ersatzlos: kein Wiederholen,
+    // kein Fehler, kein erneutes Einplanen, und der Seitenkopf zeigte das
+    // „Gespeichert HH:MM" des ERSTEN Laufs. Der Schreibvorgang ist nicht kurz
+    // (IDB + persönlicher Handle + SMB), das Fenster also real. Das ist
+    // Pitfall #16/#20 an einer Stelle, die die Liste nicht führte.
+    const versuch = (): void => {
+      if (busyRef.current) { t = window.setTimeout(versuch, 150); return; }
+      pendingRef.current = false;
+      saveRef.current();
+    };
+    t = window.setTimeout(versuch, 800);
+    return () => window.clearTimeout(t);
   }, [manualTags, excludedAutoTags, hauptKategorie, nebenKategorien, antragstypBevorzugt]);
 
   // Flush beim Verlassen: ausstehenden Debounce sofort schreiben, damit die

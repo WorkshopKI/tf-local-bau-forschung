@@ -16,7 +16,7 @@ import { ProfileContext, useProfileProvider } from '@/core/hooks/useProfile';
 import { TourContext, useTour } from '@/core/hooks/useTour';
 import { TOUR_STEPS } from '@/core/components/tour/tourSteps';
 import { ErrorBoundary } from '@/core/ErrorBoundary';
-import { applyThemeColor, setDarkMode } from '@/components/ui/theme';
+import { applyThemeColor, farbeAusProfil, setDarkMode } from '@/components/ui/theme';
 import { checkQuarterReset, loadFeedbackConfig } from '@/core/services/feedback';
 import {
   getDatenShareHandle,
@@ -474,7 +474,13 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
       if (complete) {
         const profile = await storage.idb.get<UserProfile>('profile');
         if (profile) {
-          applyThemeColor(profile.theme.hue);
+          // Alle drei Werte der Farbe, nicht nur den Farbton: `applyThemeColor`
+          // setzt sonst Standard-Sättigung und -Helligkeit ein und die App
+          // startet in einer anderen Farbe, als das Profil sagt.
+          {
+            const f = farbeAusProfil(profile.theme);
+            applyThemeColor(f.h, f.s, f.l);
+          }
           setDarkMode(profile.theme.dark);
           setInitialProfile(profile);
         }

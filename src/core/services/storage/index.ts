@@ -216,8 +216,68 @@ export class StorageService {
   }
 
   private async saveDirectoryEntries(): Promise<void> {
-    const entries = Array.from(this._directories.values()).map(d => d.entry);
-    await this.idb.set('directories', entries);
+    const eingehaengt = Array.from(this._directories.values()).map(d => d.entry);
+    // Eingetragene, aber nicht eingehängte Verzeichnisse BLEIBEN stehen: `init`
+    // hängt nur ein, was `queryPermission` gerade freigibt, und ein Speichern
+    // aus dem eingehängten Stand allein hätte jedes Verzeichnis mit abgelaufenem
+    // Zugriff endgültig aus der Liste geworfen. Erkennungsmerkmal ist das noch
+    // vorhandene Handle — `removeDirectory` löscht es zuerst.
+    const gespeichert = await this.idb.get<DirectoryEntry[]>('directories') ?? [];
+    const schlafend: DirectoryEntry[] = [];
+    for (const e of gespeichert) {
+      if (this._directories.has(e.id)) continue;
+      const handle = await this.idb.get<FileSystemDirectoryHandle>(`dir-handle:${e.id}`);
+      if (handle) schlafend.push(e);
+    }
+    await this.idb.set('directories', [...eingehaengt, ...schlafend]);
+  }
+
+  /**
+   * Eingetragene Verzeichnisse, die beim Start NICHT eingehängt werden konnten
+   * — der Zugriff ist abgelaufen und muss per Klick erneuert werden.
+   *
+   * Bis v4.116 gab es sie in der Oberfläche gar nicht: `getDirectories()` liefert
+   * nur die eingehängten, und die Karte meldete „Keine weiteren Verzeichnisse
+   * verbunden" — ohne Rückweg, obwohl Eintrag und Handle noch dalagen.
+   *
+   * Gibt das Handle mit zurück, damit `reconnectDirectory` im Klick-Gesture
+   * OHNE `await` davor laufen kann (file://-User-Activation).
+   */
+  async getUnmountedDirectories(): Promise<Array<{ entry: DirectoryEntry; handle: FileSystemDirectoryHandle }>> {
+    const gespeichert = await this.idb.get<DirectoryEntry[]>('directories') ?? [];
+    const offen: Array<{ entry: DirectoryEntry; handle: FileSystemDirectoryHandle }> = [];
+    for (const entry of gespeichert) {
+      if (this._directories.has(entry.id)) continue;
+      const handle = await this.idb.get<FileSystemDirectoryHandle>(`dir-handle:${entry.id}`);
+      if (handle) offen.push({ entry, handle });
+    }
+    return offen;
+  }
+
+  /**
+   * Fordert den Zugriff auf ein schlafendes Verzeichnis neu an und hängt es ein.
+   * MUSS aus einem User-Gesture heraus laufen und ohne `await` davor — sonst
+   * hängt `requestPermission` unter `file://` stumm.
+   */
+  async reconnectDirectory(
+    entry: DirectoryEntry,
+    handle: FileSystemDirectoryHandle,
+  ): Promise<boolean> {
+    const mode = entry.type === 'data' ? 'readwrite' as const : 'read' as const;
+    const fsMode = entry.type === 'data' ? 'readwrite' as const : 'readonly' as const;
+    try {
+      const permission = await (handle as FsDirHandle).requestPermission({ mode });
+      if (permission !== 'granted') return false;
+      this._directories.set(entry.id, {
+        entry: { ...entry, folderName: handle.name },
+        store: new FileServerStore(handle, fsMode),
+      });
+      await this.saveDirectoryEntries();
+      if (entry.type === 'data') await this.syncService.processQueue();
+      return true;
+    } catch {
+      return false;
+    }
   }
 
 }

@@ -43,7 +43,10 @@ export function ModulSchlossGate({ frei, bereich, children }: ModulSchlossGatePr
         Dieser Bereich lässt sich mit einem Zusatzpasswort freischalten. Die Freischaltung
         gilt anschließend 12 Stunden und übersteht einen Neustart.
       </p>
-      <Button type="button" variant="primary" size="sm" onClick={() => navigate('/einstellungen')}>
+      {/* Auf den Abschnitt, nicht auf die blanke Seite: „Zusatz-Module" steht
+          in „Mein Profil" weit unten (bei 1280 × 720 rund 170 px unterhalb der
+          Fensterkante), und der Knopf verspricht einen Weg dorthin. */}
+      <Button type="button" variant="primary" size="sm" onClick={() => navigate('/einstellungen?sektion=sec-freischaltung')}>
         Zur Freischaltung
       </Button>
     </div>

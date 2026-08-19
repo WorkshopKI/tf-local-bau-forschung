@@ -135,6 +135,7 @@ export function getKurationPanels(): SettingsPanel[] {
     icon: Eye,
     sections: [
       { id: 'sec-sichtbarkeit', label: 'Beta & Expertenmodus', gruppe: 'Beta & Expertenmodus', keywords: 'beta experte expertenmodus sichtbarkeit ausblenden entschlacken erprobung marke oberfläche umfang' },
+      { id: 'sec-sichtbarkeit-hilfe', label: 'Wie das gemeint ist', gruppe: 'Beta & Expertenmodus', keywords: 'erklärung hilfe bedeutung marke beta experte schloss', in: 'sec-sichtbarkeit' },
     ],
     render: () => <SichtbarkeitPanel />,
   });

@@ -6,6 +6,11 @@ import { Alert } from '@/components/ui/alert';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useNavigation } from '@/core/hooks/useNavigation';
 import { useProfile } from '@/core/hooks/useProfile';
+import {
+  HOME_ANTRAEGE_MAX,
+  HOME_ANTRAEGE_MIN,
+  HOME_ANTRAEGE_STANDARD,
+} from '@/core/types/config';
 import { useTourContext } from '@/core/hooks/useTour';
 import { TOUR_STEPS } from '@/core/components/tour/tourSteps';
 import { useAntraegeStore } from '@/plugins/antraege/store';
@@ -136,10 +141,13 @@ export function HomePage(): React.ReactElement {
 
   // Geteilter Kontext für die Widget-Wrapper — die 13k-Antraege-Aggregation
   // (useDashboardData) läuft EINMAL hier, nicht je Widget.
-  // Default 5 → 10 (v2.372.2): mit 5 Zeilen endete die Startseite bei 726 von
-  // 1262 px, also 43 % Leerraum bei 909 offenen Vorgängen. Ein eigener Wert im
-  // Profil sticht den Default weiterhin (Bereich 5–15).
-  const initialCount = Math.max(5, Math.min(15, profile?.home_meine_antraege_count ?? 10));
+  // Vorgabe und Grenzen kommen aus `config.ts` — der Stepper in den
+  // Einstellungen liest dieselben Konstanten, sonst zeigt die eine Stelle eine
+  // Zahl an, mit der die andere nicht rechnet.
+  const initialCount = Math.max(
+    HOME_ANTRAEGE_MIN,
+    Math.min(HOME_ANTRAEGE_MAX, profile?.home_meine_antraege_count ?? HOME_ANTRAEGE_STANDARD),
+  );
   const widgetCtx: HomeWidgetContext = { data, initialCount };
 
   // Auto-Start der Tour beim ersten Besuch (nur wenn Daten vorhanden)

@@ -1,5 +1,21 @@
 import type { Rolle as StatusRolle } from '@/core/status/typen';
 
+/**
+ * „Meine Anträge" auf der Startseite: Grenzen und Vorgabe der initialen Länge.
+ *
+ * Steht hier neben dem Feld, weil bis v4.116 ZWEI Stellen dieselbe Vorgabe
+ * getrennt setzten: der Stepper in den Einstellungen zeigte 5, die Startseite
+ * rechnete mit 10. Solange niemand die Einstellung angefasst hatte, sagte die
+ * Oberfläche also 5 und zeigte 10 — und der erste Klick auf „Mehr" schrieb 6
+ * und verkürzte die Liste von zehn auf sechs.
+ *
+ * 10 ist die bewusste Vorgabe (v2.372.2): mit 5 Zeilen endete die Startseite
+ * bei 726 von 1262 px, also 43 % Leerraum bei 909 offenen Vorgängen.
+ */
+export const HOME_ANTRAEGE_MIN = 5;
+export const HOME_ANTRAEGE_MAX = 15;
+export const HOME_ANTRAEGE_STANDARD = 10;
+
 export interface UserProfile {
   name: string;
   /**
@@ -10,8 +26,24 @@ export interface UserProfile {
    */
   department: 'antraege';
   theme: {
+    /** Farbton der Primärfarbe (`--tf-primary-h`). */
     hue: number;
     dark: boolean;
+    /**
+     * Sättigung und Helligkeit der Primärfarbe (`--tf-primary-s` / `-l`),
+     * jeweils als CSS-Prozentwert („8%").
+     *
+     * Bis v4.116 speicherte das Profil NUR den Farbton — die sieben Vorgaben
+     * unterscheiden sich aber in allen drei Werten. Der Klick wendete alle drei
+     * an, gespeichert wurde einer, und nach dem Neustart zeigte die App
+     * `hsl(hue, 25%, 42%)`: sechs der sieben Farben überlebten den Neustart
+     * nicht, während das Häkchen weiter an der gewählten stand.
+     *
+     * Optional, weil Bestands-Profile sie nicht führen; `farbeAusProfil()`
+     * holt sie dann aus der Vorgabe mit demselben Farbton.
+     */
+    sat?: string;
+    lit?: string;
   };
   /** Wenn true, sind Plugins mit kuratorOnly: true sichtbar (z.B. Suchindex, Feedback-Verwaltung). */
   is_kurator?: boolean;
@@ -61,7 +93,8 @@ export interface UserProfile {
   experten_modus?: boolean;
   /**
    * Anzahl Anträge, die auf der Home-Seite in "Meine Anträge" initial gezeigt
-   * werden. Range 5–15. Default 5 (wenn unset). Der "+10 mehr"-Button am
+   * werden. Bereich {@link HOME_ANTRAEGE_MIN}–{@link HOME_ANTRAEGE_MAX}, ohne
+   * eigenen Wert {@link HOME_ANTRAEGE_STANDARD}. Der "+10 mehr"-Button am
    * Listenende erweitert in-page (nicht persistent).
    */
   home_meine_antraege_count?: number;

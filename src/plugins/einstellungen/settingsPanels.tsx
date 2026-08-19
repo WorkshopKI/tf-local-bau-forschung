@@ -84,7 +84,10 @@ export function getSettingsPanels(ctx: PanelContext): SettingsPanel[] {
             { id: 'sec-assistent-daten', label: 'Aufgezeichnete Daten', gruppe: 'Persönlicher Assistent', keywords: 'assistent daten export löschen transparenz ereignisse protokoll meine daten' },
             // Assistent Phase 2 — persönliches Gedächtnis
             ...(isAssistentGedaechtnisEnabled()
-              ? [{ id: 'sec-assistent-gedaechtnis', label: 'Persönliches Gedächtnis', gruppe: 'Persönlicher Assistent', keywords: 'gedächtnis memory konsolidierung notizen arbeitskontext präferenzen offene fäden vergessen' }]
+              ? [
+                  { id: 'sec-assistent-gedaechtnis', label: 'Persönliches Gedächtnis', gruppe: 'Persönlicher Assistent', keywords: 'gedächtnis memory konsolidierung präferenzen offene fäden' },
+                  { id: 'sec-gedaechtnis-eintraege', label: 'Gedächtnis-Einträge', gruppe: 'Persönlicher Assistent', keywords: 'notizen einträge gedächtnis vergessen belege arbeitskontext', in: 'sec-assistent-gedaechtnis' },
+                ]
               : []),
           ]
         : []),
@@ -95,7 +98,11 @@ export function getSettingsPanels(ctx: PanelContext): SettingsPanel[] {
   panels.push({
     id: 'darstellung',
     label: 'Darstellung & Bedienung',
-    untertitel: 'Gilt nur für dieses Gerät.',
+    // Nicht mehr „Gilt nur für dieses Gerät": das stimmt für Farbschema,
+    // Primärfarbe und Tastenkürzel, aber die Widget-Auswahl auf derselben Seite
+    // spiegelt in den persönlichen Ordner und folgt der Person aufs nächste
+    // Gerät. Die Karte selbst sagt es jetzt in ihrer Kopfzeile.
+    untertitel: 'Farbschema und Tastenkürzel gelten nur auf diesem Gerät.',
     icon: Contrast,
     sections: [
       { id: 'sec-erscheinung', label: 'Farbschema', gruppe: 'Erscheinungsbild', keywords: 'dark light hell dunkel theme darstellung modus erscheinungsbild' },
@@ -118,8 +125,12 @@ export function getSettingsPanels(ctx: PanelContext): SettingsPanel[] {
       { id: 'sec-arbeitsverlauf', label: 'Arbeitsverlauf', gruppe: 'Ordner', keywords: 'arbeitsverlauf arbeitskontext protokoll letzte schritte' },
       { id: 'sec-doku', label: 'Persönliche Dokumentenquellen', gruppe: 'Persönliche Dokumentenquellen', keywords: 'pfade embedding dms dokumente' },
       { id: 'sec-tags', label: 'Tags', gruppe: 'Tags', keywords: 'tag-verwaltung neu zählen' },
+      { id: 'sec-tags-liste', label: 'Alle Tags', gruppe: 'Tags', keywords: 'tag liste umbenennen löschen verwendungen schlagwort', in: 'sec-tags' },
       ...(isOnlineStatusTabEnabled()
-        ? [{ id: 'sec-team', label: 'Team-Status', gruppe: 'Team-Status', keywords: 'online wer ist online benutzer-ordner presence' }]
+        ? [
+            { id: 'sec-team', label: 'Team-Status', gruppe: 'Team-Status', keywords: 'online benutzer-ordner presence' },
+            { id: 'sec-team-liste', label: 'Wer ist online', gruppe: 'Team-Status', keywords: 'wer ist online liste kolleg:innen anwesend zuletzt gesehen', in: 'sec-team' },
+          ]
         : []),
     ],
     render: () => <DatenPanel />,
@@ -133,9 +144,15 @@ export function getSettingsPanels(ctx: PanelContext): SettingsPanel[] {
     }
     // v3.0: Die Browser-KI-Verbindung ist in jeder Variante da (`streamlitBridge`
     // war nirgends aus) — damit ist auch das Panel selbst immer vorhanden.
-    sections.push({ id: 'sec-internki', label: 'Verbindung', gruppe: 'Verbindung', keywords: 'browser interne ki lesezeichen verbindung testen gpt bridge ki assistent' });
+    sections.push({ id: 'sec-internki', label: 'Verbindung', gruppe: 'Verbindung', keywords: 'browser interne ki verbindung testen gpt bridge ki assistent adresse' });
+    // Das ziehbare Lesezeichen steckt in DIESER Klappe, nicht in der Karte
+    // darüber. Bis v4.116 stand „lesezeichen" als Stichwort an `sec-internki`:
+    // wer danach suchte, landete auf der Karte, und die Klappe blieb zu — sie
+    // öffnet sich nur, wenn sie selbst das Sprungziel ist.
+    sections.push({ id: 'sec-internki-einrichtung', label: 'Verbindung einrichten', gruppe: 'Verbindung', keywords: 'lesezeichen bookmarklet einrichten fünf schritte aktivieren bridge installieren', in: 'sec-internki' });
     if (isDevContext()) {
       sections.push({ id: 'sec-provider', label: 'Provider', gruppe: 'Werkbank (dev)', keywords: 'openrouter endpoint api key modell konfiguration' });
+      sections.push({ id: 'sec-zweit-llm', label: 'Zweit-LLM (Erprobung, dev)', gruppe: 'Verbindung', keywords: 'zweit-llm rundlauf agentischer chat ziel tab rechenfrage erprobung', in: 'sec-internki' });
     }
     if (isDevFixturesEnabled()) {
       sections.push({ id: 'sec-aufbereitung-eval', label: 'Aufbereitung: Baustein-Eval', gruppe: 'Werkbank (dev)', keywords: 'eval fixtures goldset aspekte steckbrief precision recall aufbereitung baustein bridge messung' });
@@ -144,7 +161,8 @@ export function getSettingsPanels(ctx: PanelContext): SettingsPanel[] {
       sections.push({ id: 'sec-gedaechtnis-eval', label: 'Gedächtnis: Eval', gruppe: 'Werkbank (dev)', keywords: 'gedächtnis eval messung konsolidierung fixtures assistent' });
     }
     if (isAntragAufbereitungEnabled()) {
-      sections.push({ id: 'sec-aufbereitung-recherche', label: 'Externe Recherche-Ziele', gruppe: 'Externe Recherche-Ziele', keywords: 'deep research recherche url chatgpt claude mistral marktzugang aufbereitung kmu ziel externe' });
+      sections.push({ id: 'sec-aufbereitung-recherche', label: 'Externe Recherche-Ziele', gruppe: 'Externe Recherche-Ziele', keywords: 'deep research recherche chatgpt claude mistral marktzugang aufbereitung kmu ziel externe' });
+      sections.push({ id: 'sec-recherche-adressen', label: 'Ziel-Adressen bearbeiten', gruppe: 'Externe Recherche-Ziele', keywords: 'url adresse dienste bearbeiten recherche ziel', in: 'sec-aufbereitung-recherche' });
     }
     panels.push({
       id: 'ki',

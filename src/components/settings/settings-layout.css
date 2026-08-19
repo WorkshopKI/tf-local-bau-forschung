@@ -29,18 +29,27 @@
 }
 
 /*
- * Zwei Spalten NUR, wenn es eine zweite gibt. `neben` ist optional (Panels aus
- * Listen und Tabellen brauchen die Breite), und ohne diese Bedingung raeumte
- * das Raster der leeren zweiten Spalte trotzdem 43 % ein — die Karten stuenden
- * dann auf halber Seite neben einer weissen Flaeche.
+ * Zwei Spalten NUR, wenn die zweite auch etwas TRAEGT. `neben` ist optional
+ * (Panels aus Listen und Tabellen brauchen die Breite), und ohne diese
+ * Bedingung raeumte das Raster der leeren zweiten Spalte trotzdem 43 % ein —
+ * die Karten stuenden dann auf halber Seite neben einer weissen Flaeche.
+ *
+ * `:not(:empty)` statt der blossen Anwesenheit des Knotens, weil die Spalte
+ * auf zwei Wegen leer sein kann, die React beide nicht als „kein neben"
+ * meldet: der Aufrufer uebergibt ein Fragment, dessen Inhalte alle hinter
+ * ausgeschalteten Flags stehen (`neben != null` ist fuer ein Fragment IMMER
+ * wahr — im prod-Build stand „Interne KI" so auf 57 % neben einer leeren
+ * Spalte samt Trennlinie), oder eine Karte darin gibt zur Laufzeit `null`
+ * zurueck, weil die Beta-/Experten-Achse sie verbirgt. Der DOM-Zustand faengt
+ * beide, eine Pruefung im TSX nur den ersten.
  */
 @container (min-width: 900px) {
-  .tf-set-grid:has(> .tf-set-neben) {
+  .tf-set-grid:has(> .tf-set-neben:not(:empty)) {
     grid-template-columns: minmax(0, 1.32fr) minmax(0, 1fr);
     gap: 0 26px;
   }
 
-  .tf-set-grid > .tf-set-neben {
+  .tf-set-grid > .tf-set-neben:not(:empty) {
     border-left: 0.5px solid var(--tf-border);
     padding-left: 26px;
   }

@@ -1090,7 +1090,69 @@ describe('settings-treffer-weg (Hub-Suche nennt ihr Ziel)', () => {
       const fehlend = eintraege(REGISTRY).map(e => e.id).filter(id => !anker.has(id));
       expect(fehlend, `Ohne Anker im DOM: ${fehlend.join(', ')}`).toEqual([]);
     });
+
+    it(`${hub.name}: jeder DOM-Anker steht in der Registry`, () => {
+      // Die BISHER ungeprüfte Richtung. Ein `id="sec-…"` ohne Registry-Eintrag
+      // ist weder über die Suche noch über `?sektion=` erreichbar — er sieht
+      // aus wie ein Sprungziel und ist keins. Die Registry selbst führt den
+      // Fall als schon einmal passiert („Der Anker existiert seit v2.256 …,
+      // stand aber nie im Suchindex"); der Guard danach prüfte die andere
+      // Richtung. v4.116 fand sechs weitere in den Einstellungen und einen in
+      // der Kuration.
+      const ids = new Set(eintraege(REGISTRY).map(e => e.id));
+      const verwaist: string[] = [];
+      for (const file of ALL_TS_FILES) {
+        if (!file.startsWith(hub.ordner) || !file.endsWith('.tsx') || file === REGISTRY) continue;
+        const zeilen = readFileSync(file, 'utf-8').split('\n');
+        zeilen.forEach((zeile, i) => {
+          const m = /id=(?:"(sec-[^"]+)"|\{[^}]*'(sec-[^']+)'[^}]*\})/.exec(zeile);
+          const id = m?.[1] ?? m?.[2];
+          if (!id || ids.has(id) || zeile.includes('allow-anker-ohne-eintrag')) return;
+          verwaist.push(`${id}  (${relPath(file)}:${i + 1})`);
+        });
+      }
+      expect(
+        [...new Set(verwaist)],
+        `Diese Anker sind weder suchbar noch per \`?sektion=\` erreichbar:\n  ${verwaist.join('\n  ')}\n\n` +
+        `Eintrag in ${hub.registry} ergänzen (bei einer Klappe INNERHALB einer Karte\n` +
+        `zusätzlich \`in: 'sec-<karte>'\`, damit sie mit ihrem Wirt verschwindet).\n` +
+        `Echte Ausnahme: '// allow-anker-ohne-eintrag: <grund>' auf der Anker-Zeile.`,
+      ).toEqual([]);
+    });
   }
+});
+
+describe('sichtbarkeit-alle-bauteile (kein Abschnitt leckt an der Achse vorbei)', () => {
+  // `SettingsHubPage` filtert Navigation, Suchindex und Deep-Link-Auflösung
+  // über `useSichtbar`; die vier Layout-Bauteile müssen dieselbe Frage stellen,
+  // sonst rendert die Karte einen Abschnitt, den die Seite für verborgen hält.
+  //
+  // Bis v4.116 taten es nur `SettingsGruppe` und `SettingsOption` — 9 der 16
+  // markierten Abschnitte blieben stehen, darunter „Antrags-Daten zurücksetzen"
+  // hinter dem Expertenmodus. Der Kommentar in `SettingsHubPage` behauptete
+  // dabei, beide Wege läsen dieselbe Id und könnten nicht auseinanderlaufen.
+  const BAUTEILE = ['SettingsGruppe', 'SettingsOption', 'SettingsBlock', 'SettingsKlappe'];
+
+  it('alle vier Bauteile mit `id`-Prop rufen useAbschnittSichtbar', () => {
+    const quelle = readFileSync(join(ROOT, 'components', 'settings', 'settings-layout.tsx'), 'utf-8');
+    const ohne = BAUTEILE.filter(name => {
+      const start = quelle.indexOf(`export function ${name}(`);
+      if (start < 0) return true;
+      const naechste = BAUTEILE
+        .map(n => quelle.indexOf(`export function ${n}(`))
+        .filter(p => p > start);
+      const ende = naechste.length > 0 ? Math.min(...naechste) : quelle.length;
+      return !quelle.slice(start, ende).includes('useAbschnittSichtbar(id)');
+    });
+    expect(
+      ohne,
+      `Diese Bauteile rendern ihren \`sec-…\`-Anker bedingungslos:\n  ${ohne.join('\n  ')}\n\n` +
+      `Sie brauchen \`const sichtbar = useAbschnittSichtbar(id);\` und ein\n` +
+      `\`if (!sichtbar) return null;\` NACH allen Hooks (Rückgabetyp \`| null\`).\n` +
+      `Sonst steht der Abschnitt in der Karte, während Navigation, Suche und\n` +
+      `Deep-Link ihn für ausgeblendet halten.`,
+    ).toEqual([]);
+  });
 });
 
 describe('kuration-hub-eine-schicht (der Hub baut die Seitenform nicht nach)', () => {

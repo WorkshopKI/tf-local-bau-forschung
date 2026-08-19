@@ -87,3 +87,32 @@ export function typAusTags(tags: ReadonlyArray<string>): AntragDokumentTyp {
   for (const t of tags) if (TYP_LABEL.has(t)) return t as AntragDokumentTyp;
   return 'sonstiges';
 }
+
+/** Ist dieser Tag ein Dokumenttyp der Aufnahme (kein frei vergebenes Schlagwort)? */
+export function istDokumentTypTag(tag: string): boolean {
+  return TYP_LABEL.has(tag.trim().toLowerCase());
+}
+
+/**
+ * Die Verbund-/Antrags-Kennung aus den Tags eines aufgenommenen Dokuments —
+ * `null`, wenn die Tags nicht der Signatur der Aufnahme entsprechen.
+ *
+ * `DokumentAufnahme` legt GENAU `[relationTag, typ]` ab; daran ist die Kennung
+ * eindeutig zu erkennen, ohne sie an ihrer Schreibweise raten zu müssen (die
+ * Kennungen heißen je nach Programm `16KN…`, `ZEP…`, `ZKN…`).
+ *
+ * Gebraucht wird das von der Tag-Verwaltung: diese Kennung ist ein
+ * Maschinen-Schlüssel, über den `listDocsByFkz` die Dokumente eines Antrags
+ * findet — kein Schlagwort, das jemand umbenennen oder löschen dürfte. Bis
+ * v4.116 schwemmte „Neu zählen" sie gleichberechtigt in die Tag-Liste.
+ *
+ * Konservativ: sobald jemand dem Dokument ein eigenes Schlagwort hinzufügt,
+ * passt die Signatur nicht mehr und die Funktion sagt nichts.
+ */
+export function relationTagAusTags(tags: ReadonlyArray<string>): string | null {
+  if (tags.length !== 2) return null;
+  const [erst, zweit] = tags;
+  if (!erst || !zweit) return null;
+  if (!istDokumentTypTag(zweit) || istDokumentTypTag(erst)) return null;
+  return erst;
+}

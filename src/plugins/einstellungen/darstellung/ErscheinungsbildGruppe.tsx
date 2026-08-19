@@ -9,7 +9,12 @@
 import { Check } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { SegmentedToggle } from '@/components/ui/SegmentedToggle';
-import { PRESET_COLORS, applyThemeColor } from '@/components/ui/theme';
+import {
+  PRESET_COLORS,
+  applyThemeColor,
+  farbeAusProfil,
+  istGewaehlteFarbe,
+} from '@/components/ui/theme';
 import { useProfile } from '@/core/hooks/useProfile';
 import { useDarkMode } from '@/core/hooks/useDarkMode';
 import {
@@ -25,11 +30,12 @@ const HINT_FARBE =
 export function ErscheinungsbildGruppe(): React.ReactElement {
   const { profile, updateProfile } = useProfile();
   const { dark, umschalten } = useDarkMode();
-  const aktuelleHue = profile?.theme.hue ?? 215;
+  const aktuelleFarbe = farbeAusProfil(profile?.theme);
 
   const farbeWaehlen = (h: number, s: string, l: string): void => {
     applyThemeColor(h, s, l);
-    if (profile) void updateProfile({ theme: { ...profile.theme, hue: h } });
+    // Alle DREI Werte speichern — der Farbton allein beschreibt die Farbe nicht.
+    if (profile) void updateProfile({ theme: { ...profile.theme, hue: h, sat: s, lit: l } });
   };
 
   return (
@@ -55,7 +61,7 @@ export function ErscheinungsbildGruppe(): React.ReactElement {
       <SettingsOption id="sec-farbe" label="Primärfarbe" hint={HINT_FARBE}>
         <div className="flex gap-2">
           {PRESET_COLORS.map(c => {
-            const gewaehlt = aktuelleHue === c.h;
+            const gewaehlt = istGewaehlteFarbe(c, aktuelleFarbe);
             return (
               <button
                 key={c.name}

@@ -193,6 +193,10 @@ export const SICHTBARKEITS_KATALOG: readonly KatalogEintrag[] = [
   abschnitt('einstellungen', 'sec-assistent-protokoll', 'Arbeitsprotokoll', BETA),
   abschnitt('einstellungen', 'sec-assistent-daten', 'Aufgezeichnete Daten', BETA),
   abschnitt('einstellungen', 'sec-assistent-gedaechtnis', 'Persönliches Gedächtnis', BETA),
+  // Steckt in der Karte „Persönlicher Assistent" und trägt deren Marke: ohne
+  // eigenen Eintrag gilt „unbekannt = sichtbar", und die Klappe stünde allein
+  // in einer Karte, deren Schalter gerade ausgeblendet sind (v4.116).
+  abschnitt('einstellungen', 'sec-gedaechtnis-eintraege', 'Gedächtnis-Einträge', BETA),
 
   abschnitt('einstellungen', 'sec-erscheinung', 'Farbschema'),
   abschnitt('einstellungen', 'sec-farbe', 'Primärfarbe'),
@@ -206,15 +210,20 @@ export const SICHTBARKEITS_KATALOG: readonly KatalogEintrag[] = [
   abschnitt('einstellungen', 'sec-arbeitsverlauf', 'Arbeitsverlauf', BETA),
   abschnitt('einstellungen', 'sec-doku', 'Persönliche Dokumentenquellen', EXPERTE),
   abschnitt('einstellungen', 'sec-tags', 'Tags'),
+  abschnitt('einstellungen', 'sec-tags-liste', 'Alle Tags'),
   abschnitt('einstellungen', 'sec-team', 'Team-Status', BETA),
+  abschnitt('einstellungen', 'sec-team-liste', 'Wer ist online', BETA),
 
   abschnitt('einstellungen', 'sec-kontext', 'Thinking nutzen', EXPERTE),
   abschnitt('einstellungen', 'sec-internki', 'Verbindung'),
-  // Die drei folgenden stehen nur im dev-Build (Regel 1).
+  abschnitt('einstellungen', 'sec-internki-einrichtung', 'Verbindung einrichten'),
+  // Die vier folgenden stehen nur im dev-Build (Regel 1).
   abschnitt('einstellungen', 'sec-provider', 'Provider'),
+  abschnitt('einstellungen', 'sec-zweit-llm', 'Zweit-LLM (Erprobung, dev)'),
   abschnitt('einstellungen', 'sec-aufbereitung-eval', 'Aufbereitung: Baustein-Eval'),
   abschnitt('einstellungen', 'sec-gedaechtnis-eval', 'Gedächtnis: Eval'),
   abschnitt('einstellungen', 'sec-aufbereitung-recherche', 'Externe Recherche-Ziele', BEIDES),
+  abschnitt('einstellungen', 'sec-recherche-adressen', 'Ziel-Adressen bearbeiten', BEIDES),
 
   // ------------------------------------------------ Abschnitte: Datenpflege --
   abschnitt('kuration', 'sec-lage', 'Zu tun'),
@@ -246,6 +255,9 @@ export const SICHTBARKEITS_KATALOG: readonly KatalogEintrag[] = [
   abschnitt('kuration', 'sec-anfragen-url', 'URL des Assistenten'),
 
   abschnitt('kuration', 'sec-sichtbarkeit', 'Beta & Expertenmodus', OFFEN, true),
+  // Erklärt genau diese Schalter — sie mit ihnen ausblenden zu können wäre
+  // dieselbe Sackgasse wie der Schalter selbst.
+  abschnitt('kuration', 'sec-sichtbarkeit-hilfe', 'Wie das gemeint ist', OFFEN, true),
 
   // --------------------------------------- Abschnitte: Verbund-Detailseite --
   abschnitt('antraege', 'detail-kurzbeschreibung', 'Kurzbeschreibung'),

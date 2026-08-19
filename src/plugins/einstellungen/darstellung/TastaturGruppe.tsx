@@ -12,13 +12,39 @@ export function TastaturGruppe(): React.ReactElement {
   const shortcuts = keyboardService.getAll();
 
   const istMac = navigator.platform.includes('Mac');
+
+  /**
+   * Ein Kürzel in Klartext. Token für Token, nicht per `replace` über die
+   * ganze Zeichenkette: `String.replace` mit einem Text-Muster ersetzt nur das
+   * ERSTE Vorkommen, und die eigentliche Taste blieb roh stehen. Dieselbe
+   * Kombination stand dadurch auf einer Seite in zwei Schreibweisen
+   * („Strg + Umschalt + D" gegen „… + d"), und `escape` erschien als „escape".
+   */
+  const taste = (roh: string): string => {
+    const t = roh.trim().toLowerCase();
+    const sonder: Record<string, string> = {
+      mod: istMac ? '⌘' : 'Strg',
+      shift: istMac ? '⇧' : 'Umschalt',
+      alt: istMac ? '⌥' : 'Alt',
+      ctrl: istMac ? '⌃' : 'Strg',
+      meta: istMac ? '⌘' : 'Win',
+      escape: 'Esc',
+      esc: 'Esc',
+      enter: istMac ? '⏎' : 'Enter',
+      space: 'Leertaste',
+      tab: 'Tab',
+      backspace: istMac ? '⌫' : 'Rücktaste',
+      delete: 'Entf',
+      arrowup: '↑',
+      arrowdown: '↓',
+      arrowleft: '←',
+      arrowright: '→',
+    };
+    return sonder[t] ?? (t.length === 1 ? t.toUpperCase() : t.charAt(0).toUpperCase() + t.slice(1));
+  };
+
   const formatiere = (combo: string): string =>
-    combo
-      .replace('mod', istMac ? '⌘' : 'Strg')
-      .replace('shift', istMac ? '⇧' : 'Umschalt')
-      .replace('alt', istMac ? '⌥' : 'Alt')
-      .split('+')
-      .join(istMac ? '' : ' + ');
+    combo.split('+').map(taste).join(istMac ? '' : ' + ');
 
   return (
     <SettingsGruppe titel="Tastatur">

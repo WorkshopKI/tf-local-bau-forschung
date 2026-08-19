@@ -16,6 +16,11 @@ import { ROLLEN, ROLLE_LANG, leseStatusRolle, type Rolle } from '@/core/status';
 import { isMaLoginEnabled } from '@/config/feature-flags';
 import { isAuslastungFreigeschaltet } from '@/core/modul-freischaltung';
 import { SettingsGruppe, SettingsOption, SettingsStepper } from '@/components/settings';
+import {
+  HOME_ANTRAEGE_MAX,
+  HOME_ANTRAEGE_MIN,
+  HOME_ANTRAEGE_STANDARD,
+} from '@/core/types/config';
 
 const HINT_ROLLE =
   'Das Fachsystem vermerkt bei jedem Statuseintrag, wer ihn setzt. Die Auswahl ist eine Vorauswahl: die Statusliste auf der Antragsseite startet darauf gefiltert, alles Übrige bleibt einen Klick entfernt. Einträge, die jeder setzen darf, bleiben immer sichtbar.';
@@ -27,10 +32,17 @@ const HINT_KUERZEL_LOGIN =
   'Dein Kürzel wird beim Login aus deinem Passwort ermittelt und kann hier nicht geändert werden.';
 const HINT_INAKTIV =
   'Zeigt in den Antragslisten und auf der Startseite auch die Anträge von Kolleg:innen, die im Auslastungs-Modul als inaktiv geführt sind. Wirkt nur im Übersichtsmodus „Alle Bearbeiter" — die Auswahl darüber führt ehemalige Kürzel unabhängig davon.';
+// Kein Rollen-Zuschnitt in diesem Satz: `useBearbeiterSicht` ruft
+// `parseBearbeiterFilter` OHNE `rolle` auf — Liste und Startseite matchen immer
+// gegen beide Bearbeiter-Spalten. Nur das Vorgangs-Board schneidet nach Rolle
+// zu. Der Satz behauptete das Gegenteil (v4.116).
 const HINT_ZTP =
-  'Mit Schalter gelten Anträge, in denen dein Kürzel in der Begleitung steht (ZTP_KUERZ, PFM_KUERZ), als deine eigenen. Ohne Schalter bleibt der Reiter „Begleitung" sichtbar, zeigt bei aktivem Kürzel-Filter aber nur Anträge, in denen du direkt als Bearbeiter geführt bist (TIB_KUERZ/BIB_KUERZ, bei gesetzter Rolle nur deren Spalte). Frist für VN-Anträge: D_VBE + 6 Monate.';
+  'Mit Schalter gelten Anträge, in denen dein Kürzel in der Begleitung steht (ZTP_KUERZ, PFM_KUERZ), als deine eigenen. Ohne Schalter bleibt der Reiter „Begleitung" sichtbar, zeigt bei aktivem Kürzel-Filter aber nur Anträge, in denen du direkt als Bearbeiter geführt bist (TIB_KUERZ/BIB_KUERZ — beide Spalten, unabhängig von deiner Rolle). Frist für VN-Anträge: D_VBE + 6 Monate.';
 const HINT_ANZAHL =
   'Anzahl der offenen Anträge, die beim Öffnen der Startseite sichtbar sind. Über „Mehr anzeigen" lassen sich weitere nachladen.';
+
+/** Wert des Platzhalter-Eintrags für ein gesetztes, aber unbekanntes Kürzel. */
+const EIGEN_WERT = '__eigener_wert__';
 
 const SELECT_CLASS =
   'h-[30px] pl-2.5 pr-7 text-[12.5px] text-[var(--tf-text)] bg-[var(--tf-bg)] rounded-[var(--tf-radius)] outline-none cursor-pointer focus:border-[var(--tf-primary)]';
@@ -76,9 +88,9 @@ export function AntraegeSichtGruppe(): React.ReactElement | null {
         kurzzeile={'Beim Öffnen sichtbar, vor „Mehr anzeigen"'}
       >
         <SettingsStepper
-          value={profile.home_meine_antraege_count ?? 5}
-          min={5}
-          max={15}
+          value={profile.home_meine_antraege_count ?? HOME_ANTRAEGE_STANDARD}
+          min={HOME_ANTRAEGE_MIN}
+          max={HOME_ANTRAEGE_MAX}
           onChange={v => updateProfile({ home_meine_antraege_count: v })}
           ariaLabel="Anträge auf der Startseite"
         />
@@ -134,25 +146,40 @@ function KuerzelZeile(): React.ReactElement {
   }
 
   const cur = current.trim();
-  const upper = cur.toUpperCase();
-  // Ein gewähltes, aber unbekanntes Kürzel (Freitext-Altbestand, Kürzel aus einer
-  // Quelle, die gerade nicht geladen ist) fällt visuell auf „Alle".
-  const wert =
-    !cur || cur.toLowerCase() === 'alle' || !options.some(o => o.kuerzel === upper)
-      ? 'alle'
-      : upper;
+  // NFC vor dem Vergleich (Pitfall #22): „THÜ" kann als ein Zeichen oder als
+  // U + Kombinierendes Trema in den Daten stehen; ohne Normalisierung fand der
+  // Vergleich das eigene Kürzel nicht wieder.
+  const norm = (s: string): string => s.trim().normalize('NFC').toUpperCase();
+  const upper = norm(cur);
+  const istAlle = !cur || cur.toLowerCase() === 'alle';
+  const treffer = options.find(o => norm(o.kuerzel) === upper);
+  /**
+   * Gesetzt, aber nicht in der Liste — ein kommagetrenntes Vertretungs-Kürzel
+   * („MUE, SCH") oder eines aus einer Quelle, die gerade nicht geladen ist.
+   *
+   * Bis v4.116 fiel das still auf „Alle" zurück: die Auswahl behauptete, es
+   * gebe keinen Filter, während er weiterlief und die Liste kürzte. Jetzt steht
+   * der Wert als eigener Eintrag drin und sagt, was gilt.
+   */
+  const eigenerWert = !istAlle && !treffer ? cur : null;
+  const wert = istAlle ? 'alle' : (treffer?.kuerzel ?? EIGEN_WERT);
 
   return (
     <>
       <SettingsOption label="Bearbeiter-Kürzel" hint={HINT_KUERZEL_WAHL}>
         <select
           value={wert}
-          onChange={e => updateProfile({ bearbeiter_kuerzel: e.target.value })}
+          // Der Platzhalter-Eintrag ist nur Anzeige — er darf sich nicht
+          // versehentlich ins Profil schreiben.
+          onChange={e => { if (e.target.value !== EIGEN_WERT) updateProfile({ bearbeiter_kuerzel: e.target.value }); }}
           aria-label="Bearbeiter-Kürzel"
           className={SELECT_CLASS}
           style={SELECT_STYLE}
         >
           <option value="alle">Alle</option>
+          {eigenerWert != null && (
+            <option value={EIGEN_WERT}>{eigenerWert} · eigener Eintrag</option>
+          )}
           {/* Angezeigt wird die Schreibweise der Quelle („THü"), gespeichert die
               Normalform — wer sein Kürzel sucht, sucht es so, wie er es schreibt. */}
           {options.map(o => (

@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.116.0 — Einstellungen: 48 Befunde der Bug-Jagd behoben (August 2026)
+
+MINOR — Die read-only-Jagd über 4.886 Zeilen fand ein Muster, nicht Einzelfälle: **zwei Stellen entscheiden dieselbe Frage, und nur eine wurde nachgezogen.** Registry gegen Anker, Seite gegen Bauteil, Einstellung gegen Startseite, Klick gegen Neustart. Dazu ein zweiter Faden — Zusagen, die niemand einlöst: ein Zähler ohne Nachzug, ein Häkchen an einer Farbe, die nicht mehr gilt, ein Suchtreffer, der auf nichts zeigt.
+
+- **Alle vier Layout-Bauteile fragen die Beta-/Experten-Achse** — `SettingsKlappe`/`SettingsBlock` rendertem ihren Anker bedingungslos, 9 von 16 markierten Abschnitten blieben stehen (Guard `sichtbarkeit-alle-bauteile`, [settings-layout.tsx](src/components/settings/settings-layout.tsx))
+- **Die Primärfarbe speichert alle drei Werte** (`theme.sat`/`lit`), Bestands-Profile werden über den Farbton geheilt; das Profil wird bei jeder Änderung in den persönlichen Ordner gespiegelt ([theme.ts](src/components/ui/theme.ts), [useProfile.ts](src/core/hooks/useProfile.ts))
+- **Fachprofil**: Ersatz-Befüllung nimmt die Kompetenzen mit, beide Hydrationen weichen einer laufenden Eingabe aus, der Auto-Save fasst nach statt zu verwerfen ([useFachprofil.ts](src/plugins/einstellungen/profil/useFachprofil.ts))
+- **Suche + Deep-Links**: Rangfolge statt Reihenfolge, Groß-/Kleinschreibung egal, sechs unerreichbare Anker registriert, unauflösbare Ziele sagen es (Guard „jeder DOM-Anker steht in der Registry", [panels.ts](src/components/settings/panels.ts), [SettingsHubPage.tsx](src/components/settings/SettingsHubPage.tsx))
+- **Tags, Ordner, KI-Karten**: Umbenennen erreicht die Dokumente, Zähler aus dem Bestand, acht Ordner-Aktionen melden ihre Fehler, Entwurf und wirksame Adresse getrennt ([tags.ts](src/core/services/tags.ts), [OrdnerGruppe.tsx](src/plugins/einstellungen/daten/OrdnerGruppe.tsx), [VerbindungGruppe.tsx](src/plugins/einstellungen/ki/VerbindungGruppe.tsx))
+
 ### v4.115.2 — Guard: die Kontext-Reserve muss das Output-Budget decken (August 2026)
 
 PATCH — v4.115.1 hat die Reserve korrigiert, aber nichts hielt sie am Output-Budget fest: zwei unabhängige Zahlen, deren Verhältnis niemand nachrechnete. Genau daran scheiterte sie jahrelang unbemerkt — ein Kontext-Überlauf meldet sich nicht, er schiebt den System-Prompt hinaus.

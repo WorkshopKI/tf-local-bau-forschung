@@ -1,6 +1,8 @@
 import { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import type { UserProfile } from '@/core/types/config';
 import type { StorageService } from '@/core/services/storage';
+import { getPersoenlichHandle } from '@/core/services/infrastructure/smb-handle';
+import { savePersonalSettings } from '@/core/services/personal-storage';
 
 interface ProfileContextValue {
   profile: UserProfile | null;
@@ -55,6 +57,36 @@ export function useProfileProvider(storage: StorageService): ProfileContextValue
   }, [reloadProfile]);
 
   /**
+   * Spiegelt das Profil best-effort in den persoenlichen Ordner
+   * (`<pers>/ZAH/profile.json`).
+   *
+   * Diese Kopie ist die einzige Rettung, wenn die varianten-eigene IndexedDB
+   * verloren geht (Browser-Eviction, zurueckgesetztes Citrix-Profil, Wechsel
+   * der Build-Variante) — `restoreFromPers` im Onboarding liest sie. Bis v4.116
+   * wurde sie GENAU EINMAL geschrieben, beim Einrichten: wiederhergestellt kam
+   * damit der Stand des Einrichtungstags zurueck, und alles seither Gesetzte
+   * (Kuerzel gewechselt, Kurator-Flagge, Beta/Experte, Anzahl auf der
+   * Startseite) war fort, ohne dass jemand es sagte.
+   *
+   * NICHT abgewartet: Aufrufer wie die Farbwahl klicken schnell hintereinander,
+   * und ein SMB-Schreibvorgang haengt an der Netzlaufzeit. Die Schreibvorgaenge
+   * reihen sich stattdessen an einer Kette auf, damit ein spaeterer Stand nicht
+   * von einem frueheren ueberholt wird. Fehler bleiben stumm — die IDB ist die
+   * Wahrheit, der Spiegel nur die Rettungskopie (`savePersonalSettings`
+   * schluckt sie ohnehin).
+   */
+  const spiegelKette = useRef<Promise<void>>(Promise.resolve());
+  const spiegleInsPersoenliche = useCallback((p: UserProfile) => {
+    spiegelKette.current = spiegelKette.current
+      .catch(() => {})
+      .then(async () => {
+        const handle = await getPersoenlichHandle(storage.idb).catch(() => null);
+        await savePersonalSettings(storage.idb, handle, { profile: p });
+      })
+      .catch(() => {});
+  }, [storage]);
+
+  /**
    * Loest ERST auf, wenn das Profil in der IDB steht. Aufrufer laden direkt
    * danach neu (Kurator-Freischaltung) — ein nicht abgewarteter Schreibvorgang
    * ginge dabei verloren.
@@ -68,7 +100,8 @@ export function useProfileProvider(storage: StorageService): ProfileContextValue
     }
     setzeProfil(updated);
     await storage.idb.set('profile', updated);
-  }, [storage, setzeProfil]);
+    spiegleInsPersoenliche(updated);
+  }, [storage, setzeProfil, spiegleInsPersoenliche]);
 
   return { profile, updateProfile, reloadProfile };
 }

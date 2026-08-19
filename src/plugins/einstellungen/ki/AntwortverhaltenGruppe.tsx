@@ -104,7 +104,10 @@ export function AntwortverhaltenGruppe({ aiConfig }: { aiConfig: AIProviderConfi
         hint={HINT_KONTEXT}
         kurzzeile={
           <>
-            {tokens.toLocaleString('de-DE')} Tokens · reicht für{' '}
+            {/* BEIDE Zahlen aus derselben Quelle: bis v4.116 stand hier die
+                gespeicherte Tokenzahl neben dem Zeichen-Cap des gerade
+                Getippten — ein Satz, zwei Stände. */}
+            {liveTokens.toLocaleString('de-DE')} Tokens · reicht für{' '}
             <b className="font-medium text-[var(--tf-text-secondary)]">
               ~{computeVbCharCap(liveTokens).toLocaleString('de-DE')} Zeichen
             </b>{' '}

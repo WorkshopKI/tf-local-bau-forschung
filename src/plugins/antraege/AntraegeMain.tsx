@@ -568,8 +568,10 @@ export function AntraegeMain({
                   oder leeren) oder eine CSV-Quelle mit den KUERZ-Spalten registrieren bzw. das Mapping ergänzen.
                 </p>
                 <div className="mt-1.5 flex items-center gap-3 text-[11.5px]">
+                  {/* Derselbe Anker wie in der wortgleichen Meldung auf der
+                      Startseite (HomePage) — beide meinen den Kürzel-Filter. */}
                   <Link
-                    to="/einstellungen"
+                    to="/einstellungen?sektion=sec-filter"
                     className="inline-flex items-center gap-1 underline hover:no-underline"
                   >
                     <Settings size={12} /> Profil bearbeiten

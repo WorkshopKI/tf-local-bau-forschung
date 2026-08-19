@@ -162,6 +162,15 @@ export const HubPluginContext = createContext<string | null>(null);
  *
  * Ohne Anker oder außerhalb eines Hubs: ja. Ein Abschnitt ohne Id kann nicht
  * gemeint sein, und außerhalb eines Hubs gibt es keine Id zu bilden.
+ *
+ * **ALLE VIER Bauteile fragen das ab.** Bis v4.116 taten es nur `SettingsGruppe`
+ * und `SettingsOption` — `SettingsBlock` und `SettingsKlappe` rendertem ihren
+ * Anker bedingungslos, während `SettingsHubPage` dieselben Abschnitte aus
+ * Navigation, Suchindex und Deep-Link-Auflösung herausfilterte. Neun der
+ * sechzehn markierten Abschnitte blieben so stehen, obwohl die Seite sie für
+ * verborgen hielt (drei in den Einstellungen, sechs in der Kuration, darunter
+ * „Antrags-Daten zurücksetzen"). Der Guard `sichtbarkeit-alle-bauteile`
+ * (`conventions-ui.test.ts`) hält das fest.
  */
 export function useAbschnittSichtbar(id: string | undefined): boolean {
   const hub = useContext(HubPluginContext);
@@ -358,8 +367,10 @@ export function SettingsBlock({
   zusatz?: string;
   hint?: string;
   children: React.ReactNode;
-}): React.ReactElement {
+}): React.ReactElement | null {
   const treffer = useSprungTreffer(id);
+  const sichtbar = useAbschnittSichtbar(id);
+  if (!sichtbar) return null;
   return (
     <div
       id={id}
@@ -406,9 +417,10 @@ export function SettingsKlappe({
   /** Weitere Anker-Ids im Rumpf, die einen Sprung hierher ausloesen. */
   enthaelt?: readonly string[];
   children: React.ReactNode;
-}): React.ReactElement {
+}): React.ReactElement | null {
   const [offen, umschalten, setzeOffen] = useCollapsedSection(storageKey, { defaultOpen });
   const ziel = useContext(SprungZielContext);
+  const sichtbar = useAbschnittSichtbar(id);
   const trifft = ziel != null && (ziel.id === id || (enthaelt?.includes(ziel.id) ?? false));
 
   // Sprung-Ziel aufklappen. Ausgeloest je SPRUNG (`ziel.nr`), nicht je Zustand:
@@ -423,6 +435,8 @@ export function SettingsKlappe({
     if (trifft) setzeOffen(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trifft, ziel?.nr]);
+
+  if (!sichtbar) return null;
 
   return (
     <section

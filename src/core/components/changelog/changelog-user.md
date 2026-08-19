@@ -19,6 +19,23 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.116 — 2026-08
+
+### Bugfixes
+- **Die gewählte Primärfarbe bleibt jetzt erhalten.** Von den sieben Farben überstand bisher nur „Schiefer" einen Neustart — alle anderen kamen in einem kräftigeren Blaugrau zurück, während das Häkchen weiter an der gewählten Farbe stand. Die App merkte sich nur den Farbton, nicht die Sättigung und Helligkeit. Wer eine Farbe eingestellt hatte, sieht sie ab jetzt wieder; ein erneutes Anklicken ist nicht nötig.
+- **Ihre Einstellungen überleben jetzt auch einen Geräte- oder Browserwechsel.** Die Sicherungskopie im persönlichen Ordner wurde nur einmal beim Einrichten geschrieben. Ging der Browser-Speicher verloren, kam der Stand des Einrichtungstags zurück — Kürzel, Kurator-Häkchen und alles seither Eingestellte waren weg. Jetzt wird die Kopie bei jeder Änderung mitgeschrieben.
+- **Die Startseite zeigt so viele Anträge, wie die Einstellung sagt.** Dort stand „5", angezeigt wurden 10 — und der erste Klick auf „Mehr" machte daraus 6, verkürzte die Liste also. Beide Stellen rechnen jetzt mit derselben Zahl.
+- **Ausgeblendete Bereiche sind wirklich ausgeblendet.** Wer „Beta-Funktionen" oder den Expertenmodus ausgeschaltet ließ, sah trotzdem neun Bereiche, die dazu gehören — darunter „Antrags-Daten zurücksetzen" in der Datenpflege. Ein Link auf so einen Bereich meldete gleichzeitig, er sei ausgeblendet, während er sichtbar danebenstand.
+- **Kompetenzen im Fachprofil gehen nicht mehr verloren.** Wer noch kein eigenes Profil angelegt hatte, sah „0 Begriffe", obwohl im Team-Profil welche standen — und die erste beliebige Änderung schrieb sie dort auf leer.
+- **Ein Tag umbenennen wirkt jetzt auch auf die Dokumente.** Bisher änderte sich nur der Name in der Liste; das nächste „Neu zählen" holte den alten zurück und stellte den neuen mit null Verwendungen daneben. Außerdem stehen technische Kennungen (z. B. die Verbund-Nummer) nicht mehr zwischen den echten Schlagwörtern.
+- **Fehlgeschlagene Ordner-Aktionen sagen es jetzt.** Sieben der acht Aktionen in „Daten & Verbindungen" — verbinden, trennen, aktualisieren — brachen bisher stillschweigend ab: der Spinner ging aus, sonst passierte nichts.
+- **Verzeichnisse mit abgelaufenem Zugriff verschwinden nicht mehr.** Sie wurden gar nicht angezeigt („Keine weiteren Verzeichnisse verbunden"), obwohl sie eingetragen waren. Jetzt stehen sie mit einem „Zugriff erneuern"-Knopf in der Liste.
+
+### Verbesserungen
+- **Die Suche in den Einstellungen findet zuerst, was am besten passt.** Wer „Verbindung" tippte, bekam sechs Abschnitte der Seite „Daten & Verbindungen" — und ausgerechnet nicht den Abschnitt, der „Verbindung" heißt. Groß- und Kleinschreibung spielt in Links jetzt keine Rolle mehr, und ein Link auf einen Abschnitt, den es hier nicht gibt, sagt das, statt wortlos auf der ersten Seite zu landen.
+- **Sechs Bereiche sind neu über die Suche erreichbar** — darunter „Verbindung einrichten" mit dem ziehbaren Lesezeichen, die Tag-Liste und „Wer ist online".
+- **„Zur Freischaltung" und „verwalten" führen jetzt an die richtige Stelle** statt auf den Anfang der Einstellungen.
+
 ## v4.115 — 2026-08
 
 ### Verbesserungen

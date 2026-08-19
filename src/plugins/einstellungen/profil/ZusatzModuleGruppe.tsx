@@ -216,7 +216,19 @@ function KuratorSchalter(): React.ReactElement {
   });
 
   return (
-    <SettingsOption id="sec-kurator" label="Kurator-Menüs" hint={HINT_KURATOR_FREI}>
+    <SettingsOption
+      id="sec-kurator"
+      label="Kurator-Menüs"
+      hint={HINT_KURATOR_FREI}
+      // `useAsyncAction` fängt den Fehler — bis v4.116 zeigte ihn niemand an.
+      // Scheitert der Sitzungs-Spiegel, stehen die Menüs da und jede
+      // Schreib-Aktion darin bleibt grau, ohne dass ein Wort dazu fällt.
+      kurzzeile={
+        umschalten.error
+          ? <span className="text-[var(--tf-danger-text)]">Kurator-Sitzung konnte nicht gesetzt werden: {umschalten.error}. Die Menüs erscheinen, Schreib-Aktionen bleiben gesperrt.</span>
+          : undefined
+      }
+    >
       <Switch
         checked={!!(profile?.is_kurator ?? profile?.is_admin)}
         onCheckedChange={v => umschalten.run(v)}

@@ -38,6 +38,20 @@ interface HubNavigation {
 
 const HubNavigationContext = createContext<HubNavigation | null>(null);
 
+/**
+ * Einen Deep-Link-Parameter zum Vergleichen bringen: getrimmt und klein.
+ * `null`, wenn nach dem Trimmen nichts uebrig ist — `?sektion=` ohne Wert ist
+ * dasselbe wie kein Parameter und darf keinen Hinweis ausloesen.
+ *
+ * Klein geschrieben, weil `?sektion=SEC-ACCOUNT` aus einer Mail oder einem
+ * Wiki dieselbe Stelle meint wie `sec-account`; die Ids selbst sind ohnehin
+ * durchgehend klein.
+ */
+function normId(roh: string | null | undefined): string | null {
+  const s = roh?.trim().toLowerCase() ?? '';
+  return s.length > 0 ? s : null;
+}
+
 export function useHubNavigation(): HubNavigation {
   const ctx = useContext(HubNavigationContext);
   if (!ctx) throw new Error('useHubNavigation nur innerhalb von SettingsHubPage');
@@ -70,12 +84,23 @@ export function SettingsHubPage({
   // prüfen sich in `SettingsGruppe`/`SettingsOption` über denselben Kontext;
   // beide Wege lesen dieselbe Id, können also nicht auseinanderlaufen.
   const sichtbar = useSichtbar();
-  const panels = useMemo(
-    () => allePanels
+  const panels = useMemo(() => {
+    // Ein Abschnitt fällt weg, wenn ihn die Achse verbirgt ODER sein Wirt
+    // (`in`) schon weggefallen ist — sonst bliebe eine Klappe allein im
+    // Suchindex stehen, während die Karte um sie herum verschwunden ist.
+    const sichtbareAbschnitte = (sections: SettingsPanel['sections']): SettingsPanel['sections'] => {
+      const geblieben = new Set<string>();
+      return sections.filter(s => {
+        if (!sichtbar(abschnittId(pluginId, s.id))) return false;
+        if (s.in != null && !geblieben.has(s.in)) return false;
+        geblieben.add(s.id);
+        return true;
+      });
+    };
+    return allePanels
       .filter(p => sichtbar(reiterId(pluginId, p.id)))
-      .map(p => ({ ...p, sections: p.sections.filter(s => sichtbar(abschnittId(pluginId, s.id))) })),
-    [allePanels, pluginId, sichtbar],
-  );
+      .map(p => ({ ...p, sections: sichtbareAbschnitte(p.sections) }));
+  }, [allePanels, pluginId, sichtbar]);
 
   const [activePanel, setActivePanel] = useState(panels[0]?.id ?? '');
 
@@ -85,6 +110,10 @@ export function SettingsHubPage({
   // macht denselben Treffer wiederholbar.
   const [sprung, setSprung] = useState<SettingsSprungZiel | null>(null);
   const sprungZaehler = useRef(0);
+  // Hat der Nutzer den Deep-Link-Hinweis durch eigene Bedienung abgeräumt?
+  const [hinweisWeg, setHinweisWeg] = useState(false);
+  // Ein Sprung, dessen Anker die Karte gerade nicht rendert (siehe Scroll-Effekt).
+  const [fehlenderAnker, setFehlenderAnker] = useState<{ label: string; gruppe: string } | null>(null);
   // Als State, nicht als Ref: der Portal-Anker muss einen Re-Render auslösen,
   // sonst rendert der erste Durchlauf ohne Ziel und der Status bleibt leer.
   const [kopfStatusEl, setKopfStatusEl] = useState<HTMLDivElement | null>(null);
@@ -108,13 +137,19 @@ export function SettingsHubPage({
     setActivePanel(panelId);
     sprungZaehler.current += 1;
     setSprung({ id: sectionId, nr: sprungZaehler.current });
+    setHinweisWeg(true);
+    setFehlenderAnker(null);
   };
 
   // Seitenwechsel per Navigation räumt eine stehende Markierung ab: sie gehört
-  // zum Treffer, nicht zur Seite.
+  // zum Treffer, nicht zur Seite. Dasselbe gilt für den Deep-Link-Hinweis —
+  // bis v4.116 hing er allein an der URL, die ein Panel-Wechsel nicht anfasst,
+  // und stand darum auf jeder weiteren Seite ungefragt weiter.
   const waehlePanel = (id: string): void => {
     setActivePanel(id);
     setSprung(null);
+    setHinweisWeg(true);
+    setFehlenderAnker(null);
   };
 
   // Deep-Link von außerhalb: `?sektion=sec-widgets` springt Panel + Anker an,
@@ -124,22 +159,24 @@ export function SettingsHubPage({
   const [searchParams] = useSearchParams();
   const behandelt = useRef<string | null>(null);
   useEffect(() => {
-    const sektion = searchParams.get('sektion');
-    const panelParam = searchParams.get('panel');
+    const sektion = normId(searchParams.get('sektion'));
+    const panelParam = normId(searchParams.get('panel'));
     if (sektion == null && panelParam == null) return;
     const schluessel = `${panelParam ?? ''}|${sektion ?? ''}`;
     if (behandelt.current === schluessel) return;
     if (sektion != null) {
-      const panel = panels.find(p => p.sections.some(s => s.id === sektion));
-      if (panel) {
+      const panel = panels.find(p => p.sections.some(s => s.id.toLowerCase() === sektion));
+      const treffer = panel?.sections.find(s => s.id.toLowerCase() === sektion);
+      if (panel && treffer) {
         behandelt.current = schluessel;
-        goToSection(panel.id, sektion);
+        goToSection(panel.id, treffer.id);
         return;
       }
     }
-    if (panelParam != null && panels.some(p => p.id === panelParam)) {
+    const panelTreffer = panels.find(p => p.id.toLowerCase() === panelParam);
+    if (panelTreffer) {
       behandelt.current = schluessel;
-      waehlePanel(panelParam);
+      waehlePanel(panelTreffer.id);
     }
     // `goToSection`/`waehlePanel` sind stabil genug (nur setState + Ref) — als
     // Abhängigkeit würden sie den Effekt bei jedem Render neu bewerten.
@@ -147,18 +184,43 @@ export function SettingsHubPage({
   }, [searchParams, panels]);
 
   /**
-   * Ein Deep-Link auf einen Abschnitt, den die Schalter gerade ausblenden.
+   * Ein Deep-Link, der nicht ankommt — und der Grund dafür.
    *
-   * Ohne diesen Zweig passierte schlicht nichts — der Link „funktioniert", nur
-   * ohne Wirkung, und der Nutzer sucht auf der falschen Seite. Der Hinweis sagt
-   * stattdessen, WAS fehlt und WOHER man es zurückholt.
+   * Ohne diesen Zweig passierte schlicht nichts: der Link „funktioniert", nur
+   * ohne Wirkung, und der Nutzer sucht auf der falschen Seite. Bis v4.116 deckte
+   * der Hinweis genau EINEN Fall ab — eine Id, die die Beta-/Experten-Schalter
+   * gerade verbergen. Alles andere fiel still durch: ein Tippfehler, ein
+   * Abschnitt, den ein Feature-Flag oder ein Modulschloss aus der Registry
+   * genommen hat, ein unbekannter `?panel=`-Wert. Ein Lesezeichen auf einen
+   * Abschnitt, den der eigene Build nicht hat, landete wortlos auf Seite eins.
    */
-  const verborgenesZiel = useMemo(() => {
-    const sektion = searchParams.get('sektion');
-    if (!sektion) return null;
-    if (panels.some(p => p.sections.some(s => s.id === sektion))) return null;
-    return allePanels.flatMap(p => p.sections).find(s => s.id === sektion)?.label ?? null;
+  const zielHinweis = useMemo<{ art: 'verborgen' | 'unbekannt'; text: string } | null>(() => {
+    const sektionRoh = searchParams.get('sektion')?.trim() ?? '';
+    const sektion = normId(sektionRoh);
+    if (sektion != null) {
+      if (panels.some(p => p.sections.some(s => s.id.toLowerCase() === sektion))) return null;
+      const verborgen = allePanels
+        .flatMap(p => p.sections)
+        .find(s => s.id.toLowerCase() === sektion);
+      return verborgen
+        ? { art: 'verborgen', text: verborgen.label }
+        : { art: 'unbekannt', text: sektionRoh };
+    }
+    const panelRoh = searchParams.get('panel')?.trim() ?? '';
+    const panelParam = normId(panelRoh);
+    if (panelParam == null) return null;
+    if (panels.some(p => p.id.toLowerCase() === panelParam)) return null;
+    const verborgenesPanel = allePanels.find(p => p.id.toLowerCase() === panelParam);
+    return verborgenesPanel
+      ? { art: 'verborgen', text: verborgenesPanel.label }
+      : { art: 'unbekannt', text: panelRoh };
   }, [searchParams, panels, allePanels]);
+
+  // Ein neuer Link zeigt den Hinweis wieder — abgeräumt wird er erst durch
+  // eine Bedienung im Hub (`waehlePanel` / `goToSection`).
+  useEffect(() => {
+    setHinweisWeg(false);
+  }, [searchParams]);
 
   // Scroll einen Tick nach dem Panel-Wechsel: erst dann ist das Ziel gemountet.
   // Bewusst `setTimeout` statt `requestAnimationFrame` — rAF ruht, solange das
@@ -178,7 +240,20 @@ export function SettingsHubPage({
     if (!sprung) return;
     const abraeumen = (): void => setSprung(null);
     const t = window.setTimeout(() => {
-      document.getElementById(sprung.id)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      const ziel = document.getElementById(sprung.id);
+      // Der Anker steht in der Registry, aber nicht im DOM: die Karte rendert
+      // ihn nur unter einer LAUFZEIT-Bedingung, die die Registry nicht kennt
+      // (das Fachprofil braucht ein aufgelöstes Kürzel). Bis v4.116 passierte
+      // dann nichts — die Trefferliste schloss sich, es sah nach Wirkung aus,
+      // und der Nutzer suchte auf der richtigen Seite vergeblich. Jetzt nennt
+      // der Hinweis die Karte, die den Grund trägt.
+      if (!ziel) {
+        const eintrag = panels.flatMap(p => p.sections).find(s => s.id === sprung.id);
+        if (eintrag) setFehlenderAnker({ label: eintrag.label, gruppe: eintrag.gruppe });
+        return;
+      }
+      setFehlenderAnker(null);
+      ziel.scrollIntoView({ behavior: 'smooth', block: 'center' });
       document.addEventListener('pointerdown', abraeumen, { once: true, capture: true });
       document.addEventListener('keydown', abraeumen, { once: true, capture: true });
     }, 0);
@@ -187,7 +262,7 @@ export function SettingsHubPage({
       document.removeEventListener('pointerdown', abraeumen, { capture: true });
       document.removeEventListener('keydown', abraeumen, { capture: true });
     };
-  }, [sprung]);
+  }, [sprung, panels]);
 
   return (
     <div className="px-8 pt-4 pb-6">
@@ -201,13 +276,33 @@ export function SettingsHubPage({
 
       {hinweis != null && <div className="max-w-[1280px]">{hinweis}</div>}
 
-      {verborgenesZiel != null && (
+      {fehlenderAnker != null && (
         <div
           className="max-w-[1280px] mb-4 rounded-[var(--tf-radius)] px-3 py-2 text-[12.5px] leading-[1.5]"
           style={{ background: 'var(--tf-info-bg)', color: 'var(--tf-info-text)' }}
         >
-          Der gesuchte Abschnitt „{verborgenesZiel}" ist gerade ausgeblendet. Er erscheint,
-          sobald in „Mein Profil › Umfang der Oberfläche" der passende Schalter an ist.
+          „{fehlenderAnker.label}" gehört zur Karte „{fehlenderAnker.gruppe}" und ist dort gerade
+          nicht ausgefüllt — die Karte sagt, was dafür fehlt.
+        </div>
+      )}
+
+      {zielHinweis != null && !hinweisWeg && (
+        <div
+          className="max-w-[1280px] mb-4 rounded-[var(--tf-radius)] px-3 py-2 text-[12.5px] leading-[1.5]"
+          style={{ background: 'var(--tf-info-bg)', color: 'var(--tf-info-text)' }}
+        >
+          {zielHinweis.art === 'verborgen' ? (
+            <>
+              Der gesuchte Abschnitt „{zielHinweis.text}" ist gerade ausgeblendet. Er erscheint,
+              sobald in „Mein Profil › Umfang der Oberfläche" der passende Schalter an ist.
+            </>
+          ) : (
+            <>
+              Der Link zeigt auf „{zielHinweis.text}" — diesen Abschnitt gibt es in dieser
+              Programmfassung nicht. Vielleicht stammt er aus einer anderen Fassung oder hat sich
+              ein Tippfehler eingeschlichen; die Suche links findet ihn, falls er umbenannt wurde.
+            </>
+          )}
         </div>
       )}
 

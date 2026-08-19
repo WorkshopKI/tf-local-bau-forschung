@@ -89,10 +89,16 @@ export function TeamStatusGruppe(): React.ReactElement {
       id="sec-team"
       titel="Team-Status"
       hint={HINT_GRUPPE}
+      // „Ordner fehlen" nur, wenn wirklich keine konfiguriert sind. Sind welche
+      // da und bloß der Zugriff abgelaufen, sagte die Kopfzeile bis v4.116 das
+      // Gegenteil dessen, was die Zeile darunter anbot („Zugriff muss erneut
+      // bestätigt werden") — und schickte in die falsche Richtung.
       unterzeile={
-        nutzbare.length === 0
-          ? 'Noch nicht aktiv — Ordner fehlen.'
-          : `${onlineAnzahl} ${onlineAnzahl === 1 ? 'Person' : 'Personen'} online.`
+        nutzbare.length > 0
+          ? `${onlineAnzahl} ${onlineAnzahl === 1 ? 'Person' : 'Personen'} online.`
+          : wurzeln.length === 0
+            ? 'Noch nicht aktiv — Ordner fehlen.'
+            : 'Noch nicht aktiv — der Zugriff auf die verbundenen Ordner muss erneut bestätigt werden.'
       }
       aktion={
         <Button variant="ghost" size="sm" icon={RefreshCw} loading={load.busy} onClick={() => load.run()}>

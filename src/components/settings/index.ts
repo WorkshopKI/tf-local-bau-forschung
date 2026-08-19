@@ -20,6 +20,7 @@ export {
 } from './panels';
 export {
   SettingsSprungProvider,
+  useAbschnittSichtbar,
   useSprungTreffer,
   SettingsKopfStatusAnker,
   SettingsKopfStatus,

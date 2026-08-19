@@ -16,7 +16,7 @@
  * (`fiktiv: true`-Provenienz-Guard vor jedem externen Call). Generator UND Judge
  * laufen im selben Modus; Läufe strikt sequentiell (ein postMessage-Fenster).
  */
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { FlaskConical, ChevronDown, ChevronRight, Copy, Download, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -174,32 +174,82 @@ function RohtextKarte({ titel, text }: { titel: string; text: string }): React.R
   );
 }
 
+/**
+ * Letzter Stand des Panels — MODUL-lokal, nicht im Komponenten-State.
+ *
+ * `SettingsKlappe` montiert ihren Rumpf erst beim Aufklappen (`{offen && …}`)
+ * und wirft ihn beim Zuklappen wieder weg; dasselbe passiert beim Wechsel auf
+ * eine andere Einstellungs-Seite. Bis v4.116 waren damit Fixture-Auswahl,
+ * Wiederholungen, Transport UND das Ergebnis eines mehrminütigen Laufs
+ * verschwunden, sobald man kurz woanders hinsah.
+ *
+ * Bewusst nur für die Sitzung (kein localStorage): ein Eval-Ergebnis altert
+ * mit dem Code, und ein tagealter Report unter einem frischen Build wäre
+ * irreführender als gar keiner.
+ */
+interface EvalStand {
+  wiederholungen: number;
+  ausgewaehlt: Record<string, boolean>;
+  mitJudge: boolean;
+  transportModus: TransportModus;
+  verlauf: VerlaufZeile[];
+  ergebnis: GedaechtnisEvalErgebnis | null;
+  report: string | null;
+}
+
+const evalStand: EvalStand = {
+  wiederholungen: 3,
+  // Fixture-Auswahl: Degradation (20 Zyklen) ist der teure Lauf → Default AUS,
+  // damit die schnelle Baseline (4 Ein-Zyklus-Fixtures) in Minuten durchläuft.
+  ausgewaehlt: Object.fromEntries(GEDAECHTNIS_FIXTURES.map(f => [f.id, f.id !== 'degradation-1'])),
+  // Judge Default AUS: er verdoppelt die Bridge-Runden (reset + submit je Lauf).
+  // Die deterministischen Assertions sind das harte Gate; der Judge ist die
+  // qualitative Zusatz-Sicht — bei Bedarf zuschalten.
+  mitJudge: false,
+  // Default intern (gpt-oss / Standard-Chat) — zuverlässig für die strukturierte
+  // JSON-Konsolidierung; der agentische Qwen-Tab liefert teils Reasoning-Prosa statt
+  // JSON + Loop-Detector-Abbruch. (Die Produktion trifft ohnehin den Standard-Chat.)
+  transportModus: 'intern',
+  verlauf: [],
+  ergebnis: null,
+  report: null,
+};
+
+/** `useState`, das seinen Wert zusätzlich im Modul-Stand ablegt. */
+function useEvalStand<K extends keyof EvalStand>(
+  key: K,
+): [EvalStand[K], (naechst: EvalStand[K] | ((vorher: EvalStand[K]) => EvalStand[K])) => void] {
+  const [wert, setWert] = useState<EvalStand[K]>(evalStand[key]);
+  const setzen = useCallback((naechst: EvalStand[K] | ((vorher: EvalStand[K]) => EvalStand[K])) => {
+    setWert(vorher => {
+      const neu = typeof naechst === 'function'
+        ? (naechst as (v: EvalStand[K]) => EvalStand[K])(vorher)
+        : naechst;
+      evalStand[key] = neu;
+      return neu;
+    });
+  }, [key]);
+  return [wert, setzen];
+}
+
 export function GedaechtnisEvalPanel(): React.ReactElement {
   const storage = useStorage();
   const bridge = useAIBridge();
   const bridgeStatus = useBridgeStatus(s => s.status);
   const verbunden = bridgeStatus === 'connected';
 
-  const [wiederholungen, setWiederholungen] = useState(3);
-  // Fixture-Auswahl: Degradation (20 Zyklen) ist der teure Lauf → Default AUS,
-  // damit die schnelle Baseline (4 Ein-Zyklus-Fixtures) in Minuten durchläuft.
-  const [ausgewaehlt, setAusgewaehlt] = useState<Record<string, boolean>>(
-    () => Object.fromEntries(GEDAECHTNIS_FIXTURES.map(f => [f.id, f.id !== 'degradation-1'])),
-  );
-  // Judge Default AUS: er verdoppelt die Bridge-Runden (reset + submit je Lauf).
-  // Die deterministischen Assertions sind das harte Gate; der Judge ist die
-  // qualitative Zusatz-Sicht — bei Bedarf zuschalten.
-  const [mitJudge, setMitJudge] = useState(false);
-  // Default intern (gpt-oss / Standard-Chat) — zuverlässig für die strukturierte
-  // JSON-Konsolidierung; der agentische Qwen-Tab liefert teils Reasoning-Prosa statt
-  // JSON + Loop-Detector-Abbruch. (Die Produktion trifft ohnehin den Standard-Chat.)
-  const [transportModus, setTransportModus] = useState<TransportModus>('intern');
+  const [wiederholungen, setWiederholungen] = useEvalStand('wiederholungen');
+  /** Rohe Eingabe des Wiederholungs-Felds — geklemmt wird erst beim Verlassen. */
+  const [wiederholungenRoh, setWiederholungenRoh] = useState(String(evalStand.wiederholungen));
+  const [ausgewaehlt, setAusgewaehlt] = useEvalStand('ausgewaehlt');
+  const [mitJudge, setMitJudge] = useEvalStand('mitJudge');
+  const [transportModus, setTransportModus] = useEvalStand('transportModus');
   const openRouterVerfuegbar = isOpenRouterEnabled();
   const [orConfig, setOrConfig] = useState<EvalJudgeConfig>(JUDGE_DEFAULTS);
   const [orOpen, setOrOpen] = useState(false);
-  const [verlauf, setVerlauf] = useState<VerlaufZeile[]>([]);
-  const [ergebnis, setErgebnis] = useState<GedaechtnisEvalErgebnis | null>(null);
-  const [report, setReport] = useState<string | null>(null);
+  const [verlauf, setVerlauf] = useEvalStand('verlauf');
+  const [ergebnis, setErgebnis] = useEvalStand('ergebnis');
+  const [report, setReport] = useEvalStand('report');
   const [open, setOpen] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -235,7 +285,11 @@ export function GedaechtnisEvalPanel(): React.ReactElement {
     } else {
       // DSGVO intern-only (Guard #30): wirft bei externem Provider → Banner, kein Lauf.
       transport = bridge.getTransportForAssistent();
-      ziel = transportModus === 'agentisch' ? 'agentisch' : undefined;
+      // Ausdrücklich `'standard'` statt `undefined`: ohne Ziel bleibt der Lauf
+      // in dem Tab, der zuletzt benutzt wurde — der Report schrieb trotzdem
+      // „Standard-Chat" darüber (v4.116). Die Messung soll sagen, wogegen sie
+      // gelaufen ist.
+      ziel = transportModus === 'agentisch' ? 'agentisch' : 'standard';
     }
 
     const n = Math.max(1, Math.min(wiederholungen, WIEDERHOLUNGEN_MAX));
@@ -348,8 +402,19 @@ export function GedaechtnisEvalPanel(): React.ReactElement {
                   type="number"
                   min={1}
                   max={WIEDERHOLUNGEN_MAX}
-                  value={wiederholungen}
-                  onChange={e => setWiederholungen(Math.max(1, Math.min(parseInt(e.target.value, 10) || 1, WIEDERHOLUNGEN_MAX)))}
+                  // Geklemmt wird beim VERLASSEN, nicht mitten im Tippen: bis
+                  // v4.116 machte das Leeren des Felds sofort eine 1 daraus, und
+                  // die anschließend getippte 2 wurde zur 12 geklemmt auf 5.
+                  value={wiederholungenRoh}
+                  onChange={e => setWiederholungenRoh(e.target.value)}
+                  onBlur={() => {
+                    const n = parseInt(wiederholungenRoh, 10);
+                    const gueltig = Number.isFinite(n)
+                      ? Math.max(1, Math.min(n, WIEDERHOLUNGEN_MAX))
+                      : wiederholungen;
+                    setWiederholungen(gueltig);
+                    setWiederholungenRoh(String(gueltig));
+                  }}
                   className="w-16 px-2 py-1 text-[12px] bg-transparent text-[var(--tf-text)] rounded-[var(--tf-radius)] outline-none focus:border-[var(--tf-primary)]"
                   style={{ border: '0.5px solid var(--tf-border)' }}
                 />

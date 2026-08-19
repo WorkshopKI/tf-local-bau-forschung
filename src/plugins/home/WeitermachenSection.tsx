@@ -119,7 +119,7 @@ export function WeitermachenWidget({ instanz, onToggleEingeklappt }: WidgetProps
         <Lock size={11} className="shrink-0" />
         <span>
           Verlauf nur lokal auf diesem Gerät ·{' '}
-          <Link to="/einstellungen" className="underline hover:no-underline">verwalten</Link>
+          <Link to="/einstellungen?sektion=sec-arbeitsverlauf" className="underline hover:no-underline">verwalten</Link>
         </span>
       </p>
     </WidgetShell>

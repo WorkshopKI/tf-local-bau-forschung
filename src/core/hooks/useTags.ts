@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useCallback, useRef } from 'react';
-import { TagService } from '@/core/services/tags';
+import { TagService, benenneTagInDokumentenUm } from '@/core/services/tags';
 import type { TagEntry } from '@/core/services/tags';
 import type { StorageService } from '@/core/services/storage';
 
@@ -8,8 +8,14 @@ interface TagContextValue {
   popularTags: TagEntry[];
   addTag: (name: string) => void;
   removeTag: (name: string) => void;
-  renameTag: (oldName: string, newName: string) => void;
-  recountTags: (allTagNames: string[]) => void;
+  /**
+   * Benennt den Tag in der Registry UND in allen Datensätzen um. Asynchron,
+   * weil die Datensätze der eigentliche Ort sind — die Registry allein zu
+   * ändern hätte das nächste „Neu zählen" wortlos zurückgedreht.
+   */
+  renameTag: (oldName: string, newName: string) => Promise<void>;
+  /** `technische`: maschinell gesetzte Tags, die nicht in die Liste gehören. */
+  recountTags: (allTagNames: string[], technische?: ReadonlySet<string>) => void;
   suggest: (prefix: string) => string[];
   refresh: () => void;
 }
@@ -53,13 +59,16 @@ export function useTagProvider(storage: StorageService): TagContextValue {
     save();
   }, [save]);
 
-  const renameTag = useCallback((oldName: string, newName: string) => {
+  const renameTag = useCallback(async (oldName: string, newName: string) => {
+    // ERST die Datensätze, dann das Verzeichnis: schlägt der erste Schritt
+    // fehl, bleibt beides beim alten Namen statt auseinanderzulaufen.
+    await benenneTagInDokumentenUm(storage, oldName, newName);
     serviceRef.current.renameTag(oldName, newName);
     save();
-  }, [save]);
+  }, [storage, save]);
 
-  const recountTags = useCallback((allTagNames: string[]) => {
-    serviceRef.current.recountTags(allTagNames);
+  const recountTags = useCallback((allTagNames: string[], technische?: ReadonlySet<string>) => {
+    serviceRef.current.recountTags(allTagNames, technische);
     save();
   }, [save]);
 

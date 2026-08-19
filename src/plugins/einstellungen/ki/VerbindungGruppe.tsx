@@ -11,7 +11,7 @@
  * und tauscht die Daten aus; ein Lesezeichen aktiviert die Verbindung dort —
  * pro KI-Tab einmal anklicken, nach jedem Neuladen erneut.
  */
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { AlertTriangle, Bookmark, Check, Copy, ExternalLink, GripVertical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -40,7 +40,25 @@ export function VerbindungGruppe({
   const aiBridge = useAIBridge();
   const [testErgebnis, setTestErgebnis] = useState<'success' | 'error' | null>(null);
   const [gespeichert, setGespeichert] = useState(false);
+  /**
+   * Die WIRKSAME Adresse — Statuskarte, „Verbindung testen" und „Interne KI
+   * öffnen" arbeiten nur mit ihr.
+   */
   const url = (aiConfig.endpoint || 'https://gpt.vdivde-it.de/').trim();
+  /**
+   * Der Entwurf im Adressfeld, getrennt vom wirksamen Wert.
+   *
+   * Bis v4.116 schrieb jeder Tastendruck direkt in den Hub-Zustand: die
+   * Statuskarte zeigte die halb getippte Adresse, „Interne KI öffnen" hätte sie
+   * geöffnet, und die Provider-Klappe daneben rechnete mit ihr — entgegen der
+   * Zusage im Dateikopf, Entwurf und Speichern zu trennen.
+   */
+  const [entwurf, setEntwurf] = useState(aiConfig.endpoint);
+  // Nachziehen, wenn der wirksame Wert von AUSSEN wechselt (Laden beim Mount,
+  // Provider-Kachel in der dev-Klappe). Beim Tippen ändert sich `aiConfig`
+  // nicht mehr, der Effekt kommt dem Nutzer also nicht in die Quere.
+  useEffect(() => { setEntwurf(aiConfig.endpoint); }, [aiConfig.endpoint]);
+  const entwurfAbweichend = entwurf.trim() !== aiConfig.endpoint.trim();
 
   // React sanitisiert `javascript:`-hrefs (Warnung). Die Bookmarklet-URL muss
   // deshalb imperativ ins DOM — aber als CALLBACK-Ref, nicht aus einem
@@ -60,9 +78,14 @@ export function VerbindungGruppe({
   const kopieren = useKopierAktion(BRIDGE_BOOKMARKLET, 'Lesezeichen-Adresse in die Zwischenablage kopieren');
 
   const speichern = useAsyncAction(async () => {
-    const cfg: AIProviderConfig = { type: 'streamlit', endpoint: url, model: '', apiKey: '' };
+    const neueUrl = entwurf.trim() || 'https://gpt.vdivde-it.de/';
+    const cfg: AIProviderConfig = { type: 'streamlit', endpoint: neueUrl, model: '', apiKey: '' };
     await storage.idb.set('ai-provider', cfg);
     aiBridge.switchProvider(cfg);
+    // Den gespeicherten Stand auch in die Seite heben: bis v4.116 blieb der
+    // Hub-Zustand auf dem Entwurf stehen, und die Karten daneben (Provider-
+    // Klappe, Kontextfenster-Zeile) rechneten weiter mit dem alten Wert.
+    setAiConfig(cfg);
     setGespeichert(true);
     setTimeout(() => setGespeichert(false), 3000);
   });
@@ -124,8 +147,8 @@ export function VerbindungGruppe({
         <label className="flex-1 min-w-[200px]">
           <span className="block text-[12.5px] text-[var(--tf-text-secondary)] mb-1">Adresse der internen KI</span>
           <input
-            value={aiConfig.endpoint}
-            onChange={e => setAiConfig({ ...aiConfig, endpoint: e.target.value })}
+            value={entwurf}
+            onChange={e => setEntwurf(e.target.value)}
             placeholder="https://gpt.vdivde-it.de/"
             spellCheck={false}
             className="w-full h-[30px] px-2.5 text-[12px] font-mono bg-[var(--tf-bg)] text-[var(--tf-text)] rounded-[var(--tf-radius)] outline-none focus:border-[var(--tf-primary)]"
@@ -136,6 +159,9 @@ export function VerbindungGruppe({
           {speichern.busy ? 'Speichern…' : 'Speichern'}
         </Button>
         {gespeichert && <Badge variant="success">Aktiviert</Badge>}
+        {!gespeichert && entwurfAbweichend && (
+          <Badge variant="warning">Geändert — noch nicht gespeichert</Badge>
+        )}
       </div>
       {speichern.error && <p className="text-[12px] text-[var(--tf-danger-text)] pt-1.5">Fehler: {speichern.error}</p>}
 

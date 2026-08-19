@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import { Search } from 'lucide-react';
 import {
   searchSettings,
@@ -36,9 +36,11 @@ export function SettingsNav({
   const [query, setQuery] = useState('');
   const [focused, setFocused] = useState(false);
   const [selIdx, setSelIdx] = useState(0);
+  const listenId = useId();
 
   const results = searchSettings(searchIndex, query);
   const open = focused && results.length > 0;
+  const aktiverTreffer = open ? results[Math.min(selIdx, results.length - 1)] : undefined;
 
   const go = (entry: SettingsSearchEntry): void => {
     onGoToSection(entry.panelId, entry.id);
@@ -88,22 +90,46 @@ export function SettingsNav({
             placeholder="Suchen"
             autoComplete="off"
             aria-label={suchLabel}
+            // Combobox-Semantik: ohne sie ist die Trefferliste fuer einen
+            // Bildschirmleser gar nicht vorhanden — er liest ein leeres
+            // Textfeld vor, waehrend sechs Treffer darunter stehen.
+            role="combobox"
+            aria-expanded={open}
+            aria-controls={listenId}
+            aria-autocomplete="list"
+            aria-activedescendant={aktiverTreffer ? `${listenId}-${aktiverTreffer.panelId}-${aktiverTreffer.id}` : undefined}
             className="flex-1 min-w-0 bg-transparent outline-none text-[13px] text-[var(--tf-text)] placeholder:text-[var(--tf-text-tertiary)]"
           />
         </div>
 
         {open && (
           <div
+            id={listenId}
+            role="listbox"
+            aria-label="Suchtreffer"
             className="absolute left-0 top-[calc(100%+6px)] w-[300px] z-40 rounded-[var(--tf-radius-lg)] bg-[var(--tf-bg)] p-1.5"
             style={{ border: '0.5px solid var(--tf-border)', boxShadow: 'var(--tf-shadow-dialog)' }}
           >
             {results.map((r, i) => (
               <button
                 key={`${r.panelId}:${r.id}`}
+                id={`${listenId}-${r.panelId}-${r.id}`}
                 type="button"
-                onMouseDown={e => { e.preventDefault(); go(r); }}
+                role="option"
+                aria-selected={i === selIdx}
+                // KEIN Tabstopp: die Liste wird mit ↑↓ bedient, der Tabulator
+                // fuehrt aus dem Suchfeld heraus zur naechsten Steuerung. Bis
+                // v4.116 landete er auf dem ersten Treffer — und 150 ms spaeter
+                // hing der Blur-Timer die Liste ab, der Fokus fiel auf `body`
+                // und der naechste Tabulator begann wieder ganz oben.
+                tabIndex={-1}
+                // `mousedown` verhindert nur den Fokusverlust; ausgeloest wird
+                // auf `click`, damit auch Zeigegeraete ohne Maustasten-Ereignis
+                // (Touch, Stift) den Treffer oeffnen.
+                onMouseDown={e => e.preventDefault()}
+                onClick={() => go(r)}
                 onMouseEnter={() => setSelIdx(i)}
-                className={`w-full block px-2.5 py-1.5 rounded-[var(--tf-radius)] text-left ${
+                className={`w-full block px-2.5 py-1.5 rounded-[var(--tf-radius)] text-left cursor-pointer ${
                   i === selIdx ? 'bg-[var(--tf-hover)]' : ''
                 }`}
               >

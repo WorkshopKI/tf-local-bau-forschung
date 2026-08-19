@@ -11,7 +11,12 @@
  */
 import { Check } from 'lucide-react';
 import { SegmentedToggle } from '@/components/ui/SegmentedToggle';
-import { PRESET_COLORS, applyThemeColor } from '@/components/ui/theme';
+import {
+  PRESET_COLORS,
+  applyThemeColor,
+  farbeAusProfil,
+  istGewaehlteFarbe,
+} from '@/components/ui/theme';
 import { useDarkMode } from '@/core/hooks/useDarkMode';
 import { useProfile } from '@/core/hooks/useProfile';
 import { MenueLabel } from './menueZeilen';
@@ -19,11 +24,12 @@ import { MenueLabel } from './menueZeilen';
 export function DarstellungUntermenue(): React.ReactElement {
   const { profile, updateProfile } = useProfile();
   const { dark, umschalten } = useDarkMode();
-  const hue = profile?.theme.hue ?? PRESET_COLORS[0]!.h;
+  const aktuelleFarbe = farbeAusProfil(profile?.theme);
 
   const waehleFarbe = (h: number, s: string, l: string): void => {
     applyThemeColor(h, s, l);
-    if (profile) void updateProfile({ theme: { ...profile.theme, hue: h } });
+    // Alle DREI Werte — siehe `farbeAusProfil`.
+    if (profile) void updateProfile({ theme: { ...profile.theme, hue: h, sat: s, lit: l } });
   };
 
   return (
@@ -31,7 +37,7 @@ export function DarstellungUntermenue(): React.ReactElement {
       <MenueLabel>Primärfarbe</MenueLabel>
       <div className="flex flex-wrap gap-[7px] px-2.5 pb-2.5 pt-0.5">
         {PRESET_COLORS.map(c => {
-          const gewaehlt = hue === c.h;
+          const gewaehlt = istGewaehlteFarbe(c, aktuelleFarbe);
           return (
             <button
               key={c.name}

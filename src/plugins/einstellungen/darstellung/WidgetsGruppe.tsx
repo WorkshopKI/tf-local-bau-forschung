@@ -57,6 +57,9 @@ export function WidgetsGruppe(): React.ReactElement {
     <SettingsGruppe
       titel="Startseiten-Widgets"
       unterzeile="Reihenfolge und Sichtbarkeit lassen sich direkt auf der Startseite per Rechtsklick ändern — hier ist die vollständige Liste."
+      // Anders als Farbe und Tastenkürzel wandert diese Auswahl mit: sie liegt
+      // gespiegelt im persönlichen Ordner (der sanktionierte Mirror-Pfad).
+      rechts="folgt dir auf andere Geräte"
     >
       <SettingsOption
         label="Startseite anpassen"
@@ -95,7 +98,10 @@ export function WidgetsGruppe(): React.ReactElement {
                     onToggleSichtbar={() => aktion.run(() => api.setSichtbar(w.id, !w.sichtbar))}
                     aufgeklappt={aufgeklappt === w.id}
                     onToggleAufklappen={() => setAufgeklappt(a => (a === w.id ? null : w.id))}
-                    onUpdateConfig={cfg => api.updateConfig(w.id, cfg)}
+                    // Über dieselbe Aktion wie Pfeile und Schalter: bis v4.116
+                    // lief die Detail-Konfiguration an der Fehlerzeile vorbei,
+                    // die drei Zeilen darunter schon steht.
+                    onUpdateConfig={cfg => aktion.run(() => api.updateConfig(w.id, cfg))}
                   />
                 ))}
               </div>

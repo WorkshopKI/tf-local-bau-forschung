@@ -147,7 +147,9 @@ export function Onboarding({ onComplete }: OnboardingProps): React.ReactElement 
     const finalProfile: UserProfile = {
       name: name.trim(),
       department: 'antraege',
-      theme: { hue: selectedHue, dark },
+      // Alle drei Werte der Farbe — der Farbton allein käme beim nächsten Start
+      // mit Standard-Sättigung und -Helligkeit zurück.
+      theme: { hue: selectedHue, dark, sat: selectedSat, lit: selectedLit },
       is_kurator: isKurator,
       ...(kuerzel ? { bearbeiter_kuerzel: kuerzel } : {}),
     };

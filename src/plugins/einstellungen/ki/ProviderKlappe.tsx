@@ -63,28 +63,43 @@ export function ProviderKlappe({
   const [testFehler, setTestFehler] = useState('');
   const [testet, setTestet] = useState(false);
   const [gespeichert, setGespeichert] = useState(false);
-  const [eigenesModell, setEigenesModell] = useState('');
+  /**
+   * Steht die Modell-Auswahl auf „Eigenes Modell…"?
+   *
+   * Als eigener Zustand, nicht aus `aiConfig.model` abgeleitet: bis v4.116
+   * merkte sich der Wechsel den bisherigen Namen lokal und setzte `model` auf
+   * `''`, damit die Auswahl nicht auf die Vorgabe zurückschnappt. Das Textfeld
+   * zeigte dann den gemerkten Namen, während in der Konfiguration nichts stand
+   * — „Speichern & Aktivieren" schrieb ein leeres Modell, obwohl im Feld eines
+   * stand. Jetzt bleibt der Wert stehen und das Feld zeigt genau ihn.
+   */
+  const [eigenModus, setEigenModus] = useState(false);
 
   const istEigenesModell = !COMMON_MODELS.some(m => m.value === aiConfig.model) && aiConfig.model !== '';
   const zeigeModellListe = aiConfig.type === 'openrouter' || aiConfig.type === 'cloud';
-  const dropdownWert = istEigenesModell || aiConfig.model === '' ? 'custom' : aiConfig.model;
+  const dropdownWert = eigenModus || istEigenesModell || aiConfig.model === '' ? 'custom' : aiConfig.model;
 
   const typWechseln = (type: AIProviderConfig['type']): void => {
     const preset = PROVIDERS.find(p => p.type === type);
     setAiConfig({
       ...aiConfig,
       type,
-      endpoint: preset?.defaultEndpoint ?? aiConfig.endpoint,
+      // `||` statt `??`: eine Vorgabe OHNE eigene Adresse („Cloud API") darf die
+      // eingetragene nicht löschen. Dieses Feld ist geteilt — es trägt zugleich
+      // die „Adresse der internen KI" der Karte darüber, und ein Kachelklick
+      // hier leerte sie bis v4.116 ersatzlos.
+      endpoint: preset?.defaultEndpoint || aiConfig.endpoint,
       model: preset?.defaultModel ?? aiConfig.model,
     });
+    setEigenModus(false);
     setTestErgebnis(null);
   };
 
   const modellWaehlen = (wert: string): void => {
     if (wert === 'custom') {
-      setEigenesModell(aiConfig.model);
-      setAiConfig({ ...aiConfig, model: '' });
+      setEigenModus(true);
     } else {
+      setEigenModus(false);
       setAiConfig({ ...aiConfig, model: wert });
     }
   };
@@ -166,7 +181,7 @@ export function ProviderKlappe({
               </select>
               {dropdownWert === 'custom' && (
                 <input
-                  value={istEigenesModell ? aiConfig.model : eigenesModell}
+                  value={aiConfig.model}
                   onChange={e => setAiConfig({ ...aiConfig, model: e.target.value })}
                   placeholder="z.B. meta-llama/llama-3.3-8b-instruct"
                   className={`${inputClass} mt-1.5`}

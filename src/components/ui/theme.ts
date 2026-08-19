@@ -18,8 +18,38 @@ export const PRESET_COLORS: PresetColor[] = [
 export function applyThemeColor(hue: number, saturation?: string, lightness?: string): void {
   const root = document.documentElement;
   root.style.setProperty('--tf-primary-h', String(hue));
-  root.style.setProperty('--tf-primary-s', saturation ?? '25%');
-  root.style.setProperty('--tf-primary-l', lightness ?? '42%');
+  root.style.setProperty('--tf-primary-s', saturation ?? PRESET_COLORS[0]!.s);
+  root.style.setProperty('--tf-primary-l', lightness ?? PRESET_COLORS[0]!.l);
+}
+
+/**
+ * Die drei Werte einer Primärfarbe aus dem gespeicherten Profil.
+ *
+ * Eine Farbe sind Farbton, Sättigung UND Helligkeit — das Profil führte bis
+ * v4.116 nur den Farbton, und der Start setzte die anderen beiden auf die
+ * Standardwerte. „Graphit" (220 · 8% · 38%) kam so als `hsl(220, 25%, 42%)`
+ * wieder hoch, ein sattes Blaugrau statt eines fast neutralen Tons.
+ *
+ * Ein Profil ohne `sat`/`lit` wird über den Farbton geheilt: die Vorgabe mit
+ * demselben `h` liefert die fehlenden zwei Werte. Damit sehen auch Bestands-
+ * Profile nach dem Neustart wieder die Farbe, die sie gewählt haben — ohne
+ * Migrationsschritt.
+ */
+export function farbeAusProfil(theme?: { hue?: number; sat?: string; lit?: string }): PresetColor {
+  const h = theme?.hue ?? PRESET_COLORS[0]!.h;
+  if (theme?.sat && theme?.lit) return { name: '', h, s: theme.sat, l: theme.lit };
+  const vorgabe = PRESET_COLORS.find(c => c.h === h);
+  return vorgabe ?? { name: '', h, s: PRESET_COLORS[0]!.s, l: PRESET_COLORS[0]!.l };
+}
+
+/**
+ * Zeigt die App gerade genau diese Vorgabe?
+ *
+ * Alle drei Werte, nicht nur der Farbton: „Schiefer" (215 · 25% · 42%) und ein
+ * hypothetisches zweites Blau mit demselben `h` wären sonst dasselbe Häkchen.
+ */
+export function istGewaehlteFarbe(vorgabe: PresetColor, aktuell: PresetColor): boolean {
+  return vorgabe.h === aktuell.h && vorgabe.s === aktuell.s && vorgabe.l === aktuell.l;
 }
 
 export function setDarkMode(dark: boolean): void {

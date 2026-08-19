@@ -10,7 +10,7 @@
  * Alle Daten bleiben in der IndexedDB dieses Geräts; ausgewertet wird
  * ausschließlich über das INTERNE Modell (Pitfall #38).
  */
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 import { Brain, ChevronDown, ChevronRight, RefreshCw, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
@@ -43,9 +43,33 @@ const STATUS_TEXT: Record<KonsolidierungsResultat['status'], string> = {
   deaktiviert: 'Gedächtnis oder Protokoll ist nicht aktiv.',
 };
 
+/**
+ * Signal „die Gedächtnis-Einträge haben sich geändert".
+ *
+ * Der Zähler steht in der Klappen-ZEILE, die Löschwege eine Ebene tiefer im
+ * Klappen-Rumpf — zwei Komponenten, ein Bestand. Bis v4.116 las der Zähler nur
+ * beim Kippen des Opt-in-Schalters: „Alles vergessen" leerte die Liste, und
+ * darüber stand weiter „7 Notizen".
+ */
+const hoerer = new Set<() => void>();
+let version = 0;
+
+function meldeGedaechtnisGeaendert(): void {
+  version += 1;
+  for (const h of hoerer) h();
+}
+
+function useGedaechtnisVersion(): number {
+  return useSyncExternalStore(
+    cb => { hoerer.add(cb); return () => { hoerer.delete(cb); }; },
+    () => version,
+  );
+}
+
 /** Zählt die aktiven Einträge — für den Zähler in der Klappen-Zeile. */
 export function useGedaechtnisZahl(aktiv: boolean): number {
   const [zahl, setZahl] = useState(0);
+  const stand = useGedaechtnisVersion();
   useEffect(() => {
     if (!aktiv) { setZahl(0); return; }
     let abgebrochen = false;
@@ -53,7 +77,7 @@ export function useGedaechtnisZahl(aktiv: boolean): number {
       if (!abgebrochen) setZahl(alle.filter(e => e.status === 'aktiv').length);
     });
     return () => { abgebrochen = true; };
-  }, [aktiv]);
+  }, [aktiv, stand]);
   return zahl;
 }
 
@@ -73,6 +97,12 @@ export function GedaechtnisVerwaltung(): React.ReactElement {
     setEreignisse(new Map(evs.map(e => [e.id, e])));
   }, []);
 
+  /** Nach einer Mutation: eigene Liste neu lesen UND den Zähler oben mitziehen. */
+  const ladenUndMelden = useCallback(async () => {
+    await laden();
+    meldeGedaechtnisGeaendert();
+  }, [laden]);
+
   useEffect(() => { void laden(); }, [laden]);
 
   const konsolidieren = useAsyncAction(async () => {
@@ -85,13 +115,13 @@ export function GedaechtnisVerwaltung(): React.ReactElement {
         ? ' Die Ereignisse bleiben offen und werden beim nächsten Lauf erneut versucht.'
         : ' Nach mehreren Fehlversuchen übersprungen — diese Ereignisse werden nicht erneut angeboten.';
     setLaufMeldung(STATUS_TEXT[res.status] + nachsatz);
-    await laden();
+    await ladenUndMelden();
   });
 
   const vergessen = useAsyncAction(async () => {
     await loescheAllesGedaechtnis();
     setVergessenBestaetigung(false);
-    await laden();
+    await ladenUndMelden();
   });
 
   const sichtbar = invalidierteZeigen ? eintraege : eintraege.filter(e => e.status === 'aktiv');
@@ -126,7 +156,7 @@ export function GedaechtnisVerwaltung(): React.ReactElement {
             block={block}
             eintraege={sichtbar.filter(e => e.block === block)}
             ereignisse={ereignisse}
-            onLoeschen={async id => { await loescheGedaechtnisEintrag(id); await laden(); }}
+            onLoeschen={async id => { await loescheGedaechtnisEintrag(id); await ladenUndMelden(); }}
           />
         ))}
       </div>

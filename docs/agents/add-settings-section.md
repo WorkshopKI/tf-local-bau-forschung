@@ -69,6 +69,19 @@ Ton setzt `SettingsZweiSpalten` selbst, die Gruppe muss nichts wissen.
    [conventions-ui.test.ts](../../src/__tests__/conventions-ui.test.ts) prüft
    beide Richtungen und dass jede genannte Karte existiert.
 
+   Steckt der Abschnitt **innerhalb** einer Karte, die selbst einen Anker trägt
+   (eine `SettingsKlappe` in einer `SettingsGruppe`), kommt `in: 'sec-<karte>'`
+   dazu: fällt der Wirt weg, fällt das Kind mit. Ohne das stünde die Klappe
+   allein im Suchindex, während die Karte um sie herum verschwunden ist. Der
+   Wirt muss in der Registry **vor** dem Kind stehen.
+
+   Die **Rangfolge** der Suche steht in
+   [panels.ts](../../src/components/settings/panels.ts): genaues Label > Anfang >
+   enthalten > Gruppe/Keywords > Seitenname, danach hart sechs. Ein Wort, das
+   auch im Seitennamen steckt, gehört deshalb nicht zusätzlich in die
+   `keywords` der Nachbar-Abschnitte — es verdrängt sonst den Abschnitt, der so
+   heißt.
+
 6. **Keywords mitgeben**, inklusive alter Namen. Wer den früheren Menüpunkt im
    Kopf hat, muss ihn weiter finden (so tragen die Fachprofil-Abschnitte
    „meine technologien").
@@ -84,6 +97,14 @@ Ton setzt `SettingsZweiSpalten` selbst, die Gruppe muss nichts wissen.
   doppelt, und der Absatz sprengt in der Nebenspalte die Karte: der
   Steuerungs-Slot der `SettingsOption` ist `shrink-0` und nimmt seine
   Wunschbreite.
+- **Sichtbarkeit fragen ALLE vier Bauteile** — `SettingsGruppe`,
+  `SettingsOption`, `SettingsBlock` und `SettingsKlappe` rufen
+  `useAbschnittSichtbar(id)` und geben `null` zurück. Wer ein fünftes Bauteil
+  mit `sec-…`-Anker baut, macht das genauso; sonst steht der Abschnitt in der
+  Karte, während Navigation, Suche und Deep-Link ihn für ausgeblendet halten
+  (Guard `sichtbarkeit-alle-bauteile`, v4.116). Rendert eine ganze Karte nur
+  wegen eines markierten Abschnitts, fragt sie ihn selbst (so `AssistentGruppe`)
+  — sonst bleibt eine leere Karte samt Zusicherungszeile stehen.
 - **Keine lokalen `--tf-*`-Token-Blöcke** — fehlt ein Token, kommt es global in
   `theme.css` (Guard `theme-token-contract`).
 - **Async-Handler über `useAsyncAction`**, nicht `onClick={() => void fn()}`
