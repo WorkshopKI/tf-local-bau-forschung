@@ -279,6 +279,11 @@ wird.
     greift. Ohne Lauf steht nichts. Wird danach umsortiert oder bearbeitet,
     gelten die Zahlen als „Stand vor der letzten Änderung" — neu gerechnet wird
     nur auf Knopfdruck.
+    - **Ein Lauf gilt für genau einen Regelsatz** (v4.121). Wer danach den
+      Regelsatz wechselt, sieht keine Zahlen mehr, sondern „Gemessen wurde AB —
+      für FB neu messen". Sie stehen zu lassen hieße, die Zahlen des einen Satzes
+      unter der Überschrift des anderen zu zeigen; eine Sperre greift unter einer
+      anderen Rolle anders.
     - Am Ende derselben Zeile steht die **Bilanz der Kaskade**, und sie nennt
       die wirkungslosen Regeln **namentlich**: „2 Regeln bleiben ohne Wirkung:
       R10 (trifft nie) · R23b (immer verdeckt)". Eine Anzahl allein schickte
@@ -292,7 +297,9 @@ wird.
   - **Probe am Fall**: ein Aktenzeichen eingeben, und es steht da, welche Regel
     bei diesem Vorgang gewinnt, welche Sperren griffen und mit welchen
     Feldwerten — dieselbe Ansicht wie am Antrag. Ein unbekanntes Aktenzeichen
-    und eines außerhalb des Betrachtungsbereichs werden getrennt benannt.
+    und eines außerhalb des Betrachtungsbereichs werden getrennt benannt. Auch
+    dieses Ergebnis gehört seinem Regelsatz: nach einem Wechsel steht darüber,
+    aus welchem es stammt.
   - **Änderung am Bestand messen** steht in der Speicherleiste, weil
     veröffentlichte Regeln sofort für alle scharf sind: bei wie vielen Vorgängen
     sich das To-do ändert, gruppiert alt → neu mit Beispiel-Aktenzeichen.
@@ -313,11 +320,20 @@ wird.
     („Position 5 von 27"), weil die schlanken Zeilen selbst nur die Auswahl
     tragen. Erklärtext, Nachziehen-Hinweis und die Tagesordnung erscheinen nur,
     solange keine Regel geöffnet ist — sie brauchen die volle Breite.
+  - **Nummer, Position und Pfeile zählen die eigene Kaskade** (v4.121), nicht die
+    angezeigte Liste. Eine fremde Sperre trägt deshalb statt einer Nummer einen
+    Punkt: in diesem Satz steht sie an keiner Stelle. Bis dahin bekam die einzige
+    FB-Regel die Nummer 4 zwischen vier AB-Sperren und zwei aktive Pfeile, die
+    nichts bewegten — verschoben wird in der Kaskade des eigenen Satzes, und dort
+    war sie erste und letzte zugleich.
   - **Regelsatz je Rolle**: über der Liste stehen Reiter (AB, FB, weitere sobald
     dort Regeln existieren). Ausgewertet wird immer genau ein Satz. Sperren
     gelten vorgangsweit und erscheinen deshalb in jedem Reiter, dort mit dem
     Hinweis „gilt für alle Regelsätze" und ohne Pfeile — verschoben werden sie
-    in ihrem eigenen Satz.
+    in ihrem eigenen Satz. Sie stehen **vorn**, weil sie vor der Kaskade laufen.
+    Die Zahl am Reiter zählt, was er zeigt (Sperren eingeschlossen); die Zahl an
+    der Lasche „To-do-Regeln" ganz oben meint den Satz, mit dem der Reiter
+    aufgeht.
   - **Rollout-Sperre**: Regeln außerhalb von AB entstehen stillgelegt, Aktivieren
     fragt nach. Grund steht am Reiter: die Katalog-Datei gilt für alle
     Installationen gleichzeitig, und ältere App-Fassungen würden eine fremde
@@ -326,7 +342,8 @@ wird.
     der Reiter, in welchen Situationen die bestehenden Regeln heute auf diese
     Rolle warten — mit Anzahl, Herkunftsregel und Beispiel-Aktenzeichen. Aus
     jeder Zeile lässt sich die fehlende Regel direkt anlegen, vorbefüllt mit der
-    Bedingung, die schon feststeht. Jede Zeile trägt **zwei** Zahlen: wie oft die
+    Bedingung, die schon feststeht — steht sie schon, sagt die Zeile das statt
+    den Knopf ein zweites Mal anzubieten. Jede Zeile trägt **zwei** Zahlen: wie oft die
     Rolle das To-do heute abgeleitet sieht, und wie oft die Bedingung der
     Herkunftsregel im Bestand überhaupt zutrifft. Die zweite ist die Reichweite
     einer eigenen Regel und regelmäßig ein Vielfaches der ersten.
@@ -336,6 +353,35 @@ wird.
   - **Erhebung exportieren** legt diese drei Auswertungen als Arbeitsmappe ab,
     plus eine Kurzfassung für die Einladung zum Fachtermin. Der Export braucht
     kein Schreibrecht — er nimmt nichts mit auf den Daten-Ordner.
+- **Klärfragen**: was am Status- und Kürzelkatalog fachlich offen ist — aus dem
+  Bestand abgeleitet, nicht gepflegt. Hier gibt es nichts zu beantworten und
+  nichts zu speichern: die Antworten kommen außerhalb der App zurück. Wer in der
+  App antworten will, meint das Modul „Zu klären"; das ist ein Fragebogen und
+  etwas anderes.
+
+  - **Die Liste steht erst nach dem Knopfdruck da.** Ein Durchgang über den
+    ganzen Bestand darf nicht bei jedem Reiterwechsel laufen, und eine Zahl ohne
+    Bestandsstempel wäre eine Behauptung. Danach steht oben, wie viele Fragen aus
+    wie vielen Vorgängen kommen und von wann der Bestand ist.
+  - **Ganzer Bestand, ohne Betrachtungsbereich** — anders als die Läufe im
+    Regeln-Reiter. Eine Klärfrage ist Evidenz, kein Arbeitsvorrat: zwei Personen
+    mit verschiedenen Bereichs-Einstellungen sollen dieselbe Datei erzeugen,
+    sonst streitet der Termin darüber, welche Liste gilt. Das steht auch dran.
+  - Gruppiert nach **Herkunft** — die ist zugleich die Zuständigkeit, denn die
+    Datei geht reihum und jede Person filtert auf ihren Teil. Je Frage stehen
+    Vorkommen, Gegenstand, die Frage selbst und aufgeklappt der Kontext samt
+    vorgeschlagener Antworten und der ID.
+  - **Was ausgelassen wurde, steht dabei** (v4.121) — und zwar in Fragen
+    gerechnet: „2 Fragen zu ruhenden Kürzeln ausgelassen", nicht die Zahl der
+    ruhenden Kürzel. Wo die Liste nur die häufigsten führt (Kurzformen), sagt die
+    Gruppe „20 von 35 — die häufigsten". Beides steht auch im Kopf der Datei, die
+    ohne den Bildschirm gelesen wird.
+  - **Bekannte Schreibfehler des Quellsystems** stehen als eigener Block mit
+    ihrem gemessenen Gewicht: die App liest sie richtig und zeigt den Rohwert
+    daneben, korrigiert gehören sie im Fachsystem.
+  - **Arbeitsmappe (XLSX)**: eine Zeile je Fall, Vorgaben gesperrt,
+    Antwortspalten frei und mit Auswahllisten. Die ID bitte unverändert lassen —
+    über sie werden die Antworten zurückgeordnet.
 
 ## Versionen
 

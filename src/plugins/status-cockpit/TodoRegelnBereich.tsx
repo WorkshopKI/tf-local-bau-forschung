@@ -29,7 +29,7 @@ import { baueTodoFeldVorrat } from './todoFeldVorrat';
 import { TodoRegelListe } from './TodoRegelListe';
 import { TodoRegelDetail } from './TodoRegelDetail';
 import {
-  ROLLOUT_HINWEIS, sichtbareRegeln, waehleRegel, type TodoRegelnApi,
+  ROLLOUT_HINWEIS, kaskadenPositionen, sichtbareRegeln, waehleRegel, type TodoRegelnApi,
 } from './todoRegelnAnsicht';
 import type { PlatzhalterLauf } from './usePlatzhalterErhebung';
 import type { WirkungsLauf } from './useRegelWirkung';
@@ -68,6 +68,9 @@ export function TodoRegelnBereich({
     return ROLLEN.filter(r => r === 'ab' || r === 'fb' || belegt.has(r));
   }, [alleRegeln]);
   const regeln = useMemo(() => sichtbareRegeln(alleRegeln, satz), [alleRegeln, satz]);
+  // Die Stelle in der Kaskade, die die Pfeile wirklich bewegen — NICHT der Index
+  // der angezeigten Liste (v4.121, siehe `kaskadenPositionen`).
+  const positionen = useMemo(() => kaskadenPositionen(regeln, satz), [regeln, satz]);
   const eigeneRegeln = regeln.filter(r => (r.sperrt?.length ?? 0) === 0);
   const aktiveEigene = eigeneRegeln.filter(r => r.aktiv).length;
   // Ruhende Kürzel stehen NICHT in der Auswahl: gemessen an Fassung 22 sind das
@@ -119,11 +122,15 @@ export function TodoRegelnBereich({
           aria-label="Regelsatz"
           activeKey={satz}
           onChange={(k: string) => { onSatzWechsel(k as Rolle); setGewaehlt(null); }}
+          // Die Zahl zählt, was die Pille ZEIGT — Sperren eingeschlossen. Bis
+          // v4.120 zählte sie die Regeln ohne Sperren: am Bild stand „AB 26"
+          // über einer Liste, die bis 30 durchnummeriert war, und „FB 0" über
+          // vier Zeilen.
           items={saetze.map(r => ({
             key: r,
             label: ROLLE_LABEL[r],
             title: ROLLE_LANG[r],
-            count: alleRegeln.filter(x => (x.sperrt?.length ?? 0) === 0 && regelsatzVon(x) === r).length,
+            count: sichtbareRegeln(alleRegeln, r).length,
           }))}
         />
 
@@ -172,13 +179,13 @@ export function TodoRegelnBereich({
             termin={termin} zieltageBeantragt={zieltageBeantragt}
             zieltageGepflegt={zieltageGepflegt}
             gewaehlt={auswahl?.regel.id ?? null} onWaehlen={setGewaehlt}
-            unbekannteJeRegel={unbekannteJeRegel}
+            unbekannteJeRegel={unbekannteJeRegel} positionen={positionen}
           />
         }
         detail={auswahl && (
           <TodoRegelDetail
             key={auswahl.regel.id}
-            r={auswahl.regel} version={version} index={auswahl.index} anzahl={auswahl.anzahl}
+            r={auswahl.regel} version={version} position={positionen.get(auswahl.regel.id) ?? null}
             satz={satz} api={api} vorrat={vorrat} pruefeFeld={pruefeFeld}
             unbekannte={unbekannteJeRegel.get(auswahl.regel.id) ?? []}
             wirkung={wirkung.wirkung?.get(auswahl.regel.id)} veraltet={wirkung.veraltet}

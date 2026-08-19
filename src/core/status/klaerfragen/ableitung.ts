@@ -14,6 +14,7 @@
  */
 import { statusKurzLabelMit } from '@/core/utils/status-wert-labels';
 import { normalisiereWert } from '../typen';
+import { normKey } from '../normalisierung';
 import { offeneBedeutungen, uneinigeKuerzel, type UneinigesKuerzel } from '../kuerzel-katalog';
 import { STATUS_CODE_KATALOG, KURZLABEL_MAX, findeStatusCode } from '../status-codes';
 import { normalisiereSchreibfehler } from '../schreibfehler';
@@ -28,6 +29,27 @@ const VORSCHLAEGE = 3;
 
 function zahl(n: number): string {
   return n.toLocaleString('de-DE');
+}
+
+/**
+ * Vorgänge zu einem Wortlaut — **normalisiert nachgeschlagen**, nicht per
+ * `rohStatus.get(text)`.
+ *
+ * `rohStatus` ist nach dem Rohwert des Exports geschlüsselt, wortgetreu. Ein
+ * exakter Nachschlag verlangt damit Übereinstimmung in Groß-/Kleinschreibung,
+ * Weißraum und Unicode-Normalform — und genau die drei sind an Fremddaten nicht
+ * zugesichert (Pitfall #22). Trifft er daneben, steht dort nicht „unbekannt",
+ * sondern eine gemessene **0**: der Befund verschwindet lautlos, statt sich zu
+ * melden. Schreibvarianten desselben Wortlauts werden addiert; sie sind
+ * derselbe Wert.
+ */
+export function vorkommenFuerWortlaut(
+  rohStatus: ReadonlyMap<string, number>, wortlaut: string,
+): number {
+  const k = normKey(wortlaut);
+  let summe = 0;
+  for (const [roh, n] of rohStatus) if (normKey(roh) === k) summe += n;
+  return summe;
 }
 
 /**
@@ -90,7 +112,9 @@ export function bedeutungsFragen(
   const out: Klaerfrage[] = [];
   for (const u of offen) {
     if (ruhend.has(u.kuerzel.normalize('NFC'))) continue;
-    const dsVorkommen = b.proKuerzelDs.get(u.kuerzel) ?? 0;
+    // NFC wie eine Zeile darüber: `proKuerzelDs` ist über `kuerzelEinesVorgangs`
+    // normalisiert geschlüsselt, und `ÄA`/`ASÜ` gäbe es sonst zweimal.
+    const dsVorkommen = b.proKuerzelDs.get(u.kuerzel.normalize('NFC')) ?? 0;
     if (dsVorkommen === 0) continue;
 
     const nw = u.bedeutungen.find(x => x.form === 'NW');
@@ -149,7 +173,8 @@ export function dsFrage(b: KlaerfragenBestand): Klaerfrage[] {
   if (b.dsVorgaenge === 0) return [];
   const kuerzel = [...b.proKuerzelDs.keys()];
   const vorkommen = [...b.proKuerzelDs.values()].reduce((n, v) => n + v, 0);
-  const uneinig = uneinigeKuerzel().filter(u => (b.proKuerzelDs.get(u.kuerzel) ?? 0) > 0).length;
+  const uneinig = uneinigeKuerzel()
+    .filter(u => (b.proKuerzelDs.get(u.kuerzel.normalize('NFC')) ?? 0) > 0).length;
 
   return [{
     id: 'ds-ohne-quelle',
@@ -169,24 +194,77 @@ export function dsFrage(b: KlaerfragenBestand): Klaerfrage[] {
 
 // --- Statuswerte ----------------------------------------------------------
 
+/** Ein Rohwert mit allem, was seine Schreibvarianten zusammen wiegen. */
+interface Bündel {
+  /** Die häufigste Schreibweise — sie steht in der Spalte „Betrifft". */
+  roh: string;
+  /** Der Nachschlage-Schlüssel; er bildet zugleich die Id der Frage. */
+  k: string;
+  /** Vorgänge über alle Schreibweisen. */
+  n: number;
+  verbuende: number;
+}
+
+/**
+ * Rohwerte nach ihrem **Nachschlage-Schlüssel** bündeln.
+ *
+ * Die Id einer Klärfrage ist normalisiert (`wert-ohne-code:vn geprüft`), die
+ * Schleife darüber lief bis v4.120 über die rohen Schlüssel von `rohStatus`.
+ * Zwei Schreibweisen desselben Wertes — „VN geprüft" und „VN Geprüft", oder ein
+ * belegter Schreibfehler neben seinem gemeinten Wortlaut — erzeugten damit
+ * **zwei Zeilen mit derselben ID**. Genau diese ID ist der Schlüssel, über den
+ * die Antworten aus der herumgereichten Datei zurückgeordnet werden; doppelt
+ * vergeben trägt sie zwei verschiedene Antworten zu einem Fall.
+ *
+ * Gebündelt wird auch das Gewicht: sonst wöge derselbe Wert in zwei
+ * Schreibweisen zweimal halb statt einmal ganz.
+ */
+function buendleRohwerte(b: KlaerfragenBestand): Bündel[] {
+  const nach = new Map<string, Bündel>();
+  for (const [roh, n] of b.rohStatus) {
+    const k = normalisiereWert(normalisiereSchreibfehler(roh));
+    if (k === '') continue;
+    const verbuende = b.rohStatusVerbuende.get(roh) ?? 0;
+    const bisher = nach.get(k);
+    if (bisher === undefined) {
+      nach.set(k, { roh, k, n, verbuende });
+      continue;
+    }
+    // Die häufigste Schreibweise vertritt den Wert; bei Gleichstand die
+    // alphabetisch erste, damit die Ausgabe nicht von der Map-Ordnung abhängt.
+    if (n > bisher.n || (n === bisher.n && roh.localeCompare(bisher.roh, 'de') < 0)) {
+      bisher.roh = roh;
+    }
+    bisher.n += n;
+    bisher.verbuende += verbuende;
+  }
+  return [...nach.values()];
+}
+
 /**
  * Die drei Wert-Herkünfte in **einem** Durchlauf, damit sie disjunkt bleiben:
  * je Rohwert gewinnt der erste Treffer. Getrennte Funktionen müssten dieselbe
  * Reihenfolge jede für sich kennen — und würden beim ersten Nachtrag auseinanderlaufen.
  */
-export function wertFragen(e: KlaerfragenEingabe): Klaerfrage[] {
+export function wertFragen(
+  e: KlaerfragenEingabe,
+  /**
+   * Wie viele Kurzlabel-Zeilen die Liste führt. Parameter, damit sich der
+   * **Rückstand** ausrechnen lässt (`klaerfragenAuslassungen`): eine stille
+   * Kappung auf 20 las sich in einer Datei, die wochenlang unterwegs ist, wie
+   * ein Katalog, dem nur noch 20 Kurzformen fehlen.
+   */
+  spitze: number = KURZLABEL_SPITZE,
+): Klaerfrage[] {
   const { bestand: b, fassungsWerte } = e;
   const out: Klaerfrage[] = [];
-  const ohneKurz: { roh: string; n: number }[] = [];
+  const ohneKurz: { roh: string; k: string; n: number }[] = [];
 
-  for (const [roh, n] of b.rohStatus) {
-    // Ein belegter Schreibfehler des Quellsystems ist beantwortet: die App löst
-    // ihn auf und zeigt den Rohwert daneben. Gefragt wird nach dem GEMEINTEN
-    // Wortlaut — sonst meldete sich derselbe Wert als „kennt die Fassung
-    // nicht", obwohl sie ihn kennt.
-    const k = normalisiereWert(normalisiereSchreibfehler(roh));
-    if (k === '') continue;
-    const verbuende = b.rohStatusVerbuende.get(roh) ?? 0;
+  // Ein belegter Schreibfehler des Quellsystems ist beantwortet: die App löst
+  // ihn auf und zeigt den Rohwert daneben. Gefragt wird nach dem GEMEINTEN
+  // Wortlaut — sonst meldete sich derselbe Wert als „kennt die Fassung nicht",
+  // obwohl sie ihn kennt. Genau deshalb bündelt `buendleRohwerte` vorher.
+  for (const { roh, k, n, verbuende } of buendleRohwerte(b)) {
     const wo = verbuende > 0
       ? `${zahl(n)} Vorgänge, davon ${zahl(verbuende)} Verbünde mit diesem Verbundstatus`
       : `${zahl(n)} Vorgänge`;
@@ -235,14 +313,14 @@ export function wertFragen(e: KlaerfragenEingabe): Klaerfrage[] {
     }
 
     // 3. Greift eine Kurzform? (Nur die häufigsten — deshalb erst gesammelt.)
-    if (statusKurzLabelMit(roh).herkunft === 'ohne') ohneKurz.push({ roh, n });
+    if (statusKurzLabelMit(roh).herkunft === 'ohne') ohneKurz.push({ roh, k, n });
   }
 
   ohneKurz.sort((x, y) => y.n - x.n || x.roh.localeCompare(y.roh, 'de'));
-  for (const { roh, n } of ohneKurz.slice(0, KURZLABEL_SPITZE)) {
+  for (const { roh, k, n } of ohneKurz.slice(0, spitze)) {
     const heute = statusKurzLabelMit(roh);
     out.push({
-      id: `kurzlabel:${normalisiereWert(roh)}`,
+      id: `kurzlabel:${k}`,
       herkunft: 'kurzlabel',
       betrifft: roh,
       frage: `Welche Kurzform soll für ${zitat(roh)} in engen Flächen stehen (höchstens ${KURZLABEL_MAX} Zeichen)?`,
@@ -280,11 +358,11 @@ export function abweichungsFragen(b: KlaerfragenBestand): Klaerfrage[] {
         ? `Der Statuskatalog führt Code ${a.bestaetigung.code} nicht, obwohl der Wortlaut bestätigt ist. Welcher gilt?`
         : `${wo} nennt Code ${a.bestaetigung.code} ${zitat(a.gefunden ?? '')}, bestätigt ist ${zitat(a.bestaetigung.wortlaut)}. Welcher gilt?`,
       kontext: `Bestätigt: ${a.bestaetigung.quelle}. `
-        + `${zahl(b.rohStatus.get(a.bestaetigung.wortlaut) ?? 0)} Vorgänge tragen den bestätigten `
+        + `${zahl(vorkommenFuerWortlaut(b.rohStatus, a.bestaetigung.wortlaut))} Vorgänge tragen den bestätigten `
         + `Wortlaut. Ein abweichender Bezeichner fällt im VerlaufsBand nicht auf — dort steht `
         + `die Beschriftung ohne den Rohwert daneben.`,
       ...(a.gefunden !== null ? { optionen: [a.bestaetigung.wortlaut, a.gefunden] } : {}),
-      vorkommen: b.rohStatus.get(a.bestaetigung.wortlaut) ?? 0,
+      vorkommen: vorkommenFuerWortlaut(b.rohStatus, a.bestaetigung.wortlaut),
     };
   });
 }

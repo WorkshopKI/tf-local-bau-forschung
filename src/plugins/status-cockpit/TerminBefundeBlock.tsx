@@ -14,7 +14,7 @@
  */
 import { Button } from '@/components/ui/button';
 import { zaehlwort } from '@/core/utils/zaehlwort';
-import type { BefundGruppe } from '@/core/status';
+import { REGELSATZ_DEFAULT, ROLLE_LABEL, type BefundGruppe } from '@/core/status';
 import { feldStil } from './labels';
 import { BEFUND_REGEL_ID, BEFUND_STATUS_CODE, type TerminLauf } from './useTerminErhebung';
 
@@ -54,7 +54,12 @@ export function TerminBefundeBlock({ lauf, zieltage, gepflegt }: {
           {b === null
             ? <>Befunde für die AB-Runde: PreCheck-Lücke, Feldpflege und wer R8 verdeckt.</>
             : <>{zaehlwort(b.gesamt, 'Vorgang', 'Vorgänge')} ausgewertet
-              {lauf.bereichText !== null && <> · {lauf.bereichText}</>}</>}
+              {lauf.bereichText !== null && <> · {lauf.bereichText}</>}
+              {/* Diese Befunde messen IMMER den AB-Satz (R8 trägt keinen eigenen
+                  `regelsatz`). Vor dem Lauf sagt der Einladungstext „für die
+                  AB-Runde"; danach verschwand er — und der Block stand unter
+                  einer FB-Pille, ohne zu sagen, wen er gemessen hat. */}
+              {' '}· Regelsatz {ROLLE_LABEL[REGELSATZ_DEFAULT]}</>}
         </span>
         <Button
           variant="secondary" size="sm" disabled={lauf.aktion.busy}
@@ -74,7 +79,8 @@ export function TerminBefundeBlock({ lauf, zieltage, gepflegt }: {
           <div className="flex flex-col gap-0.5">
             <p className="text-[12px] text-[var(--tf-text)]">
               <strong>{zahl(b.precheck.ohneVermerk)}</strong> von {zahl(b.precheck.auf34)} Vorgängen
-              auf Status {BEFUND_STATUS_CODE} tragen weder PC+ noch XPC+.
+              auf Status {BEFUND_STATUS_CODE} {b.precheck.ohneVermerk === 1 ? 'trägt' : 'tragen'}{' '}
+              weder PC+ noch XPC+.
             </p>
             <p className={leise}>
               Nur FuE und DS haben überhaupt einen PreCheck — für DL und NW ist der Fall

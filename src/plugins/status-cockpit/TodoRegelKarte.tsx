@@ -18,16 +18,21 @@ import { type MappingVersion, type RegelWirkung, type Rolle, type TodoRegel } fr
 import { feldStil } from './labels';
 import { TodoRegelSatz } from './TodoRegelSatz';
 import {
-  ROLLOUT_HINWEIS, brauchtRolloutRueckfrage, wirkungsAnzeige, zustandsMarker, type TodoRegelnApi,
+  ROLLOUT_HINWEIS, brauchtRolloutRueckfrage, wirkungsAnzeige, zustandsMarker,
+  type KaskadenPosition, type TodoRegelnApi,
 } from './todoRegelnAnsicht';
 
 export function TodoRegelKarte({
-  r, version, index, anzahl, satz, api, unbekannte, wirkung, veraltet, onWaehlen,
+  r, version, position, satz, api, unbekannte, wirkung, veraltet, onWaehlen,
 }: {
   r: TodoRegel;
   version: MappingVersion;
-  index: number;
-  anzahl: number;
+  /**
+   * Stelle in der Kaskade DIESES Satzes — `null` an einer fremden Sperre, die
+   * hier nur mitläuft. Nummer und Pfeile hängen daran; der Index der
+   * angezeigten Liste taugt dafür nicht (v4.121).
+   */
+  position: KaskadenPosition | null;
   /** Der gerade gezeigte Regelsatz — nicht zwingend der der Regel (Sperren). */
   satz: Rolle;
   api: TodoRegelnApi;
@@ -53,14 +58,17 @@ export function TodoRegelKarte({
       style={{ ...feldStil, opacity: r.aktiv ? 1 : 0.6 }}
     >
       <div className="flex items-center gap-2 flex-wrap">
-        <span className="text-[11px] font-mono tabular-nums text-[var(--tf-text-tertiary)] w-[22px]">
-          {index + 1}
+        <span
+          className="text-[11px] font-mono tabular-nums text-[var(--tf-text-tertiary)] w-[22px]"
+          title={position === null ? 'Sperre aus einem anderen Regelsatz — sie steht in dieser Kaskade an keiner Stelle' : undefined}
+        >
+          {position === null ? '·' : position.index + 1}
         </span>
         {/* Pfeile und aktiv-Haken schlucken ihren Klick: sonst öffnete jedes
             Verschieben nebenbei die Detail-Spalte (Muster aus `ListItem`). */}
         <span className="flex items-center gap-0.5" onClick={e => e.stopPropagation()}>
           <button
-            type="button" disabled={index === 0 || !eigen}
+            type="button" disabled={position === null || position.index === 0}
             title={eigen ? 'eine Position nach oben' : 'Diese Sperre gilt für alle Regelsätze — verschieben im Satz AB'}
             onClick={() => api.verschiebeTodoRegel(r.id, -1)}
             className="p-0.5 rounded text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text)] cursor-pointer disabled:opacity-30 disabled:cursor-default"
@@ -68,7 +76,7 @@ export function TodoRegelKarte({
             <ChevronUp size={13} />
           </button>
           <button
-            type="button" disabled={index === anzahl - 1 || !eigen}
+            type="button" disabled={position === null || position.index === position.anzahl - 1}
             title={eigen ? 'eine Position nach unten' : 'Diese Sperre gilt für alle Regelsätze — verschieben im Satz AB'}
             onClick={() => api.verschiebeTodoRegel(r.id, 1)}
             className="p-0.5 rounded text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text)] cursor-pointer disabled:opacity-30 disabled:cursor-default"

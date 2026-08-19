@@ -488,3 +488,27 @@ Gemessen am Embedding-Korpus (v4.113): Präfix, `dtype`, Pooling, Normalisierung
 **Querverweis:** Klasse 4 (machine-lokal), Klasse 9 (abgeleitete Daten rebuilden nicht bei Config-Nachzug), CLAUDE.md Pitfall #19 (Modell-Wechsel bricht alle Caches team-weit).
 
 **Kanonische Dateien:** [signatur.ts](../../src/core/services/embedding-corpus/signatur.ts), [embedding-corpus.ts](../../src/plugins/auslastung/services/matching/embedding-corpus.ts) (`vollErzwungen`), [mirror.ts](../../src/core/services/embedding-corpus/mirror.ts) (`documentPrefix` im Manifest).
+
+## 25. Ein Ergebnis überlebt seinen Parameter — und wird dem gerade gewählten zugeschrieben
+
+**Symptom:** Eine Umschalt-Fläche (Reiter, Pille, Auswahl) wechselt den Betrachtungsgegenstand, und die Zahlen darunter bleiben stehen. Nichts blinkt, nichts ist leer — die alte Messung liest sich als die neue. Regelmäßig steht sogar eine Warnung dabei, die einen **falschen** Grund nennt.
+
+**Root-Cause:** Der teure Lauf nimmt einen Parameter (Rolle, Regelsatz, Zeitraum, Fassung), und das Ergebnis wird ohne ihn abgelegt. Die Anzeige formuliert ihre Überschrift danach aus dem **Zustand der Umschalt-Fläche**, nicht aus dem, was der Lauf tatsächlich ausgewertet hat. Solange nicht umgeschaltet wird, stimmen beide überein — deshalb fällt es beim Bauen nicht auf.
+
+Gemessen im Regeln-Reiter des Status-Cockpits (v4.121), drei Fälle auf einem Bildschirm:
+
+- Der Wirkungs-Lauf über 12.359 Vorgänge lief unter AB. Ein Klick auf die FB-Pille, und darüber stand „12.359 Vorgänge gemessen · … · Regelsatz **FB**" — mit den AB-Zahlen an jeder Karte.
+- Die Veraltungs-Warnung nannte als Grund „Regeln seit dem Lauf geändert". Geändert war nichts; die Signatur enthielt die Rolle, und die hatte sich mit dem Klick geändert.
+- Die Probe an einem Aktenzeichen behielt ihr AB-Ergebnis unter der Überschrift „ausgewertet wird der Regelsatz FB" — wo gar keine Regel steht.
+
+**Fix-Pattern:**
+- **Der Lauf merkt sich seinen Parameter** (`gemessenerSatz`), nicht nur sein Ergebnis.
+- **Weicht er vom gewählten ab, wird nichts gezeigt.** Ein Vermerk neben falschen Zahlen macht sie nicht richtig; die Fläche fällt auf ihren Einlade-Zustand zurück und sagt, was gemessen wurde („Gemessen wurde AB — für FB neu messen").
+- **Veraltung und Fremdheit sind zwei Aussagen.** Wer sie in eine Signatur wirft, meldet das eine und meint das andere.
+- Ein Ergebnis, das absichtlich stehen bleibt (die Einzelfall-Probe), trägt seinen Parameter **an sich selbst**, sichtbar.
+
+**Prüffrage beim Review:** Was steht hier, wenn ich nach dem Lauf umschalte? Kommt die Überschrift aus dem Lauf oder aus dem Umschalter — und wo genau steht der Parameter, unter dem gemessen wurde?
+
+**Querverweis:** CLAUDE.md Pitfall #55 (dieselbe Klasse zwischen Entwurf und aktiver Fassung: die Ansicht zeigt den einen Stand und liest den anderen), Klasse 15 (Zähler und Filter aus zwei Vokabularen).
+
+**Kanonische Dateien:** [useRegelWirkung.ts](../../src/plugins/status-cockpit/useRegelWirkung.ts) (`gemessenerSatz`, `fremderSatz`), [TodoRegelListe.tsx](../../src/plugins/status-cockpit/TodoRegelListe.tsx), [RegelProbelauf.tsx](../../src/plugins/status-cockpit/RegelProbelauf.tsx).

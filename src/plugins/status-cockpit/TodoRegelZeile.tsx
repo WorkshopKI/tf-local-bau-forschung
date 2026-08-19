@@ -12,13 +12,14 @@
  * Zustände erscheinen hier als reine Marker.
  */
 import type { RegelWirkung, Rolle, TodoRegel } from '@/core/status';
-import { wirkungsAnzeige, zustandsMarker } from './todoRegelnAnsicht';
+import { wirkungsAnzeige, zustandsMarker, type KaskadenPosition } from './todoRegelnAnsicht';
 
 const MARKER = 'shrink-0 text-[10px] uppercase tracking-wide text-[var(--tf-text-tertiary)]';
 
-export function TodoRegelZeile({ r, index, satz, unbekannte, aktiv, wirkung, veraltet, onWaehlen }: {
+export function TodoRegelZeile({ r, position, satz, unbekannte, aktiv, wirkung, veraltet, onWaehlen }: {
   r: TodoRegel;
-  index: number;
+  /** Stelle in der Kaskade dieses Satzes; `null` an einer fremden Sperre. */
+  position: KaskadenPosition | null;
   satz: Rolle;
   unbekannte: readonly string[];
   /** Ist das die gerade geöffnete Regel? */
@@ -45,7 +46,7 @@ export function TodoRegelZeile({ r, index, satz, unbekannte, aktiv, wirkung, ver
       }`}
     >
       <span className="shrink-0 w-[22px] text-[11px] font-mono tabular-nums text-[var(--tf-text-tertiary)]">
-        {index + 1}
+        {position === null ? '·' : position.index + 1}
       </span>
       <span className="flex-1 min-w-0 truncate text-[12.5px]">{r.beschreibung}</span>
       {/* Ohne Lauf steht hier NICHTS — kein Platzhalterstrich, der wie eine

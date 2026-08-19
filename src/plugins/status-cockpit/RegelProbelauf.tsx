@@ -72,6 +72,17 @@ export function RegelProbelauf({ satz, lauf }: {
 
       {lauf.treffer !== null && (
         <div className="flex flex-col gap-1">
+          {/* Das Ergebnis überlebt den Pillen-Wechsel — es gehört aber dem Satz,
+              unter dem es lief. Bis v4.120 stand die AB-Antwort unter der
+              Überschrift „ausgewertet wird der Regelsatz FB", wo in Wahrheit gar
+              keine Regel steht. */}
+          {lauf.treffer.rolle !== satz && (
+            <p className="text-[11.5px] text-[var(--tf-warning-text)]">
+              ⚠ Dieses Ergebnis stammt aus dem Regelsatz{' '}
+              <strong>{ROLLE_LABEL[lauf.treffer.rolle]}</strong> — für {ROLLE_LABEL[satz]}{' '}
+              erneut prüfen.
+            </p>
+          )}
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-[11.5px] font-mono text-[var(--tf-text-tertiary)]">
               {lauf.treffer.aktenzeichen}

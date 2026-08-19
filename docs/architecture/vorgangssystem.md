@@ -585,6 +585,18 @@ Regelsatz; sie gilt vorgangsweit, solange sie über `giltFuer` nichts anderes sa
 > `StatusFeldEintrag.rollen`, Pitfall #43). Gelesen wird deshalb nur über
 > `regelsatzVon` und `sperreGiltFuer` ([regelsatz.ts](../../src/core/status/regelsatz.ts)).
 
+**Die Anzeige mischt zwei Nummernkreise — die Bedienung darf es nicht** (v4.121).
+Ein Regelsatz-Reiter zeigt die eigenen Regeln UND die vorgangsweit greifenden
+Sperren, aber `reihenfolge` ist je Satz vergeben: `verschiebeTodoRegel`
+nummeriert nur innerhalb des eigenen. Nach `reihenfolge` allein sortiert landete
+eine neue FB-Regel (die erste ihres Satzes, also 10) mitten zwischen den
+AB-Sperren 10…40, und Nummer, „Position 5 von 27" und die Pfeile rechneten mit
+dem Index der ANGEZEIGTEN Liste — beide Pfeile aktiv, ein Klick ohne Wirkung.
+`sichtbareRegeln` stellt fremde Sperren deshalb **vorn** hin (dort laufen sie
+auch: der Sperr-Pass ist ein Vollscan vor dem Treffer-Pass), und
+`kaskadenPositionen` gibt nur den eigenen Regeln eine Stelle; eine fremde Sperre
+trägt keine. Die Zahl am Reiter zählt, was er zeigt.
+
 ### 11.2 Abgeleitete Platzhalter — der Weg ohne Umschaltpunkt
 
 Liefert der Regelsatz einer Rolle keinen Treffer, hat aber die für eine andere
@@ -1543,6 +1555,28 @@ Betrachtungsbereich, Durchlauf ~6 s): **70 Klärfragen**.
 | Marker „strittig" | 1 | Fachbereich (Kürzelkatalog) |
 | DS ohne Kürzel-Quelle | 1 | Fachbereich / Leitung |
 | Statuswert ohne amtlichen Code · Kurzlabel fehlt · Bezeichnung weicht ab | 0 | — |
+
+**Stand 19.08.2026 (Fassung 25, 14 225 Vorgänge, Durchlauf ~4 s): noch EINE
+Frage** — `ds-ohne-quelle`. Die Tabelle darüber ist damit der Ausgangsstand, nicht
+der heutige: die beiden Bedeutungs-Herkünfte gehen leer aus, seit jedes uneinige
+Kürzel eine FuE-Form führt, aus der die Sammelregel für DS schöpft; die
+kleingeschriebenen Texte und der `strittig`-Marker sind als **Frageklasse**
+entschieden ([typen.ts](../../src/core/status/klaerfragen/typen.ts),
+`STILLGELEGTE_HERKUENFTE`); und die beiden fehlenden Statuswerte führt die
+Fassung inzwischen. Übrig bleibt die eine Frage, für die es keine Quelle gibt.
+
+**Was der Lauf NICHT fragt, steht dabei** (v4.121) — und zwar in Fragen
+gerechnet, nicht in ihren Anlässen. Bis dahin meldete die Kopfzeile „243 ruhende
+Kürzel ausgelassen" über einer Liste mit einer einzigen Frage; unterdrückt war
+keine. `klaerfragenAuslassungen` misst die Differenz zweier Läufe (mit und ohne
+Ruhe-Filter) und den Rückstand hinter der Kurzlabel-Spitze; beides steht auch im
+Kopf der Datei, weil die ohne den Bildschirm gelesen wird.
+
+**Eine Id, eine Zeile.** Die Frage-Id ist normalisiert, die Schleife über
+`rohStatus` war es nicht: zwei Schreibweisen desselben Wertes erzeugten zwei
+Zeilen mit **derselben ID** — und über die werden die Antworten zurückgeordnet.
+`buendleRohwerte` fasst sie vorher zusammen und addiert ihr Gewicht; die
+häufigste Schreibweise vertritt den Wert in der Spalte „Betrifft".
 
 **Gefragt wird nur, wo eine Antwort etwas ändert.** Ein Kürzel, dessen Bedeutung
 zwischen NW und FuE auseinandergeht, ist unschön — aber solange beide Formen

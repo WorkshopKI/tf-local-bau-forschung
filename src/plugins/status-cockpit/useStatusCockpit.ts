@@ -60,6 +60,7 @@ import {
   type Bedingung, type PlatzhalterGruppe, type Rolle,
 } from '@/core/status';
 import { uebernahmeSatz } from './katalogDriftAnsicht';
+import { todoRegelIdAusPlatzhalter } from './todoRegelnAnsicht';
 import { exportDateiname } from './katalogExport';
 
 /** Der Konflikt, wie ihn die Oberfläche braucht: wer, wie weit, und was von mir. */
@@ -1093,7 +1094,9 @@ export function useStatusCockpit(): StatusCockpitApi {
       const quelle = (v.todoRegeln ?? []).find(r => r.id === g.quellRegelId);
       if (!quelle) return v;
       return fuegeTodoRegelHinzu(v, {
-        id: `${g.rolle}-${quelle.id}`,
+        // Dieselbe Formel wie die Anzeige (`todoRegelIdAusPlatzhalter`): sie
+        // muss sehen können, dass es die Regel schon gibt.
+        id: todoRegelIdAusPlatzhalter(g),
         reihenfolge: 0,
         beschreibung: `${ROLLE_LABEL[g.rolle]} · aus ${quelle.beschreibung}`,
         bedingung: JSON.parse(JSON.stringify(quelle.bedingung)) as Bedingung,

@@ -20,7 +20,7 @@ import { Button } from '@/components/ui/button';
 import { BedingungEditor } from '@/plugins/meilensteine/BedingungEditor';
 import type { SpaltenEintrag } from '@/core/services/csv/spalten-inventar';
 import {
-  ROLLE_LABEL, ROLLE_LANG,
+  ROLLE_LABEL, ROLLE_LANG, regelsatzVon,
   type Bedingung, type MappingVersion, type RegelWirkung, type Rolle, type TodoRegel,
 } from '@/core/status';
 import { feldKlasse, feldKlasseSchmal, feldStil } from './labels';
@@ -28,7 +28,7 @@ import { TodoRegelSatz } from './TodoRegelSatz';
 import {
   ROLLOUT_HINWEIS, bekannteStraenge, brauchtRolloutRueckfrage, fehltStrangTrotzSperre,
   positionsText, wirkungsAnzeige, zustandsMarker,
-  type TodoRegelnApi,
+  type KaskadenPosition, type TodoRegelnApi,
 } from './todoRegelnAnsicht';
 
 /** Wer wartet — Rollen plus „Antragsteller", der außerhalb des Hauses steht. */
@@ -48,13 +48,17 @@ const PFEIL_KLASSE = 'p-0.5 rounded text-[var(--tf-text-tertiary)] hover:text-[v
   + ' cursor-pointer disabled:opacity-30 disabled:cursor-default';
 
 export function TodoRegelDetail({
-  r, version, index, anzahl, satz, api, vorrat, pruefeFeld, unbekannte, wirkung, veraltet,
+  r, version, position, satz, api, vorrat, pruefeFeld, unbekannte, wirkung, veraltet,
   onSchliessen,
 }: {
   r: TodoRegel;
   version: MappingVersion;
-  index: number;
-  anzahl: number;
+  /**
+   * Stelle in der Kaskade DIESES Satzes — `null` an einer fremden Sperre.
+   * „Position 5 von 27" zählte bis v4.120 die angezeigte Liste, verschoben
+   * wurde aber in der eigenen Kaskade: zwei Listen, eine Angabe.
+   */
+  position: KaskadenPosition | null;
   /** Der gerade gezeigte Regelsatz — nicht zwingend der der Regel (Sperren). */
   satz: Rolle;
   api: TodoRegelnApi;
@@ -123,16 +127,19 @@ export function TodoRegelDetail({
             aktiv
           </label>
           <span className="inline-flex items-center gap-1 text-[var(--tf-text-secondary)]">
-            {positionsText(index, anzahl)}
+            {position === null
+              ? `Sperre aus dem Satz ${ROLLE_LABEL[regelsatzVon(r)]}`
+              : positionsText(position.index, position.anzahl)}
             <button
-              type="button" disabled={index === 0 || !eigen} className={PFEIL_KLASSE}
+              type="button" disabled={position === null || position.index === 0} className={PFEIL_KLASSE}
               title={pfeilTitel ?? 'eine Position nach oben'}
               onClick={() => api.verschiebeTodoRegel(r.id, -1)}
             >
               <ChevronUp size={14} />
             </button>
             <button
-              type="button" disabled={index === anzahl - 1 || !eigen} className={PFEIL_KLASSE}
+              type="button" className={PFEIL_KLASSE}
+              disabled={position === null || position.index === position.anzahl - 1}
               title={pfeilTitel ?? 'eine Position nach unten'}
               onClick={() => api.verschiebeTodoRegel(r.id, 1)}
             >

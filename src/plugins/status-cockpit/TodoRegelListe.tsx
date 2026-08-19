@@ -13,13 +13,20 @@
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { REGELSATZ_DEFAULT, ROLLE_LABEL, type MappingVersion, type Rolle, type TodoRegel } from '@/core/status';
+import {
+  AB_TODO_REGELN, REGELSATZ_DEFAULT, ROLLE_LABEL,
+  type MappingVersion, type Rolle, type TodoRegel,
+} from '@/core/status';
 import { feldStil } from './labels';
 import { TodoRegelKarte } from './TodoRegelKarte';
 import { TodoRegelZeile } from './TodoRegelZeile';
 import { TodoPlatzhalterListe } from './TodoPlatzhalterListe';
 import { zaehlwort } from '@/core/utils/zaehlwort';
-import { wirkungsBilanzText, wirkungsloseRegeln, type TodoRegelnApi } from './todoRegelnAnsicht';
+import {
+  driftSatz as driftSatzText, seedBilanz, todoRegelIdAusPlatzhalter,
+  wirkungsBilanzText, wirkungsloseRegeln,
+  type KaskadenPosition, type TodoRegelnApi,
+} from './todoRegelnAnsicht';
 import type { PlatzhalterLauf } from './usePlatzhalterErhebung';
 import type { WirkungsLauf } from './useRegelWirkung';
 import type { ProbeLauf } from './useRegelProbelauf';
@@ -30,6 +37,7 @@ import type { TerminLauf } from './useTerminErhebung';
 export function TodoRegelListe({
   regeln, eigeneRegeln, version, satz, api, platzhalter, onExportieren, wirkung, probe,
   termin, zieltageBeantragt, zieltageGepflegt, gewaehlt, onWaehlen, unbekannteJeRegel,
+  positionen,
 }: {
   regeln: readonly TodoRegel[];
   /** Die Regeln OHNE Sperren — nur sie zählen als „gepflegt" in diesem Satz. */
@@ -51,6 +59,8 @@ export function TodoRegelListe({
   gewaehlt: string | null;
   onWaehlen: (id: string) => void;
   unbekannteJeRegel: ReadonlyMap<string, readonly string[]>;
+  /** Stelle in der EIGENEN Kaskade; fremde Sperren stehen nicht darin. */
+  positionen: ReadonlyMap<string, KaskadenPosition>;
 }): React.ReactElement {
   const navigate = useNavigate();
   // Die Gesundheit der Kaskade: welche Regeln stehen drin, ohne je etwas zu
@@ -64,13 +74,13 @@ export function TodoRegelListe({
     () => wirkungsBilanzText(regeln, wirkung.wirkung, satz),
     [regeln, wirkung.wirkung, satz],
   );
-  const { neu, geaendert, entfallen } = api.todoDrift;
-  const driftGesamt = neu.length + geaendert.length + entfallen.length;
-  const driftSatz = [
-    neu.length > 0 ? `${neu.length} neue Regeln (${neu.join(', ')})` : null,
-    geaendert.length > 0 ? `${geaendert.length} geändert (${geaendert.join(', ')})` : null,
-    entfallen.length > 0 ? `${entfallen.length} entfallen (${entfallen.join(', ')})` : null,
-  ].filter(Boolean).join(' · ');
+  const driftSatz = driftSatzText(api.todoDrift);
+  // Welche Platzhalter-Regeln schon stehen: ein zweiter Klick auf „Regel
+  // erzeugen" legte sonst nichts an und sagte auch nichts (v4.121).
+  const vorhandeneRegelIds = useMemo(
+    () => new Set((version.todoRegeln ?? []).map(r => r.id)),
+    [version.todoRegeln],
+  );
 
   return (
     // Kein eigenes `overflow-y-auto`: das Listen-Pane des Shells scrollt schon.
@@ -100,8 +110,17 @@ export function TodoRegelListe({
           <div className="flex items-center justify-between gap-2 flex-wrap rounded px-2.5 py-2" style={feldStil}>
             <span className="text-[12.5px] text-[var(--tf-text)]">
               {wirkung.wirkung === null ? (
-                <>Wie oft greift welche Regel? Der Lauf zählt je Regel, auf wie viele Vorgänge
-                  ihre Bedingung zutrifft und bei wie vielen sie die Kaskade gewinnt.</>
+                <>
+                  Wie oft greift welche Regel? Der Lauf zählt je Regel, auf wie viele Vorgänge
+                  ihre Bedingung zutrifft und bei wie vielen sie die Kaskade gewinnt.
+                  {/* Der Lauf gilt für GENAU EINEN Regelsatz. Nach einem Pillen-
+                      Wechsel stand er bis v4.120 mit den alten Zahlen unter der
+                      neuen Überschrift; jetzt sagt er, was er gemessen hat. */}
+                  {wirkung.gemessenerSatz !== null && (
+                    <> Gemessen wurde <strong>{ROLLE_LABEL[wirkung.gemessenerSatz]}</strong> —
+                      für {ROLLE_LABEL[satz]} neu messen.</>
+                  )}
+                </>
               ) : (
                 <>
                   {zaehlwort(wirkung.gesamt, 'Vorgang', 'Vorgänge')} gemessen
@@ -146,7 +165,7 @@ export function TodoRegelListe({
           {/* Der Regelsatz wächst — ohne diese Zeile bliebe eine gepflegte Fassung
               stumm auf dem Stand ihres ersten Seeds stehen. Die Bilanz steht dran,
               weil das Nachziehen die GELIEFERTEN Regeln ersetzt. */}
-          {driftGesamt > 0 && (
+          {driftSatz !== null && (
             <div className="flex items-center justify-between gap-2 rounded px-2.5 py-2" style={feldStil}>
               <span className="text-[12.5px] text-[var(--tf-text)]">
                 Die Auslieferung sagt {driftSatz}. Nachziehen legt neue Regeln an,{' '}
@@ -164,7 +183,7 @@ export function TodoRegelListe({
             <div className="flex items-center justify-between gap-2 rounded px-2.5 py-2" style={feldStil}>
               <span className="text-[12.5px] text-[var(--tf-text)]">
                 Diese Fassung führt keine To-do-Regeln. Die Auslieferung bringt den AB-Regelsatz mit
-                (26 Regeln + 4 Sperren, transkribiert aus der Mappe „AB Anträge").
+                ({seedBilanz(AB_TODO_REGELN)}, transkribiert aus der Mappe „AB Anträge").
               </span>
               <Button variant="secondary" size="sm" onClick={api.todoRegelnNachziehen}>Nachziehen</Button>
             </div>
@@ -174,22 +193,27 @@ export function TodoRegelListe({
             <TodoPlatzhalterListe
               satz={satz} anzahlRegeln={eigeneRegeln.length} lauf={platzhalter}
               onRegelErzeugen={api.todoRegelAusPlatzhalter} onExportieren={onExportieren}
+              schonAngelegt={g => vorhandeneRegelIds.has(todoRegelIdAusPlatzhalter(g))}
             />
           )}
         </>
       )}
 
+      {/* Nummer und Pfeile kommen aus `positionen` — der Kaskade des eigenen
+          Satzes. Eine fremde Sperre bekommt KEINE Nummer: sie steht in dieser
+          Kaskade an keiner Stelle, und die vergebene war eine aus einer anderen. */}
       <div className="flex flex-col gap-1">
-        {regeln.map((r, i) => (gewaehlt === null ? (
+        {regeln.map(r => (gewaehlt === null ? (
           <TodoRegelKarte
-            key={r.id} r={r} version={version} index={i} anzahl={regeln.length} satz={satz}
+            key={r.id} r={r} version={version} position={positionen.get(r.id) ?? null} satz={satz}
             api={api} unbekannte={unbekannteJeRegel.get(r.id) ?? []}
             wirkung={wirkung.wirkung?.get(r.id)} veraltet={wirkung.veraltet}
             onWaehlen={() => onWaehlen(r.id)}
           />
         ) : (
           <TodoRegelZeile
-            key={r.id} r={r} index={i} satz={satz} aktiv={r.id === gewaehlt}
+            key={r.id} r={r} position={positionen.get(r.id) ?? null} satz={satz}
+            aktiv={r.id === gewaehlt}
             unbekannte={unbekannteJeRegel.get(r.id) ?? []}
             wirkung={wirkung.wirkung?.get(r.id)} veraltet={wirkung.veraltet}
             onWaehlen={() => onWaehlen(r.id)}

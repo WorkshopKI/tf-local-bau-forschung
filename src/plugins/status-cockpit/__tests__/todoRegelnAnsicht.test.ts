@@ -10,8 +10,9 @@
 import { describe, it, expect } from 'vitest';
 import type { Rolle, TodoRegel } from '@/core/status';
 import {
-  bekannteStraenge, brauchtRolloutRueckfrage, fehltStrangTrotzSperre, positionsText,
-  sichtbareRegeln, sperrSatz, strangLabel, waehleRegel, wirkungsAnzeige, zustandsMarker,
+  bekannteStraenge, brauchtRolloutRueckfrage, driftSatz, fehltStrangTrotzSperre,
+  kaskadenPositionen, positionsText, seedBilanz, sichtbareRegeln, sperrSatz, strangLabel,
+  todoRegelIdAusPlatzhalter, waehleRegel, wirkungsAnzeige, zustandsMarker,
 } from '../todoRegelnAnsicht';
 
 const regel = (p: Partial<TodoRegel> & { id: string; reihenfolge: number }): TodoRegel => ({
@@ -234,5 +235,77 @@ describe('Strang-Auswahl und die Warnung dazu', () => {
     const nurFb = { ...STRANG_SPERRE, giltFuer: ['fb' as const] };
     expect(fehltStrangTrotzSperre(OHNE_STRANG, [nurFb, OHNE_STRANG], 'ab')).toBe(false);
     expect(fehltStrangTrotzSperre(OHNE_STRANG, [nurFb, OHNE_STRANG], 'fb')).toBe(true);
+  });
+});
+
+/**
+ * Der Kern von v4.121: **zwei Kaskaden, zwei Nummernkreise.** Am Bild gemessen
+ * stand die einzige FB-Regel als „4" zwischen vier AB-Sperren, beide Pfeile
+ * aktiv — und ein Klick tat nichts, weil `verschiebeTodoRegel` in der Kaskade
+ * des eigenen Satzes rechnet, wo sie erste und letzte zugleich war.
+ */
+describe('Kaskaden-Position (v4.121)', () => {
+  const SPERRE_10 = regel({ id: 's0', reihenfolge: 10, sperrt: ['*'], todo: '' });
+  const SPERRE_40 = regel({ id: 's2', reihenfolge: 40, sperrt: ['*'], todo: '' });
+  const FB_NEU = regel({ id: 'fb-r2', reihenfolge: 10, regelsatz: 'fb' });
+  const alle = [SPERRE_10, FB_NEU, SPERRE_40];
+
+  it('stellt fremde Sperren VOR die eigene Kaskade', () => {
+    // Nach `reihenfolge` allein läge die neue FB-Regel (10) zwischen s0 (10) und
+    // s2 (40) — auf einem Platz, den niemand gewählt hat und den die Engine
+    // nicht kennt: ihr Sperr-Pass ist ein Vollscan ohne Ordnung.
+    expect(sichtbareRegeln(alle, 'fb').map(r => r.id)).toEqual(['s0', 's2', 'fb-r2']);
+  });
+
+  it('lässt die reine AB-Ansicht unverändert — dort ist alles eigen', () => {
+    expect(sichtbareRegeln([AB1, SPERRE_ALLE, AB2], 'ab').map(r => r.id)).toEqual(['s0', 'r2', 'r1']);
+  });
+
+  it('gibt fremden Sperren KEINE Position in diesem Satz', () => {
+    const p = kaskadenPositionen(sichtbareRegeln(alle, 'fb'), 'fb');
+    expect(p.get('s0'), 'die Sperre gehört dem Satz AB').toBeUndefined();
+    expect(p.get('fb-r2')).toEqual({ index: 0, anzahl: 1 });
+  });
+
+  it('zählt im eigenen Satz durch, unabhängig von der angezeigten Länge', () => {
+    const sichtbar = sichtbareRegeln([AB1, AB2, SPERRE_ALLE], 'ab');
+    const p = kaskadenPositionen(sichtbar, 'ab');
+    expect(p.get('r2')).toEqual({ index: 1, anzahl: 3 });
+    expect(p.get('r1')).toEqual({ index: 2, anzahl: 3 });
+  });
+});
+
+describe('todoRegelIdAusPlatzhalter', () => {
+  it('bildet dieselbe Id, die das Anlegen vergibt', () => {
+    // Beide Seiten brauchen sie: die eine legt an, die andere muss sehen, dass
+    // es die Regel schon gibt — sonst lädt ein zweiter Klick zu einer Aktion
+    // ein, die wortlos nichts tut.
+    expect(todoRegelIdAusPlatzhalter({ rolle: 'fb', quellRegelId: 'r2' })).toBe('fb-r2');
+  });
+});
+
+describe('driftSatz', () => {
+  const leer = { neu: [], geaendert: [], entfallen: [] };
+
+  it('schweigt, wenn nichts driftet', () => {
+    expect(driftSatz(leer)).toBeNull();
+  });
+
+  it('dekliniert die Einzahl — „1 neue Regeln" stand bis v4.120 da', () => {
+    expect(driftSatz({ ...leer, neu: ['r7'] })).toBe('1 neue Regel (r7)');
+    expect(driftSatz({ ...leer, neu: ['r7', 'r8'] })).toBe('2 neue Regeln (r7, r8)');
+  });
+
+  it('reiht die drei Sorten in fester Ordnung', () => {
+    expect(driftSatz({ neu: ['a'], geaendert: ['b', 'c'], entfallen: ['d'] }))
+      .toBe('1 neue Regel (a) · 2 Regeln geändert (b, c) · 1 Regel entfallen (d)');
+  });
+});
+
+describe('seedBilanz', () => {
+  it('zählt Regeln und Sperren, statt sie abzuschreiben', () => {
+    const seed = [AB1, AB2, SPERRE_ALLE];
+    expect(seedBilanz(seed)).toBe('2 Regeln + 1 Sperre');
+    expect(seedBilanz([AB1])).toBe('1 Regel + 0 Sperren');
   });
 });

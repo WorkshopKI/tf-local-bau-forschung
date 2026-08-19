@@ -30,8 +30,8 @@ import {
 } from '@/core/status/kuerzel-katalog';
 import { STATUS_CODE_KATALOG } from '@/core/status/status-codes';
 import {
-  baueKlaerfragen, bezeichnungsAbweichungen, zaehleJeHerkunft,
-  ktFragen, ktPaare, ktVerstoesse,
+  baueKlaerfragen, bezeichnungsAbweichungen, zaehleJeHerkunft, klaerfragenAuslassungen,
+  ktFragen, ktPaare, ktVerstoesse, vorkommenFuerWortlaut,
   FACHLICH_BESTAETIGT, KURZLABEL_SPITZE, HERKUENFTE, STILLGELEGTE_HERKUENFTE,
   type KlaerfragenBestand, type Klaerfrage,
 } from '@/core/status/klaerfragen';
@@ -445,5 +445,96 @@ describe('Sortierung und Ids', () => {
     const nachher = bau(new Map([['VN gepürft', 7]]));
     const id = (fs: Klaerfrage[]): string => fs.find(f => f.betrifft === 'VN gepürft')!.id;
     expect(id(nachher)).toBe(id(vorher));
+  });
+});
+
+/**
+ * Was ein Lauf **nicht** fragt — in Fragen gerechnet, nicht in Anlässen.
+ *
+ * Am Bild gemessen (Fassung 25): „1 Klärfrage aus 14.225 Vorgängen · 243
+ * ruhende Kürzel ausgelassen". Eine Frage stand da, und daneben die Behauptung,
+ * 243 seien weggefallen — unterdrückt war in Wahrheit keine einzige.
+ */
+describe('klaerfragenAuslassungen (v4.121)', () => {
+  it('zählt ruhende Kürzel in FRAGEN, nicht in Kürzeln', () => {
+    const eingabe = {
+      bestand: bestand({ proKuerzelDs: new Map(ERFUNDEN.map(u => [u.kuerzel, 3] as const)) }),
+      fassungsWerte: null,
+      offeneBedeutungen: ERFUNDEN,
+      // Ein Kürzel ruht, das gar keine Frage stellt: die Zahl muss 0 bleiben.
+      ruhendeCodes: new Set(['RUHT-OHNE-FRAGE']),
+    };
+    expect(klaerfragenAuslassungen(eingabe).ruhende).toBe(0);
+
+    const eines = ERFUNDEN[0]!;
+    expect(klaerfragenAuslassungen({ ...eingabe, ruhendeCodes: new Set([eines.kuerzel]) }).ruhende)
+      .toBe(1);
+  });
+
+  it('nennt den Rückstand hinter der Kurzlabel-Spitze', () => {
+    // Die drei Schreibweisen, die der Katalog nur ÜBER DEN LOSEN SCHLÜSSEL
+    // auflöst: sie tragen einen Code, aber keine Kurzform — genau die Menge der
+    // Pflegeliste. Die Spitze steht hier auf 1, damit die Kappung greift, ohne
+    // 20 erfundene Werte zu brauchen.
+    const roh = new Map([
+      ['Stellungnahme zur Rücknahmeempf', 30],
+      ['abgelehnt zurückgezogen', 20],
+      ['Bewilligungsentwurf VDI VDE IT', 10],
+    ]);
+    const eingabe = {
+      bestand: bestand({ rohStatus: roh }),
+      fassungsWerte: new Set([...roh.keys()].map(normalisiereWert)),
+    };
+    expect(baueKlaerfragen(eingabe).filter(f => f.herkunft === 'kurzlabel')).toHaveLength(3);
+    expect(klaerfragenAuslassungen(eingabe).kurzlabelRest, 'unter der Spitze wartet nichts').toBe(0);
+    expect(klaerfragenAuslassungen(eingabe, 1).kurzlabelRest).toBe(2);
+  });
+
+  it('meldet nichts, wo nichts ausgelassen wurde', () => {
+    const a = klaerfragenAuslassungen({ bestand: bestand(), fassungsWerte: null });
+    expect(a).toEqual({ ruhende: 0, kurzlabelRest: 0 });
+  });
+});
+
+describe('Eine Id, eine Zeile (v4.121)', () => {
+  it('bündelt Schreibweisen desselben Wertes zu EINER Frage', () => {
+    // Die Id ist normalisiert, die Schleife über `rohStatus` war es nicht: zwei
+    // Schreibweisen erzeugten zwei Zeilen mit derselben ID — und genau über sie
+    // werden die Antworten aus der herumgereichten Datei zurückgeordnet.
+    const fragen = baueKlaerfragen({
+      bestand: bestand({ rohStatus: new Map([['Kennt niemand', 7], ['kennt  niemand', 3]]) }),
+      fassungsWerte: new Set(),
+    });
+    const ids = fragen.map(f => f.id);
+    expect(new Set(ids).size, ids.join(' | ')).toBe(ids.length);
+  });
+
+  it('addiert das Gewicht, statt es zu halbieren', () => {
+    const fragen = baueKlaerfragen({
+      bestand: bestand({ rohStatus: new Map([['Kennt niemand', 7], ['KENNT NIEMAND', 3]]) }),
+      fassungsWerte: new Set(),
+    });
+    expect(fragen).toHaveLength(1);
+    expect(fragen[0]!.vorkommen).toBe(10);
+    expect(fragen[0]!.betrifft, 'die häufigste Schreibweise vertritt den Wert').toBe('Kennt niemand');
+  });
+});
+
+describe('vorkommenFuerWortlaut', () => {
+  it('findet den Wortlaut auch bei anderer Schreibung und Normalform', () => {
+    // `rohStatus` ist wortgetreu geschlüsselt. Ein exakter `get()` verlangte
+    // Übereinstimmung bis in die Unicode-Normalform — daneben stünde keine
+    // Meldung, sondern eine gemessene 0, und der Befund verschwände lautlos.
+    const roh = new Map([['  VN Geprüft '.normalize('NFD'), 5]]);
+    expect(vorkommenFuerWortlaut(roh, 'VN geprüft')).toBe(5);
+  });
+
+  it('addiert Schreibvarianten desselben Wortlauts', () => {
+    expect(vorkommenFuerWortlaut(new Map([['bewilligt', 3], ['Bewilligt', 4]]), 'BEWILLIGT'))
+      .toBe(7);
+  });
+
+  it('bleibt 0, wo der Wortlaut wirklich fehlt', () => {
+    expect(vorkommenFuerWortlaut(new Map([['bewilligt', 3]]), 'abgelehnt')).toBe(0);
   });
 });

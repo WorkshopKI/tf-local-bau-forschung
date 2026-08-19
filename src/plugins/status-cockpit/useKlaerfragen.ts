@@ -18,8 +18,8 @@ import { hatSpalteAus, ruhendeCodes, type MappingVersion } from '@/core/status';
 import { indexNachSchreibweise } from '@/core/status/wert-index';
 import { mitAmtlichenSchreibweisen } from '@/core/status/snapshot';
 import {
-  baueKlaerfragen, ladeKlaerfragenBestand,
-  type Klaerfrage, type KlaerfragenBestand,
+  baueKlaerfragen, klaerfragenAuslassungen, ladeKlaerfragenBestand,
+  type Auslassungen, type Klaerfrage, type KlaerfragenBestand,
 } from '@/core/status/klaerfragen';
 
 export interface KlaerfragenLauf {
@@ -27,8 +27,14 @@ export interface KlaerfragenLauf {
   bestand: KlaerfragenBestand | null;
   /** Laufzeit des Durchgangs in Millisekunden. */
   dauerMs: number | null;
-  /** Wie viele Kürzel ruhen und deshalb keine Frage gestellt haben. */
-  ruhendeKuerzel: number;
+  /**
+   * Was dieser Lauf **nicht** fragt — in Fragen gerechnet. `null` ohne Lauf.
+   *
+   * Bis v4.120 stand hier die Zahl der ruhenden KÜRZEL, und die Kopfzeile
+   * machte daraus „243 ruhende Kürzel ausgelassen" über einer Liste mit einer
+   * einzigen Frage.
+   */
+  auslassungen: Auslassungen | null;
   aktion: UseAsyncActionResult<[]>;
 }
 
@@ -41,7 +47,7 @@ export function useKlaerfragen(
   const [fragen, setFragen] = useState<readonly Klaerfrage[] | null>(null);
   const [bestand, setBestand] = useState<KlaerfragenBestand | null>(null);
   const [dauerMs, setDauerMs] = useState<number | null>(null);
-  const [ruhende, setRuhende] = useState(0);
+  const [auslassungen, setAuslassungen] = useState<Auslassungen | null>(null);
 
   const starte = useCallback(async (): Promise<void> => {
     if (!version) return;
@@ -61,11 +67,12 @@ export function useKlaerfragen(
       indexNachSchreibweise(version.werte.map(mitAmtlichenSchreibweisen)).keys(),
     );
     const ruhend = ruhendeCodes(version.felder, hatSpalteAus(csvSpalten));
+    const eingabe = { bestand: gemessen, fassungsWerte, ruhendeCodes: ruhend };
     setBestand(gemessen);
-    setFragen(baueKlaerfragen({ bestand: gemessen, fassungsWerte, ruhendeCodes: ruhend }));
-    setRuhende(ruhend.size);
+    setFragen(baueKlaerfragen(eingabe));
+    setAuslassungen(klaerfragenAuslassungen(eingabe));
     setDauerMs(Math.round(performance.now() - begonnen));
   }, [idb, version, csvSpalten]);
 
-  return { fragen, bestand, dauerMs, ruhendeKuerzel: ruhende, aktion: useAsyncAction(starte) };
+  return { fragen, bestand, dauerMs, auslassungen, aktion: useAsyncAction(starte) };
 }

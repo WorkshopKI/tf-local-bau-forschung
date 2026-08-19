@@ -35,6 +35,7 @@ import { RegelnTab } from './RegelnTab';
 import { ReferenzdatenSektion } from './ReferenzdatenSektion';
 import { KatalogKonfliktDialog } from './KatalogKonfliktDialog';
 import { zaehleStatus } from './katalogZeilen';
+import { sichtbareRegeln } from './todoRegelnAnsicht';
 import {
   TAB_LABEL, TAB_ZWECK, feldStil, formatZeitpunkt, tabAusParameter, type TabKey,
 } from './labels';
@@ -432,6 +433,11 @@ export function StatusCockpitPage(): React.ReactElement {
   // und der Baum daneben zählt ihn seit jeher einmal.
   const werteCount = zaehleStatus(api.entwurf?.werte ?? []);
   const felderCount = api.entwurf?.felder.length ?? 0;
+  // Der Regelsatz, mit dem der Reiter aufgeht — nicht alle Sätze zusammen.
+  // `todoRegeln.length` zählte über AB, FB und jeden weiteren hinweg: mit einer
+  // einzigen FB-Regel stand an der Lasche 31, während der Reiter darunter 30
+  // (AB) oder 5 (FB) zeigte — eine Zahl, die zu keiner Liste gehörte.
+  const regelnCount = sichtbareRegeln(api.entwurf?.todoRegeln ?? [], REGELSATZ_DEFAULT).length;
 
   // Bis v4.112 stand diese Liste inline im JSX. Sie steht jetzt als Array da,
   // damit die Beta/Experte-Marken einen Schlüssel zum Filtern haben. Heute
@@ -445,7 +451,7 @@ export function StatusCockpitPage(): React.ReactElement {
     { key: 'ebenen', label: TAB_LABEL.ebenen },
     { key: 'katalog', label: TAB_LABEL.katalog, count: werteCount },
     { key: 'felder', label: TAB_LABEL.felder, count: felderCount },
-    { key: 'regeln', label: TAB_LABEL.regeln, count: api.entwurf?.todoRegeln?.length ?? 0 },
+    { key: 'regeln', label: TAB_LABEL.regeln, count: regelnCount },
     // Ohne Zähler: die Zahl entsteht erst durch einen Bestandslauf, und
     // eine „0" an der Lasche läse sich als „nichts offen".
     { key: 'klaerfragen', label: TAB_LABEL.klaerfragen },

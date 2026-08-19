@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.121.0 — To-do-Regeln und Klaerfragen: 15 Befunde der Bug-Jagd behoben (August 2026)
+
+MINOR — Der zweite Schnitt der Jagd, über die beiden in v4.120 ausgeklammerten Reiter. Ein Muster trägt fast alles: **ein Ergebnis überlebt seinen Parameter und wird dem gerade gewählten zugeschrieben.** Der Wirkungs-Lauf lief unter AB und stand nach einem Pillen-Klick als „Regelsatz FB" da — samt einer Warnung, die einen falschen Grund nannte. Dazu Zahlen, die eine andere Liste zählen als die daneben.
+
+- **Eine Messung nennt ihren Regelsatz**: Wirkungs-Lauf, Probe am Fall und Termin-Befunde sagen, unter welchem Satz sie liefen; fremde Zahlen werden nicht mehr gezeigt ([useRegelWirkung.ts](src/plugins/status-cockpit/useRegelWirkung.ts), [RegelProbelauf.tsx](src/plugins/status-cockpit/RegelProbelauf.tsx), [TerminBefundeBlock.tsx](src/plugins/status-cockpit/TerminBefundeBlock.tsx)) — neue Bug-Klasse [#25](docs/architecture/recurring-bug-classes.md)
+- **Zwei Kaskaden, zwei Nummernkreise**: Nummer, „Position i von n" und Pfeile folgen dem eigenen Regelsatz, fremde Sperren stehen vorn und tragen keine Stelle ([todoRegelnAnsicht.ts](src/plugins/status-cockpit/todoRegelnAnsicht.ts), [TodoRegelKarte.tsx](src/plugins/status-cockpit/TodoRegelKarte.tsx))
+- **Zähler zählen, was dasteht**: die Regelsatz-Pille sagte „AB 26" über 30 Zeilen und „FB 0" über vier; die Reiter-Lasche zählte alle Sätze zusammen ([TodoRegelnBereich.tsx](src/plugins/status-cockpit/TodoRegelnBereich.tsx), [StatusCockpitPage.tsx](src/plugins/status-cockpit/StatusCockpitPage.tsx))
+- **Auslassungen in Fragen, nicht in Anlässen**: „243 ruhende Kürzel ausgelassen" stand über einer Liste mit einer Frage, obwohl keine unterdrückt war; die Kurzlabel-Spitze kappte still ([klaerfragen/index.ts](src/core/status/klaerfragen/index.ts), [KlaerfragenTab.tsx](src/plugins/status-cockpit/KlaerfragenTab.tsx))
+- **Eine Id, eine Zeile**: zwei Schreibweisen desselben Statuswerts erzeugten zwei Klärfragen mit derselben ID — dem Schlüssel, über den die Antworten zurückkommen ([ableitung.ts](src/core/status/klaerfragen/ableitung.ts))
+
 ### v4.120.0 — Status-Cockpit: 24 Befunde der Bug-Jagd behoben (August 2026)
 
 MINOR — Die read-only-Jagd über „Ebenen · Statuswerte · Kürzel" fand ein Muster: **die Oberfläche beschreibt einen anderen Stand als den, der bearbeitet wird.** Der Reiter „Ebenen" las die Zuordnung aus der gespeicherten Fassung, während der Baum daneben den Entwurf zeigte; „neu berechnen" warf den Entwurf weg; der Lösch-Dialog verschickte die Phase, die er löscht. Dazu drei Zähler, die eine andere Grundmenge messen als der Filter neben ihnen.

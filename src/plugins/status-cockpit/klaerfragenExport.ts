@@ -20,9 +20,10 @@ import {
   type BlattVeredelung, type Validierung, type VeredelungsBericht,
 } from '@/core/status/export/arbeitsmappe-veredelung';
 import {
-  HERKUENFTE, HERKUNFT_ADRESSAT, HERKUNFT_LABEL,
-  type Klaerfrage, type KlaerfragenBestand,
+  HERKUENFTE, HERKUNFT_ADRESSAT, HERKUNFT_LABEL, KURZLABEL_SPITZE,
+  type Auslassungen, type Klaerfrage, type KlaerfragenBestand,
 } from '@/core/status/klaerfragen';
+import { zaehlwort } from '@/core/utils/zaehlwort';
 
 /** Spalten des Blattes „Fragen" — die Reihenfolge ist die Leserichtung. */
 const SPALTEN = [
@@ -58,6 +59,12 @@ export interface ExportEingabe {
   bestand: KlaerfragenBestand;
   /** ISO-Zeitpunkt des Exports — von außen, nie eine Uhr hier drin. */
   jetztIso: string;
+  /**
+   * Was der Lauf nicht fragt. Steht im Kopf des Blattes „Fragen": die Datei
+   * wird ohne den Bildschirm gelesen, und eine gekappte Liste liest sich sonst
+   * wie eine vollständige.
+   */
+  auslassungen?: Auslassungen | null;
 }
 
 function kurzDatum(iso: string | null): string {
@@ -66,12 +73,29 @@ function kurzDatum(iso: string | null): string {
   return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString('de-DE');
 }
 
+/** Was die Datei NICHT enthält — eine Zeile, nur wenn es etwas zu sagen gibt. */
+export function auslassungsZeile(a: Auslassungen | null | undefined): string | null {
+  if (a === null || a === undefined) return null;
+  const teile: string[] = [];
+  if (a.ruhende > 0) {
+    teile.push(`${zaehlwort(a.ruhende, 'Frage zu einem ruhenden Kürzel', 'Fragen zu ruhenden Kürzeln')} `
+      + 'ausgelassen (kein Vorkommen in einer CSV-Quelle — am Bestand nicht zu belegen)');
+  }
+  if (a.kurzlabelRest > 0) {
+    teile.push(`${zaehlwort(a.kurzlabelRest, 'weiterer Wert wartet', 'weitere Werte warten')} `
+      + `auf eine Kurzform; geführt sind die häufigsten ${KURZLABEL_SPITZE}`);
+  }
+  return teile.length === 0 ? null : `Nicht enthalten: ${teile.join(' · ')}`;
+}
+
 function kopfzeilen(e: ExportEingabe): string[] {
+  const auslassung = auslassungsZeile(e.auslassungen);
   return [
     'Klärfragen zum Status- und Kürzelkatalog',
     `Erhebung vom ${kurzDatum(e.jetztIso)} · Bestand vom ${kurzDatum(e.bestand.importiertAm)}`,
     `${e.bestand.gesamtVorgaenge.toLocaleString('de-DE')} Vorgänge, ganzer Bestand `
       + '(ohne Betrachtungsbereich) · Vorkommen = betroffene Vorgänge',
+    ...(auslassung === null ? [] : [auslassung]),
   ];
 }
 

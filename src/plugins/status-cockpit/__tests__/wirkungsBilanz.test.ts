@@ -36,6 +36,25 @@ describe('wirkungsAnzeige — „gewinnt nie" ist ein Befund, kein Zahlenpaar', 
   });
 });
 
+describe('ein Regelsatz ohne eigene Regel bekommt kein Gütesiegel (v4.121)', () => {
+  const sperre = regel({ id: 's0', sperrt: ['*'], todo: '' });
+
+  it('sagt es, statt „jede ausgewertete Regel wirkt" zu melden', () => {
+    // Am Bild gemessen: über dem FB-Satz, der KEINE Regel führt, stand
+    // „jede ausgewertete Regel wirkt" — wahr im Wortsinn, weil es nichts gab,
+    // was nicht wirkte.
+    const wirkung = new Map([['s0', w(0, 0, 8790)]]);
+    expect(wirkungsBilanzText([sperre], wirkung, 'fb'))
+      .toBe('dieser Regelsatz führt keine eigene aktive Regel');
+  });
+
+  it('lässt den Satz mit eigenen Regeln unangetastet', () => {
+    const r1 = regel({ id: 'r1' });
+    expect(wirkungsBilanzText([r1], new Map([['r1', w(5, 5)]]), 'ab'))
+      .toBe('jede ausgewertete Regel wirkt');
+  });
+});
+
 describe('wirkungsloseRegeln', () => {
   const regeln = [
     regel({ id: 'r1', reihenfolge: 10 }),

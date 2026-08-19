@@ -19,6 +19,15 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.121 — 2026-08
+
+### Bugfixes
+- **Gemessene Zahlen bleiben bei ihrem Regelsatz.** Wer nach einem Messlauf von AB auf FB umschaltete, sah die AB-Zahlen unter der Überschrift „Regelsatz FB" — dazu die Meldung, die Regeln seien geändert worden, obwohl nichts geändert war. Jetzt steht dort, was gemessen wurde, und die Zahlen des anderen Satzes werden gar nicht erst gezeigt. Dasselbe gilt für die Probe am Einzelfall.
+- **Die Zahl am Reiter zählt, was der Reiter zeigt.** „AB 26" stand über einer Liste, die bis 30 durchnummeriert war; „FB 0" über vier Zeilen.
+- **Pfeile, die nichts bewegen, gibt es nicht mehr.** Eine Regel im FB-Satz bekam eine Nummer aus der AB-Reihenfolge und zwei aktive Pfeile — verschoben wurde sie dadurch nie. Sperren aus einem anderen Satz stehen jetzt vorn und tragen keine Nummer.
+- **„Regel erzeugen" sagt, wenn die Regel schon steht.** Der zweite Klick auf dieselbe Zeile legte nichts an und meldete auch nichts.
+- **Die Klärfragen sagen ehrlich, was fehlt.** Über einer Liste mit einer einzigen Frage stand „243 ruhende Kürzel ausgelassen", obwohl keine Frage weggefallen war. Jetzt wird in Fragen gezählt — und wo die Liste nur die häufigsten führt, steht das dabei, auch in der Arbeitsmappe.
+
 ## v4.120 — 2026-08
 
 ### Bugfixes

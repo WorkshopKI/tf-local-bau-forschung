@@ -19,13 +19,21 @@ import { zaehlwort } from '@/core/utils/zaehlwort';
 import { feldStil } from './labels';
 import type { PlatzhalterLauf } from './usePlatzhalterErhebung';
 
-export function TodoPlatzhalterListe({ satz, anzahlRegeln, lauf, onRegelErzeugen, onExportieren }: {
+export function TodoPlatzhalterListe({
+  satz, anzahlRegeln, lauf, onRegelErzeugen, onExportieren, schonAngelegt,
+}: {
   satz: Rolle;
   /** Wie viele eigene Regeln der Satz schon führt — bestimmt nur den Text. */
   anzahlRegeln: number;
   lauf: PlatzhalterLauf;
   onRegelErzeugen: (g: PlatzhalterGruppe) => void;
   onExportieren: (rolle: Rolle) => void;
+  /**
+   * Steht die Regel zu dieser Zeile schon? Die Zeile bleibt nach dem Anlegen
+   * stehen (die Erhebung rechnet nicht nach), und ein zweiter Klick legte
+   * wortlos nichts an — `fuegeTodoRegelHinzu` steigt bei bekannter Id aus.
+   */
+  schonAngelegt: (g: PlatzhalterGruppe) => boolean;
 }): React.ReactElement {
   const gruppen = (lauf.erhebung?.platzhalter.gruppen ?? []).filter(g => g.rolle === satz);
   return (
@@ -126,12 +134,18 @@ export function TodoPlatzhalterListe({ satz, anzahlRegeln, lauf, onRegelErzeugen
                   <span className="text-[11px] font-mono text-[var(--tf-text-tertiary)]">
                     {g.beispiele.join(', ')}
                   </span>
-                  <Button
-                    variant="secondary" size="sm" className="ml-auto"
-                    onClick={() => onRegelErzeugen(g)}
-                  >
-                    Regel erzeugen
-                  </Button>
+                  {schonAngelegt(g) ? (
+                    <span className="ml-auto text-[11.5px] text-[var(--tf-text-tertiary)]">
+                      Regel angelegt — sie steht in der Kaskade unten
+                    </span>
+                  ) : (
+                    <Button
+                      variant="secondary" size="sm" className="ml-auto"
+                      onClick={() => onRegelErzeugen(g)}
+                    >
+                      Regel erzeugen
+                    </Button>
+                  )}
                 </li>
               ))}
             </ul>

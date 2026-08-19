@@ -29,8 +29,21 @@ import {
 } from '@/core/status';
 
 export interface WirkungsLauf {
-  /** Je Regel-Id die gemessenen Zahlen; `null`, solange kein Lauf stattfand. */
+  /**
+   * Je Regel-Id die gemessenen Zahlen; `null`, solange kein Lauf stattfand —
+   * **und ebenso, solange ein anderer Regelsatz gezeigt wird als der gemessene**
+   * (siehe {@link WirkungsLauf.gemessenerSatz}).
+   */
   wirkung: ReadonlyMap<string, RegelWirkung> | null;
+  /**
+   * Der Regelsatz, unter dem gemessen wurde; `null` ohne Lauf.
+   *
+   * Gehört an jede Zahl. Am Bild gemessen: nach einem AB-Lauf und einem Klick
+   * auf die FB-Pille stand über den AB-Zahlen „12.359 Vorgänge gemessen · …
+   * Regelsatz **FB**" — die Kopfzeile nannte den gewählten Satz, die Zahlen
+   * kamen aus dem anderen.
+   */
+  gemessenerSatz: Rolle | null;
   /** Wie viele Vorgänge der Lauf ausgewertet hat — ohne sie ist keine Zahl einzuordnen. */
   gesamt: number;
   /** Wie der Bereich beim Lauf stand. */
@@ -56,11 +69,17 @@ export function useRegelWirkung(version: MappingVersion | null, rolle: Rolle): W
   const [gesamt, setGesamt] = useState(0);
   const [bereichText, setBereichText] = useState<string | null>(null);
   const [signatur, setSignatur] = useState<string | null>(null);
+  const [gemessenerSatz, setGemessenerSatz] = useState<Rolle | null>(null);
 
   const regeln = useMemo(() => version?.todoRegeln ?? [], [version]);
+  // Gegen den GEMESSENEN Satz, nicht gegen den gewählten: sonst meldete jeder
+  // Pillen-Klick „Regeln seit dem Lauf geändert" und nannte damit einen Grund,
+  // den es nicht gab.
   const jetzige = useMemo(
-    () => wirkungsSignatur(regeln, stichtagRef.current, rolle).wert,
-    [regeln, rolle],
+    () => (gemessenerSatz === null
+      ? null
+      : wirkungsSignatur(regeln, stichtagRef.current, gemessenerSatz).wert),
+    [regeln, gemessenerSatz],
   );
 
   const starte = useCallback(async (): Promise<void> => {
@@ -81,6 +100,7 @@ export function useRegelWirkung(version: MappingVersion | null, rolle: Rolle): W
 
     setWirkung(erhebeRegelWirkung(laeufe, alle));
     setGesamt(laeufe.length);
+    setGemessenerSatz(rolle);
     setSignatur(wirkungsSignatur(alle, stichtag, rolle).wert);
     if (bereich.menge === null) {
       setBereichText('alle Richtlinien');
@@ -91,12 +111,17 @@ export function useRegelWirkung(version: MappingVersion | null, rolle: Rolle): W
     }
   }, [idb, version, rolle, bereich.menge, bereich.programme]);
 
+  // Die Zahlen eines fremden Satzes werden NICHT gezeigt: sie wären je Regel
+  // schlicht falsch (eine Sperre greift unter einer anderen Rolle anders), und
+  // ein Vermerk daneben machte sie nicht richtiger.
+  const fremderSatz = gemessenerSatz !== null && gemessenerSatz !== rolle;
   return {
-    wirkung,
+    wirkung: fremderSatz ? null : wirkung,
+    gemessenerSatz,
     gesamt,
     bereichText,
     stichtag: stichtagRef.current,
-    veraltet: signatur !== null && signatur !== jetzige,
+    veraltet: !fremderSatz && signatur !== null && signatur !== jetzige,
     aktion: useAsyncAction(starte),
   };
 }

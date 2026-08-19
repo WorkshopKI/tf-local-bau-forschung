@@ -12,6 +12,7 @@ import {
   regelsatzVon, sperreGiltFuer, strangAusEintrag, ALLE_STRAENGE, REGELSATZ_DEFAULT,
   type PlatzhalterGruppe, type RegelWirkung, type Rolle, type TodoRegel,
 } from '@/core/status';
+import { zaehlwort } from '@/core/utils/zaehlwort';
 
 /**
  * Die Warnung, die an jedem Nicht-AB-Regelsatz steht.
@@ -40,11 +41,63 @@ export interface TodoRegelnApi {
  *
  * Sperren erscheinen in jedem Satz, in dem sie greifen; eine unsichtbare Sperre
  * wäre genau die stille Leere, die das Board vermeidet.
+ *
+ * **Fremde Sperren stehen vorn, danach die eigene Kaskade** (v4.121). Vorher
+ * mischte ein einziges `reihenfolge`-Sortieren zwei unabhängig nummerierte
+ * Kaskaden: eine neue FB-Regel bekam `reihenfolge: 10` (die erste ihres Satzes)
+ * und landete damit zwischen den AB-Sperren 10…40 — auf Platz 4 von 5, den
+ * niemand gewählt hatte. Die Nummern zweier Sätze sind nicht vergleichbar, und
+ * genau so liest die Engine sie auch: der Sperr-Pass ist ein Vollscan **ohne**
+ * Ordnung und läuft vor dem Treffer-Pass, der nur einen Satz sieht.
  */
 export function sichtbareRegeln(alle: readonly TodoRegel[], satz: Rolle): TodoRegel[] {
   return alle
     .filter(r => ((r.sperrt?.length ?? 0) > 0 ? sperreGiltFuer(r, satz) : regelsatzVon(r) === satz))
-    .sort((a, b) => a.reihenfolge - b.reihenfolge);
+    .sort((a, b) => {
+      const aEigen = regelsatzVon(a) === satz ? 1 : 0;
+      const bEigen = regelsatzVon(b) === satz ? 1 : 0;
+      return aEigen - bEigen || a.reihenfolge - b.reihenfolge;
+    });
+}
+
+/** Die Stelle einer Regel in der Kaskade, die sie wirklich bewegt. */
+export interface KaskadenPosition {
+  /** 0-basiert innerhalb des EIGENEN Regelsatzes. */
+  index: number;
+  /** Wie viele Regeln dieser Satz führt — der Nenner der Positionsangabe. */
+  anzahl: number;
+}
+
+/**
+ * Wo jede **eigene** Regel in ihrer Kaskade steht — der Maßstab für Pfeile,
+ * Positionsangabe und die Nummer an der Karte.
+ *
+ * Bis v4.120 kamen alle drei aus dem Index der ANGEZEIGTEN Liste, verschoben
+ * wurde aber in der Kaskade des eigenen Satzes (`verschiebeTodoRegel`). Am Bild
+ * gemessen: die einzige FB-Regel stand als Nummer 4 zwischen vier AB-Sperren,
+ * beide Pfeile aktiv und beschriftet („eine Position nach oben"), und ein Klick
+ * änderte nichts — sie war in ihrem Satz längst die erste und letzte.
+ *
+ * Fremde Sperren stehen in KEINER Position dieses Satzes; sie tauchen hier
+ * bewusst nicht auf, statt eine Nummer zu bekommen, die nichts bedeutet.
+ */
+export function kaskadenPositionen(
+  sichtbar: readonly TodoRegel[], satz: Rolle,
+): ReadonlyMap<string, KaskadenPosition> {
+  const eigene = sichtbar.filter(r => regelsatzVon(r) === satz);
+  return new Map(eigene.map((r, i) => [r.id, { index: i, anzahl: eigene.length }]));
+}
+
+/**
+ * Die Id, die eine aus einem Platzhalter erzeugte Regel bekommt.
+ *
+ * Steht hier statt im Hook, weil zwei Stellen sie brauchen: die eine legt die
+ * Regel an, die andere muss sehen, dass es sie schon gibt — sonst lädt ein
+ * zweiter Klick auf „Regel erzeugen" zu einer Aktion ein, die wortlos nichts
+ * tut (`fuegeTodoRegelHinzu` steigt bei bekannter Id aus).
+ */
+export function todoRegelIdAusPlatzhalter(g: Pick<PlatzhalterGruppe, 'rolle' | 'quellRegelId'>): string {
+  return `${g.rolle}-${g.quellRegelId}`;
 }
 
 /** Die gewählte Regel samt Position — oder `null`, wenn sie (nicht mehr) dasteht. */
@@ -369,9 +422,51 @@ export function wirkungsBilanzText(
   satz: Rolle,
 ): string | null {
   if (wirkung === null) return null;
+  // Ein Satz ohne eigene aktive Regel bekommt kein Gütesiegel. „jede ausgewertete
+  // Regel wirkt" stand am Bild über einem FB-Satz, der keine einzige Regel führt
+  // — wahr im Wortsinn (es gab nichts, was nicht wirkte) und deshalb umso
+  // irreführender.
+  const eigeneAktiv = sichtbareRegeln(alle, satz)
+    .filter(r => r.aktiv && (r.sperrt?.length ?? 0) === 0 && regelsatzVon(r) === satz).length;
+  if (eigeneAktiv === 0) return 'dieser Regelsatz führt keine eigene aktive Regel';
   const befunde = wirkungsloseRegeln(alle, wirkung, satz);
   if (befunde.length === 0) return 'jede ausgewertete Regel wirkt';
   const liste = befunde.map(b => `${regelKurzname(b.regel)} (${b.grund})`).join(' · ');
   return `${befunde.length === 1 ? 'eine Regel bleibt' : `${befunde.length} Regeln bleiben`} `
     + `ohne Wirkung: ${liste}`;
+}
+
+/** Was die Auslieferung anders sagt als die gepflegte Kaskade. */
+export interface DriftZahlen {
+  neu: readonly string[];
+  geaendert: readonly string[];
+  entfallen: readonly string[];
+}
+
+/**
+ * Der Drift-Satz in Worten — `null`, wenn nichts driftet.
+ *
+ * Steht hier und nicht in der Komponente, weil die Grammatik genau das gebraucht
+ * hat: die erste Fassung schrieb bei einer einzigen Regel „1 neue Regeln (r7)".
+ */
+export function driftSatz(d: DriftZahlen): string | null {
+  const teile = [
+    d.neu.length > 0 ? `${zaehlwort(d.neu.length, 'neue Regel', 'neue Regeln')} (${d.neu.join(', ')})` : null,
+    d.geaendert.length > 0 ? `${zaehlwort(d.geaendert.length, 'Regel geändert', 'Regeln geändert')} (${d.geaendert.join(', ')})` : null,
+    d.entfallen.length > 0 ? `${zaehlwort(d.entfallen.length, 'Regel entfallen', 'Regeln entfallen')} (${d.entfallen.join(', ')})` : null,
+  ].filter((x): x is string => x !== null);
+  return teile.length === 0 ? null : teile.join(' · ');
+}
+
+/**
+ * Woraus der ausgelieferte Regelsatz besteht — **gezählt**, nicht abgeschrieben.
+ *
+ * Bis v4.120 stand „26 Regeln + 4 Sperren" als Zahlenpaar im Leerzustands-Text.
+ * Es stimmte, aber es wäre beim ersten Nachtrag zur Mappe still falsch geworden,
+ * und ausgerechnet dieser Satz steht vor einem Knopf, der genau diese Regeln
+ * anlegt.
+ */
+export function seedBilanz(seed: readonly TodoRegel[]): string {
+  const sperren = seed.filter(r => (r.sperrt?.length ?? 0) > 0).length;
+  return `${zaehlwort(seed.length - sperren, 'Regel', 'Regeln')} + ${zaehlwort(sperren, 'Sperre', 'Sperren')}`;
 }
