@@ -5,7 +5,7 @@
  * Drei Zeilen: Thinking, KI-Variante (Standard/Agentisch) und das
  * Kontextfenster als Automatik/Manuell. Aus dem Kontextfenster folgt, wie lang
  * eine Vorhabensbeschreibung sein darf — deshalb steht die Zahl daneben in
- * Klartext („~173.712 Zeichen"), nicht nur in Tokens.
+ * Klartext („~238.617 Zeichen"), nicht nur in Tokens.
  */
 import { useState } from 'react';
 import { Switch } from '@/components/ui/switch';

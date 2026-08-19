@@ -30,14 +30,19 @@ const DETECTED_KEY = 'teamflow_llm_context_detected';
 
 describe('computeVbCharCap', () => {
   it('leitet aus dem Kontextfenster (Tokens) den Zeichen-Cap ab (Reserve + Quote)', () => {
-    // (70000 − 4096) × 3 = 197.712
-    expect(computeVbCharCap(70_000)).toBe(197_712);
-    // (32768 − 4096) × 3 = 86.016
-    expect(computeVbCharCap(32_768)).toBe(86_016);
+    // (70000 − 12288) × 4,8 = 277.017 (abgerundet)
+    expect(computeVbCharCap(70_000)).toBe(277_017);
+    // (32768 − 12288) × 4,8 = 98.304
+    expect(computeVbCharCap(32_768)).toBe(98_304);
+  });
+
+  it('liefert eine ganze Zeichenzahl (die Quote ist gebrochen)', () => {
+    expect(Number.isInteger(computeVbCharCap(60_920))).toBe(true);
+    expect(computeVbCharCap(60_920)).toBe(233_433);
   });
 
   it('greift bei winziger Kontextgröße auf die Untergrenze zurück', () => {
-    expect(computeVbCharCap(2_048)).toBe(4_000); // (2048−4096)×3 < 0 → Floor 4000
+    expect(computeVbCharCap(2_048)).toBe(4_000); // (2048−12288)×4,8 < 0 → Floor 4000
   });
 
   it('wächst monoton mit der Kontextgröße', () => {
@@ -81,8 +86,8 @@ describe('getLlmContextTokens / setLlmContextTokens', () => {
 describe('Default = interner llama.cpp-Wert (80k)', () => {
   it('DEFAULT_LLM_CONTEXT_TOKENS entspricht der Config kontext_groesse (81920)', () => {
     expect(DEFAULT_LLM_CONTEXT_TOKENS).toBe(81_920);
-    // (81920 − 4096) × 3 = 233.472 → ~50k-Token-VBs passen ohne Kürzung
-    expect(computeVbCharCap(81_920)).toBe(233_472);
+    // (81920 − 12288) × 4,8 = 334.233 → auch ein 200k-Zeichen-Antrag passt ohne Kürzung
+    expect(computeVbCharCap(81_920)).toBe(334_233);
   });
 });
 
@@ -151,10 +156,10 @@ describe('Bridge-Tabs haben eigene, feste Kontextfenster', () => {
   });
 
   it('der agentische Tab kuerzt eine grosse VB praktisch nicht mehr', () => {
-    // Vorher galt an der Bridge der llama.cpp-Default: 233.472 Zeichen.
+    // Vorher galt an der Bridge der llama.cpp-Default: 334.233 Zeichen.
     const vorher = computeVbCharCap(DEFAULT_LLM_CONTEXT_TOKENS);
     const jetzt = getVbCharCap({ bridge: true, ziel: 'agentisch' });
-    expect(jetzt).toBe(computeVbCharCap(BRIDGE_AGENTISCH_CONTEXT_TOKENS)); // 767.712
+    expect(jetzt).toBe(computeVbCharCap(BRIDGE_AGENTISCH_CONTEXT_TOKENS)); // 1.198.617
     expect(jetzt).toBeGreaterThan(vorher * 3);
   });
 

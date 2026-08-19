@@ -2,8 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { AUFBEREITUNG_ZIEL, bestimmeLaufZiel } from '../lauf-ziel';
 
 /** Realistische Caps (62k/262k Token → Zeichen), damit die Fälle sprechend bleiben. */
-const STANDARD_CAP = 173_712;
-const AGENTISCH_CAP = 773_712;
+const STANDARD_CAP = 238_617;
+const AGENTISCH_CAP = 1_198_617;
 
 const lage = (zeichen: number | null, agentischErzwungen = false) =>
   bestimmeLaufZiel({ zeichen, standardCap: STANDARD_CAP, agentischCap: AGENTISCH_CAP, agentischErzwungen });

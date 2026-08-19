@@ -21,23 +21,23 @@ describe('pruefeKontextPasst', () => {
   });
 
   it('empfiehlt den Wechsel, wenn das andere Fenster reicht', () => {
-    const b = pruefeKontextPasst({ korpusZeichen: 200_000, cap: 173_712, ziel: 'standard', capAndere: 773_712 });
+    const b = pruefeKontextPasst({ korpusZeichen: 300_000, cap: 238_617, ziel: 'standard', capAndere: 1_198_617 });
     expect(b?.andereKiReicht).toBe(true);
     expect(b?.andereKiLabel).toBe('agentische KI');
   });
 
   it('empfiehlt den Wechsel NICHT, wenn auch das andere Fenster zu klein ist', () => {
-    const b = pruefeKontextPasst({ korpusZeichen: 900_000, cap: 173_712, ziel: 'standard', capAndere: 773_712 });
+    const b = pruefeKontextPasst({ korpusZeichen: 1_400_000, cap: 238_617, ziel: 'standard', capAndere: 1_198_617 });
     expect(b?.andereKiReicht).toBe(false);
   });
 
   it('ohne zweites Fenster (kein Bridge-Ziel) bleibt die Wechsel-Empfehlung aus', () => {
-    const b = pruefeKontextPasst({ korpusZeichen: 200_000, cap: 173_712, ziel: 'standard' });
+    const b = pruefeKontextPasst({ korpusZeichen: 300_000, cap: 238_617, ziel: 'standard' });
     expect(b?.andereKiReicht).toBe(false);
   });
 
   it('benennt aus agentischer Sicht die Standard-KI als Alternative', () => {
-    const b = pruefeKontextPasst({ korpusZeichen: 900_000, cap: 773_712, ziel: 'agentisch' });
+    const b = pruefeKontextPasst({ korpusZeichen: 1_400_000, cap: 1_198_617, ziel: 'agentisch' });
     expect(b?.andereKiLabel).toBe('Standard-KI');
   });
 });
@@ -49,14 +49,14 @@ describe('pruefeKontextPasst', () => {
  */
 describe('fensterLabel', () => {
   it('nennt ohne Bridge-Ziel schlicht das Modell', () => {
-    const b = pruefeKontextPasst({ korpusZeichen: 238_724, cap: 233_472, ziel: 'standard' });
+    const b = pruefeKontextPasst({ korpusZeichen: 339_485, cap: 334_233, ziel: 'standard' });
     expect(b?.fensterLabel).toBe('des Modells');
   });
 
   it('nennt mit Bridge-Ziel den Tab — im Dativ', () => {
-    expect(pruefeKontextPasst({ korpusZeichen: 200_000, cap: 173_712, ziel: 'standard', capAndere: 773_712 })?.fensterLabel)
+    expect(pruefeKontextPasst({ korpusZeichen: 300_000, cap: 238_617, ziel: 'standard', capAndere: 1_198_617 })?.fensterLabel)
       .toBe('der Standard-KI');
-    expect(pruefeKontextPasst({ korpusZeichen: 900_000, cap: 773_712, ziel: 'agentisch', capAndere: 173_712 })?.fensterLabel)
+    expect(pruefeKontextPasst({ korpusZeichen: 1_400_000, cap: 1_198_617, ziel: 'agentisch', capAndere: 238_617 })?.fensterLabel)
       .toBe('der agentischen KI');
   });
 });

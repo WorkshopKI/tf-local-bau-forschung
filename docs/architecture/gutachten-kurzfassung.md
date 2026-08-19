@@ -194,7 +194,7 @@ Daraus `TEMPERATUR_STANDARD = 1.0`: der Wert, der vor v2.372 ohnehin wirkte, jet
 
 ## Kontext-Warnung VOR dem Lauf (v2.372)
 
-Dass die Vorhabensbeschreibung nicht ins Fenster passt, stand bisher erst am fertigen Abschnitt („Auf gekürzter VB-Basis entstanden"). Bei einem 60-Seiten-Antrag reißt der Cap der Standard-KI (173.712 Zeichen) regelmäßig, und die naheliegende Abhilfe — auf die agentische KI mit rund vierfachem Fenster wechseln — wäre vorher **ein Klick** gewesen.
+Dass die Vorhabensbeschreibung nicht ins Fenster passt, stand bisher erst am fertigen Abschnitt („Auf gekürzter VB-Basis entstanden"). Bei einem sehr langen Antrag reißt der Cap der Standard-KI (238.617 Zeichen) regelmäßig, und die naheliegende Abhilfe — auf die agentische KI mit rund vierfachem Fenster wechseln — wäre vorher **ein Klick** gewesen.
 
 - Reine [`pruefeKontextPasst`](../../src/plugins/antraege/gutachten/kontextWarnung.ts) misst den KORPUS (VB + aufgenommene Zusatzdokumente) gegen den Cap des aktuell gewählten Ziels und sagt zusätzlich, ob das Fenster der **anderen** internen KI reichen würde. `null`, wenn alles passt — der Normalfall erzeugt keine Zeile.
 - Gerendert in [GutachtenSection](../../src/plugins/antraege/gutachten/GutachtenSection.tsx) über der Karte, reaktiv auf den KI-Umschalter (`useKontextZiel`). **Blockiert nie.**

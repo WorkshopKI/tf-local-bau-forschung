@@ -54,10 +54,38 @@ export const BRIDGE_AGENTISCH_CONTEXT_TOKENS = 262_000;
 export const MIN_LLM_CONTEXT_TOKENS = 2_048;
 export const MAX_LLM_CONTEXT_TOKENS = 1_000_000;
 
-/** Token-Reserve: Output (`maxTokens`) + Prompt-/Vorgaben-Overhead + (Workflow-)Vorabschnitte + Marge. */
-const RESERVE_TOKENS = 4_096;
-/** Konservative Zeichen/Token-Quote (dt. Markdown, lokale Tokenizer) — lieber unterfüllen als Context-Shift. */
-const CHARS_PER_TOKEN = 3;
+/**
+ * Token-Reserve: alles, was neben der Vorhabensbeschreibung im Fenster liegt.
+ *
+ * Bemessen am **teuersten** Fall, weil ein Überlauf nicht auffällt: llama.cpp
+ * schiebt dann den ANFANG aus dem Fenster (System-Prompt), das Ergebnis ist still
+ * falsch statt sichtbar gekürzt. Bei aktivem Thinking belegt allein der Output
+ * `DEFAULT_MAX_TOKENS + THINKING_OUTPUT_HEADROOM` = 2.048 + 8.192 = 10.240 Tokens
+ * ([run-skill.ts]); dazu kommen System-Prompt, Qualitätsregeln und die
+ * (Workflow-)Vorabschnitte. 12.288 deckt das mit Marge.
+ */
+const RESERVE_TOKENS = 12_288;
+/**
+ * Zeichen/Token-Quote — **gemessen, nicht geschätzt**.
+ *
+ * Referenzmessung (v4.113, interne KI / Standard-Tab): ein deutscher Förderantrag
+ * mit 220.000 Zeichen (~20.000 Wörter, 23 Tabellen) belegt in der Chatoberfläche
+ * 42k von 62k Tokens → **5,24 Zeichen/Token**. Der wahre Wert liegt eher darüber,
+ * weil die angezeigten 42k den Overhead der Streamlit-Seite mitzählen.
+ *
+ * Angesetzt sind 4,8 — rund 8 % Abzug, der Puffer für Material, das schlechter
+ * tokenisiert als Fließtext (Zahlenkolonnen, Tabellen-Pipes, Kennzeichen).
+ *
+ * Vorher stand hier 3, eine bewusst gesetzte Sicherheitsmarge ohne Messung. Sie
+ * unterschätzte um Faktor 1,7 und warnte damit bei Dokumenten, die bequem ins
+ * Fenster passten. Wer sie erneut anfasst, misst vorher genauso: ein reales
+ * Dokument in die interne KI laden und Zeichenzahl gegen die angezeigte Belegung
+ * rechnen.
+ *
+ * Modellabhängig — bei einem Wechsel des internen Modells (anderer Tokenizer) neu
+ * messen.
+ */
+const CHARS_PER_TOKEN = 4.8;
 /** Untergrenze des abgeleiteten Caps, falls jemand eine winzige Kontextgröße einträgt. */
 const MIN_VB_CHAR_CAP = 4_000;
 
@@ -130,9 +158,14 @@ export function setDetectedLlmContextTokens(tokens: number): void {
   localStorage.setItem(LLM_CONTEXT_DETECTED_KEY, String(tokens));
 }
 
-/** Aus dem Kontextfenster (Tokens) den sicheren VB-Zeichen-Cap ableiten. */
+/**
+ * Aus dem Kontextfenster (Tokens) den sicheren VB-Zeichen-Cap ableiten.
+ *
+ * `Math.floor`, weil `CHARS_PER_TOKEN` gebrochen ist — ohne das stünde in der
+ * Oberfläche „~233.433,6 Zeichen", und der Cap wäre keine Zeichenzahl mehr.
+ */
 export function computeVbCharCap(contextTokens: number): number {
-  return Math.max(MIN_VB_CHAR_CAP, (contextTokens - RESERVE_TOKENS) * CHARS_PER_TOKEN);
+  return Math.max(MIN_VB_CHAR_CAP, Math.floor((contextTokens - RESERVE_TOKENS) * CHARS_PER_TOKEN));
 }
 
 /**

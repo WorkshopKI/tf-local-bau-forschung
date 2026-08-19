@@ -31,9 +31,9 @@ export type ThinkingBudget = 'none' | 'low' | 'medium' | 'high';
  * Laufzeit liefert `getVbCharCap()` ([llm-context.ts]) den aus der LLM-Kontextlänge
  * (manuell/erkannt/Default, Einstellungen → KI-Assistent) abgeleiteten Wert; die
  * Aufrufer reichen ihn über `SkillRunInput.vbCharCap` durch. Der Default hier
- * entspricht ~`DEFAULT_LLM_CONTEXT_TOKENS` (~80k) → ~233k Zeichen.
+ * entspricht ~`DEFAULT_LLM_CONTEXT_TOKENS` (~80k) → ~334k Zeichen.
  */
-export const VB_CHAR_CAP = 233_000;
+export const VB_CHAR_CAP = 334_000;
 const DEFAULT_MAX_TOKENS = 2048;
 /**
  * Zusätzliches Output-Token-Budget, wenn Thinking aktiv ist. `max_tokens` deckelt
