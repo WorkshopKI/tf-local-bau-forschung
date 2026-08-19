@@ -57,6 +57,17 @@ export interface UseSearchResultsParams {
 
 export interface UseSearchResultsReturn {
   dataSource: UnifiedSearchResult[];
+  /**
+   * Die Treffer NACH den Spaltenfiltern, aber vor jeder Sortierung.
+   *
+   * Herausgegeben seit v4.111, weil die Liste ihre eigene Sortierachse hat und
+   * sich die Menge deshalb nicht aus `sorted` nehmen kann. Vorher sortierte sie
+   * `dataSource` — den Stand VOR den Filtern: ein in der Tabelle gesetzter
+   * Spaltenfilter (Kopf „422 Treffer") war nach dem Umschalten auf die Liste
+   * spurlos weg (Kopf „484 Treffer"), und der Export aus der Liste lieferte die
+   * ungefilterte Menge.
+   */
+  columnFiltered: UnifiedSearchResult[];
   sorted: UnifiedSearchResult[];
   analyseResults: UnifiedSearchResult[];
   visibleColumnDefs: SearchColumn[];
@@ -68,6 +79,9 @@ export interface UseSearchResultsReturn {
   handleSort: (key: string) => void;
   columnFilters: Record<string, Set<string>>;
   handleColumnFilterChange: (key: string, values: Set<string>) => void;
+  /** Alle Spaltenfilter auf einmal weg — der Rückweg für die Listensicht, die
+   *  keine Spaltenköpfe hat, deren Filter aber gilt. */
+  setzeSpaltenFilterZurueck: () => void;
   columnWidths: Record<string, number>;
   handleColumnWidthChange: (key: string, width: number) => void;
 }
@@ -78,7 +92,9 @@ export function useSearchResults(params: UseSearchResultsParams): UseSearchResul
   } = params;
 
   // Sortierung und Spaltenfilter bleiben lokal — sie sind Feinarbeit an EINER
-  // Trefferliste, nicht an der Suche.
+  // Trefferliste, nicht an der Suche. Die SORTIERUNG gilt dabei nur der Tabelle
+  // (die Liste hat ihre eigene Achse), der FILTER dagegen beiden Ansichten:
+  // welche Treffer es gibt, ist keine Frage der Darstellung.
   const [sortKey, setSortKey] = useState<string | null>(DEFAULT_SORT_KEY);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [columnFilters, setColumnFilters] = useState<Record<string, Set<string>>>({});
@@ -215,11 +231,15 @@ export function useSearchResults(params: UseSearchResultsParams): UseSearchResul
     });
   }
 
+  function setzeSpaltenFilterZurueck(): void {
+    setColumnFilters({});
+  }
+
   return {
-    dataSource,
+    dataSource, columnFiltered,
     sorted, analyseResults, visibleColumnDefs, filterCandidatesByColumn, filterCountsByColumn,
     sortKey, sortDirection, handleSort,
-    columnFilters, handleColumnFilterChange,
+    columnFilters, handleColumnFilterChange, setzeSpaltenFilterZurueck,
     columnWidths, handleColumnWidthChange,
   };
 }

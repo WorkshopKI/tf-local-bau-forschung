@@ -14,17 +14,25 @@
  */
 import { useCallback, useMemo, useState } from 'react';
 import {
-  ladeGespeicherte, speichereGespeicherte, merkeSuche, entferneSuche, vermerkeLauf,
+  ladeGespeicherte, speichereGespeicherte, merkeSuche, entferneSuche, vermerkeLauf, heuteLokal,
   type GespeicherteSuche,
 } from './gespeicherteSuchen';
 import type { SuchVerknuepfung } from '@/core/hooks/useSuchVerknuepfung';
 import type { Suchbereich } from '@/core/services/search/suchbereich';
 
+/**
+ * Was der Aufrufer zum Merken mitbringt: die Anfrage und ihre Regler.
+ *
+ * Trefferzahl und Datum stehen bewusst NICHT darin — beide stempelt der Hook
+ * (siehe `merken`).
+ */
+export type NeueSuche = Omit<GespeicherteSuche, 'letzteTrefferzahl' | 'zuletzt'>;
+
 export interface GespeicherteSuchenStand {
   liste: readonly GespeicherteSuche[];
   /** Aktuelle Trefferzahl je Eintrag (Probelauf), leer bis der Korpus steht. */
   treffer: ReadonlyMap<string, number>;
-  merken: (eintrag: GespeicherteSuche) => void;
+  merken: (eintrag: NeueSuche) => void;
   /** Nach dem Ausführen: Datum und Trefferzahl fortschreiben. */
   vermerke: (id: string) => void;
   loeschen: (id: string) => void;
@@ -51,13 +59,36 @@ export function useGespeicherteSuchen(
   // derselben Bewegung zurück. Zustand und Ablage dürfen nie auseinanderlaufen —
   // und die Updater-Form ist zugleich der Schutz davor, dass zwei schnelle
   // Klicks auf demselben veralteten Stand rechnen.
-  const merken = useCallback((eintrag: GespeicherteSuche): void => {
-    setListe(vorher => { const n = merkeSuche(vorher, eintrag); speichereGespeicherte(n); return n; });
-  }, []);
+  /**
+   * **EINE Messlatte, nicht zwei.** Die Trefferzahl beim Merken stempelt der
+   * Hook mit demselben Probelauf, gegen den sie später verglichen wird — nicht
+   * der Aufrufer mit seiner Ergebniszahl.
+   *
+   * Die Seite zeigt die Menge NACH Facetten und Spaltenfiltern; der Probelauf
+   * kennt nur Anfrage, Verknüpfung, Wortformen und Bereich. Wer mit gesetzter
+   * Facette merkte, verglich also 99 gegen 484 und bekam Sekunden später „+385
+   * seit zuletzt" gemeldet — eine Bestandsänderung, die es nie gab. Genau das
+   * Signal, für das die Zeile da ist, war damit wertlos.
+   *
+   * Steht der Korpus noch nicht, bleibt die Zahl `null` = „noch nie ausgeführt":
+   * lieber keine Differenz als eine gegen 0 gerechnete.
+   */
+  const merken = useCallback((eintrag: NeueSuche): void => {
+    const voll: GespeicherteSuche = {
+      ...eintrag,
+      letzteTrefferzahl: korpusBereit
+        ? probelauf(eintrag.query, {
+          verknuepfung: eintrag.verknuepfung, stammSuche: eintrag.stammSuche, bereich: eintrag.bereich,
+        })
+        : null,
+      zuletzt: heuteLokal(),
+    };
+    setListe(vorher => { const n = merkeSuche(vorher, voll); speichereGespeicherte(n); return n; });
+  }, [probelauf, korpusBereit]);
 
   const vermerke = useCallback((id: string): void => {
     setListe(vorher => {
-      const n = vermerkeLauf(vorher, id, treffer.get(id) ?? 0, new Date().toISOString().slice(0, 10));
+      const n = vermerkeLauf(vorher, id, treffer.get(id) ?? 0, heuteLokal());
       speichereGespeicherte(n);
       return n;
     });

@@ -19,6 +19,16 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.111 — 2026-08
+
+### Bugfixes
+- **Ein Spaltenfilter in der Tabelle gilt jetzt auch in der Liste.** Bisher zeigte dieselbe Suche in der Tabelle 422 Treffer und nach dem Umschalten auf die Liste wieder 484 — der Filter war dort wirkungslos, und ein Export aus der Liste enthielt die ungefilterten Zeilen. Der gesetzte Filter steht jetzt außerdem als Chip über dem Ergebnis („Status: 10 Werte") und lässt sich dort mit einem Klick wieder wegnehmen.
+- **Der Reiter „Stöbern" zeigt wirklich die häufigsten fünf Werte.** Er zeigte den Anfang der alphabetischen Liste: unter „Bundesland" stand Bremen (306 Anträge), Sachsen (2 742) fehlte; unter „Netzwerk" waren vier der fünf Werte Einzeltreffer, unter „Einrichtung" fanden zwei gar nichts.
+- **Einrichtungen mit Anführungszeichen im Namen sind wieder auffindbar.** Ein Klick auf eine Zeile wie `"EIKBOOM" Gesellschaft mit beschränkter Haftung` führte zu „Keine Treffer", obwohl es die Einrichtung gibt. Betroffen waren 13 von 5.407 Einrichtungen — und weil alphabetisch sortiert wird, standen sie ganz oben.
+- **„Häufig gesucht" zählt jetzt, wie oft Sie etwas gesucht haben.** Bisher standen dort die Anfragen, die am längsten *nicht* mehr gesucht wurden. Die Gruppe erscheint nur noch, wenn Sie etwas mindestens zweimal gesucht haben, und wiederholt nichts, was schon unter „Zuletzt gesucht" steht.
+- **„+385 seit zuletzt" an einer gemerkten Suche gibt es nicht mehr.** Wer eine Suche mit gesetztem Filter merkte, bekam sofort einen Zuwachs gemeldet, den es nie gab — verglichen wurden zwei verschiedene Zahlen. Außerdem trägt eine nachts gemerkte Suche jetzt das richtige Datum (bisher stand vor 2 Uhr der Vortag da).
+- **Das Beispiel `ort:Dresden` verspricht kein Bundesland mehr.** In der Suchsprache-Hilfe stand „nur Ort und Bundesland"; für Bundesländer gibt es längst ein eigenes Feld (`bl:`).
+
 ## v4.110 — 2026-08
 
 ### Verbesserungen

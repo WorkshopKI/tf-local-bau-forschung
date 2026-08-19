@@ -1356,6 +1356,27 @@ describe('suche-eine-gezeigte-menge (Kopfzahl, Liste, Tabelle und Export zeigen 
       + ` — das Muster im Guard nachziehen, sonst prueft er stillschweigend weniger.`).toEqual([]);
   });
 
+  // Der Guard darueber prueft, dass alle Stellen DIESELBE Variable nennen — nicht,
+  // WELCHE Menge darin steckt. Genau diese Luecke war v4.110 offen: `sichtbar`
+  // stand ueberall, hing in der Liste aber an `dataSource` (VOR den
+  // Spaltenfiltern) und in der Tabelle an `sorted` (danach). Ein in der Tabelle
+  // gesetzter Filter (Kopf „422 Treffer") war nach dem Umschalten spurlos weg
+  // (Kopf „484 Treffer"), und der Export aus der Liste lieferte die ungefilterte
+  // Menge — obwohl export.ts ausdruecklich eine spaltengefilterte verlangt.
+  it('die Listen-Sortierung nimmt die spaltengefilterte Menge', () => {
+    const quelle_ = quelle;
+    const m = /listeSortiert\s*=\s*useMemo\(\s*\(\)\s*=>\s*\[\.\.\.(\w+)\]/.exec(quelle_);
+    expect(m?.[1], `Die Zeile `
+      + `\`listeSortiert = useMemo(() => [...<menge>].sort(…))\` in ${DATEI} ist nicht mehr\n`
+      + `auffindbar — das Muster im Guard nachziehen, sonst prueft er stillschweigend nichts.`)
+      .toBeDefined();
+    expect(m?.[1], `Die Liste sortiert \`${m?.[1] ?? '?'}\` statt \`columnFiltered\`.\n`
+      + `Ein Ansichtswechsel darf die REIHENFOLGE tauschen, nie die MENGE: welche Treffer\n`
+      + `es gibt, ist keine Frage der Darstellung. Sonst zeigt die Liste 484, wo die\n`
+      + `Tabelle 422 zeigt, und der Export folgt der falschen.`)
+      .toBe('columnFiltered');
+  });
+
   it('alle Anzeigestellen nennen dieselbe Menge', () => {
     const treffer = gefunden().filter(g => !new RegExp(
       `${g.menge}\b.*// allow-suche-eine-gezeigte-menge`,

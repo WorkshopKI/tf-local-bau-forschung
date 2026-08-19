@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.111.0 — Die Suchseite haelt ihre Zusagen (August 2026)
+
+MINOR — Aus der erschöpfenden Bug-Jagd auf der Suchseite: sieben Befunde, alle gemessen und adversarisch geprüft. Gemeinsamer Nenner — die Seite sagte etwas zu („die häufigsten fünf", „+385 seit zuletzt", „422 Treffer"), das an der Stelle daneben nicht galt.
+
+- **Ein Spaltenfilter gilt für beide Ansichten** und steht als entfernbarer Chip neben den Facetten; die Liste sortiert die spaltengefilterte Menge, nicht die davor ([SpaltenFilterChips.tsx](src/plugins/suche/SpaltenFilterChips.tsx), Guard in [conventions-ui](src/__tests__/conventions-ui.test.ts))
+- **„Die häufigsten fünf" sind es jetzt** — die Stöbern-Vorschau ordnet nach Häufigkeit statt alphabetisch; Sachsen (2 742) statt Bremen (306) ([suche-relevanz.md §9.3](docs/architecture/suche-relevanz.md))
+- **Werte mit Anführungszeichen sind wieder auffindbar**: Anfrage und Korpus legen dasselbe ab (13 von 5 407 Einrichtungen, `ast:"EIKBOOM …"` 0 → 2) ([suche-relevanz.md §9.4](docs/architecture/suche-relevanz.md))
+- **„Häufig gesucht" zählt wirklich** und „+N seit zuletzt" misst beide Seiten mit derselben Latte ([anfrage-verlauf.ts](src/core/services/search/anfrage-verlauf.ts), [useGespeicherteSuchen.ts](src/plugins/suche/useGespeicherteSuchen.ts))
+- Kleiner: `ort:Dresden` verspricht kein Bundesland mehr, das Merk-Datum ist der lokale Tag ([suchsprache.ts](src/plugins/suche/start/suchsprache.ts), [gespeicherteSuchen.ts](src/plugins/suche/gespeicherteSuchen.ts))
+
 ### v4.110.0 — Die Aehnlichkeitsstufe legt Rechenschaft ab (August 2026)
 
 MINOR — Gemeldet: „auch ähnliche Themen" eingeschaltet, Trefferzahl unverändert, nach 20 s dieselbe KI-Antwort. Nachgemessen: die Stufe lief und fand 2 Kandidaten, einer neu — sichtbar war davon nichts. Ein Messfeld ohne Urteil meldet keinen Stillstand.

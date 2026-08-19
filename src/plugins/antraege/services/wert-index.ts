@@ -21,12 +21,13 @@
  * findet man einen Namen, den man halb kennt; nach Häufigkeit findet man ihn
  * nur, wenn er häufig ist.
  *
- * **Die Anzahl beziffert, sie ordnet nicht.** Am Bestand gemessen führen 485
- * Anträge den Ort „Dresden", `ort:Dresden` findet aber 451 — die Suchstufe
- * vergleicht anders, als der Index zählt. Was im Dropdown als Zahl steht, kommt
- * deshalb aus einem echten Probelauf (siehe
- * [vervollstaendigung.ts](src/plugins/suche/vervollstaendigung.ts)); `anzahl`
- * dient nur noch dem Reiter „Stöbern" als Größenangabe.
+ * **Die Anzahl beziffert nicht, sie ordnet.** Was als Zahl NEBEN einem Wert
+ * steht, kommt aus einem echten Probelauf (siehe
+ * [vervollstaendigung.ts](src/plugins/suche/vervollstaendigung.ts)) — die
+ * Suchstufe vergleicht anders, als der Index zählt, und die Zahl im Dropdown
+ * muss die sein, die nach dem Klick auch dasteht. `anzahl` beantwortet dafür
+ * eine andere Frage: WELCHE fünf Werte die Vorschau im Reiter „Stöbern" zeigt
+ * (`haeufigsteWerte`) und wie groß der Vorrat ist.
  *
  * Rein — kein React, kein IDB. Gefüllt wird im Cursor-Walk des Korpus
  * ([search-corpus.ts](src/plugins/antraege/services/search-corpus.ts)), damit
@@ -129,6 +130,47 @@ export function verdichteWertIndex(roh: WertIndexRoh): WertIndex {
 /** Trägt dieses Feld überhaupt aufzählbare Werte? */
 export function istWertFeld(feld: Trefferfeld | undefined): feld is WertFeld {
   return feld !== undefined && (WERT_FELDER as readonly string[]).includes(feld);
+}
+
+/**
+ * Die häufigsten Werte eines Feldes.
+ *
+ * Für die VORSCHAU im Reiter „Stöbern", nicht für das Dropdown: dort ist die
+ * alphabetische Ordnung richtig (man sucht einen Namen, den man halb kennt),
+ * hier zeigt eine Auswahl von fünf aus 5 407 nur dann etwas über den Bestand,
+ * wenn es die größten fünf sind. Der alphabetische Anschnitt lieferte am echten
+ * Bestand Bremen (306 Anträge) und ließ Sachsen (2 742) weg — eine Vorschau,
+ * die das Gegenteil dessen zeigt, was sie behauptet.
+ *
+ * Bei Gleichstand alphabetisch, damit die Liste bei gleich großen Werten nicht
+ * an der Reihenfolge des Cursor-Laufs hängt.
+ */
+export function haeufigsteWerte(
+  index: WertIndex, feld: WertFeld, max: number,
+): WertEintrag[] {
+  const liste = index.get(feld);
+  if (!liste || liste.length === 0) return [];
+  return [...liste]
+    .sort((a, b) => (b.anzahl - a.anzahl) || a.wert.localeCompare(b.wert, 'de'))
+    .slice(0, max);
+}
+
+/**
+ * Anführungszeichen aus einem Exportwert — auf BEIDEN Seiten des Vergleichs.
+ *
+ * Im Export stehen sie als Beiwerk mitten im Wert (`"EIKBOOM" Gesellschaft mit
+ * beschränkter Haftung`, `CANNABIS-NET" 16KN089602_KR`). Für die Suche tragen
+ * sie keine Bedeutung, für den Parser sind sie das Zeichen, das ein Zitat
+ * beendet — ein Wert mit Anführungszeichen ließ sich deshalb nicht abfragen:
+ * die Vorschlagsliste bot ihn an, der Klick fand 0.
+ *
+ * Ersetzt wird durch ein Leerzeichen, nicht durch nichts: `Foo"Bar` sind zwei
+ * Wörter, kein `FooBar`. Mehrfache Leerzeichen fallen danach zusammen, damit
+ * beide Seiten Zeichen für Zeichen auf derselben Form landen. Die ANZEIGE bleibt
+ * unberührt — gezeigt wird weiter, was im Export steht.
+ */
+export function ohneZitatzeichen(s: string): string {
+  return s.includes('"') ? s.replace(/"/g, ' ').replace(/\s+/g, ' ').trim() : s;
 }
 
 /**

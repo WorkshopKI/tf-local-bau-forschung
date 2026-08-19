@@ -80,6 +80,22 @@ function leseEintrag(roh: unknown): GespeicherteSuche | null {
   };
 }
 
+/**
+ * Der heutige Tag, wie ihn die Uhr des Nutzers zeigt.
+ *
+ * NICHT `toISOString().slice(0,10)`: das ist der Tag in UTC. In Deutschland
+ * stempelte eine um 01:48 gemerkte Suche dadurch den Vortag („zuletzt
+ * 2026-08-18", gemessen) — jede Speicherung zwischen Mitternacht und 02:00
+ * (Sommerzeit) beziehungsweise 01:00 (Winterzeit) traf den falschen Tag.
+ *
+ * Von Hand zusammengesetzt statt über `toLocaleDateString`: das Format bleibt
+ * sortierbares `YYYY-MM-DD`, unabhängig von der Spracheinstellung des Browsers.
+ */
+export function heuteLokal(d: Date = new Date()): string {
+  const p = (n: number): string => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
 /** Legt an oder ersetzt die gleichnamige Suche. Neueste zuerst. */
 export function merkeSuche(
   liste: readonly GespeicherteSuche[],

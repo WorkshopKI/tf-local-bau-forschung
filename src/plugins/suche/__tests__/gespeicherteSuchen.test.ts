@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  merkeSuche, entferneSuche, vermerkeLauf, veraenderungText,
+  merkeSuche, entferneSuche, vermerkeLauf, veraenderungText, heuteLokal,
   MAX_GESPEICHERT, type GespeicherteSuche,
 } from '../gespeicherteSuchen';
 
@@ -68,5 +68,28 @@ describe('veraenderungText', () => {
   it('schweigt, solange es nichts zu vergleichen gibt', () => {
     expect(veraenderungText(eintrag({ letzteTrefferzahl: null }), 6)).toBeNull();
     expect(veraenderungText(eintrag({ letzteTrefferzahl: 6 }), null)).toBeNull();
+  });
+});
+
+describe('heuteLokal', () => {
+  it('nennt den Tag der Uhr des Nutzers, nicht den in UTC', () => {
+    // Der Defekt: `toISOString().slice(0,10)` stempelte in Deutschland bis
+    // 02:00 (Sommerzeit) den VORTAG — eine um 01:48 gemerkte Suche stand als
+    // „zuletzt <gestern>" da. Die Date-Teile hier sind LOKAL, der Test gilt
+    // deshalb in jeder Zeitzone.
+    expect(heuteLokal(new Date(2026, 7, 19, 1, 48, 29))).toBe('2026-08-19');
+    expect(heuteLokal(new Date(2026, 0, 1, 0, 0, 0))).toBe('2026-01-01');
+  });
+
+  it('füllt Monat und Tag zweistellig — das Format bleibt sortierbar', () => {
+    expect(heuteLokal(new Date(2026, 2, 7, 12, 0))).toBe('2026-03-07');
+  });
+
+  it('stimmt mit dem zweiten Weg zur selben Auskunft überein', () => {
+    // `sv-SE` formatiert lokal als YYYY-MM-DD — ein von der Implementierung
+    // unabhängiger Weg zur selben Zeichenkette.
+    for (const d of [new Date(2026, 11, 31, 23, 59), new Date(2026, 5, 15, 0, 1), new Date()]) {
+      expect(heuteLokal(d)).toBe(d.toLocaleDateString('sv-SE'));
+    }
   });
 });

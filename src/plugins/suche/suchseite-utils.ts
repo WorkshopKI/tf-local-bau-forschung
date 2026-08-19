@@ -78,6 +78,7 @@ export function matchesSucheAntragstyp(r: UnifiedSearchResult, antragstyp: Kateg
  */
 export {
   MAX_RECENT_SEARCHES, pushRecentSearch, filterRecentSearches,
+  zaehleAnfrage, beschneideZaehler, haeufigsteAnfragen, type AnfrageZaehler,
 } from '@/core/services/search/anfrage-verlauf';
 
 // ----- Größe des Suchfelds ---------------------------------------------------
@@ -114,19 +115,7 @@ export function serializeFeldGroesse(g: FeldGroesse): string {
   return JSON.stringify({ w: Math.round(g.w), h: Math.round(g.h) });
 }
 
-/**
- * Die häufigsten Anfragen aus dem Verlauf.
- *
- * Der Verlauf ist eine Reihenfolge, keine Zählung — er hält jede Anfrage genau
- * EINMAL (Move-to-front, siehe `pushRecentSearch`). „Häufig" heißt hier deshalb
- * ehrlich: „zuletzt oft angefasst", angenähert über die Position. Eine echte
- * Zählung bräuchte einen zweiten Speicher, der bei jedem Tastendruck mitschreibt
- * — Aufwand und Datenspur, die eine Startseiten-Spalte nicht rechtfertigt.
- *
- * Genommen wird deshalb die zweite Hälfte des Verlaufs: was sich dort noch hält,
- * hat mehrere neuere Anfragen überlebt.
- */
-export function haeufigsteSuchen(verlauf: readonly string[], max: number): string[] {
-  if (verlauf.length < 4) return [];
-  return verlauf.slice(Math.ceil(verlauf.length / 2)).slice(0, max);
-}
+/* „Häufig gesucht" zählt seit v4.111 wirklich — `haeufigsteAnfragen` oben,
+ * gefüttert vom `zaehleAnfrage`-Schreiber im Store. Die frühere
+ * `haeufigsteSuchen` nahm die zweite Hälfte der Rezenzliste und beschriftete
+ * damit die am längsten NICHT gesuchten Anfragen als die häufigsten. */

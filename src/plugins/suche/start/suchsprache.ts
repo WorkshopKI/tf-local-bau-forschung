@@ -40,14 +40,19 @@ export interface Sucheart {
 
 export const SUCHARTEN: readonly Sucheart[] = [
   { query: 'Bilderkennung', erklaerung: 'ein Thema — in allen Feldern', gruppe: 'thema' },              // 31
-  { query: 'additive Fertigung', erklaerung: 'zwei Wörter — beide müssen vorkommen', gruppe: 'thema' }, // 639
+  { query: 'additive Fertigung', erklaerung: 'zwei Wörter — beide müssen vorkommen', gruppe: 'thema' }, // 643
   { query: '16KN055710', erklaerung: 'Förderkennzeichen — auch ein Anfang davon', gruppe: 'kennung' },  // 1
   { query: 'vb:ZKN073232', erklaerung: 'ein Verbund mit allen Teilvorhaben', gruppe: 'kennung' },       // 9
-  { query: 'nw:ProAnimalLife', erklaerung: 'ein Netzwerk mit allen Teilvorhaben', gruppe: 'kennung' },  // 80
+  { query: 'nw:ProAnimalLife', erklaerung: 'ein Netzwerk mit allen Teilvorhaben', gruppe: 'kennung' },  // 82
   { query: 'ast:Fraunhofer', erklaerung: 'nur die Einrichtung', gruppe: 'werWo' },                      // 307
-  { query: 'ort:Dresden', erklaerung: 'nur Ort und Bundesland', gruppe: 'werWo' },                      // 451
-  { query: 'ort:"Frankfurt am Main"', erklaerung: 'mehrere Wörter als EIN Wert', gruppe: 'werWo' },     // 40
-  { query: 'titel:Laser ort:Dresden', erklaerung: 'zwei Felder in einer Anfrage', gruppe: 'werWo' },    // 4
+  // „nur der Ort", NICHT „Ort und Bundesland": seit v4.82 ist das Bundesland ein
+  // eigenes Trefferfeld mit eigenem Präfix (`bl:`), und `ort:` löst ausschließlich
+  // auf `standort` auf. Gemessen: `ort:Sachsen` 7 (Sachsenheim & Co.),
+  // `bl:Sachsen` 2 742. Ein Lehrbeispiel, das eine Reichweite verspricht, die es
+  // nicht hat, bringt die Suchsprache falsch bei.
+  { query: 'ort:Dresden', erklaerung: 'nur der Ort — Bundesland: bl:', gruppe: 'werWo' },               // 485
+  { query: 'ort:"Frankfurt am Main"', erklaerung: 'mehrere Wörter als EIN Wert', gruppe: 'werWo' },     // 41
+  { query: 'titel:Laser ort:Dresden', erklaerung: 'zwei Felder in einer Anfrage', gruppe: 'werWo' },    // 5
   { query: 'notiz:Einbehalt', erklaerung: 'in den eigenen Arbeitsnotizen', gruppe: 'eigenes' },         // 50
 ];
 

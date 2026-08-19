@@ -49,6 +49,8 @@ import { SuchOptionenZeile } from './SuchOptionenZeile';
 import { AehnlichkeitsZeile } from './AehnlichkeitsZeile';
 import { DeutungsZeile } from './DeutungsZeile';
 import { FacettenZeile } from './FacettenZeile';
+import { SpaltenFilterChips, hatSpaltenFilter } from './SpaltenFilterChips';
+import { SucheMeldung } from './SucheMeldung';
 import { ANALYSE_MAX_RESULTS, useSearchResults } from './useSearchResults';
 import { useKorpusZahlen } from './useKorpusZahlen';
 import { scheduleIdle } from '@/core/utils/scheduleIdle';
@@ -82,7 +84,7 @@ import { berechneAuswege, type Ausweg } from './auswege';
 import type { GespeicherteSuche } from './gespeicherteSuchen';
 import { useGespeicherteSuchen } from './useGespeicherteSuchen';
 import { GespeicherteSuchenMenu } from './GespeicherteSuchenMenu';
-import { haeufigsteSuchen } from './suchseite-utils';
+import { haeufigsteAnfragen } from './suchseite-utils';
 
 /** UI-Text fuer die Search-Phase-Badge. */
 const PHASE_LABELS: Record<SearchPhase, string | null> = {
@@ -109,6 +111,7 @@ export function SuchSeite(): React.ReactElement {
   const visibleColumns = useSucheStore(s => s.visibleColumns);
   const addRecentSearch = useSucheStore(s => s.addRecentSearch);
   const recentSearches = useSucheStore(s => s.recentSearches);
+  const anfrageZaehler = useSucheStore(s => s.anfrageZaehler);
   const removeRecentSearch = useSucheStore(s => s.removeRecentSearch);
   const analysePrompt = useSucheStore(s => s.analysePrompt);
   const setAnalysePrompt = useSucheStore(s => s.setAnalysePrompt);
@@ -286,10 +289,10 @@ export function SuchSeite(): React.ReactElement {
   const autoBasis = useMemo(() => autoSpalten(bereich, nachFacetten), [bereich, nachFacetten]);
 
   const {
-    dataSource,
+    columnFiltered,
     sorted, analyseResults, visibleColumnDefs, filterCandidatesByColumn, filterCountsByColumn,
     sortKey, sortDirection, handleSort,
-    columnFilters, handleColumnFilterChange,
+    columnFilters, handleColumnFilterChange, setzeSpaltenFilterZurueck,
     columnWidths, handleColumnWidthChange,
   } = useSearchResults({
     searchResults: nachFacetten,
@@ -302,9 +305,11 @@ export function SuchSeite(): React.ReactElement {
   // Die Liste sortiert nach der Darstellungs-Achse, die Tabelle nach ihrer
   // Spalte. Zwei Ansichten, zwei Bedienarten — eine gemeinsame Sortierung wäre
   // in einer der beiden immer die falsche.
+  // Sortiert wird `columnFiltered`, NICHT `dataSource`: ein Ansichtswechsel darf
+  // die Reihenfolge tauschen, nie die Menge (Begründung am Feld selbst).
   const listeSortiert = useMemo(
-    () => [...dataSource].sort((a, b) => vergleiche(a, b, sortierung)),
-    [dataSource, sortierung],
+    () => [...columnFiltered].sort((a, b) => vergleiche(a, b, sortierung)),
+    [columnFiltered, sortierung],
   );
   const sichtbar = ansicht === 'liste' ? listeSortiert : sorted;
 
@@ -365,11 +370,15 @@ export function SuchSeite(): React.ReactElement {
   const startEintraege = useMemo<{ letzte: StartEintrag[]; haeufig: StartEintrag[] }>(() => {
     const zahl = (q: string): number | null =>
       korpusBereit ? probelauf(q, { verknuepfung, stammSuche, bereich }) : null;
+    const letzte = recentSearches.slice(0, START_MAX);
     return {
-      letzte: recentSearches.slice(0, START_MAX).map(q => ({ query: q, treffer: zahl(q) })),
-      haeufig: haeufigsteSuchen(recentSearches, START_MAX).map(q => ({ query: q, treffer: zahl(q) })),
+      letzte: letzte.map(q => ({ query: q, treffer: zahl(q) })),
+      // Was oben schon steht, kommt unten nicht noch einmal — sonst stünde
+      // dieselbe Anfrage zweimal auf einer Seite, unter zwei Überschriften.
+      haeufig: haeufigsteAnfragen(anfrageZaehler, recentSearches, letzte, START_MAX)
+        .map(q => ({ query: q, treffer: zahl(q) })),
     };
-  }, [recentSearches, korpusBereit, probelauf, verknuepfung, stammSuche, bereich]);
+  }, [recentSearches, anfrageZaehler, korpusBereit, probelauf, verknuepfung, stammSuche, bereich]);
 
   const gemerkt = useGespeicherteSuchen(probelauf, korpusBereit);
 
@@ -601,6 +610,8 @@ export function SuchSeite(): React.ReactElement {
   function diesenSuchlaufMerken(): void {
     const q = query.trim();
     if (!q) return;
+    // Trefferzahl und Datum stempelt der Hook — sie müssen mit derselben Latte
+    // gemessen sein, gegen die sie später verglichen werden (siehe `merken`).
     gemerkt.merken({
       id: q.toLowerCase(),
       name: q,
@@ -608,8 +619,6 @@ export function SuchSeite(): React.ReactElement {
       verknuepfung,
       stammSuche,
       bereich,
-      letzteTrefferzahl: sichtbar.length,
-      zuletzt: new Date().toISOString().slice(0, 10),
     });
     setToast(`„${q}" gemerkt`);
   }
@@ -842,8 +851,13 @@ export function SuchSeite(): React.ReactElement {
                 results={nachRichtlinien}
                 wahl={facettenWahl}
                 onWahl={(id: FacettenId, werte) => setFacettenWahl({ ...facettenWahl, [id]: werte })}
-                onLeeren={() => setFacettenWahl(LEERE_WAHL)}
+                // Räumt beides weg: ein „Filter zurücksetzen", das die Chips
+                // neben sich stehen lässt, hält sein Wort nicht.
+                onLeeren={() => { setFacettenWahl(LEERE_WAHL); setzeSpaltenFilterZurueck(); }}
               />
+            )}
+            {zeigeErgebnisTeile && (
+              <SpaltenFilterChips filter={columnFilters} onChange={handleColumnFilterChange} />
             )}
             {/* Warum der Chip hier und nicht vor den Facetten steht: im Modul. */}
             <GenannteChip
@@ -1000,26 +1014,13 @@ export function SuchSeite(): React.ReactElement {
             </div>
           )}
 
-          {analyse.error && (
-            <div className="mt-3 rounded px-3 py-2 text-[12px] text-[var(--tf-text)]"
-              style={{ border: '0.5px solid var(--tf-border)', backgroundColor: 'var(--tf-bg-secondary)' }}>
-              KI-Analyse fehlgeschlagen: {analyse.error}
-            </div>
-          )}
+          {analyse.error && <SucheMeldung text={`KI-Analyse fehlgeschlagen: ${analyse.error}`} />}
 
           {analyseDone && analyse.result && analyse.result.warnings.length > 0 && (
-            <div className="mt-3 rounded px-3 py-2 text-[12px] text-[var(--tf-text)]"
-              style={{ border: '0.5px solid var(--tf-border)', backgroundColor: 'var(--tf-bg-secondary)' }}>
-              {analyse.result.warnings.join(' · ')}
-            </div>
+            <SucheMeldung text={analyse.result.warnings.join(' · ')} />
           )}
 
-          {toast && (
-            <div role="status" className="mt-3 rounded px-3 py-2 text-[12px] text-[var(--tf-text)]"
-              style={{ border: '0.5px solid var(--tf-border)', backgroundColor: 'var(--tf-bg-secondary)' }}>
-              {toast}
-            </div>
-          )}
+          {toast && <SucheMeldung text={toast} status />}
 
           {loading && sichtbar.length === 0 && (
             <div className="flex items-center justify-center gap-2 py-6 text-[13px] text-[var(--tf-text-secondary)]">
@@ -1055,7 +1056,8 @@ export function SuchSeite(): React.ReactElement {
               query={query}
               woerter={markWoerter}
               auswege={auswege}
-              hatFilter={aktiveFilterTexte(facettenWahl).length > 0 || richtlinienMenge !== null}
+              hatFilter={aktiveFilterTexte(facettenWahl).length > 0 || richtlinienMenge !== null
+                || hatSpaltenFilter(columnFilters)}
               onAnwenden={wendeAuswegAn}
             />
           )}

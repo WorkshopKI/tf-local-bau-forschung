@@ -27,7 +27,7 @@ import { listManifestEntries } from '@/phase2/scanner/manifest-store';
 import { listSchemasByProgramm } from '@/core/services/csv/idb-csv';
 import { normalizeKey } from '../fieldLookup';
 import { buildDescriptorsText, deskriptorenAnzeige } from './descriptor-text';
-import { netzwerkName, nimmWerte, type WertIndexRoh } from './wert-index';
+import { netzwerkName, nimmWerte, ohneZitatzeichen, type WertIndexRoh } from './wert-index';
 import { leiteNetzwerkNamenAb, type NetzwerkZeile } from './netzwerk-leads';
 import {
   baueKorpusFeldKarte, SLOT_REIHENFOLGE,
@@ -117,6 +117,10 @@ export interface AntragTextEntry {
    *  kann an der Fuge keinen falschen Treffer erzeugen: ein Substring ueber die
    *  Trennstelle enthaelt immer das Leerzeichen, ein Suchwort nie. */
   organisation: string;
+  /** Suchform (`suchform`, s. u.): kleingeschrieben UND ohne Anfuehrungszeichen.
+   *  Hier faellt es am meisten auf — `"EIKBOOM" Gesellschaft mit beschraenkter
+   *  Haftung` war ueber seinen eigenen Katalogeintrag nicht auffindbar. Die
+   *  ANZEIGE oben bleibt, wie es im Export steht. */
   organisationLower: string;
   /** Der ORT, Rechtsperson und ausfuehrende Stelle zusammengezogen — „welche
    *  Vorhaben wurden in Dresden gefoerdert".
@@ -197,6 +201,9 @@ export interface AntragTextEntry {
    * `"LOHCmobil"` finden.
    */
   netzwerk: string;
+  /** Suchform (`suchform`). Hier traegt der Export das Anfuehrungszeichen sogar
+   *  als Konvention: 1 893 von 1 973 Netzwerknamen fuehren eines
+   *  (`"ProAnimalLife" 16KN062302_KR`), 18 davon unbalanciert. */
   netzwerkLower: string;
   /**
    * Die Arbeitsnotizen am Vorgang: `T_YW` („Wichtig", 3 343 Antraege) und
@@ -598,6 +605,27 @@ export interface LoadCorpusOptions {
  * bleibt bei ~36 KB pro Schritt, und es gibt keine langen Sync-Blocker mehr
  * — der Browser kann zwischen Cursor-Steps Frames rendern.
  */
+
+/**
+ * Die Form, in der ein Textfeld VERGLICHEN wird: klein und ohne
+ * Anfuehrungszeichen.
+ *
+ * Das Anfuehrungszeichen ist fuer die Suche kein Zeichen — der Anfrage-Parser
+ * liest es als Zitat-Grenze, ein Nutzer kann es also gar nicht gezielt
+ * verlangen. Im Export steht es trotzdem mitten in Werten: am Bestand gemessen
+ * in 1 893 von 1 973 Netzwerknamen, 289 Projektbeschreibungen, 76 Verbundtiteln
+ * und 31 Einrichtungen. Es auf BEIDEN Seiten abzulegen (hier und in
+ * `anfrageSuchTeile`) ist die einzige Fassung ohne Asymmetrie; jede halbe
+ * Faltung macht irgendeinen Wert unauffindbar.
+ *
+ * Ersetzt durch ein Leerzeichen, nicht geloescht (`Foo"Bar` sind zwei Woerter).
+ * Ohne Anfuehrungszeichen gibt `ohneZitatzeichen` die Zeichenkette unveraendert
+ * zurueck — der Normalfall kostet einen `includes`.
+ */
+function suchform(s: string): string {
+  return ohneZitatzeichen(s).toLowerCase();
+}
+
 export async function loadAntraegeTextCorpus(
   idb: IDBStore,
   programmId: string,
@@ -684,17 +712,17 @@ export async function loadAntraegeTextCorpus(
           abstract: ab,
           descriptors,
           akronym: ak,
-          vbLower: vb.toLowerCase(),
-          tvLower: tv.toLowerCase(),
-          absLower: ab.toLowerCase(),
-          descriptorsLower: descriptors.toLowerCase(),
-          akronymLower: ak.toLowerCase(),
-          akzLower: kennzeichen.toLowerCase(),
+          vbLower: suchform(vb),
+          tvLower: suchform(tv),
+          absLower: suchform(ab),
+          descriptorsLower: suchform(descriptors),
+          akronymLower: suchform(ak),
+          akzLower: suchform(kennzeichen),
           verbundNr,
-          verbundNrLower: verbundNr.toLowerCase(),
+          verbundNrLower: suchform(verbundNr),
           unterprogrammId: typeof a.unterprogramm_id === 'string' ? a.unterprogramm_id.trim() : '',
           organisation,
-          organisationLower: organisation.toLowerCase(),
+          organisationLower: suchform(organisation),
           standort,
           standortSuchform: standortSuchform(standort),
           bundesland,
@@ -703,9 +731,9 @@ export async function loadAntraegeTextCorpus(
           domain,
           domainSuchform: domainSuchform(domain),
           netzwerk,
-          netzwerkLower: netzwerk.toLowerCase(),
+          netzwerkLower: suchform(netzwerk),
           notiz,
-          notizLower: notiz.toLowerCase(),
+          notizLower: suchform(notiz),
           wahlkreis,
           wahlkreisSuchform: standortSuchform(wahlkreis),
         });
@@ -728,7 +756,7 @@ export async function loadAntraegeTextCorpus(
     // Kennzeichen); ein vorhandener Wert wird NICHT ueberschrieben.
     if (!eintrag || eintrag.netzwerk.length > 0) continue;
     eintrag.netzwerk = name;
-    eintrag.netzwerkLower = name.toLowerCase();
+    eintrag.netzwerkLower = suchform(name);
     // Damit die Zahl in der Vorschlagsliste die Zahl nach dem Klick bleibt.
     if (werteIndex) nimmWerte(werteIndex, 'netzwerk', [name]);
   }

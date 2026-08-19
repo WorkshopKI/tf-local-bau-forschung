@@ -64,8 +64,29 @@ describe('baueStoeberSpalten', () => {
     const ort = spalten.find(s => s.feld === 'standort');
     expect(ort?.gesamt).toBe(30);
     expect(ort?.werte).toHaveLength(WERTE_JE_FELD);
-    // Häufigste zuerst — die Reihenfolge des Index bleibt erhalten.
     expect(ort?.werte[0]?.wert).toBe('Ort 0');
+  });
+
+  it('nimmt die HÄUFIGSTEN, nicht den alphabetischen Anschnitt', () => {
+    // Der Defekt bis v4.110: der Index ist alphabetisch sortiert, und die
+    // Vorschau nahm einfach die ersten fünf. Am echten Bestand stand damit
+    // Bremen (306 Anträge) unter „die häufigsten fünf", Sachsen (2 742) nicht.
+    const spalten = baueStoeberSpalten(index({
+      bundesland: [
+        ['Baden-Württemberg', 1931], ['Bayern', 1976], ['Berlin', 1346],
+        ['Brandenburg', 857], ['Bremen', 306], ['Sachsen', 2742], ['Thüringen', 1200],
+      ],
+    }));
+    const werte = spalten[0]?.werte.map(w => w.wert);
+    expect(werte).toEqual(['Sachsen', 'Bayern', 'Baden-Württemberg', 'Berlin', 'Thüringen']);
+    expect(werte).not.toContain('Bremen');
+  });
+
+  it('entscheidet Gleichstand alphabetisch, nicht nach Cursor-Reihenfolge', () => {
+    const spalten = baueStoeberSpalten(index({
+      deskriptoren: [['Zeta', 7], ['Alpha', 7], ['Mitte', 7]],
+    }));
+    expect(spalten[0]?.werte.map(w => w.wert)).toEqual(['Alpha', 'Mitte', 'Zeta']);
   });
 
   it('lässt Felder ohne einen einzigen Wert weg', () => {

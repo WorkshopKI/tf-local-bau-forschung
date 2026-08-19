@@ -14,15 +14,16 @@
  * stehen deshalb in eigenen Spalten; ein Antragsjahr führt der Index gar nicht.
  *
  * **Die Liste hier ist die kurze Fassung, nicht die einzige.** Seit v4.71 zeigt
- * das Suchfeld unter `deskriptor:` den vollen Katalog (bis 50 Werte, mit
- * Restangabe). Dieser Reiter zeigt die häufigsten fünf und NENNT diesen Weg —
+ * das Suchfeld unter `deskriptor:` den vollen Katalog (seit v4.88 ohne Deckel,
+ * alphabetisch). Dieser Reiter zeigt die häufigsten fünf und NENNT diesen Weg —
  * er ersetzt ihn nicht. Fünf Werte mit „alle 2.055 ansehen" zu beschriften wäre
  * ein Versprechen, das kein Panel einlöst.
  *
- * **Die Zahl rechts kommt aus dem Probelauf, nicht aus dem Werte-Index.** Der
- * Index zählt 485 Anträge mit dem Ort „Dresden", `ort:Dresden` findet 451 — die
- * Suchstufe vergleicht anders, als der Index zählt. Was hier steht, ist die
- * Zahl, die nach dem Klick auch dasteht.
+ * **Beide Zahlen kommen aus verschiedenen Quellen, und das ist Absicht.** WELCHE
+ * fünf Werte hier stehen, entscheidet die Häufigkeit im Werte-Index
+ * (`haeufigsteWerte`); WAS rechts daneben steht, kommt aus einem echten
+ * Probelauf — die Suchstufe vergleicht anders, als der Index zählt, und die Zahl
+ * muss die sein, die nach dem Klick auch dasteht.
  */
 import { useMemo } from 'react';
 import { Filter } from 'lucide-react';

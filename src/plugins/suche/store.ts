@@ -24,7 +24,9 @@ import {
   DEFAULT_VISIBLE_COLUMN_KEYS,
   LOCKED_COLUMN_KEYS,
 } from './columns';
-import { pushRecentSearch, MAX_RECENT_SEARCHES } from './suchseite-utils';
+import {
+  pushRecentSearch, MAX_RECENT_SEARCHES, zaehleAnfrage, beschneideZaehler, type AnfrageZaehler,
+} from './suchseite-utils';
 import { DEFAULT_BEGRUENDUNG_INSTRUCTION } from './analyse/stages/begruendung';
 import {
   parseSortierung, parseDichte,
@@ -39,6 +41,7 @@ import type { Frageplan } from '@/core/services/search/frageplan';
 
 const VISIBLE_COLUMNS_KEY = 'teamflow_suche_visible_columns';
 const RECENT_SEARCHES_KEY = 'teamflow_suche_recent_queries';
+const ANFRAGE_ZAEHLER_KEY = 'teamflow_suche_anfrage_zaehler';
 const ANALYSE_PROMPT_KEY = 'teamflow_suche_analyse_prompt';
 const ANSICHT_KEY = 'teamflow_suche_ansicht';
 const SORTIERUNG_KEY = 'teamflow_suche_sortierung';
@@ -86,6 +89,28 @@ function saveRecentSearches(list: string[]): void {
   try { localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(list)); } catch { /* ignore */ }
 }
 
+/** Toleranter Leser: ein kaputter Eintrag darf den Zähler nicht mitnehmen —
+ *  fehlt er ganz, ist einfach noch nichts wiederholt worden. */
+function loadAnfrageZaehler(): AnfrageZaehler {
+  try {
+    const raw = localStorage.getItem(ANFRAGE_ZAEHLER_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as unknown;
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+    const out: Record<string, number> = {};
+    for (const [k, v] of Object.entries(parsed as Record<string, unknown>)) {
+      if (typeof v === 'number' && Number.isFinite(v) && v > 0) out[k] = Math.floor(v);
+    }
+    return out;
+  } catch {
+    return {};
+  }
+}
+
+function saveAnfrageZaehler(z: AnfrageZaehler): void {
+  try { localStorage.setItem(ANFRAGE_ZAEHLER_KEY, JSON.stringify(z)); } catch { /* ignore */ }
+}
+
 function loadAnalysePrompt(): string {
   try {
     const raw = localStorage.getItem(ANALYSE_PROMPT_KEY);
@@ -104,6 +129,9 @@ interface SucheState {
   toggleColumn: (key: string) => void;
   /** Zuletzt verwendete Such-/Analyse-Anfragen (most-recent-first). */
   recentSearches: string[];
+  /** Wie oft jede davon gestellt wurde — die Grundlage von „Häufig gesucht".
+   *  Beschnitten auf die Einträge von `recentSearches` (siehe `zaehleAnfrage`). */
+  anfrageZaehler: AnfrageZaehler;
   addRecentSearch: (q: string) => void;
   removeRecentSearch: (q: string) => void;
   clearRecentSearches: () => void;
@@ -174,24 +202,35 @@ export const useSucheStore = create<SucheState>((set, get) => ({
   },
 
   recentSearches: loadRecentSearches(),
+  anfrageZaehler: loadAnfrageZaehler(),
 
+  // Liste und Zähler gehen IMMER zusammen — der Zähler beschneidet sich an der
+  // neuen Liste, damit „Häufig gesucht" nie einen Eintrag nennt, den der
+  // Verlauf gar nicht mehr führt.
   addRecentSearch: (q: string) => {
     const current = get().recentSearches;
     const next = pushRecentSearch(current, q, MAX_RECENT_SEARCHES);
     if (next === current) return; // No-op (z.B. len<2)
+    // Beide Stände, weil der Zähler daran entscheidet, ob dieser Commit ein
+    // WIEDERKOMMEN ist — dieselbe Funktion wird auch bei Fokusverlust gerufen.
+    const zaehler = zaehleAnfrage(get().anfrageZaehler, q, current, next);
     saveRecentSearches(next);
-    set({ recentSearches: next });
+    saveAnfrageZaehler(zaehler);
+    set({ recentSearches: next, anfrageZaehler: zaehler });
   },
 
   removeRecentSearch: (q: string) => {
     const next = get().recentSearches.filter(e => e !== q);
+    const zaehler = beschneideZaehler(get().anfrageZaehler, next);
     saveRecentSearches(next);
-    set({ recentSearches: next });
+    saveAnfrageZaehler(zaehler);
+    set({ recentSearches: next, anfrageZaehler: zaehler });
   },
 
   clearRecentSearches: () => {
     saveRecentSearches([]);
-    set({ recentSearches: [] });
+    saveAnfrageZaehler({});
+    set({ recentSearches: [], anfrageZaehler: {} });
   },
 
   analysePrompt: loadAnalysePrompt(),

@@ -7,7 +7,7 @@
 import { FELD_PRAEFIX } from '@/core/services/search/feldpraefix';
 import { TREFFERFELD_LABEL } from '@/core/services/search/trefferstelle';
 import {
-  anzahlPassend, vorschlaegeFuer, type WertEintrag, type WertFeld, type WertIndex,
+  anzahlPassend, haeufigsteWerte, type WertEintrag, type WertFeld, type WertIndex,
 } from '@/plugins/antraege/services/wert-index';
 import { alsAnfrageWert } from '../vervollstaendigung';
 
@@ -72,6 +72,13 @@ export interface StoeberSpalte {
  * Die Spalten des Reiters. Felder ohne einen einzigen Wert fallen weg — eine
  * Überschrift über einer leeren Spalte behauptet einen Vorrat, den es nicht
  * gibt.
+ *
+ * **Gezeigt werden die HÄUFIGSTEN, wie die Fußzeile es sagt** (`haeufigsteWerte`,
+ * v4.111). Bis dahin stand hier der Anschnitt der alphabetischen Liste: unter
+ * „Bundesland" erschien Bremen (306 Anträge), Sachsen (2 742) nicht, und unter
+ * „Netzwerk" waren vier der fünf „häufigsten" Einzeltreffer. Die vollständige,
+ * alphabetische Liste bleibt das Dropdown im Suchfeld — dort sucht man einen
+ * Namen, hier sieht man den Bestand.
  */
 export function baueStoeberSpalten(index: WertIndex | null): StoeberSpalte[] {
   if (!index) return [];
@@ -79,7 +86,7 @@ export function baueStoeberSpalten(index: WertIndex | null): StoeberSpalte[] {
     .map(feld => ({
       feld,
       gesamt: anzahlPassend(index, feld, ''),
-      werte: vorschlaegeFuer(index, feld, '', WERTE_JE_FELD),
+      werte: haeufigsteWerte(index, feld, WERTE_JE_FELD),
     }))
     .filter(s => s.werte.length > 0);
 }

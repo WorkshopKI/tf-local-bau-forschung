@@ -934,11 +934,18 @@ Modus umzustellen.
 ### 9.3 Die Zahl kommt aus einem Probelauf, nicht aus dem Zähler
 
 Der Werte-Index zählt, in wie vielen Anträgen ein Wert vorkommt. Diese Zahl
-**ordnete** die Liste bis v4.87; seither sortiert sie alphabetisch (§9.4) und die
-Häufigkeit dient nur noch dem Reiter „Stöbern" als Größenangabe. Was als Zahl
-neben einem Vorschlag steht, kommt aus `searchAntraegeSubstring` mit den
-eingestellten Reglern, also aus derselben Maschinerie, die nach dem Klick läuft. Der Unterschied ist nicht theoretisch: nach den Rohspalten tragen 485
-Anträge den Ort „Dresden", die Suche findet 451.
+**ordnete** die Liste bis v4.87; seither sortiert sie alphabetisch (§9.4). Die
+Häufigkeit ordnet seit v4.111 noch genau eine Sache: **welche fünf Werte der
+Reiter „Stöbern" zeigt** (`haeufigsteWerte`) — er nennt sie „die häufigsten
+fünf", nahm aber den alphabetischen Anschnitt und zeigte damit Bremen (306
+Anträge) statt Sachsen (2 742).
+
+Was als Zahl neben einem Vorschlag steht, kommt aus `searchAntraegeSubstring`
+mit den eingestellten Reglern, also aus derselben Maschinerie, die nach dem Klick
+läuft — nie aus dem Zähler. Der Unterschied ist klein geworden (am Bestand
+gemessen: 486 Rohtreffer für den Ort „Dresden", die Suche findet 485), aber es
+sind zwei verschiedene Fragen, und nur die zweite beantwortet, was nach dem Klick
+dasteht.
 
 Seit v4.91 zählt der Probelauf zusätzlich auf die **gewählten Richtlinien**
 herunter (§10). Ohne das verspräche ein Vorschlag „42 Treffer" und lieferte nach
@@ -973,7 +980,7 @@ Drei Dinge mussten dafür nachziehen, jedes an einer gemessenen Zahl:
 |---|---|---|
 | **Rendern** — die Liste kommt in Stufen zu 200 über Message-Tasks (`STUFE` in [SearchInput.tsx](../../src/plugins/suche/SearchInput.tsx)) | ein Tastendruck blockiert bei `ast:` **1 338 ms** (`ort:` 713, `nw:` 458) | **51 / 46 / 43 ms**, 200 Zeilen sofort, der Rest wächst nach |
 | **Trefferzahlen** — nur für Zeilen im Sichtfenster ([useProbeZahlen.ts](../../src/plugins/suche/useProbeZahlen.ts)) | ein Probelauf kostet 11–20 ms, also ~20 s für `nw:`, ~80 s für `ast:` | rund 20 Zahlen je Sicht, beim Scrollen kommen sie nach |
-| **Sortierung** — alphabetisch statt nach Häufigkeit ([wert-index.ts](../../src/plugins/antraege/services/wert-index.ts)) | die Häufigkeit ordnete, WELCHE 50 zu sehen sind | sie beziffert nur noch; gefunden wird nach Namen |
+| **Sortierung** — alphabetisch statt nach Häufigkeit ([wert-index.ts](../../src/plugins/antraege/services/wert-index.ts)) | die Häufigkeit ordnete, WELCHE 50 zu sehen sind | gefunden wird nach Namen; die Häufigkeit ordnet nur noch die fünf der Stöbern-Vorschau (§9.3) |
 
 Der Sichtbarkeits-Melder liest **Scroll-Geometrie, keinen `IntersectionObserver`**:
 der feuert in einem nicht dargestellten Fenster gar nicht (in `dev:local`
@@ -993,6 +1000,17 @@ vorher schon; die Häufigkeits-Sortierung hatte sie nur nach unten geschoben.
   Anzeigefehler; die Suche unterscheidet sie ohnehin nicht. `verdichteWertIndex`
   faltet sie zu einer Zeile mit der häufigeren Schreibweise — das behob nebenbei
   **688** React-Warnungen wegen doppelter Schlüssel.
+
+- **13 von 5 407 Einrichtungen tragen ein Anführungszeichen MITTEN im Namen**
+  (`"EIKBOOM" Gesellschaft mit beschränkter Haftung`) — und waren über ihren
+  eigenen Katalogeintrag nicht auffindbar: `alsAnfrageWert` räumte das Zeichen
+  aus der Anfrage, der Korpus behielt es, der Klick fand **0** (Kontrolle
+  `ast:EIKBOOM`: 2). Alphabetisch stehen sie ganz oben, es waren also die ersten
+  Zeilen, die jemand sieht. Seit v4.111 legen **beide Seiten** dasselbe ab
+  (`ohneZitatzeichen` in [wert-index.ts](../../src/plugins/antraege/services/wert-index.ts),
+  angewandt auf `organisationLower`/`netzwerkLower` und in `alsAnfrageWert`);
+  ersetzt wird durch ein Leerzeichen, nicht gelöscht — `Foo"Bar` sind zwei
+  Wörter. Die **Anzeige** bleibt, wie der Export es schreibt.
 
 **Was bleibt**: 68 Netzwerke führen im Export gar keinen Namen, nur ein
 Kennzeichen (`16KN087150`). Sie stehen alphabetisch bei den Ziffern und damit am

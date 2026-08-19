@@ -53,7 +53,9 @@ import {
   standortNadel,
   type AntragTextEntry,
 } from './search-corpus';
-import { leererWertIndexRoh, verdichteWertIndex, type WertIndex } from './wert-index';
+import {
+  leererWertIndexRoh, ohneZitatzeichen, verdichteWertIndex, type WertIndex,
+} from './wert-index';
 import { berechneRelevanz, type Trefferfeld } from '@/core/services/search/trefferstelle';
 import { bereichFelder, type Suchbereich } from '@/core/services/search/suchbereich';
 import { zerlegeFeldAnfrage } from '@/core/services/search/feldpraefix';
@@ -487,7 +489,12 @@ function anfrageSuchTeile(
 ): SuchTeil[] {
   return zerlegeFeldAnfrage(query, verknuepfung === 'wortfolge')
     .map(t => {
-      const wort = t.wert.toLowerCase();
+      // `ohneZitatzeichen` auch hier, weil der Korpus es tut: sonst faende eine
+      // eingefuegte Zeichenkette mit unbalanciertem Anfuehrungszeichen
+      // (`CANNABIS-NET" 16KN089602_KR` — 8 solche Werte im Bestand) ihren
+      // eigenen Satz nicht mehr. Der Parser nimmt nur die AEUSSEREN Zeichen ab;
+      // was mitten im Wert steht, kommt bis hierher durch.
+      const wort = ohneZitatzeichen(t.wert).toLowerCase();
       const exakt = t.exakt === true;
       const nadeln = baueNadeln(wort, stammSuche && !exakt, aktiveVarianten);
       return {

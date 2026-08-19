@@ -33,7 +33,9 @@ import {
   ALLE_PRAEFIXE, FELD_PRAEFIX, anfrageTokens, feldAusPraefix,
 } from '@/core/services/search/feldpraefix';
 import { TREFFERFELD_LABEL, type Trefferfeld } from '@/core/services/search/trefferstelle';
-import { istWertFeld, vorschlaegeFuer, type WertIndex } from '@/plugins/antraege/services/wert-index';
+import {
+  istWertFeld, ohneZitatzeichen, vorschlaegeFuer, type WertIndex,
+} from '@/plugins/antraege/services/wert-index';
 import { filterRecentSearches } from './suchseite-utils';
 
 export type VorschlagArt = 'feld' | 'wert' | 'verlauf';
@@ -120,9 +122,15 @@ function ersetze(
  * Anführungszeichen NUR, wenn nötig — `ort:Dresden` liest sich besser als
  * `ort:"Dresden"` und tut dasselbe. Ein Anführungszeichen IM Wert fällt weg: es
  * beendete das Zitat mitten im Namen.
+ *
+ * **Es fällt auf BEIDEN Seiten weg** (`ohneZitatzeichen`). Bis v4.111 legte nur
+ * die Anfrage es ab, der Korpus behielt es — die Zeile `"EIKBOOM" Gesellschaft
+ * mit beschränkter Haftung` bot damit eine Suche an, die 0 fand, während
+ * `ast:EIKBOOM` 2 lieferte. Weil alphabetisch sortiert wird, standen genau diese
+ * Werte ganz oben in der Liste.
  */
 export function alsAnfrageWert(wert: string): string {
-  const sauber = wert.replace(/"/g, '').trim();
+  const sauber = ohneZitatzeichen(wert).trim();
   return /\s/.test(sauber) ? `"${sauber}"` : sauber;
 }
 
