@@ -33,7 +33,7 @@ Decision-Tree für häufige Aufgaben. Erst hier nachsehen, **bevor** du die Code
 | App ansehen / UI selbst prüfen (Pflicht bei jeder sichtbaren Änderung) | [local-variante.md](docs/architecture/local-variante.md) — `npm run dev:local` + [Abnahme-Regel](#abnahme-selbst-ansehen-nicht-ansagen) |
 | Build-Varianten (Configs, Sichtbarkeits-Matrix, Feature-Flags) | [docs/architecture/build-varianten.md](docs/architecture/build-varianten.md) |
 | Modul hinter ein Zusatzpasswort legen / Freischaltung verstehen | [modul-freischaltung.md](docs/architecture/modul-freischaltung.md) + Pitfall #51 |
-| Seite/Reiter/Abschnitt/Widget als **Beta** oder **Experten**-Sache kennzeichnen (zwei Achsen, UND-verknüpft; Katalog + Kurator-Sidecar; Nutzer-Schalter im Profil) | [sichtbarkeitsstufen.md](docs/architecture/sichtbarkeitsstufen.md) + Pitfall #54 |
+| Seite/Reiter/Abschnitt/Karte/Widget als **Beta** oder **Experten**-Sache kennzeichnen (zwei Achsen, UND-verknüpft; Katalog + Kurator-Sidecar; Nutzer-Schalter im Profil) | [sichtbarkeitsstufen.md](docs/architecture/sichtbarkeitsstufen.md) + Pitfall #54 |
 | npm audit meldet etwas | [docs/audit-akzeptiert.md](docs/audit-akzeptiert.md) |
 | ONNX/Transformers-WASM, Bundle-Größe (Inline-gzip + `wasmBinary`, Post-Build-Strip) | Pitfall #39 + [docs/architecture/runtime-layers.md](docs/architecture/runtime-layers.md) |
 | Async-UI-Aktion ohne silent-fail | [docs/agents/async-error-pattern.md](docs/agents/async-error-pattern.md) |
@@ -377,7 +377,7 @@ Versionshistorie: jüngste Versionen in **[CHANGELOG.md](CHANGELOG.md)**, älter
 - **Klärungen („Zu klären")**: #49 Datei je Autor, Faltung nach Dateireihenfolge, kein Rückschreiben in Seed/Fassung
 - **Modul-Freischaltung (Laufzeit ≠ Bauzeit)**: #51 Flag = einkompiliert, Freischaltung = sichtbar; vorhandener Slot = gesperrt, fehlender = offen; modul-globale Konstanten lesen den ROHEN Flag
 - **Status-Code-Katalog (Ordnerbaum, Rollen, Spalten-Auflösung)**: #42 Baum = Daten, `feldId` = roher Spalten-Code, `ebene` ≠ `herkunft`, Rang 0 = wirkungslos · #43 Zuarbeit = Fremddaten, leere Rollen = jeder · #53 Ruhe ist Sichtbarkeit, nicht Wahrheit
-- **Beta & Expertenmodus (die vierte Sichtbarkeits-Achse)**: #54 zwei Achsen UND-verknüpft, nur `useSichtbar()` fragt, keine Marke doppelt zum Wirt oder neben einer gleich engen Sperre, Unantastbares bleibt unantastbar, Reiter brauchen einen Rückfall, verborgen ≠ gesperrt
+- **Beta & Expertenmodus (die vierte Sichtbarkeits-Achse)**: #54 zwei Achsen UND-verknüpft, nur `useSichtbar()` fragt, keine Marke doppelt zum Wirt oder neben einer gleich engen Sperre, Unantastbares bleibt unantastbar, Reiter brauchen einen Rückfall, verborgen ≠ gesperrt, Karten-Ids stehen als Literal im Baum
 
 **Volltext der 26 maschinell erzwungenen Pitfalls**: [docs/architecture/pitfalls.md](docs/architecture/pitfalls.md).
 Sie stehen dort statt hier, weil das Gate sie ohnehin fängt. Darunter folgen die **28**,

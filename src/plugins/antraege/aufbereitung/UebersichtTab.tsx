@@ -12,6 +12,9 @@
 import { useMemo } from 'react';
 import { Check, Loader2, AlertTriangle, XCircle, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { WennSichtbar } from '@/components/sichtbarkeit';
+import { useSichtbar } from '@/core/hooks/useSichtbar';
+import { abschnittId, reiterId } from '@/core/sichtbarkeit';
 import { StatusDot } from '@/components/ui/StatusBadge';
 import { useKiZiel } from '@/core/services/ai/ki-ziel';
 import { useBridgeStatus } from '@/core/services/ai/bridge-status';
@@ -84,16 +87,18 @@ export function UebersichtTab({ run, loading, veraltet, stepper, onTab, baustein
 
   return (
     <div className="flex flex-col gap-5 max-w-[860px]">
-      {/* Block 1 — Externe Recherche (Platzhalter bis Phase 1) */}
-      <section className="rounded-xl p-4" style={{ border: '0.5px solid var(--tf-border)' }}>
+      {/* Block 1 — Externe Recherche (Platzhalter bis Phase 1).
+          Trägt dieselbe Marke wie der Reiter, auf den er zeigt: ein Wegweiser
+          auf einen Reiter, den dieser Leser nicht hat, ist eine Sackgasse. */}
+      <Karte id={abschnittId('aufbereitung', 'karte-externe-recherche')}>
         <h3 className="text-[13px] font-medium text-[var(--tf-text)]">Externe Recherche</h3>
         <p className="mt-1 text-[12.5px] text-[var(--tf-text-tertiary)]">
           Deep-Research-Auftrag für ChatGPT / Claude / Mistral — folgt im Recherche-Tab.
         </p>
-      </section>
+      </Karte>
 
       {/* Block 2 — Interne Aufbereitung (Stepper) */}
-      <section className="rounded-xl p-4" style={{ border: '0.5px solid var(--tf-border)' }}>
+      <Karte id={abschnittId('aufbereitung', 'karte-interne-aufbereitung')}>
         <div className="mb-2 flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-baseline gap-2">
             <h3 className="text-[13px] font-medium text-[var(--tf-text)]">Interne Aufbereitung</h3>
@@ -135,10 +140,10 @@ export function UebersichtTab({ run, loading, veraltet, stepper, onTab, baustein
             <StepperZeile key={s.key} schritt={s} letzte={i === schritte.length - 1} onTab={onTab} />
           ))}
         </ol>
-      </section>
+      </Karte>
 
       {/* Block 3 — Deterministische Aufbereitung */}
-      <section className="rounded-xl p-4" style={{ border: '0.5px solid var(--tf-border)' }}>
+      <Karte id={abschnittId('aufbereitung', 'karte-deterministisch')}>
         <h3 className="text-[13px] font-medium text-[var(--tf-text)]">Deterministische Aufbereitung</h3>
         <div className="mt-2 flex flex-col gap-1 text-[12.5px] text-[var(--tf-text-secondary)]">
           {loading ? (
@@ -173,14 +178,34 @@ export function UebersichtTab({ run, loading, veraltet, stepper, onTab, baustein
             <span className="text-[var(--tf-text-tertiary)]">Noch nicht aufbereitet — „Neu aufbereiten" oder „Mit KI aufbereiten".</span>
           )}
         </div>
-      </section>
+      </Karte>
     </div>
   );
 }
 
+/**
+ * Eine Karte der Übersicht — einzeln kennzeichenbar (Beta/Experte).
+ *
+ * Die Id kommt als fertige Zeichenkette vom Aufrufer, damit jede Katalog-Id als
+ * Literal im Baum steht (Guard `sichtbarkeit-ids-existieren`).
+ */
+function Karte({ id, children }: { id: string; children: React.ReactNode }): React.ReactElement | null {
+  return (
+    <WennSichtbar id={id}>
+      <section className="rounded-xl p-4" style={{ border: '0.5px solid var(--tf-border)' }}>{children}</section>
+    </WennSichtbar>
+  );
+}
+
 function StepperZeile({ schritt, letzte, onTab }: { schritt: StepperSchritt; letzte: boolean; onTab: (id: AufbereitungTabId) => void }): React.ReactElement {
+  const sichtbar = useSichtbar();
   const v = visual(schritt.status);
-  const fertig = zeigtTabLink(schritt.status);
+  // „Tab öffnen" nur, wenn es den Reiter für diesen Leser gibt. „Recherche" ist
+  // eine Experten-Sache; ohne diese Prüfung führte der Link auf einen Reiter,
+  // den `useSichtbareReiter()` sofort wieder verlässt — derselbe Grund, aus dem
+  // ein pausierter Baustein `tabId: null` bekommt statt eines toten Links.
+  const zielOffen = schritt.tabId !== null && sichtbar(reiterId('aufbereitung', schritt.tabId));
+  const fertig = zeigtTabLink(schritt.status) && zielOffen;
   return (
     <li className="flex gap-3">
       {/* Marker-Spalte + Verbindungslinie */}

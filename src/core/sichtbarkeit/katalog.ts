@@ -264,6 +264,44 @@ export const SICHTBARKEITS_KATALOG: readonly KatalogEintrag[] = [
   abschnitt('antraege', 'detail-alleFelder', 'Alle Felder', EXPERTE),
   abschnitt('antraege', 'detail-historie', 'Historie'),
 
+  // ------------------------------------- Karten auf den Fachseiten (v4.114) --
+  // Bis hierher endete der Katalog bei Seite und Reiter; die Karten der großen
+  // Fachseiten standen nur als JSX da. Sie tragen ihre Id jetzt über
+  // `<WennSichtbar id={abschnittId(…)}>` (Guard `sichtbarkeit-ids-existieren`).
+  //
+  // **Fast alle stehen hier ohne Marke** — und das ist kein Versäumnis, sondern
+  // Regel 2: ihre Wirte sind bereits markiert (Vorgangs-Regeln = beta+experte,
+  // Aufbereitung und Vorgangs-Board = beta, „Verwaltung"/„Auswertung"/
+  // „Recherche" = experte, Auslastung hängt am Modul-Schloss). Eine Marke am
+  // Kind wäre dieselbe Aussage doppelt. Der Eintrag ist trotzdem da: er ist der
+  // Griff, den der Kurator braucht, sobald er einen Wirt LOCKERT — genau wie
+  // die fünf unmarkierten Reiter der Vorgangs-Regeln.
+  abschnitt('status-cockpit', 'karte-referenzdaten', 'Referenzdaten (Vorgangssystem)'),
+  abschnitt('status-cockpit', 'karte-versionen', 'Versionen'),
+
+  abschnitt('auslastung', 'karte-statistik', 'Statistik-Übersicht'),
+  abschnitt('auslastung', 'karte-ma-liste', 'Mitarbeiter & Kapazität'),
+  abschnitt('auslastung', 'karte-kategorien', 'Überkategorien'),
+  abschnitt('auslastung', 'karte-import-export', 'Import / Export'),
+  abschnitt('auslastung', 'karte-konfiguration', 'Konfiguration'),
+  abschnitt('auslastung', 'karte-themen-vektoren', 'Themen-Vektoren für Klassifizierung'),
+
+  abschnitt('vorgangs-board', 'karte-phasenverteilung', 'Verteilung über die ZAH-Phasen'),
+  abschnitt('vorgangs-board', 'karte-stau', 'Stau je Rolle'),
+  abschnitt('vorgangs-board', 'karte-liegezeit', 'Liegezeit je Status'),
+  abschnitt('vorgangs-board', 'karte-fristrisiko', 'Fristrisiko'),
+
+  // Die einzige Karte mit eigener Marke: ein Wegweiser auf den Reiter
+  // „Recherche", der `experte` ist. Ohne die Marke stünde auf der Übersicht ein
+  // Verweis auf einen Reiter, den es für diesen Leser nicht gibt.
+  abschnitt('aufbereitung', 'karte-externe-recherche', 'Externe Recherche', EXPERTE),
+  abschnitt('aufbereitung', 'karte-interne-aufbereitung', 'Interne Aufbereitung'),
+  abschnitt('aufbereitung', 'karte-deterministisch', 'Deterministische Aufbereitung'),
+  abschnitt('aufbereitung', 'karte-deep-research', 'Deep Research starten'),
+  abschnitt('aufbereitung', 'karte-marktzugang', 'Marktzugang des KMU'),
+  abschnitt('aufbereitung', 'karte-ergebnis-import', 'Ergebnis zurückbringen'),
+  abschnitt('aufbereitung', 'karte-einzelanfragen', 'Einzel-Suchanfragen aus dem Steckbrief'),
+
   // ------------------------------------------------- Startseiten-Widgets --
   widget('weitermachen', 'Weitermachen'),
   widget('meine-antraege', 'Meine Anträge'),

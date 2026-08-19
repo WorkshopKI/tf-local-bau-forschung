@@ -1,4 +1,4 @@
-# Beta-Funktionen & Expertenmodus (v4.112)
+# Beta-Funktionen & Expertenmodus (v4.114)
 
 Die App ist über 19 Plugins, ~75 Reiter, ~68 Abschnitte und 16 Startseiten-Widgets gewachsen.
 Vieles davon ist Erprobung oder Tiefenwerkzeug, stand aber gleichberechtigt neben dem
@@ -84,7 +84,7 @@ Warnung. Wer beides trägt, zeigt trotzdem nur „Beta".
 | Reiter | `useSichtbareReiter()` an der jeweiligen Tab-Liste |
 | Abschnitt in Einstellungen/Datenpflege | [SettingsHubPage](../../src/components/settings/SettingsHubPage.tsx) filtert Panels + Abschnitte (Navigation **und** Suchindex), `SettingsGruppe`/`SettingsOption` prüfen sich über `HubPluginContext` selbst |
 | Abschnitt der Verbund-Detailseite | `Sektionsrahmen` bzw. `WennDetailSektion` in [detailRahmen.tsx](../../src/plugins/antraege/detailRahmen.tsx) |
-| Sonstige Karte | `<WennSichtbar id={abschnittId(…)}>` |
+| Karte auf einer Fachseite | `<WennSichtbar id={abschnittId('<seite>', 'karte-<name>')}>` — siehe unten |
 | Startseiten-Widget | `widgetAnzeigbar()` in [homeWidgetsStore.ts](../../src/plugins/home/widgets/homeWidgetsStore.ts) — die eine Stelle, an der `verfuegbar`, `sichtbarWenn()` und die Marken zusammenkommen |
 
 **Widgets: verborgen heißt nie entfernt.** Eine Instanz bleibt in der persönlichen Config stehen
@@ -94,6 +94,44 @@ unangetastet; die Marken kommen aus dem team-weiten Sidecar.
 
 **Deep-Link ins Verborgene:** `SettingsHubPage` zeigt bei `?sektion=<verborgen>` eine Zeile mit
 dem Weg zu den Schaltern, statt stumm nichts zu tun.
+
+## Karten auf den Fachseiten (v4.114)
+
+Einstellungen und Datenpflege haben eine Abschnitts-Registry, die Verbund-Detailseite eine
+`DetailSektionId`-Union — dort entsteht die Id von selbst. Auf den übrigen Fachseiten stehen die
+Karten als nacktes JSX; sie tragen ihre Id über eine Hülle. Drei Konventionen dazu:
+
+1. **Eine Karte mit eigener Überschrift = ein Katalog-Eintrag**, Schlüssel `karte-<name>`. Was
+   keine Überschrift hat, bleibt Teil seines Wirts.
+2. **Die Id steht als Literal im Baum** — `abschnittId('auslastung', 'karte-statistik')`, nie aus
+   einem Prop zusammengesetzt. Nur so findet der Guard `sichtbarkeit-ids-existieren` sie, und der
+   sichert beide Richtungen: keine Id ohne Katalog-Eintrag, kein Karten-Eintrag ohne Hülle (ein
+   Schalter in der Kurator-GUI, der nichts schaltet).
+3. **Wo mehrere Karten denselben Rahmen teilen**, steht eine lokale `Karte`-Hülle am Dateiende
+   (`CockpitSichten.tsx`, `UebersichtTab.tsx`) und bekommt die fertige Id als Prop — das hält die
+   Literale am Aufrufort und den Rahmen an einer Stelle.
+4. **Trennstriche zwischen Karten müssen mitverschwinden.** Eine feste Folge
+   `Karte · Strich · Karte` wird zum führenden oder doppelten Strich, sobald eine Karte verborgen
+   ist. Deshalb rendert `EinstellungenView` (Auslastung) seine vier Sektionen als gefilterte Liste
+   und setzt den Strich aus dem Index. Wo der Wirt mit `gap-*` arbeitet, ist nichts zu tun.
+
+**Fast alle 19 Karten stehen ohne Marke** — nicht aus Nachlässigkeit, sondern nach Regel 1: ihre
+Wirte sind bereits markiert (Vorgangs-Regeln = `beta`+`experte`; Aufbereitung und Vorgangs-Board
+= `beta`; die Reiter „Verwaltung", „Auswertung", „Recherche" = `experte`; Auslastung hängt am
+Modul-Schloss). Der Eintrag ist trotzdem da: er ist der Griff, den der Kurator braucht, sobald er
+einen Wirt **lockert**. Genau eine Karte trägt selbst eine Marke —
+`abschnitt:aufbereitung/karte-externe-recherche` ist `experte`, weil sie ein Wegweiser auf den
+Reiter „Recherche" ist und ohne ihn eine Sackgasse wäre.
+
+| Seite | Karten |
+|---|---|
+| Vorgangs-Regeln | Referenzdaten (Vorgangssystem) · Versionen |
+| Auslastung | Statistik-Übersicht · Mitarbeiter & Kapazität · Überkategorien · Import / Export · Konfiguration · Themen-Vektoren |
+| Vorgangs-Board | Verteilung über die ZAH-Phasen · Stau je Rolle · Liegezeit je Status · Fristrisiko |
+| Antrag-Aufbereitung | **Externe Recherche** ‹exp› · Interne Aufbereitung · Deterministische Aufbereitung · Deep Research starten · Marktzugang des KMU · Ergebnis zurückbringen · Einzel-Suchanfragen |
+
+Nicht katalogisiert sind Karten, die aus Daten entstehen (die To-do-Gruppen des Boards, die
+Phasen-Details der Vorgangs-Regeln), Dialoge und die Karten der dev-Panels.
 
 ## Kuration
 
@@ -115,9 +153,9 @@ löschen. Audit-Eintrag: `sichtbarkeit_geaendert`.
 Geladen wird zweistufig, wie beim Status-Katalog: beim Start aus dem IDB-Cache (gilt sofort, auch
 offline und vor dem Ordner-Picker), nach dem Permission-Grant noch einmal vom Share.
 
-## Vorbelegung (Stand v4.112)
+## Vorbelegung (Stand v4.114)
 
-**173 Einträge, 43 markiert**: 20 nur `beta`, 19 nur `experte`, 4 beides. 130 bleiben Standard.
+**192 Einträge, 44 markiert**: 20 nur `beta`, 20 nur `experte`, 4 beides. 148 bleiben Standard.
 Mit beiden Schaltern aus verschwinden 7 der 18 Nav-Einträge samt ihrer Reiter.
 
 | Marken | Seiten |
@@ -135,8 +173,8 @@ Die vollständige Liste steht genau einmal — in [katalog.ts](../../src/core/si
 
 [katalog-konventionen.test.ts](../../src/core/sichtbarkeit/__tests__/katalog-konventionen.test.ts):
 `sichtbarkeit-katalog-deckt-plugins` · `sichtbarkeit-deckt-widgets` ·
-`sichtbarkeit-deckt-detailsektionen` · `sichtbarkeit-unantastbar` ·
-`sichtbarkeit-seite-behaelt-reiter` · `sichtbarkeit-keine-doppelmarke` ·
+`sichtbarkeit-deckt-detailsektionen` · `sichtbarkeit-ids-existieren` (beide Richtungen, s. o.) ·
+`sichtbarkeit-unantastbar` · `sichtbarkeit-seite-behaelt-reiter` · `sichtbarkeit-keine-doppelmarke` ·
 `sichtbarkeit-eine-mechanik` (niemand liest `profile.beta_features`/`experten_modus` selbst).
 
 Der letzte ist ein echter Codebase-Scan mit Inline-Ausnahme
@@ -147,6 +185,6 @@ und die Schreibstelle `UmfangGruppe.tsx`.
 
 1. Eintrag in `katalog.ts` ergänzen (`seite()` / `reiter()` / `abschnitt()` / `widget()`),
    Vorbelegung nach den fünf Regeln oben.
-2. An der Stelle prüfen: Reiter → `useSichtbareReiter()`; Karte → `<WennSichtbar>`; Abschnitt in
-   einem Hub → nichts zu tun, `SettingsGruppe` prüft sich selbst.
+2. An der Stelle prüfen: Reiter → `useSichtbareReiter()`; Karte → `<WennSichtbar>` mit der Id als
+   **Literal**; Abschnitt in einem Hub → nichts zu tun, `SettingsGruppe` prüft sich selbst.
 3. `npm run check:docs` — die Guards fangen fehlende und verwaiste Ids sofort.

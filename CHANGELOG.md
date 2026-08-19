@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.114.0 — Karten der Fachseiten kennzeichenbar (August 2026)
+
+MINOR — Nachzug zu v4.112: dort endete der Katalog bei Seite und Reiter, die Karten der großen Fachseiten standen nur als JSX da. Jetzt tragen auch sie eine Id — 192 Einträge statt 173.
+
+- **19 Karten aufgenommen** — Vorgangs-Regeln (2), Auslastung (6), Vorgangs-Board (4), Antrag-Aufbereitung (7); Hülle ist `<WennSichtbar>` mit der Id als Literal ([katalog.ts](src/core/sichtbarkeit/katalog.ts), [sichtbarkeitsstufen.md](docs/architecture/sichtbarkeitsstufen.md))
+- **Nur eine trägt selbst eine Marke** — die Karte „Externe Recherche" ist `experte` wie der Reiter, auf den sie zeigt; die übrigen 18 sind Griffe für den Kurator, ihre Wirte sind bereits markiert (Regel 1)
+- **Kein Verweis mehr auf einen verborgenen Reiter** — „Tab öffnen" im Aufbereitungs-Stepper erscheint nur, wenn es den Reiter für diesen Leser gibt ([UebersichtTab.tsx](src/plugins/antraege/aufbereitung/UebersichtTab.tsx))
+- **Trennstriche verschwinden mit ihrer Karte** — die Verwaltungs-Sektionen der Auslastung stehen als gefilterte Liste, nicht als feste JSX-Folge ([EinstellungenView.tsx](src/plugins/auslastung/views/EinstellungenView.tsx))
+- **Guard `sichtbarkeit-ids-existieren`** in beiden Richtungen: keine Id ohne Katalog-Eintrag, kein Karten-Eintrag ohne Hülle ([katalog-konventionen.test.ts](src/core/sichtbarkeit/__tests__/katalog-konventionen.test.ts))
+
 ### v4.112.0 — Beta-Funktionen und Expertenmodus (August 2026)
 
 MINOR — 19 Plugins, ~75 Reiter, ~68 Abschnitte, 16 Widgets: vieles davon ist Erprobung oder Tiefenwerkzeug und stand doch gleichberechtigt neben dem Tagesgeschäft. Eine vierte Sichtbarkeits-Achse räumt auf — sie beantwortet „will ich das sehen?", nicht „darf ich das?".

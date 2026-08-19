@@ -113,6 +113,42 @@ describe('sichtbarkeit-katalog', () => {
     ).toEqual([]);
   });
 
+  it('sichtbarkeit-ids-existieren — jede Karten-Id im Baum steht im Katalog, und umgekehrt', () => {
+    // Nur die ZWEI-Literal-Form: `abschnittId(hub, id)` mit Variablen (Settings-
+    // Registry, Detail-Rahmen) baut seine Ids aus geprüften Quellen und ist
+    // hier nicht gemeint.
+    const muster = /abschnittId\(\s*'([^']+)'\s*,\s*'([^']+)'\s*\)/g;
+    const gefunden = new Map<string, string>();   // Id → erste Fundstelle
+    for (const datei of ALL_TS_FILES) {
+      const rel = relPath(datei).replace(/\\/g, '/');
+      if (rel.startsWith('src/core/sichtbarkeit/')) continue;
+      for (const t of readFileSync(datei, 'utf8').matchAll(muster)) {
+        const id = abschnittId(t[1] as string, t[2] as string);
+        if (!gefunden.has(id)) gefunden.set(id, rel);
+      }
+    }
+    expect(gefunden.size, 'Der Scan fand keine einzige Id — Aufrufform geändert?').toBeGreaterThan(10);
+
+    const unbekannt = [...gefunden].filter(([id]) => !IDS.has(id));
+    expect(
+      unbekannt.map(([id, wo]) => `${id}  (${wo})`),
+      `Diese Ids stehen im Baum, aber nicht im Katalog — der Abschnitt wäre für den\n` +
+      `Kurator unsichtbar und für useSichtbar() immer sichtbar (unbekannt = sichtbar).`,
+    ).toEqual([]);
+
+    // Gegenrichtung: ein Karten-Eintrag ohne Hülle im Baum ist ein Schalter in
+    // der Kurator-GUI, der nichts schaltet.
+    const verwaist = SICHTBARKEITS_KATALOG
+      .filter(e => e.art === 'abschnitt' && e.id.includes('/karte-'))
+      .map(e => e.id)
+      .filter(id => !gefunden.has(id));
+    expect(
+      verwaist,
+      `Karten-Einträge ohne <WennSichtbar> im Baum — die Kurator-GUI zeigte einen\n` +
+      `Schalter ohne Wirkung:\n  ${verwaist.join('\n  ')}`,
+    ).toEqual([]);
+  });
+
   it('sichtbarkeit-keine-doppelmarke — ein Kind wiederholt die Marke seines Wirts nicht', () => {
     const seiten = new Map(
       SICHTBARKEITS_KATALOG.filter(e => e.art === 'seite').map(e => [e.seite, e.marken]),

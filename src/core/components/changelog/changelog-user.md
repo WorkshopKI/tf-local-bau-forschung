@@ -19,6 +19,12 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.114 — 2026-08
+
+### Verbesserungen
+- **Auch einzelne Karten lassen sich jetzt ausblenden.** Bisher konnte die Datenpflege ganze Seiten, Reiter und Startseiten-Widgets als „Beta" oder „Experte" kennzeichnen — jetzt auch die Blöcke mit eigener Überschrift darin, etwa „Statistik-Übersicht" in der Auslastung oder „Fristrisiko" im Vorgangs-Board.
+- **Kein Verweis mehr auf etwas, das Sie gar nicht sehen.** In der Antrag-Aufbereitung stand ein Kasten „Externe Recherche — folgt im Recherche-Tab", auch wenn dieser Reiter für Sie ausgeblendet war. Er erscheint jetzt zusammen mit dem Reiter, und die „Tab öffnen"-Verweise im Fortschritts-Stepper führen nur noch auf Reiter, die es für Sie gibt.
+
 ## v4.112 — 2026-08
 
 ### Neu

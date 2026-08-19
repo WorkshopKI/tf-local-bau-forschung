@@ -27,6 +27,8 @@ import { FileDropZone } from '@/components/ui/FileDropZone';
 import { MarkdownRenderer } from '@/components/ui/MarkdownRenderer';
 import { MarkdownEditor } from '@/components/ui/MarkdownEditor';
 import { markdownLivePreview } from '@/components/ui/markdownLivePreview';
+import { WennSichtbar } from '@/components/sichtbarkeit';
+import { abschnittId } from '@/core/sichtbarkeit';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAsyncAction, type UseAsyncActionResult } from '@/core/hooks/useAsyncAction';
 import { useKopierAktion } from '@/core/hooks/useKopierAktion';
@@ -77,20 +79,31 @@ export function RechercheTab({ recherchePrompt, run, steckbrief, stammdaten, bau
 
   return (
     <div className="flex flex-col gap-5 max-w-[860px]">
-      <DeepResearchStart
-        recherchePrompt={recherchePrompt}
-        bausteine={bausteine}
-        drUrls={settings.drUrls}
-        speichern={speichereDrPrompt}
-        speichereStichworte={speichereDrStichworte}
-        verwerfen={verwerfeDrPromptEdit}
-        bekannteWerte={bekannteWerte}
-      />
+      {/* Die vier Karten sind einzeln kennzeichenbar (Beta/Experte). Sie bringen
+          ihren eigenen Rahmen mit — deshalb die nackte `WennSichtbar`-Hülle und
+          keine Karten-Komponente wie in der Übersicht. */}
+      <WennSichtbar id={abschnittId('aufbereitung', 'karte-deep-research')}>
+        <DeepResearchStart
+          recherchePrompt={recherchePrompt}
+          bausteine={bausteine}
+          drUrls={settings.drUrls}
+          speichern={speichereDrPrompt}
+          speichereStichworte={speichereDrStichworte}
+          verwerfen={verwerfeDrPromptEdit}
+          bekannteWerte={bekannteWerte}
+        />
+      </WennSichtbar>
       {settings.marktzugangAktiv ? (
-        <Marktzugang stammdaten={stammdaten} run={run} mistralUrl={settings.drUrls.mistral} onKopiert={onMarktzugangKopiert} />
+        <WennSichtbar id={abschnittId('aufbereitung', 'karte-marktzugang')}>
+          <Marktzugang stammdaten={stammdaten} run={run} mistralUrl={settings.drUrls.mistral} onKopiert={onMarktzugangKopiert} />
+        </WennSichtbar>
       ) : null}
-      <ErgebnisZurueckbringen run={run} importText={importText} importDatei={importDatei} loescheImport={loescheImport} />
-      <EinzelSuchanfragen steckbrief={steckbrief} stammdaten={stammdaten} />
+      <WennSichtbar id={abschnittId('aufbereitung', 'karte-ergebnis-import')}>
+        <ErgebnisZurueckbringen run={run} importText={importText} importDatei={importDatei} loescheImport={loescheImport} />
+      </WennSichtbar>
+      <WennSichtbar id={abschnittId('aufbereitung', 'karte-einzelanfragen')}>
+        <EinzelSuchanfragen steckbrief={steckbrief} stammdaten={stammdaten} />
+      </WennSichtbar>
     </div>
   );
 }

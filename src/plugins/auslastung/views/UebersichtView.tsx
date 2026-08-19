@@ -12,6 +12,8 @@
  * (passwortgeschützter App-Start, v2.16) direkt angezeigt.
  */
 import { useMemo, useState } from 'react';
+import { WennSichtbar } from '@/components/sichtbarkeit';
+import { abschnittId } from '@/core/sichtbarkeit';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAuslastungData } from '../hooks/useAuslastungData';
 import { useAntraegeCache } from '../hooks/useAntraegeCache';
@@ -81,29 +83,33 @@ export function UebersichtView(): React.ReactElement {
 
   return (
     <div className="flex flex-col gap-4">
-      <StatistikSection
-        label="Statistik-Übersicht"
-        count={vergleichsQuartal ? `${quartal} vs ${vergleichsQuartal}` : quartal}
-      >
-        <div className="flex flex-col gap-4">
-          {vergleichsOptionen.length > 0 && (
-            <StatistikVergleichControl
-              value={vergleichsQuartal}
-              optionen={vergleichsOptionen}
-              onChange={setVergleichsQuartal}
-            />
-          )}
-          <HeadlineInsight vergleich={vergleich} />
-          <KpiGrid vergleich={vergleich} />
-          <WarnungenZeile onFilter={handleWarningFilter} />
-        </div>
-      </StatistikSection>
-      <MaListSection
-        storage={storage}
-        cache={cache}
-        warningFilter={warningFilter}
-        onClearWarningFilter={() => setWarningFilter(null)}
-      />
+      <WennSichtbar id={abschnittId('auslastung', 'karte-statistik')}>
+        <StatistikSection
+          label="Statistik-Übersicht"
+          count={vergleichsQuartal ? `${quartal} vs ${vergleichsQuartal}` : quartal}
+        >
+          <div className="flex flex-col gap-4">
+            {vergleichsOptionen.length > 0 && (
+              <StatistikVergleichControl
+                value={vergleichsQuartal}
+                optionen={vergleichsOptionen}
+                onChange={setVergleichsQuartal}
+              />
+            )}
+            <HeadlineInsight vergleich={vergleich} />
+            <KpiGrid vergleich={vergleich} />
+            <WarnungenZeile onFilter={handleWarningFilter} />
+          </div>
+        </StatistikSection>
+      </WennSichtbar>
+      <WennSichtbar id={abschnittId('auslastung', 'karte-ma-liste')}>
+        <MaListSection
+          storage={storage}
+          cache={cache}
+          warningFilter={warningFilter}
+          onClearWarningFilter={() => setWarningFilter(null)}
+        />
+      </WennSichtbar>
     </div>
   );
 }

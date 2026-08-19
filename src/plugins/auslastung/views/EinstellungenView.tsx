@@ -14,7 +14,14 @@
  *
  * v3.0: Der `korpusOnly`-Modus ist entfallen — er bediente ausschliesslich den
  * schlanken kurator-Korpus-View, und die kurator-Variante gibt es nicht mehr.
+ *
+ * v4.114: Die vier Sektionen sind einzeln kennzeichenbar (Beta/Experte). Sie
+ * stehen deshalb als LISTE da und nicht mehr als JSX-Folge mit Trennstrichen
+ * dazwischen: ein fest gesetzter Strich zwischen zwei Karten wird zum
+ * doppelten oder führenden Strich, sobald eine der beiden verborgen ist.
  */
+import { useSichtbar } from '@/core/hooks/useSichtbar';
+import { abschnittId } from '@/core/sichtbarkeit';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAntraegeCache } from '../hooks/useAntraegeCache';
 import { KategorienSection } from './admin/KategorienSection';
@@ -25,16 +32,37 @@ import { EmbeddingCorpusSection } from './admin/EmbeddingCorpusSection';
 export function EinstellungenView(): React.ReactElement {
   const storage = useStorage();
   const cache = useAntraegeCache();
+  const sichtbar = useSichtbar();
+
+  const sektionen: { id: string; inhalt: React.ReactElement }[] = [
+    {
+      id: abschnittId('auslastung', 'karte-kategorien'),
+      inhalt: <KategorienSection storage={storage} allDeskriptoren={cache.allDeskriptoren} />,
+    },
+    {
+      id: abschnittId('auslastung', 'karte-import-export'),
+      inhalt: <ImportExportSection antraege={cache.antraege} />,
+    },
+    {
+      id: abschnittId('auslastung', 'karte-konfiguration'),
+      inhalt: <KonfigurationSection storage={storage} />,
+    },
+    {
+      id: abschnittId('auslastung', 'karte-themen-vektoren'),
+      inhalt: (
+        <EmbeddingCorpusSection storage={storage} antraege={cache.antraege} embeddableAz={cache.embeddableAz} />
+      ),
+    },
+  ];
 
   return (
     <div className="flex flex-col">
-      <KategorienSection storage={storage} allDeskriptoren={cache.allDeskriptoren} />
-      <div className="my-4" style={{ borderTop: '0.5px solid var(--tf-border)' }} />
-      <ImportExportSection antraege={cache.antraege} />
-      <div className="my-4" style={{ borderTop: '0.5px solid var(--tf-border)' }} />
-      <KonfigurationSection storage={storage} />
-      <div className="my-4" style={{ borderTop: '0.5px solid var(--tf-border)' }} />
-      <EmbeddingCorpusSection storage={storage} antraege={cache.antraege} embeddableAz={cache.embeddableAz} />
+      {sektionen.filter(s => sichtbar(s.id)).map((s, i) => (
+        <div key={s.id}>
+          {i > 0 && <div className="my-4" style={{ borderTop: '0.5px solid var(--tf-border)' }} />}
+          {s.inhalt}
+        </div>
+      ))}
     </div>
   );
 }

@@ -42,7 +42,7 @@ Selten Gebrauchtes steht eingeklappt: Modellwahl und Suchqualitäts-Einstellunge
 ## Sichtbarkeit
 Hier steht, was nur mit eingeschalteten Beta-Funktionen oder eingeschaltetem Expertenmodus erscheint. Die Festlegung gilt team-weit; ob jemand die Schalter umlegt, entscheidet er in seinem Profil.
 
-Der Baum führt jede Seite mit ihren Reitern und Abschnitten auf, dazu die Startseiten-Widgets. Jede Zeile trägt zwei Marken: „Beta" heißt, es funktioniert, kann sich aber noch ändern. „Experte" heißt, es ist ausgereift, aber selten gebraucht. Beide zusammen heißt neu und tief — dann müssen auch beide Schalter an sein.
+Der Baum führt jede Seite mit ihren Reitern, Abschnitten und einzelnen Karten auf, dazu die Startseiten-Widgets. Karten sind die Blöcke mit eigener Überschrift auf den großen Fachseiten — etwa „Statistik-Übersicht" in der Auslastung oder „Fristrisiko" im Vorgangs-Board. Jede Zeile trägt zwei Marken: „Beta" heißt, es funktioniert, kann sich aber noch ändern. „Experte" heißt, es ist ausgereift, aber selten gebraucht. Beide zusammen heißt neu und tief — dann müssen auch beide Schalter an sein.
 
 Rechts stehen die Zähler nach Standard, nur Beta, nur Experte und beides, darunter das Zurücksetzen auf die mitgelieferte Vorbelegung. Gespeichert werden nur Abweichungen davon; eine geänderte Zeile bekommt deshalb ein „zurück auf Vorgabe" mit dem ursprünglichen Wert daneben.
 

@@ -19,6 +19,8 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { BestandsFrische } from '@/components/ui/BestandsFrische';
 import { ScopeTabs } from '@/components/ui/ScopeTabs';
 import { useSichtbareReiter } from '@/core/hooks/useSichtbar';
+import { WennSichtbar } from '@/components/sichtbarkeit';
+import { abschnittId } from '@/core/sichtbarkeit';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
@@ -538,8 +540,14 @@ export function StatusCockpitPage(): React.ReactElement {
           {tab === 'katalog' && <KatalogTab api={api} />}
           {tab === 'felder' && <FelderTab api={api} />}
           {tab === 'klaerfragen' && <KlaerfragenTab api={api} />}
-          {isVorgangssystemEnabled() && <ReferenzdatenSektion api={api} />}
-          <VersionsPanel api={api} />
+          {isVorgangssystemEnabled() && (
+            <WennSichtbar id={abschnittId('status-cockpit', 'karte-referenzdaten')}>
+              <ReferenzdatenSektion api={api} />
+            </WennSichtbar>
+          )}
+          <WennSichtbar id={abschnittId('status-cockpit', 'karte-versionen')}>
+            <VersionsPanel api={api} />
+          </WennSichtbar>
         </div>
       )}
 

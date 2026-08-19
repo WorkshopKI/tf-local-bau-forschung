@@ -15,6 +15,8 @@
  */
 import { ROLLE_LABEL, type Rolle, type ZahPhaseId } from '@/core/status';
 import { Button } from '@/components/ui/button';
+import { WennSichtbar } from '@/components/sichtbarkeit';
+import { abschnittId } from '@/core/sichtbarkeit';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { ampelVon, sichtVon, type BoardZeile, type VorgangsBoardApi } from './useVorgangsBoard';
 import { exportiereCockpitXlsx } from './cockpit-export';
@@ -24,6 +26,21 @@ const AMPEL_FARBE: Record<'rot' | 'gelb' | 'gruen', string> = {
   gelb: 'var(--tf-warning-text)',
   gruen: 'var(--tf-text-tertiary)',
 };
+
+/**
+ * Eine Karte der Auswertung — einzeln kennzeichenbar (Beta/Experte).
+ *
+ * Die Id kommt als fertige Zeichenkette vom Aufrufer und wird NICHT hier aus
+ * einem Prop zusammengesetzt: nur so steht jede Katalog-Id als Literal im Baum,
+ * und der Guard `sichtbarkeit-ids-existieren` kann sie finden.
+ */
+function Karte({ id, children }: { id: string; children: React.ReactNode }): React.ReactElement | null {
+  return (
+    <WennSichtbar id={id}>
+      <section className="flex flex-col gap-2">{children}</section>
+    </WennSichtbar>
+  );
+}
 
 const thKlasse = 'text-left font-medium text-[11px] text-[var(--tf-text-tertiary)] px-2 py-1.5 whitespace-nowrap';
 const tdKlasse = 'px-2 py-1.5 align-middle text-[12px]';
@@ -210,7 +227,7 @@ export function AuswertungSicht({ api }: { api: VorgangsBoardApi }): React.React
 
   return (
     <div className="flex flex-col gap-5">
-      <section className="flex flex-col gap-2">
+      <Karte id={abschnittId('vorgangs-board', 'karte-phasenverteilung')}>
         <div className="flex items-center gap-2">
           <h3 className="text-[13px] font-medium text-[var(--tf-text)]">Verteilung über die ZAH-Phasen</h3>
           <span className="ml-auto" />
@@ -225,9 +242,9 @@ export function AuswertungSicht({ api }: { api: VorgangsBoardApi }): React.React
             ))}
           </div>
         )}
-      </section>
+      </Karte>
 
-      <section className="flex flex-col gap-2">
+      <Karte id={abschnittId('vorgangs-board', 'karte-stau')}>
         <h3 className="text-[13px] font-medium text-[var(--tf-text)]">Stau je Rolle</h3>
         {api.stau.length === 0 ? (
           <p className="text-[12.5px] text-[var(--tf-text-tertiary)]">Kein Vorgang über seinen Zieltagen.</p>
@@ -248,9 +265,9 @@ export function AuswertungSicht({ api }: { api: VorgangsBoardApi }): React.React
             gepflegt. Sie sind in keiner der Zahlen oben enthalten.
           </p>
         )}
-      </section>
+      </Karte>
 
-      <section className="flex flex-col gap-2">
+      <Karte id={abschnittId('vorgangs-board', 'karte-liegezeit')}>
         <h3 className="text-[13px] font-medium text-[var(--tf-text)]">
           Liegezeit je Status <span className="font-normal text-[11.5px] text-[var(--tf-text-tertiary)]">
             — Näherung: Tage seit der jüngsten Vorgangs-Aktivität
@@ -278,9 +295,9 @@ export function AuswertungSicht({ api }: { api: VorgangsBoardApi }): React.React
             </tbody>
           </table>
         </div>
-      </section>
+      </Karte>
 
-      <section className="flex flex-col gap-2">
+      <Karte id={abschnittId('vorgangs-board', 'karte-fristrisiko')}>
         <h3 className="text-[13px] font-medium text-[var(--tf-text)]">
           Fristrisiko <span className="font-normal text-[11.5px] text-[var(--tf-text-tertiary)]">
             — 30 Tage oder weniger
@@ -309,7 +326,7 @@ export function AuswertungSicht({ api }: { api: VorgangsBoardApi }): React.React
             )}
           </ul>
         )}
-      </section>
+      </Karte>
 
       {/* Was hier bewusst FEHLT, gehört genannt — sonst sucht man es. */}
       <p className="text-[11px] text-[var(--tf-text-tertiary)]">
