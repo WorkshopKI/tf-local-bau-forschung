@@ -20,6 +20,7 @@ import { Folder, FolderOpen, GripVertical, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ContextMenuItem, ContextMenuLabel, ContextMenuSeparator } from '@/components/ui/context-menu';
 import { TfTree, type TfTreeNodeRenderProps } from '@/components/tree';
+import { istSammelordner } from '@/core/status';
 import type { StatusKategorie } from '@/core/status';
 import type { StatusCockpitApi } from './useStatusCockpit';
 import { zaehlwort } from '@/core/utils/zaehlwort';
@@ -253,6 +254,46 @@ function Name({ p }: { p: TfTreeNodeRenderProps<KategorieBaumKnoten> }): React.R
 }
 
 /**
+ * Das Reihenfolge-Feld mit **eigenem Tippzustand**.
+ *
+ * Ein `<input type="number">` liefert beim Leeren `valueAsNumber === NaN`. Der
+ * Fallback darauf war `0` — der Ordner sprang beim Löschen der letzten Ziffer an
+ * die erste Stelle, und wer danach „12" tippen wollte, hatte zwischendurch eine
+ * 0 in der Fassung stehen. Den Wert einfach zu verwerfen geht auch nicht: das
+ * Feld ist kontrolliert und schnappte sofort zurück, Leeren wäre unmöglich.
+ * Also: leer ist ein erlaubter ZWISCHENstand, gespeichert wird nur eine Zahl,
+ * und beim Verlassen kehrt der letzte gültige Wert zurück.
+ */
+function ReihenfolgeFeld({ wert, setWert }: {
+  wert: number; setWert: (n: number) => void;
+}): React.ReactElement {
+  const [roh, setRoh] = useState<string | null>(null);
+  // Ändert sich der Wert von AUSSEN (Verwerfen, fremde Fassung geladen), fällt
+  // der Tippzustand weg — sonst zeigte das Feld weiter, was jemand vor dem
+  // Verwerfen getippt hat, und wäre wieder genau die Lüge, gegen die es steht.
+  const [gesehen, setGesehen] = useState(wert);
+  if (wert !== gesehen) {
+    setGesehen(wert);
+    setRoh(null);
+  }
+  return (
+    <input
+      type="number"
+      value={roh ?? wert}
+      className={`${feldKlasseSchmal} w-[64px] shrink-0`}
+      style={feldStil}
+      title="Reihenfolge unter demselben Ordner"
+      onChange={e => {
+        setRoh(e.target.value);
+        const n = e.target.valueAsNumber;
+        if (Number.isFinite(n)) setWert(n);
+      }}
+      onBlur={() => setRoh(null)}
+    />
+  );
+}
+
+/**
  * Belegung, Reihenfolge, Aktiv-Häkchen, Löschen. Der Klick darf NICHT bis zur
  * Zeile durchschlagen — dort klappt er den Zweig auf oder zu.
  */
@@ -281,15 +322,9 @@ function Steuerung({ p, api }: {
           ohne Spalte
         </span>
       )}
-      <input
-        type="number"
-        value={k.reihenfolge}
-        className={`${feldKlasseSchmal} w-[64px] shrink-0`}
-        style={feldStil}
-        title="Reihenfolge unter demselben Ordner"
-        onChange={e => api.setKategorie(k.id, {
-          reihenfolge: Number.isFinite(e.target.valueAsNumber) ? e.target.valueAsNumber : 0,
-        })}
+      <ReihenfolgeFeld
+        wert={k.reihenfolge}
+        setWert={n => api.setKategorie(k.id, { reihenfolge: n })}
       />
       <label className="flex shrink-0 items-center gap-1 whitespace-nowrap text-[12px] text-[var(--tf-text-secondary)]">
         <input
@@ -300,14 +335,20 @@ function Steuerung({ p, api }: {
         />
         aktiv
       </label>
-      <button
-        type="button"
-        className="shrink-0 cursor-pointer rounded p-1 text-[var(--tf-text-tertiary)] hover:bg-[var(--tf-hover)] hover:text-[var(--tf-danger-text)]"
-        title="Ordner entfernen — Unterordner rücken nach, Felder verlieren die Zuordnung"
-        onClick={() => api.removeKategorie(k.id)}
-      >
-        <Trash2 size={14} />
-      </button>
+      {/* Der Auffang-Ordner lässt sich nicht entfernen: jedes Feld ohne
+          Zuordnung fällt auf ihn zurück. Kein deaktivierter Knopf, sondern gar
+          keiner — ein Papierkorb, der nichts tut, wird so lange geklickt, bis
+          jemand die Seite für kaputt hält. */}
+      {!istSammelordner(k.id) && (
+        <button
+          type="button"
+          className="shrink-0 cursor-pointer rounded p-1 text-[var(--tf-text-tertiary)] hover:bg-[var(--tf-hover)] hover:text-[var(--tf-danger-text)]"
+          title="Ordner entfernen — Unterordner rücken nach, Felder verlieren die Zuordnung"
+          onClick={() => api.removeKategorie(k.id)}
+        >
+          <Trash2 size={14} />
+        </button>
+      )}
     </span>
   );
 }
@@ -326,10 +367,14 @@ function Menue({ p, onUmbenennen, api }: {
       <ContextMenuItem onSelect={() => api.setKategorie(k.id, { aktiv: !k.aktiv })}>
         {k.aktiv ? 'Stilllegen' : 'Wieder aktivieren'}
       </ContextMenuItem>
-      <ContextMenuSeparator />
-      <ContextMenuItem variant="danger" onSelect={() => api.removeKategorie(k.id)}>
-        Ordner entfernen
-      </ContextMenuItem>
+      {!istSammelordner(k.id) && (
+        <>
+          <ContextMenuSeparator />
+          <ContextMenuItem variant="danger" onSelect={() => api.removeKategorie(k.id)}>
+            Ordner entfernen
+          </ContextMenuItem>
+        </>
+      )}
     </>
   );
 }

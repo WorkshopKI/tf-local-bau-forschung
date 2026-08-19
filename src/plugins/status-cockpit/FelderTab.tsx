@@ -66,6 +66,7 @@ import { KategorieEditor } from './KategorieEditor';
 import { FelderAbgleich } from './FelderAbgleich';
 import { BestandslaufBlock } from './BestandslaufBlock';
 import { RuhendeKuerzel, type RuhendeZeile } from './RuhendeKuerzel';
+import { speistSeitAngabe } from './phasenDatumsfelder';
 import { useVerlaufErhebung } from './useVerlaufErhebung';
 import { useFristErhebung } from './useFristErhebung';
 import { useEinsatzErhebung } from './useEinsatzErhebung';
@@ -74,9 +75,20 @@ const thKlasse = 'text-left font-medium text-[11px] text-[var(--tf-text-tertiary
 const tdKlasse = 'px-2 py-1.5 align-middle';
 const klappenLabelKlasse = 'text-[11px] uppercase tracking-wide text-[var(--tf-text-tertiary)]';
 
-/** Ohne Zuordnung sichtbar bleiben: Felder ohne Ordner landen im Sammelordner. */
-function ordnerVon(feld: StatusFeldEintrag): string {
-  return feld.kategorieId ?? NICHT_ZUGEORDNET_ID[feld.ebene];
+/**
+ * Ohne Zuordnung sichtbar bleiben: Felder ohne Ordner landen im Sammelordner.
+ *
+ * **Auch bei einer Zuordnung ins Leere.** Zeigt `kategorieId` auf einen Ordner,
+ * den diese Fassung nicht führt (importierte Fassung, gelöschter Ordner), stünde
+ * das Kürzel sonst in KEINER Sektion — die Sektionen entstehen aus
+ * `flacheBaumListe`, und was dort fehlt, wird nicht gerendert. Auch die
+ * Leermeldung bliebe aus: sie hängt an `gefiltert.length`, nicht an den wirklich
+ * gezeigten Zeilen. Stiller Verlust ist die schlechteste Antwort auf einen
+ * kaputten Verweis; der Sammelordner ist die richtige.
+ */
+function ordnerVon(feld: StatusFeldEintrag, bekannt: ReadonlySet<string>): string {
+  const id = feld.kategorieId;
+  return id !== undefined && id !== null && bekannt.has(id) ? id : NICHT_ZUGEORDNET_ID[feld.ebene];
 }
 
 /**
@@ -138,6 +150,11 @@ function ZeilenKlappe({ f, api, ordnerWahl, wirkung, spalten }: {
   spalten: number;
 }): React.ReactElement {
   const set = (patch: Partial<StatusFeldEintrag>): void => api.setFeld(f.feldId, patch);
+  // Dieselbe Rückfall-Regel wie in den Sektionen: ein Verweis ins Leere zeigt
+  // den Sammelordner, nicht die erste Option der Liste (ein `<select>` mit
+  // unbekanntem Wert zeigt still Option 0 — Anzeige und Zustand fielen sonst
+  // auseinander, ohne dass es je auffiele).
+  const bekannt = new Set(ordnerWahl.map(o => o.id));
   return (
     <tr className="border-b border-[var(--tf-border)] bg-[var(--tf-bg-secondary)]">
       <td colSpan={spalten} className="px-3 py-2.5">
@@ -146,7 +163,7 @@ function ZeilenKlappe({ f, api, ordnerWahl, wirkung, spalten }: {
             <label className="flex flex-col gap-1">
               <span className={klappenLabelKlasse}>Ordner</span>
               <select
-                value={ordnerVon(f)} className={`${feldKlasse} min-w-[200px]`} style={feldStil}
+                value={ordnerVon(f, bekannt)} className={`${feldKlasse} min-w-[200px]`} style={feldStil}
                 onChange={e => set({ kategorieId: e.target.value })}
               >
                 {ordnerWahl.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
@@ -450,6 +467,7 @@ export function FelderTab({ api }: { api: StatusCockpitApi }): React.ReactElemen
   // darunter. Beide Mengen kommen aus DERSELBEN Filterung — sonst zeigte eine
   // Suche in der einen Hälfte Treffer und in der anderen nicht.
   const ordnerLabel = new Map(kategorien.map(k => [k.id, k.label]));
+  const bekannteOrdner = new Set(kategorien.map(k => k.id));
   const proOrdner = new Map<string, StatusFeldEintrag[]>();
   const ruhendeZeilen: RuhendeZeile[] = [];
   for (const f of gefiltert) {
@@ -459,17 +477,25 @@ export function FelderTab({ api }: { api: StatusCockpitApi }): React.ReactElemen
       const t = code !== undefined ? einsatz.treffer?.get(code) : undefined;
       ruhendeZeilen.push({
         feld: f, grund,
-        ordner: ordnerLabel.get(ordnerVon(f)) ?? 'Nicht zugeordnet',
+        ordner: ordnerLabel.get(ordnerVon(f, bekannteOrdner)) ?? 'Nicht zugeordnet',
         frueher: t === undefined ? null : t.frueher,
       });
       continue;
     }
-    const id = ordnerVon(f);
+    const id = ordnerVon(f, bekannteOrdner);
     const liste = proOrdner.get(id);
     if (liste) liste.push(f); else proOrdner.set(id, [f]);
   }
 
-  const mitPhase = entwurf.felder.filter(f => f.zahPhaseId != null).length;
+  // Gezählt wird nur, was auch WIRKT: ein Kürzel, dessen Phase die Fassung nicht
+  // mehr führt, liefert kein „seit wann", und ein stillgelegtes oder als
+  // „ignoriert" geführtes erscheint gar nicht erst in der Chronik. Dieselbe
+  // Bedingung wie in `datumsBilanzText` — zwei Zahlen über dieselbe Sache dürfen
+  // nicht verschieden zählen.
+  const gefuehrtePhasen = new Set(zahPhasenVon(entwurf.zahPhasen).map(p => p.id));
+  const mitPhase = entwurf.felder.filter(
+    f => f.zahPhaseId != null && gefuehrtePhasen.has(f.zahPhaseId) && speistSeitAngabe(f),
+  ).length;
   const relevanteAnzahl = entwurf.felder.filter(f => f.relevant === true).length;
   const phasenZahlen = api.feldPhasenAuswahl.kennzahlen;
   const ruhendeIds = new Set(alleRuhenden.map(f => f.feldId));

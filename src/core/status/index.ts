@@ -196,7 +196,7 @@ export {
 } from './cockpit-berechnung';
 export {
   aendereWert, aendereCodeWerte, aendereFeld, fuegeWertHinzu, fuegeFeldHinzu,
-  fuegeKategorieHinzu, aendereKategorie, entferneKategorie,
+  fuegeKategorieHinzu, aendereKategorie, entferneKategorie, istSammelordner, ohneRuhendeCodes,
   ergaenzeSeedFelder, type ErgaenzungsErgebnis,
   seedTextAbweichungen, uebernimmSeedTexte, type TextAbweichung,
   uebernimmStatusCodes, aktuellerStatusCodeKatalog,

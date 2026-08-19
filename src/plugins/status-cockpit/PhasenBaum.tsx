@@ -23,7 +23,7 @@ import {
 } from '@/components/ui/context-menu';
 import { MasterDetailLayout } from '@/components/master-detail';
 import { TfTree, type TfTreeNodeRenderProps } from '@/components/tree';
-import { MAX_PHASEN, phaseFuerCode, zahPhasenVon } from '@/core/status';
+import { MAX_PHASEN, SEED_CODE_ZU_ZAH_PHASE, zahPhasenVon } from '@/core/status';
 import { zaehlwort } from '@/core/utils/zaehlwort';
 import { wertId, type StatusCockpitApi } from './useStatusCockpit';
 import {
@@ -38,7 +38,15 @@ const zahl = (n: number): string => n.toLocaleString('de-DE');
 
 /** „1 Wert" / „5 Werte" — die Zahl steht an jeder Zeile, der Fehler fiele auf. */
 const werteWort = (n: number): string => zaehlwort(n, 'Wert', 'Werte');
-const vorgangWort = (n: number): string => zaehlwort(n, 'Vorgang', 'Vorgänge');
+/**
+ * **Vorkommen, nicht Vorgänge.** `zaehleVorkommen` zählt je (Feld, Wert) die
+ * VERBÜNDE und summiert TV- und Verbund-Feld; ein Verbund, dessen beide Status
+ * gesetzt sind, zählt zweimal. Die Summe über alle Knoten lag deshalb bei
+ * 15 121, während der Frische-Chip daneben 7 535 Verbünde meldete. Die Zahl ist
+ * richtig und als Gewicht einer Entscheidung auch gewollt — falsch war die
+ * Einheit. `KurzLabelPflege` benennt dieselbe Größe seit je korrekt.
+ */
+const vorkommenWort = (n: number): string => zaehlwort(n, 'Vorkommen', 'Vorkommen');
 
 export function PhasenBaum({ api }: { api: StatusCockpitApi }): React.ReactElement | null {
   const entwurf = api.entwurf;
@@ -47,8 +55,16 @@ export function PhasenBaum({ api }: { api: StatusCockpitApi }): React.ReactEleme
   const [loeschen, setLoeschen] = useState<string | null>(null);
 
   const { items, rootId, verwaiste } = useMemo(
+    // Der Rückfall ist die AUSLIEFERUNG, nicht der Snapshot der aktiven Fassung.
+    // Hier lagen beide bislang gleichauf (ein Entwurf startet als Kopie der
+    // aktiven Fassung, also greift der Rückfall nur für Codes, die keine der
+    // beiden entschieden hat) — aber `seedPhaseVon` heißt so, weil es die
+    // Auslieferung sein SOLL, und ein Modul, das den Entwurf zeigt, darf den
+    // globalen Snapshot gar nicht erst anfassen. Genau diese Vermischung war
+    // der Fehler im Reiter „Ebenen" (v4.120).
     () => (entwurf
-      ? bauePhasenBaum(entwurf, api.vorkommen, wertId, phaseFuerCode)
+      ? bauePhasenBaum(entwurf, api.vorkommen, wertId,
+        code => SEED_CODE_ZU_ZAH_PHASE.get(code) ?? null)
       : { items: {}, rootId: WURZEL_ID, verwaiste: 0 }),
     [entwurf, api.vorkommen],
   );
@@ -200,7 +216,7 @@ function Beschriftung({ p }: {
       {d.art === 'code' && d.verwaist && <Badge variant="warning">verwaist</Badge>}
       <span className="shrink-0 font-mono text-[11px] text-[var(--tf-text-tertiary)]">
         {d.art === 'phase' || d.art === 'ohne-phase'
-          ? `· ${werteWort(d.codeAnzahl)} · ${vorgangWort(d.vorkommen)}`
+          ? `· ${werteWort(d.codeAnzahl)} · ${vorkommenWort(d.vorkommen)}`
           : d.art === 'code'
             ? `· ${zahl(d.vorkommen)}${d.zieltage !== null ? ` · ${d.zieltage} T` : ''}`
             : ''}
@@ -256,7 +272,7 @@ function Menue({ p, api, onLoeschen }: {
   if (d.art === 'code') {
     return (
       <>
-        <ContextMenuLabel>Code {d.code} · {vorgangWort(d.vorkommen)}</ContextMenuLabel>
+        <ContextMenuLabel>Code {d.code} · {vorkommenWort(d.vorkommen)}</ContextMenuLabel>
         <ContextMenuItem onSelect={() => api.setCodePhase([d.code], null)}>
           Neben das Verfahren stellen
         </ContextMenuItem>

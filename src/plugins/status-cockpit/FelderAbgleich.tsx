@@ -169,7 +169,8 @@ function RelevanzJeRolle({ api }: { api: StatusCockpitApi }): React.ReactElement
       <span className="text-[12.5px] text-[var(--tf-text)]">
         Weitere Rollen: {offen.map(x => `${x.luecke} Kürzel mit Rolle ${ROLLE_LABEL[x.rolle]}`).join(' · ')}{' '}
         noch ohne Relevanz-Häkchen. Die Liste kommt aus der Kürzel-Zuarbeit („wird gesetzt von"),
-        nicht aus einer erfundenen Auswahl.
+        nicht aus einer erfundenen Auswahl — ruhende Kürzel bleiben draußen, ein Häkchen
+        könnte dort nichts bewirken.
       </span>
       <span className="flex items-center gap-1.5 shrink-0">
         {offen.map(x => (

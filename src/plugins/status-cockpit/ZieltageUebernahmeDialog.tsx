@@ -16,7 +16,9 @@
  */
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
-import { zahPhaseLabel, MIN_STICHPROBE, type ZahPhase, type ZieltageAuswahl } from '@/core/status';
+import {
+  zahPhaseLabel, zahPhasenVon, MIN_STICHPROBE, type ZahPhase, type ZieltageAuswahl,
+} from '@/core/status';
 import { zaehlwort } from '@/core/utils/zaehlwort';
 
 export function ZieltageUebernahmeDialog({
@@ -31,6 +33,7 @@ export function ZieltageUebernahmeDialog({
   onUebernehmen: () => void;
 }): React.ReactElement {
   const { uebernehmen, zuWenigDaten } = auswahl;
+  const relevante = zahPhasenVon(phasen).filter(p => p.zieltageRelevant).map(p => p.label);
 
   return (
     <Dialog
@@ -53,11 +56,20 @@ export function ZieltageUebernahmeDialog({
       }
     >
       <div className="flex flex-col gap-3">
+        {/* Die Phasen werden aus dem ENTWURF gelesen, nicht aufgezählt: welche
+            einen Zieltag tragen, entscheidet `zieltageRelevant` am Schritt und
+            damit die PL. Der feste Text „Eingang bis Entscheidung" brach schon
+            beim bloßen Umbenennen — er nannte „Entscheidung", die Spalte
+            daneben „Erstentscheidung". */}
         <p className="text-[12.5px] text-[var(--tf-text-secondary)]">
           Vorgeschlagen wird der <strong>Median der Ist-Liegezeiten</strong> je Status — eine
-          Näherung aus dem Bestand, kein Sollwert. Übernommen werden nur die Phasen
-          Eingang bis Entscheidung: bei „Begleitung" und „Abgeschlossen" ist „liegt zu lange"
-          keine sinnvolle Frage. Jeder Wert bleibt danach einzeln korrigierbar.
+          Näherung aus dem Bestand, kein Sollwert.
+          {relevante.length > 0 && (
+            <> Übernommen werden nur die {relevante.length === 1 ? 'Phase' : 'Phasen'}{' '}
+              <strong>{relevante.join(', ')}</strong>; die übrigen sind als „ohne Zieltag"
+              gepflegt, weil „liegt zu lange" dort keine sinnvolle Frage ist.</>
+          )}
+          {' '}Jeder Wert bleibt danach einzeln korrigierbar.
         </p>
 
         {uebernehmen.length === 0 ? (

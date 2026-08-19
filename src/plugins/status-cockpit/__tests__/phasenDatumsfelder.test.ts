@@ -95,4 +95,15 @@ describe('datumsBilanzText', () => {
   it('kommt ohne Phasen aus, statt „ohne Datum: " mit leerer Liste zu schreiben', () => {
     expect(datumsBilanzText([], [])).toBe('0 Kürzel liefern das „seit wann"');
   });
+
+  it('zählt ein VERWAISTES Feld nicht mit — sein Schritt existiert nicht mehr', () => {
+    // Dieselbe Falle wie beim stillgelegten Feld, nur von der anderen Seite:
+    // die Deckung zerfiel genau dann, wenn jemand am Schnitt gearbeitet hatte.
+    const felder = [
+      feld({ feldId: 'AAE', code: 'AAE', zahPhaseId: 'eingang' }),
+      feld({ feldId: 'ALT', code: 'ALT', zahPhaseId: 'geloescht' }),
+    ];
+    expect(datumsBilanzText(felder, PHASEN))
+      .toBe('1 Kürzel liefern das „seit wann" · ohne Datum: In Prüfung');
+  });
 });

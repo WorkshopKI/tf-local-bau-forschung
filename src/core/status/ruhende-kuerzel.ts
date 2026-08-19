@@ -81,6 +81,13 @@ export type HatSpalte = (feld: StatusFeldEintrag) => boolean;
  * wichtigsten Felder des Katalogs.
  */
 export function hatSpalteAus(csvSpalten: ReadonlyMap<string, string[]>): HatSpalte {
+  // **Keine Spalten geladen heißt nicht „keine Spalte vorhanden".** Es heißt,
+  // die Frage ist gerade unbeantwortbar. Wer das verwechselt, erklärt vor dem
+  // ersten CSV-Import 515 von 522 Kürzeln für ruhend — und bietet in derselben
+  // Sicht an, ihre Relevanz-Häkchen „aufzuräumen". Im Zweifel beobachtbar:
+  // Ruhe ist Aufmerksamkeits-Steuerung, und eine Aussage ohne Grundlage darf
+  // nichts aus dem Blick nehmen (Pitfall #53).
+  if (csvSpalten.size === 0) return () => true;
   return feld => {
     if (feld.code === undefined || feld.code === '') return true;
     return (csvSpalten.get(feld.feldId)?.length ?? 0) > 0;

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
-  aendereKategorie, entdoppleKanonischeCodes, entferneKategorie, ergaenzeSeedFelder,
+  aendereKategorie, entdoppleKanonischeCodes, entferneKategorie, istSammelordner,
+  ohneRuhendeCodes, ergaenzeSeedFelder,
   ergaenzeVorgangssystemSeed, fuegeFeldHinzu, fuegeKategorieHinzu, kanonischeCodeDoppel,
   markiereRelevanz, relevanzLuecke, seedTextAbweichungen, uebernimmSeedTexte,
   todoRegelDrift, zieheTodoRegelnNach, verschiebeTodoRegel, fuegeTodoRegelHinzu,
@@ -75,6 +76,38 @@ describe('katalog-edit — Kategoriebaum', () => {
     const f = nachher.felder.find(x => x.feldId === 'D_ZZTEST');
     expect(f).toBeDefined();
     expect(f?.kategorieId).toBeUndefined();
+  });
+
+  /**
+   * Ein Häkchen an einem ruhenden Kürzel wirkt nirgends: Navigator und Wächter
+   * bekommen es nie zu sehen. Ohne den Filter setzte „FB-Kürzel markieren"
+   * gemessen 46 solcher Häkchen — und die Sektion „Nicht im Blick" derselben
+   * Seite bot sie sofort wieder zum Abräumen an.
+   */
+  it('nimmt ruhende Kürzel aus einer Vorschlagsliste — NFC-tolerant', () => {
+    const ruhend = new Set(['YE', 'ÄA'.normalize('NFC')]);
+    expect(ohneRuhendeCodes(['AAE', 'YE'], ruhend)).toEqual(['AAE']);
+    // Die Zuarbeit liefert nicht zwingend normalisiert (Pitfall #22).
+    expect(ohneRuhendeCodes(['ÄA'.normalize('NFD')], ruhend)).toEqual([]);
+    // Ruht nichts, bleibt die Liste, wie sie ist.
+    expect(ohneRuhendeCodes(['AAE', 'YE'], new Set())).toEqual(['AAE', 'YE']);
+  });
+
+  /**
+   * Der Auffang-Ordner ist Struktur, keine Kuration: jedes Feld ohne
+   * `kategorieId` fällt auf ihn zurück. Ohne ihn zeigten in der laufenden
+   * Fassung 340 Kürzel auf eine Id, die der Ordnerbaum nicht mehr kennt — sie
+   * stünden in keiner Sektion, und die Leermeldung bliebe aus (sie hängt an der
+   * gefilterten Menge, nicht an den gezeigten Zeilen).
+   */
+  it('entfernt die beiden Sammelordner NICHT', () => {
+    let v = altfassung();
+    for (const id of ['vb.nicht-zugeordnet', 'tv.nicht-zugeordnet']) {
+      v = fuegeKategorieHinzu(v, kat(id, null, 'Nicht zugeordnet'));
+      expect(entferneKategorie(v, id)).toBe(v);
+    }
+    expect(istSammelordner('tv.nicht-zugeordnet')).toBe(true);
+    expect(istSammelordner('zz.a')).toBe(false);
   });
 });
 

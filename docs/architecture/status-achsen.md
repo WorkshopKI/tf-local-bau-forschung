@@ -18,6 +18,11 @@ nichts ab ([Pitfall #44](vorgangssystem.md)).
 | **Trigger** (Kürzel → Statuswechsel + Mail) | ~2450 Zeilen / 9 Richtlinien | XLSX-Import | C16 |
 | **Verfahrensschritt** (ZAH-Phase) | 3–9, ausgeliefert 6 | **unsere Erfindung** | PL im Baum-Editor, jederzeit |
 | **Arbeitsliste** (`StatusCategory`) | fest 9 | **unsere Erfindung** | niemand zur Laufzeit — sie steht im Code |
+| **To-do-Regeln** (wer ist als Nächstes dran) | ~30 je Regelsatz | **unsere Erfindung** | PL im Reiter To-do-Regeln |
+
+Die letzten drei Zeilen stehen im Reiter „Ebenen" unter *Was wir darüber legen*.
+Die To-do-Regeln standen dort bis v4.120 bei den Fremddaten — sie sind
+PL-editierbare Fassungsdaten, C16 kennt sie nicht.
 
 Dazu zwei Ebenen, die nicht „wo steht er", sondern „ist er zu spät" beantworten
 — getrennt gerechnet, seit v4.87 gemeinsam gezeigt:

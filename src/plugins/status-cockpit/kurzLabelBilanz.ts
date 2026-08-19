@@ -35,6 +35,16 @@ export interface KurzLabelZeile {
   voll: string;
   /** Die geltende Kurzform (leer, wenn keine gepflegt ist). */
   kurz: string;
+  /**
+   * Nur die **kuratierte** Kurzform dieser Fassung — leer, wenn keine gepflegt
+   * ist. Getrennt von {@link kurz}, weil ein Eingabefeld den kuratierten Wert
+   * zeigen muss und nicht den effektiven: mit dem effektiven im `value` sah das
+   * Leeren wie ein No-op aus (die Auslieferung sprang sofort zurück), und wer
+   * danach weitertippte, härtete den Auslieferungstext als Kuration ein.
+   */
+  kuratiert: string;
+  /** Was die Auslieferung vorsieht — der Platzhalter des Eingabefelds. */
+  ausKatalog: string;
   /** Aus der Fassung, aus der Auslieferung, oder gar nicht gepflegt. */
   herkunft: LabelHerkunft;
   /** Zeichenzahl der geltenden Kurzform — `0`, wenn keine da ist. */
@@ -92,6 +102,8 @@ export function baueKurzLabelBilanz(
       // dann steht der Rohwert der Fassung da statt einer leeren Zeile.
       voll: amtlich?.text ?? s.roh,
       kurz,
+      kuratiert: s.kuratiert,
+      ausKatalog,
       herkunft,
       laenge: kurz.length,
       zuLang: kurz.length > KURZLABEL_MAX,

@@ -74,7 +74,13 @@ export function phasenOhneDatum(
 export function datumsBilanzText(
   felder: readonly StatusFeldEintrag[], phasen: readonly GeltendeZahPhase[],
 ): string {
-  const zugeordnet = felder.filter(f => f.zahPhaseId != null && speistSeitAngabe(f)).length;
+  // Nur Schritte, die es noch GIBT. Ein Feld, dessen Phase gelöscht wurde,
+  // liefert nichts mehr — es hier mitzuzählen versprach eine Deckung, die genau
+  // dann zerfiel, wenn jemand am Schnitt gearbeitet hatte.
+  const gefuehrt = new Set(phasen.map(p => p.id));
+  const zugeordnet = felder.filter(
+    f => f.zahPhaseId != null && gefuehrt.has(f.zahPhaseId) && speistSeitAngabe(f),
+  ).length;
   const ohne = phasenOhneDatum(felder, phasen);
   const kopf = `${zugeordnet} Kürzel liefern das „seit wann"`;
   if (phasen.length === 0) return kopf;

@@ -22,7 +22,7 @@ import { downloadAsFile } from '@/core/services/search/eval/eval-export';
 import {
   sorgeFuerGespeicherteFassung, listeVersionen, speichereVersion, setzeAktiv, naechsteVersionsnummer,
   getVersion, ladeUnkuratiert, speichereUnkuratiert, setStatusKatalogSnapshot,
-  ladeUnkuratierteFelder, speichereUnkuratierteFelder, pruneKuratierteFelder,
+  ladeUnkuratierteFelder, speichereUnkuratierteFelder, pruneKuratierteFelder, pruneKuratierte,
   aendereWert, aendereCodeWerte, aendereFeld, aendereTodoRegel, verschiebeTodoRegel,
   fuegeTodoRegelHinzu, codesMitRolle, ROLLE_LABEL,
   fuegeWertHinzu, fuegeFeldHinzu,
@@ -40,7 +40,7 @@ import {
   type ZahPhase,
   type PhasenAuswahl,
   relevanzLuecke, markiereRelevanz, AB_DASHBOARD_RELEVANZ,
-  lasseRuhen, raeumeRelevanzDerRuhenden,
+  lasseRuhen, raeumeRelevanzDerRuhenden, ruhendeCodes, hatSpalteAus, ohneRuhendeCodes,
   findeStatusCode, medianLiegezeit, letzteAktivitaetVon, vorkommenAus,
   baueSeedVersion, KANONISCHE_CODE_FELDER, AB_TODO_REGELN,
   STATUS_CODE_KATALOG, SEED_ZAH_PHASEN, SEED_CODE_ZU_ZAH_PHASE,
@@ -65,8 +65,14 @@ import { exportDateiname } from './katalogExport';
 /** Der Konflikt, wie ihn die Oberfläche braucht: wer, wie weit, und was von mir. */
 export interface KatalogKonfliktStand {
   konflikt: KatalogKonflikt;
-  /** Wie viele Einträge die fremde Fassung anders führt als die eigene. */
-  abweichungen: number;
+  /**
+   * Wie viele Einträge die fremde Fassung anders führt als die eigene —
+   * **`null` heißt „nicht ermittelbar"**, nicht „keine". Die fremde Fassung
+   * steckt nicht in jedem Konflikt-Objekt; wurde sie nicht nachgelesen, gab es
+   * hier eine 0 zu sehen, und eine 0 über dem Knopf „Fremde Fassung laden" liest
+   * sich als „identisch, kostet nichts".
+   */
+  abweichungen: number | null;
   /** Nummer der eigenen, lokal bereits festgeschriebenen Fassung. */
   eigene: number | null;
 }
@@ -353,7 +359,23 @@ export function useStatusCockpit(): StatusCockpitApi {
   const [phasenMeldung, setPhasenMeldung] = useState<PhasenMeldung | null>(null);
 
 
-  const ladeAlles = useCallback(async (neuRechnen = false): Promise<void> => {
+  /**
+   * Trägt der Entwurf ungespeicherte Änderungen? Als Ref, weil `ladeAlles` sie
+   * lesen muss, ohne bei jeder Tastatureingabe neu erzeugt zu werden.
+   */
+  const geaendertRef = useRef(false);
+
+  /**
+   * @param neuRechnen Bestandslauf erzwingen statt den Cache zu nehmen.
+   * @param entwurfBehalten Einen **geänderten** Entwurf stehen lassen. Für
+   *   „Bestand neu berechnen": der Knopf verspricht eine frische Messung, keine
+   *   Rücknahme der eigenen Arbeit. Ein unveränderter Entwurf folgt trotzdem der
+   *   neu gelesenen Fassung — sonst hinge er nach dem Speichern eines anderen
+   *   Geräts auf einem alten Stand fest.
+   */
+  const ladeAlles = useCallback(async (
+    neuRechnen = false, entwurfBehalten = false,
+  ): Promise<void> => {
     setLaden(true);
     setFehler(null);
     try {
@@ -393,9 +415,11 @@ export function useStatusCockpit(): StatusCockpitApi {
       setStatusKatalogSnapshot(version);
       basisRef.current = version.version;
       setAktiveVersion(version);
-      setEntwurf(version);
+      setEntwurf(prev => (entwurfBehalten && prev !== null && geaendertRef.current ? prev : version));
       setVersionen(alleVersionen);
-      setUnkuratiert(unk);
+      // Dieselbe Begründung wie beim Feld-Puffer eine Zeile tiefer: was die PL
+      // inzwischen kuratiert hat, ist kein Fund mehr.
+      setUnkuratiert(pruneKuratierte(version, unk));
       // Was die PL inzwischen kuratiert hat, ist kein Fund mehr — sonst hinge
       // der Puffer dieses Geräts der Team-Fassung ewig hinterher.
       setUnkuratierteFelder(pruneKuratierteFelder(version, unkFelder));
@@ -412,7 +436,7 @@ export function useStatusCockpit(): StatusCockpitApi {
   useEffect(() => { void ladeAlles(); }, [ladeAlles]);
 
   const bestandBerechnetAm = useCockpitCache(st => st.berechnetAm);
-  const bestandNeuBerechnen = useCallback(() => { void ladeAlles(true); }, [ladeAlles]);
+  const bestandNeuBerechnen = useCallback(() => { void ladeAlles(true, true); }, [ladeAlles]);
 
   const geaendert = useMemo(
     // Kurzschluss vor den beiden `JSON.stringify`: die Fassung wiegt ~200 KB,
@@ -422,6 +446,7 @@ export function useStatusCockpit(): StatusCockpitApi {
       : JSON.stringify(entwurf) !== JSON.stringify(aktiveVersion)),
     [entwurf, aktiveVersion],
   );
+  geaendertRef.current = geaendert;
 
   /**
    * Was die Auslieferung führt und dem Entwurf fehlt. Bestandsinstallationen
@@ -460,7 +485,7 @@ export function useStatusCockpit(): StatusCockpitApi {
       konflikt: fremd
         ? { ...roh, fremde: { version: fremd.version, autor: fremd.autor, zeitstempel: fremd.zeitstempel } }
         : roh,
-      abweichungen: eigene && fremd ? zaehleAbweichungen(eigene, fremd) : 0,
+      abweichungen: eigene && fremd ? zaehleAbweichungen(eigene, fremd) : null,
       eigene: eigene?.version ?? null,
     });
     setKonfliktOffen(true);
@@ -1005,23 +1030,36 @@ export function useStatusCockpit(): StatusCockpitApi {
     [entwurf],
   );
 
+  /**
+   * Die Vorschlagslisten ohne die ruhenden Kürzel — die Regel selbst steht rein
+   * und geprüft in `ohneRuhendeCodes`; hier werden nur die beiden Quellen
+   * zusammengeführt (Rollen aus der Zuarbeit, Ruhe aus den CSV-Spalten dieses
+   * Geräts).
+   */
+  const ohneRuhende = useCallback((codes: readonly string[]): string[] => {
+    if (!entwurf) return [];
+    const ruhend = ruhendeCodes(entwurf.felder, hatSpalteAus(bestand?.csvSpalten ?? new Map()));
+    return ohneRuhendeCodes(codes, ruhend);
+  }, [entwurf, bestand?.csvSpalten]);
+
   const relLuecke = useMemo(
-    () => (entwurf ? relevanzLuecke(entwurf, AB_DASHBOARD_RELEVANZ) : 0),
-    [entwurf],
+    () => (entwurf ? relevanzLuecke(entwurf, ohneRuhende(AB_DASHBOARD_RELEVANZ)) : 0),
+    [entwurf, ohneRuhende],
   );
 
   const relevanzAusAbDashboard = useCallback(() => {
-    setEntwurf(v => (v ? markiereRelevanz(v, AB_DASHBOARD_RELEVANZ) : v));
-  }, []);
+    const codes = ohneRuhende(AB_DASHBOARD_RELEVANZ);
+    setEntwurf(v => (v ? markiereRelevanz(v, codes) : v));
+  }, [ohneRuhende]);
 
   const relevanzLueckeRolle = useCallback(
-    (rolle: Rolle) => (entwurf ? relevanzLuecke(entwurf, codesMitRolle(entwurf, rolle)) : 0),
-    [entwurf],
+    (rolle: Rolle) => (entwurf ? relevanzLuecke(entwurf, ohneRuhende(codesMitRolle(entwurf, rolle))) : 0),
+    [entwurf, ohneRuhende],
   );
 
   const relevanzAusRolle = useCallback((rolle: Rolle) => {
-    setEntwurf(v => (v ? markiereRelevanz(v, codesMitRolle(v, rolle)) : v));
-  }, []);
+    setEntwurf(v => (v ? markiereRelevanz(v, ohneRuhende(codesMitRolle(v, rolle))) : v));
+  }, [ohneRuhende]);
 
   // --- Ruhende Kürzel ------------------------------------------------------
   // Beide Aktionen sind EIN setState (Pitfall #20). Die Ruhe selbst wird nicht

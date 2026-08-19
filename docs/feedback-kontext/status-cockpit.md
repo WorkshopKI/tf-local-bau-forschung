@@ -44,13 +44,24 @@ wird.
 - **Ebenen** — der einzige Reiter, der nichts pflegt. Er beantwortet die Frage,
   die keiner der anderen beantwortet: welche Angaben über einem Antrag liegen,
   wer sie pflegt und was passiert, wenn man eine ändert. Vier Blöcke mit den
-  Zahlen der geltenden Fassung: was aus dem Fachsystem kommt (Kürzel, Status,
-  To-do-Regeln), was wir darüber legen (Verfahrensschritt und Arbeitsliste), eine
-  Gegenüberstellung **Verfahrensschritt × Arbeitsliste**, und wann etwas zu spät
-  ist (Zieltage gegen Meilenstein-Plan).
+  Zahlen des **Entwurfs**: was aus dem Fachsystem kommt (Kürzel, Status,
+  Trigger), was wir darüber legen (Verfahrensschritt, Arbeitsliste,
+  To-do-Regeln), eine Gegenüberstellung **Verfahrensschritt × Arbeitsliste**, und
+  wann etwas zu spät ist (Zieltage gegen Meilenstein-Plan).
   - Die Gegenüberstellung ist der Beleg dafür, dass die beiden Achsen getrennt
     sind: ein Schritt trägt oft mehrere Arbeitslisten, und ein anderer Zuschnitt
     ändert daran nichts.
+  - **Sie zeigt den Entwurf, nicht die gespeicherte Fassung** (v4.120): ein im
+    Baum umgehängter Statuswert verschiebt die Zahlen hier sofort. Bis dahin las
+    dieser Reiter die Zuordnung aus der aktiven Fassung und widersprach dem Baum
+    im Nachbarreiter, bis gespeichert wurde ([Pitfall #55](../architecture/pitfalls.md)).
+  - Die Gruppe **„Ohne Verfahrensschritt"** steht als eigene Zeile mit derselben
+    Aufschlüsselung wie jeder Schritt. Sie ist weder pauschal „Marker" noch
+    pauschal „Ohne Zuordnung": das Marker-Kennzeichen ist ein eigenes Feld, und
+    die Arbeitsliste hängt am Code.
+  - Die Ruhe-Zeile nennt **beide** Gründe getrennt („ohne Spalte im Export" /
+    „von der PL stillgelegt"); ohne geladene CSV-Quellen steht dort der Grund
+    statt einer Zahl.
 
 - **Statuswerte** (bis v2.412 „Katalog") — zwei Sichten, umschaltbar oben; der
   Baum ist vorbelegt.
@@ -139,6 +150,18 @@ wird.
     Suche. Der Verfahrensschritt steht hier nur zum Lesen. Leeres Label heißt:
     Rohwert gilt. Neue Werte erscheinen als **unkuratiert** und werden per
     „Übernehmen" geholt, nie automatisch.
+    - Die **Arbeitsliste** trägt den Zusatz „folgt dem Code" — nicht dem
+      Verfahrensschritt: seit v4.87 hängt sie allein am amtlichen Code, Umhängen
+      im Baum ändert sie nicht.
+    - Die **Suche filtert nach dem Falten**, nie davor: ein Suchwort wie
+      „verbund" darf die Zahlen einer Zeile nicht ändern, nur entscheiden, ob sie
+      dasteht.
+    - Die **Filterchips tragen ihre Trefferzahl** und sind ausgegraut, wenn sie
+      im Bestand nichts treffen — ein wählbarer Chip, der die Tabelle immer
+      leert, war der häufigste Fehlalarm hier.
+    - Die Zahl der wartenden unkuratierten Werte nennt **keinen Zeitraum**: der
+      Puffer wird beim Import nur ergänzt, nie geleert. Das Datum steht an jeder
+      Karte. Was inzwischen kuratiert wurde, fällt beim Laden heraus.
   - **Kurzform** ist die Beschriftung für enge Flächen — Status-Pille,
     Kanban-Lane, die 90-px-Spalte der Suche. Leeres Feld heißt „es gilt die
     Auslieferung"; der Platzhalter zeigt sie an. Gepflegt wird je **Code**, also
@@ -154,10 +177,13 @@ wird.
     Vorgangs-Aktivität gilt dieser Status als hängend? Leer heißt „nicht
     bewertbar", nicht „unauffällig". Neben dem Feld steht ein ⌀-Vorschlag aus
     der Ist-Verteilung (Median, Stichprobengröße im Tooltip); er wird pro Zeile
-    einzeln übernommen. Über der Tabelle steht zusätzlich „Vorschläge ansehen":
-    Vorschau (alt → neu, Stichprobe) und Übernahme in einem Schritt — nur die
-    Phasen Eingang bis Entscheidung und erst ab fünf Beobachtungen; kleinere
-    Stichproben stehen namentlich als „zu wenig Daten".
+    einzeln übernommen.
+    - Über der Tabelle steht zusätzlich „Vorschläge ansehen": Vorschau
+      (alt → neu, Stichprobe) und Übernahme in einem Schritt — erst ab fünf
+      Beobachtungen; kleinere Stichproben stehen namentlich als „zu wenig Daten".
+    - **Für welche Schritte ein Zieltag überhaupt gilt, entscheidet die PL** am
+      Schritt selbst. Text und Vorschau nennen diese Schritte mit ihrer
+      aktuellen Beschriftung, statt eine feste Liste zu behaupten.
 - **Kürzel**: der **Ordnerbaum des Fachsystems** (505 Einträge), Verbund und
   Teilvorhaben getrennt.
   - **In der Zeile** steht nur, was hier auch entschieden wird: Code, CSV-Spalte,

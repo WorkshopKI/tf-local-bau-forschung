@@ -1320,3 +1320,51 @@ describe('chronik-zwei-wirte-ein-vokabular (v4.61)', () => {
     expect(EIGENE_NUMMERN.test('  const spalten = baueSpalten(tvIds);')).toBe(false);
   });
 });
+
+describe('entwurf-liest-keinen-snapshot (v4.120)', () => {
+  // Das Cockpit bearbeitet einen ENTWURF; der Modul-Snapshot in zah-phasen.ts
+  // traegt die AKTIVE Fassung und wird nur von snapshot.ts gesetzt. Wer beides
+  // in einer Ansicht mischt, beschreibt einen Stand, den niemand bearbeitet.
+  //
+  // Genau das tat der Reiter „Ebenen" bis v4.120: die Zeilen kamen aus
+  // `zahPhasenVon(v.zahPhasen)` (Entwurf), die Code-Zuordnung aus
+  // `phaseFuerCode` (Snapshot). Ein umgehaengter, noch nicht gespeicherter Code
+  // blieb am alten Schritt stehen; zeigte er auf eine Phase, die der Entwurf
+  // gar nicht fuehrt, verschwand er aus JEDER Zeile — und die Summe war
+  // kleiner als die Zahl in der Zeile „Status", ohne dass die Seite es sagte.
+  //
+  // Der entwurfsbezogene Weg heisst `schnittVon(version)` und lag die ganze
+  // Zeit daneben (`useStatusCockpit.ts` benutzt ihn fuer die Feld-Phasen).
+  const SNAPSHOT_LESER = /\b(phaseFuerCode|geltenderSchnitt|istMarkerCode)\s*[(),]/;
+
+  it('kein Snapshot-Leser im Status-Cockpit', () => {
+    const findings: Finding[] = [];
+    for (const file of ALL_TS_FILES) {
+      if (!file.includes(`${sep}plugins${sep}status-cockpit${sep}`)) continue;
+      if (file.includes(`${sep}__tests__${sep}`)) continue;
+      findings.push(...findInFile(file, l => SNAPSHOT_LESER.test(l), 'allow-snapshot-im-entwurf'));
+    }
+    if (findings.length > 0) {
+      expect.fail(
+        `Snapshot-Leser in einer Ansicht, die den ENTWURF zeigt (v4.120).\n`
+        + `  phaseFuerCode()/geltenderSchnitt()/istMarkerCode() lesen die AKTIVE\n`
+        + `  Fassung — im Cockpit ist das der falsche Stand.\n`
+        + `Stattdessen:\n`
+        + `  schnittVon(entwurf)          — Code -> Phase, entwurfsbezogen\n`
+        + `  SEED_CODE_ZU_ZAH_PHASE       — wenn ausdruecklich die AUSLIEFERUNG gemeint ist\n`
+        + `  w.zahPhaseId ?? Auslieferung — je Eintrag (siehe katalogZeilen.phaseVon)\n`
+        + `Echte Ausnahme: '// allow-snapshot-im-entwurf: <grund>' in DERSELBEN Zeile.\n\n`
+        + `Treffer:\n${fmt(findings)}`,
+      );
+    }
+  });
+
+  it('erkennt die historische Fundstelle und verschont die richtige', () => {
+    // So stand es bis v4.120 in ebenenModell.ts …
+    expect(SNAPSHOT_LESER.test('    const phase = phaseFuerCode(code);')).toBe(true);
+    expect(SNAPSHOT_LESER.test('      ? bauePhasenBaum(entwurf, api.vorkommen, wertId, phaseFuerCode)')).toBe(true);
+    // … und so sieht der entwurfsbezogene Weg aus.
+    expect(SNAPSHOT_LESER.test('  const schnitt = schnittVon(v);')).toBe(false);
+    expect(SNAPSHOT_LESER.test('        code => SEED_CODE_ZU_ZAH_PHASE.get(code) ?? null)')).toBe(false);
+  });
+});

@@ -41,11 +41,11 @@ import type { StatusCockpitApi } from './useStatusCockpit';
 import { PhasenBaum } from './PhasenBaum';
 import { ZieltageUebernahmeDialog } from './ZieltageUebernahmeDialog';
 import { isVorgangssystemEnabled } from '@/config/feature-flags';
-import { feldLabel, ohneVerwaiste, SEED_ZAH_PHASEN } from '@/core/status';
+import { feldLabel, ohneVerwaiste, zahPhasenVon, SEED_ZAH_PHASEN } from '@/core/status';
 import type { StatusCategory, Prominenz, UnkuratierterFund } from '@/core/status';
 import { KatalogDriftZeile } from './KatalogDriftZeile';
 import { KurzLabelPflege } from './KurzLabelPflege';
-import { baueKatalogZeilen, effektiveKategorieVon, zaehleStatus } from './katalogZeilen';
+import { baueKatalogZeilen, zaehleStatus } from './katalogZeilen';
 import { baueKatalogSpalten } from './katalogSpalten';
 import { exportiereKatalogXlsx } from './katalogExport';
 import {
@@ -117,7 +117,7 @@ export function KatalogTab({ api }: { api: StatusCockpitApi }): React.ReactEleme
   const [suche, setSuche] = useState('');
   const [katFilter, setKatFilter] = useState<ReadonlySet<StatusCategory>>(() => new Set());
   const [promFilter, setPromFilter] = useState<ReadonlySet<Prominenz>>(() => new Set());
-  const [nurUnkuratiert, setNurUnkuratiert] = useState(false);
+
   const [zieltageOffen, setZieltageOffen] = useState(false);
 
   const entwurf = api.entwurf;
@@ -134,28 +134,17 @@ export function KatalogTab({ api }: { api: StatusCockpitApi }): React.ReactEleme
     [api.csvSpalten],
   );
 
-  const gefiltert = useMemo(() => {
-    const q = suche.trim().toLowerCase();
-    return werte.filter(w => {
-      // Die WIRKSAME Arbeitsliste, nicht das gepflegte Feld — sonst filtert der
-      // Chip nach einem anderen Vokabular, als die Zelle daneben anzeigt.
-      if (katFilter.size > 0 && !katFilter.has(effektiveKategorieVon(w))) return false;
-      if (promFilter.size > 0 && !promFilter.has(w.prominenz)) return false;
-      if (nurUnkuratiert && !w.unkuratiert) return false;
-      if (q) {
-        // Suche greift auf alles, wonach man einen Status sucht: technischer
-        // Key, Feldname, CSV-Spalte, Rohwert, Label. Die CSV-Spalte steht seit
-        // v2.411 nur noch im Tooltip — gesucht wird sie unverändert.
-        const hay = `${w.feldId} ${feldName(w.feldId)} ${csvSpalte(w.feldId)} ${w.wert} ${w.label ?? ''}`
-          .toLowerCase();
-        if (!hay.includes(q)) return false;
-      }
-      return true;
-    });
-  }, [werte, suche, katFilter, promFilter, nurUnkuratiert, feldName, csvSpalte, zahPhasen]);
-
-  const zeilen = useMemo(
-    () => baueKatalogZeilen(gefiltert, {
+  /**
+   * **Erst falten, dann filtern.** Umgekehrt zerlegte jede Suche, die nur auf
+   * eine der beiden Katalogzeilen passt („verbund", „STATUS_TV"), den Code in
+   * seine Hälfte: die Ebene zeigte nur noch eine, „Vorkommen" sank auf einen
+   * Anteil (gemessen 7 056 → 3 414), „zuletzt gesehen" verlor das jüngere Datum,
+   * der ≠-Marker verschwand — und geführt hätte die Zeile dann `eintraege[0]`
+   * statt der TV-Zeile, also fremde Labels und Zieltage. Eine Suche darf die
+   * Zahlen einer Zeile nicht ändern, nur entscheiden, ob sie dasteht.
+   */
+  const alleZeilen = useMemo(
+    () => baueKatalogZeilen(werte, {
       feldName,
       csvSpalte,
       phasen: zahPhasen,
@@ -163,7 +152,46 @@ export function KatalogTab({ api }: { api: StatusCockpitApi }): React.ReactEleme
       zuletzt: api.zuletzt,
       liegezeitVorschlag: api.liegezeitVorschlag,
     }),
-    [gefiltert, feldName, csvSpalte, zahPhasen, api.vorkommen, api.zuletzt, api.liegezeitVorschlag],
+    [werte, feldName, csvSpalte, zahPhasen, api.vorkommen, api.zuletzt, api.liegezeitVorschlag],
+  );
+
+  const zeilen = useMemo(() => {
+    const q = suche.trim().toLowerCase();
+    return alleZeilen.filter(z => {
+      // Die WIRKSAME Arbeitsliste, nicht das gepflegte Feld — sonst filtert der
+      // Chip nach einem anderen Vokabular, als die Zelle daneben anzeigt.
+      if (katFilter.size > 0 && !katFilter.has(z.effektiveKategorie)) return false;
+      if (promFilter.size > 0 && !promFilter.has(z.w.prominenz)) return false;
+      if (!q) return true;
+      // Gesucht wird über BEIDE Katalogzeilen: technischer Key, Feldname,
+      // CSV-Spalte, Rohwert, Label. Trifft eine, steht die ganze Zeile da.
+      const hay = `${z.feldName} ${z.csvSpalte} ${
+        z.eintraege.map(e => `${e.feldId} ${e.wert} ${e.label ?? ''}`).join(' ')
+      }`.toLowerCase();
+      return hay.includes(q);
+    });
+  }, [alleZeilen, suche, katFilter, promFilter]);
+
+  /**
+   * Wie viele Zeilen ein Chip träfe — die Zahl am Chip ist eine Zusage. Ohne sie
+   * ließ sich „Abgelehnt" wählen, obwohl kein einziger Code diese Arbeitsliste
+   * trägt: Tabelle leer, ohne dass irgendwo stand, warum.
+   */
+  const katZahl = useMemo(() => {
+    const m = new Map<StatusCategory, number>();
+    for (const z of alleZeilen) m.set(z.effektiveKategorie, (m.get(z.effektiveKategorie) ?? 0) + 1);
+    return m;
+  }, [alleZeilen]);
+  const promZahl = useMemo(() => {
+    const m = new Map<Prominenz, number>();
+    for (const z of alleZeilen) m.set(z.w.prominenz, (m.get(z.w.prominenz) ?? 0) + 1);
+    return m;
+  }, [alleZeilen]);
+
+  /** Für welche Schritte ein Zieltag überhaupt gilt — kuratiert, nicht fest. */
+  const zieltagePhasen = useMemo(
+    () => zahPhasenVon(zahPhasen).filter(p => p.zieltageRelevant).map(p => p.label),
+    [zahPhasen],
   );
 
   const spalten = useMemo(
@@ -247,6 +275,11 @@ export function KatalogTab({ api }: { api: StatusCockpitApi }): React.ReactEleme
           {KATEGORIE_WERTE.map(k => (
             <ToggleChip
               key={k} label={KATEGORIE_LABEL[k]} selected={katFilter.has(k)}
+              zahl={katZahl.get(k) ?? 0}
+              disabled={(katZahl.get(k) ?? 0) === 0}
+              title={(katZahl.get(k) ?? 0) === 0
+                ? `Kein Statuswert dieser Fassung trägt die Arbeitsliste „${KATEGORIE_LABEL[k]}".`
+                : undefined}
               onToggle={() => setKatFilter(s => toggleIn(s, k))}
             />
           ))}
@@ -255,20 +288,30 @@ export function KatalogTab({ api }: { api: StatusCockpitApi }): React.ReactEleme
           {PROMINENZ_WERTE.map(p => (
             <ToggleChip
               key={p} label={PROMINENZ_LABEL[p]} selected={promFilter.has(p)}
+              zahl={promZahl.get(p) ?? 0}
+              disabled={(promZahl.get(p) ?? 0) === 0}
+              title={(promZahl.get(p) ?? 0) === 0
+                ? `Kein Statuswert dieser Fassung trägt die Prominenz „${PROMINENZ_LABEL[p]}".`
+                : undefined}
               onToggle={() => setPromFilter(s => toggleIn(s, p))}
             />
           ))}
-          <ToggleChip
-            label="nur unkuratiert" selected={nurUnkuratiert}
-            onToggle={() => setNurUnkuratiert(v => !v)}
-          />
+          {/* Ein Chip „nur unkuratiert" stand hier bis v4.119 und leerte die
+              Tabelle immer: kein produktiver Pfad setzt `unkuratiert: true` an
+              einem Wert-Eintrag — `uebernehmen` legt mit `false` an. Die neu
+              entdeckten Funde sind ein eigener Puffer und stehen als eigene
+              Sektion unter der Tabelle, nicht als Zeilen darin. */}
         </div>
       </div>
 
+      {/* Kein „seit letztem Import": der Puffer wird beim Import nur ERGÄNZT,
+          nie geleert (`import-integration.ts`). Er sammelt über beliebig viele
+          Importe, und die Karten darunter tragen Daten von vor Wochen. Das
+          Datum steht an jeder Karte — die Kopfzeile behauptet keinen Zeitraum. */}
       {api.unkuratiert.length > 0 && (
         <p className="text-[12.5px] text-[var(--tf-warning-text)]">
-          {zaehlwort(api.unkuratiert.length, 'neuer Statuswert', 'neue Statuswerte')}
-          {' '}seit letztem Import
+          {zaehlwort(api.unkuratiert.length, 'Statuswert wartet', 'Statuswerte warten')}
+          {' '}auf Kuration — jeder unten mit dem Tag, an dem er zuerst auffiel
         </p>
       )}
 
@@ -298,8 +341,12 @@ export function KatalogTab({ api }: { api: StatusCockpitApi }): React.ReactEleme
       {zeigeZieltage && api.zieltageAuswahl.uebernehmen.length > 0 && (
         <div className="flex items-center justify-between gap-2 rounded px-2.5 py-2" style={feldStil}>
           <span className="text-[12.5px] text-[var(--tf-text)]">
+            {/* Die Phasen werden GENANNT, nicht aufgezählt-wie-früher: welche
+                einen Zieltag tragen, entscheidet `zieltageRelevant` am Schritt.
+                Eine feste Liste im Text brach schon beim Umbenennen. */}
             Für {zaehlwort(api.zieltageAuswahl.uebernehmen.length, 'Statuswert', 'Statuswerte')}
-            {' '}der Phasen Eingang bis Entscheidung liegt ein Zieltage-Vorschlag aus dem Ist vor
+            {zieltagePhasen.length > 0 && ` der ${zieltagePhasen.length === 1 ? 'Phase' : 'Phasen'} ${zieltagePhasen.join(', ')}`}
+            {' '}liegt ein Zieltage-Vorschlag aus dem Ist vor
             {api.zieltageAuswahl.zuWenigDaten.length > 0
               && ` (bei ${zaehlwort(api.zieltageAuswahl.zuWenigDaten.length,
                 'weiterem Statuswert', 'weiteren Statuswerten')} reichen die Daten nicht)`}.

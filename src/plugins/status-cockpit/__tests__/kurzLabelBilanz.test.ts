@@ -134,4 +134,27 @@ describe('baueKurzLabelBilanz', () => {
     const b = baueKurzLabelBilanz(beideFelder('beendet', 91), new Map());
     expect(b.abdeckung(20)).toBe(1);
   });
+
+  /**
+   * Das Eingabefeld der Pflegeliste braucht den KURATIERTEN Wert, nicht den
+   * effektiven. Mit dem effektiven im `value` sah das Leeren wie ein No-op aus —
+   * die Auslieferung sprang sofort zurück —, und wer danach weitertippte,
+   * härtete den Auslieferungstext als Kuration ein. Die Katalog-Spalte nebenan
+   * macht es seit je richtig: kuratierter Wert im Feld, Auslieferung als
+   * Platzhalter.
+   */
+  it('trennt die kuratierte Kurzform von der ausgelieferten', () => {
+    const ohne = baueKurzLabelBilanz(beideFelder('Sonderstatus', 88), new Map()).zeilen[0]!;
+    expect(ohne.kuratiert).toBe('');
+    expect(ohne.ausKatalog).toBe('Sonderstatus');
+    // Effektiv gilt trotzdem die Auslieferung — nur eben nicht im Eingabefeld.
+    expect(ohne.kurz).toBe('Sonderstatus');
+    expect(ohne.herkunft).toBe('katalog');
+
+    const mit = baueKurzLabelBilanz(beideFelder('Sonderstatus', 88, 'Sonder'), new Map()).zeilen[0]!;
+    expect(mit.kuratiert).toBe('Sonder');
+    expect(mit.ausKatalog).toBe('Sonderstatus');
+    expect(mit.kurz).toBe('Sonder');
+    expect(mit.herkunft).toBe('fassung');
+  });
 });

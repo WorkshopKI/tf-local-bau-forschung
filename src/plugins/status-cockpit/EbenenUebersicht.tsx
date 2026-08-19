@@ -13,7 +13,9 @@ import { isMeilensteinMonitoringEnabled } from '@/config/feature-flags';
 import { freigegebeneFassung, ladePlan } from '@/core/meilensteine';
 import { getStatusCategoryLabel } from '@/core/utils/status-category-labels';
 import { zaehlwort } from '@/core/utils/zaehlwort';
-import { baueEbenenUebersicht, type EbenenZeile } from './ebenenModell';
+import {
+  baueEbenenUebersicht, type ArbeitslistenAnteile, type EbenenZeile,
+} from './ebenenModell';
 import type { StatusCockpitApi } from './useStatusCockpit';
 
 function Block({ titel, satz, zeilen }: {
@@ -45,6 +47,28 @@ function Block({ titel, satz, zeilen }: {
   );
 }
 
+/** Eine Zeile der Tabelle „Verfahrensschritt × Arbeitsliste". */
+function SchrittRow({ label, anzahl, anteile }: {
+  label: string; anzahl: number; anteile: ArbeitslistenAnteile;
+}): React.ReactElement {
+  return (
+    <div
+      className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 rounded-[10px] bg-[var(--tf-bg)] px-3 py-2"
+      style={{ border: '0.5px solid var(--tf-border)' }}
+    >
+      <span className="min-w-[9rem] text-[12.5px] font-medium text-[var(--tf-text)]">{label}</span>
+      <span className="text-[11.5px] tabular-nums text-[var(--tf-text-tertiary)]">
+        {zaehlwort(anzahl, 'Status', 'Status')}
+      </span>
+      <span className="flex-1 text-[12px] text-[var(--tf-text-secondary)]">
+        {anteile.length === 0
+          ? '—'
+          : anteile.map(a => `${getStatusCategoryLabel(a.kategorie)} (${a.anzahl})`).join(' · ')}
+      </span>
+    </div>
+  );
+}
+
 export function EbenenUebersichtTab({ api }: { api: StatusCockpitApi }): React.ReactElement | null {
   const idb = useStorage().idb;
   // `undefined` = noch nicht geladen, `null` = keine freigegebene Fassung.
@@ -69,7 +93,9 @@ export function EbenenUebersichtTab({ api }: { api: StatusCockpitApi }): React.R
 
   const entwurf = api.entwurf;
   if (!entwurf) return null;
-  const u = baueEbenenUebersicht(entwurf, api.csvSpalten, msFassung);
+  const u = baueEbenenUebersicht(
+    entwurf, api.csvSpalten, msFassung, api.trigger.datei?.trigger.length ?? 0,
+  );
 
   return (
     <div className="flex flex-col gap-5 pt-3">
@@ -82,8 +108,9 @@ export function EbenenUebersichtTab({ api }: { api: StatusCockpitApi }): React.R
 
       <Block
         titel="Was wir darüber legen"
-        satz={'Zwei eigene Achsen. Die eine ist beweglich, weil ihr Zuschnitt fachlich strittig '
-          + 'ist; die andere steht still, weil die ABs täglich auf sie schauen.'}
+        satz={'Unsere eigenen Achsen. Die erste ist beweglich, weil ihr Zuschnitt fachlich '
+          + 'strittig ist; die zweite steht still, weil die ABs täglich auf sie schauen; die '
+          + 'dritte sagt, wer als Nächstes dran ist — ohne den amtlichen Status anzufassen.'}
         zeilen={u.eigen}
       />
 
@@ -100,30 +127,40 @@ export function EbenenUebersichtTab({ api }: { api: StatusCockpitApi }): React.R
         </div>
         <div className="flex flex-col gap-1">
           {u.schritte.map(s => (
-            <div
-              key={s.id}
-              className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 rounded-[10px] bg-[var(--tf-bg)] px-3 py-2"
-              style={{ border: '0.5px solid var(--tf-border)' }}
-            >
-              <span className="min-w-[9rem] text-[12.5px] font-medium text-[var(--tf-text)]">
-                {s.label}
-              </span>
-              <span className="text-[11.5px] tabular-nums text-[var(--tf-text-tertiary)]">
-                {zaehlwort(s.codeAnzahl, 'Status', 'Status')}
-              </span>
-              <span className="flex-1 text-[12px] text-[var(--tf-text-secondary)]">
-                {s.arbeitslisten.length === 0
-                  ? '—'
-                  : s.arbeitslisten
-                    .map(a => `${getStatusCategoryLabel(a.kategorie)} (${a.anzahl})`)
-                    .join(' · ')}
-              </span>
-            </div>
+            <SchrittRow key={s.id} label={s.label} anzahl={s.codeAnzahl} anteile={s.arbeitslisten} />
           ))}
-          {u.ohneSchritt > 0 && (
+          {/* „Neben dem Verfahren" ist ein Schritt-Zustand wie jeder andere und
+              bekommt deshalb dieselbe Zeile — bis v4.119 stand hier ein Satz,
+              der die Gruppe pauschal zu Markern erklärte und ihr die
+              Arbeitsliste „Ohne Zuordnung" andichtete. Beides folgt nicht: das
+              Marker-Kennzeichen ist ein eigenes Feld, und die Arbeitsliste
+              hängt am Code. */}
+          {u.ohneSchritt.codeAnzahl > 0 && (
+            <SchrittRow
+              label="Ohne Verfahrensschritt"
+              anzahl={u.ohneSchritt.codeAnzahl}
+              anteile={u.ohneSchritt.arbeitslisten}
+            />
+          )}
+          {u.ohneSchritt.codeAnzahl > 0 && (
             <p className="text-[11.5px] text-[var(--tf-text-tertiary)]">
-              {zaehlwort(u.ohneSchritt, 'Status läuft', 'Status laufen')} ohne Verfahrensschritt
-              neben dem Verfahren (Marker) — sie sind „Ohne Zuordnung".
+              Sie laufen neben dem Verfahren; ihre Arbeitsliste hängt trotzdem am Code.
+              {/* Nur nennen, wenn beide Sichten AUSEINANDERFALLEN. Wer im Baum
+                  umhängt, setzt `marker` und `zahPhaseId` gemeinsam
+                  (`setzeCodePhasen`) — „5 von 5 sind Marker" sagt dann nichts.
+                  Eine importierte Fassung kann beides getrennt führen, und
+                  genau das ist die Auskunft, die hier fehlte. */}
+              {u.ohneSchritt.markerAnzahl < u.ohneSchritt.codeAnzahl && (
+                ` ${u.ohneSchritt.codeAnzahl - u.ohneSchritt.markerAnzahl} davon führt die Fassung`
+                + ' NICHT als Marker — sie haben bloß keinen Schritt.'
+              )}
+            </p>
+          )}
+          {u.verwaist > 0 && (
+            <p className="text-[11.5px] text-[var(--tf-warning-text)]">
+              {zaehlwort(u.verwaist, 'Status zeigt', 'Status zeigen')} auf einen
+              Verfahrensschritt, den diese Fassung nicht mehr führt — oben mitgezählt unter
+              „Ohne Verfahrensschritt".
             </p>
           )}
         </div>

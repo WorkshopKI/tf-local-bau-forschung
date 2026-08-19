@@ -106,10 +106,35 @@ export function deuteZug(
     // Ohne `reorder` liefert der Baum keinen Index — dann ist der Zug ein
     // Nichts, statt die Phase kommentarlos ans Ende zu setzen.
     if (index === undefined) return { art: 'nichts' };
-    return { art: 'phase-sortieren', phaseId: quellIds[0]!, index: grenzeEin(items, index) };
+    const phaseId = quellIds[0]!;
+    return {
+      art: 'phase-sortieren',
+      phaseId,
+      index: grenzeEin(items, zielPosition(items, phaseId, index)),
+    };
   }
 
   return { art: 'nichts' };
+}
+
+/**
+ * Vom **Einfüge**-Index des Baums zur **Ziel-Position** des Stores.
+ *
+ * Zwei verschiedene Zählungen, die nur bei Aufwärts-Zügen übereinstimmen. Der
+ * Baum meldet, vor welches Kind der Ablegepunkt fällt — gezählt in der Liste,
+ * wie sie NOCH dasteht. `verschiebeZahPhase` nimmt die Phase dagegen erst heraus
+ * und setzt sie dann an `index`; alles hinter ihr ist da schon um eins
+ * nachgerückt. Ein Zug nach unten landete deshalb exakt eine Position zu weit,
+ * ein Zug nach oben richtig — der Versatz war immer genau 1 und sah aus wie
+ * „der Baum hat mich nicht verstanden".
+ */
+function zielPosition(
+  items: TfTreeItems<PhasenBaumKnoten>, phaseId: string, index: number,
+): number {
+  const kinder = items[WURZEL_ID]?.children ?? [];
+  const aktuell = kinder.indexOf(phaseId);
+  if (aktuell < 0) return index;
+  return index > aktuell ? index - 1 : index;
 }
 
 /**

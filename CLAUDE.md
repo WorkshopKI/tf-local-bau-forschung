@@ -377,9 +377,10 @@ Versionshistorie: jüngste Versionen in **[CHANGELOG.md](CHANGELOG.md)**, älter
 - **Klärungen („Zu klären")**: #49 Datei je Autor, Faltung nach Dateireihenfolge, kein Rückschreiben in Seed/Fassung
 - **Modul-Freischaltung (Laufzeit ≠ Bauzeit)**: #51 Flag = einkompiliert, Freischaltung = sichtbar; vorhandener Slot = gesperrt, fehlender = offen; modul-globale Konstanten lesen den ROHEN Flag
 - **Status-Code-Katalog (Ordnerbaum, Rollen, Spalten-Auflösung)**: #42 Baum = Daten, `feldId` = roher Spalten-Code, `ebene` ≠ `herkunft`, Rang 0 = wirkungslos · #43 Zuarbeit = Fremddaten, leere Rollen = jeder · #53 Ruhe ist Sichtbarkeit, nicht Wahrheit
+- **Entwurf vs. Snapshot**: #55 eine Ansicht, die einen Entwurf zeigt, liest nie `phaseFuerCode`/`geltenderSchnitt` (das ist die AKTIVE Fassung) — entwurfsbezogen ist `schnittVon(version)`
 - **Beta & Expertenmodus (die vierte Sichtbarkeits-Achse)**: #54 zwei Achsen UND-verknüpft, nur `useSichtbar()` fragt, keine Marke doppelt zum Wirt oder neben einer gleich engen Sperre, Unantastbares bleibt unantastbar, Reiter brauchen einen Rückfall, verborgen ≠ gesperrt, Karten-Ids stehen als Literal im Baum, **der Wirt spricht nicht von dem, was die Achse verbirgt** (`traegt` an der Karte, kein Untertitel mit markierbarer Gruppe, Alt-Route trägt ihren `sektion=`-Anker)
 
-**Volltext der 26 maschinell erzwungenen Pitfalls**: [docs/architecture/pitfalls.md](docs/architecture/pitfalls.md).
+**Volltext der 27 maschinell erzwungenen Pitfalls**: [docs/architecture/pitfalls.md](docs/architecture/pitfalls.md).
 Sie stehen dort statt hier, weil das Gate sie ohnehin fängt. Darunter folgen die **28**,
 die kein Test fangen kann — die brauchen den Kontext beim Schreiben, nicht die Meldung danach.
 

@@ -6,7 +6,7 @@ import type {
   MappingVersion, Rolle, StatusFeldEintrag, StatusKategorie,
   StatusWertEintrag, TextbausteinEintrag, TodoRegel, ZahPhase, ZahPhaseId,
 } from './typen';
-import { erzeugtZyklus } from './kategorien';
+import { erzeugtZyklus, NICHT_ZUGEORDNET_ID } from './kategorien';
 import { normKey } from './normalisierung';
 import { regelsatzVon } from './regelsatz';
 import { rollenVonFeld } from './rollen';
@@ -134,17 +134,34 @@ export function aendereKategorie(
 }
 
 /**
+ * Ist das der Auffang-Ordner einer Ebene? Exportiert, damit die Oberfläche den
+ * Löschknopf gar nicht erst anbietet — eine Aktion, die nichts tut, wird sonst
+ * so lange geklickt, bis jemand sie für kaputt hält.
+ */
+export function istSammelordner(id: string): boolean {
+  return id === NICHT_ZUGEORDNET_ID.verbund || id === NICHT_ZUGEORDNET_ID.tv;
+}
+
+/**
  * Entfernt eine Kategorie und hinterlässt **keine toten Verweise**: Kinder
  * rücken an den Elternknoten nach, Felder der Kategorie verlieren ihre
  * Zuordnung (und erscheinen damit unter „Nicht zugeordnet").
  *
  * Zum bloßen Ausblenden ist `aendereKategorie(..., { aktiv: false })` gedacht —
  * das erhält die Zuordnung.
+ *
+ * **Die beiden Sammelordner sind Struktur, keine Kuration** und lassen sich
+ * nicht entfernen: `ordnerVon` fällt für jedes Feld ohne `kategorieId` auf sie
+ * zurück. Ohne sie zeigten 340 Kürzel auf eine Id, die der Baum nicht mehr
+ * kennt — sie stünden in keiner Sektion, ohne dass eine Zahl oder eine Leer-
+ * meldung das sagte. Genau der stille Verlust, den diese Funktion sonst
+ * vermeidet.
  */
 export function entferneKategorie(version: MappingVersion, id: string): MappingVersion {
   const bestand = version.kategorien ?? [];
   const weg = bestand.find(k => k.id === id);
   if (!weg) return version;
+  if (istSammelordner(id)) return version;
   return {
     ...version,
     kategorien: bestand
@@ -655,6 +672,27 @@ export function codesMitRolle(version: MappingVersion, rolle: Rolle): string[] {
     if (rollen.length > 0 && rollen.includes(rolle)) out.push(f.code);
   }
   return out;
+}
+
+/**
+ * Nimmt die ruhenden Kürzel aus einer Vorschlagsliste.
+ *
+ * **Kein Relevanz-Häkchen an einem ruhenden Kürzel.** Es hat keine Spalte im
+ * Export (oder die PL hat es stillgelegt); Navigator und Wächter bekommen es nie
+ * zu sehen. Ohne diesen Filter setzte „FB-Kürzel markieren" gemessen 46 Häkchen
+ * an Kürzeln, die die Sektion „Nicht im Blick" derselben Seite sofort wieder zum
+ * Abräumen anbot — zwei Knöpfe, die einander zurücknehmen.
+ *
+ * Getrennt von {@link codesMitRolle}, weil zwei Quellen zusammenkommen: die
+ * Rollen stehen in der Zuarbeit, die Ruhe hängt an den CSV-Spalten dieses
+ * Geräts. NFC vor dem Vergleich (Pitfall #22) — `ruhendeCodes` liefert
+ * normalisiert, die Zuarbeit nicht zwingend.
+ */
+export function ohneRuhendeCodes(
+  codes: readonly string[], ruhend: ReadonlySet<string>,
+): string[] {
+  if (ruhend.size === 0) return [...codes];
+  return codes.filter(c => !ruhend.has(c.normalize('NFC')));
 }
 
 /** Ändert eine To-do-Regel; Id und Reihenfolge bleiben unangetastet. */

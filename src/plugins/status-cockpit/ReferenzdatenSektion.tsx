@@ -27,6 +27,7 @@ import {
 } from '@/core/status';
 import type { StatusCockpitApi } from './useStatusCockpit';
 import { feldStil } from './labels';
+import { zaehleStatus } from './katalogZeilen';
 import { useJournalFrische, JournalFrischeChip, JournalFrischeBlock } from './JournalFrische';
 
 /** Was der Nutzer nach dem Lesen der Datei sieht, bevor er übernimmt. */
@@ -319,8 +320,11 @@ export function ReferenzdatenSektion({ api }: { api: StatusCockpitApi }): React.
 
   if (!entwurf) return null;
 
-  const mitCode = entwurf.werte.filter(w => w.code !== undefined).length;
-  const ohneCode = entwurf.werte.filter(w => w.aktiv && w.code === undefined).length;
+  // Gezählt werden STATUS, keine Katalogzeilen: jeder Code steht unter `status`
+  // UND `verbund_status`. Ungefaltet sagte die Kopfzeile hier „60", während die
+  // Reiterlasche daneben auf demselben Bildschirm „30" zeigte.
+  const mitCode = zaehleStatus(entwurf.werte.filter(w => w.code !== undefined));
+  const ohneCode = zaehleStatus(entwurf.werte.filter(w => w.aktiv && w.code === undefined));
   const trigger = api.trigger.datei?.trigger ?? [];
   const triggerOffen = trigger.filter(t => t.geparst === null).length;
   const ohneProgramm = zeilenOhneProgramm(trigger);

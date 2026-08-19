@@ -221,6 +221,23 @@ describe('Verwaiste Zuordnungen werden gezählt, nicht stillschweigend geheilt',
     expect(verwaisteZuordnungen(v)).toEqual({ werte: 1, felder: 1 });
   });
 
+  /**
+   * **Status, keine Katalogzeilen.** Jeder Code steht unter `status` UND
+   * `verbund_status`; ungefaltet meldete die Tabellensicht systematisch das
+   * Doppelte dessen, was der Baum daneben zeigte — dieselbe Einheit-Falle wie
+   * beim Reiterzähler vor v4.96.
+   */
+  it('zählt einen Code einmal, obwohl er zwei Katalogzeilen hat', () => {
+    const doppelt = version({
+      zahPhasen: [phase({ id: 'a' }), phase({ id: 'b' })],
+      werte: [
+        wert({ id: 'tv', feldId: 'status', code: 42, zahPhaseId: 'weg' }),
+        wert({ id: 'vb', feldId: 'verbund_status', code: 42, zahPhaseId: 'weg' }),
+      ],
+    });
+    expect(verwaisteZuordnungen(doppelt).werte).toBe(1);
+  });
+
   it('liest den Verwaisten wie „ohne Phase"', () => {
     expect(zahPhaseLabel('weg', v.zahPhasen)).toBe('Marker (ohne Phase)');
     expect(zahPhaseRang('weg', v.zahPhasen)).toBe(Number.MAX_SAFE_INTEGER);
@@ -285,6 +302,16 @@ describe('Die Phasen-Tabelle ändern', () => {
 
   it('ein unbekanntes Ziel lässt den Griff ins Leere laufen, statt zu verwaisen', () => {
     expect(entferneZahPhase(basis, 'b', 'gibtsnicht')).toBe(basis);
+  });
+
+  /**
+   * Die zu löschende Phase als Ziel entging der Prüfung darüber: `id` steht ja
+   * im Bestand. Der Dialog konnte sie schicken, weil sein `useState`-Initializer
+   * einmal beim Mount lief — mit `phase === null` und damit über die
+   * ungefilterte Liste (siehe `PhaseLoeschenDialog.tsx`).
+   */
+  it('sich selbst als Ziel ist kein Umhängen, sondern Verwaisen mit Extraschritt', () => {
+    expect(entferneZahPhase(basis, 'b', 'b')).toBe(basis);
   });
 
   it('an der Untergrenze wird nicht mehr gelöscht', () => {

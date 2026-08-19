@@ -212,14 +212,19 @@ export function baueKatalogSpalten(ctx: SpaltenKontext): SortableColumn<KatalogZ
               {KATEGORIE_WERTE.map(k => <option key={k} value={k}>{KATEGORIE_LABEL[k]}</option>)}
             </select>
           ) : (
+            // Bis v4.119 stand hier „· folgt dem Verfahrensschritt" samt einem
+            // Tooltip, der zum Umhängen im Baum aufforderte. Beides war eine
+            // Zusage ohne Mechanik: seit v4.87 hängt die Arbeitsliste ALLEIN am
+            // Code (`kategorieAusFassung`), der Schritt geht nicht mehr ein. Wer
+            // der Anleitung folgte, hängte um und sah denselben Wert.
             <span
               className="text-[12px] text-[var(--tf-text)]"
-              title={'Ergibt sich aus dem amtlichen Code und dem Verfahrensschritt. '
-                + 'Änderbar durch Umhängen im Baum („Phasen und Zuordnung").'}
+              title={'Ergibt sich allein aus dem amtlichen Code — der Verfahrensschritt geht '
+                + 'seit v4.87 nicht mehr ein. In der App nicht änderbar; sie kommt aus C16.'}
             >
               {KATEGORIE_LABEL[z.effektiveKategorie]}
               <span className="text-[10.5px] text-[var(--tf-text-tertiary)]">
-                {' · folgt dem Verfahrensschritt'}
+                {' · folgt dem Code'}
               </span>
             </span>
           )}

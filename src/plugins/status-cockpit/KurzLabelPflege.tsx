@@ -13,7 +13,7 @@
  * Rechnung und Sortierung liegen in `kurzLabelBilanz.ts` (rein, node-testbar);
  * diese Datei rendert nur.
  */
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { KURZLABEL_MAX } from '@/core/status';
 import { zaehlwort } from '@/core/utils/zaehlwort';
@@ -43,9 +43,13 @@ function Zeile({ z, setKurzLabel }: {
       <span className="min-w-0 flex-1 truncate text-[12.5px] text-[var(--tf-text)]" title={z.voll}>
         {z.voll}
       </span>
+      {/* Der KURATIERTE Wert im Feld, die Auslieferung als Platzhalter — sonst
+          lässt sich eine Kuration nicht zurücknehmen: das Feld füllte sich beim
+          Leeren sofort wieder mit dem Auslieferungstext. Dieselbe Aufteilung wie
+          in der Katalog-Spalte nebenan (`katalogSpalten.tsx`). */}
       <input
-        value={z.kurz}
-        placeholder={`max. ${KURZLABEL_MAX} Zeichen`}
+        value={z.kuratiert}
+        placeholder={z.ausKatalog || `max. ${KURZLABEL_MAX} Zeichen`}
         aria-label={`Kurzform für ${z.voll}`}
         className={`${feldKlasseSchmal} w-[180px] shrink-0`}
         style={feldStil}
@@ -67,17 +71,40 @@ function Zeile({ z, setKurzLabel }: {
 export function KurzLabelPflege({ api }: { api: StatusCockpitApi }): React.ReactElement | null {
   const entwurf = api.entwurf;
   const [offen, setOffen] = useState(false);
+  /**
+   * **Welche Zeilen die eingeklappte Sicht führt, wird festgehalten** — sonst
+   * verschwindet die Zeile unter der tippenden Hand.
+   *
+   * Die Filterbedingung („noch nicht gepflegt", „zu lang") kippt mit dem ersten
+   * Zeichen; `key={z.code}` unmountete die Zeile dann mitten im Wort.
+   * Gespeichert war das eine Zeichen, der Fokus weg, der Rest ging ins Leere —
+   * im Katalog stand am Ende „S" statt „Stelln. zur RNE". Beim Aufräumen des
+   * LETZTEN Rückstands klappte sogar der ganze Block weg.
+   *
+   * Bewusst kein `onFocus`: die Zeile soll auch dann stehen bleiben, wenn der
+   * Fokus schon weiter ist, und ein Fokus-Ereignis ist der falsche Träger für
+   * eine Aussage über die Liste. Neu offene Zeilen kommen dazu, erledigte
+   * verschwinden erst beim nächsten Umschalten — also auf Ansage.
+   */
+  const behalten = useRef<Set<number>>(new Set());
   if (!entwurf) return null;
 
   const p = baueKurzLabelBilanz(entwurf.werte, api.vorkommen);
   if (p.zeilen.length === 0) return null;
 
-  const nichts = p.ohneKurz.anzahl === 0 && p.zuLang === 0;
+  for (const z of p.zeilen) {
+    if (z.herkunft === 'ohne' || z.zuLang) behalten.current.add(z.code);
+  }
   // Nur die offenen zuerst — und dahinter das schon Gepflegte, damit man eine
   // Formulierung nachbessern kann, ohne die Tabelle zu bemühen.
-  const sichtbar = offen
-    ? p.zeilen
-    : p.zeilen.filter(z => z.herkunft === 'ohne' || z.zuLang);
+  const sichtbar = offen ? p.zeilen : p.zeilen.filter(z => behalten.current.has(z.code));
+  const nichts = sichtbar.length === 0;
+  const umschalten = (): void => {
+    // Beim Umschalten neu bemessen: eingeklappt soll wieder der RÜCKSTAND
+    // stehen, nicht die Historie der Sitzung.
+    behalten.current = new Set();
+    setOffen(v => !v);
+  };
 
   return (
     <div className="flex flex-col gap-2 rounded px-2.5 py-2" style={feldStil}>
@@ -104,7 +131,7 @@ export function KurzLabelPflege({ api }: { api: StatusCockpitApi }): React.React
             </span>
           )}
         </span>
-        <Button variant="secondary" size="sm" onClick={() => setOffen(v => !v)}>
+        <Button variant="secondary" size="sm" onClick={umschalten}>
           {offen ? 'Nur offene zeigen' : `Alle ${p.zeilen.length} zeigen`}
         </Button>
       </div>

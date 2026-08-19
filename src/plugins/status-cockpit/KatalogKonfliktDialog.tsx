@@ -121,8 +121,18 @@ export function KatalogKonfliktDialog({ stand, offen, onSchliessen, onTrotzdem, 
         ) : (
           <div className="rounded px-3 py-2.5 flex flex-col gap-1.5" style={feldStil}>
             <span className="text-[12.5px] text-[var(--tf-text)]">
-              {fremdName} unterscheidet sich in <strong>{stand.abweichungen}</strong>{' '}
-              {stand.abweichungen === 1 ? 'Eintrag' : 'Einträgen'} von {eigenName}.
+              {/* „Nicht ermittelbar" statt einer 0: der Abstand steht nur fest,
+                  wenn die fremde Fassung wirklich gelesen wurde. Eine 0 hier
+                  hieße „identisch" und lüde zum sorglosen Laden ein. */}
+              {stand.abweichungen === null ? (
+                <>Wie weit {fremdName} von {eigenName} abweicht, ließ sich nicht ermitteln —
+                  die fremde Fassung war in der Datei nicht auffindbar.</>
+              ) : (
+                <>
+                  {fremdName} unterscheidet sich in <strong>{stand.abweichungen}</strong>{' '}
+                  {stand.abweichungen === 1 ? 'Eintrag' : 'Einträgen'} von {eigenName}.
+                </>
+              )}
             </span>
             <span className="text-[12px] text-[var(--tf-text-secondary)]">
               Nach dem Laden gilt {fremdName}; dein Entwurf entspricht dann dieser Fassung.

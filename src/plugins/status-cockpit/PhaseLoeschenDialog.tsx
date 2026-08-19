@@ -7,6 +7,15 @@
  * aus Leiste und Zieltagen und tauchten erst beim nächsten Zählen wieder auf.
  * Deshalb gibt es keinen Weg zum Löschen, der das Ziel überspringt — auch nicht
  * bei einer leeren Phase, wo die Frage dann bloß entfällt.
+ *
+ * **Das Ziel wird bei jedem Öffnen neu bestimmt, nicht einmal beim Mount.** Der
+ * Dialog hängt unbedingt im Baum; ein `useState`-Initializer läuft daher genau
+ * einmal — mit `phase === null`, also über die UNGEFILTERTE Phasenliste. Beim
+ * Löschen der ersten Phase stand so ihre eigene Id im State. Sichtbar war das
+ * nicht: die Optionen führten sie nicht mehr, und ein `<select>` mit einem Wert
+ * außerhalb seiner Optionen zeigt still den ersten Eintrag. Auf dem Bildschirm
+ * stand „In Prüfung", verschickt wurde „Eingang". Deshalb hier: der State hält
+ * nur die **ausdrückliche Wahl**, gültig gemacht wird sie beim Rendern.
  */
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -30,13 +39,21 @@ export function PhaseLoeschenDialog({
   onLoeschen: (zielId: string | null) => void;
 }): React.ReactElement {
   const andere = phasen.filter(p => p.id !== phase?.id);
-  const [ziel, setZiel] = useState<string>(() => andere[0]?.id ?? OHNE);
+  /** Die ausdrückliche Wahl — `null` heißt „noch keine getroffen". */
+  const [wahl, setWahl] = useState<string | null>(null);
+  // Eine Wahl gilt nur, solange sie unter den Optionen steht: die vorige
+  // Öffnung kann eine Phase gewählt haben, die diesmal die gelöschte ist.
+  const gueltig = wahl !== null && (wahl === OHNE || andere.some(p => p.id === wahl));
+  const ziel = gueltig ? wahl : andere[0]?.id ?? OHNE;
   const zuWenige = phasen.length <= MIN_PHASEN;
+  // Beim Schließen zurücksetzen, damit die nächste Öffnung wieder mit dem
+  // Vorschlag für IHRE Phase beginnt und nicht mit der Wahl von vorhin.
+  const schliessen = (): void => { setWahl(null); onSchliessen(); };
 
   return (
     <Dialog
       open={offen}
-      onClose={onSchliessen}
+      onClose={schliessen}
       title={phase ? `Verfahrensschritt „${phase.label}" entfernen` : 'Verfahrensschritt entfernen'}
       size="md"
       footer={
@@ -47,12 +64,12 @@ export function PhaseLoeschenDialog({
             title={darfSchreiben ? undefined : 'Nur mit Schreibrecht auf den Daten-Share'}
             onClick={() => {
               onLoeschen(ziel === OHNE ? null : ziel);
-              onSchliessen();
+              schliessen();
             }}
           >
             Entfernen und umhängen
           </Button>
-          <Button variant="secondary" size="sm" onClick={onSchliessen}>Abbrechen</Button>
+          <Button variant="secondary" size="sm" onClick={schliessen}>Abbrechen</Button>
         </div>
       }
     >
@@ -78,7 +95,7 @@ export function PhaseLoeschenDialog({
                 </span>
                 <select
                   value={ziel} className={feldKlasse} style={feldStil}
-                  onChange={e => setZiel(e.target.value)}
+                  onChange={e => setWahl(e.target.value)}
                 >
                   {andere.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
                   <option value={OHNE}>Ohne Phase (läuft neben dem Verfahren)</option>

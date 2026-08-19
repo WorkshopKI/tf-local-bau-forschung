@@ -40,8 +40,23 @@ describe('ruhende Kürzel — Ableitung', () => {
 
   it('hält kanonische Felder wach — sie laufen nicht über das Spalten-Mapping', () => {
     const f = feld({ feldId: 'status', typ: 'wert' });
-    const hat = hatSpalteAus(new Map());
+    // Eine BELEGTE Map, die dieses Feld nicht führt: die leere Map ist seit
+    // v4.120 ein eigener Zustand („unbeantwortbar") und träfe hier nicht mehr
+    // die Aussage, die der Test prüfen will.
+    const hat = hatSpalteAus(spalten('D_AAE'));
     expect(ruhtFeld(f, hat(f))).toBe(false);
+  });
+
+  it('lässt ohne geladene Spalten NICHTS ruhen — leer heißt unbeantwortbar', () => {
+    // Vor dem ersten CSV-Import ist die Spalten-Map leer. Sie als „kein Kürzel
+    // hat eine Spalte" zu lesen erklärte 515 von 522 Kürzeln für ruhend und bot
+    // in derselben Sicht an, ihre Relevanz-Häkchen abzuräumen.
+    const hat = hatSpalteAus(new Map());
+    const f = feld({ feldId: 'D_YE', code: 'YE' });
+    expect(ruheGrund(f, hat(f))).toBeNull();
+    // Die ausdrückliche Kuration gilt trotzdem — sie braucht keine Beobachtung.
+    const still = feld({ feldId: 'D_INFOB', code: 'INFOB', ruht: true });
+    expect(ruheGrund(still, hat(still))).toBe('kuratiert');
   });
 });
 
@@ -70,7 +85,9 @@ describe('ruhende Kürzel — Mengen für die Konsumenten', () => {
 
   it('liefert die Codes NFC-normalisiert', () => {
     const mitUmlaut = [feld({ feldId: 'D_ÄA', code: 'ÄA'.normalize('NFD') })];
-    const codes = ruhendeCodes(mitUmlaut, hatSpalteAus(new Map()));
+    // Belegte Map ohne dieses Feld = „ruht, weil ungemappt". Die leere Map wäre
+    // seit v4.120 „unbeantwortbar" und ließe die Menge leer.
+    const codes = ruhendeCodes(mitUmlaut, hatSpalteAus(spalten('D_AAE')));
     expect(codes.has('ÄA'.normalize('NFC'))).toBe(true);
   });
 

@@ -19,6 +19,20 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.120 — 2026-08
+
+### Bugfixes
+- **„Ebenen" zeigt jetzt Ihren Entwurf.** Wer im Baum einen Statuswert umhängte, sah im Reiter daneben weiter die alten Zahlen — zwei Seiten desselben Bildschirms widersprachen sich, bis gespeichert wurde.
+- **„Neu berechnen" verwirft Ihre Arbeit nicht mehr.** Der Knopf frischt den Bestand auf; ungespeicherte Änderungen am Katalog blieben dabei bisher auf der Strecke, ohne Rückfrage und ohne Meldung.
+- **Der Lösch-Dialog schlug den Schritt vor, den er löscht.** Auf dem Bildschirm stand ein anderer Verfahrensschritt als der, an den die Statuswerte tatsächlich gingen.
+- **Ordner „Nicht zugeordnet" lässt sich nicht mehr entfernen.** Danach standen 340 Kürzel in keiner Liste mehr — ohne dass irgendwo stand, dass sie fehlen.
+- **Beim Tippen bleibt die Zeile stehen.** Kurzform-Feld und Reihenfolge im Ordner-Editor sprangen mitten im Wort weg bzw. schrieben beim Leeren eine 0.
+
+### Verbesserungen
+- **Zahlen sagen, was sie zählen.** Der Katalog nennt durchgängig 30 Statuswerte statt einmal 30 und einmal 60; am Verfahrensschritt steht „Vorkommen" statt „Vorgänge"; Filter-Chips tragen ihre Trefferzahl und sind ausgegraut, wenn sie nichts treffen.
+- **Die Suche im Katalog halbiert keine Zeile mehr.** Ein Suchwort wie „verbund" zeigte vorher nur noch die halben Vorkommen und die halbe Ebene.
+- **Die Arbeitsliste sagt jetzt „folgt dem Code".** Der Hinweis „folgt dem Verfahrensschritt" lud zu einem Umhängen ein, das an ihr nichts ändert.
+
 ## v4.119 — 2026-08
 
 ### Bugfixes

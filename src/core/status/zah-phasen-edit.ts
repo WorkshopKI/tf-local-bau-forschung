@@ -116,13 +116,25 @@ export function ohneVerwaiste(v: VerwaisteZuordnungen): boolean {
  * `null` zählt ausdrücklich nicht mit: das ist die gepflegte Aussage „läuft
  * neben dem Verfahren", kein Verweis ins Leere. Ebenso `undefined` („noch nicht
  * zugeordnet", greift auf die Auslieferung zurück).
+ *
+ * **Gezählt werden Status, keine Katalogzeilen.** Derselbe Code steht unter
+ * `status` und `verbund_status`; ihn zweimal zu zählen ergab systematisch die
+ * doppelte Zahl gegenüber dem Baum daneben, der Codes zeigt (dieselbe Einheit
+ * wie `zaehleStatus`). Werte ohne Code bleiben für sich — dort ist die Zeile
+ * der Status.
  */
 export function verwaisteZuordnungen(version: MappingVersion): VerwaisteZuordnungen {
   const bekannt = new Set(zahPhasenVon(version.zahPhasen).map(p => p.id));
   const verwaist = (id: ZahPhaseId | null | undefined): boolean =>
     id !== undefined && id !== null && !bekannt.has(id);
+  const codes = new Set<number>();
+  let ohneCode = 0;
+  for (const w of version.werte) {
+    if (!verwaist(w.zahPhaseId)) continue;
+    if (w.code === undefined) ohneCode += 1; else codes.add(w.code);
+  }
   return {
-    werte: version.werte.filter(w => verwaist(w.zahPhaseId)).length,
+    werte: codes.size + ohneCode,
     felder: version.felder.filter(f => verwaist(f.zahPhaseId)).length,
   };
 }
@@ -193,6 +205,10 @@ export function entferneZahPhase(
   if (!bestand.some(p => p.id === id)) return version;
   if (bestand.length <= MIN_PHASEN) return version;
   if (zielId !== null && !bestand.some(p => p.id === zielId)) return version;
+  // Die zu löschende Phase als Ziel ist kein Umhängen, sondern Verwaisen mit
+  // Extraschritt: die Werte behielten eine Id, die es gleich nicht mehr gibt.
+  // Der Prüfung oben entgeht das, weil `id` im Bestand ja noch steht.
+  if (zielId === id) return version;
 
   return {
     ...version,
