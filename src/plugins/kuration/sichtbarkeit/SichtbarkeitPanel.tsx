@@ -2,33 +2,42 @@
  * „Beta & Expertenmodus" — hier legt die Kuration fest, was nur mit
  * eingeschaltetem Schalter erscheint.
  *
+ * **Ein Baum, keine Liste** (v4.115): 192 Zeilen in 21 Kästen hießen, an
+ * neunzig Zeilen vorbeizuscrollen, um eine zu finden. Zugeklappt sind es 21
+ * Zeilen; die Seite trägt ihre eigenen Marken und ist zugleich der Ordner ihrer
+ * Reiter, Abschnitte und Karten. An einer zugeklappten Seite steht, wie viel
+ * darunter markiert ist — sonst müsste man jede öffnen, um das zu sehen.
+ *
  * Zwei Marken je Zeile statt eines Vierfach-Wählers: Reife (`Beta`) und
- * Zielgruppe (`Experte`) sind zwei Aussagen, keine vier Zustände. Die
- * Kombination liest sich dann von selbst — „neu und für Profis" ist beides
- * angehakt, nicht ein eigener Eintrag in einer Liste.
+ * Zielgruppe (`Experte`) sind zwei Aussagen, keine vier Zustände.
  *
  * Gespeichert werden nur ABWEICHUNGEN von der Code-Vorbelegung
- * (`_intern/sichtbarkeit.json`); deshalb hat jede geänderte Zeile ein „Vorgabe"
- * daneben und die Kopfzeile ein globales Zurücksetzen. Geschrieben wird auf den
- * Daten-Share, also gated über `canWriteDatenShare()` (Pitfall #25) und
- * `requireOnline()`.
+ * (`_intern/sichtbarkeit.json`); deshalb hat jede geänderte Zeile ein
+ * Rückstell-Zeichen und die Nebenspalte ein globales Zurücksetzen. Geschrieben
+ * wird auf den Daten-Share, also gated über `canWriteDatenShare()`
+ * (Pitfall #25) und `requireOnline()`.
  */
-import { useMemo } from 'react';
-import { RotateCcw } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { ChevronsDownUp, ChevronsUpDown, Lock, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ToggleChip } from '@/components/ui/ToggleChip';
+import { TfTree, type TfTreeNodeRenderProps } from '@/components/tree';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useProfile } from '@/core/hooks/useProfile';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { useSmbStatus } from '@/core/hooks/useSmbStatus';
 import { canWriteDatenShare } from '@/config/feature-flags';
 import {
-  SICHTBARKEITS_KATALOG, baueIndex, bilanziere, effektiveMarken, markenGleich,
+  SICHTBARKEITS_KATALOG, baueIndex, bilanziere, effektiveMarken, istMarkiert, markenGleich,
   useSichtbarkeitStore, type KatalogEintrag, type Marken,
 } from '@/core/sichtbarkeit';
 import { SettingsGruppe, SettingsKlappe, SettingsOption, SettingsZweiSpalten } from '@/components/settings';
+import {
+  baueSichtbarkeitsBaum, kinderEintraege, type SichtbarkeitsKnoten,
+} from './sichtbarkeitBaum';
 
 const INDEX = baueIndex(SICHTBARKEITS_KATALOG);
+const BAUM = baueSichtbarkeitsBaum(SICHTBARKEITS_KATALOG);
 
 const ART_WORT: Record<KatalogEintrag['art'], string> = {
   seite: 'Seite',
@@ -37,39 +46,17 @@ const ART_WORT: Record<KatalogEintrag['art'], string> = {
   widget: 'Widget',
 };
 
-/** Reiter vor Abschnitten, Seite immer zuerst — die Zeile liest sich als Weg. */
-const ART_RANG: Record<KatalogEintrag['art'], number> = {
-  seite: 0, reiter: 1, abschnitt: 2, widget: 3,
-};
-
-interface Gruppe {
-  key: string;
-  titel: string;
-  eintraege: KatalogEintrag[];
-}
-
 /**
- * Ein Kasten je Seite, plus einer für die Startseiten-Widgets.
+ * Der An-Zustand trägt Fläche, nicht nur einen etwas kräftigeren Rand.
  *
- * Die Widgets tragen `seite: 'home'`, stehen aber bewusst getrennt: sie haben
- * eine eigene Verwaltung und eine persönliche Anordnung, und in der Home-Gruppe
- * verschwänden sechzehn Zeilen hinter zwei.
+ * **Beta** nimmt die Farbe des Abzeichens, das es erzeugt (`Badge variant="info"`
+ * in `BetaBadge`) — die Leiste ist damit ihre eigene Legende. **Experte** erzeugt
+ * kein Abzeichen und hat deshalb keine Farbe zu borgen; es nimmt die neutrale
+ * Vollfüllung. Der Aus-Zustand bleibt in beiden Fällen ein bloßer Umriss, und
+ * genau dieser Sprung fehlte vorher: getönte Fläche gegen `bg-secondary` war auf
+ * dem Schirm kaum zu unterscheiden.
  */
-function baueGruppen(): Gruppe[] {
-  const seiten = SICHTBARKEITS_KATALOG.filter(e => e.art === 'seite');
-  const gruppen: Gruppe[] = seiten.map(s => ({
-    key: s.seite,
-    titel: s.label,
-    eintraege: SICHTBARKEITS_KATALOG
-      .filter(e => e.seite === s.seite && e.art !== 'widget')
-      .sort((a, b) => ART_RANG[a.art] - ART_RANG[b.art]),
-  }));
-  const widgets = SICHTBARKEITS_KATALOG.filter(e => e.art === 'widget');
-  if (widgets.length > 0) {
-    gruppen.push({ key: '__widgets', titel: 'Startseiten-Widgets', eintraege: widgets });
-  }
-  return gruppen;
-}
+const BETA_TONUNG = { text: 'var(--tf-info-text)', flaeche: 'var(--tf-info-bg)' } as const;
 
 export function SichtbarkeitPanel(): React.ReactElement {
   const storage = useStorage();
@@ -84,7 +71,11 @@ export function SichtbarkeitPanel(): React.ReactElement {
   const canWrite = canWriteDatenShare(isKurator);
   const autor = profile?.name;
 
-  const gruppen = useMemo(baueGruppen, []);
+  // Zugeklappt starten: der Überblick ist der Zweck der Seite, nicht die
+  // einzelne Zeile.
+  const [offen, setOffen] = useState<string[]>([]);
+  const alleOffen = offen.length >= BAUM.ordnerIds.length;
+
   const bilanz = useMemo(() => bilanziere(SICHTBARKEITS_KATALOG, overlay), [overlay]);
 
   const schreiben = useAsyncAction(async (fn: () => Promise<boolean>) => {
@@ -100,22 +91,42 @@ export function SichtbarkeitPanel(): React.ReactElement {
   return (
     <SettingsZweiSpalten
       haupt={
-        <>
-          {gruppen.map(g => (
-            <SettingsGruppe key={g.key} titel={g.titel}>
-              {g.eintraege.map(e => (
-                <Zeile
-                  key={e.id}
-                  eintrag={e}
-                  gilt={effektiveMarken(e.id, INDEX, overlay)}
+        <SettingsGruppe
+          titel="Katalog"
+          unterzeile="Eine Seite nimmt ihre Reiter, Abschnitte und Karten mit — die brauchen dann keine eigene Marke."
+          aktion={
+            <Button
+              variant="ghost"
+              size="sm"
+              icon={alleOffen ? ChevronsDownUp : ChevronsUpDown}
+              onClick={() => setOffen(alleOffen ? [] : [...BAUM.ordnerIds])}
+            >
+              {alleOffen ? 'Alles zuklappen' : 'Alles aufklappen'}
+            </Button>
+          }
+        >
+          <TfTree<SichtbarkeitsKnoten>
+            items={BAUM.items}
+            rootId={BAUM.rootId}
+            label="Sichtbarkeits-Katalog"
+            className="max-h-[68vh] overflow-y-auto pr-1"
+            expandedItems={offen}
+            onExpandedChange={setOffen}
+            slots={{
+              label: p => <Beschriftung p={p} />,
+              trailing: p => (
+                <Rechts
+                  p={p}
+                  offen={offen.includes(p.id)}
+                  overlay={overlay}
                   canWrite={canWrite}
-                  onSetze={marken => setze(e.id, marken)}
-                  onVorgabe={() => schreiben.run(() => zuruecksetzen(storage.idb, e.id, autor))}
+                  onSetze={setze}
+                  onVorgabe={id => schreiben.run(() => zuruecksetzen(storage.idb, id, autor))}
                 />
-              ))}
-            </SettingsGruppe>
-          ))}
-        </>
+              ),
+            }}
+          />
+        </SettingsGruppe>
       }
       neben={
         <>
@@ -182,7 +193,7 @@ export function SichtbarkeitPanel(): React.ReactElement {
             </p>
             <p className="mt-2 text-[12.5px] leading-[1.55] text-[var(--tf-text-secondary)]">
               Eine markierte Seite nimmt ihre Reiter und Abschnitte mit; die brauchen
-              dann keine eigene Marke. Gesperrte Zeilen sind die Wege zu den Schaltern
+              dann keine eigene Marke. Zeilen mit Schloss sind die Wege zu den Schaltern
               selbst — wären sie ausblendbar, gäbe es keinen Rückweg.
             </p>
           </SettingsKlappe>
@@ -207,62 +218,129 @@ function anzahlAbweichungen(overlay: ReadonlyMap<string, Marken>): number {
   return n;
 }
 
-function Zeile({
-  eintrag, gilt, canWrite, onSetze, onVorgabe,
+/** Beschriftung + Art als leiser Zusatz — der Einzug allein sagt nicht, WAS die Zeile ist. */
+function Beschriftung({ p }: { p: TfTreeNodeRenderProps<SichtbarkeitsKnoten> }): React.ReactElement {
+  const daten = p.data;
+  if (daten.art !== 'eintrag') {
+    return <span className="min-w-0 truncate text-[12.5px] font-medium text-[var(--tf-text)]">{p.name}</span>;
+  }
+  const e = daten.eintrag;
+  return (
+    <span className="flex min-w-0 items-baseline gap-2">
+      <span
+        className={`min-w-0 truncate text-[12.5px] ${
+          e.art === 'seite' ? 'font-medium text-[var(--tf-text)]' : 'text-[var(--tf-text)]'
+        }`}
+      >
+        {e.label}
+      </span>
+      <span className="shrink-0 text-[11px] text-[var(--tf-text-tertiary)]">{ART_WORT[e.art]}</span>
+      {e.unantastbar === true && (
+        <Lock
+          size={11}
+          className="shrink-0 text-[var(--tf-text-tertiary)]"
+          aria-label="Immer sichtbar"
+        />
+      )}
+    </span>
+  );
+}
+
+/**
+ * Rechte Seite der Zeile: die beiden Marken, das Rückstell-Zeichen — und an
+ * einem ZUGEKLAPPTEN Ordner, wie viel darunter markiert ist.
+ *
+ * Interaktive Elemente hier brauchen `stopPropagation`, sonst klappt der
+ * Zeilen-Klick den Zweig auf (tree-komponenten.md).
+ */
+function Rechts({
+  p, offen, overlay, canWrite, onSetze, onVorgabe,
 }: {
-  eintrag: KatalogEintrag;
-  gilt: Marken;
+  p: TfTreeNodeRenderProps<SichtbarkeitsKnoten>;
+  offen: boolean;
+  overlay: ReadonlyMap<string, Marken>;
   canWrite: boolean;
-  onSetze: (marken: Marken) => void;
-  onVorgabe: () => void;
-}): React.ReactElement {
-  const abweichend = !markenGleich(gilt, eintrag.marken);
-  const gesperrt = eintrag.unantastbar === true || !canWrite;
-  const grund = eintrag.unantastbar
+  onSetze: (id: string, marken: Marken) => void;
+  onVorgabe: (id: string) => void;
+}): React.ReactElement | null {
+  const daten = p.data;
+  const zusammenfassung = p.isFolder && !offen
+    ? markiertDarunter(p.id, overlay)
+    : null;
+
+  if (daten.art !== 'eintrag') {
+    return zusammenfassung;
+  }
+
+  const e = daten.eintrag;
+  const gilt = effektiveMarken(e.id, INDEX, overlay);
+  const abweichend = !markenGleich(gilt, e.marken);
+  const gesperrt = e.unantastbar === true || !canWrite;
+  const grund = e.unantastbar
     ? 'Über diesen Weg erreicht man die Schalter selbst — er bleibt immer sichtbar.'
     : !canWrite
       ? 'Nur mit aktiver Kurator-Sitzung änderbar.'
       : undefined;
 
   return (
-    <SettingsOption
-      label={eintrag.label}
-      gesperrt={eintrag.unantastbar === true}
-      kurzzeile={
-        <span className="inline-flex items-center gap-2">
-          <span>{ART_WORT[eintrag.art]}</span>
-          {abweichend && (
-            <button
-              type="button"
-              className="text-[var(--tf-primary)] hover:underline cursor-pointer"
-              onClick={onVorgabe}
-              title={`Vorgabe: ${beschreibe(eintrag.marken)}`}
-            >
-              zurück auf Vorgabe ({beschreibe(eintrag.marken)})
-            </button>
-          )}
-        </span>
-      }
+    <span
+      className="flex shrink-0 items-center gap-1.5"
+      onClick={ev => ev.stopPropagation()}
+      role="presentation"
     >
-      <span className="inline-flex items-center gap-1.5">
-        <ToggleChip
-          form="marke"
-          label="Beta"
-          selected={gilt.beta === true}
-          disabled={gesperrt}
-          title={grund ?? 'In Erprobung — kann sich noch ändern'}
-          onToggle={() => onSetze(umschalten(gilt, 'beta'))}
-        />
-        <ToggleChip
-          form="marke"
-          label="Experte"
-          selected={gilt.experte === true}
-          disabled={gesperrt}
-          title={grund ?? 'Selten gebrauchtes Tiefen-Werkzeug'}
-          onToggle={() => onSetze(umschalten(gilt, 'experte'))}
-        />
-      </span>
-    </SettingsOption>
+      {zusammenfassung}
+      {abweichend && (
+        <button
+          type="button"
+          className="inline-flex h-[22px] w-[22px] items-center justify-center rounded-[5px]
+            text-[var(--tf-primary)] hover:bg-[var(--tf-hover)] cursor-pointer"
+          onClick={() => onVorgabe(e.id)}
+          title={`Zurück auf die Vorgabe: ${beschreibe(e.marken)}`}
+          aria-label={`Zurück auf die Vorgabe: ${beschreibe(e.marken)}`}
+        >
+          <RotateCcw size={12} />
+        </button>
+      )}
+      <ToggleChip
+        form="marke"
+        label="Beta"
+        selected={gilt.beta === true}
+        disabled={gesperrt}
+        tonung={BETA_TONUNG}
+        title={grund ?? 'In Erprobung — kann sich noch ändern'}
+        onToggle={() => onSetze(e.id, umschalten(gilt, 'beta'))}
+      />
+      <ToggleChip
+        form="marke"
+        label="Experte"
+        variant="dark"
+        selected={gilt.experte === true}
+        disabled={gesperrt}
+        title={grund ?? 'Selten gebrauchtes Tiefen-Werkzeug'}
+        onToggle={() => onSetze(e.id, umschalten(gilt, 'experte'))}
+      />
+    </span>
+  );
+}
+
+/**
+ * „3 markiert" an der zugeklappten Seite. Ohne sie müsste man jede der 21
+ * Seiten öffnen, um zu sehen, wo überhaupt etwas steht — und genau das Scrollen
+ * sollte der Baum abschaffen.
+ */
+function markiertDarunter(
+  ordnerId: string, overlay: ReadonlyMap<string, Marken>,
+): React.ReactElement | null {
+  const kinder = kinderEintraege(BAUM, ordnerId);
+  const n = kinder.filter(k => istMarkiert(effektiveMarken(k.id, INDEX, overlay))).length;
+  if (n === 0) return null;
+  return (
+    <span
+      className="shrink-0 text-[11px] tabular-nums text-[var(--tf-text-tertiary)]"
+      title={`${n} von ${kinder.length} Einträgen darunter tragen eine Marke`}
+    >
+      {n} markiert
+    </span>
   );
 }
 

@@ -1,4 +1,4 @@
-# Beta-Funktionen & Expertenmodus (v4.114)
+# Beta-Funktionen & Expertenmodus (v4.115)
 
 Die App ist über 19 Plugins, ~75 Reiter, ~68 Abschnitte und 16 Startseiten-Widgets gewachsen.
 Vieles davon ist Erprobung oder Tiefenwerkzeug, stand aber gleichberechtigt neben dem
@@ -152,6 +152,30 @@ löschen. Audit-Eintrag: `sichtbarkeit_geaendert`.
 
 Geladen wird zweistufig, wie beim Status-Katalog: beim Start aus dem IDB-Cache (gilt sofort, auch
 offline und vor dem Ordner-Picker), nach dem Permission-Grant noch einmal vom Share.
+
+### Die Oberfläche: ein Baum, kein Stapel Kästen
+
+192 Zeilen in 21 Kästen hießen, an neunzig Zeilen vorbeizuscrollen, um eine zu finden. Seit v4.115
+ist es ein `TfTree` ([sichtbarkeitBaum.ts](../../src/plugins/kuration/sichtbarkeit/sichtbarkeitBaum.ts)) —
+**zugeklappt 21 Zeilen auf 490 px, also eine Bildschirmhöhe ohne Seiten-Scroll**. Vier Entscheidungen
+dabei:
+
+- **Die Seite ist ihr eigener Ordner.** Sie ist ein Katalog-Eintrag wie jeder andere und trägt
+  deshalb Marken in derselben Zeile, in der ihr Chevron sitzt. Eine Seite ohne Reiter oder
+  Abschnitte ist **kein** Ordner — ein Chevron, das nichts aufklappt, verspricht etwas.
+- **Zugeklappt steht „N markiert" an der Zeile.** Ohne diese Zahl müsste man jede der 21 Seiten
+  öffnen, um zu sehen, wo überhaupt etwas steht — und genau das Scrollen sollte der Baum abschaffen.
+- **Der An-Zustand trägt Fläche.** `Beta` nimmt die Farbe des Abzeichens, das es erzeugt
+  (`Badge variant="info"`, 6,3:1), `Experte` die neutrale Vollfüllung (19,5:1); der Aus-Zustand
+  bleibt ein bloßer Umriss (5,3:1). Vorher war der An-Zustand eine `bg-secondary`-Tönung gegen einen
+  Hauch kräftigeren Rand — auf dem Schirm kaum zu unterscheiden. Zwei verschiedene An-Bilder sind
+  hier richtig, nicht inkonsequent: `Beta` hat ein sichtbares Abzeichen in der App, `Experte` nicht,
+  und die Leiste ist damit ihre eigene Legende.
+- **Der Rückstell-Weg ist ein Zeichen, kein Satz.** „zurück auf Vorgabe (Standard)" sprengte die
+  Zeile; jetzt steht dort ein Pfeil-Knopf, dessen `title` die Vorgabe nennt.
+
+Interaktive Elemente im `trailing`-Slot brauchen `stopPropagation` — sonst klappt der Klick auf
+einen Marken-Chip zugleich den Zweig auf (tree-komponenten.md).
 
 ## Vorbelegung (Stand v4.114)
 

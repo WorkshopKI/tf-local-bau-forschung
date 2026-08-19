@@ -66,6 +66,7 @@ Zwei Regeln dabei:
 | Textbaustein-Katalog | [bausteinBaum.ts](../../src/plugins/skill-verwaltung-kuration/bausteinBaum.ts) | Gruppen nach kleinster Id statt Alphabet; `canDrop` sperrt Bereich-, Überkategorie- und Scope-Wechsel |
 | Status-Ordnerbaum | [kategorieBaum.ts](../../src/plugins/status-cockpit/kategorieBaum.ts) | Verbund und Teilvorhaben bleiben getrennte Bäume; Regeln aus `ordnerDrag.ts` |
 | Meilenstein-Konfiguration | [meilensteinBaum.ts](../../src/plugins/meilensteine/meilensteinBaum.ts) | Waisen hängen an der Wurzel; Umhängen über `haengeKnotenUm` |
+| Sichtbarkeits-Katalog | [sichtbarkeitBaum.ts](../../src/plugins/kuration/sichtbarkeit/sichtbarkeitBaum.ts) | Der Ordner ist selbst ein Eintrag (die Seite trägt eigene Marken); zugeklappt zeigt seine Zeile, wie viel darunter markiert ist |
 
 Das Muster ist überall dasselbe: **der Adapter ist rein und UI-frei**, und die fachlichen Regeln (darf hier abgelegt werden, wen trifft ein Umbenennen) liegen bei den Daten — `darfAblegen` in [ordnerDrag.ts](../../src/plugins/status-cockpit/ordnerDrag.ts), `darfUmhaengen`/`haengeKnotenUm` in [knoten-edit.ts](../../src/core/meilensteine/knoten-edit.ts), `darfVerschieben` in `bausteinBaum.ts`. Im Component wird keine davon nachgebaut.
 

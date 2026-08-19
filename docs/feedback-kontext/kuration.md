@@ -42,9 +42,13 @@ Selten Gebrauchtes steht eingeklappt: Modellwahl und Suchqualitäts-Einstellunge
 ## Sichtbarkeit
 Hier steht, was nur mit eingeschalteten Beta-Funktionen oder eingeschaltetem Expertenmodus erscheint. Die Festlegung gilt team-weit; ob jemand die Schalter umlegt, entscheidet er in seinem Profil.
 
-Der Baum führt jede Seite mit ihren Reitern, Abschnitten und einzelnen Karten auf, dazu die Startseiten-Widgets. Karten sind die Blöcke mit eigener Überschrift auf den großen Fachseiten — etwa „Statistik-Übersicht" in der Auslastung oder „Fristrisiko" im Vorgangs-Board. Jede Zeile trägt zwei Marken: „Beta" heißt, es funktioniert, kann sich aber noch ändern. „Experte" heißt, es ist ausgereift, aber selten gebraucht. Beide zusammen heißt neu und tief — dann müssen auch beide Schalter an sein.
+Der Baum zeigt zunächst nur die Seiten — eine Zeile je Seite, alles auf einem Bildschirm. Ein Klick auf das Dreieck klappt eine Seite auf und zeigt ihre Reiter, Abschnitte und einzelnen Karten; „Alles aufklappen" oben öffnet alle auf einmal. Karten sind die Blöcke mit eigener Überschrift auf den großen Fachseiten — etwa „Statistik-Übersicht" in der Auslastung oder „Fristrisiko" im Vorgangs-Board. Die Startseiten-Widgets stehen am Ende unter einem eigenen Eintrag.
 
-Rechts stehen die Zähler nach Standard, nur Beta, nur Experte und beides, darunter das Zurücksetzen auf die mitgelieferte Vorbelegung. Gespeichert werden nur Abweichungen davon; eine geänderte Zeile bekommt deshalb ein „zurück auf Vorgabe" mit dem ursprünglichen Wert daneben.
+An einer zugeklappten Seite steht rechts, wie viel darunter markiert ist („3 markiert") — so sieht man ohne Aufklappen, wo überhaupt etwas festgelegt wurde.
+
+Jede Zeile trägt zwei Marken: „Beta" heißt, es funktioniert, kann sich aber noch ändern; eingeschaltet ist die Marke blau ausgefüllt, in derselben Farbe wie das „Beta"-Abzeichen in der App. „Experte" heißt, es ist ausgereift, aber selten gebraucht; eingeschaltet ist die Marke dunkel ausgefüllt. Ausgeschaltet sind beide nur ein feiner Umriss. Beide zusammen heißt neu und tief — dann müssen auch beide Schalter an sein.
+
+Rechts stehen die Zähler nach Standard, nur Beta, nur Experte und beides, darunter das Zurücksetzen auf die mitgelieferte Vorbelegung. Gespeichert werden nur Abweichungen davon; eine geänderte Zeile bekommt deshalb einen kleinen Rückstell-Pfeil, der die ursprüngliche Festlegung nennt.
 
 Einige Zeilen sind gesperrt: über sie erreicht man die Schalter selbst, den Kurator-Zugang und die Modul-Freischaltung. Wären sie ausblendbar, gäbe es keinen Weg zurück. Eine markierte Seite nimmt ihre Reiter und Abschnitte ohnehin mit — die brauchen dann keine eigene Marke.
 
