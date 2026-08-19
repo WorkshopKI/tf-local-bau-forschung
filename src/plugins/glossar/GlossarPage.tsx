@@ -21,6 +21,7 @@ import { Search, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { ScopeTabs } from '@/components/ui/ScopeTabs';
+import { useSichtbareReiter } from '@/core/hooks/useSichtbar';
 import { SeitenHilfeButton } from '@/components/help/SeitenHilfeButton';
 import { MasterDetailLayout, fokusIstTippziel } from '@/components/master-detail';
 import { GLOSSAR_BEGRIFFE } from '@/core/glossar';
@@ -66,6 +67,25 @@ export function GlossarPage(): React.ReactElement {
     () => kuerzel.filter(z => passtKuerzel(z, begriff)),
     [kuerzel, begriff],
   );
+  // Bis v4.111 stand die Reiter-Liste inline im JSX; sie steht jetzt als Array
+  // da, damit die Beta/Experte-Marken einen Schlüssel zum Filtern haben.
+  const alleTabs = [
+    { key: 'nachschlagen', label: 'Nachschlagen' },
+    {
+      // Die Zahl ist eine Zusage: sie zählt, was der Reiter unter der
+      // laufenden Suche zeigt — nicht den ganzen Kürzel-Bestand.
+      key: 'rolle', label: 'Für meine Rolle wichtig',
+      count: kuerzelGefiltert.length,
+      disabled: kuerzel.length === 0,
+      title: kuerzel.length === 0
+        ? 'Ohne geladenen Katalog gibt es keine Kürzel'
+        : 'Die Kürzel einer Fachrolle, nach Vorkommen im Bestand',
+    },
+  ];
+  const sichtbareTabs = useSichtbareReiter(
+    'glossar', alleTabs, t => t.key, sicht, k => setSicht(k as Sicht),
+  );
+
   // Einmal je Fassung, nicht je Kürzel-Detail: `bedingungFeldRefs` läuft
   // rekursiv über jeden Bedingungsbaum.
   const regeln = useMemo(() => (version === null ? [] : regelZeilen(version)), [version]);
@@ -182,19 +202,7 @@ export function GlossarPage(): React.ReactElement {
             aria-label="Sicht"
             activeKey={sicht}
             onChange={k => setSicht(k as Sicht)}
-            items={[
-              { key: 'nachschlagen', label: 'Nachschlagen' },
-              {
-                // Die Zahl ist eine Zusage: sie zählt, was der Reiter unter der
-                // laufenden Suche zeigt — nicht den ganzen Kürzel-Bestand.
-                key: 'rolle', label: 'Für meine Rolle wichtig',
-                count: kuerzelGefiltert.length,
-                disabled: kuerzel.length === 0,
-                title: kuerzel.length === 0
-                  ? 'Ohne geladenen Katalog gibt es keine Kürzel'
-                  : 'Die Kürzel einer Fachrolle, nach Vorkommen im Bestand',
-              },
-            ]}
+            items={sichtbareTabs}
           />
         </div>
         {version === null && !laden && (

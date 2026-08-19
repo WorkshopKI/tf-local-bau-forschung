@@ -8,6 +8,7 @@
 import { MasterDetailLayout } from '@/components/master-detail';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { ScopeTabs } from '@/components/ui/ScopeTabs';
+import { useSichtbareReiter } from '@/core/hooks/useSichtbar';
 import { useState } from 'react';
 import { EinreichungListe } from './components/EinreichungListe';
 import { PortfolioDemo } from './components/PortfolioDemo';
@@ -21,6 +22,15 @@ export function MapPage(): React.ReactElement {
     waehle, importiere, entferne,
   } = useMapEinreichungen();
   const [bereich, setBereich] = useState('einreichungen');
+  // Bis v4.111 stand die Liste inline im JSX; als Array hat sie den Schlüssel,
+  // den die Beta/Experte-Marken zum Filtern brauchen.
+  const alleTabs = [
+    { key: 'einreichungen', label: 'Einreichungen', count: einreichungen.length },
+    { key: 'portfolio', label: 'Portfolio (Prinzipansicht)' },
+  ];
+  const sichtbareTabs = useSichtbareReiter(
+    'map-foerderfaehig', alleTabs, t => t.key, bereich, setBereich,
+  );
 
   return (
     <div className="flex flex-col h-full min-h-0">
@@ -31,10 +41,7 @@ export function MapPage(): React.ReactElement {
           actions={<SeitenHilfeButton pluginId="map-foerderfaehig" />}
         />
         <ScopeTabs
-          items={[
-            { key: 'einreichungen', label: 'Einreichungen', count: einreichungen.length },
-            { key: 'portfolio', label: 'Portfolio (Prinzipansicht)' },
-          ]}
+          items={sichtbareTabs}
           activeKey={bereich}
           onChange={setBereich}
           aria-label="Bereich"

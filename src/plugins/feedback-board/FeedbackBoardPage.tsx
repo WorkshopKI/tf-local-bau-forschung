@@ -29,6 +29,7 @@ import { useMeineFeedbackIdentitaet } from '@/core/hooks/useMeineFeedbackIdentit
 import { MasterDetailLayout } from '@/components/master-detail';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { ScopeTabs } from '@/components/ui/ScopeTabs';
+import { useSichtbareReiter } from '@/core/hooks/useSichtbar';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { DarstellungDropdown } from '@/components/ui/DarstellungDropdown';
@@ -233,6 +234,14 @@ export function FeedbackBoardPage(): React.ReactElement {
         : undefined,
     };
   }), [views, basis, smartCtx]);
+
+  // Beta/Experte: heute trägt keine der Sichten eine Marke — die
+  // Entwickler-Sichten hängen bereits an der Rolle, eine zweite Abfrage daneben
+  // wäre dieselbe Aussage doppelt. Verdrahtet ist es trotzdem, damit eine
+  // spätere Kuration wirkt statt ins Leere zu gehen.
+  const sichtbareViewItems = useSichtbareReiter(
+    'feedback-board', viewItems, v => v.key, view.key, setViewKey,
+  );
 
   // Wählbare Zuständige: wer im Bestand schon vorkommt (Autoren + bereits
   // Zugewiesene). Bewusst kein Personen-Verzeichnis — das Feedback-System kennt
@@ -472,7 +481,7 @@ export function FeedbackBoardPage(): React.ReactElement {
         <div className="mb-3">
           <ScopeTabs
             variant="pills-solid"
-            items={viewItems}
+            items={sichtbareViewItems}
             activeKey={view.key}
             onChange={setViewKey}
             aria-label="Sicht"

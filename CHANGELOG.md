@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.112.0 — Beta-Funktionen und Expertenmodus (August 2026)
+
+MINOR — 19 Plugins, ~75 Reiter, ~68 Abschnitte, 16 Widgets: vieles davon ist Erprobung oder Tiefenwerkzeug und stand doch gleichberechtigt neben dem Tagesgeschäft. Eine vierte Sichtbarkeits-Achse räumt auf — sie beantwortet „will ich das sehen?", nicht „darf ich das?".
+
+- **Zwei unabhängige Marken, UND-verknüpft** — Reife (`beta`) und Zielgruppe (`experte`); was beides trägt, braucht beide Schalter. Eine einzige Stufe hätte „neu für alle" und „neu für Profis" in denselben Topf geworfen ([sichtbarkeitsstufen.md](docs/architecture/sichtbarkeitsstufen.md), Pitfall #54)
+- **Zwei Schalter im Profil** (beide aus), mit Zähler, der den echten Zugewinn im aktuellen Stand des anderen nennt ([UmfangGruppe.tsx](src/plugins/einstellungen/profil/UmfangGruppe.tsx))
+- **Kurator-GUI „Sichtbarkeit"** im Datenpflege-Hub: Baum aus Seite → Reiter → Abschnitt plus Widgets, zwei Marken je Zeile, Abweichungs-Sidecar `_intern/sichtbarkeit.json` über der Code-Vorbelegung ([SichtbarkeitPanel.tsx](src/plugins/kuration/sichtbarkeit/SichtbarkeitPanel.tsx))
+- **173 Einträge vorbelegt**, 43 markiert (20 Beta, 19 Experte, 4 beides) — mit beiden Schaltern aus verschwinden 7 der 18 Nav-Einträge samt ihrer Reiter ([katalog.ts](src/core/sichtbarkeit/katalog.ts))
+- Sieben Guards halten die Regeln: eine Frage-Stelle, keine Doppelmarke, Unantastbares unantastbar, keine Seite ohne Reiter ([katalog-konventionen.test.ts](src/core/sichtbarkeit/__tests__/katalog-konventionen.test.ts))
+
 ### v4.111.0 — Die Suchseite haelt ihre Zusagen (August 2026)
 
 MINOR — Aus der erschöpfenden Bug-Jagd auf der Suchseite: sieben Befunde, alle gemessen und adversarisch geprüft. Gemeinsamer Nenner — die Seite sagte etwas zu („die häufigsten fünf", „+385 seit zuletzt", „422 Treffer"), das an der Stelle daneben nicht galt.

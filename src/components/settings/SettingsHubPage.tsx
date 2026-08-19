@@ -12,9 +12,12 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { SeitenHilfeButton } from '@/components/help/SeitenHilfeButton';
+import { useSichtbar } from '@/core/hooks/useSichtbar';
+import { abschnittId, reiterId } from '@/core/sichtbarkeit';
 import { SettingsNav } from './SettingsNav';
 import { buildSearchIndex, type SettingsPanel } from './panels';
 import {
+  HubPluginContext,
   SettingsKopfStatusAnker,
   SettingsSprungProvider,
   type SettingsSprungZiel,
@@ -44,7 +47,7 @@ export function useHubNavigation(): HubNavigation {
 export function SettingsHubPage({
   titel,
   pluginId,
-  panels,
+  panels: allePanels,
   hinweis,
 }: {
   /** Überschrift der Seite — auch die Vorlese-Beschriftung des Suchfelds. */
@@ -61,6 +64,19 @@ export function SettingsHubPage({
    */
   hinweis?: React.ReactNode;
 }): React.ReactElement {
+  // Beta/Experte: EIN Schnitt für beide Hubs. Panels sind Reiter, Abschnitte
+  // sind Abschnitte — und weil der Suchindex aus `panels` abgeleitet wird,
+  // fallen Navigation und Trefferliste automatisch mit. Die Karten selbst
+  // prüfen sich in `SettingsGruppe`/`SettingsOption` über denselben Kontext;
+  // beide Wege lesen dieselbe Id, können also nicht auseinanderlaufen.
+  const sichtbar = useSichtbar();
+  const panels = useMemo(
+    () => allePanels
+      .filter(p => sichtbar(reiterId(pluginId, p.id)))
+      .map(p => ({ ...p, sections: p.sections.filter(s => sichtbar(abschnittId(pluginId, s.id))) })),
+    [allePanels, pluginId, sichtbar],
+  );
+
   const [activePanel, setActivePanel] = useState(panels[0]?.id ?? '');
 
   // Sprung-Ziel der Suche/Deep-Links. Es steuert DREI Dinge: den Scroll hier,
@@ -130,6 +146,20 @@ export function SettingsHubPage({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams, panels]);
 
+  /**
+   * Ein Deep-Link auf einen Abschnitt, den die Schalter gerade ausblenden.
+   *
+   * Ohne diesen Zweig passierte schlicht nichts — der Link „funktioniert", nur
+   * ohne Wirkung, und der Nutzer sucht auf der falschen Seite. Der Hinweis sagt
+   * stattdessen, WAS fehlt und WOHER man es zurückholt.
+   */
+  const verborgenesZiel = useMemo(() => {
+    const sektion = searchParams.get('sektion');
+    if (!sektion) return null;
+    if (panels.some(p => p.sections.some(s => s.id === sektion))) return null;
+    return allePanels.flatMap(p => p.sections).find(s => s.id === sektion)?.label ?? null;
+  }, [searchParams, panels, allePanels]);
+
   // Scroll einen Tick nach dem Panel-Wechsel: erst dann ist das Ziel gemountet.
   // Bewusst `setTimeout` statt `requestAnimationFrame` — rAF ruht, solange das
   // Fenster nicht zeichnet (Hintergrund-Tab), der Sprung liefe dort ins Leere
@@ -171,6 +201,16 @@ export function SettingsHubPage({
 
       {hinweis != null && <div className="max-w-[1280px]">{hinweis}</div>}
 
+      {verborgenesZiel != null && (
+        <div
+          className="max-w-[1280px] mb-4 rounded-[var(--tf-radius)] px-3 py-2 text-[12.5px] leading-[1.5]"
+          style={{ background: 'var(--tf-info-bg)', color: 'var(--tf-info-text)' }}
+        >
+          Der gesuchte Abschnitt „{verborgenesZiel}" ist gerade ausgeblendet. Er erscheint,
+          sobald in „Mein Profil › Umfang der Oberfläche" der passende Schalter an ist.
+        </div>
+      )}
+
       <div className="grid grid-cols-[224px_1fr] items-start gap-0 max-w-[1280px]">
         <SettingsNav
           panels={panels}
@@ -193,11 +233,13 @@ export function SettingsHubPage({
             <div ref={setKopfStatusEl} className="ml-auto shrink-0 pt-0.5 empty:hidden" />
           </div>
           <HubNavigationContext.Provider value={hubNav}>
-            <SettingsKopfStatusAnker el={kopfStatusEl}>
-              <SettingsSprungProvider ziel={sprung}>
-                {active.render()}
-              </SettingsSprungProvider>
-            </SettingsKopfStatusAnker>
+            <HubPluginContext.Provider value={pluginId}>
+              <SettingsKopfStatusAnker el={kopfStatusEl}>
+                <SettingsSprungProvider ziel={sprung}>
+                  {active.render()}
+                </SettingsSprungProvider>
+              </SettingsKopfStatusAnker>
+            </HubPluginContext.Provider>
           </HubNavigationContext.Provider>
         </div>
       </div>

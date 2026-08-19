@@ -25,6 +25,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Info } from 'lucide-react';
 import { ScopeTabs } from '@/components/ui/ScopeTabs';
+import { useSichtbareReiter } from '@/core/hooks/useSichtbar';
 import type { WertIndex } from '@/plugins/antraege/services/wert-index';
 import type { GespeicherteSuche } from './gespeicherteSuchen';
 import {
@@ -139,12 +140,20 @@ export function SucheStartzustand({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- der nonce IST der Auslöser
   }, [gewuenschterReiter?.nonce]);
 
-  const reiter = baueStartReiter({
+  const alleReiter = baueStartReiter({
     zuletzt: letzte.length + haeufig.length + gespeichert.length,
     suchsprache: SUCHARTEN.length,
     fragen: FRAGEN.length,
     stoebern: wertIndex === null ? 0 : STOEBER_FELDER.length,
   }, mitFragen);
+  // Beta/Experte: „Fragen" ist als Beta vorbelegt, „Suchsprache" als Experten-
+  // Reiter (Feld-Syntax). Der Rückfall im Helfer greift auch für den GEMERKTEN
+  // Reiter aus dem localStorage — wer zuletzt in der Suchsprache stand und den
+  // Schalter auslässt, landet auf „Alle" statt vor einer leeren Leiste.
+  const reiter = useSichtbareReiter(
+    'suche', alleReiter, t => t.key, aktiv, k => waehle(k),
+  );
+  const zeigtReiter = (key: StartReiterId): boolean => reiter.some(r => r.key === key);
 
   const zuletzt = (max?: number): React.ReactElement => (
     <StartZuletzt
@@ -183,19 +192,26 @@ export function SucheStartzustand({
         </div>
 
         <div className="px-3 py-4" style={{ minHeight: PANEL_MIN_HOEHE }}>
+          {/* „Alle" ist die Kurzfassung der anderen Reiter — was dort verborgen
+              ist, darf hier nicht doch stehen. Sonst böte der Block ein „mehr"
+              auf einen Reiter an, den es gerade nicht gibt. */}
           {aktiv === 'alle' && (
             <div className="flex flex-col gap-6">
-              {zuletzt(KURZ)}
-              <StartSuchsprache onSuche={onSuche} max={KURZ} onMehr={() => waehle('suchsprache')} />
-              {onFrage && (
+              {zeigtReiter('zuletzt') && zuletzt(KURZ)}
+              {zeigtReiter('suchsprache') && (
+                <StartSuchsprache onSuche={onSuche} max={KURZ} onMehr={() => waehle('suchsprache')} />
+              )}
+              {onFrage && zeigtReiter('fragen') && (
                 <StartFragen onFrage={onFrage} max={KURZ} onMehr={() => waehle('fragen')} />
               )}
-              <StartStoebern
-                index={wertIndex}
-                onSuche={onSuche}
-                kurz
-                onMehr={() => waehle('stoebern')}
-              />
+              {zeigtReiter('stoebern') && (
+                <StartStoebern
+                  index={wertIndex}
+                  onSuche={onSuche}
+                  kurz
+                  onMehr={() => waehle('stoebern')}
+                />
+              )}
             </div>
           )}
 

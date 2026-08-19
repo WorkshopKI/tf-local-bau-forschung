@@ -31,7 +31,7 @@ import type { KurzfassungContext } from './kurzfassung/types';
 import { buildKurzfassungContext } from './kurzfassung/context-builder';
 import { StatusDetailSection } from './status/StatusDetailSection';
 import { MeilensteinSection } from './meilensteine/MeilensteinSection';
-import { PanelShell, Sektionsrahmen } from './detailRahmen';
+import { PanelShell, Sektionsrahmen, WennDetailSektion } from './detailRahmen';
 import { sektionOffenDefault, sektionsKey } from './detailSektionen';
 import { Button } from '@/components/ui/button';
 import { isGutachtenKurzfassungEnabled, isGutachtenWorkflowEnabled, isNfNachforderungenEnabled, isAntragAufbereitungEnabled, isArtefaktWerkbankEnabled, isStatusCockpitEnabled, isMeilensteinMonitoringEnabled } from '@/config/feature-flags';
@@ -265,7 +265,7 @@ export function VerbundDetail({
   // existieren also genau einmal im DOM. Volle Panel-Breite (kein READ_COL).
   const werkbankBlock: React.ReactNode = isArtefaktWerkbankEnabled() ? (
     <>
-      <Sektionsrahmen id="nf">
+      <Sektionsrahmen id="nf" sektion="werkbank">
         <WerkbankSection ctx={kurzfassungCtx} vorbelegung={werkbankVorbelegung} />
       </Sektionsrahmen>
       {/* Widerspruch/Stellungnahme — nur sichtbar, wenn ein RNE/ABL-Bescheid existiert.
@@ -284,7 +284,7 @@ export function VerbundDetail({
       </Sektionsrahmen>
     </>
   ) : isNfNachforderungenEnabled() ? (
-    <Sektionsrahmen id="nf">
+    <Sektionsrahmen id="nf" sektion="nachforderungen">
       <NachforderungenSection ctx={kurzfassungCtx} />
     </Sektionsrahmen>
   ) : null;
@@ -319,13 +319,15 @@ export function VerbundDetail({
 
       {/* KURZBESCHREIBUNG — Kurzzusammenfassung (VB_INHALT) als eigene Karte. Immer sichtbar;
           fehlt VB_INHALT, zeigt die Karte einen dezenten „noch nicht erstellt"-Hinweis. */}
-      <div className={READ_COL}>
-        <KurzbeschreibungCard
-          text={kurzbeschreibung}
-          open={kbOpen}
-          onToggle={() => setKbOpen(o => !o)}
-        />
-      </div>
+      <WennDetailSektion sektion="kurzbeschreibung">
+        <div className={READ_COL}>
+          <KurzbeschreibungCard
+            text={kurzbeschreibung}
+            open={kbOpen}
+            onToggle={() => setKbOpen(o => !o)}
+          />
+        </div>
+      </WennDetailSektion>
 
       {/* VORGÄNGER-HINWEIS — frühere abgelehnte/zurückgezogene Einreichungen. */}
       {vorgaenger.length > 0 ? (
@@ -365,14 +367,19 @@ export function VerbundDetail({
           die frühere Übersichts-Karte): Fortschritt + „Weiter bei X" leben jetzt im
           Sektionskopf bzw. der Wiederaufnahme-Zeile. Der Workflow A–G löst die
           Kurzfassung-Sektion ab; else-if, damit in dev nur EINE Sektion mountet. */}
+      {/* Beide Zweige teilen den Anker `#gutachten`, tragen für Beta/Experte aber
+          verschiedene Sektionen: der Workflow A–G ist Experten-Werkzeug, die
+          Kurzfassung ein Testballon. Deshalb steht `sektion` je Zweig. */}
       {gutachtenSichtbar ? (
-        <Sektionsrahmen id="gutachten">
-          {isGutachtenWorkflowEnabled() ? (
+        isGutachtenWorkflowEnabled() ? (
+          <Sektionsrahmen id="gutachten" sektion="gutachten">
             <GutachtenSection ctx={kurzfassungCtx} initialAbschnittId={abschnittParam} />
-          ) : (
+          </Sektionsrahmen>
+        ) : (
+          <Sektionsrahmen id="gutachten" sektion="kurzfassung">
             <KurzfassungSection ctx={kurzfassungCtx} />
-          )}
-        </Sektionsrahmen>
+          </Sektionsrahmen>
+        )
       ) : null}
 
       {/* DATEN-SEKTIONEN — kollabierte Zeilen mit Kontext-Vorschau (Default zu).
@@ -383,6 +390,7 @@ export function VerbundDetail({
           bewusst ueber die volle Panel-Breite. */}
       {!isPseudo ? (
         <>
+          <WennDetailSektion sektion="antragsdaten">
           <div className={READ_COL}>
             <CollapsibleDataSection
               title="Antragsdaten"
@@ -411,11 +419,13 @@ export function VerbundDetail({
               />
             </CollapsibleDataSection>
           </div>
+          </WennDetailSektion>
 
           {werkbankBlock}
 
           <div className={READ_COL}>
             {antraege.length > 0 ? (
+              <WennDetailSektion sektion="alleFelder">
               <CollapsibleDataSection
                 title="Alle Felder"
                 storageKey={sektionsKey('alleFelder')}
@@ -430,18 +440,21 @@ export function VerbundDetail({
                   onOpenHistory={setHistoryField}
                 />
               </CollapsibleDataSection>
+              </WennDetailSektion>
             ) : null}
 
             {/* Keine Kontext-Vorschau: sie käme aus dem Journal auf dem Share, und
                 der Body ist eingeklappt nicht gemountet — die Zeile bliebe leer,
                 bis jemand aufklappt, und läse sich wie ein Fehler. */}
-            <CollapsibleDataSection
-              title="Historie"
-              storageKey={sektionsKey('historie')}
-              defaultCollapsed={!sektionOffenDefault('historie')}
-            >
-              <VerbundHistorie tvs={antraege} />
-            </CollapsibleDataSection>
+            <WennDetailSektion sektion="historie">
+              <CollapsibleDataSection
+                title="Historie"
+                storageKey={sektionsKey('historie')}
+                defaultCollapsed={!sektionOffenDefault('historie')}
+              >
+                <VerbundHistorie tvs={antraege} />
+              </CollapsibleDataSection>
+            </WennDetailSektion>
           </div>
         </>
       ) : (

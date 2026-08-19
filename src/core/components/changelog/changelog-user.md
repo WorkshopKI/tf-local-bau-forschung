@@ -19,6 +19,17 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.112 — 2026-08
+
+### Neu
+- **Die Oberfläche ist aufgeräumt — und Sie entscheiden, wie viel davon Sie sehen.** In „Einstellungen › Mein Profil" gibt es zwei neue Schalter unter „Umfang der Oberfläche". Beide sind zunächst aus: Sie sehen den täglichen Weg, ohne alles, was daneben in Erprobung ist oder nur selten gebraucht wird. Aus der Seitenleiste verschwinden damit sieben Einträge — unter anderem die ganze Gruppe „In Erprobung".
+- **„Beta-Funktionen" zeigt, was noch in Erprobung ist.** Diese Bereiche funktionieren, können sich aber noch ändern; Rückmeldungen dazu sind ausdrücklich erwünscht. Sie erkennen sie am kleinen „Beta"-Zeichen.
+- **„Expertenmodus" zeigt die selten gebrauchten Tiefen-Werkzeuge** — Verwaltungs-Reiter, Rohfelder, Diagnose-Abschnitte. Gesperrt war davon nie etwas; es steht nur nicht mehr im Weg, solange Sie es nicht brauchen.
+- Unter jedem Schalter steht, wie viele Bereiche er zusätzlich einblendet. Was neu **und** für Profis gedacht ist, erscheint erst, wenn beide Schalter an sind. Beides wirkt sofort, ohne die App neu zu laden — und ein gespeicherter Link führt weiterhin auch zu einer ausgeblendeten Seite.
+
+### Verbesserungen
+- Die Datenpflege hat dafür eine neue Seite „Sichtbarkeit": dort legt die Kuration für das ganze Team fest, was als Beta oder als Experten-Sache gilt.
+
 ## v4.111 — 2026-08
 
 ### Bugfixes

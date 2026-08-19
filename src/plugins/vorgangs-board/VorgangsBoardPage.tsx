@@ -17,6 +17,7 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { BestandsFrische } from '@/components/ui/BestandsFrische';
 import { BereichChip } from '@/components/bereich/BereichChip';
 import { ScopeTabs } from '@/components/ui/ScopeTabs';
+import { useSichtbareReiter } from '@/core/hooks/useSichtbar';
 import { ToggleChip } from '@/components/ui/ToggleChip';
 import { MultiSelectDropdown } from '@/components/ui/MultiSelectDropdown';
 import { Badge } from '@/components/ui/badge';
@@ -188,6 +189,11 @@ export function VorgangsBoardPage(): React.ReactElement {
     { key: 'fristen', label: 'Fristen' },
     { key: 'auswertung', label: 'Auswertung' },
   ];
+  // Beta/Experte: „Auswertung" ist als Experten-Reiter vorbelegt. Die Seite
+  // selbst ist Beta — die Marke am Reiter schränkt zusätzlich ein.
+  const sichtbareTabs = useSichtbareReiter(
+    'vorgangs-board', TABS, t => t.key, api.tab, k => api.setTab(k as BoardTab),
+  );
   const cockpit = api.tab === 'fristen' || api.tab === 'auswertung';
 
   return (
@@ -219,7 +225,7 @@ export function VorgangsBoardPage(): React.ReactElement {
           aria-label="Sicht"
           activeKey={api.tab}
           onChange={(k: string) => api.setTab(k as BoardTab)}
-          items={TABS.map(t => ({ ...t, count: api.zaehler[t.key] }))}
+          items={sichtbareTabs.map(t => ({ ...t, count: api.zaehler[t.key] }))}
         />
 
         {/* Eigene Zeile, weil sie eine eigene Sorte Frage stellt: die Reiter

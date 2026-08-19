@@ -39,5 +39,14 @@ Die Ampel oben meldet neben „Modell gewechselt" auch „Worttrennung geändert
 
 Selten Gebrauchtes steht eingeklappt: Modellwahl und Suchqualitäts-Einstellungen, das Zurücksetzen, und der Status des Embedding-Korpus (gebaut wird der im Auslastungs-Modul).
 
+## Sichtbarkeit
+Hier steht, was nur mit eingeschalteten Beta-Funktionen oder eingeschaltetem Expertenmodus erscheint. Die Festlegung gilt team-weit; ob jemand die Schalter umlegt, entscheidet er in seinem Profil.
+
+Der Baum führt jede Seite mit ihren Reitern und Abschnitten auf, dazu die Startseiten-Widgets. Jede Zeile trägt zwei Marken: „Beta" heißt, es funktioniert, kann sich aber noch ändern. „Experte" heißt, es ist ausgereift, aber selten gebraucht. Beide zusammen heißt neu und tief — dann müssen auch beide Schalter an sein.
+
+Rechts stehen die Zähler nach Standard, nur Beta, nur Experte und beides, darunter das Zurücksetzen auf die mitgelieferte Vorbelegung. Gespeichert werden nur Abweichungen davon; eine geänderte Zeile bekommt deshalb ein „zurück auf Vorgabe" mit dem ursprünglichen Wert daneben.
+
+Einige Zeilen sind gesperrt: über sie erreicht man die Schalter selbst, den Kurator-Zugang und die Modul-Freischaltung. Wären sie ausblendbar, gäbe es keinen Weg zurück. Eine markierte Seite nimmt ihre Reiter und Abschnitte ohnehin mit — die brauchen dann keine eigene Marke.
+
 ## Dokument-Review
 Review-Queue für Phase-2-Triage-Ergebnisse: Dokument-Typ korrigieren, Antrag zuordnen, als irrelevant markieren, re-triagieren.

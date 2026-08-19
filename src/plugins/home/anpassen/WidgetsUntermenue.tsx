@@ -18,7 +18,9 @@
  */
 import { AlertTriangle, Clock, Settings } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useSichtbar } from '@/core/hooks/useSichtbar';
 import { useHomeWidgets } from '../widgets/useHomeWidgets';
+import { widgetAnzeigbar } from '../widgets/homeWidgetsStore';
 import { WIDGET_KATALOG } from '../widgets/widgetCatalog';
 import type { HeroKarte, WidgetInstanz } from '../widgets/types';
 import { MenueHakenZeile, MenueLabel, MenueTrenner, MenueZeile } from './menueZeilen';
@@ -39,15 +41,14 @@ const HERO_KARTEN: { karte: HeroKarte; label: string; icon: typeof Clock }[] = [
 export function WidgetsUntermenue(): React.ReactElement {
   const api = useHomeWidgets();
   const navigate = useNavigate();
+  const angezeigt = useSichtbar();
   const schliesse = useStartseiteMenueStore(s => s.schliesse);
   const merke = useRueckgaengigStore(s => s.merke);
 
   // Nur Typen, die diese Variante überhaupt zeigt — sonst stünden hier Häkchen
-  // ohne Wirkung (`sichtbarWenn` blendet sie auf der Startseite wieder aus).
-  const anzeigbar = api.alleInstanzen.filter(w => {
-    const eintrag = WIDGET_KATALOG[w.typ];
-    return !!eintrag && eintrag.verfuegbar && eintrag.sichtbarWenn();
-  });
+  // ohne Wirkung (`sichtbarWenn` bzw. die Beta/Experte-Marken blenden sie auf
+  // der Startseite wieder aus).
+  const anzeigbar = api.alleInstanzen.filter(w => widgetAnzeigbar(w.typ, undefined, angezeigt));
 
   return (
     <>

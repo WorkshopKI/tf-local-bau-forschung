@@ -12,6 +12,7 @@
 import { RefreshCw } from 'lucide-react';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { ScopeTabs } from '@/components/ui/ScopeTabs';
+import { useSichtbareReiter } from '@/core/hooks/useSichtbar';
 import { SeitenHilfeButton } from '@/components/help/SeitenHilfeButton';
 import { Button } from '@/components/ui/button';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
@@ -70,6 +71,29 @@ export function ZuKlaerenPage(): React.ReactElement {
     />
   );
 
+  // Bis v4.111 stand die Reiter-Liste inline im JSX; sie steht jetzt als Array
+  // da, damit die Beta/Experte-Marken einen Schlüssel zum Filtern haben.
+  const alleTabs = [
+    // Die Zahl kommt aus den Zeilen, nicht aus dem Kopf: eine Facetten-Zahl
+    // ist eine Zusage, und ein fester Wert stimmt nur bis zum nächsten Code.
+    { key: 'alle', label: 'Alle Zuordnungen', count: api.anzahlZuordnungen },
+    {
+      key: 'strittig', label: 'Nur strittige', count: api.anzahlStrittig,
+      title: 'Zeilen, für die zwei oder mehr verschiedene Zielphasen genannt wurden',
+    },
+    {
+      key: 'unklar', label: 'Offene Rückfragen', count: api.anzahlUnklar,
+      title: 'Zeilen, die jemand nicht beurteilen konnte',
+    },
+    {
+      key: 'nichtUmgesetzt', label: 'Nicht umgesetzt', count: api.anzahlNichtUmgesetzt,
+      title: 'Zeilen, deren Beschluss im Status-Katalog noch nicht (oder anders) steht',
+    },
+  ];
+  const sichtbareTabs = useSichtbareReiter(
+    'zu-klaeren', alleTabs, t => t.key, api.filter, k => api.setFilter(k as ZeilenFilter),
+  );
+
   return (
     <div className="flex flex-col h-full min-h-0">
       <div className="px-6 pt-5 pb-3 flex flex-col gap-3 border-b border-[var(--tf-border)]">
@@ -79,23 +103,7 @@ export function ZuKlaerenPage(): React.ReactElement {
           aria-label="Zeilen"
           activeKey={api.filter}
           onChange={k => api.setFilter(k as ZeilenFilter)}
-          items={[
-            // Die Zahl kommt aus den Zeilen, nicht aus dem Kopf: eine Facetten-Zahl
-            // ist eine Zusage, und ein fester Wert stimmt nur bis zum nächsten Code.
-            { key: 'alle', label: 'Alle Zuordnungen', count: api.anzahlZuordnungen },
-            {
-              key: 'strittig', label: 'Nur strittige', count: api.anzahlStrittig,
-              title: 'Zeilen, für die zwei oder mehr verschiedene Zielphasen genannt wurden',
-            },
-            {
-              key: 'unklar', label: 'Offene Rückfragen', count: api.anzahlUnklar,
-              title: 'Zeilen, die jemand nicht beurteilen konnte',
-            },
-            {
-              key: 'nichtUmgesetzt', label: 'Nicht umgesetzt', count: api.anzahlNichtUmgesetzt,
-              title: 'Zeilen, deren Beschluss im Status-Katalog noch nicht (oder anders) steht',
-            },
-          ]}
+          items={sichtbareTabs}
         />
       </div>
 

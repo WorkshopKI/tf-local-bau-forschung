@@ -8,6 +8,7 @@
 import { useEffect, useMemo } from 'react';
 import { create } from 'zustand';
 import { useStorage } from '@/core/hooks/useStorage';
+import { useSichtbar } from '@/core/hooks/useSichtbar';
 import type { IDBStore } from '@/core/services/storage/idb-store';
 import {
   loadHomeWidgets,
@@ -107,6 +108,10 @@ export function useHomeWidgets(): HomeWidgetsApi {
   const config = useHomeWidgetsStore(s => s.config);
   const laden = useHomeWidgetsStore(s => s.laden);
   const mutiere = useHomeWidgetsStore(s => s.mutiere);
+  // Beta/Experte: die Marken kommen als Prädikat herein, damit die reinen
+  // Store-Funktionen react-frei und testbar bleiben. Ändert sich ein Schalter,
+  // wechselt `angezeigt` die Identität und das Memo unten rechnet neu.
+  const angezeigt = useSichtbar();
 
   useEffect(() => {
     laden(storage.idb).catch(err => {
@@ -124,8 +129,8 @@ export function useHomeWidgets(): HomeWidgetsApi {
     return {
       geladen: config !== null,
       config,
-      haupt: config ? sichtbareWidgets(config, 'haupt') : [],
-      seite: config ? sichtbareWidgets(config, 'seite') : [],
+      haupt: config ? sichtbareWidgets(config, 'haupt', undefined, angezeigt) : [],
+      seite: config ? sichtbareWidgets(config, 'seite', undefined, angezeigt) : [],
       alleInstanzen: config ? sortiereInstanzen(config.widgets) : [],
       hero: config?.hero ?? HERO_CONFIG_DEFAULT,
       setSichtbar: (id, sichtbar) => patchInstanz(id, { sichtbar }),
@@ -137,13 +142,13 @@ export function useHomeWidgets(): HomeWidgetsApi {
           ...cfg,
           widgets: cfg.widgets.map(w => (w.id === id ? { ...w, config: aendere(w.config) } : w)),
         })),
-      alleEinklappen: eingeklappt => mutiere(idb, cfg => setzeAlleEingeklappt(cfg, eingeklappt)),
+      alleEinklappen: eingeklappt => mutiere(idb, cfg => setzeAlleEingeklappt(cfg, eingeklappt, undefined, angezeigt)),
       setSichtbarBereich: (bereich, sichtbar) =>
-        mutiere(idb, cfg => setzeSichtbarkeitBereich(cfg, bereich, sichtbar)),
+        mutiere(idb, cfg => setzeSichtbarkeitBereich(cfg, bereich, sichtbar, undefined, angezeigt)),
       setHeroKarte: (karte, sichtbar) => mutiere(idb, cfg => setzeHeroKarte(cfg, karte, sichtbar)),
       setHeroChip: (chip, an) => mutiere(idb, cfg => setzeHeroChip(cfg, chip, an)),
       zuruecksetzen: () => mutiere(idb, () => zurueckgesetzteConfig()),
       ersetze: vorstand => mutiere(idb, () => vorstand),
     };
-  }, [config, mutiere, storage.idb]);
+  }, [config, mutiere, storage.idb, angezeigt]);
 }

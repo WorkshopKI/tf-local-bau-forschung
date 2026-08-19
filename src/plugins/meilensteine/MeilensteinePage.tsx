@@ -23,6 +23,7 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { BereichChip } from '@/components/bereich/BereichChip';
 import { SeitenHilfeButton } from '@/components/help/SeitenHilfeButton';
 import { ScopeTabs } from '@/components/ui/ScopeTabs';
+import { useSichtbareReiter } from '@/core/hooks/useSichtbar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
@@ -256,6 +257,19 @@ export function MeilensteinePage(): React.ReactElement {
     : 0;
   const entwurf = planApi.entwurf;
 
+  // Bis v4.111 stand diese Liste inline im JSX. Sie steht jetzt als Array da,
+  // weil die Beta/Experte-Marken einen Schlüssel zum Filtern brauchen —
+  // „Konfiguration" ist als Experten-Reiter vorbelegt.
+  const alleTabs = [
+    { key: 'uebersicht', label: 'Übersicht', count: zeilen.length },
+    { key: 'woche', label: 'Diese Woche', count: wochenAnzahl },
+    { key: 'auswertung', label: 'Auswertung', count: abschluesse.length },
+    { key: 'konfiguration', label: 'Konfiguration', count: entwurf?.knoten.length ?? 0 },
+  ];
+  const sichtbareTabs = useSichtbareReiter(
+    'meilensteine', alleTabs, t => t.key, tab, k => waehleTab(k as TabKey),
+  );
+
   return (
     <div className="flex flex-col h-full min-h-0">
       <div className="px-6 pt-5 pb-3 flex flex-col gap-3 border-b border-[var(--tf-border)]">
@@ -265,12 +279,7 @@ export function MeilensteinePage(): React.ReactElement {
           aria-label="Bereich"
           activeKey={tab}
           onChange={k => waehleTab(k as TabKey)}
-          items={[
-            { key: 'uebersicht', label: 'Übersicht', count: zeilen.length },
-            { key: 'woche', label: 'Diese Woche', count: wochenAnzahl },
-            { key: 'auswertung', label: 'Auswertung', count: abschluesse.length },
-            { key: 'konfiguration', label: 'Konfiguration', count: entwurf?.knoten.length ?? 0 },
-          ]}
+          items={sichtbareTabs}
         />
         {tab !== 'konfiguration' && (
           <JahresFilter

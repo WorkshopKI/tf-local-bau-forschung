@@ -1,0 +1,152 @@
+# Beta-Funktionen & Expertenmodus (v4.112)
+
+Die App ist über 19 Plugins, ~75 Reiter, ~68 Abschnitte und 16 Startseiten-Widgets gewachsen.
+Vieles davon ist Erprobung oder Tiefenwerkzeug, stand aber gleichberechtigt neben dem
+Tagesgeschäft. Diese Achse räumt auf.
+
+## Die vierte Achse
+
+Drei Mechanismen gab es schon — Feature-Flag (Bauzeit), Modul-Schloss (Passwort),
+`kuratorOnly` (Rolle). Alle drei beantworten **„darf ich das?"**. Diese beantwortet
+**„will ich das sehen?"**. Sie schützt nichts: eine verborgene Route bleibt über ihren
+Deep-Link erreichbar, genau wie bei `hideFromNav`.
+
+## Zwei Marken, keine Stufe
+
+Eine einzige Stufe würfe „neue Listenansicht für alle" und „neuer Regel-Editor für Profis" in
+denselben Topf: wer Beta einschaltet, um Neues zu probieren, bekäme das Tiefenwerkzeug gleich mit.
+
+| | Zielgruppe: alle | Zielgruppe: Experten |
+|---|---|---|
+| **stabil** | Standard | `experte` |
+| **in Erprobung** | `beta` | `beta` + `experte` |
+
+```ts
+sichtbar = (!marken.beta || schalter.beta) && (!marken.experte || schalter.experte)
+```
+
+**UND, nicht ODER** — beide Marken sind Einschränkungen. `beta`+`experte` verlangt beide Schalter.
+
+Beide Schalter stehen standardmäßig **aus** und leben im Profil („Mein Profil › Umfang der
+Oberfläche", `sec-umfang`). Sie wirken **ohne Neuladen**: die Schalter hängen am
+`profile`-Kontext, das Kurator-Overlay an einem zustand-Store.
+
+Ein **„Beta"-Abzeichen** trägt nur die Beta-Marke — sie sagt „kann sich noch ändern", eine
+Information, die im Moment des Sehens gebraucht wird. „Experte" bekommt keins; Tiefe ist keine
+Warnung. Wer beides trägt, zeigt trotzdem nur „Beta".
+
+## Wo was steht
+
+| Sache | Ort |
+|---|---|
+| Typen, Id-Bauer | [types.ts](../../src/core/sichtbarkeit/types.ts) |
+| Die reinen Funktionen | [regel.ts](../../src/core/sichtbarkeit/regel.ts) |
+| **Das Inventar + die Vorbelegung** | [katalog.ts](../../src/core/sichtbarkeit/katalog.ts) |
+| Kurator-Sidecar `_intern/sichtbarkeit.json` | [sidecar.ts](../../src/core/sichtbarkeit/sidecar.ts) |
+| Laufzeit-Overlay (zustand) | [store.ts](../../src/core/sichtbarkeit/store.ts) |
+| Die Frage-Stelle | [useSichtbar.ts](../../src/core/hooks/useSichtbar.ts) |
+| Hüllen | [WennSichtbar](../../src/components/sichtbarkeit/WennSichtbar.tsx), [BetaBadge](../../src/components/sichtbarkeit/BetaBadge.tsx) |
+| Nutzer-Schalter | [UmfangGruppe.tsx](../../src/plugins/einstellungen/profil/UmfangGruppe.tsx) |
+| Kurator-GUI | [SichtbarkeitPanel.tsx](../../src/plugins/kuration/sichtbarkeit/SichtbarkeitPanel.tsx) |
+
+**Ids** sind `<art>:<pfad>` und ein Vertrag: `seite:antraege` · `reiter:antraege/fristen` ·
+`abschnitt:einstellungen/sec-provider` · `widget:kanban`. Nie von Hand tippen — `seiteId()`,
+`reiterId()`, `abschnittId()`, `widgetId()` bauen sie.
+
+## Fünf Regeln beim Markieren
+
+1. **Marken sind absolut, nicht relativ.** Ein verborgener Wirt rendert seine Kinder ohnehin
+   nicht. Markiert wird nur, was **zusätzlich** einschränkt — ein Reiter in einer Beta-Seite
+   bekommt kein zweites `beta` (Guard `sichtbarkeit-keine-doppelmarke`).
+2. **Keine Marke neben einer gleich engen Sperre.** Was ein dev-Flag oder `kuratorOnly` schon auf
+   dieselbe Zielgruppe eingrenzt, bekommt keine zweite Abfrage obendrauf — sonst wären die
+   DEV-Panels ausgerechnet im dev-Build standardmäßig weg. Ein Feature-Flag, das im pl-Build AN
+   ist (`vorgangssystem`, `statusCockpit`, `anfragen`), grenzt dagegen keine Zielgruppe ein: dort
+   trägt die Marke etwas bei.
+3. **Unantastbares bleibt unantastbar** — `seite:home`, `seite:einstellungen`,
+   `reiter:einstellungen/profil`, `abschnitt:einstellungen/sec-umfang`, `…/sec-kurator`,
+   `…/sec-freischaltung`, `seite:kuration`, `reiter:kuration/sichtbarkeit`,
+   `abschnitt:kuration/sec-sichtbarkeit`. Über sie erreicht man die Schalter, den Kurator-Zugang
+   und die Modul-Freischaltung; eine Marke darauf hätte keinen Rückweg. Der Store ignoriert
+   Abweichungen an ihnen auch dann, wenn jemand die Sidecar von Hand editiert.
+4. **Jede Seite mit Reitern behält mindestens einen unmarkierten Reiter**, und der gemerkte
+   Reiter fällt auf den ersten sichtbaren zurück — `useSichtbareReiter()` macht beides in einem.
+   Ohne den Rückfall stünde ein Inhalt ohne zugehörigen Reiter da (dieselbe Klasse wie v4.107.2).
+5. **Keine Ableitung aus `category: 'erprobung'`.** Die Beta-Menge deckt sich heute mit dieser
+   Sidebar-Gruppe, bleibt aber eine eigene Aussage — sonst wechselte eine Seite ihre Sichtbarkeit
+   als Nebenwirkung eines Umsortierens.
+
+## Durchsetzungsstellen
+
+| Ebene | Wo |
+|---|---|
+| Seite | `visiblePlugins`-Memo in [ShellLayout.tsx](../../src/core/ShellLayout.tsx) — deckt Sidebar, Command-Palette und Shortcuts in einem Zug ab |
+| Reiter | `useSichtbareReiter()` an der jeweiligen Tab-Liste |
+| Abschnitt in Einstellungen/Datenpflege | [SettingsHubPage](../../src/components/settings/SettingsHubPage.tsx) filtert Panels + Abschnitte (Navigation **und** Suchindex), `SettingsGruppe`/`SettingsOption` prüfen sich über `HubPluginContext` selbst |
+| Abschnitt der Verbund-Detailseite | `Sektionsrahmen` bzw. `WennDetailSektion` in [detailRahmen.tsx](../../src/plugins/antraege/detailRahmen.tsx) |
+| Sonstige Karte | `<WennSichtbar id={abschnittId(…)}>` |
+| Startseiten-Widget | `widgetAnzeigbar()` in [homeWidgetsStore.ts](../../src/plugins/home/widgets/homeWidgetsStore.ts) — die eine Stelle, an der `verfuegbar`, `sichtbarWenn()` und die Marken zusammenkommen |
+
+**Widgets: verborgen heißt nie entfernt.** Eine Instanz bleibt in der persönlichen Config stehen
+und wird nur nicht gerendert — sonst verlöre ein Beta-aus/an-Wechsel die Anordnung. Die
+Persistenz-Invariante (IDB-primär, nur Personal-Mirror, Guard `home-widgets-local-only`) bleibt
+unangetastet; die Marken kommen aus dem team-weiten Sidecar.
+
+**Deep-Link ins Verborgene:** `SettingsHubPage` zeigt bei `?sektion=<verborgen>` eine Zeile mit
+dem Weg zu den Schaltern, statt stumm nichts zu tun.
+
+## Kuration
+
+Der Code bringt die Vorbelegung mit; der Kurator überschreibt einzelne Einträge in
+`_intern/sichtbarkeit.json`. Gespeichert werden **nur Abweichungen**, je Eintrag der **volle**
+Marken-Satz:
+
+```jsonc
+{ "version": 1, "updatedAt": "…", "autor": "…",
+  "abweichungen": { "reiter:suche/suchsprache": [], "seite:meilensteine": ["beta", "experte"] } }
+```
+
+So schlagen spätere Katalog-Änderungen überall dort durch, wo der Kurator nichts entschieden hat.
+Schreib-Profil: idempotent-overwrite (Pitfall #23) über `schreibeSidecar`; der schreibende Pfad
+liest zuerst die **Lage** und bricht bei `unlesbar` ab (Regel v4.12). **Unbekannte Ids bleiben in
+der Datei stehen** und werden nur nicht ausgewertet — ein Rückbau darf keine fremde Kuration
+löschen. Audit-Eintrag: `sichtbarkeit_geaendert`.
+
+Geladen wird zweistufig, wie beim Status-Katalog: beim Start aus dem IDB-Cache (gilt sofort, auch
+offline und vor dem Ordner-Picker), nach dem Permission-Grant noch einmal vom Share.
+
+## Vorbelegung (Stand v4.112)
+
+**173 Einträge, 43 markiert**: 20 nur `beta`, 19 nur `experte`, 4 beides. 130 bleiben Standard.
+Mit beiden Schaltern aus verschwinden 7 der 18 Nav-Einträge samt ihrer Reiter.
+
+| Marken | Seiten |
+|---|---|
+| `beta` | `meilensteine`, `zu-klaeren`, `vorgangs-board`, `anfragen`, Route `aufbereitung` |
+| `beta`+`experte` | `status-cockpit`, `map-foerderfaehig` |
+| `experte` | `skill-verwaltung-kuration` |
+
+Die übrigen Marken sitzen an Reitern („Suchsprache", „Verwaltung", „Recherche", „Konfiguration",
+„Auswertung", „Fragen", „Textbausteine", „Dienste"), an Abschnitten (die Assistent-Gruppe, die
+„Selten gebraucht"-Karten der Datenpflege, Rohfeld- und Diagnose-Abschnitte) und an vier Widgets.
+Die vollständige Liste steht genau einmal — in [katalog.ts](../../src/core/sichtbarkeit/katalog.ts).
+
+## Guards
+
+[katalog-konventionen.test.ts](../../src/core/sichtbarkeit/__tests__/katalog-konventionen.test.ts):
+`sichtbarkeit-katalog-deckt-plugins` · `sichtbarkeit-deckt-widgets` ·
+`sichtbarkeit-deckt-detailsektionen` · `sichtbarkeit-unantastbar` ·
+`sichtbarkeit-seite-behaelt-reiter` · `sichtbarkeit-keine-doppelmarke` ·
+`sichtbarkeit-eine-mechanik` (niemand liest `profile.beta_features`/`experten_modus` selbst).
+
+Der letzte ist ein echter Codebase-Scan mit Inline-Ausnahme
+`// allow-sichtbarkeit-eine-mechanik: <grund>`; erlaubt sind nur `useSichtbar.ts`, `config.ts`
+und die Schreibstelle `UmfangGruppe.tsx`.
+
+## Ein neues Element markierbar machen
+
+1. Eintrag in `katalog.ts` ergänzen (`seite()` / `reiter()` / `abschnitt()` / `widget()`),
+   Vorbelegung nach den fünf Regeln oben.
+2. An der Stelle prüfen: Reiter → `useSichtbareReiter()`; Karte → `<WennSichtbar>`; Abschnitt in
+   einem Hub → nichts zu tun, `SettingsGruppe` prüft sich selbst.
+3. `npm run check:docs` — die Guards fangen fehlende und verwaiste Ids sofort.

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { Search, Info } from 'lucide-react';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
+import { useSichtbareReiter } from '@/core/hooks/useSichtbar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tooltip } from '@/components/ui/Tooltip';
@@ -110,6 +111,14 @@ function loadViewModes(): Record<TabId, RegistryViewMode> {
 
 interface Testlauf { skill: SkillRecord; regeln: QualitaetsRegel[]; hinweis: string }
 
+/**
+ * Reiter-Schlüssel in Anzeige-Reihenfolge — modul-global, damit die
+ * Sichtbarkeits-Prüfung eine stabile Liste bekommt und nicht bei jedem Render
+ * eine neue. Welche davon der Build überhaupt anbietet, entscheidet weiter
+ * unten `tabDefs` (`eval` nur mit `devFixtures`).
+ */
+const ALLE_TAB_IDS: TabId[] = ['skills', 'regeln', 'workflows', 'textbausteine', 'eval'];
+
 export function SkillVerwaltungPage(): React.ReactElement {
   const reg = useSkillRegistry();
   const agg = useSkillAggregat();
@@ -148,6 +157,13 @@ export function SkillVerwaltungPage(): React.ReactElement {
       setDetail({ art: 'skill', skill, isNew: false, initialView });
     }
   }, [routeSkillId, reg.file, searchParams]);
+
+  // Beta/Experte: „Textbausteine" ist als Beta vorbelegt. Der Hook läuft über
+  // die reinen Reiter-Schlüssel und MUSS vor dem Lade-Return stehen — die
+  // Zähler brauchen `file`, das Filtern nicht (React #310).
+  const sichtbareTabIds = useSichtbareReiter(
+    'skill-verwaltung-kuration', ALLE_TAB_IDS, id => id, tab, k => setTab(k as TabId),
+  );
 
   if (reg.loading || !reg.file) {
     return <div className="px-8 py-10 text-[13.5px] text-[var(--tf-text-secondary)]">Laden…</div>;
@@ -351,6 +367,7 @@ export function SkillVerwaltungPage(): React.ReactElement {
     ['textbausteine', 'Textbausteine', null],
   ];
   if (isDevFixturesEnabled()) tabDefs.push(['eval', 'Skill-Eval', null]);
+  const sichtbareTabs = tabDefs.filter(([id]) => sichtbareTabIds.includes(id));
 
   const showSearch = tab === 'skills' || tab === 'regeln';
   const addLabel = tab === 'skills' ? '+ Neuer Skill' : tab === 'regeln' ? '+ Neue Regel' : '+ Neuer Schritt';
@@ -391,7 +408,7 @@ export function SkillVerwaltungPage(): React.ReactElement {
           {/* Unterstrich-Tabs links, Aktionen rechts */}
           <div className="flex items-end gap-4">
             <div className="flex items-end gap-5 min-w-0 overflow-x-auto overflow-y-hidden">
-              {tabDefs.map(([id, label, count]) => {
+              {sichtbareTabs.map(([id, label, count]) => {
                 const isActive = tab === id;
                 return (
                   <button

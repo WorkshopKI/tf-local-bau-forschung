@@ -33,6 +33,8 @@ import { useStorage } from '@/core/hooks/useStorage';
 import { useKuratorSession } from '@/core/hooks/useKuratorSession';
 import { useModulFreischaltung } from '@/core/hooks/useModulFreischaltung';
 import { useAuslastungFrei, useKuratorFrei } from '@/core/modul-freischaltung';
+import { useSichtbar } from '@/core/hooks/useSichtbar';
+import { seiteId } from '@/core/sichtbarkeit';
 import { useSmbStatus } from '@/core/hooks/useSmbStatus';
 import { useKuratorActivityTracker } from '@/core/hooks/useKuratorActivityTracker';
 import { useBrowserKontextmenue } from '@/core/hooks/useBrowserKontextmenue';
@@ -128,6 +130,7 @@ export function ShellLayout({ plugins, children }: ShellLayoutProps): React.Reac
   const kuratorFrei = useKuratorFrei();
   const auslastungFrei = useAuslastungFrei();
   const isKurator = !!(profile?.is_kurator ?? profile?.is_admin) && isKuratorMenusEnabled() && kuratorFrei;
+  const sichtbar = useSichtbar();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -139,9 +142,16 @@ export function ShellLayout({ plugins, children }: ShellLayoutProps): React.Reac
       // Shortcuts in einem Zug ab — alle leiten sich von visiblePlugins ab.
       if (p.modulSchloss === 'auslastung' && !auslastungFrei) return false;
       if (p.modulSchloss === 'kurator' && !kuratorFrei) return false;
+      // Beta/Experte (v4.111). Bewusst an DERSELBEN Stelle wie die Sperren
+      // darüber, obwohl es keine Sperre ist: Sidebar, Command-Palette und
+      // Shortcuts leiten sich alle von `visiblePlugins` ab, ein zweiter
+      // Filter-Ort liefe garantiert auseinander. Die ROUTE bleibt registriert —
+      // verborgen heißt „nicht in der Navigation", nicht „gesperrt" (wie
+      // `hideFromNav`), damit Lesezeichen und Deep-Links weiter tragen.
+      if (!sichtbar(seiteId(p.id))) return false;
       return true;
     });
-  }, [plugins, isKurator, auslastungFrei, kuratorFrei]);
+  }, [plugins, isKurator, auslastungFrei, kuratorFrei, sichtbar]);
 
   const activeId = routeToPluginId(location.pathname) ?? 'home';
   // Offen-Zustand des Suche-Panels: die Spine steht hier im Shell, das Panel

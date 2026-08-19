@@ -60,6 +60,9 @@ export function getSettingsPanels(ctx: PanelContext): SettingsPanel[] {
       { id: 'sec-kompetenzen', label: 'Eigene Kompetenzen', gruppe: 'Mein Fachprofil', keywords: 'machine learning skills kompetenzen technologien meine technologien' },
       { id: 'sec-filter', label: 'Bearbeiter-Filter', gruppe: 'Welche Anträge du siehst', keywords: 'kürzel inaktive begleitungen filter rolle ztp pfm welche anträge' },
       { id: 'sec-home', label: 'Anträge auf der Startseite', gruppe: 'Welche Anträge du siehst', keywords: 'home dashboard anzahl startseite initial sichtbar' },
+      // Beta-Funktionen + Expertenmodus. Unantastbar im Sichtbarkeits-Katalog:
+      // ein ausgeblendeter Abschnitt wäre der Weg zu den Schaltern selbst.
+      { id: 'sec-umfang', label: 'Umfang der Oberfläche', gruppe: 'Umfang der Oberfläche', keywords: 'beta experte expertenmodus beta-funktionen entschlacken ausblenden aufräumen umfang tiefe erprobung' },
       // Der freie Kurator-Schalter existiert nur in Builds OHNE Kurator-Schloss
       // (ProfilTab) — die zweite Bedingung muss mit, sonst bietet die Navigation
       // in `pl` einen Abschnitt an, den es auf der Seite nicht gibt.

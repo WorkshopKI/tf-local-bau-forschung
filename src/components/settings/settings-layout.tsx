@@ -30,6 +30,8 @@ import { createContext, useContext, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronRight, Minus, Plus } from 'lucide-react';
 import { useCollapsedSection } from '@/core/hooks/useCollapsedSection';
+import { useSichtbar } from '@/core/hooks/useSichtbar';
+import { abschnittId } from '@/core/sichtbarkeit';
 import { InfoHint } from './InfoHint';
 // Das Modul bringt sein CSS SELBST mit. Bis v4.32 importierte die Seite es
 // (`EinstellungenPage`) — ein zweiter Wirt, der das nicht spiegelt, stuende
@@ -144,6 +146,30 @@ function SpaltenTon({ children }: { children: React.ReactNode }): React.ReactEle
   return <NebenspalteContext.Provider value={true}>{children}</NebenspalteContext.Provider>;
 }
 
+/**
+ * Plugin-Id des umgebenden Hubs — gesetzt von `SettingsHubPage`.
+ *
+ * Nur dafür da, dass ein `sec-…`-Anker seine Sichtbarkeits-Id bilden kann
+ * (`abschnitt:<hub>/<sec-…>`). Die Alternative wäre gewesen, jede der 53
+ * Abschnitts-Deklarationen einzeln zu umhüllen; so hängt die Prüfung an der
+ * Stelle, an der der Anker ohnehin entsteht — und Navigation, Suchindex und
+ * Karte können gar nicht auseinanderlaufen.
+ */
+export const HubPluginContext = createContext<string | null>(null);
+
+/**
+ * Zeigt die Oberfläche diesen `sec-…`-Abschnitt gerade?
+ *
+ * Ohne Anker oder außerhalb eines Hubs: ja. Ein Abschnitt ohne Id kann nicht
+ * gemeint sein, und außerhalb eines Hubs gibt es keine Id zu bilden.
+ */
+export function useAbschnittSichtbar(id: string | undefined): boolean {
+  const hub = useContext(HubPluginContext);
+  const sichtbar = useSichtbar();
+  if (!id || !hub) return true;
+  return sichtbar(abschnittId(hub, id));
+}
+
 // ───────────────────────── Gruppe ─────────────────────────
 
 /**
@@ -172,9 +198,11 @@ export function SettingsGruppe({
   /** Tertiaerer Zustandstext rechts im Kopf (z.B. „team-weit sichtbar"). */
   rechts?: React.ReactNode;
   children: React.ReactNode;
-}): React.ReactElement {
+}): React.ReactElement | null {
   const neben = useContext(NebenspalteContext);
   const treffer = useSprungTreffer(id);
+  const sichtbar = useAbschnittSichtbar(id);
+  if (!sichtbar) return null;
   return (
     <section
       id={id}
@@ -266,8 +294,10 @@ export function SettingsOption({
   /** Steuerung oben ausrichten statt mittig (mehrzeilige Controls). */
   oben?: boolean;
   children?: React.ReactNode;
-}): React.ReactElement {
+}): React.ReactElement | null {
   const treffer = useSprungTreffer(id);
+  const sichtbar = useAbschnittSichtbar(id);
+  if (!sichtbar) return null;
   return (
     <div
       id={id}

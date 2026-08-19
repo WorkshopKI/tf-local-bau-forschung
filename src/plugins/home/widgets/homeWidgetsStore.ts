@@ -29,6 +29,7 @@ import {
   type WidgetInstanz,
   type WidgetTyp,
 } from './types';
+import { widgetId } from '@/core/sichtbarkeit';
 import { WIDGET_KATALOG, type WidgetKatalogEintrag } from './widgetCatalog';
 
 /** IDB-Key (kv-Store) — primäre Quelle der Widget-Config. */
@@ -239,23 +240,50 @@ export function sortiereInstanzen(widgets: WidgetInstanz[]): WidgetInstanz[] {
   return [...widgets].sort((a, b) => a.position - b.position);
 }
 
+/** Antwort von `useSichtbar()`; ohne Angabe gilt alles als sichtbar (Tests, reine Aufrufer). */
+export type WidgetSichtbarkeit = (id: string) => boolean;
+const ALLES_SICHTBAR: WidgetSichtbarkeit = () => true;
+
 /**
- * Sichtbare Widgets eines Bereichs für die Homepage: `sichtbar` UND im Katalog
- * `verfuegbar` UND `sichtbarWenn()` (Flags). Unbekannte Typen (aus zukünftigen
- * Config-Ständen) fallen still raus — forward-kompatibel.
+ * Darf dieser Widget-Typ überhaupt erscheinen? DIE Stelle, an der die drei
+ * Bedingungen zusammenkommen — bis v4.111 stand die Kette
+ * `verfuegbar && sichtbarWenn()` an fünf Orten wortgleich, und eine vierte
+ * Bedingung hätte sie fünfmal ergänzen müssen.
+ *
+ * Die Beta/Experte-Marken kommen als Parameter, nicht aus einem globalen
+ * Zugriff: die beiden Schalter hängen am Profil-Kontext, und eine Funktion,
+ * die still an React-Zustand hängt, wäre weder testbar noch reaktiv.
+ */
+export function widgetAnzeigbar(
+  typ: string,
+  katalog: Record<string, WidgetKatalogEintrag> = WIDGET_KATALOG,
+  sichtbar: WidgetSichtbarkeit = ALLES_SICHTBAR,
+): boolean {
+  const eintrag = katalog[typ];
+  return !!eintrag && eintrag.verfuegbar && eintrag.sichtbarWenn() && sichtbar(widgetId(typ));
+}
+
+/**
+ * Sichtbare Widgets eines Bereichs für die Homepage: `sichtbar` UND
+ * `widgetAnzeigbar` (verfügbar, Flags, Beta/Experte). Unbekannte Typen (aus
+ * zukünftigen Config-Ständen) fallen still raus — forward-kompatibel.
+ *
+ * Ein von den Marken verborgenes Widget wird nur NICHT GERENDERT — seine
+ * Instanz bleibt in der persönlichen Config stehen. Sonst verlöre ein
+ * Beta-aus/an-Wechsel die Anordnung, die sich jemand einmal eingerichtet hat.
  */
 export function sichtbareWidgets(
   cfg: HomeWidgetConfig,
   bereich: WidgetInstanz['bereich'],
   katalog: Record<string, WidgetKatalogEintrag> = WIDGET_KATALOG,
+  sichtbar: WidgetSichtbarkeit = ALLES_SICHTBAR,
 ): WidgetInstanz[] {
   // Reine Positions-Reihenfolge — kein Sonder-Pin (Notizen ist per Default unten,
   // wird aber im Reconcile positioniert, s. reconcileVerfuegbareWidgets, und
   // bleibt per Pfeilen frei verschiebbar).
   return sortiereInstanzen(cfg.widgets).filter(w => {
     if (w.bereich !== bereich || !w.sichtbar) return false;
-    const eintrag = katalog[w.typ];
-    return !!eintrag && eintrag.verfuegbar && eintrag.sichtbarWenn();
+    return widgetAnzeigbar(w.typ, katalog, sichtbar);
   });
 }
 
@@ -288,10 +316,11 @@ export function setzeAlleEingeklappt(
   cfg: HomeWidgetConfig,
   eingeklappt: boolean,
   katalog: Record<string, WidgetKatalogEintrag> = WIDGET_KATALOG,
+  sichtbar: WidgetSichtbarkeit = ALLES_SICHTBAR,
 ): HomeWidgetConfig {
   const ids = new Set([
-    ...sichtbareWidgets(cfg, 'haupt', katalog).map(w => w.id),
-    ...sichtbareWidgets(cfg, 'seite', katalog).map(w => w.id),
+    ...sichtbareWidgets(cfg, 'haupt', katalog, sichtbar).map(w => w.id),
+    ...sichtbareWidgets(cfg, 'seite', katalog, sichtbar).map(w => w.id),
   ]);
   if (!cfg.widgets.some(w => ids.has(w.id) && w.eingeklappt !== eingeklappt)) return cfg;
   return {
@@ -311,12 +340,10 @@ export function setzeSichtbarkeitBereich(
   bereich: WidgetInstanz['bereich'],
   sichtbar: boolean,
   katalog: Record<string, WidgetKatalogEintrag> = WIDGET_KATALOG,
+  angezeigt: WidgetSichtbarkeit = ALLES_SICHTBAR,
 ): HomeWidgetConfig {
-  const trifft = (w: WidgetInstanz): boolean => {
-    if (w.bereich !== bereich) return false;
-    const eintrag = katalog[w.typ];
-    return !!eintrag && eintrag.verfuegbar && eintrag.sichtbarWenn();
-  };
+  const trifft = (w: WidgetInstanz): boolean =>
+    w.bereich === bereich && widgetAnzeigbar(w.typ, katalog, angezeigt);
   if (!cfg.widgets.some(w => trifft(w) && w.sichtbar !== sichtbar)) return cfg;
   return {
     ...cfg,

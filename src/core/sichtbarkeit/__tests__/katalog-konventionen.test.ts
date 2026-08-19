@@ -1,0 +1,164 @@
+/**
+ * Guards der Sichtbarkeits-Achsen.
+ *
+ * Modul-lokal statt in `src/__tests__/conventions-*.test.ts`: sie prüfen den
+ * Katalog dieses Moduls gegen seine Quellen, nicht eine projektweite
+ * Schreibregel. Nur `sichtbarkeit-eine-mechanik` ist ein echter Codebase-Scan
+ * und steht deshalb am Ende mit derselben Marker-Konvention
+ * (`// allow-sichtbarkeit-eine-mechanik: <grund>`).
+ */
+import { describe, it, expect } from 'vitest';
+import { readFileSync, readdirSync, existsSync } from 'node:fs';
+import { join } from 'node:path';
+import { SICHTBARKEITS_KATALOG } from '../katalog';
+import { istMarkiert } from '../regel';
+import { seiteId, widgetId, abschnittId } from '../types';
+import { ALL_TS_FILES, relPath } from '@/__tests__/conventions-lib';
+
+const SRC = join(__dirname, '..', '..', '..');
+
+/** Plugin-Ids per Text-Scan: `plugins.config.ts` zu importieren bricht unter Vitest (pdfjs-Worker). */
+function pluginIds(): string[] {
+  const basis = join(SRC, 'plugins');
+  const ids: string[] = [];
+  for (const ordner of readdirSync(basis, { withFileTypes: true })) {
+    if (!ordner.isDirectory()) continue;
+    for (const datei of ['index.ts', 'index.tsx']) {
+      const pfad = join(basis, ordner.name, datei);
+      if (!existsSync(pfad)) continue;
+      const treffer = /^\s{2}id: '([^']+)'/m.exec(readFileSync(pfad, 'utf8'));
+      if (treffer?.[1]) ids.push(treffer[1]);
+    }
+  }
+  return ids;
+}
+
+function textVon(...teile: string[]): string {
+  return readFileSync(join(SRC, ...teile), 'utf8');
+}
+
+const IDS = new Set(SICHTBARKEITS_KATALOG.map(e => e.id));
+
+describe('sichtbarkeit-katalog', () => {
+  it('vergibt jede Id genau einmal', () => {
+    const gesehen = new Set<string>();
+    const doppelt: string[] = [];
+    for (const e of SICHTBARKEITS_KATALOG) {
+      if (gesehen.has(e.id)) doppelt.push(e.id);
+      gesehen.add(e.id);
+    }
+    expect(doppelt, `Doppelte Katalog-Ids: ${doppelt.join(', ')}`).toEqual([]);
+  });
+
+  it('sichtbarkeit-katalog-deckt-plugins — jedes Plugin hat einen seite:-Eintrag', () => {
+    const fehlend = pluginIds().filter(id => !IDS.has(seiteId(id)));
+    expect(
+      fehlend,
+      `Ohne Katalog-Eintrag kann der Kurator diese Seiten nicht kennzeichnen:\n` +
+      fehlend.map(id => `  seite('${id}', '…'),`).join('\n') +
+      `\nErgänzen in src/core/sichtbarkeit/katalog.ts.`,
+    ).toEqual([]);
+  });
+
+  it('sichtbarkeit-deckt-widgets — jeder WidgetTyp hat einen widget:-Eintrag', () => {
+    const text = textVon('plugins', 'home', 'widgets', 'widgetCatalog.ts');
+    const typen = [...text.matchAll(/^ {4}typ: '([^']+)'/gm)].map(m => m[1] as string);
+    expect(typen.length, 'Text-Scan von WIDGET_KATALOG lieferte nichts — Format geändert?').toBeGreaterThan(10);
+    const fehlend = typen.filter(t => !IDS.has(widgetId(t)));
+    expect(fehlend, `Widgets ohne Katalog-Eintrag: ${fehlend.join(', ')}`).toEqual([]);
+  });
+
+  it('sichtbarkeit-deckt-detailsektionen — jede DetailSektionId hat einen Eintrag', () => {
+    const text = textVon('plugins', 'antraege', 'detailSektionen.ts');
+    const block = /export type DetailSektionId =([\s\S]*?);/.exec(text)?.[1] ?? '';
+    const sektionen = [...block.matchAll(/'([^']+)'/g)].map(m => m[1] as string);
+    expect(sektionen.length, 'DetailSektionId-Union nicht gefunden').toBeGreaterThan(10);
+    const fehlend = sektionen.filter(s => !IDS.has(abschnittId('antraege', `detail-${s}`)));
+    expect(fehlend, `Detail-Sektionen ohne Katalog-Eintrag: ${fehlend.join(', ')}`).toEqual([]);
+  });
+
+  it('sichtbarkeit-unantastbar — die Wege zu den Schaltern tragen nie eine Marke', () => {
+    const pflicht = [
+      seiteId('home'),
+      seiteId('einstellungen'),
+      seiteId('kuration'),
+      'reiter:einstellungen/profil',
+      'reiter:kuration/sichtbarkeit',
+      abschnittId('einstellungen', 'sec-umfang'),
+      abschnittId('einstellungen', 'sec-kurator'),
+      abschnittId('einstellungen', 'sec-freischaltung'),
+      abschnittId('kuration', 'sec-sichtbarkeit'),
+    ];
+    for (const id of pflicht) {
+      const e = SICHTBARKEITS_KATALOG.find(k => k.id === id);
+      expect(e, `${id} fehlt im Katalog`).toBeDefined();
+      expect(e?.unantastbar, `${id} muss unantastbar sein`).toBe(true);
+      expect(istMarkiert(e?.marken ?? {}), `${id} darf keine Marke tragen`).toBe(false);
+    }
+  });
+
+  it('sichtbarkeit-seite-behaelt-reiter — keine Seite verliert alle Reiter', () => {
+    const reiterJeSeite = new Map<string, { alle: number; offen: number }>();
+    for (const e of SICHTBARKEITS_KATALOG) {
+      if (e.art !== 'reiter') continue;
+      const stand = reiterJeSeite.get(e.seite) ?? { alle: 0, offen: 0 };
+      stand.alle++;
+      if (!istMarkiert(e.marken)) stand.offen++;
+      reiterJeSeite.set(e.seite, stand);
+    }
+    const leer = [...reiterJeSeite.entries()].filter(([, s]) => s.offen === 0).map(([s]) => s);
+    expect(
+      leer,
+      `Diese Seiten hätten mit ausgeschalteten Schaltern eine leere Reiter-Leiste: ${leer.join(', ')}`,
+    ).toEqual([]);
+  });
+
+  it('sichtbarkeit-keine-doppelmarke — ein Kind wiederholt die Marke seines Wirts nicht', () => {
+    const seiten = new Map(
+      SICHTBARKEITS_KATALOG.filter(e => e.art === 'seite').map(e => [e.seite, e.marken]),
+    );
+    const doppelt: string[] = [];
+    for (const e of SICHTBARKEITS_KATALOG) {
+      if (e.art === 'seite') continue;
+      const wirt = seiten.get(e.seite);
+      if (!wirt) continue;
+      if (e.marken.beta && wirt.beta) doppelt.push(`${e.id} (beta)`);
+      if (e.marken.experte && wirt.experte) doppelt.push(`${e.id} (experte)`);
+    }
+    expect(
+      doppelt,
+      `Die Marke der Seite verbirgt das Kind ohnehin mit — eine zweite Marke wäre eine\n` +
+      `zweite Stelle, an der dieselbe Aussage gepflegt werden muss:\n  ${doppelt.join('\n  ')}`,
+    ).toEqual([]);
+  });
+});
+
+describe('sichtbarkeit-eine-mechanik', () => {
+  /** Nur diese drei dürfen die Rohfelder lesen; überall sonst fragt man `useSichtbar()`. */
+  const ERLAUBT = [
+    'src/core/hooks/useSichtbar.ts',
+    'src/core/types/config.ts',
+    'src/plugins/einstellungen/profil/UmfangGruppe.tsx',
+  ];
+
+  it('niemand liest profile.beta_features / experten_modus selbst', () => {
+    const muster = /\b(beta_features|experten_modus)\b/;
+    const treffer: string[] = [];
+    for (const datei of ALL_TS_FILES) {
+      const rel = relPath(datei).replace(/\\/g, '/');
+      if (ERLAUBT.includes(rel) || rel.includes('__tests__')) continue;
+      const zeilen = readFileSync(datei, 'utf8').split('\n');
+      zeilen.forEach((zeile, i) => {
+        if (!muster.test(zeile)) return;
+        if (zeile.includes('allow-sichtbarkeit-eine-mechanik')) return;
+        treffer.push(`${rel}:${i + 1}`);
+      });
+    }
+    expect(
+      treffer,
+      `Die beiden Profil-Schalter werden über useSichtbar() gelesen, nie direkt —\n` +
+      `sonst entsteht neben der UND-Regel eine zweite, die irgendwann anders antwortet.\n\n` +
+      treffer.join('\n'),
+    ).toEqual([]);
+  });
+});

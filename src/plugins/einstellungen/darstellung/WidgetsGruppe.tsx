@@ -23,6 +23,9 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { useHomeWidgets } from '@/plugins/home/widgets/useHomeWidgets';
+import { widgetAnzeigbar } from '@/plugins/home/widgets/homeWidgetsStore';
+import { useSichtbar } from '@/core/hooks/useSichtbar';
+import { widgetId } from '@/core/sichtbarkeit';
 import { WIDGET_KATALOG, listeKatalog } from '@/plugins/home/widgets/widgetCatalog';
 import { WidgetConfigForm } from '@/plugins/home/widgets/WidgetConfigForm';
 import { hatWidgetDetailConfig, type WidgetInstanz } from '@/plugins/home/widgets/types';
@@ -31,14 +34,16 @@ import { SettingsGruppe, SettingsKlappe, SettingsOption } from '@/components/set
 export function WidgetsGruppe(): React.ReactElement {
   const api = useHomeWidgets();
   const navigate = useNavigate();
+  const angezeigt = useSichtbar();
   const [aufgeklappt, setAufgeklappt] = useState<string | null>(null);
   const aktion = useAsyncAction(async (fn: () => Promise<void>) => { await fn(); });
 
-  const instanzen = api.alleInstanzen.filter(w => {
-    const eintrag = WIDGET_KATALOG[w.typ];
-    return !!eintrag && eintrag.verfuegbar && eintrag.sichtbarWenn();
-  });
-  const zukunft = listeKatalog().filter(e => !e.verfuegbar && e.sichtbarWenn());
+  // Ein von Beta/Experte verborgenes Widget steht hier NICHT — sonst böte die
+  // Liste ein Häkchen an, das auf der Startseite ohne Wirkung bliebe.
+  const instanzen = api.alleInstanzen.filter(w => widgetAnzeigbar(w.typ, undefined, angezeigt));
+  const zukunft = listeKatalog().filter(
+    e => !e.verfuegbar && e.sichtbarWenn() && angezeigt(widgetId(e.typ)),
+  );
   const sichtbare = instanzen.filter(w => w.sichtbar).length;
 
   // Zwei Spalten wie auf der Startseite — je Bereich eine EIGENE Reihenfolge.

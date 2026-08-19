@@ -33,6 +33,7 @@ import {
 import { HerleitungPopover } from './HerleitungPopover';
 import { JournalNullpunkt } from './JournalNullpunkt';
 import { useJournalChroniken } from './useJournalChroniken';
+import { WennDetailSektion } from '../detailRahmen';
 import { NaechsteSchritte } from './NaechsteSchritte';
 import { OffeneAufgaben } from './OffeneAufgaben';
 import { useStatusVerlauf } from './useStatusVerlauf';
@@ -316,20 +317,26 @@ export function StatusDetailSection({ verbundId, statusRoh }: {
           Rolle. Steht VOR dem Navigator: „was ist meine Aufgabe" kommt vor
           „welches Kürzel setze ich dafür". */}
       {isVorgangssystemEnabled() && (
-        <OffeneAufgaben
-          version={version} jeTeilvorhaben={v.jeTeilvorhaben} stichtag={stichtag}
-        />
+        <WennDetailSektion sektion="offeneAufgaben">
+          <OffeneAufgaben
+            version={version} jeTeilvorhaben={v.jeTeilvorhaben} stichtag={stichtag}
+          />
+        </WennDetailSektion>
       )}
 
       {/* Der Navigator: was ist als Nächstes zu setzen, von wem, was löst es aus.
           Aus der Trigger-Tabelle des Fachsystems — nicht abgeleitet. */}
-      <NaechsteSchritte
-        version={version} vorkommen={v.vorkommen} statusRoh={statusRoh} programm={v.programm}
-      />
+      <WennDetailSektion sektion="naechsteSchritte">
+        <NaechsteSchritte
+          version={version} vorkommen={v.vorkommen} statusRoh={statusRoh} programm={v.programm}
+        />
+      </WennDetailSektion>
 
       {/* Die Ordner des Fachsystems: was steht wo. Die Timeline oben beantwortet
           „wann", diese Liste „in welchem Ordner". */}
-      <StatusCodeListe version={version} vorkommen={v.vorkommen} />
+      <WennDetailSektion sektion="statuseintraege">
+        <StatusCodeListe version={version} vorkommen={v.vorkommen} />
+      </WennDetailSektion>
       </div>
     </div>
   );

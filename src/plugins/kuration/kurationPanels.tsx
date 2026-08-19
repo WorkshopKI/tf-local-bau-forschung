@@ -11,7 +11,7 @@
  * Sichtbarkeit folgt den Feature-Flags; der Suchindex leitet sich aus den
  * sichtbaren Abschnitten ab und respektiert sie dadurch automatisch.
  */
-import { Database, Layers, LayoutDashboard, Plug, Search } from 'lucide-react';
+import { Database, Eye, Layers, LayoutDashboard, Plug, Search } from 'lucide-react';
 import type { SettingsPanel } from '@/components/settings';
 import { features } from '@/config/feature-flags';
 import { UebersichtPanel } from './uebersicht/UebersichtPanel';
@@ -19,6 +19,7 @@ import { CsvQuellenPanel } from './csv-quellen/CsvQuellenPanel';
 import { FoerderprogrammePanel } from './foerderprogramme/FoerderprogrammePanel';
 import { SucheIndexPanel } from './suche-index/SucheIndexPanel';
 import { DienstePanel } from './dienste/DienstePanel';
+import { SichtbarkeitPanel } from './sichtbarkeit/SichtbarkeitPanel';
 
 /**
  * Der Seitenname — EINE Quelle fuer den Sidebar-Eintrag (`index.ts`) und die
@@ -124,6 +125,19 @@ export function getKurationPanels(): SettingsPanel[] {
       render: () => <DienstePanel />,
     });
   }
+
+  // Beta & Expertenmodus (v4.112) — die vierte Sichtbarkeits-Achse. Steht
+  // bewusst am Ende: sie pflegt keine Daten, sondern die Oberfläche darüber.
+  panels.push({
+    id: 'sichtbarkeit',
+    label: 'Sichtbarkeit',
+    untertitel: 'Was nur mit Beta-Funktionen oder Expertenmodus erscheint.',
+    icon: Eye,
+    sections: [
+      { id: 'sec-sichtbarkeit', label: 'Beta & Expertenmodus', gruppe: 'Beta & Expertenmodus', keywords: 'beta experte expertenmodus sichtbarkeit ausblenden entschlacken erprobung marke oberfläche umfang' },
+    ],
+    render: () => <SichtbarkeitPanel />,
+  });
 
   return panels;
 }

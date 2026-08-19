@@ -18,6 +18,7 @@ import { useSearchParams } from 'react-router-dom';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { BestandsFrische } from '@/components/ui/BestandsFrische';
 import { ScopeTabs } from '@/components/ui/ScopeTabs';
+import { useSichtbareReiter } from '@/core/hooks/useSichtbar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
@@ -425,6 +426,32 @@ export function StatusCockpitPage(): React.ReactElement {
     if (ziel) setTab(ziel);
   }, [searchParams]);
 
+  // Status, nicht Katalogzeilen: derselbe Code steht unter TV- und Verbund-Feld,
+  // und der Baum daneben zählt ihn seit jeher einmal.
+  const werteCount = zaehleStatus(api.entwurf?.werte ?? []);
+  const felderCount = api.entwurf?.felder.length ?? 0;
+
+  // Bis v4.112 stand diese Liste inline im JSX. Sie steht jetzt als Array da,
+  // damit die Beta/Experte-Marken einen Schlüssel zum Filtern haben. Heute
+  // trägt keiner der fünf eine Marke — die Seite selbst ist bereits Beta und
+  // Experten-Sache, eine zweite Marke am Kind wäre dieselbe Aussage doppelt.
+  //
+  // MUSS vor dem Lade-Return stehen: ein Hook dahinter kippt die
+  // Hook-Reihenfolge, sobald `api.laden` umschlägt (React #310).
+  const alleTabs = [
+    // Ohne Zaehler: „Ebenen" ist keine Menge, sondern eine Auskunft.
+    { key: 'ebenen', label: TAB_LABEL.ebenen },
+    { key: 'katalog', label: TAB_LABEL.katalog, count: werteCount },
+    { key: 'felder', label: TAB_LABEL.felder, count: felderCount },
+    { key: 'regeln', label: TAB_LABEL.regeln, count: api.entwurf?.todoRegeln?.length ?? 0 },
+    // Ohne Zähler: die Zahl entsteht erst durch einen Bestandslauf, und
+    // eine „0" an der Lasche läse sich als „nichts offen".
+    { key: 'klaerfragen', label: TAB_LABEL.klaerfragen },
+  ];
+  const sichtbareTabs = useSichtbareReiter(
+    'status-cockpit', alleTabs, t => t.key, tab, k => setTab(k as TabKey),
+  );
+
   if (api.laden) {
     return (
       <div className="flex flex-col h-full min-h-0">
@@ -435,11 +462,6 @@ export function StatusCockpitPage(): React.ReactElement {
       </div>
     );
   }
-
-  // Status, nicht Katalogzeilen: derselbe Code steht unter TV- und Verbund-Feld,
-  // und der Baum daneben zählt ihn seit jeher einmal.
-  const werteCount = zaehleStatus(api.entwurf?.werte ?? []);
-  const felderCount = api.entwurf?.felder.length ?? 0;
 
   return (
     <div className="flex flex-col h-full min-h-0">
@@ -459,16 +481,7 @@ export function StatusCockpitPage(): React.ReactElement {
           aria-label="Bereich"
           activeKey={tab}
           onChange={k => setTab(k as TabKey)}
-          items={[
-            // Ohne Zaehler: „Ebenen" ist keine Menge, sondern eine Auskunft.
-            { key: 'ebenen', label: TAB_LABEL.ebenen },
-            { key: 'katalog', label: TAB_LABEL.katalog, count: werteCount },
-            { key: 'felder', label: TAB_LABEL.felder, count: felderCount },
-            { key: 'regeln', label: TAB_LABEL.regeln, count: api.entwurf?.todoRegeln?.length ?? 0 },
-            // Ohne Zähler: die Zahl entsteht erst durch einen Bestandslauf, und
-            // eine „0" an der Lasche läse sich als „nichts offen".
-            { key: 'klaerfragen', label: TAB_LABEL.klaerfragen },
-          ]}
+          items={sichtbareTabs}
         />
         {/* Der Zwecksatz steht als eigene Zeile unter der Leiste, nicht als
             Tooltip an der Lasche: er soll gelesen werden, ohne dass jemand

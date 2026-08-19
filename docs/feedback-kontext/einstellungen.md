@@ -14,7 +14,9 @@ Persönliche App-Konfiguration: wer Sie sind, was Ihnen angezeigt wird, wie die 
 
 - **Eingeklappte Bereiche** tragen rechts in ihrer Zeile eine Angabe, was dahinter liegt — etwa „8 von 28 aktiv", „13 von 15 sichtbar", „3 Dienste" oder „5 Schritte".
 
-- **Mein Profil:** links Ihr Account (Avatar, Name ändern, Kürzel, Zusammenfassung aus Programm, Hauptkategorie und Antragstypen) und Ihr Fachprofil (Hauptkategorie, ergänzende Erfahrungen, Antragstypen; eingeklappt die Themen aus Ihren Anträgen und Ihre eigenen Kompetenzen). Rechts: welche Anträge Sie sehen (Rolle, Bearbeiter-Kürzel, Anträge inaktiver Bearbeiter, ZTP-/PFM-Zuständigkeiten, Anzahl auf der Startseite), die Zusatz-Module mit ihrer Restlaufzeit und der persönliche Assistent.
+- **Mein Profil:** links Ihr Account (Avatar, Name ändern, Kürzel, Zusammenfassung aus Programm, Hauptkategorie und Antragstypen) und Ihr Fachprofil (Hauptkategorie, ergänzende Erfahrungen, Antragstypen; eingeklappt die Themen aus Ihren Anträgen und Ihre eigenen Kompetenzen). Rechts: welche Anträge Sie sehen (Rolle, Bearbeiter-Kürzel, Anträge inaktiver Bearbeiter, ZTP-/PFM-Zuständigkeiten, Anzahl auf der Startseite), der Umfang der Oberfläche, die Zusatz-Module mit ihrer Restlaufzeit und der persönliche Assistent.
+- **Umfang der Oberfläche:** zwei Schalter, beide anfangs aus. „Beta-Funktionen" zeigt Bereiche, die noch in Erprobung sind — sie funktionieren, können sich aber noch ändern. „Expertenmodus" zeigt selten gebrauchte Tiefen-Werkzeuge wie Verwaltungs-Reiter, Rohfelder und Diagnose-Abschnitte.
+- **Wie die beiden Schalter zusammenwirken:** unter jedem steht, wie viele Bereiche er zusätzlich einblendet; die Zahl richtet sich nach dem Stand des anderen. Was neu UND für Profis gedacht ist, erscheint erst, wenn beide an sind. Welche Seiten, Reiter, Abschnitte und Startseiten-Widgets so gekennzeichnet sind, legt die Datenpflege für das ganze Team fest. Verborgene Seiten sind nicht gesperrt: ein gespeicherter Link führt weiterhin hin.
   - Die **Kürzel-Auswahl** führt die Kürzel **beider** Bearbeiter-Spalten (fachlich und administrativ) und auch **ehemalige** Kolleg:innen, erkennbar an „· ehem." — viele Projektleitungen haben früher selbst bearbeitet und sind als inaktiv geführt. Der Schalter darunter wirkt nur auf die **Antragsmengen** in Liste und Startseite, nicht auf diese Auswahl.
   - Die Kürzel stehen **in der Schreibweise der Quelle** („THü", „JuHe") — so, wie das Team sie führt. Verglichen und gespeichert wird intern eine Großschreib-Normalform; für die Suche in der Liste macht die Schreibweise deshalb keinen Unterschied.
   - Das Kürzel ist Ihre **Identität**, nicht Ihr Ausschnitt: zwischen den eigenen Anträgen und allen wechseln Sie über den Chip im Seitenkopf von Förderanträgen und Startseite.
@@ -35,6 +37,7 @@ Persönliche App-Konfiguration: wer Sie sind, was Ihnen angezeigt wird, wie die 
 - Datenordner aktualisieren, Ordner verbinden oder trennen, Tags neu zählen
 - Interne KI verbinden, testen und ihr Antwortverhalten einstellen
 - Zusatz-Module mit dem Zusatzpasswort freischalten oder wieder sperren
+- Beta-Funktionen oder Expertenmodus einschalten, um mehr der Oberfläche zu sehen
 
 ## Technik
 

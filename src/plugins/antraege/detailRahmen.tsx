@@ -17,6 +17,9 @@
  */
 import { ArrowLeft, X } from 'lucide-react';
 import { rueckwegSatz } from '@/core/nav/rueckwegSatz';
+import { useSichtbar } from '@/core/hooks/useSichtbar';
+import { abschnittId } from '@/core/sichtbarkeit';
+import type { DetailSektionId } from './detailSektionen';
 
 /**
  * Rahmen einer Werkstatt-Sektion: Trennstrich nach oben + Sprung-Anker.
@@ -25,10 +28,19 @@ import { rueckwegSatz } from '@/core/nav/rueckwegSatz';
  * nichts rendert — inklusive Marge und Padding, weil `display: none` beides
  * mitnimmt.
  */
-export function Sektionsrahmen({ id, children }: {
+export function Sektionsrahmen({ id, sektion, children }: {
+  /** DOM-Anker (Sprungziel, Deep-Link) — bleibt, was er ist. */
   id: string;
+  /**
+   * Katalog-Sektion für Beta/Experte. Nur nötig, wo der Anker anders heißt als
+   * die Sektion (`id="nf"` → `nachforderungen`); sonst sind sie dasselbe Wort.
+   */
+  sektion?: DetailSektionId;
   children: React.ReactNode;
-}): React.ReactElement {
+}): React.ReactElement | null {
+  // Beta/Experte: der Rahmen ist der gemeinsame Ort der großen Detail-Sektionen.
+  const sichtbar = useSichtbar();
+  if (!sichtbar(abschnittId('antraege', `detail-${sektion ?? id}`))) return null;
   return (
     <div
       id={id}
@@ -37,6 +49,24 @@ export function Sektionsrahmen({ id, children }: {
       {children}
     </div>
   );
+}
+
+/**
+ * Hülle für Detail-Sektionen OHNE `Sektionsrahmen` — die Klapp-Karten
+ * (`CollapsibleDataSection`) und die drei Blöcke innerhalb der Status-Sektion.
+ *
+ * Sie bringen ihren eigenen Rahmen mit, brauchen aber dieselbe Beta/Experte-
+ * Prüfung. Eigenes Bauteil statt `<WennSichtbar id={abschnittId(…)}>` an jeder
+ * Stelle: so entsteht die Katalog-Id genau zweimal in diesem Plugin (hier und
+ * im `Sektionsrahmen`) statt neunmal im JSX.
+ */
+export function WennDetailSektion({ sektion, children }: {
+  sektion: DetailSektionId;
+  children: React.ReactNode;
+}): React.ReactElement | null {
+  const sichtbar = useSichtbar();
+  if (!sichtbar(abschnittId('antraege', `detail-${sektion}`))) return null;
+  return <>{children}</>;
 }
 
 /**

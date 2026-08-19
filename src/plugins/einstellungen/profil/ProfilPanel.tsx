@@ -17,6 +17,7 @@ import { SettingsKopfStatus, SettingsZweiSpalten } from '@/components/settings';
 import { AccountGruppe } from './AccountGruppe';
 import { FachprofilGruppe } from './FachprofilGruppe';
 import { AntraegeSichtGruppe } from './AntraegeSichtGruppe';
+import { UmfangGruppe } from './UmfangGruppe';
 import { ZusatzModuleGruppe } from './ZusatzModuleGruppe';
 import { AssistentGruppe } from './AssistentGruppe';
 import { useFachprofil } from './useFachprofil';
@@ -48,6 +49,7 @@ export function ProfilPanel(): React.ReactElement {
         neben={
           <>
             <AntraegeSichtGruppe />
+            <UmfangGruppe />
             <ZusatzModuleGruppe />
             {isAssistentProtokollEnabled() && <AssistentGruppe />}
           </>

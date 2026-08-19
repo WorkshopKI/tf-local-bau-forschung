@@ -8,6 +8,7 @@
  * gesperrt, bis sein Baustein fertig ist. Ohne `zustaende`-Prop ist alles klickbar.
  */
 import { cn } from '@/lib/utils';
+import { useSichtbareReiter } from '@/core/hooks/useSichtbar';
 import type { TabZustandInfo } from './tab-gating';
 
 export type AufbereitungTabId =
@@ -39,9 +40,15 @@ export function AufbereitungTabs({
   /** Klick-Zustand je Tab (aus `deriveTabZustaende`); fehlt er, ist der Tab klickbar. */
   zustaende?: Record<AufbereitungTabId, TabZustandInfo>;
 }): React.ReactElement {
+  // Beta/Experte: „Recherche" ist als Experten-Reiter vorbelegt (sie schickt
+  // Aufträge nach draußen). Der Filter sitzt HIER statt beim Aufrufer — die
+  // Liste gehört diesem Bauteil, und so gibt es nur einen Ort dafür.
+  const sichtbare = useSichtbareReiter(
+    'aufbereitung', AUFBEREITUNG_TABS, t => t.id, active, k => onChange(k as AufbereitungTabId),
+  );
   return (
     <div className="flex items-end gap-6 overflow-x-auto" style={{ borderBottom: '0.5px solid var(--tf-border)' }}>
-      {AUFBEREITUNG_TABS.map(t => {
+      {sichtbare.map(t => {
         const info = zustaende?.[t.id];
         if (info?.zustand === 'inaktiv') {
           return (

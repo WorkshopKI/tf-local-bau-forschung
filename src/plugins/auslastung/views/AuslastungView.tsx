@@ -25,6 +25,7 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Tabs } from '@/components/ui/tabs';
+import { useSichtbareReiter } from '@/core/hooks/useSichtbar';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
 import { useAuslastungData } from '../hooks/useAuslastungData';
@@ -186,6 +187,15 @@ export function AuslastungView(): React.ReactElement {
     ];
   }, [data.klassifizierungen, data.config.aktuellesQuartal]);
 
+  // Beta/Experte: „Verwaltung" ist als Experten-Reiter vorbelegt. Die Inhalte
+  // bleiben eager gemountet (gemeinsamer Index-Provider, s.u.) — verborgen wird
+  // die LEISTE; ohne den Rückfall stünde sonst ein Inhalt ohne Reiter da.
+  // MUSS vor den Empty-State-Returns stehen: ein Hook hinter einem frühen
+  // Return kippt die Hook-Reihenfolge (React #310).
+  const sichtbareTabs = useSichtbareReiter(
+    'auslastung', tabs, t => t.id, tab, k => switchTab(k as TabId),
+  );
+
   // Empty-States
   if (!activeProgrammId) {
     return (
@@ -233,7 +243,7 @@ export function AuslastungView(): React.ReactElement {
 
       {loaded && (
         <>
-          <Tabs tabs={tabs} activeTab={tab} onChange={(id) => switchTab(id as TabId)} />
+          <Tabs tabs={sichtbareTabs} activeTab={tab} onChange={(id) => switchTab(id as TabId)} />
 
           {/* v2.9: Eager Mount aller Tabs + gemeinsamer Index-Provider. Alle
               drei Tabs sind dauerhaft im DOM; nicht-aktive werden per

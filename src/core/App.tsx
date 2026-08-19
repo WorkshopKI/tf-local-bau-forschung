@@ -32,6 +32,7 @@ import { ensureListViewProjection } from '@/core/services/csv/list-view-migratio
 import { initProtokoll } from '@/core/services/assistent/protokoll';
 import { initGedaechtnis, starteKonsolidierungWennFaellig } from '@/core/services/assistent/gedaechtnis';
 import { initStatusKatalog, synchronisiereKatalogNachGrant } from '@/core/status';
+import { useSichtbarkeitStore } from '@/core/sichtbarkeit';
 import { bumpCsvSourcesSignal } from '@/core/services/csv/csv-sources-signal';
 import { useStartupDataStatus } from '@/core/services/csv/startup-data-status';
 import { runDataUpdate } from '@/plugins/csv-sources-kuration/services/data-update';
@@ -369,6 +370,17 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
         console.warn('[App] initStatusKatalog fehlgeschlagen', e);
       }
 
+      // Beta/Experte: das Kurator-Overlay aus dem gerätelokalen Cache. Gilt
+      // sofort — auch offline und bevor der Ordner-Picker lief. Die Team-Fassung
+      // holt `ladeVomShare` weiter unten nach, sobald der Share wirklich offen
+      // ist; ohne diesen Nachlauf läge auf einer frischen Installation die ganze
+      // Sitzung die Auslieferungs-Vorbelegung an.
+      try {
+        await useSichtbarkeitStore.getState().ladeAusCache(storage.idb);
+      } catch (e) {
+        console.warn('[App] Sichtbarkeits-Overlay (Cache) fehlgeschlagen', e);
+      }
+
       // Assistent Phase 2: Gedächtnis-Store initialisieren (Opt-in-Cache +
       // Retention invalidierter Einträge). Best-effort; No-op ohne Flag/Opt-in.
       try {
@@ -609,6 +621,13 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
           await synchronisiereKatalogNachGrant(storage.idb);
         } catch (e) {
           console.warn('[App] synchronisiereKatalogNachGrant fehlgeschlagen', e);
+        }
+        // Dasselbe Nachlauf-Muster für die Beta/Experte-Kuration: oben lief nur
+        // der Cache, hier steht der Share offen.
+        try {
+          await useSichtbarkeitStore.getState().ladeVomShare(storage.idb);
+        } catch (e) {
+          console.warn('[App] Sichtbarkeits-Overlay (Share) fehlgeschlagen', e);
         }
         if (cancelled) return;
         // EIN orchestrierter Pfad (v2.95): Datenbestand (Snapshot, je Programm)

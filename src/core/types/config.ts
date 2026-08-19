@@ -43,6 +43,23 @@ export interface UserProfile {
    */
   bearbeiter_inkl_begleitung?: boolean;
   /**
+   * Zeigt Seiten, Reiter, Abschnitte und Widgets, die als „in Erprobung"
+   * gekennzeichnet sind. Default aus.
+   *
+   * Zusammen mit `experten_modus` die vierte Sichtbarkeits-Achse — sie
+   * beantwortet „will ich das sehen?", nicht „darf ich das?" (siehe
+   * `@/core/sichtbarkeit`). Nie direkt lesen: die Frage stellt man über
+   * `useSichtbar()`, sonst entstehen zwei Regeln (Guard
+   * `sichtbarkeit-eine-mechanik`).
+   */
+  beta_features?: boolean;
+  /**
+   * Zeigt seltene Tiefen-Werkzeuge (Verwaltung, Rohfelder, Diagnose). Default
+   * aus. Unabhängig von `beta_features`: was beide Marken trägt, braucht beide
+   * Schalter.
+   */
+  experten_modus?: boolean;
+  /**
    * Anzahl Anträge, die auf der Home-Seite in "Meine Anträge" initial gezeigt
    * werden. Range 5–15. Default 5 (wenn unset). Der "+10 mehr"-Button am
    * Listenende erweitert in-page (nicht persistent).

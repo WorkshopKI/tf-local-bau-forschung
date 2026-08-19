@@ -1,5 +1,7 @@
-import { useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Download, Filter, FileUp, Loader2, Sparkles, X } from 'lucide-react';
+import { useSichtbar } from '@/core/hooks/useSichtbar';
+import { reiterId } from '@/core/sichtbarkeit';
 import { useAntraegeStore } from './store';
 import { useAufnahmeUiStore } from './aufnahme-einfach';
 import { useAntraegeColumnsStore } from './useAntraegeColumnsStore';
@@ -114,6 +116,24 @@ export function AntraegeHeader({ filterOpen, onToggleFilter, listeSichtbar }: Pr
   const eigeneReiter = useEigeneReiter(s => s.reiter);
   const kern = useAktuellerKern();
   const aktiverEigener = passenderReiter(eigeneReiter, kern);
+
+  // Beta/Experte gilt nur für die FESTEN Sichten — die eigenen Reiter gehören
+  // dem Nutzer und stehen deshalb nicht im Katalog. Heute trägt keine der vier
+  // eine Marke; die Verdrahtung sorgt dafür, dass eine spätere Kuration auch
+  // wirkt statt ins Leere zu gehen.
+  const sichtbar = useSichtbar();
+  const sichtbareViews = useMemo(
+    () => VIEWS.filter(v => sichtbar(reiterId('antraege', v.key))),
+    [sichtbar],
+  );
+  // Rückfall nur, wenn gerade eine feste Sicht aktiv ist: steht ein eigener
+  // Reiter, ist `activeView` bloß seine Basis und darf nicht umspringen.
+  useEffect(() => {
+    if (aktiverEigener) return;
+    if (sichtbareViews.some(v => v.key === activeView)) return;
+    const erster = sichtbareViews[0];
+    if (erster) setActiveView(erster.key);
+  }, [sichtbareViews, activeView, aktiverEigener, setActiveView]);
 
   const handleExport = async (): Promise<void> => {
     if (!activeProgrammId) return;
@@ -262,7 +282,7 @@ export function AntraegeHeader({ filterOpen, onToggleFilter, listeSichtbar }: Pr
               // hat. Ohne die Linie sähe ein eigener Reiter aus wie eine fünfte
               // Werkseinstellung.
               items={[
-                ...VIEWS.map(v => ({
+                ...sichtbareViews.map(v => ({
                   key: v.key,
                   label: v.label,
                   count: counts[v.key],
