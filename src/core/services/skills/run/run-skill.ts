@@ -34,7 +34,12 @@ export type ThinkingBudget = 'none' | 'low' | 'medium' | 'high';
  * entspricht ~`DEFAULT_LLM_CONTEXT_TOKENS` (~80k) → ~334k Zeichen.
  */
 export const VB_CHAR_CAP = 334_000;
-const DEFAULT_MAX_TOKENS = 2048;
+/**
+ * Output-Budget eines Laufs, wenn der Skill keines mitbringt. Exportiert, weil
+ * `RESERVE_TOKENS` ([llm-context.ts]) es decken muss — der Guard
+ * `reserve-deckt-output-budget` hält beide zusammen.
+ */
+export const DEFAULT_MAX_TOKENS = 2048;
 /**
  * Zusätzliches Output-Token-Budget, wenn Thinking aktiv ist. `max_tokens` deckelt
  * Reasoning UND Antwort GEMEINSAM — ohne Aufschlag frisst der Denkprozess das
@@ -42,7 +47,7 @@ const DEFAULT_MAX_TOKENS = 2048;
  * Text, „Antwort ohne erwartete Abschnitte"). Der Aufschlag schafft Platz für
  * den (oft langen) Reasoning-Block; das Kontextfenster (≥32k) trägt das locker.
  */
-const THINKING_OUTPUT_HEADROOM = 8192;
+export const THINKING_OUTPUT_HEADROOM = 8192;
 
 /**
  * Handlungsempfehlung, wenn die VB den Cap überschreitet (Inhalt fehlt dem LLM).

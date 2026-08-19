@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.115.2 — Guard: die Kontext-Reserve muss das Output-Budget decken (August 2026)
+
+PATCH — v4.115.1 hat die Reserve korrigiert, aber nichts hielt sie am Output-Budget fest: zwei unabhängige Zahlen, deren Verhältnis niemand nachrechnete. Genau daran scheiterte sie jahrelang unbemerkt — ein Kontext-Überlauf meldet sich nicht, er schiebt den System-Prompt hinaus.
+
+- **Guard `reserve-deckt-output-budget`** — `RESERVE_TOKENS` muss `DEFAULT_MAX_TOKENS + THINKING_OUTPUT_HEADROOM` decken **und** jedes Seed-`maxTokens` tragen ([conventions-daten.test.ts](src/__tests__/conventions-daten.test.ts))
+- Adversarisch geprüft: mit der alten Reserve (4.096) schlagen beide Testfälle an — der Guard hätte den Bug gefangen
+- Positiv-Kontrolle im Scan (22 gefundene Budgets): ein Guard, der nichts mehr findet, ist grün statt wirksam
+- Die drei Konstanten sind dafür exportiert; `map-infografik` (8192) trägt eine begründete Ausnahme — es läuft über `runBaustein`, das nie `capVbMarkdown` ruft ([map-infografik.seed.ts](src/core/services/skills/registry/map-infografik.seed.ts))
+- Nebenbefund: neun Seeds liegen bei genau 4096 — die 12.288 sind exakt die bindende Grenze, nicht großzügig gewählt
+
 ### v4.115.1 — Zeichen-Cap an der gemessenen Token-Quote (August 2026)
 
 PATCH — Ein 220.000-Zeichen-Antrag (~20.000 Wörter, 23 Tabellen) galt als „länger als das Kontextfenster", obwohl er in der internen KI nur 42k von 62k Tokens belegt. Der Cap ist abgeleitet, nicht gesetzt — und beide Faktoren der Ableitung waren geraten, nicht gemessen.

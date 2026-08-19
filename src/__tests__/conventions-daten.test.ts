@@ -97,6 +97,10 @@
  *     andere Datei als die einer zweiten Instanz mit dem echten Export — beide melden
  *     bei JEDEM Start „neuer Export" und kippen abwechselnd das `encoding`
  *     (gemessen 18.08.2026: 195x csv_schema_encoding_korrigiert, 0 inhaltliche Deltas).
+ *   - reserve-deckt-output-budget       → v4.115.1, RESERVE_TOKENS (llm-context.ts)
+ *     deckt das Output-Budget eines Laufs (DEFAULT_MAX_TOKENS +
+ *     THINKING_OUTPUT_HEADROOM) und jedes Seed-`maxTokens`; sonst reicht der
+ *     abgeleitete VB-Cap weiter, als das Kontextfenster traegt.
  */
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
@@ -104,6 +108,8 @@ import { bestandGeneration, markiereBestandGeaendert } from '../core/services/be
 import { join, sep } from 'node:path';
 import { KURATION_PLUGIN_IDS } from '../core/services/feedback/screenContext';
 import { CSV_SOURCES_SUBDIR } from '../core/services/csv/constants';
+import { RESERVE_TOKENS } from '../core/services/ai/llm-context';
+import { DEFAULT_MAX_TOKENS, THINKING_OUTPUT_HEADROOM } from '../core/services/skills';
 import {
   ROOT, ALL_TS_FILES, ALL_SOURCE_FILES, relPath, findInFile, fmt, findFilesViolating, type Finding,
 } from './conventions-lib';
@@ -1717,6 +1723,81 @@ describe('bestand-generation-am-choke-point', () => {
         + `Datenaktualisierung, die Kurations-Dialoge). Ein zweiter Schreiber macht den\n`
         + `Zaehler zur Vermutung: welcher Aufruf fehlt, sieht man erst an falschen Zahlen\n`
         + `in einem Cache.\n\nFremde Aufrufer:\n  ${fremde.join('\n  ')}`,
+      );
+    }
+  });
+});
+
+describe('reserve-deckt-output-budget (v4.115.1 — der Zeichen-Cap muss den Output tragen)', () => {
+  // Der VB-Zeichen-Cap ist abgeleitet: `(Kontextfenster − RESERVE_TOKENS) ×
+  // CHARS_PER_TOKEN`. RESERVE_TOKENS ist damit die Zusage, wie viel Fenster
+  // NEBEN der Vorhabensbeschreibung frei bleibt — und der grösste Posten darin
+  // ist das Output-Budget des Laufs (`renderSkillPrompt`: `skill.maxTokens ??
+  // DEFAULT_MAX_TOKENS`, bei aktivem Thinking plus THINKING_OUTPUT_HEADROOM).
+  //
+  // Bis v4.115.1 stand die Reserve auf 4.096 und deckte 10.240 Output-Tokens
+  // NICHT. Das fiel nie auf, weil ein Ueberlauf nichts meldet: llama.cpp schiebt
+  // dann den ANFANG aus dem Fenster — also den System-Prompt — und das Ergebnis
+  // ist still falsch statt sichtbar gekuerzt. Zwei unabhaengige Zahlen, deren
+  // Verhaeltnis niemand nachrechnete.
+  //
+  // Der Guard rechnet es nach. Wer THINKING_OUTPUT_HEADROOM, DEFAULT_MAX_TOKENS
+  // oder ein `maxTokens` am Skill anhebt, hebt entweder die Reserve mit — oder
+  // begruendet inline, warum der Lauf den Cap nicht beruehrt.
+
+  /** Output-Budget, das die Reserve tragen muss: Antwort + Reasoning gemeinsam. */
+  const budgetMitThinking = DEFAULT_MAX_TOKENS + THINKING_OUTPUT_HEADROOM;
+  /** Was einem Skill an eigenem `maxTokens` bleibt, ohne die Reserve zu sprengen. */
+  const maxTokensObergrenze = RESERVE_TOKENS - THINKING_OUTPUT_HEADROOM;
+  const SEED_DIR = join(ROOT, 'core', 'services', 'skills', 'registry');
+  const MARKER = 'allow-reserve-output-budget';
+
+  it('die Reserve deckt das Default-Output-Budget eines Laufs mit Thinking', () => {
+    expect(
+      RESERVE_TOKENS,
+      `RESERVE_TOKENS (${RESERVE_TOKENS}) muss mindestens das Output-Budget eines Laufs\n`
+      + `decken: DEFAULT_MAX_TOKENS (${DEFAULT_MAX_TOKENS}) + THINKING_OUTPUT_HEADROOM\n`
+      + `(${THINKING_OUTPUT_HEADROOM}) = ${budgetMitThinking}. Sonst reicht der abgeleitete\n`
+      + `VB-Cap weiter, als das Fenster traegt — und der Ueberlauf schiebt den System-Prompt\n`
+      + `hinaus, statt sichtbar zu kuerzen.\n`
+      + `Entweder RESERVE_TOKENS (llm-context.ts) anheben oder das Output-Budget senken.`,
+    ).toBeGreaterThanOrEqual(budgetMitThinking);
+  });
+
+  it('kein Seed-Skill fordert mehr Output, als die Reserve traegt', () => {
+    const dateien = readdirSync(SEED_DIR)
+      .filter(n => n.endsWith('.seed.ts'))
+      .map(n => join(SEED_DIR, n));
+    const alle: Finding[] = [];
+    const zuGross: Finding[] = [];
+    for (const file of dateien) {
+      // Ohne Marker gemessen — `alle` ist die Positiv-Kontrolle und muss auch
+      // die begruendeten Ausnahmen sehen, sonst zaehlt sie den Scan gesund.
+      alle.push(...findInFile(file, l => /^\s*maxTokens:\s*\d+\s*,/.test(l), '\u0000'));
+      zuGross.push(...findInFile(file, l => {
+        const m = l.match(/^\s*maxTokens:\s*(\d+)\s*,/);
+        return m !== null && Number(m[1]) > maxTokensObergrenze;
+      }, MARKER));
+    }
+
+    // Positiv-Kontrolle: findet der Scan ueberhaupt Budgets? Ohne sie liefe der
+    // Guard auch dann gruen, wenn die Seeds umbenannt oder das Feld umgeschrieben
+    // waere — gruen hiesse dann „nicht geprueft", nicht „in Ordnung".
+    expect(
+      alle.length,
+      `Der Scan fand kein einziges \`maxTokens:\` in ${SEED_DIR} — der Guard hat seinen\n`
+      + `Griff verloren (Seeds umbenannt? Feld umgeschrieben?). Bitte das Muster nachziehen.`,
+    ).toBeGreaterThan(10);
+
+    if (zuGross.length > 0) {
+      expect.fail(
+        `Skill-Budget sprengt die Kontext-Reserve.\n`
+        + `RESERVE_TOKENS (${RESERVE_TOKENS}) − THINKING_OUTPUT_HEADROOM (${THINKING_OUTPUT_HEADROOM})\n`
+        + `= ${maxTokensObergrenze} Tokens bleiben einem Skill fuer sein eigenes \`maxTokens\`.\n`
+        + `Darueber reicht der abgeleitete VB-Cap weiter, als das Fenster traegt.\n\n`
+        + `Entweder RESERVE_TOKENS (llm-context.ts) anheben — dann sinkt der Cap fuer ALLE —,\n`
+        + `oder inline begruenden, warum dieser Lauf den Cap nicht beruehrt:\n`
+        + `  // ${MARKER}: <grund>\n\nTreffer:\n${fmt(zuGross)}`,
       );
     }
   });

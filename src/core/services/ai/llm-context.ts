@@ -63,8 +63,11 @@ export const MAX_LLM_CONTEXT_TOKENS = 1_000_000;
  * `DEFAULT_MAX_TOKENS + THINKING_OUTPUT_HEADROOM` = 2.048 + 8.192 = 10.240 Tokens
  * ([run-skill.ts]); dazu kommen System-Prompt, Qualitätsregeln und die
  * (Workflow-)Vorabschnitte. 12.288 deckt das mit Marge.
+ *
+ * Exportiert, weil die Kopplung an das Output-Budget sonst nur eine Behauptung
+ * im Kommentar wäre: der Guard `reserve-deckt-output-budget` rechnet sie nach.
  */
-const RESERVE_TOKENS = 12_288;
+export const RESERVE_TOKENS = 12_288;
 /**
  * Zeichen/Token-Quote — **gemessen, nicht geschätzt**.
  *

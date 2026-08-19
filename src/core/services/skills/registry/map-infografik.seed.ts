@@ -68,7 +68,12 @@ Gib ausschließlich das geforderte JSON-Objekt zurück.`,
   // und Antwort teilen sich das Budget. Und `extractLastJsonObject` braucht ein
   // VOLLSTÄNDIGES Objekt: eine abgeschnittene Antwort kostet nicht nur die
   // Zweitmeinung, sondern macht den ganzen Lauf zu `null`.
-  maxTokens: 8192,
+  // Über der Reserve-Obergrenze (4096) und trotzdem unbedenklich: dieser Skill läuft
+  // über `runBaustein` (map/substanz/smoke-runner.ts), nicht über `runSkill`. Der
+  // Baustein-Pfad ruft nie `capVbMarkdown` und schlägt kein Thinking-Headroom auf — der
+  // aus RESERVE_TOKENS abgeleitete VB-Cap wird hier also nirgends angewandt. Die MAP misst
+  // ihren Korpus selbst (`vb/korpus.ts`) und warnt, statt zu kürzen.
+  maxTokens: 8192, // allow-reserve-output-budget: Baustein-Pfad, kein abgeleiteter VB-Cap
   modifiers: { neu: '', kuerzer: '', laenger: '' },
   regelIds: [],
   slots: ['vbMarkdown'],
