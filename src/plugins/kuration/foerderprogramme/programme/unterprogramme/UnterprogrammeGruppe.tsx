@@ -133,13 +133,19 @@ export function UnterprogrammeGruppe({ programmId, programmName }: Props): React
     ? `Gilt für „${programmName}" — ${totalActive} von ${ups.length} aktiv.`
     : `${totalActive} von ${ups.length} aktiv.`;
 
+  // Nicht bloss „Anträge": die Programm-Zeile eine Karte weiter oben zaehlt LIVE
+  // alle Antraege des Programms, hier steht die Summe der zwischengespeicherten
+  // Zahlen je Code. Zwei Mengen, gleiches Wort — bis v4.119 stand beides gleich
+  // beschriftet nebeneinander.
+  const antraegeRechts = `${totalAntraege.toLocaleString('de-DE')} Anträge mit Code`;
+
   return (
     <SettingsGruppe
       id="sec-unterprogramme"
       titel="Unterprogramme"
       unterzeile={unterzeile}
-      hint="Unterprogramme entstehen beim CSV-Import automatisch aus der Spalte, die auf unterprogramm_id gemappt ist — angelegt wird hier keines. Kuratierbar sind Label, geplanter Zeitraum und das Aktiv-Häkchen; aktiv steuert, welche in Auswahllisten erscheinen."
-      rechts={`${totalAntraege.toLocaleString('de-DE')} Anträge`}
+      hint="Unterprogramme entstehen beim CSV-Import automatisch aus der Spalte, die auf unterprogramm_id gemappt ist — angelegt wird hier keines. Kuratierbar sind Label, geplanter Zeitraum und das Aktiv-Häkchen; aktiv steuert, welche in Auswahllisten erscheinen. Die Zahl rechts summiert die Spalte Anträge dieser Tabelle: sie zählt nur Anträge mit bekanntem Unterprogramm-Code und wird beim CSV-Import fortgeschrieben — sie ist deshalb kleiner als die Antragszahl des Programms."
+      rechts={antraegeRechts}
       aktion={
         <SettingsGruppenAktion
           disabled={!session.isActive || ups.length === 0}

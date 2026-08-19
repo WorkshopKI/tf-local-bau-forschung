@@ -191,7 +191,10 @@ export function ProgrammeGruppe({ bestand }: { bestand: ProgrammBestand }): Reac
         footer={
           <>
             <Button size="sm" variant="ghost" onClick={() => setRenameOpen(null)}>Abbrechen</Button>
-            <Button size="sm" variant="default" onClick={onRename}>Speichern</Button>
+            {/* Gesperrt wie „Anlegen" im Dialog daneben: `onRename` kehrt bei
+                leerem Feld wortlos zurueck — der Klick sah bis v4.119 aus wie
+                ein Speichern, das nichts tat. */}
+            <Button size="sm" variant="default" onClick={onRename} disabled={!newName.trim()}>Speichern</Button>
           </>
         }
       >

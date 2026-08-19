@@ -104,10 +104,22 @@ export function CsvAutoRefreshBanner({ state }: { state: AutoRefreshCheckState }
   if (state.dismissed && !state.refreshing && !state.lockConflict && !linkDialogOpen) return null;
   if (total === 0 && !hasReport && !state.lockConflict && !state.refreshError && !linkDialogOpen) return null;
 
+  /**
+   * Zu den registrierten Quellen — seit v4.36 ein Panel des Kuration-Hubs.
+   *
+   * Bis v4.119 stand hier `pluginIdToRoute('csv-sources-kuration')`. Diese
+   * Plugin-Id gibt es seit dem Umzug nicht mehr; `PLUGIN_ROUTES` kennt sie
+   * nicht und der `?? '/'`-Rueckfall schickte den Klick auf die Startseite —
+   * waehrend der Dialog zwei Zeilen tiefer schon richtig „Datenpflege →
+   * CSV-Quellen" sagte. Der Text war nachgezogen, der Klick nicht.
+   *
+   * Der Bericht BLEIBT stehen: wer die Quellen ansehen geht, braucht ihn dort.
+   * Der Banner behaelt darum „Details ansehen" (das Auto-Oeffnen haengt an
+   * `hasReport`/`reportZeigenswert` und feuert durch das Schliessen nicht neu).
+   */
   const openCsvSources = (): void => {
-    navigate(pluginIdToRoute('csv-sources-kuration'));
+    navigate(`${pluginIdToRoute('kuration')}?panel=csv-quellen`);
     setDriftDialogOpen(false);
-    state.clearReport();
   };
 
   return (

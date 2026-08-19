@@ -19,11 +19,11 @@ import { merkeSeite } from '@/core/nav/herkunft';
 import { FLAT_ROUTE_PLUGIN_IDS } from '@/plugins.config';
 import { useAntraegeStore } from '@/plugins/antraege/store';
 import { AufbereitungPage } from '@/plugins/antraege/aufbereitung/AufbereitungPage';
-import { isAntragAufbereitungEnabled, isKuratorMenusEnabled } from '@/config/feature-flags';
+import { isAntragAufbereitungEnabled } from '@/config/feature-flags';
 import { protokolliereEreignis } from '@/core/services/assistent/protokoll';
 import { ModulSchlossGate } from '@/core/components/ModulSchlossGate';
 import { useAuslastungFrei, useKuratorFrei } from '@/core/modul-freischaltung';
-import { useProfile } from '@/core/hooks/useProfile';
+import { useKuratorSeiten } from '@/core/hooks/useKuratorSeiten';
 
 /**
  * Kompatibilitäts-Wrapper: Bietet den bestehenden NavigationContext
@@ -137,12 +137,11 @@ function stripLeadingSlash(route: string): string {
  * der Config sind die Praedikate konstant `true`, dev/local aendern sich also nicht.
  */
 function GeschuetzteSeite({ plugin }: { plugin: TeamFlowPlugin }): ReactElement {
-  const { profile } = useProfile();
   const auslastungFrei = useAuslastungFrei();
   const kuratorFrei = useKuratorFrei();
+  const istKurator = useKuratorSeiten();
   const Component = plugin.component;
 
-  const istKurator = !!(profile?.is_kurator ?? profile?.is_admin) && isKuratorMenusEnabled() && kuratorFrei;
   const kuratorOnly = plugin.kuratorOnly ?? plugin.adminOnly;
 
   let frei = true;
@@ -151,7 +150,7 @@ function GeschuetzteSeite({ plugin }: { plugin: TeamFlowPlugin }): ReactElement 
   if (plugin.modulSchloss === 'kurator') frei = frei && kuratorFrei;
 
   return (
-    <ModulSchlossGate frei={frei} bereich={plugin.name}>
+    <ModulSchlossGate frei={frei} bereich={plugin.name} slot={plugin.modulSchloss}>
       <Component />
     </ModulSchlossGate>
   );
@@ -201,7 +200,15 @@ export function buildRouter(
   children.push({ path: 'admin/*', Component: legacyRedirect('/') });
   // Ein unbekanntes `/kuration/…` meinte immer eine Kurator-Seite — der Hub ist
   // der ehrlichere Landeplatz als die Startseite.
-  children.push({ path: 'kuration/*', Component: legacyRedirect('/kuration') });
+  //
+  // Aber nur, WENN es ihn in dieser Build-Variante gibt: die statische Route
+  // `/kuration` entsteht aus der gefilterten Plugin-Liste (prod: `kuratorMenus:
+  // false`), der Splat dagegen unbedingt. Ohne die Pruefung fing `kuration/*`
+  // auch `/kuration` selbst — ein `*` matcht die leere Restmenge — und jedes
+  // alte Lesezeichen endete in prod auf einer leeren Flaeche statt auf Home
+  // (v4.119).
+  const hubDa = byId.has('kuration');
+  children.push({ path: 'kuration/*', Component: legacyRedirect(hubDa ? '/kuration' : '/') });
 
   const antraege = byId.get('antraege');
   if (antraege) {

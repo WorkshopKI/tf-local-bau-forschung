@@ -10,7 +10,7 @@
  * (v1.15) — die alte Datei wird entfernt, da Multi-Source-Pfade jetzt im
  * `dokumentenquellen-kuration`-Plugin verwaltet werden.
  */
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronDown, ChevronRight, Loader2, FolderTree } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { dedupeWithInheritance, findCoveringParent, listSubdirs, type SubdirEntry } from '@/phase2';
@@ -67,12 +67,15 @@ export function SubRootsTreePicker({
   const [nodes, setNodes] = useState<TreeNode[]>([]);
   const [loadingPaths, setLoadingPaths] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
+  /** Laufende Ladevorgänge — synchron, damit der zweite Klick sie schon sieht. */
+  const ladendRef = useRef<Set<string>>(new Set());
 
   // Bei Handle-Wechsel den Tree resetten — alte Nodes referenzieren ggf.
   // einen anderen Handle.
   useEffect(() => {
     setNodes([]);
     setLoadingPaths(new Set());
+    ladendRef.current = new Set();
   }, [handle]);
 
   const loadTopLevel = useCallback(async (): Promise<void> => {
@@ -107,12 +110,21 @@ export function SubRootsTreePicker({
       return;
     }
 
+    // Zwei Klicks, bevor der erste Ladelauf zurueck ist: `node.expanded` ist
+    // beide Male false, also liefe `listSubdirs` zweimal und die Kinder landeten
+    // zweimal im Baum — React meldete „two children with the same key" und die
+    // Unterordner standen doppelt da (v4.119). Der Merker liegt im Ref, nicht im
+    // State: der zweite Klick kommt vor dem naechsten Render.
+    if (ladendRef.current.has(node.path)) return;
+    ladendRef.current.add(node.path);
     setLoadingPaths(prev => new Set(prev).add(node.path));
     try {
       const subs = await listSubdirs(handle, node.path);
       setNodes(prev => {
         const idx = prev.findIndex(n => n.path === node.path);
         if (idx < 0) return prev;
+        // Schon aufgeklappt: ein zweiter Einschub haenge die Kinder erneut an.
+        if (prev[idx]!.expanded) return prev;
         const next = [...prev];
         next[idx] = { ...node, expanded: true, loaded: true, hasSubdirs: subs.length > 0 };
         const children = childNodes(subs, node);
@@ -122,6 +134,7 @@ export function SubRootsTreePicker({
     } catch (e) {
       onError?.(`Aufklapp-Fehler "${node.path}": ${(e as Error).message}`);
     } finally {
+      ladendRef.current.delete(node.path);
       setLoadingPaths(prev => {
         const next = new Set(prev);
         next.delete(node.path);

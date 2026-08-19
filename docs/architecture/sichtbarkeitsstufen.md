@@ -93,7 +93,27 @@ Persistenz-Invariante (IDB-primär, nur Personal-Mirror, Guard `home-widgets-loc
 unangetastet; die Marken kommen aus dem team-weiten Sidecar.
 
 **Deep-Link ins Verborgene:** `SettingsHubPage` zeigt bei `?sektion=<verborgen>` eine Zeile mit
-dem Weg zu den Schaltern, statt stumm nichts zu tun.
+dem Weg zu den Schaltern, statt stumm nichts zu tun. Eine Alt-Route, die auf eine markierbare
+GRUPPE zeigt, trägt darum ihren Anker mit (`/kuration/programme` →
+`?panel=foerderprogramme&sektion=sec-programme`) — ohne ihn landet das Lesezeichen wortlos auf
+einem Panel ohne die gesuchte Karte.
+
+### Der Wirt darf nicht von etwas sprechen, das die Achse verbirgt (v4.119)
+
+Die Marke sitzt am Abschnitt — sein Wirt weiß nichts davon. Drei Formen desselben Fehlers:
+
+- **Eine Karte ohne eigene Id** fragt die Achse nie (unbekannte Id = sichtbar). Bestehen ihre
+  Kinder nur aus markierten Abschnitten, bleibt eine Überschrift über leerem Rumpf stehen. Solche
+  Karten nennen ihre Abschnitte in `SettingsGruppe traegt={[…]}` und verschwinden mit ihnen —
+  Guard `settings-karte-ohne-inhalt` (er fand neben „Selten gebraucht" in „Suche & Index" und
+  „CSV-Quellen" auch „Persönlicher Assistent" in Mein Profil).
+- **Ein Untertitel, der Gruppen aufzählt**, versprach „Programme, Unterprogramme und die
+  Filter", während „Programme" hinter dem Expertenmodus lag. Panel-Untertitel zählen nichts
+  Markierbares auf.
+- **Ein Dateikopf, der eine Regel aufstellt** („auch der Ruhezustand steht da"), muss die Achse
+  als Ausnahme nennen — sonst liest sich das Fehlen einer Zeile als Defekt.
+
+Verborgen heißt ganz weg, nie halb angekündigt.
 
 ## Karten auf den Fachseiten (v4.114)
 

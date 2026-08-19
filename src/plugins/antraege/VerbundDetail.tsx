@@ -35,6 +35,8 @@ import { PanelShell, Sektionsrahmen, WennDetailSektion } from './detailRahmen';
 import { sektionOffenDefault, sektionsKey } from './detailSektionen';
 import { Button } from '@/components/ui/button';
 import { isGutachtenKurzfassungEnabled, isGutachtenWorkflowEnabled, isNfNachforderungenEnabled, isAntragAufbereitungEnabled, isArtefaktWerkbankEnabled, isStatusCockpitEnabled, isMeilensteinMonitoringEnabled } from '@/config/feature-flags';
+import { useSichtbar } from '@/core/hooks/useSichtbar';
+import { seiteId } from '@/core/sichtbarkeit';
 
 interface Props {
   verbundId: string;
@@ -86,6 +88,12 @@ export function VerbundDetail({
   // durchgereicht). Query-Param — überlebt Liste-/URL-Navigation.
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  // Die Antrag-Aufbereitung ist eine eigene Route, aber KEIN Plugin — die
+  // Sidebar filtert sie also nicht, und ihre Marke im Sichtbarkeits-Katalog
+  // (`seite:aufbereitung`, Beta) las bis v4.119 niemand. Der Weg dorthin ist
+  // dieser Knopf; hier greift sie.
+  const sichtbar = useSichtbar();
+  const aufbereitungSichtbar = isAntragAufbereitungEnabled() && sichtbar(seiteId('aufbereitung'));
   const zielParam = searchParams.get('ziel');
   const abschnittParam = searchParams.get('abschnitt') ?? undefined;
   // In-Memory-Slim-Liste des Programms — Quelle für die Vorgänger-Suche.
@@ -304,7 +312,7 @@ export function VerbundDetail({
           stepperStatus={stepperStatus}
           tvs={antraege}
           unterprogramm={unterprogramm}
-          aktion={isAntragAufbereitungEnabled() ? (
+          aktion={aufbereitungSichtbar ? (
             <Button
               variant="secondary"
               size="sm"

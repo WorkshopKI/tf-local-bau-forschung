@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useSmbStatus } from '@/core/hooks/useSmbStatus';
-import { useNavigation } from '@/core/hooks/useNavigation';
+import { useNavigate } from 'react-router-dom';
 import {
   pickAndStoreDatenShareHandle,
   getDatenShareHandle,
@@ -53,7 +53,7 @@ interface DmsSourceCounts {
 export function SmbPanel(): React.ReactElement {
   const storage = useStorage();
   const smbStatus = useSmbStatus();
-  const navigation = useNavigation();
+  const navigate = useNavigate();
   const [handleName, setHandleName] = useState<string | null>(null);
   const [permission, setPermission] = useState<PermState>('unknown');
   const [dmsCounts, setDmsCounts] = useState<DmsSourceCounts | null>(null);
@@ -172,8 +172,18 @@ export function SmbPanel(): React.ReactElement {
     void smbStatus.check(storage.idb);
   };
 
+  /**
+   * Die Dokumentenquellen sind seit v4.34 kein eigenes Plugin mehr, sondern ein
+   * Abschnitt im Panel „Suche & Index" des Kuration-Hubs. Bis v4.119 stand hier
+   * die alte Plugin-Id — `pluginIdToRoute` kennt sie nicht mehr und fiel still
+   * auf `/` zurueck, der Knopf landete also auf der Startseite.
+   *
+   * Als Literal, nicht ueber `pluginIdToRoute`: `core/routes` liest
+   * `plugins.config`, und die zieht dieses dev-Plugin wieder herein — ein
+   * Import-Zyklus (`check-cycles`, Allowlist ist leer).
+   */
   const onOpenDmsPlugin = (): void => {
-    navigation.navigate('dokumentenquellen-kuration');
+    navigate('/kuration?panel=suche-index&sektion=sec-dokumentenquellen');
   };
 
   const permTone = permission === 'granted' ? 'ok' : permission === 'denied' ? 'bad' : 'warn';

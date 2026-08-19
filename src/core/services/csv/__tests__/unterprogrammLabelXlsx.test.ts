@@ -3,7 +3,9 @@ import * as XLSX from 'xlsx';
 import {
   parseUnterprogrammLabelXlsx,
   computeUnterprogrammLabelDiff,
+  zeileSchreibtEtwas,
   type UnterprogrammLabelEntry,
+  type UnterprogrammLabelDiffRow,
 } from '../unterprogrammLabelXlsx';
 import type { Unterprogramm } from '../types';
 
@@ -175,5 +177,53 @@ describe('computeUnterprogrammLabelDiff', () => {
     ]);
     expect(d.summary.unknown).toBe(1);
     expect(d.summary.unchanged).toBe(1);
+  });
+});
+
+/**
+ * Die zweite Achse des Imports: welche FELDER geschrieben werden.
+ *
+ * Bis v4.119 schränkten „Nur Labels" / „Nur Jahr" allein die ZEILEN ein — und
+ * `both_changed` steht in beiden Mengen, wurde also mit beiden Feldern
+ * geschrieben. Der Knopf hielt nicht, was er beschriftete.
+ */
+describe('zeileSchreibtEtwas — Feld-Achse', () => {
+  const existing: Unterprogramm[] = [makeUp('47', 'Alt', '2018')];
+
+  function zeile(label: string, jahr: string): UnterprogrammLabelDiffRow {
+    const d = computeUnterprogrammLabelDiff(existing, [{ code: '47', label, jahr }]);
+    return d.rows[0]!;
+  }
+
+  it('kombinierte Zeile schreibt unter „Nur Labels" nur das Label', () => {
+    const r = zeile('Neu', '2027');
+    expect(r.kind).toBe('both_changed');
+    expect(zeileSchreibtEtwas(r, 'beide')).toBe(true);
+    expect(zeileSchreibtEtwas(r, 'name')).toBe(true);
+    expect(zeileSchreibtEtwas(r, 'jahr')).toBe(true);
+  });
+
+  it('reine Jahres-Zeile faellt unter „Nur Labels" ganz heraus', () => {
+    const r = zeile('Alt', '2027');
+    expect(r.kind).toBe('zeitraum_changed');
+    expect(zeileSchreibtEtwas(r, 'name')).toBe(false);
+    expect(zeileSchreibtEtwas(r, 'jahr')).toBe(true);
+  });
+
+  it('reine Label-Zeile faellt unter „Nur Jahr" ganz heraus', () => {
+    const r = zeile('Neu', '2018');
+    expect(r.kind).toBe('name_changed');
+    expect(zeileSchreibtEtwas(r, 'jahr')).toBe(false);
+    expect(zeileSchreibtEtwas(r, 'name')).toBe(true);
+  });
+
+  it('unveraenderte und unbekannte Zeilen schreiben nie', () => {
+    const unveraendert = zeile('Alt', '2018');
+    expect(unveraendert.kind).toBe('unchanged');
+    expect(zeileSchreibtEtwas(unveraendert, 'beide')).toBe(false);
+
+    const unbekannt = computeUnterprogrammLabelDiff(existing, [{ code: '999', label: 'X' }]).rows[0]!;
+    expect(unbekannt.kind).toBe('unknown_code');
+    expect(zeileSchreibtEtwas(unbekannt, 'beide')).toBe(false);
   });
 });

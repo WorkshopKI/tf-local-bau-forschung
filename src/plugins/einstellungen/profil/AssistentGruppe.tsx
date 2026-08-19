@@ -122,6 +122,9 @@ export function AssistentGruppe(): React.ReactElement | null {
     <SettingsGruppe
       titel="Persönlicher Assistent"
       unterzeile="Merkt sich deine Arbeit, um dir später Vorschläge zu machen. Standardmäßig aus."
+      // Beide Abschnitte tragen die Beta-Marke — ohne diese Angabe blieb im
+      // Standard-Profil eine Ueberschrift ueber leerem Rumpf stehen (v4.119).
+      traegt={['sec-assistent-protokoll', 'sec-assistent-gedaechtnis']}
     >
       <SettingsOption
         id="sec-assistent-protokoll"

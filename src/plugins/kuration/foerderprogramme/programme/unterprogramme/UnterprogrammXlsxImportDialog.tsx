@@ -7,8 +7,10 @@ import {
   applyUnterprogrammLabelDiff,
   buildUnterprogrammLabelDiff,
   parseUnterprogrammLabelXlsx,
+  zeileSchreibtEtwas,
   type UnterprogrammLabelDiff,
   type UnterprogrammLabelDiffRow,
+  type UnterprogrammLabelFeldWahl,
 } from '@/core/services/csv';
 
 interface Props {
@@ -19,6 +21,13 @@ interface Props {
 }
 
 type Phase = 'pick' | 'preview' | 'applying';
+
+/** Was die aktuelle Feld-Achse schreibt — der Satz über den Knöpfen. */
+const FELD_WORT: Record<UnterprogrammLabelFeldWahl, string> = {
+  beide: 'Label + Jahr',
+  name: 'nur Label',
+  jahr: 'nur Jahr',
+};
 
 const KIND_LABELS: Record<UnterprogrammLabelDiffRow['kind'], { label: string; tone: string }> = {
   name_changed: { label: 'Label geändert', tone: 'text-amber-700' },
@@ -35,6 +44,12 @@ export function UnterprogrammXlsxImportDialog({ open, programmId, onClose, onApp
   const [phase, setPhase] = useState<Phase>('pick');
   const [diff, setDiff] = useState<UnterprogrammLabelDiff | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  /**
+   * Welche Felder der Apply schreiben darf — die zweite Achse neben der
+   * Zeilen-Auswahl. „Nur Labels" schränkte bis v4.119 allein die Zeilen ein
+   * und schrieb bei kombinierten Zeilen trotzdem auch das Jahr.
+   */
+  const [felder, setFelder] = useState<UnterprogrammLabelFeldWahl>('beide');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
 
@@ -46,12 +61,14 @@ export function UnterprogrammXlsxImportDialog({ open, programmId, onClose, onApp
       ).length,
       unknown: diff.summary.unknown,
       unchanged: diff.summary.unchanged,
+      // Zählt nur, was unter der aktuellen Feld-Achse WIRKLICH geschrieben wird
+      // — sonst verspräche die Knopfbeschriftung mehr Zeilen als der Lauf anfasst.
       selected: Array.from(selected).filter(code => {
         const row = diff.rows.find(r => r.code === code);
-        return row && row.kind !== 'unknown_code' && row.kind !== 'unchanged';
+        return row != null && zeileSchreibtEtwas(row, felder);
       }).length,
     };
-  }, [diff, selected]);
+  }, [diff, selected, felder]);
 
   if (!open) return null;
 
@@ -59,6 +76,7 @@ export function UnterprogrammXlsxImportDialog({ open, programmId, onClose, onApp
     setPhase('pick');
     setDiff(null);
     setSelected(new Set());
+    setFelder('beide');
     setErrorMsg(null);
     setFileName(null);
   };
@@ -102,13 +120,15 @@ export function UnterprogrammXlsxImportDialog({ open, programmId, onClose, onApp
     });
   };
 
-  const setBulk = (kinds: UnterprogrammLabelDiffRow['kind'][]): void => {
+  /** Zeilen-Menge UND Feld-Achse in einem Zug — die Knöpfe meinen beides. */
+  const setBulk = (kinds: UnterprogrammLabelDiffRow['kind'][], wahl: UnterprogrammLabelFeldWahl): void => {
     if (!diff) return;
     const next = new Set<string>();
     for (const r of diff.rows) {
       if (kinds.includes(r.kind)) next.add(r.code);
     }
     setSelected(next);
+    setFelder(wahl);
   };
 
   const handleApply = async (): Promise<void> => {
@@ -121,6 +141,7 @@ export function UnterprogrammXlsxImportDialog({ open, programmId, onClose, onApp
         diff,
         selected,
         session.kuratorName ?? undefined,
+        felder,
       );
       onApplied(result);
       handleClose();
@@ -200,15 +221,30 @@ export function UnterprogrammXlsxImportDialog({ open, programmId, onClose, onApp
               <span className={counts.unknown > 0 ? 'text-red-600' : ''}>
                 {counts.unknown} unbekannte Codes
               </span>
+              <span className="text-[var(--tf-text)]">
+                Schreibt: {FELD_WORT[felder]}
+              </span>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Button size="sm" variant="outline" onClick={() => setBulk(['name_changed', 'zeitraum_changed', 'both_changed'])}>
+              <Button
+                size="sm"
+                variant={felder === 'beide' ? 'default' : 'outline'}
+                onClick={() => setBulk(['name_changed', 'zeitraum_changed', 'both_changed'], 'beide')}
+              >
                 Alle Änderungen
               </Button>
-              <Button size="sm" variant="outline" onClick={() => setBulk(['name_changed', 'both_changed'])}>
+              <Button
+                size="sm"
+                variant={felder === 'name' ? 'default' : 'outline'}
+                onClick={() => setBulk(['name_changed', 'both_changed'], 'name')}
+              >
                 Nur Labels
               </Button>
-              <Button size="sm" variant="outline" onClick={() => setBulk(['zeitraum_changed', 'both_changed'])}>
+              <Button
+                size="sm"
+                variant={felder === 'jahr' ? 'default' : 'outline'}
+                onClick={() => setBulk(['zeitraum_changed', 'both_changed'], 'jahr')}
+              >
                 Nur Jahr
               </Button>
               <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>
@@ -231,6 +267,11 @@ export function UnterprogrammXlsxImportDialog({ open, programmId, onClose, onApp
                     const lock = row.kind === 'unknown_code' || row.kind === 'unchanged';
                     const checked = selected.has(row.code);
                     const tone = KIND_LABELS[row.kind];
+                    // Der Pfeil steht nur, wo dieser Lauf wirklich schreibt —
+                    // sonst zeigte die Vorschau eine Änderung an, die die
+                    // Feld-Achse gerade ausschließt.
+                    const zeigtName = row.willChangeName && felder !== 'jahr';
+                    const zeigtJahr = row.willChangeJahr && felder !== 'name';
                     return (
                       <tr key={`${row.code}-${idx}`} style={{ borderTop: '0.5px solid var(--tf-border)' }}>
                         <td className="p-2">
@@ -245,7 +286,7 @@ export function UnterprogrammXlsxImportDialog({ open, programmId, onClose, onApp
                         <td className="p-2 font-mono">{row.code}</td>
                         <td className={`p-2 ${tone.tone}`}>{tone.label}</td>
                         <td className="p-2">
-                          {row.willChangeName ? (
+                          {zeigtName ? (
                             <span>
                               <span className="line-through text-[var(--tf-text-tertiary)]">
                                 {row.existing?.name || '—'}
@@ -258,7 +299,7 @@ export function UnterprogrammXlsxImportDialog({ open, programmId, onClose, onApp
                           )}
                         </td>
                         <td className="p-2">
-                          {row.willChangeJahr ? (
+                          {zeigtJahr ? (
                             <span>
                               <span className="line-through text-[var(--tf-text-tertiary)]">
                                 {row.existing?.geplanter_zeitraum || '—'}

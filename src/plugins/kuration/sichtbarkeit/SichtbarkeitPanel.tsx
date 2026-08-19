@@ -24,6 +24,7 @@ import { ToggleChip } from '@/components/ui/ToggleChip';
 import { TfTree, type TfTreeNodeRenderProps } from '@/components/tree';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useProfile } from '@/core/hooks/useProfile';
+import { useKuratorSession } from '@/core/hooks/useKuratorSession';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { useSmbStatus } from '@/core/hooks/useSmbStatus';
 import { canWriteDatenShare } from '@/config/feature-flags';
@@ -61,6 +62,7 @@ const BETA_TONUNG = { text: 'var(--tf-info-text)', flaeche: 'var(--tf-info-bg)' 
 export function SichtbarkeitPanel(): React.ReactElement {
   const storage = useStorage();
   const { profile } = useProfile();
+  const session = useKuratorSession();
   const { requireOnline } = useSmbStatus();
   const overlay = useSichtbarkeitStore(s => s.overlay);
   const setzeMarken = useSichtbarkeitStore(s => s.setzeMarken);
@@ -68,7 +70,22 @@ export function SichtbarkeitPanel(): React.ReactElement {
   const alleZuruecksetzen = useSichtbarkeitStore(s => s.alleZuruecksetzen);
 
   const isKurator = !!(profile?.is_kurator ?? profile?.is_admin);
-  const canWrite = canWriteDatenShare(isKurator);
+  /**
+   * Warum gerade nicht geschrieben werden kann — oder `null`, wenn es geht.
+   *
+   * Die SITZUNG gehört mit in die Bedingung: `canWriteDatenShare()` fragt nur
+   * nach Kurator-Recht bzw. `datenShareSchreibrecht`, und `schreibeSidecar`
+   * prüft nur Handle + Berechtigung. Bis v4.119 blieben die Marken deshalb bei
+   * gesperrter Sitzung bedienbar und schrieben weiter team-weit nach
+   * `_intern/sichtbarkeit.json` — während der Seitenkopf „nur lesbar"
+   * versprach und der Tooltip einen Grund nannte, den der Code nie abfragte.
+   */
+  const schreibSperre: string | null = !canWriteDatenShare(isKurator)
+    ? 'Nur mit Kurator-Schreibrecht änderbar.'
+    : !session.isActive
+      ? 'Nur mit aktiver Kurator-Sitzung änderbar.'
+      : null;
+  const canWrite = schreibSperre === null;
   const autor = profile?.name;
 
   // Zugeklappt starten: der Überblick ist der Zweck der Seite, nicht die
@@ -119,7 +136,8 @@ export function SichtbarkeitPanel(): React.ReactElement {
                   p={p}
                   offen={offen.includes(p.id)}
                   overlay={overlay}
-                  canWrite={canWrite}
+                  schreibSperre={schreibSperre}
+                  busy={schreiben.busy}
                   onSetze={setze}
                   onVorgabe={id => schreiben.run(() => zuruecksetzen(storage.idb, id, autor))}
                 />
@@ -254,12 +272,20 @@ function Beschriftung({ p }: { p: TfTreeNodeRenderProps<SichtbarkeitsKnoten> }):
  * Zeilen-Klick den Zweig auf (tree-komponenten.md).
  */
 function Rechts({
-  p, offen, overlay, canWrite, onSetze, onVorgabe,
+  p, offen, overlay, schreibSperre, busy, onSetze, onVorgabe,
 }: {
   p: TfTreeNodeRenderProps<SichtbarkeitsKnoten>;
   offen: boolean;
   overlay: ReadonlyMap<string, Marken>;
-  canWrite: boolean;
+  /** Warum gerade nicht geschrieben werden kann — `null`, wenn es geht. */
+  schreibSperre: string | null;
+  /**
+   * Läuft gerade ein Schreibvorgang? ALLE Zeilen teilen sich eine
+   * `useAsyncAction`, und deren `run()` verwirft einen zweiten Lauf stumm
+   * (`if (busyRef.current) return;`). Ohne diese Sperre verschwand der zweite
+   * Klick ohne Fehler, ohne Busy-Zeichen und ohne Marken-Wechsel (v4.119).
+   */
+  busy: boolean;
   onSetze: (id: string, marken: Marken) => void;
   onVorgabe: (id: string) => void;
 }): React.ReactElement | null {
@@ -275,12 +301,14 @@ function Rechts({
   const e = daten.eintrag;
   const gilt = effektiveMarken(e.id, INDEX, overlay);
   const abweichend = !markenGleich(gilt, e.marken);
-  const gesperrt = e.unantastbar === true || !canWrite;
+  const gesperrt = e.unantastbar === true || schreibSperre !== null || busy;
   const grund = e.unantastbar
     ? 'Über diesen Weg erreicht man die Schalter selbst — er bleibt immer sichtbar.'
-    : !canWrite
-      ? 'Nur mit aktiver Kurator-Sitzung änderbar.'
-      : undefined;
+    : schreibSperre !== null
+      ? schreibSperre
+      : busy
+        ? 'Wird gespeichert …'
+        : undefined;
 
   return (
     <span
@@ -292,10 +320,12 @@ function Rechts({
       {abweichend && (
         <button
           type="button"
+          disabled={gesperrt}
           className="inline-flex h-[22px] w-[22px] items-center justify-center rounded-[5px]
-            text-[var(--tf-primary)] hover:bg-[var(--tf-hover)] cursor-pointer"
+            text-[var(--tf-primary)] hover:bg-[var(--tf-hover)] cursor-pointer
+            disabled:cursor-default disabled:opacity-40 disabled:hover:bg-transparent"
           onClick={() => onVorgabe(e.id)}
-          title={`Zurück auf die Vorgabe: ${beschreibe(e.marken)}`}
+          title={grund ?? `Zurück auf die Vorgabe: ${beschreibe(e.marken)}`}
           aria-label={`Zurück auf die Vorgabe: ${beschreibe(e.marken)}`}
         >
           <RotateCcw size={12} />

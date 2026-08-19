@@ -121,13 +121,26 @@ export function FilterEditDialog({ open, onClose, onSaved, programmId, existing 
     setDraft(d => ({ ...d, [k]: v }));
   }, []);
 
+  /**
+   * Feld wählen — der Anzeigename folgt ihm, solange ihn niemand von Hand
+   * geändert hat.
+   *
+   * Bis v4.119 stand hier `d.name || field.label`: der Name des ZUERST
+   * gewählten Feldes blieb bei jedem Wechsel stehen, ein Filter auf
+   * `aktenzeichen` hieß dann weiter „Akronym" — und der so angelegte Filter
+   * trug den falschen Namen still bis in die Antragsliste.
+   */
   const selectField = (field: AvailableField): void => {
-    setDraft(d => ({
-      ...d,
-      feld: field.key,
-      typ: typeForField(field),
-      name: d.name || field.label,
-    }));
+    setDraft(d => {
+      const vorheriges = fields.find(f => f.key === d.feld);
+      const nameWarAutomatisch = d.name.trim() === '' || d.name === vorheriges?.label;
+      return {
+        ...d,
+        feld: field.key,
+        typ: typeForField(field),
+        name: nameWarAutomatisch ? field.label : d.name,
+      };
+    });
   };
 
   const next = (): void => {

@@ -41,6 +41,22 @@ export async function listUnterprogramme(idb: IDBStore, programmId: string): Pro
   return listUnterprogrammeByProgramm(idb, programmId);
 }
 
+/**
+ * Ein kuratierbares Textfeld übernehmen — mit dem Unterschied, den `??` nicht
+ * machen kann.
+ *
+ * `undefined` heißt **nicht mitgeschickt** (der Bestand bleibt), ein leerer
+ * String heißt **ausdrücklich geleert**. Bis v4.119 fielen beide Absichten auf
+ * dasselbe `input.name ?? existing?.name`: ein falsch gesetztes Label war über
+ * die Oberfläche nur überschreibbar, nie entfernbar — und das Audit meldete
+ * trotzdem eine Änderung, die nie geschrieben wurde.
+ */
+function textFeld(neu: string | undefined, vorhanden: string | undefined): string | undefined {
+  if (neu === undefined) return vorhanden;
+  const wert = neu.trim();
+  return wert ? wert : undefined;
+}
+
 /** Upsert: legt neuen Eintrag an oder aktualisiert vorhandenen (behält created_at). */
 export async function saveUnterprogramm(idb: IDBStore, input: Partial<Unterprogramm> & { id: string; programm_id: string; code: string; aktiv: boolean }): Promise<Unterprogramm> {
   const now = new Date().toISOString();
@@ -49,8 +65,8 @@ export async function saveUnterprogramm(idb: IDBStore, input: Partial<Unterprogr
     id: input.id,
     programm_id: input.programm_id,
     code: input.code,
-    name: input.name ?? existing?.name,
-    geplanter_zeitraum: input.geplanter_zeitraum ?? existing?.geplanter_zeitraum,
+    name: textFeld(input.name, existing?.name),
+    geplanter_zeitraum: textFeld(input.geplanter_zeitraum, existing?.geplanter_zeitraum),
     zeitraum_auto_von_cached: input.zeitraum_auto_von_cached ?? existing?.zeitraum_auto_von_cached,
     zeitraum_auto_bis_cached: input.zeitraum_auto_bis_cached ?? existing?.zeitraum_auto_bis_cached,
     zeitraum_von: input.zeitraum_von ?? existing?.zeitraum_von,

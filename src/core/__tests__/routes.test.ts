@@ -43,7 +43,11 @@ describe('legacyRedirectTarget', () => {
   it('fuehrt die aufgeloesten Kuration-Seiten in ihr Panel', () => {
     expect(legacyRedirectTarget('/kuration/anfragen')).toBe('/kuration?panel=dienste');
     expect(legacyRedirectTarget('/kuration/suchindex')).toBe('/kuration?panel=suche-index');
-    expect(legacyRedirectTarget('/kuration/programme')).toBe('/kuration?panel=foerderprogramme');
+    // Mit Anker: „Programme" ist eine GRUPPE im Panel und traegt seit v4.117 die
+    // Experten-Marke. Ohne `sektion=` landete das Lesezeichen wortlos auf einem
+    // Panel ohne diese Gruppe — mit ihr sagt der Hub, dass sie ausgeblendet ist.
+    expect(legacyRedirectTarget('/kuration/programme'))
+      .toBe('/kuration?panel=foerderprogramme&sektion=sec-programme');
     expect(legacyRedirectTarget('/kuration/csv-quellen')).toBe('/kuration?panel=csv-quellen');
   });
 

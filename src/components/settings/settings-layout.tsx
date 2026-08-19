@@ -179,6 +179,20 @@ export function useAbschnittSichtbar(id: string | undefined): boolean {
   return sichtbar(abschnittId(hub, id));
 }
 
+/**
+ * Ist von diesen Abschnitten noch mindestens EINER sichtbar?
+ *
+ * Fuer Karten, die selbst keinen Anker tragen, aber nur markierte Abschnitte
+ * enthalten. Ohne Liste (oder ausserhalb eines Hubs): ja — eine Karte ohne
+ * Angabe verhaelt sich wie bisher.
+ */
+function useEinerSichtbar(ids: readonly string[] | undefined): boolean {
+  const hub = useContext(HubPluginContext);
+  const sichtbar = useSichtbar();
+  if (!ids || ids.length === 0 || !hub) return true;
+  return ids.some(id => sichtbar(abschnittId(hub, id)));
+}
+
 // ───────────────────────── Gruppe ─────────────────────────
 
 /**
@@ -189,6 +203,7 @@ export function useAbschnittSichtbar(id: string | undefined): boolean {
 export function SettingsGruppe({
   id,
   titel,
+  traegt,
   hint,
   unterzeile,
   aktion,
@@ -198,6 +213,17 @@ export function SettingsGruppe({
   /** Optionaler Anker fuer Suche/Deep-Link (`sec-…`). */
   id?: string;
   titel: string;
+  /**
+   * Die Abschnitts-Ids, die diese Karte TRAEGT — fuer Karten ohne eigenen
+   * Anker, deren Inhalt komplett aus markierten Abschnitten besteht.
+   *
+   * Ist keine davon sichtbar, rendert die Karte nicht. Ohne diese Angabe
+   * stand die Gruppe „Selten gebraucht" in „Suche & Index" und „CSV-Quellen"
+   * im Standard-Profil mit komplett leerem Rumpf da (v4.119): sie selbst trug
+   * keine Id (`id` fehlt ⇒ immer sichtbar), ihre einzigen Kinder aber die
+   * Experten-Marke.
+   */
+  traegt?: readonly string[];
   /** Langtext hinter dem ⓘ am Gruppentitel. */
   hint?: string;
   /** Eine Zeile Zweck unter dem Titel — nie mehr als eine. */
@@ -211,7 +237,8 @@ export function SettingsGruppe({
   const neben = useContext(NebenspalteContext);
   const treffer = useSprungTreffer(id);
   const sichtbar = useAbschnittSichtbar(id);
-  if (!sichtbar) return null;
+  const traegtEtwas = useEinerSichtbar(traegt);
+  if (!sichtbar || !traegtEtwas) return null;
   return (
     <section
       id={id}

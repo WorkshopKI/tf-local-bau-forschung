@@ -19,6 +19,15 @@ function formatAutoZeitraum(von?: string, bis?: string): string {
   return `${v} – ${b}`;
 }
 
+/**
+ * Eine Zeile der Unterprogramm-Tabelle.
+ *
+ * Label und geplanter Zeitraum committen den GETRIMMTEN Text, auch wenn er
+ * leer ist — der leere String ist die Absicht „Feld leeren"
+ * (`saveUnterprogramm` unterscheidet ihn von „nicht mitgeschickt"). Bis v4.119
+ * stand hier `v.trim() || undefined`, und ein falsch gesetztes Label liess sich
+ * nur ueberschreiben, nie entfernen.
+ */
 export function UnterprogrammRow({ up, canEdit, onEdit, onRequestToggle }: Props): React.ReactElement {
   const auto = formatAutoZeitraum(up.zeitraum_auto_von_cached, up.zeitraum_auto_bis_cached);
   return (
@@ -29,7 +38,7 @@ export function UnterprogrammRow({ up, canEdit, onEdit, onRequestToggle }: Props
           value={up.name ?? ''}
           placeholder="Label hinzufügen …"
           disabled={!canEdit}
-          onCommit={v => onEdit({ name: v.trim() || undefined })}
+          onCommit={v => onEdit({ name: v.trim() })}
         />
       </td>
       <td className="p-3">
@@ -38,7 +47,7 @@ export function UnterprogrammRow({ up, canEdit, onEdit, onRequestToggle }: Props
           placeholder="z.B. 2020-2025"
           disabled={!canEdit}
           width={110}
-          onCommit={v => onEdit({ geplanter_zeitraum: v.trim() || undefined })}
+          onCommit={v => onEdit({ geplanter_zeitraum: v.trim() })}
         />
       </td>
       <td className="p-3 tabular-nums text-[var(--tf-text-secondary)]">

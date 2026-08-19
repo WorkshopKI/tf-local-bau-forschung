@@ -20,7 +20,7 @@ import { isDokumentenscanEnabled, isSucheNatuerlicheSpracheEnabled } from '@/con
 import { useAIBridge } from '@/core/hooks/useAIBridge';
 import { aktiveLeitbegriffe, planMarkierWoerter, planSchraenktEin } from '@/core/services/search/frageplan';
 import { ermittleFrageplan } from '@/core/services/search/frageplan-lauf';
-import { isKuratorFreigeschaltet } from '@/core/modul-freischaltung';
+import { useKuratorSeiten } from '@/core/hooks/useKuratorSeiten';
 import { useUnifiedSearch, type SearchPhase } from '@/core/hooks/useUnifiedSearch';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
@@ -108,6 +108,9 @@ const ANSICHT_OPTIONEN: ViewModeOption<'liste' | 'tabelle'>[] = [
 
 export function SuchSeite(): React.ReactElement {
   const navigate = useNavigate();
+  // Dieselbe Bedingung wie Sidebar und Routen-Schutz — `isKuratorFreigeschaltet()`
+  // liess die Profil-Flagge aus und bot die Tuer an, hinter der die Sperre stand.
+  const kuratorSeiten = useKuratorSeiten();
   const visibleColumns = useSucheStore(s => s.visibleColumns);
   const addRecentSearch = useSucheStore(s => s.addRecentSearch);
   const recentSearches = useSucheStore(s => s.recentSearches);
@@ -1045,7 +1048,7 @@ export function SuchSeite(): React.ReactElement {
               gewuenschterReiter={reiterWunsch}
               onEntferneLetzte={removeRecentSearch}
               onEntferneGespeicherte={gemerkt.loeschen}
-              kuratorVariant={isKuratorFreigeschaltet() && isDokumentenscanEnabled()}
+              kuratorVariant={kuratorSeiten && isDokumentenscanEnabled()}
               onOpenDokumentenquellen={() => navigate('/kuration/dokumentenquellen')}
             />
           )}

@@ -63,4 +63,23 @@ describe('ensureDefaultProgramm', () => {
     const p = await ensureDefaultProgramm(idb);
     expect(p.name).toBe('Mein eigenes Programm');
   });
+
+  // v4.119: Die Zusage ist „mindestens EIN Programm", nicht „das
+  // Standard-Programm". Bis dahin stellte jeder Refresh nach dem Löschen von
+  // `default-programm` denselben Record wieder hin — mit derselben Id, aber
+  // ohne die Schemas, Unterprogramme, Verbünde und Filter, die der
+  // Cascade-Cleanup mitgenommen hatte.
+  it('legt das gelöschte Standard-Programm NICHT neu an, solange ein anderes existiert', async () => {
+    const idb = await freshIdb();
+    await putProgramm(idb, {
+      id: 'exist-2027',
+      name: 'EXIST',
+      created_at: '2027-01-02T00:00:00.000Z',
+      smb_handle_key: 'daten-share',
+    });
+
+    const p = await ensureDefaultProgramm(idb);
+    expect(p.id).toBe('exist-2027');
+    expect(await getProgramm(idb, DEFAULT_PROGRAMM_ID)).toBeNull();
+  });
 });

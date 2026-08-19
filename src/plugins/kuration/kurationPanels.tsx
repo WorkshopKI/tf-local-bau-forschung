@@ -13,7 +13,7 @@
  */
 import { Database, Eye, Layers, LayoutDashboard, Plug, Search } from 'lucide-react';
 import type { SettingsPanel } from '@/components/settings';
-import { features } from '@/config/feature-flags';
+import { features, isDevContext } from '@/config/feature-flags';
 import { UebersichtPanel } from './uebersicht/UebersichtPanel';
 import { CsvQuellenPanel } from './csv-quellen/CsvQuellenPanel';
 import { FoerderprogrammePanel } from './foerderprogramme/FoerderprogrammePanel';
@@ -63,7 +63,14 @@ export function getKurationPanels(): SettingsPanel[] {
       { id: 'sec-csv-quellen', label: 'Registrierte Quellen', gruppe: 'Registrierte Quellen', keywords: 'csv quelle schema import export fördertabelle registrieren wizard mapping spalten datei sources' },
       { id: 'sec-csv-zustand', label: 'Zustand', gruppe: 'Zustand', keywords: 'frische letzter import zeilen aktualisieren ampel auto-refresh' },
       { id: 'sec-csv-wartung', label: 'Antrags-Daten zurücksetzen', gruppe: 'Selten gebraucht', keywords: 'reset löschen encoding umlaute wartung zurücksetzen neu einspielen' },
-      { id: 'sec-csv-wiederherstellen', label: 'CSV-Schemas wiederherstellen', gruppe: 'Selten gebraucht', keywords: 'recovery jsonl snapshot wiederherstellen schemas verschwunden backup' },
+      // Gerendert wird die Klappe nur unter `isDevContext()` (in pl false) —
+      // die Registry muss dieselbe Bedingung tragen. Bis v4.119 stand sie
+      // bedingungslos drin: der Suchtreffer „backup/snapshot/wiederherstellen"
+      // fuehrte in pl ins Nichts und loeste den irrefuehrenden Kasten aus, die
+      // Karte sage, was fehle — sie sagt nichts.
+      ...(isDevContext()
+        ? [{ id: 'sec-csv-wiederherstellen', label: 'CSV-Schemas wiederherstellen', gruppe: 'Selten gebraucht', keywords: 'recovery jsonl snapshot wiederherstellen schemas verschwunden backup' }]
+        : []),
     ],
     render: () => <CsvQuellenPanel />,
   });
@@ -77,7 +84,11 @@ export function getKurationPanels(): SettingsPanel[] {
   panels.push({
     id: 'foerderprogramme',
     label: 'Förderprogramme',
-    untertitel: 'Programme, Unterprogramme und die Filter, die daran hängen.',
+    // Zaehlt die Gruppen NICHT auf: „Programme" traegt seit v4.117 die
+    // Experten-Marke und fehlt im Standard-Profil. Ein Untertitel, der sie
+    // nennt, versprach dort etwas, das die Seite nicht zeigt (v4.119) — und
+    // eine Karte hinter einer Marke soll ganz weg sein, nicht halb angekuendigt.
+    untertitel: 'Unterprogramme und die Filter, die an einem Förderprogramm hängen.',
     icon: Layers,
     sections: [
       { id: 'sec-programme', label: 'Programme', gruppe: 'Programme', keywords: 'programm förderprogramm zim exist anlegen umbenennen löschen aktiv wechseln scope' },

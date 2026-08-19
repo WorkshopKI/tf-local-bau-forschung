@@ -21,19 +21,21 @@ const CONTEXT_DOCS: Record<string, string> = Object.fromEntries(
 );
 
 /**
- * Plugin-IDs mit `category: 'kuration'`, die sich ein gemeinsames `kuration.md`
- * teilen statt eines eigenen Docs — gehalten in Sync mit dem Coverage-Guard
- * (`screen-context-coverage` in codebase-conventions.test.ts). Bewusst NICHT
- * `skill-verwaltung-kuration` (trägt trotz des Namens `category: 'tools'`, siehe
- * plugins.config.ts / src/plugins/skill-verwaltung-kuration/index.ts).
+ * Plugin-IDs, die sich ein gemeinsames `kuration.md` teilen statt eines eigenen
+ * Docs — gehalten in Sync mit dem Coverage-Guard (`screen-context-coverage` in
+ * conventions-daten.test.ts).
  *
- * Der Hub `kuration` steht hier NICHT: er trägt `kuration.md` als eigenes Doc
- * und findet es über den Dateinamen. `anfragen-kuration` ist mit v4.34 in ihm
- * aufgegangen.
+ * **Heute leer, und das ist der Punkt.** Die Liste war sinnvoll, solange das Doc
+ * nach der GRUPPE hiess und acht Kurator-Seiten darunter lagen. Seit v4.40 heisst
+ * die Seite „Datenpflege" und `kuration.md` beschreibt sie — die Umleitung
+ * oeffnete auf `dokument-review` das Handbuch der Nachbarseite: Titel
+ * „Datenpflege …", danach sieben Absaetze ueber den Hub, die eigene Seite erst im
+ * letzten. Sie hat seit v4.119 ihr eigenes `dokument-review.md`.
+ *
+ * Der Hub `kuration` stand hier ohnehin nie: er findet `kuration.md` ueber den
+ * Dateinamen.
  */
-export const KURATION_PLUGIN_IDS: readonly string[] = [
-  'dokument-review',
-];
+export const KURATION_PLUGIN_IDS: readonly string[] = [];
 
 /** Globaler App-Überblick (immer mitgesendet). Leerer String falls `_app.md` fehlt. */
 export function getAppOverview(): string {

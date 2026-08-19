@@ -33,6 +33,7 @@ import { useStorage } from '@/core/hooks/useStorage';
 import { useKuratorSession } from '@/core/hooks/useKuratorSession';
 import { useModulFreischaltung } from '@/core/hooks/useModulFreischaltung';
 import { useAuslastungFrei, useKuratorFrei } from '@/core/modul-freischaltung';
+import { useKuratorSeiten } from '@/core/hooks/useKuratorSeiten';
 import { useSichtbar } from '@/core/hooks/useSichtbar';
 import { seiteId } from '@/core/sichtbarkeit';
 import { useSmbStatus } from '@/core/hooks/useSmbStatus';
@@ -129,7 +130,10 @@ export function ShellLayout({ plugins, children }: ShellLayoutProps): React.Reac
   // es exakt beim bisherigen Verhalten.
   const kuratorFrei = useKuratorFrei();
   const auslastungFrei = useAuslastungFrei();
-  const isKurator = !!(profile?.is_kurator ?? profile?.is_admin) && isKuratorMenusEnabled() && kuratorFrei;
+  // Der Ausdruck selbst wohnt in `useKuratorSeiten` — er stand bis v4.119
+  // zweimal von Hand da (hier und im Routen-Schutz), und ein dritter Aufrufer
+  // fragte nur die halbe Bedingung ab.
+  const isKurator = useKuratorSeiten();
   const sichtbar = useSichtbar();
   const location = useLocation();
   const navigate = useNavigate();

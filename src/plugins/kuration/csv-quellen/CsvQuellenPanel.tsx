@@ -65,6 +65,22 @@ import {
   type AddColumnsRequest,
 } from '@/plugins/csv-sources-kuration/SourceModals';
 
+/**
+ * Zwei Reichweiten in einem Kasten — das gehoert gesagt.
+ *
+ * Ampel und „Letzter Import" kommen aus dem globalen Frischecheck (alle
+ * Programme), die drei anderen Zahlen und die Liste darunter aus dem AKTIVEN.
+ * Bis v4.119 stand beides gleich beschriftet nebeneinander; ein roter Zustand
+ * konnte zu einer Quelle gehoeren, die auf dieser Seite gar nicht steht.
+ *
+ * Als Konstante, nicht als Attribut-Literal: das deutsche Schlusszeichen
+ * beendet sonst das JSX-Attribut.
+ */
+const ZUSTAND_HINT =
+  'Die Ampel und „Letzter Import“ kommen aus demselben Frischecheck wie der Punkt ● CSV in der Fußzeile — der zählt ALLE Programme. '
+  + 'Quellen, Zeilen, „Neuere Datei am Ablageort“ und die Liste darunter gelten nur für das aktive Programm. '
+  + 'Ein roter Zustand kann deshalb zu einer Quelle gehören, die auf dieser Seite gar nicht steht.';
+
 /** „Nicht pruefbar" (offline, kein Handle) heisst am Badge `neutral`. */
 const CSV_ZU_TON: Record<CsvFreshnessTon, SettingsBadgeTon> = {
   ok: 'ok',
@@ -173,14 +189,28 @@ export function CsvQuellenPanel(): React.ReactElement {
   const offeneUpdates = Object.values(updateChecks).filter(u => u.state === 'update_available').length;
   const zeilen = schemas.reduce((s, x) => s + (x.last_row_count ?? 0), 0);
 
+  /**
+   * Konnte der Frischecheck ueberhaupt laufen?
+   *
+   * Er startet erst mit `startupPhase === 'done'` UND `smbStatus === 'online'`;
+   * bis dahin steht das Anfangs-Ergebnis mit `state: 'offline'` und
+   * `lastImport: null`. Bis v4.119 las sich dieses „noch nicht geprueft" wie
+   * ein Befund: „Letzter Import —" und „Noch kein Import verzeichnet." standen
+   * direkt neben den Zeilen aus dem IDB-Bestand, die sehr wohl ein Importdatum
+   * tragen.
+   */
+  const csvGeprueft = csv.state !== 'offline';
+
   // Der Satz, der bei den Kennzahlen sonst fehlte: eine Zahl allein sagt nicht,
   // was zu tun ist. Hoechstens einer — „noch kein Import" schlaegt den Hinweis
   // auf den Knopf, weil ohne Import auch nichts zu aktualisieren waere.
-  const zustandHinweis = !csv.lastImport
-    ? 'Noch kein Import verzeichnet.'
-    : offeneUpdates > 0
-      ? 'In der Zeile der Quelle steht „CSV Daten aktualisieren".'
-      : null;
+  const zustandHinweis = !csvGeprueft
+    ? 'Der Stand ist gerade nicht prüfbar — der Daten-Share ist nicht verbunden. Die Zeilen unten zeigen den zuletzt gespeicherten Stand.'
+    : !csv.lastImport
+      ? 'Noch kein Import verzeichnet.'
+      : offeneUpdates > 0
+        ? 'In der Zeile der Quelle steht „CSV Daten aktualisieren".'
+        : null;
 
   return (
     <SettingsZweiSpalten
@@ -242,6 +272,7 @@ export function CsvQuellenPanel(): React.ReactElement {
           <SettingsGruppe
             id="sec-csv-zustand"
             titel="Zustand"
+            hint={ZUSTAND_HINT}
             rechts={<SettingsStatusBadge ton={CSV_ZU_TON[aussage.ton]}>{aussage.label}</SettingsStatusBadge>}
           >
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2 pt-1">
@@ -249,7 +280,11 @@ export function CsvQuellenPanel(): React.ReactElement {
               <SettingsKennzahl label="Zeilen" wert={zeilen.toLocaleString('de-DE')} />
               <SettingsKennzahl
                 label="Letzter Import"
-                wert={csv.lastImport ? new Date(csv.lastImport).toLocaleString('de-DE') : '—'}
+                wert={
+                  csv.lastImport
+                    ? new Date(csv.lastImport).toLocaleString('de-DE')
+                    : csvGeprueft ? '—' : 'nicht prüfbar'
+                }
               />
               <SettingsKennzahl
                 label="Neuere Datei am Ablageort"
@@ -292,7 +327,12 @@ export function CsvQuellenPanel(): React.ReactElement {
             />
           </SettingsGruppe>
 
-          <SettingsGruppe titel="Selten gebraucht">
+          <SettingsGruppe
+            titel="Selten gebraucht"
+            traegt={isDevContext()
+              ? ['sec-csv-wartung', 'sec-csv-wiederherstellen']
+              : ['sec-csv-wartung']}
+          >
             <SettingsKlappe
               id="sec-csv-wartung"
               label="Antrags-Daten zurücksetzen"
@@ -303,7 +343,7 @@ export function CsvQuellenPanel(): React.ReactElement {
             {isDevContext() && (
               <SettingsKlappe
                 id="sec-csv-wiederherstellen"
-                label="CSV-Schemas wiederherstellen (dev)"
+                label="CSV-Schemas wiederherstellen"
                 storageKey="teamflow_kuration_csv_recovery"
               >
                 <SchemaRecoverySection

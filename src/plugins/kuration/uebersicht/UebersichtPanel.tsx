@@ -12,7 +12,14 @@
  *     Moduls, das sie verantwortet (`useKurationLage`, `useCsvFreshness`).
  *  2. **Auch der Ruhezustand steht da.** Eine Zeile, die nur bei Problemen
  *     erscheint, macht Abwesenheit mehrdeutig — „nichts zu sehen" hiesse dann
- *     entweder „alles gut" oder „noch nicht geladen".
+ *     entweder „alles gut" oder „noch nicht geladen". Aus demselben Grund sagt
+ *     eine Zeile, die ihren Stand gerade NICHT pruefen konnte, genau das —
+ *     statt „noch kein Import" zu behaupten.
+ *
+ * Die Beta-/Experten-Achse steht ueber beiden Regeln: was sie verbirgt, faellt
+ * ganz weg (heute „CSV-Datenimport", `sec-lage-csv` traegt seit v4.117 die
+ * Experten-Marke). Das ist kein Ruhezustand, sondern eine Kurations-Entscheidung
+ * — halb dargestellt waere sie schlimmer als gar nicht.
  */
 import { Globe } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -20,6 +27,8 @@ import { useNavigation } from '@/core/hooks/useNavigation';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { restlaufzeitLabel, useKuratorSession } from '@/core/hooks/useKuratorSession';
+import { hatModulSchloss } from '@/config/feature-flags';
+import { spiegleKuratorSchalterInSession } from '@/core/modul-freischaltung';
 import { useCsvFreshness } from '@/components/ui/CsvFreshnessIndicator';
 import { csvFreshnessAussage, type CsvFreshnessTon } from '@/plugins/csv-sources-kuration/services/csv-freshness-state';
 import {
@@ -64,6 +73,20 @@ export function UebersichtPanel(): React.ReactElement {
   const session = useKuratorSession();
   const sperren = useAsyncAction(async () => {
     await session.deactivate(storage.idb);
+  });
+  /**
+   * Der Rückweg — nur in Builds OHNE Kurator-Schloss.
+   *
+   * „Sperren" war dort bis v4.119 eine Einbahn: es beendet die Sitzung, lässt
+   * `profile.is_kurator` aber stehen, und der genannte Weg zurück
+   * („Einstellungen → Mein Profil → Zusatz-Module") zeigt genau dann einen
+   * Schalter, der bereits AN steht — zurück kam man nur über Aus/An oder einen
+   * Neustart. Wo ein Zusatzpasswort existiert, bleibt der Weg dorthin richtig:
+   * aufschließen heißt dort, das Passwort einzugeben.
+   */
+  const ohneSchloss = !hatModulSchloss('kurator');
+  const freischalten = useAsyncAction(async () => {
+    await spiegleKuratorSchalterInSession(storage.idb, true);
   });
 
   const zahl = (n: number): string => n.toLocaleString('de-DE');
@@ -111,7 +134,12 @@ export function UebersichtPanel(): React.ReactElement {
             kurzzeile={
               csv.lastImport
                 ? `Letzter Import: ${new Date(csv.lastImport).toLocaleString('de-DE')}`
-                : 'Noch kein Import verzeichnet.'
+                // `state: 'offline'` heisst „konnte nicht geprueft werden"
+                // (Startlauf noch nicht fertig oder Share nicht verbunden) —
+                // das ist etwas anderes als „es gab nie einen Import".
+                : csv.state === 'offline'
+                  ? 'Stand nicht prüfbar — der Daten-Share ist nicht verbunden.'
+                  : 'Noch kein Import verzeichnet.'
             }
           >
             <Button
@@ -164,16 +192,18 @@ export function UebersichtPanel(): React.ReactElement {
               </SettingsStatusBadge>
             }
             kurzzeile={
-              sperren.error
-                ? <span className="text-[var(--tf-danger-text)]">Fehler: {sperren.error}</span>
+              sperren.error || freischalten.error
+                ? <span className="text-[var(--tf-danger-text)]">Fehler: {sperren.error ?? freischalten.error}</span>
                 : session.isActive
                   ? session.kuratorName
                     ? `Angemeldet als ${session.kuratorName}.`
                     : undefined
-                  : 'Freischalten läuft über Einstellungen → Mein Profil → Zusatz-Module.'
+                  : ohneSchloss
+                    ? 'Diese Programmfassung braucht kein Zusatzpasswort — der Knopf schaltet direkt wieder frei.'
+                    : 'Freischalten läuft über Einstellungen → Mein Profil → Zusatz-Module.'
             }
           >
-            {session.isActive && (
+            {session.isActive ? (
               <Button
                 type="button"
                 variant="secondary"
@@ -183,7 +213,17 @@ export function UebersichtPanel(): React.ReactElement {
               >
                 Sperren
               </Button>
-            )}
+            ) : ohneSchloss ? (
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => freischalten.run()}
+                loading={freischalten.busy}
+              >
+                Freischalten
+              </Button>
+            ) : null}
           </SettingsOption>
 
           <SettingsTrustZeile icon={<Globe size={14} />}>

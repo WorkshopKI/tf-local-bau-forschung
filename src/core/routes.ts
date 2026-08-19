@@ -77,7 +77,13 @@ const LEGACY_REDIRECTS: Record<string, string> = {
   // Das Panel hiess bis v4.40 „Verzeichnisse" — das Wort meint in dieser App
   // Ordner auf der Platte. Die Panel-Id zog mit; alt gespeicherte
   // `?panel=verzeichnisse`-Links fallen auf das erste Panel zurueck.
-  '/kuration/programme': '/kuration?panel=foerderprogramme',
+  //
+  // Mit `sektion=`, nicht nur mit `panel=`: die Gruppe „Programme" traegt seit
+  // v4.117 die Experten-Marke. Ohne die Sektion landete das alte Lesezeichen
+  // wortlos auf einem Panel ohne Programme-Gruppe (v4.119); mit ihr sagt der
+  // Hub, dass das Ziel gerade ausgeblendet ist — und springt es an, sobald der
+  // Expertenmodus laeuft.
+  '/kuration/programme': '/kuration?panel=foerderprogramme&sektion=sec-programme',
   '/kuration/filter': '/kuration?panel=foerderprogramme&sektion=sec-filter',
   // Zeigte bis v4.33 auf eine Seite, die es nie gab (der Weg endete im
   // Catch-all auf der Startseite) — jetzt hat er ein echtes Ziel.

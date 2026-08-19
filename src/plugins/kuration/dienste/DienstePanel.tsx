@@ -16,6 +16,7 @@ import { Save, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useProfile } from '@/core/hooks/useProfile';
+import { useKuratorSession } from '@/core/hooks/useKuratorSession';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { useSmbStatus } from '@/core/hooks/useSmbStatus';
 import { canWriteDatenShare, getAnfragenDashboardUrl } from '@/config/feature-flags';
@@ -34,13 +35,27 @@ import { Globe } from 'lucide-react';
 export function DienstePanel(): React.ReactElement {
   const storage = useStorage();
   const { profile } = useProfile();
+  const session = useKuratorSession();
   const [url, setUrl] = useState('');
   const [savedUrl, setSavedUrl] = useState('');
   const [justSaved, setJustSaved] = useState(false);
 
   const defaultUrl = getAnfragenDashboardUrl();
   const isKurator = !!(profile?.is_kurator ?? profile?.is_admin);
-  const canWrite = canWriteDatenShare(isKurator);
+  /**
+   * Warum gerade nicht geschrieben werden kann — oder `null`.
+   *
+   * Die SITZUNG gehört mit hinein: `canWriteDatenShare()` fragt nur nach
+   * Kurator-Recht, `writeAnfragenSettingsToShare` nur nach Handle und
+   * Berechtigung. Bis v4.119 blieb das Feld bei gesperrter Sitzung editierbar
+   * und schrieb weiter team-weit — während der Seitenkopf „nur lesbar" sagte.
+   */
+  const schreibSperre: string | null = !canWriteDatenShare(isKurator)
+    ? 'Nur mit Kurator-Schreibrecht editierbar.'
+    : !session.isActive
+      ? 'Nur mit aktiver Kurator-Sitzung editierbar.'
+      : null;
+  const canWrite = schreibSperre === null;
 
   useEffect(() => {
     let cancelled = false;
@@ -55,7 +70,7 @@ export function DienstePanel(): React.ReactElement {
   }, [storage]);
 
   const speichern = useAsyncAction(async () => {
-    if (!canWrite) throw new Error('Keine Schreibberechtigung für den Daten-Share (nur Kurator).');
+    if (schreibSperre !== null) throw new Error(schreibSperre);
     if (!useSmbStatus.getState().requireOnline()) throw new Error('Daten-Share offline — Speichern nicht möglich.');
     const merged = await writeAnfragenSettingsToShare(
       storage.idb,
@@ -125,9 +140,9 @@ export function DienstePanel(): React.ReactElement {
               </Button>
             </div>
 
-            {!canWrite && (
+            {schreibSperre !== null && (
               <p className="mt-2 text-[12px] text-[var(--tf-text-tertiary)]">
-                Nur mit Kurator-Schreibrecht editierbar.
+                {schreibSperre}
               </p>
             )}
             {speichern.error && (

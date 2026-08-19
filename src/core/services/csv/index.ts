@@ -100,12 +100,14 @@ export {
   computeUnterprogrammLabelDiff,
   applyUnterprogrammLabelDiff,
   buildUnterprogrammLabelDiff,
+  zeileSchreibtEtwas,
 } from './unterprogrammLabelXlsx';
 export type {
   UnterprogrammLabelEntry,
   UnterprogrammLabelDiff,
   UnterprogrammLabelDiffRow,
   UnterprogrammLabelChangeKind,
+  UnterprogrammLabelFeldWahl,
 } from './unterprogrammLabelXlsx';
 export { parseLabelXlsx, buildSuggestions, buildSuggestionsFromColumnNames, applyAmbiguousResolution } from './filter/xlsLabelParser';
 export type {

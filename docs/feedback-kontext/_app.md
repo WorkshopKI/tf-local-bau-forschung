@@ -34,7 +34,10 @@ Noch nicht ausgereift, Rückmeldungen ausdrücklich erwünscht; die Gruppe läss
 
 ### Nur für Kuratoren nach Login
 
-- **Kuration** — Suchindex, Programme, CSV-Quellen, Dokumentenquellen, Anfragen-Konfiguration, Filter, Feedback-Dashboard, Dokument-Review
+Eine eigene, zuklappbare Gruppe „Kuration" mit zwei Einträgen:
+
+- **Datenpflege** — eine Seite mit Unterseiten: Übersicht (was ansteht, wie die Daten stehen), CSV-Quellen, Förderprogramme (mit Unterprogrammen und Filtern), Suche & Index (mit den Dokumentenquellen), Dienste (externe Gegenstellen) und Sichtbarkeit (was nur mit Beta-Funktionen oder Expertenmodus erscheint)
+- **Dokument-Review** — eigene Arbeitsfläche: die vorsortierten Dokumente prüfen, Typ korrigieren, Antrag zuordnen
 
 ## Wiederkehrende Bedienelemente
 

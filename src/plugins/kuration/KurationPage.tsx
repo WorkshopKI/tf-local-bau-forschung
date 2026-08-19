@@ -21,7 +21,12 @@ export function KurationPage(): React.ReactElement {
       titel={KURATION_SEITENNAME}
       pluginId="kuration"
       panels={panels}
-      hinweis={<KuratorGesperrtHinweis was="Quellen, Programme und Einstellungen" />}
+      hinweis={
+        <KuratorGesperrtHinweis
+          was="Quellen, Programme und Einstellungen"
+          nachsatz="Der Suchindex bleibt baubar — er liegt auf diesem Gerät, nicht auf dem Daten-Share."
+        />
+      }
     />
   );
 }

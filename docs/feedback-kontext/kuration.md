@@ -52,5 +52,5 @@ Rechts stehen die Zähler nach Standard, nur Beta, nur Experte und beides, darun
 
 Einige Zeilen sind gesperrt: über sie erreicht man die Schalter selbst, den Kurator-Zugang und die Modul-Freischaltung. Wären sie ausblendbar, gäbe es keinen Weg zurück. Eine markierte Seite nimmt ihre Reiter und Abschnitte ohnehin mit — die brauchen dann keine eigene Marke.
 
-## Dokument-Review
-Review-Queue für Phase-2-Triage-Ergebnisse: Dokument-Typ korrigieren, Antrag zuordnen, als irrelevant markieren, re-triagieren.
+## Nicht auf dieser Seite
+**Dokument-Review** steht in derselben Seitenleisten-Gruppe, ist aber eine eigene Arbeitsfläche mit eigener Anleitung: dort werden die vorsortierten Dokumente geprüft — Typ korrigieren, Antrag zuordnen, Irrelevantes abhaken.

@@ -23,6 +23,17 @@ import {
 import { listFilters, removeFilter } from './filter/filterRegistry';
 import type { Programm } from './types';
 
+/**
+ * Sorgt dafür, dass es MINDESTENS EIN Programm gibt — und gibt es zurück.
+ *
+ * Die Zusage ist bewusst „mindestens eines", nicht „das Standard-Programm":
+ * bis v4.119 legte die Funktion `default-programm` bedingungslos neu an, sobald
+ * es fehlte. Wer es löschte (möglich nur bei 0 Anträgen und einem zweiten
+ * Programm daneben), bekam es beim nächsten Refresh unverändert wieder
+ * hingestellt — mit derselben Id, aber ohne die CSV-Schemas, Row-Hashes,
+ * Unterprogramme, Verbünde und Filter, die der Cascade-Cleanup mitgenommen
+ * hatte. Auf dem Schirm sah es aus, als sei nichts passiert.
+ */
 export async function ensureDefaultProgramm(idb: IDBStore): Promise<Programm> {
   const existing = await getProgramm(idb, DEFAULT_PROGRAMM_ID);
   if (existing) {
@@ -36,6 +47,13 @@ export async function ensureDefaultProgramm(idb: IDBStore): Promise<Programm> {
     }
     return existing;
   }
+  // Es fehlt — aber das heisst nicht, dass etwas fehlt. Steht ein anderes
+  // Programm da, ist die Zusage erfuellt und die Loeschung bleibt eine
+  // Loeschung.
+  const vorhandene = await listProgramme(idb);
+  const erstes = vorhandene[0];
+  if (erstes) return erstes;
+
   const programm: Programm = {
     id: DEFAULT_PROGRAMM_ID,
     name: DEFAULT_PROGRAMM_NAME,

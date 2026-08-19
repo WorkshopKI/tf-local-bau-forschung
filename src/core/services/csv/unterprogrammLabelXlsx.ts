@@ -154,9 +154,31 @@ export function computeUnterprogrammLabelDiff(
 }
 
 /**
+ * Welche FELDER der Import schreiben darf.
+ *
+ * Bis v4.119 gab es diese Achse nicht: die Knöpfe „Nur Labels" / „Nur Jahr"
+ * schränkten allein die ZEILEN-Menge ein (`name_changed` + `both_changed`
+ * bzw. `zeitraum_changed` + `both_changed`) — und `both_changed` steht in
+ * beiden Mengen. Für eine Zeile, in der sich Label UND Jahr geändert hatten,
+ * schrieb der Apply darum beides, egal welcher Knopf gedrückt war. Der Knopf
+ * hielt nicht, was er beschriftete.
+ */
+export type UnterprogrammLabelFeldWahl = 'beide' | 'name' | 'jahr';
+
+/** Schreibt diese Zeile unter der gewählten Feld-Achse überhaupt etwas? */
+export function zeileSchreibtEtwas(
+  row: UnterprogrammLabelDiffRow,
+  felder: UnterprogrammLabelFeldWahl,
+): boolean {
+  if (row.kind === 'unknown_code' || row.kind === 'unchanged') return false;
+  return (row.willChangeName && felder !== 'jahr') || (row.willChangeJahr && felder !== 'name');
+}
+
+/**
  * Wendet die per `selectedCodes` ausgewählten Diff-Zeilen an.
  * - Schreibt nur Zeilen, deren `code` in `selectedCodes` ist.
  * - Überspringt `unknown_code`-Zeilen unbedingt (kein Auto-Anlegen).
+ * - `felder` grenzt zusätzlich die SPALTEN ein (siehe `UnterprogrammLabelFeldWahl`).
  * - Audit-Event mit Counts der tatsächlich geschriebenen Felder.
  */
 export async function applyUnterprogrammLabelDiff(
@@ -165,6 +187,7 @@ export async function applyUnterprogrammLabelDiff(
   diff: UnterprogrammLabelDiff,
   selectedCodes: Set<string>,
   kuratorName?: string,
+  felder: UnterprogrammLabelFeldWahl = 'beide',
 ): Promise<{ written: number; nameWrites: number; zeitraumWrites: number }> {
   let written = 0;
   let nameWrites = 0;
@@ -172,22 +195,29 @@ export async function applyUnterprogrammLabelDiff(
 
   for (const row of diff.rows) {
     if (!selectedCodes.has(row.code)) continue;
-    if (row.kind === 'unknown_code' || row.kind === 'unchanged') continue;
+    if (!zeileSchreibtEtwas(row, felder)) continue;
     if (!row.existing) continue;
+
+    const schreibeName = row.willChangeName && felder !== 'jahr';
+    const schreibeJahr = row.willChangeJahr && felder !== 'name';
 
     await saveUnterprogramm(idb, {
       id: row.existing.id,
       programm_id: row.existing.programm_id,
       code: row.existing.code,
       aktiv: row.existing.aktiv,
-      name: row.willChangeName ? (row.label || undefined) : row.existing.name,
-      geplanter_zeitraum: row.willChangeJahr
-        ? (row.jahr || undefined)
+      // Leerer String statt `undefined`: eine Zeile, die auf „→ —" steht,
+      // MEINT das Leeren. `undefined` hiesse „nicht mitgeschickt" und liesse
+      // den alten Wert stehen — die Vorschau haette dann etwas versprochen,
+      // was der Lauf nicht tut (v4.119).
+      name: schreibeName ? row.label : row.existing.name,
+      geplanter_zeitraum: schreibeJahr
+        ? (row.jahr ?? '')
         : row.existing.geplanter_zeitraum,
     });
     written++;
-    if (row.willChangeName) nameWrites++;
-    if (row.willChangeJahr) zeitraumWrites++;
+    if (schreibeName) nameWrites++;
+    if (schreibeJahr) zeitraumWrites++;
   }
 
   await logAudit(idb, {
@@ -196,6 +226,7 @@ export async function applyUnterprogrammLabelDiff(
     details: {
       programm_id: programmId,
       total_rows: diff.rows.length,
+      felder,
       written,
       name_changes: nameWrites,
       zeitraum_changes: zeitraumWrites,

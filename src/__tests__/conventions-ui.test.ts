@@ -72,6 +72,7 @@ import { PRESET_COLORS } from '../components/ui/theme';
 import { ANTRAG_TABLE_COLUMNS } from '../plugins/antraege/tableColumns';
 import { SPALTEN_MIT_SATZ, baueSpaltenHilfe } from '../plugins/antraege/spaltenHilfe';
 import { SEITEN_FUEGUNG, rueckwegSatz } from '../core/nav/rueckwegSatz';
+import { SICHTBARKEITS_KATALOG, istMarkiert } from '../core/sichtbarkeit';
 import {
   ROOT, ALL_TS_FILES, ALL_SOURCE_FILES, relPath, findInFile, fmt, hslToRgb, relLuminance, kontrast, mische, parseCssFarbe, themeFarbTokens, type Finding, type ThemeFarbSatz,
 } from './conventions-lib';
@@ -1151,6 +1152,102 @@ describe('sichtbarkeit-alle-bauteile (kein Abschnitt leckt an der Achse vorbei)'
       `\`if (!sichtbar) return null;\` NACH allen Hooks (Rückgabetyp \`| null\`).\n` +
       `Sonst steht der Abschnitt in der Karte, während Navigation, Suche und\n` +
       `Deep-Link ihn für ausgeblendet halten.`,
+    ).toEqual([]);
+  });
+});
+
+describe('settings-karte-ohne-inhalt (keine Karte bleibt leer stehen)', () => {
+  // Die vierte Sichtbarkeits-Achse verbirgt ABSCHNITTE. Eine `SettingsGruppe`
+  // ohne eigene `id` fragt die Achse nie (Pitfall #54: unbekannte Id = sichtbar)
+  // — bestehen ihre Kinder nur aus markierten Abschnitten, steht die Karte mit
+  // Titel und komplett leerem Rumpf da.
+  //
+  // Genau so passierte es der Gruppe „Selten gebraucht" in „Suche & Index" und
+  // „CSV-Quellen": beide Kinder experte-markiert, die Karte selbst ohne Id, im
+  // Standard-Profil eine Überschrift über nichts (v4.119). Wer eine solche Karte
+  // baut, nennt ihre Abschnitte in `traegt` — dann verschwindet sie mit ihnen.
+
+  /** Ende des Opening-Tags: das erste `>` ausserhalb von Klammern und Strings. */
+  function tagEnde(text: string, start: number): number {
+    let tiefe = 0;
+    let quote: string | null = null;
+    for (let i = start; i < text.length; i++) {
+      const c = text[i]!;
+      if (quote) {
+        if (c === quote) quote = null;
+        continue;
+      }
+      if (c === '"' || c === "'" || c === '`') { quote = c; continue; }
+      if (c === '{') tiefe++;
+      else if (c === '}') tiefe--;
+      else if (c === '>' && tiefe === 0) return i;
+    }
+    return -1;
+  }
+
+  /** Traegt dieser Abschnitt im Katalog eine Marke? (Id ohne Wirts-Praefix.) */
+  const markierteAbschnitte = new Set(
+    SICHTBARKEITS_KATALOG
+      .filter(e => e.art === 'abschnitt' && istMarkiert(e.marken))
+      .map(e => e.id.split('/').pop()!),
+  );
+
+  it('eine Karte, deren Abschnitte ALLE markiert sind, verschwindet mit ihnen', () => {
+    const befunde: string[] = [];
+    for (const datei of ALL_SOURCE_FILES) {
+      const rel = relPath(datei).replace(/\\/g, '/');
+      if (!rel.endsWith('.tsx')) continue;
+      const text = readFileSync(datei, 'utf-8');
+      if (!text.includes('<SettingsGruppe')) continue;
+
+      let pos = text.indexOf('<SettingsGruppe');
+      while (pos >= 0) {
+        const ende = tagEnde(text, pos);
+        const schluss = text.indexOf('</SettingsGruppe>', pos);
+        if (ende < 0 || schluss < 0) break;
+        const kopf = text.slice(pos, ende);
+        const rumpf = text.slice(ende, schluss);
+        pos = text.indexOf('<SettingsGruppe', schluss);
+
+        if (/\bid=/.test(kopf) || /\btraegt=/.test(kopf)) continue;
+
+        // Ein Kind ohne eigenen Anker rendert immer — die Karte kann dann nicht
+        // leer werden.
+        const kinder = [...rumpf.matchAll(/<Settings(?:Option|Block|Klappe)\b/g)];
+        const ohneAnker = kinder.some(m => !/\bid=/.test(rumpf.slice(m.index!, tagEnde(rumpf, m.index!))));
+        if (ohneAnker) continue;
+
+        const anker = [...rumpf.matchAll(/\bid="(sec-[a-z0-9-]+)"/g)].map(m => m[1]!);
+        if (anker.length === 0) continue;
+        if (anker.every(id => markierteAbschnitte.has(id))) {
+          const zeile = text.slice(0, ende).split('\n').length;
+          befunde.push(`${rel}:${zeile}  (${anker.join(', ')})`);
+        }
+      }
+    }
+    expect(
+      befunde,
+      `Diese Karten tragen keine eigene Sichtbarkeits-Id, und JEDER Abschnitt darin\n` +
+      `ist markiert — im Standard-Profil bleibt eine Ueberschrift ueber einem leeren\n` +
+      `Rumpf stehen:\n  ${befunde.join('\n  ')}\n\n` +
+      `Ergaenze \`traegt={['sec-…', 'sec-…']}\` mit den Ids der Kinder; die Karte\n` +
+      `rendert dann nicht mehr, wenn keines davon sichtbar ist.`,
+    ).toEqual([]);
+  });
+});
+
+describe('kurator-seiten-eine-quelle (die Sichtbarkeit der Kurator-Seiten wird nicht abgeschrieben)', () => {
+  // Profil-Flagge UND `kuratorMenus` UND Modul-Freischaltung — der Ausdruck
+  // stand bis v4.119 zweimal von Hand da (Sidebar, Routen-Schutz), und ein
+  // dritter Aufrufer (Startzustand der Suche) fragte nur die halbe Bedingung ab.
+  // Er bot damit eine Tuer an, hinter der die Sperrseite stand.
+  it('nur `useKuratorSeiten.ts` schreibt die Bedingung aus', () => {
+    const treffer = ALL_TS_FILES
+      .filter(f => !relPath(f).replace(/\\/g, '/').endsWith('src/core/hooks/useKuratorSeiten.ts'))
+      .flatMap(f => findInFile(f, l => l.includes('isKuratorMenusEnabled() && kuratorFrei'), 'allow-kurator-seiten'));
+    expect(
+      treffer,
+      `Der Ausdruck gehoert genau einmal in \`useKuratorSeiten()\`:\n${fmt(treffer)}`,
     ).toEqual([]);
   });
 });

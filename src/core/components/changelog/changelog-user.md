@@ -19,6 +19,21 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.119 — 2026-08
+
+### Bugfixes
+- **Alte Lesezeichen auf die Kurations-Seiten kommen wieder an.** In der End-Anwender-Fassung landeten sie auf einer leeren Fläche statt auf der Startseite; „Programme" öffnet jetzt die richtige Stelle und sagt es, wenn der Abschnitt gerade ausgeblendet ist.
+- **Drei Knöpfe sprangen auf die Startseite** statt zu ihrem Ziel — „In CSV-Sources prüfen" im Hinweis zu geänderten Spalten (der Bericht bleibt jetzt erhalten) und zwei Wege zu den Dokumentenquellen.
+- **Ohne aktive Kurator-Sitzung ist wirklich nichts änderbar.** Die Beta-/Experten-Marken und die Adresse des FAQ-Assistenten ließen sich weiter für das ganze Team speichern, obwohl oben „nur lesbar" stand.
+- **„Nur Labels" schreibt nur Labels.** Beim Übernehmen aus einer XLSX-Datei wurde bei Zeilen mit zwei Änderungen trotzdem auch das Jahr geschrieben. Ein Label lässt sich jetzt auch wieder leeren.
+- **Ein gelöschtes Förderprogramm bleibt gelöscht** — es stand vorher sofort wieder da, während die zugehörigen Quellen und Filter weg blieben.
+
+### Verbesserungen
+- **Leere Karten verschwinden.** „Selten gebraucht" stand mit Überschrift über nichts, wenn ihr Inhalt hinter dem Expertenmodus liegt; dasselbe galt für „Persönlicher Assistent" in Ihrem Profil.
+- **Zahlen sagen, worüber sie zählen.** „Letzter Import" meldet „nicht prüfbar", solange der Datenordner nicht verbunden ist, statt „noch kein Import"; die Antragszahl der Unterprogramme heißt jetzt „Anträge mit Code".
+- **Ist der Kurator-Modus gesperrt, schaltet der Knopf daneben ihn wieder frei** — vorher führte der genannte Weg zu einem Schalter, der bereits an war.
+- **„Hilfe" auf der Seite Dokument-Review zeigt deren eigene Anleitung** statt der Anleitung der Datenpflege.
+
 ## v4.118 — 2026-08
 
 ### Bugfixes

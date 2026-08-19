@@ -217,7 +217,7 @@ export function SucheIndexPanel(): React.ReactElement {
           </SettingsGruppe>
           )}
 
-          <SettingsGruppe titel="Selten gebraucht">
+          <SettingsGruppe titel="Selten gebraucht" traegt={['sec-index-erweitert', 'sec-embedding-korpus']}>
             <SettingsKlappe
               id="sec-index-erweitert"
               label="Modelle, Suchqualität, Zurücksetzen"
