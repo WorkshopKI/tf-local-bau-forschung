@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.123.0 — Die Suche kennt den Stern (August 2026)
+
+MINOR — Das Fragezeichen (v4.101) verlangt, dass man abzählt: `mobi?nspec` findet die beiden Schreibweisen dieses Netzwerks nur, weil sie sich in genau einem Zeichen unterscheiden — `mob?nspec` liefert 0. Wer eine Namensdrift sucht, kennt ihre Länge aber nicht. Dazu kam der Platzhalter in keiner Zeile der Oberfläche vor: gefragt wurde nach einer Sache, die es seit zwei Monaten gibt.
+
+- **`*` steht für beliebig viele Zeichen, auch für keines**: `mob*spec` liefert dieselben 33 Treffer wie `mobi?nspec`, ohne die Abweichung zu kennen ([wortstamm.ts](src/core/services/search/wortstamm.ts)) — Kosten wie ein gewöhnliches Wort, am Bestand gemessen ([suche-relevanz.md](docs/architecture/suche-relevanz.md))
+- **Der Stern bleibt im Wort** (`[\p{L}\p{N}]*`, nicht `.*`): `mob*technik` findet 2 statt 119, weil er nicht über Leerzeichen spannt ([wortstamm.ts](src/core/services/search/wortstamm.ts))
+- **Die Fundstelle wird als Muster markiert**, nicht als getippte Nadel — bis v4.122 kam ein Platzhalter-Treffer unmarkiert an ([markierung.ts](src/core/services/search/markierung.ts))
+- **Die Suchsprache lehrt ihn**: eine ausführbare Zeile mehr im Startzustand, am echten Bestand gegengezählt ([suchsprache.ts](src/plugins/suche/start/suchsprache.ts))
+- Erbt Feldpräfix und Anführungszeichen: `fkz:16KN0830*` (32), `nw:mob*spec` (33), `"mob*spec"` (0 — zitiert ist wörtlich gemeint)
+
 ### v4.122.0 — Förderantrags-Tabelle: 17 Befunde der Bug-Jagd behoben (August 2026)
 
 MINOR — Die read-only-Jagd über die meistgenutzte Seite fand ein Muster: **die Oberfläche verspricht eine Menge, eine Uhr oder eine Einheit, die die Liste darunter nicht einlöst.** Die Filterleiste zählte über den Vollbestand (14 225) und bot Werte an, die im aktuellen Reiter null Zeilen liefern; die Vorgabe-Sortierung „Frist" las ein anderes Feld als die Frist-Spalte zeigt; Massenleiste und Export rechneten auf der Liste vor den drei letzten Einschränkungen der Tabelle.

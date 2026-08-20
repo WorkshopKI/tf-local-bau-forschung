@@ -1,8 +1,9 @@
 /**
  * Reiter „Suchsprache" — was man in das Feld schreiben kann.
  *
- * Die neun Beispiele sind dieselben wie vor v4.72, nur nach Zweck gruppiert
- * ([suchsprache.ts](src/plugins/suche/start/suchsprache.ts)). Die Feldnamen
+ * Die Beispiele stehen seit v4.72 nach Zweck gruppiert
+ * ([suchsprache.ts](src/plugins/suche/start/suchsprache.ts)); ihre Zahl steht
+ * dort und wird hier bewusst nicht nachgeschrieben. Die Feldnamen
  * darunter kommen aus der EINEN Quelle (`FELD_PRAEFIX`), damit die Hilfe nicht
  * von der Syntax abdriften kann.
  */

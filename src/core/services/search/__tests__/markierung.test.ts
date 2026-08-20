@@ -83,4 +83,35 @@ describe('markiereText', () => {
   it('eine leere Nadel markiert NICHT alles', () => {
     expect(markiereText('Text', [''], [''])).toEqual([{ text: 'Text', art: null }]);
   });
+
+  it('markiert, was ein Platzhalter getroffen hat — nicht die getippte Nadel', () => {
+    // Ohne Muster-Pfad stünde hier gar nichts an: „mob*spec" kommt in keinem
+    // Antragstext vor, „mobiInspec" schon.
+    const stern = markiereText('Netzwerk mobiInspec (Messtechnik)', ['mob*spec']);
+    expect(zusammen(stern)).toBe('Netzwerk mobiInspec (Messtechnik)');
+    expect(stern.filter(s => s.art === 'wortlaut').map(s => s.text)).toEqual(['mobiInspec']);
+
+    const frage = markiereText('Netzwerk mobilnspec', ['mobi?nspec']);
+    expect(frage.filter(s => s.art === 'wortlaut').map(s => s.text)).toEqual(['mobilnspec']);
+  });
+
+  it('markiert jede Fundstelle eines Musters, auch mehrfach im Text', () => {
+    const s = markiereText('mobiInspec und mobilnspec', ['mob*spec']);
+    expect(s.filter(x => x.art === 'wortlaut').map(x => x.text)).toEqual(['mobiInspec', 'mobilnspec']);
+  });
+
+  it('bleibt bei einem Muster, das leer treffen kann, nicht stehen', () => {
+    // `mobi*` kann an der Wortgrenze null Zeichen greifen — die Schleife muss
+    // trotzdem terminieren und den Text verlustfrei zurückgeben.
+    const s = markiereText('mobi mobil mobiInspec', ['mobi*']);
+    expect(zusammen(s)).toBe('mobi mobil mobiInspec');
+    expect(s.filter(x => x.art === 'wortlaut').map(x => x.text)).toEqual(['mobi', 'mobil', 'mobiInspec']);
+  });
+
+  it('unter der Drei-Zeichen-Grenze bleibt der Stern ein Sternchen', () => {
+    // Dieselbe Untergrenze wie in der Trefferstufe: was zu wenig Festes trägt,
+    // ist kein Muster, sondern Text — und wird als Text markiert.
+    const s = markiereText('die Formel a*b steht dort', ['a*b']);
+    expect(s.filter(x => x.art === 'wortlaut').map(x => x.text)).toEqual(['a*b']);
+  });
 });

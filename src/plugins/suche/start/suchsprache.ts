@@ -15,9 +15,10 @@
  *
  * **Gruppiert wird nach Absicht, nicht nach Syntax.** Neun Zeilen in einer
  * Reihe sind eine Aufzählung, durch die man liest, bis etwas passt; vier
- * Überschriften sagen vorher, wo das Eigene steht. Die drei Kennzeichen-Zeilen
- * stehen dadurch beieinander, weil sie dieselbe Frage in drei Weiten stellen:
- * dieses Teilvorhaben, sein Verbund, sein Netzwerk.
+ * Überschriften sagen vorher, wo das Eigene steht. Die Kennzeichen-Zeilen
+ * stehen dadurch beieinander, weil sie dieselbe Frage in wachsenden Weiten
+ * stellen: dieses Teilvorhaben, sein Verbund, sein Netzwerk — und zuletzt ein
+ * Name, dessen Schreibweise im Bestand schwankt.
  *
  * Rein — kein React.
  */
@@ -44,6 +45,11 @@ export const SUCHARTEN: readonly Sucheart[] = [
   { query: '16KN055710', erklaerung: 'Förderkennzeichen — auch ein Anfang davon', gruppe: 'kennung' },  // 1
   { query: 'vb:ZKN073232', erklaerung: 'ein Verbund mit allen Teilvorhaben', gruppe: 'kennung' },       // 9
   { query: 'nw:ProAnimalLife', erklaerung: 'ein Netzwerk mit allen Teilvorhaben', gruppe: 'kennung' },  // 82
+  // Der Platzhalter stand seit v4.101 im Code und in keiner Zeile der
+  // Oberfläche — gefragt wurde nach einer Sache, die es längst gab. Das
+  // Beispiel ist echt: dieses Netzwerk heißt im Bestand „mobiInspec" (32) UND
+  // „mobilnspec" (3), und keine feste Nadel bringt beide zusammen.
+  { query: 'mob*spec', erklaerung: 'Platzhalter — wenn die Schreibweise schwankt', gruppe: 'kennung' }, // 33
   { query: 'ast:Fraunhofer', erklaerung: 'nur die Einrichtung', gruppe: 'werWo' },                      // 307
   // „nur der Ort", NICHT „Ort und Bundesland": seit v4.82 ist das Bundesland ein
   // eigenes Trefferfeld mit eigenem Präfix (`bl:`), und `ort:` löst ausschließlich

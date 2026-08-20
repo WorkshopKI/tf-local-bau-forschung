@@ -436,7 +436,7 @@ Am echten Bestand (14 225 Anträge) gemessen:
 Die Regel gilt in der Suchstufe **und** beim Einsammeln der Chips. Sonst
 erklärte die Zeile einen Treffer nicht mehr, den sie erzeugt hat.
 
-### Der Platzhalter „?" (v4.101)
+### Die Platzhalter „?" und „*" (v4.101, v4.123)
 
 Anlass ist die Namensdrift im Bestand: 306 der 733 Netzwerke führen mehr als
 eine Schreibweise ihres Namens, darunter drei mit verwechselbaren Zeichen
@@ -451,9 +451,7 @@ also steht das Fragezeichen einer Frage immer am Ende seines Wortes. „Welche
 Vorhaben drehen sich um Normung?" bleibt damit eine Frage und wird nicht
 stillschweigend zur Muster-Suche. Der Preis ist benannt: `16kn08300?` ist
 **kein** Platzhalter — braucht es aber auch nicht, weil eine Nadel ohnehin als
-Teilstring gesucht wird und `16kn08300` dieselbe Menge liefert. Genau deshalb
-ist auch ein `*` am Wortende überflüssig (es ist keine Suchsyntax und trifft
-sich selbst).
+Teilstring gesucht wird und `16kn08300` dieselbe Menge liefert.
 
 Zwei Leitplanken:
 
@@ -486,6 +484,61 @@ die Prüfung selbst.
 
 Am Bestand nachgemessen: `mobi?nspec` **33**, `16KN0830?1` **14**, `Normung?`
 **0** (wörtlich gesucht, wie gewollt), `????` **0**.
+
+#### Der Stern kam nach (v4.123)
+
+Das Fragezeichen verlangt, dass man **abzählt**. `mobi?nspec` findet die beiden
+Schreibweisen nur, weil sie sich in genau einem Zeichen unterscheiden; wer das
+nicht weiß, tippt `mob?nspec` und bekommt **0** — ausgerechnet an der Drift, die
+man sucht, weil man sie nicht kennt. `mob*spec` stellt dieselbe Frage, ohne die
+Antwort vorauszusetzen.
+
+**`*` steht für beliebig viele Zeichen — auch für keines, und es bleibt im
+Wort.** Das Muster ist `[\p{L}\p{N}]*`, nicht `.*`: sonst spannte ein Stern über
+Leerzeichen hinweg. Der Unterschied ist messbar, nicht theoretisch — `mob*technik`
+findet **2** (die Firma „Mobiltechnik"), feldweit ohne Wortgrenze wären es
+**119** gewesen, fast alle davon ein „mobil" und ein „Technik" in zwei Sätzen.
+Der Bindestrich trennt hart wie überall in [wortstamm.ts](../../src/core/services/search/wortstamm.ts):
+`mobi-Inspec` erreicht der Stern nicht.
+
+Anders als `?` gilt er **auch am Wortende** — dort kostet er nur nichts
+(`mobi*` und `mobi` liefern beide 1 504), und ein Satzzeichen, mit dem er
+verwechselt werden könnte, gibt es nicht. Die Untergrenze zählt weiter nur die
+festen Zeichen: `a*c` ist keine Muster-Suche, sondern die wörtliche nach `a*c`
+(**0**). Mehrere Sterne hintereinander zieht `baueNadelMuster` zu einem
+zusammen — `[…]*[…]*` beschriebe dieselbe Menge und liefe an einem langen Wort
+quadratisch zurück.
+
+Am Bestand nachgemessen (14 225 Anträge × 12 Felder, Median aus 15 Läufen):
+
+| Anfrage | Treffer | ms |
+|---|---:|---:|
+| `mobiinspec` (feste Nadel) | 32 | 16,5 |
+| `mobi?nspec` | 33 | 15,3 |
+| `mob?nspec` | **0** | — |
+| `mob*spec` | **33** | 14,4 |
+| `mob**spec` | 33 | 13,8 |
+| `mobi*` = `mobi` | 1 504 | 16,3 |
+| `laser` (Vergleichsmaß ohne Platzhalter) | 484 | 17,4 |
+
+Alle Zeilen liegen im selben Band; die Unterschiede darin sind Messrauschen (ein
+zweiter Durchgang ordnete sie anders). Der Stern kostet so viel wie ein
+gewöhnliches Wort. Er erbt außerdem alles,
+was schon steht: `fkz:16KN0830*` **32** und `nw:mob*spec` **33** (Feldpräfix),
+`"mob*spec"` **0** (zitiert ist wörtlich gemeint, dort ist der Stern ein
+Sternchen).
+
+**Die Fundstelle wird als Muster markiert.** `mob*spec` steht in keinem
+Antragstext, `mobiInspec` schon — ohne diesen Weg käme die Zeile, die man ohne
+Auszeichnung am wenigsten versteht, ausgerechnet unmarkiert an
+([markierung.ts](../../src/core/services/search/markierung.ts) liest dieselbe
+`baueNadelMuster`). Das galt bis v4.122 auch für `?` und ist mit demselben Patch
+behoben.
+
+**Was ein Platzhalter NICHT ist: unscharfe Suche.** Er findet Stellen, keine
+Tippfehler. `mob*spec` erreicht „mobiInspec" und „mobilnspec", aber weder
+„Mobinspek" noch „obiInspec" noch „mobi Inspec" — wer über Zeichenabstände
+suchen will, braucht einen anderen Mechanismus, keinen weiteren Platzhalter.
 
 ### Die Reihenfolge der Chips (v4.68)
 
@@ -570,11 +623,17 @@ nicht aus einem Merkschlüssel daneben — eine zweite Quelle könnte davon abwe
 
 ## 7 Was NICHT gemacht wurde
 
-- **Platzhalter und Vergleiche** (`fkz:16KN*`, `jahr:>2024`) — die Feldsuche
-  seit v4.49 nennt ein Feld und einen Wert, mehr nicht
-  ([feldpraefix.ts](../../src/core/services/search/feldpraefix.ts)). Ein `*` ist
-  überflüssig, weil ohnehin im Wort gesucht wird; Vergleiche wären eine
-  Abfragesprache und gehören zu den Facetten, nicht ins Suchfeld.
+- **Vergleiche** (`jahr:>2024`) — die Feldsuche seit v4.49 nennt ein Feld und
+  einen Wert, mehr nicht
+  ([feldpraefix.ts](../../src/core/services/search/feldpraefix.ts)). Vergleiche
+  wären eine Abfragesprache und gehören zu den Facetten, nicht ins Suchfeld.
+  Platzhalter dagegen gibt es (`?` seit v4.101, `*` seit v4.123) — sie
+  beschreiben ein Wort, keine Bedingung, und laufen deshalb durch dieselbe Nadel
+  wie jedes andere Suchwort.
+- **Unscharfe Suche** (Zeichenabstand, „meintest du") — ein Platzhalter findet
+  Stellen, keine Tippfehler. Wer „Mobinspek" mit „mobiInspec" zusammenbringen
+  will, braucht ein anderes Maß; die Ähnlichkeitsstufe misst Bedeutung, nicht
+  Schreibweise.
 - **Monitoring gespeicherter Suchen** — es gibt keinen Benachrichtigungsweg.
   „+2 seit zuletzt" ist die Differenz zum letzten Ausführen, nicht „2 neue
   Anträge", und die Beschriftung sagt genau das.

@@ -14,9 +14,17 @@
  * `normalize('NFD')` zerlegt „ü", „ß" verdoppelt sich, ohne die Herkunft aus
  * `falte()` säße die Markierung daneben.
  *
+ * **Eine Nadel mit Platzhalter wird als Muster gesucht**, nicht als Zeichenkette
+ * — sonst stünde ausgerechnet der Treffer unmarkiert da, den man ohne die
+ * Auszeichnung am wenigsten versteht: `mob*spec` kommt als solches in keinem
+ * Text vor, `mobiInspec` schon. Übersetzt wird über dieselbe `baueNadelMuster`,
+ * aus der auch die Trefferstufe liest; für eine Nadel ohne Platzhalter liefert
+ * sie `null` und hier läuft alles wie zuvor.
+ *
  * Gibt Segmente zurück, kein JSX — die Vitest-Projekte laufen ohne DOM.
  */
 import { falte, ursprung } from '@/core/utils/textFaltung';
+import { baueNadelMuster } from './wortstamm';
 
 export type MarkierungsArt = 'wortlaut' | 'aehnlich';
 
@@ -79,12 +87,40 @@ function sammle(
   for (const nadel of nadeln) {
     const gefaltet = falte(nadel).text;
     if (gefaltet.length === 0) continue;
+    // Gefaltet, nicht roh: `?` und `*` überstehen die Faltung unverändert, und
+    // das Muster muss auf denselben Text passen, in dem gesucht wird.
+    const muster = baueNadelMuster(gefaltet);
+    if (muster !== null) { sammleMuster(f, muster, art, ziel); continue; }
     // Schrittweite 1, nicht `nadel.length`: „aa" in „aaa" überlappt sich selbst,
     // und das Verschmelzen unten räumt das ohnehin auf.
     for (let i = f.text.indexOf(gefaltet); i !== -1; i = f.text.indexOf(gefaltet, i + 1)) {
       const { von, bis } = ursprung(f, i, i + gefaltet.length);
       if (bis > von) ziel.push({ von, bis, art });
     }
+  }
+}
+
+/**
+ * Dasselbe für eine Nadel mit Platzhalter.
+ *
+ * **Unverankert wie die feste Nadel**: markiert wird jedes Vorkommen, auch
+ * mitten im Wort. Die Wortanfang-Regel entscheidet, ob eine Zeile ein Treffer
+ * IST — sie darf nicht zusätzlich darüber entscheiden, ob die Fundstelle
+ * gezeigt wird, sonst stünde ein Treffer ohne sichtbaren Grund da.
+ */
+function sammleMuster(
+  f: ReturnType<typeof falte>,
+  muster: RegExp,
+  art: MarkierungsArt,
+  ziel: RohTreffer[],
+): void {
+  muster.lastIndex = 0;
+  for (let m = muster.exec(f.text); m !== null; m = muster.exec(f.text)) {
+    const { von, bis } = ursprung(f, m.index, m.index + m[0].length);
+    if (bis > von) ziel.push({ von, bis, art });
+    // Wie oben Schrittweite 1 — und zugleich der Schutz davor, dass ein
+    // leerer Fund (`mobi*` an einer Wortgrenze) die Schleife stehen lässt.
+    muster.lastIndex = m.index + 1;
   }
 }
 

@@ -19,6 +19,18 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.123 — 2026-08
+
+### Neu
+- **Ein `*` im Suchwort steht für beliebig viele Zeichen.** Wenn ein Name im Bestand mal so und mal anders geschrieben ist, findet `mob*spec` beide Schreibweisen auf einmal — auch die 3 Anträge, in denen „mobiInspec" als „mobilnspec" verunglückt ist. Man muss dafür nicht wissen, wie viele Zeichen abweichen. Es geht überall: `fkz:16KN0830*` genauso wie ein Wort mitten in der Anfrage.
+- **Im Startzustand unter „Suchsprache" steht das jetzt auch drin** — als anklickbares Beispiel, das die Suche gleich vormacht. Das Fragezeichen `?` (für genau ein Zeichen) gibt es schon länger, es stand nur nirgends.
+
+### Verbesserungen
+- **Bei einer Suche mit Platzhalter ist die Fundstelle im Treffer markiert.** Bisher blieb ausgerechnet dort alles blass, wo man am ehesten wissen möchte, warum die Zeile kam.
+
+### Bugfixes
+<!-- - … -->
+
 ## v4.122 — 2026-08
 
 ### Bugfixes

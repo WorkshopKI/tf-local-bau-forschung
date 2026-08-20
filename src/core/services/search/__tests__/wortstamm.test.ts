@@ -227,6 +227,65 @@ describe('Platzhalter „?" — genau ein Zeichen', () => {
   });
 });
 
+describe('Platzhalter „*" — beliebig viele Zeichen', () => {
+  it('steht für keines, eines und mehrere — genau das, was „?" nicht kann', () => {
+    const m = baueNadelMuster('mob*spec') as RegExp;
+    expect(enthaeltMusterAlsWortteil('mobiinspec messtechnik', m)).toBe(true);
+    expect(enthaeltMusterAlsWortteil('mobilnspec messtechnik', m)).toBe(true);
+    // Der Fall, an dem „mobi?nspec" scheitert: eine Schreibweise ohne das
+    // doppelte Zeichen. Wer die Drift sucht, kennt ihre Länge nicht.
+    expect(enthaeltMusterAlsWortteil('mobinspec', m)).toBe(true);
+    expect(enthaeltMusterAlsWortteil('mobspec', m)).toBe(true);
+  });
+
+  it('bleibt im Wort — sonst spannte ein Stern über den halben Abstract', () => {
+    const m = baueNadelMuster('mob*spec') as RegExp;
+    expect(enthaeltMusterAlsWortteil('mobile messtechnik für die spectroskopie', m)).toBe(false);
+    // Der Bindestrich trennt hart, hier wie überall in wortstamm.ts.
+    expect(enthaeltMusterAlsWortteil('mobi-inspec', m)).toBe(false);
+  });
+
+  it('gilt auch am Wortende — dort ändert er nur nichts', () => {
+    const m = baueNadelMuster('mobi*') as RegExp;
+    expect(m).not.toBeNull();
+    expect(enthaeltMusterAlsWortteil('mobiinspec', m)).toBe(true);
+    expect(enthaeltMusterAlsWortteil('mobil', m)).toBe(true);
+    expect(enthaeltMusterAlsWortteil('nobil', m)).toBe(false);
+  });
+
+  it('zählt wie „?" nur die FESTEN Zeichen gegen die Untergrenze', () => {
+    expect(baueNadelMuster('a*c')).toBeNull();      // zwei feste Zeichen
+    expect(baueNadelMuster('***')).toBeNull();      // keins
+    expect(baueNadelMuster('ab*cd')).not.toBeNull();
+  });
+
+  it('zieht mehrere Sterne hintereinander zu einem zusammen', () => {
+    const eins = baueNadelMuster('mob*spec') as RegExp;
+    const drei = baueNadelMuster('mob***spec') as RegExp;
+    expect(drei.source).toBe(eins.source);
+  });
+
+  it('trägt dieselbe Wortanfang-Regel wie jede andere Nadel', () => {
+    const m = baueNadelMuster('n*rm') as RegExp;
+    expect(enthaeltMusterAlsWortteil('die normung folgt', m)).toBe(true);
+    expect(enthaeltMusterAlsWortteil('ein enormes potenzial', m)).toBe(false);
+  });
+
+  it('lässt sich mit „?" in einer Nadel mischen', () => {
+    const m = baueNadelMuster('mob*nsp?c') as RegExp;
+    expect(enthaeltMusterAlsWortteil('mobiinspec', m)).toBe(true);
+    expect(enthaeltMusterAlsWortteil('mobilnspac', m)).toBe(true);
+    // Das „?" bleibt GENAU ein Zeichen, auch neben einem Stern.
+    expect(enthaeltMusterAlsWortteil('mobiinspc', m)).toBe(false);
+  });
+
+  it('am Wortende bleibt „?" ein Fragezeichen — auch in einer Nadel mit Stern', () => {
+    const m = baueNadelMuster('mob*nspec?') as RegExp;
+    expect(enthaeltMusterAlsWortteil('mobiinspec', m)).toBe(false);
+    expect(enthaeltMusterAlsWortteil('mobiinspec?', m)).toBe(true);
+  });
+});
+
 describe('Suchbereich', () => {
   const ALLE: Suchbereich[] = ['alles', 'inhalt', 'dokumente', 'einrichtung', 'standort'];
 

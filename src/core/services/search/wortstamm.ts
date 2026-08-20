@@ -101,6 +101,31 @@ export function enthaeltAlsWortteil(text: string, nadel: string): boolean {
 const PLATZHALTER = '?';
 
 /**
+ * Der Platzhalter für BELIEBIG VIELE Zeichen — auch für keines.
+ *
+ * `?` verlangt, dass man abzählt: `mobi?nspec` findet die beiden Schreibweisen
+ * dieses Netzwerks nur, weil sie sich in GENAU einem Zeichen unterscheiden.
+ * Wer das nicht weiß, tippt `mob?nspec` und bekommt null Treffer — an einer
+ * Namensdrift, die man ja gerade deshalb sucht, weil man sie nicht kennt.
+ * `mob*spec` stellt dieselbe Frage, ohne die Antwort schon zu kennen.
+ *
+ * **Der Stern bleibt INNERHALB eines Wortes** (`[\p{L}\p{N}]*`, nicht `.*`).
+ * Sonst spannte `mob*spec` über Leerzeichen hinweg und „Mobile Messtechnik für
+ * die Spektroskopie" wäre ein Treffer — ein Muster, das über den halben
+ * Abstract reicht, findet alles und erklärt nichts. Der Bindestrich trennt
+ * hart wie überall in dieser Datei: `mobi-Inspec` erreicht er nicht.
+ *
+ * Anders als `?` gilt er auch am Wortende — dort kostet er nur nichts, weil
+ * ohnehin als Teilstring gesucht wird (`mobi*` ist `mobi`). Ein Satzzeichen,
+ * mit dem er verwechselt werden könnte, gibt es nicht: kein Mensch beendet
+ * eine Frage mit einem Stern.
+ */
+const STERN = '*';
+
+/** Der Stern als Muster-Stück: beliebig viele Zeichen, aber keine Wortgrenze. */
+const STERN_MUSTER = '[\\p{L}\\p{N}]*';
+
+/**
  * Wie viele FESTE Zeichen eine Nadel mit Platzhalter mindestens tragen muss.
  *
  * Gemessen am echten Bestand: `????` trifft alle 12 358 Anträge — nicht weil
@@ -125,12 +150,24 @@ function istPlatzhalter(nadel: string, i: number): boolean {
  * Zeichen für Zeichen wie zuvor. Gemessen über 12 358 Einträge × 6 Felder
  * kostet der Muster-Pfad übrigens nicht mehr als der heutige (4,7 ms gegen
  * 5,8 ms) — teuer ist an einer Platzhalter-Suche nichts außer einer zu weiten.
+ *
+ * **Beide Platzhalter laufen durch diese eine Übersetzung.** Wer `*` an einer
+ * zweiten Stelle nachbaute, hätte zwei Wahrheiten darüber, was eine Nadel
+ * bedeutet — und die Trefferstufe, die Feldzuordnung und die Markierung lesen
+ * alle hier.
  */
 export function baueNadelMuster(nadel: string): RegExp | null {
   let quelle = '';
   let platzhalter = 0;
   for (let i = 0; i < nadel.length; i++) {
     if (istPlatzhalter(nadel, i)) { quelle += '.'; platzhalter++; continue; }
+    if (nadel[i] === STERN) {
+      platzhalter++;
+      // `**` würde zu `[…]*[…]*` — dieselbe Menge, aber quadratisches
+      // Zurücklaufen an einem langen Wort. Der zweite Stern fällt weg.
+      if (nadel[i - 1] !== STERN) quelle += STERN_MUSTER;
+      continue;
+    }
     quelle += (nadel[i] as string).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
   if (platzhalter === 0) return null;
