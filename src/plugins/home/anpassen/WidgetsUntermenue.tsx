@@ -24,7 +24,7 @@ import { widgetAnzeigbar } from '../widgets/homeWidgetsStore';
 import { WIDGET_KATALOG } from '../widgets/widgetCatalog';
 import type { HeroKarte, WidgetInstanz } from '../widgets/types';
 import { MenueHakenZeile, MenueLabel, MenueTrenner, MenueZeile } from './menueZeilen';
-import { useRueckgaengigStore } from './rueckgaengigStore';
+import { stelleSichtbarkeitHer, useRueckgaengigStore } from './rueckgaengigStore';
 import { useStartseiteMenueStore } from './useStartseiteMenue';
 
 const GRUPPEN: { bereich: WidgetInstanz['bereich']; label: string }[] = [
@@ -74,9 +74,11 @@ export function WidgetsUntermenue(): React.ReactElement {
               aktion={{
                 label: 'alle',
                 onClick: () => {
+                  // Nur die Häkchen DIESER Spalte zurückdrehen — was seither
+                  // sonst passiert ist (Einklappen, andere Spalte), bleibt stehen.
                   merke(
                     alleAn ? `${g.label} ausgeblendet` : `${g.label} eingeblendet`,
-                    api.config,
+                    stelleSichtbarkeitHer(new Map(items.map(w => [w.id, w.sichtbar]))),
                   );
                   void api.setSichtbarBereich(g.bereich, !alleAn);
                 },

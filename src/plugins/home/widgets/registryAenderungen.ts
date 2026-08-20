@@ -77,3 +77,18 @@ export function baueRegistryAenderungen(
   eintraege.sort((a, b) => b.geaendertAm.localeCompare(a.geaendertAm));
   return eintraege.slice(0, Math.max(0, maxEintraege));
 }
+
+/**
+ * Wie viele Änderungen es INSGESAMT gibt — vor der Kappung (v4.131).
+ *
+ * Der Widget-Zähler zeigte `zeilen.length` und damit die Kappungs-Grenze: bei
+ * `maxEintraege = 3` stand dort dauerhaft „3", egal ob drei oder dreißig Skills
+ * angefasst wurden. Eine Zahl, die nie über ihre eigene Obergrenze steigt, ist
+ * kein Zähler.
+ */
+export function zaehleRegistryAenderungen(
+  skills: readonly SkillRecord[],
+  regeln: readonly QualitaetsRegel[],
+): number {
+  return skills.length + regeln.length;
+}

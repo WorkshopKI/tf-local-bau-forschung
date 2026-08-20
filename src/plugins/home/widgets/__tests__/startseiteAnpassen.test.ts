@@ -18,6 +18,9 @@ import {
 } from '../homeWidgetsStore';
 import { HERO_CONFIG_DEFAULT, type HomeWidgetConfig } from '../types';
 import { WIDGET_KATALOG } from '../widgetCatalog';
+import {
+  RUECKGAENGIG_MS, stelleSichtbarkeitHer, useRueckgaengigStore,
+} from '../../anpassen/rueckgaengigStore';
 
 /** Default + nachgezogene Opt-in-Instanzen = der Stand, den die Homepage sieht. */
 function basis(): HomeWidgetConfig {
@@ -197,5 +200,78 @@ describe('zurueckgesetzteConfig — „zurückgesetzt" = „nie angefasst"', () 
       .toEqual(sichtbareWidgets(basis(), 'seite').map(w => w.typ));
     expect(zurueck.widgets.every(w => !w.eingeklappt || WIDGET_KATALOG[w.typ].defaultEingeklappt))
       .toBe(true);
+  });
+});
+
+/**
+ * **„Rückgängig" nimmt zurück, wovon die Leiste spricht — und nicht mehr**
+ * (v4.131).
+ *
+ * Bis dahin hielt der Eintrag den kompletten Config-Stand von vor der Aktion und
+ * schrieb ihn zurück. Wer ein Widget ausblendete und danach ein anderes
+ * einklappte, verlor beim Klick auch das Einklappen: gemessen sprang der
+ * Antragseingang von 52 px zurück auf 201 px, während die Leiste nur vom
+ * ausgeblendeten QS-Widget sprach. Einklappen legt bewusst keinen eigenen
+ * Eintrag an (Handoff §2.4) und war damit nicht wiederherstellbar — ein Lost
+ * Update, das nichts ankündigte.
+ */
+describe('stelleSichtbarkeitHer — nur die eigene Änderung zurückdrehen', () => {
+  it('holt genau die genannte Instanz zurück und lässt den Rest stehen', () => {
+    const vorher = basis();
+    const einId = vorher.widgets.find(w => w.typ === 'meine-antraege')!.id;
+    const andereId = vorher.widgets.find(w => w.typ === 'notizen')!.id;
+    // Nach dem Ausblenden klappt der Nutzer ein ANDERES Widget ein.
+    const inzwischen: HomeWidgetConfig = {
+      ...vorher,
+      widgets: vorher.widgets.map(w => {
+        if (w.id === einId) return { ...w, sichtbar: false };
+        if (w.id === andereId) return { ...w, eingeklappt: true };
+        return w;
+      }),
+    };
+    const zurueck = stelleSichtbarkeitHer(new Map([[einId, true]]))(inzwischen);
+    expect(zurueck.widgets.find(w => w.id === einId)?.sichtbar).toBe(true);
+    // Das zwischenzeitliche Einklappen überlebt.
+    expect(zurueck.widgets.find(w => w.id === andereId)?.eingeklappt).toBe(true);
+  });
+
+  it('stellt die Häkchen einer ganzen Spalte in ihrem alten Zustand her', () => {
+    const vorher = basis();
+    const seite = vorher.widgets.filter(w => w.bereich === 'seite');
+    const alterStand = new Map(seite.map(w => [w.id, w.sichtbar]));
+    const geraeumt = setzeSichtbarkeitBereich(vorher, 'seite', false);
+    const zurueck = stelleSichtbarkeitHer(alterStand)(geraeumt);
+    for (const w of seite) {
+      expect(zurueck.widgets.find(x => x.id === w.id)?.sichtbar).toBe(w.sichtbar);
+    }
+  });
+
+  it('ist ein No-op für Instanzen, die die Aktion nie angefasst hat', () => {
+    const vorher = basis();
+    const zurueck = stelleSichtbarkeitHer(new Map())(vorher);
+    expect(zurueck.widgets).toEqual(vorher.widgets);
+  });
+});
+
+/**
+ * Die Reue-Frist hängt an einem Zeitstempel, nicht an der Lebensdauer der
+ * Leiste. Vorher räumte der Cleanup den Timer ab, sobald man die Startseite
+ * verließ — der Eintrag blieb im Modul-Store, und bei der Rückkehr stand die
+ * Leiste wieder da und bot einen beliebig alten Stand an (gemessen).
+ */
+describe('Rückgängig-Eintrag trägt seinen Zeitstempel', () => {
+  it('merkt `seit` und verwirft ohne Umkehrung', () => {
+    const store = useRueckgaengigStore;
+    store.getState().leere();
+    store.getState().merke('nichts', null);
+    expect(store.getState().eintrag).toBeNull();
+
+    const vorher = Date.now();
+    store.getState().merke('etwas', cfg => cfg);
+    const eintrag = store.getState().eintrag;
+    expect(eintrag?.text).toBe('etwas');
+    expect(eintrag!.seit).toBeGreaterThanOrEqual(vorher);
+    expect(RUECKGAENGIG_MS).toBeGreaterThan(0);
+    store.getState().leere();
   });
 });

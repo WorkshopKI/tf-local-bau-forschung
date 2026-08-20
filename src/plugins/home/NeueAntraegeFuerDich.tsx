@@ -328,16 +328,23 @@ export function NeueAntraegeWidget({ instanz, onToggleEingeklappt }: WidgetProps
   // Lokale Wünsche, die noch nicht in auslastung.json (Pending) stehen, in die
   // Pending-Anzeige einrechnen — sonst sieht der prod-User nach dem Klick keine
   // Veraenderung (Wunsch ist erst nach PL-Einsammeln im Store).
+  //
+  // **Nur Wünsche DIESES Quartals** (v4.131): `kapView` rechnet gegen
+  // `config.aktuellesQuartal`, und die Zeile endet mit „… in {Quartal}". Ein
+  // Wunsch trägt sein Quartal mit (`UebernahmeWunsch.quartal`); ohne den
+  // Vergleich zog ein Wunsch aus dem Vorquartal die freien TVs dieses Quartals
+  // ab — zwei Zeiträume in einer Zahl, unter einer Angabe, die nur einen nannte.
   const extraPending = useMemo(() => {
     let antraege = 0;
     let tvs = 0;
     for (const w of wuensche) {
+      if (w.quartal !== config.aktuellesQuartal) continue;
       if (myPendingAktenzeichen?.has(w.antragId)) continue;
       antraege += 1;
       tvs += w.anzahlTV > 0 ? w.anzahlTV : 1;
     }
     return { antraege, tvs };
-  }, [wuensche, myPendingAktenzeichen]);
+  }, [wuensche, myPendingAktenzeichen, config.aktuellesQuartal]);
 
   // Kapazitaets-Sicht (v2.4): konsumiert MaQuartalsAuslastung statt
   // zuweisungen[]+externeAnzahl. Rest in TVs statt "Antraegen" (Stunden-

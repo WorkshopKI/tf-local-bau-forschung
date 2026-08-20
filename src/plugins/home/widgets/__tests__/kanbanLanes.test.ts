@@ -287,3 +287,87 @@ describe('Kanban-Aktivierung über die Config', () => {
     expect(sichtbareWidgets(aktiviert, 'haupt').map(w => w.typ)).toEqual(['meine-antraege', 'kanban']);
   });
 });
+
+/**
+ * **Die Kopfzahl ist ein Auszug und sagt es** (v4.131). `gesamt` summiert nur
+ * die konfigurierten Bahnen; was daneben liegt, stand nirgends — „25 Vorgänge"
+ * las sich als Bestand, während 7 weitere in nicht geführten Kategorien lagen.
+ */
+describe('`ausserhalb` — was die Bahnen NICHT zeigen', () => {
+  it('zählt die Karten der nicht konfigurierten Kategorien', () => {
+    const { gesamt, ausserhalb } = buildAntragKanbanLanes([
+      antrag({ aktenzeichen: 'A-1', status: 'beantragt' }),          // offen (Bahn)
+      antrag({ aktenzeichen: 'A-2', status: 'techn geprüft' }),      // in_pruefung (Bahn)
+      antrag({ aktenzeichen: 'A-3', status: 'bewilligt' }),          // bewilligt — KEINE Bahn
+      antrag({ aktenzeichen: 'A-4', status: 'bewilligt' }),
+    ], LANES, 4, NOW);
+    expect(gesamt).toBe(2);
+    expect(ausserhalb).toBe(2);
+  });
+
+  it('ist 0, wenn die Bahnen alles abdecken', () => {
+    const { ausserhalb } = buildAntragKanbanLanes([
+      antrag({ aktenzeichen: 'A-1', status: 'beantragt' }),
+    ], LANES, 4, NOW);
+    expect(ausserhalb).toBe(0);
+  });
+
+  it('zählt eine doppelt konfigurierte Bahn nur einmal in `gesamt`', () => {
+    const doppelt: KanbanLane[] = [
+      { kategorie: 'offen', spalten: 1 },
+      { kategorie: 'offen', spalten: 1 },
+    ];
+    const { gesamt, ausserhalb } = buildAntragKanbanLanes([
+      antrag({ aktenzeichen: 'A-1', status: 'beantragt' }),
+      antrag({ aktenzeichen: 'A-2', status: 'beantragt' }),
+    ], doppelt, 4, NOW);
+    expect(gesamt).toBe(2);
+    expect(ausserhalb).toBe(0);
+  });
+
+  it('das Fenster zählt abgewählte Bahnen als `ausserhalb`', () => {
+    const karten = kartenProKategorie([
+      antrag({ aktenzeichen: 'A-1', status: 'beantragt' }),
+      antrag({ aktenzeichen: 'A-2', status: 'bewilligt' }),
+    ], NOW);
+    const bahnen: VollbildLane[] = [
+      { kategorie: 'offen', spalten: 1, sichtbar: true },
+      { kategorie: 'bewilligt', spalten: 1, sichtbar: false },
+    ];
+    const { gesamt, ausserhalb } = projiziereVollbildLanes(karten, bahnen);
+    expect(gesamt).toBe(1);
+    expect(ausserhalb).toBe(1);
+  });
+});
+
+/**
+ * **Der Inaktiv-Ausschluss gilt auch hier** (v4.131) — Dashboard und Zieltabelle
+ * wandten ihn an, das Kanban nicht: im „alle"-Modus zählte es Anträge mit, die
+ * die Liste nach dem Klick ausblendet.
+ */
+describe('filtereKanbanGrundmenge — inaktive MAs', () => {
+  const bestand = [
+    antrag({ aktenzeichen: 'A-1', status: 'beantragt', tib_kuerz: 'ALT' }),
+    antrag({ aktenzeichen: 'A-2', status: 'beantragt', tib_kuerz: 'NEU' }),
+  ];
+  const ALLE = parseBearbeiterFilter(undefined, undefined);
+
+  it('blendet im „alle"-Modus die Anträge inaktiver Kürzel aus', () => {
+    const raus = filtereKanbanGrundmenge(bestand, ALLE, {
+      kuerzel: new Set(['ALT']), zeigen: false,
+    });
+    expect(raus.map(a => a.aktenzeichen)).toEqual(['A-2']);
+  });
+
+  it('lässt sie stehen, wenn der Nutzer sie ausdrücklich sehen will', () => {
+    const drin = filtereKanbanGrundmenge(bestand, ALLE, {
+      kuerzel: new Set(['ALT']), zeigen: true,
+    });
+    expect(drin).toHaveLength(2);
+  });
+
+  it('ohne Angabe unverändert (bestehende Aufrufer, leeres Set)', () => {
+    expect(filtereKanbanGrundmenge(bestand, ALLE)).toHaveLength(2);
+    expect(filtereKanbanGrundmenge(bestand, ALLE, { kuerzel: new Set(), zeigen: false })).toHaveLength(2);
+  });
+});

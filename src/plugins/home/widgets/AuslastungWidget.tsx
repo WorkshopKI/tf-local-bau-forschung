@@ -12,6 +12,7 @@
 import { useEffect, useMemo } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useMeinKuerzel } from '@/core/hooks/useMeinKuerzel';
+import { useBearbeiterSicht } from '@/core/hooks/useBearbeiterSicht';
 import { useAuslastungData } from '@/plugins/auslastung/hooks/useAuslastungData';
 import { useAntraegeCache } from '@/plugins/auslastung/hooks/useAntraegeCache';
 import { useKuerzelMap } from '@/plugins/auslastung/hooks/useKuerzelMap';
@@ -53,6 +54,7 @@ interface WidgetView {
 export function AuslastungWidget({ instanz, onToggleEingeklappt }: WidgetProps): React.ReactElement {
   const storage = useStorage();
   const meinKuerzel = useMeinKuerzel();
+  const { mode: bearbeiterMode } = useBearbeiterSicht();
   const config = useAuslastungData(s => s.data.config);
   const zuweisungen = useAuslastungData(s => s.data.zuweisungen);
   const mitarbeiter = useAuslastungData(s => s.data.mitarbeiter);
@@ -98,7 +100,14 @@ export function AuslastungWidget({ instanz, onToggleEingeklappt }: WidgetProps):
     return { sicht: 'team', modell: agg, ueberMaCount: agg.ueberMaCount, aktivMaCount: agg.aktivMaCount };
   }, [bereit, auslastungByAnon, altlastByAnon, sicht, myAnonId, myMa, mitarbeiter, config, quartal, stundenProTV]);
 
-  const scopeLabel = sicht === 'team' ? 'Alle Bearbeiter' : `Kürzel ${(meinKuerzel ?? '').toUpperCase() || '—'}`;
+  // **Die Schreibweise kommt aus der geteilten Fassade, nicht aus einem
+  // `.toUpperCase()` hier** (v4.131). 81 der 112 Kürzel im Bestand sind gemischt
+  // geschrieben, und die Bearbeitenden kennen ihres so; „Kürzel ATH" stand
+  // damit neben dem „Kürzel ATh" der Nachbarkarte. Die Sicht-Achse dieses
+  // Widgets (ich/team) bleibt seine eigene — nur die Schreibweise ist geteilt.
+  const eigenesKuerzel =
+    (bearbeiterMode.anzeigeTokens ?? bearbeiterMode.tokens).join('/') || (meinKuerzel ?? '');
+  const scopeLabel = sicht === 'team' ? 'Alle Bearbeiter' : `Kürzel ${eigenesKuerzel || '—'}`;
 
   return (
     <WidgetShell

@@ -22,7 +22,7 @@ import { useHomeWidgets } from '../widgets/useHomeWidgets';
 import { WIDGET_KATALOG } from '../widgets/widgetCatalog';
 import { hatWidgetDetailConfig } from '../widgets/types';
 import { MenueTrenner, MenueZeile } from './menueZeilen';
-import { useRueckgaengigStore } from './rueckgaengigStore';
+import { stelleSichtbarkeitHer, useRueckgaengigStore } from './rueckgaengigStore';
 import { useStartseiteMenueStore } from './useStartseiteMenue';
 
 export function WidgetMenue({ instanzId }: {
@@ -52,7 +52,9 @@ export function WidgetMenue({ instanzId }: {
         label="Ausblenden"
         icon={EyeOff}
         onClick={() => {
-          merke(`${label} ausgeblendet`, api.config);
+          // Nur DIESES Häkchen zurückdrehen — nicht den ganzen Stand von vorher
+          // zurückschreiben (der nähme ein zwischenzeitliches Einklappen mit).
+          merke(`${label} ausgeblendet`, stelleSichtbarkeitHer(new Map([[instanzId, true]])));
           void api.setSichtbar(instanzId, false);
           schliesse();
         }}
@@ -63,18 +65,21 @@ export function WidgetMenue({ instanzId }: {
         onClick={() => { void api.setEingeklappt(instanzId, !instanz.eingeklappt); schliesse(); }}
       />
       <MenueTrenner />
+      {/* `unter: 'sichtbare'` — die Zahl „2 / 5" zählt die sichtbaren Nachbarn,
+          also muss der Tausch dieselben meinen. Sonst wandert die Karte hinter
+          ein ausgeblendetes Widget und steht auf dem Schirm noch immer dort. */}
       <MenueZeile
         label="Nach oben"
         icon={ArrowUp}
         kuerzel={i >= 0 ? `${i + 1} / ${n}` : undefined}
         deaktiviert={i <= 0}
-        onClick={() => { void api.move(instanzId, 'hoch'); }}
+        onClick={() => { void api.move(instanzId, 'hoch', 'sichtbare'); }}
       />
       <MenueZeile
         label="Nach unten"
         icon={ArrowDown}
         deaktiviert={i < 0 || i >= n - 1}
-        onClick={() => { void api.move(instanzId, 'runter'); }}
+        onClick={() => { void api.move(instanzId, 'runter', 'sichtbare'); }}
       />
       {/* Der Trenner gehört zum Eintrag: ohne Formular endet das Menü bei „Nach
           unten" statt mit einer Linie unter dem letzten Punkt. */}

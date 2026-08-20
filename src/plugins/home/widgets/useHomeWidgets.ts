@@ -77,7 +77,18 @@ export interface HomeWidgetsApi {
   hero: HeroConfig;
   setSichtbar: (id: string, sichtbar: boolean) => Promise<void>;
   setEingeklappt: (id: string, eingeklappt: boolean) => Promise<void>;
-  move: (id: string, richtung: 'hoch' | 'runter') => Promise<void>;
+  /**
+   * Eine Position hoch/runter — `unter` sagt, GEGEN WEN getauscht wird.
+   *
+   * Die beiden Aufrufer sehen verschiedene Listen, und der Tausch muss der
+   * Liste folgen, in der geklickt wurde (v4.131): das `⋯` einer Karte steht in
+   * der Startseite und kennt nur die SICHTBAREN Nachbarn; die Checkliste im
+   * Untermenü führt alle ANZEIGBAREN, auch die ausgeblendeten. Bis dahin
+   * tauschte beides gegen die anzeigbaren — im Karten-Menü zeigte die Zeile
+   * „2 / 5" aus den sichtbaren, der Klick tauschte mit einem ausgeblendeten
+   * Nachbarn, und auf dem Schirm bewegte sich nichts.
+   */
+  move: (id: string, richtung: 'hoch' | 'runter', unter?: 'sichtbare' | 'anzeigbare') => Promise<void>;
   updateConfig: (id: string, config: WidgetSpezifischeConfig) => Promise<void>;
   /**
    * Wie `updateConfig`, aber die neue Config entsteht aus dem AKTUELLEN Stand
@@ -100,8 +111,14 @@ export interface HomeWidgetsApi {
   setHeroChip: (chip: HeroChipId, an: boolean) => Promise<void>;
   /** „Startseite zurücksetzen" — Stand eines frischen Geräts. */
   zuruecksetzen: () => Promise<void>;
-  /** Schreibt einen kompletten Vorstand zurück — der EINE Rückgängig-Weg. */
-  ersetze: (cfg: HomeWidgetConfig) => Promise<void>;
+  /**
+   * Wendet eine Umkehrung auf den AKTUELLEN Stand an — der EINE Rückgängig-Weg.
+   *
+   * Bewusst eine Funktion und kein fertiger Stand (v4.131): ein zurück-
+   * geschriebener Vorstand nähme alles mit, was seit der Aktion passiert ist
+   * (Einklappen legt keinen Eintrag an und war so nicht wiederherstellbar).
+   */
+  wendeAn: (umkehrung: (aktuell: HomeWidgetConfig) => HomeWidgetConfig) => Promise<void>;
 }
 
 export function useHomeWidgets(): HomeWidgetsApi {
@@ -136,12 +153,14 @@ export function useHomeWidgets(): HomeWidgetsApi {
       hero: config?.hero ?? HERO_CONFIG_DEFAULT,
       setSichtbar: (id, sichtbar) => patchInstanz(id, { sichtbar }),
       setEingeklappt: (id, eingeklappt) => patchInstanz(id, { eingeklappt }),
-      // Nur mit SICHTBAREN Nachbarn tauschen — verborgene Widgets stehen weder
-      // auf der Startseite noch in der Einstellungs-Liste, ein Tausch mit ihnen
-      // bewegte nichts.
-      move: (id, richtung) =>
+      // Der Nachbar-Begriff kommt vom Aufrufer: `anzeigbare` (Standard) ist die
+      // Checkliste im Untermenü, `sichtbare` das Bild der Startseite. Von der
+      // Beta-/Experten-Achse verborgene Typen sind in beiden Fällen draußen —
+      // ein Tausch mit ihnen bewegte nichts.
+      move: (id, richtung, unter = 'anzeigbare') =>
         mutiere(idb, cfg =>
-          moveInstanz(cfg, id, richtung, w => widgetAnzeigbar(w.typ, undefined, angezeigt))),
+          moveInstanz(cfg, id, richtung, w =>
+            widgetAnzeigbar(w.typ, undefined, angezeigt) && (unter === 'anzeigbare' || w.sichtbar))),
       updateConfig: (id, config_) => patchInstanz(id, { config: config_ }),
       mutiereConfig: (id, aendere) =>
         mutiere(idb, cfg => ({
@@ -154,7 +173,7 @@ export function useHomeWidgets(): HomeWidgetsApi {
       setHeroKarte: (karte, sichtbar) => mutiere(idb, cfg => setzeHeroKarte(cfg, karte, sichtbar)),
       setHeroChip: (chip, an) => mutiere(idb, cfg => setzeHeroChip(cfg, chip, an)),
       zuruecksetzen: () => mutiere(idb, () => zurueckgesetzteConfig()),
-      ersetze: vorstand => mutiere(idb, () => vorstand),
+      wendeAn: umkehrung => mutiere(idb, umkehrung),
     };
   }, [config, mutiere, storage.idb, angezeigt]);
 }

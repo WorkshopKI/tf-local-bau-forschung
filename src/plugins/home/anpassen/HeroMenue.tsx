@@ -26,7 +26,7 @@ import { useArbeitskontextSignal } from '../arbeitskontextSignal';
 import { labelKritisch, labelWarnung } from '../homeSubtitle';
 import { ampelSchwellenAusConfig } from '../widgets/homeWidgetsStore';
 import { useHomeWidgets } from '../widgets/useHomeWidgets';
-import type { HeroChipId, HeroKarte } from '../widgets/types';
+import { HERO_CONFIG_DEFAULT, type HeroChipId, type HeroKarte } from '../widgets/types';
 import { MenueHakenZeile, MenueLabel, MenueTrenner, MenueZeile } from './menueZeilen';
 import { useRueckgaengigStore } from './rueckgaengigStore';
 import { useStartseiteMenueStore } from './useStartseiteMenue';
@@ -42,7 +42,15 @@ export function HeroMenue({ karte }: { karte: HeroKarte }): React.ReactElement {
   const merke = useRueckgaengigStore(s => s.merke);
 
   const ausblenden = (): void => {
-    merke(`„${TITEL[karte]}" ausgeblendet`, api.config);
+    // Nur DIESE Karte zurückholen, nicht den ganzen Vorstand zurückschreiben —
+    // sonst nähme „Rückgängig" mit, was seither an Widgets geschah (v4.131).
+    merke(`„${TITEL[karte]}" ausgeblendet`, aktuell => ({
+      ...aktuell,
+      hero: {
+        ...(aktuell.hero ?? HERO_CONFIG_DEFAULT),
+        sichtbar: { ...(aktuell.hero ?? HERO_CONFIG_DEFAULT).sichtbar, [karte]: true },
+      },
+    }));
     void api.setHeroKarte(karte, false);
     schliesse();
   };

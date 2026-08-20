@@ -186,8 +186,16 @@ export function FristenWidget({
       zaehler={
         // Beide Zahlen, nicht nur die Summe: die Sortierung nach Abstand laesst
         // sonst eine der beiden Quellen aus den sichtbaren Zeilen verschwinden.
-        <span className="text-[12px] tabular-nums text-[var(--tf-text-tertiary)]">
-          {anlaesse.length > 0 ? bilanzText(anlaesse) : '0'}
+        //
+        // **Eingeklappt wird nicht gerechnet** (Lazy-Guard `aktiv`) — dann steht
+        // hier ein „—", kein „0" (v4.131). Die Null war eine Aussage, die das
+        // Widget in diesem Zustand gar nicht treffen kann: sie las sich als
+        // „nichts ist überfällig", während schlicht nichts bewertet wurde.
+        <span
+          className="text-[12px] tabular-nums text-[var(--tf-text-tertiary)]"
+          title={!aktiv ? 'Zum Zählen aufklappen — eingeklappt wird nicht bewertet.' : undefined}
+        >
+          {!aktiv ? '—' : laden ? '…' : anlaesse.length > 0 ? bilanzText(anlaesse) : '0'}
         </span>
       }
     >

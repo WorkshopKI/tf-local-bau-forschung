@@ -22,6 +22,7 @@ import { filtereStillstand } from './frage/letzteAktivitaet';
 import { useAktivitaetsIndex } from './frage/useAktivitaetsIndex';
 import { useWirksamerSuchtext } from './frage/suchtext';
 import { filtereAmpelQuickfilter } from './eingangAmpel';
+import { getStatusCategory } from '@/core/utils/status-canonical';
 import { isIrrlaeufer, toVbPhaseNumber, IRRLAEUFER_PHASE } from '@/core/utils/vb-phase-mappings';
 import { tfPerfStart } from '@/core/utils/tfPerf';
 import { useBereich } from '@/core/hooks/useBereich';
@@ -186,6 +187,7 @@ export function useFilteredAntraege(): FilteredAntraegeResult {
   const projektart = useAntraegeStore(s => s.projektart);
   const verbundById = useAntraegeStore(s => s.verbundById);
   const ampelQuickfilter = useAntraegeStore(s => s.ampelQuickfilter);
+  const kategorieQuickfilter = useAntraegeStore(s => s.kategorieQuickfilter);
   const stillstandTage = useAntraegeStore(s => s.stillstandTage);
   // Traege: der Hook rechnet erst, wenn eine Schwelle gesetzt ist.
   // Fehler und Alter werden mitgenommen und weitergereicht — ein Filter, der
@@ -231,7 +233,7 @@ export function useFilteredAntraege(): FilteredAntraegeResult {
     return typeof anzahl === 'number' && anzahl > 0 ? anzahl : 1;
   }, [verbundById]);
 
-  const deps: unknown[] = [antraege, alleAntraege.length, active, definitions, deferredSearch, deferredHybridAkz, searchIgnoreBearbeiterFilter, activeView, sortByView, precheckBucket, projektart, tvCountOf, ampelQuickfilter, bearbeiterFilter, inaktiveKuerzel, showInaktive, stillstandTage, aktivitaetsIndex, stichtag, stillstandFehler, stillstandAlterSekunden];
+  const deps: unknown[] = [antraege, alleAntraege.length, active, definitions, deferredSearch, deferredHybridAkz, searchIgnoreBearbeiterFilter, activeView, sortByView, precheckBucket, projektart, tvCountOf, ampelQuickfilter, kategorieQuickfilter, bearbeiterFilter, inaktiveKuerzel, showInaktive, stillstandTage, aktivitaetsIndex, stichtag, stillstandFehler, stillstandAlterSekunden];
   return useMemo(() => geteilt(deps, (): FilteredAntraegeResult => {
     const end = tfPerfStart('useFilteredAntraege memo');
     const view = getView(activeView);
@@ -280,6 +282,13 @@ export function useFilteredAntraege(): FilteredAntraegeResult {
     // transient wie PreCheck, VOR den Sidebar-Filtern; nutzt die konfigurierten
     // Schwellen aus dem Widget → Liste zählt identisch zum Widget.
     const byAmpel = filtereAmpelQuickfilter(byPrecheck, ampelQuickfilter);
+    // Kategorie-Quickfilter (v4.131, Klick auf „+ N weitere →" einer Kanban-Bahn
+    // des Startseiten-Widgets): dieselbe Stelle und dieselbe Bauart wie der
+    // Ampel-Filter. Verglichen wird die KATEGORIE-Fassade, nie ein Roh-Status
+    // (Pitfall #12) — die Bahn ist selbst eine Kategorie.
+    const byKategorie = kategorieQuickfilter === null
+      ? byAmpel
+      : byAmpel.filter(a => getStatusCategory(a.status) === kategorieQuickfilter);
     // Stillstand (v4.105): dieselbe Stelle wie die anderen abgeleiteten
     // Quickfilter — VOR den Sidebar-Filtern, NACH `countBase`. Er braucht einen
     // Bestandslauf, der `AntragListItem` nicht hergibt; solange der Index fehlt,
@@ -287,8 +296,8 @@ export function useFilteredAntraege(): FilteredAntraegeResult {
     // geprueft hat. Eine leere Liste waehrend des Rechnens saehe aus wie
     // „nichts gefunden".
     const stillstand = stillstandTage === null
-      ? { treffer: byAmpel, unpruefbar: 0 }
-      : filtereStillstand(byAmpel, aktivitaetsIndex, stillstandTage, stichtag);
+      ? { treffer: byKategorie, unpruefbar: 0 }
+      : filtereStillstand(byKategorie, aktivitaetsIndex, stillstandTage, stichtag);
     const filteredBase = applyFilters(stillstand.treffer, active, definitions);
     // Hybrid-Suche: zusaetzlich zu den vier Slim-Feldern (akz/akronym/titel/
     // antragsteller) liefert `useAntraegeHybridSearch` ein Akz-Set mit
@@ -334,5 +343,5 @@ export function useFilteredAntraege(): FilteredAntraegeResult {
       stillstandFehler,
       stillstandAlterSekunden,
     };
-  }), [antraege, alleAntraege.length, active, definitions, deferredSearch, deferredHybridAkz, searchIgnoreBearbeiterFilter, activeView, sortByView, precheckBucket, projektart, tvCountOf, ampelQuickfilter, bearbeiterFilter, inaktiveKuerzel, showInaktive, stillstandTage, aktivitaetsIndex, stichtag, stillstandFehler, stillstandAlterSekunden]);
+  }), [antraege, alleAntraege.length, active, definitions, deferredSearch, deferredHybridAkz, searchIgnoreBearbeiterFilter, activeView, sortByView, precheckBucket, projektart, tvCountOf, ampelQuickfilter, kategorieQuickfilter, bearbeiterFilter, inaktiveKuerzel, showInaktive, stillstandTage, aktivitaetsIndex, stichtag, stillstandFehler, stillstandAlterSekunden]);
 }

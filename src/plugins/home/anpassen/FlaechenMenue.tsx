@@ -55,16 +55,22 @@ export function FlaechenMenue({ oeffneUnter }: {
         label="Startseite zurücksetzen"
         icon={RotateCcw}
         onClick={() => {
-          merke('Startseite auf Standard zurückgesetzt', api.config);
+          // Der EINE Fall, in dem die Umkehrung legitim alles zurückschreibt:
+          // die Aktion selbst war global (Anordnung, Häkchen, Hero, Einklappen).
+          const vorstand = api.config;
+          merke('Startseite auf Standard zurückgesetzt', vorstand ? () => vorstand : null);
           void api.zuruecksetzen();
           schliesse();
         }}
       />
       <MenueTrenner />
+      {/* „Alle Einstellungen" heißt alle — nicht der Widget-Abschnitt. Der Sprung
+          nach `sektion=sec-widgets` gehört an die Zeile, die von Widgets spricht
+          (die Fußzeile der Widget-Einstellungen), nicht an diese (v4.131). */}
       <MenueZeile
         label="Alle Einstellungen öffnen"
         icon={Settings}
-        onClick={() => { schliesse(); navigate('/einstellungen?sektion=sec-widgets'); }}
+        onClick={() => { schliesse(); navigate('/einstellungen'); }}
       />
     </>
   );

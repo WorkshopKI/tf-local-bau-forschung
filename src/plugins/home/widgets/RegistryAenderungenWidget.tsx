@@ -13,7 +13,10 @@ import { useStorage } from '@/core/hooks/useStorage';
 import { alterInTagen } from '@/core/utils/relativeZeit';
 import { readCachedSkillRegistry } from '@/core/services/skills';
 import type { SkillRegistryFile } from '@/core/services/skills';
-import { baueRegistryAenderungen, type AenderungsArt, type RegistryAenderung } from './registryAenderungen';
+import {
+  baueRegistryAenderungen, zaehleRegistryAenderungen,
+  type AenderungsArt, type RegistryAenderung,
+} from './registryAenderungen';
 import { WidgetShell } from './WidgetShell';
 import type { WidgetProps } from './widgetProps';
 
@@ -63,6 +66,11 @@ export function RegistryAenderungenWidget({ instanz, onToggleEingeklappt }: Widg
     () => (file ? baueRegistryAenderungen(file.skills, file.regeln, maxEintraege) : []),
     [file, maxEintraege],
   );
+  // Der Zähler nennt den BESTAND, nicht die Kappungs-Grenze (v4.131).
+  const gesamt = useMemo(
+    () => (file ? zaehleRegistryAenderungen(file.skills, file.regeln) : 0),
+    [file],
+  );
 
   return (
     <WidgetShell
@@ -73,8 +81,15 @@ export function RegistryAenderungenWidget({ instanz, onToggleEingeklappt }: Widg
       onToggleEingeklappt={onToggleEingeklappt}
       instanz={instanz}
       zaehler={
-        zeilen.length > 0 ? (
-          <span className="text-[12px] tabular-nums text-[var(--tf-text-tertiary)]">{zeilen.length}</span>
+        gesamt > 0 ? (
+          <span
+            className="text-[12px] tabular-nums text-[var(--tf-text-tertiary)]"
+            title={gesamt > zeilen.length
+              ? `${gesamt} Einträge in der Registry, die ${zeilen.length} jüngsten stehen hier. Alle in der Skill-Verwaltung.`
+              : undefined}
+          >
+            {gesamt > zeilen.length ? `${zeilen.length} / ${gesamt}` : gesamt}
+          </span>
         ) : undefined
       }
     >

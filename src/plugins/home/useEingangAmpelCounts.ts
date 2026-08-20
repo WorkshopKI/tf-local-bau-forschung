@@ -3,6 +3,9 @@ import { useAntraegeStore } from '@/plugins/antraege/store';
 import { useBereich } from '@/core/hooks/useBereich';
 import { istImBereich } from '@/core/status/betrachtungsbereich';
 import { useBearbeiterSicht } from '@/core/hooks/useBearbeiterSicht';
+import { applyInaktiveExclusion } from '@/plugins/antraege/bearbeiterFilter';
+import { useInaktiveKuerzelSet } from '@/plugins/auslastung/hooks/useInaktiveKuerzelSet';
+import { useShowInaktiveMasStore } from '@/plugins/antraege/useShowInaktiveMasStore';
 import { countByAmpelBucket, type AmpelSchwellen } from '@/plugins/antraege/eingangAmpel';
 
 export interface EingangAmpelCounts {
@@ -28,18 +31,27 @@ export interface EingangAmpelCounts {
  * Widget-Config. Kopfzeile UND Widget übergeben DIESELBEN Werte (aus
  * `ampelSchwellenAusConfig`) — kein Zahlen-Drift. Ohne Argument gelten die
  * bisherigen Defaults (30/90) unverändert.
+ *
+ * **Inaktive MAs (v4.131):** derselbe Ausschluss wie in `useDashboardData` und
+ * in der Zieltabelle. Er fehlte hier — im „alle"-Modus zählte die Ampel Anträge
+ * mit, die die Liste nach dem Klick ausblendet. Sichtbar wird das erst mit
+ * gepflegten Auslastungs-Daten (ohne sie ist das Set leer und der Aufruf ein
+ * No-op), gerechnet wurde die Zahl aber immer falsch.
  */
 export function useEingangAmpelCounts(schwellen?: AmpelSchwellen): EingangAmpelCounts {
   const alleAntraege = useAntraegeStore(s => s.antraege);
   const bereichMenge = useBereich().menge;
-  // Arbeitsvorrat-Zähler ⇒ Betrachtungsbereich, wie die Liste (Pitfall #46).
-  const antraege = useMemo(
-    () => (bereichMenge === null
-      ? alleAntraege
-      : alleAntraege.filter(a => istImBereich(a.unterprogramm_id, bereichMenge))),
-    [alleAntraege, bereichMenge],
-  );
   const { mode: bearbeiterFilter } = useBearbeiterSicht();
+  const inaktiveKuerzel = useInaktiveKuerzelSet();
+  const showInaktive = useShowInaktiveMasStore(s => s.showInaktive);
+  // Arbeitsvorrat-Zähler ⇒ Betrachtungsbereich, wie die Liste (Pitfall #46);
+  // danach der Inaktiv-Ausschluss, in derselben Reihenfolge wie im Dashboard.
+  const antraege = useMemo(() => {
+    const imBereich = bereichMenge === null
+      ? alleAntraege
+      : alleAntraege.filter(a => istImBereich(a.unterprogramm_id, bereichMenge));
+    return applyInaktiveExclusion(imBereich, bearbeiterFilter.active, inaktiveKuerzel, showInaktive);
+  }, [alleAntraege, bereichMenge, bearbeiterFilter.active, inaktiveKuerzel, showInaktive]);
 
   return useMemo(() => {
     const frisch = countByAmpelBucket(antraege, 'frisch', bearbeiterFilter, schwellen);

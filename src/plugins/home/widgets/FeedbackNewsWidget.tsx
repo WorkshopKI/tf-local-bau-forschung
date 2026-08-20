@@ -62,6 +62,15 @@ export function FeedbackNewsWidget({ instanz, onToggleEingeklappt }: WidgetProps
     () => (anker ? berechneFeedbackNews(items, ich, anker, maxEintraege, Date.now()) : []),
     [items, ich, anker, maxEintraege],
   );
+  // **Der Zähler nennt den Bestand, nicht die Kappungs-Grenze** (v4.131).
+  // `berechneFeedbackNews` schneidet auf `maxEintraege` (Default 3) — die Badge
+  // stand deshalb dauerhaft auf höchstens „3", egal wie viel seit dem letzten
+  // Besuch dazukam. Dieselbe Rechnung ohne Kappung liefert die echte Zahl;
+  // teuer ist sie nicht (die Ticket-Liste liegt ohnehin im Speicher).
+  const gesamtNeu = useMemo(
+    () => (anker ? berechneFeedbackNews(items, ich, anker, Number.MAX_SAFE_INTEGER, Date.now()).length : 0),
+    [items, ich, anker],
+  );
 
   const gelesen = useAsyncAction(async () => { markiereGelesen(items); });
 
@@ -94,9 +103,14 @@ export function FeedbackNewsWidget({ instanz, onToggleEingeklappt }: WidgetProps
         ) : undefined
       }
       zaehler={
-        news.length > 0 ? (
-          <span className="min-w-5 h-5 px-1.5 rounded-full grid place-items-center text-[11px] font-semibold tabular-nums text-[var(--tf-on-primary)] bg-[var(--tf-primary)]">
-            {news.length}
+        gesamtNeu > 0 ? (
+          <span
+            className="min-w-5 h-5 px-1.5 rounded-full grid place-items-center text-[11px] font-semibold tabular-nums text-[var(--tf-on-primary)] bg-[var(--tf-primary)]"
+            title={gesamtNeu > news.length
+              ? `${gesamtNeu} Neuigkeiten seit Ihrem letzten Besuch, ${news.length} davon in der Karte. Alle stehen im Feedback-Board.`
+              : undefined}
+          >
+            {gesamtNeu}
           </span>
         ) : undefined
       }

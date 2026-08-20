@@ -9,6 +9,7 @@ import { ActiveFilterChips } from './filter/ActiveFilterChips';
 import { PinLeiste } from './filter/PinLeiste';
 import { aktivIstAngepinnt, usePinnedFilters } from './filter/pinnedFilters';
 import { FilterChip } from '@/components/ui/FilterChip';
+import { getStatusCategoryLabel } from '@/core/utils/status-category-labels';
 import { AMPEL_BUCKET_LABEL } from './eingangAmpel';
 import { QuickfilterToolbar } from './filter/QuickfilterToolbar';
 import { FilterSpalte } from './filter/FilterSpalte';
@@ -214,6 +215,7 @@ export function AntraegeMain({
   // Stand der Spaltenkopf-Trichter — die schmale Spalte im Detail-Modus wendet
   // ihn genauso an wie die Tabelle (siehe `kompaktZeilen`).
   const kopfStand = useKopfFilter(s => s.stand);
+  const setzeKopfSpalte = useKopfFilter(s => s.setzeSpalte);
   // NICHT `s.search`: eine getippte, aber noch nicht gestellte Frage ist kein
   // Suchbegriff und darf die Beendet-Notbremse nicht auslösen (`suchtext.ts`).
   const searchActive = useWirksamerSuchtext().trim().length > 0;
@@ -221,6 +223,10 @@ export function AntraegeMain({
   // der Widget-Klick unsichtbar weiter.
   const ampelQuickfilter = useAntraegeStore(s => s.ampelQuickfilter);
   const setAmpelQuickfilter = useAntraegeStore(s => s.setAmpelQuickfilter);
+  // Kategorie-Quickfilter (v4.131, Klick auf eine Kanban-Bahn der Startseite) —
+  // aus demselben Grund ein Chip wie der Ampel-Filter darüber.
+  const kategorieQuickfilter = useAntraegeStore(s => s.kategorieQuickfilter);
+  const setKategorieQuickfilter = useAntraegeStore(s => s.setKategorieQuickfilter);
   // Im „alle"-/Übersichtsmodus (pl/dev) wird je Antrag das MA-Kürzel angezeigt,
   // damit sichtbar ist, welcher Bearbeiter zuständig ist.
   const showMa = isAuslastungFreigeschaltet() && !bearbeiterFilter.active;
@@ -453,6 +459,38 @@ export function AntraegeMain({
     const eigene = eigeneTabellenSpalten.filter(c => sichtbar.has(c.key));
     return eigene.length > 0 ? [...aufgeloest, ...eigene] : aufgeloest;
   }, [visibleColumns, showMa, kategorieSpalten, eigeneTabellenSpalten]);
+  /**
+   * **Der Spaltenkopf-Trichter gehört in die Chip-Zeile** (v4.131).
+   *
+   * Er wird erst in `applyColumnFilters` angewandt — hinter `useFilteredAntraege`
+   * und damit hinter allem, was die Chip-Zeile führt —, und er liegt in
+   * localStorage: er überlebt Reload und Sicht-Wechsel (`setActiveView` räumt
+   * nur den Ampel-Quickfilter ab). Sichtbar war er allein am gefüllten Trichter
+   * IM Spaltenkopf, und der steht nur in der Tabellen-Ansicht und nur, wenn die
+   * Spalte gerade eingeblendet ist.
+   *
+   * Gemessen: ein liegengebliebenes `bib_kuerz = MKo` machte aus der vom
+   * Startseiten-Widget zugesagten „Kritisch 30" eine Tabelle mit 2 Zeilen — die
+   * Zusage der Karte brach, ohne dass irgendetwas es sagte. Genau dagegen gibt
+   * es diese Zeile („sonst filtert der Widget-Klick unsichtbar weiter").
+   *
+   * Der Chip ENTFERNT nur; gesetzt wird weiterhin ausschließlich am Kopf. Und
+   * er erscheint nur für Spalten, die gerade zur Tabelle gehören — ein Trichter
+   * auf einer ausgeblendeten Spalte ist wirkungslos (`applyColumnFilters`
+   * überspringt unbekannte Keys), und ein Chip dafür behauptete eine Wirkung,
+   * die es nicht gibt.
+   */
+  const kopfChips = useMemo(() => {
+    const label = new Map(kompaktSpalten.map(c => [c.key, c.label]));
+    return Object.entries(kopfStand)
+      .filter(([key, werte]) => werte.size > 0 && label.has(key))
+      .map(([key, werte]) => ({
+        key,
+        label: label.get(key) ?? key,
+        werte: [...werte].sort((a, b) => a.localeCompare(b, 'de')),
+      }));
+  }, [kopfStand, kompaktSpalten]);
+
   const kompaktZeilen = useMemo(() => {
     const angereichert: AntragTableRow[] = filtered.map(a => {
       const t = a.verbund_id ? verbundById.get(a.verbund_id)?.titel : undefined;
@@ -594,7 +632,8 @@ export function AntraegeMain({
               früher nicht, weil die Trefferzahl darin saß — das war die
               Leerzeile über der Tabelle. Der Abstand zur Tabelle steht jetzt am
               Container (`pb-3`), damit er in beiden Fällen derselbe ist. */}
-          {(chipActive.length > 0 || ampelQuickfilter !== null || pins.length > 0) ? (
+          {(chipActive.length > 0 || ampelQuickfilter !== null || kategorieQuickfilter !== null
+            || pins.length > 0 || kopfChips.length > 0) ? (
             <div className="mt-2 min-w-0 flex items-center flex-wrap gap-1.5">
               {/* Angepinnte Schnellzugriffe stehen VOR den aktiven Chips: sie
                   sind die Schalter, zwischen denen man den Tag über springt,
@@ -614,6 +653,14 @@ export function AntraegeMain({
                   onRemove={() => setAmpelQuickfilter(null)}
                 />
               ) : null}
+              {kategorieQuickfilter !== null ? (
+                <FilterChip
+                  label="Kanban-Bahn"
+                  value={getStatusCategoryLabel(kategorieQuickfilter)}
+                  title="Vom Startseiten-Kanban gesetzt — klicken zum Entfernen"
+                  onRemove={() => setKategorieQuickfilter(null)}
+                />
+              ) : null}
               {chipActive.length > 0 ? (
                 <ActiveFilterChips
                   active={chipActive}
@@ -623,6 +670,15 @@ export function AntraegeMain({
                   className="flex flex-wrap gap-1.5"
                 />
               ) : null}
+              {kopfChips.map(c => (
+                <FilterChip
+                  key={`kopf:${c.key}`}
+                  label={c.label}
+                  value={c.werte.length <= 2 ? c.werte.join(', ') : `${c.werte.length} Werte`}
+                  title={`Am Spaltenkopf gesetzt: ${c.werte.join(', ')} — klicken zum Entfernen`}
+                  onRemove={() => setzeKopfSpalte(c.key, new Set())}
+                />
+              ))}
             </div>
           ) : null}
       </div>

@@ -163,7 +163,7 @@ describe('computeDashboardAggregate — Verbund-Clustering in meineAntraege', ()
     const tvs: AntragListItem[] = [
       // Solo, neu eingegangen → Frist weiter weg
       mkAntrag({ aktenzeichen: 'S-001', status: 'beantragt', antragsdatum: '2026-05-01' }),
-      // Verbund: Frist ab spätestem TV (2026-03-01) → früher als Solo (2026-05-01) → oben.
+      // Verbund: Frist des knappsten TV (2026-01-01) → früher als Solo → oben.
       mkAntrag({ aktenzeichen: 'V-001', status: 'beantragt', antragsdatum: '2026-01-01',
         verbund_id: 'VB-A' }),
       mkAntrag({ aktenzeichen: 'V-002', status: 'beantragt', antragsdatum: '2026-03-01',
@@ -179,7 +179,23 @@ describe('computeDashboardAggregate — Verbund-Clustering in meineAntraege', ()
     expect(agg.meineAntraege[1]?.id).toBe('S-001');
   });
 
-  it('Verbund-Frist = spätestes TV-Antragsdatum + 90 Tage (zuletzt eingegangenes TV)', () => {
+  /**
+   * **Die Verbund-Frist ist die des knappsten TV — wie in der Fördertabelle.**
+   *
+   * Bis v4.131 rechnete die Startseite hier ihre eigene Regel: `max(antragsdatum
+   * über alle TVs) + 90`. Die Zielseite rechnet dagegen je TV gegen den
+   * WIRKSAMEN Eingang (`max(D_AAE, D_XTE)`) und nimmt davon das Minimum
+   * (`criticalFristErgebnis`). Beide meinen dasselbe fachlich — „bearbeitet
+   * werden kann erst, wenn alles da ist" —, aber die Zielseite drückt es über
+   * das gepflegte Feld `D_XTE` aus statt über eine Näherung. Wo `D_XTE` fehlt,
+   * liefen die zwei Rechnungen auseinander: am Bestand gemessen bei 6 von 32
+   * Anträgen, bis zu 17 Tage. Die Karte sagt „Sortierung: Frist" und sortierte
+   * anders als die Liste, in die ihr „Alle →" führt.
+   *
+   * Zwei Ableitungen derselben Größe — die eine musste weg, und die Zielseite
+   * ist die Referenz.
+   */
+  it('Verbund-Frist = knappster TV, wie `criticalFristErgebnis` in der Liste', () => {
     const tvs: AntragListItem[] = [
       mkAntrag({ aktenzeichen: 'V-001', status: 'beantragt', antragsdatum: '2026-01-01',
         verbund_id: 'VB-A' }),
@@ -190,8 +206,48 @@ describe('computeDashboardAggregate — Verbund-Clustering in meineAntraege', ()
       includeAntraege: true, nowMs: TEST_TODAY_MS,
     });
     expect(agg.meineAntraege).toHaveLength(1);
-    // max(antragsdatum) = 2026-03-01 + 90 Tage = 2026-05-30 (NICHT das frühere 2026-01-01).
+    // min über die TVs: 2026-01-01 + 90 = 2026-04-01 (V-002 läge bei 2026-05-30).
+    expect(agg.meineAntraege[0]?.deadline).toBe('2026-04-01T00:00:00.000Z');
+  });
+
+  it('`D_XTE` („alle Anträge da") trägt die Uhr, wo es gepflegt ist', () => {
+    const tvs: AntragListItem[] = [
+      mkAntrag({ aktenzeichen: 'V-001', status: 'beantragt', antragsdatum: '2026-01-01',
+        verbund_id: 'VB-A', alle_antraege_da: '2026-03-01' }),
+      mkAntrag({ aktenzeichen: 'V-002', status: 'beantragt', antragsdatum: '2026-03-01',
+        verbund_id: 'VB-A', alle_antraege_da: '2026-03-01' }),
+    ];
+    const agg = computeDashboardAggregate(tvs, NEUTRAL, {
+      includeAntraege: true, nowMs: TEST_TODAY_MS,
+    });
+    // Wirksamer Eingang beider TVs = 2026-03-01 ⇒ 2026-05-30. Genau die Aussage,
+    // die die alte Home-Regel näherte — jetzt aus dem gepflegten Feld.
     expect(agg.meineAntraege[0]?.deadline).toBe('2026-05-30T00:00:00.000Z');
+  });
+
+  /**
+   * **H0 der Bug-Jagd**: die Startseite ließ die Uhr laufen, wo die Zielseite
+   * „angehalten" sagt. Am Bestand betraf das 10 von 32 Anträgen (31 %), und vier
+   * davon standen unter den zehn sichtbaren Zeilen der Karte „Meine Anträge" —
+   * ganz oben, weil eine seit Monaten überfällige Frist errechnet wurde.
+   */
+  it('kein Frist-Datum, wo in der Phase keine Frist läuft (angehalten)', () => {
+    const tvs: AntragListItem[] = [
+      // `Ablehnung` liegt in der ZAH-Phase `entscheidung` (fristLaeuft: false).
+      mkAntrag({ aktenzeichen: 'A-001', status: 'Ablehnung', antragsdatum: '2025-01-01' }),
+      mkAntrag({ aktenzeichen: 'B-001', status: 'beantragt', antragsdatum: '2026-04-01' }),
+    ];
+    const agg = computeDashboardAggregate(tvs, NEUTRAL, {
+      includeAntraege: true, nowMs: TEST_TODAY_MS,
+    });
+    const angehalten = agg.meineAntraege.find(a => a.id === 'A-001');
+    expect(angehalten?.fristZustand).toBe('angehalten');
+    expect(angehalten?.deadline).toBeUndefined();
+    expect(angehalten?.fristTage).toBeNull();
+    // Und er sinkt ans Ende, statt die Spitze zu besetzen.
+    expect(agg.meineAntraege[agg.meineAntraege.length - 1]?.id).toBe('A-001');
+    // Er ist auch kein Frist-Kandidat mehr — „dringend" meint laufende Uhren.
+    expect(agg.dringend.some(v => v.id === 'A-001')).toBe(false);
   });
 
   it('Verbund zählt nur EINMAL als Frist-Kandidat (dringend), nicht pro TV', () => {

@@ -76,6 +76,9 @@ export function MeineAntraegeWidget({ instanz, ctx, onToggleEingeklappt }: Widge
   };
 
   const zeigtListe = !(alleMode && !isKuerzelDropdownEnabled()) && antraege.length > 0;
+  // TV-Summe über die geclusterten Einträge — dieselbe Rechnung wie im
+  // Rückstands-Balken, hier für die Übersetzung im Zähler-Tooltip.
+  const tvGesamt = antraege.reduce((s, v) => s + (v.tv_count ?? 1), 0);
 
   // Modus sichtbar in der Meta-Zeile (v1.1): „Kürzel THü" vs. „Alle Bearbeiter"
   // — ersetzt den früheren Titel-Swap; der Titel bleibt fix „Meine Anträge".
@@ -111,7 +114,14 @@ export function MeineAntraegeWidget({ instanz, ctx, onToggleEingeklappt }: Widge
       }
       zaehler={
         zeigtListe ? (
-          <span className="text-[12px] tabular-nums text-[var(--tf-text-tertiary)]">
+          // Die Einheit steht im Tooltip, weil sie sich unterwegs ändert: hier
+          // sind Verbünde EIN Eintrag, im Reiter der Zielseite zählen die
+          // Teilvorhaben einzeln. Wer „25" liest und drüben „32" sieht, hat
+          // sonst zwei Zahlen ohne Übersetzung (v4.131).
+          <span
+            className="text-[12px] tabular-nums text-[var(--tf-text-tertiary)]"
+            title={`${antraege.length} Einträge — Verbünde als einer gezählt. In der Förderanträge-Liste stehen sie als ${tvGesamt} Teilvorhaben.`}
+          >
             {Math.min(visibleCount, antraege.length)} von {antraege.length}
           </span>
         ) : undefined
@@ -259,6 +269,19 @@ function MeineAntraegeListe({ antraege, visibleCount, setVisibleCount, bearbeite
             title={
               <span className="flex items-baseline gap-2 w-full min-w-0">
                 <span className="font-medium text-[var(--tf-text)] shrink-0 max-w-[55%] truncate">{displayLabel}</span>
+                {/* Verbund-Marke wie auf der Kanban-Karte (v4.131): die Zeile
+                    steht für einen Cluster, nicht für ein Teilvorhaben. Bis
+                    dahin trug nur das Kanban sie — auf derselben Bildschirmseite
+                    stand „2 TV" an der einen Karte und nichts an der anderen,
+                    obwohl beide denselben Verbund meinten. */}
+                {(v.tv_count ?? 1) > 1 ? (
+                  <span
+                    className="shrink-0 rounded-full bg-[var(--tf-bg-secondary)] px-1.5 py-px text-[10px] tabular-nums text-[var(--tf-text-tertiary)]"
+                    title={`Verbund mit ${v.tv_count} Teilvorhaben — hier als ein Eintrag`}
+                  >
+                    {v.tv_count} TV
+                  </span>
+                ) : null}
                 {schritt ? (
                   <span className="text-[var(--tf-text-secondary)] truncate min-w-0 flex-1" title={schritt}>{schritt}</span>
                 ) : null}

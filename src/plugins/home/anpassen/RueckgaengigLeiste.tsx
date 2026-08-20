@@ -2,17 +2,21 @@
  * Bestätigungsleiste unten mittig — „Meine Anträge ausgeblendet" + Rückgängig.
  *
  * Mittig, nicht rechts: rechts unten sitzt der Feedback-FAB, den die Leiste nicht
- * verdecken darf (dieselbe Wahl wie beim `fb-toast` des Boards). Sie hält den
- * kompletten Vorstand (rueckgaengigStore) und schreibt ihn zurück — ein Weg für
- * Ausblenden, „alle aus" und Zurücksetzen.
+ * verdecken darf (dieselbe Wahl wie beim `fb-toast` des Boards). Sie hält die
+ * Umkehrung der letzten Aktion (rueckgaengigStore) und wendet sie auf den
+ * AKTUELLEN Stand an — ein Weg für Ausblenden, „alle aus" und Zurücksetzen.
+ *
+ * **Die Reue-Frist läuft an der Uhr, nicht an der Lebensdauer dieser Komponente**
+ * (v4.131). Vorher räumte der Cleanup den Timer ab, sobald man die Startseite
+ * verließ — `leere()` feuerte nie, der Eintrag blieb im Modul-Store stehen, und
+ * bei der Rückkehr stand die Leiste wieder da und startete die Frist von vorn.
+ * Sie bot dann eine beliebig alte Änderung zum Zurücknehmen an. Jetzt entscheidet
+ * `seit`: abgelaufen wird beim Mount verworfen, sonst läuft nur die Restzeit.
  */
 import { useEffect } from 'react';
 import { Undo2, X } from 'lucide-react';
 import { useHomeWidgets } from '../widgets/useHomeWidgets';
-import { useRueckgaengigStore } from './rueckgaengigStore';
-
-/** Reue-Frist. Lang genug zum Lesen und Zielen, kurz genug, um nicht im Weg zu stehen. */
-const SICHTBAR_MS = 7000;
+import { RUECKGAENGIG_MS, useRueckgaengigStore } from './rueckgaengigStore';
 
 export function RueckgaengigLeiste(): React.ReactElement | null {
   const api = useHomeWidgets();
@@ -22,13 +26,19 @@ export function RueckgaengigLeiste(): React.ReactElement | null {
   // `nr` in den Deps, nicht der Text: zweimal dasselbe Ausblenden hintereinander
   // soll den Timer neu starten, nicht die alte Frist weiterlaufen lassen.
   const nr = eintrag?.nr;
+  const seit = eintrag?.seit;
   useEffect(() => {
-    if (nr === undefined) return;
-    const t = setTimeout(() => leere(), SICHTBAR_MS);
+    if (nr === undefined || seit === undefined) return;
+    const rest = seit + RUECKGAENGIG_MS - Date.now();
+    if (rest <= 0) { leere(); return; }
+    const t = setTimeout(() => leere(), rest);
     return () => clearTimeout(t);
-  }, [nr, leere]);
+  }, [nr, seit, leere]);
 
-  if (!eintrag) return null;
+  // Abgelaufen, aber der Effekt hat noch nicht geräumt (erster Render nach der
+  // Rückkehr): nicht zeichnen, statt für einen Frame etwas anzubieten, das
+  // gleich verschwindet.
+  if (!eintrag || eintrag.seit + RUECKGAENGIG_MS <= Date.now()) return null;
 
   return (
     <div
@@ -44,7 +54,7 @@ export function RueckgaengigLeiste(): React.ReactElement | null {
       <span>{eintrag.text}</span>
       <button
         type="button"
-        onClick={() => { void api.ersetze(eintrag.vorstand); leere(); }}
+        onClick={() => { void api.wendeAn(eintrag.wende); leere(); }}
         className="inline-flex items-center gap-1.5 rounded-full px-[11px] py-[5px] text-[12px] cursor-pointer hover:opacity-80"
         style={{ background: 'color-mix(in srgb, var(--tf-bg) 16%, transparent)', color: 'inherit' }}
       >

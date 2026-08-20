@@ -19,6 +19,20 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.131 — 2026-08
+
+### Verbesserungen
+- „Meine Anträge" sortiert jetzt genauso wie die Förderanträge-Liste. Vorgänge, für die keine Frist mehr läuft — etwa nach einer Ablehnung —, rechnet die Startseite nicht länger als überfällig hoch und stellt sie nicht mehr nach oben.
+- Zahlen sagen, wenn sie nur einen Ausschnitt meinen: das Kanban nennt neben „573 Vorgänge" auch, wie viele in Kategorien liegen, für die keine Bahn eingerichtet ist. Ebenso die Feedback-Neuigkeiten und die Registry-Änderungen.
+- Verbünde sind in „Meine Anträge" als solche erkennbar („2 TV"), und der Zähler erklärt, warum die Liste danach mehr Zeilen zeigt als die Karte Einträge.
+
+### Bugfixes
+- Ein am Spaltenkopf gesetzter Filter erscheint jetzt als Chip über der Tabelle. Bisher konnte er unbemerkt stehen bleiben und eine von der Startseite zugesagte Trefferzahl auf wenige Zeilen zusammenschmelzen lassen.
+- „+ N weitere" einer Kanban-Bahn öffnet die Liste passend gefiltert, statt in der vollständigen Liste zu landen.
+- „Rückgängig" nimmt nur noch das zurück, was in der Meldung steht. Ein danach ein- oder ausgeklapptes Widget bleibt, wie es ist. Außerdem erscheint die Meldung nicht mehr erneut, wenn man die Startseite kurz verlässt und später zurückkehrt.
+- Der Hinweis unter den Widget-Einstellungen sagt jetzt korrekt „nur für Sie — nicht geteilt": Ihre Startseiten-Anordnung liegt auch in Ihrem persönlichen Ordner, damit sie auf einem anderen Rechner wieder da ist.
+- „Alle Einstellungen öffnen" führt wieder auf die vollständigen Einstellungen statt in den Widget-Abschnitt.
+
 ## v4.130 — 2026-08
 
 ### Neu

@@ -104,7 +104,7 @@ export function KanbanVollbild({
     setBahnenConfig(next);
     onLanes?.(next);
   };
-  const { lanes, gesamt } = useMemo(
+  const { lanes, gesamt, ausserhalb } = useMemo(
     () => projiziereVollbildLanes(karten, bahnenConfig),
     [karten, bahnenConfig],
   );
@@ -138,8 +138,17 @@ export function KanbanVollbild({
       <header className="kv-kopf">
         <h1>{titel}</h1>
         <span className="kv-meta">{meta}</span>
-        <span className="kv-zahl">
+        {/* Die Zahl zählt die SICHTBAREN Bahnen. Ist eine abgewählt, sagt sie,
+            wie viel dadurch nicht im Bild steht — sonst liest sich der Auszug
+            als Bestand (v4.131, wie im Widget-Kopf). */}
+        <span
+          className="kv-zahl"
+          title={ausserhalb > 0
+            ? `${ausserhalb.toLocaleString('de-DE')} weitere Vorgänge liegen in abgewählten Bahnen — im Zahnrad wieder einblenden.`
+            : undefined}
+        >
           {gesamt.toLocaleString('de-DE')} {gesamt === 1 ? 'Vorgang' : 'Vorgänge'}
+          {ausserhalb > 0 ? ` von ${(gesamt + ausserhalb).toLocaleString('de-DE')}` : ''}
         </span>
         <button
           type="button"

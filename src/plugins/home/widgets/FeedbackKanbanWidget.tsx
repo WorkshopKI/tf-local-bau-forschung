@@ -64,7 +64,7 @@ export function FeedbackKanbanWidget({ instanz, onToggleEingeklappt }: WidgetPro
     return () => { cancelled = true; };
   }, [storage]);
 
-  const { lanes, gesamt } = useMemo(
+  const { lanes, gesamt, ausserhalb } = useMemo(
     () => buildFeedbackKanbanLanes(items, cfg.lanes, cfg.maxKartenProLane),
     [items, cfg.lanes, cfg.maxKartenProLane],
   );
@@ -96,8 +96,16 @@ export function FeedbackKanbanWidget({ instanz, onToggleEingeklappt }: WidgetPro
         instanz.eingeklappt
           ? <LanePills pills={pills} />
           : (
-            <span className="text-[12px] tabular-nums text-[var(--tf-text-tertiary)]">
+            // Auszug benennen statt ihn als Bestand zu zeigen (v4.131): eine
+            // Bestands-Instanz führt die Spur „Rückfrage" gar nicht als Bahn.
+            <span
+              className="text-[12px] tabular-nums text-[var(--tf-text-tertiary)]"
+              title={ausserhalb > 0
+                ? `${ausserhalb.toLocaleString('de-DE')} weitere Tickets liegen in Spuren, die dieses Widget nicht als Bahn führt.`
+                : undefined}
+            >
               {gesamt.toLocaleString('de-DE')} {gesamt === 1 ? 'Feedback' : 'Feedbacks'}
+              {ausserhalb > 0 ? ` von ${(gesamt + ausserhalb).toLocaleString('de-DE')}` : ''}
             </span>
           )
       }

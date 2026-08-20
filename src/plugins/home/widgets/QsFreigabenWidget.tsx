@@ -6,7 +6,7 @@
  * Aktionen navigieren nur in die Artefakt-/Verbund-Oberfläche. Lazy: der IDB-
  * Bulk-Read (`entries`) läuft erst ausgeklappt.
  */
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigation } from '@/core/hooks/useNavigation';
 import { bearbeiterScopeLabel } from '@/plugins/antraege/bearbeiterFilter';
 import {
@@ -37,7 +37,15 @@ export function QsFreigabenWidget({ instanz, onToggleEingeklappt }: WidgetProps)
   // „QS-Freigaben offen" liest daraus → identische Zahl, kein Drift).
   const { zeilen, mode } = useQsFreigaben(!instanz.eingeklappt);
 
-  const sichtbar = zeilen.slice(0, maxZeilen);
+  // In-Karte erweitern statt wegzunavigieren (v4.131): „+ N weitere →" führte
+  // in die ungefilterte Förderanträge-Liste, in der von QS-Entwürfen nichts zu
+  // sehen ist — eine QS-Listenseite gibt es nicht. Der Rest gehört deshalb
+  // hierher, wie das „+10 anzeigen" in „Meine Anträge".
+  const [alleZeigen, setAlleZeigen] = useState(false);
+  // Ein neuer Karten-Stand (Widget-Einstellung geändert) startet wieder gekappt.
+  useEffect(() => { setAlleZeigen(false); }, [maxZeilen]);
+
+  const sichtbar = alleZeigen ? zeilen : zeilen.slice(0, maxZeilen);
   const rest = zeilen.length - sichtbar.length;
   const typPills = useMemo(() => zaehleProTyp(zeilen), [zeilen]);
 
@@ -75,10 +83,19 @@ export function QsFreigabenWidget({ instanz, onToggleEingeklappt }: WidgetProps)
           {rest > 0 ? (
             <button
               type="button"
-              onClick={() => navigate('antraege')}
+              onClick={() => setAlleZeigen(true)}
+              title="Zeigt die restlichen Entwürfe hier in der Karte."
               className="mt-2 self-start text-[12px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] cursor-pointer"
             >
-              + {rest} weitere →
+              + {rest} weitere anzeigen
+            </button>
+          ) : alleZeigen && zeilen.length > maxZeilen ? (
+            <button
+              type="button"
+              onClick={() => setAlleZeigen(false)}
+              className="mt-2 self-start text-[12px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] cursor-pointer"
+            >
+              Weniger anzeigen
             </button>
           ) : null}
         </div>

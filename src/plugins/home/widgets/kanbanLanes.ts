@@ -16,6 +16,7 @@ import { schrittText } from '@/core/utils/naechsterSchritt';
 import { isIrrlaeufer } from '@/core/utils/vb-phase-mappings';
 import {
   antragMatchesBearbeiter,
+  applyInaktiveExclusion,
   type BearbeiterFilterMode,
 } from '@/plugins/antraege/bearbeiterFilter';
 import type { KanbanLane, KanbanWidgetConfig, VollbildLane } from './types';
@@ -80,18 +81,31 @@ export interface KanbanLaneDaten {
   gesamt: number;
 }
 
+/** Der Inaktiv-Ausschluss als Datum statt als Hook — das Modul bleibt rein. */
+export interface InaktivAusschluss {
+  /** Kürzel der inaktiven MAs (leer ⇒ No-op). */
+  kuerzel: ReadonlySet<string>;
+  /** Der Nutzer will sie ausdrücklich sehen ⇒ kein Ausschluss. */
+  zeigen: boolean;
+}
+
 /** Grundmenge = identische Semantik wie useEingangAmpelCounts/Meine Anträge:
- *  Irrläufer raus, Bearbeiter-Filter (falls aktiv). KEIN Status-Filter — die
- *  Lanes entscheiden über die Kategorie. */
+ *  Irrläufer raus, Bearbeiter-Filter (falls aktiv), Anträge inaktiver MAs raus
+ *  (nur im „alle"-Modus, v4.131 — er fehlte hier, während Dashboard und
+ *  Zieltabelle ihn anwandten). KEIN Status-Filter — die Lanes entscheiden über
+ *  die Kategorie. */
 export function filtereKanbanGrundmenge(
   antraege: AntragListItem[],
   bearbeiterFilter: BearbeiterFilterMode,
+  inaktiv?: InaktivAusschluss,
 ): AntragListItem[] {
-  return antraege.filter(a => {
+  const gefiltert = antraege.filter(a => {
     if (isIrrlaeufer(a.vb_phase)) return false;
     if (bearbeiterFilter.active && !antragMatchesBearbeiter(a, bearbeiterFilter)) return false;
     return true;
   });
+  if (!inaktiv) return gefiltert;
+  return applyInaktiveExclusion(gefiltert, bearbeiterFilter.active, inaktiv.kuerzel, inaktiv.zeigen);
 }
 
 function alterVon(a: AntragListItem, nowMs: number): number | null {
@@ -116,8 +130,17 @@ function zuKarte(rep: AntragListItem, tvCount: number, nowMs: number): KanbanKar
 
 export interface KanbanLanesErgebnis {
   lanes: KanbanLaneDaten[];
-  /** Summe aller Lane-Gesamtzahlen — „N Vorgänge" im Widget-Kopf. */
+  /** Summe der GEZEIGTEN Bahnen — „N Vorgänge" im Widget-Kopf. */
   gesamt: number;
+  /**
+   * Was in der Grundmenge liegt, aber in keiner gezeigten Bahn steht (v4.131).
+   *
+   * `gesamt` summiert nur die konfigurierten Kategorien; wer „bewilligt" und
+   * „abgeschlossen" nicht als Bahn führt, sah eine Kopfzahl, die sich als
+   * Gesamtzahl las und ein Auszug war. Die Zahl steht hier, damit der Kopf sie
+   * benennen kann, statt zu schweigen. `0` = die Bahnen decken alles ab.
+   */
+  ausserhalb: number;
 }
 
 /** Karten je Status-Kategorie — die gemeinsame Datengrundlage beider Ansichten.
@@ -175,9 +198,14 @@ export function buildAntragKanbanLanes(
   const cap = Math.max(1, maxKartenProLane);
 
   let gesamt = 0;
+  const gezeigt = new Set<StatusCategory>();
   const ergebnis = lanes.map(lane => {
     const alle = proKategorie.get(lane.kategorie) ?? [];
-    gesamt += alle.length;
+    // Eine doppelt konfigurierte Kategorie zählt nur einmal in `gesamt`.
+    if (!gezeigt.has(lane.kategorie)) {
+      gesamt += alle.length;
+      gezeigt.add(lane.kategorie);
+    }
     return {
       kategorie: lane.kategorie,
       spalten: lane.spalten,
@@ -185,7 +213,11 @@ export function buildAntragKanbanLanes(
       gesamt: alle.length,
     };
   });
-  return { lanes: ergebnis, gesamt };
+  let ausserhalb = 0;
+  for (const [kategorie, karten] of proKategorie) {
+    if (!gezeigt.has(kategorie)) ausserhalb += karten.length;
+  }
+  return { lanes: ergebnis, gesamt, ausserhalb };
 }
 
 /**
@@ -249,11 +281,15 @@ export function projiziereVollbildLanes(
   lanes: readonly VollbildLane[],
 ): KanbanLanesErgebnis {
   let gesamt = 0;
+  const gezeigt = new Set<StatusCategory>();
   const ergebnis: KanbanLaneDaten[] = [];
   for (const lane of lanes) {
     if (!lane.sichtbar) continue;
     const eigene = karten.get(lane.kategorie) ?? [];
-    gesamt += eigene.length;
+    if (!gezeigt.has(lane.kategorie)) {
+      gesamt += eigene.length;
+      gezeigt.add(lane.kategorie);
+    }
     ergebnis.push({
       kategorie: lane.kategorie,
       spalten: lane.spalten,
@@ -261,7 +297,11 @@ export function projiziereVollbildLanes(
       gesamt: eigene.length,
     });
   }
-  return { lanes: ergebnis, gesamt };
+  let ausserhalb = 0;
+  for (const [kategorie, eigene] of karten) {
+    if (!gezeigt.has(kategorie)) ausserhalb += eigene.length;
+  }
+  return { lanes: ergebnis, gesamt, ausserhalb };
 }
 
 /**

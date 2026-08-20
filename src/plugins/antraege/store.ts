@@ -30,6 +30,7 @@ import {
 import { asPrecheckBucket, type PrecheckBucket } from './filter/precheckQuickfilter';
 import { asProjektart, type Projektart } from './filter/projektartQuickfilter';
 import type { AmpelQuickfilter } from './eingangAmpel';
+import type { StatusCategory } from '@/core/utils/status-canonical';
 import type { PlanBegriff } from '@/core/services/search/frageplan';
 import {
   DEFAULT_VIEW_MODE,
@@ -231,6 +232,19 @@ interface AntraegeState {
    *  zählt. Wird bei manuellem View-Wechsel (`setActiveView`) zurückgesetzt. */
   ampelQuickfilter: AmpelQuickfilter | null;
   /**
+   * Status-Kategorie-Quickfilter (v4.131): Klick auf „+ N weitere →" einer
+   * Kanban-Bahn des Startseiten-Widgets. `null` = kein Ausschnitt.
+   *
+   * Eigener transienter Slot statt eines Schreibzugriffs auf die Filter-Engine —
+   * aus demselben Grund wie beim Ampel-Quickfilter: `useFilterState.init()`
+   * läuft beim Mount der Zielseite und ersetzt `active` durch den persistierten
+   * Stand. Ein vorher gesetzter Engine-Filter wäre im Moment der Navigation weg
+   * (gemessen: die Pille stand danach wieder auf „Alle"). Die Bahn trägt eine
+   * KATEGORIE, keinen Roh-Status (Pitfall #12); der Chip macht sie sichtbar und
+   * entfernbar, `setActiveView` räumt sie ab wie den Ampel-Filter.
+   */
+  kategorieQuickfilter: StatusCategory | null;
+  /**
    * Stillstands-Schwelle in Tagen (v4.105): zeige nur Anträge, die seit MEHR als
    * so vielen Tagen kein neues Kürzel bekommen haben. `null` = keine Schwelle.
    *
@@ -324,6 +338,8 @@ interface AntraegeState {
   setFrageGestellt: (frage: string | null) => void;
   /** `null` = Filter entfernen. NACH `setActiveView` aufrufen (das resettet). */
   setAmpelQuickfilter: (quick: AmpelQuickfilter | null) => void;
+  /** `null` = Ausschnitt aufheben. NACH `setActiveView` aufrufen (das resettet). */
+  setKategorieQuickfilter: (kategorie: StatusCategory | null) => void;
   /** Partial-Merger: ueberschreibt nur die uebergebenen Felder, lasst den
    *  Rest unangetastet. Erlaubt z.B. `setHybridSearch({ downloadingCorpus: true })`
    *  ohne das laufende `matchedAkz`/`loading`-State versehentlich zu nullen. */
@@ -411,6 +427,7 @@ export const useAntraegeStore = create<AntraegeState>((set) => ({
   frageModus: false,
   frageGestellt: null,
   ampelQuickfilter: null,
+  kategorieQuickfilter: null,
   activeView: loadActiveView(),
   sortByView: loadSortByView(),
   groupingByView: loadGroupingByView(),
@@ -542,16 +559,19 @@ export const useAntraegeStore = create<AntraegeState>((set) => ({
 
   setAmpelQuickfilter: (quick: AmpelQuickfilter | null) => set({ ampelQuickfilter: quick }),
 
+  setKategorieQuickfilter: (kategorie: StatusCategory | null) =>
+    set({ kategorieQuickfilter: kategorie }),
+
   setHybridSearch: (state: Partial<HybridSearchState>) => set(s => ({
     hybridSearch: { ...s.hybridSearch, ...state },
   })),
 
   setActiveView: (view: ViewKey) => {
     try { localStorage.setItem(ACTIVE_VIEW_KEY, view); } catch { /* ignore */ }
-    // Manueller View-Wechsel beendet den transienten Ampel-Quickfilter —
-    // sonst filtert ein unsichtbar gewordener Zustand heimlich weiter.
-    // (Der Widget-Klick setzt den Filter bewusst NACH setActiveView.)
-    set({ activeView: view, ampelQuickfilter: null });
+    // Manueller View-Wechsel beendet die transienten Quickfilter (Ampel,
+    // Kategorie) — sonst filtert ein unsichtbar gewordener Zustand heimlich
+    // weiter. (Der Widget-Klick setzt sie bewusst NACH setActiveView.)
+    set({ activeView: view, ampelQuickfilter: null, kategorieQuickfilter: null });
   },
 
   setSortForView: (view: ViewKey, key: SortKey) => {

@@ -18,7 +18,8 @@
  * 3–9 Monate). Beides in einer Zahl zu addieren ergibt kein Arbeitssignal.
  */
 import type { AntragListItem, Verbund } from '@/core/services/csv/types';
-import { computeVerbundFristDatum } from '@/core/services/csv/frist';
+import type { FristZustand } from '@/core/services/csv/frist-ergebnis';
+import { criticalFristErgebnis } from '@/plugins/antraege/groupAggregates';
 import type { Vorgang } from '@/core/types/vorgang';
 import {
   antragMatchesBearbeiter,
@@ -44,9 +45,22 @@ export type AntragVorgang = Vorgang & {
    *  wenn `verbund_titel` leer ist. */
   verbund_titel?: string;
   /** Anzahl Teilvorhaben im Verbund-Cluster. Bei Solo-Antraegen 1, bei
-   *  Verbund-Lead-TVs = Anzahl aller TVs (inkl. Lead). UI rendert
-   *  `+N`-Indikator wenn > 1. Wird nur in `meineAntraege` gesetzt. */
+   *  Verbund-Lead-TVs = Anzahl aller TVs (inkl. Lead). Die Liste rendert daraus
+   *  die Marke „N TV" (wie die Kanban-Karte), der Balken die TV-Summe. Wird nur
+   *  in `meineAntraege` gesetzt. */
   tv_count?: number;
+  /**
+   * Frist-ZUSTAND aus derselben Engine wie die Förderanträge-Tabelle
+   * (`berechneFrist` über `criticalFristErgebnis`). Die Startseite rechnete bis
+   * v4.131 selbst (`antragsdatum + 90`) und ließ die Uhr damit auch dort laufen,
+   * wo die Zielseite „angehalten" sagt — abgelehnte und zurückgezogene Vorgänge
+   * standen mit dreistelligem Rückstand an der Spitze einer Karte, die
+   * „Sortierung: Frist" verspricht.
+   */
+  fristZustand?: FristZustand;
+  /** Tage bis zur Frist; `null`, wo keine Uhr läuft (angehalten, unberechenbar).
+   *  Sortier- und Aggregat-Grundlage — exakt wie `fristTageVon` in der Liste. */
+  fristTage?: number | null;
   /** Wiedereinreicher-Hinweis aus der CSV-Spalte `T_XSW` (custom-Feld
    *  `t_xsw`). Wird in „Meine Anträge" rot/fett hinter dem Titel gerendert. */
   t_xsw?: string;
@@ -130,32 +144,40 @@ function antragHasAnyKuerzel(antrag: AntragListItem): boolean {
   return false;
 }
 
-function daysUntil(dateStr: string | undefined, nowMs: number): number | null {
-  if (!dateStr) return null;
-  const diff = new Date(dateStr).getTime() - nowMs;
-  if (Number.isNaN(diff)) return null;
-  return Math.ceil(diff / (1000 * 60 * 60 * 24));
-}
-
 /** Minimal-Projektion eines Antrags auf eine Vorgang-aehnliche Shape. */
 function antragToVorgangLike(
   a: AntragListItem,
+  nowMs: number,
   verbundById?: Map<string, Verbund>,
   verbundAllTvs?: Map<string, AntragListItem[]>,
+  /** Ergebnis-Cache je `verbund_id` — die Verbund-Frist ist für alle TVs
+   *  desselben Verbundes dieselbe. Ohne ihn rechnete ein Verbund mit N TVs sie
+   *  N² mal (jeder TV über alle Geschwister). */
+  fristCache?: Map<string, ReturnType<typeof criticalFristErgebnis>>,
 ): AntragVorgang {
   const antragsdatum = typeof a.antragsdatum === 'string' ? a.antragsdatum : undefined;
   const verbundId = typeof a.verbund_id === 'string' && a.verbund_id.length > 0 ? a.verbund_id : undefined;
-  // `deadline` ist die phasen-abhaengige Frist (siehe csv/frist.ts):
-  // - Antragsphase: antragsdatum + 90 Tage
-  // - Begleitphase: vn_eingang_datum + 6 Monate
-  // Bei einem Verbund startet die Antragsphase-Frist ab dem ZULETZT eingegangenen
-  // TV (max antragsdatum ueber alle TVs) — vorher kann der Verbund nicht bearbeitet
-  // werden. `computeVerbundFristDatum` kapselt das (Begleitphase bleibt per-TV); fuer
-  // Solo-Antraege ist es identisch zu `computeFristDatum(a)`.
-  // Damit ist `daysLeft <= 0` "Frist verletzt", `daysLeft ∈ [0, 7]` "Frist
-  // droht diese Woche zu reissen" — kompatibel zur bestehenden Aggregat-Logik.
+  // **Die Frist kommt aus DERSELBEN Engine wie die Zielseite** (v4.131):
+  // `criticalFristErgebnis` ist die Verbund-Fassung von `berechneFrist` und
+  // beantwortet dieselbe Frage wie die Frist-Zelle der Fördertabelle — ein
+  // Verbund ist so dringend wie sein knappster TV, und wo keine Uhr läuft, gibt
+  // es keine Restzeit. Für einen Solo-Antrag (`tvs = [a]`) ist das Ergebnis
+  // identisch zu `fristErgebnisVon(a)`.
+  //
+  // Vorher rechnete die Startseite selbst (`computeVerbundFristDatum` +
+  // eigene `daysUntil`-Formel). Zwei Rechnungen, zwei Ergebnisse: die eigene
+  // kannte weder den wirksamen Eingang (`D_XTE`) noch das Haltekriterium der
+  // ZAH-Phase (`fristLaeuft`) und ließ die 90-Tage-Uhr auch für abgelehnte
+  // Vorgänge weiterlaufen. `deadline` trägt deshalb nur noch ein Datum, wo
+  // wirklich eine Frist läuft — sonst rutscht die Zeile ans Ende, genau wie in
+  // der Liste (`compareFristAsc`, sort.ts).
   const verbundTvs = verbundId && verbundAllTvs ? (verbundAllTvs.get(verbundId) ?? [a]) : [a];
-  const deadline = computeVerbundFristDatum(verbundTvs, a) ?? undefined;
+  const gecacht = verbundId ? fristCache?.get(verbundId) : undefined;
+  const fristErgebnis = gecacht ?? criticalFristErgebnis(verbundTvs, nowMs);
+  if (verbundId && !gecacht) fristCache?.set(verbundId, fristErgebnis);
+  const laeuft = fristErgebnis.zustand === 'laeuft';
+  const deadline = laeuft ? fristErgebnis.zielDatum : undefined;
+  const fristTage = laeuft ? (fristErgebnis.tageRest ?? null) : null;
   const created = antragsdatum ?? a._updated_at;
   // Verbund-Titel (VB_TITEL) bevorzugt aus dem Verbund-Store ziehen. Wenn der
   // Verbund nicht gefunden wird oder das Titel-Feld leer ist, bleibt es
@@ -179,6 +201,8 @@ function antragToVorgangLike(
     created,
     modified: a._updated_at,
     deadline,
+    fristZustand: fristErgebnis.zustand,
+    fristTage,
     tags: [],
     notes: '',
     _isAntrag: true,
@@ -249,13 +273,14 @@ export function computeDashboardAggregate(
   // in `fristenDieseWoche`/`dringend` mehrfach gezaehlt. Solo-Antraege bleiben
   // einzeln.
   const seenFristVerbund = new Set<string>();
+  const fristCache = new Map<string, ReturnType<typeof criticalFristErgebnis>>();
   const offeneAntraege: AntragVorgang[] = [];
   if (options.includeAntraege) {
     for (const a of antraege) {
       if (!anyKuerzelSeen && antragHasAnyKuerzel(a)) anyKuerzelSeen = true;
       if (isIrrlaeufer(a.vb_phase)) continue;
       if (bearbeiterMode.active && !antragMatchesBearbeiter(a, bearbeiterMode)) continue;
-      const v = antragToVorgangLike(a, options.verbundById, verbundAllTvs);
+      const v = antragToVorgangLike(a, nowMs, options.verbundById, verbundAllTvs, fristCache);
       const kategorie = getStatusCategory(v.status);
       stats.total++;
       if (tallyKategorie(kategorie, stats)) continue;
@@ -271,7 +296,10 @@ export function computeDashboardAggregate(
       if (kategorie === 'begleitung') continue;
       offeneVorgaenge.push(v);
       offeneAntraege.push(v);
-      const dl = daysUntil(v.deadline, nowMs);
+      // Nur laufende Uhren sind Frist-Kandidaten. Ein angehaltener Vorgang hat
+      // keine Restzeit — eine erfundene sortierte ihn mitten unter die
+      // dringenden (dieselbe Regel wie `fristTageVon` in der Liste).
+      const dl = v.fristTage ?? null;
       if (dl !== null) {
         const fkKey = v.verbund_id ?? `solo:${a.aktenzeichen}`;
         if (!seenFristVerbund.has(fkKey)) {
@@ -294,15 +322,21 @@ export function computeDashboardAggregate(
     .sort((a, b) => b.modified.localeCompare(a.modified))
     .slice(0, 8);
 
-  // Sortierung: Frist primaer (frueheste Frist oben), VB-Phase als Tie-Breaker.
-  // Antraege ohne `deadline` (frist_datum nicht gepflegt) rutschen ans Ende
-  // durch den `￿`-Sentinel-Sort-Key.
+  // Sortierung: Restlaufzeit aufsteigend (knappste Frist oben), VB-Phase als
+  // Tie-Breaker. **Byte-gleich zu `compareFristAsc` der Liste** (sort.ts):
+  // Zeilen ohne laufende Uhr sinken ans Ende, statt mit einer errechneten
+  // Überfälligkeit die Spitze zu besetzen. Vier der zehn sichtbaren Zeilen
+  // waren bis v4.131 genau solche — abgelehnte und zurückgezogene Vorgänge, die
+  // die Zielseite nach dem Klick auf „Alle →" ganz unten führt.
   const sortedMeineAntraege = [...offeneAntraege]
     .sort((a, b) => {
-      const da = a.deadline ?? '￿';
-      const db = b.deadline ?? '￿';
-      const dCmp = da.localeCompare(db);
-      if (dCmp !== 0) return dCmp;
+      const da = a.fristTage ?? null;
+      const db = b.fristTage ?? null;
+      if (da !== db) {
+        if (da === null) return 1;
+        if (db === null) return -1;
+        return da - db;
+      }
       const pa = a.vb_phase ?? Number.POSITIVE_INFINITY;
       const pb = b.vb_phase ?? Number.POSITIVE_INFINITY;
       return pa - pb;

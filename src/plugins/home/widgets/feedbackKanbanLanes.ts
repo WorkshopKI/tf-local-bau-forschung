@@ -47,7 +47,12 @@ export interface FeedbackKanbanLaneDaten {
 
 export interface FeedbackKanbanLanesErgebnis {
   lanes: FeedbackKanbanLaneDaten[];
+  /** Summe der GEZEIGTEN Bahnen — „N Feedbacks" im Widget-Kopf. */
   gesamt: number;
+  /** Tickets in Status-Spuren, die dieses Widget nicht als Bahn führt (v4.131).
+   *  Ohne diese Zahl las sich die Kopfzahl als Gesamtzahl, obwohl z.B. die
+   *  Spur „Rückfrage" bei Bestands-Instanzen gar nicht konfiguriert ist. */
+  ausserhalb: number;
 }
 
 function zuKarte(t: FeedbackItem): FeedbackKanbanKarte {
@@ -81,11 +86,16 @@ export function buildFeedbackKanbanLanes(
 
   const cap = Math.max(1, maxKartenProLane);
   let gesamt = 0;
+  const gezeigt = new Set<FeedbackStatus>();
   const ergebnis = lanes.map(lane => {
     const alle = (proStatus.get(lane.status) ?? [])
       .slice()
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-    gesamt += alle.length;
+    // Eine doppelt konfigurierte Spur zählt nur einmal in `gesamt`.
+    if (!gezeigt.has(lane.status)) {
+      gesamt += alle.length;
+      gezeigt.add(lane.status);
+    }
     return {
       status: lane.status,
       spalten: lane.spalten,
@@ -93,7 +103,11 @@ export function buildFeedbackKanbanLanes(
       gesamt: alle.length,
     };
   });
-  return { lanes: ergebnis, gesamt };
+  let ausserhalb = 0;
+  for (const [status, karten] of proStatus) {
+    if (!gezeigt.has(status)) ausserhalb += karten.length;
+  }
+  return { lanes: ergebnis, gesamt, ausserhalb };
 }
 
 /**

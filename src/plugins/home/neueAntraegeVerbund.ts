@@ -16,6 +16,7 @@ import { CANONICAL_TITEL, type Klassifizierung, type AnonymerMitarbeiter } from 
 import {
   verbundKeyOf,
   resolveVerbundMeta,
+  hatBearbeiterKuerzel,
 } from '@/plugins/auslastung/services/verbund';
 import { matchesAntragstyp } from '@/plugins/auslastung/services/kapazitaet';
 import { formatFkzRange } from '@/plugins/antraege/antragGroups';
@@ -166,6 +167,18 @@ export function buildOffeneEintraege(
     // trägt. Sonst bietet die Home den Verbund weiter zur Vormerkung an.
     const verbundKey = verbundKeyOf(antrag);
     if (ctx.fremdVergebeneVerbundKeys?.has(verbundKey)) continue;
+    // **Trägt die CSV schon ein Bearbeiter-Kürzel, ist der Antrag vergeben**
+    // (v4.131). Das Modul kannte dieses Kriterium bereits — `istErledigt` prunt
+    // damit die eigenen Wünsche —, wandte es beim ANGEBOT aber nicht an: die
+    // Filter darüber decken nur ab, was über die APP zugewiesen wurde
+    // (`fremdVergebeneVerbundKeys`) bzw. was für MICH gebucht ist
+    // (`festAktenzeichen`). Ein Antrag, den die Fachseite direkt gekürzelt hat,
+    // stand weiter im Angebot — und zwei Leute merkten sich denselben vor.
+    //
+    // Ausnahme: ein mir zugewiesener Verbund bleibt stehen (als „zugewiesen"),
+    // bis das Auslastungs-Aggregat nachgezogen hat — sonst verschwände die
+    // eigene Zuweisung im Moment ihrer Bestätigung ohne ein Wort.
+    if (hatBearbeiterKuerzel(antrag) && !ctx.zugewiesenVerbundKeys?.has(verbundKey)) continue;
     // Optionaler Pool-Filter (z. B. Auslastungs-Verteil-Pool) — nur für den
     // „Weitere zuweisbare Anträge"-Block gesetzt, sonst alles durch.
     if (ctx.poolFilter && !ctx.poolFilter(antrag)) continue;

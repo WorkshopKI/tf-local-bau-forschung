@@ -31,6 +31,9 @@ import { useAntraegeStore } from '@/plugins/antraege/store';
 import { useBereich } from '@/core/hooks/useBereich';
 import { istImBereich } from '@/core/status/betrachtungsbereich';
 import { bearbeiterScopeLabel } from '@/plugins/antraege/bearbeiterFilter';
+import { useInaktiveKuerzelSet } from '@/plugins/auslastung/hooks/useInaktiveKuerzelSet';
+import { useShowInaktiveMasStore } from '@/plugins/antraege/useShowInaktiveMasStore';
+import type { StatusCategory } from '@/core/utils/status-canonical';
 import { getStatusCategoryLabel, istStatusCategory } from '@/core/utils/status-category-labels';
 import { useHomeWidgets } from './useHomeWidgets';
 import { WIDGET_KATALOG } from './widgetCatalog';
@@ -110,9 +113,15 @@ export function AntragKanbanWidget({ instanz, onToggleEingeklappt }: WidgetProps
     return () => { cancelled = true; };
   }, [cfg.presetId, activeProgrammId, storage.idb]);
 
+  // Inaktiv-Ausschluss wie im Dashboard und in der Zieltabelle (v4.131) — ohne
+  // ihn zählte das Kanban im „alle"-Modus Anträge mit, die die Liste ausblendet.
+  const inaktiveKuerzel = useInaktiveKuerzelSet();
+  const showInaktive = useShowInaktiveMasStore(s => s.showInaktive);
   const grundmenge = useMemo(
-    () => filtereKanbanGrundmenge(antraege, bearbeiterMode),
-    [antraege, bearbeiterMode],
+    () => filtereKanbanGrundmenge(antraege, bearbeiterMode, {
+      kuerzel: inaktiveKuerzel, zeigen: showInaktive,
+    }),
+    [antraege, bearbeiterMode, inaktiveKuerzel, showInaktive],
   );
 
   const basis = useMemo(
@@ -122,7 +131,7 @@ export function AntragKanbanWidget({ instanz, onToggleEingeklappt }: WidgetProps
     [grundmenge, presetZustand],
   );
 
-  const { lanes, gesamt } = useMemo(
+  const { lanes, gesamt, ausserhalb } = useMemo(
     () => buildAntragKanbanLanes(basis, cfg.lanes, cfg.maxKartenProLane),
     [basis, cfg.lanes, cfg.maxKartenProLane],
   );
@@ -137,13 +146,29 @@ export function AntragKanbanWidget({ instanz, onToggleEingeklappt }: WidgetProps
     [lanes, cfg.farbmodus],
   );
 
-  // „+ N weitere →" / „Alle" — bestehendes store-getriebenes Muster (kein
-  // eigener Routen-Mechanismus). Ziel ist immer die Voll-Liste: die Lanes
-  // binden an Status-Kategorien und dürfen eine `begleitung`-Lane führen,
-  // während `filtereKanbanGrundmenge` gar nicht nach Status filtert. In der
-  // Sicht „Antragsphase" fehlten genau diese Karten nach dem Klick.
-  const openListe = (): void => {
-    useAntraegeStore.getState().setActiveView('alle');
+  // „+ N weitere →" — **die Liste zeigt danach die Bahn, die den Klick trug**
+  // (v4.131). Die Sicht bleibt „Alle": die Lanes binden an Status-Kategorien und
+  // dürfen eine `begleitung`-Lane führen, während `filtereKanbanGrundmenge` gar
+  // nicht nach Status filtert — in der Sicht „Antragsphase" fehlten genau diese
+  // Karten nach dem Klick. Zusätzlich setzt der Klick jetzt den Status-Filter
+  // auf die Kategorie der Bahn: „+ 2 weitere" führte bis dahin in die
+  // ungefilterte Liste, in der die zwei gemeinten Vorgänge zwischen tausenden
+  // standen. Der Filter erzeugt einen sichtbaren, entfernbaren Chip
+  // (`chipActive` in AntraegeMain) — kein unsichtbar weiterfilternder Zustand.
+  //
+  // Der Ausschnitt liegt in einem transienten Store-Slot, NICHT in der
+  // Filter-Engine: `useFilterState.init()` läuft beim Mount der Zielseite und
+  // ersetzt `active` durch den persistierten Stand — ein vorher gesetzter
+  // Engine-Filter war im Moment der Navigation wieder weg (gemessen: die
+  // Status-Pille stand danach auf „Alle"). Dieselbe Bauart wie der
+  // Ampel-Quickfilter des Antragseingang-Widgets, inklusive Chip.
+  //
+  // Reihenfolge: erst `setActiveView` (das räumt die Quickfilter ab), dann der
+  // Ausschnitt — sonst nähme der Sicht-Wechsel ihn gleich wieder mit.
+  const openLane = (kategorie: StatusCategory): void => {
+    const store = useAntraegeStore.getState();
+    store.setActiveView('alle');
+    store.setKategorieQuickfilter(kategorie);
     navigate('antraege');
   };
 
@@ -230,8 +255,22 @@ export function AntragKanbanWidget({ instanz, onToggleEingeklappt }: WidgetProps
         instanz.eingeklappt
           ? <LanePills pills={pills} />
           : (
-            <span className="text-[12px] tabular-nums text-[var(--tf-text-tertiary)]">
+            // Die Zahl summiert die GEZEIGTEN Bahnen. Liegt etwas außerhalb,
+            // sagt der Zähler es — sonst liest sich ein Auszug als Gesamtzahl
+            // („25 Vorgänge", während 7 weitere in nicht geführten Kategorien
+            // liegen). Die Bahnen wählt man in den Widget-Einstellungen.
+            <span
+              className="text-[12px] tabular-nums text-[var(--tf-text-tertiary)]"
+              title={ausserhalb > 0
+                ? `${ausserhalb.toLocaleString('de-DE')} weitere Vorgänge liegen in Kategorien, die dieses Kanban nicht als Bahn führt.`
+                : undefined}
+            >
               {gesamt.toLocaleString('de-DE')} {gesamt === 1 ? 'Vorgang' : 'Vorgänge'}
+              {ausserhalb > 0 ? (
+                <span className="text-[var(--tf-text-tertiary)]">
+                  {' '}von {(gesamt + ausserhalb).toLocaleString('de-DE')}
+                </span>
+              ) : null}
             </span>
           )
       }
@@ -269,7 +308,12 @@ export function AntragKanbanWidget({ instanz, onToggleEingeklappt }: WidgetProps
           // Kein `nachladen`: hier wird nicht mehr DOM nachgeladen, sondern die
           // Ansicht gewechselt — die Kappung ist Datenlage (maxKartenProLane).
           fuss: lane.gesamt > lane.karten.length ? (
-            <button type="button" onClick={openListe} className="tfb-fuss">
+            <button
+              type="button"
+              onClick={() => openLane(lane.kategorie)}
+              title={`Öffnet die Förderanträge-Liste, gefiltert auf „${getStatusCategoryLabel(lane.kategorie)}"`}
+              className="tfb-fuss"
+            >
               + {lane.gesamt - lane.karten.length} weitere →
             </button>
           ) : undefined,

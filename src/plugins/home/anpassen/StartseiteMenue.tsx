@@ -203,9 +203,18 @@ function WidgetEinstellungen({ instanzId }: { instanzId: string }): React.ReactE
         className="mt-3.5 flex items-center justify-between gap-3 pt-2.5"
         style={{ borderTop: '0.5px solid var(--tf-border)' }}
       >
-        <span className="inline-flex items-center gap-1.5 text-[11px] text-[var(--tf-text-tertiary)]">
+        {/* **Die Zusage muss stimmen** (v4.131): `saveHomeWidgets` schreibt die
+            Config in die IndexedDB UND spiegelt sie über `savePersonalSettings`
+            in den persönlichen Ordner — damit die Anordnung auf einem zweiten
+            Rechner wieder da ist. „Nur lokal auf diesem Gerät" war schlicht
+            falsch; richtig ist: sie bleibt privat, den Daten-Share erreicht sie
+            nie (Guard `home-widgets-local-only`). */}
+        <span
+          className="inline-flex items-center gap-1.5 text-[11px] text-[var(--tf-text-tertiary)]"
+          title="Gespeichert auf diesem Gerät und in Ihrem persönlichen Ordner. Niemand sonst sieht diese Einstellung; auf dem geteilten Daten-Share landet sie nicht."
+        >
           <Lock size={11} className="shrink-0" aria-hidden />
-          nur lokal auf diesem Gerät
+          nur für Sie — nicht geteilt
         </span>
         <button
           type="button"
