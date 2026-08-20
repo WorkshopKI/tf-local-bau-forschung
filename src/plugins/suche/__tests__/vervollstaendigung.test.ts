@@ -313,6 +313,26 @@ describe('wert-index', () => {
     expect(vorschlaegeFuer(verdichteWertIndex(roh), 'standort', '').map(e => e.wert))
       .toEqual(['Aachen', 'Ölsnitz', 'Osnabrück', 'Überlingen', 'Zwickau']);
   });
+
+  it('schlägt am Namensfeld auch über die Fuge vor — aber zuletzt (v4.125)', () => {
+    // Die Liste muss finden, was die Suche darunter findet: `cannabisnet`
+    // liefert 60 Treffer, schlug aber keinen Wert vor.
+    const roh = leererWertIndexRoh();
+    for (const n of ['Cannabis-Net', 'CannabisNET', 'Netzwerk Cannabisnetz']) {
+      nimmWerte(roh, 'netzwerk', [n]);
+    }
+    expect(vorschlaegeFuer(verdichteWertIndex(roh), 'netzwerk', 'cannabisnet').map(e => e.wert))
+      // Wörtliche Treffer zuerst, der Fugen-Treffer dahinter.
+      .toEqual(['CannabisNET', 'Netzwerk Cannabisnetz', 'Cannabis-Net']);
+  });
+
+  it('lässt die übrigen Wertefelder unberührt', () => {
+    // Der Ort ist kein Namensfeld: „frankfurtam" bleibt ohne Vorschlag, sonst
+    // liefe die Liste hier über eine Wortgrenze, über die die Suche nicht läuft.
+    const roh = leererWertIndexRoh();
+    nimmWerte(roh, 'standort', ['Frankfurt am Main']);
+    expect(vorschlaegeFuer(verdichteWertIndex(roh), 'standort', 'frankfurtam')).toEqual([]);
+  });
 });
 
 describe('alsAnfrageWert', () => {

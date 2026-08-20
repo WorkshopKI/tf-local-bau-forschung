@@ -34,6 +34,9 @@
  * kein zweiter Lauf über 14 000 Anträge nötig ist.
  */
 import type { Trefferfeld } from '@/core/services/search/trefferstelle';
+import {
+  KERN_FELDER, nadelKern, namensKern, trifftNamensKern,
+} from '@/core/services/search/namensKern';
 
 /** Die Felder, deren Werte sich aufzählen lassen. */
 export type WertFeld = Extract<
@@ -214,11 +217,17 @@ export function netzwerkName(roh: string): string {
 /**
  * Die Vorschläge zu einem angefangenen Wert.
  *
- * Drei Ränge, und die Reihenfolge ist der ganze Punkt: wer „dre" tippt, meint
+ * Vier Ränge, und die Reihenfolge ist der ganze Punkt: wer „dre" tippt, meint
  * Dresden — nicht „Meiningen-Dreißigacker", das den Buchstaben ebenfalls
  * enthält. Also erst der Anfang des Wertes, dann der Anfang eines Wortes darin
  * („main" findet „Frankfurt am Main"), dann irgendwo. Innerhalb eines Rangs
  * gilt die alphabetische Ordnung, und die steht schon in der Liste.
+ *
+ * Der vierte Rang gilt nur an NAMENSfeldern (`KERN_FELDER`, seit v4.125) und
+ * steht ganz hinten: `cannabisnet` schlägt „Cannabis-Net" vor, aber nie vor
+ * einem Wert, der die Zeichenkette wörtlich trägt. Er hängt an derselben
+ * Feldmenge wie die Suche darunter — sonst schlüge die Liste etwas anderes vor,
+ * als die Anfrage findet.
  *
  * `max` ist optional: **ohne Deckel kommt alles**, und das ist der Normalfall
  * seit v4.88 — das Dropdown zeigt den ganzen Wertevorrat zum Durchblättern. Der
@@ -264,14 +273,23 @@ function sammlePassende(
   const anfang: WertEintrag[] = [];
   const wortAnfang: WertEintrag[] = [];
   const irgendwo: WertEintrag[] = [];
+  // Vierter, letzter Rang — nur für Namensfelder: was erst zusammenkommt, wenn
+  // man die Trennzeichen wegdenkt (`cannabisnet` → „Cannabis-Net"). Ohne ihn
+  // fände die Liste einen Namen nicht, den die Suche darunter sehr wohl
+  // findet — und der Wertevorrat ist genau der Ort, an dem man Namen sucht.
+  const ueberFuge: WertEintrag[] = [];
+  const kernQ = KERN_FELDER.has(feld) ? nadelKern(q, null) : '';
   for (const e of liste) {
     const klein = e.wert.toLowerCase();
     const pos = klein.indexOf(q);
-    if (pos < 0) continue;
+    if (pos < 0) {
+      if (kernQ.length > 0 && trifftNamensKern(klein, namensKern(klein), kernQ)) ueberFuge.push(e);
+      continue;
+    }
     if (pos === 0) anfang.push(e);
     else if (!/[\p{L}\p{N}]/u.test(klein[pos - 1] as string)) wortAnfang.push(e);
     else irgendwo.push(e);
   }
-  const alle = [...anfang, ...wortAnfang, ...irgendwo];
+  const alle = [...anfang, ...wortAnfang, ...irgendwo, ...ueberFuge];
   return max === undefined ? alle : alle.slice(0, max);
 }

@@ -13,7 +13,7 @@ MINOR — Nach dem Stern stand die Frage nach einem Abstandsmaß („meintest du
 - **Die Nadel muss an einem Wortanfang beginnen** — sonst fände `bona` das Netzwerk „lab on a chip"; über die 400 häufigsten Titelwörter ändern nur 5 Anfragen ihre Trefferzahl, um zusammen 12 Zeilen ([namensKern.ts](src/core/services/search/namensKern.ts))
 - **Nur die beiden Namensfelder**, nicht Titel/Abstract/Snippet: dort liefe die Faltung über einen Satzpunkt hinweg ([suchbereich.ts](src/core/services/search/suchbereich.ts) bleibt unberührt, `KERN_FELDER` zieht die Grenze)
 - **Der Kern liegt im Korpus vorberechnet** neben dem rohen Wert (+1 ms je Anfrage statt +8) und ist dieselbe Zeichenkette, wo der Wert keine Fuge trägt ([search-corpus.ts](src/plugins/antraege/services/search-corpus.ts))
-- **Die Fundstelle wird als ein Stück markiert**, Bindestrich eingeschlossen; die Suchsprache lehrt es mit einer ausführbaren Zeile ([markierung.ts](src/core/services/search/markierung.ts), [suchsprache.ts](src/plugins/suche/start/suchsprache.ts))
+- **Die Oberfläche zieht mit**: Fundstelle als ein Stück markiert (Bindestrich eingeschlossen), `nw:cannabisnet` schlägt „Cannabis-Net" vor (letzter Rang), eine ausführbare Zeile in der Suchsprache ([markierung.ts](src/core/services/search/markierung.ts), [wert-index.ts](src/plugins/antraege/services/wert-index.ts), [suchsprache.ts](src/plugins/suche/start/suchsprache.ts))
 
 ### v4.124.0 — Förderanträge: 100 Befunde der Bug-Jagd (Schnitt 2) behoben (August 2026)
 

@@ -1450,6 +1450,13 @@ rohen Wert — Zeichen für Zeichen durch beide Felder zu laufen kostete das
 Neunfache (8,4 statt 0,9 ms je Nadel). Trägt ein Wert keine Fuge, ist sein Kern
 **dieselbe Zeichenkette**: 9 454 der 14 222 Akronyme kosten damit kein Byte.
 
+**Die Vorschlagsliste hängt an derselben Feldmenge** (§ 9.1): `nw:cannabisnet`
+schlägt „Cannabis-Net" vor, als **vierter und letzter Rang** hinter allen
+Werten, die die getippte Zeichenkette wörtlich tragen. Ohne das schlüge die
+Liste etwas anderes vor, als die Anfrage darunter findet — der Wertevorrat ist
+gerade der Ort, an dem man einen Namen sucht, dessen Schreibweise man nicht
+kennt.
+
 **Die Fundstelle wird markiert** — `nafatech` zeichnet „NaFa-Tech" als EIN Stück
 aus, Bindestrich eingeschlossen. Das schaltet der Aufrufer (`alsName`), nicht
 der Text: derselbe Markierer zeichnet auch Titel und Snippet aus, und im Snippet
