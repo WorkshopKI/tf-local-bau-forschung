@@ -1,10 +1,20 @@
 /**
- * Registry-Änderungen-Widget (Home, Seitenspalte — Phase 4 v1.1, Kurator-only).
+ * Widget „Zuletzt geändert" (Home, Seitenspalte — Phase 4 v1.1, Kurator-only).
  *
  * Read-only + Navigation: zeigt die jüngsten Skill-/Regel-Änderungen der
  * geladenen Registry (Selektor registryAenderungen.ts — kein neues Journal).
  * Permanente Warn-Fußzeile: Aktivierungen sind sofort für ALLE Varianten live —
  * der wichtigste Betriebs-Invariant, dem Kurator täglich vor Augen.
+ *
+ * Hieß bis v4.133 „Registry-Änderungen" — ein Wort aus `registry.json`, das in
+ * der Oberfläche sonst nirgends vorkommt. Die Typ-Id `registry-aenderungen`
+ * bleibt: sie steht in persistierten Nutzer-Configs, ein Umbenennen verlöre
+ * jede bestehende Startseiten-Einstellung.
+ *
+ * Ein Klick öffnet GENAU den angeklickten Eintrag (`selectedId`) — Skill wie
+ * Regel, beide über dieselbe Route `/kuration/skill-verwaltung/<eintragId>`.
+ * Bis v4.133 landete er auf der Skills-Liste ohne Auswahl: die Deep-Link-Route
+ * war längst gebaut, nur rief sie niemand auf.
  */
 import { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, Pencil, Plus, Power, PowerOff, type LucideIcon } from 'lucide-react';
@@ -74,7 +84,7 @@ export function RegistryAenderungenWidget({ instanz, onToggleEingeklappt }: Widg
 
   return (
     <WidgetShell
-      titel="Registry-Änderungen"
+      titel="Zuletzt geändert"
       meta="Nur Kurator"
       variante="seite"
       eingeklappt={instanz.eingeklappt}
@@ -101,7 +111,7 @@ export function RegistryAenderungenWidget({ instanz, onToggleEingeklappt }: Widg
             <AenderungZeile
               key={z.key}
               aenderung={z}
-              onOpen={() => navigate('skill-verwaltung-kuration')}
+              onOpen={() => navigate('skill-verwaltung-kuration', { selectedId: z.id })}
               last={i === zeilen.length - 1}
             />
           ))}

@@ -19,6 +19,13 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.133 — 2026-08
+
+### Verbesserungen
+- **Die Karte „Registry-Änderungen" auf der Startseite heißt jetzt „Zuletzt geändert".** „Registry" war ein Wort aus dem Maschinenraum, das sonst nirgends in der App vorkommt.
+- **Ein Klick auf eine Zeile öffnet genau diesen Eintrag** — den Skill oder die Qualitätsregel, auf die Sie geklickt haben. Bisher landete man in der Skills-Liste und musste den Eintrag noch einmal suchen.
+- **Die Skill-Verwaltung hat einen Rückweg.** Über dem Titel steht „← Zurück zu Home" (oder zu der Seite, von der Sie kamen). Das X am Editor bedeutet weiterhin etwas anderes: es schließt nur den Editor.
+
 ## v4.132 — 2026-08
 
 ### Verbesserungen

@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { useParams, useSearchParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Search, Info } from 'lucide-react';
+import { SKILL_VERWALTUNG_ROUTE, herkunftJetzt, rueckwegAus } from '@/core/nav/herkunft';
+import { RueckwegLink } from '@/core/nav/RueckwegLink';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { useSichtbareReiter } from '@/core/hooks/useSichtbar';
 import { Button } from '@/components/ui/button';
@@ -121,6 +123,7 @@ interface Testlauf { skill: SkillRecord; regeln: QualitaetsRegel[]; hinweis: str
 const ALLE_TAB_IDS: TabId[] = ['skills', 'regeln', 'workflows', 'textbausteine', 'eval'];
 
 export function SkillVerwaltungPage(): React.ReactElement {
+  const routerNavigate = useNavigate();
   const reg = useSkillRegistry();
   const agg = useSkillAggregat();
   const [tab, setTab] = useState<TabId>('skills');
@@ -147,22 +150,48 @@ export function SkillVerwaltungPage(): React.ReactElement {
   // `guard.guardLeave`; bei ungespeicherten Änderungen erscheint die Nachfrage.
   const guard = useEditorLeaveGuard();
 
-  // Deep-Link (Provenienz aus dem Gutachten-Flow): `/kuration/skill-verwaltung/<skillId>`
-  // öffnet den passenden Skill-Editor, sobald die Registry geladen ist.
-  const { skillId: routeSkillId } = useParams<{ skillId?: string }>();
+  // Deep-Link `/kuration/skill-verwaltung/<eintragId>` — Provenienz aus dem
+  // Gutachten-Flow und Klickziel des Startseiten-Widgets „Zuletzt geändert".
+  //
+  // Der Eintrag kann ein Skill ODER eine Qualitätsregel sein: das Widget führt
+  // beide gleichrangig, und ein Klick, der nur die Hälfte seiner Zeilen öffnet,
+  // wäre schlechter als gar keiner. Erst in den Skills nachsehen, dann in den
+  // Regeln: die Namensräume überschneiden sich nicht (`gutachten-*`/`zim-*` gegen
+  // `nf-*`/`seed-*`, neu Angelegtes eine UUID), die Reihenfolge entscheidet also
+  // nichts — macht das Verhalten aber deterministisch, falls doch je eine ID in
+  // beiden Sammlungen steht. Der jeweilige Reiter wird mitgesetzt, sonst zeigte
+  // die Liste neben dem Editor eine andere Sammlung als der Editor.
+  const { eintragId: routeEintragId } = useParams<{ eintragId?: string }>();
   const [searchParams] = useSearchParams();
   const deepLinkRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!routeSkillId || !reg.file) return;
-    if (deepLinkRef.current === routeSkillId) return;
-    const skill = reg.file.skills.find(s => s.id === routeSkillId);
+    if (!routeEintragId || !reg.file) return;
+    if (deepLinkRef.current === routeEintragId) return;
+    const skill = reg.file.skills.find(s => s.id === routeEintragId);
     if (skill) {
-      deepLinkRef.current = routeSkillId;
+      deepLinkRef.current = routeEintragId;
       const initialView = searchParams.get('view') === 'versionen' ? 'versionen' : 'bearbeiten';
       setTab('skills');
       setDetail({ art: 'skill', skill, isNew: false, initialView });
+      return;
     }
-  }, [routeSkillId, reg.file, searchParams]);
+    const regel = reg.file.regeln.find(r => r.id === routeEintragId);
+    if (regel) {
+      deepLinkRef.current = routeEintragId;
+      setTab('regeln');
+      setDetail({ art: 'regel', regel, isNew: false });
+    }
+  }, [routeEintragId, reg.file, searchParams]);
+
+  // Rückweg zur Herkunft (siehe `core/nav/herkunft.ts`) — wer aus dem Widget
+  // „Zuletzt geändert" kam, soll auch dorthin zurückkommen.
+  //
+  // EINMAL beim Mount gelesen, nicht bei jedem Render wie auf der Antragsseite:
+  // deren Detail-Routen werden nie gemerkt, die FLACHE Route dieser Seite ist
+  // dagegen eine echte Station. Die NavigationBridge schreibt sie direkt nach dem
+  // ersten Render als Herkunft — frisch gelesen verschwände der Knopf beim ersten
+  // Re-Render (ein Tastendruck in der Suche genügt).
+  const [rueckweg] = useState(() => rueckwegAus(herkunftJetzt(), SKILL_VERWALTUNG_ROUTE));
 
   // Beta/Experte: „Textbausteine" ist als Beta vorbelegt. Der Hook läuft über
   // die reinen Reiter-Schlüssel und MUSS vor dem Lade-Return stehen — die
@@ -402,6 +431,14 @@ export function SkillVerwaltungPage(): React.ReactElement {
           `hilfe-knopf-am-blattrand`). */}
       <div className="shrink-0 pt-4 pb-0" style={{ borderBottom: '0.5px solid var(--tf-border)' }}>
         <div className="px-8">
+          {/* Brotkrume über dem Titel — zwei verschiedene Aussagen: „zurück, wo
+              ich herkam" hier, „Editor schließen" im X des `DetailKopf`. Der
+              Rückweg bleibt also stehen, wenn das Detail geschlossen wird. */}
+          {rueckweg && (
+            <div className="mb-1">
+              <RueckwegLink label={rueckweg.label} onClick={() => routerNavigate(rueckweg.route)} />
+            </div>
+          )}
           <div className="mb-3 flex items-start gap-3">
             <div className="min-w-0">
               <h1 className="text-[22px] font-medium text-[var(--tf-text)] leading-tight">Skill-Verwaltung</h1>

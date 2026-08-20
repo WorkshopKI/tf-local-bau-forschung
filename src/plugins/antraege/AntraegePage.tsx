@@ -15,7 +15,7 @@ import {
   serializeCollapsedFlag,
   shouldShowList,
 } from './listCollapse';
-import { detailSchliessenZiel, herkunftJetzt, rueckwegAus } from '@/core/nav/herkunft';
+import { ANTRAEGE_ROUTE, detailSchliessenZiel, herkunftJetzt, rueckwegAus } from '@/core/nav/herkunft';
 import { antragDetailPfad } from './detailPfad';
 import { EinklappIcon } from '@/components/ui/EinklappIcon';
 
@@ -72,7 +72,7 @@ export function AntraegePage(): React.ReactElement {
   // stehen. Bei jedem Render frisch gelesen: sie ändert sich nur beim
   // Navigieren, und dann rendert diese Seite ohnehin neu.
   const herkunft = herkunftJetzt();
-  const rueckweg = rueckwegAus(herkunft);
+  const rueckweg = rueckwegAus(herkunft, ANTRAEGE_ROUTE);
   const closeDetail = (): void => navigate(detailSchliessenZiel(herkunft));
   const openAntrag = (az: string): void => navigate(antragDetailPfad({ aktenzeichen: az }));
 

@@ -159,7 +159,11 @@ export const WIDGET_KATALOG: Record<WidgetTyp, WidgetKatalogEintrag> = {
   },
   'registry-aenderungen': {
     typ: 'registry-aenderungen',
-    label: 'Registry-Änderungen',
+    // Die Karte selbst heißt kurz „Zuletzt geändert" — dort nennt jede Zeile den
+    // Gegenstand („Skill …", „Regel …"). In dieser Liste steht das Label allein
+    // zwischen „Notizen" und „Auslastung" und braucht den Zusatz.
+    // Die Typ-Id bleibt `registry-aenderungen`: sie ist in Nutzer-Configs persistiert.
+    label: 'Zuletzt geändert: Skills & Regeln',
     icon: BookMarked,
     bereich: 'seite',
     verfuegbar: true,

@@ -111,4 +111,19 @@ describe('Katalog-Verankerung (Nur Kurator)', () => {
     expect(e.hinweisBadge).toBe('Nur Kurator');
     expect(e.defaultConfig()).toEqual({ art: 'registry-aenderungen', maxEintraege: 3 });
   });
+
+  /**
+   * Die Karte heißt seit v4.133 „Zuletzt geändert" — die Typ-Id blieb.
+   *
+   * Sie steht in den persistierten Startseiten-Configs der Nutzer (kv
+   * `home-widgets-config`) und in `defaultConfig().art`. Wer sie beim Umbenennen
+   * des Labels „mitzieht", macht jede bestehende Instanz zu einem unbekannten
+   * Typ: das Widget verschwindet von der Startseite, und die Einstellung, die es
+   * zurückholen würde, zeigt auf einen Typ, den es nicht mehr gibt.
+   */
+  it('die Typ-Id überlebt jede Umbenennung des Labels', () => {
+    const e = WIDGET_KATALOG['registry-aenderungen'];
+    expect(e.typ).toBe('registry-aenderungen');
+    expect(e.defaultConfig().art).toBe('registry-aenderungen');
+  });
 });

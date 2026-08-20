@@ -9,6 +9,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
   ANTRAEGE_ROUTE,
+  SKILL_VERWALTUNG_ROUTE,
   detailSchliessenZiel,
   herkunftJetzt,
   istDetailRoute,
@@ -40,6 +41,17 @@ describe('istDetailRoute', () => {
     expect(istDetailRoute('/vorgangs-board')).toBe(false);
     expect(istDetailRoute('/suche')).toBe(false);
   });
+
+  // v4.133: zweiter Wirt. Ohne diese Regel merkte sich die App den Deep-Link des
+  // Widgets „Zuletzt geändert" als Station — der Rückweg böte dann „Zurück zur
+  // Skill-Verwaltung", während man auf ihr steht.
+  it('zählt auch den Deep-Link der Skill-Verwaltung zum Detail', () => {
+    expect(istDetailRoute(`${SKILL_VERWALTUNG_ROUTE}/2f1c-…-9ab`)).toBe(true);
+    // Die flache Route ist die LISTE und bleibt eine echte Station.
+    expect(istDetailRoute(SKILL_VERWALTUNG_ROUTE)).toBe(false);
+    // Der Kurations-Hub darüber ist keine Detail-Route der Skill-Verwaltung.
+    expect(istDetailRoute('/kuration')).toBe(false);
+  });
 });
 
 describe('merkeSeite', () => {
@@ -61,6 +73,12 @@ describe('merkeSeite', () => {
     expect(herkunftJetzt()).toEqual({ route: '/vorgangs-board', label: 'Vorgangs-Board' });
   });
 
+  it('übergeht den Skill-Deep-Link — die Startseite bleibt der Rückweg', () => {
+    merkeSeite('/', 'Home');
+    merkeSeite(`${SKILL_VERWALTUNG_ROUTE}/2f1c-…-9ab`, 'Skill-Verwaltung');
+    expect(herkunftJetzt()).toEqual({ route: '/', label: 'Home' });
+  });
+
   it('merkt nichts ohne Namen', () => {
     merkeSeite('/irgendwo', '');
     expect(herkunftJetzt()).toBeNull();
@@ -80,18 +98,30 @@ describe('herkunftJetzt — toleranter Leser', () => {
 
 describe('rueckwegAus', () => {
   it('gibt Route und Seitennamen weiter — der Pfeil macht daraus den Satz', () => {
-    expect(rueckwegAus({ route: '/suche', label: 'Suche' }))
+    expect(rueckwegAus({ route: '/suche', label: 'Suche' }, ANTRAEGE_ROUTE))
       .toEqual({ route: '/suche', label: 'Suche' });
   });
 
   it('bietet keinen Knopf ohne Herkunft', () => {
-    expect(rueckwegAus(null)).toBeNull();
+    expect(rueckwegAus(null, ANTRAEGE_ROUTE)).toBeNull();
   });
 
   it('bietet keinen Knopf für die Förderanträge-Liste selbst', () => {
     // Die Liste steht neben dem Detail, und das X führt ohnehin dorthin.
-    expect(rueckwegAus({ route: '/antraege', label: 'Förderanträge' })).toBeNull();
-    expect(rueckwegAus({ route: '/antraege?x=1', label: 'Förderanträge' })).toBeNull();
+    expect(rueckwegAus({ route: '/antraege', label: 'Förderanträge' }, ANTRAEGE_ROUTE)).toBeNull();
+    expect(rueckwegAus({ route: '/antraege?x=1', label: 'Förderanträge' }, ANTRAEGE_ROUTE)).toBeNull();
+  });
+
+  // Die Sonderregel von oben ist seit v4.133 die allgemeine: jeder Wirt nennt
+  // seine eigene Route. Ein Knopf „Zurück zur Skill-Verwaltung" auf der
+  // Skill-Verwaltung täte nichts.
+  it('schweigt für die eigene Route, antwortet für eine fremde', () => {
+    const eigen = { route: SKILL_VERWALTUNG_ROUTE, label: 'Skill-Verwaltung' };
+    expect(rueckwegAus(eigen, SKILL_VERWALTUNG_ROUTE)).toBeNull();
+    // Dieselbe Herkunft ist für einen ANDEREN Wirt ein gültiger Rückweg.
+    expect(rueckwegAus(eigen, ANTRAEGE_ROUTE)).toEqual(eigen);
+    expect(rueckwegAus({ route: '/', label: 'Home' }, SKILL_VERWALTUNG_ROUTE))
+      .toEqual({ route: '/', label: 'Home' });
   });
 });
 

@@ -2,6 +2,156 @@
 
 Ältere Versionsblöcke (append-only, chronologisch absteigend). Die jüngsten Versionen stehen im Root-[CHANGELOG.md](../CHANGELOG.md). Bump-Regeln + Architektur: [CLAUDE.md](../CLAUDE.md).
 
+### v4.94.0 — Ein Klick auf die laufende Richtlinie (August 2026)
+
+MINOR — Gewünscht: eine Kurzwahl für „nur die aktuell gültige Richtlinie". Bisher kostete das acht Häkchen — und landete in „eigene Auswahl", inklusive Abweichungs-Notiz. Eine so gesetzte Liste veraltet außerdem still: sie zeigt beim nächsten Richtlinien-Wechsel weiter auf die Programme von 2025.
+
+- **Dritte Kurzwahl „Aktuelle Richtlinie"** im Bereichs-Popover, zwischen Standard-Bereich und Alle Richtlinien ([BereichPanel.tsx](src/components/bereich/BereichPanel.tsx))
+- **Eine eigene Stufe, keine vorgesetzte Häkchen-Liste**: `aktuell` leitet seine Programme aus `RICHTLINIEN_GENERATIONEN.slice(-1)` ab und folgt einem Richtlinien-Wechsel von selbst ([betrachtungsbereich.ts](src/core/status/betrachtungsbereich.ts), [vorgangssystem.md §10.1](docs/architecture/vorgangssystem.md))
+- **Der Chip nennt das Jahr** statt „letzte Richtlinie" — die Satzform gab es schon für einzelne Generationen („Anzeige: Richtlinie 2015"), sie gilt jetzt auch für die jüngste
+- **In beiden Chips**, weil das Panel geteilt ist: Arbeitsvorrat („Anzeige: Richtlinie 2025") und Suche („Treffer: Richtlinie 2025")
+- Gemessen in `dev:local` an 14.225 Anträgen: Standard-Bereich blendet **1.866** aus, die neue Kurzwahl **11.688**; die Wahl überlebt den Reload, der Grundzustand bleibt unberührt
+
+### v4.93.0 — Der Netzwerkantrag traegt den Namen seines Netzwerks (August 2026)
+
+MINOR — Gemeldet: „das Netzwerk selbst wird nicht gefunden, es werden nur die FuE-Anträge aus dem Netzwerk gefunden — und im Antragstyp auf NW umschalten geht nicht, der ist leer." Beides stimmte: `nw:<name>` fand nie den Netzwerkantrag. Kein Datenfehler, sondern strukturell — die Spalte `NETZWERKNA` führen nur die Teilvorhaben, der Netzwerkantrag lässt sie leer, weil er das Netzwerk IST.
+
+- **Der Netzwerkantrag bekommt den Namen seines Netzwerks** — aus dem `NETZWERKNA` seiner Mitglieder, ersatzweise aus dem eigenen Akronym ([netzwerk-leads.ts](src/plugins/antraege/services/netzwerk-leads.ts), [suche-relevanz.md §11](docs/architecture/suche-relevanz.md))
+- **Gemessen an 1.775 Netzwerkanträgen**: 1.306 aus den Mitgliedern, 468 aus dem Akronym, **einer** bleibt namenlos — geraten wird nicht ([netzwerkLeads.test.ts](src/plugins/antraege/__tests__/netzwerkLeads.test.ts))
+- **Der Tippfehler wird nicht weggewaschen**: bei mehreren Schreibweisen gewinnt die häufigste (29 `mobiInspec` gegen 1 `mobilnspec`), beide bleiben einzeln auffindbar
+- **Der Nachlauf läuft im Speicher** über die schon geladenen Sätze — der Cursor-Walk über die IDB bleibt ein Durchgang ([search-corpus.ts](src/plugins/antraege/services/search-corpus.ts))
+- Wirkung, gemessen in `dev:local`: `nw:mobiInspec` **29 → 32**, Antragstyp-Facette **FuE 29 · NW 3**, Vorschlagszahl wieder deckungsgleich mit dem Ergebnis
+
+### v4.92.0 — Die Kuerzel-Zeile fuehrt nur, was auch entschieden wird (August 2026)
+
+MINOR — Gemeldet: die Pflege der Kürzel falle schwer, zu viele neue Begriffe — klar sei nur „wird gesetzt von". Die Messung der Fassung 23 gegen die Auslieferung erklärt beides: an Ordner und Prominenz wurde in 23 Fassungen **keine einzige** Änderung vorgenommen (sie kommen richtig aus der Zuarbeit), und die ZAH-Phase kann für 91 % der Kürzel gar keine Antwort haben. Drei Auswahlfelder in 509 Zeilen waren vor allem eines: eine Aufforderung.
+
+- **Die Zeile führt nur noch, was hier entschieden wird** — Ordner, Prominenz und Verfahrensschritt stehen in der Klappe der Zeile, mit ihrer Herkunft dabei ([FelderTab.tsx](src/plugins/status-cockpit/FelderTab.tsx))
+- **Die Klappe ist immer erreichbar** statt nur bei vorhandener Trigger-Wirkung — sonst sähen die übrigen Zeilen aus, als hätten sie nichts zu zeigen ([FelderTab.tsx](src/plugins/status-cockpit/FelderTab.tsx))
+- **„Welches Datum speist einen Schritt?" steht am Schritt** statt am Kürzel; über dem Baum werden ungedeckte Schritte **namentlich** genannt ([phasenDatumsfelder.ts](src/plugins/status-cockpit/phasenDatumsfelder.ts), [PhasenDetail.tsx](src/plugins/status-cockpit/PhasenDetail.tsx))
+- **Gezählt wird nur, was wirkt**: ein stillgelegtes oder als `ignoriert` ausgeblendetes Kürzel deckt keinen Schritt ([phasenDatumsfelder.test.ts](src/plugins/status-cockpit/__tests__/phasenDatumsfelder.test.ts))
+- **Prominenz `meilenstein` heißt „Hauptereignis"** — das Wort gehört dem Meilenstein-Plan; der Bezeichner bleibt, ein Test hält die Beschriftung ([labels.ts](src/plugins/status-cockpit/labels.ts), [status-achsen.md](docs/architecture/status-achsen.md))
+
+### v4.91.0 — Die Suche waehlt ihre Richtlinien selbst (August 2026)
+
+MINOR — Gefragt: „können wir bei der Suche eine Richtlinienauswahl machen wie bei den Förderanträgen, damit der User leicht alte Richtlinien ausblenden kann?" Der Betrachtungsbereich stand dafür nicht zur Verfügung: er schneidet den Arbeitsvorrat und steht auf „letzte 3 Richtlinien" — die Suche muss im Grundzustand alles finden. Zwei Fragen, also zwei Speicher, aber eine Bedienung.
+
+- **Chip „Treffer: alle Richtlinien" über der Trefferliste** — gemerkte, gerätelokale Auswahl mit demselben Panel wie auf den Förderanträgen ([richtlinienWahl.ts](src/plugins/suche/richtlinienWahl.ts), [suche-relevanz.md §10](docs/architecture/suche-relevanz.md))
+- **Ein Bauteil statt zweier Abschriften**: Speicher, Chip und Panel sind geteilt, verschieden sind nur Grundzustand und Präfix ([bereichsStore.ts](src/core/hooks/bereichsStore.ts), [BereichAuswahlChip.tsx](src/components/bereich/BereichAuswahlChip.tsx))
+- **Alle Zahlen folgen der Auswahl** — Facetten, Vorschläge, Startzustand und Kein-Treffer-Auswege; der Korpus führt dafür die `unterprogrammId` mit ([useKorpusZahlen.ts](src/plugins/suche/useKorpusZahlen.ts))
+- **Der Kein-Treffer-Zustand bietet „alle Richtlinien einbeziehen"** mit der echten Zahl — eigener Ausweg, damit „Filter entfernen" die gemerkte Wahl nicht mit wegräumt ([auswege.ts](src/plugins/suche/auswege.ts))
+- **Das Panel zeigt in der Stufe „alle" jetzt alle 16 Programme** statt zwölf angehakter bei sechzehn geltenden ([BereichPanel.tsx](src/components/bereich/BereichPanel.tsx))
+
+### v4.90.0 — Die Arbeitsliste haengt am Code, nicht am Verfahrensschritt (August 2026)
+
+MINOR — Gefragt: „wir haben Kürzel, Stati, Phasen und Meilensteine — ist das zu kompliziert?" Nicht die Anzahl war das Problem, sondern dass eine unserer Erfindungen eine andere heimlich steuerte: die Arbeitsliste hing an der kuratierbaren ZAH-Phase. Genau so verschob Katalog-Fassung 19 unbemerkt 448 Anträge zwischen Reitern; die Reparatur von damals war eine Ausnahmeliste, also ein vierter Mechanismus statt der Abschaffung der Kopplung.
+
+- **`kategorieVorgabe` entfällt** — die Arbeitsliste hängt für alle 26 Codes am Statuscode; kein Phasenschnitt kann sie mehr verschieben ([kategorie-ableitung.ts](src/core/status/kategorie-ableitung.ts), [zah-phasen.ts](src/core/status/zah-phasen.ts))
+- **Der Wächter `status-category-not-curated` ist absolut**: kein Fassungs-Typ trägt mehr eine `StatusCategory`, weder einzeln noch als Liste ([conventions-status.test.ts](src/__tests__/conventions-status.test.ts))
+- **Fünf Codes waren zwischen `prod` und `pl` uneinig** (32/72/75/90/91, gemessen an 64.385 Zeilen); die gelebte Fassung 23 gewinnt, `prod` zieht nach ([status-achsen.md](docs/architecture/status-achsen.md))
+- **Ein Fristen-Widget statt zweier** — Zieltage und Meilenstein-Sollwochen in einer Liste, jede Zeile nennt ihre Herkunft ([fristAnlaesse.ts](src/plugins/home/widgets/fristAnlaesse.ts), [FristenWidget.tsx](src/plugins/home/widgets/FristenWidget.tsx))
+- **Neuer Reiter „Ebenen" im Status-Cockpit** — die Karte mit Live-Zahlen: was aus C16 kommt, was wir darüber legen, wer was pflegt ([ebenenModell.ts](src/plugins/status-cockpit/ebenenModell.ts))
+
+### v4.89.0 — eine Frage wird beantwortet, nicht zweimal gestellt (August 2026)
+
+MINOR — Gemeldet: „der User will eine Frage beantwortet haben (und sehen, wonach gesucht wird)". Bisher endete der Frage-Modus bei der Trefferliste; daneben ging das Assistenten-Panel auf, trug dieselbe Frage im Feld und wartete auf eine zweite Absendung — die dann über 40 von 663 Treffern antwortete. Zwei Absendungen für eine Frage, und die zweite sah 6 % der Menge.
+
+- **Die Antwort steht als Karte über der Trefferliste** und läuft von selbst — mit Fortschritt, anklickbaren Kennzeichen und dem Hinweis, dass die Zahlen gezählt und der Text formuliert ist ([antwort/](src/plugins/suche/antwort/))
+- **Sie steht auf einem Befund über ALLE Treffer**, nicht auf 40 Zeilen: Relevanzverteilung, Fundstellen, Jahre, Länder, Orte — und wie viele Treffer **alle** gefragten Themen tragen ([frageBefund.ts](src/plugins/suche/frageBefund.ts))
+- **`abdeckung` reist am Treffer mit** — gerechnet wurde sie immer, sie verschwand nur im `score` ([search-result.ts](src/core/types/search-result.ts))
+- **Der Antwort-Lauf darf keine eigenen Mengen behaupten** und muss jede Aussage über ein Vorhaben mit FKZ belegen; er läuft nur intern, einmal, ohne Retry ([frageantwort-lauf.ts](src/core/services/search/frageantwort-lauf.ts))
+- **Das Panel geht nicht mehr ungefragt auf** ([SuchSeite.tsx](src/plugins/suche/SuchSeite.tsx)); gemerkte Suchen und ihr Menü ziehen aus der Seite aus ([useGespeicherteSuchen.ts](src/plugins/suche/useGespeicherteSuchen.ts), [GespeicherteSuchenMenu.tsx](src/plugins/suche/GespeicherteSuchenMenu.tsx))
+
+### v4.88.0 — die Vorschlagsliste zeigt alle Werte, von A bis Z (August 2026)
+
+MINOR — Gemeldet: „die Suchvorschläge sollten alphabetisch sein" — und auf Nachfrage „können wir nicht alle nw anzeigen?". Die Häufigkeits-Sortierung beantwortete bisher nur, WELCHE 50 von 1.243 zu sehen sind; zeigt die Liste alle, wird die Frage gegenstandslos. Die alphabetische Ordnung holte dabei zwei Fehlstände ans Licht, die vorher nur weit unten standen.
+
+- **Alle Werte, alphabetisch** — kein Deckel, keine Fußzeile „50 von 1.243" mehr ([wert-index.ts](src/plugins/antraege/services/wert-index.ts), [vervollstaendigung.ts](src/plugins/suche/vervollstaendigung.ts))
+- **Die Liste kommt in Stufen zu 200** — sonst blockiert ein Tastendruck bei `ast:` gemessen 1.338 ms; jetzt 51 ms mit 200 Zeilen sofort ([SearchInput.tsx](src/plugins/suche/SearchInput.tsx))
+- **Trefferzahlen nur fürs Sichtfenster**, nachgerechnet beim Scrollen — sonst ~80 s Probeläufe; gemeldet über Scroll-Geometrie, weil ein `IntersectionObserver` im nicht dargestellten Fenster nie feuert ([useProbeZahlen.ts](src/plugins/suche/useProbeZahlen.ts), [SearchSuggestions.tsx](src/plugins/suche/SearchSuggestions.tsx))
+- **25 Netzwerkwerten fehlt ein Anführungszeichen** — sie standen alphabetisch als Bruchstücke ganz vorn; das Paar bleibt die erste Regel, weil es nicht immer vorn steht ([wert-index.ts](src/plugins/antraege/services/wert-index.ts))
+- **80 Netzwerke standen in zwei Schreibweisen** (`3D-Fab`/`3D-FAB`) — jetzt eine Zeile mit der häufigeren; behob nebenbei 688 React-Warnungen wegen doppelter Schlüssel
+
+### v4.87.0 — der Assistent scrollt sich selbst, nicht die Seite (August 2026)
+
+MINOR — Drei Meldungen aus dem Test am selben Panel: eine doppelte Scrollleiste rechts, deren äußere die ganze Seite wegscrollte; ein Eingabefeld, das zwei Zeilen zeigte und den Rest abschnitt; und vier Beispiel-Chips, die Fähigkeiten versprachen, die der Assistent noch nicht hat.
+
+- **Die zweite Scrollleiste ist weg** — der Trefferliste fehlte `relative`, ihre absolut positionierten Nachfahren hingen deshalb am Seiten-Scroller des Shells statt an ihr; gemessen 10 px → 0 px äußere Leiste, innere unverändert ([SuchSeite.tsx](src/plugins/suche/SuchSeite.tsx))
+- **Das Mausrad bleibt im Panel**: `overscroll-behavior: contain` an der Nachrichtenliste, und der Leerzustand ist selbst ein Scroll-Container statt gar keiner ([chat.css](src/plugins/chat/chat.css))
+- **Das Eingabefeld wächst bis fünf Zeilen und ist danach ziehbar** — gemessen 111 px bei 5 Zeilen, ab der sechsten scrollt es intern; die gezogene Höhe wirkt als Mindesthöhe ([useAutoGrow.ts](src/core/hooks/useAutoGrow.ts), [autoGrowHoehe.ts](src/core/utils/autoGrowHoehe.ts))
+- **Der Zeilendeckel steht einmal statt zweimal** — er wird aus der gerenderten Zeilenhöhe gerechnet; die zwei alten `200`-Konstanten meinten fünf Zeilen und waren neun ([Composer.tsx](src/plugins/chat/components/Composer.tsx))
+- **Die vier Beispiel-Chips im Such-Panel entfallen** ([EmptyState.tsx](src/plugins/chat/components/EmptyState.tsx)); die kontextgebundenen Quick-Actions des Shell-Docks bleiben — die werden beantwortet
+
+### v4.86.1 — Der Export nimmt den Stand vom Bildschirm (August 2026)
+
+PATCH — Beide Exporte der Vorgangs-Regeln lasen `aktiveVersion`, während der Baum daneben den Entwurf zeigt. Bei ungesichertem Stand lieferten sie lautlos etwas anderes aus als das, worauf der Nutzer sah: „Phasen exportieren" schrieb den alten Schnitt, der Import am Zielort meldete korrekt Erfolg — und die Kuratierung kam trotzdem nicht an. Zwei Symptome, eine Wurzel.
+
+- **Beide Exporte nehmen den Entwurf**, also den Stand auf dem Bildschirm ([useStatusCockpit.ts](src/plugins/status-cockpit/useStatusCockpit.ts))
+- **Ungespeicherter Stand heißt `…-entwurf.json`** — die Fassungsnummer allein wäre eine Zusage, die der Inhalt nicht hält ([katalogExport.ts](src/plugins/status-cockpit/katalogExport.ts))
+- **Zweiter, unabhängiger Grund**: wo niemand speichern darf, gäbe es sonst gar keinen Weg, den gesehenen Stand herauszubekommen ([status-achsen.md](docs/architecture/status-achsen.md))
+- **Guard hält beide Griffe am Entwurf** und beide Dateinamen am einen Helfer ([katalogExport.test.ts](src/plugins/status-cockpit/__tests__/katalogExport.test.ts))
+
+### v4.86.0 — die Frage-Suche zeigt, wie eine Frage aussieht (August 2026)
+
+MINOR — Wer im Test auf „Suche mit: einer Frage" umschaltete, stand vor einem leeren Feld und musste selbst erraten, wie eine Frage aussehen darf, die diese Suche beantwortet. Der Reiter „Fragen" beantwortet genau das und blieb ungesehen. Dazu zwei Meldungen am selben Ablauf: der Hinweis unter dem Feld brach immer um, und Normen-Kürzel wie „DIN" fielen aus jedem Frageplan heraus.
+
+- **Umschalten auf „einer Frage" öffnet den Reiter „Fragen"** — Wunsch mit `nonce`, der die gemerkte Reiterwahl NICHT überschreibt ([SuchSeite.tsx](src/plugins/suche/SuchSeite.tsx), [SucheStartzustand.tsx](src/plugins/suche/SucheStartzustand.tsx))
+- **Fünf Beispielfragen statt drei** — je eine Form, die ein Frageplan ausdrücken kann; Zeitraum und Bearbeitungsstand hatten bis dahin kein Beispiel ([StartFragen.tsx](src/plugins/suche/start/StartFragen.tsx))
+- **Der Hinweis „Noch nicht gestellt …" ist einzeilig** — 149 statt 211 Zeichen; am gerenderten `<span>` gemessen, einzeilig bei 1000/1280/1600 px ([SuchSeite.tsx](src/plugins/suche/SuchSeite.tsx))
+- **Normen-Kürzel kommen MIT Kontext statt gar nicht** („din en", „iso 9001", „din-norm"); `MIN_NADEL_LEN` bleibt bei 4, weil „din" sonst „bedingt" träfe ([frageplan.ts](src/core/services/search/frageplan.ts))
+- **Panel-Geometrie zieht aus der Suchseite aus** ([useAssistentPanel.ts](src/plugins/suche/useAssistentPanel.ts)) — sie beantwortet eine andere Frage als der Suchlauf; `assistentPanel.ts` bleibt React-frei
+
+### v4.85.7 — der Rueckweg nennt die Seite im Dativ (August 2026)
+
+PATCH — Der Rückweg im Antrags-Detail setzte seit v4.85.2 einheitlich „Zurück zu <Seite>" — für die halbe Navigation falsches Deutsch („Zurück zu Suche"). Der Artikel hängt am Wort, nicht an einer Regel, die sich aus dem Namen raten ließe.
+
+- **Je Seite die fertige Fügung im Dativ** („zur Suche", „zum Vorgangs-Board", „zu den Dokumenten"); ohne Eintrag bleibt es bei „zu <Name>", für Eigennamen wie „Home" die richtige Form ([rueckwegSatz.ts](src/core/nav/rueckwegSatz.ts))
+- **Guard `rueckweg-satz-abdeckung`** hält die Tabelle an den Plugin-Namen: neue Seite ohne Fügung fällt auf, Fügung ohne Seite ebenso ([conventions-ui.test.ts](src/__tests__/conventions-ui.test.ts))
+
+### v4.85.6 — Ein Kuerzel steht einmal im Glossar (August 2026)
+
+PATCH — Gemeldet als React-Warnung („two children with the same key, `kuerzel:VBE`"). Dahinter steckte kein Anzeige-Fehler, sondern ein bekannter Fehlstand der Fassung: `VBE` ist eines der vier kanonisch belegten Kürzel und stand trotzdem zusätzlich als `D_VBE` (Pitfall #44). Gemessen am echten Bestand traf das genau **1 von 505** Codes, und **0 von 30** To-do-Regeln fassen ihn an — die Folge war also latent. `statuswertZeilen` entdoppelte längst je Code; `kuerzelZeilen` hatte dieselbe Behandlung nie bekommen.
+
+- **Ein Kürzel steht einmal im Glossar** — gezeigt wird die Zeile, die den WERT trägt (das kanonische Feld), also exakt die Kollisionsregel der Feld-Auflösung ([glossarZeilen.ts](src/plugins/glossar/glossarZeilen.ts))
+- **Der Widerspruch wird benannt statt verschluckt**: Badge „Doppelt geführt" nennt die überzählige Spalte und verweist aufs Nachziehen im Cockpit ([KuerzelDetail.tsx](src/plugins/glossar/KuerzelDetail.tsx))
+- **Auch ohne kanonische Zeile bleibt die Liste heil** — dann gewinnt die erste, und der Hinweis trägt die Auskunft
+- **Belegt am echten Bestand**: 607 → 606 Einträge, 506 → 505 Kürzel, `window.__tf.fehler()` leer; die gewählte VBE-Zeile trägt 5.788 Vorgänge, die verdrängte wäre leer
+- **Fünf Fälle festgenagelt**, inklusive „je Code genau eine Glossar-Id" ([glossarZeilen.test.ts](src/plugins/glossar/__tests__/glossarZeilen.test.ts))
+
+### v4.85.5 — Phasen importieren steht neben Phasen exportieren (August 2026)
+
+PATCH — Es gibt nur EINEN Import (die Datei sagt an ihrer Marke selbst, was sie ist), also stand neben „Phasen exportieren" bewusst kein Gegenstück. Der erste Nutzer suchte es prompt vergeblich. Ein Knopf ohne sichtbares Gegenstück schickt Monate später jemanden auf die Suche nach einer Funktion, die es nur unter anderem Namen gibt.
+
+- **„Phasen importieren" steht als Paar neben „Phasen exportieren"** — neue `PhasenAustausch`-Komponente, die dieselbe `api.importieren()` ruft wie der Seitenkopf ([KatalogTab.tsx](src/plugins/status-cockpit/KatalogTab.tsx)); eine Weiche, zwei Beschriftungen
+- Beide Knöpfe erklären im Titel, was mitreist und was am Zielort bleibt
+- Hintergrund: [status-achsen.md](docs/architecture/status-achsen.md)
+
+### v4.85.4 — Ein Verweis ins Leere ist keine Aussage (August 2026)
+
+PATCH — „Nur Phasen übernehmen" (v4.79.0) brach an der ersten echten Fassung ab, auf die es angesetzt wurde: v21 führt fünf Phasen, aber drei Datums-Kürzel zeigen noch auf die entfernte `vollstaendigkeit`. Das Paket erklärte sich für in sich widersprüchlich — an einem Zustand, den die App überall sonst ausdrücklich trägt (`verwaisteZuordnungen`: gelesen wie „ohne Phase", nicht umgeschrieben).
+
+- **Ein Verweis ins Leere reist nicht mit** — `bauePhasenPaket` überspringt verwaiste Zuordnungen, statt das Paket zu verwerfen ([phasen-paket.ts](src/core/status/phasen-paket.ts)); der Abbruch-Guard trifft jetzt nur noch von Hand verbogene Dateien
+- **Was durch den neuen Zuschnitt im ZIEL verwaist, steht im Ergebnissatz** — am Ergebnis gezählt, nicht als Differenz ([katalogDriftAnsicht.ts](src/plugins/status-cockpit/katalogDriftAnsicht.ts))
+- Am echten Katalog (v21 → v22): 10 Codes, 10 Kürzel, 22 Zieltage geändert, 5 danach verwaist, alle 509 Kürzel byte-gleich
+- Hintergrund: [status-achsen.md](docs/architecture/status-achsen.md)
+
+### v4.85.3 — QS und QS- sind zwei Kürzel, nicht eines (August 2026)
+
+PATCH — Nachtrag zu `bed9bde0` (lag zwischen v4.81.0 und v4.82.0 ohne eigenen Block). Die Spalten-Auflösung schlüsselte über `normCode`, das `-`/`_` streift — richtig zum Vergleichen von Kürzel-Schreibweisen, falsch hier: im Fachsystem heißt `QS` „kaufm. QS erfolgt" und `QS-` „kaufm. QS zurück an AB". Der Kollisionsschutz warf dann eines von beiden hinaus, und `D_ARQ-`/`D_VQK-` — ohne eigene Spalte — griffen die des Geschwisters ab. Betroffen: `QS` (7 135 Export-Zeilen), `AQ4` (6 758), `VQK` (3 208), `ARQ` (1 260), `ABLQ` (821), app-weit ohne Wert.
+
+- **Eigener `spaltenSchluessel`** (NFC + trim + lowercase, keine Satzzeichen) — die Unschärfe wurde nur für Groß-/Kleinschreibung gebraucht (`vb_phase` ↔ `VB_PHASE`), `normCode` bleibt an seinem Platz ([feld-aufloesung.ts](src/core/status/feld-aufloesung.ts))
+- **Die Herkunft gehört in den Kollisions-Schlüssel** — `verbund_status` liest `status` aus dem Verbund-Record, das kanonische `status` aus dem TV-Record; kein Konflikt, trotzdem fiel es heraus ([feld-aufloesung.ts](src/core/status/feld-aufloesung.ts))
+- **Derselbe Schlüssel bei „ist gemappt?"** — sonst antworten Projektion und Auflösung verschieden; 4 Felder galten fälschlich als gemappt ([kategorie-projektion.ts](src/core/status/kategorie-projektion.ts), [spalten/aufloesung.ts](src/core/spalten/aufloesung.ts))
+- **Unaufgelöste Felder am Echtbestand 12 → 4**; die vier sind Import-Mappings auf denselben kanonischen Key (`D_LZX`/`D_ÄZX`, `D_LG`/`D_ÄG`, `D_XRN-`/`D_XRN+`, `D_YPM_A`/`D_XYPM_A`), kein Auflösungsfehler ([KATALOG-CODES.md](docs/status-system/KATALOG-CODES.md))
+- **8 Regressionstests** (vor dem Fix 6 rot); der Seed-Test prüft Eindeutigkeit jetzt **je Herkunft** plus Gegenprobe „genau ein Key doppelt", damit die Lockerung keine Leerprüfung wird ([feld-aufloesung-kollision.test.ts](src/core/status/__tests__/feld-aufloesung-kollision.test.ts))
+
+### v4.85.2 — der Rueckweg sagt, wohin er fuehrt (August 2026)
+
+PATCH — Der Rückweg aus dem Antrags-Detail zeigte nur den Namen der Herkunftsseite („← Vorgangs-Board") und ließ den Pfeil die Aussage machen. Halbfett und auf Kante zum Titel darunter las er sich als Überschrift des Panels, nicht als Weg zurück.
+
+- **Der Knopf sagt den ganzen Satz**: „Zurück zu Vorgangs-Board" statt „← Vorgangs-Board" — Herkunft liefert weiter nur den Namen, den Satz baut die Brotkrume ([detailRahmen.tsx](src/plugins/antraege/detailRahmen.tsx))
+- **Normale Strichstärke statt halbfett** (der volle Satz trägt sich selbst) und **5 px Luft zum Titel darunter**, der bisher direkt anschloss ([detailRahmen.tsx](src/plugins/antraege/detailRahmen.tsx))
+
 ### v4.85.1 — Der Status-Katalog kommt auch beim Kaltstart vom Share (August 2026)
 
 PATCH — Gefragt wurde, ob eine frisch installierte PL die aktuellste Katalog-Fassung automatisch bekommt. Nein: `initStatusKatalog` lief als einziger Abgleich, und zwar **vor** dem Ordner-Picker — ohne Handle ging er leer aus, und `ladeAktiveVersion` schrieb daraufhin den Auslieferungs-Seed als kuratierte Fassung 1 fest. Betroffen war die ganze `MappingVersion`: Kürzel, ZAH-Phasen, Code→Phase-Schnitt und AB-Regeln. Nach einem echten Browser-Neustart traf es jede Installation, weil die FSAPI-Berechtigung unter `file://` wieder auf `prompt` steht.

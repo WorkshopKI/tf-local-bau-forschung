@@ -221,13 +221,21 @@ export function buildRouter(
     children.push({ path: 'antraege/:aktenzeichen', element: <AntraegeRoute plugin={antraege} /> });
   }
 
-  // Deep-Link auf einen einzelnen Skill (Provenienz-Affordanz aus dem Gutachten-
-  // Flow). Die flache Route ist bereits oben registriert; diese Variante trägt
-  // die Skill-ID als Pfad-Segment — die Seite liest sie via `useParams`.
+  // Deep-Link auf einen einzelnen Registry-Eintrag — Provenienz-Affordanz aus dem
+  // Gutachten-Flow und Klickziel des Startseiten-Widgets „Zuletzt geändert". Die
+  // flache Route ist bereits oben registriert; diese Variante trägt die ID als
+  // Pfad-Segment, die Seite liest sie via `useParams`.
+  //
+  // `:eintragId` statt `:skillId`: das Segment meint seit v4.133 einen Skill ODER
+  // eine Qualitätsregel — die Seite löst auf, welche der beiden Sammlungen die ID
+  // kennt. Die beiden Namensräume überschneiden sich nicht: gesetzte Einträge
+  // tragen sprechende Kürzel aus getrennten Familien (`gutachten-*`/`zim-*` gegen
+  // `nf-*`/`seed-*`, am Bestand gemessen 0 von 23+10), neu angelegte eine
+  // `crypto.randomUUID()`.
   const skillVerwaltung = byId.get('skill-verwaltung-kuration');
   if (skillVerwaltung) {
     const Component = skillVerwaltung.component;
-    children.push({ path: `${stripLeadingSlash(pluginIdToRoute('skill-verwaltung-kuration'))}/:skillId`, element: <Component /> });
+    children.push({ path: `${stripLeadingSlash(pluginIdToRoute('skill-verwaltung-kuration'))}/:eintragId`, element: <Component /> });
   }
 
   // Fallback: unbekannte Routen (inkl. via Feature-Flag deaktivierte Bereiche)

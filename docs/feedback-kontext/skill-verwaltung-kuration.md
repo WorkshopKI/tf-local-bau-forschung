@@ -7,6 +7,7 @@ Kuratoren (bzw. PL im Schreib-Build) pflegen die KI-Skills, Qualitätsregeln und
 ## UI-Elemente & Begriffe
 
 - **Reiter:** „Skills", „Qualitätsregeln", „Workflows", „Textbausteine" (dev zusätzlich „Skill-Eval").
+- **Rückweg über dem Titel** („← Zurück zu Home"): führt zu der Seite, von der man kam — meist das Startseiten-Widget „Zuletzt geändert", dessen Klick genau den angeklickten Skill bzw. die angeklickte Regel hier öffnet. Er meint etwas anderes als das **X** im Detail-Kopf: das schließt nur den Editor und lässt die Liste stehen.
 - **Skill-Liste:** Ansichts-Umschalter (Liste/Tabelle/Karten; Start Tabelle), Facetten (Reifegrad, Kategorie mit Zähler, „nutzt Regel", Sortierung), Tabelle mit Name/Kategorie/Status + Reifegrad-Badge/Version/Regeln.
 - **Skill-Editor** (Detail-Kopf mit Umschalter „Team | Persönlich"):
   - Prompt-Template, Modifier (neu/kürzer/länger), Kategorie (leer = abgeleitet).

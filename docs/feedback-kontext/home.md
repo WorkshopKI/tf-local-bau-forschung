@@ -29,7 +29,7 @@ Startseite — Arbeitseinstieg: oben ein **Hero-Band**, darunter ein persönlich
   - **Feedback-Neuigkeiten:** seit dem letzten „Alles gelesen" — Antworten aufs eigene Feedback, **Statuswechsel** an Tickets, an denen man beteiligt ist (eigenes, kommentiertes, mitgestimmtes oder gesponsertes), neue Team-Tickets, Stimmen-Zuwachs; Klick öffnet das Ticket im Feedback-Board.
   - **Auslastung:** Ich-/Team-Sicht; nur wo aktiv.
   - **QS-Freigaben offen:** Artefakt-Entwürfe → „Freigeben/Prüfen →"; gibt nie frei.
-  - **Registry-Änderungen:** nur Kurator.
+  - **Zuletzt geändert:** nur Kurator — die jüngsten Änderungen an Skills und Qualitätsregeln; ein Klick öffnet genau diesen Eintrag in der Skill-Verwaltung, die dann „← Zurück zu Home" anbietet. In der Widget-Liste heißt der Eintrag „Zuletzt geändert: Skills & Regeln". Hieß bis v4.133 „Registry-Änderungen".
   - **Neue Anträge für dich:** Selbsteintragung; nur wo Auslastung aktiv.
   - **Weitermachen:** Opt-in — das Hero-Band ersetzt es im Default.
   - **Änderungen der letzten Nacht:** Opt-in — was der jüngste Export gebracht hat, gruppiert nach Feld mit Anzahl und Beispiel-Aktenzeichen. Bewusst **ohne Bearbeiter-Bezug**: das Journal hält fest, was sich geändert hat, nicht wer es war. Der Nullpunkt der Historie steht dabei; solange kein Journal geführt wird, sagt das Widget das statt eine leere Liste zu zeigen.

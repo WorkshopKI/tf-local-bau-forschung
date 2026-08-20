@@ -1,11 +1,17 @@
 /**
- * Woher kam der Nutzer? — der Rückweg aus der Antrags-Detailseite.
+ * Woher kam der Nutzer? — der Rückweg aus einer Detailseite.
  *
- * Die Detailseite ist von überall erreichbar: Suche, Vorgangs-Board, Home-
- * Widgets, Dokumente, Arbeitsliste, Fristen. Sie kannte aber nur EIN Ziel für
- * ihr Schließen — die Förderanträge-Tabelle. Wer aus dem Vorgangs-Board kam,
+ * Die Antrags-Detailseite ist von überall erreichbar: Suche, Vorgangs-Board,
+ * Home-Widgets, Dokumente, Arbeitsliste, Fristen. Sie kannte aber nur EIN Ziel
+ * für ihr Schließen — die Förderanträge-Tabelle. Wer aus dem Vorgangs-Board kam,
  * landete in einer Liste, die er nie geöffnet hatte, und der Weg zurück zu
  * seinen Treffern war weg.
+ *
+ * Seit v4.133 trägt die Mechanik einen zweiten Wirt: die **Skill-Verwaltung**,
+ * die das Startseiten-Widget „Zuletzt geändert" auf einen einzelnen Eintrag
+ * öffnet. Damit sind die beiden früher auf `/antraege` fest verdrahteten Stellen
+ * verallgemeinert — `LISTEN_ROUTEN` statt eines Pfad-Literals, und die eigene
+ * Route als Parameter von `rueckwegAus` statt als eingebaute Sonderregel.
  *
  * Bis v4.82 lief das über einen Vermerk im `location.state`, den JEDER Aufrufer
  * selbst setzen musste — gesetzt hat ihn genau einer (die Suche). Deshalb jetzt
@@ -32,6 +38,19 @@
 /** Fallback-Ziel des Schließens: die Förderanträge-Liste. */
 export const ANTRAEGE_ROUTE = '/antraege';
 
+/** Die Liste der Skill-Verwaltung; darunter liegt ein einzelner Skill bzw. eine Regel. */
+export const SKILL_VERWALTUNG_ROUTE = '/kuration/skill-verwaltung';
+
+/**
+ * Listen-Routen der App: die Route selbst ist eine echte Station, alles
+ * DARUNTER ist Detail (siehe `istDetailRoute`).
+ *
+ * Eine Liste statt eines Pfad-Literals, weil jede Seite mit Deep-Link auf einen
+ * einzelnen Eintrag dieselbe Regel braucht — sonst merkt sich die App den
+ * Deep-Link als Station, und der Rückweg zeigt auf die Seite, auf der man steht.
+ */
+const LISTEN_ROUTEN: readonly string[] = [ANTRAEGE_ROUTE, SKILL_VERWALTUNG_ROUTE];
+
 const SPEICHER_SCHLUESSEL = 'teamflow_letzte_seite';
 
 /** Die zuletzt besuchte Seite außerhalb der Detail-Routen. */
@@ -43,14 +62,15 @@ export interface Herkunft {
 }
 
 /**
- * Ist das eine Route der Antrags-Detailseite?
+ * Ist das die Route eines einzelnen Eintrags?
  *
- * `/antraege` selbst ist die LISTE und damit eine echte Station; alles darunter
- * (`/antraege/16DS260261`, `/antraege/verbund/ZDS26026`, `…/aufbereitung`) ist
- * das Detail und darf nie zur eigenen Herkunft werden.
+ * Eine Listen-Route selbst ist eine echte Station; alles darunter
+ * (`/antraege/16DS260261`, `/antraege/verbund/ZDS26026`, `…/aufbereitung`,
+ * `/kuration/skill-verwaltung/<id>`) ist das Detail und darf nie zur eigenen
+ * Herkunft werden.
  */
 export function istDetailRoute(pathname: string): boolean {
-  return pathname.startsWith(ANTRAEGE_ROUTE + '/');
+  return LISTEN_ROUTEN.some(liste => pathname.startsWith(liste + '/'));
 }
 
 /** Toleranter Leser: alles Unerwartete heißt „keine Herkunft". */
@@ -92,23 +112,26 @@ export function herkunftJetzt(): Herkunft | null {
 }
 
 /**
- * Der Rückweg-Knopf, den die Detailseite anbietet — oder `null`.
+ * Der Rückweg-Knopf, den eine Seite anbietet — oder `null`.
  *
- * `null` heißt: kein Knopf. Das gilt ohne Herkunft und für die Förderanträge-
- * Liste selbst (siehe Modulkopf).
+ * `null` heißt: kein Knopf. Das gilt ohne Herkunft und wenn die Herkunft die
+ * aufrufende Seite SELBST ist: „Zurück zur Skill-Verwaltung", während man auf
+ * ihr steht, ist ein Knopf, der nichts tut. Deshalb nennt jeder Wirt seine
+ * eigene Route (`eigeneRoute`) — bis v4.132 stand dafür `/antraege` fest im
+ * Code, was die Regel auf einen einzigen Wirt festnagelte.
  *
  * `label` ist der NAME der Seite, kein Satz — den baut die Brotkrume daraus
- * („Zurück zum Vorgangs-Board", siehe `rueckwegSatz.ts` + `detailRahmen.tsx`).
+ * („Zurück zum Vorgangs-Board", siehe `rueckwegSatz.ts` + `RueckwegLink.tsx`).
  * Hier bleibt der Name roh, weil ihn auch das Schließen-Ziel und künftige
  * Aufrufer brauchen.
  */
-export function rueckwegAus(h: Herkunft | null): Herkunft | null {
+export function rueckwegAus(h: Herkunft | null, eigeneRoute: string): Herkunft | null {
   if (!h) return null;
-  if (ohneQuery(h.route) === ANTRAEGE_ROUTE) return null;
+  if (ohneQuery(h.route) === eigeneRoute) return null;
   return h;
 }
 
-/** Wohin das Schließen des Detail-Panels führt. */
+/** Wohin das Schließen des Antrags-Detail-Panels führt. */
 export function detailSchliessenZiel(h: Herkunft | null): string {
-  return rueckwegAus(h)?.route ?? ANTRAEGE_ROUTE;
+  return rueckwegAus(h, ANTRAEGE_ROUTE)?.route ?? ANTRAEGE_ROUTE;
 }

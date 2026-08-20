@@ -330,7 +330,7 @@ export const SICHTBARKEITS_KATALOG: readonly KatalogEintrag[] = [
   widget('feedback-news', 'Feedback-Neuigkeiten'),
   // Hängt am Modul-Schloss bzw. an der Kurator-Freischaltung (Regel 1).
   widget('auslastung', 'Auslastung'),
-  widget('registry-aenderungen', 'Registry-Änderungen'),
+  widget('registry-aenderungen', 'Zuletzt geändert: Skills & Regeln'),
   widget('neue-antraege', 'Neue Anträge für dich'),
   // Dieselbe Marke wie die Seite, an deren Katalog es hängt.
   widget('status-verlauf', 'Status & Verlauf', BEIDES),
