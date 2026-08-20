@@ -90,7 +90,18 @@ export function baueSpaltenIndex(schemas: readonly CsvSchema[]): Map<string, str
  * 1. `quelleKey` gesetzt ⇒ der gewinnt (kanonische Umleitung wie
  *    `verbund_status` → `status` im Verbund-Record).
  * 2. Die `feldId` ist als CSV-Spalte gemappt ⇒ deren Record-Key.
- * 3. Sonst ⇒ die `feldId` selbst (kanonische Felder heißen im Record wie sie).
+ * 3. Die Spalte `D_<code>` ist gemappt ⇒ deren Record-Key.
+ * 4. Sonst ⇒ die `feldId` selbst (kanonische Felder heißen im Record wie sie).
+ *
+ * **Warum Regel 3** (v4.126): die vier kanonisch angebundenen Kürzel tragen als
+ * `feldId` den Record-Key (`VBE` → `vn_eingang_datum`), nicht den Spaltennamen —
+ * Regel 2 greift bei ihnen also nie, und Regel 4 unterstellt, das Mapping habe
+ * die Spalte kanonisch gelegt. Für `D_AAE`, `D_ABB` und `D_AZ1_1` stimmt das
+ * (gemessen in allen drei Programm-Schemas). `D_VBE` liegt in `7737-bgl.json`
+ * aber unter `custom: 'eingang_vn_sach'` — der VN-Eingang war dadurch in der
+ * ganzen Verlaufs-Schicht dauerhaft leer, bei 5 793 gefüllten Zeilen. Regel 3
+ * fragt deshalb zusätzlich nach der Spalte, die zum Kürzel gehört; wo das
+ * Mapping kanonisch ist, liefert sie dasselbe wie Regel 4 und ändert nichts.
  *
  * **Kollisionsschutz**: landen zwei Felder **derselben Herkunft** auf demselben
  * Record-Key, gewinnt das kanonische (das ohne `code`) und das andere fällt aus
@@ -118,7 +129,10 @@ export function baueFeldAufloesung(
   const besetzt = new Map<string, StatusFeldEintrag>();   // herkunft::recordKey → Gewinner
 
   const recordKeyVon = (feld: StatusFeldEintrag): string =>
-    feld.quelleKey ?? spalten.get(spaltenSchluessel(feld.feldId)) ?? feld.feldId;
+    feld.quelleKey
+    ?? spalten.get(spaltenSchluessel(feld.feldId))
+    ?? (feld.code !== undefined ? spalten.get(spaltenSchluessel(`D_${feld.code}`)) : undefined)
+    ?? feld.feldId;
 
   for (const feld of felder) {
     const recordKey = recordKeyVon(feld);

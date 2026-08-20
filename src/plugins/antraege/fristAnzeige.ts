@@ -146,7 +146,7 @@ export function fristAnzeigeVon(
 
 /** Was die Listen-Projektion für eine Frist hergibt. */
 export type FristQuelle = Pick<
-  AntragListItem, 'status' | 'antragsdatum' | 'vn_eingang_datum'
+  AntragListItem, 'status' | 'antragsdatum' | 'vn_eingang_datum' | 'alle_antraege_da'
 >;
 
 /**
@@ -156,13 +156,12 @@ export type FristQuelle = Pick<
  * Genau EINE Stelle kennt die Feldnamen der Projektion. Wer sie umgeht und
  * `berechneFrist` selbst füttert, baut die zweite Ableitung.
  *
- * **`D_XTE` steht hier nicht zur Verfügung.** Die Spalte („alle Anträge
- * eingegangen") ist in den Schemas custom gemappt und nicht in der schlanken
- * Projektion — der Record-Key wird hier NICHT geraten (recurring-bug-classes
- * Klasse 5). Die Liste rechnet deshalb ab `D_AAE`, also genau wie bisher. Wer
- * den Wert hat, weil er ihn über das Schema aufgelöst hat (Vorgangs-Board,
- * aufgeklappter Bereich), ruft `berechneFrist` direkt und reicht ihn herein —
- * dieselbe Engine, tiefere Eingabe.
+ * **`D_XTE` steht seit v4.126 zur Verfügung.** Die Spalte („alle Anträge da")
+ * ist custom gemappt und hat kein kanonisches Feld; die Projektion holt sie
+ * über eine explizite Rückfall-Liste (`alle_antraege_da`), nicht über einen
+ * geratenen Record-Key (recurring-bug-classes Klasse 5). Damit rechnet die
+ * Liste denselben wirksamen Eingang wie Vorgangs-Board und aufgeklappter
+ * Bereich — eine Engine, eine Eingabe.
  */
 export function fristErgebnisVon(
   antrag: FristQuelle,
@@ -172,6 +171,7 @@ export function fristErgebnisVon(
   return berechneFrist({
     status: antrag.status,
     antragsdatum: typeof antrag.antragsdatum === 'string' ? antrag.antragsdatum : null,
+    alleAntraegeDa: typeof antrag.alle_antraege_da === 'string' ? antrag.alle_antraege_da : null,
     vnEingangDatum: typeof antrag.vn_eingang_datum === 'string' ? antrag.vn_eingang_datum : null,
     stichtag: new Date(nowMs).toISOString(),
     ...(phasen ? { phasen } : {}),

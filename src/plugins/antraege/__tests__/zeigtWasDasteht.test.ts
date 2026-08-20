@@ -17,6 +17,7 @@ import { getSortOption } from '../sort';
 import { tvsVonZeilen, archivAufschluesselung } from '../arbeitsvorrat';
 import { beschraenkeAufSichtbare } from '../tabellenSicht';
 import { baueSpaltenHilfe } from '../spaltenHilfe';
+import { fristErgebnisVon } from '../fristAnzeige';
 import { getEffectiveTableGroupingMode } from '../store';
 
 const ANTRAGSDATUM = '2026-01-01T00:00:00.000Z';
@@ -219,17 +220,44 @@ describe('baueSpaltenHilfe — „keine Spalte gemappt" nur wo die Zelle wirklic
 // ---------------------------------------------------------------------------
 
 describe('Frist-Hilfe — Feldliste = Rechenweg', () => {
-  it('nennt D_AAE und D_VBE, aber NICHT D_XTE', () => {
-    // `D_XTE` steht in der schlanken Projektion nicht zur Verfügung; die Zelle
-    // ruft `berechneFrist` ohne `alleAntraegeDa`. Eine Feldliste, die es nennt,
-    // schickt die Suche nach dem Grund in die Irre.
+  // Der Guard prüft eine REGEL, keine Momentaufnahme: die Feldliste darf genau
+  // die Codes nennen, die die Zelle wirklich anfasst. Bis v4.124 waren das zwei
+  // (`D_XTE` fehlte in der schlanken Projektion), seit v4.126 sind es drei —
+  // deshalb ist der zweite Teil des Tests eine Verhaltensprobe, nicht ein
+  // abgeschriebener Erwartungswert. Sonst schützt der Guard nur den Zustand,
+  // in dem er geschrieben wurde.
+  it('nennt genau D_AAE, D_XTE und D_VBE', () => {
     const codes = baueSpaltenHilfe({ schemas: [] }).get('frist')?.felder?.map(f => f.code);
-    expect(codes).toEqual(['D_AAE', 'D_VBE']);
+    expect(codes).toEqual(['D_AAE', 'D_XTE', 'D_VBE']);
   });
 
-  it('die Regel spricht nicht mehr vom „späteren der beiden Eingangsdaten"', () => {
+  it('und D_XTE steht dort, weil die Zelle es liest — nicht, weil es im Text steht', () => {
+    // Dieselbe Zeile zweimal, nur einmal mit „alle Anträge da". Verschiebt sich
+    // die Basis nicht, ist die Feldangabe eine Behauptung ohne Deckung.
+    const jetzt = new Date('2026-08-20T00:00:00.000Z').getTime();
+    const ohne = fristErgebnisVon(
+      antrag('X', 'bearbeitungsreif', { antragsdatum: '2026-06-01' }), jetzt,
+    );
+    const mit = fristErgebnisVon(
+      antrag('X', 'bearbeitungsreif', { antragsdatum: '2026-06-01', alle_antraege_da: '2026-06-15' }),
+      jetzt,
+    );
+    expect(ohne.basisDatum).toBe('2026-06-01');
+    expect(mit.basisDatum).toBe('2026-06-15');
+    expect(mit.basisFeld).toBe('D_XTE');
+    // Und die Richtung stimmt: der wirksame Eingang ist das SPÄTERE, die Frist
+    // rückt nach hinten. Ein früheres Datum darf sie nie vorziehen.
+    expect((mit.tageRest ?? 0) > (ohne.tageRest ?? 0)).toBe(true);
+    const frueher = fristErgebnisVon(
+      antrag('X', 'bearbeitungsreif', { antragsdatum: '2026-06-01', alle_antraege_da: '2026-05-01' }),
+      jetzt,
+    );
+    expect(frueher.basisDatum).toBe('2026-06-01');
+  });
+
+  it('die Regel nennt den wirksamen Eingang', () => {
     const regel = baueSpaltenHilfe({ schemas: [] }).get('frist')?.regel ?? '';
-    expect(regel).not.toContain('späteren der beiden');
-    expect(regel).toContain('Antragseingang');
+    expect(regel).toContain('wirksamen Eingang');
+    expect(regel).toContain('alle Anträge da');
   });
 });

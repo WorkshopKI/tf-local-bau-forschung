@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.126.0 — Feldschluessel gegen Mapping: VN-Eingang, alle Antraege da und Bemerkung angeschlossen (August 2026)
+
+MINOR — Nachtrag zu §G.3 aus Schnitt 2: dieselbe Klasse, nur eine Schicht tiefer. Vier Spalten galten als „ungemappt" und lagen in Wahrheit unter Custom-Keys — nachgemessen sind es **fünf**, und zwei davon (`D_XTEC`, `D_ADV`, zusammen 21 526 Werte) liest der kanonische Weg gar nicht: die Auslastung löst sie längst selbst über das Schema auf. Übrig bleiben drei echte, und alle drei tragen etwas, das die Oberfläche behauptet hat, ohne es zu haben.
+
+- **Der Verwendungsnachweis ist da**: `D_VBE` liegt unter `eingang_vn_sach` (5 793 Sätze) — die Zelle sagte für 344 Vorgänge „kein Verwendungsnachweis eingegangen", während das Datum im Export stand; jetzt läuft die VN-Uhr, wie die Engine sie seit jeher vorsieht ([list-view.ts](src/core/services/csv/list-view.ts), Projektion v9)
+- **Der wirksame Eingang gilt wieder**: `D_XTE` („alle Anträge da", 10 282 Sätze) erreicht die Liste als `alle_antraege_da` — 178 Fristen rechnen ab dem späteren der beiden Eingangsdaten, 12 Zeilen sind damit nicht mehr fälschlich überfällig ([fristAnzeige.ts](src/plugins/antraege/fristAnzeige.ts))
+- **2 420 Verbünde tragen eine Bemerkung**: `T_HINT` liegt unter `bemerkung` (3 169 Sätze) — die Box im Auslastungs-Zuweisungscockpit war für den ganzen Bestand leer ([verbund-aggregation.ts](src/plugins/auslastung/services/verbund/verbund-aggregation.ts) unverändert, die Projektion liefert jetzt)
+- **Die Verlaufs-Schicht sah VBE nie**: kanonisch angebundene Kürzel tragen als `feldId` den Record-Key, Regel 2 der Auflösung greift bei ihnen nie — sie fragt jetzt zusätzlich nach `D_<code>` ([feld-aufloesung.ts](src/core/status/feld-aufloesung.ts)); von den vier Kürzeln ändert sich genau VBE, gemessen an den echten Schemas
+- **Die Frist-Hilfe nennt wieder drei Felder**, weil die Zelle sie jetzt wirklich liest — der Guard prüft das am Verhalten statt an einer abgeschriebenen Liste ([spaltenHilfe.ts](src/plugins/antraege/spaltenHilfe.ts), [zeigtWasDasteht.test.ts](src/plugins/antraege/__tests__/zeigtWasDasteht.test.ts))
+
 ### v4.125.0 — Trennzeichen im Namen sind egal (August 2026)
 
 MINOR — Nach dem Stern stand die Frage nach einem Abstandsmaß („meintest du …?") im Raum. Vor dem Bau wurde der Namensraum ausgezählt, und das Ergebnis kippte sie: von 377 Paaren Haupt-↔-Nebenschreibweise rettete ein Abstandsmaß **null**, während 17 Paare verschiedener Netzwerke bei Abstand 1 liegen. Was die Messung stattdessen fand, braucht kein Raten — dieselbe Sache, anders getrennt: `cannabisnet` lieferte 1 Treffer, `cannabis-net` 60.

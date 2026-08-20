@@ -78,21 +78,20 @@ const REGELN: Record<string, string> = {
   // Die beiden Fristlängen kommen aus den Konstanten, nicht als Ziffer in den
   // Satz: eine abgeschriebene Zahl im Tooltip lügt beim nächsten Wechsel.
   //
-  // „ab dem Antragseingang", nicht „dem späteren der beiden Eingangsdaten": die
-  // ZELLE ruft `berechneFrist` ohne `alleAntraegeDa` — `D_XTE` steht in der
-  // schlanken Projektion gar nicht zur Verfügung (`fristAnzeige.ts`). Der Satz
-  // beschrieb bis v4.121 einen Rechenweg, den nur andere Aufrufer gehen.
+  // „dem späteren der beiden Eingangsdaten" ist seit v4.126 wieder wahr: die
+  // Projektion führt `D_XTE` (`alle_antraege_da`), und die Zelle reicht es an
+  // `berechneFrist` durch. Der Satz stand bis v4.121 schon einmal hier — damals
+  // ohne Deckung, weil das Feld leer war. Jetzt deckt ihn der Rechenweg.
   frist:
-    `Gerechnet ab dem Antragseingang plus ${ANTRAG_SLA_DAYS} Tage. `
+    'Gerechnet ab dem wirksamen Eingang — dem späteren aus Antragseingang und '
+    + `„alle Anträge da" — plus ${ANTRAG_SLA_DAYS} Tage. `
     + `Bei Verwendungsnachweisen stattdessen ab dessen Eingang plus ${VN_SLA_MONTHS} Monate. `
     + 'In Phasen ohne laufende Frist steht „angehalten", ohne Grundlage bleibt die Zelle leer. '
     + 'In einer Verbund-Zeile steht die dringendste Frist über alle Teilvorhaben. '
-    // Der aufgeklappte Bereich rechnet bewusst tiefer (`D_XTE` + Haltedatum,
-    // siehe `ausklapp/verfuegbar.ts`). Gemessen weichen 155 von 12 295 Zeilen ab
-    // (Median 6 Tage, ohne Zustandswechsel) — wer beide Zahlen nebeneinander
-    // sieht, hatte bis v4.123 keinen Hinweis darauf (v4.124).
-    + 'Der aufgeklappte Bereich derselben Zeile kennt zusätzlich „alle Anträge da" (D_XTE) '
-    + 'und ein Haltedatum und kann deshalb eine spätere Frist nennen.',
+    // Übrig bleibt als Unterschied zum Ausklapp nur noch das Haltedatum — die
+    // Eingangs-Achse ist mit v4.126 auf beiden Seiten dieselbe.
+    + 'Der aufgeklappte Bereich derselben Zeile kennt zusätzlich ein Haltedatum '
+    + 'und kann deshalb bei angehaltenen Vorgängen mehr sagen.',
 };
 
 /**
@@ -108,12 +107,13 @@ const REGEL_JUENGSTES =
  * `frist-ergebnis.ts` (`FristBasisFeld`, `FRIST_GRUND.ohneVnEingang`).
  */
 const FESTE_FELDER: Record<string, { code: string; label: string }[]> = {
-  // NUR die beiden, die die Zelle wirklich liest. `D_XTE` („alle Anträge da")
-  // stand hier bis v4.121 mit, obwohl `fristAnzeige.ts` es gar nicht erreicht:
-  // die schlanke Projektion führt das Feld nicht. Eine Feldliste, die mehr nennt
-  // als der Rechenweg anfasst, schickt die Suche nach dem Grund in die Irre.
+  // Die drei, die die Zelle wirklich liest. `D_XTE` war von v4.121 bis v4.124
+  // hier draußen, weil die schlanke Projektion es nicht führte — eine Feldliste,
+  // die mehr nennt als der Rechenweg anfasst, schickt die Suche nach dem Grund
+  // in die Irre. Seit v4.126 führt sie es, also steht es wieder drin.
   frist: [
     { code: 'D_AAE', label: 'Antragseingang' },
+    { code: 'D_XTE', label: 'alle Anträge da' },
     { code: 'D_VBE', label: 'Eingang Verwendungsnachweis' },
   ],
 };

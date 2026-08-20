@@ -95,6 +95,40 @@ describe('toAntragListItem', () => {
     expect((it5 as unknown as Record<string, unknown>).irgendein_anderes_feld).toBeUndefined();
   });
 
+  // ─────────────────────────────────────────────────────────────────────────
+  // Feldschluessel gegen Mapping: der Konsument liest den kanonischen Key, das
+  // Schema legt die Spalte unter einen Custom-Key. Im echten Bestand traf das
+  // `T_XSW` (0 statt 1 452), `T_HINT` (0 statt 3 169) und `D_XTE` (0 statt
+  // 10 282). Die Projektion holt sie ueber explizite Rueckfall-Listen — dieser
+  // Test haelt fest, DASS sie es tut, mit Records, die NUR den Custom-Key
+  // tragen. Ein Regress waere sonst wieder unsichtbar: das Feld bleibt leer,
+  // niemand bekommt einen Fehler.
+  // ─────────────────────────────────────────────────────────────────────────
+  const RUECKFAELLE: Array<[string, string]> = [
+    ['t_xsw', 'wiedereinreicher'],
+    ['t_hint', 'bemerkung'],
+    ['alle_antraege_da', 'alle_an_trage_da'],
+    ['alle_antraege_da', 'd_xte'],
+  ];
+
+  it.each(RUECKFAELLE)('%s wird auch aus dem Custom-Key %s gefuellt', (ziel, quelle) => {
+    const item = toAntragListItem(makeAntrag({ [quelle]: 'wert-aus-custom' }));
+    expect((item as unknown as Record<string, unknown>)[ziel]).toBe('wert-aus-custom');
+  });
+
+  it('der kanonische Key schlaegt den Rueckfall', () => {
+    const item = toAntragListItem(makeAntrag({
+      t_hint: 'kanonisch', bemerkung: 'custom',
+      alle_antraege_da: '2026-03-01', alle_an_trage_da: '2026-01-01',
+    }));
+    expect(item.t_hint).toBe('kanonisch');
+    expect(item.alle_antraege_da).toBe('2026-03-01');
+  });
+
+  it('jedes Rueckfall-Ziel steht in LIST_VIEW_FIELDS — sonst wirft die Whitelist es weg', () => {
+    for (const [ziel] of RUECKFAELLE) expect(LIST_VIEW_FIELDS).toContain(ziel);
+  });
+
   it('LIST_VIEW_FIELDS enthaelt alle Pflicht-Whitelist-Keys', () => {
     expect(LIST_VIEW_FIELDS).toContain('aktenzeichen');
     expect(LIST_VIEW_FIELDS).toContain('programm_id');

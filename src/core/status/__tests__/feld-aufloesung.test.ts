@@ -95,6 +95,31 @@ describe('baueFeldAufloesung', () => {
     expect(a.get('antragsdatum')?.recordKey).toBe('antragsdatum');
   });
 
+  it('folgt bei einem kanonisch angebundenen Kürzel dem Mapping von D_<code>', () => {
+    // Die vier kanonisch angebundenen Kürzel tragen als `feldId` den Record-Key,
+    // nicht den Spaltennamen — Regel 2 greift bei ihnen nie. Solange nur der
+    // Rückfall auf die `feldId` blieb, war `vn_eingang_datum` im echten Bestand
+    // dauerhaft leer: `D_VBE` ist dort `custom: 'eingang_vn_sach'` (5 793
+    // gefüllte Zeilen, für die ganze Verlaufs-Schicht unsichtbar).
+    const s = [schema('bgl', { D_VBE: { custom: 'eingang_vn_sach', type: 'date' } }, true)];
+    const a = baueFeldAufloesung(s, [feld({ feldId: 'vn_eingang_datum', code: 'VBE' })]);
+    expect(a.get('vn_eingang_datum')?.recordKey).toBe('eingang_vn_sach');
+  });
+
+  it('und ändert nichts, wo dasselbe Kürzel kanonisch gemappt ist', () => {
+    const s = [schema('anb', { D_VBE: { canonical: 'vn_eingang_datum', type: 'date' } }, true)];
+    const a = baueFeldAufloesung(s, [feld({ feldId: 'vn_eingang_datum', code: 'VBE' })]);
+    expect(a.get('vn_eingang_datum')?.recordKey).toBe('vn_eingang_datum');
+  });
+
+  it('und lässt ein Kürzel ohne passende D_-Spalte auf seinem eigenen Key', () => {
+    // `AZ1` heißt in der Quelle `D_AZ1_1` — der D_<code>-Griff geht ins Leere,
+    // der Rückfall auf die `feldId` trägt weiter.
+    const s = [schema('anb', { D_AZ1_1: { canonical: 'erstentscheidung', type: 'date' } }, true)];
+    const a = baueFeldAufloesung(s, [feld({ feldId: 'erstentscheidung', code: 'AZ1' })]);
+    expect(a.get('erstentscheidung')?.recordKey).toBe('erstentscheidung');
+  });
+
   it('löst eine Kollision zugunsten des kanonischen Feldes auf', () => {
     // `D_AAE` ist in den Fixtures auf `antragsdatum` gemappt: beide Felder
     // zeigten auf denselben Record-Key. Der Code-Eintrag muss weichen, sonst

@@ -368,8 +368,16 @@ export function useVorgangsBoard(): VorgangsBoardApi {
           typeof rec.antragsdatum === 'string' ? rec.antragsdatum : null,
           xte ? (parseGermanDate(xte.wert) ?? xte.wert) : null,
         );
+        // `VBE` genauso über die Auflösung statt über `rec.vn_eingang_datum`:
+        // die Spalte `D_VBE` ist custom gemappt, der kanonische Key ist im
+        // ganzen Bestand leer (v4.126). Sonst zeigte das Board für dieselbe
+        // Zeile „keine Frist", wo die Tabelle daneben eine VN-Uhr nennt.
+        const vbe = vorkommen.find(x => x.feld.code === 'VBE');
+        const vnEingang = vbe
+          ? (parseGermanDate(vbe.wert) ?? vbe.wert)
+          : (typeof rec.vn_eingang_datum === 'string' ? rec.vn_eingang_datum : undefined);
         const frist = eingang
-          ? computeFristDatum({ status: a.status, antragsdatum: eingang, vn_eingang_datum: rec.vn_eingang_datum as string | undefined })
+          ? computeFristDatum({ status: a.status, antragsdatum: eingang, vn_eingang_datum: vnEingang })
           : null;
         const restTage = frist
           ? Math.ceil((new Date(frist).getTime() - new Date(heuteRef.current).getTime()) / 86_400_000)

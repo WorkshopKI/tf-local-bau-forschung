@@ -43,8 +43,12 @@ import type { Programm } from './types';
  * (v4.124). Auch das ist eine reine Code-Änderung an `toAntragListItem`, die
  * KEINEN Antrag-Record anfasst — ohne Bump bliebe der Hinweis für den
  * Altbestand dauerhaft leer, genau wie im v5-Vorfall.
+ * v9: dieselbe Klasse, zwei weitere Spalten — `t_hint` fällt auf `bemerkung`
+ * zurück (3 169 Bemerkungen erreichten das Zuweisungscockpit nie), und das neue
+ * `alle_antraege_da` holt `D_XTE` aus `alle_an_trage_da` (10 282 Werte, trägt
+ * den wirksamen Eingang der Frist), v4.126.
  */
-export const LIST_VIEW_PROJECTION_VERSION = 8;
+export const LIST_VIEW_PROJECTION_VERSION = 9;
 /**
  * Signatur der aus ALLEN Programm-Schemas aufgelösten Status-Datum-Felder
  * (FB/PC). Ergänzt den reinen Code-Versions-Marker: Eine Mapping-Änderung (eine

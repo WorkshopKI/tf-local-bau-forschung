@@ -102,6 +102,9 @@ export const LIST_VIEW_FIELDS: readonly string[] = [
   'erstentscheidung',
   'antragsdatum',
   'vn_eingang_datum',
+  // D_XTE („alle Anträge da") — kein kanonisches Feld, im Master-Schema custom
+  // gemappt. Trägt den wirksamen Eingang der Frist (`wirksamerEingang`).
+  'alle_antraege_da',
   'laufzeitbeginn',
   'laufzeitende',
   // Numerische / sonstige Suchfeld-Spalten

@@ -125,6 +125,15 @@ Aufloesung jetzt in [korpusFeldAufloesung.ts](../../src/plugins/antraege/service
 
 Der Grund, warum es so lange stand: **der Guard kannte nur eine Datei.** `korpus-felder-ueber-schema` prueft seit v4.42 `search-corpus.ts` — und nur die. Ein Guard, der eine Datei nennt, faengt keine Klasse; er faengt einen Fundort. Wer eine Reissleine gegen eine Bug-Klasse zieht, zaehlt zuerst auf, **wer sonst noch so liest** (`grep` nach dem kanonischen Feldnamen), und nimmt alle in dieselbe Liste. Seit v4.113 deckt der Guard beide Korpora, und ein zweiter verbietet die harten Feldkonstanten direkt neben der Aufloesung.
 
+**Vierter Fall, v4.124/v4.126 — die PROJEKTION selbst, und die Lehre ist: ein kanonisches Feld ist kein Beweis fuer ein kanonisches Mapping.** `toAntragListItem` kopierte `t_xsw`, `t_hint` und `vn_eingang_datum` unter ihrem kanonischen Namen — den die Programm-Schemas gar nicht vergeben: `T_XSW` liegt unter `wiedereinreicher`, `T_HINT` unter `bemerkung`, `D_VBE` unter `eingang_vn_sach`. Alle drei Felder waren in **0 von 14 225** Slim-Records gefuellt, obwohl zusammen 10 414 Werte im Export standen. `D_XTE` fehlte ganz, obwohl die Frist-Engine seit jeher einen Parameter dafuer fuehrt (`FristBasisFeld: 'D_XTE'` war ein toter Zweig).
+
+Zwei Feinheiten, die das so lange getragen haben:
+
+1. **`CANONICAL_FIELDS` beschreibt einen Wunsch, kein Mapping.** Ein Eintrag dort sagt „so soll die Spalte heissen", nicht „so heisst sie". Wer den kanonischen Namen liest, muss belegen koennen, dass er im echten Bestand gefuellt ist — am Snapshot abzaehlen, nicht aus der Konstante schliessen.
+2. **Die Feld-Aufloesung hatte dieselbe Luecke.** Kanonisch angebundene Kuerzel (`VBE`, `AAE`, `ABB`, `AZ1`) tragen als `feldId` den Record-Key statt des Spaltennamens; Regel 2 (`feldId` als CSV-Spalte suchen) greift bei ihnen nie, Regel 3 unterstellte das kanonische Mapping. Fuer drei der vier stimmte das, fuer `VBE` nicht — und der VN-Eingang war in der ganzen Verlaufs-Schicht leer. Seit v4.126 fragt die Aufloesung zusaetzlich nach `D_<code>` ([feld-aufloesung.ts](../../src/core/status/feld-aufloesung.ts)).
+
+Reissleine: die Rueckfall-Liste in [list-view.ts](../../src/core/services/csv/list-view.ts) ist mit einem Verhaltens-Test unterlegt (`list-view.test.ts` — Record traegt NUR den Custom-Key, Zielfeld muss gefuellt sein), und die Aufloesung mit drei Faellen je Mapping-Form. Ein Regress waere sonst wieder unsichtbar: das Feld bleibt leer, niemand bekommt einen Fehler.
+
 ## 6. Tracking-Baseline nach dem Snapshot geschrieben (Snapshot-only-Leser sehen veralteten Stand)
 
 **Symptom:** Auf Snapshot-only-Konsumenten (pl-Variante / nach „clear site data" / neuer Rechner) erscheint ein „hat sich geändert"-Banner (Auto-Refresh „CSV-Quelle hat neue Daten", „Neuer Datenbestand") bei **jedem** frischen Start, obwohl sich nichts geändert hat. Der schreibende Client (Kurator) sieht es **nie**. Klick auf „Aktualisieren" hilft nur bis zum nächsten clear-site-data.

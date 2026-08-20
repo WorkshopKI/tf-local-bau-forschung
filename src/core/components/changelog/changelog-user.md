@@ -19,6 +19,23 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.126 — 2026-08
+
+### Neu
+- Im Reiter „Begleitung" steht jetzt eine echte Frist: sechs Monate ab Eingang des Verwendungsnachweises. 344 Vorgänge haben damit erstmals eine Uhr — 227 davon laufen normal, 117 sind überfällig.
+- Die Bemerkung aus der Spalte T_HINT erscheint im Zuweisungscockpit der Auslastung. 2 420 Verbünde tragen eine.
+
+### Verbesserungen
+- Die Bearbeitungsfrist rechnet wieder ab dem wirksamen Eingang — dem späteren aus Antragseingang und „alle Anträge da". Tabelle, Vorgangs-Board und aufgeklappter Bereich sagen damit dasselbe.
+- Der Tooltip über der Frist-Spalte nennt wieder alle drei Felder, aus denen die Zelle rechnet.
+
+### Bugfixes
+- „Kein Verwendungsnachweis eingegangen" stand über 344 Vorgängen, bei denen er längst eingegangen war.
+- 12 Verbünde galten als überfällig, obwohl ihre Frist noch läuft: gerechnet wurde ab dem ersten statt ab dem letzten eingegangenen Antrag.
+
+### Hinweis
+- Beim ersten Start nach dem Update baut die App die Anträge-Liste einmalig neu auf (ein paar Sekunden, mit Fortschrittsanzeige).
+
 ## v4.125 — 2026-08
 
 ### Neu

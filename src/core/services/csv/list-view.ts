@@ -50,7 +50,19 @@ export function toAntragListItem(
   copyStringField(antrag, item, 'bewilligung_datum');
   copyStringField(antrag, item, 'erstentscheidung');
   copyStringField(antrag, item, 'antragsdatum');
-  copyStringField(antrag, item, 'vn_eingang_datum');
+  // `D_VBE` (Eingang Verwendungsnachweis) liegt in `7737-bgl.json` unter dem
+  // Custom-Key `eingang_vn_sach` (gemessen: `vn_eingang_datum` 0 von 14 225,
+  // `eingang_vn_sach` 5 793). Solange der Wert fehlte, sagte die Frist-Zelle
+  // für 344 Vorgänge „kein Verwendungsnachweis eingegangen (D_VBE)" — obwohl er
+  // eingegangen war. Mit dem Rückfall läuft die VN-Uhr (Eingang + 6 Monate) so,
+  // wie die Engine sie seit jeher vorsieht (Team-Entscheidung v4.126).
+  copyStringFieldMitRueckfall(antrag, item, 'vn_eingang_datum', ['eingang_vn_sach']);
+  // `D_XTE` („alle Anträge da") hat kein kanonisches Feld — im Master-Schema
+  // liegt die Spalte unter dem Custom-Key `alle_an_trage_da` (gemessen: 10 282
+  // von 14 225 gefüllt). Die Frist-Engine hält für sie seit jeher den Parameter
+  // `alleAntraegeDa` samt `FristBasisFeld: 'D_XTE'` bereit — nur erreichte der
+  // Wert die Liste nie, und `wirksamerEingang` rechnete immer nur mit `D_AAE`.
+  copyStringFieldMitRueckfall(antrag, item, 'alle_antraege_da', ['alle_an_trage_da', 'd_xte']);
   copyStringField(antrag, item, 'laufzeitbeginn');
   copyStringField(antrag, item, 'laufzeitende');
   copyStringField(antrag, item, 'ort_ast');
@@ -65,7 +77,11 @@ export function toAntragListItem(
   // Auslastungs-Cache mit der Slim-Projektion auskommt. Bei Erweiterung hier
   // IMMER LIST_VIEW_PROJECTION_VERSION (list-view-migration.ts) bumpen —
   // sonst bekommen Bestandsinstallationen die neuen Felder nie.
-  copyStringField(antrag, item, 't_hint');
+  // `T_HINT` steht in beiden produktiven Schemas unter dem Custom-Key
+  // `bemerkung` (gemessen: `t_hint` 0 von 14 225, `bemerkung` 3 169). Ohne den
+  // Rückfall blieb `collectVerbundTHints` — die Bemerkungs-Box im Auslastungs-
+  // Zuweisungscockpit — für den ganzen Bestand leer.
+  copyStringFieldMitRueckfall(antrag, item, 't_hint', ['bemerkung']);
   copyStringField(antrag, item, 'd_xtec');
   copyStringField(antrag, item, 'd_adv');
   copyStringField(antrag, item, 'tib_mail');

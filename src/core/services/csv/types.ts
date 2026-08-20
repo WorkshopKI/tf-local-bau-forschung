@@ -253,6 +253,12 @@ export interface AntragListItem {
    *  (vn_eingang_datum + 6 Monate). Leer bis der Verwendungsnachweis im
    *  C16 eingelaufen ist. */
   vn_eingang_datum?: string;
+  /** D_XTE = „alle Antraege da" (Verbund-Ebene, auf jeder TV-Zeile wiederholt).
+   *  Das SPAETERE von `antragsdatum` und diesem Datum traegt die Antragsfrist
+   *  (`wirksamerEingang`) — bearbeitet werden kann erst, wenn alles vorliegt.
+   *  Kein kanonisches Feld: die Spalte ist im Master-Schema custom gemappt
+   *  (`alle_an_trage_da`), die Projektion holt sie ueber den Rueckfall. */
+  alle_antraege_da?: string;
   /** Projekt-Laufzeitbeginn (CSV-Header LFZ_TV_B). ISO YYYY-MM-DD oder Roh-String. */
   laufzeitbeginn?: string;
   /** Projekt-Laufzeitende (CSV-Header LFZ_TV_E). ISO YYYY-MM-DD oder Roh-String. */
