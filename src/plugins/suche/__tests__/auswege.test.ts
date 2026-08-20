@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { berechneAuswege, type AuswegLage, type Probelauf } from '../auswege';
+import { berechneAuswege, teileAuswege, type AuswegLage, type Ausweg, type Probelauf } from '../auswege';
 
 const LAGE: AuswegLage = {
   query: 'additive Fertigung Quantenkryptografie',
@@ -118,5 +118,38 @@ describe('berechneAuswege — Richtlinien', () => {
     // „Wort weglassen" eine Zahl, die nach dem Klick nicht eintritt.
     expect(gesehen.some(r => r === eng)).toBe(true);
     expect(gesehen.some(r => r === null)).toBe(true);
+  });
+});
+
+describe('teileAuswege — welcher Ausweg über der Liste steht', () => {
+  const ausweg = (id: string, aenderung: Ausweg['aenderung']): Ausweg =>
+    ({ id, text: id, aenderung, treffer: 29 });
+
+  it('hebt das Öffnen der Richtlinien heraus, die übrigen bleiben in der Liste', () => {
+    const oeffnen = ausweg('richtlinien', { richtlinienOeffnen: true });
+    const wort = ausweg('ohne:laser', { query: 'nafatech' });
+    const { versteckt, rest } = teileAuswege([wort, oeffnen]);
+    expect(versteckt).toBe(oeffnen);
+    expect(rest).toEqual([wort]);
+  });
+
+  it('ohne Richtlinien-Ausweg bleibt die Liste unangetastet', () => {
+    const a = ausweg('stamm', { stammSuche: true });
+    const b = ausweg('bereich', { bereich: 'alles' });
+    const { versteckt, rest } = teileAuswege([a, b]);
+    expect(versteckt).toBeNull();
+    expect(rest).toEqual([a, b]);
+  });
+
+  // Der Knopf im Kasten heißt „Alle Richtlinien einbeziehen". Der
+  // zusammengelegte Ausweg leert zusätzlich Filter und lockert Regler — unter
+  // dieser Beschriftung wäre er eine Wirkung, die ihren Namen verschweigt.
+  it('hebt den zusammengelegten Ausweg NICHT heraus, obwohl er die Richtlinien mit öffnet', () => {
+    const kombiniert = ausweg('kombiniert', {
+      richtlinienOeffnen: true, filterLeeren: true, verknuepfung: 'oder',
+    });
+    const { versteckt, rest } = teileAuswege([kombiniert]);
+    expect(versteckt).toBeNull();
+    expect(rest).toEqual([kombiniert]);
   });
 });

@@ -5,6 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.127.1 — Der Ausweg aus der Richtlinien-Auswahl steht jetzt vorn (August 2026)
+
+PATCH — Aus dem Test: `nafatech` meldete „Keine Treffer", obwohl die Suche 29 Anträge gefunden hatte — alle in den Richtlinien-Generationen 2012 und 2015, weggeblendet von einer Richtlinien-Auswahl, die die Anfrage überlebt. Der Ausweg stand da, aber als eine Zeile unter mehreren gleich aussehenden, und wurde überlesen.
+
+- **Das Öffnen der Richtlinien steht jetzt direkt unter „Keine Treffer"** — eigener Kasten mit Zahl und gefülltem Knopf statt Listenzeile ([KeinTrefferZustand.tsx](src/plugins/suche/KeinTrefferZustand.tsx))
+- **Herausgehoben wird genau dieser eine Ausweg**: nur bei ihm existieren die Treffer nachweislich und eine stille Einstellung verdeckt sie; alle übrigen ändern die Anfrage und bleiben in der Liste ([auswege.ts](src/plugins/suche/auswege.ts), `teileAuswege`)
+- **Der zusammengelegte Ausweg bleibt unten**, obwohl er die Richtlinien mit öffnet — unter der Beschriftung „Alle Richtlinien einbeziehen" verschwiege er, dass er auch Filter leert und Regler lockert ([auswege.test.ts](src/plugins/suche/__tests__/auswege.test.ts))
+- Kein Befund an der Suche selbst: die 29 Treffer waren da und richtig; nachgemessen in den Unterprogrammen 34, 36 und 47 ([suche.md](docs/feedback-kontext/suche.md))
+
 ### v4.127.0 — Der Vektorindex der Suche zieht in die Kuration und meldet sich, wenn er veraltet (August 2026)
 
 MINOR — Die Themen-Vektoren sind der Vektorindex der Ähnlichkeitssuche; gebaut wurden sie im Auslastungs-Modul, wo der Knopf „Corpus aufbauen" an `isDevContext()` hing und in `zah-pl` schlicht fehlte — während drei Texte in der App dazu aufforderten, ihn zu klicken. Dazu verglich der Start-Abgleich nur die ANZAHL: ein vollständiger, aber überholter Korpus blieb für immer liegen, unsichtbar, weil keine Zahl auffällig wurde. Am echten Bestand betrifft das **9 259 von 14 221** Vorhaben, deren Vektor ihren Inhalt nie gesehen hat.

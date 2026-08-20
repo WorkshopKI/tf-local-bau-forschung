@@ -52,6 +52,39 @@ export interface Ausweg {
   treffer: number;
 }
 
+/**
+ * Trennt den einen Ausweg ab, der über der Liste steht, von denen, die in ihr
+ * bleiben ([KeinTrefferZustand.tsx](./KeinTrefferZustand.tsx)).
+ *
+ * **Herausgehoben wird nur das Öffnen der Richtlinien.** Es ist der einzige
+ * Grund für null Treffer, bei dem die gesuchten Anträge nachweislich da sind —
+ * gefunden, dann von einer Einstellung weggeblendet, die die Anfrage überlebt
+ * und genau deshalb vergessen wird. Alle anderen Auswege ändern die Anfrage
+ * oder die Regler dieser einen Suche; was sie ändern, steht sichtbar über der
+ * Trefferliste.
+ *
+ * Erkannt an der WIRKUNG, nicht an der Id: `aenderung` ist die eine Stelle, an
+ * der steht, was ein Ausweg tut. Ein Vergleich auf die Id wäre eine zweite
+ * Definition derselben Sache.
+ *
+ * **Und nur, wenn er NICHTS SONST tut**: der zusammengelegte Ausweg (unten,
+ * wenn einzeln nichts trägt) führt `richtlinienOeffnen` mit, leert aber
+ * zusätzlich Filter und lockert Regler. Als Knopf „Alle Richtlinien
+ * einbeziehen" wäre er eine Beschriftung, die ihre Wirkung verschweigt — er
+ * bleibt in der Liste, wo sein eigener Text steht.
+ */
+export function teileAuswege(
+  auswege: readonly Ausweg[],
+): { versteckt: Ausweg | null; rest: readonly Ausweg[] } {
+  const versteckt = auswege.find(
+    a => a.aenderung.richtlinienOeffnen === true && Object.keys(a.aenderung).length === 1,
+  ) ?? null;
+  return {
+    versteckt,
+    rest: versteckt === null ? auswege : auswege.filter(a => a !== versteckt),
+  };
+}
+
 /** Führt eine Probesuche aus und liefert nur die Trefferzahl. */
 export type Probelauf = (
   query: string,

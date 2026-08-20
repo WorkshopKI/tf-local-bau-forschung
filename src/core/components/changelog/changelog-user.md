@@ -26,6 +26,7 @@
 - Ein Rechner kann neue CSV-Daten künftig automatisch nachziehen lassen (Schalter in derselben Karte, gilt nur für diesen Rechner).
 
 ### Verbesserungen
+- Findet die Suche nichts, weil die eingestellte Richtlinien-Auswahl die Treffer wegblendet, steht der Ausweg jetzt gleich unter „Keine Treffer" — mit der Zahl der ausgeblendeten Treffer und einem Knopf „Alle Richtlinien einbeziehen". Vorher war er eine Zeile unter mehreren und wurde leicht übersehen.
 - Die Zeile unter dem Suchfeld sagt jetzt auch, wenn die Vektoren aus einer überholten Textfassung stammen — bis dahin war genau das unsichtbar, weil die Anzahl vollständig aussah.
 - Sie verweist außerdem nur noch auf Wege, die es in der eigenen Fassung wirklich gibt; vorher nannte sie einen Knopf, den viele gar nicht sehen konnten.
 
