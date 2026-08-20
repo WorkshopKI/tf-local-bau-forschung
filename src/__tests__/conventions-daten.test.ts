@@ -1023,8 +1023,31 @@ describe('screen-context-coverage (Feedback-KI-Kontext: docs/feedback-kontext/)'
   // Pille, WAS-Text zu zwei erfragten Funktionen. Erklaerendes gekuerzt (52489),
   // angehoben trotzdem — mit 500 Zeichen Luft risse die naechste Doc-Pflege aus
   // fremdem Grund. `antraege.md` ist mit Abstand das groesste (naechstes: 28k).
+  //
+  // Mit v4.131.1 die sechste Reisse (55232) — diesmal ist die BAUART der Grenze
+  // der Befund. Die Reisse kam bei einer korrekten Drei-Zeilen-Ergaenzung, die
+  // auf einen Halbsatz eingedampft wurde, bis 54999 dastand: genau das, wovor
+  // der v4.72-Eintrag warnt und was die README verbietet. Eine Reissleine mit
+  // einem Zeichen Luft ist ein Budget.
+  //
+  // Nachgesehen wie jedes Mal: der Zuwachs seit v4.105 (+2508) ist WAS-Text zu
+  // echten Funktionen. Gemessen am sichtbaren Teil: 53141 Zeichen auf 177
+  // Punkte = 300 je Punkt (zwei Saetze), laengste Zeile 666 von 700, NULL
+  // Code-/Routen-/Pfad-Marker ausserhalb „Technik". 1300 Zeichen flogen raus,
+  // die nicht hierher gehoerten (Layout-Begruendung, drei Historien-Nebensaetze,
+  // eine doppelt beschriebene Trefferzahl). Auf 48-50k kaeme man nur, indem man
+  // 17 beschriebene Faehigkeiten loescht.
+  //
+  // Deshalb ZWEI Zahlen: der globale Wert hing zuletzt allein an antraege.md und
+  // verlor mit jeder Anhebung seine Wirkung fuer die uebrigen 18 Docs — bei
+  // 55000 haette suche.md (36k) sich verdoppeln koennen, ohne dass etwas reisst.
+  // Global 45000, antraege.md eigene Grenze. `REISSLEINE_JE_DOC` ist KEINE
+  // Budget-Tabelle: ein Eintrag kommt nur mit derselben Messung wie oben dazu.
   const DOCS_DIR = join(ROOT, '..', 'docs', 'feedback-kontext');
-  const REISSLEINE_DOC_CHARS = 55000;
+  const REISSLEINE_DOC_CHARS = 45000;
+  const REISSLEINE_JE_DOC: Readonly<Record<string, number>> = {
+    'antraege.md': 58000,
+  };
 
   // Text-Scan statt Import: plugins.config.ts importiert alle Plugin-Komponenten
   // (u.a. pdfjs-dist-Worker), was unter Vitest bricht. Jede Plugin-ID steht
@@ -1068,17 +1091,44 @@ describe('screen-context-coverage (Feedback-KI-Kontext: docs/feedback-kontext/)'
     for (const entry of readdirSync(DOCS_DIR)) {
       if (!entry.endsWith('.md') || entry.toLowerCase() === 'readme.md') continue;
       const chars = readFileSync(join(DOCS_DIR, entry), 'utf-8').length;
-      if (chars > REISSLEINE_DOC_CHARS) findings.push(`  ${entry}: ${chars} Zeichen`);
+      const grenze = REISSLEINE_JE_DOC[entry] ?? REISSLEINE_DOC_CHARS;
+      if (chars > grenze) findings.push(`  ${entry}: ${chars} Zeichen (Grenze ${grenze})`);
     }
     if (findings.length > 0) {
       expect.fail(
-        `Kontext-Doc(s) ueber der Reissleine von ${REISSLEINE_DOC_CHARS} Zeichen:\n` +
+        `Kontext-Doc(s) ueber ihrer Reissleine:\n` +
         `${findings.join('\n')}\n` +
         `Das ist kein knappes Budget — diese Laenge deutet auf einen Unfall hin ` +
         `(Architektur-Doc reinkopiert, generierter Dump) oder darauf, dass WIE-Text ` +
-        `ins Doc gewandert ist. Inhaltlich pruefen statt blind kuerzen; wenn die ` +
-        `Laenge legitim ist, die Reissleine bewusst anheben.`,
+        `ins Doc gewandert ist. Inhaltlich pruefen statt blind kuerzen — und NICHT ` +
+        `Richtiges wegkuerzen, nur um die Zahl zu treffen (README, Punkt 4). Ist ` +
+        `die Laenge belegt legitim, die Grenze bewusst anheben: global hier, oder ` +
+        `fuer dieses eine Doc in REISSLEINE_JE_DOC — mit Begruendung im Kommentar.`,
       );
+    }
+  });
+
+  /**
+   * Die Ausnahme-Tabelle darf nicht zur Budget-Tabelle werden: ein Eintrag, der
+   * ueber seinem Doc liegt, waere eine Grenze, die nie reisst — und damit keine.
+   */
+  it('jede Doc-eigene Grenze gehoert zu einem Doc und laesst ihm Luft, nicht mehr', () => {
+    for (const [datei, grenze] of Object.entries(REISSLEINE_JE_DOC)) {
+      const pfad = join(DOCS_DIR, datei);
+      let chars: number;
+      try {
+        chars = readFileSync(pfad, 'utf-8').length;
+      } catch {
+        expect.fail(
+          `REISSLEINE_JE_DOC nennt '${datei}' — die Datei gibt es nicht (mehr). ` +
+          `Eintrag entfernen.`,
+        );
+      }
+      expect(grenze).toBeGreaterThan(REISSLEINE_DOC_CHARS);
+      // Mehr als das Doppelte waere keine Reissleine mehr, sondern ein Freibrief.
+      expect(
+        grenze, `${datei}: Grenze ${grenze} bei ${chars} Zeichen — zu weit weg`,
+      ).toBeLessThan(chars * 2);
     }
   });
 });

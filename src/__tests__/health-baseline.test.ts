@@ -33,7 +33,7 @@ describe('health-baseline (Drift-Warnung, kein Verbot)', () => {
   // 3212 (die Guard-Datei), waehrend die groesste echte Datei unbemerkt von 846 auf
   // 1011 LOC gewachsen war.
   const MAX_FILE_LOC = 1200;       // Ist 1011 (useStatusCockpit.ts) — Produktionscode ohne Tests.
-  const MAX_TEST_FILE_LOC = 1830;  // Ist 1805 (conventions-daten.test.ts). Testdateien duerfen groesser sein: ein Guard-Aggregat ist kohaerent, aber es soll nicht wieder auf das Dreifache laufen. Zuletzt angehoben (v4.115.1, reserve-deckt-output-budget) — der Guard sitzt thematisch richtig (Transport/Prompt-Budget), die Geschwister decken Status und Oberflaeche.
+  const MAX_TEST_FILE_LOC = 1880;  // Ist 1855 (conventions-daten.test.ts). Testdateien duerfen groesser sein: ein Guard-Aggregat ist kohaerent, aber es soll nicht wieder auf das Dreifache laufen. Zuletzt angehoben (v4.131.1, doc-eigene Reissleine) — dazu kamen ein Guard, der die Ausnahme-Tabelle der Kontext-Doc-Grenzen gegen Freibriefe sichert, und die Messung, die ihre Hoehe belegt. Thematisch richtig (Kontext-Docs sind eine Daten-Konvention); die Geschwister decken Status und Oberflaeche.
   const MAX_UI_SHIM_IMPORTS = 0;   // Ist 0 — @/ui-Barrel vollständig auf @/components/ui/* migriert (v2.111); Dialog/Select nur noch als Adapter via @/ui/Dialog|Select (Subpfad, zählt nicht). Darf nur SINKEN.
 
   const drift = (was: string, ist: number, schwelle: number, hinweis: string): string =>

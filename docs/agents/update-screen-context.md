@@ -41,8 +41,14 @@ fachliche Änderung: nicht anfassen.
 4. **Kein Zeichen-Budget** — schreib so lang, wie die Seite es ehrlich braucht,
    und **kürze nie etwas Richtiges weg, nur um eine Zahl zu treffen**. Die
    Disziplin ist inhaltlich: WAS der Nutzer sieht gehört hierher, das WIE ins
-   Architektur-Doc. Erzwungen ist nur eine Reißleine bei 10000 Zeichen (Unfall-
-   Fänger, kein Budget).
+   Architektur-Doc. Erzwungen ist nur eine Reißleine (Unfall-Fänger, kein
+   Budget): global 45000 Zeichen, dazu in `REISSLEINE_JE_DOC` eine eigene
+   Grenze für `antraege.md` — die größte Oberfläche der App trägt legitim mehr,
+   und eine gemeinsame Zahl, die für sie passt, fängt für die übrigen Docs
+   nichts mehr. Reißt sie, **erst nachsehen, was gewachsen ist**: WIE-Text,
+   Historie (Doku-Konvention 1: Ist-Zustand) und Layout-Begründungen gehören
+   raus, alles andere bleibt — dann die Grenze bewusst anheben und die Messung
+   im Kommentar dazuschreiben.
 5. **Neues Plugin**: siehe zuerst [add-plugin.md](add-plugin.md) für den vollen
    Touch-Point-Katalog — ein neues Kontext-Doc ist dort ein zusätzlicher Schritt,
    sonst schlägt der Guard fehl.
