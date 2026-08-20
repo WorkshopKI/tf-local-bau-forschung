@@ -73,6 +73,10 @@ export function VerbundBand({
       fassung={daten.quelle.version === null ? null : `Fassung ${daten.quelle.version.version}`}
       journalAb={daten.journalAb}
       journalGenutzt={daten.journalGenutzt}
+      // Diese Seite zeigt IMMER das ganze Vorhaben (`useZeilenVerlauf(…, null, …)`)
+      // — das Journal wird je Teilvorhaben geführt und ist hier deshalb
+      // strukturell nicht heranzuziehen, auch bei genau einem TV.
+      journalGrund="ganzesVorhaben"
       // Die Seite zeigt IMMER das ganze Vorhaben — die Marke gehört deshalb an
       // die Verbundbahn, nie an eine der Teilvorhaben-Bahnen.
       haengtFest={waechter?.urteil === 'haengt' ? { art: 'verbund', id: verbundId } : null}

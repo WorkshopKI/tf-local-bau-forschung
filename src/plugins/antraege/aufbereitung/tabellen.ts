@@ -414,8 +414,14 @@ export function verglichZeitplaene(text: ApZeile[], anlage: ApZeile[]): Befund[]
  */
 export const KAPAZITAET_GRENZE_PM = 1.2;
 
-/** PM deutsch formatieren (Komma-Dezimal, keine Nachkommastelle bei ganzen Zahlen). */
-function fmtPm(n: number): string {
+/**
+ * PM deutsch formatieren (Komma-Dezimal, keine Nachkommastelle bei ganzen Zahlen).
+ *
+ * Exportiert seit v4.124: die Kennzahlen-Karte am Gantt gab die Summe als rohe
+ * JS-Zahl aus — englischer Dezimalpunkt („12.5") und bei einer nicht binär
+ * darstellbaren Summe der volle Float-Schwanz („14.599999999999998").
+ */
+export function fmtPm(n: number): string {
   return n.toLocaleString('de-DE', { maximumFractionDigits: 2 });
 }
 

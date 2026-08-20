@@ -76,11 +76,23 @@ function isWhitelisted(entry: ManifestEntry): boolean {
   return WHITELIST.some(r => r.docType === entry.doc_type && r.formats.includes(ext));
 }
 
+/**
+ * Die beiden Sektionen teilen den Bestand **vollständig** auf: was nicht in die
+ * Kern-Artefakte gehört, steht unter „Sonstige Dokumente".
+ *
+ * Bis v4.122 waren die Kriterien nicht komplementär („wichtig" = relevant UND
+ * Whitelist, „sonstige" = irrelevant) — die Menge `relevant && !whitelisted`
+ * fiel zwischen beide und war auf der Detailseite überhaupt nicht zu sehen.
+ * Die Triage erzeugt diese Menge systematisch: Bescheid, Änderungsbescheid,
+ * De-minimis, QS-Gutachten, Korrespondenz und jeder unbekannte Aktenplan
+ * (`doc_type: 'sonstiges'`) sind `relevant`, stehen aber nicht auf der
+ * Whitelist — ebenso jeder Whitelist-Typ im falschen Format. Trug ein Antrag
+ * nur solche Dokumente, rendeten beide Sektionen `null`, und die Seite
+ * behauptete implizit, es gebe kein einziges Dokument.
+ */
 function passesFilter(entry: ManifestEntry, variant: Variant): boolean {
-  if (variant === 'wichtig') {
-    return entry.triage_state === 'relevant' && isWhitelisted(entry);
-  }
-  return entry.triage_state === 'irrelevant';
+  const wichtig = entry.triage_state === 'relevant' && isWhitelisted(entry);
+  return variant === 'wichtig' ? wichtig : !wichtig;
 }
 
 function sortKey(entry: ManifestEntry, variant: Variant): [number, string, string] {
@@ -133,7 +145,10 @@ export function AntragDokumenteSection({ aktenzeichen, variant, preview = false 
       <div>
         <div className="flex items-baseline justify-between mb-2">
           <h3 className="text-[11px] uppercase tracking-wider text-[var(--tf-text-tertiary)]">
-            {variant === 'wichtig' ? 'Letzte Artefakte' : label}
+            {/* Nicht „Letzte": sortiert wird nach Lebenszyklus-Rang (WICHTIG_ORDER),
+                nicht nach Datum — die Überschrift versprach eine Zeit-Achse, die
+                die Rechnung darunter nicht führt (v4.124). */}
+            {variant === 'wichtig' ? 'Wichtigste Artefakte' : label}
           </h3>
           {hasMore ? (
             <button

@@ -56,11 +56,20 @@ export function useAntragsFrage(): AntragsFrageErgebnis {
   const [wirkung, setWirkung] = useState<PlanWirkung | null>(null);
   const laufRef = useRef<AbortController | null>(null);
 
+  const setPlanTeileStore = useAntraegeStore(s => s.setPlanTeile);
+
   const verwirfDeutung = useCallback((): void => {
     setPlan(null);
     setWirkung(null);
     setFehler(null);
-  }, []);
+    // Auch die Leitbegriffe im Store: sie sind KEIN sichtbarer Filter, sondern
+    // sie ERSETZEN die Zerlegung der Eingabe (`antraege-search-service`:
+    // `optionen.planTeile ? planSuchTeile(…) : anfrageSuchTeile(query, …)`).
+    // Blieben sie stehen, suchte die Volltext-Stufe nach dem Thema der alten
+    // Frage weiter, während im Feld längst ein neues Stichwort steht — und
+    // nichts auf dem Bildschirm nennte das noch geltende Thema (v4.124).
+    setPlanTeileStore(null);
+  }, [setPlanTeileStore]);
 
   // Der Wechsel zurück zu Stichworten räumt die Deutung ab — sie beschriebe
   // sonst eine Frage, die gar nicht mehr im Feld steht (dieselbe Regel wie beim

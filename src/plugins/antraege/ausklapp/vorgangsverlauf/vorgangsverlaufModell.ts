@@ -75,23 +75,38 @@ function zieltageZusatz(zieltage: number | null, w: WaechterErgebnis | null): st
 }
 
 export function baueVorgangsverlauf(e: VorgangsverlaufEingabe): VorgangsverlaufModell {
-  const { ergebnis: erg, antragsdatum, alleAntraegeDa, halt } = e.bezug;
-  const zeilen: RasterZeile[] = [
-    {
-      label: 'Antragseingang',
-      wert: antragsdatum ?? '—',
-      feld: 'D_AAE',
-      ...(erg.basisFeld === 'D_AAE' ? {} : { weich: true as const }),
-    },
-    {
-      label: 'Alle Anträge da',
-      wert: alleAntraegeDa ?? '—',
-      ...(alleAntraegeDa === null
-        ? { zusatz: 'D_XTE nicht gesetzt oder nicht gemappt' }
-        : { feld: 'D_XTE' }),
-      ...(erg.basisFeld === 'D_XTE' ? {} : { weich: true as const }),
-    },
-  ];
+  const { ergebnis: erg, antragsdatum, alleAntraegeDa, vnEingangDatum, halt } = e.bezug;
+  // In der BEGLEITPHASE trägt eine andere Uhr: `berechneFrist` rechnet dort ab
+  // dem VN-Eingang (`D_VBE`) plus sechs Monaten und setzt dafür KEIN `basisFeld`
+  // (es benennt nur die Wahl zwischen D_AAE und D_XTE). Bis v4.122 ließ das
+  // Raster deshalb genau den Eingabewert weg, der die Zahl erzeugt: beide
+  // Datumszeilen standen grau, „Maßgeblich" entfiel, und die ~183 Tage der
+  // VN-Frist wurden als „Regelfrist" beschriftet — dieselbe Bezeichnung wie für
+  // die 90 Tage der Antragsphase.
+  const vnFrist = erg.basisFeld === undefined && vnEingangDatum !== null
+    && erg.basisDatum === vnEingangDatum;
+  const zeilen: RasterZeile[] = vnFrist
+    ? [{
+        label: 'Eingang Verwendungsnachweis',
+        wert: vnEingangDatum,
+        feld: 'D_VBE',
+      }]
+    : [
+      {
+        label: 'Antragseingang',
+        wert: antragsdatum ?? '—',
+        feld: 'D_AAE',
+        ...(erg.basisFeld === 'D_AAE' ? {} : { weich: true as const }),
+      },
+      {
+        label: 'Alle Anträge da',
+        wert: alleAntraegeDa ?? '—',
+        ...(alleAntraegeDa === null
+          ? { zusatz: 'D_XTE nicht gesetzt oder nicht gemappt' }
+          : { feld: 'D_XTE' }),
+        ...(erg.basisFeld === 'D_XTE' ? {} : { weich: true as const }),
+      },
+    ];
 
   if (erg.basisFeld !== undefined && erg.basisDatum !== undefined) {
     zeilen.push({
@@ -106,11 +121,13 @@ export function baueVorgangsverlauf(e: VorgangsverlaufEingabe): VorgangsverlaufM
     ? tageZwischen(erg.basisDatum, erg.zielDatum)
     : null;
   zeilen.push({
-    label: 'Bearbeitungsfrist',
+    label: vnFrist ? 'Prüffrist Verwendungsnachweis' : 'Bearbeitungsfrist',
     wert: frist === null ? '—' : `${frist} T`,
     zusatz: frist === null
       ? 'ohne Basis oder Ziel nicht bestimmbar'
-      : 'Regelfrist ab dem maßgeblichen Datum',
+      : vnFrist
+        ? 'sechs Monate ab dem Eingang des Verwendungsnachweises'
+        : 'Regelfrist ab dem maßgeblichen Datum',
     ...(frist === null ? { weich: true as const } : {}),
   });
 
@@ -118,7 +135,9 @@ export function baueVorgangsverlauf(e: VorgangsverlaufEingabe): VorgangsverlaufM
     zeilen.push({
       label: 'Zieltermin',
       wert: erg.zielDatum,
-      zusatz: 'maßgebliches Datum plus Bearbeitungsfrist',
+      zusatz: vnFrist
+        ? 'Eingang des Verwendungsnachweises plus Prüffrist'
+        : 'maßgebliches Datum plus Bearbeitungsfrist',
       stark: true,
     });
   }

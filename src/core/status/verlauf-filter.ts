@@ -66,6 +66,39 @@ export function bereicheVon(tvIds: readonly string[]): readonly string[] {
   return tvIds.length === 0 ? [BEREICH_VERBUND] : tvIds;
 }
 
+/**
+ * Schneidet die Träger eines Eintrags auf die Bereichswahl.
+ *
+ * Nötig für jede Ansicht, die **je Träger** rechnet — allen voran die
+ * TV-Streuung der Schritt-Matrix. Ein Eintrag, dessen Teilvorhaben denselben Tag
+ * tragen, ist EIN Eintrag mit mehreren `tvIds`; er überlebte `trifftBereich`
+ * unverändert und füllte danach weiter die Spalten NICHT gewählter Teilvorhaben
+ * („gleichzeitig"), während ein Kürzel mit auseinanderliegenden Tagen in
+ * mehrere Einträge zerfällt, von denen nur einer übrig blieb — Streuung „–".
+ * Derselbe Klick wirkte damit einmal als Zeilen- und einmal als Zellenfilter,
+ * und die Spalte behauptete ausgerechnet bei den streuenden Zeilen, es liege
+ * nichts auseinander (v4.124).
+ *
+ * Verbund-Einträge (leere `tvIds`) bleiben unangetastet — sie haben keinen
+ * Träger, den man schneiden könnte.
+ */
+export function schneideAufBereich<T extends { tvIds: readonly string[] }>(
+  eintraege: readonly T[], wahl: ReadonlySet<string>,
+): T[] {
+  if (wahl.size === 0) return [...eintraege];
+  const out: T[] = [];
+  for (const e of eintraege) {
+    if (e.tvIds.length === 0) {
+      if (wahl.has(BEREICH_VERBUND)) out.push(e);
+      continue;
+    }
+    const behalten = e.tvIds.filter(id => wahl.has(id));
+    if (behalten.length === 0) continue;
+    out.push(behalten.length === e.tvIds.length ? e : { ...e, tvIds: behalten });
+  }
+  return out;
+}
+
 /** Steht mindestens ein Träger dieses Eintrags in der Bereichswahl? */
 export function trifftBereich(tvIds: readonly string[], wahl: ReadonlySet<string>): boolean {
   if (wahl.size === 0) return true;

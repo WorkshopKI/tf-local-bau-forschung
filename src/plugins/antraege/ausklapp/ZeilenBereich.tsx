@@ -9,6 +9,14 @@
  * der Bereich zieht ihn nie zu sich, sonst verlöre man beim Zumachen die
  * Position in der Tabelle.
  *
+ * **Genau deshalb hängt der Escape-Griff am Dokument, nicht am Kasten**
+ * (v4.124). Die öffnende Zelle steht im `<td>` der DATENZEILE, der Kasten in
+ * einer nachfolgenden eigenen `<tr>` — React-Events blubbern entlang des
+ * React-Baums, und der Kasten ist ein Geschwister, kein Vorfahr der Zelle. Der
+ * Handler am Kasten traf deshalb nie, solange der Fokus dort lag, wo dieser
+ * Modulkopf ihn ausdrücklich haben will: also direkt nach dem Öffnen, genau
+ * dann, wenn Escape gebraucht wird.
+ *
  * **Hier stehen nur die Hooks, gebaut wird in [AusklappInhalt](AusklappInhalt.tsx).**
  * Die Meilenstein-Daten hängen an einem Hook, der eine Verbund-Id braucht —
  * deshalb die zwei Hüllen darunter statt einer bedingten Hook-Reihenfolge
@@ -17,7 +25,7 @@
  * `useVerbundMeilensteine` — Kopfkarte, Achse und Gliederung lesen dasselbe
  * Ergebnis.
  */
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { isMeilensteinMonitoringEnabled, isVorgangssystemEnabled } from '@/config/feature-flags';
 import { findeStatusCode } from '@/core/status';
 import { zieltageFuer } from '@/core/status/waechter';
@@ -101,6 +109,17 @@ export function ZeilenBereich({
   reiter, onReiter, onSchliessen, stichtag,
 }: ZeilenBereichProps): React.ReactElement {
   const zeitverlaufAn = isVorgangssystemEnabled();
+  // Escape am Dokument (siehe Modulkopf). Ein offener Dialog hat Vorrang: dort
+  // schließt Escape das Fenster, nicht zusätzlich die Zeile darunter.
+  useEffect(() => {
+    const griff = (e: KeyboardEvent): void => {
+      if (e.key !== 'Escape') return;
+      if (document.querySelector('[role="dialog"],[role="alertdialog"]')) return;
+      onSchliessen();
+    };
+    document.addEventListener('keydown', griff);
+    return () => document.removeEventListener('keydown', griff);
+  }, [onSchliessen]);
   const daten = useZeilenVerlauf(verbundId, zeilenKey, stichtag, istVerbundZeile, statusRoh);
   // Die To-do-Kaskade läuft VOR dem Wächter: sein `rolle` ist Stufe 2, und die
   // speist seit v3.41 nicht mehr nur das halb offene Kürzel-Paar, sondern auch
@@ -114,6 +133,9 @@ export function ZeilenBereich({
   const waechter = useZeilenWaechter({
     version: daten.quelle.version,
     vorkommen: daten.vorkommen,
+    // Getrennt nach Teilvorhaben, damit die Kürzel-Paare je TV geprüft werden
+    // (an einer verdichteten Verbund-Zeile schloss der gemeinsame Topf sie).
+    jeTeilvorhaben: daten.jeTeilvorhaben,
     statusRoh,
     stichtag,
     journalAenderung: daten.journalAenderung,
@@ -147,6 +169,8 @@ export function ZeilenBereich({
       id={bereichsId(zeilenKey)}
       role="region"
       aria-label={`Details zu ${zeilenKey}`}
+      // Zusätzlich am Kasten: liegt der Fokus INNEN (Reiterleiste, Klappknöpfe),
+      // fängt der Griff hier und hält das Ereignis auf, bevor es weiterläuft.
       onKeyDown={e => { if (e.key === 'Escape') { e.stopPropagation(); onSchliessen(); } }}
       // Der Kasten füllt, was `TableBody` ihm gibt — die SICHTBARE Tabellen-
       // breite (`portBreite`), nie die volle, womöglich weit nach rechts

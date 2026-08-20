@@ -81,6 +81,11 @@ export function MeilensteinEbeneFuss({ modell }: { modell: MsEbeneModell }): Rea
       ? 'Eine Stufe liegt außerhalb der Achse und ist nicht gezeichnet.'
       : `${modell.ausserhalb} Stufen liegen außerhalb der Achse und sind nicht gezeichnet.`);
   }
+  if (modell.ohneIstDatum > 0) {
+    teile.push(modell.ohneIstDatum === 1
+      ? 'Eine erreichte Stufe trägt kein Datum (die erfüllende Spalte ist kein Datumsfeld) und ist nicht gezeichnet.'
+      : `${modell.ohneIstDatum} erreichte Stufen tragen kein Datum (die erfüllende Spalte ist kein Datumsfeld) und sind nicht gezeichnet.`);
+  }
   if (modell.hinweis !== null) teile.push(modell.hinweis);
   if (teile.length === 0) return null;
   return (

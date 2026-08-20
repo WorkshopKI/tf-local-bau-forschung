@@ -36,6 +36,30 @@ interface Props {
 const LEER: VerwertungDaten = { schemaVersion: 1, aussagen: [] };
 
 export function VerwertungTab({ run, verwertung, vbMarkdown, bausteine, bausteineNeu, onGotoRecherche }: Props): React.ReactElement {
+  // Die importierten EXTERNEN Aussagen sind korpus-unabhängig und überleben jedes
+  // „Neu aufbereiten" — sie werden aber nur hier angezeigt. Bis v4.122 hing die
+  // Anzeige am internen Baustein: nach einem Dokument-Upload (neuer Korpus-Hash ⇒
+  // Cache-Miss ⇒ `fehlt`) oder bei `fehler` war das Ergebnis eines 5–10-minütigen
+  // externen Laufs auf keinem Bildschirm mehr zu sehen, obwohl es unverändert im
+  // Run liegt. Der interne Teil wird dann als leer gezeigt, der externe steht da.
+  const externDa = !!run && hatExterneVerwertung(run.extern);
+  if (run && externDa && verwertung.status !== 'ok' && verwertung.status !== 'degradiert' && verwertung.status !== 'laeuft') {
+    return (
+      <VerwertungInhalt
+        run={run}
+        daten={LEER}
+        degradiert={false}
+        {...(verwertung.status === 'fehler' && verwertung.begruendung
+          ? { begruendung: verwertung.begruendung }
+          : {})}
+        internFehlt
+        bausteine={bausteine}
+        vbMarkdown={vbMarkdown}
+        bausteineNeu={bausteineNeu}
+        onGotoRecherche={onGotoRecherche}
+      />
+    );
+  }
   if (verwertung.status === 'fehlt' || (!run && verwertung.status !== 'laeuft')) {
     return (
       <div className="py-16 flex flex-col items-center gap-3 text-center">
@@ -75,6 +99,7 @@ export function VerwertungTab({ run, verwertung, vbMarkdown, bausteine, baustein
 
 function VerwertungInhalt({
   run, daten, degradiert, rohtext, begruendung, vbMarkdown, bausteineNeu, onGotoRecherche,
+  internFehlt, bausteine,
 }: {
   run: AufbereitungRun;
   daten: VerwertungDaten;
@@ -84,6 +109,9 @@ function VerwertungInhalt({
   vbMarkdown: string | null;
   bausteineNeu: UseAsyncActionResult<[]>;
   onGotoRecherche?: () => void;
+  /** Der INTERNE Baustein liegt nicht vor — nur die externe Seite steht da. */
+  internFehlt?: boolean;
+  bausteine?: UseAsyncActionResult<[]>;
 }): React.ReactElement {
   const byId = useMemo(() => new Map(run.gliederung.map(s => [s.id, s])), [run.gliederung]);
   const chips = (ids: string[]): React.ReactElement[] =>
@@ -95,6 +123,23 @@ function VerwertungInhalt({
 
   return (
     <div>
+      {internFehlt ? (
+        <div
+          className="mb-4 flex flex-wrap items-center gap-2 rounded-lg px-3 py-2 text-[12.5px]"
+          style={{ border: '0.5px solid var(--tf-border)' }}
+        >
+          <span className="text-[var(--tf-text-secondary)]">
+            {begruendung
+              ? `Die interne Aufbereitung ist fehlgeschlagen (${begruendung}) — unten stehen nur die importierten externen Aussagen.`
+              : 'Die interne Aufbereitung liegt für den aktuellen Antragsstand nicht vor — unten stehen nur die importierten externen Aussagen.'}
+          </span>
+          {bausteine ? (
+            <Button variant="secondary" size="sm" loading={bausteine.busy} onClick={() => bausteine.run()}>
+              {bausteine.busy ? 'KI-Aufbereitung läuft …' : 'KI-Aufbereitung starten'}
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
       {degradiert ? (
         <details className="mb-4 rounded-lg px-3 py-2 text-[12.5px]" style={{ border: '0.5px solid var(--tf-warning-border)', background: 'var(--tf-warning-soft)' }}>
           <summary className="cursor-pointer text-[var(--tf-warning-text)]">

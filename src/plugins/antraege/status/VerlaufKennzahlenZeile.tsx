@@ -37,9 +37,16 @@ export function VerlaufKennzahlenZeile({ kennzahlen, gesamt, onLuecken }: {
    */
   gesamt?: VerlaufKennzahlen;
   /**
-   * Klick auf „N Kürzel nicht gesetzt". Fehlt der Handler, steht die Zahl als
+   * Klick auf „N fehlende Kürzel-Angaben". Fehlt der Handler, steht die Zahl als
    * Text da — im Ausklapp gibt es keine Filterleiste, die sie setzen könnte,
    * und ein toter Link wäre ein gebrochenes Versprechen.
+   *
+   * **Die Einheit ist die ANGABE, nicht das Kürzel** (v4.124): `offenePaare`
+   * führt je Teilvorhaben einen Eintrag pro offenem Paar — dieselbe Einheit wie
+   * „Datumsangaben" daneben und genau die Zahl der roten Zellen in der Matrix.
+   * „N Kürzel nicht gesetzt" las sich neben „19 Schritte" (= Kürzel), als läge
+   * fast der ganze Vorgang offen, obwohl ein einziges Kürzel in vier Spalten
+   * fehlte.
    */
   onLuecken?: () => void;
 }): React.ReactElement {
@@ -91,7 +98,7 @@ export function VerlaufKennzahlenZeile({ kennzahlen, gesamt, onLuecken }: {
           <span aria-hidden="true">·</span>
           {onLuecken === undefined ? (
             <span style={{ color: 'var(--tf-danger-text)' }}>
-              {k.nichtGesetzt} Kürzel nicht gesetzt
+              {k.nichtGesetzt} fehlende Kürzel-Angaben
             </span>
           ) : (
             <button
@@ -100,7 +107,7 @@ export function VerlaufKennzahlenZeile({ kennzahlen, gesamt, onLuecken }: {
               className="cursor-pointer underline-offset-2 hover:underline"
               style={{ color: 'var(--tf-danger-text)' }}
             >
-              {k.nichtGesetzt} Kürzel nicht gesetzt
+              {k.nichtGesetzt} fehlende Kürzel-Angaben
             </button>
           )}
         </>

@@ -154,8 +154,14 @@ export function AntragTile({
             </span>
           ) : null}
           {isVerbund ? (
-            <span className="text-[10px] text-[var(--tf-text-tertiary)] tabular-nums">
-              +{group.tvs.length}
+            // „N TV", nicht „+N": das Plus las sich als „und N WEITERE", während
+            // die Zahl die GESAMTE Teilvorhaben-Zahl ist — dieselbe Marke, die
+            // die Tabellenzeile trägt (v4.124).
+            <span
+              className="text-[10px] text-[var(--tf-text-tertiary)] tabular-nums"
+              title={`${group.tvs.length} Teilvorhaben`}
+            >
+              {group.tvs.length} TV
             </span>
           ) : null}
         </span>

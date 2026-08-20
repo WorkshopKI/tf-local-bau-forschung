@@ -286,15 +286,21 @@ function Inhalt({ h, ebene, abweichend, weitere, onGanzenVerlauf }: {
           der Status ist, der aufgeklappte Bereich sagt, WIE es dazu kam. Die
           Engine rechnet `verlauf` weiter (der kopierte Text ist ein Protokoll
           und behält ihn), nur angezeigt wird er nicht mehr. */}
-      {onGanzenVerlauf !== undefined && h.verlaufGesamt > 0 && (
+      {/* OHNE Zahl (v4.124): `verlaufGesamt` ist die Chronik MINUS den Eintrag,
+          der eine Zeile darüber schon als „Letzter Vorgang" steht — also
+          systematisch um mindestens 1 zu klein. Und sie zählt eine andere
+          Einheit als das Ziel: der Knopf öffnet den Reiter „Zeitverlauf", der
+          Bahnen zeichnet, keine Termine. Eine Zahl ist eine Zusage; ungedeckt
+          lieber keine. Zusätzlich entfällt die Bedingung `> 0`: sonst gab es
+          bei genau einem relevanten Termin überhaupt keinen Weg dorthin. */}
+      {onGanzenVerlauf !== undefined && (
         <div className="border-t border-[var(--tf-border)] pt-1.5">
           <button
             type="button"
             onClick={onGanzenVerlauf}
             className="text-[11.5px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] cursor-pointer underline"
           >
-            Ganzen Verlauf zeigen ({h.verlaufGesamt}{' '}
-            {h.verlaufGesamt === 1 ? 'Termin' : 'Termine'})
+            Ganzen Verlauf zeigen
           </button>
         </div>
       )}
@@ -330,16 +336,19 @@ function Inhalt({ h, ebene, abweichend, weitere, onGanzenVerlauf }: {
  *              Verbund-Status; das Bauteil rät nicht. Die jeweils andere Ebene
  *              liest der Hook selbst aus den geladenen Records.
  */
-export function HerleitungPopover({ verbundId, statusRoh, ebene, onGanzenVerlauf }: {
+export function HerleitungPopover({ verbundId, statusRoh, ebene, aktenzeichen, onGanzenVerlauf }: {
   verbundId: string | null;
   statusRoh: unknown;
   ebene: StatusEbene;
+  /** Bei `ebene: 'tv'` das erklärte Teilvorhaben — sonst rechnete die
+   *  Erklärung über alle TVs des Verbundes (siehe `useHerleitung`). */
+  aktenzeichen?: string | null;
   /** Öffnet den ausklappbaren Bereich der Tabellenzeile. Ohne die Prop zeigt
    *  das Popover keinen Verweis — auf der Detailseite gäbe es kein Ziel. */
   onGanzenVerlauf?: () => void;
 }): React.ReactElement {
   const [offen, setOffen] = useState(false);
-  const stand = useHerleitung(verbundId, statusRoh, offen, ebene);
+  const stand = useHerleitung(verbundId, statusRoh, offen, ebene, aktenzeichen ?? null);
 
   return (
     <Popover open={offen} onOpenChange={setOffen}>

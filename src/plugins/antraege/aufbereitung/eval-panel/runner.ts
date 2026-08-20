@@ -133,6 +133,18 @@ export interface AufbereitungEvalErgebnis {
   abgebrochen: boolean;
 }
 
+/**
+ * Wie viele Fixtures einen MESSBAREN Aspekte-Lauf hatten.
+ *
+ * Nicht-`ok`-Läufe fließen bewusst nicht ins Aggregat (so wie in der CLI), und
+ * `fasseZusammen` liefert auf der leeren Liste den 1er-Fallback. Ohne diese Zahl
+ * daneben stand nach einem durchweg gescheiterten Lauf „Mikro-F1 1.000" über
+ * lauter roten Fixture-Zeilen (v4.124). Eine Quelle für Panel und Report.
+ */
+export function gemesseneFixtures(erg: AufbereitungEvalErgebnis): number {
+  return erg.fixtures.filter(f => f.aspekte?.status === 'ok').length;
+}
+
 export interface EvalDeps {
   aspekteSkill: SkillRecord;
   steckbriefSkill: SkillRecord;
@@ -393,6 +405,11 @@ export async function runAufbereitungEval(deps: EvalDeps, opts: EvalOpts = {}): 
     zusammenfassung: fasseZusammen(medianMetriken),
     ...(n > 1 ? { zusammenfassungWorst: fasseZusammen(worstMetriken) } : {}),
     wiederholungen: n,
-    abgebrochen,
+    // Auch ein Abbruch WÄHREND des letzten Fixtures zählt: `abgebrochen` wurde
+    // nur am Schleifenkopf gesetzt, also blieb es `false`, wenn das Signal beim
+    // letzten Eintrag kam — der Report las sich dann wie ein vollständiger Lauf,
+    // obwohl Steckbrief-, Zahlen- und Glossar-Smoke dieses Fixtures fehlten
+    // (v4.124).
+    abgebrochen: abgebrochen || opts.signal?.aborted === true,
   };
 }

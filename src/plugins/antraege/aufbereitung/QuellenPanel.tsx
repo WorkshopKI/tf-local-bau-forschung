@@ -69,9 +69,16 @@ function KorpusWarnung({ mass, laufZiel, onAgentischErzwungen }: {
             passen damit nicht ins Kontextfenster {agentisch ? 'der agentischen KI' : 'der Standard-KI'}
             {' '}({mass.cap.toLocaleString('de-DE')}).
           </p>
+          {/* Der Satz spricht über den NÄCHSTEN Lauf, nicht über die angezeigten
+              Ergebnisse: der Baustein-Cache trägt sein Ziel nicht, und der
+              Notausfahrt-Schalter ist Sitzungszustand. Ein Antrag, dessen
+              Bausteine über die agentische KI vollständig gerechnet wurden,
+              bekam beim nächsten Öffnen die Behauptung, sie hätten das Ende
+              nicht gesehen — obwohl sie genau das getan hatten (v4.124). */}
           <p className="text-[var(--tf-text-secondary)] mt-0.5">
-            Die KI-Bausteine haben das Ende des Textes nicht gesehen. Deterministische
-            Auswertungen — Zeitplan, Tabellen, Gliederung — sind davon unberührt.
+            Ein KI-Lauf {agentisch ? 'auf dieser KI ' : ''}sieht das Ende des Textes nicht.
+            Bereits vorliegende Bausteine können aus einem Lauf mit größerem Fenster stammen.
+            Deterministische Auswertungen — Zeitplan, Tabellen, Gliederung — sind davon unberührt.
           </p>
         </>
       ) : (

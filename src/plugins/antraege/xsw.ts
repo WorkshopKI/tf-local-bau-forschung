@@ -20,17 +20,35 @@ import { normalizeKuerzel } from '@/plugins/auslastung/services/identitaet';
 export const XSW_SUFFIX_CLASS = 'text-[var(--tf-danger-text)] font-bold';
 
 /**
- * Liest das `t_xsw`-Feld aus einem beliebigen Record (`Antrag` /
+ * Schlüssel, unter denen die Spalte `T_XSW` im Record liegen kann — in
+ * Lese-Reihenfolge.
+ *
+ * `t_xsw` ist der kanonische Name und der Schlüssel der schlanken Projektion;
+ * die produktiven Schemas mappen die Spalte aber als **Custom-Feld**
+ * `wiedereinreicher` (`{"custom":"wiedereinreicher","label":"Wiedereinreicher"}`
+ * in `9097-anb-aitisigpt`). Gemessen am echten Bestand: `t_xsw` in 0 von
+ * 14 225 Records, `wiedereinreicher` in 1 452 gefüllt. Blind auf `t_xsw` zu
+ * lesen hieß, dass der Hinweis nirgends erschien (v4.124).
+ */
+const XSW_KEYS = ['t_xsw', 'wiedereinreicher'] as const;
+
+/**
+ * Liest das `T_XSW`-Feld aus einem beliebigen Record (`Antrag` /
  * `AntragListItem` / `AntragVorgang`) über die Index-Signatur — gekapselt,
  * damit nirgends `as string` über den `[key:string]: unknown`-Zugriff nötig
- * ist. Liefert getrimmten String oder `null` (leer/whitespace/Nicht-String).
+ * ist. Probiert die Schlüssel aus `XSW_KEYS` der Reihe nach und liefert den
+ * ersten getrimmten Treffer oder `null` (leer/whitespace/Nicht-String).
  */
 export function readXsw(rec: unknown): string | null {
   if (rec == null) return null;
-  const v = (rec as Record<string, unknown>).t_xsw;
-  if (typeof v !== 'string') return null;
-  const t = v.trim();
-  return t.length === 0 ? null : t;
+  const r = rec as Record<string, unknown>;
+  for (const key of XSW_KEYS) {
+    const v = r[key];
+    if (typeof v !== 'string') continue;
+    const t = v.trim();
+    if (t.length > 0) return t;
+  }
+  return null;
 }
 
 /**

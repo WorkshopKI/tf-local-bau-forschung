@@ -46,8 +46,18 @@ export function pruefeNf(finalerText: string): CheckResult[] {
   return runRegelChecks(finalerText, SEED_NF_REGELN);
 }
 
-/** True, wenn der Text das administrative Tor passiert (kein `fehler`-Check). */
+/**
+ * True, wenn der Text das administrative Tor passiert (kein `fehler`-Check).
+ *
+ * **Ein leerer Text ist nie freigabereif** (v4.124): das Tor prüfte nur die
+ * Abwesenheit von Fehlern, nie die Anwesenheit von Text — `extractPlatzhalter('')`
+ * ist leer, `verbotenes_muster` greift auf Leertext nicht. War für keinen
+ * gewählten Punkt ein Baustein bestätigt, stand die Karte mit „— kein Text —"
+ * und dem grünen Siegel „bereit zur Freigabe" da, der Word-Export war aktiv und
+ * der `mailto:`-Entwurf trug Anschreiben plus Grußformel mit leerer Mitte.
+ */
 export function nfFreigabereif(finalerText: string): boolean {
+  if (finalerText.trim().length === 0) return false;
   return pruefeNf(finalerText).every(c => c.level !== 'fehler');
 }
 
@@ -71,12 +81,28 @@ export function gueltigeBausteinIds(
  * (T-Bausteine). Leere Blöcke werden ausgelassen. Der Verbund-Block ist für jede
  * TV-NF wortgleich (gleicher `gBlock`-Input → gleicher Abschnitt).
  */
-export function mergeNfFuerTv(gBlock: string, tvBlock: string): string {
+export function mergeNfFuerTv(gBlock: string, tvBlock: string, offenePunkte: readonly string[] = []): string {
   const teile: string[] = [];
   if (gBlock.trim()) teile.push(`## ${VERBUND_BLOCK_TITEL}\n\n${gBlock.trim()}`);
   if (tvBlock.trim()) teile.push(`## ${TV_BLOCK_TITEL}\n\n${tvBlock.trim()}`);
+  // Punkte ohne Baustein bekommen die Markierung, die die Werkbank zusagt
+  // („der Entwurf trägt dort eine ‚[TODO Baustein zuordnen]'-Markierung"). Bis
+  // v4.122 gab es sie im Generierungspfad nicht: der Punkt landete nur als
+  // Kontextzeile im Prompt, und das Template verbietet dem Modell ausdrücklich
+  // jeden eigenen Satz — die Lücke war im Entwurf nicht mehr auffindbar, während
+  // die Karte „bereit zur Freigabe" meldete.
+  const offen = offenePunkte.map(t => t.trim()).filter(Boolean);
+  if (offen.length > 0) {
+    teile.push(`## ${TODO_BLOCK_TITEL}\n\n`
+      + offen.map(t => `- ${TODO_MARKE} ${t}`).join('\n'));
+  }
   return teile.join('\n\n');
 }
+
+/** Überschrift des Blocks mit den noch unversorgten Punkten. */
+export const TODO_BLOCK_TITEL = 'Noch ohne Textbaustein';
+/** Die zugesagte Markierung — ein Literal, damit Zusage und Entwurf dasselbe Wort tragen. */
+export const TODO_MARKE = '[TODO Baustein zuordnen]';
 
 /** Betreff-/Body-Vorlage des NF-E-Mail-Entwurfs (Platzhalter: {fkz}, {nachforderungen}). */
 export const NF_EMAIL_BETREFF = 'Nachforderungen zu Ihrem ZIM-Antrag {fkz}';

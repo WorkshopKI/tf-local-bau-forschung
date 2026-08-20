@@ -43,8 +43,26 @@ function istStand(roh: unknown): roh is JournalStand {
  *
  * **`null` wird mitgecacht**: eine Installation ohne Journal zahlte sonst je
  * Aufruf einen fehlschlagenden SMB-Zugriff, und genau dort ist er am teuersten.
+ *
+ * **Aber nur befristet** (v4.124). Ein `null` heißt „kein Handle ODER kein
+ * Journal", und die beiden sind beim Kaltstart nicht unterscheidbar: wer per
+ * Deep-Link auf eine Antragsseite lädt, liest, bevor `getDatenShareHandle`
+ * aufgelöst hat. `useJournalChroniken` fasst dafür bis zu viermal über ~11 s
+ * nach — die Versuche 2 bis 4 liefen aber gegen diesen Cache und gaben
+ * dasselbe `null` zurück, ohne den Share überhaupt anzufassen. Die Seite
+ * behauptete dann für die ganze Sitzung „kein Änderungs-Journal". Ein
+ * gecachtes `null` verfällt deshalb nach {@link NULL_TTL_MS}; ein gefundener
+ * Stand bleibt unbefristet (er kann nur durch einen Import falsch werden, und
+ * den fängt die Generation).
  */
-let standCache: { generation: number; stand: JournalStand | null } | null = null;
+let standCache: { generation: number; stand: JournalStand | null; zeit: number } | null = null;
+
+/**
+ * Wie lange ein „kein Stand"-Ergebnis gilt. Kürzer als die Nachfass-Kette des
+ * Hooks (0/1/3/7 s), damit jeder Versuch wirklich liest; lang genug, dass eine
+ * Installation ohne Journal nicht bei jedem Seitenwechsel über SMB stolpert.
+ */
+const NULL_TTL_MS = 500;
 
 /** Nur für Tests + `schreibeStand`: den Sitzungs-Cache verwerfen. */
 export function leereStandCache(): void {
@@ -54,9 +72,14 @@ export function leereStandCache(): void {
 /** Der Stand vom Share; `null` = keiner da (dann folgt ein Baseline-Lauf). */
 export async function leseStand(idb: IDBStore): Promise<JournalStand | null> {
   const gen = bestandGeneration();
-  if (standCache && standCache.generation === gen) return standCache.stand;
+  const jetzt = Date.now();
+  if (standCache && standCache.generation === gen) {
+    // Ein gefundener Stand gilt bis zum nächsten Import; ein `null` nur kurz
+    // (siehe `NULL_TTL_MS`).
+    if (standCache.stand !== null || jetzt - standCache.zeit < NULL_TTL_MS) return standCache.stand;
+  }
   const stand = await leseSidecar(idb, JOURNAL_STAND_PATH, istStand);
-  standCache = { generation: gen, stand };
+  standCache = { generation: gen, stand, zeit: jetzt };
   return stand;
 }
 

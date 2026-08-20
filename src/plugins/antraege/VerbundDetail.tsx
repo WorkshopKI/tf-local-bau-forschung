@@ -6,6 +6,7 @@ import { FieldHistoryModal } from './FieldHistoryModal';
 import { VerbundAlleFelder } from './VerbundAlleFelder';
 import { VerbundGlance } from './alleFelder';
 import { verbundFelderStats } from './alleFelder/verbundMerge';
+import { useFeldHistorie } from './alleFelder/useFeldHistorie';
 import { VerbundKopf } from './VerbundKopf';
 import { KurzbeschreibungCard } from './KurzbeschreibungCard';
 import { CollapsibleDataSection } from './CollapsibleDataSection';
@@ -36,7 +37,7 @@ import { sektionOffenDefault, sektionsKey } from './detailSektionen';
 import { Button } from '@/components/ui/button';
 import { isGutachtenKurzfassungEnabled, isGutachtenWorkflowEnabled, isNfNachforderungenEnabled, isAntragAufbereitungEnabled, isArtefaktWerkbankEnabled, isStatusCockpitEnabled, isMeilensteinMonitoringEnabled } from '@/config/feature-flags';
 import { useSichtbar } from '@/core/hooks/useSichtbar';
-import { seiteId } from '@/core/sichtbarkeit';
+import { abschnittId, seiteId } from '@/core/sichtbarkeit';
 
 interface Props {
   verbundId: string;
@@ -153,7 +154,21 @@ export function VerbundDetail({
     return () => clearTimeout(t);
   }, [verbund, verbundId, zielParam]);
 
-  const historyCounts = useMemo<Record<string, number>>(() => ({}), []);
+  // Trägt das Sprungziel `#nf` gerade überhaupt? Die Werkbank- bzw.
+  // Nachforderungs-Sektion steht im Katalog mit BETA; ist der Schalter aus,
+  // rendert `Sektionsrahmen` `null` und der Anker existiert nicht. Die
+  // Artefakt-Karte darüber hängt an keiner Katalog-Id und blieb sichtbar —
+  // ihr einziger Knopf tat dann wortlos nichts (Pitfall #54, v4.124).
+  const nfZielSichtbar = isArtefaktWerkbankEnabled()
+    ? sichtbar(abschnittId('antraege', 'detail-werkbank'))
+    : isNfNachforderungenEnabled() && sichtbar(abschnittId('antraege', 'detail-nachforderungen'));
+
+  // Feld-Historie über ALLE TVs des Verbundes — Quelle ist das Import-Diff-Journal
+  // (plus `antrag_historie`, falls jemand `trackHistory` setzt). Bis v4.122 stand
+  // hier ein fest verdrahtetes `{}`; der `↻ N`-Knopf konnte damit nie erscheinen.
+  const feldHistorie = useFeldHistorie(
+    useMemo(() => antraege.map(a => a.aktenzeichen), [antraege]), schemas,
+  );
 
   // Feld-Kennzahlen für die Kontext-Vorschau der kollabierten „Alle Felder"-Sektion.
   const felderStats = useMemo(() => verbundFelderStats(antraege, schemas), [antraege, schemas]);
@@ -351,7 +366,7 @@ export function VerbundDetail({
           ctxKey={kurzfassungCtx.key}
           tvs={antraege}
           status={displayStatus}
-          onWeiterNachforderung={() => scrollTo('nf')}
+          onWeiterNachforderung={nfZielSichtbar ? () => scrollTo('nf') : null}
         />
       </div>
 
@@ -444,7 +459,7 @@ export function VerbundDetail({
                   tvs={antraege}
                   schemas={schemas}
                   sourceNames={sourceNames}
-                  historyCounts={historyCounts}
+                  historyCounts={feldHistorie.counts}
                   onOpenHistory={setHistoryField}
                 />
               </CollapsibleDataSection>
@@ -479,11 +494,15 @@ export function VerbundDetail({
         </>
       )}
 
-      {/* Field-History-Modal — fuer Verbund-Felder am Lead-TV. */}
+      {/* Field-History-Modal — Verbund-Felder über alle TVs, angezeigt am Lead. */}
       {lead && !isPseudo ? (
         <FieldHistoryModal
-          aktenzeichen={lead.aktenzeichen}
+          aktenzeichen={antraege.length > 1 ? `${verbund.verbund_id} · ${antraege.length} TV` : lead.aktenzeichen}
           feld={historyField}
+          eintraege={(historyField ? feldHistorie.eintraege.get(historyField) : null) ?? []}
+          journalAb={feldHistorie.journalAb}
+          gefuehrt={feldHistorie.gefuehrt}
+          mehrereAntraege={antraege.length > 1}
           onClose={() => setHistoryField(null)}
         />
       ) : null}

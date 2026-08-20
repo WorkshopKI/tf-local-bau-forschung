@@ -12,7 +12,7 @@
  */
 import type { IDBStore } from '@/core/services/storage/idb-store';
 import { getDatenShareHandle } from '@/core/services/infrastructure/smb-handle';
-import { atomicWrite, readText } from '@/core/services/infrastructure/atomic-write';
+import { atomicWrite, readTextLage } from '@/core/services/infrastructure/atomic-write';
 import { logAudit } from '@/core/services/infrastructure/audit-log';
 import { getAufbereitungDrUrls, type AufbereitungDrUrls } from '@/config/feature-flags';
 
@@ -54,16 +54,36 @@ function normalize(raw: unknown): AufbereitungSettings | null {
   };
 }
 
-export async function readAufbereitungSettingsFromShare(idb: IDBStore): Promise<AufbereitungSettings | null> {
+/**
+ * Die Settings vom Share — mit der LAGE der Datei.
+ *
+ * `readText` macht aus „liegt nicht da" und „liegt da, ließ sich aber nicht
+ * lesen" beides `null`; `atomic-write.ts` schreibt die Regel dazu ausdrücklich
+ * hin: wer anschließend SCHREIBT, nimmt `readTextLage`. Genau das tat der
+ * Schreibpfad hier nicht — ein SMB-Aussetzer oder kaputtes JSON las sich als
+ * „nichts konfiguriert", und ein Klick auf „Speichern" schrieb diesen leeren
+ * Stand team-weit fest (v4.124, Pitfall #10/#23).
+ */
+export async function leseAufbereitungSettingsLage(
+  idb: IDBStore,
+): Promise<{ status: 'ok'; settings: AufbereitungSettings | null } | { status: 'unlesbar' }> {
   const handle = await getDatenShareHandle(idb);
-  if (!handle) return null;
-  const raw = await readText(handle, AUFBEREITUNG_SETTINGS_PATH);
-  if (!raw) return null;
+  if (!handle) return { status: 'ok', settings: null };
+  const lage = await readTextLage(handle, AUFBEREITUNG_SETTINGS_PATH);
+  if (lage.status === 'unlesbar') return { status: 'unlesbar' };
+  if (lage.status === 'leer') return { status: 'ok', settings: null };
   try {
-    return normalize(JSON.parse(raw));
+    return { status: 'ok', settings: normalize(JSON.parse(lage.text)) };
   } catch {
-    return null;
+    // Da IST etwas, es ist nur kaputt — kein „nichts konfiguriert".
+    return { status: 'unlesbar' };
   }
+}
+
+/** Fehlertolerante Hülle für reine LESER (Formular-Vorbelegung, Anzeige). */
+export async function readAufbereitungSettingsFromShare(idb: IDBStore): Promise<AufbereitungSettings | null> {
+  const lage = await leseAufbereitungSettingsLage(idb);
+  return lage.status === 'ok' ? lage.settings : null;
 }
 
 export async function getCachedAufbereitungSettings(idb: IDBStore): Promise<AufbereitungSettings | null> {
@@ -85,7 +105,17 @@ export async function writeAufbereitungSettingsToShare(
 ): Promise<AufbereitungSettings> {
   const handle = await getDatenShareHandle(idb);
   if (!handle) throw new Error('Kein Daten-Share verbunden.');
-  const current = (await readAufbereitungSettingsFromShare(idb)) ?? { version: 1 as const };
+  // Read-Modify-Write NUR auf einer belegten Lage: bei `unlesbar` würde der
+  // Merge auf einem leeren Stand aufsetzen und die vorhandenen Werte team-weit
+  // überschreiben.
+  const lage = await leseAufbereitungSettingsLage(idb);
+  if (lage.status === 'unlesbar') {
+    throw new Error(
+      'Die Einstellungen auf dem Share ließen sich nicht lesen — nicht überschrieben. '
+      + 'Bitte die Verbindung prüfen und erneut versuchen.',
+    );
+  }
+  const current = lage.settings ?? { version: 1 as const };
   const merged = normalize({ ...current, ...patch, updatedAt: new Date().toISOString() })!;
   await atomicWrite(handle, AUFBEREITUNG_SETTINGS_PATH, JSON.stringify(merged, null, 2));
   await cacheAufbereitungSettings(idb, merged);

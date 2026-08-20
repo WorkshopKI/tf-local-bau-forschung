@@ -22,7 +22,7 @@ import { kopiereText } from '@/core/utils/kopieren';
 import { VB_KUERZEN_HINWEIS } from '@/core/services/skills';
 import type { PromptAnsichtDaten } from './useGutachtenWorkflow';
 import {
-  beschreibeBloecke, promptMasse, masseVonGesendet, trennePromptAmVb,
+  beschreibeBloecke, promptMasse, masseVonGesendetGesamt, trennePromptAmVb,
   type GesendeterPrompt, type PromptMasse,
 } from './promptAnsicht';
 
@@ -107,8 +107,11 @@ export function PromptAnsichtDialog({ daten, sektionLabel, onClose, onBearbeiten
   const bloecke = beschreibeBloecke(daten.skill, daten.regeln, daten.eingabe);
   const vorschauMasse = promptMasse(daten.vorschau, daten.cap);
   const aktiveGesendet: GesendeterPrompt[] = daten.gesendet;
-  const masse = sicht === 'gesendet' && aktiveGesendet[0]
-    ? masseVonGesendet(aktiveGesendet[0], daten.cap)
+  // ALLE gesendeten Prompts messen, nicht nur den ersten: bei einer
+  // Teil-Generierung trägt jeder Lauf die volle VB, und die Leiste ist mit
+  // „Zeichen gesamt" beschriftet.
+  const masse = sicht === 'gesendet'
+    ? masseVonGesendetGesamt(aktiveGesendet, daten.cap) ?? vorschauMasse
     : vorschauMasse;
 
   const volltext = sicht === 'gesendet' && aktiveGesendet.length > 0
@@ -131,7 +134,13 @@ export function PromptAnsichtDialog({ daten, sektionLabel, onClose, onBearbeiten
 
   const footer = (
     <>
+      {/* Die Fußzeile beschreibt IMMER den nächsten Lauf. Im Reiter „Zuletzt
+          gesendet" steht darüber ein alter Lauf, dessen Modell-Einstellungen
+          andere gewesen sein können (Zweitfassung: Temperatur 0,4) — deshalb
+          nennt sie dort ausdrücklich den nächsten Lauf, statt die Werte als die
+          des gezeigten auszugeben (v4.124). */}
       <span className="mr-auto text-[11px] font-mono text-[var(--tf-text-tertiary)]">
+        {sicht === 'gesendet' ? 'Nächster Lauf: ' : ''}
         {daten.skill.name} v{daten.skill.version} · Ausgabe-Budget {zahl(daten.vorschau.maxTokens)} Tokens
         {/* Immer mit Nachkommastelle: „Temperatur 1" liest sich wie eine Stufe,
             „Temperatur 1,0" wie der Messwert, der es ist — und passt zu „0,4". */}
@@ -192,6 +201,13 @@ export function PromptAnsichtDialog({ daten, sektionLabel, onClose, onBearbeiten
 
       {sicht === 'vorschau' && (
         <>
+          {daten.teilAnzahl !== undefined && daten.teilAnzahl > 1 && (
+            <p className="mt-2 text-[11.5px] text-[var(--tf-text-tertiary)]">
+              Dieser Abschnitt wird in {daten.teilAnzahl} Läufen erzeugt — die Vorschau
+              zeigt den ersten Teil. Umfangs- und Absatz-Vorgaben werden dabei durch die
+              Teil-Vorgabe ersetzt.
+            </p>
+          )}
           <div className="mt-3.5 border-[0.5px] border-[var(--tf-border)] rounded-[10px] overflow-hidden">
             <div className="px-3.5 py-2 bg-[var(--tf-bg-secondary)] text-[11px] uppercase tracking-[0.06em] text-[var(--tf-text-tertiary)]">
               Bausteine dieses Prompts

@@ -3,7 +3,8 @@
  * `WorkflowRun`-Stände (GA je Verbund, NF je TV) + die aufgelöste GA-Schrittliste
  * und ruft die reinen VM-Builder (`artefaktLeiste.ts`). Reuse — dieselben
  * Primitive wie die GA-/NF-Sektionen (`resolveWorkflowSteps`, `getWorkflowRun`,
- * `computeFristDatum`), damit die Karten-Zahlen deckungsgleich sind.
+ * `fristErgebnisVon` — dieselbe Frist-Engine wie Liste und Spalte), damit die
+ * Karten-Zahlen deckungsgleich sind.
  *
  * Nur geladen, wenn das jeweilige Feature-Flag an ist. Doppel-IDB-Reads (Leiste +
  * Sektion) sind billig (kv-`get`); es wird KEIN Run geschrieben.
@@ -12,8 +13,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { loadSkillRegistry } from '@/core/services/skills';
 import { erlaubeWorkflowEntwuerfe, isGutachtenWorkflowEnabled, isNfNachforderungenEnabled } from '@/config/feature-flags';
-import { computeFristDatum, verbundAntragsdatum } from '@/core/services/csv/frist';
+import { verbundAntragsdatum } from '@/core/services/csv/frist';
 import type { Antrag, AntragListItem } from '@/core/services/csv/types';
+import { fristErgebnisVon } from '../fristAnzeige';
 import { resolveWorkflowSteps } from '../gutachten/active-workflow';
 import { getWorkflowRun } from '../gutachten/workflow-store';
 import type { WorkflowRun } from '../gutachten/types';
@@ -53,16 +55,26 @@ export function useArtefaktLeiste(input: {
   // reines Prädikat in `artefaktKarten.ts` und fragt die Arbeitsliste, nicht den
   // Verfahrensschritt (siehe dort).
   const istFachpruefung = istGutachtenPhase(status);
+  // Dieselbe Engine wie Liste und Frist-Spalte (`berechneFrist` über
+  // `fristErgebnisVon`), NICHT mehr die phasenblinde Altregel `computeFristDatum`.
+  // Die kannte nur „gibt es ein Basisdatum?" und rechnete die 90-Tage-Uhr auch
+  // für einen längst abgelehnten Vorgang weiter: gemessen 11 003 von 12 295
+  // Vorgängen, für die die Karte eine Uhr zeigte, während die Liste daneben
+  // „angehalten" sagte — bei 10 122 davon lag das Datum vor dem laufenden Jahr,
+  // und `formatFristKurz` schneidet das Jahr ab (v4.124).
   const fristDatum = useMemo(() => {
     const vn = tvs[0]?.vn_eingang_datum;
     const fristInput: Pick<AntragListItem, 'status' | 'antragsdatum' | 'vn_eingang_datum'> = {
-      // `status` ist eine gebrandete `AntragStatusRaw`; `computeFristDatum` prüft
+      // `status` ist eine gebrandete `AntragStatusRaw`; die Engine prüft
       // intern nur den Roh-String → Cast des schmalen Verbund-Status genügt.
       status: (status ?? '') as AntragListItem['status'],
       antragsdatum: verbundAntragsdatum(tvs) ?? undefined,
       vn_eingang_datum: typeof vn === 'string' ? vn : undefined,
     };
-    return computeFristDatum(fristInput);
+    const erg = fristErgebnisVon(fristInput);
+    // Nur eine LAUFENDE Uhr bekommt ein Datum; angehalten/unberechenbar heißt
+    // hier: kein Badge, statt eines Termins, den es nicht gibt.
+    return erg.zustand === 'laeuft' ? erg.zielDatum ?? null : null;
   }, [azKey, status]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {

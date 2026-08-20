@@ -433,7 +433,9 @@ export function AntraegeTable({
   // Einschränkungen (Trichter, Beendet-Achse, Körnung) sonst nicht.
   const meldeSichtbare = useTabellenSicht(s => s.meldeSichtbare);
   useEffect(() => {
-    meldeSichtbare(new Set(alleSchluessel));
+    // Menge UND Reihenfolge: der Export soll die Zeilenfolge des Bildschirms
+    // schreiben, nicht die der Pipeline (v4.124).
+    meldeSichtbare(new Set(alleSchluessel), alleSchluessel);
   }, [alleSchluessel, meldeSichtbare]);
   useEffect(() => () => meldeSichtbare(null), [meldeSichtbare]);
   const columnsMitAuswahl = useMemo(

@@ -15,7 +15,12 @@ export function ResumeLine(
   return (
     <div className="flex items-center gap-3.5 mb-5 pl-3.5 border-l-[3px] border-[var(--tf-border-hover)] rounded-r-[8px] bg-[var(--tf-bg)] py-3 pr-4">
       <span className="flex-1 text-[13px] text-[var(--tf-text-secondary)]">
-        Zuletzt bearbeitet am <span className="font-mono">{formatDate(run.geaendert_am)}</span> — Abschnitt {def.kurz} ({def.label}) in Arbeit
+        {/* „Zuletzt geöffnet", nicht „bearbeitet": `geaendert_am` ist der
+            Änderungsstempel des Run-RECORDS, und `aktiverSchritt` gehört dazu —
+            schon ein Klick in der Abschnitts-Rail (oder der Deep-Link von der
+            Home-Kachel) schreibt ihn neu. Die Zeile behauptete danach eine
+            Bearbeitung, die nie stattfand (v4.124). */}
+        Zuletzt geöffnet am <span className="font-mono">{formatDate(run.geaendert_am)}</span> — Abschnitt {def.kurz} ({def.label}) in Arbeit
       </span>
       <Button
         type="button"

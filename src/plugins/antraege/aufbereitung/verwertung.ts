@@ -140,7 +140,7 @@ export async function computeVerwertungBaustein(
   antragKey: string,
   gliederung: VbSektion[],
   vbMarkdown: string,
-  opts?: { force?: boolean; ziel?: BridgeZiel },
+  opts?: { force?: boolean; ziel?: BridgeZiel; ueberStandardCap?: boolean },
 ): Promise<BausteinResult<VerwertungDaten>> {
   const vbHash = vbHashFuer(vbMarkdown);
   const sektionIds = gliederung.map(s => s.id);

@@ -55,6 +55,20 @@ const VORGABEN = [
  * gleiche Stichworte = gleicher Text (der Auftrag wird deshalb NICHT gecacht, sondern
  * beim Rendern gebaut — eine Vorlagen-Änderung wirkt sofort auf bestehende Läufe).
  */
+/**
+ * Der Auftrags-Rahmen OHNE jede eingesetzte Angabe — die Gegenprobe des
+ * Leak-Wächters (`findeLeaks`). Träge gebaut und gemerkt: der Text ist konstant,
+ * und ein Modul-Init zur Ladezeit hinge an der Import-Reihenfolge.
+ */
+let rahmenCache: string | null = null;
+export function auftragsRahmen(): string {
+  rahmenCache ??= baueDeepResearchAuftrag({
+    themenfeld: '', anwendungsdomaene: '', technologien: [],
+    leistungsdimensionen: [], marktsegmente: [], suchbegriffeEn: [],
+  });
+  return rahmenCache;
+}
+
 export function baueDeepResearchAuftrag(s: RechercheStichworte): string {
   const thema = s.themenfeld.trim();
   const stichwortZeilen = [

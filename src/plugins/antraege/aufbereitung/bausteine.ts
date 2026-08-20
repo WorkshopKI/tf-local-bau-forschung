@@ -184,6 +184,17 @@ export async function getOrComputeBaustein<T>(
      *  hängt damit nicht an der globalen Variante; das MAP-Modul nutzt denselben Rahmen
      *  und bleibt bewusst bei der Präferenz. Deshalb wird hier NICHT vorbelegt. */
     ziel?: BridgeZiel;
+    /**
+     * `true`, wenn der Korpus NICHT ins Standard-Fenster passt (Notausfahrt).
+     *
+     * Dann entfällt der Standard-Fallback: der Ersatzlauf liefe garantiert über
+     * ein zu kleines Kontextfenster, llama.cpp schöbe den Anfang still heraus,
+     * und das abgeschnittene Ergebnis überschriebe das vollständige und würde
+     * gecacht — ohne dass irgendetwas auf dem Bildschirm darauf hinweist. Das
+     * agentische Ergebnis bleibt dann stehen, mit seinem Reset-Status: markieren
+     * statt ersetzen (Pitfall #36, v4.124).
+     */
+    ueberStandardCap?: boolean;
   } = {},
 ): Promise<BausteinResult<T>> {
   if (!opts.force) {
@@ -216,7 +227,9 @@ export async function getOrComputeBaustein<T>(
    *  (Lehre v2.292, `feedbackImprove.ts`). */
   const laufMitFallback = async (): Promise<{ daten: T | null; raw: string; reset: ChatResetStatus } | null> => {
     const r = await einLauf(opts.ziel);
-    if (r && opts.ziel === 'agentisch' && resetHatVerlaufsrisiko(r.reset)) {
+    // Kein Rückfall, wenn der Korpus das Standard-Fenster sprengt (siehe
+    // `ueberStandardCap`) — dort wäre der Ersatzlauf nachweislich beschnitten.
+    if (r && opts.ziel === 'agentisch' && !opts.ueberStandardCap && resetHatVerlaufsrisiko(r.reset)) {
       const standard = await einLauf('standard');
       if (standard) return standard;
     }

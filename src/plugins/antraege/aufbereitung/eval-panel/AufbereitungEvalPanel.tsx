@@ -49,7 +49,7 @@ import { isOpenRouterEnabled } from '@/config/feature-flags';
 import type { AITransport, BridgeZiel } from '@/core/services/ai/transports/streamlit';
 import { SettingsSectionHeader } from '@/plugins/einstellungen/_shared/settings-primitives';
 import {
-  runAufbereitungEval, STECKBRIEF_FELDER, WIEDERHOLUNGEN_MAX,
+  runAufbereitungEval, STECKBRIEF_FELDER, WIEDERHOLUNGEN_MAX, gemesseneFixtures,
   type EvalFixtureQuelle, type FixtureErgebnis, type AufbereitungEvalErgebnis,
 } from './runner';
 import { formatEvalReport } from './report';
@@ -484,9 +484,15 @@ export function AufbereitungEvalPanel(): React.ReactElement {
                   Abbrechen
                 </Button>
               )}
+              {/* Ohne gemessenen Lauf steht hier KEINE Zahl: `fasseZusammen`
+                  liefert auf der leeren Liste den 1er-Fallback (wie die CLI),
+                  und „Mikro-F1 1.000" neben lauter roten Fixture-Punkten wäre
+                  das Gegenteil der Wahrheit (v4.124). */}
               {ergebnis && !start.busy && (
                 <span className="text-[11.5px] text-[var(--tf-text-tertiary)]">
-                  Mikro-F1 {ergebnis.zusammenfassung.mikroF1.toFixed(3)}
+                  {gemesseneFixtures(ergebnis) === 0
+                    ? 'kein Aspekte-Lauf messbar'
+                    : `Mikro-F1 ${ergebnis.zusammenfassung.mikroF1.toFixed(3)} (${gemesseneFixtures(ergebnis)}/${ergebnis.fixtures.length})`}
                   {ergebnis.abgebrochen ? ' · abgebrochen' : ''}
                 </span>
               )}

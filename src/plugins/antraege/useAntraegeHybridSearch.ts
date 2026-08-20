@@ -118,9 +118,14 @@ export function useAntraegeHybridSearch(): void {
     const abort = new AbortController();
     let cancelled = false;
 
+    // SOFORT verwerfen, nicht erst wenn der Debounce fertig ist: bis dahin
+    // stand die Trefferliste der VORIGEN Eingabe noch als Schnittmenge in der
+    // Liste, obwohl im Feld längst ein anderes Wort steht (v4.124). `null` ist
+    // dafür der vorgesehene Zustand („Hook hat noch nicht geantwortet").
+    setHybridSearch({ matchedAkz: null, loading: true, unavailable: [] });
+
     const timer = setTimeout(() => {
       if (cancelled) return;
-      setHybridSearch({ matchedAkz: null, loading: true, unavailable: [] });
       void (async () => {
         try {
           const result = await searchAntraege({

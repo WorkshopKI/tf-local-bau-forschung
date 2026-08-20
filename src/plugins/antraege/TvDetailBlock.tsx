@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
-import { getAntrag, getHistoryByAz, loadSchema, listSchemas } from '@/core/services/csv';
+import { getAntrag, loadSchema, listSchemas } from '@/core/services/csv';
 import type { Antrag, CsvSchema } from '@/core/services/csv/types';
 import { buildDisplayRows, groupDisplayRows, type DisplayGroup, AlleFelderSection } from './alleFelder';
+import { useFeldHistorie } from './alleFelder/useFeldHistorie';
 import { FieldHistoryModal } from './FieldHistoryModal';
 import { AntragDokumenteSection } from './AntragDokumenteSection';
 import { NetzwerkMitgliederSection } from './NetzwerkMitgliederSection';
@@ -39,23 +40,22 @@ interface Props {
 export function TvDetailBlock({ aktenzeichen, zeigeEckdaten = false, onOpenAntrag }: Props): React.ReactElement {
   const storage = useStorage();
   const [antrag, setAntrag] = useState<Antrag | null>(null);
-  const [historyCounts, setHistoryCounts] = useState<Record<string, number>>({});
+  // Trennt „wird noch geladen" von „gibt es nicht" — ohne diese Trennung zeigt der
+  // Block bei JEDEM Aufklappen kurz „nicht gefunden", weil der Effekt erst nach
+  // dem ersten Rendern läuft (wie `useVerbundDetailData` es für die Seite tut).
+  const [laedt, setLaedt] = useState(true);
   const [sourceNames, setSourceNames] = useState<Record<string, string>>({});
   const [schemas, setSchemas] = useState<CsvSchema[]>([]);
   const [historyField, setHistoryField] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
+    setLaedt(true);
     (async () => {
       const a = await getAntrag(storage.idb, aktenzeichen);
       if (cancelled) return;
       setAntrag(a);
       if (!a) return;
-      const hist = await getHistoryByAz(storage.idb, aktenzeichen);
-      const counts: Record<string, number> = {};
-      for (const h of hist) counts[h.feld] = (counts[h.feld] ?? 0) + 1;
-      if (cancelled) return;
-      setHistoryCounts(counts);
 
       const ids = [...new Set(Object.values(a._field_sources ?? {}))];
       const names: Record<string, string> = {};
@@ -74,9 +74,16 @@ export function TvDetailBlock({ aktenzeichen, zeigeEckdaten = false, onOpenAntra
       for (const s of allSchemas) byId.set(s.id, s);
       for (const s of loadedSchemas) byId.set(s.id, s);
       setSchemas([...byId.values()]);
-    })();
+    })()
+      // Ohne `.catch` bliebe eine abgelehnte Promise unbehandelt und der Block
+      // stünde stumm auf „nicht gefunden", statt den Fehler zu benennen.
+      .catch((e: unknown) => { console.error('[TvDetailBlock] Laden fehlgeschlagen', e); })
+      .finally(() => { if (!cancelled) setLaedt(false); });
     return () => { cancelled = true; };
   }, [aktenzeichen, storage.idb]);
+
+  const azListe = useMemo(() => [aktenzeichen], [aktenzeichen]);
+  const feldHistorie = useFeldHistorie(azListe, schemas);
 
   const groups: DisplayGroup[] = useMemo(() => {
     if (!antrag) return [];
@@ -87,7 +94,7 @@ export function TvDetailBlock({ aktenzeichen, zeigeEckdaten = false, onOpenAntra
   if (!antrag) {
     return (
       <div className="py-6 text-[13px] text-[var(--tf-text-tertiary)]">
-        Antrag {aktenzeichen} nicht gefunden.
+        {laedt ? 'Lädt …' : `Antrag ${aktenzeichen} nicht gefunden.`}
       </div>
     );
   }
@@ -103,7 +110,7 @@ export function TvDetailBlock({ aktenzeichen, zeigeEckdaten = false, onOpenAntra
           groups={groups}
           schemas={schemas}
           sourceNames={sourceNames}
-          historyCounts={historyCounts}
+          historyCounts={feldHistorie.counts}
           onOpenHistory={setHistoryField}
         />
       </SectionDivider>
@@ -120,7 +127,14 @@ export function TvDetailBlock({ aktenzeichen, zeigeEckdaten = false, onOpenAntra
         <AntragDokumenteSection aktenzeichen={aktenzeichen} variant="sonstige" />
       </SectionDivider>
 
-      <FieldHistoryModal aktenzeichen={aktenzeichen} feld={historyField} onClose={() => setHistoryField(null)} />
+      <FieldHistoryModal
+        aktenzeichen={aktenzeichen}
+        feld={historyField}
+        eintraege={(historyField ? feldHistorie.eintraege.get(historyField) : null) ?? []}
+        journalAb={feldHistorie.journalAb}
+        gefuehrt={feldHistorie.gefuehrt}
+        onClose={() => setHistoryField(null)}
+      />
     </>
   );
 }

@@ -78,7 +78,9 @@ export function AbgelehnteVorgaengerBanner({ vorgaenger, onOpenAntrag }: Props):
           <div className="mt-2 flex flex-col gap-1">
             {vorgaenger.map(v => {
               const parts = [
-                `${v.tvCount} ${v.tvCount === 1 ? 'Teilvorhaben' : 'Teilvorhaben'}`,
+                v.abgelehntCount < v.tvCount
+                  ? `${v.tvCount} Teilvorhaben, ${v.abgelehntCount} abgelehnt`
+                  : `${v.tvCount} Teilvorhaben`,
                 v.erstentscheidung ? `Erstentscheidung ${formatGermanDate(v.erstentscheidung)}` : null,
                 v.antragsteller,
               ].filter(Boolean) as string[];

@@ -3,6 +3,7 @@ import { Download, Filter, FileUp, Loader2, Sparkles, X } from 'lucide-react';
 import { useSichtbar } from '@/core/hooks/useSichtbar';
 import { reiterId } from '@/core/sichtbarkeit';
 import { useAntraegeStore } from './store';
+import { useWirksamerSuchtext } from './frage/suchtext';
 import { useAufnahmeUiStore } from './aufnahme-einfach';
 import { useAntraegeColumnsStore } from './useAntraegeColumnsStore';
 import { useFilterState } from './filter/useFilterState';
@@ -71,6 +72,7 @@ export function AntraegeHeader({ filterOpen, onToggleFilter, listeSichtbar }: Pr
   const activeView = useAntraegeStore(s => s.activeView);
   const setActiveView = useAntraegeStore(s => s.setActiveView);
   const search = useAntraegeStore(s => s.search);
+  const wirksamerSuchtext = useWirksamerSuchtext();
   const setSearch = useAntraegeStore(s => s.setSearch);
   // Frage-Modus: derselbe Flag wie in der Dokumenten-Suche — dasselbe
   // Verfahren, dieselbe Freischaltung.
@@ -96,7 +98,10 @@ export function AntraegeHeader({ filterOpen, onToggleFilter, listeSichtbar }: Pr
   const filterCount = useFilterState(s => s.active.length);
   // Zähler UND Ausblend-Zahl kommen aus derselben Pipeline wie die Liste — der
   // Kopf rechnet nichts nach (Pitfall #46).
-  const { filtered, bearbeiterFilter, counts, ausgeblendet, stillstandUnpruefbar } = useFilteredAntraege();
+  const {
+    filtered, bearbeiterFilter, counts, ausgeblendet, stillstandUnpruefbar,
+    stillstandIndexFehlt, stillstandFehler, stillstandAlterSekunden,
+  } = useFilteredAntraege();
   const stillstandTage = useAntraegeStore(s => s.stillstandTage);
   const setStillstandTage = useAntraegeStore(s => s.setStillstandTage);
   const verbundById = useAntraegeStore(s => s.verbundById);
@@ -106,7 +111,11 @@ export function AntraegeHeader({ filterOpen, onToggleFilter, listeSichtbar }: Pr
   const storage = useStorage();
   const activeProgrammId = useActiveProgramm(s => s.activeProgrammId);
   const [exportBusy, setExportBusy] = useState(false);
-  const searchActive = search.trim().length > 0;
+  // Der WIRKSAME Suchtext entscheidet, ob überhaupt gesucht wird — nicht der rohe
+  // Feldinhalt. Im Frage-Modus ist eine getippte, nicht übersetzte Frage kein
+  // Suchtext; das Häkchen „Auch ausserhalb meiner Antraege suchen“ stand dort
+  // trotzdem da und wirkte nicht (v4.124, dieselbe Klasse wie B10/B6).
+  const searchActive = wirksamerSuchtext.trim().length > 0;
   const showMaColumn = isAuslastungFreigeschaltet() && !bearbeiterFilter.active;
   // Der Export bildet exakt die Spalten der Ansicht ab — die kuratierten
   // Ordner-Spalten gehören dazu.
@@ -144,9 +153,9 @@ export function AntraegeHeader({ filterOpen, onToggleFilter, listeSichtbar }: Pr
       // Trichter und Beendet-Achse greifen erst danach, und ein Export, der sie
       // übergeht, schreibt Zeilen, die der Mensch gerade weggefiltert hat. Die
       // eigenen Spalten kommen aus derselben Meldung (v4.121).
-      const { sichtbareTvs, eigeneSpalten } = useTabellenSicht.getState();
+      const { sichtbareTvs, sichtbareReihenfolge, eigeneSpalten } = useTabellenSicht.getState();
       await exportFilteredAntraegeXlsx(
-        beschraenkeAufSichtbare(filtered, sichtbareTvs),
+        beschraenkeAufSichtbare(filtered, sichtbareTvs, sichtbareReihenfolge),
         storage.idb, activeProgrammId, verbundById, visibleColumns, showMaColumn,
         kategorieSpalten, eigeneSpalten,
       );
@@ -205,13 +214,29 @@ export function AntraegeHeader({ filterOpen, onToggleFilter, listeSichtbar }: Pr
                 <button
                   type="button"
                   onClick={() => setStillstandTage(null)}
-                  title={stillstandUnpruefbar > 0
-                    ? `${stillstandUnpruefbar} Antraege tragen kein datierbares Kuerzel und lassen sich nicht beurteilen — sie fehlen in dieser Liste. Klick hebt den Filter auf.`
-                    : 'Klick hebt den Stillstands-Filter auf.'}
+                  title={
+                    // Drei Zustaende, getrennt benannt: der Index fehlt (dann ist
+                    // NICHTS gefiltert), er scheiterte, oder einzelne Antraege
+                    // tragen kein datierbares Kuerzel. Nur im letzten Fall fehlen
+                    // sie wirklich in dieser Liste (v4.124).
+                    stillstandFehler !== null
+                      ? `${stillstandFehler} Klick hebt den Filter auf.`
+                      : stillstandIndexFehlt
+                        ? 'Der Stillstand wird gerade ermittelt — bis dahin steht die Liste ungefiltert. Klick hebt den Filter auf.'
+                        : stillstandUnpruefbar > 0
+                          ? `${stillstandUnpruefbar} Antraege tragen kein datierbares Kuerzel und lassen sich nicht beurteilen — sie fehlen in dieser Liste.`
+                            + `${stillstandAlterSekunden !== null && stillstandAlterSekunden > 120 ? ` Stand: vor ${Math.round(stillstandAlterSekunden / 60)} Min.` : ''}`
+                            + ' Klick hebt den Filter auf.'
+                          : 'Klick hebt den Stillstands-Filter auf.'
+                  }
                   className="inline-flex items-center gap-1 px-2.5 py-[3px] rounded-full text-[11px] bg-[var(--tf-bg-secondary)] text-[var(--tf-text-secondary)] hover:bg-[var(--tf-hover)] transition-colors shrink-0"
                 >
                   <span>{`Stillstand > ${stillstandTage} T.`}</span>
-                  {stillstandUnpruefbar > 0 ? (
+                  {stillstandFehler !== null ? (
+                    <span className="text-[var(--tf-warning-text)]">· nicht ermittelbar</span>
+                  ) : stillstandIndexFehlt ? (
+                    <span className="text-[var(--tf-text-tertiary)]">· wird ermittelt …</span>
+                  ) : stillstandUnpruefbar > 0 ? (
                     <span className="text-[var(--tf-text-tertiary)]">
                       {`· ${stillstandUnpruefbar} nicht pruefbar`}
                     </span>

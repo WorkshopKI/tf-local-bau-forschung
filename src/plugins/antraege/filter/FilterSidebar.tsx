@@ -147,10 +147,20 @@ export function FilterSidebar({
   // schreiben und die jüngsten fünf frisch laden. Leeres Set wird nicht
   // aufgezeichnet (siehe recordFilterApply).
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Der Stand BEIM ÖFFNEN ist keine Anwendung: die Leiste wird gemountet, wenn
+  // jemand sie aufklappt — die Filter standen da schon. Ohne diese Schranke
+  // zählte jedes Auf- und Zuklappen als weitere Benutzung, und der
+  // Verlaufs-/Vorschlags-Zähler maß Mounts statt Klicks (v4.124).
+  const startSignatur = useRef<string | null>(null);
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
-      if (active.length > 0) recordFilterApply(active, definitions);
+      const sig = JSON.stringify(active.map(a => [a.filterId, a.value]));
+      if (startSignatur.current === null) startSignatur.current = sig;
+      else if (active.length > 0 && sig !== startSignatur.current) {
+        recordFilterApply(active, definitions);
+        startSignatur.current = sig;
+      }
       setVerlauf(getVerlauf(5, definitions, valueLabels));
     }, 250);
     return () => {
@@ -432,7 +442,12 @@ export function FilterSidebar({
           className="flex items-center gap-1.5 text-[12px] text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)] disabled:opacity-40 disabled:cursor-not-allowed"
         >
           <RotateCcw size={12} />
-          Alle Filter zurücksetzen
+          {/* „Filter der Leiste", nicht „Alle Filter": `clearAll` räumt genau
+              `active` — die Quickfilter-Pillen (Antragstyp, PreCheck, Stillstand,
+              Ampel) und der Kürzel-Ausschnitt einer Frage bleiben stehen. Sie
+              haben ihre eigenen Chips mit ×, sind also erreichbar; falsch war nur
+              das Wort „Alle" (v4.124). */}
+          Filter der Leiste zurücksetzen
         </button>
         <button
           type="button"

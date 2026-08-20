@@ -205,7 +205,7 @@ export function AntraegeMain({
   };
   const openAntrag = (az: string): void => navigate(antragDetailPfad({ aktenzeichen: az }));
   const openVerbund = (id: string): void => navigate(antragDetailPfad({ verbundId: id }));
-  const { definitions, active, clearFilter, clearAll, init } = useFilterState();
+  const { definitions, active, clearFilter, clearAll, init, valueLabels } = useFilterState();
   // Angepinnte Schnellzugriffe: sie stehen in derselben Zeile wie die aktiven
   // Chips und bestimmen mit, welche davon dort noch gebraucht werden.
   const pins = usePinnedFilters(s => s.pins);
@@ -477,7 +477,8 @@ export function AntraegeMain({
   const meldeEigeneSpalten = useTabellenSicht(s => s.meldeEigeneSpalten);
   useEffect(() => {
     if (!narrow) return;
-    meldeSichtbare(new Set(kompaktZeilen.map(a => a.aktenzeichen)));
+    const keys = kompaktZeilen.map(a => a.aktenzeichen);
+    meldeSichtbare(new Set(keys), keys);
   }, [narrow, kompaktZeilen, meldeSichtbare]);
   // Die eigenen Spalten werden HIER gebaut (ein Stichtag, ein Feld-Vorrat) —
   // der Export nimmt dieselben Instanzen, statt sie stillschweigend wegzulassen.
@@ -617,6 +618,7 @@ export function AntraegeMain({
                 <ActiveFilterChips
                   active={chipActive}
                   definitions={definitions}
+                  valueLabels={valueLabels}
                   onRemove={clearFilter}
                   className="flex flex-wrap gap-1.5"
                 />
@@ -797,6 +799,7 @@ export function AntraegeMain({
           open
           onClose={() => { setSpaltenDialog(false); setBearbeite(null); }}
           bestehend={bearbeite ?? undefined}
+          vergebeneIds={eigene.spalten.map(sp => sp.id)}
           vorrat={feldVorrat}
           zeilen={filtered}
           heute={heute}

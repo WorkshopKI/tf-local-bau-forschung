@@ -19,6 +19,7 @@ import { DocConverter } from '@/core/services/converter';
 import { resolveKorpus, resolveAnlage5, resolveAnlagenProTv, misseKorpus, type KorpusMass } from './quellen';
 import { getVbCharCap } from '@/core/services/ai/llm-context';
 import { bestimmeLaufZiel, type LaufZiel } from './lauf-ziel';
+import { parseVbGliederung } from './gliederung';
 import {
   aufbereitungKey, computeAufbereitung, loadAufbereitung, istVeraltet, toggleOffenerPunkt, toggleErledigterPunkt,
   type AufbereitungContext,
@@ -41,7 +42,8 @@ import type { GlossarDaten } from './glossar';
 import type { VerwertungDaten } from './verwertung';
 import {
   normalisiereAuftragstext, parseRecherchePrompt, pruefeBearbeitetenPrompt,
-  recherchePromptCacheKey, type RecherchePromptDaten,
+  recherchePromptCacheKey, recherchePromptBearbeitetKey, leseBearbeitetenRecherchePrompt,
+  type RecherchePromptDaten,
 } from './recherche-prompt';
 import { baueDeepResearchAuftrag } from './recherche-auftrag';
 import {
@@ -96,9 +98,11 @@ export interface UseAufbereitungResult {
    *  Lesemodus — gesetzt, sobald ein Baustein-Lauf den Korpus auflöst. Heißt aus
    *  Kompatibilität weiter `vbMarkdown` (Prop-Name in allen Tabs). */
   vbMarkdown: string | null;
-  /** Umfang des Korpus gegen das Kontextfenster DER TATSÄCHLICH GENUTZTEN KI
-   *  (`laufZiel.cap`, nicht die globale KI-Variante). `ueberCap` heisst: die Bausteine
-   *  haben das Ende des Textes nicht gesehen; das gilt auch für gecachte Ergebnisse. */
+  /** Umfang des Korpus gegen das Kontextfenster DER GERADE GEWÄHLTEN KI
+   *  (`laufZiel.cap`, nicht die globale KI-Variante). `ueberCap` heisst: ein
+   *  NEUER Lauf sähe das Ende des Textes nicht. Über bereits GECACHTE Ergebnisse
+   *  sagt es nichts — der Cache-Eintrag trägt sein Ziel nicht, und der
+   *  Notausfahrt-Schalter ist Sitzungszustand (siehe `QuellenPanel`). */
   korpusMass: KorpusMass | null;
   /**
    * Zum Vorgang gefundene MAP-Einreichung (über die zugeordnete VB-Datei) samt dem
@@ -220,6 +224,18 @@ export function useAufbereitung(ctx: AufbereitungContext | null): UseAufbereitun
     antragKey: string, korpusMarkdown: string, abgebrochen: () => boolean,
   ): Promise<void> => {
     const gecacht = await leseGecachteBausteine(storage.idb, antragKey, vbHashFuer(korpusMarkdown));
+    // Der VON HAND geprüfte Recherche-Auftrag überlebt den Korpus-Wechsel. Er
+    // steht im hash-gekeyten Cache wie ein LLM-Ergebnis — für ein solches ist
+    // das richtig (anderer Text = anderes Ergebnis), für eine Fassung, die der
+    // Prüfer Zeile für Zeile abgenommen hat, nicht: nach dem nächsten
+    // Dokument-Upload stand der Recherche-Tab wieder im Leerzustand, und auch
+    // „Zurück zum KI-Text" kam nicht mehr heran, weil `bearbeitet.kiOriginal`
+    // im selben verwaisten Eintrag steckte (v4.124). Derselbe Schutz, den
+    // `uebernehmeExterneRecherchen` den importierten DR-Ergebnissen gibt.
+    if (!gecacht.recherchePrompt) {
+      const bearbeitet = await leseBearbeitetenRecherchePrompt(storage.idb, antragKey);
+      if (bearbeitet) gecacht.recherchePrompt = bearbeitet;
+    }
     if (abgebrochen()) return;
     setBausteinZustand(vorher => fuelleAusCache(vorher, gecacht));
   };
@@ -353,10 +369,11 @@ export function useAufbereitung(ctx: AufbereitungContext | null): UseAufbereitun
    * einen vorhandenen Run. Sequentiell, weil der interne Transport (Streamlit-Bridge)
    * ein einzelnes postMessage-Fenster ist. VB einmal auflösen.
    */
-  const laufBausteine = async (aktRun: AufbereitungRun, aktCtx: AufbereitungContext, force: boolean): Promise<void> => {
-    // Bausteine laufen auf dem KORPUS (VB + narrative Zusatzdokumente) — deckungsgleich
-    // mit `aktRun.gliederung` (in `baueRun` ebenfalls aus dem Korpus). So ist die
-    // Auswertung dokumentgrenzen-unabhängig und Marketing-Inhalt wird fundstellen-fähig.
+  const laufBausteine = async (_aktRun: AufbereitungRun, aktCtx: AufbereitungContext, force: boolean): Promise<void> => {
+    // Bausteine laufen auf dem KORPUS (VB + narrative Zusatzdokumente), und ihre
+    // Gliederung wird aus demselben frischen Korpus abgeleitet — nicht aus dem
+    // gespeicherten Run (siehe `deps.gliederung` unten). So ist die Auswertung
+    // dokumentgrenzen-unabhängig und Marketing-Inhalt wird fundstellen-fähig.
     const korpus = await resolveKorpus(storage.idb, aktCtx).catch(() => null);
     if (!korpus) {
       setBausteinZustand(vorher => setzeAlleUi(vorher, { status: 'fehler' }));
@@ -369,10 +386,22 @@ export function useAufbereitung(ctx: AufbereitungContext | null): UseAufbereitun
     const deps = {
       idb: storage.idb,
       antragKey: aktCtx.key,
-      gliederung: aktRun.gliederung,
+      // Die Gliederung aus dem FRISCH aufgelösten Korpus, nicht die des
+      // gespeicherten Runs: beide gehen in denselben Prompt, und die Parser
+      // prüfen die vom Modell genannten Fundstellen gegen genau diese Liste.
+      // Kam seit dem Run ein Dokument dazu, trägt jeder Claim daraus eine
+      // Sektions-Id, die die alte Liste nicht kennt — und wurde still verworfen
+      // (v4.124). `parseVbGliederung` ist dieselbe Funktion, die `baueRun` nimmt.
+      gliederung: parseVbGliederung(korpus.markdown),
       korpus: korpus.markdown,
       bekannteWerte: aktCtx.bekannteWerte ?? {},
-      opts: { force, ziel: laufZiel.ziel },
+      opts: {
+        force,
+        ziel: laufZiel.ziel,
+        // Passt der Korpus nicht ins Standard-Fenster, darf kein Baustein dorthin
+        // zurückfallen (siehe `getOrComputeBaustein.ueberStandardCap`).
+        ueberStandardCap: laufZiel.notausfahrtAnbieten,
+      },
     };
     // Sequentiell in Katalog-Reihenfolge (`recherchePrompt` zuerst, damit der Prüfer die
     // externe Deep Research starten kann, während die übrigen weiterlaufen). Sequentiell,
@@ -466,6 +495,11 @@ export function useAufbereitung(ctx: AufbereitungContext | null): UseAufbereitun
     }
     const vbHash = vbHashFuer(korpus);
     await storage.idb.set(recherchePromptCacheKey(aktCtx.key, vbHash), { vbHash, daten });
+    // Zusätzlich hash-frei, damit die geprüfte Fassung einen Korpus-Wechsel
+    // übersteht (siehe `recherchePromptBearbeitetKey`).
+    if (daten.bearbeitet) {
+      await storage.idb.set(recherchePromptBearbeitetKey(aktCtx.key), { daten });
+    }
     setzeBaustein('recherchePrompt', { status: 'ok', daten });
   };
 

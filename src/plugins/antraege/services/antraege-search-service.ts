@@ -39,6 +39,7 @@ import {
   applyCorpusToIdb as applyMirrorCorpus,
   checkCompat as checkMirrorCompat,
 } from '@/core/services/embedding-corpus';
+import { bestandGeneration } from '@/core/services/bestand-generation';
 import { getActiveModelId, getModelById } from '@/core/services/search/model-registry';
 import { hybridSearch, getOramaDB } from '@/core/services/search/orama-store';
 import type { StorageService } from '@/core/services/storage';
@@ -177,6 +178,18 @@ export interface SearchAntraegeOptions {
 
 interface ProgrammCaches {
   programmId: string;
+  /**
+   * Der Bestandsstand, mit dem dieser Korpus gebaut wurde
+   * (`bestandGeneration()`). Ändert er sich, ist der Korpus falsch.
+   *
+   * Bis v4.122 kannte der Cache nur die Programm-Id, und `clearAntraegeSearchCaches`
+   * rief allein der Programm-Wechsel — den es in einer Ein-Programm-Installation
+   * gar nicht gibt. Nach jeder Datenaktualisierung in laufender Sitzung zeigte
+   * die Tabelle den neuen Bestand und das Suchfeld darüber durchsuchte bis zum
+   * Reload den alten: ein frisch importierter Antrag lieferte auf sein eigenes
+   * FKZ „kein Treffer", und „Stöbern" nannte die Werte des vorigen Exports.
+   */
+  generation: number;
   textCorpus: Map<string, AntragTextEntry>;
   filenameToAkz: Map<string, string>;
   /** Welche Werte die aufzählbaren Felder führen — für die Vervollständigung
@@ -188,6 +201,9 @@ interface ProgrammCaches {
 
 let cachedProgrammCaches: ProgrammCaches | null = null;
 let cachedProgrammLoadPromise: Promise<ProgrammCaches> | null = null;
+/** Für welchen Bestandsstand / welches Programm der laufende Ladevorgang gilt. */
+let ladePromiseGeneration = -1;
+let ladePromiseProgramm: string | null = null;
 
 let cachedEmbeddings: Map<string, number[]> | null = null;
 let cachedEmbeddingsLoadPromise: Promise<Map<string, number[]>> | null = null;
@@ -203,10 +219,19 @@ export async function getProgrammCaches(
   idb: IDBStore,
   programmId: string,
 ): Promise<ProgrammCaches> {
-  if (cachedProgrammCaches && cachedProgrammCaches.programmId === programmId) {
+  const gen = bestandGeneration();
+  if (cachedProgrammCaches
+    && cachedProgrammCaches.programmId === programmId
+    && cachedProgrammCaches.generation === gen) {
     return cachedProgrammCaches;
   }
-  if (cachedProgrammLoadPromise) return cachedProgrammLoadPromise;
+  // Ein laufender Ladevorgang zählt nur, wenn er für DIESEN Stand läuft — sonst
+  // liefert er gleich den Korpus, den wir gerade verworfen haben.
+  if (cachedProgrammLoadPromise && ladePromiseGeneration === gen && ladePromiseProgramm === programmId) {
+    return cachedProgrammLoadPromise;
+  }
+  ladePromiseGeneration = gen;
+  ladePromiseProgramm = programmId;
   cachedProgrammLoadPromise = (async () => {
     const werteRoh = leererWertIndexRoh();
     const [textCorpus, filenameToAkz] = await Promise.all([
@@ -214,7 +239,7 @@ export async function getProgrammCaches(
       loadDmsFilenameToAkz(idb),
     ]);
     const result = {
-      programmId, textCorpus, filenameToAkz, werteIndex: verdichteWertIndex(werteRoh),
+      programmId, generation: gen, textCorpus, filenameToAkz, werteIndex: verdichteWertIndex(werteRoh),
     };
     cachedProgrammCaches = result;
     return result;
@@ -243,10 +268,17 @@ export async function getEmbeddings(idb: IDBStore): Promise<Map<string, number[]
   }
 }
 
-/** Cleart die Modul-Caches. Wird beim Programm-Switch via Hook getriggert. */
+/**
+ * Cleart die Modul-Caches. Wird beim Programm-Switch via Hook getriggert.
+ *
+ * Für den Bestandswechsel braucht es diesen Aufruf **nicht** mehr: der Korpus
+ * trägt seit v4.124 die `bestandGeneration()` im Cache und erneuert sich selbst.
+ */
 export function clearAntraegeSearchCaches(): void {
   cachedProgrammCaches = null;
   cachedProgrammLoadPromise = null;
+  ladePromiseGeneration = -1;
+  ladePromiseProgramm = null;
   cachedEmbeddings = null;
   cachedEmbeddingsLoadPromise = null;
   cachedEmbeddingsDim = null;
@@ -734,9 +766,16 @@ function feldZuordnung(
     // Der BELEG darf nie strenger sein als der Treffer: eine Nadel mit
     // Platzhalter faende `.includes('mobi?nspec')` nirgends, und die Zeile
     // stuende ohne Trefferstelle da — gefunden, aber unerklaert.
+    //
+    // Ohne Platzhalter gilt aber genau UMGEKEHRT dieselbe Regel: der Beleg darf
+    // auch nicht WEICHER sein. Der Match-Durchgang oben entscheidet mit
+    // `enthaeltAlsWortteil` (verwirft einen Fund mit genau einem Wortzeichen
+    // davor — der v4.68-Fix gegen „Normen findet e-norm-es"); ein rohes
+    // `.includes` hier nannte Fundstellen, die die Trefferregel selbst ablehnt,
+    // und hob über `abdeckung` die Marke „trägt ALLE gefragten Themen" (v4.124).
     const in_ = (feld: string): boolean => t.nadeln.some((n, i) => {
       const m = t.nadelMuster[i];
-      return m !== null && m !== undefined ? musterTrifft(feld, m) : feld.includes(n);
+      return m !== null && m !== undefined ? musterTrifft(feld, m) : enthaeltAlsWortteil(feld, n);
     });
     merke('titel', in_(entry.vbLower) || in_(entry.tvLower));
     merke('kurzbeschreibung', in_(entry.absLower));
@@ -960,9 +999,16 @@ export async function searchAntraege(
     unavailable.push('dms');
   } else {
     try {
+      // `threshold` MUSS mitgegeben werden: Oramas Laufzeit-Default ist 1 und
+      // hieß hier stillschweigend ODER, während die Wortlaut-Stufe desselben
+      // Laufs UND verlangt (`substringMatches`, Default 'und'). Zwei Wörter im
+      // Feld holten dadurch über die Dokumentstufe Anträge herein, deren Dokument
+      // nur eines der beiden trägt — ohne dass die Zeile einen Grund nennt. Die
+      // Schwester `searchAntraegeDms` reicht den Wert seit je durch (v4.124).
       const dmsHits = hybridSearch(query, queryVec, {
         type: 'dokument',
         limit: DMS_HIT_LIMIT,
+        threshold: verknuepfungAlsThreshold('und'),
       });
       for (const hit of dmsHits) {
         const akz = caches.filenameToAkz.get(hit.source);

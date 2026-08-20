@@ -30,8 +30,13 @@ const MELDUNG = {
   leer: 'Bitte eine Frage eingeben.',
   nichtVerbunden: 'Die interne KI ist nicht verbunden — die Frage konnte nicht in Filter '
     + 'übersetzt werden. Die Liste steht unverändert.',
-  keinPlan: 'Aus dieser Frage ließen sich keine Filter ableiten. Die Filter sind unverändert; '
-    + 'gesucht wurde nach dem eingegebenen Text.',
+  // Kein „gesucht wurde nach dem eingegebenen Text": genau das passiert NICHT.
+  // Der Fehlerzweig setzt `frageGestellt` bewusst nicht (sonst liefe der
+  // Fragesatz als Wortlaut), damit bleibt `wirksamerSuchtext` leer und weder
+  // Wortlaut- noch Hybrid-Stufe läuft. Die Liste steht exakt so da wie vorher —
+  // das ist die Aussage, nicht „Textsuche ohne Einschränkung" (v4.124).
+  keinPlan: 'Aus dieser Frage ließen sich keine Filter ableiten. Die Liste steht unverändert; '
+    + 'es wurde nicht gesucht. Formuliere die Frage anders oder wechsle auf Stichworte.',
   abgebrochen: 'Die Übersetzung wurde abgebrochen.',
 } as const;
 

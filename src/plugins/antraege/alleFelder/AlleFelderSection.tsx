@@ -3,7 +3,7 @@ import { Search } from 'lucide-react';
 import type { CsvSchema } from '@/core/services/csv/types';
 import './felder.css';
 import { type DisplayGroup, type DisplayRow } from './buildDisplayRows';
-import { classifyField, adminBadgeLabel } from './felderKuration';
+import { classifyField, adminBadgeLabel, baueFelderWerte } from './felderKuration';
 import {
   assembleFlagCluster,
   isFlagGroup,
@@ -76,7 +76,10 @@ export function AlleFelderSection({
   // Partition: normale Feld-Gruppen vs. Flag-Rows (in den konsolidierten Cluster
   // gehoben). Flag-Erkennung dual: group_path-getrieben (echte Schemas) ODER
   // boolean-Typ/`zt_`-Präfix (Fixtures ohne group_path).
-  const { normalGroups, flagSubgroups, otherIndex, counts } = useMemo(() => {
+  const { normalGroups, flagSubgroups, otherIndex, counts, felderWerte } = useMemo(() => {
+    // Werte-Verzeichnis über ALLE Zeilen — gegen dieses prüft die Kuration ihre
+    // Duplikat-Behauptungen (siehe `classifyField`), statt sie zu glauben.
+    const werte = baueFelderWerte(groups.flatMap(g => g.rows));
     const normal: { label: string; rows: DisplayRow[] }[] = [];
     const flagRows: { row: DisplayRow; subgroup: string }[] = [];
     let other = -1;
@@ -105,16 +108,18 @@ export function AlleFelderSection({
     const c = {
       total: allNormal.length + flagRows.length,
       mit: allNormal.filter(withValue).length + flagRows.filter(f => withValue(f.row)).length,
-      relevant: allNormal.filter(r => withValue(r) && !classifyField(r).admin).length,
-      adminHidden: allNormal.filter(r => withValue(r) && classifyField(r).admin).length,
-      flagWithValues: flagRows.filter(f => withValue(f.row)).length,
+      relevant: allNormal.filter(r => withValue(r) && !classifyField(r, werte).admin).length,
+      adminHidden: allNormal.filter(r => withValue(r) && classifyField(r, werte).admin).length,
     };
-    return { normalGroups: normal, flagSubgroups: subgroups, otherIndex: other, counts: c };
+    return {
+      normalGroups: normal, flagSubgroups: subgroups, otherIndex: other, counts: c,
+      felderWerte: werte,
+    };
   }, [groups, schemas]);
 
   const ql = q.trim().toLowerCase();
   const rowVisible = (r: DisplayRow): boolean => {
-    if (tab === 'relevant' && (!withValue(r) || classifyField(r).admin)) return false;
+    if (tab === 'relevant' && (!withValue(r) || classifyField(r, felderWerte).admin)) return false;
     if (tab === 'mit' && !withValue(r)) return false;
     if (ql && !(r.label.toLowerCase().includes(ql) || r.field.toLowerCase().includes(ql) || r.value.toLowerCase().includes(ql))) return false;
     return true;
@@ -122,7 +127,11 @@ export function AlleFelderSection({
 
   // Render-Reihenfolge: normale Gruppen, Flag-Cluster vor „Weitere Felder" (sonst am Ende).
   const entries: Entry[] = [];
-  const totalDesc = flagSubgroups.reduce((a, s) => a + s.total, 0);
+  // Alle gebündelten Kennzeichen (eine Einheit für Hinweis, Abzeichen und Meta —
+  // vorher zählte der Hinweis Roh-Zeilen und die Meta zusammengeführte Deskriptoren).
+  const totalDesc = flagSubgroups.reduce((a, s) => a + s.descriptors.length, 0);
+  const erfassteDesc = flagSubgroups.reduce((a, s) => a + s.total, 0);
+  const nichtErfasstDesc = totalDesc - erfassteDesc;
   const matchedDesc = ql
     ? flagSubgroups.reduce((a, s) => a + s.descriptors.filter(d => d.label.toLowerCase().includes(ql)).length, 0)
     : totalDesc;
@@ -133,7 +142,8 @@ export function AlleFelderSection({
         kind: 'flags',
         subgroups: flagSubgroups,
         count: matchedDesc,
-        meta: `${flagSubgroups.reduce((a, s) => a + s.yesCount, 0)} / ${totalDesc} zutreffend`,
+        meta: `${flagSubgroups.reduce((a, s) => a + s.yesCount, 0)} / ${erfassteDesc} zutreffend`
+          + (nichtErfasstDesc > 0 ? ` · ${nichtErfasstDesc} nicht erfasst` : ''),
       }
     : null;
   normalGroups.forEach((g, i) => {
@@ -193,7 +203,7 @@ export function AlleFelderSection({
 
       {tab === 'relevant' && (counts.adminHidden > 0 || totalDesc > 0) ? (
         <div className="af-hint">
-          „Relevant" blendet {counts.adminHidden} Verwaltungs-/Duplikat-Felder aus und bündelt {counts.flagWithValues} Technologie-Kennzeichen. Über „Alle" einblendbar.
+          „Relevant" blendet {counts.adminHidden} Verwaltungs-/Duplikat-Felder aus und bündelt {totalDesc} Technologie-Kennzeichen. Über „Alle" einblendbar.
         </div>
       ) : null}
 
@@ -233,7 +243,7 @@ export function AlleFelderSection({
                     ) : (
                       <div className="af-grp-body">
                         {e.rows.map(r => {
-                          const cls = classifyField(r);
+                          const cls = classifyField(r, felderWerte);
                           const badge = adminBadgeLabel(cls);
                           return (
                             <div key={r.field} className="af-row">

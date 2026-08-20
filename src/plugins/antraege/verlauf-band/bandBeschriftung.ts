@@ -415,10 +415,16 @@ function beschrifteBahn(
   // --- Durchgang 4: die Namen -------------------------------------------
   const out: SegmentBeschriftung[] = bahn.segmente.map((b, i) => {
     const ref = b.segment.statusRef;
+    const statusKandidaten = b.segment.kandidaten ?? [];
     // Ohne Statusbezug bleibt „—" — dieselbe Auskunft wie bis v3.31: es gibt
-    // einen Abschnitt, aber keinen Namen dafür.
-    const lang = ref?.lang ?? '—';
-    const kurz = ref?.kurz ?? '—';
+    // einen Abschnitt, aber keinen Namen dafür. Ein MEHRDEUTIGES Segment hat
+    // dagegen zwei Namen und nennt sie (v4.124).
+    const lang = statusKandidaten.length > 0
+      ? statusKandidaten.map(k => k.lang).join(' oder ')
+      : ref?.lang ?? '—';
+    const kurz = statusKandidaten.length > 0
+      ? statusKandidaten.map(k => k.kurz).join('/')
+      : ref?.kurz ?? '—';
     const platzText = b.breite - POLSTER_BALKEN - SICHERHEIT
       - (b.gestaucht ? BRUCH_BREITE : 0);
 

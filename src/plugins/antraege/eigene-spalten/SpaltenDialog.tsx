@@ -35,11 +35,26 @@ import type { AntragTableRow } from '../tableGrouping';
  *  wenig genug, um den Dialog nicht zur Tabelle zu machen. */
 const VORSCHAU_ZEILEN = 12;
 
+/**
+ * Freie persoenliche Spalten-Id zum Label — haengt `-2`, `-3`, … an, statt eine
+ * vorhandene Spalte zu ueberschreiben. Wortgleich zu `freieTeamId`
+ * (`useEigeneSpalten.ts`): eine Regel, zwei Ebenen.
+ */
+function freieId(label: string, vergeben: readonly string[]): string {
+  const genommen = new Set(vergeben);
+  const basis = slugVon(label);
+  let kandidat = spaltenId('ich', basis);
+  for (let n = 2; genommen.has(kandidat); n++) kandidat = spaltenId('ich', `${basis}-${n}`);
+  return kandidat;
+}
+
 interface Props {
   open: boolean;
   onClose: () => void;
   /** Vorhandene Spalte bearbeiten; ohne sie wird eine neue angelegt. */
   bestehend?: EigeneSpalte;
+  /** Bereits vergebene Spalten-Ids — eine NEUE Spalte weicht ihnen aus. */
+  vergebeneIds?: readonly string[];
   /** Feld-Vorrat aus allen Programm-Schemas. */
   vorrat: readonly SpaltenEintrag[];
   /** Geladene Zeilen für die Vorschau (die Tabelle reicht ihre eigenen durch). */
@@ -77,7 +92,7 @@ function herkunftKurz(codes: readonly string[]): string {
 const MAX_QUELL_CODES = 2;
 
 export function SpaltenDialog({
-  open, onClose, bestehend, vorrat, zeilen, heute, brauchtNeuaufbau, onSpeichern, onLoeschen,
+  open, onClose, bestehend, vergebeneIds = [], vorrat, zeilen, heute, brauchtNeuaufbau, onSpeichern, onLoeschen,
   darfTeam = false, onInsTeam,
 }: Props): React.ReactElement {
   const istTeamSpalte = bestehend !== undefined && herkunftVon(bestehend.id) === 'team';
@@ -123,10 +138,20 @@ export function SpaltenDialog({
     // Die Id bleibt bei einer bestehenden Spalte GLEICH, auch wenn die
     // Beschriftung sich ändert: an ihr hängen gespeicherte Sichtbarkeit und
     // Breite. Ein Nachführen des Slugs würde beides verlieren.
-    const id = bestehend?.id ?? spaltenId('ich', slugVon(beschriftung));
+    // Eine NEUE Spalte bekommt eine freie Id: zwei Kolleginnen duerfen
+    // „Restlaufzeit“ heissen wollen, und ein gleicher Slug ueberschrieb bis
+    // v4.123 die vorhandene Spalte samt ihrer Definition. Dieselbe Regel, die
+    // `freieTeamId` fuer die Team-Ebene laengst zieht (v4.124).
+    const id = bestehend?.id ?? freieId(beschriftung, vergebeneIds);
     if (art === 'feld') {
       if (feldId === '') return null;
-      const typ = vorrat.find(e => e.feldId === feldId)?.typ ?? 'wert';
+      // Der gespeicherte Typ gewinnt, solange das FELD dasselbe ist: mappt das
+      // gerade offene Programm die Spalte nicht, faende `vorrat` sie nicht und
+      // eine Datums-Spalte kippte still auf `wert` (v4.124).
+      const gespeichert = bestehend?.art === 'feld' && bestehend.feldId === feldId
+        ? bestehend.typ
+        : undefined;
+      const typ = gespeichert ?? vorrat.find(e => e.feldId === feldId)?.typ ?? 'wert';
       return { id, art: 'feld', label: beschriftung, feldId, typ };
     }
     if (art === 'sammel') {
@@ -391,9 +416,14 @@ export function SpaltenDialog({
                 )}
                 <span className="min-w-0 truncate text-[var(--tf-text-secondary)]">{e.label}</span>
                 {/* Deckungshinweis: ein Feld, das nur ein Programm mappt, traegt
-                    anderswo nichts — das soll man vorher sehen. */}
-                <span className="ml-auto shrink-0 text-[10.5px] text-[var(--tf-text-tertiary)]">
-                  {e.schemaAnzahl}×
+                    anderswo nichts — das soll man vorher sehen. Gezaehlt werden
+                    PROGRAMME, nicht CSV-Quellen: ein Programm kann mehrere fuehren,
+                    und `schemaAnzahl` las sich als Deckung, ohne eine zu sein (v4.124). */}
+                <span
+                  className="ml-auto shrink-0 text-[10.5px] text-[var(--tf-text-tertiary)]"
+                  title={`In ${e.programmAnzahl ?? e.schemaAnzahl} Programm(en) gemappt, ueber ${e.schemaAnzahl} CSV-Quelle(n)`}
+                >
+                  {e.programmAnzahl ?? e.schemaAnzahl}×
                 </span>
               </label>
             ))}
@@ -403,6 +433,15 @@ export function SpaltenDialog({
 
         <div>
           <span className="block mb-1 text-[var(--tf-text-secondary)]">Vorschau</span>
+          {/* Ein Feld, das DIESES Programm nicht mappt, traegt hier nichts — und
+              in der Liste oben ist dann nichts angekreuzt. Ohne diesen Satz sah
+              die Spalte einfach leer aus (v4.124). */}
+          {art === 'feld' && feldId !== '' && !vorrat.some(e => e.feldId === feldId) && (
+            <div className="mb-2 text-[var(--tf-warning-text)]">
+              Das Feld <code className="font-mono">{feldId}</code> ist in diesem Programm nicht
+              gemappt — die Spalte bleibt hier leer. In einem anderen Programm kann sie tragen.
+            </div>
+          )}
           {!entwurf && (
             <div className="text-[var(--tf-text-tertiary)]">
               Beschriftung und Feld wählen — dann steht hier, was in der Spalte stünde.

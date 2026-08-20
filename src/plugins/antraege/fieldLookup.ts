@@ -1,8 +1,17 @@
 import type { Antrag } from '@/core/services/csv/types';
 
-/** Normalisiert Feld-Bezeichner fuer robustes Lookup: lowercase + alle Trenner raus. */
+/**
+ * Normalisiert Feld-Bezeichner fuer robustes Lookup: lowercase + alle Trenner raus.
+ *
+ * Klammern und Schraegstriche gehoeren zu den Trennern, seit v4.124: der Importer
+ * wirft sie beim Ableiten des Custom-Keys weg (`beantragte Kosten (Deckblatt
+ * Mantelbogen)` → `beantragte_kosten_deckblatt_mantelbogen`), die Alias-Listen
+ * schreiben aber die SPALTENUEBERSCHRIFT mit Klammern. Blieben sie stehen, traf
+ * kein Alias den Record-Schluessel — gemessen 0 von 14 225 Treffern, obwohl der
+ * Wert in 8 105 Saetzen steht.
+ */
 export function normalizeKey(s: string): string {
-  return s.toLowerCase().replace(/[\s_\-.]/g, '');
+  return s.toLowerCase().replace(/[\s_\-.()[\]{}/\\,;:]/g, '');
 }
 
 /**
@@ -39,4 +48,23 @@ export function findFieldValueAcross(antraege: Antrag[], candidates: string[]): 
     if (typeof v === 'string' ? v.trim().length > 0 : v != null) return v;
   }
   return undefined;
+}
+
+/**
+ * Wie `findFieldValueAcross`, liefert aber ALLE verschiedenen nicht-leeren Werte
+ * in Vorkommens-Reihenfolge. Fuer Verbund-Kacheln, die aus TV-Feldern gefuellt
+ * werden: eine Kachel, die genau EINEN von mehreren abweichenden TV-Werten
+ * zeigt, muss das kennzeichnen koennen statt stillschweigend den Lead zu nehmen.
+ */
+export function findFieldValuesAcross(antraege: Antrag[], candidates: string[]): string[] {
+  const out: string[] = [];
+  const gesehen = new Set<string>();
+  for (const a of antraege) {
+    const v = findFieldValue(a, candidates);
+    const s = typeof v === 'string' ? v.trim() : v == null ? '' : String(v).trim();
+    if (s.length === 0 || gesehen.has(s)) continue;
+    gesehen.add(s);
+    out.push(s);
+  }
+  return out;
 }

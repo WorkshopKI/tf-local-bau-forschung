@@ -24,6 +24,12 @@ export interface WaechterQuelle {
   version: MappingVersion | null;
   /** Status UND Vorkommen DIESER Zeile — nie die einer anderen. */
   vorkommen: readonly FeldVorkommen[];
+  /**
+   * Dieselben Vorkommen, aber je Teilvorhaben getrennt. Nur so findet der
+   * Wächter die halb offenen Kürzel-Paare einer verdichteten Verbund-Zeile —
+   * siehe `WaechterEingabe.jeTeilvorhaben`.
+   */
+  jeTeilvorhaben?: readonly { aktenzeichen: string; vorkommen: readonly FeldVorkommen[] }[];
   statusRoh: unknown;
   /** ISO-Tag. */
   stichtag: string;
@@ -49,8 +55,9 @@ export function useZeilenWaechter(q: WaechterQuelle): WaechterErgebnis | null {
       vorkommen: q.vorkommen,
       statusCode: findeStatusCode(q.statusRoh)?.eintrag.code ?? null,
       stichtag: q.stichtag,
+      ...(q.jeTeilvorhaben !== undefined ? { jeTeilvorhaben: q.jeTeilvorhaben } : {}),
       ...(q.journalAenderung !== undefined ? { journalAenderung: q.journalAenderung } : {}),
       ...(q.todo !== undefined ? { todo: q.todo } : {}),
     });
-  }, [q.version, q.vorkommen, q.statusRoh, q.stichtag, q.journalAenderung, q.todo]);
+  }, [q.version, q.vorkommen, q.jeTeilvorhaben, q.statusRoh, q.stichtag, q.journalAenderung, q.todo]);
 }

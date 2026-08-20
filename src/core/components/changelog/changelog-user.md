@@ -19,6 +19,22 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.124 — 2026-08
+
+### Neu
+- **Die Änderungen eines Feldes lassen sich wieder aufrufen.** In „Alle Felder" steht hinter jedem Feld, das sich seit dem Nullpunkt geändert hat, ein kleines `↻ N` — ein Klick zeigt, wann sich der Wert wie geändert hat. Der Knopf war da, aber er ist nie erschienen.
+
+### Verbesserungen
+- **Der Wiedereinreicher-Hinweis erscheint.** 1 452 Anträge tragen den Vermerk, dass dasselbe Vorhaben schon einmal eingereicht wurde — er stand bisher in keiner einzigen Ansicht. Jetzt steht er rot hinter dem Verbund-Titel, samt den Kürzeln der damaligen Bearbeitung.
+- **„Auf einen Blick" ist nicht mehr halb leer.** Die Kacheln „beantragte Kosten" und „Laufzeit" zeigten in jedem Verbund „—", obwohl die Werte im Datensatz stehen. Dasselbe gilt für „Zuwendung" in der Teilvorhaben-Liste: dort stand „wird noch ergänzt".
+- **Die Suche findet frisch importierte Anträge sofort.** Bisher durchsuchte das Suchfeld nach einer Datenaktualisierung bis zum nächsten Neuladen den alten Stand. Die Anwendungsdomänen (z. B. „Baugewerbe") sind jetzt ebenfalls durchsuchbar.
+
+### Bugfixes
+- **Uhren und Zahlen sagen, was sie messen.** Die Nachforderungs-Karte zeigte eine Frist, wo die Liste daneben „angehalten" sagt; die Chronik hängte an jeden zweiten Eintrag denselben Text noch einmal an; Zähler und Chips nannten mal Kürzel, mal Teilvorhaben.
+- **Nichts wandert mehr von einem Vorhaben zum nächsten.** Beim Wechsel des Verbunds blieben Bescheid-Entwürfe, die zuletzt gesendeten Prompts und die Werkbank-Auswahl des vorigen stehen — jetzt nicht mehr.
+- **Ein leerer Entwurf gilt nicht als freigabereif**, ein Punkt ohne Textbaustein wird im Entwurf markiert statt weggelassen, und ein Klick auf 👍 speichert kein 👎 mehr.
+- **Escape schließt den aufgeklappten Bereich** einer Tabellenzeile jetzt auch direkt nach dem Öffnen.
+
 ## v4.123 — 2026-08
 
 ### Neu

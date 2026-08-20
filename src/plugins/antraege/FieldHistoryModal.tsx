@@ -1,62 +1,62 @@
-import { useEffect, useState } from 'react';
+/**
+ * Das Fenster hinter dem `↻ N`-Knopf in „Alle Felder": die belegten Änderungen
+ * EINES Feldes.
+ *
+ * Die Einträge kommen fertig herein (`useFeldHistorie`) statt hier noch einmal
+ * gelesen zu werden — der Knopf und das Fenster müssen aus derselben Quelle
+ * sprechen, sonst zeigt der eine „↻ 3" und das andere „Keine Einträge". Genau
+ * dieser Bruch bestand bis v4.122: der Zähler kam (am Verbund) aus einem fest
+ * verdrahteten `{}`, das Fenster aus dem nie befüllten IDB-Store.
+ *
+ * Der Nullpunkt steht dabei — eine Chronik ohne ihn liest sich als vollständige.
+ */
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
-import { useStorage } from '@/core/hooks/useStorage';
-import { getHistoryByAz, loadSchema } from '@/core/services/csv';
-import type { AntragHistorieEntry } from '@/core/services/csv/types';
+import type { FeldHistorieEintrag } from './alleFelder/useFeldHistorie';
+import { nullpunktText } from './status/journalTexte';
 
 interface Props {
   aktenzeichen: string;
   feld: string | null;
+  /** Beschriftung des Feldes (Titel); ohne Angabe der Record-Key. */
+  feldLabel?: string;
+  eintraege: readonly FeldHistorieEintrag[];
+  journalAb: string | null;
+  gefuehrt: boolean;
+  /** Zeigt mehr als ein Aktenzeichen (Verbund) — dann gehört die Quelle an die Zeile. */
+  mehrereAntraege?: boolean;
   onClose: () => void;
 }
 
-export function FieldHistoryModal({ aktenzeichen, feld, onClose }: Props): React.ReactElement {
-  const storage = useStorage();
-  const [entries, setEntries] = useState<AntragHistorieEntry[]>([]);
-  const [sourceNames, setSourceNames] = useState<Record<string, string>>({});
-
-  useEffect(() => {
-    if (!feld) return;
-    let cancelled = false;
-    (async () => {
-      const hist = await getHistoryByAz(storage.idb, aktenzeichen);
-      const forField = hist
-        .filter(h => h.feld === feld)
-        .sort((a, b) => b.geaendert_am.localeCompare(a.geaendert_am));
-      if (!cancelled) setEntries(forField);
-      const ids = [...new Set(forField.map(e => e.csv_schema_id))];
-      const names: Record<string, string> = {};
-      for (const id of ids) {
-        const s = await loadSchema(storage.idb, id);
-        if (s) names[id] = s.csv_source_name;
-      }
-      if (!cancelled) setSourceNames(names);
-    })();
-    return () => { cancelled = true; };
-  }, [aktenzeichen, feld, storage.idb]);
-
+export function FieldHistoryModal({
+  aktenzeichen, feld, feldLabel, eintraege, journalAb, gefuehrt, mehrereAntraege, onClose,
+}: Props): React.ReactElement {
   return (
     <Dialog
       open={!!feld}
       onClose={onClose}
-      title={`Historie: ${feld}`}
+      title={`Historie: ${feldLabel ?? feld}`}
       description={aktenzeichen}
       className="max-w-[600px]"
       footer={<Button size="sm" variant="default" onClick={onClose}>Schließen</Button>}
     >
-      {entries.length === 0 ? (
-        <div className="text-[13px] text-[var(--tf-text-tertiary)]">Keine Historie-Einträge.</div>
+      <p className="mb-2 text-[11px] text-[var(--tf-text-tertiary)]">
+        {nullpunktText(journalAb, gefuehrt)}
+      </p>
+      {eintraege.length === 0 ? (
+        <div className="text-[13px] text-[var(--tf-text-tertiary)]">
+          Für dieses Feld ist seit dem Nullpunkt keine Änderung belegt.
+        </div>
       ) : (
         <div className="flex flex-col gap-2 max-h-[360px] overflow-y-auto">
-          {entries.map(e => (
+          {eintraege.map(e => (
             <div key={e.id} className="p-3 rounded-lg bg-[var(--tf-bg-secondary)] text-[12.5px]">
               <div className="text-[11.5px] text-[var(--tf-text-tertiary)]">
-                {new Date(e.geaendert_am).toLocaleString('de-DE')} · {sourceNames[e.csv_schema_id] ?? e.csv_schema_id}
+                {e.art} {e.wann}{mehrereAntraege ? ` · ${e.quelle}` : ''}
               </div>
               <div className="mt-1 flex items-baseline gap-2">
-                <span className="line-through text-[var(--tf-text-tertiary)]">{String(e.alt_wert ?? '')}</span>
-                <span className="text-[var(--tf-text)]">→ {String(e.neu_wert ?? '')}</span>
+                <span className="line-through text-[var(--tf-text-tertiary)]">{e.alt}</span>
+                <span className="text-[var(--tf-text)]">→ {e.neu}</span>
               </div>
             </div>
           ))}

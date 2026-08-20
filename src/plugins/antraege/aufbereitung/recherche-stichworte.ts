@@ -16,6 +16,7 @@
  */
 import { clean, kurz } from './recherche';
 import { findeLeaks, type BekannteStammwerte } from './recherche-leak';
+import { auftragsRahmen } from './recherche-auftrag';
 import { extractLastJsonObject } from './steckbrief';
 
 /**
@@ -108,7 +109,11 @@ export function pruefeStichwort(
   const t = clean(trimmeRand(roh));
   if (!t) return { ok: false, grund: 'leer' };
   if (traegtZahlwert(t)) return { ok: false, grund: 'zahlwert' };
-  if (findeLeaks(t, werte).length > 0) return { ok: false, grund: 'identifizierend' };
+  // Gegen den Auftrags-RAHMEN geprüft: ein Wort, das ohnehin in der festen
+  // Vorlage steht („Technik", „Forschung", „Markt"), ist kein identifizierender
+  // Namensbestandteil — sonst verwarf der Sanitizer für eine „… Technik GmbH"
+  // jedes fachlich richtige Stichwort (v4.124, siehe `findeLeaks`).
+  if (findeLeaks(t, werte, auftragsRahmen()).length > 0) return { ok: false, grund: 'identifizierend' };
   const gekappt = kurz(t, woerter);
   return gekappt ? { ok: true, wert: gekappt } : { ok: false, grund: 'leer' };
 }

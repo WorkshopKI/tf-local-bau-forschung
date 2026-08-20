@@ -104,6 +104,52 @@ export interface FilteredAntraegeResult {
    * nicht mehr glaubt.
    */
   stillstandUnpruefbar: number;
+  /**
+   * Der Stillstands-Index steht (noch) NICHT — dann ist „nicht prüfbar" nicht
+   * die Eigenschaft einzelner Anträge, sondern der Zustand des Filters, und der
+   * ganze Bestand steht ungefiltert da.
+   *
+   * Ohne diese Trennung behauptete der Chip, die genannten Anträge „fehlen in
+   * dieser Liste" — sie waren alle darin (v4.124).
+   */
+  stillstandIndexFehlt: boolean;
+  /** Warum der Stillstand nicht ermittelt werden konnte; `null` = kein Fehler. */
+  stillstandFehler: string | null;
+  /** Alter des benutzten Index in Sekunden; `null` = keiner da. */
+  stillstandAlterSekunden: number | null;
+}
+
+/**
+ * EIN Pipeline-Lauf fuer ALLE Aufrufer desselben Renders.
+ *
+ * `useMemo` merkt sich je Komponenten-Instanz — und dieser Hook haengt auf der
+ * Antragsseite an sechs Stellen gleichzeitig (Kopf, Hauptteil, Massenleiste,
+ * Filterspalte, Pin-Leiste, Schnellfilter). Aendert sich der Bestand, lief die
+ * ganze Kette ueber 12 000 Zeilen sechsmal und lieferte sechsmal dasselbe.
+ *
+ * Der modul-lokale Speicher haelt genau EINEN Stand: dieselben Deps
+ * (referenzgleich, Element fuer Element) ⇒ dasselbe Ergebnis. Das gilt nur
+ * innerhalb eines Renderdurchgangs, und genau das ist der Fall, den es zu
+ * decken gilt — sobald sich etwas aendert, faellt der Stand und wird einmal neu
+ * gerechnet (v4.124).
+ */
+let letzteDeps: readonly unknown[] | null = null;
+let letztesErgebnis: FilteredAntraegeResult | null = null;
+
+function geteilt(
+  deps: readonly unknown[], rechne: () => FilteredAntraegeResult,
+): FilteredAntraegeResult {
+  if (
+    letzteDeps !== null && letztesErgebnis !== null
+    && letzteDeps.length === deps.length
+    && letzteDeps.every((d, i) => Object.is(d, deps[i]))
+  ) {
+    return letztesErgebnis;
+  }
+  const erg = rechne();
+  letzteDeps = deps;
+  letztesErgebnis = erg;
+  return erg;
 }
 
 /** Zentrales Memo der View+Filter+Search+Sort-Pipeline. Header und List-Panel
@@ -142,7 +188,11 @@ export function useFilteredAntraege(): FilteredAntraegeResult {
   const ampelQuickfilter = useAntraegeStore(s => s.ampelQuickfilter);
   const stillstandTage = useAntraegeStore(s => s.stillstandTage);
   // Traege: der Hook rechnet erst, wenn eine Schwelle gesetzt ist.
-  const { index: aktivitaetsIndex } = useAktivitaetsIndex();
+  // Fehler und Alter werden mitgenommen und weitergereicht — ein Filter, der
+  // sichtbar gesetzt ist und nichts tut, muss sagen warum (v4.124).
+  const {
+    index: aktivitaetsIndex, fehler: stillstandFehler, alterSekunden: stillstandAlterSekunden,
+  } = useAktivitaetsIndex();
   // Einmal je Mount statt je Render — der Tageswechsel verschiebt jede
   // Liegezeit, und `new Date()` im Memo machte aus dem Filter einen Wackler.
   const stichtagRef = useRef<string>(new Date().toISOString());
@@ -181,7 +231,8 @@ export function useFilteredAntraege(): FilteredAntraegeResult {
     return typeof anzahl === 'number' && anzahl > 0 ? anzahl : 1;
   }, [verbundById]);
 
-  return useMemo(() => {
+  const deps: unknown[] = [antraege, alleAntraege.length, active, definitions, deferredSearch, deferredHybridAkz, searchIgnoreBearbeiterFilter, activeView, sortByView, precheckBucket, projektart, tvCountOf, ampelQuickfilter, bearbeiterFilter, inaktiveKuerzel, showInaktive, stillstandTage, aktivitaetsIndex, stichtag, stillstandFehler, stillstandAlterSekunden];
+  return useMemo(() => geteilt(deps, (): FilteredAntraegeResult => {
     const end = tfPerfStart('useFilteredAntraege memo');
     const view = getView(activeView);
     const byView = antraege.filter(a => view.predicate(a));
@@ -279,6 +330,9 @@ export function useFilteredAntraege(): FilteredAntraegeResult {
       // Muss angezeigt werden: eine Liste, die die Unpruefbaren stumm weglaesst,
       // behauptet implizit, sie liefen — und dafuer fehlt die Grundlage.
       stillstandUnpruefbar: stillstand.unpruefbar,
+      stillstandIndexFehlt: stillstandTage !== null && aktivitaetsIndex === null,
+      stillstandFehler,
+      stillstandAlterSekunden,
     };
-  }, [antraege, alleAntraege.length, active, definitions, deferredSearch, deferredHybridAkz, searchIgnoreBearbeiterFilter, activeView, sortByView, precheckBucket, projektart, tvCountOf, ampelQuickfilter, bearbeiterFilter, inaktiveKuerzel, showInaktive, stillstandTage, aktivitaetsIndex, stichtag]);
+  }), [antraege, alleAntraege.length, active, definitions, deferredSearch, deferredHybridAkz, searchIgnoreBearbeiterFilter, activeView, sortByView, precheckBucket, projektart, tvCountOf, ampelQuickfilter, bearbeiterFilter, inaktiveKuerzel, showInaktive, stillstandTage, aktivitaetsIndex, stichtag, stillstandFehler, stillstandAlterSekunden]);
 }

@@ -83,7 +83,7 @@ export async function computeRechercheImportBaustein(
   skill: SkillRecord,
   antragKey: string,
   externText: string,
-  opts?: { force?: boolean; ziel?: BridgeZiel },
+  opts?: { force?: boolean; ziel?: BridgeZiel; ueberStandardCap?: boolean },
 ): Promise<BausteinResult<ExterneRechercheKern>> {
   const externHash = hashText(externText);
   return getOrComputeBaustein<ExterneRechercheKern>(

@@ -30,7 +30,12 @@ export function AufnahmeOverlay({ batch }: { batch: UseBatchJob }): React.ReactE
       onStarted={() => setPhase('aufnahme')}
       onAbbrechen={() => setPhase('aufnahme')}
     />
-  ) : batch.job ? (
+    // Vorrang nur für einen AKTIVEN Job — so, wie der Modulkopf es sagt. Der
+    // Job bleibt nach dem Durchlauf im State stehen (`jobStatus: 'fertig'`) und
+    // wird nur über „Lauf verwerfen" geleert; `batch.job !== null` machte damit
+    // aus einem beendeten Lauf eine Sperre: „Antragsdokumente" öffnete nicht mehr
+    // die Ablagefläche, sondern die Ergebnisliste des alten Laufs (v4.124).
+  ) : (batch.job?.jobStatus === 'laeuft' || batch.job?.jobStatus === 'pausiert') ? (
     <BatchMonitor batch={batch} onClose={schliessen} onOpenAntrag={openAntrag} />
   ) : a.abschluss ? (
     <AbschlussPanel

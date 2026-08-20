@@ -13,6 +13,7 @@
  * 1:1 aus `src/plugins/suche/store.ts`.
  */
 import { create } from 'zustand';
+import { useKopfFilter } from './kopfFilter';
 import {
   ANTRAG_TABLE_COLUMNS,
   DEFAULT_VISIBLE_COLUMN_KEYS,
@@ -163,10 +164,18 @@ export const useAntraegeColumnsStore = create<AntraegeColumnsState>((set, get) =
   toggleColumn: (key: string) => {
     if (LOCKED_COLUMN_KEYS.includes(key)) return;
     const current = get().visibleColumns;
-    const next = current.includes(key)
+    const ausblenden = current.includes(key);
+    const next = ausblenden
       ? current.filter(k => k !== key)
       : [...current, key];
     saveVisibleColumns(next);
     set({ visibleColumns: next });
+    // Wer eine Spalte AUSBLENDET, verliert ihren Kopf-Trichter mit. Er wirkte
+    // ohnehin nicht (`applyColumnFilters` überspringt unbekannte Spalten), blieb
+    // aber gespeichert — und sprang beim erneuten Einblenden zurück, ohne dass
+    // ihn jemand gesetzt hätte: eine stille Einschränkung ohne Chip (v4.124).
+    // NUR beim Ausblenden per Hand; `setVisibleColumns` (Reiter anwenden) bleibt
+    // unangetastet, dort folgt `setzeStand` mit dem gemerkten Trichter.
+    if (ausblenden) useKopfFilter.getState().setzeSpalte(key, new Set());
   },
 }));

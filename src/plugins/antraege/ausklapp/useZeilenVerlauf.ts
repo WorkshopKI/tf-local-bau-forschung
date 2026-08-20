@@ -37,6 +37,7 @@ import type { VerlaufsBezug, VerlaufsSpur } from '@/core/status/verlauf';
 import type { FeldVorkommen } from '@/core/status/feld-aufloesung';
 import { useJournalChroniken } from '../status/useJournalChroniken';
 import { useStatusVerlauf, type StatusVerlauf } from '../status/useStatusVerlauf';
+import { useAntraegeStore } from '../store';
 
 export interface ZeilenVerlauf {
   laden: boolean;
@@ -100,6 +101,13 @@ export interface ZeilenVerlauf {
    *  und wurde deshalb nicht in die Ableitung gegeben. */
   journalGenutzt: boolean;
   /**
+   * Kann das Journal für DIESE Zeile überhaupt etwas beitragen? Wahr genau
+   * dann, wenn die Zeile ein einzelnes Teilvorhaben trägt. Nur dort lohnt es,
+   * auf {@link journalLaden} zu warten, bevor ein Stillstands-Urteil steht —
+   * an einer verdichteten Verbund-Zeile ist `journalAenderung` ohnehin `null`.
+   */
+  journalDeckt: boolean;
+  /**
    * Die Journal-Chroniken **aller** Teilvorhaben dieser Zeile — Grundlage der
    * zurückgenommenen Termine in der Chronik-Ansicht.
    *
@@ -153,6 +161,7 @@ function ausCache(schluessel: string, rechne: () => VerlaufsSpur[]): VerlaufsSpu
 function baueSpuren(
   quelle: StatusVerlauf, verbundId: string | null, aktenzeichen: string | null,
   bezugsZeitpunkt: string, chronik: AntragsChronik | null, einTv: boolean,
+  datenStand: number,
 ): VerlaufsSpur[] {
   const { version, jeTeilvorhaben } = quelle;
   if (!version || jeTeilvorhaben.length === 0) return [];
@@ -172,8 +181,15 @@ function baueSpuren(
   const journal = einTv ? chronik : null;
   // Der Trigger-Stand gehört in den Schlüssel: ein Neu-Import ändert die
   // Regeln, und ein Cache, der das nicht sieht, zeigt die alte Bahn weiter.
+  //
+  // **Und der Datenstand ebenso** (v4.124): die Bahn liest `statusVbRoh`,
+  // `statusTvRoh` und die Vorkommen: genau die Werte, die ein CSV-Import ändert,
+  // ohne dass Fassung oder Trigger-Version wandern. `refreshAntraegeStoreAfterSync`
+  // bumpt `lastLoadedAt` nach jedem Import und Snapshot-Sync — dieselbe Kopplung,
+  // die `useJournalChroniken` mit derselben Begründung führt („Ein Cache ohne
+  // dieses Glied zeigte nach dem Nacht-Import weiter den Stand von gestern").
   const schluessel = `${verbundId ?? aktenzeichen ?? '-'}|${version.version}|${bezugsZeitpunkt}`
-    + `|${quelle.triggerVersion ?? '-'}|${journal ? 'j' : '-'}`;
+    + `|${quelle.triggerVersion ?? '-'}|${journal ? 'j' : '-'}|${datenStand}`;
   return ausCache(schluessel, () => baueVerlaufFuerVorgang(bezug, version, quelle.trigger, journal));
 }
 
@@ -188,6 +204,9 @@ export function useZeilenVerlauf(
   istVerbundZeile: boolean, statusRoh: unknown,
 ): ZeilenVerlauf {
   const quelle = useStatusVerlauf(verbundId);
+  // Datenstand des Antrags-Stores — gehört in den Spuren-Cache-Schlüssel
+  // (siehe `baueSpuren`).
+  const datenStand = useAntraegeStore(s => s.lastLoadedAt);
 
   const einTv = quelle.jeTeilvorhaben.length === 1;
 
@@ -252,8 +271,8 @@ export function useZeilenVerlauf(
    * Ohne diesen Trick wäre es ein Zirkelschluss.
    */
   const spurenVorlaeufig = useMemo(
-    () => baueSpuren(quelle, verbundId, aktenzeichen, stichtag, chronik, einTv),
-    [quelle, verbundId, aktenzeichen, stichtag, chronik, einTv],
+    () => baueSpuren(quelle, verbundId, aktenzeichen, stichtag, chronik, einTv, datenStand),
+    [quelle, verbundId, aktenzeichen, stichtag, chronik, einTv, datenStand],
   );
 
   // Nicht der nackte Stichtag: bei angehaltener Uhr endet die Achse am
@@ -281,8 +300,8 @@ export function useZeilenVerlauf(
   const spuren = useMemo<VerlaufsSpur[]>(
     () => (bezugsZeitpunkt === stichtag
       ? spurenVorlaeufig
-      : baueSpuren(quelle, verbundId, aktenzeichen, bezugsZeitpunkt, chronik, einTv)),
-    [spurenVorlaeufig, bezugsZeitpunkt, stichtag, quelle, verbundId, aktenzeichen, chronik, einTv],
+      : baueSpuren(quelle, verbundId, aktenzeichen, bezugsZeitpunkt, chronik, einTv, datenStand)),
+    [spurenVorlaeufig, bezugsZeitpunkt, stichtag, quelle, verbundId, aktenzeichen, chronik, einTv, datenStand],
   );
 
   return {
@@ -299,6 +318,7 @@ export function useZeilenVerlauf(
     journalAb: journal.journalAb,
     journalAenderung: journalDeckt ? (chronik?.letzteAenderung ?? null) : null,
     journalGenutzt: einTv && chronik !== null,
+    journalDeckt,
     chroniken: journal.chroniken,
     journalLaden: journal.laden,
     quelle,

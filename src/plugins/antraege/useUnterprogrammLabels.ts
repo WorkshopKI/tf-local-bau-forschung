@@ -16,7 +16,8 @@ const cache = new Map<string, ReadonlyMap<string, string>>();
  * Unterprogramm-Nummer den sprechenden Namen zeigen.
  *
  * Leere Map solange der IDB-Load laeuft oder keine Unterprogramme registriert
- * sind → der Aufrufer faellt dann auf den Code zurueck.
+ * sind → der Aufrufer faellt dann auf den Code zurueck. **Ein leeres Ergebnis
+ * wird nicht gecacht** — es ist ein Zeitpunkt, kein Befund (siehe unten).
  */
 export function useUnterprogrammLabels(
   programmId: string | null | undefined,
@@ -45,9 +46,17 @@ export function useUnterprogrammLabels(
         const name = typeof up.name === 'string' ? up.name.trim() : '';
         if (code && name) next.set(code, name);
       }
-      cache.set(programmId, next);
+      // Ein LEERER Bestand ist kein Ergebnis, sondern ein Zeitpunkt (wie beim
+      // Netzwerk-Index in `store.ts`): `syncProgrammSnapshot` schreibt den Store
+      // über `replaceStore` mit unbedingtem `clear()`, und `unterprogramme` steht
+      // NICHT in `NEVER_EMPTY_STORES`. Wer in dieses Fenster liest und das
+      // Ergebnis modul-global cacht, zeigt für den Rest der Sitzung die nackte
+      // Nummer statt des Namens — ohne Fehlertext und ohne Nachladen.
+      if (next.size > 0) cache.set(programmId, next);
       if (!cancelled) setMap(next);
-    })();
+    })().catch((e: unknown) => {
+      console.error('[useUnterprogrammLabels] Laden fehlgeschlagen', e);
+    });
     return () => {
       cancelled = true;
     };

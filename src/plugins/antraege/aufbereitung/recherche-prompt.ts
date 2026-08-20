@@ -25,7 +25,7 @@ import type { IDBStore } from '@/core/services/storage/idb-store';
 import type { SkillRecord } from '@/core/services/skills';
 import type { AITransport, BridgeZiel } from '@/core/services/ai/transports/streamlit';
 import { getOrComputeBaustein, vbHashFuer, type BausteinResult } from './bausteine';
-import { baueDeepResearchAuftrag } from './recherche-auftrag';
+import { auftragsRahmen, baueDeepResearchAuftrag } from './recherche-auftrag';
 import {
   FELD_GRENZEN, parseStichworte, stichworteBrauchbar, STICHWORTE_SCHEMA_VERSION,
   type RechercheStichworte,
@@ -63,6 +63,32 @@ export interface RecherchePromptDaten {
  */
 export const recherchePromptCacheKey = (antragKey: string, vbHash: string): string =>
   `aufbereitung:${antragKey}:recherche-prompt:v${STICHWORTE_SCHEMA_VERSION}:${vbHash}`;
+
+/**
+ * Zusätzliche, HASH-FREIE Ablage der von Hand geprüften Auftrags-Fassung.
+ *
+ * Der normale Cache ist auf den Korpus-Hash gekeyt — richtig für ein
+ * LLM-Ergebnis, falsch für eine Fassung, die der Prüfer selbst abgenommen hat:
+ * sie war nach dem nächsten Dokument-Upload über keinen Lesepfad mehr
+ * erreichbar (v4.124). Bewusst ohne Präfix-Kollision mit dem Lösch-Präfix
+ * `…:recherche-prompt:` — „KI-Bausteine neu berechnen" räumt sie mit ab, und
+ * das ist die ausdrückliche Absicht des Knopfes.
+ */
+export const recherchePromptBearbeitetKey = (antragKey: string): string =>
+  `aufbereitung:${antragKey}:recherche-prompt:bearbeitet:v${STICHWORTE_SCHEMA_VERSION}`;
+
+/** Liest die hash-freie, von Hand geprüfte Fassung; `null` = keine da. Wirft nie. */
+export async function leseBearbeitetenRecherchePrompt(
+  idb: IDBStore, antragKey: string,
+): Promise<RecherchePromptDaten | null> {
+  try {
+    const roh = await idb.get(recherchePromptBearbeitetKey(antragKey));
+    const d = (roh as { daten?: RecherchePromptDaten } | null)?.daten ?? null;
+    return d && typeof d.prompt === 'string' ? d : null;
+  } catch {
+    return null;
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Normalisierung
@@ -148,8 +174,10 @@ export function parseRecherchePrompt(
 export function pruefeBearbeitetenPrompt(
   text: string, bekannteWerte: BekannteStammwerte,
 ): { leaks: string[] } {
-  return { leaks: [...new Set(findeLeaks(text, bekannteWerte))] };
+  return { leaks: [...new Set(findeLeaks(text, bekannteWerte, auftragsRahmen()))] };
 }
+
+
 
 // ---------------------------------------------------------------------------
 // Compute (Cache-Rahmen + Leak-Backstop)

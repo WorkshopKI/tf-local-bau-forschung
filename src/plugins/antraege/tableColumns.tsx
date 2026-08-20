@@ -157,7 +157,7 @@ function HerleitungZelle({ r }: { r: AntragListItem }): React.ReactElement | nul
       {/* Die Status-Spalte der Liste zeigt den TV-Status — das steht seit v2.382
           auch im Popover-Kopf, statt dass man es wissen muss. */}
       <HerleitungPopover
-        verbundId={vbid} statusRoh={r.status} ebene="tv"
+        verbundId={vbid} statusRoh={r.status} ebene="tv" aktenzeichen={r.aktenzeichen}
         {...(steuerung ? { onGanzenVerlauf: () => steuerung.oeffne(r.aktenzeichen, 'zeitverlauf') } : {})}
       />
     </span>
@@ -960,7 +960,7 @@ const ROH_SPALTEN: SortableColumn<AntragTableRow>[] = [
     defaultVisible: false,
     sortable: true,
     filterable: true,
-    filterAccessor: r => yearOf(r.bewilligung_datum),
+    filterAccessor: r => yearOfOrEmpty(r.bewilligung_datum),
     width: 148,
     wrap: false,
     ...MESS_DATUM,
@@ -1040,7 +1040,7 @@ const ROH_SPALTEN: SortableColumn<AntragTableRow>[] = [
     defaultVisible: false,
     sortable: true,
     filterable: true,
-    filterAccessor: r => yearOf(r.laufzeitbeginn),
+    filterAccessor: r => yearOfOrEmpty(r.laufzeitbeginn),
     width: 132,
     wrap: false,
     ...MESS_DATUM,
@@ -1054,7 +1054,7 @@ const ROH_SPALTEN: SortableColumn<AntragTableRow>[] = [
     defaultVisible: false,
     sortable: true,
     filterable: true,
-    filterAccessor: r => yearOf(r.laufzeitende),
+    filterAccessor: r => yearOfOrEmpty(r.laufzeitende),
     width: 132,
     wrap: false,
     ...MESS_DATUM,

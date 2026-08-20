@@ -23,6 +23,10 @@ export interface AbschlussInfo {
   uebersprungen: number;
   /** Merkliste der FKZ mit neuer VB → Einstieg Teil B. */
   fkzMitVb: string[];
+  /** Der Lauf wurde abgebrochen — dann ist dies KEIN Abschluss (v4.124). */
+  abgebrochen?: boolean;
+  /** Wie viele ablegbare Dateien nach dem Abbruch unverarbeitet blieben. */
+  nichtVerarbeitet?: number;
 }
 
 export interface Fortschritt {

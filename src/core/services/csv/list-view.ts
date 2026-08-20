@@ -41,7 +41,11 @@ export function toAntragListItem(
   copyStringField(antrag, item, 'status');
   copyStringField(antrag, item, 'antragsteller');
   copyStringField(antrag, item, 'branche');
-  copyStringField(antrag, item, 't_xsw');
+  // `T_XSW` liegt je nach Mapping unter dem kanonischen `t_xsw` ODER — so in den
+  // produktiven Schemas — unter dem Custom-Key `wiedereinreicher` (gemessen:
+  // `t_xsw` 0 von 14 225, `wiedereinreicher` 1 452 gefüllt). Ohne den Rückfall
+  // erreichte der Wiedereinreicher-Hinweis die Listen-/Home-Ansichten nie (v4.124).
+  copyStringFieldMitRueckfall(antrag, item, 't_xsw', ['wiedereinreicher']);
   copyStringField(antrag, item, 'frist_datum');
   copyStringField(antrag, item, 'bewilligung_datum');
   copyStringField(antrag, item, 'erstentscheidung');
@@ -115,6 +119,29 @@ function copyStringField(
   const v = (src as unknown as Record<string, unknown>)[key];
   if (typeof v === 'string' && v.length > 0) {
     (dst as unknown as Record<string, unknown>)[key] = v;
+  }
+}
+
+/**
+ * Wie `copyStringField`, probiert bei leerem kanonischem Feld aber weitere
+ * Record-Keys durch. Für Spalten, die je nach Column-Mapping unter dem
+ * kanonischen ODER einem Custom-Key liegen. Bewusst eine kurze, explizite
+ * Liste je Feld statt einer generischen Schema-Auflösung: die Projektion läuft
+ * über den ganzen Bestand und darf kein Schema nachladen.
+ */
+function copyStringFieldMitRueckfall(
+  src: Antrag,
+  dst: AntragListItem,
+  key: Exclude<keyof AntragListItem, 'aktenzeichen' | 'programm_id' | '_updated_at'>,
+  rueckfallKeys: readonly string[],
+): void {
+  const rec = src as unknown as Record<string, unknown>;
+  for (const k of [key as string, ...rueckfallKeys]) {
+    const v = rec[k];
+    if (typeof v === 'string' && v.length > 0) {
+      (dst as unknown as Record<string, unknown>)[key] = v;
+      return;
+    }
   }
 }
 

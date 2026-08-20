@@ -71,12 +71,41 @@ export function sammleIdentifizierendeWerte(werte: BekannteStammwerte): string[]
  * Prüft den erzeugten DR-Prompt gegen die bekannten Stammwerte. Rückgabe = die
  * gefundenen (identifizierenden) Werte — exakte, case-insensitive Substring-Treffer.
  * Leer = sauber.
+ *
+ * **`vorlage`**: der feste Rahmen-Text des Auftrags, ohne jede eingesetzte
+ * Angabe. Bestandteile eines Namens, die schon DORT stehen, sind kein Leak —
+ * sie stammen aus dem eigenen Code, nicht aus den Antragsdaten.
+ *
+ * Ohne diese Gegenprobe schlug der Wächter bei jedem Antragsteller an, dessen
+ * Name ein Wort der Vorlage trägt: „Technik", „Technologie", „Forschung",
+ * „Werkzeug", „Produkt", „Markt", „Oder". Am echten Haupt-Export sind das
+ * gemessen 532 von 4 296 Verbünden (12,4 %) — „ESDA Technologie GmbH",
+ * „Hochschule Aalen - Technik, Wirtschaft und Gesundheit". Für sie konnte KEIN
+ * erzeugter Auftrag den Check je passieren: die Karte zeigte dauerhaft die
+ * gelbe Warnung, die Kopier-Knöpfe erschienen nie, und der Retry kostete jedes
+ * Mal einen zweiten LLM-Lauf (v4.124).
+ *
+ * Der volle Namensstring wird weiterhin IMMER geprüft — er steht nie in der
+ * Vorlage, und genau ihn soll der Wächter fangen.
  */
-export function findeLeaks(prompt: string, werte: BekannteStammwerte): string[] {
+export function findeLeaks(
+  prompt: string, werte: BekannteStammwerte, vorlage?: string,
+): string[] {
   const hay = prompt.toLowerCase();
+  const rahmen = (vorlage ?? '').toLowerCase();
+  const vollstaendige = new Set(
+    [werte.antragsteller, ...(werte.personennamen ?? [])]
+      .map(v => (v ?? '').trim().toLowerCase())
+      .filter(v => v.length >= MIN_TOKEN_LEN),
+  );
   const treffer: string[] = [];
   for (const wert of sammleIdentifizierendeWerte(werte)) {
-    if (hay.includes(wert.toLowerCase())) treffer.push(wert);
+    const w = wert.toLowerCase();
+    if (!hay.includes(w)) continue;
+    // Bestandteil, der schon im Rahmen steht ⇒ aus der Vorlage, kein Leak.
+    // Volle Namen bleiben ausgenommen.
+    if (rahmen && !vollstaendige.has(w) && rahmen.includes(w)) continue;
+    treffer.push(wert);
   }
   return treffer;
 }

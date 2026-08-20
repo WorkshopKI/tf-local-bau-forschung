@@ -67,7 +67,7 @@ export interface BausteinLaufDeps {
   /** Korpus (VB + narrative Zusatzdokumente) — die Bausteine laufen auf ihm, nicht auf der VB allein. */
   korpus: string;
   bekannteWerte: BekannteStammwerte;
-  opts: { force?: boolean; ziel?: BridgeZiel };
+  opts: { force?: boolean; ziel?: BridgeZiel; ueberStandardCap?: boolean };
 }
 
 export interface BausteinEintrag<K extends AufbereitungBausteinId> {

@@ -19,17 +19,37 @@ interface Props {
 /**
  * Konsolidierte Technologie-Kennzeichen (Hebel 3): pro Unterbereich eine
  * Zusammenfassungszeile — grüne Chips für „Y", sonst „keine zutreffend · 0/N".
- * Aufklappen zeigt die volle N/Y-Liste (Y grün hervorgehoben).
+ * Aufklappen zeigt die volle Liste.
+ *
+ * **Drei Zustände, nicht zwei** (v4.124): `Y` · `N` · `—` für „nicht erfasst".
+ * Ein Kennzeichen ohne jeden Wert als „N" zu drucken ist eine fachliche
+ * Verneinung, die die Daten nicht hergeben (siehe `FlagDescriptor.erfasst`).
+ * Der Nenner der Zusammenfassung zählt nur die erfassten.
+ *
+ * **Die Suche filtert auch hier** (v4.124): vorher schrumpften die normalen
+ * Gruppen auf ihre Treffer, während der Cluster alle Chips zeigte — und das
+ * Abzeichen daneben nannte trotzdem die gefilterte Zahl.
  */
 export function FlagCluster({ subgroups, query }: Props): React.ReactElement {
   const [openName, setOpenName] = useState<string | null>(null);
   const ql = query.trim().toLowerCase();
 
+  // Bei aktiver Suche nur die passenden Kennzeichen — Zeile für Zeile, wie in den
+  // normalen Feldgruppen. Unterbereiche ohne Treffer fallen ganz weg.
+  const sichtbar = ql.length === 0
+    ? subgroups
+    : subgroups
+      .map(sg => ({ ...sg, descriptors: sg.descriptors.filter(d => d.label.toLowerCase().includes(ql)) }))
+      .filter(sg => sg.descriptors.length > 0);
+
+  if (sichtbar.length === 0) {
+    return <div className="af-grp-body"><span className="af-empty">Kein Kennzeichen passt zur Suche.</span></div>;
+  }
+
   return (
     <div className="af-grp-body">
-      {subgroups.map(sg => {
-        const matchOpen = ql.length > 0 && sg.descriptors.some(d => d.label.toLowerCase().includes(ql));
-        const isOpen = openName === sg.name || matchOpen;
+      {sichtbar.map(sg => {
+        const isOpen = openName === sg.name || ql.length > 0;
         const yes = sg.descriptors.filter(d => d.isYes);
         return (
           <div key={sg.name}>
@@ -44,7 +64,10 @@ export function FlagCluster({ subgroups, query }: Props): React.ReactElement {
               {yes.length > 0 ? (
                 <span>{yes.map((d, i) => <span key={`${d.label}-${i}`} className="af-chip">{d.label}</span>)}</span>
               ) : (
-                <span className="res">keine zutreffend · 0 / {sg.total}</span>
+                <span className="res">
+                  {sg.total > 0 ? `keine zutreffend · 0 / ${sg.total}` : 'nichts erfasst'}
+                  {sg.nichtErfasst > 0 && sg.total > 0 ? ` · ${sg.nichtErfasst} nicht erfasst` : ''}
+                </span>
               )}
             </button>
             {isOpen ? (
@@ -52,7 +75,12 @@ export function FlagCluster({ subgroups, query }: Props): React.ReactElement {
                 {sg.descriptors.map((d, i) => (
                   <span key={`${d.label}-${i}`} className="af-flagitem">
                     <span className="lbl">{d.label}</span>
-                    <span className={'val' + (d.isYes ? ' y' : '')}>{d.isYes ? 'Y' : 'N'}</span>
+                    <span
+                      className={'val' + (d.isYes ? ' y' : '')}
+                      title={d.erfasst ? undefined : 'Für dieses Kennzeichen ist nichts erfasst.'}
+                    >
+                      {d.isYes ? 'Y' : d.erfasst ? 'N' : '—'}
+                    </span>
                   </span>
                 ))}
               </div>

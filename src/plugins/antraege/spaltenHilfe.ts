@@ -86,7 +86,13 @@ const REGELN: Record<string, string> = {
     `Gerechnet ab dem Antragseingang plus ${ANTRAG_SLA_DAYS} Tage. `
     + `Bei Verwendungsnachweisen stattdessen ab dessen Eingang plus ${VN_SLA_MONTHS} Monate. `
     + 'In Phasen ohne laufende Frist steht „angehalten", ohne Grundlage bleibt die Zelle leer. '
-    + 'In einer Verbund-Zeile steht die dringendste Frist über alle Teilvorhaben.',
+    + 'In einer Verbund-Zeile steht die dringendste Frist über alle Teilvorhaben. '
+    // Der aufgeklappte Bereich rechnet bewusst tiefer (`D_XTE` + Haltedatum,
+    // siehe `ausklapp/verfuegbar.ts`). Gemessen weichen 155 von 12 295 Zeilen ab
+    // (Median 6 Tage, ohne Zustandswechsel) — wer beide Zahlen nebeneinander
+    // sieht, hatte bis v4.123 keinen Hinweis darauf (v4.124).
+    + 'Der aufgeklappte Bereich derselben Zeile kennt zusätzlich „alle Anträge da" (D_XTE) '
+    + 'und ein Haltedatum und kann deshalb eine spätere Frist nennen.',
 };
 
 /**

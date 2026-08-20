@@ -100,6 +100,14 @@ export interface NavigatorErgebnis {
   verletzt: number;
   /** Testkürzel der Zuarbeit — ausgeblendet, aber gezählt (siehe `sonderkuerzel.ts`). */
   testKuerzel: number;
+  /**
+   * Kürzel, die die Fassung nicht als relevant markiert. Gehört zur Fußzeile:
+   * ohne diese Zahl las sich `geprueft` als Gesamtsumme, die die übrigen
+   * Zähler nie ergaben (v4.124).
+   */
+  nichtRelevant: number;
+  /** Kürzel, die eine andere Rolle betreffen als die gewählte. */
+  andereRolle: number;
   /** Trigger-Zeilen, die der Parser nicht deuten konnte (`geparst: null`). */
   nichtInterpretiert: number;
   /** Wurde auf Relevanz gefiltert? `false` = die Fassung markiert noch keine. */
@@ -249,6 +257,8 @@ export function navigatorKandidaten(e: NavigatorEingabe): NavigatorErgebnis {
   let bereitsGesetzt = 0;
   let verletzt = 0;
   let testKuerzel = 0;
+  let nichtRelevant = 0;
+  let andereRolle = 0;
 
   for (const [key, { kuerzel, zeilen }] of jeKuerzel) {
     // Testkürzel der Zuarbeit sind kein Arbeitsschritt (Fachabstimmung V6). Sie
@@ -256,11 +266,15 @@ export function navigatorKandidaten(e: NavigatorEingabe): NavigatorErgebnis {
     // und in jeder Relevanz-Fassung verschwinden — gezählt und in der Fußzeile
     // genannt, nicht stillschweigend geschluckt.
     if (istTestKuerzel(kuerzel)) { testKuerzel += 1; continue; }
-    if (relevanzGefiltert && !relevante.has(key)) continue;
+    // Ab hier zählt jeder Ausschluss (v4.124): die Fußzeile las sich als
+    // Aufschlüsselung von `geprueft`, aber Relevanz- und Rollenfilter warfen
+    // die Mehrheit ohne Zahl und ohne Satz weg — Kandidaten + bereitsGesetzt +
+    // verletzt + Testkürzel ergaben nie die genannte Gesamtzahl.
+    if (relevanzGefiltert && !relevante.has(key)) { nichtRelevant += 1; continue; }
     const feld = felderNachCode.get(key) ?? null;
     // Ein neutrales oder unbekanntes Kürzel bleibt unter jeder Rollenwahl
     // sichtbar — „jeder darf setzen", nie „niemand" (Pitfall #43).
-    if (feld && !betrifftRolle(feld, rolle)) continue;
+    if (feld && !betrifftRolle(feld, rolle)) { andereRolle += 1; continue; }
     if (gesetzt.has(key)) { bereitsGesetzt += 1; continue; }
 
     const geprueft = [...zeilen]
@@ -306,6 +320,8 @@ export function navigatorKandidaten(e: NavigatorEingabe): NavigatorErgebnis {
     bereitsGesetzt,
     verletzt,
     testKuerzel,
+    nichtRelevant,
+    andereRolle,
     nichtInterpretiert,
     relevanzGefiltert,
     geprueft: jeKuerzel.size,

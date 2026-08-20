@@ -169,13 +169,26 @@ function cleanFlagLabel(label: string): string {
 export interface FlagDescriptor {
   label: string;
   isYes: boolean;
+  /**
+   * Trägt dieses Kennzeichen überhaupt einen Wert? `false` heißt **nicht
+   * erfasst** — nicht „nein". Die Erkennungsregel (`isBoolishGroup`) urteilt
+   * bewusst nur über die BEFÜLLTEN Zeilen einer Gruppe; leere Freitextspalten
+   * derselben Schema-Gruppe wandern deshalb mit in den Cluster. Bis v4.122
+   * druckte die Anzeige dort ein hartes „N" — eine fachliche Verneinung, wo nie
+   * etwas erfasst wurde (gemessen in 7 496 von 7 535 Verbünden, z. B. „Wer hat
+   * angefragt (Paraphe)? — N").
+   */
+  erfasst: boolean;
 }
 
 export interface FlagSubgroup {
   name: string;
   descriptors: FlagDescriptor[];
+  /** Nur die **erfassten** Kennzeichen — der Nenner von „x / total zutreffend". */
   total: number;
   yesCount: number;
+  /** Wie viele Zeilen des Unterbereichs gar keinen Wert tragen. */
+  nichtErfasst: number;
 }
 
 interface TaggedFlagRow {
@@ -204,13 +217,15 @@ export function assembleFlagCluster(flagRows: TaggedFlagRow[]): FlagSubgroup[] {
     // Merge-Key: Basis-Key (falls Suffix gestrippt wurde) sonst normalisiertes Label.
     const descriptorId = base !== row.field ? base : normLabel(cleaned);
     const yes = flagValueIsYes(row.rawValue);
+    const erfasst = !isEmptyRaw(row.rawValue);
     const existing = descriptors.get(descriptorId);
     if (existing) {
       existing.isYes = existing.isYes || yes;
+      existing.erfasst = existing.erfasst || erfasst;
       // Bevorzuge ein Label ohne Slug-Artefakte (kürzer / mit Sonderzeichen).
       if (cleaned.length > 0 && cleaned.length < existing.label.length) existing.label = cleaned;
     } else {
-      descriptors.set(descriptorId, { label: cleaned || row.label, isYes: yes });
+      descriptors.set(descriptorId, { label: cleaned || row.label, isYes: yes, erfasst });
     }
   }
 
@@ -220,11 +235,13 @@ export function assembleFlagCluster(flagRows: TaggedFlagRow[]): FlagSubgroup[] {
   };
   const subgroups = order.map(name => {
     const descriptors = [...bySub.get(name)!.values()].sort((a, b) => a.label.localeCompare(b.label, 'de'));
+    const erfasst = descriptors.filter(d => d.erfasst);
     return {
       name,
       descriptors,
-      total: descriptors.length,
+      total: erfasst.length,
       yesCount: descriptors.filter(d => d.isYes).length,
+      nichtErfasst: descriptors.length - erfasst.length,
     };
   });
   // Kanonische Bucket-Reihenfolge (Array.sort ist stabil: gleicher Index behält Einfügereihenfolge).

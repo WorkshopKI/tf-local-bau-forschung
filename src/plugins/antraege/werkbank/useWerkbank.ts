@@ -10,6 +10,7 @@ import { loadTextbausteinKatalog, type TextbausteinRecord } from '@/core/service
 import type { KurzfassungContext } from '../kurzfassung/types';
 import { useNachforderungen, type NachforderungenController } from '../nachforderungen/useNachforderungen';
 import type { BescheidTyp } from '../nachforderungen/artefakt-typ';
+import type { KonsistenzWarnung } from '../nachforderungen/bescheid-freigabe';
 import { ladeWerkbank, speichereWerkbank } from './werkbank-store';
 import { entfernePunkt, neuerPunkt, setzeErledigt, upsertPunkt } from './punkte';
 import { baueAuftrag, type Auswahl } from './bausteinAuswahl';
@@ -27,7 +28,10 @@ export interface WerkbankController {
   removePunkt: (key: string) => void;
   toggleErledigt: (key: string, erledigt: boolean) => void;
   /** Generiert aus den gewählten Punkten + der bestätigten Baustein-Auswahl. */
-  generiere: (gewaehlteKeys: string[], auswahl: Auswahl, artefaktTyp: BescheidTyp) => void;
+  generiere: (
+    gewaehlteKeys: string[], auswahl: Auswahl, artefaktTyp: BescheidTyp,
+    pruefstand?: { warnungen: KonsistenzWarnung[]; offeneTodos: number },
+  ) => void;
 }
 
 export function useWerkbank(ctx: KurzfassungContext): WerkbankController {
@@ -69,10 +73,15 @@ export function useWerkbank(ctx: KurzfassungContext): WerkbankController {
   const removePunkt = (key: string): void => persist(entfernePunkt(punkte, key));
   const toggleErledigt = (key: string, erledigt: boolean): void => persist(setzeErledigt(punkte, key, erledigt));
 
-  const generiere = (gewaehlteKeys: string[], auswahl: Auswahl, artefaktTyp: BescheidTyp): void => {
+  const generiere = (
+    gewaehlteKeys: string[], auswahl: Auswahl, artefaktTyp: BescheidTyp,
+    pruefstand?: { warnungen: KonsistenzWarnung[]; offeneTodos: number },
+  ): void => {
     const gewaehlt = punkte.filter(p => gewaehlteKeys.includes(p.key));
     if (gewaehlt.length === 0) return;
-    nf.generiereWerkbank(baueAuftrag(katalog, gewaehlt, auswahl, artefaktTyp));
+    const auftrag = baueAuftrag(katalog, gewaehlt, auswahl, artefaktTyp);
+    // Der Pruefstand des ERZEUGUNGS-Zeitpunkts wandert mit (siehe NfEntwurf.pruefstand).
+    nf.generiereWerkbank(pruefstand ? { ...auftrag, pruefstand } : auftrag);
   };
 
   return useMemo(

@@ -19,13 +19,19 @@
  */
 import { Loader2 } from 'lucide-react';
 import { useAntraegeStore } from './store';
+import { useWirksamerSuchtext } from './frage/suchtext';
 import { useSemanticSearchMode } from '@/core/hooks/useSemanticSearchMode';
 
 /** Ab hier lohnt die Rückfrage — darunter ist die Eingabe noch im Fluss. */
 const MIN_ZEICHEN = 2;
 
 export function AehnlichkeitsHinweis(): React.ReactElement | null {
-  const search = useAntraegeStore(s => s.search);
+  // Der WIRKSAME Text, nicht der rohe Feldinhalt: im Frage-Modus ist eine
+  // getippte, noch nicht übersetzte Frage kein Suchtext, und eine übersetzte
+  // Frage ohne Leitbegriffe ebenso wenig. Diese Zeile beschreibt die Liste
+  // darunter — las sie `s.search`, versprach sie „Wortlaut-Treffer", während
+  // gar keine Wortlaut-Suche lief (v4.124).
+  const search = useWirksamerSuchtext();
   const unavailable = useAntraegeStore(s => s.hybridSearch.unavailable);
   const downloadingCorpus = useAntraegeStore(s => s.hybridSearch.downloadingCorpus);
   const semanticEnabled = useSemanticSearchMode(s => s.enabled);

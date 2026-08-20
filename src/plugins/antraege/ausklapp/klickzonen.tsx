@@ -87,6 +87,11 @@ function AusklappZone({ offen, reiter, ziel, onAus, kinder }: {
       onClick={aus}
       onKeyDown={e => {
         if (e.key !== 'Enter' && e.key !== ' ') return;
+        // NUR wenn die Zone selbst den Fokus hat. Innen sitzen eigene
+        // Bedienelemente (das ⓘ des Herleitungs-Popovers); dort feuert `keydown`
+        // VOR dem synthetisierten Klick, den ihr eigener Handler abfängt — die
+        // Taste öffnete also das Popover UND klappte die Zeile auf (v4.124).
+        if (e.target !== e.currentTarget) return;
         e.preventDefault();
         aus(e);
       }}

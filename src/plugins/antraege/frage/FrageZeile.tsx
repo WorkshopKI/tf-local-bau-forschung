@@ -89,8 +89,13 @@ export function FrageDeutung({ frage }: Props): React.ReactElement | null {
 
   // Was ohnehin als Pille steht, wiederholt die Zeile nicht — sie trägt die
   // Achsen ohne eigenes Bedienelement und alles, was NICHT gewirkt hat.
-  const themen = plan.leitbegriffe.map(b => b.begriff);
-  const kuerzel = plan.bearbeiter;
+  //
+  // Thema und Bearbeiter stehen bereits in `wirkung.gesetzt` und werden deshalb
+  // NICHT noch einmal als eigener Teil geführt (v4.124). Vorher las sich die
+  // Zeile „Gesetzt: Bearbeiter THUE · Thema wasserstoff   Themen: wasserstoff
+  // Bearbeiter: thue" — dieselbe Einschränkung doppelt, das Kürzel in zwei
+  // Schreibungen (`gesetzt` normalisiert nach NFC-Großschreibung, der Rohwert
+  // nicht), die sich wie zwei verschiedene Kürzel lesen.
   const nichts = wirkung.gesetzt.length === 0;
 
   return (
@@ -103,8 +108,6 @@ export function FrageDeutung({ frage }: Props): React.ReactElement | null {
           {wirkung.gesetzt.join(' · ')}
         </span>
       )}
-      <Teil titel="Themen:" werte={themen} />
-      <Teil titel="Bearbeiter:" werte={kuerzel} />
       <Teil titel="ohne Wirkung:" werte={wirkung.ohneWirkung} ton="warnung" />
       <Teil titel="nicht berücksichtigt:" werte={plan.ignoriert} ton="warnung" />
       <button

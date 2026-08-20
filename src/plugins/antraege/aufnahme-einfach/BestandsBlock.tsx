@@ -27,7 +27,14 @@ export function BestandsBlock({ reloadSignal }: { reloadSignal?: number }): Reac
   const loeschen = useAsyncAction(async (zipname: string) => {
     const root = await getPersoenlichHandle(storage.idb);
     if (!root) throw new Error('Kein persönlicher Ordner verbunden.');
-    if (!confirm(`Paket „${zipname}" löschen? Die konvertierten Dokumente bleiben erhalten.`)) return;
+    // Die übersprungenen Mitglieder benennen: sie existieren nur im ZIP, und das
+    // Löschen entfernt die abgelegte Kopie samt Manifest (v4.124).
+    const m = bundles?.find(b => b.zipname === zipname) ?? null;
+    const offenTexte = m ? zusammenfassung(m) : null;
+    const zusatz = offenTexte && offenTexte.uebersprungen > 0
+      ? ` ${offenTexte.uebersprungen} Datei(en) wurden NICHT konvertiert und sind danach nur noch in Ihrer Original-Datei vorhanden.`
+      : '';
+    if (!confirm(`Paket „${zipname}" löschen? Die konvertierten Dokumente bleiben erhalten.${zusatz}`)) return;
     await deleteEingangBundle(root, zipname);
     await laden();
   });
@@ -48,11 +55,21 @@ export function BestandsBlock({ reloadSignal }: { reloadSignal?: number }): Reac
       {bundles.map(b => {
         const z = zusammenfassung(b);
         const loeschbar = istLoeschbar(b);
-        const label = loeschbar
-          ? (z.fehlgeschlagen > 0
-              ? `${z.gesamt} verarbeitet · ${z.fehlgeschlagen} Fehler — löschbar`
-              : `alle ${z.gesamt} Dateien konvertiert ✓ — löschbar`)
-          : `${z.konvertiert} von ${z.gesamt} konvertiert`;
+        // „alle konvertiert" NUR, wenn das stimmt: `istLoeschbar` zählt
+        // übersprungene Dateien bewusst als verarbeitet (sonst blockierten sie
+        // das Löschen für immer) — die Beschriftung leitete daraus aber „alle N
+        // konvertiert ✓" ab, obwohl übersprungen wird, was kein gültiges FKZ
+        // trägt: bei DMS-Exporten der Regelfall. Der Löschen-Dialog gab damit
+        // die App-Kopie samt der nie konvertierten Mitglieder frei (v4.124).
+        const label = !loeschbar
+          ? `${z.konvertiert} von ${z.gesamt} konvertiert`
+          : z.konvertiert === z.gesamt
+            ? `alle ${z.gesamt} Dateien konvertiert ✓ — löschbar`
+            : [
+              `${z.konvertiert} von ${z.gesamt} konvertiert`,
+              z.uebersprungen > 0 ? `${z.uebersprungen} übersprungen` : null,
+              z.fehlgeschlagen > 0 ? `${z.fehlgeschlagen} Fehler` : null,
+            ].filter(Boolean).join(' · ') + ' — löschbar';
         return (
           <div key={b.zipname} className="flex items-center gap-3 py-2 border-b-[0.5px] border-[var(--tf-border)] last:border-b-0">
             <span className="font-mono text-[12px] text-[var(--tf-text)] truncate max-w-[200px]" title={b.zipname}>{b.zipname}.zip</span>

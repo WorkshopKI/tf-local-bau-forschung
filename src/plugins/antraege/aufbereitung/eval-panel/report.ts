@@ -6,7 +6,7 @@
  * ersten ~400 Zeichen der Rohantwort).
  */
 import type { BridgeZiel } from '@/core/services/ai/transports/streamlit';
-import { STECKBRIEF_FELDER, type AufbereitungEvalErgebnis, type FixtureErgebnis } from './runner';
+import { STECKBRIEF_FELDER, gemesseneFixtures, type AufbereitungEvalErgebnis, type FixtureErgebnis } from './runner';
 
 export interface ReportMeta {
   /** z.B. `new Date().toLocaleString('de-DE')`. */
@@ -116,7 +116,7 @@ function fixtureBlock(f: FixtureErgebnis): string[] {
 
 export function formatEvalReport(erg: AufbereitungEvalErgebnis, meta: ReportMeta): string {
   const z = erg.zusammenfassung;
-  const gemessen = erg.fixtures.filter(f => f.aspekte?.status === 'ok').length;
+  const gemessen = gemesseneFixtures(erg);
   const w = erg.zusammenfassungWorst;
   const kopf = [
     '# Aufbereitung — Baustein-Eval (In-App, Bridge)',
@@ -135,7 +135,7 @@ export function formatEvalReport(erg: AufbereitungEvalErgebnis, meta: ReportMeta
     '## Gesamt (Aspekt-Mapping)',
     `- Makro: P=${p3(z.makroPrecision)} R=${p3(z.makroRecall)}`,
     `- Mikro: P=${p3(z.mikroPrecision)} R=${p3(z.mikroRecall)} F1=${p3(z.mikroF1)}`,
-    ...(w ? ['', '## Gesamt — Worst-Case (Aspekt-Mapping)', `- Mikro: P=${p3(w.mikroPrecision)} R=${p3(w.mikroRecall)} F1=${p3(w.mikroF1)}`] : []),
+    ...(w && gemessen > 0 ? ['', '## Gesamt — Worst-Case (Aspekt-Mapping)', `- Mikro (${gemessen} gemessen): P=${p3(w.mikroPrecision)} R=${p3(w.mikroRecall)} F1=${p3(w.mikroF1)}`] : []),
     '',
     '## Fixtures',
   ];

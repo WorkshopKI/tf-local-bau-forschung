@@ -108,7 +108,13 @@ export function AusklappInhalt({
   const aktiv: ReiterId = zeitverlaufAn ? reiter : 'vorgangsverlauf';
   const fassung = daten.quelle.version === null ? null : `Fassung ${daten.quelle.version.version}`;
 
-  if (daten.quelle.laden) {
+  // Auch das Journal abwarten, wo es das Urteil noch drehen kann: `journalDeckt`
+  // gilt genau dann, wenn die Zeile EIN Teilvorhaben trägt — und dann entscheidet
+  // die belegte letzte Änderung, ob der Wächter „ok" oder „hängt fest" sagt.
+  // Ohne diese Schranke zeigte die Kopfkarte sekundenlang die Näherung aus
+  // `max(D_)` samt roter Marke und kippte danach auf den belegten Wert; das
+  // Fenster ist kein Frame, sondern der SMB-Lauf über `stand.json` (v4.124).
+  if (daten.quelle.laden || (daten.journalLaden && daten.journalDeckt)) {
     return <p className="text-[11px] text-[var(--tf-text-tertiary)]">Lädt …</p>;
   }
   if (kopf === null || raster === null) {
@@ -180,6 +186,9 @@ export function AusklappInhalt({
           istVerbundZeile={istVerbundZeile}
           journalAb={daten.journalAb}
           journalGenutzt={daten.journalGenutzt}
+          // Warum nicht: eine verdichtete Verbund-Zeile bündelt mehrere TVs,
+          // eine TV-Zeile steht schlicht nicht im Journal.
+          journalGrund={istVerbundZeile ? 'mehrereTv' : 'ohneChronik'}
           laden={daten.laden}
           bezugsZeitpunkt={daten.bezugsZeitpunkt}
           stichtag={stichtag}

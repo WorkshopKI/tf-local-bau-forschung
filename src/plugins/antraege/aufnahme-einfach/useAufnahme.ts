@@ -162,7 +162,17 @@ export function useAufnahme(): UseAufnahme {
     }
 
     setFortschritt(null);
-    setAbschluss({ konvertiert, fehlgeschlagen, uebersprungen, fkzMitVb: [...fkzMitVb] });
+    // Abbruch ist kein Abschluss: die nicht mehr verarbeiteten Dateien bleiben
+    // auf ihrem Status und erhoehen keinen Zaehler — ohne diese Zahl stand
+    // "Aufnahme abgeschlossen · 3 konvertiert" auf dem Schirm, waehrend sieben
+    // Dateien aus Zaehlung UND Liste verschwunden waren (v4.124).
+    const offenNachAbbruch = abortRef.current
+      ? zuKonvertieren.length - done
+      : 0;
+    setAbschluss({
+      konvertiert, fehlgeschlagen, uebersprungen, fkzMitVb: [...fkzMitVb],
+      ...(abortRef.current ? { abgebrochen: true, nichtVerarbeitet: offenNachAbbruch } : {}),
+    });
   };
 
   const konvertieren = useAsyncAction(doKonvertieren);

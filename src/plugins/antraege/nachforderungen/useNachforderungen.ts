@@ -20,6 +20,7 @@ import {
   type KatalogRef, type TextbausteinRecord,
 } from '@/core/services/skills';
 import { SKILL_ID_BY_TYP, type BescheidTyp } from './artefakt-typ';
+import type { KonsistenzWarnung } from './bescheid-freigabe';
 import { getVbCharCap } from '@/core/services/ai/llm-context';
 import { aktivesZielFuerLauf, kontextZielFuerLauf } from '@/core/services/ai/ki-ziel';
 import type { DocumentFull } from '@/plugins/dokumente/store';
@@ -42,6 +43,18 @@ export interface NfEntwurf {
   mailto: string;
   /** Bescheid-Typ dieses Entwurfs (Default `nf`) — steuert Export-Vorlage + Label. */
   artefaktTyp: BescheidTyp;
+  /**
+   * Der Prüfstand **zum Zeitpunkt der Erzeugung**: Konsistenz-Warnungen gegen die
+   * MAP-Fachbewertung und die Zahl der Punkte ohne Baustein.
+   *
+   * Der Entwurf trägt ihn selbst, so wie er seinen `artefaktTyp` trägt. Bis
+   * v4.122 verrechnete das Freigabe-Tor die AKTUELLE Bearbeitungs-Auswahl: es
+   * genügte, die Punkte in Schritt 1 abzuwählen oder den Artefakt-Schalter
+   * umzustellen, und die Karte meldete „✓ Konsistenz-Checks bestanden" — ohne
+   * dass ein Check erneut gelaufen wäre. Danach stand der DOCX-Export über einem
+   * Tor offen, das gerade leergeräumt wurde.
+   */
+  pruefstand?: { warnungen: KonsistenzWarnung[]; offeneTodos: number };
 }
 
 /**
@@ -59,6 +72,16 @@ export interface WerkbankAuftrag {
   /** Menschlich formulierte Punkt-Texte (mit Aspekt) — was adressiert werden soll. */
   punktKontext: string;
   punktKeys: string[];
+  /** Texte der Punkte OHNE zugeordneten Baustein — sie tragen im Entwurf die
+   *  zugesagte TODO-Markierung (siehe `mergeNfFuerTv`). */
+  offenePunkte?: string[];
+  /**
+   * Der Prüfstand beim Erzeugen — wandert unverändert in jeden Entwurf
+   * (`NfEntwurf.pruefstand`). Der Aufrufer kennt ihn; die Generierung reicht ihn
+   * nur durch, damit das Freigabe-Tor später nicht die inzwischen geänderte
+   * Bearbeitungs-Auswahl verrechnet.
+   */
+  pruefstand?: { warnungen: KonsistenzWarnung[]; offeneTodos: number };
 }
 
 export interface NachforderungenController {
@@ -95,6 +118,17 @@ export function useNachforderungen(ctx: KurzfassungContext): NachforderungenCont
 
   useEffect(() => {
     let cancelled = false;
+    // Der Verbund wechselt — die Entwürfe des VORIGEN gehören hier nicht mehr
+    // hin. `VerbundDetail` wird beim Wechsel nicht neu gemountet (kein `key` an
+    // der Route), die Sektion behielt also ihren Hook-Zustand: „Schritt 4 —
+    // Entwürfe" zeigte auf B die Karten der Teilvorhaben von A, samt fremdem
+    // Aktenzeichen, `mailto:`-Entwurf mit dem FKZ von A und aktivem
+    // „In Vorlage exportieren" (v4.124). Ein laufender Lauf wird dabei
+    // abgebrochen, sonst schriebe seine Schleife weiter in die neue Ansicht.
+    abortRef.current?.abort();
+    abortRef.current = null;
+    setEntwuerfe([]);
+    setError(null);
     (async () => {
       setLoading(true);
       try {
@@ -170,12 +204,19 @@ export function useNachforderungen(ctx: KurzfassungContext): NachforderungenCont
       };
 
       // 1) Verbund-Block EINMAL (G-Bausteine am Gesamtvorhaben-Kontext).
-      const gRes = await runSkill(transport, aktSkill, aktRegeln, {
-        ziel: aktivesZielFuerLauf(),
-        stammdaten, vbMarkdown: '', vbCharCap: cap, signal: ac.signal,
-        verbundKontext: vbCapped + punktBlock, tvKontext: '', nfBausteine: gKatalog,
-      });
-      const gBlock = gBausteine.length > 0 ? gRes.parsed.finalerText : '';
+      //    Die Bedingung steht VOR dem Aufruf, nicht dahinter: ohne bestätigten
+      //    Verbund-Baustein fuhr der Lauf die volle gekappte VB samt Stammdaten
+      //    ans Modell und warf das Ergebnis eine Zeile später weg — Wartezeit,
+      //    ein verbrauchter Chat-Reset, und beim Scheitern brach der `catch` die
+      //    GANZE Generierung ab, obwohl der Lauf bedeutungslos war. Der TV-Zweig
+      //    darunter macht es seit je richtig herum (v4.124).
+      const gBlock = gBausteine.length > 0
+        ? (await runSkill(transport, aktSkill, aktRegeln, {
+          ziel: aktivesZielFuerLauf(),
+          stammdaten, vbMarkdown: '', vbCharCap: cap, signal: ac.signal,
+          verbundKontext: vbCapped + punktBlock, tvKontext: '', nfBausteine: gKatalog,
+        })).parsed.finalerText
+        : '';
 
       // 2) Je TV der TV-Block (T-Bausteine), dann G-Block + TV-Block mergen.
       const ergebnisse: NfEntwurf[] = [];
@@ -191,7 +232,7 @@ export function useNachforderungen(ctx: KurzfassungContext): NachforderungenCont
             verbundKontext: '', tvKontext, nfBausteine: tvKatalog,
           })).parsed
           : { quellenanalyse: '', entwurf: '', finalerText: '' };
-        const merged = mergeNfFuerTv(gBlock, tvBlock.finalerText);
+        const merged = mergeNfFuerTv(gBlock, tvBlock.finalerText, auftrag?.offenePunkte ?? []);
         const checks = pruefeNf(merged);
         const step: StepRun = {
           quellenanalyse: tvBlock.quellenanalyse,
@@ -222,6 +263,8 @@ export function useNachforderungen(ctx: KurzfassungContext): NachforderungenCont
           freigabereif: nfFreigabereif(merged),
           mailto: buildNfMailto({ fkz: tv.aktenzeichen, nachforderungen: merged }),
           artefaktTyp: typ,
+          // Der Prüfstand friert mit dem Entwurf ein (siehe `NfEntwurf.pruefstand`).
+          ...(auftrag?.pruefstand ? { pruefstand: auftrag.pruefstand } : {}),
         });
         setEntwuerfe([...ergebnisse]); // inkrementell anzeigen
       }

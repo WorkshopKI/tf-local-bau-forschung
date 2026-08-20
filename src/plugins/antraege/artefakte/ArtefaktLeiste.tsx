@@ -17,8 +17,14 @@ interface Props {
   ctxKey: string;
   tvs: Antrag[];
   status: string | null;
-  /** Sprung in die NF-Werkstatt. */
-  onWeiterNachforderung: () => void;
+  /**
+   * Sprung in die NF-Werkstatt — `null`, wenn das Ziel gerade nicht im Dokument
+   * steht (die Beta-/Experten-Achse verbirgt die Werkbank- bzw.
+   * Nachforderungs-Sektion). Dann entfällt die Aktion, statt einen Knopf
+   * anzubieten, dessen Klick wortlos nichts tut (Pitfall #54: der Wirt spricht
+   * nicht von dem, was die Achse verbirgt).
+   */
+  onWeiterNachforderung: (() => void) | null;
 }
 
 export function ArtefaktLeiste({ ctxKey, tvs, status, onWeiterNachforderung }: Props): React.ReactElement | null {
@@ -41,7 +47,7 @@ export function ArtefaktLeiste({ ctxKey, tvs, status, onWeiterNachforderung }: P
         progress={{ value: nachforderung.versendet, max: nachforderung.tvGesamt }}
         zeile={`${nachforderung.versendet} von ${nachforderung.tvGesamt} TVs versendet`}
         aktion={
-          nachforderung.naechstesTv
+          nachforderung.naechstesTv && onWeiterNachforderung
             ? { label: `TV ${nachforderung.naechstesTv.index} vorbereiten`, onClick: onWeiterNachforderung }
             : null
         }

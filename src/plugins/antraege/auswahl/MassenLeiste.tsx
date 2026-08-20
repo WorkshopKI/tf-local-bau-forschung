@@ -33,6 +33,7 @@ export function MassenLeiste(): React.ReactElement | null {
   const leeren = useAntraegeAuswahl(s => s.leeren);
   const { filtered, bearbeiterFilter } = useFilteredAntraege();
   const sichtbareTvs = useTabellenSicht(s => s.sichtbareTvs);
+  const sichtbareReihenfolge = useTabellenSicht(s => s.sichtbareReihenfolge);
   const visibleColumns = useAntraegeColumnsStore(s => s.visibleColumns);
   const kategorieSpalten = useKategorieSpalten();
   const verbundById = useAntraegeStore(s => s.verbundById);
@@ -49,8 +50,10 @@ export function MassenLeiste(): React.ReactElement | null {
   // während die Tabelle darüber 1.763 zeigte — und der Export schrieb die
   // 12.359. Was die Ansicht zeigt, meldet sie selbst (`tabellenSicht.ts`).
   const auswahl = useMemo(
-    () => beschraenkeAufSichtbare(gewaehlteAus(filtered, gewaehlt), sichtbareTvs),
-    [filtered, gewaehlt, sichtbareTvs],
+    // Auch in der Reihenfolge der Ansicht — der Export schreibt die Zeilenfolge
+    // des Bildschirms, nicht die der Pipeline (v4.124).
+    () => beschraenkeAufSichtbare(gewaehlteAus(filtered, gewaehlt), sichtbareTvs, sichtbareReihenfolge),
+    [filtered, gewaehlt, sichtbareTvs, sichtbareReihenfolge],
   );
 
   const exportieren = useAsyncAction(async () => {

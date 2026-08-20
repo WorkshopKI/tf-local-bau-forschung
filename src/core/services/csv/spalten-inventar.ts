@@ -73,8 +73,16 @@ export interface SpaltenEintrag {
   typ: SpaltenTyp;
   /** Rohe CSV-Spalte oder kanonisches Feld — steuert nur die Anzeige-Gruppierung. */
   quelle: 'kanonisch' | 'csv';
-  /** In wie vielen Schemas die Spalte gemappt ist (Hinweis auf Programm-Deckung). */
+  /** In wie vielen SCHEMAS (CSV-Quellen) die Spalte gemappt ist. */
   schemaAnzahl: number;
+  /**
+   * In wie vielen PROGRAMMEN die Spalte gemappt ist — der eigentliche
+   * Deckungshinweis. Ein Programm kann mehrere CSV-Quellen führen; `schemaAnzahl`
+   * las sich deshalb als Programm-Deckung, ohne eine zu sein (v4.124).
+   * Optional, damit synthetische Einträge (Tests, Todo-Feldvorrat) ohne sie
+   * auskommen — dort steht der Hinweis ohnehin nicht.
+   */
+  programmAnzahl?: number;
   /**
    * Bei `quelle: 'kanonisch'`: die rohen CSV-Codes, die auf dieses Feld gemappt
    * sind (dedupliziert über alle Schemas). Ein kanonischer Key wie
@@ -96,6 +104,8 @@ export interface SpaltenEintrag {
  */
 export function baueSpaltenKatalog(schemas: readonly CsvSchema[]): SpaltenEintrag[] {
   const perFeld = new Map<string, SpaltenEintrag>();
+  // Je Feld die Programme, die es mappen — daraus `programmAnzahl`.
+  const programmeJeFeld = new Map<string, Set<string>>();
   // Herkunft aus derselben Auflösung, die auch der Tooltip benutzt.
   const rohJeKanonisch = rohSpaltenJeFeld(schemas);
 
@@ -104,6 +114,9 @@ export function baueSpaltenKatalog(schemas: readonly CsvSchema[]): SpaltenEintra
       if (!entry || entry.ignore) continue;
       const kanonisch = entry.canonical?.trim();
       const feldId = kanonisch || spalte;
+      const progs = programmeJeFeld.get(feldId) ?? new Set<string>();
+      progs.add(schema.programm_id);
+      programmeJeFeld.set(feldId, progs);
       const bestehend = perFeld.get(feldId);
       if (bestehend) {
         bestehend.schemaAnzahl++;
@@ -115,6 +128,7 @@ export function baueSpaltenKatalog(schemas: readonly CsvSchema[]): SpaltenEintra
         typ: entry.type === 'date' ? 'datum' : 'wert',
         quelle: kanonisch ? 'kanonisch' : 'csv',
         schemaAnzahl: 1,
+        programmAnzahl: 1,
         // Über ALLE Schemas, nicht nur über das gerade betrachtete: zwei
         // Programme dürfen dasselbe kanonische Feld aus verschiedenen Spalten
         // speisen, und dann gehören beide Codes in die Herkunft.
@@ -122,6 +136,8 @@ export function baueSpaltenKatalog(schemas: readonly CsvSchema[]): SpaltenEintra
       });
     }
   }
+
+  for (const e of perFeld.values()) e.programmAnzahl = programmeJeFeld.get(e.feldId)?.size ?? 1;
 
   return [...perFeld.values()].sort((a, b) => {
     if (a.quelle !== b.quelle) return a.quelle === 'kanonisch' ? -1 : 1;

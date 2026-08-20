@@ -66,6 +66,16 @@ export interface MsEbeneModell {
   hoehe: number;
   /** Marken, deren Datum außerhalb der Achse liegt — nicht gezeichnet. */
   ausserhalb: number;
+  /**
+   * Erreichte Stufen ohne Ist-Datum — nicht zeichenbar, weil die erfüllende
+   * Spalte kein Datum trägt (`status ist …`, `tib_kuerz gefüllt`).
+   *
+   * Bis v4.122 fielen sie still heraus: die Bahn zeigte weniger erreichte
+   * Stufen, als die Gliederung darunter auflistet, ohne einen Satz dazu. Die
+   * Gliederung kennt den Fall längst und erklärt ihn im Tooltip („erreicht; die
+   * erfüllende Spalte trägt kein Datum") — hier fehlte er.
+   */
+  ohneIstDatum: number;
   /** Warum die Ebene etwas anders zeigt, als die Zahlen daneben sagen. */
   hinweis: string | null;
 }
@@ -135,6 +145,7 @@ export function verzugsTexte(stufen: readonly Stufe[], stichtag: string): string
 export function baueMsEbene(e: MsEbeneEingabe): MsEbeneModell {
   const rohe: (Omit<MsMarke, 'bahn'> & { kandidat: Kandidat })[] = [];
   let ausserhalb = 0;
+  let ohneIstDatum = 0;
   const bisX = xFuerTag(e.achse, e.bis);
 
   for (const s of e.stufen) {
@@ -142,7 +153,9 @@ export function baueMsEbene(e: MsEbeneEingabe): MsEbeneModell {
     const nummer = s.knoten.nummer;
     if (s.zustand === 'erreicht') {
       const ist = s.ergebnis.istDatum;
-      if (ist === null) continue;
+      // Erreicht, aber die erfüllende Spalte trägt kein Datum — zählen statt
+      // still weglassen (siehe `MsEbeneModell.ohneIstDatum`).
+      if (ist === null) { ohneIstDatum++; continue; }
       if (!imFenster(e.achse, ist)) { ausserhalb++; continue; }
       const x = xFuerTag(e.achse, ist);
       const links = x - MS_PUNKT / 2;
@@ -182,6 +195,7 @@ export function baueMsEbene(e: MsEbeneEingabe): MsEbeneModell {
     bahnen: anzahl,
     hoehe: marken.length === 0 ? 0 : anzahl * MS_BAHN_H + 2,
     ausserhalb,
+    ohneIstDatum,
     hinweis: e.bis.slice(0, 10) === e.stichtag.slice(0, 10)
       ? null
       : `Die Achse endet am ${formatDatum(e.bis)} (angehaltene Uhr); die Verzugstage zählen bis ${formatDatum(e.stichtag)}.`,

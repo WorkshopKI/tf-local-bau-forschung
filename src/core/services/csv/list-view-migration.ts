@@ -39,8 +39,12 @@ import type { Programm } from './types';
  * Schema-Signatur unten die Feldmenge ohnehin führt: eine Bestandsinstallation
  * ohne eigene Spalten hat eine LEERE Feldmenge, ihre Signatur ändert sich also
  * nicht — sie soll trotzdem einmal auf die neue Projektionsform kommen.
+ * v8: `t_xsw` wird zusätzlich aus dem Custom-Key `wiedereinreicher` gefüllt
+ * (v4.124). Auch das ist eine reine Code-Änderung an `toAntragListItem`, die
+ * KEINEN Antrag-Record anfasst — ohne Bump bliebe der Hinweis für den
+ * Altbestand dauerhaft leer, genau wie im v5-Vorfall.
  */
-export const LIST_VIEW_PROJECTION_VERSION = 7;
+export const LIST_VIEW_PROJECTION_VERSION = 8;
 /**
  * Signatur der aus ALLEN Programm-Schemas aufgelösten Status-Datum-Felder
  * (FB/PC). Ergänzt den reinen Code-Versions-Marker: Eine Mapping-Änderung (eine

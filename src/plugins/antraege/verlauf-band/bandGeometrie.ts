@@ -299,15 +299,49 @@ export function buendle(spuren: readonly VerlaufsSpur[]): BandSpur[] {
 
 // --- Achsenbeschriftung ---------------------------------------------------
 
-function jahresMarken(achse: Achse): AchsenMarke[] {
+const MONATS_KURZ = [
+  'Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez',
+];
+
+/**
+ * Die Achsenbeschriftung — Jahreswechsel, und wo keiner in den Ausschnitt
+ * fällt, Monatswechsel.
+ *
+ * Bis v4.122 gab es nur Jahresmarken. Reichte die Achse nicht über einen
+ * 1. Januar — bei angehaltener Uhr der Regelfall, weil sie am Haltedatum endet,
+ * und ebenso bei jungen Vorgängen —, blieb der reservierte Streifen über der
+ * Bahn leer und das Gitter zeichnete keine Linie: die Bahn setzte Bruchzeichen
+ * für gestauchte Intervalle, aber es gab keinen Zeitanker, um zu lesen WO.
+ */
+function achsenMarken(achse: Achse): AchsenMarke[] {
   if (achse.kanten.length < 2) return [];
-  const von = new Date(achse.kanten[0]!);
-  const bis = new Date(achse.kanten[achse.kanten.length - 1]!);
+  const vonMs = achse.kanten[0]!;
+  const bisMs = achse.kanten[achse.kanten.length - 1]!;
+  const von = new Date(vonMs);
+  const bis = new Date(bisMs);
+
   const marken: AchsenMarke[] = [];
   for (let j = von.getUTCFullYear(); j <= bis.getUTCFullYear(); j++) {
     const ms = Date.UTC(j, 0, 1);
-    if (ms < achse.kanten[0]! || ms > achse.kanten[achse.kanten.length - 1]!) continue;
+    if (ms < vonMs || ms > bisMs) continue;
     marken.push({ x: xOf(achse, ms), label: String(j) });
+  }
+  if (marken.length > 0) return marken;
+
+  // Kein Jahreswechsel im Ausschnitt → Monatswechsel. Der erste trägt die
+  // Jahreszahl mit, damit die Achse nicht ohne Jahr dasteht.
+  let jahr = von.getUTCFullYear();
+  let monat = von.getUTCMonth();
+  for (let i = 0; i < 24; i++) {
+    monat += 1;
+    if (monat > 11) { monat = 0; jahr += 1; }
+    const ms = Date.UTC(jahr, monat, 1);
+    if (ms > bisMs) break;
+    if (ms < vonMs) continue;
+    marken.push({
+      x: xOf(achse, ms),
+      label: marken.length === 0 ? `${MONATS_KURZ[monat]} ${jahr}` : MONATS_KURZ[monat]!,
+    });
   }
   return marken;
 }
@@ -359,11 +393,27 @@ export function baueBandGeometrie(
     : spuren.filter(s => opt.nurBahnen?.has(`${s.art}-${s.id}`) === true);
   const gebuendelt = buendle(sichtbar);
   for (const b of gebuendelt) {
-    b.segmente = b.spur.segmente.map(seg => {
+    b.segmente = b.spur.segmente.map((seg, i, alle) => {
       // Eine fehlende Grenze bekommt KEINE Ersatzbreite: das Segment läuft bis
       // zum Achsenrand und wird dort angeschnitten gezeichnet. Eine erfundene
       // Breite wäre eine Aussage über eine Dauer, die niemand kennt.
-      const vonMs = seg.vonDatum !== null ? tagMs(seg.vonDatum) : links;
+      //
+      // **Aber nur das ERSTE Segment darf bis zum Achsenanfang laufen** (v4.124).
+      // `baueSegmente` hängt im Abweichungsfall (Ableitung endet nicht beim
+      // importierten Status — gemessen 2 903 Segmente im C16-Stand) ein zweites
+      // Segment ohne `vonDatum` ganz ans ENDE. Das bekam `links` und die volle
+      // Bahnbreite und legte sich als deckende Fläche über den gesamten Verlauf:
+      // alle früheren Abschnitte samt Innen-Beschriftung verdeckt, und der
+      // Kasten fing über die volle Breite den Zeiger ab, sodass jeder Tooltip
+      // den letzten Status meldete. Ein späteres Segment ohne Anfang beginnt
+      // deshalb dort, wo sein Vorgänger endet.
+      const vorgaenger = i > 0 ? alle[i - 1] : null;
+      const anfangsRueckfall = vorgaenger?.bisDatum != null
+        ? tagMs(vorgaenger.bisDatum)
+        : vorgaenger?.vonDatum != null
+          ? tagMs(vorgaenger.vonDatum)
+          : links;
+      const vonMs = seg.vonDatum !== null ? tagMs(seg.vonDatum) : anfangsRueckfall;
       const bisMs = seg.bisDatum !== null ? tagMs(seg.bisDatum) : rechts;
       const x1 = xOf(achse, vonMs);
       const x2 = xOf(achse, bisMs);
@@ -371,7 +421,9 @@ export function baueBandGeometrie(
         segment: seg,
         links: x1,
         breite: Math.max(1, x2 - x1),
-        offenLinks: seg.vonDatum === null,
+        // „Anfang unbekannt" nur, wo er es wirklich ist: beim ersten Segment.
+        // Ein angehängtes Schluss-Segment kennt seinen Anfang über den Vorgänger.
+        offenLinks: seg.vonDatum === null && i === 0,
         offenRechts: seg.bisDatum === null,
         gestaucht: ueberGestauchtem(achse, vonMs, bisMs),
       };
@@ -381,7 +433,7 @@ export function baueBandGeometrie(
   return {
     breite: achse.breite,
     spuren: gebuendelt,
-    marken: jahresMarken(achse),
+    marken: achsenMarken(achse),
     von: frueheste,
     bis: bezugsZeitpunkt,
     achse: { kanten: achse.kanten, x: achse.x },

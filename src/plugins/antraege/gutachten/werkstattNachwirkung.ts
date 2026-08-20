@@ -23,6 +23,11 @@ export function werkstattNachwirkung(p: {
   versionVorher: number | null;
   /** Skill-Version nach `reloadRegistry`. */
   versionNachher: number | null;
+  /**
+   * Die Skill-Version, mit der der ANGEZEIGTE Text entstand (`StepRun.skillVersion`).
+   * `null`/fehlend = nicht gestempelt; dann nennt das Band keine Zahl.
+   */
+  versionDesTextes?: number | null;
   abschnittStatus: StepStatus;
 }): WerkstattNachwirkung | null {
   const { versionVorher, versionNachher, abschnittStatus } = p;
@@ -39,8 +44,17 @@ export function werkstattNachwirkung(p: {
     };
   }
   if (abschnittStatus === 'entwurf') {
+    // Die Herkunft des TEXTES ist die am Lauf gestempelte Version, nicht die
+    // Registry-Version beim Öffnen der Werkstatt. Beide fallen auseinander,
+    // sobald zwischen Generierung und Werkstatt-Besuch ein Save lag — das Band
+    // behauptete dann, eine Prompt-Änderung sei eingeflossen, die nie einen Lauf
+    // gesehen hat, und widersprach der Fußzeile im selben Bildschirm (v4.124).
+    // Ohne gestempelte Version bleibt der Satz ohne Zahl, statt eine falsche zu
+    // nennen.
+    const herkunft = p.versionDesTextes ?? null;
     return {
-      text: `${gespeichert} Sie wirkt beim nächsten Erzeugen — der Text unten stammt noch von v${versionVorher}.`,
+      text: `${gespeichert} Sie wirkt beim nächsten Erzeugen`
+        + (herkunft === null ? '.' : ` — der Text unten stammt noch von v${herkunft}.`),
       aktion: 'neu-erzeugen',
     };
   }

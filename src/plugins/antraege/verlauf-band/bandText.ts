@@ -52,8 +52,15 @@ export function baueVerlaufsText(
     }
     for (const seg of s.segmente) {
       const r = seg.statusRef;
+      // Der Text ist für Rückfragen ans Fachsystem gedacht und trägt deshalb die
+      // Codes mit — gerade beim mehrdeutigen Segment, wo es auf sie ankommt
+      // (bis v4.122 stand dort „ohne Status", obwohl beide Werte bekannt sind).
+      const statusText = seg.kandidaten && seg.kandidaten.length > 0
+        ? `${seg.kandidaten.map(k => statusMitCode(k.roh, k.code, k.lang)).join(' ODER ')}`
+          + ' [mehrdeutig, gleichtägig]'
+        : r ? statusMitCode(r.roh, r.code, r.lang) : 'ohne Status';
       z.push(`  ${seg.vonDatum ?? '????-??-??'} – ${seg.bisDatum ?? 'offen'}`
-        + `  ${r ? statusMitCode(r.roh, r.code, r.lang) : 'ohne Status'}`
+        + `  ${statusText}`
         + `  (${dauerText(seg.dauerTage)}${seg.dauerUnsicher ? ', unsicher' : ''})`);
     }
     for (const u of s.uebergaenge) {

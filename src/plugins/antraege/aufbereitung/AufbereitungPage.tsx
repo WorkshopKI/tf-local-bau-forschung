@@ -17,6 +17,8 @@ import { Button } from '@/components/ui/button';
 import { isAntragAufbereitungEnabled } from '@/config/feature-flags';
 import { resetHatVerlaufsrisiko } from '@/core/services/ai/chat-reset';
 import { useAntraegeStore } from '../store';
+import { useSichtbar } from '@/core/hooks/useSichtbar';
+import { reiterId } from '@/core/sichtbarkeit';
 import { useVerbundDetailData } from '../useVerbundDetailData';
 import { buildKurzfassungContext } from '../kurzfassung/context-builder';
 import { isPseudoVerbundId, pseudoVerbundIdFor } from '../pseudoVerbund';
@@ -48,6 +50,7 @@ function kurzDatum(iso: string): string {
 
 export function AufbereitungPage({ antragKey }: { antragKey: string }): React.ReactElement {
   const antraege = useAntraegeStore(s => s.antraege);
+  const sichtbar = useSichtbar();
   const istVerbund = useMemo(() => antraege.some(a => a.verbund_id === antragKey), [antraege, antragKey]);
   const verbundId = istVerbund ? antragKey : pseudoVerbundIdFor(antragKey);
   const { verbund, antraege: tvs, laedt: kontextLaedt, erneutVersuchen } = useVerbundDetailData(verbundId, isPseudoVerbundId(verbundId));
@@ -118,8 +121,12 @@ export function AufbereitungPage({ antragKey }: { antragKey: string }): React.Re
   // Beschriftung/Tooltip aus demselben reinen Helfer wie das Cockpit — sonst driften
   // die beiden Kopfleisten auseinander (und eine von beiden lügt).
   const kiCta = baueKiCta(kiBausteine.map(b => b.status), { agentisch: aufb.laufZiel.ziel === 'agentisch' });
-  const resetRisiko = [aufb.aspekte.chatResetStatus, aufb.steckbrief.chatResetStatus, aufb.verwertung.chatResetStatus]
-    .some(s => s != null && resetHatVerlaufsrisiko(s));
+  // ALLE sechs Bausteine, nicht drei: der Lauf übernimmt `chatResetStatus` für
+  // jeden von ihnen, und dies ist die einzige Stelle, die ihn im echten Lauf
+  // auswertet. Zahlen, Glossar und Recherche-Prompt fielen still heraus — ein
+  // Ergebnis aus fremdem Chat-Verlauf stand dann als normales da, ohne dass die
+  // Gegenmaßnahme angeboten wurde (Pitfall #36, v4.124).
+  const resetRisiko = kiBausteine.some(b => b.chatResetStatus != null && resetHatVerlaufsrisiko(b.chatResetStatus));
 
   // Defense-in-depth: die Route ist bereits flag-gated registriert.
   if (!isAntragAufbereitungEnabled()) return <Navigate to="/antraege" replace />;
@@ -150,7 +157,16 @@ export function AufbereitungPage({ antragKey }: { antragKey: string }): React.Re
   const stammdaten: SteckbriefStammdaten = {
     antragsteller: ctx?.antragsteller ?? null,
     foerderkennzeichen: ctx?.foerderkennzeichen ?? null,
-    projektform: ctx ? (istVerbund ? `ZIM-Kooperationsprojekt · ${tvs.length} Teilvorhaben` : 'ZIM-Einzelprojekt · 1 Teilvorhaben') : null,
+    // Die Projektform haengt an der ZAHL der Teilvorhaben, nicht daran, ob der
+    // Route-Schluessel eine VB-Nummer ist. `verbund_id` ist in 14 225 von 14 225
+    // Records gesetzt, `istVerbund` war also praktisch immer wahr — jeder
+    // Ein-TV-Verbund (EP/DL sind laut Doku genau das) las sich als
+    // „ZIM-Kooperationsprojekt · 1 Teilvorhaben“, waehrend die Filterleiste
+    // dieselben Vorhaben unter „Einzelprojekt“ zaehlte. Dieselbe Regel wie in
+    // `matchesProjektart` (v4.124).
+    projektform: ctx
+      ? `${tvs.length >= 2 ? 'ZIM-Kooperationsprojekt' : 'ZIM-Einzelprojekt'} · ${tvs.length} ${tvs.length === 1 ? 'Teilvorhaben' : 'Teilvorhaben'}`
+      : null,
   };
   return (
     <div className="px-8 py-6">
@@ -208,7 +224,7 @@ export function AufbereitungPage({ antragKey }: { antragKey: string }): React.Re
 
       {resetRisiko ? (
         <div className="mt-2 text-[12px] text-[var(--tf-warning-text)] bg-[var(--tf-warning-bg)] rounded-[8px] px-3 py-2">
-          ⚠ Chat-Reset fehlgeschlagen — ein KI-Baustein lief evtl. auf altem Chat-Verlauf der internen KI.
+          ⚠ Chat-Reset fehlgeschlagen — mindestens ein KI-Baustein lief evtl. auf altem Chat-Verlauf der internen KI.
           In AitisiGPT einen neuen Chat starten und „KI-Bausteine neu berechnen".
         </div>
       ) : null}
@@ -315,7 +331,9 @@ export function AufbereitungPage({ antragKey }: { antragKey: string }): React.Re
             vbMarkdown={aufb.vbMarkdown}
             bausteine={aufb.bausteine}
             bausteineNeu={aufb.bausteineNeu}
-            onGotoRecherche={() => setTab('recherche')}
+            {...(sichtbar(reiterId('aufbereitung', 'recherche'))
+              ? { onGotoRecherche: () => setTab('recherche') }
+              : {})}
           />
         ) : tab === 'glossar' ? (
           <GlossarTab

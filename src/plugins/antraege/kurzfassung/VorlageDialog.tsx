@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog } from '@/ui/Dialog';
 import { CollapsibleSection } from '@/components/ui/CollapsibleSection';
 import { useStorage } from '@/core/hooks/useStorage';
+import { getPersoenlichHandle } from '@/core/services/infrastructure/smb-handle';
 import type { Antrag } from '@/core/services/csv/types';
 import {
   getVorlagenHandle, pickVorlagenVerzeichnis, ensureReadPermission, listVorlagen, readVorlage,
@@ -38,6 +39,18 @@ interface Props {
   onClose: () => void;
 }
 
+/**
+ * Klartext-Namen der Einzel-Blöcke für die Anzeige. Der Block trägt eine `id`
+ * (`KF`, `NF`, `RNE`, `ABL`) — die Einzelansicht des Dialogs nannte bis v4.122
+ * stattdessen fest „Kurzfassung", auch beim Nachforderungs-Export.
+ */
+const BLOCK_NAME: Record<string, string> = {
+  KF: 'Kurzfassung',
+  NF: 'Nachforderung',
+  RNE: 'Tragende Gründe',
+  ABL: 'Ablehnung',
+};
+
 const errMsg = (e: unknown): string => (e instanceof Error ? e.message : String(e));
 
 function formatDate(ms: number): string {
@@ -58,6 +71,12 @@ export function VorlageDialog({ open, antrag, sections, abschnitte, onErstellt, 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [erstellt, setErstellt] = useState<(SaveResult & { filename: string }) | null>(null);
+  // Name + Anker des EINEN Blocks (Einzelansicht) — aus den Daten, nicht behauptet.
+  const einzel = sections[0];
+  const einzelName = einzel ? BLOCK_NAME[einzel.id] ?? einzel.id : 'Inhalt';
+  const einzelAnker = einzel?.anker ?? '—';
+  // Ist ein persoenlicher Ordner verbunden? `null` = noch nicht geprueft.
+  const [persOrdnerDa, setPersOrdnerDa] = useState<boolean | null>(null);
 
   async function loadList(h: FileSystemDirectoryHandle): Promise<void> {
     const granted = await ensureReadPermission(h);
@@ -84,6 +103,8 @@ export function VorlageDialog({ open, antrag, sections, abschnitte, onErstellt, 
         const h = await getVorlagenHandle(storage.idb);
         if (cancelled) return;
         setHandle(h);
+        const pers = await getPersoenlichHandle(storage.idb).catch(() => null);
+        if (!cancelled) setPersOrdnerDa(pers !== null);
         if (h) await loadList(h);
       } catch (e) {
         if (!cancelled) setError(errMsg(e));
@@ -137,7 +158,14 @@ export function VorlageDialog({ open, antrag, sections, abschnitte, onErstellt, 
     );
 
   return (
-    <Dialog open={open} onClose={onClose} title="Gutachten-Vorlage ausfüllen" footer={footer} size="lg">
+    <Dialog
+      open={open}
+      onClose={onClose}
+      // Nicht fest „Gutachten": denselben Dialog benutzen NF, RNE und ABL.
+      title={abschnitte ? 'Gutachten-Vorlage ausfüllen' : `Vorlage ausfüllen — ${einzelName}`}
+      footer={footer}
+      size="lg"
+    >
       {error && (
         <div className="mb-3 rounded-[8px] px-3 py-2 text-[12px] text-[var(--tf-danger-text)] bg-[var(--tf-danger-bg)]">{error}</div>
       )}
@@ -258,22 +286,37 @@ export function VorlageDialog({ open, antrag, sections, abschnitte, onErstellt, 
             </div>
           ) : dryRun && (
             <div>
-              <div className="text-[10.5px] font-medium uppercase tracking-[0.08em] text-[var(--tf-text-tertiary)] mb-2">Kurzfassung</div>
+              {/* Anker und Bezeichnung kommen aus `sections[0]`, nicht als Literal:
+                  in diesen Zweig fallen inzwischen auch NF/RNE/ABL aus der Werkbank,
+                  und der Dialog nannte dort „Kurzfassung der Projektbeschreibung",
+                  während der Füller nach „Nachforderungen" bzw. „Tragende Gründe"
+                  gesucht hatte (v4.124). */}
+              <div className="text-[10.5px] font-medium uppercase tracking-[0.08em] text-[var(--tf-text-tertiary)] mb-2">{einzelName}</div>
               {dryRun.sections[0]?.anchorFound ? (
                 <div className="flex items-baseline gap-2 text-[13px] text-[var(--tf-text)]">
                   <span className="text-[var(--tf-success-text)]">✓</span>
-                  <span>Kurzfassung → wird nach „Kurzfassung der Projektbeschreibung" eingefügt</span>
+                  <span>{einzelName} → wird nach „{einzelAnker}" eingefügt</span>
                 </div>
               ) : (
                 <div className="flex items-baseline gap-2 text-[13px] text-[var(--tf-text)]">
                   <span className="text-[var(--tf-warning-text)] font-medium">!</span>
-                  <span>Anker in Vorlage nicht gefunden — Kurzfassung wird <span className="text-[var(--tf-warning-text)]">NICHT</span> eingefügt. Die Vorlage wird trotzdem erstellt.</span>
+                  <span>Anker „{einzelAnker}" in der Vorlage nicht gefunden — {einzelName} wird <span className="text-[var(--tf-warning-text)]">NICHT</span> eingefügt. Die Vorlage wird trotzdem erstellt.</span>
                 </div>
               )}
             </div>
           )}
 
-          <p className="text-[11.5px] text-[var(--tf-text-tertiary)]">Die Datei wird in Ihrem persönlichen Ordner abgelegt.</p>
+          {/* Der Ort hängt daran, ob ein persönlicher Ordner verbunden ist —
+              `saveGutachtenDocx` fällt sonst auf einen Browser-Download zurück.
+              Die Ankündigung sagte das bis v4.122 nicht, obwohl der Nach-Zustand
+              des Dialogs den Unterschied korrekt benennt. */}
+          <p className="text-[11.5px] text-[var(--tf-text-tertiary)]">
+            {persOrdnerDa === null
+              ? 'Die Datei wird abgelegt, sobald sie erstellt ist.'
+              : persOrdnerDa
+                ? 'Die Datei wird in Ihrem persönlichen Ordner abgelegt.'
+                : 'Kein persönlicher Ordner verbunden — die Datei wird als Download bereitgestellt.'}
+          </p>
         </div>
       )}
     </Dialog>

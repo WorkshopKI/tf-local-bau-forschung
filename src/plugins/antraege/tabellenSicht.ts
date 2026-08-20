@@ -35,19 +35,29 @@ import type { AntragTableRow } from './tableGrouping';
 interface TabellenSichtStore {
   /** Aktenzeichen der TV, die die Ansicht gerade zeigt. `null` = keine Meldung. */
   sichtbareTvs: ReadonlySet<string> | null;
+  /**
+   * Dieselben Schluessel in der REIHENFOLGE der Ansicht (Kopf-Sortierung,
+   * Gruppierung, Zeilen-Koernung). `null` = keine eigene Ordnung.
+   *
+   * Der Export schrieb bis v4.123 die Reihenfolge der Pipeline: wer im
+   * Spaltenkopf sortierte und danach exportierte, bekam eine Datei, deren
+   * Zeilenfolge nichts mit dem Bildschirm zu tun hatte (v4.124).
+   */
+  sichtbareReihenfolge: readonly string[] | null;
   /** Selbst angelegte Spalten, wie die Ansicht sie gebaut hat. */
   eigeneSpalten: readonly SortableColumn<AntragTableRow>[];
-  meldeSichtbare: (keys: ReadonlySet<string> | null) => void;
+  meldeSichtbare: (keys: ReadonlySet<string> | null, reihenfolge?: readonly string[] | null) => void;
   meldeEigeneSpalten: (spalten: readonly SortableColumn<AntragTableRow>[]) => void;
 }
 
 export const useTabellenSicht = create<TabellenSichtStore>((set, get) => ({
   sichtbareTvs: null,
+  sichtbareReihenfolge: null,
   eigeneSpalten: [],
 
-  meldeSichtbare: (keys) => {
-    if (get().sichtbareTvs === keys) return;
-    set({ sichtbareTvs: keys });
+  meldeSichtbare: (keys, reihenfolge = null) => {
+    if (get().sichtbareTvs === keys && get().sichtbareReihenfolge === reihenfolge) return;
+    set({ sichtbareTvs: keys, sichtbareReihenfolge: reihenfolge });
   },
 
   meldeEigeneSpalten: (spalten) => {
@@ -64,7 +74,16 @@ export const useTabellenSicht = create<TabellenSichtStore>((set, get) => ({
 export function beschraenkeAufSichtbare<T extends { aktenzeichen: string }>(
   liste: readonly T[],
   sichtbareTvs: ReadonlySet<string> | null,
+  reihenfolge?: readonly string[] | null,
 ): T[] {
   if (sichtbareTvs === null) return [...liste];
-  return liste.filter(a => sichtbareTvs.has(a.aktenzeichen));
+  const gefiltert = liste.filter(a => sichtbareTvs.has(a.aktenzeichen));
+  if (!reihenfolge || reihenfolge.length === 0) return gefiltert;
+  // In der Ordnung der ANSICHT: Unbekanntes haengt hinten an, statt vorn zu
+  // landen (`indexOf` liefert -1).
+  const rang = new Map(reihenfolge.map((k, i) => [k, i]));
+  const hinten = reihenfolge.length;
+  return gefiltert.sort(
+    (a, b) => (rang.get(a.aktenzeichen) ?? hinten) - (rang.get(b.aktenzeichen) ?? hinten),
+  );
 }

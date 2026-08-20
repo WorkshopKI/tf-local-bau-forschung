@@ -60,7 +60,7 @@ const RAND_LUFT = 4;
 
 export function VerlaufsBand({
   spuren, eigenes, bezugsZeitpunkt, breite = 620,
-  fassung = null, journalAb = null, journalGenutzt = false, haengtFest = null,
+  fassung = null, journalAb = null, journalGenutzt = false, journalGrund, haengtFest = null,
   kuerzelEbene = true, randRechts = RAND_LUFT, zusatzBahn = null,
   rollenWahl, bereichWahl, fokus = null, onFokus, luecken = null, zeigeBilanz = false,
 }: {
@@ -77,6 +77,8 @@ export function VerlaufsBand({
   journalAb?: string | null;
   /** Ob das Journal für DIESE Bahn herangezogen wurde (Fußzeile). */
   journalGenutzt?: boolean;
+  /** Warum nicht — siehe `HerkunftsAngabe.journalGrund`. */
+  journalGrund?: 'mehrereTv' | 'ganzesVorhaben' | 'ohneChronik';
   /**
    * Die Bahn, die festhängt — vom Aufrufer benannt, nicht hier abgeleitet: der
    * Stillstands-Wächter urteilt über einen **Vorgang**, und nur der Aufrufer
@@ -358,7 +360,7 @@ export function VerlaufsBand({
 
       <BandFuss
         spuren={spuren} eigenes={eigenes}
-        angabe={{ bezugsZeitpunkt, fassung, journalAb, journalGenutzt }}
+        angabe={{ bezugsZeitpunkt, fassung, journalAb, journalGenutzt, ...(journalGrund ? { journalGrund } : {}) }}
       />
 
       {/* Höchstens eine Spur offen — die schlichte Liste aus Phase 2 als

@@ -18,7 +18,8 @@ import { useEffect, useRef, useState } from 'react';
 import { create } from 'zustand';
 import { useStorage } from '@/core/hooks/useStorage';
 import { bestandGeneration } from '@/core/services/bestand-generation';
-import { getAktiveVersion, ladeAktiveVersion } from '@/core/status';
+import { getAktiveVersion, ladeAktiveVersion, type MappingVersion } from '@/core/status';
+import type { IDBStore } from '@/core/services/storage/idb-store';
 import { tfPerfLog } from '@/core/utils/tfPerf';
 import { useAntraegeStore } from '../store';
 import { baueAktivitaetsIndex, type AktivitaetsIndex } from './letzteAktivitaet';
@@ -83,6 +84,48 @@ export interface AktivitaetsIndexErgebnis {
 }
 
 /**
+ * Der **eine** laufende Aufbau, geteilt über alle Aufrufer — modul-lokal, nicht
+ * je Hook-Instanz.
+ *
+ * Bis v4.122 verriegelte ein `useRef` je Instanz. Auf der Antragsseite hängt der
+ * Hook aber an vier bis sechs Stellen gleichzeitig im Baum (über
+ * `useFilteredAntraege` in Kopf, Hauptteil, Filterspalte, Schnellfilter — dort
+ * zusätzlich direkt). Springt `stillstandTage` von `null` auf einen Wert, laufen
+ * alle Effekte in derselben Commit-Phase: der Cache ist für alle noch leer, jeder
+ * eigene Ref ist leer — also startete JEDE Instanz denselben Lauf über den ganzen
+ * Bestand, und alle bis auf einen warfen ihr Ergebnis weg.
+ *
+ * Zweiter Defekt derselben Wurzel: das Cleanup eines abgebrochenen Laufs setzte
+ * `abgebrochen`, und der übersprang dann das Schreiben in den Cache — genau das
+ * Muster, das `StartupScreen` für sich schon als Fehler beschreibt. Das
+ * Cache-Schreiben hängt deshalb **nicht** mehr am Abbruch der Instanz: das
+ * Ergebnis ist global gültig, wer es angestoßen hat, ändert daran nichts.
+ */
+const LAEUFT = new Map<string, Promise<void>>();
+
+async function gemeinsamerLauf(
+  schluessel: string, idb: IDBStore, v: MappingVersion, heute: string,
+): Promise<void> {
+  const da = LAEUFT.get(schluessel);
+  if (da) return da;
+  const lauf = (async () => {
+    const begonnen = performance.now();
+    const { index, gelesen } = await baueAktivitaetsIndex(idb, v, heute);
+    const ms = Math.round(performance.now() - begonnen);
+    useAktivitaetsCache.getState().setzen(schluessel, index, gelesen, ms);
+    tfPerfLog(
+      `[stillstand] Aktivitäts-Index: ${index.size} von ${gelesen} Sätzen datiert, ${ms} ms`,
+    );
+  })();
+  LAEUFT.set(schluessel, lauf);
+  try {
+    await lauf;
+  } finally {
+    LAEUFT.delete(schluessel);
+  }
+}
+
+/**
  * Liefert den Index, sobald `stillstandTage` gesetzt ist — vorher `null`, ohne
  * je etwas gerechnet zu haben.
  *
@@ -98,9 +141,6 @@ export function useAktivitaetsIndex(): AktivitaetsIndexErgebnis {
   const [fehler, setFehler] = useState<string | null>(null);
   const heuteRef = useRef<string>(new Date().toISOString());
   const cache = useAktivitaetsCache();
-  // Gegen den doppelten Lauf im StrictMode UND gegen den zweiten Lauf, den ein
-  // Re-Render während des ersten auslösen würde.
-  const laeuftRef = useRef<string | null>(null);
 
   const gebraucht = stillstandTage !== null;
 
@@ -119,19 +159,12 @@ export function useAktivitaetsIndex(): AktivitaetsIndexErgebnis {
         ].join('|');
 
         if (indexGilt(useAktivitaetsCache.getState(), schluessel, Date.now())) return;
-        if (laeuftRef.current === schluessel) return;
-        laeuftRef.current = schluessel;
 
         setLaden(true);
         setFehler(null);
-        const begonnen = performance.now();
-        const { index, gelesen } = await baueAktivitaetsIndex(idb, v, heuteRef.current);
-        const ms = Math.round(performance.now() - begonnen);
-        if (abgebrochen) return;
-        useAktivitaetsCache.getState().setzen(schluessel, index, gelesen, ms);
-        tfPerfLog(
-          `[stillstand] Aktivitäts-Index: ${index.size} von ${gelesen} Sätzen datiert, ${ms} ms`,
-        );
+        // EIN Lauf für alle Aufrufer (siehe `LAEUFT`): wer dazukommt, hängt sich
+        // an denselben Lauf, statt einen eigenen zu starten.
+        await gemeinsamerLauf(schluessel, idb, v, heuteRef.current);
       } catch (err) {
         if (abgebrochen) return;
         console.error('[useAktivitaetsIndex]', err);
@@ -140,7 +173,6 @@ export function useAktivitaetsIndex(): AktivitaetsIndexErgebnis {
         setFehler('Der Stillstand ließ sich nicht ermitteln — die Liste ist ungefiltert.');
       } finally {
         if (!abgebrochen) setLaden(false);
-        laeuftRef.current = null;
       }
     })();
 

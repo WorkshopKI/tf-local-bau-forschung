@@ -40,13 +40,31 @@ function endung(spalte: { id: string; lang: string }): string | undefined {
   return spalte.lang.length > 3 ? `…${spalte.lang.slice(-3)}` : spalte.lang;
 }
 
-export function VerlaufFilterLeiste({ chronik, spalten, filter, nichtGesetzt, nebensaechlich }: {
+export function VerlaufFilterLeiste({
+  chronik, spalten, filter, nichtGesetzt, nichtGesetztZahl, luecken = true, nebensaechlich,
+}: {
   /** Die **ungefilterte** Chronik — Grundlage für Anwesenheit und Zahlen. */
   chronik: readonly ChronikEintrag[];
   spalten: readonly MatrixSpalte[];
   filter: VerlaufFilter;
-  /** Wie viele Kürzel irgendwo fehlen; 0 = der Schalter entfällt. */
+  /**
+   * Wie viele Kürzel-Angaben im **ungefilterten** Bestand fehlen; 0 = der
+   * Schalter entfällt. Steuert nur die ANWESENHEIT des Chips — dieselbe Regel
+   * wie bei Wer und Wo (siehe Modulkopf).
+   */
   nichtGesetzt: number;
+  /**
+   * Die Zahl auf dem Chip — gegen die aktuelle Wahl gerechnet. Ohne sie stand
+   * dort der Vollbestand, während die Kennzahlen-Zeile unmittelbar darüber im
+   * gleichen Wortlaut und in derselben Warnfarbe eine kleinere Zahl nannte
+   * (v4.124).
+   */
+  nichtGesetztZahl?: number;
+  /**
+   * Löst die aktuelle Ansicht die Lücken-Achse überhaupt ein? `false` im
+   * Zeitstrahl — dieselbe Regel wie bei `nebensaechlich` (siehe dort).
+   */
+  luecken?: boolean;
   /**
    * Der Schalter „Nebensächliches" — er gehört hierher und nicht in die Liste
    * darunter, weil er beide Ordnungen betrifft. `null` = es gibt nichts
@@ -128,10 +146,14 @@ export function VerlaufFilterLeiste({ chronik, spalten, filter, nichtGesetzt, ne
           />
         )}
 
-        {nichtGesetzt > 0 && (
+        {/* Wie „Nebensächliches" nur dort, wo der Schalter etwas bewirkt: der
+            Zeitstrahl kennt die Lücken-Achse nicht (`filterePaare` führt sie
+            gar nicht), und ein Chip, der sich einfärbt, ohne dass sich ein Pixel
+            ändert, ist ein gebrochenes Versprechen (v4.124). */}
+        {nichtGesetzt > 0 && luecken && (
           <ToggleChip
             form="marke"
-            label={`${nichtGesetzt} Kürzel nicht gesetzt`}
+            label={`${nichtGesetztZahl ?? nichtGesetzt} fehlende Kürzel-Angaben`}
             selected={filter.nurLuecken}
             onToggle={() => filter.setzeNurLuecken(!filter.nurLuecken)}
             tonung={{ text: 'var(--tf-danger-text)', flaeche: 'var(--tf-danger-bg)' }}

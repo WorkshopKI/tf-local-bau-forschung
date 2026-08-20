@@ -27,6 +27,21 @@ export interface HerkunftsAngabe {
   journalAb: string | null;
   /** Ob das Journal für DIESE Bahn herangezogen wurde. */
   journalGenutzt: boolean;
+  /**
+   * Warum es nicht herangezogen wurde — nur nötig, wenn `journalGenutzt` falsch
+   * ist.
+   *
+   * `'mehrereTv'`: die Chronik gehört EINEM Teilvorhaben, das Vorhaben hat
+   * mehrere. `'ganzesVorhaben'`: die Anzeige gilt dem ganzen Vorhaben, nicht
+   * einem Teilvorhaben — dann gibt es gar keine Chronik zu ziehen, auch bei
+   * genau einem TV. `'ohneChronik'`: dieses Teilvorhaben steht nicht im Journal.
+   *
+   * Bis v4.122 nannte der Text nur den ersten Grund. Auf der Verbund-Detailseite
+   * ist `journalGenutzt` aber strukturell immer falsch (der Hook läuft dort ohne
+   * Aktenzeichen) — bei jedem Ein-TV-Verbund stand deshalb „dieses Vorhaben hat
+   * mehrere [Teilvorhaben]", während die Seite darüber genau eines zeigte.
+   */
+  journalGrund?: 'mehrereTv' | 'ganzesVorhaben' | 'ohneChronik';
 }
 
 export interface HerkunftsTexte {
@@ -50,9 +65,13 @@ function journalLang(a: HerkunftsAngabe): string {
       + ' ist keine Änderung belegt, sondern jede aus den Datumsspalten genähert.';
   }
   if (!a.journalGenutzt) {
+    const grund = a.journalGrund === 'ganzesVorhaben'
+      ? ' es wird je Teilvorhaben geführt, diese Ansicht gilt dem ganzen Vorhaben.'
+      : a.journalGrund === 'ohneChronik'
+        ? ' für dieses Teilvorhaben liegt keine Chronik vor.'
+        : ' es wird je Teilvorhaben geführt und dieses Vorhaben hat mehrere.';
     return `Das Import-Diff-Journal führt belegte Änderungen ab ${formatDatumsWert(a.journalAb)},`
-      + ' ist hier aber nicht herangezogen: es wird je Teilvorhaben geführt und'
-      + ' dieses Vorhaben hat mehrere.';
+      + ' ist hier aber nicht herangezogen:' + grund;
   }
   return `Ab ${formatDatumsWert(a.journalAb)} führt das Import-Diff-Journal die belegten`
     + ' Änderungen. Davor ist der Verlauf genähert, danach nachgewiesen.';

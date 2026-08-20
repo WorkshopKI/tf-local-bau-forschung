@@ -160,6 +160,15 @@ export function wendeReiterAn(z: ReiterZustand): void {
   a.setProjektart(z.projektart);
   a.setPrecheckBucket(z.precheck);
   a.setStillstandTage(z.stillstandTage);
+  // Und was eine FRAGE gesetzt hat, gehört ebenso zum Ausschnitt: Kürzel-Ausschnitt,
+  // Leitbegriffe und die Frage selbst. Ein Reiter ist ein Arbeitsplatz, kein
+  // Zusatzfilter — bis v4.123 stellte er ihn her und ließ den Frage-Zustand des
+  // vorigen Ausschnitts daneben stehen, samt einer Volltext-Stufe, die weiter nach
+  // dem alten Thema suchte. `verlasseEigenenReiter` räumt sie längst genauso ab.
+  a.setFrageKuerzel(null);
+  a.setPlanTeile(null);
+  a.setFrageGestellt(null);
+  a.setAmpelQuickfilter(null);
 
   speichereBreiten(SPEICHER_SPALTENBREITEN, z.breiten);
   speichereGesamtBreite(SPEICHER_GESAMTBREITE, z.gesamtBreite);

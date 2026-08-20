@@ -4,7 +4,9 @@
  *
  * Drei Quellen, ge-joined zu einem einzigen String:
  *  1. **TECHN_/BRANCHE_/ANWEND_-Werte** — sind selbst Labels (z.B.
- *     "Bauindustrie", "Leichtbau"). Aus `readAntragDeskriptoren` gesammelt.
+ *     "Bauindustrie", "Leichtbau"). TECHN aus `readAntragDeskriptoren`,
+ *     BRANCHE/ANWEND aus `WEITERE_DESKRIPTOR_SPALTEN` (siehe dort, warum die
+ *     beiden Achsen NICHT über denselben Leser laufen).
  *  2. **ZT-Boolean-Flags** — 44 Spalten (`zt_*_tv` / `zt_*_vb`). Wenn `true`,
  *     kommt der zugehoerige Klartext aus `ZUKUNFTSTECHNOLOGIE_FELDER` rein
  *     (z.B. "Leichtbautechnologien", "Kuenstliche Intelligenz (KI)").
@@ -25,6 +27,48 @@ import { ZUKUNFTSTECHNOLOGIE_FELDER } from '@/plugins/auslastung/services/defaul
 import { readAntragDeskriptoren } from '@/plugins/auslastung/services/identitaet';
 import { ALL_DESKRIPTOREN_SPALTEN } from '@/plugins/auslastung/types';
 
+/**
+ * Branchen- und Anwendungsdomänen-Spalten — die Achsen, die
+ * `readAntragDeskriptoren` **absichtlich** auslässt.
+ *
+ * Der Ausschluss dort ist richtig und bleibt: er schützt das Auslastungs-Matching
+ * davor, einen KI-Querschnittsbearbeiter als Pflanzentechnologie-Experten zu
+ * markieren (`ALL_DESKRIPTOREN_SPALTEN`, mit Regressionstest). Der SUCHKORPUS hat
+ * diesen fremden Ausschluss aber stillschweigend geerbt, obwohl sein eigener
+ * Modulkopf oben TECHN/BRANCHE/ANWEND zusagt: `deskriptor:Baugewerbe` lieferte
+ * null Treffer, und die Achse „Anwendungsdomäne" war unauffindbar (v4.124).
+ *
+ * Am echten Bestand gemessen (14 225 Sätze): `anwend_1` 9 614 gefüllt,
+ * `anwend_2..5` 1 308/336/89/30, `branche_1..5` 2 770/167/44/10/4 — alle mit
+ * Textlabels („Verkehr und Nachrichtenübermittlung", „Baugewerbe").
+ *
+ * **Feste Liste statt Präfix-Suche**: dieselbe Messung zeigt fünf `techn_*`-
+ * Spalten, die DATEN führen (`techn_bearb_za_erfolgt` = „2016-12-19"). Ein
+ * `startsWith('techn')` zöge sie in den Suchtext.
+ */
+const WEITERE_DESKRIPTOR_SPALTEN: readonly string[] = [
+  'branche_1', 'branche_2', 'branche_3', 'branche_4', 'branche_5',
+  'anwend_1', 'anwend_2', 'anwend_3', 'anwend_4', 'anwend_5',
+  // Zweite Schreibweise je nach Mapping (`schema-c.ts`: anwend_1, dann anwendung_2..5).
+  'anwendung_1', 'anwendung_2', 'anwendung_3', 'anwendung_4', 'anwendung_5',
+];
+
+/** Die Werte der Branchen-/Anwendungs-Spalten in ihrer Schreibweise, ohne Dubletten. */
+function weitereDeskriptoren(antrag: Antrag): string[] {
+  const rec = antrag as unknown as Record<string, unknown>;
+  const out: string[] = [];
+  const gesehen = new Set<string>();
+  for (const spalte of WEITERE_DESKRIPTOR_SPALTEN) {
+    const roh = rec[spalte];
+    if (typeof roh !== 'string') continue;
+    const t = roh.trim();
+    if (t.length === 0 || gesehen.has(t.toLowerCase())) continue;
+    gesehen.add(t.toLowerCase());
+    out.push(t);
+  }
+  return out;
+}
+
 /** Heuristisch erkannte „wahr"-Varianten in C16-CSV-Exporten. */
 function isTruthyFlag(v: unknown): boolean {
   if (v === true || v === 1) return true;
@@ -37,8 +81,11 @@ function isTruthyFlag(v: unknown): boolean {
 
 export function buildDescriptorsText(antrag: Antrag): string {
   const parts: string[] = [];
-  // Kategoriale Werte (TECHN/BRANCHE/ANWEND).
+  // Kategoriale Werte: TECHN aus dem geteilten Leser, BRANCHE/ANWEND daneben
+  // (siehe `WEITERE_DESKRIPTOR_SPALTEN` — der Auslastungs-Ausschluss gilt dort,
+  // nicht hier).
   parts.push(...readAntragDeskriptoren(antrag));
+  parts.push(...weitereDeskriptoren(antrag));
   // ZT-Boolean-Flags → Klartext.
   const rec = antrag as unknown as Record<string, unknown>;
   for (const zt of ZUKUNFTSTECHNOLOGIE_FELDER) {
@@ -75,8 +122,13 @@ export function deskriptorenAnzeige(antrag: Antrag): string[] {
     const t = roh.trim();
     if (t.length > 0) schreibweise.set(t.toLowerCase(), t);
   }
-  return readAntragDeskriptoren(antrag)
-    .map(v => schreibweise.get(v) ?? ZT_ANZEIGE.get(v) ?? v);
+  return [
+    ...readAntragDeskriptoren(antrag).map(v => schreibweise.get(v) ?? ZT_ANZEIGE.get(v) ?? v),
+    // Branche/Anwendung stehen hier schon in ihrer Schreibweise (der Leser oben
+    // kennt sie nicht) — dieselbe Menge wie im Suchtext, damit die
+    // Vorschlagsliste nichts anbietet, was der Korpus nicht führt.
+    ...weitereDeskriptoren(antrag),
+  ];
 }
 
 /** Kleinschreibung → Klartext der Zukunftstechnologien. Modul-global: die Liste

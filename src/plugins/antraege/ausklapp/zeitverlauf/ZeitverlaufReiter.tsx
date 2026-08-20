@@ -36,6 +36,8 @@ export interface ZeitverlaufReiterProps {
   istVerbundZeile: boolean;
   journalAb: string | null;
   journalGenutzt: boolean;
+  /** Warum das Journal nicht herangezogen wurde — siehe `HerkunftsAngabe`. */
+  journalGrund?: 'mehrereTv' | 'ganzesVorhaben' | 'ohneChronik';
   laden: boolean;
   /** Rechtes Ende der Achse. */
   bezugsZeitpunkt: string;
@@ -49,7 +51,7 @@ export interface ZeitverlaufReiterProps {
 }
 
 export function ZeitverlaufReiter({
-  spuren, eigenes, istVerbundZeile, journalAb, journalGenutzt, laden,
+  spuren, eigenes, istVerbundZeile, journalAb, journalGenutzt, journalGrund, laden,
   bezugsZeitpunkt, stichtag, fassung, haengtFest, lage, stufen, befund,
 }: ZeitverlaufReiterProps): React.ReactElement {
   const hatMeilensteine = lage.art === 'da' && stufen.length > 0;
@@ -133,6 +135,7 @@ export function ZeitverlaufReiter({
         <VerlaufsBand
           spuren={sichtbareSpuren} eigenes={eigenes} bezugsZeitpunkt={bezugsZeitpunkt}
           fassung={fassung} journalAb={journalAb} journalGenutzt={journalGenutzt}
+          journalGrund={journalGrund}
           haengtFest={haengtFest}
           kuerzelEbene={an.has('kuerzel')}
           randRechts={msAn && labelReserve > 0 ? labelReserve + 8 : undefined}

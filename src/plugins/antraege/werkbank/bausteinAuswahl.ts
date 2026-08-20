@@ -34,9 +34,31 @@ export function vorschlaegeFuerPunkt(
 /** Die bestätigte Zuordnung: Punkt-Key → Baustein-IDs (leer = TODO). */
 export type Auswahl = Record<string, string[]>;
 
-/** Punkt-Keys, denen (noch) kein Baustein zugeordnet ist. */
-export function todoPunkte(gewaehlt: readonly WerkbankPunkt[], auswahl: Auswahl): string[] {
-  return gewaehlt.filter(p => (auswahl[p.key] ?? []).length === 0).map(p => p.key);
+/**
+ * Punkt-Keys, denen (noch) kein Baustein zugeordnet ist.
+ *
+ * **Typ-bewusst, wenn Katalog und Typ mitgegeben werden** (v4.124): `auswahl` ist
+ * EIN Topf für NF/RNE/ABL, `baueAuftrag` filtert daraus aber über
+ * `freigegebeneBausteine(katalog, artefaktTyp)`. Nur die Länge zu zählen hieß:
+ * wer im Typ NF einen NF-Baustein ankreuzt und danach auf „Ablehnung" schaltet,
+ * galt weiter als versorgt — die Sperre am Knopf griff nicht, der Auftrag ging
+ * mit leeren Baustein-Listen los, `mergeNfFuerTv('', '')` lieferte einen LEEREN
+ * Text, und das Freigabe-Tor meldete „✓ Keine ungefüllten Platzhalter" über
+ * einem inhaltsleeren Ablehnungsbescheid.
+ *
+ * Ohne Katalog bleibt die alte, rein längenbasierte Rechnung (Aufrufer ohne
+ * Katalog-Zugriff).
+ */
+export function todoPunkte(
+  gewaehlt: readonly WerkbankPunkt[], auswahl: Auswahl,
+  katalog?: readonly TextbausteinRecord[], artefaktTyp: BescheidTyp = 'nf',
+): string[] {
+  const freigegeben = katalog
+    ? new Set(freigegebeneBausteine(katalog, artefaktTyp).map(b => b.id))
+    : null;
+  const zaehlt = (ids: string[]): number =>
+    (freigegeben ? ids.filter(id => freigegeben.has(id)) : ids).length;
+  return gewaehlt.filter(p => zaehlt(auswahl[p.key] ?? []) === 0).map(p => p.key);
 }
 
 /** Ein Punkt als Kontext-Zeile für das LLM (Aspekt + Text + zugeordnete Bausteine). */
@@ -61,9 +83,13 @@ export function baueAuftrag(
   const freigegeben = new Map(freigegebeneBausteine(katalog, artefaktTyp).map(b => [b.id, b]));
   const verwendet = new Map<string, TextbausteinRecord>();
   const zeilen: string[] = [];
+  // Punkte OHNE (typ-passenden) Baustein — sie tragen im Entwurf die zugesagte
+  // TODO-Markierung, statt spurlos zu verschwinden (siehe mergeNfFuerTv).
+  const offenePunkte: string[] = [];
   for (const p of gewaehlt) {
     const ids = (auswahl[p.key] ?? []).filter(id => freigegeben.has(id));
     for (const id of ids) verwendet.set(id, freigegeben.get(id)!);
+    if (ids.length === 0) offenePunkte.push(p.text);
     zeilen.push(punktZeile(p, ids));
   }
   const alle = [...verwendet.values()];
@@ -73,5 +99,6 @@ export function baueAuftrag(
     tvBausteine: alle.filter(b => b.scope !== 'verbund'),
     punktKontext: zeilen.join('\n'),
     punktKeys: gewaehlt.map(p => p.key),
+    offenePunkte,
   };
 }

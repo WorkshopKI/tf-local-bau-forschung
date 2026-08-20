@@ -116,7 +116,12 @@ export function KontextPanel({
 
       {step.entwurf ? (
         <div className="g-ctx-block">
-          <CollapsibleSection label="Entwurf — alle genannten Risiken" defaultOpen={false}>
+          {/* Neutral beschriftet: das Panel rendert für JEDEN Abschnitt. Nur der
+              C-Skill beschreibt seinen `### Entwurf` als vollständige
+              Risiko-Liste; der A-Skill fordert unter derselben Überschrift „ein
+              erster, noch ungeschliffener Entwurf der Kurzfassung". Die Zusage
+              „alle genannten Risiken" war mit dem Panel mitgewandert (v4.124). */}
+          <CollapsibleSection label="Entwurf (vor dem Feinschliff)" defaultOpen={false}>
             <div className="g-ctx-text"><MarkdownRenderer content={step.entwurf} /></div>
           </CollapsibleSection>
         </div>

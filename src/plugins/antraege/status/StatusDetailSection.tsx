@@ -26,7 +26,7 @@ import { sektionOffenDefault, sektionsKey } from '../detailSektionen';
 import { isVorgangssystemEnabled } from '@/config/feature-flags';
 import {
   baueChronik, baueSchrittMatrix, baueSpalten, baueZurueckgenommene, filterePaare,
-  rollenSicht, rollenVonFeld,
+  rollenSicht, rollenVonFeld, schneideAufBereich,
   teileChronik, trifftBereich, tvAchse, verlaufKennzahlen, zahPhaseLabel, zahPhaseFuerStatusText,
   offenePaareJeTeilvorhaben,
 } from '@/core/status';
@@ -134,8 +134,12 @@ export function StatusDetailSection({ verbundId, statusRoh }: {
   const kennzahlenGesamt = verlaufKennzahlen(basis, offenePaare, tvIds.length, zurueckgenommene);
   const kennzahlen = verlaufKennzahlen(gefiltert, paareGefiltert, tvIds.length, zurueckGefiltert);
 
-  const matrixZeilen = baueSchrittMatrix(gefiltert, paareGefiltert, spalten, version)
-    .filter(z => !filter.nurLuecken || z.fehlt > 0);
+  // Die Matrix rechnet JE TRÄGER (TV-Streuung, Spanne) — dafür müssen die
+  // Einträge auf die Wo-Wahl geschnitten sein, nicht nur nach ihr gefiltert
+  // (siehe `schneideAufBereich`).
+  const matrixZeilen = baueSchrittMatrix(
+    schneideAufBereich(gefiltert, filter.bereiche), paareGefiltert, spalten, version,
+  ).filter(z => !filter.nurLuecken || z.fehlt > 0);
   const fokusZeile = filter.fokus === null
     ? null
     : version.felder.find(f => f.feldId === filter.fokus) ?? null;
@@ -189,7 +193,10 @@ export function StatusDetailSection({ verbundId, statusRoh }: {
         kennzahlen={kennzahlen}
         {...(kennzahlen.datumsangaben === kennzahlenGesamt.datumsangaben
           ? {} : { gesamt: kennzahlenGesamt })}
-        onLuecken={() => filter.setzeNurLuecken(!filter.nurLuecken)}
+        // Nur wo der Schalter auch wirkt (siehe `luecken` an der Filterleiste) —
+        // sonst stünde hier ein toter Link, den der eigene Prop-Kommentar der
+        // Kennzahlen-Zeile als gebrochenes Versprechen bezeichnet.
+        {...(ansicht === 'band' ? {} : { onLuecken: () => filter.setzeNurLuecken(!filter.nurLuecken) })}
       />
 
       <div className="flex flex-wrap items-center gap-2">
@@ -223,6 +230,9 @@ export function StatusDetailSection({ verbundId, statusRoh }: {
         spalten={spalten}
         filter={filter}
         nichtGesetzt={offenePaare.length}
+        nichtGesetztZahl={paareGefiltert.length}
+        // Der Zeitstrahl (`band`) zeichnet keine Lücken — dort entfällt der Schalter.
+        luecken={ansicht !== 'band'}
         nebensaechlich={nebenAnzahl === 0 || ansicht !== 'chronik' ? null : {
           an: prefsApi.prefs.zeigeNebensaechlich,
           anzahl: nebenAnzahl,
@@ -289,7 +299,11 @@ export function StatusDetailSection({ verbundId, statusRoh }: {
           version={version}
           zeigeNebensaechlich={prefsApi.prefs.zeigeNebensaechlich}
           onToggleNebensaechlich={() => prefsApi.setNebensaechlich(!prefsApi.prefs.zeigeNebensaechlich)}
-          offenePaare={offenePaare}
+          // Die GEFILTERTE Liste — wie Zeitstrahl und Kennzahlen daneben. Bis
+          // v4.122 bekam die Chronik hier die ungefilterte: die Kennzahlen-Zeile
+          // nannte „3 Kürzel nicht gesetzt", darunter standen alle neun
+          // Fehlzeilen, samt fremder Träger-Marke bei „Wo = TV 1".
+          offenePaare={paareGefiltert}
           zurueckgenommene={zurueckgenommene}
           zeigeSchalter={false}
           rollenWahl={filter.rollen}

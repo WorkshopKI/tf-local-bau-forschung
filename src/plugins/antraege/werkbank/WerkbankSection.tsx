@@ -56,8 +56,21 @@ export function WerkbankSection({ ctx, vorbelegung }: {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- nur auf den nonce reagieren
   }, [vorbelegung?.nonce]);
 
+  // Der Verbund (oder der Punkt-Bestand) wechselt — Auswahl und Zuordnung des
+  // VORIGEN gehören nicht mit. `VerbundDetail` wird beim Wechsel nicht neu
+  // gemountet, und die Punkt-Keys sind aus dem Text gehasht: gleich formulierte
+  // Standard-Punkte wären in Verbund B vorangekreuzt, samt Baustein-Auswahl aus
+  // A. Die Zahl am Knopf stand außerdem stehen, während der Klick wirkungslos
+  // blieb (v4.124).
+  useEffect(() => {
+    setGewaehlt(new Set());
+    setAuswahl({});
+    setArtefaktTyp('nf');
+  }, [ctx.key]);
+
   const gewaehltePunkte = useMemo(() => w.punkte.filter(p => gewaehlt.has(p.key)), [w.punkte, gewaehlt]);
-  const offeneTodos = todoPunkte(gewaehltePunkte, auswahl);
+  // Typ-bewusst (siehe `todoPunkte`): ein NF-Baustein versorgt keinen ABL-Punkt.
+  const offeneTodos = todoPunkte(gewaehltePunkte, auswahl, w.katalog, artefaktTyp);
   const istBescheid = artefaktTyp !== 'nf';
   // Für RNE/ABL blockiert ein unzugeordneter Punkt die Generierung (Bescheid braucht
   // eine tragende Begründung je Punkt); bei NF ist TODO erlaubt (→ [TODO]-Markierung).
@@ -100,21 +113,24 @@ export function WerkbankSection({ ctx, vorbelegung }: {
         </button>
         {w.punkte.length > 0 && <span className="text-[12px] text-[var(--tf-text-tertiary)]">{w.punkte.length} Punkte</span>}
         <span className="flex-1" />
-        {w.nf.vbVorhanden && gewaehlt.size > 0 && (
+        {/* An den vorhandenen PUNKTEN gemessen, nicht am Key-Set: das kann Keys
+            tragen, die es am geöffneten Verbund nicht (mehr) gibt — der Knopf
+            stand dann mit einer Zahl da und der Klick tat nichts (v4.124). */}
+        {w.nf.vbVorhanden && gewaehltePunkte.length > 0 && (
           w.nf.busy ? (
             <Button variant="secondary" onClick={w.nf.stop}>Stopp</Button>
           ) : (
             <Button
               variant="primary"
               disabled={generierenGesperrt}
-              onClick={() => w.generiere([...gewaehlt], auswahl, artefaktTyp)}
+              onClick={() => w.generiere(gewaehltePunkte.map(p => p.key), auswahl, artefaktTyp, { warnungen, offeneTodos: offeneTodos.length })}
               title={
                 istBescheid && offeneTodos.length > 0
                   ? 'Bei einem Bescheid muss jeder gewählte Punkt einen Baustein tragen (kein TODO).'
                   : `Erzeugt je Teilvorhaben einen ${LABEL_BY_TYP[artefaktTyp]}-Entwurf aus den bestätigten Bausteinen.`
               }
             >
-              Entwurf erzeugen ({gewaehlt.size})
+              Entwurf erzeugen ({gewaehltePunkte.length})
             </Button>
           )
         )}
@@ -187,8 +203,8 @@ export function WerkbankSection({ ctx, vorbelegung }: {
                       <BescheidFreigabe
                         key={e.aktenzeichen}
                         entwurf={e}
-                        warnungen={warnungen}
-                        offeneTodos={offeneTodos.length}
+                        warnungen={e.pruefstand?.warnungen ?? warnungen}
+                        offeneTodos={e.pruefstand?.offeneTodos ?? offeneTodos.length}
                         bewertungGefunden={w.mapBewertung.gefunden}
                         onExport={() => setDialogTv(e)}
                       />

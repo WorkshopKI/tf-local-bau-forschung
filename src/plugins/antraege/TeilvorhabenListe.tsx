@@ -18,8 +18,25 @@ import { isNetzwerkLead } from './netzwerk';
 import { TvDetailBlock } from './TvDetailBlock';
 import { TvTitelCopyButton } from './TvTitelCopyButton';
 
-/** Zuwendung-CSV-Spalten folgen später; bis dahin Placeholder. */
-const ZUWENDUNG_PLACEHOLDER = 'wird noch ergänzt';
+/**
+ * Zuwendung des Teilvorhabens als Kurztext — oder `null`, wenn die Zeile dazu
+ * nichts sagen kann.
+ *
+ * Bis v4.122 stand hier ein fester Platzhalter „wird noch ergänzt" mit der
+ * Begründung, die Spalten folgten später. Sie sind längst da: `ZUW_MU_FST` ist
+ * kanonisch auf `foerdersumme` gemappt (auf 14 225 von 14 225 Records, davon
+ * 9 092 ungleich 0), `FST_AZX_GK` auf das Custom-Feld „Zuwendung Bewilligung".
+ *
+ * Die drei Zustände werden getrennt benannt: bewilligter Betrag · „noch nicht
+ * bewilligt" (Betrag steht auf 0 — das ist eine Aussage, kein fehlender Wert) ·
+ * gar keine Angabe (dann fällt das Segment weg, statt Leere zu behaupten).
+ */
+function zuwendungText(tv: Antrag): string | null {
+  const roh = (tv as unknown as Record<string, unknown>)['Zuwendung Bewilligung'] ?? tv.foerdersumme;
+  const n = typeof roh === 'number' ? roh : typeof roh === 'string' ? Number(roh.replace(/[^0-9,.-]/g, '').replace(',', '.')) : NaN;
+  if (!Number.isFinite(n)) return null;
+  return n === 0 ? 'noch nicht bewilligt' : `${Math.round(n).toLocaleString('de-DE')} €`;
+}
 
 function strOrNull(v: unknown): string | null {
   if (typeof v !== 'string') return null;
@@ -81,6 +98,7 @@ export function TeilvorhabenListe({ tvs, verbundTitel, expandedTvAz, onToggle, o
             : null;
         const tvStatus = strOrNull(tv.status);
         const rolle = tvRolle(tv, idx, tvs);
+        const zuwendung = zuwendungText(tv);
         const isExpanded = expandedTvAz === tv.aktenzeichen;
         return (
           <div key={tv.aktenzeichen}>
@@ -130,7 +148,7 @@ export function TeilvorhabenListe({ tvs, verbundTitel, expandedTvAz, onToggle, o
                   ) : null}
                   <div className="text-[11.5px] text-[var(--tf-text-tertiary)] mt-0.5">
                     {rolle} · <span className="font-mono">{tv.aktenzeichen}</span>
-                    {' '}· Zuwendung: {ZUWENDUNG_PLACEHOLDER}
+                    {zuwendung ? <>{' '}· Zuwendung: {zuwendung}</> : null}
                   </div>
                 </div>
                 {tvStatus ? (

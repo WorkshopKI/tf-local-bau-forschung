@@ -47,8 +47,14 @@ export function ZahlenTab({ run, zahlen, vbMarkdown, bausteine, bausteineNeu, to
         ) : null}
         <div className="text-[15px] font-medium text-[var(--tf-text)]">Zahlen-Inventar noch nicht erstellt</div>
         <div className="max-w-[460px] text-[13px] text-[var(--tf-text-tertiary)]">
+          {/* Kein Versprechen auf die Quervergleiche, solange `ZEITPLAN_PAUSIERT`
+              gilt: `zeitplanBefunde` liefert dann fest die leere Liste, und der
+              Prüfer könnte „geprüft, nichts gefunden" nicht von „gar nicht
+              geprüft" unterscheiden (v4.124). */}
           Ein interner KI-Lauf sammelt die Zahlenwerte der Vorhabensbeschreibung — jeder mit Fundstelle.
-          Quervergleiche mit dem Zeitplan (Laufzeit, Personenmonate) rechnet die App deterministisch.
+          {ZEITPLAN_PAUSIERT
+            ? ' Quervergleiche mit dem Zeitplan (Laufzeit, Personenmonate) sind derzeit pausiert.'
+            : ' Quervergleiche mit dem Zeitplan (Laufzeit, Personenmonate) rechnet die App deterministisch.'}
         </div>
         <Button variant="primary" size="sm" loading={bausteine.busy} onClick={() => bausteine.run()} className="mt-1">
           {bausteine.busy ? 'KI-Aufbereitung läuft …' : 'KI-Aufbereitung starten'}

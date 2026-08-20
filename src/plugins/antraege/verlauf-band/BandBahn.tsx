@@ -108,8 +108,15 @@ function segmentZeilen(b: BandSegment): string[] {
   const s = b.segment;
   const zeitraum = `${s.vonDatum ? formatDatumsWert(s.vonDatum) : 'Anfang unbekannt'}`
     + ` – ${s.bisDatum ? formatDatumsWert(s.bisDatum) : 'offen'}`;
+  // Mehrdeutig heißt NICHT „ohne Status": die Ableitung kennt zwei konkurrierende
+  // Werte (zwei Kürzel am selben Tag mit verschiedenem Ziel) und führt sie in
+  // `kandidaten`. Bis v4.122 las keine Band-Datei das Feld — Balken, Tooltip und
+  // Kopiertext behaupteten „ohne Status", während die Klartext-Liste daneben
+  // „K10 oder K20 · mehrdeutig (gleichtägig)" zeigte.
   const zeilen = [
-    s.statusRef?.lang ?? 'ohne Status',
+    s.kandidaten && s.kandidaten.length > 0
+      ? `${s.kandidaten.map(k => k.lang).join(' oder ')} — mehrdeutig (gleichtägig)`
+      : s.statusRef?.lang ?? 'ohne Status',
     `${zeitraum} · ${dauerText(s.dauerTage)}${s.dauerUnsicher ? ' (unsicher)' : ''}`,
   ];
   if (s.statusRef?.labelHerkunft === 'ohne') zeilen.push('Kurzform nicht gepflegt');
@@ -395,6 +402,16 @@ export function Bahn({
             in `Segment`, `Kante` und `UnterLabel` bleibt, wie es war. */}
         {marken.map(m => {
           const rollen = rollenVonGruppe(m.uebergaenge);
+          // Die TÖNUNG gehört zum gezeigten Kürzel, nicht zur Vereinigung des
+          // Tages: `m.text` zeigt `m.uebergaenge[0].kuerzel` (+n), und
+          // `rollenVonGruppe` liefert die kanonisch erste Rolle IRGENDEINES
+          // Kürzels dieses Tages. Fiel ein QS-Kürzel mit einem AB-Kürzel
+          // zusammen, stand „AK4 +1" in AB-Farbe — die Marke behauptete, AB habe
+          // den Schritt gesetzt. Ein neutrales Kürzel erbte sogar die Rolle
+          // eines fremden. Gedimmt wird weiter über die Vereinigung: die
+          // Rollenwahl fragt, ob an diesem Tag überhaupt etwas dazu passiert
+          // ist (v4.124).
+          const gezeigteRollen = sortiereRollen([...(m.uebergaenge[0]?.rollen ?? [])]);
           const gedimmt = rollenWahl !== undefined
             && sichtFuerBahn(rollenSicht(rollen, rollenWahl)) === 'gedimmt';
           const imFokus = fokus !== null && m.uebergaenge.some(u => u.feldId === fokus);
@@ -418,7 +435,7 @@ export function Bahn({
             >
               <RollenKuerzel
                 text={m.text}
-                rolle={rollen[0] ?? null}
+                rolle={gezeigteRollen[0] ?? null}
                 meilenstein={m.uebergaenge.some(u => u.prominenz === 'meilenstein')}
                 gedimmt={gedimmt}
               />

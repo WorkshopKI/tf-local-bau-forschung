@@ -28,6 +28,28 @@ export function masseVonGesendet(p: GesendeterPrompt, cap: number): PromptMasse 
   return promptMasse({ system: p.system, user: p.user, vb: p.vb, vbGekuerzt: p.vbGekuerzt }, cap);
 }
 
+/**
+ * Die Maße ALLER gesendeten Prompts eines Laufs zusammen.
+ *
+ * Bei einer Teil-Generierung sendet der Lauf mehrere Prompts, jeder mit der
+ * vollen Vorhabensbeschreibung. Die Leiste maß bis v4.122 nur den ersten und
+ * beschriftete das mit „Zeichen gesamt", während der Reiter daneben den Zähler 2
+ * trug und „Kopieren" beide ausgab.
+ */
+export function masseVonGesendetGesamt(
+  prompts: readonly GesendeterPrompt[], cap: number,
+): PromptMasse | null {
+  const erste = prompts[0];
+  if (!erste) return null;
+  if (prompts.length === 1) return masseVonGesendet(erste, cap);
+  return promptMasse({
+    system: prompts.map(p => p.system).join('\n'),
+    user: prompts.map(p => p.user).join('\n'),
+    vb: prompts.map(p => p.vb).join('\n'),
+    vbGekuerzt: prompts.some(p => p.vbGekuerzt),
+  }, cap);
+}
+
 /** Ein Baustein des zusammengesetzten Prompts. */
 export interface PromptBlock {
   key: string;

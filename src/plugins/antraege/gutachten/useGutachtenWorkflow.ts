@@ -46,6 +46,7 @@ import type { TweakEingabe } from '../kurzfassung/useKurzfassung';
 import { erlaubeWorkflowEntwuerfe } from '@/config/feature-flags';
 import { loadOrMigrateWorkflowRun } from './kurzfassung-migration';
 import { generateInto, laufQs, laufLektorat, type GenerierungsDeps } from './workflow-generierung';
+import { getTeilPlan, teilAufgabe, teilRegeln } from './teilGenerierung';
 import { baueSkillEingabe, tweakWirktAuf } from './laufEingabe';
 import { buildVorherigeAbschnitte } from './context-provider';
 import { getVbCharCap } from '@/core/services/ai/llm-context';
@@ -110,6 +111,11 @@ export interface PromptAnsichtDaten {
   cap: number;
   /** Der Schritt nutzt die Relevanz-Map — die Vorschau zeigt trotzdem den Volltext. */
   relevanzOffen: boolean;
+  /**
+   * In wie viele Teil-Läufe dieser Abschnitt zerfällt; fehlt = ein Lauf. Die
+   * Vorschau zeigt dann den ERSTEN Teil (siehe `promptAnsichtFuer`).
+   */
+  teilAnzahl?: number;
   /** Prompts des letzten Laufs (mehrere bei Teil-Generierung); leer vor dem ersten Lauf. */
   gesendet: GesendeterPrompt[];
 }
@@ -283,6 +289,16 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
   const activeSkillId = activeCtx?.skill.id;
   useEffect(() => {
     let cancelled = false;
+    // Der Verbund wechselt — alles Sitzungs-Lokale, das sich auf den VORIGEN
+    // bezieht, muss weg. Die Prompt-Ansicht ist nur nach Abschnittsbuchstabe
+    // gekeyt: ohne dieses Leeren zeigte „Zuletzt gesendet" für Abschnitt A des
+    // neuen Vorhabens System-Prompt, User-Prompt und die vollständige
+    // Vorhabensbeschreibung des vorigen — und der Hinweis „Noch kein Lauf in
+    // dieser Sitzung", der genau das benennen würde, blieb aus. Dasselbe galt
+    // für das rote Fehlerbanner und die Retry-Notiz (v4.124).
+    gesendetRef.current.clear();
+    setError(null);
+    setRetryNote(null);
     (async () => {
       setLoading(true);
       const now = new Date().toISOString();
@@ -328,7 +344,25 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
       ? regelnMitOverride(sc.skill, sc.regeln, tw.vorgabenOverride)
       : sc.regeln;
 
-  const persist = makePersist(storage.idb, setRun);
+  /**
+   * Der aktuellste Run — auch INNERHALB eines laufenden `async`-Blocks.
+   *
+   * `setRun` erzeugt zwar einen neuen Render, eine schon laufende Schleife hält
+   * aber weiter ihre alte Closure. Der Auto-Retry ruft `runGeneration` mehrfach
+   * hintereinander: Versuch 2 baute damit auf dem Stand VOR Versuch 1 auf — der
+   * Kürzen-Auftrag ging ohne den zu kürzenden Text los, und der Entwurf aus
+   * Versuch 1 fiel aus dem Versionsverlauf, weil `applyGeneration` den Verlauf
+   * des alten Standes anhängte (v4.124). Der Bulk-Lauf löst dasselbe Problem
+   * seit je, indem er den Run lokal durchreicht.
+   */
+  const runRef = useRef<WorkflowRun | null>(null);
+  runRef.current = run;
+
+  const persistRoh = makePersist(storage.idb, setRun);
+  const persist = async (next: WorkflowRun): Promise<void> => {
+    runRef.current = next;
+    await persistRoh(next);
+  };
 
   /**
    * Arbeitskontext-Log (Home-„Weitermachen") — rein lokal (IDB), fire-and-forget.
@@ -385,7 +419,14 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
       ? { skill: entwurf, regeln: resolveRegeln(registry.regFile, entwurf) }
       : sc;
     const ziel = aktivesZielFuerLauf();
-    const regeln = regelnFuer(basis, tweak);
+    // Wird dieser Abschnitt in TEILEN erzeugt, sendet der Lauf mehrere Prompts —
+    // jeden mit Teil-Vorgabe und OHNE die Regeltypen `wortanzahl`/`absatz_min`.
+    // Die Vorschau zeigte bis v4.122 einen einzelnen Prompt mit vollem Regelsatz
+    // und behauptete in der Baustein-Liste aktiv „Teil-Vorgabe: nicht enthalten",
+    // während der Reiter „Zuletzt gesendet" daneben zwei Prompts mit Teil-Vorgabe
+    // führte. Gezeigt wird jetzt der ERSTE Teil, und die Zahl steht dabei.
+    const teilPlan = getTeilPlan(basis.skill.id);
+    const regeln = teilPlan ? teilRegeln(regelnFuer(basis, tweak)) : regelnFuer(basis, tweak);
     const eingabe = baueSkillEingabe({
       ctx,
       korpusMd,
@@ -393,6 +434,7 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
       thinkingBudget,
       ziel,
       vorherigeAbschnitte: buildVorherigeAbschnitte(run, stepId, steps, 2000, 'freigegeben'),
+      ...(teilPlan?.[0] ? { teilAufgabe: teilAufgabe(teilPlan[0], '') } : {}),
       ...(tweakWirktAuf(basis.skill.id, tweak) ? { tweak, tweakWirksam: true } : {}),
     });
     return {
@@ -402,6 +444,7 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
       vorschau: renderSkillPrompt(basis.skill, regeln, eingabe),
       cap: getVbCharCap(kontextZielFuer(bridge, ziel)),
       relevanzOffen: steps.find(s => s.id === stepId)?.kontextBedarf === 'relevant' && !forceFullContext,
+      ...(teilPlan ? { teilAnzahl: teilPlan.length } : {}),
       gesendet: gesendetRef.current.get(stepId) ?? [],
     };
   };
@@ -421,7 +464,8 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
     const abort = new AbortController();
     abortRef.current = abort;
     try {
-      const res = await generateInto(run, stepId, {
+      // Der FRISCHE Stand, nicht der aus der Render-Closure (siehe `runRef`).
+      const res = await generateInto(runRef.current ?? run, stepId, {
         quelle: 'freigegeben', tweak, signal: abort.signal,
         ...(modifier ? { modifier } : {}),
         ...(anweisung ? { anweisung } : {}),
@@ -633,7 +677,16 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
 
   const saveTweak = async (eingabe: TweakEingabe): Promise<void> => {
     if (!activeCtx) return;
+    // Den geladenen Tweak SPREADEN, nicht neu bauen: `saveSkillTweak` ersetzt
+    // den Datensatz, und der Stil-Dialog kennt nur drei seiner Felder. Ein
+    // Speichern löschte damit still die persönlich verschobenen Kurator-Vorgaben
+    // (`vorgabenOverride`) — genau die Werte, die derselbe Dialog als
+    // „unveränderlich · wird geprüft" bezeichnet. Der Abschnitt meldete danach
+    // „zu viele Sätze" für eine Länge, die der Nutzer selbst eingestellt hatte
+    // (v4.124).
+    const vorhanden = tweak?.skillId === activeCtx.skill.id ? tweak : null;
     const next: SkillTweak = {
+      ...(vorhanden ?? {}),
       skillId: activeCtx.skill.id,
       angelegtFuerSkillVersion: activeCtx.skill.version,
       aktiv: eingabe.aktiv,
@@ -703,7 +756,13 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
     reloadRegistry,
     aktiverSchritt,
     activeSkill: activeCtx?.skill ?? null,
-    regeln: activeCtx?.regeln ?? [],
+    // Die WIRKSAME Regelliste — mit persönlichem Override, wie der Lauf sie
+    // nimmt (`regelnFuer`). Die rohe Team-Liste durchzureichen hieß, dass die
+    // „Technische Ansicht" des Stil-Dialogs unter „unveränderlich, wird geprüft"
+    // den Team-Wert nannte, während Prompt und Prüfung mit dem persönlich
+    // verschobenen liefen — und die Skill-Verwaltung daneben die andere Zahl
+    // zeigte (v4.124).
+    regeln: activeCtx ? regelnFuer(activeCtx, tweak) : [],
     tweak,
     generate: (id) => { void runGenerateMitRetry(id); },
     alleGenerieren: () => { void generiereAlle(); },

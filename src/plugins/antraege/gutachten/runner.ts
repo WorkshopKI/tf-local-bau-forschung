@@ -418,12 +418,36 @@ export function verwerfen(run: WorkflowRun, stepId: StepId, now: string): Workfl
 /**
  * Eine Vorfassung des Schritts zur aktiven machen (Status zurück auf `'entwurf'`,
  * Freigabe-Felder gelöscht). No-op bei leerem Schritt / Out-of-range-Index.
+ *
+ * **Alles, was sich auf den ERSETZTEN Text bezog, wird mit entwertet** (v4.124).
+ * `restoreVersion` kennt nur die Felder der `VerlaufContent`-Form; QS-Befunde,
+ * QS-Abnahme, Beleg-Zuordnung, der Bearbeitet-Schnappschuss und die
+ * Teil-Struktur hängen dagegen nur am `StepRun` und wurden per `...record`
+ * unverändert mitgeschleppt. Die Karte behauptete danach über einen Text, den
+ * sie nie betrafen: „QS bestanden", „x von y Sätzen mit Beleg verknüpft",
+ * „bearbeitet" — und der Zurücksetzen-Knopf hätte den `originalText` der
+ * ANDEREN Fassung eingesetzt. Die drei Geschwister-Reducer, die ebenfalls den
+ * finalen Text austauschen (`applyBearbeitung`, `applyLektorat`,
+ * `applyZuruecksetzen`), entwerten längst genauso.
  */
 export function uebernehmen(run: WorkflowRun, stepId: StepId, index: number, now: string): WorkflowRun {
   const step = run.schritte[stepId];
   if (!step) return run;
   const restored = restoreVersion(step, index);
   if (restored === step) return run;
-  const cleaned: StepRun = { ...restored, freigegeben_am: undefined, freigabeHash: undefined };
+  const cleaned: StepRun = {
+    ...restored,
+    freigegeben_am: undefined,
+    freigabeHash: undefined,
+    qsAbnahme: veralteAbnahme(restored),
+    qsHinweise: undefined,
+    belege: undefined,
+    originalText: undefined,
+    // Die Teilblöcke gehören zur ersetzten Fassung und werden VOR `finalerText`
+    // gerendert — stehen sie noch, zeigt die Karte den alten Text weiter.
+    teile: undefined,
+    feinschliffUebersprungen: undefined,
+    zielFallback: undefined,
+  };
   return { ...setStep(run, stepId, cleaned, now), aktiverSchritt: stepId };
 }

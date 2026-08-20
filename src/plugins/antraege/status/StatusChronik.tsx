@@ -126,6 +126,29 @@ function tagLabel(tag: string): string {
  * Was der Tooltip einer Zeile trägt: Bezeichnung, Begleittext im **vollen**
  * Wortlaut, Ordnerpfad. Die Zeile selbst kürzt — der Titel darf das nicht.
  */
+/**
+ * Sagt die Textspalte dasselbe wie die Beschriftung?
+ *
+ * Verglichen wird normalisiert (Kleinschreibung, Satzzeichen und Mehrfach-
+ * Leerzeichen weg) und ohne einen abschließenden Doppelpunkt — das Fachsystem
+ * schreibt denselben Satz mal mit, mal ohne. Der Text zählt auch dann als
+ * Wiederholung, wenn er mit der Beschriftung BEGINNT und danach nur noch
+ * Interpunktion trägt; ein echter Zusatz („FKZ zum zugehörigen FuE: EP201185")
+ * bleibt stehen, weil er über die Beschriftung hinausgeht.
+ *
+ * Rein — der Vergleich ist die Zusage, nicht die Darstellung.
+ */
+export function textWiederholtLabel(label: string, text: string): boolean {
+  const norm = (s: string): string => s
+    .toLowerCase()
+    .replace(/[.,;:!?„“"'»«()\-–—]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const l = norm(label);
+  const t = norm(text);
+  return l.length > 0 && l === t;
+}
+
 function zeilenTitel(e: ChronikEintrag, pfad: string): string {
   return [e.feld.label, e.text, pfad].filter(t => t !== undefined && t !== '').join('\n');
 }
@@ -257,7 +280,14 @@ function Zeile({ e, version, meins, gedimmt, imFokus, onFokus, tvNummern, tvGesa
         >
           {e.feld.label}
         </span>
-        {e.text ? (
+        {/* Die Textspalte NUR, wenn sie etwas hinzufügt. Wo das Fachsystem
+            denselben Wortlaut in die Textspalte schreibt wie die Katalog-
+            Beschriftung, stand er zweimal da („Termin für Nachlieferung ·
+            Termin für Nachlieferung") — gemessen 14 158 von 22 752 Einträgen
+            (62,2 %), allein `ANT` und `XPC+` 12 511 (v4.124). Die Beschriftungen
+            stammen wortgetreu aus der Kürzel-Zuarbeit und bleiben, wie sie sind;
+            korrigiert wird die Anzeige. */}
+        {e.text && !textWiederholtLabel(e.feld.label, e.text) ? (
           <span className={`text-[11.5px] ${LEISE}`}>{' · '}{e.text}</span>
         ) : null}
       </span>

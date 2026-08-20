@@ -1,4 +1,5 @@
 import { CANONICAL_FIELD_KEYS, getCanonicalLabel } from '@/core/services/csv/constants';
+import { formatDatumsWert } from '@/core/services/csv';
 import type { Antrag } from '@/core/services/csv/types';
 import { getVbPhaseLabel } from '@/core/utils/vb-phase-mappings';
 import { findFieldValue } from './fieldLookup';
@@ -44,12 +45,25 @@ export const AVAILABLE_FIELDS: string[] = [
 
 const AVAILABLE_SET = new Set(AVAILABLE_FIELDS);
 
+/**
+ * Die gespeicherte Feldauswahl.
+ *
+ * **Die leere Auswahl ist ein Zustand, kein Fehler** (v4.124): der Editor bietet
+ * „alle entfernen" und „Zurücksetzen" als ZWEI Bedienwege an und hat für die
+ * leere Auswahl einen eigenen Leerzustand. Vorher machte der Rückfall
+ * (`cleaned.length > 0 ? … : DEFAULT`) beide ununterscheidbar — wer alles
+ * entfernte und speicherte, hatte beim nächsten Laden die vier Standardfelder
+ * zurück, ohne Meldung. Ein leer GESPEICHERTES Array bleibt deshalb leer;
+ * der Rückfall greift nur noch da, wo er hingehört: kein Eintrag, kaputtes
+ * JSON, kein Array — oder eine Auswahl, deren Keys es allesamt nicht mehr gibt.
+ */
 export function loadEckdatenFields(): string[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return DEFAULT_ECKDATEN_FIELDS;
-    const parsed = JSON.parse(raw);
+    const parsed: unknown = JSON.parse(raw);
     if (!Array.isArray(parsed)) return DEFAULT_ECKDATEN_FIELDS;
+    if (parsed.length === 0) return [];
     const cleaned = parsed.filter((x): x is string => typeof x === 'string' && AVAILABLE_SET.has(x));
     return cleaned.length > 0 ? cleaned : DEFAULT_ECKDATEN_FIELDS;
   } catch {
@@ -79,16 +93,6 @@ export interface FieldDisplayOpts {
    *  `unterprogramm_id` den sprechenden Namen statt der nackten Nummer
    *  (Fallback: Nummer, falls kein Label bekannt). */
   unterprogrammLabels?: ReadonlyMap<string, string>;
-}
-
-function formatGermanDate(iso: string): string {
-  if (/^\d{4}-\d{2}-\d{2}/.test(iso)) {
-    const d = new Date(iso);
-    if (!Number.isNaN(d.getTime())) {
-      return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
-    }
-  }
-  return iso;
 }
 
 function rawValueFor(field: string, antrag: Antrag): unknown {
@@ -126,11 +130,15 @@ export function getFieldDisplayInfo(field: string, antrag: Antrag, opts?: FieldD
     }
   } else if (field === 'foerdersumme' && typeof raw === 'number' && raw > 0) {
     value = raw.toLocaleString('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
-  } else if (field.endsWith('_datum') && typeof raw === 'string') {
-    value = formatGermanDate(raw);
   } else if (typeof raw === 'string') {
     if (raw.trim() === '') return null;
-    value = raw;
+    // Datums-Formatierung feldnamens-UNABHÄNGIG über die zentrale Anzeige-Kette.
+    // Die alte Heuristik („endet auf `_datum`") traf von neun Datumsfeldern nur
+    // drei — `antragsdatum` und `erstentscheidung` standen roh im ISO-Format
+    // direkt neben dem deutsch formatierten `bewilligung_datum` (v4.124).
+    // `formatDatumsWert` ist streng: was sich nicht als ganzes Datum lesen lässt
+    // (Aktenzeichen, Fließtext), bleibt unverändert.
+    value = formatDatumsWert(raw);
   } else if (typeof raw === 'number') {
     value = raw.toLocaleString('de-DE');
   } else if (typeof raw === 'boolean') {

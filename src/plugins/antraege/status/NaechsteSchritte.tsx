@@ -245,8 +245,13 @@ export function NaechsteSchritte({ version, vorkommen, statusRoh, programm }: {
           )}
 
           <p className="text-[11px] text-[var(--tf-text-tertiary)]">
-            {ergebnis.geprueft} Kürzel geprüft · {ergebnis.bereitsGesetzt} bereits gesetzt
+            {ergebnis.geprueft} Kürzel in der Trigger-Tabelle · {ergebnis.bereitsGesetzt} bereits gesetzt
             {' · '}{ergebnis.verletzt} durch Vorbedingung ausgeschlossen
+            {/* Die beiden Filter, die vorher ohne Zahl verwarfen — erst mit ihnen
+                geht die Zeile auf: Kandidaten + gesetzt + verletzt + Test +
+                nicht relevant + andere Rolle = Gesamtzahl (v4.124). */}
+            {ergebnis.nichtRelevant > 0 && ` · ${ergebnis.nichtRelevant} nicht als relevant markiert`}
+            {ergebnis.andereRolle > 0 && ` · ${ergebnis.andereRolle} betreffen eine andere Rolle`}
             {/* Ausgeblendet, aber nicht verschwiegen — sonst fehlten in 78 und
                 138 drei Kürzel, ohne dass jemand den Grund sähe. */}
             {ergebnis.testKuerzel > 0

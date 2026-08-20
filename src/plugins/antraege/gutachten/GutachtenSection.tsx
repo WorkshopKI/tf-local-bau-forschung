@@ -241,6 +241,8 @@ export function GutachtenSection({
     const n = werkstattNachwirkung({
       versionVorher: werkstattVersionRef.current,
       versionNachher: aktiveSkillVersion,
+      // Woher der angezeigte Text stammt: die am Lauf gestempelte Version.
+      versionDesTextes: activeStep?.skillVersion ?? null,
       abschnittStatus: aktiverStatus,
     });
     if (!n) return;
@@ -248,7 +250,7 @@ export function GutachtenSection({
     setWartetAufReload(false);
     // Folge-Speicherungen messen ab dem neuen Stand.
     werkstattVersionRef.current = aktiveSkillVersion;
-  }, [wartetAufReload, aktiveSkillVersion, aktiverStatus]);
+  }, [wartetAufReload, aktiveSkillVersion, aktiverStatus, activeStep?.skillVersion]);
 
   // Layout-Entscheidung: einspaltig unterhalb der Schwelle.
   const solo = bodyWidth < WERK_MIN_WIDTH;
@@ -729,7 +731,12 @@ function ActiveAbschnitt({
   // Karte rendert ihren Kopf selbst, damit ihre vier Ebenen eine Heimat haben.
   const kopf: KopfInfo = {
     titel: `${def.kurz} — ${def.label}`,
-    ...(ctrl.activeSkill?.version != null ? { skillVersion: ctrl.activeSkill.version } : {}),
+    // Die ERZEUGENDE Version, wie sie am Schritt gestempelt ist — nicht die,
+    // die gerade in der Registry steht. `ctrl.activeSkill.version` wandert bei
+    // jedem Save des Skills weiter, der Text bleibt derselbe; der Kopf verkaufte
+    // sie per `title` trotzdem als Herkunft, während Fußzeile und rechtes Panel
+    // daneben die gestempelte lasen (v4.124).
+    ...(step?.skillVersion != null ? { skillVersion: step.skillVersion } : {}),
     ...(tweakEffektiv ? { tweakAktiv: true } : {}),
     ...(externActive ? { externerProvider: providerName } : {}),
     ...(onOpenWerkstatt && skillId ? { onOpenWerkstatt: () => onOpenWerkstatt(skillId) } : {}),

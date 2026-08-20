@@ -118,6 +118,18 @@ export interface WaechterEingabe {
   version: MappingVersion;
   /** Gesetzte Statuseinträge (`sammleVorkommen`). */
   vorkommen: readonly FeldVorkommen[];
+  /**
+   * Die Vorkommen **je Teilvorhaben**, wenn die beurteilte Zeile mehrere
+   * bündelt (verdichtete Verbund-Zeile).
+   *
+   * Die Kürzel stehen in TV-Spalten, also wird je TV geurteilt — genau das, was
+   * {@link offenePaareJeTeilvorhaben} tut und wozu der Kommentar dort seit je
+   * warnt: „Hat TV-A AK4 und TV-B AT4, gilt beides als da". Bis v4.122 bekam
+   * der Wächter einer Verbund-Zeile alle Vorkommen in EINEM Topf und übersah
+   * dadurch jedes Paar, das je Teilvorhaben halb offen, über den Topf gesehen
+   * aber geschlossen ist. Fehlt das Feld, bleibt die Rechnung wie bisher.
+   */
+  jeTeilvorhaben?: readonly { aktenzeichen: string; vorkommen: readonly FeldVorkommen[] }[];
   /** Aktueller Status-Code; `null`, wenn der Text nicht im Katalog steht. */
   statusCode: number | null;
   /** Ergebnis der To-do-Engine — speist Stufe 2, wenn kein Paar greift. */
@@ -248,8 +260,17 @@ export function offenePaareJeTeilvorhaben(
     .sort((a, b) => b.tage - a.tage);
 }
 
-/** Das älteste halb offene Paar — es liegt am längsten quer. */
+/**
+ * Das älteste halb offene Paar — es liegt am längsten quer.
+ *
+ * Bündelt die Zeile mehrere Teilvorhaben, wird je Teilvorhaben gesucht
+ * (siehe {@link WaechterEingabe.jeTeilvorhaben}); über einen gemeinsamen Topf
+ * schlösse die Gegenseite eines fremden TVs das Paar.
+ */
 function findePaar(e: WaechterEingabe): OffenesPaar | null {
+  if (e.jeTeilvorhaben && e.jeTeilvorhaben.length > 1) {
+    return offenePaareJeTeilvorhaben(e.version, e.jeTeilvorhaben, e.stichtag)[0] ?? null;
+  }
   return findeOffenePaare(e.version, e.vorkommen, e.stichtag)[0] ?? null;
 }
 

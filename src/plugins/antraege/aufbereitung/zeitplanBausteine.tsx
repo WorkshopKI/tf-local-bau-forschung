@@ -6,7 +6,7 @@
 import { StatusDot } from '@/components/ui/StatusBadge';
 import type { UseAsyncActionResult } from '@/core/hooks/useAsyncAction';
 import { befundKey } from './store';
-import { summePm } from './tabellen';
+import { fmtPm, summePm } from './tabellen';
 import type { ApZeile, Befund } from './tabellen';
 
 const WARN = '#f59e0b';
@@ -37,7 +37,7 @@ export function KennzahlenKarte({
   return (
     <div className="shrink-0 w-[210px] rounded-xl p-4" style={{ border: '0.5px solid var(--tf-border)' }}>
       <div className="text-[13px] font-medium text-[var(--tf-text)] mb-3">Kennzahlen</div>
-      <Stat label="Gesamt-PM" value={gesamtPm > 0 ? String(gesamtPm) : '–'} />
+      <Stat label="Gesamt-PM" value={gesamtPm > 0 ? fmtPm(gesamtPm) : '–'} />
       <Stat label="APs" value={`${oberCount}${unterCount > 0 ? ` (+${unterCount} Unter-APs)` : ''}`} />
       <Stat label="Quelle" value={`${quelleName} (Hash ${hashKurz})`} />
       <Stat label="Eingesetzte MA" value={maCount > 0 ? String(maCount) : '–'} />

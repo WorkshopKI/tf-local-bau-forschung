@@ -41,8 +41,19 @@ export function AbschnittFuss({
   // Ein Votum je Abschnittsversion — Reset bei neuer Generierung.
   useEffect(() => { setFbDone(false); setFbNote(''); setDownActive(false); }, [run.erstellt_am, run.skillVersion]);
 
+  /**
+   * Ein Votum abschicken.
+   *
+   * **Nur auf ausdrückliche Handlung** (v4.124): das Notizfeld schickte bis
+   * v4.122 bei JEDEM Fokusverlust ein `'down'` ab. Der Blur ist die
+   * Default-Aktion des `mousedown` und läuft damit VOR dem Click — wer bei
+   * offenem Notizfeld auf 👍 klickte, speicherte ein 👎, weil `setFbDone(true)`
+   * den ganzen Bereich ersetzte und der 👍-Knopf gar nicht mehr im Baum war.
+   * Dasselbe traf jeden anderen Klick daneben, etwa „Freigeben und weiter".
+   * Das Signal speist den Skill-Reifegrad — es darf nicht erfunden werden.
+   */
   const submitFeedback = (rating: 'up' | 'down'): void => {
-    if (fbDone) return; // Doppel-Trigger (Blur + Klick) abfangen
+    if (fbDone) return;
     onFeedback?.(rating, fbNote.trim() || undefined);
     setFbDone(true);
   };
@@ -91,9 +102,13 @@ export function AbschnittFuss({
                 className="g-noteinput g-noteinput-ctx"
                 value={fbNote}
                 onChange={e => setFbNote(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); submitFeedback('down'); } }}
-                onBlur={() => submitFeedback('down')}
-                placeholder="Was stört dich am Entwurf? (kein Antragsbezug)"
+                onKeyDown={e => {
+                  if (e.key === 'Enter') { e.preventDefault(); submitFeedback('down'); }
+                  // Rückweg aus dem geöffneten Notizfeld — vorher gab es keinen:
+                  // jeder Klick daneben schickte ein 'down' ab.
+                  if (e.key === 'Escape') { e.preventDefault(); setDownActive(false); setFbNote(''); }
+                }}
+                placeholder="Was stört dich am Entwurf? (Eingabetaste sendet, Esc bricht ab)"
                 maxLength={140}
                 autoFocus
               />

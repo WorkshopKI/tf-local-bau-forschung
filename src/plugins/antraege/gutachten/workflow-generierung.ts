@@ -25,6 +25,7 @@ import {
   type SkillTweak, type WorkflowStep,
 } from '@/core/services/skills';
 import { kontextZielFuer } from '@/core/services/ai/ki-ziel';
+import { resetHatVerlaufsrisiko, type ChatResetStatus } from '@/core/services/ai/chat-reset';
 import { mitZielFallback, zielWirktAuf, type ZielFallbackErgebnis } from '@/core/services/ai/ziel-fallback';
 import { TEMPERATUR_STANDARD } from '@/core/services/ai/sampling';
 import type { AITransport, BridgeZiel } from '@/core/services/ai/transports/streamlit';
@@ -335,6 +336,8 @@ async function generiereEinmal(
     // alle, sonst sähe man den Kontext nur eines Bruchstücks.
     const gesendet: GesendeterPrompt[] = [];
     let letztesResult: Awaited<ReturnType<typeof runSkill>> | null = null;
+    /** Der schlechteste Reset-Status über alle Teile; `null` = keiner riskant. */
+    let resetRisiko: ChatResetStatus | null = null;
     let vorText = '';
     for (const teil of teilPlan) {
       const eingabe = baueSkillEingabe({
@@ -362,6 +365,15 @@ async function generiereEinmal(
         ...(r.parsed.warnung ? { warnung: r.parsed.warnung } : {}),
       });
       letztesResult = r;
+      // Der SCHLECHTESTE Reset-Status über alle Teile gewinnt — wie `vbGekuerzt`
+      // und `warnung` in `mergeTeile` („irgendein Teil war betroffen"). Jeder
+      // Teil fährt seinen eigenen `starteFrischenChat` (Pitfall #36); nur den
+      // letzten zu merken hieß, dass ein gescheiterter Reset vor Teil 1 spurlos
+      // verschwindet und die Karte einen halb kontaminierten Abschnitt als
+      // sauber ausweist (v4.124).
+      if (r.chatResetStatus && resetHatVerlaufsrisiko(r.chatResetStatus)) {
+        resetRisiko = r.chatResetStatus;
+      }
       vorText = [vorText, r.parsed.finalerText].map(t => t.trim()).filter(Boolean).join('\n\n');
     }
     const merged = mergeTeile(teilErgebnisse);
@@ -377,7 +389,9 @@ async function generiereEinmal(
       skillVersion: sc.skill.version,
       vbGekuerzt: merged.vbGekuerzt,
       ...(merged.warnung ? { warnung: merged.warnung } : {}),
-      ...(letztesResult?.chatResetStatus ? { chatResetStatus: letztesResult.chatResetStatus } : {}),
+      ...((resetRisiko ?? letztesResult?.chatResetStatus)
+        ? { chatResetStatus: resetRisiko ?? letztesResult!.chatResetStatus! }
+        : {}),
       ...(tweakWirksam ? { mitTweak: true, tweakGeaendertAm: tw!.geaendert_am } : {}),
       ...(merged.thinking ? { denkprozess: merged.thinking } : {}),
       ...(deps.thinkingBudget !== 'none' ? { denkprozessAngefordert: true } : {}),
@@ -468,7 +482,12 @@ export async function laufQs(
   const now = new Date().toISOString();
   // Abnahme nur bei kuratierten Kriterien: ohne sie bewertet die QS generische
   // Dimensionen — daraus eine „Abnahme" abzuleiten wäre eine Überhöhung.
-  const abnahme: QsAbnahme | undefined = kriterien.length > 0
+  // …und nur bei einem Befund: `every` ist auf dem leeren Array `true`, null
+  // Befunde ergäben also „bestanden" — über eine Antwort, die derselbe Lauf zwei
+  // Zeilen darüber als unbrauchbar definiert (`b.length === 0`). Eine Abnahme
+  // ohne einen einzigen Befund ist dieselbe Überhöhung wie eine ohne Kriterien
+  // (v4.124).
+  const abnahme: QsAbnahme | undefined = kriterien.length > 0 && befunde.length > 0
     ? {
         status: befunde.every(b => b.bewertung === 'ok') ? 'bestanden' : 'hinweise',
         am: now,

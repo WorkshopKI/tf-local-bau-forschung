@@ -62,10 +62,19 @@ const LEER: HerleitungStand = {
  *                  den ohnehin geladenen Records — die Listen-Projektion führt
  *                  den Verbund-Status nicht, und sie dafür zu erweitern hieße,
  *                  13 000 Zeilen für eine Popover-Zeile zu verbreitern.
+ * @param aktenzeichen Bei `ebene: 'tv'` das Teilvorhaben, das erklärt wird.
+ *                  **Ohne diese Angabe rechnete die Erklärung über ALLE
+ *                  Teilvorhaben des Verbundes**, während der Kopf „TV-Status"
+ *                  sagt: „seit", „Letzter Vorgang" und der Verlauf konnten am
+ *                  Nachbar-Teilvorhaben hängen (v4.124). Genau diese Vermischung
+ *                  vermeidet `AndereEbeneZeile` schon ausdrücklich, indem sie
+ *                  „seit" weglässt — „weil die Liegezeit an den Vorkommen der
+ *                  ERKLÄRTEN Ebene hängt und hier geraten wäre".
  */
 export function useHerleitung(
   verbundId: string | null, statusRoh: unknown, aktiv: boolean,
   ebene: StatusEbene = 'verbund',
+  aktenzeichen: string | null = null,
 ): HerleitungStand {
   const storage = useStorage();
   const idb = storage.idb;
@@ -76,11 +85,14 @@ export function useHerleitung(
 
   useEffect(() => {
     if (!aktiv || !verbundId) return;
-    const schluessel = `${verbundId}|${String(statusRoh)}|${ebene}`;
+    const schluessel = `${verbundId}|${String(statusRoh)}|${ebene}|${aktenzeichen ?? '-'}`;
     if (geladenFuer.current === schluessel) return;
     geladenFuer.current = schluessel;
 
     let abgebrochen = false;
+    // Ist der Lauf durch (Ergebnis ODER Fehler)? Steuert, ob die Merk-Zelle im
+    // Cleanup abgeräumt wird — siehe dort.
+    let fertig = false;
     setStand({ ...LEER, laden: true });
     void (async () => {
       try {
@@ -100,7 +112,12 @@ export function useHerleitung(
 
         const aufloesung = baueFeldAufloesung(schemas, version.felder);
         const vbRecord = (verbund ?? {}) as unknown as Record<string, unknown>;
-        const tvs = antraege.map(a => ({
+        // Bei einer TV-Erklärung zählt NUR dieses Teilvorhaben — sonst erklärte
+        // das Popover mit Belegen des Nachbarn (siehe `aktenzeichen`).
+        const erklaerte = ebene === 'tv' && aktenzeichen !== null
+          ? antraege.filter(a => a.aktenzeichen === aktenzeichen)
+          : antraege;
+        const tvs = erklaerte.map(a => ({
           aktenzeichen: a.aktenzeichen, record: a as unknown as Record<string, unknown>,
         }));
 
@@ -155,6 +172,7 @@ export function useHerleitung(
           .map(x => ({ ebene: andereEbene, kurz: statusHerleitungKopf(version, x.roh), anzahl: x.anzahl }));
 
         if (!abgebrochen) {
+          fertig = true;
           setStand({
             laden: false, herleitung, abweichend,
             weitere: Math.max(0, sortiert.length - MAX_ABWEICHUNGEN),
@@ -162,6 +180,7 @@ export function useHerleitung(
           });
         }
       } catch (err) {
+        fertig = true;
         if (abgebrochen) return;
         // Beim Fehlschlag darf nicht der alte Stand stehenbleiben — sonst
         // erklärte das Popover einen anderen Antrag als den geöffneten.
@@ -172,8 +191,20 @@ export function useHerleitung(
         });
       }
     })();
-    return () => { abgebrochen = true; };
-  }, [idb, verbundId, statusRoh, aktiv, ebene]);
+    return () => {
+      abgebrochen = true;
+      // Die Merk-Zelle mit abräumen, wenn der Lauf abgebrochen wurde, BEVOR er
+      // etwas gesetzt hat. Sonst trägt sie den Schlüssel eines Laufs, dessen
+      // Ergebnis nie ankam: beim erneuten Öffnen greift der Kurzschluss oben,
+      // es wird nie wieder geladen, und das Popover steht für den Rest der
+      // Sitzung auf „Lädt …" — ohne Fehler und ohne Weg heraus. Derselbe
+      // Handgriff, den der Fehlerpfad längst tut (v4.124).
+      //
+      // Nur bei UNFERTIGEM Lauf: nach einem geglückten Ladevorgang bleibt der
+      // Schlüssel stehen, sonst wäre der Cache beim Schließen jedes Mal weg.
+      if (!fertig && geladenFuer.current === schluessel) geladenFuer.current = null;
+    };
+  }, [idb, verbundId, statusRoh, aktiv, ebene, aktenzeichen]);
 
   return stand;
 }

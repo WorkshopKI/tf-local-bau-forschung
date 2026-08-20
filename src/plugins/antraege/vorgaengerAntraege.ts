@@ -40,8 +40,15 @@ export interface AbgelehnterVorgaenger {
   verbundId: string;
   /** Kurzname so wie gespeichert — i.d.R. geklammert, z.B. „(SCULPT)". */
   akronymRaw: string;
-  /** Anzahl der Teilvorhaben des Vorgängers. */
+  /**
+   * Anzahl der Teilvorhaben des Vorgänger-Verbundes — ALLE, nicht nur die
+   * abgelehnten. Bis v4.122 stand hier `matches.length`, also die Zahl der
+   * abgelehnten TVs; ein Verbund mit acht Teilvorhaben, von denen eines
+   * abgelehnt wurde, las sich als „1 Teilvorhaben".
+   */
   tvCount: number;
+  /** Wie viele davon abgelehnt/zurückgezogen sind (der Grund des Banners). */
+  abgelehntCount: number;
   /** Jüngste Erstentscheidung über die TVs (roh/ISO), falls vorhanden. */
   erstentscheidung?: string;
   /** Antragsteller des ersten TVs, falls vorhanden. */
@@ -99,6 +106,14 @@ export function findAbgelehnteVorgaenger(params: FindParams): AbgelehnterVorgaen
     else groups.set(key, [a]);
   }
 
+  // Vollständige TV-Zahl je Vorgänger-Verbund — über den GESAMTEN Bestand, nicht
+  // über die abgelehnten Treffer (siehe `tvCount`).
+  const tvsJeVerbund = new Map<string, number>();
+  for (const a of antraege) {
+    const key = strOrNull(a.verbund_id) ?? a.aktenzeichen;
+    tvsJeVerbund.set(key, (tvsJeVerbund.get(key) ?? 0) + 1);
+  }
+
   const out: AbgelehnterVorgaenger[] = [];
   for (const [key, tvs] of groups) {
     const akronymRaw = strOrNull(tvs.find(t => strOrNull(t.akronym))?.akronym) ?? key;
@@ -113,7 +128,8 @@ export function findAbgelehnteVorgaenger(params: FindParams): AbgelehnterVorgaen
     out.push({
       verbundId: key,
       akronymRaw,
-      tvCount: tvs.length,
+      tvCount: tvsJeVerbund.get(key) ?? tvs.length,
+      abgelehntCount: tvs.length,
       erstentscheidung,
       antragsteller,
       fkzExample: aktenzeichen[0] ?? key,

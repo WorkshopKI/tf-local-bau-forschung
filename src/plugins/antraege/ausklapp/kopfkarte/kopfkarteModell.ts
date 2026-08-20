@@ -171,11 +171,19 @@ export interface KopfEingabe {
    *
    * Die Karte urteilt dann über den VERBUND — sie liest den dominanten Status
    * und dessen Haltedatum. Die Frist-ZELLE derselben Zeile zeigt dagegen die
-   * dringendste Uhr über alle Teilvorhaben (`criticalFristErgebnis`), und beide
+   * dringendste Uhr über die Teilvorhaben (`criticalFristErgebnis`), und beide
    * Aussagen sind für sich richtig. Ohne diesen Zusatz standen sie einander
    * unerklärt gegenüber: die Zelle zeigte eine laufende Uhr, die Karte darunter
    * „nicht berechenbar" (v4.121). Der Tooltip der Zelle sagt seinen Bezug
    * längst („Dringendste Frist im Verbund — …"); die Karte tut es jetzt auch.
+   *
+   * **Die Zahl gehört zum Verbund, nicht zur Rechnung der Zelle** (v4.124):
+   * `jeTeilvorhaben` kommt aus `listAntraegeByVerbund`, ist also filter-unabhängig;
+   * die Zelle rechnet über `_verbund.tvs`, und das entsteht aus den GEFILTERTEN
+   * Zeilen. Sobald eine Sicht Teilvorhaben eines Verbundes trennt (gemessen 304
+   * Verbünde mit uneinheitlichem `STATUS_TV`), sind die Mengen verschieden. Der
+   * Satz nennt deshalb die Verbundgröße und die Basis der Zelle getrennt, statt
+   * die eine für die andere auszugeben.
    */
   verbundTvs?: number | null;
 }
@@ -190,7 +198,7 @@ export function baueKopfModell(e: KopfEingabe): KopfModell {
   const tvs = e.verbundTvs ?? null;
   const bezugsSatz = tvs === null || tvs < 2
     ? ''
-    : ` · Gilt für den Verbund; die Frist in der Zeile ist die dringendste seiner ${tvs} Teilvorhaben.`;
+    : ` · Gilt für den Verbund (${tvs} Teilvorhaben); die Frist in der Zeile ist die dringendste unter den gerade sichtbaren Teilvorhaben.`;
   return {
     eyebrow: imVerzug
       ? 'Woran es hängt'

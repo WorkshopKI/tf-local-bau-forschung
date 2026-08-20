@@ -12,6 +12,7 @@ import type { UseAsyncActionResult } from '@/core/hooks/useAsyncAction';
 import { GanttZeitplan } from './GanttZeitplan';
 import { PersonenZeitplan } from './PersonenZeitplan';
 import { KennzahlenKarte, BefundZeile } from './zeitplanBausteine';
+import { fmtPm } from './tabellen';
 import { zeitplanUnsicher } from './zeitplan-qualitaet';
 import { AUFBEREITUNG_TYP_OPTIONEN } from './QuellenPanel';
 import { verbundZeitplanSummary, befundKey } from './store';
@@ -33,7 +34,7 @@ export function VerbundZeitplan({ run, teilplaene, toggle, ctx, onIngested }: Pr
       <div className="mb-5 flex flex-wrap gap-x-8 gap-y-2 rounded-xl px-4 py-3 text-[13px]"
         style={{ border: '0.5px solid var(--tf-border)' }}>
         <SummenWert label="Teilvorhaben" value={`${s.tvMitAnlage} / ${s.tvGesamt} mit Anlage 5`} />
-        <SummenWert label="Gesamt-PM (Verbund)" value={s.summePm > 0 ? String(s.summePm) : '–'} />
+        <SummenWert label="Gesamt-PM (Verbund)" value={s.summePm > 0 ? fmtPm(s.summePm) : '–'} />
         <SummenWert label="Eingesetzte MA" value={s.maAnzahl > 0 ? String(s.maAnzahl) : '–'} />
         <SummenWert label="Längster Horizont" value={s.horizont > 0 ? `M${s.horizont}` : '–'} />
       </div>

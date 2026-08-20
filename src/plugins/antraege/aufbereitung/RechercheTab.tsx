@@ -263,9 +263,16 @@ function DeepResearchStart({
         {kopf(stiftBtn)}
         <div className="mt-3 flex items-start gap-2 rounded-lg px-3 py-2 text-[12.5px] bg-[var(--tf-warning-bg)] text-[var(--tf-warning-text)]">
           <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+          {/* Die Abhilfe hängt am GRUND. „Entfernen Sie die Angabe" gilt nur für
+              den Leak-Fall; bei „zu wenige Stichworte" bzw. „nicht parsebar"
+              wäre das Gegenteil richtig, und der Nutzer suchte eine
+              identifizierende Angabe, die es nicht gibt (v4.124). */}
           <span>
             {recherchePrompt.begruendung ?? 'Der erzeugte Auftrag ist nicht zum Export freigegeben.'} — der Text wird nur zur Einsicht gezeigt und NICHT zum Kopieren angeboten.
-            {' '}Entfernen Sie die Angabe über „Bearbeiten"; diese Fassung wird erst gespeichert und freigegeben, wenn sie keine identifizierende Angabe mehr enthält.
+            {' '}
+            {(recherchePrompt.begruendung ?? '').startsWith('Identifizierende Angabe')
+              ? 'Entfernen Sie die Angabe über „Bearbeiten"; diese Fassung wird erst gespeichert und freigegeben, wenn sie keine identifizierende Angabe mehr enthält.'
+              : 'Ergänzen Sie den Auftrag über „Bearbeiten" oder starten Sie den KI-Lauf erneut; freigegeben wird erst eine Fassung, die den Leak-Check besteht.'}
           </span>
         </div>
         {stichworteBlock}

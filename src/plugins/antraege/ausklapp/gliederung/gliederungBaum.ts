@@ -16,7 +16,7 @@
  */
 import { kinderVon } from '@/core/meilensteine/knoten-edit';
 import type { MstZustand } from '@/core/meilensteine/typen';
-import { ZUSTAND_FARBE, ZUSTAND_LABEL, formatDatum } from '@/plugins/meilensteine/labels';
+import { ZUSTAND_FARBE, ZUSTAND_LABEL, ZUSTAND_TEXT_FARBE, formatDatum } from '@/plugins/meilensteine/labels';
 import { tageZwischen } from '@/core/status/waechter';
 import type { TfTreeItems } from '@/components/tree';
 import type { MeilensteinLage, Stufe } from '../meilensteinLage';
@@ -113,7 +113,11 @@ export function baueGliederung(lage: MeilensteinLage, stufen: readonly Stufe[], 
         label: s.knoten.label,
         zustand: s.zustand,
         statusText: wort,
-        statusFarbe: ZUSTAND_FARBE[s.zustand],
+        // Schrift NICHT aus der Marken-Palette: `ZUSTAND_FARBE` sind Rahmen-Tokens
+        // (Punkte, Ringe). Als Text gemessen kamen `offen` auf 1,41:1 und
+        // `nichtRelevant` auf 1,20:1 — AA verlangt 4,5:1, die Spalte sah leer aus,
+        // obwohl sie beschriftet war. Dafür gibt es `ZUSTAND_TEXT_FARBE` (v4.124).
+        statusFarbe: ZUSTAND_TEXT_FARBE[s.zustand],
         datumText: datumText(s),
         punktForm: PUNKT_FORM[s.zustand],
         punktFarbe: ZUSTAND_FARBE[s.zustand],
