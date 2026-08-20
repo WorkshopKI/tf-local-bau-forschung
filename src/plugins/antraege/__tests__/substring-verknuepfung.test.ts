@@ -8,10 +8,13 @@
  * sondern wie ein leerer Bestand.
  */
 import { describe, it, expect } from 'vitest';
-import { searchAntraegeSubstring } from '../services/antraege-search-service';
+import {
+  searchAntraegeSubstring, searchAntraegeWortlaut,
+} from '../services/antraege-search-service';
 import {
   bundeslandFelder, domainSuchform, standortSuchform, type AntragTextEntry,
 } from '../services/search-corpus';
+import { namensKern } from '@/core/services/search/namensKern';
 
 /**
  * Ein Korpus-Eintrag. VOLLSTÄNDIG gebaut, ohne `as`-Cast: ein neues Feld im
@@ -45,6 +48,7 @@ function eintrag(
     absLower: abs.toLowerCase(),
     descriptorsLower: descr.toLowerCase(),
     akronymLower: akronym.toLowerCase(),
+    akronymKern: namensKern(akronym.toLowerCase()),
     akzLower: akz.toLowerCase(),
     organisation,
     organisationLower: organisation.toLowerCase(),
@@ -57,6 +61,7 @@ function eintrag(
     domainSuchform: domainSuchform(domain),
     netzwerk: '',
     netzwerkLower: '',
+    netzwerkKern: '',
     notiz: '',
     notizLower: '',
     wahlkreis: '',
@@ -69,6 +74,7 @@ function eintrag(
   return {
     ...basis,
     netzwerkLower: basis.netzwerk.toLowerCase(),
+    netzwerkKern: namensKern(basis.netzwerk.toLowerCase()),
     notizLower: basis.notiz.toLowerCase(),
     // Anzeigewert, Suchform UND Kürzel aus EINER Quelle (siehe `bundeslandFelder`).
     ...bundeslandFelder(basis.bundesland, ''),
@@ -665,5 +671,58 @@ describe('searchAntraegeSubstring — Verbundkennzeichen und Fachsystem-AKZ (v4.
       .toEqual([]);
     expect(searchAntraegeSubstring('ZKN073232', KENNZEICHEN_KORPUS, { bereich: 'standort' }))
       .toEqual([]);
+  });
+});
+
+/**
+ * Ein Netzwerkname wird von jedem Teilvorhaben selbst in eine freie Spalte
+ * geschrieben — und driftet dabei. Am Bestand ausgezählt (v4.123): fast nie als
+ * Tippfehler, fast immer als andere Fuge.
+ */
+const FUGEN_KORPUS = new Map<string, AntragTextEntry>([
+  ['K1', eintrag('Prüfstand', '', '', '', '', '', '', '', '', { netzwerk: '"NAFA-Tech" 16KN065602_AM' })],
+  ['K2', eintrag('Sensorik', '', '', '', '', '', '', '', '', { netzwerk: '"NAFA Tech" 16KN065602_AM' })],
+  ['K3', eintrag('Bildauswertung', '', '', '', 'KI-Pro')],
+  ['K4', eintrag('Datenmodell', '', '', '', 'KIPRO')],
+  // Der Fließtext-Gegenbeleg: hier darf die Faltung NICHT gelten.
+  ['K5', eintrag('Fügetechnik', '', 'Das Verfahren braucht nur ein. Laser sind teuer.')],
+  // Der Wortanfang-Gegenbeleg: `labonachip` enthält „bona".
+  ['K6', eintrag('Mikrofluidik', '', '', '', '', '', '', '', '', { netzwerk: '"lab on a chip" 16KN0777' })],
+]);
+
+describe('searchAntraegeSubstring — Trennzeichen im Namen (v4.125)', () => {
+  it('findet beide Schreibweisen desselben Netzwerks', () => {
+    // Zusammengeschrieben fand diese Anfrage vorher NICHTS — im Bestand hängen
+    // an genau diesem Fall 29 Anträge.
+    expect(searchAntraegeSubstring('nafatech', FUGEN_KORPUS).sort()).toEqual(['K1', 'K2']);
+    expect(searchAntraegeSubstring('nafa-tech', FUGEN_KORPUS).sort()).toEqual(['K1', 'K2']);
+  });
+
+  it('gilt auch für das Akronym', () => {
+    expect(searchAntraegeSubstring('kipro', FUGEN_KORPUS).sort()).toEqual(['K3', 'K4']);
+    expect(searchAntraegeSubstring('ki-pro', FUGEN_KORPUS).sort()).toEqual(['K3', 'K4']);
+  });
+
+  it('lässt den Fließtext in Ruhe', () => {
+    // Fiele im Abstract auch der Satzpunkt weg, träfe `einlaser` über ihn
+    // hinweg — derselbe Fehler, den `.*` beim Stern gemacht hätte.
+    expect(searchAntraegeSubstring('einlaser', FUGEN_KORPUS)).toEqual([]);
+  });
+
+  it('beginnt nur an einem Wortanfang', () => {
+    expect(searchAntraegeSubstring('bona', FUGEN_KORPUS)).toEqual([]);
+    expect(searchAntraegeSubstring('labonachip', FUGEN_KORPUS)).toEqual(['K6']);
+  });
+
+  it('ein zitierter Teil ist wörtlich gemeint — dort zählt die Fuge', () => {
+    expect(searchAntraegeSubstring('"nafatech"', FUGEN_KORPUS)).toEqual([]);
+  });
+
+  it('belegt den Treffer mit dem Feld, über das er kam', () => {
+    // Sonst stünde die Zeile ohne Fundstelle da: gefunden, aber unerklärt.
+    const { treffer } = searchAntraegeWortlaut('nafatech', FUGEN_KORPUS);
+    expect([...(treffer.get('K1')?.felder ?? [])]).toEqual(['netzwerk']);
+    const akro = searchAntraegeWortlaut('kipro', FUGEN_KORPUS);
+    expect([...(akro.treffer.get('K3')?.felder ?? [])]).toEqual(['akronym']);
   });
 });

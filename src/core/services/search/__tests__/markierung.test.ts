@@ -114,4 +114,19 @@ describe('markiereText', () => {
     const s = markiereText('die Formel a*b steht dort', ['a*b']);
     expect(s.filter(x => x.art === 'wortlaut').map(x => x.text)).toEqual(['a*b']);
   });
+
+  it('markiert in einem NAMEN auch über die Fuge hinweg', () => {
+    // Der Treffer kam über den trennzeichen-blinden Vergleich; ohne diese
+    // Markierung stünde er unerklärt in der Zeile.
+    const s = markiereText('"NAFA-Tech" 16KN065602_AM', ['nafatech'], [], true);
+    expect(zusammen(s)).toBe('"NAFA-Tech" 16KN065602_AM');
+    expect(s.filter(x => x.art === 'wortlaut').map(x => x.text)).toEqual(['NAFA-Tech']);
+  });
+
+  it('lässt Fließtext in Ruhe — dort gilt die Faltung nicht', () => {
+    // Derselbe Aufruf zeichnet auch Titel und Abstract aus. Fiele dort der Punkt
+    // weg, träfe `einlaser` über den Satzpunkt hinweg.
+    const satz = 'Das Verfahren braucht nur ein. Laser sind teuer.';
+    expect(markiereText(satz, ['einlaser'])).toEqual([{ text: satz, art: null }]);
+  });
 });

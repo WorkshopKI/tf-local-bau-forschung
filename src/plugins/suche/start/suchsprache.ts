@@ -17,8 +17,9 @@
  * Reihe sind eine Aufzählung, durch die man liest, bis etwas passt; vier
  * Überschriften sagen vorher, wo das Eigene steht. Die Kennzeichen-Zeilen
  * stehen dadurch beieinander, weil sie dieselbe Frage in wachsenden Weiten
- * stellen: dieses Teilvorhaben, sein Verbund, sein Netzwerk — und zuletzt ein
- * Name, dessen Schreibweise im Bestand schwankt.
+ * stellen: dieses Teilvorhaben, sein Verbund, sein Netzwerk — und zuletzt die
+ * beiden Wege zu einem Namen, dessen Schreibweise im Bestand schwankt
+ * (unbekannte Zeichen: `*`; unbekannte Fuge: gar nichts, es geht von selbst).
  *
  * Rein — kein React.
  */
@@ -50,6 +51,12 @@ export const SUCHARTEN: readonly Sucheart[] = [
   // Beispiel ist echt: dieses Netzwerk heißt im Bestand „mobiInspec" (32) UND
   // „mobilnspec" (3), und keine feste Nadel bringt beide zusammen.
   { query: 'mob*spec', erklaerung: 'Platzhalter — wenn die Schreibweise schwankt', gruppe: 'kennung' }, // 33
+  // Keine Syntax, sondern ein Verhalten — und deshalb umso nötiger als Zeile:
+  // wer nicht weiß, dass Trennzeichen egal sind, probiert es nie. Das Beispiel
+  // ist echt und war vorher LEER: das Netzwerk heißt im Bestand „NaFa-Tech"
+  // (20) und „NaFa Tech" (9), zusammengeschrieben fand `nafatech` bis v4.125
+  // keinen einzigen Antrag.
+  { query: 'nafatech', erklaerung: 'Trennzeichen sind egal — findet auch „NaFa-Tech"', gruppe: 'kennung' }, // 29
   { query: 'ast:Fraunhofer', erklaerung: 'nur die Einrichtung', gruppe: 'werWo' },                      // 307
   // „nur der Ort", NICHT „Ort und Bundesland": seit v4.82 ist das Bundesland ein
   // eigenes Trefferfeld mit eigenem Präfix (`bl:`), und `ort:` löst ausschließlich

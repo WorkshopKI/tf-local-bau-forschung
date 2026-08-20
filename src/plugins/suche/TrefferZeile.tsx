@@ -36,6 +36,7 @@ import {
   type Trefferfeld,
 } from '@/core/services/search/trefferstelle';
 import { StufenBalken } from '@/components/ui/StufenBalken';
+import { KERN_FELDER } from '@/core/services/search/namensKern';
 import { SuchMarkierung } from './SuchMarkierung';
 import { belegWerte } from './autoSpalten';
 import type { AntwortBeleg } from './antwort/genannteTreffer';
@@ -238,7 +239,14 @@ export function TrefferZeile({
                   <span className="mr-1 text-[10px] uppercase tracking-[0.08em] text-[var(--tf-text-tertiary)]">
                     {TREFFERFELD_LABEL[b.feld]}
                   </span>
-                  <SuchMarkierung text={b.wert} wortlaut={woerter} aehnlich={varianten} />
+                  <SuchMarkierung
+                    text={b.wert}
+                    wortlaut={woerter}
+                    aehnlich={varianten}
+                    // Der Netzwerkname ist EIN Name — dort markiert `nafatech`
+                    // auch „NAFA-Tech". Ort, Notiz und Deskriptoren nicht.
+                    alsName={KERN_FELDER.has(b.feld)}
+                  />
                 </span>
               ))}
             </p>

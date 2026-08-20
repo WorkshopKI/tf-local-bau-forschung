@@ -632,8 +632,10 @@ nicht aus einem Merkschlüssel daneben — eine zweite Quelle könnte davon abwe
   wie jedes andere Suchwort.
 - **Unscharfe Suche** (Zeichenabstand, „meintest du") — **gemessen, nicht
   vermutet abgelehnt**: der Zugewinn am echten Namensraum ist null, siehe
-  unten. Ein Platzhalter findet Stellen, keine Tippfehler; die
-  Ähnlichkeitsstufe misst Bedeutung, nicht Schreibweise.
+  § 12. Ein Platzhalter findet Stellen, keine Tippfehler; die
+  Ähnlichkeitsstufe misst Bedeutung, nicht Schreibweise. Die Klasse, die die
+  Messung stattdessen zutage förderte — dieselbe Sache, anders getrennt —
+  braucht kein Maß und ist seit v4.125 gebaut (§ 12.2).
 - **Monitoring gespeicherter Suchen** — es gibt keinen Benachrichtigungsweg.
   „+2 seit zuletzt" ist die Differenz zum letzten Ausführen, nicht „2 neue
   Anträge", und die Beschriftung sagt genau das.
@@ -1376,20 +1378,81 @@ Wortgrenze ist ja der Unterschied.
 Am Bestand sichtbar wird das als **Asymmetrie** — derselbe Name, drei
 Schreibweisen, drei Antworten:
 
-| Anfrage | Treffer |
+| Anfrage | Treffer vor v4.125 | seit v4.125 |
+|---|---:|---:|
+| `h2 apply` (zwei Nadeln, beide müssen vorkommen) | 33 | 33 |
+| `h2apply` | 9 | **33** |
+| `h2-apply` | 1 | **33** |
+| `cannabis-net` | 60 | 60 |
+| `cannabisnet` | 1 | **60** |
+
+Wer den Namen so tippt, wie er ihn kennt, bekam je nach Schreibweise 1 oder 60
+Zeilen. Das war der Befund — deterministisch behebbar, ohne Maß und ohne Raten.
+Gebaut wurde er als **Namenskern**.
+
+### 12.2 Der Namenskern (v4.125)
+
+**Die Regel:** verglichen wird zusätzlich der Wert **ohne alles, was kein
+Buchstabe und keine Ziffer ist**. Die Nadel darf damit über eine Fuge laufen —
+**muss aber an einem Wortanfang des Originals beginnen**
+([namensKern.ts](src/core/services/search/namensKern.ts)).
+
+Die zweite Hälfte ist die Leitplanke. Ohne sie fände `bona` das Netzwerk „lab on
+a chip" (`la·bona·chip`): der Kern hat keine Wortgrenzen mehr, an denen ein Fund
+scheitern könnte. Der Kern ist damit in der Wortmitte **strenger** als der
+gewöhnliche Vergleich, der zwei Zeichen Vorsilbe zulässt (§ „Die Wortgrenze") —
+die Fuge zu überspringen ist die neue Fähigkeit, das Wort aufzubrechen war nie
+eine.
+
+**Wo er gilt:** an `akronym` und `netzwerk`, den beiden Feldern, deren ganzer
+Inhalt EIN Name ist (`KERN_FELDER`). Nicht an `organisation` — dort steht ein
+ganzer Satz („Gesellschaft zur Förderung von Medizin-, Bio- und
+Umwelt-Technologien e.V.") und damit Fließtext. **Nicht** an Titel, Abstract
+oder Snippet: fiele dort der Satzpunkt weg, träfe `einlaser` „…ein. Laser…" —
+derselbe Fehler, den `.*` beim Stern gemacht hätte.
+
+**Wo er nicht gilt:** in Anführungszeichen (`"nafatech"` → 0, zitiert ist
+wörtlich gemeint), unter drei Zeichen, und **zusammen mit einem Platzhalter**.
+Ein `?`/`*` fragt nach unbekannten ZEICHEN, der Kern nach einer unbekannten
+FUGE; zusammen wäre `mob*technik` auf dem Kern wieder so weit wie `.*`.
+
+**Was er einbringt**, am Bestand gemessen (14 225 Anträge, alle 40
+Netzwerk-Namensgruppen mit Fugen-Drift, 75 realistische Nadeln = jede
+Schreibweise zusammengeschrieben plus die Schreibweise selbst):
+
+| | |
 |---|---:|
-| `h2 apply` (zwei Nadeln, beide müssen vorkommen) | 33 |
-| `h2apply` | 9 |
-| `h2-apply` | 1 |
-| `cannabis-net` | 60 |
-| `cannabisnet` | 1 |
+| Nadeln, die mehr finden als vorher | 71 von 75 |
+| zusätzlich gefundene Anträge | **991** |
+| davon Nadeln, die vorher **null** Treffer hatten | 19 |
 
-Wer den Namen so tippt, wie er ihn kennt, bekommt je nach Schreibweise 1 oder
-60 Zeilen. **Das** ist der offene Befund — deterministisch behebbar, ohne Maß
-und ohne Raten.
+Einzelfälle: `nafatech` 0 → 29, `biomasse20` 0 → 62, `labonachip` 0 → 53,
+`submusic` 0 → 30, `havimplantat` 0 → 31, `swsenergie` 14 → 26, `kipro` 6 → 10.
 
-Ein Vorbehalt gehört zur Bauentscheidung: eine Trennzeichen-blinde Faltung
-gehört an die **Namensfelder** (Akronym, Netzwerk), nicht an den Fließtext. Fiele
-im Abstract auch das Leerzeichen weg, könnte eine Nadel über einen Satzpunkt
-hinweg treffen („…ein. Laser…" für `einlaser`) — derselbe Fehler, den `.*` beim
-Stern gemacht hätte.
+Beim Akronym liegt der Zugewinn anders: **innerhalb** eines Verbunds driftet es
+nie (§ 12), zwischen Verbünden schon — 535 der 6 599 Schreibweisen haben einen
+Zwilling, der sich nur in der Fuge unterscheidet (`mikro algen` ↔ `mikroalgen`,
+`ki-pro` ↔ `kipro`, `(3d-sprüh)` ↔ `3d-sprüh`).
+
+**Was er kostet.** Über die 400 häufigsten Wörter der Titel — also das, was
+wirklich getippt wird — ändern **5 Nadeln** ihre Trefferzahl, um zusammen **12
+Zeilen**. Fünf davon sind richtig (`mikroalgen` findet „Mikro Algen"), sieben
+sind der Preis: `app` (905 → 909) erreicht „AP-Pellet", `modulare` (728 → 729)
+„Modular Energy". Das ist kein Sonderfall, sondern die Regel selbst — der Kern
+lässt einen getrennten Namen sich genau so verhalten wie seinen
+zusammengeschriebenen Zwilling, Präfix-Treffer eingeschlossen. Sichtbar wird
+dasselbe an `onachip` (0 → 53): „on" ist ein Wortanfang, also läuft die Nadel
+durch. `bona` bleibt bei 17.
+
+Rechenzeit: **+1 ms je Anfrage** (20,6–21,1 ms → 21,6–21,8 ms, Median aus 15
+Läufen über fünf Anfragen). Der Kern liegt im Korpus vorberechnet neben dem
+rohen Wert — Zeichen für Zeichen durch beide Felder zu laufen kostete das
+Neunfache (8,4 statt 0,9 ms je Nadel). Trägt ein Wert keine Fuge, ist sein Kern
+**dieselbe Zeichenkette**: 9 454 der 14 222 Akronyme kosten damit kein Byte.
+
+**Die Fundstelle wird markiert** — `nafatech` zeichnet „NaFa-Tech" als EIN Stück
+aus, Bindestrich eingeschlossen. Das schaltet der Aufrufer (`alsName`), nicht
+der Text: derselbe Markierer zeichnet auch Titel und Snippet aus, und im Snippet
+stehen drei Felder mit ` · ` aneinander — dort würde die Faltung über die
+Feldgrenze laufen. Das Akronym bleibt deshalb im Snippet unmarkiert; sein Beleg
+ist die Trefferstellen-Marke „Akronym".

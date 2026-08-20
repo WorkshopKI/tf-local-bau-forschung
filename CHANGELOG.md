@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.125.0 — Trennzeichen im Namen sind egal (August 2026)
+
+MINOR — Nach dem Stern stand die Frage nach einem Abstandsmaß („meintest du …?") im Raum. Vor dem Bau wurde der Namensraum ausgezählt, und das Ergebnis kippte sie: von 377 Paaren Haupt-↔-Nebenschreibweise rettete ein Abstandsmaß **null**, während 17 Paare verschiedener Netzwerke bei Abstand 1 liegen. Was die Messung stattdessen fand, braucht kein Raten — dieselbe Sache, anders getrennt: `cannabisnet` lieferte 1 Treffer, `cannabis-net` 60.
+
+- **Der Namenskern**: Bindestrich, Leerzeichen, Punkt und Klammer zählen in Akronym und Netzwerk nicht mit — 991 zusätzlich gefundene Anträge, 19 Anfragen, die vorher **null** lieferten ([namensKern.ts](src/core/services/search/namensKern.ts)); Zahlen + Preis in [suche-relevanz.md §12.2](docs/architecture/suche-relevanz.md)
+- **Die Nadel muss an einem Wortanfang beginnen** — sonst fände `bona` das Netzwerk „lab on a chip"; über die 400 häufigsten Titelwörter ändern nur 5 Anfragen ihre Trefferzahl, um zusammen 12 Zeilen ([namensKern.ts](src/core/services/search/namensKern.ts))
+- **Nur die beiden Namensfelder**, nicht Titel/Abstract/Snippet: dort liefe die Faltung über einen Satzpunkt hinweg ([suchbereich.ts](src/core/services/search/suchbereich.ts) bleibt unberührt, `KERN_FELDER` zieht die Grenze)
+- **Der Kern liegt im Korpus vorberechnet** neben dem rohen Wert (+1 ms je Anfrage statt +8) und ist dieselbe Zeichenkette, wo der Wert keine Fuge trägt ([search-corpus.ts](src/plugins/antraege/services/search-corpus.ts))
+- **Die Fundstelle wird als ein Stück markiert**, Bindestrich eingeschlossen; die Suchsprache lehrt es mit einer ausführbaren Zeile ([markierung.ts](src/core/services/search/markierung.ts), [suchsprache.ts](src/plugins/suche/start/suchsprache.ts))
+
 ### v4.124.0 — Förderanträge: 100 Befunde der Bug-Jagd (Schnitt 2) behoben (August 2026)
 
 MINOR — Schnitt 2 nahm die andere Hälfte des Plugins (Detailseite, Ausklapp, Suche, Status, Gutachten, Aufbereitung, Artefakt-Nachbarn) und fand eine Klasse mit dem meisten Ertrag: **eine Stelle liest einen Feldschlüssel, den der echte Bestand nicht führt**, weil das Mapping die Spalte umbenennt. Dazu kamen Flächen, die etwas Falsches behaupten statt zu schweigen — eine unerreichbare Feld-Historie, eine phasenblinde Frist, ein Freigabe-Tor über leerem Text. 95 Brillen-Befunde + 5 eigene Mess-Befunde, dazu 15 der 25 offenen Kandidaten aus Schnitt 1.
@@ -540,163 +550,4 @@ PATCH — Der Rückweg aus dem Antrags-Detail zeigte nur den Namen der Herkunfts
 
 - **Der Knopf sagt den ganzen Satz**: „Zurück zu Vorgangs-Board" statt „← Vorgangs-Board" — Herkunft liefert weiter nur den Namen, den Satz baut die Brotkrume ([detailRahmen.tsx](src/plugins/antraege/detailRahmen.tsx))
 - **Normale Strichstärke statt halbfett** (der volle Satz trägt sich selbst) und **5 px Luft zum Titel darunter**, der bisher direkt anschloss ([detailRahmen.tsx](src/plugins/antraege/detailRahmen.tsx))
-
-### v4.85.1 — Der Status-Katalog kommt auch beim Kaltstart vom Share (August 2026)
-
-PATCH — Gefragt wurde, ob eine frisch installierte PL die aktuellste Katalog-Fassung automatisch bekommt. Nein: `initStatusKatalog` lief als einziger Abgleich, und zwar **vor** dem Ordner-Picker — ohne Handle ging er leer aus, und `ladeAktiveVersion` schrieb daraufhin den Auslieferungs-Seed als kuratierte Fassung 1 fest. Betroffen war die ganze `MappingVersion`: Kürzel, ZAH-Phasen, Code→Phase-Schnitt und AB-Regeln. Nach einem echten Browser-Neustart traf es jede Installation, weil die FSAPI-Berechtigung unter `file://` wieder auf `prompt` steht.
-
-- **Nachlauf, sobald der Share offen ist** — `synchronisiereKatalogNachGrant`, aufgerufen vor `runDataUpdate`, weil die List-View-Projektion ihre `kat_status`-Spalten aus der aktiven Fassung auflöst ([status/index.ts](src/core/status/index.ts), [App.tsx](src/core/App.tsx))
-- **Lesen schreibt nichts mehr**: `ladeAktiveVersion` gibt den Seed zurück, statt ihn abzulegen; das Ablegen macht `sorgeFuerGespeicherteFassung` mit genau einem Aufrufer ([katalog-store.ts](src/core/status/katalog-store.ts), [useStatusCockpit.ts](src/plugins/status-cockpit/useStatusCockpit.ts))
-- **Erst 4 KB Dateikopf, die Megabyte nur bei abweichender Nummer** — der Nachlauf entfällt, wenn der Startlauf die Datei schon hatte ([katalog-share.ts](src/core/status/katalog-share.ts))
-- **Fünf Fälle abgesichert**, darunter „zieht die kuratierten ZAH-Phasen mit, nicht nur die Kürzel" ([katalog-nachlauf.test.ts](src/core/status/__tests__/katalog-nachlauf.test.ts))
-- **Bug-Klasse 1, fünfter Mechanismus**: der Pre-Grant-Read schrieb einen Ersatzwert fest ([recurring-bug-classes.md](docs/architecture/recurring-bug-classes.md), [status-system/README.md](docs/status-system/README.md))
-
-### v4.85.0 — Das Lesezeichen lässt sich wieder ziehen (August 2026)
-
-MINOR — Gemeldet: das Bookmarklet der KI-Bridge ließ sich nicht in die Chrome-Lesezeichenleiste ziehen (Verboten-Symbol beim Ablegen), danach war der Fehler nicht mehr reproduzierbar. Gemessen: bei zugeklappter Einrichtungs-Klappe stand der Anker mit `draggable="true"`, aber **`href=null`** in der Seite — ein `<a>` ohne `href` ist kein Link, Chrome hat nichts abzulegen. Weil `useCollapsedSection` den Aufgeklappt-Zustand merkt, traf das jeden Nutzer genau **einmal**: beim ersten Einrichten, also genau dann, wenn der Schritt sitzen muss.
-
-- **Die Adresse kommt über eine Callback-Ref ins DOM** statt aus einem Mount-Effekt — der Anker steckt in einer `SettingsKlappe`, die ihre Kinder erst beim Aufklappen montiert ([VerbindungGruppe.tsx](src/plugins/einstellungen/ki/VerbindungGruppe.tsx))
-- **Kopieren als Rückfallebene** neben dem Ziehen — in verwaltetem Chrome ist das Ablegen in der Leiste nicht überall erlaubt; ein Fehlschlag wird sichtbar statt still ([useKopierAktion.ts](src/core/hooks/useKopierAktion.ts))
-- **Eingeschleppt mit v4.31**: derselbe Anker lag vorher — JSX byte-identisch — in einem `<details>`, und das hält seine Kinder montiert; nur der Behälter wechselte ([streamlit-bridge.md](docs/architecture/streamlit-bridge.md))
-- **Guard `dom-attribut-per-callback-ref`** mit Selbsttest gegen die historische Zeile — die erste Fassung des Musters begann mit `\bref` und verfehlte ausgerechnet `linkRef.current` ([conventions-ui.test.ts](src/__tests__/conventions-ui.test.ts))
-- **Bug-Klasse 23** „Mount-Effekt richtet einen Knoten ein, der erst später montiert" ([recurring-bug-classes.md](docs/architecture/recurring-bug-classes.md))
-
-### v4.84.0 — Das Bundesland wird verglichen, nicht durchsucht (August 2026)
-
-MINOR — Gefragt wurde, warum `bl:SN` und `bl:Sachsen` verschieden viel finden — niemand kann wissen, in welcher Schreibweise der Export sein Land ablegt. Beim Nachmessen kam der schwerere Fehler heraus: `bl:Sachsen` lieferte 3 278 statt 2 742 Treffer, weil die am Wortanfang verankerte Nadel `" sachsen"` auch in `" sachsen anhalt st "` steckt — **536 Anträge aus Sachsen-Anhalt liefen als Sachsen mit**, ohne dass die Trefferzeile es verriet.
-
-- **Das Bundesland wird verglichen statt durchsucht** — ein geschlossenes Vokabular aus 16 Werten hat abzählbare Werte, keine Textstellen ([antraege-search-service.ts](src/plugins/antraege/services/antraege-search-service.ts))
-- **Kürzel und Name sind dieselbe Frage** — `bl:SN`, `bl:sn`, `bl:Sachsen`, `bl:sachsen` lösen alle auf `SN` auf ([search-corpus.ts](src/plugins/antraege/services/search-corpus.ts))
-- **Sachsen-Anhalt zählt nicht mehr als Sachsen**: `bl:Sachsen` 3 278 → 2 742, `bl:Sachsen-Anhalt` 550 ([bundeslandSuche.test.ts](src/plugins/antraege/__tests__/bundeslandSuche.test.ts))
-- **Halb Getipptes und fremde Werte fallen auf die verankerte Suche zurück** — `bl:sach` zeigt beim Tippen weiter beides ([suche-relevanz.md](docs/architecture/suche-relevanz.md))
-- **Die Facetten-Zahl stimmt jetzt mit dem Klick überein** — die Vorschlagsliste versprach 3 278 und lieferte 3 278 aus zwei Ländern ([suche.md](docs/feedback-kontext/suche.md))
-
-### v4.83.0 — Der Rückweg führt dorthin, wo man hergekommen ist (August 2026)
-
-MINOR — Gemeldet: aus der Suche ins Detail und nicht zurück, Schließen landet in der Förderanträge-Tabelle, und der Board-Link „kommt ein Fehler". Gemessen: der Rückweg lag im `location.state` und wurde von **einem** von sieben Aufrufern gesetzt; das Board schickte die **Verbund-Nummer** in den Aktenzeichen-Slot (`#/antraege/ZDS26026` → „Antrag ZDS26026 nicht gefunden", kein Rückweg).
-
-- **Herkunft app-weit statt pro Aufrufer** — die Navigation merkt die letzte Seite (Detail-Routen ausgenommen), das Detail bietet „← <Seite>"; `sessionStorage` trägt sie über ein Neuladen ([herkunft.ts](src/core/nav/herkunft.ts), [ui-muster.md](docs/architecture/ui-muster.md))
-- **Ein Bauteil baut den Detail-Pfad** für alle sechs Aufrufer — der Board-Klick trifft jetzt die Verbund-Route ([detailPfad.ts](src/plugins/antraege/detailPfad.ts), [VorgangsBoardPage.tsx](src/plugins/vorgangs-board/VorgangsBoardPage.tsx))
-- **Ein Verbund-Schlüssel im Antrags-Slot heilt**, statt in „nicht gefunden" zu enden — alte Lesezeichen und History bleiben brauchbar ([detailAufloesung.ts](src/plugins/antraege/detailAufloesung.ts))
-- **Anfrage, Facetten und Frageplan überleben F5** — ohne sie war die Trefferliste nach einem Neuladen unerreichbar ([sitzungsAnfrage.ts](src/plugins/suche/sitzungsAnfrage.ts))
-- **Der Rückweg ist als Brotkrume lesbar** (13,5 px, Primärfarbe, Hover-Fläche) statt als 12,5-px-Sekundärtext ([detailRahmen.tsx](src/plugins/antraege/detailRahmen.tsx))
-
-### v4.82.0 — Ort und Bundesland sind zwei Suchfelder (August 2026)
-
-MINOR — Gemeldet: `ort:` schlug Bundesländer vor, `bl:` schlug dieselben vor — beschriftet mit „Ort". Beide Präfixe zeigten auf **ein** Feld `standort`, und weil jeder Antrag ein Land trägt, die Orte sich aber auf 2 055 Werte verteilen, führten die 16 Ländernamen jede Ortsliste an. Daneben standen rohe Kürzel („SN" 1 508) — ein Mapping-Schaden der Quelle 7737.
-
-- **Trefferfeld `bundesland` mit eigenem Präfix `bl:`, Etikett, Facette und Spalte** — `ort:` schlägt nur noch Städte vor ([trefferstelle.ts](src/core/services/search/trefferstelle.ts), [feldpraefix.ts](src/core/services/search/feldpraefix.ts), [suche-relevanz.md](docs/architecture/suche-relevanz.md))
-- **Korpus trennt Ort und Land**, `bundeslandFelder()` liefert Klartext zum Anzeigen und Klartext+Kürzel zum Suchen — `bl:SN` findet weiter ([search-corpus.ts](src/plugins/antraege/services/search-corpus.ts))
-- **„nur Ort, Bundesland & Wahlkreis" und „alle Felder"** führen das neue Feld mit ([suchbereich.ts](src/core/services/search/suchbereich.ts))
-- **Stöbern zeigt Ort und Bundesland als eigene Spalten**, der Sonderfall „Ort & Bundesland" entfällt ([stoebern.ts](src/plugins/suche/start/stoebern.ts))
-- **Mehrdeutige Schema-Schlüssel werden an keinen Korpus-Slot vergeben** — 7737 wirft `PLZ_AFS`/`ORT_AFS`/`BULAND_AFS` auf einen Schlüssel; die Basis-Aliasse bleiben unangetastet ([korpusFeldAufloesung.ts](src/plugins/antraege/services/korpusFeldAufloesung.ts))
-
-### v4.81.0 — Ruhende Kürzel: die Arbeitsmenge halbiert (August 2026)
-
-MINOR — Gemeldet: 511 Kürzel erschlagen jede Abstimmung, viele davon seien von früher. Gemessen an Fassung 22 trifft „seit Richtlinie 2020 nicht gesetzt" nur 15 — die Masse sind **243 Kürzel ohne jede `D_`/`T_`-Spalte im Export**, die C16 vielleicht täglich setzt, die wir aber nie sehen. 85 davon trugen ein Relevanz-Häkchen, das nirgends wirken kann.
-
-- **Ruhe-Achse abgeleitet, nur als Ausnahme kuriert** — `ruht` dreiwertig, Regelfall aus der Beobachtbarkeit ([ruhende-kuerzel.ts](src/core/status/ruhende-kuerzel.ts), [KATALOG-CODES.md](docs/status-system/KATALOG-CODES.md))
-- **Sektion „Nicht im Blick"** unter dem Ordnerbaum, zwei Gründe getrennt beschriftet, je Zeile „trotzdem beachten" ([RuhendeKuerzel.tsx](src/plugins/status-cockpit/RuhendeKuerzel.tsx))
-- **Einsatz-Bestandslauf** am vorhandenen Knopf, misst gegen die zwei jüngsten Richtlinien statt gegen den persönlichen Bereich ([useEinsatzErhebung.ts](src/plugins/status-cockpit/useEinsatzErhebung.ts))
-- **Regel-Auswahl und Klärfragen lassen ruhende Kürzel aus** — eine Bedingung auf `YE` träfe stillschweigend nie zu ([todoFeldVorrat.ts](src/plugins/status-cockpit/todoFeldVorrat.ts), [klaerfragen/](src/core/status/klaerfragen/))
-- **Guard: Ruhe ist Sichtbarkeit, nicht Wahrheit** — Chronik, Navigator, Wächter, `reconcile` und `referenzierbareFelder` bleiben unberührt (Pitfall #53)
-
-### v4.80.0 — die Unterhaltung gehoert zu der Suche, unter der sie entstand (August 2026)
-
-MINOR — Gemeldet: beim erneuten Öffnen der Suche stand der alte Chat wieder da, ohne Weg ihn zu löschen. Der Init des Panels reaktivierte die jüngste Unterhaltung — geerbt von der früheren Vollbild-Chatseite. Hier hängt der Chat an den Treffern darunter, und die alte Antwort ging als Verlauf in den nächsten Prompt.
-
-- **Das Panel öffnet immer frisch** — kein Wiederaufnehmen der letzten Unterhaltung; die alten bleiben im Verlauf ([ChatPanelHost.tsx](src/plugins/chat/ChatPanelHost.tsx))
-- **Löschen steht im Kopf** statt zwei Klicks tief im Verlauf-Aufklapper, und nur dann, wenn es etwas zu verwerfen gibt
-- **Hinweis „Diese Unterhaltung gehört zur Suche »X«" + „neu beginnen"**, sobald die Treffer weitergezogen sind ([chat.css](src/plugins/chat/chat.css))
-- **Kein automatisches Verwerfen** bei neuer Anfrage: die Stichwortsuche läuft je Tastendruck, ein Reset nähme dem Nutzer die Antwort weg, die er gerade liest
-
-### v4.79.0 — Der Verfahrensschnitt reist allein (August 2026)
-
-MINOR — Ein neu aufgesetzter Rechner lud nicht die jüngste Fassung; auf diesem Stand wurden viele Kürzel gepflegt und veröffentlicht. Die live geltende Fassung trug danach die richtigen Kürzel und den zurückgefallenen Verfahrensschnitt — und es gab keinen Weg, nur den einen zurückzuholen, weil Export, Import und „Als Entwurf laden" immer die ganze `MappingVersion` bewegten.
-
-- **Die Phasen-Achse ist ein eigenes, transportables Paket** — Phasenliste, Code→Phase, Kürzel→Phase und Zieltage, geschlüsselt nach Code statt Wert-Id ([phasen-paket.ts](src/core/status/phasen-paket.ts))
-- **„Phasen exportieren"** neben dem Ansichtsumschalter im Reiter Statuswerte ([KatalogTab.tsx](src/plugins/status-cockpit/KatalogTab.tsx)); 3,7 KB gegen 152,8 KB Voll-Export
-- **Ein Import-Knopf, zwei Formate** — die Datei trägt die Marke `art: "zah-phasen"` und sagt selbst, was sie ist ([useStatusCockpit.ts](src/plugins/status-cockpit/useStatusCockpit.ts))
-- **„Nur Phasen übernehmen"** je Fassung im Versions-Panel, ohne Dateiweg ([StatusCockpitPage.tsx](src/plugins/status-cockpit/StatusCockpitPage.tsx))
-- Hintergrund: [status-achsen.md](docs/architecture/status-achsen.md)
-
-### v4.78.0 — der Assistent sagt, wie viel er gesehen hat (August 2026)
-
-MINOR — Getestet gemeldet: der Kontext-Chip über dem Assistenten nannte 558 Suchtreffer, im Prompt standen 8. Der Schaden war nicht der Zähler — die KI hielt die 8 für die Gesamtmenge und urteilte über die „übrigen" 550, die sie nie gesehen hatte. Dazu führte die Deutungszeile zwei Wörter als „nicht berücksichtigt", die niemand verloren hatte.
-
-- **Chip und Prompt entstehen aus EINER Auswahl** — neue `waehleKontextTreffer`, gelesen von Block und Etikett ([assistentKontext.ts](src/plugins/suche/assistentKontext.ts), [ChatPanelHost.tsx](src/plugins/chat/ChatPanelHost.tsx))
-- **40 statt 8 Treffer** im Kontext, gedeckelt durch ein Zeichen-Budget; der Kopf nennt „40 von 517" und verbietet das Urteil über die übrigen
-- **Kurzbeschreibung, Relevanz und Fundstellen je Treffer** — bisher trug der Kontext nur Titel und Antragsteller, und das Modell reimte sich den Inhalt zusammen ([search-result.ts](src/core/types/search-result.ts), [useUnifiedSearch.ts](src/core/hooks/useUnifiedSearch.ts))
-- **Frage- und Gewichtungswörter fallen aus „nicht berücksichtigt"** — als Konstanten, die der Prompt rendert und der Parser filtert ([frageplan.ts](src/core/services/search/frageplan.ts))
-- Hintergrund: [suche-relevanz.md §8](docs/architecture/suche-relevanz.md)
-
-### v4.77.1 — Die Tabelle stoesst gerade an die Leiste, die Trefferzahl steht in der Flucht (August 2026)
-
-PATCH — Zwei Nachlesen am Kopfband (v4.76): die 12-px-Rundung des Tabellenkastens stand als Kerbe neben der geraden Kante der Filterleiste, und die Trefferzahl unter der Liste begann an der Außenkante des Kastens statt in der Flucht der Auswahl-Häkchen, die sie zählt.
-
-- **Linke Ecken gerade, solange die Tabelle an die Leiste stößt** — neue Prop `linkeKanteGerade` an [SortableTable.tsx](src/components/data-table/SortableTable.tsx), gesetzt aus demselben `bandAktiv` wie `pl-0` ([AntraegeMain.tsx](src/plugins/antraege/AntraegeMain.tsx)); rechts bleibt sie gerundet
-- **Trefferzahl in der Flucht der ersten Spalte** (nur Tabellen-Ansicht — Liste und Karten haben keine) — [AntraegeMain.tsx](src/plugins/antraege/AntraegeMain.tsx)
-- **`ZELL_POLSTER_PX` zieht nach [tableLayout.ts](src/components/data-table/tableLayout.ts)** und bekommt dort mit `ERSTE_SPALTE_INSET_PX` einen zweiten Konsumenten — vorher modul-privat in `TableBody`
-- Nachgemessen am `dev:local`: Häkchen und Trefferzahl auf derselben Kante (388/388 mit Leiste, 98/98 ohne), Radien 0/12 bzw. 12/12
-
-### v4.77.0 — Einklappen ist ein Chevron (August 2026)
-
-MINOR — Entwurf in `_design/handoff/hide`: der Einklapp-Knopf war doppelt laut — ein dauerhaft umrandeter Kasten um ein lucide-Panel-Icon, das selbst ein Kasten ist. Auf 16 px zählt nur die Silhouette, und die hatte das Icon nicht. Dazu drifteten acht verstreute Aufrufe auf drei Achsen auseinander: Icon-Größe 15/16/18, Hover-Fläche, Radius.
-
-- **Ein Chevron statt `PanelLeftClose`/`PanelLeftOpen`**, ohne Rahmen in jedem Zustand — neues geteiltes Bauteil [EinklappIcon.tsx](src/components/ui/EinklappIcon.tsx) (`EinklappButton` 24 × 24 bzw. 30 × 30, `EinklappIcon` für die Schienen)
-- **Alle acht Einsatzorte** ziehen daraus: [ShellLayout.tsx](src/core/ShellLayout.tsx), [FilterSidebar.tsx](src/plugins/antraege/filter/FilterSidebar.tsx) (beide Kopfvarianten), [KompaktListe.tsx](src/plugins/antraege/KompaktListe.tsx), [AnfragenPage.tsx](src/plugins/anfragen/AnfragenPage.tsx), [EinreichungListe.tsx](src/plugins/map-foerderfaehig/components/EinreichungListe.tsx), [AntraegePage.tsx](src/plugins/antraege/AntraegePage.tsx), [MasterDetailLayout.tsx](src/components/master-detail/MasterDetailLayout.tsx)
-- **Vorlese-Text nachgeholt**: der Navigations-Knopf hatte kein `aria-label`, keiner der acht ein `aria-expanded` — beides sitzt jetzt im Bauteil
-- Regel im Gestaltungsleitfaden festgehalten ([DESIGN_GUIDE.md](DESIGN_GUIDE.md) Kap. 8)
-
-### v4.76.0 — Kopfband: Filterleiste und Tabellenkopf beginnen gemeinsam (August 2026)
-
-MINOR — Gemeldet: „die Kopfzeile der Tabelle soll harmonischer mit der Filtersidebar aussehen, wenn diese eingeblendet ist" (Entwurf in `_design/handoff/anträge-kopfzeile`). Die Leiste begann direkt unter der Suchzeile, der graue Tabellenkopf rund 90 px tiefer — das „graue L" schloss nie, und die Unterkante des Leistenkopfes lief gegen nichts.
-
-- **Die Filterleiste ist eine Spalte der Liste geworden** (neue [FilterSpalte.tsx](src/plugins/antraege/filter/FilterSpalte.tsx), aus [AntraegePage.tsx](src/plugins/antraege/AntraegePage.tsx) herausgelöst) — nur so kann die Zeile der Filter-Pillen über Leiste **und** Tabelle spannen
-- **Leiste und Tabellenkopf bilden ein Kopfband**: „FILTER" in der Rubrikzeile, Verlauf + „N aktiv" + Einklappen in der Spaltenzeile ([FilterSidebar.tsx](src/plugins/antraege/filter/FilterSidebar.tsx)); ohne Tabellenkopf daneben (Liste/Karten, Leerzustände, Drawer) bleibt der gewohnte Kopf
-- **Bandhöhe wird gemessen, nicht gesetzt** — neue Meldung `onKopfHoehe` an [TableHeadRows.tsx](src/components/data-table/TableHeadRows.tsx) / [SortableTable.tsx](src/components/data-table/SortableTable.tsx); gemessen 23 + 43,5 px statt der 22 + 30 des Entwurfs
-- **Die weiße Rinne zwischen beiden entfällt** bei gebildetem Band (`pl-0` am Tabellenkasten), die Werkzeug-Zeile verliert ihren `max-w-6xl`-Deckel ([AntraegeMain.tsx](src/plugins/antraege/AntraegeMain.tsx))
-- Kontext-Doc der Seite nachgezogen ([antraege.md](docs/feedback-kontext/antraege.md))
-
-### v4.75.2 — Antragsdokumente statt Aufnehmen (August 2026)
-
-PATCH — Gemeldet: „Button Aufnehmen und Download oben rechts muss nicht fett sein" und „Aufnehmen → ‚Antragsdokumente', als Tooltip eine Erklärung, was der Button macht". Der Knopf nannte die Tätigkeit, nicht den Gegenstand — und was dabei mit den Dateien geschieht, stand nur im Overlay dahinter.
-
-- **„Aufnehmen" heißt „Antragsdokumente"**, mit Tooltip: ZIP/PDF/DOCX ablegen → FKZ aus dem Dateinamen → Text im persönlichen Ordner ([AntraegeHeader.tsx](src/plugins/antraege/AntraegeHeader.tsx))
-- **Beide Kopf-Knöpfe wiegen leichter**: Schrift `font-normal` statt `font-medium`, Icons `strokeWidth` 1.75 statt 2 ([AntraegeHeader.tsx](src/plugins/antraege/AntraegeHeader.tsx))
-- Kontext-Doc der Seite nachgezogen ([antraege.md](docs/feedback-kontext/antraege.md))
-
-### v4.75.1 — Feedback-Knopf sitzt in der Blattecke (August 2026)
-
-PATCH — Gemeldet: „das Feedback-Icon kann etwas weiter runter, so dass es in der Rundung des Blattes liegt". Es stand 14px über der Blattkante und ragte zugleich 4px darüber hinaus — eine Lage, die zu keiner der beiden Kanten gehörte.
-
-- **Der Feedback-Knopf liegt in der Blattecke**: `bottom-1.5` statt `bottom-6` legt ihn nahezu konzentrisch auf den 14px-Eckbogen, rechts und unten je ~4px über die Kante ([FeedbackButton.tsx](src/components/feedback/FeedbackButton.tsx))
-
-### v4.75.0 — Die Tabelle wird als Ganzes schmaler, der Griff sitzt oben rechts (August 2026)
-
-MINOR — Gemeldet: „wenn ich die Fördertabelle schmal mache sollte kein weißer Bereich entstehen, sondern die ganze Tabelle schmaler werden" und „den Drag über die gesamte Höhe wegnehmen, wie früher nur die 3 Punkte oben rechts — der Drag und der Scrollbalken vertragen sich visuell nicht". Dazu drei kleinere Bitten zur selben Seite: „Darstellung" heißt jetzt „Ansicht", die Trefferzahl gehört nicht in die Filterzeile, und die Filterleiste braucht mehr Höhe.
-
-- **Ein Pin ist die Breite des KASTENS**, nicht die der Tabelle — der Rahmen endet mit der letzten Spalte, die leere Fläche darin entfällt konstruktiv ([tableLayout.ts](src/components/data-table/tableLayout.ts), [SortableTable.tsx](src/components/data-table/SortableTable.tsx))
-- Damit nur noch **zwei Größen-Modi** (Einpassen · Scroll); der Sonderzweig im Spalten-Drag entfällt ([useColumnResize.ts](src/components/data-table/useColumnResize.ts))
-- **Der Griff sind drei Punkte oben rechts** statt eines Streifens neben dem Scrollbalken — sichtbar und anfassbar nur dort ([TotalWidthGrip.tsx](src/components/data-table/TotalWidthGrip.tsx))
-- **„Darstellung" heißt „Ansicht"**; die gleichnamige Achse darin wurde zu „Ansichtsform" ([DarstellungDropdown.tsx](src/components/ui/DarstellungDropdown.tsx), [darstellungsAchsen.ts](src/plugins/antraege/darstellungsAchsen.ts))
-- **Die Trefferzahl steht als Statuszeile unter der Liste**, und die Filterleiste gewinnt ~100px Höhe (Kopf 145 → 133px, Merkmals-Raster 47,5 → 39,5px) ([AntraegeMain.tsx](src/plugins/antraege/AntraegeMain.tsx), [FilterSidebarItem.tsx](src/plugins/antraege/filter/FilterSidebarItem.tsx))
-
-### v4.74.1 — Bestandszahl rueckt an den Titel (August 2026)
-
-PATCH — Gemeldet: „den Text ‚Index: 14.225 Anträge' nach oben nehmen, direkt hinter den Titel der Seite; der Text ‚14.005 Textabschnitte' kann weg". Die Optionszeile trägt sonst nur Regler — Dinge, die man verstellt; die Größe des Index verstellt niemand.
-
-- **Die Bestandszahl steht am Seitentitel** statt rechts in der Optionszeile ([SuchSeite.tsx](src/plugins/suche/SuchSeite.tsx))
-- **Die Zahl der Textabschnitte entfällt** — sie zählte Dokumentstücke, während die Seite Anträge findet ([SuchOptionenZeile.tsx](src/plugins/suche/SuchOptionenZeile.tsx))
-- Die Diagnose-Zeile für den **fehlenden** Dokumentenindex bleibt unberührt ([IndexInfoZeile.tsx](src/plugins/suche/IndexInfoZeile.tsx))
-
-### v4.74.0 — Darstellung rueckt nach rechts, Warum nur zur Frage (August 2026)
-
-MINOR — Gemeldet: „Ausführlich und Kompakt zeigt keinen Unterschied" — in der Tabelle stimmte das, dort wirkte auch die Sortierung des Menüs nicht (die Tabelle sortiert über ihre Spaltenköpfe). Ebenfalls gemeldet: „das ‚Warum?' macht doch nur bei einer Frage in natürlicher Sprache Sinn, nicht bei meiner Suche `ast:`".
-
-- **Das Darstellungs-Menü steht rechts vor dem Export** statt links am Anfang der Leiste — es ist der einzige Knopf, der mit dem Zustand wächst ([SuchSeite.tsx](src/plugins/suche/SuchSeite.tsx))
-- **…und fehlt in der Tabelle ganz**: beide Achsen gelten nur für die Liste, ein Bedienelement ohne Wirkung ist schlimmer als keins ([darstellungsAchsen.ts](src/plugins/suche/darstellungsAchsen.ts))
-- **„Warum?" gibt es nur zu einer Frage** — bei einer Feldsuche heißt derselbe Ausklapp „Mehr", trägt weiter die drei Zeilen-Aktionen und ruft keine KI ([TrefferZeile.tsx](src/plugins/suche/TrefferZeile.tsx))
-- **„Alle begründen" folgt derselben Regel**: nur einen der beiden Wege zu sperren erzeugte Begründungen, die die Zeile dann nicht anzeigt
-- Neuer Guard für die Achsen-Bindung an die Ansicht ([darstellungsAchsen.test.ts](src/plugins/suche/__tests__/darstellungsAchsen.test.ts))
 

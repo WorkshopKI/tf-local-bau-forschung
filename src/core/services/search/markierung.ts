@@ -21,10 +21,17 @@
  * aus der auch die Trefferstufe liest; für eine Nadel ohne Platzhalter liefert
  * sie `null` und hier läuft alles wie zuvor.
  *
+ * **`alsName` schaltet den trennzeichen-blinden Vergleich dazu** — nur dort, wo
+ * der ganze Text EIN Name ist (Netzwerkfeld). Der Aufrufer entscheidet das, weil
+ * dieser Text es nicht wissen kann: derselbe Aufruf zeichnet auch Titel,
+ * Abstract-Ausschnitte und das Snippet aus, und in denen liefe die Faltung über
+ * einen Satzpunkt hinweg (`namensKern.ts` begründet die Trennung).
+ *
  * Gibt Segmente zurück, kein JSX — die Vitest-Projekte laufen ohne DOM.
  */
 import { falte, ursprung } from '@/core/utils/textFaltung';
 import { baueNadelMuster } from './wortstamm';
+import { kernFundstellen, nadelKern } from './namensKern';
 
 export type MarkierungsArt = 'wortlaut' | 'aehnlich';
 
@@ -55,14 +62,15 @@ export function markiereText(
   text: string,
   wortlaut: readonly string[],
   aehnlich: readonly string[] = [],
+  alsName = false,
 ): MarkSegment[] {
   const ganz: MarkSegment[] = [{ text, art: null }];
   if (text === '' || (wortlaut.length === 0 && aehnlich.length === 0)) return ganz;
 
   const f = falte(text);
   const roh: RohTreffer[] = [];
-  sammle(f, wortlaut, 'wortlaut', roh);
-  sammle(f, aehnlich, 'aehnlich', roh);
+  sammle(f, wortlaut, 'wortlaut', roh, alsName);
+  sammle(f, aehnlich, 'aehnlich', roh, alsName);
   if (roh.length === 0) return ganz;
 
   const segmente: MarkSegment[] = [];
@@ -83,6 +91,7 @@ function sammle(
   nadeln: readonly string[],
   art: MarkierungsArt,
   ziel: RohTreffer[],
+  alsName: boolean,
 ): void {
   for (const nadel of nadeln) {
     const gefaltet = falte(nadel).text;
@@ -95,6 +104,15 @@ function sammle(
     // und das Verschmelzen unten räumt das ohnehin auf.
     for (let i = f.text.indexOf(gefaltet); i !== -1; i = f.text.indexOf(gefaltet, i + 1)) {
       const { von, bis } = ursprung(f, i, i + gefaltet.length);
+      if (bis > von) ziel.push({ von, bis, art });
+    }
+    if (!alsName) continue;
+    // Zusätzlich über die Fugen hinweg — sonst stünde `NAFA-Tech` unmarkiert da,
+    // obwohl `nafatech` genau dieser Treffer ist.
+    const kern = nadelKern(gefaltet, muster);
+    if (kern.length === 0) continue;
+    for (const [a, b] of kernFundstellen(f.text, kern)) {
+      const { von, bis } = ursprung(f, a, b);
       if (bis > von) ziel.push({ von, bis, art });
     }
   }

@@ -65,6 +65,7 @@ import {
   suchNadel, sammleVarianten, enthaeltAlsWortteil,
   baueNadelMuster, enthaeltMusterAlsWortteil, musterTrifft,
 } from '@/core/services/search/wortstamm';
+import { nadelKern, trifftNamensKern } from '@/core/services/search/namensKern';
 import type { HybridUnavailableSource } from '../store';
 
 /**
@@ -416,15 +417,21 @@ function substringMatches(
       const passt = m !== null && m !== undefined
         ? (text: string): boolean => enthaeltMusterAlsWortteil(text, m)
         : (text: string): boolean => enthaeltAlsWortteil(text, nadel);
+      // Die beiden NAMENSfelder zusaetzlich ohne Trennzeichen: `nafatech` soll
+      // `"NaFa-Tech"` finden. Nur sie — im Fliesstext liefe dieselbe Faltung
+      // ueber einen Satzpunkt hinweg (Begruendung in `namensKern.ts`).
+      const kern = t.kernNadeln[i] ?? '';
       return (t.erlaubt.has('titel') && (passt(entry.vbLower) || passt(entry.tvLower)))
         || (t.erlaubt.has('kurzbeschreibung') && passt(entry.absLower))
         || (t.erlaubt.has('deskriptoren') && passt(entry.descriptorsLower))
-        || (t.erlaubt.has('akronym') && passt(entry.akronymLower))
+        || (t.erlaubt.has('akronym') && (passt(entry.akronymLower)
+          || trifftNamensKern(entry.akronymLower, entry.akronymKern, kern)))
         || (t.erlaubt.has('aktenzeichen') && passt(entry.akzLower))
         || (t.erlaubt.has('verbundkennzeichen') && passt(entry.verbundNrLower))
         || (t.erlaubt.has('organisation') && passt(entry.organisationLower))
         // Netzwerk und Notiz sind Fliesstext wie der Titel — dieselbe Regel.
-        || (t.erlaubt.has('netzwerk') && passt(entry.netzwerkLower))
+        || (t.erlaubt.has('netzwerk') && (passt(entry.netzwerkLower)
+          || trifftNamensKern(entry.netzwerkLower, entry.netzwerkKern, kern)))
         || (t.erlaubt.has('notiz') && passt(entry.notizLower));
     })
       // Leere Nadeln sind beim Bau ausgesiebt: `''.includes('')` wäre `true` und
@@ -484,6 +491,15 @@ interface SuchTeil {
    * auch nur ein Map-Zugriff je Pruefung waere dort teurer als die Pruefung.
    */
   nadelMuster: Array<RegExp | null>;
+  /**
+   * Je Nadel ihr trennzeichen-blinder Kern — `''`, wo keiner gilt (zu kurz oder
+   * die Nadel traegt einen Platzhalter, siehe
+   * [namensKern.ts](src/core/services/search/namensKern.ts)).
+   *
+   * Wie `nadelMuster` EINMAL beim Bau gefaltet, aus demselben Grund: die Nadel
+   * aendert sich nicht, der Eintrag 14 000 Mal.
+   */
+  kernNadeln: string[];
   /** Verankerte Formen ALLER Nadeln, leere bereits ausgesiebt. */
   ortNadeln: string[];
   /** Die Länder-Kürzel, auf die sich dieser Teil auflösen lässt (gerahmt).
@@ -529,12 +545,15 @@ function anfrageSuchTeile(
       const wort = ohneZitatzeichen(t.wert).toLowerCase();
       const exakt = t.exakt === true;
       const nadeln = baueNadeln(wort, stammSuche && !exakt, aktiveVarianten);
+      // Ein zitierter Teil ist woertlich gemeint — dort ist `?` ein
+      // Fragezeichen und kein Platzhalter, und dort zaehlt auch die Fuge:
+      // wer `"f.i.t."` in Anfuehrungszeichen setzt, meint die Punkte.
+      const muster = nadeln.map(n => (exakt ? null : baueNadelMuster(n)));
       return {
         wort,
         nadeln,
-        // Ein zitierter Teil ist woertlich gemeint — dort ist `?` ein
-        // Fragezeichen und kein Platzhalter.
-        nadelMuster: nadeln.map(n => (exakt ? null : baueNadelMuster(n))),
+        nadelMuster: muster,
+        kernNadeln: nadeln.map((n, i) => (exakt ? '' : nadelKern(n, muster[i]))),
         ortNadeln: verankere([wort]),
         // Aus dem ROHEN Wort, nicht aus den Nadeln: der Stamm von „Sachsen"
         // benennt kein Land mehr, und ein halb getipptes Wort soll bewusst in
@@ -569,13 +588,17 @@ function planSuchTeile(
   return plan
     .map(p => {
       const nadeln = p.nadeln.map(n => n.toLowerCase()).filter(n => n.length > 0);
+      // Die Schreibweisen kommen aus dem Frageplan; ein `?` darin waere ein
+      // Modell-Artefakt, kein Nutzerwunsch. Trotzdem dieselbe Weiche: die
+      // KI darf Kennzeichen-Muster wie `16KN0830??` benennen.
+      const muster = nadeln.map(n => baueNadelMuster(n));
       return {
         wort: p.begriff.toLowerCase(),
         nadeln,
-        // Die Schreibweisen kommen aus dem Frageplan; ein `?` darin waere ein
-        // Modell-Artefakt, kein Nutzerwunsch. Trotzdem dieselbe Weiche: die
-        // KI darf Kennzeichen-Muster wie `16KN0830??` benennen.
-        nadelMuster: nadeln.map(n => baueNadelMuster(n)),
+        nadelMuster: muster,
+        // Auch hier: die KI schreibt einen Netzwerknamen mal mit, mal ohne
+        // Bindestrich — sie kennt die Schreibweise des Exports nicht.
+        kernNadeln: nadeln.map((n, i) => nadelKern(n, muster[i])),
         ortNadeln: verankere(nadeln),
         // Hier zählen die Schreibweisen mit: ein Frageplan nennt „Sachsen" und
         // „SN" als zwei Nadeln DESSELBEN Leitbegriffs.
@@ -777,14 +800,19 @@ function feldZuordnung(
       const m = t.nadelMuster[i];
       return m !== null && m !== undefined ? musterTrifft(feld, m) : enthaeltAlsWortteil(feld, n);
     });
+    // Aus demselben Grund fuer die Namensfelder: eine Nadel, die den Treffer
+    // ueber die Fuge geholt hat, muss ihn hier auch belegen duerfen — sonst
+    // stuende die Zeile ohne Fundstelle da.
+    const imKern = (roh: string, kern: string): boolean =>
+      t.kernNadeln.some(k => trifftNamensKern(roh, kern, k));
     merke('titel', in_(entry.vbLower) || in_(entry.tvLower));
     merke('kurzbeschreibung', in_(entry.absLower));
     merke('deskriptoren', in_(entry.descriptorsLower));
-    merke('akronym', in_(entry.akronymLower));
+    merke('akronym', in_(entry.akronymLower) || imKern(entry.akronymLower, entry.akronymKern));
     merke('aktenzeichen', in_(entry.akzLower));
     merke('verbundkennzeichen', in_(entry.verbundNrLower));
     merke('organisation', in_(entry.organisationLower));
-    merke('netzwerk', in_(entry.netzwerkLower));
+    merke('netzwerk', in_(entry.netzwerkLower) || imKern(entry.netzwerkLower, entry.netzwerkKern));
     merke('notiz', in_(entry.notizLower));
     merke('domain', t.ortNadeln.some(n => entry.domainSuchform.includes(n)));
     merke('standort', t.ortNadeln.some(n => entry.standortSuchform.includes(n)));

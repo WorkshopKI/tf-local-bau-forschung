@@ -21,6 +21,7 @@ import {
   bundeslandFelder, domainSuchform, standortSuchform, type AntragTextEntry,
 } from '../services/search-corpus';
 import { ohneZitatzeichen } from '../services/wert-index';
+import { namensKern } from '@/core/services/search/namensKern';
 import { stoeberAnfrage } from '@/plugins/suche/start/stoebern';
 
 /** Ein Eintrag, wie ihn `loadAntraegeTextCorpus` baut — die Suchformen aus
@@ -33,7 +34,7 @@ function eintrag(felder: { organisation?: string; netzwerk?: string; vb?: string
   return {
     vb, tv: '', abstract: '', descriptors: '', akronym: '',
     vbLower: such(vb), tvLower: '', absLower: '', descriptorsLower: '', akronymLower: '',
-    akzLower: '',
+    akronymKern: '', akzLower: '',
     organisation,
     organisationLower: such(organisation),
     standort: '', standortSuchform: standortSuchform(''),
@@ -41,6 +42,7 @@ function eintrag(felder: { organisation?: string; netzwerk?: string; vb?: string
     domain: '', domainSuchform: domainSuchform(''),
     netzwerk,
     netzwerkLower: such(netzwerk),
+    netzwerkKern: namensKern(such(netzwerk)),
     notiz: '', notizLower: '',
     wahlkreis: '', wahlkreisSuchform: '',
     verbundNr: '', verbundNrLower: '',

@@ -23,14 +23,17 @@
 import { createContext, useContext, useMemo } from 'react';
 import { markiereText } from '@/core/services/search/markierung';
 
-export function SuchMarkierung({ text, wortlaut, aehnlich = [] }: {
+export function SuchMarkierung({ text, wortlaut, aehnlich = [], alsName = false }: {
   text: string;
   wortlaut: readonly string[];
   aehnlich?: readonly string[];
+  /** Ist dieser Text EIN Name (Akronym, Netzwerk)? Dann werden auch Fundstellen
+   *  markiert, die über eine Fuge laufen — `nafatech` in „NAFA-Tech". */
+  alsName?: boolean;
 }): React.ReactElement {
   return (
     <>
-      {markiereText(text, wortlaut, aehnlich).map((s, i) => {
+      {markiereText(text, wortlaut, aehnlich, alsName).map((s, i) => {
         if (s.art === null) return <span key={i}>{s.text}</span>;
         return (
           <mark
@@ -80,8 +83,13 @@ export function SuchMarkierungProvider({ wortlaut, aehnlich, children }: {
 }
 
 /** Text mit markierten Fundstellen — Wörter aus dem Kontext. */
-export function MarkierterText({ text }: { text: string }): React.ReactElement {
+export function MarkierterText({ text, alsName = false }: {
+  text: string;
+  /** Siehe `SuchMarkierung`. Die Spalte weiß, was sie zeigt; der Kontext trägt
+   *  nur die Wörter. */
+  alsName?: boolean;
+}): React.ReactElement {
   const { wortlaut, aehnlich } = useContext(SuchMarkierungKontext);
   if (wortlaut.length === 0 && aehnlich.length === 0) return <>{text}</>;
-  return <SuchMarkierung text={text} wortlaut={wortlaut} aehnlich={aehnlich} />;
+  return <SuchMarkierung text={text} wortlaut={wortlaut} aehnlich={aehnlich} alsName={alsName} />;
 }

@@ -404,7 +404,10 @@ export const SEARCH_COLUMNS: SearchColumn[] = [
     render: r => r.netzwerk
       ? (
         <span className="text-[12px] text-[var(--tf-text)] truncate block" title={r.netzwerk}>
-          <MarkierterText text={r.netzwerk} />
+          {/* `alsName`: der Wert ist EIN Name, also markiert `nafatech` auch
+              „NAFA-Tech". Die anderen Spalten dürfen das nicht — sie zeigen
+              Fließtext oder gleich mehrere Felder in einer Zeichenkette. */}
+          <MarkierterText text={r.netzwerk} alsName />
         </span>
       )
       : null,

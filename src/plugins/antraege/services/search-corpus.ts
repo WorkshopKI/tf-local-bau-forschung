@@ -25,6 +25,7 @@ import { CSV_STORES } from '@/core/services/storage/idb-store';
 import type { Antrag } from '@/core/services/csv/types';
 import { listManifestEntries } from '@/phase2/scanner/manifest-store';
 import { listSchemasByProgramm } from '@/core/services/csv/idb-csv';
+import { namensKern } from '@/core/services/search/namensKern';
 import { buildDescriptorsText, deskriptorenAnzeige } from './descriptor-text';
 import { netzwerkName, nimmWerte, ohneZitatzeichen, type WertIndexRoh } from './wert-index';
 import { leiteNetzwerkNamenAb, type NetzwerkZeile } from './netzwerk-leads';
@@ -57,6 +58,18 @@ export interface AntragTextEntry {
   absLower: string;
   descriptorsLower: string;
   akronymLower: string;
+  /**
+   * Das Akronym OHNE Trennzeichen — `ki-pro` → `kipro`.
+   *
+   * Am Bestand gemessen tragen 535 Akronym-Schreibweisen einen Zwilling, der
+   * sich nur in Bindestrich, Leerzeichen, Punkt oder Klammer unterscheidet
+   * (`mikro algen` ↔ `mikroalgen`, `(3d-sprüh)` ↔ `3d-sprüh`). Wer die eine
+   * Schreibweise tippt, fand die andere nicht.
+   *
+   * Identisch mit `akronymLower`, wo der Wert keine Fuge trägt — der Suchpfad
+   * springt genau dann über den zusätzlichen Vergleich.
+   */
+  akronymKern: string;
   /**
    * Die Kennzeichen DIESES Antrags, klein geschrieben: das Foerderkennzeichen
    * (`16KN065624`, zugleich der Schluessel dieser Map) und daneben das
@@ -203,6 +216,20 @@ export interface AntragTextEntry {
    *  als Konvention: 1 893 von 1 973 Netzwerknamen fuehren eines
    *  (`"ProAnimalLife" 16KN062302_KR`), 18 davon unbalanciert. */
   netzwerkLower: string;
+  /**
+   * Die Netzwerkangabe OHNE Trennzeichen — `"nafa-tech" 16kn0…` → `nafatech16kn0…`.
+   *
+   * Der Zugewinn ist hier am größten, weil der Name in eine FREIE Spalte
+   * eingetragen wird: 40 Namensgruppen unterscheiden sich nur in der Fuge, und
+   * 38 davon haben eine Schreibweise, die heute niemand findet — `nafatech`
+   * lieferte 0 Treffer, `biomasse20` ebenso, obwohl 29 bzw. 62 Anträge zu
+   * diesen Netzwerken gehören.
+   *
+   * Das Kennzeichen läuft mit: es hat seinen eigenen Wortanfang, und die Nadel
+   * muss an einem beginnen — sie kann also nicht aus dem Namen in die Nummer
+   * hineinlaufen, ohne den ganzen Namen mitzunehmen.
+   */
+  netzwerkKern: string;
   /**
    * Die Arbeitsnotizen am Vorgang: `T_YW` („Wichtig", 3 343 Antraege) und
    * `T_HINT` („Bemerkung", 3 161), zusammengezogen wie Antragsteller und
@@ -506,6 +533,19 @@ function suchform(s: string): string {
   return ohneZitatzeichen(s).toLowerCase();
 }
 
+/**
+ * Die trennzeichen-blinde Form eines NAMENSFELDES — `"nafa-tech"` → `nafatech`.
+ *
+ * Traegt der Wert keine Fuge, kommt dieselbe Zeichenkette zurueck: 9 454 der
+ * 14 222 Akronyme sind schon ihr eigener Kern, und ein zweites, inhaltsgleiches
+ * String-Objekt je Eintrag waere Speicher fuer nichts. Der Suchpfad prueft
+ * genau darauf ([namensKern.ts](src/core/services/search/namensKern.ts)).
+ */
+function kernform(lower: string): string {
+  const kern = namensKern(lower);
+  return kern === lower ? lower : kern;
+}
+
 export async function loadAntraegeTextCorpus(
   idb: IDBStore,
   programmId: string,
@@ -597,6 +637,7 @@ export async function loadAntraegeTextCorpus(
           absLower: suchform(ab),
           descriptorsLower: suchform(descriptors),
           akronymLower: suchform(ak),
+          akronymKern: kernform(suchform(ak)),
           akzLower: suchform(kennzeichen),
           verbundNr,
           verbundNrLower: suchform(verbundNr),
@@ -612,6 +653,7 @@ export async function loadAntraegeTextCorpus(
           domainSuchform: domainSuchform(domain),
           netzwerk,
           netzwerkLower: suchform(netzwerk),
+          netzwerkKern: kernform(suchform(netzwerk)),
           notiz,
           notizLower: suchform(notiz),
           wahlkreis,
@@ -637,6 +679,9 @@ export async function loadAntraegeTextCorpus(
     if (!eintrag || eintrag.netzwerk.length > 0) continue;
     eintrag.netzwerk = name;
     eintrag.netzwerkLower = suchform(name);
+    // Der Kern haengt am Wert, nicht am Ladeweg — wer ihn hier vergaesse, gaebe
+    // ausgerechnet dem Netzwerkantrag selbst die trennzeichen-blinde Suche nicht.
+    eintrag.netzwerkKern = kernform(eintrag.netzwerkLower);
     // Damit die Zahl in der Vorschlagsliste die Zahl nach dem Klick bleibt.
     if (werteIndex) nimmWerte(werteIndex, 'netzwerk', [name]);
   }

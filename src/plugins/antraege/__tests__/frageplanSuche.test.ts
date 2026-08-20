@@ -19,16 +19,17 @@ import {
   bundeslandFelder, domainSuchform, standortSuchform, type AntragTextEntry,
 } from '../services/search-corpus';
 import type { PlanBegriff } from '@/core/services/search/frageplan';
+import { namensKern } from '@/core/services/search/namensKern';
 
 function eintrag(felder: Partial<AntragTextEntry>): AntragTextEntry {
   const basis: AntragTextEntry = {
     vb: '', tv: '', abstract: '', descriptors: '', akronym: '',
     vbLower: '', tvLower: '', absLower: '', descriptorsLower: '', akronymLower: '',
-    akzLower: '', organisation: '', organisationLower: '',
+    akronymKern: '', akzLower: '', organisation: '', organisationLower: '',
     standort: '', standortSuchform: '',
     bundesland: '', bundeslandSuchform: '', bundeslandCodes: '',
     domain: '', domainSuchform: '',
-    netzwerk: '', netzwerkLower: '', notiz: '', notizLower: '',
+    netzwerk: '', netzwerkLower: '', netzwerkKern: '', notiz: '', notizLower: '',
     wahlkreis: '', wahlkreisSuchform: '', verbundNr: '', verbundNrLower: '', unterprogrammId: '',
     ...felder,
   };
@@ -41,8 +42,10 @@ function eintrag(felder: Partial<AntragTextEntry>): AntragTextEntry {
     absLower: basis.abstract.toLowerCase(),
     descriptorsLower: basis.descriptors.toLowerCase(),
     akronymLower: basis.akronym.toLowerCase(),
+    akronymKern: namensKern(basis.akronym.toLowerCase()),
     organisationLower: basis.organisation.toLowerCase(),
     netzwerkLower: basis.netzwerk.toLowerCase(),
+    netzwerkKern: namensKern(basis.netzwerk.toLowerCase()),
     notizLower: basis.notiz.toLowerCase(),
     verbundNrLower: basis.verbundNr.toLowerCase(),
     standortSuchform: standortSuchform(basis.standort),

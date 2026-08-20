@@ -19,6 +19,14 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.125 — 2026-08
+
+### Neu
+- **Trennzeichen im Namen sind egal.** Bindestrich, Leerzeichen, Punkt und Klammer zählen bei Akronym und Netzwerkname nicht mehr mit: `cannabisnet` findet jetzt alle 60 Anträge des Netzwerks „Cannabis-Net" statt einem, `nafatech` findet „NaFa-Tech" und „NaFa Tech" (29 statt keinem). Sie müssen dafür nichts tippen und nichts einstellen — es gilt von selbst, und die Fundstelle wird als ein Stück hervorgehoben.
+
+### Verbesserungen
+- Der Reiter **Suchsprache** im Startzustand zeigt eine Zeile mehr, die das vormacht: ein Klick auf `nafatech` führt die Suche gleich aus.
+
 ## v4.124 — 2026-08
 
 ### Neu
