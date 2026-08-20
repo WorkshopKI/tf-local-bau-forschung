@@ -246,7 +246,10 @@ export const SICHTBARKEITS_KATALOG: readonly KatalogEintrag[] = [
   abschnitt('kuration', 'sec-filter-system', 'System-Filter', EXPERTE),
   abschnitt('kuration', 'sec-filter-nutzer', 'Nutzer-Vorlagen', EXPERTE),
 
-  abschnitt('kuration', 'sec-index', 'Index pflegen'),
+  // „Dokumenten-" ist nicht schmueckend: daneben steht 'sec-embedding-korpus',
+  // und das ist ebenfalls ein Index. Die Id bleibt (Vertrag), das Label sagt,
+  // welcher gemeint ist.
+  abschnitt('kuration', 'sec-index', 'Dokumenten-Index pflegen'),
   abschnitt('kuration', 'sec-index-zustand', 'Zustand'),
   abschnitt('kuration', 'sec-dokumentenquellen', 'Dokumentenquellen'),
   abschnitt('kuration', 'sec-index-erweitert', 'Modelle, Suchqualität, Zurücksetzen', EXPERTE),

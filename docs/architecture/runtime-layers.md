@@ -63,6 +63,16 @@ gebaut wurde er zuerst fürs Auslastungs-Matching; getragen wird von ihm seit je
   Vektor sitzen — am echten Bestand betrifft das **9 259 von 14 221** Vorhaben (Median 861 Zeichen
   Inhalt). Ein Rechner kann das Nachziehen automatisieren (opt-in, gerätelokal, siehe
   [korpus-nachlauf.ts](../../src/plugins/auslastung/services/matching/korpus-nachlauf.ts)).
+- **Seine Deckung gilt dem Bestand seines ERBAUERS**, nicht dem des Lesers. Jede Build-Variante hat
+  ihre eigene IndexedDB (`teamflow-<outputFilename>`) und damit ihren eigenen Antragsstand, aber
+  alle teilen **einen** Korpus auf dem Datenspeicher. „Synchron mit dem Datenspeicher" und
+  „vollständig für diesen Bestand" sind darum zwei Aussagen; die Karte trennt sie seit v4.128,
+  nachdem ein ✓ neben einem Knopf mit „136 Vorhaben" stand.
+- **Der automatische Nachlauf prüft erst, wenn die Startaufgaben durch sind.** Er hält einen
+  Einmal-Latch (sonst lüde jeder Render ein 200-MB-Modell), und die Datenaktualisierung läuft beim
+  Start gemessene 1,0–5,1 s — wer beides gleichzeitig startet, verliert den einen Versuch an eine
+  Bedingung, die Sekunden später erfüllt ist. Sperren, die sich von selbst auflösen, stehen in
+  `SPERRE_VORUEBERGEHEND` und geben den Latch wieder frei.
 
 ### ORT-WASM-Bereitstellung (Inline-gzip + `wasmBinary`)
 

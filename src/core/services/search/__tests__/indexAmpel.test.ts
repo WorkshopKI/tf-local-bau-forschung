@@ -14,8 +14,25 @@ describe('indexAmpel', () => {
   it('meldet einen leeren Index als Fehler', () => {
     expect(indexAmpel({ ...HEIL, chunkCount: 0 })).toEqual({
       ton: 'fehler',
-      label: 'Kein Index vorhanden — bitte indexieren',
+      label: 'Kein Dokumenten-Index — bitte indexieren',
     });
+  });
+
+  // Seit v4.127 steht der Vektorindex der Aehnlichkeitssuche auf derselben
+  // Seite. Ein Label, das nur „Index" sagt, wird dort zwangslaeufig auf das
+  // falsche bezogen — gemeldet nach einem Vektor-Bau, neben dem die Seite
+  // weiter „Kein Index vorhanden" behauptete.
+  it('nennt in JEDEM Fall den Gegenstand — sonst gilt die Aussage dem falschen Index', () => {
+    const faelle = [
+      { ...HEIL, chunkCount: 0 },
+      { ...HEIL, modellGewechselt: true },
+      { ...HEIL, alteWorttrennung: true },
+      { ...HEIL, neueDokumente: 12 },
+      HEIL,
+    ];
+    for (const f of faelle) {
+      expect(indexAmpel(f).label).toMatch(/Dokument/);
+    }
   });
 
   it('nennt den Modellwechsel vor der Worttrennung', () => {
@@ -37,13 +54,13 @@ describe('indexAmpel', () => {
   });
 
   it('ist gruen, wenn nichts ansteht', () => {
-    expect(indexAmpel(HEIL)).toEqual({ ton: 'ok', label: 'Index aktuell' });
+    expect(indexAmpel(HEIL)).toEqual({ ton: 'ok', label: 'Dokumenten-Index aktuell' });
   });
 
   it('schlaegt „kein Index" allem anderen voran', () => {
     // Ohne Index sind Modellwechsel und Nachzuegler bedeutungslos — die
     // Handlungsanweisung ist in jedem Fall „indexieren".
     const a = indexAmpel({ chunkCount: 0, modellGewechselt: true, alteWorttrennung: true, neueDokumente: 9 });
-    expect(a.label).toContain('Kein Index');
+    expect(a.label).toContain('Kein Dokumenten-Index');
   });
 });

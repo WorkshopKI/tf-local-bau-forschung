@@ -9,6 +9,13 @@
  * Die REIHENFOLGE der Faelle ist Teil der Aussage: „kein Index" schlaegt
  * „Modell gewechselt" schlaegt „Worttrennung" schlaegt „nicht indexiert".
  * Wer sie umstellt, aendert, was der Nutzer zuerst erfaehrt.
+ *
+ * **Jedes Label nennt seinen Gegenstand: den DOKUMENTEN-Index** (v4.128). Seit
+ * der Vektorindex der Aehnlichkeitssuche mit v4.127 auf dieselbe Seite gezogen
+ * ist, stehen dort zwei Dinge, die „Index" heissen. „Kein Index vorhanden"
+ * stand oben auf der Seite und las sich als Urteil ueber sie — direkt nachdem
+ * jemand die Vektoren gebaut hatte. Beide Aussagen waren wahr und widersprachen
+ * sich trotzdem, weil keine sagte, wovon sie spricht.
  */
 import type { IDBStore } from '@/core/services/storage';
 import { getActiveModelId } from './model-registry';
@@ -34,14 +41,14 @@ export interface IndexAmpel {
 
 export function indexAmpel(e: IndexAmpelEingabe): IndexAmpel {
   if (e.chunkCount === 0)
-    return { ton: 'fehler', label: 'Kein Index vorhanden — bitte indexieren' };
+    return { ton: 'fehler', label: 'Kein Dokumenten-Index — bitte indexieren' };
   if (e.modellGewechselt)
-    return { ton: 'warnung', label: 'Modell gewechselt — Neu-Indexierung noetig' };
+    return { ton: 'warnung', label: 'Modell gewechselt — Dokumente neu indexieren' };
   if (e.alteWorttrennung)
-    return { ton: 'warnung', label: 'Worttrennung geändert — Index neu aufbauen' };
+    return { ton: 'warnung', label: 'Worttrennung geändert — Dokumente neu indexieren' };
   if (e.neueDokumente > 0)
     return { ton: 'warnung', label: `${e.neueDokumente} Dokumente nicht indexiert` };
-  return { ton: 'ok', label: 'Index aktuell' };
+  return { ton: 'ok', label: 'Dokumenten-Index aktuell' };
 }
 
 export interface IndexKennzahlen extends IndexAmpelEingabe {

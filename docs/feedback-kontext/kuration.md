@@ -35,9 +35,11 @@ Externe Gegenstellen, die das Team gemeinsam nutzt. Heute die URL des ZIM-FAQ-As
 ## Suche &amp; Index
 Was durchsuchbar ist — und wie gut. Links die Aktionen: Dokumente einlesen, Index bauen, Qualität messen; darunter die Dokumentenquellen, also die DMS-Ordner, die der Index einliest (read-only, die App schreibt dort nie hinein). Rechts steht der Zustand daneben, während Sie arbeiten: Textabschnitte, Dokumente, Suchqualität, Modell, Backend, letztes Update.
 
-Die Ampel oben meldet neben „Modell gewechselt" auch „Worttrennung geändert" — dann stammt der Index aus einer Fassung vor der deutschen Worttrennung; er bleibt nutzbar, der nächste Lauf baut ihn komplett neu auf.
+Die Ampel oben nennt immer den **Dokumenten**-Index — auf dieser Seite stehen zwei Dinge, die „Index" heißen, und „kein Index vorhanden" ließ sich sonst auf die Vektoren darunter beziehen. Sie meldet neben „Modell gewechselt" auch „Worttrennung geändert"; dann stammt der Index aus einer Fassung vor der deutschen Worttrennung, bleibt nutzbar, und der nächste Lauf baut ihn komplett neu auf.
 
-Darunter die Vektoren der Ähnlichkeitssuche — ein Vektor je Vorhaben, die zweite Hälfte desselben Index. Der Volltext-Index findet Wörter, diese Vektoren finden Themen. Hier steht, wie viele Vorhaben einen Vektor haben, aus welcher Textfassung er stammt und ob ein Neuaufbau fällig ist; dazu die Knöpfe zum Neuaufbauen, Holen vom Datenspeicher, Nachziehen und Zurücksetzen.
+Darunter die Vektoren der Ähnlichkeitssuche — ein Vektor je Vorhaben, die zweite Hälfte desselben Index. Der Volltext-Index findet Wörter, diese Vektoren finden Themen. Hier steht, wie viele Vorhaben einen Vektor haben, aus welcher Textfassung er stammt und ob ein Neuaufbau fällig ist; dazu die Knöpfe zum Neuaufbauen, Holen vom Datenspeicher, Nachziehen und Zurücksetzen. Nach einem Lauf steht dort, wie viele Vorhaben er eingebettet und wie viele er übersprungen hat.
+
+Zwei Aussagen, die leicht zu verwechseln sind: „mit dem Datenspeicher synchron" heißt, dass hier derselbe Korpus liegt wie dort — nicht, dass er zu diesem Bestand vollständig ist. Ein Korpus deckt den Bestand ab, den sein Erbauer beim Bau hatte; kamen seitdem Vorhaben dazu oder hat sich ihr Text geändert, sagt die Karte das mit der Zahl, und „Nachziehen" holt genau diese nach.
 
 Gebaut wird einmal für das ganze Team: der Lauf lädt ein rund 200 MB großes Modell in diesen Browser-Tab und dauert je nach Bestand etwa 40 Minuten, danach spiegelt die App das Ergebnis auf den Datenspeicher. Jeder andere Rechner holt es von dort in etwa zehn Sekunden. Ein Schalter darunter zieht neue CSV-Daten künftig automatisch nach — nur auf diesem Rechner, und nur solange kein Fassungswechsel ansteht.
 

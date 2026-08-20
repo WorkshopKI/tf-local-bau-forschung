@@ -144,7 +144,7 @@ export function SucheIndexPanel(): React.ReactElement {
         <>
           <SettingsGruppe
             id="sec-index"
-            titel="Index pflegen"
+            titel="Dokumenten-Index pflegen"
             unterzeile="Dokumente einlesen, Index bauen, Qualität messen."
             hint="Der Index trägt die Volltext- und die semantische Suche. Er veraltet nicht von selbst, sondern wenn Dokumente dazukommen oder das Embedding-Modell wechselt. Ein Neuaufbau läuft im Vordergrund und kann je nach Bestand einige Minuten dauern."
             rechts={<SettingsStatusBadge ton={ampel.ton}>{ampel.label}</SettingsStatusBadge>}

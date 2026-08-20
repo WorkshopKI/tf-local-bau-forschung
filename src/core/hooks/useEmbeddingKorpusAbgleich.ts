@@ -50,10 +50,12 @@ import { useKorpusAbgleich } from '@/core/hooks/useKorpusAbgleich';
 import { useProfile } from '@/core/hooks/useProfile';
 import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
 import { canWriteDatenShare } from '@/config/feature-flags';
-import { isDataMutationBusy } from '@/core/services/csv/data-mutation-gate';
+import { isDataMutationBusy, useDataMutationBusy } from '@/core/services/csv/data-mutation-gate';
 import { ensureVerbundCorpus } from '@/plugins/auslastung/services/matching';
 import { bumpAuslastungCorpusSignal } from '@/plugins/auslastung/services/matching';
 import { fuehreNachlaufAus, istNachlaufAn } from '@/plugins/auslastung/services/matching';
+import { SPERRE_VORUEBERGEHEND } from '@/plugins/auslastung/services/matching';
+import type { NachlaufUrteil } from '@/plugins/auslastung/services/matching';
 
 /**
  * Cold-Start entlasten (v2.61.5): Download + Anwenden des ~40-MB-Korpus erst
@@ -118,9 +120,9 @@ async function nachlaufWennGewollt(
   online: boolean,
   darfSchreiben: boolean,
   profilName?: string,
-): Promise<void> {
+): Promise<NachlaufUrteil | null> {
   try {
-    if (!(await istNachlaufAn(storage.idb))) return;
+    if (!(await istNachlaufAn(storage.idb))) return null;
     const erg = await fuehreNachlaufAus({
       storage, programmId, online, darfSchreiben,
       datenUpdateLaeuft: isDataMutationBusy(),
@@ -130,8 +132,10 @@ async function nachlaufWennGewollt(
     // Nachlauf ist von einem kaputten nicht zu unterscheiden.
     console.info(`[korpus-nachlauf] ${erg.urteil.grund}`
       + (erg.urteil.laeuft ? ` (${erg.eingebettet} eingebettet, hochgeladen: ${erg.hochgeladen})` : ''));
+    return erg.urteil;
   } catch (err) {
     console.warn('[korpus-nachlauf] Vorprüfung fehlgeschlagen:', err);
+    return null;
   }
 }
 
@@ -144,6 +148,10 @@ export function useEmbeddingKorpusAbgleich(): void {
   const verbundRef = useRef(false);
   const antraegeRef = useRef(false);
   const nachlaufRef = useRef(false);
+  // Beide als Hook, nicht als Momentaufnahme: sie sind Abhaengigkeiten des
+  // Nachlaufs (Effekt 3), nicht nur eine Bedingung zum Zeitpunkt des Pruefens.
+  const datenBusy = useDataMutationBusy();
+  const abgleichLaeuft = useKorpusAbgleich(s => s.laeuft);
 
   const online = smbStatus.status === 'online';
 
@@ -165,6 +173,10 @@ export function useEmbeddingKorpusAbgleich(): void {
   const starteAntraege = useCallback(() => {
     if (antraegeRef.current) return;
     antraegeRef.current = true;
+    // Das Flag SOFORT setzen, nicht erst im Leerlauf-Callback: der Nachlauf
+    // (Effekt 3) fragt danach, ob er gerade gegen einen Download antritt. Erst
+    // im Callback zu melden hiesse, er erfaehrt es nach seiner Entscheidung.
+    useKorpusAbgleich.getState().setLaeuft(true);
     imLeerlauf(() => { void gleicheAntraegeKorpusAb(storage); });
   }, [storage]);
 
@@ -174,17 +186,36 @@ export function useEmbeddingKorpusAbgleich(): void {
     starteAntraege();
   }, [online, semantischAn, starteAntraege]);
 
-  // 3) Nachlauf — nach dem Abgleich, damit er nicht gegen einen laufenden
-  //    Download baut, und erst wenn ein Programm feststeht (ohne das gibt es
-  //    keinen Bestand, ueber den er urteilen koennte).
+  // 3) Nachlauf — erst wenn ein Programm feststeht (ohne das gibt es keinen
+  //    Bestand, ueber den er urteilen koennte) UND die beiden Laeufe durch sind,
+  //    gegen die er sonst antritt.
+  //
+  //    Bis v4.128 stand hier nur „nach dem Abgleich" als Absicht im Kommentar —
+  //    eine Reihenfolge gab es nicht: beide Effekte melden sich im selben
+  //    Leerlauf an. Der Nachlauf prueft dann seinen Bestand, waehrend die
+  //    Datenaktualisierung noch schreibt oder ein Download den Korpus gerade
+  //    ersetzt. Seine eigene Vorbedingung faengt das („daten-laufen"), aber der
+  //    Latch stand da schon: einmal geprueft, nie wieder. Jetzt sind beide
+  //    Zustaende Abhaengigkeiten — laeuft noch etwas, wartet der Effekt auf das
+  //    Rendern danach, statt seinen einen Versuch zu verbrauchen.
   useEffect(() => {
     if (!online || nachlaufRef.current || !programmId) return;
+    // Live gelesen, nicht aus der Render-Closure: Effekt 2 laeuft im selben
+    // Commit VOR diesem und setzt `laeuft` dort erst. `datenBusy`/`abgleichLaeuft`
+    // stehen trotzdem in den Abhaengigkeiten — sie sind das Signal, das diesen
+    // Effekt spaeter erneut ausloest.
+    if (isDataMutationBusy() || useKorpusAbgleich.getState().laeuft) return;
     nachlaufRef.current = true;
     const darfSchreiben = canWriteDatenShare(
       profile?.is_kurator === true || profile?.is_admin === true,
     );
     imLeerlauf(() => {
-      void nachlaufWennGewollt(storage, programmId, online, darfSchreiben, profile?.name);
+      void nachlaufWennGewollt(storage, programmId, online, darfSchreiben, profile?.name)
+        .then(urteil => {
+          // Zwischen Latch und Lauf kann eine Aktualisierung dazwischenkommen —
+          // dann ist der Versuch nicht verbraucht, sondern vertagt.
+          if (urteil?.sperre && SPERRE_VORUEBERGEHEND.has(urteil.sperre)) nachlaufRef.current = false;
+        });
     });
-  }, [online, programmId, storage, profile]);
+  }, [online, programmId, storage, profile, datenBusy, abgleichLaeuft]);
 }

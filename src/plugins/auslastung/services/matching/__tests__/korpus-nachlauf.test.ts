@@ -8,7 +8,7 @@
  * „Nachziehen", sondern ein Vollbau.
  */
 import { describe, it, expect } from 'vitest';
-import { pruefeNachlauf, type NachlaufLage } from '../korpus-nachlauf';
+import { pruefeNachlauf, SPERRE_VORUEBERGEHEND, type NachlaufLage } from '../korpus-nachlauf';
 
 /** Die Lage, in der er laufen SOLL — jeder Test kippt genau eine Bedingung. */
 const gut: NachlaufLage = {
@@ -65,5 +65,32 @@ describe('pruefeNachlauf', () => {
   /** Der teure Irrtum: „fehlt nichts" ist nicht „ist aktuell". */
   it('trennt fremden Raum von leerer Arbeitsliste', () => {
     expect(pruefeNachlauf({ ...gut, raumAktuell: false, zuEmbedden: 0 }).sperre).toBe('fremder-raum');
+  });
+
+  /**
+   * Der Aufrufer prueft einmal je Sitzung. Nach einer Sperre, die sich in
+   * Sekunden von selbst aufloest, waere dieser eine Versuch verschenkt — genau
+   * so verlor der Nachlauf beim Start gegen die Datenaktualisierung (v4.128).
+   * Jede Sperre muss eingeordnet sein; eine neue zwingt zur Entscheidung.
+   */
+  describe('SPERRE_VORUEBERGEHEND', () => {
+    it('ordnet JEDE Sperre ein — keine bleibt unbeantwortet', () => {
+      for (const [, kippe] of faelle) {
+        const sperre = pruefeNachlauf({ ...gut, ...kippe }).sperre!;
+        expect(typeof SPERRE_VORUEBERGEHEND.has(sperre)).toBe('boolean');
+      }
+      expect(faelle).toHaveLength(8); // Reisleine: neue Sperre → Zeile hier ergaenzen
+    });
+
+    it('zaehlt genau die Start-Kollisionen dazu', () => {
+      expect(SPERRE_VORUEBERGEHEND.has('daten-laufen')).toBe(true);
+      expect(SPERRE_VORUEBERGEHEND.has('lock-belegt')).toBe(true);
+    });
+
+    it('laesst dauerhafte Zustaende dauerhaft — sonst laedt der Start ein Modell fuer nichts', () => {
+      for (const s of ['aus', 'offline', 'kein-schreibrecht', 'korpus-leer', 'fremder-raum', 'nichts-zu-tun'] as const) {
+        expect(SPERRE_VORUEBERGEHEND.has(s)).toBe(false);
+      }
+    });
   });
 });

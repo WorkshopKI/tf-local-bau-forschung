@@ -70,9 +70,27 @@ export interface PhasenFortschritt {
   etaSec?: number;
 }
 
+/**
+ * Was ein Lauf tatsaechlich getan hat.
+ *
+ * `buildEmbeddingCorpus` liefert das seit jeher zurueck — gelesen hat es
+ * niemand. Ein Vollbau, der 136 Vorhaben ueberspringt, meldete „fertig" und
+ * sonst nichts; erst in einer anderen Variante fiel die Luecke auf, und dort
+ * war sie nicht mehr erklaerbar (v4.128).
+ */
+export interface BauBilanz {
+  eingebettet: number;
+  uebersprungen: number;
+  /** Der Lauf hat trotz „nachziehen" voll gebaut (fremder Vektorraum). */
+  vollErzwungen: boolean;
+  abgebrochen: boolean;
+}
+
 export interface KorpusBau {
   bestand: KorpusBestand | null;
   befund: AbgleichBefund | null;
+  /** Bilanz des letzten Laufs in dieser Sitzung. */
+  bilanz: BauBilanz | null;
   /** Stimmt der lokale Vektorraum mit dem ueberein, den ein Lauf jetzt erzeugt? */
   raumAktuell: boolean;
   signatur: KorpusSignatur | null;
@@ -98,6 +116,7 @@ export function useKorpusBau(): KorpusBau {
 
   const [bestand, setBestand] = useState<KorpusBestand | null>(null);
   const [befund, setBefund] = useState<AbgleichBefund | null>(null);
+  const [bilanz, setBilanz] = useState<BauBilanz | null>(null);
   const [signatur, setSignatur] = useState<KorpusSignatur | null>(null);
   const [raumAktuell, setRaumAktuell] = useState(true);
   const [fortschritt, setFortschritt] = useState<PhasenFortschritt | null>(null);
@@ -135,6 +154,7 @@ export function useKorpusBau(): KorpusBau {
     )) return;
 
     setFehler(null);
+    setBilanz(null);
     setLaeuft(true);
     const controller = new AbortController();
     abbruchRef.current = controller;
@@ -163,13 +183,22 @@ export function useKorpusBau(): KorpusBau {
       // Volle Records nur transient — die Embedding-Texte liegen nicht im
       // Slim-Cache und sollen nach dem Lauf wieder freigegeben werden.
       const antraege = programmId ? await listAntraegeByProgramm(storage.idb, programmId) : [];
-      await buildEmbeddingCorpus(storage.idb, antraege, {
+      const erg = await buildEmbeddingCorpus(storage.idb, antraege, {
         incremental: !voll,
         programmId,
         onProgress: p => setFortschritt({
           phase: 'antrag', done: p.done, total: p.total, last: p.lastAntrag, etaSec: p.etaSec,
         }),
         signal: controller.signal,
+      });
+      // `done` zaehlt die Durchlaeufe, `skipped` die ohne Vektor — die Differenz
+      // ist, was wirklich entstanden ist. Ohne diese Zeile bleibt ein Lauf, der
+      // Vorhaben auslaesst, von einem vollstaendigen ununterscheidbar.
+      setBilanz({
+        eingebettet: erg.done - erg.skipped,
+        uebersprungen: erg.skipped,
+        vollErzwungen: erg.vollErzwungen,
+        abgebrochen: erg.aborted,
       });
       if (lockGehalten) await heartbeat(storage.idb).catch(() => undefined);
 
@@ -284,7 +313,7 @@ export function useKorpusBau(): KorpusBau {
   const abbrechen = useCallback(() => { abbruchRef.current?.abort(); }, []);
 
   return {
-    bestand, befund, raumAktuell, signatur, fortschritt, laeuft, fehler,
+    bestand, befund, bilanz, raumAktuell, signatur, fortschritt, laeuft, fehler,
     nachziehenMoeglich: raumAktuell && (bestand?.zuEmbedden.length ?? 0) > 0,
     baue, ladeVomSpeicher, leere, abbrechen, neuLesen,
   };

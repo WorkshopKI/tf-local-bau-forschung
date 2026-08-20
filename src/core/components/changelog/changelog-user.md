@@ -24,6 +24,9 @@
 ### Neu
 <!-- - Kurzer, verständlicher Satz (nur bei nutzersichtbaren Änderungen) -->
 ### Verbesserungen
+- Auf der Seite „Suche & Index" heißen zwei Dinge „Index". Die Statusanzeige sagt jetzt, welches sie meint: **„Kein Dokumenten-Index"** bezieht sich auf die eingelesenen Dokumente, nicht auf die Vektoren der Ähnlichkeitssuche darunter.
+- Die Vektor-Karte trennt zwei Aussagen, die sich vorher widersprachen: Der Korpus kann mit dem Datenspeicher übereinstimmen und trotzdem Vorhaben von diesem Rechner nicht abdecken — dann steht dort, wie viele es sind und warum.
+- Nach einem Lauf steht in der Karte, wie viele Vorhaben er eingebettet und wie viele er übersprungen hat.
 - Ein Netzwerk steht in der Vorschlagsliste jetzt **einmal**, nicht einmal je Schreibweise. „CannabisNET" und „CANNABIS-NET" waren zwei Zeilen mit derselben Trefferzahl und sahen aus wie zwei verschiedene Mengen — es ist dieselbe. Gezeigt wird die Schreibweise, die im Bestand am häufigsten vorkommt.
 - Der Klick auf einen Netzwerknamen findet jetzt auch dann alle Schreibweisen, wenn der Name ein Leerzeichen trägt. Bisher lieferte „NaFa Tech" 9 Treffer und „NaFa-Tech" 29, obwohl beide dasselbe Netzwerk meinen.
 ### Bugfixes

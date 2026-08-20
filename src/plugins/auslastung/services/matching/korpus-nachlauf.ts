@@ -73,6 +73,24 @@ export type NachlaufSperre =
   | 'nichts-zu-tun'
   | 'lock-belegt';
 
+/**
+ * Welche Sperren loesen sich von selbst wieder auf?
+ *
+ * Der Aufrufer prueft einmal je Sitzung (Einmal-Latch, sonst laedt jeder Render
+ * ein 200-MB-Modell). Nach einer VORUEBERGEHENDEN Sperre waere dieser eine
+ * Versuch verschenkt: beide treten bevorzugt beim Start auf, wo die
+ * Datenaktualisierung gemessene 3,4–5,1 s laeuft und der Nachlauf nach
+ * `requestIdleCallback(…, {timeout: 3000})` prueft — ein Muenzwurf, dessen
+ * Verlierer den Nachlauf fuer die ganze Sitzung verlor (v4.128).
+ *
+ * Die Einteilung steht hier und nicht beim Aufrufer: sie folgt aus der Natur
+ * der Sperre, und eine neue Sperre soll die Frage im selben Blick beantworten.
+ */
+export const SPERRE_VORUEBERGEHEND: ReadonlySet<NachlaufSperre> = new Set<NachlaufSperre>([
+  'daten-laufen', // die Aktualisierung ist in Sekunden durch
+  'lock-belegt',  // ein anderer Rechner baut gerade
+]);
+
 export interface NachlaufLage {
   /** Hat dieser Rechner den Nachlauf eingeschaltet? */
   an: boolean;

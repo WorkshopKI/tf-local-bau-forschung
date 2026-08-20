@@ -80,6 +80,10 @@ export function EmbeddingKorpusSection(): React.ReactElement {
     return () => { abgebrochen = true; };
   }, [storage]);
 
+  // Die Bestandsaufnahme streamt ~14 k Records und braucht ein paar Sekunden.
+  // Solange sie laeuft, ist NICHTS bekannt — und „0 von 0 · Nachziehen: nichts
+  // offen" waere kein Platzhalter, sondern eine falsche Auskunft.
+  const ermittelt = bau.bestand !== null;
   const lokal = bau.bestand?.lokal ?? 0;
   const embedbar = bau.bestand?.embeddableAz.length ?? 0;
   const offen = bau.bestand?.zuEmbedden.length ?? 0;
@@ -104,7 +108,9 @@ export function EmbeddingKorpusSection(): React.ReactElement {
             ? (p.phase === 'centroids'
                 ? PHASEN_LABEL.centroids
                 : `${PHASEN_LABEL[p.phase]}: ${zeigeIst} von ${zeigeSoll}`)
-            : `${lokal.toLocaleString('de-DE')} von ${embedbar.toLocaleString('de-DE')} Vorhaben haben einen Vektor`}
+            : ermittelt
+              ? `${lokal.toLocaleString('de-DE')} von ${embedbar.toLocaleString('de-DE')} Vorhaben haben einen Vektor`
+              : 'Bestand wird ermittelt…'}
         </span>
         <span className="text-[11.5px] text-[var(--tf-text-tertiary)]">
           {Math.round(prozent)} %
@@ -157,11 +163,46 @@ export function EmbeddingKorpusSection(): React.ReactElement {
         </div>
       )}
 
+      {/* „Synchron mit dem Datenspeicher" und „vollständig für diesen Bestand"
+          sind ZWEI Fragen. Bis v4.128 beantwortete die Karte die erste mit einem
+          ✓ und die zweite still über die Zahl am Knopf — was sich für den Leser
+          widersprach: gerade gebaut, synchron, und trotzdem 136 offen. Ein
+          Korpus deckt immer den Bestand ab, den SEIN Erbauer hatte; jede
+          Build-Variante hat ihre eigene IndexedDB und damit ihren eigenen. */}
       {bau.befund?.aktion === 'nichts' && manifest && lokal > 0 && !bau.befund.neuaufbauNoetig && (
+        offen === 0 ? (
+          <div className="text-[11px] text-[var(--tf-text-tertiary)] mb-2">
+            ✓ Mit dem Datenspeicher synchron ({manifest.antraegeCount.toLocaleString('de-DE')} Vektoren,
+            Textfassung v{shareVersion}, Stand {new Date(manifest.builtAt).toLocaleDateString('de-DE')}
+            {manifest.builderProfile ? ` von ${manifest.builderProfile}` : ''}) — und vollständig für
+            diesen Bestand.
+          </div>
+        ) : (
+          <div className={HINWEIS_KLASSE} style={HINWEIS_INFO}>
+            Gleicher Stand wie der Datenspeicher ({manifest.antraegeCount.toLocaleString('de-DE')} Vektoren,
+            gebaut am {new Date(manifest.builtAt).toLocaleDateString('de-DE')}
+            {manifest.builderProfile ? ` von ${manifest.builderProfile}` : ''}) —{' '}
+            <strong>
+              für {offen.toLocaleString('de-DE')} Vorhaben aus diesem Bestand hat er trotzdem keinen
+              aktuellen Vektor
+            </strong>
+            {' '}(sie fehlen ihm, oder ihr Text hat sich seit seinem Bau geändert). Ein Korpus deckt den
+            Bestand ab, den sein Erbauer beim Bau hatte, nicht den, der hier liegt.
+            „Nachziehen“ holt genau diese {offen.toLocaleString('de-DE')} nach (≈ {formatiereEta(offen * 0.2)}).
+          </div>
+        )
+      )}
+
+      {/* Was der letzte Lauf getan hat — vorher verfiel dieses Ergebnis
+          ungelesen, und ein Lauf mit Lücke sah aus wie einer ohne. */}
+      {bau.bilanz && !bau.laeuft && (
         <div className="text-[11px] text-[var(--tf-text-tertiary)] mb-2">
-          ✓ Mit dem Datenspeicher synchron ({manifest.antraegeCount.toLocaleString('de-DE')} Vektoren,
-          Textfassung v{shareVersion}, Stand {new Date(manifest.builtAt).toLocaleDateString('de-DE')}
-          {manifest.builderProfile ? ` von ${manifest.builderProfile}` : ''}).
+          Letzter Lauf: {bau.bilanz.eingebettet.toLocaleString('de-DE')} Vorhaben eingebettet
+          {bau.bilanz.uebersprungen > 0
+            ? `, ${bau.bilanz.uebersprungen.toLocaleString('de-DE')} übersprungen (kein Text oder Fehler)`
+            : ''}
+          {bau.bilanz.vollErzwungen ? ' · voll gebaut statt nachgezogen (fremder Vektorraum)' : ''}
+          {bau.bilanz.abgebrochen ? ' · abgebrochen' : ''}.
         </div>
       )}
 
@@ -189,7 +230,9 @@ export function EmbeddingKorpusSection(): React.ReactElement {
               onClick={() => neuBauen.run()}
               disabled={embedbar === 0 || neuBauen.busy}
             >
-              Neu aufbauen (~{minutenVoll} min)
+              {/* Die Dauer haengt am Bestand — vor dessen Aufnahme waere „~1 min"
+                  eine Zusage aus einer Division durch nichts. */}
+              {ermittelt ? `Neu aufbauen (~${minutenVoll} min)` : 'Neu aufbauen'}
             </Button>
             {/* „Nachziehen" steht nur da, wenn es auch nachzieht. Weicht der
                 lokale Vektorraum ab, erzwingt `buildEmbeddingCorpus` einen
@@ -204,12 +247,14 @@ export function EmbeddingKorpusSection(): React.ReactElement {
                 variant="secondary"
                 size="sm"
                 onClick={() => nachziehen.run()}
-                disabled={embedbar === 0 || offen === 0 || nachziehen.busy}
+                disabled={!ermittelt || embedbar === 0 || offen === 0 || nachziehen.busy}
                 title="Bettet nur ein, was fehlt oder dessen Text sich geändert hat."
               >
-                {offen > 0
-                  ? `Nachziehen (${offen.toLocaleString('de-DE')} Vorhaben)`
-                  : 'Nachziehen — nichts offen'}
+                {!ermittelt
+                  ? 'Nachziehen — wird geprüft…'
+                  : offen > 0
+                    ? `Nachziehen (${offen.toLocaleString('de-DE')} Vorhaben)`
+                    : 'Nachziehen — nichts offen'}
               </Button>
             )}
             <Button
