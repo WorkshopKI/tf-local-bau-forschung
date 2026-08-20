@@ -90,6 +90,61 @@ Der Gutachten-Workflow rendert im **„Werkstatt"-Layout** (Design-Handoff `_des
   - **„Gilt für alle"** steht als persistentes Band im Dialog-Body statt in der `description` (dort wurde es überlesen) und trägt den Gegenweg „Nur für Sie? → Persönlicher Stil" zum `TweakEditor`.
 - **Skill-/Workflow-Export/Import** (v2.247): einzelne Skills (bestehend, [skill-bundle.ts](../../src/core/services/skills/registry/skill-bundle.ts)) UND ganze Workflows ([workflow-bundle.ts](../../src/core/services/skills/registry/workflow-bundle.ts) — Workflow + referenzierte Skills + Regeln, rein, kollisionsfest: Schritt-IDs immer neu, referenzierte Skills bei ID-Kollision dupliziert + umgemappt, damit exportierte Prompt-Tweaks nicht verloren gehen) lassen sich als `.json` sichern und wieder einspielen — im Kuration-Plugin ([WorkflowsTab.tsx](../../src/plugins/skill-verwaltung-kuration/WorkflowsTab.tsx) + [WorkflowImportDialog.tsx](../../src/plugins/skill-verwaltung-kuration/WorkflowImportDialog.tsx)) wie im Werkstatt-Dialog (dort in der Schritt-Liste hinter „← Alle Schritte"). Zweck: Cross-Browser-Nutzung + Versions-Backups. Bündel tragen **nur** kuratierte Registry-Inhalte, nie Antragsdaten.
 
+## Kuratur-Paket — einen ganzen Stand übertragen (v4.130)
+
+Die Einzel-Bündel oben lösen „nimm diesen einen Prompt mit". Sie lösen **nicht**
+„bring den Stand meines Entwicklungs-Shares auf den Produktiv-Share": ein Seed
+ergänzt nur fehlende IDs (`mergeMissingSeeds` überschreibt nie), und ein
+Einzel-Bündel legt bei ID-Kollision bewusst eine Kopie an — 23 Skills so zu
+übertragen ergäbe 23 Downloads und ein Ziel voller Doubletten.
+
+Das **Kuratur-Paket** ([paket/](../../src/core/services/skills/paket/)) trägt
+Skills + Regeln + Workflows + Textbausteine in EINER Datei
+(`kind: 'teamflow-kuratur-paket'`) und kann je Eintrag **aktualisieren**. Vier
+reine Module ohne IO: `typen` · `schnueren` · `vergleich` · `einspielen`.
+Bedient wird es über den Knopf „Paket…" in der Skill-Verwaltung
+([PaketDialog.tsx](../../src/plugins/skill-verwaltung-kuration/PaketDialog.tsx),
+Hälfte „Einspielen" in
+[PaketImportPanel.tsx](../../src/plugins/skill-verwaltung-kuration/PaketImportPanel.tsx)).
+
+Je Eintrag entscheidet die **Vorschau vor dem Schreiben** — wer ein Paket auf
+einen fremden Share spielt, weiß meist nicht, was dort steht:
+
+| Zustand | Vorschlag | Alternativen |
+|---|---|---|
+| **neu** (ID fehlt im Ziel) | übernehmen | überspringen |
+| **geändert** | aktualisieren | als Kopie (nur Skill/Workflow) · überspringen |
+| **identisch** | überspringen | — (standardmäßig ausgeblendet) |
+
+Vier Regeln, die das tragen:
+
+1. **Der Vergleich ist kanonisch, nicht feldweise.** Verglichen wird der ganze
+   normalisierte Record ohne Fassung/Zeitstempel/Historie. Ein Diff über
+   `diffSkillVersions` sähe nur Template, Regeln, Modifikatoren und Kriterien —
+   `vorgaben`, `teilStruktur`, `systemPrompt`, `aktiv` fielen still durchs Raster
+   und ein geänderter Skill käme als „identisch" an (dieselbe Klasse, gegen die
+   `normalizeSkill` seine expliziten Zeilen hat).
+2. **Aktualisieren verliert den Ziel-Stand nie**: neue Fassung (`version + 1`),
+   der bisherige Stand rückt über `appendHistorie` / `mitFassung` in die
+   Historie und ist per Rollback erreichbar. Die Historie der **Quelle** reist
+   nicht mit — sie gehört dem Stand, auf dem sie entstand.
+3. **Workflow-Schritt-IDs bleiben stabil.** `WorkflowRun.schritte` ist über
+   `WorkflowStep.id` gekeyt; beim Aktualisieren werden Schritte über
+   `ankerKey` → `nr` → `label+skillId` zugeordnet und behalten die ID des Ziels.
+   Nur der Kopie-Pfad vergibt alle IDs neu (Bestands-Semantik der Einzel-Bündel).
+4. **Zwei Ablagen, zwei Writes.** Registry und Textbaustein-Katalog bleiben
+   getrennte Sidecars; das Paket bündelt nur den Transport. Scheitert der zweite
+   Write, sagt die Meldung ausdrücklich, dass der erste bereits gelaufen ist.
+
+Wie die Einzel-Bündel trägt ein Paket **nur** kuratierte Inhalte, nie
+Antragsdaten. Auf dem Share entsteht dadurch keine neue Datei.
+
+**Weg für den Transfer dev → Produktiv-Share**: Paket auf dem Dev-Rechner
+erstellen, `npm run build:dev` öffnen, im Ordner-Picker den echten Daten-Share
+wählen, Paket einspielen. Ein Team-Rollout ist dafür nicht nötig — die Clients
+lesen den neuen Stand beim nächsten Laden (`loadSkillRegistry` liest Share vor
+Cache).
+
 ## User-Tweaks v2 — persönliche Stil-Schicht (v2.72)
 
 Der Original-Skill gehört dem Kurator; der Nutzer (Gutachter) ergänzt einen **privaten Tweak** (eigene Stil-Hinweise + Beispiel-Formulierungen), der lokal bleibt und die Kurator-Kontrakte **nie aufhebt**. Tweak-Ebene = pro **`skillId`** (nicht pro Verbund) — ein Tweak gilt für alle Verbünde, die der Nutzer mit diesem Skill bearbeitet.

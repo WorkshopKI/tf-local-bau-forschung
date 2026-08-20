@@ -23,6 +23,7 @@ import { useSkillAggregat } from './useSkillAggregat';
 import { SkillsTab } from './SkillsTab';
 import { SkillImportDialog } from './SkillImportDialog';
 import { WorkflowImportDialog } from './WorkflowImportDialog';
+import { PaketDialog } from './PaketDialog';
 import { RegelnTab } from './RegelnTab';
 import { WorkflowsTab } from './WorkflowsTab';
 import { SkillEditor } from './SkillEditor';
@@ -136,6 +137,11 @@ export function SkillVerwaltungPage(): React.ReactElement {
   const [testlauf, setTestlauf] = useState<Testlauf | null>(null);
   const [importing, setImporting] = useState(false);
   const [importingWorkflow, setImportingWorkflow] = useState(false);
+  const [paketOffen, setPaketOffen] = useState(false);
+  // Erzwingt den Neuaufbau des Textbaustein-Reiters, nachdem ein Paket seinen
+  // Katalog geschrieben hat: der Reiter hält seinen eigenen Lade-Hook und zeigte
+  // sonst den Stand von vor dem Import weiter an.
+  const [katalogStand, setKatalogStand] = useState(0);
   const save = useAsyncAction(async (next: SkillRegistryFile) => { await reg.persist(next); });
   // Leave-Guard: jede Aktion, die den offenen Editor verlässt, läuft durch
   // `guard.guardLeave`; bei ungespeicherten Änderungen erscheint die Nachfrage.
@@ -430,6 +436,9 @@ export function SkillVerwaltungPage(): React.ReactElement {
 
             <div className="flex items-center gap-2 shrink-0 pb-2 ml-auto">
               {showSearch && <ViewModeToggle value={viewMode} onChange={setViewMode} />}
+              <Button variant="outline" size="sm" onClick={() => setPaketOffen(true)} className="h-8 whitespace-nowrap">
+                Paket…
+              </Button>
               {tab === 'skills' && reg.canEdit && (
                 <Button variant="outline" size="sm" onClick={() => setImporting(true)} className="h-8 whitespace-nowrap">
                   Importieren
@@ -497,7 +506,7 @@ export function SkillVerwaltungPage(): React.ReactElement {
         {tab === 'eval' ? (
           <SkillEvalPanel registry={file} />
         ) : tab === 'textbausteine' ? (
-          <TextbausteineTab />
+          <TextbausteineTab key={katalogStand} />
         ) : tab === 'skills' ? (
           <SkillsTab
             file={file}
@@ -554,6 +563,15 @@ export function SkillVerwaltungPage(): React.ReactElement {
           persist={reg.persist}
           onClose={() => setImportingWorkflow(false)}
           onImported={id => { setImportingWorkflow(false); setTab('workflows'); setSelectedWorkflowId(id); }}
+        />
+      )}
+      {paketOffen && (
+        <PaketDialog
+          file={file}
+          canEdit={reg.canEdit}
+          persistRegistry={reg.persist}
+          onClose={() => setPaketOffen(false)}
+          onEingespielt={() => setKatalogStand(n => n + 1)}
         />
       )}
       <UnsavedChangesDialog {...guard.dialog} />

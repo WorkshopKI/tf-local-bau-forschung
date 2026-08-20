@@ -19,6 +19,12 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.130 — 2026-08
+
+### Neu
+- In der Skill-Verwaltung gibt es den Knopf „Paket…": er packt Skills, Regeln, Workflows und Textbausteine in eine Datei, mit der sich ein ganzer gepflegter Stand auf einen anderen Daten-Share bringen lässt — statt dort alles von Hand neu anzulegen.
+- Beim Einspielen zeigt eine Vorschau je Eintrag, ob er neu ist, sich geändert hat oder unverändert bleibt; Sie entscheiden je Zeile, was übernommen wird. Geändert bedeutet nie „weg": der bisherige Stand bleibt als Fassung erhalten und lässt sich zurückholen.
+
 ## v4.129 — 2026-08
 
 ### Neu
