@@ -630,10 +630,10 @@ nicht aus einem Merkschlüssel daneben — eine zweite Quelle könnte davon abwe
   Platzhalter dagegen gibt es (`?` seit v4.101, `*` seit v4.123) — sie
   beschreiben ein Wort, keine Bedingung, und laufen deshalb durch dieselbe Nadel
   wie jedes andere Suchwort.
-- **Unscharfe Suche** (Zeichenabstand, „meintest du") — ein Platzhalter findet
-  Stellen, keine Tippfehler. Wer „Mobinspek" mit „mobiInspec" zusammenbringen
-  will, braucht ein anderes Maß; die Ähnlichkeitsstufe misst Bedeutung, nicht
-  Schreibweise.
+- **Unscharfe Suche** (Zeichenabstand, „meintest du") — **gemessen, nicht
+  vermutet abgelehnt**: der Zugewinn am echten Namensraum ist null, siehe
+  unten. Ein Platzhalter findet Stellen, keine Tippfehler; die
+  Ähnlichkeitsstufe misst Bedeutung, nicht Schreibweise.
 - **Monitoring gespeicherter Suchen** — es gibt keinen Benachrichtigungsweg.
   „+2 seit zuletzt" ist die Differenz zum letzten Ausführen, nicht „2 neue
   Anträge", und die Beschriftung sagt genau das.
@@ -1324,3 +1324,72 @@ Gemessen in `dev:local`: `nw:mobiInspec` **29 → 32** (die zwei Netzwerkantraeg
 des Netzes 0830 plus den abgelehnten Vorlaeufer 16KN080301), Antragstyp-Facette
 jetzt **FuE 29 · NW 3**, und die Zahl am Vorschlag `mobiInspec` steht wieder auf
 derselben Menge wie das Ergebnis (32).
+
+## 12 Was Namensdrift wirklich ist (Messung v4.123)
+
+Nach dem Stern stand die Frage im Raum, ob als nächstes ein **Abstandsmaß**
+gehört („meintest du `mobiInspec`?"). Vor dem Bau wurde der Namensraum
+ausgezählt — das Ergebnis kippte die Frage.
+
+**Der Bestand** (14 225 Anträge): 677 Netzwerke tragen einen Namen, 960
+verschiedene Schreibweisen; **235 Netzwerke (35 %) führen mehr als eine**, an
+den Nebenschreibweisen hängen **938 Anträge**. Die Akronyme dagegen driften
+**innerhalb eines Verbunds nie** (0 von 7 533) — Drift lebt in der freien
+Verweis-Spalte `NETZWERKNA`, nicht im Akronym.
+
+**Was ein Abstandsmaß beitrüge**, über alle 377 Paare Haupt-↔-Nebenschreibweise:
+
+| Klasse | Paare | Anträge |
+|---|---:|---:|
+| gemeinsamer Teilstring ≥ 5 → **heute schon** mit fester Nadel erreichbar | 185 | 594 |
+| Stern/Fragezeichen nötig → **seit v4.123** erreichbar | 16 | 46 |
+| Abstand ≤ 2 **ohne** brauchbaren gemeinsamen Teil → nur per Abstandsmaß | **0** | **0** |
+| Abstand > 2 → **ein anderer Name**, kein Vertipper | 176 | 298 |
+
+Die Menge, die ein Abstandsmaß als Einziges rettet, ist **leer**. Die 176 Fälle
+der letzten Zeile sind keine Schreibfehler, sondern Mitglieder, die in die
+Netzwerk-Spalte etwas anderes eingetragen haben — `ProtecTier ↔ Betäubung`,
+`eLight ↔ eParabike ↔ Elektrofahrrad`, `BioORIX ↔ Metagene`. Kein Maß bringt die
+zusammen, und keines sollte.
+
+**Der Preis stünde trotzdem an**: unter den 960 Namen liegen **17 Paare
+verschiedener Netzwerke** bei Abstand 1 (`rwtec ↔ retec`, `instand ↔ instant`,
+`tms ↔ tns`, `iba ↔ ita`, `aqs ↔ aes`, `plm ↔ p2m`, `kgb ↔ kwb`, `gid ↔ gsd`)
+und **349** bei Abstand 2. Ein „meintest du" kaufte also Verwechslung ohne
+Gegenwert.
+
+### 12.1 Die Lücke ist das Trennzeichen, nicht der Tippfehler
+
+Dieselbe Auszählung zeigt, wo Schreibweisen tatsächlich auseinanderlaufen:
+**36 Namensgruppen unterscheiden sich ausschließlich im Trennzeichen** —
+`sws energie ↔ swsenergie`, `ego-tex ↔ egotex`, `lab-on-a-chip ↔ lab on a chip`,
+`h2 apply ↔ h2apply ↔ h2-apply`, `forst_tec ↔ forst-tec`, `f.i.t. ↔ f.i.t`.
+**Alle 36 gehören zum selben Netzwerk** — die Zusammenfassung wäre also ohne
+einen einzigen Fehlalarm. **66 der 235 Drift-Netzwerke (28 %) wären allein
+dadurch geheilt**, es hängen **415 Anträge** daran. Bei den Akronymen bleiben
+nach Abzug der Klammer-Fälle (`(PULSAR)` ↔ `PULSAR`, per Teilstring ohnehin
+erreichbar) **28 echte Lücken mit 57 Anträgen**.
+
+Der Stern hilft hier **nicht**: er bleibt innerhalb eines Wortes, und genau die
+Wortgrenze ist ja der Unterschied.
+
+Am Bestand sichtbar wird das als **Asymmetrie** — derselbe Name, drei
+Schreibweisen, drei Antworten:
+
+| Anfrage | Treffer |
+|---|---:|
+| `h2 apply` (zwei Nadeln, beide müssen vorkommen) | 33 |
+| `h2apply` | 9 |
+| `h2-apply` | 1 |
+| `cannabis-net` | 60 |
+| `cannabisnet` | 1 |
+
+Wer den Namen so tippt, wie er ihn kennt, bekommt je nach Schreibweise 1 oder
+60 Zeilen. **Das** ist der offene Befund — deterministisch behebbar, ohne Maß
+und ohne Raten.
+
+Ein Vorbehalt gehört zur Bauentscheidung: eine Trennzeichen-blinde Faltung
+gehört an die **Namensfelder** (Akronym, Netzwerk), nicht an den Fließtext. Fiele
+im Abstract auch das Leerzeichen weg, könnte eine Nadel über einen Satzpunkt
+hinweg treffen („…ein. Laser…" für `einlaser`) — derselbe Fehler, den `.*` beim
+Stern gemacht hätte.
