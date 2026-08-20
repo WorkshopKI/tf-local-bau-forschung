@@ -308,6 +308,14 @@ export const DEFAULT_CONFIG = {
      *  bitweise wie heute. Braucht die interne KI (Bridge). dev + pl. Optional,
      *  default false (kein requiredFlags-Eintrag → `=== true` Backward-Kompat). */
     sucheNatuerlicheSprache: false,
+    /** Metadaten-Extraktion über eine frei konfigurierte API-Adresse: die
+     *  Einträge „Interne KI-API" und „OpenRouter API" im Aufklappmenü der Seite
+     *  „Suche & Index". Beide bauen ihren Transport aus dem `ai-provider`-Eintrag,
+     *  den nur die dev-Provider-Klappe setzen kann — in pl steht dort die
+     *  Streamlit-Adresse, gegen die ein OpenAI-kompatibler Ping scheitert. dev +
+     *  local. Optional, default false (kein requiredFlags-Eintrag → `=== true`
+     *  Backward-Kompat). */
+    metadatenDirektApi: true,
   },
 
   menuLabels: {

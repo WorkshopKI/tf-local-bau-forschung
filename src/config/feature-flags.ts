@@ -416,6 +416,17 @@ export function isDevContext(): boolean {
   return runtimeConfig.variant === 'development' || runtimeConfig.variant === 'custom';
 }
 
+/**
+ * Darf die Metadaten-Extraktion eine frei konfigurierte API-Adresse ansprechen
+ * (Einträge „Interne KI-API" / „OpenRouter API")? Die Adresse kommt aus dem
+ * `ai-provider`-Eintrag, den nur die dev-Provider-Klappe setzen kann — in pl
+ * steht dort die Streamlit-Adresse, gegen die ein OpenAI-kompatibler Ping
+ * scheitert. `=== true`: fehlt der Flag (pl/prod), bleiben die Einträge weg.
+ */
+export function isMetadatenDirektApiEnabled(): boolean {
+  return features.metadatenDirektApi === true;
+}
+
 export function isOpenRouterEnabled(): boolean {
   return kiConfig.openrouter.enabled;
 }

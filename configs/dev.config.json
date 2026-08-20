@@ -56,7 +56,8 @@
     "meilensteinMonitoring": true,
     "vorgangssystem": true,
     "eigeneSpalten": true,
-    "sucheNatuerlicheSprache": true
+    "sucheNatuerlicheSprache": true,
+    "metadatenDirektApi": true
   },
   "menuLabels": {
     "antraege": "Förderanträge",

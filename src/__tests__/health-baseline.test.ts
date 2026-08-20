@@ -24,7 +24,7 @@ describe('health-baseline (Drift-Warnung, kein Verbot)', () => {
   // (CLAUDE.md Doku-Konvention 1). Beim Anheben also den Ist-Wert aktualisieren und
   // die Begruendung ERSETZEN, nicht eine weitere anhaengen — die angehaengte Kette
   // war bis v4.4 selbst der Grund, warum jeder Bump eine eigene Runde kostete.
-  const MAX_FEATURE_FLAGS = 29;    // Ist 29 (v4.65: + sucheNatuerlicheSprache, dev/pl an, prod aus — die Suche ist die meistbenutzte Seite, deshalb erst Erprobung). Ein Flag lohnt sich nur, wenn er in den Varianten UNTERSCHIEDLICHE Werte hat — sonst ist er einkompilierte Wahrheit und gehoert weg (v3.0 hat auf diesem Weg elf Flags entfernt).
+  const MAX_FEATURE_FLAGS = 30;    // Ist 30 (v4.128: + metadatenDirektApi, dev/local an, pl/prod aus — die beiden Metadaten-Wege ueber eine frei konfigurierte API-Adresse sind nur dort bedienbar; ein bestehender Flag passte nicht: `devFixtures` steht in der pl-Spiegel-Config bewusst auf true). Ein Flag lohnt sich nur, wenn er in den Varianten UNTERSCHIEDLICHE Werte hat — sonst ist er einkompilierte Wahrheit und gehoert weg (v3.0 hat auf diesem Weg elf Flags entfernt).
   const MAX_SERVICE_DIRS = 22;     // Ist 22. Ein eigener Ordner lohnt erst, wenn die Regeln darin Konsumenten in mehreren Plugins UND in core/ haben; sonst Plugin-Datei oder Submodul unter einem bestehenden Dach.
   // Getrennte Schwellen fuer Produktionscode und Tests (v4.5). Bis dahin galt EINE
   // Zahl fuer beides, und weil die Guard-Datei mit jeder Konvention wuchs, stand sie

@@ -4,7 +4,7 @@ import { useStorage } from '@/core/hooks/useStorage';
 import {
   EMBEDDING_MODELS, setActiveModelId,
 } from '@/core/services/search/model-registry';
-import { METADATA_LLM_MODELS, probeActiveLocalModel } from '@/core/services/search/metadata-extractor';
+import { verfuegbareMetadataModelle, probeActiveLocalModel } from '@/core/services/search/metadata-extractor';
 import type { PipelineConfigState } from '../hooks/usePipelineConfig';
 import type { AIProviderConfig } from '@/core/types/config';
 
@@ -22,7 +22,10 @@ export function ActionCardModels({
   const storage = useStorage();
   const [hasApiKey, setHasApiKey] = useState(false);
   const [activeLocalModel, setActiveLocalModel] = useState<string | null>(null);
-  const selectedMetadata = METADATA_LLM_MODELS.find(m => m.id === config.metadataLLMId);
+  // Nur die Modelle, die diese Variante anbietet — in pl fehlen die beiden
+  // Einträge, die ihre Adresse aus dem `ai-provider`-Eintrag ziehen.
+  const metadataModelle = verfuegbareMetadataModelle();
+  const selectedMetadata = metadataModelle.find(m => m.id === config.metadataLLMId);
   const isLocalServer = config.metadataLLMId === 'llamacpp-local'
     || config.metadataLLMId === 'llamacpp-lan';
   const maxParallelism = selectedMetadata?.maxParallelism ?? 4;
@@ -88,7 +91,7 @@ export function ActionCardModels({
       <div className="space-y-1">
         <p className="text-[12px] text-[var(--tf-text-secondary)]">Metadaten-Extraktion</p>
         <Select
-          options={METADATA_LLM_MODELS.map(m => ({ value: m.id, label: m.label }))}
+          options={metadataModelle.map(m => ({ value: m.id, label: m.label }))}
           value={config.metadataLLMId}
           onChange={e => updateConfig({ metadataLLMId: e.target.value })} />
         {selectedMetadata?.needsApiKey && !hasApiKey && (

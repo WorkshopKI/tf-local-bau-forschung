@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { IDBStore } from '@/core/services/storage/idb-store';
-import { METADATA_LLM_MODELS } from '@/core/services/search/metadata-extractor';
+import { verfuegbareMetadataModelle, normalisiereMetadataLLMId } from '@/core/services/search/metadata-extractor';
 import { DEFAULT_RERANKER_ID } from '@/core/services/search/re-ranker'; // PHASE 2: Re-Ranker
 
 export interface PipelineConfigState {
@@ -42,7 +42,10 @@ export function usePipelineConfig(idb: IDBStore): UsePipelineConfigReturn {
     idb.get<PipelineConfigState>('pipeline-config').then(cfg => {
       if (cfg) {
         setConfig({
-          metadataLLMId: cfg.metadataLLMId ?? 'none',
+          // Eine Auswahl, die diese Variante nicht mehr anbietet, gilt als
+          // 'none' — sonst zeigte das Auswahlfeld Option 0 und der Indexlauf
+          // spräche weiter die alte Adresse an.
+          metadataLLMId: normalisiereMetadataLLMId(cfg.metadataLLMId),
           metadataParallelism: cfg.metadataParallelism ?? 4,
           metadataContext: cfg.metadataContext ?? 4096,
           metadataPreferGPU: cfg.metadataPreferGPU ?? true,
@@ -65,7 +68,8 @@ export function usePipelineConfig(idb: IDBStore): UsePipelineConfigReturn {
     });
   }, [idb]);
 
-  const metadataLLMLabel = METADATA_LLM_MODELS.find(m => m.id === config.metadataLLMId)?.label ?? 'Kein LLM';
+  const metadataLLMLabel = verfuegbareMetadataModelle()
+    .find(m => m.id === config.metadataLLMId)?.label ?? 'Kein LLM';
 
   return { config, updateConfig, loaded, metadataLLMLabel };
 }

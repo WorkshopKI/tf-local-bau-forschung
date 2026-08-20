@@ -28,7 +28,13 @@ Pfad-Map des SMB-Daten-Shares: [data-layout.md](data-layout.md).
   ([suche-relevanz.md §8.6](suche-relevanz.md)). Wer die Bereitschaft anzeigt,
   abonniert `embeddingService.subscribe` — der Ladelauf startet oft woanders.
 - **Backend**: WebGPU (preferred) or WASM fallback, auto-detected at init
-- **Metadata-Extraktion**: LLM-basiert via OpenRouter API oder lokales llama.cpp (Nemotron)
+- **Metadata-Extraktion**: LLM-basiert über einen lokalen/LAN-`llama.cpp`-Server oder die
+  Browser-KI (Nemotron via WebGPU) — wählbar auf „Suche & Index". Die beiden Wege über eine
+  frei konfigurierte API-Adresse („Interne KI-API", „OpenRouter API") ziehen ihren Endpoint aus
+  dem `ai-provider`-Eintrag, den nur die dev-Provider-Klappe setzt, und stehen deshalb hinter
+  `features.metadatenDirektApi` (dev + local; OpenRouter zusätzlich hinter
+  `ki.openrouter.enabled`, für Metadaten ohnehin von der
+  [Transport-Policy](transport-policy.md) gesperrt).
 - **Re-Ranker**: Cross-Encoder (aktiv, steuerbar per Pipeline-Config in [src/core/hooks/useSearch.ts](../../src/core/hooks/useSearch.ts))
 
 Modell-Wechsel ist team-weiter Bruch — siehe CLAUDE.md Pitfall #19 + [add-embedding-model.md](../agents/add-embedding-model.md).

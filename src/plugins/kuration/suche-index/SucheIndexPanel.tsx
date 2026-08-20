@@ -15,7 +15,7 @@ import { useStorage } from '@/core/hooks/useStorage';
 import { useSearch } from '@/core/hooks/useSearch';
 import { getModelById, DEFAULT_MODEL_ID } from '@/core/services/search/model-registry';
 import { indexAmpel, ladeIndexKennzahlen } from '@/core/services/search/indexAmpel';
-import { METADATA_LLM_MODELS } from '@/core/services/search/metadata-extractor';
+import { verfuegbareMetadataModelle, normalisiereMetadataLLMId } from '@/core/services/search/metadata-extractor';
 import {
   SettingsGruppe,
   SettingsKennzahl,
@@ -106,8 +106,8 @@ export function SucheIndexPanel(): React.ReactElement {
     });
 
     storage.idb.get<{ metadataLLMId?: string }>('pipeline-config').then(cfg => {
-      const id = cfg?.metadataLLMId ?? 'none';
-      setMetadataLLMLabel(METADATA_LLM_MODELS.find(m => m.id === id)?.label ?? 'Kein LLM');
+      const id = normalisiereMetadataLLMId(cfg?.metadataLLMId);
+      setMetadataLLMLabel(verfuegbareMetadataModelle().find(m => m.id === id)?.label ?? 'Kein LLM');
     });
 
     storage.idb.get<{ score?: number }>('smoke-test-latest').then(r => {

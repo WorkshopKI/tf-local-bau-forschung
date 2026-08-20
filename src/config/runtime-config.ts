@@ -201,6 +201,14 @@ export interface TeamflowFeatures {
    *  Nutzer selbst anlegt. Gated Picker-Fuß, Editor und die Projektion der
    *  referenzierten Rohfelder. dev/pl. Optional, default false. */
   eigeneSpalten?: boolean;
+  /** Metadaten-Extraktion über eine frei konfigurierte API-Adresse — die Einträge
+   *  „Interne KI-API" und „OpenRouter API" im Aufklappmenü der Seite „Suche &
+   *  Index". Beide bauen ihren `DirectLLMTransport` aus dem `ai-provider`-Eintrag,
+   *  den nur die dev-Provider-Klappe setzt; in pl steht dort die Streamlit-Adresse,
+   *  gegen die ein OpenAI-kompatibler Ping scheitert. Ohne den Flag zeigt das Menü
+   *  nur die Wege, die in dieser Variante auch laufen können. dev + local.
+   *  Optional, default false. */
+  metadatenDirektApi?: boolean;
 }
 
 export interface TeamflowMenuLabels {

@@ -5,7 +5,8 @@ import { Badge } from '@/components/ui/badge';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { useStorage } from '@/core/hooks/useStorage';
 import {
-  METADATA_LLM_MODELS, initMetadataLLM, extractMetadata, disposeMetadataLLM,
+  verfuegbareMetadataModelle, normalisiereMetadataLLMId,
+  initMetadataLLM, extractMetadata, disposeMetadataLLM,
   METADATA_SYSTEM_PROMPT, buildExtractionPrompt, probeActiveLocalModel,
 } from '@/core/services/search/metadata-extractor';
 import type { DocumentMetadata, MetadataModelConfig } from '@/core/services/search/metadata-extractor';
@@ -51,7 +52,7 @@ export function MetadataSmokeTest(): React.ReactElement | null {
     mountedRef.current = true;
     const readCfg = (): void => {
       storage.idb.get<PipelineCfg>('pipeline-config').then(cfg =>
-        mountedRef.current && setMetadataLLMId(cfg?.metadataLLMId ?? 'none'),
+        mountedRef.current && setMetadataLLMId(normalisiereMetadataLLMId(cfg?.metadataLLMId)),
       );
     };
     readCfg();
@@ -73,7 +74,7 @@ export function MetadataSmokeTest(): React.ReactElement | null {
 
   if (metadataLLMId === null || metadataLLMId === 'none') return null;
 
-  const modelCfg = METADATA_LLM_MODELS.find(m => m.id === metadataLLMId);
+  const modelCfg = verfuegbareMetadataModelle().find(m => m.id === metadataLLMId);
   const modelLabel = modelCfg?.label ?? metadataLLMId;
 
   const runTest = async (): Promise<void> => {

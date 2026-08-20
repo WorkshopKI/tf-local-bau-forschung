@@ -6,6 +6,7 @@
 
 import { DirectLLMTransport } from '@/core/services/ai/transports/direct-llm';
 import { classifyProvider } from '@/core/services/ai/transport-policy';
+import { isMetadatenDirektApiEnabled, isOpenRouterEnabled } from '@/config/feature-flags';
 import type { AIProviderConfig } from '@/core/types/config';
 import { METADATA_SYSTEM_PROMPT, METADATA_RESPONSE_FORMAT, buildExtractionPrompt } from './metadata-prompts';
 import { browserLLM, checkWebGPU } from './browser-llm';
@@ -87,6 +88,49 @@ export const METADATA_LLM_MODELS: MetadataModelConfig[] = [
     requiresReasoning: false, maxParallelism: 1, needsApiKey: false,
   },
 ];
+
+/**
+ * Die Modelle, die DIESE Variante anbietet.
+ *
+ * Zwei Einträge bauen ihren Transport aus dem `ai-provider`-Eintrag statt aus
+ * einer eigenen Adresse: „Interne KI-API" und „OpenRouter API". Den Eintrag setzt
+ * nur die dev-Provider-Klappe (`isDevContext()`-gated) — in pl steht dort die
+ * Streamlit-Adresse, gegen die ein OpenAI-kompatibler Ping scheitert. Ohne
+ * `metadatenDirektApi` sind beide also eine Wahl ohne Wirkung und bleiben weg.
+ * OpenRouter hängt zusätzlich an `ki.openrouter.enabled` — ein Eintrag für einen
+ * in dieser Variante abgeschalteten Transport gehört nicht ins Menü (analog
+ * `ProviderKlappe`); für Metadaten-Läufe blockt ihn ohnehin die
+ * DSGVO-Transport-Policy weiter unten.
+ *
+ * Flags als Default-Parameter, damit der Test sie ohne Modul-Mock setzen kann.
+ */
+export function verfuegbareMetadataModelle(
+  direktApi: boolean = isMetadatenDirektApiEnabled(),
+  openRouter: boolean = isOpenRouterEnabled(),
+): MetadataModelConfig[] {
+  return METADATA_LLM_MODELS.filter(m => {
+    if (m.id === 'intern-gpt-oss') return direktApi;
+    if (m.id === 'openrouter-gpt-oss') return direktApi && openRouter;
+    return true;
+  });
+}
+
+/**
+ * Eine gespeicherte Auswahl, die diese Variante nicht (mehr) anbietet, zählt als
+ * `'none'` (regelbasiert, kein Netzwerk-Aufruf).
+ *
+ * Ohne diese Normalisierung zeigte das Auswahlfeld still **Option 0** („Lokale
+ * KI"), während der Indexlauf weiter die alte Adresse ansprach — Anzeige und
+ * Wirkung fielen auseinander. Der Rückfallwert wird ZURÜCKGEGEBEN, nie abgelegt;
+ * gespeichert wird er erst mit der nächsten Nutzer-Änderung.
+ */
+export function normalisiereMetadataLLMId(
+  id: string | null | undefined,
+  verfuegbar: MetadataModelConfig[] = verfuegbareMetadataModelle(),
+): string {
+  if (!id) return 'none';
+  return verfuegbar.some(m => m.id === id) ? id : 'none';
+}
 
 /* ── LLM State ── */
 

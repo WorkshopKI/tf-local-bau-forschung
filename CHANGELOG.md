@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.128.0 — Die Metadaten-Extraktion zeigt nur noch die Wege, die diese Fassung gehen kann (August 2026)
+
+MINOR — Im Aufklappmenü „Metadaten-Extraktion" (Datenpflege → Suche & Index) standen sechs Wege, zwei davon in `zah-pl` ohne Wirkung: „Interne KI-API" und „OpenRouter API" bauen ihren Transport aus der Provider-Adresse, die nur der dev-Build setzen kann — in pl steht dort die Streamlit-Adresse, gegen die ein API-Ping scheitert. OpenRouter sperrt für Metadaten ohnehin die Transport-Policy.
+
+- **Beide API-Wege sind in pl/prod aus dem Menü verschwunden**, im dev-Build bleiben sie ([metadata-extractor.ts](src/core/services/search/metadata-extractor.ts), `verfuegbareMetadataModelle`)
+- **Neuer Flag `metadatenDirektApi`** (dev + local an, pl/prod aus) ([feature-flags.ts](src/config/feature-flags.ts), [runtime-layers.md](docs/architecture/runtime-layers.md))
+- **Eine gespeicherte Auswahl, die es nicht mehr gibt, zählt als „Kein LLM (regelbasiert)"** — sonst zeigte das Feld still den ersten Eintrag, während der Indexlauf die alte Adresse ansprach ([usePipelineConfig.ts](src/plugins/kuration/suche-index/hooks/usePipelineConfig.ts), `normalisiereMetadataLLMId`)
+- OpenRouter hängt zusätzlich an `ki.openrouter.enabled` — im local-Build fällt der Eintrag damit ebenfalls weg ([metadata-modelle.test.ts](src/core/services/search/__tests__/metadata-modelle.test.ts))
+- Baseline `MAX_FEATURE_FLAGS` von 29 auf 30 angehoben ([health-baseline.test.ts](src/__tests__/health-baseline.test.ts))
+
 ### v4.127.1 — Der Ausweg aus der Richtlinien-Auswahl steht jetzt vorn (August 2026)
 
 PATCH — Aus dem Test: `nafatech` meldete „Keine Treffer", obwohl die Suche 29 Anträge gefunden hatte — alle in den Richtlinien-Generationen 2012 und 2015, weggeblendet von einer Richtlinien-Auswahl, die die Anfrage überlebt. Der Ausweg stand da, aber als eine Zeile unter mehreren gleich aussehenden, und wurde überlesen.
