@@ -19,6 +19,17 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.122 — 2026-08
+
+### Bugfixes
+- **Die Zahlen in der Filterleiste meinen jetzt die Liste darunter.** Im Reiter „Antragsphase" bot die Leiste zum Beispiel „Richtlinie 36 (1.373)" an — der Klick darauf lieferte null Treffer. Gezählt wird ab sofort dieselbe Menge, die auch angezeigt wird: die aktive Sicht und der Betrachtungsbereich zählen mit. Und wenn doch einmal nichts übrig bleibt, sagt die leere Fläche, welche Einschränkungen gerade gelten.
+- **„Frist (kürzeste)" sortiert nach der Frist, die in der Spalte steht.** Ganz oben standen bisher Vorgänge, deren Uhr längst angehalten ist — daneben zeigte die Frist-Spalte „angehalten". Jetzt stehen die dringenden oben und die angehaltenen am Ende, genau wie beim Klick auf den Spaltenkopf.
+- **Auswahl und Export nehmen, was wirklich dasteht.** Wer über einen Spaltenkopf-Trichter filterte oder die beendeten Anträge ausblendete, bekam trotzdem die volle Liste exportiert. Auch die schmale Antragsspalte neben einem geöffneten Antrag zeigt nun dieselbe Menge wie die Tabelle davor. Selbst angelegte Spalten fehlen im Export nicht mehr.
+- **Ein getipptes Zeichen im Frage-Modus blendet die beendeten Anträge nicht mehr ein.** Bisher genügte ein Buchstabe — noch ohne abgeschickte Frage —, um die ausgeblendete Hälfte zurück in die Liste zu holen.
+- **„Gruppierung: Keine" lässt sich im Reiter „Fristen" wählen.** Der Schalter sprang zurück, die Bänder blieben stehen.
+- **Spaltenköpfe erklären ihre Herkunft richtig.** Über der gut gefüllten Spalte „Ort AST" stand „In diesem Programm ist dafür keine Spalte gemappt — die Zelle bleibt leer". Umgekehrt sagen „Branche" und „Fördergeber" jetzt, warum sie leer sind, und die Frist-Hilfe nennt nur noch die Felder, mit denen wirklich gerechnet wird.
+- **Nachladen beim Scrollen bleibt an.** Nach einem Spaltenkopf-Filter blieb die Tabelle bei 60 Zeilen stehen, mit dauerhaftem „Lade weitere Einträge …".
+
 ## v4.121 — 2026-08
 
 ### Bugfixes

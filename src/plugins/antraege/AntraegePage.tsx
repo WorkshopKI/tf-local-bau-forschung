@@ -157,7 +157,6 @@ export function AntraegePage(): React.ReactElement {
       <FilterDrawer
         open={hasDetail && filterOpen && listeSichtbar}
         onClose={toggleFilter}
-        antraege={antraege}
         search={search}
         onSearchChange={setSearch}
       />

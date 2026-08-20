@@ -52,6 +52,10 @@ export type { KopfHoehen } from './TableHeadRows';
 export { ColumnFilterDropdown, type ColumnFilterDropdownProps } from './ColumnFilterDropdown';
 export {
   useColumnFilters,
+  // Die reine Anwendung — für Oberflächen NEBEN der Tabelle, die denselben
+  // Trichterstand zeigen müssen (Fördertabelle: die schmale Spalte im
+  // Detail-Modus), ohne einen zweiten Hook-Zustand daneben zu halten.
+  applyColumnFilters,
   facettenBasis,
   zaehleFacette,
   type UseColumnFiltersResult,

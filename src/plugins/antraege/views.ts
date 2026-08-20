@@ -13,13 +13,11 @@ export type ViewKey =
   | 'begleitung'
   | 'alle';
 
-export function daysUntilFrist(a: AntragListItem): number | null {
-  const frist = a.frist_datum;
-  if (typeof frist !== 'string' || !frist) return null;
-  const ms = new Date(frist).getTime();
-  if (Number.isNaN(ms)) return null;
-  return Math.ceil((ms - Date.now()) / (1000 * 60 * 60 * 24));
-}
+// `daysUntilFrist` (rohes `frist_datum`, ungeachtet des Verfahrensschritts) ist
+// mit v4.121 entfallen. Es hatte genau einen Aufrufer — die Sortierung „Frist
+// (kürzeste)" —, und dort war es falsch: das Feld trägt auch dort ein Datum, wo
+// die Uhr steht. Wer Restzeit braucht, nimmt `fristTageVon` aus `fristAnzeige.ts`;
+// das ist dieselbe Quelle, aus der die Zelle ihren Text zieht.
 
 export interface AntragView {
   key: ViewKey;

@@ -21,6 +21,7 @@ import { kopiereText } from '@/core/utils/kopieren';
 import { Button } from '@/components/ui/button';
 import { isAuslastungFreigeschaltet } from '@/core/modul-freischaltung';
 import { useAntraegeStore } from '../store';
+import { useTabellenSicht, beschraenkeAufSichtbare } from '../tabellenSicht';
 import { useFilteredAntraege } from '../useFilteredAntraege';
 import { useAntraegeColumnsStore } from '../useAntraegeColumnsStore';
 import { useKategorieSpalten } from '../useKategorieSpalten';
@@ -31,6 +32,7 @@ export function MassenLeiste(): React.ReactElement | null {
   const gewaehlt = useAntraegeAuswahl(s => s.gewaehlt);
   const leeren = useAntraegeAuswahl(s => s.leeren);
   const { filtered, bearbeiterFilter } = useFilteredAntraege();
+  const sichtbareTvs = useTabellenSicht(s => s.sichtbareTvs);
   const visibleColumns = useAntraegeColumnsStore(s => s.visibleColumns);
   const kategorieSpalten = useKategorieSpalten();
   const verbundById = useAntraegeStore(s => s.verbundById);
@@ -40,13 +42,26 @@ export function MassenLeiste(): React.ReactElement | null {
 
   // Gegen die aktuelle Liste geschnitten: wer auswählt und danach den Filter
   // dreht, soll nichts exportieren, was gerade nicht dasteht.
-  const auswahl = useMemo(() => gewaehlteAus(filtered, gewaehlt), [filtered, gewaehlt]);
+  //
+  // ZWEI Schnitte, nicht einer: `filtered` endet vor den drei Einschränkungen,
+  // die erst in der Ansicht greifen (Spaltenkopf-Trichter, Beendet-Achse,
+  // Zeilen-Körnung). Bis v4.121 stand hier deshalb „12.359 Anträge gewählt",
+  // während die Tabelle darüber 1.763 zeigte — und der Export schrieb die
+  // 12.359. Was die Ansicht zeigt, meldet sie selbst (`tabellenSicht.ts`).
+  const auswahl = useMemo(
+    () => beschraenkeAufSichtbare(gewaehlteAus(filtered, gewaehlt), sichtbareTvs),
+    [filtered, gewaehlt, sichtbareTvs],
+  );
 
   const exportieren = useAsyncAction(async () => {
     if (!activeProgrammId) throw new Error('Kein aktives Programm.');
     await exportFilteredAntraegeXlsx(
       auswahl, storage.idb, activeProgrammId, verbundById, visibleColumns,
       isAuslastungFreigeschaltet() && !bearbeiterFilter.active, kategorieSpalten,
+      // Erst beim Klick gelesen: die selbst angelegten Spalten ändern sich
+      // selten, und eine Abo-Zeile dafür rechnete die Leiste bei jedem Umbau
+      // der Tabelle neu.
+      useTabellenSicht.getState().eigeneSpalten,
     );
   });
 

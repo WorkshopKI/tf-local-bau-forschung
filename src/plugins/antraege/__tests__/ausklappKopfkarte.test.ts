@@ -164,3 +164,43 @@ describe('baueKopfModell — die drei Fakten', () => {
     expect(f?.titel).toContain('genähert');
   });
 });
+
+describe('baueKopfModell — an einer Verbund-Zeile nennt die Karte ihren Bezug', () => {
+  /**
+   * Der gemessene Widerspruch: die Frist-ZELLE einer Verbund-Zeile zeigt die
+   * dringendste Uhr über alle Teilvorhaben (`criticalFristErgebnis`), die
+   * Kopfkarte desselben Klicks urteilt über den VERBUND (dominanter Status).
+   * Beides ist für sich richtig; unerklärt nebeneinander sagte die Zelle „läuft"
+   * und die Karte „nicht berechenbar". Der Tooltip der Zelle nennt seinen Bezug
+   * längst („Dringendste Frist im Verbund — …") — die Karte tut es jetzt auch.
+   */
+  const w = waechter();
+  const verbundKarte = (tvs: number | null) => baueKopfModell({
+    bezug: bezug({ ergebnis: frist({ zustand: 'nicht_berechenbar', grund: 'kein Eingang' }) }),
+    stichtag: HEUTE,
+    waechter: w,
+    lage: LAGE,
+    befund: findeBlocker(LAGE, HEUTE),
+    liegtBei: liegtBei({ waechter: w, vorgangssystemAn: true, aufgabe: OHNE_AUFGABE }),
+    verbundTvs: tvs,
+  });
+
+  it('sagt „Wo der Verbund steht" und nennt die Teilvorhaben-Zahl', () => {
+    const m = verbundKarte(3);
+    expect(m.eyebrow).toBe('Wo der Verbund steht');
+    expect(m.zusatz).toContain('Gilt für den Verbund');
+    expect(m.zusatz).toContain('3 Teilvorhaben');
+  });
+
+  it('an einer TV-Zeile bleibt alles wie gehabt — kein Zusatz, kein neues Wort', () => {
+    const m = verbundKarte(null);
+    expect(m.eyebrow).toBe('Wo der Antrag steht');
+    expect(m.zusatz).not.toContain('Gilt für den Verbund');
+  });
+
+  it('ein Ein-TV-„Verbund" bekommt den Zusatz NICHT — da gibt es nichts zu wählen', () => {
+    const m = verbundKarte(1);
+    expect(m.eyebrow).toBe('Wo der Antrag steht');
+    expect(m.zusatz).not.toContain('Gilt für den Verbund');
+  });
+});

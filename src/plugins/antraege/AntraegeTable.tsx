@@ -7,6 +7,8 @@ import type { SpaltenHilfe, SortableColumn } from '@/components/data-table/types
 import { useAntraegeColumnsStore } from './useAntraegeColumnsStore';
 import { useKategorieSpalten } from './useKategorieSpalten';
 import { useAntraegeStore } from './store';
+import { useTabellenSicht } from './tabellenSicht';
+import { useWirksamerSuchtext } from './frage/suchtext';
 import { zaehleJeAbschnitt } from './antragGroups';
 import {
   buildVerbundTableRows,
@@ -25,6 +27,7 @@ import {
   formatArchivAufschluesselung,
   istBeendetVersteckt,
   hatBeendetAchse,
+  tvsVonZeilen,
 } from './arbeitsvorrat';
 import { fristAnzeigeVon } from './fristAnzeige';
 import { fristErgebnisFuerZeile } from './groupAggregates';
@@ -66,7 +69,7 @@ interface Props {
   eigeneSpalten?: readonly SortableColumn<AntragTableRow>[];
   onOpenAntrag: (az: string) => void;
   onOpenVerbund: (id: string) => void;
-  sentinelRef: React.RefObject<HTMLDivElement | null>;
+  sentinelRef: React.Ref<HTMLDivElement>;
   /** Der Tabellenkasten wird selbst zum senkrechten Scroller, damit die
    *  Kopfzeile stehen bleibt (siehe `SortableTable.stickyHeader`). Dann wandert
    *  auch der Pagination-Sentinel MIT hinein — außerhalb stünde er im nicht
@@ -174,7 +177,12 @@ export function AntraegeTable({
   const netzwerkNameById = useAntraegeStore(s => s.netzwerkNameById);
   // Achse 3 (Beendet): eigener Schalter, nur im „Alle"-Tab.
   const activeView = useAntraegeStore(s => s.activeView);
-  const searchActive = useAntraegeStore(s => s.search.trim().length > 0);
+  // NICHT `s.search`: eine getippte, aber noch nicht gestellte Frage ist kein
+  // Suchbegriff (`suchtext.ts`). Über den Rohtext hob EIN Zeichen im
+  // Frage-Modus die Notbremse in `istBeendetVersteckt` auf und schob die
+  // beendeten Zeilen in die Liste, ohne dass irgendetwas gefiltert wurde —
+  // gemessen: 0 terminale Zeilen vorher, 19 nachher (v4.121).
+  const searchActive = useWirksamerSuchtext().trim().length > 0;
   const beendetWunsch = useBeendetSichtbarkeit(s => s.ausgeblendet);
   const setBeendetAusgeblendet = useBeendetSichtbarkeit(s => s.setAusgeblendet);
   const beendetAchse = hatBeendetAchse(activeView);
@@ -260,9 +268,15 @@ export function AntraegeTable({
     beendet: archiv.length,
     arbeitsvorrat: inArbeit.length,
   });
+  // Teilvorhaben, nicht Zeilen: dasselbe Band zählt in der Listen-Ansicht TVs
+  // (`AntraegeMain`), und die Trefferzahl unter der Tabelle ebenfalls. Zähler
+  // UND Aufschlüsselung laufen über DIESELBE Menge — sonst stünde eine Summe
+  // über einer Aufschlüsselung, die eine andere Einheit zählt.
+  const inArbeitTvs = useMemo(() => tvsVonZeilen(inArbeit), [inArbeit]);
+  const archivTvs = useMemo(() => tvsVonZeilen(archiv), [archiv]);
   const beendetAufschluesselung = useMemo(
-    () => formatArchivAufschluesselung(archivAufschluesselung(archiv)),
-    [archiv],
+    () => formatArchivAufschluesselung(archivAufschluesselung(archivTvs)),
+    [archivTvs],
   );
 
   // Achse 2 (Gruppierung): Abschnitts-Bänder über den sichtbaren Zeilen (vor
@@ -413,6 +427,15 @@ export function AntraegeTable({
   // gehüllt — das Häkchen muss außerhalb davon liegen, sonst öffnet es den
   // Antrag statt ihn auszuwählen.
   const alleSchluessel = useMemo(() => orderedRows.flatMap(zeilenSchluessel), [orderedRows]);
+
+  // Dieselbe Menge nach aussen melden, die das Kopf-Häkchen wählt: Massenleiste
+  // und Kopfzeilen-Export stehen neben der Tabelle und sehen deren drei letzte
+  // Einschränkungen (Trichter, Beendet-Achse, Körnung) sonst nicht.
+  const meldeSichtbare = useTabellenSicht(s => s.meldeSichtbare);
+  useEffect(() => {
+    meldeSichtbare(new Set(alleSchluessel));
+  }, [alleSchluessel, meldeSichtbare]);
+  useEffect(() => () => meldeSichtbare(null), [meldeSichtbare]);
   const columnsMitAuswahl = useMemo(
     () => columns.map((c, i) => (i === 0
       ? {
@@ -456,12 +479,14 @@ export function AntraegeTable({
             );
           }
           // Arbeitsvorrat/Beendet: eigene Bänder. Das Beendet-Band ist hier immer
-          // aufgeklappt (ausgeblendet → Streifen unter der Tabelle).
+          // aufgeklappt (ausgeblendet → Streifen unter der Tabelle). Ihre Zahl
+          // ist die der TEILVORHABEN — dieselbe Einheit wie in der Listen-Ansicht
+          // und wie in der Trefferzahl darunter, deshalb NICHT `count` (Zeilen).
           if (key === 'archiv') {
             return (
               <ArbeitsvorratSectionHeader
                 section="archiv"
-                count={count}
+                count={archivTvs.length}
                 collapsed={false}
                 onToggle={() => setBeendetAusgeblendet(true)}
                 breakdown={beendetAufschluesselung}
@@ -469,7 +494,7 @@ export function AntraegeTable({
               />
             );
           }
-          return <ArbeitsvorratSectionHeader section="in_arbeit" count={count} linie={false} />;
+          return <ArbeitsvorratSectionHeader section="in_arbeit" count={inArbeitTvs.length} linie={false} />;
         },
       }
     : {};
@@ -570,7 +595,7 @@ export function AntraegeTable({
         <div className="px-3 py-2 mt-1 rounded-[10px]" style={{ border: '0.5px solid var(--tf-border)' }}>
           <ArbeitsvorratSectionHeader
             section="archiv"
-            count={archiv.length}
+            count={archivTvs.length}
             collapsed
             onToggle={() => setBeendetAusgeblendet(false)}
             breakdown={beendetAufschluesselung}

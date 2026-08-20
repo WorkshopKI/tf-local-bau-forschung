@@ -15,6 +15,10 @@ export function SingleSelectFacet({ def, counts, selected, valueLabels, onChange
   const values = useMemo(() => {
     const manual = def.config.werte_quelle === 'manual' ? def.config.manuelle_werte ?? [] : null;
     let keys = manual ? manual.slice() : Array.from(counts.keys());
+    // Der gewählte Wert bleibt stehen, auch wenn eine andere Achse ihn gerade
+    // auf null filtert — sonst wäre die Auswahl an ihrer eigenen Stelle nicht
+    // mehr zurückzunehmen (v4.121, wie in `MultiSelectFacet`).
+    if (selected && !keys.includes(selected)) keys.push(selected);
     const order = def.config.werte_reihenfolge ?? 'haeufigkeit';
     if (order === 'alphabetisch') {
       keys.sort((a, b) => a.localeCompare(b));
@@ -40,7 +44,7 @@ export function SingleSelectFacet({ def, counts, selected, valueLabels, onChange
       keys.push('(leer)');
     }
     return keys;
-  }, [def, counts, query]);
+  }, [def, counts, query, selected]);
 
   const showSearch = values.length > 10;
 

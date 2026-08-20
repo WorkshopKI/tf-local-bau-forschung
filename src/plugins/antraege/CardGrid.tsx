@@ -24,7 +24,7 @@ interface Props {
   showMa: boolean;
   onOpenAntrag: (az: string) => void;
   onOpenVerbund: (id: string) => void;
-  sentinelRef: React.RefObject<HTMLDivElement | null>;
+  sentinelRef: React.Ref<HTMLDivElement>;
 }
 
 /**

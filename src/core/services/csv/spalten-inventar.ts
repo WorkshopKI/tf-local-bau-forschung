@@ -29,30 +29,38 @@ export interface RohSpalte {
 }
 
 /**
- * Welche rohen CSV-Spalten hinter einem kanonischen Feld stehen — über alle
+ * Welche rohen CSV-Spalten hinter einem PROJIZIERTEN Feld stehen — über alle
  * übergebenen Schemas, dedupliziert.
  *
  * Der Weg ist bewusst rückwärts: die Alias-Tabelle in `constants.ts` sagt nur,
  * was der Wizard *vorschlagen* würde. Was ein Programm tatsächlich gemappt hat,
  * steht allein im Schema — und danach richtet sich, was in der Zelle landet.
  *
+ * **Kanonisch UND custom.** Ein `custom`-Mapping schreibt genauso in ein Feld
+ * des Antrags-Records wie ein kanonisches — `ORT_AST` heisst im Schema
+ * `custom: 'ort_ast'`, und die Zelle liest `ort_ast`. Bis v4.121 sah diese
+ * Auflösung nur `canonical`; der Herkunfts-Tooltip behauptete darum über einer
+ * zu 100 % gefüllten Spalte „keine Spalte gemappt — die Zelle bleibt leer".
+ * Gefragt ist, WORAUS das Feld entsteht, nicht auf welchem Weg es gemappt wurde.
+ *
  * **Eine Auflösung für zwei Fragen**: den Herkunfts-Tooltip einer eingebauten
  * Spalte und die Feld-Auswahl beim Anlegen einer eigenen. Zwei Fassungen liefen
  * bei der ersten Mapping-Feinheit auseinander, und dann behauptete der Tooltip
  * etwas anderes als die Auswahlliste.
  */
-export function rohSpaltenJeKanonisch(
+export function rohSpaltenJeFeld(
   schemas: readonly CsvSchema[],
 ): Map<string, RohSpalte[]> {
   const out = new Map<string, RohSpalte[]>();
   for (const schema of schemas) {
     for (const [spalte, entry] of Object.entries(schema.column_mapping ?? {})) {
-      const kanonisch = entry?.canonical?.trim();
-      if (!entry || entry.ignore || !kanonisch) continue;
-      const liste = out.get(kanonisch) ?? [];
+      if (!entry || entry.ignore) continue;
+      const feld = entry.canonical?.trim() || entry.custom?.trim();
+      if (!feld) continue;
+      const liste = out.get(feld) ?? [];
       if (liste.some(f => f.code === spalte)) continue;
       liste.push({ code: spalte, label: entry.label?.trim() || '' });
-      out.set(kanonisch, liste);
+      out.set(feld, liste);
     }
   }
   return out;
@@ -89,7 +97,7 @@ export interface SpaltenEintrag {
 export function baueSpaltenKatalog(schemas: readonly CsvSchema[]): SpaltenEintrag[] {
   const perFeld = new Map<string, SpaltenEintrag>();
   // Herkunft aus derselben Auflösung, die auch der Tooltip benutzt.
-  const rohJeKanonisch = rohSpaltenJeKanonisch(schemas);
+  const rohJeKanonisch = rohSpaltenJeFeld(schemas);
 
   for (const schema of schemas) {
     for (const [spalte, entry] of Object.entries(schema.column_mapping ?? {})) {

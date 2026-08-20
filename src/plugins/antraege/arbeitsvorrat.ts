@@ -66,6 +66,32 @@ export function partitionArbeitsvorrat<T extends Pick<AntragListItem, 'status'>>
   return { inArbeit, archiv };
 }
 
+/**
+ * Die TEILVORHABEN hinter einem Satz Tabellenzeilen — eine verdichtete
+ * Verbund-Zeile liefert ihre TVs, jede andere sich selbst.
+ *
+ * Die Bänder „Arbeitsvorrat"/„Beendet" tragen in beiden Ansichten dasselbe
+ * Wort; sie müssen deshalb auch dieselbe Einheit tragen. Bis v4.121 zählte die
+ * Tabelle dort Zeilen und die Liste Teilvorhaben — dasselbe Band sagte einmal
+ * 4 588 und einmal 9 082, ohne dass eines von beiden eine Einheit nannte. Die
+ * Trefferzahl unter der Liste rechnet in Teilvorhaben; also tun es die Bänder auch.
+ *
+ * EINE Funktion für Zähler UND Aufschlüsselung: liefe die Summe über die TVs und
+ * die Aufschlüsselung daneben über die Zeilen, ergäbe „571" über
+ * „Schlussvermerk 32 · abgel./zurückgez. 364" — dieselbe Menge, zweimal anders
+ * gezählt, unmittelbar nebeneinander.
+ */
+export function tvsVonZeilen<T extends Pick<AntragListItem, 'status'>>(
+  rows: readonly (T & { _verbund?: { tvs: readonly T[] } })[],
+): T[] {
+  const out: T[] = [];
+  for (const r of rows) {
+    if (r._verbund) out.push(...r._verbund.tvs);
+    else out.push(r);
+  }
+  return out;
+}
+
 export interface ArchivAufschluesselung {
   /** Terminal, aber NICHT abgelehnt/zurückgezogen — Schlussvermerk / beendet /
    *  abgebrochen. */

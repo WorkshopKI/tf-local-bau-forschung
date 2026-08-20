@@ -1010,6 +1010,40 @@ describe('bereich-nie-im-daten-layer (Pitfall #46)', () => {
       + `Zaehlung driftet still von der Liste darunter weg (Pitfall #46). Gefunden in: ${treffer.join(', ')}`,
     ).toEqual([]);
   });
+
+  it('Facetten-Zahlen rechnen nicht auf der rohen Store-Liste', () => {
+    // Derselbe Fehler eine Etage tiefer, und er hielt sich laenger: die
+    // Filterleiste bekam `useAntraegeStore(s => s.antraege)` hereingereicht und
+    // zaehlte damit ueber den VOLLBESTAND, waehrend die Liste darunter ueber
+    // Bereich → Sicht → Irrlaeufer → Kuerzel → Inaktiv lief. Im Reiter
+    // „Antragsphase" bot sie „Richtlinie 36 (1.373)" an — der Klick lieferte
+    // null Zeilen; 11 von 16 Werten liefen so ins Leere (v4.122).
+    //
+    // Wer Facetten zaehlt, nimmt `useFilteredAntraege().countBase` — dieselbe
+    // Menge, aus der die Liste entsteht. Die Filterleiste ist ein ZAEHLER, kein
+    // Bestandsbrowser.
+    const gescannt = ALL_TS_FILES.map(relPath)
+      .filter(p => p.startsWith('src/plugins/antraege/filter/'));
+    expect(gescannt, 'Pfad-Filter trifft keine Datei — der Guard prueft nichts')
+      .toContain('src/plugins/antraege/filter/FilterSidebar.tsx');
+    const treffer = ALL_TS_FILES.filter(f => {
+      const p = relPath(f);
+      if (p.includes('__tests__')) return false;
+      if (!p.startsWith('src/plugins/antraege/filter/')) return false;
+      return readFileSync(f, 'utf-8').split(/\r?\n/).some(l => {
+        const t = l.trim();
+        if (t.startsWith('//') || t.startsWith('*') || t.startsWith('/*')) return false;
+        if (t.includes('allow-facetten-vollbestand')) return false;
+        return /useAntraegeStore\s*\(\s*s\s*=>\s*s\.antraege\b/.test(l);
+      });
+    }).map(relPath);
+    expect(
+      treffer,
+      'Die Filterleiste zaehlt ueber `useFilteredAntraege().countBase`, nicht ueber '
+      + 'die rohe Store-Liste — sonst verspricht eine Facetten-Zahl Treffer, die die '
+      + `Liste darunter nicht hat (Pitfall #46). Gefunden in: ${treffer.join(', ')}`,
+    ).toEqual([]);
+  });
 });
 
 describe('ruhe-nur-sichtbarkeit (Pitfall #53)', () => {

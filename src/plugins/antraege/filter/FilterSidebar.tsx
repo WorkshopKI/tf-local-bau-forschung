@@ -4,8 +4,8 @@ import { EinklappButton } from '@/components/ui/EinklappIcon';
 import { useStorage } from '@/core/hooks/useStorage';
 import { Input } from '@/components/ui/input';
 import type { KopfHoehen } from '@/components/data-table';
-import type { AntragListItem } from '@/core/services/csv/types';
 import { useBearbeiterSicht } from '@/core/hooks/useBearbeiterSicht';
+import { useFilteredAntraege } from '../useFilteredAntraege';
 import { isAuslastungFreigeschaltet } from '@/core/modul-freischaltung';
 import { useShowInaktiveMasStore } from '../useShowInaktiveMasStore';
 import { useFilterState } from './useFilterState';
@@ -26,7 +26,6 @@ import { PresetSuggestionBanner } from './PresetSuggestionBanner';
 import { usePinnedFilters } from './pinnedFilters';
 
 interface Props {
-  antraege: AntragListItem[];
   search: string;
   onSearchChange: (s: string) => void;
   /** Wenn true: Quicksearch-Input ausblenden (Drawer-Modus, wenn Search im Header schon vorhanden ist). */
@@ -72,7 +71,6 @@ function Hairline(): React.ReactElement {
 }
 
 export function FilterSidebar({
-  antraege,
   search,
   onSearchChange,
   hideSearch = false,
@@ -80,6 +78,19 @@ export function FilterSidebar({
   band = null,
 }: Props): React.ReactElement {
   const storage = useStorage();
+  /**
+   * **Die Basis der Facetten-Zahlen ist DIESELBE Menge wie die Liste darunter**
+   * — Betrachtungsbereich, Sicht, Irrläufer-Vorfilter, Kürzel-Zuschnitt und
+   * Inaktiv-Ausschluss inklusive (Pitfall #46).
+   *
+   * Bis v4.121 bekam die Leiste die rohe Store-Liste hereingereicht (14 225
+   * Anträge). Die Zahlen daneben waren damit eine Zusage, die die Liste nicht
+   * einlöste: im Reiter „Antragsphase" bot die Richtlinien-Facette „36 (1 373)"
+   * an — und der Klick darauf lieferte null Zeilen. 11 von 16 Werten liefen so
+   * ins Leere. Jede andere zählende Oberfläche (Pin-Leiste, Quickfilter-Pillen)
+   * nimmt seit jeher `countBase`; die Leiste war der einzige Ausreisser.
+   */
+  const { countBase } = useFilteredAntraege();
   const {
     definitions,
     active,
@@ -362,7 +373,7 @@ export function FilterSidebar({
                 />
                 <FilterSidebarItem
                   def={statusDef}
-                  antraege={antraege}
+                  antraege={countBase}
                   activeFilters={active}
                   definitions={definitions}
                   valueLabels={valueLabels[statusDef.feld]}
@@ -380,7 +391,7 @@ export function FilterSidebar({
                   <FilterSidebarItem
                     key={def.id}
                     def={def}
-                    antraege={antraege}
+                    antraege={countBase}
                     activeFilters={active}
                     definitions={definitions}
                     valueLabels={valueLabels[def.feld]}

@@ -4,7 +4,7 @@ import type { ActiveFilter, FilterDefinition } from '@/core/services/csv/filter/
 import type { AntragListItem } from '@/core/services/csv/types';
 import { isIrrlaeufer } from '@/core/utils/vb-phase-mappings';
 import { getView, type ViewKey } from '../views';
-import { hasExplicitVbPhaseFilter } from '../useFilteredAntraege';
+import { vbPhaseFilterZeigtIrrlaeufer } from '../useFilteredAntraege';
 import { parseBearbeiterFilter, applyBearbeiterFilter } from '../bearbeiterFilter';
 import { REAL_CSV_ANTRAEGE, TEST_TODAY } from './fixtures/real-csv-antraege';
 
@@ -28,7 +28,7 @@ function runPipeline(
 ): AntragListItem[] {
   const view = getView(viewKey);
   const byView = data.filter(a => view.predicate(a));
-  const explicit = hasExplicitVbPhaseFilter(active, definitions);
+  const explicit = vbPhaseFilterZeigtIrrlaeufer(active, definitions);
   const byPreFilter = explicit ? byView : byView.filter(a => !isIrrlaeufer(a.vb_phase));
   const byBearbeiter = applyBearbeiterFilter(byPreFilter, bearbeiter);
   return applyFilters(byBearbeiter, active, definitions);
@@ -104,20 +104,32 @@ describe('vb_phase-Filter steuert den Irrlaeufer-Pre-Filter', () => {
   });
 });
 
-describe('hasExplicitVbPhaseFilter', () => {
+describe('vbPhaseFilterZeigtIrrlaeufer', () => {
   it('false bei leeren actives', () => {
-    expect(hasExplicitVbPhaseFilter([], DEFS)).toBe(false);
+    expect(vbPhaseFilterZeigtIrrlaeufer([], DEFS)).toBe(false);
   });
   it('false bei nicht-vb_phase Filter', () => {
     const active: ActiveFilter[] = [{ filterId: 'filter-status', value: ['bewilligt'] }];
-    expect(hasExplicitVbPhaseFilter(active, DEFS)).toBe(false);
+    expect(vbPhaseFilterZeigtIrrlaeufer(active, DEFS)).toBe(false);
   });
-  it('true bei vb_phase Filter', () => {
+  it('true bei vb_phase-Filter, der die 9 enthaelt', () => {
+    const active: ActiveFilter[] = [{ filterId: 'filter-vbphase', value: ['3', '9'] }];
+    expect(vbPhaseFilterZeigtIrrlaeufer(active, DEFS)).toBe(true);
+  });
+  it('true bei Einzelwert 9 (single_select-Form)', () => {
+    const active: ActiveFilter[] = [{ filterId: 'filter-vbphase', value: '9' }];
+    expect(vbPhaseFilterZeigtIrrlaeufer(active, DEFS)).toBe(true);
+  });
+  it('FALSE bei vb_phase-Filter OHNE die 9 — ein einschraenkender Klick darf den Vorfilter nicht abschalten', () => {
     const active: ActiveFilter[] = [{ filterId: 'filter-vbphase', value: ['3'] }];
-    expect(hasExplicitVbPhaseFilter(active, DEFS)).toBe(true);
+    expect(vbPhaseFilterZeigtIrrlaeufer(active, DEFS)).toBe(false);
+  });
+  it('true bei nicht deutbarer Werteform (Bereich) — Kontrolle wird abgegeben', () => {
+    const active: ActiveFilter[] = [{ filterId: 'filter-vbphase', value: { min: 1, max: 9 } }];
+    expect(vbPhaseFilterZeigtIrrlaeufer(active, DEFS)).toBe(true);
   });
   it('false bei unbekannter filter-ID', () => {
     const active: ActiveFilter[] = [{ filterId: 'unknown', value: ['x'] }];
-    expect(hasExplicitVbPhaseFilter(active, DEFS)).toBe(false);
+    expect(vbPhaseFilterZeigtIrrlaeufer(active, DEFS)).toBe(false);
   });
 });

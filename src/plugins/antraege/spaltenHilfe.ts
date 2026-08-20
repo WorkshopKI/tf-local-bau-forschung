@@ -20,8 +20,7 @@
 import type { SortableColumn, SpaltenHilfe } from '@/components/data-table/types';
 import type { CsvSchema } from '@/core/services/csv/types';
 import { ANTRAG_SLA_DAYS, VN_SLA_MONTHS } from '@/core/services/csv/frist';
-import { CANONICAL_FIELD_KEYS } from '@/core/services/csv/constants';
-import { rohSpaltenJeKanonisch } from '@/core/services/csv/spalten-inventar';
+import { rohSpaltenJeFeld } from '@/core/services/csv/spalten-inventar';
 import {
   resolveStatusDatumGruppen,
   type ResolvedKategorieSpalten,
@@ -78,10 +77,16 @@ const REGELN: Record<string, string> = {
     'Sortiert nach dem Rang des Status, bei Gleichstand nach der Handlung.',
   // Die beiden Fristlängen kommen aus den Konstanten, nicht als Ziffer in den
   // Satz: eine abgeschriebene Zahl im Tooltip lügt beim nächsten Wechsel.
+  //
+  // „ab dem Antragseingang", nicht „dem späteren der beiden Eingangsdaten": die
+  // ZELLE ruft `berechneFrist` ohne `alleAntraegeDa` — `D_XTE` steht in der
+  // schlanken Projektion gar nicht zur Verfügung (`fristAnzeige.ts`). Der Satz
+  // beschrieb bis v4.121 einen Rechenweg, den nur andere Aufrufer gehen.
   frist:
-    `Gerechnet ab dem wirksamen Eingang — dem späteren der beiden Eingangsdaten — plus ${ANTRAG_SLA_DAYS} Tage. `
+    `Gerechnet ab dem Antragseingang plus ${ANTRAG_SLA_DAYS} Tage. `
     + `Bei Verwendungsnachweisen stattdessen ab dessen Eingang plus ${VN_SLA_MONTHS} Monate. `
-    + 'In Phasen ohne laufende Frist steht „angehalten", ohne Grundlage bleibt die Zelle leer.',
+    + 'In Phasen ohne laufende Frist steht „angehalten", ohne Grundlage bleibt die Zelle leer. '
+    + 'In einer Verbund-Zeile steht die dringendste Frist über alle Teilvorhaben.',
 };
 
 /**
@@ -97,22 +102,55 @@ const REGEL_JUENGSTES =
  * `frist-ergebnis.ts` (`FristBasisFeld`, `FRIST_GRUND.ohneVnEingang`).
  */
 const FESTE_FELDER: Record<string, { code: string; label: string }[]> = {
+  // NUR die beiden, die die Zelle wirklich liest. `D_XTE` („alle Anträge da")
+  // stand hier bis v4.121 mit, obwohl `fristAnzeige.ts` es gar nicht erreicht:
+  // die schlanke Projektion führt das Feld nicht. Eine Feldliste, die mehr nennt
+  // als der Rechenweg anfasst, schickt die Suche nach dem Grund in die Irre.
   frist: [
     { code: 'D_AAE', label: 'Antragseingang' },
-    { code: 'D_XTE', label: 'alle Anträge da' },
     { code: 'D_VBE', label: 'Eingang Verwendungsnachweis' },
   ],
 };
 
-// `rohSpaltenJeKanonisch` wohnt seit v4.57.1 im Spalten-Inventar
+// `rohSpaltenJeFeld` wohnt seit v4.57.1 im Spalten-Inventar
 // (`csv/spalten-inventar.ts`): der Feld-Vorrat des Anlege-Dialogs braucht
-// dieselbe Auflösung, um die Herkunft eines kanonischen Feldes anzuzeigen.
-// Zwei Fassungen liefen bei der ersten Mapping-Feinheit auseinander — dann
-// behauptete der Tooltip etwas anderes als die Auswahlliste.
+// dieselbe Auflösung, um die Herkunft eines Feldes anzuzeigen. Zwei Fassungen
+// liefen bei der ersten Mapping-Feinheit auseinander — dann behauptete der
+// Tooltip etwas anderes als die Auswahlliste.
 
-/** Spalten-Keys, die auf ein kanonisches Feld zeigen — nur für sie ist ein
- *  fehlendes Mapping eine Aussage und kein Normalfall. */
-const KANONISCHE_KEYS: ReadonlySet<string> = new Set<string>(CANONICAL_FIELD_KEYS);
+/**
+ * Spalten, deren Zelle GENAU EIN projiziertes Feld gleichen Namens liest — nur
+ * für sie ist ein fehlendes Mapping eine Aussage und kein Normalfall.
+ *
+ * Bewusst eine eigene Liste und NICHT `CANONICAL_FIELD_KEYS`: „Branche" und
+ * „Fördergeber" sind projizierte Felder ohne kanonischen Eintrag und blieben
+ * damit die einzigen garantiert leeren Spalten ohne jede Erklärung (v4.121).
+ * Umgekehrt trägt `verbund_titel` zwar einen kanonischen Eintrag, wird in der
+ * Tabelle aber aus `verbundById` nachgereicht — dort wäre der Hinweis falsch.
+ *
+ * Ein Guard hält die Aufteilung vollständig: jeder Key aus `SAETZE` steht in
+ * genau einer der beiden Mengen.
+ */
+const FELD_SPALTEN: ReadonlySet<string> = new Set<string>([
+  'aktenzeichen', 'akronym', 'antragsteller', 'status', 'titel',
+  'tib_kuerz', 'bib_kuerz', 'ztp_kuerz', 'pfm_kuerz',
+  'bewilligung_datum', 'erstentscheidung', 'antragsdatum',
+  'ort_ast', 'foerdersumme', 'laufzeitbeginn', 'laufzeitende',
+  'branche', 'foerdergeber',
+]);
+
+/** Spalten, die rechnen, verdichten oder aus einer zweiten Quelle nachladen —
+ *  ein fehlendes Mapping sagt über sie nichts. */
+const ABGELEITETE_SPALTEN: ReadonlySet<string> = new Set<string>([
+  'antrag', 'zustaendig', 'status_naechster_schritt', 'fb_precheck',
+  'fb_status', 'precheck_status', 'frist', 'vb_phase', 'verbund_titel',
+]);
+
+/** Für den Guard: die Aufteilung als Paar. */
+export const SPALTEN_HERKUNFT_MENGEN = {
+  feld: FELD_SPALTEN,
+  abgeleitet: ABGELEITETE_SPALTEN,
+} as const;
 
 /** Feldliste einer Datums-Status-Gruppe in die Hilfe-Form bringen. */
 function alsHilfeFelder(felder: readonly StatusDatumFeld[]): { code: string; label: string }[] {
@@ -150,7 +188,7 @@ export interface HilfeQuellen {
 export function baueSpaltenHilfe(
   { schemas, kategorieSpalten = [], katalogOrdner = [] }: HilfeQuellen,
 ): Map<string, SpaltenHilfe> {
-  const roh = rohSpaltenJeKanonisch(schemas);
+  const roh = rohSpaltenJeFeld(schemas);
   const karte = new Map<string, SpaltenHilfe>();
 
   for (const [key, satz] of Object.entries(SAETZE)) {
@@ -160,12 +198,12 @@ export function baueSpaltenHilfe(
       satz,
       ...(leer ? null : { felder }),
       ...(REGELN[key] ? { regel: REGELN[key] } : null),
-      // Eine Spalte, die auf ein kanonisches Feld zeigt, das dieses Programm
-      // NICHT mappt, bleibt garantiert leer. Ohne diesen Satz sähe man nur die
-      // leere Zelle und suchte den Fehler bei den Daten statt beim Mapping.
+      // Eine Spalte, die genau ein Feld liest, das dieses Programm NICHT mappt,
+      // bleibt garantiert leer. Ohne diesen Satz sähe man nur die leere Zelle
+      // und suchte den Fehler bei den Daten statt beim Mapping.
       // Nur mit geladenem Schema: ohne Import wäre die Aussage bloß verfrüht.
-      ...(leer && schemas.length > 0 && KANONISCHE_KEYS.has(key)
-        ? { hinweis: 'In diesem Programm ist dafür keine Spalte gemappt — die Zelle bleibt leer.' }
+      ...(leer && schemas.length > 0 && FELD_SPALTEN.has(key)
+        ? { hinweis: OHNE_MAPPING }
         : null),
     });
   }

@@ -44,11 +44,16 @@ import {
   arbeitsvorratSectionOf,
   archivAufschluesselung,
   formatArchivAufschluesselung,
+  partitionArbeitsvorrat,
 } from './arbeitsvorrat';
+import { useKopfFilter } from './kopfFilter';
+import { useTabellenSicht } from './tabellenSicht';
+import type { AntragTableRow } from './tableGrouping';
 import { AntraegeTable } from './AntraegeTable';
 import { MassenLeiste } from './auswahl';
 import { CardGrid } from './CardGrid';
 import { KompaktListe } from './KompaktListe';
+import { useWirksamerSuchtext } from './frage/suchtext';
 import { getView } from './views';
 import {
   berechneTrefferZahl,
@@ -56,12 +61,18 @@ import {
   trefferZahlTitel,
   type ZeilenMeldung,
 } from './trefferZahl';
-import { ColumnPicker, ERSTE_SPALTE_INSET_PX, type KopfHoehen } from '@/components/data-table';
+import {
+  ColumnPicker,
+  ERSTE_SPALTE_INSET_PX,
+  applyColumnFilters,
+  type KopfHoehen,
+} from '@/components/data-table';
 import {
   ANTRAG_TABLE_COLUMNS,
   MA_COLUMN_KEY,
   kategorieStatusColumns,
   maSpalteErzwungen,
+  resolveAntragTableColumns,
   spaltenHinweis,
 } from './tableColumns';
 import { useKategorieSpalten } from './useKategorieSpalten';
@@ -169,6 +180,17 @@ export function AntraegeMain({
     }),
     [viewMode, activeView, tableAnsicht, tableGrouping, listGrouping, sortKey, visibleColumns, dichte, beendetAusgeblendet],
   );
+  /**
+   * Der Tooltip nennt DIE Achsen, die das Menü gerade führt — abgeleitet, nicht
+   * abgeschrieben. Der frühere Satz zählte alle sieben auf, darunter
+   * „Sortierung"; in der Tabellen-Ansicht gibt es die dort aber nicht (die
+   * sortieren die Spaltenköpfe), und der Knopf versprach einen Griff, den das
+   * geöffnete Menü nicht zeigte (v4.121).
+   */
+  const darstellungTitel = useMemo(
+    () => darstellungsAchsen.map(a => a.label).join(' · '),
+    [darstellungsAchsen],
+  );
   const setzeDarstellung = (id: DarstellungAchseId, key: string): void => {
     if (id === 'ansichtsform') { if (isViewMode(key)) setViewModeForTab(activeView, key); }
     else if (id === 'ansicht') setTableAnsichtForView(activeView, key as TabellenAnsicht);
@@ -183,11 +205,18 @@ export function AntraegeMain({
   };
   const openAntrag = (az: string): void => navigate(antragDetailPfad({ aktenzeichen: az }));
   const openVerbund = (id: string): void => navigate(antragDetailPfad({ verbundId: id }));
-  const { definitions, active, clearFilter, init } = useFilterState();
+  const { definitions, active, clearFilter, clearAll, init } = useFilterState();
   // Angepinnte Schnellzugriffe: sie stehen in derselben Zeile wie die aktiven
   // Chips und bestimmen mit, welche davon dort noch gebraucht werden.
   const pins = usePinnedFilters(s => s.pins);
-  const { filtered, bearbeiterFilter, bearbeiterKuerzelMissing } = useFilteredAntraege();
+  const { filtered, bearbeiterFilter, bearbeiterKuerzelMissing, ausgeblendet } = useFilteredAntraege();
+  const verbundById = useAntraegeStore(s => s.verbundById);
+  // Stand der Spaltenkopf-Trichter — die schmale Spalte im Detail-Modus wendet
+  // ihn genauso an wie die Tabelle (siehe `kompaktZeilen`).
+  const kopfStand = useKopfFilter(s => s.stand);
+  // NICHT `s.search`: eine getippte, aber noch nicht gestellte Frage ist kein
+  // Suchbegriff und darf die Beendet-Notbremse nicht auslösen (`suchtext.ts`).
+  const searchActive = useWirksamerSuchtext().trim().length > 0;
   // Ampel-Quickfilter (v2.229): sichtbarer, entfernbarer Chip — sonst filtert
   // der Widget-Klick unsichtbar weiter.
   const ampelQuickfilter = useAntraegeStore(s => s.ampelQuickfilter);
@@ -260,7 +289,19 @@ export function AntraegeMain({
   // nichts — sie ist flach; `berechneTrefferZahl` verwirft dort die fremde
   // Meldung und zählt `filtered.length`.
   const [zeilenMeldung, setZeilenMeldung] = useState<ZeilenMeldung | null>(null);
-  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  /**
+   * Der Nachlade-Fühler als ZUSTAND, nicht als Ref.
+   *
+   * Er wird von der Ansicht darunter ein- und ausgehängt (die Tabelle rendert
+   * ihn nur, solange sie noch Zeilen zurückhält). Eine Ref meldet das nicht:
+   * der Beobachter hing an `[filtered.length, visibleRows, viewMode, …]`, und
+   * jede Änderung, die NUR in der Tabelle wirkt — ein Spaltenkopf-Trichter, die
+   * Beendet-Achse, die Zeilen-Körnung — hängte ihn ab, ohne ihn wieder
+   * aufzusetzen. Die Liste blieb dann dauerhaft bei 60 Zeilen, mit stehendem
+   * „Lade weitere Einträge …". Als Callback-Ref ist der Knoten selbst die
+   * Abhängigkeit, und der Beobachter folgt ihm (v4.121).
+   */
+  const [sentinel, setSentinel] = useState<HTMLDivElement | null>(null);
   // Scroll-Stand der Voll-Tabelle über den Detail-Split hinweg erhalten: im
   // Narrow-Modus rendert eine andere Teilbaum-Struktur (KompaktListe), der
   // Voll-Scroll-Container wird also aus- und wieder eingehängt. AntraegeMain
@@ -315,9 +356,11 @@ export function AntraegeMain({
   }, [filtered.length, programmId, viewMode]);
 
   useEffect(() => {
-    const node = sentinelRef.current;
-    if (!node) return;
-    if (visibleRows >= filtered.length) return;
+    // Kein Knoten = die Ansicht hält nichts mehr zurück. KEIN Vergleich gegen
+    // `filtered.length` mehr: nach einem Spaltenkopf-Trichter zeigt die Tabelle
+    // weniger Zeilen als die Liste lang ist, und der Vergleich schaltete den
+    // Beobachter genau dann ab, wenn er noch gebraucht wurde.
+    if (!sentinel) return;
     const step = pageSizeForMode(viewMode);
     // Bei stehendem Kopf scrollt der Tabellenkasten, nicht die Spalte. `root:
     // null` (Viewport) funktionierte zwar weiter — die Spec rechnet alle
@@ -331,9 +374,9 @@ export function AntraegeMain({
       },
       { root: stickyKopf ? wideScrollRef.current : null, rootMargin: '600px' },
     );
-    observer.observe(node);
+    observer.observe(sentinel);
     return () => observer.disconnect();
-  }, [filtered.length, visibleRows, viewMode, stickyKopf, narrow]);
+  }, [sentinel, viewMode, stickyKopf]);
 
   const containerStyle: React.CSSProperties = narrow
     ? { width: KOMPAKT_WIDTH, flexShrink: 0, position: 'relative' }
@@ -392,15 +435,64 @@ export function AntraegeMain({
     });
   }, [active, pins]);
 
+  /**
+   * **Die schmale Spalte neben dem Detail zeigt DIESELBE Menge wie die Tabelle.**
+   *
+   * `filtered` allein lässt drei Stufen aus, die erst in der Tabelle greifen:
+   * Spaltenkopf-Trichter, Beendet-Achse und die Anreicherung um den VB-Titel
+   * (den ein Trichter auf „VB Titel" braucht). Bis v4.121 zeigte die Tabelle im
+   * Reiter „Alle" 1 993 Zeilen — und im Moment des Öffnens eines Antrags stand
+   * daneben der volle Bestand, ohne Zutun des Nutzers.
+   *
+   * Die REIHENFOLGE bleibt bewusst die der Vollansicht: die Kopf-Sortierung ist
+   * ein Werkzeug der Tabellenköpfe, und die schmale Spalte hat keine.
+   */
+  const kompaktSpalten = useMemo(() => {
+    const aufgeloest = resolveAntragTableColumns(visibleColumns, showMa, kategorieSpalten);
+    const sichtbar = new Set(visibleColumns);
+    const eigene = eigeneTabellenSpalten.filter(c => sichtbar.has(c.key));
+    return eigene.length > 0 ? [...aufgeloest, ...eigene] : aufgeloest;
+  }, [visibleColumns, showMa, kategorieSpalten, eigeneTabellenSpalten]);
+  const kompaktZeilen = useMemo(() => {
+    const angereichert: AntragTableRow[] = filtered.map(a => {
+      const t = a.verbund_id ? verbundById.get(a.verbund_id)?.titel : undefined;
+      return t ? { ...a, verbund_titel: t } : a;
+    });
+    const nachTrichter = applyColumnFilters(angereichert, kompaktSpalten, kopfStand);
+    if (!hatBeendetAchse(activeView)) return nachTrichter;
+    // Je Teilvorhaben geteilt (die schmale Spalte verdichtet erst danach) —
+    // dieselbe Reihenfolge wie in der Listen-Ansicht.
+    const { inArbeit, archiv } = partitionArbeitsvorrat(nachTrichter);
+    return istBeendetVersteckt({
+      wunsch: beendetAusgeblendet,
+      suchAktiv: searchActive,
+      beendet: archiv.length,
+      arbeitsvorrat: inArbeit.length,
+    }) ? inArbeit : nachTrichter;
+  }, [filtered, verbundById, kompaktSpalten, kopfStand, activeView, beendetAusgeblendet, searchActive]);
+  // Auch die schmale Spalte meldet, was sie zeigt: die Massenleiste bleibt im
+  // Detail-Modus stehen und darf nicht auf den Stand der abgehängten Tabelle
+  // zurückfallen.
+  const meldeSichtbare = useTabellenSicht(s => s.meldeSichtbare);
+  const meldeEigeneSpalten = useTabellenSicht(s => s.meldeEigeneSpalten);
+  useEffect(() => {
+    if (!narrow) return;
+    meldeSichtbare(new Set(kompaktZeilen.map(a => a.aktenzeichen)));
+  }, [narrow, kompaktZeilen, meldeSichtbare]);
+  // Die eigenen Spalten werden HIER gebaut (ein Stichtag, ein Feld-Vorrat) —
+  // der Export nimmt dieselben Instanzen, statt sie stillschweigend wegzulassen.
+  useEffect(() => {
+    meldeEigeneSpalten(eigeneTabellenSpalten);
+  }, [eigeneTabellenSpalten, meldeEigeneSpalten]);
+
   // Detail offen → schmale Kompakt-Spalte (Journey-Paket 2 Phase 8) statt der
-  // schmaler skalierten Voll-Tabelle. Reihenfolge/Umfang bleiben die der
-  // Vollansicht (`filtered`); Schließen des Details bringt die volle Tabelle
-  // mit erhaltenem Scroll-Stand zurück (AntraegeMain bleibt gemountet).
+  // schmaler skalierten Voll-Tabelle. Schließen des Details bringt die volle
+  // Tabelle mit erhaltenem Scroll-Stand zurück (AntraegeMain bleibt gemountet).
   if (narrow) {
     return (
       <div className={containerClass} style={containerStyle}>
         <KompaktListe
-          filtered={filtered}
+          filtered={kompaktZeilen}
           selectedAktenzeichen={selectedAktenzeichen}
           selectedVerbundId={selectedVerbundId}
           viewLabel={getView(activeView).label}
@@ -438,7 +530,7 @@ export function AntraegeMain({
               <DarstellungDropdown
                 achsen={darstellungsAchsen}
                 onChange={setzeDarstellung}
-                titel="Ansichtsform, Zeilen-Körnung, Gruppierung, Sortierung, Spaltensatz, Zeilendichte und Sichtbarkeit beendeter Anträge"
+                titel={darstellungTitel}
               />
               {viewMode === 'compact' ? (
                 <ColumnPicker
@@ -588,8 +680,28 @@ export function AntraegeMain({
                 : 'Noch keine Anträge. Erst CSV-Source registrieren und importieren (Datenpflege → CSV-Quellen).'}
             </div>
           ) : filtered.length === 0 ? (
+            /* Der Leerzustand nennt die Einschränkungen, die er nicht zeigt.
+               „Keine Anträge matchen die aktuellen Filter" allein liess die zwei
+               Mengen-Schnitte aus, die NEBEN den Filtern stehen — die aktive
+               Sicht und den Betrachtungsbereich — und bot keinen Weg heraus. */
             <div className="py-16 text-center text-[13px] text-[var(--tf-text-tertiary)]">
-              Keine Anträge matchen die aktuellen Filter.
+              <p>Keine Anträge matchen die aktuellen Filter.</p>
+              <p className="mt-1.5 text-[12px]">
+                Gesucht wird in der Sicht „{getView(activeView).label}"
+                {ausgeblendet > 0 ? (
+                  <> und im Betrachtungsbereich, der {ausgeblendet.toLocaleString('de-DE')}
+                    {' '}weitere Anträge ausblendet</>
+                ) : null}.
+              </p>
+              {active.length > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => clearAll()}
+                  className="mt-3 text-[12px] underline hover:no-underline cursor-pointer"
+                >
+                  Alle Filter zurücksetzen
+                </button>
+              ) : null}
             </div>
           ) : viewMode === 'compact' ? (
             <>
@@ -611,7 +723,7 @@ export function AntraegeMain({
               eigeneSpalten={eigeneTabellenSpalten}
               onOpenAntrag={openAntrag}
               onOpenVerbund={openVerbund}
-              sentinelRef={sentinelRef}
+              sentinelRef={setSentinel}
               onZeilenMeldung={setZeilenMeldung}
               stickyHeader={stickyKopf}
               scrollContainerRef={stickyKopf ? wideScrollRef : undefined}
@@ -634,7 +746,7 @@ export function AntraegeMain({
               showMa={showMa}
               onOpenAntrag={openAntrag}
               onOpenVerbund={openVerbund}
-              sentinelRef={sentinelRef}
+              sentinelRef={setSentinel}
             />
           ) : (
             <GroupedList
@@ -645,7 +757,7 @@ export function AntraegeMain({
               onOpenAntrag={openAntrag}
               onOpenVerbund={openVerbund}
               narrow={narrow}
-              sentinelRef={sentinelRef}
+              sentinelRef={setSentinel}
               onZeilenMeldung={setZeilenMeldung}
             />
           )}
@@ -708,7 +820,7 @@ interface GroupedListProps {
   onOpenAntrag: (az: string) => void;
   onOpenVerbund: (id: string) => void;
   narrow: boolean;
-  sentinelRef: React.RefObject<HTMLDivElement | null>;
+  sentinelRef: React.Ref<HTMLDivElement>;
   /** Meldet der Toolbar TV-Anzahl und die Karten, die daraus entstehen. */
   onZeilenMeldung?: (m: ZeilenMeldung) => void;
 }
@@ -729,7 +841,9 @@ function GroupedList({
   const netzwerkNames = useAntraegeStore(s => s.netzwerkNameById);
   const verbundById = useAntraegeStore(s => s.verbundById);
   const activeView = useAntraegeStore(s => s.activeView);
-  const searchActive = useAntraegeStore(s => s.search.trim().length > 0);
+  // NICHT `s.search` — siehe `AntraegeTable`: der Rohtext einer noch nicht
+  // gestellten Frage darf die Beendet-Notbremse nicht auslösen.
+  const searchActive = useWirksamerSuchtext().trim().length > 0;
   const beendetWunsch = useBeendetSichtbarkeit(s => s.ausgeblendet);
   const setBeendetAusgeblendet = useBeendetSichtbarkeit(s => s.setAusgeblendet);
   // Antragsteller-Sort überschreibt die User-Wahl: gleicher Antragsteller

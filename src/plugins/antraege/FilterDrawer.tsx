@@ -1,12 +1,10 @@
 import { useEffect } from 'react';
 import { X } from 'lucide-react';
-import type { AntragListItem } from '@/core/services/csv/types';
 import { FilterSidebar } from './filter/FilterSidebar';
 
 interface Props {
   open: boolean;
   onClose: () => void;
-  antraege: AntragListItem[];
   search: string;
   onSearchChange: (s: string) => void;
 }
@@ -17,7 +15,7 @@ const DRAWER_WIDTH = 460;
  *  Detail offen ist — überlagert das Detail (Backdrop), Detail-State bleibt
  *  erhalten. Im non-detail-Mode wird stattdessen die persistente
  *  FilterSidebar in der AntraegePage gerendert. */
-export function FilterDrawer({ open, onClose, antraege, search, onSearchChange }: Props): React.ReactElement | null {
+export function FilterDrawer({ open, onClose, search, onSearchChange }: Props): React.ReactElement | null {
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent): void => {
@@ -68,7 +66,6 @@ export function FilterDrawer({ open, onClose, antraege, search, onSearchChange }
         </div>
         <div className="flex-1 min-h-0">
           <FilterSidebar
-            antraege={antraege}
             search={search}
             onSearchChange={onSearchChange}
             hideSearch

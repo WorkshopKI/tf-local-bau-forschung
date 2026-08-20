@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.122.0 — Förderantrags-Tabelle: 17 Befunde der Bug-Jagd behoben (August 2026)
+
+MINOR — Die read-only-Jagd über die meistgenutzte Seite fand ein Muster: **die Oberfläche verspricht eine Menge, eine Uhr oder eine Einheit, die die Liste darunter nicht einlöst.** Die Filterleiste zählte über den Vollbestand (14 225) und bot Werte an, die im aktuellen Reiter null Zeilen liefern; die Vorgabe-Sortierung „Frist" las ein anderes Feld als die Frist-Spalte zeigt; Massenleiste und Export rechneten auf der Liste vor den drei letzten Einschränkungen der Tabelle.
+
+- **Zähler und Liste auf einer Grundmenge**: die Filterleiste holt ihre Facetten-Basis wie jede andere zählende Oberfläche aus `countBase`, ein vb_phase-Filter ohne die 9 schaltet den Irrläufer-Vorfilter nicht mehr ab, und „Auch außerhalb meiner Anträge" gilt auch für die Reiter-Zahlen ([FilterSidebar.tsx](src/plugins/antraege/filter/FilterSidebar.tsx), [useFilteredAntraege.ts](src/plugins/antraege/useFilteredAntraege.ts)) — Pitfall #46
+- **Eine Uhr, nicht zwei**: „Frist (kürzeste)" sortiert über dieselbe Engine, die die Zelle zeigt — angehaltene Vorgänge sinken ans Ende statt an die Spitze ([sort.ts](src/plugins/antraege/sort.ts)); `daysUntilFrist` ist entfallen ([views.ts](src/plugins/antraege/views.ts))
+- **Was dasteht, ist die Grundlage**: Massenleiste, beide Export-Wege und die schmale Spalte im Detail lesen die Meldung der Ansicht statt `filtered`; der Export nimmt die eigenen Spalten mit ([tabellenSicht.ts](src/plugins/antraege/tabellenSicht.ts), [export-xlsx.ts](src/plugins/antraege/services/export-xlsx.ts))
+- **Kein Schalter ohne Wirkung**: „Gruppierung: Keine" gilt auch im Reiter „Fristen", der Nachlade-Fühler folgt seinem Knoten statt einer Zeilenzahl, ein angehakter Facetten-Wert bleibt abwählbar ([store.ts](src/plugins/antraege/store.ts), [AntraegeMain.tsx](src/plugins/antraege/AntraegeMain.tsx), [MultiSelectFacet.tsx](src/plugins/antraege/filter/facets/MultiSelectFacet.tsx))
+- **Erklärungen, die stimmen**: `custom`-Mappings zählen als Mapping (kein „bleibt leer" über einer vollen Spalte), „Branche"/„Fördergeber" nennen ihren Grund, die Frist-Hilfe nur noch die Felder ihres Rechenwegs ([spalten-inventar.ts](src/core/services/csv/spalten-inventar.ts), [spaltenHilfe.ts](src/plugins/antraege/spaltenHilfe.ts))
+
 ### v4.121.0 — To-do-Regeln und Klaerfragen: 15 Befunde der Bug-Jagd behoben (August 2026)
 
 MINOR — Der zweite Schnitt der Jagd, über die beiden in v4.120 ausgeklammerten Reiter. Ein Muster trägt fast alles: **ein Ergebnis überlebt seinen Parameter und wird dem gerade gewählten zugeschrieben.** Der Wirkungs-Lauf lief unter AB und stand nach einem Pillen-Klick als „Regelsatz FB" da — samt einer Warnung, die einen falschen Grund nannte. Dazu Zahlen, die eine andere Liste zählen als die daneben.

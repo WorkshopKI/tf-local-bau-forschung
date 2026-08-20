@@ -1,6 +1,6 @@
 import type { AntragListItem } from '@/core/services/csv/types';
 import type { ViewKey } from './views';
-import { daysUntilFrist } from './views';
+import { fristTageVon } from './fristAnzeige';
 import type { GroupingMode } from './antragGroups';
 
 export type SortKey =
@@ -48,9 +48,19 @@ function compareDateAsc(a: AntragListItem, b: AntragListItem, field: 'bewilligun
   return da.localeCompare(db);
 }
 
+/**
+ * Restlaufzeit aufsteigend — aus DERSELBEN Quelle wie die Frist-Zelle.
+ *
+ * `fristTageVon` liefert `null`, wo keine Uhr läuft (angehalten, unberechenbar);
+ * diese Zeilen sinken ans Ende. Bis v4.121 las die Sortierung stattdessen das
+ * rohe Feld `frist_datum` (`daysUntilFrist`) — das trägt auch dort ein Datum, wo
+ * die Uhr längst steht. Ein 2015 abgelehnter Vorgang stand damit mit „seit 853 T"
+ * an der Spitze eines Reiters, dessen Spalte daneben „angehalten" zeigte: zwei
+ * Sortierungen namens „Frist" auf einem Bild, und die Vorgabe war die falsche.
+ */
 function compareFristAsc(a: AntragListItem, b: AntragListItem): number {
-  const da = daysUntilFrist(a);
-  const db = daysUntilFrist(b);
+  const da = fristTageVon(a);
+  const db = fristTageVon(b);
   if (da === null && db === null) return a.aktenzeichen.localeCompare(b.aktenzeichen);
   if (da === null) return 1;
   if (db === null) return -1;
@@ -126,9 +136,13 @@ export const SORT_OPTIONS: readonly SortOption[] = [
 export const DEFAULT_SORT_BY_VIEW: Record<ViewKey, SortKey> = {
   meine_offenen: 'frist_asc',
   fristen: 'frist_asc',
-  // `frist_asc` ist hier richtig, obwohl die Begleitung eine andere Uhr hat:
-  // `computeFristDatum` schreibt in `frist_datum` bereits die VN-Frist
-  // (vn_eingang_datum + 6 Monate). Die Sortierung liest das fertige Feld.
+  // `frist_asc` meint hier die VN-Uhr (VN-Eingang + 6 Monate) — dieselbe Engine
+  // wie in der Spalte. ACHTUNG, gemessener Ist-Zustand: `vn_eingang_datum` ist
+  // im ganzen Bestand leer, weil `D_VBE` in `7737-bgl.json` als
+  // `custom: 'eingang_vn_sach'` gemappt ist statt auf das kanonische Feld.
+  // Solange das so bleibt, hat keine Begleitungs-Zeile eine Uhr und die
+  // Reihenfolge fällt auf den Zweitschlüssel FKZ zurück. Der Fix gehört in die
+  // Mapping-Schicht, nicht hierher — eine andere Vorgabe würde ihn nur zudecken.
   begleitung: 'frist_asc',
   // „Alle": neueste Antragseingänge zuerst (Journey-Paket 2 Phase 4) — das
   // aktuellste Geschehen oben statt FKZ-alphabetisch. Bestehende explizite

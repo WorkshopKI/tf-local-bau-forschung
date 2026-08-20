@@ -578,10 +578,14 @@ export const useAntraegeStore = create<AntraegeState>((set) => ({
     set({ groupingByView: next });
   },
 
+  // Gegen den Standard DIESER Sicht vergleichen, nicht gegen `'none'`: im
+  // Reiter „Fristen" ist der Standard `'frist'`, und ein gelöschter Override
+  // fiel dort auf ihn zurück — „Gruppierung: Keine" war damit ein toter
+  // Schalter, der zurücksprang und die Bänder stehen liess (v4.121).
   setTableGroupingForView: (view: ViewKey, mode: TableGroupingMode) => {
     const current = useAntraegeStore.getState().tableGroupingByView;
     const next: Partial<Record<ViewKey, TableGroupingMode>> = { ...current };
-    if (mode === 'none') {
+    if (mode === standardTableGrouping(view)) {
       delete next[view];
     } else {
       next[view] = mode;

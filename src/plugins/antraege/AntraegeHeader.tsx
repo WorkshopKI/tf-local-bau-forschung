@@ -28,6 +28,7 @@ import { AehnlichkeitsHinweis } from './AehnlichkeitsHinweis';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
 import { exportFilteredAntraegeXlsx } from './services/export-xlsx';
+import { useTabellenSicht, beschraenkeAufSichtbare } from './tabellenSicht';
 import { useKategorieSpalten } from './useKategorieSpalten';
 import { SeitenHilfeButton } from '@/components/help/SeitenHilfeButton';
 
@@ -139,9 +140,15 @@ export function AntraegeHeader({ filterOpen, onToggleFilter, listeSichtbar }: Pr
     if (!activeProgrammId) return;
     setExportBusy(true);
     try {
+      // Was die Ansicht ZEIGT, nicht was die Pipeline übrig lässt: Spaltenkopf-
+      // Trichter und Beendet-Achse greifen erst danach, und ein Export, der sie
+      // übergeht, schreibt Zeilen, die der Mensch gerade weggefiltert hat. Die
+      // eigenen Spalten kommen aus derselben Meldung (v4.121).
+      const { sichtbareTvs, eigeneSpalten } = useTabellenSicht.getState();
       await exportFilteredAntraegeXlsx(
-        filtered, storage.idb, activeProgrammId, verbundById, visibleColumns, showMaColumn,
-        kategorieSpalten,
+        beschraenkeAufSichtbare(filtered, sichtbareTvs),
+        storage.idb, activeProgrammId, verbundById, visibleColumns, showMaColumn,
+        kategorieSpalten, eigeneSpalten,
       );
     } catch (err) {
       console.warn('[antraege-export] failed:', err);

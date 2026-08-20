@@ -44,7 +44,9 @@ interface Props {
 }
 
 export function FilterSpalte({ open, onCollapse, band = null }: Props): React.ReactElement | null {
-  const antraege = useAntraegeStore(s => s.antraege);
+  // KEINE Antragsliste mehr von hier: die Leiste holt ihre Zähl-Basis selbst
+  // (`countBase`), damit sie dieselbe Menge zählt, die die Liste zeigt. Der
+  // durchgereichte Store-Bestand war der Ausreisser (Pitfall #46, v4.121).
   const search = useAntraegeStore(s => s.search);
   const setSearch = useAntraegeStore(s => s.setSearch);
   const [width, setWidth] = useState(loadFilterWidth);
@@ -84,7 +86,6 @@ export function FilterSpalte({ open, onCollapse, band = null }: Props): React.Re
     <aside className="shrink-0 h-full overflow-hidden flex" style={{ width }}>
       <div className="flex-1 min-w-0 h-full">
         <FilterSidebar
-          antraege={antraege}
           search={search}
           onSearchChange={setSearch}
           onCollapse={onCollapse}

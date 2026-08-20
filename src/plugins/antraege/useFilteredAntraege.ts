@@ -22,22 +22,39 @@ import { filtereStillstand } from './frage/letzteAktivitaet';
 import { useAktivitaetsIndex } from './frage/useAktivitaetsIndex';
 import { useWirksamerSuchtext } from './frage/suchtext';
 import { filtereAmpelQuickfilter } from './eingangAmpel';
-import { isIrrlaeufer } from '@/core/utils/vb-phase-mappings';
+import { isIrrlaeufer, toVbPhaseNumber, IRRLAEUFER_PHASE } from '@/core/utils/vb-phase-mappings';
 import { tfPerfStart } from '@/core/utils/tfPerf';
 import { useBereich } from '@/core/hooks/useBereich';
 import { istImBereich } from '@/core/status/betrachtungsbereich';
 
-/** True wenn die User mind. einen Filter auf das Feld `vb_phase` aktiv hat —
- *  in dem Fall wird der implizite Irrlaeufer-Pre-Filter deaktiviert, damit die
- *  Sidebar-Selektion die Kontrolle uebernimmt. Aus dem Hook extrahiert, damit
- *  Header (viewCount) und `useFilteredAntraege` dieselbe Logik nutzen. */
-export function hasExplicitVbPhaseFilter(
+/**
+ * Fordert die Sidebar-Auswahl die Irrläufer AUSDRÜCKLICH an? Nur dann tritt der
+ * implizite Vorfilter (`vb_phase === 9`) zurück und überlässt der Auswahl die
+ * Kontrolle. Aus dem Hook extrahiert, damit Header (viewCount) und
+ * `useFilteredAntraege` dieselbe Logik nutzen.
+ *
+ * Bis v4.121 genügte hier ein aktiver Filter auf dem FELD, egal auf welchem
+ * Wert. Ein Klick auf „Antragstyp → FuE" (`vb_phase = ['3']`) schaltete damit
+ * den Vorfilter ab und liess die Irrläufer in die ZÄHLER zurück: ein
+ * einschränkender Klick liess die Zahl am Reiter „Alle" von 12 295 auf 12 359
+ * STEIGEN, während die Liste darunter (die den Wert 3 ja anwendet) unverändert
+ * blieb. Gefragt ist nicht „ist das Feld im Spiel", sondern „ist die 9 gewählt".
+ */
+export function vbPhaseFilterZeigtIrrlaeufer(
   active: readonly ActiveFilter[],
   definitions: readonly FilterDefinition[],
 ): boolean {
   return active.some(af => {
     const def = definitions.find(d => d.id === af.filterId);
-    return def?.feld === 'vb_phase';
+    if (def?.feld !== 'vb_phase') return false;
+    const werte = Array.isArray(af.value)
+      ? af.value
+      : typeof af.value === 'string' ? [af.value] : null;
+    // Keine abzählbare Werteliste (Bereichs-/Ja-Nein-Form): Kontrolle abgeben
+    // wie bisher — eine Auswahl, die wir nicht deuten können, darf nicht stumm
+    // beschnitten werden.
+    if (werte === null) return true;
+    return werte.some(v => toVbPhaseNumber(v) === IRRLAEUFER_PHASE);
   });
 }
 
@@ -171,7 +188,7 @@ export function useFilteredAntraege(): FilteredAntraegeResult {
     // Impliziter Irrläufer-Pre-Filter: vb_phase === 9 wird global ausgeblendet,
     // außer der User hat einen expliziten vb_phase-Filter in der Sidebar aktiviert
     // (egal welche Selektion — sobald der Filter aktiv ist, übernimmt er die Kontrolle).
-    const explicitVbPhase = hasExplicitVbPhaseFilter(active, definitions);
+    const explicitVbPhase = vbPhaseFilterZeigtIrrlaeufer(active, definitions);
     const byPreFilter = explicitVbPhase
       ? byView
       : byView.filter(a => !isIrrlaeufer(a.vb_phase));
@@ -191,9 +208,13 @@ export function useFilteredAntraege(): FilteredAntraegeResult {
     // Die Exklusion wirkt je Datensatz, ist also unabhaengig davon, ob sie vor
     // oder nach View/Bearbeiter laeuft — sie darf hier auf die Basis, weil
     // `viewCounts` alle Sichten auf einmal zaehlt.
+    // `skipBearbeiter` gilt hier MIT: „Auch außerhalb meiner Anträge suchen"
+    // hebt den Kürzel-Zuschnitt für die Liste auf — zählte der Reiter darüber
+    // weiter nur die eigenen, behauptete er WENIGER, als die Liste unter ihm
+    // zeigt (Pitfall #46: die Zahl ist eine Zusage über genau diese Liste).
     const counts = viewCounts(
       applyInaktiveExclusion(antraege, bearbeiterFilter.active, inaktiveKuerzel, showInaktive),
-      bearbeiterFilter,
+      skipBearbeiter ? undefined : bearbeiterFilter,
       !explicitVbPhase,
     );
     // PreCheck-Quickfilter (abgeleitete Klassifikation, eigener Store-Slot) VOR

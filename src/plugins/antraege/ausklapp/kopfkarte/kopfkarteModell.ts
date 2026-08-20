@@ -165,6 +165,19 @@ export interface KopfEingabe {
   lage: MeilensteinLage;
   befund: BlockerBefund;
   liegtBei: LiegtBei;
+  /**
+   * Teilvorhaben-Zahl, WENN die aufgeklappte Zeile ein ganzer Verbund ist
+   * (sonst `null`).
+   *
+   * Die Karte urteilt dann über den VERBUND — sie liest den dominanten Status
+   * und dessen Haltedatum. Die Frist-ZELLE derselben Zeile zeigt dagegen die
+   * dringendste Uhr über alle Teilvorhaben (`criticalFristErgebnis`), und beide
+   * Aussagen sind für sich richtig. Ohne diesen Zusatz standen sie einander
+   * unerklärt gegenüber: die Zelle zeigte eine laufende Uhr, die Karte darunter
+   * „nicht berechenbar" (v4.121). Der Tooltip der Zelle sagt seinen Bezug
+   * längst („Dringendste Frist im Verbund — …"); die Karte tut es jetzt auch.
+   */
+  verbundTvs?: number | null;
 }
 
 export function baueKopfModell(e: KopfEingabe): KopfModell {
@@ -174,12 +187,18 @@ export function baueKopfModell(e: KopfEingabe): KopfModell {
   const imVerzug = erg.zustand === 'laeuft' && erg.tageRest !== undefined && erg.tageRest < 0;
   const fakten = [faktBewegung(e.waechter), faktMeilensteine(e.lage, e.befund), faktLiegtBei(e.liegtBei)]
     .filter((f): f is Fakt => f !== null);
+  const tvs = e.verbundTvs ?? null;
+  const bezugsSatz = tvs === null || tvs < 2
+    ? ''
+    : ` · Gilt für den Verbund; die Frist in der Zeile ist die dringendste seiner ${tvs} Teilvorhaben.`;
   return {
-    eyebrow: imVerzug ? 'Woran es hängt' : 'Wo der Antrag steht',
+    eyebrow: imVerzug
+      ? 'Woran es hängt'
+      : tvs !== null && tvs > 1 ? 'Wo der Verbund steht' : 'Wo der Antrag steht',
     urteil: urteilText(erg, stichtagMs),
     urteilFarbe: imVerzug ? 'var(--tf-danger-text)' : 'var(--tf-text)',
     punkt: anzeige.ampel === null ? null : AMPEL_COLOR[anzeige.ampel],
-    zusatz: zusatzText(e.bezug, imVerzug),
+    zusatz: zusatzText(e.bezug, imVerzug) + bezugsSatz,
     rahmen: imVerzug ? 'var(--tf-danger-border)' : 'var(--tf-border)',
     imVerzug,
     fakten,

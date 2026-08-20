@@ -23,6 +23,7 @@
 import * as XLSX from 'xlsx';
 import type { AntragListItem, Verbund } from '@/core/services/csv/types';
 import type { IDBStore } from '@/core/services/storage/idb-store';
+import type { SortableColumn } from '@/components/data-table/types';
 import { resolveAntragTableColumns } from '../tableColumns';
 import type { AntragTableRow } from '../tableGrouping';
 import { loadAntraegeTextCorpus } from './search-corpus';
@@ -70,9 +71,24 @@ export async function exportFilteredAntraegeXlsx(
   /** Kuratierte Ordner-Spalten — ohne sie fehlten sie im Export, obwohl sie in
    *  der Ansicht stehen. */
   kategorieSpalten: readonly { kategorieId: string; label: string }[] = [],
+  /**
+   * Selbst angelegte Spalten, fertig gebaut aus der Ansicht (`AntraegeMain`).
+   *
+   * Ohne sie fiel jede `frei:`-Spalte still aus dem Export: `resolveAntrag-
+   * TableColumns` kennt nur die Registry und die Ordner-Spalten und filtert
+   * fremde Keys weg — der Tooltip versprach „mit den Spalten der Ansicht", und
+   * die Kopfzeile war eine kürzer als der Bildschirm (v4.121).
+   */
+  eigeneSpalten: readonly SortableColumn<AntragTableRow>[] = [],
 ): Promise<{ rowCount: number; filename: string }> {
-  // Sichtbare Spalten in Registry-Reihenfolge — identisch zur Tabelle.
-  const cols = resolveAntragTableColumns(visibleColumnKeys, showMaColumn, kategorieSpalten);
+  // Sichtbare Spalten in Registry-Reihenfolge — identisch zur Tabelle: erst die
+  // eingebauten und die Ordner-Spalten, dann die eigenen hinten dran (dieselbe
+  // Reihenfolge, die `AntraegeTable.rohSpalten` baut).
+  const sichtbar = new Set(visibleColumnKeys);
+  const cols = [
+    ...resolveAntragTableColumns(visibleColumnKeys, showMaColumn, kategorieSpalten),
+    ...eigeneSpalten.filter(c => sichtbar.has(c.key)),
+  ];
 
   // Text-Korpus nur laden, wenn die VB-Titel-Spalte sichtbar ist (der Cursor-
   // Walk über alle Antrags-Records ist teuer; sonst überflüssig). `includeEmpty`

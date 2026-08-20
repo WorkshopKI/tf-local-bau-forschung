@@ -70,7 +70,7 @@ import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, sep } from 'node:path';
 import { PRESET_COLORS } from '../components/ui/theme';
 import { ANTRAG_TABLE_COLUMNS } from '../plugins/antraege/tableColumns';
-import { SPALTEN_MIT_SATZ, baueSpaltenHilfe } from '../plugins/antraege/spaltenHilfe';
+import { SPALTEN_MIT_SATZ, SPALTEN_HERKUNFT_MENGEN, baueSpaltenHilfe } from '../plugins/antraege/spaltenHilfe';
 import { SEITEN_FUEGUNG, rueckwegSatz } from '../core/nav/rueckwegSatz';
 import { SICHTBARKEITS_KATALOG, istMarkiert } from '../core/sichtbarkeit';
 import {
@@ -1407,6 +1407,32 @@ describe('spalten-hilfe-abdeckung (jeder Spaltenkopf erklaert seine Herkunft, v4
       .filter(c => (karte.get(c.key)?.felder?.length ?? 0) > 0)
       .map(c => c.key);
     expect(mitFeldernOhneSchema).toEqual(['frist']);
+  });
+
+  it('jede erklaerte Spalte ist entweder Feld-Spalte oder abgeleitet — genau eins', () => {
+    // Der Hinweis „In diesem Programm ist dafuer keine Spalte gemappt" darf nur
+    // ueber Spalten stehen, die WIRKLICH genau ein gemapptes Feld lesen. Bis
+    // v4.121 entschied das `CANONICAL_FIELD_KEYS`: „Branche"/„Foerdergeber"
+    // (projiziert, nicht kanonisch) blieben ohne Erklaerung leer, waehrend
+    // „VB Titel" (kanonisch, aber aus `verbundById` nachgereicht) den Hinweis
+    // faelschlich trug. Seither entscheidet eine eigene Aufteilung — und die
+    // muss vollstaendig und ueberschneidungsfrei bleiben.
+    const { feld, abgeleitet } = SPALTEN_HERKUNFT_MENGEN;
+    const fehlend = SPALTEN_MIT_SATZ.filter(k => !feld.has(k) && !abgeleitet.has(k));
+    const doppelt = SPALTEN_MIT_SATZ.filter(k => feld.has(k) && abgeleitet.has(k));
+    const verwaist = [...feld, ...abgeleitet].filter(k => !SPALTEN_MIT_SATZ.includes(k));
+    if (fehlend.length > 0 || doppelt.length > 0 || verwaist.length > 0) {
+      expect.fail(
+        `Die Herkunfts-Aufteilung in spaltenHilfe.ts ist unvollstaendig:\n`
+        + (fehlend.length ? `  in KEINER Menge: ${fehlend.join(', ')}\n` : '')
+        + (doppelt.length ? `  in BEIDEN Mengen: ${doppelt.join(', ')}\n` : '')
+        + (verwaist.length ? `  ohne Satz: ${verwaist.join(', ')}\n` : '')
+        + `\nJede Spalte mit Satz gehoert in genau eine der beiden Mengen:\n`
+        + `  FELD_SPALTEN     — liest genau ein projiziertes Feld gleichen Namens\n`
+        + `                     (fehlt das Mapping, bleibt die Zelle garantiert leer)\n`
+        + `  ABGELEITETE_SPALTEN — rechnet, verdichtet oder laedt aus zweiter Quelle`,
+      );
+    }
   });
 });
 

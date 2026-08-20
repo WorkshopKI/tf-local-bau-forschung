@@ -76,8 +76,11 @@ export function AusklappInhalt({
   const kopf = useMemo(
     () => (daten.frist === null ? null : baueKopfModell({
       bezug: daten.frist, stichtag, waechter, lage, befund, liegtBei: zustaendig,
+      // Nur an einer Verbund-Zeile gesetzt: die Karte urteilt dann über den
+      // Verbund, die Frist-Zelle darüber über sein dringendstes Teilvorhaben.
+      verbundTvs: istVerbundZeile ? daten.jeTeilvorhaben.length : null,
     })),
-    [daten.frist, stichtag, waechter, lage, befund, zustaendig],
+    [daten.frist, daten.jeTeilvorhaben, istVerbundZeile, stichtag, waechter, lage, befund, zustaendig],
   );
   const raster = useMemo(
     () => (daten.frist === null

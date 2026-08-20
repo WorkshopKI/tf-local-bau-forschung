@@ -18,6 +18,13 @@ export function MultiSelectFacet({ def, counts, selected, valueLabels, onChange 
       ? manual.slice()
       : Array.from(counts.keys());
 
+    // Ein angehakter Wert bleibt in seiner eigenen Facette stehen, auch wenn
+    // eine ANDERE Achse ihn gerade auf null filtert. Ohne das verschwand seine
+    // Zeile, der Filter wirkte weiter, und der Haken war genau dort nicht mehr
+    // lösbar, wo er gesetzt wurde — zurück kam man nur über den Chip, der die
+    // ganze Mehrfachauswahl wegwirft (v4.121).
+    for (const s of selected) if (!keys.includes(s)) keys.push(s);
+
     const order = def.config.werte_reihenfolge ?? 'haeufigkeit';
     if (order === 'alphabetisch') {
       keys.sort((a, b) => a.localeCompare(b));
@@ -43,7 +50,7 @@ export function MultiSelectFacet({ def, counts, selected, valueLabels, onChange 
       keys.push('(leer)');
     }
     return keys;
-  }, [def, counts, query]);
+  }, [def, counts, query, selected]);
 
   const selectedSet = useMemo(() => new Set(selected), [selected]);
   const toggle = (v: string): void => {
