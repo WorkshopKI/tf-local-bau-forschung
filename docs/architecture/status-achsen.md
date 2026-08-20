@@ -329,6 +329,7 @@ eigene Kopie, und keine fiel auf:
   „Vollständigkeit". Die Formel zeigt jetzt nur noch die **Handlung**; wer den
   Schritt sehen will, liest ihn an der Verfahrensleiste. Ohne hinterlegte
   Handlung steht dort die Status-Kurzform (`schrittText`).
+  **Seit v4.132 ist sie nur noch der Rückfall** — siehe unten.
 - Das **Vorgangs-Board** maß den Fristlauf an vier eingetippten Phasen-Ids statt
   an `fristLaeuft` der Phase. Es liest jetzt `fristLaeuftVon` — mit der
   Nebenwirkung, dass die Auslieferung die Uhr in der Entscheidung anhält (so war
@@ -343,6 +344,61 @@ Festgehalten von **`zah-phase-single-source`**: in einer Datei, die überhaupt v
 als Literal erlaubt. Ausgenommen sind die drei Auslieferungs-Seeds
 (`zah-phasen.ts`, `seed-codes.ts`, `seed-kanonisch.ts`); alles andere braucht
 `// allow-zah-phase-literal: <grund>` in derselben Zeile.
+
+## Was ist zu tun? — eine Antwort, drei Leser (v4.132)
+
+Die letzte doppelte Achse. Bis v4.131 beantworteten **zwei** Motoren dieselbe
+Frage, und niemand sagte, welcher gerade sprach:
+
+| | Motor | liest | wo sichtbar |
+|---|---|---|---|
+| A | `naechsterSchritt()` | eine 10-Zeilen-Tabelle über den **Rohstatus** + zwei PreCheck-Regeln | Startseite, Kanban, Tabellenspalte, Assistent |
+| B | `ermittleTodo` / `ermittleTodosAlleRollen` | die 27-Regel-**Kaskade über die gesetzten Kürzel** samt Sperren, `zustaendig`, `wartetAuf` | Vorgangs-Board, Ausklapp, Verbund-Detail |
+
+Motor A kennt die Kürzel nicht — und genau an ihnen sieht man, dass ein
+Gutachten außerhalb der App geschrieben und abgegeben wurde. Gemessen am
+Nachtexport vom 20.08.2026 über 845 offene Vorgänge:
+
+| Befund | Zahl |
+|---|---:|
+| Status „Gutachten fertig" **mit** `D_AT4` + `D_AK4` → A sagte „Gutachten freigeben", B sagt „in QS" | **101 von 102** |
+| Ablehnung/RNE versandt, keine Reaktion → B: „wartet auf Antragsteller" | 159 |
+| PreCheck negativ offen → A sagte „PreCheck-Ergebnis klären"; davon mit bereits geschriebener Abl/RNE | 211 / davon **144** |
+| Schlussvermerk gesetzt, `STATUS_TV` trotzdem offen → B sperrt (S0), A zeigte Rückstand | 3 |
+| **Union der drei eindeutigen Töpfe** | **262 = 31 %** |
+
+**B ist die Antwort, A der Rückfall.** Vier Zustände, jeder nennt seine Herkunft
+([aufgaben-anzeige.ts](../../src/core/status/aufgaben-anzeige.ts)):
+`kaskade` (eine Regel trifft) · `gesperrt` (kein To-do, aber eine Sperre — nur
+gemeldet, wo sie nicht erwartbar ist, siehe `SPERRE_IST_ERWARTBAR`) ·
+`rueckfall` (die Kaskade schweigt) · `laedt` (der Bestandslauf ist unterwegs).
+
+Drei Festlegungen, die wichtiger sind als die Tabelle:
+
+1. **Nie zwei Antworten hintereinander.** Solange gerechnet wird, steht „…" da
+   und nicht der Rückfall — ein Text, der sich nach fünf Sekunden in einen
+   anderen verwandelt, ist schlimmer als einer, der auf sich warten lässt.
+2. **Nie unter den bisherigen Stand.** Wo die Kaskade nichts sagt, bleibt die
+   alte Formel; der Rückfall verschwindet erst, wenn Regeln ihn ersetzen.
+3. **Eine Rechnung, eine Ablage.** Der Bestandslauf lag bis v4.131 im
+   Vorgangs-Board und war für die anderen unerreichbar. Er steht jetzt in
+   [bestands-lauf.ts](../../src/core/status/bestands-lauf.ts), sein Ergebnis in
+   [useBestandsAufgaben.ts](../../src/core/hooks/useBestandsAufgaben.ts) — mit
+   demselben Schlüssel und derselben TTL wie vorher (Fassung · Bereich ·
+   Bestands-Generation · Stichtag-TAG, 5 min). Wer ihn nur ergänzend braucht,
+   stößt ihn im Leerlauf an und blockiert nicht.
+
+**Die Faltung gibt sich zu erkennen.** Eine Verbundzeile wertet **je
+Teilvorhaben** aus und faltet danach (`baueAufgabe`); tragen nicht alle dieselbe
+Aufgabe, steht „3 von 4 TV" daneben.
+
+**Offen geblieben** (fachliche Frage, kein Code-Befund): die Kanban-Bahn
+`nachforderung` heißt „Wartet auf Antragsteller", meint aber nur die gestellte
+Nachforderung. Auf derselben Bildschirmseite warten zehn Vorgänge laut Kaskade
+auf den Antragsteller, ohne in dieser Kategorie zu liegen. Die Bahnen an
+`wartetAuf` zu hängen, bräche den Klickweg in die Liste (er filtert nach
+Kategorie) und zählte Karten doppelt — die Beschriftung ist die bessere Stelle,
+und sie gehört dem Team.
 
 ## Der Verfahrensschnitt reist allein (v4.79)
 
@@ -468,7 +524,9 @@ Fassungsnummer allein wäre eine Zusage, die der Inhalt nicht hält.
 | Die ausgelieferten Kurzformen | [status-codes.ts](../../src/core/status/status-codes.ts) |
 | Die Kategorie-Achse selbst | [status-canonical.ts](../../src/core/utils/status-canonical.ts) |
 | Die Phasen-Tabelle + das Register | [zah-phasen.ts](../../src/core/status/zah-phasen.ts) |
-| Die Handlung „nächster Schritt" (nur die Aktion) | [naechsterSchritt.ts](../../src/core/utils/naechsterSchritt.ts) |
+| **Die Aufgabe eines Vorgangs** (die Antwort) | [aufgabe.ts](../../src/core/status/aufgabe.ts) + [aufgaben-anzeige.ts](../../src/core/status/aufgaben-anzeige.ts) |
+| Der Bestandslauf + seine Ablage | [bestands-lauf.ts](../../src/core/status/bestands-lauf.ts) + [useBestandsAufgaben.ts](../../src/core/hooks/useBestandsAufgaben.ts) |
+| Die Handlung „nächster Schritt" (nur der **Rückfall**) | [naechsterSchritt.ts](../../src/core/utils/naechsterSchritt.ts) |
 | Grenzen, Umhängen, Verwaiste | [zah-phasen-edit.ts](../../src/core/status/zah-phasen-edit.ts) |
 | Der Schnitt als transportables Paket | [phasen-paket.ts](../../src/core/status/phasen-paket.ts) |
 | **Code → Arbeitsliste** (die eine Tabelle) | [kategorie-ableitung.ts](../../src/core/status/kategorie-ableitung.ts) |

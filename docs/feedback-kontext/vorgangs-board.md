@@ -38,8 +38,14 @@ Verfügung.
   Vier Teile mit ihrer Zahl, und **die vier addieren sich zur Gesamtmenge** —
   genau das konnte die alte Reiterleiste nicht:
   - **Meine Aufgaben** — To-dos, für die die gewählte Rolle zuständig ist.
+    **Ohne Rollenwahl heißt der Chip „Jemand ist zuständig"** (seit v4.132): dort
+    zählt er, wofür irgendeine Rolle im Haus benannt ist — für einen FB waren das
+    17 Aufgaben, von denen 16 dem AB gehörten. „Alle Rollen" zeigt den
+    AB-Regelsatz; das sagt der Chip beim Überfahren.
   - **Wartet auf andere** — dieselben Anträge aus der Fremdrollen-Sicht: was für
-    den AB „RNE ergänzen" ist, erscheint dem FB als „wartet auf AB".
+    den AB „RNE ergänzen" ist, erscheint dem FB als „wartet auf AB". Ohne
+    Rollenwahl heißt er „Wartet auf außerhalb" (Antragsteller oder eine nicht
+    benannte Rolle).
   - **Kein To-do** — keine Regel traf. Eine Lücke im Regelsatz.
   - **Abgeschlossen** — eine Sperre griff, weil Schlussvermerk oder
     Zuwendungsbescheid vorliegen. Ein **Ergebnis**, keine Lücke.

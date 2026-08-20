@@ -19,7 +19,7 @@ import { KopfKarte } from './kopfkarte/KopfKarte';
 import { baueKopfModell } from './kopfkarte/kopfkarteModell';
 import { findeBlocker } from './kopfkarte/blocker';
 import { liegtBei } from './kopfkarte/liegtBei';
-import { baueAufgabe } from './kopfkarte/aufgabe';
+import { baueAufgabe } from '@/core/status/aufgabe';
 import type { ZeilenTodo } from './useZeilenTodo';
 import { baueStufen, type MeilensteinLage } from './meilensteinLage';
 import { VorgangsverlaufReiter } from './vorgangsverlauf/VorgangsverlaufReiter';

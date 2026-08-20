@@ -614,6 +614,22 @@ eben keine eigene Regel hat.
 Damit ersetzt **jede geschriebene FB-Regel genau einen Platzhalter** — schrittweise,
 ohne Stichtag, an dem etwas „umgestellt" wird.
 
+**Zwei Leihwege seit v4.132.** `wartetAuf` war nicht der einzige Fall: eine Regel
+kann eine Rolle auch ausdrücklich als **zuständig** nennen. Drei tun das (R7
+„Stellungnahme RNE prüfen", R12 „Widerspruch gg Abl bearbeiten", R22 „NL prüfen"
+— alle mit `fb` im `zustaendig`), und keine davon kam in der FB-Sicht an:
+`trefferLauf` überspringt jede Regel eines fremden Regelsatzes, und der
+Platzhalter fragte nur `wartetAuf`. Der FB bekam ein **leeres** Board, obwohl der
+AB-Regelsatz ihn namentlich nennt. Die drei Bedingungen treffen auf 40 / 24 / 176
+offene Vorgänge (Bestand vom 20.08.2026).
+
+Deshalb leiht `ermittleTodosAlleRollen` jetzt auf zwei Wegen, in dieser
+Reihenfolge: **zuständig vor wartetAuf** — „du bist mit dran" ist die stärkere
+Aussage als „auf dich wird gewartet". Beide heißen an der Anzeige „abgeleitet"
+(ein Wort, keine zweite Zählung); welcher Weg es war, steht in `abgeleitetArt`
+und im Tooltip. Die AB-Sicht ist unverändert: gefüllt wird nur, wo eine Rolle
+sonst nichts hätte.
+
 ### 11.3 Rollout-Sperre
 
 `_intern/status-katalog.json` ist für alle Build-Varianten gleichzeitig live. Eine

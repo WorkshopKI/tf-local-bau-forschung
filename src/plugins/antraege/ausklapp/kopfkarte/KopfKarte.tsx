@@ -20,7 +20,7 @@
  */
 import { formatDatum } from '@/plugins/meilensteine/labels';
 import { AufgabenZeile } from './AufgabenZeile';
-import type { Aufgabe } from './aufgabe';
+import type { Aufgabe } from '@/core/status/aufgabe';
 import { BLOCKIERT_MAX, type BlockerBefund } from './blocker';
 import type { Fakt, KopfModell } from './kopfkarteModell';
 

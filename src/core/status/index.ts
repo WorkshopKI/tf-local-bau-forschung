@@ -221,6 +221,18 @@ export {
   REGELSATZ_DEFAULT, STRANG_PREFIX,
   regelsatzVon, sperreGiltFuer, sperrEintragTrifft, strangAusEintrag,
 } from './regelsatz';
+export {
+  baueAufgabe, adresseFuerWaechter, adressText, aufgabeAusBestand,
+  type Aufgabe, type AufgabenEingabe, type AufgabenGruppe, type AdressLage, type TvTodo,
+} from './aufgabe';
+export {
+  aufgabenAnzeige,
+  type AufgabenAnzeige, type AnzeigeEingabe, type AufgabenQuelle,
+} from './aufgaben-anzeige';
+export {
+  laufeBestand, schmalerFilterSatz, fristLaeuftFuer,
+  type BestandZeile, type BestandLauf, type LaufTakt,
+} from './bestands-lauf';
 export { jederVorgang, type VorgangsRohsatz, type VorgangsTakt } from './vorgangs-quelle';
 export {
   ladeVorkommen, zaehleCodes, codeAusSatz, kuerzelEinesVorgangs, type VorkommenStand,

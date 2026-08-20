@@ -38,6 +38,7 @@ Decision-Tree für häufige Aufgaben. Erst hier nachsehen, **bevor** du die Code
 | ONNX/Transformers-WASM, Bundle-Größe (Inline-gzip + `wasmBinary`, Post-Build-Strip) | Pitfall #39 + [docs/architecture/runtime-layers.md](docs/architecture/runtime-layers.md) |
 | Async-UI-Aktion ohne silent-fail | [docs/agents/async-error-pattern.md](docs/agents/async-error-pattern.md) |
 | Antrag-Status-Vergleich | Pitfall #12 + [docs/architecture/antrag-status-domaenen.md](docs/architecture/antrag-status-domaenen.md) |
+| „Was ist an diesem Vorgang zu tun?" (Kaskade statt Rohstatus-Formel; Bestandslauf + Ablage, Faltung je Verbund, Rückfall) | [status-achsen.md → Was ist zu tun?](docs/architecture/status-achsen.md) — `useZeilenAufgaben` + `aufgabenAnzeige` |
 | Status-System (Katalog/Historie/Cockpit/Timeline/Widget; Flag `statusCockpit`) | [docs/status-system/README.md](docs/status-system/README.md) + Pitfall #40 |
 | Verlaufs-Ansichten am Verbund (Matrix Schritt × TV, Chronik nach Datum, Zeitstrahl; Rollenfarben, WER/WO-Filter, Fokus) | [chronik-und-zeitstrahl.md](docs/status-system/chronik-und-zeitstrahl.md) |
 | **Status-Ebenen: was haengt woran?** (Kuerzel/Status/Trigger aus C16 gegen unsere Erfindungen Verfahrensschritt/Arbeitsliste/Zieltage/Meilenstein; wer pflegt was; Umbenennung, Abschnitts-Ids, Aggregatnamen) | [status-achsen.md](docs/architecture/status-achsen.md) + Pitfall #50 + Reiter „Ebenen" im Status-Cockpit |

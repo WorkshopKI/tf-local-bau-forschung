@@ -12,7 +12,11 @@ import { useProfile } from '@/core/hooks/useProfile';
 import { useMAIdentity } from '@/core/hooks/useMAIdentity';
 import { useKuerzelFilterOptions } from '@/plugins/auslastung/hooks/useKuerzelFilterOptions';
 import { useShowInaktiveMasStore } from '@/plugins/antraege/useShowInaktiveMasStore';
-import { ROLLEN, ROLLE_LANG, leseStatusRolle, type Rolle } from '@/core/status';
+import { useMemo } from 'react';
+import { ROLLEN, ROLLE_LABEL, ROLLE_LANG, leseStatusRolle, type Rolle } from '@/core/status';
+import { useMeinKuerzel } from '@/core/hooks/useMeinKuerzel';
+import { useAntraegeStore } from '@/plugins/antraege/store';
+import { parseBearbeiterFilter, rollenBefundFuerKuerzel } from '@/plugins/antraege/bearbeiterFilter';
 import { isMaLoginEnabled } from '@/config/feature-flags';
 import { isAuslastungFreigeschaltet } from '@/core/modul-freischaltung';
 import { SettingsGruppe, SettingsOption, SettingsStepper } from '@/components/settings';
@@ -58,7 +62,11 @@ export function AntraegeSichtGruppe(): React.ReactElement | null {
       titel="Welche Anträge du siehst"
       unterzeile="Gilt für Startseite, Listen und Matching."
     >
-      <SettingsOption label="Meine Rolle" hint={HINT_ROLLE}>
+      <SettingsOption
+        label="Meine Rolle"
+        hint={HINT_ROLLE}
+        kurzzeile={<RollenBefundZeile gewaehlt={leseStatusRolle(profile.status_rolle)} />}
+      >
         <select
           value={leseStatusRolle(profile.status_rolle)}
           onChange={e => updateProfile({ status_rolle: e.target.value as Rolle | 'alle' })}
@@ -96,6 +104,44 @@ export function AntraegeSichtGruppe(): React.ReactElement | null {
         />
       </SettingsOption>
     </SettingsGruppe>
+  );
+}
+
+/**
+ * **Wo das eigene Kürzel wirklich steht** — gemessen, nicht geraten.
+ *
+ * Die Rollenwahl war bis v4.132 eine leere Vorauswahl, und wer sie nie traf,
+ * las im Vorgangs-Board den AB-Regelsatz: 17 „Meine Aufgaben", von denen 16 dem
+ * AB gehörten. Die Antwort steht in den Daten — das Legacy führt den FB in
+ * `TIB_KUERZ`, den AB in `BIB_KUERZ`. Ein **Vorschlag**, keine Setzung: bei
+ * Vertretungen und PL mit Doppelrolle ist die Zahl mehrdeutig, und dann sagt die
+ * Zeile das auch.
+ */
+function RollenBefundZeile({ gewaehlt }: { gewaehlt: Rolle | 'alle' }): React.ReactElement | null {
+  const antraege = useAntraegeStore(s => s.antraege);
+  const meinKuerzel = useMeinKuerzel();
+  const befund = useMemo(() => {
+    const tokens = parseBearbeiterFilter(meinKuerzel ?? undefined, false).tokens;
+    return rollenBefundFuerKuerzel(antraege, tokens);
+  }, [antraege, meinKuerzel]);
+
+  const mitTreffern = befund.proRolle.filter(t => t.anzahl > 0);
+  if (mitTreffern.length === 0) return null;
+
+  const zaehlung = befund.proRolle
+    .map(t => `${t.anzahl.toLocaleString('de-DE')}× ${ROLLE_LABEL[t.rolle]}`)
+    .join(' · ');
+  if (befund.vorschlag === null) {
+    return <>Ihr Kürzel steht in beiden Bearbeiter-Spalten ({zaehlung}) — die Wahl bleibt bei Ihnen.</>;
+  }
+  if (gewaehlt === befund.vorschlag) {
+    return <>Passt zu den Daten: Ihr Kürzel steht {zaehlung}.</>;
+  }
+  return (
+    <>
+      Ihr Kürzel steht {zaehlung} — den Daten nach sind Sie{' '}
+      <strong className="font-medium">{ROLLE_LANG[befund.vorschlag]}</strong>.
+    </>
   );
 }
 

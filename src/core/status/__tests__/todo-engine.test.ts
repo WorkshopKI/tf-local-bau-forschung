@@ -438,6 +438,80 @@ describe('Regelsätze je Rolle', () => {
     });
   });
 
+  /*
+   * Der zweite Leihweg (v4.132). Bis dahin kam nur `wartetAuf` an: eine Regel
+   * wie R12 („Widerspruch gg Abl bearbeiten", zuständig AB/FB/Jur) war in der
+   * FB-Sicht GAR NICHT zu sehen — der FB bekam ein leeres Board, obwohl der
+   * AB-Regelsatz ihn namentlich nennt.
+   */
+  describe('Mitzuständigkeit — die fremde Regel NENNT die Rolle', () => {
+    it('leiht das To-do jeder Rolle, die in `zustaendig` steht', () => {
+      // R12: ABLZ + ABLW gesetzt → „Widerspruch gg Abl bearbeiten", AB/FB/Jur.
+      const alle = ermittleTodosAlleRollen(
+        REGELN, ctx({ ABLZ: vorTagen(10), ABLW: GESTERN }), STICHTAG,
+      );
+      expect(alle.ab.regelId).toBe('r12');
+      for (const r of ['fb', 'jur'] as const) {
+        expect(alle[r].todo, r).toBe('Widerspruch gg Abl bearbeiten');
+        expect(alle[r].quelle, r).toBe('abgeleitet');
+        expect(alle[r].abgeleitetArt, r).toBe('zustaendig');
+        expect(alle[r].abgeleitetAus, r).toBe('r12');
+        expect(alle[r].zustaendig, r).toEqual([r]);
+      }
+      // Wer nicht genannt ist, bekommt auch nichts.
+      for (const r of ['qs', 'pa'] as const) expect(alle[r].todo, r).toBeNull();
+    });
+
+    it('macht die Zeile für die genannte Rolle zu IHRER Aufgabe, nicht zu einem Warten', () => {
+      const alle = ermittleTodosAlleRollen(
+        REGELN, ctx({ ABLZ: vorTagen(10), ABLW: GESTERN }), STICHTAG,
+      );
+      expect(alle.fb.wartetAuf, 'sie wartet nicht, sie ist dran').toBeNull();
+    });
+
+    it('wird von einer echten Regel desselben Satzes verdrängt', () => {
+      const eigene: TodoRegel = {
+        id: 'fb9', reihenfolge: 5, beschreibung: 'FB · eigene Widerspruchs-Regel',
+        bedingung: { feldId: feld('ABLW'), op: 'gefuellt' },
+        todo: 'Widerspruch fachlich würdigen', zustaendig: ['fb'], regelsatz: 'fb', aktiv: true,
+      };
+      const alle = ermittleTodosAlleRollen(
+        [...REGELN, eigene], ctx({ ABLZ: vorTagen(10), ABLW: GESTERN }), STICHTAG,
+      );
+      expect(alle.fb.todo).toBe('Widerspruch fachlich würdigen');
+      expect(alle.fb.quelle).toBe('regel');
+      expect(alle.ab.regelId, 'der AB-Satz bleibt, wie er war').toBe('r12');
+    });
+
+    it('schlägt den `wartetAuf`-Platzhalter, wo beide Wege offenstünden', () => {
+      // Eine Regel, die den FB NENNT, ist die stärkere Aussage als eine, die
+      // auf ihn wartet: „du bist mit dran" vs. „auf dich wird gewartet".
+      const nennt: TodoRegel = {
+        id: 'x1', reihenfolge: 2, beschreibung: 'X1 · nennt den FB',
+        bedingung: { feldId: feld('XPC-'), op: 'gefuellt' },
+        todo: 'Gemeinsam klären', zustaendig: ['ab', 'fb'], aktiv: true,
+      };
+      // R2 (wartet auf FB) trifft bei derselben Bedingung, steht aber hinter x1.
+      const alle = ermittleTodosAlleRollen([nennt, ...REGELN], ctx({ 'XPC-': GESTERN }), STICHTAG);
+      expect(alle.ab.regelId).toBe('x1');
+      expect(alle.fb.todo).toBe('Gemeinsam klären');
+      expect(alle.fb.abgeleitetArt).toBe('zustaendig');
+    });
+
+    it('unterbleibt, wo eine Sperre den Fall für DIESE Rolle geschlossen hat', () => {
+      const nurFbSperre: TodoRegel = {
+        id: 'sfb2', reihenfolge: 1, beschreibung: 'FB ist hier fertig',
+        bedingung: { feldId: feld('ABLW'), op: 'gefuellt' },
+        todo: '', zustaendig: [], sperrt: [ALLE_STRAENGE], giltFuer: ['fb'], aktiv: true,
+      };
+      const alle = ermittleTodosAlleRollen(
+        [...REGELN, nurFbSperre], ctx({ ABLZ: vorTagen(10), ABLW: GESTERN }), STICHTAG,
+      );
+      expect(alle.fb.todo).toBeNull();
+      expect(alle.jur.todo, 'für die Juristen greift sie nicht').toBe('Widerspruch gg Abl bearbeiten');
+    });
+  });
+
   describe('Sperren gelten vorgangsweit, solange sie nichts anderes sagen', () => {
     it('S0 legt auch einen fremden Regelsatz still', () => {
       // Die Sperre trägt kein `giltFuer` — ein abgeschlossenes Verfahren ist für

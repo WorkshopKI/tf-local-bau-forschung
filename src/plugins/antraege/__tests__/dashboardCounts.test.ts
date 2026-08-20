@@ -359,3 +359,61 @@ describe('computeDashboardAggregate — KUERZ-Detection', () => {
     expect(agg.anyKuerzelSeen).toBe(false);
   });
 });
+
+/*
+ * Was laut Kürzeln erledigt ist, zählt nicht mehr als offen (v4.132).
+ *
+ * Der amtliche Status hinkt manchmal nach: gemessen am 20.08.2026 trugen drei
+ * Vorgänge einen Schlussvermerk (`D_VV`) und trotzdem einen offenen `STATUS_TV`
+ * — auf der Startseite standen sie mit „vor 240 Tagen" ganz oben.
+ */
+describe('computeDashboardAggregate — laut Kürzeln erledigt', () => {
+  const opts = { includeAntraege: true, nowMs: TEST_TODAY_MS } as const;
+
+  it('ohne die Menge bleibt alles, wie es war', () => {
+    const ohne = computeDashboardAggregate(REAL_CSV_ANTRAEGE, NEUTRAL, opts);
+    const leer = computeDashboardAggregate(REAL_CSV_ANTRAEGE, NEUTRAL, { ...opts, gesperrt: new Set() });
+    expect(leer.stats).toEqual(ohne.stats);
+    expect(leer.erledigtLautKuerzeln).toBe(0);
+    expect(leer.meineAntraege.map(v => v.id)).toEqual(ohne.meineAntraege.map(v => v.id));
+  });
+
+  it('nimmt den Vorgang aus „offen", lässt ihn aber in der Liste', () => {
+    const ohne = computeDashboardAggregate(REAL_CSV_ANTRAEGE, NEUTRAL, opts);
+    // REAL-003 „techn geprüft" — Antragsphase, also in der Liste.
+    const agg = computeDashboardAggregate(
+      REAL_CSV_ANTRAEGE, NEUTRAL, { ...opts, gesperrt: new Set(['REAL-003']) },
+    );
+    expect(agg.erledigtLautKuerzeln).toBe(1);
+    expect(agg.stats.offen).toBe(ohne.stats.offen - 1);
+    expect(agg.meineAntraege.some(v => v.id === 'REAL-003'), 'sichtbar bleibt er').toBe(true);
+    expect(agg.offeneVorgaenge.some(v => v.id === 'REAL-003'), 'als offen nicht').toBe(false);
+  });
+
+  it('sortiert ihn ans ENDE der Liste — die Karte verspricht „Sortierung: Frist"', () => {
+    const agg = computeDashboardAggregate(
+      REAL_CSV_ANTRAEGE, NEUTRAL, { ...opts, gesperrt: new Set(['REAL-003']) },
+    );
+    expect(agg.meineAntraege[agg.meineAntraege.length - 1]?.id).toBe('REAL-003');
+  });
+
+  it('lässt die BEGLEITPHASE unberührt — ein ZuwB sperrt die Kaskade, ohne dass die VN-Prüfung durch wäre', () => {
+    // Der Fehler, den die Selbstabnahme fand: weiter oben gefragt meldete die
+    // Startseite 13 erledigte statt 3 — zehn davon Begleit-Vorgänge, die in
+    // dieser Liste nie standen.
+    const ohne = computeDashboardAggregate(REAL_CSV_ANTRAEGE, NEUTRAL, opts);
+    const agg = computeDashboardAggregate(
+      REAL_CSV_ANTRAEGE, NEUTRAL, { ...opts, gesperrt: new Set(['REAL-002']) },
+    );
+    expect(agg.erledigtLautKuerzeln, 'REAL-002 ist „VN geprüft"').toBe(0);
+    expect(agg.stats.offen).toBe(ohne.stats.offen);
+    expect(agg.stats.begleitung).toBe(ohne.stats.begleitung);
+  });
+
+  it('rührt einen bereits terminalen Vorgang nicht an', () => {
+    const agg = computeDashboardAggregate(
+      REAL_CSV_ANTRAEGE, NEUTRAL, { ...opts, gesperrt: new Set(['REAL-010']) },
+    );
+    expect(agg.erledigtLautKuerzeln, 'REAL-010 traegt „Schlussvermerk"').toBe(0);
+  });
+});

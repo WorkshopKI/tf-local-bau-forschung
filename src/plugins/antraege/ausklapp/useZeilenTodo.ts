@@ -24,7 +24,7 @@ import { REGELSATZ_DEFAULT } from '@/core/status/regelsatz';
 import { baueTodoKontext, ermittleTodosAlleRollen } from '@/core/status/todo-engine';
 import type { Rolle } from '@/core/status/typen';
 import type { StatusVerlauf } from '../status/useStatusVerlauf';
-import { adresseFuerWaechter, type AdressLage, type TvTodo } from './kopfkarte/aufgabe';
+import { adresseFuerWaechter, type AdressLage, type TvTodo } from '@/core/status/aufgabe';
 
 export interface ZeilenTodo {
   /** Die Teilvorhaben, die DIESE Zeile trägt, mit ihrer Auswertung. */

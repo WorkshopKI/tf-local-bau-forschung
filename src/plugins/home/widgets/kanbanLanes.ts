@@ -13,6 +13,7 @@ import { verschiebeUmEinen } from '@/components/ui/laneFolge';
 import { getStatusCategory, type StatusCategory } from '@/core/utils/status-canonical';
 import { KATEGORIE_REIHENFOLGE, istStatusCategory } from '@/core/utils/status-category-labels';
 import { schrittText } from '@/core/utils/naechsterSchritt';
+import { aufgabenAnzeige, type Aufgabe, type TodoRegel } from '@/core/status';
 import { isIrrlaeufer } from '@/core/utils/vb-phase-mappings';
 import {
   antragMatchesBearbeiter,
@@ -64,8 +65,12 @@ export interface KanbanKarte {
   verbundId: string | null;
   /** Primär-Label: Akronym bevorzugt, sonst Titel, sonst Aktenzeichen. */
   label: string;
-  /** Nächste Handlung (`schrittText`), sonst die Status-Kurzform; leer ohne Status. */
+  /** Die Aufgabe der Karte — aus der To-do-Kaskade, sonst die alte Formel. */
   schrittText: string;
+  /** „wartet auf QS" / „liegt bei AB"; leer, wenn keine Rolle benannt ist. */
+  adresse: string;
+  /** Tooltip: die Herleitung bzw. der Grund. */
+  titel: string;
   /** Eingangsalter in Tagen (antragsdatum) — null wenn unbekannt. */
   alterTage: number | null;
   /** Gruppengröße des Verbunds (1 = Solo-Antrag). */
@@ -117,14 +122,42 @@ function alterVon(a: AntragListItem, nowMs: number): number | null {
   return Math.floor((nowMs - t) / 86_400_000);
 }
 
-function zuKarte(rep: AntragListItem, tvCount: number, nowMs: number): KanbanKarte {
+/**
+ * Was die Karte über die Aufgabe weiß — dasselbe Register wie die Startseiten-
+ * Zeile und das Vorgangs-Board. Strukturgleich zu dem, was `useZeilenAufgaben`
+ * liefert; als eigene Form deklariert, damit dieses Modul rein bleibt.
+ */
+export interface KartenAufgaben {
+  fuer: (aktenzeichen: readonly string[]) => Aufgabe | null;
+  laeuftNoch: boolean;
+  regeln: readonly TodoRegel[];
+}
+
+function zuKarte(
+  rep: AntragListItem,
+  gruppe: readonly AntragListItem[],
+  nowMs: number,
+  aufgaben?: KartenAufgaben,
+): KanbanKarte {
+  // **Die Aufgabe kommt aus der Kaskade, nicht aus dem Rohstatus** (v4.132) —
+  // gefaltet über GENAU die Teilvorhaben dieser Karte. Der alte Weg bleibt der
+  // Rückfall, wo die Kaskade schweigt.
+  const anzeige = aufgabenAnzeige({
+    aufgabe: aufgaben ? aufgaben.fuer(gruppe.map(a => a.aktenzeichen)) : null,
+    rueckfall: schrittText(rep.status, rep.precheck_status_label ?? ''),
+    laeuftNoch: aufgaben?.laeuftNoch === true,
+    regeln: aufgaben?.regeln,
+    status: rep.status,
+  });
   return {
     aktenzeichen: rep.aktenzeichen,
     verbundId: rep.verbund_id?.trim() || null,
     label: rep.akronym?.trim() || rep.titel?.trim() || rep.aktenzeichen,
-    schrittText: schrittText(rep.status, rep.precheck_status_label ?? ''),
+    schrittText: anzeige.text,
+    adresse: anzeige.neben,
+    titel: anzeige.titel,
     alterTage: alterVon(rep, nowMs),
-    tvCount,
+    tvCount: gruppe.length,
   };
 }
 
@@ -157,6 +190,7 @@ export type KartenProKategorie = ReadonlyMap<StatusCategory, KanbanKarte[]>;
 export function kartenProKategorie(
   antraege: AntragListItem[],
   nowMs: number = Date.now(),
+  aufgaben?: KartenAufgaben,
 ): Map<StatusCategory, KanbanKarte[]> {
   // Verbund-Clustering: eine Gruppe je verbund_id (Solo = eigenes Aktenzeichen).
   const gruppen = new Map<string, AntragListItem[]>();
@@ -173,7 +207,7 @@ export function kartenProKategorie(
       String(a.antragsdatum ?? '9999').localeCompare(String(b.antragsdatum ?? '9999')));
     const rep = sortiert[0]!;
     const kategorie = getStatusCategory(rep.status);
-    const karte = zuKarte(rep, gruppe.length, nowMs);
+    const karte = zuKarte(rep, gruppe, nowMs, aufgaben);
     const arr = proKategorie.get(kategorie);
     if (arr) arr.push(karte); else proKategorie.set(kategorie, [karte]);
   }
@@ -193,8 +227,9 @@ export function buildAntragKanbanLanes(
   lanes: KanbanLane[],
   maxKartenProLane: number,
   nowMs: number = Date.now(),
+  aufgaben?: KartenAufgaben,
 ): KanbanLanesErgebnis {
-  const proKategorie = kartenProKategorie(antraege, nowMs);
+  const proKategorie = kartenProKategorie(antraege, nowMs, aufgaben);
   const cap = Math.max(1, maxKartenProLane);
 
   let gesamt = 0;

@@ -19,9 +19,10 @@
  * aus dem **AB-Satz** — genau wie im Board: das Urteil des Wächters soll sich
  * nicht verschieben, nur weil jemand seine Anzeige umschaltet.
  */
-import { REGELSATZ_DEFAULT } from '@/core/status/regelsatz';
-import type { TodoErgebnis } from '@/core/status/todo-engine';
-import type { Rolle } from '@/core/status/typen';
+import { REGELSATZ_DEFAULT } from './regelsatz';
+import { ROLLE_LABEL, sortiereRollen } from './rollen';
+import type { TodoErgebnis } from './todo-engine';
+import type { Rolle } from './typen';
 
 /** Ein Teilvorhaben mit der Auswertung aller Regelsätze. */
 export interface TvTodo {
@@ -51,6 +52,18 @@ export interface Aufgabe {
   tv: string[];
   /** Wie viele Teilvorhaben ausgewertet wurden. */
   tvGesamt: number;
+  /**
+   * Kein To-do, **weil eine Sperre griff** — ein Ergebnis, keine Lücke.
+   *
+   * Dieselbe Unterscheidung wie im Board (`zustaendigkeitVon`: `fertig` vs.
+   * `ohne`). Sie ist der Grund, warum ein Vorgang mit Schlussvermerk auf der
+   * Startseite nicht mehr als Rückstand zählt, obwohl sein amtlicher Status noch
+   * offen sagt — gemessen am 20.08.2026 traf das drei Vorgänge, und zwar die
+   * beiden ältesten einer einzigen Kürzel-Liste.
+   */
+  gesperrt: boolean;
+  /** Ids der greifenden Sperren; erklärt, warum die Kaskade schweigt. */
+  gesperrtDurch: string[];
 }
 
 /** Die eine Adresse der Zeile — Eingabe für den Stillstands-Wächter. */
@@ -78,6 +91,26 @@ export interface AufgabenEingabe {
 /** Wessen Schreibtisch ein Ergebnis benennt; `null` = keiner. */
 function adresseVon(e: TodoErgebnis): Rolle | 'ast' | null {
   return e.wartetAuf ?? e.zustaendig[0] ?? null;
+}
+
+/**
+ * Die Adresse in **einer Zeile**: „wartet auf QS", „liegt bei AB/FB/Jur".
+ *
+ * Für enge Flächen (Startseiten-Zeile, Kanban-Karte), wo für die
+ * Wächter-getriebene Kachel {@link ../../plugins/antraege/ausklapp/kopfkarte/liegtBei.ts}
+ * kein Platz ist. Dieselben Wörter wie dort — die Kurzform ist eine Kürzung,
+ * kein zweites Vokabular.
+ *
+ * **`wartetAuf` schlägt `zustaendig`.** Wo eine Regel beides trägt, ist
+ * „wartet auf X" die genauere Aussage: sie sagt, dass hier gerade niemand von
+ * uns handeln kann. `null` heißt „keine Rolle benannt" — nicht „niemand".
+ */
+export function adressText(e: TodoErgebnis): string | null {
+  if (e.wartetAuf !== null) {
+    return `wartet auf ${e.wartetAuf === 'ast' ? 'Antragsteller' : ROLLE_LABEL[e.wartetAuf]}`;
+  }
+  if (e.zustaendig.length === 0) return null;
+  return `liegt bei ${sortiereRollen(e.zustaendig).map(r => ROLLE_LABEL[r]).join('/')}`;
 }
 
 /**
@@ -113,9 +146,13 @@ function gruppiere(jeTv: readonly TvTodo[], rolle: Rolle): AufgabenGruppe[] {
 const OHNE_REGELN = 'Die geladene Fassung führt keine To-do-Regeln — ohne Kaskade gibt es keine Aufgabe.';
 const OHNE_TV = 'Kein Teilvorhaben geladen — ohne Datensatz gibt es nichts auszuwerten.';
 
+/** Die Sperren, die über ALLE ausgewerteten Teilvorhaben griffen. */
+function sperrenVon(jeTv: readonly TvTodo[], rolle: Rolle): string[] {
+  return [...new Set(jeTv.flatMap(t => t.todos[rolle].gesperrtDurch))];
+}
+
 /** Warum keine Regel traf — eine greifende Sperre ist ein Ergebnis, keine Lücke. */
-function grundOhneTreffer(jeTv: readonly TvTodo[], rolle: Rolle): string {
-  const sperren = [...new Set(jeTv.flatMap(t => t.todos[rolle].gesperrtDurch))];
+function grundOhneTreffer(sperren: readonly string[]): string {
   return sperren.length > 0
     ? `Keine Aufgabe mehr — gesperrt durch ${sperren.join(', ')}.`
     : 'Kein To-do ermittelt — keine Regel dieses Regelsatzes trifft zu.';
@@ -124,21 +161,60 @@ function grundOhneTreffer(jeTv: readonly TvTodo[], rolle: Rolle): string {
 /** Die Herkunft eines Treffers: welche Regel, und ob sie der Rolle gehört. */
 function grundMitTreffer(e: TodoErgebnis): string {
   const regel = e.beschreibung ?? e.regelId ?? 'unbenannte Regel';
-  return e.quelle === 'abgeleitet'
-    ? `Abgeleitet aus Regel ${e.abgeleitetAus ?? '?'} — für diese Rolle gibt es dazu noch keine eigene Regel.`
-    : `Aus ${regel}.`;
+  if (e.quelle !== 'abgeleitet') return `Aus ${regel}.`;
+  const woher = e.abgeleitetArt === 'zustaendig'
+    ? `Regel ${e.abgeleitetAus ?? '?'} nennt diese Rolle ausdrücklich als mitzuständig`
+    : `Regel ${e.abgeleitetAus ?? '?'} wartet auf diese Rolle`;
+  return `Abgeleitet: ${woher} — einen eigenen Regelsatz gibt es dazu noch nicht.`;
+}
+
+/**
+ * Die Aufgabe **einer Zeile aus dem Bestandslauf** — für Startseite und Liste.
+ *
+ * Nimmt die Aktenzeichen, die diese Zeile trägt (bei einer Verbundzeile alle
+ * Teilvorhaben des Clusters, sonst genau eines), und schlägt sie im Register des
+ * Laufs nach. Was dort fehlt (noch nicht gerechnet, außerhalb des
+ * Betrachtungsbereichs), fällt still heraus — die Faltung sagt über `tvGesamt`,
+ * wie viele es am Ende waren.
+ *
+ * `null`, wenn KEINES der Aktenzeichen im Register steht: dann ist der Lauf für
+ * diese Zeile noch nicht gelaufen, und das ist etwas anderes als „keine
+ * Aufgabe". Der Aufrufer zeigt dafür einen Platzhalter, nie eine zweite Antwort.
+ */
+export function aufgabeAusBestand(
+  aktenzeichen: readonly string[],
+  register: ReadonlyMap<string, TvTodo>,
+  rolle: Rolle,
+  ohneRegeln: boolean,
+): Aufgabe | null {
+  const jeTv: TvTodo[] = [];
+  for (const az of aktenzeichen) {
+    const treffer = register.get(az);
+    if (treffer) jeTv.push(treffer);
+  }
+  if (jeTv.length === 0) return null;
+  return baueAufgabe({ jeTv, rolle, ohneRegeln });
 }
 
 export function baueAufgabe(e: AufgabenEingabe): Aufgabe {
   const leer = {
     rolle: e.rolle, text: null, ergebnis: null, weitere: [], tv: [], tvGesamt: e.jeTv.length,
+    gesperrt: false, gesperrtDurch: [] as string[],
   };
   if (e.ohneRegeln) return { ...leer, grund: OHNE_REGELN };
   if (e.jeTv.length === 0) return { ...leer, grund: OHNE_TV };
 
+  const sperren = sperrenVon(e.jeTv, e.rolle);
   const gruppen = gruppiere(e.jeTv, e.rolle);
   const erste = gruppen[0];
-  if (erste === undefined) return { ...leer, grund: grundOhneTreffer(e.jeTv, e.rolle) };
+  if (erste === undefined) {
+    return {
+      ...leer,
+      grund: grundOhneTreffer(sperren),
+      gesperrt: sperren.length > 0,
+      gesperrtDurch: sperren,
+    };
+  }
 
   // Das Ergebnis-Objekt der ersten Gruppe — es trägt Belege, Beschreibung und
   // die Herkunft. Über `aktenzeichen[0]` gesucht statt mitgeschleppt, damit die
@@ -153,5 +229,10 @@ export function baueAufgabe(e: AufgabenEingabe): Aufgabe {
     weitere: gruppen.slice(1),
     tv: erste.aktenzeichen,
     tvGesamt: e.jeTv.length,
+    // Ein Treffer schlägt die Sperre: sie hat dann nur einzelne Stränge
+    // stillgelegt (S1/S2), nicht das Verfahren beendet. Die Ids stehen trotzdem
+    // da — sie erklären, warum ein NACHBAR-Strang schweigt.
+    gesperrt: false,
+    gesperrtDurch: sperren,
   };
 }

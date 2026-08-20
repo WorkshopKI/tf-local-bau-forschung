@@ -18,11 +18,22 @@
  */
 import { ROLLE_LABEL, ROLLE_LANG, type Rolle, type TodoErgebnis } from '@/core/status';
 
-/** Kurztext des Markers; `null`, wenn das To-do aus einer eigenen Regel stammt. */
+/**
+ * Kurztext des Markers; `null`, wenn das To-do aus einer eigenen Regel stammt.
+ *
+ * **Ein Wort, zwei Wege.** Geliehen wird auf zwei Arten: die fremde Regel wartet
+ * auf diese Rolle, oder sie nennt sie ausdrücklich als zuständig (`abgeleitetArt`,
+ * v4.132). Beides heißt „abgeleitet" — der Unterschied steht hier im Satz, nicht
+ * in einem zweiten Wort an der Marke: die Rollen-Bilanz zählt „davon N
+ * abgeleitet", und zwei Wörter für eine Sache liefen schon einmal auseinander.
+ */
 export function abgeleitetTitel(e: TodoErgebnis, rolle: Rolle | 'alle'): string | null {
   if (e.quelle !== 'abgeleitet') return null;
   const wer = rolle === 'alle' ? 'diese Rolle' : ROLLE_LABEL[rolle];
-  return `Abgeleitet aus Regel ${e.abgeleitetAus ?? '?'} — für ${wer} gibt es dazu noch keine eigene Regel.`;
+  const woher = e.abgeleitetArt === 'zustaendig'
+    ? `Regel ${e.abgeleitetAus ?? '?'} nennt ${wer} ausdrücklich als mitzuständig`
+    : `Regel ${e.abgeleitetAus ?? '?'} wartet auf ${wer}`;
+  return `Abgeleitet: ${woher} — einen eigenen Regelsatz gibt es dazu noch nicht.`;
 }
 
 /** Wer wartet: eine Rolle, der Antragsteller oder niemand Benanntes. */

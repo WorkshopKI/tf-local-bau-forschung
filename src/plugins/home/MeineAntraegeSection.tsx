@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate as useRouterNavigate } from 'react-router-dom';
 import { ArrowRight, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,8 @@ import { useAntraegeStore } from '@/plugins/antraege/store';
 import { bearbeiterScopeLabel } from '@/plugins/antraege/bearbeiterFilter';
 import { getEingangAmpel, daysSinceEingang, AMPEL_COLOR, AMPEL_TOOLTIP } from '@/plugins/antraege/eingangAmpel';
 import { schrittText } from '@/core/utils/naechsterSchritt';
+import { useZeilenAufgaben } from '@/core/hooks/useBestandsAufgaben';
+import { aufgabenAnzeige } from '@/core/status';
 import { alterInTagen } from '@/core/utils/relativeZeit';
 import { protokolliereEreignis } from '@/core/services/assistent/protokoll';
 import type { AntragVorgang } from './useDashboardData';
@@ -142,6 +144,7 @@ export function MeineAntraegeWidget({ instanz, ctx, onToggleEingeklappt }: Widge
             setVisibleCount={setVisibleCount}
             bearbeiterTokens={anzeigeKuerzel}
             alleMode={alleMode}
+            erledigtLautKuerzeln={data.erledigtLautKuerzeln}
           />
         </>
       )}
@@ -212,12 +215,22 @@ interface ListeProps {
   bearbeiterTokens: string[];
   /** „alle"-/Übersichtsmodus (pl/dev): MA-Kürzel je Zeile. */
   alleMode: boolean;
+  /** Wie viele Zeilen einen offenen Status tragen, laut Kürzeln aber durch sind. */
+  erledigtLautKuerzeln: number;
 }
 
 /** Listen-Body (Inhalte pixel-identisch zur früheren Sektion; Header/Collapse
  *  liegen jetzt in der WidgetShell). */
-function MeineAntraegeListe({ antraege, visibleCount, setVisibleCount, bearbeiterTokens, alleMode }: ListeProps): React.ReactElement {
+function MeineAntraegeListe({
+  antraege, visibleCount, setVisibleCount, bearbeiterTokens, alleMode, erledigtLautKuerzeln,
+}: ListeProps): React.ReactElement {
   const { navigate } = useNavigation();
+  // Der Stichtag wird EINMAL gestempelt — alle Liegezeiten sind relativ zu ihm.
+  const heuteRef = useRef<string>(new Date().toISOString());
+  // `'leerlauf'`: die Liste steht sofort da, die Aufgaben-Spalte füllt sich, wenn
+  // der Bestandslauf durch ist. Wer vorher schon auf dem Vorgangs-Board war,
+  // liest dessen Ergebnis — es ist dieselbe Ablage.
+  const aufgaben = useZeilenAufgaben('leerlauf', heuteRef.current);
   const visible = antraege.slice(0, visibleCount);
   const hasMore = antraege.length > visibleCount;
   const remaining = antraege.length - visibleCount;
@@ -232,6 +245,16 @@ function MeineAntraegeListe({ antraege, visibleCount, setVisibleCount, bearbeite
           <>Anträge mit Ihrem Kürzel <span className="font-mono">{bearbeiterTokens.join(', ')}</span>, sortiert nach Frist · Verbünde als ein Eintrag</>
         )}
       </p>
+      {/* Der Befund gehört genannt, nicht weggeräumt: ein offener Status über
+          einem gesetzten Schlussvermerk ist eine Abweichung im Fachsystem. Sie
+          zählen nicht mehr als offen und stehen am Ende der Liste. */}
+      {erledigtLautKuerzeln > 0 ? (
+        <p className="mb-2 text-[11px] text-[var(--tf-text-tertiary)]">
+          {erledigtLautKuerzeln === 1
+            ? '1 Vorgang ist laut Kürzeln erledigt, trägt aber noch einen offenen Status — er steht am Ende und zählt nicht als offen.'
+            : `${erledigtLautKuerzeln} Vorgänge sind laut Kürzeln erledigt, tragen aber noch einen offenen Status — sie stehen am Ende und zählen nicht als offen.`}
+        </p>
+      ) : null}
       {visible.map((v, i) => {
         // Verbund-Titel (VB_TITEL) bevorzugt, sonst TV-Titel; Akronym daraus
         // ableiten (Pattern „${akronym} / ${rest}") bzw. aus dem CSV-Feld.
@@ -245,10 +268,18 @@ function MeineAntraegeListe({ antraege, visibleCount, setVisibleCount, bearbeite
         const ampel = getEingangAmpel(v);
         const ageLabel = alterInTagen(daysSinceEingang(v));
 
-        // Die nächste Handlung statt einer Status-Badge (inkl. PreCheck-Stand);
-        // ohne hinterlegte Handlung die Status-Kurzform.
-        // `?? ''` = PreCheck-Kontext bewusst opt-in (leer ⇒ „PreCheck nicht vorhanden").
-        const schritt = schrittText(v.status, v.precheck_status_label ?? '');
+        // **Die Aufgabe kommt aus derselben Kaskade wie im Vorgangs-Board**
+        // (v4.132). Vorher rechnete hier `schrittText` allein aus dem Rohstatus
+        // — bei 101 von 102 Vorgängen mit „Gutachten fertig" stand deshalb
+        // „Gutachten freigeben", obwohl `D_AT4` gesetzt war und der Ball längst
+        // bei der QS lag. Der alte Weg bleibt als Rückfall, wo die Kaskade
+        // schweigt (`aufgabenAnzeige`) — nie unter den bisherigen Stand zurück.
+        const anzeige = aufgabenAnzeige({
+          aufgabe: aufgaben.fuer(v.tv_aktenzeichen ?? [v.id]),
+          rueckfall: schrittText(v.status, v.precheck_status_label ?? ''),
+          laeuftNoch: aufgaben.laeuftNoch,
+          regeln: aufgaben.regeln,
+        });
 
         const dot = ampel ? (
           <span
@@ -282,8 +313,33 @@ function MeineAntraegeListe({ antraege, visibleCount, setVisibleCount, bearbeite
                     {v.tv_count} TV
                   </span>
                 ) : null}
-                {schritt ? (
-                  <span className="text-[var(--tf-text-secondary)] truncate min-w-0 flex-1" title={schritt}>{schritt}</span>
+                {anzeige.text ? (
+                  <span
+                    className="flex items-baseline gap-1.5 truncate min-w-0 flex-1"
+                    title={anzeige.titel}
+                  >
+                    <span
+                      className={anzeige.quelle === 'gesperrt'
+                        ? 'text-[var(--tf-text-tertiary)] shrink-0'
+                        : 'text-[var(--tf-text-secondary)] shrink-0'}
+                    >
+                      {anzeige.text}
+                    </span>
+                    {/* Die Adresse steht DANEBEN, nicht im Aufgaben-Text: „in QS"
+                        ist die Aufgabe, „wartet auf QS" die Auskunft, wer am Zug
+                        ist. Zusammengeschrieben läse sich beides als Anweisung
+                        an den Leser. */}
+                    {anzeige.neben ? (
+                      <span className="text-[11px] text-[var(--tf-text-tertiary)] truncate min-w-0">
+                        {anzeige.neben}
+                      </span>
+                    ) : null}
+                    {anzeige.anteil ? (
+                      <span className="shrink-0 text-[10px] tabular-nums text-[var(--tf-text-tertiary)]">
+                        {anzeige.anteil}
+                      </span>
+                    ) : null}
+                  </span>
                 ) : null}
               </span>
             }

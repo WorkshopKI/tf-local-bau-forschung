@@ -55,6 +55,61 @@ const ROLLEN_SPALTEN: Partial<Record<Rolle, { bearbeiter: string[]; begleitung: 
   fb: { bearbeiter: ['tib_kuerz'], begleitung: ['ztp_kuerz'] },
 };
 
+/** Wie oft ein Kürzel in der Bearbeiter-Spalte EINER Rolle steht. */
+export interface RollenTreffer {
+  rolle: Rolle;
+  anzahl: number;
+}
+
+export interface KuerzelRollenBefund {
+  /** Absteigend nach Anzahl; Rollen ohne eigene Spalte fehlen ganz. */
+  proRolle: RollenTreffer[];
+  /**
+   * Die Rolle, die sich aus den Daten ergibt — `null`, wenn nichts gefunden
+   * wurde oder zwei Rollen gleichauf liegen (Vertretung, PL mit Doppelrolle).
+   * **Ein Vorschlag, keine Setzung**: die Auswahl bleibt beim Nutzer.
+   */
+  vorschlag: Rolle | null;
+}
+
+/**
+ * **In welcher Spalte steht mein Kürzel?** — die Rolle aus den Daten statt aus
+ * einer leeren Vorauswahl.
+ *
+ * Das Legacy führt die Zuständigkeit rollenspezifisch (siehe
+ * {@link ROLLEN_SPALTEN}): ein FB steht in `TIB_KUERZ`, ein AB in `BIB_KUERZ`.
+ * Wer seine Rolle nie gesetzt hat, liest im Vorgangs-Board den AB-Regelsatz und
+ * hält fremde Arbeit für die eigene — gemessen am 20.08.2026 stand das Kürzel
+ * THü **407-mal** in der FB-Spalte und **null-mal** in der AB-Spalte, und das
+ * Profil sagte trotzdem „Alle Rollen".
+ *
+ * Gezählt werden nur die Bearbeiter-Spalten, nicht die Begleitung: ZTP/PFM sagen
+ * etwas über die Phase nach der Bewilligung, nicht über die Rolle im Verfahren.
+ */
+export function rollenBefundFuerKuerzel(
+  antraege: readonly AntragListItem[],
+  tokens: readonly string[],
+): KuerzelRollenBefund {
+  if (tokens.length === 0) return { proRolle: [], vorschlag: null };
+  const zaehler = new Map<Rolle, number>();
+  for (const [rolle, spalten] of Object.entries(ROLLEN_SPALTEN) as [Rolle, { bearbeiter: string[] }][]) {
+    const keys = spalten.bearbeiter;
+    const set = new Set(keys);
+    let n = 0;
+    for (const a of antraege) {
+      if (antragHasKuerzel(a, keys, set, tokens)) n += 1;
+    }
+    zaehler.set(rolle, n);
+  }
+  const proRolle = [...zaehler]
+    .map(([rolle, anzahl]) => ({ rolle, anzahl }))
+    .sort((a, b) => b.anzahl - a.anzahl);
+  const [erste, zweite] = proRolle;
+  const eindeutig = erste !== undefined && erste.anzahl > 0
+    && (zweite === undefined || zweite.anzahl < erste.anzahl);
+  return { proRolle, vorschlag: eindeutig ? erste.rolle : null };
+}
+
 export interface BearbeiterFilterMode {
   /** Aktiv? Wenn false, lassen sich Anträge unfiltriert durchreichen. */
   active: boolean;

@@ -49,6 +49,9 @@ export type AntragVorgang = Vorgang & {
    *  die Marke „N TV" (wie die Kanban-Karte), der Balken die TV-Summe. Wird nur
    *  in `meineAntraege` gesetzt. */
   tv_count?: number;
+  /** Die Aktenzeichen des Clusters (bei Solo-Anträgen genau eines). Grundlage
+   *  für die Aufgabe der Zeile — sie wird über diese Teilvorhaben gefaltet. */
+  tv_aktenzeichen?: string[];
   /**
    * Frist-ZUSTAND aus derselben Engine wie die Förderanträge-Tabelle
    * (`berechneFrist` über `criticalFristErgebnis`). Die Startseite rechnete bis
@@ -106,6 +109,12 @@ export interface DashboardAggregateResult {
    *  Wird gebraucht, um die "Bearbeiter-Filter ohne KUERZ-Daten"-Warnung
    *  korrekt zu setzen. */
   anyKuerzelSeen: boolean;
+  /**
+   * Wie viele Vorgänge einen offenen Status tragen, laut Kürzeln aber erledigt
+   * sind. Ein Befund für das Fachsystem, kein Anzeigefehler — deshalb wird er
+   * gezählt und genannt, statt still weggeräumt zu werden.
+   */
+  erledigtLautKuerzeln: number;
 }
 
 export interface AggregateOptions {
@@ -117,6 +126,21 @@ export interface AggregateOptions {
   includeAntraege: boolean;
   /** Erlaubt Tests mit einem fixen Heute-Datum. Default `Date.now()`. */
   nowMs?: number;
+  /**
+   * Aktenzeichen, deren To-do-Kaskade **wegen einer greifenden Sperre** schweigt
+   * — Schlussvermerk oder Zuwendungsbescheid liegen vor
+   * ([bestands-lauf.ts](../../core/status/bestands-lauf.ts)).
+   *
+   * Sie zählen nicht als offen, tragen keine Frist und stehen nicht im
+   * Rückstandsbalken; **sichtbar bleiben sie** (ans Ende sortiert, mit „Keine
+   * Aufgabe mehr"). Gemessen am 20.08.2026 traf das drei Vorgänge im ganzen
+   * Bestand — und zwar die beiden ältesten einer einzigen Kürzel-Liste, wo sie
+   * mit „vor 240 Tagen" ganz oben standen.
+   *
+   * Fehlt die Menge (Lauf noch nicht durch, kein Vorgangssystem), verhält sich
+   * alles exakt wie vorher.
+   */
+  gesperrt?: ReadonlySet<string>;
 }
 
 const KUERZ_KEYS_CANONICAL: readonly string[] = [
@@ -275,6 +299,9 @@ export function computeDashboardAggregate(
   const seenFristVerbund = new Set<string>();
   const fristCache = new Map<string, ReturnType<typeof criticalFristErgebnis>>();
   const offeneAntraege: AntragVorgang[] = [];
+  /** Offener Status, aber die Kaskade schweigt wegen einer Sperre. */
+  const erledigteAntraege: AntragVorgang[] = [];
+  let erledigtLautKuerzeln = 0;
   if (options.includeAntraege) {
     for (const a of antraege) {
       if (!anyKuerzelSeen && antragHasAnyKuerzel(a)) anyKuerzelSeen = true;
@@ -284,7 +311,6 @@ export function computeDashboardAggregate(
       const kategorie = getStatusCategory(v.status);
       stats.total++;
       if (tallyKategorie(kategorie, stats)) continue;
-      stats.offen++;
       // Ab hier rechnet die Startseite die Antragsphase — genau wie die
       // SLA-Sichten `diese_woche_faellig`/`ueberfaellig` in `views.ts`. Liste,
       // Rueckstands-Balken und Fristen bucketen nach `antragsdatum`; ein
@@ -293,7 +319,21 @@ export function computeDashboardAggregate(
       // Lebenszyklus und ist bedingungslos — NICHT am Profil-Haken
       // `bearbeiter_inkl_begleitung`, der genau deshalb entkoppelt wurde. Die
       // Zaehler oben weisen die Begleitung weiter aus (`stats.begleitung`).
-      if (kategorie === 'begleitung') continue;
+      if (kategorie === 'begleitung') { stats.offen++; continue; }
+      // **Die Kürzel sind der jüngere Stand als der amtliche Status**: liegt ein
+      // Schlussvermerk vor, ist das Verfahren durch — auch wenn `STATUS_TV` noch
+      // „Stellungnahme zur Rücknahmeempfehlung" sagt.
+      //
+      // Erst HIER, nach dem Begleitungs-Ausstieg: ein Vorgang in der VN-Prüfung
+      // trägt naturgemäß einen Zuwendungsbescheid, und der sperrt die Kaskade
+      // (S0b). Weiter oben gefragt zählte die Meldung 13 statt 3 — zehn davon
+      // Begleit-Vorgänge, die in dieser Liste nie standen (gemessen 20.08.2026).
+      if (options.gesperrt?.has(a.aktenzeichen) === true) {
+        erledigtLautKuerzeln++;
+        erledigteAntraege.push(v);
+        continue;
+      }
+      stats.offen++;
       offeneVorgaenge.push(v);
       offeneAntraege.push(v);
       // Nur laufende Uhren sind Frist-Kandidaten. Ein angehaltener Vorgang hat
@@ -328,19 +368,26 @@ export function computeDashboardAggregate(
   // Überfälligkeit die Spitze zu besetzen. Vier der zehn sichtbaren Zeilen
   // waren bis v4.131 genau solche — abgelehnte und zurückgezogene Vorgänge, die
   // die Zielseite nach dem Klick auf „Alle →" ganz unten führt.
-  const sortedMeineAntraege = [...offeneAntraege]
-    .sort((a, b) => {
-      const da = a.fristTage ?? null;
-      const db = b.fristTage ?? null;
-      if (da !== db) {
-        if (da === null) return 1;
-        if (db === null) return -1;
-        return da - db;
-      }
-      const pa = a.vb_phase ?? Number.POSITIVE_INFINITY;
-      const pb = b.vb_phase ?? Number.POSITIVE_INFINITY;
-      return pa - pb;
-    });
+  const nachFrist = (a: AntragVorgang, b: AntragVorgang): number => {
+    const da = a.fristTage ?? null;
+    const db = b.fristTage ?? null;
+    if (da !== db) {
+      if (da === null) return 1;
+      if (db === null) return -1;
+      return da - db;
+    }
+    const pa = a.vb_phase ?? Number.POSITIVE_INFINITY;
+    const pb = b.vb_phase ?? Number.POSITIVE_INFINITY;
+    return pa - pb;
+  };
+  // Was laut Kürzeln erledigt ist, steht HINTEN — sichtbar, aber nicht mehr an
+  // der Spitze einer Karte, die „Sortierung: Frist" verspricht. Es aus der Liste
+  // zu nehmen wäre die bequemere, aber unehrlichere Antwort: der amtliche Status
+  // widerspricht, und genau das soll auffallen.
+  const sortedMeineAntraege = [
+    ...[...offeneAntraege].sort(nachFrist),
+    ...[...erledigteAntraege].sort(nachFrist),
+  ];
 
   // Verbund-Clustering: pro `verbund_id` nur den ersten TV behalten (= TV mit
   // der kritischsten Frist, weil die Liste schon sortiert ist). Solo-Antraege
@@ -351,11 +398,11 @@ export function computeDashboardAggregate(
   // Antrags-Liste. TVs einzeln auflisten blaehte die Home auf (Beispiel
   // KOMPaSS mit 3 TVs = 3 fast identische Zeilen). Kein Slice — UI schneidet
   // selbst ab, damit "+10 mehr"-Erweiterung in-page funktioniert.
-  const verbundCount = new Map<string, number>();
+  const verbundTvs = new Map<string, string[]>();
   for (const tv of sortedMeineAntraege) {
-    if (tv.verbund_id) {
-      verbundCount.set(tv.verbund_id, (verbundCount.get(tv.verbund_id) ?? 0) + 1);
-    }
+    if (!tv.verbund_id) continue;
+    const liste = verbundTvs.get(tv.verbund_id);
+    if (liste) liste.push(tv.id); else verbundTvs.set(tv.verbund_id, [tv.id]);
   }
   const seenVerbund = new Set<string>();
   const meineAntraege: AntragVorgang[] = [];
@@ -363,9 +410,14 @@ export function computeDashboardAggregate(
     if (tv.verbund_id) {
       if (seenVerbund.has(tv.verbund_id)) continue;
       seenVerbund.add(tv.verbund_id);
-      meineAntraege.push({ ...tv, tv_count: verbundCount.get(tv.verbund_id) ?? 1 });
+      // Die Aktenzeichen des Clusters wandern mit: die Aufgabe der Zeile wird
+      // über GENAU diese Teilvorhaben gefaltet (`aufgabeAusBestand`) — nicht
+      // über alle TVs des Verbunds. Sonst bekäme die Zeile das To-do eines
+      // Teilvorhabens, das gar nicht in dieser Liste steht.
+      const tvs = verbundTvs.get(tv.verbund_id) ?? [tv.id];
+      meineAntraege.push({ ...tv, tv_count: tvs.length, tv_aktenzeichen: tvs });
     } else {
-      meineAntraege.push({ ...tv, tv_count: 1 });
+      meineAntraege.push({ ...tv, tv_count: 1, tv_aktenzeichen: [tv.id] });
     }
   }
 
@@ -378,5 +430,6 @@ export function computeDashboardAggregate(
     meineAntraege,
     stats: { ...stats },
     anyKuerzelSeen,
+    erledigtLautKuerzeln,
   };
 }

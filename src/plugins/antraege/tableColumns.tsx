@@ -164,7 +164,7 @@ function HerleitungZelle({ r }: { r: AntragListItem }): React.ReactElement | nul
   );
 }
 
-function renderHerleitung(r: AntragListItem): ReactNode {
+export function renderHerleitung(r: AntragListItem): ReactNode {
   if (!isVorgangssystemEnabled()) return null;
   return <HerleitungZelle r={r} />;
 }
@@ -177,22 +177,6 @@ export const MA_COLUMN_KEY = 'tib_kuerz';
 
 /** Key der verdichteten Zuständigkeits-Spalte (FB + AB der Antragsphase). */
 export const ZUSTAENDIG_COLUMN_KEY = 'zustaendig';
-
-/**
- * Wird die MA-Spalte im Übersichtsmodus erzwungen?
- *
- * Nur, wenn die verdichtete `zustaendig`-Spalte NICHT sichtbar ist — die trägt
- * das TIB-Kürzel schon. Dieselbe Frage stellen `resolveAntragTableColumns` (für
- * die Tabelle) und `AntraegeMain` (für die „auto"-Marke im Picker); stünde sie
- * zweimal geschrieben, zeigte der Picker irgendwann eine Marke an einer Spalte,
- * die gar nicht mehr erzwungen wird.
- */
-export function maSpalteErzwungen(
-  visibleKeys: readonly string[],
-  showMaColumn: boolean,
-): boolean {
-  return showMaColumn && !visibleKeys.includes(ZUSTAENDIG_COLUMN_KEY);
-}
 
 /**
  * Rubriken des Spalten-Pickers. Reine Anzeige-Ordnung im Menü — die Reihenfolge
@@ -219,6 +203,11 @@ const G_ZUSTAENDIGKEIT = 'Zuständigkeit';
 /** Exportiert, weil die Klickzonen die ganze Rubrik aufklappbar machen
  *  (`klickzonen.tsx`) — eine neue Status-Spalte soll das erben, ohne dass
  *  jemand eine zweite Liste pflegt. */
+/** Der Schlüssel der kombinierten Status-Spalte — einmal getippt, weil ihn
+ *  `resolveAntragTableColumns` wiedererkennen muss, um sie an die To-do-Kaskade
+ *  zu hängen. */
+export const STATUS_SCHRITT_KEY = 'status_naechster_schritt';
+
 export const G_STATUS = 'Status';
 const G_TERMINE = 'Termine';
 export const G_ORDNER = 'Ordner des Fachsystems';
@@ -656,7 +645,7 @@ const ROH_SPALTEN: SortableColumn<AntragTableRow>[] = [
     // Sortierung nach kanonischem Status-Rang (`statusRang`, Pitfall #12), dann
     // Aktion alphabetisch als Sekundärschlüssel — beides in einen Sortier-String
     // gefaltet (Rang 2-stellig gepolstert → dominiert, Aktion tie-break).
-    key: 'status_naechster_schritt',
+    key: STATUS_SCHRITT_KEY,
     label: 'Status und nächster Schritt',
     gruppe: G_STATUS,
     defaultVisible: true,
@@ -1162,30 +1151,4 @@ function ordneNachOrdnerRubrik(
     .map((c, i) => ({ c, i }))
     .sort((a, b) => rang(a.c) - rang(b.c) || a.i - b.i)
     .map(x => x.c);
-}
-
-/**
- * Sichtbare Spalten in Registry-Reihenfolge auflösen — Single Source für Tabelle
- * (`AntraegeTable`) UND XLSX-Export (`export-xlsx.ts`), damit der Export exakt die
- * Spalten der Ansicht abbildet. Die MA-Spalte (TIB-Kürzel) ist regulär im Picker
- * wählbar; im „alle"-/Übersichtsmodus (`showMaColumn`) wird sie zusätzlich
- * automatisch erzwungen (auch ohne Picker-Auswahl) und erscheint dank Registry-
- * Reihenfolge direkt nach der gelockten FKZ-Spalte. Set-Union → kein Duplikat,
- * falls die Spalte ohnehin schon im Picker gewählt ist.
- *
- * Die verdichtete `zustaendig`-Spalte führt dasselbe TIB-Kürzel bereits mit —
- * ist sie sichtbar, entfällt das Erzwingen (`maSpalteErzwungen`), sonst stünde
- * das Kürzel zweimal in derselben Zeile.
- */
-export function resolveAntragTableColumns(
-  visibleKeys: readonly string[],
-  showMaColumn: boolean,
-  kategorien: readonly { kategorieId: string; label: string }[] = [],
-): SortableColumn<AntragTableRow>[] {
-  const keys = new Set(visibleKeys);
-  if (maSpalteErzwungen(visibleKeys, showMaColumn)) keys.add(MA_COLUMN_KEY);
-  // Ordner-Spalten hinten anhängen: die Registry-Reihenfolge ist die Lesefolge
-  // der festen Spalten, die kuratierten kommen als Zusatz dazu.
-  return [...ANTRAG_TABLE_COLUMNS, ...kategorieStatusColumns(kategorien)]
-    .filter(c => keys.has(c.key));
 }

@@ -72,10 +72,9 @@ import {
   ANTRAG_TABLE_COLUMNS,
   MA_COLUMN_KEY,
   kategorieStatusColumns,
-  maSpalteErzwungen,
-  resolveAntragTableColumns,
   spaltenHinweis,
 } from './tableColumns';
+import { maSpalteErzwungen, resolveAntragTableColumns } from './spaltenAufloesung';
 import { useKategorieSpalten } from './useKategorieSpalten';
 import { useSpaltenKontext } from './useSpaltenHilfe';
 import { mitSpaltenHilfe } from './spaltenHilfe';

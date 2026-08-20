@@ -8,10 +8,9 @@ import {
   G_ORDNER_VB,
   G_STATUS,
   kategorieStatusColumns,
-  maSpalteErzwungen,
-  resolveAntragTableColumns,
   spaltenHinweis,
 } from '../tableColumns';
+import { maSpalteErzwungen, resolveAntragTableColumns } from '../spaltenAufloesung';
 import { reicheNeueStandardspaltenNach } from '../useAntraegeColumnsStore';
 import type { AntragTableRow } from '../tableGrouping';
 

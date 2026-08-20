@@ -68,8 +68,21 @@ export interface TodoErgebnis {
    * abzuleiten.
    */
   quelle: 'regel' | 'abgeleitet';
-  /** Bei `quelle: 'abgeleitet'`: die Regel, aus deren `wartetAuf` es stammt. */
+  /** Bei `quelle: 'abgeleitet'`: die Regel, aus der es stammt. */
   abgeleitetAus?: string;
+  /**
+   * **Wie** geliehen wurde — die fremde Regel *wartet auf* diese Rolle, oder sie
+   * *nennt sie ausdrücklich als zuständig*.
+   *
+   * Beides ist eine geliehene Aussage und heißt deshalb überall „abgeleitet";
+   * der Unterschied steht im Tooltip. Er ist trotzdem wichtig: bis v4.132 kam
+   * nur der erste Weg an, und eine Regel wie R12 („Widerspruch gg Abl
+   * bearbeiten", `zustaendig: ['ab','fb','jur']`) war in der FB-Sicht **gar
+   * nicht zu sehen** — der FB bekam ein leeres Board, obwohl der AB-Regelsatz
+   * ihn namentlich nennt. Gemessen am 20.08.2026 trafen die drei Regeln mit
+   * FB-Nennung auf 40 / 24 / 176 offene Vorgänge.
+   */
+  abgeleitetArt?: 'wartetAuf' | 'zustaendig';
 }
 
 const LEER: TodoErgebnis = {
@@ -297,29 +310,57 @@ export function ermittleTodosAlleRollen(
   // Die Herkunftsregel wird für den Sperr-Filter gebraucht — seit v2.412 nicht
   // mehr nur ihre Id, sondern ihr `strang`. `nachId` kommt aus dem
   // Kaskaden-Index: die Schleife darunter läuft über ROLLEN².
+  //
+  // **Zwei Leihwege, in dieser Reihenfolge.** Nennt eine fremde Regel die Rolle
+  // ausdrücklich als zuständig, ist das die stärkere Aussage („du bist mit dran")
+  // als ein `wartetAuf` („auf dich wird gewartet") — deshalb zuerst.
   for (const rolle of ROLLEN) {
     if (pro[rolle].todo !== null) continue;
-    for (const quelle of ROLLEN) {
-      const q = pro[quelle];
-      if (quelle === rolle || q.todo === null || q.wartetAuf !== rolle) continue;
-      const herkunft = q.regelId === null ? undefined : nachId.get(q.regelId);
-      if (herkunft === undefined || lagen[rolle].istGesperrt(herkunft)) continue;
-      pro[rolle] = {
-        todo: q.todo,
-        regelId: null,
-        beschreibung: q.beschreibung,
-        zustaendig: [rolle],
-        wartetAuf: null,
-        belege: q.belege,
-        gesperrtDurch: pro[rolle].gesperrtDurch,
-        weitereTreffer: [],
-        quelle: 'abgeleitet',
-        abgeleitetAus: herkunft.id,
-      };
-      break;
-    }
+    const geliehen = leiheVonFremd(pro, rolle, nachId, lagen[rolle], 'zustaendig')
+      ?? leiheVonFremd(pro, rolle, nachId, lagen[rolle], 'wartetAuf');
+    if (geliehen !== null) pro[rolle] = geliehen;
   }
   return pro;
+}
+
+/**
+ * Ein To-do aus einem fremden Regelsatz leihen — auf einem der beiden Wege.
+ *
+ * Drei Regeln halten den Platzhalter ehrlich, und sie gelten für beide Wege:
+ * ein echter Treffer schlägt ihn immer (der Aufrufer prüft das vorher); er läuft
+ * durch den Sperr-Filter der EIGENEN Rolle (sonst entstünde aus einem für sie
+ * geschlossenen Fall eine neue Aufgabe); und er trägt `regelId: null`, weil die
+ * Rolle eben keine eigene Regel hat.
+ */
+function leiheVonFremd(
+  pro: Record<Rolle, TodoErgebnis>,
+  rolle: Rolle,
+  nachId: ReadonlyMap<string, TodoRegel>,
+  lage: SperrLage,
+  art: 'wartetAuf' | 'zustaendig',
+): TodoErgebnis | null {
+  for (const quelle of ROLLEN) {
+    const q = pro[quelle];
+    if (quelle === rolle || q.todo === null) continue;
+    const trifft = art === 'wartetAuf' ? q.wartetAuf === rolle : q.zustaendig.includes(rolle);
+    if (!trifft) continue;
+    const herkunft = q.regelId === null ? undefined : nachId.get(q.regelId);
+    if (herkunft === undefined || lage.istGesperrt(herkunft)) continue;
+    return {
+      todo: q.todo,
+      regelId: null,
+      beschreibung: q.beschreibung,
+      zustaendig: [rolle],
+      wartetAuf: null,
+      belege: q.belege,
+      gesperrtDurch: pro[rolle].gesperrtDurch,
+      weitereTreffer: [],
+      quelle: 'abgeleitet',
+      abgeleitetAus: herkunft.id,
+      abgeleitetArt: art,
+    };
+  }
+  return null;
 }
 
 /**

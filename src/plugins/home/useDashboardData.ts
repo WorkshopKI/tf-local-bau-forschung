@@ -1,8 +1,9 @@
-import { useDeferredValue, useMemo } from 'react';
+import { useDeferredValue, useMemo, useRef } from 'react';
 import { useAntraegeStore } from '@/plugins/antraege/store';
 import type { Vorgang } from '@/core/types/vorgang';
 import { useBearbeiterSicht } from '@/core/hooks/useBearbeiterSicht';
 import { useBereich } from '@/core/hooks/useBereich';
+import { useBestandsAufgaben } from '@/core/hooks/useBestandsAufgaben';
 import { istImBereich } from '@/core/status/betrachtungsbereich';
 import { applyInaktiveExclusion } from '@/plugins/antraege/bearbeiterFilter';
 import { useInaktiveKuerzelSet } from '@/plugins/auslastung/hooks/useInaktiveKuerzelSet';
@@ -42,6 +43,12 @@ export interface DashboardData {
   bearbeiterKuerzelMissing: boolean;
   /** Tokens des aktiven Bearbeiter-Filters (uppercase, getrimmt). Leer wenn inaktiv. */
   bearbeiterTokens: string[];
+  /**
+   * Vorgänge mit offenem Status, die laut Kürzeln erledigt sind (Schlussvermerk
+   * bzw. Zuwendungsbescheid). Sie zählen nicht als offen — gemeldet werden sie
+   * trotzdem: das ist ein Befund für das Fachsystem, kein Anzeigefehler.
+   */
+  erledigtLautKuerzeln: number;
 }
 
 export function useDashboardData(): DashboardData {
@@ -61,6 +68,14 @@ export function useDashboardData(): DashboardData {
   const bereichMenge = useBereich().menge;
   const antraege = useDeferredValue(antraegeRaw);
   const verbundById = useDeferredValue(verbundByIdRaw);
+  // **Was laut Kürzeln erledigt ist, zählt nicht mehr als offen** (v4.132). Der
+  // amtliche Status hinkt manchmal nach: gemessen am 20.08.2026 trugen drei
+  // Vorgänge einen Schlussvermerk (`D_VV`) und trotzdem einen offenen
+  // `STATUS_TV` — auf der Startseite standen sie mit dreistelligem Rückstand an
+  // der Spitze. Solange der Lauf nicht durch ist, ist die Menge leer und alles
+  // verhält sich wie vorher.
+  const heuteRef = useRef<string>(new Date().toISOString());
+  const { abgeschlossen } = useBestandsAufgaben('leerlauf', heuteRef.current);
 
   return useMemo(() => {
     const end = tfPerfStart('useDashboardData memo');
@@ -77,6 +92,7 @@ export function useDashboardData(): DashboardData {
     const agg = computeDashboardAggregate(imBereich, bearbeiterMode, {
       includeAntraege: true,
       verbundById,
+      gesperrt: abgeschlossen,
     });
 
     // KUERZ-Missing nur dann melden, wenn tatsächlich Antraege im Store
@@ -101,8 +117,9 @@ export function useDashboardData(): DashboardData {
       bearbeiterFilterActive: bearbeiterMode.active,
       bearbeiterKuerzelMissing,
       bearbeiterTokens: bearbeiterMode.tokens,
+      erledigtLautKuerzeln: agg.erledigtLautKuerzeln,
     };
     end(`antraege=${antraege.length} → total=${agg.stats.total} offen=${agg.stats.offen}`);
     return result;
-  }, [antraege, verbundById, bearbeiterMode, inaktiveKuerzel, showInaktive, bereichMenge]);
+  }, [antraege, verbundById, bearbeiterMode, inaktiveKuerzel, showInaktive, bereichMenge, abgeschlossen]);
 }

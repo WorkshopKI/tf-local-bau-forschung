@@ -32,6 +32,23 @@ export const ZUSTAENDIGKEIT_LABEL: Record<Zustaendigkeit, string> = {
   fertig: 'Abgeschlossen',
 };
 
+/**
+ * **Ohne Rollenwahl heißt „meine" etwas anderes** — und muss deshalb anders
+ * heißen (v4.132).
+ *
+ * `zustaendigkeitVon(e, 'alle')` fragt nicht „bin ich dran?", sondern „ist
+ * überhaupt jemand benannt?". Der Chip las sich trotzdem als „Meine Aufgaben":
+ * für einen FB standen darunter (gemessen am 20.08.2026, Kürzel THü) 17
+ * Aufgaben, von denen **16 dem AB gehörten** und genau eine ihn nannte. Wer die
+ * eigene Rolle wählt, bekommt die alte Beschriftung zurück — dann stimmt sie.
+ */
+export function zustaendigkeitLabel(z: Zustaendigkeit, rolle: Rolle | 'alle'): string {
+  if (rolle !== 'alle') return ZUSTAENDIGKEIT_LABEL[z];
+  if (z === 'meine') return 'Jemand ist zuständig';
+  if (z === 'warten') return 'Wartet auf außerhalb';
+  return ZUSTAENDIGKEIT_LABEL[z];
+}
+
 export const ZUSTAENDIGKEIT_TITEL: Record<Zustaendigkeit, string> = {
   meine: 'To-dos, für die die gewählte Rolle zuständig ist',
   warten: 'Dieselben Anträge aus der Fremdrollen-Sicht — was für den AB „RNE ergänzen" ist, '
@@ -40,6 +57,20 @@ export const ZUSTAENDIGKEIT_TITEL: Record<Zustaendigkeit, string> = {
   fertig: 'Eine Sperre griff, weil Schlussvermerk oder Zuwendungsbescheid vorliegen — '
     + 'hier ist nichts mehr zu tun',
 };
+
+/** Die Erklärung zum Chip — ohne Rollenwahl eine andere, siehe {@link zustaendigkeitLabel}. */
+export function zustaendigkeitTitel(z: Zustaendigkeit, rolle: Rolle | 'alle'): string {
+  if (rolle !== 'alle') return ZUSTAENDIGKEIT_TITEL[z];
+  if (z === 'meine') {
+    return 'Eine Regel benennt eine Rolle im Haus — welche, sagt sie erst, wenn Sie oben '
+      + 'Ihre Rolle wählen. Ohne Rollenwahl gilt der AB-Regelsatz.';
+  }
+  if (z === 'warten') {
+    return 'Die Regel wartet auf den Antragsteller oder auf eine Rolle, die sie nicht '
+      + 'als zuständig benennt — im Haus ist gerade niemand am Zug.';
+  }
+  return ZUSTAENDIGKEIT_TITEL[z];
+}
 
 /**
  * Die Vorbelegung: **was Arbeit ist**.

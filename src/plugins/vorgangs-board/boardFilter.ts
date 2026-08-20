@@ -12,9 +12,7 @@
  * statt behauptet.
  */
 import type { AntragListItem } from '@/core/services/csv/types';
-import type { WaechterUrteil, ZahPhase, ZahPhaseId } from '@/core/status';
-import { fristLaeuftVon } from '@/core/status/zah-phasen';
-import { isBegleitungStatus, isTerminalStatus } from '@/core/utils/status-canonical';
+import type { WaechterUrteil, ZahPhaseId } from '@/core/status';
 import { antragMatchesBearbeiter, type BearbeiterFilterMode } from '@/plugins/antraege/bearbeiterFilter';
 
 /**
@@ -31,76 +29,6 @@ export interface FilterbareZeile {
   zahPhase: ZahPhaseId | null;
   waechter: { urteil: WaechterUrteil };
   filterRecord: AntragListItem;
-}
-
-/**
- * Die Kürzel-Spalten, die der Bearbeiter-Filter überhaupt anfasst
- * (`bearbeiterFilter.ts`: `BEARBEITER_FIELDS_LOWER` + `BEGLEITUNG_FIELDS_LOWER`
- * + die Rollen-Zuschnitte). Absichtlich hier dupliziert statt importiert: das
- * hielte dieses Modul sonst an einer Konstante fest, die dort privat ist — und
- * ein zusätzliches Kürzel hier zu viel kostet nichts, eines zu wenig würde vom
- * Convention-Test `board-filtersatz-deckt-kuerzel-spalten` gemeldet.
- */
-const FILTER_SPALTEN: readonly string[] = [
-  'status', 'tib_kuerz', 'bib_kuerz', 'bfm_kuerz', 'pfm_kuerz', 'ztp_kuerz',
-];
-const FILTER_SPALTEN_SET: ReadonlySet<string> = new Set(FILTER_SPALTEN);
-
-/**
- * Der Antrags-Record, **auf die Filter-Spalten eingedampft**.
- *
- * Warum überhaupt: `BoardZeile.filterRecord` trug bis v4.103 den vollen
- * 461-Feld-Record (~36 KB). Über 12 000 Zeilen hielt das Board damit den ganzen
- * Bestand für seine Lebensdauer im Speicher fest — genau das, was `jederVorgang`
- * mit seinem Callback vermeiden wollte, und der Grund, warum ein Ergebnis-Cache
- * über Seitenwechsel hinweg vorher unbezahlbar war.
- *
- * **Gemischte Schreibweisen müssen mit.** `forEachKuerzelValue` durchsucht nicht
- * nur die Kleinbuchstaben-Keys, sondern läuft zusätzlich über ALLE Record-Keys
- * und prüft deren Kleinform — ein Mapping kann `ZTP_KUERZ` genauso ablegen wie
- * `ztp_kuerz`. Würde die Projektion nur die Kleinform kopieren, verschwänden
- * gemischt geschriebene Spalten still aus dem Filter. Der Preis dafür ist EIN
- * Durchlauf über die Record-Keys beim Bau — statt einem je Filter-Interaktion.
- */
-export function schmalerFilterSatz(rec: Record<string, unknown>): AntragListItem {
-  const out: Record<string, unknown> = {};
-  for (const k of FILTER_SPALTEN) {
-    const v = rec[k];
-    if (typeof v === 'string') out[k] = v;
-  }
-  for (const key in rec) {
-    if (FILTER_SPALTEN_SET.has(key)) continue;
-    const lk = key.toLowerCase();
-    if (lk === key || !FILTER_SPALTEN_SET.has(lk)) continue;
-    const v = rec[key];
-    if (typeof v === 'string') out[key] = v;
-  }
-  return out as unknown as AntragListItem;
-}
-
-/**
- * Läuft für diese Zeile die Antragsfrist?
- *
- * **Die Antwort steht im Katalog, nicht hier.** Bis v4.3 führte das Board eine
- * eigene Menge von vier Phasen-Ids — eine zweite Wahrheit neben
- * `fristLaeuft` an der Phase. Sobald die PL den Schnitt umhängt (Phase
- * umbenannt, geteilt, neu angelegt), traf die feste Menge daneben, ohne dass
- * irgendwo etwas fehlschlug.
- *
- * Die beiden Sonderfälle davor bleiben, weil sie am **Status** hängen und nicht
- * am Verfahrensschritt: terminal heißt fertig, und die Begleitphase hat ihre
- * eigene, echte VN-Frist (`computeFristDatum` liefert sie dort).
- *
- * Unbekannte oder verwaiste Phase → `true`, dieselbe Richtung wie
- * `fristLaeuftVon`: eine laufende Uhr ist sichtbar und korrigierbar, eine
- * stillschweigend angehaltene nimmt Arbeit aus jeder Liste.
- */
-export function fristLaeuftFuer(
-  zahPhase: ZahPhaseId | null, statusRoh: unknown, phasen?: readonly ZahPhase[],
-): boolean {
-  if (isTerminalStatus(statusRoh)) return false;
-  if (isBegleitungStatus(statusRoh)) return true;
-  return fristLaeuftVon(zahPhase, phasen);
 }
 
 /** Wie viele Jahrgänge die Vorbelegung umfasst (laufendes Jahr + die zwei davor). */

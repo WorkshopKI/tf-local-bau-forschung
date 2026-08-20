@@ -1,10 +1,13 @@
 /**
  * Status & Verlauf (Home-Widget, Hauptbereich).
  *
- * Zeigt je Verbund die **ZAH-Phase des amtlichen Status**, einen Mini-Verlauf
- * (die letzten sichtbaren Status-Events) und das erste offene To-do. Read-only +
+ * Zeigt je Verbund die **ZAH-Phase des amtlichen VERBUND-Status**, einen
+ * Mini-Verlauf (die letzten sichtbaren Status-Events) und die Aufgabe aus der
+ * To-do-Kaskade. Die Zeile darüber („Meine Anträge") zeigt den Stand der
+ * TEILVORHABEN — beide dürfen auseinanderlaufen, deshalb sagt die Marke, welche
+ * Ebene sie meint (v4.132). Read-only +
  * strikt gerätelokal: liest ausschließlich via `idb.get`
- * (getVerbund/listAntraegeByVerbund/getStatusEvents) und die REINE Status-API
+ * (getVerbund/getStatusEvents) und die REINE Status-API
  * (@/core/status) — kein Share-/Snapshot-/Mirror-Write (Guard
  * `home-widgets-local-only`). Die Status-Logik wird NICHT dupliziert, nur
  * konsumiert (analog `useStatusVerlauf` der Verbund-Detailseite).
@@ -22,18 +25,17 @@
  * die Meta-Zeile macht ihn sichtbar. Gekappt auf die ersten ~8 (kritischste
  * Frist zuerst) — nur für diese wird geladen.
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigation } from '@/core/hooks/useNavigation';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useBearbeiterSicht } from '@/core/hooks/useBearbeiterSicht';
 import { bearbeiterScopeLabel } from '@/plugins/antraege/bearbeiterFilter';
-import {
-  getVerbund, listAntraegeByVerbund, listSchemasByProgramm,
-} from '@/core/services/csv/idb-csv';
+import { getVerbund } from '@/core/services/csv/idb-csv';
+import { useZeilenAufgaben, type ZeilenAufgaben } from '@/core/hooks/useBestandsAufgaben';
 import { isStatusCockpitEnabled } from '@/config/feature-flags';
 import {
-  getAktiveVersion, getStatusEvents, sammleVorkommen, baueFeldAufloesung,
-  ermittleTodo, baueTodoKontext, zahPhaseLabel, zahPhaseFuerStatusText,
+  getAktiveVersion, getStatusEvents, aufgabenAnzeige,
+  zahPhaseLabel, zahPhaseFuerStatusText,
   sortiereEvents, eventProminenz, eventZeitMs, feldLabel,
   type MappingVersion, type StatusEvent, type ZahPhaseId,
 } from '@/core/status';
@@ -49,25 +51,27 @@ interface Verbundzeile {
   verbundId: string;
   akronym: string;
   titel: string;
+  /** Die Teilvorhaben, für die diese Zeile steht — Grundlage der Aufgabe. */
+  tvAktenzeichen: string[];
 }
 
 interface ZeileDaten {
   /** ZAH-Phase des amtlichen Verbund-Status; `null` = Marker oder nicht im Katalog. */
   phase: ZahPhaseId | null;
-  /** Erstes zutreffendes To-do aus der Kaskade; `null` = keine Regel greift. */
-  todo: string | null;
   events: StatusEvent[];
 }
 
 /**
- * Lädt Status, To-do und Historie je (gekapptem) Verbund. Nur aktiv, wenn das
- * Widget ausgeklappt ist (`aktiv`) — der WidgetShell-Body existiert eingeklappt
- * gar nicht. Abbruch-sicher gegen Unmount / ID-Wechsel.
+ * Lädt den **Verbund-Status** und die Historie je (gekapptem) Verbund. Nur aktiv,
+ * wenn das Widget ausgeklappt ist (`aktiv`) — der WidgetShell-Body existiert
+ * eingeklappt gar nicht. Abbruch-sicher gegen Unmount / ID-Wechsel.
  *
- * Die Schemas werden je Programm EINMAL geladen und für die Feld-Auflösung
- * gebraucht: dieselbe `D_`-Spalte liegt in verschiedenen Programmen unter
- * verschiedenen Record-Keys (Bug-Klasse 5). Ohne sie liefe die To-do-Kaskade auf
- * lauter leeren Feldern und meldete falsche Aufgaben.
+ * **Das To-do kommt seit v4.132 NICHT mehr von hier.** Dieses Widget wertete die
+ * Kaskade selbst aus — mit eigener Schema-Auflösung und, weil `opts.rolle`
+ * fehlte, immer im AB-Regelsatz, ohne das zu sagen. Es liest jetzt dieselbe
+ * Ablage wie die Zeile darüber und das Vorgangs-Board
+ * ([useBestandsAufgaben](../../../core/hooks/useBestandsAufgaben.ts)); übrig
+ * bleibt hier, was nur hier gebraucht wird: der Verbund-Status und die Events.
  */
 function useStatusZeilen(
   version: MappingVersion | null,
@@ -88,35 +92,14 @@ function useStatusZeilen(
     setLaden(true);
     void (async () => {
       try {
-        const heute = new Date().toISOString();
-        const regeln = version.todoRegeln ?? [];
-        const aufloesungCache = new Map<string, ReturnType<typeof baueFeldAufloesung>>();
         const paare = await Promise.all(
           verbuende.map(async (v): Promise<[string, ZeileDaten]> => {
-            const [verbund, antraege, events] = await Promise.all([
+            const [verbund, events] = await Promise.all([
               getVerbund(idb, v.verbundId),
-              listAntraegeByVerbund(idb, v.verbundId),
               getStatusEvents(idb, v.verbundId),
             ]);
-            const programmId = verbund?.programm_id ?? antraege[0]?.programm_id ?? null;
-            let aufloesung = programmId ? aufloesungCache.get(programmId) : undefined;
-            if (programmId && !aufloesung) {
-              aufloesung = baueFeldAufloesung(await listSchemasByProgramm(idb, programmId), version.felder);
-              aufloesungCache.set(programmId, aufloesung);
-            }
-            const vorkommen = sammleVorkommen(
-              version.felder,
-              (verbund ?? {}) as unknown as Record<string, unknown>,
-              antraege.map(a => ({
-                aktenzeichen: a.aktenzeichen,
-                record: a as unknown as Record<string, unknown>,
-              })),
-              aufloesung,
-            );
-            const todo = ermittleTodo(regeln, baueTodoKontext(vorkommen), heute);
             return [v.verbundId, {
               phase: zahPhaseFuerStatusText(verbund?.status),
-              todo: todo?.todo ?? null,
               events,
             }];
           }),
@@ -159,6 +142,9 @@ export function StatusVerlaufWidget({
         verbundId: a.verbund_id,
         akronym: a.acronym ?? a.verbund_titel ?? a.title ?? a.verbund_id,
         titel: a.verbund_titel ?? a.title ?? '',
+        // Dieselben Teilvorhaben wie in „Meine Anträge" — sonst faltete diese
+        // Zeile über eine andere Menge und nennte eine andere Aufgabe.
+        tvAktenzeichen: a.tv_aktenzeichen ?? [a.id],
       });
     }
     return out;
@@ -167,6 +153,8 @@ export function StatusVerlaufWidget({
   const sichtbare = useMemo(() => verbuende.slice(0, MAX_ZEILEN), [verbuende]);
   const aktiv = !instanz.eingeklappt;
   const { daten, laden } = useStatusZeilen(version, sichtbare, aktiv);
+  const heuteRef = useRef<string>(new Date().toISOString());
+  const aufgaben = useZeilenAufgaben('leerlauf', heuteRef.current);
 
   if (!isStatusCockpitEnabled() || !version) return null;
 
@@ -198,6 +186,7 @@ export function StatusVerlaufWidget({
               daten={daten.get(v.verbundId) ?? null}
               version={version}
               laden={laden}
+              aufgaben={aufgaben}
               onOpen={() => navigate('antraege', { selectedId: v.verbundId })}
             />
           ))}
@@ -215,12 +204,14 @@ function StatusZeile({
   daten,
   version,
   laden,
+  aufgaben,
   onOpen,
 }: {
   zeile: Verbundzeile;
   daten: ZeileDaten | null;
   version: MappingVersion;
   laden: boolean;
+  aufgaben: ZeilenAufgaben;
   onOpen: () => void;
 }): React.ReactElement {
   const phase = daten?.phase ?? null;
@@ -236,7 +227,17 @@ function StatusZeile({
     return sichtbar.slice(-MINI_VERLAUF).reverse();
   }, [events, version]);
 
-  const naechster = daten?.todo ?? null;
+  // Die Aufgabe kommt aus derselben Ablage wie „Meine Anträge" und das Board —
+  // und über dieselben Teilvorhaben gefaltet. Ohne Rückfall auf die
+  // Status-Formel: dieses Widget stand nie für sie ein, und eine Zeile, die den
+  // amtlichen Status ohnehin daneben zeigt, braucht keine Ableitung daraus.
+  const anzeige = aufgabenAnzeige({
+    aufgabe: aufgaben.fuer(zeile.tvAktenzeichen),
+    rueckfall: '',
+    laeuftNoch: aufgaben.laeuftNoch,
+    regeln: aufgaben.regeln,
+  });
+  const naechster = anzeige.text || null;
 
   // Einzeilig: Akronym · ZAH-Phase · (To-do, füllt) · Mini-Verlauf. Das To-do /
   // der Leer-Hinweis wandert in dieselbe Zeile (füllt den Rest, truncate), damit
@@ -255,8 +256,14 @@ function StatusZeile({
         {zeile.akronym}
       </span>
       {phase !== null ? (
+        // **Die Marke meint den VERBUND-Status.** Die Zeile darüber („Meine
+        // Anträge") zeigt den Stand der Teilvorhaben, und die beiden dürfen
+        // auseinanderlaufen: CALYPSO trägt am Verbund „abgelehnt/zurückgezogen"
+        // (Phase: Abgeschlossen), am Teilvorhaben „Widerspruch zur Ablehnung".
+        // Beides stimmt — ohne dieses Wort las es sich als Widerspruch (v4.132).
         <span
           className="shrink-0 inline-flex items-center rounded-[6px] px-1.5 py-0.5 text-[11px]"
+          title={`Verfahrensschritt des Verbund-Status (STATUS_VB) — die Teilvorhaben können weiter sein.`}
           style={{
             color: 'color-mix(in srgb, var(--tf-primary) 75%, var(--tf-text))',
             background: 'color-mix(in srgb, var(--tf-primary) 12%, var(--tf-bg))',
@@ -270,9 +277,12 @@ function StatusZeile({
       {naechster ? (
         <span
           className="flex-1 min-w-0 truncate text-[12px] text-[var(--tf-text-secondary)]"
-          title={naechster}
+          title={anzeige.titel}
         >
           {naechster}
+          {anzeige.neben ? (
+            <span className="ml-1.5 text-[11px] text-[var(--tf-text-tertiary)]">{anzeige.neben}</span>
+          ) : null}
         </span>
       ) : daten && verlauf.length === 0 ? (
         <span className="flex-1 min-w-0 truncate text-[11px] text-[var(--tf-text-tertiary)]">

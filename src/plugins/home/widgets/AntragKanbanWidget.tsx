@@ -14,7 +14,7 @@
  * Status-KATEGORIEN (Pitfall #12). Die Meta-Zeile macht den Bearbeiter-Modus
  * sichtbar (bearbeiterScopeLabel: „Kürzel THU" vs. „Alle Bearbeiter").
  */
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Maximize2 } from 'lucide-react';
 import { TfBoard } from '@/components/kanban/TfBoard';
 import type { TfBoardBahn } from '@/components/kanban/tf-board-types';
@@ -29,6 +29,7 @@ import { applyFilters } from '@/core/services/csv/filter/engine';
 import type { FilterDefinition, UserPreset } from '@/core/services/csv/filter/types';
 import { useAntraegeStore } from '@/plugins/antraege/store';
 import { useBereich } from '@/core/hooks/useBereich';
+import { useZeilenAufgaben } from '@/core/hooks/useBestandsAufgaben';
 import { istImBereich } from '@/core/status/betrachtungsbereich';
 import { bearbeiterScopeLabel } from '@/plugins/antraege/bearbeiterFilter';
 import { useInaktiveKuerzelSet } from '@/plugins/auslastung/hooks/useInaktiveKuerzelSet';
@@ -67,6 +68,8 @@ const OHNE_PRESET: PresetZustand = { preset: null, fehlt: false, definitions: []
 
 export function AntragKanbanWidget({ instanz, onToggleEingeklappt }: WidgetProps): React.ReactElement {
   const storage = useStorage();
+  // Der Stichtag wird EINMAL gestempelt — alle Liegezeiten sind relativ zu ihm.
+  const heuteRef = useRef<string>(new Date().toISOString());
   const widgets = useHomeWidgets();
   const { navigate } = useNavigation();
   const alleAntraege = useAntraegeStore(s => s.antraege);
@@ -131,9 +134,13 @@ export function AntragKanbanWidget({ instanz, onToggleEingeklappt }: WidgetProps
     [grundmenge, presetZustand],
   );
 
+  // Die Karten sagen dieselbe Aufgabe wie die Zeile darüber und das Board —
+  // aus der To-do-Kaskade, mit der alten Status-Formel als Rückfall (v4.132).
+  const aufgaben = useZeilenAufgaben('leerlauf', heuteRef.current);
+
   const { lanes, gesamt, ausserhalb } = useMemo(
-    () => buildAntragKanbanLanes(basis, cfg.lanes, cfg.maxKartenProLane),
-    [basis, cfg.lanes, cfg.maxKartenProLane],
+    () => buildAntragKanbanLanes(basis, cfg.lanes, cfg.maxKartenProLane, Date.now(), aufgaben),
+    [basis, cfg.lanes, cfg.maxKartenProLane, aufgaben],
   );
 
   const pills = useMemo(
@@ -199,7 +206,7 @@ export function AntragKanbanWidget({ instanz, onToggleEingeklappt }: WidgetProps
   }, [aendereVollbild]);
 
   const zeichneVollbild = useCallback((verwaist: boolean): React.ReactNode => {
-    const karten = kartenProKategorie(basis);
+    const karten = kartenProKategorie(basis, Date.now(), aufgaben);
     // Der Startvorschlag wird immer gerechnet, nicht nur beim ersten Öffnen: er
     // ist auch der Weg zurück („Anordnung zurücksetzen").
     const seed = seedVollbildLanes(karten, cfg.lanes);

@@ -24,7 +24,7 @@ import * as XLSX from 'xlsx';
 import type { AntragListItem, Verbund } from '@/core/services/csv/types';
 import type { IDBStore } from '@/core/services/storage/idb-store';
 import type { SortableColumn } from '@/components/data-table/types';
-import { resolveAntragTableColumns } from '../tableColumns';
+import { resolveAntragTableColumns } from '../spaltenAufloesung';
 import type { AntragTableRow } from '../tableGrouping';
 import { loadAntraegeTextCorpus } from './search-corpus';
 

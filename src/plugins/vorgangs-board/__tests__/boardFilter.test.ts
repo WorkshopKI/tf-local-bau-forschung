@@ -11,7 +11,7 @@ import type { AntragListItem } from '@/core/services/csv/types';
 import type { ZahPhaseId } from '@/core/status';
 import {
   letzteDreiJahrgaenge, reichtInAltbestand, passtJahr, passtVariante, passtPhase, passtRest,
-  zaehleNach, fristLaeuftFuer, type FilterbareZeile,
+  zaehleNach, type FilterbareZeile,
 } from '../boardFilter';
 
 const AUS = { active: false, tokens: [], includeBegleitung: false };
@@ -117,51 +117,5 @@ describe('zaehleNach — Facetten-Semantik', () => {
     const z = zaehleNach(grundmenge, r => r.jahr);
     expect(z.get('2025')).toBe(1);   // ohne Varianten-Filter wären es 2
     expect(z.has('2016')).toBe(false);
-  });
-});
-
-/*
- * Bis v4.3 stand hier eine feste Menge von vier Phasen-Ids im Hook. Sobald die
- * PL den Schnitt umhängt, traf sie daneben — lautlos. Diese Tests halten fest,
- * dass die Antwort aus der Fassung kommt.
- */
-describe('fristLaeuftFuer', () => {
-  // Rohtexte aus STATUS_CODE_KATALOG: 73 terminal, 97 Begleitung, 38 in Prüfung.
-  const TERMINAL = 'abgelehnt/zurückgezogen';
-  const BEGLEITUNG = 'VN geprüft';
-  const IN_PRUEFUNG = 'techn geprüft';
-
-  it('hält die Uhr bei terminalen Vorgängen an — unabhängig von der Phase', () => {
-    expect(fristLaeuftFuer('eingang', TERMINAL)).toBe(false);
-    expect(fristLaeuftFuer(null, TERMINAL)).toBe(false);
-  });
-
-  it('lässt sie in der Begleitphase laufen: dort gilt die echte VN-Frist', () => {
-    expect(fristLaeuftFuer('begleitung', BEGLEITUNG)).toBe(true);
-  });
-
-  it('folgt ohne Fassung dem ausgelieferten Schnitt', () => {
-    expect(fristLaeuftFuer('eingang', IN_PRUEFUNG)).toBe(true);
-    // Der Auslieferungs-Seed hält die Uhr in der Entscheidung an: die
-    // Antragsfrist misst die Bearbeitung BIS zur Entscheidung.
-    expect(fristLaeuftFuer('entscheidung', IN_PRUEFUNG)).toBe(false);
-  });
-
-  it('lässt sie bei unbekannter oder verwaister Phase laufen', () => {
-    expect(fristLaeuftFuer(null, IN_PRUEFUNG)).toBe(true);
-    expect(fristLaeuftFuer('gibt-es-nicht', IN_PRUEFUNG)).toBe(true);
-  });
-
-  // Der eigentliche Regressionsbeleg: eine NEU geschnittene Phase, die es im
-  // Seed nicht gibt. Die alte feste Menge hätte sie nie erfasst.
-  it('folgt der kuratierten Fassung, auch bei einer frisch angelegten Phase', () => {
-    const fassung = [
-      { id: 'erstsichtung', label: 'Erstsichtung', reihenfolge: 10, fristLaeuft: true },
-      { id: 'erstsichtung-qs', label: 'QS der Erstsichtung', reihenfolge: 20, fristLaeuft: false },
-    ];
-    expect(fristLaeuftFuer('erstsichtung', IN_PRUEFUNG, fassung)).toBe(true);
-    expect(fristLaeuftFuer('erstsichtung-qs', IN_PRUEFUNG, fassung)).toBe(false);
-    // Terminal schlägt die Fassung weiter — der Sonderfall hängt am Status.
-    expect(fristLaeuftFuer('erstsichtung', TERMINAL, fassung)).toBe(false);
   });
 });

@@ -16,7 +16,7 @@
 import { useState } from 'react';
 import { ROLLE_LABEL } from '@/core/status/rollen';
 import { AbgeleitetMarke, TodoHerleitung } from '@/components/vorgang/TodoAnzeige';
-import type { Aufgabe } from './aufgabe';
+import type { Aufgabe } from '@/core/status/aufgabe';
 
 const LEISE = 'text-[11px] text-[var(--tf-text-tertiary)]';
 

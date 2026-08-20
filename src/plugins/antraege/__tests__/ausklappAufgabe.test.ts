@@ -16,7 +16,7 @@ import type { Rolle } from '@/core/status/typen';
 import type { TodoErgebnis } from '@/core/status/todo-engine';
 import {
   adresseFuerWaechter, baueAufgabe, type TvTodo,
-} from '@/plugins/antraege/ausklapp/kopfkarte/aufgabe';
+} from '@/core/status/aufgabe';
 
 function erg(p: Partial<TodoErgebnis> = {}): TodoErgebnis {
   return {
@@ -84,7 +84,23 @@ describe('baueAufgabe', () => {
       jeTv: [tv('A1', { fb: erg({ todo: 'Gutachten liefern', quelle: 'abgeleitet', abgeleitetAus: 'R4' }) })],
       rolle: 'fb', ohneRegeln: false,
     });
-    expect(a.grund).toContain('Abgeleitet aus Regel R4');
+    expect(a.grund).toContain('Abgeleitet');
+    expect(a.grund).toContain('R4');
+  });
+
+  // Seit v4.132 gibt es ZWEI Leihwege, und der Grund sagt welchen: „wartet auf
+  // dich" ist eine andere Auskunft als „nennt dich ausdrücklich".
+  it('unterscheidet die beiden Leihwege im Grund', () => {
+    const wartet = baueAufgabe({
+      jeTv: [tv('A1', { fb: erg({ todo: 'X', quelle: 'abgeleitet', abgeleitetAus: 'R4', abgeleitetArt: 'wartetAuf' }) })],
+      rolle: 'fb', ohneRegeln: false,
+    });
+    const nennt = baueAufgabe({
+      jeTv: [tv('A1', { fb: erg({ todo: 'X', quelle: 'abgeleitet', abgeleitetAus: 'R12', abgeleitetArt: 'zustaendig' }) })],
+      rolle: 'fb', ohneRegeln: false,
+    });
+    expect(wartet.grund).toContain('wartet auf');
+    expect(nennt.grund).toContain('mitzuständig');
   });
 });
 

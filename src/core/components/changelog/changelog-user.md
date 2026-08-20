@@ -19,6 +19,19 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.132 — 2026-08
+
+### Verbesserungen
+- **Die Startseite sagt jetzt dasselbe wie das Vorgangs-Board.** Beide lesen dieselben Regeln über die gesetzten Kürzel. Wo bisher „Gutachten freigeben" stand, obwohl das Kürzel AT4 längst gesetzt war, steht jetzt „in QS — wartet auf QS".
+- **Jede Zeile sagt, wer am Zug ist**: „liegt bei AB", „wartet auf QS", „wartet auf Antragsteller". Der Antrag bleibt in Ihrer Liste, die Aufgabe gehört aber sichtbar jemand anderem.
+- Dieselbe Aussage steht in den Kanban-Karten und in der Spalte „Status und nächster Schritt" der Förderanträge-Liste.
+- Bei einem Verbund steht dabei, wenn die Aufgabe nur einen Teil der Teilvorhaben betrifft („3 von 4 TV").
+- **Wer seine Rolle wählt, sieht seine eigene Arbeit.** Bisher zeigte das Vorgangs-Board einem FB entweder die Aufgaben des AB oder gar nichts. Die Einstellungen sagen jetzt auch, welche Rolle die Daten nahelegen.
+
+### Bugfixes
+- Vorgänge mit Schlussvermerk zählen nicht mehr als offen und stehen nicht mehr oben in der Liste, auch wenn ihr Status im Fachsystem noch etwas anderes sagt. Sie bleiben sichtbar — mit dem Hinweis, dass sich Status und Kürzel widersprechen.
+- Die Chips im Vorgangs-Board heißen nur dann „Meine Aufgaben", wenn eine Rolle gewählt ist. Ohne Rollenwahl zählen sie, wofür irgendjemand im Haus zuständig ist.
+
 ## v4.131 — 2026-08
 
 ### Verbesserungen

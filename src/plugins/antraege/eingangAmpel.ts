@@ -137,16 +137,39 @@ export function countByAmpelBucket(
   bucket: AmpelBucket,
   bearbeiter?: BearbeiterFilterMode,
   schwellen?: AmpelSchwellen,
+  /** Aktenzeichen, deren Verfahren laut Kürzeln durch ist — siehe
+   *  {@link istErledigtLautKuerzeln}. */
+  erledigt?: ReadonlySet<string>,
 ): number {
   let n = 0;
   for (const a of antraege) {
     if (isIrrlaeufer(a.vb_phase)) continue;
+    if (erledigt?.has(a.aktenzeichen) === true) continue;
     const b = schwellen ? getAmpelBucketMitSchwellen(a, schwellen) : getAmpelBucket(a);
     if (b !== bucket) continue;
     if (bearbeiter && !antragMatchesBearbeiter(a, bearbeiter)) continue;
     n++;
   }
   return n;
+}
+
+/**
+ * **Braucht ein abgeschlossenes Verfahren Aufmerksamkeit? Nein.**
+ *
+ * Die Ampel misst das Eingangsalter offener Anträge. Trägt ein Vorgang einen
+ * Schlussvermerk (`D_VV`) oder einen Zuwendungsbescheid (`D_AZBE`), ist er
+ * durch — auch wenn `STATUS_TV` noch etwas anderes sagt. Gemessen am 20.08.2026
+ * traf das drei Vorgänge; sie standen mit „vor 240 Tagen" unter „älter als 90
+ * Tage" und damit ganz oben in der dringlichsten Kachel der Startseite.
+ *
+ * Die Menge kommt aus dem Bestandslauf
+ * ([useBestandsAufgaben](../../core/hooks/useBestandsAufgaben.ts)); solange er
+ * nicht durch ist, ist sie leer und alles zählt wie vorher.
+ */
+export function istErledigtLautKuerzeln(
+  a: AntragListItem, erledigt?: ReadonlySet<string>,
+): boolean {
+  return erledigt?.has(a.aktenzeichen) === true;
 }
 
 /** Aktiver Ampel-Quickfilter der Antragsliste (Klick auf eine Widget-Zeile).
@@ -161,9 +184,14 @@ export interface AmpelQuickfilter {
 export function filtereAmpelQuickfilter(
   antraege: AntragListItem[],
   quick: AmpelQuickfilter | null,
+  /** Dieselbe Menge wie in {@link countByAmpelBucket} — sonst zeigte die Liste
+   *  nach dem Klick mehr Zeilen, als die Kachel versprochen hat. */
+  erledigt?: ReadonlySet<string>,
 ): AntragListItem[] {
   if (!quick) return antraege;
-  return antraege.filter(a => getAmpelBucketMitSchwellen(a, quick.schwellen) === quick.bucket);
+  return antraege.filter(a =>
+    !istErledigtLautKuerzeln(a, erledigt)
+    && getAmpelBucketMitSchwellen(a, quick.schwellen) === quick.bucket);
 }
 
 /** Deutsche Bucket-Labels (Chip + Widget-Zeilen). */

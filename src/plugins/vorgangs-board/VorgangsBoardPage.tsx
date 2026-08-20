@@ -29,8 +29,8 @@ import { AbgeleitetMarke, TodoHerleitung, WartetAuf } from '@/components/vorgang
 import { bearbeiterScopeLabel } from '@/plugins/antraege/bearbeiterFilter';
 import { useVorgangsBoard, sichtVon, type BoardTab, type BoardZeile } from './useVorgangsBoard';
 import {
-  istArbeitsvorrat, schalteZustaendigkeit, ZUSTAENDIGKEIT_DEFAULT, ZUSTAENDIGKEIT_LABEL,
-  ZUSTAENDIGKEIT_TITEL, ZUSTAENDIGKEITEN,
+  istArbeitsvorrat, schalteZustaendigkeit, ZUSTAENDIGKEIT_DEFAULT,
+  zustaendigkeitLabel, zustaendigkeitTitel, ZUSTAENDIGKEITEN,
 } from './zustaendigkeit';
 import { AuswertungSicht, FristenSicht } from './CockpitSichten';
 
@@ -238,8 +238,8 @@ export function VorgangsBoardPage(): React.ReactElement {
             {ZUSTAENDIGKEITEN.map(z => (
               <ToggleChip
                 key={z}
-                label={`${ZUSTAENDIGKEIT_LABEL[z]} ${api.zustZaehler[z].toLocaleString('de-DE')}`}
-                title={ZUSTAENDIGKEIT_TITEL[z]}
+                label={`${zustaendigkeitLabel(z, api.rolle)} ${api.zustZaehler[z].toLocaleString('de-DE')}`}
+                title={zustaendigkeitTitel(z, api.rolle)}
                 selected={api.zustaendig.includes(z)}
                 onToggle={() => api.setZustaendig(schalteZustaendigkeit(api.zustaendig, z))}
               />
@@ -265,7 +265,13 @@ export function VorgangsBoardPage(): React.ReactElement {
             <ToggleChip
               key={r}
               label={r === 'alle' ? 'Alle Rollen' : ROLLE_LABEL[r]}
-              title={r === 'alle' ? undefined : ROLLE_LANG[r]}
+              // „Alle Rollen" zeigt den AB-Regelsatz — das tat es seit jeher
+              // (`sichtVon`), nur stand es nirgends. Wer als FB liest, hielt
+              // fremde Arbeit für die eigene (v4.132).
+              title={r === 'alle'
+                ? 'Zeigt den AB-Regelsatz — er ist der einzige mit vollständiger Kaskade. '
+                  + 'Wählen Sie Ihre Rolle, um zu sehen, was daran Ihre Aufgabe ist.'
+                : ROLLE_LANG[r]}
               selected={api.rolle === r}
               onToggle={() => api.setRolle(r as Rolle | 'alle')}
             />

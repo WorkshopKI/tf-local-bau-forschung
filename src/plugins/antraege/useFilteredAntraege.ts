@@ -1,4 +1,5 @@
 import { useDeferredValue, useMemo, useRef } from 'react';
+import { useBestandsAufgaben } from '@/core/hooks/useBestandsAufgaben';
 import { applyFilters } from '@/core/services/csv';
 import type { AntragListItem } from '@/core/services/csv/types';
 import type { ActiveFilter, FilterDefinition } from '@/core/services/csv/filter/types';
@@ -187,6 +188,11 @@ export function useFilteredAntraege(): FilteredAntraegeResult {
   const projektart = useAntraegeStore(s => s.projektart);
   const verbundById = useAntraegeStore(s => s.verbundById);
   const ampelQuickfilter = useAntraegeStore(s => s.ampelQuickfilter);
+  // Dieselbe Menge, die die Startseiten-Kachel abzieht: was laut Kürzeln durch
+  // ist, steht auch nach dem Klick nicht in der Liste (v4.132). Wirkt NUR im
+  // Ampel-Quickfilter — die Reiter der Liste bleiben unberührt.
+  const heuteRef = useRef<string>(new Date().toISOString());
+  const { abgeschlossen } = useBestandsAufgaben('nie', heuteRef.current);
   const kategorieQuickfilter = useAntraegeStore(s => s.kategorieQuickfilter);
   const stillstandTage = useAntraegeStore(s => s.stillstandTage);
   // Traege: der Hook rechnet erst, wenn eine Schwelle gesetzt ist.
@@ -233,7 +239,7 @@ export function useFilteredAntraege(): FilteredAntraegeResult {
     return typeof anzahl === 'number' && anzahl > 0 ? anzahl : 1;
   }, [verbundById]);
 
-  const deps: unknown[] = [antraege, alleAntraege.length, active, definitions, deferredSearch, deferredHybridAkz, searchIgnoreBearbeiterFilter, activeView, sortByView, precheckBucket, projektart, tvCountOf, ampelQuickfilter, kategorieQuickfilter, bearbeiterFilter, inaktiveKuerzel, showInaktive, stillstandTage, aktivitaetsIndex, stichtag, stillstandFehler, stillstandAlterSekunden];
+  const deps: unknown[] = [antraege, alleAntraege.length, active, definitions, deferredSearch, deferredHybridAkz, searchIgnoreBearbeiterFilter, activeView, sortByView, precheckBucket, projektart, tvCountOf, ampelQuickfilter, abgeschlossen, kategorieQuickfilter, bearbeiterFilter, inaktiveKuerzel, showInaktive, stillstandTage, aktivitaetsIndex, stichtag, stillstandFehler, stillstandAlterSekunden];
   return useMemo(() => geteilt(deps, (): FilteredAntraegeResult => {
     const end = tfPerfStart('useFilteredAntraege memo');
     const view = getView(activeView);
@@ -281,7 +287,7 @@ export function useFilteredAntraege(): FilteredAntraegeResult {
     // Ampel-Quickfilter (v2.229, Klick auf eine Antragseingang-Widget-Zeile):
     // transient wie PreCheck, VOR den Sidebar-Filtern; nutzt die konfigurierten
     // Schwellen aus dem Widget → Liste zählt identisch zum Widget.
-    const byAmpel = filtereAmpelQuickfilter(byPrecheck, ampelQuickfilter);
+    const byAmpel = filtereAmpelQuickfilter(byPrecheck, ampelQuickfilter, abgeschlossen);
     // Kategorie-Quickfilter (v4.131, Klick auf „+ N weitere →" einer Kanban-Bahn
     // des Startseiten-Widgets): dieselbe Stelle und dieselbe Bauart wie der
     // Ampel-Filter. Verglichen wird die KATEGORIE-Fassade, nie ein Roh-Status
@@ -343,5 +349,5 @@ export function useFilteredAntraege(): FilteredAntraegeResult {
       stillstandFehler,
       stillstandAlterSekunden,
     };
-  }), [antraege, alleAntraege.length, active, definitions, deferredSearch, deferredHybridAkz, searchIgnoreBearbeiterFilter, activeView, sortByView, precheckBucket, projektart, tvCountOf, ampelQuickfilter, kategorieQuickfilter, bearbeiterFilter, inaktiveKuerzel, showInaktive, stillstandTage, aktivitaetsIndex, stichtag, stillstandFehler, stillstandAlterSekunden]);
+  }), [antraege, alleAntraege.length, active, definitions, deferredSearch, deferredHybridAkz, searchIgnoreBearbeiterFilter, activeView, sortByView, precheckBucket, projektart, tvCountOf, ampelQuickfilter, abgeschlossen, kategorieQuickfilter, bearbeiterFilter, inaktiveKuerzel, showInaktive, stillstandTage, aktivitaetsIndex, stichtag, stillstandFehler, stillstandAlterSekunden]);
 }

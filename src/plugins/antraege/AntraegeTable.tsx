@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useZeilenAufgaben } from '@/core/hooks/useBestandsAufgaben';
 import type { AntragListItem } from '@/core/services/csv/types';
 import { SortableTable, useTableSort, useColumnFilters, compareValues, useColumnWidths, useTotalTableWidth, DEFAULT_MIN_COLUMN_WIDTH, type KopfHoehen } from '@/components/data-table';
-import { resolveAntragTableColumns } from './tableColumns';
+import { resolveAntragTableColumns } from './spaltenAufloesung';
 import { mitSpaltenHilfe } from './spaltenHilfe';
 import type { SpaltenHilfe, SortableColumn } from '@/components/data-table/types';
 import { useAntraegeColumnsStore } from './useAntraegeColumnsStore';
@@ -201,9 +202,15 @@ export function AntraegeTable({
   // Registry-Reihenfolge beibehalten (nicht Toggle-Reihenfolge des Stores).
   // Im „alle"-Modus die MA-Spalte direkt nach der gelockten FKZ-Spalte
   // einblenden (auto-verwaltet, nicht im Spalten-Picker).
+  // Die Spalte „Status und nächster Schritt" liest dieselbe Kaskade wie
+  // Startseite und Vorgangs-Board (v4.132). Angestoßen im Leerlauf: die Tabelle
+  // steht sofort, die Handlung erscheint, sobald der Bestandslauf durch ist.
+  const heuteRef = useRef<string>(new Date().toISOString());
+  const aufgaben = useZeilenAufgaben('leerlauf', heuteRef.current);
+
   const rohSpalten = useMemo(
     () => {
-      const aufgeloest = resolveAntragTableColumns(visibleColumns, showMaColumn, kategorieSpalten);
+      const aufgeloest = resolveAntragTableColumns(visibleColumns, showMaColumn, kategorieSpalten, aufgaben);
       const mitHilfe = spaltenHilfe ? mitSpaltenHilfe(aufgeloest, spaltenHilfe) : aufgeloest;
       // Die eigenen Spalten hängen hinten an — in ihrer Definitionsreihenfolge,
       // gefiltert nach derselben Sichtbarkeits-Auswahl wie alle anderen.
@@ -211,7 +218,7 @@ export function AntraegeTable({
       const eigene = (eigeneSpalten ?? []).filter(c => sichtbar.has(c.key));
       return eigene.length > 0 ? [...mitHilfe, ...eigene] : mitHilfe;
     },
-    [visibleColumns, showMaColumn, kategorieSpalten, spaltenHilfe, eigeneSpalten],
+    [visibleColumns, showMaColumn, kategorieSpalten, spaltenHilfe, eigeneSpalten, aufgaben],
   );
 
   // VB-Titel ist nicht in `AntragListItem` projiziert (Verbund-Level-Feld) → einmal

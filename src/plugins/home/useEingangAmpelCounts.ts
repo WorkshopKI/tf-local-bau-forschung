@@ -1,6 +1,7 @@
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
 import { useAntraegeStore } from '@/plugins/antraege/store';
 import { useBereich } from '@/core/hooks/useBereich';
+import { useBestandsAufgaben } from '@/core/hooks/useBestandsAufgaben';
 import { istImBereich } from '@/core/status/betrachtungsbereich';
 import { useBearbeiterSicht } from '@/core/hooks/useBearbeiterSicht';
 import { applyInaktiveExclusion } from '@/plugins/antraege/bearbeiterFilter';
@@ -41,6 +42,11 @@ export interface EingangAmpelCounts {
 export function useEingangAmpelCounts(schwellen?: AmpelSchwellen): EingangAmpelCounts {
   const alleAntraege = useAntraegeStore(s => s.antraege);
   const bereichMenge = useBereich().menge;
+  // **Was laut Kürzeln erledigt ist, braucht keine Aufmerksamkeit** (v4.132).
+  // Dieselbe Menge nimmt der Ampel-Quickfilter aus der Liste — sonst zeigte sie
+  // nach dem Klick mehr Zeilen, als die Kachel versprochen hat.
+  const heuteRef = useRef<string>(new Date().toISOString());
+  const { abgeschlossen: erledigt } = useBestandsAufgaben('leerlauf', heuteRef.current);
   const { mode: bearbeiterFilter } = useBearbeiterSicht();
   const inaktiveKuerzel = useInaktiveKuerzelSet();
   const showInaktive = useShowInaktiveMasStore(s => s.showInaktive);
@@ -54,10 +60,10 @@ export function useEingangAmpelCounts(schwellen?: AmpelSchwellen): EingangAmpelC
   }, [alleAntraege, bereichMenge, bearbeiterFilter.active, inaktiveKuerzel, showInaktive]);
 
   return useMemo(() => {
-    const frisch = countByAmpelBucket(antraege, 'frisch', bearbeiterFilter, schwellen);
-    const warnung = countByAmpelBucket(antraege, 'warnung', bearbeiterFilter, schwellen);
-    const kritisch = countByAmpelBucket(antraege, 'kritisch', bearbeiterFilter, schwellen);
+    const frisch = countByAmpelBucket(antraege, 'frisch', bearbeiterFilter, schwellen, erledigt);
+    const warnung = countByAmpelBucket(antraege, 'warnung', bearbeiterFilter, schwellen, erledigt);
+    const kritisch = countByAmpelBucket(antraege, 'kritisch', bearbeiterFilter, schwellen, erledigt);
     return { frisch, warnung, kritisch, total: frisch + warnung + kritisch };
     // schwellen ist ein kleines Objekt — Werte statt Referenz als Deps.
-  }, [antraege, bearbeiterFilter, schwellen?.warnschwelleTage, schwellen?.kritischSchwelleTage]);
+  }, [antraege, bearbeiterFilter, schwellen?.warnschwelleTage, schwellen?.kritischSchwelleTage, erledigt]);
 }

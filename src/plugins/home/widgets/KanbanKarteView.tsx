@@ -34,8 +34,16 @@ export function KanbanKarteView({ karte, onOpen }: KanbanKarteViewProps): React.
       {karte.schrittText ? (
         // `line-clamp-2` schneidet ohne Rueckweg ab — der Titel daneben hat aus
         // demselben Grund einen. Greift bei langen Status-Kurzformen.
-        <p className="mt-0.5 text-[12px] leading-snug text-[var(--tf-text-secondary)] line-clamp-2" title={karte.schrittText}>
+        <p className="mt-0.5 text-[12px] leading-snug text-[var(--tf-text-secondary)] line-clamp-2" title={karte.titel || karte.schrittText}>
           {karte.schrittText}
+        </p>
+      ) : null}
+      {/* Wer am Zug ist, steht in einer EIGENEN Zeile: „in QS" ist die Aufgabe,
+          „wartet auf QS" die Auskunft dazu. In einen Satz gezogen läse sich
+          beides als Anweisung an den Leser der Karte (v4.132). */}
+      {karte.adresse ? (
+        <p className="mt-0.5 text-[11px] leading-snug text-[var(--tf-text-tertiary)] truncate" title={karte.adresse}>
+          {karte.adresse}
         </p>
       ) : null}
       <p className="mt-1.5 text-[11px] tabular-nums text-[var(--tf-text-tertiary)] truncate">

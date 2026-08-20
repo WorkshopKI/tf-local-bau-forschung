@@ -10,89 +10,40 @@
  * Der Stichtag wird EINMAL je Seitenaufruf gestempelt und in die reine Engine
  * injiziert — nie eine Uhr in der Berechnung.
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useStorage } from '@/core/hooks/useStorage';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useProfile } from '@/core/hooks/useProfile';
 import { useMeinKuerzel } from '@/core/hooks/useMeinKuerzel';
-import { toVbPhaseNumber, VB_PHASE_LABELS } from '@/core/utils/vb-phase-mappings';
-import { parseGermanDate } from '@/core/services/csv/dateParse';
-import { computeFristDatum, wirksamerEingang } from '@/core/services/csv/frist';
-import { useBereich } from '@/core/hooks/useBereich';
-import { istImBereich } from '@/core/status/betrachtungsbereich';
-import type { AntragListItem } from '@/core/services/csv/types';
+import { VB_PHASE_LABELS } from '@/core/utils/vb-phase-mappings';
+import { useBestandsAufgaben } from '@/core/hooks/useBestandsAufgaben';
 import {
-  ladeAktiveVersion, getAktiveVersion, jederVorgang,
-  baueTodoKontext, ermittleTodosAlleRollen, todoWerte, findeStatusCode, leseStatusRolle,
-  pruefeStillstand, SEED_CODE_ZU_ZAH_PHASE, zahPhaseLabel, REGELSATZ_DEFAULT,
-  fassePlatzhalterZusammen, letzteAenderungJeAntrag, zahPhasenVon,
-  type MappingVersion, type Rolle, type TodoErgebnis, type WaechterErgebnis, type ZahPhaseId,
+  todoWerte, leseStatusRolle, REGELSATZ_DEFAULT,
+  fassePlatzhalterZusammen, zahPhasenVon,
+  type MappingVersion, type Rolle, type TodoErgebnis, type ZahPhaseId,
   type RollenBilanz,
 } from '@/core/status';
-import { versionIndex } from '@/core/status/version-index';
-import { bestandGeneration } from '@/core/services/bestand-generation';
-import { useBoardCache, cacheGilt } from './boardCache';
+import type { BestandZeile } from '@/core/status/bestands-lauf';
 import {
   parseBearbeiterFilter, anzeigeTokensFuer, type BearbeiterFilterMode,
 } from '@/plugins/antraege/bearbeiterFilter';
 import {
   letzteDreiJahrgaenge, reichtInAltbestand, passtJahr, passtVariante, passtPhase, passtRest,
-  zaehleNach, fristLaeuftFuer, schmalerFilterSatz,
+  zaehleNach,
 } from './boardFilter';
 import {
   GRUPPE_FERTIG, GRUPPE_OHNE, ZUSTAENDIGKEIT_DEFAULT, zustaendigkeitVon,
   type Zustaendigkeit,
 } from './zustaendigkeit';
 
-/** Eine Zeile des Boards — ein Teilvorhaben mit seinem ermittelten To-do. */
-export interface BoardZeile {
-  aktenzeichen: string;
-  verbundId: string | null;
-  titel: string;
-  statusRoh: string;
-  zahPhase: ZahPhaseId | null;
-  zahPhaseText: string;
-  /** Jahr des Antragseingangs; leer, wenn kein Datum vorliegt. */
-  jahr: string;
-  /** Fördervariante (`VB_PHASE`) als Klartext — NICHT die Phase. */
-  variante: string;
-  /**
-   * Das To-do **je Rolle** — eine Auswertung, mehrere Spuren.
-   *
-   * Welche davon die Karte zeigt, entscheidet die Rollenwahl über
-   * {@link sichtVon}; berechnet werden sie in einem Durchgang. Das ist nicht nur
-   * billiger als fünf Läufe, es behebt auch einen alten Fehler: `rolle` war keine
-   * Dependency des Ladens, ein Rollenwechsel rechnete also gar nicht neu.
-   *
-   * Enthält auch die abgeleiteten Platzhalter (`quelle: 'abgeleitet'`) — die
-   * geliehene Aussage für eine Rolle, die noch keinen eigenen Regelsatz hat.
-   */
-  todos: Record<Rolle, TodoErgebnis>;
-  /** Urteil des Stillstands-Wächters (Stufe 1 + 2). */
-  waechter: WaechterErgebnis;
-  /** Späteres von Antragseingang und „alle Anträge da"; ISO oder null. */
-  wirksamerEingang: string | null;
-  /** Restfrist in Tagen ab wirksamem Eingang; negativ = überfällig. */
-  restTage: number | null;
-  /**
-   * Läuft für diesen Vorgang überhaupt noch eine Frist?
-   *
-   * Die 90-Tage-Uhr rechnet für JEDEN Antrag weiter — auch für einen, der vor
-   * zwei Jahren abgelehnt oder bewilligt wurde. Sie bedeutet dort nur nichts
-   * mehr. Ohne diese Unterscheidung führte die nach Restfrist sortierte Liste
-   * jahrelang geschlossene Vorgänge mit „853 T über" an (in der laufenden App
-   * gesehen), gefolgt von bewilligten mit „830 T über".
-   *
-   * Kriterium ist die **ZAH-Phase**, nicht die alte Kategorie: die Antragsfrist
-   * gehört zur Antragsphase (Eingang … Entscheidung). Danach gilt die
-   * VN-Logik, und die greift erst, wenn ein Verwendungsnachweis da ist —
-   * zwischen Bewilligung und VN läuft schlicht keine Frist. Kennt der Katalog
-   * die Phase nicht, bleibt es beim alten Kriterium „nicht terminal"; geraten
-   * wird nicht.
-   */
-  fristLaeuft: boolean;
-  /** Rohsatz für den Kürzel-Filter (nur die Spalten, die er liest). */
-  filterRecord: AntragListItem;
-}
+/**
+ * Eine Zeile des Boards — ein Teilvorhaben mit seinem ermittelten To-do.
+ *
+ * Seit v4.132 ist das **die Zeile des Bestandslaufs**
+ * ([bestands-lauf.ts](../../core/status/bestands-lauf.ts)): dieselbe Rechnung
+ * liest jetzt auch die Startseite und die Förderanträge-Liste, damit die App
+ * eine Aussage je Vorgang macht statt drei. Der Name bleibt, weil ihn die vier
+ * Board-Dateien tragen — die Sache dahinter gehört nicht mehr dem Board.
+ */
+export type BoardZeile = BestandZeile;
 
 /**
  * Die drei **Fragen**, die das Board beantwortet — nicht mehr die Mischung aus
@@ -237,35 +188,17 @@ export interface VorgangsBoardApi {
  * im Menü, statt sich hinter einem Sammelwert zu verstecken: der Nutzer sieht,
  * welche gemeint sind, und kann einzeln dazu- oder abwählen.
  */
-
-/** Fördervariante als Klartext; unbekannt → leer (nie geraten). */
-function varianteVon(rec: Record<string, unknown>): string {
-  const n = toVbPhaseNumber(rec.vb_phase);
-  return n !== null ? (VB_PHASE_LABELS[n] ?? `Variante ${n}`) : '';
-}
-
-function jahrVon(rec: Record<string, unknown>): string {
-  const roh = rec.antragsdatum;
-  if (typeof roh !== 'string') return '';
-  const iso = parseGermanDate(roh) ?? (/^\d{4}-/.test(roh) ? roh : null);
-  return iso ? iso.slice(0, 4) : '';
-}
-
 export function useVorgangsBoard(): VorgangsBoardApi {
-  const idb = useStorage().idb;
   const { profile } = useProfile();
   const meinKuerzel = useMeinKuerzel();
   const heuteRef = useRef<string>(new Date().toISOString());
 
-  const [laden, setLaden] = useState(true);
-  const [fehler, setFehler] = useState<string | null>(null);
-  const [version, setVersion] = useState<MappingVersion | null>(null);
-  const [alle, setAlle] = useState<BoardZeile[]>([]);
-  const [ausgeblendet, setAusgeblendet] = useState(0);
-  /** Rechenzeit des letzten Laufs über den Bestand (ms) — für die Messung. */
-  const [ladeMs, setLadeMs] = useState<number | null>(null);
-  const bereich = useBereich();
-  const bereichMenge = bereich.menge;
+  // Der Bestandslauf steht seit v4.132 in `core/status` und seine Ablage in
+  // `useBestandsAufgaben` — dieselbe Rechnung liest die Startseite und die
+  // Förderanträge-Liste. `'sofort'`, weil das Board ohne sie nichts zeigt.
+  const bestand = useBestandsAufgaben('sofort', heuteRef.current);
+  const alle = bestand.zeilen;
+  const version = bestand.version;
 
   /** Die Jahre der Vorbelegung — aus dem Stichtag, einmal je Seitenaufruf. */
   const letzteDrei = useMemo(() => letzteDreiJahrgaenge(heuteRef.current), []);
@@ -278,177 +211,6 @@ export function useVorgangsBoard(): VorgangsBoardApi {
   const [varianten, setVarianten] = useState<string[]>([]);
   const [phasen, setPhasen] = useState<string[]>([]);
   const [nurHaengt, setNurHaengt] = useState(false);
-
-  const laden_ = useCallback(async (neuRechnen = false): Promise<void> => {
-    setLaden(true);
-    setFehler(null);
-    try {
-      // Gemessen statt geschätzt: die Ladezeit über den Bestand ist die Zahl, an
-      // der sich sowohl der Bereich als auch jede Optimierung rechtfertigen muss
-      // — und sie ist nur brauchbar, wenn sie in Phasen zerfällt. Eine Summe sagt
-      // „5 s", nicht „davon 2 s IDB".
-      const begonnen = performance.now();
-      const v = getAktiveVersion() ?? await ladeAktiveVersion(idb);
-      const regeln = v.todoRegeln ?? [];
-      const vIndex = versionIndex(v);
-      const msKatalog = Math.round(performance.now() - begonnen);
-
-      // Der Schlüssel trägt alles, was das Ergebnis verändern kann:
-      //  - die Fassung (Nummer UND Zeitstempel: bei einer Nummern-Kollision
-      //    kann dieselbe Nummer verschiedenen Inhalt tragen),
-      //  - den Betrachtungsbereich (er entscheidet mit, was gerechnet wird),
-      //  - die Bestands-Generation (CSV-Import / Snapshot-Sync),
-      //  - den Stichtag-TAG: alle Liegezeiten und Fristen sind relativ zu ihm,
-      //    eine über Mitternacht offene Sitzung zeigte sonst die Zahlen von
-      //    gestern.
-      const schluessel = [
-        v.version,
-        v.zeitstempel ?? '',
-        bereichMenge === null ? 'alle' : [...bereichMenge].sort().join(','),
-        bestandGeneration(),
-        heuteRef.current.slice(0, 10),
-      ].join('|');
-      const cache = useBoardCache.getState();
-      if (!neuRechnen && cacheGilt(cache, schluessel, Date.now()) && cache.daten) {
-        setVersion(cache.daten.version);
-        setAlle(cache.daten.zeilen);
-        setAusgeblendet(cache.daten.ausgeblendet);
-        setLadeMs(cache.daten.ladeMs);
-        console.info(
-          `[vorgangs-board] aus dem Cache (${cache.daten.zeilen.length} Vorgänge,`
-          + ` berechnet vor ${Math.round((Date.now() - cache.berechnetAm) / 1000)} s)`,
-        );
-        return;
-      }
-      // Einmal fuer den ganzen Bestand statt einmal je Zeile: das Journal liegt
-      // in Monatsdateien, und ein Lesevorgang je Antrag waere die teuerste Art,
-      // dieselben Dateien zu lesen. `null` = kein Journal, dann bleibt es bei
-      // der Naeherung aus `max(D_)`.
-      const tJournal = performance.now();
-      const journal = await letzteAenderungJeAntrag(idb, heuteRef.current.slice(0, 10));
-      const msJournal = Math.round(performance.now() - tJournal);
-      const zeilen: BoardZeile[] = [];
-      const tBestand = performance.now();
-      let uebergangen = 0;
-      let msIdb = 0;
-      let msSammeln = 0;
-      let msTodo = 0;
-      let msWaechter = 0;
-
-      await jederVorgang(idb, v, (satz) => {
-        const { aktenzeichen, unterprogrammId, verbundId: vbId, record: rec, vorkommen } = satz;
-        const a = rec as unknown as AntragListItem;
-        // Betrachtungsbereich vor der teuren Arbeit: `ermittleTodosAlleRollen`
-        // und der Wächter laufen je Antrag über das ganze Feld-Ensemble. Was
-        // nicht im Bereich liegt, wird gar nicht erst gerechnet — hier spart
-        // der Bereich Zeit, nicht nur Zeilen.
-        if (!istImBereich(unterprogrammId, bereichMenge)) { uebergangen += 1; return; }
-        const tT = performance.now();
-        const todos = ermittleTodosAlleRollen(regeln, baueTodoKontext(vorkommen), heuteRef.current);
-        msTodo += performance.now() - tT;
-        const statusRoh = typeof a.status === 'string' ? a.status : '';
-        const code = findeStatusCode(statusRoh)?.eintrag.code ?? null;
-        // Der Wächter bekommt bewusst den AB-Satz und nicht die gewählte
-        // Sicht: sein Urteil (ok/hängt/unbewertet) hängt gar nicht am To-do,
-        // und die Rollen-Zuordnung des Staus soll sich nicht verschieben, nur
-        // weil jemand die Anzeige umschaltet. Die Stau-Zahlen bleiben damit
-        // vergleichbar mit denen vor der Mehrspurigkeit.
-        const tW = performance.now();
-        const waechter = pruefeStillstand({
-          version: v, vorkommen, statusCode: code, todo: todos[REGELSATZ_DEFAULT],
-          journalAenderung: journal?.get(aktenzeichen) ?? null,
-          stichtag: heuteRef.current,
-        });
-        msWaechter += performance.now() - tW;
-        // Der wirksame Eingang braucht `D_XTE` — custom gemappt und NICHT in
-        // der Listen-Projektion. Hier ist er da, weil `sammleVorkommen` ihn
-        // über das Schema aufgelöst hat (Bug-Klasse 5).
-        const xte = vorkommen.find(x => x.feld.code === 'XTE');
-        const eingang = wirksamerEingang(
-          typeof rec.antragsdatum === 'string' ? rec.antragsdatum : null,
-          xte ? (parseGermanDate(xte.wert) ?? xte.wert) : null,
-        );
-        // `VBE` genauso über die Auflösung statt über `rec.vn_eingang_datum`:
-        // die Spalte `D_VBE` ist custom gemappt, der kanonische Key ist im
-        // ganzen Bestand leer (v4.126). Sonst zeigte das Board für dieselbe
-        // Zeile „keine Frist", wo die Tabelle daneben eine VN-Uhr nennt.
-        const vbe = vorkommen.find(x => x.feld.code === 'VBE');
-        const vnEingang = vbe
-          ? (parseGermanDate(vbe.wert) ?? vbe.wert)
-          : (typeof rec.vn_eingang_datum === 'string' ? rec.vn_eingang_datum : undefined);
-        const frist = eingang
-          ? computeFristDatum({ status: a.status, antragsdatum: eingang, vn_eingang_datum: vnEingang })
-          : null;
-        const restTage = frist
-          ? Math.ceil((new Date(frist).getTime() - new Date(heuteRef.current).getTime()) / 86_400_000)
-          : null;
-        // `ersterWertNachCode` bildet das frühere `werte.find` exakt ab — auch
-        // den Fall, dass der erste Treffer KEINE `zahPhaseId` trägt: dann greift
-        // der Rückfall auf die Auslieferung, wie bisher.
-        const zahPhase = code !== null
-          ? vIndex.ersterWertNachCode.get(code)?.zahPhaseId
-            ?? SEED_CODE_ZU_ZAH_PHASE.get(code) ?? null
-          : null;
-        zeilen.push({
-          aktenzeichen,
-          verbundId: vbId,
-          titel: typeof a.titel === 'string' ? a.titel : (a.akronym ?? ''),
-          statusRoh,
-          zahPhase,
-          zahPhaseText: zahPhaseLabel(zahPhase, v.zahPhasen),
-          jahr: jahrVon(rec),
-          variante: varianteVon(rec),
-          todos,
-          waechter,
-          wirksamerEingang: eingang,
-          restTage,
-          fristLaeuft: fristLaeuftFuer(zahPhase, a.status, v.zahPhasen),
-          filterRecord: schmalerFilterSatz(rec),
-        });
-      }, (t) => {
-        msIdb += t.ioMs;
-        msSammeln += t.sammelMs;
-      });
-
-      setVersion(v);
-      setAlle(zeilen);
-      useBoardCache.getState().setzen(
-        schluessel,
-        { version: v, zeilen, ausgeblendet: uebergangen, ladeMs: Math.round(performance.now() - begonnen) },
-        // GELESEN, nicht „übrig": ein Bereich, der alles wegnimmt, ist eine
-        // Antwort — ein leerer Store ist keine.
-        zeilen.length + uebergangen,
-      );
-      const msBestand = Math.round(performance.now() - tBestand);
-      const ms = Math.round(performance.now() - begonnen);
-      setAusgeblendet(uebergangen);
-      setLadeMs(ms);
-      // Die Ladezeit ist die Zahl, an der sich der Bereich rechtfertigen muss —
-      // messbar statt behauptet. In Phasen, weil eine Summe niemandem sagt, wo
-      // die Zeit hingeht: `idb` ist Deserialisierung, `journal` ist SMB,
-      // `sammeln`/`todo`/`wächter` sind reines Rechnen.
-      const r = (x: number): number => Math.round(x);
-      console.info(
-        `[vorgangs-board] gesamt ${ms} ms | katalog ${msKatalog} | journal ${msJournal}`
-        + ` | bestand ${msBestand} (idb ${r(msIdb)} · sammeln ${r(msSammeln)}`
-        + ` · todo ${r(msTodo)} · wächter ${r(msWaechter)})`
-        + ` | ${zeilen.length} Vorgänge`
-        + (uebergangen > 0 ? ` · ${uebergangen} außerhalb des Bereichs übersprungen` : ''),
-      );
-    } catch (err) {
-      // Entwerten, damit ein gescheiterter Lauf beim nächsten Aufruf heilt statt
-      // hinter einem scharfen, aber leeren Eintrag zu stranden.
-      useBoardCache.getState().entwerten();
-      setFehler((err as Error).message ?? 'Board konnte nicht geladen werden.');
-    } finally {
-      setLaden(false);
-    }
-  }, [idb, bereichMenge]);
-
-  useEffect(() => { void laden_(); }, [laden_]);
-
-  const berechnetAm = useBoardCache(st => st.berechnetAm);
-  const neuBerechnen = useCallback(() => { void laden_(true); }, [laden_]);
 
   const kuerzelModus = useMemo<BearbeiterFilterMode>(() => ({
     // `useMeinKuerzel` ist die einzige Lesestelle (Pitfall #27) — im
@@ -669,16 +431,16 @@ export function useVorgangsBoard(): VorgangsBoardApi {
   }, [alle, phasen, phasenZaehler, version]);
 
   return {
-    laden, fehler, version, zeilen, gruppen, zaehler,
+    laden: bestand.laden, fehler: bestand.fehler, version, zeilen, gruppen, zaehler,
     zustaendig, setZustaendig, zustZaehler,
     gesamt: alle.length,
-    ohneRegeln: version !== null && (version.todoRegeln ?? []).length === 0,
+    ohneRegeln: bestand.ohneRegeln,
     tab, setTab, rolle, setRolle, nurMeine, setNurMeine,
     jahre, setJahre, varianten, setVarianten, phasen, setPhasen,
     jahrOptionen, variantenOptionen, phasenOptionen,
     letzteDrei, zeigtAltbestand: reichtInAltbestand(jahre, heuteRef.current),
-    kuerzelModus, ausgeblendet, ladeMs,
-    berechnetAm, neuBerechnen,
+    kuerzelModus, ausgeblendet: bestand.ausgeblendet, ladeMs: bestand.ladeMs,
+    berechnetAm: bestand.berechnetAm, neuBerechnen: bestand.neuBerechnen,
     nurHaengt, setNurHaengt, stau, unbewertet, rollenBilanz,
   };
 }
