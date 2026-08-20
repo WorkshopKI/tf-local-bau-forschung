@@ -55,18 +55,33 @@ export const FeedbackScreenshotInput = forwardRef<FeedbackScreenshotHandle, Prop
     },
   }), []);
 
+  // Je Bild einzeln auffangen (v4.129): bis dahin lag das `try` um die ganze
+  // Schleife — ein kaputtes Bild in einem Stapel von fünf verwarf auch die vier
+  // heilen, und die Meldung nannte nicht einmal, welches es war.
   const addFiles = async (files: Blob[]): Promise<void> => {
     setBusy(true);
     setError('');
     try {
       const added: PendingAttachment[] = [];
-      for (const f of files) {
-        const base = await scaleImageToAttachment(f);
-        added.push({ ...base, caption: '' });
+      const gescheitert: string[] = [];
+      for (const [i, f] of files.entries()) {
+        try {
+          const base = await scaleImageToAttachment(f);
+          added.push({ ...base, caption: '' });
+        } catch (err) {
+          const name = f instanceof File && f.name ? f.name : `Bild ${i + 1}`;
+          gescheitert.push(name);
+          console.warn('[FeedbackScreenshotInput] Bild übersprungen', name, err);
+        }
       }
       if (added.length) onChange([...aktuellRef.current, ...added]);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Bild konnte nicht verarbeitet werden.');
+      if (gescheitert.length) {
+        setError(
+          added.length > 0
+            ? `${gescheitert.length} von ${files.length} Bildern konnte nicht verarbeitet werden (${gescheitert.join(', ')}) — die übrigen sind angehängt.`
+            : `Bild konnte nicht verarbeitet werden (${gescheitert.join(', ')}).`,
+        );
+      }
     } finally {
       setBusy(false);
     }

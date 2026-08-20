@@ -171,3 +171,46 @@ describe('isSponsoringOpen', () => {
     }
   });
 });
+
+describe('sponsorCount zaehlt PERSONEN, nicht Eintraege (v4.129)', () => {
+  it('eine Person mit Punkten UND Stunden ist EIN Sponsor', () => {
+    const t = makeFeedback({
+      category: 'idea',
+      effort_estimate: 'M',
+      sponsors: [
+        makeSponsor({ user_id: 'THU', type: 'points', amount: 2 }),
+        makeSponsor({ user_id: 'THU', type: 'hours', amount: 3, project_ref: 'X' }),
+      ],
+    });
+    // Die Zahl ist ueberall als „N Sponsoren" beschriftet — Detail-Panel,
+    // Verwaltungs-Block und Ranking-Spalte lasen bis v4.128 die Eintraege.
+    expect(getSponsoringProgress(t, baseConfig).sponsorCount).toBe(1);
+  });
+
+  it('zwei Personen bleiben zwei', () => {
+    const t = makeFeedback({
+      category: 'idea',
+      effort_estimate: 'M',
+      sponsors: [
+        makeSponsor({ user_id: 'THU', type: 'points', amount: 2 }),
+        makeSponsor({ user_id: 'ATH', type: 'points', amount: 1 }),
+      ],
+    });
+    expect(getSponsoringProgress(t, baseConfig).sponsorCount).toBe(2);
+  });
+
+  it('die PUNKTE bleiben die Summe aller Eintraege', () => {
+    const t = makeFeedback({
+      category: 'idea',
+      effort_estimate: 'M',
+      sponsors: [
+        makeSponsor({ user_id: 'THU', type: 'points', amount: 2 }),
+        makeSponsor({ user_id: 'THU', type: 'hours', amount: 1, project_ref: 'X' }),
+      ],
+    });
+    const p = getSponsoringProgress(t, baseConfig);
+    expect(p.pointsTotal).toBe(2);
+    expect(p.hoursTotal).toBe(1);
+    expect(p.combinedPoints).toBe(2 + 1 * DEFAULT_HOURS_TO_POINTS_FACTOR);
+  });
+});

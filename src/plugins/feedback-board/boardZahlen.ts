@@ -25,21 +25,53 @@ export interface FacettenZaehler {
 }
 
 /**
+ * Was außer der eigenen Achse gerade eingrenzt. Ohne diese Angabe zählt jede
+ * Gruppe auf der ganzen Sicht-Menge — und verspricht damit Treffer, die die
+ * übrigen Filter längst ausgeschlossen haben (v4.129).
+ */
+export interface FacettenEinschraenkung {
+  /** Aktive Typ-Facette (`''` = keine). */
+  typ: string;
+  /** Aktive Status-Facette (`''` = keine). */
+  status: string;
+  /** Aktive Bereichs-Facette (`''` = keine). */
+  bereich: string;
+  /** Trifft die Freitext-Suche? Kommt als Prädikat herein, damit dieses Modul
+   *  rein bleibt (und `boardFilter` nicht rückwärts importiert werden muss). */
+  passtSuche: (t: FeedbackItem) => boolean;
+}
+
+/**
  * Zählt alle drei Facettengruppen in einem Durchlauf. Gezählt wird auf der
  * Menge, die die aktive Smart View übrig lässt — nicht auf dem Vollbestand:
  * eine Facettenzahl ist eine Zusage („so viele bekommst du, wenn du klickst"),
  * und die gilt nur innerhalb der aktuellen Sicht.
+ *
+ * Mit `einschraenkung` gilt die Zusage auch NEBEN den übrigen Filtern: jede
+ * Gruppe zählt auf der Menge, die Suche und die BEIDEN ANDEREN Achsen übrig
+ * lassen — die eigene Achse bleibt außen vor, sonst stünde in jeder Gruppe nur
+ * noch der gewählte Wert. Ohne diesen Zuschnitt versprach die Status-Gruppe
+ * „Rückfrage 1", während der Klick darauf 0 Treffer lieferte (v4.129).
  */
-export function zaehleFacetten(tickets: readonly FeedbackItem[]): FacettenZaehler {
+export function zaehleFacetten(
+  tickets: readonly FeedbackItem[],
+  einschraenkung?: FacettenEinschraenkung,
+): FacettenZaehler {
   const typ: Record<string, number> = {};
   const status: Record<string, number> = {};
   const bereich: Record<string, number> = {};
+  const e = einschraenkung;
   for (const t of tickets) {
+    if (e && !e.passtSuche(t)) continue;
     const k = t.category ?? TYP_UNKLASSIFIZIERT;
-    typ[k] = (typ[k] ?? 0) + 1;
-    status[t.kurator_status] = (status[t.kurator_status] ?? 0) + 1;
+    const s = t.kurator_status;
     const b = ticketBereich(t);
-    bereich[b] = (bereich[b] ?? 0) + 1;
+    const typOk = !e?.typ || e.typ === k;
+    const statusOk = !e?.status || e.status === s;
+    const bereichOk = !e?.bereich || e.bereich === b;
+    if (statusOk && bereichOk) typ[k] = (typ[k] ?? 0) + 1;
+    if (typOk && bereichOk) status[s] = (status[s] ?? 0) + 1;
+    if (typOk && statusOk) bereich[b] = (bereich[b] ?? 0) + 1;
   }
   return { typ, status, bereich };
 }

@@ -7,6 +7,7 @@ import {
   listPaneClass,
   listPaneStyle,
   maxListWidth,
+  eineEbeneLiegtDarueber,
   shouldCloseOnEscape,
   parseCollapsedFlag,
   serializeCollapsedFlag,
@@ -132,7 +133,7 @@ export function MasterDetailLayout({
     const onKey = (e: KeyboardEvent): void => {
       if (e.key !== 'Escape') return;
       const el = document.activeElement as HTMLElement | null;
-      if (!shouldCloseOnEscape(el?.tagName, !!el?.isContentEditable)) return;
+      if (!shouldCloseOnEscape(el?.tagName, !!el?.isContentEditable, eineEbeneLiegtDarueber())) return;
       onCloseRef.current?.();
     };
     window.addEventListener('keydown', onKey);

@@ -35,6 +35,19 @@ import {
   type SponsorVoteFile,
 } from './feedbackSponsorOutbox';
 
+/**
+ * Wie viele MENSCHEN unterstützen dieses Ticket? Nicht wie viele Einträge es
+ * gibt: wer Punkte UND Stunden gibt, steht mit zwei Einträgen in `sponsors` und
+ * wurde bis v4.129 überall als „2 Sponsoren" ausgewiesen (Detail-Panel,
+ * Verwaltungs-Block, Ranking-Spalte). Gezählt wird die `user_id` — dieselbe
+ * Identität, die `sponsorTicket`/`unsponsorTicket` schreiben.
+ */
+function zaehlePersonen(sponsors: readonly FeedbackSponsor[]): number {
+  const wer = new Set<string>();
+  for (const s of sponsors) wer.add(s.user_id);
+  return wer.size;
+}
+
 function recalcTotals(sponsors: FeedbackSponsor[]): { points: number; hours: number } {
   let points = 0;
   let hours = 0;
@@ -56,6 +69,7 @@ export function getSponsoringProgress(
   threshold: number;
   percentage: number;
   thresholdReached: boolean;
+  /** Anzahl unterstützender PERSONEN (nicht Einträge — siehe `zaehlePersonen`). */
   sponsorCount: number;
 } {
   const sponsors = ticket.sponsors ?? [];
@@ -73,7 +87,7 @@ export function getSponsoringProgress(
     threshold,
     percentage,
     thresholdReached: threshold > 0 && combined >= threshold,
-    sponsorCount: sponsors.length,
+    sponsorCount: zaehlePersonen(sponsors),
   };
 }
 

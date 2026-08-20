@@ -49,7 +49,7 @@ export function VerlaufBlock({ t, ctx, meName, neueKommentare = 0, fokusSignal =
   const feld = useRef<HTMLTextAreaElement>(null);
   const kommentare = t.comments ?? [];
 
-  const dev = ctx.darfVerwalten && ctx.rolle === 'entwickler';
+  const dev = ctx.darfSchreiben;
   const meins = ctx.istMeins(t);
   const bausteine = bausteineFuer(dev);
   const leer = !text.trim();

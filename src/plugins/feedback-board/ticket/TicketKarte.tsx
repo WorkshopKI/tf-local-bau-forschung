@@ -54,7 +54,7 @@ export function TicketKarte({ t, ctx, zieh }: {
   const kommentare = t.comments?.length ?? 0;
   // Schreiben darf nur, wer das Recht hat UND gerade die Entwickler-Sicht sieht
   // (die Vorschau soll zeigen, was der Ersteller sieht — inklusive „nicht änderbar").
-  const darf = ctx.darfVerwalten && ctx.rolle === 'entwickler';
+  const darf = ctx.darfSchreiben;
 
   return (
     <div
@@ -72,11 +72,16 @@ export function TicketKarte({ t, ctx, zieh }: {
       onContextMenu={e => { e.preventDefault(); setMenueOffen(true); }}
     >
       <div className="fb-karte-kopf">
-        <AuswahlHaken
-          gewaehlt={gewaehlt}
-          label={`Ticket ${feedbackNummer(t)} auswählen`}
-          onToggle={() => ctx.schalteAuswahl(t.id)}
-        />
+        {/* Das Häkchen ist der Einstieg in die Massenänderung — es erscheint nur
+            mit Schreibrecht. Ohne diese Bedingung stand es (unsichtbar, aber per
+            Tab erreichbar) auch in der Nutzer-Vorschau. */}
+        {darf && (
+          <AuswahlHaken
+            gewaehlt={gewaehlt}
+            label={`Ticket ${feedbackNummer(t)} auswählen`}
+            onToggle={() => ctx.schalteAuswahl(t.id)}
+          />
+        )}
         <span
           className="fb-typdot"
           style={{ background: t.category ? CATEGORY_DOT[t.category] : 'var(--tf-text-tertiary)' }}

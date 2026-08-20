@@ -142,14 +142,38 @@ export function fokusIstTippziel(
   return Boolean(targetTagName) && EDITABLE_TAGS.has(String(targetTagName).toUpperCase());
 }
 
+/** Radix portalt jede schwebende Ebene (Popover, Select-Menü, Tooltip) in einen
+ *  Wrapper mit diesem Attribut. */
+const SCHWEBENDE_EBENE = '[data-radix-popper-content-wrapper]';
+
+/**
+ * Liegt gerade eine schwebende Ebene über der Seite? (v4.129)
+ *
+ * Radix schließt seine Ebene bei Escape selbst — auf `document` im
+ * Capture-Schritt, also VOR jedem Fenster-Handler. Die DOM-Entfernung folgt aber
+ * erst danach: wer im Bubble-Schritt am `window` lauscht, sieht den Wrapper noch
+ * und weiß daran, dass dieses Escape schon vergeben ist. Ohne diese Frage schloss
+ * ein Tastendruck zwei Ebenen — das Chip-Popover UND das Detail-Panel darunter.
+ *
+ * Das `doc`-Argument existiert nur, damit die Funktion ohne Browser prüfbar ist.
+ */
+export function eineEbeneLiegtDarueber(
+  doc: Pick<Document, 'querySelector'> = document,
+): boolean {
+  return doc.querySelector(SCHWEBENDE_EBENE) !== null;
+}
+
 /**
  * Soll ein Escape-Tastendruck das Detail schließen? Nein, wenn der Fokus in
  * einem Eingabefeld liegt (Tippen im Editor soll nicht das ganze Detail
- * zuklappen) — sonst ja.
+ * zuklappen) und nein, solange eine schwebende Ebene darüber liegt — die ist
+ * gemeint. Sonst ja.
  */
 export function shouldCloseOnEscape(
   targetTagName: string | null | undefined,
   isContentEditable: boolean,
+  ebeneLiegtDarueber = false,
 ): boolean {
+  if (ebeneLiegtDarueber) return false;
   return !fokusIstTippziel(targetTagName, isContentEditable);
 }

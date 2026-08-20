@@ -43,8 +43,14 @@ export interface BoardDarstellung {
   gruppierung: GruppierAchse;
   dichte: Dichte;
   zeigeArchiv: boolean;
-  /** Ohne Schreibrecht ist „Archivierte einblenden" wirkungslos — die Achse
-   *  fällt dann weg, statt als Attrappe dazustehen. */
+  /**
+   * Ohne Schreibrecht ist „Archivierte einblenden" wirkungslos — die Achse
+   * fällt dann weg, statt als Attrappe dazustehen.
+   *
+   * Der Aufrufer reicht hier `darfSchreiben` herein (Recht UND Entwickler-Sicht):
+   * in der Nutzer-Vorschau gibt es den Schalter beim Ersteller nicht, also darf
+   * er dort auch nicht auftauchen.
+   */
   darfVerwalten: boolean;
 }
 

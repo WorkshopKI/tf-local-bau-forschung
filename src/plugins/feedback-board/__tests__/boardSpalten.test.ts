@@ -9,7 +9,7 @@
 import { describe, expect, it } from 'vitest';
 import type { FeedbackItem } from '@/core/types/feedback';
 import { FEEDBACK_LANE_STATUS, type FeedbackLane } from '@/components/feedback/feedbackLanes';
-import { baueSpalten } from '../boardSpalten';
+import { baueSpalten, zaehleOhneBahn } from '../boardSpalten';
 
 const LANES: FeedbackLane[] = FEEDBACK_LANE_STATUS.map(status => ({ status, spalten: 1 as const }));
 
@@ -94,5 +94,23 @@ describe('baueSpalten', () => {
     const spalten = baueSpalten([fb('A'), fb('B', { kurator_status: 'umgesetzt' })], nurNeu);
     expect(spalten).toHaveLength(1);
     expect(spalten[0]?.tickets.map(t => t.id)).toEqual(['A']);
+  });
+});
+
+describe('zaehleOhneBahn (v4.129)', () => {
+  it('meldet Karten, die in keiner gezeichneten Bahn landen', () => {
+    const items = [fb('A'), fb('B', { kurator_status: 'archiviert' }), fb('C', { kurator_status: 'archiviert' })];
+    // `archiviert` ist bewusst keine waehlbare Lane — ohne diese Zahl
+    // verschwaenden die beiden Karten, waehrend der Zaehler „3 von 3" sagte.
+    expect(zaehleOhneBahn(items, LANES)).toBe(2);
+  });
+
+  it('ist 0, sobald jeder Status eine Bahn hat', () => {
+    expect(zaehleOhneBahn([fb('A'), fb('B', { kurator_status: 'umgesetzt' })], LANES)).toBe(0);
+  });
+
+  it('zaehlt auch, was eine AUSGEBLENDETE Lane wegnimmt', () => {
+    const nurNeu: FeedbackLane[] = [{ status: 'neu', spalten: 1 }];
+    expect(zaehleOhneBahn([fb('A'), fb('B', { kurator_status: 'geplant' })], nurNeu)).toBe(1);
   });
 });

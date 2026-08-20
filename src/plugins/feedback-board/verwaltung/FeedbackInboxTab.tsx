@@ -14,7 +14,7 @@
  * wo die lebende Kopie liegt.
  */
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Check, X, RefreshCcw, Inbox, MessageSquare, Coins } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { SectionHeader } from '@/components/ui/SectionHeader';
@@ -34,13 +34,11 @@ import {
   type FeedbackOutboxItem,
 } from '@/core/services/personal-storage';
 import {
-  getFeedbackList,
-  submitFeedback as submitFeedbackToShared,
+  importiereOutboxEintrag,
   autoCollectSponsorVotes,
   autoCollectFeedbackVotes,
   autoCollectFeedbackComments,
 } from '@/core/services/feedback';
-import type { FeedbackContext } from '@/core/types/feedback';
 import { useMeinKuerzel } from '@/core/hooks/useMeinKuerzel';
 
 interface InboxItem {
@@ -87,6 +85,10 @@ export function FeedbackInboxTab(): React.ReactElement {
   const [items, setItems] = useState<InboxItem[]>([]);
   const [filterStatus, setFilterStatus] = useState<'pending' | 'all'>('pending');
   const [sponsorMsg, setSponsorMsg] = useState<string | null>(null);
+  // Wurde ueberhaupt schon gesucht? Ohne diese Unterscheidung praesentierte der
+  // Tab beim Oeffnen „0 offene Outbox-Eintraege / Keine offenen Outbox-Eintraege"
+  // — ein NIE-GESUCHT-Zustand, der wie ein Ergebnis aussah (v4.129).
+  const [geladen, setGeladen] = useState(false);
 
   const nutzbare = nurNutzbare(wurzeln, zustaende);
 
@@ -141,9 +143,19 @@ export function FeedbackInboxTab(): React.ReactElement {
     } catch (err) {
       setError((err as Error).message);
     } finally {
+      setGeladen(true);
       setBusy(false);
     }
   }, [wurzeln]);
+
+  // Einmal beim Oeffnen einsammeln, sobald eine Wurzel nutzbar ist. Kein Picker
+  // im Auto-Pfad: `loadInbox` liest nur bereits verbundene Handles.
+  const autoGeladen = useRef(false);
+  useEffect(() => {
+    if (autoGeladen.current || laden || nutzbare.length === 0) return;
+    autoGeladen.current = true;
+    void loadInbox();
+  }, [laden, nutzbare.length, loadInbox]);
 
   const visibleItems = useMemo(() => {
     if (filterStatus === 'all') return items;
@@ -154,19 +166,14 @@ export function FeedbackInboxTab(): React.ReactElement {
     setError(null);
     setBusy(true);
     try {
-      // 1. In zentrale feedback.json schreiben (Kurator-Pfad)
-      const all = await getFeedbackList(storage);
-      const exists = all.some(it => it.id === entry.item.id);
-      if (!exists) {
-        await submitFeedbackToShared(
-          storage,
-          {
-            user_id: entry.item.kuerzel,
-            user_display_name: entry.item.kuerzel,
-            text: entry.item.text,
-            context: (entry.item.context as FeedbackContext) ?? makeFallbackContext(entry.item),
-          },
-          { isKurator: true, writeToShared: true }, // erzwingt Shared-File-Write
+      // 1. In zentrale feedback.json schreiben — VOLLSTAENDIG und mit der
+      //    Outbox-Id, ueber denselben Weg wie der Auto-Sammler (v4.129).
+      const { anhaengeVollstaendig } = await importiereOutboxEintrag(
+        storage, entry.teamflowHandle, entry.item,
+      );
+      if (!anhaengeVollstaendig) {
+        setError(
+          `Eintrag ${entry.item.kuerzel} uebernommen, aber nicht alle Anhaenge konnten kopiert werden — die Bilder liegen weiter in der Outbox.`,
         );
       }
       // 2. Status in der Outbox-Datei zurueckschreiben
@@ -248,7 +255,11 @@ export function FeedbackInboxTab(): React.ReactElement {
       />
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <SectionHeader label={`${visibleItems.length} ${filterStatus === 'pending' ? 'offene' : ''} Outbox-Einträge`} />
+          <SectionHeader
+            label={geladen
+              ? `${visibleItems.length} ${filterStatus === 'pending' ? 'offene' : ''} Outbox-Einträge`
+              : 'Outbox-Einträge'}
+          />
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -272,9 +283,11 @@ export function FeedbackInboxTab(): React.ReactElement {
 
       {visibleItems.length === 0 ? (
         <p className="py-8 text-center text-[13px] text-[var(--tf-text-tertiary)]">
-          {filterStatus === 'pending'
-            ? 'Keine offenen Outbox-Einträge.'
-            : 'Noch keine Outbox-Einträge gefunden.'}
+          {!geladen
+            ? (busy ? 'Outboxen werden durchsucht…' : 'Noch nicht eingesammelt — „Neu laden" durchsucht die verbundenen Ordner.')
+            : filterStatus === 'pending'
+              ? 'Keine offenen Outbox-Einträge.'
+              : 'Noch keine Outbox-Einträge gefunden.'}
         </p>
       ) : (
         <div className="space-y-2.5">
@@ -334,16 +347,4 @@ function StatusBadge({ status }: { status: FeedbackOutboxItem['status'] }): Reac
     return <span className="px-2 py-0.5 rounded text-[11px] bg-[var(--tf-success-bg)] text-[var(--tf-success-text)]">Genehmigt</span>;
   }
   return <span className="px-2 py-0.5 rounded text-[11px] bg-[var(--tf-danger-bg)] text-[var(--tf-danger-text)]">Abgelehnt</span>;
-}
-
-function makeFallbackContext(item: FeedbackOutboxItem): FeedbackContext {
-  return {
-    route: 'inbox',
-    page: 'Outbox-Import',
-    device: 'Desktop',
-    viewport: '0x0',
-    sessionDuration: 0,
-    errors: [],
-    timestamp: item.submitted_at,
-  };
 }

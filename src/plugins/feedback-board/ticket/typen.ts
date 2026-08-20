@@ -24,6 +24,18 @@ export interface TicketKontext {
   rolle: BoardRolle;
   /** Darf überhaupt geschrieben werden? (canManageFeedback — nicht die Rollen-Vorschau.) */
   darfVerwalten: boolean;
+  /**
+   * Schreibrecht UND Entwickler-Sicht — die EINE Bedingung, an der jedes
+   * verändernde Bedienelement des Boards hängt (v4.129).
+   *
+   * Karte, Zeile und `⋯`-Menü rechneten sie sich bis dahin je selbst aus
+   * (`darfVerwalten && rolle === 'entwickler'`), und die Mehrfachauswahl samt
+   * Bulk-Leiste fragte gar nichts: in der Nutzer-Vorschau trugen alle Karten ein
+   * (unsichtbares, aber per Tab erreichbares) Auswahl-Häkchen, und ein Klick
+   * darauf öffnete eine voll bedienbare Leiste mit „Archivieren". Die Oberfläche
+   * verbarg damit, was sie nicht verbot.
+   */
+  darfSchreiben: boolean;
   /** Gehört das Ticket mir? Kommt aus der toleranten Identität der Seite. */
   istMeins: (t: FeedbackItem) => boolean;
   /** Ungelesene Team-Antwort auf ein eigenes Ticket. */

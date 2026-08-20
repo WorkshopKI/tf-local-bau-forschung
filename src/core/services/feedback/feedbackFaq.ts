@@ -14,7 +14,12 @@ import {
   loadLocalItems,
   saveLocalItems,
 } from './feedbackStorage';
-import { mergeItems, readSharedFile, writeSharedFile } from './feedbackSharedFile';
+import {
+  mergeItems,
+  readSharedFile,
+  readSharedFileLage,
+  writeSharedFileLage,
+} from './feedbackSharedFile';
 import { updateFeedback } from './feedbackService';
 
 const STOPWORDS = new Set([
@@ -90,12 +95,28 @@ export async function createStandaloneFaq(
   const items = loadLocalItems();
   items.unshift(item);
   saveLocalItems(items);
-  if (storage.fs && !storage.fs.isReadOnly()) {
-    const shared = await readSharedFile(storage);
-    const merged = shared ? mergeItems([item], shared.items) : [item];
-    await writeSharedFile(storage, merged);
+
+  // Geteilt schreiben über dieselbe Lage-Mechanik wie `submitFeedback` (v4.129).
+  // Bis dahin hing der Shared-Write an `storage.fs` — der LEGACY-Registrierung,
+  // die der moderne Startup-Flow nie füllt. Das FAQ landete damit ausschließlich
+  // im localStorage des Kurators; der Rest des Teams sah es nie. Dieselbe
+  // Bug-Klasse ist in `feedbackLlm.ts` als vergangener Defekt dokumentiert.
+  //
+  // `unlesbar` wirft, statt den Teambestand mit diesem einen Eintrag zu
+  // überschreiben; `kein-schreibrecht` bleibt still (read-only prod ist per
+  // Design ein No-op) — der Eintrag liegt dann lokal und geht nicht verloren.
+  const lage = await readSharedFileLage(storage);
+  if (lage.status === 'unlesbar') {
+    throw new Error(
+      'Die geteilte Feedback-Datei ist gerade nicht lesbar — der FAQ-Eintrag liegt lokal, ist aber noch nicht beim Team. Bitte gleich noch einmal versuchen.',
+    );
   }
+  const merged = lage.status === 'ok' ? mergeItems([item], lage.datei.items) : [item];
+  const schreib = await writeSharedFileLage(storage, merged);
   emitFeedbackUpdated();
+  if (schreib === 'fehler') {
+    throw new Error('Der FAQ-Eintrag konnte nicht auf den Daten-Share geschrieben werden.');
+  }
   return item;
 }
 

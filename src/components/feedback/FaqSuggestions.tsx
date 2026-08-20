@@ -1,10 +1,10 @@
 // Inline FAQ-Vorschläge bei Kategorie "Frage".
 // Debounced (500ms) Wort-Overlap-Matching gegen alle FAQ-Einträge.
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ChevronDown, Lightbulb } from 'lucide-react';
 import { useStorage } from '@/core/hooks/useStorage';
-import { getFeedbackList, matchFaqEntries } from '@/core/services/feedback';
+import { bumpFaqAskCount, getFeedbackList, matchFaqEntries } from '@/core/services/feedback';
 import type { FeedbackItem } from '@/core/types/feedback';
 
 interface Props {
@@ -17,6 +17,29 @@ export function FaqSuggestions({ input, onFaqViewed }: Props): React.ReactElemen
   const [allFaqs, setAllFaqs] = useState<FeedbackItem[]>([]);
   const [matches, setMatches] = useState<Array<{ item: FeedbackItem; score: number }>>([]);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  // Aufschlag auf den gespeicherten Zähler, solange das Panel offen ist — der
+  // geschriebene Stand kommt erst beim nächsten Laden zurück.
+  const [geradeGefragt, setGeradeGefragt] = useState<Record<string, number>>({});
+  // Je FAQ nur EINMAL zählen: Auf- und Zuklappen ist eine Frage, keine drei.
+  const gezaehlt = useRef<Set<string>>(new Set());
+
+  /**
+   * Der einzige Aufrufer von `bumpFaqAskCount` (v4.129). Bis dahin hatte die
+   * Funktion keinen — die Spalte „Gefragt" im FAQ-Tab stand deshalb bei jedem
+   * Eintrag dauerhaft auf „0×", obwohl die Vorschläge benutzt wurden.
+   *
+   * Best-effort: ein Schreibfehler darf das Aufklappen nicht verhindern. Ohne
+   * Share-Schreibrecht (prod) ist `updateFeedback` ohnehin ein No-op — der
+   * Zähler wächst dann beim Kurator, nicht beim Melder.
+   */
+  const zaehleFrage = (faqId: string): void => {
+    if (gezaehlt.current.has(faqId)) return;
+    gezaehlt.current.add(faqId);
+    setGeradeGefragt(v => ({ ...v, [faqId]: (v[faqId] ?? 0) + 1 }));
+    void bumpFaqAskCount(storage, faqId).catch(err => {
+      console.warn('[FaqSuggestions] Frage-Zähler nicht gespeichert', err);
+    });
+  };
 
   // Lade FAQs einmalig beim Mount
   useEffect(() => {
@@ -51,7 +74,7 @@ export function FaqSuggestions({ input, onFaqViewed }: Props): React.ReactElemen
         {matches.map(({ item }) => {
           const summary = item.llm_summary || item.text || '–';
           const isOpen = expandedId === item.id;
-          const askCount = item.faq_ask_count ?? 0;
+          const askCount = (item.faq_ask_count ?? 0) + (geradeGefragt[item.id] ?? 0);
           return (
             <div key={item.id}>
               <button
@@ -59,7 +82,10 @@ export function FaqSuggestions({ input, onFaqViewed }: Props): React.ReactElemen
                 onClick={() => {
                   const next = isOpen ? null : item.id;
                   setExpandedId(next);
-                  if (next && onFaqViewed) onFaqViewed(item.id);
+                  if (next) {
+                    zaehleFrage(item.id);
+                    onFaqViewed?.(item.id);
+                  }
                 }}
                 className="w-full text-left flex items-start gap-1.5 cursor-pointer text-[12.5px] text-[var(--tf-text)] hover:text-[var(--tf-primary)]"
               >

@@ -33,12 +33,33 @@ export interface BoardSpalte {
 }
 
 /**
+ * Wie viele der übergebenen Tickets landen in KEINER der gezeichneten Bahnen?
+ *
+ * Dass eine ausgeblendete Lane ihre Karten wegnimmt, ist gewollt — dass niemand
+ * es erfährt, war es nicht: der Ergebniszähler sagte „42 von 42", während das
+ * Board 32 zeigte, und eine Suche mit genau einem archivierten Treffer stand als
+ * „1 von 42" über einem leeren Board ohne Leerzustand (v4.129). Diese Zahl
+ * trägt den Hinweis, der das auflöst.
+ */
+export function zaehleOhneBahn(
+  tickets: readonly FeedbackItem[],
+  lanes: readonly FeedbackLane[],
+): number {
+  const gezeichnet = new Set<FeedbackStatus>(lanes.map(l => l.status));
+  let n = 0;
+  for (const t of tickets) if (!gezeichnet.has(t.kurator_status)) n += 1;
+  return n;
+}
+
+/**
  * Verteilt die (bereits gefilterten und sortierten) Tickets auf die
  * konfigurierten Lanes. Die Eingabereihenfolge bleibt je Spalte erhalten — die
  * Sortierung hat die Toolbar entschieden, hier wird nicht nachsortiert.
  *
  * Tickets in einem Status ohne sichtbare Lane fallen heraus; das ist die
- * gewollte Wirkung der Lane-Auswahl. Sichtbar bleibt der Bestand in der Liste.
+ * gewollte Wirkung der Lane-Auswahl. Sichtbar bleibt der Bestand in der Liste —
+ * und seit v4.129 sagt das Board es auch (`zaehleOhneBahn`), statt sie
+ * stillschweigend zu verschlucken.
  *
  * `kannStatus` kommt aus der aktiven Smart View (`sichtKannStatus`): die Lanes
  * bilden die ganze Pipeline ab, die Sicht schneidet sie aber zu. Ohne diese

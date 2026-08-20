@@ -73,6 +73,17 @@ export interface SubmitFeedbackRouting {
   writeToShared?: boolean;
   persHandle?: FileSystemDirectoryHandle | null;
   kuerzel?: string;
+  /**
+   * Id für einen WIEDERHOLTEN Versuch derselben Eingabe (v4.129).
+   *
+   * Der lokale Stand wird immer zuerst geschrieben, der Shared-Write kann danach
+   * scheitern (`unlesbar` → wirft). Ohne diese Id bekam jeder Klick auf
+   * „Senden" eine neue — drei Wiederholungen hinterließen drei Kopien desselben
+   * Feedbacks im localStorage, die beim nächsten gelungenen Lauf alle in die
+   * geteilte Datei wanderten. Mit ihr überschreibt der zweite Versuch den
+   * ersten (lokal und beim Merge).
+   */
+  vorgabeId?: string;
 }
 
 /**
@@ -135,7 +146,7 @@ export async function submitFeedback(
   routing?: SubmitFeedbackRouting,
   attachments?: SubmitAttachment[],
 ): Promise<FeedbackItem> {
-  const id = generateFeedbackId();
+  const id = routing?.vorgabeId ?? generateFeedbackId();
   // Bilddatei-Namen aus der finalen Ticket-id ableiten; Blobs getrennt halten
   // (FeedbackAttachment selbst trägt keinen Blob).
   const { refs, blobs } = attachments && attachments.length > 0
@@ -149,8 +160,9 @@ export async function submitFeedback(
     kurator_status: 'neu',
     created_at: new Date().toISOString(),
   };
-  // Local (immer)
-  const items = loadLocalItems();
+  // Local (immer). Ein Wiederholungsversuch mit `vorgabeId` ERSETZT den Stand
+  // des gescheiterten — sonst läge dieselbe Eingabe mehrfach im localStorage.
+  const items = loadLocalItems().filter(i => i.id !== id);
   items.unshift(item);
   saveLocalItems(items);
 

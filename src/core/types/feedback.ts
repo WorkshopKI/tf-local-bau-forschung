@@ -265,9 +265,15 @@ export interface FeedbackItem {
   comments?: FeedbackComment[];
 }
 
+/**
+ * Team-Konfiguration des Feedback-Systems (gerätelokal in localStorage).
+ *
+ * `llm_model` und `max_chatbot_turns` sind mit v4.129 entfallen: den
+ * „Feedback-Chatbot", für den sie gedacht waren, gibt es nicht mehr — die
+ * Werte hatten außerhalb ihres eigenen Einstell-Formulars keinen einzigen
+ * Leser. Das Modell wählt der globale KI-Transport, nicht dieses Formular.
+ */
 export interface FeedbackConfig {
-  llm_model: string;
-  max_chatbot_turns: number;
   system_prompt_path: string;
   shared_feedback_path: string;
   // Phase 3: Sponsoring-Schwellen (konfigurierbar im Admin-Panel)
@@ -315,8 +321,6 @@ export const DEFAULT_BUDGET_POINTS_PER_QUARTER = 10;
 export const BUDGET_LS_KEY_PREFIX = 'teamflow_user_budget_v1';
 
 export const DEFAULT_FEEDBACK_CONFIG: FeedbackConfig = {
-  llm_model: 'openai/gpt-oss-120b',
-  max_chatbot_turns: 6,
   system_prompt_path: FEEDBACK_PROMPT_FILE,
   shared_feedback_path: FEEDBACK_SHARED_FILE,
   sponsoring_thresholds: DEFAULT_SPONSORING_THRESHOLDS,

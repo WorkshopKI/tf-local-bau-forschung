@@ -75,7 +75,7 @@ export function TicketDetail({
   const segmente = feedbackQaSegments(t);
   const istLob = t.category === 'praise';
   const stimmen = t.votes?.length ?? 0;
-  const dev = ctx.rolle === 'entwickler' && ctx.darfVerwalten;
+  const dev = ctx.darfSchreiben;
   const typTint = t.category
     ? CATEGORY_COLORS[t.category]
     : 'bg-[var(--tf-bg-secondary)] text-[var(--tf-text-tertiary)]';
@@ -102,7 +102,11 @@ export function TicketDetail({
   const [fokusSignal, setFokusSignal] = useState(0);
   const fokussiereVerlauf = (): void => setFokusSignal(n => n + 1);
   const autorDarfEditieren = meins && t.kurator_status === FEEDBACK_STATUS.neu;
-  const darfBearbeiten = ctx.darfVerwalten || autorDarfEditieren;
+  // `dev`, nicht `darfVerwalten` (v4.129): die Aktionsleiste oben richtete sich
+  // längst nach der Rolle, „Bearbeiten", „Weitere Verwaltung", „Speichern",
+  // „Claude Code Prompt" und „Löschen" im Körper aber nicht — die Nutzer-
+  // Vorschau zeigte damit gerade NICHT, was beim Ersteller ankommt.
+  const darfBearbeiten = dev || autorDarfEditieren;
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
@@ -225,7 +229,7 @@ export function TicketDetail({
           <div className="fb-d-block">
             <FeedbackErgaenzenForm
               ticket={t}
-              nurLokal={!ctx.darfVerwalten}
+              nurLokal={!dev}
               onFertig={() => setBearbeiten(false)}
               onChanged={onChanged}
             />
@@ -256,7 +260,7 @@ export function TicketDetail({
                 ))}
               </div>
             )}
-            {meins && !autorDarfEditieren && !ctx.darfVerwalten && (
+            {meins && !autorDarfEditieren && !dev && (
               <div className="fb-sperrhinweis">
                 <Lock size={13} aria-hidden />
                 <span>
@@ -321,7 +325,7 @@ export function TicketDetail({
         {/* Die selten gebrauchten Felder bleiben eingeklappt am Ende: Kategorie,
             Priorität, interne Notiz, Team-Antwort, FAQ, Claude-Prompt, Löschen.
             Status und Aufwand sind daraus nach oben gewandert. */}
-        {ctx.darfVerwalten && (
+        {dev && (
           <div className="fb-d-block">
             <CollapsibleSection label="Weitere Verwaltung" storageKey="tf-feedback-board-verwaltung-offen">
               <FeedbackVerwaltungBlock

@@ -58,7 +58,15 @@ export function FeedbackVerwaltungBlock({ ticket, config, onChanged, onDeleted }
   const [savedNotice, setSavedNotice] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
-  // Ticket-Wechsel: Felder auf den neuen Datensatz zurücksetzen.
+  // Ticket-WECHSEL: Felder auf den neuen Datensatz zurücksetzen — an der `id`,
+  // nicht an der Objekt-Identität (v4.129).
+  //
+  // `getFeedbackList` parst die geteilte Datei bei jedem Lauf frisch, jedes
+  // Ticket ist danach ein NEUES Objekt. Mit `[ticket]` als Abhängigkeit lief
+  // dieser Reset deshalb bei jedem `feedback-updated` und bei jedem Tab-Wechsel
+  // — mitten in einer halb getippten öffentlichen Antwort, die dabei durch den
+  // gespeicherten Stand ersetzt wurde. Die Geschwister machen es längst richtig
+  // (`VerlaufBlock` auf `[t.id]`, `FeedbackErgaenzenForm` gar nicht).
   useEffect(() => {
     setStatus(ticket.kurator_status);
     setCategory(ticket.category ?? '');
@@ -73,9 +81,28 @@ export function FeedbackVerwaltungBlock({ ticket, config, onChanged, onDeleted }
     setShowPrompt(false);
     setSavedNotice(false);
     setConfirmDelete(false);
-  }, [ticket]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- bewusst NUR auf den Ticket-Wechsel, siehe oben
+  }, [ticket.id]);
 
   const copy = useKopierAktion(() => prompt);
+
+  /**
+   * Das Ticket, wie es im Formular STEHT — Grundlage des erzeugten Prompts
+   * (v4.129). Bis dahin ging der gespeicherte Datensatz hinein: wer die
+   * Kategorie auf „Problem" stellte und daneben „Claude Code Prompt" drückte,
+   * bekam einen Prompt mit „Kategorie: Feature-Wunsch" samt der dazu passenden
+   * Gliederung — und ein „Speichern" danach schrieb neue Kategorie und
+   * widersprechenden Prompt in einem Zug fest.
+   */
+  const formularStand = (): FeedbackItem => ({
+    ...ticket,
+    kurator_status: status,
+    kurator_priority: priority,
+    kurator_notes: notes || undefined,
+    kurator_response: response.trim() || undefined,
+    category: category || undefined,
+    effort_estimate: effort || undefined,
+  });
 
   const save = useAsyncAction(async () => {
     const keywords = faqKeywords.split(',').map(k => k.trim()).filter(Boolean);
@@ -171,7 +198,8 @@ export function FeedbackVerwaltungBlock({ ticket, config, onChanged, onDeleted }
             />
           </div>
           <p className="text-[10.5px] text-[var(--tf-text-tertiary)]">
-            {progress.combinedPoints}/{progress.threshold} Pkt · {progress.sponsorCount} Sponsoren
+            {progress.combinedPoints}/{progress.threshold} Pkt · {progress.sponsorCount}{' '}
+            {progress.sponsorCount === 1 ? 'Sponsor' : 'Sponsoren'}
           </p>
           {progress.thresholdReached && ticket.kurator_status === FEEDBACK_STATUS.neu && (
             <p className="text-[10.5px] text-[var(--tf-success-text)]">Schwelle erreicht — Status auf „Geplant" setzen?</p>
@@ -251,7 +279,7 @@ export function FeedbackVerwaltungBlock({ ticket, config, onChanged, onDeleted }
           type="button"
           variant="secondary"
           icon={Wand2}
-          onClick={() => { setPrompt(generateClaudeCodePrompt(ticket)); setShowPrompt(true); }}
+          onClick={() => { setPrompt(generateClaudeCodePrompt(formularStand())); setShowPrompt(true); }}
         >
           Claude Code Prompt
         </Button>

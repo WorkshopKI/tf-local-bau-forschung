@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { HelpCircle } from 'lucide-react';
 import { useProfile } from '@/core/hooks/useProfile';
 import { useStorage } from '@/core/hooks/useStorage';
+import { useMeinKuerzel } from '@/core/hooks/useMeinKuerzel';
 import { loadFeedbackConfig, loadUserBudget } from '@/core/services/feedback';
 import { DEFAULT_BUDGET_POINTS_PER_QUARTER } from '@/core/types/feedback';
 import type { UserBudget } from '@/core/types/feedback';
@@ -19,14 +20,23 @@ interface Props {
 export function BudgetBadge({ refreshKey, bar }: Props): React.ReactElement | null {
   const { profile } = useProfile();
   const storage = useStorage();
+  const meinKuerzel = useMeinKuerzel();
   const [budget, setBudget] = useState<UserBudget | null>(null);
 
+  // Identität = Session-Kürzel ?? Profilname (Pitfall #27) — GENAU die, die
+  // `SponsorButton`/`FeedbackSponsorPanel` als Budget-Schlüssel schreiben.
+  // Bis v4.129 stand hier nur `profile.name`: auf einem Rechner mit MA-Login
+  // führte der localStorage zwei Konten derselben Person nebeneinander
+  // (`…_v1_<Kürzel>` schrieb die Vergabe, `…_v1_<Profilname>` las die Pille),
+  // und die Pille blieb bei 10/10 stehen, während Punkte längst vergeben waren.
+  const budgetId = meinKuerzel ?? profile?.name;
+
   useEffect(() => {
-    if (!profile?.name) return;
+    if (!budgetId) return;
     void loadFeedbackConfig(storage).then(cfg => {
-      setBudget(loadUserBudget(profile.name, cfg.budget_points_per_quarter ?? DEFAULT_BUDGET_POINTS_PER_QUARTER));
+      setBudget(loadUserBudget(budgetId, cfg.budget_points_per_quarter ?? DEFAULT_BUDGET_POINTS_PER_QUARTER));
     });
-  }, [profile?.name, storage, refreshKey]);
+  }, [budgetId, storage, refreshKey]);
 
   if (!budget) return null;
 

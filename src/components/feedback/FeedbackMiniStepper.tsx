@@ -15,6 +15,15 @@ export function FeedbackMiniStepper({ status }: { status: FeedbackStatus }): Rea
       </span>
     );
   }
+  // Endzustand wie „Abgelehnt": keine gefüllte Pipeline, sonst läse sich
+  // Archiviertes als „fertig umgesetzt".
+  if (pos.archiviert) {
+    return (
+      <span className="inline-flex items-center gap-1 text-[11px] text-[var(--tf-text-tertiary)]" title={STATUS_LABELS.archiviert}>
+        <span aria-hidden>▪</span> {STATUS_LABELS.archiviert}
+      </span>
+    );
+  }
   const dot = STATUS_DOT[status];
   return (
     <span

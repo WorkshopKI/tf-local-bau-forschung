@@ -88,10 +88,17 @@ export function stimmenZahl(t: FeedbackItem): number {
  *  auskommt (die Leerliste gäbe es sowieso nie, der Typ sagt es jetzt auch). */
 type Sichten = readonly [SmartView, ...SmartView[]];
 
+/**
+ * Die Sicht auf die eigenen Tickets — Ziel der Benachrichtigungs-Glocke. Muss
+ * deshalb in BEIDEN Rollen-Listen vorkommen (Guard: `smartViews.test.ts`);
+ * vor der Deklaration der Listen definiert, weil sie sie als Schlüssel führen.
+ */
+export const SICHT_MEINE = 'meine';
+
 export const SMART_VIEWS_NUTZER: Sichten = [
   { key: 'alle', label: 'Alles', passt: () => true },
   {
-    key: 'meine',
+    key: SICHT_MEINE,
     label: 'Meine Tickets',
     passt: (t, ctx) => istMeinTicket(t, ctx.ich),
     alert: (t, ctx) => ctx.istUngelesen(t),
@@ -127,6 +134,17 @@ export const SMART_VIEWS_ENTWICKLER: Sichten = [
     key: 'mir',
     label: 'Mir zugewiesen',
     passt: (t, ctx) => !!t.assignee && istMeineId(t.assignee, ctx.ich),
+  },
+  {
+    // Auch der Entwickler meldet Feedback — und die Glocke im Seitenkopf springt
+    // seit jeher auf `meine` (v4.129). Diesen Schlüssel gab es in der
+    // Entwickler-Liste nicht; `findeView` fiel still auf „Alles offen" zurück,
+    // und wer auf eine ungelesene Antwort klickte, landete im Arbeitsvorrat
+    // statt bei seinem Ticket.
+    key: SICHT_MEINE,
+    label: 'Meine Tickets',
+    passt: (t, ctx) => istMeinTicket(t, ctx.ich),
+    alert: (t, ctx) => ctx.istUngelesen(t),
   },
   {
     key: 'triage',
@@ -165,7 +183,7 @@ export const SICHT_ALLE = 'alle';
 
 /** Startsicht je Rolle: der Nutzer will sein eigenes Ticket, der Entwickler den Vorrat. */
 export function startViewKey(rolle: BoardRolle): string {
-  return rolle === 'entwickler' ? 'offen' : 'meine';
+  return rolle === 'entwickler' ? 'offen' : SICHT_MEINE;
 }
 
 /** Sicht per Schlüssel; unbekannt (Rollenwechsel, alter localStorage-Wert) → die erste. */

@@ -131,6 +131,22 @@ export function bereichMenue(t: FeedbackItem, ctx: TicketKontext, schliessen: ()
           onClick={() => { ctx.aendere(t, { bereich: a.ref }, meldung(t, a.label)); schliessen(); }}
         />
       ))}
+      {/* Der Rückweg auf UNGESETZT (v4.129) — Aufwand und Zuweisung haben ihn
+          seit jeher, der Bereich nicht. „Sonstiges" ist kein Ersatz: es ist
+          selbst ein Bereich und überschreibt damit dauerhaft, was ohne
+          Kuration aus dem gemeldeten Kontext (`context.screenRef`) käme. */}
+      {t.bereich && (
+        <>
+          <PopTrenner />
+          <PopZeile
+            label="Kuration aufheben"
+            onClick={() => {
+              ctx.aendere(t, { bereich: undefined }, `#${feedbackNummer(t)} · Bereich zurückgesetzt`);
+              schliessen();
+            }}
+          />
+        </>
+      )}
     </>
   );
 }

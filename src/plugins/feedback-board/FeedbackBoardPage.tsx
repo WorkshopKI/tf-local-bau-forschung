@@ -26,7 +26,7 @@ import { useStorage } from '@/core/hooks/useStorage';
 import { useProfile } from '@/core/hooks/useProfile';
 import { useMeinKuerzel } from '@/core/hooks/useMeinKuerzel';
 import { useMeineFeedbackIdentitaet } from '@/core/hooks/useMeineFeedbackIdentitaet';
-import { MasterDetailLayout } from '@/components/master-detail';
+import { MasterDetailLayout, eineEbeneLiegtDarueber } from '@/components/master-detail';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { ScopeTabs } from '@/components/ui/ScopeTabs';
 import { useSichtbareReiter } from '@/core/hooks/useSichtbar';
@@ -48,7 +48,7 @@ import { FeedbackKanbanEinstellungen } from '@/components/feedback/FeedbackKanba
 import { sichtbareLanes } from '@/components/feedback/boardKanbanConfig';
 import { feedbackAuthorLabel } from '@/components/feedback/feedbackUi';
 import {
-  getFeedbackList, istArchiviert, istMeineId, istMeinTicket, loadFeedbackConfig,
+  FEEDBACK_STATUS, getFeedbackList, istArchiviert, istMeineId, istMeinTicket, loadFeedbackConfig,
 } from '@/core/services/feedback';
 import type { FeedbackConfig, FeedbackItem, FeedbackStatus } from '@/core/types/feedback';
 import { DEFAULT_FEEDBACK_CONFIG } from '@/core/types/feedback';
@@ -58,10 +58,11 @@ import { canManageFeedback } from '@/config/feature-flags';
 import { SeitenHilfeButton } from '@/components/help/SeitenHilfeButton';
 import { FeedbackVerwaltungDialog } from './verwaltung/FeedbackVerwaltungDialog';
 import { useAutoCollectFeedback } from './verwaltung/useAutoCollectFeedback';
-import { filterAndSortBoard, scopeBoard } from './boardFilter';
+import { filterAndSortBoard, scopeBoard, sucheTrifft } from './boardFilter';
 import { kopfZaehler, zaehleFacetten } from './boardZahlen';
 import {
-  SICHT_ALLE, findeView, sichtKannStatus, startViewKey, viewsFuerRolle, type BoardRolle,
+  SICHT_ALLE, SICHT_MEINE, findeView, sichtKannStatus, startViewKey, viewsFuerRolle,
+  type BoardRolle,
 } from './smartViews';
 import { beschraenkeAuf, LEERE_AUSWAHL, schalte, zuBewegen, type Auswahl } from './auswahl';
 import { gruppiere } from './gruppierung';
@@ -120,6 +121,9 @@ export function FeedbackBoardPage(): React.ReactElement {
   // prüfen, was beim Ersteller ankommt. Ohne Recht gibt es den Umschalter nicht —
   // eine Dev-Sicht mit wirkungslosen Bedienelementen wäre irreführend.
   const rolle: BoardRolle = darfVerwalten && !ansicht.nutzerVorschau ? 'entwickler' : 'nutzer';
+  // Die EINE Bedingung jedes verändernden Bedienelements — Recht UND Sicht.
+  // Wer sie umgeht, umgeht die Vorschau: siehe `TicketKontext.darfSchreiben`.
+  const darfSchreiben = darfVerwalten && rolle === 'entwickler';
   const views = viewsFuerRolle(rolle);
   const view = findeView(rolle, viewKey || startViewKey(rolle));
   // Rollenwechsel: die Sichten heißen anders — zurück auf die Startsicht der Rolle.
@@ -160,29 +164,11 @@ export function FeedbackBoardPage(): React.ReactElement {
 
   const aktionen = useTicketAktionen(handleChanged, meId, meName ?? undefined);
 
-  // Eine Statusänderung kann das Ticket aus der aktiven Sicht TRAGEN — in
-  // „Alles offen" ist genau das der Normalfall für „umgesetzt". Ohne diesen
-  // Zusatz sah die Karte aus wie verloren: sie verließ ihre Bahn und tauchte in
-  // keiner anderen auf. Der Hinweis sitzt hier, weil nur die Seite die Sicht
-  // kennt — Karten-Menü, Ziehen, Bulk-Leiste und Detail teilen ihn sich dadurch.
-  const mitSichtHinweis = useCallback((patch: TicketPatch, meldung: string): string => {
-    const ziel = patch.kurator_status;
-    if (!ziel || sichtKannStatus(view, ziel)) return meldung;
-    return `${meldung} · nicht in der Sicht „${view.label}"`;
-  }, [view]);
-
-  const aendere = useCallback((t: FeedbackItem, patch: TicketPatch, meldung: string): void => {
-    aktionen.aendere(t, patch, mitSichtHinweis(patch, meldung));
-  }, [aktionen.aendere, mitSichtHinweis]);
-
-  const aendereViele = useCallback((
-    ts: readonly FeedbackItem[], patch: TicketPatch, meldung: string,
-  ): void => {
-    aktionen.aendereViele(ts, patch, mitSichtHinweis(patch, meldung));
-  }, [aktionen.aendereViele, mitSichtHinweis]);
-
-  // Archivierte sind für alle unsichtbar; Verwalter dürfen sie zum Aufräumen einblenden.
-  const archivSichtbar = darfVerwalten && ansicht.zeigeArchiv;
+  // Archivierte sind für alle unsichtbar; Verwalter dürfen sie zum Aufräumen
+  // einblenden. `darfSchreiben`, nicht `darfVerwalten`: in der Nutzer-Vorschau
+  // gäbe es den Schalter beim Ersteller gar nicht, also darf er dort auch nicht
+  // wirken (v4.129, dieselbe Regel wie beim Verwaltungs-Zahnrad).
+  const archivSichtbar = darfSchreiben && ansicht.zeigeArchiv;
   const basis = useMemo(
     () => (archivSichtbar ? tickets : tickets.filter(t => !istArchiviert(t.kurator_status))),
     [tickets, archivSichtbar],
@@ -203,11 +189,58 @@ export function FeedbackBoardPage(): React.ReactElement {
     [ich, heute, isUnread],
   );
 
+  /**
+   * Eine Änderung kann das Ticket aus der aktiven Sicht TRAGEN — in „Alles
+   * offen" ist genau das der Normalfall für „umgesetzt". Ohne diesen Zusatz sah
+   * die Karte aus wie verloren: sie verließ ihre Bahn und tauchte in keiner
+   * anderen auf. Der Hinweis sitzt hier, weil nur die Seite die Sicht kennt —
+   * Karten-Menü, Ziehen, Bulk-Leiste und Detail teilen ihn sich dadurch.
+   *
+   * Geprüft wird das PATCHTE Ticket gegen die Sicht (v4.129), nicht mehr nur
+   * `patch.kurator_status` gegen `sichtKannStatus`: in „Triage · ungeschätzt"
+   * trägt ein AUFWAND das Ticket ebenso hinaus, und ein „Archivieren" nimmt es
+   * bei ausgeblendetem Archiv aus dem Bestand — beides lief bis dahin ohne ein
+   * Wort. Bei mehreren Tickets genügt eines, das hinausfällt.
+   */
+  const traegtAusDerSicht = useCallback((ts: readonly FeedbackItem[], patch: TicketPatch): boolean => {
+    return ts.some(t => {
+      const danach = { ...t, ...patch } as FeedbackItem;
+      if (!archivSichtbar && istArchiviert(danach.kurator_status)) return true;
+      return !view.passt(danach, smartCtx);
+    });
+  }, [view, smartCtx, archivSichtbar]);
+
+  const mitSichtHinweis = useCallback((
+    ts: readonly FeedbackItem[], patch: TicketPatch, meldung: string,
+  ): string => (
+    traegtAusDerSicht(ts, patch) ? `${meldung} · nicht mehr in der Sicht „${view.label}"` : meldung
+  ), [traegtAusDerSicht, view]);
+
+  const aendere = useCallback((t: FeedbackItem, patch: TicketPatch, meldung: string): void => {
+    aktionen.aendere(t, patch, mitSichtHinweis([t], patch, meldung));
+  }, [aktionen.aendere, mitSichtHinweis]);
+
+  const aendereViele = useCallback((
+    ts: readonly FeedbackItem[], patch: TicketPatch, meldung: string,
+  ): void => {
+    aktionen.aendereViele(ts, patch, mitSichtHinweis(ts, patch, meldung));
+  }, [aktionen.aendereViele, mitSichtHinweis]);
+
   const zaehler = useMemo(() => kopfZaehler(basis), [basis]);
 
   // Die Sicht-Menge: Grundlage für Facettenzahlen UND das „von 312" im Zähler.
   const inSicht = useMemo(() => scopeBoard(basis, view, smartCtx), [basis, view, smartCtx]);
-  const facettenZahlen = useMemo(() => zaehleFacetten(inSicht), [inSicht]);
+  // Jede Gruppe zählt NEBEN der Suche und den beiden anderen Achsen (v4.129) —
+  // sonst versprach „Rückfrage 1", während der Klick 0 Treffer lieferte.
+  const facettenZahlen = useMemo(
+    () => zaehleFacetten(inSicht, {
+      typ: facetten.typ,
+      status: facetten.status,
+      bereich: facetten.bereich,
+      passtSuche: (t: FeedbackItem) => sucheTrifft(t, query),
+    }),
+    [inSicht, facetten.typ, facetten.status, facetten.bereich, query],
+  );
 
   const gefiltert = useMemo(
     () => filterAndSortBoard(
@@ -265,8 +298,16 @@ export function FeedbackBoardPage(): React.ReactElement {
 
   const oeffne = useCallback((t: FeedbackItem) => setSelectedId(t.id), []);
   const istMeins = useCallback((t: FeedbackItem) => istMeinTicket(t, ich), [ich]);
-  const schalteAuswahl = useCallback((id: string) => setAuswahl(a => schalte(a, id)), []);
+  // Markieren ist der Einstieg in die Massenänderung und hängt deshalb am
+  // selben Recht wie sie — auch gegen den Weg über die Tastatur.
+  const schalteAuswahl = useCallback((id: string) => {
+    if (!darfSchreiben) return;
+    setAuswahl(a => schalte(a, id));
+  }, [darfSchreiben]);
   const leereAuswahl = useCallback(() => setAuswahl(LEERE_AUSWAHL), []);
+  // Rollenwechsel in die Nutzer-Vorschau: eine bestehende Markierung darf nicht
+  // stehen bleiben, sonst schwebte die Leiste über einer Sicht ohne Häkchen.
+  useEffect(() => { if (!darfSchreiben) setAuswahl(LEERE_AUSWAHL); }, [darfSchreiben]);
 
   // Was nicht mehr sichtbar ist, kann auch nicht mehr gemeint sein: sonst
   // änderte die Bulk-Leiste Tickets, die niemand vor sich hat. `beschraenkeAuf`
@@ -277,7 +318,7 @@ export function FeedbackBoardPage(): React.ReactElement {
     setAuswahl(a => beschraenkeAuf(a, sichtbareIds));
   }, [sichtbareIds]);
 
-  const darfZiehen = darfVerwalten && rolle === 'entwickler';
+  const darfZiehen = darfSchreiben;
 
   const ziehePer = useCallback((gezogeneId: string, zielStatus: FeedbackStatus): void => {
     const ids = zuBewegen(auswahl, gezogeneId);
@@ -295,6 +336,7 @@ export function FeedbackBoardPage(): React.ReactElement {
   const ctx: TicketKontext = useMemo(() => ({
     rolle,
     darfVerwalten,
+    darfSchreiben,
     istMeins,
     istUngelesen: isUnread,
     neueKommentare: neuFuer,
@@ -310,7 +352,7 @@ export function FeedbackBoardPage(): React.ReactElement {
     ziehePer,
     darfZiehen,
   }), [
-    rolle, darfVerwalten, istMeins, isUnread, neuFuer, personen, meId,
+    rolle, darfVerwalten, darfSchreiben, istMeins, isUnread, neuFuer, personen, meId,
     aendere, aendereViele, aktionen.kommentiere,
     oeffne, selectedId, auswahl, schalteAuswahl, ziehePer, darfZiehen,
   ]);
@@ -322,10 +364,16 @@ export function FeedbackBoardPage(): React.ReactElement {
 
   // Esc-Kaskade: erst die Auswahl, dann das Detail-Panel. Ohne Reihenfolge
   // schlösse ein Esc beides und man müsste die Auswahl neu treffen.
+  //
+  // Die oberste Ebene kommt zuerst (v4.129): steht ein Chip-Popover oder ein
+  // Dialog offen, gehört das Escape IHM — Radix schließt es selbst, und dieser
+  // Handler hier zog bis dahin zusätzlich das Detail-Panel mit zu. Ein Tastendruck,
+  // zwei geschlossene Ebenen.
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
       const ziel = e.target as HTMLElement | null;
       if (ziel && (ziel.tagName === 'INPUT' || ziel.tagName === 'TEXTAREA' || ziel.isContentEditable)) return;
+      if (eineEbeneLiegtDarueber()) return;
       if (e.key === 'Escape') {
         if (auswahl.size > 0) { leereAuswahl(); return; }
         if (selectedId) setSelectedId(undefined);
@@ -354,9 +402,9 @@ export function FeedbackBoardPage(): React.ReactElement {
       gruppierung: ansicht.gruppierung,
       dichte: ansicht.dichte,
       zeigeArchiv: ansicht.zeigeArchiv,
-      darfVerwalten,
+      darfVerwalten: darfSchreiben,
     }),
-    [ansicht.gruppierung, ansicht.dichte, ansicht.zeigeArchiv, darfVerwalten],
+    [ansicht.gruppierung, ansicht.dichte, ansicht.zeigeArchiv, darfSchreiben],
   );
   const setzeDarstellung = useCallback((id: BoardAchseId, key: string): void => {
     if (id === 'gruppierung') ansicht.setGruppierung(gruppierungAusSchluessel(key));
@@ -380,7 +428,18 @@ export function FeedbackBoardPage(): React.ReactElement {
   // Die Config führt ALLE Lanes (auch die ausgeblendeten, damit sie ihren Platz
   // behalten); gezeichnet werden nur die sichtbaren — bei Gruppierung einmal
   // berechnet statt je Band.
-  const boardLanes = useMemo(() => sichtbareLanes(ansicht.kanban), [ansicht.kanban]);
+  //
+  // „Archivierte zeigen" hängt eine EIGENE Bahn hinten an (v4.129). Der
+  // Lane-Katalog kennt `archiviert` bewusst nicht (es ist keine wählbare
+  // Spalte), das Board zeichnete die eingeblendeten Tickets deshalb nirgends:
+  // der Zähler sagte „42 von 42", die Bahnen summierten 32, und eine Suche mit
+  // genau einem archivierten Treffer stand als „1 von 42" über einem leeren
+  // Board — ohne Leerzustand, weil es rechnerisch ja einen Treffer gab.
+  const boardLanes = useMemo(() => {
+    const lanes = sichtbareLanes(ansicht.kanban);
+    if (!archivSichtbar) return lanes;
+    return [...lanes, { status: FEEDBACK_STATUS.archiviert, spalten: 1 as const }];
+  }, [ansicht.kanban, archivSichtbar]);
 
   const zeigeMenge = (menge: readonly FeedbackItem[]): React.ReactNode => (
     ansicht.ansicht === 'board'
@@ -451,9 +510,12 @@ export function FeedbackBoardPage(): React.ReactElement {
           }
           actions={
             <div className="flex items-center gap-3">
-              <NotificationBell count={unread} onClick={() => setViewKey('meine')} />
+              <NotificationBell count={unread} onClick={() => setViewKey(SICHT_MEINE)} />
               <BudgetBadge refreshKey={refreshKey} bar />
-              {darfVerwalten && (
+              {/* Die Verwaltung gehört zur Entwickler-Sicht: in der Nutzer-
+                  Vorschau stand das Zahnrad bis v4.129 weiter da und öffnete
+                  Inbox, FAQ, Sponsoring-Schwellen und Einstellungen. */}
+              {darfSchreiben && (
                 <button
                   type="button"
                   onClick={() => setVerwaltungOffen(true)}
@@ -589,7 +651,7 @@ export function FeedbackBoardPage(): React.ReactElement {
             )}
             <div className="flex-1 min-w-0 flex flex-col relative">
               {inhalt}
-              {gewaehlteTickets.length > 0 && (
+              {darfSchreiben && gewaehlteTickets.length > 0 && (
                 <BulkLeiste gewaehlt={gewaehlteTickets} ctx={ctx} onLeeren={leereAuswahl} />
               )}
             </div>
@@ -601,7 +663,7 @@ export function FeedbackBoardPage(): React.ReactElement {
         <TicketToast toast={aktionen.toast} onClose={aktionen.schliesseToast} />
       )}
 
-      {darfVerwalten && (
+      {darfSchreiben && (
         <FeedbackVerwaltungDialog
           open={verwaltungOffen}
           onClose={() => setVerwaltungOffen(false)}

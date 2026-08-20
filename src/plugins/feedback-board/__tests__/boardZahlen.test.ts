@@ -76,3 +76,35 @@ describe('kopfZaehler', () => {
     expect(z).toEqual({ gesamt: 4, neu: 1, inArbeit: 1 });
   });
 });
+
+describe('zaehleFacetten mit Einschraenkung (v4.129)', () => {
+  const items = [
+    fb('A', { category: 'problem', kurator_status: 'neu', bereich: 'suche' }),
+    fb('B', { category: 'problem', kurator_status: 'rueckfrage', bereich: 'suche' }),
+    fb('C', { category: 'idea', kurator_status: 'rueckfrage', bereich: 'antraege' }),
+  ];
+  const alles = { typ: '', status: '', bereich: '', passtSuche: () => true };
+
+  it('zaehlt jede Gruppe NEBEN den beiden anderen Achsen', () => {
+    // Typ = problem gewaehlt: die Status-Gruppe darf nur noch A und B kennen.
+    const z = zaehleFacetten(items, { ...alles, typ: 'problem' });
+    expect(z.status).toEqual({ neu: 1, rueckfrage: 1 });
+    expect(z.bereich).toEqual({ suche: 2 });
+  });
+
+  it('laesst die EIGENE Achse aussen vor — sonst stuende dort nur der gewaehlte Wert', () => {
+    const z = zaehleFacetten(items, { ...alles, typ: 'problem' });
+    expect(z.typ).toEqual({ problem: 2, idea: 1 });
+  });
+
+  it('nimmt die Suche in alle drei Gruppen mit', () => {
+    const z = zaehleFacetten(items, { ...alles, passtSuche: t => t.id === 'C' });
+    expect(z.typ).toEqual({ idea: 1 });
+    expect(z.status).toEqual({ rueckfrage: 1 });
+    expect(z.bereich).toEqual({ antraege: 1 });
+  });
+
+  it('ohne Einschraenkung unveraendert (Rueckwaertskompatibilitaet)', () => {
+    expect(zaehleFacetten(items)).toEqual(zaehleFacetten(items, alles));
+  });
+});

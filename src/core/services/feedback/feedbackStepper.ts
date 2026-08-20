@@ -19,10 +19,12 @@ export const FEEDBACK_PIPELINE: readonly FeedbackStatus[] = [
 ];
 
 export interface FeedbackStepperPosition {
-  /** 0-basierter Index in `FEEDBACK_PIPELINE` (bei `rejected`: 0 = Startknoten „Neu"). */
+  /** 0-basierter Index in `FEEDBACK_PIPELINE` (bei `rejected`/`archiviert`: 0 = Startknoten „Neu"). */
   index: number;
   /** Seitenpfad: Neu → ✕ Abgelehnt (statt der geraden Pipeline). */
   rejected: boolean;
+  /** Seitenpfad: Neu → ▪ Archiviert. Wie `rejected` ein ENDZUSTAND, kein Fortschritt. */
+  archiviert: boolean;
 }
 
 /**
@@ -31,16 +33,18 @@ export interface FeedbackStepperPosition {
  * - `rueckfrage` → Station „Neu": die Rückfrage hält das Ticket vor der Planung
  *   an, sie bringt es nicht weiter. Dass jemand wartet, sagt der Dauer-Streifen
  *   im Detail — der Stepper zeigt nur den Fortschritt.
- * - `archiviert` → wie `umgesetzt` (letzte Station; wird i.d.R. gar nicht angezeigt,
- *   da die Board-Basis Archiviertes ausblendet).
+ * - `archiviert` → EIGENER Seitenpfad wie `abgelehnt`. Bis v4.129 stand es auf
+ *   der letzten Pipeline-Station und behauptete damit „Umgesetzt" — begründet
+ *   mit der Annahme, Archiviertes werde ohnehin nie angezeigt. Der Schalter
+ *   „Archivierte zeigen" hat diese Annahme aufgehoben: das Detail eines
+ *   archivierten Tickets zeigte alle vier Stationen als erreicht, direkt über
+ *   dem Satz „wird nicht weiterverfolgt" (`dauerText` hatte den Zweig längst).
  * - sonst → 0-basierter Index in der Pipeline (unbekannt/nicht gefunden → 0).
  */
 export function feedbackStepperPosition(status: FeedbackStatus): FeedbackStepperPosition {
-  if (status === FEEDBACK_STATUS.abgelehnt) return { index: 0, rejected: true };
-  if (status === FEEDBACK_STATUS.rueckfrage) return { index: 0, rejected: false };
-  if (status === FEEDBACK_STATUS.archiviert) {
-    return { index: FEEDBACK_PIPELINE.length - 1, rejected: false };
-  }
+  if (status === FEEDBACK_STATUS.abgelehnt) return { index: 0, rejected: true, archiviert: false };
+  if (status === FEEDBACK_STATUS.archiviert) return { index: 0, rejected: false, archiviert: true };
+  if (status === FEEDBACK_STATUS.rueckfrage) return { index: 0, rejected: false, archiviert: false };
   const index = FEEDBACK_PIPELINE.indexOf(status);
-  return { index: index < 0 ? 0 : index, rejected: false };
+  return { index: index < 0 ? 0 : index, rejected: false, archiviert: false };
 }

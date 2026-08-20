@@ -16,7 +16,7 @@ import { FEEDBACK_STATUS, istOffen } from '@/core/services/feedback/feedback-sta
 import { baueIdentitaet } from '@/core/services/feedback/feedbackIdentitaet';
 import type { FeedbackStatus } from '@/core/types/feedback';
 import {
-  SICHT_ALLE, SMART_VIEWS_ENTWICKLER, SMART_VIEWS_NUTZER, findeView, sichtKannStatus,
+  SICHT_ALLE, SICHT_MEINE, SMART_VIEWS_ENTWICKLER, SMART_VIEWS_NUTZER, findeView, sichtKannStatus,
   type SmartViewKontext,
 } from '../smartViews';
 
@@ -73,6 +73,23 @@ describe('sichtKannStatus', () => {
     const offen = findeView('entwickler', 'offen');
     for (const status of ALLE_STATUS) {
       expect(sichtKannStatus(offen, status), status).toBe(istOffen(status as FeedbackStatus));
+    }
+  });
+});
+
+describe('SICHT_MEINE (v4.129)', () => {
+  it('gibt es in BEIDEN Rollen — die Glocke springt in beiden dorthin', () => {
+    for (const rolle of ['entwickler', 'nutzer'] as const) {
+      const ziel = findeView(rolle, SICHT_MEINE);
+      // `findeView` faellt auf die erste Sicht zurueck; ein fehlender Schluessel
+      // faellt hier also auf, statt still in die Startsicht zu springen.
+      expect(ziel.key, rolle).toBe(SICHT_MEINE);
+    }
+  });
+
+  it('grenzt keinen Status aus — ein eigenes Ticket ist in jedem Zustand meins', () => {
+    for (const rolle of ['entwickler', 'nutzer'] as const) {
+      expect(findeView(rolle, SICHT_MEINE).statusRaum, rolle).toBeUndefined();
     }
   });
 });

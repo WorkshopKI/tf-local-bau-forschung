@@ -26,7 +26,11 @@ export function BulkLeiste({ gewaehlt, ctx, onLeeren }: {
   const wieViele = `${n} ${n === 1 ? 'Ticket' : 'Tickets'}`;
   const andere = ctx.personen.filter(p => p !== ctx.meineId);
 
+  // Zweiter Riegel neben der Sichtbarkeit (v4.129): die Leiste ändert bis zu
+  // fünfzig Tickets auf einmal, inklusive „Archivieren". Sie darf nichts tun,
+  // was die Karte darunter nicht auch dürfte.
   const anwenden = (patch: Parameters<TicketKontext['aendere']>[1], text: string): void => {
+    if (!ctx.darfSchreiben) return;
     ctx.aendereViele(gewaehlt, patch, text);
     onLeeren();
   };

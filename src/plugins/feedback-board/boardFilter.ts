@@ -50,6 +50,19 @@ export function suchHeuhaufen(t: FeedbackItem): string {
   ].join(' ').toLowerCase();
 }
 
+/**
+ * Trifft die Freitext-Suche? EINE Implementierung für den Filter und für die
+ * Facettenzahlen (`zaehleFacetten`) — zwei Fassungen liefen genau dann
+ * auseinander, wenn eine von beiden eine Schreibweise dazulernt.
+ */
+export function sucheTrifft(t: FeedbackItem, query: string): boolean {
+  const q = query.trim().toLowerCase();
+  if (!q) return true;
+  // Führendes `#` abstreifen: „#A7K2" und „a7k2" sollen dasselbe finden.
+  const gesucht = q.startsWith('#') ? q.slice(1) : q;
+  return suchHeuhaufen(t).includes(gesucht);
+}
+
 /** Passt ein Ticket auf Sicht, Facetten und Suche? */
 export function matchesBoardFilter(t: FeedbackItem, f: BoardFilterState): boolean {
   if (!f.view.passt(t, f.ctx)) return false;
@@ -59,12 +72,7 @@ export function matchesBoardFilter(t: FeedbackItem, f: BoardFilterState): boolea
   }
   if (f.status && t.kurator_status !== f.status) return false;
   if (f.bereich && ticketBereich(t) !== f.bereich) return false;
-  const q = f.query.trim().toLowerCase();
-  if (q) {
-    // Führendes `#` abstreifen: „#A7K2" und „a7k2" sollen dasselbe finden.
-    const gesucht = q.startsWith('#') ? q.slice(1) : q;
-    if (!suchHeuhaufen(t).includes(gesucht)) return false;
-  }
+  if (!sucheTrifft(t, f.query)) return false;
   return true;
 }
 

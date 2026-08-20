@@ -1,29 +1,26 @@
-// Admin-Einstellungen: 2-Spalten-Layout (Chatbot links, Dateien & Speicher rechts).
+// Admin-Reiter „Einstellungen": Dateien & Speicher — System-Prompt und der
+// Zustand der geteilten Feedback-Datei.
+//
+// Die Spalte „Feedback-Chatbot" (LLM-Modell + max. Nachrichten) ist mit v4.129
+// entfallen. Sie sah aus wie eine Einstellung, war aber keine: beide Werte
+// hatten außerhalb dieses Formulars keinen Leser — das Modell entscheidet der
+// globale KI-Transport. Damit ist der Reiter reine ANZEIGE und braucht auch
+// keinen „Einstellungen speichern"-Knopf mehr.
 
 import { useEffect, useState } from 'react';
 import { Check, Eye, FileCog } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { useStorage } from '@/core/hooks/useStorage';
 import {
   getSharedFileStatus,
   initSystemPromptFile,
   loadFeedbackConfig,
   loadSystemPrompt,
-  saveFeedbackConfig,
   systemPromptFileExists,
 } from '@/core/services/feedback';
 import type { SharedFileStatus } from '@/core/services/feedback';
 import { DEFAULT_FEEDBACK_CONFIG } from '@/core/types/feedback';
 import type { FeedbackConfig } from '@/core/types/feedback';
 
-const MODELS = [
-  { id: 'openai/gpt-oss-120b', label: 'GPT-OSS 120B (OpenRouter)' },
-  { id: 'anthropic/claude-sonnet-4.6', label: 'Claude Sonnet 4.6' },
-  { id: 'google/gemini-3-flash-preview', label: 'Gemini 3 Flash' },
-  { id: 'openai/gpt-5-mini', label: 'GPT-5 Mini' },
-];
-
-const inputClass = 'w-full px-2.5 py-1.5 text-[12.5px] bg-transparent text-[var(--tf-text)] rounded-[var(--tf-radius)] outline-none focus:border-[var(--tf-primary)]';
 const inputStyle = { border: '0.5px solid var(--tf-border)' } as const;
 
 export function FeedbackConfigPanel(): React.ReactElement {
@@ -32,7 +29,6 @@ export function FeedbackConfigPanel(): React.ReactElement {
   const [shared, setShared] = useState<SharedFileStatus | null>(null);
   const [promptExists, setPromptExists] = useState<boolean | null>(null);
   const [promptPreview, setPromptPreview] = useState<string | null>(null);
-  const [savedNotice, setSavedNotice] = useState(false);
   const [initStatus, setInitStatus] = useState<'idle' | 'success' | 'error'>('idle');
 
   const refreshStatus = async (): Promise<void> => {
@@ -45,11 +41,6 @@ export function FeedbackConfigPanel(): React.ReactElement {
     void refreshStatus();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storage]);
-
-  const handleSave = async (): Promise<void> => {
-    await saveFeedbackConfig(storage, cfg);
-    setSavedNotice(true); setTimeout(() => setSavedNotice(false), 1500);
-  };
 
   const handleInit = async (): Promise<void> => {
     const ok = await initSystemPromptFile(storage);
@@ -67,27 +58,7 @@ export function FeedbackConfigPanel(): React.ReactElement {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Links: Chatbot-Einstellungen */}
-        <div className="space-y-4">
-          <h2 className="text-[13px] font-medium text-[var(--tf-text)]">Feedback-Chatbot</h2>
-          <div>
-            <label className="text-[11px] text-[var(--tf-text-tertiary)]">LLM-Modell</label>
-            <select value={cfg.llm_model} onChange={e => setCfg({ ...cfg, llm_model: e.target.value })} className={inputClass} style={inputStyle}>
-              {MODELS.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
-            </select>
-            <p className="text-[10.5px] text-[var(--tf-text-tertiary)] mt-1">Nutzt den global konfigurierten Provider</p>
-          </div>
-          <div>
-            <label className="text-[11px] text-[var(--tf-text-tertiary)]">Max. Chatbot-Nachrichten</label>
-            <div className="flex items-center gap-3">
-              <input type="range" min={2} max={12} step={1} value={cfg.max_chatbot_turns} onChange={e => setCfg({ ...cfg, max_chatbot_turns: Number(e.target.value) })} className="flex-1 cursor-pointer accent-[var(--tf-primary)]" />
-              <span className="text-[13px] font-medium text-[var(--tf-text)] tabular-nums w-6 text-right">{cfg.max_chatbot_turns}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Rechts: Dateien & Speicher */}
+      <div className="max-w-xl">
         <div className="space-y-4">
           <h2 className="text-[13px] font-medium text-[var(--tf-text)]">Dateien & Speicher</h2>
 
@@ -135,10 +106,6 @@ export function FeedbackConfigPanel(): React.ReactElement {
           </div>
         </div>
       </div>
-
-      <Button type="button" onClick={handleSave} variant="primary" icon={savedNotice ? Check : undefined}>
-        {savedNotice ? 'Gespeichert' : 'Einstellungen speichern'}
-      </Button>
     </div>
   );
 }

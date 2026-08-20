@@ -101,6 +101,44 @@ async function copyAttachmentsToShared(
   return ok;
 }
 
+/**
+ * Einen EINZELNEN Outbox-Eintrag vollständig in die geteilte Datei übernehmen —
+ * der manuelle Weg des Inbox-Tabs (v4.129).
+ *
+ * Vorher baute `handleApprove` dort sein eigenes Item aus vier Feldern
+ * (`user_id`, `user_display_name`, `text`, `context`) und ließ es durch
+ * `submitFeedback` laufen: Titel, Typ, die strukturierten Antworten, die
+ * Screenshots, die KI-Verfeinerung und das Einreichungsdatum fielen weg, und die
+ * neu vergebene Id ließ den Dublettenschutz eine Zeile darüber dauerhaft ins
+ * Leere laufen. Beide Wege teilen sich jetzt `toFeedbackItem` und
+ * `copyAttachmentsToShared` — die Bytes zuerst, wie im Auto-Pfad.
+ *
+ * `uebernommen: false` heißt „lag schon in der geteilten Datei" (kein Fehler).
+ */
+export async function importiereOutboxEintrag(
+  storage: StorageService,
+  teamflowHandle: FileSystemDirectoryHandle,
+  ob: FeedbackOutboxItem,
+): Promise<{ uebernommen: boolean; anhaengeVollstaendig: boolean }> {
+  const lage = await readSharedFileLage(storage);
+  if (lage.status === 'unlesbar') {
+    throw new Error(
+      'Die geteilte Feedback-Datei ist gerade nicht lesbar — es wurde nichts übernommen. Bitte gleich noch einmal versuchen.',
+    );
+  }
+  const shared = lage.status === 'ok' ? lage.datei : null;
+  if ((shared?.items ?? []).some(i => i.id === ob.id)) {
+    return { uebernommen: false, anhaengeVollstaendig: true };
+  }
+  const anhaengeVollstaendig = await copyAttachmentsToShared(storage, teamflowHandle, ob);
+  const merged = mergeItems([toFeedbackItem(ob)], shared?.items ?? []);
+  if (!(await writeSharedFile(storage, merged))) {
+    throw new Error('Der Eintrag konnte nicht auf den Daten-Share geschrieben werden.');
+  }
+  emitFeedbackUpdated();
+  return { uebernommen: true, anhaengeVollstaendig };
+}
+
 export async function autoCollectFeedbackOutboxes(
   storage: StorageService,
   root: FileSystemDirectoryHandle,

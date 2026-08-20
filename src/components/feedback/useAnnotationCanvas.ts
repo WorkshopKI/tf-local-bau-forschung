@@ -147,14 +147,20 @@ export function useAnnotationCanvas(
     else redraw();
   }, [redraw]);
 
+  // Der Entwurf wird GELESEN, nicht im Updater verrechnet (v4.129): `setShapes`
+  // stand bis dahin im Updater von `setTextDraft`, und ein Updater muss rein
+  // sein. React ruft ihn im StrictMode doppelt auf — der Text landete zweimal
+  // im Bild, deckungsgleich übereinander.
   const commitText = useCallback(() => {
-    setTextDraft(prev => {
-      if (prev && prev.value.trim()) {
-        setShapes(s => [...s, { type: 'text', x: prev.x, y: prev.y, text: prev.value.trim(), color, size: textSize }]);
-      }
-      return null;
-    });
-  }, [color, textSize]);
+    const entwurf = textDraft;
+    if (entwurf && entwurf.value.trim()) {
+      setShapes(s => [
+        ...s,
+        { type: 'text', x: entwurf.x, y: entwurf.y, text: entwurf.value.trim(), color, size: textSize },
+      ]);
+    }
+    setTextDraft(null);
+  }, [textDraft, color, textSize]);
 
   const undo = useCallback(() => setShapes(prev => prev.slice(0, -1)), []);
   const clear = useCallback(() => setShapes([]), []);

@@ -6,6 +6,7 @@ export {
   listPaneClass,
   listPaneStyle,
   fokusIstTippziel,
+  eineEbeneLiegtDarueber,
   shouldCloseOnEscape,
   parseCollapsedFlag,
   serializeCollapsedFlag,

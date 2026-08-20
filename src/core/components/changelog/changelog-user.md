@@ -19,6 +19,22 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.129 — 2026-08
+
+### Neu
+- Im Feedback-Board gibt es die Sicht „Meine Tickets" jetzt auch für das Team — die Glocke springt dorthin, statt in den Arbeitsvorrat.
+- Archivierte Tickets bekommen beim Einblenden eine eigene Spalte und eine eigene Filterzeile.
+### Verbesserungen
+- Die Vorschau „Nutzer-Sicht" zeigt jetzt wirklich, was beim Melder ankommt: Verwaltungsfelder, Massenauswahl und das Zahnrad sind dort nicht mehr bedienbar.
+- Die Zahlen an den Filtern gelten neben der Suche und den anderen Filtern — was sie versprechen, kommt beim Klick auch.
+- Ein erreichtes Sponsoring-Ziel sperrt das Zurückziehen der eigenen Punkte nicht mehr; „N Sponsoren" zählt Personen statt Einträge.
+### Bugfixes
+- Escape im Screenshot-Editor schließt nur noch diesen — Typ, Text und Bild bleiben stehen.
+- Scheitert das Absenden, steht der Grund im Fenster; ein zweiter Versuch legt keine zweite Kopie mehr an.
+- Ein halb getippter Text in „Weitere Verwaltung" wird nicht mehr überschrieben, wenn im Hintergrund neu geladen wird.
+- Ein kaputtes Bild verwirft nicht mehr den ganzen eingefügten Stapel.
+- Manuell angelegte FAQ-Einträge und über die Inbox genehmigte Tickets landen vollständig beim Team.
+
 ## v4.128 — 2026-08
 
 ### Neu

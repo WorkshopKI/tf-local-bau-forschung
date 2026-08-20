@@ -41,6 +41,24 @@ export function FeedbackAnnotator({ attachment, onCancel, onConfirm }: Props): R
     return () => { cancelled = true; bmp?.close(); };
   }, [attachment.blob]);
 
+  // Escape gehört der obersten Ebene (v4.129). Der ESC-Handler des Feedback-
+  // Panels hängt am `window` (Bubble, ohne Ziel- oder Ebenen-Filter), der
+  // Annotator portalt an den Body — ein Escape hier schloss deshalb das GANZE
+  // Panel samt Typ, Text und Screenshot. Derselbe Capture-Guard, den die
+  // `FeedbackBildLightbox` nebenan schon führt: erst den Text-Entwurf, dann das
+  // Modal, und in keinem Fall darunterliegende Ebenen.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key !== 'Escape') return;
+      e.stopImmediatePropagation();
+      e.preventDefault();
+      if (a.textDraft) { a.setTextDraft(null); return; }
+      onCancel();
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [a.textDraft, a.setTextDraft, onCancel]);
+
   const confirm = useAsyncAction(async () => {
     const cap = caption.trim();
     if (!a.hasShapes) {
@@ -159,7 +177,9 @@ export function FeedbackAnnotator({ attachment, onCancel, onConfirm }: Props): R
               autoFocus
               value={a.textDraft.value}
               onChange={e => a.setTextDraft(d => (d ? { ...d, value: e.target.value } : d))}
-              onKeyDown={e => { if (e.key === 'Enter') a.commitText(); if (e.key === 'Escape') a.setTextDraft(null); }}
+              // Escape läuft über den Capture-Guard oben — hier stünde sonst
+              // eine zweite Fassung derselben Entscheidung.
+              onKeyDown={e => { if (e.key === 'Enter') a.commitText(); }}
               placeholder="Text eingeben, Enter setzt ihn…"
               className="flex-1 px-2 py-1 text-[12px] bg-transparent text-[var(--tf-text)] rounded-[var(--tf-radius)] outline-none"
               style={{ border: '0.5px solid var(--tf-border)' }}

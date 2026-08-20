@@ -49,6 +49,23 @@ export function FeedbackStepper({ status }: { status: FeedbackStatus }): React.R
     );
   }
 
+  // Archiviert ist wie Abgelehnt ein Endzustand, kein Fortschritt — und bekommt
+  // deshalb denselben Seitenpfad statt der vollen, „erreichten" Pipeline.
+  if (pos.archiviert) {
+    return (
+      <div className="flex items-start">
+        <StepNode label={STATUS_LABELS.neu} dotColor={STATUS_DOT.neu} filled state="done" />
+        <div className="flex-1 h-[1.5px] mt-[6px]" style={{ background: 'var(--tf-border-hover)' }} />
+        <StepNode
+          label={STATUS_LABELS.archiviert}
+          dotColor="var(--tf-text-tertiary)"
+          filled
+          state="done"
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="flex items-start">
       {FEEDBACK_PIPELINE.map((s, i) => {

@@ -8,6 +8,7 @@ import {
   getSponsoringProgress,
   isSponsorableCategory,
   loadAllLocalBudgets,
+  loadFeedbackConfig,
   saveFeedbackConfig,
   istArchiviert,
 } from '@/core/services/feedback';
@@ -41,8 +42,19 @@ export function FeedbackSponsoringOverview({ tickets, config, onConfigChanged }:
     return { totalUsers: budgets.length, activeSponsors: withSpent.length, avgSpent: avg };
   }, []);
 
+  // Vor dem Schreiben den GELTENDEN Stand lesen und nur die drei eigenen Felder
+  // darauf legen (v4.129). Das `config`-Prop ist der Stand, mit dem die Seite
+  // zuletzt neu geladen hat — ein Nachbar-Reiter (oder ein zweites Fenster), der
+  // zwischendurch gespeichert hat, wäre mit `{...config}` wieder überschrieben
+  // worden. Dieser Reiter besitzt Schwellen, Faktor und Budget, sonst nichts.
   const handleSave = async (): Promise<void> => {
-    await saveFeedbackConfig(storage, { ...config, sponsoring_thresholds: thresholds, hours_to_points_factor: hoursFactor, budget_points_per_quarter: budgetPerQuarter });
+    const aktuell = await loadFeedbackConfig(storage);
+    await saveFeedbackConfig(storage, {
+      ...aktuell,
+      sponsoring_thresholds: thresholds,
+      hours_to_points_factor: hoursFactor,
+      budget_points_per_quarter: budgetPerQuarter,
+    });
     setSaved(true); setTimeout(() => setSaved(false), 1500); onConfigChanged();
   };
 

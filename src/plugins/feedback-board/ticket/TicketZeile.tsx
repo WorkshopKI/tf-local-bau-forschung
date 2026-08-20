@@ -29,7 +29,7 @@ export function TicketZeile({ t, ctx }: { t: FeedbackItem; ctx: TicketKontext })
   const meins = ctx.istMeins(t);
   const gewaehlt = ctx.auswahl.has(t.id);
   const autor = feedbackAuthorLabel(t);
-  const darf = ctx.darfVerwalten && ctx.rolle === 'entwickler';
+  const darf = ctx.darfSchreiben;
 
   return (
     <div
@@ -45,11 +45,14 @@ export function TicketZeile({ t, ctx }: { t: FeedbackItem; ctx: TicketKontext })
       onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); ctx.oeffne(t); } }}
       onContextMenu={e => { e.preventDefault(); setMenueOffen(true); }}
     >
-      <AuswahlHaken
-        gewaehlt={gewaehlt}
-        label={`Ticket ${feedbackNummer(t)} auswählen`}
-        onToggle={() => ctx.schalteAuswahl(t.id)}
-      />
+      {/* Nur mit Schreibrecht — siehe `TicketKarte`. */}
+      {darf && (
+        <AuswahlHaken
+          gewaehlt={gewaehlt}
+          label={`Ticket ${feedbackNummer(t)} auswählen`}
+          onToggle={() => ctx.schalteAuswahl(t.id)}
+        />
+      )}
       {/* Der Typ als beschriftetes Badge, nicht als bloßer Punkt: vier
           Farbpunkte nebeneinander sind in einer langen Liste nicht
           auseinanderzuhalten, und die Bedeutung stünde nur im Tooltip. */}

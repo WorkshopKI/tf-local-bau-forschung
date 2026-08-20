@@ -14,6 +14,7 @@ import {
   CATEGORY_DOT, CATEGORY_LABELS, CATEGORY_ORDER, STATUS_DOT, STATUS_LABELS,
 } from '@/components/feedback/constants';
 import { FEEDBACK_LANE_STATUS } from '@/components/feedback/feedbackLanes';
+import { FEEDBACK_STATUS } from '@/core/services/feedback/feedback-status';
 import { bereichLabel } from '@/components/feedback/feedbackUi';
 import { TYP_UNKLASSIFIZIERT, type FacettenZaehler } from '../boardZahlen';
 
@@ -50,7 +51,13 @@ export function FacettenLeiste({ zaehler, auswahl, onChange }: {
     },
   ];
 
-  const statusWerte: Wert[] = FEEDBACK_LANE_STATUS.map(s => ({
+  // Die Lane-Liste PLUS `archiviert` (v4.129): der Lane-Katalog kennt es
+  // bewusst nicht, `zaehleFacetten` zählt es aber mit. Solange die Gruppe nur
+  // aus dem Katalog las, war die berechnete Zahl unerreichbar — mit
+  // eingeblendetem Archiv summierte Typ 42 und Status 32, und es gab keinen Weg,
+  // per Facette auf die Archivierten zu filtern. Werte ohne Treffer blendet
+  // `Gruppe` ohnehin aus, die Zeile erscheint also nur, wo es welche gibt.
+  const statusWerte: Wert[] = [...FEEDBACK_LANE_STATUS, FEEDBACK_STATUS.archiviert].map(s => ({
     key: s,
     label: STATUS_LABELS[s],
     dot: STATUS_DOT[s],

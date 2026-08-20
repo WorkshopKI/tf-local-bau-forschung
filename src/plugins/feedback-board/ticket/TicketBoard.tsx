@@ -24,7 +24,7 @@ import type { LaneFarbmodus } from '@/components/kanban/laneAccent';
 import { TfBoard } from '@/components/kanban/TfBoard';
 import type { TfBoardBahn, TfBoardDnd } from '@/components/kanban/tf-board-types';
 import type { FeedbackItem, FeedbackStatus } from '@/core/types/feedback';
-import { baueSpalten } from '../boardSpalten';
+import { baueSpalten, zaehleOhneBahn } from '../boardSpalten';
 import type { Dichte } from './dichte';
 import { TicketKarte } from './TicketKarte';
 import type { TicketKontext } from './typen';
@@ -52,6 +52,10 @@ export function TicketBoard({ tickets, lanes, farbmodus, dichte, ctx, sicht }: {
   sicht?: BoardSicht;
 }): React.ReactElement {
   const spalten = baueSpalten(tickets, lanes, sicht?.kannStatus);
+  // Ausgeblendete Bahnen nehmen ihre Karten mit — das ist gewollt, aber der
+  // Ergebniszähler über dem Board zählt sie weiter mit. Ohne diese Zeile stand
+  // dort „42 von 42", während das Board 32 Karten zeigte (v4.129).
+  const ohneBahn = zaehleOhneBahn(tickets, lanes);
 
   const bahnen = spalten.map((s, i): TfBoardBahn<FeedbackItem> => {
     const name = STATUS_LABELS[s.status];
@@ -100,14 +104,23 @@ export function TicketBoard({ tickets, lanes, farbmodus, dichte, ctx, sicht }: {
     : undefined;
 
   return (
-    <TfBoard
-      label="Tickets nach Status"
-      className={`fb-board${dichte ? ` ${dichte}` : ''}`}
-      bahnen={bahnen}
-      features={{ einklappbar: true, bahnScrollt: true }}
-      nachladen={{ start: START_LIMIT, schritt: NACHLADE_SCHRITT }}
-      dnd={dnd}
-      renderCard={(t, _bahn, zieh) => <TicketKarte key={t.id} t={t} ctx={ctx} zieh={zieh} />}
-    />
+    <>
+      <TfBoard
+        label="Tickets nach Status"
+        className={`fb-board${dichte ? ` ${dichte}` : ''}`}
+        bahnen={bahnen}
+        features={{ einklappbar: true, bahnScrollt: true }}
+        nachladen={{ start: START_LIMIT, schritt: NACHLADE_SCHRITT }}
+        dnd={dnd}
+        renderCard={(t, _bahn, zieh) => <TicketKarte key={t.id} t={t} ctx={ctx} zieh={zieh} />}
+      />
+      {ohneBahn > 0 && (
+        <p className="shrink-0 px-3 py-2 text-[11.5px] text-[var(--tf-text-tertiary)]">
+          {ohneBahn} {ohneBahn === 1 ? 'Ticket steht' : 'Tickets stehen'} in einer ausgeblendeten
+          Spalte und {ohneBahn === 1 ? 'ist' : 'sind'} hier nicht zu sehen — die Listenansicht zeigt
+          {ohneBahn === 1 ? ' es' : ' sie'}.
+        </p>
+      )}
+    </>
   );
 }

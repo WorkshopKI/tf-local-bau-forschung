@@ -45,11 +45,15 @@ export function FeedbackSponsorPanel({ ticket, config, meId, onChanged }: Props)
         <div className="h-full rounded-full transition-all" style={{ width: `${p.percentage}%`, background: 'var(--tf-fb-lob)' }} />
       </div>
 
-      {p.thresholdReached ? (
+      {/* Das erreichte Ziel ist eine MELDUNG, kein Ersatz für die Bedienung
+          (v4.129): bis dahin verschwand mit dem Knopf der einzige Weg zurück
+          (`unsponsorTicket` hat in der ganzen App keinen anderen Aufrufer) —
+          wer sich vertan hatte, blieb dauerhaft an seinen Punkten hängen, und
+          die Schwelle konnte nie wieder unterschritten werden. */}
+      {p.thresholdReached && (
         <p className="text-[12.5px] font-medium text-[var(--tf-fb-lob)]">✓ Ziel erreicht — beim Team eingeplant</p>
-      ) : (
-        <SponsorButton ticket={ticket} config={config} open={open} onChanged={onChanged} compact />
       )}
+      <SponsorButton ticket={ticket} config={config} open={open} onChanged={onChanged} compact />
 
       {remaining != null && budget != null && (
         <p className="text-[11.5px] text-[var(--tf-text-tertiary)] leading-relaxed">

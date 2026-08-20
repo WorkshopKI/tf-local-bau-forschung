@@ -6,6 +6,7 @@ import {
   listPaneClass,
   listPaneStyle,
   fokusIstTippziel,
+  eineEbeneLiegtDarueber,
   maxListWidth,
   shouldCloseOnEscape,
   startListWidth,
@@ -130,5 +131,24 @@ describe('masterDetailLayout-logic', () => {
         }
       }
     });
+  });
+});
+
+describe('eineEbeneLiegtDarueber + der dritte Parameter (v4.129)', () => {
+  const doc = (treffer: boolean) => ({ querySelector: () => (treffer ? ({} as Element) : null) });
+
+  it('erkennt eine schwebende Radix-Ebene', () => {
+    expect(eineEbeneLiegtDarueber(doc(true))).toBe(true);
+    expect(eineEbeneLiegtDarueber(doc(false))).toBe(false);
+  });
+
+  it('liegt eine Ebene darueber, gehoert das Escape IHR — das Detail bleibt offen', () => {
+    expect(shouldCloseOnEscape('BUTTON', false, true)).toBe(false);
+    expect(shouldCloseOnEscape('DIV', false, true)).toBe(false);
+  });
+
+  it('ohne Ebene bleibt alles wie bisher', () => {
+    expect(shouldCloseOnEscape('BUTTON', false, false)).toBe(true);
+    expect(shouldCloseOnEscape('INPUT', false, false)).toBe(false);
   });
 });

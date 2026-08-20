@@ -82,7 +82,7 @@ function MenueInhalt({ t, ctx, schliessen, kommentieren }: {
   kommentieren: () => void;
 }): React.ReactElement {
   const nummer = feedbackNummer(t);
-  const darf = ctx.darfVerwalten && ctx.rolle === 'entwickler';
+  const darf = ctx.darfSchreiben;
   const mir = ctx.meineId;
   const meins = ctx.istMeins(t);
 
@@ -116,7 +116,11 @@ function MenueInhalt({ t, ctx, schliessen, kommentieren }: {
       {darf && (
         <PopZeile label="Rückfrage an den Ersteller" icon={MessageCircleQuestion} onClick={kommentieren} />
       )}
-      {!darf && !meins && (
+      {/* „Ergänzung" gehört dem EIGENEN Ticket (v4.129). Die Bedingung stand
+          bis dahin auf `!meins` und bot den Eintrag damit ausgerechnet an
+          fremden Tickets an — wo das Formular dahinter nur „Senden" kennt,
+          weil „Als Ergänzung" seinerseits `meins` verlangt. */}
+      {!darf && meins && (
         <PopZeile label="Ergänzung anhängen" icon={MessageSquare} onClick={kommentieren} />
       )}
       {darf && (
@@ -149,7 +153,7 @@ function SchnellKommentar({ t, ctx, zurueck, fertig }: {
   const ref = useRef<HTMLTextAreaElement>(null);
   useEffect(() => { ref.current?.focus(); }, []);
 
-  const dev = ctx.darfVerwalten && ctx.rolle === 'entwickler';
+  const dev = ctx.darfSchreiben;
   const bausteine = bausteineFuer(dev);
   const meins = ctx.istMeins(t);
   const leer = !text.trim();

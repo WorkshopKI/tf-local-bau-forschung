@@ -16,6 +16,7 @@ import { useBridgeStatus } from '@/core/services/ai/bridge-status';
 import {
   autoClassifyFeedback,
   captureFeedbackContext,
+  generateFeedbackId,
   submitFeedback,
   updateFeedback,
   type FeedbackImprovePayload,
@@ -57,6 +58,20 @@ const PANEL_AUFNAHME_WIDTH = 320;
 /** Deckkraft des Panel-Hintergrunds (v4.39.1) — der Rest lässt die App durch. */
 const PANEL_DECKKRAFT = '88%';
 
+/**
+ * Der erfasste Kontext plus dem im Formular gewählten Bereich — Referenz UND
+ * Klartext-Beschriftung.
+ *
+ * EINE Stelle für beide Verwendungen (v4.129): das Absenden setzte
+ * `screenRefLabel`, der Verbessern-Ablauf daneben nur `screenRef`. Damit fehlte
+ * der KI genau die Angabe, die `promptGenerator` als „Bereich-Referenz"
+ * ausgibt — der Nutzer wählte einen Bereich, und die Verbesserung kannte ihn nicht.
+ */
+function mitBereich(basis: FeedbackContext, areaRef: string): FeedbackContext {
+  const info = TEAMFLOW_AREAS.find(a => a.ref === areaRef);
+  return { ...basis, screenRef: areaRef || undefined, screenRefLabel: info?.label };
+}
+
 function loadPanelWidth(): number {
   try {
     const v = Number(localStorage.getItem(PANEL_WIDTH_KEY));
@@ -88,6 +103,13 @@ export function FeedbackPanel({ open, onClose, focusScreenshot, vorbelegung }: P
   // den Roh-Text ein). Bei Schreibrecht (Kurator/PL/dev) bleibt es null (Shared-Write greift).
   const [outboxHandle, setOutboxHandle] = useState<FileSystemDirectoryHandle | null>(null);
   const [context, setContext] = useState<FeedbackContext | null>(null);
+  // Gescheitertes Absenden hat eine Stimme (v4.129): bis dahin landete der
+  // Fehler nur in der Konsole, das Panel sprang zurück auf „Senden", und die
+  // eigens für den Nutzer formulierte Meldung aus `submitFeedback` sah niemand.
+  const [submitFehler, setSubmitFehler] = useState<string | null>(null);
+  // Id des laufenden Versuchs — ein Wiederholungsklick schreibt dieselbe Id
+  // statt eine Kopie anzulegen (siehe `SubmitFeedbackRouting.vorgabeId`).
+  const versuchId = useRef<string | null>(null);
   const [panelWidth, setPanelWidth] = useState(loadPanelWidth);
   const dragRef = useRef<{ startX: number; startWidth: number } | null>(null);
 
@@ -141,6 +163,8 @@ export function FeedbackPanel({ open, onClose, focusScreenshot, vorbelegung }: P
       setSubmittedItem(null);
       setImprovePayload(null);
       setOutboxHandle(null);
+      setSubmitFehler(null);
+      versuchId.current = null;
       setContext(captureFeedbackContext(activeId, activePluginName));
     }
   }, [open, activeId, activePluginName]);
@@ -148,18 +172,16 @@ export function FeedbackPanel({ open, onClose, focusScreenshot, vorbelegung }: P
   const handleSubmit = useCallback(async (payload: FeedbackSubmitPayload) => {
     if (!payload.text.trim() || !context) return;
     setSubmitting(payload.verbessern ? 'verbessern' : 'speichern');
+    setSubmitFehler(null);
     try {
       // Kanonische Schreib-Id (v3.7): dieselbe, die Stimmen und Kommentare
       // tragen. Bis hierher stand hier `profile.name`, verglichen wurde aber
       // gegen das Kürzel — damit war jedes eigene Ticket fremd. Bestandsdaten
       // heilt der tolerante Lesepfad (feedbackIdentitaet), nicht eine Migration.
       const userId = ich.schreibId ?? 'anonymous';
-      const areaInfo = TEAMFLOW_AREAS.find(a => a.ref === areaRef);
-      const fullContext: FeedbackContext = {
-        ...context,
-        screenRef: areaRef || undefined,
-        screenRefLabel: areaInfo?.label,
-      };
+      const fullContext = mitBereich(context, areaRef);
+      // Erster Versuch vergibt die Id, jeder weitere schreibt auf dieselbe.
+      versuchId.current ??= generateFeedbackId();
       // Dispatch: Clients mit Daten-Share-Schreibrecht (Kurator / PL via
       // datenShareSchreibrecht / dev) schreiben direkt ins geteilte Feedback-File
       // (sofort für alle sichtbar); read-only-Clients (prod-Enduser) in die
@@ -181,8 +203,11 @@ export function FeedbackPanel({ open, onClose, focusScreenshot, vorbelegung }: P
         writeToShared: canWriteShared,
         persHandle,
         kuerzel: meinKuerzel,
+        vorgabeId: versuchId.current,
       }, payload.attachments);
       setSubmittedItem(item);
+      // Ab hier ist die Eingabe beim Team — die nächste ist eine neue.
+      versuchId.current = null;
 
       if (payload.verbessern) {
         // Geführter Verbessern-Ablauf: Roh-Feedback ist bereits gespeichert (nie
@@ -210,6 +235,14 @@ export function FeedbackPanel({ open, onClose, focusScreenshot, vorbelegung }: P
       }
     } catch (err) {
       console.error('[FeedbackPanel] submit failed', err);
+      // Die Meldungen aus `submitFeedback` sind für genau diese Stelle
+      // geschrieben („liegt lokal, ist aber noch nicht beim Team") — sie gehören
+      // vor den Nutzer, nicht in die Konsole. Der Entwurf bleibt stehen.
+      setSubmitFehler(
+        err instanceof Error && err.message
+          ? err.message
+          : 'Das Feedback konnte nicht gespeichert werden. Bitte gleich noch einmal versuchen.',
+      );
     } finally {
       setSubmitting(null);
     }
@@ -289,6 +322,14 @@ export function FeedbackPanel({ open, onClose, focusScreenshot, vorbelegung }: P
 
       {/* Body */}
       <div className={`flex-1 overflow-y-auto ${aufnahme ? 'hidden' : ''}`}>
+        {view === 'input' && submitFehler && (
+          <div
+            role="alert"
+            className="mx-3.5 mt-3 p-2.5 rounded-[var(--tf-radius)] bg-[var(--tf-danger-bg)] text-[12px] leading-relaxed text-[var(--tf-danger-text)]"
+          >
+            {submitFehler}
+          </div>
+        )}
         {view === 'input' && context && (
           <FeedbackInputStep
             areaRef={areaRef}
@@ -313,7 +354,7 @@ export function FeedbackPanel({ open, onClose, focusScreenshot, vorbelegung }: P
           <FeedbackVerbessernFlow
             feedbackId={submittedItem.id}
             payload={improvePayload}
-            context={{ ...context, screenRef: areaRef || undefined }}
+            context={mitBereich(context, areaRef)}
             pluginId={activeId}
             outboxHandle={outboxHandle}
             onClose={onClose}
