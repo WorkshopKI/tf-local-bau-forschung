@@ -33,6 +33,7 @@ import {
   ALLE_PRAEFIXE, FELD_PRAEFIX, anfrageTokens, feldAusPraefix,
 } from '@/core/services/search/feldpraefix';
 import { TREFFERFELD_LABEL, type Trefferfeld } from '@/core/services/search/trefferstelle';
+import { KERN_FELDER, nadelKern } from '@/core/services/search/namensKern';
 import {
   istWertFeld, ohneZitatzeichen, vorschlaegeFuer, type WertIndex,
 } from '@/plugins/antraege/services/wert-index';
@@ -128,9 +129,26 @@ function ersetze(
  * mit beschränkter Haftung` bot damit eine Suche an, die 0 fand, während
  * `ast:EIKBOOM` 2 lieferte. Weil alphabetisch sortiert wird, standen genau diese
  * Werte ganz oben in der Liste.
+ *
+ * **Ein Namensfeld setzt seinen Kern ein** (v4.128.1), nicht die Schreibweise:
+ * `nw:NaFaTech` statt `nw:"NaFa Tech"`. Der Grund ist genau das
+ * Anführungszeichen — zitiert heißt wörtlich, und wörtlich hebt die
+ * Fugenblindheit auf, die die Zeile überhaupt erst zusammengeführt hat. Am
+ * Bestand gemessen war das ein echter Bruch: `nw:"NaFa Tech"` fand 9,
+ * `nw:NaFa-Tech` 29 — dasselbe Netzwerk, zwei Zahlen, und der Unterschied kam
+ * aus dieser Klammer statt aus den Daten. 189 der 1 025 Netzwerknamen tragen
+ * ein Leerzeichen, wären also betroffen.
+ *
+ * Ist der Kern zu kurz für die Fugenblindheit (unter drei Zeichen, siehe
+ * `nadelKern`), bleibt es beim wörtlichen Wert: sonst böte die Zeile eine
+ * Anfrage an, die ihren eigenen Wert nicht mehr findet.
  */
-export function alsAnfrageWert(wert: string): string {
+export function alsAnfrageWert(wert: string, feld?: Trefferfeld): string {
   const sauber = ohneZitatzeichen(wert).trim();
+  if (feld !== undefined && KERN_FELDER.has(feld)) {
+    const kern = nadelKern(sauber, null);
+    if (kern.length > 0) return kern;
+  }
   return /\s/.test(sauber) ? `"${sauber}"` : sauber;
 }
 
@@ -201,7 +219,7 @@ function wertVorschlaege(
   if (!geteilt || !istWertFeld(geteilt.feld)) return [];
   const teil = rohWert(geteilt.rest);
   return vorschlaegeFuer(index, geteilt.feld, teil).map(e => {
-    const neu = `${geteilt.praefix}:${alsAnfrageWert(e.wert)}`;
+    const neu = `${geteilt.praefix}:${alsAnfrageWert(e.wert, geteilt.feld)}`;
     const { anfrage, cursor } = ersetze(text, token.start, token.ende, neu);
     return {
       art: 'wert' as const,

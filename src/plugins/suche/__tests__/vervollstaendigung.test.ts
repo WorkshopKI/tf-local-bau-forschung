@@ -314,16 +314,33 @@ describe('wert-index', () => {
       .toEqual(['Aachen', 'Ölsnitz', 'Osnabrück', 'Überlingen', 'Zwickau']);
   });
 
-  it('schlägt am Namensfeld auch über die Fuge vor — aber zuletzt (v4.125)', () => {
+  it('faltet die Schreibweisen eines Namens zu EINER Zeile (v4.128.1)', () => {
     // Die Liste muss finden, was die Suche darunter findet: `cannabisnet`
-    // liefert 60 Treffer, schlug aber keinen Wert vor.
+    // liefert 60 Treffer, schlug bis v4.125 keinen Wert vor. Seit v4.128.1
+    // steht dafür nicht mehr jede Schreibweise als eigene Zeile da — sie
+    // führten zur selben Trefferliste und lasen sich wie zwei Mengen.
     const roh = leererWertIndexRoh();
     for (const n of ['Cannabis-Net', 'CannabisNET', 'Netzwerk Cannabisnetz']) {
       nimmWerte(roh, 'netzwerk', [n]);
     }
-    expect(vorschlaegeFuer(verdichteWertIndex(roh), 'netzwerk', 'cannabisnet').map(e => e.wert))
-      // Wörtliche Treffer zuerst, der Fugen-Treffer dahinter.
-      .toEqual(['CannabisNET', 'Netzwerk Cannabisnetz', 'Cannabis-Net']);
+    const treffer = vorschlaegeFuer(verdichteWertIndex(roh), 'netzwerk', 'cannabisnet');
+    // Zwei Zeilen, nicht drei: die beiden Schreibweisen sind eine Gruppe.
+    // Und die gesuchte Gruppe steht VORN — nach der Faltung ist die angezeigte
+    // Schreibweise nur ihr Stellvertreter, gewertet wird der Kern.
+    expect(treffer.map(e => e.wert)).toEqual(['Cannabis-Net', 'Netzwerk Cannabisnetz']);
+    // Die Häufigkeiten der gefalteten Schreibweisen zählen zusammen.
+    expect(treffer[0]?.anzahl).toBe(2);
+  });
+
+  it('zeigt die häufigste Schreibweise als Beschriftung der Gruppe', () => {
+    const roh = leererWertIndexRoh();
+    // Zwei Anträge schreiben „CANNABIS-NET", einer „CannabisNET".
+    for (const n of ['CANNABIS-NET', 'CANNABIS-NET', 'CannabisNET']) {
+      nimmWerte(roh, 'netzwerk', [n]);
+    }
+    const treffer = vorschlaegeFuer(verdichteWertIndex(roh), 'netzwerk', '');
+    expect(treffer.map(e => e.wert)).toEqual(['CANNABIS-NET']);
+    expect(treffer[0]?.anzahl).toBe(3);
   });
 
   it('lässt die übrigen Wertefelder unberührt', () => {
@@ -343,6 +360,26 @@ describe('alsAnfrageWert', () => {
 
   it('wirft ein Anführungszeichen IM Wert weg — es beendete das Zitat', () => {
     expect(alsAnfrageWert('"LOHCmobil" Netz')).toBe('"LOHCmobil Netz"');
+  });
+
+  // Ein Zitat heisst „woertlich" und hebt damit genau die Fugenblindheit auf,
+  // die die Zeile zusammengefuehrt hat: `nw:"NaFa Tech"` fand am Bestand 9,
+  // `nw:NaFa-Tech` 29 — dasselbe Netzwerk.
+  it('setzt am Namensfeld den Kern ein statt zu zitieren (v4.128.1)', () => {
+    expect(alsAnfrageWert('NaFa Tech', 'netzwerk')).toBe('NaFaTech');
+    expect(alsAnfrageWert('Cannabis-Net', 'netzwerk')).toBe('CannabisNet');
+    expect(alsAnfrageWert('"CANNABIS-NET"', 'netzwerk')).toBe('CANNABISNET');
+  });
+
+  it('lässt die übrigen Felder beim Zitat — nur Namensfelder sind fugenblind', () => {
+    expect(alsAnfrageWert('Frankfurt am Main', 'standort')).toBe('"Frankfurt am Main"');
+    expect(alsAnfrageWert('Frankfurt am Main')).toBe('"Frankfurt am Main"');
+  });
+
+  // Unter drei Zeichen greift die Fugenblindheit nicht (`nadelKern`). Der Kern
+  // waere dann eine Anfrage, die den eigenen Wert nicht mehr findet.
+  it('bleibt beim wörtlichen Wert, wo der Kern zu kurz ist', () => {
+    expect(alsAnfrageWert('A B', 'netzwerk')).toBe('"A B"');
   });
 });
 

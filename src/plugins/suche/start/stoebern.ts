@@ -49,10 +49,13 @@ export function stoeberPraefix(feld: WertFeld): string {
  * Die Anfrage, die eine Zeile ausführt.
  *
  * Mehrwortige Werte kommen in Anführungszeichen — ohne sie zerfiele der Wert an
- * den Leerzeichen und suchte etwas anderes, als in der Zeile stand.
+ * den Leerzeichen und suchte etwas anderes, als in der Zeile stand. Bei den
+ * Namensfeldern entscheidet `alsAnfrageWert` anders (Kern statt Zitat); das
+ * Feld wird deshalb durchgereicht, damit „Stöbern" und Vorschlagsliste
+ * dieselbe Anfrage bauen.
  */
 export function stoeberAnfrage(feld: WertFeld, wert: string): string {
-  return `${stoeberPraefix(feld)}:${alsAnfrageWert(wert)}`;
+  return `${stoeberPraefix(feld)}:${alsAnfrageWert(wert, feld)}`;
 }
 
 /** Stabiler Schlüssel für React und für die Trefferzahl-Karte. */

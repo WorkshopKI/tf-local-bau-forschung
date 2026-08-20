@@ -19,6 +19,16 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.128 — 2026-08
+
+### Neu
+<!-- - Kurzer, verständlicher Satz (nur bei nutzersichtbaren Änderungen) -->
+### Verbesserungen
+- Ein Netzwerk steht in der Vorschlagsliste jetzt **einmal**, nicht einmal je Schreibweise. „CannabisNET" und „CANNABIS-NET" waren zwei Zeilen mit derselben Trefferzahl und sahen aus wie zwei verschiedene Mengen — es ist dieselbe. Gezeigt wird die Schreibweise, die im Bestand am häufigsten vorkommt.
+- Der Klick auf einen Netzwerknamen findet jetzt auch dann alle Schreibweisen, wenn der Name ein Leerzeichen trägt. Bisher lieferte „NaFa Tech" 9 Treffer und „NaFa-Tech" 29, obwohl beide dasselbe Netzwerk meinen.
+### Bugfixes
+<!-- - … -->
+
 ## v4.127 — 2026-08
 
 ### Neu

@@ -108,13 +108,31 @@ export function nimmWerte(
  * Angezeigt wird die **häufigere** Schreibweise, bei Gleichstand die
  * alphabetisch erste — beides hängt an den Daten, nicht an der Reihenfolge des
  * Cursor-Laufs. `NFC` wegen der Umlaute (Pitfall #22).
+ *
+ * **Bei den Namensfeldern fallen zusätzlich die Trennzeichen** (v4.128.1) —
+ * derselbe Gedanke eine Stufe weiter. Die Suche vergleicht dort seit v4.125
+ * fugenblind (`nafatech` findet „NaFa-Tech" wie „NaFa Tech"), also ist ein
+ * eigener Listeneintrag je Bindestrich wieder eine Unterscheidung ohne
+ * Unterschied: `nw:CannabisNET` und `nw:CANNABIS-NET` standen als zwei Zeilen
+ * da, beide mit derselben 60, und lasen sich wie zwei Mengen. Am Bestand
+ * gemessen fallen 61 der 1 025 Netzwerk-Schreibweisen zusammen; 222 der 688
+ * Netzwerke standen mehrfach in der Liste.
+ *
+ * Der Export gibt allen Anlass dazu: für Netzwerk 0896 allein führt er elf
+ * Schreibweisen — mit und ohne Bindestrich, mit fehlendem Anführungszeichen,
+ * mit doppeltem Leerzeichen.
  */
 export function verdichteWertIndex(roh: WertIndexRoh): WertIndex {
   const out = new Map<WertFeld, WertEintrag[]>();
   for (const [feld, zaehler] of roh) {
+    const fugenblind = KERN_FELDER.has(feld);
     const gefaltet = new Map<string, { wert: string; anzahl: number; beste: number }>();
     for (const [wert, anzahl] of zaehler) {
-      const k = wert.normalize('NFC').toLowerCase();
+      const klein = wert.normalize('NFC').toLowerCase();
+      // Ein Wert NUR aus Trennzeichen hätte einen leeren Kern und risse alle
+      // seinesgleichen in einen Topf — dann bleibt die Schreibweise der Schlüssel.
+      const kern = fugenblind ? namensKern(klein) : '';
+      const k = kern.length > 0 ? kern : klein;
       const da = gefaltet.get(k);
       if (!da) { gefaltet.set(k, { wert, anzahl, beste: anzahl }); continue; }
       da.anzahl += anzahl;
@@ -273,23 +291,33 @@ function sammlePassende(
   const anfang: WertEintrag[] = [];
   const wortAnfang: WertEintrag[] = [];
   const irgendwo: WertEintrag[] = [];
-  // Vierter, letzter Rang — nur für Namensfelder: was erst zusammenkommt, wenn
-  // man die Trennzeichen wegdenkt (`cannabisnet` → „Cannabis-Net"). Ohne ihn
-  // fände die Liste einen Namen nicht, den die Suche darunter sehr wohl
-  // findet — und der Wertevorrat ist genau der Ort, an dem man Namen sucht.
-  const ueberFuge: WertEintrag[] = [];
+  // An einem Namensfeld zählt zusätzlich der Kern — und zwar für den RANG, nicht
+  // als Nachklapp (v4.128.1). Bis v4.125 stand der Fugen-Treffer hinten, weil
+  // die Liste beide Schreibweisen einzeln führte und die wörtliche zuerst zeigen
+  // sollte. Seit die Zeilen gefaltet sind, ist die angezeigte Schreibweise nur
+  // noch ein Stellvertreter ihrer Gruppe: `cannabisnet` schob „Cannabis-Net"
+  // deshalb ans Ende, hinter das unverwandte „Netzwerk Cannabisnetz". Gewertet
+  // wird jetzt, was die Gruppe ausmacht.
   const kernQ = KERN_FELDER.has(feld) ? nadelKern(q, null) : '';
   for (const e of liste) {
     const klein = e.wert.toLowerCase();
     const pos = klein.indexOf(q);
-    if (pos < 0) {
-      if (kernQ.length > 0 && trifftNamensKern(klein, namensKern(klein), kernQ)) ueberFuge.push(e);
-      continue;
+    // -1 = kein Treffer, 0 = am Anfang, 1 = an einem Wortanfang, 2 = mittendrin.
+    let rang = pos < 0 ? -1
+      : pos === 0 ? 0
+        : /[\p{L}\p{N}]/u.test(klein[pos - 1] as string) ? 2 : 1;
+    // Der Kern kann nur verbessern, nie verschlechtern — und nur bis Rang 1:
+    // „mittendrin" bleibt dem wörtlichen Vergleich vorbehalten, weil `trifft-
+    // NamensKern` einen Wortanfang verlangt.
+    if (kernQ.length > 0 && rang !== 0) {
+      const kern = namensKern(klein);
+      if (kern.startsWith(kernQ)) rang = 0;
+      else if ((rang < 0 || rang > 1) && trifftNamensKern(klein, kern, kernQ)) rang = 1;
     }
-    if (pos === 0) anfang.push(e);
-    else if (!/[\p{L}\p{N}]/u.test(klein[pos - 1] as string)) wortAnfang.push(e);
-    else irgendwo.push(e);
+    if (rang === 0) anfang.push(e);
+    else if (rang === 1) wortAnfang.push(e);
+    else if (rang === 2) irgendwo.push(e);
   }
-  const alle = [...anfang, ...wortAnfang, ...irgendwo, ...ueberFuge];
+  const alle = [...anfang, ...wortAnfang, ...irgendwo];
   return max === undefined ? alle : alle.slice(0, max);
 }
