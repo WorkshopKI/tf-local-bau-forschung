@@ -22,7 +22,7 @@ describe('chipStatusValues', () => {
     expect(values.has('schlussvermerk')).toBe(true);
   });
 
-  it('Chip „Wartet auf Antragsteller" enthält nur „nf gestellt"', () => {
+  it('Chip „Nachforderung läuft" enthält nur „nf gestellt"', () => {
     const values = chipStatusValues('nachforderung');
     expect(values.has('nf gestellt')).toBe(true);
     // Seit v2.411 NICHT mehr dabei: bei beiden liegt der Ball wieder bei der

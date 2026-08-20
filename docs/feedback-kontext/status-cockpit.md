@@ -12,7 +12,7 @@ Der Statuswert-Katalog ordnet jedem Statuswert seinen **Verfahrensschritt** (die
 und seine **Zieltage** zu — mehr wird nicht kuratiert.
 
 **Die Arbeitsliste wird hier NICHT gesetzt.** In welchen Reiter von Förderanträge
-ein Antrag fällt (Zu bearbeiten, In Arbeit, Wartet auf Antragsteller …), hängt am
+ein Antrag fällt (Zu bearbeiten, In Arbeit, Nachforderung läuft …), hängt am
 Statuscode selbst und steht damit fest. Bis dahin gab ein Verfahrensschritt sie
 vor, und ein neuer Zuschnitt verschob nebenbei Hunderte Anträge zwischen Reitern,
 ohne dass jemand das entschieden hätte. Wer den Schnitt heute umbaut, ändert

@@ -124,7 +124,7 @@ export function LaneListe({
                 />
               ) : null}
               {/* `title` am gekürzten Namen: in schmalen Wirten (Startseiten-Menü,
-                  250 px) reicht die Spalte für „Wartet auf Antragsteller" nicht,
+                  250 px) reicht die Spalte für „Nachforderung läuft" nicht,
                   und ohne Titel wäre die Zeile dort nicht mehr zu lesen. */}
               <span className="truncate" title={opt.label}>{opt.label}</span>
             </button>

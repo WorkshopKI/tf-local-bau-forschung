@@ -22,7 +22,7 @@ import {
  *   Mitglieder-Zahl absteigend sortiert (Tie-Break: Netzwerk-ID asc), Solos
  *   wandern ans Ende. Praktisch um „große" Netzwerke schnell zu sehen.
  * - `status`: Flache Solo-Gruppen, sortiert nach Abschnitt (Vor Entscheidung →
- *   Wartet auf Antragsteller → Bewilligt → Begleitung → Beendet →
+ *   Nachforderung läuft → Bewilligt → Begleitung → Beendet →
  *   Abgelehnt/Zurückgezogen → Ohne Zuordnung). Jede Gruppe trägt
  *   `statusSectionId` für Header-Rendering in der Listendarstellung.
  * - `none`: Flache Liste, jeder TV ist eine eigene Gruppe.

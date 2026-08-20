@@ -70,7 +70,7 @@ export function defaultHomeWidgetConfig(
     config: WIDGET_KATALOG[typ].defaultConfig(),
   });
   return {
-    version: 2,
+    version: 3,
     updatedAt: new Date(0).toISOString(),
     hero: HERO_CONFIG_DEFAULT,
     widgets: [
@@ -110,6 +110,30 @@ export function migriereV1HeroWeitermachen(widgets: WidgetInstanz[]): WidgetInst
 }
 
 /**
+ * v2 → v3 (v4.134): „Änderungen der letzten Nacht" rückt ans Ende.
+ *
+ * Das Widget ist eine **Nachschlage-Karte**, keine Arbeitsliste: es sagt, was
+ * der Nacht-Import gebracht hat, und nicht, was zu tun ist. In den gewachsenen
+ * Configs stand es zwischen den Karten, die die Arbeit des Tages tragen — die
+ * Position kam aus der Reihenfolge, in der `reconcileVerfuegbareWidgets` neue
+ * Typen angehängt hat, also aus der Bauzeit und nicht aus einer Entscheidung.
+ *
+ * **Einmalig, kein Pin.** Anders als die Notizen-Regel im Reconcile läuft das
+ * hier genau einen Lesevorgang lang: die Config wird als v3 zurückgegeben, und
+ * wer die Karte danach nach oben holt, behält sie dort. Rein + idempotent —
+ * steht sie schon allein am Ende, bleibt die Liste unverändert.
+ */
+export function migriereV2NachtlaufAnsEnde(widgets: WidgetInstanz[]): WidgetInstanz[] {
+  const nacht = widgets.find(w => w.typ === 'nachtlauf');
+  if (!nacht) return widgets;
+  const max = widgets.reduce((m, w) => Math.max(m, w.position), -1);
+  const alleinAmEnde = nacht.position === max
+    && widgets.filter(w => w.position === max).length === 1;
+  if (alleinAmEnde) return widgets;
+  return widgets.map(w => (w.typ === 'nachtlauf' ? { ...w, position: max + 1 } : w));
+}
+
+/**
  * Die Hero-Karten aus einem Config-Stand — jeder fehlende oder kaputte Wert
  * bedeutet „an". Additiv statt versioniert: das Feld kam mit v4.41 dazu, und ein
  * Stand ohne es soll exakt so aussehen wie bisher (beide Karten, alle Kacheln).
@@ -136,12 +160,13 @@ export function leseHeroConfig(raw: unknown): HeroConfig {
 export function leseHomeWidgetConfig(raw: unknown): HomeWidgetConfig | null {
   if (!raw || typeof raw !== 'object') return null;
   const cfg = raw as Record<string, unknown>;
-  if (cfg.version !== 1 && cfg.version !== 2) return null;
+  if (cfg.version !== 1 && cfg.version !== 2 && cfg.version !== 3) return null;
   if (typeof cfg.updatedAt !== 'string' || !Array.isArray(cfg.widgets)) return null;
   let widgets = cfg.widgets.filter(isWidgetInstanz);
   if (cfg.version === 1) widgets = migriereV1HeroWeitermachen(widgets);
+  if (cfg.version !== 3) widgets = migriereV2NachtlaufAnsEnde(widgets);
   return {
-    version: 2,
+    version: 3,
     updatedAt: cfg.updatedAt,
     hero: leseHeroConfig(cfg.hero),
     widgets,

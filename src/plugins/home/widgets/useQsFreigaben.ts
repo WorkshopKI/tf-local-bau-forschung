@@ -1,22 +1,21 @@
 /**
- * Geteilter Lade-Hook der QS-Freigaben (offene Artefakt-Entwürfe).
+ * Geteilter Lade-Hook der offenen Artefakt-Entwürfe dieses Geräts.
  *
  * Kapselt den IDB-Bulk-Read (`workflow-run:` + Legacy `gutachten-workflow:`) plus
- * den Anträge-/Verbund-Join inkl. Bearbeiter-Filter und liefert die fertigen
+ * den Anträge-/Verbund-Join (Akronym/Titel) und liefert die fertigen
  * `QsFreigabeZeile[]` (reine Transformation in qsFreigaben.ts). GEMEINSAME Quelle
- * für das `QsFreigabenWidget` (Hauptspalte) UND den Hero-Alert-Chip „QS-Freigaben
+ * für das `QsFreigabenWidget` (Hauptspalte) UND den Hero-Alert-Chip „Entwürfe
  * offen" (HomeHero) — so kann die Zahl nicht driften.
+ *
+ * **Ohne Bearbeiter-Filter** (seit v4.134): die Runs liegen gerätelokal, wer sie
+ * sieht, hat sie selbst erzeugt. Begründung + Messung im Modulkopf von
+ * `qsFreigaben.ts`.
  *
  * `aktiv=false` überspringt den Bulk-Read (Lazy: das Widget lädt erst ausgeklappt).
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
-import { useBearbeiterSicht } from '@/core/hooks/useBearbeiterSicht';
 import { useAntraegeStore } from '@/plugins/antraege/store';
-import {
-  antragMatchesBearbeiter,
-  type BearbeiterFilterMode,
-} from '@/plugins/antraege/bearbeiterFilter';
 import type { AntragListItem } from '@/core/services/csv/types';
 import type { WorkflowRun } from '@/plugins/antraege/gutachten/types';
 import {
@@ -31,14 +30,10 @@ const LEGACY_PREFIX = 'gutachten-workflow:';
 
 export interface QsFreigabenDaten {
   zeilen: QsFreigabeZeile[];
-  /** Bearbeiter-Modus (für „Kürzel THÜ"-Scope-Label). */
-  mode: BearbeiterFilterMode;
 }
 
 export function useQsFreigaben(aktiv: boolean): QsFreigabenDaten {
   const storage = useStorage();
-  // Kürzel + Meine/Alle-Sicht (der Umschalter im Seitenkopf wirkt hier mit).
-  const { mode } = useBearbeiterSicht();
   const antraege = useAntraegeStore(s => s.antraege);
   const verbundById = useAntraegeStore(s => s.verbundById);
 
@@ -87,14 +82,13 @@ export function useQsFreigaben(aktiv: boolean): QsFreigabenDaten {
     return {
       akronym: verbund?.akronym ?? rep?.akronym,
       titel: verbund?.titel ?? rep?.titel,
-      sichtbar: !mode.active || gruppe.some(a => antragMatchesBearbeiter(a, mode)),
     };
-  }, [scopeIndex, verbundById, mode]);
+  }, [scopeIndex, verbundById]);
 
   const zeilen = useMemo(
     () => (aktiv ? baueQsFreigabenZeilen(runs, scopeInfo, Date.now()) : []),
     [aktiv, runs, scopeInfo],
   );
 
-  return { zeilen, mode };
+  return { zeilen };
 }

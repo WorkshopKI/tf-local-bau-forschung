@@ -21,13 +21,14 @@ import {
   defaultHomeWidgetConfig,
   leseHomeWidgetConfig,
   loadHomeWidgets,
+  migriereV2NachtlaufAnsEnde,
   moveInstanz,
   reconcileVerfuegbareWidgets,
   saveHomeWidgets,
   sichtbareWidgets,
   sortiereInstanzen,
 } from '../homeWidgetsStore';
-import type { HomeWidgetConfig } from '../types';
+import type { HomeWidgetConfig, WidgetInstanz, WidgetTyp } from '../types';
 import { WIDGET_KATALOG } from '../widgetCatalog';
 
 beforeEach(async () => {
@@ -54,7 +55,7 @@ function cfgMit(updatedAt: string, marker: string): HomeWidgetConfig {
 describe('defaultHomeWidgetConfig — v2 (Home optimiert)', () => {
   it('bildet Reihenfolge, Bereiche und Sichtbarkeit ab — OHNE weitermachen (Hero-Band)', () => {
     const cfg = defaultHomeWidgetConfig();
-    expect(cfg.version).toBe(2);
+    expect(cfg.version).toBe(3);
     const sortiert = sortiereInstanzen(cfg.widgets);
     // weitermachen ist nicht mehr im Default — das Hero-Band ersetzt es.
     expect(sortiert.map(w => w.typ)).toEqual([
@@ -97,7 +98,7 @@ describe('leseHomeWidgetConfig — toleranter Read + v1→v2-Migration', () => {
   });
 
   it('verwirft unbekannte Versionen (Migrations-Einstieg: nie raten)', () => {
-    expect(leseHomeWidgetConfig({ version: 3, updatedAt: 'x', widgets: [] })).toBeNull();
+    expect(leseHomeWidgetConfig({ version: 4, updatedAt: 'x', widgets: [] })).toBeNull();
     expect(leseHomeWidgetConfig({ version: 0, updatedAt: 'x', widgets: [] })).toBeNull();
   });
 
@@ -106,7 +107,7 @@ describe('leseHomeWidgetConfig — toleranter Read + v1→v2-Migration', () => {
     // Lesen den bisherigen Zustand „alles an" (kein Versions-Bump).
     const gelesen = leseHomeWidgetConfig({ version: 2, updatedAt: 'x', widgets: [] });
     expect(gelesen).toEqual({
-      version: 2,
+      version: 3,
       updatedAt: 'x',
       widgets: [],
       hero: {
@@ -119,11 +120,11 @@ describe('leseHomeWidgetConfig — toleranter Read + v1→v2-Migration', () => {
   it('filtert defekte Instanzen, behaelt valide', () => {
     const valide = defaultHomeWidgetConfig().widgets[0]!;
     const gelesen = leseHomeWidgetConfig({
-      version: 2,
+      version: 3,
       updatedAt: '2026-01-01T00:00:00.000Z',
       widgets: [valide, { id: 'kaputt' }, 42],
     });
-    expect(gelesen?.version).toBe(2);
+    expect(gelesen?.version).toBe(3);
     expect(gelesen?.widgets).toEqual([valide]);
   });
 
@@ -139,10 +140,40 @@ describe('leseHomeWidgetConfig — toleranter Read + v1→v2-Migration', () => {
     const gelesen = leseHomeWidgetConfig({
       version: 1, updatedAt: '2026-01-01T00:00:00.000Z', widgets: [weiter, meine],
     });
-    expect(gelesen?.version).toBe(2);
+    expect(gelesen?.version).toBe(3);
     // weitermachen ausgeblendet, sonst unverändert; andere Widgets unberührt.
     expect(gelesen?.widgets.find(w => w.typ === 'weitermachen')?.sichtbar).toBe(false);
     expect(gelesen?.widgets.find(w => w.typ === 'meine-antraege')?.sichtbar).toBe(true);
+  });
+
+  it('v2 → v3: „Änderungen der letzten Nacht" rückt einmalig ans Ende', () => {
+    const instanz = (typ: string, position: number) => ({
+      id: `w-${typ}`, typ, position, bereich: 'haupt',
+      sichtbar: true, eingeklappt: false, config: { art: 'keine' },
+    });
+    const gelesen = leseHomeWidgetConfig({
+      version: 2,
+      updatedAt: '2026-01-01T00:00:00.000Z',
+      widgets: [instanz('meine-antraege', 0), instanz('nachtlauf', 1), instanz('fristen', 2)],
+    });
+    expect(gelesen?.version).toBe(3);
+    expect(gelesen?.widgets.map(w => w.typ).sort()).toEqual(['fristen', 'meine-antraege', 'nachtlauf']);
+    const nacht = gelesen?.widgets.find(w => w.typ === 'nachtlauf')!;
+    const andere = gelesen!.widgets.filter(w => w.typ !== 'nachtlauf');
+    expect(andere.every(w => w.position < nacht.position)).toBe(true);
+  });
+
+  it('v3 wird nicht noch einmal umsortiert — wer die Karte hochholt, behält sie oben', () => {
+    const instanz = (typ: string, position: number) => ({
+      id: `w-${typ}`, typ, position, bereich: 'haupt',
+      sichtbar: true, eingeklappt: false, config: { art: 'keine' },
+    });
+    const gelesen = leseHomeWidgetConfig({
+      version: 3,
+      updatedAt: '2026-01-01T00:00:00.000Z',
+      widgets: [instanz('nachtlauf', 0), instanz('meine-antraege', 1)],
+    });
+    expect(gelesen?.widgets.find(w => w.typ === 'nachtlauf')?.position).toBe(0);
   });
 
   it('v1 → v2: eine bereits ausgeblendete weitermachen-Instanz bleibt (idempotent)', () => {
@@ -161,7 +192,7 @@ describe('loadHomeWidgets — LWW kv vs. PersonalEinstellungen-Mirror', () => {
   it('ohne Daten: Default (v2) — weitermachen als Opt-in (sichtbar:false) nachgezogen', async () => {
     const idb = await frischeIdb();
     const cfg = await loadHomeWidgets(idb);
-    expect(cfg.version).toBe(2);
+    expect(cfg.version).toBe(3);
     // meine-antraege ist sichtbar; weitermachen wird per reconcile als Opt-in
     // (sichtbar:false) ergänzt — der Hero zeigt „Weitermachen" prominent.
     expect(cfg.widgets.find(w => w.typ === 'meine-antraege')?.sichtbar).toBe(true);
@@ -346,5 +377,37 @@ describe('moveInstanz — pro Spalte (bereich) unabhängig', () => {
     const cfg = defaultHomeWidgetConfig();
     const bewegt = moveInstanz(cfg, 'w-ai-assistent', 'hoch');
     expect(bewegt.widgets.find(w => w.id === 'w-ai-assistent')!.bereich).toBe('seite');
+  });
+});
+
+describe('migriereV2NachtlaufAnsEnde (rein)', () => {
+  const instanz = (typ: WidgetTyp, position: number): WidgetInstanz => ({
+    id: `w-${typ}`, typ, position, bereich: 'haupt',
+    sichtbar: true, eingeklappt: false, config: { art: 'keine' },
+  });
+
+  it('ohne nachtlauf-Instanz bleibt die Liste identisch (gleiche Referenz)', () => {
+    const w = [instanz('meine-antraege', 0), instanz('kanban', 1)];
+    expect(migriereV2NachtlaufAnsEnde(w)).toBe(w);
+  });
+
+  it('steht sie schon allein am Ende, ändert sich nichts', () => {
+    const w = [instanz('meine-antraege', 0), instanz('nachtlauf', 1)];
+    expect(migriereV2NachtlaufAnsEnde(w)).toBe(w);
+  });
+
+  it('teilt sie die letzte Position mit einem anderen Widget, rückt sie dahinter', () => {
+    // Gleichstand ist kein „am Ende": welche Karte zuerst steht, entschiede die
+    // Array-Reihenfolge — also eine Zufälligkeit.
+    const w = [instanz('nachtlauf', 4), instanz('fristen', 4)];
+    const nach = migriereV2NachtlaufAnsEnde(w);
+    expect(nach.find(x => x.typ === 'nachtlauf')?.position).toBe(5);
+    expect(nach.find(x => x.typ === 'fristen')?.position).toBe(4);
+  });
+
+  it('ist idempotent — zweimal angewandt steht dasselbe da', () => {
+    const w = [instanz('meine-antraege', 0), instanz('nachtlauf', 1), instanz('fristen', 2)];
+    const einmal = migriereV2NachtlaufAnsEnde(w);
+    expect(migriereV2NachtlaufAnsEnde(einmal)).toBe(einmal);
   });
 });

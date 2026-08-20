@@ -51,7 +51,7 @@ describe('segAnzeige', () => {
 const STATUS_IN_ANTRAGSPHASE: CollapsibleSegItem[] = [
   { label: 'Alle', count: 38 },
   { label: 'Vor Entsch.', count: 37 },
-  { label: 'Bei Antragst.', count: 1 },
+  { label: 'Nachforderung', count: 1 },
   { label: 'Bewilligt', count: 0 },
   { label: 'Begleitung', count: 0 },
   { label: 'Beendet', count: 0 },
@@ -60,7 +60,7 @@ const STATUS_IN_ANTRAGSPHASE: CollapsibleSegItem[] = [
 describe('sichtbareSegmente', () => {
   it('laesst nur stehen, was in dieser Sicht auch etwas liefert', () => {
     expect(sichtbareSegmente(STATUS_IN_ANTRAGSPHASE, 'Alle').map(i => i.label))
-      .toEqual(['Alle', 'Vor Entsch.', 'Bei Antragst.']);
+      .toEqual(['Alle', 'Vor Entsch.', 'Nachforderung']);
   });
 
   it('der Anker bleibt, auch wenn er selbst 0 zaehlt', () => {
@@ -73,7 +73,7 @@ describe('sichtbareSegmente', () => {
     // Es filtert ja gerade — verschwaende es, staende die Pille auf einem Wert,
     // den ihre eigene Liste nicht kennt.
     expect(sichtbareSegmente(STATUS_IN_ANTRAGSPHASE, 'Begleitung').map(i => i.label))
-      .toEqual(['Alle', 'Vor Entsch.', 'Bei Antragst.', 'Begleitung']);
+      .toEqual(['Alle', 'Vor Entsch.', 'Nachforderung', 'Begleitung']);
   });
 
   it('Segmente ohne Zaehler machen keine Mengenaussage und bleiben', () => {

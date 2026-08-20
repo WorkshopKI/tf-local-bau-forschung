@@ -1,10 +1,25 @@
 /**
- * Reiner Selektor des QS-Freigaben-Widgets (Phase 3 v1.1), node-testbar.
+ * Reiner Selektor des Entwürfe-Widgets („Meine Entwürfe in dieser App"),
+ * node-testbar.
  *
  * Aus den lokal gelesenen Artefakt-Workflow-Runs die Abschnitte mit
  * `status === 'entwurf'` (generiert, aber NICHT freigegeben) → Zeilen. Der IDB-
  * Bulk-Read (`idb.entries`) + der Anträge-Join passieren im Widget; hier nur die
  * reine Transformation + Sortierung.
+ *
+ * **Kein Bearbeiter-Filter** (seit v4.134). Die Runs liegen in der IndexedDB
+ * DIESES Geräts — wer sie sieht, hat sie selbst erzeugt. Sie zusätzlich nach dem
+ * Kürzel des Antrags zu filtern, versteckte den eigenen Entwurf, sobald er an
+ * einem fremden Vorgang hing: gemessen am echten Bestand sagte das Widget
+ * „Keine offenen Entwürfe", während die Resume-Karte auf demselben Bildschirm
+ * genau diesen Entwurf zum Weiterarbeiten anbot (HACKKI/ZKN103113, Kürzel
+ * MxM/ViK). Zwei Karten, dieselbe Datenlage, gegenteilige Aussage.
+ *
+ * **Was hier NICHT steht: die fachliche QS des Fachsystems.** Die hängt an den
+ * Kürzeln (`D_QS`, `D_AK4`, `D_XQS`) und wird von der To-do-Kaskade gesagt
+ * („in QS", „wartet auf QS"). Bis v4.134 hieß dieses Widget „QS-Freigaben
+ * offen" und las sich deshalb als Aussage über sie — es zählt aber nur, was in
+ * DIESER App entworfen und noch nicht freigegeben wurde.
  *
  * „Offene Regeln" = fehlgeschlagene mechanische `CheckResult` je Abschnitt
  * (`level !== 'ok'`), NICHT die beratenden `qsHinweise`. Pflichtfreigabe ist eine
@@ -20,12 +35,10 @@ export interface QsRunEintrag {
   run: WorkflowRun;
 }
 
-/** Join-Ergebnis für einen Scope (Aktenzeichen/Verbund-ID) + Sichtbarkeit. */
+/** Join-Ergebnis für einen Scope (Aktenzeichen/Verbund-ID). */
 export interface QsScopeInfo {
   akronym?: string;
   titel?: string;
-  /** true, wenn der Scope dem Bearbeiter-Filter genügt (Filter inaktiv → immer true). */
-  sichtbar: boolean;
 }
 
 export interface QsFreigabeZeile {
@@ -63,8 +76,8 @@ function alterVon(iso: string | undefined, nowMs: number): number | null {
 }
 
 /**
- * Baut die Zeilen: je Run die Entwurf-Schritte, gejoint + bearbeiter-gefiltert
- * über `scopeInfo`, sortiert (Pflichtfreigabe zuerst, dann Alter absteigend).
+ * Baut die Zeilen: je Run die Entwurf-Schritte, über `scopeInfo` mit Akronym und
+ * Titel gejoint, sortiert (Pflichtfreigabe zuerst, dann Alter absteigend).
  */
 export function baueQsFreigabenZeilen(
   runs: QsRunEintrag[],
@@ -74,7 +87,6 @@ export function baueQsFreigabenZeilen(
   const zeilen: QsFreigabeZeile[] = [];
   for (const { typ, scopeId, run } of runs) {
     const info = scopeInfo(scopeId);
-    if (!info.sichtbar) continue;
     const label = ARTEFAKT_LABEL[typ] ?? typ.toUpperCase();
     const titel = info.akronym?.trim() || info.titel?.trim() || scopeId;
     for (const [stepId, step] of Object.entries(run.schritte)) {

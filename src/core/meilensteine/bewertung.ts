@@ -16,7 +16,7 @@
  */
 import { addDays } from '@/core/services/csv/frist';
 import { parseGermanDate } from '@/core/services/csv/dateParse';
-import { pruefeBedingung, type BedingungsKontext } from '@/core/status';
+import { bedingungIstLeer, pruefeBedingung, type BedingungsKontext } from '@/core/status';
 import type {
   AntragstypBucket, MeilensteinKnoten, MeilensteinPlan, MstErgebnis, MstZustand,
   Prognose, VerbundMeilensteine,
@@ -24,6 +24,23 @@ import type {
 import { feldRefsAusBedingung } from './felder';
 
 const MS_TAG = 86_400_000;
+
+/**
+ * Version der **Bewertungs-Semantik**. Hochzählen, sobald dieselbe Datenlage ein
+ * anderes Urteil ergibt.
+ *
+ * Warum das nötig ist: die Projektion wird gecacht, und ihre Signatur bestand
+ * aus Plan-Fassung, Datenstand und Kalendertag (`baueSignatur`) — die Engine
+ * selbst kam darin nicht vor. Eine geänderte Regel wirkte damit erst, wenn der
+ * Plan angefasst wurde oder der Tag wechselte; gemessen zeigte das
+ * Fristen-Widget nach der v4.134-Änderung unverändert 108 Meilenstein-Anlässe
+ * aus der Ablage von vorhin. Ein Cache, der die Rechenvorschrift nicht kennt,
+ * ist keine Beschleunigung, sondern ein zweiter Stand.
+ *
+ * 1 → 2 (v4.134): Knoten ohne auswertbare Bedingung sind `ohneBedingung` statt
+ * `gerissen`/`erreicht` und zählen nicht in die Prognose.
+ */
+export const BEWERTUNGS_VERSION = 2;
 
 /** Vorwarnfenster: so viele Tage vor dem Soll-Termin gilt ein Meilenstein als fällig. */
 export const FAELLIG_FENSTER_TAGE = 7;
@@ -71,8 +88,32 @@ export function planEndeTage(knoten: readonly MeilensteinKnoten[]): number {
   const hatKinder = new Set(
     knoten.filter(k => k.aktiv && k.elternId !== null).map(k => k.elternId as string),
   );
-  const blaetter = knoten.filter(k => k.aktiv && k.relevantFuerFrist && !hatKinder.has(k.id));
+  const blaetter = knoten.filter(k => k.aktiv && k.relevantFuerFrist && !hatKinder.has(k.id)
+    // Ein Blatt ohne auswertbare Bedingung ist kein Termin, sondern eine Luecke
+    // im Plan (v4.134). Es hier mitzuzaehlen schoebe das Plan-Ende auf eine
+    // Woche, die niemand je erreichen kann — und damit JEDEN Verbund auf
+    // „Frist nicht haltbar", ganz gleich wie er laeuft.
+    && !bedingungIstLeer(k.bedingung));
   return blaetter.length === 0 ? 0 : Math.max(...blaetter.map(k => k.sollWoche)) * 7;
+}
+
+/**
+ * Die aktiven Knoten, die **nichts messen können** — keine eigene Bedingung und
+ * keine (aktiven) Kinder, aus denen sich eine ergäbe.
+ *
+ * Eine Aussage über den PLAN, nicht über einen Vorgang: dieselbe Liste gilt für
+ * jeden Verbund. Sie hat zwei Leser — das Fristen-Widget, das sie unter seiner
+ * Liste beziffert, und der Meilenstein-Editor, der die Zeile markiert. Der
+ * gemessene Anlass: im ausgelieferten Plan waren es 4 von 11 (20.08.2026), und
+ * sie erzeugten den Großteil aller Frist-Anlässe.
+ */
+export function knotenOhneBedingung(
+  knoten: readonly MeilensteinKnoten[],
+): MeilensteinKnoten[] {
+  const hatKinder = new Set(
+    knoten.filter(k => k.aktiv && k.elternId !== null).map(k => k.elternId as string),
+  );
+  return knoten.filter(k => k.aktiv && !hatKinder.has(k.id) && bedingungIstLeer(k.bedingung));
 }
 
 /** Datum → ms; akzeptiert ISO und deutsches Format. `null` bei Unparsbarem. */
@@ -174,10 +215,23 @@ function baueBefunde(
   return memo;
 }
 
+/**
+ * Der Zustand eines Knotens fuer diesen Verbund.
+ *
+ * `bewertbar` steht VOR allen anderen Faellen (v4.134): ein Knoten ohne
+ * auswertbare Bedingung und ohne Kinder hat keinen Zustand, den man messen
+ * koennte. Vorher fiel er in die Zeitrechnung und galt ab seiner Soll-Woche fuer
+ * immer als `gerissen` — die Anzeige meldete einen Rueckstand, wo eine
+ * Pflegeluecke war. Auch die Gegenrichtung ist zu: ein leeres `{ alle: [] }`
+ * wertet `true` aus und haette den Knoten dauerhaft als `erreicht` gemeldet,
+ * ohne je ein Datum gesehen zu haben.
+ */
 function zustandVon(
-  relevant: boolean, erreicht: boolean, sollMs: number | null, heuteMs: number,
+  relevant: boolean, bewertbar: boolean, erreicht: boolean,
+  sollMs: number | null, heuteMs: number,
 ): MstZustand {
   if (!relevant) return 'nichtRelevant';
+  if (!bewertbar) return 'ohneBedingung';
   if (erreicht) return 'erreicht';
   if (sollMs === null) return 'offen';
   if (heuteMs > sollMs) return 'gerissen';
@@ -214,7 +268,10 @@ export function bewerteVerbund(
     const b = befunde.get(k.id) ?? { erreicht: false, ueberKinder: false, istDatum: null };
     const sollDatum = ankerIso === null ? null : addDays(ankerIso, k.sollWoche * 7);
     const sollMs = alsMs(sollDatum);
-    const zustand = zustandVon(relevant, b.erreicht, sollMs, heuteMs);
+    // Auswertbar ist ein Knoten mit eigener Bedingung ODER mit Kindern, aus
+    // denen sich eine ergibt — die Sammel-Knoten des Seeds sind genau das.
+    const bewertbar = !bedingungIstLeer(k.bedingung) || hatRelevanteKinder.has(k.id);
+    const zustand = zustandVon(relevant, bewertbar, b.erreicht, sollMs, heuteMs);
     const istMs = alsMs(b.istDatum);
 
     ergebnisse.push({
@@ -229,7 +286,10 @@ export function bewerteVerbund(
       ...(zustand === 'erreicht' && b.ueberKinder ? { ueberKinder: true } : {}),
     });
 
-    if (relevant && k.relevantFuerFrist && !hatRelevanteKinder.has(k.id)) {
+    // Nur messbare Blaetter tragen die Prognose. Ein Knoten ohne Bedingung
+    // liefert keinen Verzug, wohl aber eine Soll-Woche — und die verschoebe das
+    // Plan-Ende ins Unerreichbare (s. planEndeTage).
+    if (relevant && bewertbar && k.relevantFuerFrist && !hatRelevanteKinder.has(k.id)) {
       fristBlaetter.push({ zustand, sollMs, sollWoche: k.sollWoche });
     }
   }

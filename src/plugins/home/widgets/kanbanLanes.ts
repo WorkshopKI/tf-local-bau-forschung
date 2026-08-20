@@ -174,6 +174,15 @@ export interface KanbanLanesErgebnis {
    * benennen kann, statt zu schweigen. `0` = die Bahnen decken alles ab.
    */
   ausserhalb: number;
+  /**
+   * WELCHE Kategorien das sind, absteigend nach Anzahl (v4.134).
+   *
+   * „163 weitere" beantwortet die Frage nur halb: die Zahl sagt, dass etwas
+   * fehlt, nicht was. Am echten Bestand sind es fast ausschließlich beendete
+   * Vorgänge — wer das liest, hört auf, einen Verlust zu vermuten. Reine Daten;
+   * die Beschriftung setzt der Aufrufer (`getStatusCategoryLabel`).
+   */
+  ausserhalbNach: ReadonlyArray<{ kategorie: StatusCategory; anzahl: number }>;
 }
 
 /** Karten je Status-Kategorie — die gemeinsame Datengrundlage beider Ansichten.
@@ -248,11 +257,30 @@ export function buildAntragKanbanLanes(
       gesamt: alle.length,
     };
   });
+  return { lanes: ergebnis, gesamt, ...zaehleAusserhalb(proKategorie, gezeigt) };
+}
+
+/**
+ * Was in keiner gezeigten Bahn steht — Summe UND Aufschlüsselung.
+ *
+ * Eine Stelle für beide Projektionen (Widget + Vollbild-Fenster): sie
+ * beantworten dieselbe Frage über dieselbe Karten-Map, nur mit anderer
+ * Bahnen-Auswahl.
+ */
+function zaehleAusserhalb(
+  proKategorie: KartenProKategorie,
+  gezeigt: ReadonlySet<StatusCategory>,
+): Pick<KanbanLanesErgebnis, 'ausserhalb' | 'ausserhalbNach'> {
   let ausserhalb = 0;
+  const ausserhalbNach: Array<{ kategorie: StatusCategory; anzahl: number }> = [];
   for (const [kategorie, karten] of proKategorie) {
-    if (!gezeigt.has(kategorie)) ausserhalb += karten.length;
+    if (gezeigt.has(kategorie) || karten.length === 0) continue;
+    ausserhalb += karten.length;
+    ausserhalbNach.push({ kategorie, anzahl: karten.length });
   }
-  return { lanes: ergebnis, gesamt, ausserhalb };
+  ausserhalbNach.sort((a, b) => b.anzahl - a.anzahl
+    || KATEGORIE_REIHENFOLGE.indexOf(a.kategorie) - KATEGORIE_REIHENFOLGE.indexOf(b.kategorie));
+  return { ausserhalb, ausserhalbNach };
 }
 
 /**
@@ -332,11 +360,7 @@ export function projiziereVollbildLanes(
       gesamt: eigene.length,
     });
   }
-  let ausserhalb = 0;
-  for (const [kategorie, eigene] of karten) {
-    if (!gezeigt.has(kategorie)) ausserhalb += eigene.length;
-  }
-  return { lanes: ergebnis, gesamt, ausserhalb };
+  return { lanes: ergebnis, gesamt, ...zaehleAusserhalb(karten, gezeigt) };
 }
 
 /**

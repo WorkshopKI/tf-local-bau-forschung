@@ -454,7 +454,7 @@ describe('status-achsen (Arbeitsliste fest, Verfahrensschritt beweglich)', () =>
     // ein Guard, der die mitfaengt, meldet fuer immer Fehlalarm.
     const paare: [string, string][] = [
       ['offen', 'Zu bearbeiten'], ['in_pruefung', 'In Arbeit'],
-      ['nachforderung', 'Wartet auf Antragsteller'], ['entscheidung', 'Zu entscheiden'],
+      ['nachforderung', 'Nachforderung läuft'], ['entscheidung', 'Zu entscheiden'],
       ['abgeschlossen', 'Erledigt'], ['sonstige', 'Ohne Zuordnung'],
     ];
     const muster = paare.map(([k, v]) => new RegExp(`\\b${k}\\s*:\\s*['"\`]${v}['"\`]`));
@@ -1111,6 +1111,16 @@ describe('journal-ohne-personen-achse (Pitfall #48)', () => {
   // personenbezogenes Aktivitaetsprotokoll — Leistungs- und
   // Verhaltenskontrolle, mitbestimmungspflichtig. Das ist eine bewusste
   // Gestaltungsentscheidung und keine Auslassung; deshalb steht sie hier.
+  //
+  // **Was ERLAUBT ist (v4.134): der app-weite Bearbeiter-Ausschnitt.** Das
+  // Nachtlauf-Widget waehlt ueber `useBearbeiterSicht` aus, an WELCHEN
+  // Vorgaengen es Aenderungen zeigt — dieselbe Sicht wie „Meine Antraege", das
+  // Kanban und die Liste. Das ist eine Aussage ueber Antraege, nicht ueber
+  // Personen: die gezeigten Aenderungen koennen von AB, QS oder Juristen
+  // stammen, und das Journal weiss ohnehin nicht, wer sie gemacht hat. Verboten
+  // bleibt, was die Regel meint — eine Zeile, die einen HANDELNDEN nennt, und
+  // jede Gruppierung nach Kuerzel. Der Ausschnitt ersetzt sie nicht, er waehlt
+  // nur die Grundmenge; deshalb steht er in der Kopfzeile des Widgets.
   const JOURNAL = 'src/core/status/journal/';
   const ANSICHTEN = [
     'src/plugins/home/widgets/NachtlaufWidget.tsx',

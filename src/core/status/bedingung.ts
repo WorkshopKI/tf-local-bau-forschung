@@ -58,6 +58,26 @@ function ersterDatumsWert(ctx: BedingungsKontext, feldId: string): number | null
  * damit dieselben Daten am selben Stichtag immer dasselbe Ergebnis liefern.
  * Fehlt er, evaluieren die stichtagsabhängigen Operatoren zu `false`.
  */
+/**
+ * Sagt dieser Bedingungs-Baum überhaupt etwas? (v4.134)
+ *
+ * `{ einige: [] }` ist immer `false`, `{ alle: [] }` immer `true` — beide **ohne
+ * Bezug zu den Daten**. Das ist keine Bedingung, sondern eine Lücke, und sie
+ * darf nicht als Urteil durchgehen: am echten Meilenstein-Plan trugen 4 der 11
+ * aktiven Knoten ein leeres `einige` und galten damit ab ihrer Soll-Woche für
+ * immer als „gerissen" (gemessen 20.08.2026 — sie stellten 108 der 124 Anlässe
+ * im Fristen-Widget). Wer nicht sagen kann, ob etwas erfüllt ist, sagt genau
+ * das.
+ *
+ * Rekursiv, weil eine Lücke auch verschachtelt auftreten kann
+ * (`{ alle: [{ einige: [] }] }` ist ebenfalls aussagelos).
+ */
+export function bedingungIstLeer(b: Bedingung): boolean {
+  if ('alle' in b) return b.alle.every(bedingungIstLeer);
+  if ('einige' in b) return b.einige.every(bedingungIstLeer);
+  return false;
+}
+
 export function pruefeBedingung(b: Bedingung, ctx: BedingungsKontext, heute?: string): boolean {
   if ('alle' in b) return b.alle.every(x => pruefeBedingung(x, ctx, heute));
   if ('einige' in b) return b.einige.some(x => pruefeBedingung(x, ctx, heute));

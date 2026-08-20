@@ -6,7 +6,7 @@
  * Stand bis v3.44 zweimal wortgleich in `AntragKanbanWidget` und
  * `FeedbackKanbanWidget` — bis auf `max-w-[110px]` gegen `max-w-[120px]`, was
  * kein Entwurf war, sondern der Zwilling. Es gilt die 120: Status-KATEGORIEN
- * („Wartet auf Antragsteller") sind länger als Feedback-Status.
+ * („Nachforderung läuft") sind länger als Feedback-Status.
  *
  * Die Pille ist bewusst Tailwind und nicht `tf-board.css`: sie ist kein Teil der
  * Bahn-Geometrie, sondern das, was an ihrer Stelle steht.

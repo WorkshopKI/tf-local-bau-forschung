@@ -138,10 +138,23 @@ export function AntragKanbanWidget({ instanz, onToggleEingeklappt }: WidgetProps
   // aus der To-do-Kaskade, mit der alten Status-Formel als Rückfall (v4.132).
   const aufgaben = useZeilenAufgaben('leerlauf', heuteRef.current);
 
-  const { lanes, gesamt, ausserhalb } = useMemo(
+  const { lanes, gesamt, ausserhalb, ausserhalbNach } = useMemo(
     () => buildAntragKanbanLanes(basis, cfg.lanes, cfg.maxKartenProLane, Date.now(), aufgaben),
     [basis, cfg.lanes, cfg.maxKartenProLane, aufgaben],
   );
+
+  // Was NICHT in den Bahnen steht, mit Namen (v4.134). „163 weitere" sagt, dass
+  // etwas fehlt, nicht was — und wer die Zahl nicht einordnen kann, vermutet
+  // einen Verlust. Aufgezählt sind es beendete Vorgänge.
+  const ausserhalbTitel = useMemo(() => {
+    if (ausserhalb === 0) return undefined;
+    const teile = ausserhalbNach
+      .map(a => `${a.anzahl.toLocaleString('de-DE')}× ${getStatusCategoryLabel(a.kategorie)}`)
+      .join(' · ');
+    return `${ausserhalb.toLocaleString('de-DE')} weitere Vorgänge liegen in Kategorien, die dieses`
+      + ` Kanban nicht als Bahn führt: ${teile}. Die Bahnen wählen Sie in den`
+      + ` Widget-Einstellungen.`;
+  }, [ausserhalb, ausserhalbNach]);
 
   const pills = useMemo(
     (): LanePill[] => lanes.map((lane, i) => ({
@@ -179,7 +192,12 @@ export function AntragKanbanWidget({ instanz, onToggleEingeklappt }: WidgetProps
     navigate('antraege');
   };
 
-  const meta = `${bearbeiterScopeLabel(bearbeiterMode)} · Quelle: Förderanträge${presetZustand.preset ? ` · Filter „${presetZustand.preset.name}"` : ''}`;
+  // **Die Meta-Zeile sagt, was eine Karte IST** (v4.134). Ohne das stand auf
+  // einem Bildschirm dreimal dasselbe Wort für drei Mengen: „34 offene
+  // Vorgänge" (Teilvorhaben), „21 Vorgänge" (Verbünde) und „37 Teilvorhaben".
+  // Die Zahl ist nicht falsch — sie sagte nur nicht, was sie zählt.
+  const meta = `${bearbeiterScopeLabel(bearbeiterMode)} · Verbünde als eine Karte`
+    + ` · Quelle: Förderanträge${presetZustand.preset ? ` · Filter „${presetZustand.preset.name}"` : ''}`;
 
   // ── Vollbild-Fenster ────────────────────────────────────────────────────────
   // Das Widget liefert dem Fenster DATEN, keine fertigen Bahnen: welche Bahn dort
@@ -265,19 +283,15 @@ export function AntragKanbanWidget({ instanz, onToggleEingeklappt }: WidgetProps
             // Die Zahl summiert die GEZEIGTEN Bahnen. Liegt etwas außerhalb,
             // sagt der Zähler es — sonst liest sich ein Auszug als Gesamtzahl
             // („25 Vorgänge", während 7 weitere in nicht geführten Kategorien
-            // liegen). Die Bahnen wählt man in den Widget-Einstellungen.
+            // liegen). Seit v4.134 nennt der Tooltip auch, WELCHE Kategorien das
+            // sind. Die Bahnen wählt man in den Widget-Einstellungen.
             <span
               className="text-[12px] tabular-nums text-[var(--tf-text-tertiary)]"
-              title={ausserhalb > 0
-                ? `${ausserhalb.toLocaleString('de-DE')} weitere Vorgänge liegen in Kategorien, die dieses Kanban nicht als Bahn führt.`
-                : undefined}
+              title={ausserhalbTitel}
             >
-              {gesamt.toLocaleString('de-DE')} {gesamt === 1 ? 'Vorgang' : 'Vorgänge'}
-              {ausserhalb > 0 ? (
-                <span className="text-[var(--tf-text-tertiary)]">
-                  {' '}von {(gesamt + ausserhalb).toLocaleString('de-DE')}
-                </span>
-              ) : null}
+              {ausserhalb > 0
+                ? `${gesamt.toLocaleString('de-DE')} von ${(gesamt + ausserhalb).toLocaleString('de-DE')} Vorgängen`
+                : `${gesamt.toLocaleString('de-DE')} ${gesamt === 1 ? 'Vorgang' : 'Vorgänge'}`}
             </span>
           )
       }

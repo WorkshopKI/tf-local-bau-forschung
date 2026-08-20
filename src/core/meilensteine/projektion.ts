@@ -25,7 +25,7 @@ import { isTerminalStatus } from '@/core/utils/status-canonical';
 import { getAntragstypBucket } from '@/core/utils/vb-phase-mappings';
 import type { MeilensteinPlan, VerbundMeilensteine } from './typen';
 import { baueMeilensteinKontext, benoetigteFelder, loeseFelderAuf } from './felder';
-import { bewerteVerbund } from './bewertung';
+import { BEWERTUNGS_VERSION, bewerteVerbund } from './bewertung';
 
 const PROJEKTION_PREFIX = 'meilenstein-stand:';
 
@@ -41,7 +41,12 @@ export interface MeilensteinProjektion {
 export const projektionsKey = (programmId: string): string => `${PROJEKTION_PREFIX}${programmId}`;
 
 /**
- * Stempel aus Plan-Fassung, Mapping-/Datenstand **und Kalendertag**.
+ * Stempel aus **Bewertungs-Semantik**, Plan-Fassung, Mapping-/Datenstand und
+ * Kalendertag.
+ *
+ * `BEWERTUNGS_VERSION` steht vorn, weil eine geänderte Regel dasselbe darstellt
+ * wie ein geänderter Plan: das Urteil ist ein anderes. Ohne sie wirkte eine
+ * Engine-Änderung erst am nächsten Tag (gemessen, v4.134).
  *
  * `file_checksum` deckt den CSV-Inhalt ab, `column_mapping` die Zuordnung —
  * beides kann die Bewertung verändern, ohne dass ein Import läuft (Mapping-
@@ -58,7 +63,7 @@ export function baueSignatur(
     .map(s => `${s.id}:${s.file_checksum ?? ''}:${Object.keys(s.column_mapping).length}`)
     .sort()
     .join(',');
-  return `p${plan.version}@${plan.stand}|${schemaTeil}|${heute.slice(0, 10)}`;
+  return `b${BEWERTUNGS_VERSION}|p${plan.version}@${plan.stand}|${schemaTeil}|${heute.slice(0, 10)}`;
 }
 
 /**

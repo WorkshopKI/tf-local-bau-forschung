@@ -101,7 +101,7 @@ function AlertPunkte(): React.ReactElement {
   const kacheln: { id: HeroChipId; label: string; icon: typeof AlertTriangle }[] = [
     { id: 'kritisch', label: labelKritisch(schwellen), icon: AlertTriangle },
     { id: 'warnung', label: labelWarnung(schwellen), icon: Clock },
-    { id: 'qs', label: 'QS-Freigaben offen', icon: ShieldCheck },
+    { id: 'qs', label: 'eigene Entwürfe offen', icon: ShieldCheck },
   ];
 
   return (

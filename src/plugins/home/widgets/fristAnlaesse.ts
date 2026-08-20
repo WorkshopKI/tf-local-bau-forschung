@@ -174,6 +174,42 @@ export function buendleNachVerbund(anlaesse: readonly FristAnlass[]): FristAnlas
 }
 
 /**
+ * Der sichtbare Ausschnitt — **beide Quellen kommen vor**, wenn beide etwas
+ * haben (v4.134).
+ *
+ * Die Liste ist nach Abstand sortiert, und die Quellen liefern sehr ungleich
+ * viel: am echten Bestand standen 36 Meilenstein-Anlässe gegen 16 Zieltage, und
+ * in den sichtbaren acht Zeilen kam kein einziger Zieltag vor — die Kopfzeile
+ * versprach „16 Zieltag", die Liste zeigte davon nichts. Das mit der Kopfzahl
+ * zu beantworten (so hielt es v4.86) reicht nicht: eine Zahl ohne Zeile ist
+ * kein Zugang zu der Sache, die sie zählt.
+ *
+ * Deshalb bekommt jede vorhandene Quelle **mindestens** `mindestens` Plätze,
+ * bevor der Rest nach Dringlichkeit vergeben wird. Die Reihenfolge der
+ * Ausgabe bleibt die der Eingabe — es wird ausgewählt, nicht umsortiert.
+ */
+export function sichtbareMischung(
+  zeilen: readonly FristAnlass[], hoechstens: number, mindestens: number,
+): FristAnlass[] {
+  if (zeilen.length <= hoechstens) return [...zeilen];
+  const gewaehlt = new Set<string>();
+  for (const art of ['zieltag', 'meilenstein'] as const) {
+    let n = 0;
+    for (const z of zeilen) {
+      if (n >= mindestens || gewaehlt.size >= hoechstens) break;
+      if (z.art !== art) continue;
+      gewaehlt.add(z.id);
+      n += 1;
+    }
+  }
+  for (const z of zeilen) {
+    if (gewaehlt.size >= hoechstens) break;
+    gewaehlt.add(z.id);
+  }
+  return zeilen.filter(z => gewaehlt.has(z.id));
+}
+
+/**
  * Wie viele Anlässe je Quelle — für die Kopfzeile.
  *
  * **Warum das dastehen muss.** Die Liste ist nach Abstand sortiert, und die

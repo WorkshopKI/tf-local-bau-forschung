@@ -95,12 +95,30 @@ describe('Letzter Nachtlauf', () => {
     expect(l?.eintraege.map(e => e.antragId)).toEqual(['A1', 'A2']);
   });
 
-  it('meldet einen leeren Lauf als leer, nicht als fehlend', async () => {
+  it('brachte der jüngste Export nichts, steht der letzte Lauf MIT Änderungen da', async () => {
+    // Am echten Bestand trugen 4 von 9 verarbeiteten Stempeln keinen Eintrag
+    // (20.08.2026). Ein Widget, das darauf „nichts geändert" sagt, verbirgt
+    // die echten Änderungen von vorgestern hinter einem Leerlauf.
     share.stand = { ...share.stand!, letzterStempel: { id: 's9', datum: '2026-08-06' } };
     leereJournalCache();
     const l = await letzterNachtLauf(IDB);
+    expect(l?.stempel).toBe('s2');
+    expect(l?.datum).toBe('2026-08-05');
+    expect(l?.eintraege.map(e => e.antragId)).toEqual(['A1', 'A2']);
+    // … und sagt, WELCHER Lauf leer ausging — sonst läse man alte Änderungen
+    // als die von heute Nacht.
+    expect(l?.ersatzFuer).toEqual({ stempel: 's9', datum: '2026-08-06' });
+  });
+
+  it('ist auch der Ersatz leer, bleibt es bei einem leeren Lauf (nicht null)', async () => {
+    share.stand = { ...share.stand!, letzterStempel: { id: 's9', datum: '2026-08-06' } };
+    share.dateien = {};
+    leereJournalCache();
+    const l = await letzterNachtLauf(IDB);
     expect(l).not.toBeNull();
+    expect(l?.stempel).toBe('s9');
     expect(l?.eintraege).toEqual([]);
+    expect(l?.ersatzFuer).toBeUndefined();
   });
 });
 

@@ -158,7 +158,7 @@ describe('isBewilligtStatus', () => {
 describe('isNachforderungStatus', () => {
   it('Foerderantrag "NF gestellt" → true', () => expect(isNachforderungStatus('NF gestellt')).toBe(true));
   // Seit v2.411 nur noch 35: bei 36/37 liegt der Ball wieder bei der Behörde,
-  // und die Kategorie heißt „Wartet auf Antragsteller".
+  // und die Kategorie heißt seit v4.134 „Nachforderung läuft".
   it('Foerderantrag "keine weiteren NF" → false', () => expect(isNachforderungStatus('keine weiteren NF')).toBe(false));
   it('Foerderantrag "NL eingegangen" → false', () => expect(isNachforderungStatus('NL eingegangen')).toBe(false));
   it('"techn geprüft" → false', () => expect(isNachforderungStatus('techn geprüft')).toBe(false));

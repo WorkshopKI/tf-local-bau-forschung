@@ -1,14 +1,19 @@
 /**
- * QS-Freigaben-Widget (Home, Hauptbereich — Phase 3 v1.1).
+ * „Meine Entwürfe in dieser App" (Home, Hauptbereich — bis v4.134
+ * „QS-Freigaben offen").
  *
  * Read-only + Navigation: listet lokale Artefakt-Entwürfe, die noch nicht
  * freigegeben sind (Entwurf ≠ Entscheidung). Das Widget gibt NIE frei — beide
  * Aktionen navigieren nur in die Artefakt-/Verbund-Oberfläche. Lazy: der IDB-
  * Bulk-Read (`entries`) läuft erst ausgeklappt.
+ *
+ * **Der Name nennt jetzt die Menge, die gezählt wird.** „QS-Freigaben offen" las
+ * sich als Aussage über die fachliche QS des Fachsystems — die steht in den
+ * Kürzeln und wird von der To-do-Kaskade gesagt, nicht hier. Herleitung und
+ * Messung: Modulkopf von `qsFreigaben.ts`.
  */
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigation } from '@/core/hooks/useNavigation';
-import { bearbeiterScopeLabel } from '@/plugins/antraege/bearbeiterFilter';
 import {
   zaehleProTyp,
   type QsFreigabeZeile,
@@ -34,8 +39,8 @@ export function QsFreigabenWidget({ instanz, onToggleEingeklappt }: WidgetProps)
 
   const maxZeilen = instanz.config.art === 'qs-freigaben' ? instanz.config.maxZeilen : DEFAULT_MAX;
   // Lazy: eingeklappt kein Bulk-Read. Geteilter Hook (auch der Hero-Alert-Chip
-  // „QS-Freigaben offen" liest daraus → identische Zahl, kein Drift).
-  const { zeilen, mode } = useQsFreigaben(!instanz.eingeklappt);
+  // „Entwürfe offen" liest daraus → identische Zahl, kein Drift).
+  const { zeilen } = useQsFreigaben(!instanz.eingeklappt);
 
   // In-Karte erweitern statt wegzunavigieren (v4.131): „+ N weitere →" führte
   // in die ungefilterte Förderanträge-Liste, in der von QS-Entwürfen nichts zu
@@ -53,8 +58,8 @@ export function QsFreigabenWidget({ instanz, onToggleEingeklappt }: WidgetProps)
 
   return (
     <WidgetShell
-      titel="QS-Freigaben offen"
-      meta={`Entwurf ≠ Entscheidung · ${bearbeiterScopeLabel(mode)}`}
+      titel="Meine Entwürfe in dieser App"
+      meta="Auf diesem Gerät erstellt · noch nicht freigegeben"
       variante="haupt"
       eingeklappt={instanz.eingeklappt}
       onToggleEingeklappt={onToggleEingeklappt}
@@ -72,8 +77,16 @@ export function QsFreigabenWidget({ instanz, onToggleEingeklappt }: WidgetProps)
       }
     >
       {zeilen.length === 0 ? (
+        // Die Leere muss sagen, worüber sie NICHTS aussagt: Gutachten und
+        // Bescheide entstehen überwiegend außerhalb der App, und davon weiß
+        // dieses Widget nichts. Ohne den zweiten Satz liest sich „keine
+        // Entwürfe" als „nichts zu tun".
         <p className="text-[12.5px] text-[var(--tf-text-tertiary)] py-1">
-          Keine offenen Entwürfe — alle Artefakte sind freigegeben.
+          Auf diesem Gerät liegt kein unfreigegebener Entwurf.
+          <span className="block">
+            Was außerhalb der App geschrieben wird, steht in den Kürzeln — die
+            Aufgabe dazu nennen „Meine Anträge" und das Vorgangs-Board.
+          </span>
         </p>
       ) : (
         <div className="flex flex-col">

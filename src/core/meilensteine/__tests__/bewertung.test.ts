@@ -21,7 +21,11 @@ function knoten(p: Partial<MeilensteinKnoten> & { id: string }): MeilensteinKnot
     relevantFuerFrist: true,
     nurTypen: [],
     aktiv: true,
-    bedingung: { einige: [] } as Bedingung,
+    // Eine ECHTE Bedingung als Vorgabe: gegen einen leeren Kontext ist sie
+    // `false` — wie das frühere `{ einige: [] }` —, aber sie ist auswertbar.
+    // Seit v4.134 ist der Unterschied entscheidend: eine leere Bedingung ist
+    // kein „noch nicht", sondern ein „weiss ich nicht" (`ohneBedingung`).
+    bedingung: { feldId: 'egal', op: 'gefuellt' } as Bedingung,
     sortierung: 10,
     ...p,
   };
@@ -301,5 +305,50 @@ describe('planEndeTage', () => {
 
   it('ist 0, wenn kein Knoten in die Frist zählt', () => {
     expect(planEndeTage([])).toBe(0);
+  });
+});
+
+describe('Knoten ohne auswertbare Bedingung (v4.134)', () => {
+  const leer = (id: string, sollWoche: number): MeilensteinKnoten =>
+    knoten({ id, sollWoche, bedingung: { einige: [] } as Bedingung });
+
+  it('gilt als `ohneBedingung`, nicht als gerissen — auch lange nach der Soll-Woche', () => {
+    // Der gemessene Fall: 4 der 11 aktiven Knoten des echten Plans trugen ein
+    // leeres `einige` und meldeten fuer jeden Verbund einen Rueckstand.
+    const r = bewerteVerbund(plan([leer('a', 1)]), eingabe({}), '2026-06-01T00:00:00.000Z');
+    expect(r.ergebnisse[0]!.zustand).toBe('ohneBedingung');
+  });
+
+  it('auch ein leeres `alle` — es waere sonst dauerhaft ERREICHT ohne ein Datum', () => {
+    const k = knoten({ id: 'a', bedingung: { alle: [] } as Bedingung });
+    const r = bewerteVerbund(plan([k]), eingabe({}), '2026-06-01T00:00:00.000Z');
+    expect(r.ergebnisse[0]!.zustand).toBe('ohneBedingung');
+  });
+
+  it('ein Sammel-Knoten MIT Kindern bleibt auswertbar', () => {
+    const p = plan([
+      knoten({ id: 'sammel', sollWoche: 4, bedingung: { einige: [] } as Bedingung }),
+      knoten({ id: 'kind', elternId: 'sammel', sollWoche: 1, bedingung: { feldId: 'f', op: 'gefuellt' } }),
+    ]);
+    const offen = bewerteVerbund(p, eingabe({}), '2026-06-01T00:00:00.000Z');
+    expect(offen.ergebnisse.find(e => e.knotenId === 'sammel')?.zustand).toBe('gerissen');
+    const erfuellt = bewerteVerbund(p, eingabe({ f: '05.01.2026' }), '2026-06-01T00:00:00.000Z');
+    expect(erfuellt.ergebnisse.find(e => e.knotenId === 'sammel')?.zustand).toBe('erreicht');
+  });
+
+  it('traegt nichts zur Prognose bei — weder Verzug noch Plan-Ende', () => {
+    // Ohne diese Regel schoebe ein unerfuellbarer Knoten in Woche 18 das
+    // Plan-Ende hinter die 90-Tage-Frist und JEDER Verbund waere „nicht haltbar".
+    const p = plan([
+      knoten({ id: 'echt', sollWoche: 2, bedingung: { feldId: 'f', op: 'gefuellt' } }),
+      leer('luecke', 18),
+    ], 90);
+    expect(planEndeTage(p.knoten)).toBe(2 * 7);
+    const r = bewerteVerbund(p, eingabe({ f: '05.01.2026' }), '2026-01-06T00:00:00.000Z');
+    expect(r.prognose).toBe('abgeschlossen');
+  });
+
+  it('ein Plan NUR aus Luecken hat kein messbares Ende', () => {
+    expect(planEndeTage([leer('a', 5), leer('b', 18)])).toBe(0);
   });
 });

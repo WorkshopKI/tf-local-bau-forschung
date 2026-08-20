@@ -162,7 +162,7 @@ export function getPhaseItems(
   return [
     { label: ALLE_LABEL, count: antraege.length },
     // Die Kurzform steht in der Leiste, der volle Name im Tooltip — sonst
-    // müsste man „Bei Antragst." raten.
+    // müsste man „Nachforderung" ohne Zusatz raten.
     ...buckets.map(b => ({ label: b.label, count: b.count, title: b.voll })),
     // Nur wenn er gerade gilt: ein Segment, das man nicht wählen kann, wäre
     // sonst dauerhaft ein toter Knopf. Ohne Zähler — was die Leiste gesetzt hat,

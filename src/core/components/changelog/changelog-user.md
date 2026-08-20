@@ -19,6 +19,19 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.134 — 2026-08
+
+### Verbesserungen
+- **Die Kanban-Bahn „Wartet auf Antragsteller" heißt jetzt „Nachforderung läuft".** Sie enthält genau einen Status — „NF gestellt". Wer wegen einer versandten Ablehnung auf den Antragsteller wartet, steht weiterhin unter „Zu entscheiden"; wer gerade wartet, sagt Ihnen die Zeile selbst. Der neue Name gilt auch in den Reitern und Filtern der Förderanträge.
+- **„QS-Freigaben offen" heißt jetzt „Meine Entwürfe in dieser App".** Die Karte zählt nur, was Sie in der App entworfen und noch nicht freigegeben haben — nicht die fachliche QS. Die steht in den Kürzeln und wird von „Meine Anträge" und dem Vorgangs-Board gesagt. Ihr eigener Entwurf verschwindet nicht mehr, wenn er an einem fremden Vorgang hängt.
+- **„Änderungen der letzten Nacht" zeigt nur noch Ihre Vorgänge**, eine Zeile je Antrag mit Akronym, und sagt darunter, wie viele Änderungen andere betrafen. Die Karte steht jetzt unten in ihrer Spalte.
+- **Hat der jüngste Import nichts geändert, zeigt die Karte den letzten Lauf mit Änderungen** und sagt dazu, dass sie das tut — statt „nichts geändert" zu melden und die Nacht davor zu verbergen.
+- **Das Kanban sagt, was es zählt**: „Verbünde als eine Karte", und der Tooltip an der Zahl nennt die Kategorien, die keine Bahn haben.
+
+### Bugfixes
+- **Das Fristen-Widget meldete Meilensteine als gerissen, die gar nicht erfüllbar sind.** Vier Meilensteine des Plans tragen keine Bedingung — sie galten ab ihrer Soll-Woche für immer als überfällig und stellten den Großteil aller Einträge. Sie werden jetzt nicht mehr bewertet, und die Fußzeile sagt, wie viele es sind; im Meilenstein-Editor tragen sie die Marke „ohne Bedingung".
+- **Die Fristen-Liste zeigte nur Meilensteine**, obwohl die Kopfzeile auch Zieltage zählte. Jetzt kommen beide Quellen vor.
+
 ## v4.133 — 2026-08
 
 ### Verbesserungen

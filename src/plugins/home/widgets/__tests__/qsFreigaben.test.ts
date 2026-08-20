@@ -31,7 +31,7 @@ function run(
   return { aktenzeichen: 'x', schritte, aktiverSchritt: 'A', erstellt_am: geaendert_am, geaendert_am, schemaVersion: 1 } as WorkflowRun;
 }
 
-const ALLE_SICHTBAR = (scopeId: string): QsScopeInfo => ({ akronym: scopeId, sichtbar: true });
+const SCOPE = (scopeId: string): QsScopeInfo => ({ akronym: scopeId });
 
 describe('baueQsFreigabenZeilen', () => {
   it('nimmt nur Entwurf-Schritte (freigegeben/leer raus)', () => {
@@ -43,7 +43,7 @@ describe('baueQsFreigabenZeilen', () => {
         C: step('leer', []),
       }),
     }];
-    const zeilen = baueQsFreigabenZeilen(runs, ALLE_SICHTBAR, NOW);
+    const zeilen = baueQsFreigabenZeilen(runs, SCOPE, NOW);
     expect(zeilen.map(z => z.key)).toEqual(['ga:V1:B']);
     expect(zeilen[0]!.untertitel).toBe('Gutachten · Abschnitt B');
   });
@@ -51,28 +51,29 @@ describe('baueQsFreigabenZeilen', () => {
   it('offene Regeln = Checks mit level !== ok → Aktions-Label', () => {
     const gruen = baueQsFreigabenZeilen(
       [{ typ: 'ga', scopeId: 'V1', run: run({ A: step('entwurf', checks('ok', 'ok')) }) }],
-      ALLE_SICHTBAR, NOW,
+      SCOPE, NOW,
     );
     expect(gruen[0]!.offeneRegeln).toBe(0);
     expect(gruen[0]!.regelnGruen).toBe(true);
 
     const offen = baueQsFreigabenZeilen(
       [{ typ: 'ga', scopeId: 'V2', run: run({ A: step('entwurf', checks('ok', 'fehler', 'hinweis')) }) }],
-      ALLE_SICHTBAR, NOW,
+      SCOPE, NOW,
     );
     expect(offen[0]!.offeneRegeln).toBe(2); // fehler + hinweis
     expect(offen[0]!.regelnGruen).toBe(false);
   });
 
-  it('Bearbeiter-Filter über scopeInfo.sichtbar (Kürzel-Modus blendet fremde aus)', () => {
+  it('KEIN Bearbeiter-Filter — auch der Entwurf an einem fremden Vorgang bleibt', () => {
+    // Die Runs liegen gerätelokal: wer sie sieht, hat sie selbst erzeugt. Bis
+    // v4.134 filterte ein `sichtbar`-Flag sie nach dem Kürzel des Antrags —
+    // gemessen verschwand damit der EIGENE Entwurf, während die Resume-Karte
+    // daneben ihn zum Weiterarbeiten anbot.
     const runs: QsRunEintrag[] = [
       { typ: 'ga', scopeId: 'MEIN', run: run({ A: step('entwurf', checks('ok')) }) },
       { typ: 'ga', scopeId: 'FREMD', run: run({ A: step('entwurf', checks('ok')) }) },
     ];
-    const nurMein = (id: string): QsScopeInfo => ({ akronym: id, sichtbar: id === 'MEIN' });
-    expect(baueQsFreigabenZeilen(runs, nurMein, NOW).map(z => z.scopeId)).toEqual(['MEIN']);
-    // „alle"-Modus: scopeInfo.sichtbar immer true → beide
-    expect(baueQsFreigabenZeilen(runs, ALLE_SICHTBAR, NOW).map(z => z.scopeId).sort()).toEqual(['FREMD', 'MEIN']);
+    expect(baueQsFreigabenZeilen(runs, SCOPE, NOW).map(z => z.scopeId).sort()).toEqual(['FREMD', 'MEIN']);
   });
 
   it('sortiert Pflichtfreigabe (ABL/RNE) zuerst, dann Alter absteigend', () => {
@@ -81,7 +82,7 @@ describe('baueQsFreigabenZeilen', () => {
       { typ: 'abl', scopeId: 'A', run: run({ A: step('entwurf', checks('ok'), '2026-06-01T00:00:00.000Z') }) }, // neu, aber Pflicht
       { typ: 'rne', scopeId: 'R', run: run({ A: step('entwurf', checks('ok'), '2026-05-01T00:00:00.000Z') }) }, // Pflicht
     ];
-    const zeilen = baueQsFreigabenZeilen(runs, ALLE_SICHTBAR, NOW);
+    const zeilen = baueQsFreigabenZeilen(runs, SCOPE, NOW);
     // Pflichtfreigabe zuerst (unter sich nach Alter desc: R älter als A), dann GA
     expect(zeilen.map(z => z.scopeId)).toEqual(['R', 'A', 'G']);
     expect(zeilen[0]!.pflichtfreigabe).toBe(true);
@@ -91,7 +92,7 @@ describe('baueQsFreigabenZeilen', () => {
   it('NF-Untertitel ohne Abschnitt', () => {
     const zeilen = baueQsFreigabenZeilen(
       [{ typ: 'nf', scopeId: 'TV1', run: run({ A: step('entwurf', checks('ok')) }) }],
-      ALLE_SICHTBAR, NOW,
+      SCOPE, NOW,
     );
     expect(zeilen[0]!.untertitel).toBe('Nachforderung');
     expect(zeilen[0]!.typBadge).toBe('NF');
@@ -100,7 +101,7 @@ describe('baueQsFreigabenZeilen', () => {
   it('Leerzustand: keine Entwürfe → []', () => {
     const zeilen = baueQsFreigabenZeilen(
       [{ typ: 'ga', scopeId: 'V', run: run({ A: step('freigegeben', checks('ok')) }) }],
-      ALLE_SICHTBAR, NOW,
+      SCOPE, NOW,
     );
     expect(zeilen).toEqual([]);
   });
@@ -112,7 +113,7 @@ describe('zaehleProTyp', () => {
       { typ: 'ga', scopeId: 'V1', run: run({ A: step('entwurf', checks('ok')), B: step('entwurf', checks('ok')) }) },
       { typ: 'nf', scopeId: 'TV1', run: run({ A: step('entwurf', checks('ok')) }) },
     ];
-    const zeilen = baueQsFreigabenZeilen(runs, ALLE_SICHTBAR, NOW);
+    const zeilen = baueQsFreigabenZeilen(runs, SCOPE, NOW);
     const pills = zaehleProTyp(zeilen);
     expect(pills).toEqual([
       { typ: 'ga', badge: 'GA', count: 2 },

@@ -303,29 +303,84 @@ export async function letzteAenderungJeAntrag(
 }
 
 export interface NachtLauf {
+  /** Der Stempel, dessen Einträge in `eintraege` stehen. */
   stempel: string;
+  /** Das Export-Datum ebendieses Laufs. */
   datum: string;
   journalAb: string;
   eintraege: JournalEintrag[];
+  /**
+   * Gesetzt, wenn der JÜNGSTE Export nichts geändert hat und deshalb ein
+   * früherer Lauf gezeigt wird (v4.134).
+   *
+   * **Warum das nötig ist.** Ein Export, der an den journalisierten Feldern
+   * nichts ändert, ist der Normalfall und nicht die Ausnahme: am echten Bestand
+   * trugen 4 der 9 verarbeiteten Stempel keinen einzigen Eintrag (gemessen
+   * 20.08.2026, u.a. der zuletzt verarbeitete). Ein Widget, das darauf „nichts
+   * geändert" sagt, ist zwar wahr, aber unbrauchbar — die echten Änderungen von
+   * vorgestern verschwinden hinter einem Leerlauf. Gezeigt wird deshalb der
+   * jüngste Lauf MIT Einträgen; die Anzeige nennt beide Daten, sonst läse man
+   * alte Änderungen als die von heute Nacht.
+   */
+  ersatzFuer?: { stempel: string; datum: string };
+}
+
+/** Wie viele Monatsdateien rückwärts nach einem Lauf mit Einträgen gesucht wird. */
+const ERSATZ_MONATE = 2;
+
+/** Der jüngste Stempel mit Einträgen aus einer Monatsliste (nach Datum). */
+function juengsterLauf(eintraege: readonly JournalEintrag[]): JournalEintrag[] {
+  let bester: string | null = null;
+  let bestesDatum = '';
+  const proStempel = new Map<string, JournalEintrag[]>();
+  for (const e of eintraege) {
+    const liste = proStempel.get(e.stempel);
+    if (liste) liste.push(e); else proStempel.set(e.stempel, [e]);
+    if (e.datum > bestesDatum) { bestesDatum = e.datum; bester = e.stempel; }
+  }
+  return bester === null ? [] : (proStempel.get(bester) ?? []);
 }
 
 /**
- * Die Einträge des **jüngsten** Exports — die Grundlage des Nachtlauf-Widgets.
+ * Die Einträge des jüngsten Exports **mit Änderungen** — Grundlage des
+ * Nachtlauf-Widgets.
  *
- * `null`, wenn es kein Journal gibt; leere `eintraege`, wenn der letzte Lauf
- * nichts fand. Beides sind verschiedene Aussagen und werden getrennt angezeigt.
+ * `null`, wenn es kein Journal gibt; leere `eintraege`, wenn in den letzten
+ * Monatsdateien überhaupt nichts steht. Beides sind verschiedene Aussagen und
+ * werden getrennt angezeigt.
  */
 export async function letzterNachtLauf(idb: IDBStore): Promise<NachtLauf | null> {
   const stand = await frischerStand(idb);
   if (!stand) return null;
+  const basis = {
+    journalAb: stand.journalAb,
+    stempel: stand.letzterStempel.id,
+    datum: stand.letzterStempel.datum,
+  };
   // Nur der Monat des letzten Stempels — ältere Dateien können ihn nicht führen.
   const monat = stand.letzterStempel.datum.slice(0, 7);
   const eintraege = (await ladeMonat(idb, monat))
     .filter(e => e.stempel === stand.letzterStempel.id);
-  return {
-    stempel: stand.letzterStempel.id,
-    datum: stand.letzterStempel.datum,
-    journalAb: stand.journalAb,
-    eintraege,
-  };
+  if (eintraege.length > 0) return { ...basis, eintraege };
+
+  // Der jüngste Export brachte nichts: den letzten Lauf MIT Einträgen suchen,
+  // höchstens zwei Monatsdateien zurück. Weiter zurück wäre keine Antwort auf
+  // „was ist über Nacht passiert" mehr, sondern eine Chronik — und die steht am
+  // Antrag.
+  const [jahr, mon] = monat.split('-').map(Number) as [number, number];
+  for (let zurueck = 0; zurueck < ERSATZ_MONATE; zurueck++) {
+    const d = new Date(Date.UTC(jahr, mon - 1 - zurueck, 1));
+    const kandidaten = (await ladeMonat(idb, d.toISOString().slice(0, 7)))
+      .filter(e => e.stempel !== stand.letzterStempel.id);
+    const lauf = juengsterLauf(kandidaten);
+    if (lauf.length === 0) continue;
+    return {
+      journalAb: stand.journalAb,
+      stempel: lauf[0]!.stempel,
+      datum: lauf[0]!.datum,
+      eintraege: lauf,
+      ersatzFuer: { stempel: basis.stempel, datum: basis.datum },
+    };
+  }
+  return { ...basis, eintraege: [] };
 }

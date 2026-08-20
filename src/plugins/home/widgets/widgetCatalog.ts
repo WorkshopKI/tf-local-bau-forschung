@@ -128,7 +128,10 @@ export const WIDGET_KATALOG: Record<WidgetTyp, WidgetKatalogEintrag> = {
   },
   'qs-freigaben': {
     typ: 'qs-freigaben',
-    label: 'QS-Freigaben offen',
+    // v4.134: hieß „QS-Freigaben offen" und las sich als Aussage über die
+    // fachliche QS des Fachsystems. Gezählt wird, was in DIESER App entworfen
+    // und noch nicht freigegeben wurde — gerätelokal (qsFreigaben.ts).
+    label: 'Meine Entwürfe in dieser App',
     icon: ClipboardCheck,
     bereich: 'haupt',
     verfuegbar: true,

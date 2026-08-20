@@ -219,7 +219,8 @@
    Voreinstellungen des Knopfes (Rahmen, Fläche, zentrierter Text, eigene
    Schrift) müssen weg, sonst zerfällt die Zeile. */
 /* 4px Lücke, nicht die 8px der Board-Fassung: das ist die GEMESSENE Zahl. Bei
-   „Wartet auf Antragsteller" in einer 170-px-Bahn (Home, sieben Bahnen, 1280 px)
+   „Wartet auf Antragsteller" (bis v4.134 die längste Kategoriebezeichnung) in
+   einer 170-px-Bahn (Home, sieben Bahnen, 1280 px)
    standen der zweizeiligen Bezeichnung mit 8px genau 88 px zur Verfügung, sie
    brauchte 92 — mit 4px sind es 96 und sie passt ohne Ellipse. Dieselbe Messung
    entschied schon in der Widget-Fassung (bis v3.44) über `gap-1` statt `gap-2`;
@@ -250,7 +251,8 @@
    KanbanBoard.tsx): die Bahn ist `overflow: hidden` — was hier nicht passt, ist
    nicht bloß versetzt, sondern WEG. Darum weicht die Bezeichnung als letzte
    (`min-width: 0` + Ellipse, voller Name im `title`) und die Zahl nie
-   (`flex: none`). Gemessen an „Wartet auf Antragsteller" (90 px, zweizeilig) und
+   (`flex: none`). Gemessen an „Wartet auf Antragsteller" (90 px, zweizeilig — bis
+   v4.134 die längste Kategoriebezeichnung) und
    „Entscheidungsreif" (117 px unschrumpfbares Einzelwort in 83-px-Spur, das die
    Zähler-Pille ganz aus der Bahn schob).
    Die 8px-Lücke ist die Board-Zahl; die Widget-Fassung brauchte 4px, weil ihr

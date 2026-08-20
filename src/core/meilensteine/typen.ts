@@ -99,7 +99,17 @@ export interface MeilensteinPlan {
  * Zustand eines Meilensteins für einen konkreten Verbund.
  * `faellig` ist eine Vorwarnstufe von `offen` (Soll-Termin binnen `FAELLIG_FENSTER_TAGE`).
  */
-export type MstZustand = 'erreicht' | 'offen' | 'faellig' | 'gerissen' | 'nichtRelevant';
+/**
+ * `ohneBedingung` (v4.134) ist **kein Urteil über den Vorgang**, sondern eins
+ * über den Plan: der Knoten trägt keine auswertbare Bedingung und hat keine
+ * Kinder, aus denen sich eine ergäbe. Solche Knoten galten vorher ab ihrer
+ * Soll-Woche für immer als `gerissen` — am echten Bestand stellten 4 von 11
+ * aktiven Knoten so 108 der 124 Anlässe des Fristen-Widgets, und jede sichtbare
+ * Zeile nannte denselben Meilenstein. Sie sind weder Alarm noch Erfolg; sie
+ * werden gezählt und benannt, damit jemand die Bedingung nachträgt.
+ */
+export type MstZustand =
+  'erreicht' | 'offen' | 'faellig' | 'gerissen' | 'nichtRelevant' | 'ohneBedingung';
 
 /** Prognose zur Gesamtfrist. */
 export type Prognose = 'imPlan' | 'gefaehrdet' | 'nichtHaltbar' | 'abgeschlossen' | 'unbekannt';

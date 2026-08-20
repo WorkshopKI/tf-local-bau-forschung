@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.134.0 — Vier Widgets sagen, was sie zählen (August 2026)
+
+MINOR — Vier Startseiten-Karten benannten eine Menge, die sie nicht führen. Am Bestand gemessen: die Bahn „Wartet auf Antragsteller" stand auf 0, während zehn Karten daneben genau das sagten; „QS-Freigaben offen" meldete „keine", während die Karte darüber denselben Entwurf zum Weiterarbeiten anbot; das Fristen-Widget führte 108 von 124 Anlässen auf vier Meilensteine zurück, die **keine Bedingung** tragen und deshalb nie erfüllbar sind; und „Änderungen der letzten Nacht" zeigte 402 Zeilen, von denen 7 den Leser angingen.
+
+- **Die Kategorie `nachforderung` heißt „Nachforderung läuft"** (app-weit: Kanban-Bahn, Reiter, Filter-Chips, Suchfacetten) — sie umfasst genau einen Status, „NF gestellt"; wer wartet, sagt die To-do-Kaskade je Zeile ([status-category-labels.ts](src/core/utils/status-category-labels.ts))
+- **„QS-Freigaben offen" heißt „Meine Entwürfe in dieser App"** und filtert nicht mehr nach dem Kürzel des Antrags — die Runs liegen gerätelokal, wer sie sieht, hat sie selbst erzeugt ([qsFreigaben.ts](src/plugins/home/widgets/qsFreigaben.ts), [useQsFreigaben.ts](src/plugins/home/widgets/useQsFreigaben.ts))
+- **Meilenstein-Knoten ohne auswertbare Bedingung gelten nicht mehr als gerissen**, sondern als `ohneBedingung` — gezählt in der Fußzeile des Widgets, markiert im Editor; die Projektions-Signatur trägt jetzt die `BEWERTUNGS_VERSION`, sonst wirkt eine Engine-Änderung erst am nächsten Tag ([bewertung.ts](src/core/meilensteine/bewertung.ts), [projektion.ts](src/core/meilensteine/projektion.ts))
+- **„Änderungen der letzten Nacht" folgt dem Bearbeiter-Ausschnitt, gruppiert je Antrag und weicht auf den letzten Lauf MIT Änderungen aus** (4 von 9 Stempeln waren leer); die Karte rückt einmalig ans Spaltenende ([nachtlaufGruppen.ts](src/plugins/home/widgets/nachtlaufGruppen.ts), [lesen.ts](src/core/status/journal/lesen.ts), Config v3)
+- **Die Fristen-Liste zeigt beide Quellen**, statt die kleinere in der Sortierung verschwinden zu lassen, und der Kanban-Kopf nennt die Einheit samt der Kategorien außerhalb seiner Bahnen ([fristAnlaesse.ts](src/plugins/home/widgets/fristAnlaesse.ts), [kanbanLanes.ts](src/plugins/home/widgets/kanbanLanes.ts))
+
 ### v4.133.0 — Zuletzt geändert: der Klick landet beim Eintrag, der Rückweg führt heim (August 2026)
 
 MINOR — Das Startseiten-Widget hieß „Registry-Änderungen" — ein Wort aus `registry.json`, das in der Oberfläche sonst nirgends vorkommt. Und sein Klick warf weg, worauf man geklickt hatte: man landete auf der Skills-Liste ohne Auswahl und ohne Weg zurück. Der Deep-Link dafür war seit Juni 2026 gebaut (`b70c02d7`, Provenienz-Affordanz des Gutachten-Flows), nur rief ihn niemand auf.

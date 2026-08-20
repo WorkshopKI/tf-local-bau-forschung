@@ -7,8 +7,8 @@
  */
 import { describe, it, expect } from 'vitest';
 import {
-  anlassBilanz, bilanzText, buendleNachVerbund, meilensteinAnlaesse, sortiereAnlaesse,
-  ueberTageText, zieltagAnlass, type FristAnlass,
+  anlassBilanz, bilanzText, buendleNachVerbund, meilensteinAnlaesse, sichtbareMischung,
+  sortiereAnlaesse, ueberTageText, zieltagAnlass, type FristAnlass,
 } from '../fristAnlaesse';
 import type { WaechterErgebnis } from '@/core/status';
 import type { MeilensteinKnoten, VerbundMeilensteine } from '@/core/meilensteine';
@@ -182,5 +182,51 @@ describe('bilanzText — keine Quelle verschwindet in der Sortierung', () => {
     expect(bilanzText([m('b')])).toBe('1 Meilenstein');
     expect(bilanzText([z('a')])).toBe('1 Zieltag');
     expect(bilanzText([])).toBe('');
+  });
+});
+
+describe('sichtbareMischung', () => {
+  const anlass = (id: string, art: FristAnlass['art'], ueberTage: number): FristAnlass => ({
+    id, verbundId: id, akronym: id, art, marke: art === 'zieltag' ? 'Zieltag' : '1',
+    grund: 'x', ueberTage, gerissen: true,
+  });
+
+  it('beide Quellen kommen vor, auch wenn eine die Sortierung beherrscht', () => {
+    // Der gemessene Fall: 36 Meilenstein-Anlässe gegen 16 Zieltage — in den
+    // sichtbaren acht Zeilen kam kein einziger Zieltag vor, während die
+    // Kopfzeile ihn zählte.
+    const zeilen = [
+      ...Array.from({ length: 10 }, (_, i) => anlass(`m${i}`, 'meilenstein', 300 - i)),
+      anlass('z1', 'zieltag', 40),
+      anlass('z2', 'zieltag', 30),
+      anlass('z3', 'zieltag', 20),
+    ];
+    const sichtbar = sichtbareMischung(zeilen, 8, 2);
+    expect(sichtbar).toHaveLength(8);
+    expect(sichtbar.filter(z => z.art === 'zieltag').map(z => z.id)).toEqual(['z1', 'z2']);
+    // Die Ausgabe-Reihenfolge bleibt die der Eingabe — ausgewählt, nicht umsortiert.
+    expect(sichtbar.map(z => z.id)).toEqual(zeilen.filter(z => sichtbar.includes(z)).map(z => z.id));
+  });
+
+  it('passt alles hinein, bleibt alles stehen', () => {
+    const zeilen = [anlass('a', 'zieltag', 5), anlass('b', 'meilenstein', 4)];
+    expect(sichtbareMischung(zeilen, 8, 2)).toEqual(zeilen);
+  });
+
+  it('gibt es nur eine Quelle, bekommt sie alle Plätze', () => {
+    const zeilen = Array.from({ length: 12 }, (_, i) => anlass(`m${i}`, 'meilenstein', 100 - i));
+    const sichtbar = sichtbareMischung(zeilen, 8, 2);
+    expect(sichtbar).toHaveLength(8);
+    expect(sichtbar.map(z => z.id)).toEqual(['m0', 'm1', 'm2', 'm3', 'm4', 'm5', 'm6', 'm7']);
+  });
+
+  it('hält die Reserve klein — die Dringlichsten bleiben in der Mehrheit', () => {
+    const zeilen = [
+      ...Array.from({ length: 6 }, (_, i) => anlass(`m${i}`, 'meilenstein', 300 - i)),
+      ...Array.from({ length: 6 }, (_, i) => anlass(`z${i}`, 'zieltag', 10 - i)),
+    ];
+    const sichtbar = sichtbareMischung(zeilen, 8, 2);
+    expect(sichtbar.filter(z => z.art === 'meilenstein')).toHaveLength(6);
+    expect(sichtbar.filter(z => z.art === 'zieltag')).toHaveLength(2);
   });
 });

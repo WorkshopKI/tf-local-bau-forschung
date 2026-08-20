@@ -51,7 +51,7 @@ export {
   loeseKategorieSpalten, kategorienMitDatumsfeldern, kategorieSpaltenSignatur,
 } from './kategorie-projektion';
 export {
-  baueKontext, pruefeBedingung, bedingungFeldRefs, referenzierbareFelder,
+  baueKontext, pruefeBedingung, bedingungIstLeer, bedingungFeldRefs, referenzierbareFelder,
   type BedingungsKontext,
 } from './bedingung';
 export { bedingungAlsText, bedingungSatz } from './bedingung-text';

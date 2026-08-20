@@ -104,10 +104,16 @@ export function KanbanVollbild({
     setBahnenConfig(next);
     onLanes?.(next);
   };
-  const { lanes, gesamt, ausserhalb } = useMemo(
+  const { lanes, gesamt, ausserhalb, ausserhalbNach } = useMemo(
     () => projiziereVollbildLanes(karten, bahnenConfig),
     [karten, bahnenConfig],
   );
+  // Welche Bahnen abgewählt sind, mit Namen — wie im Widget-Kopf (v4.134).
+  const ausserhalbTitel = ausserhalb > 0
+    ? `${ausserhalb.toLocaleString('de-DE')} weitere Vorgänge liegen in abgewählten Bahnen`
+      + ` (${ausserhalbNach.map(a => `${a.anzahl.toLocaleString('de-DE')}× ${getStatusCategoryLabel(a.kategorie)}`).join(' · ')})`
+      + ` — im Zahnrad wieder einblenden.`
+    : undefined;
   const [zeigeEinstellungen, setZeigeEinstellungen] = useState(false);
   const seite = useRef<HTMLDivElement>(null);
 
@@ -143,12 +149,11 @@ export function KanbanVollbild({
             als Bestand (v4.131, wie im Widget-Kopf). */}
         <span
           className="kv-zahl"
-          title={ausserhalb > 0
-            ? `${ausserhalb.toLocaleString('de-DE')} weitere Vorgänge liegen in abgewählten Bahnen — im Zahnrad wieder einblenden.`
-            : undefined}
+          title={ausserhalbTitel}
         >
-          {gesamt.toLocaleString('de-DE')} {gesamt === 1 ? 'Vorgang' : 'Vorgänge'}
-          {ausserhalb > 0 ? ` von ${(gesamt + ausserhalb).toLocaleString('de-DE')}` : ''}
+          {ausserhalb > 0
+            ? `${gesamt.toLocaleString('de-DE')} von ${(gesamt + ausserhalb).toLocaleString('de-DE')} Vorgängen`
+            : `${gesamt.toLocaleString('de-DE')} ${gesamt === 1 ? 'Vorgang' : 'Vorgänge'}`}
         </span>
         <button
           type="button"

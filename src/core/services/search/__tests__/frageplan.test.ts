@@ -36,7 +36,7 @@ describe('baueFrageplanPrompt', () => {
 
   it('nennt die Arbeitslisten-Werte mit ihrer Bezeichnung', () => {
     const p = baueFrageplanPrompt('x', 2026).systemPrompt;
-    expect(p).toContain('nachforderung (Wartet auf Antragsteller)');
+    expect(p).toContain('nachforderung (Nachforderung läuft)');
     expect(p).toContain('in_pruefung (In Arbeit)');
   });
 

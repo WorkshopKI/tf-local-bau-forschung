@@ -25,7 +25,7 @@ describe('Die sieben Abschnitte', () => {
   it('trägt die zugesagten Namen', () => {
     expect(STATUS_SECTION_ORDER.map(id => `${id} → ${statusSectionLabel(id)}`)).toEqual([
       'vor-entscheidung → Vor Entscheidung',
-      'nachforderung → Wartet auf Antragsteller',
+      'nachforderung → Nachforderung läuft',
       'bewilligt → Bewilligt',
       'begleitung → Begleitung',
       'beendet → Beendet',

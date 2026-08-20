@@ -29,7 +29,7 @@ import { TfTree } from '@/components/tree';
 import { ContextMenuItem, ContextMenuLabel, ContextMenuSeparator } from '@/components/ui/context-menu';
 import {
   aendereKnoten, darfUmhaengen, entferneKnoten, fuegeKnotenHinzu, haengeKnotenUm,
-  hebeKnotenAn, planEndeTage, verschiebeKnoten,
+  hebeKnotenAn, knotenOhneBedingung, planEndeTage, verschiebeKnoten,
   type MeilensteinKnoten, type SpaltenEintrag,
 } from '@/core/meilensteine';
 import { ANTRAGSTYP_BUCKETS } from '@/core/utils/vb-phase-mappings';
@@ -59,6 +59,14 @@ function KnotenKopf({ knoten, alle, schreibgeschuetzt, frisch, onKnoten }: {
 }): React.ReactElement {
   const patch = (p: Partial<MeilensteinKnoten>): void => onKnoten(aendereKnoten(alle, knoten.id, p));
   const bezeichnung = useRef<HTMLInputElement>(null);
+  // Ein Knoten, der weder eine eigene Bedingung noch Kinder hat, kann NIE
+  // erfüllt werden. Bis v4.134 galt er ab seiner Soll-Woche für immer als
+  // gerissen; jetzt wird er nicht mehr bewertet — und genau deshalb muss die
+  // Zeile es sagen, sonst bleibt die Lücke für immer stehen.
+  const ohneBedingung = useMemo(
+    () => knotenOhneBedingung(alle).some(k => k.id === knoten.id),
+    [alle, knoten.id],
+  );
 
   // Der eben angelegte Knoten will benannt werden: Cursor hinein, Platzhalter
   // markiert. Bewusst als Effekt statt `autoFocus` — dessen Fokus-Ereignis
@@ -122,6 +130,12 @@ function KnotenKopf({ knoten, alle, schreibgeschuetzt, frisch, onKnoten }: {
       {knoten.unbestaetigt && (
         <span title="Vorbelegung aus dem Auslieferungs-Plan — bitte prüfen">
           <Badge variant="warning">unbestätigt</Badge>
+        </span>
+      )}
+
+      {ohneBedingung && (
+        <span title="Weder eine eigene Bedingung noch Unter-Meilensteine — dieser Meilenstein wird nicht bewertet. Bedingung ergänzen oder ihm Unter-Meilensteine geben.">
+          <Badge variant="warning">ohne Bedingung</Badge>
         </span>
       )}
     </span>

@@ -27,6 +27,17 @@
  * beseitigt hat. Die Verbform trägt dieselbe Aussage, bricht an der Wortgrenze
  * und reiht sich neben `offen` („Zu bearbeiten") in dieselbe Frageform ein.
  *
+ * **`nachforderung` heißt seit v4.134 „Nachforderung läuft".** Der alte Name
+ * „Wartet auf Antragsteller" beschrieb eine LAGE, die Kategorie umfasst aber
+ * genau EINEN Status — „NF gestellt" (bestandsweit 46 Vorgänge). Wer wegen
+ * einer versandten Ablehnung oder Rücknahmeempfehlung auf den Antragsteller
+ * wartet, steht in `entscheidung`. Auf der Startseite stand die Bahn deshalb
+ * auf 0, während zehn Karten daneben „wartet auf Antragsteller" sagten — die
+ * Bahn-Überschrift widersprach den Karten unter ihr. **Wer wartet, sagt die
+ * To-do-Kaskade je Zeile** (`aufgabenAnzeige`, `wartetAuf`); die Kategorie sagt,
+ * WO im Verfahren der Vorgang steht. Zwei Fragen, zwei Antworten — der
+ * Kategoriename darf die zweite nicht vortäuschen.
+ *
  * **Die Aggregate tragen eigene Namen.** Reiter und Abschnitte in
  * *Förderanträge* fassen Kategorien zusammen — „Vor Entscheidung" sind drei,
  * „Beendet" zwei. Sie dürfen deshalb NICHT den Namen einer ihrer Kategorien
@@ -52,7 +63,7 @@ export interface Beschriftung {
 export const KATEGORIE_TEXTE: Readonly<Record<StatusCategory, Beschriftung>> = {
   offen: { lang: 'Zu bearbeiten', kurz: 'Zu bearb.' },
   in_pruefung: { lang: 'In Arbeit', kurz: 'In Arbeit' },
-  nachforderung: { lang: 'Wartet auf Antragsteller', kurz: 'Bei Antragst.' },
+  nachforderung: { lang: 'Nachforderung läuft', kurz: 'Nachforderung' },
   entscheidung: { lang: 'Zu entscheiden', kurz: 'Zu entsch.' },
   bewilligt: { lang: 'Bewilligt', kurz: 'Bewilligt' },
   begleitung: { lang: 'Begleitung', kurz: 'Begleitung' },

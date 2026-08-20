@@ -33,15 +33,19 @@ import {
   getAktiveVersion, ladeAktiveVersion, baueFeldAufloesung, sammleVorkommen,
   findeStatusCode, pruefeStillstand,
 } from '@/core/status';
-import { freigegebeneFassung, holeProjektion, ladePlan } from '@/core/meilensteine';
 import {
-  bilanzText, buendleNachVerbund, meilensteinAnlaesse, sortiereAnlaesse, ueberTageText,
-  zieltagAnlass, type FristAnlass,
+  freigegebeneFassung, holeProjektion, knotenOhneBedingung, ladePlan,
+} from '@/core/meilensteine';
+import {
+  bilanzText, buendleNachVerbund, meilensteinAnlaesse, sichtbareMischung, sortiereAnlaesse,
+  ueberTageText, zieltagAnlass, type FristAnlass,
 } from './fristAnlaesse';
 import { WidgetShell } from './WidgetShell';
 import type { WidgetProps } from './widgetProps';
 
 const MAX_ZEILEN = 8;
+/** So viele Plätze bekommt jede vorhandene Quelle mindestens (s. sichtbareMischung). */
+const MIN_JE_QUELLE = 2;
 
 /** Die Farbe sagt „gerissen" gegen „steht bevor" — nicht, aus welchem System. */
 function farbe(a: FristAnlass): string {
@@ -62,6 +66,8 @@ export function FristenWidget({
   const [laden, setLaden] = useState(false);
   const [anlaesse, setAnlaesse] = useState<FristAnlass[]>([]);
   const [unbewertet, setUnbewertet] = useState(0);
+  /** Knoten des Plans ohne auswertbare Bedingung — eine Aussage über den PLAN. */
+  const [ohneBedingung, setOhneBedingung] = useState(0);
 
   /** verbund_id → Akronym, aus dem bereits berechneten Dashboard-Aggregat. */
   const meineVerbuende = useMemo(() => {
@@ -86,6 +92,7 @@ export function FristenWidget({
     void (async () => {
       const gesammelt: FristAnlass[] = [];
       let ohneZiel = 0;
+      let planLuecken = 0;
 
       // --- Stillstand (Zieltage je Status) ---
       if (zieltage) {
@@ -131,6 +138,10 @@ export function FristenWidget({
           const geladen = await ladePlan(idb);
           const plan = freigegebeneFassung(geladen.plan);
           if (plan) {
+            // Seit v4.134 zaehlen Knoten ohne Bedingung nicht mehr als gerissen
+            // — aber sie verschweigen sich auch nicht: die Fusszeile nennt sie,
+            // damit jemand die Bedingung nachtraegt.
+            planLuecken = knotenOhneBedingung(plan.knoten).length;
             const programme = await listProgramme(idb);
             for (const p of programme) {
               const schemas = await listSchemasByProgramm(idb, p.id);
@@ -152,6 +163,7 @@ export function FristenWidget({
       if (abgebrochen) return;
       setAnlaesse(sortiereAnlaesse(gesammelt));
       setUnbewertet(ohneZiel);
+      setOhneBedingung(planLuecken);
       setLaden(false);
     })();
     return () => { abgebrochen = true; };
@@ -165,7 +177,7 @@ export function FristenWidget({
   // zählt weiter die ANLÄSSE — sie beantwortet „wie viel steht offen", die Liste
   // „wo steht es".
   const zeilen = buendleNachVerbund(anlaesse);
-  const sichtbar = zeilen.slice(0, MAX_ZEILEN);
+  const sichtbar = sichtbareMischung(zeilen, MAX_ZEILEN, MIN_JE_QUELLE);
   const rest = zeilen.length - sichtbar.length;
   const scope = bearbeiterScopeLabel(bearbeiterMode);
   // Ein Widget, das nur eine Hälfte zeigt, sagt es — sonst liest man eine
@@ -251,10 +263,14 @@ export function FristenWidget({
           )}
         </div>
       )}
-      {(unbewertet > 0 || nurEine) && (
+      {(unbewertet > 0 || ohneBedingung > 0 || nurEine) && (
         <p className="pt-1 text-[11px] text-[var(--tf-text-tertiary)]">
           {unbewertet > 0
             && `${unbewertet} nicht bewertbar — für ihren Status sind keine Zieltage gepflegt. `}
+          {ohneBedingung > 0
+            && `${ohneBedingung} ${ohneBedingung === 1 ? 'Meilenstein trägt' : 'Meilensteine tragen'}`
+              + ` keine Bedingung und ${ohneBedingung === 1 ? 'wird' : 'werden'} nicht bewertet`
+              + ` (Modul „Fristen & Meilensteine"). `}
           {nurEine}
         </p>
       )}

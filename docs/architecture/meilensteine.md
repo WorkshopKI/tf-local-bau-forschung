@@ -45,7 +45,22 @@ auf 0, und die Fassung war nicht nur aus dem Blick, sondern aus der Datei.
   `sollDatum = anker + sollWoche * 7`.
 - **Zustände**: `erreicht` · `gerissen` (Soll überschritten) · `faellig`
   (Soll in ≤ `FAELLIG_FENSTER_TAGE` = 7) · `offen` · `nichtRelevant` (inaktiv
-  oder typ-fremd). Ein inaktiver Knoten wird nie als gerissen gezählt.
+  oder typ-fremd) · `ohneBedingung`. Ein inaktiver Knoten wird nie als gerissen
+  gezählt.
+- **`ohneBedingung` (v4.134) ist ein Urteil über den PLAN, nicht über den
+  Vorgang**: der Knoten trägt keine auswertbare Bedingung (`bedingungIstLeer` —
+  `{einige: []}` ist immer falsch, `{alle: []}` immer wahr, beide ohne Bezug zu
+  den Daten) **und** keine aktiven Kinder, aus denen sich eine ergäbe. Solche
+  Knoten galten ab ihrer Soll-Woche für immer als `gerissen`: im ausgelieferten
+  Plan waren es **4 von 11** aktiven Knoten, und sie stellten **108 von 124**
+  Anlässen des Fristen-Widgets — jede sichtbare Zeile nannte denselben
+  Meilenstein (gemessen 20.08.2026). Der Prüfstein steht **vor** `erreicht`,
+  sonst hätte ein leeres `{alle: []}` dauerhaft „erreicht" gemeldet, ohne je ein
+  Datum gesehen zu haben. Sie zählen **nicht** in die Prognose und nicht in
+  `planEndeTage`; `knotenOhneBedingung(knoten)` liefert die Liste für die
+  Fußzeile des Fristen-Widgets und die Marke „ohne Bedingung" im Editor.
+  Häufigste Ursache: ein Sammel-Knoten, dessen Kinder ausgerückt wurden — sein
+  `nurUeberKinder()` bleibt stehen und misst danach nichts mehr.
 - **Eltern-ODER-Regel**: ein Sammel-Knoten gilt als erreicht, wenn seine eigene
   Bedingung zutrifft **oder** alle relevanten Kinder erreicht sind. Sein
   Ist-Termin ist dann das **späteste** Kind-Datum.
@@ -109,10 +124,14 @@ leer stand. Der Editor markiert das Blatt jetzt zusätzlich als unvollständig.
 Wer „Feld ist leer" meint, hat dafür `leer`/`gefuellt`.
 
 **Signatur-Guard** ([projektion.ts](../../src/core/meilensteine/projektion.ts)):
-`planVersion@stand | schemaId:checksum:spaltenzahl | Kalendertag`. Der Tages-Anteil
-muss hinein, weil die Bewertung zeitabhängig ist — ohne ihn bliebe „fällig"
-stehen, während der Meilenstein längst gerissen ist (Lehre aus der stale
-List-View). Gepflegt wird die Projektion in einem eigenen Post-Import-Pass neben
+`BEWERTUNGS_VERSION | planVersion@stand | schemaId:checksum:spaltenzahl | Kalendertag`.
+Der Tages-Anteil muss hinein, weil die Bewertung zeitabhängig ist — ohne ihn
+bliebe „fällig" stehen, während der Meilenstein längst gerissen ist (Lehre aus
+der stale List-View). **Die Bewertungs-Version kam mit v4.134 dazu**: eine
+geänderte Regel ist für die Ablage dasselbe wie ein geänderter Plan — ohne sie
+zeigte das Fristen-Widget nach der Engine-Änderung unverändert die 108 Anlässe
+von vorhin, weil Plan, Schema und Tag dieselben waren. Wer die Semantik von
+`bewerteVerbund` ändert, zählt `BEWERTUNGS_VERSION` hoch. Gepflegt wird die Projektion in einem eigenen Post-Import-Pass neben
 `nachImportStatusPflege` (andere Flags, andere Datenquelle).
 
 ## Oberfläche

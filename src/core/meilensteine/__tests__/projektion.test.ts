@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import 'fake-indexeddb/auto';
 import { IDBStore } from '@/core/services/storage/idb-store';
+import { BEWERTUNGS_VERSION } from '@/core/meilensteine/bewertung';
 import {
   baueSignatur, ladeProjektion, projektionsKey, speichereProjektion,
 } from '@/core/meilensteine/projektion';
@@ -50,6 +51,13 @@ describe('baueSignatur', () => {
   it('ändert sich mit dem Kalendertag — die Bewertung ist zeitabhängig', () => {
     expect(baueSignatur(plan, [schema()], '2026-08-02T00:00:00.000Z'))
       .not.toBe(baueSignatur(plan, [schema()], HEUTE));
+  });
+
+  it('trägt die Bewertungs-Version — sonst wirkt eine Engine-Änderung erst morgen', () => {
+    // Gemessen (v4.134): nach der Änderung an `zustandVon` zeigte das
+    // Fristen-Widget unverändert die 108 Anlässe aus der Ablage von vorhin,
+    // weil Plan, Schema und Tag dieselben waren.
+    expect(baueSignatur(plan, [schema()], HEUTE)).toContain(`b${BEWERTUNGS_VERSION}`);
   });
 
   it('ist unabhängig von der Schema-Reihenfolge', () => {

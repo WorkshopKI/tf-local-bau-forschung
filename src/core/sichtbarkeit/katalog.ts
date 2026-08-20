@@ -326,7 +326,7 @@ export const SICHTBARKEITS_KATALOG: readonly KatalogEintrag[] = [
   widget('antragseingang', 'Antragseingang'),
   widget('ai-assistent', 'KI-Assistent'),
   widget('notizen', 'Notizen'),
-  widget('qs-freigaben', 'QS-Freigaben offen'),
+  widget('qs-freigaben', 'Meine Entwürfe in dieser App'),
   widget('feedback-news', 'Feedback-Neuigkeiten'),
   // Hängt am Modul-Schloss bzw. an der Kurator-Freischaltung (Regel 1).
   widget('auslastung', 'Auslastung'),

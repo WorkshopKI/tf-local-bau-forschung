@@ -226,7 +226,7 @@ beantwortet:
 |---|---|---|
 | `offen` | Zu bearbeiten | Zu bearb. |
 | `in_pruefung` | In Arbeit | In Arbeit |
-| `nachforderung` | Wartet auf Antragsteller | Bei Antragst. |
+| `nachforderung` | Nachforderung läuft | Nachforderung |
 | `entscheidung` | Zu entscheiden | Zu entsch. |
 | `bewilligt` | Bewilligt | Bewilligt |
 | `begleitung` | Begleitung | Begleitung |
@@ -263,7 +263,7 @@ Töpfen: eine 5er-Pille und sieben Abschnitte. Dafür gilt **eine** Regel:
 | Abschnitt | Kategorien | Name | Art |
 |---|---|---|---|
 | `vor-entscheidung` | offen + in_pruefung + entscheidung | **Vor Entscheidung** | Aggregat |
-| `nachforderung` | nachforderung | Wartet auf Antragsteller | 1:1 |
+| `nachforderung` | nachforderung | Nachforderung läuft | 1:1 |
 | `bewilligt` | bewilligt | Bewilligt | 1:1 |
 | `begleitung` | begleitung | Begleitung | 1:1 |
 | `beendet` | abgeschlossen + abgelehnt | **Beendet** | Aggregat |
@@ -392,13 +392,17 @@ Drei Festlegungen, die wichtiger sind als die Tabelle:
 Teilvorhaben** aus und faltet danach (`baueAufgabe`); tragen nicht alle dieselbe
 Aufgabe, steht „3 von 4 TV" daneben.
 
-**Offen geblieben** (fachliche Frage, kein Code-Befund): die Kanban-Bahn
-`nachforderung` heißt „Wartet auf Antragsteller", meint aber nur die gestellte
-Nachforderung. Auf derselben Bildschirmseite warten zehn Vorgänge laut Kaskade
-auf den Antragsteller, ohne in dieser Kategorie zu liegen. Die Bahnen an
-`wartetAuf` zu hängen, bräche den Klickweg in die Liste (er filtert nach
-Kategorie) und zählte Karten doppelt — die Beschriftung ist die bessere Stelle,
-und sie gehört dem Team.
+**Erledigt mit v4.134** (war eine fachliche Frage, keine Code-Frage): die
+Kategorie `nachforderung` hieß „Wartet auf Antragsteller", umfasst aber genau
+EINEN Status — „NF gestellt" (bestandsweit 46 Vorgänge). Auf derselben
+Bildschirmseite warteten zehn Vorgänge laut Kaskade auf den Antragsteller, ohne
+in dieser Kategorie zu liegen; die Bahn stand auf 0 und widersprach den Karten
+neben ihr. Sie heißt jetzt **„Nachforderung läuft"**. Die Bahnen an `wartetAuf`
+zu hängen war die Alternative und ist verworfen: es bräche den Klickweg in die
+Liste (er filtert nach Kategorie) und zählte Karten doppelt. **Wer wartet, sagt
+die Kaskade je Zeile; wo im Verfahren der Vorgang steht, sagt die Kategorie** —
+zwei Fragen, zwei Antworten, und der Kategoriename täuscht die zweite nicht mehr
+vor.
 
 ## Der Verfahrensschnitt reist allein (v4.79)
 

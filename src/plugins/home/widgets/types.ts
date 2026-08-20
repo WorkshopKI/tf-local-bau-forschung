@@ -16,10 +16,18 @@ import type { TfBahnSpalten } from '@/components/kanban/tfBoardBahn';
 import type { StatusCategory } from '@/core/utils/status-canonical';
 
 export interface HomeWidgetConfig {
-  /** Schema-Version. v2 (Home-Redesign „optimiert"): `weitermachen` ist nicht
-   *  mehr im Default (das Hero-Band zeigt es prominent); v1-Configs werden beim
-   *  Lesen migriert (sichtbare weitermachen-Instanz einmalig ausgeblendet). */
-  version: 2;
+  /**
+   * Schema-Version.
+   *
+   * - **v2** (Home-Redesign „optimiert"): `weitermachen` ist nicht mehr im
+   *   Default — das Hero-Band zeigt es prominent; v1-Configs werden beim Lesen
+   *   migriert (sichtbare weitermachen-Instanz einmalig ausgeblendet).
+   * - **v3** (v4.134): „Änderungen der letzten Nacht" rückt einmalig ans Ende
+   *   seiner Spalte. Es ist eine Nachschlage-Karte, keine Arbeitsliste — sie
+   *   stand zwischen den Karten, die die Arbeit des Tages tragen. Einmalig,
+   *   nicht als Pin: wer sie danach nach oben holt, behält sie dort.
+   */
+  version: 3;
   /** ISO-Zeitstempel — Last-Writer-Wins analog PersonalEinstellungen. */
   updatedAt: string;
   widgets: WidgetInstanz[];
@@ -212,7 +220,7 @@ export interface AuslastungWidgetConfig {
   sicht: 'auto' | 'ich' | 'team';
 }
 
-/** QS-Freigaben-Widget (v1.1): Kappung der angezeigten Entwurf-Zeilen. */
+/** Entwürfe-Widget („Meine Entwürfe in dieser App"): Kappung der Zeilen. */
 export interface QsFreigabenWidgetConfig {
   art: 'qs-freigaben';
   /** Max. angezeigte Zeilen, danach „+ N weitere →". Default 4. */

@@ -852,12 +852,23 @@ Lesen dedupliziert über `(stempel, antragId, feld, art)`.
 
 ### 12.6 Keine Personen-Achse
 
-Bearbeiter-Kürzel werden **nicht** journalisiert, und keine Journal-Ansicht ist
-nach Bearbeiter gruppier- oder filterbar. Mit Personenbezug plus Datumsverlauf
+Bearbeiter-Kürzel werden **nicht** journalisiert, und **keine Zeile einer
+Journal-Ansicht nennt einen Handelnden**. Mit Personenbezug plus Datumsverlauf
 entstünde ein Aktivitätsprotokoll — Leistungs- und Verhaltenskontrolle,
 mitbestimmungspflichtig. `JOURNAL_AUSGESCHLOSSEN` nennt die Spalten ausdrücklich
 (obwohl die `D_`-Regel sie ohnehin nicht erfasst), damit die Entscheidung
 nachlesbar bleibt; ein Konventionstest hält sie.
+
+**Der app-weite Bearbeiter-Ausschnitt ist davon nicht betroffen** (v4.134). Das
+Nachtlauf-Widget wählt über `useBearbeiterSicht` aus, an WELCHEN Vorgängen es
+Änderungen zeigt — dieselbe Sicht wie „Meine Anträge", das Kanban und die Liste,
+umschaltbar über den Chip im Seitenkopf und in der Kopfzeile der Karte benannt.
+Das ist eine Aussage über **Anträge**, keine über Personen: die gezeigten
+Änderungen können von AB, QS oder Juristen stammen, und das Journal weiß ohnehin
+nicht, wer sie gemacht hat. Ohne den Ausschnitt standen dort 400 Zeilen, von denen
+7 den Leser angingen (gemessen 20.08.2026) — eine Ansicht, die niemand liest, ist
+keine Datensparsamkeit. Verboten bleibt, was die Regel meint: eine Gruppierung
+nach Kürzel und jede Zeile, die einen Handelnden benennt.
 
 ### 12.7 Gemessen
 

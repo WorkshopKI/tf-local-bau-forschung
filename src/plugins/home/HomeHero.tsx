@@ -9,8 +9,8 @@
  *  1. Resume-Karte „Weiter, wo du aufgehört hast" — jüngster Arbeitskontext
  *     (reuse `useWeitermachenRows`, ersetzt das gleichnamige Widget im Default).
  *  2. Alert-Karte „Braucht heute Aufmerksamkeit" — bis zu drei klickbare Chips:
- *     kritisch / nähern sich (aus den Ampel-Aggregaten) + QS-Freigaben offen
- *     (geteilter `useQsFreigaben`-Hook → gleiche Zahl wie das QS-Widget).
+ *     kritisch / nähern sich (aus den Ampel-Aggregaten) + eigene Entwürfe offen
+ *     (geteilter `useQsFreigaben`-Hook → gleiche Zahl wie das Entwürfe-Widget).
  *
  * Chips mit Zähler 0 werden NICHT gerendert, und ohne Chip entfällt die ganze
  * Karte: unter der Überschrift „Braucht heute Aufmerksamkeit" ist eine 0 keine
@@ -150,7 +150,10 @@ export function HomeHero({ counts, schwellen, onOpenBucket, onOpenQs }: HomeHero
             {chips.qs && ersteQsScopeId !== undefined ? (
               <HeroChip
                 n={qsCount}
-                label="QS-Freigaben offen"
+                // v4.134: hieß „QS-Freigaben offen" und versprach damit eine
+                // Aussage über die fachliche QS. Gezählt werden die Entwürfe
+                // dieses Geräts — derselbe Hook wie im Widget, gleicher Name.
+                label={qsCount === 1 ? 'eigener Entwurf offen' : 'eigene Entwürfe offen'}
                 color="var(--tf-primary)"
                 onClick={() => onOpenQs(ersteQsScopeId)}
               />

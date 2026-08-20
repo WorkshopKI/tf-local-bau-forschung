@@ -11,7 +11,8 @@ export {
   baueMeilensteinKontext, type FeldAufloesung,
 } from './felder';
 export {
-  bewerteVerbund, planEndeTage, restTageBis, FAELLIG_FENSTER_TAGE, type BewertungsEingabe,
+  bewerteVerbund, planEndeTage, knotenOhneBedingung, restTageBis, FAELLIG_FENSTER_TAGE,
+  type BewertungsEingabe,
 } from './bewertung';
 export {
   werteDauernAus, werteKnotenAus, zaehlePrognosen, bearbeitungsdauerTage, dauerBucket,

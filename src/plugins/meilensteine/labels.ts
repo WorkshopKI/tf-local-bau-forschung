@@ -12,6 +12,10 @@ export const ZUSTAND_LABEL: Record<MstZustand, string> = {
   faellig: 'Fällig',
   gerissen: 'Gerissen',
   nichtRelevant: 'Nicht relevant',
+  // Kein Urteil über den Vorgang, sondern über den Plan (v4.134): der Knoten
+  // trägt keine auswertbare Bedingung. „Ohne Bedingung" statt „Nicht bewertbar",
+  // weil das Wort sagt, WAS zu tun ist — eine Bedingung nachtragen.
+  ohneBedingung: 'Ohne Bedingung',
 };
 
 /**
@@ -27,6 +31,9 @@ export const ZUSTAND_FARBE: Record<MstZustand, string> = {
   faellig: 'var(--tf-warning-text)',
   gerissen: 'var(--tf-danger-text)',
   nichtRelevant: 'var(--tf-border)',
+  // Still wie `nichtRelevant`, aber unterscheidbar: hier fehlt etwas, dort gilt
+  // etwas nicht. Der Unterschied steht im Wort, nicht in zwei Grautoenen.
+  ohneBedingung: 'var(--tf-border-hover)',
 };
 
 /**
@@ -49,6 +56,7 @@ export const ZUSTAND_TEXT_FARBE: Record<MstZustand, string> = {
   faellig: 'var(--tf-warning-text)',
   gerissen: 'var(--tf-danger-text)',
   nichtRelevant: 'var(--tf-text-secondary)',
+  ohneBedingung: 'var(--tf-text-secondary)',
 };
 
 export const PROGNOSE_LABEL: Record<Prognose, string> = {

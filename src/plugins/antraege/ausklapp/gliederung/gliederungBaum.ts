@@ -54,6 +54,9 @@ const PUNKT_FORM: Record<MstZustand, PunktForm> = {
   faellig: 'gefuellt',
   offen: 'offen',
   nichtRelevant: 'gestrichelt',
+  // Wie `nichtRelevant` gestrichelt: beide sagen „hier ist nichts zu messen" —
+  // der Unterschied (gilt nicht / Bedingung fehlt) steht in der Beschriftung.
+  ohneBedingung: 'gestrichelt',
 };
 
 /** „17.09.2025" → „17.09.25" — der Soll-Termin steht klein und zweistellig. */
