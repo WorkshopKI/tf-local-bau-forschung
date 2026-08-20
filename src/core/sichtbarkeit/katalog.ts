@@ -250,7 +250,7 @@ export const SICHTBARKEITS_KATALOG: readonly KatalogEintrag[] = [
   abschnitt('kuration', 'sec-index-zustand', 'Zustand'),
   abschnitt('kuration', 'sec-dokumentenquellen', 'Dokumentenquellen'),
   abschnitt('kuration', 'sec-index-erweitert', 'Modelle, Suchqualität, Zurücksetzen', EXPERTE),
-  abschnitt('kuration', 'sec-embedding-korpus', 'Embedding-Korpus', EXPERTE),
+  abschnitt('kuration', 'sec-embedding-korpus', 'Vektoren der Ähnlichkeitssuche', EXPERTE),
 
   abschnitt('kuration', 'sec-anfragen', 'ZIM FAQ-Assistent'),
   abschnitt('kuration', 'sec-anfragen-url', 'URL des Assistenten'),

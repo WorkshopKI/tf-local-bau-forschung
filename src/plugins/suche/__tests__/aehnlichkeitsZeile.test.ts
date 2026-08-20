@@ -10,11 +10,21 @@
  * unvollständigen Korpus.
  */
 import { describe, it, expect } from 'vitest';
-import { aehnlichkeitsSatz } from '../aehnlichkeitsSatz';
+import { aehnlichkeitsSatz, type KorpusLage } from '../aehnlichkeitsSatz';
 import type { SemantikBefund } from '@/core/hooks/useUnifiedSearch';
+import type { AbgleichBefund } from '@/core/services/embedding-corpus';
 
 const befund = (b: Partial<SemantikBefund>): SemantikBefund => ({
   korpus: 14225, kandidaten: 0, neu: 0, verworfen: 0, ...b,
+});
+
+const abgleich = (b: Partial<AbgleichBefund>): AbgleichBefund => ({
+  aktion: 'nichts', grund: 'Lokaler Korpus und Datenspeicher sind auf demselben Stand.',
+  versionDanach: 3, neuaufbauNoetig: false, ...b,
+});
+
+const lage = (l: Partial<KorpusLage> = {}): KorpusLage => ({
+  abgleich: null, laeuft: false, kannKuratieren: false, ...l,
 });
 
 describe('aehnlichkeitsSatz', () => {
@@ -49,7 +59,74 @@ describe('aehnlichkeitsSatz', () => {
   it('nennt bei unvollständigem Korpus den Weg, ihn zu füllen', () => {
     const t = aehnlichkeitsSatz(befund({ korpus: 1086, kandidaten: 5, neu: 5 }), 14225);
     expect(t).toContain('Datenspeicher');
-    expect(t).toContain('Themen-Vektoren');
+  });
+
+  /**
+   * v4.127: Der Ausweg nannte zwei Knöpfe des Auslastungs-Moduls — einen hinter
+   * einem Zusatzpasswort, den anderen (`Corpus aufbauen`) gab es in `zah-pl`
+   * gar nicht, und in `zim-dashboard` existiert das Modul nicht. Ein Ausweg,
+   * den der Leser nicht gehen kann, ist keiner.
+   */
+  it('schickt niemanden mehr zu Knöpfen des Auslastungs-Moduls', () => {
+    const t = aehnlichkeitsSatz(befund({ korpus: 1086, kandidaten: 5, neu: 5 }), 14225, lage());
+    expect(t).not.toContain('Corpus aufbauen');
+    expect(t).not.toContain('Vom Datenspeicher laden');
+    expect(t).not.toContain('Auslastungs-Modul');
+  });
+
+  it('wird konkret nur für den, der die Kuration öffnen kann', () => {
+    const b = befund({ korpus: 1086, kandidaten: 5, neu: 5 });
+    expect(aehnlichkeitsSatz(b, 14225, lage({ kannKuratieren: true })))
+      .toContain('Suche & Index');
+    expect(aehnlichkeitsSatz(b, 14225, lage({ kannKuratieren: false })))
+      .not.toContain('Suche & Index');
+  });
+
+  it('nennt einen laufenden Download statt eines Handgriffs', () => {
+    const t = aehnlichkeitsSatz(
+      befund({ korpus: 1086, kandidaten: 5, neu: 5 }), 14225, lage({ laeuft: true }),
+    );
+    expect(t).toContain('gerade vom Datenspeicher geholt');
+    expect(t).not.toContain('Kuration');
+  });
+
+  /**
+   * Der Fall, der den Umbau ausgelöst hat: die Reichweite schweigt (der Korpus
+   * ist vollständig), die Trefferzahl sieht plausibel aus — und die Vektoren
+   * kennen den Inhalt eines Vorhabens nicht. Bis v4.127 stand darüber nichts.
+   */
+  it('meldet eine überholte Textfassung AUCH bei vollständigem Korpus', () => {
+    const t = aehnlichkeitsSatz(
+      befund({ korpus: 14225, kandidaten: 12, neu: 3 }), 14225,
+      lage({ abgleich: abgleich({ versionDanach: 2, neuaufbauNoetig: true }) }),
+    );
+    expect(t).not.toContain('Vergleichbar sind'); // Reichweite schweigt zu Recht
+    expect(t).toContain('überholten Textfassung');
+    expect(t).toContain('(v2)');
+    expect(t).toContain('nicht seinen Inhalt');
+  });
+
+  /**
+   * In der Abnahme am echten Bestand stand der Ausweg ZWEIMAL in derselben
+   * Zeile: unvollständiger Korpus und überholte Textfassung trafen beide zu,
+   * und jeder Teilsatz hängte ihn sich selbst an. Genau die Lage ist der
+   * Normalfall auf einem Rechner mit v2-Bestand.
+   */
+  it('nennt den Ausweg höchstens einmal, auch wenn beide Gründe zutreffen', () => {
+    const t = aehnlichkeitsSatz(
+      befund({ korpus: 14065, kandidaten: 61, neu: 0 }), 14225,
+      lage({ kannKuratieren: true, abgleich: abgleich({ versionDanach: 2, neuaufbauNoetig: true }) }),
+    );
+    expect(t).toContain('überholten Textfassung');
+    expect(t.split('Suche & Index').length - 1).toBe(1);
+  });
+
+  it('schweigt über die Textfassung, wenn sie aktuell ist', () => {
+    const t = aehnlichkeitsSatz(
+      befund({ korpus: 14225, kandidaten: 12, neu: 3 }), 14225,
+      lage({ abgleich: abgleich({}) }),
+    );
+    expect(t).not.toContain('überholten Textfassung');
   });
 
   // v4.113: `kandidaten` ist die Zahl VOR dem Deckel. Steht dort die gedeckelte,

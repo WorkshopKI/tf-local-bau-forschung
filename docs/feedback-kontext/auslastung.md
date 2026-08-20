@@ -15,7 +15,7 @@ Fünf Tabs:
   - **„Altlasten (Rückstand)"** = offene Anträge aus bis zu 7 Vorquartalen, gedämpfte Blau-Rampe (dunkel→hell = alt→neu, ältestes Quartal links); Hover zeigt die konkreten Anträge des Bands.
   - Daneben die Zahlenspalten Aktuell / Altlast. / Frei.
 - **„Kompetenzen & Jahreskapazitäten":** Kompetenz-Matrix, XLSX-Upload.
-- **„Verwaltung":** Kategorien, CSV-Import/Export, Konfiguration inkl. Zugangspasswort-Verwaltung & E-Mail-Vorlage, Themen-Vektoren; hieß bis v2.205 „Einstellungen".
+- **„Verwaltung":** Kategorien, CSV-Import/Export, Konfiguration inkl. Zugangspasswort-Verwaltung & E-Mail-Vorlage, Themen-Vektoren; hieß bis v2.205 „Einstellungen". Die Themen-Vektoren stehen dort seit v4.127 nur noch als Statusanzeige — wie viele es auf diesem Rechner und auf dem Datenspeicher gibt, wann sie zuletzt gebaut wurden und ob ihre Textfassung überholt ist. Gebaut, geholt und nachgezogen werden sie in der Datenpflege unter „Suche & Index", weil dieselben Vektoren auch die Ähnlichkeitssuche tragen.
 
 Durchgängig:
 

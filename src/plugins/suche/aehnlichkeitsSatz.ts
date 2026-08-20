@@ -15,27 +15,81 @@
  * hat, steht dabei.
  */
 import type { SemantikBefund } from '@/core/hooks/useUnifiedSearch';
+import type { AbgleichBefund } from '@/core/services/embedding-corpus';
+
+/**
+ * Wohin der Ausweg zeigt.
+ *
+ * Bis v4.127 stand hier „(„Vom Datenspeicher laden", sonst „Corpus aufbauen")" —
+ * zwei Knöpfe aus dem Auslastungs-Modul. Der eine lag hinter einem
+ * Zusatzpasswort, den anderen gab es in `zah-pl` gar nicht (er hing an
+ * `isDevContext()`), und in `zim-dashboard` existiert das ganze Modul nicht. Ein
+ * Ausweg, den der Leser nicht gehen kann, ist keiner.
+ *
+ * Jetzt zeigt der Satz auf die Stelle, an der der Index wirklich gepflegt wird —
+ * und nur dem, der sie öffnen kann. Alle anderen erfahren, WER es tut.
+ */
+function ausweg(kannKuratieren: boolean): string {
+  return kannKuratieren
+    ? ' Neu aufbauen lässt er sich in der Kuration unter „Suche & Index“.'
+    : ' Neu aufgebaut wird er in der Kuration.';
+}
 
 /**
  * Die **Reichweite** steht in jedem Fall dabei, solange sie nicht vollständig
  * ist: der Korpus liegt gerätelokal und deckt selten den ganzen Bestand ab. Ein
  * Vorhaben ohne Vektor kann nie ähnlich sein — das ist die halbe Antwort auf
  * „warum findet er nichts", und sie stand nirgends.
- *
- * Der **Ausweg** gehört dazu. Bis v4.113 nannte ihn nur der Zweig `corpus-empty`,
- * also der Fall von genau 0 Vektoren. Bei 1 086 von 14 225 stand da nur „nur sie
- * haben auf diesem Rechner einen Vektor" — wahr, aber es verschwieg, dass auf dem
- * Datenspeicher 14 065 bereitliegen. Am Bestand gemessen war der Rest kein
- * Randfall: 156 der 160 fehlenden Vorhaben waren aus dem laufenden Jahrgang,
- * also 14,7 % davon — gerade die Vorgänge, an denen gearbeitet wird.
  */
-function reichweite(befund: SemantikBefund, bestand: number): string {
-  if (befund.korpus >= bestand || bestand === 0) return '';
-  return ` Vergleichbar sind ${befund.korpus.toLocaleString('de-DE')} von `
+function reichweite(
+  befund: SemantikBefund,
+  bestand: number,
+  abgleich: AbgleichBefund | null,
+  laeuft: boolean,
+): Teilsatz {
+  if (befund.korpus >= bestand || bestand === 0) return { text: '', brauchtAusweg: false };
+  const kopf = ` Vergleichbar sind ${befund.korpus.toLocaleString('de-DE')} von `
     + `${bestand.toLocaleString('de-DE')} Vorhaben — nur sie haben auf diesem Rechner einen `
-    + 'Vektor. Die übrigen holt das Auslastungs-Modul unter „Themen-Vektoren" nach '
-    + '(„Vom Datenspeicher laden", sonst „Corpus aufbauen").';
+    + 'Vektor.';
+  // Läuft gerade ein Download, ist das die Antwort — nicht ein Handgriff.
+  if (laeuft) {
+    return { text: `${kopf} Die übrigen werden gerade vom Datenspeicher geholt.`, brauchtAusweg: false };
+  }
+  if (abgleich?.aktion === 'ergaenzen' || abgleich?.aktion === 'ersetzen') {
+    return { text: `${kopf} Die übrigen holt die App beim nächsten Start vom Datenspeicher.`, brauchtAusweg: false };
+  }
+  return { text: `${kopf} Die übrigen hat auch der Datenspeicher nicht.`, brauchtAusweg: true };
 }
+
+/**
+ * Der Fall, der bis v4.127 überhaupt keine Stimme hatte: der Korpus ist
+ * VOLLSTÄNDIG und trotzdem falsch.
+ *
+ * Die Reichweite schweigt dann (`korpus >= bestand`), die Trefferzahl sieht
+ * plausibel aus — und die Vektoren stammen aus einer Textfassung, in der die
+ * Projektbeschreibung in **0 von 14 225** Sätzen vorkam. Der Vektor eines
+ * Vorhabens kannte nur seinen Titel und die Deskriptoren.
+ */
+function veraltet(abgleich: AbgleichBefund | null): Teilsatz {
+  if (abgleich === null || !abgleich.neuaufbauNoetig) return { text: '', brauchtAusweg: false };
+  const v = abgleich.versionDanach;
+  return {
+    text: ` Achtung: die Vektoren stammen aus einer überholten Textfassung${v === null ? '' : ` (v${v})`}`
+      + ' — sie kennen Titel und Deskriptoren eines Vorhabens, nicht seinen Inhalt.',
+    brauchtAusweg: true,
+  };
+}
+
+/**
+ * Ein Teilsatz sagt, ob er den Ausweg BRAUCHT — angehängt wird er genau einmal,
+ * am Ende.
+ *
+ * Beide Teilsätze hängten ihn sich bis zur Abnahme selbst an, und wo beide
+ * zutrafen (unvollständiger UND überholter Korpus — der Normalfall auf einem
+ * Rechner mit v2-Bestand), stand „Neu aufbauen lässt er sich in der Kuration
+ * unter „Suche & Index“." zweimal in derselben Zeile.
+ */
+interface Teilsatz { text: string; brauchtAusweg: boolean }
 
 /**
  * Was der Deckel verworfen hat. Steht nur da, wenn etwas verworfen wurde — und
@@ -47,8 +101,26 @@ function deckel(befund: SemantikBefund): string {
     + 'Liste — je Suche werden höchstens 50 neue Zeilen ergänzt.';
 }
 
-export function aehnlichkeitsSatz(befund: SemantikBefund, bestand: number): string {
-  const rest = reichweite(befund, bestand);
+export interface KorpusLage {
+  /** Ergebnis des letzten Abgleichs mit dem Datenspeicher; `null` = lief nicht. */
+  abgleich: AbgleichBefund | null;
+  /** Läuft gerade ein Download? */
+  laeuft: boolean;
+  /** Darf der Leser die Kuration öffnen? Entscheidet, wie konkret der Ausweg wird. */
+  kannKuratieren: boolean;
+}
+
+const OHNE_LAGE: KorpusLage = { abgleich: null, laeuft: false, kannKuratieren: false };
+
+export function aehnlichkeitsSatz(
+  befund: SemantikBefund,
+  bestand: number,
+  lage: KorpusLage = OHNE_LAGE,
+): string {
+  const weite = reichweite(befund, bestand, lage.abgleich, lage.laeuft);
+  const alt = veraltet(lage.abgleich);
+  const rest = weite.text + alt.text
+    + (weite.brauchtAusweg || alt.brauchtAusweg ? ausweg(lage.kannKuratieren) : '');
   if (befund.kandidaten === 0) {
     return `Ähnlichkeit: kein Vorhaben lag über der Schwelle.${rest}`;
   }

@@ -11,6 +11,7 @@
  * gewachsen). Umbenennen würde alle bestehenden lokalen Caches verwerfen.
  */
 import type { IDBStore } from '@/core/services/storage/idb-store';
+import { clearTextHashes } from './texthashes';
 
 /**
  * IDB-kv-Prefix unter dem Embedding-Vektoren gespeichert werden.
@@ -68,9 +69,18 @@ export async function listEmbeddingKeys(idb: IDBStore): Promise<Set<string>> {
   return result;
 }
 
-/** Loescht den gesamten Embedding-Cache. Returnt Anzahl der geloeschten Keys. */
+/**
+ * Loescht den gesamten Embedding-Cache. Returnt Anzahl der geloeschten Keys.
+ *
+ * **Die Text-Hashes gehen mit** ([texthashes.ts](./texthashes.ts)): sie sagen
+ * aus, welchen Text ein VEKTOR gesehen hat. Ohne Vektoren ist das keine
+ * Aussage mehr, sondern eine, die beim naechsten Lauf falsch beantwortet wuerde
+ * („Hash bekannt und gleich" → nicht neu einbetten, obwohl nichts da ist).
+ * Deshalb hier und nicht an den Aufrufstellen — eine davon vergisst es sonst.
+ */
 export async function clearEmbeddings(idb: IDBStore): Promise<number> {
   const keys = await idb.keys(EMBEDDING_CORPUS_IDB_PREFIX);
   for (const k of keys) await idb.delete(k);
+  await clearTextHashes(idb);
   return keys.length;
 }

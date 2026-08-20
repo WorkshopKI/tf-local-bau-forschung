@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.127.0 — Der Vektorindex der Suche zieht in die Kuration und meldet sich, wenn er veraltet (August 2026)
+
+MINOR — Die Themen-Vektoren sind der Vektorindex der Ähnlichkeitssuche; gebaut wurden sie im Auslastungs-Modul, wo der Knopf „Corpus aufbauen" an `isDevContext()` hing und in `zah-pl` schlicht fehlte — während drei Texte in der App dazu aufforderten, ihn zu klicken. Dazu verglich der Start-Abgleich nur die ANZAHL: ein vollständiger, aber überholter Korpus blieb für immer liegen, unsichtbar, weil keine Zahl auffällig wurde. Am echten Bestand betrifft das **9 259 von 14 221** Vorhaben, deren Vektor ihren Inhalt nie gesehen hat.
+
+- **Bau, Abgleich und Spiegelung liegen in der Kuration** → „Suche & Index" → „Vektoren der Ähnlichkeitssuche"; die Auslastungs-Karte bleibt als Statusanzeige ([EmbeddingKorpusSection.tsx](src/plugins/kuration/suche-index/sections/EmbeddingKorpusSection.tsx), [useKorpusBau.ts](src/plugins/kuration/suche-index/hooks/useKorpusBau.ts), [auslastung.md](docs/architecture/auslastung.md))
+- **Der Abgleich vergleicht die Signatur, nicht die Anzahl** — ein älterer Vektorraum wird ersetzt statt ergänzt, ein neuerer lokaler nicht überschrieben ([abgleich.ts](src/core/services/embedding-corpus/abgleich.ts), 13 Fälle als Tabelle geprüft)
+- **Der Korpus erreicht jeden, der suchen kann**: der Start-Abgleich hing an der Freischaltung des Auslastungs-Moduls — in `zim-dashboard` lief er nie. Jetzt lädt er bedarfsgetrieben, sobald jemand „auch ähnliche Themen" einschaltet ([useEmbeddingKorpusAbgleich.ts](src/core/hooks/useEmbeddingKorpusAbgleich.ts), [runtime-layers.md](docs/architecture/runtime-layers.md))
+- **„Inkrementell" sieht geänderten Text**: ein Hash je Vorhaben macht aus „fehlt" ein „fehlt ODER Text hat sich geändert" — vorher übersprang der Lauf genau die Vorhaben, die der Wochen-Export `9052_PrjBsp` mit Inhalt füllt ([texthashes.ts](src/core/services/embedding-corpus/texthashes.ts))
+- **Ein Rechner kann nachziehen lassen** — opt-in, gerätelokal, ausgelöst von neuen CSV-Daten statt vom Kalender, mit acht benannten Vorbedingungen statt stiller Untätigkeit ([korpus-nachlauf.ts](src/plugins/auslastung/services/matching/korpus-nachlauf.ts))
+
 ### v4.126.0 — Feldschluessel gegen Mapping: VN-Eingang, alle Antraege da und Bemerkung angeschlossen (August 2026)
 
 MINOR — Nachtrag zu §G.3 aus Schnitt 2: dieselbe Klasse, nur eine Schicht tiefer. Vier Spalten galten als „ungemappt" und lagen in Wahrheit unter Custom-Keys — nachgemessen sind es **fünf**, und zwei davon (`D_XTEC`, `D_ADV`, zusammen 21 526 Werte) liest der kanonische Weg gar nicht: die Auslastung löst sie längst selbst über das Schema auf. Übrig bleiben drei echte, und alle drei tragen etwas, das die Oberfläche behauptet hat, ohne es zu haben.

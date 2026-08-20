@@ -16,8 +16,8 @@ import { createSignalStore } from '@/core/lib/createSignalStore';
  * Klassifizierung/Matching leer bis zu einem manuellen Browser-Reload (Reload =
  * Remount = frischer IDB-Read).
  *
- * Bumper: jede Korpus-IDB-Mutation — Start-Autoload
- * ([useAuslastungCorpusAutoload](@/core/hooks/useAuslastungCorpusAutoload)),
+ * Bumper: jede Korpus-IDB-Mutation — der Start-Abgleich
+ * ([useEmbeddingKorpusAbgleich](@/core/hooks/useEmbeddingKorpusAbgleich)),
  * manuelles „Vom Datenspeicher laden" / „Corpus aufbauen" / „Cache leeren"
  * ([EmbeddingCorpusSection](../views/admin/EmbeddingCorpusSection.tsx)).
  * Konsumenten lesen bei jeder Version-Änderung erneut aus der IDB. Konsumenten,

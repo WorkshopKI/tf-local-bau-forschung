@@ -64,11 +64,16 @@ Nicht in der Tabelle, weil ohne eigenen Sidebar-Eintrag: `nfNachforderungen` +
 außerhalb davon: die MA-Kürzel-Spalte der Antragsliste samt „Inaktive einblenden"
 ([AntraegeMain.tsx](../../src/plugins/antraege/AntraegeMain.tsx),
 [AntraegeHeader.tsx](../../src/plugins/antraege/AntraegeHeader.tsx)), den Kaltstart-Download des
-Embedding-Korpus ([useAuslastungCorpusAutoload.ts](../../src/core/hooks/useAuslastungCorpusAutoload.ts))
+**Verbund**-Korpus ([useEmbeddingKorpusAbgleich.ts](../../src/core/hooks/useEmbeddingKorpusAbgleich.ts))
 und die Auslastungs-Einträge in der Feedback-Übersicht
 ([feedbackService.ts](../../src/core/services/feedback/feedbackService.ts)). Das ist gewollt —
 sonst bliebe Modul-Oberfläche für ein unerreichbares Modul stehen. Die **Selbsteintragung** auf
 der Startseite bleibt dagegen offen: sie ist die Endnutzer-Seite und funktioniert auch in prod.
+
+Der **Anträge**-Korpus hängt seit v4.127 ausdrücklich **nicht** mehr am Modul: er ist der
+Vektorindex der Ähnlichkeitssuche, und die gibt es in jeder Variante. Er wird geladen, sobald
+jemand „auch ähnliche Themen" einschaltet — auch in `zim-dashboard`, wo `auslastung: false` steht.
+Nur der Verbund-Korpus (Klassifizierung) bleibt Modul-Sache, weil ihn außerhalb niemand liest.
 
 ## Configs enthalten nur Abweichungen
 

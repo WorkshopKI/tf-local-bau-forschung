@@ -19,6 +19,20 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.127 — 2026-08
+
+### Neu
+- Die Vektoren der Ähnlichkeitssuche werden jetzt in der Datenpflege unter „Suche & Index" gepflegt — dort stehen Neuaufbau, Holen vom Datenspeicher und Nachziehen an einer Stelle. Im Auslastungs-Modul bleibt die Statusanzeige.
+- Ein Rechner kann neue CSV-Daten künftig automatisch nachziehen lassen (Schalter in derselben Karte, gilt nur für diesen Rechner).
+
+### Verbesserungen
+- Die Zeile unter dem Suchfeld sagt jetzt auch, wenn die Vektoren aus einer überholten Textfassung stammen — bis dahin war genau das unsichtbar, weil die Anzahl vollständig aussah.
+- Sie verweist außerdem nur noch auf Wege, die es in der eigenen Fassung wirklich gibt; vorher nannte sie einen Knopf, den viele gar nicht sehen konnten.
+
+### Bugfixes
+- Beim Start wird ein veralteter Vektor-Bestand nicht mehr vom Datenspeicher übernommen, nur weil er mehr Einträge hat; verglichen wird jetzt, aus welcher Fassung die Vektoren stammen.
+- „Nachziehen" berücksichtigt jetzt Vorhaben, deren Kurzbeschreibung erst nachträglich im Wochen-Export ankam — vorher blieben sie dauerhaft auf ihrem alten Vektor.
+
 ## v4.126 — 2026-08
 
 ### Neu

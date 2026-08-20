@@ -49,9 +49,9 @@ export function EinstellungenView(): React.ReactElement {
     },
     {
       id: abschnittId('auslastung', 'karte-themen-vektoren'),
-      inhalt: (
-        <EmbeddingCorpusSection storage={storage} antraege={cache.antraege} embeddableAz={cache.embeddableAz} />
-      ),
+      // Seit v4.127 nur noch Statusanzeige — der Bau liegt in der Kuration und
+      // holt sich seinen Bestand selbst (kein Auslastungs-Cache mehr nötig).
+      inhalt: <EmbeddingCorpusSection storage={storage} />,
     },
   ];
 

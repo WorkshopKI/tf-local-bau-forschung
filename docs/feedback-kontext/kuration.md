@@ -37,7 +37,11 @@ Was durchsuchbar ist — und wie gut. Links die Aktionen: Dokumente einlesen, In
 
 Die Ampel oben meldet neben „Modell gewechselt" auch „Worttrennung geändert" — dann stammt der Index aus einer Fassung vor der deutschen Worttrennung; er bleibt nutzbar, der nächste Lauf baut ihn komplett neu auf.
 
-Selten Gebrauchtes steht eingeklappt: Modellwahl und Suchqualitäts-Einstellungen, das Zurücksetzen, und der Status des Embedding-Korpus (gebaut wird der im Auslastungs-Modul).
+Darunter die Vektoren der Ähnlichkeitssuche — ein Vektor je Vorhaben, die zweite Hälfte desselben Index. Der Volltext-Index findet Wörter, diese Vektoren finden Themen. Hier steht, wie viele Vorhaben einen Vektor haben, aus welcher Textfassung er stammt und ob ein Neuaufbau fällig ist; dazu die Knöpfe zum Neuaufbauen, Holen vom Datenspeicher, Nachziehen und Zurücksetzen.
+
+Gebaut wird einmal für das ganze Team: der Lauf lädt ein rund 200 MB großes Modell in diesen Browser-Tab und dauert je nach Bestand etwa 40 Minuten, danach spiegelt die App das Ergebnis auf den Datenspeicher. Jeder andere Rechner holt es von dort in etwa zehn Sekunden. Ein Schalter darunter zieht neue CSV-Daten künftig automatisch nach — nur auf diesem Rechner, und nur solange kein Fassungswechsel ansteht.
+
+Selten Gebrauchtes steht eingeklappt: Modellwahl und Suchqualitäts-Einstellungen sowie das Zurücksetzen.
 
 ## Sichtbarkeit
 Hier steht, was nur mit eingeschalteten Beta-Funktionen oder eingeschaltetem Expertenmodus erscheint. Die Festlegung gilt team-weit; ob jemand die Schalter umlegt, entscheidet er in seinem Profil.

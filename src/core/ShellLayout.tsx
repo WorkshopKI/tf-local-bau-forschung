@@ -44,7 +44,7 @@ import { getDatenShareHandle } from '@/core/services/infrastructure/smb-handle';
 import { SmbBanner } from '@/core/components/SmbBanner';
 import { OfflineBanner } from '@/core/OfflineBanner';
 import { StartupDataUpdateBanner } from '@/core/components/StartupDataUpdateBanner';
-import { useAuslastungCorpusAutoload } from '@/core/hooks/useAuslastungCorpusAutoload';
+import { useEmbeddingKorpusAbgleich } from '@/core/hooks/useEmbeddingKorpusAbgleich';
 import { useHeartbeat } from '@/core/services/presence';
 import { useBridgeHeartbeat } from '@/core/hooks/useBridgeHeartbeat';
 import { DataUpdateBanners } from '@/plugins/csv-sources-kuration/components/DataUpdateBanners';
@@ -255,7 +255,7 @@ export function ShellLayout({ plugins, children }: ShellLayoutProps): React.Reac
   // v2.29: Auslastungs-Embedding-Korpus beim Start vom Daten-Share laden
   // (Cold-Start-Selbstheilung), nicht erst beim Navigieren ins Modul. Self-gated
   // auf isAuslastungEnabled() (pl + dev) + SMB-online.
-  useAuslastungCorpusAutoload();
+  useEmbeddingKorpusAbgleich();
 
   // v2.59: Presence-Heartbeat — schreibt periodisch `ZAH/online-status.json` in
   // den persoenlichen Ordner (jede Variante, best-effort). Quelle fuer den

@@ -47,6 +47,19 @@ export {
 } from './signatur';
 export type { KorpusSignatur } from './signatur';
 
+export { entscheideAbgleich } from './abgleich';
+export type { AbgleichAktion, AbgleichBefund, AbgleichLage } from './abgleich';
+
+export {
+  TEXT_HASH_IDB_KEY,
+  hashEmbeddingText,
+  ladeTextHashes,
+  merkeTextHashes,
+  clearTextHashes,
+  waehleZuEmbedden,
+} from './texthashes';
+export type { AuswahlLage } from './texthashes';
+
 export {
   CORPUS_MANIFEST_PATH,
   CORPUS_BIN_PATH,

@@ -33,6 +33,31 @@ Pfad-Map des SMB-Daten-Shares: [data-layout.md](data-layout.md).
 
 Modell-Wechsel ist team-weiter Bruch — siehe CLAUDE.md Pitfall #19 + [add-embedding-model.md](../agents/add-embedding-model.md).
 
+### Der Vektorindex der Suche
+
+Die Stufe „auch ähnliche Themen" liest **keinen** eigenen Index, sondern den Embedding-Korpus
+(`auslastung-emb:<aktenzeichen>` in der IDB, ein Vektor je Vorhaben). Der Name ist historisch —
+gebaut wurde er zuerst fürs Auslastungs-Matching; getragen wird von ihm seit je auch die Suche.
+
+- **Gepflegt** wird er in Kuration → „Suche & Index" (Bau, Abgleich, Spiegelung auf
+  `_intern/auslastung-embedding-corpus.*`). Ein Rechner baut für das ganze Team, alle anderen holen
+  in ~10 s.
+- **Abgeglichen** wird beim Start durch [useEmbeddingKorpusAbgleich](../../src/core/hooks/useEmbeddingKorpusAbgleich.ts);
+  die Entscheidung selbst steht rein in [abgleich.ts](../../src/core/services/embedding-corpus/abgleich.ts)
+  und vergleicht die **Signatur** (Modell, Dimension, Präfix, Text-Fassung), nicht die Anzahl. Ein
+  Korpus aus einer älteren Textfassung wird **ersetzt**, nie ergänzt — ein Kosinus-Vergleich über
+  zwei Vektorräume liefert Zahlen, die nach Ähnlichkeit aussehen.
+- **Geladen wird bei Bedarf**: wo das Auslastungs-Modul offen ist, beim Start im Leerlauf; sonst,
+  sobald jemand die Ähnlichkeitssuche einschaltet. Ein ~40-MB-Download über SMB bei jedem Kaltstart
+  für jeden, der die Stufe nie benutzt, wäre die Gegenrichtung zur Bedarfs-Ladung des Modells.
+- **Aktuell gehalten** wird er über einen Text-Hash je Vorhaben
+  ([texthashes.ts](../../src/core/services/embedding-corpus/texthashes.ts)): „inkrementell" heißt
+  **fehlt ODER Text hat sich geändert**, nicht mehr nur „fehlt". Ohne das blieb ein Vorhaben, das
+  seinen Vektor bekam, bevor seine Kurzbeschreibung im Wochen-Export stand, für immer auf dem alten
+  Vektor sitzen — am echten Bestand betrifft das **9 259 von 14 221** Vorhaben (Median 861 Zeichen
+  Inhalt). Ein Rechner kann das Nachziehen automatisieren (opt-in, gerätelokal, siehe
+  [korpus-nachlauf.ts](../../src/plugins/auslastung/services/matching/korpus-nachlauf.ts)).
+
 ### ORT-WASM-Bereitstellung (Inline-gzip + `wasmBinary`)
 
 Die ONNX-Runtime-WASM (`ort-wasm-simd-threaded.asyncify.wasm`, ~21 MB) wird **nicht** mehr als `data:`-URL aus dem Bundle geladen, sondern zur Laufzeit direkt als `env.backends.onnx.wasm.wasmBinary` übergeben. Motiv: die WASM lag zweimal byte-identisch als base64-`data:`-URL im Single-File-Bundle (~2×30 MB) und wurde bei jedem Start komplett vom SMB-Share geladen.

@@ -23,13 +23,17 @@ import {
   merkeKorpusSignatur,
   signaturenGleich,
   signaturText,
+  hashEmbeddingText,
+  ladeTextHashes,
+  merkeTextHashes,
+  waehleZuEmbedden,
 } from '@/core/services/embedding-corpus';
 import { buildDescriptorsText } from '@/plugins/antraege/services/descriptor-text';
 import {
   baueKorpusFeldKarte, baueSlotIndex, leseSlots, KORPUS_BASIS,
   type KorpusSlot,
 } from '@/plugins/antraege/services/korpusFeldAufloesung';
-import { listSchemasByProgramm } from '@/core/services/csv/idb-csv';
+import { listSchemasByProgramm, forEachAntragChunkByProgramm } from '@/core/services/csv/idb-csv';
 
 /**
  * Unter welchem Schluessel die Textfelder eines Antrags im Store liegen —
@@ -137,14 +141,111 @@ export function getEmbeddableAktenzeichen(
   return out;
 }
 
-/** Wieviele Antraege haben noch kein Embedding? */
-export async function countMissing(idb: IDBStore, antraege: Antrag[]): Promise<number> {
-  const existing = await listEmbeddingKeys(idb);
-  let missing = 0;
-  for (const a of antraege) {
-    if (!existing.has(a.aktenzeichen)) missing++;
+/**
+ * Welche Antraege braucht ein (inkrementeller) Lauf — fehlend ODER mit
+ * geaendertem Text?
+ *
+ * **Die Vorschau fragt dieselbe Regel wie der Lauf** ({@link waehleZuEmbedden}),
+ * sonst zaehlt sie etwas anderes, als der Lauf dann tut — und ein Nachlauf, der
+ * „3 Anträge" ankuendigt und null einbettet, ist schlimmer als keiner.
+ */
+export async function ermittleZuEmbedden(
+  idb: IDBStore,
+  antraege: Antrag[],
+  felder: EmbeddingFeldIndex,
+): Promise<string[]> {
+  const { aktenzeichen, frisch } = hashePraeparate(antraege, felder);
+  return waehleZuEmbedden({
+    aktenzeichen,
+    frisch,
+    vorhanden: await listEmbeddingKeys(idb),
+    gemerkt: await ladeTextHashes(idb),
+  });
+}
+
+/**
+ * Ein Durchgang ueber den Bestand: welche Antraege sind embedbar, und wie
+ * lautet der Hash ihres Embedding-Texts?
+ *
+ * Reine String-Arbeit, **kein Modell** — deshalb darf das auch beim Start
+ * laufen. Die Texte selbst werden bewusst NICHT behalten: 14 k Texte à ~1 kB
+ * waeren ~30 MB Heap neben einem 200-MB-Modell, und der Text ist billig genug,
+ * um im Lauf noch einmal aus DERSELBEN Funktion zu kommen (nie aus einer
+ * zweiten — sonst misst der Hash etwas anderes als der Vektor).
+ */
+interface HashPraeparat {
+  /** Embedbare Aktenzeichen in Bestandsreihenfolge. */
+  aktenzeichen: string[];
+  /** Hash des Embedding-Texts je Aktenzeichen. */
+  frisch: Map<string, string>;
+}
+
+/** Der Akkumulator — EINE Implementierung fuer den Voll-Lauf und den Stream. */
+function sammleHashes(
+  records: readonly Antrag[],
+  felder: EmbeddingFeldIndex,
+  ziel: HashPraeparat,
+): void {
+  for (const a of records) {
+    const text = buildEmbeddingTextForAntrag(a, felder);
+    if (!text) continue;
+    ziel.aktenzeichen.push(a.aktenzeichen);
+    ziel.frisch.set(a.aktenzeichen, hashEmbeddingText(text));
   }
-  return missing;
+}
+
+function hashePraeparate(antraege: Antrag[], felder: EmbeddingFeldIndex): HashPraeparat {
+  const ziel: HashPraeparat = { aktenzeichen: [], frisch: new Map() };
+  sammleHashes(antraege, felder, ziel);
+  return ziel;
+}
+
+/**
+ * Wie steht der Korpus zum Bestand? — ohne die vollen Records zu behalten.
+ *
+ * Der Auslastungs-Cache (`useAntraegeCache`) beantwortet das auch, aber er
+ * traegt Deskriptoren, Anonym-Map und Kuerzel mit; ihn fuer eine Zahl in der
+ * Kuration zu wecken, hiesse ein Modul zu laden, um in ein anderes zu schauen.
+ * Diese Passage streamt in Chunks (Bulk-Speed bei beschraenktem Peak) und
+ * behaelt nur Aktenzeichen und Hashes.
+ *
+ * **Kein Modell** — reine String-Arbeit. Deshalb darf das auch beim Start laufen.
+ */
+export async function ermittleKorpusBestand(
+  idb: IDBStore,
+  programmId: string | null,
+): Promise<KorpusBestand> {
+  if (!programmId) return { gesamt: 0, embeddableAz: [], zuEmbedden: [], lokal: 0 };
+  const felder = await ladeEmbeddingFeldIndex(idb, programmId);
+  const ziel: HashPraeparat = { aktenzeichen: [], frisch: new Map() };
+  let gesamt = 0;
+  await forEachAntragChunkByProgramm(idb, programmId, (records) => {
+    gesamt += records.length;
+    sammleHashes(records, felder, ziel);
+  });
+  const vorhanden = await listEmbeddingKeys(idb);
+  return {
+    gesamt,
+    embeddableAz: ziel.aktenzeichen,
+    zuEmbedden: waehleZuEmbedden({
+      aktenzeichen: ziel.aktenzeichen,
+      frisch: ziel.frisch,
+      vorhanden,
+      gemerkt: await ladeTextHashes(idb),
+    }),
+    lokal: vorhanden.size,
+  };
+}
+
+export interface KorpusBestand {
+  /** Antraege im Programm — auch die ohne Text. */
+  gesamt: number;
+  /** Aktenzeichen mit Text; nur sie koennen einen Vektor haben. */
+  embeddableAz: string[];
+  /** Wer fehlt ODER hat geaenderten Text (die Arbeitsliste eines Laufs). */
+  zuEmbedden: string[];
+  /** Wie viele Vektoren lokal liegen. */
+  lokal: number;
 }
 
 export interface BuildProgress {
@@ -219,11 +320,20 @@ export async function buildEmbeddingCorpus(
     );
   }
 
-  // Liste filtern
+  // Ein Vorlauf ohne Modell: Hash je embedbarem Antrag. Er entscheidet die
+  // Queue UND wird am Ende fuer die tatsaechlich eingebetteten gestempelt.
+  const { aktenzeichen, frisch } = hashePraeparate(antraege, felder);
+
+  // Liste filtern — „fehlt ODER Text geaendert" statt nur „fehlt" (v4.127).
   let queue: Antrag[];
   if (incremental && !fremderRaum) {
-    const existing = await listEmbeddingKeys(idb);
-    queue = antraege.filter(a => !existing.has(a.aktenzeichen));
+    const dran = new Set(waehleZuEmbedden({
+      aktenzeichen,
+      frisch,
+      vorhanden: await listEmbeddingKeys(idb),
+      gemerkt: await ladeTextHashes(idb),
+    }));
+    queue = antraege.filter(a => dran.has(a.aktenzeichen));
   } else {
     queue = antraege;
   }
@@ -232,9 +342,15 @@ export async function buildEmbeddingCorpus(
   let done = 0;
   let skipped = 0;
   const startedAt = Date.now();
+  /** Nur die, deren Vektor in DIESEM Lauf entstanden ist — siehe `merkeTextHashes`. */
+  const gestempelt = new Map<string, string>();
 
   for (const a of queue) {
     if (opts.signal?.aborted) {
+      // Ein Abbruch verwirft die bis dahin geschriebenen Vektoren nicht — ihre
+      // Hashes duerfen also auch nicht verloren gehen, sonst gaelten sie beim
+      // naechsten Lauf als „unbekannt" und wuerden nie wieder aufgefrischt.
+      await merkeTextHashes(idb, gestempelt);
       return { done, skipped, aborted: true, vollErzwungen: fremderRaum };
     }
     const text = buildEmbeddingTextForAntrag(a, felder);
@@ -247,6 +363,10 @@ export async function buildEmbeddingCorpus(
     try {
       const vec = await embedText(text, 'document');
       await storeEmbedding(idb, a.aktenzeichen, vec);
+      // Der Stempel gehoert an den Vektor, nicht an den Durchlauf: nur wo beides
+      // aus demselben Text stammt, darf spaeter „unveraendert" behauptet werden.
+      const h = frisch.get(a.aktenzeichen);
+      if (h !== undefined) gestempelt.set(a.aktenzeichen, h);
       done++;
       const elapsed = (Date.now() - startedAt) / 1000;
       const etaSec = done > 5 ? (elapsed / done) * (total - done) : undefined;
@@ -261,6 +381,7 @@ export async function buildEmbeddingCorpus(
     await new Promise(r => setTimeout(r, 0));
   }
 
+  await merkeTextHashes(idb, gestempelt);
   // Erst nach dem vollstaendigen Durchlauf: ein abgebrochener Lauf hat den
   // fremden Raum nicht abgeloest, seine Signatur darf nicht behauptet werden.
   await merkeKorpusSignatur(idb, signatur);

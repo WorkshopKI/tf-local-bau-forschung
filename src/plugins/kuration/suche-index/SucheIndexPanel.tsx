@@ -30,7 +30,7 @@ import { ActionCardQuality } from './actions/ActionCardQuality';
 import { ActionCardDocuments } from './actions/ActionCardDocuments';
 import { ActionCardModels } from './actions/ActionCardModels';
 import { ConfigSection } from './sections/ConfigSection';
-import { EmbeddingCorpusStatusCard } from './sections/EmbeddingCorpusStatusCard';
+import { EmbeddingKorpusSection } from './sections/EmbeddingKorpusSection';
 import { EvalSection } from './eval/EvalSection';
 import { MetadataSmokeTest } from './MetadataSmokeTest';
 import { features, isDevInfraPanelEnabled } from '@/config/feature-flags';
@@ -217,7 +217,25 @@ export function SucheIndexPanel(): React.ReactElement {
           </SettingsGruppe>
           )}
 
-          <SettingsGruppe titel="Selten gebraucht" traegt={['sec-index-erweitert', 'sec-embedding-korpus']}>
+          {/* v4.127: Die Vektoren standen unter „Selten gebraucht" und zeigten dort
+              nur an, DASS es sie gibt — gebaut wurden sie im Auslastungs-Modul.
+              Sie sind aber die zweite Hälfte eben dieses Index: ohne sie ist „auch
+              ähnliche Themen" wirkungslos. Deshalb eigene Karte neben „Index
+              pflegen", und der Bau liegt hier.
+
+              `unterzeile`/`hint` stehen in Expression-Form, weil deutsche
+              Anführungszeichen darin vorkommen: das Schlusszeichen gerät leicht
+              zum ASCII-Zeichen und beendet dann das Attribut mitten im Satz. */}
+          <SettingsGruppe
+            id="sec-embedding-korpus"
+            titel="Vektoren der Ähnlichkeitssuche"
+            unterzeile={'Ein Vektor je Vorhaben — trägt „auch ähnliche Themen“.'}
+            hint={'Der Volltext-Index findet Wörter, diese Vektoren finden Themen: eine Suche nach „Verfahren zur Kadaversuche aus der Luft“ trifft ein Vorhaben auch dann, wenn keines dieser Wörter in seinem Titel steht. Gebaut wird einmal für das ganze Team; jeder andere Rechner holt das Ergebnis in ~10 Sekunden vom Datenspeicher. Der Bau selbst lädt ein ~200-MB-Modell in diesen Browser-Tab und läuft je nach Bestand ~40 Minuten.'}
+          >
+            <EmbeddingKorpusSection />
+          </SettingsGruppe>
+
+          <SettingsGruppe titel="Selten gebraucht" traegt={['sec-index-erweitert']}>
             <SettingsKlappe
               id="sec-index-erweitert"
               label="Modelle, Suchqualität, Zurücksetzen"
@@ -230,16 +248,6 @@ export function SucheIndexPanel(): React.ReactElement {
                 setDocCount={setDocCount} setChunkCount={setChunkCount} setLastUpdate={setLastUpdate}
                 setIndexModelId={setIndexModelId} setNewDocsCount={setNewDocsCount}
               />
-            </SettingsKlappe>
-            {/* Bauen und Aktivieren des Korpus lebt im Auslastungs-Modul, weil es
-                dort eng mit der Centroid-Berechnung verflochten ist. Hier nur die
-                Sichtbarkeit, dass es ihn gibt. */}
-            <SettingsKlappe
-              id="sec-embedding-korpus"
-              label="Embedding-Korpus"
-              storageKey="teamflow_kuration_korpus"
-            >
-              <EmbeddingCorpusStatusCard />
             </SettingsKlappe>
           </SettingsGruppe>
         </>

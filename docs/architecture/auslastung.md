@@ -89,23 +89,30 @@ Das eigentliche Zuweisen passiert im **Fachsystem**. Die App-Freigabe (`Zuweisun
 
 Kommt die Bestätigung an, räumt `reconcileZuweisungen` die App-seitigen Records des Antrags weg (CSV = Wahrheit) und der Verbund fällt über `istZuVerteilen` aus dem Verteil-Pool.
 
-## kurator-Korpus-Modus (`auslastungNurKorpus`, v2.56)
+## Der Korpus wird in der KURATION gebaut, nicht hier (v4.127)
 
-Damit der **Kurator** den Themen-Vektoren-Embedding-Katalog aktuell halten kann, ohne MA-Auslastung zu sehen oder zuzuweisen, läuft das Modul in der **kurator**-Variante in einem reduzierten Modus (`features.auslastungNurKorpus: true`, zusätzlich zu `auslastung: true`; Helper `isAuslastungNurKorpusEnabled()`).
+Die Themen-Vektoren sind zugleich der **Vektorindex der Ähnlichkeitssuche** — das Modul ist ihr
+zweiter Konsument, nicht ihr Eigentümer. Bau, Abgleich und Spiegelung liegen deshalb in
+**Kuration → „Suche & Index" → „Vektoren der Ähnlichkeitssuche"**
+([EmbeddingKorpusSection](../../src/plugins/kuration/suche-index/sections/EmbeddingKorpusSection.tsx)
++ [useKorpusBau](../../src/plugins/kuration/suche-index/hooks/useKorpusBau.ts)). Hier steht nur noch
+die read-only Statuskarte ([EmbeddingCorpusSection.tsx](../../src/plugins/auslastung/views/admin/EmbeddingCorpusSection.tsx)):
+habe ich Vektoren, sind sie aktuell, wo werden sie gebaut.
 
-- **View-Dispatcher**: `AuslastungView` verzweigt build-time (Konstante → Rules-of-Hooks-sicher) zwischen `AuslastungFullView` (alle Tabs) und `AuslastungKorpusView`. Der schlanke `AuslastungKorpusView` rendert nur `EinstellungenView korpusOnly` → ausschließlich die `EmbeddingCorpusSection` (keine Kategorien/CSV-Import-Export/Konfiguration, kein MA-Kürzel-Export).
-- **Keine MA-Writes**: der schlanke View lässt die MA-mutierenden Mount-Hooks `useReconcileZuweisungen` + `useAutoCollectTeamProfiles` (beide schreiben `auslastung.json`) bewusst **aus**; nur read-only Frische-Hooks (`useAuslastungCrossTabSync`, `useAuslastungShareWatcher`, `useAntraegeCacheSnapshotRefresh`) laufen — letzterer schützt den Centroid-Write des Korpus-Builds vor dem Überschreiben fremder MA-Edits (Parallel-Varianten-Clobber, siehe Memory `parallel-file-variants-share-storage`).
-- **Sidebar-Eintrag** heißt im Korpus-Modus „Themen-Vektoren" (Icon `Boxes`) statt „Auslastung" ([index.tsx](../../src/plugins/auslastung/index.tsx)).
+Warum der Umzug: der Aufbau-Knopf hing an `isDevContext()` und existierte damit in `zah-pl`
+**gar nicht**, während drei Texte in der App dazu aufforderten, ihn zu klicken. Das Kurator-Schloss
+der Kurationsseite ist zudem die schärfere Grenze als der Experten-Schalter, hinter dem der Reiter
+„Verwaltung" hier ohnehin liegt.
 
-Build-Matrix der Korpus-Buttons ([EmbeddingCorpusSection.tsx](../../src/plugins/auslastung/views/admin/EmbeddingCorpusSection.tsx)):
+Was der Bau unverändert tut: drei Phasen (Vorhaben → Verbünde → Centroids), Build-Lock über den
+ganzen Lauf **inklusive** Upload, RAM-Warnung vorweg. Die Centroids gehen weiterhin nach
+`auslastung.json` — dafür greift die Kuration in dieses Modul (dieselbe Kopplungsrichtung, die
+`home`, `antraege` und `einstellungen` schon haben; umgekehrt importiert das Modul nichts aus der
+Kuration).
 
-| Variante | „Corpus aufbauen" (Vollbuild) | „Inkrementell" |
-| --- | --- | --- |
-| dev | ✓ (`isDevContext`) | ✓ |
-| kurator | – (kein devContext) | ✓ |
-| pl | – (`embeddingCorpusBuild:false`) | – |
-
-Der Vollbuild (~47 min, ~200-MB-Modell) bleibt dev-exklusiv; „Inkrementell" läuft denselben `build()`-Pfad, verarbeitet aber nur den Delta seit dem letzten Build. Der Korpus-Build schreibt die Centroids weiterhin nach `auslastung.json` (gewollt) + spiegelt den Korpus auf den Share — der Kurator braucht dasselbe aktive Embedding-Modell wie der Share-Korpus (Compat-Check warnt sonst, Pitfall #19).
+Der **Verbund**-Korpus bleibt Modul-Sache: ihn liest außerhalb der Klassifizierung niemand, sein
+Start-Download hängt weiter an `isAuslastungFreigeschaltet()`. Der **Vorhaben**-Korpus nicht mehr —
+siehe [runtime-layers.md](runtime-layers.md#der-vektorindex-der-suche).
 
 ## MA-Selbst-Profil über persönlichen Ordner (v2.6)
 
