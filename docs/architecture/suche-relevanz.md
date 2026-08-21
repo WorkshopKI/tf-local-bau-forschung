@@ -540,6 +540,14 @@ Tippfehler. `mob*spec` erreicht „mobiInspec" und „mobilnspec", aber weder
 „Mobinspek" noch „obiInspec" noch „mobi Inspec" — wer über Zeichenabstände
 suchen will, braucht einen anderen Mechanismus, keinen weiteren Platzhalter.
 
+**Beide stehen seit v4.135 im Reiter „Suchsprache"** — je als eigene, ausführbare
+Zeile ([suchsprache.ts](../../src/plugins/suche/start/suchsprache.ts)). Der Stern
+kam mit v4.123 dorthin, das Fragezeichen hatte zwischen v4.101 und v4.134 keine
+Zeile in der Oberfläche: die Suche konnte es, und niemand konnte es erfahren.
+Getrennte Zeilen, weil die Wahl zwischen beiden der Inhalt ist — `mob*spec`
+fragt, ohne die Antwort vorauszusetzen, `16KN0830?1` (14) nutzt aus, dass man
+genau eine wechselnde Stelle kennt.
+
 ### Die Reihenfolge der Chips (v4.68)
 
 Angezeigt werden 8 von 64 — bis v4.67 die ersten in Korpus-Reihenfolge, also ein

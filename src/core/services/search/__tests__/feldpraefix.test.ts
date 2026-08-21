@@ -14,6 +14,7 @@ import {
   feldAusPraefix,
   aliasseFuer,
   FELD_PRAEFIX,
+  FELD_SPALTE,
 } from '../feldpraefix';
 import { bereichFelder } from '../suchbereich';
 import type { Trefferfeld } from '../trefferstelle';
@@ -232,6 +233,16 @@ describe('Guard: jede Fundstelle ist ansprechbar', () => {
       const aliasse = aliasseFuer(feld);
       expect(aliasse.length).toBeGreaterThan(0);
       for (const a of aliasse) expect(feldAusPraefix(a)).toBe(feld);
+    }
+  });
+
+  it('jeder Spaltencode löst auf sein eigenes Feld auf und ist großgeschrieben', () => {
+    // Der Code steht in der Hilfe neben dem Präfix („ast: — Einrichtung —
+    // ORG_AST"). Ein abgeschriebener, nie geprüfter Name wäre dort eine Zusage,
+    // die die Suche nicht hält: `ORG_AST:Fraunhofer` liefe als Freitext.
+    for (const [feld, spalte] of Object.entries(FELD_SPALTE)) {
+      expect(feldAusPraefix(spalte as string)).toBe(feld as Trefferfeld);
+      expect(spalte).toBe((spalte as string).toUpperCase());
     }
   });
 

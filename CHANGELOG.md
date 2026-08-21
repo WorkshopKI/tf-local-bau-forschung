@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v4.135.0 — Suchsprache: beide Platzhalter erklaert, jedes Feld gezeigt (August 2026)
+
+MINOR — Der Reiter „Suchsprache" erklärte den Stern (seit v4.123) und verschwieg das Fragezeichen: die Suche kann `?` seit v4.101, in der Oberfläche stand dazu keine Zeile. Die Feldsuche war halb vorgemacht — sechs der dreizehn Felder als Beispiel, der Rest eine nackte Präfix-Aufzählung im Fußsatz, aus der man `bl` und `ast` raten musste, daneben drei Spaltencodes als Prosa.
+
+- **Beide Platzhalter stehen als eigene, ausführbare Zeile** — `mob*spec` „Stern — beliebig viele Zeichen, auch keines" (33) und neu `16KN0830?1` „Fragezeichen — genau ein Zeichen" (14); getrennt, weil die Wahl zwischen beiden der Inhalt ist ([suchsprache.ts](src/plugins/suche/start/suchsprache.ts))
+- **Neuer Block „Alle Felder — vor dem Doppelpunkt"**: alle dreizehn Felder mit Beispiel, Bedeutung und Spaltencode, jede Zeile anklickbar — er ersetzt die Prosa-Aufzählung im Fußsatz ([feldliste.ts](src/plugins/suche/start/feldliste.ts), [StartSuchsprache.tsx](src/plugins/suche/start/StartSuchsprache.tsx))
+- **Der Spaltencode je Feld ist eine Einzelquelle** (`FELD_SPALTE`), abgeleitet statt abgeschrieben wie Präfix und Bedeutung ([feldpraefix.ts](src/core/services/search/feldpraefix.ts))
+- **Reiter-Zahl und „alle N ansehen" lesen dieselbe Konstante** (`SUCHSPRACHE_ZEILEN`, jetzt 26) — nachgezählt stimmt sie ([SucheStartzustand.tsx](src/plugins/suche/SucheStartzustand.tsx))
+- Alle Beispiele in dev:local an 14.225 Anträgen nachgemessen; Guards halten Vollständigkeit, Ausführbarkeit und Herkunft der drei Angaben ([feldliste.test.ts](src/plugins/suche/start/__tests__/feldliste.test.ts))
+
 ### v4.134.0 — Vier Widgets sagen, was sie zählen (August 2026)
 
 MINOR — Vier Startseiten-Karten benannten eine Menge, die sie nicht führen. Am Bestand gemessen: die Bahn „Wartet auf Antragsteller" stand auf 0, während zehn Karten daneben genau das sagten; „QS-Freigaben offen" meldete „keine", während die Karte darüber denselben Entwurf zum Weiterarbeiten anbot; das Fristen-Widget führte 108 von 124 Anlässen auf vier Meilensteine zurück, die **keine Bedingung** tragen und deshalb nie erfüllbar sind; und „Änderungen der letzten Nacht" zeigte 402 Zeilen, von denen 7 den Leser angingen.

@@ -37,7 +37,7 @@ import { StartFragen } from './start/StartFragen';
 import { FRAGEN } from './frage/katalog';
 import { StartStoebern } from './start/StartStoebern';
 import { STOEBER_FELDER } from './start/stoebern';
-import { SUCHARTEN } from './start/suchsprache';
+import { SUCHSPRACHE_ZEILEN } from './start/suchsprache';
 
 export type { StartEintrag };
 
@@ -142,7 +142,7 @@ export function SucheStartzustand({
 
   const alleReiter = baueStartReiter({
     zuletzt: letzte.length + haeufig.length + gespeichert.length,
-    suchsprache: SUCHARTEN.length,
+    suchsprache: SUCHSPRACHE_ZEILEN,
     fragen: FRAGEN.length,
     stoebern: wertIndex === null ? 0 : STOEBER_FELDER.length,
   }, mitFragen);

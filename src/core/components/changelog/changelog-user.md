@@ -19,6 +19,15 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.135 — 2026-08
+
+### Neu
+- Im Reiter „Suchsprache" steht jetzt auch das **Fragezeichen**: `?` steht für genau ein Zeichen, `16KN0830?1` findet alle Teilvorhaben, bei denen eine Stelle wechselt. Die Suche konnte das schon länger, erklärt hat es bisher nichts. Der Stern daneben sagt jetzt, was er tut — `mob*spec` steht für beliebig viele Zeichen, auch für keines.
+- Neuer Abschnitt **„Alle Felder — vor dem Doppelpunkt"**: alle dreizehn Felder, die man vor den Doppelpunkt schreiben kann, mit einem Beispiel zum Anklicken, der Bedeutung (`ast:` = Einrichtung, `bl:` = Bundesland) und dem Spaltennamen der Fördertabelle daneben (`ORG_AST`, `VB_TITEL`, …). Vorher stand dort nur eine Liste von Abkürzungen ohne Erklärung.
+
+### Verbesserungen
+- Die Zahl am Reiter „Suchsprache" stimmt wieder mit dem überein, was darunter steht.
+
 ## v4.134 — 2026-08
 
 ### Verbesserungen

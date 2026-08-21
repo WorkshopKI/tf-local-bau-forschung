@@ -190,6 +190,35 @@ export const FELD_PRAEFIX: Partial<Record<Trefferfeld, string>> = {
 };
 
 /**
+ * Der Spaltencode der Fördertabelle je Feld — dieselbe Frage in der Sprache des
+ * Exports.
+ *
+ * Steht hier und nicht in der Hilfe, weil er eine Tatsache des Schemas ist und
+ * nicht eine Formulierung der Oberfläche: wer die Fördertabelle vor Augen hat,
+ * kennt seinen Wert als `ORG_AST`, nicht als „Einrichtung". Ein Auszug aus den
+ * Aliassen oben, ausdrücklich statt per Muster erraten — ein Guard hält fest,
+ * dass jeder Wert über `feldAusPraefix()` auf SEIN Feld zurückführt.
+ *
+ * `deskriptoren` und `domain` fehlen: beide werden aus mehreren Spalten
+ * zusammengezogen ([search-corpus.ts](src/plugins/antraege/services/search-corpus.ts)),
+ * es gibt also keine EINE Spalte, die man nennen könnte. Ein erfundener Name
+ * wäre schlimmer als keiner.
+ */
+export const FELD_SPALTE: Partial<Record<Trefferfeld, string>> = {
+  titel: 'VB_TITEL',
+  kurzbeschreibung: 'VB_INHALT',
+  akronym: 'VB_KURZNAM',
+  aktenzeichen: 'FKZ',
+  verbundkennzeichen: 'VB_NUMMER',
+  organisation: 'ORG_AST',
+  standort: 'ORT_AST',
+  bundesland: 'BULAND_AFS',
+  netzwerk: 'NETZWERKNA',
+  wahlkreis: 'WKNAAK_AFS',
+  notiz: 'T_YW',
+};
+
+/**
  * Alle Schreibweisen, die vor dem Doppelpunkt stehen dürfen.
  *
  * Für die Vervollständigung: sie sucht über ALLE Schreibweisen (wer „netz"

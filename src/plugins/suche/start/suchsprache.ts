@@ -18,11 +18,23 @@
  * Überschriften sagen vorher, wo das Eigene steht. Die Kennzeichen-Zeilen
  * stehen dadurch beieinander, weil sie dieselbe Frage in wachsenden Weiten
  * stellen: dieses Teilvorhaben, sein Verbund, sein Netzwerk — und zuletzt die
- * beiden Wege zu einem Namen, dessen Schreibweise im Bestand schwankt
- * (unbekannte Zeichen: `*`; unbekannte Fuge: gar nichts, es geht von selbst).
+ * drei Wege zu einem Wert, dessen Schreibweise im Bestand schwankt (beliebig
+ * viele unbekannte Zeichen: `*`; genau ein unbekanntes: `?`; unbekannte Fuge:
+ * gar nichts, es geht von selbst).
+ *
+ * **Beide Platzhalter stehen als eigene Zeile da, weil sie sich unterscheiden.**
+ * `*` fragt, ohne die Antwort vorauszusetzen; `?` verlangt, dass man abzählt —
+ * und ist genau dort im Vorteil, wo man das kann: in einem Kennzeichen, von dem
+ * eine einzige Stelle wechselt. Eine Zeile für beide hätte die Wahl verschwiegen.
+ * Zwei Leitplanken gelten für beide und stehen deshalb in keiner der Zeilen:
+ * mindestens drei FESTE Zeichen (`????` träfe sonst den ganzen Bestand), und am
+ * Wortende bleibt `?` ein Fragezeichen — sonst würde „… um Normung?" heimlich
+ * zur Muster-Suche ([wortstamm.ts](src/core/services/search/wortstamm.ts)).
  *
  * Rein — kein React.
  */
+
+import { FELD_ZEILEN } from './feldliste';
 
 export type SuchspracheGruppe = 'thema' | 'kennung' | 'werWo' | 'eigenes';
 
@@ -50,7 +62,13 @@ export const SUCHARTEN: readonly Sucheart[] = [
   // Oberfläche — gefragt wurde nach einer Sache, die es längst gab. Das
   // Beispiel ist echt: dieses Netzwerk heißt im Bestand „mobiInspec" (32) UND
   // „mobilnspec" (3), und keine feste Nadel bringt beide zusammen.
-  { query: 'mob*spec', erklaerung: 'Platzhalter — wenn die Schreibweise schwankt', gruppe: 'kennung' }, // 33
+  { query: 'mob*spec', erklaerung: 'Stern — beliebig viele Zeichen, auch keines', gruppe: 'kennung' }, // 33
+  // Das Fragezeichen erklärte bis v4.134 keine Zeile — dieselbe Lücke wie beim
+  // Stern eine Zeile höher, nur zwei Jahre älter. Das Beispiel ist bewusst ein
+  // KENNZEICHEN und nicht `mobi?nspec`: das fände dieselben 33 wie der Stern
+  // darüber und lehrte den Unterschied gerade nicht. Hier weiß man, dass genau
+  // eine Stelle wechselt — der Fall, in dem `?` dem Stern voraus ist.
+  { query: '16KN0830?1', erklaerung: 'Fragezeichen — genau ein Zeichen', gruppe: 'kennung' },          // 14
   // Keine Syntax, sondern ein Verhalten — und deshalb umso nötiger als Zeile:
   // wer nicht weiß, dass Trennzeichen egal sind, probiert es nie. Das Beispiel
   // ist echt und war vorher LEER: das Netzwerk heißt im Bestand „NaFa-Tech"
@@ -68,6 +86,17 @@ export const SUCHARTEN: readonly Sucheart[] = [
   { query: 'titel:Laser ort:Dresden', erklaerung: 'zwei Felder in einer Anfrage', gruppe: 'werWo' },    // 5
   { query: 'notiz:Einbehalt', erklaerung: 'in den eigenen Arbeitsnotizen', gruppe: 'eigenes' },         // 50
 ];
+
+/**
+ * Wie viele Zeilen der Reiter „Suchsprache" insgesamt zeigt — die Beispiele UND
+ * den Block „Alle Felder" darunter.
+ *
+ * EINE Konstante für den Reiter-Zähler und für „alle N ansehen →", weil beide
+ * dieselbe Zusage machen: wer die Zahl liest und die Zeilen nachzählt, muss auf
+ * dasselbe kommen ([startReiter.ts](src/plugins/suche/start/startReiter.ts)).
+ * Zwei getrennte `.length` drifteten beim nächsten Feld auseinander.
+ */
+export const SUCHSPRACHE_ZEILEN = SUCHARTEN.length + FELD_ZEILEN.length;
 
 /** Die Sucharten einer Gruppe, in der Reihenfolge der Liste. */
 export function suchartenDerGruppe(gruppe: SuchspracheGruppe): Sucheart[] {
