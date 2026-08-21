@@ -12,12 +12,14 @@ Die interne KI wurde von Streamlit auf **htmx + servergerendertes HTML** umgebau
 
 | Was | Anker in der Seite |
 |---|---|
-| Senden | `<form id="sendform" hx-post="…" hx-target="#log">` mit `textarea[name=message]` |
-| Antwort | Fragment mit `.sse[data-url]` → `EventSource`; Ereignisse `message` (Voll-Snapshots HTML), `reasoning`, `status`, `tokenbar`, **`done`** |
+| Senden | `<form id="sendform" hx-post="/send" hx-target="#log" hx-swap="beforeend">` mit `textarea[name=message]` |
+| Verlauf | `#log` > `div.msg` je Beitrag; darin `img.avatar` + `div.content` |
+| Antwort | `div.msg` > `.content` > `.sse[data-url][data-status][data-reasoning]` > **`div.answer`** (dorthin gehören die Snapshots); daneben `span.reasoning-help#r-<job>` > `.reasoning-pop` |
+| Strom | `data-url="/stream?job=<job>"` → `EventSource`; Ereignisse `message` (Voll-Snapshots HTML), `reasoning`, `status`, `tokenbar`, **`done`** |
 | Modell | `<select name="model" class="modelsel">` (nativ) — `gpt-oss-120b`, `Qwen3.6-35B`, `Qwen3-VL-30B (multimodal)` |
 | Sitzung | `#shell[data-sid]` → Header `X-Session-Id` bei **jedem** Request |
-| Kontext | `#tokenbar .tokenbar-text` („Chatlänge [Token]: 0k von 62k"), `data-over` wenn voll |
-| Zurücksetzen | `form.resetform` |
+| Kontext | `#tokenbar` > `.tokenbar-text` („Chatlänge [Token]: 1k von 62k") + `.tokenbar-track > .tokenbar-fill`; `data-over` wenn voll |
+| Zurücksetzen | `form.resetform hx-post="/reset" hx-target="#app" hx-swap="innerHTML"` — tauscht die **ganze** Oberfläche |
 | Datenquelle | `<select name="datasource">` (RAG-Quellen der Seite) |
 
 Der SSE-Strom braucht **keinen** Sitzungs-Header — eine `EventSource` kann keine Header senden, die Adresse ist auftragsgebunden. Alle anderen Aufrufe brauchen ihn: ohne ihn trifft der Aufruf eine fremde Sitzung.
@@ -134,10 +136,11 @@ Zwei Invarianten hält [snippet-render.test.ts](../../src/core/services/ai/strea
 |---|---|
 | Fragmente werden vor dem Einhängen **entschärft** (`data-url` → `data-tf-url`) | Bliebe die Strom-Adresse stehen, könnte die Mechanik der fremden Seite daran einen **zweiten** `EventSource` öffnen — derselbe Lauf zweimal, auf Kosten der internen KI |
 | `hx-swap`-Rückfall ist **`beforeend`**, nie htmx' echter Standard `innerHTML` | Fehlt das Attribut, steht das Eingehängte höchstens an der falschen Stelle; Ersetzen würde den sichtbaren Verlauf **löschen** |
+| Eingehängtes geht durch **`htmx.process()`** | Eingehängtes Markup hat keine htmx-Bindungen. `/reset` tauscht `#app` **komplett** — ohne den Aufruf wären Modell-Auswahl und Reiter danach tot, und der nächste Modellwechsel liefe stumm in seinen 15-s-Timeout |
 
 Nachgeführt wird nur, wenn der Leser ohnehin unten steht — wer hochgescrollt hat, um mitzulesen, soll nicht bei jedem Token zurückgerissen werden.
 
-Was **kein** lokaler Test belegen kann: dass die Anzeige wirklich erscheint. Dafür bräuchte es das echte Antwort-Fragment der fremden Seite; ein selbst erfundenes Fixture bestätigt nur die eigene Annahme. Das bleibt der Abnahme am Produktivsystem.
+Die Anker oben stammen aus der **Konsole des Produktivsystems**, nicht aus einer Annahme — ein selbst erfundenes jsdom-Fixture hätte nur bestätigt, was wir ohnehin geglaubt haben. Was kein lokaler Test belegen kann, bleibt die Abnahme dort: dass die Anzeige wirklich erscheint. Das Snippet meldet dafür bei jedem Lauf `[TeamFlow-Bridge] Antwort-Fragment: …` in die Konsole — Gerüst, Strom ja/nein, Antwortblase gefunden ja/nein; **nie Inhalt**, dort stünde sonst der Prompt.
 
 ### Was ersatzlos entfallen ist
 
@@ -151,7 +154,7 @@ Echo-Erkennung, Antwort-Auswahl im Nachrichten-Roster, `isRunning()`-Polling, da
 
 Bis zum Umbau war ein altes Snippet **harmlos**: es ignorierte unbekannte Felder und lief sonst weiter. Das gilt nicht mehr. Ein Snippet ohne Modellsteuerung antwortet aus einem anderen Modell mit einem anderen Kontextfenster, als die App annimmt — ohne jedes Anzeichen. Deshalb meldet die Verbindungs-Gruppe ein veraltetes Lesezeichen sichtbar. `rev === null` heißt „noch kein Handschlag" und schweigt; ein **leerer** String ist dagegen eine Aussage (gemeldet, aber ohne Revision → Fassung von vor dem Umbau).
 
-`BRIDGE_VERSION` ist die Kurzform davon und steht im **Lesezeichen-Namen** (`interne-KI v3`) — das Einzige, was der Nutzer ohne Klick sieht. Beide Marker werden zusammen hochgezählt; der Guard prüft nur, dass sie lesbar sind und der Name in die Lesezeichenleiste passt (ob jemand beide Zeilen angefasst hat, steht nirgends im Code).
+`BRIDGE_VERSION` ist die Kurzform davon und steht im **Lesezeichen-Namen** (`interne-KI v4`) — das Einzige, was der Nutzer ohne Klick sieht. Beide Marker werden zusammen hochgezählt; der Guard prüft nur, dass sie lesbar sind und der Name in die Lesezeichenleiste passt (ob jemand beide Zeilen angefasst hat, steht nirgends im Code).
 
 **Wann eine neue Version nötig ist** — und wann nicht: das Snippet kennt seit v6.0 keine Modellnamen mehr. Ein Modellwechsel der internen KI kostet deshalb **keine** Neuinstallation, nur einen Build. Neu ziehen muss das Team nur, wenn sich das **Protokoll** ändert.
 

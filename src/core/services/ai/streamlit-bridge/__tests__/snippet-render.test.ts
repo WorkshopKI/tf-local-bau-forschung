@@ -66,13 +66,31 @@ describe('Bridge-Snippet: Renderauftrag der Seite', () => {
     ).toBe('beforeend');
   });
 
+  it('übergibt Eingehängtes an htmx.process', () => {
+    // Eingehängtes Markup hat KEINE htmx-Bindungen, bis htmx es verarbeitet hat.
+    // Das Reset-Formular tauscht `#app` komplett aus (`hx-target=#app`,
+    // `hx-swap=innerHTML`, am Produktivsystem abgelesen) — ohne diesen Aufruf
+    // wären danach Modell-Auswahl und Reiter tot, und der nächste Modellwechsel
+    // liefe stumm in seinen 15-s-Timeout. Ein Ausfall, den nichts anzeigt.
+    const koerper = CODE.slice(CODE.indexOf('function wendeSwapAn('));
+    expect(
+      koerper.slice(0, koerper.indexOf('\n  }')),
+      'wendeSwapAn() hängt ein, ohne htmx.process aufzurufen — die getauschte Teilbaum-Mechanik der fremden Seite bliebe tot',
+    ).toMatch(/window\.htmx\.process\(ziel\)/);
+  });
+
   it('holt den Renderauftrag an allen drei Stellen nach', () => {
     // Senden, Antwortstrom, Zurücksetzen. Fehlt der Reset, steht der GELÖSCHTE
     // Verlauf weiter sichtbar da, während der Server ihn schon vergessen hat —
     // ein falscher Verlauf ist irreführender als gar keiner.
     expect(CODE, 'Senden hängt das Fragment nicht ein').toContain('zeigeImChat(form, res.text)');
-    expect(CODE, 'Antwortstrom schreibt nicht in die Antwortblase').toMatch(
-      /antwortEl\.innerHTML = String\(ev\.data/,
+    // Beide Wege: der Strom liefert entweder den `.answer`-Kasten mit oder nur
+    // seinen Inhalt — geschrieben werden muss in jedem Fall.
+    expect(CODE, 'Antwortstrom schreibt nicht in den .answer-Kasten').toContain(
+      'innen.innerHTML = roh',
+    );
+    expect(CODE, 'Antwortstrom schreibt nicht in die Blase selbst').toContain(
+      'antwortEl.innerHTML = roh',
     );
     expect(CODE, 'Zurücksetzen hängt sein Fragment nicht ein').toMatch(
       /if \(res\.ok\) wendeSwapAn\(form, res\.text/,

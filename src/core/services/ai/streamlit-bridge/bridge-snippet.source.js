@@ -56,7 +56,7 @@
   // ODER die Log-Zeile beim Aktivieren. Die App liest ihn zusaetzlich aus dem
   // tf-pong und warnt bei einem zu alten Snippet — seit dem Umbau ist ein altes
   // Bookmarklet nicht mehr harmlos: es ignoriert das Modellfeld still.
-  var BRIDGE_REV = '2026-08-21-chat-sichtbar';
+  var BRIDGE_REV = '2026-08-21-chat-sichtbar-2';
   // Kurzversion für den LESEZEICHEN-NAMEN („interne-KI v1"). Sie ist das
   // Einzige, was der Nutzer ohne Klick sieht — an ihr erkennt er in der
   // Lesezeichenleiste, ob er die aktuelle Bridge hat.
@@ -64,7 +64,7 @@
   // ZUSAMMEN mit BRIDGE_REV hochzählen. Kein Guard kann das erzwingen (ob jemand
   // beide Zeilen angefasst hat, steht nirgends im Code) — geprüft wird nur, dass
   // beide Marker lesbar sind und der Name kurz genug für die Leiste bleibt.
-  var BRIDGE_VERSION = 3;
+  var BRIDGE_VERSION = 4;
   window.__teamflowBridgeRev = BRIDGE_REV;
   window.__teamflowBridgeVersion = BRIDGE_VERSION;
   try { console.log('[TeamFlow-Bridge] aktiv — rev ' + BRIDGE_REV); } catch (e) { /* ignore */ }
@@ -499,6 +499,11 @@
       else if (art === 'afterbegin') { ziel.insertBefore(frag, ziel.firstChild); }
       else { ziel.appendChild(frag); }   // beforeend
     } catch (e) { return null; }
+    // PFLICHT, nicht Kosmetik: eingehaengtes Markup hat KEINE htmx-Bindungen, bis
+    // htmx es verarbeitet hat. Das Reset-Formular tauscht `#app` komplett aus —
+    // ohne diesen Aufruf waeren danach Modell-Auswahl und Reiter tot, und der
+    // naechste Modellwechsel liefe stumm in seinen 15-s-Timeout.
+    try { if (window.htmx && window.htmx.process) window.htmx.process(ziel); } catch (e) { /* ignore */ }
     scrolleAnsEnde(eingehaengt[eingehaengt.length - 1]);
     return eingehaengt;
   }
@@ -812,7 +817,14 @@
         if (antwortEl) {
           try {
             var folgen = amEnde(q1(SEL.log));
-            antwortEl.innerHTML = String(ev.data || '');
+            // Die Seite haelt die Antwort in einem `.answer`-Kasten INNERHALB der
+            // .sse-Blase (am Produktivsystem abgelesen). Ob der Strom diesen
+            // Kasten mitliefert oder nur seinen Inhalt, ist nicht garantiert —
+            // beides wird bedient, ohne die Blase selbst zu verlieren.
+            var roh = String(ev.data || '');
+            var innen = antwortEl.querySelector('.answer');
+            if (innen && !/class\s*=\s*["'][^"']*\banswer\b/.test(roh)) innen.innerHTML = roh;
+            else antwortEl.innerHTML = roh;
             if (folgen) scrolleAnsEnde(antwortEl);
           } catch (e) { /* ignore */ }
         }
@@ -825,6 +837,17 @@
       es.addEventListener('reasoning', function (ev) {
         letztesEreignis = Date.now();
         reasoningMd = mdAusHtml(ev.data);
+        // Die Seite haengt die Gedanken an ein EIGENES Element neben der Blase;
+        // dessen Id nennt die Blase selbst in `data-reasoning` (das Attribut
+        // ueberlebt das Entschaerfen, entfernt wird nur `data-url`).
+        if (antwortEl) {
+          try {
+            var rid = antwortEl.getAttribute('data-reasoning');
+            var box = rid ? document.getElementById(rid) : null;
+            var pop = box ? box.querySelector('.reasoning-pop') : null;
+            if (pop) pop.innerHTML = String(ev.data || '');
+          } catch (e) { /* ignore */ }
+        }
       });
       // status haelt nur den Wachhund wach — angezeigt wird nichts davon.
       es.addEventListener('status', function () { letztesEreignis = Date.now(); });

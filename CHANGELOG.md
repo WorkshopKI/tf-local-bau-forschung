@@ -5,6 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v6.4.1 — Zuruecksetzen haette die htmx-Bindungen der KI-Seite gekappt (August 2026)
+
+PATCH — Ein Konsolen-Auszug vom Produktivsystem zeigte, worauf `form.resetform` wirklich zielt: `#app` / `innerHTML`, also die **ganze** Oberfläche. Das mit v6.4.0 nachgeholte Einhängen hätte sie damit ohne htmx-Bindungen zurückgelassen — der nächste Modellwechsel wäre stumm in seinen 15-s-Timeout gelaufen. Anker jetzt abgelesen statt angenommen: [ki-bridge.md](docs/architecture/ki-bridge.md).
+
+- **Eingehängtes geht durch `htmx.process()`** — sonst sind Modell-Auswahl und Reiter nach einem Zurücksetzen tot ([bridge-snippet.source.js](src/core/services/ai/streamlit-bridge/bridge-snippet.source.js), Guard in [snippet-render.test.ts](src/core/services/ai/streamlit-bridge/__tests__/snippet-render.test.ts))
+- **Snapshots landen im `div.answer`** innerhalb der Blase, nicht über ihr — beide Nutzlast-Formen werden bedient
+- **Die Gedanken bekommen ihren Platz**: `.reasoning-pop` des Elements, das die Blase in `data-reasoning` nennt
+- **Die Anker im Doc sind jetzt gemessen** — `/send`, `/reset`, `#log > div.msg`, `.sse > div.answer`, `.tokenbar-track`
+
 ### v6.4.0 — Der Chat der internen KI zeigt wieder, was gesendet wird und was zurueckkommt (August 2026)
 
 MINOR — Wer an htmx vorbei sendet, übernimmt dessen zweite Hälfte mit: das Einhängen der Antwort. Seit v6.0 blieb der sichtbare Chat der internen KI leer, obwohl Frage und Antwort längst durchliefen — sichtbar wurde etwas nur zufällig, wenn ein Modellwechsel den `#app`-Swap der Seite auslöste, und dann der Stand VOR dem Zurücksetzen. Detail: [ki-bridge.md → Was die Seite selbst zeigt](docs/architecture/ki-bridge.md).
@@ -15,7 +24,7 @@ MINOR — Wer an htmx vorbei sendet, übernimmt dessen zweite Hälfte mit: das E
 - **Die Tokenleiste wird wieder nachgezogen**: die Nutzlast des `tokenbar`-Ereignisses war bisher nur Lebenszeichen, obwohl `kontextStand()` genau sie liest (und daraus „Fenster voll" meldet)
 - **Zwei Invarianten maschinell gehalten** — Fragmente werden vor dem Einhängen entschärft (kein zweiter Antwortstrom), der `hx-swap`-Rückfall ist nie `innerHTML` ([snippet-render.test.ts](src/core/services/ai/streamlit-bridge/__tests__/snippet-render.test.ts))
 
-**Lesezeichen neu ziehen** (`interne-KI v3`, Einstellungen → KI → Einrichtung). Kein MAJOR: ein altes Lesezeichen bricht nichts, es zeigt den Chat nur weiterhin nicht an — und die App meldet es selbst als veraltet.
+**Lesezeichen neu ziehen** (`interne-KI v4`, Einstellungen → KI → Einrichtung). Kein MAJOR: ein altes Lesezeichen bricht nichts, es zeigt den Chat nur weiterhin nicht an — und die App meldet es selbst als veraltet.
 
 ### v6.3.0 — Parallele Gruppen sehen wie parallele Gruppen aus (August 2026)
 
