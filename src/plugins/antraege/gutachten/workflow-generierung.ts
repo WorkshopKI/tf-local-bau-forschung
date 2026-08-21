@@ -28,7 +28,8 @@ import { kontextZielFuer } from '@/core/services/ai/ki-ziel';
 import { resetHatVerlaufsrisiko, type ChatResetStatus } from '@/core/services/ai/chat-reset';
 import { mitZielFallback, zielWirktAuf, type ZielFallbackErgebnis } from '@/core/services/ai/ziel-fallback';
 import { TEMPERATUR_STANDARD } from '@/core/services/ai/sampling';
-import type { AITransport, BridgeZiel } from '@/core/services/ai/transports/streamlit';
+import type { AITransport } from '@/core/services/ai/transports/streamlit';
+import type { KiRolle } from '@/core/services/ai/modell-katalog';
 import { getVbCharCap } from '@/core/services/ai/llm-context';
 import type { ThinkingBudget } from '@/core/services/ai/llm-thinking';
 import { kiVerbindungBereit } from '@/core/services/ai/ki-guard';
@@ -116,7 +117,7 @@ export interface GenerateIntoOptions {
    * käme bei einem Ausfall wieder die Fassung der ersten KI heraus, und der
    * Vergleich wäre keiner.
    */
-  ziel?: BridgeZiel;
+  ziel?: KiRolle;
   /**
    * Erzwingt die Sampling-Temperatur dieses Laufs („Zweitfassung mit anderer
    * Einstellung"). Der Gegenpart zu `ziel` bei einer direkt angebundenen KI, wo es
@@ -139,9 +140,9 @@ async function mitFallbackLauf<R>(
   deps: GenerierungsDeps,
   transport: AITransport,
   signal: AbortSignal,
-  lauf: (deps: GenerierungsDeps, ziel: BridgeZiel) => Promise<R>,
+  lauf: (deps: GenerierungsDeps, ziel: KiRolle) => Promise<R>,
   istUnbrauchbar?: (ergebnis: R) => boolean,
-  zielOverride?: BridgeZiel,
+  zielOverride?: KiRolle,
 ): Promise<ZielFallbackErgebnis<R>> {
   let fehler: string | null = null;
   let verfuegbar: boolean | null = null;
@@ -291,7 +292,7 @@ async function generiereEinmal(
   deps: GenerierungsDeps,
   sc: SkillCtx,
   transport: AITransport,
-  ziel: BridgeZiel,
+  ziel: KiRolle,
 ): Promise<{ next: WorkflowRun; checks: CheckResult[] }> {
   const tw = o.tweak;
   const scRegeln = deps.regelnFuer(sc, tw);
@@ -504,7 +505,7 @@ async function qsEinmal(
   qsCtx: SkillCtx,
   transport: AITransport,
   deps: GenerierungsDeps,
-  ziel: BridgeZiel,
+  ziel: KiRolle,
   signal: AbortSignal,
   kriterienBlock: string,
   satzAnzahl: number,
@@ -546,7 +547,7 @@ export async function laufLektorat(
   signal: AbortSignal,
   deps: GenerierungsDeps,
   /** Erzwungene KI (folgt der Generierung bei der Zweitfassung); sonst globale Präferenz. */
-  zielOverride?: BridgeZiel,
+  zielOverride?: KiRolle,
   /** Erzwungene Temperatur — folgt derselben Zweitfassung wie `zielOverride`. */
   temperatur?: number,
 ): Promise<WorkflowRun | null> {
@@ -579,7 +580,7 @@ async function lektoriereEinmal(
   tweak: SkillTweak | null,
   transport: AITransport,
   deps: GenerierungsDeps,
-  ziel: BridgeZiel,
+  ziel: KiRolle,
   signal: AbortSignal,
   temperatur?: number,
 ): Promise<WorkflowRun | null> {

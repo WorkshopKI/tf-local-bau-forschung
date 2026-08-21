@@ -2,7 +2,7 @@
  * Gruppe „Antwortverhalten" (Design-Handoff
  * `_design/handoff/einstellungen-zweispaltig`, Screenshot 11, rechte Spalte).
  *
- * Drei Zeilen: Thinking, Modell der internen KI (gpt-oss / Qwen3.6) und das
+ * Drei Zeilen: Thinking, Modell der internen KI (Rolle statt Modellname) und das
  * Kontextfenster als Automatik/Manuell. Aus dem Kontextfenster folgt, wie lang
  * eine Vorhabensbeschreibung sein darf — deshalb steht die Zahl daneben in
  * Klartext („~238.617 Zeichen"), nicht nur in Tokens.
@@ -12,6 +12,8 @@ import { Switch } from '@/components/ui/switch';
 import { SegmentedToggle } from '@/components/ui/SegmentedToggle';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { KiModellSelector } from '@/core/components/KiModellSelector';
+import { modellLabel } from '@/core/services/ai/bridge-modelle';
+import { KI_ROLLEN } from '@/core/services/ai/modell-katalog';
 import { DirectLLMTransport } from '@/core/services/ai/transports/direct-llm';
 import {
   MAX_LLM_CONTEXT_TOKENS,
@@ -30,8 +32,11 @@ import { SettingsGruppe, SettingsOption } from '@/components/settings';
 
 const HINT_THINKING =
   'Lässt das LLM vor der Antwort „nachdenken" — oft bessere Ergebnisse, aber langsamer. Der Denkprozess wird pro Fassung aufklappbar angezeigt. Nur die Voreinstellung: bei jeder Generierung („Neu"/„Kürzer"/„Länger") direkt per Schalter umschaltbar.';
+// Beschreibt die ROLLEN, nicht die Modelle: welches Modell dahintersteht, zeigen
+// die Kacheln selbst — und es ändert sich, sobald die interne KI ihr Angebot
+// ändert. Ein Modellname in diesem Satz veraltete still.
 const HINT_MODELL =
-  'Welches Modell der internen KI die Läufe ansteuert. gpt-oss-120b ist schneller, Qwen3.6-35B hat das deutlich größere Kontextfenster. Die Wahl ist eine Untergrenze: passt ein Dokument nicht hinein, wechselt die App für diesen Lauf selbst auf Qwen3.6 und vermerkt es.';
+  'Welche Art Modell der internen KI die Läufe ansteuert. „Standard" ist das bodenständige: normales Kontextfenster, schnell, für die grundlegenden Aufgaben gut genug. „Stark" hat das deutlich größere Fenster und die agentischen Fähigkeiten. Die Wahl ist eine Untergrenze: passt ein Dokument nicht hinein, wechselt die App für diesen Lauf selbst auf das stärkere Modell und vermerkt es.';
 const HINT_KONTEXT =
   'Maximale Tokenzahl des Modells. Daraus folgt, wie lang eine Vorhabensbeschreibung sein darf — längere werden vor der Analyse automatisch gekürzt. „Automatik" nimmt den erkannten bzw. den internen llama.cpp-Standardwert; „Manuell" übersteuert beides.';
 
@@ -114,10 +119,17 @@ export function AntwortverhaltenGruppe({ aiConfig }: { aiConfig: AIProviderConfi
                 Einstellung eine Zahl an, gegen die nichts geprüft wird. */}
             {aiConfig.type === 'streamlit' && !manuell && (
               <span className="block mt-1">
-                Aktiv ist die interne KI — dort gilt das Kontextfenster des gewählten Modells:
-                gpt-oss-120b ~{computeVbCharCap(getLlmContextTokens({ bridge: true, ziel: 'gpt-oss' })).toLocaleString('de-DE')},
-                Qwen3.6-35B ~{computeVbCharCap(getLlmContextTokens({ bridge: true, ziel: 'qwen35' })).toLocaleString('de-DE')} Zeichen.
-                Ein manuell gesetzter Wert übersteuert beide.
+                Aktiv ist die interne KI — dort gilt das Kontextfenster des gewählten Modells:{' '}
+                {KI_ROLLEN.map((r, i) => (
+                  // Die Modellnamen werden ABGEFRAGT, nicht geschrieben: welches
+                  // Modell eine Rolle trägt, entscheidet die Auswahlliste der
+                  // internen KI. Ein Name im Quelltext stünde hier noch, wenn es
+                  // das Modell längst nicht mehr gibt.
+                  <span key={r}>
+                    {i > 0 && ', '}
+                    {modellLabel(r)} ~{computeVbCharCap(getLlmContextTokens({ bridge: true, ziel: r })).toLocaleString('de-DE')}
+                  </span>
+                ))} Zeichen. Ein manuell gesetzter Wert übersteuert beide.
               </span>
             )}
             {erkennen.error && (

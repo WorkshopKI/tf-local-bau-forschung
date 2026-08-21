@@ -1,26 +1,41 @@
+import { createActivityDeadline } from './deadline';
 import type { GenerationStats } from '../generation-stats';
 import { useBridgeStatus } from '../bridge-status';
 import { useModellEskalation } from '../modell-eskalation';
 import { waehleModellFuerLauf } from '../modell-wahl';
-import { speichereGelernteBridgeTokens } from '../llm-context';
-import { passtZuModell } from '../streamlit-bridge/modell-erkennung';
-import { createActivityDeadline } from './deadline';
+import { useBridgeModelle, leseKontextTokens, aufloesungFuer } from '../bridge-modelle';
+import type { AngebotenesModell, KiRolle } from '../modell-katalog';
 
 /**
- * Welches Modell der internen KI ein Lauf ansteuert.
+ * Die Modell-Auswahlliste aus einer Bookmarklet-Nachricht übernehmen.
  *
- * `'gpt-oss'` = gpt-oss-120b (62k Kontext), `'qwen35'` = Qwen3.6-35B (259k).
- * Das Bookmarklet stellt damit die Modell-Auswahl der KI-Seite; ohne Angabe
- * bleibt das eingestellte Modell unangetastet.
- *
- * **Eine Achse, nicht zwei.** Bis v5.0 hieß dieselbe Achse `'standard'` |
- * `'agentisch'` und wählte einen Tab. Der agentische Chat ist Qwen3.6 **plus
- * fest eingebautem Kontext** — den liefert diese App bewusst selbst, also ist er
- * nicht angebunden, und was von ihm bleibt, ist genau `'qwen35'`. Wo im Code
- * früher „das andere, größere Modell" gemeint war (Zweitmeinung, Kontext-
- * Notausfahrt, Eval-A/B), steht deshalb jetzt `'qwen35'`.
+ * Modul-lokal statt Methode: das ist eine reine Übersetzung fremder Daten in
+ * unseren Store, ohne Bezug zum Transport-Zustand. Fremde Daten heisst hier
+ * wörtlich — das Feld kommt aus einer Seite, die wir nicht kontrollieren, also
+ * wird jeder Eintrag einzeln geprüft statt der Form vertraut.
  */
-export type BridgeZiel = 'gpt-oss' | 'qwen35';
+function uebernimmModellliste(data: Record<string, unknown>): void {
+  if (!Array.isArray(data.modelle)) return;
+  const liste: AngebotenesModell[] = [];
+  for (const roh of data.modelle) {
+    if (!roh || typeof roh !== 'object') continue;
+    const m = roh as Record<string, unknown>;
+    if (typeof m.text !== 'string' || !m.text.trim()) continue;
+    liste.push({
+      text: m.text,
+      ...(typeof m.value === 'string' ? { value: m.value } : {}),
+      ...(m.aktiv === true ? { aktiv: true } : {}),
+    });
+  }
+  if (liste.length) useBridgeModelle.getState().meldeListe(liste);
+}
+
+
+// `KiRolle` wohnt im Katalog ([modell-katalog.ts](../modell-katalog.ts)) und wird
+// hier nur benutzt. Bis v5 stand die Achse in DIESER Datei — ein Rollen-Begriff im
+// Transport, obwohl sie über Transporte hinweg gilt. Sie hier ein zweites Mal zu
+// deklarieren fiele nicht einmal auf: zwei strukturgleiche String-Unions nimmt der
+// Compiler klaglos hin, und die Doppelquelle drifted erst beim dritten Wert.
 
 /** Ergebnis eines `resetChat` (nur Streamlit): `'ok'` = Reset-Button gefunden +
  *  geklickt, `'nicht-gefunden'` = kein Button im DOM, `'timeout'` = kein Bridge-
@@ -59,7 +74,7 @@ export interface ConversationOptions {
    *  ist sie eine globale Nutzer-Einstellung (`useKiZiel`) und in allen
    *  Skill-Runnern verdrahtet — dass ausgerechnet der Chat sie ignorierte, war
    *  kein Schutz mehr, sondern ein toter Schalter. */
-  ziel?: BridgeZiel;
+  ziel?: KiRolle;
   /**
    * Sampling-Temperatur. Nur API-Transports (DirectLLM/OpenRouter) — die
    * Streamlit-Bridge tippt in ein Chat-Feld und hat keine Stellschraube.
@@ -77,7 +92,7 @@ export interface SubmitMessageOptions {
   /** Nur Streamlit-Bridge: Ziel-Chat (Tab) in der KI-Oberfläche. DirectLLM
    *  ignoriert die Option. Siehe `ConversationOptions.ziel` — seit v2.274 tragen
    *  beide Options-Typen das Feld. */
-  ziel?: BridgeZiel;
+  ziel?: KiRolle;
   /** Nur Streamlit-Bridge: Abschluss-Marker. Das Bookmarklet finalisiert die Antwort
    *  NICHT auf dem kurzen Idle-Fenster, solange sie diesen Text nicht enthält — Schutz
    *  gegen zu frühen Abbruch langer, zweiteiliger Antworten (z. B. „Finaler Text" bei
@@ -134,7 +149,7 @@ export interface AITransport {
    *  `'nicht-gefunden'` (kein Button) bzw. `'timeout'` (kein Fenster / keine
    *  Antwort in 15 s) sonst; der Lauf startet in jedem Fall.
    *  `ziel` (nur Streamlit): Reset im benannten Tab (Zweit-LLM-Erprobung). */
-  resetChat?(ziel?: BridgeZiel): Promise<ResetErgebnis>;
+  resetChat?(ziel?: KiRolle): Promise<ResetErgebnis>;
   /** Optional: Multi-Turn-Chat. Nur DirectLLMTransport implementiert das aktuell.
    *  Components nutzen Feature-Detection (`if (transport.submitConversation) ...`). */
   submitConversation?(messages: ConversationMessage[], options?: ConversationOptions): Promise<string>;
@@ -206,6 +221,12 @@ export class StreamlitBridgeTransport implements AITransport {
         useBridgeStatus.getState().markRev(typeof data.rev === 'string' ? data.rev : '');
       }
 
+      // Die von der KI-Seite angebotene Modell-Auswahl übernehmen — sie fährt auf
+      // JEDER Nachricht mit, die das Bookmarklet unaufgefordert schickt. Dadurch
+      // erfährt die App von einer geänderten Liste schon beim Ping und nicht erst,
+      // wenn ein Auftrag daran scheitert (Drift-Anzeige in Einstellungen → KI).
+      uebernimmModellliste(data);
+
       if (type === 'tf-app-ping') {
         // Gegenrichtung: das Bookmarklet prüft, ob es UNSER App-Fenster erreicht.
         (event.source as Window | null)?.postMessage({ type: 'tf-app-pong' }, '*');
@@ -250,14 +271,16 @@ export class StreamlitBridgeTransport implements AITransport {
       }
       if (type === 'tf-response' && typeof data.id === 'string') {
         // Das Bookmarklet meldet, was die KI-Seite als Chatlänge ANZEIGT
-        // („… von 62k") — die einzige ehrliche Quelle für das Fenster. Unsere
-        // Konstanten sind nur der Rückfall und sind in der Vergangenheit still
-        // gedriftet. Lesbar ist immer nur das gerade aktive Modell, die App
-        // lernt also eins nach dem anderen dazu.
-        if (typeof data.modell === 'string' && typeof data.kontextTokens === 'number') {
-          for (const m of ['gpt-oss', 'qwen35'] as const) {
-            if (passtZuModell(m, data.modell)) { speichereGelernteBridgeTokens(m, data.kontextTokens); break; }
-          }
+        // („… von 62k") — die einzige ehrliche Quelle für das Fenster. Der Katalog
+        // ist nur der Rückfall und ist in der Vergangenheit still gedriftet.
+        //
+        // Gelernt wird unter dem MODELLNAMEN, nicht unter einer Rolle: nur so
+        // bekommt auch ein Modell, das dieser Build gar nicht kennt, sein richtiges
+        // Fenster — und kann danach die Rolle `stark` tragen, ohne dass jemand den
+        // Katalog anfasst.
+        if (typeof data.modell === 'string' && typeof data.kontextText === 'string') {
+          const tokens = leseKontextTokens(data.kontextText);
+          if (tokens > 0) useBridgeModelle.getState().lerneFenster(data.modell, tokens);
         }
         // Erst Streaming-Anfragen (StreamResult), dann Single-Shot (string).
         const s = this.streams.get(data.id);
@@ -280,6 +303,7 @@ export class StreamlitBridgeTransport implements AITransport {
     try { return new URL(this.streamlitUrl).origin; } catch { return null; }
   }
 
+
   /**
    * Das Modell, mit dem diese Nutzlast tatsächlich fährt — Auto-Wechsel nach
    * Umfang ([modell-wahl.ts](../modell-wahl.ts)).
@@ -295,7 +319,7 @@ export class StreamlitBridgeTransport implements AITransport {
    * angehoben. Wer das hier als Dopplung wegräumt, nimmt den Nicht-Skill-Pfaden
    * den Auto-Wechsel.
    */
-  private zielFuerNutzlast(message: string, gewuenscht?: BridgeZiel): BridgeZiel | undefined {
+  private zielFuerNutzlast(message: string, gewuenscht?: KiRolle): KiRolle | undefined {
     // Ohne ausdrückliches Ziel wird die Modell-Auswahl der KI-Seite gar nicht
     // angefasst — dann gibt es auch nichts anzuheben.
     if (!gewuenscht) return undefined;
@@ -304,6 +328,20 @@ export class StreamlitBridgeTransport implements AITransport {
       useModellEskalation.getState().melde(gewuenscht, wahl, Date.now());
     }
     return wahl.modell;
+  }
+
+  /**
+   * Rolle → der Optionstext, den das Bookmarklet auswählen soll.
+   *
+   * `undefined` heisst „Auswahl nicht anfassen" und ist der ehrliche Zustand,
+   * solange die Liste unbekannt ist: wir können keine Option benennen, die wir nie
+   * gesehen haben. Sobald die Bridge sich einmal gemeldet hat, steht die Liste —
+   * sie fährt auf jedem Ping mit.
+   */
+  private modellFuer(rolle?: KiRolle): string | undefined {
+    if (!rolle) return undefined;
+    const text = aufloesungFuer(rolle).text;
+    return text || undefined;
   }
 
   /** Streamlit-URL ändern, OHNE den globalen `message`-Listener neu zu
@@ -396,10 +434,10 @@ export class StreamlitBridgeTransport implements AITransport {
         reject(new DOMException('Aborted', 'AbortError'));
       };
       options?.signal?.addEventListener('abort', onAbort, { once: true });
-      const ziel = this.zielFuerNutzlast(message, options?.ziel);
+      const modell = this.modellFuer(this.zielFuerNutzlast(message, options?.ziel));
       this.streamlitWindow?.postMessage({
         type: 'tf-request', id, message,
-        ...(ziel ? { ziel } : {}),
+        ...(modell ? { modell } : {}),
         ...(options?.erwarteAbschluss ? { erwarte: options.erwarteAbschluss } : {}),
       }, '*');
     });
@@ -410,7 +448,7 @@ export class StreamlitBridgeTransport implements AITransport {
    *  `tf-reset-done {found}`. KEIN `window.open` (das würde das Bookmarklet
    *  löschen) — ohne lebendes Bridge-Fenster sofort `'timeout'`. Timeout 15 s
    *  (`ziel`-Routing braucht ggf. einen Tab-Wechsel + Eingabefeld-Wartezeit). */
-  async resetChat(ziel?: BridgeZiel): Promise<ResetErgebnis> {
+  async resetChat(ziel?: KiRolle): Promise<ResetErgebnis> {
     if (!this.streamlitWindow || this.streamlitWindow.closed) return 'timeout';
     const id = `reset-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     return new Promise<ResetErgebnis>((resolve) => {
@@ -420,7 +458,8 @@ export class StreamlitBridgeTransport implements AITransport {
         reject: () => resolve('nicht-gefunden'),
         cancel: () => clearTimeout(timeout),
       });
-      this.streamlitWindow?.postMessage({ type: 'tf-reset', id, ...(ziel ? { ziel } : {}) }, '*');
+      const modell = this.modellFuer(ziel);
+      this.streamlitWindow?.postMessage({ type: 'tf-reset', id, ...(modell ? { modell } : {}) }, '*');
     });
   }
 
@@ -481,13 +520,14 @@ export class StreamlitBridgeTransport implements AITransport {
         touch: deadline.touch,
       });
       options?.signal?.addEventListener('abort', onAbort, { once: true });
-      // `ziel` nur senden, wenn gesetzt — ohne das Feld bleibt das Bookmarklet
-      // im aktiven Tab (Verhalten byte-identisch zu vorher, alte Snippets
-      // ignorieren es ohnehin). Das Snippet wertet `ziel` bei JEDEM tf-request
-      // aus, Stream und Single-Turn gleichermassen: kein BRIDGE_REV nötig.
-      const ziel = this.zielFuerNutzlast(message, options?.ziel);
+      // `modell` nur senden, wenn auflösbar — ohne das Feld fasst das Bookmarklet
+      // die Modell-Auswahl gar nicht an und der Lauf fährt auf dem, was die Seite
+      // eingestellt hat. Das ist der richtige Zustand, solange wir die Liste nicht
+      // kennen: einen Namen zu raten hiesse, ein Fenster anzunehmen, das wir nicht
+      // gesehen haben.
+      const modell = this.modellFuer(this.zielFuerNutzlast(message, options?.ziel));
       this.streamlitWindow?.postMessage(
-        { type: 'tf-request', id, message, ...(ziel ? { ziel } : {}) },
+        { type: 'tf-request', id, message, ...(modell ? { modell } : {}) },
         '*',
       );
     });

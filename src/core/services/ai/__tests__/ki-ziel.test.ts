@@ -2,19 +2,19 @@ import { describe, it, expect, afterEach } from 'vitest';
 import { useKiZiel, aktivesZielFuerLauf } from '../ki-ziel';
 
 // Store ist ein Modul-Singleton — nach jedem Test auf den Default zurücksetzen,
-// damit kein Lauf in anderen (nicht isolierten) Testdateien 'qwen35' erbt.
-afterEach(() => { useKiZiel.getState().setZiel('gpt-oss'); });
+// damit kein Lauf in anderen (nicht isolierten) Testdateien 'stark' erbt.
+afterEach(() => { useKiZiel.getState().setZiel('standard'); });
 
 describe('useKiZiel / aktivesZielFuerLauf', () => {
-  it('Default ist gpt-oss → aktivesZielFuerLauf gibt "gpt-oss"', () => {
-    expect(useKiZiel.getState().ziel).toBe('gpt-oss');
-    expect(aktivesZielFuerLauf()).toBe('gpt-oss');
+  it('Default ist gpt-oss → aktivesZielFuerLauf gibt "standard"', () => {
+    expect(useKiZiel.getState().ziel).toBe('standard');
+    expect(aktivesZielFuerLauf()).toBe('standard');
   });
 
-  it('Qwen3.6 aktiv → aktivesZielFuerLauf gibt "qwen35"', () => {
-    useKiZiel.getState().setZiel('qwen35');
-    expect(useKiZiel.getState().ziel).toBe('qwen35');
-    expect(aktivesZielFuerLauf()).toBe('qwen35');
+  it('Qwen3.6 aktiv → aktivesZielFuerLauf gibt "stark"', () => {
+    useKiZiel.getState().setZiel('stark');
+    expect(useKiZiel.getState().ziel).toBe('stark');
+    expect(aktivesZielFuerLauf()).toBe('stark');
   });
 
   /**
@@ -23,11 +23,11 @@ describe('useKiZiel / aktivesZielFuerLauf', () => {
    * in `ensureZiel` sofort aus (`if (!ziel) { cb(null); return; }`) — es suchte also
    * gar keinen Tab. Da Streamlit die Tab-Auswahl hält, blieb jeder Lauf im zuletzt
    * benutzten (agentischen) Tab: aus dem Agentischen führte kein Weg zurück.
-   * Nur ein EXPLIZITES 'gpt-oss' schaltet um.
+   * Nur ein EXPLIZITES 'standard' schaltet um.
    */
   it('Rueckweg aus dem grossen Modell: nach dem Umschalten kommt ein explizites Ziel', () => {
-    useKiZiel.getState().setZiel('qwen35');
-    useKiZiel.getState().setZiel('gpt-oss');
-    expect(aktivesZielFuerLauf()).toBe('gpt-oss');
+    useKiZiel.getState().setZiel('stark');
+    useKiZiel.getState().setZiel('standard');
+    expect(aktivesZielFuerLauf()).toBe('standard');
   });
 });

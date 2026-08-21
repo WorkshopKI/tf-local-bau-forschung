@@ -117,7 +117,7 @@ describe('pruefeWortformen — die Pflichten des Laufs', () => {
 
   it('pinnt den Aufruf auf gpt-oss', async () => {
     await pruefeWortformen(baueBridge(baueTransport('normotherme')), ['Normen'], KANDIDATEN);
-    expect((submitArgs[2] as { ziel?: string }).ziel).toBe('gpt-oss');
+    expect((submitArgs[2] as { ziel?: string }).ziel).toBe('standard');
   });
 
   it('ruft genau EINMAL auf und wiederholt bei unverwertbarer Antwort nicht', async () => {

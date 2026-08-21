@@ -38,7 +38,7 @@ describe('formatEvalReport — Transport-Zeile (OpenRouter-Modus)', () => {
   });
 
   it('mit ziel qwen35: Qwen-Etikett', () => {
-    const report = formatEvalReport(ERGEBNIS, { ...META_INTERN, ziel: 'qwen35' });
+    const report = formatEvalReport(ERGEBNIS, { ...META_INTERN, ziel: 'stark' });
     expect(report).toContain('- Transport: Streamlit · Qwen3.6-35B');
   });
 
@@ -58,7 +58,7 @@ describe('formatEvalReport — Transport-Zeile (OpenRouter-Modus)', () => {
       ...META_INTERN,
       transportName: 'OpenRouter',
       modell: 'anthropic/claude-sonnet-4.6',
-      ziel: 'qwen35',
+      ziel: 'stark',
     });
     expect(report).toContain('(extern, fiktive Fixtures)');
     expect(report).not.toContain('agentisch (Qwen, 259k)');

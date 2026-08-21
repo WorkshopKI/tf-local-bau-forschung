@@ -51,7 +51,7 @@ import { baueSkillEingabe, tweakWirktAuf } from './laufEingabe';
 import { buildVorherigeAbschnitte } from './context-provider';
 import { getVbCharCap } from '@/core/services/ai/llm-context';
 import { aktivesZielFuerLauf, kontextZielFuer, useKiZiel } from '@/core/services/ai/ki-ziel';
-import type { BridgeZiel } from '@/core/services/ai/transports/streamlit';
+import type { KiRolle } from '@/core/services/ai/modell-katalog';
 import type { GesendeterPrompt } from './promptAnsicht';
 import { bestimmeZweitfassung, type ZweitfassungArt } from './zweitfassung';
 import { useLlmErreichbarkeit, useSkillTweak, useWorkflowRegistry } from './workflow-hooks';
@@ -91,7 +91,7 @@ interface LaufOptionen {
   /** Freie Überarbeitungs-Anweisung des Bearbeiters („Bearbeiten mit KI"). */
   anweisung?: string;
   /** Erzwungene interne KI („Zweitfassung mit der anderen KI"); sonst globale Präferenz. */
-  ziel?: BridgeZiel;
+  ziel?: KiRolle;
   /** Erzwungene Temperatur („Zweitfassung mit anderer Einstellung"); sonst Standard. */
   temperatur?: number;
 }

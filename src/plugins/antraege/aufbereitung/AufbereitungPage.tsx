@@ -120,7 +120,7 @@ export function AufbereitungPage({ antragKey }: { antragKey: string }): React.Re
   const kiFertig = kiBausteine.filter(b => b.status === 'ok' || b.status === 'degradiert' || b.status === 'fehler').length;
   // Beschriftung/Tooltip aus demselben reinen Helfer wie das Cockpit — sonst driften
   // die beiden Kopfleisten auseinander (und eine von beiden lügt).
-  const kiCta = baueKiCta(kiBausteine.map(b => b.status), { agentisch: aufb.laufZiel.ziel === 'qwen35' });
+  const kiCta = baueKiCta(kiBausteine.map(b => b.status), { stark: aufb.laufZiel.ziel === 'stark' });
   // ALLE sechs Bausteine, nicht drei: der Lauf übernimmt `chatResetStatus` für
   // jeden von ihnen, und dies ist die einzige Stelle, die ihn im echten Lauf
   // auswertet. Zahlen, Glossar und Recherche-Prompt fielen still heraus — ein
@@ -239,7 +239,7 @@ export function AufbereitungPage({ antragKey }: { antragKey: string }): React.Re
           run={aufb.run}
           korpusMass={aufb.korpusMass}
           laufZiel={aufb.laufZiel}
-          onAgentischErzwungen={aufb.setzeAgentischErzwungen}
+          onStarkErzwungen={aufb.setzeStarkErzwungen}
           onIngested={aufb.requestRecompute}
         />
       ) : null}

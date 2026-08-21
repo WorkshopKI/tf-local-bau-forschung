@@ -11,9 +11,9 @@
 // transport.name-Prüfung.
 //
 // ZWEI weitere harte Invarianten (v2.291):
-//  1. IMMER der gpt-oss (`FEEDBACK_ZIEL`) — nicht `aktivesZielFuerLauf()`. Die
-//     globale Modellwahl gilt für Skill-/Chat-Läufe; hier geht es um einen engen,
-//     einschüssigen JSON-Auftrag, bei dem der agentische Chat keinen Mehrwert bringt,
+//  1. IMMER die Rolle `standard` (`FEEDBACK_ZIEL`) — nicht `aktivesZielFuerLauf()`.
+//     Die globale Modellwahl gilt für Skill-/Chat-Läufe; hier geht es um einen engen,
+//     einschüssigen JSON-Auftrag, bei dem das starke Modell keinen Mehrwert bringt,
 //     aber Minuten kostet und in seine eigene Loop-Erkennung laufen kann.
 //  2. IMMER frischer Chat vor JEDEM Submit (auch vor dem Retry) — der Streamlit-Chat
 //     ist stateful, sonst kontaminieren sich Rückfragen-, Verbesserungs- und
@@ -27,7 +27,8 @@
 // als System-Rolle nutzen.
 
 import { einZugRegel } from '@/core/services/ai/ein-schuss-lauf';
-import type { AITransport, BridgeZiel, SubmitMessageOptions } from '@/core/services/ai/transports/streamlit';
+import type { AITransport, SubmitMessageOptions } from '@/core/services/ai/transports/streamlit';
+import type { KiRolle } from '@/core/services/ai/modell-katalog';
 import type { FeedbackCategory, FeedbackContext, LLMClassification } from '@/core/types/feedback';
 import { FEEDBACK_TYPES, TEAMFLOW_AREAS } from '@/components/feedback/constants';
 import { starteFrischenChat } from '@/core/services/ai/chat-reset';
@@ -38,7 +39,7 @@ import { getAppOverview, getScreenContext } from './screenContext';
 const INTERNE_KI = 'Streamlit';
 
 /** Ziel-Tab für ALLE Feedback-Läufe — siehe Invariante 1 im Kopfkommentar. */
-const FEEDBACK_ZIEL: BridgeZiel = 'gpt-oss';
+const FEEDBACK_ZIEL: KiRolle = 'standard';
 
 export interface FeedbackImprovePayload {
   text: string;
@@ -75,8 +76,9 @@ const KONTEXT_TEMPLATE = `AUTOMATISCH ERFASSTER KONTEXT:
  * 2. Arg für DirectLLM erhalten.
  *
  * Setzt VOR dem Submit einen frischen Chat auf demselben Tab (Invariante 2) und
- * pinnt das `ziel` auf den gpt-oss (Invariante 1). `thinkingBudget` wirkt nur
- * auf DirectLLM (Eval-CLI) — die Bridge sendet ausschliesslich message/ziel/erwarte.
+ * pinnt das `ziel` auf die Rolle `standard` (Invariante 1). `thinkingBudget` wirkt
+ * nur auf DirectLLM (Eval-CLI) — die Bridge sendet ausschliesslich
+ * message/modell/erwarte.
  */
 async function submitInline(
   transport: AITransport,

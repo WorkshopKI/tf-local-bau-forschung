@@ -16,6 +16,7 @@
  * (`fiktiv: true`-Provenienz-Guard vor jedem externen Call). Generator UND Judge
  * laufen im selben Modus; Läufe strikt sequentiell (ein postMessage-Fenster).
  */
+import { modellLabel } from '@/core/services/ai/bridge-modelle';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { FlaskConical, ChevronDown, ChevronRight, Copy, Download, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -31,7 +32,8 @@ import {
 } from '@/core/services/skill-eval/eval-batch';
 import { DirectLLMTransport } from '@/core/services/ai/transports/direct-llm';
 import { isOpenRouterEnabled } from '@/config/feature-flags';
-import type { AITransport, BridgeZiel } from '@/core/services/ai/transports/streamlit';
+import type { AITransport } from '@/core/services/ai/transports/streamlit';
+import type { KiRolle } from '@/core/services/ai/modell-katalog';
 import { GEDAECHTNIS_FIXTURES } from '@/core/services/skill-eval/gedaechtnis-fixtures';
 import {
   laufeGedaechtnisEval,
@@ -44,7 +46,7 @@ type VerlaufStatus = 'pending' | 'running' | 'ok' | 'degradiert' | 'fehler';
 
 /** Generierungs-/Judge-Transport: intern (Standard-Chat gpt-oss), intern-agentisch
  *  (Qwen3.6) oder OpenRouter (extern — nur fiktive Fixtures, dev-only). */
-type TransportModus = 'intern' | 'qwen35' | 'openrouter';
+type TransportModus = 'intern' | 'stark' | 'openrouter';
 
 /** n-Obergrenze je Fixture (Varianz-Messung ohne den Bridge-Durchlauf zu sprengen). */
 const WIEDERHOLUNGEN_MAX = 5;
@@ -81,14 +83,14 @@ function kurzVon(a: FixtureAggregat): string {
 }
 
 /** Menschenlesbares Ziel-Tab-Etikett für den Report-Kopf. */
-function zielLabel(ziel?: BridgeZiel): string {
-  return ziel === 'qwen35' ? 'Qwen3.6-35B' : 'gpt-oss-120b';
+function zielLabel(ziel?: KiRolle): string {
+  return modellLabel(ziel ?? 'standard');
 }
 
 interface ReportMeta {
   zeitpunkt: string;
   transportName: string;
-  ziel?: BridgeZiel;
+  ziel?: KiRolle;
   modell?: string;
   n: number;
 }
@@ -269,7 +271,7 @@ export function GedaechtnisEvalPanel(): React.ReactElement {
 
   const start = useAsyncAction(async () => {
     let transport: AITransport;
-    let ziel: BridgeZiel | undefined;
+    let ziel: KiRolle | undefined;
     let modell: string | undefined;
     if (transportModus === 'openrouter') {
       // Externer Pfad NUR für fiktive Fixtures — Provenienz-Guard VOR dem Transport-Bau.
@@ -285,11 +287,11 @@ export function GedaechtnisEvalPanel(): React.ReactElement {
     } else {
       // DSGVO intern-only (Guard #30): wirft bei externem Provider → Banner, kein Lauf.
       transport = bridge.getTransportForAssistent();
-      // Ausdrücklich `'gpt-oss'` statt `undefined`: ohne Ziel bleibt der Lauf
+      // Ausdrücklich `'standard'` statt `undefined`: ohne Ziel bleibt der Lauf
       // in dem Tab, der zuletzt benutzt wurde — der Report schrieb trotzdem
       // „Standard-Chat" darüber (v4.116). Die Messung soll sagen, wogegen sie
       // gelaufen ist.
-      ziel = transportModus === 'qwen35' ? 'qwen35' : 'gpt-oss';
+      ziel = transportModus === 'stark' ? 'stark' : 'standard';
     }
 
     const n = Math.max(1, Math.min(wiederholungen, WIEDERHOLUNGEN_MAX));
@@ -422,7 +424,7 @@ export function GedaechtnisEvalPanel(): React.ReactElement {
               </label>
               <label
                 className="flex items-center gap-2 text-[12px] text-[var(--tf-text-secondary)]"
-                title="Transport: gpt-oss-120b · Qwen3.6-35B (beide brauchen den offenen KI-Tab mit aktivem Lesezeichen) · OpenRouter = externes Referenz-Modell (nur fiktive Fixtures, dev-only). Generator und Judge laufen im selben Modus."
+                title="Transport: die beiden Modelle der internen KI, Standard und Stark (beide brauchen den offenen KI-Tab mit aktivem Lesezeichen) · OpenRouter = externes Referenz-Modell (nur fiktive Fixtures, dev-only). Generator und Judge laufen im selben Modus."
               >
                 Transport
                 <select
@@ -433,7 +435,7 @@ export function GedaechtnisEvalPanel(): React.ReactElement {
                   style={{ border: '0.5px solid var(--tf-border)' }}
                 >
                   <option value="intern">Intern (gpt-oss)</option>
-                  <option value="agentisch">Intern (Qwen3.6-35B)</option>
+                  <option value="agentisch">Intern ({modellLabel('stark')})</option>
                   {openRouterVerfuegbar && <option value="openrouter">OpenRouter (extern)</option>}
                 </select>
               </label>

@@ -1,19 +1,19 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { useKiZiel } from '../ki-ziel';
 import { mitZielFallback, zielWirktAuf } from '../ziel-fallback';
-import type { BridgeZiel } from '../transports/streamlit';
+import type { KiRolle } from '../modell-katalog';
 
 // Der Ziel-Store ist ein Modul-Singleton (wie in ki-ziel.test.ts) — nach jedem
-// Test auf den Default zurück, damit kein anderer Lauf 'qwen35' erbt.
-afterEach(() => { useKiZiel.getState().setZiel('gpt-oss'); });
+// Test auf den Default zurück, damit kein anderer Lauf 'stark' erbt.
+afterEach(() => { useKiZiel.getState().setZiel('standard'); });
 
 /** Protokolliert die `ziel`-Werte aller Versuche; `ergebnisse` je Versuch der Reihe nach. */
 function laufMit(ergebnisse: Array<string | Error>): {
-  lauf: (ziel: BridgeZiel) => Promise<string>;
-  versuche: BridgeZiel[];
+  lauf: (ziel: KiRolle) => Promise<string>;
+  versuche: KiRolle[];
 } {
-  const versuche: BridgeZiel[] = [];
-  const lauf = async (ziel: BridgeZiel): Promise<string> => {
+  const versuche: KiRolle[] = [];
+  const lauf = async (ziel: KiRolle): Promise<string> => {
     const i = versuche.length;
     versuche.push(ziel);
     const e = ergebnisse[i] ?? 'ok';
@@ -36,84 +36,84 @@ describe('mitZielFallback — kein Fallback', () => {
   it('Praeferenz standard: ein Versuch mit explizitem "standard", kein Retry', async () => {
     const { lauf, versuche } = laufMit([new Error('kaputt')]);
     await expect(mitZielFallback(lauf, AGENTISCH)).rejects.toThrow('kaputt');
-    expect(versuche).toEqual(['gpt-oss']);
+    expect(versuche).toEqual(['standard']);
   });
 
   it('zielWirkt false (DirectLLM): der zweite Lauf waere byte-identisch → kein Retry', async () => {
-    useKiZiel.getState().setZiel('qwen35');
+    useKiZiel.getState().setZiel('stark');
     const { lauf, versuche } = laufMit([new Error('kaputt')]);
     await expect(mitZielFallback(lauf, { zielWirkt: false })).rejects.toThrow('kaputt');
-    expect(versuche).toEqual(['qwen35']);
+    expect(versuche).toEqual(['stark']);
   });
 
   it('Nutzer-Abbruch (AbortError) ist kein Ausfall → kein Retry', async () => {
-    useKiZiel.getState().setZiel('qwen35');
+    useKiZiel.getState().setZiel('stark');
     const abbruch = new DOMException('Aborted', 'AbortError');
     const { lauf, versuche } = laufMit([abbruch as unknown as Error]);
     await expect(mitZielFallback(lauf, AGENTISCH)).rejects.toThrow('Aborted');
-    expect(versuche).toEqual(['qwen35']);
+    expect(versuche).toEqual(['stark']);
   });
 
   it('bereits abgebrochenes Signal → kein Retry', async () => {
-    useKiZiel.getState().setZiel('qwen35');
+    useKiZiel.getState().setZiel('stark');
     const ctrl = new AbortController();
     ctrl.abort();
     const { lauf, versuche } = laufMit([new Error('kaputt')]);
     await expect(mitZielFallback(lauf, { ...AGENTISCH, signal: ctrl.signal })).rejects.toThrow('kaputt');
-    expect(versuche).toEqual(['qwen35']);
+    expect(versuche).toEqual(['stark']);
   });
 
   it('brauchbares Ergebnis bleibt unangetastet', async () => {
-    useKiZiel.getState().setZiel('qwen35');
+    useKiZiel.getState().setZiel('stark');
     const { lauf, versuche } = laufMit(['gut']);
     const r = await mitZielFallback(lauf, { ...AGENTISCH, istUnbrauchbar: (s) => s === '' });
-    expect(r).toEqual({ result: 'gut', zielFallback: false, ziel: 'qwen35' });
-    expect(versuche).toEqual(['qwen35']);
+    expect(r).toEqual({ result: 'gut', zielFallback: false, ziel: 'stark' });
+    expect(versuche).toEqual(['stark']);
   });
 });
 
-describe('mitZielFallback — Fallback agentisch → standard', () => {
+describe('mitZielFallback — Fallback stark → standard', () => {
   it('Wurf im agentischen Versuch: genau ein Retry mit explizitem "standard"', async () => {
-    useKiZiel.getState().setZiel('qwen35');
+    useKiZiel.getState().setZiel('stark');
     const { lauf, versuche } = laufMit([new Error('Tab weg'), 'gerettet']);
     const r = await mitZielFallback(lauf, AGENTISCH);
-    expect(r).toEqual({ result: 'gerettet', zielFallback: true, ziel: 'gpt-oss' });
-    expect(versuche).toEqual(['qwen35', 'gpt-oss']);
+    expect(r).toEqual({ result: 'gerettet', zielFallback: true, ziel: 'standard' });
+    expect(versuche).toEqual(['stark', 'standard']);
   });
 
   it('unbrauchbares Ergebnis loest denselben Fallback aus', async () => {
-    useKiZiel.getState().setZiel('qwen35');
+    useKiZiel.getState().setZiel('stark');
     const { lauf, versuche } = laufMit(['', 'gerettet']);
     const r = await mitZielFallback(lauf, { ...AGENTISCH, istUnbrauchbar: (s) => s === '' });
-    expect(r).toEqual({ result: 'gerettet', zielFallback: true, ziel: 'gpt-oss' });
-    expect(versuche).toEqual(['qwen35', 'gpt-oss']);
+    expect(r).toEqual({ result: 'gerettet', zielFallback: true, ziel: 'standard' });
+    expect(versuche).toEqual(['stark', 'standard']);
   });
 
   it('GENAU ein Retry — auch wenn der Standard-Lauf ebenfalls unbrauchbar ist', async () => {
-    useKiZiel.getState().setZiel('qwen35');
+    useKiZiel.getState().setZiel('stark');
     const { lauf, versuche } = laufMit(['', '']);
     const r = await mitZielFallback(lauf, { ...AGENTISCH, istUnbrauchbar: (s) => s === '' });
-    expect(r).toEqual({ result: '', zielFallback: true, ziel: 'gpt-oss' });
-    expect(versuche).toEqual(['qwen35', 'gpt-oss']);
+    expect(r).toEqual({ result: '', zielFallback: true, ziel: 'standard' });
+    expect(versuche).toEqual(['stark', 'standard']);
   });
 
   it('wirft der Retry, propagiert sein Fehler (kein dritter Versuch)', async () => {
-    useKiZiel.getState().setZiel('qwen35');
+    useKiZiel.getState().setZiel('stark');
     const { lauf, versuche } = laufMit([new Error('erst'), new Error('dann')]);
     await expect(mitZielFallback(lauf, AGENTISCH)).rejects.toThrow('dann');
-    expect(versuche).toEqual(['qwen35', 'gpt-oss']);
+    expect(versuche).toEqual(['stark', 'standard']);
   });
 
   it('vorRetry laeuft genau einmal und VOR dem zweiten Versuch', async () => {
-    useKiZiel.getState().setZiel('qwen35');
+    useKiZiel.getState().setZiel('stark');
     const folge: string[] = [];
-    const lauf = async (ziel: BridgeZiel): Promise<string> => {
+    const lauf = async (ziel: KiRolle): Promise<string> => {
       folge.push(`lauf:${ziel}`);
-      if (ziel === 'qwen35') throw new Error('kaputt');
+      if (ziel === 'stark') throw new Error('kaputt');
       return 'ok';
     };
     await mitZielFallback(lauf, { ...AGENTISCH, vorRetry: () => folge.push('reset') });
-    expect(folge).toEqual(['lauf:qwen35', 'reset', 'lauf:gpt-oss']);
+    expect(folge).toEqual(['lauf:stark', 'reset', 'lauf:standard']);
   });
 
   /**
@@ -123,10 +123,10 @@ describe('mitZielFallback — Fallback agentisch → standard', () => {
    * damit sachlich falsch. Fallbacks muessen ihr Ziel ausdruecklich nennen.
    */
   it('der Retry nennt sein Ziel — nie undefined (sonst bleibt er im Qwen3.6-Modell)', async () => {
-    useKiZiel.getState().setZiel('qwen35');
+    useKiZiel.getState().setZiel('stark');
     const { lauf, versuche } = laufMit([new Error('Tab weg'), 'gerettet']);
     await mitZielFallback(lauf, AGENTISCH);
-    expect(versuche[1]).toBe('gpt-oss');
+    expect(versuche[1]).toBe('standard');
     expect(versuche.every(z => z !== undefined)).toBe(true);
   });
 });
@@ -139,36 +139,36 @@ describe('mitZielFallback — Fallback agentisch → standard', () => {
  */
 describe('mitZielFallback — zielOverride', () => {
   it('benutzt das erzwungene Ziel statt der Präferenz', async () => {
-    useKiZiel.getState().setZiel('gpt-oss');
+    useKiZiel.getState().setZiel('standard');
     const { lauf, versuche } = laufMit(['ok']);
-    const r = await mitZielFallback(lauf, { ...AGENTISCH, zielOverride: 'qwen35' });
-    expect(versuche).toEqual(['qwen35']);
-    expect(r.ziel).toBe('qwen35');
+    const r = await mitZielFallback(lauf, { ...AGENTISCH, zielOverride: 'stark' });
+    expect(versuche).toEqual(['stark']);
+    expect(r.ziel).toBe('stark');
     expect(r.zielFallback).toBe(false);
   });
 
   it('macht KEINEN Retry, wenn der erzwungene Lauf wirft', async () => {
-    useKiZiel.getState().setZiel('gpt-oss');
+    useKiZiel.getState().setZiel('standard');
     const { lauf, versuche } = laufMit([new Error('Tab weg'), 'gerettet']);
-    await expect(mitZielFallback(lauf, { ...AGENTISCH, zielOverride: 'qwen35' })).rejects.toThrow('Tab weg');
-    expect(versuche).toEqual(['qwen35']);
+    await expect(mitZielFallback(lauf, { ...AGENTISCH, zielOverride: 'stark' })).rejects.toThrow('Tab weg');
+    expect(versuche).toEqual(['stark']);
   });
 
   it('macht KEINEN Retry bei unbrauchbarem Ergebnis', async () => {
-    useKiZiel.getState().setZiel('gpt-oss');
+    useKiZiel.getState().setZiel('standard');
     const { lauf, versuche } = laufMit(['', 'gerettet']);
     const r = await mitZielFallback(lauf, {
-      ...AGENTISCH, zielOverride: 'qwen35', istUnbrauchbar: (s) => s === '',
+      ...AGENTISCH, zielOverride: 'stark', istUnbrauchbar: (s) => s === '',
     });
-    expect(versuche).toEqual(['qwen35']);
+    expect(versuche).toEqual(['stark']);
     expect(r.result).toBe('');
   });
 
   it('ohne Override bleibt alles beim Alten (Präferenz + Fallback)', async () => {
-    useKiZiel.getState().setZiel('qwen35');
+    useKiZiel.getState().setZiel('stark');
     const { lauf, versuche } = laufMit([new Error('Tab weg'), 'gerettet']);
     const r = await mitZielFallback(lauf, AGENTISCH);
-    expect(versuche).toEqual(['qwen35', 'gpt-oss']);
+    expect(versuche).toEqual(['stark', 'standard']);
     expect(r.zielFallback).toBe(true);
   });
 });

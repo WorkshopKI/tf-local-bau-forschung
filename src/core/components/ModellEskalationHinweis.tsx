@@ -1,6 +1,6 @@
 import { ArrowUpRight, X } from 'lucide-react';
 import { useModellEskalation } from '@/core/services/ai/modell-eskalation';
-import { MODELL_LABEL } from '@/core/services/ai/modell-wahl';
+import { modellLabel } from '@/core/services/ai/bridge-modelle';
 
 /**
  * Meldet, dass ein Lauf wegen seines Umfangs auf das größere Modell angehoben
@@ -37,8 +37,8 @@ export function ModellEskalationHinweis(): React.ReactElement | null {
       <ArrowUpRight className="w-4 h-4 shrink-0 mt-[1px] text-[var(--tf-warning-text)]" aria-hidden />
       <span className="flex-1 min-w-0 text-[var(--tf-text)]">
         Der Umfang ({letzte.zeichen.toLocaleString('de-DE')} Zeichen) passt nicht in das
-        Kontextfenster von <strong>{MODELL_LABEL[letzte.von]}</strong> — dieser Lauf ging an{' '}
-        <strong>{MODELL_LABEL[letzte.nach]}</strong>.
+        Kontextfenster von <strong>{modellLabel(letzte.von)}</strong> — dieser Lauf ging an{' '}
+        <strong>{modellLabel(letzte.nach)}</strong>.
         {letzte.reichtTrotzdemNicht && (
           <> Auch dort reicht es nicht: der Text wurde zusätzlich gekürzt.</>
         )}

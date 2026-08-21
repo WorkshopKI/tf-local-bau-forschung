@@ -9,19 +9,20 @@ import {
 } from '../gedaechtnis-eval-runner';
 import { frischeIdFabrik, laufeFixture } from '../gedaechtnis-eval-lib';
 import { GEDAECHTNIS_FIXTURES } from '../gedaechtnis-fixtures';
+import type { KiRolle } from '@/core/services/ai/modell-katalog';
 import type { GedaechtnisFixture } from '../gedaechtnis-assertions';
 import type {
-  AITransport, BridgeZiel, ResetErgebnis, SubmitMessageOptions,
+  AITransport, ResetErgebnis, SubmitMessageOptions,
 } from '@/core/services/ai/transports/streamlit';
 
 /** Zeichnet Reset-/Submit-Ziele auf; unterscheidet Generierung von Judge am Prompt. */
 class StubTransport implements AITransport {
   name = 'Stub';
-  resetCalls: (BridgeZiel | undefined)[] = [];
-  submitZiele: (BridgeZiel | undefined)[] = [];
+  resetCalls: (KiRolle | undefined)[] = [];
+  submitZiele: (KiRolle | undefined)[] = [];
   constructor(private readonly opsJson: string) {}
   async ping(): Promise<boolean> { return true; }
-  async resetChat(ziel?: BridgeZiel): Promise<ResetErgebnis> {
+  async resetChat(ziel?: KiRolle): Promise<ResetErgebnis> {
     this.resetCalls.push(ziel);
     return 'ok';
   }
@@ -80,15 +81,15 @@ describe('gedaechtnis-eval-runner', () => {
   it('Stub-Transport: Judge-Score + Reset/Ziel-Weitergabe (Generierung + Judge)', async () => {
     const stub = new StubTransport(JSON.stringify(KALTSTART.zyklen[0]!.stubOps));
     const { zeilen, aggregat } = await laufeEineFixtureMitJudge(KALTSTART, {
-      n: 1, transport: stub, judgeTransport: stub, ziel: 'qwen35', reset: true,
+      n: 1, transport: stub, judgeTransport: stub, ziel: 'stark', reset: true,
     });
     expect(aggregat.okLaeufe).toBe(1);
     expect(aggregat.judgeF).toBe(5);
     expect(aggregat.judgeN).toBe(4);
     expect(zeilen[0]!.judge).toEqual({ faktentreue: 5, nuetzlichkeit: 4, begruendung: 'ok' });
     // 1 Zyklus-Reset (Generierung) + 1 Judge-Reset, beide auf Qwen3.6.
-    expect(stub.resetCalls).toEqual(['qwen35', 'qwen35']);
-    expect(stub.submitZiele).toEqual(['qwen35', 'qwen35']);
+    expect(stub.resetCalls).toEqual(['stark', 'stark']);
+    expect(stub.submitZiele).toEqual(['stark', 'stark']);
   });
 
   it('Ohne reset/ziel: keine Reset-Aufrufe, kein Ziel am Submit (CLI-Pfad-Spiegel)', async () => {

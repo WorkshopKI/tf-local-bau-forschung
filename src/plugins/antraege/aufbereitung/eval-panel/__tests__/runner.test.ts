@@ -308,9 +308,9 @@ describe('runAufbereitungEval', () => {
 
   it('reicht ziel „agentisch" an Reset UND Submit jedes Laufs durch (Streamlit-Pfad)', async () => {
     const { transport, submitZiele, resetZiele } = stubZielErfassung();
-    await runAufbereitungEval(deps(transport), { limit: 1, includeSteckbrief: false, ziel: 'qwen35' });
-    expect(submitZiele).toEqual(['qwen35']);
-    expect(resetZiele).toEqual(['qwen35']);
+    await runAufbereitungEval(deps(transport), { limit: 1, includeSteckbrief: false, ziel: 'stark' });
+    expect(submitZiele).toEqual(['stark']);
+    expect(resetZiele).toEqual(['stark']);
   });
 
   // Der gpt-oss wird jetzt AUSDRÜCKLICH angesteuert. Vorher reichte der Lauf
@@ -319,8 +319,8 @@ describe('runAufbereitungEval', () => {
   it('ohne ziel laeuft die Eval auf dem gpt-oss — ausdruecklich, nicht per undefined', async () => {
     const { transport, submitZiele, resetZiele } = stubZielErfassung();
     await runAufbereitungEval(deps(transport), { limit: 1, includeSteckbrief: false });
-    expect(submitZiele).toEqual(['gpt-oss']);
-    expect(resetZiele).toEqual(['gpt-oss']);
+    expect(submitZiele).toEqual(['standard']);
+    expect(resetZiele).toEqual(['standard']);
   });
 
   it('fehlendes Fixture → übersprungen (gefunden:false), kein Abbruch', async () => {

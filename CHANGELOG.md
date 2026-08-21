@@ -5,6 +5,18 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v6.0.0 — Modellwahl als Rolle: ein Modellwechsel der internen KI kostet keinen Ausfall mehr (August 2026)
+
+MAJOR — Die interne KI wird von Kollegen betrieben und tauscht ihre Modelle nach ihrem eigenen Fahrplan. Solange der Modellname an ~50 Codestellen hing, war jeder ihrer Wechsel ein **Ausfall bei uns**: die Options-Regel fand nichts mehr, der Lauf brach ab — und weil der Auto-Wechsel bei großen Dokumenten genau dieses Modell ansteuert, hörte ausgerechnet die Arbeit mit großen Anträgen auf zu funktionieren, an einem Tag, den wir nicht bestimmen. Die Achse heißt jetzt nach der **Rolle**, nicht nach dem Modell.
+
+- **`KiRolle = 'standard' | 'stark'`** ersetzt `BridgeZiel`; beide Rollen lösen sich aus BEOBACHTBAREN Eigenschaften auf (Voreinstellung der KI-Seite bzw. weitestes Fenster) und überleben damit einen veralteten Katalog ([modell-katalog.ts](src/core/services/ai/modell-katalog.ts))
+- **Das Bookmarklet kennt keine Modelle mehr** — es meldet die Auswahlliste und wählt den Optionstext, den die App nennt; ein Modellwechsel kostet damit einen Build statt einer Neuinstallation im ganzen Team ([bridge-snippet.source.js](src/core/services/ai/streamlit-bridge/bridge-snippet.source.js))
+- **Kontextfenster werden je MODELLNAME gelernt** statt je Rolle: ein Modell, das dieser Build nicht kennt, bekommt nach dem ersten Lauf sein richtiges Fenster ([bridge-modelle.ts](src/core/services/ai/bridge-modelle.ts))
+- **Unbekannte Modelle stehen sichtbar** in der Auswahl, statt erst in einem gescheiterten Lauf aufzufallen; das multimodale Modell bleibt gesperrt und nennt seinen Grund (OCR, aber nur Text über die Bridge) ([KiModellSelector.tsx](src/core/components/KiModellSelector.tsx))
+- **Guard `modellname-nur-im-katalog`**: ein Modellname der internen KI außerhalb des Katalogs bricht das Gate — Anzeige über `modellLabel(rolle)` ([conventions-daten.test.ts](src/__tests__/conventions-daten.test.ts))
+
+**Migration**: Das Lesezeichen heißt jetzt **`interne-KI v2`** und muss einmal neu gezogen werden (Einstellungen → KI → Einrichtung). Ein altes Lesezeichen wird sichtbar als veraltet gemeldet; bis zur Neuinstallation läuft der Chat auf dem Modell, das die KI-Seite gerade eingestellt hat. Die gespeicherte Modellwahl migriert beim Lesen: `standard`/`gpt-oss` → `standard`, `agentisch`/`qwen35` → `stark`.
+
 ### v5.3.0 — Bedingungen waehlen statt suchen, Hierarchie nachtraeglich aendern (August 2026)
 
 MINOR — Der Bedingungs-Bereich eines Meilensteins war vollständig, aber nicht zu bedienen: das Feld suchte man in einem nackten `<select>` mit **478** Einträgen, die Hierarchie war beim Anlegen zementiert (kein Ein-/Ausrücken, kein Ziehen, ab Stufe 2 verschwand „+ Gruppe" wortlos), und die zugeklappte Liste sagte nichts darüber, woran ein Meilenstein hängt. Der Wähler sitzt im geteilten `BedingungEditor` und wirkt damit auch an den To-do-Regeln und der eigenen Spalte.

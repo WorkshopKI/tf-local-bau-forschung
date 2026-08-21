@@ -1852,3 +1852,64 @@ describe('reserve-deckt-output-budget (v4.115.1 — der Zeichen-Cap muss den Out
     }
   });
 });
+
+/* -------------------------------------------------------------------------- */
+/* modellname-nur-im-katalog                                                    */
+/* -------------------------------------------------------------------------- */
+
+describe('modellname-nur-im-katalog', () => {
+  const MARKER = 'allow-modellname-nur-im-katalog';
+  const KATALOG = `services${sep}ai${sep}modell-katalog.ts`;
+
+  /**
+   * Modelle der internen KI. Absichtlich eng: es geht um die Namen, die in IHRER
+   * Auswahlliste stehen — nicht um jeden Begriff, in dem „Qwen" vorkommt.
+   */
+  const MODELLNAME = /gpt-oss-120b|Qwen3[._-]/;
+
+  /**
+   * OpenRouter-Modell-Ids bezeichnen etwas anderes: ein extern gehostetes Modell,
+   * das wir per Id ansprechen. Die Id IST dort der Wert und darf nicht durch eine
+   * Rolle ersetzt werden.
+   */
+  const OPENROUTER = /openai\//;
+
+  /** Kommentarzeilen bleiben aussen vor — sie erklären, sie behaupten nicht. */
+  function istKommentar(line: string): boolean {
+    const t = line.trim();
+    return t.startsWith('*') || t.startsWith('//') || t.startsWith('/*') || t.startsWith('{/*');
+  }
+
+  it('nennt Modelle der internen KI nur im Katalog beim Namen', () => {
+    const treffer = ALL_TS_FILES
+      .filter(f => !f.includes(`${sep}__tests__${sep}`) && !f.endsWith(KATALOG))
+      .flatMap(f => findInFile(
+        f,
+        line => !istKommentar(line) && MODELLNAME.test(line) && !OPENROUTER.test(line),
+        MARKER,
+      ));
+
+    if (treffer.length > 0) {
+      expect.fail(
+        `Ein Modellname der internen KI steht ausserhalb von modell-katalog.ts.\n\n`
+        + `Die interne KI wird von Kollegen betrieben und tauscht ihre Modelle nach\n`
+        + `ihrem eigenen Fahrplan. Ein hier eingetragener Name veraltet dann STILL —\n`
+        + `die Oberflaeche behauptet weiter „gpt-oss-120b", waehrend etwas anderes laeuft.\n\n`
+        + `Stattdessen:\n`
+        + `  - Anzeige  → modellLabel(rolle) aus core/services/ai/bridge-modelle\n`
+        + `  - Auswahl  → die Rolle 'standard' | 'stark' (KiRolle)\n`
+        + `  - Erkennung→ ein Eintrag in MODELL_KATALOG (die EINE Stelle, die Namen kennt)\n\n`
+        + `Ist der Name hier wirklich der Wert (z.B. eine OpenRouter-Modell-Id), inline\n`
+        + `begruenden: // ${MARKER}: <grund>\n\nTreffer:\n${fmt(treffer)}`,
+      );
+    }
+  });
+
+  it('der Katalog selbst nennt weiterhin Namen (Positiv-Kontrolle)', () => {
+    // Ohne diese Gegenprobe liefe der Guard auch dann gruen, wenn das Muster
+    // nicht mehr greift — gruen hiesse dann „nicht geprueft", nicht „in Ordnung".
+    const katalog = ALL_TS_FILES.find(f => f.endsWith(KATALOG));
+    expect(katalog, 'modell-katalog.ts nicht gefunden — Guard hat seinen Griff verloren').toBeTruthy();
+    expect(MODELLNAME.test(readFileSync(katalog!, 'utf-8'))).toBe(true);
+  });
+});

@@ -12,7 +12,7 @@
  */
 import type { SkillRunInput, SkillTweak, SkillModifierKey } from '@/core/services/skills';
 import type { ThinkingBudget } from '@/core/services/ai/llm-thinking';
-import type { BridgeZiel } from '@/core/services/ai/transports/streamlit';
+import type { KiRolle } from '@/core/services/ai/modell-katalog';
 import { buildStammdaten } from './skill-context';
 import type { KurzfassungContext } from '../kurzfassung/types';
 
@@ -29,7 +29,7 @@ export interface SkillEingabeArgs {
   /** Zeichen-Cap aus dem Kontextfenster des ZIELS (nicht des Stores). */
   vbCharCap: number;
   thinkingBudget: ThinkingBudget;
-  ziel: BridgeZiel;
+  ziel: KiRolle;
   /** Sampling-Temperatur; fehlt sie, setzt `runSkill` den sicheren Standard. */
   temperatur?: number;
   /** Fertiger `{{vorherigeAbschnitte}}`-Block (nie leer — siehe context-provider). */

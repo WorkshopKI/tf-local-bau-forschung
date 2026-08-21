@@ -32,39 +32,70 @@ Der SSE-Strom braucht **keinen** Sitzungs-Header — eine `EventSource` kann kei
 | Registry | [bridge.ts](../../src/core/services/ai/bridge.ts) | `AIBridge` — die Bridge ist der Default-Transport; `switchProvider` aktualisiert die URL per `updateUrl()` (kein Listener-Leak) |
 | Installer-UI | [VerbindungGruppe.tsx](../../src/plugins/einstellungen/ki/VerbindungGruppe.tsx) | URL konfigurieren, Lesezeichen ziehen/kopieren, Tab öffnen, Verbindung testen, **veraltetes Lesezeichen melden** |
 | Bookmarklet | [bridge-snippet.source.js](../../src/core/services/ai/streamlit-bridge/bridge-snippet.source.js) + [snippet.ts](../../src/core/services/ai/streamlit-bridge/snippet.ts) | Snippet (Single Source of Truth), via `?raw` zur Build-Zeit ins Bundle inlined (kein Runtime-`fetch`, `file://`-tauglich) |
-| Modell-Erkennung | [modell-erkennung.ts](../../src/core/services/ai/streamlit-bridge/modell-erkennung.ts) | Options-Text → Modell, Chatlängen-Anzeige → Tokens; im Snippet gespiegelt |
+| Modell-Katalog | [modell-katalog.ts](../../src/core/services/ai/modell-katalog.ts) | **Die einzige Stelle, die Modelle beim Namen nennt** — Muster, Rolle, Rückfall-Fenster; Auflösung Rolle → Modell |
+| Angebot + gelernte Fenster | [bridge-modelle.ts](../../src/core/services/ai/bridge-modelle.ts) | Was die KI-Seite anbietet, was wir an ihr abgelesen haben; `modellLabel(rolle)` |
 | Tab-Titel | [tab-titel.ts](../../src/core/services/ai/streamlit-bridge/tab-titel.ts) | Statusformat für `document.title` des KI-Tabs; im Snippet gespiegelt |
 
 ## Protokoll (postMessage)
 
 ```
 App  → KI-Tab:  { type: 'tf-ping' }
-KI-Tab → App:   { type: 'tf-pong', rev }
+KI-Tab → App:   { type: 'tf-pong', rev, modelle, kontextText }
 
-App  → KI-Tab:  { type: 'tf-request', id, message, ziel? }
+App  → KI-Tab:  { type: 'tf-request', id, message, modell? }
 KI-Tab → App:   { type: 'tf-progress', id }                (Heartbeat ~10 s, solange der Lauf lebt)
 KI-Tab → App:   { type: 'tf-stream', id, content }         (Voll-Snapshots des Antwort-Markdowns)
-KI-Tab → App:   { type: 'tf-response', id, result,
-                  reasoning?, modell?, kontextTokens?, kontextVoll? }
+KI-Tab → App:   { type: 'tf-response', id, result, reasoning?,
+                  modell?, modelle?, kontextText?, kontextVoll?, fehlschlag? }
 
-App  → KI-Tab:  { type: 'tf-reset', id, ziel? }
-KI-Tab → App:   { type: 'tf-reset-done', id, found }
+App  → KI-Tab:  { type: 'tf-reset', id, modell? }
+KI-Tab → App:   { type: 'tf-reset-done', id, found, modelle }
 
-KI-Tab → App:   { type: 'tf-bridge-ready', rev }           (Announce beim Aktivieren)
-KI-Tab → App:   { type: 'tf-app-ping' }  → App: { type: 'tf-app-pong' }   (Gegenrichtungs-Test)
+KI-Tab → App:   { type: 'tf-bridge-ready', rev, modelle, kontextText }   (Announce beim Aktivieren)
+KI-Tab → App:   { type: 'tf-app-ping' }  → App: { type: 'tf-app-pong' }  (Gegenrichtungs-Test)
 ```
 
-`ziel` wählt das **Modell**: `'gpt-oss'` | `'qwen35'`. `'standard'` gilt als Alt-Alias für `'gpt-oss'` (ältere App-Builds). **`'agentisch'` ist nicht angebunden** — der agentische Chat ist eine eigene Route der Seite und bringt eigenen Kontext mit; den liefert diese App bewusst selbst. Ohne `ziel` wird das Modell nicht angefasst, aber im `tf-response` gemeldet.
+`modell` ist der **sichtbare Optionstext** der Auswahlliste, keine Kennung. `modelle` ist diese Liste (`{ text, value, aktiv }`). Ohne `modell` fasst das Snippet die Auswahl nicht an, meldet aber im `tf-response`, welches Modell tatsächlich lief.
 
-### Eine Achse, nicht zwei
+**Bewusst der Text und kein Index**: eine Liste kann sich zwischen dem Melden und dem Auftrag geändert haben, und ein verschobener Index wählt dann still das falsche Modell. Ein Text, den es nicht mehr gibt, ist dagegen ein sauberer Fehlschlag — und der ist hier richtig, weil die App ihre Nutzlast bereits auf das Fenster *dieses* Modells zugeschnitten hat.
 
-`BridgeZiel` war bis v5.0 `'standard' | 'agentisch'` und wählte einen **Tab**. Seit v5.1 wählt dieselbe Achse das **Modell** (`'gpt-oss' | 'qwen35'`) — kein zweites Feld daneben. Der agentische Chat ist Qwen3.6 *plus fest eingebautem Kontext*; fällt der Kontext weg, bleibt genau `'qwen35'` übrig. Deshalb steht überall dort, wo im Code „das andere, größere Modell" gemeint war — Zweitmeinung ([zweitfassung.ts](../../src/plugins/antraege/gutachten/zweitfassung.ts)), Kontext-Notausfahrt, Eval-A/B —, jetzt `'qwen35'`.
+## Rolle statt Modell — und warum
 
-Die Read-Time-Migration in [ki-ziel.ts](../../src/core/services/ai/ki-ziel.ts) bildet `'agentisch'` deshalb auf `'qwen35'` ab, **nicht** auf `'gpt-oss'`: wer den agentischen Chat gewählt hatte, wollte das große Fenster und behält es. Auf das kleine zurückzusetzen wäre eine stille Verkleinerung.
+Die Achse hieß bis v5.0 `'standard' | 'agentisch'` (ein **Tab**), in v5.x `'gpt-oss' | 'qwen35'` (ein **Modell**). Seit v6.0 ist sie eine **Rolle**: `KiRolle = 'standard' | 'stark'`.
+
+Der Grund ist ein Betriebsrisiko, kein Geschmack. Die interne KI wird von Kollegen betrieben und tauscht ihre Modelle nach ihrem eigenen Fahrplan. Solange der Modellname an ~50 Codestellen hing, war jeder ihrer Wechsel ein **Ausfall bei uns**: die Options-Regel fand nichts mehr, `ensureModell` meldete „steht nicht zur Wahl", und weil der Auto-Wechsel bei jedem großen Dokument genau dieses Modell ansteuert, hörte ausgerechnet die Arbeit mit großen Anträgen auf zu funktionieren — an einem Tag, den wir nicht bestimmen, mitten in einer Aufbereitung.
+
+Fast keine Stelle im Code meint wirklich ein Modell. `FEEDBACK_ZIEL`, `EIN_SCHUSS_ZIEL`, `AUFBEREITUNG_ZIEL`, `ABLEITUNG_ZIEL` meinen „klein und billig"; [ziel-fallback.ts](../../src/core/services/ai/ziel-fallback.ts) meint „das verlässliche nach einem Fehlschlag"; der Auto-Wechsel meint „das weiteste Fenster"; die Zweitmeinung meint „ein *anderes* als eben". Das sind Rollen.
+
+| Rolle | meint | löst sich auf zu |
+|---|---|---|
+| `standard` | bodenständig: normales Fenster, schnell, für die grundlegenden Aufgaben gut genug | Katalogmodell dieser Rolle, sonst die **Voreinstellung der KI-Seite** |
+| `stark` | weites Kontextfenster **und** agentische Fähigkeiten — bewusst offen für Eigenschaften, die heute noch nicht feststehen | Katalogmodell dieser Rolle, sonst das **weiteste bekannte Fenster** |
+
+Beide Auflösungen hängen an **beobachtbaren** Eigenschaften. Fällt der Katalog aus der Zeit, lösen sie weiter richtig auf.
+
+### Drei Schichten, absteigende Autorität
+
+1. **Die KI-Seite** — was sie anbietet und was ihre Chatlängen-Anzeige sagt. Die Bridge meldet beides, [bridge-modelle.ts](../../src/core/services/ai/bridge-modelle.ts) hält es (localStorage, damit die App auch ohne Verbindung Auskunft geben kann).
+2. **Der Katalog** — Rolle und Rückfall-Fenster. **Ein neues Modell = eine Zeile.** Kein Typwechsel, keine Migration, **kein neues Lesezeichen**.
+3. **Nichts** — ein unbekanntes Modell bleibt unbekannt. Es wird nicht geraten: ein zu groß angesetztes Fenster fällt niemandem auf, weil das Modell dann still den Anfang des Prompts wegschiebt.
+
+### Wenn die interne KI ihre Modelle tauscht
+
+- **Neues Modell, Katalog kennt es nicht** → die App arbeitet weiter. Sein Fenster wird beim ersten Lauf **abgelesen und unter seinem Namen gemerkt**; ab dann kann es die Rolle `stark` tragen, ohne dass jemand den Katalog anfasst.
+- **Ohne gemessenes Fenster** wird ein unbekanntes Modell **nicht** zur starken Rolle erhoben — es könnte 8k haben, und ein auf 250k zugeschnittener Lauf liefe still über.
+- **Sichtbar statt still**: die Modell-Auswahl nennt unter den Kacheln, was die interne KI anbietet und diese App noch nicht einordnen kann. Bis v5 fiel ein Modellwechsel erst auf, wenn ein Lauf scheiterte.
+- **Multimodale Modelle sind gesperrt** — nicht weil sie schlecht wären (Qwen3-VL kann OCR in 32 Sprachen), sondern weil die Bridge ausschließlich Text überträgt *und* das Fenster mit 62k das kleine ist. Eine Eskalation dorthin liefe genau in das Fenster, dem sie entkommen soll. Das Muster ist generisch: jedes künftige multimodale Modell fällt ebenfalls heraus.
+
+Die Read-Time-Migration in [ki-ziel.ts](../../src/core/services/ai/ki-ziel.ts) fängt **beide** Alt-Generationen: `'standard'`/`'gpt-oss'` → `'standard'`, `'agentisch'`/`'qwen35'` → `'stark'`. Der agentische Chat war Qwen3.6 *plus fest eingebautem Kontext*; wer ihn gewählt hatte, wollte das große Fenster und behält es.
+
+**Guard** `modellname-nur-im-katalog` ([conventions-daten.test.ts](../../src/__tests__/conventions-daten.test.ts)): ein Modellname der internen KI außerhalb von `modell-katalog.ts` bricht das Gate. Anzeige geht über `modellLabel(rolle)`, Auswahl über die Rolle. Ausgenommen sind OpenRouter-Modell-Ids — dort **ist** die Id der Wert.
 
 ### Auto-Wechsel nach Umfang
 
-Passt ein Lauf nicht in das gewählte Fenster, hebt ihn [modell-wahl.ts](../../src/core/services/ai/modell-wahl.ts) auf das größere Modell. **Nur aufwärts, nie abwärts** — die Wahl des Bearbeiters ist eine Untergrenze, keine Schätzung, die wir korrigieren dürften.
+Passt ein Lauf nicht in das gewählte Fenster, hebt ihn [modell-wahl.ts](../../src/core/services/ai/modell-wahl.ts) auf die Rolle mit dem größeren Fenster. **Nur aufwärts, nie abwärts** — die Wahl des Bearbeiters ist eine Untergrenze, keine Schätzung, die wir korrigieren dürften. Seit `stark` mehr meint als nur ein weites Fenster (agentische Fähigkeiten), wäre „passt ja auch klein" ohnehin die falsche Frage.
+
+Der Auto-Wechsel misst **ausschließlich das Fenster** — die Rolle ist die Präferenz des Bearbeiters, die Eskalation eine mechanische Übersteuerung. Deshalb trägt der Katalog beide Eigenschaften getrennt: käme ein Modell mit weitem Fenster, aber ohne die Stärke, dürfte die Eskalation es nehmen, die Rolle `stark` aber nicht.
 
 Damit dreht sich eine Reihenfolge um: bis v5.0 war Kürzen der erste Reflex (`capVbMarkdown` schnitt auf den Cap des *gewählten* Modells, das größere Fenster daneben blieb ungenutzt). Jetzt wird erst das Modell gewählt und der Cap daraus abgeleitet; gekürzt wird nur noch, wenn auch das größte Fenster nicht reicht.
 
@@ -100,6 +131,10 @@ Echo-Erkennung, Antwort-Auswahl im Nachrichten-Roster, `isRunning()`-Polling, da
 `BRIDGE_REV` markiert die Snippet-Version; das Snippet meldet sie in `tf-pong` und `tf-bridge-ready`, die App hält sie in [bridge-status.ts](../../src/core/services/ai/bridge-status.ts) und vergleicht per `istBookmarkletVeraltet` gegen die aus dem Snippet gelesene eigene Revision (kein zweiter Konstanten-Ort).
 
 Bis zum Umbau war ein altes Snippet **harmlos**: es ignorierte unbekannte Felder und lief sonst weiter. Das gilt nicht mehr. Ein Snippet ohne Modellsteuerung antwortet aus einem anderen Modell mit einem anderen Kontextfenster, als die App annimmt — ohne jedes Anzeichen. Deshalb meldet die Verbindungs-Gruppe ein veraltetes Lesezeichen sichtbar. `rev === null` heißt „noch kein Handschlag" und schweigt; ein **leerer** String ist dagegen eine Aussage (gemeldet, aber ohne Revision → Fassung von vor dem Umbau).
+
+`BRIDGE_VERSION` ist die Kurzform davon und steht im **Lesezeichen-Namen** (`interne-KI v2`) — das Einzige, was der Nutzer ohne Klick sieht. Beide Marker werden zusammen hochgezählt; der Guard prüft nur, dass sie lesbar sind und der Name in die Lesezeichenleiste passt (ob jemand beide Zeilen angefasst hat, steht nirgends im Code).
+
+**Wann eine neue Version nötig ist** — und wann nicht: das Snippet kennt seit v6.0 keine Modellnamen mehr. Ein Modellwechsel der internen KI kostet deshalb **keine** Neuinstallation, nur einen Build. Neu ziehen muss das Team nur, wenn sich das **Protokoll** ändert.
 
 ## Invarianten
 

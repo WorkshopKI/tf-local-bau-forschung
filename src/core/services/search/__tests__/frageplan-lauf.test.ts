@@ -80,8 +80,8 @@ describe('ermittleFrageplan — der glückliche Fall', () => {
   it('pinnt BEIDE Aufrufe auf gpt-oss', async () => {
     // `undefined` hiesse an der Bridge „aktiver Tab" — womöglich der agentische.
     await ermittleFrageplan(baueBridge(baueTransport(GUELTIG)), 'Normung?', 2026);
-    expect(resetZiel).toBe('gpt-oss');
-    expect((submitArgs[2] as { ziel?: string }).ziel).toBe('gpt-oss');
+    expect(resetZiel).toBe('standard');
+    expect((submitArgs[2] as { ziel?: string }).ziel).toBe('standard');
   });
 
   it('inlined den System-Prompt in die Message und reicht ihn zusätzlich durch', async () => {

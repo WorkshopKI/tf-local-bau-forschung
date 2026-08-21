@@ -16,7 +16,7 @@
  * bezieht hier reale Anträge. Generator = interner Bridge-Standard (gpt-oss);
  * Judge-Transport wird injiziert (intern-agentisch/Qwen ODER — nur dev, hinter
  * `isOpenRouterEnabled()` — OpenRouter). Der interne Judge-Adapter
- * (`makeAgentischerJudgeTransport`) hält die Engine unangetastet.
+ * (`makeStarkerJudgeTransport`) hält die Engine unangetastet.
  *
  * Generierung + Map + Judge laufen SEQUENZIELL: der interne Streamlit-Bridge-
  * Transport spricht EIN Fenster per postMessage an — parallele Submits würden
@@ -142,20 +142,22 @@ export class GenTransportUnreachableError extends Error {
  * Adapter: interner Bridge-Transport als **agentischer (Qwen) Judge**. Hält die
  * Engine (`runJudge` / `parseJudgeResult`) unangetastet — je Submit:
  *  1. frischer Chat (Pitfall #36, best-effort),
- *  2. `ziel: 'qwen35'` (Qwen3.6),
+ *  2. `ziel: 'stark'` (Qwen3.6),
  *  3. Reasoning-Anteil (`<think>…`) vor der Rückgabe abgestreift — Qwen streamt
  *     Thinking inline; `extractThinking` ist idempotent, wenn keins da ist.
  * Der DSGVO-Schutz liegt beim Caller (`bridge.getTransportForAssistent()` wirft
  * bei externem Provider).
  */
-export function makeAgentischerJudgeTransport(inner: AITransport): AITransport {
+export function makeStarkerJudgeTransport(inner: AITransport): AITransport {
   return {
     name: inner.name,
-    displayName: `${inner.displayName ?? inner.name} · qwen35`,
+    // Der Name der ROLLE, nicht des Modells: welches Modell sie trägt, entscheidet
+    // die Auswahlliste der internen KI und kann sich zwischen zwei Läufen ändern.
+    displayName: `${inner.displayName ?? inner.name} · stark`,
     ping: (opts) => inner.ping(opts),
     async submitMessage(message, systemPrompt, options) {
-      await starteFrischenChat(inner, 'qwen35');
-      const raw = await inner.submitMessage(message, systemPrompt, { ...options, ziel: 'qwen35' });
+      await starteFrischenChat(inner, 'stark');
+      const raw = await inner.submitMessage(message, systemPrompt, { ...options, ziel: 'stark' });
       return extractThinking(raw).content;
     },
   };

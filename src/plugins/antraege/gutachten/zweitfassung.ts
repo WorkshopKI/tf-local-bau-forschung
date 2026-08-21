@@ -13,13 +13,13 @@
  *
  * Rein — kein Store, kein Transport.
  */
-import type { BridgeZiel } from '@/core/services/ai/transports/streamlit';
+import type { KiRolle } from '@/core/services/ai/modell-katalog';
 import { TEMPERATUR_ZWEITFASSUNG, type FassungMarker } from '@/core/services/ai/sampling';
 import { ZIEL_LABEL } from './kontextWarnung';
 
 export type ZweitfassungArt =
   /** Bridge: derselbe Prompt an den jeweils ANDEREN Tab. */
-  | { art: 'ki'; ziel: BridgeZiel; label: string }
+  | { art: 'ki'; ziel: KiRolle; label: string }
   /** Direkt angebundene KI: dasselbe Modell, andere Sampling-Einstellung. */
   | { art: 'temperatur'; temperatur: number; label: string };
 
@@ -27,12 +27,12 @@ export type ZweitfassungArt =
  * `label` ist die Dativ-Ergänzung zu „Zweitfassung mit …" — im selben Kasus wie
  * die Fenster-Angabe der Kontext-Warnung, damit beide Texte gleich klingen.
  */
-export function bestimmeZweitfassung(bridgeAktiv: boolean, kiZiel: BridgeZiel): ZweitfassungArt {
+export function bestimmeZweitfassung(bridgeAktiv: boolean, kiZiel: KiRolle): ZweitfassungArt {
   if (!bridgeAktiv) {
     return { art: 'temperatur', temperatur: TEMPERATUR_ZWEITFASSUNG, label: 'anderer Einstellung' };
   }
-  const andere: BridgeZiel = kiZiel === 'qwen35' ? 'gpt-oss' : 'qwen35';
-  return { art: 'ki', ziel: andere, label: ZIEL_LABEL[andere] };
+  const andere: KiRolle = kiZiel === 'stark' ? 'standard' : 'stark';
+  return { art: 'ki', ziel: andere, label: ZIEL_LABEL(andere) };
 }
 
 /**

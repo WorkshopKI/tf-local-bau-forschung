@@ -8,7 +8,8 @@
  * dokument-tragende Einzel-Skill-Lauf ruft dies VOR dem Submit (Pitfall #36);
  * mehrturnige Chat-Nutzung (Such-Chat-Panel) ist ausgenommen.
  */
-import type { AITransport, BridgeZiel } from './transports/streamlit';
+import type { AITransport } from './transports/streamlit';
+import type { KiRolle } from './modell-katalog';
 
 /** Status eines Chat-Resets. `'ok'`/`'nicht-unterstuetzt'` = unkritisch;
  *  `'nicht-gefunden'`/`'timeout'` = Reset nicht bestätigt → das Ergebnis kann
@@ -22,7 +23,7 @@ export type ChatResetStatus = 'ok' | 'nicht-gefunden' | 'timeout' | 'nicht-unter
  * kein `ziel` → aktiver/gpt-oss; nur die dev-Aufbereitungs-Eval reicht optional
  * `'agentisch'` durch, um den Qwen3.6 zu A/B-testen).
  */
-export async function starteFrischenChat(transport: AITransport, ziel?: BridgeZiel): Promise<ChatResetStatus> {
+export async function starteFrischenChat(transport: AITransport, ziel?: KiRolle): Promise<ChatResetStatus> {
   if (typeof transport.resetChat !== 'function') return 'nicht-unterstuetzt';
   try {
     return await transport.resetChat(ziel);

@@ -391,10 +391,10 @@ describe('Reihenfolge als Datenparameter (Seed-Def == STEP_ORDER, aber Order ste
  * der ALTE Stempel — der Schritt wird fortgeschrieben, nicht ersetzt.
  */
 describe('applyLaufZiel', () => {
-  const mitZiel = applyLaufZiel(applyGeneration(emptyRun('AZ', NOW), 'A', gen('Text'), NOW), 'A', 'qwen35', NOW);
+  const mitZiel = applyLaufZiel(applyGeneration(emptyRun('AZ', NOW), 'A', gen('Text'), NOW), 'A', 'stark', NOW);
 
   it('hält fest, welche interne KI den Text erzeugt hat', () => {
-    expect(mitZiel.schritte.A?.ziel).toBe('qwen35');
+    expect(mitZiel.schritte.A?.ziel).toBe('stark');
   });
 
   it('entfernt den Stempel, wenn das Ziel auf diesem Transport nicht wirkt', () => {

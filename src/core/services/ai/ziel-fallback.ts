@@ -1,14 +1,18 @@
 /**
- * Transport-Fallback „Qwen3.6-35B → gpt-oss-120b" für einen einzelnen Lauf.
+ * Transport-Fallback „stark → standard" für einen einzelnen Lauf.
  *
- * Die globale Modell-Präferenz (`ki-ziel.ts`) kann Läufe auf Qwen3.6-35B routen.
- * Ist das Modell nicht erreichbar oder liefert es
- * Unbrauchbares, soll der Lauf NICHT hart scheitern — gpt-oss-120b übernimmt
- * still, der Aufrufer erfährt es über `zielFallback` und meldet es dezent (Info,
- * kein Fehlerbanner).
+ * Die globale Modell-Präferenz (`ki-ziel.ts`) kann Läufe auf die Rolle `stark`
+ * routen. Ist deren Modell nicht erreichbar oder liefert es Unbrauchbares, soll
+ * der Lauf NICHT hart scheitern — das Standard-Modell übernimmt still, der
+ * Aufrufer erfährt es über `zielFallback` und meldet es dezent (Info, kein
+ * Fehlerbanner).
+ *
+ * Rollen statt Modellnamen: welches Modell hinter `stark` steht, entscheidet die
+ * Auswahlliste der internen KI ([modell-katalog.ts](./modell-katalog.ts)) — ein
+ * Name in diesem Kommentar wäre beim nächsten Modellwechsel falsch.
  *
  * Bewusst eng geschnitten:
- *  - GENAU EIN Retry, immer qwen35 → gpt-oss, nie umgekehrt, nie mehrfach.
+ *  - GENAU EIN Retry, immer stark → standard, nie umgekehrt, nie mehrfach.
  *  - KEIN Retry bei Nutzer-Abbruch (`AbortSignal` / `AbortError`) — ein Stopp ist
  *    kein Ausfall.
  *  - KEIN Retry, wenn `ziel` beim aktiven Transport gar nicht wirkt: `ziel` wählt
@@ -19,7 +23,7 @@
  * in den Runnern), damit Aufrufer nichts durchreichen müssen.
  */
 import { aktivesZielFuerLauf } from './ki-ziel';
-import type { BridgeZiel } from './transports/streamlit';
+import type { KiRolle } from './modell-katalog';
 
 export interface ZielFallbackOptions<R> {
   /**
@@ -46,20 +50,20 @@ export interface ZielFallbackOptions<R> {
    * ist das eine Auskunft („die andere KI liefert gerade nicht") und kein Anlass,
    * dieselbe Antwort ein zweites Mal zu erzeugen.
    */
-  zielOverride?: BridgeZiel;
+  zielOverride?: KiRolle;
 }
 
 export interface ZielFallbackErgebnis<R> {
   result: R;
-  /** True ⇔ der erste Versuch (Qwen3.6) scheiterte und gpt-oss übernahm. */
+  /** True ⇔ der Versuch auf `stark` scheiterte und `standard` übernahm. */
   zielFallback: boolean;
   /**
    * Die KI, die `result` TATSÄCHLICH erzeugt hat — nach einem Fallback also
-   * `'gpt-oss'`, nicht die Präferenz aus dem Store. Aufrufer, die das Ziel am
+   * `'standard'`, nicht die Präferenz aus dem Store. Aufrufer, die das Ziel am
    * Ergebnis festhalten oder den Kontext-Cap dagegen rechnen, müssen diesen Wert
    * nehmen und nicht erneut `aktivesZielFuerLauf()` lesen.
    */
-  ziel: BridgeZiel;
+  ziel: KiRolle;
 }
 
 /**
@@ -77,7 +81,7 @@ function istAbbruch(err: unknown): boolean {
 
 /**
  * Führt `lauf` mit der aktiven Ziel-Präferenz aus und wiederholt ihn GENAU EINMAL
- * auf `'gpt-oss'`, wenn der Qwen3.6-Versuch wirft oder ein unbrauchbares
+ * auf `'standard'`, wenn der Versuch auf `'stark'` wirft oder ein unbrauchbares
  * Ergebnis liefert. Jeder Versuch ist ein eigener `runSkill`-Aufruf — der Chat-Reset
  * (Pitfall #36) greift damit pro Versuch.
  *
@@ -88,16 +92,16 @@ function istAbbruch(err: unknown): boolean {
  * Wirft der Retry, propagiert der Fehler unverändert.
  */
 export async function mitZielFallback<R>(
-  lauf: (ziel: BridgeZiel) => Promise<R>,
+  lauf: (ziel: KiRolle) => Promise<R>,
   opts: ZielFallbackOptions<R>,
 ): Promise<ZielFallbackErgebnis<R>> {
   const ziel = opts.zielOverride ?? aktivesZielFuerLauf();
   // Ein erzwungenes Ziel schließt den Fallback aus (siehe `zielOverride`).
-  const retryMoeglich = !opts.zielOverride && ziel === 'qwen35' && opts.zielWirkt;
+  const retryMoeglich = !opts.zielOverride && ziel === 'stark' && opts.zielWirkt;
 
   const retry = async (): Promise<ZielFallbackErgebnis<R>> => {
     opts.vorRetry?.();
-    return { result: await lauf('gpt-oss'), zielFallback: true, ziel: 'gpt-oss' };
+    return { result: await lauf('standard'), zielFallback: true, ziel: 'standard' };
   };
 
   let ergebnis: R;

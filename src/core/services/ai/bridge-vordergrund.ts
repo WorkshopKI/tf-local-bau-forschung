@@ -12,9 +12,9 @@
  * Transport-Methoden werden nur gewrappt, wenn sie existieren (Feature-Detection
  * der Aufrufer bleibt intakt).
  */
+import type { KiRolle } from './modell-katalog';
 import type {
   AITransport,
-  BridgeZiel,
   ConversationMessage,
   ConversationOptions,
   PingOptions,
@@ -60,7 +60,7 @@ export function wickleVordergrundLease(transport: AITransport, hooks: Vordergrun
   };
   if (transport.resetChat) {
     const reset = transport.resetChat.bind(transport);
-    wrapped.resetChat = (ziel?: BridgeZiel) => mitLease(hooks, () => reset(ziel));
+    wrapped.resetChat = (ziel?: KiRolle) => mitLease(hooks, () => reset(ziel));
   }
   if (transport.submitConversation) {
     const conv = transport.submitConversation.bind(transport);

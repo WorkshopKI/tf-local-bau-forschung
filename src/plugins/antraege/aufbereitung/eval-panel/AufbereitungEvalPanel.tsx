@@ -16,6 +16,7 @@
  * starkes Referenz-Modell trennt Code-/Prompt-Fehler von gpt-oss-Limitationen.
  * Läufe strikt sequentiell (die Bridge ist ein einzelnes postMessage-Fenster).
  */
+import { modellLabel } from '@/core/services/ai/bridge-modelle';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { FlaskConical, ChevronDown, ChevronRight, Copy, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -46,7 +47,8 @@ import {
 } from '@/core/services/skill-eval/eval-batch';
 import { DirectLLMTransport } from '@/core/services/ai/transports/direct-llm';
 import { isOpenRouterEnabled } from '@/config/feature-flags';
-import type { AITransport, BridgeZiel } from '@/core/services/ai/transports/streamlit';
+import type { AITransport } from '@/core/services/ai/transports/streamlit';
+import type { KiRolle } from '@/core/services/ai/modell-katalog';
 import { SettingsSectionHeader } from '@/plugins/einstellungen/_shared/settings-primitives';
 import {
   runAufbereitungEval, STECKBRIEF_FELDER, WIEDERHOLUNGEN_MAX, gemesseneFixtures,
@@ -60,7 +62,7 @@ type VerlaufStatus = 'pending' | 'running' | 'ok' | 'degradiert' | 'fehler' | 'f
 
 /** Generierungs-Transport des Eval-Laufs: intern (Standard-Chat gpt-oss), intern-agentisch
  *  (Qwen3.6, Zweit-LLM-A/B) oder OpenRouter (extern — nur fiktive Fixtures, dev-only). */
-type TransportModus = 'intern' | 'qwen35' | 'openrouter';
+type TransportModus = 'intern' | 'stark' | 'openrouter';
 
 interface VerlaufZeile {
   vbFile: string;
@@ -242,7 +244,7 @@ export function AufbereitungEvalPanel(): React.ReactElement {
       throw new Error(`Fixtures nicht verfügbar (nur dev): ${e instanceof Error ? e.message : String(e)}`);
     }
     let transport: AITransport;
-    let ziel: BridgeZiel | undefined;
+    let ziel: KiRolle | undefined;
     let modell: string | undefined;
     if (transportModus === 'openrouter') {
       // Externer Pfad NUR für gebrandete (= fiktive) Fixtures: Assert auf dem
@@ -261,7 +263,7 @@ export function AufbereitungEvalPanel(): React.ReactElement {
     } else {
       // Policy-Pfad: wirft bei externem Provider (dann kein Lauf, Banner unten).
       transport = bridge.getTransportForSkillRun(aspekteSkill);
-      ziel = transportModus === 'qwen35' ? 'qwen35' : undefined;
+      ziel = transportModus === 'stark' ? 'stark' : undefined;
     }
     const grenze = Math.max(1, Math.min(anzahl, maxAnzahl));
     const ctrl = new AbortController();
@@ -397,7 +399,7 @@ export function AufbereitungEvalPanel(): React.ReactElement {
               </label>
               <label
                 className="flex items-center gap-2 text-[12px] text-[var(--tf-text-secondary)]"
-                title="Generierungs-Transport: gpt-oss-120b (62k) · Qwen3.6-35B (259k) — beide brauchen den offenen KI-Tab mit aktivem Lesezeichen · OpenRouter = externes Referenz-Modell (nur fiktive Fixtures, dev-only) — trennt Code-/Prompt-Fehler von Modell-Limitationen."
+                title="Generierungs-Transport: die beiden Modelle der internen KI (Standard und Stark) — brauchen den offenen KI-Tab mit aktivem Lesezeichen · OpenRouter = externes Referenz-Modell (nur fiktive Fixtures, dev-only) — trennt Code-/Prompt-Fehler von Modell-Limitationen."
               >
                 Transport
                 <select
@@ -407,8 +409,8 @@ export function AufbereitungEvalPanel(): React.ReactElement {
                   className="px-2 py-1 text-[12px] bg-transparent text-[var(--tf-text)] rounded-[var(--tf-radius)] outline-none focus:border-[var(--tf-primary)]"
                   style={{ border: '0.5px solid var(--tf-border)' }}
                 >
-                  <option value="intern">Intern (gpt-oss-120b)</option>
-                  <option value="agentisch">Intern (Qwen3.6-35B)</option>
+                  <option value="intern">Intern ({modellLabel('standard')})</option>
+                  <option value="agentisch">Intern ({modellLabel('stark')})</option>
                   {openRouterVerfuegbar && <option value="openrouter">OpenRouter (extern)</option>}
                 </select>
               </label>

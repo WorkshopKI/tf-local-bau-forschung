@@ -7,7 +7,8 @@
  * Import aus den SPEZIFISCHEN Submodulen (nicht dem Barrel), damit die CLI unter
  * vite-node in Node läuft (kein recorder/trigger/bridge im Graph).
  */
-import type { AITransport, BridgeZiel } from '@/core/services/ai/transports/streamlit';
+import type { AITransport } from '@/core/services/ai/transports/streamlit';
+import type { KiRolle } from '@/core/services/ai/modell-katalog';
 import { starteFrischenChat } from '@/core/services/ai/chat-reset';
 import { baueEingabe } from '@/core/services/assistent/gedaechtnis/eingabe';
 import { buildKonsolidierungsPrompt } from '@/core/services/assistent/gedaechtnis/prompt';
@@ -29,7 +30,7 @@ export interface FixtureLaufErgebnis {
  *  Submit geprüft. Ohne opts (CLI-Pfad, stateless NodeOpenAITransport)
  *  byte-identisch zum bisherigen Verhalten (kein Reset, kein ziel, kein signal). */
 export interface LaufeFixtureOptionen {
-  ziel?: BridgeZiel;
+  ziel?: KiRolle;
   resetVorZyklus?: boolean;
   signal?: AbortSignal;
 }
@@ -67,7 +68,7 @@ export async function laufeFixture(
       // resetChat VOR dem Submit (Pitfall #36) — nur wenn das Panel es anfordert;
       // No-op auf stateless-Transports (NodeOpenAITransport → 'nicht-unterstuetzt').
       if (opts?.resetVorZyklus) await starteFrischenChat(transport, opts.ziel);
-      const subOpts: { ziel?: BridgeZiel; signal?: AbortSignal } = {};
+      const subOpts: { ziel?: KiRolle; signal?: AbortSignal } = {};
       if (opts?.ziel) subOpts.ziel = opts.ziel;
       if (opts?.signal) subOpts.signal = opts.signal;
       let raw: string;

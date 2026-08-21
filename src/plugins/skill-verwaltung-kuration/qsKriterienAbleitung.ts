@@ -22,14 +22,15 @@
  * — er wird deshalb in die Message inlined und bleibt zusätzlich als 2. Argument
  * (DirectLLM nutzt ihn als System-Rolle).
  */
-import type { AITransport, BridgeZiel } from '@/core/services/ai/transports/streamlit';
+import type { AITransport } from '@/core/services/ai/transports/streamlit';
+import type { KiRolle } from '@/core/services/ai/modell-katalog';
 import { starteFrischenChat } from '@/core/services/ai/chat-reset';
 
 /** Interner Logik-Name des Bridge-Transports (Capability-/Domain-Gate). */
 const INTERNE_KI = 'Streamlit';
 
 /** Ziel-Tab für die Ableitung — siehe Invariante 2. */
-const ABLEITUNG_ZIEL: BridgeZiel = 'gpt-oss';
+const ABLEITUNG_ZIEL: KiRolle = 'standard';
 
 /** Obergrenze der übernommenen Vorschläge (der Editor bleibt überschaubar). */
 export const MAX_VORSCHLAEGE = 8;

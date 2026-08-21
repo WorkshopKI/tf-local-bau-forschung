@@ -51,6 +51,6 @@ describe('Bookmarklet-Versionsmarker (Vertrag .js ↔ snippet.ts)', () => {
   });
 
   it('die Revision meldet sich im tf-pong (sonst kann die App nichts vergleichen)', () => {
-    expect(SRC).toContain("{ type: 'tf-pong', rev: BRIDGE_REV }");
+    expect(SRC).toContain("type: 'tf-pong', rev: BRIDGE_REV");
   });
 });

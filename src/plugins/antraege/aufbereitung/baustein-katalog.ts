@@ -23,7 +23,8 @@ import {
   AUFBEREITUNG_VERWERTUNG_SKILL, AUFBEREITUNG_VERWERTUNG_SKILL_ID,
   AUFBEREITUNG_RECHERCHE_PROMPT_SKILL, AUFBEREITUNG_RECHERCHE_PROMPT_SKILL_ID,
 } from '@/core/services/skills';
-import type { AITransport, BridgeZiel } from '@/core/services/ai/transports/streamlit';
+import type { AITransport } from '@/core/services/ai/transports/streamlit';
+import type { KiRolle } from '@/core/services/ai/modell-katalog';
 import {
   aspekteCacheKey, glossarCacheKey, steckbriefCacheKey, verwertungCacheKey, zahlenCacheKey,
   type BausteinResult,
@@ -67,7 +68,7 @@ export interface BausteinLaufDeps {
   /** Korpus (VB + narrative Zusatzdokumente) — die Bausteine laufen auf ihm, nicht auf der VB allein. */
   korpus: string;
   bekannteWerte: BekannteStammwerte;
-  opts: { force?: boolean; ziel?: BridgeZiel; ueberStandardCap?: boolean };
+  opts: { force?: boolean; ziel?: KiRolle; ueberStandardCap?: boolean };
 }
 
 export interface BausteinEintrag<K extends AufbereitungBausteinId> {

@@ -1,10 +1,12 @@
 /**
- * Globale Modell-Präferenz für die interne KI: welches Modell ein Lauf ansteuert —
- * `'gpt-oss'` (gpt-oss-120b, 62k Kontext) oder `'qwen35'` (Qwen3.6-35B, 259k).
+ * Globale Modell-Präferenz für die interne KI — als **Rolle**, nicht als Modell:
+ * `'standard'` (das bodenständige) oder `'stark'` (weites Fenster, agentisch).
+ * Welches Modell die Rolle gerade trägt, entscheidet der Katalog gegen die von der
+ * Bridge gemeldete Auswahlliste ([modell-katalog.ts](./modell-katalog.ts)).
  *
- * DEFAULT `'gpt-oss'` — das kleinere, schnellere Modell; es ist auch das, auf dem
- * die interne KI ausgeliefert wird. Wo der Umfang nicht hineinpasst, hebt der
- * Auto-Wechsel den Lauf selbst an ([modell-wahl.ts](./modell-wahl.ts)).
+ * DEFAULT `'standard'` — das, worauf die interne KI ausgeliefert wird. Wo der
+ * Umfang nicht hineinpasst, hebt der Auto-Wechsel den Lauf selbst an
+ * ([modell-wahl.ts](./modell-wahl.ts)).
  *
  * Die Präferenz wird an ALLE Skill-Läufe (Gutachten/Kurzfassung/NF/Aufbereitung)
  * und den Chat durchgereicht (`SkillRunInput.ziel` / `SubmitMessageOptions.ziel`)
@@ -14,37 +16,47 @@
  * simple Präferenzen). Kein Share-/IDB-Write.
  */
 import { create } from 'zustand';
-import type { BridgeZiel } from './transports/streamlit';
+import type { KiRolle } from './modell-katalog';
 import type { KontextZiel } from './llm-context';
 
 const LS_KEY = 'teamflow_ki_ziel';
 
 /**
- * Read-Time-Migration der bis v4 gespeicherten Werte.
+ * Read-Time-Migration **zweier** Generationen gespeicherter Werte.
  *
- * `'standard'` meinte den klassischen Chat — der läuft auf gpt-oss.
- * `'agentisch'` meinte den agentischen Chat, und der ist **Qwen3.6 plus fest
- * eingebautem Kontext**. Diesen Kontext liefert die App bewusst selbst, der
- * agentische Chat ist deshalb nicht mehr angebunden — was von ihm bleibt, ist
- * genau das Modell. Wer ihn gewählt hatte, wollte das große Fenster und behält
- * es; ihn auf gpt-oss zurückzusetzen wäre eine stille Verkleinerung.
+ * Bis v4 stand hier ein TAB (`'standard'` / `'agentisch'`), in v5 ein MODELL
+ * (`'gpt-oss'` / `'qwen35'`), seit v6 eine ROLLE. Alle vier Alt-Werte fallen
+ * eindeutig:
+ *
+ *  - `'standard'` (der klassische Chat) → `'standard'`. Wandert auf sich selbst,
+ *    und zwar zu Recht: der klassische Chat läuft auf dem Modell, das die interne
+ *    KI voreingestellt hat — genau die Bedeutung, die die Rolle jetzt trägt.
+ *  - `'gpt-oss'` → `'standard'`, denn das war dieses Modell.
+ *  - `'agentisch'` → `'stark'`. Der agentische Chat ist Qwen3.6 **plus fest
+ *    eingebautem Kontext**; den Kontext liefert diese App bewusst selbst, also ist
+ *    er nicht angebunden — was von ihm bleibt, ist der Anspruch. Wer ihn gewählt
+ *    hatte, wollte das grosse Fenster und behält es.
+ *  - `'qwen35'` → `'stark'`, denn das war dieses Modell.
+ *
+ * Alles Unbekannte fällt auf `'standard'`: die konservative Richtung, weil ein zu
+ * klein angenommenes Fenster sichtbar kürzt statt still zu überlaufen.
  */
-function migriere(roh: string | null): BridgeZiel {
-  if (roh === 'qwen35' || roh === 'agentisch') return 'qwen35';
-  return 'gpt-oss';
+function migriere(roh: string | null): KiRolle {
+  if (roh === 'stark' || roh === 'agentisch' || roh === 'qwen35') return 'stark';
+  return 'standard';
 }
 
-function ladeInitial(): BridgeZiel {
+function ladeInitial(): KiRolle {
   try {
     return migriere(localStorage.getItem(LS_KEY));
   } catch {
-    return 'gpt-oss';
+    return 'standard';
   }
 }
 
 interface KiZielStore {
-  ziel: BridgeZiel;
-  setZiel: (ziel: BridgeZiel) => void;
+  ziel: KiRolle;
+  setZiel: (ziel: KiRolle) => void;
 }
 
 export const useKiZiel = create<KiZielStore>((set) => ({
@@ -70,7 +82,7 @@ export const useKiZiel = create<KiZielStore>((set) => ({
  * im zuletzt benutzten Tab. Die Ursache ist unverändert — nur heißt sie jetzt
  * Modell statt Tab.
  */
-export function aktivesZielFuerLauf(): BridgeZiel {
+export function aktivesZielFuerLauf(): KiRolle {
   return useKiZiel.getState().ziel;
 }
 
@@ -79,8 +91,8 @@ export function aktivesZielFuerLauf(): BridgeZiel {
  * welche Transportart und welches Modell geht dieser Lauf?
  *
  * Nötig, wo ein Lauf sein Ziel als Parameter trägt statt es aus dem Store zu lesen —
- * etwa der Fallback-Retry oder ein Auto-Wechsel, der auf `'qwen35'` hebt, während
- * der Store noch `'gpt-oss'` sagt. Sonst misst die Cap-Rechnung gegen das falsche
+ * etwa der Fallback-Retry oder ein Auto-Wechsel, der auf `'stark'` hebt, während
+ * der Store noch `'standard'` sagt. Sonst misst die Cap-Rechnung gegen das falsche
  * Fenster und die „passt nicht"-Warnung schweigt genau dann, wenn sie nötig wäre.
  *
  * Der Bridge-Parameter ist strukturell, damit dieses Modul den `AIBridge`-Typ nicht
@@ -88,7 +100,7 @@ export function aktivesZielFuerLauf(): BridgeZiel {
  */
 export function kontextZielFuer(
   bridge: { istBridgeAktiv: () => boolean },
-  ziel: BridgeZiel,
+  ziel: KiRolle,
 ): KontextZiel {
   return { bridge: bridge.istBridgeAktiv(), ziel };
 }

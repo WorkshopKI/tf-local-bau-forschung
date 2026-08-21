@@ -39,10 +39,10 @@
 import type { AIBridge } from '@/core/services/ai/bridge';
 import { starteFrischenChat } from '@/core/services/ai/chat-reset';
 import { kiVerbindungGeprueft, istVerbindungsFehler, useKiConnectPrompt } from '@/core/services/ai/ki-guard';
-import type { BridgeZiel } from '@/core/services/ai/transports/streamlit';
+import type { KiRolle } from '@/core/services/ai/modell-katalog';
 
 /** Ziel-Tab jedes einschüssigen Laufs — siehe Pflicht 4. */
-const EIN_SCHUSS_ZIEL: BridgeZiel = 'gpt-oss';
+const EIN_SCHUSS_ZIEL: KiRolle = 'standard';
 
 /**
  * Die Regel gegen mehrstufige Plan-/Werkzeug-Schleifen.

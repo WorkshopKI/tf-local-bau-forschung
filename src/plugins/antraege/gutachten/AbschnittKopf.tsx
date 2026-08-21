@@ -9,6 +9,7 @@
  * Das Menü ist bewusst handgerollt (`useClickOutside`) — Radix `DropdownMenu` ist
  * im Projekt nicht installiert, Hausmuster ist `suche/SearchDownloadMenu.tsx`.
  */
+import { modellLabel } from '@/core/services/ai/bridge-modelle';
 import { useRef, useState } from 'react';
 import { AlertTriangle, Check, MoreHorizontal, Pencil } from 'lucide-react';
 import { useClickOutside } from '@/core/hooks/useClickOutside';
@@ -113,8 +114,11 @@ export function AbschnittKopf({
         </span>
       )}
       {zielFallback && (
-        <span className="g-fallback-badge" title="Qwen3.6-35B war nicht erreichbar — gpt-oss-120b hat diesen Lauf übernommen.">
-          gpt-oss-120b (Fallback)
+        <span
+          className="g-fallback-badge"
+          title={`${modellLabel('stark')} war nicht erreichbar — ${modellLabel('standard')} hat diesen Lauf übernommen.`}
+        >
+          {modellLabel('standard')} (Fallback)
         </span>
       )}
       {menu && menu.length > 0 && (

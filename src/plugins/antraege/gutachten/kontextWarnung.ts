@@ -10,15 +10,15 @@
  * Rein und ohne Bridge/Store: die Caps rechnet der Aufrufer (sie hängen am
  * gewählten Ziel), hier steht nur die Entscheidung. Blockiert nie.
  */
-import { MODELL_LABEL } from '@/core/services/ai/modell-wahl';
-import type { BridgeZiel } from '@/core/services/ai/transports/streamlit';
+import { modellLabel } from '@/core/services/ai/bridge-modelle';
+import type { KiRolle } from '@/core/services/ai/modell-katalog';
 
 export interface KontextBefundEingabe {
   /** Zeichen des Textes, der ins Modell geht (VB + aufgenommene Zusatzdokumente). */
   korpusZeichen: number;
   /** Zeichen-Obergrenze des AKTUELL gewählten Ziels. */
   cap: number;
-  ziel: BridgeZiel;
+  ziel: KiRolle;
   /**
    * Obergrenze der jeweils ANDEREN internen KI. Fehlt, wenn das Ziel nicht wirkt
    * (DirectLLM/OpenRouter kennt keine Tabs) — dann entfällt die Wechsel-Empfehlung.
@@ -55,10 +55,14 @@ export interface KontextBefund {
  * EINE Form für beide Verwendungen („Zweitfassung mit …", „ins Fenster von …");
  * die frühere Dativ-Zweitform entfällt, weil ein Eigenname sich nicht beugt.
  *
- * Weitergereicht aus [modell-wahl.ts] statt hier zweitgeschrieben — der
+ * Weitergereicht aus [bridge-modelle.ts] statt hier zweitgeschrieben — der
  * Eskalations-Hinweis und die Modell-Auswahl lesen dieselbe Zuordnung.
+ *
+ * **Eine Funktion, keine Tabelle**: welches Modell eine Rolle trägt, hängt an der
+ * Auswahlliste der internen KI und kann sich zwischen zwei Läufen ändern. Eine
+ * Konstante hier hätte den Namen von damals festgehalten.
  */
-export const ZIEL_LABEL: Record<BridgeZiel, string> = MODELL_LABEL;
+export const ZIEL_LABEL = modellLabel;
 
 /**
  * `null`, wenn alles passt — der Normalfall soll keine Zeile erzeugen. Sonst der
@@ -66,15 +70,15 @@ export const ZIEL_LABEL: Record<BridgeZiel, string> = MODELL_LABEL;
  */
 export function pruefeKontextPasst(e: KontextBefundEingabe): KontextBefund | null {
   if (e.korpusZeichen <= e.cap) return null;
-  const andere: BridgeZiel = e.ziel === 'qwen35' ? 'gpt-oss' : 'qwen35';
+  const andere: KiRolle = e.ziel === 'stark' ? 'standard' : 'stark';
   return {
     zeichen: e.korpusZeichen,
     cap: e.cap,
     fehlend: e.korpusZeichen - e.cap,
     andereKiReicht: e.capAndere !== undefined && e.korpusZeichen <= e.capAndere,
-    andereKiLabel: ZIEL_LABEL[andere],
+    andereKiLabel: ZIEL_LABEL(andere),
     // `capAndere` fehlt genau dann, wenn das Ziel nicht wirkt (siehe dort) —
     // dieselbe Bedingung entscheidet, ob ein Tab-Name überhaupt zutrifft.
-    fensterLabel: e.capAndere === undefined ? 'des Modells' : 'von ' + ZIEL_LABEL[e.ziel],
+    fensterLabel: e.capAndere === undefined ? 'des Modells' : 'von ' + ZIEL_LABEL(e.ziel),
   };
 }

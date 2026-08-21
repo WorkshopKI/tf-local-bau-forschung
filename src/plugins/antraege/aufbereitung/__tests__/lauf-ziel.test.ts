@@ -5,14 +5,14 @@ import { AUFBEREITUNG_ZIEL, bestimmeLaufZiel } from '../lauf-ziel';
 const STANDARD_CAP = 238_617;
 const AGENTISCH_CAP = 1_198_617;
 
-const lage = (zeichen: number | null, agentischErzwungen = false) =>
-  bestimmeLaufZiel({ zeichen, standardCap: STANDARD_CAP, agentischCap: AGENTISCH_CAP, agentischErzwungen });
+const lage = (zeichen: number | null, starkErzwungen = false) =>
+  bestimmeLaufZiel({ zeichen, standardCap: STANDARD_CAP, starkCap: AGENTISCH_CAP, starkErzwungen });
 
 describe('bestimmeLaufZiel', () => {
   it('ohne Notausfahrt immer gpt-oss-120b (unabhängig von der globalen Variante)', () => {
-    expect(AUFBEREITUNG_ZIEL).toBe('gpt-oss');
-    expect(lage(50_000).ziel).toBe('gpt-oss');
-    expect(lage(900_000).ziel).toBe('gpt-oss'); // auch ein Riesen-Korpus schaltet NICHT von selbst um
+    expect(AUFBEREITUNG_ZIEL).toBe('standard');
+    expect(lage(50_000).ziel).toBe('standard');
+    expect(lage(900_000).ziel).toBe('standard'); // auch ein Riesen-Korpus schaltet NICHT von selbst um
   });
 
   it('misst gegen den Cap des tatsächlich genutzten Ziels', () => {
@@ -27,11 +27,11 @@ describe('bestimmeLaufZiel', () => {
 
   it('Notausfahrt bleibt sichtbar, WÄHREND sie genutzt wird (sonst gäbe es keinen Weg zurück)', () => {
     const l = lage(STANDARD_CAP + 1, true);
-    expect(l.ziel).toBe('qwen35');
+    expect(l.ziel).toBe('stark');
     expect(l.notausfahrtAnbieten).toBe(true);
   });
 
   it('unaufgelöster Korpus: kein Angebot, aber unverändertes Ziel', () => {
-    expect(lage(null)).toEqual({ ziel: 'gpt-oss', cap: STANDARD_CAP, notausfahrtAnbieten: false });
+    expect(lage(null)).toEqual({ ziel: 'standard', cap: STANDARD_CAP, notausfahrtAnbieten: false });
   });
 });

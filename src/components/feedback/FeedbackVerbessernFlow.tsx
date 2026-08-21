@@ -8,6 +8,7 @@
 // Bridge ist single-turn → jeder Schritt ist ein eigenständiger, kontext-vollständiger
 // submitMessage-Call (kein Multi-Turn-Chat).
 
+import { modellLabel } from '@/core/services/ai/bridge-modelle';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Loader2, RotateCcw, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -209,18 +210,18 @@ export function FeedbackVerbessernFlow({ feedbackId, payload, context, pluginId,
  * die Einstellung stillschweigend ignoriert.
  */
 function LadeZeile({ text }: { text: string }): React.ReactElement {
-  const grossesModellGewaehlt = useKiZiel(s => s.ziel) === 'qwen35';
+  const starkGewaehlt = useKiZiel(s => s.ziel) === 'stark';
   return (
     <div className="p-6 flex flex-col items-center justify-center gap-3 text-center">
       <Loader2 size={22} className="animate-spin text-[var(--tf-primary)]" />
       <p className="text-[12.5px] text-[var(--tf-text-secondary)]">{text}</p>
       <p className="text-[11px] text-[var(--tf-text-tertiary)]">
-        Läuft über gpt-oss-120b · kann bis zu einer Minute dauern.
+        Läuft über {modellLabel('standard')} · kann bis zu einer Minute dauern.
       </p>
-      {grossesModellGewaehlt && (
+      {starkGewaehlt && (
         <p className="text-[11px] text-[var(--tf-text-tertiary)] leading-snug max-w-[280px]">
-          Ihre Modellwahl steht auf Qwen3.6-35B — Feedback läuft bewusst über gpt-oss-120b,
-          weil das hier deutlich schneller ist.
+          Ihre Modellwahl steht auf {modellLabel('stark')} — Feedback läuft bewusst über
+          {' '}{modellLabel('standard')}, weil das hier deutlich schneller ist.
         </p>
       )}
     </div>

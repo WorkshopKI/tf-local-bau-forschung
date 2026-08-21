@@ -7,6 +7,7 @@
  * in reine Funktionen — die sind vollständig testbar, und die Komponenten
  * bleiben Darstellung.
  */
+import { ROLLE_LABEL } from '@/core/services/ai/modell-katalog';
 import { qsRollup } from './qs';
 import { pruefeLektorat, befundText } from './lektorat';
 import type { QsBefund, StepRun } from './types';
@@ -69,7 +70,7 @@ export function qsKriterienStand(befunde: QsBefund[]): { ok: number; gesamt: num
 /** Zeigt die Karte überhaupt einen QS-Strip? */
 /**
  * Beschriftung der internen KI, die den Abschnitt erzeugt hat — für die Fußzeile.
- * Wortlaut wie im Fallback-Hinweis („Agentische KI … gpt-oss-120b hat übernommen"),
+ * Wortlaut wie im Fallback-Hinweis („Das starke Modell war nicht verfügbar …"),
  * damit Fußzeile und Hinweise dieselbe Sprache sprechen.
  *
  * `null` für Records ohne `ziel` (vor v2.365 erzeugt): lieber nichts sagen als raten.
@@ -78,7 +79,12 @@ export function qsKriterienStand(befunde: QsBefund[]): { ok: number; gesamt: num
  */
 export function zielLabel(run: StepRun): string | null {
   if (!run.ziel) return null;
-  return run.ziel === 'qwen35' ? 'Agentische KI' : 'gpt-oss-120b';
+  // Die ROLLE, nicht das Modell dahinter. Am Lauf steht nur, was gewählt WAR;
+  // welches Modell die Rolle trägt, kann sich seither geändert haben — die
+  // interne KI tauscht ihre Modelle nach ihrem eigenen Fahrplan. Den heutigen
+  // Namen an einen alten Lauf zu schreiben wäre dieselbe Sorte Behauptung, die
+  // der Kommentar oben schon für die Präferenz ausschliesst.
+  return ROLLE_LABEL[run.ziel];
 }
 
 export function hatQsStrip(run: StepRun): boolean {
@@ -143,7 +149,9 @@ export function abschnittHinweise(run: StepRun, retryNote?: string | null): Hinw
   if (run.zielFallback) {
     out.push({
       key: 'zielfallback',
-      text: 'Agentische KI nicht verfügbar — gpt-oss-120b hat übernommen.',
+      // Rollensprache statt Modellname: der Vermerk bleibt an diesem Lauf stehen,
+      // und welches Modell „stark" trug, kann sich seither geändert haben.
+      text: 'Das starke Modell war nicht verfügbar — der Lauf ging an das Standard-Modell.',
       ton: 'neutral',
     });
   }

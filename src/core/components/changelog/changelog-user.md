@@ -19,6 +19,22 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v6.0 — 2026-08
+
+### Bitte einmal neu einrichten
+- Das Lesezeichen für die interne KI heißt jetzt **„interne-KI v2"** und muss einmal neu in die Lesezeichenleiste gezogen werden: Einstellungen → KI → Einrichtung. Das alte darf danach weg. Solange das alte aktiv ist, meldet die App das sichtbar.
+
+### Neu
+- Die Modellwahl heißt jetzt **Standard** und **Stark** statt der technischen Modellnamen. Welches Modell dahintersteht, zeigt die App daneben an — sie liest es von der KI-Seite ab. Stellt die interne KI auf ein neues Modell um, stimmt die Anzeige weiterhin.
+- Bietet die interne KI ein Modell an, das die App noch nicht kennt, steht das unter der Auswahl. Die App arbeitet normal weiter und lernt dessen Kontextfenster beim ersten Lauf.
+
+### Verbesserungen
+- Ein Modellwechsel auf Seiten der internen KI legt große Anträge nicht mehr lahm: die App wählt weiter sinnvoll, statt den Lauf abzubrechen.
+### Verbesserungen
+<!-- - … -->
+### Bugfixes
+<!-- - … -->
+
 ## v5.3 — 2026-08
 
 ### Neu

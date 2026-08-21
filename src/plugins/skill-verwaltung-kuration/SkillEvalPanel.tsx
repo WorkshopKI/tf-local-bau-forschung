@@ -18,6 +18,7 @@
  * Sichtbarkeit: nur wenn `features.devFixtures` (Mount-Gate in SkillVerwaltungPage);
  * die OpenRouter-Judge-Option zusätzlich hinter `isOpenRouterEnabled()`.
  */
+import { modellLabel } from '@/core/services/ai/bridge-modelle';
 import { Fragment, useEffect, useMemo, useState, useRef } from 'react';
 import { ChevronDown, ChevronRight, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -38,7 +39,7 @@ import { cellAt } from '@/core/services/skill-eval/aggregate';
 import { loadEvalFixtures, isFromEvalBundle } from '@/core/services/skill-eval/fixtures/bundle';
 import {
   runEvalBatch,
-  makeAgentischerJudgeTransport,
+  makeStarkerJudgeTransport,
   EVAL_MAX_ANZAHL,
   JUDGE_IDB_KEY,
   JUDGE_DEFAULTS,
@@ -159,8 +160,8 @@ export function SkillEvalPanel({ registry }: SkillEvalPanelProps): React.ReactEl
           judgeModellId = judge.model;
         } else {
           // Intern-agentisch: DSGVO-Gate wirft bei externem Provider → Banner, kein Lauf.
-          judgeTransport = makeAgentischerJudgeTransport(bridge.getTransportForAssistent());
-          judgeModellId = 'Qwen3.6-35B';
+          judgeTransport = makeStarkerJudgeTransport(bridge.getTransportForAssistent());
+          judgeModellId = modellLabel('stark');
         }
       }
       const res = await runEvalBatch({
@@ -320,7 +321,7 @@ export function SkillEvalPanel({ registry }: SkillEvalPanelProps): React.ReactEl
                   disabled={start.busy}
                   className="text-[12.5px] px-2 py-1.5 rounded-[7px] border-[0.5px] border-[var(--tf-border)] bg-transparent outline-none focus:border-[var(--tf-primary)]"
                 >
-                  <option value="intern-agentisch">intern (Qwen3.6-35B)</option>
+                  <option value="intern-agentisch">intern ({modellLabel('stark')})</option>
                   {openRouterVerfuegbar && <option value="openrouter">OpenRouter (extern)</option>}
                 </select>
               </label>

@@ -163,7 +163,7 @@ export async function runMetadatenExtraktion(
       thinkingBudget: 'medium',
       // Deterministischer Backend-Lauf → fest auf gpt-oss-120b pinnen (nicht die
       // agentische Erprobung), unabhängig von der globalen KI-Präferenz.
-      ziel: 'gpt-oss',
+      ziel: 'standard',
     });
     try {
       return parseMetadaten(result.raw);

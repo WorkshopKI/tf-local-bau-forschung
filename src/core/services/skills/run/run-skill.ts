@@ -8,7 +8,8 @@
  * dieselbe Quelle, die auch die Checks erzeugt (keine Drift). Modell-Overrides
  * sind weiterhin v2; hier KEINE modell-spezifische Sonderlogik.
  */
-import type { AITransport, ConversationMessage, BridgeZiel } from '@/core/services/ai/transports/streamlit';
+import type { AITransport, ConversationMessage } from '@/core/services/ai/transports/streamlit';
+import type { KiRolle } from '@/core/services/ai/modell-katalog';
 import { extractThinking } from '@/core/services/ai/thinking-parser';
 import { starteFrischenChat, type ChatResetStatus } from '@/core/services/ai/chat-reset';
 import { zielWirktAuf } from '@/core/services/ai/ziel-fallback';
@@ -196,7 +197,7 @@ export interface SkillRunInput {
    * setzen ihn aus der globalen Modell-Präferenz (`useKiZiel`). Auf DirectLLM
    * wirkungslos.
    */
-  ziel?: BridgeZiel;
+  ziel?: KiRolle;
   /**
    * Sampling-Temperatur dieses Laufs. Fehlt sie → `TEMPERATUR_STANDARD`; der Runner
    * sendet also IMMER einen Wert, statt wie bis v2.372 die Server-Voreinstellung

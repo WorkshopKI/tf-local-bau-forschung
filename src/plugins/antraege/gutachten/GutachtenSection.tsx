@@ -99,9 +99,9 @@ export function GutachtenSection({
   // Für die Wechsel-Empfehlung wird auch das Fenster der ANDEREN internen KI
   // gebraucht. Ohne Bridge (DirectLLM) gibt es keine zweite — dann entfällt sie.
   const kontextZiel = useKontextZiel();
-  const kiZiel = kontextZiel.ziel ?? 'gpt-oss';
+  const kiZiel = kontextZiel.ziel ?? 'standard';
   const capAndere = kontextZiel.bridge
-    ? getVbCharCap({ bridge: true, ziel: kiZiel === 'qwen35' ? 'gpt-oss' : 'qwen35' })
+    ? getVbCharCap({ bridge: true, ziel: kiZiel === 'stark' ? 'standard' : 'stark' })
     : undefined;
   const korpusMarkdown = ctrl.quellen.quellen?.markdown ?? '';
   const kontextBefund = korpusMarkdown

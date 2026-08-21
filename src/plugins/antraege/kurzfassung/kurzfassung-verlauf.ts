@@ -8,7 +8,7 @@
  * geht nichts verloren).
  */
 import type { CheckResult, SkillModifierKey } from '@/core/services/skills';
-import type { BridgeZiel } from '@/core/services/ai/transports/streamlit';
+import type { KiRolle } from '@/core/services/ai/modell-katalog';
 import type { FassungMarker } from '@/core/services/ai/sampling';
 import type { KurzfassungVersion } from './types';
 
@@ -43,7 +43,7 @@ export interface VerlaufContent {
   warnung?: string;
   denkprozess?: string;
   /** Die interne KI dieses Laufs (`StepRun.ziel`) — trägt den KI-Vergleich im Verlauf. */
-  ziel?: BridgeZiel;
+  ziel?: KiRolle;
   /** Abweichende Sampling-Einstellung (`StepRun.fassung`) — derselbe Vergleich ohne Bridge. */
   fassung?: FassungMarker;
   verlauf?: KurzfassungVersion[];

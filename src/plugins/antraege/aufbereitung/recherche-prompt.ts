@@ -23,7 +23,8 @@
  */
 import type { IDBStore } from '@/core/services/storage/idb-store';
 import type { SkillRecord } from '@/core/services/skills';
-import type { AITransport, BridgeZiel } from '@/core/services/ai/transports/streamlit';
+import type { AITransport } from '@/core/services/ai/transports/streamlit';
+import type { KiRolle } from '@/core/services/ai/modell-katalog';
 import { getOrComputeBaustein, vbHashFuer, type BausteinResult } from './bausteine';
 import { auftragsRahmen, baueDeepResearchAuftrag } from './recherche-auftrag';
 import {
@@ -190,7 +191,7 @@ export async function computeRecherchePromptBaustein(
   antragKey: string,
   vbMarkdown: string,
   bekannteWerte: BekannteStammwerte,
-  opts?: { force?: boolean; ziel?: BridgeZiel },
+  opts?: { force?: boolean; ziel?: KiRolle },
 ): Promise<BausteinResult<RecherchePromptDaten>> {
   const vbHash = vbHashFuer(vbMarkdown);
   // Leak-Treffer aus dem `verdaechtig`-Guard heben (der Guard läuft auf dem FINALEN

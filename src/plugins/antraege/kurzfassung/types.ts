@@ -1,6 +1,6 @@
 /** Persistierter Zustand eines Kurzfassung-Skill-Laufs (pro Verbund). */
 import type { CheckResult, SkillModifierKey } from '@/core/services/skills';
-import type { BridgeZiel } from '@/core/services/ai/transports/streamlit';
+import type { KiRolle } from '@/core/services/ai/modell-katalog';
 import type { FassungMarker } from '@/core/services/ai/sampling';
 
 export type KurzfassungStatus = 'entwurf' | 'freigegeben';
@@ -42,7 +42,7 @@ export interface KurzfassungVersion {
    * ohne sie stünden im Verlauf zwei ununterscheidbare Zeilen. Additiv; alte
    * Fassungen ohne Feld zeigen die Angabe einfach nicht.
    */
-  ziel?: BridgeZiel;
+  ziel?: KiRolle;
   /**
    * Gesetzt, wenn DIESE Fassung nicht mit der Standard-Sampling-Einstellung
    * entstand (`StepRun.fassung`). Das Gegenstück zu `ziel`, wo es keine zweite KI

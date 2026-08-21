@@ -6,7 +6,7 @@ const st = (status: BausteinUiStatus) => ({ status });
 
 describe('baueKiCta', () => {
   it('nichts gelaufen → voller Lauf angeboten', () => {
-    const cta = baueKiCta(['fehlt', 'fehlt', 'fehlt'], { agentisch: false });
+    const cta = baueKiCta(['fehlt', 'fehlt', 'fehlt'], { stark: false });
     expect(cta.offen).toBe(3);
     expect(cta.label).toBe('Mit KI aufbereiten');
     expect(cta.titel).toContain('alle KI-Abschnitte');
@@ -14,7 +14,7 @@ describe('baueKiCta', () => {
   });
 
   it('teilweise gelaufen → benennt die Zahl der fehlenden Abschnitte', () => {
-    const cta = baueKiCta(['fehlt', 'ok', 'ok', 'degradiert', 'ok', 'fehler'], { agentisch: false });
+    const cta = baueKiCta(['fehlt', 'ok', 'ok', 'degradiert', 'ok', 'fehler'], { stark: false });
     expect(cta.offen).toBe(1);
     expect(cta.label).toBe('Fehlende KI-Abschnitte starten (1)');
     // Der Kern des Missverständnisses: fertige Abschnitte laufen NICHT erneut.
@@ -22,22 +22,22 @@ describe('baueKiCta', () => {
   });
 
   it('alles gelaufen → verweist auf „neu berechnen" statt einen Leerlauf zu versprechen', () => {
-    const cta = baueKiCta(['ok', 'ok', 'degradiert'], { agentisch: false });
+    const cta = baueKiCta(['ok', 'ok', 'degradiert'], { stark: false });
     expect(cta.offen).toBe(0);
     expect(cta.label).toBe('Mit KI aufbereiten');
     expect(cta.titel).toContain('neu berechnen');
   });
 
   it('laufende Bausteine zählen nicht als offen (der Lauf holt sie gerade)', () => {
-    expect(baueKiCta(['laeuft', 'ok', 'ok'], { agentisch: false }).offen).toBe(0);
+    expect(baueKiCta(['laeuft', 'ok', 'ok'], { stark: false }).offen).toBe(0);
   });
 
   it('agentisches Ziel wird im Tooltip benannt', () => {
-    expect(baueKiCta(['fehlt', 'fehlt'], { agentisch: true }).titel).toContain('Qwen3.6-35B');
+    expect(baueKiCta(['fehlt', 'fehlt'], { stark: true }).titel).toContain('Qwen3.6-35B');
   });
 
   it('leere Liste (Stepper noch ohne Schritte) → kein Sonderfall-Absturz', () => {
-    const cta = baueKiCta([], { agentisch: false });
+    const cta = baueKiCta([], { stark: false });
     expect(cta.offen).toBe(0);
     expect(cta.label).toBe('Mit KI aufbereiten');
   });

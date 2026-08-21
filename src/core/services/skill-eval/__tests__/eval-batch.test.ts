@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   runEvalBatch,
-  makeAgentischerJudgeTransport,
+  makeStarkerJudgeTransport,
   GenTransportUnreachableError,
   EVAL_MAX_ANZAHL,
 } from '../eval-batch';
@@ -186,13 +186,13 @@ describe('runEvalBatch (dev-only Orchestrierung)', () => {
   });
 });
 
-describe('makeAgentischerJudgeTransport (interner Judge-Adapter)', () => {
+describe('makeStarkerJudgeTransport (interner Judge-Adapter)', () => {
   it('resettet den Chat, sendet ziel=qwen35 und strippt <think> vor der Rückgabe', async () => {
     let resetZiel: string | undefined = 'ungesetzt';
     let submittedZiel: string | undefined;
     const inner: AITransport = {
       name: 'bridge',
-      displayName: 'gpt-oss',
+      displayName: 'standard',
       ping: async () => true,
       resetChat: async (ziel) => { resetZiel = ziel; return 'ok'; },
       submitMessage: async (_msg, _sys, opts) => {
@@ -200,12 +200,12 @@ describe('makeAgentischerJudgeTransport (interner Judge-Adapter)', () => {
         return '<think>ich überlege…</think>{"fachliche_korrektheit":4}';
       },
     };
-    const judge = makeAgentischerJudgeTransport(inner);
+    const judge = makeStarkerJudgeTransport(inner);
     const out = await judge.submitMessage('prompt', 'system');
 
-    expect(resetZiel).toBe('qwen35');
-    expect(submittedZiel).toBe('qwen35');
+    expect(resetZiel).toBe('stark');
+    expect(submittedZiel).toBe('stark');
     expect(out).toBe('{"fachliche_korrektheit":4}');
-    expect(judge.displayName).toContain('qwen35');
+    expect(judge.displayName).toContain('stark');
   });
 });

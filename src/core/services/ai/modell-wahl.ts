@@ -8,40 +8,29 @@
  * erst das Modell gewählt und der Cap daraus abgeleitet — gekürzt wird nur noch,
  * wenn auch das größte Fenster nicht reicht.
  *
- * **Nur aufwärts, nie abwärts.** Wer Qwen3.6 gewählt hat, behält es auch bei
- * einem kurzen Text: die Wahl ist eine Untergrenze, keine Schätzung, die wir
+ * **Nur aufwärts, nie abwärts.** Wer die starke Rolle gewählt hat, behält sie auch
+ * bei einem kurzen Text: die Wahl ist eine Untergrenze, keine Schätzung, die wir
  * korrigieren dürften. Nach unten zu „optimieren" hieße, eine bewusste
- * Entscheidung des Bearbeiters zu überstimmen.
+ * Entscheidung des Bearbeiters zu überstimmen — und seit die Rolle `stark` mehr
+ * meint als nur ein weites Fenster (agentische Fähigkeiten), wäre die Rechnung
+ * „passt ja auch klein" schlicht die falsche Frage.
  *
  * Rein (kein IO) — `waehleModell` ist direkt in Node testbar;
  * `waehleModellFuerLauf` ist nur die Variante, die sich die Fenster aus
  * [llm-context.ts](./llm-context.ts) holt.
  */
-import type { BridgeZiel } from './transports/streamlit';
+import type { KiRolle } from './modell-katalog';
+import { KI_ROLLEN } from './modell-katalog';
 import { getVbCharCap } from './llm-context';
-
-/**
- * Beschriftung der Modelle — der Name, den auch die interne KI in ihrer
- * Auswahlliste zeigt.
- *
- * **Eine Quelle für die ganze App.** `'gpt-oss'`/`'qwen35'` sind interne
- * Kennungen; sie in eine Oberfläche zu lassen, verlangt vom Leser eine
- * Übersetzung, die er nicht hat. Wer ein Modell benennt — Auswahl, Eskalations-
- * Hinweis, Kontext-Warnung, Fassungs-Herkunft — nimmt diese Zuordnung.
- */
-export const MODELL_LABEL: Record<BridgeZiel, string> = {
-  'gpt-oss': 'gpt-oss-120b',
-  qwen35: 'Qwen3.6-35B',
-};
 
 export interface ModellWahl {
   /** Das Modell, mit dem der Lauf tatsächlich fährt. */
-  modell: BridgeZiel;
+  modell: KiRolle;
   /** true = wegen Umfang angehoben (die Meldung hängt hieran). */
   eskaliert: boolean;
   /** Zeichenzahl, die den Ausschlag gab. */
   zeichen: number;
-  /** Kapazität des ursprünglich gewählten Modells (für die Meldung). */
+  /** Kapazität der ursprünglich gewählten Rolle (für die Meldung). */
   kapazitaetGewuenscht: number;
   /**
    * true = auch das größte Fenster reicht nicht; der Lauf fährt auf dem größten
@@ -60,9 +49,9 @@ export interface ModellWahl {
  * vorliegt.
  */
 export function waehleModell(
-  gewuenscht: BridgeZiel,
+  gewuenscht: KiRolle,
   zeichen: number,
-  kapazitaet: Record<BridgeZiel, number>,
+  kapazitaet: Record<KiRolle, number>,
 ): ModellWahl {
   const kapGewuenscht = kapazitaet[gewuenscht];
   const basis = { zeichen, kapazitaetGewuenscht: kapGewuenscht };
@@ -71,10 +60,10 @@ export function waehleModell(
     return { ...basis, modell: gewuenscht, eskaliert: false, reichtTrotzdemNicht: false };
   }
 
-  // Das größte verfügbare Fenster suchen. Bewusst über alle Modelle statt als
-  // fest verdrahtetes „gpt-oss → qwen35": käme ein drittes hinzu, bliebe die
-  // Regel dieselbe, statt hier eine zweite Rangfolge zu erfinden.
-  const modelle = Object.keys(kapazitaet) as BridgeZiel[];
+  // Das größte verfügbare Fenster suchen. Bewusst über alle Rollen statt als fest
+  // verdrahteter Einzelsprung: käme eine dritte hinzu, bliebe die Regel dieselbe,
+  // statt hier eine zweite Rangfolge zu erfinden.
+  const modelle = Object.keys(kapazitaet) as KiRolle[];
   const groesstes = modelle.reduce((a, b) => (kapazitaet[b] > kapazitaet[a] ? b : a));
 
   if (kapazitaet[groesstes] <= kapGewuenscht) {
@@ -90,9 +79,6 @@ export function waehleModell(
   };
 }
 
-/** Alle Modelle, zwischen denen der Auto-Wechsel wählen darf. */
-const MODELLE: readonly BridgeZiel[] = ['gpt-oss', 'qwen35'];
-
 /**
  * Wie `waehleModell`, aber mit den aktuell geltenden Fenstern der internen KI
  * (abgelesene Werte schlagen die Konstanten, siehe llm-context).
@@ -103,8 +89,8 @@ const MODELLE: readonly BridgeZiel[] = ['gpt-oss', 'qwen35'];
  * Richtung, die nichts kostet: im Zweifel wird auf das größere Modell gewechselt,
  * nicht zu spät.
  */
-export function waehleModellFuerLauf(gewuenscht: BridgeZiel, zeichen: number): ModellWahl {
-  const kapazitaet = {} as Record<BridgeZiel, number>;
-  for (const m of MODELLE) kapazitaet[m] = getVbCharCap({ bridge: true, ziel: m });
+export function waehleModellFuerLauf(gewuenscht: KiRolle, zeichen: number): ModellWahl {
+  const kapazitaet = {} as Record<KiRolle, number>;
+  for (const m of KI_ROLLEN) kapazitaet[m] = getVbCharCap({ bridge: true, ziel: m });
   return waehleModell(gewuenscht, zeichen, kapazitaet);
 }

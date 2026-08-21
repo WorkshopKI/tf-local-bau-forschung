@@ -14,7 +14,8 @@ import { splitSentences } from '@/core/services/skills';
 import { CheckList } from './CheckList';
 import { versionLabel, formatDate } from './kurzfassung-verlauf';
 import { computeFinalerTextDiff, diffStats, type DiffOp } from './kurzfassung-diff';
-import type { BridgeZiel } from '@/core/services/ai/transports/streamlit';
+import type { KiRolle } from '@/core/services/ai/modell-katalog';
+import { modellLabel } from '@/core/services/ai/bridge-modelle';
 import type { FassungMarker } from '@/core/services/ai/sampling';
 import type { KurzfassungVersion } from './types';
 
@@ -25,7 +26,7 @@ interface Props {
   /** Zeitstempel der aktuell aktiven Fassung (linke Meta-Zeile). */
   aktuellErstelltAm: string;
   /** Interne KI der aktiven Fassung — ohne sie wäre ein KI-Vergleich nicht zuordenbar. */
-  aktuellZiel?: BridgeZiel;
+  aktuellZiel?: KiRolle;
   /** Abweichende Sampling-Einstellung der aktiven Fassung — dasselbe ohne Bridge. */
   aktuellFassung?: FassungMarker;
   /** Ob die aktive Fassung auf gekürzter VB entstand (für den Vergleichs-Hinweis). */
@@ -35,15 +36,16 @@ interface Props {
 }
 
 /** Kurz-Beschriftung der internen KI (Tab + Meta-Zeile). */
-const ZIEL_KURZ: Record<BridgeZiel, string> = { 'gpt-oss': 'gpt-oss-120b', qwen35: 'Qwen3.6-35B' };
+// Der Name des Modells, das die Rolle GERADE trägt — nicht der von damals.
+const zielKurz = modellLabel;
 
 /**
  * Woher eine Fassung kommt — die andere KI (Bridge) ODER die andere Sampling-
  * Einstellung (direkt angebundene KI). Genau das unterscheidet ein Fassungs-Paar;
  * ohne die Angabe tragen beide Tabs dieselbe Beschriftung und dasselbe Datum.
  */
-function herkunftKurz(v: { ziel?: BridgeZiel; fassung?: FassungMarker }): string | null {
-  if (v.ziel) return ZIEL_KURZ[v.ziel];
+function herkunftKurz(v: { ziel?: KiRolle; fassung?: FassungMarker }): string | null {
+  if (v.ziel) return zielKurz(v.ziel);
   return v.fassung === undefined ? null : 'andere Einstellung';
 }
 

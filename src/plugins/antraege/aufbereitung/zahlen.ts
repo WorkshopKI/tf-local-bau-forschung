@@ -13,7 +13,8 @@
  */
 import type { IDBStore } from '@/core/services/storage/idb-store';
 import type { SkillRecord } from '@/core/services/skills';
-import type { AITransport, BridgeZiel } from '@/core/services/ai/transports/streamlit';
+import type { AITransport } from '@/core/services/ai/transports/streamlit';
+import type { KiRolle } from '@/core/services/ai/modell-katalog';
 import type { VbSektion } from './gliederung';
 import {
   getOrComputeBaustein, zahlenCacheKey, vbHashFuer, type BausteinResult,
@@ -318,7 +319,7 @@ export async function computeZahlenBaustein(
   antragKey: string,
   gliederung: VbSektion[],
   vbMarkdown: string,
-  opts?: { force?: boolean; ziel?: BridgeZiel; ueberStandardCap?: boolean },
+  opts?: { force?: boolean; ziel?: KiRolle; ueberStandardCap?: boolean },
 ): Promise<BausteinResult<ZahlenDaten>> {
   const vbHash = vbHashFuer(vbMarkdown);
   const sektionIds = gliederung.map(s => s.id);

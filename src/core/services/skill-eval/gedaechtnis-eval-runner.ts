@@ -10,7 +10,8 @@
  * Läuft strikt sequentiell (die Bridge ist ein einzelnes postMessage-Fenster); die
  * Provenienz (nur FIKTIVE Fixtures) wird vor dem ersten Lauf hart geprüft.
  */
-import type { AITransport, BridgeZiel } from '@/core/services/ai/transports/streamlit';
+import type { AITransport } from '@/core/services/ai/transports/streamlit';
+import type { KiRolle } from '@/core/services/ai/modell-katalog';
 import { frischeIdFabrik, laufeFixture, type FixtureLaufErgebnis } from './gedaechtnis-eval-lib';
 import { pruefeAssertions } from './gedaechtnis-assertions';
 import type { GedaechtnisFixture, Szenario, AssertionErgebnis } from './gedaechtnis-assertions';
@@ -75,7 +76,7 @@ export interface FixtureLaufOptionen {
   /** Judge-Transport; fehlt/`null` → kein Judge. */
   judgeTransport?: AITransport | null;
   /** Ziel-Tab (`'agentisch'` = Qwen); nur Bridge. */
-  ziel?: BridgeZiel;
+  ziel?: KiRolle;
   /** resetChat vor jedem Bridge-Submit (Generierung + Judge). */
   reset?: boolean;
   /** Dry-Run-Kennung: unterdrückt den Judge (spiegelt CLI-`--dry-run`). */

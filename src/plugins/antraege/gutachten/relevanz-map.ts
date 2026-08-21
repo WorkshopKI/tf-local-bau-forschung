@@ -24,7 +24,8 @@
  */
 import type { IDBStore } from '@/core/services/storage/idb-store';
 import type { SkillRecord } from '@/core/services/skills';
-import type { AITransport, BridgeZiel, ConversationMessage } from '@/core/services/ai/transports/streamlit';
+import type { AITransport, ConversationMessage } from '@/core/services/ai/transports/streamlit';
+import type { KiRolle } from '@/core/services/ai/modell-katalog';
 import { starteFrischenChat } from '@/core/services/ai/chat-reset';
 import { hashText } from './runner';
 
@@ -219,7 +220,7 @@ export async function runRelevanzMap(
   headings: VbHeading[],
   vbMarkdown: string,
   abschnitte: RelevanzAbschnitt[],
-  ziel?: BridgeZiel,
+  ziel?: KiRolle,
 ): Promise<string> {
   // Frischer Chat-Verlauf vor dem Relevanz-Lauf (stateful Streamlit-Chat, Pitfall
   // #36): die Map ist der Workflow-Einstieg — ohne Reset trüge sie den Verlauf
@@ -253,7 +254,7 @@ export async function computeRelevanzMap(
   relevanzSkill: SkillRecord,
   vbMarkdown: string,
   abschnitte: RelevanzAbschnitt[],
-  ziel?: BridgeZiel,
+  ziel?: KiRolle,
 ): Promise<RelevanzMapResult> {
   const headings = parseVbHeadings(vbMarkdown);
   try {
@@ -278,7 +279,7 @@ export async function getOrComputeRelevanzMap(
   antragKey: string,
   vbMarkdown: string,
   abschnitte: RelevanzAbschnitt[],
-  ziel?: BridgeZiel,
+  ziel?: KiRolle,
 ): Promise<RelevanzMapResult> {
   const vbHash = hashText(vbMarkdown);
   const cacheKey = relevanzMapCacheKey(antragKey, vbHash);

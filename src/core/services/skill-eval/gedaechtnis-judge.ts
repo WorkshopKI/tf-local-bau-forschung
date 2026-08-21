@@ -9,7 +9,8 @@
  * Der Judge-Prompt ist bewusst VB-frei: er bettet nur die (fiktiven) Fixture-
  * Ereignisse + die daraus abgeleiteten Gedächtnis-Einträge ein, nie Roh-VB-Text.
  */
-import type { AITransport, BridgeZiel } from '@/core/services/ai/transports/streamlit';
+import type { AITransport } from '@/core/services/ai/transports/streamlit';
+import type { KiRolle } from '@/core/services/ai/modell-katalog';
 import { starteFrischenChat } from '@/core/services/ai/chat-reset';
 import type { GedaechtnisEintrag } from '@/core/services/assistent/gedaechtnis/types';
 import type { GedaechtnisFixture } from './gedaechtnis-assertions';
@@ -63,7 +64,7 @@ export function buildJudgePrompt(fx: GedaechtnisFixture, active: GedaechtnisEint
  *  `signal` bricht den Judge-Submit ab. Ohne opts byte-identisch zum node-CLI-
  *  Verhalten (kein Reset, kein ziel, kein signal). */
 export interface JudgeOptionen {
-  ziel?: BridgeZiel;
+  ziel?: KiRolle;
   resetVorSubmit?: boolean;
   signal?: AbortSignal;
 }

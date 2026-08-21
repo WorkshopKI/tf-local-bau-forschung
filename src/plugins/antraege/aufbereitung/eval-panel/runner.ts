@@ -15,7 +15,8 @@
  * `bridge.getTransportForSkillRun(skill)` (Policy wirft bei externem Provider,
  * Pitfall #30). Die Fixtures sind fiktiv (`loadEvalFixtures`).
  */
-import type { AITransport, BridgeZiel } from '@/core/services/ai/transports/streamlit';
+import type { AITransport } from '@/core/services/ai/transports/streamlit';
+import type { KiRolle } from '@/core/services/ai/modell-katalog';
 import type { ChatResetStatus } from '@/core/services/ai/chat-reset';
 import type { SkillRecord } from '@/core/services/skills';
 import {
@@ -171,7 +172,7 @@ export interface EvalOpts {
   wiederholungen?: number;
   /** Modell der internen KI (A/B): ohne = gpt-oss-120b,
    *  `'agentisch'` = Qwen3.6 (259k). Wird an Reset + Submit jedes Laufs durchgereicht. */
-  ziel?: BridgeZiel;
+  ziel?: KiRolle;
   signal?: AbortSignal;
   onFixtureStart?: (vbFile: string, index: number, total: number) => void;
   onFixtureDone?: (ergebnis: FixtureErgebnis, index: number, total: number) => void;
@@ -211,7 +212,7 @@ export function zaehleGefuellteFelder(d: SteckbriefDaten): number {
 async function laufAspekte(
   transport: AITransport, skill: SkillRecord,
   gliederung: ReturnType<typeof parseVbGliederung>, vbMarkdown: string,
-  sektionIds: string[], gf: GoldFixture, ziel?: BridgeZiel,
+  sektionIds: string[], gf: GoldFixture, ziel?: KiRolle,
 ): Promise<AspekteFixtureErgebnis> {
   // Spiegelt `getOrComputeBaustein`: leeres Parse-Ergebnis ODER 0 Zuordnungen bei
   // ≥1 Sektion → auffällig → EIN Retry mit frischem Chat (Mess-Parität zum App-Pfad).
@@ -255,7 +256,7 @@ async function laufAspekte(
 
 async function laufSteckbrief(
   transport: AITransport, skill: SkillRecord,
-  gliederung: ReturnType<typeof parseVbGliederung>, vbMarkdown: string, sektionIds: string[], ziel?: BridgeZiel,
+  gliederung: ReturnType<typeof parseVbGliederung>, vbMarkdown: string, sektionIds: string[], ziel?: KiRolle,
 ): Promise<SteckbriefSmokeErgebnis> {
   let raw: string;
   let chatResetStatus: ChatResetStatus;
@@ -273,7 +274,7 @@ async function laufSteckbrief(
 
 async function laufZahlen(
   transport: AITransport, skill: SkillRecord,
-  gliederung: ReturnType<typeof parseVbGliederung>, vbMarkdown: string, sektionIds: string[], ziel?: BridgeZiel,
+  gliederung: ReturnType<typeof parseVbGliederung>, vbMarkdown: string, sektionIds: string[], ziel?: KiRolle,
 ): Promise<ZahlenSmokeErgebnis> {
   let raw: string;
   let chatResetStatus: ChatResetStatus;
@@ -302,7 +303,7 @@ async function laufZahlen(
 
 async function laufGlossar(
   transport: AITransport, skill: SkillRecord,
-  gliederung: ReturnType<typeof parseVbGliederung>, vbMarkdown: string, sektionIds: string[], ziel?: BridgeZiel,
+  gliederung: ReturnType<typeof parseVbGliederung>, vbMarkdown: string, sektionIds: string[], ziel?: KiRolle,
 ): Promise<GlossarSmokeErgebnis> {
   let raw: string;
   let chatResetStatus: ChatResetStatus;

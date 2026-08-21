@@ -11,6 +11,7 @@
  * darf NICHT als VB getaggt werden (sonst überschriebe sie die VB-Auflösung).
  * Nach jeder Aufnahme ruft `onIngested` das coalescte Neu-Aufbereiten des Callers.
  */
+import { modellLabel } from '@/core/services/ai/bridge-modelle';
 import { useState } from 'react';
 import { Check, ChevronDown, ChevronRight, Plus } from 'lucide-react';
 import { DokumentAufnahme, DOKUMENT_TYP_OPTIONEN } from '@/core/components/DokumentAufnahme';
@@ -30,8 +31,8 @@ interface Props {
   korpusMass?: KorpusMass | null;
   /** Genutzte KI + ob die agentische Notausfahrt anzubieten ist (aus `useAufbereitung`). */
   laufZiel?: LaufZiel;
-  /** Notausfahrt umlegen (Qwen3.6-35B für diesen Antrag). */
-  onAgentischErzwungen?: (an: boolean) => void;
+  /** Notausfahrt umlegen (starkes Modell für diesen Antrag). */
+  onStarkErzwungen?: (an: boolean) => void;
   /** Coalesced Neu-Aufbereiten nach erfolgreicher Aufnahme (aus `useAufbereitung`). */
   onIngested: () => void;
 }
@@ -42,20 +43,20 @@ interface Props {
  * erreichbar — und ein stillschweigend abgeschnittener Text ist schlimmer als
  * eine fehlende Analyse, weil das Ergebnis vollständig aussieht.
  *
- * Zweiter Zweck: die **Notausfahrt**. Die Aufbereitung läuft fest auf gpt-oss-120b
- * (`lauf-ziel.ts`); passt der Korpus dort nicht hinein, bietet dieser Block den Wechsel
- * auf Qwen3.6-35B mit ihrem grösseren Kontextfenster an — vollständig statt
+ * Zweiter Zweck: die **Notausfahrt**. Die Aufbereitung läuft fest auf der Rolle
+ * `standard` (`lauf-ziel.ts`); passt der Korpus dort nicht hinein, bietet dieser Block den Wechsel
+ * auf die Rolle `stark` mit ihrem grösseren Kontextfenster an — vollständig statt
  * schnell, vom Prüfer entschieden. Der Schalter bleibt sichtbar, WÄHREND er genutzt
  * wird (`notausfahrtAnbieten` hängt am Standard-Fenster, nicht am aktuellen Ziel),
  * sonst gäbe es keinen Weg zurück.
  */
-function KorpusWarnung({ mass, laufZiel, onAgentischErzwungen }: {
+function KorpusWarnung({ mass, laufZiel, onStarkErzwungen }: {
   mass: KorpusMass | null | undefined;
   laufZiel?: LaufZiel;
-  onAgentischErzwungen?: (an: boolean) => void;
+  onStarkErzwungen?: (an: boolean) => void;
 }): React.ReactElement | null {
-  const agentisch = laufZiel?.ziel === 'qwen35';
-  const notausfahrt = !!laufZiel?.notausfahrtAnbieten && !!onAgentischErzwungen;
+  const stark = laufZiel?.ziel === 'stark';
+  const notausfahrt = !!laufZiel?.notausfahrtAnbieten && !!onStarkErzwungen;
   if (!mass?.ueberCap && !notausfahrt) return null;
   return (
     <div
@@ -66,17 +67,17 @@ function KorpusWarnung({ mass, laufZiel, onAgentischErzwungen }: {
         <>
           <p className="text-[var(--tf-text)]">
             Die Dokumente ergeben zusammen {mass.zeichen.toLocaleString('de-DE')} Zeichen und
-            passen damit nicht ins Kontextfenster {agentisch ? 'der agentischen KI' : 'gpt-oss-120b'}
+            passen damit nicht ins Kontextfenster von {modellLabel(stark ? 'stark' : 'standard')}
             {' '}({mass.cap.toLocaleString('de-DE')}).
           </p>
           {/* Der Satz spricht über den NÄCHSTEN Lauf, nicht über die angezeigten
               Ergebnisse: der Baustein-Cache trägt sein Ziel nicht, und der
               Notausfahrt-Schalter ist Sitzungszustand. Ein Antrag, dessen
-              Bausteine über Qwen3.6-35B vollständig gerechnet wurden,
+              Bausteine mit dem grossen Fenster vollstaendig gerechnet wurden,
               bekam beim nächsten Öffnen die Behauptung, sie hätten das Ende
               nicht gesehen — obwohl sie genau das getan hatten (v4.124). */}
           <p className="text-[var(--tf-text-secondary)] mt-0.5">
-            Ein KI-Lauf {agentisch ? 'auf dieser KI ' : ''}sieht das Ende des Textes nicht.
+            Ein KI-Lauf {stark ? 'auf dieser KI ' : ''}sieht das Ende des Textes nicht.
             Bereits vorliegende Bausteine können aus einem Lauf mit größerem Fenster stammen.
             Deterministische Auswertungen — Zeitplan, Tabellen, Gliederung — sind davon unberührt.
           </p>
@@ -84,26 +85,27 @@ function KorpusWarnung({ mass, laufZiel, onAgentischErzwungen }: {
       ) : (
         <p className="text-[var(--tf-text)]">
           Die Dokumente ({mass?.zeichen.toLocaleString('de-DE')} Zeichen) passen nicht in das
-          Kontextfenster gpt-oss-120b. Dieser Antrag wird deshalb mit der agentischen KI
-          aufbereitet — sie sieht den ganzen Text, braucht dafür aber deutlich länger.
+          Kontextfenster von {modellLabel('standard')}. Dieser Antrag wird deshalb mit
+          {' '}{modellLabel('stark')} aufbereitet — es sieht den ganzen Text, braucht dafür aber
+          deutlich länger.
         </p>
       )}
       {notausfahrt ? (
         <button
           type="button"
-          onClick={() => onAgentischErzwungen(!agentisch)}
+          onClick={() => onStarkErzwungen(!stark)}
           className="mt-1.5 text-[12px] text-[var(--tf-primary)] hover:underline"
         >
-          {agentisch
-            ? 'Zurück zur gpt-oss-120b (schneller, sieht nur den Anfang)'
-            : 'Diesen Antrag mit der agentischen KI aufbereiten (sieht den ganzen Text, deutlich langsamer)'}
+          {stark
+            ? `Zurück zu ${modellLabel('standard')} (schneller, sieht nur den Anfang)`
+            : `Diesen Antrag mit ${modellLabel('stark')} aufbereiten (sieht den ganzen Text, deutlich langsamer)`}
         </button>
       ) : null}
     </div>
   );
 }
 
-export function QuellenPanel({ ctx, run, korpusMass, laufZiel, onAgentischErzwungen, onIngested }: Props): React.ReactElement {
+export function QuellenPanel({ ctx, run, korpusMass, laufZiel, onStarkErzwungen, onIngested }: Props): React.ReactElement {
   const vbQuelle = run?.quellen.find(q => q.rolle === 'vb') ?? null;
   const anlageQuelle = run?.quellen.find(q => q.rolle === 'anlage5') ?? null;
   const marketingNamen = (run?.quellen.filter(q => q.rolle === 'verwertung') ?? []).map(q => q.name);
@@ -138,7 +140,7 @@ export function QuellenPanel({ ctx, run, korpusMass, laufZiel, onAgentischErzwun
       </button>
 
       {/* Ausserhalb von `offen`: eine eingeklappte Sektion darf die Warnung nicht verstecken. */}
-      <KorpusWarnung mass={korpusMass} laufZiel={laufZiel} onAgentischErzwungen={onAgentischErzwungen} />
+      <KorpusWarnung mass={korpusMass} laufZiel={laufZiel} onStarkErzwungen={onStarkErzwungen} />
 
       {offen && (
         <div className="px-3.5 pb-3.5 pt-0.5 flex flex-col gap-1">

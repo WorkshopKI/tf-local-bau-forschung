@@ -3,15 +3,24 @@
 // kontrollieren — unter file:// koennen wir kein JS in den fremden Tab injizieren,
 // das Bookmarklet ist der vom Nutzer autorisierte Weg).
 // Spricht via postMessage mit dem BridgeTransport unserer App:
-//   tf-ping     -> tf-pong {rev}
+//   tf-ping     -> tf-pong {rev, modelle, kontextText}
 //   tf-app-ping <- (App antwortet tf-app-pong; Gegenrichtungs-Test)
-//   tf-request {id, message, ziel?} -> tf-progress {id}* + tf-stream {id, content}*
-//                                   -> tf-response {id, result, reasoning?, modell?,
-//                                                   kontextTokens?, kontextVoll?}
-//   tf-reset {id, ziel?} -> tf-reset-done {id, found}
-// `ziel` waehlt das MODELL: 'gpt-oss' | 'qwen35' (| 'standard' als Alt-Alias fuer
-// gpt-oss). 'agentisch' ist NICHT angebunden — der agentische Chat bringt eigenen
-// Kontext mit, und den liefert diese App bewusst selbst.
+//   tf-request {id, message, modell?} -> tf-progress {id}* + tf-stream {id, content}*
+//                                     -> tf-response {id, result, reasoning?, modell?,
+//                                                     modelle?, kontextText?, kontextVoll?}
+//   tf-reset {id, modell?} -> tf-reset-done {id, found, modelle}
+//
+// ── Wer hier was weiss ──────────────────────────────────────────────────────
+// `modell` ist der SICHTBARE Optionstext der Auswahlliste, nicht eine Kennung.
+// Dieses Snippet kennt keine Modellnamen und keine Rollen; es meldet mit
+// `modelle` die Liste, die die Seite anbietet, und waehlt aus, was die App ihm
+// nennt. Die Zuordnung (welches Modell taugt wofuer, wie gross ist sein Fenster)
+// liegt in `modell-katalog.ts`.
+//
+// Der Schnitt liegt genau hier, weil er die Kosten eines Modellwechsels der
+// internen KI bestimmt: Wissen IM SNIPPET kostet ein neues Lesezeichen fuer jeden
+// im Team, Wissen in der App nur einen Build. Bis v5 lagen Zuordnungsregel und
+// Token-Parser gespiegelt hier drin — beides ist ersatzlos weg.
 //
 // ── Warum das hier keine DOM-Steuerung mehr ist ──────────────────────────────
 // Die interne KI lief bis 2026-08 auf Streamlit; die Bridge fuellte Textfelder,
@@ -35,7 +44,7 @@
   // ODER die Log-Zeile beim Aktivieren. Die App liest ihn zusaetzlich aus dem
   // tf-pong und warnt bei einem zu alten Snippet — seit dem Umbau ist ein altes
   // Bookmarklet nicht mehr harmlos: es ignoriert das Modellfeld still.
-  var BRIDGE_REV = '2026-08-21-aitisi-http';
+  var BRIDGE_REV = '2026-08-21-modell-liste';
   // Kurzversion für den LESEZEICHEN-NAMEN („interne-KI v1"). Sie ist das
   // Einzige, was der Nutzer ohne Klick sieht — an ihr erkennt er in der
   // Lesezeichenleiste, ob er die aktuelle Bridge hat.
@@ -43,7 +52,7 @@
   // ZUSAMMEN mit BRIDGE_REV hochzählen. Kein Guard kann das erzwingen (ob jemand
   // beide Zeilen angefasst hat, steht nirgends im Code) — geprüft wird nur, dass
   // beide Marker lesbar sind und der Name kurz genug für die Leiste bleibt.
-  var BRIDGE_VERSION = 1;
+  var BRIDGE_VERSION = 2;
   window.__teamflowBridgeRev = BRIDGE_REV;
   window.__teamflowBridgeVersion = BRIDGE_VERSION;
   try { console.log('[TeamFlow-Bridge] aktiv — rev ' + BRIDGE_REV); } catch (e) { /* ignore */ }
@@ -261,42 +270,28 @@
   }
   // </tab-titel-core>
 
-  // ── Modell-Erkennung ──────────────────────────────────────────────────────
-  // Die Modell-Auswahl der Seite ist ein natives <select name="model">; die
-  // `value` traegt den Dateinamen samt Quantisierung
-  // (`Qwen3.6-35B-A3B-UD-Q4_K_M.gguf`) und wandert bei jedem Modell-Update. Wir
-  // ordnen deshalb ueber den SICHTBAREN Text zu, mit der value als Rueckfall.
+  // ── Modell-Liste melden ───────────────────────────────────────────────────
+  // Dieses Snippet kennt KEINE Modellnamen mehr. Es liest die Auswahlliste ab und
+  // meldet sie; welches Modell wofuer taugt, entscheidet die App
+  // (`modell-katalog.ts`), und sie nennt beim Auftrag den gewuenschten Optionstext.
   //
-  // Der VL-Ausschluss ist kein Detail: `Qwen3-VL-30B (multimodal)` hat 62k, also
-  // dasselbe kleine Fenster wie gpt-oss. Eine tolerante /qwen3/i-Regel landete
-  // genau in dem Fenster, dem der Auto-Wechsel entkommen soll.
-  // WORTGLEICH gespiegelt in modell-erkennung.ts (Drift-Test: modell-erkennung.test.ts).
-  // <modell-erkennung-core> keep in sync with modell-erkennung.ts
-  function passtZuModell(ziel, text) {
-    var s = String(text || '').toLowerCase();
-    if (!s) return false;
-    if (/multimodal|-vl-|\bvl\b/.test(s)) return false; // Qwen3-VL: nie automatisch
-    if (ziel === 'gpt-oss') return /gpt[ _-]?oss/.test(s);
-    if (ziel === 'qwen35') return /qwen\s*3[._]6/.test(s);
-    return false;
-  }
-  function leseKontextTokens(text) {
-    var m = /von\s*([\d.,]+)\s*(k|m)?\b/i.exec(String(text || ''));
-    if (!m) return 0;
-    var zahl = parseFloat(m[1].replace(/\./g, '').replace(',', '.'));
-    if (!isFinite(zahl) || zahl <= 0) return 0;
-    var einheit = (m[2] || '').toLowerCase();
-    if (einheit === 'k') zahl *= 1000;
-    else if (einheit === 'm') zahl *= 1000000;
-    return Math.round(zahl);
-  }
-  // </modell-erkennung-core>
-
-  // Alt-Alias: bis zur App-seitigen Umbenennung schickt ein aelterer Build noch
-  // 'standard'. Das meinte immer den klassischen Chat — der laeuft auf gpt-oss.
-  function normZiel(z) {
-    if (z === 'standard') return 'gpt-oss';
-    return z;
+  // Das ist der Grund fuer den Schnitt: jede Zeile Modellwissen hier waere bei
+  // einem Modellwechsel der internen KI ein neues Lesezeichen fuer das GANZE Team.
+  // Wissen, das die App haelt, kostet dagegen nur einen Build. Bis v5 lief hier
+  // eine gespiegelte Zuordnungsregel mit — die ist ersatzlos weg.
+  function modelleListe() {
+    var sel = q1(SEL.modelsel);
+    if (!sel) return [];
+    var out = [];
+    for (var i = 0; i < sel.options.length; i++) {
+      var o = sel.options[i];
+      out.push({
+        text: (o.text || '').trim(),
+        value: o.value || '',
+        aktiv: i === sel.selectedIndex,
+      });
+    }
+    return out;
   }
 
   // ── Status-Badge (unten rechts) ───────────────────────────────────────────
@@ -456,11 +451,16 @@
   // `data-over` am #tokenbar, wenn das Fenster voll ist. Das ist die einzige
   // ehrliche Quelle: unsere Konstanten sind nur der Rueckfall, und sie sind in
   // der Vergangenheit still gedriftet (262k im Code gegen 259k in der Seite).
+  //
+  // Der ROHE Text geht an die App; ausgewertet wird dort (`leseKontextTokens` in
+  // bridge-modelle.ts). Bis v5 lief die Zahlen-Regel hier mit — und haette die
+  // Seite ihre Beschriftung geaendert, waere die Korrektur ein neues Lesezeichen
+  // fuer jeden im Team gewesen.
   function kontextStand() {
     var el = q1(SEL.tokentext);
     var box = q1(SEL.tokenbar);
     return {
-      tokens: leseKontextTokens(el ? el.textContent : ''),
+      text: el ? String(el.textContent || '').trim() : '',
       voll: !!(box && box.dataset && box.dataset.over),
     };
   }
@@ -472,20 +472,22 @@
   // (Modellname, Kontextleiste, Sperren) — ein stiller fetch wuerde die
   // Anzeige von der Server-Sitzung wegdriften lassen.
   var SWAP_TIMEOUT_MS = 15000;
-  function ensureModell(ziel, cb) {
-    if (!ziel) { cb(null); return; }                  // kein Ziel → Modell nicht anfassen
-    if (ziel === 'agentisch') {
-      cb('Der agentische Chat ist nicht angebunden — bitte ein Modell waehlen.');
-      return;
-    }
+  function gleicherText(a, b) {
+    return String(a || '').trim().toLowerCase() === String(b || '').trim().toLowerCase();
+  }
+  function ensureModell(wunsch, cb) {
+    if (!wunsch) { cb(null); return; }                // kein Wunsch → Modell nicht anfassen
     var sel = q1(SEL.modelsel);
     if (!sel) { cb('Modell-Auswahl der internen KI nicht gefunden'); return; }
     var treffer = -1;
     for (var i = 0; i < sel.options.length; i++) {
-      var o = sel.options[i];
-      if (passtZuModell(ziel, o.text) || passtZuModell(ziel, o.value)) { treffer = i; break; }
+      if (gleicherText(sel.options[i].text, wunsch)) { treffer = i; break; }
     }
-    if (treffer < 0) { cb('Modell "' + ziel + '" steht in der internen KI nicht zur Wahl'); return; }
+    // Nicht gefunden ist ein FEHLER, kein Achselzucken: die App hat ihre Nutzlast
+    // bereits auf das Fenster dieses Modells zugeschnitten. Auf einem anderen
+    // weiterzufahren hiesse, den Anfang des Prompts still herausschieben zu
+    // lassen. Die Liste faehrt im Fehler mit, damit die App neu aufloesen kann.
+    if (treffer < 0) { cb('Modell "' + wunsch + '" steht in der internen KI nicht zur Wahl'); return; }
     if (sel.selectedIndex === treffer) { cb(null); return; }   // steht schon richtig
     if (sel.disabled) { cb('Modellwechsel gerade gesperrt (es laeuft eine Generierung)'); return; }
 
@@ -506,8 +508,8 @@
         // Verifizieren statt vertrauen: ein nicht durchgeschlagener Wechsel muss
         // ein Fehler sein, keine stille Abweichung — sonst laeuft der Auftrag auf
         // einem anderen Modell (und Kontextfenster) als die App annimmt.
-        if (passtZuModell(ziel, txt) || passtZuModell(ziel, opt ? opt.value : '')) { cb(null); return; }
-        cb('Modellwechsel auf "' + ziel + '" hat nicht gegriffen (gewaehlt: ' + txt + ')');
+        if (gleicherText(txt, wunsch)) { cb(null); return; }
+        cb('Modellwechsel auf "' + wunsch + '" hat nicht gegriffen (gewaehlt: ' + txt + ')');
         return;
       }
       if (Date.now() - t0 >= SWAP_TIMEOUT_MS) { cb('Modellwechsel: Zeitueberschreitung'); return; }
@@ -562,19 +564,23 @@
   var HARD_MAX_MS = 600000;  // Backstop gegen einen Strom, der nie `done` sendet
   var STILL_MS = 180000;     // kein Ereignis mehr, aber auch kein `done`
 
-  function runRequest(source, id, message, ziel) {
+  function runRequest(source, id, message, modellWunsch) {
     setBadge('working', 'Arbeitet…');
     ensureChatTab(function (tabErr) {
       if (tabErr) { fehler(tabErr); return; }
-      ensureModell(normZiel(ziel), function (modellErr) {
+      ensureModell(modellWunsch, function (modellErr) {
         if (modellErr) { fehler(modellErr); return; }
         ensureDatenquelleAus(function () { sende(); });
       });
     });
 
+    // Die Liste faehrt AUCH im Fehlerfall mit: scheiterte der Lauf daran, dass ein
+    // Modell nicht mehr zur Wahl steht, ist genau sie das, was die App braucht, um
+    // neu aufzuloesen — und ohne sie wuesste sie nur, dass etwas nicht ging.
     function fehler(text) {
       setBadge('error', 'Fehler');
-      source.postMessage({ type: 'tf-response', id: id, result: text }, '*');
+      source.postMessage({ type: 'tf-response', id: id, result: text,
+        modell: aktuellerModellName(), modelle: modelleListe(), fehlschlag: true }, '*');
     }
 
     function sende() {
@@ -599,7 +605,8 @@
           setBadge(direkt ? 'ready' : 'error', direkt ? 'Verbunden' : 'Keine Antwort');
           source.postMessage({ type: 'tf-response', id: id,
             result: direkt || 'Die interne KI hat keinen Antwortstrom geliefert.',
-            modell: aktivesModell, kontextTokens: stand.tokens, kontextVoll: stand.voll }, '*');
+            modell: aktivesModell, modelle: modelleListe(),
+            kontextText: stand.text, kontextVoll: stand.voll }, '*');
           return;
         }
         lausche(sse.getAttribute('data-url'), aktivesModell, stand);
@@ -643,10 +650,11 @@
         if (md) tabQuittung('Fertig');
         var nachricht = { type: 'tf-response', id: id, result: text,
           modell: aktivesModell,
+          modelle: modelleListe(),
           // Nach dem Lauf gemessen, nicht davor: die Seite zieht die Leiste am
           // Ende der Runde nach, und der Wert nach dem Lauf ist der, der die
           // naechste Anfrage begrenzt.
-          kontextTokens: jetzt.tokens || stand.tokens,
+          kontextText: jetzt.text || stand.text,
           kontextVoll: jetzt.voll };
         if (reasoningMd) nachricht.reasoning = reasoningMd;
         try { source.postMessage(nachricht, '*'); } catch (e) { /* ignore */ }
@@ -741,7 +749,7 @@
       console.log('[TeamFlow-Bridge] Anschluss-Test — '
         + (mangel.length ? 'FEHLT: ' + mangel.join(', ') : 'alles gefunden')
         + ' | Modell: ' + (aktuellerModellName() || '?')
-        + ' | Kontext: ' + (kontextStand().tokens || '?'));
+        + ' | Kontext: ' + (kontextStand().text || '?'));
     } catch (e) { /* ignore */ }
     if (mangel.length) {
       setBadge('error', 'Oberfläche geändert: ' + mangel[0]);
@@ -783,7 +791,10 @@
   // uebernimmt das Fenster-Handle (event.source) und kann zuverlaessig pingen,
   // ohne den Tab per window.open neu zu laden.
   if (window.opener) {
-    try { window.opener.postMessage({ type: 'tf-bridge-ready', rev: BRIDGE_REV }, '*'); } catch (e) { /* ignore */ }
+    try {
+      window.opener.postMessage({ type: 'tf-bridge-ready', rev: BRIDGE_REV,
+        modelle: modelleListe(), kontextText: kontextStand().text }, '*');
+    } catch (e) { /* ignore */ }
     setTimeout(function () { runAppReachTest(); }, 300);
     setTimeout(function () { runSelfTest(); }, 1500);
   } else {
@@ -798,22 +809,27 @@
       setBadge('ready', 'Verbunden');
       // `rev` mitschicken: die App erkennt daran ein veraltetes Bookmarklet und
       // rechnet bis zur Neuinstallation mit dem kleinen Kontextfenster.
-      event.source.postMessage({ type: 'tf-pong', rev: BRIDGE_REV }, '*');
+      // `modelle` bei JEDEM Ping: so erfaehrt die App von einer geaenderten
+      // Auswahlliste, bevor ein Auftrag daran scheitert — und nicht erst mittendrin.
+      event.source.postMessage({ type: 'tf-pong', rev: BRIDGE_REV,
+        modelle: modelleListe(), kontextText: kontextStand().text }, '*');
       return;
     }
     if (data.type === 'tf-reset') {
-      // Optionales `ziel`: erst das Modell setzen, dann zuruecksetzen. Die
+      // Optionales `modell`: erst das Modell setzen, dann zuruecksetzen. Die
       // Reihenfolge ist unkritisch (ein Modellwechsel loescht den Verlauf nicht),
       // aber so steht schon vor dem Reset fest, welches Fenster gilt.
-      ensureModell(normZiel(typeof data.ziel === 'string' ? data.ziel : null), function (zielErr) {
+      ensureModell(typeof data.modell === 'string' ? data.modell : null, function (zielErr) {
         if (zielErr) {
           setBadge('working', 'Kein Reset: ' + zielErr);
-          event.source.postMessage({ type: 'tf-reset-done', id: data.id, found: false }, '*');
+          event.source.postMessage({ type: 'tf-reset-done', id: data.id, found: false,
+            modelle: modelleListe(), grund: zielErr }, '*');
           return;
         }
         resetChat(function (found) {
           setBadge(found ? 'ready' : 'working', found ? 'Chat zurückgesetzt' : 'Kein Reset-Weg');
-          event.source.postMessage({ type: 'tf-reset-done', id: data.id, found: found }, '*');
+          event.source.postMessage({ type: 'tf-reset-done', id: data.id, found: found,
+            modelle: modelleListe() }, '*');
         });
       });
       return;
@@ -824,7 +840,7 @@
       // als `done`. Das Feld bleibt app-seitig vorerst bestehen, damit ein
       // aelterer Build gegen dieses Snippet weiterlaeuft.
       runRequest(event.source, data.id, String(data.message || ''),
-        typeof data.ziel === 'string' ? data.ziel : null);
+        typeof data.modell === 'string' ? data.modell : null);
       return;
     }
   });

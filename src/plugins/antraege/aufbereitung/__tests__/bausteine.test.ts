@@ -151,7 +151,7 @@ describe('getOrComputeBaustein', () => {
 /**
  * Welcher Streamlit-Tab angesprochen wird, ist auf der Bridge ein Verhaltens-Kontrakt und
  * kein Detail: ohne `ziel` bleibt das Bookmarklet im AKTIVEN Tab. Die Aufbereitung pinnt
- * deshalb `'gpt-oss'` (`lauf-ziel.ts`) — dieser Block sichert, dass der Wert Reset UND
+ * deshalb `'standard'` (`lauf-ziel.ts`) — dieser Block sichert, dass der Wert Reset UND
  * Submit erreicht und auch der Agentisch-Fallback ihn ausdrücklich nennt.
  */
 describe('getOrComputeBaustein — Ziel-Tab (Streamlit)', () => {
@@ -178,21 +178,21 @@ describe('getOrComputeBaustein — Ziel-Tab (Streamlit)', () => {
     const { idb } = fakeIdb();
     const s = zielStub();
     await getOrComputeBaustein<{ n: number }>(
-      idb, s.transport, skill, key, 'h1', () => 'p', () => ({ n: 1 }), { ziel: 'gpt-oss' },
+      idb, s.transport, skill, key, 'h1', () => 'p', () => ({ n: 1 }), { ziel: 'standard' },
     );
-    expect(s.resetZiele).toEqual(['gpt-oss']);
-    expect(s.submitZiele).toEqual(['gpt-oss']);
+    expect(s.resetZiele).toEqual(['standard']);
+    expect(s.submitZiele).toEqual(['standard']);
   });
 
   it('ohne opts.ziel gilt die globale Modellwahl (MAP nutzt denselben Rahmen)', async () => {
     const { idb } = fakeIdb();
     const s = zielStub();
-    useKiZiel.setState({ ziel: 'qwen35' }); // Modul-Singleton → im finally zurücksetzen
+    useKiZiel.setState({ ziel: 'stark' }); // Modul-Singleton → im finally zurücksetzen
     try {
       await getOrComputeBaustein<{ n: number }>(idb, s.transport, skill, key, 'h1', () => 'p', () => ({ n: 1 }));
-      expect(s.submitZiele).toEqual(['qwen35']);
+      expect(s.submitZiele).toEqual(['stark']);
     } finally {
-      useKiZiel.setState({ ziel: 'gpt-oss' });
+      useKiZiel.setState({ ziel: 'standard' });
     }
   });
 
@@ -200,10 +200,10 @@ describe('getOrComputeBaustein — Ziel-Tab (Streamlit)', () => {
     const { idb } = fakeIdb();
     const s = zielStub('timeout'); // Qwen3.6 antwortet nicht → Fallback
     await getOrComputeBaustein<{ n: number }>(
-      idb, s.transport, skill, key, 'h1', () => 'p', () => ({ n: 1 }), { ziel: 'qwen35' },
+      idb, s.transport, skill, key, 'h1', () => 'p', () => ({ n: 1 }), { ziel: 'stark' },
     );
-    expect(s.resetZiele).toEqual(['qwen35', 'gpt-oss']);
-    expect(s.submitZiele).toEqual(['qwen35', 'gpt-oss']);
+    expect(s.resetZiele).toEqual(['stark', 'standard']);
+    expect(s.submitZiele).toEqual(['stark', 'standard']);
   });
 });
 

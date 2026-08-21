@@ -17,7 +17,9 @@
  * `runSkill` + die proaktiven UI-Checks) und ein simpler Skalar.
  */
 
-import type { BridgeZiel } from './transports/streamlit';
+import type { KiRolle } from './modell-katalog';
+import { rueckfallFenster } from './modell-katalog';
+import { aufloesungFuer } from './bridge-modelle';
 
 const LLM_CONTEXT_TOKENS_KEY = 'teamflow_llm_context_tokens';
 const LLM_CONTEXT_DETECTED_KEY = 'teamflow_llm_context_detected';
@@ -26,21 +28,6 @@ const LLM_CONTEXT_DETECTED_KEY = 'teamflow_llm_context_detected';
  *  (entspricht der internen llama.cpp-Qwen-Konfiguration, `kontext_groesse` 81920). */
 export const DEFAULT_LLM_CONTEXT_TOKENS = 81_920;
 
-/**
- * Kontextfenster der Modelle der internen KI, in **Tokens** — nur noch der
- * RÜCKFALL, falls die Seite gerade nichts sagt.
- *
- * Bis v5.0 waren das die einzige Quelle, und sie sind still gedriftet: im Code
- * standen 262k, die Seite zeigte 259k. Ein zu gross angesetztes Fenster fällt
- * nicht auf — das Modell schiebt dann den Anfang des Prompts heraus, das Ergebnis
- * ist still falsch statt sichtbar gekürzt. Seit das Bookmarklet die angezeigte
- * Chatlänge mitmeldet (`speichereGelernteBridgeTokens`), sind die Zahlen hier nur
- * noch die Antwort auf „bevor wir es zum ersten Mal gesehen haben".
- */
-export const BRIDGE_KONTEXT_TOKENS: Record<BridgeZiel, number> = {
-  'gpt-oss': 62_000,
-  qwen35: 259_000,
-};
 export const MIN_LLM_CONTEXT_TOKENS = 2_048;
 export const MAX_LLM_CONTEXT_TOKENS = 1_000_000;
 
@@ -96,56 +83,38 @@ function readClampedTokens(key: string): number | null {
 /**
  * Wo der Lauf hingeht — entscheidet, welches Kontextfenster gilt.
  *
- * Über die Bridge gilt das Fenster **des gewählten Modells** — abgelesen von der
- * KI-Seite, ersatzweise die Konstante; lokal (llama.cpp/Cloud) gilt weiter
- * manuell > erkannt > Default. Ohne Angabe bleibt es beim lokalen Verhalten.
+ * Über die Bridge gilt das Fenster **des Modells, das die gewählte Rolle trägt** —
+ * abgelesen von der KI-Seite, ersatzweise aus dem Katalog; lokal (llama.cpp/Cloud)
+ * gilt weiter manuell > erkannt > Default. Ohne Angabe bleibt es beim lokalen
+ * Verhalten.
  */
 export interface KontextZiel {
   /** true = die Bridge zur internen KI ist der aktive Provider. */
   bridge?: boolean;
-  /** Gewähltes Modell; `undefined` zählt wie `'gpt-oss'` (das kleinere Fenster —
+  /** Gewählte Rolle; `undefined` zählt wie `'standard'` (das kleinere Fenster —
    *  im Zweifel lieber zu früh warnen als zu spät). */
-  ziel?: BridgeZiel;
-}
-
-/** LS-Schlüssel des von der KI-Seite abgelesenen Fensters, je Modell. */
-function gelerntKey(ziel: BridgeZiel): string {
-  return `teamflow_bridge_ctx_${ziel}`;
-}
-
-/**
- * Das vom Bookmarklet abgelesene Kontextfenster festhalten („Chatlänge [Token]:
- * 0k von 62k"). Wird nach jedem Lauf gemeldet; lesbar ist immer nur das gerade
- * AKTIVE Modell, die App lernt also eins nach dem anderen dazu.
- *
- * `0`/Unsinn wird verworfen — ein Lesefehler darf die Rechnung nicht kapern.
- */
-export function speichereGelernteBridgeTokens(ziel: BridgeZiel, tokens: number): void {
-  if (typeof localStorage === 'undefined') return;
-  if (!Number.isFinite(tokens) || tokens < MIN_LLM_CONTEXT_TOKENS || tokens > MAX_LLM_CONTEXT_TOKENS) return;
-  localStorage.setItem(gelerntKey(ziel), String(Math.round(tokens)));
-}
-
-/** Abgelesenes Fenster eines Modells; `null`, wenn wir es noch nie gesehen haben. */
-export function getGelernteBridgeTokens(ziel: BridgeZiel): number | null {
-  return readClampedTokens(gelerntKey(ziel));
+  ziel?: KiRolle;
 }
 
 /**
  * Wirksame LLM-Kontextlänge (Tokens).
  *
- * Präzedenz: **manuell > abgelesen > Konstante > erkannt > Default.** Die manuelle
+ * Präzedenz: **manuell > abgelesen > Katalog > erkannt > Default.** Die manuelle
  * Übersteuerung gewinnt auch über die Bridge-Werte — wer sie gesetzt hat, weiss,
  * was er tut, und soll sie nicht stillschweigend überschrieben bekommen. Direkt
- * darunter steht, was die KI-Seite selbst anzeigt; die Konstanten greifen nur,
- * solange wir das Modell noch nie gesehen haben.
+ * darunter steht, was die KI-Seite selbst anzeigt; der Katalog greift nur, solange
+ * wir das Modell noch nie gesehen haben.
+ *
+ * Über die Bridge zählt das Fenster des Modells, das die ROLLE gerade trägt
+ * ([bridge-modelle.ts](./bridge-modelle.ts)). Ist die Auswahlliste noch unbekannt
+ * — nie verbunden —, greift das Rückfall-Fenster der Rolle aus dem Katalog.
  */
 export function getLlmContextTokens(ziel?: KontextZiel): number {
   const manuell = readClampedTokens(LLM_CONTEXT_TOKENS_KEY);
   if (manuell !== null) return manuell;
   if (ziel?.bridge === true) {
-    const modell = ziel.ziel ?? 'gpt-oss';
-    return getGelernteBridgeTokens(modell) ?? BRIDGE_KONTEXT_TOKENS[modell];
+    const rolle = ziel.ziel ?? 'standard';
+    return aufloesungFuer(rolle).fensterTokens ?? rueckfallFenster(rolle);
   }
   return readClampedTokens(LLM_CONTEXT_DETECTED_KEY) ?? DEFAULT_LLM_CONTEXT_TOKENS;
 }

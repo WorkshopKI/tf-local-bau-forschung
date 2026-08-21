@@ -13,7 +13,7 @@
  */
 import type { CheckResult, KatalogRef, QuellenBeleg, SkillModifierKey, TeilFeld } from '@/core/services/skills';
 import type { ChatResetStatus } from '@/core/services/ai/chat-reset';
-import type { BridgeZiel } from '@/core/services/ai/transports/streamlit';
+import type { KiRolle } from '@/core/services/ai/modell-katalog';
 import type { FassungMarker } from '@/core/services/ai/sampling';
 import type { KurzfassungVersion } from '../kurzfassung/types';
 
@@ -159,7 +159,7 @@ export interface StepRun {
    * Transport, unterscheiden sich dort also nicht). Additiv — alte Records ohne Feld
    * bleiben ladbar und zeigen die Angabe einfach nicht.
    */
-  ziel?: BridgeZiel;
+  ziel?: KiRolle;
   /**
    * Gesetzt, wenn dieser Text NICHT mit `TEMPERATUR_STANDARD` entstanden ist
    * („Zweitfassung mit anderer Einstellung", [sampling.ts](../../../core/services/ai/sampling.ts)).

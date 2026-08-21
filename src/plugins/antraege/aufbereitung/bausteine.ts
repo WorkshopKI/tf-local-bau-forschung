@@ -14,7 +14,8 @@
  */
 import type { IDBStore } from '@/core/services/storage/idb-store';
 import type { SkillRecord } from '@/core/services/skills';
-import type { AITransport, ConversationMessage, BridgeZiel } from '@/core/services/ai/transports/streamlit';
+import type { AITransport, ConversationMessage } from '@/core/services/ai/transports/streamlit';
+import type { KiRolle } from '@/core/services/ai/modell-katalog';
 import { starteFrischenChat, resetHatVerlaufsrisiko, type ChatResetStatus } from '@/core/services/ai/chat-reset';
 import { aktivesZielFuerLauf } from '@/core/services/ai/ki-ziel';
 import { isDevContext } from '@/config/feature-flags';
@@ -115,9 +116,10 @@ export interface RunBausteinErgebnis {
  * `submitMessage` (Streamlit-Bridge, single-turn) — exakt wie `runRelevanzMap`.
  * System-Rolle aus dem Skill-Record; das Prompt baut der Caller.
  *
- * `ziel` (optional, nur Streamlit) routet den Ziel-Tab: ohne `ziel` = aktiver/
- * gpt-oss-120b; `'qwen35'` = Qwen3.6-35B (259k, das grosse Fenster —
- * Erprobung — dev-Eval-A/B). Reset UND Submit treffen denselben Tab.
+ * `ziel` (optional, nur Bridge) wählt die ROLLE: ohne `ziel` bleibt die
+ * Modell-Auswahl der KI-Seite unberührt; `'stark'` nimmt das Modell mit dem
+ * grossen Fenster (Erprobung — dev-Eval-A/B). Reset UND Submit gehen an dieselbe
+ * Sitzung.
  *
  * ACHTUNG `maxTokens`: greift NUR auf dem `submitConversation`-Pfad (DirectLLM,
  * per-Request). Die Streamlit-Bridge trägt KEIN per-Request-Token-Budget → dort ist
@@ -127,9 +129,9 @@ export interface RunBausteinErgebnis {
 export async function runBaustein(
   transport: AITransport, skill: SkillRecord, prompt: string,
   // Ohne explizites `ziel` gilt die globale Modell-Präferenz (`aktivesZielFuerLauf`):
-  // Standard → undefined (aktiver Tab, byte-identisch), Agentisch → 'qwen35'. Die
+  // Standard → undefined (aktiver Tab, byte-identisch), Agentisch → 'stark'. Die
   // dev-Eval übergibt weiterhin ein explizites `ziel` (überstimmt die Präferenz).
-  ziel: BridgeZiel | undefined = aktivesZielFuerLauf(),
+  ziel: KiRolle | undefined = aktivesZielFuerLauf(),
 ): Promise<RunBausteinErgebnis> {
   const chatResetStatus = await starteFrischenChat(transport, ziel);
   const system = skill.systemPrompt ?? '';
@@ -176,14 +178,14 @@ export async function getOrComputeBaustein<T>(
   opts: {
     force?: boolean;
     verdaechtig?: { pruefe: (daten: T) => boolean; grund: string };
-    /** Modell-Ziel für DIESEN Baustein (nur Streamlit). `'qwen35'` = agentischer
+    /** Modell-Ziel für DIESEN Baustein (nur Streamlit). `'stark'` = agentischer
      *  Qwen3.6; scheitert dessen Reset (Tab nicht verbunden), fällt der Lauf einmal auf
      *  den Standard-Chat zurück (kein Fehler). Ohne `ziel` = globale Präferenz.
      *
      *  Die Aufbereitungs-Seite setzt es IMMER (`bestimmeLaufZiel`, `lauf-ziel.ts`) und
      *  hängt damit nicht an der globalen Variante; das MAP-Modul nutzt denselben Rahmen
      *  und bleibt bewusst bei der Präferenz. Deshalb wird hier NICHT vorbelegt. */
-    ziel?: BridgeZiel;
+    ziel?: KiRolle;
     /**
      * `true`, wenn der Korpus NICHT ins Standard-Fenster passt (Notausfahrt).
      *
@@ -203,7 +205,7 @@ export async function getOrComputeBaustein<T>(
   }
 
   /** EIN Lauf: Transport-Fehler → null (= 'fehler' außen), sonst Roh + geparst (parse wirft nie nach außen). */
-  const einLauf = async (ziel?: BridgeZiel): Promise<{ daten: T | null; raw: string; reset: ChatResetStatus } | null> => {
+  const einLauf = async (ziel?: KiRolle): Promise<{ daten: T | null; raw: string; reset: ChatResetStatus } | null> => {
     let raw: string;
     let reset: ChatResetStatus;
     try {
@@ -222,15 +224,15 @@ export async function getOrComputeBaustein<T>(
 
   /** EIN Lauf inkl. Agentisch-Fallback: wollte er den Qwen3.6-Modell, ist dessen Reset
    *  aber fehlgeschlagen (Tab nicht verbunden), einmal auf den Standard-Chat zurückfallen.
-   *  Der Fallback nennt `'gpt-oss'` AUSDRÜCKLICH: ohne `ziel` bliebe das Bookmarklet im
+   *  Der Fallback nennt `'standard'` AUSDRÜCKLICH: ohne `ziel` bliebe das Bookmarklet im
    *  AKTIVEN Tab — also womöglich in genau dem agentischen, der gerade nicht antwortet
    *  (Lehre v2.292, `feedbackImprove.ts`). */
   const laufMitFallback = async (): Promise<{ daten: T | null; raw: string; reset: ChatResetStatus } | null> => {
     const r = await einLauf(opts.ziel);
     // Kein Rückfall, wenn der Korpus das Standard-Fenster sprengt (siehe
     // `ueberStandardCap`) — dort wäre der Ersatzlauf nachweislich beschnitten.
-    if (r && opts.ziel === 'qwen35' && !opts.ueberStandardCap && resetHatVerlaufsrisiko(r.reset)) {
-      const standard = await einLauf('gpt-oss');
+    if (r && opts.ziel === 'stark' && !opts.ueberStandardCap && resetHatVerlaufsrisiko(r.reset)) {
+      const standard = await einLauf('standard');
       if (standard) return standard;
     }
     return r;

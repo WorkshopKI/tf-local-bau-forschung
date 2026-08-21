@@ -17,13 +17,13 @@
 
 import { create } from 'zustand';
 import type { ModellWahl } from './modell-wahl';
-import type { BridgeZiel } from './transports/streamlit';
+import type { KiRolle } from './modell-katalog';
 
 export interface ModellEskalation {
   /** Was der Bearbeiter gewählt hatte. */
-  von: BridgeZiel;
+  von: KiRolle;
   /** Worauf der Lauf angehoben wurde. */
-  nach: BridgeZiel;
+  nach: KiRolle;
   /** Umfang, der den Ausschlag gab (Zeichen). */
   zeichen: number;
   /** true = auch das größere Fenster reicht nicht, es wurde zusätzlich gekürzt. */
@@ -34,7 +34,7 @@ export interface ModellEskalation {
 
 interface ModellEskalationStore {
   letzte: ModellEskalation | null;
-  melde: (von: BridgeZiel, wahl: ModellWahl, zeitpunkt: number) => void;
+  melde: (von: KiRolle, wahl: ModellWahl, zeitpunkt: number) => void;
   /** Nach dem Anzeigen zurücksetzen (die Meldung ist einmalig, kein Dauerzustand). */
   quittiere: () => void;
 }

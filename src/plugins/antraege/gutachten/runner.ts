@@ -7,7 +7,7 @@
  */
 import type { CheckResult, QuellenBeleg, SkillModifierKey, TeilFeld } from '@/core/services/skills';
 import { resetHatVerlaufsrisiko, type ChatResetStatus } from '@/core/services/ai/chat-reset';
-import type { BridgeZiel } from '@/core/services/ai/transports/streamlit';
+import type { KiRolle } from '@/core/services/ai/modell-katalog';
 import { appendVerlauf, restoreVersion } from '../kurzfassung/kurzfassung-verlauf';
 import {
   STEP_ORDER,
@@ -332,7 +332,7 @@ export function applyZielFallback(run: WorkflowRun, stepId: StepId, now: string)
  * und schreibt „gpt-oss-120b" unter einen Text, der nie dort entstanden ist.
  */
 export function applyLaufZiel(
-  run: WorkflowRun, stepId: StepId, ziel: BridgeZiel | null, now: string,
+  run: WorkflowRun, stepId: StepId, ziel: KiRolle | null, now: string,
 ): WorkflowRun {
   const step = run.schritte[stepId];
   if (!step) return run;

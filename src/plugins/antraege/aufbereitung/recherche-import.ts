@@ -11,7 +11,8 @@
  */
 import type { IDBStore } from '@/core/services/storage/idb-store';
 import type { SkillRecord } from '@/core/services/skills';
-import type { AITransport, BridgeZiel } from '@/core/services/ai/transports/streamlit';
+import type { AITransport } from '@/core/services/ai/transports/streamlit';
+import type { KiRolle } from '@/core/services/ai/modell-katalog';
 import { hashText } from '@/plugins/antraege/gutachten/runner';
 import { getOrComputeBaustein, rechercheImportCacheKey, type BausteinResult } from './bausteine';
 import {
@@ -83,7 +84,7 @@ export async function computeRechercheImportBaustein(
   skill: SkillRecord,
   antragKey: string,
   externText: string,
-  opts?: { force?: boolean; ziel?: BridgeZiel; ueberStandardCap?: boolean },
+  opts?: { force?: boolean; ziel?: KiRolle; ueberStandardCap?: boolean },
 ): Promise<BausteinResult<ExterneRechercheKern>> {
   const externHash = hashText(externText);
   return getOrComputeBaustein<ExterneRechercheKern>(
@@ -120,7 +121,7 @@ export async function strukturiereImport(
     force?: boolean;
     /** Ziel-KI des Strukturierungs-Laufs — wie alle Aufbereitungs-Läufe gpt-oss-120b
      *  (`bestimmeLaufZiel`); ohne Angabe gilt die globale Variante. */
-    ziel?: BridgeZiel;
+    ziel?: KiRolle;
   },
 ): Promise<ImportErgebnis> {
   // 1. Direkter JSON-Block im Text?

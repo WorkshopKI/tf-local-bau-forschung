@@ -114,7 +114,7 @@ export interface UseAufbereitungResult {
   laufZiel: LaufZiel;
   /** Notausfahrt für DIESEN Antrag (Sitzung, nicht persistiert) — Qwen3.6-35B wegen
    *  eines Korpus, der nicht ins Standard-Kontextfenster passt. */
-  setzeAgentischErzwungen: (an: boolean) => void;
+  setzeStarkErzwungen: (an: boolean) => void;
   /** Läuft alle Bausteine sequentiell (Recherche-Prompt → Aspekte → Steckbrief → Zahlen → Glossar → Verwertung). */
   bausteine: UseAsyncActionResult<[]>;
   /** Verwirft die Baustein-Caches und rechnet neu (dev-Aktion „KI-Bausteine neu berechnen"). */
@@ -154,7 +154,7 @@ export function useAufbereitung(ctx: AufbereitungContext | null): UseAufbereitun
   const { aspekte, steckbrief, zahlen, glossar, verwertung, recherchePrompt } = alsFelder(bausteinZustand);
   const [vbMarkdown, setVbMarkdown] = useState<string | null>(null);
   const [einreichungsBezug, setEinreichungsBezug] = useState<EinreichungsBezug | null>(null);
-  const [agentischErzwungen, setzeAgentischErzwungen] = useState(false);
+  const [starkErzwungen, setzeStarkErzwungen] = useState(false);
   const key = ctx?.key ?? null;
 
   // Ziel-KI der Bausteine: fest gpt-oss-120b, es sei denn der Prüfer hat wegen eines
@@ -163,10 +163,10 @@ export function useAufbereitung(ctx: AufbereitungContext | null): UseAufbereitun
   const bridgeAktiv = bridge.istBridgeAktiv();
   const laufZiel = useMemo(() => bestimmeLaufZiel({
     zeichen: vbMarkdown?.length ?? null,
-    standardCap: getVbCharCap({ bridge: bridgeAktiv, ziel: 'gpt-oss' }),
-    agentischCap: getVbCharCap({ bridge: bridgeAktiv, ziel: 'qwen35' }),
-    agentischErzwungen,
-  }), [vbMarkdown, bridgeAktiv, agentischErzwungen]);
+    standardCap: getVbCharCap({ bridge: bridgeAktiv, ziel: 'standard' }),
+    starkCap: getVbCharCap({ bridge: bridgeAktiv, ziel: 'stark' }),
+    starkErzwungen,
+  }), [vbMarkdown, bridgeAktiv, starkErzwungen]);
 
   // Gemessen, NICHT gekürzt: `runBaustein` umgeht `runSkill` und damit `capVbMarkdown`,
   // und der Upload-Check prüft nur je Datei. Ohne diese Messung liefe ein zu grosser
@@ -183,7 +183,7 @@ export function useAufbereitung(ctx: AufbereitungContext | null): UseAufbereitun
     setLoading(true);
     setBausteinZustand(vorher => setzeAlleUi(vorher, FEHLT));
     setVbMarkdown(null);
-    setzeAgentischErzwungen(false); // Notausfahrt gilt je Antrag, nicht global.
+    setzeStarkErzwungen(false); // Notausfahrt gilt je Antrag, nicht global.
     (async () => {
       if (!key) { setRun(null); setLoading(false); return; }
       const r = await loadAufbereitung(storage.idb, key);
@@ -633,5 +633,5 @@ export function useAufbereitung(ctx: AufbereitungContext | null): UseAufbereitun
     await storage.idb.set(aufbereitungKey(next.antragKey), next);
   });
 
-  return { run, loading, veraltet, neu, requestRecompute, toggle, toggleErledigt, markiereMarktzugangKopiert, importTextRecherche, importDateiRecherche, loescheExternRecherche, aspekte, steckbrief, zahlen, glossar, verwertung, recherchePrompt, speichereRecherchePrompt, speichereRechercheStichworte, verwerfeRecherchePromptEdit, vbMarkdown, korpusMass, einreichungsBezug, laufZiel, setzeAgentischErzwungen, bausteine, bausteineNeu };
+  return { run, loading, veraltet, neu, requestRecompute, toggle, toggleErledigt, markiereMarktzugangKopiert, importTextRecherche, importDateiRecherche, loescheExternRecherche, aspekte, steckbrief, zahlen, glossar, verwertung, recherchePrompt, speichereRecherchePrompt, speichereRechercheStichworte, verwerfeRecherchePromptEdit, vbMarkdown, korpusMass, einreichungsBezug, laufZiel, setzeStarkErzwungen, bausteine, bausteineNeu };
 }

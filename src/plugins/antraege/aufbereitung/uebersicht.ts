@@ -6,6 +6,7 @@
  * (`recherche-prompt` zuerst — folgt in Phase 1 — dann Aspekte → Steckbrief →
  * Zahlen → Glossar → Verwertung).
  */
+import { modellLabel } from '@/core/services/ai/bridge-modelle';
 import type { AufbereitungTabId } from './AufbereitungTabs';
 import { ABDECKUNG_PAUSE_HINWEIS, ABDECKUNG_PAUSIERT } from './pausierte-module';
 import type { BausteinKey } from './tab-gating';
@@ -67,8 +68,8 @@ export interface KiCta {
  * niemand den Knopf noch einmal drückt. „Neu aufbereiten" hilft dort nicht: es rechnet
  * nur den deterministischen Teil.
  */
-export function baueKiCta(status: readonly BausteinUiStatus[], opts: { agentisch: boolean }): KiCta {
-  const kiName = opts.agentisch ? 'Qwen3.6-35B' : 'gpt-oss-120b';
+export function baueKiCta(status: readonly BausteinUiStatus[], opts: { stark: boolean }): KiCta {
+  const kiName = modellLabel(opts.stark ? 'stark' : 'standard');
   const offen = status.filter(s => s === 'fehlt').length;
   if (offen > 0 && offen < status.length) {
     return {

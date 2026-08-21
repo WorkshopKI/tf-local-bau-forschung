@@ -5,7 +5,8 @@
  * bei Degradation ODER auffälligem `ok` (Zahlen: Tabellen-Präambel/Truncation) die
  * ersten ~400 Zeichen der Rohantwort).
  */
-import type { BridgeZiel } from '@/core/services/ai/transports/streamlit';
+import { modellLabel } from '@/core/services/ai/bridge-modelle';
+import type { KiRolle } from '@/core/services/ai/modell-katalog';
 import { STECKBRIEF_FELDER, gemesseneFixtures, type AufbereitungEvalErgebnis, type FixtureErgebnis } from './runner';
 
 export interface ReportMeta {
@@ -14,9 +15,9 @@ export interface ReportMeta {
   /** `transport.displayName ?? transport.name`. */
   transportName: string;
   steckbriefEingeschlossen: boolean;
-  /** Modell (A/B): `'qwen35'` = Qwen3.6-35B, sonst gpt-oss-120b.
+  /** Modell (A/B): `'stark'` = Qwen3.6-35B, sonst gpt-oss-120b.
    *  Irrelevant (und ignoriert), wenn `modell` gesetzt ist. */
-  ziel?: BridgeZiel;
+  ziel?: KiRolle;
   /** Nur OpenRouter-Modus (extern, fiktive Fixtures): Modell-Slug (z.B.
    *  `anthropic/claude-sonnet-4.6`). Ohne Wert bleibt der Report byte-identisch
    *  zu den internen Läufen (Vergleichbarkeit alter Reports). */
@@ -24,8 +25,8 @@ export interface ReportMeta {
 }
 
 /** Menschenlesbares Ziel-Tab-Etikett für den Report-Kopf. */
-function zielLabel(ziel?: BridgeZiel): string {
-  return ziel === 'qwen35' ? 'Qwen3.6-35B' : 'gpt-oss-120b';
+function zielLabel(ziel?: KiRolle): string {
+  return modellLabel(ziel ?? 'standard');
 }
 
 /** Länge des Rohtext-Auszugs bei Degradation. */

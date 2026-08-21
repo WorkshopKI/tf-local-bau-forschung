@@ -70,7 +70,7 @@ Decision-Tree für häufige Aufgaben. Erst hier nachsehen, **bevor** du die Code
 | Home-Widget-System (Katalog, persönliche Config, Kanban-Widget, Settings-Sektion) | [docs/architecture/home-widgets.md](docs/architecture/home-widgets.md) |
 | Skill-Eval-GUI (dev): Abschnitt A–G gegen fiktive Fixtures + externer Judge | [docs/architecture/skill-eval-gui.md](docs/architecture/skill-eval-gui.md) |
 | Strukturierte Skill-Ausgabe (JSON-Teilfelder + render-only Badges, `teilStruktur`) | [docs/architecture/teilstruktur.md](docs/architecture/teilstruktur.md) |
-| KI-Bridge zur internen KI (Bookmarklet-Installer + postMessage-Transport, AitisiGPT) | [docs/architecture/ki-bridge.md](docs/architecture/ki-bridge.md) |
+| KI-Bridge zur internen KI (Bookmarklet + postMessage/SSE, AitisiGPT; Modellwahl als ROLLE `standard`/`stark`, Katalog statt Modellnamen) | [docs/architecture/ki-bridge.md](docs/architecture/ki-bridge.md) |
 | KI-Transport / DSGVO (dokument-tragende Läufe intern halten) | Pitfall #30 + [docs/architecture/transport-policy.md](docs/architecture/transport-policy.md) |
 | Feedback-System (FAB + Board + Sponsoring + KI-Verbesserung) | [docs/architecture/feedback-system.md](docs/architecture/feedback-system.md) |
 | Phase-2 Triage + Review-Queue | [docs/architecture/phase2-triage.md](docs/architecture/phase2-triage.md) + [phase2-review-queue.md](docs/architecture/phase2-review-queue.md) |
@@ -184,7 +184,7 @@ Generisches Substrat hinter Gutachten + Nachforderungen — eine **Artefakt-Achs
 
 Kategorie-Modell, Journey-Paket 3 (Regel→Korrektur, `regelKorrekturAnweisung`) + 4 (Belege↔Satz, deterministische Ableitung), Run-Keying, generische DOCX-Füllung, NF-/GA-QS: [docs/architecture/artefakt-engine.md](docs/architecture/artefakt-engine.md).
 
-**Abschnitts-Journey** (v2.334–v2.337, additiv): Ziel-Fallback qwen35→gpt-oss (ein Retry, nur wo `ziel` wirkt), auto-angehängter Feinschliff (Scheitern degradiert zum Rohentwurf, auch Abbruch), Abnahme-Kriterien am Skill (`qsKriterien` als Prompt-Anhang statt Seed-Write), Vier-Ebenen-Karte — [gutachten-kurzfassung.md](docs/architecture/gutachten-kurzfassung.md).
+**Abschnitts-Journey** (v2.334–v2.337, additiv): Ziel-Fallback stark→standard (ein Retry, nur wo `ziel` wirkt), auto-angehängter Feinschliff (Scheitern degradiert zum Rohentwurf, auch Abbruch), Abnahme-Kriterien am Skill (`qsKriterien` als Prompt-Anhang statt Seed-Write), Vier-Ebenen-Karte — [gutachten-kurzfassung.md](docs/architecture/gutachten-kurzfassung.md).
 
 ### Skill-Eval-GUI (dev)
 

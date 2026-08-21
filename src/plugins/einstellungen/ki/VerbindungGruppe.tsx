@@ -23,7 +23,7 @@ import { BRIDGE_BOOKMARKLET, BRIDGE_BOOKMARK_NAME, istBookmarkletVeraltet } from
 import { useBridgeStatus } from '@/core/services/ai/bridge-status';
 import { connectInternalKi } from '@/core/services/ai/connect-ki';
 import type { AIProviderConfig } from '@/core/types/config';
-import type { BridgeZiel } from '@/core/services/ai/transports/streamlit';
+import type { KiRolle } from '@/core/services/ai/modell-katalog';
 import { isDevContext } from '@/config/feature-flags';
 import { SettingsGruppe, SettingsKlappe } from '@/components/settings';
 
@@ -255,9 +255,9 @@ export function VerbindungGruppe({
  */
 function ZweitLlmKlappe({ url }: { url: string }): React.ReactElement {
   const aiBridge = useAIBridge();
-  const [ergebnis, setErgebnis] = useState<{ ziel: BridgeZiel; ok: boolean; text: string } | null>(null);
+  const [ergebnis, setErgebnis] = useState<{ ziel: KiRolle; ok: boolean; text: string } | null>(null);
 
-  const zielTest = useAsyncAction(async (ziel: BridgeZiel) => {
+  const zielTest = useAsyncAction(async (ziel: KiRolle) => {
     setErgebnis(null);
     const a = 10 + Math.floor(Math.random() * 80);
     const b = 10 + Math.floor(Math.random() * 80);
@@ -280,10 +280,10 @@ function ZweitLlmKlappe({ url }: { url: string }): React.ReactElement {
         senden, Antwort auslesen, Chat zurücksetzen. Voraussetzung: KI-Tab offen, Lesezeichen dort aktiviert.
       </p>
       <div className="flex items-center gap-2 flex-wrap">
-        <Button variant="secondary" size="sm" onClick={() => zielTest.run('gpt-oss')} disabled={zielTest.busy || !url}>
+        <Button variant="secondary" size="sm" onClick={() => zielTest.run('standard')} disabled={zielTest.busy || !url}>
           Standard testen
         </Button>
-        <Button variant="secondary" size="sm" onClick={() => zielTest.run('qwen35')} disabled={zielTest.busy || !url}>
+        <Button variant="secondary" size="sm" onClick={() => zielTest.run('stark')} disabled={zielTest.busy || !url}>
           Agentisch testen
         </Button>
         {zielTest.busy && (
@@ -293,7 +293,7 @@ function ZweitLlmKlappe({ url }: { url: string }): React.ReactElement {
       {ergebnis && (
         <div className="space-y-1 mt-2">
           <Badge variant={ergebnis.ok ? 'success' : 'error'}>
-            {ergebnis.ziel === 'qwen35' ? 'Agentisch' : 'Standard'}: {ergebnis.ok ? 'OK' : 'prüfen'}
+            {ergebnis.ziel === 'stark' ? 'Agentisch' : 'Standard'}: {ergebnis.ok ? 'OK' : 'prüfen'}
           </Badge>
           <p className="text-[12px] text-[var(--tf-text-secondary)] break-words">{ergebnis.text}</p>
         </div>
