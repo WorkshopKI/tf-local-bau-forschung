@@ -5,6 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v6.6.0 — Die Chronik beschriftet ihre Spalten, die Kante erklaert sich in der Legende (August 2026)
+
+MINOR — „Nach Phase" beschriftete seine Spalten, „nach Datum" nicht — dabei sind es dieselben Spalten an denselben x-Positionen, und `Kürzel` wie `Wer` erklären sich nirgends von selbst. Über der Liste stand dafür eine ganze Zeile für einen Satz, den man einmal liest. Detail: [chronik-und-zeitstrahl.md](docs/status-system/chronik-und-zeitstrahl.md).
+
+- **„Nach Datum" bekommt Spaltenköpfe** — `Monat · Datum · Kürzel · Wer · Ereignis · Wo`, gemessen deckungsgleich mit den Köpfen der Matrix (310/461/515/599) ([StatusChronik.tsx](src/plugins/antraege/status/StatusChronik.tsx))
+- **Die Erklärzeile „Kante auf der Achse: FB — Ihre Rolle laut Profil" entfällt**; die Legende unter der Liste trägt sie als sechsten Eintrag „Ihre Rolle (FB)" — eine Zeile weniger vor dem ersten Termin
+- **Der erste Monatsblock verliert seine Trennlinie**: über ihm steht jetzt die des Spaltenkopfs, und zwei lesen sich als eine doppelt gezogene
+- **`verlaufGeometrie` trennt Breite von Schrift** (`TAG_BREITE` neben `TAG_SPALTE`) — ein Kopf braucht die Spaltenbreite, nicht die dicktengleiche Schrift; der Guard hält beide Hälften zusammen ([verlaufGeometrie.ts](src/plugins/antraege/status/verlaufGeometrie.ts))
+
 ### v6.5.2 — Nachtlauf-Widget: waagerechte Trennlinie je Verbund, mehr Luft vor der Zahl (August 2026)
 
 PATCH — Die senkrechte Haarlinie aus v6.4.2 band die Zeilen eines Verbunds, trennte aber nicht sichtbar zwischen ihnen; und die Zahl klebte nach dem Verschmälern der Spalte zu dicht am Namen.

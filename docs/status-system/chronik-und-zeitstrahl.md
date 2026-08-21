@@ -59,6 +59,23 @@ beiden zusammen. Drei Eigenheiten der Matrix folgen daraus: `border-separate`
 waagerechtes Polster (sonst ist die `<col>`-Breite nicht mehr die ganze
 Wahrheit), und eine leere zweite Spalte, die den Platz der Tagesspalte hält.
 
+**Beide Ordnungen beschriften ihre Spalten**, mit denselben Wörtern an denselben
+x-Positionen: `Monat` bzw. `Phase` in der Rinne, dann `Kürzel`, `Wer`, `Ereignis`
+— die Matrix schließt mit ihren Träger-Spalten und `Spanne`, die Chronik mit
+einem rechtsbündigen `Wo` über den Träger-Marken (dasselbe Wort, mit dem die
+Filterleiste darüber ihre Träger-Chips überschreibt). Zwei davon erklären sich
+nicht von selbst: `Kürzel` und `Wer`. Die Phasenmarke der Chronik bleibt
+unbeschriftet — sie nennt ihre Phase selbst, und ein Kopf über einer Marke, die
+nicht in jeder Zeile steht, benennte keine Spalte.
+
+Der Kopf ist der Grund, aus dem `verlaufGeometrie.ts` die **Breiten getrennt von
+der Schrift** führt (`TAG_BREITE` neben `TAG_SPALTE`): er braucht die Breite
+seiner Spalte, nicht deren dicktengleiche Schrift — und zwei Schriftgrößen im
+selben Klassen-String entscheidet nicht die Reihenfolge im String, sondern die im
+erzeugten CSS. In der Chronik trägt er die Achsenlinie mit, weil deren 1 px in
+der Rechnung steckt; der erste Monatsblock verliert dafür seine Trennlinie, sonst
+stünden zwei Linien übereinander.
+
 Die Phasen-Beschriftung steht per `rowSpan` über der **ganzen** Gruppe
 (`phasenGruppen`, löst `phasenRinne` ab). Sonst bestimmt ein langes Label die
 Höhe einer einzelnen Zeile: „Marker (ohne Phase)" bricht in der 84 px schmalen
@@ -342,6 +359,10 @@ liest einmal je Seite; Chronik, Historie-Sektion und der Ausklapp hängen daran.
 
 Die Legende steht im Fuß **dieser** Ansicht; die Matrix trägt dieselbe
 Gewichtung ohne Punkte (Meilenstein-Kürzel akzentfarbig, Ereignis in Medium).
+Sie trägt seit v6.6 auch die **Kante**: trägt das Profil eine eigene Rolle, steht
+dort ein sechster Eintrag `Ihre Rolle (FB)`. Bis dahin erklärte sich die Kante in
+einer eigenen Zeile über der Liste — auf der Detailseite die fünfte Zeile vor dem
+ersten Termin, für eine Auskunft, die man einmal liest.
 
 ## Kennzahlen
 

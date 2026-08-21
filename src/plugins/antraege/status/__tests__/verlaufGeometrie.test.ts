@@ -9,15 +9,21 @@
  */
 import { describe, expect, it } from 'vitest';
 import {
-  ABSTAND_PX, ACHSE_PX, CODE_PX, CODE_SPALTE, RINNE_BLOCK, RINNE_PX,
-  ROLLE_PX, ROLLEN_SPALTE, SPALTE_CODE, SPALTE_RINNE, SPALTE_ROLLE, SPALTE_TAG,
-  TAG_PX, TAG_SPALTE, ZEILE_KLASSE, ZEILE_PX,
+  ABSTAND_PX, ACHSE_PX, CODE_BREITE, CODE_PX, CODE_SPALTE, RINNE_BLOCK, RINNE_BREITE,
+  RINNE_PX, ROLLE_PX, ROLLEN_SPALTE, SPALTE_CODE, SPALTE_RINNE, SPALTE_ROLLE, SPALTE_TAG,
+  TAG_BREITE, TAG_PX, TAG_SPALTE, ZEILE_KLASSE, ZEILE_PX,
 } from '../verlaufGeometrie';
 
 describe('verlaufGeometrie — Klassenname trägt dieselbe Zahl', () => {
+  // Die Breiten stehen doppelt in der Liste: einmal roh (so trägt der
+  // Spaltenkopf sie) und einmal als volle Spalte. Genau dieses Paar darf nicht
+  // auseinanderlaufen — sonst steht der Kopf neben seiner Spalte.
   const paare: [string, string, number][] = [
+    ['RINNE_BREITE', RINNE_BREITE, RINNE_PX],
     ['RINNE_BLOCK', RINNE_BLOCK, RINNE_PX],
+    ['TAG_BREITE', TAG_BREITE, TAG_PX],
     ['TAG_SPALTE', TAG_SPALTE, TAG_PX],
+    ['CODE_BREITE', CODE_BREITE, CODE_PX],
     ['CODE_SPALTE', CODE_SPALTE, CODE_PX],
     ['ROLLEN_SPALTE', ROLLEN_SPALTE, ROLLE_PX],
   ];

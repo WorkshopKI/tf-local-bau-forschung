@@ -47,7 +47,14 @@
  * Wer-Filter darüber — der fragt „was hat die QS getan", die Kante „was geht
  * mich an" — und beide dürfen nebeneinander stehen. Neutrale Zeilen zählen dabei
  * NICHT als meine: sie gehören jedem, und markiert trüge fast jede dritte Zeile
- * die Kante.
+ * die Kante. Erklärt wird sie in der **Legende** unter der Liste, nicht in einer
+ * eigenen Zeile darüber: ein Satz vor dem ersten Termin kostete eine ganze
+ * Zeile für eine Auskunft, die man einmal liest.
+ *
+ * **Die Spalten sind beschriftet** — Monat, Datum, Kürzel, Wer, Ereignis, Wo —
+ * mit denselben Wörtern an denselben x-Positionen wie in der Matrix. „Kürzel"
+ * und „Wer" sind die beiden, die sich nicht von selbst erklären; und wer
+ * umschaltet, findet den Kopf wieder, den er gerade gelesen hat.
  *
  * **Was fehlt**, kommt aus `offenePaareJeTeilvorhaben` und steht als Fehlzeile
  * unter dem Termin, der die andere Seite gesetzt hat — roter Ring, kein Datum.
@@ -76,7 +83,8 @@ import { formatDatumsWert } from '@/core/services/csv/dateParse';
 import { tagDe, wannText } from './journalTexte';
 import { RollenBadges, TraegerBadges } from './VerlaufBadges';
 import {
-  CODE_SPALTE, RINNE_BLOCK, RINNE_TEXT, ROLLEN_SPALTE, TAG_SPALTE, ZEILE_KLASSE,
+  CODE_BREITE, CODE_SPALTE, RINNE_BLOCK, RINNE_BREITE, RINNE_TEXT, ROLLEN_SPALTE,
+  TAG_BREITE, TAG_SPALTE, ZEILE_KLASSE,
 } from './verlaufGeometrie';
 
 /** Ab wann eine Pause eigens benannt wird — ein übersprungener Monat ist Alltag. */
@@ -436,8 +444,51 @@ function FensterSchalter({ weggelassen, offen, onKlick }: {
   );
 }
 
-/** Die vier Knotenzustände, ausgeschrieben — nur in dieser Ansicht. */
-function Legende(): React.ReactElement {
+/**
+ * Die Spaltenköpfe — dieselben Wörter an denselben Stellen wie in der Matrix.
+ *
+ * Sie sind der Grund, aus dem `verlaufGeometrie` die Breiten getrennt von der
+ * Schrift führt: der Kopf braucht die Breite seiner Spalte, aber nicht deren
+ * dicktengleiche Schrift. Und er sitzt oben bündig (`RINNE_BREITE` statt
+ * `RINNE_BLOCK`), damit die erste Zeile in beiden Ordnungen auf derselben Höhe
+ * beginnt.
+ *
+ * Die Achsenlinie läuft mit — nicht als Zierde: die 1 px, die sie belegt,
+ * stecken in der Rechnung (`SPALTE_TAG`). Ohne sie stünde der Kopf einen Pixel
+ * links von seiner Spalte.
+ *
+ * Rechts steht **„Wo"** — dasselbe Wort, mit dem die Filterleiste darüber ihre
+ * Träger-Chips beschriftet. Die Phasenmarke davor bleibt unbeschriftet: sie
+ * nennt ihre Phase selbst, und ein Kopf über einer Marke, die nicht in jeder
+ * Zeile steht, benennte keine Spalte.
+ */
+function Kopfzeile(): React.ReactElement {
+  return (
+    <div className="flex border-b border-[var(--tf-border)] pb-1.5">
+      <div className={`${RINNE_BREITE} ${RINNE_TEXT} ${LEISE}`}>Monat</div>
+      <div className="min-w-0 flex-1 border-l border-[var(--tf-border)] pl-4">
+        <div className={`flex items-baseline gap-2 text-[10.5px] ${LEISE} ${ZEILE_KLASSE}`}>
+          <span className={TAG_BREITE}>Datum</span>
+          <span className={CODE_BREITE}>Kürzel</span>
+          <span className={ROLLEN_SPALTE}>Wer</span>
+          <span className="min-w-0 flex-1 truncate">Ereignis</span>
+          <span className="shrink-0">Wo</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Die vier Knotenzustände, ausgeschrieben — nur in dieser Ansicht.
+ *
+ * Hier steht seit v4.14x auch die **Kante**: bis dahin erklärte sie sich in
+ * einer eigenen Zeile über der Liste, und auf der Detailseite war das die
+ * fünfte Zeile vor dem ersten Termin. Eine Markierung ohne Erklärung wäre
+ * trotzdem keine Lösung — die Legende trägt sie jetzt mit, in der Zeile, die
+ * ohnehin dasteht.
+ */
+function Legende({ meineRolle }: { meineRolle: Rolle | 'alle' }): React.ReactElement {
   const eintraege: [React.ReactNode, string][] = [
     [<span key="m" className="inline-block rounded-full" style={{ width: 10, height: 10, background: 'var(--tf-primary)', boxShadow: '0 0 0 3px var(--tf-primary-light)' }} />, 'Hauptereignis'],
     [<span key="n" className="inline-block rounded-full" style={{ width: 7, height: 7, background: 'var(--tf-text-tertiary)' }} />, 'Regelfall'],
@@ -445,6 +496,12 @@ function Legende(): React.ReactElement {
     [<span key="f" className="inline-block rounded-full" style={{ width: 9, height: 9, border: '1px solid var(--tf-danger-text)', background: 'var(--tf-danger-bg)' }} />, 'Kürzel nicht gesetzt'],
     [<span key="z" className="inline-block rounded-full" style={{ width: 8, height: 8, border: '1px dashed var(--tf-text-tertiary)', background: 'var(--tf-bg)' }} />, 'zurückgenommen / verschoben'],
   ];
+  if (meineRolle !== 'alle') {
+    eintraege.push([
+      <span key="kante" className="inline-block" style={{ width: 2, height: 11, background: 'var(--tf-primary)' }} />,
+      `Ihre Rolle (${ROLLE_LABEL[meineRolle]})`,
+    ]);
+  }
   return (
     <div className={`flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] ${LEISE}`}>
       {eintraege.map(([punkt, text]) => (
@@ -614,22 +671,15 @@ export function StatusChronik({
 
   return (
     <div className="flex flex-col gap-2">
-      {((zeigeSchalter && neben.length > 0) || meineRolle !== 'alle') && (
+      {zeigeSchalter && neben.length > 0 && (
         <div className="flex flex-wrap items-center gap-2">
-          {zeigeSchalter && neben.length > 0 && (
-            <ToggleChip
-              label="Nebensächliches"
-              zahl={neben.length}
-              selected={zeigeNebensaechlich}
-              onToggle={onToggleNebensaechlich}
-              title="Briefe, Bestätigungen und andere reine Nachrichtenkanäle"
-            />
-          )}
-          {meineRolle !== 'alle' && (
-            <span className={`text-[11px] ${LEISE}`}>
-              Kante auf der Achse: {ROLLE_LABEL[meineRolle]} — Ihre Rolle laut Profil
-            </span>
-          )}
+          <ToggleChip
+            label="Nebensächliches"
+            zahl={neben.length}
+            selected={zeigeNebensaechlich}
+            onToggle={onToggleNebensaechlich}
+            title="Briefe, Bestätigungen und andere reine Nachrichtenkanäle"
+          />
         </div>
       )}
 
@@ -655,11 +705,15 @@ export function StatusChronik({
               onKlick={fenster.onUmschalten}
             />
           )}
+          <Kopfzeile />
           {monate.map((m, i) => {
             const vorheriger = monate[i - 1]?.monat;
             const luecke = vorheriger === undefined ? 0 : monateDazwischen(vorheriger, m.monat);
             return (
-              <div key={m.monat} className={`flex ${MONATS_TRENNER}`}>
+              // Der erste Block bekommt KEINE Trennlinie: über ihm steht schon
+              // die des Spaltenkopfs, und zwei davon lesen sich als eine
+              // doppelt gezogene (dieselbe Regel wie in der Matrix).
+              <div key={m.monat} className={`flex ${i > 0 ? MONATS_TRENNER : ''}`}>
                 <div className={RINNE_BLOCK}>
                   <div className={`${RINNE_TEXT} ${LEISE}`}>
                     {monatLabel(m.monat)}
@@ -722,7 +776,7 @@ export function StatusChronik({
             );
           })}
           {heimatlos.length > 0 && (
-            <div className={`flex ${MONATS_TRENNER}`}>
+            <div className={`flex ${monate.length > 0 ? MONATS_TRENNER : ''}`}>
               <div className={`${RINNE_BLOCK} ${RINNE_TEXT} ${LEISE}`}>
                 ohne Bezug
               </div>
@@ -741,7 +795,7 @@ export function StatusChronik({
         </div>
       )}
 
-      <Legende />
+      <Legende meineRolle={meineRolle} />
     </div>
   );
 }

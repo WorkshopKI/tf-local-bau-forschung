@@ -19,6 +19,12 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v6.6 — 2026-08
+
+### Verbesserungen
+- In „Status & Verlauf" hat jetzt auch die Ansicht **nach Datum** Spaltenüberschriften — Monat, Datum, Kürzel, Wer, Ereignis, Wo. Sie stehen an denselben Stellen wie in der Ansicht nach Phase.
+- Der Hinweis auf die farbige Kante am linken Rand steht nicht mehr in einer eigenen Zeile über der Liste, sondern in der Legende darunter. Das spart eine Zeile vor dem ersten Termin.
+
 ## v6.5 — 2026-08
 
 ### Verbesserungen

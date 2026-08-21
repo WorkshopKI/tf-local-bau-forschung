@@ -38,19 +38,31 @@ export const ABSTAND_PX = 8;
  *  3 px je Zeile ein ganzer Eintrag. */
 export const ZEILE_PX = 19;
 
+/**
+ * Die Breiten stehen **ohne** Schriftangabe eigens da, weil die Spaltenköpfe
+ * dieselbe Breite brauchen, aber nicht dieselbe Schrift: ein Kopf ist kleiner
+ * und nie dicktengleich. Zwei Schriftgrößen im selben Klassen-String hätte
+ * nicht die Reihenfolge im String entschieden, sondern die im erzeugten CSS —
+ * also gar nichts Verlässliches.
+ */
+/** Die Rinne ohne Kopfabstand — für den Spaltenkopf, der oben bündig sitzt. */
+export const RINNE_BREITE = 'w-[84px] shrink-0 pr-2';
 /** Die Rinne als Block — Breite, Rechtsabstand, Kopfabstand ihrer Gruppe. */
-export const RINNE_BLOCK = 'w-[84px] shrink-0 pr-2 pt-2';
+export const RINNE_BLOCK = `${RINNE_BREITE} pt-2`;
 /** Die Beschriftung in der Rinne (Monat wie Phase). */
 export const RINNE_TEXT = 'text-[11px] font-medium uppercase tracking-wide';
+/** Breite der Tagesspalte. */
+export const TAG_BREITE = 'w-[42px] shrink-0';
 /** Die Tagesspalte — hier steht bei einer Fehlzeile der Gedankenstrich. */
-export const TAG_SPALTE = 'w-[42px] shrink-0 font-mono text-[11px]';
+export const TAG_SPALTE = `${TAG_BREITE} font-mono text-[11px]`;
 /**
  * Die Kürzelspalte. Steht zwischen Datum und Rolle — dieselbe Lesereihenfolge
  * wie im Fachsystem, wo das Kürzel der Bezeichner ist, unter dem das Team einen
  * Eintrag kennt. Die Bezeichnung sagt, WAS passiert ist; das Kürzel sagt, wo im
  * Fachsystem man es wiederfindet.
  */
-export const CODE_SPALTE = 'w-[46px] shrink-0 truncate font-mono text-[11px]';
+export const CODE_BREITE = 'w-[46px] shrink-0 truncate';
+export const CODE_SPALTE = `${CODE_BREITE} font-mono text-[11px]`;
 /**
  * Die Rollenspalte. 62 px reichten für zwei Marken, und die dritte schob sich in
  * den Ereignistext (`AB` `FB` `Q`|`S-Freigabe …`); mehr fängt `RollenBadges`
