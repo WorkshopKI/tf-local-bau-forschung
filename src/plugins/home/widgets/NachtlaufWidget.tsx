@@ -101,14 +101,14 @@ const ALLE: BearbeiterFilterMode = { active: false, tokens: [], includeBegleitun
 const RASTER = 'grid-cols-[fit-content(34%)_22px_minmax(0,1fr)_auto] gap-x-1.5';
 
 /**
- * Luft zwischen Bezeichnung und Zahl — 30 px über die Fuge hinaus.
+ * Luft zwischen Bezeichnung und Zahl — 15 px über die Fuge hinaus.
  *
  * Als Innenabstand der Bezeichnungs-Spalte, nicht als größerer `column-gap`:
  * der gälte für alle drei Fugen gleich und schöbe die Kürzel von ihrer Zahl weg.
  * Er zählt zur `fit-content`-Breite, eine sehr lange Bezeichnung kürzt also
- * 30 px früher — das ist der Preis und er ist gewollt.
+ * 15 px früher — das ist der Preis und er ist gewollt.
  */
-const ZAHL_ABSTAND = 'pr-[30px]';
+const ZAHL_ABSTAND = 'pr-[15px]';
 
 /** Wie viele Zeilen ein Klick auf die Fußzeile zusätzlich aufdeckt. */
 const SCHRITT = 10;
@@ -507,13 +507,15 @@ function ZeileView({ zeile, aufloesung, vbPhase, trennlinie, onOeffnen }: {
 }): React.ReactElement {
   return (
     <li className="relative col-span-full grid grid-cols-subgrid">
-      {/* Die Trennlinie kostet keine Zeilenhöhe: sie liegt als 1-px-Streifen
-          NEBEN dem Fluss auf der Unterkante, statt als Rahmen die Zeile um ein
-          Pixel wachsen zu lassen. Sonst wären 15 Gruppen 15 px höher. */}
+      {/* Die Trennlinie kostet keine Zeilenhöhe: sie liegt als Streifen NEBEN
+          dem Fluss auf der Unterkante, statt als Rahmen die Zeile um ein Pixel
+          wachsen zu lassen. Sonst wären 15 Gruppen 15 px höher.
+          `--tf-border-thin` (0,5 px) ist die Haarlinien-Stärke des Themes — sie
+          soll gliedern, nicht auffallen. */}
       {trennlinie && (
         <span
           aria-hidden="true"
-          className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-[var(--tf-border)]"
+          className="pointer-events-none absolute inset-x-0 bottom-0 h-[var(--tf-border-thin)] bg-[var(--tf-border)]"
         />
       )}
       <button
