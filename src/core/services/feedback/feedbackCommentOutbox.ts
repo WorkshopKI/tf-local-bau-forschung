@@ -15,6 +15,7 @@
  * `atomicWrite` MIT Backup-Rotation (Default).
  */
 import type { IDBStore } from '@/core/services/storage/idb-store';
+import type { FeedbackComment } from '@/core/types/feedback';
 import { atomicWrite, readText } from '@/core/services/infrastructure/atomic-write';
 import { PERSOENLICH_FEEDBACK_COMMENTS_FILE } from '@/core/services/infrastructure/types';
 
@@ -28,6 +29,13 @@ export interface OutboxComment {
   id: string;
   text: string;
   created_at: string;
+  /**
+   * Art des Beitrags (v5.2). Bis dahin ging sie auf diesem Weg verloren: die
+   * Ergänzung eines read-only-Nutzers kam beim Einsammeln als gewöhnlicher
+   * Kommentar an — ausgerechnet bei der Gruppe, für die der Outbox-Weg gebaut
+   * ist. Optional, damit Bestandsdateien unverändert gültig bleiben.
+   */
+  kind?: FeedbackComment['kind'];
 }
 
 export interface CommentFile {
@@ -46,6 +54,11 @@ function isNewer(a: string | null | undefined, b: string | null | undefined): bo
 function isOutboxComment(raw: unknown): raw is OutboxComment {
   if (!raw || typeof raw !== 'object') return false;
   const p = raw as Record<string, unknown>;
+  // `kind` wird hier bewusst NICHT geprüft: fehlt es (Bestandsdatei) oder trägt
+  // es einen Wert, den dieser Client noch nicht kennt, wäre sonst die ganze
+  // Datei ungültig und alle Kommentare darin verloren. Die Whitelist steht beim
+  // Einsammeln (`mergeCommentsIntoItems`), wo ein Unbekanntes still auf
+  // „gewöhnlicher Kommentar" fällt.
   return (
     typeof p.ticketId === 'string' &&
     typeof p.id === 'string' &&

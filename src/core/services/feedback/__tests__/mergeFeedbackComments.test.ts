@@ -58,6 +58,35 @@ describe('mergeCommentsIntoItems', () => {
     expect(res.items[0]?.comments?.map(c => c.id)).toEqual(['c0', 'c1', 'c2']);
   });
 
+  // v5.2: bis dahin verlor der Outbox-Weg die Art — die Ergaenzung eines
+  // read-only-Nutzers kam als gewoehnlicher Kommentar an.
+  it('nimmt die Art aus der Outbox mit', () => {
+    const res = mergeCommentsIntoItems(
+      [item('A')],
+      [file('TH', [{ ticketId: 'A', id: 'c1', text: 'noch was', created_at: 't1', kind: 'ergaenzung' }])],
+    );
+    expect(res.items[0]?.comments?.[0]?.kind).toBe('ergaenzung');
+  });
+
+  it('laesst Bestandsdaten ohne Art unveraendert (kein kind-Feld)', () => {
+    const res = mergeCommentsIntoItems(
+      [item('A')],
+      [file('TH', [{ ticketId: 'A', id: 'c1', text: 'hallo', created_at: 't1' }])],
+    );
+    expect(res.items[0]?.comments?.[0]).not.toHaveProperty('kind');
+  });
+
+  it('faellt bei unbekannter Art still auf den gewoehnlichen Kommentar zurueck', () => {
+    const res = mergeCommentsIntoItems(
+      [item('A')],
+      // Ein neuerer Client koennte eine Art schreiben, die dieser hier nicht
+      // kennt — der Kommentar darf deshalb nicht verloren gehen.
+      [file('TH', [{ ticketId: 'A', id: 'c1', text: 'hallo', created_at: 't1', kind: 'quatsch' as never }])],
+    );
+    expect(res.neu).toBe(1);
+    expect(res.items[0]?.comments?.[0]).not.toHaveProperty('kind');
+  });
+
   it('ueberspringt leere Kommentar-Texte', () => {
     const res = mergeCommentsIntoItems(
       [item('A')],

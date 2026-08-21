@@ -27,6 +27,7 @@ import { FeedbackCommentHover } from '@/components/feedback/FeedbackCommentHover
 import { FeedbackAntwortHover } from '@/components/feedback/FeedbackAntwortHover';
 import { feedbackAuthorLabel, feedbackNummer, feedbackTitle, formatShortDate } from '@/components/feedback/feedbackUi';
 import { AuswahlHaken, InlineChip } from './InlineChip';
+import { ErgaenzenKnopf } from './ErgaenzenKnopf';
 import { TicketMenue } from './TicketMenue';
 import {
   AufwandIcon, ZustaendigIcon, aufwandChipLabel, aufwandMenue, ticketBereichLabel, zustaendigMenue,
@@ -94,6 +95,11 @@ export function TicketKarte({ t, ctx, zieh }: {
             <span className={`fb-antwort${ungelesen && meins ? '' : ' neutral'}`}>Antwort</span>
           </FeedbackAntwortHover>
         )}
+        {/* Fortschreiben ohne Seitenwechsel: sichtbar am eigenen Ticket, nicht
+            erst im Menü. Nur auf der Karte — die Listen-Zeile fällt per
+            Container-Query in fester Reihenfolge zusammen, ein zusätzlicher
+            Knopf ginge dort zulasten einer Spalte; sie behält den Menüeintrag. */}
+        {meins && ctx.meineId && <ErgaenzenKnopf t={t} ctx={ctx} />}
         <TicketMenue t={t} ctx={ctx} offen={menueOffen} setOffen={setMenueOffen} />
       </div>
 

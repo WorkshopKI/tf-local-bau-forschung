@@ -110,6 +110,27 @@ Bis v2.363 gab es zwei Oberflächen: das Board für alle und ein Kurator-Plugin 
 - **Archivierte** sind für Verwalter per Checkbox einblendbar (Key `teamflow_feedback_show_archived` — dieselbe Vorliebe wie im früheren Dashboard).
 - **Filter/Sortierung des Boards** liegen als reine, node-getestete Funktionen in [boardFilter.ts](../../src/plugins/feedback-board/boardFilter.ts) (`matchesBoardFilter`/`compareBoardTickets`/`filterAndSortBoard`) — herausgezogen beim Anfassen der Seite, ersetzt die mit dem Dashboard entfallene `feedback-filter.ts`.
 
+## Ergänzen ohne Umweg (v5.2)
+
+Es gibt **zwei** Arten, ein Ticket fortzuschreiben, und sie sind nicht dasselbe:
+
+| | **Ergänzung** (Verlaufs-Beitrag) | **Bearbeiten** (Ursprungstext) |
+|---|---|---|
+| Was | Angehängter Beitrag, `kind: 'ergaenzung'` | `title`/`structured`/`text` werden neu geschrieben |
+| Wann | In **jedem** Status | Autor nur solange `neu`; Verwalter immer |
+| Wo | Karte · `⋯`-Menü · Verlauf · „Mein Feedback" | `FeedbackErgaenzenForm` im Detail-Panel |
+| Wer | Wer das Ticket **erstellt hat** | s. o. |
+
+Der Ergänzungs-Weg war bis v5.2 gebaut, aber nicht erreichbar. Drei Befunde:
+
+- **Die Bedingung fragte nach der Rolle, wo sie nach Eigentum fragen musste.** `!darfSchreiben && istMeins` stand an vier Stellen: wer verwalten darf, konnte sein **eigenes** Ticket nicht als Autor ergänzen — sein Schreibrecht nahm ihm die Autorenrolle. Die Regel ist jetzt überall `istMeins`, und `bausteineFuer(dev, meins)` stellt den Baustein „Ergänzung" am eigenen Ticket voran, statt ihn an `!dev` zu hängen ([beitragBausteine.ts](../../src/components/feedback/beitragBausteine.ts)). `[test: beitragBausteine.test.ts]`
+- **Der einzige Einstieg lag zwei Klicks tief im `⋯`-Menü.** Neu trägt die **eigene** Karte ein sichtbares Symbol ([ErgaenzenKnopf.tsx](../../src/plugins/feedback-board/ticket/ErgaenzenKnopf.tsx)) — dauerhaft, nicht auf Hover wie `.fb-mehr`, und in `--tf-text-secondary` statt tertiär (gemessen 5,33:1 statt 2,61:1; ein Bedienelement, das dauerhaft steht, hält die 3:1). Bewusst **nur auf der Karte**: die Listen-Zeile fällt per Container-Query in fester Reihenfolge zusammen, dort bleibt der Menüeintrag der Weg. Die Menüeinträge nehmen ihre Art jetzt mit (`'ergaenzung'`/`'kommentar'`/`'rueckfrage'`) — bis dahin öffneten alle denselben Modus und unterschieden sich nur im Label.
+- **Das Erfassungs-Panel hatte keinen Rückkanal.** `MyFeedbackList` zeigte die eigenen Tickets ohne `onClick`, ohne Deep-Link; der einzige Ausgang war der **id-lose** Sprung aufs Board. Jetzt klappt je Karte dasselbe Schreibfeld auf (höchstens eines gleichzeitig) und schreibt direkt über `addComment`. Ein `ok:false` wird **dort** ausgewertet — das Panel hat kein Toast-System, die Meldung steht unter dem Feld, und der Entwurf bleibt stehen (Pitfall #15 deckt nur geworfene Fehler ab).
+
+**Ein Schreibfeld für vier Orte**: [FeedbackBeitragFeld.tsx](../../src/components/feedback/FeedbackBeitragFeld.tsx) (ctx-frei, `senden`-Callback) trägt `⋯`-Menü, Karten-Knopf, Verlauf und „Mein Feedback". Es liegt in `components/feedback/`, weil das Erfassungs-Panel das Board nicht kennt und `components/ → plugins/` die verbotene Richtung ist; `ticket/bausteine.ts` re-exportiert nur noch. **Invariante**: geleert wird nur bei `senden → true`. Die Grundform der Klassen zog mit nach [beitrag-feld.css](../../src/components/feedback/beitrag-feld.css) — `ticketsystem.css` hängt allein an `FeedbackBoardPage` und erreicht das Panel nicht.
+
+**Die Art überlebt die Outbox** (`OutboxComment.kind`, optional): read-only-Nutzer schreiben über `kommentar-outbox.json`, und die kannte `kind` nicht — ihre Ergänzung kam beim Einsammeln als gewöhnlicher Kommentar an, ausgerechnet bei der Gruppe, für die der Weg gebaut ist. Die Whitelist steht beim Einsammeln, nicht beim Lesen: eine unbekannte Art darf nicht die ganze Datei samt aller Kommentare darin verwerfen. `[test: feedbackCommentOutbox.test.ts, mergeFeedbackComments.test.ts]`
+
 ## Feedback fortschreiben (v2.364, seit v3.7 an jedem Ticket)
 
 Ziel: **ein** Ticket je Themenkomplex, das fortgeschrieben wird, statt eines neuen Tickets für jede Präzisierung. [FeedbackErgaenzenForm.tsx](../../src/components/feedback/FeedbackErgaenzenForm.tsx), erreichbar über „Ergänzen" neben dem Titel — sichtbar wenn `darfVerwalten` (read-only prod würde nur lokal schreiben, dort bleibt der Kommentar-Thread der Weg).

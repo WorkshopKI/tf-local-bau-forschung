@@ -19,6 +19,16 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v5.2 — 2026-08
+
+### Neu
+- Eigene Tickets lassen sich direkt auf dem Board ergänzen: ein Symbol auf deiner Karte öffnet ein kleines Schreibfeld — die Detailansicht bleibt zu.
+- Auch im Feedback-Fenster unten rechts kannst du unter „Mein Feedback" jetzt etwas nachtragen, statt dafür aufs Board zu wechseln.
+
+### Verbesserungen
+- „Als Ergänzung" steht am eigenen Ticket jetzt allen offen. Wer selbst Tickets verwaltet, konnte sein eigenes bisher nicht als Ersteller ergänzen.
+- Die Einträge im `⋯`-Menü führen direkt zum passenden Feld: „Ergänzung anhängen" schreibt eine Ergänzung, „Rückfrage" eine Rückfrage — ohne dass man den richtigen Knopf noch suchen muss.
+
 ## v5.1 — 2026-08
 
 ### Neu

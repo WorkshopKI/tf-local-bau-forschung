@@ -8,6 +8,12 @@
 import type { FeedbackComment, FeedbackItem } from '@/core/types/feedback';
 import type { CommentFile } from './feedbackCommentOutbox';
 
+const ARTEN: readonly string[] = ['kommentar', 'ergaenzung', 'rueckfrage'];
+
+function istArt(raw: unknown): raw is NonNullable<FeedbackComment['kind']> {
+  return typeof raw === 'string' && ARTEN.includes(raw);
+}
+
 export interface MergeCommentsResult {
   items: FeedbackItem[];
   /** Neu ergaenzte Kommentare. */
@@ -34,6 +40,10 @@ export function mergeCommentsIntoItems(
           user_display_name: file.kuerzel,
           text: c.text,
           created_at: typeof c.created_at === 'string' ? c.created_at : '',
+          // Die Art überlebt den Outbox-Weg (v5.2). Whitelist genau hier:
+          // Unbekanntes fällt still auf „gewöhnlicher Kommentar", statt eine
+          // ganze eingesammelte Datei zu verwerfen.
+          ...(istArt(c.kind) && c.kind !== 'kommentar' ? { kind: c.kind } : {}),
         });
       }
     }

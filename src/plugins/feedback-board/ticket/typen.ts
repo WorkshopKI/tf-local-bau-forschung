@@ -3,6 +3,7 @@
  * bekommen denselben Kontext herein — sie unterscheiden sich in der Darstellung,
  * nicht in dem, was sie dürfen.
  */
+import type { BeitragArt } from '@/components/feedback/FeedbackBeitragFeld';
 import type { EffortEstimate, FeedbackItem, FeedbackStatus } from '@/core/types/feedback';
 import type { Auswahl } from '../auswahl';
 import type { BoardRolle } from '../smartViews';
@@ -75,5 +76,9 @@ export interface TicketKontext {
   darfZiehen: boolean;
 }
 
-/** Art eines Beitrags im Verlauf — `rueckfrage` setzt zusätzlich den Status. */
-export type KommentarArt = 'kommentar' | 'ergaenzung' | 'rueckfrage';
+/**
+ * Art eines Beitrags im Verlauf — `rueckfrage` setzt zusätzlich den Status.
+ * EIN Union, nicht zwei: die Menge ist `FeedbackComment['kind']` aus dem
+ * Datenmodell, hier nur unter dem Namen, den die Ticket-Oberfläche benutzt.
+ */
+export type KommentarArt = BeitragArt;

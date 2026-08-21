@@ -11,20 +11,22 @@
  *
  * Der Schnell-Kommentar ersetzt den Menüinhalt im selben Popover, statt ein
  * zweites zu öffnen — der Weg zurück ist „Abbrechen", nicht ein verwaister Dialog.
+ * Er nimmt seine Art (`kommentar` / `ergaenzung`) vom Menüeintrag mit, der ihn
+ * geöffnet hat: bis v5.2 landeten beide Einträge im selben Modus und
+ * unterschieden sich nur im Label.
  */
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
-  Archive, CircleCheck, Eye, MessageCircleQuestion, MessageSquare, MoreHorizontal, Send, UserRound,
+  Archive, CircleCheck, Eye, MessageCircleQuestion, MessageSquare, MessageSquarePlus,
+  MoreHorizontal, UserRound,
 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Button } from '@/components/ui/button';
 import { FEEDBACK_STATUS } from '@/core/services/feedback';
 import { STATUS_LABELS } from '@/components/feedback/constants';
 import { feedbackNummer } from '@/components/feedback/feedbackUi';
 import type { FeedbackItem } from '@/core/types/feedback';
-import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { PopLabel, PopTrenner, PopZeile } from './InlineChip';
-import { bausteineFuer } from './bausteine';
+import { SchnellKommentar } from './SchnellKommentar';
 import type { KommentarArt, TicketKontext } from './typen';
 
 export function TicketMenue({ t, ctx, offen, setOffen }: {
@@ -33,7 +35,7 @@ export function TicketMenue({ t, ctx, offen, setOffen }: {
   offen: boolean;
   setOffen: (v: boolean) => void;
 }): React.ReactElement {
-  const [modus, setModus] = useState<'menue' | 'kommentar'>('menue');
+  const [modus, setModus] = useState<'menue' | KommentarArt>('menue');
   // Beim Schließen zurück auf die Menü-Ansicht — sonst öffnet der nächste Klick
   // ein Textfeld, obwohl jemand das Menü erwartet.
   useEffect(() => { if (!offen) setModus('menue'); }, [offen]);
@@ -52,13 +54,14 @@ export function TicketMenue({ t, ctx, offen, setOffen }: {
       </PopoverTrigger>
       <PopoverContent
         align="end"
-        className={modus === 'kommentar' ? 'w-[300px] p-[9px]' : 'w-auto min-w-[204px] p-[5px]'}
+        className={modus !== 'menue' ? 'w-[300px] p-[9px]' : 'w-auto min-w-[204px] p-[5px]'}
         onClick={e => e.stopPropagation()}
       >
-        {modus === 'kommentar' ? (
+        {modus !== 'menue' ? (
           <SchnellKommentar
             t={t}
             ctx={ctx}
+            art={modus}
             zurueck={() => setModus('menue')}
             fertig={() => setOffen(false)}
           />
@@ -67,7 +70,7 @@ export function TicketMenue({ t, ctx, offen, setOffen }: {
             t={t}
             ctx={ctx}
             schliessen={() => setOffen(false)}
-            kommentieren={() => setModus('kommentar')}
+            schreibe={setModus}
           />
         )}
       </PopoverContent>
@@ -75,11 +78,11 @@ export function TicketMenue({ t, ctx, offen, setOffen }: {
   );
 }
 
-function MenueInhalt({ t, ctx, schliessen, kommentieren }: {
+function MenueInhalt({ t, ctx, schliessen, schreibe }: {
   t: FeedbackItem;
   ctx: TicketKontext;
   schliessen: () => void;
-  kommentieren: () => void;
+  schreibe: (art: KommentarArt) => void;
 }): React.ReactElement {
   const nummer = feedbackNummer(t);
   const darf = ctx.darfSchreiben;
@@ -89,7 +92,19 @@ function MenueInhalt({ t, ctx, schliessen, kommentieren }: {
   return (
     <>
       <PopLabel>#{nummer}</PopLabel>
-      <PopZeile label="Kommentar schreiben" icon={MessageSquare} onClick={kommentieren} />
+      {/* „Ergänzung" gehört dem EIGENEN Ticket — und zwar unabhängig von der
+          Rolle (v5.2). Die Bedingung stand bis v4.129 auf `!meins` und bot den
+          Eintrag ausgerechnet an fremden Tickets an; danach auf
+          `!darfSchreiben && meins` und nahm ihn damit jedem weg, der zugleich
+          verwalten darf — sein Schreibrecht nimmt ihm die Autorenrolle nicht. */}
+      {meins && (
+        <PopZeile
+          label="Ergänzung anhängen"
+          icon={MessageSquarePlus}
+          onClick={() => schreibe('ergaenzung')}
+        />
+      )}
+      <PopZeile label="Kommentar schreiben" icon={MessageSquare} onClick={() => schreibe('kommentar')} />
       {darf && mir && (
         <PopZeile
           label={t.assignee === mir ? 'Zuweisung aufheben' : 'Mir zuweisen'}
@@ -114,14 +129,11 @@ function MenueInhalt({ t, ctx, schliessen, kommentieren }: {
         />
       )}
       {darf && (
-        <PopZeile label="Rückfrage an den Ersteller" icon={MessageCircleQuestion} onClick={kommentieren} />
-      )}
-      {/* „Ergänzung" gehört dem EIGENEN Ticket (v4.129). Die Bedingung stand
-          bis dahin auf `!meins` und bot den Eintrag damit ausgerechnet an
-          fremden Tickets an — wo das Formular dahinter nur „Senden" kennt,
-          weil „Als Ergänzung" seinerseits `meins` verlangt. */}
-      {!darf && meins && (
-        <PopZeile label="Ergänzung anhängen" icon={MessageSquare} onClick={kommentieren} />
+        <PopZeile
+          label="Rückfrage an den Ersteller"
+          icon={MessageCircleQuestion}
+          onClick={() => schreibe('rueckfrage')}
+        />
       )}
       {darf && (
         <>
@@ -140,77 +152,5 @@ function MenueInhalt({ t, ctx, schliessen, kommentieren }: {
       <PopTrenner />
       <PopZeile label="Details öffnen" icon={Eye} onClick={() => { ctx.oeffne(t); schliessen(); }} />
     </>
-  );
-}
-
-function SchnellKommentar({ t, ctx, zurueck, fertig }: {
-  t: FeedbackItem;
-  ctx: TicketKontext;
-  zurueck: () => void;
-  fertig: () => void;
-}): React.ReactElement {
-  const [text, setText] = useState('');
-  const ref = useRef<HTMLTextAreaElement>(null);
-  useEffect(() => { ref.current?.focus(); }, []);
-
-  const dev = ctx.darfSchreiben;
-  const bausteine = bausteineFuer(dev);
-  const meins = ctx.istMeins(t);
-  const leer = !text.trim();
-
-  // Das Popover schließt erst, wenn wirklich geschrieben wurde — sonst wäre der
-  // Text mit dem Popover verschwunden und die Fehlermeldung im Toast hätte
-  // niemandem geholfen.
-  const senden = useAsyncAction(async (art: KommentarArt) => {
-    if (leer) return;
-    if (await ctx.kommentiere(t, text, art)) fertig();
-  });
-
-  return (
-    <div>
-      <div className="fb-pop-lbl" style={{ padding: '0 0 6px' }}>
-        {dev ? 'Kommentar an den Ersteller' : 'Kommentar'} · #{feedbackNummer(t)}
-      </div>
-      <div className="fb-bausteine">
-        {bausteine.map(([label, vorlage]) => (
-          <button
-            key={label}
-            type="button"
-            onClick={() => { setText(vorlage); ref.current?.focus(); }}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-      <textarea
-        ref={ref}
-        className="fb-kmt-feld"
-        value={text}
-        onChange={e => setText(e.target.value)}
-        placeholder={dev ? 'Was wurde umgesetzt / was fehlt noch?' : 'Was möchtest du ergänzen?'}
-        onKeyDown={e => {
-          if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); void senden.run('kommentar'); }
-          // Esc schließt sonst nur das Popover und der Text wäre weg — erst
-          // zurück ins Menü, den Entwurf verwirft der Nutzer selbst.
-          if (e.key === 'Escape' && text) { e.preventDefault(); e.stopPropagation(); zurueck(); }
-        }}
-      />
-      <div className="fb-kmt-zeile">
-        <span className="fb-kmt-hinweis">Strg+↵ sendet</span>
-        {dev && (
-          <Button size="sm" variant="secondary" disabled={leer || senden.busy} onClick={() => senden.run('rueckfrage')}>
-            Als Rückfrage
-          </Button>
-        )}
-        {!dev && meins && (
-          <Button size="sm" variant="secondary" disabled={leer || senden.busy} onClick={() => senden.run('ergaenzung')}>
-            Als Ergänzung
-          </Button>
-        )}
-        <Button size="sm" disabled={leer || senden.busy} onClick={() => senden.run('kommentar')}>
-          <Send size={13} aria-hidden /> Senden
-        </Button>
-      </div>
-    </div>
   );
 }

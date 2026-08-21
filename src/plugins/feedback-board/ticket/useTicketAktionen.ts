@@ -188,7 +188,9 @@ export function useTicketAktionen(
       zeige({
         text: art === 'rueckfrage'
           ? `#${feedbackNummer(t)} → Rückfrage · Ersteller benachrichtigt`
-          : 'Kommentar gesendet.',
+          : art === 'ergaenzung'
+            ? `#${feedbackNummer(t)} · Ergänzung angehängt`
+            : 'Kommentar gesendet.',
         ton: 'info',
       });
       if (res.warning === 'no_personal_folder') {

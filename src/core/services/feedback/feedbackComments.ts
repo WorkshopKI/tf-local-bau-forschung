@@ -124,7 +124,15 @@ async function appendCommentToOutbox(
   const data: CommentFile = {
     version: 1,
     kuerzel: userId,
-    comments: [...existing, { ticketId, id: comment.id, text: comment.text, created_at: comment.created_at }],
+    comments: [...existing, {
+      ticketId,
+      id: comment.id,
+      text: comment.text,
+      created_at: comment.created_at,
+      // Ohne die Art käme die Ergänzung eines read-only-Nutzers beim
+      // Einsammeln als gewöhnlicher Kommentar an (v5.2).
+      ...(comment.kind ? { kind: comment.kind } : {}),
+    }],
     updatedAt: new Date().toISOString(),
   };
   return writeFeedbackComments(storage.idb, persHandle, data);

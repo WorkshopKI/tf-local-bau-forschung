@@ -41,7 +41,7 @@ Eine eigene, zuklappbare Gruppe „Kuration" mit zwei Einträgen:
 
 ## Wiederkehrende Bedienelemente
 
-Die **Einstellungen** stehen als Zahnrad unten in der Seitenleiste, „Über die App" hinter der Versionsnummer daneben. Jede Seite trägt oben rechts einen **Hilfe**-Knopf mit einer Kurzanleitung zu genau dieser Seite; in dessen Kopfzeile stehen auch die **Einführungs-Tour** und „Über die App". Rückmeldungen gehen über den runden Knopf unten rechts.
+Die **Einstellungen** stehen als Zahnrad unten in der Seitenleiste, „Über die App" hinter der Versionsnummer daneben. Jede Seite trägt oben rechts einen **Hilfe**-Knopf mit einer Kurzanleitung zu genau dieser Seite; in dessen Kopfzeile stehen auch die **Einführungs-Tour** und „Über die App". Rückmeldungen gehen über den runden Knopf unten rechts. Dasselbe Fenster zeigt unter „**Mein Feedback ansehen**" Ihre bisherigen Tickets mit Stand und Antwort vom Team — und lässt Sie zu jedem davon etwas **ergänzen**, ohne aufs Board zu wechseln.
 
 „**Eigenes Fenster**" in der Kopfzeile des Hilfe-Dialogs stellt dieselbe Anleitung in ein schmales Fenster neben die App — zum Mitlesen, während Sie die Schritte ausprobieren. Es zeigt immer die Seite, auf der Sie gerade sind; „Anleitung festhalten" lässt es auf der aktuellen stehen, und solange es festgehalten ist, sagt es Ihnen, wo die App inzwischen steht. Blockiert der Browser das Fenster, bleibt der Dialog offen und weist darauf hin.
 

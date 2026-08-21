@@ -13,21 +13,23 @@
  *   ist und nicht mehr geändert werden soll.
  * - Alles andere ist ein gewöhnlicher **Kommentar**.
  *
- * Die Textbausteine sind dieselben wie im Schnell-Kommentar des `⋯`-Menüs
- * (bausteine.ts) — zwei Wege, ein Wortlaut.
+ * Das Schreibfeld selbst ist seit v5.2 das geteilte `FeedbackBeitragFeld` —
+ * dieselbe Textarea steht am `⋯`-Menü, an der Karte und im Erfassungs-Panel.
+ * Hier bleibt, was diesen Ort ausmacht: die Liste, das Avatar und die Frage,
+ * welcher Zusatzknopf gilt.
  *
  * Der Thread selbst bleibt bestehen; er wird an anderer Stelle weiter benutzt.
  */
-import { useEffect, useRef, useState } from 'react';
-import { Send } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { FeedbackAvatar } from '@/components/feedback/FeedbackAvatar';
+import {
+  FeedbackBeitragFeld,
+  type BeitragZusatzAktion,
+} from '@/components/feedback/FeedbackBeitragFeld';
 import { FeedbackCommentList } from '@/components/feedback/FeedbackCommentList';
 import { waehleKommentarVorschau } from '@/components/feedback/feedbackUi';
 import type { FeedbackItem } from '@/core/types/feedback';
 import { bausteineFuer } from './bausteine';
-import type { KommentarArt, TicketKontext } from './typen';
+import type { TicketKontext } from './typen';
 
 interface Props {
   t: FeedbackItem;
@@ -45,39 +47,24 @@ interface Props {
 }
 
 export function VerlaufBlock({ t, ctx, meName, neueKommentare = 0, fokusSignal = 0 }: Props): React.ReactElement {
-  const [text, setText] = useState('');
-  const feld = useRef<HTMLTextAreaElement>(null);
   const kommentare = t.comments ?? [];
 
   const dev = ctx.darfSchreiben;
   const meins = ctx.istMeins(t);
-  const bausteine = bausteineFuer(dev);
-  const leer = !text.trim();
   const darfSchreiben = !!ctx.meineId;
 
-  // Beim Ticket-Wechsel den Entwurf verwerfen: das Panel ist je Ticket gekeyt,
-  // dieser Effekt ist die Absicherung für den Fall, dass sich das einmal ändert.
-  useEffect(() => { setText(''); }, [t.id]);
-
-  useEffect(() => {
-    if (fokusSignal === 0) return;
-    const el = feld.current;
-    if (!el) return;
-    el.scrollIntoView({ block: 'center' });
-    el.focus();
-  }, [fokusSignal]);
-
-  // Geleert wird NUR nach bestätigtem Schreiben — der Entwurf ist die einzige
-  // Kopie, und `kommentiere` meldet einen Share-Fehler über den Toast zurück.
-  const senden = useAsyncAction(async (art: KommentarArt) => {
-    if (leer) return;
-    if (await ctx.kommentiere(t, text, art)) setText('');
-  });
-
-  const setzeBaustein = (vorlage: string): void => {
-    setText(vorlage);
-    feld.current?.focus();
-  };
+  // „Als Ergänzung" gehört dem eigenen Ticket — unabhängig von der Rolle
+  // (v5.2): wer verwalten darf, bleibt am eigenen Ticket trotzdem der Autor.
+  // An fremden Tickets bietet das Team stattdessen die Rückfrage an.
+  const zusatz: BeitragZusatzAktion | undefined = meins
+    ? { label: 'Als Ergänzung', art: 'ergaenzung', titel: 'Als Ergänzung zum ursprünglichen Text kennzeichnen.' }
+    : dev
+      ? {
+        label: 'Als Rückfrage senden',
+        art: 'rueckfrage',
+        titel: 'Setzt zugleich den Status auf „Rückfrage“ — das Ticket wartet dann auf den Ersteller.',
+      }
+      : undefined;
 
   return (
     <div className="fb-d-block">
@@ -105,59 +92,18 @@ export function VerlaufBlock({ t, ctx, meName, neueKommentare = 0, fokusSignal =
 
       {darfSchreiben ? (
         <div className="fb-compose">
-          <div className="fb-bausteine">
-            {bausteine.map(([label, vorlage]) => (
-              <button key={label} type="button" onClick={() => setzeBaustein(vorlage)}>
-                {label}
-              </button>
-            ))}
-          </div>
-          <div className="fb-compose-feld">
-            <FeedbackAvatar name={meName || ctx.meineId || '?'} size={22} />
-            <textarea
-              ref={feld}
-              className="fb-kmt-feld"
-              value={text}
-              onChange={e => setText(e.target.value)}
-              placeholder={dev ? 'Umsetzungsdetails für den Ersteller …' : 'Antwort oder Ergänzung …'}
-              onKeyDown={e => {
-                if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-                  e.preventDefault();
-                  void senden.run('kommentar');
-                }
-              }}
-            />
-          </div>
-          <div className="fb-kmt-zeile">
-            <span className="fb-kmt-hinweis">
-              {dev ? 'Der Ersteller wird benachrichtigt.' : 'Geht an das Entwicklerteam.'} · Strg+↵ sendet
-            </span>
-            {dev && (
-              <Button
-                size="sm"
-                variant="secondary"
-                disabled={leer || senden.busy}
-                title="Setzt zugleich den Status auf „Rückfrage“ — das Ticket wartet dann auf den Ersteller."
-                onClick={() => senden.run('rueckfrage')}
-              >
-                Als Rückfrage senden
-              </Button>
-            )}
-            {!dev && meins && (
-              <Button
-                size="sm"
-                variant="secondary"
-                disabled={leer || senden.busy}
-                title="Als Ergänzung zum ursprünglichen Text kennzeichnen."
-                onClick={() => senden.run('ergaenzung')}
-              >
-                Als Ergänzung
-              </Button>
-            )}
-            <Button size="sm" disabled={leer || senden.busy} onClick={() => senden.run('kommentar')}>
-              <Send size={13} aria-hidden /> Senden
-            </Button>
-          </div>
+          {/* Das Feld ist je Ticket gekeyt: beim Wechsel bekommt es einen
+              frischen Entwurf, statt den fremden mitzunehmen. */}
+          <FeedbackBeitragFeld
+            key={t.id}
+            bausteine={bausteineFuer(dev, meins)}
+            platzhalter={dev ? 'Umsetzungsdetails für den Ersteller …' : 'Antwort oder Ergänzung …'}
+            hinweis={dev ? 'Der Ersteller wird benachrichtigt.' : 'Geht an das Entwicklerteam.'}
+            vorspann={<FeedbackAvatar name={meName || ctx.meineId || '?'} size={22} />}
+            zusatzAktion={zusatz}
+            fokusSignal={fokusSignal}
+            senden={(text, art) => ctx.kommentiere(t, text, art)}
+          />
         </div>
       ) : (
         <p className="fb-verlauf-leer">Zum Kommentieren im Profil anmelden.</p>

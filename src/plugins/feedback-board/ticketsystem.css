@@ -193,6 +193,31 @@
 .fb-mehr.offen { opacity: 1; }
 .fb-mehr:hover { background: var(--tf-hover); color: var(--tf-text); }
 
+/* Ergänzen am EIGENEN Ticket: dieselbe Bauform wie `.fb-mehr`, aber dauerhaft
+   sichtbar. Hover-only wäre so versteckt wie der Menüeintrag, an dem dieser Weg
+   bis v5.2 hing — und genau daran scheiterte er.
+   Deshalb auch `--tf-text-secondary` statt des tertiären Tons, den `.fb-mehr`
+   trägt: gemessen 5,33:1 gegen die Kartenfläche statt 2,61:1. Ein Symbol, das
+   dauerhaft steht und die einzige Anzeige dieser Funktion ist, muss die 3:1 für
+   Bedienelemente halten — `.fb-mehr` erscheint erst beim Überfahren. */
+.fb-erg {
+  margin-left: auto;
+  width: 22px;
+  height: 22px;
+  border: none;
+  background: none;
+  border-radius: 6px;
+  color: var(--tf-text-secondary);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+.fb-erg:hover,
+.fb-erg.offen { background: var(--tf-hover); color: var(--tf-text); }
+/* Ohne den Knopf trägt `.fb-mehr` den Abstand weiter — die Zeile bleibt unverändert. */
+.fb-erg + .fb-mehr { margin-left: 0; }
+
 .fb-titel {
   margin-top: 6px;
   font-size: 12.5px;
@@ -696,33 +721,12 @@
 .fb-lane .fb-liste { flex: none; overflow: visible; padding-bottom: 8px; }
 .fb-lane .fb-liste-kopf { display: none; }
 
-/* ---------------- Schnell-Kommentar ---------------- */
-.fb-bausteine { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
-.fb-bausteine button {
-  height: 24px;
-  padding: 0 9px;
-  border: var(--tf-border-thin) solid var(--tf-border);
-  border-radius: var(--tf-radius-pill);
-  background: var(--tf-card-surface);
-  font-size: 11px;
-  color: var(--tf-text-secondary);
-  cursor: pointer;
-}
-.fb-bausteine button:hover { border-color: var(--tf-border-hover); color: var(--tf-text); }
-.fb-kmt-feld {
-  width: 100%;
-  min-height: 76px;
-  resize: vertical;
-  border: var(--tf-border-thin) solid var(--tf-border-hover);
-  border-radius: var(--tf-radius);
-  padding: 8px 9px;
-  font: var(--tf-weight-regular) 12.5px/1.5 var(--tf-font-sans);
-  color: var(--tf-text);
-  background: var(--tf-bg);
-  outline: none;
-}
-.fb-kmt-feld:focus { border-color: var(--tf-primary); }
-.fb-kmt-zeile { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+/* ---------------- Schnell-Kommentar ----------------
+   Die Grundform des Schreibfelds (`.fb-bausteine`, `.fb-kmt-feld`,
+   `.fb-kmt-zeile`, `.fb-kmt-hinweis`) steht seit v5.2 in
+   `components/feedback/beitrag-feld.css` — sie wird auch im Erfassungs-Panel
+   gebraucht, und das lädt diese Datei nicht. Hier bleiben nur die
+   board-eigenen Abwandlungen. */
 
 /* Verlauf im Detail-Panel */
 .fb-d-label .fb-d-zahl {
@@ -745,7 +749,6 @@
    statt zusammengequetscht zu werden. */
 .fb-compose .fb-kmt-zeile { flex-wrap: wrap; justify-content: flex-end; }
 .fb-compose .fb-kmt-hinweis { min-width: 180px; }
-.fb-kmt-hinweis { flex: 1; font-size: 10.5px; color: var(--tf-text-tertiary); }
 
 /* ---------------- Verlauf: Ergänzung und Rückfrage ---------------- */
 .fb-kmt-ergaenzung {
