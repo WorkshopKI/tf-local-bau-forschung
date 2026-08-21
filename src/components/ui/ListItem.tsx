@@ -14,6 +14,15 @@ interface ListItemProps {
    *  (z.B. Skill-/Regel-Liste). Bündelt das passende Zeilen-Chrome (px-4 py-2.5,
    *  Hover-Background) für die Verwendung in einem gerundeten Listen-Container. */
   layout?: 'stacked' | 'inline';
+  /** Engere Zeile fuer lange Listen auf knappem Raum (nur `layout='stacked'`):
+   *  Polster 12px → 6px, Abstand Icon↔Text 12px → 10px, Trennlinie auf 45%
+   *  gedaempft. Spart ~14px je Zeile.
+   *
+   *  **Opt-in, bewusst kein neuer Standard**: `ListItem` traegt sieben Aufrufer
+   *  (Einstellungen, Skill-Verwaltung, Startseite). Ein geaenderter Default
+   *  haette alle mitgezogen, obwohl nur die Startseiten-Karte „Meine Antraege"
+   *  unter Platzmangel leidet. */
+  dicht?: boolean;
   /** Tailwind-Klassen-Override fuer den title-Absatz. Standard (stacked):
    *  `text-[13.5px] text-[var(--tf-text)] truncate`; (inline):
    *  `text-[13.5px] font-medium text-[var(--tf-text)] whitespace-nowrap`.
@@ -50,6 +59,7 @@ export function ListItem({
   icon,
   iconBare = false,
   layout = 'stacked',
+  dicht = false,
   titleClassName,
   subtitleClassName,
   actions,
@@ -61,7 +71,14 @@ export function ListItem({
   const isInline = layout === 'inline';
   const titleClass = titleClassName ?? (isInline ? INLINE_TITLE_CLASS : DEFAULT_TITLE_CLASS);
   const subtitleClass = subtitleClassName ?? (isInline ? INLINE_SUBTITLE_CLASS : DEFAULT_SUBTITLE_CLASS);
-  const pad = isInline ? 'px-4 py-2.5' : 'py-3';
+  const eng = dicht && !isInline;
+  const pad = isInline ? 'px-4 py-2.5' : (eng ? 'py-1.5' : 'py-3');
+  const gap = eng ? 'gap-2.5' : 'gap-3';
+  // Gedaempfte Trennlinie ueber `color-mix` statt einer festen rgba-Angabe:
+  // eine hart notierte Schwarz-Transparenz waere im Dunkelmodus unsichtbar.
+  const trennFarbe = eng
+    ? 'color-mix(in srgb, var(--tf-border) 45%, transparent)'
+    : 'var(--tf-border)';
   const hover = onClick
     ? (isInline ? 'cursor-pointer hover:bg-[var(--tf-bg-secondary)]' : 'cursor-pointer hover:opacity-70')
     : '';
@@ -69,8 +86,8 @@ export function ListItem({
 
   return (
     <div
-      className={`flex items-center gap-3 ${pad} ${hover} ${activeCls}`}
-      style={!last ? { borderBottom: '0.5px solid var(--tf-border)' } : undefined}
+      className={`flex items-center ${gap} ${pad} ${hover} ${activeCls}`}
+      style={!last ? { borderBottom: `0.5px solid ${trennFarbe}` } : undefined}
       onClick={onClick}
       aria-current={active ? 'true' : undefined}
     >

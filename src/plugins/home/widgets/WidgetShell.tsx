@@ -71,7 +71,11 @@ export function WidgetShell({
       className="group/widget rounded-[var(--tf-radius-lg)] bg-[var(--tf-card-surface)]"
       style={{ border: '0.5px solid var(--tf-border)' }}
     >
-      <div className={`flex items-center gap-2 min-w-0 ${haupt ? 'px-4 py-2.5' : 'px-4 pt-3 pb-0'}`}>
+      {/* `py-1.5` statt `py-2.5` (v6.5.0): 48px → 40px Kopfhoehe. Bewusst HIER
+          und damit fuer ALLE Haupt-Karten — eine einzelne flachere Karte neben
+          dreizehn hoeheren liest sich als Fehler, nicht als Absicht. Unter
+          ~32px kaeme ohnehin nichts mehr an: der `⋯`-Knopf misst 28px. */}
+      <div className={`flex items-center gap-2 min-w-0 ${haupt ? 'px-4 py-1.5' : 'px-4 pt-3 pb-0'}`}>
         <button
           type="button"
           onClick={() => toggle.run()}
@@ -111,7 +115,7 @@ export function WidgetShell({
       </div>
       {/* Lazy: Body existiert im DOM NUR ausgeklappt. */}
       {!eingeklappt ? (
-        <div className={haupt ? 'px-4 pb-3' : 'px-4 pt-2.5 pb-3'}>{children}</div>
+        <div className={haupt ? 'px-4 pb-2' : 'px-4 pt-2.5 pb-3'}>{children}</div>
       ) : (
         <div className={haupt ? 'pb-1' : 'pb-2.5'} />
       )}

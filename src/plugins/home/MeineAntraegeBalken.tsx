@@ -145,14 +145,16 @@ export function MeineAntraegeBalken({ antraege }: Props): React.ReactElement | n
     });
 
   return (
-    <div className="mb-6 border border-[var(--tf-border)] rounded-[var(--tf-radius-lg)] bg-[var(--tf-card-surface)] px-[18px] pt-4 pb-[18px]">
+    <div className="mb-2.5 border border-[var(--tf-border)] rounded-[var(--tf-radius-lg)] bg-[var(--tf-card-surface)] px-3 pt-2.5 pb-3">
       {/* „TVS" war eine unaufgelöste Abkürzung, und „638 Anträge" las sich als
           zweite Gesamtzahl neben den 909 offenen Vorgängen der Kopfzeile. Beides
           benannt: Einträge = Zeilen dieser Liste (Verbünde gebündelt),
           Teilvorhaben = die darin enthaltenen TVs. Der frühere Knopf
           „Zu meinen Anträgen →" ist entfallen — er tat exakt dasselbe wie
           „Alle →" im Kopf derselben Karte (v2.372.2). */}
-      <div className="mb-2.5">
+      {/* `leading-[18px]`: der Wrapper erbte sonst die 24px-Zeilenhoehe des
+          16px-Kontexts und war damit 6px hoeher als sein 12.5px-Text braucht. */}
+      <div className="mb-2.5 leading-[18px]">
         <span
           className="text-[12.5px] text-[var(--tf-text-secondary)]"
           title="Verbünde stehen als ein Eintrag; die zweite Zahl nennt die darin enthaltenen Teilvorhaben."
@@ -161,7 +163,7 @@ export function MeineAntraegeBalken({ antraege }: Props): React.ReactElement | n
           <span className="font-medium tabular-nums text-[var(--tf-text)]">{totalTvs}</span> Teilvorhaben
         </span>
       </div>
-      <DistributionBar segments={segments} />
+      <DistributionBar segments={segments} height={16} />
     </div>
   );
 }

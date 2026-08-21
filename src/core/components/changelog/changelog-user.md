@@ -19,6 +19,12 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v6.8 — 2026-08
+
+### Verbesserungen
+- **Die Startseite zeigt deutlich mehr Anträge auf einen Blick.** In der Karte „Meine Anträge" stehen jetzt rund **16 Einträge ohne Scrollen** statt 10. Die Zeilen sind enger gesetzt, und vor allem ist der Platz über der Liste geschrumpft: Kopfzeile, Quartals-Balken und die graue Erklärzeile brauchten zusammen fast fünf Zeilen Höhe.
+- **Alle Karten der Startseite haben eine flachere Kopfzeile** und sitzen dadurch enger untereinander — die Seite ist insgesamt gut ein Zehntel kürzer geworden.
+
 ## v6.7 — 2026-08
 
 ### Neu

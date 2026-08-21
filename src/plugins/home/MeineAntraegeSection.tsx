@@ -238,7 +238,7 @@ function MeineAntraegeListe({
 
   return (
     <div>
-      <p className="text-[11px] text-[var(--tf-text-tertiary)] mb-2">
+      <p className="text-[10.5px] text-[var(--tf-text-tertiary)] mb-1">
         {alleMode ? (
           'Offene Anträge aller aktiven MAs, sortiert nach Frist · Verbünde als ein Eintrag'
         ) : (
@@ -249,7 +249,7 @@ function MeineAntraegeListe({
           einem gesetzten Schlussvermerk ist eine Abweichung im Fachsystem. Sie
           zählen nicht mehr als offen und stehen am Ende der Liste. */}
       {erledigtLautKuerzeln > 0 ? (
-        <p className="mb-2 text-[11px] text-[var(--tf-text-tertiary)]">
+        <p className="mb-1 text-[10.5px] text-[var(--tf-text-tertiary)]">
           {erledigtLautKuerzeln === 1
             ? '1 Vorgang ist laut Kürzeln erledigt, trägt aber noch einen offenen Status — er steht am Ende und zählt nicht als offen.'
             : `${erledigtLautKuerzeln} Vorgänge sind laut Kürzeln erledigt, tragen aber noch einen offenen Status — sie stehen am Ende und zählen nicht als offen.`}
@@ -349,7 +349,8 @@ function MeineAntraegeListe({
                 ) : null}
               </span>
             }
-            titleClassName="text-[13px] min-w-0"
+            dicht
+            titleClassName="text-[12.5px] leading-[1.4] min-w-0"
             meta={
               ageLabel ? (
                 <span className="text-[11px] tabular-nums text-[var(--tf-text-tertiary)] whitespace-nowrap">
