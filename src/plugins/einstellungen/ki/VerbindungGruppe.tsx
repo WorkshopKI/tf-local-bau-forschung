@@ -19,7 +19,7 @@ import { useStorage } from '@/core/hooks/useStorage';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { useKopierAktion } from '@/core/hooks/useKopierAktion';
-import { BRIDGE_BOOKMARKLET, istBookmarkletVeraltet } from '@/core/services/ai/streamlit-bridge/snippet';
+import { BRIDGE_BOOKMARKLET, BRIDGE_BOOKMARK_NAME, istBookmarkletVeraltet } from '@/core/services/ai/streamlit-bridge/snippet';
 import { useBridgeStatus } from '@/core/services/ai/bridge-status';
 import { connectInternalKi } from '@/core/services/ai/connect-ki';
 import type { AIProviderConfig } from '@/core/types/config';
@@ -204,7 +204,7 @@ export function VerbindungGruppe({
               <a ref={setzeBookmarkletHref} draggable onClick={e => e.preventDefault()} title="In die Lesezeichenleiste ziehen">
                 <GripVertical className="text-[var(--tf-text-tertiary)]" aria-hidden />
                 <Bookmark className="text-[var(--tf-primary)]" aria-hidden />
-                Interne KI
+                {BRIDGE_BOOKMARK_NAME}
               </a>
             </Button>
             <span className="text-[11.5px] text-[var(--tf-text-tertiary)]">
@@ -231,7 +231,7 @@ export function VerbindungGruppe({
             <li>
               Das ziehbare Lesezeichen einmalig in die Lesezeichenleiste <strong className="font-medium text-[var(--tf-text)]">ziehen</strong> (nicht anklicken).
               {' '}Klappt das Ablegen nicht (in verwaltetem Chrome kommt das vor): <strong className="font-medium text-[var(--tf-text)]">Kopieren</strong> drücken,
-              in der Leiste ein beliebiges Lesezeichen mit der rechten Maustaste <em>Bearbeiten</em>, als Adresse einfügen und „Interne KI" als Namen setzen.
+              in der Leiste ein beliebiges Lesezeichen mit der rechten Maustaste <em>Bearbeiten</em>, als Adresse einfügen und „{BRIDGE_BOOKMARK_NAME}" als Namen setzen.
             </li>
             <li><strong className="font-medium text-[var(--tf-text)]">Interne KI öffnen</strong> klicken — der Tab muss <em>aus der App</em> geöffnet werden.</li>
             <li>Im KI-Tab das Lesezeichen anklicken; unten rechts erscheint eine Status-Pille, die auf grün „Verbunden" ruht.</li>
@@ -280,10 +280,10 @@ function ZweitLlmKlappe({ url }: { url: string }): React.ReactElement {
         senden, Antwort auslesen, Chat zurücksetzen. Voraussetzung: KI-Tab offen, Lesezeichen dort aktiviert.
       </p>
       <div className="flex items-center gap-2 flex-wrap">
-        <Button variant="secondary" size="sm" onClick={() => zielTest.run('standard')} disabled={zielTest.busy || !url}>
+        <Button variant="secondary" size="sm" onClick={() => zielTest.run('gpt-oss')} disabled={zielTest.busy || !url}>
           Standard testen
         </Button>
-        <Button variant="secondary" size="sm" onClick={() => zielTest.run('agentisch')} disabled={zielTest.busy || !url}>
+        <Button variant="secondary" size="sm" onClick={() => zielTest.run('qwen35')} disabled={zielTest.busy || !url}>
           Agentisch testen
         </Button>
         {zielTest.busy && (
@@ -293,7 +293,7 @@ function ZweitLlmKlappe({ url }: { url: string }): React.ReactElement {
       {ergebnis && (
         <div className="space-y-1 mt-2">
           <Badge variant={ergebnis.ok ? 'success' : 'error'}>
-            {ergebnis.ziel === 'agentisch' ? 'Agentisch' : 'Standard'}: {ergebnis.ok ? 'OK' : 'prüfen'}
+            {ergebnis.ziel === 'qwen35' ? 'Agentisch' : 'Standard'}: {ergebnis.ok ? 'OK' : 'prüfen'}
           </Badge>
           <p className="text-[12px] text-[var(--tf-text-secondary)] break-words">{ergebnis.text}</p>
         </div>

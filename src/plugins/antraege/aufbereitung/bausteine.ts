@@ -116,7 +116,7 @@ export interface RunBausteinErgebnis {
  * System-Rolle aus dem Skill-Record; das Prompt baut der Caller.
  *
  * `ziel` (optional, nur Streamlit) routet den Ziel-Tab: ohne `ziel` = aktiver/
- * Standard-Chat (gpt-oss); `'agentisch'` = der agentische Qwen-Tab (262k, Zweit-LLM-
+ * gpt-oss-120b; `'qwen35'` = Qwen3.6-35B (259k, das grosse Fenster —
  * Erprobung — dev-Eval-A/B). Reset UND Submit treffen denselben Tab.
  *
  * ACHTUNG `maxTokens`: greift NUR auf dem `submitConversation`-Pfad (DirectLLM,
@@ -126,8 +126,8 @@ export interface RunBausteinErgebnis {
  */
 export async function runBaustein(
   transport: AITransport, skill: SkillRecord, prompt: string,
-  // Ohne explizites `ziel` gilt die globale KI-Varianten-Präferenz (`aktivesZielFuerLauf`):
-  // Standard → undefined (aktiver Tab, byte-identisch), Agentisch → 'agentisch'. Die
+  // Ohne explizites `ziel` gilt die globale Modell-Präferenz (`aktivesZielFuerLauf`):
+  // Standard → undefined (aktiver Tab, byte-identisch), Agentisch → 'qwen35'. Die
   // dev-Eval übergibt weiterhin ein explizites `ziel` (überstimmt die Präferenz).
   ziel: BridgeZiel | undefined = aktivesZielFuerLauf(),
 ): Promise<RunBausteinErgebnis> {
@@ -176,8 +176,8 @@ export async function getOrComputeBaustein<T>(
   opts: {
     force?: boolean;
     verdaechtig?: { pruefe: (daten: T) => boolean; grund: string };
-    /** KI-Varianten-Ziel für DIESEN Baustein (nur Streamlit). `'agentisch'` = agentischer
-     *  Qwen-Tab; scheitert dessen Reset (Tab nicht verbunden), fällt der Lauf einmal auf
+    /** Modell-Ziel für DIESEN Baustein (nur Streamlit). `'qwen35'` = agentischer
+     *  Qwen3.6; scheitert dessen Reset (Tab nicht verbunden), fällt der Lauf einmal auf
      *  den Standard-Chat zurück (kein Fehler). Ohne `ziel` = globale Präferenz.
      *
      *  Die Aufbereitungs-Seite setzt es IMMER (`bestimmeLaufZiel`, `lauf-ziel.ts`) und
@@ -220,17 +220,17 @@ export async function getOrComputeBaustein<T>(
 
   const istSchlecht = (d: T | null): boolean => d == null || (!!opts.verdaechtig && opts.verdaechtig.pruefe(d));
 
-  /** EIN Lauf inkl. Agentisch-Fallback: wollte er den agentischen Tab, ist dessen Reset
+  /** EIN Lauf inkl. Agentisch-Fallback: wollte er den Qwen3.6-Modell, ist dessen Reset
    *  aber fehlgeschlagen (Tab nicht verbunden), einmal auf den Standard-Chat zurückfallen.
-   *  Der Fallback nennt `'standard'` AUSDRÜCKLICH: ohne `ziel` bliebe das Bookmarklet im
+   *  Der Fallback nennt `'gpt-oss'` AUSDRÜCKLICH: ohne `ziel` bliebe das Bookmarklet im
    *  AKTIVEN Tab — also womöglich in genau dem agentischen, der gerade nicht antwortet
    *  (Lehre v2.292, `feedbackImprove.ts`). */
   const laufMitFallback = async (): Promise<{ daten: T | null; raw: string; reset: ChatResetStatus } | null> => {
     const r = await einLauf(opts.ziel);
     // Kein Rückfall, wenn der Korpus das Standard-Fenster sprengt (siehe
     // `ueberStandardCap`) — dort wäre der Ersatzlauf nachweislich beschnitten.
-    if (r && opts.ziel === 'agentisch' && !opts.ueberStandardCap && resetHatVerlaufsrisiko(r.reset)) {
-      const standard = await einLauf('standard');
+    if (r && opts.ziel === 'qwen35' && !opts.ueberStandardCap && resetHatVerlaufsrisiko(r.reset)) {
+      const standard = await einLauf('gpt-oss');
       if (standard) return standard;
     }
     return r;

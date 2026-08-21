@@ -162,7 +162,7 @@ export function useChatController(options?: UseChatControllerOptions): ChatContr
         maxTokens: CHAT_MAX_TOKENS,
         signal,
         ...(thinkingBudget ? { thinkingBudget } : {}),
-        // Globale KI-Varianten-Präferenz auch im Streaming-Pfad — sonst wäre der
+        // Globale Modell-Präferenz auch im Streaming-Pfad — sonst wäre der
         // Umschalter im Chat wirkungslos (der Bridge-Transport bietet
         // `streamConversation` an, der Single-Turn-Zweig unten ist für ihn tot).
         ...(ziel ? { ziel } : {}),
@@ -256,7 +256,7 @@ export function useChatController(options?: UseChatControllerOptions): ChatContr
         }
       } else {
         // StreamlitBridge: kann keine Konversation — Single-Turn wie früher.
-        // Globale KI-Varianten-Präferenz durchreichen (Standard → undefined = aktiver Tab).
+        // Globale Modell-Präferenz durchreichen — immer explizit (siehe ki-ziel.ts).
         const single = apiMessages.filter(m => m.role === 'user').pop();
         const ziel = aktivesZielFuerLauf();
         raw = await transport.submitMessage(single?.content ?? lastUser.content, undefined, ziel ? { ziel } : undefined);

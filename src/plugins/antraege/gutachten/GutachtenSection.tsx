@@ -94,14 +94,14 @@ export function GutachtenSection({
 }: { ctx: KurzfassungContext; initialAbschnittId?: string }): React.ReactElement {
   const ctrl = useGutachtenWorkflow(ctx);
   const { navigate } = useNavigation();
-  // Cap folgt der KI-Variante (Bridge-Tab), nicht nur dem lokalen Wert.
+  // Cap folgt der Modellwahl (Bridge-Tab), nicht nur dem lokalen Wert.
   const vbCap = useVbCharCap();
   // Für die Wechsel-Empfehlung wird auch das Fenster der ANDEREN internen KI
   // gebraucht. Ohne Bridge (DirectLLM) gibt es keine zweite — dann entfällt sie.
   const kontextZiel = useKontextZiel();
-  const kiZiel = kontextZiel.ziel ?? 'standard';
+  const kiZiel = kontextZiel.ziel ?? 'gpt-oss';
   const capAndere = kontextZiel.bridge
-    ? getVbCharCap({ bridge: true, ziel: kiZiel === 'agentisch' ? 'standard' : 'agentisch' })
+    ? getVbCharCap({ bridge: true, ziel: kiZiel === 'qwen35' ? 'gpt-oss' : 'qwen35' })
     : undefined;
   const korpusMarkdown = ctrl.quellen.quellen?.markdown ?? '';
   const kontextBefund = korpusMarkdown

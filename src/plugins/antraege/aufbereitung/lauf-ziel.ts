@@ -1,8 +1,8 @@
 /**
  * Ziel-KI der Antrag-Aufbereitung — welcher Streamlit-Tab die Bausteine fährt.
  *
- * INVARIANTE: die Aufbereitung läuft auf der **Standard-KI** (`AUFBEREITUNG_ZIEL`),
- * NICHT auf der global gewählten KI-Variante (`useKiZiel`/`aktivesZielFuerLauf`).
+ * INVARIANTE: die Aufbereitung läuft auf der **gpt-oss-120b** (`AUFBEREITUNG_ZIEL`),
+ * NICHT auf der global gewählten Modellwahl (`useKiZiel`/`aktivesZielFuerLauf`).
  * Muster + Begründung wie `FEEDBACK_ZIEL` in `core/services/feedback/feedbackImprove.ts`:
  * die sechs Bausteine sind enge, einschüssige Extraktions-Aufträge mit striktem
  * Ausgabeformat (Zeilenformat bzw. JSON-Codeblock). Der agentische Chat bringt dafür
@@ -10,10 +10,10 @@
  * statt im geforderten Format (→ „Antwort nicht parsebar") und läuft bei sechs
  * Volldurchgängen über den Antragstext in die Transport-Deadline (→ Status `fehler`).
  *
- * EINE Ausnahme, vom Nutzer bewusst gewählt: die **Notausfahrt**. Die Standard-KI hat
- * das kleinere Kontextfenster (62k Token ≈ 174.000 Zeichen gegenüber 262k ≈ 774.000).
+ * EINE Ausnahme, vom Nutzer bewusst gewählt: die **Notausfahrt**. Die gpt-oss-120b hat
+ * das kleinere Kontextfenster (62k Token ≈ 174.000 Zeichen gegenüber 259k ≈ 774.000).
  * Passt der Korpus dort nicht hinein, sieht das Modell das Ende des Textes nicht — dann
- * darf der Prüfer für DIESEN Antrag auf die agentische KI umschalten und bezahlt die
+ * darf der Prüfer für DIESEN Antrag auf Qwen3.6-35B umschalten und bezahlt die
  * Vollständigkeit mit Laufzeit. Die Entscheidung trifft er sichtbar, nicht der Code.
  *
  * Rein + import-arm (die Caps kommen als Zahlen herein, nicht aus `localStorage`) →
@@ -22,7 +22,7 @@
 import type { BridgeZiel } from '@/core/services/ai/transports/streamlit';
 
 /** Ziel-Tab ALLER Aufbereitungs-Bausteine — siehe Invariante im Kopfkommentar. */
-export const AUFBEREITUNG_ZIEL: BridgeZiel = 'standard';
+export const AUFBEREITUNG_ZIEL: BridgeZiel = 'gpt-oss';
 
 /** Wo die Bausteine laufen, gegen welchen Zeichen-Cap gemessen wird, und ob die
  *  Notausfahrt angeboten werden muss. */
@@ -47,17 +47,17 @@ export interface LaufZiel {
 export function bestimmeLaufZiel(eingabe: {
   /** Umfang des Korpus in Zeichen; `null`, solange er nicht aufgelöst ist. */
   zeichen: number | null;
-  /** Zeichen-Cap der Standard-KI (`getVbCharCap({ bridge, ziel: 'standard' })`). */
+  /** Zeichen-Cap gpt-oss-120b (`getVbCharCap({ bridge, ziel: 'gpt-oss' })`). */
   standardCap: number;
-  /** Zeichen-Cap der agentischen KI (`getVbCharCap({ bridge, ziel: 'agentisch' })`). */
+  /** Zeichen-Cap der agentischen KI (`getVbCharCap({ bridge, ziel: 'qwen35' })`). */
   agentischCap: number;
   /** Notausfahrt vom Nutzer aktiviert (für diesen Antrag, diese Sitzung). */
   agentischErzwungen: boolean;
 }): LaufZiel {
-  const ziel: BridgeZiel = eingabe.agentischErzwungen ? 'agentisch' : AUFBEREITUNG_ZIEL;
+  const ziel: BridgeZiel = eingabe.agentischErzwungen ? 'qwen35' : AUFBEREITUNG_ZIEL;
   return {
     ziel,
-    cap: ziel === 'agentisch' ? eingabe.agentischCap : eingabe.standardCap,
+    cap: ziel === 'qwen35' ? eingabe.agentischCap : eingabe.standardCap,
     notausfahrtAnbieten: eingabe.zeichen !== null && eingabe.zeichen > eingabe.standardCap,
   };
 }

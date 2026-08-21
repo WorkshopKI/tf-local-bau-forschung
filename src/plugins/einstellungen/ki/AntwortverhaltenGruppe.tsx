@@ -2,7 +2,7 @@
  * Gruppe „Antwortverhalten" (Design-Handoff
  * `_design/handoff/einstellungen-zweispaltig`, Screenshot 11, rechte Spalte).
  *
- * Drei Zeilen: Thinking, KI-Variante (Standard/Agentisch) und das
+ * Drei Zeilen: Thinking, Modell der internen KI (gpt-oss / Qwen3.6) und das
  * Kontextfenster als Automatik/Manuell. Aus dem Kontextfenster folgt, wie lang
  * eine Vorhabensbeschreibung sein darf — deshalb steht die Zahl daneben in
  * Klartext („~238.617 Zeichen"), nicht nur in Tokens.
@@ -11,11 +11,9 @@ import { useState } from 'react';
 import { Switch } from '@/components/ui/switch';
 import { SegmentedToggle } from '@/components/ui/SegmentedToggle';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
-import { KiVariantSelector } from '@/core/components/KiVariantSelector';
+import { KiModellSelector } from '@/core/components/KiModellSelector';
 import { DirectLLMTransport } from '@/core/services/ai/transports/direct-llm';
 import {
-  BRIDGE_AGENTISCH_CONTEXT_TOKENS,
-  BRIDGE_STANDARD_CONTEXT_TOKENS,
   MAX_LLM_CONTEXT_TOKENS,
   MIN_LLM_CONTEXT_TOKENS,
   clearManualLlmContextTokens,
@@ -32,8 +30,8 @@ import { SettingsGruppe, SettingsOption } from '@/components/settings';
 
 const HINT_THINKING =
   'Lässt das LLM vor der Antwort „nachdenken" — oft bessere Ergebnisse, aber langsamer. Der Denkprozess wird pro Fassung aufklappbar angezeigt. Nur die Voreinstellung: bei jeder Generierung („Neu"/„Kürzer"/„Länger") direkt per Schalter umschaltbar.';
-const HINT_VARIANTE =
-  'Welcher Tab der internen KI angesprochen wird. „Standard" ist der normale Chat, „Agentisch" die Oberfläche mit Werkzeugen — sie hat ein größeres Kontextfenster, antwortet aber langsamer.';
+const HINT_MODELL =
+  'Welches Modell der internen KI die Läufe ansteuert. gpt-oss-120b ist schneller, Qwen3.6-35B hat das deutlich größere Kontextfenster. Die Wahl ist eine Untergrenze: passt ein Dokument nicht hinein, wechselt die App für diesen Lauf selbst auf Qwen3.6 und vermerkt es.';
 const HINT_KONTEXT =
   'Maximale Tokenzahl des Modells. Daraus folgt, wie lang eine Vorhabensbeschreibung sein darf — längere werden vor der Analyse automatisch gekürzt. „Automatik" nimmt den erkannten bzw. den internen llama.cpp-Standardwert; „Manuell" übersteuert beides.';
 
@@ -94,8 +92,8 @@ export function AntwortverhaltenGruppe({ aiConfig }: { aiConfig: AIProviderConfi
       {/* `nurSteuerung`: Label und Erklärung liefert die Zeile (Label +
           `hint`) — der Selektor brächte beides ein zweites Mal mit, und sein
           Erklärabsatz liefe in der schmalen Nebenspalte über den Kartenrand. */}
-      <SettingsOption label="KI-Variante" hint={HINT_VARIANTE}>
-        <KiVariantSelector nurSteuerung />
+      <SettingsOption label="Modell" hint={HINT_MODELL}>
+        <KiModellSelector nurSteuerung />
       </SettingsOption>
 
       <SettingsOption
@@ -116,9 +114,9 @@ export function AntwortverhaltenGruppe({ aiConfig }: { aiConfig: AIProviderConfi
                 Einstellung eine Zahl an, gegen die nichts geprüft wird. */}
             {aiConfig.type === 'streamlit' && !manuell && (
               <span className="block mt-1">
-                Aktiv ist die Bridge — dort gilt das Kontextfenster des gewählten Tabs:
-                Standard ~{computeVbCharCap(BRIDGE_STANDARD_CONTEXT_TOKENS).toLocaleString('de-DE')},
-                Agentisch ~{computeVbCharCap(BRIDGE_AGENTISCH_CONTEXT_TOKENS).toLocaleString('de-DE')} Zeichen.
+                Aktiv ist die interne KI — dort gilt das Kontextfenster des gewählten Modells:
+                gpt-oss-120b ~{computeVbCharCap(getLlmContextTokens({ bridge: true, ziel: 'gpt-oss' })).toLocaleString('de-DE')},
+                Qwen3.6-35B ~{computeVbCharCap(getLlmContextTokens({ bridge: true, ziel: 'qwen35' })).toLocaleString('de-DE')} Zeichen.
                 Ein manuell gesetzter Wert übersteuert beide.
               </span>
             )}

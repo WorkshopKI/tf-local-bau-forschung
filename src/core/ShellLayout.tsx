@@ -43,6 +43,7 @@ import { ensureDefaultProgramm } from '@/core/services/csv';
 import { getDatenShareHandle } from '@/core/services/infrastructure/smb-handle';
 import { SmbBanner } from '@/core/components/SmbBanner';
 import { OfflineBanner } from '@/core/OfflineBanner';
+import { ModellEskalationHinweis } from '@/core/components/ModellEskalationHinweis';
 import { StartupDataUpdateBanner } from '@/core/components/StartupDataUpdateBanner';
 import { useEmbeddingKorpusAbgleich } from '@/core/hooks/useEmbeddingKorpusAbgleich';
 import { useHeartbeat } from '@/core/services/presence';
@@ -662,6 +663,11 @@ export function ShellLayout({ plugins, children }: ShellLayoutProps): React.Reac
           )}
           {isDataShareEnabled() && <StartupDataUpdateBanner />}
           {(isDataShareEnabled() || isKuratorMenusEnabled() || isCsvAutoRefreshEnabled()) && <DataUpdateBanners />}
+          {/* Rendert `null`, solange kein Lauf angehoben wurde — hier statt an
+              jeder Arbeitsfläche, weil der Auto-Wechsel überall greift. */}
+          <div className="px-4 pt-3 empty:hidden">
+            <ModellEskalationHinweis />
+          </div>
           <div className="flex-1 overflow-y-auto relative">
             {children}
           </div>

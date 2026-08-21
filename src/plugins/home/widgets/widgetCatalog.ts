@@ -109,7 +109,8 @@ export const WIDGET_KATALOG: Record<WidgetTyp, WidgetKatalogEintrag> = {
   'ai-assistent': {
     typ: 'ai-assistent',
     // „KI", nicht „AI": die einzige englische Schreibweise der Oberfläche stand
-    // hier — direkt über dem „KI-Variante"-Umschalter derselben Karte (v2.372.1).
+    // hier (v2.372.1). Die Modellwahl, neben der sie stand, ist mit v5.1 aus dieser
+    // Karte verschwunden — verbinden heisst jetzt schlicht verbinden.
     label: 'KI-Assistent',
     icon: Bot,
     bereich: 'seite',

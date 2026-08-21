@@ -20,9 +20,9 @@
  *  3. **Frischer Chat vor dem Submit.** Der Streamlit-Chat ist stateful; ohne
  *     Reset deutet der vorige Verlauf in die Antwort hinein (Pitfall #36).
  *  4. **Ziel ausdrücklich auf `standard`.** `undefined` heißt an der Bridge
- *     „aktiver Tab", nicht „Standard-Tab" — der Denkfehler, den
+ *     „aktiver Tab", nicht „gpt-oss" — der Denkfehler, den
  *     [ki-ziel.ts](src/core/services/ai/ki-ziel.ts) beschreibt. Das ist auch die
- *     Antwort auf „nimm die Standard-KI": welches Modell dort läuft, setzt der
+ *     Antwort auf „nimm gpt-oss-120b": welches Modell dort läuft, setzt der
  *     Server, die App wählt den Tab.
  *  5. **System-Prompt in die Message inlinen.** `StreamlitBridgeTransport`
  *     verwirft den zweiten Parameter; er bleibt trotzdem gesetzt, damit
@@ -42,7 +42,7 @@ import { kiVerbindungGeprueft, istVerbindungsFehler, useKiConnectPrompt } from '
 import type { BridgeZiel } from '@/core/services/ai/transports/streamlit';
 
 /** Ziel-Tab jedes einschüssigen Laufs — siehe Pflicht 4. */
-const EIN_SCHUSS_ZIEL: BridgeZiel = 'standard';
+const EIN_SCHUSS_ZIEL: BridgeZiel = 'gpt-oss';
 
 /**
  * Die Regel gegen mehrstufige Plan-/Werkzeug-Schleifen.

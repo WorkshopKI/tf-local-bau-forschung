@@ -56,6 +56,27 @@ KI-Tab → App:   { type: 'tf-app-ping' }  → App: { type: 'tf-app-pong' }   (G
 
 `ziel` wählt das **Modell**: `'gpt-oss'` | `'qwen35'`. `'standard'` gilt als Alt-Alias für `'gpt-oss'` (ältere App-Builds). **`'agentisch'` ist nicht angebunden** — der agentische Chat ist eine eigene Route der Seite und bringt eigenen Kontext mit; den liefert diese App bewusst selbst. Ohne `ziel` wird das Modell nicht angefasst, aber im `tf-response` gemeldet.
 
+### Eine Achse, nicht zwei
+
+`BridgeZiel` war bis v5.0 `'standard' | 'agentisch'` und wählte einen **Tab**. Seit v5.1 wählt dieselbe Achse das **Modell** (`'gpt-oss' | 'qwen35'`) — kein zweites Feld daneben. Der agentische Chat ist Qwen3.6 *plus fest eingebautem Kontext*; fällt der Kontext weg, bleibt genau `'qwen35'` übrig. Deshalb steht überall dort, wo im Code „das andere, größere Modell" gemeint war — Zweitmeinung ([zweitfassung.ts](../../src/plugins/antraege/gutachten/zweitfassung.ts)), Kontext-Notausfahrt, Eval-A/B —, jetzt `'qwen35'`.
+
+Die Read-Time-Migration in [ki-ziel.ts](../../src/core/services/ai/ki-ziel.ts) bildet `'agentisch'` deshalb auf `'qwen35'` ab, **nicht** auf `'gpt-oss'`: wer den agentischen Chat gewählt hatte, wollte das große Fenster und behält es. Auf das kleine zurückzusetzen wäre eine stille Verkleinerung.
+
+### Auto-Wechsel nach Umfang
+
+Passt ein Lauf nicht in das gewählte Fenster, hebt ihn [modell-wahl.ts](../../src/core/services/ai/modell-wahl.ts) auf das größere Modell. **Nur aufwärts, nie abwärts** — die Wahl des Bearbeiters ist eine Untergrenze, keine Schätzung, die wir korrigieren dürften.
+
+Damit dreht sich eine Reihenfolge um: bis v5.0 war Kürzen der erste Reflex (`capVbMarkdown` schnitt auf den Cap des *gewählten* Modells, das größere Fenster daneben blieb ungenutzt). Jetzt wird erst das Modell gewählt und der Cap daraus abgeleitet; gekürzt wird nur noch, wenn auch das größte Fenster nicht reicht.
+
+**Zwei Aufrufer, eine Funktion** — bewusst doppelt, weil sie verschiedene Dinge messen:
+
+- [run-skill.ts](../../src/core/services/skills/run/run-skill.ts) braucht die Entscheidung **früh**, weil der Zeichen-Cap am Modell hängt. Es meldet die Anhebung auch selbst — der Transport sieht danach das bereits angehobene Ziel und (richtigerweise) keine Eskalation mehr.
+- Der **Transport** entscheidet auf der fertig zusammengebauten Nutzlast. Nur dort steht die *ganze* Nachricht, und nur dort laufen die Pfade vorbei, die `runSkill` umgehen: Assistent-Turn, Chat, Aufbereitungs-Bausteine, Feedback, Gedächtnis.
+
+Der Doppelaufruf ist unschädlich, weil die Funktion idempotent ist (Test `idempotent: die Wahl auf sich selbst angewandt ändert nichts mehr`). Wer die Transport-Stelle als Dopplung wegräumt, nimmt den Nicht-Skill-Pfaden den Auto-Wechsel.
+
+**Sichtbar gemeldet** an zwei Orten mit verschiedener Lebensdauer: [ModellEskalationHinweis](../../src/core/components/ModellEskalationHinweis.tsx) — einmal in der Shell montiert, rendert `null`, solange nichts angehoben wurde — ist die flüchtige Ansage; `SkillRunResult.modellWahl` ist der bleibende Vermerk am gespeicherten Lauf.
+
 ### Ablauf eines Laufs
 
 1. Chat-Bereich sicherstellen (`#sendform` vorhanden, sonst Reiter „Chat" klicken).
@@ -110,6 +131,8 @@ Aktivitätsbasiert ([deadline.ts](../../src/core/services/ai/transports/deadline
 ## Aktivierung (Nutzer-Flow)
 
 Das Lesezeichen muss **einmal pro KI-Tab** angeklickt werden (nach jedem Neuladen erneut) — unter `file://` kann die App kein JS in den fremden cross-origin-Tab injizieren; das Bookmarklet ist der vom Nutzer autorisierte Weg.
+
+**Das Lesezeichen heißt `interne-KI v<n>`** ([snippet.ts](../../src/core/services/ai/streamlit-bridge/snippet.ts), `BRIDGE_BOOKMARK_NAME`). Die Nummer ist der eigentliche Zweck: ein Lesezeichen sieht man in der Leiste, **ohne es anzuklicken** — dort beantwortet sie „habe ich die aktuelle Bridge?", ohne dass jemand die Einstellungen öffnen muss. Kurz gehalten, weil Chrome längere Namen in der Leiste auf ein Icon zusammenschnurren lässt; dann wäre die Nummer genau dort unsichtbar, wo sie gebraucht wird. `BRIDGE_VERSION` (Kurzform, sichtbar) und `BRIDGE_REV` (genau, für den Handschlag) werden **gemeinsam** hochgezählt — erzwingen lässt sich das nicht, [snippet-version.test.ts](../../src/core/services/ai/streamlit-bridge/__tests__/snippet-version.test.ts) prüft nur, dass beide lesbar bleiben.
 
 **Zwei Wege in die Lesezeichenleiste**: das Lesezeichen **ziehen** ist der Hauptweg, **Kopieren** die Rückfallebene — in verwaltetem Chrome ist das Ablegen in der Leiste nicht überall erlaubt, und dieser eine Schritt schaltet den gesamten KI-Zugang frei. Der `javascript:`-href kommt über eine **Callback-Ref** ins DOM, nicht aus einem Mount-Effekt: der Anker steckt in einer `SettingsKlappe`, die ihre Kinder erst beim Aufklappen montiert — ein `[]`-Effekt lief ins Leere, solange die Klappe zu war (seit v4.31, [Bug-Klasse 23](recurring-bug-classes.md)).
 

@@ -10,6 +10,7 @@
  * Rein und ohne Bridge/Store: die Caps rechnet der Aufrufer (sie hängen am
  * gewählten Ziel), hier steht nur die Entscheidung. Blockiert nie.
  */
+import { MODELL_LABEL } from '@/core/services/ai/modell-wahl';
 import type { BridgeZiel } from '@/core/services/ai/transports/streamlit';
 
 export interface KontextBefundEingabe {
@@ -36,22 +37,28 @@ export interface KontextBefund {
   andereKiLabel: string;
   /**
    * Wessen Fenster gemessen wurde, im Dativ („passt nicht ins Fenster …").
-   * Ohne Bridge gibt es weder Standard- noch agentische KI — dann benennt der
+   * Ohne Bridge gibt es weder Standard- noch Qwen3.6-35B — dann benennt der
    * Text schlicht das Modell, statt einen Tab zu behaupten, den es nicht gibt.
    */
   fensterLabel: string;
 }
 
-export const ZIEL_LABEL: Record<BridgeZiel, string> = {
-  standard: 'Standard-KI',
-  agentisch: 'agentische KI',
-};
-
-/** Dativ-Form derselben Namen — „ins Fenster DER AGENTISCHEN KI", „mit DER STANDARD-KI". */
-export const ZIEL_DATIV: Record<BridgeZiel, string> = {
-  standard: 'der Standard-KI',
-  agentisch: 'der agentischen KI',
-};
+/**
+ * Beschriftung der Modelle — der Name, den auch die interne KI in ihrer
+ * Auswahlliste zeigt.
+ *
+ * Bis v5.0 standen hier „Standard-KI" und „agentische KI" — Namen für zwei Tabs.
+ * Seit die Achse das Modell wählt, benennt sie es auch: „passt nicht ins Fenster
+ * von gpt-oss-120b" sagt, was zu tun ist; „passt nicht ins Fenster der
+ * Standard-KI" verlangte, den Namen erst zu übersetzen.
+ *
+ * EINE Form für beide Verwendungen („Zweitfassung mit …", „ins Fenster von …");
+ * die frühere Dativ-Zweitform entfällt, weil ein Eigenname sich nicht beugt.
+ *
+ * Weitergereicht aus [modell-wahl.ts] statt hier zweitgeschrieben — der
+ * Eskalations-Hinweis und die Modell-Auswahl lesen dieselbe Zuordnung.
+ */
+export const ZIEL_LABEL: Record<BridgeZiel, string> = MODELL_LABEL;
 
 /**
  * `null`, wenn alles passt — der Normalfall soll keine Zeile erzeugen. Sonst der
@@ -59,7 +66,7 @@ export const ZIEL_DATIV: Record<BridgeZiel, string> = {
  */
 export function pruefeKontextPasst(e: KontextBefundEingabe): KontextBefund | null {
   if (e.korpusZeichen <= e.cap) return null;
-  const andere: BridgeZiel = e.ziel === 'agentisch' ? 'standard' : 'agentisch';
+  const andere: BridgeZiel = e.ziel === 'qwen35' ? 'gpt-oss' : 'qwen35';
   return {
     zeichen: e.korpusZeichen,
     cap: e.cap,
@@ -68,6 +75,6 @@ export function pruefeKontextPasst(e: KontextBefundEingabe): KontextBefund | nul
     andereKiLabel: ZIEL_LABEL[andere],
     // `capAndere` fehlt genau dann, wenn das Ziel nicht wirkt (siehe dort) —
     // dieselbe Bedingung entscheidet, ob ein Tab-Name überhaupt zutrifft.
-    fensterLabel: e.capAndere === undefined ? 'des Modells' : ZIEL_DATIV[e.ziel],
+    fensterLabel: e.capAndere === undefined ? 'des Modells' : 'von ' + ZIEL_LABEL[e.ziel],
   };
 }

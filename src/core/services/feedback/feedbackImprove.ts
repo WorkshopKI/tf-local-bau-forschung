@@ -11,8 +11,8 @@
 // transport.name-Prüfung.
 //
 // ZWEI weitere harte Invarianten (v2.291):
-//  1. IMMER der Standard-Tab (`FEEDBACK_ZIEL`) — nicht `aktivesZielFuerLauf()`. Die
-//     globale KI-Variante gilt für Skill-/Chat-Läufe; hier geht es um einen engen,
+//  1. IMMER der gpt-oss (`FEEDBACK_ZIEL`) — nicht `aktivesZielFuerLauf()`. Die
+//     globale Modellwahl gilt für Skill-/Chat-Läufe; hier geht es um einen engen,
 //     einschüssigen JSON-Auftrag, bei dem der agentische Chat keinen Mehrwert bringt,
 //     aber Minuten kostet und in seine eigene Loop-Erkennung laufen kann.
 //  2. IMMER frischer Chat vor JEDEM Submit (auch vor dem Retry) — der Streamlit-Chat
@@ -38,7 +38,7 @@ import { getAppOverview, getScreenContext } from './screenContext';
 const INTERNE_KI = 'Streamlit';
 
 /** Ziel-Tab für ALLE Feedback-Läufe — siehe Invariante 1 im Kopfkommentar. */
-const FEEDBACK_ZIEL: BridgeZiel = 'standard';
+const FEEDBACK_ZIEL: BridgeZiel = 'gpt-oss';
 
 export interface FeedbackImprovePayload {
   text: string;
@@ -75,7 +75,7 @@ const KONTEXT_TEMPLATE = `AUTOMATISCH ERFASSTER KONTEXT:
  * 2. Arg für DirectLLM erhalten.
  *
  * Setzt VOR dem Submit einen frischen Chat auf demselben Tab (Invariante 2) und
- * pinnt das `ziel` auf den Standard-Tab (Invariante 1). `thinkingBudget` wirkt nur
+ * pinnt das `ziel` auf den gpt-oss (Invariante 1). `thinkingBudget` wirkt nur
  * auf DirectLLM (Eval-CLI) — die Bridge sendet ausschliesslich message/ziel/erwarte.
  */
 async function submitInline(

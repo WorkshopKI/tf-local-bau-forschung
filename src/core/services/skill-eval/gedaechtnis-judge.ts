@@ -59,7 +59,7 @@ export function buildJudgePrompt(fx: GedaechtnisFixture, active: GedaechtnisEint
 }
 
 /** Optionale Bridge-Weitergabe: `resetVorSubmit` startet einen frischen Chat vor
- *  dem Judge-Submit (Pitfall #36, nur Streamlit); `ziel` trifft den Qwen-Tab;
+ *  dem Judge-Submit (Pitfall #36, nur Streamlit); `ziel` trifft Qwen3.6;
  *  `signal` bricht den Judge-Submit ab. Ohne opts byte-identisch zum node-CLI-
  *  Verhalten (kein Reset, kein ziel, kein signal). */
 export interface JudgeOptionen {

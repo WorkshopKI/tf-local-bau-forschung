@@ -386,15 +386,15 @@ describe('Reihenfolge als Datenparameter (Seed-Def == STEP_ORDER, aber Order ste
 });
 
 /**
- * Am lokalen llama.cpp beobachtet: die Fußzeile schrieb „· Standard-KI" unter einen
+ * Am lokalen llama.cpp beobachtet: die Fußzeile schrieb „· gpt-oss-120b" unter einen
  * Text, der nie über die Bridge lief. Ursache war nicht der Stempel selbst, sondern
  * der ALTE Stempel — der Schritt wird fortgeschrieben, nicht ersetzt.
  */
 describe('applyLaufZiel', () => {
-  const mitZiel = applyLaufZiel(applyGeneration(emptyRun('AZ', NOW), 'A', gen('Text'), NOW), 'A', 'agentisch', NOW);
+  const mitZiel = applyLaufZiel(applyGeneration(emptyRun('AZ', NOW), 'A', gen('Text'), NOW), 'A', 'qwen35', NOW);
 
   it('hält fest, welche interne KI den Text erzeugt hat', () => {
-    expect(mitZiel.schritte.A?.ziel).toBe('agentisch');
+    expect(mitZiel.schritte.A?.ziel).toBe('qwen35');
   });
 
   it('entfernt den Stempel, wenn das Ziel auf diesem Transport nicht wirkt', () => {

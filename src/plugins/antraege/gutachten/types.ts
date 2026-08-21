@@ -142,8 +142,8 @@ export interface StepRun {
   anweisung?: string;
   /**
    * True, wenn ein Lauf, der den aktuellen Text erzeugte oder veränderte
-   * (Generierung ODER Feinschliff), von der agentischen auf die Standard-KI
-   * zurückfiel (`ziel-fallback.ts`). Treibt das dezente „Standard-KI
+   * (Generierung ODER Feinschliff), von Qwen3.6-35B auf gpt-oss-120b
+   * zurückfiel (`ziel-fallback.ts`). Treibt das dezente „gpt-oss-120b
    * (Fallback)"-Badge — `modell` trägt weiterhin den tatsächlich genutzten
    * Transport-Namen. Additiv; eine Re-Generierung baut einen frischen `StepRun`
    * ohne dieses Feld. Der reine QS-Lauf persistiert es NICHT (er ändert den Text
@@ -154,7 +154,7 @@ export interface StepRun {
    * Die interne KI, die den aktuellen Text TATSÄCHLICH erzeugt hat — nach einem
    * Ziel-Fallback also `'standard'`, nicht die globale Präferenz. Bewusst am Lauf
    * festgehalten und nicht zur Anzeigezeit aus dem Store abgeleitet: der Umschalter
-   * bewegt sich, der Text nicht. Treibt die Fußzeilen-Angabe „Standard-KI" /
+   * bewegt sich, der Text nicht. Treibt die Fußzeilen-Angabe „gpt-oss-120b" /
    * „Agentische KI"; `modell` bleibt der Transport-Name (beide Tabs sind derselbe
    * Transport, unterscheiden sich dort also nicht). Additiv — alte Records ohne Feld
    * bleiben ladbar und zeigen die Angabe einfach nicht.

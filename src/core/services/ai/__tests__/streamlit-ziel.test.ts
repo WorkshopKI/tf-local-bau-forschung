@@ -66,10 +66,10 @@ describe('streamConversation reicht das ziel durch', () => {
     void h.transport.streamConversation(
       [{ role: 'user', content: 'Frage' }],
       { onDelta: vi.fn() },
-      { ziel: 'agentisch' },
+      { ziel: 'qwen35' },
     );
     await vi.advanceTimersByTimeAsync(0);
-    expect(h.letzterRequest().ziel).toBe('agentisch');
+    expect(h.letzterRequest().ziel).toBe('qwen35');
   });
 
   it('lässt das Feld WEG, wenn kein ziel gesetzt ist', async () => {
@@ -94,8 +94,8 @@ describe('streamConversation reicht das ziel durch', () => {
 
   it('submitMessage verhält sich unverändert (Gegenprobe)', async () => {
     const h = makeHarness();
-    void h.transport.submitMessage('Frage', undefined, { ziel: 'standard' });
+    void h.transport.submitMessage('Frage', undefined, { ziel: 'gpt-oss' });
     await vi.advanceTimersByTimeAsync(0);
-    expect(h.letzterRequest().ziel).toBe('standard');
+    expect(h.letzterRequest().ziel).toBe('gpt-oss');
   });
 });

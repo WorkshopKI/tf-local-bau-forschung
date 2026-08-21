@@ -118,7 +118,7 @@ export async function strukturiereImport(
   deps?: {
     idb: IDBStore; transport: AITransport; skill: SkillRecord; antragKey: string;
     force?: boolean;
-    /** Ziel-KI des Strukturierungs-Laufs — wie alle Aufbereitungs-Läufe die Standard-KI
+    /** Ziel-KI des Strukturierungs-Laufs — wie alle Aufbereitungs-Läufe gpt-oss-120b
      *  (`bestimmeLaufZiel`); ohne Angabe gilt die globale Variante. */
     ziel?: BridgeZiel;
   },

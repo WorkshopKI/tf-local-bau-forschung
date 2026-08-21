@@ -46,27 +46,27 @@ interface Props {
 
 /**
  * Welche KI die Bausteine fährt — transparent gemacht, weil die Aufbereitung fest auf
- * der Standard-KI läuft (`lauf-ziel.ts`) und die globale KI-Variante hier NICHT gilt.
+ * gpt-oss-120b läuft (`lauf-ziel.ts`) und die globale Modellwahl hier NICHT gilt.
  * Steht sie auf „Agentisch", wird das ausdrücklich erklärt; sonst wirkt die Einstellung
  * stillschweigend ignoriert (Muster `FeedbackVerbessernFlow.LadeZeile`).
  */
 function KiZeile({ laufZiel }: { laufZiel: LaufZiel }): React.ReactElement {
-  const agentischGewaehlt = useKiZiel(s => s.ziel) === 'agentisch';
-  if (laufZiel.ziel === 'agentisch') {
+  const agentischGewaehlt = useKiZiel(s => s.ziel) === 'qwen35';
+  if (laufZiel.ziel === 'qwen35') {
     return (
       <p className="mb-3 text-[11.5px] text-[var(--tf-text-tertiary)] leading-snug">
-        Läuft über die agentische KI — für diesen Antrag gewählt, weil die Dokumente nicht in
-        das Kontextfenster der Standard-KI passen. Rechnen Sie mit deutlich längerer Laufzeit.
+        Läuft über Qwen3.6-35B — für diesen Antrag gewählt, weil die Dokumente nicht in
+        das Kontextfenster gpt-oss-120b passen. Rechnen Sie mit deutlich längerer Laufzeit.
       </p>
     );
   }
   return (
     <p className="mt-1 text-[11.5px] text-[var(--tf-text-tertiary)] leading-snug">
-      Läuft über die Standard-KI · sechs Durchgänge über den vollen Antragstext, das dauert
+      Läuft über gpt-oss-120b · sechs Durchgänge über den vollen Antragstext, das dauert
       einige Minuten.
       {agentischGewaehlt ? (
-        <> Ihre KI-Variante steht auf „Agentisch" — die Aufbereitung nutzt hier bewusst die
-        Standard-KI, weil die agentische ein Vielfaches der Zeit braucht und häufiger in einem
+        <> Ihre Modellwahl steht auf Qwen3.6-35B — die Aufbereitung nutzt hier bewusst
+        gpt-oss-120b, weil Qwen3.6 ein Vielfaches der Zeit braucht und häufiger in einem
         Format antwortet, das sich nicht auswerten lässt.</>
       ) : null}
     </p>
@@ -81,7 +81,7 @@ export function UebersichtTab({ run, loading, veraltet, stepper, onTab, baustein
   const schritte = useMemo(() => baueStepper(stepper), [stepper]);
   const fertig = schritte.filter(s => s.status === 'ok' || s.status === 'degradiert' || s.status === 'fehler').length;
   const kiCta = useMemo(
-    () => baueKiCta(schritte.map(s => s.status), { agentisch: laufZiel.ziel === 'agentisch' }),
+    () => baueKiCta(schritte.map(s => s.status), { agentisch: laufZiel.ziel === 'qwen35' }),
     [schritte, laufZiel.ziel],
   );
 

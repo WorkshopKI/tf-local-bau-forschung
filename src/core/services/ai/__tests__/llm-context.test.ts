@@ -19,8 +19,7 @@ import {
   computeVbCharCap,
   getVbCharCap,
   DEFAULT_LLM_CONTEXT_TOKENS,
-  BRIDGE_STANDARD_CONTEXT_TOKENS,
-  BRIDGE_AGENTISCH_CONTEXT_TOKENS,
+  BRIDGE_KONTEXT_TOKENS,
   MIN_LLM_CONTEXT_TOKENS,
   MAX_LLM_CONTEXT_TOKENS,
 } from '../llm-context';
@@ -127,44 +126,44 @@ describe('Präzedenz manuell > erkannt > Default + Quelle', () => {
   });
 });
 
-describe('Bridge-Tabs haben eigene, feste Kontextfenster', () => {
+describe('Die Modelle haben eigene Kontextfenster', () => {
   beforeEach(() => { mem.clear(); });
 
-  it('agentisch bekommt das grosse Fenster, standard das kleine', () => {
-    expect(getLlmContextTokens({ bridge: true, ziel: 'agentisch' })).toBe(BRIDGE_AGENTISCH_CONTEXT_TOKENS);
-    expect(getLlmContextTokens({ bridge: true, ziel: 'standard' })).toBe(BRIDGE_STANDARD_CONTEXT_TOKENS);
+  it('Qwen3.6 bekommt das grosse Fenster, gpt-oss das kleine', () => {
+    expect(getLlmContextTokens({ bridge: true, ziel: 'qwen35' })).toBe(BRIDGE_KONTEXT_TOKENS.qwen35);
+    expect(getLlmContextTokens({ bridge: true, ziel: 'gpt-oss' })).toBe(BRIDGE_KONTEXT_TOKENS['gpt-oss']);
   });
 
-  it('fehlendes ziel zaehlt wie standard', () => {
-    expect(getLlmContextTokens({ bridge: true })).toBe(BRIDGE_STANDARD_CONTEXT_TOKENS);
+  it('fehlendes ziel zaehlt wie gpt-oss (im Zweifel das kleine Fenster)', () => {
+    expect(getLlmContextTokens({ bridge: true })).toBe(BRIDGE_KONTEXT_TOKENS['gpt-oss']);
   });
 
   it('laesst den lokalen Pfad unveraendert (kein bridge-Flag)', () => {
     setDetectedLlmContextTokens(49_152);
     expect(getLlmContextTokens()).toBe(49_152);
-    expect(getLlmContextTokens({ bridge: false, ziel: 'agentisch' })).toBe(49_152);
+    expect(getLlmContextTokens({ bridge: false, ziel: 'qwen35' })).toBe(49_152);
   });
 
   it('ignoriert den ERKANNTEN Wert an der Bridge (der stammt vom lokalen Server)', () => {
     setDetectedLlmContextTokens(49_152);
-    expect(getLlmContextTokens({ bridge: true, ziel: 'agentisch' })).toBe(BRIDGE_AGENTISCH_CONTEXT_TOKENS);
+    expect(getLlmContextTokens({ bridge: true, ziel: 'qwen35' })).toBe(BRIDGE_KONTEXT_TOKENS.qwen35);
   });
 
   it('manuelle Uebersteuerung gewinnt auch an der Bridge', () => {
     setLlmContextTokens(30_000);
-    expect(getLlmContextTokens({ bridge: true, ziel: 'agentisch' })).toBe(30_000);
+    expect(getLlmContextTokens({ bridge: true, ziel: 'qwen35' })).toBe(30_000);
   });
 
-  it('der agentische Tab kuerzt eine grosse VB praktisch nicht mehr', () => {
+  it('Qwen3.6 kuerzt eine grosse VB praktisch nicht mehr', () => {
     // Vorher galt an der Bridge der llama.cpp-Default: 334.233 Zeichen.
     const vorher = computeVbCharCap(DEFAULT_LLM_CONTEXT_TOKENS);
-    const jetzt = getVbCharCap({ bridge: true, ziel: 'agentisch' });
-    expect(jetzt).toBe(computeVbCharCap(BRIDGE_AGENTISCH_CONTEXT_TOKENS)); // 1.198.617
+    const jetzt = getVbCharCap({ bridge: true, ziel: 'qwen35' });
+    expect(jetzt).toBe(computeVbCharCap(BRIDGE_KONTEXT_TOKENS.qwen35)); // 1.198.617
     expect(jetzt).toBeGreaterThan(vorher * 3);
   });
 
-  it('der Standard-Tab warnt jetzt frueher statt zu spaet', () => {
-    expect(getVbCharCap({ bridge: true, ziel: 'standard' }))
+  it('gpt-oss warnt frueher statt zu spaet', () => {
+    expect(getVbCharCap({ bridge: true, ziel: 'gpt-oss' }))
       .toBeLessThan(computeVbCharCap(DEFAULT_LLM_CONTEXT_TOKENS));
   });
 });

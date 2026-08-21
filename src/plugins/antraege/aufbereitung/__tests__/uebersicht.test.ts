@@ -10,7 +10,7 @@ describe('baueKiCta', () => {
     expect(cta.offen).toBe(3);
     expect(cta.label).toBe('Mit KI aufbereiten');
     expect(cta.titel).toContain('alle KI-Abschnitte');
-    expect(cta.titel).toContain('Standard-KI');
+    expect(cta.titel).toContain('gpt-oss-120b');
   });
 
   it('teilweise gelaufen → benennt die Zahl der fehlenden Abschnitte', () => {
@@ -33,7 +33,7 @@ describe('baueKiCta', () => {
   });
 
   it('agentisches Ziel wird im Tooltip benannt', () => {
-    expect(baueKiCta(['fehlt', 'fehlt'], { agentisch: true }).titel).toContain('agentische KI');
+    expect(baueKiCta(['fehlt', 'fehlt'], { agentisch: true }).titel).toContain('Qwen3.6-35B');
   });
 
   it('leere Liste (Stepper noch ohne Schritte) → kein Sonderfall-Absturz', () => {

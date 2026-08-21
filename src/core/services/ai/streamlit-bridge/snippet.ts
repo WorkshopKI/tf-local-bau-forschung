@@ -25,6 +25,25 @@ export const BRIDGE_BOOKMARKLET: string = 'javascript:' + encodeURIComponent(BRI
 export const BRIDGE_REV: string = /var BRIDGE_REV = '([^']+)'/.exec(snippet)?.[1] ?? '';
 
 /**
+ * Kurzversion für den Lesezeichen-Namen.
+ *
+ * Aus dem Snippet gelesen wie `BRIDGE_REV` — eine zweite Konstante hier wäre
+ * eine zweite Wahrheit und würde beim nächsten Bump vergessen.
+ */
+export const BRIDGE_VERSION: number = Number(/var BRIDGE_VERSION = (\d+)/.exec(snippet)?.[1] ?? '1');
+
+/**
+ * Der Name, unter dem das Lesezeichen in der Leiste landet.
+ *
+ * **Die Versionsnummer ist der eigentliche Zweck.** Ein Lesezeichen sieht man in
+ * der Leiste, ohne es anzuklicken — die Nummer beantwortet dort die Frage „habe
+ * ich die aktuelle Bridge?", ohne dass jemand die Einstellungen öffnen muss. Kurz
+ * gehalten, weil die Lesezeichenleiste schmal ist und ein langer Name auf ein
+ * Icon zusammenschnurrt.
+ */
+export const BRIDGE_BOOKMARK_NAME = `interne-KI v${BRIDGE_VERSION}`;
+
+/**
  * Läuft im KI-Tab ein Bookmarklet, das nicht zu diesem Build gehört?
  *
  * `gemeldet === null` heißt „noch kein Handschlag" — dann wird nicht gewarnt,

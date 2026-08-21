@@ -6,7 +6,7 @@
  *
  * Läuft ZUERST (vor den übrigen Bausteinen), damit die externe Recherche (5–10 Min)
  * parallel zur internen Aufbereitung starten kann. Das Ziel-Modell kommt wie bei allen
- * Bausteinen vom Aufrufer (`bestimmeLaufZiel`, `lauf-ziel.ts` → Standard-KI).
+ * Bausteinen vom Aufrufer (`bestimmeLaufZiel`, `lauf-ziel.ts` → gpt-oss-120b).
  *
  * Bis v2.300 formulierte das Modell den ganzen Auftrag selbst — und schrieb dabei die
  * Antworten des Antrags hinein (identifizierte Lücken, Marktzahlen, Wettbewerber,

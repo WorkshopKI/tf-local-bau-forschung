@@ -6,7 +6,6 @@ import { useStorage } from '@/core/hooks/useStorage';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
 import { connectInternalKi, DEFAULT_KI_URL } from '@/core/services/ai/connect-ki';
 import { useKiConnectPrompt } from '@/core/services/ai/ki-guard';
-import { KiVariantSelector } from '@/core/components/KiVariantSelector';
 import type { AIProviderConfig } from '@/core/types/config';
 
 /**
@@ -85,7 +84,6 @@ export function KiConnectPromptDialog(): React.ReactElement {
             Einstellungen unter „KI" wieder ein.
           </p>
         )}
-        <KiVariantSelector />
         <div className="flex gap-2">
           <Button variant="primary" icon={ExternalLink} onClick={verbinden}>
             {bridgeAktiv ? 'Jetzt verbinden' : 'Auf die interne KI umstellen'}

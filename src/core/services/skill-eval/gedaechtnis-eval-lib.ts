@@ -24,7 +24,7 @@ export interface FixtureLaufErgebnis {
 
 /** Optionale Bridge-Weitergabe (nur In-App-Panel): `resetVorZyklus` startet vor
  *  jedem Zyklus-Submit einen frischen Chat (Pitfall #36, nur Streamlit); `ziel`
- *  routet in den Qwen-Tab; `signal` macht lange Multi-Zyklus-Läufe (Degradation)
+ *  routet auf Qwen3.6; `signal` macht lange Multi-Zyklus-Läufe (Degradation)
  *  abbrechbar — der Abbruch wird zwischen den Zyklen UND bei einem abgebrochenen
  *  Submit geprüft. Ohne opts (CLI-Pfad, stateless NodeOpenAITransport)
  *  byte-identisch zum bisherigen Verhalten (kein Reset, kein ziel, kein signal). */

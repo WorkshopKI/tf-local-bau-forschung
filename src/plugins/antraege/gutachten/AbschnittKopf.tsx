@@ -32,7 +32,7 @@ interface Props {
   skillVersion?: number;
   /** „Formuliert · Feinschliff" — nur bei generiertem Abschnitt. */
   pipeline?: { text: string; ton: 'ok' | 'hinweis' | 'neutral' };
-  /** Der Text entstand über die Standard-KI, weil die agentische fehlte. */
+  /** Der Text entstand über gpt-oss-120b, weil Qwen3.6-35B nicht erreichbar war. */
   zielFallback?: boolean;
   /** Manuell bearbeitet → Badge + „Zurücksetzen". */
   bearbeitet?: boolean;
@@ -113,8 +113,8 @@ export function AbschnittKopf({
         </span>
       )}
       {zielFallback && (
-        <span className="g-fallback-badge" title="Die agentische KI war nicht erreichbar — die Standard-KI hat diesen Lauf übernommen.">
-          Standard-KI (Fallback)
+        <span className="g-fallback-badge" title="Qwen3.6-35B war nicht erreichbar — gpt-oss-120b hat diesen Lauf übernommen.">
+          gpt-oss-120b (Fallback)
         </span>
       )}
       {menu && menu.length > 0 && (

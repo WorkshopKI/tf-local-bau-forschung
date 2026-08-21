@@ -35,7 +35,7 @@ interface Props {
 }
 
 /** Kurz-Beschriftung der internen KI (Tab + Meta-Zeile). */
-const ZIEL_KURZ: Record<BridgeZiel, string> = { standard: 'Standard-KI', agentisch: 'agentische KI' };
+const ZIEL_KURZ: Record<BridgeZiel, string> = { 'gpt-oss': 'gpt-oss-120b', qwen35: 'Qwen3.6-35B' };
 
 /**
  * Woher eine Fassung kommt — die andere KI (Bridge) ODER die andere Sampling-

@@ -112,7 +112,7 @@ Folgende Pfade NICHT lesen oder referenzieren beim Arbeiten am Code:
 - **UI Components**: shadcn/ui (Radix, Nova-Preset) — `src/components/ui/` ist die **einzige** UI-Bibliothek (eine Implementierung pro Primitive). `@/ui` ist seit P1b nur noch ein Re-Export-Shim (Kompatibilität); neuer Code importiert direkt `@/components/ui/*`. Fehlende Komponenten per `npx shadcn@latest add <name>` nachinstallieren
 - **State**: Zustand (persisted to IndexedDB)
 - **Search**: Orama (BM25 + Vector Hybrid), Transformers.js v4 (EmbeddingGemma 300M), WebGPU/WASM
-- **AI Chat**: DirectLLM transport (OpenRouter / local llama.cpp) + Streamlit bridge
+- **AI Chat**: DirectLLM transport (OpenRouter / local llama.cpp) + KI-Bridge zur internen KI (AitisiGPT)
 - **Icons**: lucide-react (tree-shakeable)
 - **ZIP**: `jszip` (DOCX-Vorlagenfüllung, ZIP-Durchläufe, Beispiel-Korpus) — unverschlüsselt. Passwort-/Zugangs-Krypto läuft über `crypto.subtle` (AES-GCM, `infrastructure/crypto.ts`), nicht über ZIP-Verschlüsselung.
 
@@ -184,7 +184,7 @@ Generisches Substrat hinter Gutachten + Nachforderungen — eine **Artefakt-Achs
 
 Kategorie-Modell, Journey-Paket 3 (Regel→Korrektur, `regelKorrekturAnweisung`) + 4 (Belege↔Satz, deterministische Ableitung), Run-Keying, generische DOCX-Füllung, NF-/GA-QS: [docs/architecture/artefakt-engine.md](docs/architecture/artefakt-engine.md).
 
-**Abschnitts-Journey** (v2.334–v2.337, additiv): Ziel-Fallback agentisch→standard (ein Retry, nur wo `ziel` wirkt), auto-angehängter Feinschliff (Scheitern degradiert zum Rohentwurf, auch Abbruch), Abnahme-Kriterien am Skill (`qsKriterien` als Prompt-Anhang statt Seed-Write), Vier-Ebenen-Karte — [gutachten-kurzfassung.md](docs/architecture/gutachten-kurzfassung.md).
+**Abschnitts-Journey** (v2.334–v2.337, additiv): Ziel-Fallback qwen35→gpt-oss (ein Retry, nur wo `ziel` wirkt), auto-angehängter Feinschliff (Scheitern degradiert zum Rohentwurf, auch Abbruch), Abnahme-Kriterien am Skill (`qsKriterien` als Prompt-Anhang statt Seed-Write), Vier-Ebenen-Karte — [gutachten-kurzfassung.md](docs/architecture/gutachten-kurzfassung.md).
 
 ### Skill-Eval-GUI (dev)
 
@@ -367,7 +367,7 @@ Versionshistorie: jüngste Versionen in **[CHANGELOG.md](CHANGELOG.md)**, älter
 - **DSGVO-Transport-Policy**: #30 dokument-tragende Läufe nur intern (`getTransportForSkillRun`), #35 Policy-Ableitung scannt den Template-Text (`{{vbMarkdown}}`), nicht das `slots`-Array
 - **Artefakt-Achse (Substrat artefaktTyp/ebene/pruefart)**: #31 Kategorie-Einzelquelle (`effektiveKategorie`), #33 Vorlage frisch + Audit-Hash, #34 NF-Baustein wortgetreu
 - **Snapshot-/Store-Konsistenz**: #32 Snapshot = Voll-Store (verbuende heilen) ≠ Slim-List-View
-- **Streamlit-Bridge (stateful Chat)**: #36 jeder Einzel-Skill-Lauf resettet zuerst (`starteFrischenChat`)
+- **KI-Bridge (stateful Chat)**: #36 jeder Einzel-Skill-Lauf resettet zuerst (`starteFrischenChat`)
 - **Assistent-Ereignisprotokoll (Phase 0)**: #37 strikt gerätelokal (nie Share/Snapshot/Export), zentrale Gate-Funktion, nur additiv
 - **Assistent-Gedächtnis (Phase 2)**: #38 Operationen statt Neuschrieb (LLM liefert nur Ops+Fakten), invalidieren statt löschen, strikt lokal + doppeltes Opt-in, Bridge-Mutex (Vordergrund-Vorrang)
 - **ORT-WASM-Bereitstellung (Bundle-Diät)**: #39 nur über `ensureOrtWasmBinary()` (Inline-gzip + `wasmBinary`), nie `wasmPaths`/Asset-URLs (Post-Build-Strip leert sie)
@@ -387,7 +387,7 @@ die kein Test fangen kann — die brauchen den Kontext beim Schreiben, nicht die
 
 1. **Don't use `import()` for lazy loading** — dynamic imports break under `file://` in single-file builds
 2. **Don't use `fetch()` for local assets** — everything must be inlined or from IndexedDB/FSAPI
-3. **Don't use `BroadcastChannel` for Streamlit bridge** — cross-origin between `file://` and `http://` fails. Use `postMessage` via `window.open()`
+3. **Don't use `BroadcastChannel` for the KI bridge** — cross-origin between `file://` and `http://` fails. Use `postMessage` via `window.open()`
 4. **Don't use `navigator.serviceWorker`** — unavailable under `file://`
 6. **`crypto.subtle` works under `file://`** — it's a secure context
 7. **File System Access API works under `file://`** — it's a secure context

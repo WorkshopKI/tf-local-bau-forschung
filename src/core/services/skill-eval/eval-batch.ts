@@ -142,7 +142,7 @@ export class GenTransportUnreachableError extends Error {
  * Adapter: interner Bridge-Transport als **agentischer (Qwen) Judge**. Hält die
  * Engine (`runJudge` / `parseJudgeResult`) unangetastet — je Submit:
  *  1. frischer Chat (Pitfall #36, best-effort),
- *  2. `ziel: 'agentisch'` (Qwen-Tab),
+ *  2. `ziel: 'qwen35'` (Qwen3.6),
  *  3. Reasoning-Anteil (`<think>…`) vor der Rückgabe abgestreift — Qwen streamt
  *     Thinking inline; `extractThinking` ist idempotent, wenn keins da ist.
  * Der DSGVO-Schutz liegt beim Caller (`bridge.getTransportForAssistent()` wirft
@@ -151,11 +151,11 @@ export class GenTransportUnreachableError extends Error {
 export function makeAgentischerJudgeTransport(inner: AITransport): AITransport {
   return {
     name: inner.name,
-    displayName: `${inner.displayName ?? inner.name} · agentisch (Qwen)`,
+    displayName: `${inner.displayName ?? inner.name} · qwen35`,
     ping: (opts) => inner.ping(opts),
     async submitMessage(message, systemPrompt, options) {
-      await starteFrischenChat(inner, 'agentisch');
-      const raw = await inner.submitMessage(message, systemPrompt, { ...options, ziel: 'agentisch' });
+      await starteFrischenChat(inner, 'qwen35');
+      const raw = await inner.submitMessage(message, systemPrompt, { ...options, ziel: 'qwen35' });
       return extractThinking(raw).content;
     },
   };

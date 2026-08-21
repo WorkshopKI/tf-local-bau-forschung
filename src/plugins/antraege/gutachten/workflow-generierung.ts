@@ -182,7 +182,7 @@ async function mitFallbackLauf<R>(
  * Preflight + Ping laufen EINMAL in dieser Hülle (der Verbinden-Dialog darf sich
  * nicht pro Fallback-Versuch öffnen, und `ping` ist ziel-agnostisch); der eigentliche
  * Lauf steckt in `generiereEinmal` und wird bei Bedarf genau einmal mit der
- * Standard-KI wiederholt.
+ * gpt-oss-120b wiederholt.
  */
 export async function generateInto(
   base: WorkflowRun,
@@ -203,14 +203,14 @@ export async function generateInto(
   const { result, zielFallback, ziel } = await mitFallbackLauf(
     deps, transport, o.signal,
     (d, z) => generiereEinmal(base, stepId, o, d, sc, transport, z),
-    // Ein leerer finaler Text ist das, was ein nicht erreichbarer agentischer Tab
+    // Ein leerer finaler Text ist das, was ein nicht erreichbarer Qwen3.6
     // typischerweise liefert — für den Nutzer ein Ausfall, also fallback-würdig.
     (r) => !r.next.schritte[stepId]?.finalerText.trim(),
     o.ziel,
   );
   const jetzt = new Date().toISOString();
   // Der Stempel gilt nur, wo das Ziel überhaupt etwas bewirkt: ohne Bridge gibt es
-  // keine „Standard"- und keine agentische KI (siehe `applyLaufZiel`).
+  // keine „Standard"- und keine Qwen3.6-35B (siehe `applyLaufZiel`).
   const gestempelt = {
     ...result,
     next: applyLaufFassung(
@@ -561,7 +561,7 @@ export async function laufLektorat(
     deps, transport, signal,
     (d, z) => lektoriereEinmal(run, stepId, sc, tweak, transport, d, z, signal, temperatur),
     // Ein gezogenes Tor (leer / verdächtig gekürzt) ist ein unbrauchbares Ergebnis —
-    // beim agentischen Tab genau der Fall, den die Standard-KI retten soll.
+    // beim Qwen3.6-Modell genau der Fall, den gpt-oss-120b retten soll.
     (r) => r === null,
     zielOverride,
   );

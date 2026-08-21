@@ -1,12 +1,26 @@
 import type { GenerationStats } from '../generation-stats';
 import { useBridgeStatus } from '../bridge-status';
+import { useModellEskalation } from '../modell-eskalation';
+import { waehleModellFuerLauf } from '../modell-wahl';
+import { speichereGelernteBridgeTokens } from '../llm-context';
+import { passtZuModell } from '../streamlit-bridge/modell-erkennung';
 import { createActivityDeadline } from './deadline';
 
-/** Ziel-Chat in der Streamlit-App (Zweit-LLM-Erprobung, v2.203):
- *  'standard' = Tab „Chat" (klassisches AitisiGPT), 'agentisch' = Tab
- *  „Agentischer Chat" (Qwen-Agent). Ohne Angabe: aktiver Tab (bisheriges
- *  Verhalten; alte Bookmarklets ignorieren das Feld). */
-export type BridgeZiel = 'standard' | 'agentisch';
+/**
+ * Welches Modell der internen KI ein Lauf ansteuert.
+ *
+ * `'gpt-oss'` = gpt-oss-120b (62k Kontext), `'qwen35'` = Qwen3.6-35B (259k).
+ * Das Bookmarklet stellt damit die Modell-Auswahl der KI-Seite; ohne Angabe
+ * bleibt das eingestellte Modell unangetastet.
+ *
+ * **Eine Achse, nicht zwei.** Bis v5.0 hieß dieselbe Achse `'standard'` |
+ * `'agentisch'` und wählte einen Tab. Der agentische Chat ist Qwen3.6 **plus
+ * fest eingebautem Kontext** — den liefert diese App bewusst selbst, also ist er
+ * nicht angebunden, und was von ihm bleibt, ist genau `'qwen35'`. Wo im Code
+ * früher „das andere, größere Modell" gemeint war (Zweitmeinung, Kontext-
+ * Notausfahrt, Eval-A/B), steht deshalb jetzt `'qwen35'`.
+ */
+export type BridgeZiel = 'gpt-oss' | 'qwen35';
 
 /** Ergebnis eines `resetChat` (nur Streamlit): `'ok'` = Reset-Button gefunden +
  *  geklickt, `'nicht-gefunden'` = kein Button im DOM, `'timeout'` = kein Bridge-
@@ -235,6 +249,16 @@ export class StreamlitBridgeTransport implements AITransport {
         return;
       }
       if (type === 'tf-response' && typeof data.id === 'string') {
+        // Das Bookmarklet meldet, was die KI-Seite als Chatlänge ANZEIGT
+        // („… von 62k") — die einzige ehrliche Quelle für das Fenster. Unsere
+        // Konstanten sind nur der Rückfall und sind in der Vergangenheit still
+        // gedriftet. Lesbar ist immer nur das gerade aktive Modell, die App
+        // lernt also eins nach dem anderen dazu.
+        if (typeof data.modell === 'string' && typeof data.kontextTokens === 'number') {
+          for (const m of ['gpt-oss', 'qwen35'] as const) {
+            if (passtZuModell(m, data.modell)) { speichereGelernteBridgeTokens(m, data.kontextTokens); break; }
+          }
+        }
         // Erst Streaming-Anfragen (StreamResult), dann Single-Shot (string).
         const s = this.streams.get(data.id);
         if (s) {
@@ -254,6 +278,32 @@ export class StreamlitBridgeTransport implements AITransport {
 
   private allowedOrigin(): string | null {
     try { return new URL(this.streamlitUrl).origin; } catch { return null; }
+  }
+
+  /**
+   * Das Modell, mit dem diese Nutzlast tatsächlich fährt — Auto-Wechsel nach
+   * Umfang ([modell-wahl.ts](../modell-wahl.ts)).
+   *
+   * **Hier, weil hier die GANZE Nutzlast steht.** Alles davor misst nur einen
+   * Teil (die Vorhabensbeschreibung), und mehrere Pfade umgehen `runSkill`
+   * ganz — Assistent-Turn, Chat, Aufbereitungs-Bausteine, Feedback,
+   * Gedächtnis. Der Transport ist die einzige Stelle, an der keiner vorbeikommt.
+   *
+   * `runSkill` trifft dieselbe Entscheidung noch einmal, weil es sie FRÜHER
+   * braucht (der Zeichen-Cap hängt am Modell). Der Doppelaufruf ist unschädlich:
+   * die Funktion ist idempotent, ein bereits angehobenes Ziel wird nicht weiter
+   * angehoben. Wer das hier als Dopplung wegräumt, nimmt den Nicht-Skill-Pfaden
+   * den Auto-Wechsel.
+   */
+  private zielFuerNutzlast(message: string, gewuenscht?: BridgeZiel): BridgeZiel | undefined {
+    // Ohne ausdrückliches Ziel wird die Modell-Auswahl der KI-Seite gar nicht
+    // angefasst — dann gibt es auch nichts anzuheben.
+    if (!gewuenscht) return undefined;
+    const wahl = waehleModellFuerLauf(gewuenscht, message.length);
+    if (wahl.eskaliert) {
+      useModellEskalation.getState().melde(gewuenscht, wahl, Date.now());
+    }
+    return wahl.modell;
   }
 
   /** Streamlit-URL ändern, OHNE den globalen `message`-Listener neu zu
@@ -346,9 +396,10 @@ export class StreamlitBridgeTransport implements AITransport {
         reject(new DOMException('Aborted', 'AbortError'));
       };
       options?.signal?.addEventListener('abort', onAbort, { once: true });
+      const ziel = this.zielFuerNutzlast(message, options?.ziel);
       this.streamlitWindow?.postMessage({
         type: 'tf-request', id, message,
-        ...(options?.ziel ? { ziel: options.ziel } : {}),
+        ...(ziel ? { ziel } : {}),
         ...(options?.erwarteAbschluss ? { erwarte: options.erwarteAbschluss } : {}),
       }, '*');
     });
@@ -434,8 +485,9 @@ export class StreamlitBridgeTransport implements AITransport {
       // im aktiven Tab (Verhalten byte-identisch zu vorher, alte Snippets
       // ignorieren es ohnehin). Das Snippet wertet `ziel` bei JEDEM tf-request
       // aus, Stream und Single-Turn gleichermassen: kein BRIDGE_REV nötig.
+      const ziel = this.zielFuerNutzlast(message, options?.ziel);
       this.streamlitWindow?.postMessage(
-        { type: 'tf-request', id, message, ...(options?.ziel ? { ziel: options.ziel } : {}) },
+        { type: 'tf-request', id, message, ...(ziel ? { ziel } : {}) },
         '*',
       );
     });

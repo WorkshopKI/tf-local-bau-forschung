@@ -161,9 +161,9 @@ export async function runMetadatenExtraktion(
       // Interne KI denkt immer; thinkingBudget aktiviert das <think>-Stripping in
       // runSkill (kein Streaming, da kein Delta-Consumer). Siehe anonymisierung.ts.
       thinkingBudget: 'medium',
-      // Deterministischer Backend-Lauf → fest auf die Standard-KI pinnen (nicht die
+      // Deterministischer Backend-Lauf → fest auf gpt-oss-120b pinnen (nicht die
       // agentische Erprobung), unabhängig von der globalen KI-Präferenz.
-      ziel: 'standard',
+      ziel: 'gpt-oss',
     });
     try {
       return parseMetadaten(result.raw);

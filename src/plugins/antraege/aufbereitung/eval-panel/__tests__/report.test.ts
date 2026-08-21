@@ -31,15 +31,15 @@ const META_INTERN: ReportMeta = {
 };
 
 describe('formatEvalReport — Transport-Zeile (OpenRouter-Modus)', () => {
-  it('ohne modell: byte-identisch zum bisherigen internen Format (Ziel-Tab-Etikett)', () => {
+  it('ohne modell: das interne Format nennt das Modell', () => {
     const report = formatEvalReport(ERGEBNIS, META_INTERN);
-    expect(report).toContain('- Transport: Streamlit · Standard-Chat (gpt-oss)');
+    expect(report).toContain('- Transport: Streamlit · gpt-oss-120b');
     expect(report).not.toContain('extern');
   });
 
-  it('mit ziel agentisch: Qwen-Etikett wie bisher', () => {
-    const report = formatEvalReport(ERGEBNIS, { ...META_INTERN, ziel: 'agentisch' });
-    expect(report).toContain('- Transport: Streamlit · agentisch (Qwen, 262k)');
+  it('mit ziel qwen35: Qwen-Etikett', () => {
+    const report = formatEvalReport(ERGEBNIS, { ...META_INTERN, ziel: 'qwen35' });
+    expect(report).toContain('- Transport: Streamlit · Qwen3.6-35B');
   });
 
   it('mit modell: OpenRouter-Zeile mit Modell-Slug + extern-Kennzeichnung', () => {
@@ -58,9 +58,9 @@ describe('formatEvalReport — Transport-Zeile (OpenRouter-Modus)', () => {
       ...META_INTERN,
       transportName: 'OpenRouter',
       modell: 'anthropic/claude-sonnet-4.6',
-      ziel: 'agentisch',
+      ziel: 'qwen35',
     });
     expect(report).toContain('(extern, fiktive Fixtures)');
-    expect(report).not.toContain('agentisch (Qwen, 262k)');
+    expect(report).not.toContain('agentisch (Qwen, 259k)');
   });
 });

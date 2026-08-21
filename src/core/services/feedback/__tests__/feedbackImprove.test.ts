@@ -8,7 +8,7 @@
  *  - askClarifyingQuestions: Intern-only-Gate, tolerante {fragen}-Parse, max 3, nie werfen,
  *  - improveFeedbackGuided: Intern-only-Gate, verbesserterText + Anforderung, Retry, Fallback,
  *  - v2.291: JEDER Lauf resettet zuerst den Chat (Pitfall #36) und geht auf den
- *    Standard-Tab (`ziel: 'standard'`); lückenlos ausgefülltes Formular spart den
+ *    gpt-oss (`ziel: 'gpt-oss'`); lückenlos ausgefülltes Formular spart den
  *    Rückfragen-Lauf; die Kategorie aus der Typ-Wahl schlägt den Modell-Vorschlag.
  */
 import { describe, it, expect, vi } from 'vitest';
@@ -164,12 +164,12 @@ describe('askClarifyingQuestions', () => {
     ).resolves.toEqual([]);
   });
 
-  it('resettet den Chat und zielt auf den Standard-Tab (Pitfall #36 + Standard-KI)', async () => {
+  it('resettet den Chat und zielt auf den gpt-oss (Pitfall #36 + gpt-oss-120b)', async () => {
     const submitMessage = vi.fn<AITransport['submitMessage']>(async () => '```json\n{"fragen":["Q"]}\n```');
     const transport = fakeTransport('Streamlit', submitMessage);
     await askClarifyingQuestions(transport, { text: 'x' }, CONTEXT, 'antraege');
-    expect(transport.resetChat).toHaveBeenCalledWith('standard');
-    expect(submitMessage.mock.calls[0]?.[2]).toMatchObject({ ziel: 'standard' });
+    expect(transport.resetChat).toHaveBeenCalledWith('gpt-oss');
+    expect(submitMessage.mock.calls[0]?.[2]).toMatchObject({ ziel: 'gpt-oss' });
   });
 
   it('lückenlos ausgefülltes Formular → [] OHNE LLM-Aufruf (spart den halben Ablauf)', async () => {
@@ -228,8 +228,8 @@ describe('improveFeedbackGuided', () => {
     const transport = fakeTransport('Streamlit', submitMessage);
     await improveFeedbackGuided(transport, { text: 'roh' }, [], CONTEXT, 'antraege');
     expect(transport.resetChat).toHaveBeenCalledTimes(2);
-    expect(transport.resetChat).toHaveBeenNthCalledWith(2, 'standard');
-    expect(submitMessage.mock.calls[1]?.[2]).toMatchObject({ ziel: 'standard' });
+    expect(transport.resetChat).toHaveBeenNthCalledWith(2, 'gpt-oss');
+    expect(submitMessage.mock.calls[1]?.[2]).toMatchObject({ ziel: 'gpt-oss' });
   });
 
   it('die Kategorie aus der Typ-Wahl schlägt den Modell-Vorschlag', async () => {

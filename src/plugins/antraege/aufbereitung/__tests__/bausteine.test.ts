@@ -151,7 +151,7 @@ describe('getOrComputeBaustein', () => {
 /**
  * Welcher Streamlit-Tab angesprochen wird, ist auf der Bridge ein Verhaltens-Kontrakt und
  * kein Detail: ohne `ziel` bleibt das Bookmarklet im AKTIVEN Tab. Die Aufbereitung pinnt
- * deshalb `'standard'` (`lauf-ziel.ts`) — dieser Block sichert, dass der Wert Reset UND
+ * deshalb `'gpt-oss'` (`lauf-ziel.ts`) — dieser Block sichert, dass der Wert Reset UND
  * Submit erreicht und auch der Agentisch-Fallback ihn ausdrücklich nennt.
  */
 describe('getOrComputeBaustein — Ziel-Tab (Streamlit)', () => {
@@ -178,32 +178,32 @@ describe('getOrComputeBaustein — Ziel-Tab (Streamlit)', () => {
     const { idb } = fakeIdb();
     const s = zielStub();
     await getOrComputeBaustein<{ n: number }>(
-      idb, s.transport, skill, key, 'h1', () => 'p', () => ({ n: 1 }), { ziel: 'standard' },
+      idb, s.transport, skill, key, 'h1', () => 'p', () => ({ n: 1 }), { ziel: 'gpt-oss' },
     );
-    expect(s.resetZiele).toEqual(['standard']);
-    expect(s.submitZiele).toEqual(['standard']);
+    expect(s.resetZiele).toEqual(['gpt-oss']);
+    expect(s.submitZiele).toEqual(['gpt-oss']);
   });
 
-  it('ohne opts.ziel gilt die globale KI-Variante (MAP nutzt denselben Rahmen)', async () => {
+  it('ohne opts.ziel gilt die globale Modellwahl (MAP nutzt denselben Rahmen)', async () => {
     const { idb } = fakeIdb();
     const s = zielStub();
-    useKiZiel.setState({ ziel: 'agentisch' }); // Modul-Singleton → im finally zurücksetzen
+    useKiZiel.setState({ ziel: 'qwen35' }); // Modul-Singleton → im finally zurücksetzen
     try {
       await getOrComputeBaustein<{ n: number }>(idb, s.transport, skill, key, 'h1', () => 'p', () => ({ n: 1 }));
-      expect(s.submitZiele).toEqual(['agentisch']);
+      expect(s.submitZiele).toEqual(['qwen35']);
     } finally {
-      useKiZiel.setState({ ziel: 'standard' });
+      useKiZiel.setState({ ziel: 'gpt-oss' });
     }
   });
 
   it('Agentisch-Fallback nennt „standard" AUSDRÜCKLICH (nicht undefined = aktiver Tab)', async () => {
     const { idb } = fakeIdb();
-    const s = zielStub('timeout'); // agentischer Tab antwortet nicht → Fallback
+    const s = zielStub('timeout'); // Qwen3.6 antwortet nicht → Fallback
     await getOrComputeBaustein<{ n: number }>(
-      idb, s.transport, skill, key, 'h1', () => 'p', () => ({ n: 1 }), { ziel: 'agentisch' },
+      idb, s.transport, skill, key, 'h1', () => 'p', () => ({ n: 1 }), { ziel: 'qwen35' },
     );
-    expect(s.resetZiele).toEqual(['agentisch', 'standard']);
-    expect(s.submitZiele).toEqual(['agentisch', 'standard']);
+    expect(s.resetZiele).toEqual(['qwen35', 'gpt-oss']);
+    expect(s.submitZiele).toEqual(['qwen35', 'gpt-oss']);
   });
 });
 

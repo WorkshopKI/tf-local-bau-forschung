@@ -30,7 +30,7 @@ interface Props {
   korpusMass?: KorpusMass | null;
   /** Genutzte KI + ob die agentische Notausfahrt anzubieten ist (aus `useAufbereitung`). */
   laufZiel?: LaufZiel;
-  /** Notausfahrt umlegen (agentische KI für diesen Antrag). */
+  /** Notausfahrt umlegen (Qwen3.6-35B für diesen Antrag). */
   onAgentischErzwungen?: (an: boolean) => void;
   /** Coalesced Neu-Aufbereiten nach erfolgreicher Aufnahme (aus `useAufbereitung`). */
   onIngested: () => void;
@@ -42,9 +42,9 @@ interface Props {
  * erreichbar — und ein stillschweigend abgeschnittener Text ist schlimmer als
  * eine fehlende Analyse, weil das Ergebnis vollständig aussieht.
  *
- * Zweiter Zweck: die **Notausfahrt**. Die Aufbereitung läuft fest auf der Standard-KI
+ * Zweiter Zweck: die **Notausfahrt**. Die Aufbereitung läuft fest auf gpt-oss-120b
  * (`lauf-ziel.ts`); passt der Korpus dort nicht hinein, bietet dieser Block den Wechsel
- * auf die agentische KI mit ihrem grösseren Kontextfenster an — vollständig statt
+ * auf Qwen3.6-35B mit ihrem grösseren Kontextfenster an — vollständig statt
  * schnell, vom Prüfer entschieden. Der Schalter bleibt sichtbar, WÄHREND er genutzt
  * wird (`notausfahrtAnbieten` hängt am Standard-Fenster, nicht am aktuellen Ziel),
  * sonst gäbe es keinen Weg zurück.
@@ -54,7 +54,7 @@ function KorpusWarnung({ mass, laufZiel, onAgentischErzwungen }: {
   laufZiel?: LaufZiel;
   onAgentischErzwungen?: (an: boolean) => void;
 }): React.ReactElement | null {
-  const agentisch = laufZiel?.ziel === 'agentisch';
+  const agentisch = laufZiel?.ziel === 'qwen35';
   const notausfahrt = !!laufZiel?.notausfahrtAnbieten && !!onAgentischErzwungen;
   if (!mass?.ueberCap && !notausfahrt) return null;
   return (
@@ -66,13 +66,13 @@ function KorpusWarnung({ mass, laufZiel, onAgentischErzwungen }: {
         <>
           <p className="text-[var(--tf-text)]">
             Die Dokumente ergeben zusammen {mass.zeichen.toLocaleString('de-DE')} Zeichen und
-            passen damit nicht ins Kontextfenster {agentisch ? 'der agentischen KI' : 'der Standard-KI'}
+            passen damit nicht ins Kontextfenster {agentisch ? 'der agentischen KI' : 'gpt-oss-120b'}
             {' '}({mass.cap.toLocaleString('de-DE')}).
           </p>
           {/* Der Satz spricht über den NÄCHSTEN Lauf, nicht über die angezeigten
               Ergebnisse: der Baustein-Cache trägt sein Ziel nicht, und der
               Notausfahrt-Schalter ist Sitzungszustand. Ein Antrag, dessen
-              Bausteine über die agentische KI vollständig gerechnet wurden,
+              Bausteine über Qwen3.6-35B vollständig gerechnet wurden,
               bekam beim nächsten Öffnen die Behauptung, sie hätten das Ende
               nicht gesehen — obwohl sie genau das getan hatten (v4.124). */}
           <p className="text-[var(--tf-text-secondary)] mt-0.5">
@@ -84,7 +84,7 @@ function KorpusWarnung({ mass, laufZiel, onAgentischErzwungen }: {
       ) : (
         <p className="text-[var(--tf-text)]">
           Die Dokumente ({mass?.zeichen.toLocaleString('de-DE')} Zeichen) passen nicht in das
-          Kontextfenster der Standard-KI. Dieser Antrag wird deshalb mit der agentischen KI
+          Kontextfenster gpt-oss-120b. Dieser Antrag wird deshalb mit der agentischen KI
           aufbereitet — sie sieht den ganzen Text, braucht dafür aber deutlich länger.
         </p>
       )}
@@ -95,7 +95,7 @@ function KorpusWarnung({ mass, laufZiel, onAgentischErzwungen }: {
           className="mt-1.5 text-[12px] text-[var(--tf-primary)] hover:underline"
         >
           {agentisch
-            ? 'Zurück zur Standard-KI (schneller, sieht nur den Anfang)'
+            ? 'Zurück zur gpt-oss-120b (schneller, sieht nur den Anfang)'
             : 'Diesen Antrag mit der agentischen KI aufbereiten (sieht den ganzen Text, deutlich langsamer)'}
         </button>
       ) : null}

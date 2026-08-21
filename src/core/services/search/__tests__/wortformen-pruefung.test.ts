@@ -115,9 +115,9 @@ describe('pruefeWortformen — die Pflichten des Laufs', () => {
     expect(ablauf).toEqual(['reset', 'submit']);
   });
 
-  it('pinnt den Aufruf auf den Standard-Tab', async () => {
+  it('pinnt den Aufruf auf gpt-oss', async () => {
     await pruefeWortformen(baueBridge(baueTransport('normotherme')), ['Normen'], KANDIDATEN);
-    expect((submitArgs[2] as { ziel?: string }).ziel).toBe('standard');
+    expect((submitArgs[2] as { ziel?: string }).ziel).toBe('gpt-oss');
   });
 
   it('ruft genau EINMAL auf und wiederholt bei unverwertbarer Antwort nicht', async () => {

@@ -308,19 +308,19 @@ describe('runAufbereitungEval', () => {
 
   it('reicht ziel „agentisch" an Reset UND Submit jedes Laufs durch (Streamlit-Pfad)', async () => {
     const { transport, submitZiele, resetZiele } = stubZielErfassung();
-    await runAufbereitungEval(deps(transport), { limit: 1, includeSteckbrief: false, ziel: 'agentisch' });
-    expect(submitZiele).toEqual(['agentisch']);
-    expect(resetZiele).toEqual(['agentisch']);
+    await runAufbereitungEval(deps(transport), { limit: 1, includeSteckbrief: false, ziel: 'qwen35' });
+    expect(submitZiele).toEqual(['qwen35']);
+    expect(resetZiele).toEqual(['qwen35']);
   });
 
-  // Der Standard-Tab wird jetzt AUSDRÜCKLICH angesteuert. Vorher reichte der Lauf
+  // Der gpt-oss wird jetzt AUSDRÜCKLICH angesteuert. Vorher reichte der Lauf
   // `undefined` durch — an der Bridge heisst das „aktiver Tab", nicht „Standard":
   // stand der agentische Tab offen, mass die Eval still gegen die falsche KI.
-  it('ohne ziel laeuft die Eval auf dem Standard-Tab — ausdruecklich, nicht per undefined', async () => {
+  it('ohne ziel laeuft die Eval auf dem gpt-oss — ausdruecklich, nicht per undefined', async () => {
     const { transport, submitZiele, resetZiele } = stubZielErfassung();
     await runAufbereitungEval(deps(transport), { limit: 1, includeSteckbrief: false });
-    expect(submitZiele).toEqual(['standard']);
-    expect(resetZiele).toEqual(['standard']);
+    expect(submitZiele).toEqual(['gpt-oss']);
+    expect(resetZiele).toEqual(['gpt-oss']);
   });
 
   it('fehlendes Fixture → übersprungen (gefunden:false), kein Abbruch', async () => {

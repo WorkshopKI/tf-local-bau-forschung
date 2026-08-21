@@ -27,30 +27,20 @@ const LLM_CONTEXT_DETECTED_KEY = 'teamflow_llm_context_detected';
 export const DEFAULT_LLM_CONTEXT_TOKENS = 81_920;
 
 /**
- * Kontextfenster der beiden Streamlit-Tabs, in **Tokens** — die Werte der
- * llama.cpp-Server, die die Streamlit-App speisen. Der Standard-Tab (gpt-oss)
- * meldet „62k", der agentische (Qwen) „262k"; beide Zahlen stehen sichtbar in
- * der Seite („Chatlänge [Token]: 0k von 62k").
+ * Kontextfenster der Modelle der internen KI, in **Tokens** — nur noch der
+ * RÜCKFALL, falls die Seite gerade nichts sagt.
  *
- * **Fest verdrahtet, weil nicht abfragbar** — nicht, weil es sie nicht gäbe: die
- * `/props`-Auto-Erkennung spricht den lokalen llama.cpp direkt an und kommt an
- * die Server hinter der fremden Streamlit-App nicht heran. Bis v2.272 galt über
- * die Bridge ersatzweise der lokale Default (81.920): für den agentischen Tab
- * viel zu klein (es wurde grundlos gekürzt), für den Standard-Tab zu gross (es
- * wurde zu spät gewarnt).
- *
- * Ausbaupfad, falls die Werte häufiger wandern: Das Bookmarklet scrapt die Seite
- * ohnehin — es könnte die angezeigte Chatlänge mitmelden, statt sie hier zu
- * pflegen. Kostet einen Bookmarklet-Rev und damit eine Neu-Installation bei allen
- * Nutzern, lohnt sich also erst, wenn diese Konstanten tatsächlich driften.
- *
- * Bis dahin sind sie die einzige Stelle für die Rechnung — die Anzeigetexte
- * „(Qwen, 262k)" in den Eval-Panels (`eval-panel/report.ts`,
- * `AufbereitungEvalPanel.tsx`, `GedaechtnisEvalPanel.tsx`) sind Prosa und müssen
- * mitgezogen werden.
+ * Bis v5.0 waren das die einzige Quelle, und sie sind still gedriftet: im Code
+ * standen 262k, die Seite zeigte 259k. Ein zu gross angesetztes Fenster fällt
+ * nicht auf — das Modell schiebt dann den Anfang des Prompts heraus, das Ergebnis
+ * ist still falsch statt sichtbar gekürzt. Seit das Bookmarklet die angezeigte
+ * Chatlänge mitmeldet (`speichereGelernteBridgeTokens`), sind die Zahlen hier nur
+ * noch die Antwort auf „bevor wir es zum ersten Mal gesehen haben".
  */
-export const BRIDGE_STANDARD_CONTEXT_TOKENS = 62_000;
-export const BRIDGE_AGENTISCH_CONTEXT_TOKENS = 262_000;
+export const BRIDGE_KONTEXT_TOKENS: Record<BridgeZiel, number> = {
+  'gpt-oss': 62_000,
+  qwen35: 259_000,
+};
 export const MIN_LLM_CONTEXT_TOKENS = 2_048;
 export const MAX_LLM_CONTEXT_TOKENS = 1_000_000;
 
@@ -71,7 +61,7 @@ export const RESERVE_TOKENS = 12_288;
 /**
  * Zeichen/Token-Quote — **gemessen, nicht geschätzt**.
  *
- * Referenzmessung (v4.113, interne KI / Standard-Tab): ein deutscher Förderantrag
+ * Referenzmessung (v4.113, interne KI / gpt-oss): ein deutscher Förderantrag
  * mit 220.000 Zeichen (~20.000 Wörter, 23 Tabellen) belegt in der Chatoberfläche
  * 42k von 62k Tokens → **5,24 Zeichen/Token**. Der wahre Wert liegt eher darüber,
  * weil die angezeigten 42k den Overhead der Streamlit-Seite mitzählen.
@@ -106,32 +96,56 @@ function readClampedTokens(key: string): number | null {
 /**
  * Wo der Lauf hingeht — entscheidet, welches Kontextfenster gilt.
  *
- * Über die Bridge ist der Wert **pro Tab fest**, weil serverseitig und nicht
- * abfragbar; lokal (llama.cpp/Cloud) gilt weiter manuell > erkannt > Default.
- * Ohne Angabe bleibt es beim bisherigen lokalen Verhalten — bestehende Aufrufer
- * ändern sich dadurch nicht.
+ * Über die Bridge gilt das Fenster **des gewählten Modells** — abgelesen von der
+ * KI-Seite, ersatzweise die Konstante; lokal (llama.cpp/Cloud) gilt weiter
+ * manuell > erkannt > Default. Ohne Angabe bleibt es beim lokalen Verhalten.
  */
 export interface KontextZiel {
-  /** true = Streamlit-Bridge ist der aktive Provider. */
+  /** true = die Bridge zur internen KI ist der aktive Provider. */
   bridge?: boolean;
-  /** Gewählter Bridge-Tab; `undefined` zählt wie `'standard'`. */
+  /** Gewähltes Modell; `undefined` zählt wie `'gpt-oss'` (das kleinere Fenster —
+   *  im Zweifel lieber zu früh warnen als zu spät). */
   ziel?: BridgeZiel;
+}
+
+/** LS-Schlüssel des von der KI-Seite abgelesenen Fensters, je Modell. */
+function gelerntKey(ziel: BridgeZiel): string {
+  return `teamflow_bridge_ctx_${ziel}`;
+}
+
+/**
+ * Das vom Bookmarklet abgelesene Kontextfenster festhalten („Chatlänge [Token]:
+ * 0k von 62k"). Wird nach jedem Lauf gemeldet; lesbar ist immer nur das gerade
+ * AKTIVE Modell, die App lernt also eins nach dem anderen dazu.
+ *
+ * `0`/Unsinn wird verworfen — ein Lesefehler darf die Rechnung nicht kapern.
+ */
+export function speichereGelernteBridgeTokens(ziel: BridgeZiel, tokens: number): void {
+  if (typeof localStorage === 'undefined') return;
+  if (!Number.isFinite(tokens) || tokens < MIN_LLM_CONTEXT_TOKENS || tokens > MAX_LLM_CONTEXT_TOKENS) return;
+  localStorage.setItem(gelerntKey(ziel), String(Math.round(tokens)));
+}
+
+/** Abgelesenes Fenster eines Modells; `null`, wenn wir es noch nie gesehen haben. */
+export function getGelernteBridgeTokens(ziel: BridgeZiel): number | null {
+  return readClampedTokens(gelerntKey(ziel));
 }
 
 /**
  * Wirksame LLM-Kontextlänge (Tokens).
  *
- * Präzedenz: **manuell** > bridge-spezifisch > erkannt > Default. Die manuelle
+ * Präzedenz: **manuell > abgelesen > Konstante > erkannt > Default.** Die manuelle
  * Übersteuerung gewinnt auch über die Bridge-Werte — wer sie gesetzt hat, weiss,
- * was er tut, und soll sie nicht stillschweigend überschrieben bekommen.
+ * was er tut, und soll sie nicht stillschweigend überschrieben bekommen. Direkt
+ * darunter steht, was die KI-Seite selbst anzeigt; die Konstanten greifen nur,
+ * solange wir das Modell noch nie gesehen haben.
  */
 export function getLlmContextTokens(ziel?: KontextZiel): number {
   const manuell = readClampedTokens(LLM_CONTEXT_TOKENS_KEY);
   if (manuell !== null) return manuell;
   if (ziel?.bridge === true) {
-    return ziel.ziel === 'agentisch'
-      ? BRIDGE_AGENTISCH_CONTEXT_TOKENS
-      : BRIDGE_STANDARD_CONTEXT_TOKENS;
+    const modell = ziel.ziel ?? 'gpt-oss';
+    return getGelernteBridgeTokens(modell) ?? BRIDGE_KONTEXT_TOKENS[modell];
   }
   return readClampedTokens(LLM_CONTEXT_DETECTED_KEY) ?? DEFAULT_LLM_CONTEXT_TOKENS;
 }

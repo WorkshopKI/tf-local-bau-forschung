@@ -4,7 +4,6 @@ import { useStorage } from '@/core/hooks/useStorage';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
 import { useBridgeStatus } from '@/core/services/ai/bridge-status';
 import { connectInternalKi, DEFAULT_KI_URL } from '@/core/services/ai/connect-ki';
-import { KiVariantSelector } from '@/core/components/KiVariantSelector';
 import type { AIProviderConfig } from '@/core/types/config';
 import { WidgetShell } from './widgets/WidgetShell';
 import type { WidgetProps } from './widgets/widgetProps';
@@ -58,9 +57,6 @@ export function AiAssistentWidget({ instanz, onToggleEingeklappt }: WidgetProps)
             Verbinden
           </Button>
         )}
-      </div>
-      <div className="mt-2.5">
-        <KiVariantSelector compact />
       </div>
     </WidgetShell>
   );

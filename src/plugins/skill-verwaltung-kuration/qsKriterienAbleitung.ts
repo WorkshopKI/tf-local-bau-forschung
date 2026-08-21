@@ -11,7 +11,7 @@
  * Harte Invarianten (Muster: `core/services/feedback/feedbackImprove.ts`):
  *  1. NUR interne KI. Prompt-Vorlagen sind dokumentnah zu behandeln — kein
  *     OpenRouter, egal welcher Transport gerade aktiv ist.
- *  2. Immer der Standard-Tab, nie der agentische: enger, einschüssiger
+ *  2. Immer der gpt-oss, nie der agentische: enger, einschüssiger
  *     Listen-Auftrag ohne Mehrwert durch Agentik.
  *  3. Frischer Chat VOR dem Submit (Pitfall #36) — der Streamlit-Chat ist stateful.
  *  4. Wirft NIE. Misserfolg ⇒ `null`; der Kurator tippt dann von Hand.
@@ -29,7 +29,7 @@ import { starteFrischenChat } from '@/core/services/ai/chat-reset';
 const INTERNE_KI = 'Streamlit';
 
 /** Ziel-Tab für die Ableitung — siehe Invariante 2. */
-const ABLEITUNG_ZIEL: BridgeZiel = 'standard';
+const ABLEITUNG_ZIEL: BridgeZiel = 'gpt-oss';
 
 /** Obergrenze der übernommenen Vorschläge (der Editor bleibt überschaubar). */
 export const MAX_VORSCHLAEGE = 8;

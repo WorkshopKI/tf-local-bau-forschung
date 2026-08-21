@@ -187,7 +187,7 @@ describe('runEvalBatch (dev-only Orchestrierung)', () => {
 });
 
 describe('makeAgentischerJudgeTransport (interner Judge-Adapter)', () => {
-  it('resettet den Chat, sendet ziel=agentisch und strippt <think> vor der Rückgabe', async () => {
+  it('resettet den Chat, sendet ziel=qwen35 und strippt <think> vor der Rückgabe', async () => {
     let resetZiel: string | undefined = 'ungesetzt';
     let submittedZiel: string | undefined;
     const inner: AITransport = {
@@ -203,9 +203,9 @@ describe('makeAgentischerJudgeTransport (interner Judge-Adapter)', () => {
     const judge = makeAgentischerJudgeTransport(inner);
     const out = await judge.submitMessage('prompt', 'system');
 
-    expect(resetZiel).toBe('agentisch');
-    expect(submittedZiel).toBe('agentisch');
+    expect(resetZiel).toBe('qwen35');
+    expect(submittedZiel).toBe('qwen35');
     expect(out).toBe('{"fachliche_korrektheit":4}');
-    expect(judge.displayName).toContain('agentisch');
+    expect(judge.displayName).toContain('qwen35');
   });
 });

@@ -308,7 +308,7 @@ export function applyFeinschliffUebersprungen(
 }
 
 /**
- * Markiert den Schritt als „über die Standard-KI entstanden, weil die agentische
+ * Markiert den Schritt als „über gpt-oss-120b entstanden, weil Qwen3.6
  * nicht verfügbar war" (`ziel-fallback.ts`). Wird NACH der eigentlichen Mutation
  * gesetzt, weil der Fallback erst nach dem Lauf feststeht — und für Generierung
  * wie Feinschliff gleichermaßen, da beide den angezeigten Text erzeugen.
@@ -329,7 +329,7 @@ export function applyZielFallback(run: WorkflowRun, stepId: StepId, now: string)
  * `null` = das Ziel wirkt auf diesem Transport gar nicht (DirectLLM/lokales
  * llama.cpp kennt keine Tabs). Dann wird der Stempel **entfernt**, nicht bloß
  * übersprungen: ein Rest aus einem früheren Bridge-Lauf überlebt sonst im Record
- * und schreibt „Standard-KI" unter einen Text, der nie dort entstanden ist.
+ * und schreibt „gpt-oss-120b" unter einen Text, der nie dort entstanden ist.
  */
 export function applyLaufZiel(
   run: WorkflowRun, stepId: StepId, ziel: BridgeZiel | null, now: string,

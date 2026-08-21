@@ -14,7 +14,7 @@ export interface ReportMeta {
   /** `transport.displayName ?? transport.name`. */
   transportName: string;
   steckbriefEingeschlossen: boolean;
-  /** Ziel-Tab (Zweit-LLM-A/B): `'agentisch'` = Qwen-Tab, sonst Standard-Chat (gpt-oss).
+  /** Modell (A/B): `'qwen35'` = Qwen3.6-35B, sonst gpt-oss-120b.
    *  Irrelevant (und ignoriert), wenn `modell` gesetzt ist. */
   ziel?: BridgeZiel;
   /** Nur OpenRouter-Modus (extern, fiktive Fixtures): Modell-Slug (z.B.
@@ -25,7 +25,7 @@ export interface ReportMeta {
 
 /** Menschenlesbares Ziel-Tab-Etikett für den Report-Kopf. */
 function zielLabel(ziel?: BridgeZiel): string {
-  return ziel === 'agentisch' ? 'agentisch (Qwen, 262k)' : 'Standard-Chat (gpt-oss)';
+  return ziel === 'qwen35' ? 'Qwen3.6-35B' : 'gpt-oss-120b';
 }
 
 /** Länge des Rohtext-Auszugs bei Degradation. */

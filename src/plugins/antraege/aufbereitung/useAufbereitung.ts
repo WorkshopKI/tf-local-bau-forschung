@@ -99,7 +99,7 @@ export interface UseAufbereitungResult {
    *  Kompatibilität weiter `vbMarkdown` (Prop-Name in allen Tabs). */
   vbMarkdown: string | null;
   /** Umfang des Korpus gegen das Kontextfenster DER GERADE GEWÄHLTEN KI
-   *  (`laufZiel.cap`, nicht die globale KI-Variante). `ueberCap` heisst: ein
+   *  (`laufZiel.cap`, nicht die globale Modellwahl). `ueberCap` heisst: ein
    *  NEUER Lauf sähe das Ende des Textes nicht. Über bereits GECACHTE Ergebnisse
    *  sagt es nichts — der Cache-Eintrag trägt sein Ziel nicht, und der
    *  Notausfahrt-Schalter ist Sitzungszustand (siehe `QuellenPanel`). */
@@ -112,7 +112,7 @@ export interface UseAufbereitungResult {
   einreichungsBezug: EinreichungsBezug | null;
   /** Auf welcher internen KI die Bausteine laufen + ob die Notausfahrt anzubieten ist. */
   laufZiel: LaufZiel;
-  /** Notausfahrt für DIESEN Antrag (Sitzung, nicht persistiert) — agentische KI wegen
+  /** Notausfahrt für DIESEN Antrag (Sitzung, nicht persistiert) — Qwen3.6-35B wegen
    *  eines Korpus, der nicht ins Standard-Kontextfenster passt. */
   setzeAgentischErzwungen: (an: boolean) => void;
   /** Läuft alle Bausteine sequentiell (Recherche-Prompt → Aspekte → Steckbrief → Zahlen → Glossar → Verwertung). */
@@ -157,14 +157,14 @@ export function useAufbereitung(ctx: AufbereitungContext | null): UseAufbereitun
   const [agentischErzwungen, setzeAgentischErzwungen] = useState(false);
   const key = ctx?.key ?? null;
 
-  // Ziel-KI der Bausteine: fest die Standard-KI, es sei denn der Prüfer hat wegen eines
+  // Ziel-KI der Bausteine: fest gpt-oss-120b, es sei denn der Prüfer hat wegen eines
   // zu grossen Korpus die agentische Notausfahrt gewählt (`lauf-ziel.ts`). Die globale
-  // KI-Variante (`useKiZiel`) gilt hier bewusst NICHT.
+  // Modellwahl (`useKiZiel`) gilt hier bewusst NICHT.
   const bridgeAktiv = bridge.istBridgeAktiv();
   const laufZiel = useMemo(() => bestimmeLaufZiel({
     zeichen: vbMarkdown?.length ?? null,
-    standardCap: getVbCharCap({ bridge: bridgeAktiv, ziel: 'standard' }),
-    agentischCap: getVbCharCap({ bridge: bridgeAktiv, ziel: 'agentisch' }),
+    standardCap: getVbCharCap({ bridge: bridgeAktiv, ziel: 'gpt-oss' }),
+    agentischCap: getVbCharCap({ bridge: bridgeAktiv, ziel: 'qwen35' }),
     agentischErzwungen,
   }), [vbMarkdown, bridgeAktiv, agentischErzwungen]);
 
@@ -382,7 +382,7 @@ export function useAufbereitung(ctx: AufbereitungContext | null): UseAufbereitun
     setVbMarkdown(korpus.markdown); // `vbMarkdown` trägt den Korpus (Lesemodus/Fundstellen-Auszüge + Cap-Messung)
     // EIN Deps-Objekt für ALLE Bausteine — insbesondere dasselbe `ziel`. Wäre es je
     // Aufruf einzeln zu setzen, hinge ein vergessener Baustein still an der globalen
-    // KI-Variante, und der Streamlit-Tab wechselte mitten in der Kette.
+    // Modellwahl, und der Streamlit-Tab wechselte mitten in der Kette.
     const deps = {
       idb: storage.idb,
       antragKey: aktCtx.key,

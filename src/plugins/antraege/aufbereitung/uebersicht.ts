@@ -68,7 +68,7 @@ export interface KiCta {
  * nur den deterministischen Teil.
  */
 export function baueKiCta(status: readonly BausteinUiStatus[], opts: { agentisch: boolean }): KiCta {
-  const kiName = opts.agentisch ? 'agentische KI' : 'Standard-KI';
+  const kiName = opts.agentisch ? 'Qwen3.6-35B' : 'gpt-oss-120b';
   const offen = status.filter(s => s === 'fehlt').length;
   if (offen > 0 && offen < status.length) {
     return {

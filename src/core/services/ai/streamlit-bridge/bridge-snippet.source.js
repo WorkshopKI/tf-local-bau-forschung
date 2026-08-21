@@ -36,7 +36,16 @@
   // tf-pong und warnt bei einem zu alten Snippet — seit dem Umbau ist ein altes
   // Bookmarklet nicht mehr harmlos: es ignoriert das Modellfeld still.
   var BRIDGE_REV = '2026-08-21-aitisi-http';
+  // Kurzversion für den LESEZEICHEN-NAMEN („interne-KI v1"). Sie ist das
+  // Einzige, was der Nutzer ohne Klick sieht — an ihr erkennt er in der
+  // Lesezeichenleiste, ob er die aktuelle Bridge hat.
+  //
+  // ZUSAMMEN mit BRIDGE_REV hochzählen. Kein Guard kann das erzwingen (ob jemand
+  // beide Zeilen angefasst hat, steht nirgends im Code) — geprüft wird nur, dass
+  // beide Marker lesbar sind und der Name kurz genug für die Leiste bleibt.
+  var BRIDGE_VERSION = 1;
   window.__teamflowBridgeRev = BRIDGE_REV;
+  window.__teamflowBridgeVersion = BRIDGE_VERSION;
   try { console.log('[TeamFlow-Bridge] aktiv — rev ' + BRIDGE_REV); } catch (e) { /* ignore */ }
 
   // Selektor-Fallback-Arrays (spezifisch -> generisch) fuer AitisiGPT.

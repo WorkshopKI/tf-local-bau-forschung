@@ -69,7 +69,7 @@ export function qsKriterienStand(befunde: QsBefund[]): { ok: number; gesamt: num
 /** Zeigt die Karte überhaupt einen QS-Strip? */
 /**
  * Beschriftung der internen KI, die den Abschnitt erzeugt hat — für die Fußzeile.
- * Wortlaut wie im Fallback-Hinweis („Agentische KI … Standard-KI hat übernommen"),
+ * Wortlaut wie im Fallback-Hinweis („Agentische KI … gpt-oss-120b hat übernommen"),
  * damit Fußzeile und Hinweise dieselbe Sprache sprechen.
  *
  * `null` für Records ohne `ziel` (vor v2.365 erzeugt): lieber nichts sagen als raten.
@@ -78,7 +78,7 @@ export function qsKriterienStand(befunde: QsBefund[]): { ok: number; gesamt: num
  */
 export function zielLabel(run: StepRun): string | null {
   if (!run.ziel) return null;
-  return run.ziel === 'agentisch' ? 'Agentische KI' : 'Standard-KI';
+  return run.ziel === 'qwen35' ? 'Agentische KI' : 'gpt-oss-120b';
 }
 
 export function hatQsStrip(run: StepRun): boolean {
@@ -143,7 +143,7 @@ export function abschnittHinweise(run: StepRun, retryNote?: string | null): Hinw
   if (run.zielFallback) {
     out.push({
       key: 'zielfallback',
-      text: 'Agentische KI nicht verfügbar — Standard-KI hat übernommen.',
+      text: 'Agentische KI nicht verfügbar — gpt-oss-120b hat übernommen.',
       ton: 'neutral',
     });
   }

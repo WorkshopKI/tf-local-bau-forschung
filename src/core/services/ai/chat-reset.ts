@@ -19,8 +19,8 @@ export type ChatResetStatus = 'ok' | 'nicht-gefunden' | 'timeout' | 'nicht-unter
  * Startet einen frischen Chat (best-effort). Wirft NIE. `nicht-unterstuetzt`,
  * wenn der Transport kein `resetChat` anbietet (stateless API → keine Warnung).
  * `ziel` trifft denselben Tab wie der nachfolgende Submit (produktive Läufe setzen
- * kein `ziel` → aktiver/Standard-Tab; nur die dev-Aufbereitungs-Eval reicht optional
- * `'agentisch'` durch, um den Qwen-Tab zu A/B-testen).
+ * kein `ziel` → aktiver/gpt-oss; nur die dev-Aufbereitungs-Eval reicht optional
+ * `'agentisch'` durch, um den Qwen3.6 zu A/B-testen).
  */
 export async function starteFrischenChat(transport: AITransport, ziel?: BridgeZiel): Promise<ChatResetStatus> {
   if (typeof transport.resetChat !== 'function') return 'nicht-unterstuetzt';

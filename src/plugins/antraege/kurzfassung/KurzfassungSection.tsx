@@ -31,7 +31,7 @@ import type { KurzfassungContext } from './types';
 
 export function KurzfassungSection({ ctx }: { ctx: KurzfassungContext }): React.ReactElement {
   const ctrl = useKurzfassung(ctx);
-  // Cap + Kontextfenster folgen der KI-Variante (Bridge-Tab), nicht nur dem lokalen Wert.
+  // Cap + Kontextfenster folgen dem gewählten Modell, nicht nur dem lokalen Wert.
   const kontextZiel = useKontextZiel();
   const vbCap = useVbCharCap();
   // Einklappbar (persistiert; Vorgabe in `detailSektionen`: zu); Body via CSS

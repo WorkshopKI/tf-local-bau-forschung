@@ -59,8 +59,8 @@ import { kopiereText } from '@/core/utils/kopieren';
 type VerlaufStatus = 'pending' | 'running' | 'ok' | 'degradiert' | 'fehler' | 'fehlt';
 
 /** Generierungs-Transport des Eval-Laufs: intern (Standard-Chat gpt-oss), intern-agentisch
- *  (Qwen-Tab, Zweit-LLM-A/B) oder OpenRouter (extern — nur fiktive Fixtures, dev-only). */
-type TransportModus = 'intern' | 'agentisch' | 'openrouter';
+ *  (Qwen3.6, Zweit-LLM-A/B) oder OpenRouter (extern — nur fiktive Fixtures, dev-only). */
+type TransportModus = 'intern' | 'qwen35' | 'openrouter';
 
 interface VerlaufZeile {
   vbFile: string;
@@ -193,7 +193,7 @@ export function AufbereitungEvalPanel(): React.ReactElement {
   const [mitSteckbrief, setMitSteckbrief] = useState(true);
   const [mitZahlen, setMitZahlen] = useState(true);
   const [mitGlossar, setMitGlossar] = useState(true);
-  // Generierungs-Transport: intern (gpt-oss) · intern-agentisch (Qwen) · OpenRouter (extern).
+  // Generierungs-Transport: gpt-oss-120b · Qwen3.6-35B · OpenRouter (extern).
   const [transportModus, setTransportModus] = useState<TransportModus>('intern');
   // Geteilte Dev-Eval-OpenRouter-Config (derselbe IDB-Key wie der Skill-Eval-Judge).
   const openRouterVerfuegbar = isOpenRouterEnabled();
@@ -261,7 +261,7 @@ export function AufbereitungEvalPanel(): React.ReactElement {
     } else {
       // Policy-Pfad: wirft bei externem Provider (dann kein Lauf, Banner unten).
       transport = bridge.getTransportForSkillRun(aspekteSkill);
-      ziel = transportModus === 'agentisch' ? 'agentisch' : undefined;
+      ziel = transportModus === 'qwen35' ? 'qwen35' : undefined;
     }
     const grenze = Math.max(1, Math.min(anzahl, maxAnzahl));
     const ctrl = new AbortController();
@@ -397,7 +397,7 @@ export function AufbereitungEvalPanel(): React.ReactElement {
               </label>
               <label
                 className="flex items-center gap-2 text-[12px] text-[var(--tf-text-secondary)]"
-                title="Generierungs-Transport: Intern = Standard-Chat (gpt-oss) · Intern agentisch = Qwen-Tab (262k, Tab muss offen + Lesezeichen aktiv sein) · OpenRouter = externes Referenz-Modell (nur fiktive Fixtures, dev-only) — trennt Code-/Prompt-Fehler von Modell-Limitationen."
+                title="Generierungs-Transport: gpt-oss-120b (62k) · Qwen3.6-35B (259k) — beide brauchen den offenen KI-Tab mit aktivem Lesezeichen · OpenRouter = externes Referenz-Modell (nur fiktive Fixtures, dev-only) — trennt Code-/Prompt-Fehler von Modell-Limitationen."
               >
                 Transport
                 <select
@@ -407,8 +407,8 @@ export function AufbereitungEvalPanel(): React.ReactElement {
                   className="px-2 py-1 text-[12px] bg-transparent text-[var(--tf-text)] rounded-[var(--tf-radius)] outline-none focus:border-[var(--tf-primary)]"
                   style={{ border: '0.5px solid var(--tf-border)' }}
                 >
-                  <option value="intern">Intern (gpt-oss)</option>
-                  <option value="agentisch">Intern agentisch (Qwen, 262k)</option>
+                  <option value="intern">Intern (gpt-oss-120b)</option>
+                  <option value="agentisch">Intern (Qwen3.6-35B)</option>
                   {openRouterVerfuegbar && <option value="openrouter">OpenRouter (extern)</option>}
                 </select>
               </label>

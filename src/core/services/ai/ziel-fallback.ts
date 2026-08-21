@@ -1,14 +1,14 @@
 /**
- * Transport-Fallback „agentische KI → Standard-KI" für einen einzelnen Lauf.
+ * Transport-Fallback „Qwen3.6-35B → gpt-oss-120b" für einen einzelnen Lauf.
  *
- * Die globale KI-Varianten-Präferenz (`ki-ziel.ts`) kann Läufe auf den agentischen
- * Tab der internen KI routen. Ist dieser Tab nicht erreichbar oder liefert er
- * Unbrauchbares, soll der Lauf NICHT hart scheitern — die Standard-KI übernimmt
+ * Die globale Modell-Präferenz (`ki-ziel.ts`) kann Läufe auf Qwen3.6-35B routen.
+ * Ist das Modell nicht erreichbar oder liefert es
+ * Unbrauchbares, soll der Lauf NICHT hart scheitern — gpt-oss-120b übernimmt
  * still, der Aufrufer erfährt es über `zielFallback` und meldet es dezent (Info,
  * kein Fehlerbanner).
  *
  * Bewusst eng geschnitten:
- *  - GENAU EIN Retry, immer agentisch → standard, nie umgekehrt, nie mehrfach.
+ *  - GENAU EIN Retry, immer qwen35 → gpt-oss, nie umgekehrt, nie mehrfach.
  *  - KEIN Retry bei Nutzer-Abbruch (`AbortSignal` / `AbortError`) — ein Stopp ist
  *    kein Ausfall.
  *  - KEIN Retry, wenn `ziel` beim aktiven Transport gar nicht wirkt: `ziel` wählt
@@ -51,11 +51,11 @@ export interface ZielFallbackOptions<R> {
 
 export interface ZielFallbackErgebnis<R> {
   result: R;
-  /** True ⇔ der erste (agentische) Versuch scheiterte und der Standard-Lauf übernahm. */
+  /** True ⇔ der erste Versuch (Qwen3.6) scheiterte und gpt-oss übernahm. */
   zielFallback: boolean;
   /**
    * Die KI, die `result` TATSÄCHLICH erzeugt hat — nach einem Fallback also
-   * `'standard'`, nicht die Präferenz aus dem Store. Aufrufer, die das Ziel am
+   * `'gpt-oss'`, nicht die Präferenz aus dem Store. Aufrufer, die das Ziel am
    * Ergebnis festhalten oder den Kontext-Cap dagegen rechnen, müssen diesen Wert
    * nehmen und nicht erneut `aktivesZielFuerLauf()` lesen.
    */
@@ -64,7 +64,7 @@ export interface ZielFallbackErgebnis<R> {
 
 /**
  * Wirkt sich `ziel` auf diesem Transport aus? Nur die Streamlit-Bridge routet
- * damit zwischen Standard- und agentischem Tab (`starteFrischenChat` +
+ * damit zwischen den Modellen (`starteFrischenChat` +
  * `submitMessage`); DirectLLM ignoriert die Option.
  */
 export function zielWirktAuf(transport: { name: string }): boolean {
@@ -77,12 +77,12 @@ function istAbbruch(err: unknown): boolean {
 
 /**
  * Führt `lauf` mit der aktiven Ziel-Präferenz aus und wiederholt ihn GENAU EINMAL
- * auf `'standard'`, wenn der agentische Versuch wirft oder ein unbrauchbares
+ * auf `'gpt-oss'`, wenn der Qwen3.6-Versuch wirft oder ein unbrauchbares
  * Ergebnis liefert. Jeder Versuch ist ein eigener `runSkill`-Aufruf — der Chat-Reset
  * (Pitfall #36) greift damit pro Versuch.
  *
  * Der Retry nennt sein Ziel AUSDRÜCKLICH. Früher lief er mit `undefined`, und das
- * heisst an der Bridge „aktiver Tab" — also derselbe agentische, dessen Ausfall den
+ * heisst an der Bridge „unverändertes Modell" — also dasselbe, dessen Ausfall den
  * Fallback gerade ausgelöst hatte: die Rettung wechselte die KI nie.
  *
  * Wirft der Retry, propagiert der Fehler unverändert.
@@ -93,11 +93,11 @@ export async function mitZielFallback<R>(
 ): Promise<ZielFallbackErgebnis<R>> {
   const ziel = opts.zielOverride ?? aktivesZielFuerLauf();
   // Ein erzwungenes Ziel schließt den Fallback aus (siehe `zielOverride`).
-  const retryMoeglich = !opts.zielOverride && ziel === 'agentisch' && opts.zielWirkt;
+  const retryMoeglich = !opts.zielOverride && ziel === 'qwen35' && opts.zielWirkt;
 
   const retry = async (): Promise<ZielFallbackErgebnis<R>> => {
     opts.vorRetry?.();
-    return { result: await lauf('standard'), zielFallback: true, ziel: 'standard' };
+    return { result: await lauf('gpt-oss'), zielFallback: true, ziel: 'gpt-oss' };
   };
 
   let ergebnis: R;

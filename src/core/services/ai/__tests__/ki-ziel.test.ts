@@ -1,20 +1,20 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import { useKiZiel, aktivesZielFuerLauf, sollWechselHinweisZeigen } from '../ki-ziel';
+import { useKiZiel, aktivesZielFuerLauf } from '../ki-ziel';
 
 // Store ist ein Modul-Singleton — nach jedem Test auf den Default zurücksetzen,
-// damit kein Lauf in anderen (nicht isolierten) Testdateien 'agentisch' erbt.
-afterEach(() => { useKiZiel.getState().setZiel('standard'); });
+// damit kein Lauf in anderen (nicht isolierten) Testdateien 'qwen35' erbt.
+afterEach(() => { useKiZiel.getState().setZiel('gpt-oss'); });
 
 describe('useKiZiel / aktivesZielFuerLauf', () => {
-  it('Default ist standard → aktivesZielFuerLauf gibt "standard"', () => {
-    expect(useKiZiel.getState().ziel).toBe('standard');
-    expect(aktivesZielFuerLauf()).toBe('standard');
+  it('Default ist gpt-oss → aktivesZielFuerLauf gibt "gpt-oss"', () => {
+    expect(useKiZiel.getState().ziel).toBe('gpt-oss');
+    expect(aktivesZielFuerLauf()).toBe('gpt-oss');
   });
 
-  it('agentisch aktiv → aktivesZielFuerLauf gibt "agentisch"', () => {
-    useKiZiel.getState().setZiel('agentisch');
-    expect(useKiZiel.getState().ziel).toBe('agentisch');
-    expect(aktivesZielFuerLauf()).toBe('agentisch');
+  it('Qwen3.6 aktiv → aktivesZielFuerLauf gibt "qwen35"', () => {
+    useKiZiel.getState().setZiel('qwen35');
+    expect(useKiZiel.getState().ziel).toBe('qwen35');
+    expect(aktivesZielFuerLauf()).toBe('qwen35');
   });
 
   /**
@@ -23,42 +23,11 @@ describe('useKiZiel / aktivesZielFuerLauf', () => {
    * in `ensureZiel` sofort aus (`if (!ziel) { cb(null); return; }`) — es suchte also
    * gar keinen Tab. Da Streamlit die Tab-Auswahl hält, blieb jeder Lauf im zuletzt
    * benutzten (agentischen) Tab: aus dem Agentischen führte kein Weg zurück.
-   * Nur ein EXPLIZITES 'standard' schaltet um.
+   * Nur ein EXPLIZITES 'gpt-oss' schaltet um.
    */
-  it('Rueckweg aus dem Agentischen: nach dem Umschalten kommt ein explizites Ziel', () => {
-    useKiZiel.getState().setZiel('agentisch');
-    useKiZiel.getState().setZiel('standard');
-    expect(aktivesZielFuerLauf()).toBe('standard');
-  });
-});
-
-describe('sollWechselHinweisZeigen', () => {
-  const basis = {
-    bridgeAktiv: true,
-    gespraechLaeuft: true,
-    altesZiel: 'standard' as const,
-    neuesZiel: 'agentisch' as const,
-  };
-
-  it('warnt beim echten Wechsel waehrend eines laufenden Gespraechs', () => {
-    expect(sollWechselHinweisZeigen(basis)).toBe(true);
-  });
-
-  it('schweigt ohne Bridge — ohne sie gibt es keine Tabs, also nichts zu verlieren', () => {
-    expect(sollWechselHinweisZeigen({ ...basis, bridgeAktiv: false })).toBe(false);
-  });
-
-  it('schweigt ohne laufendes Gespraech (der Normalfall: Umschalten vor der Arbeit)', () => {
-    expect(sollWechselHinweisZeigen({ ...basis, gespraechLaeuft: false })).toBe(false);
-  });
-
-  it('schweigt, wenn derselbe Knopf nochmal gedrueckt wird', () => {
-    expect(sollWechselHinweisZeigen({ ...basis, neuesZiel: 'standard' })).toBe(false);
-  });
-
-  it('warnt in beide Wechsel-Richtungen', () => {
-    expect(sollWechselHinweisZeigen({
-      ...basis, altesZiel: 'agentisch', neuesZiel: 'standard',
-    })).toBe(true);
+  it('Rueckweg aus dem grossen Modell: nach dem Umschalten kommt ein explizites Ziel', () => {
+    useKiZiel.getState().setZiel('qwen35');
+    useKiZiel.getState().setZiel('gpt-oss');
+    expect(aktivesZielFuerLauf()).toBe('gpt-oss');
   });
 });

@@ -204,22 +204,22 @@ export function FeedbackVerbessernFlow({ feedbackId, payload, context, pluginId,
 
 /**
  * Ladezustand mit Transparenz über die genutzte KI: die Feedback-Verbesserung läuft
- * IMMER über die Standard-KI (`FEEDBACK_ZIEL` in feedbackImprove.ts) — steht die
- * globale KI-Variante auf „Agentisch", wird das ausdrücklich erklärt, sonst wirkt
+ * IMMER über gpt-oss-120b (`FEEDBACK_ZIEL` in feedbackImprove.ts) — steht die
+ * globale Modellwahl auf Qwen3.6-35B, wird das ausdrücklich erklärt, sonst wirkt
  * die Einstellung stillschweigend ignoriert.
  */
 function LadeZeile({ text }: { text: string }): React.ReactElement {
-  const agentischGewaehlt = useKiZiel(s => s.ziel) === 'agentisch';
+  const grossesModellGewaehlt = useKiZiel(s => s.ziel) === 'qwen35';
   return (
     <div className="p-6 flex flex-col items-center justify-center gap-3 text-center">
       <Loader2 size={22} className="animate-spin text-[var(--tf-primary)]" />
       <p className="text-[12.5px] text-[var(--tf-text-secondary)]">{text}</p>
       <p className="text-[11px] text-[var(--tf-text-tertiary)]">
-        Läuft über die Standard-KI · kann bis zu einer Minute dauern.
+        Läuft über gpt-oss-120b · kann bis zu einer Minute dauern.
       </p>
-      {agentischGewaehlt && (
+      {grossesModellGewaehlt && (
         <p className="text-[11px] text-[var(--tf-text-tertiary)] leading-snug max-w-[280px]">
-          Ihre KI-Variante steht auf „Agentisch" — Feedback läuft bewusst über die Standard-KI,
+          Ihre Modellwahl steht auf Qwen3.6-35B — Feedback läuft bewusst über gpt-oss-120b,
           weil das hier deutlich schneller ist.
         </p>
       )}

@@ -19,6 +19,17 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v5.1 — 2026-08
+
+### Neu
+- **Sie können das Modell der internen KI wählen**: gpt-oss-120b (schneller) oder Qwen3.6-35B (deutlich größeres Kontextfenster). Die Einstellung finden Sie unter Einstellungen → KI → Antwortverhalten; sie gilt für alle KI-Läufe.
+- **Große Dokumente wechseln von selbst**: Passt ein Antrag nicht in das gewählte Fenster, führt die App diesen einen Lauf auf Qwen3.6-35B aus und sagt Ihnen das. Sie müssen nichts umstellen.
+
+### Verbesserungen
+- Lange Vorhabensbeschreibungen werden erst dann gekürzt, wenn auch das größte Fenster nicht reicht — vorher wurde schon gekürzt, obwohl daneben ein viermal größeres Modell bereitstand.
+- Das Lesezeichen für die interne KI heißt jetzt **„interne-KI v1"**. So sehen Sie in Ihrer Lesezeichenleiste auf einen Blick, ob Sie die aktuelle Fassung haben.
+- Der „Agentische Chat" erscheint in der Auswahl als gesperrt, mit Begründung — er bringt eigenen Kontext mit, und den stellt diese App bewusst selbst zusammen.
+
 ## v5.0 — 2026-08
 
 ### Bitte einmal erledigen

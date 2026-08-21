@@ -25,7 +25,7 @@ function args(over: Partial<SkillEingabeArgs> = {}): SkillEingabeArgs {
     korpusMd: 'VB-VOLLTEXT',
     vbCharCap: 100_000,
     thinkingBudget: 'none',
-    ziel: 'standard',
+    ziel: 'gpt-oss',
     vorherigeAbschnitte: 'Keine.',
     ...over,
   };
@@ -55,8 +55,8 @@ describe('baueSkillEingabe', () => {
   });
 
   it('reicht Ziel, Cap und Vorabschnitte unverändert durch', () => {
-    const e = baueSkillEingabe(args({ ziel: 'agentisch', vbCharCap: 4242, vorherigeAbschnitte: 'VOR' }));
-    expect(e.ziel).toBe('agentisch');
+    const e = baueSkillEingabe(args({ ziel: 'qwen35', vbCharCap: 4242, vorherigeAbschnitte: 'VOR' }));
+    expect(e.ziel).toBe('qwen35');
     expect(e.vbCharCap).toBe(4242);
     expect(e.vorherigeAbschnitte).toBe('VOR');
     expect(e.vbMarkdown).toBe('VB-VOLLTEXT');

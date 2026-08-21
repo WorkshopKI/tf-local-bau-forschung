@@ -11,7 +11,7 @@
  *
  * Transport: intern über `bridge.getTransportForAssistent()` (DSGVO intern-only,
  * Vordergrund-Lease, wirft bei externem Provider → Banner, kein Lauf; Guard #30).
- * Default `agentisch` (Qwen-Tab). Der `openrouter`-Modus ist nur in dev sichtbar
+ * Default `agentisch` (Qwen3.6). Der `openrouter`-Modus ist nur in dev sichtbar
  * (`isOpenRouterEnabled()`) und zulässig, weil die Fixtures FIKTIV sind
  * (`fiktiv: true`-Provenienz-Guard vor jedem externen Call). Generator UND Judge
  * laufen im selben Modus; Läufe strikt sequentiell (ein postMessage-Fenster).
@@ -43,8 +43,8 @@ import { kopiereText } from '@/core/utils/kopieren';
 type VerlaufStatus = 'pending' | 'running' | 'ok' | 'degradiert' | 'fehler';
 
 /** Generierungs-/Judge-Transport: intern (Standard-Chat gpt-oss), intern-agentisch
- *  (Qwen-Tab) oder OpenRouter (extern — nur fiktive Fixtures, dev-only). */
-type TransportModus = 'intern' | 'agentisch' | 'openrouter';
+ *  (Qwen3.6) oder OpenRouter (extern — nur fiktive Fixtures, dev-only). */
+type TransportModus = 'intern' | 'qwen35' | 'openrouter';
 
 /** n-Obergrenze je Fixture (Varianz-Messung ohne den Bridge-Durchlauf zu sprengen). */
 const WIEDERHOLUNGEN_MAX = 5;
@@ -82,7 +82,7 @@ function kurzVon(a: FixtureAggregat): string {
 
 /** Menschenlesbares Ziel-Tab-Etikett für den Report-Kopf. */
 function zielLabel(ziel?: BridgeZiel): string {
-  return ziel === 'agentisch' ? 'agentisch (Qwen, 262k)' : 'Standard-Chat (gpt-oss)';
+  return ziel === 'qwen35' ? 'Qwen3.6-35B' : 'gpt-oss-120b';
 }
 
 interface ReportMeta {
@@ -207,7 +207,7 @@ const evalStand: EvalStand = {
   // qualitative Zusatz-Sicht — bei Bedarf zuschalten.
   mitJudge: false,
   // Default intern (gpt-oss / Standard-Chat) — zuverlässig für die strukturierte
-  // JSON-Konsolidierung; der agentische Qwen-Tab liefert teils Reasoning-Prosa statt
+  // JSON-Konsolidierung; der agentische Qwen3.6 liefert teils Reasoning-Prosa statt
   // JSON + Loop-Detector-Abbruch. (Die Produktion trifft ohnehin den Standard-Chat.)
   transportModus: 'intern',
   verlauf: [],
@@ -285,11 +285,11 @@ export function GedaechtnisEvalPanel(): React.ReactElement {
     } else {
       // DSGVO intern-only (Guard #30): wirft bei externem Provider → Banner, kein Lauf.
       transport = bridge.getTransportForAssistent();
-      // Ausdrücklich `'standard'` statt `undefined`: ohne Ziel bleibt der Lauf
+      // Ausdrücklich `'gpt-oss'` statt `undefined`: ohne Ziel bleibt der Lauf
       // in dem Tab, der zuletzt benutzt wurde — der Report schrieb trotzdem
       // „Standard-Chat" darüber (v4.116). Die Messung soll sagen, wogegen sie
       // gelaufen ist.
-      ziel = transportModus === 'agentisch' ? 'agentisch' : 'standard';
+      ziel = transportModus === 'qwen35' ? 'qwen35' : 'gpt-oss';
     }
 
     const n = Math.max(1, Math.min(wiederholungen, WIEDERHOLUNGEN_MAX));
@@ -422,7 +422,7 @@ export function GedaechtnisEvalPanel(): React.ReactElement {
               </label>
               <label
                 className="flex items-center gap-2 text-[12px] text-[var(--tf-text-secondary)]"
-                title="Transport: Intern = Standard-Chat (gpt-oss) · Intern agentisch = Qwen-Tab (Tab muss offen + Lesezeichen aktiv sein) · OpenRouter = externes Referenz-Modell (nur fiktive Fixtures, dev-only). Generator und Judge laufen im selben Modus."
+                title="Transport: gpt-oss-120b · Qwen3.6-35B (beide brauchen den offenen KI-Tab mit aktivem Lesezeichen) · OpenRouter = externes Referenz-Modell (nur fiktive Fixtures, dev-only). Generator und Judge laufen im selben Modus."
               >
                 Transport
                 <select
@@ -433,7 +433,7 @@ export function GedaechtnisEvalPanel(): React.ReactElement {
                   style={{ border: '0.5px solid var(--tf-border)' }}
                 >
                   <option value="intern">Intern (gpt-oss)</option>
-                  <option value="agentisch">Intern agentisch (Qwen)</option>
+                  <option value="agentisch">Intern (Qwen3.6-35B)</option>
                   {openRouterVerfuegbar && <option value="openrouter">OpenRouter (extern)</option>}
                 </select>
               </label>

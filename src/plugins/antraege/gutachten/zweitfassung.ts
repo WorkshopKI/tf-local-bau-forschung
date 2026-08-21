@@ -15,7 +15,7 @@
  */
 import type { BridgeZiel } from '@/core/services/ai/transports/streamlit';
 import { TEMPERATUR_ZWEITFASSUNG, type FassungMarker } from '@/core/services/ai/sampling';
-import { ZIEL_DATIV } from './kontextWarnung';
+import { ZIEL_LABEL } from './kontextWarnung';
 
 export type ZweitfassungArt =
   /** Bridge: derselbe Prompt an den jeweils ANDEREN Tab. */
@@ -31,8 +31,8 @@ export function bestimmeZweitfassung(bridgeAktiv: boolean, kiZiel: BridgeZiel): 
   if (!bridgeAktiv) {
     return { art: 'temperatur', temperatur: TEMPERATUR_ZWEITFASSUNG, label: 'anderer Einstellung' };
   }
-  const andere: BridgeZiel = kiZiel === 'agentisch' ? 'standard' : 'agentisch';
-  return { art: 'ki', ziel: andere, label: ZIEL_DATIV[andere] };
+  const andere: BridgeZiel = kiZiel === 'qwen35' ? 'gpt-oss' : 'qwen35';
+  return { art: 'ki', ziel: andere, label: ZIEL_LABEL[andere] };
 }
 
 /**

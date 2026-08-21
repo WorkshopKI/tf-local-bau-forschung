@@ -2,7 +2,7 @@
  * Skill-Eval-GUI (DEV-ONLY) — evaluiert einen Gutachten-Abschnitt (A–G) gegen
  * 1–25 FIKTIVE VB-Fixtures. Generierung prod-treu über den aktiven Bridge-
  * Transport (intern, gpt-oss). Kontext-Achse `voll · relevant · beide` (A/B der
- * Relevanz-Map). Bewertung optional über den Judge — intern-agentisch (Qwen) als
+ * Relevanz-Map). Bewertung optional über den Judge — intern mit Qwen3.6-35B als
  * Default, OpenRouter (extern) nur gespiegelt hinter `isOpenRouterEnabled()`.
  *
  * Reine Orchestrierung + Anzeige — die Engine (`runEvalBatch` → `runOneSection`/
@@ -160,7 +160,7 @@ export function SkillEvalPanel({ registry }: SkillEvalPanelProps): React.ReactEl
         } else {
           // Intern-agentisch: DSGVO-Gate wirft bei externem Provider → Banner, kein Lauf.
           judgeTransport = makeAgentischerJudgeTransport(bridge.getTransportForAssistent());
-          judgeModellId = 'agentisch (Qwen)';
+          judgeModellId = 'Qwen3.6-35B';
         }
       }
       const res = await runEvalBatch({
@@ -320,7 +320,7 @@ export function SkillEvalPanel({ registry }: SkillEvalPanelProps): React.ReactEl
                   disabled={start.busy}
                   className="text-[12.5px] px-2 py-1.5 rounded-[7px] border-[0.5px] border-[var(--tf-border)] bg-transparent outline-none focus:border-[var(--tf-primary)]"
                 >
-                  <option value="intern-agentisch">intern-agentisch (Qwen)</option>
+                  <option value="intern-agentisch">intern (Qwen3.6-35B)</option>
                   {openRouterVerfuegbar && <option value="openrouter">OpenRouter (extern)</option>}
                 </select>
               </label>

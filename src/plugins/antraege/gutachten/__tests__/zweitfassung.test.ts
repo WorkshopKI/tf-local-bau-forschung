@@ -12,16 +12,16 @@ import { TEMPERATUR_STANDARD, TEMPERATUR_ZWEITFASSUNG } from '@/core/services/ai
 
 describe('bestimmeZweitfassung', () => {
   it('variiert über die Bridge die KI — die jeweils andere', () => {
-    expect(bestimmeZweitfassung(true, 'standard')).toEqual({
-      art: 'ki', ziel: 'agentisch', label: 'der agentischen KI',
+    expect(bestimmeZweitfassung(true, 'gpt-oss')).toEqual({
+      art: 'ki', ziel: 'qwen35', label: 'Qwen3.6-35B',
     });
-    expect(bestimmeZweitfassung(true, 'agentisch')).toEqual({
-      art: 'ki', ziel: 'standard', label: 'der Standard-KI',
+    expect(bestimmeZweitfassung(true, 'qwen35')).toEqual({
+      art: 'ki', ziel: 'gpt-oss', label: 'gpt-oss-120b',
     });
   });
 
   it('variiert ohne Bridge die Temperatur — unabhängig von der KI-Präferenz', () => {
-    for (const ziel of ['standard', 'agentisch'] as const) {
+    for (const ziel of ['gpt-oss', 'qwen35'] as const) {
       expect(bestimmeZweitfassung(false, ziel)).toEqual({
         art: 'temperatur', temperatur: TEMPERATUR_ZWEITFASSUNG, label: 'anderer Einstellung',
       });
@@ -29,7 +29,7 @@ describe('bestimmeZweitfassung', () => {
   });
 
   it('liefert IMMER eine Art — der Eintrag entfällt nie mehr', () => {
-    expect(bestimmeZweitfassung(false, 'standard').label).toBeTruthy();
+    expect(bestimmeZweitfassung(false, 'gpt-oss').label).toBeTruthy();
   });
 });
 

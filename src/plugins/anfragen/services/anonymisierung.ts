@@ -195,9 +195,9 @@ export async function runAnonymisierung(
       // Bereinigung zu aktivieren; Streaming löst er NICHT aus (kein Delta-Consumer →
       // runSkill fährt den robusten non-streaming-Pfad, s. run-skill.ts wantsStream).
       thinkingBudget: 'medium',
-      // Deterministischer Backend-Lauf → fest auf die Standard-KI pinnen (nicht die
+      // Deterministischer Backend-Lauf → fest auf gpt-oss-120b pinnen (nicht die
       // agentische Erprobung), unabhängig von der globalen KI-Präferenz.
-      ziel: 'standard',
+      ziel: 'gpt-oss',
     });
     try {
       return parseAnonymisierung(result.raw);

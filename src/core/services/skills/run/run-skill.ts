@@ -11,6 +11,10 @@
 import type { AITransport, ConversationMessage, BridgeZiel } from '@/core/services/ai/transports/streamlit';
 import { extractThinking } from '@/core/services/ai/thinking-parser';
 import { starteFrischenChat, type ChatResetStatus } from '@/core/services/ai/chat-reset';
+import { zielWirktAuf } from '@/core/services/ai/ziel-fallback';
+import { waehleModellFuerLauf, type ModellWahl } from '@/core/services/ai/modell-wahl';
+import { useModellEskalation } from '@/core/services/ai/modell-eskalation';
+import { getVbCharCap } from '@/core/services/ai/llm-context';
 import { TEMPERATUR_STANDARD } from '@/core/services/ai/sampling';
 import {
   buildPromptVorgaben,
@@ -188,8 +192,8 @@ export interface SkillRunInput {
    * Nur Streamlit-Bridge: Ziel-Chat (Tab) in der KI-Oberfläche — `'standard'`
    * (klassische interne KI) vs. `'agentisch'` (agentische interne KI). Wird an
    * `starteFrischenChat` UND `submitMessage` durchgereicht (derselbe Tab). Fehlt er
-   * (Default) → aktiver/Standard-Tab, Verhalten byte-identisch. Produktive Runner
-   * setzen ihn aus der globalen KI-Varianten-Präferenz (`useKiZiel`). Auf DirectLLM
+   * (Default) → aktiver/gpt-oss, Verhalten byte-identisch. Produktive Runner
+   * setzen ihn aus der globalen Modell-Präferenz (`useKiZiel`). Auf DirectLLM
    * wirkungslos.
    */
   ziel?: BridgeZiel;
@@ -234,6 +238,16 @@ export interface SkillRunResult {
    * `prompt-nur-im-ram` in [codebase-conventions.test.ts].
    */
   gesendet?: { system: string; user: string; vb: string; vbGekuerzt: boolean };
+  /**
+   * Mit welchem Modell der Lauf tatsächlich fuhr und ob er dafür angehoben wurde
+   * (`eskaliert`). Nur an der Bridge gesetzt — ein direkt angebundenes Modell hat
+   * keine zweite Größe, zwischen der zu wählen wäre.
+   *
+   * Am Ergebnis und nicht nur im Store, weil ein Skill-Lauf gespeichert wird:
+   * ohne diesen Vermerk stünde später eine Fassung da, von der niemand weiß,
+   * welches Modell sie erzeugt hat.
+   */
+  modellWahl?: ModellWahl;
 }
 
 /** Kürzt zu langes VB-Markdown am letzten Absatzumbruch vor dem Cap. */
@@ -488,7 +502,32 @@ async function runSkillInner(
   regeln: QualitaetsRegel[],
   input: SkillRunInput,
 ): Promise<SkillRunResult> {
-  const gerendert = renderSkillPrompt(skill, regeln, input);
+  /**
+   * Modell wählen, BEVOR gerendert wird — der Zeichen-Cap hängt daran.
+   *
+   * Bis v4 lief es andersherum: der Aufrufer rechnete den Cap gegen das gewählte
+   * Modell aus, `capVbMarkdown` schnitt die Vorhabensbeschreibung darauf zurück,
+   * und das größere Fenster daneben blieb ungenutzt. Jetzt wird gekürzt, wenn
+   * auch das größte Fenster nicht reicht — nicht davor.
+   *
+   * Nur an der Bridge (`zielWirktAuf`): ein direkt angebundenes Modell hat keine
+   * zweite Größe, zwischen der zu wählen wäre.
+   */
+  const modellWahl = (input.ziel && zielWirktAuf(transport))
+    ? waehleModellFuerLauf(input.ziel, input.vbMarkdown.length)
+    : null;
+  const laufEingabe: SkillRunInput = modellWahl?.eskaliert
+    ? { ...input, ziel: modellWahl.modell, vbCharCap: getVbCharCap({ bridge: true, ziel: modellWahl.modell }) }
+    : input;
+  // Die Meldung muss HIER raus, nicht im Transport: der bekommt gleich das
+  // bereits angehobene Ziel und sieht deshalb — richtigerweise — keine
+  // Eskalation mehr. Ohne diese Zeile bliebe ausgerechnet der Weg stumm, auf dem
+  // die grossen Dokumente laufen.
+  if (modellWahl?.eskaliert && input.ziel) {
+    useModellEskalation.getState().melde(input.ziel, modellWahl, Date.now());
+  }
+
+  const gerendert = renderSkillPrompt(skill, regeln, laufEingabe);
   const { system: systemPrompt, user: userContent, vbGekuerzt: gekuerzt, maxTokens, temperatur } = gerendert;
   const budget: ThinkingBudget = input.thinkingBudget ?? 'none';
 
@@ -497,7 +536,7 @@ async function runSkillInner(
   // Überlauf / vermischte VBs, Pitfall #36). Best-effort — Fehlschlag bricht NIE
   // ab, wird aber über `chatResetStatus` ans UI markiert. Stateless-API-Transporte
   // (DirectLLM) haben kein `resetChat` → `'nicht-unterstuetzt'` (keine Warnung).
-  const chatResetStatus = await starteFrischenChat(transport, input.ziel);
+  const chatResetStatus = await starteFrischenChat(transport, laufEingabe.ziel);
 
   let raw: string;
   let thinking: string | undefined;
@@ -550,7 +589,7 @@ async function runSkillInner(
     const streamlitOpts = {
       ...(input.signal ? { signal: input.signal } : {}),
       ...(input.erwarteAbschluss ? { erwarteAbschluss: input.erwarteAbschluss } : {}),
-      ...(input.ziel ? { ziel: input.ziel } : {}),
+      ...(laufEingabe.ziel ? { ziel: laufEingabe.ziel } : {}),
     };
     raw = await transport.submitMessage(
       systemPrompt ? `${systemPrompt}\n\n${userContent}` : userContent,
@@ -607,6 +646,7 @@ async function runSkillInner(
     vbGekuerzt: gekuerzt,
     chatResetStatus,
     gesendet: { system: systemPrompt, user: userContent, vb: gerendert.vb, vbGekuerzt: gekuerzt },
+    ...(modellWahl ? { modellWahl } : {}),
     ...(thinking ? { thinking } : {}),
     ...(entwurfVorLektor !== undefined ? { entwurfVorLektor } : {}),
   };
