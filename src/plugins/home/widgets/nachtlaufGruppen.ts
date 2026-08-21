@@ -8,6 +8,12 @@
  * Anträgen (gemessen über fünf Läufe im August 2026, 195–525 Einträge gesamt) —
  * eine Liste, die man liest, statt sie zu überfliegen.
  *
+ * **Die Zeile ist eine Segment-Liste, kein Satz.** Bis v4.135 stand hier ein
+ * fertiger String („D_AB, D_ABB +2 gesetzt"). An einem String lässt sich kein
+ * einzelnes Kürzel aufhängen — und genau das braucht die Anzeige: jedes Kürzel
+ * trägt seinen eigenen Tooltip mit Klartext, Datum und Werten. Deshalb behält
+ * jedes Segment seine Einträge, statt sie in Text aufzulösen.
+ *
  * **Weiterhin keine Personen-Achse** (Pitfall #48). Das Journal führt keine
  * Bearbeiter-Kürzel, und keine Zeile hier sagt, WER etwas gesetzt hat — sie sagt,
  * WAS sich an WELCHEM Vorgang geändert hat. Der Bearbeiter-Ausschnitt des
@@ -15,20 +21,37 @@
  * erzeugt keine Aussage über Personen.
  */
 import type { JournalEintrag } from '@/core/status';
+// Der Wortlaut aller Journal-Ansichten lebt an EINER Stelle: dieselbe Änderung
+// darf im Widget nicht anders heißen als am Antrag (Modulkopf `journalTexte`).
+// Der Tooltip zeigt zudem `eintragText` — zwei Formulierungsorte wären hier
+// besonders teuer, weil beide Fassungen in derselben Zeile sichtbar werden.
+import { ART_TEXT } from '@/plugins/antraege/status/journalTexte';
 
-/** Wortlaut je Eintragsart — geteilt von Zeile und Zähler. */
-export const ART_TEXT: Record<JournalEintrag['art'], string> = {
-  gesetzt: 'gesetzt',
-  geaendert: 'geändert',
-  geleert: 'zurückgenommen',
-  'antrag-neu': 'neu im Export',
-  'antrag-fehlt': 'nicht mehr im Export',
-};
+export { ART_TEXT };
 
 /** Reihenfolge der Arten in einer Zeile — die einschneidendste zuerst. */
 const ART_FOLGE: ReadonlyArray<JournalEintrag['art']> = [
   'antrag-neu', 'antrag-fehlt', 'gesetzt', 'geaendert', 'geleert',
 ];
+
+/** Ein Kürzel der Zeile mit allem, was das Journal über es sagt. */
+export interface NachtlaufKuerzel {
+  /** Rohe Journal-Spalte, `D_AB` / `STATUS_TV` (= `feldId` des Katalogs). */
+  feld: string;
+  /** Die Einträge dieses Feldes in diesem Lauf/Fenster, aufsteigend nach Datum. */
+  eintraege: JournalEintrag[];
+}
+
+/** Was einer Art an einem Antrag widerfahren ist: „D_AB, D_ABB +2 gesetzt". */
+export interface NachtlaufSegment {
+  art: JournalEintrag['art'];
+  /** `ART_TEXT[art]` — hier mitgeführt, damit die Anzeige nicht nachschlagen muss. */
+  artText: string;
+  /** Gezeigte Kürzel (auf `maxKuerzel` gekappt). Leer bei `antrag-neu`/`-fehlt`. */
+  kuerzel: NachtlaufKuerzel[];
+  /** Der „+N"-Rest — nicht verworfen, sondern für dessen eigenen Tooltip behalten. */
+  versteckt: NachtlaufKuerzel[];
+}
 
 /** Eine Zeile: ein Antrag mit dem, was sich an ihm geändert hat. */
 export interface NachtlaufZeile {
@@ -37,24 +60,40 @@ export interface NachtlaufZeile {
   label: string;
   /** Zahl der Einträge dieses Antrags in diesem Lauf. */
   anzahl: number;
-  /** „D_AB, D_ABB gesetzt · STATUS_TV geändert" — gekappt, s. `MAX_FELDER`. */
-  text: string;
+  segmente: NachtlaufSegment[];
   /** Mindestens ein Eintrag ist nur als Zeitraum belegt (Wochenende, Ausfall). */
   unscharf: boolean;
 }
 
 /** Wie viele Feldnamen je Art in einer Zeile stehen, bevor „+N" übernimmt. */
-const MAX_FELDER = 3;
+export const MAX_KUERZEL_STANDARD = 3;
 
-function artText(art: JournalEintrag['art'], felder: string[]): string {
-  if (felder.length === 0) return ART_TEXT[art];
-  const gezeigt = felder.slice(0, MAX_FELDER).join(', ');
-  const rest = felder.length - MAX_FELDER;
-  return `${gezeigt}${rest > 0 ? ` +${rest}` : ''} ${ART_TEXT[art]}`;
+/** Wonach die Zeilen geordnet werden. */
+export type NachtlaufSortierung = 'anzahl' | 'label';
+
+export interface GruppierOptionen {
+  /** Feldnamen je Art, bevor „+N" übernimmt. Default {@link MAX_KUERZEL_STANDARD}. */
+  maxKuerzel?: number;
+  /** `'anzahl'` = änderungsreichste zuerst (Default), `'label'` = alphabetisch. */
+  sortierung?: NachtlaufSortierung;
+}
+
+/** Die Kürzel einer Art, jedes mit seinen Einträgen (Reihenfolge des Auftretens). */
+function kuerzelDerArt(eintraege: readonly JournalEintrag[]): NachtlaufKuerzel[] {
+  const proFeld = new Map<string, JournalEintrag[]>();
+  for (const e of eintraege) {
+    if (!e.feld) continue;
+    const liste = proFeld.get(e.feld);
+    if (liste) liste.push(e); else proFeld.set(e.feld, [e]);
+  }
+  return [...proFeld.entries()].map(([feld, es]) => ({
+    feld,
+    eintraege: [...es].sort((a, b) => a.datum.localeCompare(b.datum)),
+  }));
 }
 
 /**
- * Einträge → eine Zeile je Antrag, die änderungsreichsten zuerst.
+ * Einträge → eine Zeile je Antrag.
  *
  * `label` löst das Aktenzeichen auf (Akronym aus dem Antrags-Store); ein
  * unbekannter Antrag behält sein Aktenzeichen, statt aus der Liste zu fallen —
@@ -63,7 +102,9 @@ function artText(art: JournalEintrag['art'], felder: string[]): string {
 export function gruppiereNachAntrag(
   eintraege: readonly JournalEintrag[],
   label: (antragId: string) => string | undefined,
+  opt: GruppierOptionen = {},
 ): NachtlaufZeile[] {
+  const maxKuerzel = Math.max(1, Math.round(opt.maxKuerzel ?? MAX_KUERZEL_STANDARD));
   const proAntrag = new Map<string, JournalEintrag[]>();
   for (const e of eintraege) {
     const liste = proAntrag.get(e.antragId);
@@ -71,26 +112,34 @@ export function gruppiereNachAntrag(
   }
   const zeilen: NachtlaufZeile[] = [];
   for (const [antragId, eigene] of proAntrag) {
-    const proArt = new Map<JournalEintrag['art'], string[]>();
+    const proArt = new Map<JournalEintrag['art'], JournalEintrag[]>();
     for (const e of eigene) {
-      const felder = proArt.get(e.art);
-      const feld = e.feld ?? null;
-      if (felder) { if (feld) felder.push(feld); } else proArt.set(e.art, feld ? [feld] : []);
+      const liste = proArt.get(e.art);
+      if (liste) liste.push(e); else proArt.set(e.art, [e]);
     }
-    const teile: string[] = [];
+    const segmente: NachtlaufSegment[] = [];
     for (const art of ART_FOLGE) {
-      const felder = proArt.get(art);
-      if (felder) teile.push(artText(art, felder));
+      const es = proArt.get(art);
+      if (!es) continue;
+      const alle = kuerzelDerArt(es);
+      segmente.push({
+        art,
+        artText: ART_TEXT[art],
+        kuerzel: alle.slice(0, maxKuerzel),
+        versteckt: alle.slice(maxKuerzel),
+      });
     }
     zeilen.push({
       antragId,
       label: label(antragId)?.trim() || antragId,
       anzahl: eigene.length,
-      text: teile.join(' · '),
+      segmente,
       unscharf: eigene.some(e => e.unscharf === true),
     });
   }
-  zeilen.sort((a, b) => b.anzahl - a.anzahl || a.label.localeCompare(b.label, 'de'));
+  zeilen.sort(opt.sortierung === 'label'
+    ? (a, b) => a.label.localeCompare(b.label, 'de') || a.antragId.localeCompare(b.antragId)
+    : (a, b) => b.anzahl - a.anzahl || a.label.localeCompare(b.label, 'de'));
   return eindeutigeLabel(zeilen);
 }
 
@@ -109,6 +158,25 @@ function eindeutigeLabel(zeilen: NachtlaufZeile[]): NachtlaufZeile[] {
   return zeilen.map(z => ((proLabel.get(z.label) ?? 0) > 1 && z.label !== z.antragId
     ? { ...z, label: `${z.label} · ${z.antragId}` }
     : z));
+}
+
+/**
+ * Ein Segment als Text: „D_AB, D_ABB +2 gesetzt".
+ *
+ * Die Anzeige rendert die Kürzel EINZELN (jedes trägt seinen Tooltip) und baut
+ * diesen Satz nicht. Er wird trotzdem hier gebildet, weil die Zeile ihn als
+ * `aria-label` braucht: was die Maus in mehreren Blasen erfährt, muss die
+ * Vorlesesoftware in einem Stück bekommen.
+ */
+export function segmentText(s: NachtlaufSegment): string {
+  if (s.kuerzel.length === 0) return s.artText;
+  const gezeigt = s.kuerzel.map(k => k.feld).join(', ');
+  return `${gezeigt}${s.versteckt.length > 0 ? ` +${s.versteckt.length}` : ''} ${s.artText}`;
+}
+
+/** Die ganze Zeile als Text — s. {@link segmentText}. */
+export function zeileText(z: NachtlaufZeile): string {
+  return z.segmente.map(segmentText).join(' · ');
 }
 
 /** „7 Änderungen an 3 Anträgen" — der Zähler der Kopfzeile. */

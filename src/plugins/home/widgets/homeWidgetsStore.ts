@@ -70,7 +70,7 @@ export function defaultHomeWidgetConfig(
     config: WIDGET_KATALOG[typ].defaultConfig(),
   });
   return {
-    version: 3,
+    version: 4,
     updatedAt: new Date(0).toISOString(),
     hero: HERO_CONFIG_DEFAULT,
     widgets: [
@@ -134,6 +134,26 @@ export function migriereV2NachtlaufAnsEnde(widgets: WidgetInstanz[]): WidgetInst
 }
 
 /**
+ * v3 → v4 (v4.135): „Änderungen der letzten Nacht" bekommt seine Detail-Config.
+ *
+ * **Warum das nötig ist.** `reconcileVerfuegbareWidgets` ergänzt nur fehlende
+ * TYPEN, nie fehlende FELDER. Eine gewachsene Config trägt die Instanz längst —
+ * mit `{ art: 'keine' }`, weil es damals keine Regler gab. Ohne diesen Schritt
+ * bliebe `hatWidgetDetailConfig` für sie false, und der Menü-Eintrag
+ * „Widget-Einstellungen" erschiene bei genau den Nutzern nie, die das Widget
+ * schon benutzen.
+ *
+ * Rein + idempotent: eine Instanz, die bereits eine `nachtlauf`-Config trägt,
+ * bleibt unangetastet — auch dann, wenn ihre Werte von den Defaults abweichen.
+ */
+export function migriereV3NachtlaufConfig(widgets: WidgetInstanz[]): WidgetInstanz[] {
+  if (!widgets.some(w => w.typ === 'nachtlauf' && w.config.art !== 'nachtlauf')) return widgets;
+  return widgets.map(w => (w.typ === 'nachtlauf' && w.config.art !== 'nachtlauf'
+    ? { ...w, config: WIDGET_KATALOG.nachtlauf.defaultConfig() }
+    : w));
+}
+
+/**
  * Die Hero-Karten aus einem Config-Stand — jeder fehlende oder kaputte Wert
  * bedeutet „an". Additiv statt versioniert: das Feld kam mit v4.41 dazu, und ein
  * Stand ohne es soll exakt so aussehen wie bisher (beide Karten, alle Kacheln).
@@ -160,13 +180,15 @@ export function leseHeroConfig(raw: unknown): HeroConfig {
 export function leseHomeWidgetConfig(raw: unknown): HomeWidgetConfig | null {
   if (!raw || typeof raw !== 'object') return null;
   const cfg = raw as Record<string, unknown>;
-  if (cfg.version !== 1 && cfg.version !== 2 && cfg.version !== 3) return null;
+  const version = cfg.version;
+  if (version !== 1 && version !== 2 && version !== 3 && version !== 4) return null;
   if (typeof cfg.updatedAt !== 'string' || !Array.isArray(cfg.widgets)) return null;
   let widgets = cfg.widgets.filter(isWidgetInstanz);
-  if (cfg.version === 1) widgets = migriereV1HeroWeitermachen(widgets);
-  if (cfg.version !== 3) widgets = migriereV2NachtlaufAnsEnde(widgets);
+  if (version === 1) widgets = migriereV1HeroWeitermachen(widgets);
+  if (version < 3) widgets = migriereV2NachtlaufAnsEnde(widgets);
+  if (version < 4) widgets = migriereV3NachtlaufConfig(widgets);
   return {
-    version: 3,
+    version: 4,
     updatedAt: cfg.updatedAt,
     hero: leseHeroConfig(cfg.hero),
     widgets,

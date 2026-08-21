@@ -882,6 +882,32 @@ nicht, wer sie gemacht hat. Ohne den Ausschnitt standen dort 400 Zeilen, von den
 keine Datensparsamkeit. Verboten bleibt, was die Regel meint: eine Gruppierung
 nach Kürzel und jede Zeile, die einen Handelnden benennt.
 
+Seit v6.1 lässt sich der Ausschnitt der Karte **widget-lokal** auf „immer meine"
+bzw. „immer alle" stellen. Das braucht das eigene Kürzel — es kommt über
+`useBearbeiterSicht().eigenerModus`, **nie** über `useMeinKuerzel` im Widget: die
+Reißleine oben scannt `NachtlaufWidget.tsx` und `nachtlaufGruppen.ts` namentlich
+darauf. Die Einstellung übersteuert nur den Chip; ein Ausschnitt aus einer Frage
+und eine per Anmeldung festgezurrte Identität bleiben stärker, und die Kopfzeile
+beschriftet immer den **effektiven** Modus.
+
+### 12.6a Ein Lauf oder ein Zeitfenster (v6.1)
+
+Für die Frage „was ist über Nacht passiert" gibt es zwei Leser, und sie
+unterscheiden sich in genau einem Punkt:
+
+- `letzterNachtLauf` zeigt **den letzten Lauf** und fällt bis zu zwei
+  Monatsdateien zurück, wenn der jüngste Export nichts brachte. Das ist kein
+  Randfall: von neun verarbeiteten Stempeln trugen vier keinen einzigen Eintrag
+  (gemessen 20.08.2026). Welcher Lauf gezeigt wird, sagt die Karte dazu.
+- `nachtLaeufeSeit(idb, tage, heute)` zeigt **ein Zeitfenster** über mehrere
+  Exporte und fällt **nicht** zurück. Ein Fenster macht eine Zusage über einen
+  Zeitraum; heimlich davor zu greifen bräche sie. Ein leeres Fenster ist hier ein
+  gültiges Ergebnis, das benannt wird. `tage` zählt einschließlich heute, das
+  Fenster wird auf den Nullpunkt geklemmt ([§12.2](#122-der-nullpunkt)).
+
+Beide liefern `null`, wenn (noch) kein Journal geführt wird — eine andere Aussage
+als „nichts gefunden" ([§12.3](#123-fünf-aussagen-nicht-eine)).
+
 ### 12.7 Gemessen
 
 | | |

@@ -53,10 +53,55 @@ die nicht, liest sich die Karte daneben als Widerspruch.
   [vorgangssystem.md §12](vorgangssystem.md)). Zwei Anzeigen dürfen dieselbe
   Bezeichnung nicht doppelt tragen — zwei Teilvorhaben eines Verbunds bekommen ihr
   Aktenzeichen dazu, **nur wo das Akronym mehrdeutig ist**.
+  Seit v6.1 trägt die Karte **sechs Regler** und erklärt **jedes Kürzel einzeln**
+  ([NachtlaufConfigForm.tsx](../../src/plugins/home/widgets/NachtlaufConfigForm.tsx)) —
+  Details unten.
 - **Config-Version v3**: `nachtlauf` rückt **einmalig** ans Ende seiner Spalte
   (`migriereV2NachtlaufAnsEnde`) — eine Nachschlage-Karte zwischen Arbeitslisten;
   ihre Position kam aus der Reihenfolge des Reconcile, also aus der Bauzeit. Kein
   Pin: wer sie danach hochholt, behält sie oben.
+- **Config-Version v4** (v6.1): `nachtlauf` bekommt seine Detail-Config
+  (`migriereV3NachtlaufConfig`). Nötig, weil `reconcileVerfuegbareWidgets` nur
+  fehlende **Typen** ergänzt, nie fehlende **Felder** — eine gewachsene Config
+  trägt die Instanz längst mit `{ art: 'keine' }`, und ohne diesen Schritt bliebe
+  `hatWidgetDetailConfig` ausgerechnet bei denen false, die das Widget benutzen.
+
+### „Änderungen der letzten Nacht": Regler + Kürzel-Tooltips (v6.1)
+
+- **Die Zeile ist eine Segment-Liste, kein Satz.** `NachtlaufZeile.segmente` hält
+  je Art die Kürzel **mit ihren Einträgen**; an einem fertigen String liesse sich
+  kein einzelnes Kürzel aufhängen. `zeileText()` bildet den Satz weiterhin — als
+  `aria-label`: was die Maus in mehreren Blasen erfährt, muss die Vorlesesoftware
+  in einem Stück bekommen.
+- **Vier Blasen, jede mit ihrer eigenen Geste** (gepunktete Unterstreichung, Regel
+  aus [ErklaerterSatz.tsx](../../src/components/vorgang/ErklaerterSatz.tsx)):
+  Kürzel → Klartext + Journal-Einträge; „+N" → das Weggelassene namentlich;
+  Tilde → warum nur ein Zeitraum belegt ist; Label → das Aktenzeichen. Der alte
+  Sammel-`title=` an der Zeile ist damit weg.
+- **Klartext über EINE Map** aus `getAktiveVersion().felder` (synchron, kein IDB) —
+  nicht `feldLabel()` je Zeile, das läuft linear über ~505 Felder. `STATUS_TV`/
+  `STATUS_VB` stehen nicht als `feldId` im Katalog und werden auf die kanonischen
+  `status`/`verbund_status` abgebildet; **keine** zweite Handtabelle mit Klartexten.
+- **Wortlaut geteilt**: `ART_TEXT`/`eintragText` kommen aus
+  [journalTexte.ts](../../src/plugins/antraege/status/journalTexte.ts) — Zeile und
+  Blase stehen nebeneinander, zwei Formulierungsorte wären hier besonders teuer.
+- **Zeitraum-Regler**: `rueckblickTage: 0` = ein Lauf (`letzterNachtLauf`, inkl.
+  seines Rückfalls auf den letzten Export MIT Änderungen), `> 0` = Zeitfenster
+  (`nachtLaeufeSeit`) **ohne** diesen Rückfall — ein Fenster macht eine Zusage über
+  einen Zeitraum, ein heimlicher Griff davor bräche sie. Titel und Kopfzeile folgen
+  dem Zeitraum („Änderungen der letzten 7 Tage · Exporte vom 18.–21.08.2026");
+  das Katalog-Label bleibt, es benennt den Typ.
+- **Ausschnitt-Regler** übersteuert **nur** den Chip im Seitenkopf. Frage-Ausschnitt
+  und festgezurrte MA-Identität gewinnen weiter, und die Kopfzeile beschriftet
+  immer den **effektiven** Modus. Der Wert `'meine'` braucht das eigene Kürzel —
+  gelesen über `useBearbeiterSicht().eigenerModus`, **nie** `useMeinKuerzel` im
+  Widget: die Personen-Achsen-Reißleine verbietet es dort (Pitfall #48).
+- **Zeilenhöhe 21,84 → 16,00 px** (gemessen am echten Bestand). Ursache war nicht
+  die Schriftgröße, sondern `items-baseline`: über drei Schriftgrößen ist die
+  Zeilenhöhe die **Vereinigung** aller Über- und Unterlängen. `items-center` +
+  fester `leading-[16px]` macht daraus eine berechenbare Zeile. Dazu: die
+  `Tooltip`-Hüllen sind eigene Flex-Items und erben die Schriftgröße — steht sie
+  nur an den Kindern, bläht eine leere 21,6-px-Zeilenbox die Zeile auf.
 
 ## Startseite anpassen (v4.7, Handoff `_design/handoff/homepage-anpassen`)
 

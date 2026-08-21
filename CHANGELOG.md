@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v6.1.0 — Nachtlauf-Widget: Regler, kompakte Zeilen, Tooltip je Kuerzel (August 2026)
+
+MINOR — Die Karte zeigte Kürzel wie `D_AB` und `STATUS_TV` — das eigentlich Erklärungsbedürftige — kommentarlos, während ein Sammel-Tooltip an der Zeile Aktenzeichen und Unschärfe in eine Blase warf. Zugleich war jede Größe fest verdrahtet: ein Lauf, zehn Zeilen, drei Kürzel, feste Sortierung. Und jede Zeile war 5,8 px höher als nötig, weil `items-baseline` über drei Schriftgrößen die Über- und Unterlängen vereinigt.
+
+- **Jedes Kürzel erklärt sich selbst**: Klartext aus dem Status-Katalog plus seine Journal-Einträge (Datum bzw. Zeitraum, alter → neuer Wert); auch „+N" nennt das Weggelassene namentlich und die Tilde ihren Grund ([NachtlaufWidget.tsx](src/plugins/home/widgets/NachtlaufWidget.tsx))
+- **Sechs Regler** — Zeitraum, Vorgänge, Kürzel je Zeile, Reihenfolge, Ausschnitt, Fußzeilen ([NachtlaufConfigForm.tsx](src/plugins/home/widgets/NachtlaufConfigForm.tsx), Config-Schema v3 → v4 mit `migriereV3NachtlaufConfig`)
+- **Zeitfenster über mehrere Exporte** statt nur des letzten Laufs — bewusst ohne dessen Rückfall auf frühere Läufe ([lesen.ts](src/core/status/journal/lesen.ts) `nachtLaeufeSeit`)
+- **Zeilenhöhe 21,84 → 16,00 px** (36 % mehr Zeilen ohne Scrollen), gemessen am echten Bestand; Ursache war die Baseline-Ausrichtung, nicht die Schriftgröße
+- **Das Anzeige-Modell trägt Segmente statt eines Satzes** und teilt den Wortlaut aller Journal-Ansichten ([nachtlaufGruppen.ts](src/plugins/home/widgets/nachtlaufGruppen.ts), zusätzlich in der Personen-Achsen-Reißleine)
+
 ### v6.0.0 — Modellwahl als Rolle: ein Modellwechsel der internen KI kostet keinen Ausfall mehr (August 2026)
 
 MAJOR — Die interne KI wird von Kollegen betrieben und tauscht ihre Modelle nach ihrem eigenen Fahrplan. Solange der Modellname an ~50 Codestellen hing, war jeder ihrer Wechsel ein **Ausfall bei uns**: die Options-Regel fand nichts mehr, der Lauf brach ab — und weil der Auto-Wechsel bei großen Dokumenten genau dieses Modell ansteuert, hörte ausgerechnet die Arbeit mit großen Anträgen auf zu funktionieren, an einem Tag, den wir nicht bestimmen. Die Achse heißt jetzt nach der **Rolle**, nicht nach dem Modell.

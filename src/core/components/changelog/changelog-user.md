@@ -19,6 +19,16 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v6.1 — 2026-08
+
+### Neu
+- In „Änderungen der letzten Nacht" erklärt sich jedes Kürzel selbst: Zeigen Sie mit der Maus auf `D_AB` oder `STATUS_TV`, und Sie sehen den Klartext dazu, wann es gesetzt wurde und welcher Wert vorher stand. Auch das „+2" verrät, welche Kürzel es verbirgt.
+- Die Tilde `~` am rechten Rand hat jetzt eine Erklärung: Sie heißt, dass zwischen zwei Exporten mehrere Tage lagen — der genaue Tag der Änderung ist dann nicht belegt, nur der Zeitraum.
+- Die Karte lässt sich einstellen (⋯ → Widget-Einstellungen): Zeitraum (letzter Lauf oder die letzten 3, 7, 14 Tage), wie viele Vorgänge und Kürzel je Zeile, Reihenfolge, welche Vorgänge, und ob die erklärenden Fußzeilen mitlaufen.
+
+### Verbesserungen
+- Die Zeilen der Karte sind deutlich flacher — bei gleicher Höhe passen rund ein Drittel mehr Vorgänge hinein, ohne zu scrollen.
+
 ## v6.0 — 2026-08
 
 ### Bitte einmal neu einrichten

@@ -1124,6 +1124,10 @@ describe('journal-ohne-personen-achse (Pitfall #48)', () => {
   const JOURNAL = 'src/core/status/journal/';
   const ANSICHTEN = [
     'src/plugins/home/widgets/NachtlaufWidget.tsx',
+    // Das Anzeige-Modell der Karte: es faltet die Einträge zu Zeilen und
+    // entscheidet damit, wonach gruppiert wird. Eine Personen-Achse entstünde
+    // hier, nicht erst in der Komponente.
+    'src/plugins/home/widgets/nachtlaufGruppen.ts',
     'src/plugins/antraege/status/JournalVerlauf.tsx',
     // Dieselbe Quelle eine Ebene höher: die Historie am Verbund faltet die
     // Chroniken seiner Teilvorhaben. Sie steht hier, weil die Regel sonst genau

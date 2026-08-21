@@ -22,6 +22,7 @@ import {
   leseHomeWidgetConfig,
   loadHomeWidgets,
   migriereV2NachtlaufAnsEnde,
+  migriereV3NachtlaufConfig,
   moveInstanz,
   reconcileVerfuegbareWidgets,
   saveHomeWidgets,
@@ -55,7 +56,7 @@ function cfgMit(updatedAt: string, marker: string): HomeWidgetConfig {
 describe('defaultHomeWidgetConfig — v2 (Home optimiert)', () => {
   it('bildet Reihenfolge, Bereiche und Sichtbarkeit ab — OHNE weitermachen (Hero-Band)', () => {
     const cfg = defaultHomeWidgetConfig();
-    expect(cfg.version).toBe(3);
+    expect(cfg.version).toBe(4);
     const sortiert = sortiereInstanzen(cfg.widgets);
     // weitermachen ist nicht mehr im Default — das Hero-Band ersetzt es.
     expect(sortiert.map(w => w.typ)).toEqual([
@@ -98,7 +99,7 @@ describe('leseHomeWidgetConfig — toleranter Read + v1→v2-Migration', () => {
   });
 
   it('verwirft unbekannte Versionen (Migrations-Einstieg: nie raten)', () => {
-    expect(leseHomeWidgetConfig({ version: 4, updatedAt: 'x', widgets: [] })).toBeNull();
+    expect(leseHomeWidgetConfig({ version: 5, updatedAt: 'x', widgets: [] })).toBeNull();
     expect(leseHomeWidgetConfig({ version: 0, updatedAt: 'x', widgets: [] })).toBeNull();
   });
 
@@ -107,7 +108,7 @@ describe('leseHomeWidgetConfig — toleranter Read + v1→v2-Migration', () => {
     // Lesen den bisherigen Zustand „alles an" (kein Versions-Bump).
     const gelesen = leseHomeWidgetConfig({ version: 2, updatedAt: 'x', widgets: [] });
     expect(gelesen).toEqual({
-      version: 3,
+      version: 4,
       updatedAt: 'x',
       widgets: [],
       hero: {
@@ -124,7 +125,7 @@ describe('leseHomeWidgetConfig — toleranter Read + v1→v2-Migration', () => {
       updatedAt: '2026-01-01T00:00:00.000Z',
       widgets: [valide, { id: 'kaputt' }, 42],
     });
-    expect(gelesen?.version).toBe(3);
+    expect(gelesen?.version).toBe(4);
     expect(gelesen?.widgets).toEqual([valide]);
   });
 
@@ -140,7 +141,7 @@ describe('leseHomeWidgetConfig — toleranter Read + v1→v2-Migration', () => {
     const gelesen = leseHomeWidgetConfig({
       version: 1, updatedAt: '2026-01-01T00:00:00.000Z', widgets: [weiter, meine],
     });
-    expect(gelesen?.version).toBe(3);
+    expect(gelesen?.version).toBe(4);
     // weitermachen ausgeblendet, sonst unverändert; andere Widgets unberührt.
     expect(gelesen?.widgets.find(w => w.typ === 'weitermachen')?.sichtbar).toBe(false);
     expect(gelesen?.widgets.find(w => w.typ === 'meine-antraege')?.sichtbar).toBe(true);
@@ -156,7 +157,7 @@ describe('leseHomeWidgetConfig — toleranter Read + v1→v2-Migration', () => {
       updatedAt: '2026-01-01T00:00:00.000Z',
       widgets: [instanz('meine-antraege', 0), instanz('nachtlauf', 1), instanz('fristen', 2)],
     });
-    expect(gelesen?.version).toBe(3);
+    expect(gelesen?.version).toBe(4);
     expect(gelesen?.widgets.map(w => w.typ).sort()).toEqual(['fristen', 'meine-antraege', 'nachtlauf']);
     const nacht = gelesen?.widgets.find(w => w.typ === 'nachtlauf')!;
     const andere = gelesen!.widgets.filter(w => w.typ !== 'nachtlauf');
@@ -176,6 +177,36 @@ describe('leseHomeWidgetConfig — toleranter Read + v1→v2-Migration', () => {
     expect(gelesen?.widgets.find(w => w.typ === 'nachtlauf')?.position).toBe(0);
   });
 
+  it('v3 → v4: die Nachtlauf-Instanz bekommt ihre Detail-Config', () => {
+    // Ohne diesen Schritt bliebe `hatWidgetDetailConfig` für gewachsene Configs
+    // false — der Menü-Eintrag „Widget-Einstellungen" erschiene ausgerechnet
+    // bei denen nie, die das Widget schon benutzen. `reconcile` hilft nicht: es
+    // ergänzt fehlende TYPEN, nicht fehlende FELDER.
+    const gelesen = leseHomeWidgetConfig({
+      version: 3,
+      updatedAt: '2026-01-01T00:00:00.000Z',
+      widgets: [{
+        id: 'w-nachtlauf', typ: 'nachtlauf', position: 0, bereich: 'haupt',
+        sichtbar: true, eingeklappt: true, config: { art: 'keine' },
+      }],
+    });
+    const cfg = gelesen?.widgets[0]?.config;
+    expect(cfg?.art).toBe('nachtlauf');
+    expect(cfg).toMatchObject({ maxZeilen: 10, rueckblickTage: 0, ausschnitt: 'chip' });
+  });
+
+  it('v3 → v4: eine schon eingestellte Instanz bleibt unangetastet', () => {
+    const eigen = {
+      art: 'nachtlauf', maxZeilen: 3, rueckblickTage: 7, maxKuerzel: 8,
+      sortierung: 'label', fusszeilen: false, ausschnitt: 'alle',
+    };
+    const nach = migriereV3NachtlaufConfig([{
+      id: 'w-nachtlauf', typ: 'nachtlauf', position: 0, bereich: 'haupt',
+      sichtbar: true, eingeklappt: false, config: eigen,
+    } as never]);
+    expect(nach[0]?.config).toEqual(eigen);
+  });
+
   it('v1 → v2: eine bereits ausgeblendete weitermachen-Instanz bleibt (idempotent)', () => {
     const weiter = {
       id: 'w-weitermachen', typ: 'weitermachen', position: 0, bereich: 'haupt',
@@ -192,7 +223,7 @@ describe('loadHomeWidgets — LWW kv vs. PersonalEinstellungen-Mirror', () => {
   it('ohne Daten: Default (v2) — weitermachen als Opt-in (sichtbar:false) nachgezogen', async () => {
     const idb = await frischeIdb();
     const cfg = await loadHomeWidgets(idb);
-    expect(cfg.version).toBe(3);
+    expect(cfg.version).toBe(4);
     // meine-antraege ist sichtbar; weitermachen wird per reconcile als Opt-in
     // (sichtbar:false) ergänzt — der Hero zeigt „Weitermachen" prominent.
     expect(cfg.widgets.find(w => w.typ === 'meine-antraege')?.sichtbar).toBe(true);

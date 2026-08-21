@@ -325,6 +325,72 @@ export interface NachtLauf {
   ersatzFuer?: { stempel: string; datum: string };
 }
 
+/** Ein Zeitfenster über MEHRERE Exporte — die Alternative zum einen Nachtlauf. */
+export interface NachtFenster {
+  journalAb: string;
+  /**
+   * Ab welchem Tag gelesen wurde (einschließlich), geklemmt auf den Nullpunkt.
+   * Das ist die **Zusage** des Fensters, nicht der erste gefundene Lauf: „in
+   * diesem Zeitraum wurde vollständig nachgesehen".
+   */
+  vonDatum: string;
+  /** Bis wann gelesen wurde (einschließlich) — der Stichtag. */
+  bisDatum: string;
+  eintraege: JournalEintrag[];
+  /** Die Exporte, die im Fenster Einträge trugen — jüngster zuerst. */
+  laeufe: { stempel: string; datum: string }[];
+}
+
+/** ISO-Tag minus n Tage, wieder als ISO-Tag. `''` bei unlesbarer Eingabe. */
+function tageVor(isoTag: string, n: number): string {
+  const t = Date.parse(`${isoTag.slice(0, 10)}T00:00:00Z`);
+  if (Number.isNaN(t)) return '';
+  return new Date(t - n * MS_TAG).toISOString().slice(0, 10);
+}
+
+/**
+ * Alle Änderungen der letzten `tage` Tage — die Mehr-Lauf-Sicht des
+ * Nachtlauf-Widgets.
+ *
+ * `tage` zählt **einschließlich heute**: `3` heißt heute, gestern, vorgestern.
+ *
+ * **Kein Rückfall auf einen früheren Lauf.** {@link letzterNachtLauf} greift
+ * bewusst weiter zurück, wenn der jüngste Export nichts brachte — es zeigt „den
+ * letzten Lauf", und ein leerer wäre keine Antwort. Ein Fenster macht dagegen
+ * eine Zusage über einen ZEITRAUM; heimlich davor zu greifen würde sie brechen.
+ * Ein leeres Fenster ist hier ein gültiges Ergebnis und wird als solches
+ * angezeigt.
+ *
+ * `null`, wenn es (noch) kein Journal gibt — dieselbe Aussage wie überall sonst
+ * in diesem Modul, und eine andere als „nichts gefunden".
+ */
+export async function nachtLaeufeSeit(
+  idb: IDBStore, tage: number, heuteIso: string,
+): Promise<NachtFenster | null> {
+  const stand = await frischerStand(idb);
+  if (!stand) return null;
+  const bisDatum = heuteIso.slice(0, 10);
+  const gewuenscht = tageVor(bisDatum, Math.max(1, Math.round(tage)) - 1);
+  // Vor dem Nullpunkt gibt es nichts — das Fenster darf nicht mehr versprechen,
+  // als das Journal hergibt.
+  const vonDatum = gewuenscht > stand.journalAb ? gewuenscht : stand.journalAb;
+
+  const eintraege: JournalEintrag[] = [];
+  const proStempel = new Map<string, string>();
+  for (const monat of monateZwischen(vonDatum, bisDatum)) {
+    for (const e of await ladeMonat(idb, monat)) {
+      if (e.datum < vonDatum || e.datum > bisDatum) continue;
+      eintraege.push(e);
+      if (!proStempel.has(e.stempel)) proStempel.set(e.stempel, e.datum);
+    }
+  }
+  const laeufe = [...proStempel.entries()]
+    .map(([stempel, datum]) => ({ stempel, datum }))
+    .sort((a, b) => b.datum.localeCompare(a.datum));
+
+  return { journalAb: stand.journalAb, vonDatum, bisDatum, eintraege, laeufe };
+}
+
 /** Wie viele Monatsdateien rückwärts nach einem Lauf mit Einträgen gesucht wird. */
 const ERSATZ_MONATE = 2;
 

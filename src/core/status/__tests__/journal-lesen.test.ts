@@ -27,7 +27,8 @@ vi.mock('@/core/status/sidecar-datei', async (echt) => {
 });
 
 const {
-  chronikFuerAntrag, letzterNachtLauf, letzteAenderungJeAntrag, leereJournalCache,
+  chronikFuerAntrag, letzterNachtLauf, nachtLaeufeSeit, letzteAenderungJeAntrag,
+  leereJournalCache,
   bewerteAlter, journalFrische, JOURNAL_FRISCHE_WARNUNG_TAGE,
 } = await import('@/core/status/journal/lesen');
 const { pruefeStillstand } = await import('@/core/status/waechter');
@@ -119,6 +120,57 @@ describe('Letzter Nachtlauf', () => {
     expect(l?.stempel).toBe('s9');
     expect(l?.eintraege).toEqual([]);
     expect(l?.ersatzFuer).toBeUndefined();
+  });
+});
+
+describe('Zeitfenster über mehrere Läufe', () => {
+  it('sammelt alle Läufe im Fenster, jüngster zuerst', async () => {
+    const f = await nachtLaeufeSeit(IDB, 7, '2026-08-06');
+    expect(f?.laeufe).toEqual([
+      { stempel: 's2', datum: '2026-08-05' },
+      { stempel: 's1', datum: '2026-08-02' },
+    ]);
+    // Entdoppelt wie überall: die vier Zeilen tragen eine Dublette.
+    expect(f?.eintraege).toHaveLength(3);
+  });
+
+  it('zählt einschließlich heute: 2 Tage sind heute und gestern', async () => {
+    const f = await nachtLaeufeSeit(IDB, 2, '2026-08-06');
+    expect(f?.vonDatum).toBe('2026-08-05');
+    expect(f?.laeufe.map(l => l.stempel)).toEqual(['s2']);
+    expect(f?.eintraege).toHaveLength(2);
+  });
+
+  it('klemmt auf den Nullpunkt — das Fenster verspricht nie mehr als das Journal hat', async () => {
+    const f = await nachtLaeufeSeit(IDB, 60, '2026-08-06');
+    expect(f?.vonDatum).toBe('2026-08-01');
+    expect(f?.journalAb).toBe('2026-08-01');
+  });
+
+  it('greift NICHT vor das Fenster zurück, wenn nichts drin steht', async () => {
+    // Anders als `letzterNachtLauf`: das Fenster macht eine Zusage über einen
+    // Zeitraum, und ein heimlicher Griff davor würde sie brechen.
+    const f = await nachtLaeufeSeit(IDB, 1, '2026-08-10');
+    expect(f).not.toBeNull();
+    expect(f?.eintraege).toEqual([]);
+    expect(f?.laeufe).toEqual([]);
+    expect(f?.vonDatum).toBe('2026-08-10');
+  });
+
+  it('liest über den Monatswechsel hinweg', async () => {
+    share.stand = { ...share.stand!, journalAb: '2026-07-01' };
+    share.dateien['_intern/vorgangssystem/journal/journal-2026-07.jsonl'] =
+      z({ stempel: 's0', antragId: 'A3', art: 'gesetzt', feld: 'D_AB', nach: 20260730, datum: '2026-07-30' });
+    leereJournalCache();
+    const f = await nachtLaeufeSeit(IDB, 10, '2026-08-06');
+    expect(f?.vonDatum).toBe('2026-07-28');
+    expect(f?.laeufe.map(l => l.stempel)).toEqual(['s2', 's1', 's0']);
+  });
+
+  it('ohne Journal null — „noch keines" ist etwas anderes als „nichts gefunden"', async () => {
+    share.stand = null;
+    leereJournalCache();
+    expect(await nachtLaeufeSeit(IDB, 7, '2026-08-06')).toBeNull();
   });
 });
 

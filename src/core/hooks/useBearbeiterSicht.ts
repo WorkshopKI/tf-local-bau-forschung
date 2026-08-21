@@ -88,6 +88,18 @@ export interface BearbeiterSichtErgebnis {
   /** Der anzuwendende Filter-Modus (Sicht bereits eingerechnet). */
   mode: BearbeiterFilterMode;
   /**
+   * Der Modus des EIGENEN Kürzels, ohne den Umschalter und ohne den
+   * Frage-Ausschnitt — „meine Anträge", egal was der Chip gerade sagt.
+   *
+   * Für Ansichten, die den Ausschnitt bei sich selbst festlegen dürfen (das
+   * Nachtlauf-Widget kann auf „immer meine" gestellt werden). Sie könnten ihn
+   * sonst nur nachbauen, und das hieße `useMeinKuerzel` an Orten aufzurufen, an
+   * denen die Personen-Achsen-Reißleine des Journals ihn ausdrücklich verbietet
+   * (Pitfall #48). **Ersetzt {@link mode} nicht**: wer keinen eigenen Grund hat,
+   * nimmt weiter den fertigen Modus.
+   */
+  eigenerModus: BearbeiterFilterMode;
+  /**
    * Kommt der Ausschnitt aus einer Frage statt aus dem Profil?
    *
    * Der Chip muss das sagen und den Rückweg anbieten — ein Ausschnitt auf ein
@@ -144,6 +156,7 @@ export function useBearbeiterSicht(): BearbeiterSichtErgebnis {
       kannUmschalten,
       ausFrage,
       mode: mode.active ? { ...mode, anzeigeTokens: anzeige(mode.tokens) } : mode,
+      eigenerModus: eigen.active ? { ...eigen, anzeigeTokens: anzeige(eigen.tokens) } : eigen,
       eigeneTokens: anzeige(eigen.tokens),
       setSicht,
     };

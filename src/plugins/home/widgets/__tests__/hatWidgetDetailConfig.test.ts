@@ -1,8 +1,8 @@
 /**
  * `hatWidgetDetailConfig` ist die EINZIGE Wahrheit dafür, ob ein Widget ein
  * Detail-Formular (Menü-Eintrag „Widget-Einstellungen" + aufklappbare
- * Einstellungs-Zeile) hat. Nur Kanban + Ampel; alle anderen Typen bekommen
- * beides nicht.
+ * Einstellungs-Zeile) hat. Nur Kanban, Ampel und „Änderungen der letzten Nacht"
+ * (v4.135); alle anderen Typen bekommen beides nicht.
  *
  * Zusätzlich Source-Scan-Guards: das Widget-Menü zeigt den Eintrag NUR über
  * dieses Prädikat, und die Einstellungs-Sektion nutzt DIESELBE Funktion. Bis
@@ -23,6 +23,10 @@ const KANBAN_FEEDBACK: WidgetSpezifischeConfig = {
 const AMPEL: WidgetSpezifischeConfig = {
   art: 'ampel', warnschwelleTage: 30, kritischSchwelleTage: 90, zeilenKlickbar: true,
 };
+const NACHTLAUF: WidgetSpezifischeConfig = {
+  art: 'nachtlauf', maxZeilen: 10, rueckblickTage: 0, maxKuerzel: 3,
+  sortierung: 'anzahl', fusszeilen: true, ausschnitt: 'chip',
+};
 const OHNE: WidgetSpezifischeConfig[] = [
   { art: 'notizen' },
   { art: 'feedback-news', maxEintraege: 3 },
@@ -33,10 +37,11 @@ const OHNE: WidgetSpezifischeConfig[] = [
 ];
 
 describe('hatWidgetDetailConfig', () => {
-  it('true für Kanban (beide Quellen) und Ampel', () => {
+  it('true für Kanban (beide Quellen), Ampel und Nachtlauf', () => {
     expect(hatWidgetDetailConfig(KANBAN_ANTRAEGE)).toBe(true);
     expect(hatWidgetDetailConfig(KANBAN_FEEDBACK)).toBe(true);
     expect(hatWidgetDetailConfig(AMPEL)).toBe(true);
+    expect(hatWidgetDetailConfig(NACHTLAUF)).toBe(true);
   });
 
   it('false für alle Widgets ohne Regler', () => {

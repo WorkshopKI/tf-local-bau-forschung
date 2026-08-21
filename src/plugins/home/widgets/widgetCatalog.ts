@@ -237,7 +237,18 @@ export const WIDGET_KATALOG: Record<WidgetTyp, WidgetKatalogEintrag> = {
     defaultEingeklappt: true,
     // An das Import-Diff-Journal gebunden; ohne Vorgangssystem entsteht keines.
     sichtbarWenn: () => isVorgangssystemEnabled(),
-    defaultConfig: KEINE,
+    // Der Auslieferungszustand ist exakt das Verhalten vor v4.135: ein Lauf,
+    // zehn Zeilen, drei Kürzel, Ausschnitt aus dem Chip. Die Regler ändern
+    // nichts, bis jemand sie anfasst.
+    defaultConfig: () => ({
+      art: 'nachtlauf',
+      maxZeilen: 10,
+      rueckblickTage: 0,
+      maxKuerzel: 3,
+      sortierung: 'anzahl',
+      fusszeilen: true,
+      ausschnitt: 'chip',
+    }),
   },
   'haengt-fest': {
     typ: 'haengt-fest',

@@ -4,6 +4,11 @@
  * (WidgetsSettingsSection). `kontext` blendet nur ein/aus, dupliziert nie
  * Logik: das Popover zeigt die Schnellanpassung (Lanes/Spalten/Farbmodus bzw.
  * Schwellen), die Einstellungen zusätzlich Quelle + Datenbasis.
+ *
+ * Der Dispatcher hier ist die eine Wahrheit darüber, WELCHES Formular ein Typ
+ * bekommt (und muss zu `hatWidgetDetailConfig` in `./types` passen). Das
+ * Nachtlauf-Formular liegt in einer eigenen Datei — es hat sechs Regler aus drei
+ * Richtungen und hätte diese Datei über die Kohäsionsgrenze getragen.
  */
 import { useEffect, useState } from 'react';
 import {
@@ -28,6 +33,7 @@ import { KATEGORIE_REIHENFOLGE, getStatusCategoryLabel } from '@/core/utils/stat
 // `FeedbackPanel` mit, das `@/plugins.config` laedt — und die Plugin-Config fuehrt
 // ueber die Einstellungen zurueck hierher. `constants.ts` ist reines Datenmodul.
 import { STATUS_LABELS, STATUS_LANE_ACCENT } from '@/components/feedback/constants';
+import { NachtlaufConfigForm } from './NachtlaufConfigForm';
 import { KANBAN_LANE_ACCENT } from './kanbanLanes';
 import { FEEDBACK_LANE_STATUS, wechsleKanbanQuelle } from './feedbackKanbanLanes';
 import type {
@@ -60,6 +66,9 @@ export function WidgetConfigForm({ instanz, kontext, onUpdateConfig }: WidgetCon
   }
   if (cfg.art === 'ampel') {
     return <AmpelConfigForm cfg={cfg} onUpdate={onUpdateConfig} />;
+  }
+  if (cfg.art === 'nachtlauf') {
+    return <NachtlaufConfigForm cfg={cfg} onUpdate={onUpdateConfig} />;
   }
   return (
     <p className="text-[12px] text-[var(--tf-text-tertiary)]">

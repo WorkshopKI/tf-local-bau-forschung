@@ -55,7 +55,7 @@ export const useHomeWidgetsStore = create<HomeWidgetsState>((set, get) => ({
     if (!aktuell) return;
     const next: HomeWidgetConfig = {
       ...mutator(aktuell),
-      version: 3,
+      version: 4,
       updatedAt: new Date().toISOString(),
     };
     set({ config: next });

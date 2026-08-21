@@ -26,8 +26,12 @@ export interface HomeWidgetConfig {
    *   seiner Spalte. Es ist eine Nachschlage-Karte, keine Arbeitsliste — sie
    *   stand zwischen den Karten, die die Arbeit des Tages tragen. Einmalig,
    *   nicht als Pin: wer sie danach nach oben holt, behält sie dort.
+   * - **v4** (v4.135): „Änderungen der letzten Nacht" bekommt Regler und damit
+   *   eine eigene Detail-Config. Bestands-Instanzen tragen `{ art: 'keine' }`
+   *   und bekämen ohne diesen Schritt nie ein Formular — `reconcile` ergänzt
+   *   nur fehlende TYPEN, nicht fehlende Felder (s. `migriereV3NachtlaufConfig`).
    */
-  version: 3;
+  version: 4;
   /** ISO-Zeitstempel — Last-Writer-Wins analog PersonalEinstellungen. */
   updatedAt: string;
   widgets: WidgetInstanz[];
@@ -234,6 +238,41 @@ export interface RegistryAenderungenWidgetConfig {
   maxEintraege: number;
 }
 
+/** Wonach „Änderungen der letzten Nacht" seine Zeilen ordnet. */
+export type NachtlaufSortierung = 'anzahl' | 'label';
+
+/**
+ * Woher „Änderungen der letzten Nacht" seinen Bearbeiter-Ausschnitt nimmt.
+ *
+ * `'chip'` folgt dem Umschalter im Seitenkopf (wie Liste und Kanban). Die beiden
+ * anderen übersteuern **nur diesen Umschalter** — ein Ausschnitt aus einer Frage
+ * und eine festgezurrte MA-Identität gewinnen weiterhin, sonst machte eine
+ * Widget-Einstellung den Bestand auf, den die Anmeldung zugeschnitten hat.
+ */
+export type NachtlaufAusschnitt = 'chip' | 'meine' | 'alle';
+
+/**
+ * „Änderungen der letzten Nacht" (v4.135).
+ *
+ * `rueckblickTage: 0` ist der Auslieferungszustand und heißt „genau ein Lauf" —
+ * inklusive des Rückfalls auf den letzten Export MIT Änderungen. Jeder Wert > 0
+ * schaltet auf ein Zeitfenster um, das diesen Rückfall bewusst NICHT hat
+ * (`nachtLaeufeSeit`).
+ */
+export interface NachtlaufWidgetConfig {
+  art: 'nachtlauf';
+  /** Max. angezeigte Vorgangs-Zeilen, danach „… und N weitere". Default 10. */
+  maxZeilen: number;
+  /** 0 = nur der letzte Lauf (Default), sonst die letzten N Tage inkl. heute. */
+  rueckblickTage: number;
+  /** Feldnamen je Art in einer Zeile, danach „+N". Default 3. */
+  maxKuerzel: number;
+  sortierung: NachtlaufSortierung;
+  /** Die beiden erklärenden Fußzeilen (Rest-Vorgänge, fremder Anteil). Default true. */
+  fusszeilen: boolean;
+  ausschnitt: NachtlaufAusschnitt;
+}
+
 /** Widgets ohne Detail-Config (Weitermachen, Meine Anträge, AI-Assistent, …). */
 export interface LeereWidgetConfig {
   art: 'keine';
@@ -247,19 +286,21 @@ export type WidgetSpezifischeConfig =
   | AuslastungWidgetConfig
   | QsFreigabenWidgetConfig
   | RegistryAenderungenWidgetConfig
+  | NachtlaufWidgetConfig
   | LeereWidgetConfig;
 
 /**
  * EINZIGE Wahrheit: Hat dieses Widget ein Detail-Formular? Nur Typen mit echten
- * Reglern — Kanban (Lanes/Farbe/Quelle) und Ampel (Schwellen). Alle anderen
- * (Weitermachen, Meine Anträge, AI-Assistent, Notizen, Feedback-Neuigkeiten,
- * Auslastung, QS-Freigaben, Registry-Änderungen, Neue Anträge für dich,
- * Status & Verlauf) haben keine Einstellungen.
+ * Reglern — Kanban (Lanes/Farbe/Quelle), Ampel (Schwellen) und „Änderungen der
+ * letzten Nacht" (Umfang/Zeitraum/Ausschnitt). Alle anderen (Weitermachen,
+ * Meine Anträge, AI-Assistent, Notizen, Feedback-Neuigkeiten, Auslastung,
+ * QS-Freigaben, Registry-Änderungen, Neue Anträge für dich, Status & Verlauf)
+ * haben keine Einstellungen.
  *
  * Steuert BEIDES aus einer Quelle: den Stift im Widget-Kopf (WidgetShell — kein
  * Stift ohne Einstellungen) und die aufklappbare Zeile in den Einstellungen
  * (WidgetsSettingsSection). Muss zu den Branches in WidgetConfigForm passen.
  */
 export function hatWidgetDetailConfig(config: WidgetSpezifischeConfig): boolean {
-  return config.art === 'kanban' || config.art === 'ampel';
+  return config.art === 'kanban' || config.art === 'ampel' || config.art === 'nachtlauf';
 }
