@@ -225,22 +225,44 @@ function leiteAb(r: Rohzeile, tvSpalten: readonly string[]): SchrittZeile {
   };
 }
 
+/** Ein Lauf gleicher Phase in der linken Rinne. */
+export interface PhasenGruppe {
+  /** Die Phase des Laufs; `null` = seine Zeilen tragen keine. */
+  phase: ZahPhaseId | null;
+  /** Wie viele Zeilen er umfasst (immer ≥ 1). */
+  laenge: number;
+}
+
 /**
- * Welche Phase in der linken Rinne steht — je Zeile die Phase oder `null`.
+ * Wie sich die Zeilen in der linken Rinne gruppieren — je Zeile die Gruppe, die
+ * bei ihr **beginnt**, sonst `null`.
  *
- * Beschriftet wird nur der **Beginn eines Laufs**: die Gliederung ist eine
+ * Beschriftet wird nur der Beginn eines Laufs: die Gliederung ist eine
  * Randnotiz neben der ersten Zeile ihrer Gruppe, keine eigene Zeile (das war
  * bei 17 Schritten fast ein Drittel der Höhe). Wechselt die Phase zurück, steht
  * sie erneut da — die Matrix sortiert nach Zeit, und die Zeit hält sich nicht
  * an die Reihenfolge des Verfahrens. Sie danach zu gruppieren wäre eine
  * Ordnung, die die Daten nicht hergeben.
+ *
+ * **Warum die Länge dazugehört** (löst `phasenRinne` ab, v4.13x): die Anzeige
+ * setzt die Beschriftung über die ganze Gruppe (`rowSpan`) statt in die erste
+ * Zeile. Sonst bestimmt ein langes Label die Höhe **einer** Zeile — „Marker
+ * (ohne Phase)" bricht in der 84 px schmalen Rinne dreifach um und machte aus
+ * 22 px gemessene 66 px, mitten in einer Liste, die sonst im Raster läuft.
+ * Genau so verhält sich die Chronik: dort steht der Monat neben dem ganzen
+ * Block, nicht neben seinem ersten Termin.
+ *
+ * Zeilen **ohne** Phase bilden eigene Gruppen (`phase: null`) und hängen sich
+ * nicht an die vorige an — sie gehören ihr nicht.
  */
-export function phasenRinne(zeilen: readonly SchrittZeile[]): (ZahPhaseId | null)[] {
-  let letzte: ZahPhaseId | undefined;
-  return zeilen.map(z => {
-    if (z.phase === undefined) { letzte = undefined; return null; }
-    if (z.phase === letzte) return null;
-    letzte = z.phase;
-    return z.phase;
-  });
+export function phasenGruppen(zeilen: readonly SchrittZeile[]): (PhasenGruppe | null)[] {
+  const out: (PhasenGruppe | null)[] = zeilen.map(() => null);
+  let start = 0;
+  for (let i = 1; i <= zeilen.length; i++) {
+    const ende = i === zeilen.length || zeilen[i]?.phase !== zeilen[start]?.phase;
+    if (!ende) continue;
+    out[start] = { phase: zeilen[start]?.phase ?? null, laenge: i - start };
+    start = i;
+  }
+  return out;
 }

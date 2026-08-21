@@ -169,8 +169,39 @@ export function StatusDetailSection({ verbundId, statusRoh }: {
           </span>
         )}
         {isVorgangssystemEnabled() && (
-          <HerleitungPopover verbundId={verbundId} statusRoh={statusRoh} ebene="verbund" />
+          <HerleitungPopover
+            verbundId={verbundId} statusRoh={statusRoh} ebene="verbund"
+            umfang={(
+              <VerlaufKennzahlenZeile
+                teil="umfang"
+                kennzahlen={kennzahlen}
+                {...(kennzahlen.datumsangaben === kennzahlenGesamt.datumsangaben
+                  ? {} : { gesamt: kennzahlenGesamt })}
+              />
+            )}
+          />
         )}
+        {/* Der Rest der Kennzahlen steht in der Kopfzeile und NICHT im Rumpf:
+            so sagt auch die zugeklappte Zeile, über welchen Zeitraum dieser
+            Vorgang läuft und ob Kürzel fehlen. Der Umfang (Schritte,
+            Datumsangaben) steht im ⓘ daneben — er beantwortet dieselbe Frage
+            wie die Zahlen an den Filter-Chips eine Zeile tiefer. */}
+        <VerlaufKennzahlenZeile
+          teil="ohneUmfang"
+          kennzahlen={kennzahlen}
+          // Nur wo der Schalter auch wirkt (siehe `luecken` an der Filterleiste) —
+          // sonst stünde hier ein toter Link, den der eigene Prop-Kommentar der
+          // Kennzahlen-Zeile als gebrochenes Versprechen bezeichnet.
+          {...(ansicht === 'band' ? {} : {
+            onLuecken: () => {
+              // Zugeklappt wäre der Filter unsichtbar — erst aufklappen, dann
+              // setzen. Dieselbe Regel wie bei `luecken` oben: kein Schalter,
+              // dessen Wirkung man nicht sieht.
+              if (!open) toggleOpen();
+              filter.setzeNurLuecken(!filter.nurLuecken);
+            },
+          })}
+        />
       </div>
 
       {/* Der Rumpf trägt den Abstand seiner Blöcke als `gap`, nicht als `mt-5` an
@@ -187,18 +218,6 @@ export function StatusDetailSection({ verbundId, statusRoh }: {
           Installation nichts mitgeschrieben hatte), ihr Name auf die Bahn
           übergegangen. Den Wert mitzubenennen hieße, jede gespeicherte Wahl zu
           migrieren, ohne dass ein Nutzer davon etwas sähe. */}
-      {/* Wie groß dieser Vorgang ist — über beiden Ansichten, damit die Zahl
-          nicht zur Eigenschaft einer Darstellung wird. */}
-      <VerlaufKennzahlenZeile
-        kennzahlen={kennzahlen}
-        {...(kennzahlen.datumsangaben === kennzahlenGesamt.datumsangaben
-          ? {} : { gesamt: kennzahlenGesamt })}
-        // Nur wo der Schalter auch wirkt (siehe `luecken` an der Filterleiste) —
-        // sonst stünde hier ein toter Link, den der eigene Prop-Kommentar der
-        // Kennzahlen-Zeile als gebrochenes Versprechen bezeichnet.
-        {...(ansicht === 'band' ? {} : { onLuecken: () => filter.setzeNurLuecken(!filter.nurLuecken) })}
-      />
-
       <div className="flex flex-wrap items-center gap-2">
         {bandAn && (
           <SegmentedToggle
@@ -208,13 +227,21 @@ export function StatusDetailSection({ verbundId, statusRoh }: {
             ariaLabel="Darstellung des Verlaufs"
           />
         )}
-        {/* Zwei Ordnungen auf denselben Terminen: nach Schritt vergleicht die
-            Teilvorhaben, nach Datum erzählt den Hergang. */}
+        {/* Zwei Ordnungen auf denselben Terminen: nach Datum erzählt den
+            Hergang, nach Phase vergleicht die Teilvorhaben. Der Standard steht
+            links — er ist der Normalfall, nicht die Alternative.
+
+            Der Reiter heißt „nach Phase", der gespeicherte Wert dahinter
+            `schritt`: die Ansicht führt eine Zeile je Schritt, gegliedert nach
+            Phase, und die Gliederung ist es, die in der linken Rinne steht —
+            dieselbe Stelle, an der „nach Datum" den Monat trägt. Den Wert
+            mitzubenennen hieße, jede gespeicherte Wahl zu migrieren, ohne dass
+            ein Nutzer davon etwas sähe (dasselbe Argument wie bei `band`). */}
         {ansicht === 'chronik' && (
           <SegmentedToggle
             value={modus}
             onChange={m => prefsApi.setModus(m)}
-            options={[{ id: 'schritt', label: 'nach Schritt' }, { id: 'datum', label: 'nach Datum' }]}
+            options={[{ id: 'datum', label: 'nach Datum' }, { id: 'schritt', label: 'nach Phase' }]}
             ariaLabel="Ordnung der Chronik"
           />
         )}

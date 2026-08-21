@@ -315,8 +315,8 @@ export {
   type VerlaufZeile, type ZurueckgenommenerTermin,
 } from './chronik-zurueckgenommen';
 export {
-  baueSchrittMatrix, baueSpalten, phasenRinne, tvAchse,
-  type MatrixSpalte, type MatrixZelle, type SchrittZeile, type TvAchse,
+  baueSchrittMatrix, baueSpalten, phasenGruppen, tvAchse,
+  type MatrixSpalte, type MatrixZelle, type PhasenGruppe, type SchrittZeile, type TvAchse,
 } from './chronik-matrix';
 export {
   verlaufKennzahlen, zellenJeEintrag, type VerlaufKennzahlen,

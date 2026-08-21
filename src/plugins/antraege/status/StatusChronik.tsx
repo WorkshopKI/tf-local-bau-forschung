@@ -75,32 +75,14 @@ import {
 import { formatDatumsWert } from '@/core/services/csv/dateParse';
 import { tagDe, wannText } from './journalTexte';
 import { RollenBadges, TraegerBadges } from './VerlaufBadges';
+import {
+  CODE_SPALTE, RINNE_BLOCK, RINNE_TEXT, ROLLEN_SPALTE, TAG_SPALTE, ZEILE_KLASSE,
+} from './verlaufGeometrie';
 
 /** Ab wann eine Pause eigens benannt wird — ein übersprungener Monat ist Alltag. */
 const LUECKE_AB = 2;
 
 const LEISE = 'text-[var(--tf-text-tertiary)]';
-
-/** Die Tagesspalte — hier steht bei einer Fehlzeile der Gedankenstrich. */
-const TAG_SPALTE = 'w-[42px] shrink-0 font-mono text-[11px]';
-
-/**
- * Die Kürzelspalte. Steht zwischen Datum und Rolle — dieselbe Lesereihenfolge
- * wie im Fachsystem, wo das Kürzel der Bezeichner ist, unter dem das Team einen
- * Eintrag kennt. Die Bezeichnung sagt, WAS passiert ist; das Kürzel sagt, wo im
- * Fachsystem man es wiederfindet.
- *
- * 46 px: der längste Code des Katalogs hat **sechs** Zeichen (`XSPDOK`,
- * `WRWZG+`), gemessen über alle 505.
- */
-const CODE_SPALTE = 'w-[46px] shrink-0 truncate font-mono text-[11px]';
-
-/**
- * Die Rollenspalte — Platz für **drei** Marken. 62 px reichten für zwei, und die
- * dritte schob sich in den Ereignistext (`AB` `FB` `Q`|`S-Freigabe …`); 31 der
- * 506 Codes tragen drei Rollen. Mehr fängt `RollenBadges` mit „+n" ab.
- */
-const ROLLEN_SPALTE = 'w-[76px] shrink-0';
 
 /**
  * Die Linie, die einen Monatsblock vom vorigen trennt — über die **ganze**
@@ -224,7 +206,7 @@ function ZeilenRahmen({ meins, imFokus, onKlick, punkt, children }: {
       >
         {punkt}
       </span>
-      <div className="flex items-baseline gap-2 leading-[19px]">{children}</div>
+      <div className={`flex items-baseline gap-2 ${ZEILE_KLASSE}`}>{children}</div>
     </li>
   );
 }
@@ -678,8 +660,8 @@ export function StatusChronik({
             const luecke = vorheriger === undefined ? 0 : monateDazwischen(vorheriger, m.monat);
             return (
               <div key={m.monat} className={`flex ${MONATS_TRENNER}`}>
-                <div className="w-[84px] shrink-0 pr-2 pt-2">
-                  <div className={`text-[11px] font-medium uppercase tracking-wide ${LEISE}`}>
+                <div className={RINNE_BLOCK}>
+                  <div className={`${RINNE_TEXT} ${LEISE}`}>
                     {monatLabel(m.monat)}
                   </div>
                   {luecke >= LUECKE_AB ? (
@@ -741,7 +723,7 @@ export function StatusChronik({
           })}
           {heimatlos.length > 0 && (
             <div className={`flex ${MONATS_TRENNER}`}>
-              <div className={`w-[84px] shrink-0 pr-2 pt-2 text-[11px] font-medium uppercase tracking-wide ${LEISE}`}>
+              <div className={`${RINNE_BLOCK} ${RINNE_TEXT} ${LEISE}`}>
                 ohne Bezug
               </div>
               <ol className="min-w-0 flex-1 border-l border-[var(--tf-border)] pt-2">

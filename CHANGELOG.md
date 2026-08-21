@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v6.5.0 — Status & Verlauf: Kopfzeile entschlackt, beide Ordnungen im selben Raster (August 2026)
+
+MINOR — Vier Zeilen standen über dem Verlauf, bevor er begann, und die Kennzahlen nannten Zahlen, die eine Zeile tiefer ohnehin an den Filter-Chips stehen. Dazu sahen die beiden Ordnungen derselben Termine verschieden aus: 22 px gegen ~35 px Zeilenhöhe, und der Ereignistext sprang beim Umschalten um gut 100 px. Detail: [chronik-und-zeitstrahl.md](docs/status-system/chronik-und-zeitstrahl.md).
+
+- **Die Kennzahlen ziehen in die Titelzeile** (Zeitraum, Zurückgenommenes, fehlende Kürzel-Angaben) und stehen dort auch zugeklappt; der Umfang wandert ins ⓘ neben den Status — ein Bauteil, drei Schnitte ([VerlaufKennzahlenZeile.tsx](src/plugins/antraege/status/VerlaufKennzahlenZeile.tsx), [HerleitungPopover.tsx](src/plugins/antraege/status/HerleitungPopover.tsx))
+- **Der „Alle"-Chip trägt seine Zahl** — die Summe seiner Nachbarn, damit die WO-Reihe aufgeht ([VerlaufFilterLeiste.tsx](src/plugins/antraege/status/VerlaufFilterLeiste.tsx))
+- **„nach Datum" steht links, „nach Schritt" heißt „nach Phase"** — der Standard zuerst, und beide Reiter nennen, was in der linken Rinne steht ([StatusDetailSection.tsx](src/plugins/antraege/status/StatusDetailSection.tsx))
+- **Beide Ordnungen teilen ein Maß**: gemessen gleiche x-Positionen (482/633/687/771) und 22-px-Zeilen, Trennlinie nur am Gruppenwechsel ([verlaufGeometrie.ts](src/plugins/antraege/status/verlaufGeometrie.ts), [StatusSchrittMatrix.tsx](src/plugins/antraege/status/StatusSchrittMatrix.tsx))
+- **`phasenGruppen` löst `phasenRinne` ab**: die Rinne beschriftet per `rowSpan` die ganze Gruppe, sonst machte „Marker (ohne Phase)" aus einer 22-px-Zeile eine von 66 ([chronik-matrix.ts](src/core/status/chronik-matrix.ts))
+
 ### v6.4.2 — Nachtlauf-Widget: Zahlenspalte rueckt nach links, Haarlinie je Verbund (August 2026)
 
 PATCH — Die feste 34-%-Spalte ließ die Zahl über 100 px rechts vom Namen allein stehen: Median-Bezeichnung 77 px, Spalte 185 px. Und über der Leere dazwischen fehlte dem Auge jeder Halt.

@@ -18,7 +18,7 @@ keine Ableitung — es ist belegte Vergangenheit.
 | Ansicht | Ordnung | Bauteil |
 |---|---|---|
 | **Chronik · nach Datum** (Standard) | chronologisch, Monat in der linken Rinne | [StatusChronik.tsx](../../src/plugins/antraege/status/StatusChronik.tsx) |
-| **Chronik · nach Schritt** | eine Zeile je Kürzel, eine Spalte je Träger | [StatusSchrittMatrix.tsx](../../src/plugins/antraege/status/StatusSchrittMatrix.tsx) |
+| **Chronik · nach Phase** | eine Zeile je Kürzel, eine Spalte je Träger; Phase in der linken Rinne | [StatusSchrittMatrix.tsx](../../src/plugins/antraege/status/StatusSchrittMatrix.tsx) |
 | **Zeitstrahl** | waagerechte Bahn je Verbund/TV | [VerlaufsBand.tsx](../../src/plugins/antraege/verlauf-band/VerlaufsBand.tsx) (rahmt) + [BandBahn.tsx](../../src/plugins/antraege/verlauf-band/BandBahn.tsx) (zeichnet) |
 
 Der Standard ist seit v4.61 **nach Datum**. Er war bis dahin die Matrix, und
@@ -28,7 +28,42 @@ Default allein hätte niemanden erreicht, der die Sektion je benutzt hat —
 `mutiere` schreibt das ganze Objekt, also trägt jeder gespeicherte Stand ein
 explizites `modus`. Das Feld `modusGewaehlt` unterscheidet deshalb den Klick auf
 den Schalter von der bloßen Mitschrift ([timelinePrefs.ts](../../src/plugins/antraege/status/timelinePrefs.ts));
-ein Key-Bump hätte `ansicht` und „Nebensächliches" mit zurückgesetzt.
+ein Key-Bump hätte `ansicht` und „Nebensächliches" mit zurückgesetzt. Der
+Standard steht seit v6.5 auch **links** im Umschalter — er ist der Normalfall,
+nicht die Alternative.
+
+Der Reiter heißt „nach Phase", der gespeicherte Wert dahinter `schritt`: die
+Ansicht führt eine Zeile je Schritt, gegliedert nach Phase, und die Gliederung
+ist es, die in der Rinne steht. Den Wert mitzubenennen hieße, jede gespeicherte
+Wahl zu migrieren, ohne dass ein Nutzer davon etwas sähe — dieselbe Begründung
+wie bei `band`/„Zeitstrahl".
+
+### Ein Maß für beide Ordnungen
+
+Wer umschaltet, will eine andere Ordnung sehen, nicht ein anderes Bild. Rinne,
+Kürzel, Rolle und Ereignistext stehen deshalb in beiden Ansichten an denselben
+x-Positionen (gemessen 482 / 633 / 687 / 771 px), die Zeilen sind 22 px hoch, und
+getrennt wird nur am Gruppenwechsel — dort der Monat, hier die Phase. Beim
+Umschalten tauscht nur die rechte Hälfte: Träger-Spalten mit Datum statt Datum
+plus Träger-Marken.
+
+Die Maße liegen **einmal** in
+[verlaufGeometrie.ts](../../src/plugins/antraege/status/verlaufGeometrie.ts); bis
+v6.5 standen sie doppelt (Tailwind-Klassen in der Chronik, px-Konstanten in der
+Matrix) und waren längst auseinandergelaufen — 84 gegen 104 in der Rinne, 46
+gegen 54 beim Kürzel, und der Ereignistext sprang um gut 100 px. Weil Tailwind
+Klassennamen als Literale liest (`w-[${TAG_PX}px]` erzeugt kein CSS), steht jedes
+Maß dort zwangsläufig zweimal — als Zahl und im Klassennamen; ein Test hält die
+beiden zusammen. Drei Eigenheiten der Matrix folgen daraus: `border-separate`
+(nur so liegt die Achsenlinie innerhalb ihrer `<col>`-Breite), Zellen **ohne**
+waagerechtes Polster (sonst ist die `<col>`-Breite nicht mehr die ganze
+Wahrheit), und eine leere zweite Spalte, die den Platz der Tagesspalte hält.
+
+Die Phasen-Beschriftung steht per `rowSpan` über der **ganzen** Gruppe
+(`phasenGruppen`, löst `phasenRinne` ab). Sonst bestimmt ein langes Label die
+Höhe einer einzelnen Zeile: „Marker (ohne Phase)" bricht in der 84 px schmalen
+Rinne dreifach um und machte aus 22 px gemessene 66 px. In der Rinne selbst steht
+dafür „Marker" — der volle Wortlaut im Titel.
 
 Gerechnet wird rein und node-testbar in `src/core/status/`:
 [chronik.ts](../../src/core/status/chronik.ts) (Termine),
@@ -310,15 +345,42 @@ Gewichtung ohne Punkte (Meilenstein-Kürzel akzentfarbig, Ereignis in Medium).
 
 ## Kennzahlen
 
-„**N Schritte · M Datumsangaben** (Verbund + k TV) · Zeitraum · **z
-zurückgenommen** · **j Kürzel nicht gesetzt**". Schritte sind verschiedene
-Felder, Datumsangaben die befüllten Zellen darüber — vier Teilvorhaben mit
-demselben Eingang sind ein Schritt und vier Angaben. Ist gefiltert, steht der
-Nenner dabei („8 von 57").
+Schritte sind verschiedene Felder, Datumsangaben die befüllten Zellen darüber —
+vier Teilvorhaben mit demselben Eingang sind ein Schritt und vier Angaben. Ist
+gefiltert, steht der Nenner dabei („8 von 57").
 
 Weder Lücken noch Zurückgenommenes zählen **in** die Datumsangaben: eine fehlende
 Seite ist kein Termin, und ein zurückgenommener stand einmal in einer Spalte,
 steht aber nicht mehr darin. Beide stehen daneben; die Lücken sind klickbar.
+
+**Ein Bauteil, drei Schnitte** (v6.5,
+[VerlaufKennzahlenZeile.tsx](../../src/plugins/antraege/status/VerlaufKennzahlenZeile.tsx)).
+Bis dahin stand alles in einer eigenen Zeile unter der Überschrift; sie nannte
+Zahlen, die eine Zeile tiefer ohnehin an den Filter-Chips standen.
+
+| Schnitt | Segmente | Wirt |
+|---|---|---|
+| `alles` (Default) | alle | Tabellen-Ausklapp |
+| `umfang` | Schritte · Datumsangaben · (Verbund + k TV) | das ⓘ neben dem Status |
+| `ohneUmfang` | Zeitraum · z zurückgenommen · j fehlende Kürzel-Angaben | die Titelzeile |
+
+Drei Wirte, aber **ein** Wortlaut: wären es drei Bauteile, gäbe es drei Fassungen
+von „(Verbund + 3 TV)" und „8 von 57". Das Trennzeichen `·` gehört zwischen zwei
+Segmente, nicht an eines — fest angeschrieben stünde es im Schnitt `ohneUmfang`
+als führendes Zeichen da.
+
+Der Rest steht in der **Titelzeile** und damit außerhalb des einklappbaren
+Rumpfs: auch zugeklappt sagt die Zeile, über welchen Zeitraum der Vorgang läuft
+und ob Kürzel fehlen. Der Klick auf „j fehlende Kürzel-Angaben" klappt dann
+zuerst auf und setzt danach den Filter — ein Filter, dessen Wirkung man nicht
+sieht, wäre ein gebrochenes Versprechen (dieselbe Regel, aus der die Lücken-Achse
+im Zeitstrahl ganz entfällt).
+
+Die Zahl der Schritte entfällt in der Titelzeile ganz: die WO-Chips darunter
+tragen dieselbe Auskunft, seit der „Alle"-Chip seine Zahl hat. Er war der einzige
+seiner Reihe ohne, und die Reihe rechnete sichtbar nicht auf — jetzt ist er die
+Summe seiner Nachbarn (`Alle 39` = `5 + 12 + 12 + 10`), gegen die Rollenwahl
+gerechnet und ohne die Bereichswahl, genau wie sie.
 
 ## Der Zeitstrahl: drei Etagen je Bahn
 

@@ -83,6 +83,9 @@ export function VerlaufFilterLeiste({
 
   const rollen: Rolle[] = ROLLEN.filter(r => vorhanden[r] > 0);
   const alleBereicheAn = filter.bereiche.size === 0 || filter.bereiche.size >= spalten.length;
+  // Über `spalten`, nicht über alle Werte der Map: gezählt wird, was die Leiste
+  // auch anbietet. Ein Bereich ohne Chip dürfte in seiner Summe nicht stecken.
+  const alleZahl = spalten.reduce((n, s) => n + (proBereich.get(s.id) ?? 0), 0);
 
   return (
     <div className="flex flex-col gap-1.5">
@@ -110,10 +113,16 @@ export function VerlaufFilterLeiste({
 
         <div className="flex flex-wrap items-center gap-1.5">
           <span className={RUBRIK}>Wo</span>
+          {/* Die Summe der Nachbarn, nicht eine zweite Größe: „Alle" war der
+              einzige Chip seiner Reihe ohne Zahl, und die Reihe rechnete
+              sichtbar nicht auf. Gezählt wird wie dort gegen die ROLLEN-Wahl
+              und ohne die Bereichswahl — sonst nennte der Chip mal die Summe,
+              mal den Ausschnitt. */}
           <ToggleChip
             form="marke"
             label="Alle"
             variant="dark"
+            zahl={alleZahl}
             selected={alleBereicheAn}
             onToggle={filter.alleBereiche}
             title="Verbund und alle Teilvorhaben"

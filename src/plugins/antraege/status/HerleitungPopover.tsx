@@ -336,7 +336,9 @@ function Inhalt({ h, ebene, abweichend, weitere, onGanzenVerlauf }: {
  *              Verbund-Status; das Bauteil rät nicht. Die jeweils andere Ebene
  *              liest der Hook selbst aus den geladenen Records.
  */
-export function HerleitungPopover({ verbundId, statusRoh, ebene, aktenzeichen, onGanzenVerlauf }: {
+export function HerleitungPopover({
+  verbundId, statusRoh, ebene, aktenzeichen, onGanzenVerlauf, umfang,
+}: {
   verbundId: string | null;
   statusRoh: unknown;
   ebene: StatusEbene;
@@ -346,6 +348,16 @@ export function HerleitungPopover({ verbundId, statusRoh, ebene, aktenzeichen, o
   /** Öffnet den ausklappbaren Bereich der Tabellenzeile. Ohne die Prop zeigt
    *  das Popover keinen Verweis — auf der Detailseite gäbe es kein Ziel. */
   onGanzenVerlauf?: () => void;
+  /**
+   * Wie groß der Verlauf dieses Vorgangs ist („17 Schritte · 39 Datumsangaben").
+   * Auf der Detailseite steht die Zahl seit v4.13x hier statt in einer eigenen
+   * Zeile unter der Überschrift.
+   *
+   * Bewusst `ReactNode` und nicht `VerlaufKennzahlen`: dasselbe Popover hängt
+   * an jeder Tabellenzeile (`tableColumns.tsx`), und dort gibt es weder eine
+   * Chronik noch ihre Kennzahlen. Ohne die Prop ändert sich dort nichts.
+   */
+  umfang?: React.ReactNode;
 }): React.ReactElement {
   const [offen, setOffen] = useState(false);
   const stand = useHerleitung(verbundId, statusRoh, offen, ebene, aktenzeichen ?? null);
@@ -386,6 +398,17 @@ export function HerleitungPopover({ verbundId, statusRoh, ebene, aktenzeichen, o
               ? { onGanzenVerlauf: () => { setOffen(false); onGanzenVerlauf(); } }
               : {})}
           />
+        )}
+        {/* Der Umfang steht UNTER der Herleitung und außerhalb von `Inhalt`:
+            gefragt wurde nach dem Status, die Größe des Verlaufs ist die
+            Beigabe. Außerhalb, weil er nicht am Ladezustand des Hooks hängt —
+            der Aufrufer hat die Zahl längst, während `useHerleitung` noch
+            nachlädt. */}
+        {umfang !== undefined && (
+          <div className="mt-2 flex items-baseline gap-2 border-t border-[var(--tf-border)] pt-1.5">
+            <span className="text-[11.5px] text-[var(--tf-text-tertiary)]">Verlauf:</span>
+            {umfang}
+          </div>
         )}
       </PopoverContent>
     </Popover>

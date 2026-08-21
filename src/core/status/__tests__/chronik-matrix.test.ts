@@ -8,7 +8,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import {
-  baueSchrittMatrix, baueSpalten, phasenRinne, tvAchse,
+  baueSchrittMatrix, baueSpalten, phasenGruppen, tvAchse,
 } from '@/core/status/chronik-matrix';
 import type { ChronikEintrag } from '@/core/status/chronik';
 import type { OffenesPaarJeTv } from '@/core/status/waechter';
@@ -193,12 +193,17 @@ describe('chronik-matrix — Reihenfolge', () => {
 });
 
 describe('chronik-matrix — Phasen-Rinne', () => {
-  it('beschriftet nur den Beginn eines Laufs', () => {
+  it('beschriftet nur den Beginn eines Laufs — und nennt seine Länge', () => {
     const zeilen = baueSchrittMatrix(
       [e(AAE, '2026-02-24', [TV[0]!]), e(XTE, '2026-03-10'), e(ANF, '2026-04-17', [TV[0]!])],
       [], SPALTEN, fassung([AAE, XTE, ANF]),
     );
-    expect(phasenRinne(zeilen)).toEqual(['eingang', null, 'pruefung']);
+    // Die Länge ist der Grund, aus dem `phasenRinne` abgelöst wurde: die
+    // Beschriftung steht per `rowSpan` über der ganzen Gruppe, sonst bestimmt
+    // ein langes Label die Höhe einer einzelnen Zeile.
+    expect(phasenGruppen(zeilen)).toEqual([
+      { phase: 'eingang', laenge: 2 }, null, { phase: 'pruefung', laenge: 1 },
+    ]);
   });
 
   it('schreibt eine zurückkehrende Phase erneut hin, statt sie zu unterschlagen', () => {
@@ -206,7 +211,11 @@ describe('chronik-matrix — Phasen-Rinne', () => {
       [e(AAE, '2026-02-24', [TV[0]!]), e(ANF, '2026-03-01', [TV[0]!]), e(XTE, '2026-04-01')],
       [], SPALTEN, fassung([AAE, ANF, XTE]),
     );
-    expect(phasenRinne(zeilen)).toEqual(['eingang', 'pruefung', 'eingang']);
+    expect(phasenGruppen(zeilen)).toEqual([
+      { phase: 'eingang', laenge: 1 },
+      { phase: 'pruefung', laenge: 1 },
+      { phase: 'eingang', laenge: 1 },
+    ]);
   });
 
   it('lässt Zeilen ohne gepflegte Phase leer', () => {
@@ -214,7 +223,32 @@ describe('chronik-matrix — Phasen-Rinne', () => {
     const zeilen = baueSchrittMatrix(
       [e(ohne, '2026-02-24', [TV[0]!])], [], SPALTEN, fassung([ohne]),
     );
-    expect(phasenRinne(zeilen)).toEqual([null]);
+    expect(phasenGruppen(zeilen)).toEqual([{ phase: null, laenge: 1 }]);
+  });
+
+  it('hängt Zeilen ohne Phase nicht an die vorige Gruppe an', () => {
+    // Sie gehören ihr nicht — unter einem `rowSpan` der Vorgängerin läsen sie
+    // sich als deren Phase, obwohl das Fachsystem für sie keine führt.
+    const ohne = feld('OHNE');
+    const zeilen = baueSchrittMatrix(
+      [e(AAE, '2026-02-24', [TV[0]!]), e(ohne, '2026-03-01', [TV[0]!])],
+      [], SPALTEN, fassung([AAE, ohne]),
+    );
+    expect(phasenGruppen(zeilen)).toEqual([
+      { phase: 'eingang', laenge: 1 }, { phase: null, laenge: 1 },
+    ]);
+  });
+
+  it('deckt jede Zeile genau einmal ab — die Summe der Läufe ist die Zeilenzahl', () => {
+    const ohne = feld('OHNE');
+    const zeilen = baueSchrittMatrix(
+      [e(AAE, '2026-02-24', [TV[0]!]), e(XTE, '2026-03-10'),
+        e(ohne, '2026-03-20', [TV[0]!]), e(ANF, '2026-04-17', [TV[0]!])],
+      [], SPALTEN, fassung([AAE, XTE, ohne, ANF]),
+    );
+    const gruppen = phasenGruppen(zeilen);
+    const summe = gruppen.reduce((n, g) => n + (g?.laenge ?? 0), 0);
+    expect(summe).toBe(zeilen.length);
   });
 });
 
