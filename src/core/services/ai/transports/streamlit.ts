@@ -99,6 +99,19 @@ export interface SubmitMessageOptions {
    *  Gutachten-Abschnitten, wenn `isRunning()` in der Pause vor dem Schluss-Abschnitt
    *  fälschlich false liest). Fehlt der Marker dauerhaft, greift der 150-s-Backstop. */
   erwarteAbschluss?: string;
+  /**
+   * Denkprozess des Laufs, EINMAL am Ende (nicht inkrementell).
+   *
+   * `submitMessage` löst auf einen String auf — für das Reasoning ist darin kein
+   * Platz. Die interne KI liefert es aber ohnehin (die Seite zeigt es in ihrer
+   * eigenen `.reasoning-pop`), und das Bookmarklet legt es jedem `tf-response`
+   * bei. Ohne diesen Rückruf fiel es genau hier auf den Boden — der Grund,
+   * warum der „Denkprozess" an Gutachten-Abschnitten dauerhaft leer blieb.
+   *
+   * Bewusst NICHT an `thinkingBudget` gekoppelt: über die Bridge entscheidet die
+   * fremde Seite, ob sie denkt. Was ankommt, wird durchgereicht.
+   */
+  onReasoning?: (text: string) => void;
 }
 
 export interface StreamCallbacks {
@@ -174,6 +187,9 @@ export class StreamlitBridgeTransport implements AITransport {
     reject: (error: Error) => void;
     cancel: () => void;
     touch?: () => void;
+    /** Siehe `SubmitMessageOptions.onReasoning` — der Denkprozess passt nicht in
+     *  den String, auf den `submitMessage` auflöst. */
+    onReasoning?: (text: string) => void;
   }>();
   /** Aktive Streaming-Anfragen (streamConversation). Getrennt von `pending`,
    *  da hier inkrementell `onDelta` läuft und auf `StreamResult` aufgelöst wird. */
@@ -292,8 +308,15 @@ export class StreamlitBridgeTransport implements AITransport {
           s.resolve({ content: String(data.result ?? s.prev), aborted: false, ...(reasoning ? { reasoning } : {}) });
           return;
         }
+        // Single-Shot (`submitMessage`): der Denkprozess liegt im SELBEN
+        // `tf-response` wie beim Streaming — er wurde hier nur nie ausgepackt.
+        // Vor `resolve`, damit der Aufrufer ihn beim Fortfahren schon hat.
         const p = this.pending.get(data.id);
-        if (p) { p.cancel(); p.resolve(data.result as string); this.pending.delete(data.id); }
+        if (p) {
+          const reasoning = typeof data.reasoning === 'string' ? data.reasoning : '';
+          if (reasoning) p.onReasoning?.(reasoning);
+          p.cancel(); p.resolve(data.result as string); this.pending.delete(data.id);
+        }
       }
       // tf-bridge-ready: nur das Handle übernehmen (oben bereits geschehen).
     });
@@ -422,7 +445,10 @@ export class StreamlitBridgeTransport implements AITransport {
           reject(new Error('Response timeout'));
         },
       });
-      this.pending.set(id, { resolve, reject, cancel: deadline.cancel, touch: deadline.touch });
+      this.pending.set(id, {
+        resolve, reject, cancel: deadline.cancel, touch: deadline.touch,
+        ...(options?.onReasoning ? { onReasoning: options.onReasoning } : {}),
+      });
       // Abort-Listener: cleanup pending + reject. Der Streamlit-Backend-Run
       // laeuft serverseitig fertig, aber der Caller bekommt sofort den
       // AbortError und kann das UI freigeben.

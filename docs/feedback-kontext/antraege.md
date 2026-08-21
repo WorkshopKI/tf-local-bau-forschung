@@ -179,9 +179,9 @@ Zentrale Arbeitsseite für Förderanträge — suchen/filtern, bearbeiten, Statu
   - **Werkzeugzeile:** Neu/Kürzer/Länger · **Bearbeiten mit KI** · **Persönlicher Stil** · Bearbeiten · **Kopier-Icon** ⧉ neben Bearbeiten · QS prüfen · „Freigeben und weiter" mit QS-Badge. Freigegeben: Erneut öffnen · QS prüfen · Kopieren · Stil.
   - **„Bearbeiten mit KI":** eigene Anweisung eingeben, wie der Abschnitt überarbeitet werden soll („technische Risiken auf die des Lösungswegs beschränken", „Lösungsweg vertiefen"). Feld erscheint in der Karte, letzte 5 Anweisungen als Chips; gilt für genau einen Lauf, der bisherige Text bleibt die Grundlage.
   - **„Zweitfassung mit der …":** erzeugt denselben Abschnitt noch einmal mit der jeweils anderen internen KI. Die bisherige Fassung wandert in die **Vorfassungen**, wo beide nebeneinander stehen, sich als Unterschied vergleichen lassen und eine davon übernommen werden kann. Jede Fassung ist mit der KI beschriftet, die sie geschrieben hat. Der Eintrag fehlt, wenn die aktive KI-Verbindung keine zwei Varianten kennt.
-  - **Fußzeile:** Sätze/Wörter/Regeln/Skill, verwendete KI „Standard-KI"/„Agentische KI" + 👍/👎.
+  - **Fußzeile:** Sätze/Wörter/Regeln/Skill, verwendete KI + **„Denkprozess"** (aufklappbar: wie die KI zu dieser Fassung kam; steht „kein Denkprozess geliefert", lief der Lauf mit Thinking, die KI hat aber keinen ausgegeben) + 👍/👎.
 - **Am Text:** **Abschnitts-QS** („n von m Kriterien ok") + **Regelprüfung** (Messwert/Limit + KI-Korrektur). Generieren hängt den **Feinschliff** an.
-- **Rechts „Quelle & KI-Hinweise"** (eingeklappt): **Beleg-Karten** (Klick → Satz), Abdeckung, Denkprozess.
+- **Rechts „Quelle & KI-Hinweise"** (eingeklappt): **Beleg-Karten** (Klick → Satz), Abdeckung.
 - **Offline:** Bearbeiten/Prüfen ja, KI aus.
 
 ## Typische Aktionen

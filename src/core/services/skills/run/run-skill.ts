@@ -587,15 +587,22 @@ async function runSkillInner(
     // Streamlit-Bridge: Single-Turn — System-Rolle als Prefix in die Message.
     // `erwarteAbschluss` schützt lange, zweiteilige Antworten vor zu früher Bridge-
     // Finalisierung (Abschluss-Marker-Schutz); auf DirectLLM ignoriert.
+    // Denkprozess: die interne KI denkt unabhängig von unserem `budget` (die
+    // Seite zeigt ihn in ihrer eigenen Blase) und legt ihn dem `tf-response`
+    // bei — er passt nur nicht in den String, auf den `submitMessage` auflöst.
+    // Ohne diesen Rückruf blieb der „Denkprozess" an Gutachten-Abschnitten
+    // dauerhaft leer, obwohl der Text längst in der App ankam.
     const streamlitOpts = {
       ...(input.signal ? { signal: input.signal } : {}),
       ...(input.erwarteAbschluss ? { erwarteAbschluss: input.erwarteAbschluss } : {}),
       ...(laufEingabe.ziel ? { ziel: laufEingabe.ziel } : {}),
+      onReasoning: (t: string) => { thinking = t; input.onThinkingDelta?.(t); },
     };
+    // Kein „leer → undefined"-Ternär mehr: `onReasoning` ist immer dabei.
     raw = await transport.submitMessage(
       systemPrompt ? `${systemPrompt}\n\n${userContent}` : userContent,
       systemPrompt || undefined,
-      Object.keys(streamlitOpts).length > 0 ? streamlitOpts : undefined,
+      streamlitOpts,
     );
   }
 

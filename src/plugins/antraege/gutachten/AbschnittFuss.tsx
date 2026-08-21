@@ -13,7 +13,7 @@
  * Kommentaren nicht ausgeschrieben werden.)
  */
 import { useEffect, useState } from 'react';
-import { Info, ThumbsDown, ThumbsUp } from 'lucide-react';
+import { Brain, ChevronDown, ChevronRight, Info, ThumbsDown, ThumbsUp } from 'lucide-react';
 import { formatDate } from '../kurzfassung/kurzfassung-verlauf';
 import { zielLabel } from './abschnittAnzeige';
 import { fassungLabel } from './zweitfassung';
@@ -38,8 +38,9 @@ export function AbschnittFuss({
   const [fbDone, setFbDone] = useState(false);
   const [fbNote, setFbNote] = useState('');
   const [downActive, setDownActive] = useState(false);
+  const [denkOffen, setDenkOffen] = useState(false);
   // Ein Votum je Abschnittsversion — Reset bei neuer Generierung.
-  useEffect(() => { setFbDone(false); setFbNote(''); setDownActive(false); }, [run.erstellt_am, run.skillVersion]);
+  useEffect(() => { setFbDone(false); setFbNote(''); setDownActive(false); setDenkOffen(false); }, [run.erstellt_am, run.skillVersion]);
 
   /**
    * Ein Votum abschicken.
@@ -71,6 +72,7 @@ export function AbschnittFuss({
   const ki = zielLabel(run) ?? fassungLabel(run.fassung);
 
   return (
+    <>
     <div className="g-fuss">
       <span>
         {satzanzahl} {satzanzahl === 1 ? 'Satz' : 'Sätze'} · {wortanzahl.toLocaleString('de-DE')} {wortanzahl === 1 ? 'Wort' : 'Wörter'}
@@ -91,6 +93,29 @@ export function AbschnittFuss({
           <Info size={13} />
         </button>
       )}
+      {/* Denkprozess: hier statt im „Quelle & KI-Hinweise"-Panel. Das Panel ist
+          einklappbar und im Alltag zu — der Denkprozess gehört an die Fassung,
+          die er erklärt. BEWUSST nur an dieser einen Stelle: die QS-Befunde
+          standen bis v2.337 doppelt und mussten synchron gehalten werden. */}
+      {run.denkprozess ? (
+        <button
+          type="button"
+          className="g-denk-btn"
+          onClick={() => setDenkOffen(o => !o)}
+          aria-expanded={denkOffen}
+          title={denkOffen ? 'Denkprozess ausblenden' : 'Denkprozess der KI ansehen'}
+        >
+          <Brain size={12} />
+          Denkprozess
+          {denkOffen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+        </button>
+      ) : run.denkprozessAngefordert ? (
+        // Der Lauf lief mit Thinking, es kam aber nichts an. Bis v6.4 war das der
+        // Normalfall über die interne KI (der Text fiel im Transport auf den
+        // Boden) — als Zeile bleibt der Unterschied zwischen „nicht gedacht" und
+        // „gedacht, nichts geliefert" sichtbar.
+        <span className="g-denk-leer">· kein Denkprozess geliefert</span>
+      ) : null}
       <span className="g-ab-spacer" />
       {onFeedback && (
         fbDone ? (
@@ -123,5 +148,11 @@ export function AbschnittFuss({
         )
       )}
     </div>
+    {/* Ausserhalb der Fusszeile: die ist eine umbrechende Flex-Reihe, ein
+        mehrzeiliger Block darin wuerde die Kennzahlen auseinanderziehen. */}
+    {run.denkprozess && denkOffen && (
+      <div className="g-denk-text">{run.denkprozess}</div>
+    )}
+    </>
   );
 }

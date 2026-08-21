@@ -32,7 +32,7 @@ Der SSE-Strom braucht **keinen** Sitzungs-Header — eine `EventSource` kann kei
 |---|---|---|
 | Transport | [transports/streamlit.ts](../../src/core/services/ai/transports/streamlit.ts) | `StreamlitBridgeTransport implements AITransport` — `window.open` + `postMessage`, `submitMessage` + `streamConversation` + `resetChat` |
 | Registry | [bridge.ts](../../src/core/services/ai/bridge.ts) | `AIBridge` — die Bridge ist der Default-Transport; `switchProvider` aktualisiert die URL per `updateUrl()` (kein Listener-Leak) |
-| Installer-UI | [VerbindungGruppe.tsx](../../src/plugins/einstellungen/ki/VerbindungGruppe.tsx) | URL konfigurieren, Lesezeichen ziehen/kopieren, Tab öffnen, Verbindung testen, **veraltetes Lesezeichen melden** |
+| Installer-UI | [VerbindungGruppe.tsx](../../src/plugins/einstellungen/ki/VerbindungGruppe.tsx) | URL konfigurieren, Lesezeichen ziehen, Tab öffnen, Verbindung testen, **veraltetes Lesezeichen melden** |
 | Bookmarklet | [bridge-snippet.source.js](../../src/core/services/ai/streamlit-bridge/bridge-snippet.source.js) + [snippet.ts](../../src/core/services/ai/streamlit-bridge/snippet.ts) | Snippet (Single Source of Truth), via `?raw` zur Build-Zeit ins Bundle inlined (kein Runtime-`fetch`, `file://`-tauglich) |
 | Modell-Katalog | [modell-katalog.ts](../../src/core/services/ai/modell-katalog.ts) | **Die einzige Stelle, die Modelle beim Namen nennt** — Muster, Rolle, Rückfall-Fenster; Auflösung Rolle → Modell |
 | Angebot + gelernte Fenster | [bridge-modelle.ts](../../src/core/services/ai/bridge-modelle.ts) | Was die KI-Seite anbietet, was wir an ihr abgelesen haben; `modellLabel(rolle)` |
@@ -58,6 +58,12 @@ KI-Tab → App:   { type: 'tf-app-ping' }  → App: { type: 'tf-app-pong' }  (Ge
 ```
 
 `modell` ist der **sichtbare Optionstext** der Auswahlliste, keine Kennung. `modelle` ist diese Liste (`{ text, value, aktiv }`). Ohne `modell` fasst das Snippet die Auswahl nicht an, meldet aber im `tf-response`, welches Modell tatsächlich lief.
+
+### `reasoning` gilt für BEIDE Wege (v6.5)
+
+Das Snippet legt den Denkprozess **jedem** `tf-response` bei — es weiß nicht, ob die App gerade streamt. Der Transport hat ihn trotzdem lange nur im Streaming-Zweig ausgepackt: `submitMessage` löst auf einen String auf, und für einen zweiten Wert war darin kein Platz. Ein Skill-Lauf ohne Delta-Konsumenten (also jeder Gutachten-Abschnitt) nimmt genau diesen Zweig — der Denkprozess fiel dort still auf den Boden, ununterscheidbar von „das Modell hat nicht gedacht".
+
+Der Weg dorthin ist jetzt `SubmitMessageOptions.onReasoning` — ein Rückruf, **einmal am Ende und vor dem Auflösen**, damit der Aufrufer den Wert direkt nach seinem `await` sieht. Bewusst **nicht** an `thinkingBudget` gekoppelt: über die Bridge entscheidet die fremde Seite, ob sie denkt; die App reicht durch, was ankommt. Ein leeres `reasoning` löst den Rückruf nicht aus — sonst wäre „nichts geliefert" von „leerer Denkprozess" nicht mehr zu unterscheiden. Naht-Tests: [streamlit-reasoning.test.ts](../../src/core/services/ai/__tests__/streamlit-reasoning.test.ts).
 
 **Bewusst der Text und kein Index**: eine Liste kann sich zwischen dem Melden und dem Auftrag geändert haben, und ein verschobener Index wählt dann still das falsche Modell. Ein Text, den es nicht mehr gibt, ist dagegen ein sauberer Fehlschlag — und der ist hier richtig, weil die App ihre Nutzlast bereits auf das Fenster *dieses* Modells zugeschnitten hat.
 
@@ -191,7 +197,7 @@ Das Lesezeichen muss **einmal pro KI-Tab** angeklickt werden (nach jedem Neulade
 
 **Das Lesezeichen heißt `interne-KI v<n>`** ([snippet.ts](../../src/core/services/ai/streamlit-bridge/snippet.ts), `BRIDGE_BOOKMARK_NAME`). Die Nummer ist der eigentliche Zweck: ein Lesezeichen sieht man in der Leiste, **ohne es anzuklicken** — dort beantwortet sie „habe ich die aktuelle Bridge?", ohne dass jemand die Einstellungen öffnen muss. Kurz gehalten, weil Chrome längere Namen in der Leiste auf ein Icon zusammenschnurren lässt; dann wäre die Nummer genau dort unsichtbar, wo sie gebraucht wird. `BRIDGE_VERSION` (Kurzform, sichtbar) und `BRIDGE_REV` (genau, für den Handschlag) werden **gemeinsam** hochgezählt — erzwingen lässt sich das nicht, [snippet-version.test.ts](../../src/core/services/ai/streamlit-bridge/__tests__/snippet-version.test.ts) prüft nur, dass beide lesbar bleiben.
 
-**Zwei Wege in die Lesezeichenleiste**: das Lesezeichen **ziehen** ist der Hauptweg, **Kopieren** die Rückfallebene — in verwaltetem Chrome ist das Ablegen in der Leiste nicht überall erlaubt, und dieser eine Schritt schaltet den gesamten KI-Zugang frei. Der `javascript:`-href kommt über eine **Callback-Ref** ins DOM, nicht aus einem Mount-Effekt: der Anker steckt in einer `SettingsKlappe`, die ihre Kinder erst beim Aufklappen montiert — ein `[]`-Effekt lief ins Leere, solange die Klappe zu war (seit v4.31, [Bug-Klasse 23](recurring-bug-classes.md)).
+**Ein Weg in die Lesezeichenleiste**: das Lesezeichen wird **gezogen**, nicht angeklickt — bewusst ohne zweiten Knopf daneben, der sich wie ein gleichwertiger Weg läse. Der `javascript:`-href kommt über eine **Callback-Ref** ins DOM, nicht aus einem Mount-Effekt: der Anker steckt in einer `SettingsKlappe`, die ihre Kinder erst beim Aufklappen montiert — ein `[]`-Effekt lief ins Leere, solange die Klappe zu war (seit v4.31, [Bug-Klasse 23](recurring-bug-classes.md)).
 
 ## Sichtbarkeit / Flag
 

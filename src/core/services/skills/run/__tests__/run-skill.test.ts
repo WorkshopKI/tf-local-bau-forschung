@@ -195,10 +195,30 @@ describe('runSkill Abschluss-Marker (erwarteAbschluss → submitMessage)', () =>
     expect((opts() as { erwarteAbschluss?: string }).erwarteAbschluss).toBe('Finaler Text');
   });
 
-  it('ohne erwarteAbschluss/signal bleibt die Options-Übergabe undefined (Bestandsverhalten)', async () => {
+  it('reicht IMMER einen onReasoning-Rückruf mit (auch ohne weitere Optionen)', async () => {
+    // Bis v6.4 stand hier `expect(opts()).toBeUndefined()`: ohne Marker und ohne
+    // Signal ging gar kein Options-Objekt raus. Das ist jetzt bewusst anders —
+    // `submitMessage` löst auf einen String auf, der Denkprozess passt nur durch
+    // diesen Rückruf, und die interne KI liefert ihn unabhängig von unserem
+    // Thinking-Schalter. Ohne die feste Übergabe fiel er still auf den Boden.
     const { transport, opts } = capturingTransport();
     await runSkill(transport, skill(), [], { stammdaten: '', vbMarkdown: 'x' });
-    expect(opts()).toBeUndefined();
+    expect(typeof (opts() as { onReasoning?: unknown }).onReasoning).toBe('function');
+  });
+
+  it('trägt den Denkprozess des Rückrufs ins Ergebnis', async () => {
+    // Die eigentliche Zusage: was der Transport meldet, steht hinterher als
+    // `thinking` im Ergebnis — die Quelle für `StepRun.denkprozess`.
+    const transport = {
+      name: 'Streamlit',
+      ping: async () => true,
+      submitMessage: async (_m: string, _s?: string, options?: unknown) => {
+        (options as { onReasoning?: (t: string) => void }).onReasoning?.('So bin ich vorgegangen.');
+        return 'Text.';
+      },
+    } as unknown as AITransport;
+    const res = await runSkill(transport, skill(), [], { stammdaten: '', vbMarkdown: 'x' });
+    expect(res.thinking).toBe('So bin ich vorgegangen.');
   });
 });
 

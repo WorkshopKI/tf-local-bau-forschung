@@ -127,19 +127,11 @@ export function KontextPanel({
         </div>
       ) : null}
 
-      {step.denkprozess ? (
-        <div className="g-ctx-block">
-          <CollapsibleSection label="Denkprozess" defaultOpen={false}>
-            <p className="g-ctx-text">{step.denkprozess}</p>
-          </CollapsibleSection>
-        </div>
-      ) : step.denkprozessAngefordert ? (
-        <div className="g-ctx-block">
-          <p className="g-ctx-text">
-            Thinking war aktiv, aber das Modell hat keinen separaten Denkprozess geliefert.
-          </p>
-        </div>
-      ) : null}
+      {/* Der Denkprozess stand hier bis v6.5. Er lebt jetzt in der Fußzeile der
+          Abschnitts-Karte (`AbschnittFuss`) — dieses Panel ist einklappbar und im
+          Alltag zu, während der Denkprozess zu der Fassung gehört, die er
+          erklärt. Nur EINE Darstellung, aus demselben Grund wie bei den
+          QS-Befunden (v2.337): zwei müsste jemand synchron halten. */}
 
       {provenance && (
         <div className="g-ctx-foot">
