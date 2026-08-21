@@ -240,7 +240,7 @@ Der **Bedingungs-Editor**
 domänenfrei gegenüber den Meilensteinen — er kennt nur `Bedingung` und bedient
 deshalb auch die To-do-Regeln des Status-Cockpits und den Dialog „Eigene Spalte".
 
-### Der Bedingungs-Bereich (v5.2)
+### Der Bedingungs-Bereich (v5.3, erweitert v6.3)
 
 Vier Änderungen an derselben Beobachtung: der Bereich war vollständig, aber nicht
 zu bedienen.
@@ -285,6 +285,41 @@ zu bedienen.
   Betriebssystem gezogene Datei bleibt wirkungslos. Abgelegt wird auf
   Einfüge-Marken **zwischen** Zeilen, nie auf einer Zeile — „davor" und „hinein"
   wären sonst nicht zu unterscheiden.
+
+**Geschwister sehen wie Geschwister aus** (v6.3). Eine Gruppe neben zwei Blättern
+IST deren Geschwister; sie sah nur wie deren Untergruppe aus, weil ihr Kasten
+eigene Polsterung und eine zweite Einrück-Spalte mitbringt. Das war keine
+Meinungsfrage, sondern eine Rückmeldung aus dem Betrieb: „ich will sie als
+parallele Gruppe, nicht als Untergruppe" — bei einem Baum, der sie längst
+parallel führte. Vier Dinge halten das jetzt gerade:
+
+- **Das Verknüpfungs-Wort steht zwischen den Zeilen**, in einer festen linken
+  Rinne je Ebene ([BedingungsFugen.tsx](../../src/plugins/meilensteine/BedingungsFugen.tsx)):
+  man liest wörtlich „A UND B UND (Gruppe 1) UND C". Eine eigene **Zeile** je
+  Fuge kostete rund 42 px je Meilenstein und nähme die Dichte zurück, die v5.3
+  gewonnen hat; die Rinne kostet keine Höhe und gibt jeder Ebene ihre eigene
+  Kante. Gesteuert wird weiter im Gruppenkopf — das Wort ist sein Echo.
+- **Gruppen benennen sich** („GRUPPE 1", 1-basiert unter den Geschwister-Gruppen
+  derselben Liste) und tragen ihr Bedienbündel **im Kopf**, an derselben rechten
+  Kante wie eine Blattzeile.
+- **Ziele zeigen sich, sobald ein Zug läuft.** Vorher bekam eine Einfüge-Marke
+  erst Farbe, wenn man sie genau traf — wer nicht weiß, dass es Ziele gibt, sucht
+  keine. Dazu kommen zwei gröbere Gesten: eine Blattzeile meldet ihre **nähere
+  Kante** (obere Hälfte = davor), und der **Gruppenkasten selbst** ist das
+  „hier hinein"-Ziel. Die feinere Geste gewinnt, weil Marken und Zeilen ihre
+  Ereignisse stoppen.
+- **Ein gesperrter Schalter sagt, warum.** „Ausrücken" auf der obersten Ebene ist
+  korrekt gesperrt, versprach im Tooltip aber weiter „Eine Ebene höher"; jetzt
+  steht dort der Grund. Und die Farbe: gesperrt lag bei `--tf-border-hover`
+  (gemessen 1,41:1 über Weiß — unsichtbar), aktiv bei `--tf-text-tertiary`
+  (2,61:1). Jetzt 2,61:1 gesperrt und `--tf-text-secondary` (5,33:1) aktiv.
+
+Neu ist dazu **„in eine eigene Gruppe verpacken"** (`verpackeBedingungInGruppe`):
+weil viele Meilensteine aus mehreren Gruppen bestehen, ist der Weg dorthin ein
+Klick statt „leere Gruppe anlegen und alles hineinziehen". Genau **einen** Knoten
+zu verpacken ist bedeutungsneutral — eine Gruppe mit einem Kind wertet unter
+`alle` wie unter `einige` identisch aus. Deshalb ist es erlaubt, während das
+Einrücken über einen Nicht-Gruppen-Vorgänger gesperrt bleibt.
 
 Die zugeklappte Zeile fasst außerdem zusammen, **woran** ein Meilenstein hängt
 (Bedingung in Kurzform über den EINEN Formatierer `bedingungSatz`, Typ-Beschränkung,

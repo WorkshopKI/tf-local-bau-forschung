@@ -19,6 +19,19 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v6.3 — 2026-08
+
+### Neu
+- Eine Bedingung lässt sich mit einem Klick **in eine eigene Gruppe verpacken** — praktisch, wenn ein Meilenstein aus mehreren Gruppen bestehen soll.
+
+### Verbesserungen
+- Im Meilenstein-Editor steht zwischen den Bedingungen jetzt **„UND" bzw. „ODER"** — auch vor und hinter einer Gruppe. Damit ist zu sehen, dass eine Gruppe neben den Bedingungen steht und nicht in ihnen.
+- Gruppen heißen **„Gruppe 1", „Gruppe 2"** und haben ihre Schalter im Kopf, an derselben Kante wie eine Bedingung.
+- Beim **Ziehen** zeigen sich alle möglichen Ablagestellen. Auf einen Gruppenkasten gezogen, landet die Bedingung in dieser Gruppe.
+
+### Bugfixes
+- Die kleinen Schalter am rechten Rand einer Bedingung waren kaum zu sehen, und ein gesperrter Schalter sagte nicht, warum er gesperrt ist. Beides behoben.
+
 ## v6.2 — 2026-08
 
 ### Neu

@@ -257,6 +257,32 @@ export function rueckeBedingungEin(root: Bedingung, pfad: BedingungsPfad): Bedin
   return verschiebeBedingung(root, pfad, zielPfad, gruppenKinder(ziel).length);
 }
 
+/**
+ * Verpackt **genau einen** Knoten in eine frische Gruppe.
+ *
+ * Das ist der Gegenpol zur Regel, die {@link darfBedingungEinruecken} zieht —
+ * und der Unterschied ist kein Geschmack, sondern die Aussage der Regel:
+ * eine Gruppe mit **einem** Kind wertet unter `alle` wie unter `einige`
+ * identisch aus, das Verpacken eines einzelnen Knotens ändert also nichts.
+ * Vorgänger UND Knoten in eine erfundene Gruppe zu stecken änderte sie sehr
+ * wohl (aus „A UND B UND C" würde „(A UND B) UND C"), und genau deshalb bleibt
+ * das dort gesperrt.
+ *
+ * Die Wurzel wird nicht verpackt: sie ist bereits die äußerste Gruppe, ein
+ * weiterer Ring darum wäre eine Ebene ohne Aussage.
+ */
+export function verpackeBedingungInGruppe(
+  root: Bedingung,
+  pfad: BedingungsPfad,
+  verknuepfung: 'alle' | 'einige' = 'alle',
+): Bedingung {
+  if (pfad.length === 0) return root;
+  const knoten = holeBedingungAn(root, pfad);
+  if (!knoten) return root;
+  const huelle: Bedingung = verknuepfung === 'alle' ? { alle: [knoten] } : { einige: [knoten] };
+  return ersetzeBedingungAn(root, pfad, huelle);
+}
+
 /** Ausrücken heißt: eine Ebene höher, direkt HINTER die eigene Gruppe. */
 export function darfBedingungAusruecken(pfad: BedingungsPfad): boolean {
   return pfad.length >= 2;

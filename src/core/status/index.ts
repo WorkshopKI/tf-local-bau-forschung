@@ -59,7 +59,8 @@ export {
   alsBedingungsGruppe, bedingungsTiefe, darfBedingungAusruecken, darfBedingungEinruecken,
   darfBedingungVerschieben, entferneBedingungAn, ersetzeBedingungAn, fuegeBedingungEin,
   gruppenKinder, holeBedingungAn, istBedingungsGruppe, mitGruppenKindern, pfadLiegtUnter,
-  rueckeBedingungAus, rueckeBedingungEin, verschiebeBedingung, verschiebeBedingungsGeschwister,
+  rueckeBedingungAus, rueckeBedingungEin, verpackeBedingungInGruppe,
+  verschiebeBedingung, verschiebeBedingungsGeschwister,
   type BedingungsGruppe, type BedingungsPfad,
 } from './bedingung-baum';
 export { normKey, loseKey } from './normalisierung';

@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v6.3.0 — Parallele Gruppen sehen wie parallele Gruppen aus (August 2026)
+
+MINOR — „Ich will die Gruppe parallel, nicht als Untergruppe" — bei einem Baum, der sie längst parallel führte: der Kasten bringt eigene Polsterung und eine zweite Einrück-Spalte mit und las sich als Innenleben des Vorgängers. Auch das Ziehen gab es schon, nur unsichtbar, und der korrekt gesperrte Ausrück-Pfeil versprach im Tooltip weiter „Eine Ebene höher". Detail: [meilensteine.md → Der Bedingungs-Bereich](docs/architecture/meilensteine.md).
+
+- **Das Verknüpfungs-Wort steht zwischen den Zeilen**, in einer Rinne je Ebene — „A UND B UND (Gruppe 1) UND C" ohne eine einzige zusätzliche Zeile Höhe ([BedingungsFugen.tsx](src/plugins/meilensteine/BedingungsFugen.tsx))
+- **Gruppen benennen sich** („GRUPPE 1") und tragen ihr Bedienbündel im Kopf, an derselben rechten Kante wie eine Blattzeile ([BedingungEditor.tsx](src/plugins/meilensteine/BedingungEditor.tsx))
+- **Ablagestellen zeigen sich, sobald ein Zug läuft**; dazu die Zeilen-Kante als grobe Geste und der Gruppenkasten als „hier hinein"-Ziel
+- **Gesperrte Schalter nennen den Grund** und sind sichtbar: gesperrt 1,41:1 → 2,61:1, aktiv 2,61:1 → 5,33:1 ([ZeilenAktionen.tsx](src/plugins/meilensteine/ZeilenAktionen.tsx))
+- **„In eine eigene Gruppe verpacken"** als sechster Schalter — bedeutungsneutral, weil eine Gruppe mit einem Kind unter `alle` wie unter `einige` gleich wertet ([bedingung-baum.ts](src/core/status/bedingung-baum.ts))
+
 ### v6.2.0 — Nachtlauf-Widget: Klartext je Projektform, Spalten in einer Flucht, Fusszeile deckt auf (August 2026)
 
 MINOR — Die Karte schlug den Klartext flach nach: an einem FuE-Vorgang stand die DL-Bedeutung von `D_AB`, und drei Spalten standen ganz ohne Beschreibung da, weil sie kanonisch angebunden sind. Dazu ordnete keine Spalte die Zeilen aus, und „… und 10 weitere Vorgänge" war eine Auskunft, auf die man nicht klicken konnte.

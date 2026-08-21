@@ -10,8 +10,10 @@ import type { Bedingung } from '../typen';
 import {
   darfBedingungAusruecken, darfBedingungEinruecken, darfBedingungVerschieben, entferneBedingungAn, ersetzeBedingungAn,
   fuegeBedingungEin, holeBedingungAn, istBedingungsGruppe, gruppenKinder, pfadLiegtUnter, mitGruppenKindern, rueckeBedingungAus,
-  rueckeBedingungEin, bedingungsTiefe, verschiebeBedingung, verschiebeBedingungsGeschwister,
+  rueckeBedingungEin, bedingungsTiefe, verpackeBedingungInGruppe, verschiebeBedingung,
+  verschiebeBedingungsGeschwister,
 } from '../bedingung-baum';
+import { bedingungAlsText } from '../bedingung-text';
 
 const a: Bedingung = { feldId: 'tib_kuerz', op: 'gefuellt' };
 const b: Bedingung = { feldId: 'bib_kuerz', op: 'gefuellt' };
@@ -173,5 +175,46 @@ describe('bedingung-baum · Ein- und Ausrücken', () => {
     expect(holeBedingungAn(tief, [0, 0, 0])).toEqual(a);
     expect(darfBedingungEinruecken(tief, [0, 1])).toBe(true);
     expect(rueckeBedingungEin(tief, [0, 1])).toEqual({ alle: [{ einige: [{ alle: [a, b] }] }] });
+  });
+});
+
+describe('bedingung-baum · Verpacken', () => {
+  const namen = (feldId: string): string => feldId;
+
+  it('legt eine Gruppe um genau ein Blatt', () => {
+    expect(verpackeBedingungInGruppe(baum(), [1]))
+      .toEqual({ alle: [a, { alle: [b] }, { einige: [c] }] });
+  });
+
+  it('legt eine Gruppe auch um eine Gruppe', () => {
+    expect(verpackeBedingungInGruppe(baum(), [2]))
+      .toEqual({ alle: [a, b, { alle: [{ einige: [c] }] }] });
+  });
+
+  it('nimmt die gewünschte Verknüpfung', () => {
+    expect(verpackeBedingungInGruppe(baum(), [0], 'einige'))
+      .toEqual({ alle: [{ einige: [a] }, b, { einige: [c] }] });
+  });
+
+  it('lässt die Wurzel und tote Pfade unangetastet', () => {
+    expect(verpackeBedingungInGruppe(baum(), [])).toEqual(baum());
+    expect(verpackeBedingungInGruppe(baum(), [9])).toEqual(baum());
+    expect(verpackeBedingungInGruppe(baum(), [0, 0])).toEqual(baum());
+  });
+
+  it('ändert die Aussage nicht — nur eine Klammer kommt dazu', () => {
+    const vorher = bedingungAlsText(baum(), namen);
+    const nachher = bedingungAlsText(verpackeBedingungInGruppe(baum(), [1]), namen);
+    expect(vorher).toBe('(tib_kuerz gefüllt UND bib_kuerz gefüllt UND (status ist „beantragt"))');
+    expect(nachher).toBe('(tib_kuerz gefüllt UND (bib_kuerz gefüllt) UND (status ist „beantragt"))');
+    // Dieselben Teilaussagen, dieselbe Reihenfolge, dieselbe Verknüpfung.
+    expect(nachher.replace(/[()]/g, '')).toBe(vorher.replace(/[()]/g, ''));
+  });
+
+  it('ist mit Ausrücken wieder rückgängig zu machen', () => {
+    const verpackt = verpackeBedingungInGruppe(baum(), [1]);
+    expect(darfBedingungAusruecken([1, 0])).toBe(true);
+    expect(rueckeBedingungAus(verpackt, [1, 0]))
+      .toEqual({ alle: [a, { alle: [] }, b, { einige: [c] }] });
   });
 });

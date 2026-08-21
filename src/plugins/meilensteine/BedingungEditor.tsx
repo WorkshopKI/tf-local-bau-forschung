@@ -6,12 +6,22 @@
  * nur `Bedingung`. Deshalb bedient dieselbe Datei auch den Regel-Tab des
  * Status-Cockpits und den Dialog „Eigene Spalte".
  *
- * **Die Hierarchie ist nachträglich änderbar** (v5.2). Bis dahin war sie beim
+ * **Die Hierarchie ist nachträglich änderbar** (v5.3). Bis dahin war sie beim
  * Anlegen zementiert: kein Ein-/Ausrücken, kein Umsortieren, kein Ziehen, und
  * ab Stufe 2 verschwand „+ Gruppe" wortlos. Der Umbau selbst rechnet nicht
  * hier, sondern in der reinen [bedingung-baum.ts](../../core/status/bedingung-baum.ts);
  * diese Datei hält nur den Zeiger darauf, welcher Knoten gemeint ist — einen
  * **Kind-Index-Pfad**, weil `Bedingung` keine Ids kennt.
+ *
+ * **Geschwister sehen wie Geschwister aus** (v6.3). Eine Gruppe neben zwei
+ * Blättern IST deren Geschwister, sah aber wie ihre Untergruppe aus: der Kasten
+ * bringt eigene Polsterung und eine zweite Einrück-Spalte mit, sein Kopf begann
+ * damit rechts der Nachbarzeilen. Drei Dinge halten das jetzt gerade:
+ * das Verknüpfungs-Wort in der linken Rinne jeder Zeile
+ * ([BedingungsFugen.tsx](./BedingungsFugen.tsx)) — man liest wörtlich
+ * „A UND B UND (Gruppe 1) UND C"; ein Gruppenkopf, der sich benennt
+ * („Gruppe 1 · EINE genügt"); und dasselbe Bedienbündel an derselben rechten
+ * Kante für Blätter wie für Gruppen.
  *
  * **Warum kein `TfTree`.** Er wäre die architekturtreue Wahl für einen Baum mit
  * Ziehen — liefe im Meilenstein-Tab aber INNERHALB des `body`-Slots des äußeren
@@ -31,12 +41,13 @@ import {
   alsBedingungsGruppe, darfBedingungAusruecken, darfBedingungEinruecken,
   darfBedingungVerschieben, entferneBedingungAn, ersetzeBedingungAn, fuegeBedingungEin,
   gruppenKinder, holeBedingungAn, istBedingungsGruppe,
-  rueckeBedingungAus, rueckeBedingungEin, verschiebeBedingung,
+  rueckeBedingungAus, rueckeBedingungEin, verpackeBedingungInGruppe, verschiebeBedingung,
   verschiebeBedingungsGeschwister,
   type Bedingung, type BedingungsGruppe, type BedingungsPfad,
 } from '@/core/status';
 import type { SpaltenEintrag } from '@/core/meilensteine';
 import { BlattZeile, type Blatt, type FeldPruefung } from './BlattZeile';
+import { Marke, Rinne, type DropZiel } from './BedingungsFugen';
 import { ZeilenAktionen } from './ZeilenAktionen';
 import { feldStil } from './labels';
 
@@ -51,8 +62,8 @@ export type { FeldPruefung } from './BlattZeile';
  */
 const MAX_TIEFE = 6;
 
-/** Wohin ein gezogener Knoten fällt: in diese Liste, an diese Stelle. */
-interface DropZiel { elternPfad: BedingungsPfad; index: number }
+/** Einzug der Bedienzeilen, damit sie unter den Bedingungen stehen, nicht unter der Rinne. */
+const UNTER_RINNE = 'pl-[38px]';
 
 const gleich = (a: BedingungsPfad, b: BedingungsPfad): boolean =>
   a.length === b.length && a.every((x, i) => b[i] === x);
@@ -121,48 +132,23 @@ interface BaumProps {
   setGezogen: (p: BedingungsPfad | null) => void;
   setZiel: (z: DropZiel | null) => void;
   onAblegen: () => void;
-}
-
-/**
- * Die Einfüge-Marke zwischen zwei Geschwistern. Zeilen selbst sind **keine**
- * Drop-Ziele: „auf die Zeile" wäre zwischen „davor" und „hinein" nicht zu
- * unterscheiden, und die Regel bekäme beim Loslassen eine andere Bedeutung, als
- * die Geste zeigte. In eine Gruppe hinein führt deren eigene Marke.
- */
-function Marke({ elternPfad, index, aktiv, erlaubt, setZiel, onAblegen }: {
-  elternPfad: BedingungsPfad;
-  index: number;
-  aktiv: boolean;
-  erlaubt: boolean;
-  setZiel: (z: DropZiel | null) => void;
-  onAblegen: () => void;
-}): React.ReactElement {
-  return (
-    <div
-      onDragOver={e => {
-        if (!erlaubt) return;
-        e.preventDefault();
-        e.stopPropagation();
-        setZiel({ elternPfad, index });
-      }}
-      onDrop={e => { if (!erlaubt) return; e.preventDefault(); e.stopPropagation(); onAblegen(); }}
-      aria-hidden
-      className="h-[5px] -my-[2px] rounded-full"
-      style={aktiv ? { background: 'var(--tf-primary)' } : undefined}
-    />
-  );
+  /** Das Bedienbündel DIESER Gruppe — steht in ihrem Kopf. Die Wurzel hat keins. */
+  aktionen?: React.ReactNode;
+  /** 1-basiert unter den Geschwister-Gruppen derselben Liste. */
+  nummer?: number;
 }
 
 function Gruppe(p: BaumProps): React.ReactElement {
   const {
     wurzel, pfad, spalten, pruefeFeld, vorschlaege, onWurzel,
-    gezogen, ziel, setGezogen, setZiel, onAblegen,
+    gezogen, ziel, setGezogen, setZiel, onAblegen, aktionen, nummer,
   } = p;
   const knoten = holeBedingungAn(wurzel, pfad);
   if (!knoten || !istBedingungsGruppe(knoten)) return <></>;
   const gruppe: BedingungsGruppe = knoten;
   const kinder = gruppenKinder(gruppe);
   const istUnd = 'alle' in gruppe;
+  const wort = istUnd ? 'UND' : 'ODER';
   const tiefe = pfad.length;
   const istWurzel = tiefe === 0;
   const ersteSpalte = spalten[0]?.feldId ?? 'status';
@@ -174,22 +160,51 @@ function Gruppe(p: BaumProps): React.ReactElement {
 
   /** Darf hier abgelegt werden? Nicht in den eigenen Teilbaum. */
   const dropErlaubt = !!gezogen && darfBedingungVerschieben(wurzel, gezogen, pfad);
+  /** Zielt der laufende Zug in genau DIESE Liste? Dann leuchtet der Kasten. */
+  const kastenAktiv = !!ziel && gleich(ziel.elternPfad, pfad);
 
   const marke = (index: number): React.ReactElement => (
     <Marke
       elternPfad={pfad} index={index}
       aktiv={!!ziel && ziel.index === index && gleich(ziel.elternPfad, pfad)}
-      erlaubt={dropErlaubt}
+      erlaubt={dropErlaubt} zeigen={!!gezogen}
       setZiel={setZiel} onAblegen={onAblegen}
     />
   );
 
+  /** Die nähere Kante einer Blattzeile gewinnt: obere Hälfte = davor. */
+  const kante = (i: number) => (e: React.DragEvent): void => {
+    if (!dropErlaubt) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const r = e.currentTarget.getBoundingClientRect();
+    setZiel({ elternPfad: pfad, index: e.clientY < r.top + r.height / 2 ? i : i + 1 });
+  };
+
   return (
     <div
       className="flex flex-col gap-1 rounded px-2 py-1"
-      style={istWurzel ? { background: 'var(--tf-bg)' } : feldStil}
+      style={{
+        ...(istWurzel ? { background: 'var(--tf-bg)' } : feldStil),
+        ...(kastenAktiv ? { outline: '1px solid var(--tf-primary)' } : {}),
+      }}
+      // Der Kasten selbst ist das „hier hinein"-Ziel: an das Ende dieser Gruppe.
+      // Die Marken und Zeilenkanten darin stoppen ihre Ereignisse, also gewinnt
+      // immer die feinere Geste.
+      onDragOver={e => {
+        if (!dropErlaubt) return;
+        e.preventDefault();
+        e.stopPropagation();
+        setZiel({ elternPfad: pfad, index: kinder.length });
+      }}
+      onDrop={e => { if (!dropErlaubt) return; e.preventDefault(); e.stopPropagation(); onAblegen(); }}
     >
       <div className="flex items-center gap-1">
+        {!istWurzel && (
+          <span className="shrink-0 text-[10.5px] font-semibold tracking-[0.06em] text-[var(--tf-text-secondary)]">
+            GRUPPE {nummer ?? 1}
+          </span>
+        )}
         <select
           value={istUnd ? 'alle' : 'einige'}
           onChange={e => setzeGruppe(e.target.value === 'alle' ? { alle: kinder } : { einige: kinder })}
@@ -229,15 +244,18 @@ function Gruppe(p: BaumProps): React.ReactElement {
               : 'Leer = nie direkt erfüllt (nur über Unter-Meilensteine).'}
           </span>
         )}
+
+        {aktionen && <span className="ml-auto pl-2">{aktionen}</span>}
       </div>
 
       <div className="flex flex-col pl-2.5 border-l border-[var(--tf-border)]">
         {marke(0)}
         {kinder.map((kind, i) => {
           const kindPfad = [...pfad, i];
-          const aktionen = (
+          const istGruppe = istBedingungsGruppe(kind);
+          const kindAktionen = (
             <ZeilenAktionen
-              was={istBedingungsGruppe(kind) ? 'Gruppe' : 'Bedingung'}
+              was={istGruppe ? 'Gruppe' : 'Bedingung'}
               griffProps={{
                 draggable: true,
                 onDragStart: e => {
@@ -257,39 +275,62 @@ function Gruppe(p: BaumProps): React.ReactElement {
                 ? 'Nur möglich, wenn direkt darüber eine Gruppe steht — sonst entstünde eine Gruppe, die niemand gewählt hat.'
                 : 'Die tiefste Ebene ist erreicht.'}
               kannAusruecken={darfBedingungAusruecken(kindPfad)}
+              ausrueckenGrund="Steht bereits auf der obersten Ebene — parallel zu den übrigen Bedingungen."
+              kannVerpacken={tiefe + 1 < MAX_TIEFE}
               onHoch={() => onWurzel(verschiebeBedingungsGeschwister(wurzel, kindPfad, 'hoch'))}
               onRunter={() => onWurzel(verschiebeBedingungsGeschwister(wurzel, kindPfad, 'runter'))}
               onEinruecken={() => onWurzel(rueckeBedingungEin(wurzel, kindPfad))}
               onAusruecken={() => onWurzel(rueckeBedingungAus(wurzel, kindPfad))}
+              onVerpacken={() => onWurzel(verpackeBedingungInGruppe(wurzel, kindPfad, 'alle'))}
               onEntfernen={() => onWurzel(entferneBedingungAn(wurzel, kindPfad))}
             />
           );
           const wirdGezogen = !!gezogen && gleich(gezogen, kindPfad);
+          // 1-basiert unter den Geschwister-GRUPPEN, nicht unter allen Kindern:
+          // „Gruppe 2" soll die zweite Gruppe meinen, nicht das zweite Kind.
+          const gruppenNummer = istGruppe
+            ? kinder.slice(0, i + 1).filter(istBedingungsGruppe).length
+            : undefined;
           return (
             <div key={i} style={wirdGezogen ? { outline: '1px dashed var(--tf-border-hover)' } : undefined}>
-              {istBedingungsGruppe(kind) ? (
-                <div className="flex items-start gap-1">
-                  <div className="flex-1 min-w-0">
-                    <Gruppe {...p} pfad={kindPfad} />
-                  </div>
-                  <span className="pt-1.5">{aktionen}</span>
+              <div className="flex items-start" onDragOver={istGruppe ? undefined : kante(i)}
+                onDrop={istGruppe ? undefined : (e => {
+                  if (!dropErlaubt) return;
+                  e.preventDefault(); e.stopPropagation(); onAblegen();
+                })}
+              >
+                <Rinne wort={i > 0 ? wort : null} />
+                <div className="flex-1 min-w-0">
+                  {istGruppe ? (
+                    <Gruppe {...p} pfad={kindPfad} aktionen={kindAktionen} nummer={gruppenNummer} />
+                  ) : (
+                    <BlattZeile
+                      blatt={kind as Blatt}
+                      spalten={spalten}
+                      pruefeFeld={pruefeFeld}
+                      vorschlaege={vorschlaege}
+                      onChange={b => onWurzel(ersetzeBedingungAn(wurzel, kindPfad, b))}
+                      aktionen={kindAktionen}
+                    />
+                  )}
                 </div>
-              ) : (
-                <BlattZeile
-                  blatt={kind as Blatt}
-                  spalten={spalten}
-                  pruefeFeld={pruefeFeld}
-                  vorschlaege={vorschlaege}
-                  onChange={b => onWurzel(ersetzeBedingungAn(wurzel, kindPfad, b))}
-                  aktionen={aktionen}
-                />
-              )}
+              </div>
               {marke(i + 1)}
             </div>
           );
         })}
 
-        <div className="flex items-center gap-1 pt-0.5">
+        {kinder.length === 0 && dropErlaubt && (
+          <div
+            aria-hidden
+            className={`${UNTER_RINNE} my-1 rounded py-1 text-center text-[11px] text-[var(--tf-text-secondary)]`}
+            style={{ border: '1px dashed var(--tf-primary)' }}
+          >
+            hierher ziehen
+          </div>
+        )}
+
+        <div className={`flex items-center gap-1 pt-0.5 ${UNTER_RINNE}`}>
           <Button
             variant="ghost" size="xs" icon={Plus}
             onClick={() => ergaenzeKind({ feldId: ersteSpalte, op: 'gefuellt' })}

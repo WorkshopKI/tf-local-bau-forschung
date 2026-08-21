@@ -54,9 +54,20 @@ Teilvorhaben.
     Übernehmen" — der Vorschlag wird nie von selbst gesetzt.
 
   - **Bedingungen und Gruppen lassen sich nachträglich umhängen**: jede Zeile hat
-    Griff, Hoch, Runter, Aus- und Einrücken. Eingerückt wird nur in eine Gruppe,
-    die schon darüber steht; „+ Gruppe" liegt oben neben der Verknüpfung und legt
-    eine Gruppe auf **derselben** Ebene an.
+    Griff, Hoch, Runter, Aus- und Einrücken sowie „in eine eigene Gruppe
+    verpacken". Eingerückt wird nur in eine Gruppe, die schon darüber steht;
+    „+ Gruppe" liegt oben neben der Verknüpfung und legt eine Gruppe auf
+    **derselben** Ebene an. Gesperrte Schalter nennen im Tooltip den Grund.
+
+  - **Die Verknüpfung steht zwischen den Zeilen**: links vor jeder Bedingung ab
+    der zweiten steht „UND" bzw. „ODER", auch vor und hinter einem Gruppenkasten.
+    Eine Gruppe neben Bedingungen ist damit erkennbar deren **Nachbarin**, keine
+    Untergruppe; Gruppen heißen „GRUPPE 1", „GRUPPE 2" und tragen ihre
+    Verknüpfung im Kopf.
+
+  - **Beim Ziehen einer Bedingung zeigen sich alle möglichen Ablagestellen.**
+    Zwischen zwei Zeilen legt eine Linie sie dort ab, auf einen Gruppenkasten
+    gezogen landet sie in dieser Gruppe.
 
   - **Mehrere Meilensteine bleiben gleichzeitig offen**, damit sich Regeln
     vergleichen lassen; die offene Zeile trägt links eine Kante, ein zweiter
