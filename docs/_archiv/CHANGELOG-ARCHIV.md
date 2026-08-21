@@ -2,6 +2,170 @@
 
 Ältere Versionsblöcke (append-only, chronologisch absteigend). Die jüngsten Versionen stehen im Root-[CHANGELOG.md](../CHANGELOG.md). Bump-Regeln + Architektur: [CLAUDE.md](../CLAUDE.md).
 
+### v4.106.0 — Vorschlaege fuer den Frage-Modus der Foerderantraege (August 2026)
+
+MINOR — Gewünscht waren Vorschläge für den Frage-Modus: vergangene Fragen, konkrete Beispiele und Vorlagen zum Ausfüllen. Ein leeres Feld, das einen ganzen Satz erwartet, zeigte bis dahin genau ein Beispiel im Platzhalter — welche Achsen es sonst gibt, stand nirgends.
+
+- **Drei Abschnitte in einer Liste** — Zuletzt gefragt · Beispielfragen · Zum Ausfüllen, mit einer Auswahlmarke über alle ([vorschlagsAbschnitte.ts](src/plugins/antraege/frage/vorschlagsAbschnitte.ts), [antrags-frage.md](docs/architecture/antrags-frage.md))
+- **Fertige Frage gegen halbe Frage**: Verlauf und Beispiel werden gestellt, eine Vorlage nur eingesetzt — der Cursor landet markiert auf der ersten Lücke `‹…›` ([useFrageVorschlaege.ts](src/plugins/antraege/frage/useFrageVorschlaege.ts))
+- **Enter springt zur nächsten Lücke**, statt eine halbe Frage an die KI zu schicken ([FrageVorschlaege.tsx](src/plugins/antraege/frage/FrageVorschlaege.tsx))
+- **Gemerkt wird erst, was übersetzt werden konnte** — gerätelokal und getrennt vom Verlauf der Dokumenten-Suche ([frageVerlauf.ts](src/plugins/antraege/frage/frageVerlauf.ts))
+- **Die Verlaufs-Mechanik steht jetzt einmal** statt in der Such-Seite, die eine React-Komponente hinter sich herzöge ([anfrage-verlauf.ts](src/core/services/search/anfrage-verlauf.ts))
+
+### v4.105.1 — Die gezaehlte Gruppe steht in den Belegen (August 2026)
+
+PATCH — Gemeldet: „die Antwort ist nicht hilfreich, wenn die 4 nicht gelistet sind". Der Befund zählte „4 von 499 tragen ALLE gefragten Themen", die Antwort erklärte sie für nicht im Auszug enthalten — sie standen auf den Plätzen 1 bis 4. Keine Belegzeile wies die Gruppe aus, also konnte das Modell sie zählen, aber nicht benennen.
+
+- **Die Belegzeile beschriftet die Gruppe** („trägt ALLE gefragten Themen", erst ab zwei gefragten Sachen) ([assistentKontext.ts](src/plugins/suche/assistentKontext.ts))
+- **Die Auswahl zieht sie nach vorn** — Relevanz allein garantiert nicht, dass sie unter die 40 Belege kommt ([suche-relevanz.md §8.3](docs/architecture/suche-relevanz.md))
+- **Die Prompt-Regel hängt an der Marke selbst**: einzeln nennen statt zählen, und nie behaupten, sie fehlten ([frageantwort-lauf.ts](src/core/services/search/frageantwort-lauf.ts))
+- **Eine Schwelle für Zählen und Beschriften** (`traegtAlleThemen`) statt zweier Vergleiche auf dieselbe Gruppe ([trefferstelle.ts](src/core/services/search/trefferstelle.ts))
+
+### v4.105.0 — Frage an die Foerderantrags-Liste (August 2026)
+
+MINOR — Gewünscht war die Frage in natürlicher Sprache auch für die Förderanträge. Die Fragen dort sind aber anderer Art als in der Dokumenten-Suche: sie nennen kein Thema, sondern Metadaten-Kombinationen („alle Netzwerke, die für Phase 2 abgelehnt wurden"). Übernommen wurde deshalb das Muster, nicht der Frageplan.
+
+- **Die Frage setzt die vorhandenen Filter** statt einer eigenen Trefferliste — Pillen und Chips zeigen, was verstanden wurde, und bleiben einzeln korrigierbar ([antrags-frage.md](docs/architecture/antrags-frage.md))
+- **Stillstand als eigene Achse**: „seit wann kein neues Kürzel", auch ohne Frage per Klick. Ohne datierbares Kürzel lautet das Urteil **„nicht prüfbar"**, nie „läuft" ([letzteAktivitaet.ts](src/plugins/antraege/frage/letzteAktivitaet.ts))
+- **Kürzel-Ausschnitt aus einer Frage** — die Liste konnte bisher nur das eigene Profil-Kürzel; bei fester Identität (MA-Login) greift er bewusst nicht ([useBearbeiterSicht.ts](src/core/hooks/useBearbeiterSicht.ts))
+- **Eine tote Statuskategorie wird gar nicht erst angeboten**: `abgelehnt` hat im Katalog null Rohwerte, ein Filter darauf verglich nichts ([antragsplan.ts](src/plugins/antraege/frage/antragsplan.ts))
+- **Die sechs Pflichten eines einschüssigen KI-Laufs stehen jetzt einmal** statt in drei Dateien; Frageplan, Frageantwort und Wortformen-Prüfung laufen darüber ([ein-schuss-lauf.ts](src/core/services/ai/ein-schuss-lauf.ts))
+
+### v4.104.0 — Belege und Vorschlaege getrennt an die KI (August 2026)
+
+MINOR — Vorgeschlagen wurde, dem großen Kontext mehr Treffer zuzumuten und die Ähnlichkeits-Treffer als zweite Menge zu schicken, damit das Modell selbst entscheidet, ob einer dazugehört. Beides trifft zu: 20 Belege waren eine Vorsicht ohne Grund, und untergemischte Vorschläge waren von Funden nicht zu unterscheiden.
+
+- **40 statt 20 Belege** — gemessen 355 Zeichen je Zeile über 12 180 Anträge, also 14 209 statt 7 105 unter einem Deckel von 24 000 ([useFrageAntwort.ts](src/plugins/suche/antwort/useFrageAntwort.ts))
+- **Ähnlichkeits-Treffer fahren als eigene, benannte Menge mit** (bis zu 12) — das Modell prüft sie einzeln und muss „(thematisch verwandt)" hinter das Kennzeichen schreiben ([frageantwort-lauf.ts](src/core/services/search/frageantwort-lauf.ts), [assistentKontext.ts](src/plugins/suche/assistentKontext.ts))
+- **Eine Gesamtzahl bleibt eine**: der Befund nennt die Zusammensetzung in derselben Zeile („671, davon 75 nur thematisch ähnlich") ([frageBefund.ts](src/plugins/suche/frageBefund.ts))
+- **Kandidaten allein reichen für einen Lauf** — eine Frage, die nur thematisch trifft, bekommt trotzdem eine Antwort statt „keine Treffer"
+- **Warum das die Rang-Frage erledigt**: die Vorschläge konkurrieren nicht mehr um die 40 Plätze ([suche-relevanz.md §8.2](docs/architecture/suche-relevanz.md))
+
+### v4.103.1 — Der Schalter sagt, was er bei einer Frage tut (August 2026)
+
+PATCH — Gefragt wurde, ob „auch ähnliche Themen" bei einer Frage überhaupt Sinn ergibt und was der Haken dort bewirkt. Er tut dort etwas anderes als bei Stichworten — verglichen wird die ganze Frage —, und das stand nirgends außer im Quelltext.
+
+- **Eigener Tooltip im Frage-Modus**: ganze Frage statt Suchbegriffe, bis zu 50 zusätzliche Vorhaben, gedeckelt auf „mittel", nichts davon bei einer einschränkenden Frage ([SuchOptionenZeile.tsx](src/plugins/suche/SuchOptionenZeile.tsx))
+- **Nicht gebaut, weil vorhanden**: schränkt der Plan ein, steht an der Stelle des Hakens schon seit v4.66 „ohne Ähnlichkeitssuche" samt Begründung
+- **Nicht automatisch eingeschaltet** — die Antwort-KI liest die ersten 20 Treffer, gedeckelte Ähnlichkeits-Treffer erreichen sie fast nie, zählen aber im Befund mit ([useFrageAntwort.ts](src/plugins/suche/antwort/useFrageAntwort.ts))
+- **Die Zahlen stehen im Seiten-Kontext-Doc** ([suche.md](docs/feedback-kontext/suche.md))
+
+### v4.103.0 — Vorgangs-Board und Vorgangs-Regeln laden beim Wiederbesuch sofort (August 2026)
+
+MINOR — Beide Seiten rechneten bei JEDEM Menü-Aufruf den ganzen Bestand neu — gemessen 7,8–18,2 s (Board) bzw. 10,8–12,4 s (Regeln), auch beim Wiederbesuch. Gemeldet als „dauert es bei jedem Aufruf 5 Sekunden ehe die Seiten Inhalte anzeigen".
+
+- **Ergebnis überlebt den Seitenwechsel**: Wiederbesuch < 1 s (Board) bzw. 126 ms (Regeln), mit sichtbarem Alter + „neu berechnen" ([boardCache.ts](src/plugins/vorgangs-board/boardCache.ts), [cockpitCache.ts](src/plugins/status-cockpit/cockpitCache.ts), [BestandsFrische.tsx](src/components/ui/BestandsFrische.tsx))
+- **Fassungs-Indizes einmal je Fassung statt je Antrag** — Wächter 2 459 → 602 ms, Neuberechnung gesamt 10,5 → 5,3 s ([version-index.ts](src/core/status/version-index.ts))
+- **Kompilierter Vorkommen-Plan + Kaskaden-Index** statt Closure/Sortierung je Antrag ([feld-aufloesung.ts](src/core/status/feld-aufloesung.ts), [todo-engine.ts](src/core/status/todo-engine.ts))
+- **`stand.json` + Trigger-Parse je Sitzung einmal**, `filterRecord` auf die sechs Kürzel-Spalten eingedampft ([stand.ts](src/core/status/journal/stand.ts), [trigger-share.ts](src/core/status/trigger-share.ts), [boardFilter.ts](src/plugins/vorgangs-board/boardFilter.ts))
+- **Gechunktes Lesen wurde gemessen und VERWORFEN** (28 Transaktionen statt einer, ~7 s teurer) — der Absatz steht im Code, damit es niemand erneut „verbessert" ([vorgangs-quelle.ts](src/core/status/vorgangs-quelle.ts))
+
+### v4.102.2 — Der Chip filtert auch die Tabelle (August 2026)
+
+PATCH — Der Chip „nur die genannten 6" filterte Kopfzahl, Liste und Export, die **Tabelle** aber nicht: über 671 Zeilen stand „6 Treffer". Gemeldet als „obwohl ‚nur 6' an ist, werden in der Tabelle weiterhin alle Ergebnisse angezeigt".
+
+- **Die Tabelle bekommt dieselbe Menge wie alle anderen Anzeigestellen** ([SuchSeite.tsx](src/plugins/suche/SuchSeite.tsx))
+- **Guard `suche-eine-gezeigte-menge`**: Kopfzahl, Liste, Tabelle, Export und KI-Kontext müssen denselben Namen nennen — nachgewiesen scharf (Rückbau ⇒ rot) ([conventions-ui.test.ts](src/__tests__/conventions-ui.test.ts))
+- **Die zweite Meldung („KI-Antwort nur für 5 der 6") war dieselbe Ursache** — der sechste Beleg stand weiter unten in der ungefilterten Tabelle; die Zerlegung liefert für den echten Antworttext sechs Belege ([genannteTreffer.test.ts](src/plugins/suche/antwort/__tests__/genannteTreffer.test.ts))
+- **Antwortkarte + Chip stehen jetzt im Seiten-Kontext-Doc** ([suche.md](docs/feedback-kontext/suche.md))
+
+### v4.102.1 — CSV-Quellordner darf nicht der eigene Kopie-Ordner sein (August 2026)
+
+PATCH — Auf der Entwickler-Maschine importierte die App bei JEDEM Reload alle drei CSV-Quellen, obwohl sich kein Export geändert hatte. Nicht die Erkennung war schuld: `dev:local` las den Ordner, in den die App ihre eigene UTF-8-Kopie schreibt, `zah-pl` den echten Export — zwei Dateien, ein Schema-Record, 195× hin- und hergekipptes `encoding` bei null inhaltlicher Änderung.
+
+- **`csvSourceDir` der Variante „local" zeigt auf den Export-Ordner**, nicht mehr in den Daten-Share ([local.config.json](configs/local.config.json))
+- **`istEigenerKopieOrdner` meldet den Fall zur Laufzeit** — einmal je Lauf in `collectCandidates`, als Warnung + Audit-Eintrag, ohne den Lauf abzubrechen ([csv-source-handle.ts](src/plugins/csv-sources-kuration/csv-source-handle.ts))
+- **Convention-Test `csv-quellordner-nicht-kopieordner`** hält alle Configs davon frei ([conventions-daten.test.ts](src/__tests__/conventions-daten.test.ts))
+- **Wiederholte Encoding-Heilung ist ein eigener Befund** — Hergang, Messung und Audit-Grep als Erstdiagnose ([csv-auto-refresh.md](docs/architecture/csv-auto-refresh.md), [local-variante.md](docs/architecture/local-variante.md))
+
+### v4.102.0 — Die Auswahl fragt selbst (August 2026)
+
+MINOR — Zwei Meldungen aus dem Test, beide über eine Geste zu viel: eine Frage aus dem Verlauf stand nach der Auswahl nur im Feld und wartete auf einen zweiten Klick, und über ihr stand ein Richtlinien-Chip, der noch gar nichts gefiltert hatte.
+
+- **Eine ausgewählte Anfrage läuft sofort** — Verlaufs-Zeile im Vorschlagsfeld wie Zeile unter „Zuletzt gesucht"; im Frage-Modus geht sie damit direkt an die interne KI ([SearchInput.tsx](src/plugins/suche/SearchInput.tsx), [SucheStartzustand.tsx](src/plugins/suche/SucheStartzustand.tsx))
+- **Feldnamen und Werte laufen weiterhin nicht los** — sie sind ein Stück Anfrage, kein Auftrag; die Auswahl tut genau das, was die Eingabetaste täte
+- **Der Richtlinien-Chip verschwindet bei offener Frage** und steht sonst wie bisher im Ergebniskopf bzw. im Startzustand ([SuchSeite.tsx](src/plugins/suche/SuchSeite.tsx))
+- **Pitfall #46 präzisiert**: keine heruntergezählte Zahl ohne Chip — und kein Chip, wo keine Zahl steht ([vorgangssystem.md §10](docs/architecture/vorgangssystem.md))
+
+### v4.101.0 — Ein Fragezeichen mitten im Wort (August 2026)
+
+MINOR — 306 der 733 Netzwerke führen mehr als eine Schreibweise ihres Namens; bei `mobiInspec` gegen `mobilnspec` erreichte keine feste Nadel beide Hälften. Dazu zwei Meldungen aus dem Test: die Marke der KI-Antwort fehlte in der Tabellenansicht, und der Richtlinien-Chip stand nicht bei der Zahl, auf die er wirkt.
+
+- **`?` steht für genau ein Zeichen** — überall außer am Wortende, wo es das Fragezeichen einer Frage bleibt ([wortstamm.ts](src/core/services/search/wortstamm.ts))
+- **Vor dem Bau gemessen**: der Muster-Pfad kostet 4,7 ms gegen 5,8 ms heute (12 358 Anträge × 6 Felder) — teuer ist nur eine zu weite Anfrage, dagegen steht die Drei-Zeichen-Grenze ([suche-relevanz.md](docs/architecture/suche-relevanz.md))
+- **Spalte „KI-Antwort" in der Tabelle** — dieselbe Auskunft wie die Marke in der Liste, Kurzform in der Zelle, ganzer Satz im Tooltip und im Export ([antwortSpalte.ts](src/plugins/suche/antwort/antwortSpalte.ts))
+- **Der Richtlinien-Chip steht im Ergebniskopf**, direkt hinter „180 Treffer in 14.225 Anträgen"; ohne Ergebnis weiter über den Facetten ([SuchSeite.tsx](src/plugins/suche/SuchSeite.tsx))
+- **Am Bestand nachgemessen**: `mobi?nspec` 33 · `16KN0830?1` 14 · `Normung?` 0 · `????` 0
+
+### v4.100.0 — Verwaltungsnotizen raus aus der Suche, Antwort rein in die Liste (August 2026)
+
+MINOR — Zwei Meldungen, eine Wurzel: die Suche zeigte Dinge nebeneinander, die nicht zusammengehören, und trennte, was zusammengehört. Gemeldet als „warum kann ich die Spalte Notiz nicht abwählen, da steht oft was mit Vollmachten" und „wie kann der User die Liste der KI ganz oben mit den Suchergebnissen darunter zusammenbringen?".
+
+- **Die Arbeitsnotizen laufen nicht mehr im Standard mit** — sie hängen am Vorgang, nicht am Vorhaben: 1.054 der 5.345 Notizen nennen eine Vollmacht ([suchbereich.ts](src/core/services/search/suchbereich.ts))
+- **Der Standardbereich heißt „alle Vorhabensfelder"** statt „alle Felder"; die drei Ausnahmen stehen benannt in `NICHT_IM_STANDARD`, der Guard hält es bei dreien
+- **Der Klick auf ein Kennzeichen in der Antwort springt in die Liste** statt die Suche zu verlassen — die Liste lädt dafür bis zur Zielzeile nach ([useAntwortBruecke.ts](src/plugins/suche/antwort/useAntwortBruecke.ts))
+- **Genannte Treffer tragen die Marke „in der Antwort"** und den Satz der KI als Kurzform, den vollen im Tooltip — ohne zweiten KI-Aufruf ([genannteTreffer.ts](src/plugins/suche/antwort/genannteTreffer.ts))
+- **Chip „nur die genannten (13)"** hinter den Facetten; der Antwort-Lauf bleibt bewusst auf der ungefilterten Menge ([GenannteChip.tsx](src/plugins/suche/antwort/GenannteChip.tsx))
+
+### v4.99.0 — Ein Ordner sagt, ob er eine Spalte traegt (August 2026)
+
+MINOR — Der Ordnerbaum sah nach Zierrat aus: über 25 Fassungen hat ihn niemand umgebaut, vier seiner 19 Ordner sind leer. Er ist es nicht — aus `kategorieId` entstehen die Ordner-Spalten der Fördertabelle. Ein leerer Ordner ist damit eine Spalte, die nie erscheinen kann, und das stand nirgends.
+
+- **Bilanzzeile über dem Ordnerbaum**, die die Ordner ohne Spalte **namentlich** nennt ([ordnerBilanz.ts](src/plugins/status-cockpit/ordnerBilanz.ts), [KategorieEditor.tsx](src/plugins/status-cockpit/KategorieEditor.tsx))
+- **Marke „ohne Spalte" am Ordner** — nur dort, wo etwas fehlt; ein Haken am Regelfall wäre Rauschen
+- **Das Kriterium wird geholt, nicht nachgebaut**: `kategorienMitDatumsfeldern` bleibt die einzige Quelle, sonst behauptete die Zeile etwas, das die Tabelle nicht einlöst
+- **„Leer" und „ohne Spalte" sind nicht dasselbe** — nötig ist ein aktives Datums-Kürzel mit Prominenz ≠ Ignoriert ([ordnerBilanz.test.ts](src/plugins/status-cockpit/__tests__/ordnerBilanz.test.ts))
+- **Korrektur der Analyse vom 18.08.**: der vorgeschlagene Rückbau der Ordner-Achse hätte dem Team Spalten aus der Fördertabelle genommen ([status-achsen.md](docs/architecture/status-achsen.md))
+
+### v4.98.0 — Ein Status ist eine Zeile (August 2026)
+
+MINOR — Der Reiter sagte „Statuswerte 60", der Baum daneben zeigte 30, und die Drift-Zeile schrieb ausdrücklich „gezählt werden Status, keine Katalogzeilen". Drei Stellen, zwei Vokabulare. In der Tabelle stand jeder Status zweimal untereinander — über 25 Fassungen wich kein einziges der 30 Paare in irgendeinem kuratierten Feld ab.
+
+- **Eine Zeile je Status** statt je Katalogzeile; die erste Spalte heißt jetzt **Ebene** und sagt „TV · Verbund" ([katalogZeilen.ts](src/plugins/status-cockpit/katalogZeilen.ts), [katalogSpalten.tsx](src/plugins/status-cockpit/katalogSpalten.tsx))
+- **Reiter, Umschalter und Baum zählen dasselbe** — `zaehleStatus` ist die eine Quelle ([StatusCockpitPage.tsx](src/plugins/status-cockpit/StatusCockpitPage.tsx))
+- **Eine Änderung trifft beide Katalogzeilen** (`aendereCodeWerte`) — derselbe Schlüssel, den `setzeCodePhasen` und `setzeKurzLabel` längst nehmen ([katalog-edit.ts](src/core/status/katalog-edit.ts))
+- **Abweichung wird nicht verschwiegen**: sagen TV und Verbund Verschiedenes, steht ein ≠ neben der Ebene und nennt die Felder ([katalogFaltung.test.ts](src/plugins/status-cockpit/__tests__/katalogFaltung.test.ts))
+- **Vorkommen summiert, „zuletzt gesehen" das jüngste** — die Zahl gilt für den Status, nicht für eine seiner zwei Zeilen
+
+### v4.97.1 — Erst suchen, dann speichern; die Relevanz zeigt Striche (August 2026)
+
+PATCH — Zwei Meldungen aus dem Test des Suchkopfs: „Diese Suche speichern" stand rechts vom Menü der gespeicherten Suchen und bot sich schon an, während der Hinweis darunter „Noch nicht gestellt" sagte. Und die Score-Spalte der Tabelle zeigte „0.88", wo die Liste daneben drei Striche und „hoch" zeigt.
+
+- **Erst speichern, dann nachschlagen** — die beiden Kopf-Aktionen sind vertauscht ([SuchSeite.tsx](src/plugins/suche/SuchSeite.tsx))
+- **Der Speichern-Knopf erscheint erst nach einem Suchlauf**, an derselben Bedingung wie Deutung, Facetten und Trefferzahl; eine getippte, nicht gestellte Frage ist keiner
+- **Er steht links vom Menü, damit sein Erscheinen die Nachbarn nicht verschiebt** — gemessen: „Gespeicherte Suchen" und „Hilfe" bleiben in beiden Zuständen auf 831 px / 1.002 px
+- **Die Spalte „Score" heißt „Relevanz"** und zeigt den `StufenBalken` der Listenansicht; der rohe Score bleibt Tooltip und Sortierwert ([columns.tsx](src/plugins/suche/columns.tsx))
+
+### v4.97.0 — Die Auswahl zeigt sich ganz, die Zahl sagt wovon (August 2026)
+
+MINOR — Gemeldet an der Richtlinien-Auswahl: die Kurzwahlen brachen um, die Programmliste scrollte, und das Panel legte sich über genau die Zeile, deren Zahl es ändert. Dazu die Rückfrage, ob „0 Treffer in 14.225 Anträgen" unter einer Einschränkung noch stimmt — sie stimmte nicht.
+
+- **Drei Kurzwahlen in einer Zeile, Programme in zwei Spalten** — die volle Liste ohne Scrollen, Deckel ist die von Radix gemessene Resthöhe ([BereichPanel.tsx](src/components/bereich/BereichPanel.tsx))
+- **Das Panel geht unter dem Ergebniskopf auf** statt über ihm; der Versatz wird beim Öffnen gemessen, nicht verdrahtet ([BereichAuswahlChip.tsx](src/components/bereich/BereichAuswahlChip.tsx))
+- **„94 Treffer in 2.537 von 14.225 Anträgen"** — unter einer Einschränkung nennt die Zeile beide Mengen ([SuchSeite.tsx](src/plugins/suche/SuchSeite.tsx), [richtlinienWahl.ts](src/plugins/suche/richtlinienWahl.ts))
+- **Der Nenner kommt aus dem Slim-Store**, aus dem auch die Index-Zahl kommt, und wird nur bei einer Einschränkung gelesen ([idb-csv.ts](src/core/services/csv/idb-csv.ts))
+- **620 px statt 420**: am längsten Programmnamen gemessen, `title` als Reißleine für künftige Label-Importe
+
+### v4.96.0 — Das Board stellt drei Fragen statt fuenf (August 2026)
+
+MINOR — Gemeldet: die Vielfalt der Reiter sei für die PL-Rolle zu verwirrend. Die Leiste mischte drei Sorten Menge: eine Partition (453 + 331 + 3.101 = 3.885), eine Risiko-Teilmenge (538) und die Gesamtmenge (3.885) — gleich aussehend, aber nicht gegeneinander lesbar. Und der größte Zähler war zu 96 % falsch beschriftet.
+
+- **Drei Reiter statt fünf**: Arbeit · Fristen · Auswertung — drei Fragen, nicht fünf Mengen ([VorgangsBoardPage.tsx](src/plugins/vorgangs-board/VorgangsBoardPage.tsx))
+- **Wer dran ist, wird ein Filter** mit vier Chips, deren Zahlen sich zur Gesamtmenge addieren ([zustaendigkeit.ts](src/plugins/vorgangs-board/zustaendigkeit.ts), [vorgangs-board.md](docs/feedback-kontext/vorgangs-board.md))
+- **„Kein To-do ermittelt 3.101" zerfällt in seine zwei Sorten**: 107 echte Regel-Lücke, 2.994 abgeschlossene Verfahren — das eine ein Mangel, das andere ein Ergebnis
+- **Vorbelegt ist der Arbeitsvorrat** (meine + wartet = 784); die anderen beiden stehen mit ihrer Zahl daneben, plus Rückweg „zurück zum Arbeitsvorrat" — abgewählt ist nicht versteckt
+- **Der letzte Chip lässt sich nicht abwählen**: eine leere Liste läse sich als „nichts zu tun" ([zustaendigkeit.test.ts](src/plugins/vorgangs-board/__tests__/zustaendigkeit.test.ts))
+
+### v4.95.0 — Wirkungslose Regeln stehen mit Namen da (August 2026)
+
+MINOR — Die Kaskade zählte je Regel zwei Zahlen, sprach aber kein Urteil: „trifft 21 · gewinnt 0" las sich wie jede andere Teilverdeckung. Am Bestand gemessen stehen zwei der 30 Regeln drin, ohne je etwas zu bestimmen — und das sah man nur, wer den Messlauf startete und danach dreißig Zeilen absuchte.
+
+- **Bilanzzeile am Kopf der Kaskade**, die die wirkungslosen Regeln **namentlich** nennt statt sie zu zählen ([todoRegelnAnsicht.ts](src/plugins/status-cockpit/todoRegelnAnsicht.ts), [TodoRegelListe.tsx](src/plugins/status-cockpit/TodoRegelListe.tsx))
+- **Drei Gründe statt einer Zahl**: `trifft nie` (Bedingung meint etwas anderes), `immer verdeckt` (Position falsch), `greift nie` (Sperre) — [vorgangssystem.md §11b](docs/architecture/vorgangssystem.md)
+- **„gewinnt 0" ist jetzt ein Nullbefund**, nicht der generische Verdeckungs-Satz — die Regel bestimmt bei keinem Vorgang etwas
+- **Stillgelegte Regeln bleiben draußen** — sonst meldete die Bilanz als Mangel, was jemand absichtlich abgeschaltet hat ([wirkungsBilanz.test.ts](src/plugins/status-cockpit/__tests__/wirkungsBilanz.test.ts))
+- Gemessen in `dev:local` an **12.359** Vorgängen (Richtlinien 2015 + 2020 + 2025, Regelsatz AB): `R10` trifft nie, `R23b` trifft 21 und gewinnt bei keinem
+
 ### v4.94.0 — Ein Klick auf die laufende Richtlinie (August 2026)
 
 MINOR — Gewünscht: eine Kurzwahl für „nur die aktuell gültige Richtlinie". Bisher kostete das acht Häkchen — und landete in „eigene Auswahl", inklusive Abweichungs-Notiz. Eine so gesetzte Liste veraltet außerdem still: sie zeigt beim nächsten Richtlinien-Wechsel weiter auf die Programme von 2025.

@@ -19,6 +19,15 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v6.4 — 2026-08
+
+### Bugfixes
+- Im Tab der internen KI war zuletzt nicht mehr zu sehen, was die App gesendet hat und was zurückkam — der Chat blieb leer, obwohl alles lief. Frage, Antwort und Chatlänge stehen wieder da, und die Antwort wächst beim Schreiben mit.
+- Nach einem Zurücksetzen blieb der alte Verlauf sichtbar stehen, obwohl er schon verworfen war. Jetzt räumt das Zurücksetzen auch die Anzeige.
+
+### Hinweis
+- Dafür bitte das Lesezeichen einmal neu ziehen: **Einstellungen → KI → Einrichtung**, es heißt jetzt `interne-KI v3`. Bis dahin funktioniert alles wie bisher — nur der Chat im KI-Tab bleibt leer.
+
 ## v6.3 — 2026-08
 
 ### Neu

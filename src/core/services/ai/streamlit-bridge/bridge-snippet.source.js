@@ -34,6 +34,18 @@
 // Die Endpunkte werden aus den `hx-post`-Attributen der Seite GELESEN, nicht
 // verdrahtet: die Seite beschreibt sich selbst, eine Route-Umbenennung bricht uns
 // dadurch nicht.
+//
+// ── Warum wir trotzdem in die Seite schreiben ────────────────────────────────
+// Wer an htmx vorbei sendet, uebernimmt dessen zweite Haelfte mit: das Einhaengen
+// der Antwort. Ohne das bleibt der sichtbare Chat der KI-Seite LEER, obwohl Frage
+// und Antwort laengst durchgelaufen sind (Befund aus dem Echtbetrieb, v6.0).
+// Das kostet zwei belegbare Dinge — der Nutzer kann nicht nachlesen, WAS die App
+// gesendet hat, und die Kontextleiste bleibt auf ihrem alten Stand stehen, aus der
+// wir `data-over` („Fenster voll") an die App melden.
+//
+// Wir erfuellen deshalb den Renderauftrag, den die Seite selbst am Formular
+// notiert (`hx-target` / `hx-swap`) — mit IHREM eigenen Fragment. Es wird kein
+// Markup erfunden: eingehaengt wird, was der Server geliefert hat.
 (function () {
   if (window.__teamflowBridge) return;
   window.__teamflowBridge = true;
@@ -44,7 +56,7 @@
   // ODER die Log-Zeile beim Aktivieren. Die App liest ihn zusaetzlich aus dem
   // tf-pong und warnt bei einem zu alten Snippet — seit dem Umbau ist ein altes
   // Bookmarklet nicht mehr harmlos: es ignoriert das Modellfeld still.
-  var BRIDGE_REV = '2026-08-21-modell-liste';
+  var BRIDGE_REV = '2026-08-21-chat-sichtbar';
   // Kurzversion für den LESEZEICHEN-NAMEN („interne-KI v1"). Sie ist das
   // Einzige, was der Nutzer ohne Klick sieht — an ihr erkennt er in der
   // Lesezeichenleiste, ob er die aktuelle Bridge hat.
@@ -52,7 +64,7 @@
   // ZUSAMMEN mit BRIDGE_REV hochzählen. Kein Guard kann das erzwingen (ob jemand
   // beide Zeilen angefasst hat, steht nirgends im Code) — geprüft wird nur, dass
   // beide Marker lesbar sind und der Name kurz genug für die Leiste bleibt.
-  var BRIDGE_VERSION = 2;
+  var BRIDGE_VERSION = 3;
   window.__teamflowBridgeRev = BRIDGE_REV;
   window.__teamflowBridgeVersion = BRIDGE_VERSION;
   try { console.log('[TeamFlow-Bridge] aktiv — rev ' + BRIDGE_REV); } catch (e) { /* ignore */ }
@@ -71,6 +83,9 @@
     datasource: ['select[name=datasource]'],
     tokenbar: ['#tokenbar'],
     tokentext: ['#tokenbar .tokenbar-text'],
+    // Der sichtbare Verlauf. Wir lesen ihn nie aus (die Antwort kommt aus dem
+    // Strom) — wir schreiben nur hinein, damit der Nutzer sieht, was lief.
+    log: ['#log'],
     chattab: ['.tabs .tab.active', '.tabs .tab'],
   };
 
@@ -424,13 +439,97 @@
     if (extra) { for (var k in extra) { if (Object.prototype.hasOwnProperty.call(extra, k)) h[k] = extra[k]; } }
     return h;
   }
-  // Endpunkt eines Formulars/Feldes: die Seite traegt ihn selbst als hx-post.
-  function hxPost(el) {
-    if (!el) return '';
-    var direkt = el.getAttribute && el.getAttribute('hx-post');
+  // Ein htmx-Attribut am Element oder am naechsten Traeger darueber.
+  function hxAttr(el, name, rueckfall) {
+    if (!el) return rueckfall;
+    var direkt = el.getAttribute && el.getAttribute(name);
     if (direkt) return direkt;
-    var traeger = el.closest && el.closest('[hx-post]');
-    return traeger ? (traeger.getAttribute('hx-post') || '') : '';
+    var traeger = el.closest && el.closest('[' + name + ']');
+    return (traeger && traeger.getAttribute(name)) || rueckfall;
+  }
+  // Endpunkt eines Formulars/Feldes: die Seite traegt ihn selbst als hx-post.
+  function hxPost(el) { return hxAttr(el, 'hx-post', ''); }
+
+  // ── Renderauftrag der Seite nachholen ─────────────────────────────────────
+  // Ein fremdes Fragment, das wir einhaengen, darf NICHTS anstossen: steht die
+  // Strom-Adresse noch drin, koennte die Seitenmechanik daran einen ZWEITEN
+  // EventSource oeffnen — derselbe Lauf zweimal, auf Kosten der internen KI. Wir
+  // benennen sie deshalb um; gelesen haben wir sie vorher aus dem Original.
+  function entschaerfe(wurzel) {
+    try {
+      var offen = wurzel.querySelectorAll('[data-url]');
+      for (var i = 0; i < offen.length; i++) {
+        offen[i].setAttribute('data-tf-url', offen[i].getAttribute('data-url') || '');
+        offen[i].removeAttribute('data-url');
+      }
+    } catch (e) { /* ignore */ }
+    return wurzel;
+  }
+  // Nur nachfuehren, wenn der Nutzer ohnehin unten steht: wer hochgescrollt hat,
+  // um mitzulesen, soll nicht bei jedem Token zurueckgerissen werden.
+  function amEnde(log) {
+    if (!log) return true;
+    return log.scrollHeight - log.scrollTop - log.clientHeight < 120;
+  }
+  function scrolleAnsEnde(el) {
+    try {
+      var log = q1(SEL.log);
+      if (log && log.scrollHeight > log.clientHeight) { log.scrollTop = log.scrollHeight; return; }
+      // Scrollt nicht der Kasten, sondern die Seite → das Element selbst zeigen.
+      if (el && el.scrollIntoView) el.scrollIntoView({ block: 'end' });
+    } catch (e) { /* ignore */ }
+  }
+  // Haengt das Server-Fragment dort ein, wo die Seite es selbst hinhaengen wuerde.
+  // Rueckfall fuer `hx-swap` ist bewusst 'beforeend' und NICHT htmx' echter
+  // Standard 'innerHTML': fehlt das Attribut, steht das Eingehaengte hoechstens an
+  // der falschen Stelle — Ersetzen wuerde den sichtbaren Verlauf loeschen.
+  // Liefert die eingehaengten Elemente (VOR dem Anhaengen eingesammelt: das
+  // Anhaengen leert das Fragment).
+  function wendeSwapAn(quelleEl, html, zielRueckfall) {
+    var zielSel = hxAttr(quelleEl, 'hx-target', zielRueckfall || '');
+    var ziel = zielSel ? document.querySelector(zielSel) : null;
+    if (!ziel) return null;
+    var art = String(hxAttr(quelleEl, 'hx-swap', 'beforeend')).split(' ')[0];
+    var frag = entschaerfe(parseFragment(html));
+    var eingehaengt = [];
+    for (var i = 0; i < frag.children.length; i++) eingehaengt.push(frag.children[i]);
+    try {
+      if (art === 'innerHTML') { ziel.innerHTML = ''; ziel.appendChild(frag); }
+      else if (art === 'outerHTML') { ziel.replaceWith(frag); }
+      else if (art === 'afterbegin') { ziel.insertBefore(frag, ziel.firstChild); }
+      else { ziel.appendChild(frag); }   // beforeend
+    } catch (e) { return null; }
+    scrolleAnsEnde(eingehaengt[eingehaengt.length - 1]);
+    return eingehaengt;
+  }
+  // Geruest eines Fragments fuer die Konsole: Tags + Klassen der obersten Ebene.
+  // NIE Inhalt — hier stuende sonst der Prompt in der Konsole der fremden Seite.
+  // Zweck: die Abnahme am echten System soll BELEGEN, was der POST liefert
+  // (bringt er die eigene Frage mit? wo sitzt die Antwortblase?), statt dass wir
+  // es aus der Ferne annehmen.
+  function geruest(frag) {
+    var teile = [];
+    try {
+      for (var i = 0; i < frag.children.length; i++) {
+        var c = frag.children[i];
+        var cls = String(c.className || '').trim();
+        teile.push(c.tagName.toLowerCase() + (cls ? '.' + cls.split(/\s+/).join('.') : ''));
+      }
+    } catch (e) { /* ignore */ }
+    return teile.join(' + ') || '(leer)';
+  }
+  // Haengt das Fragment ein und liefert das Element, in das die Antwort gehoert —
+  // die Seite markiert es mit der Strom-Adresse (nach dem Entschaerfen data-tf-url).
+  function zeigeImChat(quelleEl, html) {
+    var eingehaengt = wendeSwapAn(quelleEl, html, '#log');
+    if (!eingehaengt) return null;
+    for (var i = 0; i < eingehaengt.length; i++) {
+      var el = eingehaengt[i];
+      if (el.matches && el.matches('[data-tf-url]')) return el;
+      var innen = el.querySelector && el.querySelector('[data-tf-url]');
+      if (innen) return innen;
+    }
+    return null;
   }
   // Formular-POST wie htmx ihn schickt (urlencoded). Liefert {ok, status, text}.
   function postForm(url, felder, cb) {
@@ -463,6 +562,31 @@
       text: el ? String(el.textContent || '').trim() : '',
       voll: !!(box && box.dataset && box.dataset.over),
     };
+  }
+  // Der Strom meldet die Leiste waehrend des Laufs — bisher haben wir das Ereignis
+  // nur als Lebenszeichen gewertet und die Nutzlast weggeworfen. Ohne sie zieht die
+  // Leiste der Seite NIE nach (htmx sieht unseren Lauf nicht): sie stuende bis zum
+  // naechsten Modellwechsel oder Neuladen auf ihrem alten Wert. Das ist mehr als
+  // Anzeige — `kontextStand()` liest genau sie, und daraus kommt das
+  // „Fenster voll"-Signal an die App.
+  //
+  // Die Form der Nutzlast ist nicht garantiert, deshalb drei abgestufte Wege und
+  // im Zweifel KEINE Aenderung: ein alter Wert ist besser als eine zerschossene
+  // Kopfzeile der fremden Seite.
+  function aktualisiereTokenleiste(nutzlast) {
+    try {
+      var alt = q1(SEL.tokenbar);
+      if (!alt) return;
+      var frag = entschaerfe(parseFragment(nutzlast));
+      var ganz = frag.querySelector('#tokenbar');
+      if (ganz) { alt.replaceWith(ganz); return; }          // (a) ganze Leiste
+      var ziel = q1(SEL.tokentext);
+      if (!ziel) return;
+      var text = frag.querySelector('.tokenbar-text');
+      if (text) { ziel.textContent = String(text.textContent || '').trim(); return; } // (b) nur der Text
+      var roh = String(nutzlast || '').trim();              // (c) reiner Text
+      if (roh && roh.indexOf('<') === -1 && /\d/.test(roh)) ziel.textContent = roh;
+    } catch (e) { /* ignore */ }
   }
 
   // ── Modell setzen ─────────────────────────────────────────────────────────
@@ -595,8 +719,19 @@
           fehler('Die interne KI hat die Anfrage abgelehnt (HTTP ' + res.status + ').');
           return;
         }
+        // Erst LESEN, dann einhaengen: das Eingehaengte ist entschaerft (ohne
+        // data-url) — die Adresse steht nur im frisch geparsten Original.
         var frag = parseFragment(res.text);
         var sse = frag.querySelector('.sse[data-url], [data-url]');
+        // Die Seite zeigen lassen, was sie selbst gezeigt haette: die Frage, die
+        // Antwortblase — oder eine Fehlermeldung.
+        var antwortEl = zeigeImChat(form, res.text);
+        try {
+          console.log('[TeamFlow-Bridge] Antwort-Fragment: ' + geruest(frag)
+            + ' | Strom: ' + (sse ? 'ja' : 'nein')
+            + ' | Antwortblase: ' + (antwortEl ? 'gefunden' : 'KEINE')
+            + ' | Ziel: ' + (hxAttr(form, 'hx-target', '?') + ' / ' + hxAttr(form, 'hx-swap', '(Rueckfall beforeend)')));
+        } catch (e) { /* ignore */ }
         if (!sse) {
           // Kein Strom → das Fragment IST die Antwort (Fehlermeldung der Seite,
           // z. B. „Maximale Chatlänge überschritten"). Als Ergebnis zurueckgeben
@@ -609,11 +744,11 @@
             kontextText: stand.text, kontextVoll: stand.voll }, '*');
           return;
         }
-        lausche(sse.getAttribute('data-url'), aktivesModell, stand);
+        lausche(sse.getAttribute('data-url'), aktivesModell, stand, antwortEl);
       });
     }
 
-    function lausche(streamUrl, aktivesModell, stand) {
+    function lausche(streamUrl, aktivesModell, stand, antwortEl) {
       var es, fertig = false, lastMd = '', reasoningMd = '';
       var started = Date.now(), letztesEreignis = Date.now();
 
@@ -671,6 +806,16 @@
       }
       es.addEventListener('message', function (ev) {
         letztesEreignis = Date.now();
+        // Die Seite mitschreiben lassen: `message` ist ein VOLL-Snapshot des
+        // Antwort-HTML — genau das, was die Seitenmechanik hier hineinschriebe.
+        // Deshalb Ersetzen, nicht Anhaengen.
+        if (antwortEl) {
+          try {
+            var folgen = amEnde(q1(SEL.log));
+            antwortEl.innerHTML = String(ev.data || '');
+            if (folgen) scrolleAnsEnde(antwortEl);
+          } catch (e) { /* ignore */ }
+        }
         var md = mdAusHtml(ev.data);
         if (md && md !== lastMd) {
           lastMd = md;
@@ -681,9 +826,12 @@
         letztesEreignis = Date.now();
         reasoningMd = mdAusHtml(ev.data);
       });
-      // status/tokenbar halten nur den Wachhund wach — angezeigt wird nichts davon.
+      // status haelt nur den Wachhund wach — angezeigt wird nichts davon.
       es.addEventListener('status', function () { letztesEreignis = Date.now(); });
-      es.addEventListener('tokenbar', function () { letztesEreignis = Date.now(); });
+      es.addEventListener('tokenbar', function (ev) {
+        letztesEreignis = Date.now();
+        aktualisiereTokenleiste(ev.data);
+      });
       es.addEventListener('done', function () {
         letztesEreignis = Date.now();
         abschluss(lastMd, '');
@@ -713,7 +861,13 @@
     var form = q1(SEL.resetform);
     var url = hxPost(form);
     if (url) {
-      postForm(url, {}, function (res) { cb(!!res.ok); });
+      postForm(url, {}, function (res) {
+        // Auch hier den Renderauftrag erfuellen — und hier am dringendsten: sonst
+        // steht der GELOESCHTE Verlauf weiter sichtbar da, waehrend der Server ihn
+        // schon vergessen hat. Ein falscher Verlauf ist irrefuehrender als keiner.
+        if (res.ok) wendeSwapAn(form, res.text, '#log');
+        cb(!!res.ok);
+      });
       return;
     }
     var btn = q1(SEL.resetbtn);

@@ -114,11 +114,30 @@ Der Doppelaufruf ist unschädlich, weil die Funktion idempotent ist (Test `idemp
 2. **Modell setzen** — über das native `<select>` + `change`-Ereignis, damit htmx den `#app`-Swap wie gewohnt ausführt und die Seite in sich stimmig bleibt (Modellname, Kontextleiste, Sperren). Ein stiller `fetch` würde die Anzeige von der Server-Sitzung wegdriften lassen. Anschließend wird **verifiziert**: ein nicht durchgeschlagener Wechsel ist ein Fehler, keine stille Abweichung.
 3. Datenquelle auf „— keine —".
 4. `POST` an die Sende-Adresse mit `message`.
-5. Aus dem Antwort-Fragment `.sse[data-url]` lesen, `EventSource` öffnen.
-6. `message` → HTML → Markdown → `tf-stream`; `reasoning` sammeln; **`done` beendet den Lauf**.
+5. Aus dem Antwort-Fragment `.sse[data-url]` lesen, `EventSource` öffnen — und das Fragment an `hx-target` der Seite **einhängen** (siehe unten).
+6. `message` → HTML → Markdown → `tf-stream`, zugleich in die Antwortblase der Seite; `reasoning` sammeln; `tokenbar` in die Leiste; **`done` beendet den Lauf**.
 7. Kontextstand **nach** dem Lauf ablesen und mitmelden — das ist der Wert, der die nächste Anfrage begrenzt.
 
 Liefert der `POST` **kein** `.sse`-Element, ist das Fragment selbst die Antwort (eine Fehlermeldung der Seite, z. B. „Maximale Chatlänge überschritten"). Sie wird als Ergebnis zurückgegeben statt verschwiegen — der Nutzer soll den Grund lesen.
+
+### Was die Seite selbst zeigt
+
+Wer an htmx vorbei sendet, übernimmt **dessen zweite Hälfte** mit: das Einhängen der Antwort. Zwischen v6.0 und v6.3 tat das niemand — der sichtbare Chat der internen KI blieb leer, obwohl Frage und Antwort längst durchliefen. Sichtbar wurde etwas nur **zufällig**: ein Modellwechsel löst über das `change`-Ereignis den `#app`-Swap der Seite aus, und der rendert den serverseitigen Verlauf mit. Deshalb erschien der Chat ausgerechnet beim zweiten Lauf — und zeigte dann den Stand **vor** dem Zurücksetzen, also einen Verlauf, den der Server bereits verworfen hatte.
+
+Das war nicht nur Optik. `kontextStand()` liest die Tokenleiste der Seite, und aus ihr kommt das `data-over`-Signal („Fenster voll") an die App. Eine Leiste, die nie nachgezogen wird, meldet bis zum nächsten Neuladen einen alten Stand.
+
+Seit v6.4 wird der Renderauftrag erfüllt, den die Seite **selbst an ihrem Formular notiert** (`hx-target` / `hx-swap`), mit **ihrem eigenen Fragment**. Es wird kein Markup erfunden; eingehängt wird, was der Server geliefert hat. Drei Stellen: Senden, Antwortstrom (`message`-Snapshots ersetzen den Inhalt der Antwortblase), Zurücksetzen.
+
+Zwei Invarianten hält [snippet-render.test.ts](../../src/core/services/ai/streamlit-bridge/__tests__/snippet-render.test.ts):
+
+| Invariante | Warum |
+|---|---|
+| Fragmente werden vor dem Einhängen **entschärft** (`data-url` → `data-tf-url`) | Bliebe die Strom-Adresse stehen, könnte die Mechanik der fremden Seite daran einen **zweiten** `EventSource` öffnen — derselbe Lauf zweimal, auf Kosten der internen KI |
+| `hx-swap`-Rückfall ist **`beforeend`**, nie htmx' echter Standard `innerHTML` | Fehlt das Attribut, steht das Eingehängte höchstens an der falschen Stelle; Ersetzen würde den sichtbaren Verlauf **löschen** |
+
+Nachgeführt wird nur, wenn der Leser ohnehin unten steht — wer hochgescrollt hat, um mitzulesen, soll nicht bei jedem Token zurückgerissen werden.
+
+Was **kein** lokaler Test belegen kann: dass die Anzeige wirklich erscheint. Dafür bräuchte es das echte Antwort-Fragment der fremden Seite; ein selbst erfundenes Fixture bestätigt nur die eigene Annahme. Das bleibt der Abnahme am Produktivsystem.
 
 ### Was ersatzlos entfallen ist
 
@@ -132,7 +151,7 @@ Echo-Erkennung, Antwort-Auswahl im Nachrichten-Roster, `isRunning()`-Polling, da
 
 Bis zum Umbau war ein altes Snippet **harmlos**: es ignorierte unbekannte Felder und lief sonst weiter. Das gilt nicht mehr. Ein Snippet ohne Modellsteuerung antwortet aus einem anderen Modell mit einem anderen Kontextfenster, als die App annimmt — ohne jedes Anzeichen. Deshalb meldet die Verbindungs-Gruppe ein veraltetes Lesezeichen sichtbar. `rev === null` heißt „noch kein Handschlag" und schweigt; ein **leerer** String ist dagegen eine Aussage (gemeldet, aber ohne Revision → Fassung von vor dem Umbau).
 
-`BRIDGE_VERSION` ist die Kurzform davon und steht im **Lesezeichen-Namen** (`interne-KI v2`) — das Einzige, was der Nutzer ohne Klick sieht. Beide Marker werden zusammen hochgezählt; der Guard prüft nur, dass sie lesbar sind und der Name in die Lesezeichenleiste passt (ob jemand beide Zeilen angefasst hat, steht nirgends im Code).
+`BRIDGE_VERSION` ist die Kurzform davon und steht im **Lesezeichen-Namen** (`interne-KI v3`) — das Einzige, was der Nutzer ohne Klick sieht. Beide Marker werden zusammen hochgezählt; der Guard prüft nur, dass sie lesbar sind und der Name in die Lesezeichenleiste passt (ob jemand beide Zeilen angefasst hat, steht nirgends im Code).
 
 **Wann eine neue Version nötig ist** — und wann nicht: das Snippet kennt seit v6.0 keine Modellnamen mehr. Ein Modellwechsel der internen KI kostet deshalb **keine** Neuinstallation, nur einen Build. Neu ziehen muss das Team nur, wenn sich das **Protokoll** ändert.
 
