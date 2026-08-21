@@ -19,6 +19,15 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v5.0 — 2026-08
+
+### Bitte einmal erledigen
+- Die interne KI hat eine neue Oberfläche bekommen. **Bitte ziehen Sie das Lesezeichen neu** (Einstellungen → KI → Einrichtung) und klicken Sie es im KI-Tab einmal an. Ohne das kommen keine Antworten mehr an — die App weist Sie darauf hin, solange das alte Lesezeichen läuft.
+
+### Bugfixes
+- Antworten der internen KI kamen seit dem Umbau ihrer Oberfläche nicht mehr zurück. Die Verbindung liest die Antwort jetzt direkt aus, statt sie aus der Seite abzulesen.
+- Lange Antworten brechen nicht mehr vorzeitig ab: Die interne KI meldet jetzt selbst, wann sie fertig ist.
+
 ## v4.136 — 2026-08
 
 ### Bugfixes

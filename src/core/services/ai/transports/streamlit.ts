@@ -182,6 +182,16 @@ export class StreamlitBridgeTransport implements AITransport {
       // (tf-bridge-ready / tf-pong / tf-app-ping / tf-stream / tf-response / tf-reset-done).
       useBridgeStatus.getState().markActivity();
 
+      // Revision aus den beiden Handschlag-Nachrichten festhalten. Nur aus
+      // diesen: sie sind die einzigen, die das Bookmarklet unaufgefordert über
+      // sich selbst aussagt — bei tf-response wäre sie Beiwerk und würde bei
+      // jeder Antwort erneut geschrieben. Fehlt das Feld, ist der leere String
+      // die richtige Aussage („hat sich gemeldet, nennt keine Revision"), nicht
+      // `null` („nie gehört").
+      if (type === 'tf-pong' || type === 'tf-bridge-ready') {
+        useBridgeStatus.getState().markRev(typeof data.rev === 'string' ? data.rev : '');
+      }
+
       if (type === 'tf-app-ping') {
         // Gegenrichtung: das Bookmarklet prüft, ob es UNSER App-Fenster erreicht.
         (event.source as Window | null)?.postMessage({ type: 'tf-app-pong' }, '*');

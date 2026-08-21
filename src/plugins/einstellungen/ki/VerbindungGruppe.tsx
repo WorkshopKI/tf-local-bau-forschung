@@ -19,7 +19,8 @@ import { useStorage } from '@/core/hooks/useStorage';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { useKopierAktion } from '@/core/hooks/useKopierAktion';
-import { BRIDGE_BOOKMARKLET } from '@/core/services/ai/streamlit-bridge/snippet';
+import { BRIDGE_BOOKMARKLET, istBookmarkletVeraltet } from '@/core/services/ai/streamlit-bridge/snippet';
+import { useBridgeStatus } from '@/core/services/ai/bridge-status';
 import { connectInternalKi } from '@/core/services/ai/connect-ki';
 import type { AIProviderConfig } from '@/core/types/config';
 import type { BridgeZiel } from '@/core/services/ai/transports/streamlit';
@@ -100,6 +101,11 @@ export function VerbindungGruppe({
     setTimeout(() => setTestErgebnis(null), 5000);
   });
 
+  // Die Revision meldet das Bookmarklet im Handschlag; `null` heißt „noch keiner
+  // gesehen" und schweigt bewusst.
+  const gemeldeteRev = useBridgeStatus(s => s.rev);
+  const bookmarkletVeraltet = istBookmarkletVeraltet(gemeldeteRev);
+
   const verbunden = testErgebnis === 'success';
   const statusText = testErgebnis === 'success'
     ? 'Verbunden'
@@ -142,6 +148,23 @@ export function VerbindungGruppe({
         </div>
       </div>
       {testen.error && <p className="text-[12px] text-[var(--tf-danger-text)] pt-2">Fehler: {testen.error}</p>}
+
+      {bookmarkletVeraltet && (
+        <div
+          className="flex items-start gap-2 rounded-[var(--tf-radius-lg)] px-3 py-2.5 mt-2 text-[12.5px] leading-[1.5]"
+          style={{
+            background: 'var(--tf-warning-bg)',
+            border: '0.5px solid var(--tf-warning-border)',
+          }}
+        >
+          <AlertTriangle className="w-4 h-4 shrink-0 mt-[1px] text-[var(--tf-warning-text)]" aria-hidden />
+          <span className="text-[var(--tf-text)]">
+            Im Tab der internen KI läuft ein <strong>veraltetes Lesezeichen</strong>. Bitte unten in
+            der Einrichtung das neue ziehen und im KI-Tab einmal anklicken. Bis dahin können
+            Antworten unvollständig ankommen, und die Modellwahl greift nicht.
+          </span>
+        </div>
+      )}
 
       <div className="flex items-end gap-2 flex-wrap pt-3">
         <label className="flex-1 min-w-[200px]">

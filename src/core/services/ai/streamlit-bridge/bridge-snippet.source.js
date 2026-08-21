@@ -1,20 +1,30 @@
-// TeamFlow Streamlit Bridge — Bookmarklet
-// Wird vom Nutzer EINMAL pro Streamlit-Tab geklickt (Black-Box-UI, die wir
-// nicht kontrollieren — unter file:// koennen wir kein JS in den fremden Tab
-// injizieren, das Bookmarklet ist der vom Nutzer autorisierte Weg).
-// Spricht via postMessage mit dem StreamlitBridgeTransport unserer App:
-//   tf-ping     -> tf-pong
+// TeamFlow AitisiGPT-Bridge — Bookmarklet
+// Wird vom Nutzer EINMAL pro KI-Tab geklickt (fremde Oberflaeche, die wir nicht
+// kontrollieren — unter file:// koennen wir kein JS in den fremden Tab injizieren,
+// das Bookmarklet ist der vom Nutzer autorisierte Weg).
+// Spricht via postMessage mit dem BridgeTransport unserer App:
+//   tf-ping     -> tf-pong {rev}
 //   tf-app-ping <- (App antwortet tf-app-pong; Gegenrichtungs-Test)
-//   tf-request {id, message, ziel?, erwarte?} -> tf-progress {id}* + tf-stream {id, content}*
-//                                   -> tf-response {id, result, reasoning?}
-// `erwarte` (optional): Abschluss-Marker — finalisiert nicht auf dem kurzen SETTLE-
-// Fenster, solange die Antwort diesen Text nicht enthaelt (Schutz gegen zu fruehen
-// Abbruch langer, zweiteiliger Antworten).
-// `ziel` ('standard'|'agentisch') schaltet optional den Streamlit-Tab um
-// (Zweit-LLM „Agentischer Chat"); ohne `ziel` bleibt der aktive Tab.
-// tf-progress ist ein ~10-s-Heartbeat waehrend des Laufs (App-Idle-Timeout).
-// Antwort wird per DOM-Scrape als MARKDOWN aus der Chat-UI geholt (htmlToMd),
-// live gestreamt und erst finalisiert, wenn das Streamlit-Skript idle ist.
+//   tf-request {id, message, ziel?} -> tf-progress {id}* + tf-stream {id, content}*
+//                                   -> tf-response {id, result, reasoning?, modell?,
+//                                                   kontextTokens?, kontextVoll?}
+//   tf-reset {id, ziel?} -> tf-reset-done {id, found}
+// `ziel` waehlt das MODELL: 'gpt-oss' | 'qwen35' (| 'standard' als Alt-Alias fuer
+// gpt-oss). 'agentisch' ist NICHT angebunden — der agentische Chat bringt eigenen
+// Kontext mit, und den liefert diese App bewusst selbst.
+//
+// ── Warum das hier keine DOM-Steuerung mehr ist ──────────────────────────────
+// Die interne KI lief bis 2026-08 auf Streamlit; die Bridge fuellte Textfelder,
+// klickte Knoepfe und riet aus DOM-Bewegung, wann eine Antwort fertig war. Seit
+// dem Neubau (htmx + servergerendertes HTML) hat die Seite eine echte
+// HTTP-Schnittstelle und einen SSE-Strom mit `done`-Ereignis. Wir sprechen sie
+// direkt an. Damit entfallen ersatzlos: Echo-Erkennung, Antwort-Auswahl im
+// Nachrichten-Roster, Lauf-Indikator-Polling, Ruhefenster-Heuristik und der
+// Abschluss-Marker — allesamt Umgehungen eines fehlenden Fertig-Signals.
+//
+// Die Endpunkte werden aus den `hx-post`-Attributen der Seite GELESEN, nicht
+// verdrahtet: die Seite beschreibt sich selbst, eine Route-Umbenennung bricht uns
+// dadurch nicht.
 (function () {
   if (window.__teamflowBridge) return;
   window.__teamflowBridge = true;
@@ -22,51 +32,37 @@
   // Versions-Marker: bei JEDER Aenderung an diesem Snippet bumpen. So laesst sich im
   // KI-Tab pruefen, ob das NEUE Bookmarklet laeuft (haeufigste Support-Frage): Maus
   // ueber das Status-Badge (Tooltip) ODER `window.__teamflowBridgeRev` in der Konsole
-  // ODER die Log-Zeile beim Aktivieren.
-  var BRIDGE_REV = '2026-07-21-tabtitel';
+  // ODER die Log-Zeile beim Aktivieren. Die App liest ihn zusaetzlich aus dem
+  // tf-pong und warnt bei einem zu alten Snippet — seit dem Umbau ist ein altes
+  // Bookmarklet nicht mehr harmlos: es ignoriert das Modellfeld still.
+  var BRIDGE_REV = '2026-08-21-aitisi-http';
   window.__teamflowBridgeRev = BRIDGE_REV;
   try { console.log('[TeamFlow-Bridge] aktiv — rev ' + BRIDGE_REV); } catch (e) { /* ignore */ }
 
-  // Selektor-Fallback-Arrays (spezifisch -> generisch). Deckt mehrere
-  // Streamlit-Versionen ab; `.st-key-input_msg` setzt `key="input_msg"` voraus.
+  // Selektor-Fallback-Arrays (spezifisch -> generisch) fuer AitisiGPT.
+  // Die Seite vergibt keine data-testid-Attribute; Anker sind Formular-Ids,
+  // Feldnamen und Klassen. Wo ein Endpunkt gebraucht wird, steht er als
+  // `hx-post` am Element — den lesen wir, statt Routen zu verdrahten.
   var SEL = {
-    textarea: [
-      '.st-key-input_msg textarea',
-      'textarea[data-testid="stChatInputTextArea"]',
-      '.stChatInput textarea',
-      'textarea',
-    ],
-    submit: [
-      'button[data-testid="stChatInputSubmitButton"]',
-      '.stChatInput button[type="submit"]',
-    ],
-    msg: ['[data-testid="stChatMessage"]'],
-    content: [
-      '[data-testid="stChatMessageContent"]',
-      '[data-testid="stMarkdownContainer"]',
-      '.stMarkdown',
-    ],
-    appRoot: ['[data-testid="stAppViewContainer"]', 'section.main', '.main'],
-    // Spinner-Fallbacks (v2.203): stStatusWidget verschwindet in manchen
-    // Embed-/Toolbar-Modi — der Chat-„Denk"-Spinner deckt diese Faelle. Nicht
-    // generischer werden (stuck-true-Risiko; HARD_MAX_MS ist der Backstop).
-    running: ['[data-testid="stStatusWidget"]', 'button[data-testid="stChatInputStopButton"]',
-      '[data-testid="stSpinner"]', '.stSpinner'],
+    shell: ['#shell'],
+    sendform: ['#sendform'],
+    message: ['#sendform textarea[name=message]', 'textarea[name=message]'],
+    resetform: ['form.resetform'],
+    resetbtn: ['form.resetform button[type=submit]', 'form.resetform button'],
+    modelsel: ['select.modelsel', 'select[name=model]'],
+    datasource: ['select[name=datasource]'],
+    tokenbar: ['#tokenbar'],
+    tokentext: ['#tokenbar .tokenbar-text'],
+    chattab: ['.tabs .tab.active', '.tabs .tab'],
   };
 
-  function q1(list) {
+  function q1(list, root) {
+    var r = root || document;
     for (var i = 0; i < list.length; i++) {
-      var e = document.querySelector(list[i]);
+      var e = r.querySelector(list[i]);
       if (e) return e;
     }
     return null;
-  }
-  function qa(list) {
-    for (var i = 0; i < list.length; i++) {
-      var e = document.querySelectorAll(list[i]);
-      if (e.length) return e;
-    }
-    return [];
   }
   function isVisible(el) {
     if (!el) return false;
@@ -74,87 +70,6 @@
     // position:fixed-Elemente haben offsetParent null → ueber Client-Rects
     // pruefen (display:none liefert keine Rects).
     return !!(el.getClientRects && el.getClientRects().length > 0);
-  }
-  // Sichtbarkeits-bevorzugte Varianten von q1/qa (v2.203): Streamlit-Tabs halten
-  // ggf. BEIDE Chat-Panels im DOM — globale Queries wuerden ins versteckte Panel
-  // greifen (Cross-Tab-Bleed). q1v sucht erst ALLE Selektoren nach einem
-  // sichtbaren Treffer ab (ein sichtbarer generischer Treffer schlaegt einen
-  // versteckten spezifischen); findet sich keiner, faellt es auf den ersten
-  // Treffer ueberhaupt zurueck (Regression-Guard: degradiert schlimmstenfalls
-  // aufs alte Verhalten, nie auf „nichts gefunden").
-  function q1v(list) {
-    var fallback = null;
-    for (var i = 0; i < list.length; i++) {
-      var els = document.querySelectorAll(list[i]);
-      for (var j = 0; j < els.length; j++) {
-        if (isVisible(els[j])) return els[j];
-        if (!fallback) fallback = els[j];
-      }
-    }
-    return fallback;
-  }
-  // Optionales `root` scoped die Suche (z. B. aufs Tab-Panel des Ziel-Chats) —
-  // ohne root wie bisher dokumentweit.
-  function qav(list, root) {
-    var r = root || document;
-    for (var i = 0; i < list.length; i++) {
-      var els = r.querySelectorAll(list[i]);
-      if (!els.length) continue;
-      var vis = [];
-      for (var j = 0; j < els.length; j++) { if (isVisible(els[j])) vis.push(els[j]); }
-      return vis.length ? vis : Array.prototype.slice.call(els);
-    }
-    return [];
-  }
-  // Tab-Panel-Scope einer textarea (Prod-Dump 2026-07-09: BEIDE Chat-Panels
-  // bleiben gemountet). Nachrichten-Queries werden darauf gescoped, damit der
-  // Scrape auch beim manuellen Tab-Wechsel MITTEN im Lauf am richtigen Chat
-  // bleibt: Panel unsichtbar → qav-Sichtbarkeits-Fallback liefert trotzdem die
-  // Panel-EIGENEN Nachrichten, nie die des anderen Chats. Kein Panel gefunden
-  // → document (bisheriges Verhalten).
-  function panelScopeOf(ta) {
-    if (!ta || !ta.closest) return document;
-    return ta.closest('[data-testid="stTabPanel"]') || ta.closest('[role="tabpanel"]') || document;
-  }
-  function isUser(m) {
-    return !!m.querySelector('img[alt*="user"]');
-  }
-  // Inhaltsbasierte Echo-Erkennung — Stufe-2-Fallback in findAnswerMsg, wenn die
-  // Avatar-Heuristik (isUser) nach einem UI-Umbau KEIN Prompt-Echo mehr findet.
-  // WORTGLEICH gespiegelt in echo-match.ts (Drift-Test: echo-match.test.ts).
-  // <echo-match-core> keep in sync with echo-match.ts
-  function normForEcho(s) {
-    return String(s || '').normalize('NFC').toLowerCase().replace(/[^a-z0-9äöüß]/g, '').slice(0, 64);
-  }
-  function isEchoText(msgText, promptText) {
-    var np = normForEcho(promptText);
-    if (!np) return false;
-    var nm = normForEcho(msgText);
-    if (np.length < 12) return nm === np;
-    return nm.indexOf(np) === 0;
-  }
-  // </echo-match-core>
-  function setValue(ta, val) {
-    // React/Streamlit hoert auf den nativen value-Setter + input-Event.
-    var setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set;
-    setter.call(ta, val);
-    ta.dispatchEvent(new Event('input', { bubbles: true }));
-  }
-  function submit(ta) {
-    // Submit-Button zuerst im EIGENEN Chat-Input-Container der textarea suchen —
-    // bei zwei gemounteten Chat-Panels (Tabs) traefe eine globale Suche sonst den
-    // Button des falschen Panels. OHNE Container KEIN dokumentweiter Erst-Treffer
-    // (waere in DOM-Ordnung der ggf. versteckte Standard-Button), sondern direkt
-    // der sichtbarkeits-bevorzugte q1v-Fallback.
-    var scope = (ta.closest && (ta.closest('[data-testid="stChatInput"]') || ta.closest('.stChatInput'))) || null;
-    var b = null;
-    if (scope) {
-      for (var i = 0; i < SEL.submit.length && !b; i++) b = scope.querySelector(SEL.submit[i]);
-    }
-    if (!b) b = q1v(SEL.submit);
-    if (b) { b.click(); return; }
-    // st.chat_input sendet auch via Enter.
-    ta.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', keyCode: 13, which: 13, bubbles: true }));
   }
 
   // ── HTML → Markdown ──────────────────────────────────────────────────────
@@ -167,6 +82,10 @@
     if (tag === 'BUTTON' || tag === 'SVG' || tag === 'STYLE' || tag === 'SCRIPT') return true;
     var tid = el.getAttribute && el.getAttribute('data-testid');
     if (tid && /avatar|toolbar|copy|tooltip|headeraction/i.test(tid)) return true;
+    var cls = el.getAttribute && el.getAttribute('class');
+    // AitisiGPT haengt an die Antwort Bedien-Beiwerk: die Reasoning-Blase (wird
+    // separat ueber das SSE-Ereignis geholt), Kopier-Knoepfe, Status-Zeilen.
+    if (cls && /reasoning-help|reasoning-pop|doccopy|copybtn|genbar/i.test(cls)) return true;
     var al = el.getAttribute && el.getAttribute('aria-label');
     if (al && /copy|kopieren/i.test(al)) return true;
     return false;
@@ -185,9 +104,8 @@
       else if (t === 'A') {
         var href = c.getAttribute('href') || '';
         var label = inlineMd(c).trim();
-        // In-Page-Anker (Streamlit-Heading-Links `#slug`) sind Navigation, kein
-        // Inhalt → nur (oft leeres) Label, NIE die href als Text (sonst leakt
-        // der Slug `#was-ist-...` in die Antwort).
+        // In-Page-Anker sind Navigation, kein Inhalt → nur (oft leeres) Label,
+        // NIE die href als Text (sonst leakt der Slug in die Antwort).
         if (href && href.charAt(0) !== '#' && label) { out += '[' + label + '](' + href + ')'; }
         else { out += label; }
       } else { out += inlineMd(c); } // span/div transparent
@@ -267,127 +185,23 @@
     walk(root);
     return blocks.join('\n\n').replace(/\n{3,}/g, '\n\n').trim();
   }
-  function contentOf(m) {
-    for (var i = 0; i < SEL.content.length; i++) {
-      var c = m.querySelector(SEL.content[i]);
-      if (c) return htmlToMd(c);
-    }
-    return htmlToMd(m);
+  // HTML-Zeichenkette (SSE-Nutzlast, Antwort-Fragment) → Markdown.
+  // Ueber <template>, NICHT ueber ein div im Dokument: der Inhalt bleibt inert —
+  // keine Skripte, keine nachgeladenen Bilder aus fremdem Markup.
+  function mdAusHtml(html) {
+    try {
+      var tpl = document.createElement('template');
+      tpl.innerHTML = String(html || '');
+      return htmlToMd(tpl.content);
+    } catch (e) { return ''; }
   }
-
-  // ── Thinking auslesen (best-effort) ───────────────────────────────────────
-  // AitisiGPT zeigt das Reasoning als Info-Icon NACH der Antwort (Hover-Tooltip).
-  // Wir versuchen den Streamlit-Tooltip auszulesen; klappt es nicht → kein
-  // Thinking (Antwort bleibt unberuehrt). cb(reasoningMarkdownOrEmpty).
-  function extractThinking(msgEl, cb) {
-    if (!msgEl) { cb(''); return; }
-    var target = msgEl.querySelector('[data-testid="stTooltipHoverTarget"]');
-    if (!target && msgEl.parentElement) {
-      target = msgEl.parentElement.querySelector('[data-testid="stTooltipHoverTarget"]');
-    }
-    if (!target) { cb(''); return; }
-    ['pointerover', 'pointerenter', 'mouseenter', 'mouseover'].forEach(function (t) {
-      try { target.dispatchEvent(new MouseEvent(t, { bubbles: true })); } catch (e) { /* ignore */ }
-    });
-    setTimeout(function () {
-      var tip = document.querySelector('[data-testid="stTooltipContent"]')
-        || document.querySelector('[data-baseweb="tooltip"]')
-        || document.querySelector('[role="tooltip"]');
-      var txt = tip ? htmlToMd(tip).trim() : '';
-      ['pointerout', 'pointerleave', 'mouseleave', 'mouseout'].forEach(function (t) {
-        try { target.dispatchEvent(new MouseEvent(t, { bubbles: true })); } catch (e) { /* ignore */ }
-      });
-      cb(txt);
-    }, 250);
+  // Wie mdAusHtml, aber liefert zusaetzlich den geparsten Baum (fuer Fragment-
+  // Auswertung: `.sse`-Element finden, Fehlermeldung lesen).
+  function parseFragment(html) {
+    var tpl = document.createElement('template');
+    tpl.innerHTML = String(html || '');
+    return tpl.content;
   }
-
-  // ── Lauf-Status ───────────────────────────────────────────────────────────
-  // „Fertig" = Antwort steht + Streamlit-Skript idle. Pausen mitten im Streamen
-  // (AitisiGPT pausiert ~2s) duerfen NICHT als fertig gelten:
-  //   isRunning()  — sichtbarer Lauf-Indikator (deckt serverseitige Pausen);
-  //                  solange true, baut runRequest KEINE Idle-Zeit auf.
-  // Die eigentliche Idle-Messung haengt an der Inhalts-Stabilitaet der Antwort
-  // (lastContentChange in runRequest), NICHT an globaler DOM-Aktivitaet — sonst
-  // verschleppt generierungs-unabhaengige DOM-Churn der KI-Seite das Ende.
-  function isRunning() {
-    // Primaer (v2.203.2): Streamlit stempelt den Skript-Zustand als Attribut auf
-    // den App-Root — UI-unabhaengig. Noetig, weil AitisiGPT das Status-Widget
-    // per CSS ausblendet (Prod-Dump 2026-07-09: WAEHREND der Generierung war
-    // KEIN Lauf-Indikator sichtbar → lange Agent-Reasoning-Pausen haetten
-    // verfrueht finalisiert). Fehlt das Attribut (andere Streamlit-Version),
-    // greifen die sichtbaren Indikatoren unten wie bisher; Stuck-true-Backstop
-    // bleibt HARD_MAX_MS.
-    if (document.querySelector('[data-testid="stApp"][data-test-script-state="running"]')) return true;
-    for (var i = 0; i < SEL.running.length; i++) {
-      var els = document.querySelectorAll(SEL.running[i]);
-      for (var j = 0; j < els.length; j++) {
-        if (isVisible(els[j])) return true;
-      }
-    }
-    return false;
-  }
-  // ── „Prompt-Vorlagen"-Spalte ausblenden (mehr Platz fuer den ferngesteuerten Chat) ──
-  // Die interne KI-Seite zeigt rechts eine breite „Prompt-Vorlagen"-Spalte (Ueberschrift +
-  // Selectbox), die der von der App gesteuerte Chat nicht braucht. Wir blenden sie rein per
-  // CSS aus — verankert am Streamlit-Auto-Anker `#prompt-vorlagen` (wird bei jedem Rerun neu
-  // erzeugt → die Regel greift flackerfrei, ganz ohne Observer) und ziehen die Chat-Spalte auf
-  // volle Breite. Fehlt der Anker mal (Streamlit-Aenderung), setzt `ensureVorlagenHook()` ihn
-  // per Ueberschriften-Text nach.
-  var VORLAGEN_HEAD = 'h1,h2,h3,h4,[data-testid="stHeading"],[data-testid="stHeadingWithActionElements"]';
-  function ensureVorlagenHook() {
-    if (document.getElementById('prompt-vorlagen')) return; // Normalfall: Anker vorhanden
-    var heads = document.querySelectorAll(VORLAGEN_HEAD);
-    for (var i = 0; i < heads.length; i++) {
-      var t = (heads[i].textContent || '').replace(/\s+/g, ' ').trim();
-      if (/prompt[\s-]*vorlagen/i.test(t)) { heads[i].id = 'prompt-vorlagen'; return; }
-    }
-  }
-  function installTemplateHide() {
-    if (!document.getElementById('tf-bridge-layout')) {
-      var css =
-        '[data-testid="stColumn"]:has(#prompt-vorlagen),' +
-        '.stColumn:has(#prompt-vorlagen),' +
-        '[data-testid="column"]:has(#prompt-vorlagen){display:none!important}' +
-        '[data-testid="stHorizontalBlock"]:has(> [data-testid="stColumn"]:has(#prompt-vorlagen))' +
-        ' > [data-testid="stColumn"]:not(:has(#prompt-vorlagen))' +
-        '{flex:1 1 100%!important;width:100%!important;max-width:100%!important}';
-      var st = document.createElement('style');
-      st.id = 'tf-bridge-layout';
-      st.textContent = css;
-      (document.head || document.documentElement).appendChild(st);
-    }
-    ensureVorlagenHook();
-  }
-  installTemplateHide();
-
-  // ── Chat vertikal responsive (fenster-relative Höhe) ───────────────────────
-  // Übernommen aus dem bewährten Legacy-ZIM-Bookmarklet (streamlit-theme.css):
-  // der scrollbare Layout-Wrapper des Chat-Containers bekommt eine fenster-
-  // relative Höhe (75vh) und scrollt — so wächst/schrumpft der Verlauf mit dem
-  // Fenster statt mit toter Fläche darunter. Die App nutzt
-  // `st.container(key="chat_container")`. App-spezifisch + minimal (kein generisches
-  // Full-height-Flex, das das custom Layout verbiegen würde); fehlen die Selektoren,
-  // greift die Regel einfach nicht (kein Schaden).
-  function installVerticalFill() {
-    if (document.getElementById('tf-bridge-vfill')) return;
-    var css =
-      '[data-testid="stLayoutWrapper"][overflow="auto"]{height:75vh!important}' +
-      '.st-key-chat_container{overflow-y:auto!important}';
-    var st = document.createElement('style');
-    st.id = 'tf-bridge-vfill';
-    st.textContent = css;
-    (document.head || document.documentElement).appendChild(st);
-  }
-  installVerticalFill();
-
-  // Der MutationObserver haelt nur den „Prompt-Vorlagen"-Anker aktuell (bei jedem
-  // Streamlit-Rerun neu erzeugt). Er treibt NICHT den Finalisierungs-Timer — der
-  // haengt an der Inhalts-Stabilitaet der Antwort (siehe runRequest).
-  try {
-    var appRoot = q1(SEL.appRoot) || document.body;
-    new MutationObserver(function () { ensureVorlagenHook(); })
-      .observe(appRoot, { childList: true, subtree: true, characterData: true });
-  } catch (e) { /* ignore */ }
 
   // ── Tab-Titel: KI-Status ohne Tab-Wechsel sichtbar (v2.280) ───────────────
   // Die Status-Pill unten rechts sieht nur, wer IN diesem Tab ist. Wer in der App
@@ -438,6 +252,52 @@
   }
   // </tab-titel-core>
 
+  // ── Modell-Erkennung ──────────────────────────────────────────────────────
+  // Die Modell-Auswahl der Seite ist ein natives <select name="model">; die
+  // `value` traegt den Dateinamen samt Quantisierung
+  // (`Qwen3.6-35B-A3B-UD-Q4_K_M.gguf`) und wandert bei jedem Modell-Update. Wir
+  // ordnen deshalb ueber den SICHTBAREN Text zu, mit der value als Rueckfall.
+  //
+  // Der VL-Ausschluss ist kein Detail: `Qwen3-VL-30B (multimodal)` hat 62k, also
+  // dasselbe kleine Fenster wie gpt-oss. Eine tolerante /qwen3/i-Regel landete
+  // genau in dem Fenster, dem der Auto-Wechsel entkommen soll.
+  // WORTGLEICH gespiegelt in modell-erkennung.ts (Drift-Test: modell-erkennung.test.ts).
+  // <modell-erkennung-core> keep in sync with modell-erkennung.ts
+  function passtZuModell(ziel, text) {
+    var s = String(text || '').toLowerCase();
+    if (!s) return false;
+    if (/multimodal|-vl-|\bvl\b/.test(s)) return false; // Qwen3-VL: nie automatisch
+    if (ziel === 'gpt-oss') return /gpt[ _-]?oss/.test(s);
+    if (ziel === 'qwen35') return /qwen\s*3[._]6/.test(s);
+    return false;
+  }
+  function leseKontextTokens(text) {
+    var m = /von\s*([\d.,]+)\s*(k|m)?\b/i.exec(String(text || ''));
+    if (!m) return 0;
+    var zahl = parseFloat(m[1].replace(/\./g, '').replace(',', '.'));
+    if (!isFinite(zahl) || zahl <= 0) return 0;
+    var einheit = (m[2] || '').toLowerCase();
+    if (einheit === 'k') zahl *= 1000;
+    else if (einheit === 'm') zahl *= 1000000;
+    return Math.round(zahl);
+  }
+  // </modell-erkennung-core>
+
+  // Alt-Alias: bis zur App-seitigen Umbenennung schickt ein aelterer Build noch
+  // 'standard'. Das meinte immer den klassischen Chat — der laeuft auf gpt-oss.
+  function normZiel(z) {
+    if (z === 'standard') return 'gpt-oss';
+    return z;
+  }
+
+  // ── Status-Badge (unten rechts) ───────────────────────────────────────────
+  // Toene aus dem TeamFlow-Design-System (badge.tsx / theme.css). Werte als
+  // Literale, weil die fremde KI-Seite die CSS-Variablen nicht kennt.
+  var TONES = {
+    ready:   { bg: 'hsl(145, 60%, 94%)', fg: 'hsl(145, 60%, 30%)' }, // success
+    working: { bg: 'hsl(38, 90%, 93%)',  fg: 'hsl(38, 70%, 30%)' },  // warning
+    error:   { bg: 'hsl(0, 70%, 95%)',   fg: 'hsl(0, 60%, 38%)' },   // danger
+  };
   // Originaltitel der fremden Seite EINMALIG sichern (basisTitel schuetzt gegen
   // ein bereits vorhandenes Praefix, falls die Seite mit gesetztem Titel neu laedt).
   var BASIS_TITEL = basisTitel(document.title);
@@ -458,29 +318,18 @@
     } catch (e) { /* ignore */ }
   }
 
-  // ── Status-Badge (unten rechts) ───────────────────────────────────────────
-  // Toene aus dem TeamFlow-Design-System (badge.tsx / theme.css). Werte als
-  // Literale, weil die fremde KI-Seite die CSS-Variablen nicht kennt.
-  var TONES = {
-    ready:   { bg: 'hsl(145, 60%, 94%)', fg: 'hsl(145, 60%, 30%)' }, // success
-    working: { bg: 'hsl(38, 90%, 93%)',  fg: 'hsl(38, 70%, 30%)' },  // warning
-    error:   { bg: 'hsl(0, 70%, 95%)',   fg: 'hsl(0, 60%, 38%)' },   // danger
-  };
   // Fixierte Leiste UNTEN rechts: EINE dezente Status-Pill (v2.212).
-  // Unten statt oben (v2.203): oben rechts sitzt der Streamlit-Header-/Status-
-  // Bereich der fremden KI-Seite — dort wurde die Leiste wiederholt ueberdeckt.
-  // right:220px statt 12px (v2.212): Chrome zeichnet seine Bildschirmfreigabe-
-  // Anzeige unten rechts (ausserhalb der Seite, nicht messbar) — die Pill wird
-  // nach links eingerueckt, damit sie frei daneben sitzt.
-  // z-index am Maximum (2147483647): die fremde KI-Seite hat Container mit hohem
-  // eigenem Stacking-Context, die `z-index:99999` ueberdeckt haetten (Leiste war
-  // im DOM + funktional, aber unsichtbar).
+  // right:220px statt 12px: Chrome zeichnet seine Bildschirmfreigabe-Anzeige
+  // unten rechts (ausserhalb der Seite, nicht messbar) — die Pill wird nach links
+  // eingerueckt, damit sie frei daneben sitzt. z-index am Maximum: die fremde
+  // Seite stapelt bis 120 (Aktenpruefungs-Lupe) und wuerde 99999 nicht, aber
+  // kuenftige Schichten schon ueberdecken.
   var BAR_CSS = 'position:fixed;bottom:12px;right:220px;z-index:2147483647;display:flex;gap:6px;align-items:center;';
   var bar = document.createElement('div');
   bar.id = 'tf-bridge-bar';
   bar.style.cssText = BAR_CSS;
   document.body.appendChild(bar);
-  // Watchdog (v2.203): haelt die Leiste sichtbar, egal was die KI-Seite umbaut —
+  // Watchdog: haelt die Leiste sichtbar, egal was die KI-Seite umbaut —
   // (a) re-append, wenn ein Umbau sie entfernt hat; (b) ans body-ENDE ruecken,
   // damit sie bei z-index-Gleichstand die Paint-Order gewinnt; (c) Inline-Styles
   // re-asserten. Verglichen wird gegen die BROWSER-normalisierte cssText-Fassung
@@ -489,7 +338,7 @@
   setInterval(function () {
     // Tab-Titel im selben Takt mitpflegen (kein eigener Timer): Fertig-Quittung
     // ablaufen lassen und den Titel re-asserten — die fremde Seite setzt
-    // document.title bei einem Streamlit-Rerun auf ihren eigenen zurueck.
+    // document.title bei einem htmx-Tabwechsel auf ihren eigenen zurueck.
     try {
       if (tabZustand.art === 'fertig' && tabZustand.quittungSeit
         && Date.now() - tabZustand.quittungSeit >= QUITTUNG_MS) {
@@ -506,11 +355,10 @@
     } catch (e) { /* ignore */ }
   }, 4000);
 
-  // Dezente Status-Pill (v2.212): EIN Element statt Badge + zwei Test-Buttons.
+  // Dezente Status-Pill: EIN Element statt Badge + zwei Test-Buttons.
   // Farbiger Punkt (Ton) + neutraler Text auf hellem Grund — faellt in der fremden
-  // KI-Seite nicht auf, zeigt aber im Zeitverlauf alle Zustaende (Verbunden /
-  // Pruefe ZAH-App… / ZAH App erreichbar / Chat-Test laeuft… / Arbeitet… / Fehler).
-  // Klick loest beide Selbsttests erneut aus (ersetzt die frueheren Test-Buttons).
+  // KI-Seite nicht auf, zeigt aber im Zeitverlauf alle Zustaende.
+  // Klick loest beide Selbsttests erneut aus.
   var PILL_CSS = 'display:inline-flex;align-items:center;gap:6px;padding:4px 11px;'
     + 'border-radius:9999px;font-size:11px;font-weight:400;font-family:sans-serif;'
     + 'background:#fff;color:hsl(0,0%,25%);border:1px solid hsl(0,0%,88%);'
@@ -553,6 +401,348 @@
     setzeTabTitel();
   }
 
+  // ── HTTP-Schicht ──────────────────────────────────────────────────────────
+  // Die Seite fuehrt ihre Sitzung PRO BROWSER-TAB: die Id steht als data-sid am
+  // persistenten #shell und reist als X-Session-Id-Header bei jedem htmx-Request
+  // mit. Ohne diesen Header traefe unser Aufruf eine FREMDE Sitzung — der Chat
+  // liefe dann gegen einen anderen Verlauf als der, den der Nutzer sieht.
+  function sitzungsId() {
+    try {
+      var shell = q1(SEL.shell);
+      if (shell && shell.dataset && shell.dataset.sid) return shell.dataset.sid;
+      return sessionStorage.getItem('sid') || '';
+    } catch (e) { return ''; }
+  }
+  function kopfzeilen(extra) {
+    var h = { 'X-Requested-With': 'XMLHttpRequest', 'HX-Request': 'true' };
+    var sid = sitzungsId();
+    if (sid) h['X-Session-Id'] = sid;
+    if (extra) { for (var k in extra) { if (Object.prototype.hasOwnProperty.call(extra, k)) h[k] = extra[k]; } }
+    return h;
+  }
+  // Endpunkt eines Formulars/Feldes: die Seite traegt ihn selbst als hx-post.
+  function hxPost(el) {
+    if (!el) return '';
+    var direkt = el.getAttribute && el.getAttribute('hx-post');
+    if (direkt) return direkt;
+    var traeger = el.closest && el.closest('[hx-post]');
+    return traeger ? (traeger.getAttribute('hx-post') || '') : '';
+  }
+  // Formular-POST wie htmx ihn schickt (urlencoded). Liefert {ok, status, text}.
+  function postForm(url, felder, cb) {
+    var body = new URLSearchParams();
+    for (var k in felder) {
+      if (Object.prototype.hasOwnProperty.call(felder, k)) body.append(k, String(felder[k]));
+    }
+    var h = kopfzeilen({ 'Content-Type': 'application/x-www-form-urlencoded' });
+    fetch(url, { method: 'POST', headers: h, body: body.toString(), credentials: 'same-origin' })
+      .then(function (r) {
+        return r.text().then(function (t) { cb({ ok: r.ok, status: r.status, text: t }); });
+      })
+      .catch(function (e) { cb({ ok: false, status: 0, text: String(e && e.message || e) }); });
+  }
+
+  // ── Kontextfenster der Seite ablesen ──────────────────────────────────────
+  // Die Seite zeigt es sichtbar an („Chatlänge [Token]: 0k von 62k") und pflegt
+  // `data-over` am #tokenbar, wenn das Fenster voll ist. Das ist die einzige
+  // ehrliche Quelle: unsere Konstanten sind nur der Rueckfall, und sie sind in
+  // der Vergangenheit still gedriftet (262k im Code gegen 259k in der Seite).
+  function kontextStand() {
+    var el = q1(SEL.tokentext);
+    var box = q1(SEL.tokenbar);
+    return {
+      tokens: leseKontextTokens(el ? el.textContent : ''),
+      voll: !!(box && box.dataset && box.dataset.over),
+    };
+  }
+
+  // ── Modell setzen ─────────────────────────────────────────────────────────
+  // Bewusst ueber das native <select> + change-Ereignis statt per fetch: die
+  // Wahl loest serverseitig ein volles Neu-Rendern aus, das htmx als #app-Swap
+  // eintauscht. Laesst man htmx das machen, bleibt die Seite in sich stimmig
+  // (Modellname, Kontextleiste, Sperren) — ein stiller fetch wuerde die
+  // Anzeige von der Server-Sitzung wegdriften lassen.
+  var SWAP_TIMEOUT_MS = 15000;
+  function ensureModell(ziel, cb) {
+    if (!ziel) { cb(null); return; }                  // kein Ziel → Modell nicht anfassen
+    if (ziel === 'agentisch') {
+      cb('Der agentische Chat ist nicht angebunden — bitte ein Modell waehlen.');
+      return;
+    }
+    var sel = q1(SEL.modelsel);
+    if (!sel) { cb('Modell-Auswahl der internen KI nicht gefunden'); return; }
+    var treffer = -1;
+    for (var i = 0; i < sel.options.length; i++) {
+      var o = sel.options[i];
+      if (passtZuModell(ziel, o.text) || passtZuModell(ziel, o.value)) { treffer = i; break; }
+    }
+    if (treffer < 0) { cb('Modell "' + ziel + '" steht in der internen KI nicht zur Wahl'); return; }
+    if (sel.selectedIndex === treffer) { cb(null); return; }   // steht schon richtig
+    if (sel.disabled) { cb('Modellwechsel gerade gesperrt (es laeuft eine Generierung)'); return; }
+
+    // Das alte Feld markieren: der #app-Swap ersetzt es durch ein NEUES Element,
+    // die Markierung ist also weg, sobald der Tausch durch ist. Ohne diesen
+    // Anker liesse sich „schon gesetzt" nicht von „Swap noch unterwegs"
+    // unterscheiden — wir haben den Wert ja selbst vorher gesetzt.
+    try { sel.dataset.tfPending = '1'; } catch (e) { /* ignore */ }
+    sel.selectedIndex = treffer;
+    sel.dispatchEvent(new Event('change', { bubbles: true }));
+
+    var t0 = Date.now();
+    (function warte() {
+      var neu = q1(SEL.modelsel);
+      if (neu && !(neu.dataset && neu.dataset.tfPending)) {
+        var opt = neu.options[neu.selectedIndex];
+        var txt = opt ? opt.text : '';
+        // Verifizieren statt vertrauen: ein nicht durchgeschlagener Wechsel muss
+        // ein Fehler sein, keine stille Abweichung — sonst laeuft der Auftrag auf
+        // einem anderen Modell (und Kontextfenster) als die App annimmt.
+        if (passtZuModell(ziel, txt) || passtZuModell(ziel, opt ? opt.value : '')) { cb(null); return; }
+        cb('Modellwechsel auf "' + ziel + '" hat nicht gegriffen (gewaehlt: ' + txt + ')');
+        return;
+      }
+      if (Date.now() - t0 >= SWAP_TIMEOUT_MS) { cb('Modellwechsel: Zeitueberschreitung'); return; }
+      setTimeout(warte, 200);
+    })();
+  }
+
+  // ── Datenquelle neutralisieren ────────────────────────────────────────────
+  // Die Seite kann eigenen RAG-Kontext beimischen (ZIM-Hotline, PTplus-Hilfe …).
+  // Unsere Auftraege bringen ihren Kontext vollstaendig selbst mit; eine fremde
+  // Quelle wuerde ihn unbemerkt ergaenzen. Nur anfassen, wenn wirklich eine
+  // gewaehlt ist — sonst kostet jeder Lauf einen Rundlauf umsonst.
+  function ensureDatenquelleAus(cb) {
+    var sel = q1(SEL.datasource);
+    if (!sel || !sel.value || sel.disabled) { cb(); return; }
+    try {
+      sel.value = '';
+      sel.dispatchEvent(new Event('change', { bubbles: true }));
+    } catch (e) { /* ignore */ }
+    setTimeout(cb, 400);
+  }
+
+  // Sicherstellen, dass wir im Chat-Tab stehen (nur dort gibt es #sendform).
+  function ensureChatTab(cb) {
+    if (q1(SEL.sendform)) { cb(null); return; }
+    var tabs = document.querySelectorAll('.tabs .tab');
+    for (var i = 0; i < tabs.length; i++) {
+      var t = (tabs[i].textContent || '').toLowerCase();
+      if (t.indexOf('chat') !== -1 && t.indexOf('agentisch') === -1) {
+        try { tabs[i].click(); } catch (e) { /* ignore */ }
+        break;
+      }
+    }
+    var t0 = Date.now();
+    (function warte() {
+      if (q1(SEL.sendform)) { cb(null); return; }
+      if (Date.now() - t0 >= SWAP_TIMEOUT_MS) { cb('Chat-Bereich der internen KI nicht gefunden'); return; }
+      setTimeout(warte, 200);
+    })();
+  }
+
+  // ── Anfrage-Engine ────────────────────────────────────────────────────────
+  // Ablauf: Chat-Tab → Modell → Datenquelle aus → POST /send → SSE lauschen.
+  // Die Antwort des POST ist das Nachrichten-Fragment; darin steht das
+  // .sse-Element mit der Strom-Adresse. Der Strom liefert `message`
+  // (Voll-Snapshots des Antwort-HTML), `reasoning` und schliesst mit `done`.
+  //
+  // Die Seite braucht fuer den Strom KEINEN Sitzungs-Header (eine EventSource
+  // kann keine Header senden) — die Adresse ist auftragsgebunden.
+  var PROGRESS_MS = 10000;   // Heartbeat an die App (deren Idle-Timeout)
+  var TITEL_MS = 1200;       // Tab-Titel-Ticker
+  var HARD_MAX_MS = 600000;  // Backstop gegen einen Strom, der nie `done` sendet
+  var STILL_MS = 180000;     // kein Ereignis mehr, aber auch kein `done`
+
+  function runRequest(source, id, message, ziel) {
+    setBadge('working', 'Arbeitet…');
+    ensureChatTab(function (tabErr) {
+      if (tabErr) { fehler(tabErr); return; }
+      ensureModell(normZiel(ziel), function (modellErr) {
+        if (modellErr) { fehler(modellErr); return; }
+        ensureDatenquelleAus(function () { sende(); });
+      });
+    });
+
+    function fehler(text) {
+      setBadge('error', 'Fehler');
+      source.postMessage({ type: 'tf-response', id: id, result: text }, '*');
+    }
+
+    function sende() {
+      var form = q1(SEL.sendform);
+      var url = hxPost(form);
+      if (!url) { fehler('Sende-Adresse der internen KI nicht gefunden'); return; }
+      var stand = kontextStand();
+      var aktivesModell = aktuellerModellName();
+
+      postForm(url, { message: message }, function (res) {
+        if (!res.ok) {
+          fehler('Die interne KI hat die Anfrage abgelehnt (HTTP ' + res.status + ').');
+          return;
+        }
+        var frag = parseFragment(res.text);
+        var sse = frag.querySelector('.sse[data-url], [data-url]');
+        if (!sse) {
+          // Kein Strom → das Fragment IST die Antwort (Fehlermeldung der Seite,
+          // z. B. „Maximale Chatlänge überschritten"). Als Ergebnis zurueckgeben
+          // statt zu schweigen: der Nutzer soll den Grund lesen.
+          var direkt = mdAusHtml(res.text);
+          setBadge(direkt ? 'ready' : 'error', direkt ? 'Verbunden' : 'Keine Antwort');
+          source.postMessage({ type: 'tf-response', id: id,
+            result: direkt || 'Die interne KI hat keinen Antwortstrom geliefert.',
+            modell: aktivesModell, kontextTokens: stand.tokens, kontextVoll: stand.voll }, '*');
+          return;
+        }
+        lausche(sse.getAttribute('data-url'), aktivesModell, stand);
+      });
+    }
+
+    function lausche(streamUrl, aktivesModell, stand) {
+      var es, fertig = false, lastMd = '', reasoningMd = '';
+      var started = Date.now(), letztesEreignis = Date.now();
+
+      var titelIv = setInterval(function () {
+        tabZustand.zeichen = lastMd.length;
+        setzeTabTitel();
+      }, TITEL_MS);
+      var progressIv = setInterval(function () {
+        // Heartbeat: auch OHNE Inhalt (Server-Queue vor dem ersten Token) weiss
+        // die App, dass der Lauf lebt — ihr Idle-Timeout resettet auf tf-progress.
+        try { source.postMessage({ type: 'tf-progress', id: id }, '*'); } catch (e) { /* ignore */ }
+      }, PROGRESS_MS);
+      var wachIv = setInterval(function () {
+        if (fertig) return;
+        var still = Date.now() - letztesEreignis;
+        if (still >= STILL_MS || Date.now() - started >= HARD_MAX_MS) {
+          abschluss(lastMd, still >= STILL_MS ? 'Stille' : 'Zeitueberschreitung');
+        }
+      }, 2000);
+
+      function aufraeumen() {
+        clearInterval(titelIv); clearInterval(progressIv); clearInterval(wachIv);
+        try { if (es) es.close(); } catch (e) { /* ignore */ }
+      }
+      function abschluss(md, grund) {
+        if (fertig) return;
+        fertig = true;
+        aufraeumen();
+        var jetzt = kontextStand();
+        var text = md || (grund
+          ? grund + ': Keine Antwort von der internen KI'
+          : 'Keine Antwort von der internen KI');
+        setBadge(md ? 'ready' : 'error', md ? 'Verbunden' : (grund || 'Keine Antwort'));
+        if (md) tabQuittung('Fertig');
+        var nachricht = { type: 'tf-response', id: id, result: text,
+          modell: aktivesModell,
+          // Nach dem Lauf gemessen, nicht davor: die Seite zieht die Leiste am
+          // Ende der Runde nach, und der Wert nach dem Lauf ist der, der die
+          // naechste Anfrage begrenzt.
+          kontextTokens: jetzt.tokens || stand.tokens,
+          kontextVoll: jetzt.voll };
+        if (reasoningMd) nachricht.reasoning = reasoningMd;
+        try { source.postMessage(nachricht, '*'); } catch (e) { /* ignore */ }
+      }
+
+      tabZustand.seit = started;
+      tabZustand.zeichen = 0;
+
+      try {
+        es = new EventSource(streamUrl);
+      } catch (e) {
+        abschluss('', 'Antwortstrom nicht erreichbar');
+        return;
+      }
+      es.addEventListener('message', function (ev) {
+        letztesEreignis = Date.now();
+        var md = mdAusHtml(ev.data);
+        if (md && md !== lastMd) {
+          lastMd = md;
+          try { source.postMessage({ type: 'tf-stream', id: id, content: md }, '*'); } catch (e) { /* ignore */ }
+        }
+      });
+      es.addEventListener('reasoning', function (ev) {
+        letztesEreignis = Date.now();
+        reasoningMd = mdAusHtml(ev.data);
+      });
+      // status/tokenbar halten nur den Wachhund wach — angezeigt wird nichts davon.
+      es.addEventListener('status', function () { letztesEreignis = Date.now(); });
+      es.addEventListener('tokenbar', function () { letztesEreignis = Date.now(); });
+      es.addEventListener('done', function () {
+        letztesEreignis = Date.now();
+        abschluss(lastMd, '');
+      });
+      es.onerror = function () {
+        // Ein Strom-Abbruch NACH vollstaendiger Antwort ist der Normalfall (der
+        // Server schliesst); ohne Inhalt ist er ein echter Fehler.
+        if (lastMd) abschluss(lastMd, '');
+        else abschluss('', 'Verbindung zum Antwortstrom abgebrochen');
+      };
+    }
+  }
+
+  function aktuellerModellName() {
+    var sel = q1(SEL.modelsel);
+    if (!sel) return '';
+    var o = sel.options[sel.selectedIndex];
+    return o ? (o.text || '').trim() : '';
+  }
+
+  // ── Chat-Reset (frischer Kontext) ─────────────────────────────────────────
+  // Der Chat ist zustandsbehaftet (serverseitige Sitzung) — ein Lauf darf nicht
+  // den alten Verlauf als Kontext mitschleppen (Pitfall #36). Bevorzugt ueber den
+  // Endpunkt, den das Reset-Formular selbst nennt; ohne Attribut wird der Knopf
+  // geklickt (die eigene Bridge-Leiste ist dabei ausgeschlossen).
+  function resetChat(cb) {
+    var form = q1(SEL.resetform);
+    var url = hxPost(form);
+    if (url) {
+      postForm(url, {}, function (res) { cb(!!res.ok); });
+      return;
+    }
+    var btn = q1(SEL.resetbtn);
+    if (btn && isVisible(btn) && !(bar && bar.contains(btn))) {
+      try { btn.click(); } catch (e) { cb(false); return; }
+      setTimeout(function () { cb(true); }, 500);
+      return;
+    }
+    cb(false);
+  }
+
+  // ── Selbsttest ────────────────────────────────────────────────────────────
+  // Prueft, was die Bridge wirklich braucht: Sitzungs-Id, Sende-Endpunkt,
+  // Modell-Auswahl, Reset-Weg und Kontextleiste. Benennt EINZELN, was fehlt —
+  // ein stiller Teilausfall (wie beim Streamlit→htmx-Wechsel: senden ging,
+  // Antworten lesen nicht) darf sich nicht wiederholen.
+  function pruefeAnschluss() {
+    var mangel = [];
+    if (!sitzungsId()) mangel.push('Sitzungs-Id');
+    if (!q1(SEL.sendform)) mangel.push('Chat-Formular');
+    else if (!hxPost(q1(SEL.sendform))) mangel.push('Sende-Adresse');
+    if (!q1(SEL.modelsel)) mangel.push('Modell-Auswahl');
+    if (!q1(SEL.resetform) && !q1(SEL.resetbtn)) mangel.push('Reset');
+    if (!q1(SEL.tokentext)) mangel.push('Kontextleiste');
+    return mangel;
+  }
+  var selfTestRunning = false;
+  function runSelfTest() {
+    if (selfTestRunning) return;
+    selfTestRunning = true;
+    var mangel = pruefeAnschluss();
+    try {
+      console.log('[TeamFlow-Bridge] Anschluss-Test — '
+        + (mangel.length ? 'FEHLT: ' + mangel.join(', ') : 'alles gefunden')
+        + ' | Modell: ' + (aktuellerModellName() || '?')
+        + ' | Kontext: ' + (kontextStand().tokens || '?'));
+    } catch (e) { /* ignore */ }
+    if (mangel.length) {
+      setBadge('error', 'Oberfläche geändert: ' + mangel[0]);
+      selfTestRunning = false;
+      return;
+    }
+    setBadge('ready', 'Verbunden');
+    selfTestRunning = false;
+  }
+
   // ZAH-App-Erreichbarkeit (Gegenrichtung): prueft, ob das oeffnende App-Fenster
   // (window.opener) antwortet → Pill zeigt „ZAH App erreichbar".
   function runAppReachTest() {
@@ -573,10 +763,7 @@
     }, 3000);
   }
 
-  // Klick auf die Pill: beide Selbsttests erneut ausloesen (manueller Fallback,
-  // ersetzt die frueheren „ZAH-App testen"/„Chat-Test"-Buttons). „Chat-Test"
-  // (runSelfTest) schickt eine harmlose Rechenfrage durch den ECHTEN Scrape-Pfad
-  // und erkennt so eine geaenderte KI-Oberflaeche.
+  // Klick auf die Pill: beide Selbsttests erneut ausloesen.
   badge.addEventListener('click', function () {
     if (!window.opener) { setBadge('error', 'Tab aus der App öffnen'); return; }
     runAppReachTest();
@@ -585,342 +772,13 @@
 
   // Beim Aktivieren dem oeffnenden App-Fenster Bescheid geben → die App
   // uebernimmt das Fenster-Handle (event.source) und kann zuverlaessig pingen,
-  // ohne den Tab per window.open neu zu laden. Kein opener (manuell geoeffnet
-  // oder COOP) → klarer Hinweis.
+  // ohne den Tab per window.open neu zu laden.
   if (window.opener) {
-    try { window.opener.postMessage({ type: 'tf-bridge-ready' }, '*'); } catch (e) { /* ignore */ }
-    // Auto-Selbsttest direkt nach dem Aktivieren → der Nutzer sieht „ZAH App
-    // erreichbar", ohne selbst klicken zu muessen. Kleiner Versatz, damit das
-    // opener-Fenster sicher bereit ist. Ein Klick auf die Pill loest beide
-    // Selbsttests manuell erneut aus.
+    try { window.opener.postMessage({ type: 'tf-bridge-ready', rev: BRIDGE_REV }, '*'); } catch (e) { /* ignore */ }
     setTimeout(function () { runAppReachTest(); }, 300);
-    // Chat-Selbsttest: unauffaelliger Rundlauf durch den ECHTEN Scrape-Pfad, damit eine
-    // geaenderte KI-Oberflaeche sofort beim Start auffaellt (raeumt danach per Reset auf).
     setTimeout(function () { runSelfTest(); }, 1500);
   } else {
     setBadge('error', 'Tab aus der App öffnen');
-  }
-
-  // Antwort-Nachricht im Chat-DOM finden: die ERSTE Assistant-Nachricht NACH unserem
-  // Prompt-Echo (der letzten User-Nachricht) — NICHT die letzte. AitisiGPT haengt NACH
-  // der Antwort noch eine kanned Folge-Begruessung an; DOM-Roster real:
-  //   [0] Begruessung · [1] User-Prompt · [2] Antwort · [3] Folge-Begruessung
-  // Die erste nach dem Echo ist die Antwort; [0] steht davor, [3] danach — beide raus.
-  // Geteilt von runRequest UND runSelfTest (damit der Selbsttest denselben Pfad prueft).
-  //
-  // Die reine Index-Auswahl steht zwischen den Sync-Markern unten und ist WORTGLEICH
-  // in answer-selection.ts gespiegelt (das Bookmarklet muss standalone bleiben:
-  // ?raw-Inlining → kein Import). Der Drift-Test (answer-selection.test.ts) extrahiert
-  // `selectAnswerIndex` zwischen den Markern und laesst sie gegen dieselben Fixtures wie
-  // die TS-Fassung laufen. Aenderung hier = Aenderung dort.
-  // <answer-selection-core> keep in sync with answer-selection.ts
-  function selectAnswerIndex(flags) {
-    var lastUser = -1;
-    for (var i = flags.length - 1; i >= 0; i--) {
-      if (flags[i]) { lastUser = i; break; } // Index unseres Prompt-Echos
-    }
-    if (lastUser < 0) return -1; // Prompt-Echo nicht gefunden → nicht raten
-    for (var j = lastUser + 1; j < flags.length; j++) {
-      if (!flags[j]) return j; // erste Nicht-User-Nachricht danach
-    }
-    return -1;
-  }
-  // </answer-selection-core>
-  // Zweistufig (v2.203): Stufe 1 = bewaehrte Avatar-Heuristik (unveraendert).
-  // NUR wenn sie GAR KEIN Prompt-Echo findet (UI-Drift am Avatar-Markup — die
-  // Fehlerklasse hinter „Ende der Response nicht erkannt"), markiert Stufe 2 das
-  // Echo ueber den gesendeten Text selbst (isEchoText) und waehlt erneut.
-  // Bewusst NICHT inhalts-primaer: eine Antwort, die mit einem Prompt-Zitat
-  // beginnt, wuerde sonst faelschlich zum Anker.
-  function findAnswerMsg(message, root) {
-    var msgs = qav(SEL.msg, root), flags = [], k;
-    for (k = 0; k < msgs.length; k++) flags.push(isUser(msgs[k]));
-    var idx = selectAnswerIndex(flags);
-    if (idx < 0 && message) {
-      for (k = 0; k < msgs.length; k++) {
-        if (!flags[k] && isEchoText(msgs[k].textContent || '', message)) flags[k] = true;
-      }
-      idx = selectAnswerIndex(flags);
-    }
-    return idx < 0 ? null : msgs[idx];
-  }
-
-  // ── Ziel-Routing (Zweit-LLM „Agentischer Chat", Erprobung) ────────────────
-  // tf-request/tf-reset koennen ein optionales `ziel` tragen:
-  //   'standard'  → Tab „Chat" (klassisches AitisiGPT)
-  //   'agentisch' → Tab „Agentischer Chat" (Qwen-Agent, groesserer Kontext)
-  // Ohne `ziel` bleibt ALLES beim bisherigen Verhalten (aktiver Tab) — alte
-  // App-Builds funktionieren gegen dieses Snippet und umgekehrt. Tab-lose
-  // Oberflaechen: 'standard' laeuft ohne Tab weiter, 'agentisch' meldet Fehler.
-  var TAB_SELECTOR = 'button[role="tab"], [data-baseweb="tab"]';
-  var TAB_SWITCH_TIMEOUT_MS = 10000;
-  function tabMatches(ziel, text) {
-    if (ziel === 'agentisch') return /agentisch/i.test(text);
-    // 'standard': ein Chat-Tab, der NICHT der agentische ist (Labels real:
-    // „Chat" vs. „Agentischer Chat"; Anker/Wortgrenzen waeren gegen Icons bruechig).
-    if (ziel === 'standard') return /chat/i.test(text) && !/agentisch/i.test(text);
-    return false;
-  }
-  function findTabButton(ziel) {
-    var tabs = document.querySelectorAll(TAB_SELECTOR);
-    for (var i = 0; i < tabs.length; i++) {
-      var t = (tabs[i].textContent || '').replace(/\s+/g, ' ').trim();
-      if (tabMatches(ziel, t)) return tabs[i];
-    }
-    return null;
-  }
-  function ensureZiel(ziel, cb) {
-    if (!ziel) { cb(null); return; }
-    var tab = findTabButton(ziel);
-    if (!tab) {
-      // Kein Tab-UI: 'standard' = bisheriges Verhalten; 'agentisch' braucht den Tab.
-      cb(ziel === 'agentisch'
-        ? 'Tab "Agentischer Chat" nicht gefunden — Oberflaeche der internen KI geaendert?'
-        : null);
-      return;
-    }
-    if (tab.getAttribute('aria-selected') !== 'true') tab.click();
-    var t0 = Date.now();
-    (function waitInput() {
-      var ta = q1v(SEL.textarea);
-      if (ta && isVisible(ta)) { cb(null); return; }
-      if (Date.now() - t0 >= TAB_SWITCH_TIMEOUT_MS) {
-        cb('Eingabefeld fuer Ziel "' + ziel + '" nicht gefunden');
-        return;
-      }
-      setTimeout(waitInput, 400);
-    })();
-  }
-
-  // ── Anfrage-Engine: einfuegen → absenden → live streamen → finalisieren ────
-  function runRequest(source, id, message, ziel, erwarte) {
-    setBadge('working', 'Arbeitet…');
-    ensureZiel(ziel, function (zielErr) {
-      if (zielErr) {
-        setBadge('error', 'Fehler');
-        source.postMessage({ type: 'tf-response', id: id, result: zielErr }, '*');
-        return;
-      }
-      var ta = q1v(SEL.textarea);
-      if (!ta) {
-        setBadge('error', 'Fehler');
-        source.postMessage({ type: 'tf-response', id: id, result: 'Eingabefeld der internen KI nicht gefunden' }, '*');
-        return;
-      }
-      // Nachrichten-Roster ans Tab-Panel der Ziel-textarea binden (s. panelScopeOf).
-      var msgScope = panelScopeOf(ta);
-      setValue(ta, message);
-
-      setTimeout(function () {
-        submit(ta);
-        // SETTLE_MS = Idle-Fenster vor dem Finalisieren. Grosszuegig (5 s), damit
-        // Thinking-Modelle (Reasoning immer an) eine Denk-Pause zwischen erstem Token
-        // und der eigentlichen Antwort ueberleben — sonst finalisiert die Bridge zu
-        // frueh mit einem kurzen Partial (z. B. "Starte…"). MIN_LEN: solange die
-        // Antwort verdaechtig kurz ist, ein doppelt so langes Fenster verlangen.
-        //
-        // Deadlines PROGRESS-bewusst statt absolut (v2.203): der alte 180-s-Deckel
-        // kappte unter Server-Last auch noch WACHSENDE Antworten. NO_PROGRESS_MS
-        // greift nur, wenn sich weder Inhalt noch sichtbarer Lauf-Indikator ruehren
-        // (beide resetten lastContentChange); HARD_MAX_MS ist der absolute Backstop
-        // gegen einen stuck-true isRunning()-Indikator.
-        var POLL_MS = 400, SETTLE_MS = 5000, MIN_LEN = 40;
-        var NO_PROGRESS_MS = 150000, HARD_MAX_MS = 600000;
-        // Abschluss-Marker-Schutz: Gibt die App einen `erwarte`-Marker mit (die Antwort
-        // ist erst vollstaendig, wenn sie diesen Text enthaelt, z. B. "Finaler Text"),
-        // finalisieren wir NICHT auf dem kurzen SETTLE-Fenster, solange der Marker fehlt —
-        // sonst schneidet ein langer, zweiteiliger Lauf (grosser erster Abschnitt, Pause,
-        // dann der Schluss-Abschnitt) den Schluss ab, wenn isRunning() in der Pause faelsch-
-        // lich false liest. Bis MISSING_TAIL_MS Idle-Zeit warten, dann mit dem Stand
-        // finalisieren (fail-open); die 150-/600-s-Backstops bleiben unveraendert.
-        var MISSING_TAIL_MS = 45000;
-        var PROGRESS_EVERY_TICKS = 25; // 25 × 400 ms ≈ 10 s Heartbeat an die App
-        var TITEL_EVERY_TICKS = 3;     //  3 × 400 ms ≈ 1,2 s Tab-Titel-Ticker
-        var started = Date.now(), lastMd = '', finished = false, tick = 0;
-        // Ab hier zeigt der Tab-Titel Uhr + Umfang statt „Arbeitet…" (setBadge oben).
-        tabZustand.seit = started;
-        tabZustand.zeichen = 0;
-        // Finalisierungs-Timer haengt an der INHALTS-Stabilitaet der Assistenten-
-        // Antwort, nicht an globaler DOM-Aktivitaet: die fremde KI-Seite mutiert
-        // ihren DOM auch generierungs-unabhaengig (Status-Widget, Reruns) — das
-        // verhinderte (seit SETTLE_MS 2500->5000) das Finalisieren, obwohl die
-        // Antwort laengst vollstaendig war. `lastContentChange` wird nur von echten
-        // Antwort-Aenderungen + laufendem `isRunning()` (Pausen-Schutz) beruehrt.
-        var lastContentChange = Date.now();
-
-        // Diagnose-Netz: Nachrichten-Roster loggen (Anzahl, je User/Assistant +
-        // Echo-Flag `~E` + erste 30 Zeichen) + was gewaehlt wurde. Laeuft beim
-        // Finalisieren UND beim Timeout — gerade dort braucht man die echte
-        // DOM-Struktur in der Konsole (F12), statt blind zu patchen.
-        function logRoster(tag, chosen) {
-          try {
-            var dbgMsgs = qav(SEL.msg, msgScope), roster = [];
-            for (var dk = 0; dk < dbgMsgs.length; dk++) {
-              var fl = isUser(dbgMsgs[dk]) ? 'U' : 'A';
-              if (isEchoText(dbgMsgs[dk].textContent || '', message)) fl += '~E';
-              roster.push(fl + '#' + dk + ':'
-                + (contentOf(dbgMsgs[dk]) || '').slice(0, 30).replace(/\s+/g, ' '));
-            }
-            console.log('[TeamFlow-Bridge] ' + tag + ' — ' + dbgMsgs.length + ' msgs:', roster,
-              '| gewaehlt:', (chosen || '').slice(0, 60));
-          } catch (e) { /* ignore */ }
-        }
-
-        var iv = setInterval(function () {
-          if (finished) return;
-          tick++;
-          // Heartbeat: auch OHNE Inhalt (Server-Queue vor dem ersten Token) weiss
-          // die App, dass der Lauf lebt — ihr Idle-Timeout resettet auf tf-progress.
-          if (tick % PROGRESS_EVERY_TICKS === 0) {
-            source.postMessage({ type: 'tf-progress', id: id }, '*');
-          }
-          // Tab-Titel: Uhr laeuft weiter, Umfang waechst mit der Antwort — so ist
-          // aus der App heraus sichtbar, ob die KI vorankommt oder haengt.
-          if (tick % TITEL_EVERY_TICKS === 0) {
-            tabZustand.zeichen = lastMd.length;
-            setzeTabTitel();
-          }
-          var cand = findAnswerMsg(message, msgScope);
-          var md = cand ? contentOf(cand) : '';
-          if (md && md !== message && md !== lastMd) {
-            lastMd = md;
-            lastContentChange = Date.now();
-            source.postMessage({ type: 'tf-stream', id: id, content: md }, '*'); // live
-          }
-          // Solange sichtbar laeuft, KEINE Idle-Zeit aufbauen (deckt serverseitige
-          // Denk-/Stream-Pausen, in denen der Inhalt kurz stillsteht).
-          if (isRunning()) lastContentChange = Date.now();
-
-          var idle = Date.now() - lastContentChange;
-          // Finalisieren erst, wenn Antwort vorhanden, nichts mehr laeuft und genug
-          // Idle-Zeit verstrich. Bei leerer Antwort (Thinking-Phase vor dem ersten
-          // Token) NIE finalisieren. Kurz-Inhalt-Schutz: ein verdaechtig kurzes
-          // lastMd (z. B. "Starte…") bekommt das doppelte Fenster, damit das echte
-          // (laengere) Resultat nach einer Denk-Pause noch nachkommen kann.
-          var settle = lastMd.length < MIN_LEN ? SETTLE_MS * 2 : SETTLE_MS;
-          // Erwarteter Schluss-Abschnitt (erwarte) noch nicht in der Antwort → nicht auf
-          // dem kurzen Fenster finalisieren; dem Rest bis MISSING_TAIL_MS Zeit geben.
-          // Kommt der Text, erfasst ihn der naechste Tick → Marker vorhanden → normales
-          // settle → voller Text. Fail-open: erscheint der Marker nie, finalisieren wir
-          // nach MISSING_TAIL_MS mit dem Stand (nie schlechter als ohne Marker).
-          var unvollstaendig = !!erwarte && !!lastMd
-            && lastMd.toLowerCase().indexOf(erwarte.toLowerCase()) === -1;
-          var reif = idle >= settle && (!unvollstaendig || idle >= MISSING_TAIL_MS);
-          if (lastMd && !isRunning() && reif) {
-            finished = true;
-            clearInterval(iv);
-            setBadge('ready', 'Verbunden');
-            tabQuittung('Fertig');
-            logRoster('finalize idle=' + idle + ' settle=' + settle
-              + (erwarte ? ' erwarte=' + (unvollstaendig ? 'FEHLT' : 'ok') : ''), lastMd);
-            extractThinking(cand, function (reasoning) {
-              var msg = { type: 'tf-response', id: id, result: lastMd };
-              if (reasoning) msg.reasoning = reasoning;
-              source.postMessage(msg, '*');
-            });
-            return;
-          }
-          if (idle >= NO_PROGRESS_MS || Date.now() - started >= HARD_MAX_MS) {
-            finished = true;
-            clearInterval(iv);
-            logRoster('timeout ' + (idle >= NO_PROGRESS_MS ? 'no-progress' : 'hard-max')
-              + ' idle=' + idle + (erwarte ? ' erwarte=' + (lastMd && lastMd.toLowerCase().indexOf(erwarte.toLowerCase()) === -1 ? 'FEHLT' : 'ok') : ''), lastMd);
-            setBadge(lastMd ? 'ready' : 'error', lastMd ? 'Verbunden' : 'Zeitüberschreitung');
-            // Teil-Antwort ist ein Ergebnis (quittieren); ohne Antwort bleibt das
-            // Warnsymbol aus setBadge stehen, bis der naechste Lauf startet.
-            if (lastMd) tabQuittung('Fertig');
-            source.postMessage({ type: 'tf-response', id: id,
-              result: lastMd || 'Zeitüberschreitung: Keine Antwort von der internen KI' }, '*');
-          }
-        }, POLL_MS);
-      }, 200);
-    });
-  }
-
-  // ── Chat-Selbsttest (Start-Rundlauf + „Chat-Test"-Knopf) ─────────────────
-  // Schickt EINE harmlose, variierende Rechenfrage durch denselben Scrape-Pfad wie
-  // echte Anfragen (findAnswerMsg + contentOf) und prueft, ob die Antwort die erwartete
-  // Summe enthaelt. So faellt eine geaenderte AitisiGPT-Oberflaeche (Selektor/Reihenfolge/
-  // neue Zwischennachricht) SOFORT beim Start auf — statt spaeter als stille Fehl-
-  // klassifizierung. Unauffaellig fuers Server-Log: sieht wie ein trivialer Verbindungs-
-  // test aus. Raeumt danach per „Neuer Chat" auf. (resetChat ist per Hoisting sichtbar.)
-  var selfTestRunning = false;
-  function runSelfTest() {
-    if (selfTestRunning) return;
-    var ta = q1v(SEL.textarea);
-    if (!ta) { setBadge('error', 'Chat-Test: kein Eingabefeld'); return; }
-    var msgScope = panelScopeOf(ta);
-    selfTestRunning = true;
-    var a = 10 + Math.floor(Math.random() * 80);
-    var b = 10 + Math.floor(Math.random() * 80);
-    var erwartet = String(a + b);
-    var frage = 'Was ist ' + a + ' + ' + b + '?';
-    setBadge('working', 'Chat-Test läuft…');
-    setValue(ta, frage);
-    setTimeout(function () {
-      submit(ta);
-      var started = Date.now(), lastMd = '', lastChange = Date.now(), done = false;
-      var iv = setInterval(function () {
-        if (done) return;
-        var cand = findAnswerMsg(frage, msgScope);
-        var md = cand ? contentOf(cand) : '';
-        if (md && md !== frage && md !== lastMd) { lastMd = md; lastChange = Date.now(); }
-        if (isRunning()) lastChange = Date.now();
-        var settled = lastMd && !isRunning() && (Date.now() - lastChange) >= 4000;
-        if (!settled && Date.now() - started < 60000) return; // weiter warten
-        done = true;
-        clearInterval(iv);
-        var seen = (lastMd || '').replace(/\s+/g, ' ').trim();
-        var ok = seen.indexOf(erwartet) !== -1;
-        // "keine Antwort" (leer) vs. "falsche Antwort erkannt" (Oberflaeche geaendert)
-        // getrennt melden, damit ein langsamer/getrennter Server nicht als UI-Aenderung
-        // fehlgedeutet wird.
-        var warnText = seen ? 'Chat-Test: Oberfläche evtl. geändert' : 'Chat-Test: keine Antwort';
-        try {
-          console.log('[TeamFlow-Bridge] Chat-Test ' + (ok ? 'OK' : 'FEHLGESCHLAGEN')
-            + ' — Frage "' + frage + '", erwartet "' + erwartet + '", gesehen: "' + seen.slice(0, 100) + '"');
-        } catch (e) { /* ignore */ }
-        setBadge(ok ? 'ready' : 'working', ok ? 'Chat-Test OK' : warnText);
-        // Aufraeumen: Test-Chat zuruecksetzen (frischer Kontext fuer echte Anfragen).
-        setTimeout(function () {
-          try { resetChat(); } catch (e) { /* ignore */ }
-          setBadge(ok ? 'ready' : 'working', ok ? 'Verbunden' : warnText);
-          selfTestRunning = false;
-        }, 500);
-      }, 400);
-    }, 200);
-  }
-
-  // ── Chat-Reset (frischer Kontext) ─────────────────────────────────────────
-  // Klickt den „Neuer Chat"/„Zurücksetzen"-Button der Streamlit-App, damit ein
-  // KI-Lauf nicht den alten Chat-Verlauf als Kontext mitschleppt. Strategie wie
-  // im alten ZIM-Bookmarklet: erst Reset-Symbol, dann Reset-Text. Die EIGENE
-  // Bridge-Leiste (#tf-bridge-bar) wird ausgeschlossen, damit wir nicht unseren
-  // „ZAH-App testen"-Button klicken. Best-effort: liefert found=true/false.
-  function resetChat() {
-    var bar = document.getElementById('tf-bridge-bar');
-    var allBtns = document.querySelectorAll('button');
-    // Strategie 1: Button mit Reset-Symbol. Unsichtbare Buttons (verstecktes
-    // Tab-Panel) ueberspringen — sonst reseten wir den falschen Chat.
-    for (var i = 0; i < allBtns.length; i++) {
-      if (bar && bar.contains(allBtns[i])) continue;
-      if (!isVisible(allBtns[i])) continue;
-      var t = (allBtns[i].textContent || '').trim();
-      if (t === '⟳' || t === '↻' || t === '🔄') { allBtns[i].click(); return true; }
-    }
-    // Strategie 2: Button mit Reset-Text. 'zuruecksetzen' (ue) zusaetzlich zur
-    // Umlaut-Form — der Button des Agentischer-Chat-Tabs heisst real
-    // „Chat zuruecksetzen" (ue-Schreibweise, matcht das ü-Muster NICHT).
-    var texts = ['zurücksetzen', 'zuruecksetzen', 'reset', 'clear', 'neu starten', 'neuer chat', 'new chat'];
-    for (var k = 0; k < allBtns.length; k++) {
-      if (bar && bar.contains(allBtns[k])) continue;
-      if (!isVisible(allBtns[k])) continue;
-      var lt = (allBtns[k].textContent || '').toLowerCase();
-      for (var j = 0; j < texts.length; j++) {
-        if (lt.indexOf(texts[j]) !== -1) { allBtns[k].click(); return true; }
-      }
-    }
-    return false;
   }
 
   window.addEventListener('message', function (event) {
@@ -929,29 +787,35 @@
 
     if (data.type === 'tf-ping') {
       setBadge('ready', 'Verbunden');
-      event.source.postMessage({ type: 'tf-pong' }, '*');
+      // `rev` mitschicken: die App erkennt daran ein veraltetes Bookmarklet und
+      // rechnet bis zur Neuinstallation mit dem kleinen Kontextfenster.
+      event.source.postMessage({ type: 'tf-pong', rev: BRIDGE_REV }, '*');
       return;
     }
     if (data.type === 'tf-reset') {
-      // Optionales `ziel` (Zweit-LLM): erst den passenden Tab aktivieren, dann
-      // den (sichtbaren) Reset-Button klicken.
-      ensureZiel(typeof data.ziel === 'string' ? data.ziel : null, function (zielErr) {
-        var found = false;
-        if (!zielErr) {
-          try { found = resetChat(); } catch (e) { found = false; }
+      // Optionales `ziel`: erst das Modell setzen, dann zuruecksetzen. Die
+      // Reihenfolge ist unkritisch (ein Modellwechsel loescht den Verlauf nicht),
+      // aber so steht schon vor dem Reset fest, welches Fenster gilt.
+      ensureModell(normZiel(typeof data.ziel === 'string' ? data.ziel : null), function (zielErr) {
+        if (zielErr) {
+          setBadge('working', 'Kein Reset: ' + zielErr);
+          event.source.postMessage({ type: 'tf-reset-done', id: data.id, found: false }, '*');
+          return;
         }
-        setBadge(found ? 'ready' : 'working', found ? 'Chat zurückgesetzt' : 'Kein Reset-Button');
-        // Kurz auf den Streamlit-Rerun warten, dann bestätigen.
-        setTimeout(function () {
+        resetChat(function (found) {
+          setBadge(found ? 'ready' : 'working', found ? 'Chat zurückgesetzt' : 'Kein Reset-Weg');
           event.source.postMessage({ type: 'tf-reset-done', id: data.id, found: found }, '*');
-        }, 500);
+        });
       });
       return;
     }
     if (data.type === 'tf-request') {
+      // `data.erwarte` (Abschluss-Marker) wird bewusst IGNORIERT: er war der
+      // Ersatz fuer ein fehlendes Fertig-Signal, und das liefert der Strom jetzt
+      // als `done`. Das Feld bleibt app-seitig vorerst bestehen, damit ein
+      // aelterer Build gegen dieses Snippet weiterlaeuft.
       runRequest(event.source, data.id, String(data.message || ''),
-        typeof data.ziel === 'string' ? data.ziel : null,
-        typeof data.erwarte === 'string' ? data.erwarte : null);
+        typeof data.ziel === 'string' ? data.ziel : null);
       return;
     }
   });

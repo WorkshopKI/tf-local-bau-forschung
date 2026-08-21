@@ -5,6 +5,18 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v5.0.0 — Bridge spricht die neue AitisiGPT-Oberflaeche direkt an (August 2026)
+
+MAJOR — Die interne KI wurde neu gebaut: nicht mehr Streamlit, sondern htmx auf servergerendertem HTML. Die Bridge zielte durchgehend auf Streamlit-`data-testid`-Attribute, von denen kein einziges mehr existiert — Fragen gingen hinaus, **Antworten wurden nicht mehr gelesen**. Belegt an zwei DOM-Dumps vom Produktivsystem. Der Ersatz ist besser als das Original: die neue Oberfläche hat eine HTTP-Schnittstelle und einen SSE-Strom mit `done`-Ereignis.
+
+- **Senden per `POST`, Empfangen per SSE** — die Endpunkte liest das Bookmarklet aus den `hx-post`-Attributen der Seite, statt Routen zu verdrahten; die Sitzung reist als `X-Session-Id` mit ([bridge-snippet.source.js](src/core/services/ai/streamlit-bridge/bridge-snippet.source.js))
+- **Ersatzlos entfallen**: Echo-Erkennung, Antwort-Auswahl im Nachrichten-Roster, Lauf-Indikator-Polling, Ruhefenster-Heuristik — allesamt Umgehungen eines fehlenden Fertig-Signals, das der Strom jetzt als `done` liefert (`answer-selection.ts` + `echo-match.ts` gelöscht)
+- **Modell und Kontextfenster werden von der Seite gelesen**, nicht geraten — Options-Text statt Dateiname, `Qwen3-VL` explizit ausgeschlossen ([modell-erkennung.ts](src/core/services/ai/streamlit-bridge/modell-erkennung.ts))
+- **`rev`-Handschlag**: die App erkennt ein veraltetes Lesezeichen und sagt es in den Einstellungen — ein altes Snippet ist nicht mehr harmlos ([snippet.ts](src/core/services/ai/streamlit-bridge/snippet.ts), [VerbindungGruppe.tsx](src/plugins/einstellungen/ki/VerbindungGruppe.tsx))
+- Die Datenquellen-Auswahl der Seite wird vor jedem Lauf neutralisiert — unsere Aufträge bringen ihren Kontext vollständig selbst mit
+
+**Migration**: Jeder Nutzer muss das **Lesezeichen neu ziehen** (Einstellungen → KI → Einrichtung) und im KI-Tab einmal anklicken. Bis dahin meldet die App das veraltete Lesezeichen und rechnet konservativ mit dem kleinen Kontextfenster. Kein Daten-Layout und keine IndexedDB-Änderung.
+
 ### v4.136.0 — Schweigt der eigene Regelsatz, sagt die Zeile was laeuft (August 2026)
 
 MINOR — Unter „Meine Anträge" stand weiter „Gutachten freigeben", obwohl v4.132 beide Motoren zusammengelegt hatte. Grund: in der **FB-Sicht** schweigt die Kaskade fast überall — R19 („in QS") wartet auf die QS, R21 („GA schreiben") ist die AB zuständig, keine nennt den FB, also greift kein Leihweg. Dann sprach wieder die alte Status-Formel, und die ist an 101 von 102 Vorgängen widerlegt. Gemessen: 17 von 19 offenen Vorgängen mit Kürzel THü.

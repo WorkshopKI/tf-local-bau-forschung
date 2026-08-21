@@ -26,7 +26,7 @@ Einrichtung in der App unter **Einstellungen → KI-Assistent → Streamlit Brid
 3. **Streamlit-Tab öffnen**, dort das Lesezeichen anklicken — grünes „TF Connected"-Badge erscheint
 4. **Verbindung testen** → danach läuft der KI-Chat über die Bridge
 
-Detail: [docs/architecture/streamlit-bridge.md](docs/architecture/streamlit-bridge.md).
+Detail: [docs/architecture/ki-bridge.md](docs/architecture/ki-bridge.md).
 Alternativ: llama.cpp oder Cloud API unter Einstellungen → KI-Assistent (nur Dev-Build).
 
 ## Architektur

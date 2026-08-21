@@ -206,7 +206,11 @@ Bis v4.19.0 stand hier, eine ausdrückliche Nutzer-Geste (Generieren, Testlauf) 
 - Reine Auswahl-Logik als **pure Funktion** testbar halten (`selectAnswer(roster)` in [answer-selection.ts](../../src/core/services/ai/streamlit-bridge/answer-selection.ts)), gegen **belegte DOM-Roster-Fixtures**; das Bookmarklet-`.js` (`findAnswerMsg`, standalone via `?raw`) **spiegelt** dieselbe Index-Mathematik (Drift-Test).
 - Bei Black-Box-DOM **nicht raten** → einen Diagnose-Roster-Dump loggen und die echte Struktur ansehen; einen `BRIDGE_REV`-Marker mitführen, damit ein veraltetes Bookmarklet erkennbar ist (Bookmarklet-Änderung = Re-Install).
 
-**Beleg:** v2.157.1 → v2.159.1 → v2.159.3 → v2.159.4. Detail: [streamlit-bridge.md](streamlit-bridge.md) („Antwort-Auswahl (Echo-Anker)").
+**Beleg:** v2.157.1 → v2.159.1 → v2.159.3 → v2.159.4.
+
+**Nachtrag v5.0 — die Klasse ist an der Wurzel aufgelöst, nicht erneut gepatcht.** Als die interne KI 2026-08 von Streamlit auf htmx umgebaut wurde, traf kein einziger Selektor mehr; die Bridge sendete noch, las aber keine Antwort mehr. Der fünfte Patch derselben Art wäre eine neue Selektortabelle gewesen. Stattdessen: die neue Oberfläche hat eine **HTTP-Schnittstelle** und einen SSE-Strom mit `done`-Ereignis — die Bridge spricht sie direkt an, und Echo-Anker, Antwort-Auswahl, Lauf-Indikator und Ruhefenster sind **ersatzlos entfallen** (`answer-selection.ts` + `echo-match.ts` gelöscht).
+
+**Die schärfere Regel daraus:** Erst prüfen, ob die fremde Oberfläche eine Schnittstelle hat — ein Bookmarklet läuft same-origin *in* der Seite und darf sie aufrufen. DOM-Scraping ist die Ebene für Seiten, die **keine** haben; wo eine existiert, ist jede Positions-Heuristik Aufwand für ein Problem, das es nicht gibt. Detail: [ki-bridge.md](ki-bridge.md).
 
 ---
 
