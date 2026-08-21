@@ -181,16 +181,22 @@ describe('kuerzel-text-folgt-der-kuration (v4.45 — eine Seite, ein Wortlaut)',
   // `ueberlagereKuration`. Die Funktion haelt selbst fest, wo der Katalog
   // gewinnt (form-divergente Kuerzel); dieser Guard haelt nur fest, DASS sie
   // aufgerufen wird.
-  const HEIMAT = `${sep}core${sep}status${sep}verlauf${sep}uebergaenge.ts`;
+  //
+  // Zweite Heimat seit v6.2: die Karte „Aenderungen der letzten Nacht" nennt
+  // jedes Kuerzel beim Namen und schlaegt dafuer denselben Katalog nach.
+  const HEIMATEN = [
+    `${sep}core${sep}status${sep}verlauf${sep}uebergaenge.ts`,
+    `${sep}plugins${sep}antraege${sep}status${sep}journalSpalten.ts`,
+  ];
 
-  it('uebergaenge.ts legt die Fassung ueber den Katalog', () => {
+  it.each(HEIMATEN)('%s legt die Fassung ueber den Katalog', (HEIMAT) => {
     const datei = ALL_TS_FILES.find(f => f.endsWith(HEIMAT));
-    expect(datei, 'uebergaenge.ts nicht gefunden — Guard umbenannt?').toBeDefined();
+    expect(datei, `${HEIMAT} nicht gefunden — Guard umbenannt?`).toBeDefined();
     const quelle = readFileSync(datei!, 'utf8');
 
     if (!quelle.includes('ueberlagereKuration')) {
       expect.fail(
-        `Die Verlaufs-Spur schlaegt wieder flach nach (v4.45).\n` +
+        `${HEIMAT} schlaegt wieder flach nach (v4.45).\n` +
         `Stattdessen:\n` +
         `  const auskunft = ueberlagereKuration(\n` +
         `    kuerzelAuskunft(roh, e.projektform), eintrag.feld.label,\n` +

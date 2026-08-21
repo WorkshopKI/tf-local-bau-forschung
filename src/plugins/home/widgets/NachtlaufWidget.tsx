@@ -27,6 +27,18 @@
  * ihre eigene Erklärung. Kein Tooltip ohne Geste: was eine Blase hat, ist
  * gepunktet unterstrichen.
  *
+ * **Der Klartext gilt je Projektform** (v6.2). Bis dahin las die Karte flach das
+ * Label der Fassung: `D_AB` hieß hier „Bewilligungsempfehlung durch
+ * Haushaltsbeauftragte" — die DL-Bedeutung, gezeigt an einem FuE-Vorgang, wo sie
+ * „bewilligungsreif/Akte an Euronorm" heißt. Drei Spalten (`D_AAE`, `D_ABB`,
+ * `D_AZ1_1`) standen zudem ganz ohne Beschreibung da, weil sie kanonisch
+ * angebunden sind. Beides löst `journalSpalten.ts`; ein Statuswechsel steht
+ * seither außerdem als Überschrift in seiner Blase, nicht als Nachsatz.
+ *
+ * **Die Fußzeile deckt auf** (v6.2): „… und 10 weitere Vorgänge" war eine tote
+ * Auskunft. Sie zeigt jetzt schrittweise mehr, ab 20 Zeilen auf einen Schlag
+ * alle — und trägt den Rückweg mit.
+ *
  * Opt-in: der Katalog liefert das Widget mit, `reconcileVerfuegbareWidgets`
  * ergänzt es mit `sichtbar: false`. Wer es sehen will, schaltet es ein.
  */
@@ -40,7 +52,11 @@ import {
   getAktiveVersion, letzterNachtLauf, nachtLaeufeSeit,
   type JournalEintrag,
 } from '@/core/status';
-import { eintragText } from '@/plugins/antraege/status/journalTexte';
+import {
+  baueSpaltenAufloesung, spaltenAuskunft,
+  type SpaltenAufloesung,
+} from '@/plugins/antraege/status/journalSpalten';
+import { ART_TEXT, eintragText, wannText, wertText } from '@/plugins/antraege/status/journalTexte';
 import { useAntraegeStore } from '@/plugins/antraege/store';
 import {
   antragMatchesBearbeiter, bearbeiterScopeLabel,
@@ -72,15 +88,11 @@ function configVon(c: WidgetSpezifischeConfig): NachtlaufWidgetConfig {
 /** „Alle Vorgänge" als Filter-Modus — der Ausschnitt ist damit aus. */
 const ALLE: BearbeiterFilterMode = { active: false, tokens: [], includeBegleitung: false };
 
-/**
- * Die beiden Status-Spalten stehen nicht als `feldId` im Katalog; ihre
- * kanonischen Gegenstücke schon. Zwei Zeilen statt einer Handtabelle mit
- * Klartexten — die stünden sonst neben denen des Katalogs und liefen auseinander.
- */
-const KANONISCH: Record<string, string> = {
-  STATUS_TV: 'status',
-  STATUS_VB: 'verbund_status',
-};
+/** Wie viele Zeilen ein Klick auf die Fußzeile zusätzlich aufdeckt. */
+const SCHRITT = 10;
+
+/** Ab so vielen gezeigten Zeilen deckt der Link nicht mehr schrittweise auf. */
+const ALLE_AB = 20;
 
 function tagDe(iso: string): string {
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
@@ -116,6 +128,8 @@ export function NachtlaufWidget({ instanz, onToggleEingeklappt }: WidgetProps): 
   const [bestand, setBestand] = useState<Bestand | null>(null);
   const [laden, setLaden] = useState(false);
   const [geladen, setGeladen] = useState(false);
+  /** Wie viele Zeilen über die eingestellte Anzahl hinaus aufgedeckt sind. */
+  const [mehr, setMehr] = useState(0);
 
   // Der Stichtag wird einmal je Mount genommen und dann durchgereicht — eine
   // Uhr mitten in der Anzeige machte die Fenstergrenze vom Render-Zeitpunkt
@@ -169,23 +183,12 @@ export function NachtlaufWidget({ instanz, onToggleEingeklappt }: WidgetProps): 
     [antraege],
   );
 
-  // Klartext je Kürzel: EINE Map statt `feldLabel` je Zeile — das läuft linear
-  // über ~505 Katalog-Felder und stünde sonst in jedem Render mal zehn.
-  const klartext = useMemo(() => {
-    const version = getAktiveVersion();
-    if (!version) return new Map<string, string>();
-    const proFeldId = new Map<string, string>();
-    for (const f of version.felder) {
-      const label = f.label.trim();
-      if (label) proFeldId.set(f.feldId, label);
-    }
-    const out = new Map(proFeldId);
-    for (const [spalte, feldId] of Object.entries(KANONISCH)) {
-      const label = proFeldId.get(feldId);
-      if (label) out.set(spalte, label);
-    }
-    return out;
-  }, []);
+  // Die Nachschlage-Indizes der Fassung: EINMAL gebaut, nicht je Zeile — die
+  // Suche läuft sonst linear über ~509 Katalog-Felder, mal zehn Zeilen.
+  const aufloesung = useMemo(
+    () => baueSpaltenAufloesung(getAktiveVersion()?.felder ?? []),
+    [],
+  );
 
   // Der Ausschnitt der Karte. Die Einstellung übersteuert NUR den Umschalter im
   // Seitenkopf: ein Ausschnitt aus einer Frage und eine per Anmeldung
@@ -213,10 +216,20 @@ export function NachtlaufWidget({ instanz, onToggleEingeklappt }: WidgetProps): 
     [eigene, index, cfg.maxKuerzel, cfg.sortierung],
   );
 
+  // Aufgedecktes gilt für DIESE Liste. Wechselt der Zeitraum, der Ausschnitt
+  // oder die Sortierung, stünden sonst 40 Zeilen einer Einstellung da, die 10
+  // sagt — der Regler wäre damit wirkungslos, bis die Karte neu gemountet wird.
+  useEffect(() => { setMehr(0); }, [zeilen]);
+
   if (!isVorgangssystemEnabled()) return null;
 
-  const sichtbar = zeilen.slice(0, Math.max(1, cfg.maxZeilen));
+  const basis = Math.max(1, cfg.maxZeilen);
+  const grenze = Math.min(zeilen.length, basis + mehr);
+  const sichtbar = zeilen.slice(0, grenze);
   const rest = zeilen.length - sichtbar.length;
+  // Schrittweise, solange die Liste kurz ist; ab 20 Zeilen ist das Abzählen
+  // ohnehin vorbei, dann deckt ein Klick den Rest auf.
+  const aufDeckenAlle = grenze >= ALLE_AB;
   // Wie viel der Lauf INSGESAMT brachte — sonst liest sich eine leere eigene
   // Liste als „der Import hat nichts gebracht".
   const fremde = alle.length - eigene.length;
@@ -277,13 +290,29 @@ export function NachtlaufWidget({ instanz, onToggleEingeklappt }: WidgetProps): 
                 <ZeileView
                   key={z.antragId}
                   zeile={z}
-                  klartext={klartext}
+                  aufloesung={aufloesung}
+                  vbPhase={index.get(z.antragId)?.vb_phase}
                   onOeffnen={() => navigate('antraege', { selectedId: z.antragId })}
                 />
               ))}
               {cfg.fusszeilen && rest > 0 && (
-                <li className="pt-0.5 text-[11px] leading-[1.35] text-[var(--tf-text-tertiary)]">
-                  … und {rest.toLocaleString('de-DE')} weitere {rest === 1 ? 'Vorgang' : 'Vorgänge'}
+                // Der Rest war bis v6.2 eine tote Auskunft: er sagte, wie viele
+                // fehlen, und ließ den Leser mit dem Regler in den Einstellungen
+                // allein.
+                <li className="pt-0.5">
+                  <Fusslink
+                    onClick={() => setMehr(m => (aufDeckenAlle ? zeilen.length : m + SCHRITT))}
+                    text={aufDeckenAlle
+                      ? `Alle ${zeilen.length.toLocaleString('de-DE')} Vorgänge anzeigen`
+                      : `… und ${rest.toLocaleString('de-DE')} weitere ${rest === 1 ? 'Vorgang' : 'Vorgänge'}`}
+                  />
+                </li>
+              )}
+              {cfg.fusszeilen && grenze > basis && (
+                // Jeder Einbahn-Zustand braucht seinen Rückweg — sonst bleibt
+                // die Karte für den Rest der Sitzung lang.
+                <li className="pt-0.5">
+                  <Fusslink onClick={() => setMehr(0)} text="Weniger anzeigen" />
                 </li>
               )}
             </ul>
@@ -302,14 +331,34 @@ export function NachtlaufWidget({ instanz, onToggleEingeklappt }: WidgetProps): 
   );
 }
 
-/** Die Geste, die einen Tooltip ankündigt — einmal beschrieben, dreimal benutzt. */
+/** Die Geste, die einen Tooltip ankündigt — einmal beschrieben, viermal benutzt. */
 const GESTE = 'cursor-help underline decoration-dotted decoration-[var(--tf-text-tertiary)] underline-offset-2';
 
-/** Titelzeile + graue Detailzeilen — die Form aller Blasen dieser Karte. */
-function Blase({ titel, zeilen }: { titel: string; zeilen: readonly string[] }): React.ReactElement {
+/** Eine Fußzeile, die etwas tut — als Link gesetzt, damit sie danach aussieht. */
+function Fusslink({ text, onClick }: { text: string; onClick: () => void }): React.ReactElement {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="text-left text-[11px] leading-[1.35] text-[var(--tf-text-tertiary)] underline underline-offset-2 hover:text-[var(--tf-text)] cursor-pointer"
+    >
+      {text}
+    </button>
+  );
+}
+
+/** Titelzeile, optionale Unterzeile, graue Detailzeilen — die Form aller Blasen. */
+function Blase({ titel, unter, zeilen }: {
+  titel: string;
+  unter?: string;
+  zeilen: readonly string[];
+}): React.ReactElement {
   return (
     <span className="flex flex-col gap-0.5">
       <span className="font-medium">{titel}</span>
+      {unter !== undefined && (
+        <span className="text-[11px] text-[var(--tf-text-secondary)]">{unter}</span>
+      )}
       {zeilen.map((t, i) => (
         <span key={i} className="text-[11px] text-[var(--tf-text-tertiary)]">{t}</span>
       ))}
@@ -317,22 +366,53 @@ function Blase({ titel, zeilen }: { titel: string; zeilen: readonly string[] }):
   );
 }
 
-/** Ein Kürzel: Klartext als Titel, darunter jeder Journal-Eintrag als Satz. */
-function KuerzelView({ kuerzel, klartext }: {
+/**
+ * Der EINE Wertwechsel dieses Kürzels — sonst `null`.
+ *
+ * Nur dann darf der Wechsel in die Überschrift: trägt das Kürzel im Zeitfenster
+ * mehrere Einträge, ist jeder davon eine eigene Änderung, und einer davon als
+ * Titel machte die anderen zur Fußnote.
+ */
+function einzelnerWechsel(eintraege: readonly JournalEintrag[]): JournalEintrag | null {
+  const e = eintraege.length === 1 ? eintraege[0]! : null;
+  return e !== null && e.art === 'geaendert' && e.nach !== undefined ? e : null;
+}
+
+/**
+ * Ein Kürzel und was es sagt.
+ *
+ * Bei einem Statuswechsel steht **der Wechsel** in der Überschrift — er ist die
+ * Auskunft, hinter der man den Tooltip überhaupt öffnet; der Name des Feldes
+ * rückt darunter. Bei einem gesetzten Termin gibt es keinen Wechsel, dann bleibt
+ * der Name oben.
+ */
+function KuerzelView({ kuerzel, aufloesung, vbPhase }: {
   kuerzel: NachtlaufKuerzel;
-  klartext: ReadonlyMap<string, string>;
+  aufloesung: SpaltenAufloesung;
+  vbPhase: unknown;
 }): React.ReactElement {
-  const name = klartext.get(kuerzel.feld);
+  const { bezeichnung, eindeutig } = spaltenAuskunft(aufloesung, kuerzel.feld, vbPhase);
+  // Ohne Klartext bleibt der Code die Überschrift — geraten wird nicht, und die
+  // Einträge darunter sind die eigentliche Auskunft.
+  const name = bezeichnung ? `${kuerzel.feld} · ${bezeichnung}` : kuerzel.feld;
+  const wechsel = einzelnerWechsel(kuerzel.eintraege);
+  const zeilen = [
+    // Steht der Wechsel schon im Titel, sagt die Zeile nur noch das Wann —
+    // zweimal derselbe Pfeil in einer Blase liest sich wie zwei Änderungen.
+    ...(wechsel
+      ? [`${ART_TEXT[wechsel.art]} ${wannText(wechsel)}`]
+      : kuerzel.eintraege.map(eintragText)),
+    ...(eindeutig
+      ? []
+      : ['Die Bedeutung ist je Projektform verschieden — die dieses Vorgangs ist nicht bekannt.']),
+  ];
   return (
     <Tooltip
       maxWidth={340}
       content={
-        <Blase
-          // Ohne Katalog-Treffer bleibt der Code die Überschrift — geraten wird
-          // nicht, und die Einträge darunter sind die eigentliche Auskunft.
-          titel={name ? `${kuerzel.feld} · ${name}` : kuerzel.feld}
-          zeilen={kuerzel.eintraege.map(eintragText)}
-        />
+        wechsel
+          ? <Blase titel={`${wertText(wechsel.von)} → ${wertText(wechsel.nach)}`} unter={name} zeilen={zeilen} />
+          : <Blase titel={name} zeilen={zeilen} />
       }
     >
       <span className={GESTE}>{kuerzel.feld}</span>
@@ -341,16 +421,17 @@ function KuerzelView({ kuerzel, klartext }: {
 }
 
 /** Ein Segment: „D_AB, D_ABB +2 gesetzt" — jedes Kürzel einzeln aufgehängt. */
-function SegmentView({ segment, klartext }: {
+function SegmentView({ segment, aufloesung, vbPhase }: {
   segment: NachtlaufSegment;
-  klartext: ReadonlyMap<string, string>;
+  aufloesung: SpaltenAufloesung;
+  vbPhase: unknown;
 }): React.ReactElement {
   return (
     <>
       {segment.kuerzel.map((k, i) => (
         <span key={k.feld}>
           {i > 0 ? ', ' : ''}
-          <KuerzelView kuerzel={k} klartext={klartext} />
+          <KuerzelView kuerzel={k} aufloesung={aufloesung} vbPhase={vbPhase} />
         </span>
       ))}
       {segment.versteckt.length > 0 && (
@@ -364,8 +445,8 @@ function SegmentView({ segment, klartext }: {
               <Blase
                 titel={`${segment.versteckt.length} weitere ${segment.artText}`}
                 zeilen={segment.versteckt.map(k => {
-                  const name = klartext.get(k.feld);
-                  return name ? `${k.feld} · ${name}` : k.feld;
+                  const { bezeichnung } = spaltenAuskunft(aufloesung, k.feld, vbPhase);
+                  return bezeichnung ? `${k.feld} · ${bezeichnung}` : k.feld;
                 })}
               />
             }
@@ -388,9 +469,10 @@ function SegmentView({ segment, klartext }: {
  * den Spans hätte im Button eine Fokusfalle erzeugt; die Vorlesesoftware bekommt
  * stattdessen den ganzen Satz über `aria-label`.
  */
-function ZeileView({ zeile, klartext, onOeffnen }: {
+function ZeileView({ zeile, aufloesung, vbPhase, onOeffnen }: {
   zeile: NachtlaufZeile;
-  klartext: ReadonlyMap<string, string>;
+  aufloesung: SpaltenAufloesung;
+  vbPhase: unknown;
   onOeffnen: () => void;
 }): React.ReactElement {
   return (
@@ -411,23 +493,25 @@ function ZeileView({ zeile, klartext, onOeffnen }: {
         //     deren Höhe man ausrechnen kann.
         className="flex w-full items-center gap-1.5 rounded-[6px] px-1 py-0 text-left text-[12px] leading-[16px] hover:bg-[var(--tf-hover)] cursor-pointer"
       >
-        <span className="w-[22px] shrink-0 text-right font-mono text-[11px] tabular-nums text-[var(--tf-text)]">
-          {zeile.anzahl.toLocaleString('de-DE')}
-        </span>
         {/* Das Aktenzeichen lief bis v4.135 im Sammel-Tooltip der Zeile mit.
             Der ist weg — verloren gehen darf es nicht, denn das Akronym trägt
-            es nur dort, wo zwei Teilvorhaben es sich teilen. */}
+            es nur dort, wo zwei Teilvorhaben es sich teilen.
+            Feste Breite statt `max-w`: nur so stehen Zahl und Kürzel aller
+            Zeilen in einer Flucht — eine mitwachsende Spalte richtet nichts aus. */}
         <Tooltip
           text={`${zeile.antragId} — öffnen`}
-          wrapperClassName="max-w-[34%] shrink-0 truncate text-[12px] font-medium text-[var(--tf-text)]"
+          wrapperClassName="w-[34%] shrink-0 truncate text-[12px] font-medium text-[var(--tf-text)]"
         >
           <span className="truncate">{zeile.label}</span>
         </Tooltip>
+        <span className="w-[22px] shrink-0 text-right font-mono text-[11px] tabular-nums text-[var(--tf-text)]">
+          {zeile.anzahl.toLocaleString('de-DE')}
+        </span>
         <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-[var(--tf-text-tertiary)]">
           {zeile.segmente.map((s, i) => (
             <span key={s.art}>
               {i > 0 ? ' · ' : ''}
-              <SegmentView segment={s} klartext={klartext} />
+              <SegmentView segment={s} aufloesung={aufloesung} vbPhase={vbPhase} />
             </span>
           ))}
         </span>

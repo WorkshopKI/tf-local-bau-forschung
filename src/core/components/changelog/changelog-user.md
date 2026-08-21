@@ -19,6 +19,19 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v6.2 — 2026-08
+
+### Neu
+- In „Änderungen der letzten Nacht" ist „… und 10 weitere Vorgänge" jetzt ein Link: Ein Klick zeigt zehn weitere; sind einmal 20 Zeilen zu sehen, heißt er „Alle anzeigen". „Weniger anzeigen" führt zurück.
+- Geht es um einen Statuswechsel, steht der Wechsel selbst oben in der Erklärung („Gutachten fertig → bewilligt") — nicht mehr als Nachsatz hinter dem Datum.
+
+### Verbesserungen
+- Die Zeilen der Karte sind in Spalten gesetzt: Bezeichnung, Anzahl, dann die Kürzel — untereinander in einer Flucht, statt je nach Länge des Namens versetzt.
+
+### Bugfixes
+- Die Beschreibung eines Kürzels gilt jetzt für die Projektform des Vorgangs. `D_AB` hieß in der Karte immer „Bewilligungsempfehlung durch Haushaltsbeauftragte" — das ist die Bedeutung bei Dienstleistungen; bei FuE-Vorgängen heißt dasselbe Kürzel „bewilligungsreif/Akte an Euronorm".
+- `D_AAE`, `D_ABB` und `D_AZ1_1` standen ohne Beschreibung da. Jetzt trägt jedes Kürzel der Karte eine.
+
 ## v6.1 — 2026-08
 
 ### Neu

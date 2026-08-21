@@ -66,7 +66,7 @@ die nicht, liest sich die Karte daneben als Widerspruch.
   trägt die Instanz längst mit `{ art: 'keine' }`, und ohne diesen Schritt bliebe
   `hatWidgetDetailConfig` ausgerechnet bei denen false, die das Widget benutzen.
 
-### „Änderungen der letzten Nacht": Regler + Kürzel-Tooltips (v6.1)
+### „Änderungen der letzten Nacht": Regler, Klartext, Kürzel-Tooltips (v6.1–v6.2)
 
 - **Die Zeile ist eine Segment-Liste, kein Satz.** `NachtlaufZeile.segmente` hält
   je Art die Kürzel **mit ihren Einträgen**; an einem fertigen String liesse sich
@@ -78,10 +78,25 @@ die nicht, liest sich die Karte daneben als Widerspruch.
   Kürzel → Klartext + Journal-Einträge; „+N" → das Weggelassene namentlich;
   Tilde → warum nur ein Zeitraum belegt ist; Label → das Aktenzeichen. Der alte
   Sammel-`title=` an der Zeile ist damit weg.
-- **Klartext über EINE Map** aus `getAktiveVersion().felder` (synchron, kein IDB) —
-  nicht `feldLabel()` je Zeile, das läuft linear über ~505 Felder. `STATUS_TV`/
-  `STATUS_VB` stehen nicht als `feldId` im Katalog und werden auf die kanonischen
-  `status`/`verbund_status` abgebildet; **keine** zweite Handtabelle mit Klartexten.
+- **Klartext über vier Wege, einmal gebaut**
+  ([journalSpalten.ts](../../src/plugins/antraege/status/journalSpalten.ts), v6.2):
+  kanonische Status-Spalte → `feldId` → Kürzel-`code` → app-weiter Spalten-Alias.
+  Gemessen am echten Bestand trafen 257 von 260 journalfähigen Spalten direkt —
+  `D_AAE`, `D_ABB` und `D_AZ1_1` nicht, weil sie kanonisch angebunden sind und
+  deshalb **bewusst** keinen eigenen Katalog-Eintrag haben
+  (`KANONISCHE_CODE_FELDER`). Die Indizes entstehen einmal je Karte, nicht
+  `feldLabel()` je Zeile (linear über ~509 Felder).
+- **Die Bedeutung hängt an der Projektform** (v6.2): nachgeschlagen wird über
+  `kuerzelAuskunft(code, form)` aus `vb_phase`, darüber legt `ueberlagereKuration`
+  den Wortlaut der Fassung — dieselbe Reihenfolge wie in der Verlaufs-Spur
+  (Guards `kuerzel-nie-flach` + `kuerzel-text-folgt-der-kuration`). Vorher stand
+  an einem FuE-Vorgang die DL-Bedeutung von `D_AB`. Wo die Projektform fehlt und
+  die Formen auseinandergehen, schreibt die Blase das dazu, statt eine der
+  Bedeutungen als die richtige auszugeben.
+- **Ein Statuswechsel ist die Überschrift seiner Blase** (v6.2): „Gutachten fertig
+  → bewilligt" oben, `STATUS_VB · Verbund-Status` darunter, das Wann zuletzt. Nur
+  bei **genau einem** Eintrag — trägt ein Kürzel im Zeitfenster mehrere, ist jeder
+  eine eigene Änderung und keiner darf die anderen zur Fußnote machen.
 - **Wortlaut geteilt**: `ART_TEXT`/`eintragText` kommen aus
   [journalTexte.ts](../../src/plugins/antraege/status/journalTexte.ts) — Zeile und
   Blase stehen nebeneinander, zwei Formulierungsorte wären hier besonders teuer.
@@ -102,6 +117,15 @@ die nicht, liest sich die Karte daneben als Widerspruch.
   fester `leading-[16px]` macht daraus eine berechenbare Zeile. Dazu: die
   `Tooltip`-Hüllen sind eigene Flex-Items und erben die Schriftgröße — steht sie
   nur an den Kindern, bläht eine leere 21,6-px-Zeilenbox die Zeile auf.
+- **Drei Spalten in einer Flucht** (v6.2): Bezeichnung (feste 34 %), Anzahl
+  (22 px, rechtsbündig), Kürzel. Eine mitwachsende `max-w`-Spalte richtet nichts
+  aus — erst die feste Breite stellt Zahl und Kürzel aller Zeilen untereinander.
+- **Die Fußzeile deckt auf** (v6.2): „… und N weitere Vorgänge" zeigt zehn weitere,
+  ab 20 gezeigten Zeilen heißt sie „Alle N Vorgänge anzeigen" und deckt den Rest
+  auf einen Schlag auf. Daneben steht immer der Rückweg („Weniger anzeigen"), und
+  ein Wechsel von Zeitraum, Ausschnitt oder Sortierung setzt das Aufgedeckte
+  zurück — sonst stünden 40 Zeilen unter einem Regler, der 10 sagt. Der Zustand
+  ist bewusst **nur Sitzung**: er beschreibt einen Blick, keine Einstellung.
 
 ## Startseite anpassen (v4.7, Handoff `_design/handoff/homepage-anpassen`)
 

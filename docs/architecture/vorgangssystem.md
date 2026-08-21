@@ -908,6 +908,18 @@ unterscheiden sich in genau einem Punkt:
 Beide liefern `null`, wenn (noch) kein Journal geführt wird — eine andere Aussage
 als „nichts gefunden" ([§12.3](#123-fünf-aussagen-nicht-eine)).
 
+### 12.6b Vom Spaltennamen zum Klartext (v6.2)
+
+Das Journal führt die **rohe** Exportspalte (`D_AB`, `STATUS_VB`). Wer daraus
+eine Bezeichnung macht, geht über
+[journalSpalten.ts](../../src/plugins/antraege/status/journalSpalten.ts) — vier
+Wege in dieser Reihenfolge (kanonische Status-Spalte, `feldId`, Kürzel-`code`,
+app-weiter Spalten-Alias), dann `kuerzelAuskunft(code, form)` mit
+`ueberlagereKuration` darüber. Zwei Gründe, beide gemessen: drei von 260
+journalfähigen Spalten sind kanonisch angebunden und haben deshalb **bewusst**
+keinen eigenen Katalog-Eintrag; und 58 von 509 Codes bedeuten je Projektform
+etwas anderes. Detail + Zahlen: [home-widgets.md](home-widgets.md).
+
 ### 12.7 Gemessen
 
 | | |

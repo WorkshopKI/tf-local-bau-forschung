@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v6.2.0 — Nachtlauf-Widget: Klartext je Projektform, Spalten in einer Flucht, Fusszeile deckt auf (August 2026)
+
+MINOR — Die Karte schlug den Klartext flach nach: an einem FuE-Vorgang stand die DL-Bedeutung von `D_AB`, und drei Spalten standen ganz ohne Beschreibung da, weil sie kanonisch angebunden sind. Dazu ordnete keine Spalte die Zeilen aus, und „… und 10 weitere Vorgänge" war eine Auskunft, auf die man nicht klicken konnte.
+
+- **Klartext je Projektform**, vier Auflösungswege statt einem: 260 von 260 journalfähigen Spalten tragen jetzt eine Beschreibung, vorher 257 ([journalSpalten.ts](src/plugins/antraege/status/journalSpalten.ts))
+- **Ein Statuswechsel ist die Überschrift seiner Blase** — „Gutachten fertig → bewilligt" oben, das Feld darunter ([NachtlaufWidget.tsx](src/plugins/home/widgets/NachtlaufWidget.tsx))
+- **Drei Spalten in einer Flucht**: Bezeichnung, Anzahl, Kürzel — feste Breite statt mitwachsender `max-w`
+- **Die Fußzeile deckt auf**: zehn weitere je Klick, ab 20 Zeilen alle auf einen Schlag, mit Rückweg und Rücksetzung bei jedem Regler-Wechsel
+- **Der Guard `kuerzel-text-folgt-der-kuration` hält jetzt zwei Heimaten** ([conventions-status.test.ts](src/__tests__/conventions-status.test.ts))
+
 ### v6.1.0 — Nachtlauf-Widget: Regler, kompakte Zeilen, Tooltip je Kuerzel (August 2026)
 
 MINOR — Die Karte zeigte Kürzel wie `D_AB` und `STATUS_TV` — das eigentlich Erklärungsbedürftige — kommentarlos, während ein Sammel-Tooltip an der Zeile Aktenzeichen und Unschärfe in eine Blase warf. Zugleich war jede Größe fest verdrahtet: ein Lauf, zehn Zeilen, drei Kürzel, feste Sortierung. Und jede Zeile war 5,8 px höher als nötig, weil `items-baseline` über drei Schriftgrößen die Über- und Unterlängen vereinigt.
