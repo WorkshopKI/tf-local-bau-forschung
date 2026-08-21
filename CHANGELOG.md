@@ -5,6 +5,18 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v6.7.0 — Der Denkprozess der internen KI ist sichtbar — und das Lesezeichen heisst wieder v2 (August 2026)
+
+MINOR — Der Denkprozess kam die ganze Zeit an und wurde an einer Zeile verworfen: `submitMessage` löst auf einen String auf, und nur der Streaming-Zweig packte `reasoning` aus. Dazu die Lesezeichen-Nummer, die mit internen Bumps davongelaufen war. Detail: [gutachten-kurzfassung.md](docs/architecture/gutachten-kurzfassung.md), [ki-bridge.md](docs/architecture/ki-bridge.md).
+
+- **`SubmitMessageOptions.onReasoning`** reicht den Denkprozess durch den Single-Shot-Pfad — einmal am Ende, vor dem `resolve` ([streamlit.ts](src/core/services/ai/transports/streamlit.ts), [run-skill.ts](src/core/services/skills/run/run-skill.ts))
+- **Anzeige zieht ins Sichtfeld**: Schalter „Denkprozess" in der Fußzeile der Abschnitts-Karte statt im eingeklappten Kontext-Panel ([AbschnittFuss.tsx](src/plugins/antraege/gutachten/AbschnittFuss.tsx), [KontextPanel.tsx](src/plugins/antraege/gutachten/KontextPanel.tsx))
+- **`BRIDGE_VERSION` zurück auf 2**: sie zählt Ausrollungen an das Team, nicht Builds — v3/v4 hat nie jemand in der Hand gehabt ([bridge-snippet.source.js](src/core/services/ai/streamlit-bridge/bridge-snippet.source.js))
+- **Neuer Guard bindet die Nummer an `changelog-user.md`** (höchste angekündigte Nummer = die richtige) ([snippet-version.test.ts](src/core/services/ai/streamlit-bridge/__tests__/snippet-version.test.ts))
+- **Naht-Tests statt Quelltext-Prüfung** für den Denkprozess-Pfad ([streamlit-reasoning.test.ts](src/core/services/ai/__tests__/streamlit-reasoning.test.ts))
+
+**Korrektur an v6.4.0**: der dortige Migrationshinweis nannte `interne-KI v4`. Richtig ist `interne-KI v2` — v6.0 bis v6.6 waren nie freigegeben, für das Team ist es der erste Wechsel seit v1.
+
 ### v6.6.1 — Nachtlauf-Widget: Trennlinie duenner, 15 px vor der Zahl (August 2026)
 
 PATCH — Feinschliff nach dem Ansehen: die 30 px vor der Zahl waren zu viel, die Trennlinie zu kräftig.
@@ -74,7 +86,7 @@ MINOR — Wer an htmx vorbei sendet, übernimmt dessen zweite Hälfte mit: das E
 - **Die Tokenleiste wird wieder nachgezogen**: die Nutzlast des `tokenbar`-Ereignisses war bisher nur Lebenszeichen, obwohl `kontextStand()` genau sie liest (und daraus „Fenster voll" meldet)
 - **Zwei Invarianten maschinell gehalten** — Fragmente werden vor dem Einhängen entschärft (kein zweiter Antwortstrom), der `hx-swap`-Rückfall ist nie `innerHTML` ([snippet-render.test.ts](src/core/services/ai/streamlit-bridge/__tests__/snippet-render.test.ts))
 
-**Lesezeichen neu ziehen** (`interne-KI v4`, Einstellungen → KI → Einrichtung). Kein MAJOR: ein altes Lesezeichen bricht nichts, es zeigt den Chat nur weiterhin nicht an — und die App meldet es selbst als veraltet.
+**Lesezeichen neu ziehen** (`interne-KI v2`, Einstellungen → KI → Einrichtung). Kein MAJOR: ein altes Lesezeichen bricht nichts, es zeigt den Chat nur weiterhin nicht an — und die App meldet es selbst als veraltet.
 
 ### v6.3.0 — Parallele Gruppen sehen wie parallele Gruppen aus (August 2026)
 

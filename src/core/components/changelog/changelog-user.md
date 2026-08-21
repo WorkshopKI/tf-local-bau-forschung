@@ -19,6 +19,17 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v6.7 — 2026-08
+
+### Neu
+- In der Fußzeile jedes Gutachten-Abschnitts steht jetzt **„Denkprozess"**: aufgeklappt zeigt er, wie die KI zu genau dieser Fassung gekommen ist — was sie zuerst geprüft, wo sie nachgelesen und was sie am Ende gekürzt hat.
+
+### Bugfixes
+- Der Denkprozess kam bei der internen KI nie an. Die App zeigte dann „kein Denkprozess geliefert" und ließ es wie eine Eigenheit des Modells aussehen — tatsächlich ging der Text auf dem Weg in die App verloren. Er kommt jetzt an; steht der Hinweis trotzdem da, hat die KI wirklich keinen ausgegeben.
+
+### Hinweis
+- Das Lesezeichen heißt weiterhin **`interne-KI v2`** — die Zwischenstände v3 und v4 gab es nur intern und wurden nie ausgeliefert. Wer noch `interne-KI v1` in der Leiste hat, zieht es einmal neu: **Einstellungen → KI → Einrichtung**.
+
 ## v6.6 — 2026-08
 
 ### Verbesserungen
@@ -45,7 +56,7 @@
 - Nach einem Zurücksetzen blieb der alte Verlauf sichtbar stehen, obwohl er schon verworfen war. Jetzt räumt das Zurücksetzen auch die Anzeige.
 
 ### Hinweis
-- Dafür bitte das Lesezeichen einmal neu ziehen: **Einstellungen → KI → Einrichtung**, es heißt jetzt `interne-KI v4`. Bis dahin funktioniert alles wie bisher — nur der Chat im KI-Tab bleibt leer.
+- Dafür bitte das Lesezeichen einmal neu ziehen: **Einstellungen → KI → Einrichtung**, es heißt `interne-KI v2`. Das ist derselbe einmalige Schritt wie in v6.0 — wer ihn noch vor sich hat, erledigt ihn hier mit. Bis dahin funktioniert alles wie bisher, nur der Chat im KI-Tab bleibt leer.
 
 ## v6.3 — 2026-08
 

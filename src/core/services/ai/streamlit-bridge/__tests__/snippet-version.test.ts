@@ -5,9 +5,16 @@
  * Schreibweise, bricht nicht der Build — die App zeigt dann still „v1" und
  * warnt nie mehr vor einem veralteten Lesezeichen.
  *
- * **Was dieser Test NICHT kann:** erzwingen, dass beide Nummern gemeinsam
- * hochgezählt werden. Ob jemand beide Zeilen angefasst hat, steht nirgends im
- * Code. Geprüft wird die Lesbarkeit und die Länge des Lesezeichen-Namens.
+ * Die beiden Nummern zählen NICHT dasselbe: `BRIDGE_REV` bewegt sich mit jeder
+ * Änderung am Snippet, `BRIDGE_VERSION` mit jeder Ausrollung an das Team. Wer
+ * sie gleichzieht, erfindet Lesezeichen-Namen, die nie jemand in der Hand
+ * hatte — zwischen v6.0 und v6.4 stand sie auf 4, während das Team noch v1
+ * benutzte, weil keine dieser Fassungen freigegeben war. Die Nummer beantwortet
+ * „habe ich die aktuelle?" nur, wenn sie so zählt wie der Nutzer.
+ *
+ * **Was dieser Test NICHT kann:** erzwingen, dass `BRIDGE_REV` bei einer
+ * Snippet-Änderung mitwandert. Ob jemand die Zeile angefasst hat, steht nirgends
+ * im Code.
  */
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -52,5 +59,30 @@ describe('Bookmarklet-Versionsmarker (Vertrag .js ↔ snippet.ts)', () => {
 
   it('die Revision meldet sich im tf-pong (sonst kann die App nichts vergleichen)', () => {
     expect(SRC).toContain("type: 'tf-pong', rev: BRIDGE_REV");
+  });
+
+  it('trägt genau die Nummer, die dem Team zuletzt angekündigt wurde', () => {
+    // Der Lesezeichen-Name ist eine AUSSAGE AN DEN NUTZER: „das ist die n-te
+    // Fassung". Belegbar ist sie nur an dem, was der Nutzer gelesen hat — und
+    // das steht in changelog-user.md. Ohne diese Bindung wandert die Nummer mit
+    // internen Bumps davon: sie stand auf 4, während das Team v1 benutzte.
+    //
+    // Vorwärts gedacht heißt der Guard: ERST die Ankündigung schreiben, DANN
+    // die Nummer setzen. Genau die Reihenfolge, die vorher fehlte.
+    const changelog = readFileSync(
+      fileURLToPath(new URL('../../../../components/changelog/changelog-user.md', import.meta.url)),
+      'utf-8',
+    );
+    const angekuendigt = [...changelog.matchAll(/interne-KI v(\d+)/g)].map(m => Number(m[1]));
+    expect(
+      angekuendigt.length,
+      'changelog-user.md kündigt gar kein Lesezeichen an — dann kann die Nummer nichts belegen',
+    ).toBeGreaterThan(0);
+    const hoechste = Math.max(...angekuendigt);
+    const gesetzt = Number(VERSION_RE.exec(SRC)?.[1] ?? '1');
+    expect(
+      gesetzt,
+      `BRIDGE_VERSION ist ${gesetzt}, angekündigt wurde zuletzt v${hoechste}. Entweder fehlt die Ankündigung in changelog-user.md, oder die Nummer wurde mit einem internen Bump hochgezogen.`,
+    ).toBe(hoechste);
   });
 });

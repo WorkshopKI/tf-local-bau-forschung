@@ -61,10 +61,16 @@
   // Einzige, was der Nutzer ohne Klick sieht — an ihr erkennt er in der
   // Lesezeichenleiste, ob er die aktuelle Bridge hat.
   //
-  // ZUSAMMEN mit BRIDGE_REV hochzählen. Kein Guard kann das erzwingen (ob jemand
-  // beide Zeilen angefasst hat, steht nirgends im Code) — geprüft wird nur, dass
-  // beide Marker lesbar sind und der Name kurz genug für die Leiste bleibt.
-  var BRIDGE_VERSION = 4;
+  // Sie zählt AUSROLLUNGEN AN DAS TEAM, nicht Builds — anders als BRIDGE_REV,
+  // der sich mit jeder Änderung am Snippet bewegt. Wer sie mit dem Rev
+  // mitzählt, erzeugt Namen, die nie jemand in der Hand hatte: zwischen v6.0
+  // und v6.4 lief sie auf 4, während das Team noch v1 benutzte (v6.0 war nie
+  // freigegeben). Die Nummer beantwortet „habe ich die aktuelle?" nur, wenn sie
+  // dieselbe Zählung benutzt wie der Nutzer.
+  //
+  // Maßstab ist deshalb changelog-user.md: die höchste dort angekündigte Nummer
+  // IST die richtige. Genau das prüft `snippet-version.test.ts`.
+  var BRIDGE_VERSION = 2;
   window.__teamflowBridgeRev = BRIDGE_REV;
   window.__teamflowBridgeVersion = BRIDGE_VERSION;
   try { console.log('[TeamFlow-Bridge] aktiv — rev ' + BRIDGE_REV); } catch (e) { /* ignore */ }
