@@ -18,6 +18,16 @@
  * (Rollenwahl aus dem Profil). Die Adresse für „Liegt bei" kommt dagegen immer
  * aus dem **AB-Satz** — genau wie im Board: das Urteil des Wächters soll sich
  * nicht verschieben, nur weil jemand seine Anzeige umschaltet.
+ *
+ * **Und wenn der eigene Satz schweigt?** Dann wird der AB-Satz gelesen und als
+ * das gezeigt, was er ist ({@link Aufgabe.gelesenAls}). Der Grund steht in den
+ * Regeln: R19 („in QS") wartet auf die QS, R21 („GA schreiben") ist der AB
+ * zuständig — beide nennen den FB nicht, also greift auch kein Leihweg
+ * (`ermittleTodosAlleRollen`), und die FB-Sicht bliebe leer. Bis v4.136 fiel sie
+ * dort auf die alte Status-Formel zurück und sagte dem FB „Gutachten freigeben",
+ * während das Gutachten längst in der QS lag. Eine fremde Aufgabe zu zeigen ist
+ * die schwächere Aussage als eine erfundene eigene — sie sagt, was läuft und wer
+ * am Zug ist, statt eine Handlung zu verlangen, die niemand mehr braucht.
  */
 import { REGELSATZ_DEFAULT } from './regelsatz';
 import { ROLLE_LABEL, sortiereRollen } from './rollen';
@@ -37,9 +47,16 @@ export interface AufgabenGruppe {
 }
 
 export interface Aufgabe {
-  /** Der gelesene Regelsatz. Gehört an die Anzeige — sonst liest man eine
-   *  fremde Sicht als die eigene. */
+  /** Die gewählte Sicht (Rollenwahl aus dem Profil). */
   rolle: Rolle;
+  /**
+   * Der Regelsatz, aus dem der Text **tatsächlich** stammt.
+   *
+   * Weicht er von {@link rolle} ab, ist die Aufgabe eine fremde: die eigene
+   * Rolle hat hier nichts zu tun, und gezeigt wird, was stattdessen läuft. Das
+   * gehört an die Anzeige — sonst liest man eine fremde Sicht als die eigene.
+   */
+  gelesenAls: Rolle;
   /** Der To-do-Text; `null` = keine Regel dieses Satzes traf. */
   text: string | null;
   /** Das zugehörige Ergebnis — Quelle für „abgeleitet" und die Herleitung. */
@@ -159,8 +176,12 @@ function grundOhneTreffer(sperren: readonly string[]): string {
 }
 
 /** Die Herkunft eines Treffers: welche Regel, und ob sie der Rolle gehört. */
-function grundMitTreffer(e: TodoErgebnis): string {
+function grundMitTreffer(e: TodoErgebnis, fremd: Rolle | null): string {
   const regel = e.beschreibung ?? e.regelId ?? 'unbenannte Regel';
+  if (fremd !== null) {
+    return `Aus ${regel} — dem Regelsatz ${ROLLE_LABEL[fremd]}.`
+      + ' Für die eigene Rolle trifft dort keine Regel zu: die Aufgabe liegt woanders.';
+  }
   if (e.quelle !== 'abgeleitet') return `Aus ${regel}.`;
   const woher = e.abgeleitetArt === 'zustaendig'
     ? `Regel ${e.abgeleitetAus ?? '?'} nennt diese Rolle ausdrücklich als mitzuständig`
@@ -198,14 +219,24 @@ export function aufgabeAusBestand(
 
 export function baueAufgabe(e: AufgabenEingabe): Aufgabe {
   const leer = {
-    rolle: e.rolle, text: null, ergebnis: null, weitere: [], tv: [], tvGesamt: e.jeTv.length,
+    rolle: e.rolle, gelesenAls: e.rolle,
+    text: null, ergebnis: null, weitere: [], tv: [], tvGesamt: e.jeTv.length,
     gesperrt: false, gesperrtDurch: [] as string[],
   };
   if (e.ohneRegeln) return { ...leer, grund: OHNE_REGELN };
   if (e.jeTv.length === 0) return { ...leer, grund: OHNE_TV };
 
   const sperren = sperrenVon(e.jeTv, e.rolle);
-  const gruppen = gruppiere(e.jeTv, e.rolle);
+  // Schweigt der eigene Satz und greift auch keine Sperre, wird der AB-Satz
+  // gelesen — als das, was er ist. Die Sperre hat Vorrang: für eine Rolle, für
+  // die das Verfahren geschlossen ist, wäre die fremde Aufgabe ein Rückschritt
+  // hinter ein Ergebnis, das die Kaskade schon hat.
+  const eigene = gruppiere(e.jeTv, e.rolle);
+  const fremd = eigene.length === 0 && sperren.length === 0 && e.rolle !== REGELSATZ_DEFAULT
+    ? REGELSATZ_DEFAULT
+    : null;
+  const gelesenAls = fremd ?? e.rolle;
+  const gruppen = fremd === null ? eigene : gruppiere(e.jeTv, fremd);
   const erste = gruppen[0];
   if (erste === undefined) {
     return {
@@ -220,12 +251,13 @@ export function baueAufgabe(e: AufgabenEingabe): Aufgabe {
   // die Herkunft. Über `aktenzeichen[0]` gesucht statt mitgeschleppt, damit die
   // Gruppierung ohne Zweitstruktur auskommt.
   const traeger = e.jeTv.find(t => t.aktenzeichen === erste.aktenzeichen[0])!;
-  const ergebnis = traeger.todos[e.rolle];
+  const ergebnis = traeger.todos[gelesenAls];
   return {
     rolle: e.rolle,
+    gelesenAls,
     text: erste.text,
     ergebnis,
-    grund: grundMitTreffer(ergebnis),
+    grund: grundMitTreffer(ergebnis, fremd),
     weitere: gruppen.slice(1),
     tv: erste.aktenzeichen,
     tvGesamt: e.jeTv.length,

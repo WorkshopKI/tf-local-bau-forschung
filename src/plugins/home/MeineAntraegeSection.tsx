@@ -319,6 +319,12 @@ function MeineAntraegeListe({
                     title={anzeige.titel}
                   >
                     <span
+                      // Nur `gesperrt` wird gedämpft — dass eine Aufgabe einer
+                      // anderen Rolle gehört, sagt die Adresse daneben in
+                      // Worten („wartet auf QS"). Eine Graustufe wäre hier der
+                      // schlechtere Träger: `--tf-text-tertiary` misst 2,62:1
+                      // und liegt unter AA, und in der FB-Sicht wären es 16 von
+                      // 19 Zeilen.
                       className={anzeige.quelle === 'gesperrt'
                         ? 'text-[var(--tf-text-tertiary)] shrink-0'
                         : 'text-[var(--tf-text-secondary)] shrink-0'}

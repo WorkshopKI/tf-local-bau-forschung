@@ -15,7 +15,7 @@ import { ROLLEN } from '@/core/status/rollen';
 import type { Rolle } from '@/core/status/typen';
 import type { TodoErgebnis } from '@/core/status/todo-engine';
 import {
-  adresseFuerWaechter, baueAufgabe, type TvTodo,
+  adresseFuerWaechter, adressText, baueAufgabe, type TvTodo,
 } from '@/core/status/aufgabe';
 
 function erg(p: Partial<TodoErgebnis> = {}): TodoErgebnis {
@@ -125,6 +125,53 @@ describe('baueAufgabe — kein Treffer ist ein Ergebnis', () => {
   it('sagt, wenn kein Teilvorhaben geladen ist — statt einer leeren Zeile', () => {
     expect(baueAufgabe({ jeTv: [], rolle: 'ab', ohneRegeln: false }).grund)
       .toContain('Kein Teilvorhaben geladen');
+  });
+});
+
+describe('baueAufgabe — schweigt der eigene Satz, wird der AB-Satz gelesen', () => {
+  // Der Fall aus dem Bestand: R19 („in QS") wartet auf die QS und nennt den FB
+  // nicht — kein Leihweg greift, die FB-Sicht wäre leer. Vor v4.136 stand dort
+  // die alte Status-Formel („Gutachten freigeben"), also eine Handlung, die es
+  // nicht gab.
+  const inQs = AB({ todo: 'in QS', regelId: 'r19', beschreibung: 'R19 · beide Teile fertig', wartetAuf: 'qs' });
+
+  it('zeigt die fremde Aufgabe samt Adresse statt zu schweigen', () => {
+    const a = baueAufgabe({ jeTv: [tv('A1', inQs)], rolle: 'fb', ohneRegeln: false });
+    expect(a.text).toBe('in QS');
+    expect(a.gelesenAls).toBe('ab');
+    expect(a.rolle).toBe('fb');
+    // Die Adresse kommt aus dem gelesenen Ergebnis — sonst stünde die Aufgabe
+    // ohne den Hinweis da, dass sie einer anderen Rolle gehört.
+    expect(a.ergebnis && adressText(a.ergebnis)).toBe('wartet auf QS');
+    expect(a.grund).toContain('Regelsatz');
+    expect(a.grund).toContain('liegt woanders');
+  });
+
+  it('lässt den eigenen Treffer immer vorgehen', () => {
+    const a = baueAufgabe({
+      jeTv: [tv('A1', { ...inQs, fb: erg({ todo: 'FB-Sache' }) })],
+      rolle: 'fb', ohneRegeln: false,
+    });
+    expect(a.text).toBe('FB-Sache');
+    expect(a.gelesenAls).toBe('fb');
+  });
+
+  it('greift nicht, wenn für die eigene Rolle eine Sperre griff', () => {
+    // Für eine Rolle, für die das Verfahren geschlossen ist, wäre die fremde
+    // Aufgabe ein Rückschritt hinter ein Ergebnis, das die Kaskade schon hat.
+    const a = baueAufgabe({
+      jeTv: [tv('A1', { ...inQs, fb: erg({ gesperrtDurch: ['s0'] }) })],
+      rolle: 'fb', ohneRegeln: false,
+    });
+    expect(a.text).toBeNull();
+    expect(a.gesperrt).toBe(true);
+    expect(a.gelesenAls).toBe('fb');
+  });
+
+  it('lässt die AB-Sicht selbst unverändert', () => {
+    const a = baueAufgabe({ jeTv: [tv('A1')], rolle: 'ab', ohneRegeln: false });
+    expect(a.gelesenAls).toBe('ab');
+    expect(a.text).toBeNull();
   });
 });
 

@@ -226,7 +226,7 @@ export {
   type Aufgabe, type AufgabenEingabe, type AufgabenGruppe, type AdressLage, type TvTodo,
 } from './aufgabe';
 export {
-  aufgabenAnzeige,
+  aufgabenAnzeige, regelTraf,
   type AufgabenAnzeige, type AnzeigeEingabe, type AufgabenQuelle,
 } from './aufgaben-anzeige';
 export {

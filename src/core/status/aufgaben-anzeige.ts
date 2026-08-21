@@ -9,14 +9,21 @@
  * längst gesetzt war und die Kaskade „in QS" sagte — bei 101 von 102 Vorgängen
  * mit diesem Status (Bestand vom 20.08.2026).
  *
- * Vier Zustände, und jeder sagt, woher er kommt:
+ * Fünf Zustände, und jeder sagt, woher er kommt:
  *
  * | `quelle`    | wann | was steht da |
  * |---|---|---|
- * | `kaskade`   | eine Regel trifft | ihr To-do + die Adresse |
+ * | `kaskade`   | eine Regel des EIGENEN Satzes trifft | ihr To-do + die Adresse |
+ * | `fremd`     | nur ein fremder Satz trifft (v4.136) | dessen To-do + „liegt bei …", gedämpft |
  * | `gesperrt`  | kein To-do, aber eine Sperre griff | „Keine Aufgabe mehr" + der Grund |
- * | `rueckfall` | die Kaskade schweigt (keine Regel, keine Fassung) | die alte Formel |
+ * | `rueckfall` | gar keine Regel trifft, auch keine fremde | die alte Formel |
  * | `laedt`     | der Bestandslauf ist noch nicht durch | „…" |
+ *
+ * **`fremd` ist der Normalfall der FB-Sicht**, solange es keine FB-Regeln gibt:
+ * „in QS" wartet auf die QS, „GA schreiben" liegt bei der AB — beide nennen den
+ * FB nicht, also hat er dort nichts zu tun. Das ist eine Auskunft, keine
+ * Anweisung, und wird als solche gezeigt (gedämpft, mit Adresse). Bis v4.136
+ * stand dort der Rückfall und damit eine Handlung, die keine war.
  *
  * **Nie zwei Antworten hintereinander.** Solange gerechnet wird, steht dort ein
  * Platzhalter und nicht der Rückfall — ein Text, der sich nach fünf Sekunden in
@@ -41,7 +48,21 @@ const SPERRE_IST_ERWARTBAR: ReadonlySet<StatusCategory> = new Set<StatusCategory
   'bewilligt', 'begleitung', 'abgeschlossen', 'abgelehnt',
 ]);
 
-export type AufgabenQuelle = 'kaskade' | 'gesperrt' | 'rueckfall' | 'laedt';
+export type AufgabenQuelle = 'kaskade' | 'fremd' | 'gesperrt' | 'rueckfall' | 'laedt';
+
+/**
+ * Trifft eine Regel — die eigene oder eine fremde?
+ *
+ * Die Unterscheidung „meine Aufgabe / fremde Aufgabe" trägt die **Adresse** in
+ * Worten („wartet auf QS", „liegt bei AB"), nicht eine Graustufe: `--tf-text-tertiary`
+ * misst 2,62:1 gegen den hellen Grund und liegt damit unter AA. Der Aufgabentext
+ * ist der Haupttext der Zeile; in der FB-Sicht wären das 16 von 19 Zeilen.
+ * Gedämpft wird nur `gesperrt` — dort steht „Keine Aufgabe mehr", und daran geht
+ * nichts verloren.
+ */
+export function regelTraf(q: AufgabenQuelle): boolean {
+  return q === 'kaskade' || q === 'fremd';
+}
 
 export interface AufgabenAnzeige {
   /** Der Text der Zeile. Leer nur, wenn es wirklich nichts zu sagen gibt. */
@@ -140,7 +161,7 @@ export function aufgabenAnzeige(e: AnzeigeEingabe): AufgabenAnzeige {
 
   return {
     text: aufgabe.text,
-    quelle: 'kaskade',
+    quelle: aufgabe.gelesenAls === aufgabe.rolle ? 'kaskade' : 'fremd',
     neben: aufgabe.ergebnis ? (adressText(aufgabe.ergebnis) ?? '') : '',
     anteil,
     titel: [

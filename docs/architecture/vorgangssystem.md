@@ -630,6 +630,18 @@ Aussage als „auf dich wird gewartet". Beide heißen an der Anzeige „abgeleit
 und im Tooltip. Die AB-Sicht ist unverändert: gefüllt wird nur, wo eine Rolle
 sonst nichts hätte.
 
+**Wo auch kein Leihweg greift, liest die ANZEIGE den AB-Satz (v4.136).** Beide
+Wege setzen voraus, dass eine fremde Regel die eigene Rolle **nennt**. Die
+Mehrzahl tut das nicht: R19 („in QS") wartet auf die QS, R21 („GA schreiben")
+ist die AB zuständig. Für den FB blieb die Engine dort stumm — richtig, denn er
+hat nichts zu tun —, und die Anzeige fiel auf die Status-Formel zurück und
+verlangte eine Handlung, die es nicht gab. Die Engine bleibt deshalb, wie sie
+ist; die Faltung `baueAufgabe` liest den AB-Satz und markiert das über
+`Aufgabe.gelesenAls` ([status-achsen.md](status-achsen.md#schweigt-der-eigene-satz-wird-der-ab-satz-gelesen-v4136)).
+Der Unterschied ist wichtig: ein **Platzhalter** ist eine geliehene Aufgabe für
+mich, eine **fremde Aufgabe** ist eine Auskunft über jemand anderen. Sie zählt
+in keiner Rollen-Bilanz mit.
+
 ### 11.3 Rollout-Sperre
 
 `_intern/status-katalog.json` ist für alle Build-Varianten gleichzeitig live. Eine

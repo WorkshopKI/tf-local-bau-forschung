@@ -367,11 +367,12 @@ Nachtexport vom 20.08.2026 über 845 offene Vorgänge:
 | Schlussvermerk gesetzt, `STATUS_TV` trotzdem offen → B sperrt (S0), A zeigte Rückstand | 3 |
 | **Union der drei eindeutigen Töpfe** | **262 = 31 %** |
 
-**B ist die Antwort, A der Rückfall.** Vier Zustände, jeder nennt seine Herkunft
+**B ist die Antwort, A der Rückfall.** Fünf Zustände, jeder nennt seine Herkunft
 ([aufgaben-anzeige.ts](../../src/core/status/aufgaben-anzeige.ts)):
-`kaskade` (eine Regel trifft) · `gesperrt` (kein To-do, aber eine Sperre — nur
+`kaskade` (eine Regel des **eigenen** Satzes trifft) · `fremd` (nur ein fremder
+Satz trifft, siehe unten) · `gesperrt` (kein To-do, aber eine Sperre — nur
 gemeldet, wo sie nicht erwartbar ist, siehe `SPERRE_IST_ERWARTBAR`) ·
-`rueckfall` (die Kaskade schweigt) · `laedt` (der Bestandslauf ist unterwegs).
+`rueckfall` (gar keine Regel trifft) · `laedt` (der Bestandslauf ist unterwegs).
 
 Drei Festlegungen, die wichtiger sind als die Tabelle:
 
@@ -391,6 +392,42 @@ Drei Festlegungen, die wichtiger sind als die Tabelle:
 **Die Faltung gibt sich zu erkennen.** Eine Verbundzeile wertet **je
 Teilvorhaben** aus und faltet danach (`baueAufgabe`); tragen nicht alle dieselbe
 Aufgabe, steht „3 von 4 TV" daneben.
+
+### Schweigt der eigene Satz, wird der AB-Satz gelesen (v4.136)
+
+Festlegung 2 („nie unter den bisherigen Stand") hatte eine Kehrseite, die erst
+in der FB-Sicht sichtbar wurde: **für den FB schweigt die Kaskade fast immer**,
+und dann sprach wieder Motor A. R19 („in QS") wartet auf die QS, R21 („GA
+schreiben") ist die AB zuständig — keine der beiden nennt den FB, also greift
+auch kein Leihweg ([vorgangssystem §11.2](vorgangssystem.md)). Von 19 offenen
+Vorgängen mit Kürzel THü nannten so **17** wieder „Gutachten freigeben" bzw.
+„Fachprüfung beginnen", also genau die Formel, die an 101 von 102 Vorgängen
+widerlegt ist.
+
+Deshalb liest `baueAufgabe` den **AB-Satz**, wenn der eigene nichts sagt, und
+gibt das an: `Aufgabe.gelesenAls` trägt den Satz, aus dem der Text stammt.
+Weicht er von `rolle` ab, ist die Anzeige `fremd`.
+
+| | zeigt | Beispiel |
+|---|---|---|
+| `kaskade` | die eigene Aufgabe | CALYPSO · „Widerspruch gg Abl bearbeiten · liegt bei FB" |
+| `fremd` | was läuft, und wer am Zug ist | AIWOOD · „in QS · wartet auf QS" |
+
+Drei Regeln halten das ehrlich:
+
+1. **Der eigene Treffer schlägt den fremden immer** — auch ein abgeleiteter
+   Platzhalter, denn der nennt die eigene Rolle ausdrücklich.
+2. **Eine greifende Sperre der eigenen Rolle geht vor.** Wo das Verfahren für
+   sie geschlossen ist, wäre die fremde Aufgabe ein Rückschritt hinter ein
+   Ergebnis, das die Kaskade schon hat.
+3. **Der fremde Satz wird benannt**, nicht stillschweigend gelesen: der Ausklapp
+   schreibt „Aufgabe · Regelsatz AB · nicht FB", die Zeile trägt die Adresse.
+
+**Keine Graustufe als Träger.** Dass die Aufgabe einer anderen Rolle gehört,
+sagt die Adresse in Worten („wartet auf QS"). Sie zusätzlich zu dämpfen wäre
+`--tf-text-tertiary` = 2,62:1 gegen den hellen Grund, also unter AA — und in der
+FB-Sicht beträfe das 17 von 19 Zeilen. Gedämpft bleibt allein `gesperrt`, wo
+„Keine Aufgabe mehr" steht und nichts verloren geht.
 
 **Erledigt mit v4.134** (war eine fachliche Frage, keine Code-Frage): die
 Kategorie `nachforderung` hieß „Wartet auf Antragsteller", umfasst aber genau

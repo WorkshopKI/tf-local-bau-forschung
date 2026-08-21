@@ -13,7 +13,7 @@
 import { Badge } from '@/components/ui/badge';
 import type { SortableColumn } from '@/components/data-table/types';
 import type { ZeilenAufgaben } from '@/core/hooks/useBestandsAufgaben';
-import { aufgabenAnzeige, type AufgabenAnzeige } from '@/core/status';
+import { aufgabenAnzeige, regelTraf, type AufgabenAnzeige } from '@/core/status';
 import { naechsterSchritt } from '@/core/utils/naechsterSchritt';
 import { isTerminalStatus, statusRang } from '@/core/utils/status-canonical';
 import { getStatusVariant } from '@/core/utils/status-mappings';
@@ -100,8 +100,10 @@ function mitAufgabenKaskade(
       const a = anzeigeVon(r);
       // Terminal ohne Kaskaden-Treffer: ruhiger Text statt farbigem Badge, wie
       // bisher. Trifft dagegen eine Regel, steht dort echte Arbeit — dann darf
-      // die Zeile nicht so aussehen, als sei nichts mehr zu tun.
-      if (isTerminalStatus(s) && a.quelle !== 'kaskade') {
+      // die Zeile nicht so aussehen, als sei nichts mehr zu tun. `fremd` zählt
+      // dazu: die Regel traf, nur gehört die Arbeit einer anderen Rolle — sonst
+      // sähe dieselbe Zeile für den FB leerer aus als für die AB.
+      if (isTerminalStatus(s) && !regelTraf(a.quelle)) {
         return (
           <span className="text-[11.5px] text-[var(--tf-text-tertiary)]" title={statusLabelMitQuelle(s)}>
             {statusKurzLabel(s)}

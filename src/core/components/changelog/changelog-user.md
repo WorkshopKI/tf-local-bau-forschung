@@ -19,6 +19,14 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v4.136 — 2026-08
+
+### Bugfixes
+- Unter **„Meine Anträge"** stand bei vielen Vorgängen weiter „Gutachten freigeben", obwohl das Gutachten längst in der QS lag. Der Grund: für die Rolle **FB** trifft keine der hinterlegten Regeln zu — sie sind alle an die AB oder die QS adressiert —, und dann sprang die alte Formel ein, die nur den Status kennt. Jetzt steht dort, was tatsächlich läuft und wer am Zug ist: „in QS · wartet auf QS", „GA schreiben · liegt bei AB". Dasselbe in den Kanban-Karten und in der Spalte „Status und nächster Schritt".
+
+### Verbesserungen
+- Wo eine Aufgabe aus dem Regelsatz einer **anderen Rolle** stammt, sagt die Karte das jetzt ausdrücklich („Aufgabe · Regelsatz AB · nicht FB") — statt sie wie die eigene aussehen zu lassen. Was wirklich Ihre Aufgabe ist, erkennen Sie weiterhin an der Zeile daneben: „liegt bei FB".
+
 ## v4.135 — 2026-08
 
 ### Neu

@@ -30,6 +30,10 @@ export function AufgabenZeile({ aufgabe }: { aufgabe: Aufgabe }): React.ReactEle
   const [warum, setWarum] = useState(false);
   const e = aufgabe.ergebnis;
   const zusatz = umfang(aufgabe);
+  // Der eigene Satz schweigt, gezeigt wird ein fremder (v4.136). Alles, was die
+  // Herkunft erklärt, muss dann auf DIESEN Satz zeigen — sonst erklärt die
+  // Herleitung eine Regel aus der Sicht einer Rolle, die sie gar nicht führt.
+  const fremd = aufgabe.gelesenAls !== aufgabe.rolle;
 
   return (
     <div className="flex flex-col gap-0.5 min-w-0">
@@ -39,10 +43,14 @@ export function AufgabenZeile({ aufgabe }: { aufgabe: Aufgabe }): React.ReactEle
         // ist etwas anderes als die Kaskade. Wer beide nebeneinander sieht, soll
         // den Unterschied nachlesen können, statt ihn für einen Widerspruch zu
         // halten.
-        title={`Aus der To-do-Kaskade des Regelsatzes ${ROLLE_LABEL[aufgabe.rolle]}`
-          + ' — nicht der Status-Hinweis „→ …" der Tabellenzeile, der allein am Status hängt.'}
+        title={`Aus der To-do-Kaskade des Regelsatzes ${ROLLE_LABEL[aufgabe.gelesenAls]}`
+          + ' — nicht der Status-Hinweis „→ …" der Tabellenzeile, der allein am Status hängt.'
+          + (fremd ? ` Ihr Regelsatz (${ROLLE_LABEL[aufgabe.rolle]}) trifft hier nicht zu — die Aufgabe liegt woanders.` : '')}
       >
-        Aufgabe · Regelsatz {ROLLE_LABEL[aufgabe.rolle]}
+        Aufgabe · Regelsatz {ROLLE_LABEL[aufgabe.gelesenAls]}
+        {/* Der fremde Satz wird benannt, nicht stillschweigend gelesen: sonst
+            liest man „Aufgabe · Regelsatz AB" als die eigene. */}
+        {fremd ? ` · nicht ${ROLLE_LABEL[aufgabe.rolle]}` : ''}
       </span>
       <span className="flex items-baseline gap-2 flex-wrap">
         {aufgabe.text === null ? (
@@ -51,7 +59,7 @@ export function AufgabenZeile({ aufgabe }: { aufgabe: Aufgabe }): React.ReactEle
         ) : (
           <>
             <span className="text-[14px] font-medium text-[var(--tf-text)]">{aufgabe.text}</span>
-            {e !== null && <AbgeleitetMarke e={e} rolle={aufgabe.rolle} />}
+            {e !== null && <AbgeleitetMarke e={e} rolle={aufgabe.gelesenAls} />}
             {zusatz !== null && <span className={LEISE}>{zusatz}</span>}
             {e !== null && (
               <button
@@ -81,7 +89,7 @@ export function AufgabenZeile({ aufgabe }: { aufgabe: Aufgabe }): React.ReactEle
 
       {warum && e !== null && (
         <div className="mt-1">
-          <TodoHerleitung e={e} rolle={aufgabe.rolle} />
+          <TodoHerleitung e={e} rolle={aufgabe.gelesenAls} />
         </div>
       )}
     </div>
