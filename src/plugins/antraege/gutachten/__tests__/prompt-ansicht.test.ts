@@ -6,7 +6,10 @@ import { describe, it, expect } from 'vitest';
 import { renderSkillPrompt, type SkillRecord, type SkillTweak } from '@/core/services/skills';
 import { SEED_SKILL, SEED_REGELN } from '@/core/services/skills/registry/seed';
 import { baueSkillEingabe, tweakWirktAuf, type SkillEingabeArgs } from '../laufEingabe';
-import { beschreibeBloecke, promptMasse, trennePromptAmVb } from '../promptAnsicht';
+import {
+  beschreibeBloecke, beschrifteGesendet, promptMasse, trennePromptAmVb,
+  type GesendeterPrompt,
+} from '../promptAnsicht';
 import type { KurzfassungContext } from '../../kurzfassung/types';
 
 const ctx: KurzfassungContext = {
@@ -145,5 +148,37 @@ describe('trennePromptAmVb', () => {
   it('lässt alles im vor-Teil, wenn die VB leer ist oder nicht vorkommt', () => {
     expect(trennePromptAmVb('nur text', '')).toEqual({ vor: 'nur text', vb: '', nach: '' });
     expect(trennePromptAmVb('nur text', 'fehlt')).toEqual({ vor: 'nur text', vb: '', nach: '' });
+  });
+});
+
+describe('beschrifteGesendet', () => {
+  const p = (bein?: 'generierung' | 'feinschliff'): GesendeterPrompt => ({
+    system: 's', user: 'u', vb: '', vbGekuerzt: false, ...(bein ? { bein } : {}),
+  });
+
+  it('ein einzelner Prompt bleibt unbeschriftet', () => {
+    expect(beschrifteGesendet([p('generierung')])).toEqual(['']);
+    expect(beschrifteGesendet([])).toEqual([]);
+  });
+
+  it('mehrere Generierungs-Prompts sind eine Teil-Generierung', () => {
+    expect(beschrifteGesendet([p('generierung'), p('generierung')]))
+      .toEqual(['Teil-Lauf 1 von 2', 'Teil-Lauf 2 von 2']);
+  });
+
+  it('Generierung + Feinschliff nennt beide Beine beim Namen', () => {
+    expect(beschrifteGesendet([p('generierung'), p('feinschliff')]))
+      .toEqual(['Generierung', 'Sprachlicher Feinschliff']);
+  });
+
+  it('die Teil-Nummerierung zählt den Feinschliff NICHT mit', () => {
+    // Sonst hieße es „Teil-Lauf 1 von 3", obwohl der Abschnitt in zwei Teilen entstand.
+    expect(beschrifteGesendet([p('generierung'), p('generierung'), p('feinschliff')]))
+      .toEqual(['Teil-Lauf 1 von 2', 'Teil-Lauf 2 von 2', 'Sprachlicher Feinschliff']);
+  });
+
+  it('ein Alt-Eintrag ohne `bein` gilt als Generierung', () => {
+    expect(beschrifteGesendet([p(), p('feinschliff')]))
+      .toEqual(['Generierung', 'Sprachlicher Feinschliff']);
   });
 });

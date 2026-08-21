@@ -36,7 +36,7 @@ import { kiVerbindungBereit } from '@/core/services/ai/ki-guard';
 import { buildStammdaten, type SkillCtx } from './skill-context';
 import type { KurzfassungContext } from '../kurzfassung/types';
 import { baueSkillEingabe, tweakWirktAuf } from './laufEingabe';
-import type { GesendeterPrompt } from './promptAnsicht';
+import type { GesendeterPrompt, PromptBein } from './promptAnsicht';
 import { buildVorherigeAbschnitte, buildVbRelevant } from './context-provider';
 import { getTeilPlan, teilAufgabe, teilRegeln, mergeTeile, type TeilErgebnis } from './teilGenerierung';
 import { getOrComputeRelevanzMap, vbBrauchtRelevanzMap, type RelevanzAbschnitt } from './relevanz-map';
@@ -92,8 +92,27 @@ export interface GenerierungsDeps {
    * Hält fest, was für diesen Abschnitt tatsächlich gesendet wurde (Prompt-Ansicht,
    * „zuletzt gesendet"). Session-lokal im Hook — der Text trägt Dokumentinhalt und
    * wird NIE persistiert. Optional: der Eval-/Test-Pfad reicht ihn nicht durch.
+   *
+   * `bein` sagt, WELCHES Bein der Kette gesendet hat: `'generierung'` beginnt eine
+   * neue Kette (ersetzt alles Gemerkte), `'feinschliff'` tritt daneben. Die
+   * Slot-Logik liegt beim Hook — hier wird nur gemeldet.
    */
-  merkeGesendet?: (stepId: StepId, prompts: GesendeterPrompt[]) => void;
+  merkeGesendet?: (stepId: StepId, prompts: GesendeterPrompt[], bein: PromptBein) => void;
+}
+
+/**
+ * Überarbeitet dieser Lauf einen VORHANDENEN Text, statt den Abschnitt frisch zu
+ * erzeugen? Modifier (Neu/Kürzer/Länger) und freie Anweisung sind beides
+ * Überarbeitungen — sie setzen auf dem angezeigten Text auf.
+ *
+ * Die Unterscheidung trägt zwei Entscheidungen, die deshalb NICHT auseinanderlaufen
+ * dürfen: die Teil-Generierung entfällt (sonst entstünde der Abschnitt frisch in
+ * Teilen, der bisherige Text wäre weg), und der Feinschliff wird nicht angehängt
+ * (der Text ist bereits lektoriert; ein zweiter Lektor-Lauf zöge eine bewusste
+ * Kürzung wieder glatt und kostete einen Lauf).
+ */
+export function istUeberarbeitung(o: Pick<GenerateIntoOptions, 'modifier' | 'anweisung'>): boolean {
+  return !!(o.modifier || o.anweisung);
 }
 
 export interface GenerateIntoOptions {
@@ -232,9 +251,15 @@ export async function generateInto(
   // Rohentwurf ist ein brauchbares Ergebnis, kein Fehlerfall.
   // Der angehängte Feinschliff bleibt auf DERSELBEN KI und derselben Temperatur wie
   // die Generierung — sonst trüge eine Zweitfassung am Ende den Schliff der ersten.
+  //
+  // Bei einer ÜBERARBEITUNG entfällt das zweite Bein (`null`): der Text kam bereits
+  // poliert aus dem vorigen Lauf, und ein Lektor über eine bewusst gekürzte Fassung
+  // zieht sie wieder glatt. Manuell bleibt der Feinschliff im ⋯-Menü erreichbar.
   return mitFeinschliff(
     roh, stepId,
-    () => laufLektorat(roh.next, stepId, sc, o.tweak, o.signal, stilleDeps(deps), o.ziel, o.temperatur),
+    istUeberarbeitung(o)
+      ? null
+      : () => laufLektorat(roh.next, stepId, sc, o.tweak, o.signal, stilleDeps(deps), o.ziel, o.temperatur),
   );
 }
 
@@ -244,7 +269,12 @@ export async function generateInto(
  * testbar, und sie ist der einzige Ort, an dem entschieden wird, was der Nutzer
  * am Ende sieht.
  *
- * JEDES Scheitern degradiert zum Rohentwurf, keines blockiert:
+ * `lektorat === null` heißt **nicht vorgesehen** (Überarbeitungs-Lauf): der Stand
+ * geht unverändert zurück, insbesondere OHNE `feinschliffUebersprungen` — die Marke
+ * sagt „der Feinschliff hat nicht getragen", nicht „er war nicht geplant". Die Karte
+ * zeigt dann schlicht „Formuliert".
+ *
+ * JEDES Scheitern eines VORGESEHENEN Laufs degradiert zum Rohentwurf, keines blockiert:
  *  - `null` (Tor gezogen: leer / verdächtig gekürzt / Transport weg)
  *  - Wurf (Transport-Policy, Netz)
  *  - **Abbruch** — der Rohentwurf ist bereits berechnet; ihn wegen eines Stopps
@@ -258,8 +288,9 @@ export async function generateInto(
 export async function mitFeinschliff(
   gen: { next: WorkflowRun; checks: CheckResult[] },
   stepId: StepId,
-  lektorat: () => Promise<WorkflowRun | null>,
+  lektorat: (() => Promise<WorkflowRun | null>) | null,
 ): Promise<{ next: WorkflowRun; checks: CheckResult[] }> {
+  if (!lektorat) return gen;
   let poliert: WorkflowRun | null = null;
   try {
     poliert = await lektorat();
@@ -329,7 +360,7 @@ async function generiereEinmal(
   // ÜBERARBEITUNG des vorhandenen Textes. Über den Teil-Pfad würde der Abschnitt
   // stattdessen frisch in Teilen neu entstehen — der bisherige Text wäre weg.
   const teilPlan = getTeilPlan(sc.skill.id);
-  if (teilPlan && !o.modifier && !o.anweisung) {
+  if (teilPlan && !istUeberarbeitung(o)) {
     const vorherige = buildVorherigeAbschnitte(base, stepId, deps.steps, 2000, o.quelle);
     const teilRegelSatz = teilRegeln(scRegeln);
     const teilErgebnisse: TeilErgebnis[] = [];
@@ -378,7 +409,7 @@ async function generiereEinmal(
       vorText = [vorText, r.parsed.finalerText].map(t => t.trim()).filter(Boolean).join('\n\n');
     }
     const merged = mergeTeile(teilErgebnisse);
-    deps.merkeGesendet?.(stepId, gesendet);
+    deps.merkeGesendet?.(stepId, gesendet, 'generierung');
     const checks = runRegelChecks(merged.finalerText, scRegeln);
     const gen: GenerationInput = {
       quellenanalyse: merged.quellenanalyse,
@@ -420,7 +451,7 @@ async function generiereEinmal(
     ...(o.zusatzAnweisung ? { zusatzAnweisung: o.zusatzAnweisung } : {}),
   });
   const result = await runSkill(transport, sc.skill, scRegeln, eingabe);
-  deps.merkeGesendet?.(stepId, result.gesendet ? [result.gesendet] : []);
+  deps.merkeGesendet?.(stepId, result.gesendet ? [result.gesendet] : [], 'generierung');
   const checks = runRegelChecks(result.parsed.finalerText, scRegeln);
   const gen: GenerationInput = {
     quellenanalyse: result.parsed.quellenanalyse,
@@ -603,6 +634,11 @@ async function lektoriereEinmal(
     signal,
     ...(temperatur !== undefined ? { temperatur } : {}),
   });
+  // Auch das zweite Bein gehört in die Prompt-Ansicht: im Chat der internen KI ist
+  // vom Generierungs-Prompt nichts mehr zu sehen (jeder Lauf startet einen frischen
+  // Chat, Pitfall #36) — wer nur den Lektor-Prompt dort stehen sieht, hält ihn sonst
+  // für den einzigen gesendeten.
+  deps.merkeGesendet?.(stepId, result.gesendet ? [result.gesendet] : [], 'feinschliff');
   const text = result.parsed.finalerText.trim();
   if (!text) {
     deps.setError('Der Feinschliff lieferte keinen Text — der Abschnitt bleibt unverändert.');

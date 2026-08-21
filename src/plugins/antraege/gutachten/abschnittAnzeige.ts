@@ -26,8 +26,10 @@ export interface PipelineStatus {
 /**
  * Was mit diesem Abschnitt passiert ist — die Kette „Formulieren → Feinschliff"
  * in einer Zeile. `lektoriert` und `feinschliffUebersprungen` schließen einander
- * aus (`applyLektorat` löscht die Markierung), der dritte Fall ist ein Abschnitt
- * aus der Zeit vor der Auto-Kette bzw. ein reiner Rohentwurf.
+ * aus (`applyLektorat` löscht die Markierung); der dritte Fall („Formuliert")
+ * deckt den reinen Rohentwurf, einen Abschnitt aus der Zeit vor der Auto-Kette —
+ * und die **Überarbeitung** (Neu/Kürzer/Länger/freie Anweisung), an die bewusst
+ * kein Feinschliff gehängt wird. Keine Marke, weil nichts ausgefallen ist.
  */
 export function pipelineStatus(run: StepRun): PipelineStatus {
   if (run.lektoriert) return { text: 'Formuliert · Feinschliff', ton: 'ok' };

@@ -397,7 +397,16 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
     regelnFuer,
     setLlmAvailable,
     setError,
-    merkeGesendet: (stepId, prompts) => { gesendetRef.current.set(stepId, prompts); },
+    // Slot-Semantik statt blindem Anhängen: eine Generierung beginnt eine neue Kette
+    // (alles Gemerkte fällt weg), der Feinschliff tritt daneben und ersetzt dabei ein
+    // früheres Feinschliff-Bein — sonst sammelte ein Fallback-Retry Prompts an.
+    // Das `bein` wird HIER gestempelt, damit die Aufrufer es nicht mitschleppen.
+    merkeGesendet: (stepId, prompts, bein) => {
+      const behalten = bein === 'feinschliff'
+        ? (gesendetRef.current.get(stepId) ?? []).filter(p => p.bein !== 'feinschliff')
+        : [];
+      gesendetRef.current.set(stepId, [...behalten, ...prompts.map(p => ({ ...p, bein }))]);
+    },
   });
 
   /**

@@ -184,7 +184,7 @@ Generisches Substrat hinter Gutachten + Nachforderungen — eine **Artefakt-Achs
 
 Kategorie-Modell, Journey-Paket 3 (Regel→Korrektur, `regelKorrekturAnweisung`) + 4 (Belege↔Satz, deterministische Ableitung), Run-Keying, generische DOCX-Füllung, NF-/GA-QS: [docs/architecture/artefakt-engine.md](docs/architecture/artefakt-engine.md).
 
-**Abschnitts-Journey** (v2.334–v2.337, additiv): Ziel-Fallback stark→standard (ein Retry, nur wo `ziel` wirkt), auto-angehängter Feinschliff (Scheitern degradiert zum Rohentwurf, auch Abbruch), Abnahme-Kriterien am Skill (`qsKriterien` als Prompt-Anhang statt Seed-Write), Vier-Ebenen-Karte — [gutachten-kurzfassung.md](docs/architecture/gutachten-kurzfassung.md).
+**Abschnitts-Journey** (v2.334–v2.337, additiv): Ziel-Fallback stark→standard (ein Retry, nur wo `ziel` wirkt), auto-angehängter Feinschliff **nur an eine frische Generierung** (Überarbeitung = Modifier/freie Anweisung bekommt keinen; Scheitern degradiert zum Rohentwurf, auch Abbruch), Abnahme-Kriterien am Skill (`qsKriterien` als Prompt-Anhang statt Seed-Write), Vier-Ebenen-Karte — [gutachten-kurzfassung.md](docs/architecture/gutachten-kurzfassung.md).
 
 ### Skill-Eval-GUI (dev)
 

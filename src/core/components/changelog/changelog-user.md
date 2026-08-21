@@ -19,6 +19,12 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v6.9 — 2026-08
+
+### Verbesserungen
+- **„Kürzer", „Länger", „Neu" und „Bearbeiten mit KI" laufen jetzt in einem Durchgang statt in zweien.** Bisher hängte die App an jede dieser Überarbeitungen noch einen sprachlichen Feinschliff — der zog eine gerade bewusst gekürzte Fassung wieder glatt und kostete einen zweiten KI-Lauf. Der Feinschliff kommt weiterhin automatisch, wenn ein Abschnitt zum **ersten Mal** entsteht; danach starten Sie ihn bei Bedarf im ⋯-Menü der Karte.
+- **„Prompt ansehen" zeigt jetzt alle Prompts eines Laufs**, einzeln beschriftet („Teil-Lauf 1 von 2", „Sprachlicher Feinschliff"). Im Chat-Fenster der internen KI ist immer nur der zuletzt gesendete zu sehen, weil jeder Lauf dort einen frischen Chat startet — was tatsächlich rausging, steht vollständig in diesem Dialog.
+
 ## v6.8 — 2026-08
 
 ### Verbesserungen

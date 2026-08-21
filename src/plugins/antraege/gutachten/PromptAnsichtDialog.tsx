@@ -22,7 +22,7 @@ import { kopiereText } from '@/core/utils/kopieren';
 import { VB_KUERZEN_HINWEIS } from '@/core/services/skills';
 import type { PromptAnsichtDaten } from './useGutachtenWorkflow';
 import {
-  beschreibeBloecke, promptMasse, masseVonGesendetGesamt, trennePromptAmVb,
+  beschreibeBloecke, beschrifteGesendet, promptMasse, masseVonGesendetGesamt, trennePromptAmVb,
   type GesendeterPrompt, type PromptMasse,
 } from './promptAnsicht';
 
@@ -108,15 +108,19 @@ export function PromptAnsichtDialog({ daten, sektionLabel, onClose, onBearbeiten
   const vorschauMasse = promptMasse(daten.vorschau, daten.cap);
   const aktiveGesendet: GesendeterPrompt[] = daten.gesendet;
   // ALLE gesendeten Prompts messen, nicht nur den ersten: bei einer
-  // Teil-Generierung trägt jeder Lauf die volle VB, und die Leiste ist mit
-  // „Zeichen gesamt" beschriftet.
+  // Teil-Generierung trägt jeder Lauf die volle VB, das Feinschliff-Bein gar keine —
+  // und die Leiste ist mit „Zeichen gesamt" beschriftet.
   const masse = sicht === 'gesendet'
     ? masseVonGesendetGesamt(aktiveGesendet, daten.cap) ?? vorschauMasse
     : vorschauMasse;
 
+  // Ein Lauf kann MEHRERE Prompts senden — Teil-Generierung (mehrere Generierungs-
+  // Läufe) und das angehängte Feinschliff-Bein. Die Beschriftung kommt aus der reinen
+  // `beschrifteGesendet`, damit Überschrift und Kopier-Text dieselbe Sprache sprechen.
+  const beschriftungen = beschrifteGesendet(aktiveGesendet);
   const volltext = sicht === 'gesendet' && aktiveGesendet.length > 0
     ? aktiveGesendet.map((p, i) => {
-        const kopf = aktiveGesendet.length > 1 ? `===== Teil-Lauf ${i + 1} von ${aktiveGesendet.length} =====\n` : '';
+        const kopf = beschriftungen[i] ? `===== ${beschriftungen[i]} =====\n` : '';
         return `${kopf}${p.system ? `${p.system}\n\n` : ''}${p.user}`;
       }).join('\n\n')
     : `${daten.vorschau.system ? `${daten.vorschau.system}\n\n` : ''}${daten.vorschau.user}`;
@@ -248,9 +252,9 @@ export function PromptAnsichtDialog({ daten, sektionLabel, onClose, onBearbeiten
         <div className="mt-4 flex flex-col gap-5">
           {aktiveGesendet.map((p, i) => (
             <div key={i}>
-              {aktiveGesendet.length > 1 && (
+              {beschriftungen[i] && (
                 <div className="text-[12px] font-medium text-[var(--tf-text)] mb-2">
-                  Teil-Lauf {i + 1} von {aktiveGesendet.length}
+                  {beschriftungen[i]}
                 </div>
               )}
               <PromptBlockAnsicht system={p.system} user={p.user} vb={p.vb} />

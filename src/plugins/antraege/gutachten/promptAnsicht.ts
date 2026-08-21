@@ -14,6 +14,9 @@ import type { SkillRecord, SkillRunInput, RenderedSkillPrompt } from '@/core/ser
 import { buildPromptVorgaben, type QualitaetsRegel } from '@/core/services/skills';
 import { schaetzeTokens } from '@/core/services/ai/llm-context';
 
+/** Welches Bein der Lauf-Kette diesen Prompt gesendet hat. */
+export type PromptBein = 'generierung' | 'feinschliff';
+
 /** Was tatsächlich an den Transport ging (aus `SkillRunResult.gesendet`). */
 export interface GesendeterPrompt {
   system: string;
@@ -21,6 +24,31 @@ export interface GesendeterPrompt {
   /** Die (ggf. gekappte) VB, wie sie im `user`-Text steht — trennt die Anzeige. */
   vb: string;
   vbGekuerzt: boolean;
+  /**
+   * Additiv (v4.x): das Bein der Kette. Fehlt es (Alt-Eintrag derselben Sitzung),
+   * gilt `'generierung'` — nur dieses Bein gab es vorher.
+   */
+  bein?: PromptBein;
+}
+
+/**
+ * Beschriftung je gesendetem Prompt — parallel zur Eingabe, `''` = keine Überschrift
+ * nötig. Ein einzelner Generierungs-Prompt bleibt unbeschriftet (der Normalfall);
+ * mehrere Generierungs-Prompts sind eine Teil-Generierung und werden durchnummeriert;
+ * das Feinschliff-Bein nennt sich beim Namen.
+ *
+ * Die Nummerierung zählt NUR die Generierungs-Prompts: „Teil-Lauf 1 von 2" darf nicht
+ * plötzlich „von 3" heißen, weil der Feinschliff danebensteht.
+ */
+export function beschrifteGesendet(prompts: readonly GesendeterPrompt[]): string[] {
+  const teile = prompts.filter(p => p.bein !== 'feinschliff').length;
+  if (prompts.length <= 1) return prompts.map(() => '');
+  let nr = 0;
+  return prompts.map(p => {
+    if (p.bein === 'feinschliff') return 'Sprachlicher Feinschliff';
+    nr += 1;
+    return teile > 1 ? `Teil-Lauf ${nr} von ${teile}` : 'Generierung';
+  });
 }
 
 /** Mess-Werte eines bereits gesendeten Prompts (kein `RenderedSkillPrompt` mehr zur Hand). */
