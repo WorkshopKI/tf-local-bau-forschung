@@ -40,6 +40,24 @@ Teilvorhaben.
     Bedingungs-Editor — UND/ODER-Gruppen mit Feld, Operator und Wert aus den
     gemappten CSV-Spalten.
 
+  - **Die zugeklappte Zeile sagt, woran der Meilenstein hängt**: Bedingung in
+    Kurzform, Antragstyp-Beschränkung (nur wenn es eine gibt), Ist-Termin-Feld
+    und die Zahl der Unter-Meilensteine. Das Bezeichnungsfeld ist dafür schmaler
+    und bricht bei langen Titeln auf zwei Zeilen um.
+
+  - **Das Feld einer Bedingung wird in einer Auswahl-Tabelle gewählt**, nicht in
+    einem Auswahlfeld: Suche über Kürzel, Beschreibung und rohen Spalten-Code,
+    sortierbare Spaltenköpfe, Filter für Datum/Wert und kanonisch/CSV, Bedienung
+    per ↑/↓/Enter. Passt die Bezeichnung des Meilensteins zu Spalten, stehen
+    diese oben als **Vorschlag** mit dem Wort, das sie ausgelöst hat. Ein
+    Meilenstein ohne Bedingung bekommt zusätzlich eine Zeile „Vorschlag …
+    Übernehmen" — der Vorschlag wird nie von selbst gesetzt.
+
+  - **Bedingungen und Gruppen lassen sich nachträglich umhängen**: jede Zeile hat
+    Griff, Hoch, Runter, Aus- und Einrücken. Eingerückt wird nur in eine Gruppe,
+    die schon darüber steht; „+ Gruppe" liegt oben neben der Verknüpfung und legt
+    eine Gruppe auf **derselben** Ebene an.
+
   - **Mehrere Meilensteine bleiben gleichzeitig offen**, damit sich Regeln
     vergleichen lassen; die offene Zeile trägt links eine Kante, ein zweiter
     Klick schließt sie.

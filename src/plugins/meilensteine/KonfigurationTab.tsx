@@ -20,21 +20,25 @@
  * Unbestätigte Zuordnungen aus dem Auslieferungs-Plan tragen einen sichtbaren
  * Hinweis — wer eine geratene Zahl für bare Münze nimmt, plant falsch.
  */
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronDown, ChevronLeft, ChevronUp, GripVertical, Plus, Trash2 } from 'lucide-react';
+import { useCallback, useMemo, useState } from 'react';
+import { ChevronDown, ChevronLeft, ChevronUp, GripVertical, Plus, Sparkles, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ToggleChip } from '@/components/ui/ToggleChip';
+import { FeldWaehler, type FeldWaehlerVorschlag } from '@/components/ui/FeldWaehler';
 import { TfTree } from '@/components/tree';
 import { ContextMenuItem, ContextMenuLabel, ContextMenuSeparator } from '@/components/ui/context-menu';
 import {
   aendereKnoten, darfUmhaengen, entferneKnoten, fuegeKnotenHinzu, haengeKnotenUm,
-  hebeKnotenAn, knotenOhneBedingung, planEndeTage, verschiebeKnoten,
+  hebeKnotenAn, knotenOhneBedingung, planEndeTage, schlageBedingungVor, schlageFelderVor,
+  verschiebeKnoten,
   type MeilensteinKnoten, type SpaltenEintrag,
 } from '@/core/meilensteine';
+import { bedingungIstLeer, bedingungSatz } from '@/core/status';
+import { berechneAutoHoehe } from '@/core/utils/autoGrowHoehe';
 import { ANTRAGSTYP_BUCKETS } from '@/core/utils/vb-phase-mappings';
 import { BedingungEditor } from './BedingungEditor';
-import { TYP_LABEL, feldStil } from './labels';
+import { TYP_LABEL, feldStil, spaltenLabel } from './labels';
 import {
   MEILENSTEIN_BAUM_ROOT, baueMeilensteinBaum, type MeilensteinBaumKnoten,
 } from './meilensteinBaum';
@@ -48,17 +52,78 @@ interface Props {
   onGesamtfrist: (tage: number) => void;
 }
 
-/** Kopfzeile eines Knotens: Nummer, Bezeichnung, Soll-Woche, Zustandsschalter. */
-function KnotenKopf({ knoten, alle, schreibgeschuetzt, frisch, onKnoten }: {
+/**
+ * Was der zugeklappte Meilenstein über sich verrät.
+ *
+ * Der Plan hat zehn Zeilen; ohne diese Zusammenfassung musste man jede einzeln
+ * aufklappen, um zu sehen, WORAN sie hängt — und das Bezeichnungsfeld spannte
+ * dabei die volle Breite, ohne etwas zu sagen.
+ *
+ * Reihenfolge nach Aussagekraft: die Bedingung zuerst, dann die Einschränkung
+ * auf Antragstypen, dann die Herkunft des Ist-Termins, zuletzt die Zahl der
+ * Unter-Meilensteine. **Was fehlt, fällt weg** — ein „—" je Feld wäre in zehn
+ * Zeilen nur Rauschen. Die Gilt-für-Marke erscheint nur, wenn der Meilenstein
+ * eben NICHT für alle gilt; sonst stünde sie an jeder Zeile und unterschiede
+ * keine.
+ */
+function KnotenZusammenfassung({ knoten, alle, spalten }: {
   knoten: MeilensteinKnoten;
   alle: MeilensteinKnoten[];
+  spalten: SpaltenEintrag[];
+}): React.ReactElement | null {
+  const labelVon = useMemo(() => spaltenLabel(spalten), [spalten]);
+  const kinder = alle.filter(k => k.elternId === knoten.id).length;
+
+  const teile: string[] = [];
+  // Die leere Bedingung sagt nichts (v4.134) — dafür trägt die Zeile bereits
+  // die Marke „ohne Bedingung"; hier wäre „()" nur verwirrend.
+  if (!bedingungIstLeer(knoten.bedingung)) {
+    teile.push(bedingungSatz(knoten.bedingung, labelVon));
+  }
+  if (knoten.nurTypen.length > 0) teile.push(`nur ${knoten.nurTypen.map(t => TYP_LABEL[t]).join('·')}`);
+  const istFeld = knoten.istDatumFeld;
+  if (istFeld) teile.push(`Ist: ${labelVon(istFeld)}`);
+  if (kinder > 0) teile.push(`${kinder} Unter-${kinder === 1 ? 'Meilenstein' : 'Meilensteine'}`);
+
+  if (teile.length === 0) return null;
+  const voll = teile.join(' · ');
+  return (
+    <span
+      className="min-w-0 flex-1 truncate text-[11.5px] text-[var(--tf-text-secondary)]"
+      title={voll}
+    >
+      {voll}
+    </span>
+  );
+}
+
+/**
+ * Zwei Zeilen sind der Deckel; darüber scrollt das Feld statt die Liste zu
+ * zerreißen. 22 px je Zeile bei `leading-[18px]` plus 2×2 px Polsterung.
+ */
+const BEZEICHNUNG_GRUND_HOEHE = 22;
+const BEZEICHNUNG_MAX_HOEHE = 44;
+
+function messeElement(el: HTMLTextAreaElement): void {
+  el.style.height = 'auto';
+  el.style.height = `${berechneAutoHoehe(
+    el.scrollHeight, BEZEICHNUNG_GRUND_HOEHE, undefined, BEZEICHNUNG_MAX_HOEHE,
+  )}px`;
+}
+
+/** Kopfzeile eines Knotens: Nummer, Bezeichnung, Soll-Woche, Zustandsschalter. */
+function KnotenKopf({ knoten, alle, spalten, schreibgeschuetzt, frisch, zusammenfassen, onKnoten }: {
+  knoten: MeilensteinKnoten;
+  alle: MeilensteinKnoten[];
+  spalten: SpaltenEintrag[];
   schreibgeschuetzt: boolean;
   /** Gerade angelegt — der Cursor steht dann gleich in der Bezeichnung. */
   frisch: boolean;
+  /** Der Regel-Bereich ist zu — dann sagt die Zeile selbst, was drinsteht. */
+  zusammenfassen: boolean;
   onKnoten: (k: MeilensteinKnoten[]) => void;
 }): React.ReactElement {
   const patch = (p: Partial<MeilensteinKnoten>): void => onKnoten(aendereKnoten(alle, knoten.id, p));
-  const bezeichnung = useRef<HTMLInputElement>(null);
   // Ein Knoten, der weder eine eigene Bedingung noch Kinder hat, kann NIE
   // erfüllt werden. Bis v4.134 galt er ab seiner Soll-Woche für immer als
   // gerissen; jetzt wird er nicht mehr bewertet — und genau deshalb muss die
@@ -68,14 +133,20 @@ function KnotenKopf({ knoten, alle, schreibgeschuetzt, frisch, onKnoten }: {
     [alle, knoten.id],
   );
 
-  // Der eben angelegte Knoten will benannt werden: Cursor hinein, Platzhalter
-  // markiert. Bewusst als Effekt statt `autoFocus` — dessen Fokus-Ereignis
-  // feuert im Commit, bevor React die Handler der Zeile kennt, und das
-  // Markieren fiel deshalb aus.
-  useEffect(() => {
-    if (!frisch) return;
-    bezeichnung.current?.focus();
-    bezeichnung.current?.select();
+  /**
+   * Das Bezeichnungsfeld ist ein `textarea`, damit ein langer Titel umbricht
+   * statt abgeschnitten zu werden — es hat seit v5.2 nur noch einen Teil der
+   * Zeilenbreite, der Rest gehört der Zusammenfassung.
+   *
+   * Höhe per Callback-Ref, nicht per Mount-Effekt (Bug-Klasse 23): das Feld
+   * steht hinter bedingtem Rendern, und ein `[]`-Effekt liefe beim Wieder-
+   * Einhängen nie wieder. Zwei Zeilen sind der Deckel — darüber hinaus scrollt
+   * das Feld, sonst zerrisse eine einzelne Zeile die Liste.
+   */
+  const messe = useCallback((el: HTMLTextAreaElement | null) => {
+    if (!el) return;
+    messeElement(el);
+    if (frisch) { el.focus(); el.select(); }
   }, [frisch]);
 
   return (
@@ -90,37 +161,43 @@ function KnotenKopf({ knoten, alle, schreibgeschuetzt, frisch, onKnoten }: {
         {knoten.nummer || '—'}
       </span>
 
-      <input
-        ref={bezeichnung}
+      <textarea
+        ref={messe}
+        rows={1}
         value={knoten.label}
-        onChange={e => patch({ label: e.target.value })}
+        onChange={e => { messeElement(e.currentTarget); patch({ label: e.target.value }); }}
         disabled={schreibgeschuetzt}
         aria-label="Bezeichnung"
-        className="flex-1 min-w-[180px] text-[13px] rounded px-2 py-1 bg-[var(--tf-bg)] text-[var(--tf-text)] disabled:opacity-60"
+        title={knoten.label}
+        className="basis-[42%] min-w-[160px] max-w-[520px] resize-none overflow-y-auto text-[13px] leading-[18px] rounded px-2 py-0.5 bg-[var(--tf-bg)] text-[var(--tf-text)] disabled:opacity-60"
         style={feldStil}
       />
 
-      <label className="flex items-center gap-1 text-[11.5px] text-[var(--tf-text-tertiary)]">
+      {zusammenfassen && (
+        <KnotenZusammenfassung knoten={knoten} alle={alle} spalten={spalten} />
+      )}
+
+      <label className="flex shrink-0 items-center gap-1 text-[11.5px] text-[var(--tf-text-tertiary)]">
         Woche
         <input
           type="number" min={0}
           value={knoten.sollWoche}
           onChange={e => patch({ sollWoche: Math.max(0, Number(e.target.value) || 0) })}
           disabled={schreibgeschuetzt}
-          className="w-[56px] text-[12px] rounded px-1.5 py-1 bg-[var(--tf-bg)] text-[var(--tf-text)] text-right disabled:opacity-60"
+          className="w-[56px] text-[12px] rounded px-1.5 py-0.5 bg-[var(--tf-bg)] text-[var(--tf-text)] text-right disabled:opacity-60"
           style={feldStil}
         />
       </label>
 
       <ToggleChip
-        label="aktiv"
+        label="aktiv" groesse="dicht"
         selected={knoten.aktiv}
         onToggle={() => patch({ aktiv: !knoten.aktiv })}
         disabled={schreibgeschuetzt}
         title="Inaktive Meilensteine werden nie als gerissen gezählt"
       />
       <ToggleChip
-        label="Frist"
+        label="Frist" groesse="dicht"
         selected={knoten.relevantFuerFrist}
         onToggle={() => patch({ relevantFuerFrist: !knoten.relevantFuerFrist })}
         disabled={schreibgeschuetzt}
@@ -194,6 +271,19 @@ function KnotenAktionen({ knoten, alle, onKnoten, onErgaenzen }: {
   );
 }
 
+/**
+ * Die linke Beschriftungsspalte des Regel-Bereichs. Feste Breite, damit „Gilt
+ * für", „Erfüllt, wenn" und „Ist-Termin" auf EINER Kante stehen — vorher hatte
+ * jede Zeile ihren eigenen Einzug, und der Bereich las sich als drei Fragmente.
+ */
+function Beschriftung({ children }: { children: React.ReactNode }): React.ReactElement {
+  return (
+    <span className="w-[84px] shrink-0 pt-[3px] text-[11.5px] text-[var(--tf-text-tertiary)]">
+      {children}
+    </span>
+  );
+}
+
 /** Detail-Bereich unter dem ausgewählten Knoten. */
 function KnotenKoerper({ knoten, alle, spalten, schreibgeschuetzt, onKnoten }: {
   knoten: MeilensteinKnoten;
@@ -203,9 +293,26 @@ function KnotenKoerper({ knoten, alle, spalten, schreibgeschuetzt, onKnoten }: {
   onKnoten: (k: MeilensteinKnoten[]) => void;
 }): React.ReactElement {
   const patch = (p: Partial<MeilensteinKnoten>): void => onKnoten(aendereKnoten(alle, knoten.id, p));
+
+  // Bezeichnung UND Beschreibung speisen den Vorschlag — das entscheidende Wort
+  // steht oft erst in der Beschreibung („Bearbeiter mit passender Expertise …").
+  const anhalt = `${knoten.label} ${knoten.beschreibung ?? ''}`;
+  const vorschlaege: FeldWaehlerVorschlag[] = useMemo(
+    () => schlageFelderVor(anhalt, spalten).map(v => ({ feldId: v.feldId, grund: v.grund })),
+    [anhalt, spalten],
+  );
+  // Ein Meilenstein ohne auswertbare Bedingung wird gar nicht bewertet (v4.134)
+  // und trägt oben die Marke „ohne Bedingung". Sie bekommt hier ihren Ausgang:
+  // ein Klick statt einer Suche durch den ganzen Spaltenvorrat.
+  const startVorschlag = useMemo(
+    () => (bedingungIstLeer(knoten.bedingung) ? schlageBedingungVor(anhalt, spalten) : null),
+    [knoten.bedingung, anhalt, spalten],
+  );
+  const labelVon = useMemo(() => spaltenLabel(spalten), [spalten]);
+
   return (
     <div className="rounded" style={feldStil}>
-        <div className="border-[var(--tf-border)] px-3 py-1.5 flex flex-col gap-1.5">
+        <div className="border-[var(--tf-border)] px-3 py-1.5 flex flex-col gap-1">
           <input
             value={knoten.beschreibung ?? ''}
             onChange={e => patch({ beschreibung: e.target.value })}
@@ -216,8 +323,8 @@ function KnotenKoerper({ knoten, alle, spalten, schreibgeschuetzt, onKnoten }: {
             style={feldStil}
           />
 
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="text-[11.5px] text-[var(--tf-text-tertiary)]">Gilt für:</span>
+          <div className="flex items-center gap-1 flex-wrap">
+            <Beschriftung>Gilt für</Beschriftung>
             {ANTRAGSTYP_BUCKETS.map(t => {
               const gewaehlt = knoten.nurTypen.length === 0 || knoten.nurTypen.includes(t);
               const letzter = gewaehlt && knoten.nurTypen.length === 1;
@@ -225,6 +332,7 @@ function KnotenKoerper({ knoten, alle, spalten, schreibgeschuetzt, onKnoten }: {
                 <ToggleChip
                   key={t}
                   label={TYP_LABEL[t]}
+                  groesse="dicht"
                   selected={gewaehlt}
                   disabled={schreibgeschuetzt || letzter}
                   title={letzter
@@ -250,42 +358,52 @@ function KnotenKoerper({ knoten, alle, spalten, schreibgeschuetzt, onKnoten }: {
           {/* Beschriftung NEBEN dem Regelwerk, wie „Gilt für" darüber — eine
               eigene Zeile dafür kostet Höhe, die bei zwei offenen Meilensteinen
               fehlt. */}
-          <div className="flex items-start gap-1.5">
-            <span className="shrink-0 pt-1 text-[11.5px] text-[var(--tf-text-tertiary)]">
-              Erfüllt, wenn:
-            </span>
+          <div className="flex items-start gap-1">
+            <Beschriftung>Erfüllt, wenn</Beschriftung>
             {schreibgeschuetzt ? (
               <p className="text-[12px] text-[var(--tf-text-tertiary)]">
                 Nur Lesezugriff — die Bedingung kann hier nicht geändert werden.
               </p>
             ) : (
               <div className="min-w-0 flex-1">
+                {startVorschlag && 'feldId' in startVorschlag && (
+                  <p className="flex items-center gap-1.5 pb-1 text-[11.5px] text-[var(--tf-text-secondary)]">
+                    <Sparkles size={11} className="shrink-0 text-[var(--tf-text-tertiary)]" />
+                    Vorschlag aus der Bezeichnung:
+                    <span className="text-[var(--tf-text)]">
+                      {bedingungSatz(startVorschlag, labelVon)}
+                    </span>
+                    <Button
+                      variant="ghost" size="xs"
+                      onClick={() => patch({ bedingung: startVorschlag })}
+                    >
+                      Übernehmen
+                    </Button>
+                  </p>
+                )}
                 <BedingungEditor
                   bedingung={knoten.bedingung}
                   spalten={spalten}
+                  vorschlaege={vorschlaege}
                   onChange={b => patch({ bedingung: b })}
                 />
               </div>
             )}
           </div>
 
-          <label className="flex items-center gap-2 text-[11.5px] text-[var(--tf-text-tertiary)]">
-            Ist-Termin aus Feld
-            <select
-              value={knoten.istDatumFeld ?? ''}
-              onChange={e => patch({ istDatumFeld: e.target.value || undefined })}
+          <div className="flex items-start gap-1">
+            <Beschriftung>Ist-Termin</Beschriftung>
+            <FeldWaehler
+              spalten={spalten}
+              wert={knoten.istDatumFeld ?? ''}
+              onWaehle={feldId => patch({ istDatumFeld: feldId || undefined })}
+              nurTyp="datum"
+              leerOption="— frühestes Datum der Bedingungs-Felder —"
+              ariaLabel="Ist-Termin aus Feld"
               disabled={schreibgeschuetzt}
-              className="text-[12px] rounded px-1.5 py-0.5 bg-[var(--tf-bg)] text-[var(--tf-text)] max-w-[260px] cursor-pointer disabled:opacity-60"
-              style={feldStil}
-            >
-              <option value="">— frühestes Datum der Bedingungs-Felder —</option>
-              {spalten.filter(s => s.typ === 'datum').map(s => (
-                <option key={s.feldId} value={s.feldId}>
-                  {s.label === s.feldId ? s.feldId : `${s.label} · ${s.feldId}`}
-                </option>
-              ))}
-            </select>
-          </label>
+              className="max-w-[280px]"
+            />
+          </div>
         </div>
     </div>
   );
@@ -448,8 +566,10 @@ export function KonfigurationTab({
               <KnotenKopf
                 knoten={p.data.knoten}
                 alle={knoten}
+                spalten={spalten}
                 schreibgeschuetzt={schreibgeschuetzt}
                 frisch={p.id === frischeId}
+                zusammenfassen={!koerperOffen.includes(p.id)}
                 onKnoten={onKnoten}
               />
             ) : null),

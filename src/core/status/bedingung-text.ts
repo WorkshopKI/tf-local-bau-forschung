@@ -14,17 +14,33 @@
  *
  * Felder erscheinen unter ihrem kuratierten Namen („TV-Status ist beantragt"
  * statt „status ist beantragt"), soweit die Fassung einen führt.
+ *
+ * **Woher der Name kommt, entscheidet der Aufrufer** ({@link FeldLabelQuelle}):
+ * die Status-Fassung führt ihre Felder in einer `MappingVersion`, der
+ * Meilenstein-Plan in einem Spalten-Katalog. Ein zweiter Formatierer für die
+ * zweite Namensquelle wäre genau die Doppelung, gegen die dieses Modul
+ * geschrieben ist — deshalb ein Auflöser als Parameter statt einer Kopie.
  */
 import { VB_PHASE_LABELS } from '@/core/utils/vb-phase-mappings';
 import { feldLabel } from './feld-zugriff';
 import type { Bedingung, MappingVersion } from './typen';
 
+/** Eine Fassung — oder direkt die Abbildung `feldId → Anzeigename`. */
+export type FeldLabelQuelle = MappingVersion | ((feldId: string) => string);
+
+function aufloeser(quelle: FeldLabelQuelle): (feldId: string) => string {
+  return typeof quelle === 'function' ? quelle : (id: string) => feldLabel(quelle, id);
+}
+
 function tage(n: number): string {
   return `${n >= 0 ? '+' : ''}${n} T`;
 }
 
-function blatt(b: Extract<Bedingung, { feldId: string }>, version: MappingVersion): string {
-  const feld = feldLabel(version, b.feldId);
+function blatt(
+  b: Extract<Bedingung, { feldId: string }>,
+  labelVon: (feldId: string) => string,
+): string {
+  const feld = labelVon(b.feldId);
   switch (b.op) {
     case 'gefuellt': return `${feld} gefüllt`;
     case 'leer': return `${feld} leer`;
@@ -40,7 +56,7 @@ function blatt(b: Extract<Bedingung, { feldId: string }>, version: MappingVersio
         ? `${feld} liegt in der Zukunft`
         : `${feld} nach heute ${tage(b.tageRelativHeute)}`;
     case 'tageSeit': return `seit ${feld} mehr als ${b.tage} Tage`;
-    case 'datumNachFeld': return `${feld} nach ${feldLabel(version, b.vergleichFeldId)}`;
+    case 'datumNachFeld': return `${feld} nach ${labelVon(b.vergleichFeldId)}`;
     case 'foerdervarianteIn': {
       const namen = b.varianten.map(v => VB_PHASE_LABELS[v] ?? String(v));
       return `Fördervariante ist ${namen.join(' oder ')}`;
@@ -49,17 +65,21 @@ function blatt(b: Extract<Bedingung, { feldId: string }>, version: MappingVersio
 }
 
 /** Rekursiv: Blatt / UND / ODER. Klammern nur, wo eine Gruppe steht. */
-export function bedingungAlsText(b: Bedingung, version: MappingVersion): string {
-  if ('alle' in b) return `(${b.alle.map(x => bedingungAlsText(x, version)).join(' UND ')})`;
-  if ('einige' in b) return `(${b.einige.map(x => bedingungAlsText(x, version)).join(' ODER ')})`;
-  return blatt(b, version);
+export function bedingungAlsText(b: Bedingung, quelle: FeldLabelQuelle): string {
+  return mitAufloeser(b, aufloeser(quelle));
+}
+
+function mitAufloeser(b: Bedingung, labelVon: (feldId: string) => string): string {
+  if ('alle' in b) return `(${b.alle.map(x => mitAufloeser(x, labelVon)).join(' UND ')})`;
+  if ('einige' in b) return `(${b.einige.map(x => mitAufloeser(x, labelVon)).join(' ODER ')})`;
+  return blatt(b, labelVon);
 }
 
 /**
  * Dieselbe Aussage ohne die äußeren Klammern — für Sätze, die die Bedingung
  * ohnehin schon mit „WENN …" einleiten.
  */
-export function bedingungSatz(b: Bedingung, version: MappingVersion): string {
-  const text = bedingungAlsText(b, version);
+export function bedingungSatz(b: Bedingung, quelle: FeldLabelQuelle): string {
+  const text = bedingungAlsText(b, quelle);
   return text.startsWith('(') && text.endsWith(')') ? text.slice(1, -1) : text;
 }

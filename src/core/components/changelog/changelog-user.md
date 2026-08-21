@@ -19,6 +19,21 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v5.3 — 2026-08
+
+### Neu
+- Das Feld einer Meilenstein-Bedingung wählst du jetzt in einer kleinen Tabelle: tippen, um zu suchen, Spaltenköpfe zum Sortieren, Pfeiltasten und Enter zum Übernehmen. Vorher standen dort mehrere hundert Kürzel in einer Liste ohne Suche.
+- Passt die Bezeichnung des Meilensteins zu vorhandenen Spalten, stehen diese oben als Vorschlag — mit dem Wort, das darauf hindeutet. Hat ein Meilenstein noch gar keine Bedingung, kannst du den Vorschlag mit einem Klick übernehmen. Von selbst gesetzt wird nie etwas.
+- Bedingungen und Gruppen lassen sich nachträglich umhängen: hoch, runter, in eine Gruppe hinein, wieder heraus — oder am Griff an die gewünschte Stelle ziehen.
+
+### Verbesserungen
+- In der zugeklappten Liste steht jetzt neben jedem Meilenstein, woran er hängt: die Bedingung in Kurzform, für welche Antragstypen er gilt, woher der Ist-Termin kommt und wie viele Unter-Meilensteine er hat. Man muss nicht mehr jeden einzeln aufklappen.
+- Der Regel-Bereich braucht weniger Höhe: die Chips sind flacher, die Beschriftungen stehen auf einer Kante. Zwei Meilensteine passen damit eher nebeneinander.
+- „+ Gruppe" steht jetzt oben neben „ALLE müssen zutreffen" — dort, wo es hingehört. Unten in der eingerückten Liste las es sich, als lege es eine Untergruppe an.
+
+### Bugfixes
+- Spaltennamen, die in der Beschriftungs-Tabelle einen Zeilenumbruch enthalten, zerrissen die Zeile („Antrags / eingang"). Sie werden jetzt einzeilig angezeigt.
+
 ## v5.2 — 2026-08
 
 ### Neu

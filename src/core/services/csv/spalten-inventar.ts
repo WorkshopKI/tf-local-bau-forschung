@@ -66,6 +66,23 @@ export function rohSpaltenJeFeld(
   return out;
 }
 
+/**
+ * Die Beschriftung einer Spalte in EINER Zeile.
+ *
+ * Die Label-XLS trägt echte Zeilenumbrüche in ihren Überschriften — im
+ * Entwicklungs-Bestand heißt `antragsdatum` wörtlich `"Antrags\r\neingang"`.
+ * Im Fließtext einer Zusammenfassung, in einem `title`-Tooltip und in einer
+ * Auswahlzeile zerreißt das die Zeile; der Umbruch ist eine Eigenheit der
+ * Tabellenkopf-Zelle, keine Aussage über das Feld.
+ *
+ * Bewusst erst beim ANZEIGEN und nicht beim Einlesen: die Beschriftung wird
+ * anderswo zeichengenau gegen das Schema gehalten, und eine still geglättete
+ * Fassung liefe dort auseinander.
+ */
+export function einzeiligesLabel(text: string): string {
+  return text.replace(/\s+/g, ' ').trim();
+}
+
 export interface SpaltenEintrag {
   /** So referenziert eine Bedingung oder ein Katalog-Feld die Spalte. */
   feldId: string;

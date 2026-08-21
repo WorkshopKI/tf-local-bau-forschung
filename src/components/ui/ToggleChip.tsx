@@ -59,6 +59,20 @@ export interface ToggleChipProps {
    * (Pitfall #14 gilt für jede Breitenänderung, nicht nur für den Haken).
    */
   form?: 'pille' | 'marke';
+  /**
+   * `normal` (Default) ist das Maß der Filter-Leisten — dort steht der Chip für
+   * sich und darf atmen.
+   *
+   * `dicht` ist für Chip-Reihen **innerhalb** eines Formulars, wo die Höhe knapp
+   * ist: der Regel-Bereich eines Meilensteins trägt vier Reihen übereinander,
+   * und bei zwei gleichzeitig offenen Meilensteinen entscheidet jede
+   * eingesparte Zeile darüber, ob man sie nebeneinander lesen kann. Gespart
+   * wird an der **Polsterung**, nicht an der Schrift — 20 statt 26 px bei
+   * gleicher Lesbarkeit.
+   *
+   * Der Häkchen-Slot bleibt in beiden Größen gerendert (Pitfall #14).
+   */
+  groesse?: 'normal' | 'dicht';
   className?: string;
 }
 
@@ -84,13 +98,18 @@ export function ToggleChip({
   tonung,
   zusatz,
   form = 'pille',
+  groesse = 'normal',
   className,
 }: ToggleChipProps): React.ReactElement {
   const marke = form === 'marke';
+  const dicht = groesse === 'dicht';
+  const mass = marke
+    ? (dicht ? 'px-2 h-[20px] gap-1 ' : 'px-2.5 h-[26px] gap-1.5 ')
+    : (dicht ? 'px-2 h-[20px] gap-1 ' : 'px-3 py-1 gap-1.5 ');
   const base =
-    (marke
-      ? 'inline-flex items-center gap-1.5 px-2.5 h-[26px] rounded-[6px] text-[12px] font-medium '
-      : 'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[12px] ')
+    'inline-flex items-center text-[12px] '
+    + mass
+    + (marke ? 'rounded-[6px] font-medium ' : 'rounded-full ')
     + 'transition-colors focus-visible:outline-none focus-visible:ring-2 '
     + 'focus-visible:ring-[var(--tf-primary)]/40';
   // Ohne Häkchen muss der Aus-Zustand seinen Umriss selbst tragen: 0.08 Alpha
@@ -138,7 +157,7 @@ export function ToggleChip({
           Marken-Form hat gar keinen — dort ist die Breite ohnehin konstant. */}
       {!marke && (
         <span aria-hidden className={cn('inline-flex leading-none', showHaken ? '' : 'invisible')}>
-          <Check size={13} strokeWidth={2.5} />
+          <Check size={dicht ? 11 : 13} strokeWidth={2.5} />
         </span>
       )}
       <span>{label}</span>

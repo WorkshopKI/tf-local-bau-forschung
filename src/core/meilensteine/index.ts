@@ -34,9 +34,10 @@ export {
 } from './projektion';
 export { nachImportMeilensteinPflege } from './import-integration';
 export {
-  baueSpaltenKatalog, bekannteStatusWerte, STATUS_FELDER,
+  baueSpaltenKatalog, bekannteStatusWerte, einzeiligesLabel, STATUS_FELDER,
   type SpaltenEintrag, type SpaltenTyp,
 } from './spalten-katalog';
+export { schlageFelderVor, schlageBedingungVor, type FeldVorschlag } from './feld-vorschlag';
 export {
   aendereKnoten, darfUmhaengen, entferneKnoten, fuegeKnotenHinzu, haengeKnotenUm,
   hebeKnotenAn, istNachfahre, kinderVon, naechsteKnotenId, nummeriereNeu,

@@ -3,7 +3,10 @@
  * `--tf-*`-Tokens (Guard `theme-token-contract`).
  */
 import { parseGermanDate, formatGermanDate } from '@/core/services/csv/dateParse';
-import type { MstZustand, Prognose, VerbundMeilensteine } from '@/core/meilensteine';
+import { einzeiligesLabel } from '@/core/meilensteine';
+import type {
+  MstZustand, Prognose, SpaltenEintrag, VerbundMeilensteine,
+} from '@/core/meilensteine';
 import type { AntragstypBucket } from '@/core/utils/vb-phase-mappings';
 
 export const ZUSTAND_LABEL: Record<MstZustand, string> = {
@@ -115,6 +118,24 @@ export const feldStil: React.CSSProperties = {
   border: '0.5px solid var(--tf-border)',
   background: 'var(--tf-bg)',
 };
+
+/**
+ * Der Namens-Auflöser für den EINEN Bedingungs-Formatierer
+ * ([bedingung-text.ts](../../core/status/bedingung-text.ts)).
+ *
+ * Der erwartet entweder eine Katalog-Fassung oder genau diese Funktion. Der
+ * Meilenstein-Plan hat keine Fassung, sondern einen Spalten-Katalog — deshalb
+ * hier die Brücke, statt eines zweiten Formatierers, der beim ersten neuen
+ * Operator still auseinanderliefe.
+ */
+export function spaltenLabel(
+  spalten: readonly SpaltenEintrag[],
+): (feldId: string) => string {
+  // `einzeiligesLabel`, weil die Label-XLS echte Umbrüche in ihren Überschriften
+  // trägt („Antrags\r\neingang") — in einem Satz zerrissen die die Zeile.
+  const index = new Map(spalten.map(s => [s.feldId, einzeiligesLabel(s.label)]));
+  return feldId => index.get(feldId) || feldId;
+}
 
 /**
  * ISO → `DD.MM.YYYY`; leer/unlesbar → `—`.

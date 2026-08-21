@@ -1,315 +1,227 @@
 /**
  * Struktureller Bedingungs-Editor — verschachtelte UND/ODER-Gruppen, je Blatt
- * Feld · Operator · Wert. **Kein Freitext**: das Feld kommt aus dem Spalten-Vorrat
- * der Programm-Schemas, der Statuswert aus dem kanonischen Wertevorrat. Ein
- * Tippfehler kann so keinen Meilenstein still unerfüllbar machen.
+ * Feld · Operator · Wert (siehe [BlattZeile.tsx](./BlattZeile.tsx)).
  *
  * Die Komponente ist bewusst domänenfrei gegenüber den Meilensteinen: sie kennt
- * nur `Bedingung`. Damit kann sie später ohne Fork den Regel-Tab des
- * Status-Cockpits übernehmen, der bei Bedingungen bis heute read-only ist.
+ * nur `Bedingung`. Deshalb bedient dieselbe Datei auch den Regel-Tab des
+ * Status-Cockpits und den Dialog „Eigene Spalte".
+ *
+ * **Die Hierarchie ist nachträglich änderbar** (v5.2). Bis dahin war sie beim
+ * Anlegen zementiert: kein Ein-/Ausrücken, kein Umsortieren, kein Ziehen, und
+ * ab Stufe 2 verschwand „+ Gruppe" wortlos. Der Umbau selbst rechnet nicht
+ * hier, sondern in der reinen [bedingung-baum.ts](../../core/status/bedingung-baum.ts);
+ * diese Datei hält nur den Zeiger darauf, welcher Knoten gemeint ist — einen
+ * **Kind-Index-Pfad**, weil `Bedingung` keine Ids kennt.
+ *
+ * **Warum kein `TfTree`.** Er wäre die architekturtreue Wahl für einen Baum mit
+ * Ziehen — liefe im Meilenstein-Tab aber INNERHALB des `body`-Slots des äußeren
+ * `TfTree`, also zwei Drag-Instanzen im selben Ereignispfad, deren Drop-Ziele
+ * sich überlagern. Dazu kommt, dass Pfad-Ids sich bei jeder Bearbeitung ändern
+ * und den Aufklapp-/Auswahl-Zustand eines Baums damit bei jedem Tastendruck
+ * zerrissen. Was hier steht, ist ein **Formular** mit Verschachtelung: kein
+ * Aufklappen, keine Knoten-Auswahl, keine Baum-Tastatur. Die Drag-Ereignisse
+ * werden deshalb an der Wurzel dieses Editors gestoppt, damit der äußere Baum
+ * sie nicht als Meilenstein-Zug missversteht.
  */
-import { Plus, X } from 'lucide-react';
+import { useState } from 'react';
+import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import type { Bedingung } from '@/core/status';
-import { VB_PHASE_LABELS } from '@/core/utils/vb-phase-mappings';
-import { STATUS_FELDER, bekannteStatusWerte, type SpaltenEintrag } from '@/core/meilensteine';
-import { OPERATOR_LABEL, feldStil } from './labels';
+import type { FeldWaehlerVorschlag } from '@/components/ui/FeldWaehler';
+import {
+  alsBedingungsGruppe, darfBedingungAusruecken, darfBedingungEinruecken,
+  darfBedingungVerschieben, entferneBedingungAn, ersetzeBedingungAn, fuegeBedingungEin,
+  gruppenKinder, holeBedingungAn, istBedingungsGruppe,
+  rueckeBedingungAus, rueckeBedingungEin, verschiebeBedingung,
+  verschiebeBedingungsGeschwister,
+  type Bedingung, type BedingungsGruppe, type BedingungsPfad,
+} from '@/core/status';
+import type { SpaltenEintrag } from '@/core/meilensteine';
+import { BlattZeile, type Blatt, type FeldPruefung } from './BlattZeile';
+import { ZeilenAktionen } from './ZeilenAktionen';
+import { feldStil } from './labels';
+
+export type { FeldPruefung } from './BlattZeile';
 
 /**
- * Operatoren je Feld-Typ. Datumsspalten bekommen die Zeit-Operatoren.
- *
- * `tageSeit` und `datumNachFeld` kommen aus dem Vorgangssystem (To-do-Regeln),
- * stehen aber jedem Bedingungs-Baum offen — der Editor ist domänenfrei.
- * `foerdervarianteIn` steht nur an `vb_phase`, weil es nirgends sonst etwas
- * bedeutet.
+ * Einrück-Deckel. Bis v5.1 lag die Grenze bei 2 und blendete „+ Gruppe"
+ * kommentarlos aus — eine Regel mit drei Ebenen ließ sich schlicht nicht bauen.
+ * Jetzt ist sie so hoch, dass sie im Alltag nicht greift, und dort, wo sie
+ * greift, sagt sie es: bei sechs Ebenen ist die Einrückung breiter als der
+ * Bereich, und die Regel wäre ohnehin nicht mehr zu lesen.
  */
-const OPERATOREN_WERT = ['ist', 'istNicht', 'gefuellt', 'leer'] as const;
-const OPERATOREN_DATUM = ['gefuellt', 'leer', 'datumVor', 'datumNach', 'tageSeit', 'datumNachFeld'] as const;
-const OPERATOREN_VARIANTE = ['foerdervarianteIn', 'ist', 'istNicht', 'gefuellt', 'leer'] as const;
+const MAX_TIEFE = 6;
 
-/** Das Feld, an dem die Fördervariante steht (`VB_PHASE`, kanonisch gemappt). */
-const VARIANTEN_FELD = 'vb_phase';
+/** Wohin ein gezogener Knoten fällt: in diese Liste, an diese Stelle. */
+interface DropZiel { elternPfad: BedingungsPfad; index: number }
 
-/** Auswahl der Fördervarianten — Beschriftungen aus der EINEN Decode-Tabelle. */
-const VARIANTEN_WAHL: readonly [number, string][] = Object.entries(VB_PHASE_LABELS)
-  .map(([nr, label]) => [Number(nr), label] as [number, string])
-  .sort((a, b) => a[0] - b[0]);
+const gleich = (a: BedingungsPfad, b: BedingungsPfad): boolean =>
+  a.length === b.length && a.every((x, i) => b[i] === x);
 
-type Gruppe = { alle: Bedingung[] } | { einige: Bedingung[] };
-
-const istGruppe = (b: Bedingung): b is Gruppe => 'alle' in b || 'einige' in b;
-const kinderVon = (g: Gruppe): Bedingung[] => ('alle' in g ? g.alle : g.einige);
-const mitKindern = (g: Gruppe, kinder: Bedingung[]): Gruppe =>
-  ('alle' in g ? { alle: kinder } : { einige: kinder });
-
-/** Hebt ein Blatt in eine UND-Gruppe, damit der Editor immer eine Gruppe zeigt. */
-export function alsGruppe(b: Bedingung): Gruppe {
-  return istGruppe(b) ? b : { alle: [b] };
-}
-
-/**
- * Dicht gesetzt (v4.4): eine Regel mit vier Bedingungen soll ohne Scrollen
- * neben einer zweiten lesbar sein. Die Zeilenhöhe kommt aus der Schriftgröße,
- * nicht aus Polsterung — deshalb `py-0.5` statt `py-1`.
- */
-const selectKlasse =
-  'text-[12px] rounded px-1.5 py-0.5 bg-[var(--tf-bg)] text-[var(--tf-text)] cursor-pointer';
-
-/**
- * Optionale Zusatzprüfung des Aufrufers: kennt die Zielwelt das Feld?
- *
- * Die Spaltenliste eines Editors und der Vorrat, gegen den später ausgewertet
- * wird, sind nicht zwingend dieselbe Menge — die To-do-Kaskade z.B. liest den
- * Status-Katalog, der Editor bot bis v2.386 die CSV-Schema-Spalten an. Ohne
- * Prüfung baut man dort eine Regel, die nie zutrifft und nichts sagt.
- * `null` = in Ordnung, ein String = die Meldung, die am Blatt erscheint.
- */
-export type FeldPruefung = (feldId: string) => string | null;
-
-function BlattZeile({ blatt, spalten, pruefeFeld, onChange, onEntfernen }: {
-  blatt: Exclude<Bedingung, Gruppe>;
-  spalten: SpaltenEintrag[];
-  pruefeFeld?: FeldPruefung;
-  onChange: (b: Bedingung) => void;
-  onEntfernen: () => void;
-}): React.ReactElement {
-  const eintrag = spalten.find(s => s.feldId === blatt.feldId);
-  const operatorenFuer = (feldId: string, typ?: string): readonly string[] => {
-    if (feldId === VARIANTEN_FELD) return OPERATOREN_VARIANTE;
-    return typ === 'datum' ? OPERATOREN_DATUM : OPERATOREN_WERT;
-  };
-  const passende = operatorenFuer(blatt.feldId, eintrag?.typ);
-  // Ein Operator, den die Liste nicht führt (fremde Fassung, von Hand
-  // editierter Plan), wird MITGEZEIGT statt verschluckt: sonst stünde das
-  // Auswahlfeld leer und der erste Klick überschriebe eine Bedingung, die der
-  // Nutzer nie gesehen hat.
-  const operatoren = passende.includes(blatt.op) ? passende : [blatt.op, ...passende];
-  const zeigeStatusAuswahl =
-    (blatt.op === 'ist' || blatt.op === 'istNicht') && STATUS_FELDER.includes(blatt.feldId);
-  const zeigeFreiWert = (blatt.op === 'ist' || blatt.op === 'istNicht') && !zeigeStatusAuswahl;
-  const zeigeTage = blatt.op === 'datumVor' || blatt.op === 'datumNach';
-  const zeigeTageSeit = blatt.op === 'tageSeit';
-  const zeigeVergleichsfeld = blatt.op === 'datumNachFeld';
-  const zeigeVarianten = blatt.op === 'foerdervarianteIn';
-
-  const setFeld = (feldId: string): void => {
-    const neu = spalten.find(s => s.feldId === feldId);
-    // Operator mitziehen, wenn er zum neuen Feld-Typ nicht mehr passt.
-    if (operatorenFuer(feldId, neu?.typ).includes(blatt.op)) {
-      onChange({ ...blatt, feldId });
-    } else {
-      onChange({ feldId, op: 'gefuellt' });
-    }
-  };
-
-  const setOperator = (op: string): void => {
-    if (op === 'gefuellt' || op === 'leer') onChange({ feldId: blatt.feldId, op });
-    else if (op === 'datumVor' || op === 'datumNach') {
-      onChange({ feldId: blatt.feldId, op, tageRelativHeute: 0 });
-    } else if (op === 'ist' || op === 'istNicht') {
-      onChange({ feldId: blatt.feldId, op, wert: '' });
-    } else if (op === 'tageSeit') {
-      onChange({ feldId: blatt.feldId, op, tage: 31 });
-    } else if (op === 'datumNachFeld') {
-      const anderes = spalten.find(s => s.feldId !== blatt.feldId)?.feldId ?? blatt.feldId;
-      onChange({ feldId: blatt.feldId, op, vergleichFeldId: anderes });
-    } else if (op === 'foerdervarianteIn') {
-      onChange({ feldId: blatt.feldId, op, varianten: [] });
-    }
-  };
-
-  // Ein `ist`/`istNicht` ohne Wert behauptet nichts — und `istNicht` ohne Wert
-  // wäre für JEDEN Vorgang wahr. Die Speicherung verwirft ein solches Blatt
-  // (`normalisiereBedingung`); der Editor muss das sagen, solange es dasteht.
-  const wertFehlt = (blatt.op === 'ist' || blatt.op === 'istNicht')
-    && !('wert' in blatt && (blatt.wert ?? '').trim() !== '');
-
-  // Beide Feld-Referenzen prüfen — `datumNachFeld` nennt ein zweites.
-  const monita = [
-    pruefeFeld?.(blatt.feldId),
-    zeigeVergleichsfeld && 'vergleichFeldId' in blatt ? pruefeFeld?.(blatt.vergleichFeldId) : null,
-    wertFehlt ? 'Ohne Wert zählt diese Bedingung nicht — sie wird beim Laden verworfen.' : null,
-  ].filter((m): m is string => typeof m === 'string' && m.length > 0);
-
-  return (
-    <div className="flex flex-col gap-0.5">
-    <div className="flex items-center gap-1 flex-wrap">
-      <select
-        value={blatt.feldId}
-        onChange={e => setFeld(e.target.value)}
-        className={`${selectKlasse} max-w-[240px]`}
-        style={feldStil}
-        aria-label="Feld"
-      >
-        {!spalten.some(s => s.feldId === blatt.feldId) && (
-          <option value={blatt.feldId}>{blatt.feldId} (nicht gemappt)</option>
-        )}
-        {spalten.map(s => (
-          <option key={s.feldId} value={s.feldId}>
-            {s.label === s.feldId ? s.feldId : `${s.label} · ${s.feldId}`}
-          </option>
-        ))}
-      </select>
-
-      <select
-        value={blatt.op}
-        onChange={e => setOperator(e.target.value)}
-        className={selectKlasse}
-        style={feldStil}
-        aria-label="Operator"
-      >
-        {operatoren.map(op => (
-          <option key={op} value={op}>{OPERATOR_LABEL[op] ?? `${op} (unbekannt)`}</option>
-        ))}
-      </select>
-
-      {zeigeStatusAuswahl && (
-        <select
-          value={'wert' in blatt ? blatt.wert ?? '' : ''}
-          onChange={e => onChange({ ...blatt, wert: e.target.value } as Bedingung)}
-          className={`${selectKlasse} max-w-[220px]`}
-          style={feldStil}
-          aria-label="Statuswert"
-        >
-          <option value="">— Wert wählen —</option>
-          {bekannteStatusWerte().map(w => <option key={w} value={w}>{w}</option>)}
-        </select>
-      )}
-
-      {zeigeFreiWert && (
-        <input
-          value={'wert' in blatt ? blatt.wert ?? '' : ''}
-          onChange={e => onChange({ ...blatt, wert: e.target.value } as Bedingung)}
-          placeholder="Wert"
-          className="text-[12px] rounded px-2 py-0.5 bg-[var(--tf-bg)] text-[var(--tf-text)] w-[160px]"
-          style={feldStil}
-          aria-label="Wert"
-        />
-      )}
-
-      {zeigeTage && (
-        <span className="flex items-center gap-1 text-[12px] text-[var(--tf-text-secondary)]">
-          heute
-          <input
-            type="number"
-            value={'tageRelativHeute' in blatt ? blatt.tageRelativHeute : 0}
-            onChange={e => onChange({ ...blatt, tageRelativHeute: Number(e.target.value) || 0 } as Bedingung)}
-            className="text-[12px] rounded px-1.5 py-0.5 bg-[var(--tf-bg)] text-[var(--tf-text)] w-[72px] text-right"
-            style={feldStil}
-            aria-label="Tage relativ zu heute"
-          />
-          Tage
-        </span>
-      )}
-
-      {zeigeTageSeit && (
-        <span className="flex items-center gap-1 text-[12px] text-[var(--tf-text-secondary)]">
-          <input
-            type="number" min={0}
-            value={'tage' in blatt ? blatt.tage : 0}
-            onChange={e => onChange({ ...blatt, tage: Number(e.target.value) || 0 } as Bedingung)}
-            className="text-[12px] rounded px-1.5 py-0.5 bg-[var(--tf-bg)] text-[var(--tf-text)] w-[72px] text-right"
-            style={feldStil}
-            aria-label="Tage"
-          />
-          Tage
-        </span>
-      )}
-
-      {zeigeVergleichsfeld && (
-        <select
-          value={'vergleichFeldId' in blatt ? blatt.vergleichFeldId : ''}
-          onChange={e => onChange({ ...blatt, vergleichFeldId: e.target.value } as Bedingung)}
-          className={`${selectKlasse} max-w-[240px]`}
-          style={feldStil}
-          aria-label="Vergleichsfeld"
-        >
-          {'vergleichFeldId' in blatt && !spalten.some(s => s.feldId === blatt.vergleichFeldId) && (
-            <option value={blatt.vergleichFeldId}>{blatt.vergleichFeldId} (nicht gemappt)</option>
-          )}
-          {spalten.map(s => (
-            <option key={s.feldId} value={s.feldId}>
-              {s.label === s.feldId ? s.feldId : `${s.label} · ${s.feldId}`}
-            </option>
-          ))}
-        </select>
-      )}
-
-      {zeigeVarianten && (
-        <span className="flex items-center gap-1">
-          {VARIANTEN_WAHL.map(([nr, label]) => {
-            const gewaehlt = 'varianten' in blatt && blatt.varianten.includes(nr);
-            return (
-              <button
-                key={nr} type="button" aria-pressed={gewaehlt} title={`Fördervariante ${nr}`}
-                onClick={() => {
-                  const bisher = 'varianten' in blatt ? blatt.varianten : [];
-                  const next = gewaehlt ? bisher.filter(v => v !== nr) : [...bisher, nr].sort((a, b) => a - b);
-                  onChange({ ...blatt, varianten: next } as Bedingung);
-                }}
-                className={`text-[11px] leading-none rounded px-1.5 py-0.5 cursor-pointer ${
-                  gewaehlt ? 'text-white' : 'text-[var(--tf-text-tertiary)]'}`}
-                style={gewaehlt ? { background: 'var(--tf-primary)' } : feldStil}
-              >
-                {label}
-              </button>
-            );
-          })}
-        </span>
-      )}
-
-      <button
-        type="button"
-        onClick={onEntfernen}
-        aria-label="Bedingung entfernen"
-        title="Bedingung entfernen"
-        className="p-1 rounded text-[var(--tf-text-tertiary)] hover:text-[var(--tf-danger-text)] cursor-pointer"
-      >
-        <X size={13} />
-      </button>
-    </div>
-      {monita.map(m => (
-        <p key={m} className="text-[11.5px] text-[var(--tf-danger-text)] pl-0.5">{m}</p>
-      ))}
-    </div>
-  );
-}
-
-export function BedingungEditor({ bedingung, spalten, pruefeFeld, onChange, tiefe = 0 }: {
+export function BedingungEditor({ bedingung, spalten, pruefeFeld, vorschlaege, onChange }: {
   bedingung: Bedingung;
   spalten: SpaltenEintrag[];
   /** Ohne diese Prop verhält sich der Editor wie vor v2.386 (Meilensteine). */
   pruefeFeld?: FeldPruefung;
+  /**
+   * Angeheftete Feld-Kandidaten für den Wähler. Der Editor weiß nicht, woher
+   * sie kommen — die Meilensteine leiten sie aus der Bezeichnung ab, andere
+   * Aufrufer reichen nichts herein.
+   */
+  vorschlaege?: readonly FeldWaehlerVorschlag[];
   onChange: (b: Bedingung) => void;
-  tiefe?: number;
 }): React.ReactElement {
-  const gruppe = alsGruppe(bedingung);
-  const kinder = kinderVon(gruppe);
+  // Ein Blatt als Wurzel wird angehoben, damit immer eine Verknüpfung sichtbar
+  // ist. Der Aufrufer bekommt danach ebenfalls eine Gruppe zurück.
+  const wurzel: Bedingung = alsBedingungsGruppe(bedingung);
+  const [gezogen, setGezogen] = useState<BedingungsPfad | null>(null);
+  const [ziel, setZiel] = useState<DropZiel | null>(null);
+
+  const beendeZug = (): void => { setGezogen(null); setZiel(null); };
+
+  const ablegen = (): void => {
+    if (gezogen && ziel && darfBedingungVerschieben(wurzel, gezogen, ziel.elternPfad)) {
+      onChange(verschiebeBedingung(wurzel, gezogen, ziel.elternPfad, ziel.index));
+    }
+    beendeZug();
+  };
+
+  return (
+    // Die Drag-Ereignisse enden hier: ein Meilenstein-Baum kann darüber liegen.
+    <div
+      onDragOver={e => { if (gezogen) e.stopPropagation(); }}
+      onDrop={e => { if (gezogen) e.stopPropagation(); }}
+      onDragEnd={beendeZug}
+    >
+      <Gruppe
+        wurzel={wurzel}
+        pfad={[]}
+        spalten={spalten}
+        pruefeFeld={pruefeFeld}
+        vorschlaege={vorschlaege}
+        onWurzel={onChange}
+        gezogen={gezogen}
+        ziel={ziel}
+        setGezogen={setGezogen}
+        setZiel={setZiel}
+        onAblegen={ablegen}
+      />
+    </div>
+  );
+}
+
+interface BaumProps {
+  wurzel: Bedingung;
+  pfad: BedingungsPfad;
+  spalten: SpaltenEintrag[];
+  pruefeFeld?: FeldPruefung;
+  vorschlaege?: readonly FeldWaehlerVorschlag[];
+  onWurzel: (b: Bedingung) => void;
+  gezogen: BedingungsPfad | null;
+  ziel: DropZiel | null;
+  setGezogen: (p: BedingungsPfad | null) => void;
+  setZiel: (z: DropZiel | null) => void;
+  onAblegen: () => void;
+}
+
+/**
+ * Die Einfüge-Marke zwischen zwei Geschwistern. Zeilen selbst sind **keine**
+ * Drop-Ziele: „auf die Zeile" wäre zwischen „davor" und „hinein" nicht zu
+ * unterscheiden, und die Regel bekäme beim Loslassen eine andere Bedeutung, als
+ * die Geste zeigte. In eine Gruppe hinein führt deren eigene Marke.
+ */
+function Marke({ elternPfad, index, aktiv, erlaubt, setZiel, onAblegen }: {
+  elternPfad: BedingungsPfad;
+  index: number;
+  aktiv: boolean;
+  erlaubt: boolean;
+  setZiel: (z: DropZiel | null) => void;
+  onAblegen: () => void;
+}): React.ReactElement {
+  return (
+    <div
+      onDragOver={e => {
+        if (!erlaubt) return;
+        e.preventDefault();
+        e.stopPropagation();
+        setZiel({ elternPfad, index });
+      }}
+      onDrop={e => { if (!erlaubt) return; e.preventDefault(); e.stopPropagation(); onAblegen(); }}
+      aria-hidden
+      className="h-[5px] -my-[2px] rounded-full"
+      style={aktiv ? { background: 'var(--tf-primary)' } : undefined}
+    />
+  );
+}
+
+function Gruppe(p: BaumProps): React.ReactElement {
+  const {
+    wurzel, pfad, spalten, pruefeFeld, vorschlaege, onWurzel,
+    gezogen, ziel, setGezogen, setZiel, onAblegen,
+  } = p;
+  const knoten = holeBedingungAn(wurzel, pfad);
+  if (!knoten || !istBedingungsGruppe(knoten)) return <></>;
+  const gruppe: BedingungsGruppe = knoten;
+  const kinder = gruppenKinder(gruppe);
   const istUnd = 'alle' in gruppe;
-
-  const setzeKind = (i: number, b: Bedingung): void =>
-    onChange(mitKindern(gruppe, kinder.map((k, j) => (j === i ? b : k))));
-  const entferneKind = (i: number): void =>
-    onChange(mitKindern(gruppe, kinder.filter((_, j) => j !== i)));
-
+  const tiefe = pfad.length;
+  const istWurzel = tiefe === 0;
   const ersteSpalte = spalten[0]?.feldId ?? 'status';
+  const darfTiefer = tiefe < MAX_TIEFE;
+
+  const setzeGruppe = (g: Bedingung): void => onWurzel(ersetzeBedingungAn(wurzel, pfad, g));
+  const ergaenzeKind = (kind: Bedingung): void =>
+    onWurzel(fuegeBedingungEin(wurzel, pfad, kinder.length, kind));
+
+  /** Darf hier abgelegt werden? Nicht in den eigenen Teilbaum. */
+  const dropErlaubt = !!gezogen && darfBedingungVerschieben(wurzel, gezogen, pfad);
+
+  const marke = (index: number): React.ReactElement => (
+    <Marke
+      elternPfad={pfad} index={index}
+      aktiv={!!ziel && ziel.index === index && gleich(ziel.elternPfad, pfad)}
+      erlaubt={dropErlaubt}
+      setZiel={setZiel} onAblegen={onAblegen}
+    />
+  );
 
   return (
     <div
-      className="flex flex-col gap-1 rounded px-2 py-1.5"
-      style={tiefe > 0 ? feldStil : { background: 'var(--tf-bg)' }}
+      className="flex flex-col gap-1 rounded px-2 py-1"
+      style={istWurzel ? { background: 'var(--tf-bg)' } : feldStil}
     >
       <div className="flex items-center gap-1">
         <select
           value={istUnd ? 'alle' : 'einige'}
-          onChange={e => onChange(e.target.value === 'alle' ? { alle: kinder } : { einige: kinder })}
-          className={selectKlasse}
+          onChange={e => setzeGruppe(e.target.value === 'alle' ? { alle: kinder } : { einige: kinder })}
+          className="text-[12px] rounded px-1.5 py-0.5 bg-[var(--tf-bg)] text-[var(--tf-text)] cursor-pointer"
           style={feldStil}
           aria-label="Verknüpfung"
         >
           <option value="alle">ALLE müssen zutreffen</option>
           <option value="einige">EINE genügt</option>
         </select>
+
+        {/* Der Gruppen-Knopf steht OBEN, neben der Verknüpfung, auf die er sich
+            bezieht. Unten in der eingerückten Liste las er sich als
+            „Untergruppe" — dabei legt er eine Gruppe auf DIESER Ebene an. */}
+        {darfTiefer && (
+          <Button
+            variant="ghost" size="xs" icon={Plus}
+            title="Gruppe auf dieser Ebene — sie liegt neben den Bedingungen, nicht darin"
+            onClick={() => ergaenzeKind({ einige: [] })}
+          >
+            Gruppe
+          </Button>
+        )}
+        {!darfTiefer && (
+          <span
+            className="text-[11px] text-[var(--tf-text-tertiary)]"
+            title={`Ab ${MAX_TIEFE} Ebenen ist die Einrückung breiter als der Bereich — die Regel wäre nicht mehr zu lesen.`}
+          >
+            tiefste Ebene
+          </span>
+        )}
+
         {kinder.length === 0 && (
           <span className="text-[11.5px] text-[var(--tf-text-tertiary)]">
             {istUnd
@@ -319,53 +231,71 @@ export function BedingungEditor({ bedingung, spalten, pruefeFeld, onChange, tief
         )}
       </div>
 
-      <div className="flex flex-col gap-1 pl-2.5 border-l border-[var(--tf-border)]">
-        {kinder.map((kind, i) => (
-          <div key={i}>
-            {istGruppe(kind) ? (
-              <div className="flex items-start gap-1">
-                <div className="flex-1 min-w-0">
-                  <BedingungEditor
-                    bedingung={kind} spalten={spalten} tiefe={tiefe + 1}
-                    pruefeFeld={pruefeFeld}
-                    onChange={b => setzeKind(i, b)}
-                  />
+      <div className="flex flex-col pl-2.5 border-l border-[var(--tf-border)]">
+        {marke(0)}
+        {kinder.map((kind, i) => {
+          const kindPfad = [...pfad, i];
+          const aktionen = (
+            <ZeilenAktionen
+              was={istBedingungsGruppe(kind) ? 'Gruppe' : 'Bedingung'}
+              griffProps={{
+                draggable: true,
+                onDragStart: e => {
+                  e.stopPropagation();
+                  // Der gezogene Knoten steht im Zustand, NICHT im `dataTransfer`:
+                  // der Zug bleibt in diesem Editor, und was ihn verlässt, ist
+                  // kein Bedingungs-Pfad. Zugleich bleibt damit das Ablegen einer
+                  // Datei aus dem Betriebssystem wirkungslos (`gezogen` ist dann
+                  // `null`, und ohne `preventDefault` gibt es kein Drop).
+                  setGezogen(kindPfad);
+                },
+              }}
+              kannHoch={i > 0}
+              kannRunter={i < kinder.length - 1}
+              kannEinruecken={darfBedingungEinruecken(wurzel, kindPfad) && darfTiefer}
+              einrueckenGrund={darfTiefer
+                ? 'Nur möglich, wenn direkt darüber eine Gruppe steht — sonst entstünde eine Gruppe, die niemand gewählt hat.'
+                : 'Die tiefste Ebene ist erreicht.'}
+              kannAusruecken={darfBedingungAusruecken(kindPfad)}
+              onHoch={() => onWurzel(verschiebeBedingungsGeschwister(wurzel, kindPfad, 'hoch'))}
+              onRunter={() => onWurzel(verschiebeBedingungsGeschwister(wurzel, kindPfad, 'runter'))}
+              onEinruecken={() => onWurzel(rueckeBedingungEin(wurzel, kindPfad))}
+              onAusruecken={() => onWurzel(rueckeBedingungAus(wurzel, kindPfad))}
+              onEntfernen={() => onWurzel(entferneBedingungAn(wurzel, kindPfad))}
+            />
+          );
+          const wirdGezogen = !!gezogen && gleich(gezogen, kindPfad);
+          return (
+            <div key={i} style={wirdGezogen ? { outline: '1px dashed var(--tf-border-hover)' } : undefined}>
+              {istBedingungsGruppe(kind) ? (
+                <div className="flex items-start gap-1">
+                  <div className="flex-1 min-w-0">
+                    <Gruppe {...p} pfad={kindPfad} />
+                  </div>
+                  <span className="pt-1.5">{aktionen}</span>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => entferneKind(i)}
-                  aria-label="Gruppe entfernen"
-                  title="Gruppe entfernen"
-                  className="p-1 mt-1 rounded text-[var(--tf-text-tertiary)] hover:text-[var(--tf-danger-text)] cursor-pointer"
-                >
-                  <X size={13} />
-                </button>
-              </div>
-            ) : (
-              <BlattZeile
-                blatt={kind} spalten={spalten} pruefeFeld={pruefeFeld}
-                onChange={b => setzeKind(i, b)}
-                onEntfernen={() => entferneKind(i)}
-              />
-            )}
-          </div>
-        ))}
+              ) : (
+                <BlattZeile
+                  blatt={kind as Blatt}
+                  spalten={spalten}
+                  pruefeFeld={pruefeFeld}
+                  vorschlaege={vorschlaege}
+                  onChange={b => onWurzel(ersetzeBedingungAn(wurzel, kindPfad, b))}
+                  aktionen={aktionen}
+                />
+              )}
+              {marke(i + 1)}
+            </div>
+          );
+        })}
 
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 pt-0.5">
           <Button
             variant="ghost" size="xs" icon={Plus}
-            onClick={() => onChange(mitKindern(gruppe, [...kinder, { feldId: ersteSpalte, op: 'gefuellt' }]))}
+            onClick={() => ergaenzeKind({ feldId: ersteSpalte, op: 'gefuellt' })}
           >
             Bedingung
           </Button>
-          {tiefe < 2 && (
-            <Button
-              variant="ghost" size="xs" icon={Plus}
-              onClick={() => onChange(mitKindern(gruppe, [...kinder, { einige: [] }]))}
-            >
-              Gruppe
-            </Button>
-          )}
         </div>
       </div>
     </div>

@@ -17,6 +17,7 @@ import { getCanonicalStatusEntries } from '@/core/utils/status-canonical';
 
 export {
   baueSpaltenKatalog,
+  einzeiligesLabel,
   type SpaltenEintrag,
   type SpaltenTyp,
 } from '@/core/services/csv/spalten-inventar';

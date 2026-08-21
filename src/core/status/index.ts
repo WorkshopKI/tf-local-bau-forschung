@@ -54,7 +54,14 @@ export {
   baueKontext, pruefeBedingung, bedingungIstLeer, bedingungFeldRefs, referenzierbareFelder,
   type BedingungsKontext,
 } from './bedingung';
-export { bedingungAlsText, bedingungSatz } from './bedingung-text';
+export { bedingungAlsText, bedingungSatz, type FeldLabelQuelle } from './bedingung-text';
+export {
+  alsBedingungsGruppe, bedingungsTiefe, darfBedingungAusruecken, darfBedingungEinruecken,
+  darfBedingungVerschieben, entferneBedingungAn, ersetzeBedingungAn, fuegeBedingungEin,
+  gruppenKinder, holeBedingungAn, istBedingungsGruppe, mitGruppenKindern, pfadLiegtUnter,
+  rueckeBedingungAus, rueckeBedingungEin, verschiebeBedingung, verschiebeBedingungsGeschwister,
+  type BedingungsGruppe, type BedingungsPfad,
+} from './bedingung-baum';
 export { normKey, loseKey } from './normalisierung';
 // Die Snapshot-SETZER sind bewusst NICHT hier: sie haben genau einen Aufrufer
 // (`snapshot.ts`), und was das Barrel anbietet, wird irgendwann benutzt.

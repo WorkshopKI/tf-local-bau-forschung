@@ -237,9 +237,61 @@ zeichengenau: `ATh` traf, `ATH` nicht — bei 81 gemischt geschriebenen Kürzeln
 
 Der **Bedingungs-Editor**
 ([BedingungEditor.tsx](../../src/plugins/meilensteine/BedingungEditor.tsx)) ist
-domänenfrei gegenüber den Meilensteinen — er kennt nur `Bedingung` und kann
-später den bis heute read-only `RegelnTab` des Status-Cockpits ohne Fork
-übernehmen.
+domänenfrei gegenüber den Meilensteinen — er kennt nur `Bedingung` und bedient
+deshalb auch die To-do-Regeln des Status-Cockpits und den Dialog „Eigene Spalte".
+
+### Der Bedingungs-Bereich (v5.2)
+
+Vier Änderungen an derselben Beobachtung: der Bereich war vollständig, aber nicht
+zu bedienen.
+
+- **Ein Feld wird gewählt, nicht gesucht.** Das nackte `<select>` ist dem
+  geteilten [FeldWaehler](../../src/components/ui/FeldWaehler.tsx) gewichen:
+  Suche über Kürzel, Beschreibung und rohen Spalten-Code, sortierbare Köpfe
+  (Kürzel · Beschreibung · Programm-Deckung, dritter Klick zurück in die
+  Katalog-Reihenfolge), Filter-Chips für Typ und Herkunft, Tastatur ↑/↓/Enter.
+  Er sitzt im `BedingungEditor` und wirkt damit an **allen drei** Aufrufern,
+  zusätzlich am „Ist-Termin aus Feld" (`nurTyp: 'datum'`). Die
+  Deckungs-Spalte blendet sich aus, wo der Vorrat synthetisch ist (To-do-Regeln)
+  — eine leere Spalte behauptete sonst eine Zahl, die es nicht gibt.
+- **Vorschläge aus Bezeichnung + Schema**
+  ([feld-vorschlag.ts](../../src/core/meilensteine/feld-vorschlag.ts), rein):
+  Token-Abgleich gegen Spalten-Label, `feldId` und `quellCodes`, plus eine
+  benannte Synonym-Tabelle für das, was der Spaltenname nicht hergibt
+  („zugewiesen" → `tib_kuerz`). **Kein Zugriff auf Antrags-Daten** — der Plan
+  wird bearbeitet, bevor ein Bestand geladen ist. Zwei Filter halten den
+  Vorschlag ehrlich: Benennungs-Felder (Titel, Kennzeichen, ausführende Stelle)
+  scheiden aus, weil sie ab Tag eins gefüllt sind, und Wörter, die jeden
+  Meilenstein betreffen („Antrag"), zählen nicht. Trifft nichts, steht nichts da.
+  Ein Meilenstein ohne Bedingung bekommt die Zeile „Vorschlag … [Übernehmen]" —
+  ein Klick, nie automatisch.
+- **Die Hierarchie ist nachträglich änderbar.** Jede Zeile — Blatt wie Gruppe —
+  trägt Griff, ↑, ↓, Aus-/Einrücken und ✕
+  ([ZeilenAktionen.tsx](../../src/plugins/meilensteine/ZeilenAktionen.tsx)); der
+  Umbau selbst rechnet in der reinen
+  [bedingung-baum.ts](../../src/core/status/bedingung-baum.ts) über
+  Kind-Index-Pfade (`Bedingung` kennt keine Ids). **Eingerückt wird nur in eine
+  Gruppe, die schon dasteht** — Vorgänger und Knoten stillschweigend in eine neu
+  erfundene Gruppe zu stecken, änderte die Aussage der Regel, ohne dass jemand
+  eine Verknüpfung gewählt hätte. Der „+ Gruppe"-Knopf steht jetzt **oben neben
+  der Verknüpfung**, auf die er sich bezieht; unten in der eingerückten Liste las
+  er sich als „Untergruppe". Die alte Grenze `tiefe < 2` ist weg, der Deckel
+  liegt bei 6 Ebenen und sagt sich an.
+- **Gezogen wird ohne `TfTree`.** Er wäre die architekturtreue Wahl, liefe hier
+  aber INNERHALB des `body`-Slots des äußeren Meilenstein-`TfTree` — zwei
+  Drag-Instanzen im selben Ereignispfad. Stattdessen native Drag-Ereignisse, an
+  der Wurzel des Editors gestoppt, mit dem gezogenen Pfad im **Zustand** statt im
+  `dataTransfer`: der Zug verlässt diesen Editor nicht, und eine aus dem
+  Betriebssystem gezogene Datei bleibt wirkungslos. Abgelegt wird auf
+  Einfüge-Marken **zwischen** Zeilen, nie auf einer Zeile — „davor" und „hinein"
+  wären sonst nicht zu unterscheiden.
+
+Die zugeklappte Zeile fasst außerdem zusammen, **woran** ein Meilenstein hängt
+(Bedingung in Kurzform über den EINEN Formatierer `bedingungSatz`, Typ-Beschränkung,
+Ist-Termin-Feld, Zahl der Unter-Meilensteine). Der Formatierer nimmt dafür seit
+v5.2 wahlweise eine Katalog-Fassung **oder** einen Namens-Auflöser
+(`FeldLabelQuelle`) — der Meilenstein-Plan hat keine Fassung, und ein zweiter
+Formatierer liefe beim ersten neuen Operator still auseinander.
 
 ### Der Baum-Editor (v4.4)
 
