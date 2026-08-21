@@ -22,15 +22,12 @@
 ## v6.5 — 2026-08
 
 ### Verbesserungen
+- **Beim Einrichten der internen KI gibt es nur noch einen Weg**: das Lesezeichen in die Lesezeichenleiste ziehen. Der „Kopieren"-Knopf daneben sah aus wie eine zweite, gleichwertige Möglichkeit und hat mehr gestiftet als geholfen.
 - **„Status & Verlauf" ist schlanker geworden.** Zeitraum, zurückgenommene Termine und fehlende Kürzel-Angaben stehen jetzt direkt in der Überschrift — auch wenn der Bereich zugeklappt ist. Ein Klick auf die roten fehlenden Angaben klappt auf und zeigt gleich nur diese Zeilen.
 - **Wie groß der Verlauf ist**, sagt das ⓘ neben dem Status: „17 Schritte · 39 Datumsangaben".
 - **Der Chip „Alle" zeigt seine Anzahl**, damit die Zahlen der Reihe aufgehen.
 - **Der Umschalter heißt „nach Datum | nach Phase"** — der Normalfall steht links, und beide Namen sagen, was links in der Randspalte steht.
 - **Beide Ansichten sehen jetzt gleich aus**: gleiche Zeilenhöhe, gleiche Spalten. Beim Umschalten wechselt die Ordnung, nicht das ganze Bild.
-### Verbesserungen
-<!-- - … -->
-### Bugfixes
-<!-- - … -->
 
 ## v6.4 — 2026-08
 

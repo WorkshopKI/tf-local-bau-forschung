@@ -12,13 +12,12 @@
  * pro KI-Tab einmal anklicken, nach jedem Neuladen erneut.
  */
 import { useCallback, useEffect, useState } from 'react';
-import { AlertTriangle, Bookmark, Check, Copy, ExternalLink, GripVertical } from 'lucide-react';
+import { AlertTriangle, Bookmark, ExternalLink, GripVertical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
-import { useKopierAktion } from '@/core/hooks/useKopierAktion';
 import { BRIDGE_BOOKMARKLET, BRIDGE_BOOKMARK_NAME, istBookmarkletVeraltet } from '@/core/services/ai/streamlit-bridge/snippet';
 import { useBridgeStatus } from '@/core/services/ai/bridge-status';
 import { connectInternalKi } from '@/core/services/ai/connect-ki';
@@ -72,11 +71,6 @@ export function VerbindungGruppe({
   const setzeBookmarkletHref = useCallback((el: HTMLAnchorElement | null) => {
     if (el) el.setAttribute('href', BRIDGE_BOOKMARKLET);
   }, []);
-
-  // Rueckfallebene zum Ziehen: in verwaltetem Chrome/Citrix ist das Ablegen in
-  // der Lesezeichenleiste unzuverlaessig, und dieser eine Schritt schaltet den
-  // gesamten KI-Zugang frei.
-  const kopieren = useKopierAktion(BRIDGE_BOOKMARKLET, 'Lesezeichen-Adresse in die Zwischenablage kopieren');
 
   const speichern = useAsyncAction(async () => {
     const neueUrl = entwurf.trim() || 'https://gpt.vdivde-it.de/';
@@ -210,28 +204,11 @@ export function VerbindungGruppe({
             <span className="text-[11.5px] text-[var(--tf-text-tertiary)]">
               In die Lesezeichenleiste ziehen (nicht anklicken)
             </span>
-            <Button
-              variant="ghost"
-              size="sm"
-              icon={kopieren.fehler ? AlertTriangle : kopieren.kopiert ? Check : Copy}
-              onClick={() => kopieren.run()}
-              disabled={kopieren.busy}
-              title={kopieren.titel}
-            >
-              {kopieren.kopiert ? 'Kopiert' : 'Kopieren'}
-            </Button>
           </div>
-          {kopieren.fehler && (
-            <p className="text-[12px] text-[var(--tf-danger-text)] -mt-1 mb-3">
-              Kopieren fehlgeschlagen: {kopieren.fehler}
-            </p>
-          )}
           <ol className="text-[12px] leading-[1.6] text-[var(--tf-text-secondary)] list-decimal pl-5 space-y-1">
             <li>Adresse der internen KI eintragen und <strong className="font-medium text-[var(--tf-text)]">Speichern</strong>.</li>
             <li>
               Das ziehbare Lesezeichen einmalig in die Lesezeichenleiste <strong className="font-medium text-[var(--tf-text)]">ziehen</strong> (nicht anklicken).
-              {' '}Klappt das Ablegen nicht (in verwaltetem Chrome kommt das vor): <strong className="font-medium text-[var(--tf-text)]">Kopieren</strong> drücken,
-              in der Leiste ein beliebiges Lesezeichen mit der rechten Maustaste <em>Bearbeiten</em>, als Adresse einfügen und „{BRIDGE_BOOKMARK_NAME}" als Namen setzen.
             </li>
             <li><strong className="font-medium text-[var(--tf-text)]">Interne KI öffnen</strong> klicken — der Tab muss <em>aus der App</em> geöffnet werden.</li>
             <li>Im KI-Tab das Lesezeichen anklicken; unten rechts erscheint eine Status-Pille, die auf grün „Verbunden" ruht.</li>

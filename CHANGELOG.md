@@ -5,6 +5,14 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v6.5.1 — Das Lesezeichen wird gezogen, sonst nichts (August 2026)
+
+PATCH — Neben dem ziehbaren Lesezeichen stand ein „Kopieren"-Knopf als Rückfallebene für verwaltetes Chrome. Direkt daneben las er sich wie ein gleichwertiger zweiter Weg und verwirrte mehr, als er half. Ziehen ist der Weg. Detail: [ki-bridge.md](docs/architecture/ki-bridge.md).
+
+- **Der „Kopieren"-Knopf am Bridge-Lesezeichen entfällt** samt Fehlerzeile und `useKopierAktion`-Bindung ([VerbindungGruppe.tsx](src/plugins/einstellungen/ki/VerbindungGruppe.tsx))
+- **Schritt 2 der Einrichtung endet nach „ziehen (nicht anklicken)"** — der Rückfall-Satz (Lesezeichen bearbeiten, Adresse einfügen) fällt mit; weiterhin fünf Schritte
+- **Docs auf den Ist-Zustand**: ein Weg statt zwei ([ki-bridge.md](docs/architecture/ki-bridge.md), [einstellungen.md](docs/feedback-kontext/einstellungen.md))
+
 ### v6.5.0 — Status & Verlauf: Kopfzeile entschlackt, beide Ordnungen im selben Raster (August 2026)
 
 MINOR — Vier Zeilen standen über dem Verlauf, bevor er begann, und die Kennzahlen nannten Zahlen, die eine Zeile tiefer ohnehin an den Filter-Chips stehen. Dazu sahen die beiden Ordnungen derselben Termine verschieden aus: 22 px gegen ~35 px Zeilenhöhe, und der Ereignistext sprang beim Umschalten um gut 100 px. Detail: [chronik-und-zeitstrahl.md](docs/status-system/chronik-und-zeitstrahl.md).
