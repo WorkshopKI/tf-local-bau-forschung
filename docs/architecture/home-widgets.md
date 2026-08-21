@@ -131,9 +131,16 @@ die nicht, liest sich die Karte daneben als Widerspruch.
   (gemessen 6 px). `clip` schneidet genauso ab und ist keiner.
 - **Eine waagerechte Trennlinie zwischen Verbünden** gibt dem Auge Halt. Sie
   steht unter der **letzten** Zeile eines Verbunds — nicht hinter der letzten
-  sichtbaren, dort trennte sie nichts mehr. In `--tf-border-thin` (0,5 px) und
-  absolut positioniert **neben dem Fluss**, nicht als Rahmen: sonst wären
-  15 Gruppen 15 px höher. Gruppe ist `verbund_id`, ersatzweise das Aktenzeichen;
+  sichtbaren, dort trennte sie nichts mehr. Sie trägt **dieselbe Deklaration wie
+  die dichte Listenzeile** in „Meine Anträge" — `--tf-border-thin` (0,5 px) in
+  `TRENNLINIE_GEDAEMPFT` ([ListItem](../../src/components/ui/ListItem.tsx),
+  `--tf-border` auf 45 % per `color-mix`, dark-aware). Sie ist eine **Kante**,
+  kein 0,5 px hoher Kasten: einen Kasten dieser Höhe malt der Browser
+  halbdeckend, eine Kante rundet er auf ein Gerätepixel — nachgebaut sahen die
+  beiden Karten auf derselben Seite verschieden aus (gemessen: beide jetzt
+  `1px` / `rgb(0 0 0 / 0.035)`). Absolut positioniert **neben dem Fluss**, nicht
+  als Rahmen der Zeile: sonst wären 15 Gruppen 15 px höher (Zeile bleibt
+  16,00 px). Gruppe ist `verbund_id`, ersatzweise das Aktenzeichen;
   sie greift auf **aufeinanderfolgende** Zeilen und ändert die Sortierung nicht.
 - **15 px Luft zwischen Bezeichnung und Zahl** als Innenabstand der ersten
   Spalte, nicht als größerer `column-gap`: der gälte für alle drei Fugen und

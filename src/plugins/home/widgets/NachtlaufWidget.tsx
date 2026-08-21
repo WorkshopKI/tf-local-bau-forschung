@@ -43,6 +43,7 @@
  * ergänzt es mit `sichtbar: false`. Wer es sehen will, schaltet es ein.
  */
 import { useEffect, useMemo, useState } from 'react';
+import { TRENNLINIE_GEDAEMPFT } from '@/components/ui/ListItem';
 import { Tooltip } from '@/components/ui/Tooltip';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useNavigation } from '@/core/hooks/useNavigation';
@@ -510,12 +511,16 @@ function ZeileView({ zeile, aufloesung, vbPhase, trennlinie, onOeffnen }: {
       {/* Die Trennlinie kostet keine Zeilenhöhe: sie liegt als Streifen NEBEN
           dem Fluss auf der Unterkante, statt als Rahmen die Zeile um ein Pixel
           wachsen zu lassen. Sonst wären 15 Gruppen 15 px höher.
-          `--tf-border-thin` (0,5 px) ist die Haarlinien-Stärke des Themes — sie
-          soll gliedern, nicht auffallen. */}
+          Sie ist eine KANTE, kein 0,5 px hoher Kasten: dieselbe Deklaration wie
+          die dichte Listenzeile in „Meine Anträge" (0,5 px, `--tf-border` auf
+          45 % gedämpft). Ein Kasten dieser Höhe wird halbdeckend gemalt, eine
+          Kante rundet der Browser auf ein Gerätepixel — nachgebaut sahen die
+          zwei Karten auf derselben Seite verschieden aus. */}
       {trennlinie && (
         <span
           aria-hidden="true"
-          className="pointer-events-none absolute inset-x-0 bottom-0 h-[var(--tf-border-thin)] bg-[var(--tf-border)]"
+          style={{ borderBottom: `var(--tf-border-thin) solid ${TRENNLINIE_GEDAEMPFT}` }}
+          className="pointer-events-none absolute inset-x-0 bottom-0"
         />
       )}
       <button

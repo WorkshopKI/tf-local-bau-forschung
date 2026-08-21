@@ -1,3 +1,15 @@
+/**
+ * Trennlinie der DICHTEN Listenzeile — `--tf-border` auf 45 % gedaempft.
+ *
+ * Steht hier als Konstante, weil sie inzwischen zwei Zeilen-Arten traegt: die
+ * dichte `ListItem`-Zeile (Startseite „Meine Antraege") und den Verbund-Trenner
+ * im Nachtlauf-Widget. Beide sollen gleich leise gliedern; eine zweite,
+ * abgeschriebene Prozentzahl waere beim naechsten Feinschliff auseinander
+ * gelaufen. `color-mix` statt einer festen rgba-Angabe, sonst waere die Linie
+ * im Dunkelmodus unsichtbar.
+ */
+export const TRENNLINIE_GEDAEMPFT = 'color-mix(in srgb, var(--tf-border) 45%, transparent)';
+
 interface ListItemProps {
   title: string | React.ReactNode;
   subtitle?: string;
@@ -74,11 +86,7 @@ export function ListItem({
   const eng = dicht && !isInline;
   const pad = isInline ? 'px-4 py-2.5' : (eng ? 'py-1.5' : 'py-3');
   const gap = eng ? 'gap-2.5' : 'gap-3';
-  // Gedaempfte Trennlinie ueber `color-mix` statt einer festen rgba-Angabe:
-  // eine hart notierte Schwarz-Transparenz waere im Dunkelmodus unsichtbar.
-  const trennFarbe = eng
-    ? 'color-mix(in srgb, var(--tf-border) 45%, transparent)'
-    : 'var(--tf-border)';
+  const trennFarbe = eng ? TRENNLINIE_GEDAEMPFT : 'var(--tf-border)';
   const hover = onClick
     ? (isInline ? 'cursor-pointer hover:bg-[var(--tf-bg-secondary)]' : 'cursor-pointer hover:opacity-70')
     : '';
