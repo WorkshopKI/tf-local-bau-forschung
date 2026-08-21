@@ -5,6 +5,14 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v6.5.2 — Nachtlauf-Widget: waagerechte Trennlinie je Verbund, mehr Luft vor der Zahl (August 2026)
+
+PATCH — Die senkrechte Haarlinie aus v6.4.2 band die Zeilen eines Verbunds, trennte aber nicht sichtbar zwischen ihnen; und die Zahl klebte nach dem Verschmälern der Spalte zu dicht am Namen.
+
+- **Waagerechte Trennlinie unter der letzten Zeile eines Verbunds** statt der senkrechten daneben — nicht hinter der letzten sichtbaren Zeile, dort trennt sie nichts ([NachtlaufWidget.tsx](src/plugins/home/widgets/NachtlaufWidget.tsx))
+- **30 px Luft zwischen Bezeichnung und Zahl**, als Innenabstand der ersten Spalte statt als `column-gap` — der gälte für alle Fugen und schöbe die Kürzel von ihrer Zahl weg
+- Zeilenhöhe bleibt 16,00 px: die Linie liegt als 1-px-Streifen neben dem Fluss, ein Rahmen hätte 15 Gruppen um 15 px wachsen lassen
+
 ### v6.5.1 — Das Lesezeichen wird gezogen, sonst nichts (August 2026)
 
 PATCH — Neben dem ziehbaren Lesezeichen stand ein „Kopieren"-Knopf als Rückfallebene für verwaltetes Chrome. Direkt daneben las er sich wie ein gleichwertiger zweiter Weg und verwirrte mehr, als er half. Ziehen ist der Weg. Detail: [ki-bridge.md](docs/architecture/ki-bridge.md).

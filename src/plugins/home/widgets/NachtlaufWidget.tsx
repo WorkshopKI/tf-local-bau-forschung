@@ -100,6 +100,16 @@ const ALLE: BearbeiterFilterMode = { active: false, tokens: [], includeBegleitun
  */
 const RASTER = 'grid-cols-[fit-content(34%)_22px_minmax(0,1fr)_auto] gap-x-1.5';
 
+/**
+ * Luft zwischen Bezeichnung und Zahl — 30 px über die Fuge hinaus.
+ *
+ * Als Innenabstand der Bezeichnungs-Spalte, nicht als größerer `column-gap`:
+ * der gälte für alle drei Fugen gleich und schöbe die Kürzel von ihrer Zahl weg.
+ * Er zählt zur `fit-content`-Breite, eine sehr lange Bezeichnung kürzt also
+ * 30 px früher — das ist der Preis und er ist gewollt.
+ */
+const ZAHL_ABSTAND = 'pr-[30px]';
+
 /** Wie viele Zeilen ein Klick auf die Fußzeile zusätzlich aufdeckt. */
 const SCHRITT = 10;
 
@@ -307,10 +317,10 @@ export function NachtlaufWidget({ instanz, onToggleEingeklappt }: WidgetProps): 
                   zeile={z}
                   aufloesung={aufloesung}
                   vbPhase={index.get(z.antragId)?.vb_phase}
-                  // Die Haarlinie bindet, was zusammengehört: sie läuft über die
-                  // Zeilen EINES Verbunds durch und setzt dazwischen ab.
-                  ersteDerGruppe={verbuende[i] !== verbuende[i - 1]}
-                  letzteDerGruppe={verbuende[i] !== verbuende[i + 1]}
+                  // Die Haarlinie trennt, was nicht zusammengehört: sie steht
+                  // unter der LETZTEN Zeile eines Verbunds — hinter der letzten
+                  // sichtbaren Zeile trennte sie nichts mehr.
+                  trennlinie={verbuende[i] !== verbuende[i + 1] && i < sichtbar.length - 1}
                   onOeffnen={() => navigate('antraege', { selectedId: z.antragId })}
                 />
               ))}
@@ -488,25 +498,24 @@ function SegmentView({ segment, aufloesung, vbPhase }: {
  * den Spans hätte im Button eine Fokusfalle erzeugt; die Vorlesesoftware bekommt
  * stattdessen den ganzen Satz über `aria-label`.
  */
-function ZeileView({ zeile, aufloesung, vbPhase, ersteDerGruppe, letzteDerGruppe, onOeffnen }: {
+function ZeileView({ zeile, aufloesung, vbPhase, trennlinie, onOeffnen }: {
   zeile: NachtlaufZeile;
   aufloesung: SpaltenAufloesung;
   vbPhase: unknown;
-  ersteDerGruppe: boolean;
-  letzteDerGruppe: boolean;
+  trennlinie: boolean;
   onOeffnen: () => void;
 }): React.ReactElement {
   return (
-    <li className={`relative col-span-full grid grid-cols-subgrid`}>
-      {/* Die Haarlinie kostet keine Höhe: sie liegt neben dem Fluss und setzt
-          nur oben/unten je 1 px ab, wo eine Gruppe beginnt bzw. endet. Innerhalb
-          eines Verbunds stoßen die Striche zusammen und lesen sich als EINE
-          Linie — zwischen zwei Verbünden bleiben 2 px Luft. */}
-      <span
-        aria-hidden="true"
-        className="pointer-events-none absolute left-0 w-px bg-[var(--tf-border)]"
-        style={{ top: ersteDerGruppe ? 1 : 0, bottom: letzteDerGruppe ? 1 : 0 }}
-      />
+    <li className="relative col-span-full grid grid-cols-subgrid">
+      {/* Die Trennlinie kostet keine Zeilenhöhe: sie liegt als 1-px-Streifen
+          NEBEN dem Fluss auf der Unterkante, statt als Rahmen die Zeile um ein
+          Pixel wachsen zu lassen. Sonst wären 15 Gruppen 15 px höher. */}
+      {trennlinie && (
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-[var(--tf-border)]"
+        />
+      )}
       <button
         type="button"
         onClick={onOeffnen}
@@ -521,7 +530,7 @@ function ZeileView({ zeile, aufloesung, vbPhase, ersteDerGruppe, letzteDerGruppe
         //     Schriftgrößen (11 / 12 / 10,5 px) und damit 1,6 px höher als das
         //     höchste Element. Ein fester `leading` macht daraus eine Zeile,
         //     deren Höhe man ausrechnen kann.
-        className="col-span-full grid grid-cols-subgrid items-center rounded-[6px] py-0 pl-1.5 pr-1 text-left text-[12px] leading-[16px] hover:bg-[var(--tf-hover)] cursor-pointer"
+        className="col-span-full grid grid-cols-subgrid items-center rounded-[6px] px-1 py-0 text-left text-[12px] leading-[16px] hover:bg-[var(--tf-hover)] cursor-pointer"
       >
         {/* Das Aktenzeichen lief bis v4.135 im Sammel-Tooltip der Zeile mit.
             Der ist weg — verloren gehen darf es nicht, denn das Akronym trägt
@@ -531,10 +540,13 @@ function ZeileView({ zeile, aufloesung, vbPhase, ersteDerGruppe, letzteDerGruppe
             `overflow-clip` statt `truncate`: ein Scroll-Container (`hidden`)
             steuert zur `fit-content`-Rechnung NICHTS bei — die Spalte fiel damit
             auf die Breite der Auslassungspunkte zusammen (gemessen: 6 px).
-            `clip` schneidet genauso ab, ist aber kein Scroll-Container. */}
+            `clip` schneidet genauso ab, ist aber kein Scroll-Container.
+            Der Abstand zur Zahl steht als Innenabstand HIER, nicht als größerer
+            Spalten-Abstand: `column-gap` gilt für alle Fugen gleich, und die
+            Kürzel sollen dicht an ihrer Zahl bleiben. */}
         <Tooltip
           text={`${zeile.antragId} — öffnen`}
-          wrapperClassName="min-w-0 overflow-clip text-ellipsis whitespace-nowrap text-[12px] font-medium text-[var(--tf-text)]"
+          wrapperClassName={`min-w-0 overflow-clip text-ellipsis whitespace-nowrap ${ZAHL_ABSTAND} text-[12px] font-medium text-[var(--tf-text)]`}
         >
           {zeile.label}
         </Tooltip>

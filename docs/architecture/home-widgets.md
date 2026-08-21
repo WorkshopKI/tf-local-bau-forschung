@@ -129,13 +129,18 @@ die nicht, liest sich die Karte daneben als Widerspruch.
   Scroll-Container (`overflow: hidden`) steuert zur `fit-content`-Rechnung nichts
   bei — die Spalte fiel damit auf die Breite der Auslassungspunkte zusammen
   (gemessen 6 px). `clip` schneidet genauso ab und ist keiner.
-- **Eine Haarlinie je Verbund** (v6.2.1) gibt dem Auge Halt über die Leere
-  zwischen Name und Zahl. Sie liegt absolut positioniert **neben dem Fluss** und
-  kostet keine Zeilenhöhe; sie setzt oben bzw. unten je 1 px ab, wo eine Gruppe
-  beginnt oder endet — innerhalb eines Verbunds stoßen die Striche zu einer Linie
-  zusammen, zwischen zwei Verbünden bleiben 2 px Luft. Gruppe ist `verbund_id`,
-  ersatzweise das Aktenzeichen; sie greift auf **aufeinanderfolgende** Zeilen und
-  ändert die Sortierung nicht.
+- **Eine waagerechte Trennlinie zwischen Verbünden** gibt dem Auge Halt. Sie
+  steht unter der **letzten** Zeile eines Verbunds — nicht hinter der letzten
+  sichtbaren, dort trennte sie nichts mehr. Als 1-px-Streifen absolut positioniert
+  **neben dem Fluss**, nicht als Rahmen: sonst wären 15 Gruppen 15 px höher.
+  Gruppe ist `verbund_id`, ersatzweise das Aktenzeichen; sie greift auf
+  **aufeinanderfolgende** Zeilen und ändert die Sortierung nicht.
+- **30 px Luft zwischen Bezeichnung und Zahl** als Innenabstand der ersten
+  Spalte, nicht als größerer `column-gap`: der gälte für alle drei Fugen und
+  schöbe die Kürzel von ihrer Zahl weg. Er zählt zur `fit-content`-Breite — eine
+  sehr lange Bezeichnung kürzt also 30 px früher, und der 34-%-Deckel hält den
+  Textplatz auch im schmalen Kasten proportional (gemessen: 86 px Text bei
+  352 px Kartenbreite).
 - **Die Fußzeile deckt auf** (v6.2): „… und N weitere Vorgänge" zeigt zehn weitere,
   ab 20 gezeigten Zeilen heißt sie „Alle N Vorgänge anzeigen" und deckt den Rest
   auf einen Schlag auf. Daneben steht immer der Rückweg („Weniger anzeigen"), und
