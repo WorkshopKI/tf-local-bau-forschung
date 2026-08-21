@@ -21,6 +21,9 @@
 
 ## v6.4 — 2026-08
 
+### Verbesserungen
+- In „Änderungen der letzten Nacht" steht die Zahl der Änderungen jetzt näher am Namen: Die Namensspalte wird nur so breit wie der längste angezeigte Name. Links läuft eine feine Linie mit, die über die Teilvorhaben **eines Verbunds** durchgeht und dazwischen absetzt — so verliert das Auge die Zeile nicht.
+
 ### Bugfixes
 - Im Tab der internen KI war zuletzt nicht mehr zu sehen, was die App gesendet hat und was zurückkam — der Chat blieb leer, obwohl alles lief. Frage, Antwort und Chatlänge stehen wieder da, und die Antwort wächst beim Schreiben mit.
 - Nach einem Zurücksetzen blieb der alte Verlauf sichtbar stehen, obwohl er schon verworfen war. Jetzt räumt das Zurücksetzen auch die Anzeige.

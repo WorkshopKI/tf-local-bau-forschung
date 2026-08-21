@@ -5,6 +5,14 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v6.4.2 — Nachtlauf-Widget: Zahlenspalte rueckt nach links, Haarlinie je Verbund (August 2026)
+
+PATCH — Die feste 34-%-Spalte ließ die Zahl über 100 px rechts vom Namen allein stehen: Median-Bezeichnung 77 px, Spalte 185 px. Und über der Leere dazwischen fehlte dem Auge jeder Halt.
+
+- **Die Bezeichnungs-Spalte ist so breit wie ihr längster Eintrag**, gedeckelt auf 34 % — `fit-content` + `grid-cols-subgrid`; die Zahl rückt damit 35 px nach links (gemessen, 20 Zeilen) ([NachtlaufWidget.tsx](src/plugins/home/widgets/NachtlaufWidget.tsx))
+- **`overflow-clip` statt `truncate`**: ein Scroll-Container steuert zur `fit-content`-Rechnung nichts bei — die Spalte fiel auf 6 px zusammen; dazu `min-w-0`, sonst hält die Mindestbreite des Textes den Deckel aus
+- **Eine Haarlinie je Verbund** links neben der Zeile: durchgehend über die Zeilen eines Verbunds, 2 px Absatz dazwischen — absolut positioniert, also ohne Zeilenhöhe zu kosten (weiterhin 16,00 px)
+
 ### v6.4.1 — Zuruecksetzen haette die htmx-Bindungen der KI-Seite gekappt (August 2026)
 
 PATCH — Ein Konsolen-Auszug vom Produktivsystem zeigte, worauf `form.resetform` wirklich zielt: `#app` / `innerHTML`, also die **ganze** Oberfläche. Das mit v6.4.0 nachgeholte Einhängen hätte sie damit ohne htmx-Bindungen zurückgelassen — der nächste Modellwechsel wäre stumm in seinen 15-s-Timeout gelaufen. Anker jetzt abgelesen statt angenommen: [ki-bridge.md](docs/architecture/ki-bridge.md).

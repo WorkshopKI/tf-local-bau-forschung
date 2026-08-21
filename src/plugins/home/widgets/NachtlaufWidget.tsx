@@ -88,6 +88,18 @@ function configVon(c: WidgetSpezifischeConfig): NachtlaufWidgetConfig {
 /** „Alle Vorgänge" als Filter-Modus — der Ausschnitt ist damit aus. */
 const ALLE: BearbeiterFilterMode = { active: false, tokens: [], includeBegleitung: false };
 
+/**
+ * Das Spaltenraster der Liste — Bezeichnung, Anzahl, Kürzel, Tilde.
+ *
+ * `fit-content(34%)` statt fester 34 %: die Bezeichnungs-Spalte wird so breit wie
+ * ihr **längster** Eintrag und nicht breiter als ein Drittel. Am echten Bestand
+ * ist der Median 77 px und der längste 170 px — eine feste Spalte ließ die Zahl
+ * bei jeder zweiten Zeile über 100 px Leere allein stehen. Dass alle Zeilen
+ * dieselbe Spaltenbreite bekommen, macht `subgrid`: die Zeile ist ein `<button>`
+ * über die volle Breite und kann deshalb nicht selbst Rasterzeile sein.
+ */
+const RASTER = 'grid-cols-[fit-content(34%)_22px_minmax(0,1fr)_auto] gap-x-1.5';
+
 /** Wie viele Zeilen ein Klick auf die Fußzeile zusätzlich aufdeckt. */
 const SCHRITT = 10;
 
@@ -226,6 +238,9 @@ export function NachtlaufWidget({ instanz, onToggleEingeklappt }: WidgetProps): 
   const basis = Math.max(1, cfg.maxZeilen);
   const grenze = Math.min(zeilen.length, basis + mehr);
   const sichtbar = zeilen.slice(0, grenze);
+  // Der Verbund je gezeigter Zeile. Ohne Verbund steht der Antrag für sich —
+  // dann ist sein Aktenzeichen die Gruppe, und die Linie bindet nur ihn.
+  const verbuende = sichtbar.map(z => index.get(z.antragId)?.verbund_id || z.antragId);
   const rest = zeilen.length - sichtbar.length;
   // Schrittweise, solange die Liste kurz ist; ab 20 Zeilen ist das Abzählen
   // ohnehin vorbei, dann deckt ein Klick den Rest auf.
@@ -285,13 +300,17 @@ export function NachtlaufWidget({ instanz, onToggleEingeklappt }: WidgetProps): 
                 : 'An den erfassten Kürzeln hat sich nichts geändert.'}
             </p>
           ) : (
-            <ul className="flex flex-col">
-              {sichtbar.map(z => (
+            <ul className={`grid ${RASTER}`}>
+              {sichtbar.map((z, i) => (
                 <ZeileView
                   key={z.antragId}
                   zeile={z}
                   aufloesung={aufloesung}
                   vbPhase={index.get(z.antragId)?.vb_phase}
+                  // Die Haarlinie bindet, was zusammengehört: sie läuft über die
+                  // Zeilen EINES Verbunds durch und setzt dazwischen ab.
+                  ersteDerGruppe={verbuende[i] !== verbuende[i - 1]}
+                  letzteDerGruppe={verbuende[i] !== verbuende[i + 1]}
                   onOeffnen={() => navigate('antraege', { selectedId: z.antragId })}
                 />
               ))}
@@ -299,7 +318,7 @@ export function NachtlaufWidget({ instanz, onToggleEingeklappt }: WidgetProps): 
                 // Der Rest war bis v6.2 eine tote Auskunft: er sagte, wie viele
                 // fehlen, und ließ den Leser mit dem Regler in den Einstellungen
                 // allein.
-                <li className="pt-0.5">
+                <li className="col-span-full pt-0.5">
                   <Fusslink
                     onClick={() => setMehr(m => (aufDeckenAlle ? zeilen.length : m + SCHRITT))}
                     text={aufDeckenAlle
@@ -311,7 +330,7 @@ export function NachtlaufWidget({ instanz, onToggleEingeklappt }: WidgetProps): 
               {cfg.fusszeilen && grenze > basis && (
                 // Jeder Einbahn-Zustand braucht seinen Rückweg — sonst bleibt
                 // die Karte für den Rest der Sitzung lang.
-                <li className="pt-0.5">
+                <li className="col-span-full pt-0.5">
                   <Fusslink onClick={() => setMehr(0)} text="Weniger anzeigen" />
                 </li>
               )}
@@ -469,14 +488,25 @@ function SegmentView({ segment, aufloesung, vbPhase }: {
  * den Spans hätte im Button eine Fokusfalle erzeugt; die Vorlesesoftware bekommt
  * stattdessen den ganzen Satz über `aria-label`.
  */
-function ZeileView({ zeile, aufloesung, vbPhase, onOeffnen }: {
+function ZeileView({ zeile, aufloesung, vbPhase, ersteDerGruppe, letzteDerGruppe, onOeffnen }: {
   zeile: NachtlaufZeile;
   aufloesung: SpaltenAufloesung;
   vbPhase: unknown;
+  ersteDerGruppe: boolean;
+  letzteDerGruppe: boolean;
   onOeffnen: () => void;
 }): React.ReactElement {
   return (
-    <li>
+    <li className={`relative col-span-full grid grid-cols-subgrid`}>
+      {/* Die Haarlinie kostet keine Höhe: sie liegt neben dem Fluss und setzt
+          nur oben/unten je 1 px ab, wo eine Gruppe beginnt bzw. endet. Innerhalb
+          eines Verbunds stoßen die Striche zusammen und lesen sich als EINE
+          Linie — zwischen zwei Verbünden bleiben 2 px Luft. */}
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute left-0 w-px bg-[var(--tf-border)]"
+        style={{ top: ersteDerGruppe ? 1 : 0, bottom: letzteDerGruppe ? 1 : 0 }}
+      />
       <button
         type="button"
         onClick={onOeffnen}
@@ -491,23 +521,27 @@ function ZeileView({ zeile, aufloesung, vbPhase, onOeffnen }: {
         //     Schriftgrößen (11 / 12 / 10,5 px) und damit 1,6 px höher als das
         //     höchste Element. Ein fester `leading` macht daraus eine Zeile,
         //     deren Höhe man ausrechnen kann.
-        className="flex w-full items-center gap-1.5 rounded-[6px] px-1 py-0 text-left text-[12px] leading-[16px] hover:bg-[var(--tf-hover)] cursor-pointer"
+        className="col-span-full grid grid-cols-subgrid items-center rounded-[6px] py-0 pl-1.5 pr-1 text-left text-[12px] leading-[16px] hover:bg-[var(--tf-hover)] cursor-pointer"
       >
         {/* Das Aktenzeichen lief bis v4.135 im Sammel-Tooltip der Zeile mit.
             Der ist weg — verloren gehen darf es nicht, denn das Akronym trägt
             es nur dort, wo zwei Teilvorhaben es sich teilen.
-            Feste Breite statt `max-w`: nur so stehen Zahl und Kürzel aller
-            Zeilen in einer Flucht — eine mitwachsende Spalte richtet nichts aus. */}
+            KEINE Breite an der Hülle: die Spaltenbreite bestimmt das Raster
+            (`RASTER`), und eine eigene Breite hier machte die Rechnung zirkulär.
+            `overflow-clip` statt `truncate`: ein Scroll-Container (`hidden`)
+            steuert zur `fit-content`-Rechnung NICHTS bei — die Spalte fiel damit
+            auf die Breite der Auslassungspunkte zusammen (gemessen: 6 px).
+            `clip` schneidet genauso ab, ist aber kein Scroll-Container. */}
         <Tooltip
           text={`${zeile.antragId} — öffnen`}
-          wrapperClassName="w-[34%] shrink-0 truncate text-[12px] font-medium text-[var(--tf-text)]"
+          wrapperClassName="min-w-0 overflow-clip text-ellipsis whitespace-nowrap text-[12px] font-medium text-[var(--tf-text)]"
         >
-          <span className="truncate">{zeile.label}</span>
+          {zeile.label}
         </Tooltip>
-        <span className="w-[22px] shrink-0 text-right font-mono text-[11px] tabular-nums text-[var(--tf-text)]">
+        <span className="text-right font-mono text-[11px] tabular-nums text-[var(--tf-text)]">
           {zeile.anzahl.toLocaleString('de-DE')}
         </span>
-        <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-[var(--tf-text-tertiary)]">
+        <span className="min-w-0 truncate font-mono text-[11px] text-[var(--tf-text-tertiary)]">
           {zeile.segmente.map((s, i) => (
             <span key={s.art}>
               {i > 0 ? ' · ' : ''}
@@ -521,7 +555,7 @@ function ZeileView({ zeile, aufloesung, vbPhase, onOeffnen }: {
             text={'Zeitraum statt Tag: zwischen den beiden verglichenen Exporten lagen mehrere '
               + 'Tage (Wochenende, Ausfall). Der genaue Tag der Änderung ist nicht belegt — der '
               + 'Zeitraum steht im Tooltip des jeweiligen Kürzels.'}
-            wrapperClassName="shrink-0 text-[11px] text-[var(--tf-text-tertiary)]"
+            wrapperClassName="text-[11px] text-[var(--tf-text-tertiary)]"
           >
             <span className={GESTE}>~</span>
           </Tooltip>

@@ -117,9 +117,25 @@ die nicht, liest sich die Karte daneben als Widerspruch.
   fester `leading-[16px]` macht daraus eine berechenbare Zeile. Dazu: die
   `Tooltip`-Hüllen sind eigene Flex-Items und erben die Schriftgröße — steht sie
   nur an den Kindern, bläht eine leere 21,6-px-Zeilenbox die Zeile auf.
-- **Drei Spalten in einer Flucht** (v6.2): Bezeichnung (feste 34 %), Anzahl
-  (22 px, rechtsbündig), Kürzel. Eine mitwachsende `max-w`-Spalte richtet nichts
-  aus — erst die feste Breite stellt Zahl und Kürzel aller Zeilen untereinander.
+- **Drei Spalten in einer Flucht** (v6.2): Bezeichnung, Anzahl (22 px,
+  rechtsbündig), Kürzel. Eine mitwachsende `max-w`-Spalte richtet nichts aus —
+  erst eine Raster-Spalte stellt Zahl und Kürzel aller Zeilen untereinander.
+- **Die Bezeichnungs-Spalte ist so breit wie ihr längster Eintrag** (v6.2.1),
+  nicht feste 34 %: `fit-content(34%)` auf dem `<ul>`, `grid-cols-subgrid` auf
+  `<li>` und `<button>` — die Zeile ist ein Knopf über die volle Breite und kann
+  deshalb nicht selbst Rasterzeile sein. Am echten Bestand ist der Median 77 px
+  und der längste 170 px; feste 34 % ließen die Zahl bei jeder zweiten Zeile über
+  100 px Leere allein stehen. **`overflow-clip` statt `truncate`**: ein
+  Scroll-Container (`overflow: hidden`) steuert zur `fit-content`-Rechnung nichts
+  bei — die Spalte fiel damit auf die Breite der Auslassungspunkte zusammen
+  (gemessen 6 px). `clip` schneidet genauso ab und ist keiner.
+- **Eine Haarlinie je Verbund** (v6.2.1) gibt dem Auge Halt über die Leere
+  zwischen Name und Zahl. Sie liegt absolut positioniert **neben dem Fluss** und
+  kostet keine Zeilenhöhe; sie setzt oben bzw. unten je 1 px ab, wo eine Gruppe
+  beginnt oder endet — innerhalb eines Verbunds stoßen die Striche zu einer Linie
+  zusammen, zwischen zwei Verbünden bleiben 2 px Luft. Gruppe ist `verbund_id`,
+  ersatzweise das Aktenzeichen; sie greift auf **aufeinanderfolgende** Zeilen und
+  ändert die Sortierung nicht.
 - **Die Fußzeile deckt auf** (v6.2): „… und N weitere Vorgänge" zeigt zehn weitere,
   ab 20 gezeigten Zeilen heißt sie „Alle N Vorgänge anzeigen" und deckt den Rest
   auf einen Schlag auf. Daneben steht immer der Rückweg („Weniger anzeigen"), und
