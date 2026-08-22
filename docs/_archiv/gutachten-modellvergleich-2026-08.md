@@ -170,9 +170,20 @@ DOCX-Fassung bevorzugen — heute gewinnt schlicht die zuletzt abgelegte Datei.
 
 ## Kleinere Beobachtungen
 
-- **Die Verbindungs-Pille log.** Sie stand während des gesamten Laufs auf „Nicht verbunden",
-  während Abschnitte erfolgreich über die Bridge liefen und die Modell-Liste bereits von der
-  KI-Seite gelesen war. „Verbindung testen" änderte daran nichts.
+- **Die Verbindungs-Pille zeigt ein Testergebnis, keinen Zustand.** Sie stand während des ganzen
+  Laufs auf „Nicht verbunden", während Abschnitte erfolgreich über die Bridge liefen.
+  Ursache nachgelesen ([VerbindungGruppe.tsx:103](../../src/plugins/einstellungen/ki/VerbindungGruppe.tsx)):
+  `verbunden = testErgebnis === 'success'`, und `testErgebnis` setzt sich nach
+  `setTimeout(…, 5000)` selbst auf `null` zurück. Die Pille sagt also fünf Sekunden lang
+  „Verbunden" und danach dauerhaft „Nicht verbunden" — unabhängig davon, ob die Bridge läuft.
+  *(Meine erste Notiz „«Verbindung testen» änderte daran nichts" war ungenau: ich habe erst
+  6–8 s nach dem Klick gemessen, also nach Ablauf des Fensters.)*
+  Der Zustand liegt bereit: [bridge-status.ts](../../src/core/services/ai/bridge-status.ts) ist
+  laut eigenem Kopfkommentar die „zentrale Status-Quelle für die Anzeige verbunden/getrennt" und
+  führt `status: 'connected' | 'disconnected' | 'unknown'` samt `lastSeen`. Die Komponente
+  abonniert den Store bereits — liest daraus aber nur `s.rev` für die Bookmarklet-Versionsprüfung.
+  **Fix wäre `s.status` statt `testErgebnis`**, eine Zeile. Befund aus einer Parallel-Sitzung
+  bestätigt, bewusst nicht angefasst.
 - **`vorlageRef.pfad` war `Gutachten_VB.DOCX`**, obwohl der Fall ein Einzelvorhaben ist und die
   erzeugte Datei `Gutachten_EP_ZEP730010.docx` heißt. Zu prüfen, ob die Vorlagenwahl der
   Antragsart folgt.
