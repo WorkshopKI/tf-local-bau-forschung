@@ -24,6 +24,7 @@ import {
 } from '@/plugins/antraege/services/antraege-search-service';
 import type { AntragTextEntry } from '@/plugins/antraege/services/search-corpus';
 import type { WertIndex } from '@/plugins/antraege/services/wert-index';
+import { LEERER_WORT_INDEX, type WortIndex } from '@/plugins/antraege/services/wort-index';
 
 export interface ProbelaufOptionen {
   verknuepfung: SuchVerknuepfung;
@@ -38,6 +39,9 @@ export interface KorpusZahlen {
   korpusBereit: boolean;
   /** Wertevorrat der Vervollständigung — fällt im selben Ladevorgang ab. */
   wertIndex: WertIndex | null;
+  /** Die häufigsten Stichwörter aus Titeln und Kurzbeschreibung — Grundlage
+   *  der Stichwort-Achse im Reiter „Top Ten". Leer, solange der Korpus fehlt. */
+  wortIndex: WortIndex;
   probelauf: (query: string, optionen: ProbelaufOptionen) => number;
   /**
    * Die Trefferzahl an einem Vorschlag — mit den EINGESTELLTEN Reglern
@@ -63,6 +67,7 @@ export function useKorpusZahlen(params: {
   const korpusRef = useRef<Map<string, AntragTextEntry> | null>(null);
   const [korpusBereit, setKorpusBereit] = useState(false);
   const [wertIndex, setWertIndex] = useState<WertIndex | null>(null);
+  const [wortIndex, setWortIndex] = useState<WortIndex>(LEERER_WORT_INDEX);
 
   useEffect(() => {
     if (!activeProgrammId) return;
@@ -72,6 +77,7 @@ export function useKorpusZahlen(params: {
         if (abgebrochen) return;
         korpusRef.current = c.textCorpus;
         setWertIndex(c.werteIndex);
+        setWortIndex(c.wortIndex);
         setKorpusBereit(true);
       })
       .catch(() => { /* best effort — ohne Korpus entfallen die Zahlen */ });
@@ -98,5 +104,5 @@ export function useKorpusZahlen(params: {
     [probelauf, verknuepfung, stammSuche, bereich],
   );
 
-  return { korpusBereit, wertIndex, probelauf, zaehleVorschlag };
+  return { korpusBereit, wertIndex, wortIndex, probelauf, zaehleVorschlag };
 }

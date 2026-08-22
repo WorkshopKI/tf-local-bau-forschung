@@ -7,7 +7,7 @@
  * Verlaufsliste stammen und die dritte bei den meisten leer ist („Noch nichts
  * gemerkt." als halbe Seitenbreite).
  *
- * „Häufig gesucht" steht deshalb hier und nicht beim Stöbern: es ist eigener
+ * „Häufig gesucht" steht deshalb hier und nicht bei den Top Ten: es ist eigener
  * Verlauf, keine Eigenschaft des Bestands.
  */
 import { Bookmark, Clock, TrendingUp } from 'lucide-react';

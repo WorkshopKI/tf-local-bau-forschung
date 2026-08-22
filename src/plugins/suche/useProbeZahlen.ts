@@ -2,7 +2,7 @@
  * Trefferzahlen an einer Liste von Anfragen — verzögert und in Schüben.
  *
  * Zwei Stellen zeigen dieselbe Zusage: die Vorschlagsliste im Suchfeld
- * ([SearchInput](src/plugins/suche/SearchInput.tsx)) und der Reiter „Stöbern"
+ * ([SearchInput](src/plugins/suche/SearchInput.tsx)) und der Reiter „Top Ten"
  * im Startzustand ([StartStoebern](src/plugins/suche/start/StartStoebern.tsx)).
  * Beide nennen an einem Wert die Zahl, die nach dem Klick auch dasteht — und
  * beide dürfen dafür den Bildschirm nicht anhalten. Die Mechanik steht deshalb

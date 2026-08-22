@@ -121,7 +121,11 @@ export const SICHTBARKEITS_KATALOG: readonly KatalogEintrag[] = [
   reiter('suche', 'zuletzt', 'Zuletzt'),
   reiter('suche', 'suchsprache', 'Suchsprache'),
   reiter('suche', 'fragen', 'Fragen'),
-  reiter('suche', 'stoebern', 'Stöbern'),
+  // Die Id bleibt `stoebern` (sie steht im localStorage der Nutzer); die
+  // Beschriftung ist seit v6.11 „Top Ten" und muss hier dieselbe sein wie in
+  // `START_REITER_LABEL` — sonst kuratiert man im Profil einen Reiter, den man
+  // auf der Seite nicht wiederfindet.
+  reiter('suche', 'stoebern', 'Top Ten'),
 
   // Die Entwickler-Sichten hängen schon an der Board-Rolle (Regel 1).
   reiter('feedback-board', 'alle', 'Alles'),

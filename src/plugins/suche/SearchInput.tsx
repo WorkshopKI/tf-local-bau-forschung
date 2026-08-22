@@ -156,7 +156,7 @@ export function SearchInput({
   );
   // Die Trefferzahlen kommen NACH der Liste — und in Portionen; die Mechanik
   // dazu steht in [useProbeZahlen](src/plugins/suche/useProbeZahlen.ts), weil
-  // der Reiter „Stöbern" im Startzustand dieselbe Zusage macht. Die 150 ms
+  // der Reiter „Top Ten" im Startzustand dieselbe Zusage macht. Die 150 ms
   // Verzögerung sind hier die halbe Miete: sie verhindern, dass jeder
   // Tastendruck 14 225 Einträge durchgeht.
   //

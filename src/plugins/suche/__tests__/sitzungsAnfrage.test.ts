@@ -7,7 +7,8 @@
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
-  liesFacettenWahl, liesFrageplan, liesQuery, liesWortliste, merke,
+  anfrageUeberlebt, liesFacettenWahl, liesFrageplan, liesQuery, liesWortliste, merke,
+  merkeSprungInsDetail, nimmSprungVermerk, vergissAnfrage,
   S_BEGRIFFE, S_FACETTEN, S_PLAN, S_QUERY, S_WOERTER,
 } from '../sitzungsAnfrage';
 import { LEERE_WAHL } from '../facetten';
@@ -121,5 +122,54 @@ describe('liesFrageplan', () => {
     expect(liesFrageplan()).toBeNull();
     merke(S_PLAN, null);
     expect(liesFrageplan()).toBeNull();
+  });
+});
+
+describe('Die Anfrage überlebt genau einen Sprung', () => {
+  it('merkt den Sprung und verbraucht ihn beim ersten Lesen', () => {
+    expect(nimmSprungVermerk()).toBe(false);
+    merkeSprungInsDetail();
+    expect(nimmSprungVermerk()).toBe(true);
+    // Zweiter Besuch ohne neuen Sprung: der Vermerk ist verbraucht.
+    expect(nimmSprungVermerk()).toBe(false);
+  });
+
+  it('überlebt die Rückkehr aus einer Detailseite', () => {
+    // `herkunft.ts` merkt Detail-Routen bewusst NICHT — die letzte echte
+    // Station ist deshalb die Suche selbst.
+    expect(anfrageUeberlebt(true, '/suche')).toBe(true);
+  });
+
+  it('stirbt beim Aufruf der Suche über die Navigation', () => {
+    // Der Fall, um den es geht: wer die Suche neu aufruft, soll den
+    // Startzustand sehen und nicht den Suchterm von vorhin.
+    expect(anfrageUeberlebt(false, '/home')).toBe(false);
+    expect(anfrageUeberlebt(false, '/suche')).toBe(false);
+  });
+
+  it('stirbt auf dem Umweg über eine dritte Seite', () => {
+    // Suche → Detail (Vermerk gesetzt) → Förderanträge → Suche: der Vermerk
+    // steht noch, aber die letzte Station ist nicht mehr die Suche.
+    expect(anfrageUeberlebt(true, '/antraege')).toBe(false);
+  });
+
+  it('stirbt ohne Herkunft — ein frischer Tab erbt nichts', () => {
+    expect(anfrageUeberlebt(true, null)).toBe(false);
+  });
+
+  it('erkennt die Suche auch mit Query-Anhang', () => {
+    expect(anfrageUeberlebt(true, '/suche?frage=1')).toBe(true);
+  });
+
+  it('räumt alles, was EINE Suche beschreibt', () => {
+    merke(S_QUERY, 'laser');
+    merke(S_FACETTEN, { status: ['offen'] });
+    merke(S_WOERTER, ['laser']);
+    merke(S_BEGRIFFE, ['bayern']);
+    merke(S_PLAN, PLAN);
+    vergissAnfrage();
+    for (const schluessel of [S_QUERY, S_FACETTEN, S_WOERTER, S_BEGRIFFE, S_PLAN]) {
+      expect(sessionStorage.getItem(schluessel), schluessel).toBeNull();
+    }
   });
 });

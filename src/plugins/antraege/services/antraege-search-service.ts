@@ -55,8 +55,10 @@ import {
   type AntragTextEntry,
 } from './search-corpus';
 import {
-  leererWertIndexRoh, ohneZitatzeichen, verdichteWertIndex, type WertIndex,
+  leererWertIndexRoh, ohneZitatzeichen, verdichteWertIndex,
+  type WertIndex,
 } from './wert-index';
+import { leererWortIndexRoh, verdichteWortIndex, type WortIndex } from './wort-index';
 import { berechneRelevanz, type Trefferfeld } from '@/core/services/search/trefferstelle';
 import { bereichFelder, type Suchbereich } from '@/core/services/search/suchbereich';
 import { zerlegeFeldAnfrage } from '@/core/services/search/feldpraefix';
@@ -196,7 +198,19 @@ interface ProgrammCaches {
   /** Welche Werte die aufzählbaren Felder führen — für die Vervollständigung
    *  im Suchfeld. Fällt im selben Cursor-Walk ab wie der Korpus. */
   werteIndex: WertIndex;
+  /** Die häufigsten Stichwörter aus Titeln und Kurzbeschreibung — für den
+   *  Reiter „Top Ten". Fällt im selben Cursor-Walk ab. */
+  wortIndex: WortIndex;
 }
+
+/**
+ * Wie viele Stichwörter der Cache behält.
+ *
+ * Der Reiter zeigt zehn und blättert zehn nach; hundert lassen Luft für eine
+ * größere Liste, ohne 48 000 Formen mitzuschleppen, von denen die meisten in
+ * einem einzigen Antrag stehen.
+ */
+const STICHWORTE_IM_CACHE = 100;
 
 // ----- Modul-Caches -----------------------------------------------------------
 
@@ -235,12 +249,15 @@ export async function getProgrammCaches(
   ladePromiseProgramm = programmId;
   cachedProgrammLoadPromise = (async () => {
     const werteRoh = leererWertIndexRoh();
+    const wortRoh = leererWortIndexRoh();
     const [textCorpus, filenameToAkz] = await Promise.all([
-      loadAntraegeTextCorpus(idb, programmId, { werteIndex: werteRoh }),
+      loadAntraegeTextCorpus(idb, programmId, { werteIndex: werteRoh, wortIndex: wortRoh }),
       loadDmsFilenameToAkz(idb),
     ]);
     const result = {
-      programmId, generation: gen, textCorpus, filenameToAkz, werteIndex: verdichteWertIndex(werteRoh),
+      programmId, generation: gen, textCorpus, filenameToAkz,
+      werteIndex: verdichteWertIndex(werteRoh),
+      wortIndex: verdichteWortIndex(wortRoh, STICHWORTE_IM_CACHE),
     };
     cachedProgrammCaches = result;
     return result;

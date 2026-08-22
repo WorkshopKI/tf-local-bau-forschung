@@ -26,7 +26,7 @@
  * [vervollstaendigung.ts](src/plugins/suche/vervollstaendigung.ts)) — die
  * Suchstufe vergleicht anders, als der Index zählt, und die Zahl im Dropdown
  * muss die sein, die nach dem Klick auch dasteht. `anzahl` beantwortet dafür
- * eine andere Frage: WELCHE fünf Werte die Vorschau im Reiter „Stöbern" zeigt
+ * eine andere Frage: WELCHE Werte die Vorschau im Reiter „Top Ten" zeigt
  * (`haeufigsteWerte`) und wie groß der Vorrat ist.
  *
  * Rein — kein React, kein IDB. Gefüllt wird im Cursor-Walk des Korpus
@@ -156,7 +156,7 @@ export function istWertFeld(feld: Trefferfeld | undefined): feld is WertFeld {
 /**
  * Die häufigsten Werte eines Feldes.
  *
- * Für die VORSCHAU im Reiter „Stöbern", nicht für das Dropdown: dort ist die
+ * Für die VORSCHAU im Reiter „Top Ten", nicht für das Dropdown: dort ist die
  * alphabetische Ordnung richtig (man sucht einen Namen, den man halb kennt),
  * hier zeigt eine Auswahl von fünf aus 5 407 nur dann etwas über den Bestand,
  * wenn es die größten fünf sind. Der alphabetische Anschnitt lieferte am echten
@@ -249,7 +249,7 @@ export function netzwerkName(roh: string): string {
  *
  * `max` ist optional: **ohne Deckel kommt alles**, und das ist der Normalfall
  * seit v4.88 — das Dropdown zeigt den ganzen Wertevorrat zum Durchblättern. Der
- * Reiter „Stöbern" setzt weiter einen Deckel, weil er eine Vorschau je Feld ist
+ * Reiter „Top Ten" setzt weiter einen Deckel, weil er eine Vorschau je Achse ist
  * und keine Liste.
  */
 export function vorschlaegeFuer(
@@ -262,7 +262,7 @@ export function vorschlaegeFuer(
  * Wie viele Werte ein Feld führt.
  *
  * Seit v4.88 nicht mehr für das Dropdown (das zeigt alle und muss nichts mehr
- * beziffern), sondern für den Reiter „Stöbern": dort steht je Feld eine Vorschau
+ * beziffern), sondern für den Reiter „Top Ten": dort steht je Achse eine Vorschau
  * mit ein paar Werten, und die Zahl daneben sagt, wie groß der Vorrat ist.
  */
 export function anzahlPassend(index: WertIndex, feld: WertFeld, teil: string): number {

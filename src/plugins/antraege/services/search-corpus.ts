@@ -28,6 +28,7 @@ import { listSchemasByProgramm } from '@/core/services/csv/idb-csv';
 import { namensKern } from '@/core/services/search/namensKern';
 import { buildDescriptorsText, deskriptorenAnzeige } from './descriptor-text';
 import { netzwerkName, nimmWerte, ohneZitatzeichen, type WertIndexRoh } from './wert-index';
+import { nimmWoerter, type WortIndexRoh } from './wort-index';
 import { leiteNetzwerkNamenAb, type NetzwerkZeile } from './netzwerk-leads';
 import {
   baueKorpusFeldKarte, baueSlotIndex, leseSlots, KORPUS_BASIS,
@@ -492,6 +493,14 @@ export interface LoadCorpusOptions {
    * ist danach nicht mehr in zwei Namen zu zerlegen.
    */
   werteIndex?: WertIndexRoh;
+  /**
+   * Wird mitgefuellt: die Stichwoerter aus Titeln und Kurzbeschreibung
+   * ([wort-index.ts](./wort-index.ts)). Dieselbe Ueberlegung wie beim
+   * `werteIndex` — die drei Texte liegen in diesem Walk ohnehin offen, ein
+   * eigener Lauf waere Wiederholung. Gemessen kostet das Zaehlen 587 ms auf
+   * 14 225 Antraege; wer den Index nicht braucht, laesst das Feld weg.
+   */
+  wortIndex?: WortIndexRoh;
   /** Wenn `true`, kommen auch Antraege ohne jeglichen Text in die Map
    *  (mit leeren Strings). Default `false` — die Hybrid-Suche braucht keine
    *  Eintraege ohne Text, der XLSX-Export aber schon (sonst Lücken in der
@@ -551,7 +560,7 @@ export async function loadAntraegeTextCorpus(
   programmId: string,
   opts: LoadCorpusOptions = {},
 ): Promise<Map<string, AntragTextEntry>> {
-  const { signal, includeEmpty = false, werteIndex } = opts;
+  const { signal, includeEmpty = false, werteIndex, wortIndex } = opts;
   // VOR der Transaktion: ein `await` zwischen zwei Cursor-Schritten wuerde die
   // IDB-Transaktion beenden. Die Karte gilt ohnehin fuer den ganzen Lauf.
   const karte = baueKorpusFeldKarte(
@@ -615,6 +624,9 @@ export async function loadAntraegeTextCorpus(
         if (netzwerk.length > 0) nimmWerte(werteIndex, 'netzwerk', [netzwerkName(netzwerk)]);
         nimmWerte(werteIndex, 'deskriptoren', deskriptorenAnzeige(a));
       }
+      // Die drei Textfelder, aus denen der Reiter „Top Ten" seine Stichwoerter
+      // zieht — dieselben, die auch der Suchkorpus fuehrt.
+      if (wortIndex) nimmWoerter(wortIndex, [vb, tv, ab]);
       // Beide Schreibweisen desselben Antrags in EINEM Feld — siehe `akzLower`.
       const kennzeichen = verbindeEindeutig(a.aktenzeichen, feld.akzC16 ?? '');
       if (

@@ -269,7 +269,7 @@ export function berechneVorschlaege(opt: VorschlagEingabe): Vorschlag[] {
  * **Beim leeren Feld bleibt sie zu** (v4.106.2). Dort steht darunter der
  * Startzustand, und sein Reiter „Zuletzt" führt denselben Verlauf — ungekürzt
  * und ohne etwas zu verdecken. Das Dropdown legte sich stattdessen über dessen
- * Reiterleiste („Alle · Zuletzt · Suchsprache · Fragen · Stöbern") und nahm die
+ * Reiterleiste („Alle · Zuletzt · Suchsprache · Fragen · Top Ten") und nahm die
  * Suchhilfen weg, um eine Liste zu zeigen, die zwei Zeilen tiefer schon steht.
  * Durchsichtig zu machen löste das nicht: die Fläche fängt die Klicks weiterhin
  * ab, und Text auf Text fällt unter AA (DESIGN_GUIDE, „nie über `opacity`").

@@ -26,6 +26,8 @@ import { useStorage } from '@/core/hooks/useStorage';
 import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
 import type { UnifiedSearchResult } from '@/core/types/search-result';
 import { useSucheStore } from './store';
+import { merkeSprungInsDetail } from './sitzungsAnfrage';
+import { useFrischerStart } from './useFrischerStart';
 import { ColumnPicker } from './ColumnPicker';
 import { SearchDownloadMenu } from './SearchDownloadMenu';
 import { SearchResultsTable } from './SearchResultsTable';
@@ -121,6 +123,10 @@ export function SuchSeite(): React.ReactElement {
   const analyse = useAnalysePipeline();
   const storage = useStorage();
   const activeProgrammId = useActiveProgramm(s => s.activeProgrammId);
+
+  // Ohne Anfrage im Feld steht der Startzustand da — die Regel dahinter in
+  // [useFrischerStart.ts](./useFrischerStart.ts).
+  useFrischerStart();
 
   const semanticEnabled = useSemanticSearchMode(s => s.enabled);
   const setSemanticEnabled = useSemanticSearchMode(s => s.setEnabled);
@@ -353,7 +359,7 @@ export function SuchSeite(): React.ReactElement {
   }, [activeProgrammId, storage, semanticEnabled]);
 
   // ---- Zahlen aus dem Wortlaut-Korpus ---------------------------------------
-  const { korpusBereit, wertIndex, probelauf, zaehleVorschlag } = useKorpusZahlen({
+  const { korpusBereit, wertIndex, wortIndex, probelauf, zaehleVorschlag } = useKorpusZahlen({
     storage, activeProgrammId, verknuepfung, stammSuche, bereich, richtlinienMenge,
   });
 
@@ -532,6 +538,7 @@ export function SuchSeite(): React.ReactElement {
 
   function oeffneTreffer(r: UnifiedSearchResult): void {
     if (r.type === 'antrag' && r.fkz) {
+      merkeSprungInsDetail(); // damit die Anfrage den Rückweg überlebt
       navigate(antragDetailPfad({ aktenzeichen: r.fkz })); // Rückweg: core/nav/herkunft.ts
     }
   }
@@ -690,7 +697,10 @@ export function SuchSeite(): React.ReactElement {
   const bruecke = useAntwortBruecke({
     treffer: sichtbar,
     antwort: frageAntwort.antwort,
-    aufAntragsseite: fkz => navigate(antragDetailPfad({ aktenzeichen: fkz })),
+    aufAntragsseite: fkz => {
+      merkeSprungInsDetail();
+      navigate(antragDetailPfad({ aktenzeichen: fkz }));
+    },
     wechsleZurListe: () => { if (ansicht !== 'liste') setAnsicht('liste'); },
   });
   const { belege: antwortBelege, angezeigt, genannteAnzahl } = bruecke;
@@ -1041,6 +1051,7 @@ export function SuchSeite(): React.ReactElement {
               gespeichert={gemerkt.liste}
               gespeicherteTreffer={gemerkt.treffer}
               wertIndex={wertIndex}
+              wortIndex={wortIndex}
               zaehle={zaehleVorschlag}
               onSuche={starteSuche}
               onWiederholen={q => { starteSuche(q); if (nlModus) void frageStellen(q); }}

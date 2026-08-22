@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v6.11.0 — Suche: Startzustand beim Betreten, Reiter Top Ten mit Stichwoertern und Themen (August 2026)
+
+MINOR — Gemeldet: „wenn die suchseite aufgerufen wird soll nicht der letzte suchterm im suchfeld stehen, da dann die startseite der suche nicht mehr zu sehen ist." Dazu: „stöbern" umbenennen, auf zehn Werte erweitern — und zwei Achsen ergänzen, die der Bestand längst hergab, aber keine Oberfläche zeigte.
+
+- **Die Anfrage überlebt genau EINEN Sprung** — den in eine Detailseite und zurück; jeder andere Weg zur Suche beginnt im Startzustand ([useFrischerStart.ts](src/plugins/suche/useFrischerStart.ts), Regel rein in [sitzungsAnfrage.ts](src/plugins/suche/sitzungsAnfrage.ts))
+- **Reiter „Stöbern" heißt „Top Ten"** und zeigt je Achse zehn Werte plus „+10 weitere" ([stoebern.ts](src/plugins/suche/start/stoebern.ts), [StartStoebern.tsx](src/plugins/suche/start/StartStoebern.tsx))
+- **Neue Achse „Stichwörter"**: die häufigsten Wörter aus VB-/TV-Titel und Kurzbeschreibung, dreifach gefiltert (Großschreibung · Funktionswörter · Füllwörter der Förderdomäne) — 587 ms im Korpus-Walk ([wort-index.ts](src/plugins/antraege/services/wort-index.ts))
+- **Neue Achse „Themen"**: die 21 Zukunftstechnologien, aus dem Deskriptoren-Topf herausgenommen statt danebengestellt ([descriptor-text.ts](src/plugins/antraege/services/descriptor-text.ts) `istZukunftsthema`)
+- **Zwei Maße, zwei Wörter**: Feldwerte tragen ihre Trefferzahl, Stichwörter „903 Vorhaben" — sonst liefe die sortierte Liste sichtbar durcheinander (gemessen 530 über 2.711)
+
 ### v6.10.0 — Kurzprofil des Antragstellers am Teilvorhaben (August 2026)
 
 MINOR — Gewünscht: „so weiss der bearbeiter was es noch von diesem Antragsteller gibt und kann etwaige Auffälligkeiten sehen." Die Teilvorhaben-Zeile nannte nur den Namen — dabei haben **9.477 von 12.358 Teilvorhaben (77 %)** einen Antragsteller mit weiteren Anträgen, und **69 %** dieser Antragsteller tragen mindestens eine Ablehnung. Der Bestand gab die Antwort längst her, die Oberfläche stellte die Frage nie.

@@ -15,6 +15,14 @@
  * anderes Schema) heißt „nichts gemerkt", nie ein halb geladener Zustand. Das
  * ist load-bearing — ein kaputter Frageplan würde die Deutungszeile mit einer
  * Legende füllen, die zur Anfrage nicht passt.
+ *
+ * **Seit v6.10 überlebt die Anfrage genau EINEN Sprung** (`anfrageUeberlebt`):
+ * den in eine Antrags-Detailseite und zurück. Wer die Suche über die Navigation
+ * aufruft, findet ein leeres Feld und den Startzustand vor — vorher stand dort
+ * der Suchterm von vorhin, und der Einstieg (Zuletzt, Top Ten, Suchsprache) war
+ * hinter einer Trefferliste verborgen, die niemand angefordert hatte. Der
+ * VERLAUF bleibt davon unberührt: er liegt in `localStorage` und erscheint beim
+ * ersten Tastendruck wieder.
  */
 import { LEERE_WAHL, FACETTEN_REIHENFOLGE, type FacettenWahl, type FacettenId } from './facetten';
 import type { Frageplan } from '@/core/services/search/frageplan';
@@ -26,6 +34,16 @@ export const S_FACETTEN = PRAEFIX + 'facetten';
 export const S_WOERTER = PRAEFIX + 'woerter';
 export const S_BEGRIFFE = PRAEFIX + 'begriffe';
 export const S_PLAN = PRAEFIX + 'plan';
+/** Der Vermerk „von der Suche aus in eine Detailseite gesprungen". */
+export const S_SPRUNG = PRAEFIX + 'sprung';
+
+/** Alles, was EINE Suche beschreibt — was `vergissAnfrage` gemeinsam räumt. */
+const ANFRAGE_SCHLUESSEL: readonly string[] = [
+  S_QUERY, S_FACETTEN, S_WOERTER, S_BEGRIFFE, S_PLAN,
+];
+
+/** Die Route der Suche selbst (`plugins/suche/index.ts`). */
+export const SUCHE_ROUTE = '/suche';
 
 /** Merkt einen Wert. `null`, `undefined` und `''` löschen den Eintrag. */
 export function merke(schluessel: string, wert: unknown): void {
@@ -112,4 +130,47 @@ export function liesFrageplan(): Frageplan | null {
   if (!istWortliste(f.status) || !istWortliste(f.jahr)) return null;
   if (!istWortliste(p.ignoriert)) return null;
   return v as Frageplan;
+}
+
+/**
+ * Die Suche verlässt sich gerade in eine Detailseite — die Anfrage soll den
+ * Rückweg überleben.
+ *
+ * Gesetzt an den zwei Stellen, die von der Trefferliste aus in einen Antrag
+ * springen ([SuchSeite.tsx](./SuchSeite.tsx)). Jeder ANDERE Weg von der Suche
+ * weg setzt nichts — und genau daran erkennt der nächste Besuch, dass er neu
+ * anfangen soll.
+ */
+export function merkeSprungInsDetail(): void {
+  merke(S_SPRUNG, 1);
+}
+
+/** Den Vermerk lesen und verbrauchen — er gilt für genau eine Rückkehr. */
+export function nimmSprungVermerk(): boolean {
+  const da = rohLesen(S_SPRUNG) !== undefined;
+  try { sessionStorage.removeItem(S_SPRUNG); } catch { /* ignore */ }
+  return da;
+}
+
+/**
+ * Darf die gemerkte Anfrage beim Betreten der Suche weiterleben?
+ *
+ * Nur, wenn BEIDE Zeichen dafür sprechen: der Vermerk oben (die Suche hat den
+ * Sprung selbst ausgelöst) und die Herkunft (die letzte echte Station war die
+ * Suche — Detail-Routen merkt `core/nav/herkunft.ts` bewusst nicht). Eines
+ * allein genügt nicht: der Vermerk allein überlebte auch den Umweg
+ * Detail → Förderanträge → Suche, und die Herkunft allein kann auch ein
+ * Neuladen sein.
+ *
+ * Rein, damit die Regel ohne Rendering prüfbar ist.
+ */
+export function anfrageUeberlebt(sprung: boolean, herkunftRoute: string | null): boolean {
+  if (!sprung || herkunftRoute === null) return false;
+  const [pfad] = herkunftRoute.split('?');
+  return (pfad ?? herkunftRoute) === SUCHE_ROUTE;
+}
+
+/** Räumt alles, was EINE Suche beschreibt. Der Verlauf bleibt (localStorage). */
+export function vergissAnfrage(): void {
+  for (const schluessel of ANFRAGE_SCHLUESSEL) merke(schluessel, null);
 }

@@ -32,9 +32,9 @@ import {
   parseSortierung, parseDichte,
   type SucheSortierung, type SucheDichte,
 } from './darstellungsAchsen';
-import type { FacettenWahl } from './facetten';
+import { LEERE_WAHL, type FacettenWahl } from './facetten';
 import {
-  liesFacettenWahl, liesFrageplan, liesQuery, liesWortliste, merke,
+  liesFacettenWahl, liesFrageplan, liesQuery, liesWortliste, merke, vergissAnfrage,
   S_BEGRIFFE, S_FACETTEN, S_PLAN, S_QUERY, S_WOERTER,
 } from './sitzungsAnfrage';
 import type { Frageplan } from '@/core/services/search/frageplan';
@@ -141,6 +141,15 @@ interface SucheState {
   /** Aktuelle Suchanfrage — sitzungs-lokal, siehe Modul-Kopf. */
   query: string;
   setQuery: (q: string) => void;
+  /**
+   * Verwirft die laufende Suche — Anfrage, Facetten, Abwahl, Frageplan.
+   *
+   * EINE Aktion, weil die fünf Werte EINE Suche beschreiben: eine Facette, die
+   * ohne ihre Anfrage stehen bleibt, filterte den nächsten Startzustand
+   * unsichtbar mit. Der VERLAUF bleibt stehen (localStorage) — er ist nicht
+   * Teil der laufenden Suche, sondern das Gedächtnis über sie hinaus.
+   */
+  verwerfeAnfrage: () => void;
   /** Gesetzte Facetten — sitzungs-lokal, überlebt den Sprung ins Detail. */
   facettenWahl: FacettenWahl;
   setFacettenWahl: (w: FacettenWahl) => void;
@@ -261,6 +270,18 @@ export const useSucheStore = create<SucheState>((set, get) => ({
       ...(planHinfaellig
         ? { frageplan: null, abgewaehlteBegriffe: [], planFehler: null }
         : {}),
+    });
+  },
+
+  verwerfeAnfrage: () => {
+    vergissAnfrage();
+    set({
+      query: '',
+      facettenWahl: LEERE_WAHL,
+      abgewaehlteWoerter: [],
+      abgewaehlteBegriffe: [],
+      frageplan: null,
+      planFehler: null,
     });
   },
 

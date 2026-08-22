@@ -105,3 +105,14 @@ export function FussSatz({ children }: { children: React.ReactNode }): React.Rea
 export function trefferText(n: number | null): React.ReactNode {
   return n === null ? undefined : `${n.toLocaleString('de-DE')} Treffer`;
 }
+
+/**
+ * „903 Vorhaben" — bewusst NICHT „Treffer".
+ *
+ * Wo eine Zeile ihre Zahl aus dem Index nimmt statt aus einem Probelauf, misst
+ * sie etwas anderes als die Suche danach findet (siehe `zahlArt` in
+ * [stoebern.ts](./stoebern.ts)). Zwei Maße dürfen nicht dasselbe Wort tragen.
+ */
+export function vorhabenText(n: number): React.ReactNode {
+  return `${n.toLocaleString('de-DE')} Vorhaben`;
+}

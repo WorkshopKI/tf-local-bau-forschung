@@ -31,13 +31,15 @@ export const START_REITER_LABEL: Record<StartReiterId, string> = {
   zuletzt: 'Zuletzt',
   suchsprache: 'Suchsprache',
   fragen: 'Fragen',
-  stoebern: 'Stöbern',
+  // Die Id bleibt `stoebern` — sie steht im localStorage als „zuletzt offener
+  // Reiter". Nur die Beschriftung sagt seit v6.10, was drinsteht.
+  stoebern: 'Top Ten',
 };
 
 /**
  * Wie viele Zeilen jeder Reiter zeigt.
  *
- * `stoebern` zählt die Felder zum Durchblättern, nicht ihre Werte — die Werte
+ * `stoebern` zählt die Achsen zum Durchblättern, nicht ihre Werte — die Werte
  * stehen in Tausenden da und wären als Reiter-Zahl eine Trefferzusage, die
  * niemand einlöst.
  */
@@ -49,8 +51,8 @@ export interface StartZaehler {
 }
 
 /**
- * Die Reiter in der Reihenfolge der Absicht: Wiedereinstieg zuerst, Stöbern
- * zuletzt. „Fragen" fehlt, wo der Build die natürlichsprachige Suche nicht
+ * Die Reiter in der Reihenfolge der Absicht: Wiedereinstieg zuerst, der Blick
+ * in den Bestand zuletzt. „Fragen" fehlt, wo der Build die natürlichsprachige Suche nicht
  * mitbringt — ein Reiter, der eine abwesende Fähigkeit bewirbt, ist schlimmer
  * als kein Reiter.
  */

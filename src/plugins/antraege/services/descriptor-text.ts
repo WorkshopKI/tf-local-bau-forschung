@@ -136,3 +136,20 @@ export function deskriptorenAnzeige(antrag: Antrag): string[] {
 const ZT_ANZEIGE: ReadonlyMap<string, string> = new Map(
   ZUKUNFTSTECHNOLOGIE_FELDER.map(zt => [zt.klartext.toLowerCase(), zt.klartext]),
 );
+
+/**
+ * Ist dieser Deskriptor-Wert ein **Zukunftsthema**?
+ *
+ * Der Topf „Deskriptoren" führt vier Achsen in einem: Technologiefeld
+ * (`techn_*`), Branche, Anwendungsdomäne — und die 22 kuratierten
+ * Zukunftstechnologien, die der Kürzelkatalog „ZT-Themenfelder" nennt. Am
+ * echten Bestand sind fünf der zehn häufigsten Deskriptoren ZT-Themen; wer die
+ * beiden nebeneinander zeigen will, muss sie trennen können, sonst stünde
+ * dieselbe Zeile zweimal da.
+ *
+ * Verglichen wird klein geschrieben, weil `verdichteWertIndex` die
+ * Schreibweisen ohnehin faltet und die häufigere anzeigt.
+ */
+export function istZukunftsthema(wert: string): boolean {
+  return ZT_ANZEIGE.has(wert.trim().toLowerCase());
+}

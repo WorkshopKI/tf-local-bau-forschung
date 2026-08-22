@@ -19,6 +19,15 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v6.11 — 2026-08
+
+### Neu
+- **Der Reiter „Stöbern" heißt jetzt „Top Ten" — und zeigt zehn statt fünf Werte.** Je Spalte legt ein Klick auf „+10 weitere" zehn weitere nach.
+- **Zwei neue Spalten: Stichwörter und Themen.** „Stichwörter" sind die häufigsten Wörter aus den Titeln und Kurzbeschreibungen der Vorhaben — Prozesse, Analyse, Fertigung, Bauteile, Daten … Füllwörter wie „Entwicklung" oder „Verfahren" stehen bewusst nicht dabei: sie kommen in jedem zweiten Antrag vor und trennen nichts. „Themen" sind die 21 Zukunftstechnologien (Künstliche Intelligenz, Industrie 4.0, Green Economy …); sie standen bisher unsichtbar zwischen den Deskriptoren.
+### Verbesserungen
+- **Die Suche beginnt wieder mit ihrer Startseite.** Bisher stand beim Aufrufen der Suche der letzte Suchbegriff im Feld, und die Einstiege (Zuletzt · Suchsprache · Fragen · Top Ten) lagen hinter einer Trefferliste, die niemand angefordert hatte. Jetzt ist das Feld leer — mit einer Ausnahme: Wer einen Treffer öffnet und zurückgeht, findet seine Suche samt Filtern unverändert vor. Ihre letzten Suchen sind nicht verloren; sie stehen im Reiter „Zuletzt" und erscheinen wieder, sobald Sie zu tippen anfangen.
+- **Bei den Stichwörtern steht „903 Vorhaben" statt „903 Treffer".** Die Zahl sagt, in wie vielen Vorhaben das Wort im Titel oder in der Kurzbeschreibung steht; die Suche danach findet es zusätzlich in allen anderen Feldern und liefert deshalb mehr.
+
 ## v6.10 — 2026-08
 
 ### Neu

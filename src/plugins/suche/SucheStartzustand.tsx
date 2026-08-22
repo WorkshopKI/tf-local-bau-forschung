@@ -22,11 +22,12 @@
  * ihre Liste liegt ohnehin über dieser Fläche. Zwei Antworten auf eine Eingabe
  * wären eine zu viel.
  */
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Info } from 'lucide-react';
 import { ScopeTabs } from '@/components/ui/ScopeTabs';
 import { useSichtbareReiter } from '@/core/hooks/useSichtbar';
 import type { WertIndex } from '@/plugins/antraege/services/wert-index';
+import type { WortIndex } from '@/plugins/antraege/services/wort-index';
 import type { GespeicherteSuche } from './gespeicherteSuchen';
 import {
   baueStartReiter, leseStartReiter, START_REITER_KEY, type StartReiterId,
@@ -36,7 +37,7 @@ import { StartSuchsprache } from './start/StartSuchsprache';
 import { StartFragen } from './start/StartFragen';
 import { FRAGEN } from './frage/katalog';
 import { StartStoebern } from './start/StartStoebern';
-import { STOEBER_FELDER } from './start/stoebern';
+import { baueStoeberSpalten } from './start/stoebern';
 import { SUCHSPRACHE_ZEILEN } from './start/suchsprache';
 
 export type { StartEintrag };
@@ -67,6 +68,7 @@ export function SucheStartzustand({
   gespeichert,
   gespeicherteTreffer,
   wertIndex,
+  wortIndex,
   zaehle,
   onSuche,
   onWiederholen,
@@ -83,9 +85,11 @@ export function SucheStartzustand({
   gespeichert: readonly GespeicherteSuche[];
   /** Aktuelle Trefferzahl je gespeicherter Suche (Probelauf). */
   gespeicherteTreffer: ReadonlyMap<string, number>;
-  /** Der Wertevorrat des Bestands — Grundlage des Reiters „Stöbern". */
+  /** Der Wertevorrat des Bestands — Grundlage des Reiters „Top Ten". */
   wertIndex: WertIndex | null;
-  /** Probelauf für die Zahlen im Reiter „Stöbern". */
+  /** Die häufigsten Stichwörter aus Titeln und Kurzbeschreibung. */
+  wortIndex: WortIndex;
+  /** Probelauf für die Zahlen im Reiter „Top Ten". */
   zaehle?: (anfrage: string) => number | null;
   onSuche: (query: string) => void;
   /**
@@ -140,11 +144,18 @@ export function SucheStartzustand({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- der nonce IST der Auslöser
   }, [gewuenschterReiter?.nonce]);
 
+  // EINMAL gebaut, zweimal gebraucht: der Zähler am Reiter und die Spalten
+  // darin müssen dieselbe Zahl meinen — der Zähler ist eine Zusage über das,
+  // was drinsteht, nicht über die Achsen, die es theoretisch gäbe.
+  const stoeberSpalten = useMemo(
+    () => baueStoeberSpalten(wertIndex, wortIndex), [wertIndex, wortIndex],
+  );
+
   const alleReiter = baueStartReiter({
     zuletzt: letzte.length + haeufig.length + gespeichert.length,
     suchsprache: SUCHSPRACHE_ZEILEN,
     fragen: FRAGEN.length,
-    stoebern: wertIndex === null ? 0 : STOEBER_FELDER.length,
+    stoebern: stoeberSpalten.length,
   }, mitFragen);
   // Beta/Experte: „Fragen" ist als Beta vorbelegt, „Suchsprache" als Experten-
   // Reiter (Feld-Syntax). Der Rückfall im Helfer greift auch für den GEMERKTEN
@@ -206,7 +217,7 @@ export function SucheStartzustand({
               )}
               {zeigtReiter('stoebern') && (
                 <StartStoebern
-                  index={wertIndex}
+                  spalten={stoeberSpalten}
                   onSuche={onSuche}
                   kurz
                   onMehr={() => waehle('stoebern')}
@@ -219,7 +230,7 @@ export function SucheStartzustand({
           {aktiv === 'suchsprache' && <StartSuchsprache onSuche={onSuche} />}
           {aktiv === 'fragen' && onFrage && <StartFragen onFrage={onFrage} />}
           {aktiv === 'stoebern' && (
-            <StartStoebern index={wertIndex} zaehle={zaehle} onSuche={onSuche} />
+            <StartStoebern spalten={stoeberSpalten} zaehle={zaehle} onSuche={onSuche} />
           )}
         </div>
       </div>

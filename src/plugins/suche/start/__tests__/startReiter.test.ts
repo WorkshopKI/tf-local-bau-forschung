@@ -5,8 +5,10 @@
  * Node-Umgebung, kein React — die Datei unter Test ist rein.
  */
 import { describe, expect, it } from 'vitest';
+import { SICHTBARKEITS_KATALOG } from '@/core/sichtbarkeit/katalog';
+import { reiterId } from '@/core/sichtbarkeit/types';
 import {
-  baueStartReiter, leseStartReiter, startReiterIds, type StartZaehler,
+  baueStartReiter, leseStartReiter, startReiterIds, START_REITER_LABEL, type StartZaehler,
 } from '../startReiter';
 import { SUCHARTEN, SUCHSPRACHE_GRUPPEN, suchartenDerGruppe } from '../suchsprache';
 
@@ -87,5 +89,19 @@ describe('suchsprache-Gruppen', () => {
   it('verteilt die Beispiele vollständig auf die Gruppen', () => {
     const summe = SUCHSPRACHE_GRUPPEN.reduce((n, g) => n + suchartenDerGruppe(g.id).length, 0);
     expect(summe).toBe(SUCHARTEN.length);
+  });
+});
+
+describe('Reiter-Beschriftung', () => {
+  it('heißt im Sichtbarkeits-Katalog wie auf der Seite', () => {
+    // Der Katalog trägt die Beschriftung ein zweites Mal, weil im Profil
+    // Reiter markiert werden. Driften die beiden auseinander, kuratiert man
+    // dort einen Reiter, den man auf der Seite nicht wiederfindet — genau das
+    // war bei der Umbenennung „Stöbern" → „Top Ten" fast passiert.
+    for (const id of startReiterIds(true)) {
+      const eintrag = SICHTBARKEITS_KATALOG.find(e => e.id === reiterId('suche', id));
+      expect(eintrag, id).toBeDefined();
+      expect(eintrag?.label, id).toBe(START_REITER_LABEL[id]);
+    }
   });
 });

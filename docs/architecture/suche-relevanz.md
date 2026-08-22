@@ -1150,10 +1150,20 @@ Modus umzustellen.
 
 Der Werte-Index zählt, in wie vielen Anträgen ein Wert vorkommt. Diese Zahl
 **ordnete** die Liste bis v4.87; seither sortiert sie alphabetisch (§9.4). Die
-Häufigkeit ordnet seit v4.111 noch genau eine Sache: **welche fünf Werte der
-Reiter „Stöbern" zeigt** (`haeufigsteWerte`) — er nennt sie „die häufigsten
-fünf", nahm aber den alphabetischen Anschnitt und zeigte damit Bremen (306
-Anträge) statt Sachsen (2 742).
+Häufigkeit ordnet seit v4.111 noch genau eine Sache: **welche Werte der Reiter
+„Top Ten" zeigt** (`haeufigsteWerte`; bis v6.10 hieß er „Stöbern" und zeigte
+fünf statt zehn) — er nannte sie „die häufigsten fünf", nahm aber den
+alphabetischen Anschnitt und zeigte damit Bremen (306 Anträge) statt Sachsen
+(2 742).
+
+Für die **Stichwort-Achse** desselben Reiters gilt das nicht: sie kommt aus
+einem eigenen Index über die Titel und Kurzbeschreibungen
+([wort-index.ts](../../src/plugins/antraege/services/wort-index.ts)), und dort
+weichen Index-Zahl und Trefferzahl weit voneinander ab („Daten" steht in 646
+Vorhaben, findet aber 2 414 Treffer, weil die Suche jedes Feld liest und auch
+in „Datenbank" fündig wird). Die Zeile zeigt deshalb die **Index-Zahl** — und
+nennt sie „Vorhaben" statt „Treffer", damit die beiden Maße nicht dasselbe Wort
+tragen.
 
 Was als Zahl neben einem Vorschlag steht, kommt aus `searchAntraegeSubstring`
 mit den eingestellten Reglern, also aus derselben Maschinerie, die nach dem Klick
@@ -1195,7 +1205,7 @@ Drei Dinge mussten dafür nachziehen, jedes an einer gemessenen Zahl:
 |---|---|---|
 | **Rendern** — die Liste kommt in Stufen zu 200 über Message-Tasks (`STUFE` in [SearchInput.tsx](../../src/plugins/suche/SearchInput.tsx)) | ein Tastendruck blockiert bei `ast:` **1 338 ms** (`ort:` 713, `nw:` 458) | **51 / 46 / 43 ms**, 200 Zeilen sofort, der Rest wächst nach |
 | **Trefferzahlen** — nur für Zeilen im Sichtfenster ([useProbeZahlen.ts](../../src/plugins/suche/useProbeZahlen.ts)) | ein Probelauf kostet 11–20 ms, also ~20 s für `nw:`, ~80 s für `ast:` | rund 20 Zahlen je Sicht, beim Scrollen kommen sie nach |
-| **Sortierung** — alphabetisch statt nach Häufigkeit ([wert-index.ts](../../src/plugins/antraege/services/wert-index.ts)) | die Häufigkeit ordnete, WELCHE 50 zu sehen sind | gefunden wird nach Namen; die Häufigkeit ordnet nur noch die fünf der Stöbern-Vorschau (§9.3) |
+| **Sortierung** — alphabetisch statt nach Häufigkeit ([wert-index.ts](../../src/plugins/antraege/services/wert-index.ts)) | die Häufigkeit ordnete, WELCHE 50 zu sehen sind | gefunden wird nach Namen; die Häufigkeit ordnet nur noch die zehn der Top-Ten-Vorschau (§9.3) |
 
 Der Sichtbarkeits-Melder liest **Scroll-Geometrie, keinen `IntersectionObserver`**:
 der feuert in einem nicht dargestellten Fenster gar nicht (in `dev:local`
