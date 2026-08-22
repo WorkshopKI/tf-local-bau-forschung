@@ -1,4 +1,5 @@
 import { createActivityDeadline } from './deadline';
+import { KI_WINDOW_NAME, findeKiFensterWieder } from '../connect-ki';
 import type { GenerationStats } from '../generation-stats';
 import { useBridgeStatus } from '../bridge-status';
 import { useModellEskalation } from '../modell-eskalation';
@@ -337,6 +338,12 @@ export class StreamlitBridgeTransport implements AITransport {
       }
       // tf-bridge-ready: nur das Handle übernehmen (oben bereits geschehen).
     });
+
+    // Einmal je Seitenladung nachsehen, ob ein KI-Tab von VOR dem Reload noch
+    // lebt. Ohne das bliebe eine laufende Bridge nach jedem F5 stumm: das
+    // Bookmarklet meldet sich nur beim Aktivieren, und der Griff darauf lebt nur
+    // im Speicher dieser Seite. Findet nichts → `null`, also der Stand von eben.
+    this.streamlitWindow = findeKiFensterWieder();
   }
 
   private allowedOrigin(): string | null {
@@ -409,7 +416,7 @@ export class StreamlitBridgeTransport implements AITransport {
 
   async ensureConnection(): Promise<void> {
     if (!this.streamlitWindow || this.streamlitWindow.closed) {
-      this.streamlitWindow = window.open(this.streamlitUrl, 'teamflow-streamlit');
+      this.streamlitWindow = window.open(this.streamlitUrl, KI_WINDOW_NAME);
     }
   }
 

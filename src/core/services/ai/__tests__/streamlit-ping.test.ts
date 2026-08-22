@@ -33,7 +33,12 @@ describe('StreamlitBridgeTransport.ping — passiver vs. aktiver Check', () => {
     const transport = new StreamlitBridgeTransport();
     const ok = await transport.ping({ openIfNeeded: false });
     expect(ok).toBe(false);
-    expect(openSpy).not.toHaveBeenCalled();
+    // Gemessen wird „kein Tab geht auf" — nicht „`window.open` bleibt ungerufen".
+    // Seit v6.9.7 sucht der Konstruktor einmal nach einem ueberlebenden KI-Tab, und
+    // zwar mit LEERER url: dieser Aufruf navigiert nichts und oeffnet nichts (er
+    // liefert `null`, wenn es das benannte Fenster nicht gibt). Ein Aufruf MIT url
+    // wuerde dagegen genau den Popup ausloesen, den dieser Test verbietet.
+    expect(openSpy.mock.calls.filter(([url]) => url !== '')).toHaveLength(0);
   });
 
   it('aktiv (Default) → öffnet das Bridge-Fenster (window.open)', async () => {

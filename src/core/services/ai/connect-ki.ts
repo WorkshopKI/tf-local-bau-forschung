@@ -22,3 +22,36 @@ export function connectInternalKi(aiBridge: AIBridge, url: string): Window | nul
   aiBridge.getStreamlitTransport(target);
   return window.open(target, KI_WINDOW_NAME);
 }
+
+/**
+ * Nimmt einen noch lebenden KI-Tab wieder auf, nachdem der App-Tab neu geladen
+ * wurde. KEIN Ersatz fuer `connectInternalKi` — dieser Weg oeffnet nichts.
+ *
+ * Warum es ihn braucht: der Transport haelt den Fenstergriff nur im Speicher
+ * (`event.source` einer eingehenden Bridge-Nachricht), und das Bookmarklet meldet
+ * sich nur EINMAL, beim Aktivieren (`tf-bridge-ready` an `window.opener`). Ein F5
+ * im App-Tab loescht damit den einzigen Zeiger auf eine weiterlaufende Bridge; sie
+ * blieb bis v6.9.6 unerreichbar, bis der Nutzer im KI-Tab die Pille drueckte
+ * (`tf-app-ping`, die Gegenrichtung).
+ *
+ * `window.open` mit LEERER url navigiert das gefundene Fenster nicht (HTML-Spec:
+ * bei leerer url findet keine Navigation statt). Genau darin liegt der Unterschied
+ * zu `connectInternalKi`, das den Tab absichtlich neu laedt — und dabei das
+ * injizierte Bookmarklet verliert.
+ *
+ * Gegenprobe gegen einen selbst erzeugten Leer-Tab: existiert das benannte Fenster
+ * nicht, liefert der Aufruf ausserhalb einer Nutzergeste `null` (Popup-Blocker) —
+ * wo Popups erlaubt sind, entsteht aber ein leerer Tab. Dessen `location` ist
+ * LESBAR (`about:blank` erbt unsere Origin); der KI-Tab liegt immer auf fremder
+ * Origin und wirft dort SecurityError. Nur der Wurf beweist den gesuchten Tab.
+ */
+export function findeKiFensterWieder(): Window | null {
+  const gefunden = window.open('', KI_WINDOW_NAME);
+  if (!gefunden) return null;
+  try {
+    if (gefunden.location.href === 'about:blank') gefunden.close();
+    return null;
+  } catch {
+    return gefunden;
+  }
+}
