@@ -26,6 +26,7 @@ hier die Trennlinie im Detail.
 | Persistenz | Wert direkt aus `localStorage` / der Varianten-IDB lesen |
 | Konsolen-Sauberkeit | `window.__tf.fehler()` **muss 0 sein** |
 | Dark Mode, Responsive | `resize_window({colorScheme})` / `({preset})` |
+| Läufe gegen die **interne KI** | nur bei stehendem Tunnel — KI-Tab **aus der App** öffnen, Bookmarklet-Text injizieren ([ki-tunnel-dev.md](ki-tunnel-dev.md)) |
 
 **Beim Nutzer bleibt** — hier zeigt der Dev-Server das Problem gar nicht:
 
@@ -43,6 +44,13 @@ hier die Trennlinie im Detail.
 Fällt eine Änderung in eine dieser Klassen, wird sie **benannt** — mit dem
 konkreten Grund und dem Kommando (`npm run build:dev` + Doppelklick). Ein
 pauschales „bitte manuell testen" ersetzt den Sicht-Check nicht.
+
+**Nicht mehr in dieser Liste: Läufe gegen die interne KI.** Sie standen faktisch
+hier, weil `gpt.vdivde-it.de` hinter dem VPN liegt und das VPN nur der
+Firmenlaptop hat. Steht der Tunnel aus [ki-tunnel-dev.md](ki-tunnel-dev.md), ist
+die Adresse auch von dieser Maschine aus erreichbar — unter demselben Namen, mit
+demselben Zertifikat — und ein Gutachten-Lauf gehört in die obere Tabelle. Der
+`file://`-Smoke bleibt davon unberührt.
 
 ### Fallstricke beim automatisierten Prüfen
 

@@ -71,6 +71,7 @@ Decision-Tree für häufige Aufgaben. Erst hier nachsehen, **bevor** du die Code
 | Skill-Eval-GUI (dev): Abschnitt A–G gegen fiktive Fixtures + externer Judge | [docs/architecture/skill-eval-gui.md](docs/architecture/skill-eval-gui.md) |
 | Strukturierte Skill-Ausgabe (JSON-Teilfelder + render-only Badges, `teilStruktur`) | [docs/architecture/teilstruktur.md](docs/architecture/teilstruktur.md) |
 | KI-Bridge zur internen KI (Bookmarklet + postMessage/SSE, AitisiGPT; Modellwahl als ROLLE `standard`/`stark`, Katalog statt Modellnamen) | [docs/architecture/ki-bridge.md](docs/architecture/ki-bridge.md) |
+| Interne KI **von der Dev-Maschine aus** erreichen (SSH-Tunnel über den Firmenlaptop + hosts-Eintrag; Abnahme-Sitzung ohne Lesezeichenleiste) | [ki-tunnel-dev.md](docs/architecture/ki-tunnel-dev.md) |
 | KI-Transport / DSGVO (dokument-tragende Läufe intern halten) | Pitfall #30 + [docs/architecture/transport-policy.md](docs/architecture/transport-policy.md) |
 | Feedback-System (FAB + Board + Sponsoring + KI-Verbesserung) | [docs/architecture/feedback-system.md](docs/architecture/feedback-system.md) |
 | Phase-2 Triage + Review-Queue | [docs/architecture/phase2-triage.md](docs/architecture/phase2-triage.md) + [phase2-review-queue.md](docs/architecture/phase2-review-queue.md) |
