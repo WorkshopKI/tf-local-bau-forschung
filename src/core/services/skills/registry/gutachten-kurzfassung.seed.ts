@@ -11,7 +11,7 @@
  */
 import { GRUNDSATZ_REGELN } from './grundsatz';
 import { SEED_TS, quellenanalyseKontrakt, regel } from './ga-seed-basis';
-import type { QualitaetsRegel, SkillRecord, SkillVorgaben } from './types';
+import type { QualitaetsRegel, SkillModifierKey, SkillRecord, SkillVorgaben } from './types';
 
 const SEED_SYSTEM_PROMPT =
   'Du bist ein erfahrener Textassistent für ZIM-Gutachten. Du erstellst streng '
@@ -23,15 +23,25 @@ const SEED_SYSTEM_PROMPT =
  * IDENTISCH zum Vor-Paket-4-Stand (kritisch: die Rollout-Migration vergleicht den
  * Share-Stand gegen `buildKurzfassungPrompt(false)`, um kuratierte Edits zu schützen).
  */
+/**
+ * Vor-Dedup-Aufgabenzeile von A („ca. 10 Sätze, Toleranz 8–12"). Eingefroren für zwei
+ * byte-genaue Migrations-Vergleiche: `applyUmfangDedup` (ganzes Template) und
+ * `applyAUmfangKuratiert` (nur diese Zeile, auf einem kuratierten A-Prompt).
+ */
+export const A_AUFGABE_ZEILE_UMFANG_ALT =
+  'Fasse die VB zu einer Kurzfassung von ca. 10 Sätzen zusammen (Toleranz 8–12 Sätze). Struktur, soweit im Antrag vorhanden:';
+
+/** Live-Aufgabenzeile von A — ohne Satzzahl (die kommt allein aus der `satzanzahl`-Vorgabe). */
+export const A_AUFGABE_ZEILE =
+  'Fasse die VB zu einer Kurzfassung zusammen. Struktur, soweit im Antrag vorhanden:';
+
 export function buildKurzfassungPrompt(belegKontrakt: boolean, umfangAlt = false): string {
   // Umfang single-source (2026-07): die feste Satzzahl in der Prosa dupliziert die
-  // `satzanzahl`-Regel (8–12) und lief bei Regel-Edits auseinander. Der Live-Seed nennt
+  // `satzanzahl`-Regel und lief bei Regel-Edits auseinander. Der Live-Seed nennt
   // die Zahl daher NICHT mehr — sie kommt allein aus der Regel (`## Formale Vorgaben`).
   // `umfangAlt: true` reproduziert den Vor-Dedup-Wortlaut („ca. 10 Sätze") BYTE-GENAU —
   // ausschließlich für die `applyUmfangDedup`-Migrations-Erkennung.
-  const aufgabeZeile = umfangAlt
-    ? 'Fasse die VB zu einer Kurzfassung von ca. 10 Sätzen zusammen (Toleranz 8–12 Sätze). Struktur, soweit im Antrag vorhanden:'
-    : 'Fasse die VB zu einer Kurzfassung zusammen. Struktur, soweit im Antrag vorhanden:';
+  const aufgabeZeile = umfangAlt ? A_AUFGABE_ZEILE_UMFANG_ALT : A_AUFGABE_ZEILE;
   const finalZeile = umfangAlt
     ? 'Der finale, geschliffene Fließtext der Kurzfassung (ca. 10 Sätze, KEIN Listenformat).'
     : 'Der finale, geschliffene Fließtext der Kurzfassung (KEIN Listenformat).';
@@ -135,10 +145,46 @@ export const SEED_REGELN: QualitaetsRegel[] = [
  * `seed-keine-aufzaehlungen` — Werte unverändert übernommen).
  */
 const SEED_VORGABEN_A: SkillVorgaben = {
-  satzanzahl: { schweregrad: 'fehler', min: 8, max: 12, persoenlichAnpassbar: true },
+  // 9–11 statt 8–12 (2026-08): der kuratierte Share führte die Kurzfassung längst auf
+  // 9–11, während die Prompt-Prosa noch „ca. 10 Sätze (Toleranz 8–12)" sagte. Beide
+  // Zahlen standen im selben Prompt (Haiku lieferte 8 Sätze — nach dem Prosa-Text
+  // korrekt, nach der Regel ein Hinweis). Der Prosa-Satz ist weg, die Regel ist die
+  // einzige Quelle, und ihr Wert ist der des Teams. Rollout: `applyAUmfangKuratiert`.
+  satzanzahl: { schweregrad: 'fehler', min: 9, max: 11, persoenlichAnpassbar: true },
   zeichenMax: { schweregrad: 'fehler', max: 1000 },
   satzlaengeMax: { schweregrad: 'hinweis', maxWoerter: 25 },
   keineAufzaehlungen: { schweregrad: 'fehler' },
+};
+
+/**
+ * Vor-Fix-Modifier von A: „Richtung 8 Sätze" / „Richtung 12 Sätze" — die Ränder der
+ * ALTEN Satzanzahl-Vorgabe. Eingefroren für den byte-genauen Vergleich in
+ * `applyAUmfangKuratiert`; NICHT mehr geseedet.
+ */
+export const A_MODIFIERS_UMFANG_ALT: Record<SkillModifierKey, string> = {
+  neu: 'Erstelle eine **vollständig neue** Variante der Kurzfassung mit anderer Formulierung und '
+    + 'anderer Schwerpunktsetzung — gleiche Faktenbasis, gleicher Kontrakt.',
+  kuerzer: 'Kürze die Kurzfassung spürbar (Richtung 8 Sätze). Streiche Redundanzen und Nebenaspekte; '
+    + 'behalte Ausgangsproblem, Projektziel und den Kern des technischen Ansatzes.',
+  laenger: 'Erweitere die Kurzfassung systematisch um etwa 50 % (Richtung 12 Sätze), indem du zusätzliche '
+    + 'im Antrag genannte Details zu technischem Ansatz und erwartetem Ergebnis aufnimmst. Erfinde nichts — '
+    + 'nutze ausschließlich Inhalte der VB.',
+};
+
+/**
+ * Live-Modifier von A. Die Richtwerte nennen die Ränder der `satzanzahl`-Vorgabe (9–11)
+ * — die dritte Stelle, an der die Satzzahl in A stand. Sie zeigte weiter auf 8/12 und
+ * wurde damit brisant, als der beschränkte Auto-Retry `kuerzer` selbsttätig auslöst:
+ * eine Zeichen-Überschreitung hätte den Text auf 8 Sätze gezogen und damit unter die
+ * geprüfte Untergrenze.
+ */
+const A_MODIFIERS: Record<SkillModifierKey, string> = {
+  neu: A_MODIFIERS_UMFANG_ALT.neu,
+  kuerzer: 'Kürze die Kurzfassung spürbar (Richtung 9 Sätze). Streiche Redundanzen und Nebenaspekte; '
+    + 'behalte Ausgangsproblem, Projektziel und den Kern des technischen Ansatzes.',
+  laenger: 'Erweitere die Kurzfassung systematisch um etwa 50 % (Richtung 11 Sätze), indem du zusätzliche '
+    + 'im Antrag genannte Details zu technischem Ansatz und erwartetem Ergebnis aufnimmst. Erfinde nichts — '
+    + 'nutze ausschließlich Inhalte der VB.',
 };
 
 export const SEED_SKILL: SkillRecord = {
@@ -149,19 +195,13 @@ export const SEED_SKILL: SkillRecord = {
   // Modell lief mit dem Kontrakt in einen langen Reasoning-Loop und lieferte keine
   // verwertbare Ausgabe mehr. Der Quellenbezug wird jetzt rein deterministisch aus der
   // Wortüberlappung abgeleitet (belegAbleitung.ts), NICHT vom Modell erfragt.
-  version: 2,
+  // v3: Satzzahl einheitlich 9–11 (Vorgabe + Modifier-Richtwerte, Prosa nennt keine
+  // Zahl mehr) — Rollout auf Bestands-Shares über `applyAUmfangKuratiert`.
+  version: 3,
   promptTemplate: buildKurzfassungPrompt(false),
   systemPrompt: SEED_SYSTEM_PROMPT,
   maxTokens: 2048,
-  modifiers: {
-    neu: 'Erstelle eine **vollständig neue** Variante der Kurzfassung mit anderer Formulierung und '
-      + 'anderer Schwerpunktsetzung — gleiche Faktenbasis, gleicher Kontrakt.',
-    kuerzer: 'Kürze die Kurzfassung spürbar (Richtung 8 Sätze). Streiche Redundanzen und Nebenaspekte; '
-      + 'behalte Ausgangsproblem, Projektziel und den Kern des technischen Ansatzes.',
-    laenger: 'Erweitere die Kurzfassung systematisch um etwa 50 % (Richtung 12 Sätze), indem du zusätzliche '
-      + 'im Antrag genannte Details zu technischem Ansatz und erwartetem Ergebnis aufnimmst. Erfinde nichts — '
-      + 'nutze ausschließlich Inhalte der VB.',
-  },
+  modifiers: A_MODIFIERS,
   regelIds: SEED_REGELN.map(r => r.id),
   vorgaben: SEED_VORGABEN_A,
   slots: ['stammdaten', 'vbMarkdown'],

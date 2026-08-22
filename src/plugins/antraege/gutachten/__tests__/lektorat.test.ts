@@ -6,9 +6,10 @@
  */
 import { describe, it, expect } from 'vitest';
 import {
-  zahlenInventar, pruefeLektorat, istVerdaechtigGekuerzt, befundText,
+  zahlenInventar, pruefeLektorat, istVerdaechtigGekuerzt, gebrocheneRegeln, befundText,
   LEKTORAT_LAENGEN_SCHWELLE,
 } from '../lektorat';
+import type { CheckResult } from '@/core/services/skills';
 
 describe('zahlenInventar', () => {
   it('erfasst deutsche Zahlformate inkl. Einheiten-Suffix', () => {
@@ -98,5 +99,54 @@ describe('istVerdaechtigGekuerzt', () => {
 
   it('ist No-op bei leerem Ausgangstext', () => {
     expect(istVerdaechtigGekuerzt('', '')).toBe(false);
+  });
+});
+
+/**
+ * Gemessen am 22.08.2026 an Abschnitt G: der Rohentwurf trug den Pflicht-Anfang
+ * wörtlich (`ok`), der Lektor formulierte ihn stilistisch um, die Prüfung meldete
+ * danach `fehler`. Der beschädigte Stand war der angezeigte.
+ */
+describe('gebrocheneRegeln — der Feinschliff darf nichts Erfülltes brechen', () => {
+  const check = (id: string, level: CheckResult['level']): CheckResult => ({ id, level, label: id });
+
+  it('meldet die Regel, die vorher ok war und jetzt Fehler ist (der G-Fall)', () => {
+    const gebrochen = gebrocheneRegeln(
+      [check('vorgabe:g:pflicht_anfang', 'ok')],
+      [check('vorgabe:g:pflicht_anfang', 'fehler')],
+    );
+    expect(gebrochen.map(c => c.id)).toEqual(['vorgabe:g:pflicht_anfang']);
+  });
+
+  it('rechnet einen schon vorher bestehenden Fehler NICHT an', () => {
+    expect(gebrocheneRegeln(
+      [check('r', 'fehler')],
+      [check('r', 'fehler')],
+    )).toEqual([]);
+  });
+
+  it('rechnet eine Regel NICHT an, die es vorher gar nicht gab', () => {
+    // Nicht vorhanden heisst nicht erfuellt — der Feinschliff kann sie nicht gebrochen haben.
+    expect(gebrocheneRegeln([], [check('neu', 'fehler')])).toEqual([]);
+  });
+
+  it('ein Hinweis blockiert nie, auch wenn er neu ist', () => {
+    expect(gebrocheneRegeln([check('r', 'ok')], [check('r', 'hinweis')])).toEqual([]);
+  });
+
+  it('eine Verbesserung ist kein Bruch', () => {
+    expect(gebrocheneRegeln([check('r', 'fehler')], [check('r', 'ok')])).toEqual([]);
+  });
+
+  it('sammelt mehrere Brüche und lässt die übrigen Regeln in Ruhe', () => {
+    const gebrochen = gebrocheneRegeln(
+      [check('a', 'ok'), check('b', 'hinweis'), check('c', 'ok'), check('d', 'fehler')],
+      [check('a', 'fehler'), check('b', 'fehler'), check('c', 'ok'), check('d', 'fehler')],
+    );
+    expect(gebrochen.map(c => c.id)).toEqual(['a', 'b']);
+  });
+
+  it('leere Listen sind ein No-op', () => {
+    expect(gebrocheneRegeln([], [])).toEqual([]);
   });
 });

@@ -19,6 +19,21 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v6.15 — 2026-08
+
+### Neu
+- **Verletzt ein Abschnitt eine harte Vorgabe, versucht die App die Korrektur einmal selbst.** Bisher blieb zum Beispiel „1.243 von höchstens 1.000 Zeichen" einfach stehen, und Sie mussten „Mit KI kürzen" von Hand anstoßen. Bleibt der Fehler auch nach dem einen Versuch, sagt die Karte das ruhig und überlässt Ihnen den Rest.
+- **Die Abschnitte „Unternehmensgegenstand" und „Ergebnisverwertung" werden jetzt geprüft.** Vorher gab es dort nur die Zeichensetzungs-Regel — ob der Text zu dünn war oder in eine Aufzählung kippte, merkte niemand.
+
+### Verbesserungen
+- **„Technische Risiken" darf jetzt fünf Risiken nennen statt drei.** Der Abschnitt forderte Widersprüchliches: höchstens drei Risiken, aber 300–350 Wörter. Das geht nicht auf, und entsprechend blieb jeder Entwurf zu kurz.
+- **Die Kurzfassung sagt nur noch an einer Stelle, wie lang sie sein soll.** Im Prompt stand „ca. 10 Sätze (Toleranz 8–12)", geprüft wurden 9–11 — je nach Blickwinkel war derselbe Text richtig oder falsch. Jetzt gilt überall 9–11.
+- **Liegt eine Vorhabensbeschreibung als Word- und als PDF-Datei vor, nimmt die App die Word-Datei.** Beim PDF geht im Einlesen jede Überschrift verloren, und ohne Überschriften findet die App die passenden Stellen im Antrag nicht mehr. Sie können im Dokumente-Bereich weiterhin selbst umschalten.
+- **Die Skill-Liste zeigt, wie viele Regeln wirklich prüfen.** Sie zählte nur die Regeln aus der Bibliothek und ließ die am Skill hinterlegten Vorgaben (Umfang, Satzzahl, Zeichenlimit) weg — die Kurzfassung stand mit „2 Regeln" da, während sechs Prüfungen liefen.
+
+### Bugfixes
+- **Der sprachliche Feinschliff macht nichts mehr kaputt, was der Entwurf schon richtig hatte.** Bei „Technologiekompetenz" formulierte er den vorgeschriebenen Satzanfang um — die Prüfung meldete danach einen Fehler, und angezeigt wurde trotzdem die beschädigte Fassung. Jetzt wird so ein Schliff verworfen und der geprüfte Entwurf bleibt stehen.
+
 ## v6.14 — 2026-08
 
 ### Neu

@@ -45,7 +45,7 @@ import {
   type GenerationInput,
 } from './runner';
 import type { LaufPhase } from '../kurzfassung/useStreamingBuffer';
-import { istVerdaechtigGekuerzt } from './lektorat';
+import { gebrocheneRegeln, istVerdaechtigGekuerzt } from './lektorat';
 import { buildQsKriterienBlock, parseQsBefunde } from './qs';
 import { saetzeOhneBeleg } from './belege';
 import type { QsAbnahme, QsBefund, StepId, WorkflowRun } from './types';
@@ -565,10 +565,10 @@ async function qsEinmal(
  * Lauf strukturell nichts hinzuerfinden kann. Geprüft wird danach mit den
  * Regeln DES ABSCHNITTS (Umfang bleibt die maßgebliche Instanz).
  *
- * Zwei Abbruch-Tore VOR dem Schreiben: leeres Ergebnis und
- * `istVerdaechtigGekuerzt` (abgeschnittene Antwort) → Fehlermeldung, Abschnitt
- * bleibt unverändert (`null` zurück). Transport intern-pflichtig über
- * `getTransportForSkillRun` (Pitfall #30).
+ * Drei Abbruch-Tore VOR dem Schreiben: leeres Ergebnis, `istVerdaechtigGekuerzt`
+ * (abgeschnittene Antwort) und `gebrocheneRegeln` (der Schliff bricht eine zuvor
+ * erfüllte `fehler`-Regel) → Fehlermeldung, Abschnitt bleibt unverändert (`null`
+ * zurück). Transport intern-pflichtig über `getTransportForSkillRun` (Pitfall #30).
  */
 export async function laufLektorat(
   run: WorkflowRun,
@@ -648,9 +648,21 @@ async function lektoriereEinmal(
     deps.setError('Der Feinschliff wirkt abgeschnitten (deutlich kürzer als der Abschnitt) — der Abschnitt bleibt unverändert. Bitte erneut versuchen.');
     return null;
   }
+  // Drittes Tor: der Feinschliff darf keine Regel brechen, die der Entwurf schon
+  // erfüllt hat (gemessen an G: der Lektor formulierte den Pflicht-Anfang um).
+  // Der Rohentwurf ist in diesem Fall das bessere Ergebnis.
+  const checks = runRegelChecks(text, deps.regelnFuer(sc, tweak));
+  const gebrochen = gebrocheneRegeln(step.checks, checks);
+  if (gebrochen.length > 0) {
+    deps.setError(
+      `Der Feinschliff hätte eine erfüllte Vorgabe gebrochen (${gebrochen.map(c => c.label).join(', ')}) `
+      + '— der Abschnitt bleibt beim geprüften Entwurf.',
+    );
+    return null;
+  }
   return applyLektorat(run, stepId, {
     finalerText: text,
-    checks: runRegelChecks(text, deps.regelnFuer(sc, tweak)),
+    checks,
     modell: transport.displayName ?? transport.name,
     ...(result.chatResetStatus ? { chatResetStatus: result.chatResetStatus } : {}),
   }, new Date().toISOString());

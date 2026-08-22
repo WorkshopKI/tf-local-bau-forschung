@@ -8,12 +8,13 @@
  *  - **Längen-Delta**: der Umfang war bereits abgenommen; weicht er spürbar ab,
  *    hat der Lauf gekürzt oder ausgebaut.
  *
- * Zwei Stufen: `istVerdaechtigGekuerzt` ist ein HARTES Tor (abgeschnittene
- * Antwort → der Lauf wird verworfen, der Abschnitt bleibt unverändert),
- * `pruefeLektorat` ist rein BERATEND (Hinweiszeile an der Karte, blockiert nie).
+ * Drei Stufen: `istVerdaechtigGekuerzt` und `gebrocheneRegeln` sind HARTE Tore
+ * (der Lauf wird verworfen, der Abschnitt bleibt unverändert), `pruefeLektorat`
+ * ist rein BERATEND (Hinweiszeile an der Karte, blockiert nie).
  *
  * Reine Funktionen — node-testbar, kein React/IO.
  */
+import type { CheckResult } from '@/core/services/skills';
 
 /** Ab dieser relativen Längenänderung (in %) wird ein beratender Hinweis gezeigt. */
 export const LEKTORAT_LAENGEN_SCHWELLE = 10;
@@ -101,6 +102,36 @@ export function pruefeLektorat(vorher: string, nachher: string): LektoratBefund 
 export function istVerdaechtigGekuerzt(vorher: string, nachher: string): boolean {
   if (vorher.length === 0) return false;
   return nachher.length < vorher.length * LEKTORAT_KAPP_VERDACHT;
+}
+
+/**
+ * Hartes Tor gegen einen Feinschliff, der eine **zuvor erfüllte `fehler`-Regel
+ * bricht**.
+ *
+ * Gemessen am 22.08.2026 an Abschnitt G: der Rohentwurf trug den Pflicht-Anfang
+ * wörtlich (`ok`), der Lektor formulierte genau diesen Wortlaut stilistisch um
+ * („wird sehr positive Auswirkungen … haben" → „wird … erheblich stärken") und
+ * die Prüfung meldete danach `fehler: Pflicht-Anfang fehlt`. Das Modell hatte
+ * geliefert, die Kette hat es kaputt gemacht — und der beschädigte Stand war der
+ * angezeigte.
+ *
+ * Bewusst NICHT im Lektor-Prompt gelöst: der Lektor kennt die Regeln des
+ * Abschnitts nicht, und jede künftige `fehler`-Regel müsste dort erneut
+ * nachgetragen werden. Dieses Tor deckt sie alle ab, ohne dass eine neue Regel
+ * etwas davon wissen muss.
+ *
+ * Gezählt wird nur die **Verschlechterung**: eine Regel, die schon vorher
+ * `fehler` war, bleibt es und rechtfertigt kein Verwerfen (der Feinschliff hat
+ * sie nicht kaputt gemacht). Eine Regel, die es vorher gar nicht gab, kann nicht
+ * erfüllt gewesen sein — auch sie zählt nicht. `hinweis` blockiert nie.
+ */
+export function gebrocheneRegeln(vorher: CheckResult[], nachher: CheckResult[]): CheckResult[] {
+  const vorherLevel = new Map(vorher.map(c => [c.id, c.level]));
+  return nachher.filter(c => {
+    if (c.level !== 'fehler') return false;
+    const alt = vorherLevel.get(c.id);
+    return alt !== undefined && alt !== 'fehler';
+  });
 }
 
 /**

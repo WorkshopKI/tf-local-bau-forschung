@@ -30,6 +30,14 @@ import {
   KURZFASSUNG_SKILL_ID,
   AUSGANGSLAGE_SKILL_ID,
   RISIKEN_SKILL_ID,
+  SEED_SKILL,
+  SEED_SKILLS_BG,
+  A_AUFGABE_ZEILE,
+  A_AUFGABE_ZEILE_UMFANG_ALT,
+  A_MODIFIERS_UMFANG_ALT,
+  C_ABSCHNITT_OPTS_FUENF,
+  UNTERNEHMEN_SKILL_ID,
+  VERWERTUNG_SKILL_ID,
   buildKurzfassungPrompt,
   abschnittTemplate,
   B_ABSCHNITT_OPTS,
@@ -99,6 +107,18 @@ export const AUFBEREITUNG_DR_STICHWORTE_MIGRATION = 'aufbereitung-dr-stichworte-
 
 /** ID der Entfernung der strukturierten Ausgabe (`teilStruktur`) aus den Gutachten-Skills. */
 export const GA_TEILSTRUKTUR_ENTFERNEN_MIGRATION = 'ga-teilstruktur-entfernen-2026-08';
+
+/** ID der Anhebung des C-Risiko-Deckels von drei auf fünf (Messlauf 08/2026, Befund 3). */
+export const GA_C_FUENF_RISIKEN_MIGRATION = 'ga-c-fuenf-risiken-2026-08';
+
+/** ID der Satzzahl-Vereinheitlichung in A auf 9–11 (Messlauf 08/2026, Befund 4). */
+export const GA_A_UMFANG_KURATIERT_MIGRATION = 'ga-a-umfang-kuratiert-2026-08';
+
+/** ID der erstmaligen Umfangs-/Form-Vorgaben für E + F (Messlauf 08/2026, Befund 5). */
+export const GA_EF_VORGABEN_MIGRATION = 'ga-ef-vorgaben-2026-08';
+
+/** ID der Auto-Retry-Freischaltung der ZIM-EP-Schritte (Messlauf 08/2026, Befund 2). */
+export const GA_EP_AUTO_RETRY_MIGRATION = 'ga-ep-auto-retry-2026-08';
 
 export interface ReconcileResult {
   file: SkillRegistryFile;
@@ -527,6 +547,107 @@ function applyTeilStrukturEntfernen(skills: SkillRecord[]): SkillRecord[] {
   });
 }
 
+/**
+ * Abschnitt C: Risiko-Deckel drei → fünf (Messlauf 08/2026, Befund 3). Der Prompt
+ * deckelte auf höchstens drei Risiken, die Wortzahl-Vorgabe verlangte 300–350 Wörter
+ * — unerfüllbar, und ALLE vier gemessenen Modelle unterschritten. Begründung am
+ * Live-Seed `C_ABSCHNITT_OPTS_FUENF`.
+ *
+ * Pristine-Guard wie üblich: nur ein C, dessen Template byte-genau dem
+ * Drei-Risiken-Stand entspricht, wird gehoben; ein kuratierter Edit bleibt unberührt.
+ */
+function applyCFuenfRisiken(skills: SkillRecord[]): SkillRecord[] {
+  const altC = abschnittTemplate({ ...C_ABSCHNITT_OPTS_NEU });
+  const neuC = abschnittTemplate({ ...C_ABSCHNITT_OPTS_FUENF });
+  return skills.map(s =>
+    s.id === RISIKEN_SKILL_ID && s.promptTemplate === altC
+      ? { ...s, promptTemplate: neuC, version: Math.max(s.version, 3) }
+      : s);
+}
+
+/**
+ * Abschnitt A: die Satzzahl stand an DREI Stellen und an zweien falsch (Messlauf
+ * 08/2026, Befund 4). Die Prompt-Prosa sagte „ca. 10 Sätze (Toleranz 8–12)", die
+ * Vorgabe des Teams 9–11, die Modifier-Richtwerte 8 und 12. Haiku lieferte 8 Sätze —
+ * nach dem Prompt-Text korrekt, nach der Regel ein Hinweis.
+ *
+ * **Die Ausnahme von der Regel „ganzes Template vergleichen":** A ist der einzige
+ * Gutachten-Skill, dessen Prompt auf dem Share kuratiert ist (823 statt 1.609 Zeichen
+ * — eigene Struktur, ohne Ausgabeformat-Block). Ein Voll-Template-Guard könnte dort
+ * nie greifen; genau deshalb trägt A die Dopplung, die `applyUmfangDedup` beseitigen
+ * sollte, bis heute. Statt den kuratierten Text zu ersetzen, tauscht diese Migration
+ * ausschließlich die eine Zeile aus, die nachweislich falsch ist, und lässt alles
+ * andere stehen.
+ *
+ * Drei unabhängig geschützte Teile — jeder greift nur, wenn SEIN Stand unberührt ist:
+ *  1. die Aufgaben-Zeile (nur bei exaktem Vorkommen des Alt-Wortlauts),
+ *  2. die Modifier `kuerzer`/`laenger` (nur bei byte-gleichem Alt-Stand),
+ *  3. die `satzanzahl`-Vorgabe (nur beim reinen Seed-Wert 8–12; der kuratierte
+ *     Share führt längst 9–11 und wird nicht angefasst).
+ */
+function applyAUmfangKuratiert(skills: SkillRecord[]): SkillRecord[] {
+  return skills.map(s => {
+    if (s.id !== KURZFASSUNG_SKILL_ID) return s;
+    let next = s;
+    if (next.promptTemplate.includes(A_AUFGABE_ZEILE_UMFANG_ALT)) {
+      next = { ...next, promptTemplate: next.promptTemplate.split(A_AUFGABE_ZEILE_UMFANG_ALT).join(A_AUFGABE_ZEILE) };
+    }
+    if (next.modifiers?.kuerzer === A_MODIFIERS_UMFANG_ALT.kuerzer
+      && next.modifiers.laenger === A_MODIFIERS_UMFANG_ALT.laenger) {
+      next = { ...next, modifiers: { ...next.modifiers, ...SEED_SKILL.modifiers } };
+    }
+    const satz = next.vorgaben?.satzanzahl;
+    if (satz && satz.min === 8 && satz.max === 12 && satz.schweregrad === 'fehler') {
+      next = { ...next, vorgaben: { ...next.vorgaben, satzanzahl: { ...satz, min: 9, max: 11 } } };
+    }
+    return next === s ? s : { ...next, version: Math.max(next.version, 3) };
+  });
+}
+
+/**
+ * Abschnitte E + F bekommen erstmals eigene Umfangs-/Form-Vorgaben (Messlauf 08/2026,
+ * Befund 5): bis dahin prüfte an beiden NUR die Interpunktions-Regel — je ein Check
+ * gegen sechs an A. Werte und Begründung stehen am Seed (`SEED_VORGABEN_E`/`_F`).
+ *
+ * Doppelter Pristine-Guard: der Skill darf noch KEINE `vorgaben` tragen (sonst hat
+ * ein Kurator dort bereits entschieden) UND sein Template muss dem Seed entsprechen
+ * (sonst ist der Abschnitt inhaltlich ein anderer, und ein Wort-Boden wäre geraten).
+ */
+function applyEfVorgaben(skills: SkillRecord[]): SkillRecord[] {
+  const efIds = new Set([UNTERNEHMEN_SKILL_ID, VERWERTUNG_SKILL_ID]);
+  const seed = new Map(SEED_SKILLS_BG.map(s => [s.id, s]));
+  return skills.map(s => {
+    const vorbild = seed.get(s.id);
+    if (!vorbild || !efIds.has(s.id)) return s;
+    if (s.vorgaben || s.promptTemplate !== vorbild.promptTemplate) return s;
+    return { ...s, vorgaben: vorbild.vorgaben, version: Math.max(s.version, 2) };
+  });
+}
+
+/**
+ * Ein automatischer Korrektur-Versuch je ZIM-EP-Schritt (Messlauf 08/2026, Befund 2).
+ * Der beschränkte Auto-Retry existiert seit v4.124, war aber an keinem Schritt
+ * eingeschaltet — Begründung und Versuchszahl stehen am Seed (`EP_AUTO_RETRY`).
+ *
+ * Rein additiv wie `applyInterpunktion`: gesetzt wird nur an Generierungs-Schritten,
+ * die noch kein `autoRetry` tragen. Wer ihn später bewusst abschaltet, behält das —
+ * der Marker verhindert einen zweiten Lauf.
+ */
+function applyEpAutoRetry(file: SkillRegistryFile): SkillRegistryFile {
+  // Ein Share ohne `workflows` (Alt-Stand) bekommt sie über `mergeMissingSeeds`
+  // ohnehin frisch aus dem Seed — dort ist der Auto-Retry schon gesetzt.
+  if (!file.workflows) return file;
+  const workflows = file.workflows.map(w => {
+    if (w.id !== ZIM_EP_DEF.id) return w;
+    return {
+      ...w,
+      steps: w.steps.map(st =>
+        st.rolle === 'llm_qs' || st.autoRetry ? st : { ...st, autoRetry: true, maxRetries: 1 }),
+    };
+  });
+  return { ...file, workflows };
+}
+
 interface EinzelMigration {
   marker: string;
   /** Bekommt die GANZE Datei — Migrationen dürfen auch `regeln` anfassen. */
@@ -553,6 +674,10 @@ const MIGRATIONEN: EinzelMigration[] = [
   { marker: GA_INTERPUNKTION_MIGRATION, apply: nurSkills(applyInterpunktion) },
   { marker: AUFBEREITUNG_DR_STICHWORTE_MIGRATION, apply: nurSkills(applyDrStichworte) },
   { marker: GA_TEILSTRUKTUR_ENTFERNEN_MIGRATION, apply: nurSkills(applyTeilStrukturEntfernen) },
+  { marker: GA_C_FUENF_RISIKEN_MIGRATION, apply: nurSkills(applyCFuenfRisiken) },
+  { marker: GA_A_UMFANG_KURATIERT_MIGRATION, apply: nurSkills(applyAUmfangKuratiert) },
+  { marker: GA_EF_VORGABEN_MIGRATION, apply: nurSkills(applyEfVorgaben) },
+  { marker: GA_EP_AUTO_RETRY_MIGRATION, apply: applyEpAutoRetry },
 ];
 
 /**

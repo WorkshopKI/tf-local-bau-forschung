@@ -29,17 +29,39 @@ export async function listVbKandidaten(idb: IDBStore, fkz: string): Promise<Docu
 }
 
 /**
+ * Rang der Quellformate für die automatische VB-Wahl — klein = bevorzugt.
+ *
+ * Gemessen am 22.08.2026 an derselben Vorhabensbeschreibung, beide Fassungen durch
+ * den `DocConverter`: DOCX 44 Überschriften und 80 Fettauszeichnungen, PDF **null
+ * und null**. Ohne Überschriften kann die Relevanz-Map keine Abschnitts-Spans
+ * bilden — der VB-Auszug für `kontextBedarf: 'relevant'` hat auf einer PDF-Quelle
+ * nichts, woran er schneiden könnte. Das Plus an Zeichen (+5,8 %) ist kein Gewinn:
+ * es sind Kopfzeilen und ein zu Pseudo-Tabellen zerfallenes Inhaltsverzeichnis.
+ */
+function formatRang(filename: string | undefined): number {
+  const ext = (filename ?? '').toLowerCase().split('.').pop() ?? '';
+  return ext === 'docx' || ext === 'doc' ? 0 : 1;
+}
+
+/**
  * Welche VB gilt? REIN, damit die Regel testbar ist (sie entscheidet, welcher Text
  * ins Gutachten geht).
  *
  * Der explizite Pick des Bearbeiters gewinnt, aber nur wenn das Dokument noch
- * existiert UND noch VB-getaggt ist — sonst (gelöscht, umgetaggt) still auf
- * „jüngstes" zurück, nie ein Fehler.
+ * existiert UND noch VB-getaggt ist — sonst (gelöscht, umgetaggt) still auf den
+ * Automatismus zurück, nie ein Fehler.
  *
- * Ohne Pick: jüngstes zuerst. Sekundär nach Dateiname, weil `created` bei
- * gleichzeitig aufgenommenen Dateien millisekundengleich sein kann und die
- * Reihenfolge dann Engine-Sache wäre — in einer Förderprüfung ist ein
- * nichtdeterministisch gewähltes Quelldokument der schlechtere Zustand.
+ * Ohne Pick entscheidet zuerst das **Quellformat** (DOCX vor PDF, siehe
+ * `formatRang`), dann das jüngste Dokument. Die Reihenfolge ist Absicht und der
+ * eine Fall, in dem sie überrascht, ist benannt: liegt eine neuere PDF-Fassung
+ * neben einer älteren DOCX-Fassung, gewinnt die ältere. Das ist der Preis dafür,
+ * nicht stumm auf einer strukturlosen Quelle zu arbeiten — und der Bearbeiter
+ * überstimmt es jederzeit im Korpus-Inventar, wo beide Kandidaten mit Datum stehen.
+ *
+ * Zuletzt der Dateiname, weil `created` bei gleichzeitig aufgenommenen Dateien
+ * millisekundengleich sein kann und die Reihenfolge dann Engine-Sache wäre — in
+ * einer Förderprüfung ist ein nichtdeterministisch gewähltes Quelldokument der
+ * schlechtere Zustand.
  */
 export function pickAktiveVb(
   vbKandidaten: readonly DocumentFull[], gewaehlteDocId: string | null,
@@ -50,7 +72,9 @@ export function pickAktiveVb(
     if (gewaehlt) return gewaehlt;
   }
   const sortiert = [...vbKandidaten].sort((a, b) =>
-    (b.created ?? '').localeCompare(a.created ?? '') || (a.filename ?? '').localeCompare(b.filename ?? ''));
+    formatRang(a.filename) - formatRang(b.filename)
+    || (b.created ?? '').localeCompare(a.created ?? '')
+    || (a.filename ?? '').localeCompare(b.filename ?? ''));
   return sortiert[0] ?? null;
 }
 

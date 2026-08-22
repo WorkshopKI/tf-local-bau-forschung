@@ -18,12 +18,24 @@ import { KategoriePill, SkillStatusBadges, skillStatusRang } from './skillBadges
 
 export interface SkillColumnActions {
   canEdit: boolean;
+  /**
+   * Wie viele Regeln an diesem Skill tatsächlich PRÜFEN — Bibliotheks-Regeln plus
+   * die am Skill hängenden Vorgaben (`resolveRegeln`). `regelIds.length` allein
+   * zählte seit v2.296 an der Wahrheit vorbei: Umfang, Satzzahl, Zeichenlimit und
+   * Pflicht-Anfang leben als `vorgaben` am Skill, nicht als Bibliotheks-Record.
+   * Die Zahl kommt vom Aufrufer, weil nur der die Registry kennt.
+   */
+  regelAnzahl: (s: SkillRecord) => number;
   onTestlauf: (s: SkillRecord) => void;
   onDuplicate: (s: SkillRecord) => void;
   onDelete: (s: SkillRecord) => void;
 }
 
 export function buildSkillColumns(actions: SkillColumnActions): SortableColumn<SkillRecord>[] {
+  const regelText = (s: SkillRecord): string => {
+    const n = actions.regelAnzahl(s);
+    return `${n} ${n === 1 ? 'Regel' : 'Regeln'}`;
+  };
   return [
     {
       key: 'name', label: 'Name', defaultVisible: true, locked: true, sortable: true, width: 220, wrap: false,
@@ -71,9 +83,9 @@ export function buildSkillColumns(actions: SkillColumnActions): SortableColumn<S
       key: 'regeln', label: 'Regeln', defaultVisible: true, sortable: true, width: 110, wrap: false,
       // Der `accessor` ist die blanke Anzahl, die Zelle schreibt „3 Regeln".
       messSchrift: 'badge', messZuschlag: 20,
-      messText: s => `${s.regelIds.length} ${s.regelIds.length === 1 ? 'Regel' : 'Regeln'}`,
-      accessor: s => s.regelIds.length,
-      render: s => <Badge variant="default">{s.regelIds.length} {s.regelIds.length === 1 ? 'Regel' : 'Regeln'}</Badge>,
+      messText: regelText,
+      accessor: s => actions.regelAnzahl(s),
+      render: s => <Badge variant="default">{regelText(s)}</Badge>,
     },
     {
       // DSGVO-Transport-Klasse (abgeleitet, siehe transport-policy.ts). Default

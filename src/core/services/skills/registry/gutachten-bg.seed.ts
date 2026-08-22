@@ -82,6 +82,37 @@ const SEED_VORGABEN_D: SkillVorgaben = {
   keineAufzaehlungen: { schweregrad: 'fehler' },
 };
 
+/**
+ * Umfangs-/Form-Vorgaben der Abschnitte E und F (2026-08 ergänzt).
+ *
+ * Vorher prüfte an beiden Abschnitten NUR die Interpunktions-Regel — je ein Check
+ * gegen sechs an A und fünf an B. Ob der Text zu dünn war oder in eine Aufzählung
+ * kippte, maß nichts, und im Messlauf waren E und F mit 451 bzw. 711 Zeichen die
+ * kürzesten Abschnitte überhaupt.
+ *
+ * Beide Abschnitte skalieren mit der Zahl der Partner („je Partner 2–3 Sätze",
+ * „je Firma 3 Sätze"). Eine Obergrenze wäre damit falsch — sie träfe jeden
+ * Verbund. Gesetzt ist deshalb nur ein **Boden**, geeicht am kleinsten
+ * rechtmäßigen Fall (Einzelvorhaben, ein Antragsteller): E kam dort auf 48, F auf
+ * 85 Wörter. Der Boden fängt den entarteten Lauf, nicht den normalen — und er ist
+ * ein `hinweis`, weil eine einzige Messung keine Fehlergrenze hat.
+ *
+ * `keineAufzaehlungen` ist dagegen hart: beide Prompts verlangen ausdrücklich
+ * Fließtext, und alle übrigen Abschnitte führen die Vorgabe seit jeher als Fehler.
+ */
+const SEED_VORGABEN_E: SkillVorgaben = {
+  wortanzahl: { schweregrad: 'hinweis', min: 40, persoenlichAnpassbar: true },
+  satzlaengeMax: { schweregrad: 'hinweis', maxWoerter: 25 },
+  keineAufzaehlungen: { schweregrad: 'fehler' },
+};
+
+/** Siehe `SEED_VORGABEN_E` — F fordert je Firma drei Sätze, der Boden liegt entsprechend höher. */
+const SEED_VORGABEN_F: SkillVorgaben = {
+  wortanzahl: { schweregrad: 'hinweis', min: 60, persoenlichAnpassbar: true },
+  satzlaengeMax: { schweregrad: 'hinweis', maxWoerter: 25 },
+  keineAufzaehlungen: { schweregrad: 'fehler' },
+};
+
 /** Form-Vorgabe des Abschnitts G (vormals `seed-g-pflicht-anfang`). */
 const SEED_VORGABEN_G: SkillVorgaben = {
   pflichtAnfang: { schweregrad: 'fehler', text: G_PFLICHT_ANFANG },
@@ -215,6 +246,36 @@ export const C_ABSCHNITT_OPTS_NEU = {
   stilbeispiel: C_ABSCHNITT_OPTS_NEU_UMFANG_ALT.stilbeispiel,
 } as const;
 
+/**
+ * Live-Seed der C-Optionen seit 2026-08: **fünf statt drei** Risiken im finalen Text.
+ *
+ * Der Abschnitt forderte etwas, das er selbst verbot. Der Prompt deckelte auf höchstens
+ * drei Risiken, die Vorgabe verlangte 300–350 Wörter — drei Risiken à zwei bis drei
+ * Sätze ergeben rund 200. Gemessen unterschritten ALLE vier Modelle: die interne KI mit
+ * 106 Wörtern, Haiku 188, Sonnet 248, Opus 288. Ein Befund, der über die Modellklassen
+ * hinweg gleich ausfällt, ist kein Modelldefekt.
+ *
+ * Aufgelöst über die Risiko-Grenze, nicht über die Wortzahl: fünf Risiken à zwei bis
+ * drei Sätze treffen die 300–350 Wörter, ohne dass die Vorgabe (weicher Hinweis, vom
+ * Kurator gesetzt) angefasst werden muss. `name`/`aufgabe`/`entwurf`/`stilbeispiel`
+ * bleiben byte-identisch; geändert sind genau die zwei Stellen, die „drei" sagten.
+ */
+export const C_ABSCHNITT_OPTS_FUENF = {
+  name: C_ABSCHNITT_OPTS_NEU.name,
+  aufgabe: C_ABSCHNITT_OPTS_NEU.aufgabe,
+  formatRegeln: [
+    ...C_ABSCHNITT_OPTS_NEU.formatRegeln.slice(0, -1),
+    'Enthält der Entwurf mehr als fünf Risiken, beschränke den finalen Text auf **höchstens fünf** '
+      + 'zentrale Risiken des Lösungswegs.',
+  ],
+  entwurf: C_ABSCHNITT_OPTS_NEU.entwurf,
+  finalText:
+    'Der finale Fließtext (KEINE Kurztitel, KEINE Aufzählung): die '
+    + 'höchstens fünf zentralen, auf dem Lösungsweg liegenden und vom Vorhaben beeinflussbaren '
+    + 'technischen Risiken als zusammenhängender Fließtext.',
+  stilbeispiel: C_ABSCHNITT_OPTS_NEU.stilbeispiel,
+} as const;
+
 /** Skill-ID des Abschnitts D (Markt) — Konstante für Lookups + Umfang-Dedup-Migration. */
 export const MARKT_SKILL_ID = 'gutachten-markt';
 
@@ -249,6 +310,12 @@ export const D_ABSCHNITT_OPTS = {
   finalText:
     'Der finale Fließtext zum Markt — nur Antragsinhalte, keine externen Marktkenntnisse.',
 } as const;
+
+/** Skill-ID des Abschnitts E (Unternehmensgegenstand) — Konstante für die Vorgaben-Migration. */
+export const UNTERNEHMEN_SKILL_ID = 'gutachten-unternehmen';
+
+/** Skill-ID des Abschnitts F (Ergebnisverwertung) — Konstante für die Vorgaben-Migration. */
+export const VERWERTUNG_SKILL_ID = 'gutachten-verwertung';
 
 /** Skill-ID des Abschnitts G (Technologiekompetenz) — Konstante für Lookups + Migration. */
 export const KOMPETENZ_SKILL_ID = 'gutachten-kompetenz';
@@ -326,8 +393,10 @@ export const SEED_SKILLS_BG: SkillRecord[] = [
     // Kurztitel, ≤3 Risiken auf dem Lösungsweg (externe/nicht beeinflussbare Risiken weg).
     // maxTokens 2048 → 4096: 3-Abschnitt-Ausgabe (Liste + Fließtext + Quellenanalyse) würde
     // sonst auf dem DirectLLM-/Eval-Pfad abgeschnitten. Rollout: `applyRisikenEntwurf`.
-    version: 2,
-    promptTemplate: abschnittTemplate({ ...C_ABSCHNITT_OPTS_NEU }),
+    // v3: Risiko-Deckel drei → fünf (`applyCFuenfRisiken`), damit Deckel und
+    // Wortzahl-Vorgabe nicht länger gegeneinander stehen.
+    version: 3,
+    promptTemplate: abschnittTemplate({ ...C_ABSCHNITT_OPTS_FUENF }),
     systemPrompt: SEED_SYSTEM_PROMPT_ABSCHNITT,
     maxTokens: 4096,
     modifiers: ABSCHNITT_MODIFIERS,
@@ -351,10 +420,11 @@ export const SEED_SKILLS_BG: SkillRecord[] = [
     geaendert_am: SEED_TS,
   },
   {
-    id: 'gutachten-unternehmen',
+    id: UNTERNEHMEN_SKILL_ID,
     name: 'Unternehmensgegenstand (E)',
     beschreibung: 'Abschnitt E des ZIM-Gutachtens: Unternehmensgegenstand der Partner.',
-    version: 1,
+    // v2: erstmals eigene Vorgaben (`SEED_VORGABEN_E`) — Rollout `applyEfVorgaben`.
+    version: 2,
     promptTemplate: abschnittTemplate({
       name: 'Unternehmensgegenstand',
       aufgabe:
@@ -370,14 +440,16 @@ export const SEED_SKILLS_BG: SkillRecord[] = [
     // E + F tragen bewusst KEINE Passiv-Regel (reine Prompt-Abschnitte), die
     // Interpunktions-Vorgabe gilt aber für jeden generierten Fließtext.
     regelIds: [INTERPUNKTION_REGEL_ID],
+    vorgaben: SEED_VORGABEN_E,
     slots: ABSCHNITT_SLOTS,
     geaendert_am: SEED_TS,
   },
   {
-    id: 'gutachten-verwertung',
+    id: VERWERTUNG_SKILL_ID,
     name: 'Ergebnisverwertung (F)',
     beschreibung: 'Abschnitt F des ZIM-Gutachtens: Ergebnisverwertung und Einfluss auf das Unternehmen.',
-    version: 1,
+    // v2: erstmals eigene Vorgaben (`SEED_VORGABEN_F`) — Rollout `applyEfVorgaben`.
+    version: 2,
     promptTemplate: abschnittTemplate({
       name: 'Ergebnisverwertung',
       aufgabe:
@@ -392,6 +464,7 @@ export const SEED_SKILLS_BG: SkillRecord[] = [
     modifiers: ABSCHNITT_MODIFIERS,
     // Siehe E: nur die Interpunktions-Vorgabe, keine Passiv-Regel.
     regelIds: [INTERPUNKTION_REGEL_ID],
+    vorgaben: SEED_VORGABEN_F,
     slots: ABSCHNITT_SLOTS,
     geaendert_am: SEED_TS,
   },

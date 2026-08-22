@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Play, Copy, Trash2, Download, ThumbsUp, ThumbsDown, MessageSquare, Sparkles } from 'lucide-react';
 import {
+  resolveRegeln,
   workflowStepsUsingSkill,
   type Reifegrad,
   type SkillRecord,
@@ -133,6 +134,7 @@ export function SkillsTab({
         <p className="text-[13.5px] text-[var(--tf-text-secondary)] py-6">Keine Treffer.</p>
       ) : viewMode === 'table' ? (
         <SkillsTableView
+          file={file}
           skills={sorted}
           canEdit={canEdit}
           onEdit={onEdit}
@@ -272,6 +274,15 @@ function FacetBar({ file, skills, facets, sortKey, onFacets, onSort }: FacetBarP
   );
 }
 
+/**
+ * Wie viele Regeln an diesem Skill PRÜFEN — Bibliothek plus die am Skill hängenden
+ * Vorgaben. Siehe `SkillColumnActions.regelAnzahl`: `regelIds.length` allein
+ * unterschlägt Umfang, Satzzahl, Zeichenlimit und Pflicht-Anfang.
+ */
+function regelAnzahl(file: SkillRegistryFile, skill: SkillRecord): number {
+  return resolveRegeln(file, skill).length;
+}
+
 interface SkillCardProps {
   file: SkillRegistryFile;
   skill: SkillRecord;
@@ -307,7 +318,7 @@ function SkillCard({ file, skill, a, canEdit, onEdit, onTestlauf, onDuplicate, o
         Version&nbsp;{skill.version}
         <span className="px-1">·</span>geändert {formatDate(skill.geaendert_am)}
         {skill.historie?.[0]?.userId ? <> · {skill.historie[0].userId}</> : null}
-        <span className="px-1">·</span>{skill.regelIds.length} {skill.regelIds.length === 1 ? 'Regel' : 'Regeln'}
+        <span className="px-1">·</span>{regelAnzahl(file, skill)} {regelAnzahl(file, skill) === 1 ? 'Regel' : 'Regeln'}
       </div>
       <div className="mt-1.5"><SkillSignals a={a} reifegrad={reifegradOf(skill)} /></div>
       <div className="mt-1.5 text-[11.5px] text-[var(--tf-text-tertiary)]">
@@ -348,6 +359,7 @@ function SkillCard({ file, skill, a, canEdit, onEdit, onTestlauf, onDuplicate, o
 }
 
 interface TableViewProps {
+  file: SkillRegistryFile;
   skills: SkillRecord[];
   canEdit: boolean;
   onEdit: (skill: SkillRecord) => void;
@@ -357,11 +369,13 @@ interface TableViewProps {
 }
 
 function SkillsTableView({
-  skills, canEdit, onEdit, onTestlauf, onDuplicate, onDelete,
+  file, skills, canEdit, onEdit, onTestlauf, onDuplicate, onDelete,
 }: TableViewProps): React.ReactElement {
   const columns = useMemo(
-    () => buildSkillColumns({ canEdit, onTestlauf, onDuplicate, onDelete }),
-    [canEdit, onTestlauf, onDuplicate, onDelete],
+    () => buildSkillColumns({
+      canEdit, onTestlauf, onDuplicate, onDelete, regelAnzahl: s => regelAnzahl(file, s),
+    }),
+    [file, canEdit, onTestlauf, onDuplicate, onDelete],
   );
   // Key-Bump `_v2`: `useColumnVisibility` liest bei vorhandenem Eintrag NUR die
   // gespeicherte Liste — ohne Bump blieben die neuen Default-Spalten (Kategorie,

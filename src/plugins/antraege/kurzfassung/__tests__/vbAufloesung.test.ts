@@ -28,7 +28,7 @@ const vbDoc = (id: string, created: string, filename = `${id}.pdf`, tags = ['vor
   ({ id, created, filename, tags, markdown: `INHALT ${id}` }) as unknown as DocumentFull;
 
 describe('pickAktiveVb — expliziter Pick vor „jüngstes gewinnt"', () => {
-  it('ohne Pick gewinnt das jüngste Dokument (Alt-Verhalten, byte-identisch)', () => {
+  it('ohne Pick gewinnt bei gleichem Format das jüngste Dokument', () => {
     const docs = [vbDoc('a', '2026-07-01T10:00:00.000Z'), vbDoc('b', '2026-07-03T10:00:00.000Z')];
     expect(pickAktiveVb(docs, null)?.id).toBe('b');
   });
@@ -73,5 +73,55 @@ describe('pickAktiveVb — expliziter Pick vor „jüngstes gewinnt"', () => {
     ];
     expect(pickAktiveVb(docs, null)?.id).toBe('wirkung'); // heute: willkürlich der letzte
     expect(pickAktiveVb(docs, 'projekt')?.id).toBe('projekt'); // mit Pick: der gewollte
+  });
+});
+
+/**
+ * Gemessen am 22.08.2026 an derselben VB, beide Fassungen durch den `DocConverter`:
+ * DOCX 44 Überschriften und 80 Fettauszeichnungen, PDF null und null. Ohne
+ * Überschriften kann die Relevanz-Map keine Abschnitts-Spans bilden.
+ */
+describe('pickAktiveVb — DOCX schlägt PDF, weil PDF die Struktur verliert', () => {
+  it('DOCX gewinnt gegen ein gleich altes PDF — auch wenn der Dateiname dagegen spricht', () => {
+    // Dateinamen bewusst gegenläufig: nach dem alten Tie-Break hätte „anlage.pdf" gewonnen.
+    const gleich = '2026-07-03T10:00:00.000Z';
+    const docs = [vbDoc('pdf', gleich, 'anlage.pdf'), vbDoc('docx', gleich, 'zusammenfassung.docx')];
+    expect(pickAktiveVb(docs, null)?.id).toBe('docx');
+  });
+
+  it('DOCX gewinnt AUCH gegen ein neueres PDF — der bewusst in Kauf genommene Fall', () => {
+    const docs = [
+      vbDoc('docx', '2026-07-01T10:00:00.000Z', 'VB.docx'),
+      vbDoc('pdf', '2026-07-09T10:00:00.000Z', 'VB-neu.pdf'),
+    ];
+    expect(pickAktiveVb(docs, null)?.id).toBe('docx');
+  });
+
+  it('der explizite Pick des Bearbeiters überstimmt die Format-Regel', () => {
+    const docs = [
+      vbDoc('docx', '2026-07-01T10:00:00.000Z', 'VB.docx'),
+      vbDoc('pdf', '2026-07-09T10:00:00.000Z', 'VB-neu.pdf'),
+    ];
+    expect(pickAktiveVb(docs, 'pdf')?.id).toBe('pdf');
+  });
+
+  it('unter mehreren DOCX entscheidet weiter das Datum', () => {
+    const docs = [
+      vbDoc('alt', '2026-07-01T10:00:00.000Z', 'VB.docx'),
+      vbDoc('neu', '2026-07-09T10:00:00.000Z', 'VB2.docx'),
+      vbDoc('pdf', '2026-07-20T10:00:00.000Z', 'VB.pdf'),
+    ];
+    expect(pickAktiveVb(docs, null)?.id).toBe('neu');
+  });
+
+  it('nur PDFs: alles bleibt wie bisher (jüngstes, dann Dateiname)', () => {
+    const gleich = '2026-07-03T10:00:00.000Z';
+    expect(pickAktiveVb([vbDoc('y', gleich, 'b.pdf'), vbDoc('x', gleich, 'a.pdf')], null)?.id).toBe('x');
+  });
+
+  it('.doc zählt wie .docx, unbekannte Endungen wie PDF', () => {
+    const gleich = '2026-07-03T10:00:00.000Z';
+    expect(pickAktiveVb([vbDoc('pdf', gleich, 'anlage.pdf'), vbDoc('doc', gleich, 'zzz.doc')], null)?.id).toBe('doc');
+    expect(pickAktiveVb([vbDoc('md', gleich, 'anlage.md'), vbDoc('docx', gleich, 'zzz.docx')], null)?.id).toBe('docx');
   });
 });

@@ -58,7 +58,7 @@ Die Vorgaben von Abschnitt A schlossen einander an ihren Obergrenzen aus: 8–9 
 
 - [`useKurzfassung(ctx)`](../../src/plugins/antraege/kurzfassung/useKurzfassung.ts) — Orchestrator: lädt Record + VB-Status, probt LLM-Verfügbarkeit (`transport.ping()`, lazy), Aktionen `generate/modify/pruefen/freigeben/verwerfen/stop/refreshVb`. Alle self-catching (Fehler → `error`-Banner, Pitfall #15). **Persist nach jedem Statuswechsel, NIE während der Generierung.**
 - [`KurzfassungSection`](../../src/plugins/antraege/kurzfassung/KurzfassungSection.tsx) (Zustände VB-fehlt / VB-vorhanden / Review), [`ReviewCard`](../../src/plugins/antraege/kurzfassung/ReviewCard.tsx) (Quellenanalyse-Collapsible, finaler Text + Meta, **„Denkprozess"-Collapsible** wenn `record.denkprozess` vorhanden, Versionsverlauf, Aktionsleiste Freigeben/Neu/Kürzer/Länger/Prüfen), [`CheckList`](../../src/plugins/antraege/kurzfassung/CheckList.tsx).
-- **VB-Lookup**: [`findVorhabensbeschreibung(idb, key)`](../../src/plugins/antraege/kurzfassung/vbDokument.ts) scannt `doc:*` nach `tags.includes(key) && tags.includes('vorhabensbeschreibung')` (ok bei wenigen Uploads; Generalisierung → Tag-Index). Tragen **mehrere** Dokumente den VB-Tag, entscheidet die reine `pickAktiveVb`: der explizit gewählte Datensatz (`vb-auswahl:<key>`) gewinnt, solange er existiert und noch VB-getaggt ist; sonst das jüngste, bei gleichem `created` deterministisch nach Dateiname. Alle Konsumenten (Gutachten, Kurzfassung, NF, Batch, Aufbereitung) erben den Pick über dieselbe Signatur — die maßgebliche VB ist eine **Verbund-Tatsache**, nicht eine je Artefakt.
+- **VB-Lookup**: [`findVorhabensbeschreibung(idb, key)`](../../src/plugins/antraege/kurzfassung/vbDokument.ts) scannt `doc:*` nach `tags.includes(key) && tags.includes('vorhabensbeschreibung')` (ok bei wenigen Uploads; Generalisierung → Tag-Index). Tragen **mehrere** Dokumente den VB-Tag, entscheidet die reine `pickAktiveVb`: der explizit gewählte Datensatz (`vb-auswahl:<key>`) gewinnt, solange er existiert und noch VB-getaggt ist; sonst **DOCX vor PDF** (v6.15), dann das jüngste, bei gleichem `created` deterministisch nach Dateiname. Der Format-Vorrang kommt aus einer Messung derselben VB in beiden Fassungen (22.08.2026): DOCX 44 Überschriften und 80 Fettauszeichnungen, PDF **null und null** — ohne Überschriften kann die Relevanz-Map keine Abschnitts-Spans bilden, der Auszug für `kontextBedarf: 'relevant'` hat auf einer PDF-Quelle nichts zum Schneiden. Der eine Fall, in dem das überrascht, ist benannt und in Kauf genommen: liegt eine **neuere** PDF-Fassung neben einer älteren DOCX-Fassung, gewinnt die ältere — der Bearbeiter überstimmt es im Korpus-Inventar, wo beide Kandidaten mit Datum stehen. Alle Konsumenten (Gutachten, Kurzfassung, NF, Batch, Aufbereitung) erben den Pick über dieselbe Signatur — die maßgebliche VB ist eine **Verbund-Tatsache**, nicht eine je Artefakt.
 
 ### Dokument-Inventar & Gutachten-Korpus (v2.282)
 
@@ -163,7 +163,8 @@ Der Original-Skill gehört dem Kurator; der Nutzer (Gutachter) ergänzt einen **
 Der letzte, **rein sprachliche** Arbeitsgang vor der Freigabe: „Neu · Kürzer · Länger" generiert aus der Vorhabensbeschreibung NEU (Inhalt kann sich verschieben), der Feinschliff fasst nur die Formulierung an. Seit v2.335 **hängt er automatisch an jeder frischen Generierung** — der Gutachter sieht als Ergebnis direkt den polierten Text; manuell bleibt er im ⋯-Menü der Karte erreichbar. Kein eigener Feature-Flag (lebt mit dem GA-Workflow).
 
 - **Prompt ohne VB** ([ga-lektor.seed.ts](../../src/core/services/skills/registry/ga-lektor.seed.ts), Skill-ID `ga-lektor`, kurator-editierbar wie jeder Registry-Skill): das Template trägt **nur** `{{zielText}}` (den abgenommenen Abschnitt) + `{{abschnittszweck}}`. Der Lauf kann strukturell nichts aus der VB nachziehen — das ist die eigentliche Zusicherung, nicht die Prompt-Prosa. `maxTokens: 4096` (der redigierte Abschnitt muss VOLLSTÄNDIG zurückkommen); `regelIds: []` — geprüft wird mit den Regeln **des Abschnitts**. DSGVO: `zielText` ist Inhalts-Slot → `skillEnthaeltDokumentInhalte` = true → intern-pflichtig (Pitfall #30/#35). `aktiv: false` = Kurator-Kill-Switch, dann entfällt der Knopf.
-- **Zwei Tore VOR dem Schreiben** (`runLektorat` in [useGutachtenWorkflow.ts](../../src/plugins/antraege/gutachten/useGutachtenWorkflow.ts)): leeres Ergebnis und `istVerdaechtigGekuerzt` (< 60 % der Ausgangslänge = abgeschnittene Antwort) → Fehlermeldung, **kein** Write, Abschnitt bleibt unverändert.
+- **Drei Tore VOR dem Schreiben** (`lektoriereEinmal` in [workflow-generierung.ts](../../src/plugins/antraege/gutachten/workflow-generierung.ts)): leeres Ergebnis, `istVerdaechtigGekuerzt` (< 60 % der Ausgangslänge = abgeschnittene Antwort) und `gebrocheneRegeln` → Fehlermeldung, **kein** Write, Abschnitt bleibt unverändert.
+- **Der Feinschliff darf nichts brechen, was der Entwurf schon erfüllte** (v6.15, `gebrocheneRegeln` in [lektorat.ts](../../src/plugins/antraege/gutachten/lektorat.ts)). Gemessen am 22.08.2026 an Abschnitt G: der Rohentwurf trug den Pflicht-Anfang wörtlich (`ok`), der Lektor formulierte genau diesen Wortlaut stilistisch um („wird sehr positive Auswirkungen … haben" → „wird … erheblich stärken"), die Prüfung meldete danach `fehler: Pflicht-Anfang fehlt` — und der beschädigte Stand war der angezeigte. Verglichen werden die Checks vorher/nachher **je Regel-ID**; verworfen wird nur bei einer **Verschlechterung** auf `fehler` (ein schon vorher bestehender Fehler zählt nicht, eine vorher gar nicht vorhandene Regel kann nicht erfüllt gewesen sein, `hinweis` blockiert nie). Bewusst hier statt im Lektor-Prompt: der Lektor kennt die Regeln des Abschnitts nicht, und jede künftige `fehler`-Regel müsste dort erneut nachgetragen werden. Der verworfene Lauf degradiert wie jedes gezogene Tor zum Rohentwurf (`feinschliffUebersprungen`).
 - **Deterministischer Wächter** ([lektorat.ts](../../src/plugins/antraege/gutachten/lektorat.ts), rein + node-testbar): vergleicht Zahlen-Inventar (Multiset, deutsche Formate inkl. Tausenderpunkt/Dezimalkomma/Einheiten-Suffix) und Längen-Delta zwischen Vor- und Nachfassung. Über 10 % Längen-Drift oder bei verschwundenen/neuen Zahlen erscheint eine **beratende** Hinweiszeile an der Karte (`befundText`) — sie blockiert nie und wird **live** gegen den letzten Verlaufs-Eintrag gerechnet (nichts zusätzlich persistiert).
 - **Persistenz** (`applyLektorat` in [runner.ts](../../src/plugins/antraege/gutachten/runner.ts)): kein frischer `StepRun` — Status, Belege, QS-Hinweise, `originalText` und Denkprozess bleiben; ersetzt werden Text, Checks, Modell, Zeitstempel. `teile` werden verworfen (der flache Text ist danach maßgeblich, gleiche Regel wie bei `applyBearbeitung`). Die Vorfassung wandert per `appendVerlauf` in den Verlauf ⇒ **Diff + „Diese Fassung übernehmen"** im [VersionVerlauf](../../src/plugins/antraege/kurzfassung/VersionVerlauf.tsx) gelten unverändert; additives Flag `lektoriert` treibt Pipeline-Status und `versionLabel` → „Sprachlich überarbeitet" (Vorrang vor dem Modifier-Label).
 
@@ -179,6 +180,47 @@ Der letzte, **rein sprachliche** Arbeitsgang vor der Freigabe: „Neu · Kürzer
 - **Reichweite**: der Bulk-Lauf `generiereAlle` und die Zweitfassung (anderes Ziel/andere Temperatur, aber frisch) gehen durch die volle Kette. **Nicht** dabei: Modifier- und Anweisungs-Läufe (siehe oben), der reine QS-Lauf und das manuelle Lektorat. Bewusst **kein** Ein/Aus-Setting.
 - **Fortschritt** ist strukturiert, nicht geraten: `LaufPhase` (`'formulieren' | 'feinschliff'`) in [useStreamingBuffer.ts](../../src/plugins/antraege/kurzfassung/useStreamingBuffer.ts); `lektoriereEinmal` setzt sie je VERSUCH (ein Fallback-Retry resettet die Senke).
 - **Beide Beine stehen in der Prompt-Ansicht**: `lektoriereEinmal` meldet seinen Prompt wie die Generierung über `merkeGesendet` — mit `bein: 'feinschliff'`. Der Hook hält daraus **Slots** statt einer Liste (Generierung ersetzt alles, Feinschliff ersetzt nur sich selbst — retry-fest), die Beschriftung im Dialog kommt aus der reinen `beschrifteGesendet` ([promptAnsicht.ts](../../src/plugins/antraege/gutachten/promptAnsicht.ts)), deren Teil-Nummerierung den Feinschliff nicht mitzählt. Grund: im Chat der internen KI ist vom ersten Prompt nichts mehr zu sehen (jeder Lauf startet einen frischen Chat, Pitfall #36) — wer dort nur den Lektor-Prompt findet, hält ihn sonst für den einzigen gesendeten.
+
+## Was der Messlauf 08/2026 an den Vorgaben geändert hat (v6.15)
+
+Erster gemessener Lauf der Kette A–G gegen die interne KI, geeicht an Haiku 4.5 / Sonnet 5 /
+Opus 5 ([Bericht](../_archiv/gutachten-modellvergleich-2026-08.md)). Vier der Befunde waren
+Vorgaben-Defekte, keine Modellgrenzen — sie sind hier repariert. Rollout auf Bestands-Shares
+über vier marker-gesicherte Migrationen ([migrations.ts](../../src/core/services/skills/registry/migrations.ts),
+Tests in [migrations-messlauf-2026-08.test.ts](../../src/core/services/skills/registry/__tests__/migrations-messlauf-2026-08.test.ts)).
+
+- **C: Risiko-Deckel drei → fünf** (`ga-c-fuenf-risiken-2026-08`). Der Abschnitt forderte, was
+  er selbst verbot: der Prompt deckelte auf höchstens drei Risiken, die Vorgabe verlangte
+  300–350 Wörter — drei Risiken à zwei bis drei Sätze ergeben rund 200. **Alle vier** Modelle
+  unterschritten (interne KI 106 Wörter, Haiku 188, Sonnet 248, Opus 288); ein Befund, der über
+  die Modellklassen hinweg gleich ausfällt, ist kein Modelldefekt. Aufgelöst über die
+  Risiko-Grenze, nicht über die Wortzahl — die Vorgabe ist eine Kurator-Entscheidung.
+- **A: Satzzahl einheitlich 9–11** (`ga-a-umfang-kuratiert-2026-08`). Sie stand an **drei**
+  Stellen und an zweien falsch: Prompt-Prosa „ca. 10 Sätze (Toleranz 8–12)", Vorgabe des Teams
+  9–11, Modifier-Richtwerte 8 und 12. Haiku lieferte 8 Sätze — nach dem Prompt-Text korrekt,
+  nach der Regel ein Hinweis. Die Prosa nennt jetzt gar keine Zahl mehr (Umfang single-source,
+  siehe oben), die Modifier zeigen auf die Ränder der Vorgabe. **Ausnahme von der Regel „ganzes
+  Template vergleichen"**: A ist der einzige Gutachten-Skill, dessen Prompt auf dem Share
+  kuratiert ist (823 statt 1.609 Zeichen) — ein Voll-Template-Guard könnte dort nie greifen,
+  genau deshalb trug A die Dopplung, die `ga-umfang-dedup-2026-07` beseitigen sollte, bis
+  heute. Die Migration tauscht darum **nur die eine nachweislich falsche Zeile** und lässt den
+  Rest des kuratierten Textes stehen; Modifier und Vorgabe sind separat pristine-geschützt.
+- **E + F bekommen erstmals eigene Vorgaben** (`ga-ef-vorgaben-2026-08`). Vorher prüfte an
+  beiden NUR die Interpunktions-Regel — je ein Check gegen sechs an A. Beide Abschnitte
+  skalieren mit der Partnerzahl („je Partner 2–3 Sätze", „je Firma 3 Sätze"), eine Obergrenze
+  wäre also falsch. Gesetzt ist nur ein **Boden** (`hinweis`, E ≥ 40, F ≥ 60 Wörter), geeicht am
+  kleinsten rechtmäßigen Fall (ein Antragsteller: gemessen 48 bzw. 85 Wörter) — er fängt den
+  entarteten Lauf, nicht den normalen. `keineAufzaehlungen` ist dagegen hart, wie überall sonst.
+- **Ein automatischer Korrektur-Versuch je Schritt** (`ga-ep-auto-retry-2026-08`). Der
+  beschränkte Auto-Retry existiert seit v4.124, war aber an **keinem** ZIM-EP-Schritt
+  eingeschaltet: eine verletzte `fehler`-Regel blieb stehen. Gemessen an A — die interne KI
+  lieferte 1.243 statt höchstens 1.000 Zeichen, und der vorhandene regelgebundene
+  Korrektur-Lauf reparierte das in 23 Sekunden auf 996. `maxRetries: 1` statt des Defaults 2:
+  ein Abschnitt über die Bridge dauert 25–90 s, und jeder Versuch resettet zuerst den Chat.
+- **Die Regel-Zahl der Skill-Liste zählt jetzt, was prüft**: `regelIds.length` unterschlug seit
+  v2.296 alles, was als `vorgaben` am Skill hängt (Umfang, Satzzahl, Zeichenlimit,
+  Pflicht-Anfang) — A stand mit „2 Regeln" da, während sechs Checks liefen. Karte und Tabelle
+  lesen die Zahl jetzt aus `resolveRegeln` ([SkillsTab.tsx](../../src/plugins/skill-verwaltung-kuration/SkillsTab.tsx)).
 
 ## Freie Überarbeitungs-Anweisung — „Bearbeiten mit KI" (v2.370)
 

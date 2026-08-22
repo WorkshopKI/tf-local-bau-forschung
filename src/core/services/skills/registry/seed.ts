@@ -42,12 +42,15 @@ import { SEED_RELEVANZ_MAP_SKILL } from './relevanz-map.seed';
 export {
   SEED_SKILL, SEED_REGELN, KURZFASSUNG_SKILL_ID, INTERPUNKTION_REGEL_ID,
   buildKurzfassungPrompt,
+  A_AUFGABE_ZEILE, A_AUFGABE_ZEILE_UMFANG_ALT, A_MODIFIERS_UMFANG_ALT,
 } from './gutachten-kurzfassung.seed';
 export {
   SEED_SKILLS_BG, SEED_REGELN_BG,
   AUSGANGSLAGE_SKILL_ID, RISIKEN_SKILL_ID, MARKT_SKILL_ID, KOMPETENZ_SKILL_ID,
+  UNTERNEHMEN_SKILL_ID, VERWERTUNG_SKILL_ID,
   B_ABSCHNITT_OPTS, B_ABSCHNITT_OPTS_UMFANG_ALT,
   C_ABSCHNITT_OPTS_ALT, C_ABSCHNITT_OPTS_NEU, C_ABSCHNITT_OPTS_NEU_UMFANG_ALT,
+  C_ABSCHNITT_OPTS_FUENF,
   D_ABSCHNITT_OPTS, D_ABSCHNITT_OPTS_UMFANG_ALT,
   G_ABSCHNITT_OPTS, G_ABSCHNITT_OPTS_PFLICHT_ALT,
 } from './gutachten-bg.seed';
@@ -62,10 +65,28 @@ const SEED_TS = '2026-06-11T00:00:00.000Z';
 /* Workflow-Definition „zim-ep" — geordnete Schritte A–G als kuratierbare Daten */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * Ein automatischer Korrektur-Versuch je Abschnitt (2026-08).
+ *
+ * Der beschränkte Auto-Retry gab es seit v4.124, aber kein ZIM-EP-Schritt hatte
+ * ihn eingeschaltet: eine verletzte `fehler`-Regel blieb stehen, und der Bearbeiter
+ * musste sie von Hand wegklicken. Gemessen am 22.08.2026 an Abschnitt A — die
+ * interne KI lieferte 1.243 statt höchstens 1.000 Zeichen, und der vorhandene
+ * regelgebundene Korrektur-Lauf („Mit KI kürzen") reparierte das in 23 Sekunden auf
+ * 996. Genau dieser Lauf hängt jetzt automatisch an.
+ *
+ * EINS, nicht zwei (der Default wäre 2): ein Abschnitt über die interne Bridge
+ * dauert 25–90 Sekunden, und jeder Versuch resettet zuerst den Chat (Pitfall #36).
+ * Bleibt der Fehler nach dem einen Versuch, meldet der Hook das neutral
+ * („Nach einem automatischen Versuch weiterhin Fehler") statt weiterzulaufen.
+ */
+const EP_AUTO_RETRY = { autoRetry: true, maxRetries: 1 } as const;
+
 /** Baut einen ZIM-EP-Seed-Schritt (id == nr == kurz == ankerKey == Buchstabe). */
 function epStep(id: string, label: string, skillId: string, retrievalQueries?: string[]): WorkflowStep {
   return {
     id, nr: id, kurz: id, label, skillId, ankerKey: id, gateExpr: 'immer',
+    ...EP_AUTO_RETRY,
     ...(retrievalQueries ? { retrievalQueries } : {}),
   };
 }
@@ -80,7 +101,8 @@ function epStep(id: string, label: string, skillId: string, retrievalQueries?: s
 export const ZIM_EP_DEF: WorkflowDef = {
   id: 'zim-ep',
   name: 'ZIM-EP-Gutachten',
-  version: 1,
+  // v2: ein automatischer Korrektur-Versuch je Schritt (siehe `EP_AUTO_RETRY`).
+  version: 2,
   steps: [
     epStep('A', 'Kurzfassung', 'gutachten-kurzfassung'),
     epStep('B', 'Hintergrund, Stand der Technik, Lösungsweg', 'gutachten-ausgangslage'),

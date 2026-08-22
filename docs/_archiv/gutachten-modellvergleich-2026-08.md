@@ -218,8 +218,9 @@ DOCX-Fassung bevorzugen — heute gewinnt schlicht die zuletzt abgelegte Datei.
   `status` auf ein `=== 'connected'` und unterscheiden `unknown` gar nicht — die
   Drei-Wege-Behandlung gibt es genau einmal, und sie ist die richtige Referenz.
 
-  Ursache, Zuschnitt und Abzählung aus einer Parallel-Sitzung, hier je selbst nachgeprüft;
-  bewusst nicht angefasst.
+  Ursache, Zuschnitt und Abzählung aus einer Parallel-Sitzung, hier je selbst nachgeprüft.
+  **Behoben in v6.14.2** ([verbindungsAnzeige.ts](../../src/plugins/einstellungen/ki/verbindungsAnzeige.ts)):
+  dreiwertig in der Farbe, zweiwertig im Wort — der Vorlage aus `BridgeStatusIndicator` folgend.
 - **`vorlageRef.pfad` war `Gutachten_VB.DOCX`**, obwohl der Fall ein Einzelvorhaben ist und die
   erzeugte Datei `Gutachten_EP_ZEP730010.docx` heißt. Zu prüfen, ob die Vorlagenwahl der
   Antragsart folgt.
@@ -227,7 +228,34 @@ DOCX-Fassung bevorzugen — heute gewinnt schlicht die zuletzt abgelegte Datei.
   fasst Formulierungen an, nicht Rechtschreibung.
 - **Der Denkprozess kommt an**: 2.691–14.904 Zeichen je Abschnitt, über `onReasoning` durchgereicht.
 
-## Empfohlene Reihenfolge
+## Was daraus wurde — alle sechs Befunde sind repariert (v6.15.0, 22.08.2026)
+
+Der Nutzer hat alle sechs freigegeben und für drei die fachliche Entscheidung selbst getroffen
+(C auf fünf Risiken, A einheitlich 9–11 Sätze, Vorgaben für E und F nach eigenem Ermessen).
+
+| Befund | Entscheidung | Wo |
+|---|---|---|
+| 1 Feinschliff bricht den Pflicht-Anfang | drittes Tor `gebrocheneRegeln` — ein Schliff, der eine zuvor erfüllte `fehler`-Regel bricht, wird verworfen, der Rohentwurf bleibt | [lektorat.ts](../../src/plugins/antraege/gutachten/lektorat.ts) |
+| 2 Zeichenlimit in A | Auto-Retry an allen sieben Schritten eingeschaltet, **ein** Versuch | Migration `ga-ep-auto-retry-2026-08` |
+| 3 C fordert, was es verbietet | Risiko-Deckel drei → **fünf** (nicht die Wortzahl gesenkt) | Migration `ga-c-fuenf-risiken-2026-08` |
+| 4 Satzzahl an drei Stellen | Prosa nennt keine Zahl mehr, Vorgabe **und** Modifier-Richtwerte 9–11 | Migration `ga-a-umfang-kuratiert-2026-08` |
+| 5 E und F werden nicht geprüft | Wort-Boden (E ≥ 40, F ≥ 60, `hinweis`), Satzlänge, `keineAufzaehlungen` als Fehler | Migration `ga-ef-vorgaben-2026-08` |
+| 6 PDF verliert die Struktur | `pickAktiveVb` bevorzugt DOCX vor PDF; der Bearbeiter überstimmt es im Korpus-Inventar | [vbDokument.ts](../../src/plugins/antraege/kurzfassung/vbDokument.ts) |
+| Nebenposten Verbindungs-Pille | behoben in v6.14.2 (Parallel-Sitzung) — der lebende Bridge-Status entscheidet, das Test-Echo ergänzt nur | [verbindungsAnzeige.ts](../../src/plugins/einstellungen/ki/verbindungsAnzeige.ts) |
+
+Dabei mit aufgefallen: die Skill-Liste zählte „Regeln" als `regelIds.length` und unterschlug
+damit alles, was seit v2.296 als `vorgaben` am Skill hängt — A stand mit „2 Regeln" da, während
+sechs Checks liefen. E und F zeigen jetzt 4 statt 1.
+
+**Nicht am laufenden Modell nachgemessen**: der Tunnel zur internen KI war zum Zeitpunkt der
+Reparatur bereits abgebaut. Verifiziert wurden die Migrationen gegen die **echte kuratierte**
+`registry.json` (in der isolierten Fiktiv-Umgebung angewandt und byte-genau gegengelesen), die
+Vorgaben-Anzeige, die Auto-Retry-Marken und die VB-Wahl in der laufenden App. Die beiden
+Befunde, deren Wirkung erst ein Generierungslauf zeigt (1 und 2), sind über die reinen
+Funktionen abgesichert, aber **nicht** live gegen die interne KI gesehen — das bleibt für die
+nächste Bridge-Sitzung.
+
+## Empfohlene Reihenfolge (Stand des Messtags — inzwischen vollständig abgearbeitet)
 
 1. **Feinschliff darf keine erfüllte `fehler`-Regel brechen** (Befund 1) — Code, klein, hoher Schaden.
 2. **Wortzahl in C an die Drei-Risiken-Grenze angleichen** (Befund 3) — Kuration, kein Code.
