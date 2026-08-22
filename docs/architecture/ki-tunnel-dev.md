@@ -109,15 +109,36 @@ Der **öffentliche** Teil (`%USERPROFILE%\.ssh\id_ed25519.pub`) gehört auf die 
 > am Ende von `sshd_config`). Der falsche Ort ist die häufigste Ursache für „der Schlüssel wird
 > ignoriert, es fragt weiter nach dem Passwort". Zusätzlich verweigert sshd die Datei
 > **kommentarlos**, wenn ihre Rechte zu weit sind — nur `SYSTEM` und `Administratoren` dürfen darauf.
+> Deshalb `icacls` mit **SIDs** statt Gruppennamen: `Administratoren` heißt auf einem englischen
+> Windows `Administrators`, und die Zeile schlüge dort fehl.
+
+Die gesetzten Rechte prüfen sich selbst: danach ist die Datei **ohne Erhöhung nicht mehr lesbar**
+(`Get-Content` wirft `UnauthorizedAccessException`, `icacls` meldet „Zugriff verweigert"). Das ist
+das erwartete Ergebnis, kein Fehlschlag.
 
 In einer PowerShell als Administrator auf der Dev-Maschine (Schlüsseltext vorher einfügen):
 
 ```powershell
-$k = 'ssh-ed25519 AAAA... laptop'; $f = "$env:ProgramData\ssh\administrators_authorized_keys"; Add-Content $f $k; icacls $f /inheritance:r /grant 'SYSTEM:F' /grant 'Administratoren:F'
+$k = 'ssh-ed25519 AAAA... laptop'; $f = "$env:ProgramData\ssh\administrators_authorized_keys"; Add-Content -Path $f -Value $k -Encoding ascii; icacls $f /inheritance:r /grant '*S-1-5-18:F' /grant '*S-1-5-32-544:F'
 ```
 
-Danach in `C:\ProgramData\ssh\sshd_config` `PasswordAuthentication no` setzen und
-`Restart-Service sshd`.
+Danach die Passwort-Anmeldung schließen — **zwei** Direktiven, nicht eine:
+
+```powershell
+$c = "$env:ProgramData\ssh\sshd_config"; $t = @(Get-Content $c) -notmatch '^\s*#?\s*(PasswordAuthentication|KbdInteractiveAuthentication|ChallengeResponseAuthentication)\b'; (@('PasswordAuthentication no', 'KbdInteractiveAuthentication no') + $t) | Set-Content $c -Encoding ascii; Restart-Service sshd
+```
+
+**Das ist kein Feinschliff, und die zweite Zeile ist der Punkt.** Frisch installiert bietet sshd
+`publickey,password,keyboard-interactive` an — Port 22 steht im LAN offen und nimmt Passwörter
+entgegen. Setzt man nur `PasswordAuthentication no`, meldet der Server danach
+`publickey,keyboard-interactive`, und das sieht aus wie erledigt: Windows-OpenSSH bedient
+`keyboard-interactive` aber **ebenfalls mit dem Konto-Passwort**. Die Passwort-Anmeldung wäre
+halb geschlossen und der Zustand nicht von „zu" zu unterscheiden.
+
+Die neuen Zeilen kommen an den **Anfang** der Datei: hinter dem `Match Group administrators`-Block
+am Dateiende gälten sie nur für diesen Block, und bei OpenSSH gewinnt ohnehin der zuerst gefundene
+Wert. Kontrolle: `ssh -o BatchMode=yes tom@<ip> exit` muss `Permission denied (publickey)` melden —
+**nur** das eine Wort in der Klammer.
 
 ### 4 · hosts-Eintrag auf der Dev-Maschine
 
@@ -130,7 +151,45 @@ Eine Zeile in `C:\Windows\System32\drivers\etc\hosts` (Editor als Administrator)
 Solange die Zeile steht und der Tunnel **nicht** läuft, ist die Adresse von hier aus tot statt
 unauflösbar. Das sieht anders aus als vorher, ist aber derselbe Zustand: erreichbar war sie hier nie.
 
-### 5 · Tunnel starten
+### 5 · Firmen-CA importieren
+
+Die interne KI trägt **kein öffentliches Zertifikat**: ausgestellt von `CN=vdivde-it-CA, DC=vdivde-it, DC=de`,
+der firmeneigenen Stelle. Der Firmenlaptop kennt sie über die Domäne, die Dev-Maschine nicht — dort
+scheitert die Verbindung mit `SEC_E_UNTRUSTED_ROOT`, und der Browser zeigt eine Warnseite.
+
+Das ist **keine** Folge des Tunnels: TLS läuft Ende-zu-Ende, es terminiert nichts dazwischen. Der
+Name im Zertifikat (`CN=gpt.vdivde-it.de`) stimmt, es fehlt allein die Wurzel im Speicher.
+
+Auf dem Laptop exportieren — `$env:TEMP` statt Desktop, der ist auf Firmengeräten oft umgeleitet:
+
+```powershell
+$c = @(Get-ChildItem Cert:\LocalMachine\Root | Where-Object { $_.Subject -like '*vdivde-it-CA*' }); $p = Join-Path $env:TEMP 'vdivde-it-CA.cer'; Export-Certificate -Cert $c[0] -FilePath $p -ErrorAction Stop | Out-Null; "OK -> $p"
+```
+
+Herüberkopieren (`scp` läuft über dieselbe Verbindung), dann auf der Dev-Maschine **prüfen, bevor
+vertraut wird**: Fingerabdruck gegen den vom Laptop halten, und die Kette der KI gegen die Datei
+bauen (`X509Chain` mit `ExtraStore` + `AllowUnknownCertificateAuthority`). Erst wenn die Wurzel der
+Kette diese CA ist, ist belegt, dass es die richtige ist.
+
+Der Import selbst ist **Handarbeit und muss es sein**: `Import-Certificate` in
+`Cert:\CurrentUser\Root` verlangt eine Bestätigung am Bildschirm und bricht in einer nicht
+interaktiven Sitzung mit „Die Benutzeroberfläche ist für diesen Vorgang nicht zulässig" ab. Genau
+dafür ist die Sperre da — kein Hintergrundprozess soll still einen Stamm hinzufügen.
+
+```powershell
+Import-Certificate -FilePath "<pfad>\vdivde-it-CA.cer" -CertStoreLocation Cert:\CurrentUser\Root
+```
+
+**Benutzer-Speicher, nicht maschinenweit** — die Wirkung bleibt auf ein Konto begrenzt und es
+braucht keine Admin-Rechte. Bewusst abwägen: eine importierte CA darf Zertifikate für **jede**
+Domain ausstellen, denen dieser Speicher glaubt, nicht nur für die interne KI.
+
+**Nachwirkung, die kein Fehler ist:** die Sperrlisten-Prüfung bleibt offline — der CRL-Server liegt
+im Firmennetz, und der Tunnel führt bewusst nur den einen Host. `curl`s schannel-Backend wertet das
+hart (`CRYPT_E_REVOCATION_OFFLINE`) und braucht `--ssl-revoke-best-effort`; Browser werten es weich
+und verbinden ohne Zutun.
+
+### 6 · Tunnel starten
 
 [`scripts/ki-tunnel/laptop-tunnel.cmd`](../../scripts/ki-tunnel/laptop-tunnel.cmd) auf den Laptop
 kopieren und per Doppelklick starten, solange das VPN steht. Das Fenster bleibt offen; `Strg+C`
@@ -165,23 +224,39 @@ die drei Dinge, die laut [ki-bridge.md](ki-bridge.md) **kein** lokaler Test abde
 aus der Seite abgelesenen Endpunkte stimmen, dass der Modellwechsel durchschlägt und dass `done`
 den Lauf beendet.
 
-## Eine Abnahme-Sitzung automatisiert fahren
+## Eine Abnahme-Sitzung fahren — und wo die Automatisierung endet
 
-Die Lesezeichenleiste ist im Browser-Pane nicht bedienbar — gebraucht wird sie auch nicht. Das
-Lesezeichen ist reines JavaScript, und es anzuklicken heißt nichts anderes, als diesen Text im
-KI-Tab auszuführen.
+**Ein Handgriff bleibt: das Lesezeichen im KI-Tab anklicken.** Das ist keine Lücke im Aufbau,
+sondern die Grenze der Werkzeuge — und sie liegt genau dort, wo die App sie ohnehin zieht: das
+Bookmarklet ist der vom Nutzer autorisierte Weg, Code in eine fremde Seite zu bringen
+([ki-bridge.md](ki-bridge.md)).
 
-1. `npm run dev:local` → App auf 5175, `await window.__tf.bereit()`.
-2. Einstellungen → KI → Klappe „Verbindung einrichten" **aufklappen**. Der `javascript:`-Anker wird
-   erst dabei montiert (Callback-Ref statt Mount-Effekt, siehe [ki-bridge.md](ki-bridge.md)); bei
-   geschlossener Klappe steht er nicht im DOM. Dann seinen `href` auslesen.
-3. **„Interne KI öffnen" klicken** — nicht per `navigate` auf die Adresse gehen. Das Snippet meldet
-   sich über `window.opener` an die App; ein ohne Opener geöffneter Tab bleibt für die Bridge stumm
-   (Invariante „Fenster-Handle aus `event.source`").
-4. Den Snippet-Text (`href` ohne das `javascript:`-Präfix, `decodeURIComponent`) im KI-Tab
-   ausführen. Das ist exakt der Lesezeichen-Klick.
-5. Danach normale Bedienung. Nach jedem **Neuladen** des KI-Tabs Schritt 4 wiederholen — das gilt
-   heute genauso, das Bookmarklet überlebt kein Reload.
+Gemessen, damit es niemand erneut versucht:
+
+| Oberfläche | `window.open` aus der App | `fetch` der KI-Seite | Skript in den KI-Tab bringen |
+|---|---|---|---|
+| **Browser-Pane** von Claude Code | liefert `null`, auch aus echter Geste ([Bug-Klasse](recurring-bug-classes.md)) | `net::ERR_BLOCKED_BY_CLIENT` | — |
+| **Claude in Chrome** (echtes Chrome) | echte Geste öffnet den Tab | frei | nur in Tabs der eigenen Gruppe; ein Popup gehört nicht dazu |
+
+Der KI-Tab entsteht als Popup der App und liegt damit außerhalb der steuerbaren Tab-Gruppe. Ihn
+stattdessen selbst zu öffnen, hilft nicht: das Snippet meldet sich über `window.opener` an die App,
+und ein ohne Opener geöffneter Tab bleibt für die Bridge stumm (Invariante „Fenster-Handle aus
+`event.source`").
+
+**Der Ablauf, der trägt** — ein Klick vom Menschen, der Rest automatisiert:
+
+1. `npm run dev:local` → App auf 5175, `await window.__tf.bereit()`. Bei frischer IDB dieses
+   Browserprofils erst das Umzugs-Banner wegklicken (synthetisches Handle, kein Dialog).
+2. Einstellungen → Daten & Verbindungen → „Interne KI" → Klappe **„Verbindung einrichten"**
+   aufklappen. Der `javascript:`-Anker wird erst dabei montiert (Callback-Ref statt Mount-Effekt);
+   bei geschlossener Klappe steht er nicht im DOM.
+3. Das Lesezeichen `interne-KI v2` **einmalig** in die Lesezeichenleiste ziehen.
+4. „Interne KI öffnen" klicken — als **echte** Geste (`computer` mit `ref`, nicht `.click()` aus
+   einem Skript; sonst greift der Popup-Blocker).
+5. Im KI-Tab das Lesezeichen anklicken. **Dieser Schritt ist manuell** und nach jedem Neuladen des
+   Tabs erneut nötig.
+6. Ab hier läuft alles über den App-Tab: Skill-Läufe starten, Ergebnisse und `window.__tf.fehler()`
+   auslesen. Der KI-Tab arbeitet im Hintergrund mit.
 
 ## Fehlersuche
 
@@ -189,8 +264,10 @@ KI-Tab auszuführen.
 |---|---|
 | `ssh` bricht sofort ab, „remote port forwarding failed" | Auf der Dev-Maschine belegt etwas Port 443 (`Get-NetTCPConnection -State Listen`). Genau dafür steht `ExitOnForwardFailure=yes` in der `.cmd`: **ohne** den Schalter käme die Sitzung zustande und der Tunnel wäre trotzdem tot — eine lebende Verbindung, die nichts weiterleitet. |
 | `ssh` läuft, aber `curl` meldet „Connection refused" | Der Dienst `sshd` läuft nicht (`Get-Service sshd`), oder die Weiterleitung bindet nicht auf Loopback. |
+| Nach einem **Neustart der Dev-Maschine** verbindet der Laptop nicht mehr | `sshd` steht bewusst auf `StartupType Manual` — der Dienst läuft, wenn er gebraucht wird, nicht dauerhaft. `Start-Service sshd` (erhöht). Wer den Tunnel täglich nutzt, stellt auf `Automatic` um und nimmt die dauerhaft offene Tür in Kauf. |
 | „Connection timed out" beim Verbinden | Die IP der Dev-Maschine hat sich geändert (DHCP) — im Router reservieren oder in der `.cmd` nachziehen. Oder das VPN kappt das lokale Netz (Schritt 2). |
 | Schlüssel wird ignoriert, es fragt nach dem Passwort | `administrators_authorized_keys` statt `~/.ssh/authorized_keys`, oder die Rechte an der Datei sind zu weit (Schritt 3). |
+| **„REMOTE HOST IDENTIFICATION HAS CHANGED!"** beim ersten Verbinden | Erwartbar: `sshd` erzeugt seine Host-Schlüssel bei der Installation neu, und die Adresse kommt per DHCP — im `known_hosts` des Laptops kann noch ein Eintrag eines Vorgängers stehen. **Nicht blind bestätigen**, die Meldung sieht bei einem Angriff genauso aus. Den echten Fingerabdruck auf der Dev-Maschine über **Loopback** holen (nicht über das LAN, sonst prüft man die Leitung mit sich selbst): `ssh-keyscan -t ecdsa,ed25519 127.0.0.1 \| ssh-keygen -lf -`. Stimmt er mit dem gemeldeten überein, auf dem Laptop `ssh-keygen -R <ip>` und neu verbinden. |
 | Port lässt sich nicht binden, obwohl frei | Windows reserviert Portbereiche vorab (Hyper-V/WSL): `netsh interface ipv4 show excludedportrange protocol=tcp`. Für 443 und 22 auf dieser Maschine geprüft — beide liegen außerhalb. |
 | Browser lädt die Seite nicht, `curl` schon | Secure DNS (DoH) im Browser umgeht die hosts-Datei — abschalten. |
 
@@ -206,9 +283,18 @@ KI-Tab auszuführen.
 
 ## Stand
 
-Aufbau und Anleitung sind fertig, die Einrichtungsschritte brauchen erhöhte Rechte bzw. den Laptop
-und sind damit Handarbeit. Auf der Dev-Maschine nachgemessen und in dieses Dokument eingeflossen:
-LAN-Adresse `192.168.2.125`, `tom` in der Administratoren-Gruppe (Schritt 3), `sshd` nicht
-installiert, die Ports 22/443/8443/8788 frei und außerhalb der reservierten Bereiche, kein
-bestehender hosts-Eintrag. **Ob der VPN-Client den Weg vom Laptop hierher zulässt, ist offen** — das
-klärt Schritt 2 und nichts davor.
+**Der Weg steht und ist gemessen** (August 2026, `WIN11CORE6` ↔ Laptop `V3283`):
+
+| Prüfung | Ergebnis |
+|---|---|
+| TCP vom Laptop (VPN aktiv) auf `192.168.2.125:22` | `TcpTestSucceeded : True` |
+| Nur noch Schlüssel-Anmeldung | `Permission denied (publickey)` — ein Wort in der Klammer |
+| Weiterleitung | `remote forward success for: listen 443, connect gpt.vdivde-it.de:443` |
+| `curl` mit voller Zertifikatsprüfung | **HTTP 200**, TLS-Handshake 0,22 s, gesamt 0,42 s |
+| Seite im Browser | `https://gpt.vdivde-it.de/` · „AitisiGPT" · `#shell[data-sid]` · `#sendform` → `/send` · Modelle gpt-oss-120b / Qwen3.6-35B / Qwen3-VL-30B · „Chatlänge [Token]: 0k von 62k" |
+
+Chromium berücksichtigt die hosts-Datei; Secure DNS läuft **nicht** daran vorbei — das war vorab
+nicht messbar und ist damit erledigt.
+
+Zwei Dinge fielen dabei an, die vorher niemand wissen konnte: die interne KI hängt an einer
+firmeneigenen CA (Schritt 5), und die Sperrlisten-Prüfung bleibt naturgemäß offline.
