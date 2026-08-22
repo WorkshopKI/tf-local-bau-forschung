@@ -226,37 +226,63 @@ den Lauf beendet.
 
 ## Eine Abnahme-Sitzung fahren — und wo die Automatisierung endet
 
-**Ein Handgriff bleibt: das Lesezeichen im KI-Tab anklicken.** Das ist keine Lücke im Aufbau,
-sondern die Grenze der Werkzeuge — und sie liegt genau dort, wo die App sie ohnehin zieht: das
-Bookmarklet ist der vom Nutzer autorisierte Weg, Code in eine fremde Seite zu bringen
-([ki-bridge.md](ki-bridge.md)).
+**Genau ein Handgriff bleibt — und zwar nur einmal pro Sitzung: den KI-Tab öffnen.** Alles danach,
+das Lesezeichen eingeschlossen, läuft automatisch.
 
-Gemessen, damit es niemand erneut versucht:
+Die Werkzeuge unterscheiden sich dabei deutlich; gemessen, damit niemand die falsche Oberfläche
+wählt:
 
-| Oberfläche | `window.open` aus der App | `fetch` der KI-Seite | Skript in den KI-Tab bringen |
+| | `window.open` aus der App | `fetch` der KI-Seite | Skript in den KI-Tab |
 |---|---|---|---|
-| **Browser-Pane** von Claude Code | liefert `null`, auch aus echter Geste ([Bug-Klasse](recurring-bug-classes.md)) | `net::ERR_BLOCKED_BY_CLIENT` | — |
-| **Claude in Chrome** (echtes Chrome) | echte Geste öffnet den Tab | frei | nur in Tabs der eigenen Gruppe; ein Popup gehört nicht dazu |
+| **Browser-Pane** von Claude Code | `null`, auch aus echter Geste ([Bug-Klasse](recurring-bug-classes.md)) | `net::ERR_BLOCKED_BY_CLIENT` | unerreichbar |
+| **Claude in Chrome** | öffnet aus echter Geste; ein Skript-`.click()` wird geblockt | frei | **möglich** — der Popup landet in derselben Tab-Gruppe |
 
-Der KI-Tab entsteht als Popup der App und liegt damit außerhalb der steuerbaren Tab-Gruppe. Ihn
-stattdessen selbst zu öffnen, hilft nicht: das Snippet meldet sich über `window.opener` an die App,
-und ein ohne Opener geöffneter Tab bleibt für die Bridge stumm (Invariante „Fenster-Handle aus
-`event.source`").
+Die Pane scheidet damit aus. In der Chrome-Anbindung nimmt Chrome den von der App geöffneten Popup
+in dieselbe Tab-Gruppe auf, und ab da ist er steuerbar wie jeder andere Tab.
 
-**Der Ablauf, der trägt** — ein Klick vom Menschen, der Rest automatisiert:
+**Das Lesezeichen lässt sich nachschießen**, ohne es anzuklicken und ohne den 50 kB großen
+Snippet-Text durch den Agenten zu schleifen: die beiden Tabs reichen ihn sich **browserintern**
+weiter. Im App-Tab einen Beantworter registrieren, im KI-Tab über `window.opener` danach fragen und
+das Ergebnis auswerten:
+
+```js
+// App-Tab: Anker aus der offenen Klappe lesen, dann auf Anfrage herausgeben
+window.__snippetSrc = decodeURIComponent(
+  document.querySelector('a[href^="javascript:"]').getAttribute('href').slice('javascript:'.length));
+window.addEventListener('message', e => {
+  if (e.data === 'tf-gib-snippet' && e.source) e.source.postMessage({ tfSnippet: window.__snippetSrc }, '*');
+});
+
+// KI-Tab: annehmen und ausführen — das IST der Lesezeichen-Klick
+window.addEventListener('message', e => {
+  if (typeof e.data?.tfSnippet === 'string') (0, eval)(e.data.tfSnippet);
+});
+window.opener.postMessage('tf-gib-snippet', '*');
+```
+
+Gemessen: 49.675 Zeichen übertragen, `window.__teamflowBridge` vorhanden, Pille „Verbunden",
+Tab-Titel `✅ Verbunden · AitisiGPT`, App-Seite meldet „Interne KI verbunden" — und ein
+Assistenten-Turn danach antwortete in 4,5 s. Das trägt auch **nach einem Neuladen** des KI-Tabs:
+`window.opener` überlebt es, der Weg ist also wiederholbar.
+
+**Der Ablauf:**
 
 1. `npm run dev:local` → App auf 5175, `await window.__tf.bereit()`. Bei frischer IDB dieses
    Browserprofils erst das Umzugs-Banner wegklicken (synthetisches Handle, kein Dialog).
 2. Einstellungen → Daten & Verbindungen → „Interne KI" → Klappe **„Verbindung einrichten"**
    aufklappen. Der `javascript:`-Anker wird erst dabei montiert (Callback-Ref statt Mount-Effekt);
-   bei geschlossener Klappe steht er nicht im DOM.
-3. Das Lesezeichen `interne-KI v2` **einmalig** in die Lesezeichenleiste ziehen.
-4. „Interne KI öffnen" klicken — als **echte** Geste (`computer` mit `ref`, nicht `.click()` aus
-   einem Skript; sonst greift der Popup-Blocker).
-5. Im KI-Tab das Lesezeichen anklicken. **Dieser Schritt ist manuell** und nach jedem Neuladen des
-   Tabs erneut nötig.
-6. Ab hier läuft alles über den App-Tab: Skill-Läufe starten, Ergebnisse und `window.__tf.fehler()`
-   auslesen. Der KI-Tab arbeitet im Hintergrund mit.
+   bei geschlossener Klappe steht er nicht im DOM. **Zustand prüfen statt toggeln** — ein blinder
+   Klick auf eine offene Klappe schließt sie, und der Anker verschwindet wieder.
+3. „Interne KI öffnen" als **echte** Geste klicken (`computer` mit `ref`). Das ist der eine Schritt,
+   der einen Menschen oder die Maus-Schnittstelle braucht.
+4. Snippet nachschießen wie oben. Kein Ziehen in die Lesezeichenleiste nötig — die braucht nur, wer
+   die Bridge von Hand benutzt.
+5. Ab hier läuft alles über den App-Tab: Skill-Läufe starten, Ergebnisse und `window.__tf.fehler()`
+   auslesen.
+
+> Ein Gutachten-Abschnitt braucht zusätzlich eine **Vorhabensbeschreibung** am Verbund — ohne sie
+> zeigt die Sektion nur ihre Ablagefläche. Für einen reinen Verbindungsnachweis ist ein
+> Assistenten-Turn der kürzere Weg: shell-weit eingehängt, ein Prompt, ein Lauf.
 
 ## Fehlersuche
 
@@ -295,6 +321,10 @@ und ein ohne Opener geöffneter Tab bleibt für die Bridge stumm (Invariante „
 
 Chromium berücksichtigt die hosts-Datei; Secure DNS läuft **nicht** daran vorbei — das war vorab
 nicht messbar und ist damit erledigt.
+
+**Ein vollständiger Lauf ist durch**: Assistenten-Turn aus dem App-Tab → `postMessage` → KI-Tab →
+`/send` + SSE → Tunnel → VPN → interne KI → Antwort zurück, 0 Konsolenfehler. Die Bridge wurde dabei
+einmal absichtlich zerstört (Neuladen des KI-Tabs) und **vom Agenten selbst** wieder eingesetzt.
 
 Zwei Dinge fielen dabei an, die vorher niemand wissen konnte: die interne KI hängt an einer
 firmeneigenen CA (Schritt 5), und die Sperrlisten-Prüfung bleibt naturgemäß offline.
