@@ -48,8 +48,11 @@ function umgebung(variante: string, sessionAktiv: boolean): RegistryUmgebung {
 /** Erwartung je Variante: [editierbar, sichtbar] ohne Session / mit Session. */
 const MATRIX: Record<string, { ohne: [boolean, boolean]; mit: [boolean, boolean] }> = {
   // Entwickler-Kontexte — `local` MUSS dabei sein, dort läuft die Selbstabnahme.
+  // `local-fiktiv` ist ihre Schwester auf einer rein fiktiven Datenwurzel (Messungen
+  // gegen die interne KI ohne echte Antragsdaten) und teilt deshalb ihre Zeile.
   dev: { ohne: [true, true], mit: [true, true] },
   local: { ohne: [true, true], mit: [true, true] },
+  'local-fiktiv': { ohne: [true, true], mit: [true, true] },
   // Schreibrecht auf dem Share → pl editiert direkt, OHNE Kurator-Freischaltung.
   // Genau das hätte der alte `!kuratorMenus`-Term nach der Zusammenlegung gekippt.
   pl: { ohne: [true, true], mit: [true, true] },

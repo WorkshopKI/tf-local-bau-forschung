@@ -1,7 +1,7 @@
 {
   "name": "teamflow-local",
   "private": true,
-  "version": "6.13.0",
+  "version": "6.14.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -17,6 +17,8 @@
     "predev": "npm run normalize:fixture-csvs && npm run generate:ort-wasm",
     "predev:local": "npm run normalize:fixture-csvs && npm run generate:ort-wasm",
     "dev:local": "node scripts/dev-local.mjs --config configs/local.config.json --port 5175",
+    "predev:fiktiv": "npm run normalize:fixture-csvs && npm run generate:ort-wasm",
+    "dev:fiktiv": "node scripts/dev-local.mjs --config configs/local-fiktiv.config.json --port 5176",
     "prebuild": "npm run generate:test-assets",
     "prebuild:variant": "npm run generate:test-assets",
     "prebuild:dev": "npm run generate:test-assets",

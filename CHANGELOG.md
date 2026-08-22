@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v6.14.0 — Variante local-fiktiv: Gutachten-Abschnitte gegen die interne KI messen (August 2026)
+
+MINOR — Seit dem Tunnel ist die interne KI von hier aus erreichbar; gemessen wurde sie an den Gutachten-Abschnitten trotzdem nie. Dafür fehlte eine Umgebung mit fiktiven Anträgen, die den echten Bestand nicht anfasst.
+
+- **Variante `local-fiktiv`** (`npm run dev:fiktiv`, Port 5176): eigene IDB `teamflow-zah-local-fiktiv` + eigene Datenwurzel, ausschließlich fiktive Anträge ([configs/local-fiktiv.config.json](configs/local-fiktiv.config.json))
+- **Referenzlauf gegen Claude** über das vorhandene Skill-Eval-Harness — dieselbe kuratierte Registry, dieselben Prompts; die Modell-Configs bleiben wie alle `eval/models*.json` lokal ([skill-eval/README.md](src/core/services/skill-eval/README.md))
+- **Befund-Bericht des ersten Messlaufs A–G**: zwei harte Regelverstöße der internen KI, vier modellunabhängige Prompt-Defekte ([gutachten-modellvergleich-2026-08.md](docs/_archiv/gutachten-modellvergleich-2026-08.md))
+- **Die Varianten-Matrix des Registry-Zugangs** kennt `local-fiktiv` (globbt `configs/*.config.json`, hätte sonst rot gemeldet) ([registry-zugang.test.ts](src/config/__tests__/registry-zugang.test.ts))
+- **Fiktive Synthese-Anträge + Fachbereichs-Zuarbeiten ignoriert** — ~6 MB DOCX/PDF, kein Repo-Inhalt ([.gitignore](.gitignore))
+
 ### v6.13.0 — Eine uebernommene Anfrage ist keine Frage — und das Kurzprofil wird kompakter (August 2026)
 
 MINOR — Zwei Meldungen aus der Abnahme: das Kurzprofil des Antragstellers (v6.10) stapelte Kurzname über Aktenzeichen und kostete 44 px je Antrag, und ein Wert aus „Top Ten" strandete im Frage-Modus im Hinweis „Noch nicht gestellt" — ausgerechnet dort, wo gerade noch „305 Treffer" danebenstand.

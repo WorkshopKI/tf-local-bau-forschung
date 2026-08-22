@@ -1,0 +1,103 @@
+{
+  "_comment": "Variante 'local-fiktiv' — Schwester von local.config.json, NUR Entwickler-Maschine, NUR Vite-Dev-Server (npm run dev:fiktiv). Verdrahtet eine AUSSCHLIESSLICH FIKTIVE Datenwurzel (fzd-SMB-Root-FIKTIV + fzd-FIKTIV-Export) statt der Kopie des echten Shares. Zweck: Gutachten-Abschnitte gegen die interne KI messen, ohne echte Antragsdaten in Prompts, Dokumente oder Laeufe zu ziehen. Die Trennung traegt ueber build.outputFilename: die IDB heisst teamflow-zah-local-fiktiv und ist damit von teamflow-zah-local getrennt (siehe CLAUDE.md, 'IDB PRO BUILD-VARIANTE GETRENNT'). Der fiktive Bestand entsteht aus scripts/tmp/mach-fiktive-csv.mjs; die kuratierte registry.json wurde aus dem echten Share kopiert, damit die Prompts dieselben sind. Wird NIE gebaut: validateConfig verbietet den local-Block in variant=production. Details: docs/architecture/local-variante.md",
+  "configVersion": 2,
+  "variant": "custom",
+  "build": {
+    "label": "ZAH fiktiv",
+    "outputFilename": "zah-local-fiktiv",
+    "browserTabTitle": "ZAH fiktiv",
+    "faviconColor": "#8a5cf6"
+  },
+  "data": {
+    "fixedDataSharePath": null,
+    "expectedFolderName": null,
+    "fixedCsvImportPfad": null,
+    "allowUserToChangePath": true,
+    "allowLocalFallback": true,
+    "demoDataBundled": false
+  },
+  "personalFolder": {
+    "subfolder": "ZAH",
+    "required": false,
+    "promptAfterProfile": false,
+    "snapshotAgeWarningDays": 3
+  },
+  "features": {
+    "kuratorMenus": true,
+    "feedback": true,
+    "dokumentenscan": true,
+    "volltextsuche": true,
+    "devInfraPanel": true,
+    "devFixtures": true,
+    "antraege": true,
+    "dokumente": true,
+    "auslastung": true,
+    "auslastungSelbstEintragung": true,
+    "deAnonymisierung": true,
+    "datenShareSchreibrecht": true,
+    "maLogin": false,
+    "maVerwaltungPasswort": true,
+    "suche": true,
+    "feedbackDelete": true,
+    "csvAutoRefresh": true,
+    "onlineStatusTab": true,
+    "gutachtenKurzfassung": true,
+    "gutachtenWorkflow": true,
+    "workflowEntwuerfe": true,
+    "nfNachforderungen": true,
+    "artefaktWerkbank": true,
+    "antragAufbereitung": true,
+    "skillVerwaltung": true,
+    "anfragen": true,
+    "streamlitBridge": true,
+    "deltaSnapshotWrite": true,
+    "assistentProtokoll": true,
+    "assistentPanel": true,
+    "assistentGedaechtnis": true,
+    "mapFoerderfaehig": true,
+    "statusCockpit": true,
+    "meilensteinMonitoring": true,
+    "vorgangssystem": true,
+    "eigeneSpalten": true,
+    "sucheNatuerlicheSprache": true,
+    "metadatenDirektApi": true
+  },
+  "menuLabels": {
+    "antraege": "Förderanträge",
+    "dokumente": "Dokumente"
+  },
+  "dev": {
+    "defaultKuratorName": "Fiktiv",
+    "defaultKuratorPassword": "dev",
+    "dataSharePath": null,
+    "sessionTtlDays": 30,
+    "autoRefreshSmbPermission": false,
+    "autoReloadAfterScenario": false
+  },
+  "ki": {
+    "localLlama": { "enabled": true, "endpoint": "http://localhost:8081" },
+    "openrouter": { "enabled": false, "allowedModels": [] }
+  },
+  "branding": { "logoUrl": null, "primaryColor": null },
+  "scan": {
+    "sub_roots": [],
+    "file_extensions": [".pdf", ".docx"],
+    "max_depth": 20,
+    "fkz_allowed_prefixes": ["16EP", "16KN", "16DS", "16DL"]
+  },
+  "local": {
+    "datenShare": "C:\\01b_genAI_Code\\01d-lokal-fzd\\fzd-SMB-Root-FIKTIV\\ZAH",
+    "persoenlich": "C:\\01b_genAI_Code\\01d-lokal-fzd\\fzd-SMB-Root-FIKTIV\\Mitarbeiterordner\\Hübsch",
+    "userFoldersRoot": "C:\\01b_genAI_Code\\01d-lokal-fzd\\fzd-SMB-Root-FIKTIV\\Mitarbeiterordner",
+    "userFoldersRoots": {
+      "pl": "C:\\01b_genAI_Code\\01d-lokal-fzd\\fzd-SMB-Root-FIKTIV\\Mitarbeiterordner\\PL",
+      "bearbeiter": "C:\\01b_genAI_Code\\01d-lokal-fzd\\fzd-SMB-Root-FIKTIV\\Mitarbeiterordner\\Bearbeiter"
+    },
+    "csvSourceDir": "C:\\01b_genAI_Code\\01d-lokal-fzd\\fzd-FIKTIV-Export",
+    "vorlagenDir": "C:\\01b_genAI_Code\\01d-lokal-fzd\\fzd-SMB-Root-FIKTIV\\DMS Vorlagen",
+    "dmsSources": {
+      "default": "C:\\01b_genAI_Code\\01d-lokal-fzd\\fzd-SMB-Root-FIKTIV\\DMS Vorlagen"
+    },
+    "profil": { "name": "Fiktiv Dev", "kuerzel": "alle", "isKurator": true }
+  }
+}

@@ -98,6 +98,14 @@ _reference/wirkungskette.png
 fiktive-vbs/
 eval/word-fiktive-vbs/
 eval/judge.json
+# Fiktive Synthese-Antraege (DOCX/PDF, ~6 MB) + Zuarbeiten des Fachbereichs.
+# Testmaterial der Dev-Maschine, nicht Teil von TeamFlow.
+_reference/fzd-synthetische-antraege/
+_reference/klaerfragen/
+_reference/kuerzel-zuarbeit/
+eval/fiktiv-vbs/
+eval/judge-sonnet5.json
+tf-local.bundle
 eval/models*.json
 eval/convert-vbs.mjs
 eval/report-now.ts
