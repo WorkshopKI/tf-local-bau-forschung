@@ -179,11 +179,28 @@ DOCX-Fassung bevorzugen — heute gewinnt schlicht die zuletzt abgelegte Datei.
   *(Meine erste Notiz „«Verbindung testen» änderte daran nichts" war ungenau: ich habe erst
   6–8 s nach dem Klick gemessen, also nach Ablauf des Fensters.)*
   Der Zustand liegt bereit: [bridge-status.ts](../../src/core/services/ai/bridge-status.ts) ist
-  laut eigenem Kopfkommentar die „zentrale Status-Quelle für die Anzeige verbunden/getrennt" und
-  führt `status: 'connected' | 'disconnected' | 'unknown'` samt `lastSeen`. Die Komponente
-  abonniert den Store bereits — liest daraus aber nur `s.rev` für die Bookmarklet-Versionsprüfung.
-  **Fix wäre `s.status` statt `testErgebnis`**, eine Zeile. Befund aus einer Parallel-Sitzung
-  bestätigt, bewusst nicht angefasst.
+  laut eigenem Kopfkommentar die „zentrale Status-Quelle für die Anzeige verbunden/getrennt",
+  führt `status: 'connected' | 'disconnected' | 'unknown'` samt `lastSeen` und wird von
+  `markActivity` bei **jedem** eingehenden Bridge-Signal gesetzt. Die Einstellungs-Pille ist der
+  einzige Konsument, der ihn ignoriert: `FeedbackPanel.tsx:90` und `BridgeDisconnectHint.tsx:23`
+  lesen längst `s.status === 'connected'`. Die Komponente abonniert den Store sogar schon —
+  aber nur für `s.rev` (Bookmarklet-Version).
+
+  **Der Fix ist nicht ganz ein Einzeiler**, weil `status` drei Werte hat und die Pille heute drei
+  Zustände kann. Tragfähig:
+
+  ```ts
+  const verbunden = s.status === 'connected' || testErgebnis === 'success';
+  // „Nicht erreichbar" nur, solange die Bridge NICHT lebt — sonst widerspricht
+  // ein alter Fehlversuch einer inzwischen laufenden Verbindung:
+  const nichtErreichbar = testErgebnis === 'error' && s.status !== 'connected';
+  ```
+
+  Der 5-Sekunden-`setTimeout` darf bleiben — er räumt dann nur noch die Test-**Meldung** weg,
+  nicht den Verbindungszustand. Offen bleibt die Frage, ob `'unknown'` (Boot, nie ein KI-Tab
+  offen) wirklich wie `'disconnected'` aussehen soll; der Store-Kommentar sagt ausdrücklich
+  „grau, kein falsches Rot". Ursache und Zuschnitt aus einer Parallel-Sitzung, hier selbst
+  nachgeprüft; bewusst nicht angefasst.
 - **`vorlageRef.pfad` war `Gutachten_VB.DOCX`**, obwohl der Fall ein Einzelvorhaben ist und die
   erzeugte Datei `Gutachten_EP_ZEP730010.docx` heißt. Zu prüfen, ob die Vorlagenwahl der
   Antragsart folgt.
