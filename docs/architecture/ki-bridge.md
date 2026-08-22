@@ -180,6 +180,8 @@ Aktivitätsbasiert ([deadline.ts](../../src/core/services/ai/transports/deadline
 | Timer | Wert | Wo |
 |---|---|---|
 | Ping | 5 s | App (`ping`) |
+| Heartbeat-Takt (Fenster-Check) | 3 s | App ([useBridgeHeartbeat](../../src/core/hooks/useBridgeHeartbeat.ts)) |
+| Heartbeat-Probe (aktiver Ping, `PING_INTERVAL_MS`) | 15 s | App — an der **Uhr**, nicht an der Zahl der Ticks; eine laufende Probe sperrt sich selbst |
 | Chat-Reset | 15 s | App (`resetChat`) |
 | Modellwechsel / Reiter-Wechsel (`SWAP_TIMEOUT_MS`) | 15 s | Snippet |
 | Stille im Strom (`STILL_MS`: kein SSE-Ereignis mehr, aber auch kein `done`) | 180 s | Snippet |
