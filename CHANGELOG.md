@@ -5,6 +5,12 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v6.12.1 — Der Dev-Server ueberlebt einen Test-Gate-Loop (August 2026)
+
+PATCH — Bei der Abnahme der Frage-Suche (v6.12.0) riss der Dev-Server im Sekundentakt jede laufende Messung ab: eine gespeicherte `*.test.ts` hängt nicht im Modulgraph der App und löst darum keinen HMR-Austausch aus, sondern einen Vollreload. Ein Gate-Loop nebenan genügt.
+
+- **`**/__tests__/**` steht in `server.watch.ignored`** — alle 773 Testdateien liegen dort, keine wird vom Dev-Server je gerendert; Vitest hat seinen eigenen Watcher ([vite.config.ts](vite.config.ts))
+
 ### v6.12.0 — Frage-Suche am echten Bestand abgenommen: zwei Beispielfragen lieferten null (August 2026)
 
 MINOR — Der Frage-Modus war gebaut, aber nie gegen den Bestand abgenommen — die Zahlen im Doc stammten aus der Entwurfszeit. Erster voller Lauf über alle acht Beispielfragen (je zwei Runden gegen die interne KI, 14.225 Anträge): **zwei lieferten null Treffer**, eine dritte schwankte bei identischem Text zwischen 176 und 550. Kein Fehlgriff lag in der Mechanik, alle im Prompt.

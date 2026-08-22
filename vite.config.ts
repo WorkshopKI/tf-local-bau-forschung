@@ -151,6 +151,13 @@ export default defineConfig(({ command, mode }) => {
           // Datenordner unten, nur die andere Schreibrichtung.
           '**/dist-single/**',
           '**/dist/**',
+          // Testdateien haengen NICHT im Modulgraph der App — eine gespeicherte
+          // `*.test.ts` loest darum keinen HMR-Austausch aus, sondern einen
+          // VOLLRELOAD. Waehrend ein Gate-Loop laeuft (auch aus einer parallelen
+          // Sitzung), kommt der im Sekundentakt und reisst jede laufende Messung
+          // ab. Fuer die App aendert der Ausschluss nichts: Vitest hat seinen
+          // eigenen Watcher, der Dev-Server rendert diese Dateien nie.
+          '**/__tests__/**',
           // Variante „local": die App schreibt waehrend des Betriebs in ihre
           // Datenordner (Snapshots, Audit-Log, Sidecars). Liegt eine Wurzel im
           // Projekt, loeste jeder dieser Writes einen HMR-Reload mitten im Lauf
