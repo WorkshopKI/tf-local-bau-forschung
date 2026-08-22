@@ -181,10 +181,21 @@ DOCX-Fassung bevorzugen — heute gewinnt schlicht die zuletzt abgelegte Datei.
   Der Zustand liegt bereit: [bridge-status.ts](../../src/core/services/ai/bridge-status.ts) ist
   laut eigenem Kopfkommentar die „zentrale Status-Quelle für die Anzeige verbunden/getrennt",
   führt `status: 'connected' | 'disconnected' | 'unknown'` samt `lastSeen` und wird von
-  `markActivity` bei **jedem** eingehenden Bridge-Signal gesetzt. Die Einstellungs-Pille ist der
-  einzige Konsument, der ihn ignoriert: `FeedbackPanel.tsx:90` und `BridgeDisconnectHint.tsx:23`
-  lesen längst `s.status === 'connected'`. Die Komponente abonniert den Store sogar schon —
-  aber nur für `s.rev` (Bookmarklet-Version).
+  `markActivity` bei **jedem** eingehenden Bridge-Signal gesetzt.
+
+  **Zehn Stellen lesen `s.status`. Genau eine liest ihn nicht — die Pille.** Abgezählt:
+  `FeedbackPanel:90`, `BridgeDisconnectHint:23`, `BridgeStatusIndicator:25`,
+  `KiConnectPromptDialog:50`, `AufbereitungEvalPanel:181`, `UebersichtTab:81`,
+  `useGutachtenWorkflow:233`, `LLMKlassifizierungButtons:64`, `GedaechtnisEvalPanel:240`,
+  `AiAssistantCard:22`. `VerbindungGruppe:100` abonniert denselben Store — und liest daraus
+  nur `s.rev`.
+
+  Dass es ein **übersehener Nachzug** ist und keine bewusste Abkürzung, steht im Baum:
+  [AiAssistantCard.tsx:13](../../src/plugins/home/AiAssistantCard.tsx) trägt den Kommentar
+  „Zeigt den LIVE-Verbindungsstatus der internen KI (aus `useBridgeStatus`) — **kein
+  hartkodiertes „Nicht verbunden" mehr**". Derselbe Defekt wurde also schon einmal behoben,
+  an einem anderen Ort, und diese Stelle blieb übrig. Bekannte Klasse: der gemeldete Ort war
+  nicht der einzige.
 
   **Der Fix ist nicht ganz ein Einzeiler**, weil `status` drei Werte hat und die Pille heute drei
   Zustände kann. Tragfähig:
@@ -197,10 +208,18 @@ DOCX-Fassung bevorzugen — heute gewinnt schlicht die zuletzt abgelegte Datei.
   ```
 
   Der 5-Sekunden-`setTimeout` darf bleiben — er räumt dann nur noch die Test-**Meldung** weg,
-  nicht den Verbindungszustand. Offen bleibt die Frage, ob `'unknown'` (Boot, nie ein KI-Tab
-  offen) wirklich wie `'disconnected'` aussehen soll; der Store-Kommentar sagt ausdrücklich
-  „grau, kein falsches Rot". Ursache und Zuschnitt aus einer Parallel-Sitzung, hier selbst
-  nachgeprüft; bewusst nicht angefasst.
+  nicht den Verbindungszustand.
+
+  **Und `'unknown'` muss niemand neu entscheiden** — `BridgeStatusIndicator:36–47` behandelt
+  alle drei Werte bereits ausdrücklich, mit Begründung im Kommentar:
+  `connected` → grün, `disconnected` → **amber** („handlungsbarer Zustand, kein harter Fehler"),
+  `unknown` → **grau** („vor dem ersten KI-Tab kein falsches «getrennt»"). Das ist die Vorlage,
+  der die Pille zu folgen hat. Nur der Vollständigkeit halber: die übrigen acht Leser reduzieren
+  `status` auf ein `=== 'connected'` und unterscheiden `unknown` gar nicht — die
+  Drei-Wege-Behandlung gibt es genau einmal, und sie ist die richtige Referenz.
+
+  Ursache, Zuschnitt und Abzählung aus einer Parallel-Sitzung, hier je selbst nachgeprüft;
+  bewusst nicht angefasst.
 - **`vorlageRef.pfad` war `Gutachten_VB.DOCX`**, obwohl der Fall ein Einzelvorhaben ist und die
   erzeugte Datei `Gutachten_EP_ZEP730010.docx` heißt. Zu prüfen, ob die Vorlagenwahl der
   Antragsart folgt.
