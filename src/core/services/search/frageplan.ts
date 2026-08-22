@@ -462,6 +462,28 @@ export function begriffeRegelZeilen(): string[] {
     '  „Wasserstofftechnologie" wird „wasserstoff", niemals „technologie". Ein',
     '  allgemeines Grundwort steht in jedem zweiten Antrag und benennt nichts:',
     zuWeitZeile(),
+    // Gemessen am 22.08.2026: dieselbe Frage lieferte mit den Nadeln
+    // „robotik" + „robot" 500 Roh-Treffer, mit „robotik" allein 92 — der
+    // Unterschied war KEINE Entscheidung, sondern derselbe Prompt in zwei
+    // Runden. Nadeln eines Eintrags sind Alternativen, nicht eine Auswahl;
+    // beide anzugeben kostet nichts und nimmt den Zufall heraus.
+    // Gemessen am 22.08.2026: dieselbe Frage lieferte mit den Nadeln
+    // „robotik" + „robot" 500 Roh-Treffer, mit „robotik" allein 92 — der
+    // Unterschied war KEINE Entscheidung, sondern derselbe Prompt in zwei
+    // Runden. Nadeln eines Eintrags sind Alternativen, nicht eine Auswahl.
+    //
+    // Die Bedingung „bist du unsicher" bleibt, obwohl sie die Regel nur in
+    // etwa zwei von drei Laeufen ausloest. UNBEDINGT formuliert („gib IMMER
+    // beides") stabilisierte sie zwar F1 und V2, zerlegte dafuer aber in zwei
+    // von drei Laeufen „Batterierecycling" an der Fuge zu `batterie` — 788
+    // bzw. 227 statt 3 Treffer, fast alle ohne jedes Recycling. Eine
+    // ausdrueckliche Gegengrenze mit genau diesem Wort und seiner Zahl im
+    // Prompt aenderte daran nichts. Die Bedingung kostet Streuung, das
+    // Weglassen kostet das Thema — gemessen ist die Bedingung der guenstigere
+    // Fehler.
+    '- Bist du unsicher, wie weit du kürzen darfst, gib BEIDES als Nadeln desselben',
+    '  Eintrags: den Stamm und die ausgeschriebene Form. Sie sind Alternativen, keine',
+    '  Wahl. Gemessen: „robotik" + „robot" fand 500 Anträge, „robotik" allein 92.',
     `- Jede Nadel hat mindestens ${MIN_NADEL_LEN} Zeichen. Kürzel deshalb ausschreiben`,
     '  („künstliche intelligenz" statt „ki") oder mit Wortkontext geben („ki-basiert").',
     '  Kürzere Nadeln träfen als Teilzeichenkette beliebige fremde Wörter.',
@@ -510,15 +532,23 @@ export function baueFrageplanPrompt(
     'Antworte mit GENAU EINEM JSON-Objekt mit diesen Schlüsseln:',
     '',
     ...begriffeSchemaZeilen(),
-    '- "status": Liste von Arbeitslisten-Werten, falls die Frage einen Bearbeitungsstand nennt.',
-    // Gemessen: „Welche Vorhaben … laufen seit 2023?" setzte „offen" und fiel
-    // damit von 102 auf 3 Treffer. Diese Achse beschreibt, wie weit die
-    // BEARBEITUNG des Antrags ist — „Zu bearbeiten" heißt, dass noch niemand
-    // entschieden hat, nicht dass ein Vorhaben läuft. Wer sie mit der Laufzeit
-    // verwechselt, filtert die Bewilligten weg, also genau die laufenden.
+    '- "status": Liste von Arbeitslisten-Werten — NUR wenn die Frage einen',
+    '    Bearbeitungsstand AUSDRÜCKLICH nennt. Nennt sie keinen: LEERE Liste.',
+    // Wie `feld` und `bereich` braucht diese Achse ihr ausdrückliches „im
+    // Zweifel weglassen" — die beiden Nachbarregeln hatten es, diese nicht, und
+    // genau sie wurde erfunden. Gemessen am 22.08.2026 über je drei Runden:
+    // „Was läuft in Bayern zum Thema Leichtbau?" nennt keinen Stand, bekam aber
+    // in zwei von vier Läufen einen (»bewilligt«, »offen«) und fiel damit von
+    // 82 auf 11 bzw. auf 0 Treffer — bei identischer Suche (roh 82 in ALLEN
+    // Runden). „Was läuft in Sachsen zum Thema Photonik?" bekam in drei Läufen
+    // drei VERSCHIEDENE Stände (»bewilligt«, »begleitung«, »offen«).
+    '    Im Zweifel weglassen: ein ungefragt gesetzter Stand streicht die Treffer',
+    '    still. Gemessen fiel eine Frage nach einem Thema in einem Bundesland',
+    '    dadurch von 82 auf 11 und auf 0 — dieselbe Suche, nur ein erfundener Stand.',
     '    Gemeint ist der Stand der BEARBEITUNG („noch offen", „schon bewilligt",',
     '    „abgelehnt"), nicht die Laufzeit eines Vorhabens: „läuft seit 2023" ist ein',
-    '    Zeitraum und gehört nach "jahr", nicht hierher.',
+    '    Zeitraum und gehört nach "jahr". Ein „was läuft…" ohne Standwort nennt gar',
+    '    keinen Stand und bekommt deshalb eine leere Liste.',
     `    Erlaubt: ${statusListe()}`,
     '- "jahr": Liste vierstelliger Jahreszahlen, falls die Frage einen Zeitraum nennt.',
     `    Das laufende Jahr ist ${heuteJahr}. Zeiträume ausschreiben: „seit 2023" wird zur`,

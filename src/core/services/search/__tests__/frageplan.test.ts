@@ -141,6 +141,23 @@ describe('baueFrageplanPrompt', () => {
     expect(p).toContain('machine learning');
   });
 
+  it('laesst Stamm und ausgeschriebene Form NEBENEINANDER zu, statt zu waehlen', () => {
+    const p = baueFrageplanPrompt('x', 2026).systemPrompt;
+    // Gemessen am 22.08.2026: dieselbe Frage lieferte mit den Nadeln
+    // „robotik" + „robot" 500 Roh-Treffer, mit „robotik" allein 92. Der
+    // Unterschied war keine Entscheidung, sondern derselbe Prompt in zwei
+    // Runden — die Stamm-Regel griff mal und mal nicht. Nadeln eines Eintrags
+    // sind Alternativen; beide zu nennen nimmt den Zufall heraus.
+    // Die Bedingung „bist du unsicher" ist ABSICHT, nicht Nachlaessigkeit:
+    // unbedingt formuliert („gib IMMER beides") stabilisierte die Regel zwar
+    // F1 und V2, zerlegte dafuer in zwei von drei Laeufen „Batterierecycling"
+    // an der Fuge zu `batterie` — 788 bzw. 227 statt 3 Treffer. Auch eine
+    // Gegengrenze mit genau diesem Wort und seiner Zahl im Prompt hielt nicht.
+    // Wer das hier auf „IMMER" zieht, holt sich diesen Fall zurueck.
+    expect(p).toContain('gib BEIDES als Nadeln desselben');
+    expect(p).toContain('„robotik" + „robot" fand 500 Anträge, „robotik" allein 92');
+  });
+
   it('lässt den Bereich nur setzen, wenn die Frage ihn nennt', () => {
     const p = baueFrageplanPrompt('x', 2026).systemPrompt;
     expect(p).toContain('nur, wenn die Frage es ausdrücklich sagt');
@@ -153,6 +170,19 @@ describe('baueFrageplanPrompt', () => {
     // nicht „das Vorhaben läuft", und schneidet gerade die Bewilligten weg.
     expect(p).toContain('Stand der BEARBEITUNG');
     expect(p).toContain('nicht die Laufzeit eines Vorhabens');
+  });
+
+  it('heisst den Bearbeitungsstand im Zweifel WEGLASSEN — wie Feld und Bereich', () => {
+    const p = baueFrageplanPrompt('x', 2026).systemPrompt;
+    // Gemessen am 22.08.2026 ueber je drei Runden: „Was laeuft in Bayern zum
+    // Thema Leichtbau?" nennt keinen Stand, bekam aber in zwei von vier Laeufen
+    // einen erfundenen (»bewilligt«, »offen«) und fiel von 82 auf 11 bzw. 0 —
+    // bei identischer Suche (roh 82 in ALLEN Runden). Die Nachbarregeln `feld`
+    // und `bereich` trugen ihr „im Zweifel weglassen" laengst, `status` nicht;
+    // genau sie wurde erfunden.
+    expect(p).toContain('LEERE Liste');
+    expect(p).toContain('Im Zweifel weglassen');
+    expect(p).toContain('von 82 auf 11 und auf 0');
   });
 
   it('enthält kein Beispiel-JSON, das als Antwort durchgehen könnte', () => {

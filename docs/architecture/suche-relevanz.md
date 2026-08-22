@@ -865,11 +865,66 @@ Je Frage der Median aus zwei Runden davor gegen die Runde danach:
 Keine Frage liefert mehr null; `ignoriert` ist überall leer; jede Ortsangabe
 sitzt im Bundeslandfeld; kein Thema trägt eine Feldbindung; 0 Konsolenfehler.
 
-**Was bleibt.** Das Modell nennt gelegentlich noch den „Auszug" in der Antwort,
-und es zerlegt einen Kompositum-Begriff (`Batterierecycling`, 3 Treffer) nicht in
-zwei Leitbegriffe (`Batterie` + `Recycling`: 788, davon 11 mit beiden). Beides
-ist Streuung, kein Defekt — und weiter zu schrauben hieße, auf einzelne Läufe zu
-optimieren.
+> Die „nachher"-Spalte steht auf **einer** Runde je Frage. Was eine Runde nicht
+> zeigen kann, steht in § 8.5: zwei dieser Zahlen waren Glück.
+
+### 8.5 Reproduzierbarkeit — dieselbe Frage, dreimal (v6.14.1)
+
+§ 8.4 misst, ob eine Frage etwas findet. Diese Messung fragt, ob sie **dasselbe**
+findet: je Frage drei Runden, 24 Läufe, dann derselbe Satz noch einmal nach dem
+Fix. 0 Konsolenfehler in allen 48 Läufen.
+
+Der Befund war nicht die Suche. Sie ist **stabil**: „Was läuft in Bayern zum
+Thema Leichtbau?" lieferte in allen drei Runden roh **82** Treffer, mit korrekter
+Pflicht-Einschränkung im Bundeslandfeld. Was streute, stand daneben — eine
+**erfundene Status-Facette** auf einer Frage, die keinen Bearbeitungsstand nennt:
+
+| | Runde 1 | Runde 2 | Runde 3 |
+|---|---:|---:|---:|
+| roh gefunden | 82 | 82 | 82 |
+| Status-Facette | `bewilligt` | – | – |
+| **angezeigt** | **11** | 82 | 82 |
+
+Von den 82 tragen 34 „Schlussvermerk", 6 „bewilligt", 6 „abgelehnt/zurückgezogen",
+1 „bearbeitungsreif" — jeder gewürfelte Stand schneidet also fast alles weg. Ein
+vierter Lauf derselben Frage setzte `offen` und zeigte **null**. „Was läuft in
+Sachsen zum Thema Photonik?" bekam in drei Läufen **drei verschiedene** Stände
+(`bewilligt`, `begleitung`, `offen`), ohne dass die Frage einen nennt.
+
+**Die Ursache war eine fehlende Zeile.** `feld` und `bereich` tragen beide ein
+ausdrückliches „im Zweifel weglassen"; `status` trug nur ein „falls die Frage
+einen Bearbeitungsstand nennt". Genau die Achse ohne den Weglass-Satz wurde
+erfunden.
+
+Streuung über drei Runden, vorher gegen nachher:
+
+| Beispielfrage | vorher | nachher |
+|---|---|---|
+| Bayern / Leichtbau | 11 / 82 / 82 — **122 %** | 82 / 82 / 82 — **0 %** |
+| offene Anträge Sensorik Sachsen | 5 / 3 / 3 — 55 % | 5 / 5 / 5 — **0 %** |
+| *Vorlage* Robotik seit 2022 | 23 / 5 / 5 — **164 %** | 23 / 23 / 23 — **0 %** |
+| *Vorlage* Photonik in Sachsen | 0 / 0 / 0 | **5** / 0 / 0 |
+| Normung und Standards | 649 / 550 / 649 — 16 % | 549 / 649 / 649 — 16 % |
+| KI in der Medizintechnik | 0 % | 1 % |
+| Wasserstoff seit 2023 · Batterierecycling | 0 % | 0 % |
+
+Sechs von acht Fragen liegen jetzt bei ≤ 1 %. Die verbleibende Streuung hat
+**eine** Ursache: die Stamm-Regel feuert nur in etwa zwei von drei Läufen.
+„Normung" mit dem Stamm `norm` findet 649, ohne ihn 549; „Photonik" mit `photon`
+findet 5, ohne 0.
+
+**Was verworfen wurde, und warum es hier steht.** Die naheliegende Abhilfe —
+die Bedingung streichen, „gib IMMER beides" — wurde gebaut und gemessen. Sie
+stabilisierte beide Fälle (Normung 649 in allen Runden, Photonik 5 in allen
+Runden) und zerlegte dafür „Batterierecycling" an der Fuge zu `batterie`:
+**788 bzw. 227 statt 3** Treffer, fast alle ohne jedes Recycling, unter einem
+Chip, der weiter „Batterierecycling" heißt. Eine ausdrückliche Gegengrenze im
+Prompt — mit genau diesem Wort und seiner Zahl — änderte daran nichts; das
+Modell zerlegte in zwei von drei Läufen weiter. Die Bedingung kostet Streuung,
+ihr Wegfall kostet das Thema. Gemessen ist die Bedingung der günstigere Fehler,
+und der Guard in
+[frageplan.test.ts](src/core/services/search/__tests__/frageplan.test.ts) hält
+sie fest, damit der Weg nicht ein zweites Mal gegangen wird.
 
 ### 8.1 Die Frage wird auch beantwortet (v4.89)
 
