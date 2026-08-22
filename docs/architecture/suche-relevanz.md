@@ -737,6 +737,140 @@ Uhr und ohne Plugin-Import), Lauf:
 Aufruf, nur intern, `ziel: 'standard'`, kein Retry). Flag
 `sucheNatuerlicheSprache`, dev + pl.
 
+### 8.0 Was der Prompt dem Modell beibringen muss (v4.136)
+
+Bis v4.135 war der Frageplan gebaut, aber nie **gegen den Bestand** abgenommen —
+die Zahlen oben stammen aus der Entwurfszeit. Beim ersten vollen Lauf über alle
+Beispielfragen (je zwei Runden gegen die interne KI, 14 225 Anträge) lieferten
+**zwei der fünf null Treffer**, und eine dritte schwankte zwischen 176 und 550
+bei identischem Fragetext.
+
+Keiner dieser Fehlgriffe lag in der Mechanik. Alle lagen im Prompt — er ließ
+Fragen offen, die man nur mit dem Bestand vor Augen beantworten kann.
+
+**Ein Feld ohne Bezeichnung ist ein Münzwurf.** `feldListe()` rendert seit v4.136
+`Präfix (Bezeichnung)` wie die Nachbarlisten `statusListe`/`bereichListe` es
+längst tun. Vorher stand dort `… ast · ort · bl · deskriptor …`, und ausgerechnet
+das Paar, das v4.82 GETRENNT hat, war nicht zu unterscheiden. Dazu kam eine
+Namenskollision: `standort` heißt der BEREICH „Ort, Bundesland & Wahlkreis" —
+und ist zugleich der interne Name des engen Ortsfeldes.
+
+| „Sachsen" gebunden an | Treffer | mit dem Thema Sensorik |
+|---|---:|---:|
+| `ort` (Ortsfeld — Sachsenheim &c.) | 7 | 2 → nach der Status-Facette **0** |
+| `bl` (Bundesland) | 2 742 | **493** |
+
+Vier von fünf Ortsfragen wählten das Ortsfeld. Danach: fünf von fünf das
+Bundesland.
+
+**Ein Thema bekommt nie ein Feld.** Die Bindung kostet doppelt — Treffer und die
+beiden Stufen, die `planSchraenktEin()` stilllegt. Gemessen: Wasserstoff an
+`kurzbeschreibung` 179 statt 225, Robotik an `titel` 55 statt 116.
+
+**Die kürzeste Form, aber nicht das kürzeste Wort.** Verglichen wird als
+Wortteil (§5), also enthält die kurze Nadel die lange als Sonderfall. Das Modell
+lieferte trotzdem die lange, weil es niemand anders verlangt hatte:
+
+| Modell lieferte | Treffer | Stamm | Treffer |
+|---|---:|---|---:|
+| `wasserstofftechnologie` | 2 | `wasserstoff` | 224 |
+| `normung` | 5 | `norm` | 145 |
+| `robotik` | 92 | `robot` | 500 |
+
+Die Regel allein trieb sofort ins Gegenteil: aus „Wasserstofftechnologie" wurde
+`technologie`, und die Frage sprang auf **2 704** Treffer. Kürzen heißt Endungen
+weglassen, nicht das Wort wechseln — `technologie` steht in 8 075 von 14 225
+Anträgen und benennt nichts. Beide Grenzen stehen mit ihrer Messung im Prompt
+(`STAMM_BEISPIELE`, `ZU_WEITE_GRUNDWOERTER`).
+
+**Erfundene Komposita sind der Normalfall, nicht die Ausnahme.** 19 gemessene
+Nadeln aus echten Läufen finden **null**: ein zusammengeschriebenes Wort
+auseinandergezogen (`wasserstoff technologie`), ein ausgedachtes Kompositum
+(`batterieaufbereitung`, `robotikprojekt`), eine Umschreibung statt des Wortes
+(`wasserstoffbasierte technologie`). Etabliertes Englisch dagegen trägt
+(`machine learning` 28).
+
+**Sechs davon nannte der Prompt selbst** — die Normen-Regel führte `din-norm`,
+`en-norm`, `vde-norm` und `iso 9001` als Vorbilder und behauptete dabei „sie
+stehen so in den Antragstexten". Alle vier: null. Der Guard daneben prüfte ihre
+**Länge** gegen `MIN_NADEL_LEN`; er wäre auch grün geblieben, wenn jedes Beispiel
+ins Leere liefe. Übrig bleiben die drei gemessenen (`din en` 11, `din iso` 5,
+`astm` 22) — mit ihrer Trefferzahl als Kommentar hinter der Zeile, wie an den
+Beispielen des Reiters „Suchsprache" seit v4.135.
+
+**Der Bearbeitungsstand ist nicht die Laufzeit.** „Welche Vorhaben … laufen seit
+2023?" setzte `status: offen` und fiel von 102 auf 3. „Zu bearbeiten" heißt, dass
+noch niemand entschieden hat — der Filter schneidet gerade die Bewilligten weg,
+also die laufenden. Der Prompt sagt die Unterscheidung jetzt.
+
+### 8.2 „nicht berücksichtigt" — die zweite Runde (v4.136)
+
+Die v4.78-Reparatur (unten) griff für **Wörter**. Gemessen kamen die Meldungen
+als **Sätze**, und der Rahmen rettete sie über den Filter:
+
+> „Der Ausdruck 'Zeig mir' wird nicht als Suchkriterium verwendet."
+
+Der Prompt verlangte genau das („kurze Klartext-**Sätze**"), der Filter erwartete
+das Gegenteil. In fünf von acht Läufen stand so etwas unter den Chips. Er
+verlangt jetzt die **blanke Wendung** aus der Frage; `META_WOERTER` ist der Gurt
+für die Satzform, die trotzdem kommt.
+
+Der schwerere Fall widersprach einem sichtbaren Chip: `ignoriert: ["seit 2023"]`,
+**während** der Jahr-Chip 2023–2026 danebenstand. `baueIgnoriertListe` bekommt
+deshalb die vom Plan GESETZTEN Werte und streicht, was nur davon spricht — der
+Prompt sagt dieselbe Regel in Worten. Nach dem Patch: `ignoriert` in **allen
+acht** Läufen leer.
+
+Beide Prompt-Zeilen sind geteilt (`ignoriertSchemaZeilen`), weil der
+[Antragsplan](antrags-frage.md) sie wortgleich führte und der Filter dahinter
+EINER ist.
+
+### 8.3 Der Befund muss sagen, was schon feststeht (v4.136)
+
+Zwei Zahlen für dieselbe Achse auf einem Bildschirm, und eine ist falsch:
+
+- **Die Jahr-Achse war zweimal definiert.** Die Facette rechnet
+  `extractYear(bewilligungsdatum) || extractYear(antragsdatum)`, der Befund las
+  `bewilligungsdatum?.slice(0, 4)`. Am Bestand tragen 9 233 von 14 225 ein
+  Bewilligungsdatum, aber 14 221 ein Antragsdatum — die Facette holte Treffer
+  herein, die der Befund als „ohne Angabe" meldete, und die Antwortkarte schrieb
+  es hin. Beide lesen jetzt dieselbe Ableitung.
+- **Die Einschränkung fehlte im Befund.** Zu „Was läuft in Bayern zum Thema
+  Leichtbau?" nannte er nur das Thema, führte darunter aber „Bundesland: Bayern
+  62 · ohne Angabe 20" — und die Karte schrieb „82 Vorhaben … davon liegen 62 im
+  Bundesland Bayern". Alle 82 liegen in Bayern; das ist die Bedingung ihrer
+  Anwesenheit. `Befund.einschraenkungen` sagt es jetzt vor der Verteilung, samt
+  dem Satz, dass eine Lücke im Feld kein Gegenbeispiel ist.
+
+Dazu zwei Prompt-Regeln für die Karte: sie spricht über die **Vorhaben**, nicht
+über Befund und Auszug (gemessen stand dort „weil sie ‚trägt ALLE gefragten
+Themen' gekennzeichnet sind" — eine Erklärung der Mechanik an einen Leser, der
+die Kennzeichnung nie sieht), und sie fasst keine Werte zu Spannen zusammen.
+
+### 8.4 Vorher / Nachher, am selben Bestand
+
+Je Frage der Median aus zwei Runden davor gegen die Runde danach:
+
+| Beispielfrage | vorher | nachher |
+|---|---:|---:|
+| Normung und Standards | 546 / 176 | **649** |
+| KI in der Medizintechnik | 2 595 | 2 479 |
+| Bayern / Leichtbau | 82 / **0** | **82** |
+| Wasserstoff seit 2023 | 77 / 102 | **102** |
+| offene Anträge Sensorik Sachsen | **0** / **0** | **3** |
+| *Vorlage* Batterierecycling | 3 | 3 |
+| *Vorlage* Photonik in Sachsen | **0** | **1** |
+| *Vorlage* Robotik seit 2022 | 6 | **20** |
+
+Keine Frage liefert mehr null; `ignoriert` ist überall leer; jede Ortsangabe
+sitzt im Bundeslandfeld; kein Thema trägt eine Feldbindung; 0 Konsolenfehler.
+
+**Was bleibt.** Das Modell nennt gelegentlich noch den „Auszug" in der Antwort,
+und es zerlegt einen Kompositum-Begriff (`Batterierecycling`, 3 Treffer) nicht in
+zwei Leitbegriffe (`Batterie` + `Recycling`: 788, davon 11 mit beiden). Beides
+ist Streuung, kein Defekt — und weiter zu schrauben hieße, auf einzelne Läufe zu
+optimieren.
+
 ### 8.1 Die Frage wird auch beantwortet (v4.89)
 
 Bis v4.88 endete der Frage-Modus bei der Trefferliste. Daneben ging das

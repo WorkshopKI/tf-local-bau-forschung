@@ -43,7 +43,7 @@ import {
 } from '@/core/utils/status-category-labels';
 import { FELD_PRAEFIX, feldAusPraefix } from './feldpraefix';
 import { SUCHBEREICH_LABEL, type Suchbereich } from './suchbereich';
-import type { Trefferfeld } from './trefferstelle';
+import { TREFFERFELD_LABEL, type Trefferfeld } from './trefferstelle';
 
 /**
  * Ein Leitbegriff — eine der Sachen, nach denen gefragt wurde.
@@ -163,6 +163,11 @@ const PLANBARE_BEREICHE: readonly Suchbereich[] = ['alles', 'inhalt', 'einrichtu
 const FRAGEWORTE: readonly string[] = [
   'welche', 'welcher', 'welches', 'zeig mir', 'zeige', 'gibt es', 'finde',
   'suche', 'liste', 'vorhaben', 'projekt', 'projekte', 'antrag', 'anträge',
+  // Seit v4.136: die Fragewörter selbst und das Wort „Thema". Gemessen tauchten
+  // „Was läuft" und „zum Thema" als gemeldeter Verlust auf — sie benennen die
+  // FRAGE, nie einen Suchbegriff („Was läuft in Bayern zum Thema Leichtbau?").
+  'was läuft', 'was ist', 'was', 'wie', 'wo', 'wann', 'wer', 'thema', 'themen',
+  'drehen sich um', 'geht es um', 'handelt von',
 ];
 
 /**
@@ -184,6 +189,39 @@ const GEWICHTUNGSWOERTER: readonly string[] = [
 const FUELLWOERTER: ReadonlySet<string> = new Set([
   'und', 'oder', 'die', 'der', 'das', 'den', 'dem', 'ein', 'eine', 'einen',
   'es', 'sich', 'um', 'in', 'im', 'von', 'für', 'zu', 'ist', 'sind', 'nicht',
+  'zum', 'zur', 'bei', 'als', 'keine', 'kein', 'weitere', 'weiteren', 'mit',
+  // „noch" und „seit" tragen zwar Bedeutung („noch offen", „seit 2023") — aber
+  // die landet in `status` bzw. `jahr`. Als MELDUNG sind sie nie ein Verlust.
+  'noch', 'seit', 'laufen', 'läuft', 'laufend', 'laufende', 'laufenden',
+]);
+
+/**
+ * Wörter, mit denen das Modell über das AUSLASSEN spricht, statt etwas zu
+ * benennen.
+ *
+ * Der Prompt verlangte bis v4.136 „kurze Klartext-**Sätze**", und `FRAGEWORTE`
+ * filtert Wort-Einträge. Beides zusammen ergab Meldungen, die keine sind:
+ *
+ *   „Der Ausdruck 'Zeig mir' wird nicht als Suchkriterium verwendet."
+ *   „Die Formulierung 'Was läuft' ist keine Suchinformation."
+ *   „keine weiteren spezifischen Angaben"
+ *
+ * Jede davon nennt ein Frageworte-Wort, das auszulassen dem Modell befohlen
+ * war — nur eben eingerahmt, und der Rahmen rettete sie über den Filter. In
+ * fünf von acht gemessenen Läufen stand so etwas unter den Chips, an der einen
+ * Stelle, die Vertrauen herstellen soll (dieselbe Klasse wie v4.78, eine Ebene
+ * höher: dort war es die Wortwahl, hier die Satzform).
+ *
+ * Der Prompt verlangt jetzt die blanke Wendung statt eines Satzes; diese Liste
+ * ist der Gurt für die Satzform, die trotzdem kommt.
+ */
+const META_WOERTER: ReadonlySet<string> = new Set([
+  'ausdruck', 'formulierung', 'begriff', 'wendung', 'wort', 'angabe', 'angaben',
+  'wird', 'werden', 'wurde', 'enthält', 'enthalten', 'verwendet', 'verwendbar',
+  'berücksichtigt', 'übersetzt', 'umgesetzt', 'ignoriert', 'ausgelassen',
+  'suchkriterium', 'suchkriterien', 'suchinformation', 'suchbegriff',
+  'kriterium', 'kriterien', 'information', 'spezifische', 'spezifischen',
+  'zusätzliche', 'zusätzlichen', 'relevante', 'relevanten',
 ]);
 
 /** Aufgeteilt, weil Mehrwortphrasen VOR der Wortzerlegung verschwinden müssen —
@@ -202,20 +240,70 @@ const KEIN_VERLUST_EINWORT: ReadonlySet<string> = new Set(
  * die Wortform, die tatsächlich auftrat („hauptsächlich", „Vorhaben") — die
  * Reparatur hängt damit nicht an der Laune des Modells.
  */
-function benenntKeinenVerlust(eintrag: string): boolean {
+function benenntKeinenVerlust(eintrag: string, gesetzteWerte: ReadonlySet<string> = new Set()): boolean {
   let text = eintrag.toLowerCase();
   for (const p of KEIN_VERLUST_MEHRWORT) text = text.split(p).join(' ');
-  const woerter = text.split(/[^a-zäöüß]+/).filter(Boolean);
+  // Ziffern bleiben stehen: „seit 2023" ist genau dann kein Verlust, wenn 2023
+  // im Plan steht — und das entscheidet `gesetzteWerte`, nicht die Wortliste.
+  const woerter = text.split(/[^a-zäöüß0-9]+/).filter(Boolean);
   if (woerter.length === 0) return true;
-  return woerter.every(w => KEIN_VERLUST_EINWORT.has(w) || FUELLWOERTER.has(w));
+  return woerter.every(w => KEIN_VERLUST_EINWORT.has(w)
+    || FUELLWOERTER.has(w)
+    || META_WOERTER.has(w)
+    || gesetzteWerte.has(w));
+}
+
+/**
+ * Die Wörter, die der Plan TATSÄCHLICH gesetzt hat — Jahre, Leitbegriffe,
+ * Nadeln.
+ *
+ * Gebraucht für den zweiten, schwereren Fall der Zeile „nicht berücksichtigt":
+ * gemeldet wurde, was sehr wohl umgesetzt war. Gemessen stand unter der
+ * Trefferliste „nicht berücksichtigt: seit 2023", **während** der Jahr-Chip
+ * 2023–2026 danebenstand, und „nicht berücksichtigt: noch", **während** der
+ * Status-Chip „Zu bearbeiten" gesetzt war. Eine Zeile, die dem Chip neben ihr
+ * widerspricht, ist schlimmer als keine.
+ *
+ * Nur der Plan füttert sie — nie die Frage: was in der Frage steht und NICHT im
+ * Plan landete, ist der echte Verlust, den die Zeile zeigen soll.
+ */
+function gesetzteWerteDesPlans(
+  leitbegriffe: readonly PlanBegriff[],
+  jahr: readonly string[],
+): Set<string> {
+  const out = new Set<string>(jahr);
+  for (const b of leitbegriffe) {
+    for (const teil of [b.begriff, ...b.nadeln]) {
+      for (const w of teil.toLowerCase().split(/[^a-zäöüß0-9]+/)) if (w) out.add(w);
+    }
+  }
+  return out;
 }
 
 // ── Prompt ───────────────────────────────────────────────────────────────────
 
-/** Die Feldnamen, die ein Plan ansprechen darf — aus dem Code, nicht abgeschrieben. */
+/**
+ * Die Feldnamen, die ein Plan ansprechen darf — MIT ihrer Bezeichnung.
+ *
+ * Die Bezeichnung ist nicht Schmuck, sie ist der Unterschied zwischen 493 und 2
+ * Treffern. Bis v4.136 stand hier eine Reihe nackter Präfixe
+ * (`… ast · ort · bl · deskriptor …`), während die beiden Nachbarlisten
+ * desselben Prompts (`statusListe`, `bereichListe`) längst `Wert (Bezeichnung)`
+ * rendern. Ausgerechnet die Liste, in der v4.82 zwei Felder GETRENNT hat — `ort`
+ * ist der Ort, `bl` das Bundesland —, sagte nicht, was in welchem steht.
+ *
+ * Am echten Bestand gemessen (14 225 Anträge): „Sachsen" ins Ortsfeld gelegt
+ * findet **7** Anträge (Ortsnamen wie Sachsenheim), ins Bundeslandfeld gelegt
+ * **2 742**. Vier von fünf Ortsfragen wählten das Ortsfeld, und die
+ * Beispielfrage „Was ist bei den noch offenen Anträgen zur Sensorik in Sachsen?"
+ * lieferte deshalb **0 Treffer**.
+ *
+ * Aus `TREFFERFELD_LABEL` gerendert, nicht abgeschrieben: die Oberfläche nennt
+ * die Fundstelle „Bundesland", und der Prompt muss dasselbe Wort benutzen.
+ */
 function feldListe(): string {
   return (Object.entries(FELD_PRAEFIX) as [Trefferfeld, string][])
-    .map(([, praefix]) => praefix)
+    .map(([feld, praefix]) => `${praefix} (${TREFFERFELD_LABEL[feld]})`)
     .join(' · ');
 }
 
@@ -245,6 +333,85 @@ function wortListe(woerter: readonly string[]): string {
 }
 
 /**
+ * Wortstamm gegen Beugungsform, **am echten Bestand gezählt** — die Vorbilder
+ * der wichtigsten Nadel-Regel.
+ *
+ * Sie stehen als Zahlenpaare da und nicht als Prosa, weil der Unterschied das
+ * Argument IST. Das Modell lieferte in jeder gemessenen Runde die lange Form
+ * (`wasserstofftechnologie`, `normung`, `robotik`) und traf damit einen
+ * Bruchteil dessen, was der Stamm trifft — verglichen wird als Wortteil, die
+ * kurze Nadel enthält die lange als Sonderfall.
+ *
+ * **Gemessen am 22.08.2026 über 14 225 Anträge** (`searchAntraegeSubstring`
+ * gegen den Produktionskorpus, `bereich: 'alles'`). Wer diese Liste anfasst,
+ * misst nach — ein erfundenes Zahlenpaar wäre genau der Fehler, den die Regel
+ * behebt. Die Wortgrenzen-Regel aus v4.68 hält die kurze Nadel sauber: `norm`
+ * findet „Kalibriernorm", nicht „enorm".
+ */
+const STAMM_BEISPIELE: readonly { stamm: string; treffer: number; lang: string; langTreffer: number }[] = [
+  { stamm: 'wasserstoff', treffer: 224, lang: 'wasserstofftechnologie', langTreffer: 2 },
+  { stamm: 'norm', treffer: 145, lang: 'normung', langTreffer: 5 },
+  { stamm: 'robot', treffer: 500, lang: 'robotik', langTreffer: 92 },
+];
+
+function stammBeispielZeilen(): string[] {
+  return STAMM_BEISPIELE.map(
+    b => `    „${b.stamm}" ${b.treffer} Treffer — „${b.lang}" nur ${b.langTreffer}`,
+  );
+}
+
+/**
+ * Die Gegenrichtung derselben Regel: Grundwörter, die alles treffen.
+ *
+ * Beim ersten Messlauf mit der Stamm-Regel zerlegte das Modell
+ * „Wasserstofftechnologie" nicht in `wasserstoff`, sondern in `technologie` —
+ * und die Frage sprang von 3 auf **2 704** Treffer, ohne dass eine Zeile davon
+ * etwas mit Wasserstoff zu tun haben musste. „Kürzeste Form" heißt Endungen
+ * weglassen, nicht das Wort wechseln.
+ *
+ * **Gemessen am 22.08.2026 über 14 225 Anträge.** Die Zahlen stehen im Prompt,
+ * weil sie das Argument sind: ein Wort, das in mehr als jedem dritten Antrag
+ * steht, benennt nichts.
+ */
+const ZU_WEITE_GRUNDWOERTER: readonly { wort: string; treffer: number }[] = [
+  { wort: 'technologie', treffer: 8075 },
+  { wort: 'system', treffer: 6057 },
+  { wort: 'verfahren', treffer: 4248 },
+];
+
+function zuWeitZeile(): string {
+  const liste = ZU_WEITE_GRUNDWOERTER
+    .map(g => `„${g.wort}" ${g.treffer}`)
+    .join(' · ');
+  return `    ${liste} — von 14 225 Anträgen.`;
+}
+
+/**
+ * Normen-Kürzel mit Kontext — **nur Schreibweisen, die im Bestand etwas finden**.
+ *
+ * Bis v4.136 nannte die Regel sechs Vorbilder, von denen vier im Bestand
+ * **null** Treffer haben (`din-norm`, `en-norm`, `vde-norm`, `iso 9001`), und
+ * behauptete dabei „sie stehen so in den Antragstexten". Der Guard daneben
+ * prüfte ihre LÄNGE gegen `MIN_NADEL_LEN` — er wäre auch grün geblieben, wenn
+ * jedes Beispiel ins Leere liefe. Genau das war der Fall.
+ *
+ * Wenig, aber echt — und über den Stamm `norm` nicht erreichbar, weil in
+ * „DIN EN 1234" kein „norm" steht.
+ *
+ * **Die gemessene Trefferzahl steht hinter der Zeile**, wie an den Beispielen
+ * des Reiters „Suchsprache" seit v4.135
+ * ([suchsprache.ts](src/plugins/suche/start/suchsprache.ts)): so ist eine
+ * Nullnummer beim LESEN zu sehen und nicht erst beim Ausführen, und beim
+ * nächsten Bestandswechsel weiß man, welche Zahl von wann stammt. Wer ein
+ * Beispiel ergänzt, misst es nach und schreibt seine Zahl dazu.
+ */
+const NORMEN_BEISPIELE: readonly string[] = [
+  'din en',   // 11 · 22.08.2026, 14 225 Anträge
+  'din iso',  //  5
+  'astm',     // 22
+];
+
+/**
  * Die Beschreibung des `begriffe`-Schlüssels — für JEDEN Prompt, der
  * Leitbegriffe erntet.
  *
@@ -263,7 +430,11 @@ export function begriffeSchemaZeilen(): string[] {
     '    "pflicht"  — true, wenn die Frage das als EINSCHRÄNKUNG nennt (ein Ort, eine',
     '                 Einrichtung, ein Kennzeichen). false, wenn es eines der gefragten',
     '                 THEMEN ist. Im Zweifel false.',
-    '    "feld"     — optional, wenn die Sache nur in EINEM Feld stehen kann.',
+    '    "feld"     — optional, und im Zweifel WEGLASSEN. Setze es nur, wenn die Sache',
+    '                 nirgends sonst stehen KANN: ein Bundesland, ein Ort, ein',
+    '                 Kennzeichen, eine Einrichtung. Ein THEMA bekommt NIE ein Feld —',
+    '                 es steht mal im Titel, mal in der Kurzbeschreibung, mal in den',
+    '                 Deskriptoren, und ein Feld schneidet die anderen weg.',
     `                 Erlaubt: ${feldListe()}`,
   ];
 }
@@ -282,12 +453,28 @@ export function begriffeRegelZeilen(): string[] {
     `- Höchstens ${MAX_LEITBEGRIFFE} Einträge in "begriffe". Fasse zusammen, was dieselbe Sache meint:`,
     '  „Normung" und „Standards" sind ZWEI Sachen; „Normung", „Normen" und „Normierung" sind',
     '  EINE Sache mit drei Schreibweisen und gehören in DENSELBEN Eintrag.',
+    // Die wichtigste Regel des ganzen Prompts — siehe STAMM_BEISPIELE.
+    '- Gib die KÜRZESTE Form, die die Sache noch meint. Verglichen wird als WORTTEIL:',
+    '  eine kurze Nadel findet alle Zusammensetzungen und Beugungen auf einmal, eine',
+    '  lange findet nur sich selbst. Am Bestand gezählt:',
+    ...stammBeispielZeilen(),
+    '  Kürzen heißt Endungen weglassen, NICHT das Wort wechseln: aus',
+    '  „Wasserstofftechnologie" wird „wasserstoff", niemals „technologie". Ein',
+    '  allgemeines Grundwort steht in jedem zweiten Antrag und benennt nichts:',
+    zuWeitZeile(),
     `- Jede Nadel hat mindestens ${MIN_NADEL_LEN} Zeichen. Kürzel deshalb ausschreiben`,
     '  („künstliche intelligenz" statt „ki") oder mit Wortkontext geben („ki-basiert").',
     '  Kürzere Nadeln träfen als Teilzeichenkette beliebige fremde Wörter.',
-    '- Normen- und Regelwerkskürzel (DIN, ISO, EN, VDE, IEC, ASTM) NICHT weglassen —',
-    '  sie stehen so in den Antragstexten. Gib sie mit Kontext, damit sie lang genug',
-    '  sind: „din en", „din iso", „iso 9001", „din-norm", „en-norm", „vde-norm".',
+    // Ohne diese Regel geht das Nadel-Budget in Erfundenes statt in den Stamm.
+    '- Erfinde KEINE Zusammensetzungen und keine Umschreibungen. Eine Nadel ist nur',
+    '  dann eine, wenn sie so in einem Antragstext steht. Was nicht vorkommt, kostet',
+    '  nur Vergleiche. Drei Fehlgriffe, die im Bestand NULL Treffer haben:',
+    '    ein zusammengeschriebenes Wort auseinandergezogen — „wasserstoff technologie"',
+    '    ein ausgedachtes Kompositum — „batterieaufbereitung", „robotikprojekt"',
+    '    eine Umschreibung statt des Worts — „wasserstoffbasierte technologie"',
+    '  Etablierte Fachwörter sind dagegen richtig, auch englische: „machine learning".',
+    '- Normen- und Regelwerkskürzel (DIN, ISO, EN, VDE, ASTM) NICHT weglassen —',
+    `  sie stehen in den Antragstexten. Gib sie mit Kontext: ${wortListe(NORMEN_BEISPIELE)}.`,
     '  Als blankes Kürzel wären sie zu kurz und fielen heraus.',
     '- Nimm nur Begriffe auf, die in einem Antragstext wirklich vorkommen können.',
     '  Frageworte benennen das, wonach ohnehin gesucht wird. Sie sind keine',
@@ -324,13 +511,24 @@ export function baueFrageplanPrompt(
     '',
     ...begriffeSchemaZeilen(),
     '- "status": Liste von Arbeitslisten-Werten, falls die Frage einen Bearbeitungsstand nennt.',
+    // Gemessen: „Welche Vorhaben … laufen seit 2023?" setzte „offen" und fiel
+    // damit von 102 auf 3 Treffer. Diese Achse beschreibt, wie weit die
+    // BEARBEITUNG des Antrags ist — „Zu bearbeiten" heißt, dass noch niemand
+    // entschieden hat, nicht dass ein Vorhaben läuft. Wer sie mit der Laufzeit
+    // verwechselt, filtert die Bewilligten weg, also genau die laufenden.
+    '    Gemeint ist der Stand der BEARBEITUNG („noch offen", „schon bewilligt",',
+    '    „abgelehnt"), nicht die Laufzeit eines Vorhabens: „läuft seit 2023" ist ein',
+    '    Zeitraum und gehört nach "jahr", nicht hierher.',
     `    Erlaubt: ${statusListe()}`,
     '- "jahr": Liste vierstelliger Jahreszahlen, falls die Frage einen Zeitraum nennt.',
     `    Das laufende Jahr ist ${heuteJahr}. Zeiträume ausschreiben: „seit 2023" wird zur`,
     `    vollständigen Liste 2023 bis ${heuteJahr}.`,
-    `- "bereich": optional, worin gesucht wird. Erlaubt: ${bereichListe()}`,
-    '- "ignoriert": Liste kurzer Klartext-Sätze über alles aus der Frage, das du NICHT',
-    '    in den Plan übersetzt hast. Lieber hier benennen als raten.',
+    // Wie `feld`: im Zweifel weglassen. Ein ungefragt gesetzter Bereich schneidet
+    // Felder weg, nach denen niemand gefragt hat (gemessen: „inhalt" bei einer
+    // reinen Themenfrage).
+    `- "bereich": nur, wenn die Frage es ausdrücklich sagt („im Titel", „bei den`,
+    `    Einrichtungen"). Sonst weglassen. Erlaubt: ${bereichListe()}`,
+    ...ignoriertSchemaZeilen(),
     '',
     'Regeln:',
     ...begriffeRegelZeilen(),
@@ -440,16 +638,45 @@ export function leseLeitbegriffe(roh: unknown, verworfen: string[]): PlanBegriff
  * Verlust. Die Meldungen des Modells sind es nicht immer; es meldet auch Wörter,
  * die es nach Anweisung übergangen hat.
  */
-export function baueIgnoriertListe(roh: unknown, verworfen: readonly string[]): string[] {
+export function baueIgnoriertListe(
+  roh: unknown,
+  verworfen: readonly string[],
+  /**
+   * Was der Plan gesetzt hat (`gesetzteWerteDesPlans`). Ein Eintrag, der nur
+   * davon spricht, meldet keinen Verlust — er widerspricht einem Chip.
+   * Optional, damit ein Aufrufer ohne Plan-Werte weiterläuft wie bisher.
+   */
+  gesetzteWerte: ReadonlySet<string> = new Set(),
+): string[] {
   const out: string[] = [];
   for (const i of alsListe(roh)) {
     const t = alsText(i);
     if (t.length === 0 || out.includes(t)) continue;
-    if (benenntKeinenVerlust(t)) continue;
+    if (benenntKeinenVerlust(t, gesetzteWerte)) continue;
     out.push(t);
   }
   for (const v of verworfen) if (!out.includes(v)) out.push(v);
   return out;
+}
+
+/**
+ * Die Beschreibung des `ignoriert`-Schlüssels — für JEDEN Prompt, der sie führt.
+ *
+ * Geteilt wie {@link begriffeSchemaZeilen}, und aus demselben Grund: die Zeile
+ * stand wortgleich in zwei Prompts, und der Filter dahinter ist EINER. Bis
+ * v4.136 verlangte sie „kurze Klartext-**Sätze**" — und bekam Sätze ÜBER das
+ * Auslassen statt der ausgelassenen Sache (siehe {@link META_WOERTER}).
+ */
+export function ignoriertSchemaZeilen(): string[] {
+  return [
+    '- "ignoriert": Liste der Dinge aus der Frage, die du NICHT in den Plan übersetzt',
+    '    hast. Schreib die blanke Wendung aus der Frage hin, KEINEN Satz darüber:',
+    '    „Fördersumme über 200.000", nicht „Der Ausdruck … wird nicht verwendet".',
+    '    Was du sehr wohl übersetzt hast, gehört NICHT hierher — ein Zeitraum, der in',
+    '    "jahr" steht, und ein Bearbeitungsstand, der in "status" steht, sind gesetzt',
+    '    und stehen dem Nutzer als Filter vor Augen. Nichts auszulassen ist der',
+    '    Normalfall: dann bleibt die Liste leer.',
+  ];
 }
 
 /**
@@ -507,7 +734,9 @@ export function parseFrageplan(roh: string, frage: string): Frageplan | null {
     verworfen.push(`Bereich „${bereichRoh}"`);
   }
 
-  const ignoriert = baueIgnoriertListe(obj.ignoriert, verworfen);
+  const ignoriert = baueIgnoriertListe(
+    obj.ignoriert, verworfen, gesetzteWerteDesPlans(leitbegriffe, jahr),
+  );
 
   return {
     frage: frage.trim(),

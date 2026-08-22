@@ -19,6 +19,16 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v6.12 — 2026-08
+
+### Bugfixes
+- **„Was ist bei den noch offenen Anträgen zur Sensorik in Sachsen?" fand nichts — obwohl es Treffer gibt.** Die KI hat das Bundesland im Feld für den *Ort* gesucht statt im Feld für das *Bundesland*, und dort steht „Sachsen" fast nie. Betroffen war jede Frage nach einem Bundesland; auch „Was läuft in Bayern zum Thema Leichtbau?" lieferte manchmal null. Beide Fragen antworten jetzt zuverlässig.
+- **Unter den Suchbegriffen stand „nicht berücksichtigt: seit 2023" — während der Jahresfilter 2023 danebenstand.** Die Zeile meldete Dinge als ausgelassen, die sehr wohl angekommen waren, und sprach über Wörter wie „Zeig mir", die nie ein Suchbegriff sein können. Sie bleibt jetzt leer, wenn nichts verlorenging.
+### Verbesserungen
+- **Dieselbe Frage findet nicht mehr mal viel und mal wenig.** „Welche Vorhaben drehen sich hauptsächlich um Normung und Standards?" schwankte zwischen 176 und 550 Treffern, je nachdem, welche Schreibweisen die KI gerade wählte. Sie sucht jetzt nach kurzen Wortstämmen („norm" findet Normung, Normen, Normierung und Normkonformität auf einmal) statt nach langen, ausgedachten Zusammensetzungen — dieselbe Frage liefert jetzt 649 Treffer, und die Vorhaben, um die es *hauptsächlich* geht, stehen oben.
+- **Ein Thema wird nicht mehr auf ein einzelnes Feld eingeschränkt.** Die KI hat „Wasserstofftechnologie" mitunter nur in der Kurzbeschreibung gesucht — Vorhaben, die es im Titel führen, fehlten dann.
+- **Die Antwort der KI erklärt nicht mehr ihre eigenen Notizen.** Statt „weil sie ‚trägt ALLE gefragten Themen‘ gekennzeichnet sind" steht dort jetzt, worum es in den Vorhaben geht. Außerdem widerspricht sie den Filtern über ihr nicht mehr: bei „in Bayern" hieß es zuvor „82 Vorhaben, davon liegen 62 in Bayern" — es sind alle 82.
+
 ## v6.11 — 2026-08
 
 ### Neu

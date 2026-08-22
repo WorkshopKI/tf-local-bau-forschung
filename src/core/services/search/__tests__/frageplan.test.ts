@@ -10,6 +10,7 @@ import {
   planMarkierWoerter,
   type Frageplan,
 } from '../frageplan';
+import { TREFFERFELD_LABEL } from '../trefferstelle';
 
 /** Kürzeste Antwort, die durchkommt — Bausteine drumherum je Test. */
 function antwort(obj: unknown): string {
@@ -65,20 +66,93 @@ describe('baueFrageplanPrompt', () => {
     expect(p).toContain('DIN');
     expect(p).toContain('ISO');
     expect(p).toContain('„din en"');
-    expect(p).toContain('„iso 9001"');
   });
 
-  it('gibt nur Normen-Beispiele an, die den Nadel-Filter auch überleben', () => {
+  it('nennt als Normen-Beispiel keine Schreibweise, die im Bestand nichts findet', () => {
     const p = baueFrageplanPrompt('x', 2026).systemPrompt;
-    // Ein Vorbild, das der eigene Parser verwürfe, brächte dem Modell genau das
-    // falsche Muster bei. Geprüft wird die Normen-Zeile, nicht jeder Anführungs-
-    // strich im Prompt: die Kürzel-Regel darüber zitiert „ki" absichtlich als
-    // GEGENbeispiel, und das darf zu kurz sein.
+    // Der Vorgänger dieses Tests prüfte die LÄNGE der Beispiele gegen
+    // MIN_NADEL_LEN und war grün, während vier der sechs Beispiele über 14 225
+    // Anträge NULL Treffer hatten (`din-norm`, `en-norm`, `vde-norm`,
+    // `iso 9001`) — der Prompt behauptete dabei „sie stehen so in den
+    // Antragstexten". Ein Guard, der die Länge misst, sagt nichts über den
+    // Ertrag. Die Nachmessung kann ein Unit-Test nicht leisten (kein Bestand);
+    // festhalten lässt sich aber, dass die vier gemessenen Nullnummern nicht
+    // zurückkommen. Wer ein Beispiel ergänzt, misst es nach — die Zahlen stehen
+    // bei `NORMEN_BEISPIELE` in frageplan.ts.
+    for (const tot of ['din-norm', 'en-norm', 'vde-norm', 'iso 9001', 'iso-norm']) {
+      expect(p).not.toContain(`„${tot}"`);
+    }
     const zeile = p.split('\n').find(z => z.includes('„din en"'));
     expect(zeile).toBeDefined();
     const beispiele = [...(zeile as string).matchAll(/„([^"]+)"/g)].map(m => m[1] as string);
-    expect(beispiele.length).toBeGreaterThanOrEqual(4);
+    expect(beispiele.length).toBeGreaterThanOrEqual(2);
     for (const b of beispiele) expect(b.length).toBeGreaterThanOrEqual(MIN_NADEL_LEN);
+  });
+
+  it('nennt zu jedem Feld seine Bezeichnung — „ort" und „bl" sind sonst nicht zu trennen', () => {
+    const p = baueFrageplanPrompt('x', 2026).systemPrompt;
+    // Der teuerste gemessene Defekt: „Sachsen" landete im Ortsfeld (7 Anträge)
+    // statt im Bundeslandfeld (2 742), und die Beispielfrage lieferte 0 Treffer.
+    // Die Präfixe allein sagen nicht, was in welchem Feld steht.
+    expect(p).toContain('ort (Ort)');
+    expect(p).toContain('bl (Bundesland)');
+    expect(p).toContain('ast (Einrichtung)');
+    // Aus TREFFERFELD_LABEL gerendert, nicht abgeschrieben: die Oberfläche nennt
+    // die Fundstelle genauso.
+    expect(p).toContain(`bl (${TREFFERFELD_LABEL.bundesland})`);
+  });
+
+  it('sagt an, dass ein Thema NIE ein Feld bekommt', () => {
+    const p = baueFrageplanPrompt('x', 2026).systemPrompt;
+    // Gemessen: ein Thema an `kurzbeschreibung` gebunden fiel von 225 auf 179,
+    // eines an `titel` von 116 auf 55 — und beide legen zusätzlich Ähnlichkeits-
+    // und Dokumentstufe stumm (`planSchraenktEin`).
+    expect(p).toContain('Ein THEMA bekommt NIE ein Feld');
+    expect(p).toContain('im Zweifel WEGLASSEN');
+  });
+
+  it('verlangt den kürzesten Wortstamm und belegt ihn mit gezählten Zahlen', () => {
+    const p = baueFrageplanPrompt('x', 2026).systemPrompt;
+    expect(p).toContain('KÜRZESTE Form');
+    expect(p).toContain('WORTTEIL');
+    // Die Vorbilder tragen ihre Messung im Text — ohne die Zahlen ist die Regel
+    // eine Behauptung, und das Modell lieferte in jedem Lauf die lange Form.
+    expect(p).toMatch(/„wasserstoff" 224 Treffer — „wasserstofftechnologie" nur 2/);
+    expect(p).toMatch(/„norm" 145 Treffer — „normung" nur 5/);
+  });
+
+  it('verbietet die Gegenrichtung — ein Grundwort ist kein Stamm', () => {
+    const p = baueFrageplanPrompt('x', 2026).systemPrompt;
+    // Die Stamm-Regel allein trieb das Modell ins andere Extrem: aus
+    // „Wasserstofftechnologie" wurde `technologie`, und die Frage sprang von 3
+    // auf 2 704 Treffer. Auch diese Grenze steht mit ihrer Messung da.
+    expect(p).toContain('NICHT das Wort wechseln');
+    expect(p).toContain('niemals „technologie"');
+    expect(p).toMatch(/„technologie" 8075/);
+  });
+
+  it('verbietet erfundene Komposita und Umschreibungen', () => {
+    const p = baueFrageplanPrompt('x', 2026).systemPrompt;
+    // 19 gemessene Nadeln mit 0 Treffern kamen aus genau diesen drei Mustern.
+    expect(p).toContain('Erfinde KEINE Zusammensetzungen');
+    expect(p).toContain('wasserstoff technologie');
+    expect(p).toContain('batterieaufbereitung');
+    // Englisch ist NICHT verboten — „machine learning" findet 28.
+    expect(p).toContain('machine learning');
+  });
+
+  it('lässt den Bereich nur setzen, wenn die Frage ihn nennt', () => {
+    const p = baueFrageplanPrompt('x', 2026).systemPrompt;
+    expect(p).toContain('nur, wenn die Frage es ausdrücklich sagt');
+  });
+
+  it('trennt den Bearbeitungsstand von der Laufzeit', () => {
+    const p = baueFrageplanPrompt('x', 2026).systemPrompt;
+    // Gemessen: „laufen seit 2023" setzte zusätzlich `status: offen` und fiel
+    // von 102 auf 3 Treffer — „Zu bearbeiten" heißt „noch nicht entschieden",
+    // nicht „das Vorhaben läuft", und schneidet gerade die Bewilligten weg.
+    expect(p).toContain('Stand der BEARBEITUNG');
+    expect(p).toContain('nicht die Laufzeit eines Vorhabens');
   });
 
   it('enthält kein Beispiel-JSON, das als Antwort durchgehen könnte', () => {
@@ -241,6 +315,48 @@ describe('parseFrageplan — Felder, Status, Jahr, Bereich', () => {
   it('streicht Gewichtungswörter — die Rangfolge beantwortet sie', () => {
     const plan = parseFrageplan(antwort({ ...NORMUNG, ignoriert: ['hauptsächlich', 'vor allem'] }), 'f');
     expect(plan!.ignoriert).toEqual([]);
+  });
+
+  it('streicht den SATZ über ein Fragewort, nicht nur das nackte Wort', () => {
+    // In fünf von acht gemessenen Läufen kam die Meldung als Satz statt als
+    // Wort — und der Satz rettete sie über den Filter, der auf Wortlisten
+    // ausgelegt war. Wortlaut aus echten Läufen.
+    const plan = parseFrageplan(antwort({
+      ...NORMUNG,
+      ignoriert: [
+        "Der Ausdruck 'Zeig mir' wird nicht als Suchkriterium verwendet.",
+        "Die Formulierung 'Was läuft' ist keine Suchinformation.",
+        "Der Ausdruck 'zum Thema' enthält keine zusätzlichen Suchkriterien.",
+        'keine weiteren spezifischen Angaben',
+      ],
+    }), 'f');
+    expect(plan!.ignoriert).toEqual([]);
+  });
+
+  it('streicht eine Meldung über etwas, das der Plan sehr wohl gesetzt hat', () => {
+    // Der schwerere Fall: die Zeile widersprach dem Chip daneben. Gemessen
+    // stand „nicht berücksichtigt: seit 2023", WÄHREND der Jahr-Chip 2023–2026
+    // gesetzt war.
+    const plan = parseFrageplan(antwort({
+      ...NORMUNG,
+      jahr: [2023, 2024, 2025, 2026],
+      ignoriert: ['laufen seit', 'seit 2023', 'noch'],
+    }), 'f');
+    expect(plan!.facetten.jahr).toEqual(['2023', '2024', '2025', '2026']);
+    expect(plan!.ignoriert).toEqual([]);
+  });
+
+  it('behält eine Jahresangabe, die der Plan NICHT gesetzt hat', () => {
+    // Die Gegenprobe zum Test darüber: der Filter darf nicht jede Zahl
+    // schlucken, sondern nur die, die wirklich im Plan steht.
+    const plan = parseFrageplan(antwort({ ...NORMUNG, jahr: [2023], ignoriert: ['seit 1999'] }), 'f');
+    expect(plan!.ignoriert).toEqual(['seit 1999']);
+  });
+
+  it('verlangt im Prompt die blanke Wendung statt eines Satzes', () => {
+    const p = baueFrageplanPrompt('x', 2026).systemPrompt;
+    expect(p).toContain('KEINEN Satz darüber');
+    expect(p).toContain('Was du sehr wohl übersetzt hast, gehört NICHT hierher');
   });
 
   it('streicht auch die Mischung aus beidem samt Bindewörtern', () => {

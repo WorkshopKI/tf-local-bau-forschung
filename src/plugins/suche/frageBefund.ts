@@ -26,6 +26,7 @@ import {
   RELEVANZ_LABEL, TREFFERFELD_LABEL, nurUeberAehnlichkeit, traegtAlleThemen, type RelevanzStufe,
 } from '@/core/services/search/trefferstelle';
 import type { Frageplan } from '@/core/services/search/frageplan';
+import { extractYear } from './columns';
 
 /** Wie viele Werte je Verteilung genannt werden. Mehr liest niemand, und im
  *  Prompt kostet jede Zeile Kontext, der den Belegen fehlt. */
@@ -53,6 +54,18 @@ export interface Befund {
   alleThemen: number | null;
   /** Die gefragten Sachen, in der Reihenfolge des Plans. */
   themen: readonly string[];
+  /**
+   * Die Einschränkungen, die JEDER Treffer bereits erfüllt (`pflicht`).
+   *
+   * Sie fehlten bis v4.136, und das Fehlen war teuer: zur Frage „Was läuft in
+   * Bayern zum Thema Leichtbau?" nannte der Befund nur das Thema, führte
+   * darunter aber die Bundesland-Verteilung „Bayern 62 · ohne Angabe 20" — und
+   * die Antwortkarte schrieb „82 Vorhaben … davon liegen 62 im Bundesland
+   * Bayern". Alle 82 liegen in Bayern; das ist die Bedingung, unter der sie
+   * überhaupt in der Liste stehen. Ohne diese Zeile kann das Modell eine
+   * Lücke im Datenfeld nicht von einem Gegenbeispiel unterscheiden.
+   */
+  einschraenkungen: readonly string[];
   verteilungen: readonly BefundVerteilung[];
   /** Wo die Treffer gefunden wurden — die Fundstellen, absteigend. */
   fundstellen: readonly { wert: string; anzahl: number }[];
@@ -106,6 +119,11 @@ export function baueBefund(
   plan?: Frageplan | null,
 ): Befund {
   const themen = (plan?.leitbegriffe ?? []).filter(b => !b.pflicht).map(b => b.begriff);
+  // Die Einschränkung nennt ihr Feld mit, wo sie eines hat: „Bayern
+  // (Bundesland)" ist die Auskunft, „Bayern" allein wäre wieder zweideutig.
+  const einschraenkungen = (plan?.leitbegriffe ?? [])
+    .filter(b => b.pflicht)
+    .map(b => (b.feld ? `${b.begriff} (${TREFFERFELD_LABEL[b.feld]})` : b.begriff));
   const relevanz = STUFEN
     .map(stufe => ({ stufe, anzahl: treffer.filter(r => r.relevanzStufe === stufe).length }))
     .filter(x => x.anzahl > 0);
@@ -118,7 +136,17 @@ export function baueBefund(
     : null;
 
   const verteilungen = [
-    verteilung('Jahr', treffer, r => r.bewilligungsdatum?.slice(0, 4)),
+    // DIESELBE Ableitung wie die Jahr-Facette (`werteVon` in facetten.ts):
+    // Bewilligungsjahr, ersatzweise Antragsjahr, über `extractYear`. Bis v4.136
+    // stand hier `bewilligungsdatum?.slice(0, 4)` allein — und damit eine
+    // ZWEITE Definition derselben Achse auf demselben Bildschirm. Gemessen:
+    // 9 233 von 14 225 Anträgen tragen ein Bewilligungsdatum, 14 221 ein
+    // Antragsdatum. Zur Frage „laufen seit 2023" filterte die Facette auf
+    // 102 Treffer, und der Befund daneben meldete davon „20 ohne Angabe" —
+    // Anträge, die die Facette über ihr Antragsjahr hereingeholt hatte. Die
+    // Antwortkarte schrieb es hin, und von zwei Zahlen für dieselbe Achse ist
+    // immer eine falsch.
+    verteilung('Jahr', treffer, r => extractYear(r.bewilligungsdatum) || extractYear(r.antragsdatum)),
     verteilung('Bundesland', treffer, r => r.bundesland),
     verteilung('Ort', treffer, r => r.standort?.split('·')[0]?.trim()),
     verteilung('Antragsteller', treffer, r => r.antragsteller),
@@ -131,7 +159,8 @@ export function baueBefund(
   const nurAehnlich = treffer.filter(r => nurUeberAehnlichkeit(r.trefferfelder)).length;
 
   return {
-    gesamt: treffer.length, relevanz, alleThemen, themen, verteilungen, fundstellen, nurAehnlich,
+    gesamt: treffer.length, relevanz, alleThemen, themen, einschraenkungen,
+    verteilungen, fundstellen, nurAehnlich,
   };
 }
 
@@ -156,6 +185,17 @@ export function befundAlsText(b: Befund): string {
   }
   if (b.themen.length > 0) {
     zeilen.push(`Gefragt wurde nach: ${b.themen.join(' · ')}`);
+  }
+  // VOR den Verteilungen: die Zeile ist der Schlüssel, mit dem die Verteilung
+  // darunter zu lesen ist („Bundesland: Bayern 62 · ohne Angabe 20" heißt bei
+  // einer Bayern-Einschränkung „20 Treffer führen das Feld nicht", nicht „20
+  // liegen woanders").
+  if (b.einschraenkungen.length > 0) {
+    zeilen.push(
+      `ALLE ${b.gesamt} Treffer erfüllen bereits diese Einschränkung: ${b.einschraenkungen.join(' · ')}.`
+      + ' Ein Treffer ohne den Wert in der Verteilung unten führt das Feld nicht —'
+      + ' er ist kein Gegenbeispiel.',
+    );
   }
   if (b.alleThemen !== null) {
     zeilen.push(

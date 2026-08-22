@@ -118,4 +118,27 @@ describe('baueAntwortPrompt mit Abdeckungs-Marke', () => {
     expect(ohne.systemPrompt).not.toContain(ABDECKUNG_MARKE);
     expect(ohne.systemPrompt).not.toContain('EINZELN mit Kennzeichen');
   });
+
+  it('sagt an, dass die Marke eine Notiz ist und nicht in die Antwort gehoert', () => {
+    // Gemessen stand in der Karte: „Sie stehen an erster Stelle, weil sie
+    // ‚trägt ALLE gefragten Themen' gekennzeichnet sind." Das erklärt dem Leser
+    // die Mechanik statt die Vorhaben — und er sieht die Kennzeichnung nie.
+    expect(mit.systemPrompt).toContain('eine Notiz für dich');
+  });
+});
+
+describe('die Antwort spricht ueber Vorhaben, nicht ueber ihre Unterlagen', () => {
+  const p = baueAntwortPrompt('Welche Vorhaben?', 'Treffer insgesamt: 82', '1. Irgendwas (16KN000101)');
+
+  it('verbietet die Woerter, mit denen die Karte gemessen ueber sich selbst sprach', () => {
+    expect(p.systemPrompt).toContain('Sprich zum Leser über die VORHABEN');
+    expect(p.systemPrompt).toContain('gekennzeichnet');
+    expect(p.systemPrompt).toContain('der Leser sieht diese Unterlagen nicht');
+  });
+
+  it('verbietet zusammengefasste Spannen', () => {
+    // Gemessen: „Antragsjahre konzentrieren sich auf 2018 (11), 2021 (9) und
+    // 2014-2020 (je 8-7)" — die Spanne stand in keinem Befund.
+    expect(p.systemPrompt).toContain('keine Werte zu Spannen zusammen');
+  });
 });

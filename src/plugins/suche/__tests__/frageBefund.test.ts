@@ -134,3 +134,59 @@ describe('Befund: Wortlaut gegen Aehnlichkeit', () => {
     expect(b.nurAehnlich).toBe(0);
   });
 });
+
+describe('die Einschraenkung steht im Befund', () => {
+  const MIT_ORT: Frageplan = {
+    ...PLAN,
+    frage: 'Was läuft in Bayern zum Thema Leichtbau?',
+    leitbegriffe: [
+      { begriff: 'Leichtbau', nadeln: ['leichtbau'], pflicht: false },
+      { begriff: 'Bayern', nadeln: ['bayern'], pflicht: true, feld: 'bundesland' },
+    ],
+  };
+
+  it('fuehrt Pflichtteile getrennt von den Themen', () => {
+    const b = baueBefund([treffer({ id: 'a' })], MIT_ORT);
+    expect(b.themen).toEqual(['Leichtbau']);
+    expect(b.einschraenkungen).toEqual(['Bayern (Bundesland)']);
+  });
+
+  it('sagt im Text, dass ALLE Treffer sie erfuellen', () => {
+    // Ohne diese Zeile las die Antwortkarte die Verteilung „Bayern 62 · ohne
+    // Angabe 20" als Gegenbeispiel und schrieb zu 82 Bayern-Treffern „davon
+    // liegen 62 in Bayern" — ein Widerspruch zur Einschraenkung, unter der sie
+    // ueberhaupt in der Liste stehen.
+    const t = befundAlsText(baueBefund([treffer({ id: 'a' }), treffer({ id: 'b' })], MIT_ORT));
+    expect(t).toContain('ALLE 2 Treffer erfüllen bereits diese Einschränkung: Bayern (Bundesland)');
+    expect(t).toContain('kein Gegenbeispiel');
+  });
+
+  it('schweigt ohne Pflichtteil', () => {
+    const t = befundAlsText(baueBefund([treffer({ id: 'a' })], PLAN));
+    expect(t).not.toContain('Einschränkung');
+  });
+});
+
+describe('die Jahr-Achse des Befunds ist DIESELBE wie die der Facette', () => {
+  it('faellt auf das Antragsjahr zurueck, wenn kein Bewilligungsdatum da ist', () => {
+    // `werteVon(r,'jahr')` in facetten.ts rechnet
+    // `extractYear(bewilligungsdatum) || extractYear(antragsdatum)`. Der Befund
+    // las bis v4.136 nur `bewilligungsdatum?.slice(0,4)` — zwei Definitionen
+    // derselben Achse auf einem Bildschirm. Am Bestand tragen 9 233 von 14 225
+    // ein Bewilligungsdatum, aber 14 221 ein Antragsdatum: die Facette holte
+    // Treffer herein, die der Befund als „ohne Angabe" meldete.
+    const b = baueBefund([
+      treffer({ id: 'a', bewilligungsdatum: '2024-03-01' }),
+      treffer({ id: 'b', antragsdatum: '2023-11-02' }),
+    ]);
+    const jahr = b.verteilungen.find(v => v.achse === 'Jahr');
+    expect(jahr?.ohne).toBe(0);
+    expect(jahr?.werte.map(w => w.wert).sort()).toEqual(['2023', '2024']);
+  });
+
+  it('liest auch das deutsche Datumsformat — `slice(0,4)` haette „01.0" gezaehlt', () => {
+    const b = baueBefund([treffer({ id: 'a', bewilligungsdatum: '01.03.2024' })]);
+    const jahr = b.verteilungen.find(v => v.achse === 'Jahr');
+    expect(jahr?.werte[0]?.wert).toBe('2024');
+  });
+});

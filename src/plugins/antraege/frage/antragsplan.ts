@@ -50,6 +50,7 @@ import {
   baueIgnoriertListe,
   begriffeRegelZeilen,
   begriffeSchemaZeilen,
+  ignoriertSchemaZeilen,
   leseLeitbegriffe,
   type PlanBegriff,
 } from '@/core/services/search/frageplan';
@@ -212,8 +213,7 @@ export function baueAntragsplanPrompt(
     '    „seit X ist nichts passiert", „kein neues Kürzel seit X", „hängt seit X".',
     '    Monate umrechnen: 2 Monate sind 60, ein halbes Jahr ist 180.',
     ...begriffeSchemaZeilen(),
-    '- "ignoriert": Liste kurzer Klartext-Sätze über alles aus der Frage, das du NICHT',
-    '    in den Plan übersetzt hast. Lieber hier benennen als raten.',
+    ...ignoriertSchemaZeilen(),
     '',
     'Regeln:',
     '- Eine Frage kann NUR Filter nennen und gar kein Thema. Dann bleibt "begriffe" leer —',
@@ -372,6 +372,8 @@ export function parseAntragsplan(roh: string, frage: string): Antragsplan | null
     bearbeiter,
     ...(stillstandTage !== undefined ? { stillstandTage } : {}),
     leitbegriffe,
-    ignoriert: baueIgnoriertListe(obj.ignoriert, verworfen),
+    // Dieselbe Regel wie im Frageplan: was der Plan gesetzt hat, ist kein
+    // Verlust — hier sind es die Jahre des Antragseingangs.
+    ignoriert: baueIgnoriertListe(obj.ignoriert, verworfen, new Set(jahre)),
   };
 }

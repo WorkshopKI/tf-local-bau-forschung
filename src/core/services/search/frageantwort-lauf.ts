@@ -82,6 +82,15 @@ export function baueAntwortPrompt(
     '- Die Zahlen im Abschnitt „Befund" sind GEZÄHLT und gelten für ALLE Treffer.',
     '  Übernimm sie wörtlich. Erfinde keine eigenen Mengen, schätze nichts und',
     '  rechne nichts um — unter deiner Antwort steht dieselbe Trefferliste.',
+    '  Fasse auch keine Werte zu Spannen zusammen („2014–2020, je 8–7"): der',
+    '  Befund nennt einzelne Werte, und eine Spanne behauptet die Werte dazwischen.',
+    // Der Befund ist ein Arbeitspapier, kein Zitatvorrat. Gemessen stand in der
+    // Karte „Sie stehen an erster Stelle, weil sie ‚trägt ALLE gefragten Themen'
+    // gekennzeichnet sind" — eine Erklärung der Mechanik statt einer Auskunft.
+    '- Sprich zum Leser über die VORHABEN, nie über den Befund und nie über den',
+    '  Auszug. Wörter wie „Befund", „Auszug", „gekennzeichnet", „laut Vorlage"',
+    '  gehören nicht in die Antwort: der Leser sieht diese Unterlagen nicht,',
+    '  für ihn sind es die Zahlen der Suche, die er gerade gemacht hat.',
     '- Die Belege sind ein AUSZUG. Sag nichts über Treffer, die nicht dabei sind;',
     '  was für die Gesamtmenge gilt, steht im Befund.',
     '- Nenne bei jeder Aussage über ein einzelnes Vorhaben sein Förderkennzeichen',
@@ -97,6 +106,8 @@ export function baueAntwortPrompt(
       '  einen Teil. Zielt die Frage auf sie, nenne sie EINZELN mit Kennzeichen,',
       '  statt nur ihre Anzahl zu wiederholen. Die so gekennzeichneten liegen',
       '  dir vor — behaupte nie, sie fehlten im Auszug.',
+      '  Der Zusatz selbst ist eine Notiz für dich: schreib, dass ein Vorhaben',
+      '  beide Themen behandelt, nicht dass es markiert sei.',
     ] : []),
     ...(mitKandidaten ? [
       '- Der Abschnitt „Thematisch verwandt" ist etwas anderes als die Belege:',
