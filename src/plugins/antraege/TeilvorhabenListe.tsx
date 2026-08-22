@@ -11,9 +11,10 @@
  */
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import type { Antrag } from '@/core/services/csv/types';
+import type { Antrag, AntragListItem } from '@/core/services/csv/types';
 import { getStatusVariant } from '@/core/utils/status-mappings';
 import { statusKurzLabel, statusLabel } from '@/core/utils/status-wert-labels';
+import { AntragstellerProfilHover } from './AntragstellerProfilHover';
 import { isNetzwerkLead } from './netzwerk';
 import { TvDetailBlock } from './TvDetailBlock';
 import { TvTitelCopyButton } from './TvTitelCopyButton';
@@ -76,12 +77,17 @@ interface Props {
   /** Verbund-Titel (Kopfzeile). TV-Titel, die ihn nur wiederholen, werden
    *  in der Zeile unterdrückt. */
   verbundTitel: string | null;
+  /** In-Memory-Slim-Liste des Programms — Quelle des Antragsteller-Kurzprofils.
+   *  Kommt vom Aufrufer, damit dieser Baustein reine Präsentation bleibt. */
+  alleAntraege: readonly AntragListItem[];
+  /** Verbund-ID des geöffneten Verbundes (markiert Geschwister im Kurzprofil). */
+  verbundId: string | null;
   expandedTvAz: string | null;
   onToggle: (aktenzeichen: string) => void;
   onOpenAntrag: (aktenzeichen: string) => void;
 }
 
-export function TeilvorhabenListe({ tvs, verbundTitel, expandedTvAz, onToggle, onOpenAntrag }: Props): React.ReactElement {
+export function TeilvorhabenListe({ tvs, verbundTitel, alleAntraege, verbundId, expandedTvAz, onToggle, onOpenAntrag }: Props): React.ReactElement {
   return (
     <div className="flex flex-col gap-1.5">
       {tvs.map((tv, idx) => {
@@ -127,9 +133,26 @@ export function TeilvorhabenListe({ tvs, verbundTitel, expandedTvAz, onToggle, o
                   TV {idx + 1}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-[13px] font-medium text-[var(--tf-text)] truncate" title={tvAntragsteller}>
-                    {tvAntragsteller}
-                  </div>
+                  {/* KEIN `title` mehr am Namen: neben einem HoverCard-Trigger
+                      stünden sonst zwei Blasen übereinander. Den vollen Namen
+                      trägt jetzt der Kopf der Karte. Die gepunktete Linie
+                      erscheint erst beim Überfahren der Zeile — dieselbe Regel
+                      wie beim ⓘ der Statuszellen: sichtbar, wenn man hinsieht,
+                      still im Ruhezustand. */}
+                  <AntragstellerProfilHover
+                    tv={tv}
+                    name={tvAntragsteller}
+                    alleAntraege={alleAntraege}
+                    verbundId={verbundId}
+                    onOpenAntrag={onOpenAntrag}
+                  >
+                    <div
+                      tabIndex={0}
+                      className="text-[13px] font-medium text-[var(--tf-text)] truncate cursor-help underline decoration-dotted decoration-transparent group-hover:decoration-[var(--tf-text-tertiary)] underline-offset-2 focus-visible:decoration-[var(--tf-text-tertiary)] outline-none"
+                    >
+                      {tvAntragsteller}
+                    </div>
+                  </AntragstellerProfilHover>
                   {tvTitel ? (
                     // Titel: markierbar (Zeile ist kein Button) + Kopier-Icon
                     // bei Hover/Fokus — kopiert den VOLLEN Titel, auch den von

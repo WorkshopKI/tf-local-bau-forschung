@@ -19,6 +19,15 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v6.10 — 2026-08
+
+### Neu
+- **Kurzprofil des Antragstellers.** Fahren Sie im Antrag über den Namen eines Verbundpartners: eine Karte zeigt alle weiteren Anträge dieser Organisation mit Datum, Kurzname und Status — jüngster zuerst, ein Klick öffnet den Antrag. So sehen Sie sofort, ob dort schon einmal etwas abgelehnt oder widerrufen wurde. Die Karte schaut bewusst über die angezeigten Richtlinien hinaus und sagt das; wer nur diesen einen Antrag hat, bekommt genau diesen Satz.
+### Verbesserungen
+<!-- - … -->
+### Bugfixes
+<!-- - … -->
+
 ## v6.9 — 2026-08
 
 ### Bugfixes

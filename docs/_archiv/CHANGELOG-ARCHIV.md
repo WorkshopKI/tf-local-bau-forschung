@@ -2,6 +2,168 @@
 
 Ältere Versionsblöcke (append-only, chronologisch absteigend). Die jüngsten Versionen stehen im Root-[CHANGELOG.md](../CHANGELOG.md). Bump-Regeln + Architektur: [CLAUDE.md](../CLAUDE.md).
 
+### v4.118.0 — Meilensteine & Fristen: 21 Befunde der Bug-Jagd behoben (August 2026)
+
+MINOR — Die read-only-Jagd über die Meilenstein-Oberfläche fand ein Muster: **die Anzeige behauptet mehr, als das Modell trägt.** Eine Restzeit, für die kein Meilenstein gilt; eine Reißquote ohne ihren Nenner; ein Leer-Satz, der eine Tatsache meldet, wo ein Filter greift. Dazu zwei stille Verluste — der geltende Plan fiel nach 21 Speicherungen aus der Historie, und „nur meine" traf 81 der 112 Kürzel im Bestand nie.
+
+- **Kürzel folgen dem App-Vertrag** (uppercase, Komma-Trennung, „alle" = kein Filter, TIB **und** BIB; Vergleichs- und Anzeigeform getrennt) ([useMeilensteinStand.ts](src/plugins/meilensteine/useMeilensteinStand.ts), [monitoringLogic.ts](src/plugins/meilensteine/monitoringLogic.ts))
+- **Die jüngste freigegebene Fassung überlebt die Historien-Kappung**; eine Bedingung `ist`/`ist nicht` **ohne Wert** wird verworfen statt für jeden Verbund wahr zu sein ([versionierung.ts](src/core/meilensteine/versionierung.ts), [plan-storage.ts](src/core/meilensteine/plan-storage.ts))
+- **Betrachtungsbereich gilt für beide Hälften** — Abschlüsse waren ungefiltert (5.885 gegen 2.046) ([useMeilensteinStand.ts](src/plugins/meilensteine/useMeilensteinStand.ts))
+- **Anzeige sagt, was sie weiß**: Prognose statt erfundener Restzeit, „Betrachtet"-Spalte als Nenner, „heute fällig" statt „in 0 T", markierte Ist-Termine vor dem Eingang, lesbare Zustands-Spalte, benannte Fassung ([meilensteine.md → Was die Anzeige nicht behaupten darf](docs/architecture/meilensteine.md))
+- **Das Home-Widget „Fristen" bündelt je Vorgang** wie das Modul — acht Zeilen zeigten drei Akronyme ([fristAnlaesse.ts](src/plugins/home/widgets/fristAnlaesse.ts))
+
+### v4.117.0 — Vorbelegung der Sichtbarkeit nachgezogen (August 2026)
+
+MINOR — Die Vorbelegung aus v4.112 war ein Vorschlag; das Team ist sie durchgegangen und entscheidet an 13 Stellen anders. Solche Entscheidungen gehören zurück in den Katalog statt als Abweichung auf dem Share zu verharren — sonst erklärt die Sidecar irgendwann die halbe App.
+
+- **Auf Standard**: Gutachten, Kurzfassung, Meilensteine, „Alle Felder" (Verbund-Detail) sowie „Suchsprache" und „Fragen" (Suche) ([katalog.ts](src/core/sichtbarkeit/katalog.ts))
+- **Auf `beta`**: Statuseinträge, Werkbank, Widerspruch (Verbund-Detail) und die Seite „Dokumente"
+- **Auf `experte`**: „Programme" und „CSV-Datenimport" der Datenpflege
+- Bilanz: 199 Einträge, 46 markiert (23 `beta` / 18 `experte` / 5 beides); mit beiden Schaltern aus fehlen 8 der 18 Nav-Einträge ([sichtbarkeitsstufen.md](docs/architecture/sichtbarkeitsstufen.md))
+- Kurator-Abweichungen auf dem Share bleiben unberührt — sie liegen über dem Katalog und schlagen ihn weiterhin
+
+### v4.116.0 — Einstellungen: 48 Befunde der Bug-Jagd behoben (August 2026)
+
+MINOR — Die read-only-Jagd über 4.886 Zeilen fand ein Muster, nicht Einzelfälle: **zwei Stellen entscheiden dieselbe Frage, und nur eine wurde nachgezogen.** Registry gegen Anker, Seite gegen Bauteil, Einstellung gegen Startseite, Klick gegen Neustart. Dazu ein zweiter Faden — Zusagen, die niemand einlöst: ein Zähler ohne Nachzug, ein Häkchen an einer Farbe, die nicht mehr gilt, ein Suchtreffer, der auf nichts zeigt.
+
+- **Alle vier Layout-Bauteile fragen die Beta-/Experten-Achse** — `SettingsKlappe`/`SettingsBlock` rendertem ihren Anker bedingungslos, 9 von 16 markierten Abschnitten blieben stehen (Guard `sichtbarkeit-alle-bauteile`, [settings-layout.tsx](src/components/settings/settings-layout.tsx))
+- **Die Primärfarbe speichert alle drei Werte** (`theme.sat`/`lit`), Bestands-Profile werden über den Farbton geheilt; das Profil wird bei jeder Änderung in den persönlichen Ordner gespiegelt ([theme.ts](src/components/ui/theme.ts), [useProfile.ts](src/core/hooks/useProfile.ts))
+- **Fachprofil**: Ersatz-Befüllung nimmt die Kompetenzen mit, beide Hydrationen weichen einer laufenden Eingabe aus, der Auto-Save fasst nach statt zu verwerfen ([useFachprofil.ts](src/plugins/einstellungen/profil/useFachprofil.ts))
+- **Suche + Deep-Links**: Rangfolge statt Reihenfolge, Groß-/Kleinschreibung egal, sechs unerreichbare Anker registriert, unauflösbare Ziele sagen es (Guard „jeder DOM-Anker steht in der Registry", [panels.ts](src/components/settings/panels.ts), [SettingsHubPage.tsx](src/components/settings/SettingsHubPage.tsx))
+- **Tags, Ordner, KI-Karten**: Umbenennen erreicht die Dokumente, Zähler aus dem Bestand, acht Ordner-Aktionen melden ihre Fehler, Entwurf und wirksame Adresse getrennt ([tags.ts](src/core/services/tags.ts), [OrdnerGruppe.tsx](src/plugins/einstellungen/daten/OrdnerGruppe.tsx), [VerbindungGruppe.tsx](src/plugins/einstellungen/ki/VerbindungGruppe.tsx))
+
+### v4.115.2 — Guard: die Kontext-Reserve muss das Output-Budget decken (August 2026)
+
+PATCH — v4.115.1 hat die Reserve korrigiert, aber nichts hielt sie am Output-Budget fest: zwei unabhängige Zahlen, deren Verhältnis niemand nachrechnete. Genau daran scheiterte sie jahrelang unbemerkt — ein Kontext-Überlauf meldet sich nicht, er schiebt den System-Prompt hinaus.
+
+- **Guard `reserve-deckt-output-budget`** — `RESERVE_TOKENS` muss `DEFAULT_MAX_TOKENS + THINKING_OUTPUT_HEADROOM` decken **und** jedes Seed-`maxTokens` tragen ([conventions-daten.test.ts](src/__tests__/conventions-daten.test.ts))
+- Adversarisch geprüft: mit der alten Reserve (4.096) schlagen beide Testfälle an — der Guard hätte den Bug gefangen
+- Positiv-Kontrolle im Scan (22 gefundene Budgets): ein Guard, der nichts mehr findet, ist grün statt wirksam
+- Die drei Konstanten sind dafür exportiert; `map-infografik` (8192) trägt eine begründete Ausnahme — es läuft über `runBaustein`, das nie `capVbMarkdown` ruft ([map-infografik.seed.ts](src/core/services/skills/registry/map-infografik.seed.ts))
+- Nebenbefund: neun Seeds liegen bei genau 4096 — die 12.288 sind exakt die bindende Grenze, nicht großzügig gewählt
+
+### v4.115.1 — Zeichen-Cap an der gemessenen Token-Quote (August 2026)
+
+PATCH — Ein 220.000-Zeichen-Antrag (~20.000 Wörter, 23 Tabellen) galt als „länger als das Kontextfenster", obwohl er in der internen KI nur 42k von 62k Tokens belegt. Der Cap ist abgeleitet, nicht gesetzt — und beide Faktoren der Ableitung waren geraten, nicht gemessen.
+
+- **Zeichen/Token-Quote 3 → 4,8** — gemessen statt als Sicherheitsmarge gesetzt (220.000 Zeichen ≙ 42k Tokens = 5,24, davon ~8 % Abzug); die alte Quote unterschätzte um Faktor 1,7 ([llm-context.ts](src/core/services/ai/llm-context.ts))
+- **Token-Reserve 4.096 → 12.288** — bei aktivem Thinking belegt allein der Output 10.240 Tokens, das deckte die alte Reserve nie ([run-skill.ts](src/core/services/skills/run/run-skill.ts))
+- Cap der Standard-KI damit 173.712 → **238.617** Zeichen, Default-Fenster → 334.233, agentisch → 1.198.617
+- `computeVbCharCap` rundet ab — die Quote ist gebrochen, ein Zeichen-Cap ist eine ganze Zahl
+- Beide Konstanten tragen Messwert + Verfahren im Kommentar: bei Wechsel des internen Modells neu messen
+
+### v4.115.0 — Sichtbarkeits-Katalog als Baum (August 2026)
+
+MINOR — 192 Zeilen in 21 Kästen hießen, an neunzig Zeilen vorbeizuscrollen, um eine zu finden. Und der An-Zustand einer Marke unterschied sich vom Aus-Zustand nur durch einen Hauch kräftigeren Rand.
+
+- **Baum statt Kästen** — zugeklappt 21 Zeilen auf 490 px, also eine Bildschirmhöhe ohne Seiten-Scroll; die Seite ist ihr eigener Ordner und trägt ihre Marken in derselben Zeile ([sichtbarkeitBaum.ts](src/plugins/kuration/sichtbarkeit/sichtbarkeitBaum.ts), `TfTree`)
+- **„N markiert" an der zugeklappten Seite** — sonst müsste man alle 21 öffnen, um zu sehen, wo überhaupt etwas festgelegt ist
+- **Der An-Zustand trägt Fläche** — `Beta` in der Farbe des Abzeichens, das es erzeugt (6,3:1), `Experte` neutral gefüllt (19,5:1), aus bleibt ein Umriss (5,3:1) ([SichtbarkeitPanel.tsx](src/plugins/kuration/sichtbarkeit/SichtbarkeitPanel.tsx))
+- **Rückstellen als Zeichen statt als Satz** — „zurück auf Vorgabe (Standard)" sprengte die Zeile; jetzt ein Pfeil-Knopf, dessen Tooltip die Vorgabe nennt
+- Kein neuer Baum-Nachbau: `TfTree` mit `trailing`-Slot und `stopPropagation`, Adapter rein ([tree-komponenten.md](docs/architecture/tree-komponenten.md))
+
+### v4.114.0 — Karten der Fachseiten kennzeichenbar (August 2026)
+
+MINOR — Nachzug zu v4.112: dort endete der Katalog bei Seite und Reiter, die Karten der großen Fachseiten standen nur als JSX da. Jetzt tragen auch sie eine Id — 192 Einträge statt 173.
+
+- **19 Karten aufgenommen** — Vorgangs-Regeln (2), Auslastung (6), Vorgangs-Board (4), Antrag-Aufbereitung (7); Hülle ist `<WennSichtbar>` mit der Id als Literal ([katalog.ts](src/core/sichtbarkeit/katalog.ts), [sichtbarkeitsstufen.md](docs/architecture/sichtbarkeitsstufen.md))
+- **Nur eine trägt selbst eine Marke** — die Karte „Externe Recherche" ist `experte` wie der Reiter, auf den sie zeigt; die übrigen 18 sind Griffe für den Kurator, ihre Wirte sind bereits markiert (Regel 1)
+- **Kein Verweis mehr auf einen verborgenen Reiter** — „Tab öffnen" im Aufbereitungs-Stepper erscheint nur, wenn es den Reiter für diesen Leser gibt ([UebersichtTab.tsx](src/plugins/antraege/aufbereitung/UebersichtTab.tsx))
+- **Trennstriche verschwinden mit ihrer Karte** — die Verwaltungs-Sektionen der Auslastung stehen als gefilterte Liste, nicht als feste JSX-Folge ([EinstellungenView.tsx](src/plugins/auslastung/views/EinstellungenView.tsx))
+- **Guard `sichtbarkeit-ids-existieren`** in beiden Richtungen: keine Id ohne Katalog-Eintrag, kein Karten-Eintrag ohne Hülle ([katalog-konventionen.test.ts](src/core/sichtbarkeit/__tests__/katalog-konventionen.test.ts))
+
+### v4.113.0 — Zehn Befunde der Aehnlichkeitsstufe behoben (August 2026)
+
+MINOR — Aus der erschöpfenden Bug-Jagd an der Ähnlichkeitsstufe: zehn Befunde, alle am echten Bestand gemessen (14 225 Anträge, 14 065 Vektoren) und adversarisch geprüft. Der schwerste zuerst — der Vektor eines Vorhabens kannte nie seinen Inhalt, nur seinen Titel.
+
+- **Der Vektorkorpus kennt die Projektbeschreibung** — die Quell-Spalten kommen aus dem CSV-Schema statt aus geratenen Schlüsseln; `projektbeschreibung_text` war in 0 von 14 225 Sätzen gefüllt. Build-Version v3, **einmal neu bauen nötig** ([embedding-corpus.ts](src/plugins/auslastung/services/matching/embedding-corpus.ts), Guard in [conventions-daten](src/__tests__/conventions-daten.test.ts))
+- **Der Korpus führt eine Signatur** — Modell, Dimension, Präfix, Textversion; ein inkrementeller Lauf verlängert keinen fremden Vektorraum mehr, und das Manifest stempelt den erzeugenden statt den aktiven Stand ([signatur.ts](src/core/services/embedding-corpus/signatur.ts))
+- **Der Suchbereich gilt auch für die Ähnlichkeit** — „nur Einrichtung" und „nur Dokumente" legen die Stufe still, statt das ausgeschlossene Thema zurückzugeben; die Zeile sagt es an ([suchbereich.ts](src/core/services/search/suchbereich.ts))
+- **Der Deckel verwirft keine neuen Treffer mehr** und der Rechenschaftssatz nennt die Zahl VOR dem Deckel plus das, was er zurückhielt ([antraege-search-service.ts](src/plugins/antraege/services/antraege-search-service.ts), [aehnlichkeitsSatz.ts](src/plugins/suche/aehnlichkeitsSatz.ts))
+- Sechs Kleinere: trainierter Anfrage-Präfix statt selbst formuliertem, Modell lädt erst bei Bedarf, „lädt" heißt nicht mehr „fehlgeschlagen", Halbkorpus heilt, Einschalten verliert keinen Dokumenttreffer, der Indexer räumt alte Chunks ([suche-relevanz.md §8](docs/architecture/suche-relevanz.md))
+
+### v4.112.0 — Beta-Funktionen und Expertenmodus (August 2026)
+
+MINOR — 19 Plugins, ~75 Reiter, ~68 Abschnitte, 16 Widgets: vieles davon ist Erprobung oder Tiefenwerkzeug und stand doch gleichberechtigt neben dem Tagesgeschäft. Eine vierte Sichtbarkeits-Achse räumt auf — sie beantwortet „will ich das sehen?", nicht „darf ich das?".
+
+- **Zwei unabhängige Marken, UND-verknüpft** — Reife (`beta`) und Zielgruppe (`experte`); was beides trägt, braucht beide Schalter. Eine einzige Stufe hätte „neu für alle" und „neu für Profis" in denselben Topf geworfen ([sichtbarkeitsstufen.md](docs/architecture/sichtbarkeitsstufen.md), Pitfall #54)
+- **Zwei Schalter im Profil** (beide aus), mit Zähler, der den echten Zugewinn im aktuellen Stand des anderen nennt ([UmfangGruppe.tsx](src/plugins/einstellungen/profil/UmfangGruppe.tsx))
+- **Kurator-GUI „Sichtbarkeit"** im Datenpflege-Hub: Baum aus Seite → Reiter → Abschnitt plus Widgets, zwei Marken je Zeile, Abweichungs-Sidecar `_intern/sichtbarkeit.json` über der Code-Vorbelegung ([SichtbarkeitPanel.tsx](src/plugins/kuration/sichtbarkeit/SichtbarkeitPanel.tsx))
+- **173 Einträge vorbelegt**, 43 markiert (20 Beta, 19 Experte, 4 beides) — mit beiden Schaltern aus verschwinden 7 der 18 Nav-Einträge samt ihrer Reiter ([katalog.ts](src/core/sichtbarkeit/katalog.ts))
+- Sieben Guards halten die Regeln: eine Frage-Stelle, keine Doppelmarke, Unantastbares unantastbar, keine Seite ohne Reiter ([katalog-konventionen.test.ts](src/core/sichtbarkeit/__tests__/katalog-konventionen.test.ts))
+
+### v4.111.0 — Die Suchseite haelt ihre Zusagen (August 2026)
+
+MINOR — Aus der erschöpfenden Bug-Jagd auf der Suchseite: sieben Befunde, alle gemessen und adversarisch geprüft. Gemeinsamer Nenner — die Seite sagte etwas zu („die häufigsten fünf", „+385 seit zuletzt", „422 Treffer"), das an der Stelle daneben nicht galt.
+
+- **Ein Spaltenfilter gilt für beide Ansichten** und steht als entfernbarer Chip neben den Facetten; die Liste sortiert die spaltengefilterte Menge, nicht die davor ([SpaltenFilterChips.tsx](src/plugins/suche/SpaltenFilterChips.tsx), Guard in [conventions-ui](src/__tests__/conventions-ui.test.ts))
+- **„Die häufigsten fünf" sind es jetzt** — die Stöbern-Vorschau ordnet nach Häufigkeit statt alphabetisch; Sachsen (2 742) statt Bremen (306) ([suche-relevanz.md §9.3](docs/architecture/suche-relevanz.md))
+- **Werte mit Anführungszeichen sind wieder auffindbar**: Anfrage und Korpus legen dasselbe ab (13 von 5 407 Einrichtungen, `ast:"EIKBOOM …"` 0 → 2) ([suche-relevanz.md §9.4](docs/architecture/suche-relevanz.md))
+- **„Häufig gesucht" zählt wirklich** und „+N seit zuletzt" misst beide Seiten mit derselben Latte ([anfrage-verlauf.ts](src/core/services/search/anfrage-verlauf.ts), [useGespeicherteSuchen.ts](src/plugins/suche/useGespeicherteSuchen.ts))
+- Kleiner: `ort:Dresden` verspricht kein Bundesland mehr, das Merk-Datum ist der lokale Tag ([suchsprache.ts](src/plugins/suche/start/suchsprache.ts), [gespeicherteSuchen.ts](src/plugins/suche/gespeicherteSuchen.ts))
+
+### v4.110.0 — Die Aehnlichkeitsstufe legt Rechenschaft ab (August 2026)
+
+MINOR — Gemeldet: „auch ähnliche Themen" eingeschaltet, Trefferzahl unverändert, nach 20 s dieselbe KI-Antwort. Nachgemessen: die Stufe lief und fand 2 Kandidaten, einer neu — sichtbar war davon nichts. Ein Messfeld ohne Urteil meldet keinen Stillstand.
+
+- **Der Schalter legt Rechenschaft ab**: „9 thematisch verwandte Vorhaben, 8 davon neu" / „alle standen schon im Wortlaut-Ergebnis" / „kein Vorhaben über der Schwelle" ([aehnlichkeitsSatz.ts](src/plugins/suche/aehnlichkeitsSatz.ts))
+- **Die Reichweite steht dabei** — „Vergleichbar sind 1.086 von 14.225 Vorhaben"; ohne Vektor kann nichts ähnlich sein ([suche-relevanz.md §8.5](docs/architecture/suche-relevanz.md))
+- **Relative Schwelle 0,85 statt 0,90** — nicht Floor und nicht TOP_K bremsten, sondern das enge Band; Messtabelle über fünf Fragen im Service ([antraege-search-service.ts](src/plugins/antraege/services/antraege-search-service.ts))
+- Am selben Lauf gemessen: **2 Kandidaten → 9, davon 8 neu; 136 → 143 Treffer**
+- Unverändert: der Deckel für reine Ähnlichkeitstreffer (nie über einem Wortlaut-Treffer)
+
+### v4.109.0 — Das Suchfeld schlaegt Fragen vor (August 2026)
+
+MINOR — Gewünscht: das Dropdown im Frage-Modus der Suche nach dem Vorbild der Förderanträge. Dort schwieg die Vervollständigung (niemand tippt `ort:` in einen Satz), übrig blieb der nackte Verlauf — und der beantwortet nicht, was man hier überhaupt fragen kann.
+
+- **Mechanik geteilt, Katalog je Seite**: Abschnitte, Lücken `‹…›` und Tastatur liegen jetzt in [frage-vorschlaege](src/components/frage-vorschlaege/abschnitte.ts), beide Seiten reichen ihren `FrageKatalog` herein
+- **Der Katalog der Suche** kennt Thema, Ort, Jahr und Stand — die Achsen, die ihr Frageplan wirklich setzt ([katalog.ts](src/plugins/suche/frage/katalog.ts))
+- **Eine Liste, zwei Orte**: `FRAGEN` speist Dropdown und Reiter „Fragen" des Startzustands; zwei Vorräte liefen auseinander
+- **Eine halbe Frage erreicht die KI nie** — `frageStellen` bricht bei offener Lücke ab, der Knopf ist gesperrt ([suche-relevanz.md §8.4](docs/architecture/suche-relevanz.md))
+- **Erst ab dem ersten Zeichen**, damit die Reiterleiste des Startzustands frei bleibt (Regel aus v4.107.1)
+
+### v4.108.0 — Suchfeld ziehbar, Quickfilter gehoeren zum Reiter (August 2026)
+
+MINOR — Gewünscht: „Suchfeld breiter machen (die Breite von Suche in Stichworten nehmen). Bei Suche mit Frage Textfeld vertikal resizable machen." Dazu die Zusage von v4.107.2, die Quickfilter in die Reiter-Räumung zu ziehen — beim Bauen zeigte sich, dass sie stattdessen zum Reiter gehören müssen.
+
+- **Ein Feld, zwei Betriebsarten**: Stichworte einzeilig, Frage mehrzeilig mit ziehbarer Unterkante und gemerkter Höhe ([SuchFeld.tsx](src/plugins/antraege/SuchFeld.tsx))
+- **Gleiche Breite in beiden**: die Zeile bricht um, statt das Feld zu stauchen (gemessen 640 px hier wie dort)
+- **Die Quickfilter-Pillen gehören zum eigenen Reiter** — gespeichert, wiederhergestellt und identitätsstiftend; ein Reiter „PreCheck offen" trug bisher nur den Namen ([eigeneReiter.ts](src/plugins/antraege/eigeneReiter.ts))
+- **Ältere gemerkte Reiter** bekommen beim Laden „keine Einschränkung" nachgefüllt (`ergaenzeQuickfilter`)
+- **Höhe im Callback-Ref herstellen und überwachen**, nicht im Effekt (Bug-Klasse 23): das Element wechselt mit dem Modus die Sorte
+
+### v4.107.2 — Vom eigenen Reiter zurueck auf einen festen (August 2026)
+
+PATCH — Gemeldet: „wenn ich eigene Suche als Tab gespeichert habe, geht die Umschaltung zu anderen Tabs (insb. zum ersten Tab Antragsphase) nicht mehr." Die Markierung des eigenen Reiters hängt an der Signatur des Stands — sitzt er auf derselben Basis, ändert `setActiveView` nichts an ihr, und der Klick war ein Nichts.
+
+- **Der Klick auf einen festen Reiter verlässt den eigenen** (`verlasseEigenenReiter`) ([reiterZustand.ts](src/plugins/antraege/reiterZustand.ts))
+- **Abgeräumt wird der Ausschnitt, nicht die Anordnung**: Filterleiste, Kopf-Auswahl und Beendet-Sicht gehen, Spaltensatz und Dichte bleiben eine Vorliebe
+- **Gemessen in dev:local**: eigener Reiter 799 → Antragsphase 845 → und zurück, Filterzähler 1 → 0 ([verlasseEigenenReiter.test.ts](src/plugins/antraege/__tests__/verlasseEigenenReiter.test.ts))
+
+### v4.107.1 — Das Vorschlags-Dropdown deckt die Suchhilfen nicht mehr zu (August 2026)
+
+PATCH — Gemeldet: das Verlaufs-Dropdown verdeckt die Reiterleiste der Suchhilfen komplett. Es zeigte dort denselben Verlauf, den der Reiter „Zuletzt" zwei Zeilen tiefer ungekürzt führt — und nahm dafür „Alle · Zuletzt · Suchsprache · Fragen · Stöbern" weg.
+
+- **Beim leeren Feld bleibt die Liste zu** — eine Bedingung für Anzeige, Tastatur und `aria-expanded` ([vervollstaendigung.ts](src/plugins/suche/vervollstaendigung.ts))
+- Nicht durchsichtig gemacht: die Fläche fängt die Klicks weiterhin ab, und Text auf Text fällt unter AA ([DESIGN_GUIDE.md](DESIGN_GUIDE.md))
+
+### v4.107.0 — Die getippte Frage filtert die Liste nicht mehr (August 2026)
+
+MINOR — Gemeldet: „habe getestet, es wurde gar keine KI genutzt." Der Fragesatz lief beim Tippen sofort als Wortlaut-Suche mit und traf über Titel und Antragsteller nichts: die Liste war leer, alle Pillen standen auf „Alle" — es sah aus wie ein KI-Ergebnis. Gefragt worden war nie jemand.
+
+- **Der Fragesatz ist kein Suchbegriff** — eine Quelle für Liste und Hybrid-Suche, statt zweier Leser von `search` ([suchtext.ts](src/plugins/antraege/frage/suchtext.ts), [antrags-frage.md](docs/architecture/antrags-frage.md))
+- **Auch ein erfolgreicher Lauf ohne Themen sucht nicht im Wortlaut**: der Normalfall (Status + Jahr + PreCheck) nennt kein Thema und hätte leer zurückgegeben
+- **Knopf „Frage stellen"** wie in der Dokumenten-Suche, dazu die Zeile „Noch nicht gestellt …" ([AntraegeHeader.tsx](src/plugins/antraege/AntraegeHeader.tsx))
+- **Umschalter und Knopf stehen rechts vom Feld** — erst schreiben, dann die Suchart, dann abschicken
+- **`frageModus`/`frageGestellt` im Antrags-Store** statt in einem eigenen: die Frage entscheidet mit, ob der Feldtext eine Anfrage ist ([store.ts](src/plugins/antraege/store.ts))
+
+### v4.106.1 — Frage stellen ist ein Knopf wie die anderen (August 2026)
+
+PATCH — Gemeldet: der Knopf neben dem Suchfeld ist größer als die CTAs sonst in der App. Er war auch keiner — ein hand-gebauter `<button>` mit eigenem Fill, am `<Button>` vorbei, den [DESIGN_GUIDE.md](DESIGN_GUIDE.md) dafür vorschreibt.
+
+- **„Frage stellen" ist jetzt `<Button variant="primary" size="sm">`** — 28 statt 36 px, wie die 412 anderen `size="sm"` in der App ([SuchSeite.tsx](src/plugins/suche/SuchSeite.tsx))
+- **Kein Text-Tausch mehr im Ladezustand** („Übersetze…"): Spinner + Sperre kommen aus `loading`, wie im Design-Guide vorgeschrieben
+
 ### v4.106.0 — Vorschlaege fuer den Frage-Modus der Foerderantraege (August 2026)
 
 MINOR — Gewünscht waren Vorschläge für den Frage-Modus: vergangene Fragen, konkrete Beispiele und Vorlagen zum Ausfüllen. Ein leeres Feld, das einen ganzen Satz erwartet, zeigte bis dahin genau ein Beispiel im Platzhalter — welche Achsen es sonst gibt, stand nirgends.

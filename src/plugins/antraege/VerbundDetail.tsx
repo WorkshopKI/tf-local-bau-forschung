@@ -436,6 +436,8 @@ export function VerbundDetail({
               <TeilvorhabenListe
                 tvs={antraege}
                 verbundTitel={titel}
+                alleAntraege={allAntraege}
+                verbundId={verbund?.verbund_id ?? null}
                 expandedTvAz={expandedTvAz}
                 onToggle={(az) => setExpandedTvAz(prev => (prev === az ? null : az))}
                 onOpenAntrag={onOpenAntrag}
