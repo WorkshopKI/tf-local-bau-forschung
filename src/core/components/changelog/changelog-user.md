@@ -19,6 +19,13 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v6.13 — 2026-08
+
+### Bugfixes
+- **Ein Klick in „Top Ten" tat nichts, wenn „Suche mit: einer Frage" eingestellt war.** Neben „Fraunhofer-Gesellschaft" stand „305 Treffer" — nach dem Klick stand im Feld die passende Suche, aber statt der Treffer der Hinweis „Noch nicht gestellt". Die Suchart stellt sich jetzt selbst auf „Stichworten" zurück, sobald eine fertige Suche übernommen wird: aus „Top Ten", aus der Suchsprache, aus den gemerkten Suchen und aus dem Verlauf. Eine echte Frage geht weiterhin an die KI.
+### Verbesserungen
+- **Das Kurzprofil des Antragstellers braucht ein Drittel weniger Platz.** Kurzname und Aktenzeichen stehen jetzt nebeneinander statt untereinander — bei fünf Anträgen ist die Karte rund 70 Pixel kürzer, und wo viele stehen, sind auf einen Blick neun statt sechs zu sehen.
+
 ## v6.12 — 2026-08
 
 ### Bugfixes

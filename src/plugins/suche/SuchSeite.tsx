@@ -18,6 +18,7 @@ import { ViewModeToggle, type ViewModeOption } from '@/components/ui/ViewModeTog
 import { DarstellungDropdown } from '@/components/ui/DarstellungDropdown';
 import { isDokumentenscanEnabled, isSucheNatuerlicheSpracheEnabled } from '@/config/feature-flags';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
+import { hatFeldPraefix } from '@/core/services/search/feldpraefix';
 import { aktiveLeitbegriffe, planMarkierWoerter, planSchraenktEin } from '@/core/services/search/frageplan';
 import { ermittleFrageplan } from '@/core/services/search/frageplan-lauf';
 import { useKuratorSeiten } from '@/core/hooks/useKuratorSeiten';
@@ -401,13 +402,24 @@ export function SuchSeite(): React.ReactElement {
     if (analyseActive) analyse.reset();
   };
 
+  /**
+   * Eine fertige Anfrage übernehmen — und die Suchart mitnehmen.
+   *
+   * Gegenstück zu `starteFrage` (`setNlModus(true)`): Top Ten, Suchsprache,
+   * gemerkte Suche und Treffertitel liefern einen Suchbegriff oder eine
+   * Feldanfrage, keine Frage. Bliebe der Frage-Modus stehen, liefe der Klick in
+   * den Wartezustand `frageOffen` — die Seite sucht dann GAR NICHT, sondern
+   * verlangt eine Frage, ausgerechnet bei einem Wert, neben dem gerade noch
+   * seine Trefferzahl stand. Den Wechsel sagt der Umschalter selbst an.
+   */
   const starteSuche = useCallback((q: string): void => {
+    setNlModus(false);
     setQuery(q);
     addRecentSearch(q);
     setFacettenWahl(LEERE_WAHL);
     setAuswahl(new Set());
     if (analyseActive) analyse.reset();
-  }, [setQuery, addRecentSearch, setFacettenWahl, analyseActive, analyse]);
+  }, [setNlModus, setQuery, addRecentSearch, setFacettenWahl, analyseActive, analyse]);
 
   /**
    * Ein Frage-Beispiel anklicken: Text UND Modus setzen, dann übersetzen.
@@ -1054,7 +1066,12 @@ export function SuchSeite(): React.ReactElement {
               wortIndex={wortIndex}
               zaehle={zaehleVorschlag}
               onSuche={starteSuche}
-              onWiederholen={q => { starteSuche(q); if (nlModus) void frageStellen(q); }}
+              // Der Verlauf ist der einzige Weg zurück zu einer FRAGE — er behält
+              // die Suchart, die `starteSuche` sonst auf Stichworte zurückstellt.
+              // Ein Feldpräfix schließt das aus: `ast:"EurA AG"` ist auch dann
+              // keine Frage, wenn es im Frage-Modus wieder aufgerufen wird.
+              onWiederholen={q => (nlModus && !hatFeldPraefix(q)
+                ? starteFrage(q) : starteSuche(q))}
               onFrage={nlFreigeschaltet ? starteFrage : undefined}
               gewuenschterReiter={reiterWunsch}
               onEntferneLetzte={removeRecentSearch}

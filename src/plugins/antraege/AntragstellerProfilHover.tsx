@@ -11,7 +11,6 @@
 // ~12k Slim-Records des Programms, und sichtbar ist immer höchstens eine Karte.
 
 import { useState } from 'react';
-import { ChevronRight } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 import { formatGermanDate } from '@/core/services/csv';
@@ -111,30 +110,46 @@ export function AntragstellerProfilHover({
           </div>
 
           {profil.gesamt > 0 ? (
+            // EINE Zeile je Antrag, nicht zwei. Akronym über Kennzeichen
+            // gestapelt kostete 44 px je Eintrag — fünf Anträge füllten damit
+            // den halben Bildschirm, und die Karte soll im Vorbeigehen lesbar
+            // sein. Nebeneinander bleiben beide vollständig lesbar; was nicht
+            // passt, kürzt das Akronym, dessen `title` es ganz trägt.
+            //
+            // Der Chevron, der bis dahin am rechten Rand auf Hover erschien,
+            // ist mit demselben Schritt entfallen: er belegte dauerhaft 21 px
+            // der 356 px breiten Zeile, um bei Berührung dasselbe zu sagen wie
+            // Hintergrund und Zeigerform ohnehin.
             <div className="max-h-[280px] overflow-y-auto py-1">
               {profil.antraege.map(a => (
                 <button
                   key={a.aktenzeichen}
                   type="button"
                   onClick={() => { setOffen(false); onOpenAntrag(a.aktenzeichen); }}
-                  className="group flex w-full items-center gap-2 px-3 py-1.5 text-left transition-colors cursor-pointer hover:bg-[var(--tf-bg-secondary)]"
+                  className="flex w-full items-center gap-2 px-3 py-1 text-left transition-colors cursor-pointer hover:bg-[var(--tf-bg-secondary)]"
                   title={`${a.akronym ?? a.aktenzeichen} öffnen`}
                 >
-                  <span className="shrink-0 w-[68px] text-[11px] tabular-nums text-[var(--tf-text-tertiary)]">
+                  <span className="shrink-0 w-[58px] text-[11px] tabular-nums text-[var(--tf-text-tertiary)]">
                     {a.antragsdatum ? formatGermanDate(a.antragsdatum) : '—'}
                   </span>
-                  <span className="flex-1 min-w-0">
-                    <span className="block truncate text-[11.5px] font-medium text-[var(--tf-text)]">
-                      {a.akronym ?? '—'}
-                      {a.imSelbenVerbund ? (
-                        <span className="ml-1.5 font-normal text-[10.5px] text-[var(--tf-text-tertiary)]">
-                          dieser Verbund
-                        </span>
-                      ) : null}
+                  {/* Am echten Bestand gemessen: von 6.646 Akronymen sind 51
+                      (0,8 %) breiter als die 110 px, die neben dem längsten
+                      Status-Badge bleiben; das breiteste misst 127 px. Was
+                      gekürzt wird, steht ungekürzt im `title` der Zeile. */}
+                  <span className="flex-1 min-w-0 truncate text-[11.5px] font-medium text-[var(--tf-text)]">
+                    {a.akronym ?? '—'}
+                  </span>
+                  {/* Die Marke kürzt NICHT mit: „dieser Ver…" wäre kaputt statt
+                      knapp. Sie trifft ohnehin nur 232 Zeilen im ganzen Bestand
+                      (108 Verbünde, in denen ein Antragsteller mehrere
+                      Teilvorhaben hält) und höchstens zwei in einer Karte. */}
+                  {a.imSelbenVerbund ? (
+                    <span className="shrink-0 text-[10.5px] text-[var(--tf-text-tertiary)]">
+                      dieser Verbund
                     </span>
-                    <span className="block truncate font-mono text-[10.5px] text-[var(--tf-text-tertiary)]">
-                      {a.aktenzeichen}
-                    </span>
+                  ) : null}
+                  <span className="shrink-0 font-mono text-[10.5px] text-[var(--tf-text-tertiary)]">
+                    {a.aktenzeichen}
                   </span>
                   {a.status ? (
                     <Badge
@@ -145,11 +160,6 @@ export function AntragstellerProfilHover({
                       {statusKurzLabel(a.status)}
                     </Badge>
                   ) : null}
-                  <ChevronRight
-                    size={13}
-                    className="shrink-0 text-[var(--tf-text-tertiary)] opacity-0 group-hover:opacity-100 transition-opacity"
-                    aria-hidden="true"
-                  />
                 </button>
               ))}
             </div>

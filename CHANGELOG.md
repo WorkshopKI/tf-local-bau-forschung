@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v6.13.0 — Eine uebernommene Anfrage ist keine Frage — und das Kurzprofil wird kompakter (August 2026)
+
+MINOR — Zwei Meldungen aus der Abnahme: das Kurzprofil des Antragstellers (v6.10) stapelte Kurzname über Aktenzeichen und kostete 44 px je Antrag, und ein Wert aus „Top Ten" strandete im Frage-Modus im Hinweis „Noch nicht gestellt" — ausgerechnet dort, wo gerade noch „305 Treffer" danebenstand.
+
+- **Eine Zeile je Antrag statt zwei** im Kurzprofil (30,5 px statt 44): Kurzname und Aktenzeichen nebeneinander, der nur bei Berührung sichtbare Chevron entfällt ([AntragstellerProfilHover.tsx](src/plugins/antraege/AntragstellerProfilHover.tsx))
+- **Von 6.646 Kurznamen sind 51 breiter als der verbleibende Platz**; die Marke „dieser Verbund" kürzt nie mit — sie trifft ohnehin nur 232 Zeilen im Bestand ([AntragstellerProfilHover.tsx](src/plugins/antraege/AntragstellerProfilHover.tsx))
+- **`starteSuche` stellt die Suchart auf Stichworte zurück** — Top Ten, Suchsprache, gemerkte Suche und Treffertitel liefern nie eine Frage ([SuchSeite.tsx](src/plugins/suche/SuchSeite.tsx))
+- **Der Verlauf behält den Frage-Modus, außer bei einem Feldpräfix**: `ast:"EurA AG"` läuft als Suche, ein ganzer Satz geht weiter an die KI ([hatFeldPraefix](src/core/services/search/feldpraefix.ts))
+- **Schwelle `MAX_FILE_LOC` 1220 → 1235** (Ist 1223, SuchSeite.tsx) ([health-baseline.test.ts](src/__tests__/health-baseline.test.ts))
+
 ### v6.12.1 — Der Dev-Server ueberlebt einen Test-Gate-Loop (August 2026)
 
 PATCH — Bei der Abnahme der Frage-Suche (v6.12.0) riss der Dev-Server im Sekundentakt jede laufende Messung ab: eine gespeicherte `*.test.ts` hängt nicht im Modulgraph der App und löst darum keinen HMR-Austausch aus, sondern einen Vollreload. Ein Gate-Loop nebenan genügt.
