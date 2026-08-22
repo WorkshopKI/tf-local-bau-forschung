@@ -24,8 +24,18 @@
 ### Neu
 <!-- - Kurzer, verständlicher Satz (nur bei nutzersichtbaren Änderungen) -->
 ### Verbesserungen
+<!-- - … -->
+### Bugfixes
+<!-- - … -->
+
+## v6.14 — 2026-08
+
+### Neu
+<!-- - Kurzer, verständlicher Satz (nur bei nutzersichtbaren Änderungen) -->
+### Verbesserungen
 - **Dieselbe Frage liefert jetzt dieselbe Antwort.** „Was läuft in Bayern zum Thema Leichtbau?" zeigte mal 82 Vorhaben, mal 11, mal gar keins — je nachdem, ob die KI aus dem Wort „läuft" einen Bearbeitungsstand herauslas und still danach filterte. Sie setzt einen Stand jetzt nur noch, wenn die Frage ihn ausdrücklich nennt; dreimal dieselbe Frage gibt dreimal dasselbe Ergebnis. Betroffen war auch „Welche noch offenen Anträge zu Robotik laufen seit 2022?" (mal 23, mal 5).
 ### Bugfixes
+- **Die Einstellungen meldeten „Nicht verbunden", während die interne KI arbeitete.** Nach einem Klick auf „Verbindung testen" stand fünf Sekunden lang „Verbunden" — danach sprang die Anzeige zurück, obwohl sich nichts geändert hatte. Sie zeigt jetzt den tatsächlichen Zustand, dauerhaft: grün verbunden, gelb getrennt, grau solange noch kein KI-Tab offen war.
 - **„Was läuft in Sachsen zum Thema Photonik?" fand nichts — es gibt aber fünf Vorhaben.** Die KI suchte nur nach dem ganzen Wort „Photonik"; die fünf führen es als „Photonen" oder „photonisch". Sie sucht in solchen Fällen jetzt zusätzlich nach dem Wortstamm.
 
 ## v6.13 — 2026-08

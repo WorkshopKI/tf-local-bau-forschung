@@ -21,6 +21,7 @@ import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { BRIDGE_BOOKMARKLET, BRIDGE_BOOKMARK_NAME, istBookmarkletVeraltet } from '@/core/services/ai/streamlit-bridge/snippet';
 import { useBridgeStatus } from '@/core/services/ai/bridge-status';
 import { connectInternalKi } from '@/core/services/ai/connect-ki';
+import { verbindungsAnzeige } from './verbindungsAnzeige';
 import type { AIProviderConfig } from '@/core/types/config';
 import type { KiRolle } from '@/core/services/ai/modell-katalog';
 import { isDevContext } from '@/config/feature-flags';
@@ -100,12 +101,11 @@ export function VerbindungGruppe({
   const gemeldeteRev = useBridgeStatus(s => s.rev);
   const bookmarkletVeraltet = istBookmarkletVeraltet(gemeldeteRev);
 
-  const verbunden = testErgebnis === 'success';
-  const statusText = testErgebnis === 'success'
-    ? 'Verbunden'
-    : testErgebnis === 'error'
-      ? 'Nicht erreichbar'
-      : 'Nicht verbunden';
+  // Der LEBENDE Status, nicht nur das Echo des letzten Tests — `testErgebnis`
+  // räumt sich nach 5 s selbst weg (oben). Entscheidung + Begründung in der
+  // reinen [verbindungsAnzeige.ts](./verbindungsAnzeige.ts).
+  const bridgeStatus = useBridgeStatus(s => s.status);
+  const { text: statusText, punktFarbe } = verbindungsAnzeige(bridgeStatus, testErgebnis);
 
   return (
     <SettingsGruppe id="sec-internki" titel="Verbindung" hint={HINT_GRUPPE}>
@@ -118,7 +118,7 @@ export function VerbindungGruppe({
             <span
               aria-hidden
               className="w-[7px] h-[7px] rounded-full shrink-0"
-              style={{ background: verbunden ? 'var(--tf-success-text)' : 'var(--tf-text-tertiary)' }}
+              style={{ background: punktFarbe }}
             />
             {statusText}
           </p>
