@@ -5,7 +5,8 @@ import { Dialog } from '@/components/ui/dialog';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useAIBridge } from '@/core/hooks/useAIBridge';
 import { connectInternalKi, DEFAULT_KI_URL } from '@/core/services/ai/connect-ki';
-import { useKiConnectPrompt } from '@/core/services/ai/ki-guard';
+import { useKiConnectPrompt, promptDarfSchliessen } from '@/core/services/ai/ki-guard';
+import { useBridgeStatus } from '@/core/services/ai/bridge-status';
 import type { AIProviderConfig } from '@/core/types/config';
 
 /**
@@ -43,6 +44,13 @@ export function KiConnectPromptDialog(): React.ReactElement {
   // Der aktive Provider entscheidet, nicht der gespeicherte: `switchProvider`
   // kann ihn zur Laufzeit umgestellt haben.
   const bridgeAktiv = aiBridge.istBridgeAktiv();
+
+  // Verbindet der Nutzer, während der Dialog offen steht (genau der Weg, den der
+  // Text unten beschreibt), wird seine Aussage falsch — dann geht er von selbst.
+  const status = useBridgeStatus(s => s.status);
+  useEffect(() => {
+    if (promptDarfSchliessen({ offen, bridgeAktiv, status })) schliessen();
+  }, [offen, bridgeAktiv, status, schliessen]);
 
   /**
    * Beide fenster-öffnenden Schritte SYNCHRON aus dem Klick — dazwischen kein

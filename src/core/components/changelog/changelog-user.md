@@ -21,6 +21,9 @@
 
 ## v6.9 — 2026-08
 
+### Bugfixes
+- **Das Fenster „Interne KI nicht verbunden" erscheint nicht mehr, wenn die KI längst verbunden ist.** Zwei Ursachen: Das Fenster blieb stehen, nachdem Sie im KI-Tab verbunden hatten — es schließt sich jetzt von selbst, sobald der Status grün wird. Und zwei gleichzeitige Verfügbarkeits-Prüfungen konnten sich gegenseitig aufheben, sodass eine funktionierende Verbindung als tot gemeldet wurde. Der bisherige Umweg — im KI-Tab auf „Verbunden" klicken — ist damit nicht mehr nötig.
+
 ### Verbesserungen
 - **„Kürzer", „Länger", „Neu" und „Bearbeiten mit KI" laufen jetzt in einem Durchgang statt in zweien.** Bisher hängte die App an jede dieser Überarbeitungen noch einen sprachlichen Feinschliff — der zog eine gerade bewusst gekürzte Fassung wieder glatt und kostete einen zweiten KI-Lauf. Der Feinschliff kommt weiterhin automatisch, wenn ein Abschnitt zum **ersten Mal** entsteht; danach starten Sie ihn bei Bedarf im ⋯-Menü der Karte.
 - **„Prompt ansehen" zeigt jetzt alle Prompts eines Laufs**, einzeln beschriftet („Teil-Lauf 1 von 2", „Sprachlicher Feinschliff"). Im Chat-Fenster der internen KI ist immer nur der zuletzt gesendete zu sehen, weil jeder Lauf dort einen frischen Chat startet — was tatsächlich rausging, steht vollständig in diesem Dialog.

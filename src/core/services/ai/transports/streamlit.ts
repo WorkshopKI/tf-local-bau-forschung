@@ -53,6 +53,10 @@ export type ResetErgebnis = 'ok' | 'nicht-gefunden' | 'timeout';
 const RESPONSE_IDLE_TIMEOUT_MS = 200_000;
 const RESPONSE_HARD_TIMEOUT_MS = 660_000;
 
+/** Frist einer `tf-ping`-Probe. Das Bookmarklet antwortet aus einem
+ *  `message`-Handler, ohne Server im Weg — hier zaehlt nur, ob der Tab lebt. */
+const PING_TIMEOUT_MS = 5_000;
+
 export interface ConversationMessage {
   role: 'system' | 'user' | 'assistant';
   content: string;
@@ -191,6 +195,18 @@ export class StreamlitBridgeTransport implements AITransport {
      *  den String, auf den `submitMessage` auflöst. */
     onReasoning?: (text: string) => void;
   }>();
+  /** Offene `tf-ping`-Proben. Eigene Ablage statt eines Platzes in `pending`,
+   *  weil ein `tf-pong` KEINE id trägt — das Bookmarklet antwortet unadressiert
+   *  (`bridge-snippet.source.js`). Daraus folgen beide Eigenschaften dieser Menge:
+   *  ein eingehendes Pong beantwortet ALLE offenen Proben, und zwei gleichzeitige
+   *  Proben verdrängen einander nicht.
+   *
+   *  Vorher lagen Pings unter dem festen Schlüssel `'ping'` — einem einzigen Platz.
+   *  Im Betrieb überlappen Proben regelmäßig (Heartbeat alle ~15 s, dazu eine je
+   *  KI-Aktion über `kiVerbindungGeprueft`): die zweite überschrieb die erste, ohne
+   *  deren Timeout zu löschen, und der verwaiste Timeout räumte dann den Platz der
+   *  zweiten weg. Ergebnis war der Verbinden-Dialog vor einer lebenden Bridge. */
+  private pendingPings = new Set<{ erledige: (ok: boolean) => void }>();
   /** Aktive Streaming-Anfragen (streamConversation). Getrennt von `pending`,
    *  da hier inkrementell `onDelta` läuft und auf `StreamResult` aufgelöst wird. */
   private streams = new Map<string, {
@@ -249,8 +265,9 @@ export class StreamlitBridgeTransport implements AITransport {
         return;
       }
       if (type === 'tf-pong') {
-        const p = this.pending.get('ping');
-        if (p) { p.cancel(); p.resolve('pong'); this.pending.delete('ping'); }
+        // Unadressiert → beweist Leben fuer JEDE offene Probe, nicht nur die
+        // zuletzt gestartete. Kopie ziehen: `erledige` raeumt aus der Menge.
+        for (const p of [...this.pendingPings]) p.erledige(true);
         return;
       }
       if (type === 'tf-reset-done' && typeof data.id === 'string') {
@@ -409,8 +426,15 @@ export class StreamlitBridgeTransport implements AITransport {
         return false;
       }
       return await new Promise((resolve, reject) => {
-        const timeout = setTimeout(() => { this.pending.delete('ping'); reject(new Error('Ping timeout')); }, 5000);
-        this.pending.set('ping', { resolve: () => resolve(true), reject, cancel: () => clearTimeout(timeout) });
+        const eintrag = {
+          erledige: (ok: boolean): void => {
+            clearTimeout(timeout);
+            this.pendingPings.delete(eintrag);
+            if (ok) resolve(true); else reject(new Error('Ping timeout'));
+          },
+        };
+        const timeout = setTimeout(() => eintrag.erledige(false), PING_TIMEOUT_MS);
+        this.pendingPings.add(eintrag);
         this.streamlitWindow?.postMessage({ type: 'tf-ping' }, '*');
       });
     } catch {

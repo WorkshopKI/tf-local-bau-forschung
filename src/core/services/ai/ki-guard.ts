@@ -13,7 +13,7 @@
  */
 import { create } from 'zustand';
 import type { AIBridge } from './bridge';
-import { useBridgeStatus } from './bridge-status';
+import { useBridgeStatus, type BridgeStatus } from './bridge-status';
 
 interface KiConnectPromptStore {
   offen: boolean;
@@ -78,6 +78,32 @@ export async function kiVerbindungGeprueft(bridge: AIBridge, transportName?: str
   if (await transport.ping({ openIfNeeded: false }).catch(() => false)) return true;
   useKiConnectPrompt.getState().oeffnen();
   return false;
+}
+
+/**
+ * Darf ein offener Verbinden-Dialog von selbst verschwinden?
+ *
+ * Der Dialog ist eine Aussage über einen Zustand („ist aber gerade nicht
+ * verbunden"), und sein eigener Text rechnet damit, dass der Nutzer den Wechsel
+ * WÄHREND er offen steht herbeiführt („dann wird der Status automatisch grün").
+ * Bis v6.9.5 blieb er trotzdem stehen — in der laufenden App gemessen: grüner
+ * Statuspunkt „Interne KI verbunden" und gleichzeitig der Dialog „Interne KI
+ * nicht verbunden". Wer beides sieht, glaubt der App nicht mehr.
+ *
+ * Bewusst am BRIDGE-Status und nur bei aktiver Bridge: `useBridgeStatus` wird vom
+ * Heartbeat immer am Streamlit-Transport gepflegt, auch wenn ein direkter Server
+ * der aktive Provider ist. Ein offener KI-Tab sagt über einen toten llama.cpp
+ * nichts aus und darf dessen Dialog nicht wegwischen.
+ *
+ * Pur gehalten (kein Hook): so hält ein Test die Regel fest, obwohl das Projekt
+ * keine Komponenten rendert — die Komponente bleibt reine Anbindung.
+ */
+export function promptDarfSchliessen(args: {
+  offen: boolean;
+  bridgeAktiv: boolean;
+  status: BridgeStatus;
+}): boolean {
+  return args.offen && args.bridgeAktiv && args.status === 'connected';
 }
 
 /**

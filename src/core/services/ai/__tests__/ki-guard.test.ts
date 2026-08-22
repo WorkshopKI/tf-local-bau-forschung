@@ -12,7 +12,7 @@
  * Transport, der den Lauf fährt — egal wie er heißt.**
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { kiVerbindungGeprueft, istVerbindungsFehler, useKiConnectPrompt } from '../ki-guard';
+import { kiVerbindungGeprueft, istVerbindungsFehler, useKiConnectPrompt, promptDarfSchliessen } from '../ki-guard';
 import type { AIBridge } from '../bridge';
 
 function baueTransport(name: string, erreichbar: boolean | Error) {
@@ -111,5 +111,34 @@ describe('istVerbindungsFehler — trennt „nicht erreichbar" von „schlecht g
     'irgendein Text',
   ])('lässt %s in Ruhe', (err) => {
     expect(istVerbindungsFehler(err)).toBe(false);
+  });
+});
+
+// Regression (v6.9.5): der Dialog ueberlebte seine eigene Bedingung.
+//
+// In der laufenden App gemessen: gruener Statuspunkt mit dem Titel „Interne KI
+// verbunden" UND gleichzeitig ein offener Dialog „Interne KI nicht verbunden".
+// Nichts schloss ihn, wenn die Bridge zurueckkam — obwohl sein eigener Text damit
+// rechnet („dann wird der Status automatisch gruen"). Genau so gemeldet: „das
+// Fenster kommt oefters, obwohl die KI verbunden ist".
+describe('promptDarfSchliessen — ein Dialog haelt nur, solange seine Aussage stimmt', () => {
+  it('offen + Bridge aktiv + verbunden → schliessen (die Aussage stimmt nicht mehr)', () => {
+    expect(promptDarfSchliessen({ offen: true, bridgeAktiv: true, status: 'connected' })).toBe(true);
+  });
+
+  it('getrennt oder unbekannt → stehen lassen', () => {
+    expect(promptDarfSchliessen({ offen: true, bridgeAktiv: true, status: 'disconnected' })).toBe(false);
+    expect(promptDarfSchliessen({ offen: true, bridgeAktiv: true, status: 'unknown' })).toBe(false);
+  });
+
+  it('geschlossen bleibt geschlossen (nichts zu tun)', () => {
+    expect(promptDarfSchliessen({ offen: false, bridgeAktiv: true, status: 'connected' })).toBe(false);
+  });
+
+  it('direkter Server aktiv → der BRIDGE-Status sagt nichts ueber ihn aus', () => {
+    // Der Heartbeat pflegt `useBridgeStatus` immer am Streamlit-Transport, auch
+    // wenn ein llama.cpp-Server der aktive Provider ist. Ein offener KI-Tab darf
+    // deshalb keinen Dialog wegwischen, der von einem toten direkten Server kommt.
+    expect(promptDarfSchliessen({ offen: true, bridgeAktiv: false, status: 'connected' })).toBe(false);
   });
 });
