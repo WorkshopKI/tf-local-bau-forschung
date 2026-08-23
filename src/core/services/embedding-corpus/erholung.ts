@@ -36,6 +36,17 @@ export interface ErholungsMeldung {
   ertrag: number;
   /** Wortlaut des Fehlers, der sie ausgeloest hat. */
   grund: string;
+  /**
+   * Stand das Modell danach wieder?
+   *
+   * Ein gescheiterter Versuch bleibt im Protokoll, damit die Oberflaeche ihn
+   * nennen kann. Fehlte er, waere „es wurde nichts versucht" von „der Versuch
+   * misslang" nicht zu unterscheiden — und genau daran ist die Ferndiagnose
+   * eines gemeldeten Abbruchs gescheitert.
+   */
+  erfolg: boolean;
+  /** Warum das Neuladen selbst misslang (nur bei `erfolg: false`). */
+  ladeFehler?: string;
 }
 
 export interface Erholer {
@@ -86,36 +97,64 @@ export function erzeugeErholer(idb: IDBStore, opts: ErholerOptionen = {}): Erhol
       }
 
       const nummer = erholungen + 1;
-      const gewechselt = plan.geraet !== geraet;
       opts.onLadenBeginnt?.(plan.geraet, nummer);
       console.warn(
         `[embedding-erholung] ${nummer}. Erholung: ${GERAET_LABEL[geraet]} nach ${seitErholung} `
         + `Vektoren verloren — lade Modell neu auf ${GERAET_LABEL[plan.geraet]}.`,
       );
-      try {
-        await ladeEmbeddingNeu(idb, plan.geraet);
-      } catch (ladeFehler) {
-        console.error('[embedding-erholung] Neuladen fehlgeschlagen:', ladeFehler);
+
+      // Scheitert das Neuladen auf der Grafikkarte, ist der HAUPTPROZESSOR die
+      // letzte Rettung — nicht das Ende. ONNX haelt seine WebGPU-Umgebung
+      // global; ist sie einmal zerlegt, kann auch eine frische Session dort
+      // nicht mehr entstehen, und ohne diesen zweiten Anlauf waere die Erholung
+      // in genau dem Fall wirkungslos, fuer den sie gebaut wurde.
+      const wege: EmbeddingGeraet[] = plan.geraet === 'webgpu' ? ['webgpu', 'wasm'] : ['wasm'];
+      let geladenAuf: EmbeddingGeraet | null = null;
+      let ladeFehler: string | undefined;
+      for (const weg of wege) {
+        try {
+          if (weg !== plan.geraet) opts.onLadenBeginnt?.(weg, nummer);
+          await ladeEmbeddingNeu(idb, weg);
+          geladenAuf = weg;
+          break;
+        } catch (err2) {
+          ladeFehler = err2 instanceof Error ? err2.message : String(err2);
+          console.error(
+            `[embedding-erholung] Neuladen auf ${GERAET_LABEL[weg]} fehlgeschlagen:`, err2,
+          );
+        }
+      }
+
+      if (!geladenAuf) {
+        // Auch ein GESCHEITERTER Rettungsversuch gehoert ins Protokoll. Ohne ihn
+        // sieht die Karte hinterher aus wie eine Fassung ganz ohne Erholung —
+        // und niemand kann unterscheiden, ob es versucht wurde oder ob der
+        // Build von gestern ist (genau daran ist die Diagnose 08/2026 gescheitert).
+        meldungen.push({
+          nummer, geraet, gewechselt: false, ertrag: seitErholung, grund,
+          erfolg: false, ladeFehler,
+        });
         return false;
       }
 
       // Der Wechsel ueberlebt den Lauf: der naechste Bau soll nicht wieder fuenf
       // Minuten in dieselbe tote Grafikkarte rechnen. Ein blosses Neuladen auf
       // demselben Rechenwerk hat nichts zu merken.
+      const gewechselt = geladenAuf !== geraet;
       if (gewechselt) {
         await merkeGeraetPraeferenz(idb, {
-          geraet: plan.geraet,
+          geraet: geladenAuf,
           grund,
           am: new Date().toISOString(),
         }).catch(() => { /* eine Notiz darf den Lauf nicht kippen */ });
       }
 
       const meldung: ErholungsMeldung = {
-        nummer, geraet: plan.geraet, gewechselt, ertrag: seitErholung, grund,
+        nummer, geraet: geladenAuf, gewechselt, ertrag: seitErholung, grund, erfolg: true,
       };
       meldungen.push(meldung);
       erholungen = nummer;
-      geraet = plan.geraet;
+      geraet = geladenAuf;
       seitErholung = 0;
       opts.onErholt?.(meldung);
       return true;

@@ -137,6 +137,15 @@ export interface BauBilanz {
    * erwarten liess.
    */
   erholungen: number;
+  /**
+   * Warum ein Rettungsversuch selbst misslang — das Modell liess sich nicht
+   * nachladen, auf keinem Rechenwerk.
+   *
+   * Muss getrennt von `erholungen` stehen: ohne diese Auskunft sieht die Karte
+   * aus wie eine Fassung ganz ohne Erholung, und niemand kann unterscheiden, ob
+   * es versucht wurde oder ob der Build alt ist.
+   */
+  erholungGescheitert?: string;
   /** Worauf am Ende gerechnet wurde. */
   geraet: EmbeddingGeraet | null;
 }
@@ -365,7 +374,8 @@ export function useKorpusBau(): KorpusBau {
           abgebrochen: true,
           abbruchGrund: erg.abbruchGrund,
           gespiegelt: false,
-          erholungen: erg.erholungen.length,
+          erholungen: erg.erholungen.filter(m => m.erfolg).length,
+          erholungGescheitert: erg.erholungen.find(m => !m.erfolg)?.ladeFehler,
           geraet: erg.geraet,
         });
         // Die bis zum Abbruch geschriebenen Vektoren sind da — wer sie liest,
@@ -416,7 +426,9 @@ export function useKorpusBau(): KorpusBau {
         abgebrochen: vErg.aborted,
         abbruchGrund: vErg.abbruchGrund,
         gespiegelt: false,
-        erholungen: erg.erholungen.length + vErg.erholungen.length,
+        erholungen: [...erg.erholungen, ...vErg.erholungen].filter(m => m.erfolg).length,
+        erholungGescheitert: [...erg.erholungen, ...vErg.erholungen]
+          .find(m => !m.erfolg)?.ladeFehler,
         geraet: aktivesEmbeddingGeraet(),
       });
 
@@ -441,6 +453,8 @@ export function useKorpusBau(): KorpusBau {
       // gar das Rechenwerk wechselt, misst Ladepausen und zwei verschiedene
       // Geschwindigkeiten in einem Mittelwert — eine Zahl, die fuer keinen der
       // beiden Zustaende gilt.
+      // Hier zaehlen ALLE Versuche, auch die gescheiterten: jeder kostet einen
+      // Ladelauf mitten in der Messung.
       const erholungenGesamt = erg.erholungen.length + vErg.erholungen.length;
       if ((voll || erg.vollErzwungen) && letzterTick > ersterTick && erholungenGesamt === 0) {
         const gemessen = berechneBauRate(

@@ -266,6 +266,14 @@ export function EmbeddingKorpusSection(): React.ReactElement {
               + `${bau.bilanz.geraet === 'wasm' ? ', zuletzt auf dem Hauptprozessor' : ''} `
               + '— ohne Erfolg. '
             : ''}
+          {/* Der Versuch, der selbst misslang. Ohne diesen Satz ist „es wurde
+              nichts versucht" von „der Versuch scheiterte" nicht zu
+              unterscheiden — und dann sagt die Karte nichts darüber, ob diese
+              Fassung die Erholung überhaupt kennt. */}
+          {bau.bilanz.erholungGescheitert
+            ? 'Das Nachladen des Modells wurde versucht und schlug fehl — weder auf der '
+              + 'Grafikkarte noch auf dem Hauptprozessor ließ es sich neu aufbauen. '
+            : ''}
           Der Korpus behält für diese Vorhaben seine alten Vektoren
           {/* Nur behaupten, was passiert ist: im GLEICHEN Vektorraum stempelt
               der Lauf auch mit Einzelfehlern, weil er nichts ablöst. */}

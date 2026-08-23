@@ -32,6 +32,12 @@ const VERLUST = "Failed to execute 'mapAsync' on 'GPUBuffer': [Device] is lost."
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // `clearAllMocks` loescht die AUFRUFE, nicht die Implementierung: ein
+  // `mockRejectedValue` (ohne `Once`) aus einem vorigen Test laeuft sonst
+  // weiter, das Neuladen scheitert still, und der naechste Test misst den
+  // Ertrag zweier Runden als einen.
+  ladeEmbeddingNeu.mockReset();
+  ladeEmbeddingNeu.mockResolvedValue({});
   geraet = 'webgpu';
   for (const k of Object.keys(gemerkt)) delete gemerkt[k];
   // Die Konsole gehoert dem Testlauf, nicht der Erholung.
@@ -77,15 +83,39 @@ describe('embedMitErholung — der Lauf ueberlebt einen Geraeteverlust', () => {
     expect(ladeEmbeddingNeu).not.toHaveBeenCalled();
   });
 
-  it('gibt auf, wenn das Neuladen selbst scheitert', async () => {
-    embedText.mockRejectedValue(new Error(VERLUST));
+  it('weicht auf den Hauptprozessor aus, wenn die Grafikkarte sich nicht neu laden lässt', async () => {
+    // Der Fall, fuer den die Erholung ueberhaupt gebaut ist: ONNX haelt seine
+    // WebGPU-Umgebung global, und ist die zerlegt, entsteht dort auch keine
+    // frische Session mehr. Ohne diesen zweiten Weg waere die Rettung genau
+    // dann wirkungslos, wenn man sie braucht.
+    let ruf = 0;
+    embedText.mockImplementation(async () => {
+      ruf++;
+      if (ruf === 1) throw new Error(VERLUST);
+      return [1, 0, 0];
+    });
     ladeEmbeddingNeu.mockRejectedValueOnce(new Error('kein Adapter mehr'));
     const erholer = erzeugeErholer(idb);
 
+    const vec = await embedMitErholung('t', 'document', erholer);
+    expect(vec).toEqual([1, 0, 0]);
+    expect(ladeEmbeddingNeu).toHaveBeenNthCalledWith(1, idb, 'webgpu');
+    expect(ladeEmbeddingNeu).toHaveBeenNthCalledWith(2, idb, 'wasm');
+    expect(erholer.geraet).toBe('wasm');
+    expect(erholer.meldungen[0]).toMatchObject({ erfolg: true, gewechselt: true });
+    expect(gemerkt[GERAET_PRAEFERENZ_KEY]).toMatchObject({ geraet: 'wasm' });
+  });
+
+  it('protokolliert einen Rettungsversuch, der auf BEIDEN Wegen scheitert', async () => {
+    // Sonst sieht die Karte hinterher aus wie eine Fassung ganz ohne Erholung.
+    embedText.mockRejectedValue(new Error(VERLUST));
+    ladeEmbeddingNeu.mockRejectedValue(new Error('kein Adapter mehr'));
+    const erholer = erzeugeErholer(idb);
+
     await expect(embedMitErholung('t', 'document', erholer)).rejects.toThrow(/Device\] is lost/);
-    // Kein zweiter Anlauf ohne Modell — der waere sicher vergeblich.
-    expect(embedText).toHaveBeenCalledTimes(1);
-    expect(erholer.meldungen).toHaveLength(0);
+    expect(embedText).toHaveBeenCalledTimes(1); // kein zweiter Anlauf ohne Modell
+    expect(erholer.meldungen).toHaveLength(1);
+    expect(erholer.meldungen[0]).toMatchObject({ erfolg: false, ladeFehler: 'kein Adapter mehr' });
   });
 });
 

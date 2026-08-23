@@ -19,6 +19,13 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v6.20 — 2026-08
+
+### Bugfixes
+- Gibt die Grafikkarte beim Aufbau der Ähnlichkeitssuche auf und lässt sich auch nicht neu starten, weicht die App jetzt sofort auf den Hauptprozessor aus, statt den Lauf zu beenden.
+### Verbesserungen
+- Bricht ein Lauf trotzdem ab, sagt die Karte jetzt auch, ob ein Rettungsversuch stattgefunden hat und woran er scheiterte.
+
 ## v6.19 — 2026-08
 
 ### Neu
