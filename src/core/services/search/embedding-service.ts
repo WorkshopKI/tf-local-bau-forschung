@@ -21,6 +21,36 @@ export interface EmbeddingProgress {
 
 type ProgressCallback = (progress: EmbeddingProgress) => void;
 
+/**
+ * Gibt die GPU-Puffer einer Inferenz frei.
+ *
+ * **Der Anlass** (08/2026): ein Vollbau ueber 14.221 Vektoren verlor auf einer
+ * Maschine mit 12 GB Grafikspeicher reproduzierbar nach ~807 Einbettungen den
+ * WebGPU-Kontext, waehrend der belegte Speicher zwischen 2,6 und 3,3 GB hin und
+ * her sprang. Kein Speichermangel (8,7 GB frei), kein auffaelliger Datensatz
+ * (Position 808 hat 17 Zeichen, der laengste Text des Bestands steht auf 1.083
+ * und wurde nie erreicht) — sondern ein Sägezahn: jeder `Tensor` aus
+ * Transformers.js haelt in `ort_tensor` einen GPU-Puffer, und der wird erst
+ * frei, wenn der JS-GC das Objekt einsammelt. Bis dahin belegt er einen
+ * Puffer-Handle der WebGPU-Sitzung, und deren Zahl ist begrenzt — unabhaengig
+ * davon, wie viel Speicher noch frei ist.
+ *
+ * `dispose()` gab es die ganze Zeit; gerufen wurde es nur beim ENTLADEN des
+ * Modells, also einmal statt 14.221-mal.
+ */
+function gibTensorenFrei(...werte: unknown[]): void {
+  for (const w of werte) {
+    if (!w || typeof w !== 'object') continue;
+    const kandidaten = 'dispose' in w ? [w] : Object.values(w as Record<string, unknown>);
+    for (const k of kandidaten) {
+      const d = (k as { dispose?: () => void } | null)?.dispose;
+      if (typeof d === 'function') {
+        try { d.call(k); } catch { /* eine Freigabe darf den Lauf nicht kippen */ }
+      }
+    }
+  }
+}
+
 function truncateAndNormalize(vec: number[], targetDim: number): number[] {
   const truncated = vec.slice(0, targetDim);
   const norm = Math.sqrt(truncated.reduce((sum, v) => sum + v * v, 0));
@@ -191,7 +221,10 @@ export class EmbeddingService {
     let result: number[];
     if (this.pipelineExtractor) {
       const output = await this.pipelineExtractor(input, { pooling: 'mean', normalize: true });
+      // `Array.from` kopiert — danach haengt das Ergebnis nicht mehr am Tensor,
+      // und sein GPU-Puffer darf sofort zurueck (siehe `gibTensorenFrei`).
       result = Array.from(output.data as Float32Array);
+      gibTensorenFrei(output);
     } else if (this.autoModel && this.autoTokenizer) {
       result = await this.embedWithAutoModel(input, config);
     } else {
@@ -222,6 +255,7 @@ export class EmbeddingService {
       if (this.pipelineExtractor) {
         const output = await this.pipelineExtractor(input, { pooling: 'mean', normalize: true });
         vec = Array.from(output.data as Float32Array);
+        gibTensorenFrei(output);
       } else if (this.autoModel && this.autoTokenizer) {
         vec = await this.embedWithAutoModel(input, config);
       } else {
@@ -253,6 +287,10 @@ export class EmbeddingService {
 
     const inputs = tokenizer([text], { padding: true, truncation: true });
     const outputs = await model(inputs);
+    // Ab hier haelt jeder dieser Tensoren einen GPU-Puffer. Der `finally`-Zweig
+    // unten gibt sie zurueck — auch wenn das Pooling wirft, denn gerade im
+    // Fehlerfall (verlorener Kontext) darf nichts liegen bleiben.
+    try {
 
     let embedding: Float32Array;
 
@@ -302,7 +340,12 @@ export class EmbeddingService {
       if (norm > 0) for (let d = 0; d < embedding.length; d++) embedding[d]! /= norm;
     }
 
+    // `slice` kopiert — der Rueckgabewert haengt an keinem Tensor mehr.
     return Array.from(embedding.slice(0, config.dimensions));
+
+    } finally {
+      gibTensorenFrei(inputs, outputs);
+    }
   }
 
   destroy(): void {

@@ -22,6 +22,14 @@
 ## v6.20 — 2026-08
 
 ### Bugfixes
+- Der Aufbau der Ähnlichkeitssuche gab den Grafikspeicher jeder einzelnen Berechnung erst verzögert wieder frei. Auf manchen Rechnern reichte das, um die Grafikkarte nach einigen hundert Vorhaben aus dem Tritt zu bringen; jetzt wird nach jeder Berechnung sofort aufgeräumt.
+- Gibt die Grafikkarte beim Aufbau der Ähnlichkeitssuche auf und lässt sich auch nicht neu starten, weicht die App jetzt sofort auf den Hauptprozessor aus, statt den Lauf zu beenden.
+### Verbesserungen
+- Bricht ein Lauf trotzdem ab, sagt die Karte jetzt auch, ob ein Rettungsversuch stattgefunden hat und woran er scheiterte — samt Fehlertext.
+
+## v6.20 — 2026-08
+
+### Bugfixes
 - Gibt die Grafikkarte beim Aufbau der Ähnlichkeitssuche auf und lässt sich auch nicht neu starten, weicht die App jetzt sofort auf den Hauptprozessor aus, statt den Lauf zu beenden.
 ### Verbesserungen
 - Bricht ein Lauf trotzdem ab, sagt die Karte jetzt auch, ob ein Rettungsversuch stattgefunden hat und woran er scheiterte.

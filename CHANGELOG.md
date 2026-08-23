@@ -5,6 +5,14 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v6.20.1 — Jede Einbettung gibt ihre Grafikpuffer zurück (August 2026)
+
+PATCH — Der Nutzer maß mit: 12 GB Grafikspeicher, Verbrauch schwankend zwischen 2,6 und 3,3 GB — also **kein** Speichermangel, und Position 808 der Queue hat 17 Zeichen, ist also auch kein Ausreißer. Der Sägezahn war die Spur: die `Tensor`-Objekte aus Transformers.js halten je einen GPU-Puffer, der erst beim nächsten JS-GC frei wird. `dispose()` gab es die ganze Zeit — gerufen wurde es nur beim Entladen des Modells, einmal statt 14.221-mal.
+
+- **Jede Einbettung gibt ihre Ein- und Ausgabe-Tensoren zurück**, auch wenn die Auswertung wirft ([embedding-service.ts](src/core/services/search/embedding-service.ts))
+- **Der Fehlertext eines gescheiterten Nachladens steht jetzt in der Karte** — ohne ihn war die Ferndiagnose auf halbem Weg zu Ende ([EmbeddingKorpusSection.tsx](src/plugins/kuration/suche-index/sections/EmbeddingKorpusSection.tsx))
+- Test einmal ROT gesehen: ohne die Freigabe fallen 3 von 4 Prüfungen ([embedding-tensor-freigabe.test.ts](src/core/services/search/__tests__/embedding-tensor-freigabe.test.ts))
+
 ### v6.20.0 — Ein gescheiterter Rettungsversuch sagt es — und weicht aus (August 2026)
 
 MINOR — Ein gemeldeter Abbruch (807 Vektoren, 20 fehlgeschlagen) ließ sich nicht ferndiagnostizieren: die Karte sagt nichts darüber, ob eine Erholung überhaupt versucht wurde, und v6.18 ging ohne eigenen Versionsbump raus — „v6.19.0" beschrieb damit zwei verschiedene Stände. Beides ist hier behoben. Detail: [auslastung.md](docs/architecture/auslastung.md).
