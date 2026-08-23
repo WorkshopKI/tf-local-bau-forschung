@@ -114,6 +114,30 @@ Der **Verbund**-Korpus bleibt Modul-Sache: ihn liest außerhalb der Klassifizier
 Start-Download hängt weiter an `isAuslastungFreigeschaltet()`. Der **Vorhaben**-Korpus nicht mehr —
 siehe [runtime-layers.md](runtime-layers.md#der-vektorindex-der-suche).
 
+### Kategorie-Referenzen reisen nicht mit dem Korpus (v6.25)
+
+Die Referenzen (`referenzEmbedding` je Überkategorie) sind Mittelwerte über die Verbund-Vektoren der
+klassifizierten Verbünde. Sie liegen in `auslastung.json`, **nicht** im Korpus — wer den Korpus vom
+Datenspeicher **holt**, bekommt sie also nicht mit. Bis v6.24 wurden sie ausschließlich als letzte
+Phase eines BAUS gerechnet; ein Rechner, der geholt statt gebaut hatte, blieb ohne Themen-Erkennung,
+während die Karte „synchron" meldete. Besonders hart trifft das zwei Umgebungen mit **getrennten
+Daten-Shares** (Entwicklung hier, Citrix dort): dort wandert der Korpus als Datei, `auslastung.json`
+bleibt drüben — und ein Neubau ohne Grafikkarte kostet über zwölf Stunden.
+
+Seit v6.25 zieht [`useKategorieReferenzen`](../../src/plugins/auslastung/hooks/useKategorieReferenzen.ts)
+sie an drei Stellen nach: nach dem Bau (wie bisher), nach „Vom Datenspeicher laden", und über den
+Knopf „Jetzt berechnen" im Hinweis „Kategorie-Referenzen fehlen". Die Rechnung **mittelt vorhandene
+Vektoren** — kein Modell, keine Grafikkarte, Sekunden statt Stunden.
+
+Die harte Regel steckt in der puren
+[`uebernimmKategorieReferenzen`](../../src/plugins/auslastung/services/klassifizierung/kategorie-referenzen.ts):
+**eine leere Zentren-Map schreibt nichts.** Leer heißt fast nie „diese Kategorien haben keine
+Referenz mehr", sondern „die Grundlage lag gerade nicht vor" — durchgeschrieben löschte ein Lauf auf
+einem kalten Rechner die Referenzen des ganzen Teams. Eine einzelne Kategorie ohne neues Zentrum
+verliert ihre alte Referenz dagegen sehr wohl: zu ihr gibt es keine klassifizierten Verbünde mehr.
+Ein gescheiterter Schreibvorgang ist ein eigener Ausgang (`nicht-gespeichert`) und kein Fehler — die
+Referenzen gelten dann in dieser Sitzung, sie stehen nur nicht in der Datei.
+
 ## MA-Selbst-Profil über persönlichen Ordner (v2.6)
 
 Der „Meine Technologien"-Tab kann `auslastung.json` nicht direkt schreiben — Nicht-Kuratoren haben seit v2.0 nur `read` auf dem Daten-Share. Stattdessen:

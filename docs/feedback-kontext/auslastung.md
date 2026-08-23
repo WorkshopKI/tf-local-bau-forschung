@@ -8,7 +8,7 @@ Der Projektleiter lässt Förderanträge automatisch in Fachkategorien einordnen
 
 Fünf Tabs:
 
-- **„Anträge klassifizieren":** Kategorie-Vorschläge, Badge = offene Vorschläge. Unvollständige Anträge ohne Sammel-Datum werden zurückgehalten („wartet auf Vollständigkeit") — sie stehen nur unter dem Chip „Unvollständig" und werden nicht klassifiziert.
+- **„Anträge klassifizieren":** Kategorie-Vorschläge, Badge = offene Vorschläge. Unvollständige Anträge ohne Sammel-Datum werden zurückgehalten („wartet auf Vollständigkeit") — sie stehen nur unter dem Chip „Unvollständig" und werden nicht klassifiziert. Fehlen die **Kategorie-Referenzen** (die Themen-Mitte je Kategorie), steht das oben als Hinweis — mit dem Knopf „Jetzt berechnen", sobald Verbund-Vektoren und klassifizierte Verbünde da sind: die Referenzen sind ein Mittelwert über vorhandene Vektoren und brauchen weder Modell noch Grafikkarte. Sonst sagt der Hinweis, was fehlt (erst freigeben, oder erst den Korpus holen).
 - **„Anträge zuweisen":** 50/50-Split-Cockpit mit Top-3-Match-Vorschlägen. Über den Filtern steht die **Datenbasis**: der Arbeitsvorrat folgt dem Betrachtungsbereich (Chip daneben, Klick wechselt), die **Kompetenz-Basis** dagegen ist immer der gesamte Bestand (14 221 Anträge, unabhängig vom Bereich) — sonst verlöre ein Bearbeiter, der nur in Richtlinien außerhalb des Bereichs gearbeitet hat, sein Profil.
 - **„Auslastung MA":** Statistik + MA-Liste + Kapazität pro Quartal. Je MA zwei getrennte Balken-Spalten:
   - **„Aktuelles Quartal"** = Kapazitäts-Auslastung in % (rot bei Überbuchung).

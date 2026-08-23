@@ -336,6 +336,12 @@ export function EmbeddingKorpusSection(): React.ReactElement {
         </div>
       )}
 
+      {/* Kein Fehler, aber auch nichts Selbstverständliches: die
+          Kategorie-Referenzen liegen nicht im Korpus und werden nach einem
+          Download aus den eigenen Klassifizierungen abgeleitet. Ohne diese
+          Zeile wüsste niemand, ob das geklappt hat — sichtbar wäre es erst
+          drüben im Auslastungs-Modul. */}
+      {bau.notiz && <div className="text-[11.5px] text-[var(--tf-text-secondary)] mb-2">{bau.notiz}</div>}
       {bau.fehler && <div className="text-[11.5px] text-rose-700 mb-2">{bau.fehler}</div>}
       {spiegelFehler && !bau.fehler && <div className="text-[11.5px] text-rose-700 mb-2">{spiegelFehler}</div>}
 

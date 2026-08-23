@@ -25,6 +25,7 @@ import { useStorage } from '@/core/hooks/useStorage';
 import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
 import { useProfile } from '@/core/hooks/useProfile';
 import { listAntraegeByProgramm } from '@/core/services/csv/idb-csv';
+import type { Antrag } from '@/core/services/csv/types';
 import {
   clearEmbeddings,
   entscheideAbgleich,
@@ -51,7 +52,6 @@ import {
   ensureVerbundCorpus,
   ermittleKorpusBestand,
   invalidateVerbundEmbeddingsCache,
-  loadAllVerbundEmbeddings,
   planeVerbundQueue,
   uploadVerbundCorpusToShare,
   bumpAuslastungCorpusSignal,
@@ -69,8 +69,10 @@ import {
   type BauRate,
   type KorpusBestand,
 } from '@/plugins/auslastung/services/matching';
-import { computeKategorieCentroidsFromVerbund } from '@/plugins/auslastung/services/klassifizierung';
-import { useAuslastungData } from '@/plugins/auslastung/hooks/useAuslastungData';
+import { beschreibeReferenzErgebnis } from '@/plugins/auslastung/services/klassifizierung';
+import { useKategorieReferenzen } from '@/plugins/auslastung/hooks/useKategorieReferenzen';
+import type { AuslastungConfig } from '@/plugins/auslastung/types';
+import { features } from '@/config/feature-flags';
 import { computeEtaMsFromSamples, type ThroughputSample } from '@/core/utils/eta';
 import { berechneGesamt, type BauPhase, type BauPlan } from './bauFortschritt';
 
@@ -192,6 +194,11 @@ export interface KorpusBau {
   geraet: EmbeddingGeraet | null;
   laeuft: boolean;
   fehler: string | null;
+  /**
+   * Was neben den Vektoren noch passiert ist — heute die Kategorie-Referenzen
+   * nach einem Download. Kein Fehler, aber auch nicht selbstverständlich.
+   */
+  notiz: string | null;
   /** Der lokale Bau steht, nur das Spiegeln hat nicht geklappt — `spiegle()` reicht. */
   spiegelungOffen: boolean;
   /** `false` = „Nachziehen" waere in Wahrheit ein Vollbau (fremder Raum). */
@@ -211,9 +218,6 @@ export function useKorpusBau(): KorpusBau {
   const storage = useStorage();
   const programmId = useActiveProgramm(s => s.activeProgrammId);
   const { profile } = useProfile();
-  const config = useAuslastungData(s => s.data.config);
-  const klassifizierungen = useAuslastungData(s => s.data.klassifizierungen);
-  const persistAuslastung = useAuslastungData(s => s.persist);
 
   const [bestand, setBestand] = useState<KorpusBestand | null>(null);
   const [befund, setBefund] = useState<AbgleichBefund | null>(null);
@@ -230,6 +234,8 @@ export function useKorpusBau(): KorpusBau {
   const [geraetPraeferenz, setGeraetPraeferenz] = useState<GeraetPraeferenz | null>(null);
   const [laeuft, setLaeuft] = useState(false);
   const [fehler, setFehler] = useState<string | null>(null);
+  /** Eine Auskunft, die kein Fehler ist — heute nur die Kategorie-Referenzen. */
+  const [notiz, setNotiz] = useState<string | null>(null);
   const [spiegelungOffen, setSpiegelungOffen] = useState(false);
   const abbruchRef = useRef<AbortController | null>(null);
   /** Der angekündigte Neustart — muss abbrechbar bleiben, sonst ist die Ansage
@@ -279,6 +285,32 @@ export function useKorpusBau(): KorpusBau {
       await baueRef.current?.(urteil.stand.voll, urteil.stand);
     })();
   }, [storage]);
+
+  /**
+   * Die Kategorie-Referenzen nachziehen — der gemeinsame Weg aus dem
+   * Auslastungs-Modul ([useKategorieReferenzen.ts](../../../auslastung/hooks/useKategorieReferenzen.ts)).
+   *
+   * Zwei Aufrufer hier: der Bau (er hat die Verbund-Vektoren gerade selbst
+   * erzeugt) und das Laden vom Datenspeicher. Ein gescheiterter Schreibvorgang
+   * bricht keinen von beiden ab — nach dem Bau steht die Spiegelung noch aus,
+   * und die ist das Wertvollere von beidem.
+   */
+  const zieheReferenzen = useKategorieReferenzen();
+  const zieheKategorieReferenzenNach = useCallback(async (
+    antraege: Antrag[] | null,
+    zusatz?: Partial<AuslastungConfig>,
+  ): Promise<void> => {
+    // Die Referenzen liest allein die Klassifizierung. Ohne das Modul gäbe es
+    // niemanden, der sie braucht — und der Schreibversuch liefe in einer
+    // Nur-Lese-Variante nur in einen Fehler.
+    if (!features.auslastung) return;
+    const erg = await zieheReferenzen(antraege, zusatz);
+    if (erg.art === 'nicht-gespeichert') setFehler(beschreibeReferenzErgebnis(erg));
+    else if (erg.art === 'geschrieben') setNotiz(beschreibeReferenzErgebnis(erg));
+    // `leer` nach einem BAU ist keine Meldung wert: dann gibt es schlicht noch
+    // keine klassifizierten Verbünde, und das sagt das Auslastungs-Modul selbst.
+    else if (!zusatz) setNotiz(beschreibeReferenzErgebnis(erg));
+  }, [zieheReferenzen]);
 
   const baue = useCallback(async (voll: boolean, weiter?: BauFortsetzung): Promise<void> => {
     // Die RAM-Warnung bleibt wortgleich: der Lauf laedt ein ~200-MB-Modell in
@@ -598,23 +630,9 @@ export function useKorpusBau(): KorpusBau {
         ...berechneGesamt(plan, 'centroids', 0),
       });
       await new Promise(r => setTimeout(r, 0));
-      const verbundEmbs = await loadAllVerbundEmbeddings(storage.idb);
-      const centroids = computeKategorieCentroidsFromVerbund(
-        klassifizierungen, verbundEmbs, config.ueberKategorien, antraege,
+      await zieheKategorieReferenzenNach(
+        antraege, { embeddingCorpusBuiltAt: new Date().toISOString() },
       );
-      useAuslastungData.setState(state => ({
-        data: {
-          ...state.data,
-          config: {
-            ...state.data.config,
-            ueberKategorien: state.data.config.ueberKategorien.map(k => ({
-              ...k, referenzEmbedding: centroids.get(k.id),
-            })),
-            embeddingCorpusBuiltAt: new Date().toISOString(),
-          },
-        },
-      }));
-      await persistAuslastung(storage);
 
       // Upload — soft-fail: der lokale Bau bleibt gültig, nur das Team hat ihn
       // dann noch nicht. Er bekommt eine eigene Phase am vollen Balken, statt
@@ -660,8 +678,7 @@ export function useKorpusBau(): KorpusBau {
         );
       }
     }
-  }, [storage, programmId, profile, config, klassifizierungen, persistAuslastung, neuLesen,
-      bestand]);
+  }, [storage, programmId, profile, neuLesen, bestand, zieheKategorieReferenzenNach]);
   // Render-Body, nicht Effekt: so steht der Ref, bevor der Fortsetzungs-Effekt
   // oben ihn braucht.
   baueRef.current = baue;
@@ -731,6 +748,7 @@ export function useKorpusBau(): KorpusBau {
    */
   const ladeVomSpeicher = useCallback(async (): Promise<void> => {
     setFehler(null);
+    setNotiz(null);
     setLaeuft(true);
     try {
       await clearEmbeddings(storage.idb);
@@ -743,6 +761,12 @@ export function useKorpusBau(): KorpusBau {
         setFehler('Es wurden keine Vorhaben-Vektoren geladen — Manifest oder Bin-Datei fehlt oder ist leer.');
       } else if (v !== 'downloaded') {
         setFehler('Die Vorhaben-Vektoren sind da, die Verbund-Vektoren (für die Klassifizierung) liegen aber nicht (kompatibel) auf dem Datenspeicher. Ein voller Neuaufbau spiegelt sie mit.');
+      } else {
+        // Die Verbund-Vektoren sind da — jetzt die Kategorie-Referenzen daraus
+        // ableiten. Sie liegen NICHT im Korpus; ohne diesen Schritt bliebe die
+        // Themen-Erkennung auf einem Rechner, der geholt statt gebaut hat,
+        // dauerhaft stumm.
+        await zieheKategorieReferenzenNach(null);
       }
     } catch (err) {
       setFehler(`Laden vom Datenspeicher fehlgeschlagen: ${err instanceof Error ? err.message : String(err)}`);
@@ -753,7 +777,7 @@ export function useKorpusBau(): KorpusBau {
       // vom Stand vor dem Download.
       useKorpusAbgleich.getState().setBefund(null);
     }
-  }, [storage, neuLesen]);
+  }, [storage, neuLesen, programmId, zieheKategorieReferenzenNach]);
 
   const leere = useCallback(async (): Promise<void> => {
     if (!confirm('Alle Vektoren im lokalen Cache löschen? Die Ähnlichkeitssuche ist danach ohne Wirkung, bis der Korpus neu geladen oder gebaut wurde.')) return;
@@ -786,7 +810,7 @@ export function useKorpusBau(): KorpusBau {
   }, [storage]);
 
   return {
-    bestand, befund, bilanz, rate, raumAktuell, signatur, fortschritt, laeuft, fehler,
+    bestand, befund, bilanz, rate, raumAktuell, signatur, fortschritt, laeuft, fehler, notiz,
     spiegelungOffen, nachladen, neustart, fortsetzung, geraetPraeferenz,
     geraet: geraetPraeferenz?.geraet ?? bilanz?.geraet ?? null,
     nachziehenMoeglich: raumAktuell && (bestand?.zuEmbedden.length ?? 0) > 0,

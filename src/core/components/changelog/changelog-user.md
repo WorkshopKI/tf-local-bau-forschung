@@ -19,6 +19,16 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v6.25 — 2026-08
+
+### Neu
+- Die Themen-Zuordnung funktioniert jetzt auch auf Rechnern, die die Vektoren **geholt** statt gebaut haben: die Kategorie-Referenzen werden dabei aus den geholten Vektoren gemittelt. Das dauert Sekunden und braucht keine Grafikkarte.
+- Fehlen die Referenzen doch einmal, steht im Hinweis „Kategorie-Referenzen fehlen" ein Knopf **„Jetzt berechnen"** — statt der Aufforderung zu einem stundenlangen Neuaufbau.
+### Verbesserungen
+<!-- - … -->
+### Bugfixes
+<!-- - … -->
+
 ## v6.24 — 2026-08
 
 ### Neu

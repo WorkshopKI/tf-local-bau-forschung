@@ -27,6 +27,7 @@ import {
 } from '@/components/data-table';
 import { useAuslastungData, buildFreigegebenRecord } from '../hooks/useAuslastungData';
 import { useAntraegeCache } from '../hooks/useAntraegeCache';
+import { useKategorieReferenzen } from '../hooks/useKategorieReferenzen';
 import { useAuslastungReady } from '../hooks/useAuslastungReady';
 import {
   buildVerbundClassificationViews,
@@ -36,7 +37,7 @@ import {
 } from '../services/verbund';
 import { useVollstaendigkeitsFelder } from '../hooks/useVollstaendigkeitsFelder';
 import { useKorpusLadeStatus } from '../hooks/useKorpusLadeStatus';
-import { baueVollstaendigkeitsHinweise } from '../services/klassifizierung';
+import { baueVollstaendigkeitsHinweise, beschreibeReferenzErgebnis } from '../services/klassifizierung';
 import { getCachedVerbundEmbeddings } from '../services/matching';
 import { ensureVerbundEmbeddings, type CorpusSyncResult } from '../services/matching';
 import { useAuslastungCorpusSignal } from '../services/matching';
@@ -53,6 +54,7 @@ import { applyFacets, bucketFacet, countFacet, type Facet } from './facetCounts'
 import { VerbundClassificationTable } from './VerbundClassificationTable';
 import { LLMKlassifizierungButtons } from '../components/LLMKlassifizierungButtons';
 import { SkeletonRows } from '../components/Skeleton';
+import { Button } from '@/components/ui/button';
 
 /** Helper: zeigt „…" waehrend Loading, sonst die Zahl. */
 function fmtCount(value: number, loading: boolean): string {
@@ -243,6 +245,17 @@ export function KlassifizierungsReview(): React.ReactElement {
     () => config.ueberKategorien.some(k => Array.isArray(k.referenzEmbedding) && k.referenzEmbedding.length > 0),
     [config.ueberKategorien],
   );
+
+  // Fehlende Referenzen sind kein Grund für einen Korpus-Bau: sie sind ein
+  // Mittelwert über Vektoren, die (nach einem Download) längst hier liegen.
+  // Getrennte Daten-Shares bringen genau diesen Zustand mit — der Korpus kommt
+  // über die Datei, `auslastung.json` bleibt drüben.
+  const zieheReferenzen = useKategorieReferenzen();
+  const [referenzMeldung, setReferenzMeldung] = useState<string | null>(null);
+  const referenzenRechnen = useAsyncAction(async () => {
+    setReferenzMeldung(beschreibeReferenzErgebnis(await zieheReferenzen(null)));
+  });
+  const kannReferenzenRechnen = (verbundEmbeddings?.size ?? 0) > 0 && klassifizierungen.length > 0;
 
   // v2.352: Korpus-Ladezustand modul-global spiegeln, damit der Seitenkopf EINEN
   // Ladezustand zeigt statt einer eigenen Hinweiszeile hier. Ohne Centroids ist
@@ -588,14 +601,35 @@ export function KlassifizierungsReview(): React.ReactElement {
           }}
         >
           <strong>Kategorie-Referenzen fehlen.</strong>{' '}
-          Für die automatische Themen-Erkennung müssen die Themen-Vektoren
-          einmalig berechnet werden: Tab <strong>„Auslastung MA"</strong> →
-          Abschnitt <strong>„Erweitert"</strong> aufklappen →{' '}
-          <strong>„Corpus aufbauen"</strong>.
-          {poolCounts.freigegeben > 0
-            ? ` Die ${poolCounts.freigegeben} bereits freigegebenen Verbünde dienen als Grundlage (pro Kategorie gemittelt) — nichts weiter freizugeben nötig.`
-            : ' Vorher einige Verbünde pro Kategorie freigeben — sie sind die Grundlage für die Mittelung.'}
+          {/* Bis v6.24 stand hier „Corpus aufbauen" — ein mehrminütiger Lauf mit
+              200-MB-Modell für eine Rechnung, die vorhandene Vektoren mittelt.
+              Auf einer Citrix-Sitzung ohne Grafikkarte war das ein halber Tag
+              statt Sekunden. Der Weg dorthin stimmte außerdem nicht mehr: der
+              Bau zog mit v4.127 in die Datenpflege um. */}
+          {kannReferenzenRechnen ? (
+            <>
+              Sie werden aus den bereits klassifizierten Verbünden gemittelt — das dauert
+              Sekunden und braucht weder Modell noch Grafikkarte.{' '}
+              <Button
+                type="button" variant="link" size="xs" className="px-0 h-auto align-baseline"
+                onClick={() => void referenzenRechnen.run()} disabled={referenzenRechnen.busy}
+              >
+                {referenzenRechnen.busy ? 'Wird berechnet…' : 'Jetzt berechnen'}
+              </Button>
+            </>
+          ) : (verbundEmbeddings?.size ?? 0) === 0 ? (
+            <>
+              Dafür fehlen die Verbund-Vektoren — erst den Korpus holen oder bauen
+              (Datenpflege → „Suche &amp; Index").
+            </>
+          ) : (
+            <>
+              Vorher einige Verbünde pro Kategorie freigeben — sie sind die Grundlage für
+              die Mittelung.
+            </>
+          )}
           {' '}Danach greifen die Vorschläge für neue Anträge automatisch.
+          {referenzMeldung && <div className="mt-1">{referenzMeldung}</div>}
         </div>
       )}
       {/* „Themen-Vektoren werden geladen …" stand bis v2.351 hier als eigene

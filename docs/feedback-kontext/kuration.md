@@ -49,6 +49,8 @@ Lässt sich das Modell in dieser Seite gar nicht mehr aufbauen, merkt sich die A
 
 Nach einem Lauf steht dort, wie viele Vektoren entstanden sind, wie viele Vorhaben keinen Text hatten und wie viele **fehlgeschlagen** sind — das sind zwei verschiedene Dinge. Schlägt die Einbettung trotz Nachladen reihenweise fehl, bricht der Lauf ab und nennt den ersten Fehlertext.
 
+Nach „Vom Datenspeicher laden" zieht die App die **Kategorie-Referenzen** nach — die Themen-Mitte je Überkategorie, die die automatische Zuordnung trägt. Sie liegen nicht im Korpus, sondern bei den Auslastungs-Daten; wer den Korpus holt statt ihn zu bauen, hätte sie sonst nie. Gerechnet wird ein Mittelwert über die geholten Verbund-Vektoren: Sekunden, ohne Modell. Eine Zeile sagt, was dabei herauskam.
+
 Ein unsauberer Lauf wird **nicht** auf den Datenspeicher gespiegelt: der Stand des Teams bleibt unberührt. Der Knopf „Erneut spiegeln" wiederholt allein den Upload, wenn der Bau stand und nur die Übertragung scheiterte.
 
 Zwei Aussagen, die leicht zu verwechseln sind: „mit dem Datenspeicher synchron" heißt, dass hier derselbe Korpus liegt wie dort — nicht, dass er zu diesem Bestand vollständig ist. Ein Korpus deckt den Bestand ab, den sein Erbauer beim Bau hatte; kamen seitdem Vorhaben dazu oder hat sich ihr Text geändert, sagt die Karte das mit der Zahl, und „Nachziehen" holt genau diese nach.
