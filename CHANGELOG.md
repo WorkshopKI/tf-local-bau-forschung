@@ -5,6 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v6.22.0 — Der Vollbau überlebt einen Seiten-Neustart (August 2026)
+
+MINOR — Der gemeldete Fehlertext war eine nackte Zahl (`12851960`) — ein roher Emscripten-Abbruch. Damit war klar, warum der Ausweich-Pfad aus v6.20 nicht greifen kann: WebGPU- und CPU-Provider liegen in EINEM WASM-Modul, das ORT global hält. Ist es tot, ist es in dieser Seite tot. Nur ein frischer Seitenkontext hilft. Detail: [auslastung.md](docs/architecture/auslastung.md).
+
+- **Der Bau merkt sich, was offen ist, lädt die Seite neu und macht weiter** — angekündigt, abbrechbar, mit erhaltenen Vektoren ([korpus-fortsetzung.ts](src/plugins/auslastung/services/matching/korpus-fortsetzung.ts))
+- **Die Restliste steht explizit im Merker**, nicht als Position: ein abgebrochener Vollbau im gleichen Vektorraum hinterlässt sonst einen Zustand, in dem „nichts offen" ist ([embedding-corpus.ts](src/plugins/auslastung/services/matching/embedding-corpus.ts) — neue Option `nurDiese`)
+- **Zwei Bremsen gegen die Endlosschleife**: Obergrenze 30 Neustarts, und eine Runde ohne einen einzigen neuen Vektor beendet den Bau
+- **Auch die Verbund-Phase wird fortgesetzt** — sie kommt nach den Vorhaben und kann selbst scheitern ([useKorpusBau.ts](src/plugins/kuration/suche-index/hooks/useKorpusBau.ts))
+
 ### v6.21.0 — Doppelförderung: gemeldete Vorhaben gegen den Bestand halten (August 2026)
 
 MINOR — Zweimal im Monat kommt eine Ressort-Liste gemeldeter Forschungsvorhaben, die von Hand gegen den ZIM-Bestand gehalten wurde. Die Anforderung nennt „drei Schlagworte, ODER-verknüpft" — in der App am echten Bestand gemessen trifft ein weites Trio damit 1.150 von 4.327 Vorhaben, also ein Viertel des Bereichs: als Warnung wertlos. Deshalb trägt jeder Treffer seine Abdeckung, und das Urteil hängt an einer Schwelle. Detail: [doppelfoerderung.md](docs/architecture/doppelfoerderung.md).

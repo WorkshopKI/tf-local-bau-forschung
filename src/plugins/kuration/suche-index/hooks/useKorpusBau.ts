@@ -58,6 +58,12 @@ import {
   berechneBauRate,
   ladeBauRate,
   merkeBauRate,
+  beurteileFortsetzung,
+  ladeFortsetzung,
+  merkeFortsetzung,
+  vergissFortsetzung,
+  NEUSTART_MAX,
+  type BauFortsetzung,
   LOCK_STUFE_KORPUS,
   type BuildAbbruchGrund,
   type BauRate,
@@ -92,6 +98,14 @@ export interface PhasenFortschritt {
  */
 const FENSTER_MS = 15_000;
 const FENSTER_SAMPLES_MAX = 400;
+
+/**
+ * Wie lange die Ansage vor einem automatischen Seiten-Neustart stehen bleibt.
+ *
+ * Lang genug zum Lesen und zum Abbrechen, kurz genug, dass achtzehn Runden
+ * nicht allein daran scheitern.
+ */
+const NEUSTART_ANSAGE_MS = 4000;
 
 /**
  * Was ein Lauf tatsaechlich getan hat.
@@ -163,6 +177,10 @@ export interface KorpusBau {
   fortschritt: PhasenFortschritt | null;
   /** Das Rechenwerk ist weggebrochen, das Modell wird gerade nachgeladen. */
   nachladen: { geraet: EmbeddingGeraet; nummer: number } | null;
+  /** Die Seite wird gleich neu geladen, um den Bau fortzusetzen. */
+  neustart: { runde: number; offen: number } | null;
+  /** Dieser Lauf ist die Fortsetzung eines unterbrochenen Baus. */
+  fortsetzung: BauFortsetzung | null;
   /** Was dieser Rechner ueber sein Rechenwerk gelernt hat — `null` = nichts. */
   geraetPraeferenz: GeraetPraeferenz | null;
   /**
@@ -205,11 +223,18 @@ export function useKorpusBau(): KorpusBau {
   const [raumAktuell, setRaumAktuell] = useState(true);
   const [fortschritt, setFortschritt] = useState<PhasenFortschritt | null>(null);
   const [nachladen, setNachladen] = useState<{ geraet: EmbeddingGeraet; nummer: number } | null>(null);
+  /** Der Bau wird gleich per Seiten-Neustart fortgesetzt — Ansage vor dem Reload. */
+  const [neustart, setNeustart] = useState<{ runde: number; offen: number } | null>(null);
+  /** Läuft dieser Lauf als Fortsetzung nach einem Neustart? */
+  const [fortsetzung, setFortsetzung] = useState<BauFortsetzung | null>(null);
   const [geraetPraeferenz, setGeraetPraeferenz] = useState<GeraetPraeferenz | null>(null);
   const [laeuft, setLaeuft] = useState(false);
   const [fehler, setFehler] = useState<string | null>(null);
   const [spiegelungOffen, setSpiegelungOffen] = useState(false);
   const abbruchRef = useRef<AbortController | null>(null);
+  /** Der angekündigte Neustart — muss abbrechbar bleiben, sonst ist die Ansage
+   *  eine Mitteilung statt einer Frage. */
+  const neustartTimerRef = useRef<number | null>(null);
 
   const neuLesen = useCallback(async (): Promise<void> => {
     const b = await ermittleKorpusBestand(storage.idb, programmId);
@@ -231,11 +256,37 @@ export function useKorpusBau(): KorpusBau {
 
   useEffect(() => { void neuLesen(); }, [neuLesen]);
 
-  const baue = useCallback(async (voll: boolean): Promise<void> => {
+  /**
+   * Nach einem Neustart dort weitermachen, wo der Grafik-Kontext aufgab.
+   *
+   * Der Ref-Wächter ist Pflicht, nicht Zierde: React ruft Mount-Effekte im
+   * StrictMode doppelt, und das hiesse hier ZWEI parallele Bauläufe auf
+   * derselben Restliste.
+   */
+  const fortsetzungGeprueft = useRef(false);
+  /** `baue` entsteht weiter unten — der Ref überbrückt die Reihenfolge. */
+  const baueRef = useRef<((voll: boolean, weiter?: BauFortsetzung) => Promise<void>) | null>(null);
+  useEffect(() => {
+    if (fortsetzungGeprueft.current) return;
+    fortsetzungGeprueft.current = true;
+    void (async () => {
+      const stand = await ladeFortsetzung(storage.idb);
+      const urteil = beurteileFortsetzung(stand, -1);
+      if (urteil.art !== 'fortsetzen') {
+        if (stand) await vergissFortsetzung(storage.idb).catch(() => undefined);
+        return;
+      }
+      await baueRef.current?.(urteil.stand.voll, urteil.stand);
+    })();
+  }, [storage]);
+
+  const baue = useCallback(async (voll: boolean, weiter?: BauFortsetzung): Promise<void> => {
     // Die RAM-Warnung bleibt wortgleich: der Lauf laedt ein ~200-MB-Modell in
     // den Speicher DIESES Tabs, und auf geteilten Citrix-Sitzungen hat genau das
-    // Tabs abgeschossen (v2.47).
-    if (!confirm(
+    // Tabs abgeschossen (v2.47). Eine FORTSETZUNG nach einem Neustart fragt
+    // nicht erneut — der Nutzer hat diesen Lauf bereits bestaetigt, und eine
+    // Rueckfrage je Runde waere achtzehnmal dieselbe Frage.
+    if (!weiter && !confirm(
       'Der Korpus-Bau lädt ein ~200-MB-Modell in den Arbeitsspeicher dieses Browser-Tabs '
       + 'und läuft mehrere Minuten. In geteilten Sitzungen (z.B. Citrix mit mehreren Nutzern) '
       + 'kann der Tab dabei abstürzen („Aw, Snap" / Out of Memory).\n\n'
@@ -245,7 +296,10 @@ export function useKorpusBau(): KorpusBau {
     setFehler(null);
     setBilanz(null);
     setSpiegelungOffen(false);
+    setFortsetzung(weiter ?? null);
     setLaeuft(true);
+    /** Wird im `finally` gelesen: Seite neu laden und dort weitermachen. */
+    let neustartNoetig: BauFortsetzung | null = null;
     // Sofort eine eigene Phase, statt den Bestandswert von VOR dem Lauf stehen
     // zu lassen: das Modell zu laden dauert, und „98 %" ist waehrenddessen keine
     // Auskunft ueber diesen Lauf.
@@ -291,7 +345,9 @@ export function useKorpusBau(): KorpusBau {
       // der gemeldete Fehler. `planeVerbundQueue` ist dieselbe Regel, die der
       // Verbund-Lauf gleich selbst anwendet (kein zweiter Regelsatz).
       const plan: BauPlan = {
-        antrag: voll ? antraege.length : (bestand?.zuEmbedden.length ?? antraege.length),
+        antrag: weiter
+          ? weiter.offeneAz.length
+          : voll ? antraege.length : (bestand?.zuEmbedden.length ?? antraege.length),
         verbund: (await planeVerbundQueue(storage.idb, antraege, !voll)).length,
       };
 
@@ -353,10 +409,48 @@ export function useKorpusBau(): KorpusBau {
       const erg = await buildEmbeddingCorpus(storage.idb, antraege, {
         incremental: !voll,
         programmId,
+        ...(weiter ? { nurDiese: new Set(weiter.offeneAz) } : {}),
         onProgress: p => melde('antrag', p.done, p.total, p.lastAntrag),
         signal: controller.signal,
         ...erholungsHaken,
       });
+
+      /**
+       * Den Bau in einem frischen Seitenkontext fortsetzen.
+       *
+       * Beide Phasen können am Geräteverlust scheitern, und beide brauchen
+       * denselben Merker — nur füllt die eine eine Restliste, während die
+       * andere von Haus aus inkrementell ist und nur ein Flag braucht.
+       */
+      const planeNeustart = async (
+        offeneAz: string[], verbundOffen: boolean, erledigtDazu: number, grund: string,
+      ): Promise<void> => {
+        const stand: BauFortsetzung = {
+          programmId,
+          voll: voll || erg.vollErzwungen,
+          offeneAz,
+          verbundOffen,
+          erledigt: (weiter?.erledigt ?? 0) + erledigtDazu,
+          neustarts: (weiter?.neustarts ?? 0) + 1,
+          gestartet: weiter?.gestartet ?? new Date().toISOString(),
+          grund,
+        };
+        const urteil = beurteileFortsetzung(stand, weiter?.erledigt ?? -1);
+        if (urteil.art === 'fortsetzen') {
+          await merkeFortsetzung(storage.idb, stand);
+          neustartNoetig = stand;
+          setNeustart({ runde: stand.neustarts, offen: stand.offeneAz.length });
+          return;
+        }
+        await vergissFortsetzung(storage.idb);
+        setFehler(
+          urteil.art === 'aufgeben' && urteil.grund === 'kein-fortschritt'
+            ? 'Der Neustart hat keinen einzigen weiteren Vektor gebracht — der Bau wurde '
+              + 'beendet. Das liegt dann nicht am Grafik-Kontext.'
+            : `Auch nach ${NEUSTART_MAX} Neustarts ist der Korpus nicht fertig geworden. `
+              + 'Der Bau wurde beendet; die bereits erzeugten Vektoren bleiben erhalten.',
+        );
+      };
 
       // Ein abgebrochener Lauf ist zu Ende — er darf nicht in die zweite Phase
       // weiterlaufen. Als die Einbettung an einem verlorenen Grafik-Kontext
@@ -364,6 +458,17 @@ export function useKorpusBau(): KorpusBau {
       // Balken sprang trotzdem auf 100 %, weil Centroids und Spiegeln als
       // „hinter allem" gelten.
       if (erg.aborted) {
+        // Eine Fehlerserie heisst: das ONNX-Modul ist tot, und in DIESER Seite
+        // ist es nicht zu heilen (WebGPU- und CPU-Provider liegen in einem
+        // WASM-Modul, das ORT global haelt). Also merken, was offen ist, und in
+        // einem frischen Seitenkontext weitermachen. Ein Abbruch DURCH DEN
+        // NUTZER bleibt ein Abbruch — er hat gerade das Gegenteil gewollt.
+        if (erg.abbruchGrund === 'fehlerserie' && erg.offeneAz.length > 0) {
+          await planeNeustart(
+            erg.offeneAz, true, erg.done - erg.skipped,
+            erg.ersterFehler ?? 'Grafik-Kontext verloren',
+          );
+        }
         setBilanz({
           eingebettet: erg.done - erg.skipped,
           ohneText: erg.ohneText,
@@ -394,7 +499,9 @@ export function useKorpusBau(): KorpusBau {
       // einem fremden Vektorraum, sind auch die Verbund-Vektoren daraus — sie
       // inkrementell stehen zu lassen, hiesse den Raum nur halb abzuloesen.
       const vErg = await buildVerbundEmbeddingCorpus(storage.idb, antraege, {
-        incremental: !voll && !erg.vollErzwungen,
+        // Eine Fortsetzung baut IMMER inkrementell: was frühere Runden erzeugt
+        // haben, bleibt. Sonst finge die Phase nach jedem Neustart bei null an.
+        incremental: !!weiter || (!voll && !erg.vollErzwungen),
         signal: controller.signal,
         onProgress: p => melde('verbund', p.done, p.total, p.lastVerbundId),
         ...erholungsHaken,
@@ -416,8 +523,17 @@ export function useKorpusBau(): KorpusBau {
       // Nur ein vollstaendiger, fehlerfreier Lauf darf weiter: er entscheidet
       // ueber Centroids, Spiegelung und Messung gleichermassen.
       const sauber = !vErg.aborted && fehlgeschlagen === 0;
+      // Ein Lauf ueber mehrere Neustarts ist EIN Lauf: die Bilanz zaehlt, was
+      // er insgesamt erzeugt hat, nicht was die letzte Runde schaffte.
+      if (sauber) await vergissFortsetzung(storage.idb).catch(() => undefined);
+      // Auch die zweite Phase darf am Geraeteverlust scheitern — dann ist die
+      // Vorhaben-Restliste leer, der Bau aber nicht fertig.
+      if (vErg.abbruchGrund === 'fehlerserie') {
+        await planeNeustart([], true, eingebettetAntrag + eingebettetVerbund,
+          vErg.ersterFehler ?? 'Grafik-Kontext verloren');
+      }
       setBilanz({
-        eingebettet: eingebettetAntrag + eingebettetVerbund,
+        eingebettet: (weiter?.erledigt ?? 0) + eingebettetAntrag + eingebettetVerbund,
         ohneText: erg.ohneText + vErg.ohneText,
         fehlgeschlagen,
         ersterFehler: erg.ersterFehler ?? vErg.ersterFehler,
@@ -456,7 +572,10 @@ export function useKorpusBau(): KorpusBau {
       // Hier zaehlen ALLE Versuche, auch die gescheiterten: jeder kostet einen
       // Ladelauf mitten in der Messung.
       const erholungenGesamt = erg.erholungen.length + vErg.erholungen.length;
-      if ((voll || erg.vollErzwungen) && letzterTick > ersterTick && erholungenGesamt === 0) {
+      // Eine Fortsetzung misst nur ihre letzte Runde und kennt die Pausen der
+      // Neustarts nicht — als Vorhersage fuer einen Vollbau taugt sie nicht.
+      if (!weiter && (voll || erg.vollErzwungen) && letzterTick > ersterTick
+        && erholungenGesamt === 0) {
         const gemessen = berechneBauRate(
           letzterTick - ersterTick,
           eingebettetAntrag,
@@ -532,9 +651,20 @@ export function useKorpusBau(): KorpusBau {
       abbruchRef.current = null;
       if (lockGehalten) await releaseLock(storage.idb).catch(() => undefined);
       await neuLesen();
+      // Erst NACH der Lock-Freigabe: sonst erbt der neue Seitenkontext einen
+      // Lock, den niemand mehr haelt, und haelt sich selbst fuer ausgesperrt.
+      // Die Pause ist die Ansage — wer sie liest, kann noch abbrechen.
+      if (neustartNoetig) {
+        neustartTimerRef.current = window.setTimeout(
+          () => { window.location.reload(); }, NEUSTART_ANSAGE_MS,
+        );
+      }
     }
   }, [storage, programmId, profile, config, klassifizierungen, persistAuslastung, neuLesen,
       bestand]);
+  // Render-Body, nicht Effekt: so steht der Ref, bevor der Fortsetzungs-Effekt
+  // oben ihn braucht.
+  baueRef.current = baue;
 
   /**
    * Nur spiegeln — der Bau liegt schon in der IndexedDB.
@@ -639,11 +769,25 @@ export function useKorpusBau(): KorpusBau {
     }
   }, [storage, neuLesen]);
 
-  const abbrechen = useCallback(() => { abbruchRef.current?.abort(); }, []);
+  /**
+   * Der Nutzer steigt aus — auch aus einer laufenden Neustart-Kette.
+   *
+   * Der Merker MUSS dabei fallen: sonst setzt der naechste Seitenaufbau brav
+   * fort, was gerade abgebrochen wurde.
+   */
+  const abbrechen = useCallback(() => {
+    abbruchRef.current?.abort();
+    if (neustartTimerRef.current !== null) {
+      window.clearTimeout(neustartTimerRef.current);
+      neustartTimerRef.current = null;
+    }
+    setNeustart(null);
+    void vergissFortsetzung(storage.idb).catch(() => undefined);
+  }, [storage]);
 
   return {
     bestand, befund, bilanz, rate, raumAktuell, signatur, fortschritt, laeuft, fehler,
-    spiegelungOffen, nachladen, geraetPraeferenz,
+    spiegelungOffen, nachladen, neustart, fortsetzung, geraetPraeferenz,
     geraet: geraetPraeferenz?.geraet ?? bilanz?.geraet ?? null,
     nachziehenMoeglich: raumAktuell && (bestand?.zuEmbedden.length ?? 0) > 0,
     baue, ladeVomSpeicher, spiegle, leere, abbrechen, neuLesen, wiederMitGrafikkarte,

@@ -5,6 +5,7 @@ export * from './corpus-signal';
 export * from './embedding-corpus';
 export * from './embedding-matcher';
 export * from './kontingent';
+export * from './korpus-fortsetzung';
 export * from './korpus-messung';
 export * from './korpus-nachlauf';
 export * from './manual-match';

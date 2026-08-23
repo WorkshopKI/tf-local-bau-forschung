@@ -19,6 +19,11 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v6.22 — 2026-08
+
+### Verbesserungen
+- **Der Aufbau der Ähnlichkeitssuche läuft jetzt auch auf Rechnern durch, auf denen die Grafikkarte zwischendurch aufgibt.** Die App merkt sich, was noch offen ist, lädt die Seite neu und macht dort weiter — angekündigt, und mit einem Klick abzubrechen. Bereits berechnete Vektoren bleiben erhalten, der Bau dauert dadurch aber länger.
+
 ## v6.21 — 2026-08
 
 ### Neu

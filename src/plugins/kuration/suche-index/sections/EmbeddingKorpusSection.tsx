@@ -155,6 +155,31 @@ export function EmbeddingKorpusSection(): React.ReactElement {
         </div>
       )}
 
+      {/* Ein automatischer Seiten-Neustart darf niemanden überraschen: er wird
+          angekündigt, er nennt seinen Grund, und man kommt heraus. */}
+      {bau.neustart && (
+        <div className={HINWEIS_KLASSE} style={HINWEIS_WARN}>
+          <strong>Der Grafik-Kontext ist weg — die Seite wird gleich neu geladen.</strong>{' '}
+          Innerhalb dieser Seite lässt sich das Modell nicht mehr aufbauen; im frischen
+          Seitenkontext geht es weiter. Die bereits erzeugten Vektoren bleiben.{' '}
+          {bau.neustart.runde}. Neustart, noch{' '}
+          {bau.neustart.offen.toLocaleString('de-DE')} Vorhaben.{' '}
+          <Button
+            type="button" variant="link" size="xs" className="px-0 h-auto align-baseline"
+            onClick={() => bau.abbrechen()}
+          >
+            Abbrechen
+          </Button>
+        </div>
+      )}
+
+      {bau.fortsetzung && bau.laeuft && (
+        <div className="text-[11px] text-[var(--tf-text-tertiary)] mb-2">
+          Fortsetzung nach Neustart {bau.fortsetzung.neustarts} ·{' '}
+          {bau.fortsetzung.erledigt.toLocaleString('de-DE')} Vektoren aus den vorigen Runden.
+        </div>
+      )}
+
       {laedtRunter && downloadFortschritt && (
         <div className="text-[11.5px] text-[var(--tf-text-secondary)] mb-2">
           Lade vom Datenspeicher: {downloadFortschritt.done}/{downloadFortschritt.total} Vektoren

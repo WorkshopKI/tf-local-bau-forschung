@@ -41,7 +41,11 @@ Darunter die Vektoren der Ähnlichkeitssuche — ein Vektor je Vorhaben, die zwe
 
 Während eines Laufs zeigt ein Balken den Stand des **ganzen** Laufs — Vorhaben und Verbünde auf einer Skala — samt geschätzter Restzeit; die Zeile darüber nennt die laufende Phase.
 
-Verliert die Grafikkarte mitten im Lauf ihren Kontext — bei diesem Modell nach rund 800 Vektoren keine Seltenheit —, lädt die App das Modell nach und rechnet weiter, wo sie stehengeblieben ist; die Karte sagt das währenddessen. Bringt ein Neuladen nichts mehr, wechselt sie auf den Hauptprozessor. Der ist rund dreißigmal langsamer — ein voller Neuaufbau dauert dort über zwölf Stunden, deshalb ist „Vom Datenspeicher laden" in diesem Zustand der bessere Weg. Der Wechsel gilt danach für diesen Rechner, wird oben in der Karte samt Faktor genannt und lässt sich dort zurücknehmen; das Modell wird dabei sofort wieder umgeladen.
+Verliert die Grafikkarte mitten im Lauf ihren Kontext — bei diesem Modell nach rund 800 Vektoren keine Seltenheit —, lädt die App das Modell nach und rechnet weiter, wo sie stehengeblieben ist; die Karte sagt das währenddessen.
+
+Bringt ein Neuladen nichts mehr, wechselt sie auf den Hauptprozessor. Der ist rund dreißigmal langsamer — ein voller Neuaufbau dauert dort über zwölf Stunden, deshalb ist „Vom Datenspeicher laden" in diesem Zustand der bessere Weg. Der Wechsel gilt danach für diesen Rechner, wird oben in der Karte samt Faktor genannt und lässt sich dort zurücknehmen; das Modell wird dabei sofort wieder umgeladen.
+
+Lässt sich das Modell in dieser Seite gar nicht mehr aufbauen, merkt sich die App die offene Restliste, kündigt einen Neustart an und lädt die Seite neu — danach läuft der Bau von selbst weiter. Bereits berechnete Vektoren bleiben erhalten; der Neustart lässt sich abbrechen, und nach dreißig Runden oder einer Runde ohne Fortschritt hört die App von selbst auf.
 
 Nach einem Lauf steht dort, wie viele Vektoren entstanden sind, wie viele Vorhaben keinen Text hatten und wie viele **fehlgeschlagen** sind — das sind zwei verschiedene Dinge. Schlägt die Einbettung trotz Nachladen reihenweise fehl, bricht der Lauf ab und nennt den ersten Fehlertext.
 

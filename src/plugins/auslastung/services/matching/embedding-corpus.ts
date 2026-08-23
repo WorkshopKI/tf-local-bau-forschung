@@ -266,6 +266,19 @@ export interface BuildOptions {
   /** Programm, aus dessen Schema die Quell-Spalten aufgeloest werden. `null` =
    *  nur die fest verdrahtete Basis (siehe {@link ladeEmbeddingFeldIndex}). */
   programmId?: string | null;
+  /**
+   * Genau diese Aktenzeichen bearbeiten — der Rest der Liste bleibt liegen.
+   *
+   * Fuer die **Fortsetzung nach einem Seiten-Neustart**
+   * ([korpus-fortsetzung.ts](./korpus-fortsetzung.ts)): ein abgebrochener
+   * Vollbau im GLEICHEN Vektorraum hinterlaesst einen Zustand, in dem
+   * `incremental` nichts mehr findet (die alten Vektoren liegen da, ihre Hashes
+   * stimmen). Nur eine explizite Restliste weiss, was dieser Lauf noch vorhat.
+   *
+   * Schlaegt `incremental` und `fremderRaum` gleichermassen: wer die Liste
+   * nennt, hat sie sich selbst zusammengestellt.
+   */
+  nurDiese?: ReadonlySet<string>;
   /** Das Rechenwerk ist weggebrochen, das Modell wird nachgeladen — die
    *  Oberflaeche steht sonst wortlos still ([erholung.ts](src/core/services/embedding-corpus/erholung.ts)). */
   onLadenBeginnt?: (geraet: EmbeddingGeraet, nummer: number) => void;
@@ -308,6 +321,13 @@ export interface BuildErgebnis {
   erholungen: readonly ErholungsMeldung[];
   /** Worauf am ENDE gerechnet wurde — kann vom Start abweichen. */
   geraet: EmbeddingGeraet | null;
+  /**
+   * Was dieser Lauf NICHT geschafft hat — weder eingebettet noch als textlos
+   * abgehakt. Die Restliste fuer eine Fortsetzung nach einem Seiten-Neustart
+   * ([korpus-fortsetzung.ts](./korpus-fortsetzung.ts)); bei einem sauberen
+   * Durchlauf leer.
+   */
+  offeneAz: string[];
 }
 
 export type BuildAbbruchGrund = 'nutzer' | 'fehlerserie';
@@ -376,7 +396,11 @@ export async function buildEmbeddingCorpus(
 
   // Liste filtern — „fehlt ODER Text geaendert" statt nur „fehlt" (v4.127).
   let queue: Antrag[];
-  if (incremental && !fremderRaum) {
+  if (opts.nurDiese) {
+    // Der Aufrufer hat die Restliste selbst bestimmt (Fortsetzung nach einem
+    // Neustart) — sie schlaegt beide Regeln.
+    queue = antraege.filter(a => opts.nurDiese!.has(a.aktenzeichen));
+  } else if (incremental && !fremderRaum) {
     const dran = new Set(waehleZuEmbedden({
       aktenzeichen,
       frisch,
@@ -396,6 +420,12 @@ export async function buildEmbeddingCorpus(
   let ersterFehler: string | undefined;
   /** Nur die, deren Vektor in DIESEM Lauf entstanden ist — siehe `merkeTextHashes`. */
   const gestempelt = new Map<string, string>();
+  /**
+   * Wer keinen zweiten Versuch mehr braucht: eingebettet ODER ohne Text.
+   * Ein FEHLGESCHLAGENER gehoert ausdruecklich nicht dazu — er ist der Grund,
+   * warum eine Fortsetzung ueberhaupt gebraucht wird.
+   */
+  const erledigt = new Set<string>();
   const erholer = erzeugeErholer(idb, {
     onLadenBeginnt: opts.onLadenBeginnt,
     onErholt: opts.onErholt,
@@ -417,6 +447,7 @@ export async function buildEmbeddingCorpus(
     vollErzwungen: fremderRaum,
     erholungen: erholer.meldungen,
     geraet: aktivesEmbeddingGeraet(),
+    offeneAz: queue.filter(a => !erledigt.has(a.aktenzeichen)).map(a => a.aktenzeichen),
   });
 
   for (const a of queue) {
@@ -430,6 +461,7 @@ export async function buildEmbeddingCorpus(
     const text = buildEmbeddingTextForAntrag(a, felder);
     if (!text) {
       ohneText++;
+      erledigt.add(a.aktenzeichen);
       done++;
       opts.onProgress?.({ done, total, lastAntrag: a.aktenzeichen });
       continue;
@@ -441,6 +473,7 @@ export async function buildEmbeddingCorpus(
       // aus demselben Text stammt, darf spaeter „unveraendert" behauptet werden.
       const h = frisch.get(a.aktenzeichen);
       if (h !== undefined) gestempelt.set(a.aktenzeichen, h);
+      erledigt.add(a.aktenzeichen);
       done++;
       serie = 0;
       opts.onProgress?.({ done, total, lastAntrag: a.aktenzeichen });
