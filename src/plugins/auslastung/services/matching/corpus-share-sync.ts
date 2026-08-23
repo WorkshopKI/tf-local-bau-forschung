@@ -29,7 +29,7 @@
  * Vektoren (Pitfall #19).
  */
 import type { StorageService } from '@/core/services/storage';
-import { atomicWrite, readText, readBinary } from '@/core/services/infrastructure/atomic-write';
+import { readText, readBinary } from '@/core/services/infrastructure/atomic-write';
 import { getDatenShareHandle } from '@/core/services/infrastructure/smb-handle';
 import {
   loadManifest as loadAntragManifest,
@@ -40,6 +40,7 @@ import {
   checkCompat,
   hashAktenzeichenSet,
   countEmbeddings,
+  schreibeKorpusDatei,
   type EmbeddingCorpusManifest,
 } from '@/core/services/embedding-corpus';
 import { getActiveModelId, getModelById } from '@/core/services/search/model-registry';
@@ -131,11 +132,11 @@ export async function uploadVerbundCorpusToShare(
   const embs = await loadAllVerbundEmbeddings(storage.idb);
   if (embs.size === 0) return;
   const { manifest, bin } = await serializeCorpus(embs, modellId, dim, builderProfile);
-  const handle = await getDatenShareHandle(storage.idb);
-  if (!handle) throw new Error('Daten-Share nicht verbunden.');
-  // Bin zuerst, dann Manifest (atomarer Sichtbarkeits-Marker) — analog core.
-  await atomicWrite(handle, VERBUND_CORPUS_BIN_PATH, new Uint8Array(bin), { skipBackup: true });
-  await atomicWrite(handle, VERBUND_CORPUS_MANIFEST_PATH, JSON.stringify(manifest, null, 2), { skipBackup: true });
+  // Derselbe Schreiber wie die Vorhaben-Haelfte: frischer Handle je Versuch,
+  // Wiederholung, Scheiben — siehe `schreibeKorpusDatei`. Ein eigener Pfad hier
+  // hiesse, dieselbe VPN-Faehigkeit zweimal zu bauen (und einmal zu vergessen).
+  await schreibeKorpusDatei(storage, VERBUND_CORPUS_BIN_PATH, new Uint8Array(bin));
+  await schreibeKorpusDatei(storage, VERBUND_CORPUS_MANIFEST_PATH, JSON.stringify(manifest, null, 2));
 }
 
 // ───────────────────────────────────────────────────────────────────

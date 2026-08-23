@@ -252,8 +252,6 @@ export interface BuildProgress {
   done: number;
   total: number;
   lastAntrag?: string;
-  /** Geschaetzte verbleibende Zeit in Sekunden, oder undefined wenn noch zu unsicher. */
-  etaSec?: number;
 }
 
 export interface BuildOptions {
@@ -268,12 +266,49 @@ export interface BuildOptions {
 
 export interface BuildErgebnis {
   done: number;
+  /** `ohneText + fehlgeschlagen` — die Summe, mit der Aufrufer seit jeher rechnen. */
   skipped: number;
+  /** Antraege, die gar keinen Embedding-Text haben (C16-Exporte fuehren regelmaessig ein paar). */
+  ohneText: number;
+  /**
+   * Antraege, deren Einbettung GESCHEITERT ist.
+   *
+   * Bis v6.15 lag das mit `ohneText` in einem Topf, und ein Lauf, dem nach 807
+   * Vektoren die Pipeline wegbrach, meldete „13.418 uebersprungen (kein Text
+   * oder Fehler)" — ununterscheidbar von einem Bestand ohne Texte, obwohl
+   * dieselbe App 14.221 Antraege als embedbar zaehlte.
+   */
+  fehlgeschlagen: number;
   aborted: boolean;
+  /** Warum abgebrochen wurde — `undefined`, wenn der Lauf durchlief. */
+  abbruchGrund?: BuildAbbruchGrund;
+  /** Wortlaut des ERSTEN Fehlers; alles Weitere ist meist derselbe. */
+  ersterFehler?: string;
+  /**
+   * Hat dieser Lauf den Vektorraum als abgeloest vermerkt?
+   *
+   * Die Oberflaeche sagt dem Leser, was mit seinem Korpus passiert ist — sie
+   * darf das nicht raten. „Die Textfassung wurde nicht vermerkt" ist eine
+   * Aussage ueber DIESEN Lauf, nicht ueber Fehler im Allgemeinen.
+   */
+  signaturGestempelt: boolean;
   /** `true`, wenn der Lauf trotz `incremental` VOLL gebaut hat, weil der lokale
    *  Korpus aus einem anderen Vektorraum stammte (siehe unten). */
   vollErzwungen: boolean;
 }
+
+export type BuildAbbruchGrund = 'nutzer' | 'fehlerserie';
+
+/**
+ * Nach so vielen Fehlschlaegen HINTEREINANDER gilt die Pipeline als tot.
+ *
+ * `embedText` hat keinerlei Erholung ([wrapper.ts](src/core/services/embedding-corpus/wrapper.ts)) —
+ * ist das WebGPU-Device verloren oder der Tab am RAM-Limit, wirft jeder weitere
+ * Aufruf sofort. Der Lauf raste dadurch in ~1 min durch 13.418 Antraege, schrieb
+ * keinen einzigen Vektor und meldete am Ende „fertig". Zwanzig genuegen, um ein
+ * sproedes Einzelrecord von einem toten Modell zu unterscheiden.
+ */
+export const FEHLERSERIE_ABBRUCH = 20;
 
 /**
  * Hauptpfad: laeuft durch alle Antraege, embed't den Text (VB-Titel + Titel
@@ -340,10 +375,28 @@ export async function buildEmbeddingCorpus(
 
   const total = queue.length;
   let done = 0;
-  let skipped = 0;
-  const startedAt = Date.now();
+  let ohneText = 0;
+  let fehlgeschlagen = 0;
+  let serie = 0;
+  let ersterFehler: string | undefined;
   /** Nur die, deren Vektor in DIESEM Lauf entstanden ist — siehe `merkeTextHashes`. */
   const gestempelt = new Map<string, string>();
+
+  const ergebnis = (
+    aborted: boolean,
+    abbruchGrund?: BuildAbbruchGrund,
+    signaturGestempelt = false,
+  ): BuildErgebnis => ({
+    done,
+    skipped: ohneText + fehlgeschlagen,
+    ohneText,
+    fehlgeschlagen,
+    aborted,
+    abbruchGrund,
+    ersterFehler,
+    signaturGestempelt,
+    vollErzwungen: fremderRaum,
+  });
 
   for (const a of queue) {
     if (opts.signal?.aborted) {
@@ -351,11 +404,11 @@ export async function buildEmbeddingCorpus(
       // Hashes duerfen also auch nicht verloren gehen, sonst gaelten sie beim
       // naechsten Lauf als „unbekannt" und wuerden nie wieder aufgefrischt.
       await merkeTextHashes(idb, gestempelt);
-      return { done, skipped, aborted: true, vollErzwungen: fremderRaum };
+      return ergebnis(true, 'nutzer');
     }
     const text = buildEmbeddingTextForAntrag(a, felder);
     if (!text) {
-      skipped++;
+      ohneText++;
       done++;
       opts.onProgress?.({ done, total, lastAntrag: a.aktenzeichen });
       continue;
@@ -368,14 +421,29 @@ export async function buildEmbeddingCorpus(
       const h = frisch.get(a.aktenzeichen);
       if (h !== undefined) gestempelt.set(a.aktenzeichen, h);
       done++;
-      const elapsed = (Date.now() - startedAt) / 1000;
-      const etaSec = done > 5 ? (elapsed / done) * (total - done) : undefined;
-      opts.onProgress?.({ done, total, lastAntrag: a.aktenzeichen, etaSec });
+      serie = 0;
+      opts.onProgress?.({ done, total, lastAntrag: a.aktenzeichen });
     } catch (err) {
-      console.warn(`[embedding-corpus] embed failed for ${a.aktenzeichen}:`, err);
-      skipped++;
+      if (ersterFehler === undefined) {
+        ersterFehler = err instanceof Error ? err.message : String(err);
+        // Einmal laut, mit vollem Objekt — der Rest ist erfahrungsgemaess
+        // derselbe Fehler und soll die Konsole nicht 13.000-fach zumuellen.
+        console.error(`[embedding-corpus] embed failed for ${a.aktenzeichen}:`, err);
+      } else {
+        console.warn(`[embedding-corpus] embed failed for ${a.aktenzeichen}:`, err);
+      }
+      fehlgeschlagen++;
+      serie++;
       done++;
       opts.onProgress?.({ done, total, lastAntrag: a.aktenzeichen });
+      if (serie >= FEHLERSERIE_ABBRUCH) {
+        console.error(
+          `[embedding-corpus] ${serie} Fehlschlaege hintereinander — Lauf abgebrochen `
+          + `(${done} von ${total} durchlaufen). Erster Fehler: ${ersterFehler}`,
+        );
+        await merkeTextHashes(idb, gestempelt);
+        return ergebnis(true, 'fehlerserie');
+      }
     }
     // Yield zwischen Iterations -> UI bleibt responsiv
     await new Promise(r => setTimeout(r, 0));
@@ -384,7 +452,16 @@ export async function buildEmbeddingCorpus(
   await merkeTextHashes(idb, gestempelt);
   // Erst nach dem vollstaendigen Durchlauf: ein abgebrochener Lauf hat den
   // fremden Raum nicht abgeloest, seine Signatur darf nicht behauptet werden.
-  await merkeKorpusSignatur(idb, signatur);
+  //
+  // Und ein Lauf MIT Fehlern auch nicht, solange er einen fremden Raum abloesen
+  // sollte: was scheiterte, behielt seinen alten Vektor: Signatur v3 ueber einem
+  // Korpus, der zu 94 % aus v2 besteht, ist genau das Mischen zweier Raeume, das
+  // v4.113 abgestellt hat — nur durch den Fehlerpfad. Im GLEICHEN Raum ist der
+  // Stempel harmlos, dort hat sich nichts am Raum geaendert.
+  const stempeln = !(fremderRaum && fehlgeschlagen > 0);
+  if (stempeln) {
+    await merkeKorpusSignatur(idb, signatur);
+  }
 
-  return { done, skipped, aborted: false, vollErzwungen: fremderRaum };
+  return ergebnis(false, undefined, stempeln);
 }

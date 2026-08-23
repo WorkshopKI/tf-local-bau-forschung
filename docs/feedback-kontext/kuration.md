@@ -37,11 +37,17 @@ Was durchsuchbar ist — und wie gut. Links die Aktionen: Dokumente einlesen, In
 
 Die Ampel oben nennt immer den **Dokumenten**-Index — auf dieser Seite stehen zwei Dinge, die „Index" heißen, und „kein Index vorhanden" ließ sich sonst auf die Vektoren darunter beziehen. Sie meldet neben „Modell gewechselt" auch „Worttrennung geändert"; dann stammt der Index aus einer Fassung vor der deutschen Worttrennung, bleibt nutzbar, und der nächste Lauf baut ihn komplett neu auf.
 
-Darunter die Vektoren der Ähnlichkeitssuche — ein Vektor je Vorhaben, die zweite Hälfte desselben Index. Der Volltext-Index findet Wörter, diese Vektoren finden Themen. Hier steht, wie viele Vorhaben einen Vektor haben, aus welcher Textfassung er stammt und ob ein Neuaufbau fällig ist; dazu die Knöpfe zum Neuaufbauen, Holen vom Datenspeicher, Nachziehen und Zurücksetzen. Nach einem Lauf steht dort, wie viele Vorhaben er eingebettet und wie viele er übersprungen hat.
+Darunter die Vektoren der Ähnlichkeitssuche — ein Vektor je Vorhaben, die zweite Hälfte desselben Index. Der Volltext-Index findet Wörter, diese Vektoren finden Themen. Hier steht, wie viele Vorhaben einen Vektor haben, aus welcher Textfassung er stammt und ob ein Neuaufbau fällig ist; dazu die Knöpfe zum Neuaufbauen, Holen vom Datenspeicher, Nachziehen und Zurücksetzen.
+
+Während eines Laufs zeigt ein Balken den Stand des **ganzen** Laufs — Vorhaben und Verbünde auf einer Skala — samt geschätzter Restzeit; die Zeile darüber nennt die laufende Phase.
+
+Nach einem Lauf steht dort, wie viele Vektoren entstanden sind, wie viele Vorhaben keinen Text hatten und wie viele **fehlgeschlagen** sind — das sind zwei verschiedene Dinge. Schlägt die Einbettung reihenweise fehl (Speicher voll oder Grafik-Kontext verloren), bricht der Lauf ab und nennt den ersten Fehlertext.
+
+Ein unsauberer Lauf wird **nicht** auf den Datenspeicher gespiegelt: der Stand des Teams bleibt unberührt. Der Knopf „Erneut spiegeln" wiederholt allein den Upload, wenn der Bau stand und nur die Übertragung scheiterte.
 
 Zwei Aussagen, die leicht zu verwechseln sind: „mit dem Datenspeicher synchron" heißt, dass hier derselbe Korpus liegt wie dort — nicht, dass er zu diesem Bestand vollständig ist. Ein Korpus deckt den Bestand ab, den sein Erbauer beim Bau hatte; kamen seitdem Vorhaben dazu oder hat sich ihr Text geändert, sagt die Karte das mit der Zahl, und „Nachziehen" holt genau diese nach.
 
-Gebaut wird einmal für das ganze Team: der Lauf lädt ein rund 200 MB großes Modell in diesen Browser-Tab und dauert je nach Bestand etwa 40 Minuten, danach spiegelt die App das Ergebnis auf den Datenspeicher. Jeder andere Rechner holt es von dort in etwa zehn Sekunden. Ein Schalter darunter zieht neue CSV-Daten künftig automatisch nach — nur auf diesem Rechner, und nur solange kein Fassungswechsel ansteht.
+Gebaut wird einmal für das ganze Team: der Lauf lädt ein rund 200 MB großes Modell in diesen Browser-Tab und dauert je nach Bestand und Rechner viele Minuten, danach spiegelt die App das Ergebnis auf den Datenspeicher. Wie lange es auf diesem Rechner dauert, steht am Knopf — aber erst, nachdem hier einmal gebaut wurde; vorher nennt er nur die Anzahl. Jeder andere Rechner holt es von dort in etwa zehn Sekunden. Ein Schalter darunter zieht neue CSV-Daten künftig automatisch nach — nur auf diesem Rechner, und nur solange kein Fassungswechsel ansteht.
 
 Erst unter den Vektoren stehen die **Dokumentenquellen**, also die DMS-Ordner, die der Index einliest (read-only, die App schreibt dort nie hinein). Sie stehen dort und nicht weiter oben, weil man sie einmal einstellt und danach kaum wieder anfasst — die Vektoren dagegen schaut man immer wieder an. Ganz unten liegt eingeklappt das Seltene: Modellwahl, Suchqualität, Zurücksetzen.
 

@@ -22,6 +22,7 @@ import {
 } from '../../types';
 import { ensureEmbeddingReady, embedText } from '@/core/services/embedding-corpus';
 import { verbundKeyOf } from '../verbund/verbund-aggregation';
+import { FEHLERSERIE_ABBRUCH, type BuildAbbruchGrund } from './embedding-corpus';
 
 const VERBUND_EMB_PREFIX = 'auslastung-emb-verbund:';
 
@@ -204,13 +205,48 @@ export interface VerbundBuildProgress {
   done: number;
   total: number;
   lastVerbundId?: string;
-  etaSec?: number;
 }
 
 export interface VerbundBuildOptions {
   onProgress?: (p: VerbundBuildProgress) => void;
   signal?: AbortSignal;
   incremental?: boolean;
+}
+
+export interface VerbundBuildErgebnis {
+  done: number;
+  /** `ohneText + fehlgeschlagen` — siehe {@link BuildErgebnis}. */
+  skipped: number;
+  ohneText: number;
+  fehlgeschlagen: number;
+  aborted: boolean;
+  abbruchGrund?: BuildAbbruchGrund;
+  ersterFehler?: string;
+}
+
+/**
+ * Welche Verbuende dieser Lauf anfassen wird — **vor** dem Lauf.
+ *
+ * Der Fortschrittsbalken braucht die Gesamtzahl beider Phasen, bevor die erste
+ * beginnt; sonst kann er nur je Phase von vorne zaehlen (und tat das: zweimal
+ * 0→100). Die Queue-Regel darf dafuer aber nicht ein zweites Mal aufgeschrieben
+ * werden — `buildVerbundEmbeddingCorpus` ruft genau diese Funktion.
+ */
+export async function planeVerbundQueue(
+  idb: IDBStore,
+  antraege: Antrag[],
+  incremental: boolean,
+): Promise<Array<{ verbundId: string; tvs: Antrag[] }>> {
+  const buckets = bucketAntraegeByVerbund(antraege);
+  const existing = incremental ? await listVerbundEmbeddingKeys(idb) : new Set<string>();
+
+  const queue: Array<{ verbundId: string; tvs: Antrag[] }> = [];
+  for (const [verbundId, tvs] of buckets.entries()) {
+    if (!incremental || !existing.has(verbundId)) {
+      queue.push({ verbundId, tvs });
+    }
+  }
+  return queue;
 }
 
 /**
@@ -221,32 +257,39 @@ export async function buildVerbundEmbeddingCorpus(
   idb: IDBStore,
   antraege: Antrag[],
   opts: VerbundBuildOptions = {},
-): Promise<{ done: number; skipped: number; aborted: boolean }> {
+): Promise<VerbundBuildErgebnis> {
   const incremental = opts.incremental ?? true;
   await ensureEmbeddingReady(idb);
 
-  const buckets = bucketAntraegeByVerbund(antraege);
-  const existing = incremental ? await listVerbundEmbeddingKeys(idb) : new Set<string>();
-
-  const queue: Array<{ verbundId: string; tvs: Antrag[] }> = [];
-  for (const [verbundId, tvs] of buckets.entries()) {
-    if (!incremental || !existing.has(verbundId)) {
-      queue.push({ verbundId, tvs });
-    }
-  }
+  const queue = await planeVerbundQueue(idb, antraege, incremental);
 
   const total = queue.length;
   let done = 0;
-  let skipped = 0;
-  const startedAt = Date.now();
+  let ohneText = 0;
+  let fehlgeschlagen = 0;
+  let serie = 0;
+  let ersterFehler: string | undefined;
+
+  const ergebnis = (
+    aborted: boolean,
+    abbruchGrund?: BuildAbbruchGrund,
+  ): VerbundBuildErgebnis => ({
+    done,
+    skipped: ohneText + fehlgeschlagen,
+    ohneText,
+    fehlgeschlagen,
+    aborted,
+    abbruchGrund,
+    ersterFehler,
+  });
 
   for (const { verbundId, tvs } of queue) {
     if (opts.signal?.aborted) {
-      return { done, skipped, aborted: true };
+      return ergebnis(true, 'nutzer');
     }
     const text = buildVerbundEmbeddingText(tvs);
     if (!text) {
-      skipped++;
+      ohneText++;
       done++;
       opts.onProgress?.({ done, total, lastVerbundId: verbundId });
       continue;
@@ -255,17 +298,31 @@ export async function buildVerbundEmbeddingCorpus(
       const vec = await embedText(text, 'document');
       await storeVerbundEmbedding(idb, verbundId, vec);
       done++;
-      const elapsed = (Date.now() - startedAt) / 1000;
-      const etaSec = done > 5 ? (elapsed / done) * (total - done) : undefined;
-      opts.onProgress?.({ done, total, lastVerbundId: verbundId, etaSec });
+      serie = 0;
+      opts.onProgress?.({ done, total, lastVerbundId: verbundId });
     } catch (err) {
-      console.warn(`[verbund-embedding] embed failed for ${verbundId}:`, err);
-      skipped++;
+      if (ersterFehler === undefined) {
+        ersterFehler = err instanceof Error ? err.message : String(err);
+        console.error(`[verbund-embedding] embed failed for ${verbundId}:`, err);
+      } else {
+        console.warn(`[verbund-embedding] embed failed for ${verbundId}:`, err);
+      }
+      fehlgeschlagen++;
+      serie++;
       done++;
       opts.onProgress?.({ done, total, lastVerbundId: verbundId });
+      // Siehe FEHLERSERIE_ABBRUCH: eine tote Pipeline soll nicht durch 7.535
+      // Verbuende rauschen und danach „fertig" melden.
+      if (serie >= FEHLERSERIE_ABBRUCH) {
+        console.error(
+          `[verbund-embedding] ${serie} Fehlschlaege hintereinander — Lauf abgebrochen `
+          + `(${done} von ${total} durchlaufen). Erster Fehler: ${ersterFehler}`,
+        );
+        return ergebnis(true, 'fehlerserie');
+      }
     }
     await new Promise(r => setTimeout(r, 0));
   }
 
-  return { done, skipped, aborted: false };
+  return ergebnis(false);
 }

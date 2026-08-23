@@ -202,7 +202,7 @@ export function SucheIndexPanel(): React.ReactElement {
             id="sec-embedding-korpus"
             titel="Vektoren der Ähnlichkeitssuche"
             unterzeile={'Ein Vektor je Vorhaben — trägt „auch ähnliche Themen“.'}
-            hint={'Der Volltext-Index findet Wörter, diese Vektoren finden Themen: eine Suche nach „Verfahren zur Kadaversuche aus der Luft“ trifft ein Vorhaben auch dann, wenn keines dieser Wörter in seinem Titel steht. Gebaut wird einmal für das ganze Team; jeder andere Rechner holt das Ergebnis in ~10 Sekunden vom Datenspeicher. Der Bau selbst lädt ein ~200-MB-Modell in diesen Browser-Tab und läuft je nach Bestand ~40 Minuten.'}
+            hint={'Der Volltext-Index findet Wörter, diese Vektoren finden Themen: eine Suche nach „Verfahren zur Kadaversuche aus der Luft“ trifft ein Vorhaben auch dann, wenn keines dieser Wörter in seinem Titel steht. Gebaut wird einmal für das ganze Team; jeder andere Rechner holt das Ergebnis in ~10 Sekunden vom Datenspeicher. Der Bau selbst lädt ein ~200-MB-Modell in diesen Browser-Tab und läuft je nach Bestand und Rechner viele Minuten — wie lange hier, steht am Knopf, sobald einmal gebaut wurde.'}
           >
             <EmbeddingKorpusSection />
           </SettingsGruppe>

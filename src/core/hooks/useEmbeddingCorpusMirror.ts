@@ -45,6 +45,8 @@ interface EmbeddingCorpusMirrorState {
   downloading: boolean;
   downloadProgress: { done: number; total: number } | null;
   uploading: boolean;
+  /** Geschriebene/gesamte Bytes der laufenden Spiegelung. */
+  uploadProgress: { geschrieben: number; gesamt: number } | null;
   error: string | null;
   /** Manifest vom Share lesen (klein, immer wenn die Korpus-Section oeffnet).
    *  Idempotent — Doppel-Aufrufe schaden nicht. */
@@ -74,6 +76,7 @@ export const useEmbeddingCorpusMirror = create<EmbeddingCorpusMirrorState>((set,
   downloading: false,
   downloadProgress: null,
   uploading: false,
+  uploadProgress: null,
   error: null,
 
   loadManifest: async (storage) => {
@@ -156,10 +159,17 @@ export const useEmbeddingCorpusMirror = create<EmbeddingCorpusMirrorState>((set,
         signatur?.documentPrefix ?? undefined,
         signatur?.buildVersion,
       );
-      await saveCorpusToShare(storage, manifest, bin);
-      set({ manifest, manifestLoaded: true, uploading: false });
+      // Die 42-MB-Datei geht in Scheiben raus; ohne diese Meldung stand die
+      // Karte minutenlang bei „Spiegle den Korpus…" ohne jedes Lebenszeichen —
+      // ueber VPN der Zustand, in dem man den Tab schliesst.
+      await saveCorpusToShare(storage, manifest, bin, p => set({ uploadProgress: p }));
+      set({ manifest, manifestLoaded: true, uploading: false, uploadProgress: null });
     } catch (err) {
-      set({ uploading: false, error: err instanceof Error ? err.message : String(err) });
+      set({
+        uploading: false,
+        uploadProgress: null,
+        error: err instanceof Error ? err.message : String(err),
+      });
       throw err;
     } finally {
       if (lockAcquired) {

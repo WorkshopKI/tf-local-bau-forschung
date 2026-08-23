@@ -60,6 +60,24 @@ export function computeEtaFromSamples(
   total: number,
   opts: EtaWindowOptions = {},
 ): string | null {
+  const remainingMs = computeEtaMsFromSamples(samples, total, opts);
+  if (remainingMs === null) return null;
+  return `~${formatDuration(remainingMs)} verbleibend`;
+}
+
+/**
+ * Der Rechenkern von {@link computeEtaFromSamples} — dieselbe Fenster-Rechnung,
+ * aber als ZAHL (Millisekunden) statt als fertiger Satz.
+ *
+ * Aufrufer mit eigener Formatierung (der Korpus-Bau zeigt „≈ 12 min
+ * verbleibend" in seinem eigenen Wortlaut) brauchen die Zahl; sie sollen dafuer
+ * nicht die Fenster-Logik nachbauen. Eine Rechnung, zwei Ausgaben.
+ */
+export function computeEtaMsFromSamples(
+  samples: readonly ThroughputSample[],
+  total: number,
+  opts: EtaWindowOptions = {},
+): number | null {
   const minSamples = opts.minSamples ?? 3;
   const minWindowMs = opts.minWindowMs ?? 1500;
   if (samples.length < minSamples || total <= 0) return null;
@@ -72,6 +90,5 @@ export function computeEtaFromSamples(
   const itemsPerMs = itemsInWindow / windowMs;
   const remaining = total - last.processed;
   if (remaining <= 0) return null;
-  const remainingMs = remaining / itemsPerMs;
-  return `~${formatDuration(remainingMs)} verbleibend`;
+  return remaining / itemsPerMs;
 }

@@ -28,8 +28,10 @@
  * Anonymitaets-Schwaechung.
  */
 import type { StorageService } from '@/core/services/storage';
-import { atomicWrite, readText, readBinary } from '@/core/services/infrastructure/atomic-write';
-import { getDatenShareHandle } from '@/core/services/infrastructure/smb-handle';
+import {
+  atomicWrite, atomicWriteStream, readText, readBinary,
+} from '@/core/services/infrastructure/atomic-write';
+import { getDatenShareHandle, queryPermission } from '@/core/services/infrastructure/smb-handle';
 import { storeEmbedding } from './storage';
 import { CORPUS_BUILD_VERSION } from './signatur';
 import type { IDBStore } from '@/core/services/storage/idb-store';
@@ -242,6 +244,95 @@ export async function loadBin(
   return out;
 }
 
+/** Wie viele Bytes je Schreib-Scheibe an den Share gehen (~4 MB). */
+const SCHEIBE_BYTES = 4 * 1024 * 1024;
+/** Wartezeiten zwischen den Schreibversuchen. Laenge = Zahl der Wiederholungen. */
+const WIEDERHOL_PAUSEN_MS = [500, 2000];
+
+async function warte(ms: number): Promise<void> {
+  await new Promise(r => setTimeout(r, ms));
+}
+
+export interface SpiegelFortschritt {
+  /** Bereits geschriebene Bytes der laufenden Datei. */
+  geschrieben: number;
+  /** Gesamtgroesse der laufenden Datei. */
+  gesamt: number;
+}
+
+/**
+ * Eine Korpus-Datei auf den Share schreiben — mit frischem Handle je Versuch.
+ *
+ * **Warum ein neuer Handle die eigentliche Reparatur ist.** Der Verzeichnis-
+ * Handle wird aus der IndexedDB deserialisiert ([smb-handle.ts](src/core/services/infrastructure/smb-handle.ts))
+ * und traegt danach einen gecachten Zustand mit sich. Reisst die Verbindung
+ * kurz weg — ueber VPN der Normalfall, nicht die Ausnahme — wirft jeder Zugriff
+ * `InvalidStateError` („state cached in an interface object … had changed since
+ * it was read from disk"), und zwar dauerhaft: derselbe Handle erholt sich
+ * nicht. Ein zweiter Versuch auf DEMSELBEN Handle waere sinnlos; erst ein neu
+ * geholter hat wieder einen gueltigen Zustand.
+ *
+ * Ein 42-MB-Bau kostet Minuten. Ihn wegen einer Sekunde Netz wegzuwerfen, war
+ * die teuerste Stelle des ganzen Laufs (v6.16).
+ */
+export async function schreibeKorpusDatei(
+  storage: StorageService,
+  pfad: string,
+  daten: Uint8Array<ArrayBuffer> | string,
+  onFortschritt?: (p: SpiegelFortschritt) => void,
+): Promise<void> {
+  let letzterFehler: unknown;
+
+  for (let versuch = 0; versuch <= WIEDERHOL_PAUSEN_MS.length; versuch++) {
+    const handle = await getDatenShareHandle(storage.idb);
+    if (!handle) throw new Error('Daten-Share nicht verbunden — bitte im Welcome-Screen einrichten.');
+
+    // Erst fragen, dann dreimal in denselben Fehler laufen: ist das Schreibrecht
+    // weg, hilft keine Wiederholung. `requestPermission` waere hier zwecklos —
+    // die Nutzergeste, die den Bau startete, ist Minuten alt (Pitfall
+    // „one prompt per gesture").
+    if (versuch === 0) {
+      const recht = await queryPermission(handle).catch(() => 'granted' as const);
+      if (recht !== 'granted') {
+        throw new Error(
+          'Das Schreibrecht für den Daten-Share ist nicht mehr erteilt. '
+          + 'Bitte die Seite neu laden und den Ordner erneut auswählen — der lokale Korpus bleibt erhalten.',
+        );
+      }
+    }
+
+    try {
+      if (typeof daten === 'string') {
+        await atomicWrite(handle, pfad, daten, { skipBackup: true });
+      } else {
+        // In Scheiben statt in einem `write`: senkt den Gipfel im Speicher,
+        // verwirft die `.tmp` bei Abbruch sauber — und ist die einzige Stelle,
+        // an der ein Upload ueberhaupt Fortschritt melden KANN.
+        await atomicWriteStream(handle, pfad, async (sink) => {
+          for (let off = 0; off < daten.byteLength; off += SCHEIBE_BYTES) {
+            const ende = Math.min(off + SCHEIBE_BYTES, daten.byteLength);
+            await sink.write(daten.subarray(off, ende));
+            onFortschritt?.({ geschrieben: ende, gesamt: daten.byteLength });
+          }
+        }, { skipBackup: true });
+      }
+      return;
+    } catch (err) {
+      letzterFehler = err;
+      const pause = WIEDERHOL_PAUSEN_MS[versuch];
+      if (pause === undefined) break;
+      console.warn(
+        `[embedding-corpus-mirror] Schreiben von ${pfad} fehlgeschlagen `
+        + `(Versuch ${versuch + 1}/${WIEDERHOL_PAUSEN_MS.length + 1}), neuer Anlauf in ${pause} ms:`,
+        err,
+      );
+      await warte(pause);
+    }
+  }
+
+  throw letzterFehler instanceof Error ? letzterFehler : new Error(String(letzterFehler));
+}
+
 /**
  * Schreibt Manifest + Bin atomar. Beide mit `skipBackup: true` —
  * `.backup`-Rotation auf 42 MB wuerde 84 MB Share-Bandbreite kosten
@@ -251,13 +342,12 @@ export async function saveCorpusToShare(
   storage: StorageService,
   manifest: EmbeddingCorpusManifest,
   bin: ArrayBuffer,
+  onFortschritt?: (p: SpiegelFortschritt) => void,
 ): Promise<void> {
-  const handle = await getDatenShareHandle(storage.idb);
-  if (!handle) throw new Error('Daten-Share nicht verbunden — bitte im Welcome-Screen einrichten.');
   // Bin zuerst schreiben, dann Manifest — wenn jemand zwischendurch das
   // Manifest liest, zeigt es auf eine bereits vollstaendige Bin-Datei.
-  await atomicWrite(handle, CORPUS_BIN_PATH, new Uint8Array(bin), { skipBackup: true });
-  await atomicWrite(handle, CORPUS_MANIFEST_PATH, JSON.stringify(manifest, null, 2), { skipBackup: true });
+  await schreibeKorpusDatei(storage, CORPUS_BIN_PATH, new Uint8Array(bin), onFortschritt);
+  await schreibeKorpusDatei(storage, CORPUS_MANIFEST_PATH, JSON.stringify(manifest, null, 2));
 }
 
 // ───────────────────────────────────────────────────────────────────

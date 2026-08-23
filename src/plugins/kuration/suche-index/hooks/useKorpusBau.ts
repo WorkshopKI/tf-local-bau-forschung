@@ -46,29 +46,46 @@ import {
   ermittleKorpusBestand,
   invalidateVerbundEmbeddingsCache,
   loadAllVerbundEmbeddings,
+  planeVerbundQueue,
   uploadVerbundCorpusToShare,
   bumpAuslastungCorpusSignal,
+  berechneBauRate,
+  ladeBauRate,
+  merkeBauRate,
   LOCK_STUFE_KORPUS,
+  type BuildAbbruchGrund,
+  type BauRate,
   type KorpusBestand,
 } from '@/plugins/auslastung/services/matching';
 import { computeKategorieCentroidsFromVerbund } from '@/plugins/auslastung/services/klassifizierung';
 import { useAuslastungData } from '@/plugins/auslastung/hooks/useAuslastungData';
-
-export type BauPhase = 'antrag' | 'verbund' | 'centroids';
-
-export const PHASEN_LABEL: Record<BauPhase, string> = {
-  antrag: 'Vorhaben-Vektoren',
-  verbund: 'Verbund-Vektoren',
-  centroids: 'Kategorie-Centroids berechnen…',
-};
+import { computeEtaMsFromSamples, type ThroughputSample } from '@/core/utils/eta';
+import { berechneGesamt, type BauPhase, type BauPlan } from './bauFortschritt';
 
 export interface PhasenFortschritt {
   phase: BauPhase;
+  /** Stand INNERHALB der laufenden Phase — trägt die Zeile „X von Y". */
   done: number;
   total: number;
   last?: string;
+  /** Stand des GANZEN Laufs — trägt den Balken. */
+  gesamtDone: number;
+  gesamtTotal: number;
+  prozent: number;
+  /** Geschätzte Restzeit des ganzen Laufs in Sekunden. */
   etaSec?: number;
 }
+
+/**
+ * Wie weit das gleitende Fenster der Restzeit zurückreicht.
+ *
+ * Die ZEIT ist das Maß, nicht die Anzahl: bei ~20 ms je Vektor spannen 40
+ * Messpunkte nur 0,8 s und blieben damit unter der Konfidenz-Schwelle von
+ * `computeEtaMsFromSamples` (1,5 s) — es gäbe nie eine Restzeit. Die
+ * Punkt-Obergrenze ist nur ein Deckel gegen unbegrenztes Wachsen.
+ */
+const FENSTER_MS = 15_000;
+const FENSTER_SAMPLES_MAX = 400;
 
 /**
  * Was ein Lauf tatsaechlich getan hat.
@@ -80,10 +97,32 @@ export interface PhasenFortschritt {
  */
 export interface BauBilanz {
   eingebettet: number;
-  uebersprungen: number;
+  /** Antraege ohne Embedding-Text — ein Normalfall, meist eine Handvoll. */
+  ohneText: number;
+  /**
+   * Antraege, deren Einbettung SCHEITERTE.
+   *
+   * Bis v6.15 lag das mit `ohneText` in einer Zahl („13.418 übersprungen (kein
+   * Text oder Fehler)"), und ein Lauf, dem die Pipeline wegbrach, war von einem
+   * Bestand ohne Texte nicht zu unterscheiden.
+   */
+  fehlgeschlagen: number;
+  /** Wortlaut des ersten Fehlers — das, was vorher nur in der Konsole stand. */
+  ersterFehler?: string;
+  /**
+   * Hat der Lauf den Vektorraum als abgeloest vermerkt?
+   *
+   * Die Karte sagt dem Leser, was mit seinem Korpus geschehen ist — sie darf das
+   * nicht aus „es gab Fehler" ableiten. Ein Lauf im GLEICHEN Raum stempelt auch
+   * mit Einzelfehlern, weil er nichts abloest.
+   */
+  signaturGestempelt: boolean;
+  /** Ist das Ergebnis beim Team angekommen? */
+  gespiegelt: boolean;
   /** Der Lauf hat trotz „nachziehen" voll gebaut (fremder Vektorraum). */
   vollErzwungen: boolean;
   abgebrochen: boolean;
+  abbruchGrund?: BuildAbbruchGrund;
 }
 
 export interface KorpusBau {
@@ -91,16 +130,22 @@ export interface KorpusBau {
   befund: AbgleichBefund | null;
   /** Bilanz des letzten Laufs in dieser Sitzung. */
   bilanz: BauBilanz | null;
+  /** Gemessene Bau-Rate DIESES Rechners, oder `null` vor der ersten Messung. */
+  rate: BauRate | null;
   /** Stimmt der lokale Vektorraum mit dem ueberein, den ein Lauf jetzt erzeugt? */
   raumAktuell: boolean;
   signatur: KorpusSignatur | null;
   fortschritt: PhasenFortschritt | null;
   laeuft: boolean;
   fehler: string | null;
+  /** Der lokale Bau steht, nur das Spiegeln hat nicht geklappt — `spiegle()` reicht. */
+  spiegelungOffen: boolean;
   /** `false` = „Nachziehen" waere in Wahrheit ein Vollbau (fremder Raum). */
   nachziehenMoeglich: boolean;
   baue: (voll: boolean) => Promise<void>;
   ladeVomSpeicher: () => Promise<void>;
+  /** Nur hochladen — ohne einen einzigen Vektor neu zu rechnen. */
+  spiegle: () => Promise<void>;
   leere: () => Promise<void>;
   abbrechen: () => void;
   neuLesen: () => Promise<void>;
@@ -117,16 +162,19 @@ export function useKorpusBau(): KorpusBau {
   const [bestand, setBestand] = useState<KorpusBestand | null>(null);
   const [befund, setBefund] = useState<AbgleichBefund | null>(null);
   const [bilanz, setBilanz] = useState<BauBilanz | null>(null);
+  const [rate, setRate] = useState<BauRate | null>(null);
   const [signatur, setSignatur] = useState<KorpusSignatur | null>(null);
   const [raumAktuell, setRaumAktuell] = useState(true);
   const [fortschritt, setFortschritt] = useState<PhasenFortschritt | null>(null);
   const [laeuft, setLaeuft] = useState(false);
   const [fehler, setFehler] = useState<string | null>(null);
+  const [spiegelungOffen, setSpiegelungOffen] = useState(false);
   const abbruchRef = useRef<AbortController | null>(null);
 
   const neuLesen = useCallback(async (): Promise<void> => {
     const b = await ermittleKorpusBestand(storage.idb, programmId);
     setBestand(b);
+    setRate(await ladeBauRate(storage.idb));
     await useEmbeddingCorpusMirror.getState().loadManifest(storage);
     const aktiv = aktuelleKorpusSignatur(getModelById(await getActiveModelId(storage.idb)));
     const lokal = await ladeKorpusSignatur(storage.idb);
@@ -155,7 +203,15 @@ export function useKorpusBau(): KorpusBau {
 
     setFehler(null);
     setBilanz(null);
+    setSpiegelungOffen(false);
     setLaeuft(true);
+    // Sofort eine eigene Phase, statt den Bestandswert von VOR dem Lauf stehen
+    // zu lassen: das Modell zu laden dauert, und „98 %" ist waehrenddessen keine
+    // Auskunft ueber diesen Lauf.
+    setFortschritt({
+      phase: 'vorbereiten', done: 0, total: 0,
+      gesamtDone: 0, gesamtTotal: 0, prozent: 0,
+    });
     const controller = new AbortController();
     abbruchRef.current = controller;
 
@@ -183,41 +239,164 @@ export function useKorpusBau(): KorpusBau {
       // Volle Records nur transient — die Embedding-Texte liegen nicht im
       // Slim-Cache und sollen nach dem Lauf wieder freigegeben werden.
       const antraege = programmId ? await listAntraegeByProgramm(storage.idb, programmId) : [];
+
+      // Beide Phasen ZUSAMMEN sind der Lauf. Ihre Groessen stehen vorher fest —
+      // sonst kann der Balken nur je Phase von vorne zaehlen, und genau das war
+      // der gemeldete Fehler. `planeVerbundQueue` ist dieselbe Regel, die der
+      // Verbund-Lauf gleich selbst anwendet (kein zweiter Regelsatz).
+      const plan: BauPlan = {
+        antrag: voll ? antraege.length : (bestand?.zuEmbedden.length ?? antraege.length),
+        verbund: (await planeVerbundQueue(storage.idb, antraege, !voll)).length,
+      };
+
+      // Gleitendes Fenster statt Mittelwert seit Laufbeginn: die ersten Sekunden
+      // sind Warmlauf der Kernel, und Antraege ohne Text rauschen in
+      // Millisekunden durch. Ein Gesamtmittel aus beidem sagte „25 min", wo
+      // fuenf gemeint waren.
+      let samples: ThroughputSample[] = [];
+      let letztePhase: BauPhase = 'vorbereiten';
+      let ersterTick = 0;
+      let letzterTick = 0;
+
+      const melde = (phase: BauPhase, done: number, total: number, last?: string): void => {
+        if (phase === 'antrag') plan.antrag = total;
+        if (phase === 'verbund') plan.verbund = total;
+        const g = berechneGesamt(plan, phase, done);
+
+        const jetzt = Date.now();
+        if (letztePhase !== phase) {
+          // Zwischen den Phasen liegt ein Leerlauf (IDB-Scan, Bucketing); ihn im
+          // Fenster zu behalten hiesse, die Pause als Arbeitstempo zu messen.
+          samples = [];
+          letztePhase = phase;
+        }
+        if (ersterTick === 0) ersterTick = jetzt;
+        letzterTick = jetzt;
+        samples.push({ t: jetzt, processed: g.gesamtDone });
+        while (
+          samples.length > FENSTER_SAMPLES_MAX
+          || (samples.length > 2 && jetzt - (samples[0] as ThroughputSample).t > FENSTER_MS)
+        ) {
+          samples.shift();
+        }
+        const etaMs = computeEtaMsFromSamples(samples, g.gesamtTotal);
+        setFortschritt({
+          phase, done, total, last,
+          gesamtDone: g.gesamtDone, gesamtTotal: g.gesamtTotal, prozent: g.prozent,
+          etaSec: etaMs === null ? undefined : etaMs / 1000,
+        });
+      };
+
       const erg = await buildEmbeddingCorpus(storage.idb, antraege, {
         incremental: !voll,
         programmId,
-        onProgress: p => setFortschritt({
-          phase: 'antrag', done: p.done, total: p.total, last: p.lastAntrag, etaSec: p.etaSec,
-        }),
+        onProgress: p => melde('antrag', p.done, p.total, p.lastAntrag),
         signal: controller.signal,
       });
-      // `done` zaehlt die Durchlaeufe, `skipped` die ohne Vektor — die Differenz
-      // ist, was wirklich entstanden ist. Ohne diese Zeile bleibt ein Lauf, der
-      // Vorhaben auslaesst, von einem vollstaendigen ununterscheidbar.
-      setBilanz({
-        eingebettet: erg.done - erg.skipped,
-        uebersprungen: erg.skipped,
-        vollErzwungen: erg.vollErzwungen,
-        abgebrochen: erg.aborted,
-      });
+
+      // Ein abgebrochener Lauf ist zu Ende — er darf nicht in die zweite Phase
+      // weiterlaufen. Als die Einbettung an einem verlorenen Grafik-Kontext
+      // starb, tat der Verbund-Lauf danach exakt dasselbe noch einmal, und der
+      // Balken sprang trotzdem auf 100 %, weil Centroids und Spiegeln als
+      // „hinter allem" gelten.
+      if (erg.aborted) {
+        setBilanz({
+          eingebettet: erg.done - erg.skipped,
+          ohneText: erg.ohneText,
+          fehlgeschlagen: erg.fehlgeschlagen,
+          ersterFehler: erg.ersterFehler,
+          signaturGestempelt: erg.signaturGestempelt,
+          vollErzwungen: erg.vollErzwungen,
+          abgebrochen: true,
+          abbruchGrund: erg.abbruchGrund,
+          gespiegelt: false,
+        });
+        // Die bis zum Abbruch geschriebenen Vektoren sind da — wer sie liest,
+        // soll nicht auf dem Stand von vorher sitzen bleiben.
+        bumpAuslastungCorpusSignal();
+        return;
+      }
+
       if (lockGehalten) await heartbeat(storage.idb).catch(() => undefined);
 
       // Verbund-Phase: klein gegen die Antraege, aber bei einem Vollbau ein
       // zweiter mehrminütiger Lauf — ohne eigenen Fortschritt fröre die Anzeige
       // nach den 100 % der ersten Phase scheinbar ein (v2.21.2).
-      await buildVerbundEmbeddingCorpus(storage.idb, antraege, {
-        incremental: !voll,
+      //
+      // `vollErzwungen` gilt fuer BEIDE Haelften: stammte der lokale Korpus aus
+      // einem fremden Vektorraum, sind auch die Verbund-Vektoren daraus — sie
+      // inkrementell stehen zu lassen, hiesse den Raum nur halb abzuloesen.
+      const vErg = await buildVerbundEmbeddingCorpus(storage.idb, antraege, {
+        incremental: !voll && !erg.vollErzwungen,
         signal: controller.signal,
-        onProgress: p => setFortschritt({
-          phase: 'verbund', done: p.done, total: p.total, last: p.lastVerbundId, etaSec: p.etaSec,
-        }),
+        onProgress: p => melde('verbund', p.done, p.total, p.lastVerbundId),
       });
-      if (lockGehalten) await heartbeat(storage.idb).catch(() => undefined);
+      // Vor jeder Abzweigung: geschrieben ist geschrieben. Haenge das an den
+      // Erfolgsfall, und ein abgebrochener Lauf laesst den Modul-Cache auf dem
+      // Stand von vorher stehen.
       invalidateVerbundEmbeddingsCache();
+      bumpAuslastungCorpusSignal();
+
+      // `done` zaehlt die Durchlaeufe — was wirklich entstanden ist, ist die
+      // Differenz zu den Uebersprungenen. Fehler stehen dabei GETRENNT von
+      // „kein Text": ein Lauf, dem die Pipeline wegbrach, sah bis v6.15 aus wie
+      // ein Bestand ohne Texte.
+      const eingebettetAntrag = erg.done - erg.skipped;
+      const eingebettetVerbund = vErg.done - vErg.skipped;
+      const fehlgeschlagen = erg.fehlgeschlagen + vErg.fehlgeschlagen;
+
+      // Nur ein vollstaendiger, fehlerfreier Lauf darf weiter: er entscheidet
+      // ueber Centroids, Spiegelung und Messung gleichermassen.
+      const sauber = !vErg.aborted && fehlgeschlagen === 0;
+      setBilanz({
+        eingebettet: eingebettetAntrag + eingebettetVerbund,
+        ohneText: erg.ohneText + vErg.ohneText,
+        fehlgeschlagen,
+        ersterFehler: erg.ersterFehler ?? vErg.ersterFehler,
+        signaturGestempelt: erg.signaturGestempelt,
+        vollErzwungen: erg.vollErzwungen,
+        abgebrochen: vErg.aborted,
+        abbruchGrund: vErg.abbruchGrund,
+        gespiegelt: false,
+      });
+
+      if (!sauber) {
+        // NICHT spiegeln. Ein halber Korpus wuerde sonst zum Stand des ganzen
+        // Teams — genau das ist in der Abnahme passiert: ein Lauf, dem nach 827
+        // Vorhaben der Grafik-Kontext wegbrach, hat das gute Manifest auf dem
+        // Datenspeicher ueberschrieben.
+        setSpiegelungOffen(true);
+        setFehler(
+          `Der Lauf konnte ${fehlgeschlagen.toLocaleString('de-DE')} Vektoren nicht erzeugen `
+          + '— er wurde deshalb NICHT auf den Datenspeicher gespiegelt. Der Stand des Teams '
+          + 'bleibt unberührt. Nach einem sauberen Lauf spiegelt „Erneut spiegeln" von Hand.',
+        );
+        return;
+      }
+      // Nur ein VOLLBAU taugt als Messung fuer die Schaetzung am Knopf: er ist
+      // der Lauf, den sie vorhersagen soll, und nur er hat beide Phasen in
+      // ihrer vollen Groesse gesehen. Fehlerfrei ist er hier schon.
+      if ((voll || erg.vollErzwungen) && letzterTick > ersterTick) {
+        const gemessen = berechneBauRate(
+          letzterTick - ersterTick,
+          eingebettetAntrag,
+          eingebettetVerbund,
+          new Date().toISOString(),
+        );
+        if (gemessen) {
+          await merkeBauRate(storage.idb, gemessen);
+          setRate(gemessen);
+        }
+      }
+
+      if (lockGehalten) await heartbeat(storage.idb).catch(() => undefined);
 
       // Label setzen und einen Tick yielden, damit React es zeichnet, BEVOR die
       // synchrone Centroid-Rechnung den Main-Thread belegt.
-      setFortschritt({ phase: 'centroids', done: 0, total: 0 });
+      setFortschritt({
+        phase: 'centroids', done: 0, total: 0,
+        ...berechneGesamt(plan, 'centroids', 0),
+      });
       await new Promise(r => setTimeout(r, 0));
       const verbundEmbs = await loadAllVerbundEmbeddings(storage.idb);
       const centroids = computeKategorieCentroidsFromVerbund(
@@ -237,11 +416,14 @@ export function useKorpusBau(): KorpusBau {
       }));
       await persistAuslastung(storage);
 
-      setFortschritt(null);
-      bumpAuslastungCorpusSignal();
-
       // Upload — soft-fail: der lokale Bau bleibt gültig, nur das Team hat ihn
-      // dann noch nicht.
+      // dann noch nicht. Er bekommt eine eigene Phase am vollen Balken, statt
+      // die Anzeige auf den Bestandswert zurückfallen zu lassen: über VPN dauert
+      // das Minuten, und „98 %" wäre dann eine Auskunft über etwas anderes.
+      setFortschritt({
+        phase: 'spiegeln', done: 0, total: 0,
+        ...berechneGesamt(plan, 'spiegeln', 0),
+      });
       const aktiv = aktuelleKorpusSignatur(getModelById(await getActiveModelId(storage.idb)));
       try {
         await useEmbeddingCorpusMirror.getState().uploadFromIdb(
@@ -251,8 +433,14 @@ export function useKorpusBau(): KorpusBau {
         // zweiten Schritt hätte ein neuer Rechner keine Verbund-Vektoren für
         // die Klassifizierung (v2.19).
         await uploadVerbundCorpusToShare(storage, aktiv.modellId, aktiv.dim, profile?.name);
+        setBilanz(b => (b ? { ...b, gespiegelt: true } : b));
       } catch (err) {
-        setFehler(`Bau abgeschlossen — Upload auf den Datenspeicher fehlgeschlagen: ${err instanceof Error ? err.message : String(err)}`);
+        setSpiegelungOffen(true);
+        setFehler(
+          'Der Bau ist fertig und liegt lokal — nur das Spiegeln auf den Datenspeicher ist '
+          + `gescheitert: ${err instanceof Error ? err.message : String(err)} `
+          + '„Erneut spiegeln" wiederholt allein den Upload, ohne neu zu bauen.',
+        );
       }
     } catch (err) {
       setFehler(err instanceof Error ? err.message : String(err));
@@ -263,7 +451,42 @@ export function useKorpusBau(): KorpusBau {
       if (lockGehalten) await releaseLock(storage.idb).catch(() => undefined);
       await neuLesen();
     }
-  }, [storage, programmId, profile, config, klassifizierungen, persistAuslastung, neuLesen]);
+  }, [storage, programmId, profile, config, klassifizierungen, persistAuslastung, neuLesen,
+      bestand]);
+
+  /**
+   * Nur spiegeln — der Bau liegt schon in der IndexedDB.
+   *
+   * Bis v6.16 war der Upload ausschliesslich das Anhaengsel von `baue()`:
+   * scheiterte er (ueber VPN keine Seltenheit, der Verzeichnis-Handle verliert
+   * dabei seinen gecachten Zustand), war der einzige Weg zum Team ein
+   * kompletter Neubau — 46 Minuten fuer eine Datei, die fertig danebenlag.
+   * `serializeCorpus` baut Manifest und Bin deterministisch aus dem Cache; hier
+   * wird kein einziger Vektor neu gerechnet.
+   */
+  const spiegle = useCallback(async (): Promise<void> => {
+    setFehler(null);
+    setLaeuft(true);
+    setFortschritt({
+      phase: 'spiegeln', done: 0, total: 0,
+      gesamtDone: 0, gesamtTotal: 0, prozent: 100,
+    });
+    try {
+      const aktiv = aktuelleKorpusSignatur(getModelById(await getActiveModelId(storage.idb)));
+      await useEmbeddingCorpusMirror.getState().uploadFromIdb(
+        storage, aktiv.modellId, aktiv.dim, profile?.name,
+      );
+      await uploadVerbundCorpusToShare(storage, aktiv.modellId, aktiv.dim, profile?.name);
+      setSpiegelungOffen(false);
+    } catch (err) {
+      setSpiegelungOffen(true);
+      setFehler(`Spiegeln auf den Datenspeicher fehlgeschlagen: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setLaeuft(false);
+      setFortschritt(null);
+      await neuLesen();
+    }
+  }, [storage, profile, neuLesen]);
 
   /**
    * Der schnelle Weg: holen statt rechnen. Räumt vorher den lokalen Cache — ein
@@ -313,8 +536,9 @@ export function useKorpusBau(): KorpusBau {
   const abbrechen = useCallback(() => { abbruchRef.current?.abort(); }, []);
 
   return {
-    bestand, befund, bilanz, raumAktuell, signatur, fortschritt, laeuft, fehler,
+    bestand, befund, bilanz, rate, raumAktuell, signatur, fortschritt, laeuft, fehler,
+    spiegelungOffen,
     nachziehenMoeglich: raumAktuell && (bestand?.zuEmbedden.length ?? 0) > 0,
-    baue, ladeVomSpeicher, leere, abbrechen, neuLesen,
+    baue, ladeVomSpeicher, spiegle, leere, abbrechen, neuLesen,
   };
 }

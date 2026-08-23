@@ -19,6 +19,16 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v6.17 — 2026-08
+
+### Neu
+- Scheitert nur die Übertragung auf den Datenspeicher, lädt „Erneut spiegeln" den fertigen Korpus nach — ohne ihn neu zu berechnen.
+### Verbesserungen
+- Beim Aufbau der Ähnlichkeitssuche läuft der Fortschrittsbalken einmal von 0 auf 100 statt je Arbeitsschritt neu, und die Restzeit richtet sich nach dem tatsächlichen Tempo.
+- Die Dauer am Knopf „Neu aufbauen" stammt aus dem letzten Lauf auf diesem Rechner; vorher steht dort die Anzahl statt einer geratenen Zahl.
+### Bugfixes
+- Bricht die Berechnung ab (zu wenig Speicher oder Grafiktreiber weg), sagt die App das jetzt mit Zahl und Fehlertext — vorher meldete sie „fertig" und überschrieb den guten Stand des Teams mit einem halben.
+
 ## v6.16 — 2026-08
 
 ### Verbesserungen

@@ -258,6 +258,18 @@ export async function fuehreNachlaufAus(ctx: NachlaufKontext): Promise<NachlaufE
     await heartbeat(idb).catch(() => undefined);
     bumpAuslastungCorpusSignal();
 
+    // Ein Lauf, dem die Einbettung wegbrach, wird NICHT verteilt: er wuerde
+    // einen halben Korpus als den neuen Stand des Teams setzen. Der Nachlauf
+    // laeuft ohne Zuschauer, also ist das hier die einzige Bremse.
+    if (erg.fehlgeschlagen > 0 || erg.aborted) {
+      throw new Error(
+        `Der Nachlauf hat ${erg.fehlgeschlagen} Vorhaben nicht einbetten koennen`
+        + `${erg.abbruchGrund === 'fehlerserie' ? ' und wurde nach einer Fehlerserie abgebrochen' : ''}`
+        + ' — nicht auf den Datenspeicher gespiegelt.'
+        + (erg.ersterFehler ? ` Erster Fehler: ${erg.ersterFehler}` : ''),
+      );
+    }
+
     // Ohne Upload bliebe das Ergebnis auf diesem Rechner — der halbe Zweck.
     await useEmbeddingCorpusMirror.getState().uploadFromIdb(
       storage, aktiv.modellId, aktiv.dim, ctx.profilName, { skipLock: true },

@@ -21,14 +21,21 @@ import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useEmbeddingCorpusMirror } from '@/core/hooks/useEmbeddingCorpusMirror';
 import { CORPUS_BUILD_VERSION, getCorpusBuildVersion } from '@/core/services/embedding-corpus';
-import { istNachlaufAn, setzeNachlauf, ladeNachlaufStand } from '@/plugins/auslastung/services/matching';
-import { useKorpusBau, PHASEN_LABEL } from '../hooks/useKorpusBau';
+import {
+  istNachlaufAn, setzeNachlauf, ladeNachlaufStand, schaetzeVollbauSekunden,
+} from '@/plugins/auslastung/services/matching';
+import { useKorpusBau } from '../hooks/useKorpusBau';
+import { PHASEN_LABEL, istZaehlbar } from '../hooks/bauFortschritt';
 
 function formatiereEta(sek: number): string {
   if (sek < 60) return `${Math.round(sek)} s`;
   const min = Math.round(sek / 60);
   if (min < 60) return `${min} min`;
   return `${Math.floor(min / 60)} h ${min % 60} min`;
+}
+
+function formatiereMB(bytes: number): string {
+  return (bytes / 1024 / 1024).toFixed(0);
 }
 
 const HINWEIS_KLASSE = 'rounded p-2 mb-2 text-[11.5px]';
@@ -50,6 +57,7 @@ export function EmbeddingKorpusSection(): React.ReactElement {
   const laedtRunter = useEmbeddingCorpusMirror(s => s.downloading);
   const downloadFortschritt = useEmbeddingCorpusMirror(s => s.downloadProgress);
   const laedtHoch = useEmbeddingCorpusMirror(s => s.uploading);
+  const uploadFortschritt = useEmbeddingCorpusMirror(s => s.uploadProgress);
   const spiegelFehler = useEmbeddingCorpusMirror(s => s.error);
 
   const [nachlaufAn, setNachlaufAn] = useState(false);
@@ -61,6 +69,7 @@ export function EmbeddingKorpusSection(): React.ReactElement {
   const neuBauen = useAsyncAction(() => bau.baue(true));
   const nachziehen = useAsyncAction(() => bau.baue(false));
   const zuruecksetzen = useAsyncAction(bau.leere);
+  const spiegeln = useAsyncAction(bau.spiegle);
   const schalten = useAsyncAction(async (an: boolean) => {
     setNachlaufAn(an);
     await setzeNachlauf(storage.idb, an);
@@ -89,25 +98,23 @@ export function EmbeddingKorpusSection(): React.ReactElement {
   const offen = bau.bestand?.zuEmbedden.length ?? 0;
   const p = bau.fortschritt;
 
-  // Während des Laufs tickt der Fortschritt pro Vorhaben; der Bestand wird erst
-  // danach neu gelesen. Die Leiste darf nicht erst am Ende auf 100 springen.
-  const zeigeIst = p ? p.done : lokal;
-  const zeigeSoll = p ? p.total : embedbar;
-  const prozent = p?.phase === 'centroids'
-    ? 100
-    : zeigeSoll > 0 ? Math.min(100, (zeigeIst / zeigeSoll) * 100) : 0;
+  // Der Balken trägt den GANZEN Lauf (`p.prozent`, gerechnet in
+  // [bauFortschritt.ts](../hooks/bauFortschritt.ts)); die Zeile darüber die
+  // laufende Phase. Vorher war beides dasselbe — deshalb lief der Balken je
+  // Phase einmal von vorne los.
+  const prozent = p ? p.prozent : (embedbar > 0 ? Math.min(100, (lokal / embedbar) * 100) : 0);
 
   const shareVersion = manifest ? getCorpusBuildVersion(manifest) : null;
-  const minutenVoll = Math.max(1, Math.ceil(embedbar * 0.2 / 60));
+  const vollbauSek = schaetzeVollbauSekunden(bau.rate, embedbar);
 
   return (
     <div className="pt-1">
       <div className="flex items-baseline justify-between mb-2">
         <span className="text-[12px] text-[var(--tf-text-secondary)]">
           {p
-            ? (p.phase === 'centroids'
-                ? PHASEN_LABEL.centroids
-                : `${PHASEN_LABEL[p.phase]}: ${zeigeIst} von ${zeigeSoll}`)
+            ? (istZaehlbar(p.phase)
+                ? `${PHASEN_LABEL[p.phase]}: ${p.done.toLocaleString('de-DE')} von ${p.total.toLocaleString('de-DE')}`
+                : PHASEN_LABEL[p.phase])
             : ermittelt
               ? `${lokal.toLocaleString('de-DE')} von ${embedbar.toLocaleString('de-DE')} Vorhaben haben einen Vektor`
               : 'Bestand wird ermittelt…'}
@@ -121,7 +128,7 @@ export function EmbeddingKorpusSection(): React.ReactElement {
         <div className="h-full bg-[var(--tf-primary)] transition-all" style={{ width: `${prozent}%` }} />
       </div>
 
-      {p && p.phase !== 'centroids' && (
+      {p && istZaehlbar(p.phase) && (
         <div className="text-[11.5px] text-[var(--tf-text-secondary)] mb-2">
           {p.last && <span className="font-mono mr-2">{p.last}</span>}
           {p.etaSec != null && (
@@ -138,6 +145,8 @@ export function EmbeddingKorpusSection(): React.ReactElement {
       {laedtHoch && (
         <div className="text-[11.5px] text-[var(--tf-text-secondary)] mb-2">
           Spiegle den Korpus auf den Datenspeicher…
+          {uploadFortschritt && ` ${formatiereMB(uploadFortschritt.geschrieben)} von `
+            + `${formatiereMB(uploadFortschritt.gesamt)} MB`}
         </div>
       )}
 
@@ -152,14 +161,15 @@ export function EmbeddingKorpusSection(): React.ReactElement {
         </div>
       )}
 
+      {/* Was FRÜHER schiefging, interessiert hier niemanden — nur, was die
+          Vektoren von heute nicht können. Der zweite Halbsatz gilt für v1/v2;
+          eine spätere Fassung bekommt ihren eigenen oder gar keinen. */}
       {bau.befund?.neuaufbauNoetig && (
         <div className={HINWEIS_KLASSE} style={HINWEIS_WARN}>
           <strong>Neuaufbau nötig, nicht nur empfohlen.</strong> Die Vektoren stammen aus
-          Textfassung v{bau.befund.versionDanach} (aktuell wäre v{CORPUS_BUILD_VERSION}). Bis v2
-          las der Embedding-Text seine Quell-Spalten unter geratenen Schlüsseln, und am echten
-          Bestand war die Projektbeschreibung in <strong>0 von 14 225</strong> Sätzen darunter zu
-          finden — der Vektor eines Vorhabens kennt dort nur seinen Titel und die Deskriptoren,
-          nie seinen Inhalt. Seit v3 wird die Spalte aus dem CSV-Schema aufgelöst.
+          Textfassung v{bau.befund.versionDanach} (aktuell v{CORPUS_BUILD_VERSION})
+          {(bau.befund.versionDanach ?? 0) <= 2
+            && ' — sie kennen nur Titel und Deskriptoren eines Vorhabens, nicht die Projektbeschreibung'}.
         </div>
       )}
 
@@ -188,18 +198,48 @@ export function EmbeddingKorpusSection(): React.ReactElement {
             </strong>
             {' '}(sie fehlen ihm, oder ihr Text hat sich seit seinem Bau geändert). Ein Korpus deckt den
             Bestand ab, den sein Erbauer beim Bau hatte, nicht den, der hier liegt.
-            „Nachziehen“ holt genau diese {offen.toLocaleString('de-DE')} nach (≈ {formatiereEta(offen * 0.2)}).
+            „Nachziehen“ holt genau diese {offen.toLocaleString('de-DE')} nach
+            {bau.rate && ` (≈ ${formatiereEta(offen * bau.rate.sekProItem)})`}.
           </div>
         )
+      )}
+
+      {/* Ein Lauf, dem die Einbettung wegbricht, ist kein Nebensatz in der
+          Bilanzzeile. Bis v6.15 stand er dort als „13.418 übersprungen (kein
+          Text oder Fehler)" — dieselbe Formulierung wie für einen Bestand ohne
+          Texte, und der einzige Hinweis auf den echten Grund lag in der
+          Browser-Konsole. */}
+      {bau.bilanz && bau.bilanz.fehlgeschlagen > 0 && !bau.laeuft && (
+        <div className={HINWEIS_KLASSE} style={HINWEIS_WARN}>
+          <strong>
+            {bau.bilanz.fehlgeschlagen.toLocaleString('de-DE')} Vorhaben konnten nicht
+            eingebettet werden.
+          </strong>{' '}
+          {bau.bilanz.abbruchGrund === 'fehlerserie'
+            ? 'Nach einer Serie von Fehlschlägen wurde der Lauf abgebrochen — das Modell antwortet nicht mehr (Speicher voll oder Grafik-Kontext verloren). '
+            : ''}
+          Der Korpus behält für diese Vorhaben seine alten Vektoren
+          {/* Nur behaupten, was passiert ist: im GLEICHEN Vektorraum stempelt
+              der Lauf auch mit Einzelfehlern, weil er nichts ablöst. */}
+          {!bau.bilanz.signaturGestempelt && '; die Textfassung wurde deshalb nicht als aktuell vermerkt'}
+          , und der Datenspeicher wurde nicht überschrieben.{' '}
+          {bau.bilanz.ersterFehler && (
+            <>Erster Fehler: <span className="font-mono">{bau.bilanz.ersterFehler}</span>. </>
+          )}
+          Tab neu laden und erneut bauen.
+        </div>
       )}
 
       {/* Was der letzte Lauf getan hat — vorher verfiel dieses Ergebnis
           ungelesen, und ein Lauf mit Lücke sah aus wie einer ohne. */}
       {bau.bilanz && !bau.laeuft && (
         <div className="text-[11px] text-[var(--tf-text-tertiary)] mb-2">
-          Letzter Lauf: {bau.bilanz.eingebettet.toLocaleString('de-DE')} Vorhaben eingebettet
-          {bau.bilanz.uebersprungen > 0
-            ? `, ${bau.bilanz.uebersprungen.toLocaleString('de-DE')} übersprungen (kein Text oder Fehler)`
+          Letzter Lauf: {bau.bilanz.eingebettet.toLocaleString('de-DE')} Vektoren erzeugt
+          {bau.bilanz.ohneText > 0
+            ? `, ${bau.bilanz.ohneText.toLocaleString('de-DE')} ohne Text übersprungen`
+            : ''}
+          {bau.bilanz.fehlgeschlagen > 0
+            ? `, ${bau.bilanz.fehlgeschlagen.toLocaleString('de-DE')} fehlgeschlagen`
             : ''}
           {bau.bilanz.vollErzwungen ? ' · voll gebaut statt nachgezogen (fremder Vektorraum)' : ''}
           {bau.bilanz.abgebrochen ? ' · abgebrochen' : ''}.
@@ -230,10 +270,33 @@ export function EmbeddingKorpusSection(): React.ReactElement {
               onClick={() => neuBauen.run()}
               disabled={embedbar === 0 || neuBauen.busy}
             >
-              {/* Die Dauer haengt am Bestand — vor dessen Aufnahme waere „~1 min"
-                  eine Zusage aus einer Division durch nichts. */}
-              {ermittelt ? `Neu aufbauen (~${minutenVoll} min)` : 'Neu aufbauen'}
+              {/* Eine Minutenzahl gibt es erst, wenn dieser Rechner einmal
+                  gebaut hat. Vorher stand hier „~48 min", gerechnet aus einem
+                  Literal von 0,2 s je Vorhaben, das nie an einem Lauf geprüft
+                  war — die Dauer hängt an WebGPU/WASM, Maschine und Textlänge,
+                  und eine erfundene Zusage ist schlechter als eine Anzahl. */}
+              {!ermittelt
+                ? 'Neu aufbauen'
+                : vollbauSek !== null
+                  ? `Neu aufbauen (~${formatiereEta(vollbauSek)})`
+                  : `Neu aufbauen (${embedbar.toLocaleString('de-DE')} Vorhaben)`}
             </Button>
+            {/* Der Bau steht lokal, nur der Weg zum Team ist gescheitert — über
+                VPN reißt der Verzeichnis-Handle mitten im 42-MB-Write. Ohne
+                diesen Knopf war ein kompletter Neubau die einzige Wiederholung
+                für eine Datei, die fertig danebenlag. */}
+            {(bau.spiegelungOffen || bau.befund?.aktion === 'lokal-neuer') && lokal > 0 && (
+              <Button
+                type="button"
+                variant={bau.spiegelungOffen ? 'primary' : 'secondary'}
+                size="sm"
+                onClick={() => spiegeln.run()}
+                disabled={spiegeln.busy}
+                title="Lädt den fertigen lokalen Korpus hoch, ohne einen Vektor neu zu rechnen."
+              >
+                Erneut spiegeln
+              </Button>
+            )}
             {/* „Nachziehen" steht nur da, wenn es auch nachzieht. Weicht der
                 lokale Vektorraum ab, erzwingt `buildEmbeddingCorpus` einen
                 Vollbau (`vollErzwungen`) — ein Knopf mit „156 Vorhaben" wäre dann
