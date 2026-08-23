@@ -31,10 +31,31 @@ export {
 export {
   ensureEmbeddingReady,
   embedText,
+  ladeEmbeddingNeu,
+  aktivesEmbeddingGeraet,
   cosineSimilarity,
   meanCentroid,
   getCurrentEmbeddingConfig,
 } from './wrapper';
+
+export {
+  GERAET_LABEL,
+  GERAET_DATIV,
+  GERAET_PRAEFERENZ_KEY,
+  ERHOLUNG_MAX,
+  ERTRAG_MINDEST,
+  istGeraeteverlust,
+  planeErholung,
+  ladeGeraetPraeferenz,
+  merkeGeraetPraeferenz,
+  vergissGeraetPraeferenz,
+} from './geraet';
+export type {
+  EmbeddingGeraet, GeraetPraeferenz, ErholungsLage, ErholungsPlan,
+} from './geraet';
+
+export { erzeugeErholer, embedMitErholung } from './erholung';
+export type { Erholer, ErholungsMeldung, ErholerOptionen } from './erholung';
 
 export {
   CORPUS_BUILD_VERSION,

@@ -37,6 +37,17 @@ vi.mock('@/core/services/embedding-corpus', () => ({
   ladeTextHashes: vi.fn(async () => new Map<string, string>()),
   merkeTextHashes: vi.fn(async () => undefined),
   waehleZuEmbedden: ({ aktenzeichen }: { aktenzeichen: string[] }) => aktenzeichen,
+  // Die Erholung hat ihren eigenen Test ([erholung.test.ts](src/core/services/embedding-corpus/__tests__/erholung.test.ts));
+  // hier soll ein Fehler ein Fehler bleiben, sonst prüft diese Datei nicht mehr
+  // die Zähler und die Fehlerserie, sondern das Nachladen.
+  erzeugeErholer: () => ({
+    gelungen: () => undefined,
+    erhole: async () => false,
+    geraet: 'webgpu' as const,
+    meldungen: [] as unknown[],
+  }),
+  embedMitErholung: (text: string, mode: string) => embedText(text, mode),
+  aktivesEmbeddingGeraet: () => 'webgpu' as const,
 }));
 
 vi.mock('@/core/services/csv/idb-csv', () => ({

@@ -34,7 +34,7 @@
 ### Bugfixes
 - Der Aufbau der Ähnlichkeitssuche endete bisher, wenn die Grafikkarte mitten im Lauf aufgab — meist nach rund 800 von 14.000 Vorhaben. Jetzt lädt die App das Modell nach und rechnet weiter, wo sie stehengeblieben ist.
 ### Verbesserungen
-- Bringt auch das Nachladen nichts mehr, rechnet der Aufbau auf dem Hauptprozessor weiter: langsamer, aber er kommt an. Die Karte sagt es, und ein Klick nimmt die Umstellung wieder zurück.
+- Bringt auch das Nachladen nichts mehr, rechnet der Aufbau auf dem Hauptprozessor weiter. Der ist rund dreißigmal langsamer — die Karte sagt das jetzt offen und rät in dem Fall zu „Vom Datenspeicher laden"; ein Klick stellt wieder auf die Grafikkarte um.
 
 ## v6.17 — 2026-08
 

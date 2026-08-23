@@ -52,4 +52,23 @@ describe('schaetzeVollbauSekunden', () => {
     // Vor der Bestandsaufnahme wäre jede Minutenzahl eine Division durch nichts.
     expect(schaetzeVollbauSekunden(rate, 0)).toBeNull();
   });
+
+  it('schweigt, wenn die Messung von einem anderen Rechenwerk stammt', () => {
+    // Eine Rate ist eine Zahl mit Einheit: der Hauptprozessor braucht ein
+    // Vielfaches der Grafikkarte. Nach einem Wechsel (v6.18) gilt die alte
+    // Messung nicht mehr — dann steht am Knopf wieder die Anzahl.
+    const aufGpu = berechneBauRate(300_000, 12_000, 3_000, JETZT, 'webgpu');
+    expect(aufGpu?.geraet).toBe('webgpu');
+    expect(schaetzeVollbauSekunden(aufGpu, 14_221, 'wasm')).toBeNull();
+    expect(schaetzeVollbauSekunden(aufGpu, 14_221, 'webgpu')).toBeCloseTo(344.42, 1);
+  });
+
+  it('verwirft eine Messung nicht, nur weil eine Seite unbekannt ist', () => {
+    // Messungen vor v6.18 tragen kein Rechenwerk, und vor dem ersten Ladelauf
+    // weiß die Karte auch keines. „Nicht bekannt" ist kein Widerspruch.
+    const ohneGeraet = berechneBauRate(300_000, 12_000, 3_000, JETZT);
+    expect(schaetzeVollbauSekunden(ohneGeraet, 14_221, 'wasm')).toBeCloseTo(344.42, 1);
+    const aufGpu = berechneBauRate(300_000, 12_000, 3_000, JETZT, 'webgpu');
+    expect(schaetzeVollbauSekunden(aufGpu, 14_221, null)).toBeCloseTo(344.42, 1);
+  });
 });

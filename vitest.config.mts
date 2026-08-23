@@ -39,6 +39,11 @@ const ISOLATED_TESTS = [
   'src/plugins/csv-sources-kuration/services/__tests__/demo-zu-echt.test.ts',
   'src/core/services/csv/__tests__/snapshot-verbuende-guard.test.ts',
   'src/core/services/csv/__tests__/unterprogramm-registry.test.ts',
+  // Mockt `wrapper` modulweit (embedText + ladeEmbeddingNeu), um einen
+  // Geraeteverlust zu spielen. Ohne Isolation haengt es an der Ladereihenfolge,
+  // ob die Fabrik greift — dann laeuft die ECHTE Erholung gegen kein Modell.
+  // Einzeln immer gruen.
+  'src/core/services/embedding-corpus/__tests__/erholung.test.ts',
   'src/core/services/embedding-corpus/__tests__/storage.test.ts',
   // Mockt `feedbackStorage` + `feedbackSharedFile` modulweit — dieselben Module
   // wie `sponsorTicketUpsert.test.ts` weiter unten. Ohne Isolation fiel die

@@ -18,6 +18,7 @@
  * nichts zu suchen.
  */
 import type { IDBStore } from '@/core/services/storage/idb-store';
+import type { EmbeddingGeraet } from '@/core/services/embedding-corpus';
 
 /** Maschine-lokal, nie auf dem Share (siehe Dateikopf). */
 export const BAU_RATE_KEY = 'emb-korpus-bau-rate';
@@ -33,6 +34,14 @@ export interface BauRate {
   verbundItems: number;
   /** ISO-Zeitstempel der Messung. */
   gemessenAm: string;
+  /**
+   * Worauf gerechnet wurde — fehlt bei Messungen vor v6.18.
+   *
+   * Eine Rate ohne ihr Rechenwerk ist eine Zahl ohne Einheit: der
+   * Hauptprozessor braucht ein Vielfaches der Grafikkarte, und wer beides in
+   * denselben Wert mittelt, sagt fuer keinen von beiden die Wahrheit.
+   */
+  geraet?: EmbeddingGeraet;
 }
 
 /**
@@ -43,8 +52,17 @@ export interface BauRate {
  * Lauf zu Lauf kaum, und sie im Voraus zu ermitteln hiesse, den Bestand ein
  * zweites Mal durchzustreamen, nur um eine Minutenangabe zu schmuecken.
  */
-export function schaetzeVollbauSekunden(rate: BauRate | null, embedbar: number): number | null {
+export function schaetzeVollbauSekunden(
+  rate: BauRate | null,
+  embedbar: number,
+  geraet?: EmbeddingGeraet | null,
+): number | null {
   if (!rate || embedbar <= 0) return null;
+  // Eine Rate von der Grafikkarte sagt ueber einen Lauf auf dem Hauptprozessor
+  // nichts — dann lieber keine Minutenzahl als eine falsche. `null` auf einer
+  // der beiden Seiten heisst „nicht bekannt": kein Grund, die Messung zu
+  // verwerfen (Messungen vor v6.18 tragen kein Rechenwerk).
+  if (geraet && rate.geraet && rate.geraet !== geraet) return null;
   return rate.sekProItem * (embedbar + rate.verbundItems);
 }
 
@@ -80,6 +98,7 @@ export function berechneBauRate(
   vorhabenItems: number,
   verbundItems: number,
   jetztIso: string,
+  geraet?: EmbeddingGeraet | null,
 ): BauRate | null {
   const items = vorhabenItems + verbundItems;
   if (items < MESSUNG_MINDEST_ITEMS || dauerMs <= 0) return null;
@@ -89,6 +108,7 @@ export function berechneBauRate(
     vorhabenItems,
     verbundItems,
     gemessenAm: jetztIso,
+    ...(geraet ? { geraet } : {}),
   };
 }
 

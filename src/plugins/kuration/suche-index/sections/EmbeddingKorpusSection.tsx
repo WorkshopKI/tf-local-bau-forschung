@@ -20,7 +20,9 @@ import { Switch } from '@/components/ui/switch';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useEmbeddingCorpusMirror } from '@/core/hooks/useEmbeddingCorpusMirror';
-import { CORPUS_BUILD_VERSION, getCorpusBuildVersion } from '@/core/services/embedding-corpus';
+import {
+  CORPUS_BUILD_VERSION, getCorpusBuildVersion, GERAET_DATIV,
+} from '@/core/services/embedding-corpus';
 import {
   istNachlaufAn, setzeNachlauf, ladeNachlaufStand, schaetzeVollbauSekunden,
 } from '@/plugins/auslastung/services/matching';
@@ -70,6 +72,7 @@ export function EmbeddingKorpusSection(): React.ReactElement {
   const nachziehen = useAsyncAction(() => bau.baue(false));
   const zuruecksetzen = useAsyncAction(bau.leere);
   const spiegeln = useAsyncAction(bau.spiegle);
+  const grafikkarte = useAsyncAction(bau.wiederMitGrafikkarte);
   const schalten = useAsyncAction(async (an: boolean) => {
     setNachlaufAn(an);
     await setzeNachlauf(storage.idb, an);
@@ -105,7 +108,10 @@ export function EmbeddingKorpusSection(): React.ReactElement {
   const prozent = p ? p.prozent : (embedbar > 0 ? Math.min(100, (lokal / embedbar) * 100) : 0);
 
   const shareVersion = manifest ? getCorpusBuildVersion(manifest) : null;
-  const vollbauSek = schaetzeVollbauSekunden(bau.rate, embedbar);
+  // Eine Messung von der Grafikkarte sagt über einen Lauf auf dem
+  // Hauptprozessor nichts — dann steht am Knopf wieder die Anzahl.
+  const vollbauSek = schaetzeVollbauSekunden(bau.rate, embedbar, bau.geraet);
+  const rateGilt = schaetzeVollbauSekunden(bau.rate, 1, bau.geraet) !== null;
 
   return (
     <div className="pt-1">
@@ -134,6 +140,18 @@ export function EmbeddingKorpusSection(): React.ReactElement {
           {p.etaSec != null && (
             <span className="text-[var(--tf-text-tertiary)]">≈ {formatiereEta(p.etaSec)} verbleibend</span>
           )}
+        </div>
+      )}
+
+      {/* Ein Nachladen sind mehrere Sekunden ohne einen einzigen Tick. Ohne
+          diese Zeile sähe die stärkste Rettung, die der Lauf kennt, aus wie ein
+          Hänger — und der Nutzer bräche ab, kurz bevor es weitergeht. */}
+      {bau.nachladen && (
+        <div className={HINWEIS_KLASSE} style={HINWEIS_WARN}>
+          Der Grafik-Kontext ist weggebrochen — das Modell wird neu geladen
+          {bau.nachladen.nummer > 1 ? ` (${bau.nachladen.nummer}. Mal)` : ''}, und zwar auf
+          {' '}{GERAET_DATIV[bau.nachladen.geraet]}. Der Lauf setzt danach dort fort, wo er
+          stehengeblieben ist; bitte nicht abbrechen.
         </div>
       )}
 
@@ -173,6 +191,28 @@ export function EmbeddingKorpusSection(): React.ReactElement {
         </div>
       )}
 
+      {/* Eine Festlegung, die aus einer Messung an DIESEM Rechner entstand —
+          also gehört sie sichtbar hierher, samt Rückweg. Eine stille
+          Verlangsamung wäre schlimmer als der Absturz, den sie verhindert. */}
+      {bau.geraetPraeferenz?.geraet === 'wasm' && !bau.laeuft && (
+        <div className={HINWEIS_KLASSE} style={HINWEIS_INFO}>
+          Dieser Rechner baut die Vektoren auf dem <strong>Hauptprozessor</strong> — die
+          Grafikkarte hat am{' '}
+          {new Date(bau.geraetPraeferenz.am).toLocaleDateString('de-DE')} mitten im Lauf
+          aufgegeben. Das ist rund <strong>30-mal langsamer</strong> (gemessen: 2,0 statt
+          0,07 Sekunden je Vektor); ein voller Neuaufbau dauert damit über zwölf Stunden.
+          Für einen vollständigen Korpus ist <em>Vom Datenspeicher laden</em> hier der
+          bessere Weg.{' '}
+          <Button
+            type="button" variant="link" size="xs" className="px-0 h-auto align-baseline"
+            onClick={() => grafikkarte.run()} disabled={grafikkarte.busy}
+            title="Lädt das Modell sofort wieder auf die Grafikkarte — die Oberfläche steht dabei kurz."
+          >
+            Wieder mit Grafikkarte versuchen
+          </Button>
+        </div>
+      )}
+
       {/* „Synchron mit dem Datenspeicher" und „vollständig für diesen Bestand"
           sind ZWEI Fragen. Bis v4.128 beantwortete die Karte die erste mit einem
           ✓ und die zweite still über die Zahl am Knopf — was sich für den Leser
@@ -199,7 +239,7 @@ export function EmbeddingKorpusSection(): React.ReactElement {
             {' '}(sie fehlen ihm, oder ihr Text hat sich seit seinem Bau geändert). Ein Korpus deckt den
             Bestand ab, den sein Erbauer beim Bau hatte, nicht den, der hier liegt.
             „Nachziehen“ holt genau diese {offen.toLocaleString('de-DE')} nach
-            {bau.rate && ` (≈ ${formatiereEta(offen * bau.rate.sekProItem)})`}.
+            {bau.rate && rateGilt && ` (≈ ${formatiereEta(offen * bau.rate.sekProItem)})`}.
           </div>
         )
       )}
@@ -217,6 +257,14 @@ export function EmbeddingKorpusSection(): React.ReactElement {
           </strong>{' '}
           {bau.bilanz.abbruchGrund === 'fehlerserie'
             ? 'Nach einer Serie von Fehlschlägen wurde der Lauf abgebrochen — das Modell antwortet nicht mehr (Speicher voll oder Grafik-Kontext verloren). '
+            : ''}
+          {/* Die Erholung ist die erste Verteidigungslinie; was hier ankommt,
+              hat sie nicht halten können. Das gehört gesagt — sonst liest sich
+              der Abbruch, als hätte es niemand versucht. */}
+          {bau.bilanz.erholungen > 0
+            ? `Das Modell wurde dabei ${bau.bilanz.erholungen}× neu geladen`
+              + `${bau.bilanz.geraet === 'wasm' ? ', zuletzt auf dem Hauptprozessor' : ''} `
+              + '— ohne Erfolg. '
             : ''}
           Der Korpus behält für diese Vorhaben seine alten Vektoren
           {/* Nur behaupten, was passiert ist: im GLEICHEN Vektorraum stempelt
@@ -242,6 +290,12 @@ export function EmbeddingKorpusSection(): React.ReactElement {
             ? `, ${bau.bilanz.fehlgeschlagen.toLocaleString('de-DE')} fehlgeschlagen`
             : ''}
           {bau.bilanz.vollErzwungen ? ' · voll gebaut statt nachgezogen (fremder Vektorraum)' : ''}
+          {/* Ein Lauf mit Erholungen ist gelungen — aber er hat länger gedauert,
+              als die Rate erwarten ließ, und das soll nicht unerklärt bleiben. */}
+          {bau.bilanz.erholungen > 0
+            ? ` · ${bau.bilanz.erholungen}× Modell neu geladen`
+              + `${bau.bilanz.geraet ? ` (zuletzt auf ${GERAET_DATIV[bau.bilanz.geraet]})` : ''}`
+            : ''}
           {bau.bilanz.abgebrochen ? ' · abgebrochen' : ''}.
         </div>
       )}

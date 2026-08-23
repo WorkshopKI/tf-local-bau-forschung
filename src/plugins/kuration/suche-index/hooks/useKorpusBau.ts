@@ -31,8 +31,14 @@ import {
   aktuelleKorpusSignatur,
   ladeKorpusSignatur,
   signaturenGleich,
+  aktivesEmbeddingGeraet,
+  ladeEmbeddingNeu,
+  ladeGeraetPraeferenz,
+  vergissGeraetPraeferenz,
   type AbgleichBefund,
   type KorpusSignatur,
+  type EmbeddingGeraet,
+  type GeraetPraeferenz,
 } from '@/core/services/embedding-corpus';
 import { getActiveModelId, getModelById } from '@/core/services/search/model-registry';
 import { useEmbeddingCorpusMirror } from '@/core/hooks/useEmbeddingCorpusMirror';
@@ -123,6 +129,16 @@ export interface BauBilanz {
   vollErzwungen: boolean;
   abgebrochen: boolean;
   abbruchGrund?: BuildAbbruchGrund;
+  /**
+   * Wie oft das Rechenwerk unterwegs weggebrochen ist und nachgeladen wurde.
+   *
+   * Ein Lauf mit Erholungen ist ein GELUNGENER Lauf — aber einer, der etwas
+   * ueber diesen Rechner sagt, und der laenger gedauert hat, als die Rate
+   * erwarten liess.
+   */
+  erholungen: number;
+  /** Worauf am Ende gerechnet wurde. */
+  geraet: EmbeddingGeraet | null;
 }
 
 export interface KorpusBau {
@@ -136,6 +152,17 @@ export interface KorpusBau {
   raumAktuell: boolean;
   signatur: KorpusSignatur | null;
   fortschritt: PhasenFortschritt | null;
+  /** Das Rechenwerk ist weggebrochen, das Modell wird gerade nachgeladen. */
+  nachladen: { geraet: EmbeddingGeraet; nummer: number } | null;
+  /** Was dieser Rechner ueber sein Rechenwerk gelernt hat — `null` = nichts. */
+  geraetPraeferenz: GeraetPraeferenz | null;
+  /**
+   * Worauf der naechste Lauf voraussichtlich rechnet — `null` = unbekannt.
+   *
+   * Die Festlegung schlaegt den letzten Lauf; ohne beides gibt es keine
+   * Auskunft, und eine Schaetzung darf dann nicht so tun, als gaebe es eine.
+   */
+  geraet: EmbeddingGeraet | null;
   laeuft: boolean;
   fehler: string | null;
   /** Der lokale Bau steht, nur das Spiegeln hat nicht geklappt — `spiegle()` reicht. */
@@ -146,6 +173,8 @@ export interface KorpusBau {
   ladeVomSpeicher: () => Promise<void>;
   /** Nur hochladen — ohne einen einzigen Vektor neu zu rechnen. */
   spiegle: () => Promise<void>;
+  /** Die Festlegung auf den Hauptprozessor zuruecknehmen. */
+  wiederMitGrafikkarte: () => Promise<void>;
   leere: () => Promise<void>;
   abbrechen: () => void;
   neuLesen: () => Promise<void>;
@@ -166,6 +195,8 @@ export function useKorpusBau(): KorpusBau {
   const [signatur, setSignatur] = useState<KorpusSignatur | null>(null);
   const [raumAktuell, setRaumAktuell] = useState(true);
   const [fortschritt, setFortschritt] = useState<PhasenFortschritt | null>(null);
+  const [nachladen, setNachladen] = useState<{ geraet: EmbeddingGeraet; nummer: number } | null>(null);
+  const [geraetPraeferenz, setGeraetPraeferenz] = useState<GeraetPraeferenz | null>(null);
   const [laeuft, setLaeuft] = useState(false);
   const [fehler, setFehler] = useState<string | null>(null);
   const [spiegelungOffen, setSpiegelungOffen] = useState(false);
@@ -175,6 +206,7 @@ export function useKorpusBau(): KorpusBau {
     const b = await ermittleKorpusBestand(storage.idb, programmId);
     setBestand(b);
     setRate(await ladeBauRate(storage.idb));
+    setGeraetPraeferenz(await ladeGeraetPraeferenz(storage.idb));
     await useEmbeddingCorpusMirror.getState().loadManifest(storage);
     const aktiv = aktuelleKorpusSignatur(getModelById(await getActiveModelId(storage.idb)));
     const lokal = await ladeKorpusSignatur(storage.idb);
@@ -227,6 +259,11 @@ export function useKorpusBau(): KorpusBau {
           + 'Bitte warten oder „Vom Datenspeicher laden".',
         );
         setLaeuft(false);
+        // Die Phase „vorbereiten" steht seit dem Klick — hier ist der Lauf zu
+        // Ende, bevor er begann. Ohne diese Zeile behauptete die Karte
+        // dauerhaft „Modell und Arbeitsliste werden vorbereitet… 0 %" neben der
+        // Meldung, dass jemand anderes baut (in der Abnahme gesehen).
+        setFortschritt(null);
         abbruchRef.current = null;
         return;
       }
@@ -287,11 +324,29 @@ export function useKorpusBau(): KorpusBau {
         });
       };
 
+      // Das Rechenwerk kann mitten im Lauf wegbrechen — dann laedt die Erholung
+      // das Modell nach ([erholung.ts](src/core/services/embedding-corpus/erholung.ts)).
+      // Fuer die Anzeige sind das mehrere Sekunden ohne einen einzigen Tick:
+      // ohne eigene Meldung sieht ein Nachladen aus wie ein Haenger.
+      const erholungsHaken = {
+        onLadenBeginnt: (geraet: EmbeddingGeraet, nummer: number): void => {
+          setNachladen({ geraet, nummer });
+        },
+        onErholt: (): void => {
+          setNachladen(null);
+          // Die Ladepause ist kein Arbeitstempo — dieselbe Regel wie beim
+          // Phasenwechsel, sonst sagt die Restzeit fuer 15 s etwas Falsches.
+          samples = [];
+          void ladeGeraetPraeferenz(storage.idb).then(setGeraetPraeferenz);
+        },
+      };
+
       const erg = await buildEmbeddingCorpus(storage.idb, antraege, {
         incremental: !voll,
         programmId,
         onProgress: p => melde('antrag', p.done, p.total, p.lastAntrag),
         signal: controller.signal,
+        ...erholungsHaken,
       });
 
       // Ein abgebrochener Lauf ist zu Ende — er darf nicht in die zweite Phase
@@ -310,6 +365,8 @@ export function useKorpusBau(): KorpusBau {
           abgebrochen: true,
           abbruchGrund: erg.abbruchGrund,
           gespiegelt: false,
+          erholungen: erg.erholungen.length,
+          geraet: erg.geraet,
         });
         // Die bis zum Abbruch geschriebenen Vektoren sind da — wer sie liest,
         // soll nicht auf dem Stand von vorher sitzen bleiben.
@@ -330,6 +387,7 @@ export function useKorpusBau(): KorpusBau {
         incremental: !voll && !erg.vollErzwungen,
         signal: controller.signal,
         onProgress: p => melde('verbund', p.done, p.total, p.lastVerbundId),
+        ...erholungsHaken,
       });
       // Vor jeder Abzweigung: geschrieben ist geschrieben. Haenge das an den
       // Erfolgsfall, und ein abgebrochener Lauf laesst den Modul-Cache auf dem
@@ -358,6 +416,8 @@ export function useKorpusBau(): KorpusBau {
         abgebrochen: vErg.aborted,
         abbruchGrund: vErg.abbruchGrund,
         gespiegelt: false,
+        erholungen: erg.erholungen.length + vErg.erholungen.length,
+        geraet: aktivesEmbeddingGeraet(),
       });
 
       if (!sauber) {
@@ -376,12 +436,19 @@ export function useKorpusBau(): KorpusBau {
       // Nur ein VOLLBAU taugt als Messung fuer die Schaetzung am Knopf: er ist
       // der Lauf, den sie vorhersagen soll, und nur er hat beide Phasen in
       // ihrer vollen Groesse gesehen. Fehlerfrei ist er hier schon.
-      if ((voll || erg.vollErzwungen) && letzterTick > ersterTick) {
+      //
+      // Und nur ein Lauf OHNE Erholung: wer unterwegs das Modell nachlaedt oder
+      // gar das Rechenwerk wechselt, misst Ladepausen und zwei verschiedene
+      // Geschwindigkeiten in einem Mittelwert — eine Zahl, die fuer keinen der
+      // beiden Zustaende gilt.
+      const erholungenGesamt = erg.erholungen.length + vErg.erholungen.length;
+      if ((voll || erg.vollErzwungen) && letzterTick > ersterTick && erholungenGesamt === 0) {
         const gemessen = berechneBauRate(
           letzterTick - ersterTick,
           eingebettetAntrag,
           eingebettetVerbund,
           new Date().toISOString(),
+          aktivesEmbeddingGeraet(),
         );
         if (gemessen) {
           await merkeBauRate(storage.idb, gemessen);
@@ -447,6 +514,7 @@ export function useKorpusBau(): KorpusBau {
     } finally {
       setLaeuft(false);
       setFortschritt(null);
+      setNachladen(null);
       abbruchRef.current = null;
       if (lockGehalten) await releaseLock(storage.idb).catch(() => undefined);
       await neuLesen();
@@ -487,6 +555,30 @@ export function useKorpusBau(): KorpusBau {
       await neuLesen();
     }
   }, [storage, profile, neuLesen]);
+
+  /**
+   * „Diesmal wieder mit der Grafikkarte."
+   *
+   * Die Festlegung entstand aus einer Messung an DIESEM Rechner — aber sie kann
+   * altern: ein Treiber-Update, ein anderer Rechner hinter derselben Sitzung,
+   * ein leererer Grafikspeicher. Ohne Rueckweg waere sie eine Einbahnstrasse,
+   * und der Nutzer saesse dauerhaft auf dem langsameren Rechenwerk.
+   *
+   * **Das Modell wird dabei sofort umgeladen**, nicht erst beim naechsten Lauf.
+   * Die Notiz allein fallen zu lassen sah in der Abnahme richtig aus und war es
+   * nicht: das geladene Modell rechnete weiter auf dem Hauptprozessor, die
+   * Karte konnte die gemessene Minutenzahl also weiter nicht zeigen — der Knopf
+   * haette ein Versprechen gegeben, das erst ein Tab-Neustart einloest. Es
+   * kostet die Ladezeit (die Oberflaeche steht dabei), aber der Nutzer hat
+   * genau das angefordert.
+   */
+  const wiederMitGrafikkarte = useCallback(async (): Promise<void> => {
+    await vergissGeraetPraeferenz(storage.idb);
+    setGeraetPraeferenz(null);
+    setBilanz(null);
+    await ladeEmbeddingNeu(storage.idb, 'webgpu');
+    await neuLesen();
+  }, [storage, neuLesen]);
 
   /**
    * Der schnelle Weg: holen statt rechnen. Räumt vorher den lokalen Cache — ein
@@ -537,8 +629,9 @@ export function useKorpusBau(): KorpusBau {
 
   return {
     bestand, befund, bilanz, rate, raumAktuell, signatur, fortschritt, laeuft, fehler,
-    spiegelungOffen,
+    spiegelungOffen, nachladen, geraetPraeferenz,
+    geraet: geraetPraeferenz?.geraet ?? bilanz?.geraet ?? null,
     nachziehenMoeglich: raumAktuell && (bestand?.zuEmbedden.length ?? 0) > 0,
-    baue, ladeVomSpeicher, spiegle, leere, abbrechen, neuLesen,
+    baue, ladeVomSpeicher, spiegle, leere, abbrechen, neuLesen, wiederMitGrafikkarte,
   };
 }

@@ -35,6 +35,15 @@ export class EmbeddingService {
   private loading = false;
   private currentModelId: string | null = null;
   /**
+   * Worauf das geladene Modell rechnet.
+   *
+   * Gebraucht, seit ein Lauf mitten drin das Rechenwerk wechseln kann
+   * ([geraet.ts](src/core/services/embedding-corpus/geraet.ts)): danach muss
+   * jeder Anzeigende die WAHRHEIT nennen koennen und nicht das, was beim
+   * Seitenaufbau moeglich schien.
+   */
+  private currentDevice: 'webgpu' | 'wasm' | null = null;
+  /**
    * Der LAUFENDE Init — damit ein zweiter Aufrufer WARTET statt sofort
    * zurueckzukehren.
    *
@@ -60,6 +69,11 @@ export class EmbeddingService {
 
   getModelId(): string | null {
     return this.currentModelId;
+  }
+
+  /** Worauf das geladene Modell rechnet — `null`, solange keines geladen ist. */
+  getDevice(): 'webgpu' | 'wasm' | null {
+    return this.currentDevice;
   }
 
   /** Meldet jede Aenderung der Bereitschaft. Rueckgabe: abmelden. */
@@ -146,6 +160,7 @@ export class EmbeddingService {
       }
 
       this.currentModelId = modelConfig.id;
+      this.currentDevice = device;
       pipelineLog.info('Embedding', `${modelConfig.label} bereit — ${device}`);
       onProgress?.({ phase: 'ready' });
     } catch (err) {
@@ -302,6 +317,7 @@ export class EmbeddingService {
     this.autoModel = null;
     this.autoTokenizer = null;
     this.currentModelId = null;
+    this.currentDevice = null;
     this.loading = false;
     pipelineLog.info('Embedding', `Entladen: ${modelName}`);
     this.melde();

@@ -20,7 +20,13 @@ import {
   FIELD_VORHABEN_ZUSAMMENFASSUNG_AST,
   FIELD_VORHABEN_ZUSAMMENFASSUNG_PDF,
 } from '../../types';
-import { ensureEmbeddingReady, embedText } from '@/core/services/embedding-corpus';
+import {
+  ensureEmbeddingReady,
+  erzeugeErholer,
+  embedMitErholung,
+  type EmbeddingGeraet,
+  type ErholungsMeldung,
+} from '@/core/services/embedding-corpus';
 import { verbundKeyOf } from '../verbund/verbund-aggregation';
 import { FEHLERSERIE_ABBRUCH, type BuildAbbruchGrund } from './embedding-corpus';
 
@@ -211,6 +217,9 @@ export interface VerbundBuildOptions {
   onProgress?: (p: VerbundBuildProgress) => void;
   signal?: AbortSignal;
   incremental?: boolean;
+  /** Siehe {@link BuildOptions} — dasselbe Nachladen, dieselbe Anzeige. */
+  onLadenBeginnt?: (geraet: EmbeddingGeraet, nummer: number) => void;
+  onErholt?: (m: ErholungsMeldung) => void;
 }
 
 export interface VerbundBuildErgebnis {
@@ -222,6 +231,8 @@ export interface VerbundBuildErgebnis {
   aborted: boolean;
   abbruchGrund?: BuildAbbruchGrund;
   ersterFehler?: string;
+  /** Jede Erholung von einem Geraeteverlust in DIESER Phase. */
+  erholungen: readonly ErholungsMeldung[];
 }
 
 /**
@@ -269,6 +280,10 @@ export async function buildVerbundEmbeddingCorpus(
   let fehlgeschlagen = 0;
   let serie = 0;
   let ersterFehler: string | undefined;
+  const erholer = erzeugeErholer(idb, {
+    onLadenBeginnt: opts.onLadenBeginnt,
+    onErholt: opts.onErholt,
+  });
 
   const ergebnis = (
     aborted: boolean,
@@ -281,6 +296,7 @@ export async function buildVerbundEmbeddingCorpus(
     aborted,
     abbruchGrund,
     ersterFehler,
+    erholungen: erholer.meldungen,
   });
 
   for (const { verbundId, tvs } of queue) {
@@ -295,7 +311,7 @@ export async function buildVerbundEmbeddingCorpus(
       continue;
     }
     try {
-      const vec = await embedText(text, 'document');
+      const vec = await embedMitErholung(text, 'document', erholer);
       await storeVerbundEmbedding(idb, verbundId, vec);
       done++;
       serie = 0;

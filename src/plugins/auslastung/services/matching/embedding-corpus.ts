@@ -17,7 +17,6 @@ import {
   listEmbeddingKeys,
   countEmbeddings,
   ensureEmbeddingReady,
-  embedText,
   aktuelleKorpusSignatur,
   ladeKorpusSignatur,
   merkeKorpusSignatur,
@@ -27,6 +26,11 @@ import {
   ladeTextHashes,
   merkeTextHashes,
   waehleZuEmbedden,
+  erzeugeErholer,
+  embedMitErholung,
+  aktivesEmbeddingGeraet,
+  type EmbeddingGeraet,
+  type ErholungsMeldung,
 } from '@/core/services/embedding-corpus';
 import { buildDescriptorsText } from '@/plugins/antraege/services/descriptor-text';
 import {
@@ -262,6 +266,11 @@ export interface BuildOptions {
   /** Programm, aus dessen Schema die Quell-Spalten aufgeloest werden. `null` =
    *  nur die fest verdrahtete Basis (siehe {@link ladeEmbeddingFeldIndex}). */
   programmId?: string | null;
+  /** Das Rechenwerk ist weggebrochen, das Modell wird nachgeladen — die
+   *  Oberflaeche steht sonst wortlos still ([erholung.ts](src/core/services/embedding-corpus/erholung.ts)). */
+  onLadenBeginnt?: (geraet: EmbeddingGeraet, nummer: number) => void;
+  /** Das Modell steht wieder. */
+  onErholt?: (m: ErholungsMeldung) => void;
 }
 
 export interface BuildErgebnis {
@@ -295,6 +304,10 @@ export interface BuildErgebnis {
   /** `true`, wenn der Lauf trotz `incremental` VOLL gebaut hat, weil der lokale
    *  Korpus aus einem anderen Vektorraum stammte (siehe unten). */
   vollErzwungen: boolean;
+  /** Jede Erholung von einem Geraeteverlust, in der Reihenfolge des Auftretens. */
+  erholungen: readonly ErholungsMeldung[];
+  /** Worauf am ENDE gerechnet wurde — kann vom Start abweichen. */
+  geraet: EmbeddingGeraet | null;
 }
 
 export type BuildAbbruchGrund = 'nutzer' | 'fehlerserie';
@@ -302,11 +315,13 @@ export type BuildAbbruchGrund = 'nutzer' | 'fehlerserie';
 /**
  * Nach so vielen Fehlschlaegen HINTEREINANDER gilt die Pipeline als tot.
  *
- * `embedText` hat keinerlei Erholung ([wrapper.ts](src/core/services/embedding-corpus/wrapper.ts)) —
- * ist das WebGPU-Device verloren oder der Tab am RAM-Limit, wirft jeder weitere
- * Aufruf sofort. Der Lauf raste dadurch in ~1 min durch 13.418 Antraege, schrieb
- * keinen einzigen Vektor und meldete am Ende „fertig". Zwanzig genuegen, um ein
- * sproedes Einzelrecord von einem toten Modell zu unterscheiden.
+ * Die zweite Verteidigungslinie, nicht die erste: einen Geraeteverlust behandelt
+ * seit v6.18 die Erholung ([erholung.ts](src/core/services/embedding-corpus/erholung.ts)),
+ * die das Modell nachlaedt und notfalls auf den Hauptprozessor wechselt. Was
+ * HIER ankommt, hat sie nicht retten koennen — dann soll der Lauf stehen
+ * bleiben, statt in ~1 min durch 13.418 Antraege zu rasen, keinen Vektor zu
+ * schreiben und am Ende „fertig" zu melden. Zwanzig genuegen, um ein sproedes
+ * Einzelrecord von einer toten Pipeline zu unterscheiden.
  */
 export const FEHLERSERIE_ABBRUCH = 20;
 
@@ -381,6 +396,10 @@ export async function buildEmbeddingCorpus(
   let ersterFehler: string | undefined;
   /** Nur die, deren Vektor in DIESEM Lauf entstanden ist — siehe `merkeTextHashes`. */
   const gestempelt = new Map<string, string>();
+  const erholer = erzeugeErholer(idb, {
+    onLadenBeginnt: opts.onLadenBeginnt,
+    onErholt: opts.onErholt,
+  });
 
   const ergebnis = (
     aborted: boolean,
@@ -396,6 +415,8 @@ export async function buildEmbeddingCorpus(
     ersterFehler,
     signaturGestempelt,
     vollErzwungen: fremderRaum,
+    erholungen: erholer.meldungen,
+    geraet: aktivesEmbeddingGeraet(),
   });
 
   for (const a of queue) {
@@ -414,7 +435,7 @@ export async function buildEmbeddingCorpus(
       continue;
     }
     try {
-      const vec = await embedText(text, 'document');
+      const vec = await embedMitErholung(text, 'document', erholer);
       await storeEmbedding(idb, a.aktenzeichen, vec);
       // Der Stempel gehoert an den Vektor, nicht an den Durchlauf: nur wo beides
       // aus demselben Text stammt, darf spaeter „unveraendert" behauptet werden.

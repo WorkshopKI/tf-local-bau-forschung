@@ -15,6 +15,7 @@ import { useStorage } from '@/core/hooks/useStorage';
 import { useSearch } from '@/core/hooks/useSearch';
 import { getModelById, DEFAULT_MODEL_ID } from '@/core/services/search/model-registry';
 import { indexAmpel, ladeIndexKennzahlen } from '@/core/services/search/indexAmpel';
+import { ladeGeraetPraeferenz } from '@/core/services/embedding-corpus';
 import { verfuegbareMetadataModelle, normalisiereMetadataLLMId } from '@/core/services/search/metadata-extractor';
 import {
   SettingsGruppe,
@@ -94,10 +95,20 @@ export function SucheIndexPanel(): React.ReactElement {
     // auch auf einem Rechner mit echtem Bestand.
     storage.idb.get<boolean>('seed-complete-v2').then(v => setSeeded(!!v));
 
-    if ('gpu' in navigator) {
-      (navigator as { gpu: { requestAdapter: () => Promise<unknown> } }).gpu
-        .requestAdapter().then(a => setHasGPU(!!a)).catch(() => setHasGPU(false));
-    }
+    // Nicht „kann dieser Rechner WebGPU", sondern „wird er es benutzen": hat
+    // sich die Grafikkarte hier schon einmal mitten im Lauf verabschiedet, gilt
+    // die Festlegung fuer den ganzen Such-Stack — sonst laedt der Indexlauf das
+    // Modell doch wieder auf ihr ([geraet.ts](src/core/services/embedding-corpus/geraet.ts)).
+    void (async () => {
+      const praeferenz = await ladeGeraetPraeferenz(storage.idb);
+      if (praeferenz?.geraet === 'wasm') { setHasGPU(false); return; }
+      if (!('gpu' in navigator)) return;
+      try {
+        const adapter = await (navigator as { gpu: { requestAdapter: () => Promise<unknown> } })
+          .gpu.requestAdapter();
+        setHasGPU(!!adapter);
+      } catch { setHasGPU(false); }
+    })();
 
     storage.idb.get<{ summary?: { passed: number; total: number } }>('eval-latest').then(r => {
       if (r?.summary && r.summary.total > 0) {
@@ -267,6 +278,7 @@ export function SucheIndexPanel(): React.ReactElement {
           <Zeile label="Datenserver" wert={fsConnected ? 'Verbunden' : 'Nicht verbunden'} />
           <Zeile label="Suche" wert={hasIndex ? 'BM25 + Vektor + Hybrid' : 'Inaktiv'} />
           <Zeile label="Modell" wert={activeModel.label} />
+          {/* Was BENUTZT wird, nicht was möglich wäre — siehe `setHasGPU` oben. */}
           <Zeile label="Backend" wert={hasGPU ? 'WebGPU' : 'CPU'} />
           <Zeile label="Metadata-KI" wert={metadataWert} />
           <Zeile

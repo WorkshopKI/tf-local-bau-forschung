@@ -25,38 +25,57 @@ import {
   type EmbeddingModelConfig,
 } from '@/core/services/search/model-registry';
 import type { IDBStore } from '@/core/services/storage/idb-store';
+import { ladeGeraetPraeferenz, type EmbeddingGeraet } from './geraet';
 
 let currentConfig: EmbeddingModelConfig | null = null;
 let initPromise: Promise<EmbeddingModelConfig> | null = null;
+
+/** Steht eine brauchbare Grafikkarte bereit? */
+async function grafikkarteVerfuegbar(): Promise<boolean> {
+  if (!('gpu' in navigator)) return false;
+  try {
+    const gpu = (navigator as Navigator & { gpu?: { requestAdapter: () => Promise<unknown> } }).gpu;
+    if (!gpu) return false;
+    return (await gpu.requestAdapter()) !== null;
+  } catch {
+    return false;
+  }
+}
 
 /**
  * Stellt sicher dass der embeddingService initialisiert ist. Wenn er
  * bereits ready ist, gibt die aktive Config zurueck. Sonst laedt das
  * Modell (idempotent via `embeddingService.init`).
  *
- * GPU/WASM-Auswahl: WebGPU wenn verfuegbar, sonst WASM. Gleiche Logik
- * wie `useSearch`.
+ * GPU/WASM-Auswahl: WebGPU wenn verfuegbar, sonst WASM — **es sei denn**,
+ * dieser Rechner hat sich seine Grafikkarte schon einmal zerlegt
+ * ([geraet.ts](./geraet.ts)). Dann rechnet der Hauptprozessor, bis der Nutzer
+ * es wieder mit der Grafikkarte versuchen will. Die Festlegung gilt fuer den
+ * ganzen Such-Stack, nicht nur fuer den Korpus-Bau: ein Rechner hat EIN
+ * Rechenwerk, und zwei Meinungen darueber waeren eine Fehlerquelle mehr.
  */
 export async function ensureEmbeddingReady(
   idb: IDBStore,
   onProgress?: (p: EmbeddingProgress) => void,
 ): Promise<EmbeddingModelConfig> {
-  if (currentConfig && embeddingService.isReady()) return currentConfig;
+  if (currentConfig && embeddingService.isReady()) {
+    // Bereit — aber auf dem richtigen Rechenwerk? Die Festlegung kann nach dem
+    // Laden entstanden sein (ein Bau, der mitten drin gewechselt hat, oder eine
+    // fruehere Sitzung). Nur diese eine Richtung erzwingt einen Neuladelauf;
+    // „lieber Grafikkarte" wird nie erzwungen.
+    const p = await ladeGeraetPraeferenz(idb);
+    if (p?.geraet === 'wasm' && embeddingService.getDevice() === 'webgpu') {
+      return ladeEmbeddingNeu(idb, 'wasm', onProgress);
+    }
+    return currentConfig;
+  }
   if (initPromise) return initPromise;
 
   initPromise = (async () => {
     const modelId = await getActiveModelId(idb);
     const config = getModelById(modelId);
-    let preferGPU = false;
-    if ('gpu' in navigator) {
-      try {
-        const gpu = (navigator as Navigator & { gpu?: { requestAdapter: () => Promise<unknown> } }).gpu;
-        if (gpu) {
-          const adapter = await gpu.requestAdapter();
-          if (adapter) preferGPU = true;
-        }
-      } catch { /* ignore */ }
-    }
+    const praeferenz = await ladeGeraetPraeferenz(idb);
+    const preferGPU = praeferenz?.geraet === 'wasm' ? false : await grafikkarteVerfuegbar();
     await embeddingService.init(config, preferGPU, onProgress);
     currentConfig = config;
     return config;
@@ -67,6 +86,33 @@ export async function ensureEmbeddingReady(
   } finally {
     initPromise = null;
   }
+}
+
+/**
+ * Laedt das Modell auf dem genannten Rechenwerk NEU — der Kern der Erholung
+ * nach einem Geraeteverlust.
+ *
+ * `destroy()` zuerst, sonst haelt `init` das bereits geladene Modell fuer
+ * ausreichend und kehrt sofort zurueck. Der verlorene WebGPU-Kontext bleibt
+ * dabei liegen; einen neuen bekommt erst die naechste Session.
+ */
+export async function ladeEmbeddingNeu(
+  idb: IDBStore,
+  geraet: EmbeddingGeraet,
+  onProgress?: (p: EmbeddingProgress) => void,
+): Promise<EmbeddingModelConfig> {
+  const modelId = await getActiveModelId(idb);
+  const config = getModelById(modelId);
+  embeddingService.destroy();
+  currentConfig = null;
+  await embeddingService.init(config, geraet === 'webgpu', onProgress);
+  currentConfig = config;
+  return config;
+}
+
+/** Worauf gerade gerechnet wird — `null`, solange kein Modell geladen ist. */
+export function aktivesEmbeddingGeraet(): EmbeddingGeraet | null {
+  return embeddingService.getDevice();
 }
 
 /** Embed-Single mit dem aktiven Modell. `ensureEmbeddingReady` MUSS vorher gelaufen sein. */
