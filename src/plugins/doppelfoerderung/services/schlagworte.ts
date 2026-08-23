@@ -77,6 +77,14 @@ export const ZU_WEITE_WOERTER: readonly string[] = [
   // oder die Methodenfamilie statt des Vorhabens.
   'Automatisierung', 'Maschinenbau', 'Medizintechnik', 'Additive Fertigung',
   'Logistik', 'Maschinelles Lernen', 'Demonstrator',
+  // Dritte Staffel: das Vokabular der Transfer- und Netzwerkmeldungen. Diese
+  // Wörter sind im Bestand SELTEN (Öffentlichkeitsarbeit 2, Multiplikatoren 2)
+  // und sehen deshalb spezifisch aus — sie sind es nicht, sie stammen aus einem
+  // anderen Diskurs. Sie beschreiben die Betriebsform eines Zentrums, nicht
+  // seinen Forschungsgegenstand, und ziehen zufällige Nachbarn heran.
+  'Öffentlichkeitsarbeit', 'Multiplikatoren', 'Wissenstransfer', 'Netzwerkmanagement',
+  'Lotsenfunktion', 'Wirkungsmessung', 'Reifegradmessung', 'Erfolgskontrolle',
+  'Qualifizierung', 'Sensibilisierung',
 ];
 
 export interface SchlagwortPrompt {
@@ -104,6 +112,15 @@ export function baueSchlagwortPrompt(
     '',
     'Regeln:',
     '- Deutsch, je ein bis zwei Wörter, Substantive in Grundform.',
+    '- DREI VERSCHIEDENE ACHSEN, in dieser Reihenfolge:',
+    '    1. das VERFAHREN oder die Methode (wie wird gearbeitet),',
+    '    2. der GEGENSTAND: Werkstoff, Bauteil, Stoff, Datenart (woran),',
+    '    3. die ANWENDUNG oder das Ziel (wofür).',
+    '  Nenne NICHT dreimal dasselbe mit anderen Worten. „Verschleissschutz" und',
+    '  „Korrosionsschutz" sind eine Achse, nicht zwei — ein Treffer auf beiden ist',
+    '  EIN Beleg, wird aber als zwei gezählt und verfälscht damit das Urteil.',
+    '  Gibt der Text zu einer Achse nichts her, nimm dafür ein weiteres Wort einer',
+    '  anderen Achse, das etwas ANDERES benennt.',
     '- FACHLICH UND SPEZIFISCH: das Verfahren, der Werkstoff, das Bauteil, die',
     '  Anwendung — das, was dieses Vorhaben von anderen unterscheidet.',
     '- Die Schlagworte werden ODER-verknüpft gesucht. Ein einziges zu weites Wort',
@@ -114,6 +131,11 @@ export function baueSchlagwortPrompt(
     '- Steht im Text nur ein solches Allerweltswort, nimm den engeren Begriff daneben',
     '  („Künstliche Intelligenz zur Fehlererkennung in Schweissnähten" → „Fehlererkennung",',
     '  „Schweissnaht"), nicht das weite Wort.',
+    '- Der Abgleich läuft gegen FuE-Vorhaben kleiner und mittlerer Unternehmen. Wähle',
+    '  Wörter, wie sie in der Kurzbeschreibung eines solchen Vorhabens stünden — nicht',
+    '  Wörter aus der Verwaltungs- oder Transfersprache. Beschreibt der Text die',
+    '  ARBEITSWEISE einer Einrichtung (Beratung, Netzwerkarbeit, Veranstaltungen),',
+    '  verschlagworte trotzdem die TECHNISCHEN Themen, um die es dabei geht.',
     '- Keine Eigennamen von Antragstellern, Instituten, Orten oder Programmen.',
     `- Mindestens ${MIN_SCHLAGWORT_LEN} Zeichen je Schlagwort.`,
     einZugRegel('der JSON-Block'),

@@ -12,7 +12,7 @@ import { FileDropZone } from '@/components/ui/FileDropZone';
 import { ToggleChip } from '@/components/ui/ToggleChip';
 import { istLeseFehler } from '@/core/status/import/xlsx-tabelle';
 import {
-  leseMeldungsListe, teileZeilen, SCHWELLE_VORGABE, type ZeilenAufteilung,
+  falteTeilvorhaben, leseMeldungsListe, teileZeilen, SCHWELLE_VORGABE, type ZeilenAufteilung,
 } from '../services/liste-lesen';
 import type { BereichsWahl, MeldungsListe, MeldungsZeile } from '../types';
 
@@ -56,6 +56,7 @@ export function ListeAufnehmen(props: ListeAufnehmenProps): React.ReactElement {
   const [fehler, setFehler] = useState<string | null>(null);
   const [schwelle, setSchwelle] = useState(SCHWELLE_VORGABE);
   const [ohneBetragMitnehmen, setOhneBetragMitnehmen] = useState(false);
+  const [falten, setFalten] = useState(true);
 
   const nimmDatei = useCallback((dateien: File[]) => {
     const datei = dateien[0];
@@ -68,10 +69,15 @@ export function ListeAufnehmen(props: ListeAufnehmenProps): React.ReactElement {
     });
   }, []);
 
-  const aufteilung: ZeilenAufteilung | null = liste ? teileZeilen(liste.zeilen, schwelle) : null;
+  // Gefaltet wird VOR der Schwelle: die Teilbeträge eines Verbunds gehören
+  // zusammen, und eine Meldung über 1,2 Mio € darf nicht in sechs Zeilen à
+  // 200.000 € unter die Schwelle fallen.
+  const gelesen = liste ? (falten ? falteTeilvorhaben(liste.zeilen) : liste.zeilen) : null;
+  const aufteilung: ZeilenAufteilung | null = gelesen ? teileZeilen(gelesen, schwelle) : null;
   const zuPruefen = aufteilung
     ? [...aufteilung.zuPruefen, ...(ohneBetragMitnehmen ? aufteilung.ohneBetrag : [])]
     : [];
+  const gefaltet = liste && gelesen ? liste.zeilen.length - gelesen.length : 0;
 
   return (
     <div className="flex w-full max-w-4xl flex-col gap-5">
@@ -109,6 +115,16 @@ export function ListeAufnehmen(props: ListeAufnehmenProps): React.ReactElement {
             <span className="pb-1.5 text-[12px] text-[var(--tf-text-tertiary)]">
               {EURO.format(schwelle)} · Blatt „{liste.blatt}" · {liste.zeilen.length} Zeilen gelesen
             </span>
+            <div className="pb-0.5">
+              <ToggleChip
+                label={gefaltet > 0
+                  ? `Teilvorhaben zusammenfassen (−${gefaltet})`
+                  : 'Teilvorhaben zusammenfassen'}
+                selected={falten}
+                onToggle={() => setFalten(v => !v)}
+                title="Zeilen mit demselben Förderkennzeichen-Stamm (01MF26003A…F) als EIN Vorhaben prüfen: ein KI-Lauf statt sechs, ein Urteil statt sechsmal desselben. Die Aufgabenbeschreibungen werden aneinandergehängt, die Beträge summiert."
+              />
+            </div>
           </div>
 
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">

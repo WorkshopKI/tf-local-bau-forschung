@@ -19,6 +19,17 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v6.24 — 2026-08
+
+### Neu
+- **Die Doppelförderungs-Prüfung sieht jetzt auch auf den Zuwendungsempfänger.** Führt dieselbe Einrichtung im ZIM ein inhaltlich nahes Vorhaben, steht es ganz oben in der Trefferliste — mit der Marke **gleicher Träger**. Das findet Paarungen, die über die Schlagworte unsichtbar bleiben, und es funktioniert auch bei Netzwerk- und Zentrumsmeldungen, deren Beschreibungen einander alle ähneln.
+- **Teilvorhaben einer Meldung werden zusammengefasst.** Sechs Zeilen desselben Vorhabens sind jetzt eine Prüfung statt sechs — das verkürzt den Lauf spürbar, und die Beträge werden zusammengezählt, sodass ein grosses Vorhaben nicht mehr in kleinen Teilen unter die Betragsschwelle rutscht. Abschaltbar beim Einlesen.
+
+### Verbesserungen
+- **Neues Urteil „nicht beurteilbar".** Kommt keines der drei Schlagworte im Bestand vor, sagt die Prüfung das — statt ein „keine Übereinstimmung" auszugeben, hinter dem gar keine Prüfung steckt.
+- **Zu allgemeine Schlagworte zählen nicht mehr mit.** Wörter, die über zwei Prozent aller verglichenen Vorhaben treffen, tragen die Marke **zählt nicht** und können ein Urteil nicht mehr allein herbeiführen.
+- **Die Seite bleibt benutzbar, wenn die interne KI nicht erreichbar ist.** Alle Meldungen bekommen ihre Karte, und die Schlagworte lassen sich über „ändern" von Hand eintragen; die Suche läuft dann sofort los.
+
 ## v6.23 — 2026-08
 
 ### Verbesserungen

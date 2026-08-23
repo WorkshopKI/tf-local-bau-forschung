@@ -35,9 +35,11 @@ const ERGEBNIS_TEXT = {
 } as const;
 
 const GRUND_TEXT: Record<ZeilenErgebnis['grund'], string> = {
+  traeger: 'gleicher Zuwendungsempfänger + inhaltliche Nähe',
   schlagworte: 'Schlagworte',
   aehnlichkeit: 'inhaltliche Ähnlichkeit',
   keine: '',
+  unklar: 'nicht beurteilbar (kein Schlagwort im Bestand)',
 };
 
 function meldungsSpalten(e: ZeilenErgebnis): (string | number)[] {

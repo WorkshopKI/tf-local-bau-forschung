@@ -52,6 +52,13 @@ const PFLICHT_ALIASE: readonly (readonly string[])[] = [
 const ALIAS_FKZ = ['FKZ', 'Förderkennzeichen', 'Foerderkennzeichen'];
 const ALIAS_BETRAG = PFLICHT_ALIASE[2] ?? [];
 const ALIAS_ZE = ['Zuwendungsempfänger/Auftragnehmer', 'Zuwendungsempfänger', 'Zuwendungsempfaenger'];
+/**
+ * Die Gattungs-Spalte der Zuarbeit.
+ *
+ * Optional: fehlt sie, bleibt `lpSystematik` leer und nichts hängt daran — der
+ * Code wird geführt und angezeigt, aber nicht ausgewertet.
+ */
+const ALIAS_LP = ['LP-Systematik', 'LP-Systematik-Code', 'Leistungsplansystematik'];
 const ALIAS_VON = ['Laufzeit von'];
 const ALIAS_BIS = ['Laufzeit bis'];
 
@@ -112,6 +119,7 @@ function baueZeilen(t: XlsxTabelle): MeldungsZeile[] {
   const iAufgabe = spalte(t.kopf, ['Aufgabenbeschreibung']);
   const iBetrag = spalte(t.kopf, ALIAS_BETRAG);
   const iZe = spalte(t.kopf, ALIAS_ZE);
+  const iLp = spalte(t.kopf, ALIAS_LP);
   const iVon = spalte(t.kopf, ALIAS_VON);
   const iBis = spalte(t.kopf, ALIAS_BIS);
 
@@ -128,9 +136,71 @@ function baueZeilen(t: XlsxTabelle): MeldungsZeile[] {
       betrag: parseGeldbetrag(betragRoh),
       betragRoh,
       zuwendungsempfaenger: zelle(z, iZe),
+      lpSystematik: zelle(z, iLp),
       laufzeit: laufzeitText(zelle(z, iVon), zelle(z, iBis)),
+      weitereFkz: [],
     };
   });
+}
+
+/**
+ * Der Verbund-Stamm eines Förderkennzeichens: alles bis vor den Teilvorhaben-
+ * Suffix.
+ *
+ * Die Zuarbeit führt Teilvorhaben als eigene Zeilen (`01MF26003A` … `01MF26003F`
+ * sind sechs Zeilen EINES Zentrums), und jede Zeile kostet einen eigenen
+ * KI-Lauf und druckt am Ende dasselbe Urteil noch einmal. An der 72er-Liste
+ * werden aus 45 zu prüfenden Zeilen so **26** Vorhaben.
+ *
+ * Erkannt wird nur der eindeutige Fall: ein bis zwei Buchstaben am Ende einer
+ * ansonsten ziffernendenden Kennung. `16ME1257K` fällt darunter, `16ME1258`
+ * nicht — die beiden bleiben getrennt, obwohl sie inhaltlich zusammengehören.
+ * Das ist Absicht: geraten wird hier nichts.
+ */
+export function verbundStamm(fkz: string): string {
+  const m = /^(.*\d)([A-Z]{1,2})$/.exec(fkz.trim());
+  return m ? m[1]! : fkz.trim();
+}
+
+/**
+ * Teilvorhaben desselben Verbunds zu einer Zeile falten.
+ *
+ * Die Aufgabenbeschreibungen werden aneinandergehängt, nicht ersetzt: die
+ * Schlagworte sollen das ganze Vorhaben treffen, nicht sein erstes Teilvorhaben.
+ * Der Betrag wird summiert — die Schwelle fragt nach dem Vorhaben.
+ *
+ * Zeilen ohne FKZ werden **nicht** gefaltet; ohne Kennung gibt es keinen Beleg
+ * dafür, dass sie zusammengehören.
+ */
+export function falteTeilvorhaben(zeilen: readonly MeldungsZeile[]): MeldungsZeile[] {
+  const gruppen = new Map<string, MeldungsZeile[]>();
+  const einzeln: MeldungsZeile[] = [];
+  for (const z of zeilen) {
+    if (z.fkz.trim().length === 0) { einzeln.push(z); continue; }
+    const stamm = verbundStamm(z.fkz);
+    const bisher = gruppen.get(stamm);
+    if (bisher) bisher.push(z);
+    else gruppen.set(stamm, [z]);
+  }
+
+  const out: MeldungsZeile[] = [];
+  for (const teile of gruppen.values()) {
+    const erste = teile[0]!;
+    if (teile.length === 1) { out.push(erste); continue; }
+    const betraege = teile.map(t => t.betrag).filter((b): b is number => b !== null);
+    out.push({
+      ...erste,
+      aufgabenbeschreibung: teile.map(t => t.aufgabenbeschreibung).filter(s => s.length > 0).join('\n\n'),
+      // Alle Teilbeträge lesbar → Summe. Fehlt einer, bleibt der Betrag
+      // unlesbar: eine Teilsumme sähe aus wie das Ganze.
+      betrag: betraege.length === teile.length
+        ? betraege.reduce((a, b) => a + b, 0)
+        : null,
+      betragRoh: teile.map(t => t.betragRoh).join(' + '),
+      weitereFkz: teile.slice(1).map(t => t.fkz),
+    });
+  }
+  return [...out, ...einzeln].sort((a, b) => a.zeilenNr - b.zeilenNr);
 }
 
 /**

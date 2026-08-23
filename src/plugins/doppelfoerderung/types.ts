@@ -7,6 +7,9 @@
  * behält, was die vorige geliefert hat — die Kette ist nachvollziehbar, nicht
  * nur ihr Ende.
  */
+import type { TraegerBezug } from './services/traeger';
+
+export type { TraegerBezug };
 
 /** Eine Zeile der gemeldeten Frühkoordinierungs-Liste. */
 export interface MeldungsZeile {
@@ -27,10 +30,32 @@ export interface MeldungsZeile {
   betrag: number | null;
   /** Rohtext der Betragszelle — steht in der Anzeige, wenn `betrag` null ist. */
   betragRoh: string;
-  /** Zuwendungsempfänger / Auftragnehmer, rein zur Anzeige. */
+  /**
+   * Zuwendungsempfänger / Auftragnehmer — **Beleg, nicht nur Anzeige**.
+   *
+   * Trägt die Träger-Achse ([traeger.ts](./services/traeger.ts)): dieselbe
+   * Einrichtung hier und im Bestand ist die einzige der drei Achsen, die eine
+   * Tatsache feststellt statt Nähe zu schätzen. Bei Netzwerk- und
+   * Zentrums-Meldungen steht hier die Netzwerkmanagement-Einrichtung.
+   */
   zuwendungsempfaenger: string;
+  /**
+   * LP-Systematik-Code der Zuarbeit — die Gattung, die die Liste selbst nennt.
+   *
+   * An der 72er-Liste trägt `GE2317` exakt die 22 Zentrums-Meldungen. Der Code
+   * wird **nicht ausgewertet**, nur geführt und angezeigt: er ist Fremddaten aus
+   * einem anderen Haus, und was seine Werte bedeuten, steht nicht in dieser App.
+   */
+  lpSystematik: string;
   /** Laufzeit als „von – bis", rein zur Anzeige. Leer, wenn die Datei keine führt. */
   laufzeit: string;
+  /**
+   * Die weiteren Zeilen desselben Verbunds, wenn Teilvorhaben gefaltet wurden.
+   *
+   * Leer bei ungefalteten Zeilen. Die Faltung spart KI-Läufe (45 Meldungen der
+   * Beispielliste sind 26 Vorhaben) und druckt dasselbe Urteil nicht sechsmal.
+   */
+  weitereFkz: readonly string[];
 }
 
 /** Was `leseMeldungsListe` aus einer Datei macht. */
@@ -41,8 +66,15 @@ export interface MeldungsListe {
   zeilen: readonly MeldungsZeile[];
 }
 
-/** Welche Stufe einen Antrag gefunden hat. */
-export type TrefferQuelle = 'wortlaut' | 'aehnlichkeit' | 'beide';
+/**
+ * Welche Stufen einen Antrag gefunden haben.
+ *
+ * `beide` meint Wortlaut **und** Ähnlichkeit; der Träger-Bezug steht daneben in
+ * `TrefferBefund.traeger`, weil er keine Fund-Stufe ist, sondern eine
+ * Eigenschaft des Fundes — er kann jede der beiden Stufen begleiten oder allein
+ * stehen.
+ */
+export type TrefferQuelle = 'wortlaut' | 'aehnlichkeit' | 'beide' | 'traeger';
 
 /** Ein gefundenes ZIM-Vorhaben samt der Belege, die es getragen haben. */
 export interface TrefferBefund {
@@ -58,8 +90,22 @@ export interface TrefferBefund {
   kurzbeschreibung: string;
   /** Welche der Schlagworte dieser Zeile wörtlich vorkamen. */
   getroffeneWorte: readonly string[];
-  /** Länge von `getroffeneWorte` — die Zahl, gegen die die Schwelle prüft. */
+  /**
+   * Die Zahl, gegen die die Schwelle prüft — **ohne** die zu weiten Schlagworte.
+   *
+   * Nicht `getroffeneWorte.length`: ein Wort, das ein Fünftel des Bereichs
+   * trifft („Automatisierung", 852 von 4.327), belegt nichts und zählt deshalb
+   * nicht mit (`WORT_ZAEHLT_NICHT_ANTEIL`). Ohne diese Trennung bevorzugt das
+   * Urteil systematisch die weiten Trios — an der 72er-Liste die häufigste
+   * Fehlerquelle der Wortlaut-Achse.
+   */
   abdeckung: number;
+  /** Alle getroffenen Schlagworte gezählt, auch die zu weiten — für die Anzeige. */
+  abdeckungRoh: number;
+  /** Führt dieser Antrag denselben Zuwendungsempfänger wie die Meldung? */
+  traeger: TraegerBezug | null;
+  /** `VB_PHASE` des Antrags (1/2 = Netzwerk, 3 = FuE, 5 = Studie); `null` = unbekannt. */
+  vbPhase: number | null;
   /** Kosinus-Ähnlichkeit der Ähnlichkeitsstufe; `null` = sie fand ihn nicht. */
   aehnlichkeit: number | null;
   quelle: TrefferQuelle;
@@ -70,14 +116,36 @@ export interface TrefferBefund {
   antragsteller: string;
 }
 
-/** Warum eine Zeile als Übereinstimmung gilt. */
-export type UrteilGrund = 'schlagworte' | 'aehnlichkeit' | 'keine';
+/**
+ * Warum eine Zeile so beurteilt wurde.
+ *
+ * `unklar` ist **kein Nein**: es steht für „die Wortlaut-Achse konnte hier
+ * nichts sagen", weil kein einziges Schlagwort im Bereich vorkam. An der
+ * 72er-Liste traf das fünf Meldungen; drei davon lagen mit der Ähnlichkeit
+ * knapp unter der Schwelle. Sie als „keine Übereinstimmung" auszugeben behauptet
+ * eine Prüfung, die nicht stattgefunden hat.
+ */
+export type UrteilGrund = 'traeger' | 'schlagworte' | 'aehnlichkeit' | 'keine' | 'unklar';
+
+/** Wie viele Anträge des Bereichs ein Schlagwort wörtlich trifft. */
+export interface SchlagwortTreffer {
+  wort: string;
+  treffer: number;
+}
 
 /** Das Ergebnis einer Zeile: Schlagworte, Befunde, Urteil. */
 export interface ZeilenErgebnis {
   zeile: MeldungsZeile;
   /** Die drei Schlagworte — von der KI vorgeschlagen, vom Nutzer änderbar. */
   schlagworte: readonly string[];
+  /**
+   * Je Schlagwort seine Trefferzahl im Bereich.
+   *
+   * Steht neben `schlagworte`, weil die Anzeige sie an jedem Chip braucht und
+   * das Urteil sie zum Aussortieren der zu weiten Wörter — beides ohne einen
+   * zweiten Lauf über den Korpus.
+   */
+  schlagwortTreffer: readonly SchlagwortTreffer[];
   /** Alle Befunde, sortiert: Abdeckung absteigend, dann Ähnlichkeit. */
   befunde: readonly TrefferBefund[];
   uebereinstimmung: boolean;

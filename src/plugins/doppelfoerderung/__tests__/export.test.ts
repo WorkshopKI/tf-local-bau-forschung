@@ -12,7 +12,8 @@ import type { MeldungsZeile, TrefferBefund, ZeilenErgebnis } from '@/plugins/dop
 function zeile(nr: number, fkz: string): MeldungsZeile {
   return {
     zeilenNr: nr, fkz, thema: `Thema ${nr}`, aufgabenbeschreibung: 'Text',
-    betrag: 1_850_000, betragRoh: '1850000', zuwendungsempfaenger: 'Hochschule', laufzeit: '',
+    betrag: 1_850_000, betragRoh: '1850000', zuwendungsempfaenger: 'Hochschule',
+    lpSystematik: 'QD1011', laufzeit: '', weitereFkz: [],
   };
 }
 
@@ -20,24 +21,27 @@ function befund(akz: string, abdeckung: number): TrefferBefund {
   return {
     aktenzeichen: akz, verbundId: `VB-${akz}`, verbundTitel: `Verbund ${akz}`,
     titel: `TV ${akz}`, kurzbeschreibung: 'Kurzfassung', getroffeneWorte: ['Laser'],
-    abdeckung, aehnlichkeit: 0.812345, quelle: 'beide',
+    abdeckung, abdeckungRoh: abdeckung, aehnlichkeit: 0.812345,
+    traeger: null, vbPhase: 3, quelle: 'beide',
     status: 'bewilligt', antragsdatum: '2024-01-01', antragsteller: 'GmbH',
   };
 }
 
 const MIT_TREFFERN: ZeilenErgebnis = {
   zeile: zeile(2, 'A1'), schlagworte: ['Laser', 'Naht', 'Blech'],
+  schlagwortTreffer: [{ wort: 'Laser', treffer: 4 }],
   befunde: [befund('16KN1', 3), befund('16KN2', 2)],
   uebereinstimmung: true, grund: 'schlagworte',
 };
 
 const OHNE_TREFFER: ZeilenErgebnis = {
   zeile: zeile(3, 'A2'), schlagworte: ['Mikroalge', 'Bioreaktor', 'Ernte'],
+  schlagwortTreffer: [{ wort: 'Mikroalge', treffer: 0 }],
   befunde: [], uebereinstimmung: false, grund: 'keine',
 };
 
 const GESCHEITERT: ZeilenErgebnis = {
-  zeile: zeile(4, 'A3'), schlagworte: [], befunde: [],
+  zeile: zeile(4, 'A3'), schlagworte: [], schlagwortTreffer: [], befunde: [],
   uebereinstimmung: false, grund: 'keine', fehler: 'Die interne KI ist nicht verbunden.',
 };
 

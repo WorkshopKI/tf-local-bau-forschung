@@ -13,8 +13,8 @@
  * allein an „Automatisierung" (852 Vorhaben) hängt, wie ein Fund.
  */
 import { useState } from 'react';
-import { AlertTriangle, Check, ChevronDown, ChevronRight, Pencil } from 'lucide-react';
-import { istZuWeit } from '../services/abgleich';
+import { AlertTriangle, Check, ChevronDown, ChevronRight, HelpCircle, Pencil } from 'lucide-react';
+import { istZuWeit, zaehltNicht } from '../services/abgleich';
 import { TrefferListe } from './TrefferListe';
 import type { ZeilenErgebnis } from '../types';
 
@@ -28,6 +28,15 @@ export interface ErgebnisTabelleProps {
 const EURO = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
 const PROZENT = new Intl.NumberFormat('de-DE', { style: 'percent', maximumFractionDigits: 1 });
 
+/** Was das Urteil ausgelöst hat — als Hilfetext an der Marke. */
+const GRUND_HILFE: Record<ZeilenErgebnis['grund'], string | undefined> = {
+  traeger: 'Derselbe Zuwendungsempfänger führt im Betrachtungsbereich ein inhaltlich nahes Vorhaben — der belastbarste der drei Belege.',
+  schlagworte: undefined,
+  aehnlichkeit: 'Kein Schlagwort traf oft genug — ausgelöst hat die inhaltliche Ähnlichkeit.',
+  keine: undefined,
+  unklar: undefined,
+};
+
 function UrteilsMarke(props: { e: ZeilenErgebnis }): React.ReactElement {
   const { e } = props;
   if (e.fehler) {
@@ -40,6 +49,20 @@ function UrteilsMarke(props: { e: ZeilenErgebnis }): React.ReactElement {
       </span>
     );
   }
+  // „nicht beurteilbar" ist weder ja noch nein: kein einziges Schlagwort kam im
+  // Bestand vor, die Wortlaut-Achse hat also gar nichts geprüft. Ein „keine
+  // Übereinstimmung" behauptete hier eine Prüfung, die nicht stattfand.
+  if (e.grund === 'unklar') {
+    return (
+      <span
+        className="inline-flex shrink-0 items-center gap-1 rounded-[6px] px-2 py-0.5 text-[11.5px] font-medium"
+        style={{ background: 'var(--tf-bg-secondary)', color: 'var(--tf-text-secondary)' }}
+        title="Keines der drei Schlagworte kommt im Betrachtungsbereich vor — die Wortlaut-Stufe konnte zu dieser Meldung nichts sagen. Formulieren Sie die Schlagworte um oder sehen Sie die Trefferliste durch."
+      >
+        <HelpCircle size={12} /> nicht beurteilbar
+      </span>
+    );
+  }
   const ja = e.uebereinstimmung;
   return (
     <span
@@ -48,13 +71,13 @@ function UrteilsMarke(props: { e: ZeilenErgebnis }): React.ReactElement {
         background: ja ? 'var(--tf-warn-bg, #fef3c7)' : 'var(--tf-bg-secondary)',
         color: ja ? 'var(--tf-warn-text, #92400e)' : 'var(--tf-text-secondary)',
       }}
-      title={e.grund === 'aehnlichkeit'
-        ? 'Kein Schlagwort traf oft genug — ausgelöst hat die inhaltliche Ähnlichkeit.'
-        : undefined}
+      title={GRUND_HILFE[e.grund]}
     >
       {ja ? <AlertTriangle size={12} /> : <Check size={12} />}
       {ja ? 'Übereinstimmung' : 'keine Übereinstimmung'}
-      {ja && e.grund === 'aehnlichkeit' && <span className="font-normal">(inhaltlich)</span>}
+      {ja && e.grund !== 'schlagworte' && (
+        <span className="font-normal">({e.grund === 'traeger' ? 'gleicher Träger' : 'inhaltlich'})</span>
+      )}
     </span>
   );
 }
@@ -102,8 +125,12 @@ function SchlagwortChips(props: {
   return (
     <div className="flex flex-wrap items-center gap-1.5">
       {e.schlagworte.map(w => {
-        const treffer = e.befunde.filter(b => b.getroffeneWorte.includes(w)).length;
+        // Die Trefferzahl kommt aus der Wortlaut-Stufe selbst, nicht aus den
+        // Befunden: dort stehen auch Vorhaben, die NUR die Ähnlichkeit oder der
+        // Träger beigesteuert hat — sie mitzuzählen erfände Wortlaut-Treffer.
+        const treffer = e.schlagwortTreffer.find(t => t.wort === w)?.treffer ?? 0;
         const zuWeit = istZuWeit(treffer, bereichsGroesse);
+        const stumm = zaehltNicht(treffer, bereichsGroesse);
         const anteil = bereichsGroesse ? ` (${PROZENT.format(treffer / bereichsGroesse)})` : '';
         return (
           <span
@@ -111,14 +138,14 @@ function SchlagwortChips(props: {
             className="inline-flex items-center gap-1.5 rounded-[6px] px-2 py-0.5 text-[12px]"
             style={{ background: 'var(--tf-bg-secondary)', color: 'var(--tf-text)' }}
             title={zuWeit
-              ? `„${w}" kommt in ${treffer} Vorhaben des Betrachtungsbereichs vor${anteil} — zu viele, um noch etwas zu unterscheiden. Ersetzen Sie es durch den engeren Begriff daneben.`
+              ? `„${w}" kommt in ${treffer} Vorhaben des Betrachtungsbereichs vor${anteil} — zu viele, um noch etwas zu unterscheiden.${stumm ? ' Es zählt deshalb nicht zur Abdeckung.' : ''} Ersetzen Sie es durch den engeren Begriff daneben.`
               : `„${w}" kommt in ${treffer} Vorhaben des Betrachtungsbereichs vor${anteil}`}
           >
             {w}
             <span className="tabular-nums text-[11px] text-[var(--tf-text-tertiary)]">{treffer}</span>
             {zuWeit && (
               <span className="text-[11px] font-medium" style={{ color: 'var(--tf-warn-text, #92400e)' }}>
-                zu weit
+                {stumm ? 'zählt nicht' : 'zu weit'}
               </span>
             )}
           </span>
@@ -165,9 +192,12 @@ function ErgebnisKarte(props: ErgebnisTabelleProps & { e: ZeilenErgebnis }): Rea
         </div>
       </div>
 
-      {e.fehler
-        ? <p className="text-[12.5px] text-[var(--tf-text-secondary)]">{e.fehler}</p>
-        : <SchlagwortChips e={e} bereichsGroesse={bereichsGroesse} onSchlagworte={onSchlagworte} />}
+      {/* Der Vermerk steht ÜBER den Chips, nicht an ihrer Stelle. Eine Zeile,
+          deren KI-Lauf scheiterte, ist genau die Zeile, in der Schlagworte von
+          Hand nachgetragen werden müssen — sie ohne Eingabefeld zu zeigen
+          machte die Seite bei nicht erreichbarer KI unbenutzbar. */}
+      {e.fehler && <p className="text-[12.5px] text-[var(--tf-text-secondary)]">{e.fehler}</p>}
+      <SchlagwortChips e={e} bereichsGroesse={bereichsGroesse} onSchlagworte={onSchlagworte} />
 
       {!e.fehler && (
         <>

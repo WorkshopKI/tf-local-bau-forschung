@@ -43,7 +43,10 @@ import type { AntragTextEntry } from '@/plugins/antraege/services/search-corpus'
 import {
   searchAntraegeSubstring, searchAntraegeVector,
 } from '@/plugins/antraege/services/antraege-search-service';
-import type { TrefferBefund, TrefferQuelle, UrteilGrund } from '../types';
+import type {
+  SchlagwortTreffer, TraegerBezug, TrefferBefund, TrefferQuelle, UrteilGrund,
+} from '../types';
+import { TRAEGER_NAEHE_SCHWELLE, type TraegerIndex } from './traeger';
 
 /**
  * Ab wie vielen Schlagworten ein Treffer als Übereinstimmung gilt — Vorbelegung.
@@ -116,10 +119,33 @@ export const BEFUNDE_SICHTBAR = 10;
  */
 export const WORT_ZU_WEIT_ANTEIL = 0.01;
 
+/**
+ * Ab welchem Anteil ein Schlagwort gar nicht mehr zur Abdeckung zählt.
+ *
+ * Zwei Prozent, und damit bewusst **über** der Marke: die Marke beschriftet,
+ * diese Schwelle greift ein, und einzugreifen verlangt den grösseren Abstand.
+ * An der 72er-Liste liegen darüber genau die Wörter, die eine Branche nennen —
+ * Automatisierung 19,7 %, Maschinenbau 15,5 %, Medizintechnik 8,2 %, Additive
+ * Fertigung 7,9 %, Logistik 2,4 %. Direkt darunter stehen Begriffe, die eine
+ * Sache benennen und deshalb weiter zählen sollen: Maschinelles Lernen 2,0 %,
+ * Demonstrator 1,9 %, Kreislaufwirtschaft 1,8 %, Robotik 1,1 %.
+ *
+ * Wirkung an derselben Liste: die Zeilen, deren „Übereinstimmung" allein an
+ * einem Sammelbegriff hing (7 · 17 · 55), verlieren ihre Wortlaut-Begründung;
+ * die Zeilen mit engen Treffern behalten ihre.
+ */
+export const WORT_ZAEHLT_NICHT_ANTEIL = 0.02;
+
 /** Trägt dieses Schlagwort so viele Treffer, dass es nichts mehr unterscheidet? */
 export function istZuWeit(treffer: number, bereichsGroesse: number | null): boolean {
   if (!bereichsGroesse) return false;
   return treffer / bereichsGroesse >= WORT_ZU_WEIT_ANTEIL;
+}
+
+/** Ist das Schlagwort so weit, dass es nicht einmal mehr mitgezählt wird? */
+export function zaehltNicht(treffer: number, bereichsGroesse: number | null): boolean {
+  if (!bereichsGroesse) return false;
+  return treffer / bereichsGroesse >= WORT_ZAEHLT_NICHT_ANTEIL;
 }
 
 /** Was ein Abgleich braucht, um überhaupt laufen zu können. */
@@ -130,17 +156,32 @@ export interface AbgleichKontext {
   listeNachAkz: ReadonlyMap<string, AntragListItem>;
   /** Alle Embeddings; leer = Stufe B entfällt. */
   embeddings: Map<string, number[]>;
+  /** Trägernamen des Bereichs; fehlt = Träger-Achse entfällt. */
+  traegerIndex?: TraegerIndex;
+}
+
+/** Was die Wortlaut-Stufe herausgefunden hat. */
+export interface WortlautErgebnis {
+  /** Je Aktenzeichen die Schlagworte, die darin wörtlich vorkamen. */
+  proAktenzeichen: Map<string, string[]>;
+  /** Je Schlagwort, wie viele Anträge des Bereichs es trifft. */
+  treffer: SchlagwortTreffer[];
 }
 
 /**
  * Stufe A: je Schlagwort einmal suchen und zählen, wie viele Schlagworte ein
  * Aktenzeichen tragen. Rein bis auf den Suchaufruf, synchron.
+ *
+ * Liefert die Trefferzahl **je Schlagwort** mit, weil sowohl die Anzeige (Marke
+ * „zu weit") als auch das Urteil (zu weite Wörter zählen nicht) sie brauchen —
+ * und ein zweiter Lauf über den Korpus nur dieselbe Zahl noch einmal kostete.
  */
 export function wortlautAbdeckung(
   schlagworte: readonly string[],
   korpus: Map<string, AntragTextEntry>,
-): Map<string, string[]> {
+): WortlautErgebnis {
   const out = new Map<string, string[]>();
+  const treffer: SchlagwortTreffer[] = [];
   for (const wort of schlagworte) {
     if (wort.trim().length === 0) continue;
     // `stammSuche` an, damit „Beschichtung" auch „Beschichtungen" findet — dieselbe
@@ -158,19 +199,22 @@ export function wortlautAbdeckung(
     //   „Digitalisierung"         oder 177 · und 177 (einwortig — kein Unterschied)
     // `wortfolge` wäre die dritte Möglichkeit und ist zu streng: sie verlangt die
     // Wörter nebeneinander und verlöre „Transformation der digitalen Prozesse".
-    for (const akz of searchAntraegeSubstring(wort, korpus, { verknuepfung: 'und', stammSuche: true })) {
+    const gefunden = searchAntraegeSubstring(wort, korpus, { verknuepfung: 'und', stammSuche: true });
+    treffer.push({ wort, treffer: gefunden.length });
+    for (const akz of gefunden) {
       const bisher = out.get(akz);
       if (bisher) bisher.push(wort);
       else out.set(akz, [wort]);
     }
   }
-  return out;
+  return { proAktenzeichen: out, treffer };
 }
 
 /** Aus welcher Stufe (oder aus beiden) ein Befund stammt. */
 function quelleAus(hatWortlaut: boolean, hatVektor: boolean): TrefferQuelle {
   if (hatWortlaut && hatVektor) return 'beide';
-  return hatWortlaut ? 'wortlaut' : 'aehnlichkeit';
+  if (hatWortlaut) return 'wortlaut';
+  return hatVektor ? 'aehnlichkeit' : 'traeger';
 }
 
 /** Einen Befund aus Korpus- und Stammdaten zusammensetzen. */
@@ -179,6 +223,8 @@ function baueBefund(
   getroffeneWorte: readonly string[],
   aehnlichkeit: number | null,
   ctx: AbgleichKontext,
+  zuWeiteWorte: ReadonlySet<string>,
+  traeger: TraegerBezug | null,
 ): TrefferBefund | null {
   const eintrag = ctx.korpus.get(aktenzeichen);
   // Kein Korpus-Eintrag heisst: ausserhalb des Betrachtungsbereichs. Die
@@ -193,13 +239,24 @@ function baueBefund(
     titel: eintrag.tv,
     kurzbeschreibung: eintrag.abstract,
     getroffeneWorte: [...getroffeneWorte],
-    abdeckung: getroffeneWorte.length,
+    abdeckung: getroffeneWorte.filter(w => !zuWeiteWorte.has(w)).length,
+    abdeckungRoh: getroffeneWorte.length,
     aehnlichkeit,
+    traeger,
+    vbPhase: typeof item?.vb_phase === 'number' ? item.vb_phase : null,
     quelle: quelleAus(getroffeneWorte.length > 0, aehnlichkeit !== null),
     status: item?.status ?? '',
     antragsdatum: item?.antragsdatum ?? '',
     antragsteller: item?.antragsteller ?? '',
   };
+}
+
+/** Die Schlagworte, die für die Abdeckung nicht mehr zählen. */
+export function zuWeiteSchlagworte(
+  treffer: readonly SchlagwortTreffer[],
+  bereichsGroesse: number | null,
+): Set<string> {
+  return new Set(treffer.filter(t => zaehltNicht(t.treffer, bereichsGroesse)).map(t => t.wort));
 }
 
 /**
@@ -213,15 +270,26 @@ export function vereineBefunde(
   wortlaut: ReadonlyMap<string, string[]>,
   vektor: ReadonlyMap<string, number>,
   ctx: AbgleichKontext,
+  zuWeiteWorte: ReadonlySet<string> = new Set(),
+  traeger: ReadonlyMap<string, TraegerBezug> = new Map(),
 ): TrefferBefund[] {
-  const akzListe = new Set<string>([...wortlaut.keys(), ...vektor.keys()]);
+  // Die Träger-Menge geht MIT in die Vereinigung: ein Vorhaben desselben Hauses
+  // gehört in die Liste, auch wenn weder ein Schlagwort noch die Einbettung es
+  // gefunden hat — es ist der einzige Beleg, der keine Schätzung ist.
+  const akzListe = new Set<string>([...wortlaut.keys(), ...vektor.keys(), ...traeger.keys()]);
   const out: TrefferBefund[] = [];
   for (const akz of akzListe) {
-    const befund = baueBefund(akz, wortlaut.get(akz) ?? [], vektor.get(akz) ?? null, ctx);
+    const befund = baueBefund(
+      akz, wortlaut.get(akz) ?? [], vektor.get(akz) ?? null, ctx,
+      zuWeiteWorte, traeger.get(akz) ?? null,
+    );
     if (befund) out.push(befund);
   }
   out.sort((a, b) => (
-    b.abdeckung - a.abdeckung
+    // Träger zuerst: derselbe Zuwendungsempfänger ist die einzige Tatsache in
+    // dieser Liste, alles andere ist gemessene Nähe.
+    Number(b.traeger !== null) - Number(a.traeger !== null)
+    || b.abdeckung - a.abdeckung
     || (b.aehnlichkeit ?? 0) - (a.aehnlichkeit ?? 0)
     || a.aktenzeichen.localeCompare(b.aktenzeichen)
   ));
@@ -236,22 +304,36 @@ export interface Urteil {
 /**
  * Das Urteil einer Zeile.
  *
- * Die Schlagwort-Achse hat Vorrang vor der Ähnlichkeit: sie ist die belegbare
- * von beiden — der Nutzer kann nachlesen, welches Wort wo stand. Löst nur die
- * Ähnlichkeit aus, sagt das Badge auch das, statt beide Wege gleich zu benennen.
+ * **Reihenfolge nach Beweiskraft, nicht nach Rechenweg.** Der Träger-Bezug
+ * steht vorn, weil er als einziger eine Tatsache feststellt (dieselbe
+ * Einrichtung hier wie dort) statt Nähe zu schätzen; er braucht dafür eine
+ * inhaltliche Mindestnähe, sonst träfe ein Haus mit 88 Vorhaben immer zu. Dann
+ * die Schlagworte — nachlesbar, welches Wort wo stand. Zuletzt die reine
+ * Ähnlichkeit, die keinen Beleg zum Vorzeigen hat.
+ *
+ * **`unklar` statt „keine Übereinstimmung"**, wenn kein einziges Schlagwort im
+ * Bereich vorkam: dann hat die Wortlaut-Achse nichts geprüft, und ein Nein wäre
+ * eine Behauptung. An der 72er-Liste betraf das fünf Meldungen.
  */
 export function faelleUrteil(
   befunde: readonly TrefferBefund[],
   schwelle: number,
   aehnlichkeitSchwelle = AEHNLICHKEIT_SCHWELLE,
+  schlagwortTreffer: readonly SchlagwortTreffer[] = [],
 ): Urteil {
+  const traegerNah = befunde.some(
+    b => b.traeger !== null && (b.aehnlichkeit ?? 0) >= TRAEGER_NAEHE_SCHWELLE,
+  );
+  if (traegerNah) return { uebereinstimmung: true, grund: 'traeger' };
   if (befunde.some(b => b.abdeckung >= schwelle)) {
     return { uebereinstimmung: true, grund: 'schlagworte' };
   }
   if (befunde.some(b => (b.aehnlichkeit ?? 0) >= aehnlichkeitSchwelle)) {
     return { uebereinstimmung: true, grund: 'aehnlichkeit' };
   }
-  return { uebereinstimmung: false, grund: 'keine' };
+  const wortlautStumm = schlagwortTreffer.length > 0
+    && schlagwortTreffer.every(t => t.treffer === 0);
+  return { uebereinstimmung: false, grund: wortlautStumm ? 'unklar' : 'keine' };
 }
 
 /**

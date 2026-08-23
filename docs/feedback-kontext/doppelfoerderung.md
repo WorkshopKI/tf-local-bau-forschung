@@ -12,16 +12,31 @@ Kein Eintrag in der Navigation. Der Weg führt über das **⋯-Menü im Kopf der
 
 Drei Phasen auf einer Seite.
 
-- **Aufnehmen** — Drop-Zone für die .xlsx, Feld für die Betragsschwelle (Vorbelegung 300.000 €), darunter die Vorschau in **drei** Gruppen: wird geprüft / unter der Schwelle / Betrag nicht lesbar. Die dritte Gruppe ist zuschaltbar. Darunter die drei Chips des Betrachtungsbereichs.
+- **Aufnehmen** — Drop-Zone für die .xlsx, Feld für die Betragsschwelle (Vorbelegung 300.000 €), Schalter „Teilvorhaben zusammenfassen" (an), darunter die Vorschau in **drei** Gruppen: wird geprüft / unter der Schwelle / Betrag nicht lesbar. Die dritte Gruppe ist zuschaltbar. Darunter die drei Chips des Betrachtungsbereichs.
 - **Prüfen** — Fortschrittsbalken „i von n", die laufende Zeile im Klartext, Abbrechen. Fertige Zeilen bleiben beim Abbruch stehen.
 - **Ergebnis** — eine Karte je Meldung mit Urteils-Marke, den drei Schlagworten und der aufklappbaren Trefferliste. Kopfzeile: Trefferzahl, der Schwellen-Umschalter und der Excel-Export.
 
+## Teilvorhaben zusammenfassen
+
+Die Zuarbeit führt Teilvorhaben als eigene Zeilen — `01MF26003A` bis `…F` sind sechs Zeilen **eines** Zentrums. Zusammengefasst wird nach dem Förderkennzeichen-Stamm: die Aufgabenbeschreibungen werden aneinandergehängt, die Beträge summiert. Das spart nicht nur KI-Läufe (an der 72er-Liste **45 → 29** Prüfungen), es verhindert auch, dass ein Vorhaben über 1,2 Mio € als sechs Zeilen à 200.000 € unter die Betragsschwelle fällt. Abschaltbar; Zeilen ohne Kennung werden nie gefaltet.
+
 ## Wie das Urteil entsteht
 
-1. Die interne KI bildet je Zeile **drei Schlagworte** aus Thema und Aufgabenbeschreibung — ein Lauf je Zeile, mit frischem Chat.
-2. **Wortlaut-Stufe:** je Schlagwort eine Suche. Jeder Treffer trägt damit seine **Abdeckung** — wie viele der drei Schlagworte er führt (`3/3`, `2/3`, `1/3`).
-3. **Ähnlichkeits-Stufe:** Thema + Beschreibung werden eingebettet und gegen die Vektoren des Bestands gehalten. Findet dasselbe Vorhaben unter anderem Namen. Entfällt mit sichtbarem Hinweis, wenn kein Embedding-Modell geladen ist.
-4. **Übereinstimmung** gilt ab **2 von 3** Schlagworten (umstellbar auf 1 oder 3) oder bei sehr hoher inhaltlicher Ähnlichkeit. Die Marke nennt, was ausgelöst hat.
+**Schlagworte.** Die interne KI bildet je Zeile drei Schlagworte aus Thema und Aufgabenbeschreibung — ein Lauf je Zeile, mit frischem Chat. Der Prompt verlangt drei **verschiedene Achsen**: Verfahren, Gegenstand, Anwendung.
+
+**Wortlaut-Stufe.** Je Schlagwort eine Suche. Jeder Treffer trägt damit seine **Abdeckung** — wie viele der drei Schlagworte er führt (`3/3`, `2/3`, `1/3`). Ein Schlagwort über 2 % des Bereichs zählt **nicht** mit und ist am Chip als „zählt nicht" markiert.
+
+**Ähnlichkeits-Stufe.** Thema + Beschreibung werden eingebettet und gegen die Vektoren des Bestands gehalten. Findet dasselbe Vorhaben unter anderem Namen. Entfällt mit sichtbarem Hinweis, wenn kein Embedding-Modell geladen ist.
+
+**Träger-Stufe.** Führt ein Antrag des Bereichs denselben Zuwendungsempfänger wie die Meldung, trägt er die Marke „gleicher Träger" und steht in der Trefferliste ganz oben — auch wenn kein Schlagwort und keine Ähnlichkeit ihn gefunden hat. Braucht keine KI.
+
+**Das Urteil.** „Übereinstimmung" gilt, wenn ein Antrag desselben Trägers inhaltlich nah liegt, **oder** ab 2 von 3 Schlagworten (umstellbar auf 1 oder 3), **oder** bei hoher inhaltlicher Ähnlichkeit. Die Marke nennt, was ausgelöst hat.
+
+**„nicht beurteilbar"** steht statt „keine Übereinstimmung", wenn kein einziges Schlagwort im Bereich vorkam — dann hat die Wortlaut-Stufe nichts geprüft, und ein Nein wäre eine Behauptung.
+
+## Wenn die interne KI nicht erreichbar ist
+
+Der erste Verbindungsfehler beendet den Stapel, aber **alle** Meldungen bekommen ihre Karte mit dem Vermerk „Nicht geprüft — die Verbindung brach vorher ab". Über „ändern" lassen sich die Schlagworte von Hand eintragen; Wortlaut- und Träger-Stufe laufen dann sofort. Die Ähnlichkeits-Stufe bleibt aus, weil sie am KI-Lauf hängt.
 
 Warum nicht einfach ODER: in der App gegen den echten Bestand gemessen findet ein weit gefasstes Trio („Digitalisierung / Künstliche Intelligenz / Mittelstand") ODER-verknüpft **1.150** Vorhaben — ein Viertel des Bereichs; mit zwei von drei Schlagworten sind es **103**. Ein einzelnes weites Wort trifft allein sehr viel: „Entwicklung" 75 %, „KI" 36 %, „Sensor" 24 %. Ein spezifisch formuliertes Trio derselben Zeile kommt dagegen schon ODER-verknüpft auf **2** Treffer — die Schwelle rettet ein schlechtes Schlagwort, ein gutes braucht sie nicht.
 

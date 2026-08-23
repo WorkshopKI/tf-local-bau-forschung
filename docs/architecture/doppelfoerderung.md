@@ -18,6 +18,7 @@ XLSX  →  Zeilen + Betragsfilter  →  je Zeile 3 Schlagworte (interne KI)
                                           ↓
                           Wortlaut-Stufe (3 Läufe, je 1 Schlagwort)
                           Ähnlichkeits-Stufe (1 Embedding je Zeile)
+                          Träger-Stufe (Zuwendungsempfänger, ohne KI)
                                           ↓
                      Befunde mit Abdeckung  →  Urteil an der Schwelle
 ```
@@ -143,7 +144,8 @@ eigentliche Arbeit im Prompt, nicht im Regler.
 | [schlagworte.ts](../../src/plugins/doppelfoerderung/services/schlagworte.ts) | Prompt + Parser, rein |
 | [schlagworte-lauf.ts](../../src/plugins/doppelfoerderung/services/schlagworte-lauf.ts) | der eine KI-Aufruf je Zeile |
 | [bereich.ts](../../src/plugins/doppelfoerderung/services/bereich.ts) | die drei Bereichs-Prädikate |
-| [abgleich.ts](../../src/plugins/doppelfoerderung/services/abgleich.ts) | beide Suchstufen, Abdeckung, Urteil |
+| [abgleich.ts](../../src/plugins/doppelfoerderung/services/abgleich.ts) | Wortlaut- + Ähnlichkeitsstufe, Abdeckung, Urteil |
+| [traeger.ts](../../src/plugins/doppelfoerderung/services/traeger.ts) | Träger-Achse: derselbe Zuwendungsempfänger auf beiden Seiten |
 | [export.ts](../../src/plugins/doppelfoerderung/services/export.ts) | XLSX, eine Zeile je Meldung × Treffer |
 | [useDoppelfoerderung.ts](../../src/plugins/doppelfoerderung/useDoppelfoerderung.ts) | Phasen, Fortschritt, Abbruch |
 
@@ -207,14 +209,14 @@ drei Wörter, sähe der Nutzer nicht, warum. Er sieht stattdessen an jedem
 Schlagwort-Chip dessen Trefferzahl und kann es überschreiben — das rechnet nur
 die Wortlaut-Stufe dieser Zeile neu, ohne neuen KI-Lauf.
 
-## 7. Die beiden Suchstufen
+## 7. Die drei Suchstufen
 
 **Wortlaut** — ein `searchAntraegeSubstring` **je Schlagwort**, nicht ein
 ODER-Lauf über alle drei. Die Vereinigung ist dasselbe, aber nur die getrennten
 Läufe sagen, WELCHE Schlagworte einen Treffer getragen haben, und genau das ist
 die Zahl, an der das Urteil hängt. Der Korpus wird einmal je Lauf auf den
 Betrachtungsbereich geschnitten (4.327 statt 14.225 Einträge); drei Läufe kosten
-danach zusammen 45–65 ms.
+danach zusammen rund 18 ms.
 
 > **Der Lauf je Schlagwort verknüpft `und`, nicht `oder`.** Die Suchstufe zerlegt
 > eine mehrwortige Anfrage in ihre Wörter — mit `oder` zerfällt das Schlagwort
@@ -232,10 +234,23 @@ mit geladenem Embedding-Modell; sonst entfällt die Stufe mit sichtbarem Hinweis
 nicht die Prüfung. Treffer ausserhalb des Bereichs fallen heraus — die Stufe
 läuft über alle Vektoren, der Korpus ist bereits geschnitten.
 
+**Träger** — derselbe Zuwendungsempfänger auf beiden Seiten
+([traeger.ts](../../src/plugins/doppelfoerderung/services/traeger.ts)). Die
+einzige Stufe, die eine **Tatsache** feststellt statt Nähe zu schätzen. Details
+und die Messung dazu in §11.
+
 **Das Urteil entsteht beim Rendern, nicht beim Lauf.** Es hängt an der Schwelle,
 und die stellt der Nutzer danach um; läge es im Zustand, gäbe es nach dem ersten
 Zug am Regler zwei Wahrheiten. Die Befunde sind der Fund, das Urteil eine Ansicht
 darauf.
+
+**Reihenfolge des Urteils: Träger → Schlagworte → Ähnlichkeit**, nach Beweiskraft
+sortiert, nicht nach Rechenweg. Dazu ein vierter Ausgang: **`unklar`**. Kam kein
+einziges Schlagwort im Bereich vor, hat die Wortlaut-Achse nichts geprüft, und
+ein „keine Übereinstimmung" behauptete eine Prüfung, die nicht stattfand. An der
+72er-Liste betraf das fünf Meldungen — drei davon lagen mit der Ähnlichkeit
+knapp unter der Schwelle (0,502 / 0,511 / 0,512) und wären als das
+unauffälligste Nein der Seite durchgelaufen.
 
 ## 8. Was NICHT gespeichert wird
 
@@ -274,14 +289,84 @@ das Rauschband füllen, bleiben mit einer Ausnahme unter 0,51.
 Die Zahl gilt **für dieses Modell**. Ein Modellwechsel verschiebt die Skala und
 verlangt dieselbe Messung erneut (Pitfall #19).
 
-## 10. Offen
+## 11. Die Träger-Achse (24.08.2026)
+
+Der Zuwendungsempfänger stand seit dem ersten Entwurf in der Zeile — als
+Anzeige. Er ist der **belastbarste Beleg der ganzen Seite**: Wortlaut und
+Ähnlichkeit schätzen, ob zwei Vorhaben nah sind; „dieselbe Einrichtung ist hier
+gemeldet und dort im Bestand" ist eine Tatsache.
+
+Für **Netzwerk- und Zentrums-Meldungen ist sie die einzige brauchbare Achse.**
+ZIM fördert selbst Netzwerke — Zuwendungsempfänger ist dann die
+Netzwerkmanagement-Einrichtung —, und Mittelstand-Digital-Zentren ähneln diesen
+Netzwerken. Sie sind also sehr wohl prüfbar, nur nicht über den Text: an der
+72er-Liste fielen **alle 22** Zentrums-Meldungen auf **dieselben vier** Vorhaben
+als besten Ähnlichkeitstreffer (`16EP250004` achtmal, `16DS252441` viermal). Die
+Einbettung kann sie nicht auseinanderhalten, mit oder ohne Gattungsschnitt.
+
+### Namensgleichheit, nicht Seltenheit
+
+Vier Regeln an denselben 45 Meldungen gemessen (Bereich 4.327 Anträge):
+
+| Regel | Zeilen | Treffer | max/Zeile | Präzision |
+|---|---:|---:|---:|---|
+| ein Token gemeinsam | 41 | 9.662 | 598 | unbrauchbar |
+| seltenstes Token df ≤ 5 + Deckung ≥ ½ | 21 | 51 | 5 | 17 richtig, 4 falsch |
+| **Namensgleichheit** | **28** | **264** | 88 | keine Fehltreffer |
+| + gehärtete Enthaltung (df ≤ 20) | 30 | 273 | 88 | + „ZENIT GmbH" ≙ „ZENIT Zentrum…" |
+
+Die Seltenheits-Regel scheitert an **beiden** Enden. Sie hält „August Friedberg
+GmbH" für „Georg-**August**-Universität Göttingen" (gemeinsames `august`, df=3)
+— und verliert gleichzeitig die grossen Häuser, weil deren Namen nur aus
+häufigen Wörtern bestehen: „Technische Universität Chemnitz" hat kein Token
+unter df=94 und fiel komplett durch, obwohl das Haus 88 Vorhaben im Bereich
+führt. Namensgleichheit hat dieses Problem nicht.
+
+Die **Enthaltung** kommt dazu, weil Zuarbeit und Bestand denselben Träger
+verschieden ausschreiben. Ohne Härtung fängt sie jeden Namen, der zufällig in
+einem längeren steckt: „H&F-**Engineering** GmbH" ⊆ „Hasso-Plattner-Institut für
+Digital Engineering", „ZM-I **München** GmbH" ⊆ „Universität der Bundeswehr
+München". Deshalb `ENTHALTUNG_MAX_DF = 20`.
+
+### Sie urteilt nicht allein
+
+Ein Institut mit 88 Vorhaben im Bereich träfe sonst bei jeder Meldung zu. Der
+Träger begründet den Blick, die Nähe entscheidet:
+`TRAEGER_NAEHE_SCHWELLE = 0,45`. Über dieser Marke liegen an der 72er-Liste
+genau zwei Zeilen, und beide sind echte Funde:
+
+- `49MF260044 fzmb GmbH → 16KN073848 VetDx – ZytoVet` (**0,514**) — die
+  inhaltlich nächste Paarung der ganzen Liste;
+- `49VF260016 STFI → 16KN096936 InnoTecOP – OP-Kühlkleidung` (**0,493**).
+
+Die dritte Zeile folgt erst bei 0,42. Die Hürde liegt bewusst unter der
+`AEHNLICHKEIT_SCHWELLE` der freien Suche (0,52): dort muss die Nähe den Blick
+allein tragen, hier hat der gemeinsame Träger das schon getan.
+
+### Was NICHT geändert wurde
+
+Der Einbettungs-Modus. `embedQueryCached(…, 'query')` schickt eine bis zu 4.000
+Zeichen lange Aufgabenbeschreibung durch den **Query**-Präfix von
+EmbeddingGemma, während der Bestand mit dem **Document**-Präfix indexiert ist.
+Die Vermutung, das drücke die Werte, stimmt — und ändert trotzdem nichts:
+Umgestellt steigt die Skala (bester Wert 0,637 → 0,731, Median der Top-1 0,477 →
+0,541), die **Rangfolge bleibt praktisch gleich** (von neun handgeprüften
+Paarungen rücken vier vor, vier zurück, fünf bleiben). Der Wechsel kostete eine
+Neukalibrierung aller Schwellen und brächte keinen Erkenntnisgewinn.
+
+## 12. Offen
 
 - Der **KI-Lauf selbst** ist noch nicht gegen die interne KI gefahren. Die
   Schlagworte des Messlaufs waren von Hand formuliert; wie gut das Modell sie
   trifft, ist damit nicht beantwortet. Die Qualität ist an **drei** Läufen
-  derselben Zeile zu beurteilen — ein Lauf ist Rauschen.
-- **Ohne erreichbare KI ist die Seite unbenutzbar**: der erste
-  `verbindungFehlt` beendet den Stapel, und ohne Schlagworte gibt es keine
-  Zeile, deren Wörter man von Hand nachtragen könnte. Ein Weg, die Schlagworte
-  ohne KI einzutragen, wäre die naheliegende Ergänzung — er ist bewusst noch
-  nicht gebaut.
+  derselben Zeile zu beurteilen — ein Lauf ist Rauschen. Der Prompt verlangt
+  seit 24.08. **drei verschiedene Achsen** (Verfahren / Gegenstand / Anwendung);
+  ob das Modell das einhält, ist genau an diesen drei Läufen zu prüfen.
+- Die **Gattung** (`LP-Systematik`, `vb_phase`) wird geführt und angezeigt, aber
+  nicht ausgewertet. Ein Filter „nur Netzwerke" wäre billig; die Messung zeigte
+  nur, dass er allein wenig bringt — die Zentrums-Meldungen fallen auch unter
+  den Netzwerken auf dieselben zwei Anziehungspunkte (`16KN134201`,
+  `16KN126302`, je siebenmal).
+- Die **Ähnlichkeit über den ganzen Text** mittelt eine teilweise Überschneidung
+  weg. Abschnittsweise einbetten und das Maximum nehmen wäre der nächste Schritt
+  — ungemessen.

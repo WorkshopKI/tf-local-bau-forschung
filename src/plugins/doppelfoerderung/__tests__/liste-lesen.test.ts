@@ -9,7 +9,8 @@
 import { describe, it, expect } from 'vitest';
 import * as XLSX from 'xlsx';
 import {
-  leseMeldungsListe, parseGeldbetrag, teileZeilen, SCHWELLE_VORGABE,
+  falteTeilvorhaben, leseMeldungsListe, parseGeldbetrag, teileZeilen, verbundStamm,
+  SCHWELLE_VORGABE,
 } from '@/plugins/doppelfoerderung/services/liste-lesen';
 import { istLeseFehler } from '@/core/status/import/xlsx-tabelle';
 import type { MeldungsZeile } from '@/plugins/doppelfoerderung/types';
@@ -132,7 +133,7 @@ describe('teileZeilen — die Schwelle trennt drei Gruppen, keine zwei', () => {
   function z(betrag: number | null, betragRoh = ''): MeldungsZeile {
     return {
       zeilenNr: 2, fkz: 'X', thema: 'Thema', aufgabenbeschreibung: 'Text',
-      betrag, betragRoh, zuwendungsempfaenger: '', laufzeit: '',
+      betrag, betragRoh, zuwendungsempfaenger: '', lpSystematik: '', laufzeit: '', weitereFkz: [],
     };
   }
 
@@ -164,5 +165,72 @@ describe('teileZeilen — die Schwelle trennt drei Gruppen, keine zwei', () => {
     expect(t.zuPruefen).toHaveLength(0);
     expect(t.unterSchwelle).toHaveLength(0);
     expect(t.ohneBetrag).toHaveLength(0);
+  });
+});
+
+describe('verbundStamm — nur der eindeutige Fall', () => {
+  it('schneidet den Teilvorhaben-Buchstaben ab', () => {
+    expect(verbundStamm('01MF26003A')).toBe('01MF26003');
+    expect(verbundStamm('01MF26003F')).toBe('01MF26003');
+    expect(verbundStamm('16ME1257K')).toBe('16ME1257');
+  });
+
+  it('lässt eine Kennung ohne Suffix in Ruhe', () => {
+    expect(verbundStamm('16ME1258')).toBe('16ME1258');
+    expect(verbundStamm('49MF260044')).toBe('49MF260044');
+  });
+
+  it('rät nichts: 16ME1257K und 16ME1258 bleiben getrennt', () => {
+    // Inhaltlich sind das zwei Teile desselben Vorhabens (KI-RegLer), aber die
+    // Kennungen belegen das nicht — und geraten wird hier nicht.
+    expect(verbundStamm('16ME1257K')).not.toBe(verbundStamm('16ME1258'));
+  });
+});
+
+describe('falteTeilvorhaben', () => {
+  function tv(fkz: string, text: string, betrag: number | null = 500_000): MeldungsZeile {
+    return {
+      zeilenNr: Number(fkz.replace(/\D/g, '').slice(-2)), fkz, thema: `Thema ${fkz}`,
+      aufgabenbeschreibung: text, betrag, betragRoh: String(betrag ?? ''),
+      zuwendungsempfaenger: 'Haus', lpSystematik: 'GE2317', laufzeit: '', weitereFkz: [],
+    };
+  }
+
+  it('macht aus sechs Teilvorhaben ein Vorhaben', () => {
+    const teile = ['A', 'B', 'C', 'D', 'E', 'F'].map(s => tv(`01MF26003${s}`, `Text ${s}`));
+    const g = falteTeilvorhaben(teile);
+    expect(g).toHaveLength(1);
+    expect(g[0]?.weitereFkz).toHaveLength(5);
+  });
+
+  it('hängt die Aufgabenbeschreibungen aneinander, statt fünf zu verwerfen', () => {
+    const g = falteTeilvorhaben([tv('01MF26003A', 'Erstes'), tv('01MF26003B', 'Zweites')]);
+    expect(g[0]?.aufgabenbeschreibung).toBe('Erstes\n\nZweites');
+  });
+
+  it('summiert die Beträge — die Schwelle fragt nach dem Vorhaben', () => {
+    // Sonst fiele eine Meldung über 1,2 Mio € als sechs Zeilen à 200.000 €
+    // unter die 300.000er-Schwelle und würde nie geprüft.
+    const g = falteTeilvorhaben([tv('01MF26003A', 'x', 200_000), tv('01MF26003B', 'y', 200_000)]);
+    expect(g[0]?.betrag).toBe(400_000);
+  });
+
+  it('meldet den Betrag als unlesbar, wenn ein Teil ihn nicht hergibt', () => {
+    // Eine Teilsumme sähe aus wie das Ganze und entschiede die Schwelle falsch.
+    const g = falteTeilvorhaben([tv('01MF26003A', 'x', 200_000), tv('01MF26003B', 'y', null)]);
+    expect(g[0]?.betrag).toBeNull();
+  });
+
+  it('faltet Zeilen ohne Kennung NICHT zusammen', () => {
+    const ohne = [
+      { ...tv('01MF26003A', 'x'), fkz: '' },
+      { ...tv('01MF26003B', 'y'), fkz: '' },
+    ];
+    expect(falteTeilvorhaben(ohne)).toHaveLength(2);
+  });
+
+  it('lässt verschiedene Vorhaben getrennt', () => {
+    const g = falteTeilvorhaben([tv('01MF26003A', 'x'), tv('01MF26005A', 'y')]);
+    expect(g).toHaveLength(2);
   });
 });

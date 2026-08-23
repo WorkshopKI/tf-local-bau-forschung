@@ -33,10 +33,14 @@ import type { AntragTextEntry } from '@/plugins/antraege/services/search-corpus'
 import { bereichsAktenzeichen } from './services/bereich';
 import {
   aehnlichkeitsStufe, aehnlichkeitsText, faelleUrteil, vereineBefunde,
-  wortlautAbdeckung, type AbgleichKontext,
+  wortlautAbdeckung, zuWeiteSchlagworte,
+  type AbgleichKontext, type WortlautErgebnis,
 } from './services/abgleich';
+import { baueTraegerIndex, traegerAbgleich } from './services/traeger';
 import { ermittleSchlagworte } from './services/schlagworte-lauf';
-import type { BereichsWahl, MeldungsZeile, TrefferBefund, ZeilenErgebnis } from './types';
+import type {
+  BereichsWahl, MeldungsZeile, SchlagwortTreffer, TraegerBezug, TrefferBefund, ZeilenErgebnis,
+} from './types';
 
 export type Phase = 'aufnehmen' | 'pruefen' | 'ergebnis';
 
@@ -59,8 +63,36 @@ export interface Fortschritt {
 interface RohErgebnis {
   zeile: MeldungsZeile;
   schlagworte: readonly string[];
+  schlagwortTreffer: readonly SchlagwortTreffer[];
   befunde: readonly TrefferBefund[];
   fehler?: string;
+}
+
+/**
+ * Die drei Stufen einer Zeile zu einem Rohergebnis zusammenlegen.
+ *
+ * Steht ausserhalb des Hooks, weil `starte` und `ersetzeSchlagworte` beide
+ * denselben Weg gehen müssen — sonst zeigt eine von Hand korrigierte Zeile
+ * andere Befunde als dieselbe Zeile aus dem Stapellauf.
+ */
+function baueRohErgebnis(
+  zeile: MeldungsZeile,
+  schlagworte: readonly string[],
+  wortlaut: WortlautErgebnis,
+  vektor: ReadonlyMap<string, number> | null,
+  ctx: AbgleichKontext,
+  bereichsGroesse: number,
+): RohErgebnis {
+  const zuWeit = zuWeiteSchlagworte(wortlaut.treffer, bereichsGroesse);
+  const traeger = ctx.traegerIndex
+    ? traegerAbgleich(zeile.zuwendungsempfaenger, ctx.traegerIndex)
+    : new Map<string, TraegerBezug>();
+  return {
+    zeile,
+    schlagworte: [...schlagworte],
+    schlagwortTreffer: wortlaut.treffer,
+    befunde: vereineBefunde(wortlaut.proAktenzeichen, vektor ?? new Map(), ctx, zuWeit, traeger),
+  };
 }
 
 export interface UseDoppelfoerderung {
@@ -170,6 +202,9 @@ export function useDoppelfoerderung(schwelle: number): UseDoppelfoerderung {
           korpus,
           listeNachAkz: new Map(items.map(it => [it.aktenzeichen, it])),
           embeddings,
+          // Einmal je Lauf gebaut, nicht je Zeile: der Index über 4.327
+          // Trägernamen kostet Millisekunden, 45-mal gebaut wäre er Wartezeit.
+          traegerIndex: baueTraegerIndex(items, imBereich),
         };
         kontextRef.current = ctx;
 
@@ -197,12 +232,22 @@ export function useDoppelfoerderung(schwelle: number): UseDoppelfoerderung {
           if (ctrl.signal.aborted) return;
 
           if (!lauf.ok) {
-            gesammelt.push({ zeile, schlagworte: [], befunde: [], fehler: lauf.fehler });
+            gesammelt.push({ zeile, schlagworte: [], schlagwortTreffer: [], befunde: [], fehler: lauf.fehler });
             setRoh([...gesammelt]);
             // Ein Verbindungsabbruch trifft jede weitere Zeile genauso — den
-            // Stapel weiterlaufen zu lassen kostete nur Wartezeit.
+            // Stapel weiterlaufen zu lassen kostete nur Wartezeit. Die übrigen
+            // Zeilen bekommen trotzdem ihre Karte: ohne sie gäbe es keinen Ort,
+            // an dem sich Schlagworte von Hand nachtragen liessen, und die
+            // ganze Seite wäre bei nicht erreichbarer KI unbenutzbar.
             if (lauf.verbindungFehlt) {
               setFehler(lauf.fehler);
+              for (const rest of zeilen.slice(i + 1)) {
+                gesammelt.push({
+                  zeile: rest, schlagworte: [], schlagwortTreffer: [], befunde: [],
+                  fehler: 'Nicht geprüft — die Verbindung brach vorher ab. Schlagworte lassen sich von Hand eintragen.',
+                });
+              }
+              setRoh([...gesammelt]);
               break;
             }
             continue;
@@ -211,12 +256,11 @@ export function useDoppelfoerderung(schwelle: number): UseDoppelfoerderung {
           const wortlaut = wortlautAbdeckung(lauf.schlagworte, korpus);
           const vektor = await aehnlichkeitsStufe(
             aehnlichkeitsText(zeile.thema, zeile.aufgabenbeschreibung),
-            ctx, embedden, new Set(wortlaut.keys()), ctrl.signal,
+            ctx, embedden, new Set(wortlaut.proAktenzeichen.keys()), ctrl.signal,
           );
           if (ctrl.signal.aborted) return;
 
-          const befunde = vereineBefunde(wortlaut, vektor ?? new Map(), ctx);
-          gesammelt.push({ zeile, schlagworte: lauf.schlagworte, befunde });
+          gesammelt.push(baueRohErgebnis(zeile, lauf.schlagworte, wortlaut, vektor, ctx, korpus.size));
           setRoh([...gesammelt]);
         }
 
@@ -251,7 +295,9 @@ export function useDoppelfoerderung(schwelle: number): UseDoppelfoerderung {
       const vektor = new Map(
         e.befunde.filter(b => b.aehnlichkeit !== null).map(b => [b.aktenzeichen, b.aehnlichkeit as number]),
       );
-      return { ...e, schlagworte: [...schlagworte], befunde: vereineBefunde(wortlaut, vektor, k) };
+      // Der Fehlervermerk fällt weg: die Zeile hat jetzt Schlagworte, auch wenn
+      // die KI keine liefern konnte. Genau dafür ist der Eingabeweg da.
+      return baueRohErgebnis(e.zeile, schlagworte, wortlaut, vektor, k, k.korpus.size);
     }));
   }, []);
 
@@ -262,8 +308,9 @@ export function useDoppelfoerderung(schwelle: number): UseDoppelfoerderung {
     () => roh.map(e => ({
       zeile: e.zeile,
       schlagworte: e.schlagworte,
+      schlagwortTreffer: e.schlagwortTreffer,
       befunde: e.befunde,
-      ...faelleUrteil(e.befunde, schwelle),
+      ...faelleUrteil(e.befunde, schwelle, undefined, e.schlagwortTreffer),
       ...(e.fehler ? { fehler: e.fehler } : {}),
     })),
     [roh, schwelle],

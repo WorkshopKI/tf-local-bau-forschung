@@ -15,7 +15,8 @@ import type { AntragListItem } from '@/core/services/csv/types';
 import type { AntragTextEntry } from '@/plugins/antraege/services/search-corpus';
 import {
   AEHNLICHKEIT_SCHWELLE, aehnlichkeitsText, faelleUrteil, istZuWeit, vereineBefunde,
-  wortlautAbdeckung, type AbgleichKontext,
+  wortlautAbdeckung, zaehltNicht, WORT_ZAEHLT_NICHT_ANTEIL, WORT_ZU_WEIT_ANTEIL,
+  type AbgleichKontext,
 } from '@/plugins/doppelfoerderung/services/abgleich';
 import type { TrefferBefund } from '@/plugins/doppelfoerderung/types';
 
@@ -55,24 +56,24 @@ const CTX: AbgleichKontext = {
 
 describe('wortlautAbdeckung — je Schlagwort ein Lauf', () => {
   it('zählt, WIE VIELE Schlagworte ein Vorhaben trägt', () => {
-    const a = wortlautAbdeckung(['Laserschweissen', 'Fehlererkennung', 'Nahtprüfung'], KORPUS);
+    const a = wortlautAbdeckung(['Laserschweissen', 'Fehlererkennung', 'Nahtprüfung'], KORPUS).proAktenzeichen;
     expect(a.get('A')?.sort()).toEqual(['Fehlererkennung', 'Laserschweissen', 'Nahtprüfung']);
     expect(a.get('B')?.sort()).toEqual(['Fehlererkennung', 'Nahtprüfung']);
     expect(a.has('C')).toBe(false);
   });
 
   it('merkt sich, WELCHE Schlagworte trafen — nicht nur dass eins traf', () => {
-    const a = wortlautAbdeckung(['Bioreaktor', 'Laserschweissen'], KORPUS);
+    const a = wortlautAbdeckung(['Bioreaktor', 'Laserschweissen'], KORPUS).proAktenzeichen;
     expect(a.get('C')).toEqual(['Bioreaktor']);
     expect(a.get('A')).toEqual(['Laserschweissen']);
   });
 
   it('überspringt leere Schlagworte, statt alles zu treffen', () => {
-    expect(wortlautAbdeckung(['', '   '], KORPUS).size).toBe(0);
+    expect(wortlautAbdeckung(['', '   '], KORPUS).proAktenzeichen.size).toBe(0);
   });
 
   it('gibt eine leere Karte zurück, wenn nichts trifft', () => {
-    expect(wortlautAbdeckung(['Windkraftanlage'], KORPUS).size).toBe(0);
+    expect(wortlautAbdeckung(['Windkraftanlage'], KORPUS).proAktenzeichen.size).toBe(0);
   });
 
   it('hält ein ZWEIWORT-Schlagwort zusammen, statt es zu zerlegen', () => {
@@ -84,12 +85,12 @@ describe('wortlautAbdeckung — je Schlagwort ein Lauf', () => {
     // A trägt beide Wörter (Titel „Laserschweissen…", Kurzfassung „Nahtprüfung…"),
     // B nur „Nahtprüfung". Zerlegt lieferte das Schlagwort A UND B, zusammen-
     // gehalten nur A.
-    const a = wortlautAbdeckung(['Laserschweissen Nahtprüfung'], KORPUS);
+    const a = wortlautAbdeckung(['Laserschweissen Nahtprüfung'], KORPUS).proAktenzeichen;
     expect([...a.keys()]).toEqual(['A']);
   });
 
   it('lässt ein einwortiges Schlagwort davon unberührt', () => {
-    const a = wortlautAbdeckung(['Fehlererkennung'], KORPUS);
+    const a = wortlautAbdeckung(['Fehlererkennung'], KORPUS).proAktenzeichen;
     expect([...a.keys()].sort()).toEqual(['A', 'B']);
   });
 });
@@ -136,7 +137,8 @@ describe('faelleUrteil', () => {
   function befund(abdeckung: number, aehnlichkeit: number | null = null): TrefferBefund {
     return {
       aktenzeichen: 'X', verbundId: '', verbundTitel: '', titel: '', kurzbeschreibung: '',
-      getroffeneWorte: [], abdeckung, aehnlichkeit, quelle: 'wortlaut',
+      getroffeneWorte: [], abdeckung, abdeckungRoh: abdeckung, aehnlichkeit,
+      traeger: null, vbPhase: 3, quelle: 'wortlaut',
       status: '', antragsdatum: '', antragsteller: '',
     };
   }
@@ -218,5 +220,66 @@ describe('istZuWeit', () => {
     // keine Marke als eine falsche.
     expect(istZuWeit(852, null)).toBe(false);
     expect(istZuWeit(852, 0)).toBe(false);
+  });
+});
+
+describe('zaehltNicht — die Marke bekommt Folgen', () => {
+  it('greift erst über der Marke, nicht mit ihr', () => {
+    // Beschriften ist billig, eingreifen nicht: die Eingriffsschwelle liegt
+    // bewusst höher als die Markierungsschwelle.
+    expect(WORT_ZAEHLT_NICHT_ANTEIL).toBeGreaterThan(WORT_ZU_WEIT_ANTEIL);
+  });
+
+  it('nimmt den Sammelbegriffen ihre Stimme', () => {
+    // Automatisierung 852, Maschinenbau 672, Medizintechnik 353,
+    // Additive Fertigung 343, Logistik 105 — alle von 4.327.
+    for (const n of [852, 672, 353, 343, 105]) expect(zaehltNicht(n, 4327)).toBe(true);
+  });
+
+  it('lässt die Wörter zählen, die eine Sache benennen', () => {
+    // Maschinelles Lernen 86 (2,0 %), Demonstrator 82, Kreislaufwirtschaft 76,
+    // Robotik 48 — häufig, aber sie benennen keine Schublade.
+    for (const n of [86, 82, 76, 48, 35, 2]) expect(zaehltNicht(n, 4327)).toBe(false);
+  });
+});
+
+describe('faelleUrteil — Träger und „nicht beurteilbar"', () => {
+  function mitTraeger(aehnlichkeit: number | null): TrefferBefund {
+    return {
+      aktenzeichen: 'T', verbundId: '', verbundTitel: '', titel: '', kurzbeschreibung: '',
+      getroffeneWorte: [], abdeckung: 0, abdeckungRoh: 0, aehnlichkeit,
+      traeger: 'gleich', vbPhase: 3, quelle: 'traeger',
+      status: '', antragsdatum: '', antragsteller: 'fzmb GmbH',
+    };
+  }
+
+  it('löst aus, wenn derselbe Träger ein inhaltlich nahes Vorhaben führt', () => {
+    // Der gemessene Fall: fzmb → VetDx/ZytoVet bei 0,514.
+    expect(faelleUrteil([mitTraeger(0.514)], 2).grund).toBe('traeger');
+  });
+
+  it('löst NICHT aus, wenn der Träger allein dasteht', () => {
+    // Sonst träfe ein Haus mit 88 Vorhaben im Bereich bei jeder Meldung zu.
+    expect(faelleUrteil([mitTraeger(0.20)], 2).uebereinstimmung).toBe(false);
+    expect(faelleUrteil([mitTraeger(null)], 2).uebereinstimmung).toBe(false);
+  });
+
+  it('sagt „nicht beurteilbar", wenn kein Schlagwort im Bestand vorkam', () => {
+    // Fünf Meldungen der 72er-Liste hatten alle drei Schlagworte auf 0 Treffer.
+    // Ein „keine Übereinstimmung" behauptete dort eine Prüfung, die nicht
+    // stattfand — drei davon lagen mit der Ähnlichkeit knapp unter der Schwelle.
+    const stumm = [{ wort: 'Kältenetz', treffer: 0 }, { wort: 'Tiefengeothermie', treffer: 0 }];
+    expect(faelleUrteil([], 2, undefined, stumm).grund).toBe('unklar');
+  });
+
+  it('sagt weiter „keine", wenn die Schlagworte trafen und es trotzdem nichts wurde', () => {
+    const traf = [{ wort: 'Cybersicherheit', treffer: 6 }, { wort: 'Handwerk', treffer: 30 }];
+    expect(faelleUrteil([], 2, undefined, traf).grund).toBe('keine');
+  });
+
+  it('bleibt bei „keine", solange gar keine Trefferzahlen vorliegen', () => {
+    // Ohne die Zahlen lässt sich „stumm" nicht von „nicht gelaufen"
+    // unterscheiden — dann keine neue Behauptung aufmachen.
+    expect(faelleUrteil([], 2).grund).toBe('keine');
   });
 });

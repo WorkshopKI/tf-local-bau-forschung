@@ -22,6 +22,12 @@ const QUELLE_TEXT: Record<TrefferBefund['quelle'], string> = {
   wortlaut: 'Wortlaut',
   aehnlichkeit: 'inhaltlich ähnlich',
   beide: 'Wortlaut + ähnlich',
+  traeger: 'nur über den Träger',
+};
+
+/** Die Gattung eines Vorhabens — `VB_PHASE` in Klartext. */
+const PHASE_TEXT: Record<number, string> = {
+  1: 'Netzwerk', 2: 'Netzwerk', 3: 'FuE', 5: 'Studie',
 };
 
 function BefundZeile(props: { b: TrefferBefund; nenner: number }): React.ReactElement {
@@ -42,6 +48,20 @@ function BefundZeile(props: { b: TrefferBefund; nenner: number }): React.ReactEl
         >
           {b.abdeckung}/{nenner}
         </span>
+        {/* Der Träger ist der einzige Beleg dieser Liste, der keine Schätzung
+            ist — deshalb steht er vorn und in der Warnfarbe, nicht als
+            Fussnote unter dem Eintrag. */}
+        {b.traeger !== null && (
+          <span
+            className="rounded-[6px] px-1.5 py-0.5 text-[11px] font-medium"
+            style={{ background: 'var(--tf-warn-bg, #fef3c7)', color: 'var(--tf-warn-text, #92400e)' }}
+            title={b.traeger === 'gleich'
+              ? 'Derselbe Zuwendungsempfänger wie in der Meldung.'
+              : `Der Zuwendungsempfänger der Meldung steckt im Antragsteller „${b.antragsteller}" — vermutlich dieselbe Einrichtung, anders ausgeschrieben.`}
+          >
+            {b.traeger === 'gleich' ? 'gleicher Träger' : 'Träger vermutlich gleich'}
+          </span>
+        )}
         {/* Der Weg zur Detailseite wird NICHT hier entschieden: Verbund oder
             Teilvorhaben klärt `antragDetailPfad` — sechs Aufrufer hatten das
             früher von Hand nachgebaut, einer davon falsch. */}
@@ -64,6 +84,10 @@ function BefundZeile(props: { b: TrefferBefund; nenner: number }): React.ReactEl
       )}
       <div className="flex flex-wrap gap-x-3 text-[11.5px] text-[var(--tf-text-tertiary)]">
         <span>{QUELLE_TEXT[b.quelle]}</span>
+        {/* Die Gattung, weil eine Netzwerk-Meldung ihr Gegenstück unter den
+            Netzwerken hat und nicht unter den FuE-Vorhaben — ohne diese
+            Beschriftung sieht beides gleich aus. */}
+        {b.vbPhase !== null && PHASE_TEXT[b.vbPhase] && <span>{PHASE_TEXT[b.vbPhase]}</span>}
         {b.aehnlichkeit !== null && <span className="tabular-nums">Ähnlichkeit {b.aehnlichkeit.toFixed(2)}</span>}
         {b.status && <span>{b.status}</span>}
         {b.antragsdatum && <span className="tabular-nums">{b.antragsdatum}</span>}
