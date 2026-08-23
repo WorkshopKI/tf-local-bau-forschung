@@ -91,6 +91,11 @@ export interface QualitaetsRegel {
    * NIE in die Daten geschrieben — nur ein explizit gesetzter Wert persistiert.
    */
   kategorie?: string;
+  /**
+   * Woher der Wert dieser Regel stammt (additiv, ein Satz). Siehe `VorgabeBasis.herkunft`
+   * — dieselbe Zusage, hier für die Bibliotheks-Regel.
+   */
+  herkunft?: string;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -105,6 +110,17 @@ export interface QualitaetsRegel {
 export interface VorgabeBasis {
   schweregrad: Schweregrad;
   persoenlichAnpassbar?: boolean;
+  /**
+   * Woher der Wert stammt — ein Satz, den ein Kurator schreibt und der NICHT in den
+   * Prompt geht („Formularfeld der Fachprüfung — fasst max. 1200 Zeichen").
+   *
+   * Additiv, aber der Zweck ist ernst: eine Zahl ohne Grund kann niemand fallen
+   * lassen. Gemessen am Zeichenlimit der Kurzfassung — es stammt aus einem fremden
+   * Formularfeld, stand aber gleichrangig neben einer erfundenen Satzzahl, die ihm
+   * rechnerisch widersprach (v2.372). Wer die Herkunft sieht, erkennt in einer
+   * Sekunde, welche der beiden verhandelbar ist.
+   */
+  herkunft?: string;
 }
 
 /**

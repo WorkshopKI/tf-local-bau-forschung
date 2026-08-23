@@ -23,7 +23,8 @@ describe('Beleg-Kontrakt in Seed A + B — zurückgebaut', () => {
     expect(SEED_SKILL.promptTemplate).not.toContain('stützt');
     expect(SEED_SKILL.promptTemplate).toBe(buildKurzfassungPrompt(false));
     // v3: Satzzahl einheitlich 9–11 (Vorgabe + Modifier), Prosa ohne Zahl.
-    expect(SEED_SKILL.version).toBe(3);
+    // v4: Zeichenlimit 1.100 mit Herkunft am Wert.
+    expect(SEED_SKILL.version).toBe(4);
   });
 
   it('B (Ausgangslage) trägt die Instruktion NICHT mehr', () => {

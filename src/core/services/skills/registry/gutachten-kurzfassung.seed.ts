@@ -139,6 +139,15 @@ export const SEED_REGELN: QualitaetsRegel[] = [
   ),
 ];
 
+/** Zeichenlimit von A vor dem Herkunfts-Fix — eingefroren für den Guard der Migration. */
+export const A_ZEICHEN_MAX_ALT = 1000;
+/** Zeichenlimit von A: „900 ± 200" gegen ein Formularfeld, das 1.200 fasst. */
+export const A_ZEICHEN_MAX = 1100;
+/** Der Grund hinter `A_ZEICHEN_MAX` — Anzeige-Text, geht NICHT in den Prompt. */
+export const A_ZEICHEN_HERKUNFT =
+  'Formularfeld der Fachprüfung, in das die Kurzfassung kopiert wird — es fasst '
+  + 'max. 1.200 Zeichen. Vorgabe „900 ± 200" lässt Luft zum harten Rand.';
+
 /**
  * Umfangs-/Form-Vorgaben des Kurzfassung-Skills A (vormals die Regel-Records
  * `seed-satzanzahl` / `seed-zeichen-max` / `seed-satzlaenge` /
@@ -151,7 +160,17 @@ const SEED_VORGABEN_A: SkillVorgaben = {
   // korrekt, nach der Regel ein Hinweis). Der Prosa-Satz ist weg, die Regel ist die
   // einzige Quelle, und ihr Wert ist der des Teams. Rollout: `applyAUmfangKuratiert`.
   satzanzahl: { schweregrad: 'fehler', min: 9, max: 11, persoenlichAnpassbar: true },
-  zeichenMax: { schweregrad: 'fehler', max: 1000 },
+  // 1.100 statt 1.000 (2026-08) — und erstmals mit dem Grund daneben. Das Limit ist
+  // keine Stilentscheidung: die Kurzfassung wird in ein fremdes Formularfeld kopiert,
+  // das 1.200 Zeichen fasst. Der Kurator hat daraus „900 ± 200" gemacht, also 1.100 als
+  // Obergrenze mit hundert Zeichen Luft zum harten Rand. Nebenwirkung: der in v2.372
+  // beschriebene Widerspruch zur Satzzahl entspannt sich (9–11 Sätze à ≤ 25 Wörter
+  // sprengten 1.000 rechnerisch). Rollout: `applyAZeichenHerkunft`.
+  zeichenMax: {
+    schweregrad: 'fehler',
+    max: A_ZEICHEN_MAX,
+    herkunft: A_ZEICHEN_HERKUNFT,
+  },
   satzlaengeMax: { schweregrad: 'hinweis', maxWoerter: 25 },
   keineAufzaehlungen: { schweregrad: 'fehler' },
 };
@@ -197,7 +216,9 @@ export const SEED_SKILL: SkillRecord = {
   // Wortüberlappung abgeleitet (belegAbleitung.ts), NICHT vom Modell erfragt.
   // v3: Satzzahl einheitlich 9–11 (Vorgabe + Modifier-Richtwerte, Prosa nennt keine
   // Zahl mehr) — Rollout auf Bestands-Shares über `applyAUmfangKuratiert`.
-  version: 3,
+  // v4: Zeichenlimit 1.000 → 1.100 mit Herkunft am Wert — Rollout über
+  // `applyAZeichenHerkunft`.
+  version: 4,
   promptTemplate: buildKurzfassungPrompt(false),
   systemPrompt: SEED_SYSTEM_PROMPT,
   maxTokens: 2048,

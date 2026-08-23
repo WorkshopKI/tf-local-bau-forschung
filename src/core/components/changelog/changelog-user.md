@@ -19,6 +19,14 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v6.26 — 2026-08
+
+### Neu
+- **Eine Vorgabe kann jetzt sagen, woher sie kommt.** Unter jedem Prüf-Befund steht auf Wunsch eine Zeile „Grund: …" — zum Beispiel, dass das Zeichenlimit der Kurzfassung aus dem Formularfeld der Fachprüfung stammt und nicht aus einer Hausregel. Gepflegt wird der Satz in der Skill-Verwaltung; an die KI geht er nicht.
+
+### Verbesserungen
+- **Die Kurzfassung darf jetzt 1.100 statt 1.000 Zeichen haben.** Das Feld, in das sie kopiert wird, fasst 1.200 — die hundert Zeichen Abstand sind Absicht.
+
 ## v6.25 — 2026-08
 
 ### Verbesserungen

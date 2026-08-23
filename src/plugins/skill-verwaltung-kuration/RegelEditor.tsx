@@ -201,6 +201,34 @@ export function RegelEditor({ initial, busy, canEdit, onSave, onCancel, onDelete
         <MusterErkennungEditor params={draft.params} setParam={setParam} setParams={setParams} disabled={ro} />
       )}
 
+      {/*
+        Woher der Wert kommt — Anzeige-Text an der Prüfung, NICHT im Prompt. Eine
+        Regel ohne Grund kann niemand fallen lassen: sie steht sonst gleichrangig
+        neben jeder anderen, auch wenn die eine aus einem fremden Formular stammt
+        und die andere aus einer Faustregel.
+      */}
+      <div className="mt-[18px]">
+        <label className={FIELD_LABEL}>Grund (optional)</label>
+        <input
+          value={draft.herkunft ?? ''}
+          disabled={ro}
+          placeholder={'Woher stammt diese Vorgabe? z.B. Richtlinie 4.5.1 oder Fachabstimmung 08/2026'}
+          onChange={e => {
+            const v = e.target.value.trim();
+            setDraft(d => {
+              const next = { ...d };
+              if (v) next.herkunft = v;
+              else delete next.herkunft;
+              return next;
+            });
+          }}
+          className="w-full text-[13px] px-2.5 py-2 rounded-[8px] border-[0.5px] border-[var(--tf-border-hover)] bg-[var(--tf-bg)] text-[var(--tf-text)] outline-none focus:border-[var(--tf-primary)] disabled:opacity-70"
+        />
+        <p className="text-[11.5px] text-[var(--tf-text-tertiary)] mt-1.5">
+          Erscheint bei jedem Befund unter der Regel — im Prompt steht er nicht.
+        </p>
+      </div>
+
       <p className="text-[11.5px] text-[var(--tf-text-tertiary)] mt-[18px] mb-2">
         Generierter Prompt-Hinweis — aktualisiert sich aus den Parametern:
       </p>

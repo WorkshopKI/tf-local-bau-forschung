@@ -56,6 +56,13 @@ export interface CheckResult {
    * damit das UI nach Art gruppieren kann, OHNE je Check die Registry abzufragen.
    */
   kategorie?: string;
+  /**
+   * Warum es diese Regel gibt (additiv, aus `QualitaetsRegel.herkunft` bzw. der
+   * gleichnamigen Vorgabe). Beim Lauf gestempelt — aus demselben Grund wie
+   * `kategorie`: die Check-Liste sieht nur `CheckResult[]` und käme sonst nie an den
+   * Grund heran. Fehlt bei Regeln ohne gepflegte Herkunft und in Alt-Runs.
+   */
+  herkunft?: string;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -515,6 +522,7 @@ export function runRegelChecks(finalerText: string, regeln: QualitaetsRegel[]): 
       level: outcome.ok ? 'ok' : regel.schweregrad,
       label: outcome.label,
       kategorie: effektiveKategorie(regel),
+      ...(regel.herkunft?.trim() ? { herkunft: regel.herkunft } : {}),
       ...(outcome.detail ? { detail: outcome.detail } : {}),
       ...(outcome.richtung && !outcome.ok ? { richtung: outcome.richtung } : {}),
       ...(outcome.messwert !== undefined ? { messwert: outcome.messwert } : {}),

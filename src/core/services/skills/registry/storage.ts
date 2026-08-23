@@ -87,6 +87,10 @@ function normalizeRegel(raw: unknown): QualitaetsRegel | null {
   // der abgeleitete Default bleibt Laufzeit-Logik, wird NIE in die Daten geschrieben.
   const kategorie = asString(r.kategorie).trim();
   if (kategorie) regel.kategorie = kategorie;
+  // Herkunft explizit durchtragen — sie ist kuratierter Fließtext und hätte ohne
+  // diese Zeile beim ersten Laden verloren gegangen (Klasse `vorgaben`/`qsKriterien`).
+  const herkunft = asString(r.herkunft).trim();
+  if (herkunft) regel.herkunft = herkunft;
   return regel;
 }
 
@@ -220,10 +224,16 @@ function normalizeVorgaben(raw: unknown): SkillVorgaben | null {
   if (typeof raw !== 'object' || raw === null) return null;
   const v = raw as Record<string, unknown>;
   const out: SkillVorgaben = {};
-  const basis = (o: Record<string, unknown>): VorgabeBasis => ({
-    schweregrad: o.schweregrad === 'hinweis' ? 'hinweis' : 'fehler',
-    ...(o.persoenlichAnpassbar === true ? { persoenlichAnpassbar: true } : {}),
-  });
+  // ACHTUNG: diese Funktion baut jede Vorgabe FELDWEISE neu — ein hier nicht
+  // genanntes Feld fällt beim Laden still weg. Deshalb steht `herkunft` explizit da.
+  const basis = (o: Record<string, unknown>): VorgabeBasis => {
+    const herkunft = asString(o.herkunft).trim();
+    return {
+      schweregrad: o.schweregrad === 'hinweis' ? 'hinweis' : 'fehler',
+      ...(o.persoenlichAnpassbar === true ? { persoenlichAnpassbar: true } : {}),
+      ...(herkunft ? { herkunft } : {}),
+    };
+  };
   const obj = (key: string): Record<string, unknown> | null => {
     const o = v[key];
     return typeof o === 'object' && o !== null ? (o as Record<string, unknown>) : null;

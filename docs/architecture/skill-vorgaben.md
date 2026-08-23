@@ -65,6 +65,40 @@ ohnehin laden, reichen ihn über `regelnMitOverride` durch:
 bekäme der Nutzer einen Fehler für die Länge, die er selbst gewählt hat.
 **Eval und Judge bekommen bewusst KEINEN Override** — sie messen den Team-Stand.
 
+## Herkunft — warum es diese Zahl gibt (v6.26)
+
+Eine Vorgabe sagte bis dahin, WAS gilt, aber nie WARUM. Gemessen am Zeichenlimit der
+Kurzfassung: es stammt aus einem **fremden Formularfeld** der Fachprüfung, das 1.200
+Zeichen fasst — das stand nirgends. Deshalb stand es gleichrangig neben der
+hausgemachten Satzzahl 9–11, die ihm rechnerisch widerspricht (9–11 Sätze à ≤ 25
+Wörter ≈ 1.500 Zeichen, siehe „Widersprüchliche Umfangs-Vorgaben" in
+[gutachten-kurzfassung.md](gutachten-kurzfassung.md)). **Eine Regel, die ihren Grund
+nicht kennt, kann niemand fallen lassen** — und genau deshalb wurde der Widerspruch
+seinerzeit durch einen Vorrang-Satz überdeckt statt durch Entfernen der schwächeren
+Vorgabe aufgelöst.
+
+`VorgabeBasis.herkunft` und `QualitaetsRegel.herkunft` tragen dafür je einen Satz.
+Vier Eigenschaften, die zusammengehören:
+
+1. **Er geht NICHT in den Prompt.** Das Modell braucht die Zahl, nicht ihre
+   Geschichte. Gezeigt wird er im Kurator-Editor und an der Prüfung.
+2. **Er reist bis ans `CheckResult`.** `runRegelChecks` stempelt ihn — aus demselben
+   Grund wie `kategorie`: die Check-Liste sieht nur `CheckResult[]` und käme sonst nie
+   an den Skill heran. Nebenwirkung: er wird mit `StepRun.checks` persistiert, ein
+   Alt-Run trägt ihn also nicht (dieselbe Eigenschaft wie `kategorie`).
+3. **Drei Stationen bauen feldweise neu** und hätten ihn je einzeln verloren:
+   `normalizeVorgaben` (`basis()`), `vorgabenZuRegeln` und `runRegelChecks`. Alle drei
+   sind einzeln getestet ([herkunft.test.ts](../../src/core/services/skills/registry/__tests__/herkunft.test.ts));
+   jeder Zweig wurde einmal ROT gesehen.
+4. **Leer heißt kein Feld** — ein weißer String wird beim Laden verworfen, damit die
+   Registry-Daten nicht mit leeren Schlüsseln wachsen.
+
+Erster gepflegter Fall: das Zeichenlimit von A steht auf **1.100** („900 ± 200",
+hundert Zeichen Luft zum harten Rand) und nennt das Formularfeld. Rollout über
+`ga-a-zeichen-herkunft-2026-08`; **Wert und Grund sind unabhängig geschützt** — ein
+selbst verschobener Wert bleibt stehen und bekommt trotzdem seinen Grund, ein selbst
+geschriebener Grund wird nie überschrieben.
+
 ## UI
 
 - Kurator: Sektion „Umfang & Form" im Skill-Editor

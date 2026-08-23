@@ -50,6 +50,25 @@ function AnzeigenLink({ fundstellen, onFundstelle, className = '' }: {
   );
 }
 
+/**
+ * Der Grund hinter einer Vorgabe — eine gedämpfte Zeile unter dem Befund, in ALLEN
+ * drei Darstellungen dieselbe. Sie beantwortet die Frage, die eine nackte Zahl nicht
+ * beantwortet: „1.100 Zeichen — nach wessen Maßgabe?". Ohne sie steht eine harte
+ * Außen-Vorgabe (Formularfeld) gleichrangig neben einer hausgemachten Faustregel, und
+ * niemand kann sagen, welche der beiden verhandelbar ist.
+ *
+ * Bewusst nur hier und nicht im Prompt: das Modell braucht die Zahl, nicht ihre
+ * Geschichte.
+ */
+function GrundZeile({ herkunft, className = '' }: { herkunft?: string; className?: string }): React.ReactElement | null {
+  if (!herkunft?.trim()) return null;
+  return (
+    <div className={`mt-0.5 text-[12px] text-[var(--tf-text-secondary)] ${className}`}>
+      <span className="opacity-70">Grund: </span>{herkunft}
+    </div>
+  );
+}
+
 function glyph(level: CheckResult['level']): { char: string; cls: string } {
   if (level === 'ok') return { char: '✓', cls: 'text-[var(--tf-success-text)]' };
   if (level === 'hinweis') return { char: '!', cls: 'text-[var(--tf-warning-text)]' };
@@ -68,6 +87,7 @@ function PlainZeile({ c }: { c: CheckResult }): React.ReactElement {
       {c.detail && (
         <div className="ml-[23px] mt-0.5 text-[12px] text-[var(--tf-text-secondary)]">{c.detail}</div>
       )}
+      <GrundZeile herkunft={c.herkunft} className="ml-[23px]" />
     </div>
   );
 }
@@ -95,6 +115,7 @@ function AmpelZeile({ c, aktion }: { c: CheckResult; aktion: CheckListAktion }):
       {c.detail && (
         <div className="ml-[23px] mt-0.5 text-[12px] text-[var(--tf-text-secondary)]">{c.detail}</div>
       )}
+      <GrundZeile herkunft={c.herkunft} className="ml-[23px]" />
     </div>
   );
 }
@@ -116,6 +137,7 @@ function FehlerKarte({ c, aktion }: { c: CheckResult; aktion: CheckListAktion })
         {mono && <span className="ml-auto shrink-0 font-mono text-[12px] text-[var(--tf-danger-text)]">{mono}</span>}
       </div>
       {c.detail && <div className="mt-1 text-[12px] text-[var(--tf-text-secondary)]">{c.detail}</div>}
+      <GrundZeile herkunft={c.herkunft} />
       {(korrektur || hatFund) && (
         <div className="mt-2 flex items-center gap-3">
           {korrektur && (

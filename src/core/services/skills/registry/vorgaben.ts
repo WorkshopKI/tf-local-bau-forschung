@@ -124,6 +124,10 @@ export function vorgabenZuRegeln(
       aktiv: true,
       erstellt_am: stand,
       geaendert_am: stand,
+      // Die Herkunft reist mit in die synthetische Regel: alles, was Regeln anzeigt
+      // (Check-Liste, Testlauf, Skill-Editor), sieht nur `QualitaetsRegel` und käme
+      // sonst nie an den Grund heran, der am Skill steht.
+      ...(v.herkunft ? { herkunft: v.herkunft } : {}),
     });
   }
   return out;

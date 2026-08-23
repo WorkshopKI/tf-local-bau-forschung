@@ -231,6 +231,26 @@ export function VorgabenEditor({
             {modus === 'team' && !an && (
               <span className="text-[11.5px] text-[var(--tf-text-tertiary)]">{ERKLAERUNG[key]}</span>
             )}
+
+            {/*
+              Zweite Zeile der Vorgabe (umbricht über `basis-full`): woher der Wert
+              kommt. Kein Prompt-Text — er erscheint an der Prüfung, damit ein
+              Bearbeiter eine harte Außen-Vorgabe von einer Faustregel unterscheiden
+              kann. Nur im Team-Modus: die Herkunft gehört dem Kurator, sie ist keine
+              persönliche Einstellung.
+            */}
+            {an && modus === 'team' && (
+              <label className="basis-full flex items-baseline gap-2 pt-1.5 text-[11.5px] text-[var(--tf-text-tertiary)]">
+                <span className="shrink-0">Grund</span>
+                <input
+                  value={wert!.herkunft ?? ''}
+                  disabled={!canEdit}
+                  placeholder={'Woher stammt der Wert? z.B. Formularfeld der Fachprüfung (1.200 Zeichen)'}
+                  onChange={e => setzeVorgabe(key, { herkunft: e.target.value.trim() || undefined })}
+                  className="flex-1 min-w-[220px] rounded-[7px] border-[0.5px] border-[var(--tf-border)] bg-transparent px-2 py-1 text-[12px] text-[var(--tf-text-secondary)] outline-none focus:border-[var(--tf-primary)] disabled:opacity-60"
+                />
+              </label>
+            )}
           </div>
         );
       })}

@@ -35,6 +35,9 @@ import {
   A_AUFGABE_ZEILE,
   A_AUFGABE_ZEILE_UMFANG_ALT,
   A_MODIFIERS_UMFANG_ALT,
+  A_ZEICHEN_MAX,
+  A_ZEICHEN_MAX_ALT,
+  A_ZEICHEN_HERKUNFT,
   C_ABSCHNITT_OPTS_FUENF,
   UNTERNEHMEN_SKILL_ID,
   VERWERTUNG_SKILL_ID,
@@ -119,6 +122,9 @@ export const GA_EF_VORGABEN_MIGRATION = 'ga-ef-vorgaben-2026-08';
 
 /** ID der Auto-Retry-Freischaltung der ZIM-EP-Schritte (Messlauf 08/2026, Befund 2). */
 export const GA_EP_AUTO_RETRY_MIGRATION = 'ga-ep-auto-retry-2026-08';
+
+/** ID der Anhebung des A-Zeichenlimits auf 1.100 samt Herkunfts-Angabe. */
+export const GA_A_ZEICHEN_HERKUNFT_MIGRATION = 'ga-a-zeichen-herkunft-2026-08';
 
 export interface ReconcileResult {
   file: SkillRegistryFile;
@@ -625,6 +631,37 @@ function applyEfVorgaben(skills: SkillRecord[]): SkillRecord[] {
 }
 
 /**
+ * Das Zeichenlimit von A steigt auf 1.100 und bekommt seinen Grund daneben.
+ *
+ * Es ist die einzige Vorgabe der Kette, die aus der Aussenwelt kommt: die Kurzfassung
+ * wird in ein fremdes Formularfeld kopiert, das 1.200 Zeichen fasst. Das stand nirgends
+ * — und weil es nirgends stand, war am Prompt nicht zu erkennen, dass dieser Wert hart
+ * ist und die danebenstehende Satzzahl weich (v2.372).
+ *
+ * Zwei unabhängig geschützte Teile, wie in `applyAUmfangKuratiert` — A ist der eine
+ * kuratierte Gutachten-Prompt, ein Voll-Template-Guard könnte hier nie greifen:
+ *  1. der WERT steigt nur vom reinen Seed-Stand 1.000 aus (hat jemand ihn schon
+ *     verschoben, war das eine Entscheidung und bleibt stehen),
+ *  2. die HERKUNFT wird nur ergänzt, wo noch keine steht — sie ist reiner Anzeige-Text
+ *     und darf einen selbst geschriebenen Satz nicht überschreiben.
+ * Beide greifen unabhängig: ein verschobener Wert bekommt trotzdem seine Herkunft.
+ */
+function applyAZeichenHerkunft(skills: SkillRecord[]): SkillRecord[] {
+  return skills.map(s => {
+    const zeichen = s.id === KURZFASSUNG_SKILL_ID ? s.vorgaben?.zeichenMax : undefined;
+    if (!zeichen) return s;
+    const max = zeichen.max === A_ZEICHEN_MAX_ALT ? A_ZEICHEN_MAX : zeichen.max;
+    const herkunft = zeichen.herkunft?.trim() ? zeichen.herkunft : A_ZEICHEN_HERKUNFT;
+    if (max === zeichen.max && herkunft === zeichen.herkunft) return s;
+    return {
+      ...s,
+      vorgaben: { ...s.vorgaben, zeichenMax: { ...zeichen, max, herkunft } },
+      version: Math.max(s.version, 4),
+    };
+  });
+}
+
+/**
  * Ein automatischer Korrektur-Versuch je ZIM-EP-Schritt (Messlauf 08/2026, Befund 2).
  * Der beschränkte Auto-Retry existiert seit v4.124, war aber an keinem Schritt
  * eingeschaltet — Begründung und Versuchszahl stehen am Seed (`EP_AUTO_RETRY`).
@@ -678,6 +715,7 @@ const MIGRATIONEN: EinzelMigration[] = [
   { marker: GA_A_UMFANG_KURATIERT_MIGRATION, apply: nurSkills(applyAUmfangKuratiert) },
   { marker: GA_EF_VORGABEN_MIGRATION, apply: nurSkills(applyEfVorgaben) },
   { marker: GA_EP_AUTO_RETRY_MIGRATION, apply: applyEpAutoRetry },
+  { marker: GA_A_ZEICHEN_HERKUNFT_MIGRATION, apply: nurSkills(applyAZeichenHerkunft) },
 ];
 
 /**
