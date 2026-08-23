@@ -330,6 +330,16 @@ export function isSucheNatuerlicheSpracheEnabled(): boolean {
   return features.sucheNatuerlicheSprache === true;
 }
 
+/** Doppelförderungs-Prüfung: die gemeldete Frühkoordinierungs-Liste zeilenweise
+ *  gegen den Antragsbestand halten — drei Schlagworte je Zeile von der internen
+ *  KI, danach dieselbe Wortlaut- und Ähnlichkeitsstufe, die auch die Suche
+ *  nutzt. Gated die eigene Seite und den ⋯-Menüpunkt im Kopf der Suchseite; die
+ *  Suche selbst bleibt ohne den Flag bitweise wie zuvor. dev + pl.
+ *  Default false (`=== true`, Backward-Kompat). */
+export function isDoppelfoerderungEnabled(): boolean {
+  return features.doppelfoerderung === true;
+}
+
 /** MAP „Neuer Prüf-Workflow": Einreichungs-Import per Drag & Drop, deterministische
  *  Rechenchecks und eine im Betrieb editierbare, versionierte Förderfähigkeits-
  *  Checkliste. Die Einreichung ist eine eigene kv-Entität — der Flag gated kein

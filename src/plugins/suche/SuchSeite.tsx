@@ -87,6 +87,7 @@ import { berechneAuswege, type Ausweg } from './auswege';
 import type { GespeicherteSuche } from './gespeicherteSuchen';
 import { useGespeicherteSuchen } from './useGespeicherteSuchen';
 import { GespeicherteSuchenMenu } from './GespeicherteSuchenMenu';
+import { SuchAktionenMenu } from './SuchAktionenMenu';
 import { haeufigsteAnfragen } from './suchseite-utils';
 
 /** UI-Text fuer die Search-Phase-Badge. */
@@ -768,6 +769,10 @@ export function SuchSeite(): React.ReactElement {
                 onAusfuehren={fuehreGespeicherteAus}
                 onLoeschen={gemerkt.loeschen}
               />
+              {/* Das ⋯-Menü steht LINKS vom Hilfe-Knopf: der gehört an den
+                  Blattrand (Guard `hilfe-knopf-am-blattrand`), und die Klappe
+                  wächst nach links, statt ihn beim Öffnen zu verschieben. */}
+              <SuchAktionenMenu />
               <SeitenHilfeButton pluginId="suche" />
             </div>
           </div>

@@ -19,6 +19,12 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v6.21 — 2026-08
+
+### Neu
+- **Doppelförderung prüfen.** Die zweimal im Monat gemeldete Liste der Frühkoordinierung lässt sich jetzt hochladen und Zeile für Zeile gegen unseren Bestand halten. Zu jeder Meldung über 300.000 € bildet die interne KI drei Schlagworte; die App sucht damit und sagt je Zeile „Übereinstimmung" oder „keine Übereinstimmung" — bei Übereinstimmung mit Titel und Kurzbeschreibung der betroffenen Vorhaben. Zu finden über das ⋯-Menü oben rechts auf der Suchseite.
+- Verglichen wird gegen die Vorhaben der letzten fünf Jahre (FuE, Netzwerke, Studien; ohne abgelehnte) — das lässt sich vor dem Lauf umstellen. Passt ein Schlagwort nicht, kann man es direkt in der Ergebnisliste austauschen; neben jedem steht, wie viele Vorhaben es trifft. Das Ergebnis lässt sich als Excel exportieren.
+
 ## v6.20 — 2026-08
 
 ### Bugfixes

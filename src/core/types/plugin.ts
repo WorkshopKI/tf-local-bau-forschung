@@ -13,6 +13,7 @@ export type PluginFeatureKey =
   | 'auslastung'
   | 'dokumente'
   | 'dokumentenscan'
+  | 'doppelfoerderung'
   | 'devFixtures'
   | 'devInfraPanel'
   | 'mapFoerderfaehig'

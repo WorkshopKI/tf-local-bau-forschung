@@ -77,6 +77,12 @@ export const SICHTBARKEITS_KATALOG: readonly KatalogEintrag[] = [
   // Achsen gibt.
   seite('status-cockpit', 'Vorgangs-Regeln', BEIDES),
   seite('map-foerderfaehig', 'Förderfähigkeit', BEIDES),
+  // Neu und in Bewegung — die Schwellen und der Schlagwort-Prompt sind noch
+  // nicht ausgemessen. Das Flag ist im pl-Build AN und grenzt deshalb keine
+  // Zielgruppe ein (Regel 1); die Marke trägt hier also etwas bei. Sie steuert
+  // den ⋯-Menüpunkt der Suchseite, weil die Seite selbst gar nicht in der
+  // Navigation steht (`hideFromNav`) und der Sidebar-Filter sie nie sieht.
+  seite('doppelfoerderung', 'Doppelförderung', BETA),
   // Steht im pl-Build für jeden in „Werkzeuge", wirkt aber team-weit
   // (`navHint: 'global'`): die Zielgruppe ist echt enger als die Sichtbarkeit.
   seite('skill-verwaltung-kuration', 'Skill-Verwaltung', EXPERTE),

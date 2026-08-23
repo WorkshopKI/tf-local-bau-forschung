@@ -308,6 +308,15 @@ export const DEFAULT_CONFIG = {
      *  bitweise wie heute. Braucht die interne KI (Bridge). dev + pl. Optional,
      *  default false (kein requiredFlags-Eintrag → `=== true` Backward-Kompat). */
     sucheNatuerlicheSprache: false,
+    /** Doppelförderungs-Prüfung: die zweimal monatlich gemeldete Frühkoordinierungs-
+     *  Liste (XLSX) zeilenweise gegen den Antragsbestand halten. Je Zeile drei
+     *  Schlagworte von der internen KI, danach die vorhandene Wortlaut- und
+     *  Ähnlichkeitsstufe der Suche; das Urteil je Zeile nennt die betroffenen
+     *  Vorhaben mit Titel und Kurzbeschreibung. Gated die eigene Seite
+     *  (`/doppelfoerderung`, ausserhalb der Navigation) und den ⋯-Menüpunkt im
+     *  Kopf der Suchseite. Braucht die interne KI (Bridge). dev + pl. Optional,
+     *  default false (kein requiredFlags-Eintrag → `=== true` Backward-Kompat). */
+    doppelfoerderung: false,
     /** Metadaten-Extraktion über eine frei konfigurierte API-Adresse: die
      *  Einträge „Interne KI-API" und „OpenRouter API" im Aufklappmenü der Seite
      *  „Suche & Index". Beide bauen ihren Transport aus dem `ai-provider`-Eintrag,

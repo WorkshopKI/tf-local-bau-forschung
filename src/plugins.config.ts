@@ -3,6 +3,7 @@ import { homePlugin } from '@/plugins/home';
 import { einstellungenPlugin } from '@/plugins/einstellungen';
 import { dokumentePlugin } from '@/plugins/dokumente/index';
 import { suchePlugin } from '@/plugins/suche';
+import { doppelfoerderungPlugin } from '@/plugins/doppelfoerderung';
 import { feedbackBoardPlugin } from '@/plugins/feedback-board';
 import { devInfrastructureTestPlugin } from '@/plugins/dev-infrastructure-test';
 import { devStateInspectorPlugin } from '@/plugins/dev-state-inspector';
@@ -31,6 +32,7 @@ const allPlugins: TeamFlowPlugin[] = [
   auslastungPlugin,
   dokumentePlugin,
   suchePlugin,
+  doppelfoerderungPlugin,
   glossarPlugin,
   zuKlaerenPlugin,
   feedbackBoardPlugin,

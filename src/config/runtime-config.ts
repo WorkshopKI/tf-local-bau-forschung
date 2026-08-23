@@ -172,6 +172,13 @@ export interface TeamflowFeatures {
    *  die Suchstufe läuft unverändert weiter und wertet wie immer nach Abdeckung.
    *  dev + pl. Optional, default false. */
   sucheNatuerlicheSprache?: boolean;
+  /** Doppelförderungs-Prüfung: eine gemeldete Frühkoordinierungs-Liste (XLSX)
+   *  wird zeilenweise gegen den Antragsbestand gehalten — drei Schlagworte je
+   *  Zeile von der internen KI, danach Wortlaut- und Ähnlichkeitsstufe der
+   *  vorhandenen Suche. Eigene Seite ausserhalb der Navigation, erreichbar über
+   *  das ⋯-Menü der Suchseite. Braucht die interne KI (Bridge). dev + pl.
+   *  Optional, default false. */
+  doppelfoerderung?: boolean;
   /** MAP „Neuer Prüf-Workflow": Einreichungs-Import (Drag & Drop), Rechenchecks
    *  und editierbare, versionierte Förderfähigkeits-Checkliste. Eigene Entität
    *  im kv-Store, kein Eingriff in die Antrags-Pipeline. Nur dev. Optional,

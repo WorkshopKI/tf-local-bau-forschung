@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v6.21.0 — Doppelförderung: gemeldete Vorhaben gegen den Bestand halten (August 2026)
+
+MINOR — Zweimal im Monat kommt eine Ressort-Liste gemeldeter Forschungsvorhaben, die von Hand gegen den ZIM-Bestand gehalten wurde. Die Anforderung nennt „drei Schlagworte, ODER-verknüpft" — in der App am echten Bestand gemessen trifft ein weites Trio damit 1.150 von 4.327 Vorhaben, also ein Viertel des Bereichs: als Warnung wertlos. Deshalb trägt jeder Treffer seine Abdeckung, und das Urteil hängt an einer Schwelle. Detail: [doppelfoerderung.md](docs/architecture/doppelfoerderung.md).
+
+- **Neue Seite hinter dem ⋯-Menü der Suchseite**: XLSX aufnehmen, je Zeile drei Schlagworte von der internen KI, Wortlaut- + Ähnlichkeitsstufe, Urteil je Zeile mit Titel und Kurzbeschreibung der Treffer ([doppelfoerderung/](src/plugins/doppelfoerderung/), [SuchAktionenMenu.tsx](src/plugins/suche/SuchAktionenMenu.tsx))
+- **Urteil ab 2 von 3 Schlagworten**, Regler auf 1 (das wörtliche ODER) oder 3; die Trefferliste nennt ihre Gesamtzahl, statt still zu schneiden ([abgleich.ts](src/plugins/doppelfoerderung/services/abgleich.ts))
+- **Betrachtungsbereich als drei abschaltbare Achsen** — 4.327 von 14.225 Anträgen; abgelehnte über `isAbgelehntZurueckgezogenStatus`, denn die Kategorie `abgelehnt` ist unbesetzt und ein Vergleich gegen sie liefe still ins Leere ([bereich.ts](src/plugins/doppelfoerderung/services/bereich.ts))
+- **Ein Schlagwort bleibt eine Einheit**: bei der Messung fiel auf, dass „Mobile Fabrik" ODER-verknüpft in seine Wörter zerfiel und 535 statt 2 Vorhaben traf — Test einmal ROT gesehen ([abgleich.test.ts](src/plugins/doppelfoerderung/__tests__/abgleich.test.ts))
+- **Beträge werden nicht geraten**: `1.850` und `899650.65` lesen den Punkt verschieden; unlesbare Zellen fallen nicht still unter die Schwelle, sondern in eine sichtbare Gruppe ([liste-lesen.ts](src/plugins/doppelfoerderung/services/liste-lesen.ts))
+
 ### v6.20.1 — Jede Einbettung gibt ihre Grafikpuffer zurück (August 2026)
 
 PATCH — Der Nutzer maß mit: 12 GB Grafikspeicher, Verbrauch schwankend zwischen 2,6 und 3,3 GB — also **kein** Speichermangel, und Position 808 der Queue hat 17 Zeichen, ist also auch kein Ausreißer. Der Sägezahn war die Spur: die `Tensor`-Objekte aus Transformers.js halten je einen GPU-Puffer, der erst beim nächsten JS-GC frei wird. `dispose()` gab es die ganze Zeit — gerufen wurde es nur beim Entladen des Modells, einmal statt 14.221-mal.
@@ -507,113 +517,4 @@ PATCH — Aus dem Test: unter `nw:CANNABIS` standen zwei Zeilen, „CannabisNET"
 - **Der Rang hängt am Kern, nicht an der angezeigten Schreibweise** — nach der Faltung ist sie nur noch Stellvertreterin ihrer Gruppe; „Cannabis-Net" wäre sonst hinter das unverwandte „Netzwerk Cannabisnetz" gerutscht ([wert-index.ts](src/plugins/antraege/services/wert-index.ts), `sammlePassende`)
 - „Stöbern" baut dieselbe Anfrage wie die Vorschlagsliste ([stoebern.ts](src/plugins/suche/start/stoebern.ts))
 - Kein Befund an der Suche: eindeutig ist ohnehin das Kennzeichen (`fkz:16KN0896` → 61 statt 60, weil ein Teilvorhaben einen fremden Netzwerknamen trägt — 96 solcher Fehlzeiger im Bestand), aber es gilt je Förderrunde ([suche.md](docs/feedback-kontext/suche.md))
-
-### v4.128.0 — Die Metadaten-Extraktion zeigt nur noch die Wege, die diese Fassung gehen kann (August 2026)
-
-MINOR — Im Aufklappmenü „Metadaten-Extraktion" (Datenpflege → Suche & Index) standen sechs Wege, zwei davon in `zah-pl` ohne Wirkung: „Interne KI-API" und „OpenRouter API" bauen ihren Transport aus der Provider-Adresse, die nur der dev-Build setzen kann — in pl steht dort die Streamlit-Adresse, gegen die ein API-Ping scheitert. OpenRouter sperrt für Metadaten ohnehin die Transport-Policy.
-
-- **Beide API-Wege sind in pl/prod aus dem Menü verschwunden**, im dev-Build bleiben sie ([metadata-extractor.ts](src/core/services/search/metadata-extractor.ts), `verfuegbareMetadataModelle`)
-- **Neuer Flag `metadatenDirektApi`** (dev + local an, pl/prod aus) ([feature-flags.ts](src/config/feature-flags.ts), [runtime-layers.md](docs/architecture/runtime-layers.md))
-- **Eine gespeicherte Auswahl, die es nicht mehr gibt, zählt als „Kein LLM (regelbasiert)"** — sonst zeigte das Feld still den ersten Eintrag, während der Indexlauf die alte Adresse ansprach ([usePipelineConfig.ts](src/plugins/kuration/suche-index/hooks/usePipelineConfig.ts), `normalisiereMetadataLLMId`)
-- OpenRouter hängt zusätzlich an `ki.openrouter.enabled` — im local-Build fällt der Eintrag damit ebenfalls weg ([metadata-modelle.test.ts](src/core/services/search/__tests__/metadata-modelle.test.ts))
-- Baseline `MAX_FEATURE_FLAGS` von 29 auf 30 angehoben ([health-baseline.test.ts](src/__tests__/health-baseline.test.ts))
-
-### v4.127.1 — Der Ausweg aus der Richtlinien-Auswahl steht jetzt vorn (August 2026)
-
-PATCH — Aus dem Test: `nafatech` meldete „Keine Treffer", obwohl die Suche 29 Anträge gefunden hatte — alle in den Richtlinien-Generationen 2012 und 2015, weggeblendet von einer Richtlinien-Auswahl, die die Anfrage überlebt. Der Ausweg stand da, aber als eine Zeile unter mehreren gleich aussehenden, und wurde überlesen.
-
-- **Das Öffnen der Richtlinien steht jetzt direkt unter „Keine Treffer"** — eigener Kasten mit Zahl und gefülltem Knopf statt Listenzeile ([KeinTrefferZustand.tsx](src/plugins/suche/KeinTrefferZustand.tsx))
-- **Herausgehoben wird genau dieser eine Ausweg**: nur bei ihm existieren die Treffer nachweislich und eine stille Einstellung verdeckt sie; alle übrigen ändern die Anfrage und bleiben in der Liste ([auswege.ts](src/plugins/suche/auswege.ts), `teileAuswege`)
-- **Der zusammengelegte Ausweg bleibt unten**, obwohl er die Richtlinien mit öffnet — unter der Beschriftung „Alle Richtlinien einbeziehen" verschwiege er, dass er auch Filter leert und Regler lockert ([auswege.test.ts](src/plugins/suche/__tests__/auswege.test.ts))
-- Kein Befund an der Suche selbst: die 29 Treffer waren da und richtig; nachgemessen in den Unterprogrammen 34, 36 und 47 ([suche.md](docs/feedback-kontext/suche.md))
-
-### v4.127.0 — Der Vektorindex der Suche zieht in die Kuration und meldet sich, wenn er veraltet (August 2026)
-
-MINOR — Die Themen-Vektoren sind der Vektorindex der Ähnlichkeitssuche; gebaut wurden sie im Auslastungs-Modul, wo der Knopf „Corpus aufbauen" an `isDevContext()` hing und in `zah-pl` schlicht fehlte — während drei Texte in der App dazu aufforderten, ihn zu klicken. Dazu verglich der Start-Abgleich nur die ANZAHL: ein vollständiger, aber überholter Korpus blieb für immer liegen, unsichtbar, weil keine Zahl auffällig wurde. Am echten Bestand betrifft das **9 259 von 14 221** Vorhaben, deren Vektor ihren Inhalt nie gesehen hat.
-
-- **Bau, Abgleich und Spiegelung liegen in der Kuration** → „Suche & Index" → „Vektoren der Ähnlichkeitssuche"; die Auslastungs-Karte bleibt als Statusanzeige ([EmbeddingKorpusSection.tsx](src/plugins/kuration/suche-index/sections/EmbeddingKorpusSection.tsx), [useKorpusBau.ts](src/plugins/kuration/suche-index/hooks/useKorpusBau.ts), [auslastung.md](docs/architecture/auslastung.md))
-- **Der Abgleich vergleicht die Signatur, nicht die Anzahl** — ein älterer Vektorraum wird ersetzt statt ergänzt, ein neuerer lokaler nicht überschrieben ([abgleich.ts](src/core/services/embedding-corpus/abgleich.ts), 13 Fälle als Tabelle geprüft)
-- **Der Korpus erreicht jeden, der suchen kann**: der Start-Abgleich hing an der Freischaltung des Auslastungs-Moduls — in `zim-dashboard` lief er nie. Jetzt lädt er bedarfsgetrieben, sobald jemand „auch ähnliche Themen" einschaltet ([useEmbeddingKorpusAbgleich.ts](src/core/hooks/useEmbeddingKorpusAbgleich.ts), [runtime-layers.md](docs/architecture/runtime-layers.md))
-- **„Inkrementell" sieht geänderten Text**: ein Hash je Vorhaben macht aus „fehlt" ein „fehlt ODER Text hat sich geändert" — vorher übersprang der Lauf genau die Vorhaben, die der Wochen-Export `9052_PrjBsp` mit Inhalt füllt ([texthashes.ts](src/core/services/embedding-corpus/texthashes.ts))
-- **Ein Rechner kann nachziehen lassen** — opt-in, gerätelokal, ausgelöst von neuen CSV-Daten statt vom Kalender, mit acht benannten Vorbedingungen statt stiller Untätigkeit ([korpus-nachlauf.ts](src/plugins/auslastung/services/matching/korpus-nachlauf.ts))
-
-### v4.126.0 — Feldschluessel gegen Mapping: VN-Eingang, alle Antraege da und Bemerkung angeschlossen (August 2026)
-
-MINOR — Nachtrag zu §G.3 aus Schnitt 2: dieselbe Klasse, nur eine Schicht tiefer. Vier Spalten galten als „ungemappt" und lagen in Wahrheit unter Custom-Keys — nachgemessen sind es **fünf**, und zwei davon (`D_XTEC`, `D_ADV`, zusammen 21 526 Werte) liest der kanonische Weg gar nicht: die Auslastung löst sie längst selbst über das Schema auf. Übrig bleiben drei echte, und alle drei tragen etwas, das die Oberfläche behauptet hat, ohne es zu haben.
-
-- **Der Verwendungsnachweis ist da**: `D_VBE` liegt unter `eingang_vn_sach` (5 793 Sätze) — die Zelle sagte für 344 Vorgänge „kein Verwendungsnachweis eingegangen", während das Datum im Export stand; jetzt läuft die VN-Uhr, wie die Engine sie seit jeher vorsieht ([list-view.ts](src/core/services/csv/list-view.ts), Projektion v9)
-- **Der wirksame Eingang gilt wieder**: `D_XTE` („alle Anträge da", 10 282 Sätze) erreicht die Liste als `alle_antraege_da` — 178 Fristen rechnen ab dem späteren der beiden Eingangsdaten, 12 Zeilen sind damit nicht mehr fälschlich überfällig ([fristAnzeige.ts](src/plugins/antraege/fristAnzeige.ts))
-- **2 420 Verbünde tragen eine Bemerkung**: `T_HINT` liegt unter `bemerkung` (3 169 Sätze) — die Box im Auslastungs-Zuweisungscockpit war für den ganzen Bestand leer ([verbund-aggregation.ts](src/plugins/auslastung/services/verbund/verbund-aggregation.ts) unverändert, die Projektion liefert jetzt)
-- **Die Verlaufs-Schicht sah VBE nie**: kanonisch angebundene Kürzel tragen als `feldId` den Record-Key, Regel 2 der Auflösung greift bei ihnen nie — sie fragt jetzt zusätzlich nach `D_<code>` ([feld-aufloesung.ts](src/core/status/feld-aufloesung.ts)); von den vier Kürzeln ändert sich genau VBE, gemessen an den echten Schemas
-- **Die Frist-Hilfe nennt wieder drei Felder**, weil die Zelle sie jetzt wirklich liest — der Guard prüft das am Verhalten statt an einer abgeschriebenen Liste ([spaltenHilfe.ts](src/plugins/antraege/spaltenHilfe.ts), [zeigtWasDasteht.test.ts](src/plugins/antraege/__tests__/zeigtWasDasteht.test.ts))
-
-### v4.125.0 — Trennzeichen im Namen sind egal (August 2026)
-
-MINOR — Nach dem Stern stand die Frage nach einem Abstandsmaß („meintest du …?") im Raum. Vor dem Bau wurde der Namensraum ausgezählt, und das Ergebnis kippte sie: von 377 Paaren Haupt-↔-Nebenschreibweise rettete ein Abstandsmaß **null**, während 17 Paare verschiedener Netzwerke bei Abstand 1 liegen. Was die Messung stattdessen fand, braucht kein Raten — dieselbe Sache, anders getrennt: `cannabisnet` lieferte 1 Treffer, `cannabis-net` 60.
-
-- **Der Namenskern**: Bindestrich, Leerzeichen, Punkt und Klammer zählen in Akronym und Netzwerk nicht mit — 991 zusätzlich gefundene Anträge, 19 Anfragen, die vorher **null** lieferten ([namensKern.ts](src/core/services/search/namensKern.ts)); Zahlen + Preis in [suche-relevanz.md §12.2](docs/architecture/suche-relevanz.md)
-- **Die Nadel muss an einem Wortanfang beginnen** — sonst fände `bona` das Netzwerk „lab on a chip"; über die 400 häufigsten Titelwörter ändern nur 5 Anfragen ihre Trefferzahl, um zusammen 12 Zeilen ([namensKern.ts](src/core/services/search/namensKern.ts))
-- **Nur die beiden Namensfelder**, nicht Titel/Abstract/Snippet: dort liefe die Faltung über einen Satzpunkt hinweg ([suchbereich.ts](src/core/services/search/suchbereich.ts) bleibt unberührt, `KERN_FELDER` zieht die Grenze)
-- **Der Kern liegt im Korpus vorberechnet** neben dem rohen Wert (+1 ms je Anfrage statt +8) und ist dieselbe Zeichenkette, wo der Wert keine Fuge trägt ([search-corpus.ts](src/plugins/antraege/services/search-corpus.ts))
-- **Die Oberfläche zieht mit**: Fundstelle als ein Stück markiert (Bindestrich eingeschlossen), `nw:cannabisnet` schlägt „Cannabis-Net" vor (letzter Rang), eine ausführbare Zeile in der Suchsprache ([markierung.ts](src/core/services/search/markierung.ts), [wert-index.ts](src/plugins/antraege/services/wert-index.ts), [suchsprache.ts](src/plugins/suche/start/suchsprache.ts))
-
-### v4.124.0 — Förderanträge: 100 Befunde der Bug-Jagd (Schnitt 2) behoben (August 2026)
-
-MINOR — Schnitt 2 nahm die andere Hälfte des Plugins (Detailseite, Ausklapp, Suche, Status, Gutachten, Aufbereitung, Artefakt-Nachbarn) und fand eine Klasse mit dem meisten Ertrag: **eine Stelle liest einen Feldschlüssel, den der echte Bestand nicht führt**, weil das Mapping die Spalte umbenennt. Dazu kamen Flächen, die etwas Falsches behaupten statt zu schweigen — eine unerreichbare Feld-Historie, eine phasenblinde Frist, ein Freigabe-Tor über leerem Text. 95 Brillen-Befunde + 5 eigene Mess-Befunde, dazu 15 der 25 offenen Kandidaten aus Schnitt 1.
-
-- **Feldschlüssel gegen Mapping**: `T_XSW` liegt unter `wiedereinreicher` (1 452 Sätze), `LFZ_TV_*` unter `tv_beginn`/`tv_ende` (14 131), „beantragte Kosten" scheiterte an Klammern (8 105), `ANWEND_*` fehlte im Suchkorpus (9 614) — alle über Alias-/Normalisierungs-Auflösung nachgezogen ([xsw.ts](src/plugins/antraege/xsw.ts), [glanceFacts.ts](src/plugins/antraege/alleFelder/glanceFacts.ts), [descriptor-text.ts](src/plugins/antraege/services/descriptor-text.ts), Projektion v8 in [list-view.ts](src/core/services/csv/list-view.ts))
-- **Die Feld-Historie ist erreichbar**: der `↻ N`-Knopf hing am Verbund an einem fest verdrahteten `{}`, am TV am nie befüllten `antrag_historie` — beide lesen jetzt das Import-Diff-Journal ([useFeldHistorie.ts](src/plugins/antraege/alleFelder/useFeldHistorie.ts))
-- **Uhren und Zähler sagen, was sie messen**: die Artefakt-Karte verließ die phasenblinde Altregel (11 003 auseinanderlaufende Vorgänge), die Chronik zeigt ihre Textspalte nur noch, wenn sie etwas hinzufügt (62,2 % Echo), Kürzel-Angaben, Trichter-Zähler und Termin-Zahlen tragen ihre Einheit ([useArtefaktLeiste.ts](src/plugins/antraege/artefakte/useArtefaktLeiste.ts), [StatusChronik.tsx](src/plugins/antraege/status/StatusChronik.tsx))
-- **Kein Tor über leerem Text**: leerer Bescheid ist nicht freigabereif, ein NF-Punkt ohne Baustein trägt seine `[TODO]`-Marke, das Freigabe-Tor rechnet mit dem Prüfstand der Erzeugung ([nf-service.ts](src/plugins/antraege/nachforderungen/nf-service.ts), [WerkbankSection.tsx](src/plugins/antraege/werkbank/WerkbankSection.tsx))
-- **Kein Zustand über den Wechsel hinweg**: Entwürfe, Prompt-Ansicht, Werkbank-Auswahl und Suchkorpus folgen dem Verbund bzw. dem Bestandsstand ([useNachforderungen.ts](src/plugins/antraege/nachforderungen/useNachforderungen.ts), [antraege-search-service.ts](src/plugins/antraege/services/antraege-search-service.ts)) — Bericht: `~/.claude/plans/bug-jagd-antraege-schnitt-2.md`
-
-### v4.123.0 — Die Suche kennt den Stern (August 2026)
-
-MINOR — Das Fragezeichen (v4.101) verlangt, dass man abzählt: `mobi?nspec` findet die beiden Schreibweisen dieses Netzwerks nur, weil sie sich in genau einem Zeichen unterscheiden — `mob?nspec` liefert 0. Wer eine Namensdrift sucht, kennt ihre Länge aber nicht. Dazu kam der Platzhalter in keiner Zeile der Oberfläche vor: gefragt wurde nach einer Sache, die es seit zwei Monaten gibt.
-
-- **`*` steht für beliebig viele Zeichen, auch für keines**: `mob*spec` liefert dieselben 33 Treffer wie `mobi?nspec`, ohne die Abweichung zu kennen ([wortstamm.ts](src/core/services/search/wortstamm.ts)) — Kosten wie ein gewöhnliches Wort, am Bestand gemessen ([suche-relevanz.md](docs/architecture/suche-relevanz.md))
-- **Der Stern bleibt im Wort** (`[\p{L}\p{N}]*`, nicht `.*`): `mob*technik` findet 2 statt 119, weil er nicht über Leerzeichen spannt ([wortstamm.ts](src/core/services/search/wortstamm.ts))
-- **Die Fundstelle wird als Muster markiert**, nicht als getippte Nadel — bis v4.122 kam ein Platzhalter-Treffer unmarkiert an ([markierung.ts](src/core/services/search/markierung.ts))
-- **Die Suchsprache lehrt ihn**: eine ausführbare Zeile mehr im Startzustand, am echten Bestand gegengezählt ([suchsprache.ts](src/plugins/suche/start/suchsprache.ts))
-- Erbt Feldpräfix und Anführungszeichen: `fkz:16KN0830*` (32), `nw:mob*spec` (33), `"mob*spec"` (0 — zitiert ist wörtlich gemeint)
-
-### v4.122.0 — Förderantrags-Tabelle: 17 Befunde der Bug-Jagd behoben (August 2026)
-
-MINOR — Die read-only-Jagd über die meistgenutzte Seite fand ein Muster: **die Oberfläche verspricht eine Menge, eine Uhr oder eine Einheit, die die Liste darunter nicht einlöst.** Die Filterleiste zählte über den Vollbestand (14 225) und bot Werte an, die im aktuellen Reiter null Zeilen liefern; die Vorgabe-Sortierung „Frist" las ein anderes Feld als die Frist-Spalte zeigt; Massenleiste und Export rechneten auf der Liste vor den drei letzten Einschränkungen der Tabelle.
-
-- **Zähler und Liste auf einer Grundmenge**: die Filterleiste holt ihre Facetten-Basis wie jede andere zählende Oberfläche aus `countBase`, ein vb_phase-Filter ohne die 9 schaltet den Irrläufer-Vorfilter nicht mehr ab, und „Auch außerhalb meiner Anträge" gilt auch für die Reiter-Zahlen ([FilterSidebar.tsx](src/plugins/antraege/filter/FilterSidebar.tsx), [useFilteredAntraege.ts](src/plugins/antraege/useFilteredAntraege.ts)) — Pitfall #46
-- **Eine Uhr, nicht zwei**: „Frist (kürzeste)" sortiert über dieselbe Engine, die die Zelle zeigt — angehaltene Vorgänge sinken ans Ende statt an die Spitze ([sort.ts](src/plugins/antraege/sort.ts)); `daysUntilFrist` ist entfallen ([views.ts](src/plugins/antraege/views.ts))
-- **Was dasteht, ist die Grundlage**: Massenleiste, beide Export-Wege und die schmale Spalte im Detail lesen die Meldung der Ansicht statt `filtered`; der Export nimmt die eigenen Spalten mit ([tabellenSicht.ts](src/plugins/antraege/tabellenSicht.ts), [export-xlsx.ts](src/plugins/antraege/services/export-xlsx.ts))
-- **Kein Schalter ohne Wirkung**: „Gruppierung: Keine" gilt auch im Reiter „Fristen", der Nachlade-Fühler folgt seinem Knoten statt einer Zeilenzahl, ein angehakter Facetten-Wert bleibt abwählbar ([store.ts](src/plugins/antraege/store.ts), [AntraegeMain.tsx](src/plugins/antraege/AntraegeMain.tsx), [MultiSelectFacet.tsx](src/plugins/antraege/filter/facets/MultiSelectFacet.tsx))
-- **Erklärungen, die stimmen**: `custom`-Mappings zählen als Mapping (kein „bleibt leer" über einer vollen Spalte), „Branche"/„Fördergeber" nennen ihren Grund, die Frist-Hilfe nur noch die Felder ihres Rechenwegs ([spalten-inventar.ts](src/core/services/csv/spalten-inventar.ts), [spaltenHilfe.ts](src/plugins/antraege/spaltenHilfe.ts))
-
-### v4.121.0 — To-do-Regeln und Klaerfragen: 15 Befunde der Bug-Jagd behoben (August 2026)
-
-MINOR — Der zweite Schnitt der Jagd, über die beiden in v4.120 ausgeklammerten Reiter. Ein Muster trägt fast alles: **ein Ergebnis überlebt seinen Parameter und wird dem gerade gewählten zugeschrieben.** Der Wirkungs-Lauf lief unter AB und stand nach einem Pillen-Klick als „Regelsatz FB" da — samt einer Warnung, die einen falschen Grund nannte. Dazu Zahlen, die eine andere Liste zählen als die daneben.
-
-- **Eine Messung nennt ihren Regelsatz**: Wirkungs-Lauf, Probe am Fall und Termin-Befunde sagen, unter welchem Satz sie liefen; fremde Zahlen werden nicht mehr gezeigt ([useRegelWirkung.ts](src/plugins/status-cockpit/useRegelWirkung.ts), [RegelProbelauf.tsx](src/plugins/status-cockpit/RegelProbelauf.tsx), [TerminBefundeBlock.tsx](src/plugins/status-cockpit/TerminBefundeBlock.tsx)) — neue Bug-Klasse [#25](docs/architecture/recurring-bug-classes.md)
-- **Zwei Kaskaden, zwei Nummernkreise**: Nummer, „Position i von n" und Pfeile folgen dem eigenen Regelsatz, fremde Sperren stehen vorn und tragen keine Stelle ([todoRegelnAnsicht.ts](src/plugins/status-cockpit/todoRegelnAnsicht.ts), [TodoRegelKarte.tsx](src/plugins/status-cockpit/TodoRegelKarte.tsx))
-- **Zähler zählen, was dasteht**: die Regelsatz-Pille sagte „AB 26" über 30 Zeilen und „FB 0" über vier; die Reiter-Lasche zählte alle Sätze zusammen ([TodoRegelnBereich.tsx](src/plugins/status-cockpit/TodoRegelnBereich.tsx), [StatusCockpitPage.tsx](src/plugins/status-cockpit/StatusCockpitPage.tsx))
-- **Auslassungen in Fragen, nicht in Anlässen**: „243 ruhende Kürzel ausgelassen" stand über einer Liste mit einer Frage, obwohl keine unterdrückt war; die Kurzlabel-Spitze kappte still ([klaerfragen/index.ts](src/core/status/klaerfragen/index.ts), [KlaerfragenTab.tsx](src/plugins/status-cockpit/KlaerfragenTab.tsx))
-- **Eine Id, eine Zeile**: zwei Schreibweisen desselben Statuswerts erzeugten zwei Klärfragen mit derselben ID — dem Schlüssel, über den die Antworten zurückkommen ([ableitung.ts](src/core/status/klaerfragen/ableitung.ts))
-
-### v4.120.0 — Status-Cockpit: 24 Befunde der Bug-Jagd behoben (August 2026)
-
-MINOR — Die read-only-Jagd über „Ebenen · Statuswerte · Kürzel" fand ein Muster: **die Oberfläche beschreibt einen anderen Stand als den, der bearbeitet wird.** Der Reiter „Ebenen" las die Zuordnung aus der gespeicherten Fassung, während der Baum daneben den Entwurf zeigte; „neu berechnen" warf den Entwurf weg; der Lösch-Dialog verschickte die Phase, die er löscht. Dazu drei Zähler, die eine andere Grundmenge messen als der Filter neben ihnen.
-
-- **Ein Stand, eine Antwort**: „Ebenen" folgt jetzt dem Entwurf (`schnittVon` statt Snapshot), „neu berechnen" lässt ihn stehen, und der Lösch-Dialog kann sich nicht mehr selbst als Ziel schicken ([ebenenModell.ts](src/plugins/status-cockpit/ebenenModell.ts), [useStatusCockpit.ts](src/plugins/status-cockpit/useStatusCockpit.ts), [PhaseLoeschenDialog.tsx](src/plugins/status-cockpit/PhaseLoeschenDialog.tsx))
-- **Zähler und Filter sprechen dasselbe Vokabular**: Status statt Katalogzeilen (60 → 30), „Vorkommen" statt „Vorgänge", Chips mit Facetten-Zahl, Suche filtert nach dem Falten ([katalogZeilen.ts](src/plugins/status-cockpit/katalogZeilen.ts), [KatalogTab.tsx](src/plugins/status-cockpit/KatalogTab.tsx))
-- **Keine Zusage ohne Mechanik**: die Arbeitsliste „folgt dem Code", nicht dem Verfahrensschritt; Zieltage nennen die Phasen aus `zieltageRelevant` statt einer festen Liste ([katalogSpalten.tsx](src/plugins/status-cockpit/katalogSpalten.tsx), [ZieltageUebernahmeDialog.tsx](src/plugins/status-cockpit/ZieltageUebernahmeDialog.tsx))
-- **Nichts verschwindet still**: Sammelordner sind nicht löschbar (340 Kürzel), ein Zug nach unten landet nicht mehr eine Position zu weit, Kurzform-Zeile und Reihenfolge-Feld überleben das Tippen ([katalog-edit.ts](src/core/status/katalog-edit.ts), [phasenDrag.ts](src/plugins/status-cockpit/phasenDrag.ts), [KurzLabelPflege.tsx](src/plugins/status-cockpit/KurzLabelPflege.tsx))
-- **Leere Grundlage heißt „unbeantwortbar", nicht „nichts"**: ohne geladene CSV-Spalten ruht kein Kürzel mehr, und kein Relevanz-Vorschlag markiert ruhende ([ruhende-kuerzel.ts](src/core/status/ruhende-kuerzel.ts), [katalog-edit.ts](src/core/status/katalog-edit.ts))
-
-### v4.119.0 — Kuration-Hub: 23 Befunde der Bug-Jagd behoben (August 2026)
-
-MINOR — Sieben Sidebar-Seiten wurden mit v4.34 ein Hub; die Jagd suchte, **was beim Umzug liegen blieb**. Das Muster: die Oberfläche spricht weiter von etwas, das nicht mehr da ist — tote Plugin-Ids in drei Knöpfen, eine Karte ohne Inhalt, ein Untertitel, der eine verborgene Gruppe nennt, und die Zusage „nur lesbar", die drei Panels nicht hielten.
-
-- **Alte Wege kommen an**: in prod endete jede `/kuration…`-Adresse auf leerer Fläche, drei Knöpfe zeigten auf Plugin-Ids, die es nicht mehr gibt, und das Lesezeichen „Programme" trägt jetzt seinen Abschnitts-Anker ([Router.tsx](src/core/Router.tsx), [routes.ts](src/core/routes.ts), [CsvAutoRefreshBanner.tsx](src/plugins/csv-sources-kuration/components/CsvAutoRefreshBanner.tsx))
-- **„Nur nach Freischaltung" gilt für alle**: Sichtbarkeits-Marken und die Dienste-URL schrieben bei gesperrter Sitzung weiter team-weit; die Sperrseite nennt den Grund, den dieser Build wirklich hat, und „Sperren" hat einen Rückweg ([SichtbarkeitPanel.tsx](src/plugins/kuration/sichtbarkeit/SichtbarkeitPanel.tsx), [ModulSchlossGate.tsx](src/core/components/ModulSchlossGate.tsx), [useKuratorSeiten.ts](src/core/hooks/useKuratorSeiten.ts))
-- **Keine Karte ohne Inhalt, kein Versprechen ohne Deckung** — `SettingsGruppe traegt` plus Guard `settings-karte-ohne-inhalt`, der eine dritte Fundstelle in den Einstellungen mitgefunden hat ([settings-layout.tsx](src/components/settings/settings-layout.tsx), [conventions-ui.test.ts](src/__tests__/conventions-ui.test.ts))
-- **Schreibende Wege halten, was sie beschriften**: „Nur Labels" schreibt nur Labels, ein Unterprogramm-Label lässt sich leeren, das gelöschte Standard-Programm bleibt gelöscht, der Filter-Assistent nennt das gewählte Feld ([unterprogrammLabelXlsx.ts](src/core/services/csv/unterprogrammLabelXlsx.ts), [programmRegistry.ts](src/core/services/csv/programmRegistry.ts), [FilterEditDialog.tsx](src/plugins/kuration/foerderprogramme/filter/dialogs/FilterEditDialog.tsx))
-- **Zahlen und Statuszeilen nennen ihre Reichweite**: „nicht prüfbar" statt „noch kein Import", „Anträge mit Code", Zustand über alle Programme — und Dokument-Review hat ein eigenes Handbuch statt dem der Nachbarseite ([dokument-review.md](docs/feedback-kontext/dokument-review.md))
 

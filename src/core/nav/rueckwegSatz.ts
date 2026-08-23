@@ -38,6 +38,7 @@ export const SEITEN_FUEGUNG: Readonly<Record<string, string>> = {
   'Auslastung': 'zur Auslastung',
   'Dokumente': 'zu den Dokumenten',
   'Suche': 'zur Suche',
+  'Doppelförderung': 'zur Doppelförderungs-Prüfung',
   'Glossar': 'zum Glossar',
   'Zu klären': 'zu „Zu klären"',
   'Feedback': 'zum Feedback',

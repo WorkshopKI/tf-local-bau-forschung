@@ -57,6 +57,7 @@
     "vorgangssystem": true,
     "eigeneSpalten": true,
     "sucheNatuerlicheSprache": true,
+    "doppelfoerderung": true,
     "metadatenDirektApi": true
   },
   "menuLabels": {

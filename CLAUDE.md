@@ -25,6 +25,7 @@ Decision-Tree für häufige Aufgaben. Erst hier nachsehen, **bevor** du die Code
 | Spaltenkopf soll seine Herkunft erklären (`SortableColumn.hilfe`, Feldliste aus dem Schema statt abgeschrieben) | [ui-muster.md → Spalten erklären ihre Herkunft](docs/architecture/ui-muster.md) |
 | Eigene Spalte der Fördertabelle (Feld/Sammel/Regel; Rohwert-Projektion `frei_roh`, Signatur-Regel, Reichweiten) | [eigene-spalten.md](docs/architecture/eigene-spalten.md) + Flag `eigeneSpalten` |
 | Suche: Relevanz, Trefferstellen, Wortstämme — und die Suche mit **natürlicher Sprache** (Frageplan: Leitbegriff = ein Suchteil, Schreibweisen = seine Nadeln; `pflicht` für Einschränkungen; Flag `sucheNatuerlicheSprache`) | [suche-relevanz.md](docs/architecture/suche-relevanz.md) (§8 für den Frageplan) |
+| Doppelförderung (gemeldete Frühkoordinierungs-Liste XLSX → 3 Schlagworte je Zeile → Wortlaut- + Ähnlichkeitsstufe → Urteil je Zeile; Abdeckung statt reinem ODER, Betrachtungsbereich; Flag `doppelfoerderung`) | [doppelfoerderung.md](docs/architecture/doppelfoerderung.md) |
 | Frage an die **Förderantrags-Liste** (Antragsplan: natürliche Sprache → vorhandene Filter-Achsen; Stillstands-Achse, Kürzel-Ausschnitt aus einer Frage; Flag `sucheNatuerlicheSprache`) | [antrags-frage.md](docs/architecture/antrags-frage.md) |
 | `file://`-Constraint vergessen? | [docs/agents/file-protocol-pitfalls.md](docs/agents/file-protocol-pitfalls.md) + Critical Constraints unten |
 | Bug-Risiko-Check vor Commit | [Common Pitfalls](#common-pitfalls) unten (nummerierte Liste) überfliegen |
