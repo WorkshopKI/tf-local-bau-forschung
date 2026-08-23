@@ -43,7 +43,9 @@ export function StreamingVorschau({ thinking, content, phase, onStop }: Props): 
   const contentRef = useAutoScroll(content);
   const statusText = phase === 'feinschliff'
     ? 'Sprachlicher Feinschliff…'
-    : content ? 'Generiere Antwort…' : thinking ? 'Denkt nach…' : 'Generiere…';
+    : phase === 'pruefung'
+      ? 'Fachliche Prüfung…'
+      : content ? 'Generiere Antwort…' : thinking ? 'Denkt nach…' : 'Generiere…';
 
   return (
     <div className="mt-3">

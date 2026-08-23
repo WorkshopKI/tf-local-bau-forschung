@@ -59,7 +59,7 @@ Decision-Tree für häufige Aufgaben. Erst hier nachsehen, **bevor** du die Code
 | Infrastructure-Layer-Internals | [docs/architecture/infrastructure-layer.md](docs/architecture/infrastructure-layer.md) |
 | Auslastungs-Modul (Klassifizierung + Matching) | [docs/architecture/auslastung.md](docs/architecture/auslastung.md) |
 | Gutachten-Kurzfassung-Testballon (Skill + Aufnahme + DOCX-Füller) | [docs/architecture/gutachten-kurzfassung.md](docs/architecture/gutachten-kurzfassung.md) |
-| Artefakt-Engine (Substrat artefaktTyp/ebene/pruefart, Run-Keying, generische Füllung) + NF-Nachforderungen + GA-QS | [docs/architecture/artefakt-engine.md](docs/architecture/artefakt-engine.md) |
+| Artefakt-Engine (Substrat artefaktTyp/ebene/pruefart, Run-Keying, generische Füllung) + NF-Nachforderungen + GA-QS + die **drei Prüfer** (fachlich/administrativ/sprachlich; Bindung am Artefakt, Prüfkatalog, Gegenrolle, Kill-Switch) | [docs/architecture/artefakt-engine.md](docs/architecture/artefakt-engine.md) |
 | Textbaustein-Katalog (NF/RNE/ABL als versionierte, freigebbare App-Daten; eigene Sidecar `textbausteine.json`, NF-Seed-Migration, geteilter Suchkern, `katalogRef`-Audit; dev/pl/kurator-Parität) | [docs/architecture/textbaustein-katalog.md](docs/architecture/textbaustein-katalog.md) |
 | Skill-Vorgaben (Umfang & Form am Skill) + persönliche Ebene | [docs/architecture/skill-vorgaben.md](docs/architecture/skill-vorgaben.md) |
 | Anfragen-Modul (.msg → interne Anonymisierung → externer ZIM-FAQ-Assistent → deterministische Wiedereinsetzung) | [docs/architecture/anfragen-modul.md](docs/architecture/anfragen-modul.md) |

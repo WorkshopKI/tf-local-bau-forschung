@@ -61,6 +61,10 @@ export {
   ebeneOf,
   pruefartOf,
   qsRegelnFuerArtefakt,
+  workflowFuerArtefakt,
+  prueferFuerArtefakt,
+  prueferMitArt,
+  pruefItemsFuer,
   type SkillWorkflowFundstelle,
 } from './selectors';
 export {

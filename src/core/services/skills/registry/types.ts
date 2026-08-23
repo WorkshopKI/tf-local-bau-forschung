@@ -191,6 +191,42 @@ export interface SkillVersionSnapshot {
   qsKriterien?: string[];
 }
 
+/* -------------------------------------------------------------------------- */
+/* Prüfkatalog — die fachlichen Kriterien EINES Prüfers (additiv)              */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Ein fachliches Prüfkriterium — der Satz, den ein Prüfer über einen erzeugten
+ * Abschnitt bewertet („Jede Aussage ist durch die VB gedeckt").
+ *
+ * Warum am Prüfer und nicht je Abschnitt: `SkillRecord.qsKriterien` gibt es seit
+ * v2.336 und es funktioniert — aber es zerlegt die Kriterien auf sieben Skills,
+ * kennt keine Herkunft und hat keinen Platz für das, was ABSCHNITTSÜBERGREIFEND
+ * gilt („Begriffe über alle Abschnitte konsistent"). Der Katalog ist EINE
+ * kuratierte Liste je Artefakt; `giltFuer` schneidet sie je Abschnitt zu.
+ *
+ * Form bewusst nach dem Vorbild der MAP-Checkliste (`MapChecklistenItem`):
+ * Gruppe, Kriterium, Fundstelle — das ist die Sprache, in der die Fachprüfung
+ * ohnehin denkt.
+ */
+export interface PruefItem {
+  /** Stabile ID — Befunde referenzieren sie über Katalog-Fassungen hinweg. */
+  id: string;
+  /** Grobe Bündelung für die Anzeige („Erdung", „Vollständigkeit", „Konsistenz"). */
+  gruppe: string;
+  /** Der zu bewertende Satz. Muss je Katalog EINDEUTIG sein (der Befund mappt darüber). */
+  kriterium: string;
+  /** Woher das Kriterium stammt (Richtlinie, Vorlage, Abstimmung) — reine Anzeige. */
+  herkunft?: string;
+  /**
+   * Schritt-IDs, für die das Kriterium gilt. Fehlt oder leer → für JEDEN Abschnitt.
+   * So bleibt der Regelfall („gilt überall") die kürzeste Schreibweise.
+   */
+  giltFuer?: string[];
+  /** Aus-Schalter des Kurators (fehlt → aktiv), Muster `SkillRecord.aktiv`. */
+  aktiv?: boolean;
+}
+
 /** Join-Strategie der Teilfelder eines strukturierten `finalerText`. */
 export type TeilJoin = '\n\n' | '\n' | ' ';
 
@@ -309,6 +345,26 @@ export interface SkillRecord {
    * Skill-Verwaltung, nie über einen Seed.
    */
   qsKriterien?: string[];
+  /**
+   * Macht diesen Skill zu einem **Prüfer** dieser Art (additiv). Fehlt das Feld, ist
+   * der Skill ein gewöhnlicher Generierungs-Skill — exakt das Verhalten vor v6.27.
+   *
+   * Spiegelt `QualitaetsRegel.pruefart` auf die Skill-Ebene: dort sagt sie, WIE eine
+   * Regel ausgewertet wird, hier, WELCHE Sicht dieser Prüfer vertritt.
+   * `'fachlich'` = der beratende LLM-Lauf (`qs-basis`), `'textlich'` = der Lektor,
+   * `'administrativ'` = der deterministische Vollständigkeits-/Zahlen-Check.
+   */
+  pruefart?: Pruefart;
+  /**
+   * Fachlicher Prüfkatalog dieses Prüfers (additiv, nur bei gesetzter `pruefart`).
+   * Ist er gepflegt, bewertet der Lauf GENAU diese Kriterien statt der generischen
+   * Dimensionen des `qs-basis`-Templates — dieselbe Mechanik wie `qsKriterien`, nur
+   * an EINER Stelle für das ganze Artefakt und mit Herkunft je Kriterium.
+   *
+   * Rangfolge, wenn beides existiert: `qsKriterien` am Abschnitts-Skill gewinnt (die
+   * engere Angabe schlägt die weitere) — siehe `pruefItemsFuer`.
+   */
+  pruefkatalog?: PruefItem[];
 }
 
 /* -------------------------------------------------------------------------- */
@@ -423,6 +479,18 @@ export interface WorkflowDef {
    * (siehe `istWorkflowVerfuegbar`), NICHT aus `aktiv`.
    */
   freigabe?: WorkflowFreigabe;
+  /**
+   * Skill-IDs der **Prüfer**, die nach JEDER Erzeugung eines Abschnitts dieses
+   * Artefakts laufen (additiv, Reihenfolge = Lauf-Reihenfolge). Fehlt/leer → kein
+   * Prüfer, exakt das Verhalten vor v6.27.
+   *
+   * Hier und nicht als `llm_qs`-Schritte, weil ein Prüfer eine Eigenschaft des
+   * ARTEFAKTS ist und nicht eines Schritts: sonst müsste man ihn siebenmal
+   * konfigurieren und beim Hinzufügen eines Abschnitts daran denken. Dieselbe
+   * Bindungsebene, auf der `qsRegelnFuerArtefakt` schon arbeitet. Die
+   * `WorkflowStep`-Rolle `'llm_qs'` bleibt als manueller Sonderweg bestehen.
+   */
+  pruefer?: string[];
 }
 
 /** Lebenszyklus-Stand einer Workflow-Definition (gleiches Vokabular wie Abschnitts-Stände). */

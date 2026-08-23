@@ -56,6 +56,10 @@ import {
   G_ABSCHNITT_OPTS_PFLICHT_ALT,
   INTERPUNKTION_REGEL_ID,
   ZIM_EP_DEF,
+  QS_BASIS_SKILL_ID,
+  SEED_QS_SKILL,
+  QS_NAME_ALT,
+  QS_BESCHREIBUNG_ALT,
 } from './seed';
 import {
   GA_LEKTOR_SKILL_ID,
@@ -125,6 +129,9 @@ export const GA_EP_AUTO_RETRY_MIGRATION = 'ga-ep-auto-retry-2026-08';
 
 /** ID der Anhebung des A-Zeichenlimits auf 1.100 samt Herkunfts-Angabe. */
 export const GA_A_ZEICHEN_HERKUNFT_MIGRATION = 'ga-a-zeichen-herkunft-2026-08';
+
+/** ID der Bindung des fachlichen Prüfers an das GA-Artefakt (stillgelegt bis zur Abnahme). */
+export const GA_FACHPRUEFER_MIGRATION = 'ga-fachpruefer-2026-08';
 
 export interface ReconcileResult {
   file: SkillRegistryFile;
@@ -646,6 +653,55 @@ function applyEfVorgaben(skills: SkillRecord[]): SkillRecord[] {
  *     und darf einen selbst geschriebenen Satz nicht überschreiben.
  * Beide greifen unabhängig: ein verschobener Wert bekommt trotzdem seine Herkunft.
  */
+/**
+ * Bindet den fachlichen Prüfer an das GA-Artefakt — **stillgelegt**.
+ *
+ * Bis hierher war die fachliche Prüfung vollständig gebaut und nirgends gebunden:
+ * `zim-ep` trug sieben Generierungs-Schritte und keinen einzigen `llm_qs`, also
+ * erschien der QS-Knopf nie und `ga-qs-quellenabgleich` — eine `fehler`-Regel — ist
+ * noch nie gelaufen. Die Migration macht diesen Zustand sichtbar und beendbar: der
+ * Prüfer steht ab jetzt am Workflow, und ein Kurator schaltet ihn ein.
+ *
+ * **Er startet aus, und das ist der Punkt.** Sein Prompt ist an echten Abschnitten
+ * nie gemessen worden, und er kostet je Abschnitt einen KI-Lauf (+50 % Laufzeit).
+ * Ein Prüfer, der überall etwas findet, wäre schlechter als keiner.
+ *
+ * Drei unabhängige Teile, alle pristine-geschützt:
+ *  1. `WorkflowDef.pruefer` wird nur gesetzt, wenn dort noch nichts steht;
+ *  2. `pruefart` am Skill wird nur ergänzt, wenn sie fehlt;
+ *  3. **`aktiv` wird auf `false` gesetzt, wenn das Feld FEHLT.** Das ist der Teil,
+ *     den die erste Fassung falsch hatte: `aktiv` gar nicht anzufassen klang nach
+ *     Vorsicht, hieß auf einem Bestands-Share aber „sofort scharf" — dort war das
+ *     Feld nie gesetzt, und `undefined` gilt als aktiv. Der Seed-Wert `false`
+ *     erreicht einen bestehenden Skill nie (`mergeMissingSeeds` ergänzt nur
+ *     Fehlendes). Gemessen am 24.08.2026 an einer Share-Kopie: die Bindung stand,
+ *     `aktiv` war `undefined` — die ungemessene Prüfung wäre beim nächsten Abschnitt
+ *     gelaufen. Ein **explizites** `true` oder `false` bleibt dagegen unangetastet:
+ *     das ist eine Entscheidung, keine Lücke.
+ */
+function applyFachpruefer(file: SkillRegistryFile): SkillRegistryFile {
+  const skills = file.skills.map(s => {
+    if (s.id !== QS_BASIS_SKILL_ID) return s;
+    const next = { ...s };
+    if (!next.pruefart) next.pruefart = SEED_QS_SKILL.pruefart;
+    if (next.aktiv === undefined) next.aktiv = false;
+    // Der Skill heisst jetzt nach seiner Aufgabe statt nach seiner Technik — aber nur,
+    // wenn niemand ihn selbst umbenannt hat (byte-gleicher Alt-Wortlaut als Guard).
+    if (next.name === QS_NAME_ALT) next.name = SEED_QS_SKILL.name;
+    if (next.beschreibung === QS_BESCHREIBUNG_ALT) next.beschreibung = SEED_QS_SKILL.beschreibung;
+    return next === s ? s : { ...next, version: Math.max(next.version, 2) };
+  });
+  // Ein alter Share ohne `workflows` bekommt sie ohnehin über `mergeMissingSeeds`
+  // (dann schon mit Bindung) — hier gibt es nichts nachzuziehen.
+  if (!file.workflows) return { ...file, skills };
+  const workflows = file.workflows.map(w => (
+    w.id === ZIM_EP_DEF.id && (w.pruefer ?? []).length === 0
+      ? { ...w, pruefer: [...(ZIM_EP_DEF.pruefer ?? [])], version: Math.max(w.version, 3) }
+      : w
+  ));
+  return { ...file, skills, workflows };
+}
+
 function applyAZeichenHerkunft(skills: SkillRecord[]): SkillRecord[] {
   return skills.map(s => {
     const zeichen = s.id === KURZFASSUNG_SKILL_ID ? s.vorgaben?.zeichenMax : undefined;
@@ -716,6 +772,7 @@ const MIGRATIONEN: EinzelMigration[] = [
   { marker: GA_EF_VORGABEN_MIGRATION, apply: nurSkills(applyEfVorgaben) },
   { marker: GA_EP_AUTO_RETRY_MIGRATION, apply: applyEpAutoRetry },
   { marker: GA_A_ZEICHEN_HERKUNFT_MIGRATION, apply: nurSkills(applyAZeichenHerkunft) },
+  { marker: GA_FACHPRUEFER_MIGRATION, apply: applyFachpruefer },
 ];
 
 /**

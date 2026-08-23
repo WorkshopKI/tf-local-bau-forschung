@@ -20,11 +20,11 @@
 import type { AIBridge } from '@/core/services/ai/bridge';
 import type { IDBStore } from '@/core/services/storage/idb-store';
 import {
-  runSkill, runRegelChecks, splitSentences,
+  runSkill, runRegelChecks, splitSentences, pruefItemsFuer,
   type CheckResult, type SkillModifierKey, type QualitaetsRegel, type SkillRecord,
   type SkillTweak, type WorkflowStep,
 } from '@/core/services/skills';
-import { kontextZielFuer } from '@/core/services/ai/ki-ziel';
+import { gegenrolle, kontextZielFuer } from '@/core/services/ai/ki-ziel';
 import { resetHatVerlaufsrisiko, type ChatResetStatus } from '@/core/services/ai/chat-reset';
 import { mitZielFallback, zielWirktAuf, type ZielFallbackErgebnis } from '@/core/services/ai/ziel-fallback';
 import { TEMPERATUR_STANDARD } from '@/core/services/ai/sampling';
@@ -80,6 +80,12 @@ export interface GenerierungsDeps {
   vbVorhanden: boolean;
   relevanzSkill: SkillRecord;
   lektorSkill: SkillRecord;
+  /**
+   * Der fachliche Prüfer dieses Artefakts (aus `WorkflowDef.pruefer`), oder `null`:
+   * kein Prüfer gebunden bzw. vom Kurator stillgelegt. `null` ⇒ die Kette bleibt
+   * zweibeinig und verhält sich exakt wie vor v6.27.
+   */
+  fachPruefer: SkillRecord | null;
   thinkingBudget: ThinkingBudget;
   /** Pro-Lauf-Override „vollständigen Kontext erzwingen" (ignoriert die Relevanz-Map). */
   forceFullContext: boolean;
@@ -255,11 +261,23 @@ export async function generateInto(
   // Bei einer ÜBERARBEITUNG entfällt das zweite Bein (`null`): der Text kam bereits
   // poliert aus dem vorigen Lauf, und ein Lektor über eine bewusst gekürzte Fassung
   // zieht sie wieder glatt. Manuell bleibt der Feinschliff im ⋯-Menü erreichbar.
-  return mitFeinschliff(
+  const nachFeinschliff = await mitFeinschliff(
     roh, stepId,
     istUeberarbeitung(o)
       ? null
       : () => laufLektorat(roh.next, stepId, sc, o.tweak, o.signal, stilleDeps(deps), o.ziel, o.temperatur),
+  );
+
+  // Drittes Bein: die fachliche Prüfung. Anders als der Feinschliff läuft sie AUCH
+  // nach einer Überarbeitung — sie fasst den Text nicht an, es gibt also nichts,
+  // was ein zweiter Durchgang wieder glattzöge; und ein per Modifier veränderter
+  // Abschnitt ist genau der, den man geprüft sehen will. Ohne gebundenen Prüfer
+  // (Regelfall bis zur Kuration eines Katalogs) ist das ein No-op.
+  return mitPruefung(
+    nachFeinschliff,
+    deps.fachPruefer
+      ? (run) => laufFachpruefung(run, stepId, o.signal, stilleDeps(deps), o.ziel ?? ziel)
+      : null,
   );
 }
 
@@ -491,6 +509,12 @@ export async function laufQs(
 ): Promise<WorkflowRun | null> {
   const zielStep = run.schritte[zielStepId];
   if (!zielStep) return null;
+  // Derselbe Kill-Switch wie beim automatischen Bein: ein stillgelegter Prüfer ist
+  // überall still, sonst hieße „aus" je nach Aufrufweg etwas anderes.
+  if (qsCtx.skill.aktiv === false) {
+    deps.setError('Die fachliche Prüfung ist stillgelegt — in der Skill-Verwaltung einschaltbar.');
+    return null;
+  }
   deps.stream.reset();
   const transport = deps.bridge.getTransportForSkillRun(qsCtx.skill);
   const ok = await transport.ping();
@@ -529,6 +553,95 @@ export async function laufQs(
   return applyQsHinweise(run, zielStepId, befunde, now, abnahme);
 }
 
+/**
+ * Die **fachliche Prüfung** eines gerade erzeugten Abschnitts — das dritte Bein der
+ * Kette, nach Generierung und Feinschliff.
+ *
+ * Drei Unterschiede zum manuellen `laufQs`, und alle drei sind Absicht:
+ *  1. **Der Prüfer kommt aus dem Artefakt, nicht aus einem Schritt.** `zim-ep` müsste
+ *     sonst sieben `llm_qs`-Schritte tragen, und ein achter Abschnitt käme ohne
+ *     Prüfung dazu, ohne dass es jemandem auffiele.
+ *  2. **Der Lauf geht auf die GEGENROLLE der Generierung.** Ein Modell, das seinen
+ *     eigenen Text bewertet, bestätigt sich mit einiger Wahrscheinlichkeit selbst.
+ *     Ist die Gegenrolle nicht erreichbar, stempelt der bestehende Ziel-Fallback das
+ *     sichtbar — ein stiller Rückfall wäre keine Zweitmeinung.
+ *  3. **Kein Fehlerbanner, kein Blockieren.** Die Prüfung ist beratend; scheitert
+ *     sie, steht der Abschnitt unverändert da (`null` zurück). Sie löst auch NIE
+ *     einen Auto-Retry aus: eine LLM-Meinung, die eine Neu-Generierung erzwingt,
+ *     verbrennt Bridge-Zeit an Rauschen.
+ *
+ * Ohne gebundenen (oder ohne aktiven) Prüfer gibt die Funktion sofort `null` zurück —
+ * das ist der Kill-Switch und der Normalfall vor der Kuration eines Prüfkatalogs.
+ */
+export async function laufFachpruefung(
+  run: WorkflowRun,
+  zielStepId: StepId,
+  signal: AbortSignal,
+  deps: GenerierungsDeps,
+  /** Rolle, auf der die Generierung lief — geprüft wird auf der anderen. */
+  generierungsZiel: KiRolle,
+): Promise<WorkflowRun | null> {
+  const pruefer = deps.fachPruefer;
+  const zielStep = run.schritte[zielStepId];
+  if (!pruefer || !zielStep || !zielStep.finalerText.trim()) return null;
+
+  deps.stream.reset();
+  const transport = deps.bridge.getTransportForSkillRun(pruefer);
+  if (!(await transport.ping())) return null;
+
+  const kriterien = pruefItemsFuer(pruefer, zielStepId, deps.skillMap.get(zielStepId)?.skill);
+  const satzAnzahl = splitSentences(zielStep.finalerText).length;
+  const kriterienBlock = kriterien.length > 0
+    ? buildQsKriterienBlock(kriterien, saetzeOhneBeleg(zielStep.belege ?? [], satzAnzahl))
+    : '';
+
+  const qsCtx: SkillCtx = { skill: pruefer, regeln: [] };
+  const { result: befunde } = await mitFallbackLauf(
+    deps, transport, signal,
+    (d, ziel) => qsEinmal(zielStep.finalerText, zielStepId, qsCtx, transport, d, ziel, signal, kriterienBlock, satzAnzahl, 'pruefung'),
+    (b) => b.length === 0,
+    gegenrolle(generierungsZiel),
+  );
+  if (befunde.length === 0) return null;
+
+  const now = new Date().toISOString();
+  // Abnahme nur bei kuratierten Kriterien — dieselbe Zurückhaltung wie in `laufQs`:
+  // aus generischen Dimensionen eine „Abnahme" abzuleiten wäre eine Überhöhung.
+  const abnahme: QsAbnahme | undefined = kriterien.length > 0
+    ? {
+        status: befunde.every(b => b.bewertung === 'ok') ? 'bestanden' : 'hinweise',
+        am: now,
+        kriterienVersion: pruefer.version,
+      }
+    : undefined;
+  return applyQsHinweise(run, zielStepId, befunde, now, abnahme);
+}
+
+/**
+ * Hängt die fachliche Prüfung an ein Generierungs-Ergebnis. Wie `mitFeinschliff` ein
+ * Thunk-Argument — damit die Degradations-Entscheidung ohne Transport testbar bleibt.
+ *
+ * Einfacher als der Feinschliff, weil die Prüfung den TEXT NICHT ANFASST: sie ergänzt
+ * nur `qsHinweise`. Es gibt daher nichts zu verwerfen und keine Marke wie
+ * `feinschliffUebersprungen` — scheitert sie, fehlen schlicht die Hinweise.
+ * `checks` bleiben in JEDEM Fall die des angezeigten Textes.
+ */
+export async function mitPruefung(
+  gen: { next: WorkflowRun; checks: CheckResult[] },
+  pruefung: ((run: WorkflowRun) => Promise<WorkflowRun | null>) | null,
+): Promise<{ next: WorkflowRun; checks: CheckResult[] }> {
+  if (!pruefung) return gen;
+  let geprueft: WorkflowRun | null = null;
+  try {
+    geprueft = await pruefung(gen.next);
+  } catch {
+    // Auch Abbruch: der Abschnitt ist fertig, ihn wegen eines Stopps im dritten Bein
+    // zu verwerfen wäre Arbeitsverlust (gleiche Begründung wie `mitFeinschliff`).
+    geprueft = null;
+  }
+  return geprueft ? { next: geprueft, checks: gen.checks } : gen;
+}
+
 /** Ein einzelner QS-Versuch mit festem `ziel` (siehe `laufQs`). */
 async function qsEinmal(
   zielText: string,
@@ -540,6 +653,8 @@ async function qsEinmal(
   signal: AbortSignal,
   kriterienBlock: string,
   satzAnzahl: number,
+  /** Welches Bein diesen Prompt sendet (Prompt-Ansicht). Default: der manuelle QS-Lauf. */
+  bein: PromptBein = 'pruefung',
 ): Promise<QsBefund[]> {
   const zielDef = deps.steps.find(s => s.id === zielStepId);
   const result = await runSkill(transport, qsCtx.skill, qsCtx.regeln, {
@@ -555,6 +670,9 @@ async function qsEinmal(
     ...(kriterienBlock ? { qsKriterien: kriterienBlock } : {}),
     signal,
   });
+  // Auch dieses Bein gehört in die Prompt-Ansicht: im Chat der internen KI startet
+  // jeder Lauf frisch (Pitfall #36), dort steht am Ende nur der zuletzt gesendete.
+  deps.merkeGesendet?.(zielStepId, result.gesendet ? [result.gesendet] : [], bein);
   return parseQsBefunde(result.raw, satzAnzahl);
 }
 

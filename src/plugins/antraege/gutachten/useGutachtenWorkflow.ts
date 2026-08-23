@@ -274,7 +274,7 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
   // eigener Hook, eigener Auslöser — siehe workflow-hooks.ts.
   const registry = useWorkflowRegistry(storage, erlaubeEntwuerfe);
   const {
-    skillMap, steps, qsZiele, relevanzSkill, lektorSkill,
+    skillMap, steps, qsZiele, relevanzSkill, lektorSkill, fachPruefer,
     testWorkflowId, setTestWorkflowId, verfuegbar, activeWorkflowId, applyRegistry, reloadRegistry,
   } = registry;
 
@@ -391,6 +391,7 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
     vbVorhanden: vb != null,
     relevanzSkill,
     lektorSkill,
+    fachPruefer,
     thinkingBudget,
     forceFullContext,
     stream,

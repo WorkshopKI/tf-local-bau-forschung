@@ -22,6 +22,7 @@ import {
   SEED_RELEVANZ_MAP_SKILL,
   GA_LEKTOR_SKILL_ID,
   SEED_GA_LEKTOR_SKILL,
+  prueferMitArt,
   type SkillRecord,
   type SkillTweak,
   type SkillRegistryFile,
@@ -46,6 +47,12 @@ export interface WorkflowRegistrySicht {
   qsZiele: Map<StepId, WorkflowStep>;
   relevanzSkill: SkillRecord;
   lektorSkill: SkillRecord;
+  /**
+   * Der fachliche Prüfer dieses Artefakts (`WorkflowDef.pruefer`), oder `null`.
+   * Aufgelöst wie `relevanzSkill`/`lektorSkill` — aber OHNE Seed-Rückfall: einen
+   * Prüfer gibt es nur, wenn ein Kurator ihn gebunden UND nicht stillgelegt hat.
+   */
+  fachPruefer: SkillRecord | null;
   /** dev-Test-Workflowwahl (nur lokal, resettet pro Reload). */
   testWorkflowId: string | null;
   setTestWorkflowId: (id: string | null) => void;
@@ -69,6 +76,7 @@ export function useWorkflowRegistry(
   // Relevanz-Map- und Lektor-Skill aus der geladenen Registry (kurator-pflegbar), Seeds als Fallback.
   const [relevanzSkill, setRelevanzSkill] = useState<SkillRecord>(SEED_RELEVANZ_MAP_SKILL);
   const [lektorSkill, setLektorSkill] = useState<SkillRecord>(SEED_GA_LEKTOR_SKILL);
+  const [fachPruefer, setFachPruefer] = useState<SkillRecord | null>(null);
   const [testWorkflowId, setTestWorkflowId] = useState<string | null>(null);
 
   const verfuegbar = useMemo(
@@ -88,6 +96,7 @@ export function useWorkflowRegistry(
     setSkillMap(buildSkillMap(loadedFile, { workflowId }));
     setRelevanzSkill(loadedFile.skills.find(s => s.id === RELEVANZ_MAP_SKILL_ID) ?? SEED_RELEVANZ_MAP_SKILL);
     setLektorSkill(loadedFile.skills.find(s => s.id === GA_LEKTOR_SKILL_ID) ?? SEED_GA_LEKTOR_SKILL);
+    setFachPruefer(prueferMitArt(loadedFile, 'ga', 'fachlich') ?? null);
     // llm_qs-Schritte aus der Generierungs-Schrittfolge filtern (reine Konfiguration —
     // stören firstNonFreigegeben/freigeben/Stepper nicht) und nach Ziel-Schritt indexieren.
     const allSteps = resolveWorkflowSteps(loadedFile, 'ga', { erlaubeEntwuerfe, workflowId });
@@ -107,7 +116,7 @@ export function useWorkflowRegistry(
   }, [storage, applyRegistry]);
 
   return {
-    regFile, skillMap, steps, qsZiele, relevanzSkill, lektorSkill,
+    regFile, skillMap, steps, qsZiele, relevanzSkill, lektorSkill, fachPruefer,
     testWorkflowId, setTestWorkflowId, verfuegbar, activeWorkflowId,
     applyRegistry, reloadRegistry,
   };

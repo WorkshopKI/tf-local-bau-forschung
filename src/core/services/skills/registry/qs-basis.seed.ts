@@ -52,12 +52,34 @@ Eine bis zwei Sätze Begründung.
 
 „Bewertung: ok" = keine Beanstandung; „Bewertung: hinweis" = beratender Verbesserungshinweis. Erfinde nichts und schreibe den Abschnitt NICHT um.`;
 
-/** QS-Basis-Skill — nutzt die Slots `abschnittszweck`/`vbMarkdown`/`zielText`; KEINE Regeln (beratend). */
+/** Name/Beschreibung vor dem Prüfer-Umbau — eingefroren als Guard der Migration. */
+export const QS_NAME_ALT = 'KI-Qualitäts-Check (beratend)';
+export const QS_BESCHREIBUNG_ALT = 'Bewertet einen Gutachten-Abschnitt qualitativ entlang fester Dimensionen (Erdung, Kohärenz, Vollständigkeit, Ton). Beratend — überschreibt nie den Text.';
+
+/**
+ * QS-Basis-Skill — nutzt die Slots `abschnittszweck`/`vbMarkdown`/`zielText`; KEINE
+ * Regeln (beratend).
+ *
+ * Seit v6.27 ist er zugleich **der fachliche Prüfer** des GA-Artefakts
+ * (`ZIM_EP_DEF.pruefer`) und läuft damit nach jeder Erzeugung automatisch — sobald
+ * jemand ihn einschaltet. **`aktiv: false` ist Absicht**: bis zu diesem Zeitpunkt war
+ * die fachliche Prüfung ungenutzt (kein `llm_qs`-Schritt band sie), ihr Prompt ist
+ * also nie an echten Abschnitten gemessen worden. Und ein Prüfer, der überall etwas
+ * findet, ist schlechter als keiner — er kostet je Abschnitt einen KI-Lauf und
+ * erzeugt Rauschen, das man wegklicken muss.
+ *
+ * Freigeschaltet wird er darum erst nach dem Abnahme-Gate: ein bekannt guter
+ * Abschnitt dreimal geprüft muss dreimal schweigen, ein gesalzener dreimal treffen.
+ * Bis dahin macht ihn der Kurator in der Skill-Verwaltung selbst an.
+ */
 export const SEED_QS_SKILL: SkillRecord = {
   id: QS_BASIS_SKILL_ID,
-  name: 'KI-Qualitäts-Check (beratend)',
-  beschreibung: 'Bewertet einen Gutachten-Abschnitt qualitativ entlang fester Dimensionen (Erdung, Kohärenz, Vollständigkeit, Ton). Beratend — überschreibt nie den Text.',
-  version: 1,
+  name: 'Fachliche Prüfung (beratend)',
+  beschreibung: 'Prüft einen erzeugten Abschnitt fachlich — entlang des Prüfkatalogs, sonst entlang fester Dimensionen (Erdung, Kohärenz, Vollständigkeit, Ton). Beratend: überschreibt nie den Text und blockiert nie.',
+  // v2: fachlicher Prüfer des GA-Artefakts (Prüfart + Kill-Switch).
+  version: 2,
+  pruefart: 'fachlich',
+  aktiv: false,
   promptTemplate: SEED_QS_PROMPT_TEMPLATE,
   systemPrompt: SEED_QS_SYSTEM_PROMPT,
   maxTokens: 1536,

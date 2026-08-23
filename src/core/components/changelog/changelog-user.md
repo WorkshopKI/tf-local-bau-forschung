@@ -19,6 +19,12 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v6.27 — 2026-08
+
+### Neu
+- **Es gibt jetzt einen fachlichen Prüfer für Gutachten-Abschnitte.** Er bewertet nach jeder Erzeugung, ob der Text hält, was er soll — entlang von Kriterien, die in der Skill-Verwaltung gepflegt werden. Er ändert nie etwas am Text und hält nichts auf; er schreibt Hinweise an die Karte.
+- **Er ist zunächst ausgeschaltet.** Bevor er im Alltag mitläuft, muss er zeigen, dass er bei einem guten Abschnitt auch wirklich schweigt — und er kostet je Abschnitt einen zusätzlichen KI-Lauf. Einschalten kann ihn die Kuration in der Skill-Verwaltung.
+
 ## v6.26 — 2026-08
 
 ### Neu

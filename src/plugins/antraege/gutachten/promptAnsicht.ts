@@ -15,7 +15,7 @@ import { buildPromptVorgaben, type QualitaetsRegel } from '@/core/services/skill
 import { schaetzeTokens } from '@/core/services/ai/llm-context';
 
 /** Welches Bein der Lauf-Kette diesen Prompt gesendet hat. */
-export type PromptBein = 'generierung' | 'feinschliff';
+export type PromptBein = 'generierung' | 'feinschliff' | 'pruefung';
 
 /** Was tatsächlich an den Transport ging (aus `SkillRunResult.gesendet`). */
 export interface GesendeterPrompt {
@@ -41,11 +41,12 @@ export interface GesendeterPrompt {
  * plötzlich „von 3" heißen, weil der Feinschliff danebensteht.
  */
 export function beschrifteGesendet(prompts: readonly GesendeterPrompt[]): string[] {
-  const teile = prompts.filter(p => p.bein !== 'feinschliff').length;
+  const teile = prompts.filter(p => p.bein === undefined || p.bein === 'generierung').length;
   if (prompts.length <= 1) return prompts.map(() => '');
   let nr = 0;
   return prompts.map(p => {
     if (p.bein === 'feinschliff') return 'Sprachlicher Feinschliff';
+    if (p.bein === 'pruefung') return 'Fachliche Prüfung';
     nr += 1;
     return teile > 1 ? `Teil-Lauf ${nr} von ${teile}` : 'Generierung';
   });

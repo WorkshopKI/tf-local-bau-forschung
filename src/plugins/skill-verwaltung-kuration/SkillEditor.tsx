@@ -30,6 +30,7 @@ import { skillEnthaeltDokumentInhalte, templateReferenziertInhaltsSlot } from '@
 import { CollapsibleSection } from '@/components/ui/CollapsibleSection';
 import { SkillVersionen } from './SkillVersionen';
 import { VorgabenEditor } from './VorgabenEditor';
+import { PruefkatalogEditor } from './PruefkatalogEditor';
 import { groupRegelnByKategorie } from './regelGruppen';
 import { pruefeSlotAenderung } from './promptSlotWarnung';
 import { useReportGuardState, type EditorGuardState } from './editorGuard';
@@ -310,7 +311,7 @@ export function SkillEditor({ file, skill, isNew, canEdit, agg, initialView, per
               />
               <span>Skill aktiv (freigeschaltet)</span>
             </label>
-            <FeldInfo text={'Deaktiviert (Häkchen aus): Module, die das Gate respektieren (z. B. „Anfragen"), führen den Skill nicht aus. Standard: aktiv. Ein neuer, ungeprüfter Skill startet bewusst deaktiviert, bis seine Eval besteht.'} />
+            <FeldInfo text={'Deaktiviert (Häkchen aus): Module, die das Gate respektieren, führen den Skill nicht aus — bei einem Prüfer heißt das, dass er nach der Erzeugung NICHT läuft. Standard: aktiv. Ein neuer, ungeprüfter Skill startet bewusst deaktiviert, bis er gemessen ist.'} />
           </div>
         </div>
 
@@ -445,6 +446,56 @@ export function SkillEditor({ file, skill, isNew, canEdit, agg, initialView, per
             )}
             <button onClick={onManageRegeln} className="text-[12.5px] text-[var(--tf-primary)] hover:underline">Regeln verwalten →</button>
           </div>
+        </div>
+
+        {/* Prüfer-Achse: nur an einem Skill sichtbar, der einer IST. Ein Prüfer läuft
+            nach JEDER Erzeugung eines Abschnitts seines Artefakts — dass das etwas
+            kostet, steht hier und nicht erst im Doc. */}
+        <div className="mt-7">
+          <Section>Prüfer</Section>
+          <p className="text-[11.5px] leading-[1.5] text-[var(--tf-text-tertiary)] m-0 mb-2.5">
+            Ist eine Prüfart gesetzt, kann dieser Skill am Workflow als Prüfer gebunden werden und
+            läuft dann nach jeder Erzeugung automatisch. Das kostet je Abschnitt einen KI-Lauf —
+            ein Prüfer, der überall etwas findet, ist schlechter als keiner.
+          </p>
+          <div className="inline-flex gap-1.5 flex-wrap">
+            {([undefined, 'fachlich', 'administrativ', 'textlich'] as const).map(art => (
+              <button
+                key={art ?? 'keine'}
+                type="button"
+                aria-pressed={draft.pruefart === art}
+                disabled={ro}
+                onClick={() => setDraft(d => {
+                  const next = { ...d };
+                  if (art) next.pruefart = art;
+                  else delete next.pruefart;
+                  return next;
+                })}
+                className={`text-[11.5px] px-[11px] py-[5px] rounded-[99px] border-[0.5px] disabled:opacity-70 ${draft.pruefart === art ? 'bg-[var(--tf-primary-light)] text-[var(--tf-primary)] border-transparent' : 'bg-transparent text-[var(--tf-text-secondary)] border-[var(--tf-border)]'}`}
+              >
+                {art === undefined ? 'kein Prüfer' : art === 'fachlich' ? 'Fachlich (KI)' : art === 'administrativ' ? 'Administrativ' : 'Sprachlich'}
+              </button>
+            ))}
+          </div>
+          {draft.pruefart && (
+            <div className="mt-4">
+              <PruefkatalogEditor
+                katalog={draft.pruefkatalog ?? []}
+                canEdit={canEdit}
+                // Der Entwurf hält, was getippt ist — auch die frisch angelegte LEERE
+                // Zeile. Sie hier wegzufiltern hiess: „+ Kriterium" tut sichtbar
+                // nichts, weil die Zeile im selben Zug verschwindet. Leere Einträge
+                // fallen ohnehin beim Schreiben weg (`normalizePruefkatalog` verlangt
+                // id UND Kriterium) — eine Heimat, nicht zwei.
+                onChange={next => setDraft(d => {
+                  const n = { ...d };
+                  if (next.length > 0) n.pruefkatalog = next;
+                  else delete n.pruefkatalog;
+                  return n;
+                })}
+              />
+            </div>
+          )}
         </div>
 
         {/* Abnahme-Kriterien für die beratende KI-QS. Eine Zeile = ein Kriterium

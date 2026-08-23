@@ -16,7 +16,8 @@ import { atomicWrite, readText } from '@/core/services/infrastructure/atomic-wri
 import { getDatenShareHandle, queryPermission } from '@/core/services/infrastructure/smb-handle';
 import type {
   ArtefaktTyp, GateExpr, Pruefart, QualitaetsRegel, Reifegrad, Schweregrad, SkillModifierKey,
-  SkillRecord, SkillRegistryFile, SkillVersionSnapshot, SkillVorgaben, TeilDeklaration, TeilJoin,
+  PruefItem, SkillRecord, SkillRegistryFile, SkillVersionSnapshot, SkillVorgaben,
+  TeilDeklaration, TeilJoin,
   VorgabeBasis, WorkflowDef, WorkflowEbene, WorkflowFreigabe, WorkflowStep, WorkflowStepRolle,
 } from './types';
 import { normalizeStepRolle } from './workflow-steps';
@@ -198,7 +199,45 @@ function normalizeSkill(raw: unknown): SkillRecord | null {
   // seinen gesamten Umfangs-Kontrakt (und liefe ohne „Formale Vorgaben"-Block).
   const vorgaben = normalizeVorgaben(s.vorgaben);
   if (vorgaben) skill.vorgaben = vorgaben;
+  // Prüfer-Achse (additiv): EXPLIZIT übernehmen — dieselbe Klasse wie oben. Ohne
+  // diese zwei Zeilen verlöre ein Prüfer beim ersten Lade-Umlauf seine Art UND
+  // seinen Katalog und fiele stumm auf die generischen Dimensionen zurück.
+  const pruefart = asPruefart(s.pruefart);
+  if (pruefart) skill.pruefart = pruefart;
+  const katalog = normalizePruefkatalog(s.pruefkatalog);
+  if (katalog) skill.pruefkatalog = katalog;
   return skill;
+}
+
+/**
+ * Prüfkatalog tolerant lesen. Ein Eintrag zählt nur mit nicht-leerer `id` UND
+ * nicht-leerem `kriterium` — ein Kriterium ohne Text wäre eine leere Überschrift im
+ * Prompt, und eine fehlende ID macht den Befund unzuordenbar.
+ *
+ * **Dubletten im `kriterium` fallen weg**: der Befund wird über den Kriteriums-Text
+ * zurückgemappt (er ist die `###`-Überschrift im Antwortformat), zwei gleiche Texte
+ * wären also nicht unterscheidbar. Lieber einer weniger als zwei verwechselte.
+ */
+function normalizePruefkatalog(raw: unknown): PruefItem[] | null {
+  if (!Array.isArray(raw)) return null;
+  const gesehen = new Set<string>();
+  const out: PruefItem[] = [];
+  for (const r of raw) {
+    if (typeof r !== 'object' || r === null) continue;
+    const o = r as Record<string, unknown>;
+    const id = asString(o.id).trim();
+    const kriterium = asString(o.kriterium).trim();
+    if (!id || !kriterium || gesehen.has(kriterium)) continue;
+    gesehen.add(kriterium);
+    const item: PruefItem = { id, gruppe: asString(o.gruppe).trim() || 'Allgemein', kriterium };
+    const herkunft = asString(o.herkunft).trim();
+    if (herkunft) item.herkunft = herkunft;
+    const giltFuer = asStringArray(o.giltFuer).map(x => x.trim()).filter(Boolean);
+    if (giltFuer.length > 0) item.giltFuer = giltFuer;
+    if (typeof o.aktiv === 'boolean') item.aktiv = o.aktiv;
+    out.push(item);
+  }
+  return out.length > 0 ? out : null;
 }
 
 /**
@@ -362,6 +401,9 @@ function normalizeWorkflowDef(raw: unknown): WorkflowDef | null {
   // Lebenszyklus IMMER setzen (fail-safe): fehlt/ungültig → 'freigegeben', damit
   // zim-ep/nf + jeder Bestands-Workflow in allen Varianten verfügbar bleibt.
   def.freigabe = asWorkflowFreigabe(d.freigabe) ?? 'freigegeben';
+  // Prüfer-Bindung (additiv): nur nicht-leere Skill-IDs, Reihenfolge = Lauf-Reihenfolge.
+  const pruefer = asStringArray(d.pruefer).map(x => x.trim()).filter(Boolean);
+  if (pruefer.length > 0) def.pruefer = pruefer;
   return def;
 }
 

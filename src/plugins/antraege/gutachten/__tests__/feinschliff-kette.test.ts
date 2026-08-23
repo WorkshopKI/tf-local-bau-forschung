@@ -8,7 +8,7 @@
  * Verlaufs-Kontrakt, auf dem der Versionsvergleich „roh ↔ poliert" beruht.
  */
 import { describe, it, expect } from 'vitest';
-import { mitFeinschliff, istUeberarbeitung } from '../workflow-generierung';
+import { mitFeinschliff, mitPruefung, istUeberarbeitung } from '../workflow-generierung';
 import { emptyRun, applyGeneration, applyLektorat, type GenerationInput } from '../runner';
 import type { CheckResult } from '@/core/services/skills';
 import type { WorkflowRun } from '../types';
@@ -129,5 +129,46 @@ describe('applyLektorat heilt einen uebersprungenen Feinschliff', () => {
     }, LATER);
     expect(nachManuell.schritte['A']!.feinschliffUebersprungen).toBeUndefined();
     expect(nachManuell.schritte['A']!.lektoriert).toBe(true);
+  });
+});
+
+
+/**
+ * Das dritte Bein: die fachliche Prüfung. Sie ist einfacher als der Feinschliff,
+ * weil sie den TEXT NICHT ANFASST — sie ergänzt nur `qsHinweise`. Es gibt also
+ * nichts zu verwerfen und keine „übersprungen"-Marke; scheitert sie, fehlen schlicht
+ * die Hinweise. Der Thunk kommt herein, deshalb braucht es hier keinen Transport.
+ */
+describe('mitPruefung — das dritte Bein', () => {
+  it('kein Prüfer gebunden: der Stand geht 1:1 zurueck', async () => {
+    const roh = rohStand();
+    const r = await mitPruefung(roh, null);
+    expect(r.next).toBe(roh.next);
+    expect(r.checks).toEqual(roh.checks);
+  });
+
+  it('erfolgreiche Prüfung: neuer Run, checks BLEIBEN die des angezeigten Textes', async () => {
+    const roh = rohStand();
+    const geprueft: WorkflowRun = { ...roh.next, geaendert_am: LATER };
+    const r = await mitPruefung(roh, async () => geprueft);
+    expect(r.next).toBe(geprueft);
+    // Die Prüfung ist beratend — sie darf die deterministischen Checks nicht ersetzen.
+    expect(r.checks).toEqual(roh.checks);
+  });
+
+  it('gezogenes Tor (null): Abschnitt bleibt unveraendert, keine Marke', async () => {
+    const roh = rohStand();
+    const r = await mitPruefung(roh, async () => null);
+    expect(r.next).toBe(roh.next);
+  });
+
+  it('Wurf und Abbruch degradieren ebenfalls zum Stand — nie zum Arbeitsverlust', async () => {
+    const roh = rohStand();
+    const wurf = await mitPruefung(roh, async () => { throw new Error('Transport weg'); });
+    expect(wurf.next).toBe(roh.next);
+    const abbruch = await mitPruefung(roh, async () => {
+      const e = new Error('abgebrochen'); e.name = 'AbortError'; throw e;
+    });
+    expect(abbruch.next).toBe(roh.next);
   });
 });

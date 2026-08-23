@@ -12,7 +12,7 @@ import { useRef, useState } from 'react';
  * Beine teilen sich EINE Busy-Phase, also muss der Status-Text strukturiert
  * gesetzt werden statt aus `content`/`thinking` geraten zu werden.
  */
-export type LaufPhase = 'formulieren' | 'feinschliff';
+export type LaufPhase = 'formulieren' | 'feinschliff' | 'pruefung';
 
 export interface StreamingBuffer {
   /** Sichtbarer Antwort-Text (inkrementell, gedrosselt). */

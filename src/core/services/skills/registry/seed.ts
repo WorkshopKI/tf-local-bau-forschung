@@ -32,7 +32,7 @@ import { AUFBEREITUNG_RECHERCHE_PROMPT_SKILL } from './aufbereitung-recherche-pr
 import { AUFBEREITUNG_RECHERCHE_IMPORT_SKILL } from './aufbereitung-recherche-import.seed';
 import { SEED_SKILL, SEED_REGELN } from './gutachten-kurzfassung.seed';
 import { SEED_SKILLS_BG, SEED_REGELN_BG } from './gutachten-bg.seed';
-import { SEED_QS_SKILL } from './qs-basis.seed';
+import { SEED_QS_SKILL, QS_BASIS_SKILL_ID } from './qs-basis.seed';
 import { SEED_RELEVANZ_MAP_SKILL } from './relevanz-map.seed';
 
 /* -------------------------------------------------------------------------- */
@@ -55,7 +55,7 @@ export {
   D_ABSCHNITT_OPTS, D_ABSCHNITT_OPTS_UMFANG_ALT,
   G_ABSCHNITT_OPTS, G_ABSCHNITT_OPTS_PFLICHT_ALT,
 } from './gutachten-bg.seed';
-export { SEED_QS_SKILL, QS_BASIS_SKILL_ID } from './qs-basis.seed';
+export { SEED_QS_SKILL, QS_BASIS_SKILL_ID, QS_NAME_ALT, QS_BESCHREIBUNG_ALT } from './qs-basis.seed';
 export { SEED_RELEVANZ_MAP_SKILL, RELEVANZ_MAP_SKILL_ID } from './relevanz-map.seed';
 export { abschnittTemplate } from './ga-seed-basis';
 
@@ -103,7 +103,11 @@ export const ZIM_EP_DEF: WorkflowDef = {
   id: 'zim-ep',
   name: 'ZIM-EP-Gutachten',
   // v2: ein automatischer Korrektur-Versuch je Schritt (siehe `EP_AUTO_RETRY`).
-  version: 2,
+  // v3: der fachliche Prüfer läuft nach JEDER Erzeugung — am Artefakt gebunden, nicht
+  //     als sieben `llm_qs`-Schritte (sonst fehlte er dem achten Abschnitt still).
+  //     Er startet stillgelegt, siehe `SEED_QS_SKILL`.
+  version: 3,
+  pruefer: [QS_BASIS_SKILL_ID],
   steps: [
     epStep('A', 'Kurzfassung', 'gutachten-kurzfassung'),
     epStep('B', 'Hintergrund, Stand der Technik, Lösungsweg', 'gutachten-ausgangslage'),

@@ -136,6 +136,82 @@ die Vollständigkeits-QS keine Phantom-Lücken meldet. GA-Skill-Abgleich gegen d
 3-teilige B-Struktur + 750-Wörter-Selbstprüfung + L=+50%-Modifier bestätigt vorhanden, **Stilbeispiele**
 in A/C/G additiv ergänzt (klar als Schreibstil markiert) — GA-Verhalten unverändert.
 
+## Die drei Prüfer (v6.27)
+
+Ein **Prüfer** ist ein `SkillRecord` mit gesetzter `pruefart` — kein neues Gebilde.
+`QualitaetsRegel.pruefart` sagt, WIE eine Regel ausgewertet wird; `SkillRecord.pruefart`
+sagt, WELCHE Sicht ein Prüfer vertritt. Heute besetzt: `'fachlich'` (der beratende
+LLM-Lauf `qs-basis`). `'textlich'` ist der vorhandene Lektor, `'administrativ'` der
+deterministische Vollständigkeits-/Zahlen-Check — beide noch nicht als Prüfer gebunden.
+
+**Gebunden wird am Artefakt, nicht am Schritt.** `WorkflowDef.pruefer` trägt die
+Skill-IDs in Lauf-Reihenfolge; `prueferFuerArtefakt(file, typ)` löst sie auf
+([selectors.ts](../../src/core/services/skills/registry/selectors.ts)). Die Alternative
+— je Abschnitt ein `llm_qs`-Schritt — hätte für A–G **sieben** Konfigurationen
+gebraucht, und ein achter Abschnitt wäre still ungeprüft geblieben. Die
+`WorkflowStep`-Rolle `'llm_qs'` bleibt als manueller Sonderweg bestehen.
+
+### Warum das überhaupt nötig war
+
+Die fachliche Prüfung war vollständig gebaut und **nirgends gebunden**: `zim-ep` trug
+sieben Generierungs-Schritte und keinen `llm_qs`, also war `qsZiele` leer und der
+QS-Knopf erschien nie; `qsRegelnFuerArtefakt` hatte keinen Produktiv-Aufrufer (nur
+Tests). Damit ist `ga-qs-quellenabgleich` — eine **`fehler`**-Regel — noch nie gelaufen,
+und `qsKriterien` war an allen 23 Skills leer. In der Regel-Liste sieht man den Zustand
+bis heute: fünf Regeln stehen dort mit „Verwendet in: —".
+
+### Das dritte Bein der Kette
+
+`generateInto` hängt nach dem Feinschliff `mitPruefung` an
+([workflow-generierung.ts](../../src/plugins/antraege/gutachten/workflow-generierung.ts)).
+Vier Eigenschaften, die zusammengehören:
+
+1. **Sie läuft auch nach einer Überarbeitung** — anders als der Feinschliff. Der zieht
+   eine bewusst gekürzte Fassung wieder glatt; eine Prüfung fasst den Text nicht an,
+   und ein per Modifier veränderter Abschnitt ist genau der, den man geprüft sehen will.
+2. **Sie läuft auf der Gegenrolle der Generierung** (`gegenrolle` in
+   [ki-ziel.ts](../../src/core/services/ai/ki-ziel.ts)). Dass die beiden Rollen sich
+   fachlich unterscheiden, ist eine Messung und keine Annahme; ist die Gegenrolle nicht
+   erreichbar, stempelt der bestehende Ziel-Fallback das sichtbar.
+3. **Sie blockiert nie und löst nie einen Auto-Retry aus.** `qsBefundLevel` kappt bei
+   `hinweis`; eine LLM-Meinung, die eine Neu-Generierung erzwingt, verbrennt
+   Bridge-Zeit an Rauschen. Scheitert sie (Tor, Wurf, Abbruch), fehlen schlicht die
+   Hinweise — es gibt nichts zu verwerfen und keine Marke wie `feinschliffUebersprungen`.
+4. **Sie kostet.** Ein Abschnitt geht von 2 auf 3 Bridge-Läufe, A–G also von ~14 auf
+   ~21 und von ~10 auf ~15 Minuten, jeder Lauf mit Chat-Reset (Pitfall #36).
+
+### Der Prüfkatalog
+
+`SkillRecord.pruefkatalog: PruefItem[]` — EINE kuratierte Liste je Artefakt, Form nach
+dem Vorbild der MAP-Checkliste (`gruppe` · `kriterium` · `herkunft` · `giltFuer`).
+`pruefItemsFuer` schneidet sie je Abschnitt zu und reicht sie an das **vorhandene**
+`buildQsKriterienBlock` — kein zweiter Prompt-Bauer, kein zweiter Parser.
+
+- **`giltFuer` leer = gilt überall** (der Regelfall ist die kürzeste Schreibweise).
+- **Die engere Angabe schlägt die weitere**: trägt ein Abschnitts-Skill eigene
+  `qsKriterien`, gelten dort nur sie. Eine Mischung wäre für einen Kurator nicht mehr
+  vorhersagbar.
+- **Kriteriums-Texte sind je Katalog eindeutig** — der Befund wird über den Text
+  zurückgemappt (er ist die `###`-Überschrift im Antwortformat); Dubletten fallen beim
+  Laden weg.
+- Ohne Katalog bewertet der Prüfer unverändert die vier generischen Dimensionen.
+
+### Er startet aus — und das ist der Punkt
+
+`SEED_QS_SKILL.aktiv: false`. Sein Prompt ist an echten Abschnitten nie gemessen worden,
+und ein Prüfer, der überall etwas findet, ist schlechter als keiner (dieselbe Haltung
+wie bei der Falsch-Positiv-Kontrolle des MAP-Substanzchecks). Freigeschaltet wird er
+erst nach dem Abnahme-Gate: **ein bekannt guter Abschnitt dreimal geprüft muss dreimal
+schweigen, ein gesalzener dreimal treffen** — gemessen gegen die interne KI, nicht gegen
+einen OpenRouter-Zwilling. Der Kill-Switch wirkt an BEIDEN Wegen (automatisch und
+manuell), sonst hieße „aus" je nach Aufrufweg etwas anderes.
+
+Rollout `ga-fachpruefer-2026-08`. Die Migration setzt `aktiv: false`, **wenn das Feld
+fehlt** — der Teil, den die erste Fassung falsch hatte: „`aktiv` gar nicht anfassen"
+klang nach Vorsicht, hieß auf einem Bestands-Share aber „sofort scharf", weil dort nie
+jemand etwas gesetzt hatte und `undefined` als aktiv gilt. Ein **explizites** `true`
+oder `false` bleibt unangetastet: das ist eine Entscheidung, keine Lücke.
+
 ## QS-Regel-Bindung je Artefakt
 
 `qsRegelnFuerArtefakt(file, typ)` ([selectors.ts](../../src/core/services/skills/registry/selectors.ts)):

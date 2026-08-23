@@ -169,10 +169,77 @@ export function qsRegelnFuerArtefakt(file: SkillRegistryFile, typ: ArtefaktTyp):
   // generativen Skill-Regeln — die bleiben Generierungs-Vorgaben).
   if (typ === 'ga') return file.regeln.filter(r => GA_QS_REGEL_IDS.has(r.id));
   // Sonst (NF …): die QS-Regeln sind die `regelIds` der Skills des Artefakt-Workflows.
-  const workflows = file.workflows && file.workflows.length > 0 ? file.workflows : SEED_WORKFLOWS;
-  const wf = workflows.find(w => artefaktTypOf(w) === typ);
+  const wf = workflowFuerArtefakt(file, typ);
   if (!wf) return [];
   const skillIds = new Set(wf.steps.map(s => s.skillId));
   const regelIds = new Set(file.skills.filter(s => skillIds.has(s.id)).flatMap(s => s.regelIds));
   return file.regeln.filter(r => regelIds.has(r.id));
+}
+
+/**
+ * Die Workflow-Definition eines Artefakt-Typs. Fehlt eine kuratierte Def, greift der
+ * Seed-Workflow — dieselbe Auflösung, die `qsRegelnFuerArtefakt` schon nutzte; sie
+ * stand dort inline und wird jetzt geteilt (eine Heimat).
+ */
+export function workflowFuerArtefakt(file: SkillRegistryFile, typ: ArtefaktTyp): WorkflowDef | undefined {
+  const workflows = file.workflows && file.workflows.length > 0 ? file.workflows : SEED_WORKFLOWS;
+  return workflows.find(w => artefaktTypOf(w) === typ);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Prüfer eines Artefakts (fachlich / administrativ / sprachlich)              */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Die Prüfer eines Artefakt-Typs, in Lauf-Reihenfolge — aufgelöst aus
+ * `WorkflowDef.pruefer` (Skill-IDs) gegen die Skill-Liste.
+ *
+ * **Zwei Tore, beide hier und nicht beim Aufrufer:**
+ *  - `aktiv === false` fliegt raus (Kurator-Kill-Switch, Muster `ga-lektor`) —
+ *    damit ein noch nicht abgenommener Prüfer nicht bei jedem Abschnitt einen
+ *    KI-Lauf kostet;
+ *  - eine ID ohne Skill fliegt still raus (verwaiste Referenz nach einem Löschen).
+ *
+ * Fehlt `pruefer` ganz → `[]` ⇒ die Kette verhält sich exakt wie vor v6.27.
+ */
+export function prueferFuerArtefakt(file: SkillRegistryFile, typ: ArtefaktTyp): SkillRecord[] {
+  const ids = workflowFuerArtefakt(file, typ)?.pruefer ?? [];
+  if (ids.length === 0) return [];
+  const byId = new Map(file.skills.map(s => [s.id, s]));
+  return ids
+    .map(id => byId.get(id))
+    .filter((s): s is SkillRecord => s !== undefined && s.aktiv !== false);
+}
+
+/** Der Prüfer einer bestimmten Art (der erste, falls mehrere) oder `undefined`. */
+export function prueferMitArt(
+  file: SkillRegistryFile, typ: ArtefaktTyp, art: Pruefart,
+): SkillRecord | undefined {
+  return prueferFuerArtefakt(file, typ).find(s => s.pruefart === art);
+}
+
+/**
+ * Die Kriterien, die für EINEN Abschnitt gelten — als flache Satz-Liste, wie sie
+ * `buildQsKriterienBlock` erwartet.
+ *
+ * Rangfolge: **die engere Angabe schlägt die weitere.** Trägt der Abschnitts-Skill
+ * eigene `qsKriterien`, gelten nur sie; sonst der Katalog des Prüfers, zugeschnitten
+ * über `giltFuer` (fehlt/leer = gilt überall). So bleibt der seit v2.336 vorhandene
+ * Weg gültig, ohne dass beide Quellen sich vermischen — eine Mischung wäre für einen
+ * Kurator nicht mehr vorhersagbar.
+ *
+ * `aktiv === false` fällt weg; die Reihenfolge des Katalogs bleibt erhalten (sie ist
+ * Prompt-Text, wie bei den Vorgaben).
+ */
+export function pruefItemsFuer(
+  pruefer: SkillRecord | undefined,
+  stepId: string,
+  abschnittsSkill?: SkillRecord,
+): string[] {
+  const eigene = abschnittsSkill?.qsKriterien?.map(k => k.trim()).filter(Boolean) ?? [];
+  if (eigene.length > 0) return eigene;
+  return (pruefer?.pruefkatalog ?? [])
+    .filter(i => i.aktiv !== false)
+    .filter(i => !i.giltFuer || i.giltFuer.length === 0 || i.giltFuer.includes(stepId))
+    .map(i => i.kriterium);
 }

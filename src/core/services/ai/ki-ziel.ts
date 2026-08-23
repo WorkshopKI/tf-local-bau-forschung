@@ -87,6 +87,22 @@ export function aktivesZielFuerLauf(): KiRolle {
 }
 
 /**
+ * Die jeweils ANDERE Rolle. Gedacht für Prüf-Läufe: ein Modell, das seinen eigenen
+ * Text bewertet, bestätigt sich mit einiger Wahrscheinlichkeit selbst — der Prüfer
+ * soll deshalb nicht auf der Rolle laufen, die den Abschnitt erzeugt hat.
+ *
+ * **Eine Zusicherung ist das noch nicht.** Ob die beiden Rollen sich fachlich
+ * überhaupt unterscheiden, ist eine Messung und keine Annahme (dieselbe Vorsicht wie
+ * bei der MAP-Zweitmeinung, deren Stabilität über vier fast gleiche Fixtures geprüft
+ * wird). Ist die Gegenrolle nicht erreichbar, greift der bestehende `ziel-fallback`
+ * und stempelt sichtbar — ein stiller Rückfall auf dasselbe Modell wäre keine
+ * Zweitmeinung, sondern eine zweite Meinung desselben.
+ */
+export function gegenrolle(ziel: KiRolle): KiRolle {
+  return ziel === 'stark' ? 'standard' : 'stark';
+}
+
+/**
  * Lauf-Kontext für die Kontextfenster-Ableitung bei EXPLIZIT bekanntem Ziel: über
  * welche Transportart und welches Modell geht dieser Lauf?
  *
