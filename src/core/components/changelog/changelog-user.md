@@ -19,6 +19,15 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v6.23 — 2026-08
+
+### Verbesserungen
+- **Die Doppelförderungs-Prüfung wurde an einer vollständigen Meldungsliste nachjustiert.** Ein zu allgemeines Schlagwort wie „Automatisierung" trägt jetzt sichtbar die Marke **zu weit** — es trifft 852 der verglichenen Vorhaben und sagt damit nichts aus. Ein Klick auf „ändern" ersetzt es.
+- **Die inhaltliche Ähnlichkeit wirkt jetzt tatsächlich.** Ihre Hürde lag zu hoch und hat nie ausgelöst; sie findet jetzt auch Vorhaben, die dasselbe meinen, aber andere Wörter benutzen.
+
+### Bugfixes
+- Die Reglerstufe „3 von 3" verspricht keine schärfere Prüfung mehr: an einer echten Liste bleibt damit keine Meldung übrig, und die Erklärung am Regler sagt das nun.
+
 ## v6.22 — 2026-08
 
 ### Verbesserungen

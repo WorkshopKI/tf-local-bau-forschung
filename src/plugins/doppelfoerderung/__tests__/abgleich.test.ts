@@ -14,8 +14,8 @@ import { describe, it, expect } from 'vitest';
 import type { AntragListItem } from '@/core/services/csv/types';
 import type { AntragTextEntry } from '@/plugins/antraege/services/search-corpus';
 import {
-  aehnlichkeitsText, faelleUrteil, vereineBefunde, wortlautAbdeckung,
-  type AbgleichKontext,
+  AEHNLICHKEIT_SCHWELLE, aehnlichkeitsText, faelleUrteil, istZuWeit, vereineBefunde,
+  wortlautAbdeckung, type AbgleichKontext,
 } from '@/plugins/doppelfoerderung/services/abgleich';
 import type { TrefferBefund } from '@/plugins/doppelfoerderung/types';
 
@@ -177,5 +177,46 @@ describe('aehnlichkeitsText', () => {
   it('lässt eine leere Hälfte weg, statt Leerzeilen zu erzeugen', () => {
     expect(aehnlichkeitsText('', 'Text')).toBe('Text');
     expect(aehnlichkeitsText('Thema', '  ')).toBe('Thema');
+  });
+});
+
+describe('AEHNLICHKEIT_SCHWELLE', () => {
+  /**
+   * Der höchste Ähnlichkeitswert, den ein Lauf über alle 45 Meldungen der
+   * 72er-Liste hervorgebracht hat, war 0,621 — eine Schwelle darüber schaltet
+   * die ganze Stufe ab, ohne dass es jemandem auffiele. Genau das war der
+   * Zustand vor dieser Messung (0,75). Der Test nagelt die Obergrenze fest,
+   * nicht den exakten Wert: wer kalibriert, darf verschieben, aber nicht über
+   * den beobachteten Wertebereich hinaus.
+   */
+  it('liegt unterhalb des höchsten je gemessenen Wertes (0,621)', () => {
+    expect(AEHNLICHKEIT_SCHWELLE).toBeLessThan(0.621);
+  });
+
+  it('liegt über dem Rauschband, in dem fast jede Meldung einen Nachbarn hat', () => {
+    // Ab 0,45 trugen 34 von 45 Zeilen einen Treffer — das ist kein Befund mehr.
+    expect(AEHNLICHKEIT_SCHWELLE).toBeGreaterThan(0.45);
+  });
+});
+
+describe('istZuWeit', () => {
+  it('markiert ein Wort ab einem Prozent des Betrachtungsbereichs', () => {
+    // Gemessen: „Automatisierung" trug 852 von 4.327 Vorhaben.
+    expect(istZuWeit(852, 4327)).toBe(true);
+    expect(istZuWeit(44, 4327)).toBe(true);
+  });
+
+  it('lässt die unterscheidenden Wörter in Ruhe', () => {
+    // „Qualifizierung" 35, „Computer Vision" 14, „Wasserstoffversprödung" 2.
+    expect(istZuWeit(35, 4327)).toBe(false);
+    expect(istZuWeit(14, 4327)).toBe(false);
+    expect(istZuWeit(2, 4327)).toBe(false);
+  });
+
+  it('bleibt still, solange die Bezugsgrösse fehlt', () => {
+    // Ohne Bereichsgrösse gäbe es nur einen Anteil ins Blaue — dann lieber
+    // keine Marke als eine falsche.
+    expect(istZuWeit(852, null)).toBe(false);
+    expect(istZuWeit(852, 0)).toBe(false);
   });
 });

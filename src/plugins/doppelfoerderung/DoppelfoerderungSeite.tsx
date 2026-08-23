@@ -27,9 +27,9 @@ const ZAHL = new Intl.NumberFormat('de-DE');
 
 /** Die drei Stufen des Reglers. „1 von 3" ist das reine ODER der Anforderung. */
 const SCHWELLEN: readonly { wert: number; label: string; hilfe: string }[] = [
-  { wert: 1, label: '1 von 3', hilfe: 'Reines ODER — ein Schlagwort genügt. Bei weit gefassten Schlagworten trifft das ein Viertel des Bestands (gemessen: 1.150 von 4.327).' },
-  { wert: 2, label: '2 von 3', hilfe: 'Vorbelegung: mindestens zwei der drei Schlagworte. Gemessen 103 statt 1.150 Treffer.' },
-  { wert: 3, label: '3 von 3', hilfe: 'Alle drei Schlagworte. Sehr streng — beim weiten Beispiel-Trio blieb ein einziges Vorhaben übrig.' },
+  { wert: 1, label: '1 von 3', hilfe: 'Reines ODER — ein Schlagwort genügt. An einer echten Liste gemessen sagt das bei 40 von 45 Meldungen „Übereinstimmung".' },
+  { wert: 2, label: '2 von 3', hilfe: 'Vorbelegung: mindestens zwei der drei Schlagworte. An derselben Liste 10 von 45 Meldungen.' },
+  { wert: 3, label: '3 von 3', hilfe: 'Alle drei Schlagworte. An der gemessenen Liste blieb damit keine einzige Meldung übrig — diese Stufe ist der Grenzfall, nicht die schärfere Prüfung.' },
 ];
 
 export function DoppelfoerderungSeite(): React.ReactElement {
@@ -145,7 +145,11 @@ export function DoppelfoerderungSeite(): React.ReactElement {
                 </span>
               )}
             </div>
-            <ErgebnisTabelle ergebnisse={d.ergebnisse} onSchlagworte={d.ersetzeSchlagworte} />
+            <ErgebnisTabelle
+              ergebnisse={d.ergebnisse}
+              bereichsGroesse={d.bereichsGroesse}
+              onSchlagworte={d.ersetzeSchlagworte}
+            />
           </div>
         )}
       </div>

@@ -23,6 +23,26 @@ describe('baueSchlagwortPrompt', () => {
     expect(systemPrompt).toContain('75 %');
   });
 
+  /**
+   * Die zweite Staffel stammt aus dem Durchlauf über die 72er-Liste: Wörter,
+   * die über einem Prozent des Betrachtungsbereichs liegen und die Branche
+   * benennen statt des Vorhabens. Sie stehen hier namentlich, weil sie ohne
+   * diesen Test wieder herausfallen könnten — sie klingen fachlich.
+   */
+  it('verbietet auch die nachgemessenen Sammelbegriffe', () => {
+    for (const wort of ['Automatisierung', 'Maschinenbau', 'Medizintechnik',
+      'Additive Fertigung', 'Logistik', 'Maschinelles Lernen', 'Demonstrator']) {
+      expect(ZU_WEITE_WOERTER).toContain(wort);
+    }
+  });
+
+  it('verbietet keinen fachlich engen Begriff, nur weil er häufig ist', () => {
+    // „Kreislaufwirtschaft" trug 1,8 % des Bereichs — häufig, aber es benennt
+    // eine Sache. Die Marke am Chip weist darauf hin, das Verbot nicht.
+    expect(ZU_WEITE_WOERTER).not.toContain('Kreislaufwirtschaft');
+    expect(ZU_WEITE_WOERTER).not.toContain('Robotik');
+  });
+
   it('führt kein Beispiel-JSON, das ein Modell zurückspiegeln könnte', () => {
     const { systemPrompt } = baueSchlagwortPrompt('Thema', 'Beschreibung');
     expect(systemPrompt).not.toContain('{"schlagworte"');

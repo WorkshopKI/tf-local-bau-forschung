@@ -21,6 +21,23 @@
  * Demonstrationsinfrastruktur / Erfolgskontrolle") kommt auf 2. Ein
  * spezifisches Schlagwort ist deshalb keine Stilfrage — es entscheidet, ob das
  * Urteil überhaupt etwas aussagt.
+ *
+ * **Die zweite Staffel der Verbotsliste** stammt aus einem Durchlauf über alle
+ * 45 Meldungen der Liste `Auszug_72_Zeilen_ 20260818`, die über der
+ * Betragsschwelle liegen (23.08.2026). Die Schlagworte dieses Laufs waren von
+ * Hand formuliert, weil die interne KI nicht erreichbar war — gemessen wurde
+ * ihre Wirkung im echten Suchpfad:
+ *
+ *   Automatisierung 852 (19,7 %) · Maschinenbau 672 (15,5 %)
+ *   Medizintechnik 353 (8,2 %) · Additive Fertigung 343 (7,9 %)
+ *   Logistik 105 (2,4 %) · Maschinelles Lernen 86 (2,0 %) · Demonstrator 82 (1,9 %)
+ *
+ * Sie stehen jetzt im Verbot, weil sie dieselbe Rolle spielen wie „Entwicklung":
+ * sie benennen die Branche oder die Methodenfamilie, nicht das Vorhaben. Der
+ * Schnitt liegt bei einem Prozent des Betrachtungsbereichs — direkt darunter
+ * fangen die Wörter an, die wirklich unterscheiden (Qualifizierung 0,8 %,
+ * Computer Vision 0,3 %). Fachlich enge Begriffe bleiben erlaubt, auch wenn sie
+ * häufig sind: „Kreislaufwirtschaft" (1,8 %) benennt eine Sache, keine Schublade.
  */
 import { einZugRegel } from '@/core/services/ai/ein-schuss-lauf';
 import { alsListe, alsText, istRecord, parseJsonArrayTolerant, stripMarkdownWrapper } from '@/core/services/ai/json-tolerant';
@@ -55,6 +72,11 @@ export const ZU_WEITE_WOERTER: readonly string[] = [
   'KI', 'Künstliche Intelligenz', 'Digitalisierung', 'Forschung', 'Entwicklung',
   'Innovation', 'Projekt', 'Verbundprojekt', 'Technologie', 'System', 'Software',
   'Nachhaltigkeit', 'Transfer', 'Mittelstand', 'KMU',
+  // Zweite Staffel, an der 72er-Liste nachgemessen (siehe Kopfkommentar). Alle
+  // liegen über einem Prozent des Betrachtungsbereichs und benennen die Branche
+  // oder die Methodenfamilie statt des Vorhabens.
+  'Automatisierung', 'Maschinenbau', 'Medizintechnik', 'Additive Fertigung',
+  'Logistik', 'Maschinelles Lernen', 'Demonstrator',
 ];
 
 export interface SchlagwortPrompt {

@@ -16,12 +16,27 @@
  *
  * Ohne die Abdeckung wäre „Übereinstimmung" bei fast jeder Zeile wahr und damit
  * wertlos. Der Preis ist klein: drei Läufe über 4.327 Einträge kosten zusammen
- * 45–65 ms.
+ * rund 18 ms; eine ganze Zeile mit beiden Stufen (inkl. Query-Embedding auf
+ * WebGPU) 145 ms — gemessen über 45 Zeilen am Stück, 6,5 s für die ganze Liste.
+ * Die Wartezeit einer Prüfung liegt damit vollständig beim KI-Lauf.
+ *
+ * **Was die Abdeckung NICHT kann.** Sie zählt Schlagworte, sie wiegt sie nicht.
+ * An der 72er-Liste gemessen bevorzugt sie damit systematisch die weiten Trios:
+ * „Übereinstimmung ab 2 von 3" trifft dort vor allem Zeilen, deren Abdeckung von
+ * einem Wort wie „Automatisierung" (852 Vorhaben) oder „Maschinenbau" (672)
+ * getragen wird, während eine Zeile mit einem einzigen, sehr engen Treffer
+ * („Wasserstoffversprödung", 2 Vorhaben) als „keine Übereinstimmung" durchfällt —
+ * obwohl gerade sie den Blick lohnt. Die Oberfläche zeigt deshalb an jedem
+ * Schlagwort seine Trefferzahl und markiert die zu weiten
+ * ({@link WORT_ZU_WEIT_ANTEIL}); die Trefferliste steht in jeder Zeile offen, auch
+ * wenn das Urteil nein sagt.
  *
  * **Stufe B, Ähnlichkeit**, beantwortet die Frage, die die Schlagworte nicht
  * können: dasselbe Vorhaben mit anderen Worten. Sie ist optional — ohne
  * geladenes Embedding-Modell entfällt sie mit sichtbarem Hinweis, nicht die
- * Prüfung.
+ * Prüfung. Sie ist auch die Stufe, die den engen Einzeltreffer oben wieder
+ * einfängt: die acht Zeilen, die der Wortlaut nicht zu fassen bekam, hebt sie
+ * ab 0,52 hervor.
  */
 import type { AntragListItem } from '@/core/services/csv/types';
 import type { AntragTextEntry } from '@/plugins/antraege/services/search-corpus';
@@ -42,6 +57,13 @@ import type { TrefferBefund, TrefferQuelle, UrteilGrund } from '../types';
  * Zeile („Mobile Fabrik / Demonstrationsinfrastruktur / Erfolgskontrolle")
  * kommt schon ODER-verknüpft auf 2 Treffer. Die Schwelle rettet ein schlechtes
  * Schlagwort, sie macht kein gutes überflüssig.
+ *
+ * **An einer ganzen Liste gemessen** (45 Meldungen über der Betragsschwelle aus
+ * `Auszug_72_Zeilen_ 20260818`, 23.08.2026): bei „1 von 3" tragen **40 von 45**
+ * Zeilen ein „Übereinstimmung" — das reine ODER der Anforderung sagt also fast
+ * immer ja. Bei „2 von 3" sind es 10, bei „3 von 3" **keine einzige**. Die
+ * dritte Stufe des Reglers ist damit an echten Listen leer; sie bleibt als
+ * Grenzfall stehen, aber wer sie wählt, sieht nichts mehr.
  */
 export const SCHWELLE_VORGABE = 2;
 
@@ -51,17 +73,54 @@ export const SCHWELLE_VORGABE = 2;
  *
  * `searchAntraegeVector` liefert bereits nur, was über seiner eigenen Schwelle
  * liegt (Top 50 mit relativem Cutoff) — diese Zahl hier ist die zweite, engere
- * Hürde für den Fall, dass KEIN Schlagwort traf. Sie ist bewusst hoch: ein
- * Ähnlichkeitswert um 0,6 findet bei ZIM-Anträgen schon „auch Maschinenbau".
+ * Hürde für den Fall, dass KEIN Schlagwort traf.
  *
- * TODO(Abnahme): an den neun Zeilen der Beispieldatei messen und die gemessene
- * Trefferzahl als Kommentar hinter die Zahl schreiben, bevor sie als gesetzt
- * gilt. Bis dahin ist sie eine begründete Vorbelegung, kein Messwert.
+ * **Gemessen** an allen 45 Meldungen der Liste `Auszug_72_Zeilen_ 20260818`, die
+ * über der Betragsschwelle liegen (Betrachtungsbereich 4.327 Vorhaben,
+ * EmbeddingGemma-300M, WebGPU, 23.08.2026). Je Zeile der höchste Wert eines
+ * Vorhabens, das KEIN Schlagwort getroffen hatte:
+ *
+ *   höchster Wert der ganzen Liste  0,621 · Median rund 0,47 · niedrigster 0,391
+ *   ab 0,45 → 34 von 45 Zeilen · ab 0,50 → 15 · ab 0,52 → 10 · ab 0,55 → 4
+ *   ab 0,60 →  1 · ab 0,65 →  0 · ab 0,75 →  0
+ *
+ * Die frühere Vorbelegung 0,75 lag damit **über dem gesamten beobachteten
+ * Wertebereich**: die Ähnlichkeitsstufe lief, rechnete und trug zu keinem
+ * einzigen Urteil bei. 0,52 ist der Punkt, an dem die Stufe die Zeilen aufgreift,
+ * die der Wortlaut nicht sehen kann (26, 42, 44, 49, 51, 69, 70, 71) — darunter
+ * mit `Multi-POCT-vet → VetDx/ZytoVet` (0,523) die inhaltlich nächste Paarung der
+ * ganzen Liste — ohne die MDZ-Zeilen mitzureissen, die alle unter 0,51 bleiben.
+ *
+ * Die Zahl gilt für dieses Modell. Ein Modellwechsel verschiebt die Skala und
+ * verlangt dieselbe Messung erneut (Pitfall #19).
  */
-export const AEHNLICHKEIT_SCHWELLE = 0.75;
+export const AEHNLICHKEIT_SCHWELLE = 0.52;
 
 /** So viele Befunde zeigt die Zeile eingeklappt. */
 export const BEFUNDE_SICHTBAR = 10;
+
+/**
+ * Ab welchem Anteil am Betrachtungsbereich ein Schlagwort als „zu weit" gilt.
+ *
+ * Ein Prozent, an der 72er-Liste abgelesen: darüber liegen ausschliesslich
+ * Sammelbegriffe, die nicht das Vorhaben benennen, sondern seine Branche oder
+ * seine Methodenfamilie — Automatisierung 19,7 %, Maschinenbau 15,5 %,
+ * Medizintechnik 8,2 %, Additive Fertigung 7,9 %, Logistik 2,4 %, Maschinelles
+ * Lernen 2,0 %, Demonstrator 1,9 %, Kreislaufwirtschaft 1,8 %, Robotik 1,1 %.
+ * Direkt darunter beginnen die Begriffe, die wirklich unterscheiden
+ * (Qualifizierung 0,8 %, Lieferketten 0,7 %, Computer Vision 0,3 %).
+ *
+ * Die Marke urteilt nicht — sie beschriftet. Ein zu weites Schlagwort zählt
+ * weiter zur Abdeckung; der Nutzer sieht nur, welches der drei Wörter die Liste
+ * aufgerissen hat, und kann es an Ort und Stelle ersetzen.
+ */
+export const WORT_ZU_WEIT_ANTEIL = 0.01;
+
+/** Trägt dieses Schlagwort so viele Treffer, dass es nichts mehr unterscheidet? */
+export function istZuWeit(treffer: number, bereichsGroesse: number | null): boolean {
+  if (!bereichsGroesse) return false;
+  return treffer / bereichsGroesse >= WORT_ZU_WEIT_ANTEIL;
+}
 
 /** Was ein Abgleich braucht, um überhaupt laufen zu können. */
 export interface AbgleichKontext {

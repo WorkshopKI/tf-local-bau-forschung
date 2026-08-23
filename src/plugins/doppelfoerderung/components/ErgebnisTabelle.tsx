@@ -2,22 +2,31 @@
  * Phase 3: eine Karte je Meldungszeile — Urteil, Schlagworte, Trefferliste.
  *
  * **Die Schlagworte sind editierbar, und jedes trägt seine Trefferzahl.** Am
- * echten Bestand trifft ein zu weites Wort wie „KI" 23 % aller Vorhaben; die
+ * echten Bestand trifft ein zu weites Wort wie „KI" 36 % aller Vorhaben; die
  * Zahl neben dem Chip zeigt genau das, statt den Nutzer raten zu lassen, welches
  * der drei Wörter die Liste aufgerissen hat. Ein geändertes Schlagwort rechnet
  * nur die Wortlaut-Stufe dieser Zeile neu — Millisekunden, kein neuer KI-Lauf.
+ *
+ * Ab einem Prozent des Betrachtungsbereichs steht zusätzlich „zu weit" am Chip.
+ * Der Grund steht bei {@link WORT_ZU_WEIT_ANTEIL}: das Urteil zählt Schlagworte,
+ * es wiegt sie nicht — ohne diese Marke liest sich eine Übereinstimmung, die
+ * allein an „Automatisierung" (852 Vorhaben) hängt, wie ein Fund.
  */
 import { useState } from 'react';
 import { AlertTriangle, Check, ChevronDown, ChevronRight, Pencil } from 'lucide-react';
+import { istZuWeit } from '../services/abgleich';
 import { TrefferListe } from './TrefferListe';
 import type { ZeilenErgebnis } from '../types';
 
 export interface ErgebnisTabelleProps {
   ergebnisse: readonly ZeilenErgebnis[];
   onSchlagworte: (zeilenNr: number, schlagworte: readonly string[]) => void;
+  /** Bezugsgrösse für „zu weit" — ohne sie bleibt die Marke aus. */
+  bereichsGroesse: number | null;
 }
 
 const EURO = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
+const PROZENT = new Intl.NumberFormat('de-DE', { style: 'percent', maximumFractionDigits: 1 });
 
 function UrteilsMarke(props: { e: ZeilenErgebnis }): React.ReactElement {
   const { e } = props;
@@ -52,9 +61,10 @@ function UrteilsMarke(props: { e: ZeilenErgebnis }): React.ReactElement {
 
 function SchlagwortChips(props: {
   e: ZeilenErgebnis;
+  bereichsGroesse: number | null;
   onSchlagworte: (zeilenNr: number, schlagworte: readonly string[]) => void;
 }): React.ReactElement {
-  const { e, onSchlagworte } = props;
+  const { e, bereichsGroesse, onSchlagworte } = props;
   const [bearbeiten, setBearbeiten] = useState(false);
   const [entwurf, setEntwurf] = useState(e.schlagworte.join(', '));
 
@@ -93,15 +103,24 @@ function SchlagwortChips(props: {
     <div className="flex flex-wrap items-center gap-1.5">
       {e.schlagworte.map(w => {
         const treffer = e.befunde.filter(b => b.getroffeneWorte.includes(w)).length;
+        const zuWeit = istZuWeit(treffer, bereichsGroesse);
+        const anteil = bereichsGroesse ? ` (${PROZENT.format(treffer / bereichsGroesse)})` : '';
         return (
           <span
             key={w}
             className="inline-flex items-center gap-1.5 rounded-[6px] px-2 py-0.5 text-[12px]"
             style={{ background: 'var(--tf-bg-secondary)', color: 'var(--tf-text)' }}
-            title={`„${w}" kommt in ${treffer} Vorhaben des Betrachtungsbereichs vor`}
+            title={zuWeit
+              ? `„${w}" kommt in ${treffer} Vorhaben des Betrachtungsbereichs vor${anteil} — zu viele, um noch etwas zu unterscheiden. Ersetzen Sie es durch den engeren Begriff daneben.`
+              : `„${w}" kommt in ${treffer} Vorhaben des Betrachtungsbereichs vor${anteil}`}
           >
             {w}
             <span className="tabular-nums text-[11px] text-[var(--tf-text-tertiary)]">{treffer}</span>
+            {zuWeit && (
+              <span className="text-[11px] font-medium" style={{ color: 'var(--tf-warn-text, #92400e)' }}>
+                zu weit
+              </span>
+            )}
           </span>
         );
       })}
@@ -121,7 +140,7 @@ function SchlagwortChips(props: {
 }
 
 function ErgebnisKarte(props: ErgebnisTabelleProps & { e: ZeilenErgebnis }): React.ReactElement {
-  const { e, onSchlagworte } = props;
+  const { e, bereichsGroesse, onSchlagworte } = props;
   const [offen, setOffen] = useState(false);
   const Pfeil = offen ? ChevronDown : ChevronRight;
 
@@ -148,7 +167,7 @@ function ErgebnisKarte(props: ErgebnisTabelleProps & { e: ZeilenErgebnis }): Rea
 
       {e.fehler
         ? <p className="text-[12.5px] text-[var(--tf-text-secondary)]">{e.fehler}</p>
-        : <SchlagwortChips e={e} onSchlagworte={onSchlagworte} />}
+        : <SchlagwortChips e={e} bereichsGroesse={bereichsGroesse} onSchlagworte={onSchlagworte} />}
 
       {!e.fehler && (
         <>
@@ -169,11 +188,17 @@ function ErgebnisKarte(props: ErgebnisTabelleProps & { e: ZeilenErgebnis }): Rea
 }
 
 export function ErgebnisTabelle(props: ErgebnisTabelleProps): React.ReactElement {
-  const { ergebnisse, onSchlagworte } = props;
+  const { ergebnisse, bereichsGroesse, onSchlagworte } = props;
   return (
     <ul className="flex flex-col gap-2">
       {ergebnisse.map(e => (
-        <ErgebnisKarte key={e.zeile.zeilenNr} e={e} ergebnisse={ergebnisse} onSchlagworte={onSchlagworte} />
+        <ErgebnisKarte
+          key={e.zeile.zeilenNr}
+          e={e}
+          ergebnisse={ergebnisse}
+          bereichsGroesse={bereichsGroesse}
+          onSchlagworte={onSchlagworte}
+        />
       ))}
     </ul>
   );

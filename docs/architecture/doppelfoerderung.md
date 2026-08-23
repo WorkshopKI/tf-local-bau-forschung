@@ -61,6 +61,27 @@ kalibriert, kalibriert sie falsch.
 | Cybersicherheit | 6 | 0,1 % |
 | Mobile Fabrik | 2 | 0,0 % |
 
+Aus dem Lauf über die 72er-Liste kamen sieben weitere Sammelbegriffe dazu — sie
+klingen fachlich, benennen aber die Branche oder die Methodenfamilie:
+
+| Wort | Treffer | Anteil | im Verbot |
+|---|---|---|---|
+| Automatisierung | 852 | 19,7 % | ja |
+| Maschinenbau | 672 | 15,5 % | ja |
+| Medizintechnik | 353 | 8,2 % | ja |
+| Additive Fertigung | 343 | 7,9 % | ja |
+| Logistik | 105 | 2,4 % | ja |
+| Maschinelles Lernen | 86 | 2,0 % | ja |
+| Demonstrator | 82 | 1,9 % | ja |
+| Kreislaufwirtschaft | 76 | 1,8 % | nein — benennt eine Sache |
+| Robotik | 48 | 1,1 % | nein — benennt eine Sache |
+| Qualifizierung | 35 | 0,8 % | nein |
+| Computer Vision | 14 | 0,3 % | nein |
+
+Der Schnitt für die Marke „zu weit" in der Oberfläche liegt bei **1 %** des
+Bereichs und ist damit weiter als das Verbot: „Kreislaufwirtschaft" darf ein
+Schlagwort sein, aber der Nutzer sieht, dass es 76 Vorhaben trägt.
+
 ### Was die Schwelle bewirkt
 
 | Trio der ersten Beispielzeile | ODER | ≥2 von 3 | alle 3 |
@@ -68,7 +89,39 @@ kalibriert, kalibriert sie falsch.
 | weit: Digitalisierung / Künstliche Intelligenz / Mittelstand | **1.150** | **103** | **1** |
 | eng: Mobile Fabrik / Demonstrationsinfrastruktur / Erfolgskontrolle | **2** | 0 | 0 |
 
-Drei Läufe über 4.327 Einträge kosten zusammen 45–65 ms.
+Drei Läufe über 4.327 Einträge kosten zusammen rund 18 ms; eine ganze Zeile mit
+beiden Stufen 145 ms (45 Zeilen am Stück in 6,5 s, WebGPU). Die Wartezeit einer
+Prüfung liegt vollständig beim KI-Lauf.
+
+### An einer ganzen Liste nachgemessen (23.08.2026)
+
+Alle **45** Meldungen über der Betragsschwelle aus `Auszug_72_Zeilen_ 20260818`,
+Schlagworte von Hand formuliert (die interne KI war nicht erreichbar), gefahren
+durch den echten Suchpfad:
+
+| Regler | Zeilen mit „Übereinstimmung" |
+|---|---|
+| 1 von 3 (das reine ODER der Anforderung) | **40 von 45** |
+| 2 von 3 (Vorbelegung) | **10 von 45** |
+| 3 von 3 | **0 von 45** |
+
+Damit ist die Vorbelegung belegt — und zugleich zeigt der Lauf **zwei Grenzen**:
+
+1. **Die dritte Reglerstufe ist an echten Listen leer.** Sie bleibt als
+   Grenzfall stehen, aber sie ist keine „schärfere Prüfung", sie ist Stille.
+2. **Die Abdeckung zählt Schlagworte, sie wiegt sie nicht.** Bei „2 von 3"
+   trifft sie vor allem die Zeilen, deren Abdeckung an einem Sammelbegriff hängt
+   (Automatisierung 852 Vorhaben, Maschinenbau 672, Medizintechnik 353, Additive
+   Fertigung 343) — während eine Zeile mit einem einzigen, sehr engen Treffer
+   („Wasserstoffversprödung", 2 Vorhaben; „Kryogener Wasserstoff", 2) als „keine
+   Übereinstimmung" durchfällt, obwohl gerade sie den Blick lohnt.
+
+Gegen (2) wirken zwei Dinge, beide ohne Änderung am Urteil: die sieben
+nachgemessenen Sammelbegriffe stehen jetzt in der Verbotsliste des Prompts, und
+jedes Schlagwort trägt in der Ergebniszeile seine Trefferzahl, ab einem Prozent
+des Bereichs zusätzlich die Marke **„zu weit"**
+([`WORT_ZU_WEIT_ANTEIL`](../../src/plugins/doppelfoerderung/services/abgleich.ts)).
+Die Trefferliste steht in jeder Zeile offen, auch wenn das Urteil nein sagt.
 
 **Warum das den Entwurf bestimmt:** Die Anforderung nennt eine ODER-Verknüpfung
 der drei Schlagworte. Rein umgesetzt läge das Urteil „Übereinstimmung" bei fast
@@ -191,11 +244,44 @@ Share, kein Snapshot, kein `Antrag`-Record. Der Export ist eine Datei im
 Download-Ordner. Die Meldungen stammen aus einer Ressort-Zuarbeit; sie
 irgendwo abzulegen wäre eine Entscheidung, die diese Seite nicht zu treffen hat.
 
-## 9. Offen
+## 9. Die Ähnlichkeitsschwelle — gemessen, nicht geraten
 
-- Die Schwelle `AEHNLICHKEIT_SCHWELLE` (0,75) ist eine **begründete Vorbelegung,
-  kein Messwert**. Sie ist im Code als solche markiert und gehört an den neun
-  Zeilen der Beispieldatei ausgemessen, sobald die interne KI für einen vollen
-  Durchlauf zur Verfügung steht.
-- Die Schlagwort-Qualität ist an **drei** Läufen derselben Zeile zu beurteilen —
-  ein Lauf ist Rauschen.
+Der Lauf über die 45 Meldungen hat auch die zweite Stufe kalibriert
+(EmbeddingGemma-300M, 14.221 gespeicherte Vektoren, WebGPU). Gezählt wurde je
+Zeile der höchste Ähnlichkeitswert eines Vorhabens, das **kein** Schlagwort
+getroffen hatte:
+
+| Schwelle | Zeilen darüber | davon neu (Wortlaut sagte nein) |
+|---|---|---|
+| 0,45 | 34 | 25 |
+| 0,50 | 15 | 12 |
+| **0,52** | **10** | **8** |
+| 0,55 | 4 | 3 |
+| 0,60 | 1 | 1 |
+| 0,65 | 0 | 0 |
+| 0,75 | 0 | 0 |
+
+Der höchste Wert der ganzen Liste war **0,621**. Die frühere Vorbelegung 0,75 lag
+damit über dem gesamten beobachteten Wertebereich: die Stufe lief, rechnete und
+trug zu **keinem einzigen** Urteil bei — ein stiller Ausfall, der nur beim
+Nachmessen auffällt.
+
+0,52 greift genau die acht Zeilen auf, die der Wortlaut nicht sehen kann. Darunter
+die inhaltlich nächste Paarung der ganzen Liste: `Multi-POCT-vet` (Multiparameter-
+Assay für die Veterinärmedizin) → `VetDx / ZytoVet` bei 0,523. Die MDZ-Zeilen, die
+das Rauschband füllen, bleiben mit einer Ausnahme unter 0,51.
+
+Die Zahl gilt **für dieses Modell**. Ein Modellwechsel verschiebt die Skala und
+verlangt dieselbe Messung erneut (Pitfall #19).
+
+## 10. Offen
+
+- Der **KI-Lauf selbst** ist noch nicht gegen die interne KI gefahren. Die
+  Schlagworte des Messlaufs waren von Hand formuliert; wie gut das Modell sie
+  trifft, ist damit nicht beantwortet. Die Qualität ist an **drei** Läufen
+  derselben Zeile zu beurteilen — ein Lauf ist Rauschen.
+- **Ohne erreichbare KI ist die Seite unbenutzbar**: der erste
+  `verbindungFehlt` beendet den Stapel, und ohne Schlagworte gibt es keine
+  Zeile, deren Wörter man von Hand nachtragen könnte. Ein Weg, die Schlagworte
+  ohne KI einzutragen, wäre die naheliegende Ergänzung — er ist bewusst noch
+  nicht gebaut.
