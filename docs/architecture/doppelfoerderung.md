@@ -234,6 +234,21 @@ mit geladenem Embedding-Modell; sonst entfällt die Stufe mit sichtbarem Hinweis
 nicht die Prüfung. Treffer ausserhalb des Bereichs fallen heraus — die Stufe
 läuft über alle Vektoren, der Korpus ist bereits geschnitten.
 
+> **Ein leeres Ergebnis nennt seinen Grund** (v6.25.2). `aehnlichkeitsStufe`
+> liefert `{ treffer, ausfall }` statt `Map | null`, und `AehnlichkeitAus` trennt
+> vier Zustände, die vorher alle gleich aussahen: `modell-fehlt` ·
+> `vektoren-fehlen` · `vektoren-unlesbar` · `einbetten-schlug-fehl`. Die ersten
+> drei gelten für den ganzen Lauf und stehen einmal im Seitenkopf; der vierte
+> betrifft eine Zeile und steht an ihrer Karte, mitsamt der rohen Meldung.
+>
+> Anlass war die Abnahme von v6.25.1: das Modell war bei Laufbeginn bereit, beim
+> Klick 16 s später nicht mehr, und die Hülle im Hook gab bei jedem Fehler `null`
+> zurück. Die Zeile meldete dann „keine Ähnlichkeit" — dasselbe Bild wie bei
+> einem ehrlichen Nulltreffer, und das kostete drei Fehlversuche. `embedden`
+> fängt seither nichts mehr ab; klassifiziert wird in `aehnlichkeitsStufe`, weil
+> sie beide Aufrufwege (Stapellauf und Handeingabe) bedient. Texte:
+> `AEHNLICHKEIT_AUS_TEXT`, Guards in `abgleich.test.ts`.
+
 **Träger** — derselbe Zuwendungsempfänger auf beiden Seiten
 ([traeger.ts](../../src/plugins/doppelfoerderung/services/traeger.ts)). Die
 einzige Stufe, die eine **Tatsache** feststellt statt Nähe zu schätzen. Details

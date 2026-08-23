@@ -14,8 +14,9 @@ import { describe, it, expect } from 'vitest';
 import type { AntragListItem } from '@/core/services/csv/types';
 import type { AntragTextEntry } from '@/plugins/antraege/services/search-corpus';
 import {
-  AEHNLICHKEIT_SCHWELLE, aehnlichkeitsText, faelleUrteil, istZuWeit, vereineBefunde,
-  wortlautAbdeckung, zaehltNicht, WORT_ZAEHLT_NICHT_ANTEIL, WORT_ZU_WEIT_ANTEIL,
+  AEHNLICHKEIT_AUS_TEXT, AEHNLICHKEIT_SCHWELLE, aehnlichkeitsStufe, aehnlichkeitsText,
+  faelleUrteil, istZuWeit, vereineBefunde, wortlautAbdeckung, zaehltNicht,
+  WORT_ZAEHLT_NICHT_ANTEIL, WORT_ZU_WEIT_ANTEIL,
   type AbgleichKontext,
 } from '@/plugins/doppelfoerderung/services/abgleich';
 import type { TrefferBefund } from '@/plugins/doppelfoerderung/types';
@@ -281,5 +282,52 @@ describe('faelleUrteil — Träger und „nicht beurteilbar"', () => {
     // Ohne die Zahlen lässt sich „stumm" nicht von „nicht gelaufen"
     // unterscheiden — dann keine neue Behauptung aufmachen.
     expect(faelleUrteil([], 2).grund).toBe('keine');
+  });
+});
+
+describe('aehnlichkeitsStufe — ein leeres Ergebnis sagt, warum es leer ist', () => {
+  const signal = new AbortController().signal;
+  const wirft = (): Promise<number[]> => Promise.reject(new Error('Model not initialized'));
+  const mitVektoren: AbgleichKontext = { ...CTX, embeddings: new Map([['A', [1, 0, 0]]]) };
+
+  it('reicht den Grund des Laufs durch, wenn gar keine Einbettungen da sind', async () => {
+    // Der Lauf weiss, WARUM er keine hat; hier ist nur bekannt, DASS keine da sind.
+    const ctx: AbgleichKontext = {
+      ...CTX, aehnlichkeitAusfall: { aus: 'modell-fehlt', meldung: null },
+    };
+    const lauf = await aehnlichkeitsStufe('Text', ctx, wirft, new Set(), signal);
+    expect(lauf.ausfall?.aus).toBe('modell-fehlt');
+    expect(lauf.treffer.size).toBe(0);
+  });
+
+  it('fällt auf „vektoren-fehlen" zurück, wenn der Lauf keinen Grund mitgab', async () => {
+    const lauf = await aehnlichkeitsStufe('Text', CTX, wirft, new Set(), signal);
+    expect(lauf.ausfall?.aus).toBe('vektoren-fehlen');
+  });
+
+  it('behält die Meldung, wenn das Einbetten wirft — statt sie zu verschlucken', async () => {
+    // Genau dieser Fall kostete beim Abnehmen von v6.25.1 drei Fehlversuche: das
+    // Modell war bei Laufbeginn bereit, beim Klick 16 s später nicht mehr. Die
+    // alte Hülle gab `null` zurück, und die Zeile meldete „keine Ähnlichkeit" —
+    // dasselbe Bild wie bei einem ehrlichen Nulltreffer.
+    const lauf = await aehnlichkeitsStufe('Text', mitVektoren, wirft, new Set(), signal);
+    expect(lauf.ausfall?.aus).toBe('einbetten-schlug-fehl');
+    expect(lauf.ausfall?.meldung).toBe('Model not initialized');
+  });
+
+  it('meldet keinen Ausfall, wenn die Stufe lief', async () => {
+    const lauf = await aehnlichkeitsStufe(
+      'Text', mitVektoren, async () => [1, 0, 0], new Set(), signal,
+    );
+    expect(lauf.ausfall).toBeNull();
+  });
+
+  it('hat zu jedem Grund einen Satz, der mehr sagt als „lief nicht"', () => {
+    // Ein Grund ohne eigenen Satz wäre wieder die Auskunft, die nichts erklärt.
+    // 40 Zeichen ist die Grenze, unter der kein Satz mehr Zustand UND Weg
+    // heraus nennen kann („Ohne Ähnlichkeitsstufe gelaufen." hat 32).
+    for (const [aus, text] of Object.entries(AEHNLICHKEIT_AUS_TEXT)) {
+      expect(text.length, aus).toBeGreaterThan(40);
+    }
   });
 });

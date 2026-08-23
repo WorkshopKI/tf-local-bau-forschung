@@ -152,6 +152,42 @@ export interface ZeilenErgebnis {
   grund: UrteilGrund;
   /** Gesetzt, wenn der KI-Lauf dieser Zeile scheiterte; dann ist `befunde` leer. */
   fehler?: string;
+  /**
+   * Gesetzt, wenn die Ähnlichkeitsstufe an DIESER Zeile scheiterte.
+   *
+   * Nur der zeilen-eigene Grund steht hier — ein Grund, der den ganzen Lauf
+   * betrifft, stünde sonst an jeder der 29 Karten dieselbe Meldung.
+   */
+  aehnlichkeitAusfall?: AehnlichkeitsAusfall;
+}
+
+/**
+ * Warum die Ähnlichkeitsstufe nichts beitragen konnte.
+ *
+ * Vier Gründe, weil es vier verschiedene Zustände sind — und weil sie vorher
+ * alle dasselbe aussahen: keine Ähnlichkeitswerte. Genau das kostete beim
+ * Abnehmen von v6.25.1 drei Fehlversuche, denn ein nicht geladenes Modell liest
+ * sich wie ein kaputtes Feature.
+ *
+ * Die ersten drei gelten für den ganzen Lauf und stehen deshalb einmal im Kopf
+ * der Seite; `einbetten-schlug-fehl` betrifft eine einzelne Zeile und steht an
+ * ihrer Karte.
+ */
+export type AehnlichkeitAus =
+  /** Das Embedding-Modell war beim Start des Laufs nicht geladen. */
+  | 'modell-fehlt'
+  /** Das Modell lief, aber der Bestand trägt keine Einbettungen. */
+  | 'vektoren-fehlen'
+  /** Die Einbettungen liessen sich nicht lesen. */
+  | 'vektoren-unlesbar'
+  /** Das Modell konnte genau diese Zeile nicht einbetten. */
+  | 'einbetten-schlug-fehl';
+
+/** Der Grund plus die rohe Meldung — der Teil, der vorher im `catch` verschwand. */
+export interface AehnlichkeitsAusfall {
+  aus: AehnlichkeitAus;
+  /** Was die Ausnahme sagte; `null`, wenn es keine gab (Zustand statt Fehler). */
+  meldung: string | null;
 }
 
 /** Der Betrachtungsbereich: welche Anträge überhaupt verglichen werden. */

@@ -14,7 +14,7 @@
  */
 import { useState } from 'react';
 import { AlertTriangle, Check, ChevronDown, ChevronRight, HelpCircle, Pencil } from 'lucide-react';
-import { istZuWeit, zaehltNicht } from '../services/abgleich';
+import { AEHNLICHKEIT_AUS_TEXT, istZuWeit, zaehltNicht } from '../services/abgleich';
 import { TrefferListe } from './TrefferListe';
 import type { ZeilenErgebnis } from '../types';
 
@@ -197,6 +197,15 @@ function ErgebnisKarte(props: ErgebnisTabelleProps & { e: ZeilenErgebnis }): Rea
           Hand nachgetragen werden müssen — sie ohne Eingabefeld zu zeigen
           machte die Seite bei nicht erreichbarer KI unbenutzbar. */}
       {e.fehler && <p className="text-[12.5px] text-[var(--tf-text-secondary)]">{e.fehler}</p>}
+      {/* Ohne diesen Satz sähe eine Zeile ohne Ähnlichkeitswerte genauso aus wie
+          eine, die ehrlich nichts Ähnliches fand — und ein Modell, das
+          zwischendurch unbereit wurde, wie ein kaputtes Feature. */}
+      {e.aehnlichkeitAusfall && (
+        <p className="text-[12.5px] text-[var(--tf-text-secondary)]">
+          {AEHNLICHKEIT_AUS_TEXT[e.aehnlichkeitAusfall.aus]}
+          {e.aehnlichkeitAusfall.meldung && ` (${e.aehnlichkeitAusfall.meldung})`}
+        </p>
+      )}
       <SchlagwortChips e={e} bereichsGroesse={bereichsGroesse} onSchlagworte={onSchlagworte} />
 
       {!e.fehler && (

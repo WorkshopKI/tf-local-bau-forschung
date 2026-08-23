@@ -21,6 +21,11 @@
 
 ## v6.25 — 2026-08
 
+### Verbesserungen
+- **Fehlt die inhaltliche Ähnlichkeit in der Doppelförderungs-Prüfung, steht jetzt dabei, woran es liegt.** Bisher sah ein nicht geladenes Suchmodell genauso aus wie ein Vorhaben, zu dem es wirklich nichts Ähnliches gibt. Betrifft es den ganzen Lauf, sagt es der Seitenkopf — mitsamt dem Hinweis, das Modell einmal über die Suche zu laden; betrifft es eine einzelne Meldung, steht der Satz an ihrer Karte.
+
+## v6.25 — 2026-08
+
 ### Neu
 - Die Themen-Zuordnung funktioniert jetzt auch auf Rechnern, die die Vektoren **geholt** statt gebaut haben: die Kategorie-Referenzen werden dabei aus den geholten Vektoren gemittelt. Das dauert Sekunden und braucht keine Grafikkarte.
 - Fehlen die Referenzen doch einmal, steht im Hinweis „Kategorie-Referenzen fehlen" ein Knopf **„Jetzt berechnen"** — statt der Aufforderung zu einem stundenlangen Neuaufbau.

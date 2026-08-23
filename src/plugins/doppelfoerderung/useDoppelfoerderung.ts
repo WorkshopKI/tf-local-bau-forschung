@@ -39,7 +39,8 @@ import {
 import { baueTraegerIndex, traegerAbgleich } from './services/traeger';
 import { ermittleSchlagworte } from './services/schlagworte-lauf';
 import type {
-  BereichsWahl, MeldungsZeile, SchlagwortTreffer, TraegerBezug, TrefferBefund, ZeilenErgebnis,
+  AehnlichkeitsAusfall, BereichsWahl, MeldungsZeile, SchlagwortTreffer, TraegerBezug,
+  TrefferBefund, ZeilenErgebnis,
 } from './types';
 
 export type Phase = 'aufnehmen' | 'pruefen' | 'ergebnis';
@@ -66,6 +67,20 @@ interface RohErgebnis {
   schlagwortTreffer: readonly SchlagwortTreffer[];
   befunde: readonly TrefferBefund[];
   fehler?: string;
+  /** Warum diese eine Zeile ohne Ähnlichkeit auskommen musste. */
+  ausfall?: AehnlichkeitsAusfall;
+}
+
+/**
+ * Welcher Ausfall an der ZEILE steht — und welcher nur oben im Kopf.
+ *
+ * Ein Grund, der für den ganzen Lauf gilt (Modell nicht geladen, kein Index),
+ * steht einmal im Seitenkopf; ihn zusätzlich an jede der 29 Karten zu schreiben
+ * wäre dieselbe Meldung 29-mal. An der Zeile bleibt nur, was NUR sie betrifft:
+ * das Einbetten dieser einen Zeile schlug fehl, während der Lauf sonst rechnete.
+ */
+function zeilenAusfall(ausfall: AehnlichkeitsAusfall | null): AehnlichkeitsAusfall | undefined {
+  return ausfall?.aus === 'einbetten-schlug-fehl' ? ausfall : undefined;
 }
 
 /**
@@ -82,6 +97,7 @@ function baueRohErgebnis(
   vektor: ReadonlyMap<string, number> | null,
   ctx: AbgleichKontext,
   bereichsGroesse: number,
+  ausfall: AehnlichkeitsAusfall | undefined,
 ): RohErgebnis {
   const zuWeit = zuWeiteSchlagworte(wortlaut.treffer, bereichsGroesse);
   const traeger = ctx.traegerIndex
@@ -92,6 +108,7 @@ function baueRohErgebnis(
     schlagworte: [...schlagworte],
     schlagwortTreffer: wortlaut.treffer,
     befunde: vereineBefunde(wortlaut.proAktenzeichen, vektor ?? new Map(), ctx, zuWeit, traeger),
+    ...(ausfall ? { ausfall } : {}),
   };
 }
 
@@ -104,8 +121,13 @@ export interface UseDoppelfoerderung {
   bereichsGroesse: number | null;
   /** Gesamtzahl der Anträge im Bestand — der Bezug zur Bereichszahl. */
   bestandsGroesse: number | null;
-  /** Lief die Ähnlichkeitsstufe? `false` = ohne Embedding-Modell gefahren. */
-  mitAehnlichkeit: boolean;
+  /**
+   * Warum die Ähnlichkeitsstufe im ganzen Lauf entfiel; `null` = sie lief.
+   *
+   * Bewusst kein `mitAehnlichkeit: boolean` mehr: „lief nicht" war die Auskunft,
+   * die nichts erklärte, und drei verschiedene Zustände sahen gleich aus.
+   */
+  aehnlichkeitAusfall: AehnlichkeitsAusfall | null;
   fehler: string | null;
   starte: (zeilen: readonly MeldungsZeile[], wahl: BereichsWahl) => void;
   brichAb: () => void;
@@ -125,7 +147,7 @@ export function useDoppelfoerderung(schwelle: number): UseDoppelfoerderung {
   const [roh, setRoh] = useState<readonly RohErgebnis[]>([]);
   const [bereichsGroesse, setBereichsGroesse] = useState<number | null>(null);
   const [bestandsGroesse, setBestandsGroesse] = useState<number | null>(null);
-  const [mitAehnlichkeit, setMitAehnlichkeit] = useState(false);
+  const [aehnlichkeitAusfall, setAehnlichkeitAusfall] = useState<AehnlichkeitsAusfall | null>(null);
   const [fehler, setFehler] = useState<string | null>(null);
 
   const abortRef = useRef<AbortController | null>(null);
@@ -147,14 +169,14 @@ export function useDoppelfoerderung(schwelle: number): UseDoppelfoerderung {
    * Steht hier statt in `starte`, weil `ersetzeSchlagworte` sie ebenfalls
    * braucht: eine Zeile, deren KI-Lauf scheiterte, holt ihre Ähnlichkeit erst
    * beim Nachtragen der Schlagworte.
+   *
+   * **Fängt nichts ab.** Ein `catch { return null }` hier machte jeden Defekt
+   * zu einem Nulltreffer; die Klassifizierung übernimmt `aehnlichkeitsStufe`,
+   * weil sie beide Aufrufwege bedient und den Grund weitergeben kann.
    */
-  const embedden = useCallback(async (text: string): Promise<number[] | null> => {
-    try {
-      const cfg = getModelById(await getActiveModelId(storage.idb));
-      return await embedQueryCached(text, cfg, 'query');
-    } catch {
-      return null;
-    }
+  const embedden = useCallback(async (text: string): Promise<number[]> => {
+    const cfg = getModelById(await getActiveModelId(storage.idb));
+    return await embedQueryCached(text, cfg, 'query');
   }, [storage]);
 
   const brichAb = useCallback(() => {
@@ -173,7 +195,7 @@ export function useDoppelfoerderung(schwelle: number): UseDoppelfoerderung {
     setFortschritt(null);
     setRoh([]);
     setFehler(null);
-    setMitAehnlichkeit(false);
+    setAehnlichkeitAusfall(null);
   }, []);
 
   const starte = useCallback((zeilen: readonly MeldungsZeile[], wahl: BereichsWahl) => {
@@ -217,16 +239,33 @@ export function useDoppelfoerderung(schwelle: number): UseDoppelfoerderung {
         setBestandsGroesse(caches.textCorpus.size);
         setBereichsGroesse(korpus.size);
 
-        const embeddings = embeddingService.isReady()
-          ? await getEmbeddings(storage.idb).catch(() => new Map<string, number[]>())
-          : new Map<string, number[]>();
+        // Drei Wege in dieselbe leere Map — und drei verschiedene Auskünfte an
+        // den Nutzer. Vorher endeten alle drei in `catch(() => new Map())` und
+        // der Lauf sagte nur „ohne Ähnlichkeitsstufe gelaufen", ohne zu sagen,
+        // woran es lag und was dagegen zu tun ist.
+        let embeddings = new Map<string, number[]>();
+        let ausfall: AehnlichkeitsAusfall | null = null;
+        if (!embeddingService.isReady()) {
+          ausfall = { aus: 'modell-fehlt', meldung: null };
+        } else {
+          try {
+            embeddings = await getEmbeddings(storage.idb);
+            if (embeddings.size === 0) ausfall = { aus: 'vektoren-fehlen', meldung: null };
+          } catch (err) {
+            ausfall = {
+              aus: 'vektoren-unlesbar',
+              meldung: err instanceof Error ? err.message : String(err),
+            };
+          }
+        }
         if (ctrl.signal.aborted) return;
-        setMitAehnlichkeit(embeddings.size > 0);
+        setAehnlichkeitAusfall(ausfall);
 
         const ctx: AbgleichKontext = {
           korpus,
           listeNachAkz: new Map(items.map(it => [it.aktenzeichen, it])),
           embeddings,
+          aehnlichkeitAusfall: ausfall,
           // Einmal je Lauf gebaut, nicht je Zeile: der Index über 4.327
           // Trägernamen kostet Millisekunden, 45-mal gebaut wäre er Wartezeit.
           traegerIndex: baueTraegerIndex(items, imBereich),
@@ -270,13 +309,16 @@ export function useDoppelfoerderung(schwelle: number): UseDoppelfoerderung {
           }
 
           const wortlaut = wortlautAbdeckung(lauf.schlagworte, korpus);
-          const vektor = await aehnlichkeitsStufe(
+          const aehn = await aehnlichkeitsStufe(
             aehnlichkeitsText(zeile.thema, zeile.aufgabenbeschreibung),
             ctx, embedden, new Set(wortlaut.proAktenzeichen.keys()), ctrl.signal,
           );
           if (ctrl.signal.aborted) return;
 
-          gesammelt.push(baueRohErgebnis(zeile, lauf.schlagworte, wortlaut, vektor, ctx, korpus.size));
+          gesammelt.push(baueRohErgebnis(
+            zeile, lauf.schlagworte, wortlaut, aehn.treffer, ctx, korpus.size,
+            zeilenAusfall(aehn.ausfall),
+          ));
           setRoh([...gesammelt]);
         }
 
@@ -304,7 +346,8 @@ export function useDoppelfoerderung(schwelle: number): UseDoppelfoerderung {
    * die KI gar nicht erreichbar war: dort kam der Stapel nie bis zur
    * Ähnlichkeit, und ohne sie liesse sich das Träger-Urteil nicht auslösen —
    * genau das, was diesen Eingabeweg lohnt. Die Stufe braucht keine KI, nur das
-   * Embedding-Modell; fehlt auch das, bleibt es beim Wortlaut.
+   * Embedding-Modell; fehlt auch das, bleibt es beim Wortlaut — und die Zeile
+   * sagt, dass es daran lag.
    */
   const ersetzeSchlagworte = useCallback((zeilenNr: number, schlagworte: readonly string[]) => {
     const k = kontextRef.current;
@@ -318,28 +361,36 @@ export function useDoppelfoerderung(schwelle: number): UseDoppelfoerderung {
         .map(b => [b.aktenzeichen, b.aehnlichkeit as number]),
     );
 
-    const uebernimm = (vektor: ReadonlyMap<string, number>): void => {
+    const uebernimm = (
+      vektor: ReadonlyMap<string, number>, ausfall: AehnlichkeitsAusfall | undefined,
+    ): void => {
       setRoh(liste => liste.map(e => (
         e.zeile.zeilenNr === zeilenNr
           // Der Fehlervermerk fällt weg: die Zeile hat jetzt Schlagworte, auch
           // wenn die KI keine liefern konnte. Genau dafür ist der Weg da.
-          ? baueRohErgebnis(e.zeile, schlagworte, wortlaut, vektor, k, k.korpus.size)
+          ? baueRohErgebnis(e.zeile, schlagworte, wortlaut, vektor, k, k.korpus.size, ausfall)
           : e
       )));
     };
 
-    if (schonDa.size > 0 || k.embeddings.size === 0) { uebernimm(schonDa); return; }
+    // Ähnlichkeitswerte hängen am Text der Zeile, nicht an den Schlagworten —
+    // sind welche da, bleiben sie und es wird nichts erneut eingebettet.
+    if (schonDa.size > 0) { uebernimm(schonDa, alt.ausfall); return; }
 
     // Erst die Wortlaut-Stufe zeigen, dann die Ähnlichkeit nachreichen: das
     // Einbetten dauert rund 100 ms, und ein Feld, das nach dem Übernehmen kurz
     // leer bliebe, sähe aus wie ein verschluckter Klick.
-    uebernimm(schonDa);
+    uebernimm(schonDa, undefined);
     void (async () => {
-      const vektor = await aehnlichkeitsStufe(
+      const aehn = await aehnlichkeitsStufe(
         aehnlichkeitsText(alt.zeile.thema, alt.zeile.aufgabenbeschreibung),
         k, embedden, new Set(wortlaut.proAktenzeichen.keys()), new AbortController().signal,
       );
-      if (vektor && vektor.size > 0) uebernimm(vektor);
+      // Auch ein leeres Ergebnis wird übernommen, wenn es einen Grund trägt:
+      // genau dieser Weg sah bisher aus wie ein verschluckter Klick.
+      if (aehn.treffer.size > 0 || aehn.ausfall) {
+        uebernimm(aehn.treffer, zeilenAusfall(aehn.ausfall));
+      }
     })();
   }, [embedden]);
 
@@ -354,12 +405,13 @@ export function useDoppelfoerderung(schwelle: number): UseDoppelfoerderung {
       befunde: e.befunde,
       ...faelleUrteil(e.befunde, schwelle, undefined, e.schlagwortTreffer),
       ...(e.fehler ? { fehler: e.fehler } : {}),
+      ...(e.ausfall ? { aehnlichkeitAusfall: e.ausfall } : {}),
     })),
     [roh, schwelle],
   );
 
   return {
     phase, laeuft, fortschritt, ergebnisse, bereichsGroesse, bestandsGroesse,
-    mitAehnlichkeit, fehler, starte, brichAb, zuruecksetzen, ersetzeSchlagworte,
+    aehnlichkeitAusfall, fehler, starte, brichAb, zuruecksetzen, ersetzeSchlagworte,
   };
 }

@@ -44,9 +44,30 @@ import {
   searchAntraegeSubstring, searchAntraegeVector,
 } from '@/plugins/antraege/services/antraege-search-service';
 import type {
-  SchlagwortTreffer, TraegerBezug, TrefferBefund, TrefferQuelle, UrteilGrund,
+  AehnlichkeitAus, AehnlichkeitsAusfall, SchlagwortTreffer, TraegerBezug, TrefferBefund,
+  TrefferQuelle, UrteilGrund,
 } from '../types';
 import { TRAEGER_NAEHE_SCHWELLE, type TraegerIndex } from './traeger';
+
+/**
+ * Was an der Oberfläche steht, wenn die Ähnlichkeitsstufe nichts beitrug.
+ *
+ * Die Sätze stehen hier und nicht in den Komponenten, weil zwei Stellen sie
+ * brauchen (Seitenkopf und Zeilenkarte) und sie an beiden dasselbe sagen
+ * müssen. Jeder nennt den Zustand UND den Weg heraus — „keine Ähnlichkeit"
+ * allein war genau die Meldung, die nichts erklärte.
+ */
+export const AEHNLICHKEIT_AUS_TEXT: Record<AehnlichkeitAus, string> = {
+  'modell-fehlt': 'Ohne Ähnlichkeitsstufe gelaufen: das Embedding-Modell war nicht geladen. Geurteilt wurde allein nach Wortlaut und Träger. Laden Sie das Modell einmal über die Suche, dann greift die Stufe beim nächsten Lauf.',
+  'vektoren-fehlen': 'Ohne Ähnlichkeitsstufe gelaufen: der Bestand trägt keine Einbettungen. Der Suchindex muss dafür einmal gebaut sein.',
+  'vektoren-unlesbar': 'Ohne Ähnlichkeitsstufe gelaufen: die Einbettungen des Bestands liessen sich nicht lesen.',
+  'einbetten-schlug-fehl': 'Die Ähnlichkeit konnte für diese Zeile nicht gerechnet werden — das Modell war zwischenzeitlich nicht mehr bereit. Geurteilt wurde allein nach Wortlaut und Träger.',
+};
+
+/** Eine Ausnahme in den Satz verwandeln, der sie beschreibt. */
+function alsMeldung(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
 
 /**
  * Ab wie vielen Schlagworten ein Treffer als Übereinstimmung gilt — Vorbelegung.
@@ -158,6 +179,14 @@ export interface AbgleichKontext {
   embeddings: Map<string, number[]>;
   /** Trägernamen des Bereichs; fehlt = Träger-Achse entfällt. */
   traegerIndex?: TraegerIndex;
+  /**
+   * Warum `embeddings` leer ist — der Grund, den der Lauf beim Laden erfahren hat.
+   *
+   * Er wird hier durchgereicht, statt an der leeren Map geraten zu werden: eine
+   * leere Map heisst „das Modell fehlte", „der Index ist nicht gebaut" oder „das
+   * Lesen scheiterte", und das sind drei verschiedene Auskünfte an den Nutzer.
+   */
+  aehnlichkeitAusfall?: AehnlichkeitsAusfall | null;
 }
 
 /** Was die Wortlaut-Stufe herausgefunden hat. */
@@ -336,25 +365,52 @@ export function faelleUrteil(
   return { uebereinstimmung: false, grund: wortlautStumm ? 'unklar' : 'keine' };
 }
 
+/** Was Stufe B herausgefunden hat — und, wenn nichts, warum nicht. */
+export interface AehnlichkeitsLauf {
+  /** Die ähnlichsten Vorhaben je Aktenzeichen; leer, wenn die Stufe nicht lief. */
+  treffer: Map<string, number>;
+  /** `null` = die Stufe lief. Sonst der Grund, mitsamt roher Meldung. */
+  ausfall: AehnlichkeitsAusfall | null;
+}
+
 /**
  * Stufe B: die Zeile einbetten und die ähnlichsten Vorhaben holen.
  *
  * `embedden` kommt von aussen herein, damit dieses Modul weder das
  * Embedding-Modell noch die IndexedDB kennt — und damit der Test es ohne beides
- * fahren kann. `null` heisst „Stufe entfällt", nicht „keine Treffer".
+ * fahren kann.
+ *
+ * **`embedden` darf werfen, und der Wurf wird hier klassifiziert, nicht
+ * verschluckt.** Vorher gab die Hülle im Hook bei jedem Fehler `null` zurück;
+ * die Stufe meldete dann „keine Ähnlichkeit" — dasselbe Bild wie bei einem
+ * ehrlichen Nulltreffer. Ein Modell, das zwischen Laufbeginn und Klick
+ * unbereit wurde (HMR-Reload, Seitenwechsel), sah damit aus wie ein kaputtes
+ * Feature; beim Abnehmen von v6.25.1 kostete genau das drei Fehlversuche.
+ * Ein leeres Ergebnis MIT Grund ist ein Befund, ohne Grund ist es ein Rätsel.
  */
 export async function aehnlichkeitsStufe(
   text: string,
   ctx: AbgleichKontext,
-  embedden: (text: string) => Promise<number[] | null>,
+  embedden: (text: string) => Promise<number[]>,
   bekannt: ReadonlySet<string>,
   signal: AbortSignal,
-): Promise<Map<string, number> | null> {
-  if (ctx.embeddings.size === 0) return null;
-  const vec = await embedden(text);
-  if (!vec) return null;
+): Promise<AehnlichkeitsLauf> {
+  if (ctx.embeddings.size === 0) {
+    // Der Grund kommt vom Lauf, der die Einbettungen zu laden versuchte — hier
+    // ist nur noch bekannt, DASS keine da sind.
+    return {
+      treffer: new Map(),
+      ausfall: ctx.aehnlichkeitAusfall ?? { aus: 'vektoren-fehlen', meldung: null },
+    };
+  }
+  let vec: number[];
+  try {
+    vec = await embedden(text);
+  } catch (err) {
+    return { treffer: new Map(), ausfall: { aus: 'einbetten-schlug-fehl', meldung: alsMeldung(err) } };
+  }
   const erg = await searchAntraegeVector(vec, ctx.embeddings, signal, bekannt);
-  return new Map(erg.treffer.map(t => [t.akz, t.score]));
+  return { treffer: new Map(erg.treffer.map(t => [t.akz, t.score])), ausfall: null };
 }
 
 /** Der Text, den die Ähnlichkeitsstufe einbettet. */

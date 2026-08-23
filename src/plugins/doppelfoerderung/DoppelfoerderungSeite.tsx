@@ -15,7 +15,9 @@ import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { SeitenHilfeButton } from '@/components/help/SeitenHilfeButton';
-import { SCHWELLE_VORGABE as SCHLAGWORT_SCHWELLE } from './services/abgleich';
+import {
+  AEHNLICHKEIT_AUS_TEXT, SCHWELLE_VORGABE as SCHLAGWORT_SCHWELLE,
+} from './services/abgleich';
 import { BEREICH_VORGABE } from './services/bereich';
 import { exportiereErgebnis } from './services/export';
 import { ListeAufnehmen } from './components/ListeAufnehmen';
@@ -39,6 +41,9 @@ export function DoppelfoerderungSeite(): React.ReactElement {
 
   const treffer = d.ergebnisse.filter(e => e.uebereinstimmung).length;
   const geprueft = d.ergebnisse.filter(e => !e.fehler).length;
+  // Der zeilen-eigene Ausfall steht an der Karte; hier zählt er nur, damit ein
+  // Modell, das MITTEN im Lauf ausfiel, nicht erst beim Aufklappen auffällt.
+  const ohneAehnlichkeit = d.ergebnisse.filter(e => e.aehnlichkeitAusfall).length;
 
   return (
     <div className="flex-1 overflow-y-auto">
@@ -138,10 +143,17 @@ export function DoppelfoerderungSeite(): React.ReactElement {
                   </button>
                 ))}
               </div>
-              {!d.mitAehnlichkeit && (
+              {d.aehnlichkeitAusfall && (
                 <span className="text-[12px] text-[var(--tf-text-tertiary)]">
-                  Ohne Ähnlichkeitsstufe gelaufen — das Embedding-Modell war nicht geladen.
-                  Geurteilt wurde allein nach Wortlaut.
+                  {AEHNLICHKEIT_AUS_TEXT[d.aehnlichkeitAusfall.aus]}
+                  {d.aehnlichkeitAusfall.meldung && ` (${d.aehnlichkeitAusfall.meldung})`}
+                </span>
+              )}
+              {!d.aehnlichkeitAusfall && ohneAehnlichkeit > 0 && (
+                <span className="text-[12px] text-[var(--tf-text-tertiary)]">
+                  Bei <span className="tabular-nums">{ohneAehnlichkeit}</span> von{' '}
+                  <span className="tabular-nums">{d.ergebnisse.length}</span> Zeilen konnte die
+                  Ähnlichkeit nicht gerechnet werden — der Grund steht an der jeweiligen Karte.
                 </span>
               )}
             </div>

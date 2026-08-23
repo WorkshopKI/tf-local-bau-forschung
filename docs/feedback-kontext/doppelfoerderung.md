@@ -36,7 +36,9 @@ Die Zuarbeit führt Teilvorhaben als eigene Zeilen — `01MF26003A` bis `…F` s
 
 ## Wenn die interne KI nicht erreichbar ist
 
-Der erste Verbindungsfehler beendet den Stapel, aber **alle** Meldungen bekommen ihre Karte mit dem Vermerk „Nicht geprüft — die Verbindung brach vorher ab". Über „ändern" lassen sich die Schlagworte von Hand eintragen; Wortlaut- und Träger-Stufe laufen dann sofort. Die Ähnlichkeits-Stufe bleibt aus, weil sie am KI-Lauf hängt.
+Der erste Verbindungsfehler beendet den Stapel, aber **alle** Meldungen bekommen ihre Karte mit dem Vermerk „Nicht geprüft — die Verbindung brach vorher ab". Über „ändern" lassen sich die Schlagworte von Hand eintragen; Wortlaut- und Träger-Stufe laufen dann sofort, und die Ähnlichkeit wird nachgereicht — sie hängt am Text der Meldung, nicht am KI-Lauf. Sie braucht dafür nur das Embedding-Modell.
+
+**Fehlen die Ähnlichkeitswerte, steht dabei, woran es lag.** Betrifft es den ganzen Lauf, sagt es der Seitenkopf — etwa „das Embedding-Modell war nicht geladen. Laden Sie es einmal über die Suche". Betrifft es eine einzelne Zeile, steht der Satz an ihrer Karte, mit der Meldung des Modells in Klammern. Ein leeres Ergebnis ohne Grund sah vorher genauso aus wie ein Vorhaben, zu dem es wirklich nichts Ähnliches gibt.
 
 Warum nicht einfach ODER: in der App gegen den echten Bestand gemessen findet ein weit gefasstes Trio („Digitalisierung / Künstliche Intelligenz / Mittelstand") ODER-verknüpft **1.150** Vorhaben — ein Viertel des Bereichs; mit zwei von drei Schlagworten sind es **103**. Ein einzelnes weites Wort trifft allein sehr viel: „Entwicklung" 75 %, „KI" 36 %, „Sensor" 24 %. Ein spezifisch formuliertes Trio derselben Zeile kommt dagegen schon ODER-verknüpft auf **2** Treffer — die Schwelle rettet ein schlechtes Schlagwort, ein gutes braucht sie nicht.
 
