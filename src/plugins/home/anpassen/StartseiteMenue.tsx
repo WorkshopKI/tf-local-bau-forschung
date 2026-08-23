@@ -46,8 +46,19 @@ const BREITE_UNTERMENUE = 268;
  * Antragsteller" (137 px) kürzt weiterhin und trägt dafür seinen `title`.
  */
 const BREITE_EINSTELLUNGEN = 290;
-/** Spalt zwischen den Panels, wie im Handoff-Prototyp. */
-const ABSTAND = 6;
+/**
+ * Spalt zwischen den Panels — **0**: sie berühren sich, ihre beiden 0,5-px-Rahmen
+ * bilden eine durchgehende Linie.
+ *
+ * Der Handoff-Prototyp hatte hier 6 px, und die waren tote Fläche: wer von der
+ * Zeile „Widgets" langsam nach rechts fuhr, musste sie überqueren, bevor das
+ * Untermenü ihn auffing. Zusammen mit dem 5-px-Innenrand des Panels (der bis
+ * v6.19 sogar aktiv schloss, s. `onMouseOver` unten) verschwand das Untermenü
+ * dabei „manchmal" — nämlich immer dann, wenn die Zeigerabtastung in dem Streifen
+ * landete. Die Konstante bleibt benannt stehen: `berechneUntermenueLage` rechnet
+ * sie in den Platzbedarf ein (Seitenwahl links/rechts).
+ */
+const ABSTAND = 0;
 
 export function StartseiteMenue(): React.ReactElement {
   const offen = useStartseiteMenueStore(s => s.offen);
@@ -125,11 +136,21 @@ export function StartseiteMenue(): React.ReactElement {
         onContextMenu={e => { e.preventDefault(); e.stopPropagation(); }}
       >
         <div
-          // Jede Zeile ohne eigenes Untermenü schließt beim Überfahren das offene.
+          // Jede ZEILE ohne eigenes Untermenü schließt beim Überfahren das offene.
           // Der Handler sitzt NUR am Hauptmenü — läge er am Rahmen, schlösse das
           // Überfahren des Untermenüs dieses sofort wieder.
+          //
+          // Er fragt zuerst nach `[data-menue-zeile]` und erst dann, ob diese
+          // Zeile selbst eines führt. Bis v6.19 schloss er bei allem, was nicht
+          // in `[data-untermenue]` lag — also auch am 5-px-Innenrand des Panels
+          // (`MenuePanel`, `p-[5px]`), der rechts neben jeder `w-full`-Zeile
+          // liegt. Genau dort führt der Weg zum Untermenü vorbei: langsam nach
+          // rechts gezogen traf der Zeiger den Streifen, das Untermenü schloss
+          // sich, und der Klick ging ins Leere. Gruppentitel und Trenner sind
+          // aus demselben Grund keine Zeilen.
           onMouseOver={e => {
-            if (!(e.target as HTMLElement).closest('[data-untermenue]')) zeigeUntermenue(null);
+            const zeile = (e.target as HTMLElement).closest('[data-menue-zeile]');
+            if (zeile && !zeile.hasAttribute('data-untermenue')) zeigeUntermenue(null);
           }}
         >
           <MenuePanel

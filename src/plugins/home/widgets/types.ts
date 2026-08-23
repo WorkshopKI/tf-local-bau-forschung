@@ -30,8 +30,14 @@ export interface HomeWidgetConfig {
    *   eine eigene Detail-Config. Bestands-Instanzen tragen `{ art: 'keine' }`
    *   und bekämen ohne diesen Schritt nie ein Formular — `reconcile` ergänzt
    *   nur fehlende TYPEN, nicht fehlende Felder (s. `migriereV3NachtlaufConfig`).
+   * - **v5** (v6.19): die Karten aus `ENTDECKUNG_WIDGETS` (+ die Alert-Karte des
+   *   Hero-Bandes) werden EINMALIG eingeblendet. Der Reconcile zieht neue Typen
+   *   bewusst als Opt-in nach — wer nie ins Untermenü sieht, findet sie damit
+   *   nie. Der Versions-Stempel ist zugleich das Gedächtnis: sobald jemand
+   *   irgendetwas an seiner Startseite ändert, persistiert `mutiere` v5, und ein
+   *   Ausblenden hält (s. `migriereV4Entdeckung`).
    */
-  version: 4;
+  version: 5;
   /** ISO-Zeitstempel — Last-Writer-Wins analog PersonalEinstellungen. */
   updatedAt: string;
   widgets: WidgetInstanz[];

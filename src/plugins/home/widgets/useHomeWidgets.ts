@@ -53,9 +53,13 @@ export const useHomeWidgetsStore = create<HomeWidgetsState>((set, get) => ({
   mutiere: async (idb, mutator) => {
     const aktuell = get().config;
     if (!aktuell) return;
+    // Der Versions-Stempel ist zugleich das Gedächtnis der Entdeckungs-
+    // Einblendung (v5): solange niemand etwas ändert, läuft `migriereV4Entdeckung`
+    // bei jedem Laden erneut — folgenlos, weil idempotent. Die erste echte
+    // Änderung persistiert v5, und ab da hält ein Ausblenden.
     const next: HomeWidgetConfig = {
       ...mutator(aktuell),
-      version: 4,
+      version: 5,
       updatedAt: new Date().toISOString(),
     };
     set({ config: next });

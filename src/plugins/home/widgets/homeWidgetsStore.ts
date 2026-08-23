@@ -43,13 +43,44 @@ export const MEINE_ANTRAEGE_COLLAPSE_LEGACY_KEY = 'home_meine_antraege_collapsed
 const BEREICHE = new Set(['haupt', 'seite']);
 
 /**
- * Default-Config (v2, Home-Redesign „optimiert"): Meine Anträge in der
- * Hauptspalte; Ampel + AI-Assistent in der Seitenspalte. `weitermachen` ist
- * NICHT mehr im Default — das Hero-Band (HomeHero) zeigt „Weiter, wo du
- * aufgehört hast" prominent; das gleichnamige Widget bleibt als Opt-in im
- * Katalog (wird per reconcileVerfuegbareWidgets als `sichtbar: false` ergänzt).
- * Kanban und Notizen sind ebenfalls Opt-in (`sichtbar: false`). `updatedAt` ist
- * Epoche, damit jeder echte Save die Defaults per LWW gewinnt.
+ * Was eine Startseite von selbst zeigen soll, damit man es überhaupt findet.
+ *
+ * `reconcileVerfuegbareWidgets` zieht neue Katalog-Typen bewusst als Opt-in
+ * (`sichtbar: false`) nach — richtig für „irgendwann mal", falsch für die
+ * Handvoll Karten, die die tägliche Arbeit tragen: wer nie ins Widgets-
+ * Untermenü sieht, hat „Fristen" oder „Änderungen der letzten Nacht" nie zu
+ * Gesicht bekommen.
+ *
+ * EINE Deklaration für zwei Wege: der Default eines frischen Geräts führt genau
+ * diese Typen sichtbar (plus `ai-assistent`), und `migriereV4Entdeckung` holt
+ * gewachsene Configs einmalig dorthin nach. Der Guard
+ * `entdeckung-default-deckungsgleich` hält beide zusammen.
+ *
+ * Die Hero-Karte „Braucht heute Aufmerksamkeit" gehört fachlich dazu, steht aber
+ * nicht hier: sie ist kein Widget (keine Instanz, kein Bereich) und läuft über
+ * `hero.sichtbar.alert`.
+ */
+export const ENTDECKUNG_WIDGETS: WidgetTyp[] = [
+  'meine-antraege',
+  'fristen',
+  'nachtlauf',
+  'antragseingang',
+  'feedback-news',
+  'notizen',
+];
+
+/**
+ * Default-Config (v5): der Auslieferungszustand einer frischen Startseite —
+ * `ENTDECKUNG_WIDGETS` sichtbar, dazu der KI-Assistent; `kanban` bleibt Opt-in.
+ * `weitermachen` steht seit v2 nicht mehr im Default — das Hero-Band (HomeHero)
+ * zeigt „Weiter, wo du aufgehört hast" prominent; das gleichnamige Widget bleibt
+ * als Opt-in im Katalog (per reconcileVerfuegbareWidgets als `sichtbar: false`
+ * ergänzt). `updatedAt` ist Epoche, damit jeder echte Save die Defaults per LWW
+ * gewinnt.
+ *
+ * `nachtlauf` steht ans Ende seiner Spalte (Nachschlage-Karte, nicht Arbeits-
+ * liste — derselbe Grund wie in `migriereV2NachtlaufAnsEnde`); `notizen` hebt
+ * der Reconcile ohnehin ans Ende der Seitenspalte.
  */
 export function defaultHomeWidgetConfig(
   opts?: { meineAntraegeEingeklappt?: boolean },
@@ -59,7 +90,10 @@ export function defaultHomeWidgetConfig(
     typ: WidgetTyp,
     position: number,
     sichtbar: boolean,
-    eingeklappt = false,
+    // Ohne Angabe entscheidet der Katalog — sonst driftete der Auslieferungs-
+    // zustand von `defaultEingeklappt` ab, sobald dort jemand etwas ändert
+    // (`nachtlauf` und `auslastung` starten aus Kostengründen eingeklappt).
+    eingeklappt = WIDGET_KATALOG[typ].defaultEingeklappt ?? false,
   ): WidgetInstanz => ({
     id,
     typ,
@@ -70,15 +104,18 @@ export function defaultHomeWidgetConfig(
     config: WIDGET_KATALOG[typ].defaultConfig(),
   });
   return {
-    version: 4,
+    version: 5,
     updatedAt: new Date(0).toISOString(),
     hero: HERO_CONFIG_DEFAULT,
     widgets: [
       instanz('w-meine-antraege', 'meine-antraege', 0, true, opts?.meineAntraegeEingeklappt ?? false),
       instanz('w-kanban', 'kanban', 1, false),
-      instanz('w-antragseingang', 'antragseingang', 2, true),
-      instanz('w-ai-assistent', 'ai-assistent', 3, true),
-      instanz('w-notizen', 'notizen', 4, false),
+      instanz('w-fristen', 'fristen', 2, true),
+      instanz('w-antragseingang', 'antragseingang', 3, true),
+      instanz('w-ai-assistent', 'ai-assistent', 4, true),
+      instanz('w-feedback-news', 'feedback-news', 5, true),
+      instanz('w-nachtlauf', 'nachtlauf', 6, true),
+      instanz('w-notizen', 'notizen', 7, true),
     ],
   };
 }
@@ -154,6 +191,38 @@ export function migriereV3NachtlaufConfig(widgets: WidgetInstanz[]): WidgetInsta
 }
 
 /**
+ * v4 → v5 (v6.19): die Karten aus `ENTDECKUNG_WIDGETS` und die Alert-Karte des
+ * Hero-Bandes werden EINMALIG eingeblendet.
+ *
+ * **Erst anlegen, dann einblenden.** Ein gewachsener Stand von vor `fristen`
+ * trägt für diesen Typ gar keine Instanz — ein bloßes Umlegen des Häkchens fände
+ * nichts vor, und der Reconcile-Schritt in `loadHomeWidgets` käme danach und
+ * legte sie als `sichtbar: false` an. Deshalb ruft dieser Schritt
+ * `reconcileVerfuegbareWidgets` selbst; er ist rein und idempotent, der spätere
+ * Aufruf ist dann ein No-op.
+ *
+ * **Nur einblenden, nie ausblenden** — was jemand sich eingerichtet hat, bleibt.
+ * `position` und `eingeklappt` bleiben ebenfalls unberührt: die Anordnung gehört
+ * dem Nutzer, und `nachtlauf` erscheint eingeklappt, wie sein Katalog-Eintrag es
+ * vorsieht (es liest die Monatsdateien des Journals vom Share).
+ *
+ * Die Alert-Karte läuft über `setzeHeroKarte` statt über einen eigenen Griff in
+ * `hero`: das holt zugleich die drei Kacheln zurück, falls alle abgewählt waren
+ * — sonst käme eine Karte wieder, die nichts anzuzeigen hätte.
+ *
+ * Rein + idempotent; ohne Änderung referenzgleich.
+ */
+export function migriereV4Entdeckung(cfg: HomeWidgetConfig): HomeWidgetConfig {
+  const voll = reconcileVerfuegbareWidgets(cfg);
+  const ziel = new Set<string>(ENTDECKUNG_WIDGETS);
+  const trifft = (w: WidgetInstanz): boolean => ziel.has(w.typ) && !w.sichtbar;
+  const mitWidgets = voll.widgets.some(trifft)
+    ? { ...voll, widgets: voll.widgets.map(w => (trifft(w) ? { ...w, sichtbar: true } : w)) }
+    : voll;
+  return setzeHeroKarte(mitWidgets, 'alert', true);
+}
+
+/**
  * Die Hero-Karten aus einem Config-Stand — jeder fehlende oder kaputte Wert
  * bedeutet „an". Additiv statt versioniert: das Feld kam mit v4.41 dazu, und ein
  * Stand ohne es soll exakt so aussehen wie bisher (beide Karten, alle Kacheln).
@@ -174,25 +243,31 @@ export function leseHeroConfig(raw: unknown): HeroConfig {
  * Toleranter Read (analog arbeitskontext-log): kaputte/fremde Werte → null
  * (Aufrufer fällt auf Default). Der `version`-Switch ist der Migrations-
  * Einstieg: v1-Stände werden auf v2 gehoben (weitermachen einmalig ausgeblendet,
- * s. migriereV1HeroWeitermachen); v2 wird verbatim gelesen. Unbekannte Versionen
- * werden bewusst NICHT geraten.
+ * s. migriereV1HeroWeitermachen); ein v5-Stand wird verbatim gelesen. Unbekannte
+ * Versionen werden bewusst NICHT geraten.
+ *
+ * Der v5-Schritt ist der einzige, der die GANZE Config braucht (er fasst auch
+ * `hero` an) und der Instanzen voraussetzt, die es in alten Ständen noch gar
+ * nicht gibt — er läuft deshalb auf dem fertigen Objekt und reconciled selbst
+ * (s. `migriereV4Entdeckung`).
  */
 export function leseHomeWidgetConfig(raw: unknown): HomeWidgetConfig | null {
   if (!raw || typeof raw !== 'object') return null;
   const cfg = raw as Record<string, unknown>;
   const version = cfg.version;
-  if (version !== 1 && version !== 2 && version !== 3 && version !== 4) return null;
+  if (version !== 1 && version !== 2 && version !== 3 && version !== 4 && version !== 5) return null;
   if (typeof cfg.updatedAt !== 'string' || !Array.isArray(cfg.widgets)) return null;
   let widgets = cfg.widgets.filter(isWidgetInstanz);
   if (version === 1) widgets = migriereV1HeroWeitermachen(widgets);
   if (version < 3) widgets = migriereV2NachtlaufAnsEnde(widgets);
   if (version < 4) widgets = migriereV3NachtlaufConfig(widgets);
-  return {
-    version: 4,
+  const gelesen: HomeWidgetConfig = {
+    version: 5,
     updatedAt: cfg.updatedAt,
     hero: leseHeroConfig(cfg.hero),
     widgets,
   };
+  return version < 5 ? migriereV4Entdeckung(gelesen) : gelesen;
 }
 
 /** Einmaliger Seed des alten Collapse-Zustands ('1' = eingeklappt). Defensive

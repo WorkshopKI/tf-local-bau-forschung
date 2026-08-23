@@ -86,9 +86,13 @@ export function MenueZeile({
     <button
       type="button"
       disabled={deaktiviert}
-      // Marker für den Panel-Handler: das Überfahren JEDER anderen Zeile schließt
-      // das offene Untermenü — sonst bliebe es stehen, während der Zeiger schon
-      // zwei Einträge weiter ist.
+      // Zwei Marker für den Panel-Handler: `data-menue-zeile` sagt „hier ist
+      // wirklich eine Zeile" (das Überfahren des Panel-Innenrands ist keine und
+      // darf nichts schließen, s. StartseiteMenue), `data-untermenue`, dass
+      // diese Zeile ein eigenes führt. Das Überfahren JEDER anderen Zeile
+      // schließt das offene Untermenü — sonst bliebe es stehen, während der
+      // Zeiger schon zwei Einträge weiter ist.
+      data-menue-zeile=""
       data-untermenue={untermenue ? '1' : undefined}
       aria-haspopup={untermenue ? 'menu' : undefined}
       aria-expanded={untermenue ? !!aktiv : undefined}

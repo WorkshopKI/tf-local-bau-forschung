@@ -95,16 +95,27 @@ describe('setzeSichtbarkeitBereich — der „alle"-Schalter einer Spalte', () =
   });
 
   it('lässt Typen unberührt, die diese Variante gar nicht kennt', () => {
+    // Der Ausgangszustand muss dem GEGENTEIL dessen entsprechen, was der
+    // Schalter setzt — sonst bewiese ein „steht auf false" nur, dass es schon
+    // vorher so war. Seit v5 sind die Entdeckungs-Karten (u.a. `notizen`) im
+    // Default sichtbar, deshalb hier ausdrücklich ausgeblendet.
+    const aus: HomeWidgetConfig = {
+      ...basis(),
+      widgets: basis().widgets.map(w =>
+        (w.typ === 'kanban' || w.typ === 'notizen') ? { ...w, sichtbar: false } : w),
+    };
     const katalog = {
       ...WIDGET_KATALOG,
       kanban: { ...WIDGET_KATALOG.kanban, sichtbarWenn: () => false },
       notizen: { ...WIDGET_KATALOG.notizen, verfuegbar: false },
     };
     const nachher = setzeSichtbarkeitBereich(
-      setzeSichtbarkeitBereich(basis(), 'haupt', true, katalog), 'seite', true, katalog,
+      setzeSichtbarkeitBereich(aus, 'haupt', true, katalog), 'seite', true, katalog,
     );
     expect(nachher.widgets.find(w => w.typ === 'kanban')!.sichtbar).toBe(false);
     expect(nachher.widgets.find(w => w.typ === 'notizen')!.sichtbar).toBe(false);
+    // Gegenprobe: ein Typ, den die Variante kennt, wurde sehr wohl geschaltet.
+    expect(nachher.widgets.find(w => w.typ === 'ai-assistent')!.sichtbar).toBe(true);
   });
 
   it('ist idempotent — ein zweiter Aufruf gibt dieselbe Referenz zurück', () => {

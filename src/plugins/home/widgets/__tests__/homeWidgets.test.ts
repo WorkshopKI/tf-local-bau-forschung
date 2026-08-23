@@ -16,6 +16,7 @@ import {
   type PersonalEinstellungen,
 } from '@/core/services/personal-storage/types';
 import {
+  ENTDECKUNG_WIDGETS,
   HOME_WIDGETS_IDB_KEY,
   MEINE_ANTRAEGE_COLLAPSE_LEGACY_KEY,
   defaultHomeWidgetConfig,
@@ -23,11 +24,13 @@ import {
   loadHomeWidgets,
   migriereV2NachtlaufAnsEnde,
   migriereV3NachtlaufConfig,
+  migriereV4Entdeckung,
   moveInstanz,
   reconcileVerfuegbareWidgets,
   saveHomeWidgets,
   sichtbareWidgets,
   sortiereInstanzen,
+  zurueckgesetzteConfig,
 } from '../homeWidgetsStore';
 import type { HomeWidgetConfig, WidgetInstanz, WidgetTyp } from '../types';
 import { WIDGET_KATALOG } from '../widgetCatalog';
@@ -53,40 +56,56 @@ function cfgMit(updatedAt: string, marker: string): HomeWidgetConfig {
   };
 }
 
-describe('defaultHomeWidgetConfig — v2 (Home optimiert)', () => {
+describe('defaultHomeWidgetConfig — v5 (Entdeckung)', () => {
   it('bildet Reihenfolge, Bereiche und Sichtbarkeit ab — OHNE weitermachen (Hero-Band)', () => {
     const cfg = defaultHomeWidgetConfig();
-    expect(cfg.version).toBe(4);
+    expect(cfg.version).toBe(5);
     const sortiert = sortiereInstanzen(cfg.widgets);
     // weitermachen ist nicht mehr im Default — das Hero-Band ersetzt es.
     expect(sortiert.map(w => w.typ)).toEqual([
-      'meine-antraege', 'kanban',
-      'antragseingang', 'ai-assistent', 'notizen',
+      'meine-antraege', 'kanban', 'fristen',
+      'antragseingang', 'ai-assistent', 'feedback-news',
+      'nachtlauf', 'notizen',
     ]);
     expect(sortiert.some(w => w.typ === 'weitermachen')).toBe(false);
-    // Haupt vs. Seite
+    // Haupt vs. Seite — nachtlauf steht am Ende seiner Spalte (Nachschlage-
+    // Karte, nicht Arbeitsliste).
     expect(sortiert.filter(w => w.bereich === 'haupt').map(w => w.typ))
-      .toEqual(['meine-antraege', 'kanban']);
+      .toEqual(['meine-antraege', 'kanban', 'fristen', 'nachtlauf']);
     expect(sortiert.filter(w => w.bereich === 'seite').map(w => w.typ))
-      .toEqual(['antragseingang', 'ai-assistent', 'notizen']);
-    // Opt-in-Widgets sind sichtbar:false
+      .toEqual(['antragseingang', 'ai-assistent', 'feedback-news', 'notizen']);
+    // Alles aus ENTDECKUNG_WIDGETS sichtbar; kanban bleibt Opt-in.
     const sichtbarkeit = Object.fromEntries(sortiert.map(w => [w.typ, w.sichtbar]));
     expect(sichtbarkeit).toEqual({
       'meine-antraege': true,
       kanban: false,
+      fristen: true,
       antragseingang: true,
       'ai-assistent': true,
-      notizen: false,
+      'feedback-news': true,
+      nachtlauf: true,
+      notizen: true,
     });
     // LWW: Default verliert gegen jeden echten Save
     expect(cfg.updatedAt).toBe(new Date(0).toISOString());
+  });
+
+  it('nimmt `eingeklappt` aus dem Katalog statt aus einem Literal', () => {
+    // Sonst driftete der Auslieferungszustand von `defaultEingeklappt` ab:
+    // nachtlauf liest die Journal-Monatsdateien vom Share und startet deshalb zu.
+    const cfg = defaultHomeWidgetConfig();
+    expect(cfg.widgets.find(w => w.typ === 'nachtlauf')!.eingeklappt).toBe(true);
+    expect(cfg.widgets.find(w => w.typ === 'fristen')!.eingeklappt).toBe(false);
   });
 
   it('uebernimmt den Legacy-Collapse-Seed fuer meine-antraege', () => {
     const cfg = defaultHomeWidgetConfig({ meineAntraegeEingeklappt: true });
     const ma = cfg.widgets.find(w => w.typ === 'meine-antraege')!;
     expect(ma.eingeklappt).toBe(true);
-    expect(cfg.widgets.filter(w => w.typ !== 'meine-antraege').every(w => !w.eingeklappt)).toBe(true);
+    // Alle anderen folgen dem Katalog — der Seed wirkt nur auf diese eine Karte.
+    expect(cfg.widgets.filter(w => w.typ !== 'meine-antraege').every(
+      w => w.eingeklappt === (WIDGET_KATALOG[w.typ].defaultEingeklappt ?? false),
+    )).toBe(true);
   });
 });
 
@@ -99,16 +118,18 @@ describe('leseHomeWidgetConfig — toleranter Read + v1→v2-Migration', () => {
   });
 
   it('verwirft unbekannte Versionen (Migrations-Einstieg: nie raten)', () => {
-    expect(leseHomeWidgetConfig({ version: 5, updatedAt: 'x', widgets: [] })).toBeNull();
+    expect(leseHomeWidgetConfig({ version: 6, updatedAt: 'x', widgets: [] })).toBeNull();
     expect(leseHomeWidgetConfig({ version: 0, updatedAt: 'x', widgets: [] })).toBeNull();
   });
 
-  it('liest v2 verbatim (normalisiert version, ergänzt die Hero-Karten)', () => {
+  it('liest v5 verbatim (ergänzt nur die Hero-Karten)', () => {
     // `hero` kam mit v4.41 additiv dazu — ein Stand ohne das Feld bekommt beim
-    // Lesen den bisherigen Zustand „alles an" (kein Versions-Bump).
-    const gelesen = leseHomeWidgetConfig({ version: 2, updatedAt: 'x', widgets: [] });
+    // Lesen den bisherigen Zustand „alles an" (kein Versions-Bump). Ein v5-Stand
+    // ist fertig migriert und wird sonst NICHT angefasst: kein Reconcile, keine
+    // Einblendung. Genau das lässt ein späteres Ausblenden halten.
+    const gelesen = leseHomeWidgetConfig({ version: 5, updatedAt: 'x', widgets: [] });
     expect(gelesen).toEqual({
-      version: 4,
+      version: 5,
       updatedAt: 'x',
       widgets: [],
       hero: {
@@ -125,8 +146,10 @@ describe('leseHomeWidgetConfig — toleranter Read + v1→v2-Migration', () => {
       updatedAt: '2026-01-01T00:00:00.000Z',
       widgets: [valide, { id: 'kaputt' }, 42],
     });
-    expect(gelesen?.version).toBe(4);
-    expect(gelesen?.widgets).toEqual([valide]);
+    expect(gelesen?.version).toBe(5);
+    // Die kaputten sind raus; der v5-Schritt legt danach die fehlenden Typen an.
+    expect(gelesen?.widgets.some(w => w.id === 'kaputt')).toBe(false);
+    expect(gelesen?.widgets.find(w => w.id === valide.id)).toEqual(valide);
   });
 
   it('v1 → v2: blendet eine sichtbare weitermachen-Instanz einmalig aus', () => {
@@ -141,7 +164,7 @@ describe('leseHomeWidgetConfig — toleranter Read + v1→v2-Migration', () => {
     const gelesen = leseHomeWidgetConfig({
       version: 1, updatedAt: '2026-01-01T00:00:00.000Z', widgets: [weiter, meine],
     });
-    expect(gelesen?.version).toBe(4);
+    expect(gelesen?.version).toBe(5);
     // weitermachen ausgeblendet, sonst unverändert; andere Widgets unberührt.
     expect(gelesen?.widgets.find(w => w.typ === 'weitermachen')?.sichtbar).toBe(false);
     expect(gelesen?.widgets.find(w => w.typ === 'meine-antraege')?.sichtbar).toBe(true);
@@ -157,10 +180,14 @@ describe('leseHomeWidgetConfig — toleranter Read + v1→v2-Migration', () => {
       updatedAt: '2026-01-01T00:00:00.000Z',
       widgets: [instanz('meine-antraege', 0), instanz('nachtlauf', 1), instanz('fristen', 2)],
     });
-    expect(gelesen?.version).toBe(4);
-    expect(gelesen?.widgets.map(w => w.typ).sort()).toEqual(['fristen', 'meine-antraege', 'nachtlauf']);
+    expect(gelesen?.version).toBe(5);
     const nacht = gelesen?.widgets.find(w => w.typ === 'nachtlauf')!;
-    const andere = gelesen!.widgets.filter(w => w.typ !== 'nachtlauf');
+    // Nur gegen die drei mitgebrachten prüfen: der v5-Schritt hängt danach die
+    // fehlenden Katalog-Typen an, die stehen naturgemäß dahinter.
+    const andere = gelesen!.widgets.filter(
+      w => w.typ === 'meine-antraege' || w.typ === 'fristen',
+    );
+    expect(andere).toHaveLength(2);
     expect(andere.every(w => w.position < nacht.position)).toBe(true);
   });
 
@@ -220,10 +247,10 @@ describe('leseHomeWidgetConfig — toleranter Read + v1→v2-Migration', () => {
 });
 
 describe('loadHomeWidgets — LWW kv vs. PersonalEinstellungen-Mirror', () => {
-  it('ohne Daten: Default (v2) — weitermachen als Opt-in (sichtbar:false) nachgezogen', async () => {
+  it('ohne Daten: Default (v5) — weitermachen als Opt-in (sichtbar:false) nachgezogen', async () => {
     const idb = await frischeIdb();
     const cfg = await loadHomeWidgets(idb);
-    expect(cfg.version).toBe(4);
+    expect(cfg.version).toBe(5);
     // meine-antraege ist sichtbar; weitermachen wird per reconcile als Opt-in
     // (sichtbar:false) ergänzt — der Hero zeigt „Weitermachen" prominent.
     expect(cfg.widgets.find(w => w.typ === 'meine-antraege')?.sichtbar).toBe(true);
@@ -308,11 +335,15 @@ describe('sichtbareWidgets — Katalog- + Flag-Filter', () => {
       ...WIDGET_KATALOG,
       kanban: { ...WIDGET_KATALOG.kanban, verfuegbar: false },
       'ai-assistent': { ...WIDGET_KATALOG['ai-assistent'], sichtbarWenn: () => false },
+      // Hier ausgeschaltet, damit der Test die Filter prueft und nicht das
+      // Vorgangssystem-Flag der gerade gebauten Variante.
+      fristen: { ...WIDGET_KATALOG.fristen, sichtbarWenn: () => false },
+      nachtlauf: { ...WIDGET_KATALOG.nachtlauf, sichtbarWenn: () => false },
     };
     expect(sichtbareWidgets(alleSichtbar, 'haupt', katalog).map(w => w.typ))
       .toEqual(['meine-antraege']);
     expect(sichtbareWidgets(alleSichtbar, 'seite', katalog).map(w => w.typ))
-      .toEqual(['antragseingang', 'notizen']);
+      .toEqual(['antragseingang', 'feedback-news', 'notizen']);
   });
 
   it('unbekannte Typen aus zukuenftigen Config-Staenden fallen still raus', () => {
@@ -339,7 +370,7 @@ describe('sichtbareWidgets — Katalog- + Flag-Filter', () => {
     };
     const seite = sichtbareWidgets(cfg, 'seite').map(w => w.typ);
     // Position 0 → Notizen jetzt VORNE (Pin entfernt: verschiebbar statt fixiert)
-    expect(seite).toEqual(['notizen', 'antragseingang', 'ai-assistent']);
+    expect(seite).toEqual(['notizen', 'antragseingang', 'ai-assistent', 'feedback-news']);
   });
 });
 
@@ -379,7 +410,7 @@ describe('moveInstanz — pro Spalte (bereich) unabhängig', () => {
   it('tauscht mit dem Nachbarn derselben Spalte (haupt)', () => {
     const cfg = defaultHomeWidgetConfig();
     const bewegt = moveInstanz(cfg, 'w-kanban', 'hoch');
-    expect(bereichOrder(bewegt, 'haupt')).toEqual(['kanban', 'meine-antraege']);
+    expect(bereichOrder(bewegt, 'haupt')).toEqual(['kanban', 'meine-antraege', 'fristen', 'nachtlauf']);
     // Seiten-Spalte unberührt.
     expect(bereichOrder(bewegt, 'seite')).toEqual(bereichOrder(cfg, 'seite'));
   });
@@ -389,8 +420,10 @@ describe('moveInstanz — pro Spalte (bereich) unabhängig', () => {
     // (seite), NICHT mit kanban (haupt) — die andere Spalte ändert sich nicht.
     const cfg = defaultHomeWidgetConfig();
     const bewegt = moveInstanz(cfg, 'w-ai-assistent', 'hoch');
-    expect(bereichOrder(bewegt, 'seite')).toEqual(['ai-assistent', 'antragseingang', 'notizen']);
-    expect(bereichOrder(bewegt, 'haupt')).toEqual(['meine-antraege', 'kanban']);
+    expect(bereichOrder(bewegt, 'seite'))
+      .toEqual(['ai-assistent', 'antragseingang', 'feedback-news', 'notizen']);
+    expect(bereichOrder(bewegt, 'haupt'))
+      .toEqual(['meine-antraege', 'kanban', 'fristen', 'nachtlauf']);
   });
 
   it('am Spalten-Anfang/-Ende ein No-op — auch wenn global nicht Rand', () => {
@@ -399,8 +432,9 @@ describe('moveInstanz — pro Spalte (bereich) unabhängig', () => {
     expect(moveInstanz(cfg, 'w-meine-antraege', 'hoch')).toBe(cfg);
     // antragseingang ist erstes seite-Widget (global aber an Position 2).
     expect(moveInstanz(cfg, 'w-antragseingang', 'hoch')).toBe(cfg);
-    // kanban ist letztes haupt-Widget.
-    expect(moveInstanz(cfg, 'w-kanban', 'runter')).toBe(cfg);
+    // nachtlauf ist letztes haupt-Widget, notizen letztes seite-Widget.
+    expect(moveInstanz(cfg, 'w-nachtlauf', 'runter')).toBe(cfg);
+    expect(moveInstanz(cfg, 'w-notizen', 'runter')).toBe(cfg);
     expect(moveInstanz(cfg, 'gibt-es-nicht', 'hoch')).toBe(cfg);
   });
 
@@ -440,5 +474,123 @@ describe('migriereV2NachtlaufAnsEnde (rein)', () => {
     const w = [instanz('meine-antraege', 0), instanz('nachtlauf', 1), instanz('fristen', 2)];
     const einmal = migriereV2NachtlaufAnsEnde(w);
     expect(migriereV2NachtlaufAnsEnde(einmal)).toBe(einmal);
+  });
+});
+
+describe('migriereV4Entdeckung (rein) — einmalig einblenden, nie ausblenden', () => {
+  /** Ein gewachsener v4-Stand: alles da, aber die Entdeckungs-Karten sind aus. */
+  function bestand(over: Partial<HomeWidgetConfig> = {}): HomeWidgetConfig {
+    const cfg = reconcileVerfuegbareWidgets(defaultHomeWidgetConfig());
+    return {
+      ...cfg,
+      widgets: cfg.widgets.map(w =>
+        (ENTDECKUNG_WIDGETS as string[]).includes(w.typ) ? { ...w, sichtbar: false } : w),
+      ...over,
+    };
+  }
+
+  it('blendet genau die Karten aus ENTDECKUNG_WIDGETS ein', () => {
+    const nach = migriereV4Entdeckung(bestand());
+    for (const typ of ENTDECKUNG_WIDGETS) {
+      expect(nach.widgets.find(w => w.typ === typ)?.sichtbar).toBe(true);
+    }
+  });
+
+  it('legt fehlende Instanzen selbst an — ein Stand von vor `fristen`', () => {
+    // Der Reconcile-Schritt in loadHomeWidgets kommt DANACH und legte sie als
+    // `sichtbar: false` an; ein blosses Umlegen des Haekchens faende hier nichts.
+    const alt: HomeWidgetConfig = {
+      version: 5,
+      updatedAt: '2026-01-01T00:00:00.000Z',
+      hero: { sichtbar: { resume: true, alert: true }, chips: { kritisch: true, warnung: true, qs: true } },
+      widgets: [{
+        id: 'w-meine-antraege', typ: 'meine-antraege', position: 0, bereich: 'haupt',
+        sichtbar: true, eingeklappt: false, config: { art: 'keine' },
+      }],
+    };
+    const nach = migriereV4Entdeckung(alt);
+    expect(nach.widgets.find(w => w.typ === 'fristen')?.sichtbar).toBe(true);
+    expect(nach.widgets.find(w => w.typ === 'feedback-news')?.sichtbar).toBe(true);
+  });
+
+  it('blendet NICHTS aus — was sichtbar war, bleibt sichtbar', () => {
+    const vorher = bestand();
+    const mitKanban: HomeWidgetConfig = {
+      ...vorher,
+      widgets: vorher.widgets.map(w => (w.typ === 'kanban' ? { ...w, sichtbar: true } : w)),
+    };
+    const nach = migriereV4Entdeckung(mitKanban);
+    expect(nach.widgets.find(w => w.typ === 'kanban')?.sichtbar).toBe(true);
+    // Und was aus war und nicht dazugehoert, bleibt aus.
+    expect(nach.widgets.find(w => w.typ === 'auslastung')?.sichtbar).toBe(false);
+  });
+
+  it('laesst Position und Einklapp-Zustand in Ruhe', () => {
+    const vorher = bestand();
+    const nach = migriereV4Entdeckung(vorher);
+    for (const w of vorher.widgets) {
+      const danach = nach.widgets.find(x => x.id === w.id)!;
+      expect(danach.position).toBe(w.position);
+      expect(danach.eingeklappt).toBe(w.eingeklappt);
+    }
+    // nachtlauf erscheint damit eingeklappt, wie sein Katalog-Eintrag es will.
+    expect(nach.widgets.find(w => w.typ === 'nachtlauf')?.eingeklappt).toBe(true);
+  });
+
+  it('holt die Alert-Karte zurueck — samt Kacheln, wenn alle abgewaehlt waren', () => {
+    // Sonst kaeme eine Karte wieder, die nichts anzuzeigen haette.
+    const nach = migriereV4Entdeckung(bestand({
+      hero: {
+        sichtbar: { resume: true, alert: false },
+        chips: { kritisch: false, warnung: false, qs: false },
+      },
+    }));
+    expect(nach.hero.sichtbar.alert).toBe(true);
+    expect(nach.hero.chips).toEqual({ kritisch: true, warnung: true, qs: true });
+  });
+
+  it('laesst eine bewusst abgewaehlte Resume-Karte aus', () => {
+    const nach = migriereV4Entdeckung(bestand({
+      hero: {
+        sichtbar: { resume: false, alert: false },
+        chips: { kritisch: true, warnung: true, qs: true },
+      },
+    }));
+    expect(nach.hero.sichtbar.resume).toBe(false);
+  });
+
+  it('ist idempotent und ohne Aenderung referenzgleich', () => {
+    const einmal = migriereV4Entdeckung(bestand());
+    expect(migriereV4Entdeckung(einmal)).toBe(einmal);
+  });
+
+  it('greift genau einmal: ein persistierter v5-Stand wird nicht mehr angefasst', () => {
+    // Das ist das Gedaechtnis: wer eine Karte ausblendet, loest ein `mutiere`
+    // aus, das v5 stempelt — danach haelt das Ausblenden.
+    const ausgeblendet = {
+      version: 5,
+      updatedAt: '2026-01-01T00:00:00.000Z',
+      hero: { sichtbar: { resume: true, alert: true }, chips: { kritisch: true, warnung: true, qs: true } },
+      widgets: [{
+        id: 'w-notizen', typ: 'notizen', position: 0, bereich: 'seite',
+        sichtbar: false, eingeklappt: false, config: { art: 'notizen' },
+      }],
+    };
+    const gelesen = leseHomeWidgetConfig(ausgeblendet);
+    expect(gelesen?.widgets.find(w => w.typ === 'notizen')?.sichtbar).toBe(false);
+    expect(gelesen?.widgets).toHaveLength(1);
+  });
+});
+
+describe('entdeckung-default-deckungsgleich', () => {
+  it('der Auslieferungszustand zeigt jede Karte, die die Migration einblendet', () => {
+    // Zwei Wege zum selben Bild: der Default eines frischen Geraets (und damit
+    // „Startseite zuruecksetzen") und die einmalige Einblendung. Liefen sie
+    // auseinander, faende ein neuer Nutzer genau die Karten nicht, um die es geht.
+    const frisch = zurueckgesetzteConfig();
+    for (const typ of ENTDECKUNG_WIDGETS) {
+      expect(frisch.widgets.find(w => w.typ === typ)?.sichtbar).toBe(true);
+    }
+    expect(frisch.hero.sichtbar.alert).toBe(true);
   });
 });

@@ -66,6 +66,43 @@ die nicht, liest sich die Karte daneben als Widerspruch.
   trägt die Instanz längst mit `{ art: 'keine' }`, und ohne diesen Schritt bliebe
   `hatWidgetDetailConfig` ausgerechnet bei denen false, die das Widget benutzen.
 
+## Was die Startseite von selbst zeigt (v5, v6.19)
+
+Der Reconcile zieht neue Typen als **Opt-in** nach (`sichtbar: false`) — richtig
+für „irgendwann mal", falsch für die Karten, die die tägliche Arbeit tragen: wer
+nie ins Widgets-Untermenü sieht, hat „Fristen" oder „Änderungen der letzten
+Nacht" nie zu Gesicht bekommen. `ENTDECKUNG_WIDGETS`
+([homeWidgetsStore.ts](../../src/plugins/home/widgets/homeWidgetsStore.ts)) ist
+die **eine** Deklaration dessen, was ein Nutzer vorfindet: `meine-antraege`,
+`fristen`, `nachtlauf` (Hauptspalte) + `antragseingang`, `feedback-news`,
+`notizen` (Seitenspalte), dazu die Hero-Karte „Braucht heute Aufmerksamkeit".
+
+- **Zwei Wege, ein Bild.** Der Default eines frischen Geräts führt genau diese
+  Typen sichtbar (plus `ai-assistent`), `migriereV4Entdeckung` holt gewachsene
+  Configs einmalig dorthin nach. Der Guard `entdeckung-default-deckungsgleich`
+  hält beide zusammen — liefen sie auseinander, fände ein neuer Nutzer genau die
+  Karten nicht, um die es geht.
+- **Der Versions-Stempel IST das Gedächtnis.** Solange niemand etwas ändert,
+  läuft der Schritt bei jedem Laden erneut (idempotent, folgenlos). Die erste
+  echte Änderung persistiert v5 über `mutiere`, und ab da hält ein Ausblenden.
+  Deshalb muss der Stempel in [useHomeWidgets.ts](../../src/plugins/home/widgets/useHomeWidgets.ts)
+  mit der Schema-Version mitwandern.
+- **Erst anlegen, dann einblenden.** Ein Stand von vor `fristen` trägt für den
+  Typ gar keine Instanz; der Reconcile in `loadHomeWidgets` kommt **danach** und
+  legte sie als `sichtbar: false` an. Der Schritt ruft ihn deshalb selbst.
+- **Nur einblenden, nie ausblenden**, und `position`/`eingeklappt` bleiben
+  unberührt: die Anordnung gehört dem Nutzer, `nachtlauf` erscheint eingeklappt
+  wie sein Katalog-Eintrag es will. Was jemand vorher abgewählt hatte, kommt
+  einmalig zurück — die Config führt keine Absicht, „nie gesehen" und „bewusst
+  aus" sind in ihr nicht unterscheidbar.
+- **Eine Marke hätte das stillgelegt** (der eigentliche Befund der Abnahme):
+  `fristen` und `nachtlauf` trugen `BETA` im
+  [Sichtbarkeits-Katalog](../../src/core/sichtbarkeit/katalog.ts). Das Häkchen
+  stand damit an, `widgetAnzeigbar` verwarf die Karte trotzdem — und zwar bei
+  genau dem Nutzer, der sie entdecken sollte (gemessen: 4 von 6 Karten kamen an).
+  Beide sind seit v6.19 unmarkiert; ihr Klickziel `antraege` ist es ebenfalls.
+  **Wer eine Karte in `ENTDECKUNG_WIDGETS` aufnimmt, prüft ihre Marke mit.**
+
 ### „Änderungen der letzten Nacht": Regler, Klartext, Kürzel-Tooltips (v6.1–v6.2)
 
 - **Die Zeile ist eine Segment-Liste, kein Satz.** `NachtlaufZeile.segmente` hält
@@ -164,6 +201,7 @@ Konfiguration dort, wo die Wirkung sichtbar ist: [src/plugins/home/anpassen/](..
 - **Eine Positionierung.** Ein `Popover` an einem 0×0-`PopoverAnchor`; der Rechtsklick liefert die Zeigerposition, ein Knopf die Unterkante seines Rechtecks (`punktUnter`). Kollisionen löst Radix damit für beide Fälle gleich.
 - **Untermenü = Geschwister-Panel im selben `PopoverContent`** ([StartseiteMenue.tsx](../../src/plugins/home/anpassen/StartseiteMenue.tsx)), kein Portal im Portal: eine Dismissable-Layer, kein Streit um `Esc`. Es hängt **absolut** am Hauptmenü und liegt damit außerhalb von Radix' Größenmessung — als Geschwister im Fluss wüchse der Inhalt beim Aufklappen von 250 auf 524 px, und die ganze Gruppe spränge vom Auslöser weg (Fehler in v4.7.0). Seite, Versatz und Höhendeckel rechnet die reine `berechneUntermenueLage` ([useStartseiteMenue.ts](../../src/plugins/home/anpassen/useStartseiteMenue.ts)): nach links nur, wenn rechts kein Platz ist **und** links einer wäre. „Widget-Einstellungen" tauscht den Panel-Inhalt (TicketMenue-Muster) statt ein zweites Popover zu öffnen.
 - **Untermenüs öffnen auf Überfahren, Klick und `→` — nie auf bloßen Fokus.** Radix fokussiert beim Öffnen die erste Zeile; ein `onFocus` dort ließ jedes Menü sofort zweistöckig aufgehen (v4.7.0). Der Fokus geht stattdessen auf den Panel-Rahmen (`onOpenAutoFocus` unterdrückt), damit `Tab` von dort in die Einträge führt.
+- **Der Weg zum Untermenü darf es nicht schließen** (v6.19). Es schließt nur, wenn eine echte **Zeile** überfahren wird, die kein eigenes führt — Marke `data-menue-zeile` an [MenueZeile](../../src/plugins/home/anpassen/menueZeilen.tsx), abgefragt **vor** `data-untermenue`. Bis dahin schloss der Handler bei allem, was nicht in `[data-untermenue]` lag: also auch am **5-px-Innenrand** des `MenuePanel`, der rechts neben jeder `w-full`-Zeile liegt und genau auf dem Weg nach rechts überfahren wird (gemessen 5,7 px). Schnell gezogen übersprang der Zeiger den Streifen, langsam traf er ihn — daher „manchmal". `ABSTAND` steht dazu auf **0**: die Panels berühren sich (gemessen `panel.right === untermenü.left`, beidseitig), die 6 px des Handoff-Prototyps waren zusätzliche tote Fläche. Die Konstante bleibt benannt, weil `berechneUntermenueLage` sie in den Platzbedarf der Seitenwahl rechnet.
 - **Das Menü bleibt bei Häkchen und Farbwahl offen** (mehrere Schalter nebeneinander, s. `DarstellungDropdown`); Aktionen schließen es.
 - **Rückgängig merkt die UMKEHRUNG, nicht den Vorstand** ([rueckgaengigStore.ts](../../src/plugins/home/anpassen/rueckgaengigStore.ts), seit v4.131) — ein Weg für Ausblenden, „alle aus" und „Startseite zurücksetzen"; Letzteres braucht deshalb keine Nachfrage. Einklappen, Primärfarbe und Hell/Dunkel bekommen keine Leiste. Der Aufrufer liefert eine Funktion, die den AKTUELLEN Stand nimmt und nur die Felder seiner eigenen Aktion zurückdreht (`stelleSichtbarkeitHer` für die Sichtbarkeits-Fälle; „zurücksetzen" ist der eine legitime Voll-Rückschrieb). Bis v4.130 hielt der Eintrag den kompletten Stand von vor der Aktion und schrieb ihn zurück — er nahm damit alles mit, was seither passiert war: gemessen sprang ein zwischenzeitlich eingeklapptes Widget von 52 px zurück auf 201 px, während die Leiste nur vom ausgeblendeten sprach. Genau die Änderungen, die bewusst KEINEN Eintrag anlegen, waren so nicht wiederherstellbar. **Die Reue-Frist hängt an `seit` (Zeitstempel), nicht an der Lebensdauer der Leiste**: der Cleanup räumte den Timer ab, sobald man die Startseite verließ, `leere()` feuerte nie, und bei der Rückkehr stand die Leiste wieder da und bot einen beliebig alten Stand an.
 - **Rechtsklick-Ausnahmen** (`darfMenueOeffnen`, rein + node-testbar): auf Karten, in Eingabefeldern, bei markiertem Text und mit gedrückter Umschalt-Taste öffnet das Startseiten-Menü nicht. Was dort STATTDESSEN erscheint, entscheidet seit v4.41 die app-weite Regel `zeigtBrowserMenue` ([useBrowserKontextmenue.ts](../../src/core/hooks/useBrowserKontextmenue.ts), in der [ShellLayout](../../src/core/ShellLayout.tsx) einmal am Dokument): das Browser-Menü nur noch in Eingabefeldern (Einfügen), bei markiertem Text (Kopieren) und mit Umschalt (Notausgang) — sonst nichts. Bubble-Phase + `defaultPrevented`-Check, damit die Menüs der App zuerst drankommen; am Dokument statt an einem Wrapper, weil Dialoge und Popover in Portale unter `<body>` rendern.

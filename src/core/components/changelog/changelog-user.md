@@ -19,6 +19,23 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v6.19 — 2026-08
+
+### Neu
+- Die Startseite zeigt jetzt von sich aus, was sie kann: „Braucht heute Aufmerksamkeit“ oben, dazu Meine Anträge, Fristen und Änderungen der letzten Nacht links sowie Antragseingang, Feedback-Neuigkeiten und Notizen rechts. Vorher musste man diese Karten im Menü „Startseite anpassen“ erst suchen und anhaken.
+### Verbesserungen
+- Was Sie ausblenden, bleibt ausgeblendet — auch nach einem Neustart. Zurück kommt eine Karte über „Widgets ▸“ oder „Startseite zurücksetzen“.
+- „Fristen“ und „Änderungen der letzten Nacht“ brauchen keine eingeschalteten Beta-Funktionen mehr.
+### Bugfixes
+- Das Untermenü „Widgets“ verschwand manchmal, wenn man langsam mit der Maus darauf zufuhr. Es klebt jetzt direkt am Menü und bleibt auf dem Weg dorthin offen.
+
+## v6.18 — 2026-08
+
+### Bugfixes
+- Der Aufbau der Ähnlichkeitssuche endete bisher, wenn die Grafikkarte mitten im Lauf aufgab — meist nach rund 800 von 14.000 Vorhaben. Jetzt lädt die App das Modell nach und rechnet weiter, wo sie stehengeblieben ist.
+### Verbesserungen
+- Bringt auch das Nachladen nichts mehr, rechnet der Aufbau auf dem Hauptprozessor weiter: langsamer, aber er kommt an. Die Karte sagt es, und ein Klick nimmt die Umstellung wieder zurück.
+
 ## v6.17 — 2026-08
 
 ### Neu

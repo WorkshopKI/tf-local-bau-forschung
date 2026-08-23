@@ -86,6 +86,27 @@ describe('MenueZeile öffnet Untermenüs nicht per Fokus', () => {
   });
 });
 
+describe('Der Weg zum Untermenü darf es nicht schließen', () => {
+  it('schließt nur an echten ZEILEN, nicht am Innenrand des Panels', () => {
+    // `MenuePanel` trägt `p-[5px]`, die Zeilen sind `w-full` — rechts neben
+    // jeder Zeile liegen also 5 px Panel, über die der Weg zum Untermenü führt.
+    // Ein Handler, der bei allem schließt, was nicht `[data-untermenue]` ist,
+    // trifft diesen Streifen: langsam nach rechts gezogen verschwand das
+    // Untermenü, schnell gezogen nicht (v6.19). Erst `[data-menue-zeile]`
+    // fragen, dann ob die Zeile ein eigenes Untermenü führt.
+    const quelle = readFileSync(
+      resolve(process.cwd(), 'src/plugins/home/anpassen/StartseiteMenue.tsx'), 'utf8',
+    );
+    expect(quelle).toMatch(/closest\('\[data-menue-zeile\]'\)/);
+    expect(quelle).toMatch(/zeile && !zeile\.hasAttribute\('data-untermenue'\)/);
+    // Die Marke muss auch gesetzt werden, sonst schlösse nie etwas.
+    const zeilen = readFileSync(
+      resolve(process.cwd(), 'src/plugins/home/anpassen/menueZeilen.tsx'), 'utf8',
+    );
+    expect(zeilen).toMatch(/data-menue-zeile=""/);
+  });
+});
+
 describe('Das Untermenü verändert die Breite des Popovers nicht', () => {
   it('hängt absolut am Hauptmenü statt als Flex-Geschwister daneben', () => {
     // Als Geschwister im Fluss misst Radix 250 + 6 + 268 px, hält die Gruppe für

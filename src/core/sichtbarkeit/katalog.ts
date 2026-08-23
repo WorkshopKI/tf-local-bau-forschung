@@ -338,8 +338,14 @@ export const SICHTBARKEITS_KATALOG: readonly KatalogEintrag[] = [
   widget('neue-antraege', 'Neue Anträge für dich'),
   // Dieselbe Marke wie die Seite, an deren Katalog es hängt.
   widget('status-verlauf', 'Status & Verlauf', BEIDES),
-  widget('fristen', 'Fristen', BETA),
-  widget('nachtlauf', 'Änderungen der letzten Nacht', BETA),
+  // Ohne Marke seit v6.19: beide gehören zu den Karten, die die Startseite von
+  // selbst zeigt (`ENTDECKUNG_WIDGETS`). Eine Beta-Marke hätte diese Einblendung
+  // stillgelegt — das Häkchen stünde an, `widgetAnzeigbar` verwürfe die Karte
+  // trotzdem, und ausgerechnet der Nutzer, der sie entdecken soll, sähe nichts.
+  // Ihr Klickziel ist `antraege` und damit selbst unmarkiert (Pitfall #54: nichts
+  // verbergen, was der Wirt anbietet).
+  widget('fristen', 'Fristen'),
+  widget('nachtlauf', 'Änderungen der letzten Nacht'),
   // `verfuegbar: false` seit v4.87 — das vorhandene Flag entscheidet weiter.
   widget('meilensteine', 'Meilensteine diese Woche'),
   widget('haengt-fest', 'Hängt fest'),
