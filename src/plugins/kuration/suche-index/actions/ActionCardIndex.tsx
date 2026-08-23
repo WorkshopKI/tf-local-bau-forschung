@@ -6,6 +6,7 @@ import { BatchIndexer } from '@/core/services/search/batch-indexer';
 import type { IndexStatus, PipelineConfig } from '@/core/services/search/batch-indexer';
 import { getModelById } from '@/core/services/search/model-registry';
 import { IndexProgress } from '../IndexHelpers';
+import { ActionCard } from './ActionCard';
 import { formatDuration } from '@/core/utils/eta';
 import type { PipelineConfigState } from '../hooks/usePipelineConfig';
 
@@ -114,66 +115,56 @@ export function ActionCardIndex({
         ? `${newDocsCount} neue Dokumente`
         : chunkCount > 0 ? 'Index aktuell' : '';
 
+  // Der Ordnername bekommt `truncate` in einem `min-w-0`-Rahmen — ohne das
+  // schiebt ein langer Share-Name den Kopf ueber die Kartenkante (so haelt es
+  // die Schwesterkarte `ActionCardDocuments` schon laenger).
+  const ordnerSteuerung = dataDir ? (
+    <div className="flex items-center gap-1.5 group min-w-0 max-w-[160px]">
+      <FolderOpen size={13} className="text-[var(--tf-text-tertiary)] shrink-0" />
+      <span className="text-[12px] text-[var(--tf-text-tertiary)] truncate">{dataDir.folderName ?? dataDir.label}</span>
+      <button onClick={handleChangeDir} title="Ordner wechseln"
+        className="p-0.5 shrink-0 text-[var(--tf-text-tertiary)] cursor-pointer opacity-0 group-hover:opacity-100 hover:text-[var(--tf-text)] transition-opacity">
+        <Pencil size={11} />
+      </button>
+      <button onClick={handleRemoveDir} title="Ordner trennen"
+        className="p-0.5 shrink-0 text-[var(--tf-text-tertiary)] cursor-pointer opacity-0 group-hover:opacity-100 hover:text-[var(--tf-danger-text)] transition-opacity">
+        <Trash2 size={11} />
+      </button>
+    </div>
+  ) : (
+    <button onClick={handleAddDir}
+      className="flex items-center gap-1.5 text-[12px] text-[var(--tf-text-tertiary)] cursor-pointer hover:text-[var(--tf-text)] transition-colors">
+      <FolderPlus size={13} className="shrink-0" />
+      <span>Datenordner verbinden</span>
+    </button>
+  );
+
   return (
     <div className="space-y-2">
-      <div className="p-[16px] rounded-[var(--tf-radius)] space-y-3"
-        style={{ border: '0.5px solid var(--tf-border)' }}>
-
-        {/* Header: title + folder location */}
-        <div className="flex items-start justify-between gap-4">
-          <div className="space-y-0.5">
-            <p className="text-[13px] font-medium text-[var(--tf-text)]">Index aktualisieren</p>
-            <p className="text-[12px] text-[var(--tf-text-secondary)]">{indexInfo}</p>
-            {statusText && (
-              <p className="text-[11px] text-[var(--tf-text-tertiary)]">{statusText}</p>
-            )}
-          </div>
-          <div className="shrink-0">
-            {dataDir ? (
-              <div className="flex items-center gap-1.5 group">
-                <FolderOpen size={13} className="text-[var(--tf-text-tertiary)]" />
-                <span className="text-[12px] text-[var(--tf-text-tertiary)]">{dataDir.folderName ?? dataDir.label}</span>
-                <button onClick={handleChangeDir} title="Ordner wechseln"
-                  className="p-0.5 text-[var(--tf-text-tertiary)] cursor-pointer opacity-0 group-hover:opacity-100 hover:text-[var(--tf-text)] transition-opacity">
-                  <Pencil size={11} />
-                </button>
-                <button onClick={handleRemoveDir} title="Ordner trennen"
-                  className="p-0.5 text-[var(--tf-text-tertiary)] cursor-pointer opacity-0 group-hover:opacity-100 hover:text-[var(--tf-danger-text)] transition-opacity">
-                  <Trash2 size={11} />
-                </button>
-              </div>
-            ) : (
-              <button onClick={handleAddDir}
-                className="flex items-center gap-1.5 text-[12px] text-[var(--tf-text-tertiary)] cursor-pointer hover:text-[var(--tf-text)] transition-colors">
-                <FolderPlus size={13} />
-                <span>Datenordner verbinden</span>
-              </button>
-            )}
-          </div>
-        </div>
-
-        {dirError && <p className="text-[11px] text-[var(--tf-danger-text)]">{dirError}</p>}
-
-        {/* Actions */}
-        <div className="flex items-center gap-2 flex-wrap">
-          {!running ? (
-            allNew || chunkCount === 0 ? (
-              <Button variant="secondary" size="sm" icon={Database} disabled={docCount === 0}
-                onClick={() => runIndex(true)}>Indexierung starten</Button>
-            ) : (
-              <>
-                <Button variant="secondary" size="sm" icon={Database} disabled={docCount === 0}
-                  onClick={() => runIndex(false)}>Aktualisieren</Button>
-                <Button variant="secondary" size="sm" icon={RefreshCw} disabled={docCount === 0}
-                  onClick={() => runIndex(true)}>Komplett neu aufbauen</Button>
-              </>
-            )
+      <ActionCard
+        title="Index aktualisieren"
+        status={indexInfo}
+        hinweis={statusText || undefined}
+        kopfAktion={ordnerSteuerung}
+        notiz={dirError ? <p className="text-[11px] text-[var(--tf-danger-text)]">{dirError}</p> : undefined}
+      >
+        {!running ? (
+          allNew || chunkCount === 0 ? (
+            <Button variant="secondary" size="sm" icon={Database} disabled={docCount === 0}
+              onClick={() => runIndex(true)}>Indexierung starten</Button>
           ) : (
-            <Button variant="danger" size="sm" icon={Square}
-              onClick={() => abortRef.current.abort()}>Abbrechen</Button>
-          )}
-        </div>
-      </div>
+            <>
+              <Button variant="secondary" size="sm" icon={Database} disabled={docCount === 0}
+                onClick={() => runIndex(false)}>Aktualisieren</Button>
+              <Button variant="secondary" size="sm" icon={RefreshCw} disabled={docCount === 0}
+                onClick={() => runIndex(true)}>Komplett neu aufbauen</Button>
+            </>
+          )
+        ) : (
+          <Button variant="danger" size="sm" icon={Square}
+            onClick={() => abortRef.current.abort()}>Abbrechen</Button>
+        )}
+      </ActionCard>
 
       <IndexProgress status={status} running={running} />
 

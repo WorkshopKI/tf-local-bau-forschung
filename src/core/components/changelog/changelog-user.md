@@ -19,6 +19,12 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v6.16 — 2026-08
+
+### Verbesserungen
+- In der Datenpflege unter „Suche & Index" stehen die Vektoren der Ähnlichkeitssuche jetzt direkt unter dem Dokumenten-Index — Sie sehen sie ohne zu scrollen. Die Dokumentenquellen, die man einmal einstellt, sind dafür nach unten gerückt.
+- Die vier Karten oben auf derselben Seite sind deutlich flacher: ihre Texte laufen jetzt über die volle Kartenbreite, statt sich neben dem Ordner-Knopf auf ein paar Silben pro Zeile zu quetschen.
+
 ## v6.15 — 2026-08
 
 ### Neu

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { RefreshCw, FolderOpen, Trash2, FolderPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useStorage } from '@/core/hooks/useStorage';
+import { ActionCard } from './ActionCard';
 import type { DirectoryEntry } from '@/core/types/config';
 
 interface ActionCardDocumentsProps {
@@ -58,29 +59,9 @@ export function ActionCardDocuments({ docCount, setDocCount }: ActionCardDocumen
     refreshDirs(); await loadDirCounts();
   };
 
-  return (
-    <div className="p-[16px] rounded-[var(--tf-radius)] space-y-3"
-      style={{ border: '0.5px solid var(--tf-border)' }}>
-
-      {/* Header */}
-      <div className="flex items-start justify-between gap-4">
-        <div className="space-y-0.5">
-          <p className="text-[13px] font-medium text-[var(--tf-text)]">Dokumente scannen</p>
-          <p className="text-[12px] text-[var(--tf-text-secondary)]">
-            {docCount > 0 ? `${docCount} Dokumente gesamt` : dirs.length > 0 ? 'Keine Dokumente importiert' : 'Keine Ordner verbunden'}
-          </p>
-          {result && <p className="text-[11px] text-[var(--tf-text-tertiary)]">{result}</p>}
-        </div>
-        <div className="shrink-0">
-          <button onClick={handleAdd}
-            className="flex items-center gap-1.5 text-[12px] text-[var(--tf-text-tertiary)] cursor-pointer hover:text-[var(--tf-text)] transition-colors">
-            <FolderPlus size={13} />
-            <span>{dirs.length > 0 ? 'Ordner hinzufuegen' : 'Ordner verbinden'}</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Connected folders with per-dir counts */}
+  /** Die verbundenen Ordner mit ihrer Dokumentzahl — plus ein etwaiger Fehler. */
+  const notiz = (dirs.length > 0 || error) ? (
+    <>
       {dirs.length > 0 && (
         <div className="space-y-1">
           {dirs.map(dir => (
@@ -93,25 +74,37 @@ export function ActionCardDocuments({ docCount, setDocCount }: ActionCardDocumen
                 )}
               </div>
               <button onClick={() => handleRemove(dir.id)} title="Ordner trennen"
-                className="p-0.5 text-[var(--tf-text-tertiary)] cursor-pointer opacity-0 group-hover:opacity-100 hover:text-[var(--tf-danger-text)] transition-opacity">
+                className="p-0.5 shrink-0 text-[var(--tf-text-tertiary)] cursor-pointer opacity-0 group-hover:opacity-100 hover:text-[var(--tf-danger-text)] transition-opacity">
                 <Trash2 size={11} />
               </button>
             </div>
           ))}
         </div>
       )}
-
       {error && <p className="text-[11px] text-[var(--tf-danger-text)]">{error}</p>}
+    </>
+  ) : undefined;
 
-      {/* Actions */}
+  return (
+    <ActionCard
+      title="Dokumente scannen"
+      status={docCount > 0 ? `${docCount} Dokumente gesamt` : dirs.length > 0 ? 'Keine Dokumente importiert' : 'Keine Ordner verbunden'}
+      hinweis={result ?? undefined}
+      kopfAktion={
+        <button onClick={handleAdd}
+          className="flex items-center gap-1.5 text-[12px] text-[var(--tf-text-tertiary)] cursor-pointer hover:text-[var(--tf-text)] transition-colors">
+          <FolderPlus size={13} className="shrink-0" />
+          <span>{dirs.length > 0 ? 'Ordner hinzufuegen' : 'Ordner verbinden'}</span>
+        </button>
+      }
+      notiz={notiz}
+    >
       {dirs.length > 0 ? (
-        <div className="flex items-center gap-2 flex-wrap">
-          <Button variant="secondary" size="sm" icon={RefreshCw} disabled={scanning}
-            onClick={handleScan}>{scanning ? 'Scanne...' : 'Erneut scannen'}</Button>
-        </div>
+        <Button variant="secondary" size="sm" icon={RefreshCw} disabled={scanning}
+          onClick={handleScan}>{scanning ? 'Scanne...' : 'Erneut scannen'}</Button>
       ) : (
         <p className="text-[11px] text-[var(--tf-warning-text)]">Dokumentenordner verbinden um Dokumente zu scannen</p>
       )}
-    </div>
+    </ActionCard>
   );
 }

@@ -111,15 +111,15 @@ export function getKurationPanels(): SettingsPanel[] {
     sections: [
       { id: 'sec-index', label: 'Dokumenten-Index pflegen', gruppe: 'Dokumenten-Index pflegen', keywords: 'suchindex index indexieren orama embedding bulk-scan dokumente einlesen aufbauen verwaltung' },
       { id: 'sec-index-zustand', label: 'Zustand', gruppe: 'Zustand', keywords: 'status kennzahlen textabschnitte dokumente qualität modell backend webgpu übersicht' },
-      ...(features.dokumentenscan
-        ? [{ id: 'sec-dokumentenquellen', label: 'Dokumentenquellen', gruppe: 'Dokumentenquellen', keywords: 'dms quellen ordner pfade smb aktivieren indexieren triage scan verzeichnisse' }]
-        : []),
-      { id: 'sec-index-erweitert', label: 'Modelle, Suchqualität, Zurücksetzen', gruppe: 'Selten gebraucht', keywords: 'modell wechseln metadata llm eval smoke-test zurücksetzen seed konfiguration pipeline' },
       // Steht seit v4.127 in einer EIGENEN Karte, nicht mehr unter „Selten
       // gebraucht" — die Registry blieb zurueck und schickte Suchende an den
       // alten Platz. Der Guard sah es nicht, weil es die alte Karte weiterhin
       // gibt (sie traegt jetzt nur noch `sec-index-erweitert`).
       { id: 'sec-embedding-korpus', label: 'Vektoren der Ähnlichkeitssuche', gruppe: 'Vektoren der Ähnlichkeitssuche', keywords: 'korpus vektor vektorindex ähnliche themen embedding neu aufbauen nachziehen centroid auslastung stage 2 matching spiegel' },
+      ...(features.dokumentenscan
+        ? [{ id: 'sec-dokumentenquellen', label: 'Dokumentenquellen', gruppe: 'Dokumentenquellen', keywords: 'dms quellen ordner pfade smb aktivieren indexieren triage scan verzeichnisse' }]
+        : []),
+      { id: 'sec-index-erweitert', label: 'Modelle, Suchqualität, Zurücksetzen', gruppe: 'Selten gebraucht', keywords: 'modell wechseln metadata llm eval smoke-test zurücksetzen seed konfiguration pipeline' },
     ],
     render: () => <SucheIndexPanel />,
   });

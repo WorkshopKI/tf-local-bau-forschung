@@ -184,6 +184,29 @@ export function SucheIndexPanel(): React.ReactElement {
             )}
           </SettingsGruppe>
 
+          {/* v4.127: Die Vektoren standen unter „Selten gebraucht" und zeigten dort
+              nur an, DASS es sie gibt — gebaut wurden sie im Auslastungs-Modul.
+              Sie sind aber die zweite Hälfte eben dieses Index: ohne sie ist „auch
+              ähnliche Themen" wirkungslos. Deshalb eigene Karte neben „Index
+              pflegen", und der Bau liegt hier.
+
+              Seit v6.16 steht die Karte DIREKT unter „Index pflegen", nicht mehr
+              hinter den Dokumentenquellen: die Quellen stellt man einmal ein, die
+              Vektoren schaut man immer wieder an — und die Karte lag so weit
+              unten, dass man zu ihr scrollen musste.
+
+              `unterzeile`/`hint` stehen in Expression-Form, weil deutsche
+              Anführungszeichen darin vorkommen: das Schlusszeichen gerät leicht
+              zum ASCII-Zeichen und beendet dann das Attribut mitten im Satz. */}
+          <SettingsGruppe
+            id="sec-embedding-korpus"
+            titel="Vektoren der Ähnlichkeitssuche"
+            unterzeile={'Ein Vektor je Vorhaben — trägt „auch ähnliche Themen“.'}
+            hint={'Der Volltext-Index findet Wörter, diese Vektoren finden Themen: eine Suche nach „Verfahren zur Kadaversuche aus der Luft“ trifft ein Vorhaben auch dann, wenn keines dieser Wörter in seinem Titel steht. Gebaut wird einmal für das ganze Team; jeder andere Rechner holt das Ergebnis in ~10 Sekunden vom Datenspeicher. Der Bau selbst lädt ein ~200-MB-Modell in diesen Browser-Tab und läuft je nach Bestand ~40 Minuten.'}
+          >
+            <EmbeddingKorpusSection />
+          </SettingsGruppe>
+
           {features.dokumentenscan && (
           <SettingsGruppe
             id="sec-dokumentenquellen"
@@ -216,24 +239,6 @@ export function SucheIndexPanel(): React.ReactElement {
             )}
           </SettingsGruppe>
           )}
-
-          {/* v4.127: Die Vektoren standen unter „Selten gebraucht" und zeigten dort
-              nur an, DASS es sie gibt — gebaut wurden sie im Auslastungs-Modul.
-              Sie sind aber die zweite Hälfte eben dieses Index: ohne sie ist „auch
-              ähnliche Themen" wirkungslos. Deshalb eigene Karte neben „Index
-              pflegen", und der Bau liegt hier.
-
-              `unterzeile`/`hint` stehen in Expression-Form, weil deutsche
-              Anführungszeichen darin vorkommen: das Schlusszeichen gerät leicht
-              zum ASCII-Zeichen und beendet dann das Attribut mitten im Satz. */}
-          <SettingsGruppe
-            id="sec-embedding-korpus"
-            titel="Vektoren der Ähnlichkeitssuche"
-            unterzeile={'Ein Vektor je Vorhaben — trägt „auch ähnliche Themen“.'}
-            hint={'Der Volltext-Index findet Wörter, diese Vektoren finden Themen: eine Suche nach „Verfahren zur Kadaversuche aus der Luft“ trifft ein Vorhaben auch dann, wenn keines dieser Wörter in seinem Titel steht. Gebaut wird einmal für das ganze Team; jeder andere Rechner holt das Ergebnis in ~10 Sekunden vom Datenspeicher. Der Bau selbst lädt ein ~200-MB-Modell in diesen Browser-Tab und läuft je nach Bestand ~40 Minuten.'}
-          >
-            <EmbeddingKorpusSection />
-          </SettingsGruppe>
 
           <SettingsGruppe titel="Selten gebraucht" traegt={['sec-index-erweitert']}>
             <SettingsKlappe
