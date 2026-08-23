@@ -110,7 +110,7 @@ export interface UseDoppelfoerderung {
   starte: (zeilen: readonly MeldungsZeile[], wahl: BereichsWahl) => void;
   brichAb: () => void;
   zuruecksetzen: () => void;
-  /** Schlagworte einer Zeile ersetzen und NUR ihre Wortlaut-Stufe neu fahren. */
+  /** Schlagworte einer Zeile ersetzen; Wortlaut + Träger sofort, Ähnlichkeit falls sie fehlt. */
   ersetzeSchlagworte: (zeilenNr: number, schlagworte: readonly string[]) => void;
 }
 
@@ -131,6 +131,31 @@ export function useDoppelfoerderung(schwelle: number): UseDoppelfoerderung {
   const abortRef = useRef<AbortController | null>(null);
   /** Der zuletzt gebaute Abgleich-Kontext — für das Nachrechnen einer Zeile. */
   const kontextRef = useRef<AbgleichKontext | null>(null);
+  /**
+   * Der aktuelle Stand der Rohergebnisse, ohne den Umweg über `setRoh`.
+   *
+   * `ersetzeSchlagworte` muss die Zeile LESEN, bevor es asynchron einbettet —
+   * innerhalb eines funktionalen `setRoh` ginge das nur, wenn der Updater
+   * nebenbei etwas anstösst, und das darf er nicht (StrictMode ruft ihn zweimal).
+   */
+  const rohRef = useRef<readonly RohErgebnis[]>([]);
+  rohRef.current = roh;
+
+  /**
+   * Eine Zeile einbetten — die eine Stelle, die das Modell kennt.
+   *
+   * Steht hier statt in `starte`, weil `ersetzeSchlagworte` sie ebenfalls
+   * braucht: eine Zeile, deren KI-Lauf scheiterte, holt ihre Ähnlichkeit erst
+   * beim Nachtragen der Schlagworte.
+   */
+  const embedden = useCallback(async (text: string): Promise<number[] | null> => {
+    try {
+      const cfg = getModelById(await getActiveModelId(storage.idb));
+      return await embedQueryCached(text, cfg, 'query');
+    } catch {
+      return null;
+    }
+  }, [storage]);
 
   const brichAb = useCallback(() => {
     abortRef.current?.abort();
@@ -208,15 +233,6 @@ export function useDoppelfoerderung(schwelle: number): UseDoppelfoerderung {
         };
         kontextRef.current = ctx;
 
-        const embedden = async (text: string): Promise<number[] | null> => {
-          try {
-            const cfg = getModelById(await getActiveModelId(storage.idb));
-            return await embedQueryCached(text, cfg, 'query');
-          } catch {
-            return null;
-          }
-        };
-
         const gesammelt: RohErgebnis[] = [];
         for (const [i, zeile] of zeilen.entries()) {
           if (ctrl.signal.aborted) return;
@@ -274,32 +290,58 @@ export function useDoppelfoerderung(schwelle: number): UseDoppelfoerderung {
         setFortschritt(null);
       }
     })();
-  }, [activeProgrammId, bridge, laeuft, storage]);
+  }, [activeProgrammId, bridge, embedden, laeuft, storage]);
 
   /**
-   * Schlagworte von Hand ändern: nur die Wortlaut-Stufe läuft neu.
+   * Schlagworte von Hand ändern.
    *
    * Der KI-Lauf wiederholt sich NICHT — er hat seine Arbeit getan, und die
-   * Ähnlichkeitsstufe hängt am Text der Zeile, nicht an den Schlagworten. Die
-   * Korrektur kostet damit Millisekunden statt einer neuen Wartezeit.
+   * Ähnlichkeitsstufe hängt am Text der Zeile, nicht an den Schlagworten. Hatte
+   * die Zeile schon Ähnlichkeitswerte, werden sie übernommen; die Korrektur
+   * kostet dann Millisekunden.
+   *
+   * **Hat sie noch keine, läuft die Stufe jetzt nach.** Das ist der Fall, in dem
+   * die KI gar nicht erreichbar war: dort kam der Stapel nie bis zur
+   * Ähnlichkeit, und ohne sie liesse sich das Träger-Urteil nicht auslösen —
+   * genau das, was diesen Eingabeweg lohnt. Die Stufe braucht keine KI, nur das
+   * Embedding-Modell; fehlt auch das, bleibt es beim Wortlaut.
    */
   const ersetzeSchlagworte = useCallback((zeilenNr: number, schlagworte: readonly string[]) => {
     const k = kontextRef.current;
     if (!k) return;
-    setRoh(alt => alt.map(e => {
-      if (e.zeile.zeilenNr !== zeilenNr) return e;
-      const wortlaut = wortlautAbdeckung(schlagworte, k.korpus);
-      // Die Ähnlichkeitswerte der Zeile bleiben: sie hängen am TEXT der Meldung,
-      // nicht an den Schlagworten. Sie neu zu berechnen hiesse, dasselbe
-      // Embedding ein zweites Mal zu bilden — für dasselbe Ergebnis.
-      const vektor = new Map(
-        e.befunde.filter(b => b.aehnlichkeit !== null).map(b => [b.aktenzeichen, b.aehnlichkeit as number]),
+    const alt = rohRef.current.find(e => e.zeile.zeilenNr === zeilenNr);
+    if (!alt) return;
+
+    const wortlaut = wortlautAbdeckung(schlagworte, k.korpus);
+    const schonDa = new Map(
+      alt.befunde.filter(b => b.aehnlichkeit !== null)
+        .map(b => [b.aktenzeichen, b.aehnlichkeit as number]),
+    );
+
+    const uebernimm = (vektor: ReadonlyMap<string, number>): void => {
+      setRoh(liste => liste.map(e => (
+        e.zeile.zeilenNr === zeilenNr
+          // Der Fehlervermerk fällt weg: die Zeile hat jetzt Schlagworte, auch
+          // wenn die KI keine liefern konnte. Genau dafür ist der Weg da.
+          ? baueRohErgebnis(e.zeile, schlagworte, wortlaut, vektor, k, k.korpus.size)
+          : e
+      )));
+    };
+
+    if (schonDa.size > 0 || k.embeddings.size === 0) { uebernimm(schonDa); return; }
+
+    // Erst die Wortlaut-Stufe zeigen, dann die Ähnlichkeit nachreichen: das
+    // Einbetten dauert rund 100 ms, und ein Feld, das nach dem Übernehmen kurz
+    // leer bliebe, sähe aus wie ein verschluckter Klick.
+    uebernimm(schonDa);
+    void (async () => {
+      const vektor = await aehnlichkeitsStufe(
+        aehnlichkeitsText(alt.zeile.thema, alt.zeile.aufgabenbeschreibung),
+        k, embedden, new Set(wortlaut.proAktenzeichen.keys()), new AbortController().signal,
       );
-      // Der Fehlervermerk fällt weg: die Zeile hat jetzt Schlagworte, auch wenn
-      // die KI keine liefern konnte. Genau dafür ist der Eingabeweg da.
-      return baueRohErgebnis(e.zeile, schlagworte, wortlaut, vektor, k, k.korpus.size);
-    }));
-  }, []);
+      if (vektor && vektor.size > 0) uebernimm(vektor);
+    })();
+  }, [embedden]);
 
   // Das Urteil entsteht hier, beim Rendern — nicht beim Lauf. Ein Zug am Regler
   // wirkt damit sofort auf alle Zeilen, ohne dass ein einziger KI-Aufruf oder
