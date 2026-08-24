@@ -196,21 +196,84 @@ dem Vorbild der MAP-Checkliste (`gruppe` · `kriterium` · `herkunft` · `giltFu
   Laden weg.
 - Ohne Katalog bewertet der Prüfer unverändert die vier generischen Dimensionen.
 
-### Er startet aus — und das ist der Punkt
+### Er startete aus — seit v6.36 ist er an
 
-`SEED_QS_SKILL.aktiv: false`. Sein Prompt ist an echten Abschnitten nie gemessen worden,
-und ein Prüfer, der überall etwas findet, ist schlechter als keiner (dieselbe Haltung
-wie bei der Falsch-Positiv-Kontrolle des MAP-Substanzchecks). Freigeschaltet wird er
-erst nach dem Abnahme-Gate: **ein bekannt guter Abschnitt dreimal geprüft muss dreimal
-schweigen, ein gesalzener dreimal treffen** — gemessen gegen die interne KI, nicht gegen
-einen OpenRouter-Zwilling. Der Kill-Switch wirkt an BEIDEN Wegen (automatisch und
-manuell), sonst hieße „aus" je nach Aufrufweg etwas anderes.
+`SEED_QS_SKILL.aktiv: true`. Von v6.27 bis v6.36 stand er auf `false`: sein Prompt war an
+echten Abschnitten nie gemessen worden, und ein Prüfer, der überall etwas findet, ist
+schlechter als keiner (dieselbe Haltung wie bei der Falsch-Positiv-Kontrolle des
+MAP-Substanzchecks). Das Abnahme-Gate — **ein bekannt guter Abschnitt dreimal geprüft
+muss dreimal schweigen, ein gesalzener dreimal treffen** — war als Sperre gedacht.
 
-Rollout `ga-fachpruefer-2026-08`. Die Migration setzt `aktiv: false`, **wenn das Feld
-fehlt** — der Teil, den die erste Fassung falsch hatte: „`aktiv` gar nicht anfassen"
-klang nach Vorsicht, hieß auf einem Bestands-Share aber „sofort scharf", weil dort nie
-jemand etwas gesetzt hatte und `undefined` als aktiv gilt. Ein **explizites** `true`
-oder `false` bleibt unangetastet: das ist eine Entscheidung, keine Lücke.
+Aufgehoben wurde die Sperre am 24.08.2026, mit Begründung: der Prüfer ist ausschließlich
+in **dev und pl** einkompiliert, und pl wird produktiv nicht genutzt. Der einzige Preis
+einer noch ungemessenen Prüfung ist damit die eigene Wartezeit (drei KI-Läufe je
+Abschnitt statt zwei), und die Messung findet an echten Läufen statt statt an einem
+Testkorpus davor. Die Prüfschritte des Gates gelten weiter — sie blockieren nur nicht
+mehr.
+
+Der Kill-Switch bleibt am Skill und wirkt an BEIDEN Wegen (automatisch und manuell),
+sonst hieße „aus" je nach Aufrufweg etwas anderes. Er kostet seit v6.36 **keine
+Form-Regel** mehr: die hängen am Workflow (siehe unten), nicht am Prüfer.
+
+Rollout: `ga-fachpruefer-2026-08` setzte `aktiv: false`, **wenn das Feld fehlt** — der
+Teil, den die erste Fassung falsch hatte: „`aktiv` gar nicht anfassen" klang nach
+Vorsicht, hieß auf einem Bestands-Share aber „sofort scharf", weil dort nie jemand etwas
+gesetzt hatte und `undefined` als aktiv gilt. `ga-pruefer-aktiv-2026-08` dreht genau
+dieses `false` auf `true`; ein späteres bewusstes Abschalten bleibt (Marker).
+
+## Der Standardsatz am Workflow (v6.36)
+
+`WorkflowDef.standardRegelIds` — die Bibliotheks-Regeln, die für **jeden generativen
+Schritt** dieses Artefakts gelten. `resolveRegeln` hängt sie hinter die eigenen
+Zuordnungen des Skills; `SkillRecord.ohneStandard` nimmt einzelne wieder heraus.
+
+**Der Anlass, gezählt**: 37 Regel-Deklarationen über A–G, davon 25 dieselbe Regel
+mehrfach (Interpunktion 7×, Überschriften 7×, Aufzählungen 6×, Passiv-Stil 5×). Eine
+Änderung an „keine Aufzählungen" waren sechs Änderungen. Die Konstante, die genau das
+verhindern sollte (`GA_ABSCHNITT_REGEL_IDS`), hielt ihr eigenes Versprechen nicht: E und
+F benutzten sie nie, und G fehlte die Aufzählungs-Vorgabe ganz.
+
+**Warum am Workflow und nicht am Prüfer** (die erste Planfassung wollte ihn dort): am
+Prüfer wäre der Satz an dessen `aktiv`-Schalter gekoppelt gewesen — wer den fachlichen
+Prüfer abschaltet, hätte damit stillschweigend vier Form-Regeln aus allen sieben
+Abschnitten entfernt. Der Satz beschreibt außerdem das ARTEFAKT („jeder Abschnitt eines
+ZIM-EP-Gutachtens ist geschlossener Fließtext"), nicht den Prüfer. Er gilt für die
+`steps`; die `pruefer` erben ihn **nicht** (sie erzeugen keinen Abschnittstext).
+
+**`keineAufzaehlungen` wurde dabei eine Bibliotheks-Regel** (`seed-fliesstext-aufzaehlungen`)
+statt einer Vorgabe je Skill. Der Seed sagte über ihre Geschwister-Regel selbst, sie sei
+„die andere Hälfte derselben Umsetzung" — die beiden Hälften lagen nur in zwei
+verschiedenen Mechaniken. Damit hat der Standardsatz **ein** Vokabular (Regel-IDs), und
+die Abwahl auch.
+
+**Was sich an der Wirkung ändert**: nichts, außer einer geschlossenen Lücke. Die
+aufgelöste Regelliste ist A–F identisch (7/6/5/5/5/5), G gewinnt die Aufzählungs-Regel
+(4 → 5). Am gespeicherten Eval-Korpus gemessen (224 echte Abschnitts-Texte): kein
+einziger G-Text trägt eine Aufzählung, kein E/F-Text trifft ein Passiv-Muster — beide
+geschlossenen Lücken schlagen null-mal an. Eine Prompt-Zeile verschiebt sich: „Der finale
+Text ist Fließtext ohne Aufzählungen" wandert von den Vorgaben ans Ende der Regeln.
+
+**Was bewusst NICHT dazugehört**: `satzlaengeMax: 25` steht nur an A, E und F — drei von
+sieben ist keine Norm, sondern eine Eigenschaft dieser Abschnitte. Und der Prompt-Block
+bleibt **flach** (kein „für jeden Abschnitt" / „für diesen zusätzlich"-Split): er ist
+Modell-Eingabe, ihn umzubauen wäre eine Änderung, die eine eigene Messung braucht.
+
+**E und F wählen die Passiv-Regel ab** (`ohneStandard: ['seed-passiv-stil']`). Sie sind
+reine Prompt-Abschnitte, deren Satzmuster der Prompt vorgibt. Bis v6.36 war das eine
+Lücke in ihrer Zuordnung — von einem Versehen nicht unterscheidbar; jetzt ist es eine
+Ansage, die im Skill-Editor als leeres Häkchen neben der „Standard"-Marke steht.
+
+**UI**: der Skill-Editor markiert geerbte Regeln mit „Standard" und schaltet dort die
+**Abwahl** statt der Zuordnung; der Workflow-Editor zeigt Satz und Prüfer read-only an
+(geändert wird am Skill oder in der `registry.json`). `skillsUsingRegel` zählt die
+Erbschaft mit — sonst stünde an den vier meistgenutzten Regeln überall „—" und die
+Löschen-Rückfrage wäre falsch; das Löschen räumt die ID auch aus dem Satz.
+
+Rollout `ga-standardsatz-2026-08`: setzt den Satz am Workflow (nur wenn dort keiner
+steht), entfernt am Abschnitt die IDs des Satzes, entfernt die `keineAufzaehlungen`-
+Vorgabe **nur bei byte-gleichem Seed-Wert** (ein kuratierter `hinweis` bleibt und läuft
+dann sichtbar neben der Standard-Regel — sie stillschweigend zu verschärfen wäre das
+Schlimmere) und schreibt E/F ihre Abwahl.
 
 ## QS-Regel-Bindung je Artefakt
 

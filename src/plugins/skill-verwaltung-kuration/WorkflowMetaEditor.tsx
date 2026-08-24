@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import type { ArtefaktTyp, WorkflowDef, WorkflowEbene } from '@/core/services/skills';
+import type { ArtefaktTyp, SkillRegistryFile, WorkflowDef, WorkflowEbene } from '@/core/services/skills';
 import { ARTEFAKT_TYP_LABEL, EBENE_LABEL } from './workflowShared';
 import { Switch } from './regelShared';
 
@@ -18,7 +18,19 @@ const FIELD_LABEL = 'block text-[10.5px] font-medium uppercase tracking-[0.06em]
 const ARTEFAKT_OPTIONS = Object.keys(ARTEFAKT_TYP_LABEL) as ArtefaktTyp[];
 const EBENE_OPTIONS = Object.keys(EBENE_LABEL) as WorkflowEbene[];
 
-export function WorkflowMetaEditor({ def, canEdit, isSeed, onSaveMeta, onToggleFreigabe, onToggleAktiv, onDelete }: {
+/** Anzeige-Name einer Regel-ID; eine ID ohne Record wird als solche gezeigt. */
+function regelName(file: SkillRegistryFile, id: string): string {
+  return file.regeln.find(r => r.id === id)?.name ?? `${id} (fehlt)`;
+}
+/** Anzeige-Name eines Prüfers — mit Vermerk, wenn er stillgelegt ist. */
+function prueferLabel(file: SkillRegistryFile, id: string): string {
+  const s = file.skills.find(x => x.id === id);
+  if (!s) return `${id} (fehlt)`;
+  return s.aktiv === false ? `${s.name} (aus)` : s.name;
+}
+
+export function WorkflowMetaEditor({ file, def, canEdit, isSeed, onSaveMeta, onToggleFreigabe, onToggleAktiv, onDelete }: {
+  file: SkillRegistryFile;
   def: WorkflowDef;
   canEdit: boolean;
   isSeed: boolean;
@@ -66,6 +78,28 @@ export function WorkflowMetaEditor({ def, canEdit, isSeed, onSaveMeta, onToggleF
           <Switch on={aktiv} disabled={ro} onClick={() => onToggleAktiv(def)} />
         </div>
       </div>
+
+      {/* Was dieser Workflow JEDEM seiner Schritte auferlegt. Read-only: der Satz
+          ändert sich selten (das ist sein Zweck), aber er darf nicht unsichtbar sein —
+          sonst suchte man die vier Regeln bei den Abschnitten, wo sie nicht mehr
+          stehen. Geändert wird er am Skill (Abwahl) oder in der registry.json. */}
+      {(def.standardRegelIds?.length || def.pruefer?.length) && (
+        <div className="mt-3.5 flex flex-col gap-1.5 border-t-[0.5px] border-[var(--tf-border)] pt-3">
+          {def.standardRegelIds && def.standardRegelIds.length > 0 && (
+            <p className="text-[11.5px] leading-[1.5] text-[var(--tf-text-tertiary)] m-0">
+              <span className="text-[var(--tf-text-secondary)]">Standardsatz</span> — gilt für jeden
+              Schritt, sofern der Abschnitt ihn nicht abwählt:{' '}
+              {def.standardRegelIds.map(id => regelName(file, id)).join(' · ')}
+            </p>
+          )}
+          {def.pruefer && def.pruefer.length > 0 && (
+            <p className="text-[11.5px] leading-[1.5] text-[var(--tf-text-tertiary)] m-0">
+              <span className="text-[var(--tf-text-secondary)]">Prüfer</span> — läuft nach jeder
+              Erzeugung: {def.pruefer.map(id => prueferLabel(file, id)).join(' · ')}
+            </p>
+          )}
+        </div>
+      )}
 
       {typGeaendert && (
         <p className="text-[11.5px] text-[var(--tf-warning-text)] mt-2.5">

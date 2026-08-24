@@ -53,6 +53,8 @@ export {
 export {
   getSkillById,
   resolveRegeln,
+  standardRegelIdsFuer,
+  workflowStandardFuer,
   skillsUsingRegel,
   workflowStepsUsingSkill,
   isKnownRegelTyp,

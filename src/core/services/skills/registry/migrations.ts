@@ -61,6 +61,7 @@ import {
   G_ABSCHNITT_OPTS_PFLICHT_ALT,
   INTERPUNKTION_REGEL_ID,
   UEBERSCHRIFTEN_REGEL_ID,
+  GA_STANDARD_REGEL_IDS,
   ZIM_EP_DEF,
   QS_BASIS_SKILL_ID,
   SEED_QS_SKILL,
@@ -153,6 +154,12 @@ export const GA_BC_UMFANG_DURCHSETZEN_MIGRATION = 'ga-bc-umfang-durchsetzen-2026
 
 /** ID der Bindung der „keine Überschriften im Fließtext"-Regel an A–G. */
 export const GA_UEBERSCHRIFTEN_MIGRATION = 'ga-keine-ueberschriften-2026-08';
+
+/** ID des Standardsatz-Umzugs (vier Form-Regeln vom Abschnitt an den Workflow). */
+export const GA_STANDARDSATZ_MIGRATION = 'ga-standardsatz-2026-08';
+
+/** ID der Freischaltung des fachlichen Prüfers (`aktiv: false` → `true`). */
+export const GA_PRUEFER_AKTIV_MIGRATION = 'ga-pruefer-aktiv-2026-08';
 
 export interface ReconcileResult {
   file: SkillRegistryFile;
@@ -905,6 +912,80 @@ function applyUeberschriften(skills: SkillRecord[]): SkillRecord[] {
       : s);
 }
 
+/**
+ * Der Standardsatz zieht an den Workflow um (v6.36).
+ *
+ * Ausgangslage: 37 Regel-Deklarationen über A–G, davon 25 dieselbe Regel mehrfach —
+ * Interpunktion 7×, Überschriften 7×, Aufzählungen 6×, Passiv-Stil 5×. Eine Änderung
+ * an „keine Aufzählungen" war damit sechs Änderungen.
+ *
+ * Drei Teile, jeder einzeln gegen kuratierte Edits gesichert:
+ *  1. **Der Satz kommt an den Workflow** — nur, wenn dort noch keiner steht.
+ *  2. **Die Zuordnung wird am Abschnitt entfernt**, aber nur die IDs, die im Satz
+ *     stehen; alles andere bleibt. Wer eine der vier Regeln zusätzlich zugeordnet
+ *     lässt, verliert nichts — `resolveRegeln` dedupliziert.
+ *  3. **Die `keineAufzaehlungen`-Vorgabe weicht der Bibliotheks-Regel**, aber NUR
+ *     wenn sie byte-gleich zum Seed-Wert ist (`{ schweregrad: 'fehler' }`). Hat jemand
+ *     sie auf `hinweis` gestellt, bleibt sie stehen und schlägt als eigene Vorgabe die
+ *     Standard-Regel nicht — beide liefen dann nebeneinander, was auffällt und
+ *     korrigierbar ist; sie stillschweigend zu verschärfen wäre das Schlimmere.
+ *
+ * E und F bekommen ihre bisher nur als Lücke existierende Ausnahme als `ohneStandard`
+ * geschrieben — ohne diese Zeile bekämen sie mit dem Satz eine Passiv-Regel, die sie
+ * nie hatten.
+ */
+function applyGaStandardsatz(file: SkillRegistryFile): SkillRegistryFile {
+  const satz = new Set(GA_STANDARD_REGEL_IDS);
+  const gaSkillIds = new Set(ZIM_EP_DEF.steps.map(s => s.skillId));
+  const ohneStandardSeed = new Map(
+    SEED_SKILLS_BG.filter(s => s.ohneStandard?.length).map(s => [s.id, s.ohneStandard as string[]]),
+  );
+  const skills = file.skills.map(s => {
+    if (!gaSkillIds.has(s.id)) return s;
+    const next: SkillRecord = { ...s };
+    let geaendert = false;
+    const bleibend = s.regelIds.filter(id => !satz.has(id));
+    if (bleibend.length !== s.regelIds.length) { next.regelIds = bleibend; geaendert = true; }
+    // Nur der unveränderte Seed-Wert weicht — ein kuratierter Schweregrad bleibt.
+    const auf = s.vorgaben?.keineAufzaehlungen;
+    if (auf && auf.schweregrad === 'fehler' && !auf.herkunft && !auf.persoenlichAnpassbar) {
+      const { keineAufzaehlungen: _weg, ...rest } = s.vorgaben as SkillVorgaben;
+      next.vorgaben = Object.keys(rest).length > 0 ? rest : undefined;
+      geaendert = true;
+    }
+    const seedAbwahl = ohneStandardSeed.get(s.id);
+    if (seedAbwahl && !s.ohneStandard) { next.ohneStandard = [...seedAbwahl]; geaendert = true; }
+    return geaendert ? { ...next, version: s.version + 1 } : s;
+  });
+  // Ein Share ohne `workflows` bekommt sie über `mergeMissingSeeds` — dann schon mit Satz.
+  if (!file.workflows) return { ...file, skills };
+  const workflows = file.workflows.map(w => (
+    w.id === ZIM_EP_DEF.id && (w.standardRegelIds ?? []).length === 0
+      ? { ...w, standardRegelIds: [...GA_STANDARD_REGEL_IDS], version: Math.max(w.version, 4) }
+      : w
+  ));
+  return { ...file, skills, workflows };
+}
+
+/**
+ * Der fachliche Prüfer geht an (v6.36).
+ *
+ * `applyFachpruefer` hatte ihn bewusst auf `false` gesetzt: seine Prüf-Qualität war
+ * ungemessen, und ein Prüfer, der überall etwas findet, kostet je Abschnitt einen
+ * KI-Lauf für Rauschen. Freigeschaltet wird er, weil er nur in dev und pl existiert
+ * und pl produktiv nicht genutzt wird — die Messung findet jetzt an echten Läufen
+ * statt statt an einem Testkorpus davor.
+ *
+ * Nur `false → true`: ein Share, auf dem jemand ihn nach der Freischaltung wieder
+ * abschaltet, ist durch den Marker geschützt (die Migration läuft genau einmal).
+ */
+function applyPrueferAktiv(skills: SkillRecord[]): SkillRecord[] {
+  return skills.map(s =>
+    s.id === QS_BASIS_SKILL_ID && s.aktiv === false
+      ? { ...s, aktiv: true, version: Math.max(s.version, 3) }
+      : s);
+}
+
 interface EinzelMigration {
   marker: string;
   /** Bekommt die GANZE Datei — Migrationen dürfen auch `regeln` anfassen. */
@@ -942,6 +1023,8 @@ const MIGRATIONEN: EinzelMigration[] = [
   { marker: GA_C_FINAL_UMFANG_MIGRATION, apply: nurSkills(applyCFinalUmfang) },
   { marker: GA_BC_UMFANG_DURCHSETZEN_MIGRATION, apply: nurSkills(applyBcUmfangDurchsetzen) },
   { marker: GA_UEBERSCHRIFTEN_MIGRATION, apply: nurSkills(applyUeberschriften) },
+  { marker: GA_STANDARDSATZ_MIGRATION, apply: applyGaStandardsatz },
+  { marker: GA_PRUEFER_AKTIV_MIGRATION, apply: nurSkills(applyPrueferAktiv) },
 ];
 
 /**

@@ -13,7 +13,7 @@
  * Bis zum Konsolidierungs-Pass lag dieser Inhalt in `seed.ts`. Reine Verschiebung.
  */
 import { SEED_TS, abschnittTemplate } from './ga-seed-basis';
-import { INTERPUNKTION_REGEL_ID, UEBERSCHRIFTEN_REGEL_ID } from './gutachten-kurzfassung.seed';
+import { PASSIV_REGEL_ID } from './gutachten-kurzfassung.seed';
 import type { QualitaetsRegel, SkillModifierKey, SkillRecord, SkillVorgaben } from './types';
 
 /** System-Rolle der Abschnitts-Skills B–G (allgemeiner als der A-Prompt). */
@@ -41,12 +41,12 @@ const G_PFLICHT_ANFANG =
   'Das Vorhaben wird sehr positive Auswirkungen auf das FuE-Potenzial und Know-how der '
   + 'Antragsteller haben. Im Unternehmen wird die Technologiekompetenz im Bereich';
 
-/**
- * Bibliotheks-Regeln, die JEDER generative Gutachten-Abschnitt B–G trägt. Eine
- * Konstante statt sieben Literale, damit die nächste geteilte Regel an genau einer
- * Stelle nachgezogen wird. (A erbt die Bibliothek ohnehin komplett.)
- */
-const GA_ABSCHNITT_REGEL_IDS = ['seed-passiv-stil', INTERPUNKTION_REGEL_ID, UEBERSCHRIFTEN_REGEL_ID];
+// Hier stand bis v6.36 `GA_ABSCHNITT_REGEL_IDS` — „die Regeln, die JEDER Abschnitt
+// B–G trägt", als Konstante gegen das siebenfache Literal. Die Konstante hielt ihr
+// eigenes Versprechen nicht: E und F benutzten sie nie. Der Satz lebt jetzt eine
+// Ebene höher, wo er hingehört — `ZIM_EP_DEF.standardRegelIds` (siehe
+// `GA_STANDARD_REGEL_IDS`), und die Ausnahme von E/F steht als `ohneStandard` an
+// ihnen selbst statt als Lücke.
 
 /**
  * Bibliotheks-Regeln der Abschnitte B–G — seit v2.296 LEER.
@@ -74,7 +74,6 @@ export const SEED_REGELN_BG: QualitaetsRegel[] = [];
 const SEED_VORGABEN_B: SkillVorgaben = {
   wortanzahl: { schweregrad: 'fehler', min: 400, max: 500, persoenlichAnpassbar: true },
   absatzMin: { schweregrad: 'fehler', min: 4 },
-  keineAufzaehlungen: { schweregrad: 'fehler' },
 };
 
 /**
@@ -87,13 +86,11 @@ const SEED_VORGABEN_B: SkillVorgaben = {
  */
 const SEED_VORGABEN_C: SkillVorgaben = {
   wortanzahl: { schweregrad: 'fehler', min: 300, max: 350, persoenlichAnpassbar: true },
-  keineAufzaehlungen: { schweregrad: 'fehler' },
 };
 
 /** Umfangs-/Form-Vorgaben des Abschnitts D (vormals `seed-d-*`). */
 const SEED_VORGABEN_D: SkillVorgaben = {
   wortanzahl: { schweregrad: 'fehler', min: 300, max: 350, persoenlichAnpassbar: true },
-  keineAufzaehlungen: { schweregrad: 'fehler' },
 };
 
 /**
@@ -111,20 +108,18 @@ const SEED_VORGABEN_D: SkillVorgaben = {
  * 85 Wörter. Der Boden fängt den entarteten Lauf, nicht den normalen — und er ist
  * ein `hinweis`, weil eine einzige Messung keine Fehlergrenze hat.
  *
- * `keineAufzaehlungen` ist dagegen hart: beide Prompts verlangen ausdrücklich
- * Fließtext, und alle übrigen Abschnitte führen die Vorgabe seit jeher als Fehler.
+ * „Keine Aufzählungen" gilt an beiden ebenfalls hart — seit v6.36 aber nicht mehr als
+ * eigene Vorgabe, sondern über den Standardsatz des Workflows.
  */
 const SEED_VORGABEN_E: SkillVorgaben = {
   wortanzahl: { schweregrad: 'hinweis', min: 40, persoenlichAnpassbar: true },
   satzlaengeMax: { schweregrad: 'hinweis', maxWoerter: 25 },
-  keineAufzaehlungen: { schweregrad: 'fehler' },
 };
 
 /** Siehe `SEED_VORGABEN_E` — F fordert je Firma drei Sätze, der Boden liegt entsprechend höher. */
 const SEED_VORGABEN_F: SkillVorgaben = {
   wortanzahl: { schweregrad: 'hinweis', min: 60, persoenlichAnpassbar: true },
   satzlaengeMax: { schweregrad: 'hinweis', maxWoerter: 25 },
-  keineAufzaehlungen: { schweregrad: 'fehler' },
 };
 
 /** Form-Vorgabe des Abschnitts G (vormals `seed-g-pflicht-anfang`). */
@@ -463,12 +458,12 @@ export const SEED_SKILLS_BG: SkillRecord[] = [
     // deterministisch (belegAbleitung.ts), nicht vom Modell erfragt.
     // v4: Teil-Richtwerte als Anteil statt fester Wortzahl (`applyBTeilAnteile`) — die
     // festen ≥150/≥150/≥450 summierten sich auf 750 gegen eine kuratierte Regel „400–500".
-    version: 4,
+    version: 5,
     promptTemplate: abschnittTemplate({ ...B_ABSCHNITT_OPTS }),
     systemPrompt: SEED_SYSTEM_PROMPT_ABSCHNITT,
     maxTokens: 4096,
     modifiers: ABSCHNITT_MODIFIERS,
-    regelIds: [...GA_ABSCHNITT_REGEL_IDS],
+    regelIds: [],
     vorgaben: SEED_VORGABEN_B,
     slots: ABSCHNITT_SLOTS,
     geaendert_am: SEED_TS,
@@ -486,12 +481,12 @@ export const SEED_SKILLS_BG: SkillRecord[] = [
     // Wortzahl-Vorgabe nicht länger gegeneinander stehen.
     // v4: der finale Text bekommt eine eigene Tiefenangabe (`applyCFinalUmfang`) — der
     // Deckel-Fix von v3 hielt nachgemessen nicht (203–235 statt 300–350 Wörter).
-    version: 4,
+    version: 5,
     promptTemplate: abschnittTemplate({ ...C_ABSCHNITT_OPTS }),
     systemPrompt: SEED_SYSTEM_PROMPT_ABSCHNITT,
     maxTokens: 4096,
     modifiers: ABSCHNITT_MODIFIERS,
-    regelIds: [...GA_ABSCHNITT_REGEL_IDS],
+    regelIds: [],
     vorgaben: SEED_VORGABEN_C,
     slots: ABSCHNITT_SLOTS,
     geaendert_am: SEED_TS,
@@ -500,12 +495,12 @@ export const SEED_SKILLS_BG: SkillRecord[] = [
     id: MARKT_SKILL_ID,
     name: 'Markt (D)',
     beschreibung: 'Abschnitt D des ZIM-Gutachtens: Markt für die Projektergebnisse.',
-    version: 1,
+    version: 2,
     promptTemplate: abschnittTemplate({ ...D_ABSCHNITT_OPTS }),
     systemPrompt: SEED_SYSTEM_PROMPT_ABSCHNITT,
     maxTokens: 2048,
     modifiers: ABSCHNITT_MODIFIERS,
-    regelIds: [...GA_ABSCHNITT_REGEL_IDS],
+    regelIds: [],
     vorgaben: SEED_VORGABEN_D,
     slots: ABSCHNITT_SLOTS,
     geaendert_am: SEED_TS,
@@ -515,7 +510,7 @@ export const SEED_SKILLS_BG: SkillRecord[] = [
     name: 'Unternehmensgegenstand (E)',
     beschreibung: 'Abschnitt E des ZIM-Gutachtens: Unternehmensgegenstand der Partner.',
     // v2: erstmals eigene Vorgaben (`SEED_VORGABEN_E`) — Rollout `applyEfVorgaben`.
-    version: 2,
+    version: 3,
     promptTemplate: abschnittTemplate({
       name: 'Unternehmensgegenstand',
       aufgabe:
@@ -528,9 +523,12 @@ export const SEED_SKILLS_BG: SkillRecord[] = [
     systemPrompt: SEED_SYSTEM_PROMPT_ABSCHNITT,
     maxTokens: 2048,
     modifiers: ABSCHNITT_MODIFIERS,
-    // E + F tragen bewusst KEINE Passiv-Regel (reine Prompt-Abschnitte); Interpunktion
-    // und „keine Überschriften" gelten dagegen für jeden generierten Fließtext.
-    regelIds: [INTERPUNKTION_REGEL_ID, UEBERSCHRIFTEN_REGEL_ID],
+    regelIds: [],
+    // E + F tragen bewusst KEINE Passiv-Regel (reine Prompt-Abschnitte, deren
+    // Satzmuster der Prompt vorgibt). Bis v6.36 war das eine LÜCKE in der Zuordnung —
+    // von einem Versehen nicht unterscheidbar. Jetzt steht die Ausnahme da: der
+    // Standardsatz gilt sonst, also ist das Abweichen die Entscheidung, die man sieht.
+    ohneStandard: [PASSIV_REGEL_ID],
     vorgaben: SEED_VORGABEN_E,
     slots: ABSCHNITT_SLOTS,
     geaendert_am: SEED_TS,
@@ -540,7 +538,7 @@ export const SEED_SKILLS_BG: SkillRecord[] = [
     name: 'Ergebnisverwertung (F)',
     beschreibung: 'Abschnitt F des ZIM-Gutachtens: Ergebnisverwertung und Einfluss auf das Unternehmen.',
     // v2: erstmals eigene Vorgaben (`SEED_VORGABEN_F`) — Rollout `applyEfVorgaben`.
-    version: 2,
+    version: 3,
     promptTemplate: abschnittTemplate({
       name: 'Ergebnisverwertung',
       aufgabe:
@@ -553,8 +551,9 @@ export const SEED_SKILLS_BG: SkillRecord[] = [
     systemPrompt: SEED_SYSTEM_PROMPT_ABSCHNITT,
     maxTokens: 2048,
     modifiers: ABSCHNITT_MODIFIERS,
-    // Siehe E: nur die Interpunktions-Vorgabe, keine Passiv-Regel.
-    regelIds: [INTERPUNKTION_REGEL_ID, UEBERSCHRIFTEN_REGEL_ID],
+    regelIds: [],
+    // Siehe E — dieselbe Ausnahme, aus demselben Grund.
+    ohneStandard: [PASSIV_REGEL_ID],
     vorgaben: SEED_VORGABEN_F,
     slots: ABSCHNITT_SLOTS,
     geaendert_am: SEED_TS,
@@ -563,12 +562,12 @@ export const SEED_SKILLS_BG: SkillRecord[] = [
     id: KOMPETENZ_SKILL_ID,
     name: 'Technologiekompetenz (G)',
     beschreibung: 'Abschnitt G des ZIM-Gutachtens: Auswirkungen auf die Technologiekompetenz.',
-    version: 2,
+    version: 3,
     promptTemplate: abschnittTemplate({ ...G_ABSCHNITT_OPTS }),
     systemPrompt: SEED_SYSTEM_PROMPT_ABSCHNITT,
     maxTokens: 2048,
     modifiers: ABSCHNITT_MODIFIERS,
-    regelIds: [...GA_ABSCHNITT_REGEL_IDS],
+    regelIds: [],
     vorgaben: SEED_VORGABEN_G,
     slots: ABSCHNITT_SLOTS,
     geaendert_am: SEED_TS,

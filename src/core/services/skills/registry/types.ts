@@ -259,6 +259,18 @@ export interface SkillRecord {
   modifiers: Record<SkillModifierKey, string>;
   /** IDs der zugeordneten Qualitätsregeln (aus der gemeinsamen Bibliothek). */
   regelIds: string[];
+  /**
+   * **Abwahl** aus dem Standardsatz des eigenen Workflows (additiv, Regel-IDs).
+   * Fehlt/leer → der Skill erbt den ganzen Satz (Regelfall).
+   *
+   * Für den Abschnitt, für den eine sonst allgemeingültige Regel nachweislich nicht
+   * gilt — etwa eine Aufzählung, die fachlich hingehört. Bewusst eine EXPLIZITE
+   * Liste statt „einfach nicht zuordnen": der Standardsatz gilt sonst, das Abweichen
+   * ist also die Entscheidung, die dokumentiert gehört. Ein Eintrag, der auf nichts
+   * im Standardsatz zeigt, wäre ein stiller No-op — ein Konventions-Guard verbietet
+   * ihn (`conventions-daten`).
+   */
+  ohneStandard?: string[];
   /** Deklarierte Kontext-Slots (v1: `stammdaten`, `vbMarkdown`). */
   slots: string[];
   geaendert_am: string;
@@ -493,6 +505,22 @@ export interface WorkflowDef {
    * `WorkflowStep`-Rolle `'llm_qs'` bleibt als manueller Sonderweg bestehen.
    */
   pruefer?: string[];
+  /**
+   * **Standardsatz**: Bibliotheks-Regel-IDs, die für JEDEN generativen Schritt dieses
+   * Artefakts gelten (additiv, Reihenfolge = Prompt-Zeilenfolge). Fehlt/leer → jeder
+   * Abschnitt trägt ausschließlich seine eigenen Zuordnungen, exakt das Verhalten vor
+   * v6.36.
+   *
+   * Am Workflow und nicht am Prüfer, obwohl der Prüfer sie ebenfalls hätte tragen
+   * können: sie wären dann an dessen `aktiv`-Schalter gekoppelt gewesen — wer den
+   * fachlichen Prüfer abschaltet, hätte damit stillschweigend vier Form-Regeln aus
+   * allen sieben Abschnitten entfernt. Der Satz beschreibt zudem das ARTEFAKT („jeder
+   * Abschnitt eines ZIM-EP-Gutachtens ist geschlossener Fließtext"), nicht den Prüfer.
+   *
+   * Gilt für die Skills der `steps` — die `pruefer` erben ihn NICHT (sie erzeugen
+   * keinen Abschnittstext). Abwahl je Skill über `SkillRecord.ohneStandard`.
+   */
+  standardRegelIds?: string[];
 }
 
 /** Lebenszyklus-Stand einer Workflow-Definition (gleiches Vokabular wie Abschnitts-Stände). */

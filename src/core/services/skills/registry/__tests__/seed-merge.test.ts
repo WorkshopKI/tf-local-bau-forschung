@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { mergeMissingSeeds } from '../storage';
-import { SEED_REGISTRY, SEED_SKILL, SEED_REGELN, SEED_SKILLS_BG, SEED_REGELN_BG, QS_BASIS_SKILL_ID, RELEVANZ_MAP_SKILL_ID, AUSGANGSLAGE_SKILL_ID, INTERPUNKTION_REGEL_ID, UEBERSCHRIFTEN_REGEL_ID } from '../seed';
+import { SEED_REGISTRY, SEED_SKILL, SEED_REGELN, SEED_SKILLS_BG, SEED_REGELN_BG, QS_BASIS_SKILL_ID, RELEVANZ_MAP_SKILL_ID, AUSGANGSLAGE_SKILL_ID, INTERPUNKTION_REGEL_ID, UEBERSCHRIFTEN_REGEL_ID, AUFZAEHLUNGEN_REGEL_ID, PASSIV_REGEL_ID } from '../seed';
 import { GA_LEKTOR_SKILL_ID } from '../ga-lektor.seed';
 import { NF_SKILL_ID, SEED_NF_REGELN } from '../nf-skill.seed';
 import { RNE_SKILL_ID, ABL_SKILL_ID } from '../bescheid-skill.seed';
@@ -14,7 +14,7 @@ import { AUFBEREITUNG_VERWERTUNG_SKILL_ID } from '../aufbereitung-verwertung.see
 import { AUFBEREITUNG_RECHERCHE_PROMPT_SKILL_ID } from '../aufbereitung-recherche-prompt.seed';
 import { AUFBEREITUNG_RECHERCHE_IMPORT_SKILL_ID } from '../aufbereitung-recherche-import.seed';
 import { GA_QS_REGELN } from '../ga-qs.seed';
-import { getSkillById, resolveRegeln } from '../selectors';
+import { getSkillById, resolveRegeln, standardRegelIdsFuer } from '../selectors';
 import type { SkillRegistryFile } from '../types';
 
 /** Bestands-Registry, die nur den kuratierten Abschnitt A kennt (Pre-B–G). */
@@ -69,11 +69,14 @@ describe('B–G-Seeds — Kohärenz', () => {
   it('jede Skill-regelId löst sich in der Seed-Registry auf', () => {
     for (const skill of SEED_SKILLS_BG) {
       const regeln = resolveRegeln(SEED_REGISTRY, skill);
-      // Aufgelöst = materialisierte Skill-Vorgaben + Bibliotheks-Regeln.
+      // Aufgelöst = materialisierte Skill-Vorgaben + eigene Bibliotheks-Regeln +
+      // der Standardsatz des Workflows abzüglich der Abwahl (seit v6.36).
       const vorgabenAnzahl = Object.keys(skill.vorgaben ?? {}).length;
-      expect(regeln.length).toBe(vorgabenAnzahl + skill.regelIds.length);
-      for (const id of skill.regelIds) {
-        expect(regeln.find(r => r.id === id)).toBeDefined();
+      const standard = standardRegelIdsFuer(SEED_REGISTRY, skill)
+        .filter(id => !skill.regelIds.includes(id));
+      expect(regeln.length, skill.id).toBe(vorgabenAnzahl + skill.regelIds.length + standard.length);
+      for (const id of [...skill.regelIds, ...standard]) {
+        expect(regeln.find(r => r.id === id), `${skill.id} / ${id}`).toBeDefined();
       }
     }
   });
@@ -98,12 +101,19 @@ describe('B–G-Seeds — Kohärenz', () => {
     expect(String(pflicht?.params.text)).toContain('Technologiekompetenz im Bereich');
   });
 
-  it('E + F tragen nur die generellen Fließtext-Vorgaben, keine Abschnitts-Regeln', () => {
-    // E + F sind reine Prompt-Abschnitte (keine Umfangs-Vorgaben, keine Passiv-Regel).
-    // Interpunktion (seit v2.297) und „keine Überschriften" (seit v6.34) gelten für JEDEN
-    // generierten Fließtext und sind damit auch hier gesetzt.
-    const generell = [INTERPUNKTION_REGEL_ID, UEBERSCHRIFTEN_REGEL_ID];
-    expect(getSkillById(SEED_REGISTRY, 'gutachten-unternehmen')!.regelIds).toEqual(generell);
-    expect(getSkillById(SEED_REGISTRY, 'gutachten-verwertung')!.regelIds).toEqual(generell);
+  it('E + F tragen die generellen Fließtext-Regeln, aber KEINE Passiv-Regel', () => {
+    // E + F sind reine Prompt-Abschnitte: ihre Satzmuster gibt der Prompt vor, die
+    // Passiv-Floskel-Muster passen dort nicht. Bis v6.36 war das eine Lücke in ihrer
+    // Zuordnung — seither eine ausgesprochene Abwahl vom Standardsatz.
+    for (const id of ['gutachten-unternehmen', 'gutachten-verwertung']) {
+      const s = getSkillById(SEED_REGISTRY, id)!;
+      expect(s.regelIds, id).toEqual([]);
+      expect(s.ohneStandard, id).toEqual([PASSIV_REGEL_ID]);
+      const ids = resolveRegeln(SEED_REGISTRY, s).map(r => r.id);
+      expect(ids, id).toContain(INTERPUNKTION_REGEL_ID);
+      expect(ids, id).toContain(UEBERSCHRIFTEN_REGEL_ID);
+      expect(ids, id).toContain(AUFZAEHLUNGEN_REGEL_ID);
+      expect(ids, id).not.toContain(PASSIV_REGEL_ID);
+    }
   });
 });

@@ -35,6 +35,8 @@ import {
   GA_C_FINAL_UMFANG_MIGRATION,
   GA_BC_UMFANG_DURCHSETZEN_MIGRATION,
   GA_UEBERSCHRIFTEN_MIGRATION,
+  GA_STANDARDSATZ_MIGRATION,
+  GA_PRUEFER_AKTIV_MIGRATION,
 } from '../migrations';
 import {
   KURZFASSUNG_SKILL_ID,
@@ -58,6 +60,7 @@ import {
   UEBERSCHRIFTEN_REGEL_ID,
   abschnittTemplate,
 } from '../seed';
+import { resolveRegeln } from '../selectors';
 import type { SkillRecord, SkillRegistryFile, SkillVorgaben, WorkflowDef, WorkflowStep } from '../types';
 
 const ALLE_MARKER = [
@@ -70,7 +73,7 @@ const ALLE_MARKER = [
   GA_A_UMFANG_KURATIERT_MIGRATION, GA_EF_VORGABEN_MIGRATION, GA_EP_AUTO_RETRY_MIGRATION,
   GA_A_ZEICHEN_HERKUNFT_MIGRATION, GA_FACHPRUEFER_MIGRATION, GA_A_VEROEFFENTLICHUNG_MIGRATION,
   GA_B_TEIL_ANTEILE_MIGRATION, GA_C_FINAL_UMFANG_MIGRATION, GA_BC_UMFANG_DURCHSETZEN_MIGRATION,
-  GA_UEBERSCHRIFTEN_MIGRATION,
+  GA_UEBERSCHRIFTEN_MIGRATION, GA_STANDARDSATZ_MIGRATION, GA_PRUEFER_AKTIV_MIGRATION,
 ];
 /** Alle Marker AUSSER dem geprüften — isoliert genau eine Migration. */
 const ausser = (marker: string): string[] => ALLE_MARKER.filter(m => m !== marker);
@@ -215,7 +218,9 @@ describe('Vorgaben für E und F (Befund 5)', () => {
     expect(out.skills[0]!.vorgaben).toEqual(seedBg(UNTERNEHMEN_SKILL_ID).vorgaben);
     expect(out.skills[0]!.vorgaben?.wortanzahl?.min).toBe(40);
     expect(out.skills[1]!.vorgaben?.wortanzahl?.min).toBe(60);
-    expect(out.skills[0]!.vorgaben?.keineAufzaehlungen?.schweregrad).toBe('fehler');
+    // „Keine Aufzählungen" stand hier bis v6.36 als eigene Vorgabe; sie kommt jetzt
+    // aus dem Standardsatz des Workflows (siehe `standardsatz.test.ts`).
+    expect(out.skills[0]!.vorgaben?.keineAufzaehlungen).toBeUndefined();
     expect(out.skills[0]!.version).toBe(2);
   });
 
@@ -336,8 +341,11 @@ describe('der Seed selbst trägt alle vier Entscheidungen', () => {
     for (const id of [UNTERNEHMEN_SKILL_ID, VERWERTUNG_SKILL_ID]) {
       const s = SEED_SKILLS_BG.find(x => x.id === id)!;
       expect(s.vorgaben, id).toBeDefined();
-      expect(s.vorgaben?.keineAufzaehlungen?.schweregrad, id).toBe('fehler');
       expect(s.vorgaben?.wortanzahl?.min, id).toBeGreaterThan(0);
+      // Der Aufzählungs-Guard, seit v6.36 aus dem Standardsatz statt als eigene
+      // Vorgabe — an der Wirkung gemessen, nicht am Wohnort.
+      const aufgeloest = resolveRegeln(SEED_REGISTRY, s).map(r => r.typ);
+      expect(aufgeloest, id).toContain('keine_aufzaehlungen');
     }
   });
 
@@ -564,7 +572,9 @@ describe('A–G: keine Überschriften im Fließtext', () => {
     const abschnitte = SEED_REGISTRY.skills.filter(s => gaIds.has(s.id));
     expect(abschnitte.length).toBe(7);
     for (const s of abschnitte) {
-      expect(s.regelIds, s.id).toContain(UEBERSCHRIFTEN_REGEL_ID);
+      // Seit v6.36 über den Standardsatz statt siebenmal am Skill — geprüft wird
+      // deshalb die AUFGELÖSTE Liste, nicht die Zuordnung.
+      expect(resolveRegeln(SEED_REGISTRY, s).map(r => r.id), s.id).toContain(UEBERSCHRIFTEN_REGEL_ID);
     }
   });
 

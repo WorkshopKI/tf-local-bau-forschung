@@ -209,6 +209,37 @@ export const INTERPUNKTION_REGEL_ID = 'seed-keine-semikolon-gedankenstrich';
 export const UEBERSCHRIFTEN_REGEL_ID = 'seed-keine-ueberschriften';
 
 /**
+ * ID der geteilten Aufzählungs-Regel (A–G).
+ *
+ * Bewusst NICHT die alte `seed-keine-aufzaehlungen`: unter der ID lief bis v2.296 eine
+ * Ein-Skill-Regel, die `applySkillVorgaben` aus der Bibliothek entfernt hat. Ein Share,
+ * der sie aus irgendeinem Grund noch trüge, brächte unbekannte Parameter in den
+ * Standardsatz — `mergeMissingSeeds` überschreibt Bestehendes nie.
+ */
+export const AUFZAEHLUNGEN_REGEL_ID = 'seed-fliesstext-aufzaehlungen';
+
+/** ID der Passiv-Floskel-Regel (Standardsatz; E und F wählen sie bewusst ab). */
+export const PASSIV_REGEL_ID = 'seed-passiv-stil';
+
+/**
+ * **Der Standardsatz des ZIM-EP-Gutachtens** — die Regeln, die für JEDEN Abschnitt
+ * A–G gelten, gebunden an `ZIM_EP_DEF.standardRegelIds` statt siebenmal am Skill.
+ *
+ * Die Reihenfolge ist Prompt-Text: die ersten drei standen bisher in genau dieser
+ * Folge an den Abschnitten, die Aufzählungs-Regel kommt als einzige neu hinzu (sie
+ * war bis v6.36 eine Vorgabe je Skill) und darum ans Ende.
+ *
+ * `satzlaengeMax: 25` gehört bewusst NICHT dazu: es steht nur an A, E und F — drei von
+ * sieben ist keine Norm, sondern eine Eigenschaft dieser Abschnitte.
+ */
+export const GA_STANDARD_REGEL_IDS: readonly string[] = [
+  PASSIV_REGEL_ID,
+  INTERPUNKTION_REGEL_ID,
+  UEBERSCHRIFTEN_REGEL_ID,
+  AUFZAEHLUNGEN_REGEL_ID,
+];
+
+/**
  * Bibliotheks-Regeln des Gutachten-Stamms.
  *
  * Bis v2.295 standen hier zusätzlich Satzanzahl/Zeichenlimit/Satzlänge/Keine
@@ -218,7 +249,7 @@ export const UEBERSCHRIFTEN_REGEL_ID = 'seed-keine-ueberschriften';
  */
 export const SEED_REGELN: QualitaetsRegel[] = [
   regel(
-    'seed-passiv-stil',
+    PASSIV_REGEL_ID,
     'Passiv-Floskel',
     'verbotenes_muster',
     {
@@ -274,6 +305,21 @@ export const SEED_REGELN: QualitaetsRegel[] = [
     {},
     'hinweis',
   ),
+  // Die andere Hälfte derselben Absicht — bis v6.36 lag sie als `keineAufzaehlungen`
+  // sechsmal einzeln an den Skills, während ihre beiden Geschwister längst geteilte
+  // Bibliotheks-Regeln waren. Der Seed-Kommentar der Bibliothek nennt das Kriterium
+  // selbst: „die Bibliothek führt nur noch, was mehrere Skills teilen."
+  //
+  // `fehler` wie an allen sechs Abschnitten zuvor. G bekommt sie damit erstmals; an
+  // 224 gespeicherten Abschnitts-Texten (08/2026) trug KEIN einziger G-Text eine
+  // Aufzählung, die Schließung dieser Lücke ist also verhaltensneutral gemessen.
+  regel(
+    AUFZAEHLUNGEN_REGEL_ID,
+    'Keine Aufzählungen im Fließtext',
+    'keine_aufzaehlungen',
+    {},
+    'fehler',
+  ),
 ];
 
 /** Zeichenlimit von A vor dem Herkunfts-Fix — eingefroren für den Guard der Migration. */
@@ -309,7 +355,10 @@ const SEED_VORGABEN_A: SkillVorgaben = {
     herkunft: A_ZEICHEN_HERKUNFT,
   },
   satzlaengeMax: { schweregrad: 'hinweis', maxWoerter: 25 },
-  keineAufzaehlungen: { schweregrad: 'fehler' },
+  // `keineAufzaehlungen` steht seit v6.36 NICHT mehr hier, sondern als
+  // `AUFZAEHLUNGEN_REGEL_ID` im Standardsatz des Workflows — sie galt an sechs von
+  // sieben Abschnitten wortgleich und war damit keine Eigenschaft dieses Abschnitts.
+  // Rollout auf Bestands-Shares: `applyGaStandardsatz`.
 };
 
 /**
@@ -360,12 +409,15 @@ export const SEED_SKILL: SkillRecord = {
   // `buildKurzfassungPrompt` bleibt BYTE-IDENTISCH: zwei ältere Migrationen vergleichen
   // ihre Ausgabe (`applyBelegKontraktRevert`, `applyUmfangDedup`). Der Zusatz liegt
   // darum in `mitVeroeffentlichungsKontrakt`, die auch die Migration benutzt.
-  version: 5,
+  // v6: Standardsatz am Workflow — die vier Form-Regeln stehen nicht mehr hier
+  // (`regelIds: []`, keine `keineAufzaehlungen`-Vorgabe), sie kommen aus
+  // `ZIM_EP_DEF.standardRegelIds`. Die aufgelöste Regelliste bleibt dieselbe.
+  version: 6,
   promptTemplate: mitVeroeffentlichungsKontrakt(buildKurzfassungPrompt(false)),
   systemPrompt: SEED_SYSTEM_PROMPT,
   maxTokens: 2048,
   modifiers: A_MODIFIERS,
-  regelIds: SEED_REGELN.map(r => r.id),
+  regelIds: [],
   vorgaben: SEED_VORGABEN_A,
   slots: ['stammdaten', 'vbMarkdown'],
   // KEINE `teilStruktur` (entfernt 2026-08, Migration `ga-teilstruktur-entfernen-2026-08`):

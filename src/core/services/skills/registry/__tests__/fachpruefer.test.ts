@@ -34,12 +34,19 @@ const ITEM = (over: Partial<PruefItem> = {}): PruefItem => ({
   id: 'k1', gruppe: 'Erdung', kriterium: 'Jede Aussage ist durch die VB gedeckt.', ...over,
 });
 
-describe('Der Seed bindet den Prüfer — und lässt ihn aus', () => {
-  it('qs-basis ist der fachliche Prüfer und startet stillgelegt', () => {
+describe('Der Seed bindet den Prüfer — und schaltet ihn an', () => {
+  it('qs-basis ist der fachliche Prüfer und läuft', () => {
     expect(SEED_QS_SKILL.pruefart).toBe('fachlich');
-    // Bewusst aus: sein Prompt ist an echten Abschnitten nie gemessen worden, und er
-    // kostet je Abschnitt einen KI-Lauf. Freigabe erst nach dem Abnahme-Gate.
-    expect(SEED_QS_SKILL.aktiv).toBe(false);
+    // v6.36: an. Er existiert nur in dev und pl, und pl wird produktiv nicht genutzt —
+    // der Preis einer noch ungemessenen Prüfung ist damit die eigene Wartezeit, und
+    // gemessen wird an echten Läufen statt an einem Testkorpus davor.
+    expect(SEED_QS_SKILL.aktiv).toBe(true);
+  });
+
+  it('der Kill-Switch bleibt: aktiv:false nimmt ihn aus der Kette', () => {
+    const aus = { ...SEED_QS_SKILL, aktiv: false };
+    const f = file([aus], [wf({ pruefer: [QS_BASIS_SKILL_ID] })]);
+    expect(prueferFuerArtefakt(f, 'ga')).toEqual([]);
   });
 
   it('zim-ep bindet ihn am ARTEFAKT, nicht als llm_qs-Schritte', () => {

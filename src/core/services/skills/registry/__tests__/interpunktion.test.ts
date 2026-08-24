@@ -92,14 +92,17 @@ describe('Interpunktions-Regel — Prompt-Hinweis', () => {
 });
 
 describe('Interpunktions-Regel — gilt generell, nicht je Abschnitt', () => {
-  it('hängt an JEDEM generativen Schritt des ZIM-EP-Workflows', () => {
+  it('hängt EINMAL am Workflow, nicht siebenmal am Abschnitt', () => {
+    // Seit v6.36 im Standardsatz: eine Zeile statt sieben. Der Gegen-Check unten
+    // („landet über resolveRegeln …") ist der wichtigere — er misst die Wirkung.
+    expect(ZIM_EP_DEF.standardRegelIds).toContain(INTERPUNKTION_REGEL_ID);
     for (const step of ZIM_EP_DEF.steps) {
       const skill = getSkillById(SEED_REGISTRY, step.skillId)!;
       expect(skill, `Skill ${step.skillId} (Schritt ${step.nr}) fehlt im Seed`).toBeDefined();
       expect(
         skill.regelIds,
-        `Schritt ${step.nr} (${skill.name}) führt die Interpunktions-Regel nicht`,
-      ).toContain(INTERPUNKTION_REGEL_ID);
+        `Schritt ${step.nr} (${skill.name}) dekliniert die Interpunktions-Regel erneut`,
+      ).not.toContain(INTERPUNKTION_REGEL_ID);
     }
   });
 

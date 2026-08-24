@@ -61,25 +61,31 @@ export const QS_BESCHREIBUNG_ALT = 'Bewertet einen Gutachten-Abschnitt qualitati
  * Regeln (beratend).
  *
  * Seit v6.27 ist er zugleich **der fachliche Prüfer** des GA-Artefakts
- * (`ZIM_EP_DEF.pruefer`) und läuft damit nach jeder Erzeugung automatisch — sobald
- * jemand ihn einschaltet. **`aktiv: false` ist Absicht**: bis zu diesem Zeitpunkt war
- * die fachliche Prüfung ungenutzt (kein `llm_qs`-Schritt band sie), ihr Prompt ist
- * also nie an echten Abschnitten gemessen worden. Und ein Prüfer, der überall etwas
- * findet, ist schlechter als keiner — er kostet je Abschnitt einen KI-Lauf und
- * erzeugt Rauschen, das man wegklicken muss.
+ * (`ZIM_EP_DEF.pruefer`); seit v6.36 ist er **an** und läuft damit nach jeder
+ * Erzeugung automatisch — als drittes Bein neben Generierung und Feinschliff, auf der
+ * Gegenrolle der Generierung.
  *
- * Freigeschaltet wird er darum erst nach dem Abnahme-Gate: ein bekannt guter
- * Abschnitt dreimal geprüft muss dreimal schweigen, ein gesalzener dreimal treffen.
- * Bis dahin macht ihn der Kurator in der Skill-Verwaltung selbst an.
+ * Er stand von v6.27 bis v6.36 auf `aktiv: false`, weil sein Prompt nie an echten
+ * Abschnitten gemessen worden war und ein Prüfer, der überall etwas findet, schlechter
+ * ist als keiner. Freigeschaltet wurde er trotz noch ausstehender Messung, weil er
+ * ausschließlich in **dev und pl** einkompiliert ist und pl produktiv nicht genutzt
+ * wird: der einzige Preis ist die eigene Wartezeit (ein Abschnitt kostet damit drei
+ * KI-Läufe statt zwei), und die Messung findet an echten Läufen statt.
+ *
+ * **Der Kill-Switch bleibt genau hier**: `aktiv: false` in der Skill-Verwaltung nimmt
+ * ihn wieder aus der Kette (`prueferFuerArtefakt` filtert), ohne dass irgendein
+ * Abschnitt eine Form-Regel verliert — die hängen seit v6.36 am Workflow, nicht am
+ * Prüfer.
  */
 export const SEED_QS_SKILL: SkillRecord = {
   id: QS_BASIS_SKILL_ID,
   name: 'Fachliche Prüfung (beratend)',
   beschreibung: 'Prüft einen erzeugten Abschnitt fachlich — entlang des Prüfkatalogs, sonst entlang fester Dimensionen (Erdung, Kohärenz, Vollständigkeit, Ton). Beratend: überschreibt nie den Text und blockiert nie.',
   // v2: fachlicher Prüfer des GA-Artefakts (Prüfart + Kill-Switch).
-  version: 2,
+  // v3: freigeschaltet (siehe Docblock) — Rollout auf Bestands-Shares `applyPrueferAktiv`.
+  version: 3,
   pruefart: 'fachlich',
-  aktiv: false,
+  aktiv: true,
   promptTemplate: SEED_QS_PROMPT_TEMPLATE,
   systemPrompt: SEED_QS_SYSTEM_PROMPT,
   maxTokens: 1536,

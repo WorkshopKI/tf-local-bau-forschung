@@ -4,7 +4,7 @@ import {
   getSkillById, resolveRegeln, skillsUsingRegel, workflowStepsUsingSkill, describeRegelParams,
   artefaktTypOf, ebeneOf, pruefartOf,
 } from '../selectors';
-import { SEED_REGISTRY, SEED_SKILL, KURZFASSUNG_SKILL_ID, ZIM_EP_DEF } from '../seed';
+import { SEED_REGISTRY, SEED_SKILL, KURZFASSUNG_SKILL_ID, ZIM_EP_DEF, GA_STANDARD_REGEL_IDS } from '../seed';
 import { SEED_GA_LEKTOR_SKILL, GA_LEKTOR_SKILL_ID } from '../ga-lektor.seed';
 import { skillEnthaeltDokumentInhalte } from '@/core/services/ai/transport-policy';
 import { runRegelChecks } from '../check-engine';
@@ -55,26 +55,34 @@ describe('Selektoren', () => {
     expect(skill).toBeDefined();
     const regeln = resolveRegeln(SEED_REGISTRY, skill);
     // Die Reihenfolge ist Prompt-Text (Zeilenfolge im Block „Formale Vorgaben").
+    // Seit v6.36 kommen die vier Form-Regeln aus dem Standardsatz des Workflows —
+    // dieselben Regeln, dieselbe Folge, eine Deklaration statt sieben.
     expect(regeln.map(r => r.id)).toEqual([
       'vorgabe:gutachten-kurzfassung:satzanzahl',
       'vorgabe:gutachten-kurzfassung:zeichen_max',
       'vorgabe:gutachten-kurzfassung:satzlaenge_max',
-      'vorgabe:gutachten-kurzfassung:keine_aufzaehlungen',
-      ...SEED_SKILL.regelIds,
+      ...GA_STANDARD_REGEL_IDS,
     ]);
   });
 
   it('resolveRegeln überspringt nicht vorhandene IDs', () => {
     const file = {
       ...SEED_REGISTRY,
-      skills: [{ ...SEED_SKILL, vorgaben: undefined, regelIds: ['seed-passiv-stil', 'gibt-es-nicht'] }],
+      // Ohne Workflow-Bindung des Skills greift kein Standardsatz — hier zählt allein,
+      // dass eine unauflösbare ID stillschweigend ausgelassen wird.
+      skills: [{ ...SEED_SKILL, id: 'frei', vorgaben: undefined, regelIds: ['seed-passiv-stil', 'gibt-es-nicht'] }],
     };
     expect(resolveRegeln(file, file.skills[0]!).map(r => r.id)).toEqual(['seed-passiv-stil']);
   });
 
-  it('skillsUsingRegel berechnet „verwendet in"', () => {
-    // `seed-passiv-stil` ist die einzige geteilte Regel des Gutachten-Stamms (A + B–G).
+  it('skillsUsingRegel berechnet „verwendet in" — inklusive Standardsatz', () => {
+    // Seit v6.36 hängt keine Gutachten-Regel mehr DIREKT am Skill; „verwendet in"
+    // muss die Erbschaft trotzdem zeigen, sonst stünde an den vier meistgenutzten
+    // Regeln überall „—" und die Löschen-Rückfrage wäre falsch.
     expect(skillsUsingRegel(SEED_REGISTRY, 'seed-passiv-stil')).toContain(SEED_SKILL.name);
+    // Die Abwahl zählt auch hier: E und F erben die Passiv-Regel bewusst nicht.
+    expect(skillsUsingRegel(SEED_REGISTRY, 'seed-passiv-stil'))
+      .not.toContain('Unternehmensgegenstand (E)');
     expect(skillsUsingRegel(SEED_REGISTRY, 'unbenutzt')).toEqual([]);
   });
 
@@ -169,13 +177,14 @@ describe('Seed', () => {
     // aufbereitung-steckbrief + aufbereitung-zahlen + aufbereitung-glossar + aufbereitung-verwertung +
     // aufbereitung-recherche-prompt + aufbereitung-recherche-import = 20;
     // + zim-rne-fueller + zim-abl-fueller (Bescheid-Füller, v2.312) = 22.
-    // Regel-Bibliothek seit v2.296: 3 geteilte Gutachten-Regeln (Passiv-Floskel,
-    // Semikolon & Gedankenstrich, Keine Überschriften) + 3 NF-Regeln + 5 GA-QS-Regeln = 11. Die früheren
+    // Regel-Bibliothek seit v6.36: 4 geteilte Gutachten-Regeln (Passiv-Floskel,
+    // Semikolon & Gedankenstrich, Keine Überschriften, Keine Aufzählungen — der
+    // Standardsatz) + 3 NF-Regeln + 5 GA-QS-Regeln = 12. Die früheren
     // 13 Ein-Skill-Umfangsregeln (A: 4, B: 3, C: 3 inkl. Waise, D: 2, G: 1) leben
     // als `SkillRecord.vorgaben`. Die Bescheid-Füller bringen keine eigenen Regeln
-    // (reuse der NF-Tore) → Regel-Zahl bleibt 11.
+    // (reuse der NF-Tore) → Regel-Zahl bleibt 12.
     expect(SEED_REGISTRY.skills).toHaveLength(22);
-    expect(SEED_REGISTRY.regeln).toHaveLength(11);
+    expect(SEED_REGISTRY.regeln).toHaveLength(12);
     expect(getSkillById(SEED_REGISTRY, 'qs-basis')!.regelIds).toEqual([]);
     const skill = SEED_REGISTRY.skills[0]!; // A = Kurzfassung
     expect(skill.id).toBe('gutachten-kurzfassung');

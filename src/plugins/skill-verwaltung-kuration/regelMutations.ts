@@ -56,6 +56,16 @@ export function buildRegelMutations(deps: RegelMutationDeps): RegelMutations {
         ...file,
         regeln: file.regeln.filter(x => x.id !== r.id),
         skills: file.skills.map(s => ({ ...s, regelIds: s.regelIds.filter(id => id !== r.id) })),
+        // Auch aus dem Standardsatz: eine gelöschte Regel, die dort stehen bliebe, wäre
+        // eine ID, die auf nichts zeigt — `resolveRegeln` ließe sie still fallen, und
+        // der nächste Kurator suchte den Grund im falschen Feld.
+        ...(file.workflows
+          ? { workflows: file.workflows.map(w => (
+              w.standardRegelIds?.includes(r.id)
+                ? { ...w, standardRegelIds: w.standardRegelIds.filter(id => id !== r.id) }
+                : w
+            )) }
+          : {}),
       }).then(() => onGeloescht?.());
     },
   };

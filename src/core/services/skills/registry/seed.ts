@@ -30,7 +30,7 @@ import { AUFBEREITUNG_GLOSSAR_SKILL } from './aufbereitung-glossar.seed';
 import { AUFBEREITUNG_VERWERTUNG_SKILL } from './aufbereitung-verwertung.seed';
 import { AUFBEREITUNG_RECHERCHE_PROMPT_SKILL } from './aufbereitung-recherche-prompt.seed';
 import { AUFBEREITUNG_RECHERCHE_IMPORT_SKILL } from './aufbereitung-recherche-import.seed';
-import { SEED_SKILL, SEED_REGELN } from './gutachten-kurzfassung.seed';
+import { SEED_SKILL, SEED_REGELN, GA_STANDARD_REGEL_IDS } from './gutachten-kurzfassung.seed';
 import { SEED_SKILLS_BG, SEED_REGELN_BG } from './gutachten-bg.seed';
 import { SEED_QS_SKILL, QS_BASIS_SKILL_ID } from './qs-basis.seed';
 import { SEED_RELEVANZ_MAP_SKILL } from './relevanz-map.seed';
@@ -41,6 +41,7 @@ import { SEED_RELEVANZ_MAP_SKILL } from './relevanz-map.seed';
 
 export {
   SEED_SKILL, SEED_REGELN, KURZFASSUNG_SKILL_ID, INTERPUNKTION_REGEL_ID, UEBERSCHRIFTEN_REGEL_ID,
+  AUFZAEHLUNGEN_REGEL_ID, PASSIV_REGEL_ID, GA_STANDARD_REGEL_IDS,
   buildKurzfassungPrompt,
   A_AUFGABE_ZEILE, A_AUFGABE_ZEILE_UMFANG_ALT, A_MODIFIERS_UMFANG_ALT,
   A_ZEICHEN_MAX, A_ZEICHEN_MAX_ALT, A_ZEICHEN_HERKUNFT,
@@ -106,9 +107,12 @@ export const ZIM_EP_DEF: WorkflowDef = {
   // v2: ein automatischer Korrektur-Versuch je Schritt (siehe `EP_AUTO_RETRY`).
   // v3: der fachliche Prüfer läuft nach JEDER Erzeugung — am Artefakt gebunden, nicht
   //     als sieben `llm_qs`-Schritte (sonst fehlte er dem achten Abschnitt still).
-  //     Er startet stillgelegt, siehe `SEED_QS_SKILL`.
-  version: 3,
+  // v4: der Standardsatz der Form-Regeln (siehe `GA_STANDARD_REGEL_IDS`). Er hängt
+  //     HIER und nicht am Prüfer, sonst nähme ein abgeschalteter Prüfer vier
+  //     Form-Regeln aus allen sieben Abschnitten mit.
+  version: 4,
   pruefer: [QS_BASIS_SKILL_ID],
+  standardRegelIds: [...GA_STANDARD_REGEL_IDS],
   steps: [
     epStep('A', 'Kurzfassung', 'gutachten-kurzfassung'),
     epStep('B', 'Hintergrund, Stand der Technik, Lösungsweg', 'gutachten-ausgangslage'),

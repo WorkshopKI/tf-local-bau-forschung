@@ -63,15 +63,50 @@ export function workflowStepsUsingSkill(file: SkillRegistryFile, skillId: string
 }
 
 /**
- * Die EINE Auflösung Skill → Regelliste. Zwei Quellen, in dieser Reihenfolge:
+ * Der Standardsatz, der für DIESEN Skill gilt — die Regel-IDs des Workflows, in dem
+ * er als Schritt vorkommt, abzüglich seiner eigenen Abwahl (`ohneStandard`).
+ *
+ * Der Workflow wird hier selbst ermittelt statt als Parameter gefordert: sonst müsste
+ * ihn jeder der zehn `resolveRegeln`-Aufrufer beschaffen, und wer es vergäße, bekäme
+ * still eine zu kurze Regelliste (genau die Falle, die der Regel-Zähler in der
+ * Skill-Liste stellt). Der erste Treffer gewinnt — ein Skill, der in zwei Workflows
+ * als Schritt steht, ist kein vorgesehener Fall.
+ *
+ * Rein; leerer Rückgabewert ist der Regelfall (NF, Bescheid, Aufbereitung).
+ */
+export function standardRegelIdsFuer(file: SkillRegistryFile, skill: SkillRecord): string[] {
+  const ids = workflowStandardFuer(file, skill);
+  if (ids.length === 0) return [];
+  const ohne = new Set(skill.ohneStandard ?? []);
+  return ids.filter(id => !ohne.has(id));
+}
+
+/**
+ * Der ROHE Standardsatz des Workflows dieses Skills — **ohne** die Abwahl. Für den
+ * Editor, der beides zeigen muss: was der Satz anbietet und was dieser Abschnitt
+ * davon abbestellt hat. Wer nur die geltenden Regeln braucht, nimmt
+ * `standardRegelIdsFuer`.
+ */
+export function workflowStandardFuer(file: SkillRegistryFile, skill: SkillRecord): string[] {
+  const workflows = file.workflows && file.workflows.length > 0 ? file.workflows : SEED_WORKFLOWS;
+  const wf = workflows.find(w => w.steps.some(s => s.skillId === skill.id));
+  return wf?.standardRegelIds ?? [];
+}
+
+/**
+ * Die EINE Auflösung Skill → Regelliste. Drei Quellen, in dieser Reihenfolge:
  *  1. die skill-eigenen Vorgaben (Umfang & Form), materialisiert als synthetische
  *     Regeln (`vorgaben.ts`),
  *  2. die zugeordneten Bibliotheks-Regeln (Reihenfolge der `regelIds`, fehlende
- *     IDs werden ausgelassen).
+ *     IDs werden ausgelassen),
+ *  3. der **Standardsatz des Workflows**, soweit nicht schon unter 2 zugeordnet und
+ *     nicht per `ohneStandard` abgewählt.
  *
  * Die Reihenfolge ist Prompt-Text (sie bestimmt die Zeilenfolge im Block
  * „Formale Vorgaben") und bewusst so gewählt: vor der Umstellung standen die
- * Umfangs-Regeln in den Seed-Skills überwiegend vorn.
+ * Umfangs-Regeln in den Seed-Skills überwiegend vorn. Der Standardsatz kommt zuletzt,
+ * damit eine Zuordnung, die ein Abschnitt selbst trägt, ihre bisherige Zeile behält —
+ * der Rückbau verschiebt so keine Prompt-Zeile, die er nicht verschieben muss.
  *
  * `opts.vorgabenOverride` legt den persönlichen Override über die freigegebenen
  * Vorgaben — damit prüfen Prompt UND Check gegen denselben Wert.
@@ -83,15 +118,28 @@ export function resolveRegeln(
 ): QualitaetsRegel[] {
   const byId = new Map(file.regeln.map(r => [r.id, r]));
   const vorgaben = wendeOverrideAn(skill.vorgaben, opts?.vorgabenOverride);
+  const eigene = new Set(skill.regelIds);
+  const ids = [
+    ...skill.regelIds,
+    ...standardRegelIdsFuer(file, skill).filter(id => !eigene.has(id)),
+  ];
   return [
     ...vorgabenZuRegeln(skill.id, vorgaben, skill.geaendert_am),
-    ...skill.regelIds.map(id => byId.get(id)).filter((r): r is QualitaetsRegel => r !== undefined),
+    ...ids.map(id => byId.get(id)).filter((r): r is QualitaetsRegel => r !== undefined),
   ];
 }
 
-/** Namen aller Skills, die eine bestimmte Regel verwenden („verwendet in"). */
+/**
+ * Namen aller Skills, die eine bestimmte Regel verwenden („verwendet in").
+ *
+ * Zählt seit v6.36 auch die Skills, die sie über den **Standardsatz** ihres Workflows
+ * erben — sonst stünde an den vier meistgenutzten Regeln des Gutachtens überall „—",
+ * und die Löschen-Rückfrage („wird in 0 Skills verwendet") wäre schlicht falsch.
+ */
 export function skillsUsingRegel(file: SkillRegistryFile, regelId: string): string[] {
-  return file.skills.filter(s => s.regelIds.includes(regelId)).map(s => s.name);
+  return file.skills
+    .filter(s => s.regelIds.includes(regelId) || standardRegelIdsFuer(file, s).includes(regelId))
+    .map(s => s.name);
 }
 
 /** True, wenn der Regel-Typ der Engine bekannt ist (sonst „unbekannter Typ"). */

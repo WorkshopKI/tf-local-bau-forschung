@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v6.36.0 — Der Standardsatz zieht an den Workflow, der fachliche Pruefer geht an (August 2026)
+
+MINOR — 37 Regel-Deklarationen über A–G, davon 25 dieselbe Regel mehrfach: eine Änderung an „keine Aufzählungen" waren sechs Änderungen. Der Satz zieht an den Workflow, wo er hingehört — und der seit v6.27 stillgelegte fachliche Prüfer geht mit an. Detail: [artefakt-engine.md](docs/architecture/artefakt-engine.md).
+
+- **`WorkflowDef.standardRegelIds`** trägt die vier Form-Regeln für jeden Abschnitt; die aufgelöste Regelliste bleibt A–F **identisch**, nur G gewinnt die bisher fehlende Aufzählungs-Regel ([selectors.ts](src/core/services/skills/registry/selectors.ts))
+- **Am Workflow und nicht am Prüfer**: sonst hätte ein abgeschalteter Prüfer stillschweigend vier Form-Regeln aus allen sieben Abschnitten mitgenommen ([types.ts](src/core/services/skills/registry/types.ts))
+- **`SkillRecord.ohneStandard`** macht aus der Lücke eine Ansage — E und F tragen bewusst keine Passiv-Regel, was bisher von einem Versehen nicht zu unterscheiden war ([gutachten-bg.seed.ts](src/core/services/skills/registry/gutachten-bg.seed.ts))
+- **Der fachliche Prüfer ist an** (`qs-basis`, dritter KI-Lauf je Abschnitt auf der Gegenrolle) — er existiert nur in dev und pl, der Kill-Switch bleibt am Skill ([qs-basis.seed.ts](src/core/services/skills/registry/qs-basis.seed.ts))
+- Gemessen am gespeicherten Eval-Korpus (224 echte Abschnitts-Texte): die zwei geschlossenen Lücken schlagen **null-mal** an, der Umzug ist damit verhaltensneutral
+
 ### v6.35.0 — Die Korrektur-Anweisung nennt das Ziel zuerst (August 2026)
 
 MINOR — Erstmals gegen die **interne KI** gemessen statt gegen den OpenRouter-Zwilling. Sie verhält sich anders — und die Korrektur-Anweisung entscheidet sich an einem Detail: das Modell zielt auf die zuerst genannte Zahl. Detail: [gutachten-kurzfassung.md](docs/architecture/gutachten-kurzfassung.md).

@@ -206,6 +206,11 @@ function normalizeSkill(raw: unknown): SkillRecord | null {
   if (pruefart) skill.pruefart = pruefart;
   const katalog = normalizePruefkatalog(s.pruefkatalog);
   if (katalog) skill.pruefkatalog = katalog;
+  // Abwahl aus dem Standardsatz (additiv): EXPLIZIT übernehmen — ginge sie beim Laden
+  // verloren, bekäme der Abschnitt eine Regel zurück, die der Kurator bewusst
+  // abbestellt hat, und der Auto-Retry verwürfe seine Texte.
+  const ohneStandard = asStringArray(s.ohneStandard).map(x => x.trim()).filter(Boolean);
+  if (ohneStandard.length > 0) skill.ohneStandard = ohneStandard;
   return skill;
 }
 
@@ -404,6 +409,11 @@ function normalizeWorkflowDef(raw: unknown): WorkflowDef | null {
   // Prüfer-Bindung (additiv): nur nicht-leere Skill-IDs, Reihenfolge = Lauf-Reihenfolge.
   const pruefer = asStringArray(d.pruefer).map(x => x.trim()).filter(Boolean);
   if (pruefer.length > 0) def.pruefer = pruefer;
+  // Standardsatz (additiv): dieselbe Klasse wie `pruefer` — ohne diese Zeile verlöre
+  // der Workflow ihn beim ersten Lade-Umlauf, und JEDER Abschnitt liefe still ohne
+  // seine vier Form-Regeln.
+  const standardRegelIds = asStringArray(d.standardRegelIds).map(x => x.trim()).filter(Boolean);
+  if (standardRegelIds.length > 0) def.standardRegelIds = standardRegelIds;
   return def;
 }
 

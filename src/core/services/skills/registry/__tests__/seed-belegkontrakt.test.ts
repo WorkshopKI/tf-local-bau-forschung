@@ -34,37 +34,39 @@ describe('Beleg-Kontrakt in Seed A + B — zurückgebaut', () => {
     // v3: Satzzahl einheitlich 9–11 (Vorgabe + Modifier), Prosa ohne Zahl.
     // v4: Zeichenlimit 1.100 mit Herkunft am Wert.
     // v5: Veröffentlichungs-Kontrakt (Zweck, Weglass-Liste, Länge als Schreib-Anweisung).
-    expect(SEED_SKILL.version).toBe(5);
+    // v6: Standardsatz am Workflow (die vier Form-Regeln stehen nicht mehr am Skill).
+    expect(SEED_SKILL.version).toBe(6);
   });
 
   it('B (Ausgangslage) trägt die Instruktion NICHT mehr', () => {
     const b = SEED_SKILLS_BG.find(s => s.id === AUSGANGSLAGE_SKILL_ID);
     expect(b).toBeDefined();
     expect(b!.promptTemplate).not.toContain(MARKE_LOSE);
-    expect(b!.version).toBe(4);
+    expect(b!.version).toBe(5);
   });
 
-  it('C–G tragen die Beleg→Satz-Instruktion NICHT; nur D blieb bei version 1', () => {
+  it('C–G tragen die Beleg→Satz-Instruktion NICHT; D hat nur den Standardsatz-Umzug', () => {
     const uebrige = SEED_SKILLS_BG.filter(s => s.id !== AUSGANGSLAGE_SKILL_ID);
     expect(uebrige.length).toBeGreaterThan(0);
     for (const s of uebrige) {
       expect(s.promptTemplate, s.id).not.toContain(MARKE_LOSE);
     }
     // Jede Version hier stammt aus einem EIGENEN Umbau, nie aus dem Beleg-Kontrakt:
-    // C v4 (Entwurf → gefilterter Fließtext, Risiko-Deckel 3 → 5, eigene Tiefenangabe), G v2
-    // (Pflicht-Anfang in den eigenen Block), E + F v2 (erstmals eigene Vorgaben).
-    // D ist der einzige Abschnitt, den seit dem Seed nichts angefasst hat.
+    // C v5 (Entwurf → gefilterter Fließtext, Risiko-Deckel 3 → 5, eigene Tiefenangabe,
+    // Standardsatz), G v3 (Pflicht-Anfang in den eigenen Block, Standardsatz), E + F v3
+    // (erstmals eigene Vorgaben, Standardsatz). D hat als einziger NUR den Umzug des
+    // Standardsatzes hinter sich (v6.36) — davor hatte ihn seit dem Seed nichts angefasst.
     const eigenerUmbau = new Set<string>([
       RISIKEN_SKILL_ID, KOMPETENZ_SKILL_ID, UNTERNEHMEN_SKILL_ID, VERWERTUNG_SKILL_ID,
     ]);
     for (const s of uebrige.filter(s => !eigenerUmbau.has(s.id))) {
-      expect(s.version, s.id).toBe(1);
+      expect(s.version, s.id).toBe(2);
     }
     const v = (id: string): number | undefined => SEED_SKILLS_BG.find(s => s.id === id)?.version;
-    expect(v(RISIKEN_SKILL_ID)).toBe(4);
-    expect(v(KOMPETENZ_SKILL_ID)).toBe(2);
-    expect(v(UNTERNEHMEN_SKILL_ID)).toBe(2);
-    expect(v(VERWERTUNG_SKILL_ID)).toBe(2);
+    expect(v(RISIKEN_SKILL_ID)).toBe(5);
+    expect(v(KOMPETENZ_SKILL_ID)).toBe(3);
+    expect(v(UNTERNEHMEN_SKILL_ID)).toBe(3);
+    expect(v(VERWERTUNG_SKILL_ID)).toBe(3);
   });
 
   it('buildKurzfassungPrompt: false ohne, true mit Instruktion (nur noch Migrations-Erkennung)', () => {

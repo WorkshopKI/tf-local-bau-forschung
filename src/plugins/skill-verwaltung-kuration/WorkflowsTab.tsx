@@ -142,6 +142,7 @@ export function WorkflowsTab({
       {canEdit && (
         <WorkflowMetaEditor
           key={def.id}
+          file={file}
           def={def}
           canEdit={canEdit}
           isSeed={istSeedWorkflow(def.id)}

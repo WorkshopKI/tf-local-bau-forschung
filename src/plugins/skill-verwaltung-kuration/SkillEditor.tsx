@@ -15,6 +15,8 @@ import {
   findeUmfangDopplungen,
   findeVorgabenWidersprueche,
   resolveRegeln,
+  standardRegelIdsFuer,
+  workflowStandardFuer,
   describeRegelParams,
   skillKategorieLabel,
   SKILL_KATEGORIE_LABEL,
@@ -141,6 +143,19 @@ export function SkillEditor({ file, skill, isNew, canEdit, agg, initialView, per
 
   const toggleRegel = (id: string): void =>
     setDraft(d => ({ ...d, regelIds: d.regelIds.includes(id) ? d.regelIds.filter(x => x !== id) : [...d.regelIds, id] }));
+
+  // Der Standardsatz des Workflows: diese Regeln gelten, ohne dass der Abschnitt sie
+  // zuordnet. Sie hier nur als „nicht angehakt" zu zeigen wäre eine Lüge — der Kurator
+  // sähe sie in der Check-Liste des Abschnitts wieder. Das Häkchen bleibt deshalb, es
+  // schaltet nur eine andere Sache: die ABWAHL (`ohneStandard`).
+  const standardAlle = workflowStandardFuer(file, draft);
+  const abgewaehlt = new Set(draft.ohneStandard ?? []);
+  const toggleStandard = (id: string): void =>
+    setDraft(d => {
+      const ohne = new Set(d.ohneStandard ?? []);
+      if (ohne.has(id)) ohne.delete(id); else ohne.add(id);
+      return { ...d, ohneStandard: ohne.size > 0 ? [...ohne] : undefined };
+    });
 
   // Abnahme-Kriterien: eine Zeile = ein Kriterium. Der Rohpuffer hält das
   // Getippte (inkl. Leerzeile am Ende), der Draft die bereinigte Liste — sonst
@@ -397,12 +412,13 @@ export function SkillEditor({ file, skill, isNew, canEdit, agg, initialView, per
           <Section>Zugeordnete Qualitätsregeln</Section>
           <p className="text-[11.5px] leading-[1.5] text-[var(--tf-text-tertiary)] m-0 mb-2.5">
             Wiederverwendbare Regeln aus der geteilten Bibliothek — sie gelten in mehreren Skills.
+            {standardAlle.length > 0 && ' Mit „Standard" markierte Regeln gelten für jeden Abschnitt dieses Artefakts; das Häkchen dort bestellt sie für diesen einen Abschnitt ab.'}
           </p>
           {file.regeln.length === 0 ? (
             <p className="text-[12.5px] text-[var(--tf-text-tertiary)] py-2">Noch keine Regeln in der Bibliothek.</p>
           ) : (
             <div className="border-t-[0.5px] border-[var(--tf-border)]">
-              {groupRegelnByKategorie(file.regeln, draft.regelIds).map(gruppe => (
+              {groupRegelnByKategorie(file.regeln, [...draft.regelIds, ...standardRegelIdsFuer(file, draft)]).map(gruppe => (
                 <CollapsibleSection
                   key={gruppe.kategorie}
                   label={gruppe.label}
@@ -411,14 +427,29 @@ export function SkillEditor({ file, skill, isNew, canEdit, agg, initialView, per
                 >
                   <div className="flex flex-col">
                     {gruppe.regeln.map(r => {
-                      const checked = draft.regelIds.includes(r.id);
+                      const ausStandard = standardAlle.includes(r.id);
+                      const checked = ausStandard ? !abgewaehlt.has(r.id) : draft.regelIds.includes(r.id);
                       return (
                         // Zeile ist ein div, nicht das <label>: ein Stift INNERHALB des
                         // Labels würde beim Klick zusätzlich die Checkbox umschalten.
                         <div key={r.id} className="flex items-center gap-3 py-[9px] border-t-[0.5px] border-[var(--tf-border)] first:border-t-0">
                           <label className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer">
-                            <input type="checkbox" checked={checked} disabled={ro} onChange={() => toggleRegel(r.id)} className="accent-[var(--tf-primary)]" />
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              disabled={ro}
+                              onChange={() => (ausStandard ? toggleStandard(r.id) : toggleRegel(r.id))}
+                              className="accent-[var(--tf-primary)]"
+                            />
                             <span className="text-[13px] text-[var(--tf-text)]">{r.name}</span>
+                            {ausStandard && (
+                              <span
+                                className="shrink-0 rounded-full border-[0.5px] border-[var(--tf-border)] px-1.5 py-[1px] text-[10.5px] text-[var(--tf-text-tertiary)]"
+                                title="Gilt für jeden Abschnitt dieses Artefakts (Standardsatz des Workflows)"
+                              >
+                                Standard
+                              </span>
+                            )}
                             <span className="ml-auto font-mono text-[12px] text-[var(--tf-text-tertiary)]">{describeRegelParams(r)}</span>
                           </label>
                           {onEditRegel && (

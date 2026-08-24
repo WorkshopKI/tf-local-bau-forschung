@@ -19,6 +19,15 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v6.36 — 2026-08
+
+### Neu
+- Nach jedem erzeugten Gutachten-Abschnitt läuft jetzt automatisch eine **fachliche Prüfung**: eine zweite KI liest den fertigen Text gegen die Vorhabensbeschreibung und hinterlässt Hinweise zu Erdung, Kohärenz, Vollständigkeit und Ton. Sie ändert den Text nie und blockiert nie — ein Abschnitt dauert dadurch etwa eine Minute länger.
+### Verbesserungen
+- Die Form-Regeln, die für **jeden** Abschnitt eines Gutachtens gelten („Fließtext, keine Aufzählungen, keine Überschriften, keine Semikolons"), stehen jetzt einmal am Gutachten statt siebenmal an den einzelnen Abschnitten. In der Skill-Verwaltung sind sie als „Standard" markiert; wo ein Abschnitt eine davon bewusst nicht führt, steht das jetzt sichtbar da.
+### Bugfixes
+- Abschnitt G (Technologiekompetenz) wurde als einziger nicht darauf geprüft, ob er in eine Aufzählung kippt — jetzt schon.
+
 ## v6.35 — 2026-08
 
 ### Verbesserungen
