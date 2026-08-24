@@ -60,6 +60,7 @@ import {
   G_ABSCHNITT_OPTS,
   G_ABSCHNITT_OPTS_PFLICHT_ALT,
   INTERPUNKTION_REGEL_ID,
+  UEBERSCHRIFTEN_REGEL_ID,
   ZIM_EP_DEF,
   QS_BASIS_SKILL_ID,
   SEED_QS_SKILL,
@@ -149,6 +150,9 @@ export const GA_C_FINAL_UMFANG_MIGRATION = 'ga-c-final-umfang-2026-08';
 
 /** ID der Durchsetzung der B-/C-Wortanzahl (`hinweis` → `fehler`, aktiviert den Auto-Retry). */
 export const GA_BC_UMFANG_DURCHSETZEN_MIGRATION = 'ga-bc-umfang-durchsetzen-2026-08';
+
+/** ID der Bindung der „keine Überschriften im Fließtext"-Regel an A–G. */
+export const GA_UEBERSCHRIFTEN_MIGRATION = 'ga-keine-ueberschriften-2026-08';
 
 export interface ReconcileResult {
   file: SkillRegistryFile;
@@ -880,6 +884,27 @@ function applyBcUmfangDurchsetzen(skills: SkillRecord[]): SkillRecord[] {
   });
 }
 
+/**
+ * Bindet die Regel „keine Überschriften im Fließtext" an jeden Gutachten-Abschnitt.
+ *
+ * Der Anlass ist gemessen: über 224 echte Abschnitts-Texte aus den Eval-Läufen trug
+ * JEDER B-Lauf drei Markdown-Überschriften im finalen Text, obwohl der Prompt „keine
+ * Zwischenüberschriften" verlangt. `keine_aufzaehlungen` sucht Listen-Marker und ließ
+ * sie durch — bis in den DOCX-Export. Von den 27 Treffern des Musters war keiner ein
+ * Fehlalarm (A-Titelzeile oder B-Zwischenüberschrift).
+ *
+ * Rein additiv wie `applyInterpunktion`: nur die Bindung wird ergänzt, wo sie fehlt.
+ * Den Regel-Record selbst zieht `mergeMissingSeeds` nach. Wer die Bindung später
+ * bewusst entfernt, behält das — der Marker verhindert einen zweiten Lauf.
+ */
+function applyUeberschriften(skills: SkillRecord[]): SkillRecord[] {
+  const gaSkillIds = new Set(ZIM_EP_DEF.steps.map(s => s.skillId));
+  return skills.map(s =>
+    gaSkillIds.has(s.id) && !s.regelIds.includes(UEBERSCHRIFTEN_REGEL_ID)
+      ? { ...s, regelIds: [...s.regelIds, UEBERSCHRIFTEN_REGEL_ID] }
+      : s);
+}
+
 interface EinzelMigration {
   marker: string;
   /** Bekommt die GANZE Datei — Migrationen dürfen auch `regeln` anfassen. */
@@ -916,6 +941,7 @@ const MIGRATIONEN: EinzelMigration[] = [
   { marker: GA_B_TEIL_ANTEILE_MIGRATION, apply: nurSkills(applyBTeilAnteile) },
   { marker: GA_C_FINAL_UMFANG_MIGRATION, apply: nurSkills(applyCFinalUmfang) },
   { marker: GA_BC_UMFANG_DURCHSETZEN_MIGRATION, apply: nurSkills(applyBcUmfangDurchsetzen) },
+  { marker: GA_UEBERSCHRIFTEN_MIGRATION, apply: nurSkills(applyUeberschriften) },
 ];
 
 /**

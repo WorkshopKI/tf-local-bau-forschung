@@ -27,6 +27,7 @@ const TYP_ZU_KATEGORIE: Record<string, string> = {
   satzlaenge_max: 'sprache',
   verbotenes_muster: 'sprache',
   keine_aufzaehlungen: 'struktur',
+  keine_ueberschriften: 'struktur',
   pflicht_anfang: 'struktur',
   nf_keine_platzhalter_reste: 'form',
 };

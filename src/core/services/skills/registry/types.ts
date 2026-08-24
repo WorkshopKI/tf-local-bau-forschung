@@ -23,6 +23,7 @@ export type RegelTyp =
   | 'pflicht_anfang'
   | 'keine_aufzaehlungen'
   | 'absatz_min'
+  | 'keine_ueberschriften'
   | 'nf_keine_platzhalter_reste';
 
 /** Set für O(1)-Lookup, ob ein (string-)Typ bekannt ist. */
@@ -35,6 +36,7 @@ export const KNOWN_REGEL_TYPEN: ReadonlySet<string> = new Set<RegelTyp>([
   'pflicht_anfang',
   'keine_aufzaehlungen',
   'absatz_min',
+  'keine_ueberschriften',
   'nf_keine_platzhalter_reste',
 ]);
 

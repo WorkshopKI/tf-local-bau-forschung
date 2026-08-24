@@ -136,6 +136,8 @@ export function describeRegelParams(regel: QualitaetsRegel): string {
       const t = str(p, 'text');
       return t ? `Anfang: „${t.slice(0, 32)}${t.length > 32 ? '…' : ''}"` : 'Pflicht-Anfang';
     }
+    case 'keine_ueberschriften':
+      return 'keine Überschriften';
     case 'keine_aufzaehlungen':
       return 'im finalen Text';
     case 'absatz_min':

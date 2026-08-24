@@ -118,6 +118,13 @@ function countAbsaetze(text: string): number {
 
 const LIST_MARKER = /^\s*(?:[-*•]\s|\d+[.)]\s)/;
 
+/**
+ * Markdown-Überschrift als GANZE Zeile: bis zu drei führende Leerzeichen, ein bis sechs
+ * Rauten, dann zwingend ein Leerzeichen und Text. Die Zeilen-Bindung ist der Schutz vor
+ * Fehlalarmen — eine Raute mitten im Satz („die Nummer #4") trifft nicht.
+ */
+const UEBERSCHRIFT = /^ {0,3}#{1,6}\s+\S/;
+
 /* -------------------------------------------------------------------------- */
 /* Param-Accessoren (tolerant — `params` ist offen typisiert)                  */
 /* -------------------------------------------------------------------------- */
@@ -466,6 +473,33 @@ const HANDLERS: Record<RegelTyp, RegelHandler> = {
       };
     },
     hint: () => 'Der finale Text ist Fließtext ohne Aufzählungen.',
+  },
+
+  /**
+   * Geschwister-Regel zu `keine_aufzaehlungen` — dieselbe Absicht („ein geschlossener
+   * Fließtext"), die andere Hälfte der Umsetzung.
+   *
+   * Der Anlass ist gemessen (224 echte Abschnitts-Texte aus den Eval-Läufen, 08/2026):
+   * JEDER B-Lauf trug drei Markdown-Überschriften im finalen Text, obwohl der Prompt
+   * „keine Zwischenüberschriften" verlangt. `keine_aufzaehlungen` sucht Listen-Marker
+   * und ließ sie durch, bis in den DOCX-Export. Von den geprüften Texten schlug das
+   * Muster ausschließlich auf echte Verstöße an (27 Treffer, alle A-Titelzeile oder
+   * B-Zwischenüberschrift) — kein einziger Fehlalarm.
+   *
+   * Eigener Typ statt `verbotenes_muster` mit Regex: dessen Muster werden nur mit `i`
+   * kompiliert, `^` ankert also am TEXTanfang. A's Titelzeile wäre gefunden worden,
+   * B's Zwischenüberschriften nicht — der häufigere Fall.
+   */
+  keine_ueberschriften: {
+    check: (text) => {
+      const offender = text.split(/\r?\n/).find(l => UEBERSCHRIFT.test(l));
+      return {
+        ok: !offender,
+        label: offender ? 'Überschrift im Fließtext gefunden' : 'Keine Überschriften im Fließtext',
+        ...(offender ? { detail: `„${offender.trim().slice(0, 60)}" — in den Fließtext einarbeiten.` } : {}),
+      };
+    },
+    hint: () => 'Der finale Text ist durchgehender Fließtext ohne Überschriften.',
   },
 
   absatz_min: {

@@ -19,6 +19,11 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v6.34 — 2026-08
+
+### Bugfixes
+- **Überschriften mitten im Gutachten-Text werden jetzt bemerkt.** Der Abschnitt „Hintergrund, Stand der Technik, Lösungsweg" enthielt in etwa jedem vierten Fall Zwischenüberschriften („### Stand der Technik"), obwohl er durchgehender Fließtext sein soll — und sie landeten unbemerkt im Word-Dokument. Die bisherige Prüfung suchte nur nach Aufzählungszeichen.
+
 ## v6.33 — 2026-08
 
 ### Verbesserungen

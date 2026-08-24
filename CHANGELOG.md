@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v6.34.0 — Ueberschriften im Gutachten-Fliesstext werden gefunden (August 2026)
+
+MINOR — Die Prompts verlangen „keine Zwischenüberschriften", und `keineAufzaehlungen` ist als `fehler` gebunden — trotzdem trug jeder vierte B-Text Markdown-Überschriften bis in den DOCX-Export. Die Regel sucht Listen-Marker; eine Überschrift ist keiner. Detail: [gutachten-kurzfassung.md](docs/architecture/gutachten-kurzfassung.md).
+
+- **Neuer Regel-Typ `keine_ueberschriften`** als Geschwister von `keine_aufzaehlungen` — dieselbe Absicht („ein geschlossener Fließtext"), die fehlende Hälfte der Umsetzung ([check-engine.ts](src/core/services/skills/registry/check-engine.ts))
+- Gemessen an 224 echten Abschnitts-Texten aus vorhandenen Eval-Läufen: **17 von 77 B-Texten** betroffen, C–G sauber, **kein einziger Fehlalarm** — ohne neuen Modell-Aufruf
+- Als geteilte Regel `seed-keine-ueberschriften` an **alle sieben** Abschnitte gebunden, auch an E und F ([gutachten-kurzfassung.seed.ts](src/core/services/skills/registry/gutachten-kurzfassung.seed.ts))
+- **Bewusst `hinweis`, nicht `fehler`**: ein `fehler` verwürfe über den `neu`-Retry einen sonst brauchbaren Abschnitt, und der Nutzen davon ist ungemessen (Mess-Budget erschöpft)
+- **Gemessen und verworfen**: die Platzhalter-Regel und fünf Meta-/TODO-Muster schlagen auf denselben Texten null-mal an — sie würden nur eine dauerhaft grüne Zeile je Abschnitt hinzufügen
+
 ### v6.33.0 — Die Wortanzahl von B und C wird durchsetzbar (August 2026)
 
 MINOR — Der Befund aus v6.32 („das Ziel liegt über dem, was das Modell schreibt") galt nur für einen einzelnen Wurf. Mit der Wortanzahl als `fehler` greift der vorhandene `laenger`-Retry, und die Zielzahlen sind erreichbar. Detail: [gutachten-kurzfassung.md](docs/architecture/gutachten-kurzfassung.md).

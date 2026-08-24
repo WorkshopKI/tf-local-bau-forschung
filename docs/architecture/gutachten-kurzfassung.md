@@ -268,6 +268,29 @@ Bei einer Untergrenze zielt das Modell darüber, bei einer Spanne auf deren unte
 
 **Die Harness kennt den Auto-Retry jetzt.** `runOneSection` fährt dieselbe Schleife wie die App (`chooseRetryModifier` + `modifier` + `vorherigerText`), mit der Decke aus der **Workflow-Definition** statt einer eigenen Zahl; `--no-auto-retry` schaltet sie für den Vergleich mit Alt-Läufen ab. Ohne sie maß jede Zahl den ersten Wurf, den in der App niemand zu sehen bekommt. `retryKorrekturAnweisung` reicht dem Korrektur-Lauf denselben Zielwert nach, den der manuelle Korrektur-Knopf schon nannte — **ohne messbaren Effekt**, aber der automatische und der manuelle Weg sagen dem Modell jetzt dasselbe.
 
+### Überschriften im Fließtext — der Defekt, der bis in den DOCX-Export lief (v6.34)
+
+Die Prompts der Abschnitte verlangen ausdrücklich „**Fließtext** — keine Aufzählungen, keine Zwischenüberschriften", und `keineAufzaehlungen` ist als **`fehler`** gebunden. Trotzdem gemessen an 224 echten Abschnitts-Texten aus den vorhandenen Eval-Läufen (kein neuer Modell-Aufruf nötig):
+
+| Abschnitt | Texte | mit Überschrift im finalen Text |
+|---|---|---|
+| A | 55 | 10 — alle aus der Zeit **vor** v6.30 (erfundene Titelzeile) |
+| **B** | 77 | **17** — „### Hintergrund und Ausgangssituation" u. a., laufend |
+| C–G | 92 | 0 |
+
+`keine_aufzaehlungen` sucht Listen-Marker; eine Überschrift ist keiner. Die Regel setzte immer nur die halbe Absicht um, und die Überschriften gingen ungeprüft in den DOCX-Export.
+
+Neuer Regel-Typ **`keine_ueberschriften`** ([check-engine.ts](../../src/core/services/skills/registry/check-engine.ts)) als Geschwister von `keine_aufzaehlungen`, geseedet als geteilte Regel `seed-keine-ueberschriften` und an **alle sieben** Abschnitte gebunden (auch E und F, die sonst nur die Interpunktions-Regel tragen). Ein eigener Typ statt `verbotenes_muster` mit Regex, weil dessen Muster nur mit `i` kompiliert werden: `^` ankert am TEXTanfang, hätte also A's Titelzeile gefunden und B's Zwischenüberschriften — den häufigeren Fall — nicht.
+
+Zwei bewusste Grenzen:
+
+- **`hinweis`, nicht `fehler`.** Ein `fehler` löste den Auto-Retry mit `neu` aus und verwürfe einen sonst brauchbaren Abschnitt. Wie oft der zweite Wurf sauber wäre, ist **ungemessen** — das Mess-Budget war erschöpft. Die Verschärfung ist eine Team-Entscheidung mit einer Messung davor.
+- **Der Prompt wurde nicht angefasst.** Vermutlich lädt die nummerierte Drei-Teile-Liste im Aufgaben-Block zum Reproduzieren als Überschrift ein — aber das ist eine Vermutung, und eine ungemessene Prompt-Änderung ist genau das, was diese Reihe zweimal teuer bezahlt hat. Der Detektor geht zuerst.
+
+**Ebenfalls gemessen und VERWORFEN:** die Platzhalter-Regel (`nf_keine_platzhalter_reste`) und fünf Muster für Meta-/TODO-Reste („TODO", „[ergänzen]", „Als KI…", geleakte `###`-Abschnittsmarken) schlagen auf denselben 224 Texten **null**-mal an. Sie an A–G zu binden hieße, je Abschnitt eine dauerhaft grüne Zeile hinzuzufügen, ohne dass je etwas gefunden würde; den realistischen Leak-Fall (der Parser scheitert, die ganze Rohantwort wird finaler Text) fängt die Überschriften-Regel bereits.
+
+**Nicht gebaut: die Vollständigkeits-Prüfung je Artefakt.** `ga-qs-vollstaendigkeit` bekommt hier bewusst noch keine Implementierung. Was sie melden würde — welche Abschnitte fehlen — zeigt der Export-Dialog an genau der Stelle, an der es zählt („N von M Abschnitten werden eingefügt", je Zeile „übersprungen — nicht freigegeben"). Ihr eigentlicher Abnehmer ist die Schluss-QS über das ganze Artefakt; bis die existiert, wäre sie eine zweite, schwächere Anzeige derselben Tatsache.
+
 ### Die Wortzahl-Zeile nennt jetzt ihren Bezug
 
 `zeichen_max`, `absatz_min`, `keine_aufzaehlungen` und `platzhalter_frei` schrieben seit jeher „**der finale Text** …". Die beiden Größen-Regeln sagten „Schreibe 400 bis 500 Wörter." — ohne Bezug, während `runRegelChecks` ausschließlich `parsed.finalerText` misst. Bei mehrteiliger Ausgabe (Quellenanalyse / Entwurf / Finaler Text) war damit offen, worauf sich die Zahl bezieht. `wortanzahl` und `satzanzahl` sprechen jetzt wie ihre vier Geschwister.

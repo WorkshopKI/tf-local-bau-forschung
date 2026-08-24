@@ -205,6 +205,9 @@ export const KURZFASSUNG_SKILL_ID = 'gutachten-kurzfassung';
  */
 export const INTERPUNKTION_REGEL_ID = 'seed-keine-semikolon-gedankenstrich';
 
+/** ID der geteilten „kein Markdown im Fließtext"-Regel (A–G). */
+export const UEBERSCHRIFTEN_REGEL_ID = 'seed-keine-ueberschriften';
+
 /**
  * Bibliotheks-Regeln des Gutachten-Stamms.
  *
@@ -253,6 +256,23 @@ export const SEED_REGELN: QualitaetsRegel[] = [
         + 'Bindestriche in Wortverbindungen wie „KI-gestützt" bleiben unverändert',
     },
     'fehler',
+  ),
+  // Geschwister zur `keineAufzaehlungen`-Vorgabe: dieselbe Absicht („ein geschlossener
+  // Fließtext"), die andere Hälfte der Umsetzung. Gemessen an 224 echten
+  // Abschnitts-Texten (08/2026) trug JEDER B-Lauf drei Markdown-Überschriften im
+  // finalen Text, obwohl der Prompt „keine Zwischenüberschriften" verlangt — die
+  // Listen-Marker-Regel ließ sie durch, bis in den DOCX-Export.
+  //
+  // Als `hinweis` gebunden, NICHT als `fehler`: ein `fehler` löste den Auto-Retry mit
+  // `neu` aus und verwürfe damit einen sonst brauchbaren Abschnitt. Wie oft er danach
+  // sauber wäre, ist ungemessen (das Mess-Budget war erschöpft). Die Verschärfung ist
+  // eine Team-Entscheidung, die eine Messung braucht — nicht eine Vermutung.
+  regel(
+    UEBERSCHRIFTEN_REGEL_ID,
+    'Keine Überschriften im Fließtext',
+    'keine_ueberschriften',
+    {},
+    'hinweis',
   ),
 ];
 

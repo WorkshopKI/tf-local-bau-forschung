@@ -119,6 +119,36 @@ describe('runRegelChecks — pro Regel-Typ', () => {
     expect(runRegelChecks('Ziele:\n- Punkt eins', [regel('keine_aufzaehlungen', {})])[0]!.level).toBe('fehler');
   });
 
+  /**
+   * Der Anlass ist gemessen: über 224 echte Abschnitts-Texte aus den Eval-Läufen trug
+   * **jeder einzelne B-Lauf** drei Markdown-Überschriften im finalen Text („###
+   * Hintergrund und Ausgangssituation" …), obwohl der Prompt „keine
+   * Zwischenüberschriften" verlangt und `keine_aufzaehlungen` als `fehler` gebunden ist.
+   * Die Regel sucht Listen-Marker — eine Überschrift ist keiner. Der Defekt lief bis in
+   * den DOCX-Export durch.
+   */
+  it('keine_ueberschriften: erkennt Markdown-Überschriften — auch mitten im Text', () => {
+    expect(runRegelChecks('Fließtext ohne Überschrift.', [regel('keine_ueberschriften', {})])[0]!.level).toBe('ok');
+    // Am Textanfang (der A-Fall: erfundene Titelzeile).
+    expect(runRegelChecks('# Kurzfassung\n\nDas Vorhaben…', [regel('keine_ueberschriften', {})])[0]!.level).toBe('fehler');
+    // Mitten im Text (der B-Fall) — genau das fängt ein `^`-Muster ohne m-Flag NICHT.
+    const b = 'Der Bedarf ist groß.\n\n### Stand der Technik\n\nBisherige Systeme…';
+    const c = runRegelChecks(b, [regel('keine_ueberschriften', {})])[0]!;
+    expect(c.level).toBe('fehler');
+    expect(c.detail).toContain('Stand der Technik');
+  });
+
+  it('keine_ueberschriften: eine Raute im Fließtext ist KEINE Überschrift', () => {
+    for (const text of ['Die Nummer #4 ist belegt.', 'Das Ziel #1 lautet…', 'Ein Satz mit # mitten drin.']) {
+      expect(runRegelChecks(text, [regel('keine_ueberschriften', {})])[0]!.level, text).toBe('ok');
+    }
+  });
+
+  it('keine_ueberschriften trägt keine richtung (→ Auto-Retry „neu", nicht „kuerzer")', () => {
+    const r = runRegelChecks('# Titel\n\nText.', [regel('keine_ueberschriften', {})])[0]!;
+    expect(r.richtung).toBeUndefined();
+  });
+
   it('absatz_min: zählt durch Doppel-Zeilenumbruch getrennte Absätze', () => {
     const vier = 'Erster Absatz.\n\nZweiter Absatz.\n\nDritter Absatz.\n\nVierter Absatz.';
     expect(runRegelChecks(vier, [regel('absatz_min', { min: 4 })])[0]!.level).toBe('ok');

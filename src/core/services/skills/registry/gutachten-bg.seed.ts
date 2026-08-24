@@ -13,7 +13,7 @@
  * Bis zum Konsolidierungs-Pass lag dieser Inhalt in `seed.ts`. Reine Verschiebung.
  */
 import { SEED_TS, abschnittTemplate } from './ga-seed-basis';
-import { INTERPUNKTION_REGEL_ID } from './gutachten-kurzfassung.seed';
+import { INTERPUNKTION_REGEL_ID, UEBERSCHRIFTEN_REGEL_ID } from './gutachten-kurzfassung.seed';
 import type { QualitaetsRegel, SkillModifierKey, SkillRecord, SkillVorgaben } from './types';
 
 /** System-Rolle der Abschnitts-Skills B–G (allgemeiner als der A-Prompt). */
@@ -46,7 +46,7 @@ const G_PFLICHT_ANFANG =
  * Konstante statt sieben Literale, damit die nächste geteilte Regel an genau einer
  * Stelle nachgezogen wird. (A erbt die Bibliothek ohnehin komplett.)
  */
-const GA_ABSCHNITT_REGEL_IDS = ['seed-passiv-stil', INTERPUNKTION_REGEL_ID];
+const GA_ABSCHNITT_REGEL_IDS = ['seed-passiv-stil', INTERPUNKTION_REGEL_ID, UEBERSCHRIFTEN_REGEL_ID];
 
 /**
  * Bibliotheks-Regeln der Abschnitte B–G — seit v2.296 LEER.
@@ -528,9 +528,9 @@ export const SEED_SKILLS_BG: SkillRecord[] = [
     systemPrompt: SEED_SYSTEM_PROMPT_ABSCHNITT,
     maxTokens: 2048,
     modifiers: ABSCHNITT_MODIFIERS,
-    // E + F tragen bewusst KEINE Passiv-Regel (reine Prompt-Abschnitte), die
-    // Interpunktions-Vorgabe gilt aber für jeden generierten Fließtext.
-    regelIds: [INTERPUNKTION_REGEL_ID],
+    // E + F tragen bewusst KEINE Passiv-Regel (reine Prompt-Abschnitte); Interpunktion
+    // und „keine Überschriften" gelten dagegen für jeden generierten Fließtext.
+    regelIds: [INTERPUNKTION_REGEL_ID, UEBERSCHRIFTEN_REGEL_ID],
     vorgaben: SEED_VORGABEN_E,
     slots: ABSCHNITT_SLOTS,
     geaendert_am: SEED_TS,
@@ -554,7 +554,7 @@ export const SEED_SKILLS_BG: SkillRecord[] = [
     maxTokens: 2048,
     modifiers: ABSCHNITT_MODIFIERS,
     // Siehe E: nur die Interpunktions-Vorgabe, keine Passiv-Regel.
-    regelIds: [INTERPUNKTION_REGEL_ID],
+    regelIds: [INTERPUNKTION_REGEL_ID, UEBERSCHRIFTEN_REGEL_ID],
     vorgaben: SEED_VORGABEN_F,
     slots: ABSCHNITT_SLOTS,
     geaendert_am: SEED_TS,

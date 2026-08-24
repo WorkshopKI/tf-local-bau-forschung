@@ -34,6 +34,7 @@ import {
   GA_B_TEIL_ANTEILE_MIGRATION,
   GA_C_FINAL_UMFANG_MIGRATION,
   GA_BC_UMFANG_DURCHSETZEN_MIGRATION,
+  GA_UEBERSCHRIFTEN_MIGRATION,
 } from '../migrations';
 import {
   KURZFASSUNG_SKILL_ID,
@@ -53,6 +54,8 @@ import {
   B_ABSCHNITT_OPTS,
   B_ABSCHNITT_OPTS_TEILE_ABSOLUT,
   ZIM_EP_DEF,
+  SEED_REGISTRY,
+  UEBERSCHRIFTEN_REGEL_ID,
   abschnittTemplate,
 } from '../seed';
 import type { SkillRecord, SkillRegistryFile, SkillVorgaben, WorkflowDef, WorkflowStep } from '../types';
@@ -67,6 +70,7 @@ const ALLE_MARKER = [
   GA_A_UMFANG_KURATIERT_MIGRATION, GA_EF_VORGABEN_MIGRATION, GA_EP_AUTO_RETRY_MIGRATION,
   GA_A_ZEICHEN_HERKUNFT_MIGRATION, GA_FACHPRUEFER_MIGRATION, GA_A_VEROEFFENTLICHUNG_MIGRATION,
   GA_B_TEIL_ANTEILE_MIGRATION, GA_C_FINAL_UMFANG_MIGRATION, GA_BC_UMFANG_DURCHSETZEN_MIGRATION,
+  GA_UEBERSCHRIFTEN_MIGRATION,
 ];
 /** Alle Marker AUSSER dem geprüften — isoliert genau eine Migration. */
 const ausser = (marker: string): string[] => ALLE_MARKER.filter(m => m !== marker);
@@ -513,5 +517,63 @@ describe('B + C: die Wortanzahl wird durchsetzbar', () => {
       const s = SEED_SKILLS_BG.find(x => x.id === id)!;
       expect(s.vorgaben?.wortanzahl?.schweregrad, id).toBe('fehler');
     }
+  });
+});
+
+/**
+ * Gemessen an 224 echten Abschnitts-Texten aus den Eval-Läufen: JEDER B-Lauf trug drei
+ * Markdown-Überschriften im finalen Text, obwohl der Prompt „keine Zwischenüberschriften"
+ * verlangt. `keine_aufzaehlungen` sucht Listen-Marker und ließ sie durch — bis in den
+ * DOCX-Export.
+ */
+describe('A–G: keine Überschriften im Fließtext', () => {
+  const NUR = ausser(GA_UEBERSCHRIFTEN_MIGRATION);
+
+  it('ergänzt die Bindung an einem Gutachten-Abschnitt, der sie noch nicht trägt', () => {
+    const { file: out, geaendert } = reconcileEinmaligeAktivierungen(
+      file([skill(RISIKEN_SKILL_ID, { regelIds: ['seed-passiv-stil'] })], NUR),
+    );
+    expect(geaendert).toBe(true);
+    expect(out.skills[0]!.regelIds).toEqual(['seed-passiv-stil', UEBERSCHRIFTEN_REGEL_ID]);
+  });
+
+  it('bindet nicht doppelt', () => {
+    const { file: out } = reconcileEinmaligeAktivierungen(
+      file([skill(RISIKEN_SKILL_ID, { regelIds: [UEBERSCHRIFTEN_REGEL_ID] })], NUR),
+    );
+    expect(out.skills[0]!.regelIds).toEqual([UEBERSCHRIFTEN_REGEL_ID]);
+  });
+
+  it('fasst Nicht-Gutachten-Skills nicht an', () => {
+    const { file: out } = reconcileEinmaligeAktivierungen(
+      file([skill('anfrage-metadaten', { regelIds: [] })], NUR),
+    );
+    expect(out.skills[0]!.regelIds).toEqual([]);
+  });
+
+  it('läuft nur einmal: gesetzter Marker lässt die fehlende Bindung stehen', () => {
+    const { file: out, geaendert } = reconcileEinmaligeAktivierungen(
+      file([skill(RISIKEN_SKILL_ID, { regelIds: [] })], ALLE_MARKER),
+    );
+    expect(geaendert).toBe(false);
+    expect(out.skills[0]!.regelIds).toEqual([]);
+  });
+
+  it('JEDER Gutachten-Abschnitt im Seed trägt die Regel — auch E und F', () => {
+    const gaIds = new Set(ZIM_EP_DEF.steps.map(s => s.skillId));
+    const abschnitte = SEED_REGISTRY.skills.filter(s => gaIds.has(s.id));
+    expect(abschnitte.length).toBe(7);
+    for (const s of abschnitte) {
+      expect(s.regelIds, s.id).toContain(UEBERSCHRIFTEN_REGEL_ID);
+    }
+  });
+
+  it('die Regel selbst steht im Seed und ist aktiv', () => {
+    const r = SEED_REGISTRY.regeln.find(x => x.id === UEBERSCHRIFTEN_REGEL_ID);
+    expect(r?.typ).toBe('keine_ueberschriften');
+    expect(r?.aktiv).toBe(true);
+    // Bewusst `hinweis`: ein `fehler` löste den `neu`-Auto-Retry aus und verwürfe einen
+    // sonst brauchbaren Abschnitt. Die Verschärfung braucht eine Messung.
+    expect(r?.schweregrad).toBe('hinweis');
   });
 });
