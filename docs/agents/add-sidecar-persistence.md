@@ -147,3 +147,12 @@ Fehlerpfad muss belegen, dass er etwas verhindert. Der Snapshot-Publish löschte
 bereits geschriebenen Dateien „damit kein halb-konsistenter Stand stehen bleibt" —
 verhindert hat das nichts (das Manifest ist der einzige Marker und wird zuletzt
 geschrieben), gekostet hat es `antraege.jsonl`, die einzige Datei ohne `.backup`.
+
+**Und die Reihenfolge davon: den Ersatz fertig haben, bevor man das Alte wegnimmt.**
+`atomicWrite` selbst verstieß bis v6.27.1 dagegen — es benannte das Ziel zur `.backup`
+um und schrieb erst danach das `.tmp`. Dazwischen existierte die Datei nicht, bei
+`atomicWriteStream` für die Dauer des ganzen `produce`-Laufs; jeder Abbruch darin
+ließ nur die `.backup` zurück (belegt an `_intern/skills/registry.json`). Seit v6.27.1
+wird zuerst geschrieben, dann rotiert, und ein gescheiterter Einwechsel wird
+zurückgedreht. Wer eine eigene Schreib-Sequenz baut, ordnet sie genauso: **erst
+erzeugen, dann tauschen.**

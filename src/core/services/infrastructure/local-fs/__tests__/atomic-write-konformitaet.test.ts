@@ -113,7 +113,7 @@ describe('atomicWriteStream', () => {
     expect(JSON.parse(zeilen[199]!).i).toBe(199);
   });
 
-  it('lässt das Ziel unberührt, wenn produce wirft, und räumt das .tmp weg', async () => {
+  it('lässt das Ziel unberührt, wenn produce wirft — skipBackup-Profil', async () => {
     await atomicWrite(root, 'heikel.json', 'unversehrt', { skipBackup: true });
     await expect(atomicWriteStream(root, 'heikel.json', async sink => {
       await sink.write('kaputt');
@@ -122,6 +122,25 @@ describe('atomicWriteStream', () => {
 
     expect(await aufPlatte('heikel.json')).toBe('unversehrt');
     expect(await readdir(wurzelOrdner)).not.toContain('heikel.json.tmp');
+  });
+
+  it('lässt das Ziel unberührt, wenn produce wirft — .backup-Profil (der Regressionsfall)', async () => {
+    // Der Test darüber lief bis v6.27.1 als einziger Fehlerfall-Test — und mit
+    // `skipBackup` als dem einen Profil, das das Ziel nie wegbenennt. Im
+    // Standard-Profil war die Datei danach WEG (nur `.backup` blieb übrig,
+    // belegt an `registry.json` auf der FIKTIV-Share-Kopie). Deshalb hier
+    // dieselbe Probe gegen echtes `fs` — mit Rotation.
+    await atomicWrite(root, 'rotiert.json', 'unversehrt', { skipBackup: true });
+    await expect(atomicWriteStream(root, 'rotiert.json', async sink => {
+      await sink.write('kaputt');
+      throw new Error('Abbruch mitten im Schreiben');
+    })).rejects.toThrow('Abbruch');
+
+    expect(await aufPlatte('rotiert.json')).toBe('unversehrt');
+    const dabei = await readdir(wurzelOrdner);
+    expect(dabei).not.toContain('rotiert.json.tmp');
+    // Nicht rotiert heißt auch: keine .backup, in der man den Stand suchen müsste.
+    expect(dabei).not.toContain('rotiert.json.backup');
   });
 });
 

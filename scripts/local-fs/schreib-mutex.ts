@@ -2,8 +2,8 @@
  * Serialisiert Operationen pro Zielpfad.
  *
  * Die File System Access API serialisiert Writes pro Handle; Node `fs` tut das
- * nicht. `atomicWrite` besteht aus fünf Round-Trips (backup-rotieren, .tmp
- * schreiben, altes Ziel entfernen, umbenennen) und ist als Ganzes nicht atomar.
+ * nicht. `atomicWrite` besteht aus mehreren Round-Trips (.tmp schreiben, dann
+ * rotieren und umbenennen) und ist als Ganzes nicht atomar.
  * Laufen zwei davon verschränkt auf denselben Pfad — realistisch: der
  * Startup-Datenlauf gegen ein manuelles `__tf.datenAktualisieren()` — verliert
  * das Ziel Daten oder bleibt als `.tmp` liegen.

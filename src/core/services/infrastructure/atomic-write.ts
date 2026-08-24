@@ -5,9 +5,19 @@
  * FileServerStore — so bleibt der Legacy-Pfad unangetastet.
  *
  * Ablauf (siehe Architektur 11.6):
- *   1. Wenn target existiert und !skipBackup: .backup anlegen (alt überschreibt)
- *   2. Schreibe nach {filename}.tmp
- *   3. Rename {filename}.tmp → {filename}
+ *   1. Stale {filename}.tmp aufräumen
+ *   2. Schreibe nach {filename}.tmp — das Ziel bleibt die ganze Zeit unberührt
+ *   3. Wenn target existiert und !skipBackup: target → .backup umbenennen
+ *   4. Rename {filename}.tmp → {filename}
+ *
+ * **Schritt 2 steht vor Schritt 3, und das ist keine Kosmetik.** In der
+ * umgekehrten Reihenfolge (bis v6.27) existierte die Zieldatei zwischen
+ * Rotation und Rename nicht — bei `atomicWriteStream` für die Dauer des ganzen
+ * `produce`-Laufs (Snapshot: 13k+ Anträge über SMB). Jeder Abbruch darin —
+ * geschlossener Tab, SMB-Aussetzer, Quota — hinterließ nur `<datei>.backup`,
+ * das Ziel war weg. So bleibt das Fenster ohne Ziel auf zwei Umbenennungen
+ * beschränkt (Metadaten, keine Nutzdaten), und ein GESCHEITERTER Write lässt
+ * das Ziel unangetastet.
  *
  * move() ist experimentell — immer try/catch + Polyfill-Fallback.
  */
@@ -106,6 +116,48 @@ async function removeIfExists(dir: FileSystemDirectoryHandle, name: string): Pro
 }
 
 /**
+ * Der Einwechsel-Schritt, den `atomicWrite` und `atomicWriteStream` teilen: das
+ * FERTIG geschriebene `.tmp` wird zum Ziel, der alte Stand zur `.backup`.
+ *
+ * Alles hier sind Umbenennungen ohne Nutzdaten-I/O — die Zieldatei fehlt nur
+ * zwischen zweien davon. Scheitert die letzte, wird die erste zurückgedreht:
+ * das Ziel trägt danach wieder seinen alten Inhalt, ein gescheiterter Write ist
+ * also nicht schlimmer als kein Write. Das `.tmp` bleibt in diesem Fall liegen
+ * (Diagnose-Spur) und wird vom nächsten Write als stale weggeräumt.
+ *
+ * `exists` wird hier und nicht beim Aufrufer geprüft: die Entscheidung „gibt es
+ * etwas zu rotieren?" muss direkt vor der Rotation fallen, nicht vor dem Write.
+ */
+async function tauscheTmpEin(
+  dir: FileSystemDirectoryHandle,
+  filename: string,
+  tmpName: string,
+  backupName: string,
+  skipBackup: boolean,
+): Promise<void> {
+  const targetExists = await exists(dir, filename);
+
+  if (targetExists && !skipBackup) {
+    await removeIfExists(dir, backupName);
+    await rename(dir, filename, backupName);
+    try {
+      await rename(dir, tmpName, filename);
+    } catch (err) {
+      await rename(dir, backupName, filename).catch(() => { /* mehr geht hier nicht */ });
+      throw err;
+    }
+    return;
+  }
+
+  if (skipBackup) {
+    // Selbstheilung: stale .backup aus frueheren Writes ohne skipBackup wegraeumen.
+    await removeIfExists(dir, backupName);
+  }
+  await removeIfExists(dir, filename);
+  await rename(dir, tmpName, filename);
+}
+
+/**
  * Atomar (best-effort) schreiben mit .backup-Rotation (1 Generation).
  * `skipBackup: true` für append-only Files wie audit-log.jsonl.
  */
@@ -123,23 +175,11 @@ export async function atomicWrite(
   // Aufräumen falls vorheriger Crash .tmp hinterlassen hat.
   await removeIfExists(dir, tmpName);
 
-  const targetExists = await exists(dir, filename);
-
-  if (targetExists && !opts.skipBackup) {
-    await removeIfExists(dir, backupName);
-    await rename(dir, filename, backupName);
-  } else if (opts.skipBackup) {
-    // Selbstheilung: stale .backup aus frueheren Writes ohne skipBackup wegraeumen.
-    await removeIfExists(dir, backupName);
-  }
-
-  // Tmp schreiben
+  // Tmp schreiben — das Ziel bleibt dabei unangetastet.
   const tmpFh = await dir.getFileHandle(tmpName, { create: true });
   await writeData(tmpFh, data);
 
-  // Altes Ziel entfernen, Tmp darüberziehen.
-  await removeIfExists(dir, filename);
-  await rename(dir, tmpName, filename);
+  await tauscheTmpEin(dir, filename, tmpName, backupName, opts.skipBackup === true);
 }
 
 export interface AtomicWriteSink {
@@ -154,7 +194,9 @@ export interface AtomicWriteSink {
  * werden sollen. Gleiche `.backup`-Rotation + atomarer Rename wie `atomicWrite`.
  *
  * Bei einem Fehler im `produce` wird der WritableStream verworfen und das `.tmp`
- * entfernt — das Ziel bleibt unberührt.
+ * entfernt — das Ziel bleibt unberührt. Das gilt seit v6.27.1 wirklich: der
+ * `produce`-Lauf liegt jetzt VOR der Rotation, vorher lief er in einem Fenster,
+ * in dem es die Zieldatei gar nicht gab.
  */
 export async function atomicWriteStream(
   root: FileSystemDirectoryHandle,
@@ -169,14 +211,6 @@ export async function atomicWriteStream(
 
   await removeIfExists(dir, tmpName);
 
-  const targetExists = await exists(dir, filename);
-  if (targetExists && !opts.skipBackup) {
-    await removeIfExists(dir, backupName);
-    await rename(dir, filename, backupName);
-  } else if (opts.skipBackup) {
-    await removeIfExists(dir, backupName);
-  }
-
   const tmpFh = await dir.getFileHandle(tmpName, { create: true });
   const w = await tmpFh.createWritable();
   try {
@@ -188,8 +222,7 @@ export async function atomicWriteStream(
     throw err;
   }
 
-  await removeIfExists(dir, filename);
-  await rename(dir, tmpName, filename);
+  await tauscheTmpEin(dir, filename, tmpName, backupName, opts.skipBackup === true);
 }
 
 /** Rein Append-Writer (kein .tmp, kein .backup). Nur für audit-log. */
