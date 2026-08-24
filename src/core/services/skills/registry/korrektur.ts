@@ -87,26 +87,30 @@ export function regelLimit(regel: QualitaetsRegel, richtung?: CheckResult['richt
  */
 /**
  * Korrektur-Anweisung für die zweiseitigen Größen-Regeln (`wortanzahl`/`satzanzahl`).
- * Nennt den VERLETZTEN Rand — bewusst, gegen die naheliegende Vermutung.
+ * Nennt die **Mitte zuerst**, die Ränder danach — das ist gemessen, nicht geraten.
  *
- * Zwei Alternativen wurden gemessen (Haiku, drei fiktive VBs, je drei Läufe, 08/2026;
- * gezählt sind die Läufe, deren korrigierter Text im Zielband liegt, über B und C):
+ * **Der Mechanismus: das Modell zielt auf die ZUERST genannte Zahl.** Gemessen gegen
+ * die interne KI (AitisiGPT, Abschnitt B, Band 400–500, 08/2026), je ein Korrektur-Lauf:
  *
- * | Anweisung                          | B (400–500) | C (300–350) | zusammen |
- * |------------------------------------|-------------|-------------|----------|
- * | „mindestens 400" (diese Fassung)   | 9/9         | 5/9         | **14/18** |
- * | „400 bis 500"                      | 4/9         | 6/9         | 10/18    |
- * | „rund 450 (Spanne 400 bis 500)"    | 4/9         | 7/9         | 11/18    |
+ * | Anweisung                                           | erste Zahl | von → nach |
+ * |-----------------------------------------------------|------------|------------|
+ * | „Kürze auf höchstens **500** Wörter"                 | Obergrenze | 659 → 377 ✗ |
+ * | „Erweitere auf mindestens **400**, ziele auf rund 450, überschreite 500 nicht" | Untergrenze | 377 → 399 ✗ |
+ * | „Erweitere auf rund **450** (Untergrenze 400, Obergrenze 500)" | Ziel | 399 → **443** ✓ |
+ * | „Kürze auf rund **450** (Untergrenze 400, Obergrenze 500)"     | Ziel | 539 → **482** ✓ |
  *
- * Der Mechanismus dahinter: bei einer Untergrenze zielt das Modell darüber (+5 bis
- * +25 %), bei einer Spanne auf deren unteren Rand. Ob das trifft, hängt an der BREITE
- * des Bandes — B (100 Wörter breit) fängt den Überschuss, C (50) nicht. Eine Anweisung,
- * die für beide passt, gibt es in diesen drei Fassungen nicht; die hier ist die beste
- * gemessene, nicht die eleganteste.
+ * Jede Fassung landete dicht an ihrer ersten Zahl. Die erste nannte die Obergrenze und
+ * verfehlte das Band um 25 % nach unten; die dritte und vierte nennen das Ziel und
+ * treffen es auf 1–4 % genau — in BEIDE Richtungen.
  *
- * Offen (n=1, danach war das Mess-Budget erschöpft): „mindestens N, ziele auf rund
- * MITTE, überschreite MAX nicht" — der einzige Lauf lag mit 397/393/353 näher an den
- * Rändern als jede andere Fassung. Vor dem Einbau messen, nicht vermuten.
+ * Zuvor waren zwei naive Fassungen gegen Haiku gemessen worden („N bis M", „rund MITTE
+ * (Spanne)") und schnitten dort schlechter ab als die einseitige. Der Widerspruch löst
+ * sich über denselben Mechanismus: Haikus Abschnitte waren zu KURZ, die einseitige
+ * Untergrenze zog sie nach oben, und B's breites Band (100 Wörter) fing den Überschuss.
+ * Gemessen wird trotzdem gegen das Produktionsmodell — der Zwilling entscheidet nicht.
+ *
+ * Existiert nur ein Rand, bleibt der einseitige Wortlaut: ohne beide Ränder gibt es
+ * keine Mitte, und „auf mindestens N" ist dann die richtige Ansage.
  */
 function groessenKorrektur(
   check: CheckResult,
@@ -114,15 +118,21 @@ function groessenKorrektur(
   einheit: 'Wörter' | 'Sätze',
   ist: number | undefined,
 ): RegelKorrektur | null {
+  const min = optNum(p, 'min');
+  const max = optNum(p, 'max');
+  const mitte = min != null && max != null ? Math.round((min + max) / 2) : null;
+  const spanne = mitte != null ? ` (Untergrenze ${min}, Obergrenze ${max})` : '';
   if (check.richtung === 'zu_kurz') {
-    const min = optNum(p, 'min');
     if (min == null) return null;
-    return mk('laenger', `Erweitere auf mindestens ${min} ${einheit}${istTail(ist)}`);
+    return mk('laenger', mitte != null
+      ? `Erweitere auf rund ${mitte} ${einheit}${spanne}${istTail(ist)}`
+      : `Erweitere auf mindestens ${min} ${einheit}${istTail(ist)}`);
   }
   if (check.richtung === 'zu_lang') {
-    const max = optNum(p, 'max');
     if (max == null) return null;
-    return mk('kuerzer', `Kürze auf höchstens ${max} ${einheit}${istTail(ist)}`);
+    return mk('kuerzer', mitte != null
+      ? `Kürze auf rund ${mitte} ${einheit}${spanne}${istTail(ist)}`
+      : `Kürze auf höchstens ${max} ${einheit}${istTail(ist)}`);
   }
   return null;
 }

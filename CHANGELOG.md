@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v6.35.0 — Die Korrektur-Anweisung nennt das Ziel zuerst (August 2026)
+
+MINOR — Erstmals gegen die **interne KI** gemessen statt gegen den OpenRouter-Zwilling. Sie verhält sich anders — und die Korrektur-Anweisung entscheidet sich an einem Detail: das Modell zielt auf die zuerst genannte Zahl. Detail: [gutachten-kurzfassung.md](docs/architecture/gutachten-kurzfassung.md).
+
+- **Die Korrektur-Anweisung nennt jetzt das ZIEL zuerst**, die Ränder dahinter („Kürze auf rund 450 Wörter (Untergrenze 400, Obergrenze 500)") ([korrektur.ts](src/core/services/skills/registry/korrektur.ts))
+- Gemessen an der internen KI, Abschnitt B: Obergrenze zuerst → 659 **→ 377** (25 % unter dem Band); Ziel zuerst → 399 **→ 443** und 539 **→ 482**, beide im Band
+- **Der komplette Weg trägt ohne Zutun**: B frisch erzeugt 645 → automatische Korrektur → **473**, 6 von 6 Checks ok; C **→ 304**, 5 von 5 ok
+- Die interne KI schreibt anders als Haiku — B **725 statt 310–440** (zu lang), C **106 statt 244–321** (zu kurz); was am Zwilling gewinnt, gewinnt nicht am Original
+- Vor diesen Änderungen stand C bei 106 Wörtern gegen ein Ziel von 300–350, B bei 725 gegen 400–500
+
 ### v6.34.0 — Ueberschriften im Gutachten-Fliesstext werden gefunden (August 2026)
 
 MINOR — Die Prompts verlangen „keine Zwischenüberschriften", und `keineAufzaehlungen` ist als `fehler` gebunden — trotzdem trug jeder vierte B-Text Markdown-Überschriften bis in den DOCX-Export. Die Regel sucht Listen-Marker; eine Überschrift ist keiner. Detail: [gutachten-kurzfassung.md](docs/architecture/gutachten-kurzfassung.md).

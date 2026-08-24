@@ -39,27 +39,27 @@ describe('regelKorrekturAnweisung — Modifier + Zielwert je Typ', () => {
   });
 
   /**
-   * Genannt wird der VERLETZTE Rand, nicht die Spanne. Das ist eine gemessene
-   * Entscheidung, keine Selbstverständlichkeit: zwei Alternativen („N bis M" und
-   * „rund MITTE (Spanne N bis M)") schnitten über B und C zusammen schlechter ab
-   * (10/18 und 11/18 gegen 14/18). Detail im Docblock von `groessenKorrektur`.
+   * Die MITTE steht vorn, die Ränder dahinter — gemessen gegen die interne KI: das
+   * Modell zielt auf die zuerst genannte Zahl. „Kürze auf höchstens 500" brachte 659 →
+   * 377 (25 % unter dem Band), „Kürze auf rund 450 (Untergrenze 400, Obergrenze 500)"
+   * brachte 539 → 482. Detail im Docblock von `groessenKorrektur`.
    */
-  it('wortanzahl zu_lang → kuerzer(max); zu_kurz → laenger(min)', () => {
+  it('wortanzahl: die Mitte steht VORN, die Ränder dahinter', () => {
     const lang = regelKorrekturAnweisung(check({ richtung: 'zu_lang', messwert: 300 }), regel('wortanzahl', { min: 100, max: 200 }));
     expect(lang!.modifier).toBe('kuerzer');
-    expect(lang!.anweisung).toBe('Kürze auf höchstens 200 Wörter; aktuell 300.');
+    expect(lang!.anweisung).toBe('Kürze auf rund 150 Wörter (Untergrenze 100, Obergrenze 200); aktuell 300.');
     const kurz = regelKorrekturAnweisung(check({ richtung: 'zu_kurz', messwert: 50 }), regel('wortanzahl', { min: 100, max: 200 }));
     expect(kurz!.modifier).toBe('laenger');
-    expect(kurz!.anweisung).toBe('Erweitere auf mindestens 100 Wörter; aktuell 50.');
+    expect(kurz!.anweisung).toBe('Erweitere auf rund 150 Wörter (Untergrenze 100, Obergrenze 200); aktuell 50.');
   });
 
-  it('nennt NICHT die Spanne — der Wortlaut ist gemessen, nicht geraten', () => {
-    const kurz = regelKorrekturAnweisung(check({ richtung: 'zu_kurz', messwert: 50 }), regel('wortanzahl', { min: 100, max: 200 }));
-    expect(kurz!.anweisung).not.toContain('200');
-    expect(kurz!.anweisung).not.toContain('Spanne');
+  it('die Zielzahl steht vor beiden Rändern — daran hängt die Wirkung', () => {
+    const a = regelKorrekturAnweisung(check({ richtung: 'zu_kurz', messwert: 50 }), regel('wortanzahl', { min: 100, max: 200 }))!.anweisung;
+    expect(a.indexOf('150')).toBeLessThan(a.indexOf('100'));
+    expect(a.indexOf('150')).toBeLessThan(a.indexOf('200'));
   });
 
-  it('wortanzahl mit NUR einem Rand: die Gegenrichtung hat kein Limit → null', () => {
+  it('wortanzahl mit NUR einem Rand: kein Ziel ableitbar → einseitiger Wortlaut', () => {
     const nurMin = regelKorrekturAnweisung(check({ richtung: 'zu_kurz', messwert: 50 }), regel('wortanzahl', { min: 100 }));
     expect(nurMin!.anweisung).toBe('Erweitere auf mindestens 100 Wörter; aktuell 50.');
     expect(regelKorrekturAnweisung(check({ richtung: 'zu_lang', messwert: 300 }), regel('wortanzahl', { min: 100 }))).toBeNull();
@@ -69,13 +69,13 @@ describe('regelKorrekturAnweisung — Modifier + Zielwert je Typ', () => {
     expect(regelKorrekturAnweisung(check({ messwert: 150 }), regel('wortanzahl', { min: 100, max: 200 }))).toBeNull();
   });
 
-  it('satzanzahl zu_lang → kuerzer; zu_kurz → laenger (mit „Sätze")', () => {
+  it('satzanzahl zu_lang → kuerzer; zu_kurz → laenger (mit „Sätze", ebenfalls Ziel zuerst)', () => {
     const lang = regelKorrekturAnweisung(check({ richtung: 'zu_lang', messwert: 15 }), regel('satzanzahl', { min: 8, max: 12 }));
     expect(lang!.modifier).toBe('kuerzer');
-    expect(lang!.anweisung).toBe('Kürze auf höchstens 12 Sätze; aktuell 15.');
+    expect(lang!.anweisung).toBe('Kürze auf rund 10 Sätze (Untergrenze 8, Obergrenze 12); aktuell 15.');
     const kurz = regelKorrekturAnweisung(check({ richtung: 'zu_kurz', messwert: 3 }), regel('satzanzahl', { min: 8, max: 12 }));
     expect(kurz!.modifier).toBe('laenger');
-    expect(kurz!.anweisung).toBe('Erweitere auf mindestens 8 Sätze; aktuell 3.');
+    expect(kurz!.anweisung).toBe('Erweitere auf rund 10 Sätze (Untergrenze 8, Obergrenze 12); aktuell 3.');
   });
 
   it('absatz_min → laenger(min), richtungslos', () => {

@@ -19,6 +19,12 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v6.35 — 2026-08
+
+### Verbesserungen
+- **Gutachten-Abschnitte treffen ihren Zielumfang jetzt von allein.** Wird ein Abschnitt zu lang oder zu kurz, bessert die KI automatisch nach — und die Anweisung dafür nennt neuerdings die Ziellänge zuerst statt nur die Grenze. Gegen die interne KI gemessen: Abschnitt B landete vorher bei 725 Wörtern (Ziel 400 bis 500), jetzt bei 473; Abschnitt C bei 106 statt der geforderten 300 bis 350, jetzt bei 304.
+- Alle Prüfungen dieser beiden Abschnitte sind danach grün, ohne dass jemand eingreifen muss. Ein Abschnitt braucht dafür rund vier Minuten statt zwei.
+
 ## v6.34 — 2026-08
 
 ### Bugfixes

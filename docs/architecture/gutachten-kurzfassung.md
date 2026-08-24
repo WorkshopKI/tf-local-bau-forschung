@@ -268,6 +268,39 @@ Bei einer Untergrenze zielt das Modell darüber, bei einer Spanne auf deren unte
 
 **Die Harness kennt den Auto-Retry jetzt.** `runOneSection` fährt dieselbe Schleife wie die App (`chooseRetryModifier` + `modifier` + `vorherigerText`), mit der Decke aus der **Workflow-Definition** statt einer eigenen Zahl; `--no-auto-retry` schaltet sie für den Vergleich mit Alt-Läufen ab. Ohne sie maß jede Zahl den ersten Wurf, den in der App niemand zu sehen bekommt. `retryKorrekturAnweisung` reicht dem Korrektur-Lauf denselben Zielwert nach, den der manuelle Korrektur-Knopf schon nannte — **ohne messbaren Effekt**, aber der automatische und der manuelle Weg sagen dem Modell jetzt dasselbe.
 
+### Gegen die interne KI gemessen — das Modell zielt auf die ERSTE Zahl (v6.35)
+
+Alle vorherigen Messungen dieser Reihe liefen gegen Haiku bzw. Sonnet über OpenRouter. Die interne KI (AitisiGPT) ist das **Produktionsmodell**, und sie verhält sich deutlich anders — je Abschnitt sogar in die entgegengesetzte Richtung:
+
+| Abschnitt | Ziel | interne KI | Haiku |
+|---|---|---|---|
+| B | 400–500 | **645–725** (zu lang) | 310–440 (zu kurz) |
+| C | 300–350 | **106** (weit zu kurz) | 244–321 |
+
+Damit ist auch die Wortlaut-Frage der Korrektur-Anweisung neu zu beantworten — und diesmal fällt sie eindeutig aus. Gemessen an Abschnitt B, je ein Korrektur-Lauf gegen die interne KI:
+
+| Anweisung | zuerst genannte Zahl | von → nach |
+|---|---|---|
+| „Kürze auf höchstens **500** Wörter" | Obergrenze | 659 → 377 ✗ (25 % unter dem Band) |
+| „Erweitere auf mindestens **400**, ziele auf rund 450, überschreite 500 nicht" | Untergrenze | 377 → 399 ✗ (ein Wort) |
+| „Erweitere auf rund **450** (Untergrenze 400, Obergrenze 500)" | **Ziel** | 399 → **443** ✓ |
+| „Kürze auf rund **450** (Untergrenze 400, Obergrenze 500)" | **Ziel** | 539 → **482** ✓ |
+
+**Das Modell landet dicht an der Zahl, die es zuerst liest.** Nennt die Anweisung die Obergrenze, unterschreitet es das Band; nennt sie die Untergrenze, klebt es daran; nennt sie das Ziel, trifft es auf 1–4 % genau — in beide Richtungen. Die Ränder gehören trotzdem dazu, aber dahinter.
+
+Der scheinbare Widerspruch zur früheren Haiku-Messung (dort schnitt die einseitige Fassung mit 14/18 am besten ab) löst sich über denselben Mechanismus: Haikus Abschnitte waren zu KURZ, die einseitige Untergrenze zog sie nach oben, und B's breites Band von 100 Wörtern fing den Überschuss. Was am Zwilling gewinnt, gewinnt nicht am Original.
+
+**Der komplette Weg, wie ein Bearbeiter ihn geht** — Abschnitt verwerfen, „generieren" klicken, nichts weiter:
+
+| | Abschnitt B | Abschnitt C |
+|---|---|---|
+| erster Wurf | 645 (Fehler) | — |
+| nach automatischer Korrektur | **473** ✓ | **304** ✓ |
+| Checks | **6 von 6 ok** | **5 von 5 ok** |
+| Dauer | 4,5 min | 2,6 min |
+
+C stand vor diesen Änderungen bei **106** Wörtern gegen ein Ziel von 300–350; B bei 725. Beide treffen jetzt ohne Zutun.
+
 ### Überschriften im Fließtext — der Defekt, der bis in den DOCX-Export lief (v6.34)
 
 Die Prompts der Abschnitte verlangen ausdrücklich „**Fließtext** — keine Aufzählungen, keine Zwischenüberschriften", und `keineAufzaehlungen` ist als **`fehler`** gebunden. Trotzdem gemessen an 224 echten Abschnitts-Texten aus den vorhandenen Eval-Läufen (kein neuer Modell-Aufruf nötig):
