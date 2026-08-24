@@ -209,6 +209,46 @@ drei Wörter, sähe der Nutzer nicht, warum. Er sieht stattdessen an jedem
 Schlagwort-Chip dessen Trefferzahl und kann es überschreiben — das rechnet nur
 die Wortlaut-Stufe dieser Zeile neu, ohne neuen KI-Lauf.
 
+### Was das Modell wirklich liefert (gemessen 24.08.2026)
+
+Erster Lauf gegen die **interne KI** (`gpt-oss-120b`, Rolle `standard`, über den
+Tunnel): dreimal dieselbe Liste `Auszug_72_Zeilen_ 20260818` — 29 gefaltete
+Meldungen je Durchgang, 87 Läufe, 261 Schlagworte, je Durchgang rund 160 s, 0
+Konsolenfehler. Die Ähnlichkeitsstufe war aus (kein Embedding-Modell geladen),
+geurteilt wurde also nach Wortlaut und Träger.
+
+| Was gefragt war | Ergebnis |
+|---|---|
+| Genau drei Schlagworte, parsebar | **87 / 87** — der Fliesstext-Rückfall des Parsers wurde nie gebraucht |
+| Drei **verschiedene Achsen** | gehalten; nur 6 von 87 Zeilen doppelten eine Achse („Prozessdaten" + „Prozessoptimierung") |
+| **Keine** Allerweltswörter der Verbotsliste | 8 von 261 Wörtern verletzt (3,1 %) — „Additive Fertigung" in Zeile 56 in **allen drei** Durchgängen |
+| Spezifisch, also im Bestand auffindbar | **119 von 261 (45,6 %) treffen nichts**, 171 (65,5 %) weniger als fünf Vorhaben, Median **1** |
+| Nicht zu weit | 35 von 261 (13,4 %) über der Ein-Prozent-Marke — „Metall" 526, „Pflanzen" 374, „Textil" 256 |
+
+Zwei Befunde wiegen schwerer als jede Einzelzahl.
+
+**Die Verteilung ist zweigipflig, nicht breit.** Ein Schlagwort ist entweder tot
+(0–2 Treffer) oder flutend (44+); das Band dazwischen, das ein Urteil tragen
+könnte, ist dünn besetzt. Zur toten Seite gehören auch Wörter, die gar nicht
+treffen **können**: zusammengeschriebene Komposita („KryogeneDruckmessung",
+„KryogeneMessung"), Verschreiber („Kältnetz" statt Kältenetz), Abkürzungen
+(„GC-IMS").
+
+**Derselbe Text ergibt dreimal etwas anderes.** In **keiner** der 29 Zeilen
+standen dreimal dieselben drei Schlagworte; im Schnitt wiederholt sich **1,00 von
+3** Wörtern über alle drei Durchgänge, und **10 von 29** Zeilen teilen über die
+drei Läufe kein einziges Wort. Das schlägt bis ins Urteil durch: **9 von 29
+Zeilen (31 %) wechseln zwischen den Durchgängen ihr Urteil** — Zeile 2 und 6
+kippen von „keine Übereinstimmung" auf „Übereinstimmung". Und von den sechs
+„Übereinstimmung" der drei Durchgänge ruht genau eine (Zeile 48, zweimal) auf
+Wörtern, die weder tot noch als „zu weit" markiert sind; die übrigen trägt ein
+Wort, das die App selbst anzweifelt.
+
+Die Verbotsliste ist damit **nicht** das Werkzeug, das den Ausschlag gibt: sie
+fängt 8 der 35 zu weiten Wörter. Die anderen 27 sind fachlich unauffällig und
+trotzdem zu weit — was ein Wort im **Bestand** anrichtet, weiss die App zur
+Suchzeit ohnehin, das Modell aber nie. Die Folgerung steht in Abschnitt 12.
+
 ## 7. Die drei Suchstufen
 
 **Wortlaut** — ein `searchAntraegeSubstring` **je Schlagwort**, nicht ein
@@ -371,12 +411,18 @@ Neukalibrierung aller Schwellen und brächte keinen Erkenntnisgewinn.
 
 ## 12. Offen
 
-- Der **KI-Lauf selbst** ist noch nicht gegen die interne KI gefahren. Die
-  Schlagworte des Messlaufs waren von Hand formuliert; wie gut das Modell sie
-  trifft, ist damit nicht beantwortet. Die Qualität ist an **drei** Läufen
-  derselben Zeile zu beurteilen — ein Lauf ist Rauschen. Der Prompt verlangt
-  seit 24.08. **drei verschiedene Achsen** (Verfahren / Gegenstand / Anwendung);
-  ob das Modell das einhält, ist genau an diesen drei Läufen zu prüfen.
+- **Die Wiederholbarkeit des KI-Laufs ist offen** — gemessen (Abschnitt 6), nicht
+  gelöst. Form und Achsen hält das Modell ein, die Spezifität nicht, und dieselbe
+  Zeile bekommt in drei Durchgängen drei verschiedene Schlagwort-Trios; 31 % der
+  Zeilen wechseln dabei ihr Urteil. Zwei Wege stehen offen, beide ungebaut:
+  **entweder** die Wortlaut-Stufe nachschlagen lassen, bevor das Urteil fällt
+  (ein Wort über der Zwei-Prozent-Schwelle zählt schon heute nicht mit — ein Wort
+  ohne jeden Treffer könnte einen zweiten, engeren Vorschlag anfordern),
+  **oder** je Zeile mehrere Läufe fahren und nur behalten, was sich wiederholt.
+  Der zweite Weg kostet das Dreifache an Wartezeit; der erste nutzt, was die App
+  ohnehin weiss. Vor beiden steht die Frage, ob ein wechselndes Urteil für einen
+  **Hinweis** überhaupt schädlich ist — die Trefferliste steht in jeder Zeile
+  offen, und entschieden wird in der Fachprüfung.
 - Die **Gattung** (`LP-Systematik`, `vb_phase`) wird geführt und angezeigt, aber
   nicht ausgewertet. Ein Filter „nur Netzwerke" wäre billig; die Messung zeigte
   nur, dass er allein wenig bringt — die Zentrums-Meldungen fallen auch unter
