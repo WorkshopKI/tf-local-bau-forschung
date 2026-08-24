@@ -88,7 +88,14 @@ const SEED_VORGABEN_C: SkillVorgaben = {
   wortanzahl: { schweregrad: 'fehler', min: 300, max: 350, persoenlichAnpassbar: true },
 };
 
-/** Umfangs-/Form-Vorgaben des Abschnitts D (vormals `seed-d-*`). */
+/**
+ * Umfangs-/Form-Vorgaben des Abschnitts D (vormals `seed-d-*`).
+ *
+ * Der Seed führt die 300–350 seit jeher — auf dem kuratierten Share war D aber der
+ * EINZIGE Abschnitt ganz ohne Vorgabe (`{}`), gefunden beim Nebeneinanderlegen aller
+ * sieben (v6.36). Nachgemessen an neun gespeicherten D-Texten: einer im Band, drei mit
+ * neun Wörtern. Rollout auf Bestands-Shares: `applyDUmfang`.
+ */
 const SEED_VORGABEN_D: SkillVorgaben = {
   wortanzahl: { schweregrad: 'fehler', min: 300, max: 350, persoenlichAnpassbar: true },
 };

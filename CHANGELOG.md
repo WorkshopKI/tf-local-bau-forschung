@@ -5,6 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v6.36.1 — Abschnitt D bekommt seine Umfangs-Vorgabe zurueck (August 2026)
+
+PATCH — Beim Nebeneinanderlegen der Vorgaben aller sieben Abschnitte (v6.36) stand D als einziger auf `{}`. Der Seed führt 300–350 seit jeher; auf den Share kam der Wert nie, und niemand hat je gemerkt, dass D ungeprüft lief. Detail: [artefakt-engine.md](docs/architecture/artefakt-engine.md).
+
+- **D prüft jetzt 300–350 Wörter als `fehler`** — dieselbe Vorgabe wie C, dieselbe Sorte Abschnitt; damit greift auch dort der automatische Korrektur-Versuch ([migrations.ts](src/core/services/skills/registry/migrations.ts))
+- Gemessen an neun gespeicherten D-Texten, was ohne Prüfung entstand: **1 im Band**, drei mit **neun Wörtern** (9, 9, 9, 341, 356, 387, 412, 419, 841)
+- Ursache: `applySkillVorgaben` (v2.296) wandelte nur Regel-Records um, die es auf dem Share gab — `mergeMissingSeeds` ergänzt fehlende Skills, nie fehlende Felder eines vorhandenen
+- Gesetzt wird **nur, wo gar keine Wortanzahl steht**; ein kuratierter Wert, auch ein weicherer Schweregrad, bleibt unangetastet
+
 ### v6.36.0 — Der Standardsatz zieht an den Workflow, der fachliche Pruefer geht an (August 2026)
 
 MINOR — 37 Regel-Deklarationen über A–G, davon 25 dieselbe Regel mehrfach: eine Änderung an „keine Aufzählungen" waren sechs Änderungen. Der Satz zieht an den Workflow, wo er hingehört — und der seit v6.27 stillgelegte fachliche Prüfer geht mit an. Detail: [artefakt-engine.md](docs/architecture/artefakt-engine.md).

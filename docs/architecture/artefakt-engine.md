@@ -275,6 +275,23 @@ Vorgabe **nur bei byte-gleichem Seed-Wert** (ein kuratierter `hinweis` bleibt un
 dann sichtbar neben der Standard-Regel — sie stillschweigend zu verschärfen wäre das
 Schlimmere) und schreibt E/F ihre Abwahl.
 
+### Was das Abzählen nebenbei fand: D lief ungeprüft (v6.36.1)
+
+Beim Nebeneinanderlegen der Vorgaben aller sieben Abschnitte stand D als EINZIGER auf
+`{}` — keine Wortanzahl, keine Form-Vorgabe außer dem Standardsatz. Der Seed führt
+300–350 seit jeher; auf den kuratierten Share kam der Wert nie, weil `applySkillVorgaben`
+(v2.296) nur Regel-RECORDS umgewandelt hat, die es dort gab, und `mergeMissingSeeds`
+fehlende SKILLS ergänzt, nie fehlende Felder eines vorhandenen.
+
+Nachgemessen am gespeicherten Eval-Korpus, was D ohne Prüfung schrieb: **9, 9, 9, 341,
+356, 387, 412, 419, 841** Wörter — einer im Band, drei entartete Läufe, die nichts
+gemeldet hat. Rollout `ga-d-umfang-2026-08`, gesetzt **nur wo gar keine Wortanzahl
+steht**; ein kuratierter Wert bleibt, auch ein weicherer Schweregrad.
+
+Die Vorgaben-Lage am Share zum Zeitpunkt des Fundes (A/B tragen kuratierte
+Abweichungen vom Seed, die bewusst stehen bleiben): A `satzanzahl` als `hinweis`
+statt `fehler`, B `absatzMin` als `hinweis`/3 statt `fehler`/4.
+
 ## QS-Regel-Bindung je Artefakt
 
 `qsRegelnFuerArtefakt(file, typ)` ([selectors.ts](../../src/core/services/skills/registry/selectors.ts)):

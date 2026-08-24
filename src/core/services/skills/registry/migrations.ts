@@ -161,6 +161,9 @@ export const GA_STANDARDSATZ_MIGRATION = 'ga-standardsatz-2026-08';
 /** ID der Freischaltung des fachlichen Prüfers (`aktiv: false` → `true`). */
 export const GA_PRUEFER_AKTIV_MIGRATION = 'ga-pruefer-aktiv-2026-08';
 
+/** ID des Nachzugs der Umfangs-Vorgabe von Abschnitt D (300–350, nie auf dem Share angekommen). */
+export const GA_D_UMFANG_MIGRATION = 'ga-d-umfang-2026-08';
+
 export interface ReconcileResult {
   file: SkillRegistryFile;
   /** True, wenn dieser Lauf etwas geändert hat und der Aufrufer zurückschreiben soll. */
@@ -986,6 +989,34 @@ function applyPrueferAktiv(skills: SkillRecord[]): SkillRecord[] {
       : s);
 }
 
+/**
+ * Abschnitt D bekommt seine Umfangs-Vorgabe — sie ist nie auf dem Share angekommen.
+ *
+ * Gefunden beim Standardsatz-Umbau (v6.36), indem die Vorgaben aller sieben Abschnitte
+ * einmal nebeneinandergelegt wurden: D stand als EINZIGER auf `{}`. Der Seed führt seit
+ * jeher 300–350 Wörter; auf den Share kam der Wert nie, weil `applySkillVorgaben`
+ * (v2.296) nur Regel-RECORDS umgewandelt hat, die es dort gab — D's `seed-d-wortanzahl`
+ * war zu diesem Zeitpunkt offenbar schon weg. `mergeMissingSeeds` ergänzt fehlende
+ * SKILLS, nie fehlende Felder eines vorhandenen; also blieb die Lücke.
+ *
+ * Am gespeicherten Eval-Korpus gemessen, was D ohne Prüfung schrieb: **1 von 9** Texten
+ * im Band 300–350, drei mit **neun Wörtern** — entartete Läufe, die nichts gemeldet hat
+ * (9, 9, 9, 341, 356, 387, 412, 419, 841).
+ *
+ * Guard: gesetzt wird NUR, wo gar keine `wortanzahl` steht. Ein kuratierter Wert — auch
+ * ein bewusst anderer Schweregrad — bleibt unangetastet; die übrigen Vorgaben von D
+ * (falls jemand welche angelegt hat) ebenso.
+ */
+function applyDUmfang(skills: SkillRecord[]): SkillRecord[] {
+  const seed = SEED_SKILLS_BG.find(s => s.id === MARKT_SKILL_ID)?.vorgaben?.wortanzahl;
+  if (!seed) return skills;
+  return skills.map(s => (
+    s.id === MARKT_SKILL_ID && !s.vorgaben?.wortanzahl
+      ? { ...s, vorgaben: { ...s.vorgaben, wortanzahl: { ...seed } }, version: s.version + 1 }
+      : s
+  ));
+}
+
 interface EinzelMigration {
   marker: string;
   /** Bekommt die GANZE Datei — Migrationen dürfen auch `regeln` anfassen. */
@@ -1025,6 +1056,7 @@ const MIGRATIONEN: EinzelMigration[] = [
   { marker: GA_UEBERSCHRIFTEN_MIGRATION, apply: nurSkills(applyUeberschriften) },
   { marker: GA_STANDARDSATZ_MIGRATION, apply: applyGaStandardsatz },
   { marker: GA_PRUEFER_AKTIV_MIGRATION, apply: nurSkills(applyPrueferAktiv) },
+  { marker: GA_D_UMFANG_MIGRATION, apply: nurSkills(applyDUmfang) },
 ];
 
 /**

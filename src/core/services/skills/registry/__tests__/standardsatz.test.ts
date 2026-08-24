@@ -18,11 +18,15 @@ import { describe, expect, it } from 'vitest';
 import { resolveRegeln, standardRegelIdsFuer, getSkillById } from '../selectors';
 import { buildPromptVorgaben } from '../check-engine';
 import { normalizeRegistryFile } from '../storage';
-import { reconcileEinmaligeAktivierungen, GA_STANDARDSATZ_MIGRATION, GA_PRUEFER_AKTIV_MIGRATION } from '../migrations';
+import {
+  reconcileEinmaligeAktivierungen, GA_STANDARDSATZ_MIGRATION, GA_PRUEFER_AKTIV_MIGRATION,
+  GA_D_UMFANG_MIGRATION,
+} from '../migrations';
 import {
   SEED_REGISTRY, ZIM_EP_DEF, GA_STANDARD_REGEL_IDS, PASSIV_REGEL_ID,
   AUFZAEHLUNGEN_REGEL_ID, INTERPUNKTION_REGEL_ID, UEBERSCHRIFTEN_REGEL_ID,
   KURZFASSUNG_SKILL_ID, AUSGANGSLAGE_SKILL_ID, UNTERNEHMEN_SKILL_ID, KOMPETENZ_SKILL_ID,
+  MARKT_SKILL_ID,
   QS_BASIS_SKILL_ID, SEED_QS_SKILL,
 } from '../seed';
 import type { SkillRecord, SkillRegistryFile, WorkflowDef } from '../types';
@@ -226,6 +230,70 @@ describe('Migration — der Satz zieht um', () => {
     expect(geaendert).toBe(false);
     expect(out.skills[0]!.regelIds).toEqual([PASSIV_REGEL_ID]);
     expect(out.workflows![0]!.standardRegelIds).toBeUndefined();
+  });
+});
+
+describe('Migration — D bekommt seine Umfangs-Vorgabe', () => {
+  // Gefunden, indem die Vorgaben aller sieben Abschnitte einmal nebeneinanderlagen:
+  // D stand als EINZIGER auf `{}`. Der Seed führt 300–350 seit jeher, auf den Share kam
+  // der Wert nie. Neun gespeicherte D-Texte: einer im Band, drei mit neun Wörtern.
+  const ALLE_MARKER = reconcileEinmaligeAktivierungen(
+    { version: 1, updated_at: 't', skills: [], regeln: [] },
+  ).file.angewandteMigrationen ?? [];
+  const ohneDUmfang = (skills: SkillRecord[]): SkillRegistryFile => ({
+    ...file(skills),
+    angewandteMigrationen: ALLE_MARKER.filter(m => m !== GA_D_UMFANG_MIGRATION),
+  });
+
+  it('setzt 300–350 als fehler, wo gar keine Wortanzahl steht', () => {
+    const { file: out, geaendert } = reconcileEinmaligeAktivierungen(
+      ohneDUmfang([skill(MARKT_SKILL_ID, { version: 3 })]),
+    );
+    expect(geaendert).toBe(true);
+    expect(out.skills[0]!.vorgaben?.wortanzahl).toEqual({
+      schweregrad: 'fehler', min: 300, max: 350, persoenlichAnpassbar: true,
+    });
+    expect(out.skills[0]!.version).toBe(4);
+  });
+
+  it('lässt eine vorhandene Wortanzahl UNBERÜHRT — auch einen weicheren Schweregrad', () => {
+    const eigen = { schweregrad: 'hinweis' as const, min: 200 };
+    const { file: out } = reconcileEinmaligeAktivierungen(
+      ohneDUmfang([skill(MARKT_SKILL_ID, { vorgaben: { wortanzahl: eigen } })]),
+    );
+    expect(out.skills[0]!.vorgaben?.wortanzahl).toEqual(eigen);
+  });
+
+  it('lässt die übrigen Vorgaben von D stehen', () => {
+    const { file: out } = reconcileEinmaligeAktivierungen(
+      ohneDUmfang([skill(MARKT_SKILL_ID, { vorgaben: { absatzMin: { schweregrad: 'hinweis', min: 2 } } })]),
+    );
+    expect(out.skills[0]!.vorgaben?.absatzMin).toEqual({ schweregrad: 'hinweis', min: 2 });
+    expect(out.skills[0]!.vorgaben?.wortanzahl?.min).toBe(300);
+  });
+
+  it('fasst keinen anderen Abschnitt an', () => {
+    const { file: out } = reconcileEinmaligeAktivierungen(
+      ohneDUmfang([skill(KOMPETENZ_SKILL_ID, { version: 3 })]),
+    );
+    expect(out.skills[0]!.vorgaben).toBeUndefined();
+    expect(out.skills[0]!.version).toBe(3);
+  });
+
+  it('läuft nur einmal: gesetzter Marker lässt D ohne Vorgabe', () => {
+    const { file: out, geaendert } = reconcileEinmaligeAktivierungen({
+      ...file([skill(MARKT_SKILL_ID)]),
+      angewandteMigrationen: ALLE_MARKER,
+    });
+    expect(geaendert).toBe(false);
+    expect(out.skills[0]!.vorgaben).toBeUndefined();
+  });
+
+  it('der Seed führt den Wert ohnehin — die Migration ist dort ein No-op', () => {
+    const d = getSkillById(SEED_REGISTRY, MARKT_SKILL_ID)!;
+    expect(d.vorgaben?.wortanzahl).toEqual({
+      schweregrad: 'fehler', min: 300, max: 350, persoenlichAnpassbar: true,
+    });
   });
 });
 
