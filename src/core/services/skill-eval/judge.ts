@@ -16,8 +16,21 @@ import { buildPromptVorgaben, type QualitaetsRegel } from '@/core/services/skill
 import type { AITransport } from '@/core/services/ai/transports/streamlit';
 import type { JudgeScores } from './types';
 
-/** VB-Kürzung im Judge-Prompt (Kontext bleibt bezahlbar). */
-const JUDGE_VB_CAP = 12000;
+/**
+ * VB-Kürzung im Judge-Prompt.
+ *
+ * Der frühere Wert 12.000 war eine reine Kostenbremse — und er machte
+ * `fachliche_korrektheit` unbrauchbar: echte VBs sind 100.000–120.000 Zeichen lang, der
+ * Judge sah also 10–12 %. Kennzahlen, die das Modell korrekt aus Kapitel 9 übernommen
+ * hatte, standen hinter dem Schnitt und wurden als „nicht belegt" abgewertet (gemessen
+ * 08/2026: „98 % Druckgenauigkeit" steht bei Zeichen 103.507). Der Judge bestrafte damit
+ * richtige Arbeit, und die Note war nach oben gedeckelt.
+ *
+ * Default deckt jetzt den echten Bestand ab; `--judge-vb-cap` senkt ihn für billige
+ * Durchläufe. Wird tatsächlich gekürzt, sagt der Prompt das ausdrücklich (`capVb`) —
+ * sonst liest der Judge „steht nicht in meinem Auszug" als „ist erfunden".
+ */
+export const JUDGE_VB_CAP_DEFAULT = 120000;
 
 export const JUDGE_SYSTEM_PROMPT =
   'Du bist ein strenger, erfahrener ZIM-Gutachten-Bewerter. Du bewertest einen ' +
@@ -34,14 +47,24 @@ export interface JudgeArgs {
   regeln: QualitaetsRegel[];
   /** Kurzbeschreibung des Skills (was der Abschnitt leisten soll). */
   skillBeschreibung: string;
+  /** VB-Kürzung im Prompt; fehlt → `JUDGE_VB_CAP_DEFAULT` (siehe dort, warum großzügig). */
+  vbCap?: number;
 }
 
-/** Kürzt die VB am letzten Absatzumbruch vor dem Cap. */
-function capVb(vb: string): string {
-  if (vb.length <= JUDGE_VB_CAP) return vb;
-  const slice = vb.slice(0, JUDGE_VB_CAP);
+/**
+ * Kürzt die VB am letzten Absatzumbruch vor dem Cap — und sagt dem Judge, DASS gekürzt
+ * wurde. Ohne diesen Satz liest er „steht nicht in meinem Text" als „ist erfunden" und
+ * wertet korrekt übernommene Angaben aus den hinteren Kapiteln ab.
+ */
+function capVb(vb: string, cap: number): string {
+  if (vb.length <= cap) return vb;
+  const slice = vb.slice(0, cap);
   const lastBreak = slice.lastIndexOf('\n\n');
-  return `${(lastBreak > JUDGE_VB_CAP * 0.5 ? slice.slice(0, lastBreak) : slice).trimEnd()}\n\n…`;
+  const text = (lastBreak > cap * 0.5 ? slice.slice(0, lastBreak) : slice).trimEnd();
+  const anteil = Math.round((text.length / vb.length) * 100);
+  return `> HINWEIS: Dies ist ein AUSZUG (${anteil} % der VB, vorne beginnend) — der Rest ist gekürzt.\n`
+    + `> Werte eine Angabe NICHT als erfunden, nur weil sie hier fehlt; sie kann hinter dem Schnitt stehen.\n`
+    + `> Senke \`fachliche_korrektheit\` nur, wenn eine Aussage dem Auszug WIDERSPRICHT.\n\n${text}\n\n…`;
 }
 
 /** Baut den Judge-User-Prompt (das System-Prompt ist `JUDGE_SYSTEM_PROMPT`). */
@@ -50,12 +73,13 @@ export function buildJudgePrompt(
   finalerText: string,
   regeln: QualitaetsRegel[],
   skillBeschreibung: string,
+  vbCap: number = JUDGE_VB_CAP_DEFAULT,
 ): string {
   const vorgaben = buildPromptVorgaben(regeln);
   return [
     `# Aufgabe des Abschnitts\n${skillBeschreibung || '(keine Beschreibung)'}`,
     `# Formale Vorgaben\n${vorgaben || '(keine formalen Vorgaben hinterlegt)'}`,
-    `# Vorhabensbeschreibung (Quelle der Wahrheit)\n${capVb(vb)}`,
+    `# Vorhabensbeschreibung (Quelle der Wahrheit)\n${capVb(vb, vbCap)}`,
     `# Zu bewertender Abschnitt\n${finalerText}`,
     [
       '# Bewertung',
@@ -144,7 +168,7 @@ export function parseJudgeResult(raw: string): JudgeScores {
  * der Meldung in `begruendung`, damit ein Judge-Ausfall den Lauf nicht killt.
  */
 export async function runJudge(transport: AITransport, args: JudgeArgs): Promise<JudgeScores> {
-  const prompt = buildJudgePrompt(args.vb, args.finalerText, args.regeln, args.skillBeschreibung);
+  const prompt = buildJudgePrompt(args.vb, args.finalerText, args.regeln, args.skillBeschreibung, args.vbCap);
   try {
     const raw = await transport.submitMessage(prompt, JUDGE_SYSTEM_PROMPT, {
       responseFormat: { type: 'json_object' },

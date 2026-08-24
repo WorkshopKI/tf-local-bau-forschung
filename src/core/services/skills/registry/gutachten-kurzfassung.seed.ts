@@ -78,6 +78,123 @@ ${finalZeile}
 Das Vorhaben beschreibt die Entwicklung eines Bio-Inkjet-Drucksystems, das durch eine begleitende Diagnose-App individuelle Hautpflegeprodukte direkt auf die Haut des Nutzers aufbringt. Das System kombiniert Mikrofluidik, biokompatible Tinten und präzise Düsentechnologie, um Tintentröpfchen im Mikrometer-Bereich exakt zu positionieren.`;
 }
 
+// ---------------------------------------------------------------------------
+// Veröffentlichungs-Kontrakt von A (2026-08)
+// ---------------------------------------------------------------------------
+//
+// Die Kurzfassung wird VERÖFFENTLICHT (u. a. zur Prüfung auf Doppelförderung) und steht
+// dort allein, ohne den Antrag daneben. Das stand nirgends — und ohne den Zweck war auch
+// nicht begründbar, warum so vieles NICHT hineingehört. Der Messlauf 08/2026 zeigte
+// beides: der Judge vermisste Antragsteller, FuE-Risiko und Abgrenzung zum Stand der
+// Technik, während das Zeichenlimit schon gerissen war. Die Fachentscheidung des Teams:
+// diese drei gehören nicht hinein, der Platz reicht dafür nicht.
+//
+// Drei Ergänzungen, alle additiv:
+//  1. der Zweck (wer liest das, und wo steht es hinterher),
+//  2. eine Weglass-Liste — ein Prompt ohne Weglass-Gebot lädt zum Ergänzen ein,
+//  3. das Zeichenlimit als SCHREIB-Anweisung statt als Nachkontrolle: 1.100 Zeichen auf
+//     zehn Sätze sind rund 15 Wörter je Satz. („Zähle nach und kürze" half nicht —
+//     Modelle zählen Zeichen schlecht; die Wortlänge vorweg zu geben half.)
+
+/** Zweck-Satz von A — Anker der Idempotenz von `mitVeroeffentlichungsKontrakt`. */
+export const A_ZWECK_BLOCK =
+  'Zweck: Die Kurzfassung erklärt einem fachfremden Leser, was in diesem Vorhaben gemacht '
+  + 'werden soll. Sie wird veröffentlicht — unter anderem zur Prüfung auf Doppelförderung — '
+  + 'und steht dort für sich allein, ohne den Antrag daneben.';
+
+/** Ersatz für die „Erwartetes Ergebnis"-Zeile: der Judge nannte sie dreimal zu unbestimmt. */
+export const A_ERGEBNIS_ZUSATZ =
+  ' — nenne hier die konkreten Zielgrößen, die in der VB stehen (Kennwerte, Genauigkeiten, '
+  + 'Bandbreiten, Prototyp). Ein allgemeines „ein funktionsfähiges System" ist zu wenig.';
+
+/** Die vier zusätzlichen Regel-Bullets von A (nach der Fließtext-Zeile). */
+export const A_ZUSATZ_REGELN = [
+  '- Genau diese fünf Punkte und nichts darüber hinaus. NICHT hinein gehören: FuE-Risiko, '
+    + 'Abgrenzung zum Stand der Technik, Angaben zum Antragsteller, Kosten, Personalaufwand, '
+    + 'Laufzeit, Arbeitspakete, Kooperationspartner. Für all das reicht der Platz nicht — es '
+    + 'steht an anderer Stelle im Gutachten.',
+  '- Ohne Antragsteller als Satzsubjekt: „Im Vorhaben soll…", „Im Vorhaben ist geplant…", '
+    + '„Das Vorhaben…" — nicht „Der Antragsteller plant…" und nicht der Firmenname.',
+  '- Keine schmückenden Zusätze: „in Echtzeit", „intelligent", „IoT-gestützt", „hochpräzise" '
+    + 'nur dann, wenn die VB sie selbst schreibt. Sachlicher Gutachtenton, kein Werbeton.',
+  '- Der finale Text hat ZEHN Sätze und höchstens 1.100 Zeichen — beides gilt zugleich, also '
+    + 'rund 15 Wörter je Satz. Schreibe von Anfang an in dieser Länge, statt am Ende zu kürzen: '
+    + 'ein Gedanke je Satz, keine Doppelungen, keine Füllwörter. Weniger als neun Sätze sind '
+    + 'ein Fehler, nicht eine gelungene Kürzung.',
+].join('\n');
+
+/**
+ * Ausgabeformat-Block — nur nötig, wo er fehlt.
+ *
+ * Der kuratierte Share hatte ihn verloren. Folge: `parseSkillOutput` fand keine
+ * `###`-Überschrift, nahm die GANZE Antwort als finalen Text und setzte die Warnung
+ * „Antwort ohne erwartete Abschnitte". Gemessen wurde damit die vom Modell erfundene
+ * Hülle mit — Titelzeile, Förderkennzeichen, Akronym, sogar eine Antragsteller-Zeile.
+ * Das Zeichenlimit riss an dieser Hülle, nicht am Text.
+ */
+export const A_AUSGABEFORMAT_BLOCK = `
+
+Ausgabeformat (genau diese drei Abschnitte, jeweils mit der ###-Überschrift)
+### Quellenanalyse
+${quellenanalyseKontrakt(false)}
+
+### Entwurf
+Ein erster, noch ungeschliffener Entwurf der Kurzfassung.
+
+### Finaler Text
+Der finale, geschliffene Fließtext der Kurzfassung — NUR der Fließtext selbst, ohne Überschrift, ohne Förderkennzeichen, ohne Akronym, ohne Antragsteller-Zeile und ohne Listenformat.
+
+Genau zehn Sätze in dieser Verteilung: 2 zum Projektziel, 2 zum Ausgangsproblem, 3 zum technischen Ansatz, 2 zum erwarteten Ergebnis, 1 zum Anwendungsbereich. Jeder rund 15 Wörter, zusammen höchstens 1.100 Zeichen.`;
+
+/**
+ * Trägt den Veröffentlichungs-Kontrakt in ein A-Template — **dieselbe Funktion für den
+ * Seed und für die Migration des kuratierten Shares**, damit beide nicht auseinanderlaufen.
+ *
+ * Rein und **idempotent** (der Zweck-Satz ist der Marker). Sie greift ausschließlich über
+ * Anker, die BEIDE Fassungen tragen: das Seed-Template und der kuratierte Share führen
+ * andere Satzzahlen und eine andere Punkt-Reihenfolge, aber dieselben Zeilen-Anfänge.
+ * Fehlt ein Anker, bleibt der betroffene Teil aus — nie wird geraten.
+ */
+export function mitVeroeffentlichungsKontrakt(template: string): string {
+  if (template.includes(A_ZWECK_BLOCK)) return template;
+  let t = template;
+
+  // 1. Zweck vor die Aufgaben-Zeile.
+  if (t.includes(A_AUFGABE_ZEILE)) {
+    t = t.replace(A_AUFGABE_ZEILE, `${A_ZWECK_BLOCK}\n\n${A_AUFGABE_ZEILE}`);
+  }
+  // 2. „Erwartetes Ergebnis"-Zeile schärfen (Satzzahl variiert je Fassung → Regex).
+  t = t.replace(/^(4\. Erwartetes Ergebnis \([^)]*\))\s*$/m, `$1${A_ERGEBNIS_ZUSATZ}`);
+  // 3. Zusatz-Regeln hinter die Fließtext-Zeile (Fett-Marker variieren → Regex).
+  t = t.replace(/^(- \*{0,2}Fließtext\*{0,2} im finalen Teil.*)$/m, `$1\n${A_ZUSATZ_REGELN}`);
+  // 4. Ausgabeformat nur, wo es fehlt — sonst stünde es doppelt im Prompt.
+  if (!/^[ \t]*(?:#{1,6}|\*{1,3})[ \t#*]*Finaler[ \t]+Text\b/im.test(t)) {
+    t = `${t.trimEnd()}${A_AUSGABEFORMAT_BLOCK}`;
+  }
+  return t;
+}
+
+/**
+ * Beschreibung von A. Sie ist NICHT nur Anzeige-Text: der LLM-Judge der Eval bekommt
+ * ausschließlich sie, um zu wissen, was der Abschnitt leisten soll. Stand der Umfang
+ * nicht darin, wertete er gegen seine eigene Vorstellung — und zog Punkte für genau das
+ * ab, was das Team bewusst weggelassen hat (Messlauf 08/2026: `vollstaendigkeit` 3,00
+ * mit alter Beschreibung, 4,00 mit dieser, bei identischem Text).
+ */
+export const A_BESCHREIBUNG =
+  'Erstellt die Kurzfassung eines ZIM-Gutachtens aus der Vorhabensbeschreibung. Sie erklärt '
+  + 'einem fachfremden Leser in zehn Sätzen, was im Vorhaben gemacht werden soll, und wird '
+  + 'veröffentlicht — unter anderem zur Prüfung auf Doppelförderung. Inhalt sind genau fünf '
+  + 'Punkte: Projektziel, Ausgangsproblem, technischer Ansatz, erwartetes Ergebnis, '
+  + 'Anwendungsbereich. Bewusst NICHT enthalten: Antragsteller und Firmenname, FuE-Risiko, '
+  + 'Abgrenzung zum Stand der Technik, Kosten, Personalaufwand, Laufzeit, Arbeitspakete und '
+  + 'Kooperationspartner — die stehen an anderer Stelle im Gutachten und passen in die Kürze '
+  + 'nicht hinein. Ihr Fehlen ist kein Mangel.';
+
+/** Beschreibung von A vor dem Veröffentlichungs-Kontrakt — Pristine-Guard der Migration. */
+export const A_BESCHREIBUNG_ALT =
+  'Erstellt die Kurzfassung eines ZIM-Gutachtens aus der Vorhabensbeschreibung.';
+
 /** Skill-ID des Kurzfassung-Skills — Konstante für Lookups (Antragsdetail). */
 export const KURZFASSUNG_SKILL_ID = 'gutachten-kurzfassung';
 
@@ -209,7 +326,7 @@ const A_MODIFIERS: Record<SkillModifierKey, string> = {
 export const SEED_SKILL: SkillRecord = {
   id: KURZFASSUNG_SKILL_ID,
   name: 'Kurzfassung (Gutachten)',
-  beschreibung: 'Erstellt die Kurzfassung eines ZIM-Gutachtens aus der Vorhabensbeschreibung.',
+  beschreibung: A_BESCHREIBUNG,
   // v2: Der Beleg→Satz-Marker-Kontrakt (Journey-Paket 4) ist zurückgebaut — das interne
   // Modell lief mit dem Kontrakt in einen langen Reasoning-Loop und lieferte keine
   // verwertbare Ausgabe mehr. Der Quellenbezug wird jetzt rein deterministisch aus der
@@ -218,8 +335,13 @@ export const SEED_SKILL: SkillRecord = {
   // Zahl mehr) — Rollout auf Bestands-Shares über `applyAUmfangKuratiert`.
   // v4: Zeichenlimit 1.000 → 1.100 mit Herkunft am Wert — Rollout über
   // `applyAZeichenHerkunft`.
-  version: 4,
-  promptTemplate: buildKurzfassungPrompt(false),
+  // v5: Veröffentlichungs-Kontrakt (Zweck, Weglass-Liste, Länge als Schreib-Anweisung)
+  // + Beschreibung mit Umfang — Rollout über `applyAVeroeffentlichung`.
+  // `buildKurzfassungPrompt` bleibt BYTE-IDENTISCH: zwei ältere Migrationen vergleichen
+  // ihre Ausgabe (`applyBelegKontraktRevert`, `applyUmfangDedup`). Der Zusatz liegt
+  // darum in `mitVeroeffentlichungsKontrakt`, die auch die Migration benutzt.
+  version: 5,
+  promptTemplate: mitVeroeffentlichungsKontrakt(buildKurzfassungPrompt(false)),
   systemPrompt: SEED_SYSTEM_PROMPT,
   maxTokens: 2048,
   modifiers: A_MODIFIERS,

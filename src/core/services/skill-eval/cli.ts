@@ -53,12 +53,15 @@ interface Args {
   noJudge: boolean;
   dryRun: boolean;
   kontext: KontextArg;
+  /** VB-Kürzung im Judge-Prompt; `null` = `JUDGE_VB_CAP_DEFAULT` (ganze VB). */
+  judgeVbCap: number | null;
 }
 
 const DEFAULTS: Args = {
   fixtures: null, registry: null, models: null, judge: null,
   out: './skill-eval-out', sections: null, limit: null,
   concurrency: 1, noJudge: false, dryRun: false, kontext: 'voll',
+  judgeVbCap: null,
 };
 
 function parseArgs(argv: string[]): Args {
@@ -79,6 +82,9 @@ function parseArgs(argv: string[]): Args {
       }
       case '--limit': a.limit = Number.parseInt(argv[++i] ?? '', 10) || null; break;
       case '--concurrency': a.concurrency = Math.max(1, Number.parseInt(argv[++i] ?? '1', 10) || 1); break;
+      // Senkt den Judge-Kontext für billige Durchläufe. Der Default zeigt die GANZE VB —
+      // ein knapper Auszug deckelt `fachliche_korrektheit` nach oben (siehe judge.ts).
+      case '--judge-vb-cap': a.judgeVbCap = Math.max(1000, Number.parseInt(argv[++i] ?? '', 10) || 0) || null; break;
       case '--no-judge': a.noJudge = true; break;
       case '--dry-run': a.dryRun = true; break;
       case '--kontext': {
@@ -262,6 +268,7 @@ async function main(): Promise<void> {
         finalerText: res.parsed.finalerText,
         regeln: resolved?.regeln ?? [],
         skillBeschreibung: resolved?.skill.beschreibung ?? '',
+        vbCap: args.judgeVbCap ?? undefined,
       });
       const judgeResult: JudgeResult = { vbFile: fixture.vbFile, modellId: modell.id, abschnitt, kontext, ...scores };
       appendFileSync(judgePath, serializeJsonl(judgeResult));

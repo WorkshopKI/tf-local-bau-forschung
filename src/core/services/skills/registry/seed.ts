@@ -44,6 +44,7 @@ export {
   buildKurzfassungPrompt,
   A_AUFGABE_ZEILE, A_AUFGABE_ZEILE_UMFANG_ALT, A_MODIFIERS_UMFANG_ALT,
   A_ZEICHEN_MAX, A_ZEICHEN_MAX_ALT, A_ZEICHEN_HERKUNFT,
+  A_BESCHREIBUNG, A_BESCHREIBUNG_ALT, A_ZWECK_BLOCK, mitVeroeffentlichungsKontrakt,
 } from './gutachten-kurzfassung.seed';
 export {
   SEED_SKILLS_BG, SEED_REGELN_BG,

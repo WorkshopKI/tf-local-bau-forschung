@@ -26,6 +26,7 @@ import {
   GA_EP_AUTO_RETRY_MIGRATION,
   GA_A_ZEICHEN_HERKUNFT_MIGRATION,
   GA_FACHPRUEFER_MIGRATION,
+  GA_A_VEROEFFENTLICHUNG_MIGRATION,
 } from '../migrations';
 import {
   AUFBEREITUNG_RECHERCHE_PROMPT_SKILL,
@@ -46,6 +47,7 @@ import {
   AUSGANGSLAGE_SKILL_ID,
   RISIKEN_SKILL_ID,
   buildKurzfassungPrompt,
+  mitVeroeffentlichungsKontrakt,
   abschnittTemplate,
   B_ABSCHNITT_OPTS,
   B_ABSCHNITT_OPTS_UMFANG_ALT,
@@ -60,6 +62,10 @@ import {
   G_ABSCHNITT_OPTS,
   G_ABSCHNITT_OPTS_PFLICHT_ALT,
   INTERPUNKTION_REGEL_ID,
+  A_ZWECK_BLOCK,
+  A_AUFGABE_ZEILE,
+  A_BESCHREIBUNG,
+  A_BESCHREIBUNG_ALT,
 } from '../seed';
 import {
   GA_LEKTOR_SKILL_ID,
@@ -82,7 +88,7 @@ const anon = (aktiv: boolean | undefined): SkillRecord =>
   skill(ANFRAGE_ANONYMISIEREN_SKILL_ID, aktiv === undefined ? {} : { aktiv });
 
 // Die jeweils ANDEREN Marker vorbelegen, um genau EINE Migration zu isolieren.
-const ALLE_MARKER = [ANFRAGE_ANON_AKTIV_MIGRATION, GA_BELEG_KONTRAKT_MIGRATION, GA_BELEG_KONTRAKT_REVERT_MIGRATION, AUFBEREITUNG_ZAHLEN_MAXTOKENS_MIGRATION, AUFBEREITUNG_STECKBRIEF_MAXTOKENS_MIGRATION, GA_RISIKEN_ENTWURF_MIGRATION, GA_UMFANG_DEDUP_MIGRATION, GA_UMFANG_DEDUP_CD_MIGRATION, GA_PFLICHT_ANFANG_KLAR_MIGRATION, ANFRAGE_ANON_KLAR_MIGRATION, SKILL_VORGABEN_MIGRATION, GA_INTERPUNKTION_MIGRATION, AUFBEREITUNG_DR_STICHWORTE_MIGRATION, GA_TEILSTRUKTUR_ENTFERNEN_MIGRATION, GA_C_FUENF_RISIKEN_MIGRATION, GA_A_UMFANG_KURATIERT_MIGRATION, GA_EF_VORGABEN_MIGRATION, GA_EP_AUTO_RETRY_MIGRATION, GA_A_ZEICHEN_HERKUNFT_MIGRATION, GA_FACHPRUEFER_MIGRATION];
+const ALLE_MARKER = [ANFRAGE_ANON_AKTIV_MIGRATION, GA_BELEG_KONTRAKT_MIGRATION, GA_BELEG_KONTRAKT_REVERT_MIGRATION, AUFBEREITUNG_ZAHLEN_MAXTOKENS_MIGRATION, AUFBEREITUNG_STECKBRIEF_MAXTOKENS_MIGRATION, GA_RISIKEN_ENTWURF_MIGRATION, GA_UMFANG_DEDUP_MIGRATION, GA_UMFANG_DEDUP_CD_MIGRATION, GA_PFLICHT_ANFANG_KLAR_MIGRATION, ANFRAGE_ANON_KLAR_MIGRATION, SKILL_VORGABEN_MIGRATION, GA_INTERPUNKTION_MIGRATION, AUFBEREITUNG_DR_STICHWORTE_MIGRATION, GA_TEILSTRUKTUR_ENTFERNEN_MIGRATION, GA_C_FUENF_RISIKEN_MIGRATION, GA_A_UMFANG_KURATIERT_MIGRATION, GA_EF_VORGABEN_MIGRATION, GA_EP_AUTO_RETRY_MIGRATION, GA_A_ZEICHEN_HERKUNFT_MIGRATION, GA_FACHPRUEFER_MIGRATION, GA_A_VEROEFFENTLICHUNG_MIGRATION];
 const NUR_ANON = ALLE_MARKER.filter(m => m !== ANFRAGE_ANON_AKTIV_MIGRATION);
 const NUR_BELEG = ALLE_MARKER.filter(m => m !== GA_BELEG_KONTRAKT_MIGRATION);
 const NUR_BELEG_REVERT = ALLE_MARKER.filter(m => m !== GA_BELEG_KONTRAKT_REVERT_MIGRATION);
@@ -577,10 +583,12 @@ describe('reconcile — alle Migrationen zusammen', () => {
       ]),
     );
     expect(geaendert).toBe(true);
-    expect(angewandt).toEqual([ANFRAGE_ANON_AKTIV_MIGRATION, GA_BELEG_KONTRAKT_MIGRATION, AUFBEREITUNG_ZAHLEN_MAXTOKENS_MIGRATION, AUFBEREITUNG_STECKBRIEF_MAXTOKENS_MIGRATION, GA_BELEG_KONTRAKT_REVERT_MIGRATION, GA_RISIKEN_ENTWURF_MIGRATION, GA_UMFANG_DEDUP_MIGRATION, GA_UMFANG_DEDUP_CD_MIGRATION, GA_PFLICHT_ANFANG_KLAR_MIGRATION, ANFRAGE_ANON_KLAR_MIGRATION, SKILL_VORGABEN_MIGRATION, GA_INTERPUNKTION_MIGRATION, AUFBEREITUNG_DR_STICHWORTE_MIGRATION, GA_TEILSTRUKTUR_ENTFERNEN_MIGRATION, GA_C_FUENF_RISIKEN_MIGRATION, GA_A_UMFANG_KURATIERT_MIGRATION, GA_EF_VORGABEN_MIGRATION, GA_EP_AUTO_RETRY_MIGRATION, GA_A_ZEICHEN_HERKUNFT_MIGRATION, GA_FACHPRUEFER_MIGRATION]);
+    expect(angewandt).toEqual([ANFRAGE_ANON_AKTIV_MIGRATION, GA_BELEG_KONTRAKT_MIGRATION, AUFBEREITUNG_ZAHLEN_MAXTOKENS_MIGRATION, AUFBEREITUNG_STECKBRIEF_MAXTOKENS_MIGRATION, GA_BELEG_KONTRAKT_REVERT_MIGRATION, GA_RISIKEN_ENTWURF_MIGRATION, GA_UMFANG_DEDUP_MIGRATION, GA_UMFANG_DEDUP_CD_MIGRATION, GA_PFLICHT_ANFANG_KLAR_MIGRATION, ANFRAGE_ANON_KLAR_MIGRATION, SKILL_VORGABEN_MIGRATION, GA_INTERPUNKTION_MIGRATION, AUFBEREITUNG_DR_STICHWORTE_MIGRATION, GA_TEILSTRUKTUR_ENTFERNEN_MIGRATION, GA_C_FUENF_RISIKEN_MIGRATION, GA_A_UMFANG_KURATIERT_MIGRATION, GA_EF_VORGABEN_MIGRATION, GA_EP_AUTO_RETRY_MIGRATION, GA_A_ZEICHEN_HERKUNFT_MIGRATION, GA_FACHPRUEFER_MIGRATION, GA_A_VEROEFFENTLICHUNG_MIGRATION]);
     expect(out.skills.find(s => s.id === ANFRAGE_ANONYMISIEREN_SKILL_ID)?.aktiv).toBe(true);
-    // A bleibt am Alt-Template: Vorwärts-Rollout ist No-op, Rückbau greift auf OLD_A nicht.
-    expect(out.skills.find(s => s.id === KURZFASSUNG_SKILL_ID)?.promptTemplate).toBe(OLD_A);
+    // A bleibt inhaltlich am Alt-Template (Vorwärts-Rollout ist No-op, Rückbau greift auf
+    // OLD_A nicht) — der Veröffentlichungs-Kontrakt kommt im selben Durchgang additiv dazu.
+    expect(out.skills.find(s => s.id === KURZFASSUNG_SKILL_ID)?.promptTemplate)
+      .toBe(mitVeroeffentlichungsKontrakt(OLD_A));
     // C laeuft im selben Durchgang weiter auf den Fuenf-Risiken-Stand.
     expect(out.skills.find(s => s.id === RISIKEN_SKILL_ID)?.promptTemplate).toBe(FUENF_C);
     expect(out.skills.find(s => s.id === AUFBEREITUNG_ZAHLEN_SKILL_ID)?.maxTokens).toBe(4096);
@@ -825,5 +833,104 @@ describe('reconcile — strukturierte Ausgabe aus den Gutachten-Skills entfernen
     );
     expect(geaendert).toBe(false);
     expect(out.skills[0]!.teilStruktur).toHaveLength(2);
+  });
+});
+
+/**
+ * Der Veröffentlichungs-Kontrakt von A. Geprüft wird gegen den KURATIERTEN Share-Stand
+ * (783 Zeichen, andere Punkt-Reihenfolge, ohne Ausgabeformat) — nicht gegen den Seed:
+ * A ist der eine Gutachten-Prompt, der live kuratiert ist, und die Migration muss genau
+ * dort greifen. Der fehlende `### Finaler Text`-Block ist der teuerste Teil: ohne ihn
+ * nimmt `parseSkillOutput` die ganze Modell-Antwort als finalen Text.
+ */
+const KURATIERTES_A = [
+  'Erstelle die Kurzfassung der folgenden Vorhabensbeschreibung (VB) für ein ZIM-Gutachten.',
+  '', '', 'Stammdaten des Antrags', '{{stammdaten}}',
+  '', '', 'Vorhabensbeschreibung (Quelle)', '{{vbMarkdown}}',
+  '', '', 'Aufgabe & Kontrakt',
+  A_AUFGABE_ZEILE,
+  '1. Projektziel (2 Sätze)',
+  '2. Ausgangsproblem (2 Sätze)',
+  '3. Technischer Ansatz (3 Sätze)',
+  '4. Erwartetes Ergebnis (2 Sätze)',
+  '5. Anwendungsbereich (1 Satz)',
+  '', '', 'Regeln:',
+  '- Streng quellenbasiert: Nutze ausschließlich Inhalte der VB. Erfinde nichts.',
+  '- Fließtext im finalen Teil — KEINE Aufzählungen, keine Zwischenüberschriften.',
+  '',
+].join('\n');
+
+const kuratiertesA = (over: Partial<SkillRecord> = {}): SkillRecord =>
+  skill(KURZFASSUNG_SKILL_ID, { promptTemplate: KURATIERTES_A, beschreibung: A_BESCHREIBUNG_ALT, version: 4, ...over });
+
+describe('mitVeroeffentlichungsKontrakt (rein)', () => {
+  it('trägt Zweck, Weglass-Regeln und das fehlende Ausgabeformat in den kuratierten Prompt', () => {
+    const t = mitVeroeffentlichungsKontrakt(KURATIERTES_A);
+    expect(t).toContain(A_ZWECK_BLOCK);
+    expect(t).toContain('NICHT hinein gehören: FuE-Risiko');
+    expect(t).toContain('„Im Vorhaben soll…"');
+    expect(t).toContain('### Finaler Text');
+    // Der Zweck steht VOR der Aufgaben-Zeile, nicht irgendwo.
+    expect(t.indexOf(A_ZWECK_BLOCK)).toBeLessThan(t.indexOf(A_AUFGABE_ZEILE));
+    // Die Ergebnis-Zeile ist geschärft, die übrigen Punkte sind unberührt.
+    expect(t).toContain('4. Erwartetes Ergebnis (2 Sätze) — nenne hier die konkreten Zielgrößen');
+    expect(t).toContain('5. Anwendungsbereich (1 Satz)');
+  });
+
+  it('ist idempotent — ein zweiter Lauf ändert nichts', () => {
+    const einmal = mitVeroeffentlichungsKontrakt(KURATIERTES_A);
+    expect(mitVeroeffentlichungsKontrakt(einmal)).toBe(einmal);
+  });
+
+  it('setzt das Ausgabeformat NICHT doppelt (Seed trägt es bereits)', () => {
+    const t = mitVeroeffentlichungsKontrakt(buildKurzfassungPrompt(false));
+    expect(t.match(/Finaler Text/g)?.length).toBe(buildKurzfassungPrompt(false).match(/Finaler Text/g)?.length);
+    // Der Seed führt eine ANDERE Punkt-Reihenfolge — der Regex-Anker greift trotzdem.
+    expect(t).toContain('Erwartetes Ergebnis (1–2 Sätze) — nenne hier die konkreten Zielgrößen');
+  });
+
+  it('lässt einen Prompt ohne die Anker unangetastet, statt zu raten', () => {
+    expect(mitVeroeffentlichungsKontrakt('Nur Prosa ohne Anker.')).toContain('Nur Prosa ohne Anker.');
+  });
+});
+
+describe('reconcile — Veröffentlichungs-Kontrakt A', () => {
+  const NUR_VEROEFFENTLICHUNG = ALLE_MARKER.filter(m => m !== GA_A_VEROEFFENTLICHUNG_MIGRATION);
+
+  it('pristiner kuratierter Share: Prompt + Beschreibung ergänzt, version ≥ 5', () => {
+    const { file: out, geaendert } = reconcileEinmaligeAktivierungen(
+      file([kuratiertesA()], NUR_VEROEFFENTLICHUNG),
+    );
+    expect(geaendert).toBe(true);
+    const a = out.skills[0]!;
+    expect(a.promptTemplate).toBe(mitVeroeffentlichungsKontrakt(KURATIERTES_A));
+    expect(a.beschreibung).toBe(A_BESCHREIBUNG);
+    expect(a.version).toBeGreaterThanOrEqual(5);
+    expect(out.angewandteMigrationen).toContain(GA_A_VEROEFFENTLICHUNG_MIGRATION);
+  });
+
+  it('lässt eine selbst geschriebene Beschreibung stehen — nur der Prompt wächst', () => {
+    const eigen = 'Unsere eigene Beschreibung des Abschnitts.';
+    const { file: out } = reconcileEinmaligeAktivierungen(
+      file([kuratiertesA({ beschreibung: eigen })], NUR_VEROEFFENTLICHUNG),
+    );
+    expect(out.skills[0]!.beschreibung).toBe(eigen);
+    expect(out.skills[0]!.promptTemplate).toContain(A_ZWECK_BLOCK);
+  });
+
+  it('fasst einen fremden Skill nicht an', () => {
+    const { file: out } = reconcileEinmaligeAktivierungen(
+      file([skill('irgendein-anderer-skill', { promptTemplate: KURATIERTES_A })], NUR_VEROEFFENTLICHUNG),
+    );
+    expect(out.skills[0]!.promptTemplate).toBe(KURATIERTES_A);
+  });
+
+  it('läuft nur einmal: gesetzter Marker lässt den Alt-Stand stehen', () => {
+    const { file: out, geaendert } = reconcileEinmaligeAktivierungen(
+      file([kuratiertesA()], ALLE_MARKER),
+    );
+    expect(geaendert).toBe(false);
+    expect(out.skills[0]!.promptTemplate).toBe(KURATIERTES_A);
+    expect(out.skills[0]!.beschreibung).toBe(A_BESCHREIBUNG_ALT);
   });
 });

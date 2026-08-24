@@ -76,6 +76,9 @@ docs/status-system/kuerzel-zuarbeit/
 skill-eval-*/
 eval-fixtures-out/
 eval-out/
+# Registry-Kopien für Mess-Läufe (aus dem Share gezogen bzw. migriert) — nie committen:
+# sie tragen den kuratierten Stand und veralten sofort.
+eval/registry-*.json
 eval/paket4-baseline-registry.json
 
 # Lokale Referenz-/Eval-Artefakte (nur Dev-Maschine, nicht Teil von TeamFlow).

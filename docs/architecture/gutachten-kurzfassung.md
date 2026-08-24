@@ -183,6 +183,35 @@ Der letzte, **rein sprachliche** Arbeitsgang vor der Freigabe: „Neu · Kürzer
 - **Fortschritt** ist strukturiert, nicht geraten: `LaufPhase` (`'formulieren' | 'feinschliff'`) in [useStreamingBuffer.ts](../../src/plugins/antraege/kurzfassung/useStreamingBuffer.ts); `lektoriereEinmal` setzt sie je VERSUCH (ein Fallback-Retry resettet die Senke).
 - **Beide Beine stehen in der Prompt-Ansicht**: `lektoriereEinmal` meldet seinen Prompt wie die Generierung über `merkeGesendet` — mit `bein: 'feinschliff'`. Der Hook hält daraus **Slots** statt einer Liste (Generierung ersetzt alles, Feinschliff ersetzt nur sich selbst — retry-fest), die Beschriftung im Dialog kommt aus der reinen `beschrifteGesendet` ([promptAnsicht.ts](../../src/plugins/antraege/gutachten/promptAnsicht.ts)), deren Teil-Nummerierung den Feinschliff nicht mitzählt. Grund: im Chat der internen KI ist vom ersten Prompt nichts mehr zu sehen (jeder Lauf startet einen frischen Chat, Pitfall #36) — wer dort nur den Lektor-Prompt findet, hält ihn sonst für den einzigen gesendeten.
 
+## Der Veröffentlichungs-Kontrakt von A (v6.30, gemessen)
+
+Abschnitt A wird **veröffentlicht** — unter anderem zur Prüfung auf Doppelförderung — und steht dort allein, ohne den Antrag daneben. Das stand nirgends. Ohne den Zweck war auch nicht begründbar, warum so vieles nicht hineingehört: der Judge des Messlaufs vermisste Antragsteller, FuE-Risiko und Abgrenzung zum Stand der Technik, während das Zeichenlimit bereits gerissen war. **Fachentscheidung des Teams: diese drei gehören nicht hinein**, der Platz reicht dafür nicht. Inhalt sind genau die fünf Punkte des Prompts.
+
+Drei Befunde lagen darunter, alle drei gemessen (Haiku 4.5 als Modell, Opus 5 als Judge, die drei fiktiven EP-Fixtures):
+
+1. **Der kuratierte Share hatte den Ausgabeformat-Block verloren.** Ohne `### Finaler Text` findet [parse.ts](../../src/core/services/skills/run/parse.ts) keine Überschrift und nimmt die **ganze** Antwort als finalen Text — samt der vom Modell erfundenen Hülle aus Titelzeile, Förderkennzeichen, Akronym und einer Antragsteller-Zeile. Jeder Lauf trug die Warnung „Antwort ohne erwartete Abschnitte"; das Zeichenlimit riss an dieser Hülle, nicht am Text. Gemessen wurde also nie die Kurzfassung.
+2. **Kein Weglass-Gebot.** Ein Prompt, der nur sagt, was hinein soll, lädt zum Ergänzen ein ([[erfundene-achse-fehlte-das-weglass-gebot]]).
+3. **Das Zeichenlimit stand als Nachkontrolle statt als Schreib-Anweisung.** „Zähle nach und kürze" half nicht — Modelle zählen Zeichen schlecht. Was half: die Rechnung vorweg. 1.100 Zeichen auf zehn Sätze sind rund 15 Wörter je Satz.
+
+Ein vierter Befund lag **nicht** am Prompt, sondern an der Messung: der Eval-Judge sah die VB nur bis 12.000 Zeichen, bei 100.000–120.000 Zeichen echter Länge also 10–12 %. Kennzahlen, die das Modell korrekt aus Kapitel 9 übernommen hatte, standen hinter dem Schnitt und wurden als „nicht belegt" abgewertet — die Note war nach oben gedeckelt. Der Default zeigt jetzt die ganze VB, `--judge-vb-cap` senkt ihn für billige Durchläufe, und ein gekürzter Prompt sagt es ausdrücklich ([judge.ts](../../src/core/services/skill-eval/judge.ts)).
+
+**Die `beschreibung` ist nicht nur Anzeige-Text.** Der Judge bekommt ausschließlich sie, um zu wissen, was der Abschnitt leisten soll. Solange der Umfang nicht darin stand, wertete er gegen seine eigene Vorstellung und zog Punkte für genau das ab, was das Team weggelassen hatte — bei identischem Text `vollstaendigkeit` 3,00 mit der alten Beschreibung, 4,00 mit der neuen.
+
+Gemessen, alles mit vollem Judge-Kontext:
+
+| | Nullpunkt | nach der Migration |
+|---|---|---|
+| Zeichen (max. 1.100) | 1272 / 1132 / 1281 | 951 / 1093 / **1181** |
+| Läufe ohne Check-Fehler | 0 von 3 | **2 von 3** |
+| fachliche Korrektheit | 3,00 | **4,67** |
+| Vollständigkeit | 4,00 | 4,00 |
+| Sprachqualität | 4,00 | 4,00 |
+| Regeltreue | 3,00 | **4,33** |
+
+Der eine verbleibende Überhang (81 Zeichen) ist der Fall, für den der beschränkte **Auto-Retry** da ist (`kuerzer`, ein Versuch je Schritt).
+
+Umgesetzt in `mitVeroeffentlichungsKontrakt` ([gutachten-kurzfassung.seed.ts](../../src/core/services/skills/registry/gutachten-kurzfassung.seed.ts)) — **eine** reine, idempotente Funktion für Seed **und** Migration, damit beide nicht auseinanderlaufen. `buildKurzfassungPrompt` bleibt byte-identisch: zwei ältere Migrationen vergleichen ihre Ausgabe. Rollout über `ga-a-veroeffentlichung-2026-08`, additiv und zeilenweise über Anker, die den kuratierten Share **und** den Seed tragen — A ist der eine live kuratierte Gutachten-Prompt, ein Voll-Template-Guard könnte hier nie greifen. Eine selbst geschriebene `beschreibung` bleibt stehen.
+
 ## Was der Messlauf 08/2026 an den Vorgaben geändert hat (v6.15)
 
 Erster gemessener Lauf der Kette A–G gegen die interne KI, geeicht an Haiku 4.5 / Sonnet 5 /

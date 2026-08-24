@@ -9,9 +9,18 @@ import {
   UNTERNEHMEN_SKILL_ID,
   VERWERTUNG_SKILL_ID,
   buildKurzfassungPrompt,
+  mitVeroeffentlichungsKontrakt,
 } from '../seed';
 
 const MARKE = '→ stützt Satz';
+/**
+ * Lose Form derselben Marke — sie fängt auch eine umformulierte Instruktion.
+ *
+ * Bewusst `stützt Satz` statt nur `stützt`: Letzteres traf auch das Wort „IoT-gestützt"
+ * in der Beispiel-Liste verbotener Schmuckwörter und meldete damit einen
+ * Beleg-Kontrakt, wo keiner ist (2026-08).
+ */
+const MARKE_LOSE = 'stützt Satz';
 
 // Rückbau (2026-07): der Beleg→Satz-Marker-Kontrakt (Journey-Paket 4) ist aus den live
 // A/B-Skills entfernt — das interne Modell lief damit in einen Reasoning-Loop. Der
@@ -20,17 +29,18 @@ const MARKE = '→ stützt Satz';
 describe('Beleg-Kontrakt in Seed A + B — zurückgebaut', () => {
   it('A (Kurzfassung) trägt die Satz-Referenz-Instruktion NICHT mehr; = Alt-Template', () => {
     expect(SEED_SKILL.id).toBe(KURZFASSUNG_SKILL_ID);
-    expect(SEED_SKILL.promptTemplate).not.toContain('stützt');
-    expect(SEED_SKILL.promptTemplate).toBe(buildKurzfassungPrompt(false));
+    expect(SEED_SKILL.promptTemplate).not.toContain(MARKE_LOSE);
+    expect(SEED_SKILL.promptTemplate).toBe(mitVeroeffentlichungsKontrakt(buildKurzfassungPrompt(false)));
     // v3: Satzzahl einheitlich 9–11 (Vorgabe + Modifier), Prosa ohne Zahl.
     // v4: Zeichenlimit 1.100 mit Herkunft am Wert.
-    expect(SEED_SKILL.version).toBe(4);
+    // v5: Veröffentlichungs-Kontrakt (Zweck, Weglass-Liste, Länge als Schreib-Anweisung).
+    expect(SEED_SKILL.version).toBe(5);
   });
 
   it('B (Ausgangslage) trägt die Instruktion NICHT mehr', () => {
     const b = SEED_SKILLS_BG.find(s => s.id === AUSGANGSLAGE_SKILL_ID);
     expect(b).toBeDefined();
-    expect(b!.promptTemplate).not.toContain('stützt');
+    expect(b!.promptTemplate).not.toContain(MARKE_LOSE);
     expect(b!.version).toBe(2);
   });
 
@@ -38,7 +48,7 @@ describe('Beleg-Kontrakt in Seed A + B — zurückgebaut', () => {
     const uebrige = SEED_SKILLS_BG.filter(s => s.id !== AUSGANGSLAGE_SKILL_ID);
     expect(uebrige.length).toBeGreaterThan(0);
     for (const s of uebrige) {
-      expect(s.promptTemplate, s.id).not.toContain('stützt');
+      expect(s.promptTemplate, s.id).not.toContain(MARKE_LOSE);
     }
     // Jede Version hier stammt aus einem EIGENEN Umbau, nie aus dem Beleg-Kontrakt:
     // C v3 (Entwurf → gefilterter Fließtext, dann Risiko-Deckel 3 → 5), G v2
@@ -60,11 +70,14 @@ describe('Beleg-Kontrakt in Seed A + B — zurückgebaut', () => {
   it('buildKurzfassungPrompt: false ohne, true mit Instruktion (nur noch Migrations-Erkennung)', () => {
     const alt = buildKurzfassungPrompt(false);
     const neu = buildKurzfassungPrompt(true);
-    expect(alt).not.toContain('stützt');
+    expect(alt).not.toContain(MARKE_LOSE);
     expect(neu).toContain(MARKE);
     // Der Kontrakt-Stand ist der Alt-Stand PLUS Zusatz (kein anderer Umbau).
     expect(neu.length).toBeGreaterThan(alt.length);
-    // Live-Skill nutzt den Alt-Stand (Rückbau), NICHT den Kontrakt-Stand.
-    expect(SEED_SKILL.promptTemplate).toBe(alt);
+    // Live-Skill nutzt den Alt-Stand (Rückbau), NICHT den Kontrakt-Stand — seit v5 mit
+    // dem additiven Veröffentlichungs-Kontrakt darüber (`buildKurzfassungPrompt` selbst
+    // bleibt byte-identisch, damit die beiden älteren Migrationen weiter greifen).
+    expect(SEED_SKILL.promptTemplate).toBe(mitVeroeffentlichungsKontrakt(alt));
+    expect(SEED_SKILL.promptTemplate).not.toContain(MARKE_LOSE);
   });
 });

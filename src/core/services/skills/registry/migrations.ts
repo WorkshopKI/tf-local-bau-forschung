@@ -38,6 +38,9 @@ import {
   A_ZEICHEN_MAX,
   A_ZEICHEN_MAX_ALT,
   A_ZEICHEN_HERKUNFT,
+  A_BESCHREIBUNG,
+  A_BESCHREIBUNG_ALT,
+  mitVeroeffentlichungsKontrakt,
   C_ABSCHNITT_OPTS_FUENF,
   UNTERNEHMEN_SKILL_ID,
   VERWERTUNG_SKILL_ID,
@@ -132,6 +135,9 @@ export const GA_A_ZEICHEN_HERKUNFT_MIGRATION = 'ga-a-zeichen-herkunft-2026-08';
 
 /** ID der Bindung des fachlichen Prüfers an das GA-Artefakt (stillgelegt bis zur Abnahme). */
 export const GA_FACHPRUEFER_MIGRATION = 'ga-fachpruefer-2026-08';
+
+/** ID des Veröffentlichungs-Kontrakts von A (Zweck, Weglass-Liste, Länge, Ausgabeformat). */
+export const GA_A_VEROEFFENTLICHUNG_MIGRATION = 'ga-a-veroeffentlichung-2026-08';
 
 export interface ReconcileResult {
   file: SkillRegistryFile;
@@ -741,6 +747,38 @@ function applyEpAutoRetry(file: SkillRegistryFile): SkillRegistryFile {
   return { ...file, workflows };
 }
 
+/**
+ * Abschnitt A bekommt seinen Zweck, eine Weglass-Liste und das verlorene Ausgabeformat
+ * (Messlauf 08/2026, zweite Runde).
+ *
+ * Drei Befunde in einem: (1) der kuratierte Share hatte den `### Finaler Text`-Block
+ * verloren, weshalb `parseSkillOutput` die GANZE Antwort als finalen Text nahm — inklusive
+ * der vom Modell erfundenen Titelzeile samt Förderkennzeichen und Antragsteller; genau
+ * daran riss das Zeichenlimit. (2) Der Prompt nannte den Zweck nicht (die Kurzfassung wird
+ * veröffentlicht) und hatte kein Weglass-Gebot, also ergänzte das Modell fleißig.
+ * (3) Die `beschreibung` ist das einzige Feld, aus dem der Eval-Judge erfährt, was der
+ * Abschnitt leisten soll — sie war ein Einzeiler ohne Umfang.
+ *
+ * A ist der eine kuratierte Gutachten-Prompt (783 statt 1.609 Zeichen), ein
+ * Voll-Template-Guard könnte hier nie greifen — deshalb wie in `applyAUmfangKuratiert`
+ * zeilenweise über Anker, die BEIDE Fassungen tragen. `mitVeroeffentlichungsKontrakt` ist
+ * idempotent und dieselbe Funktion, die auch der Seed benutzt.
+ *
+ * Zwei unabhängig geschützte Teile:
+ *  1. das TEMPLATE — additiv, jeder Anker einzeln; fehlt einer, bleibt sein Teil aus,
+ *  2. die BESCHREIBUNG — nur vom reinen Seed-Einzeiler aus; hat jemand dort etwas
+ *     Eigenes geschrieben, bleibt es stehen.
+ */
+function applyAVeroeffentlichung(skills: SkillRecord[]): SkillRecord[] {
+  return skills.map(s => {
+    if (s.id !== KURZFASSUNG_SKILL_ID) return s;
+    const promptTemplate = mitVeroeffentlichungsKontrakt(s.promptTemplate);
+    const beschreibung = s.beschreibung.trim() === A_BESCHREIBUNG_ALT ? A_BESCHREIBUNG : s.beschreibung;
+    if (promptTemplate === s.promptTemplate && beschreibung === s.beschreibung) return s;
+    return { ...s, promptTemplate, beschreibung, version: Math.max(s.version, 5) };
+  });
+}
+
 interface EinzelMigration {
   marker: string;
   /** Bekommt die GANZE Datei — Migrationen dürfen auch `regeln` anfassen. */
@@ -773,6 +811,7 @@ const MIGRATIONEN: EinzelMigration[] = [
   { marker: GA_EP_AUTO_RETRY_MIGRATION, apply: applyEpAutoRetry },
   { marker: GA_A_ZEICHEN_HERKUNFT_MIGRATION, apply: nurSkills(applyAZeichenHerkunft) },
   { marker: GA_FACHPRUEFER_MIGRATION, apply: applyFachpruefer },
+  { marker: GA_A_VEROEFFENTLICHUNG_MIGRATION, apply: nurSkills(applyAVeroeffentlichung) },
 ];
 
 /**
