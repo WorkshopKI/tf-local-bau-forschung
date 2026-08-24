@@ -22,6 +22,12 @@ export interface PdfTextFragment {
   y: number;
   /** Vorschub-Breite des Fragments (gleiche Einheit wie x). */
   width: number;
+  /**
+   * Schriftgröße (`item.height`) — Grundlage der Überschriften-SCHÄTZUNG für
+   * PDFs ohne Tag-Baum (`pdf-ueberschriften.ts`). Fehlt sie, bleibt alles
+   * Fließtext wie bisher.
+   */
+  groesse?: number;
 }
 
 interface Cell {
@@ -115,12 +121,36 @@ function emitTable(rows: Cell[][], cols: number[]): string {
   return [line(grid[0] ?? []), sep, ...grid.slice(1).map(line)].join('\n');
 }
 
+/** Größte Schriftgröße einer Zeile (0, wenn keins der Fragmente eine trägt). */
+const zeilenGroesse = (items: PdfTextFragment[]): number =>
+  items.reduce((max, f) => Math.max(max, f.groesse ?? 0), 0);
+
+/**
+ * Zeilen einer Seite als Text + Schriftgröße — Eingabe für
+ * `ermittleUeberschriftsSkala`, die über ALLE Seiten misst. Bewusst dieselbe
+ * Zeilen-Bildung wie `pdfPageToMarkdown`, damit die Skala auf denselben Zeilen
+ * beruht, auf die sie später angewandt wird.
+ */
+export function pdfSeitenZeilen(frags: PdfTextFragment[]): { text: string; groesse: number }[] {
+  return clusterLines(frags).map(items => ({
+    text: items.map(f => f.str).join(' ').replace(/\s+/g, ' ').trim(),
+    groesse: zeilenGroesse(items),
+  }));
+}
+
 /**
  * Rekonstruiert das Markdown einer PDF-Seite aus ihren Textfragmenten: Tabellen-
  * Regionen als Pipe-Tabellen, alles andere als Absatz-Fließtext (Zeile = Absatz,
  * wie bisher). Gibt einen leeren String zurück, wenn die Seite keinen Text trägt.
+ *
+ * `stufeFuer` ist optional: liefert es für eine Zeile eine Ebene, wird sie als
+ * `#`-Überschrift gesetzt. Ohne den Parameter verhält sich die Funktion exakt
+ * wie zuvor.
  */
-export function pdfPageToMarkdown(frags: PdfTextFragment[]): string {
+export function pdfPageToMarkdown(
+  frags: PdfTextFragment[],
+  stufeFuer?: (zeile: { text: string; groesse: number }) => number | null,
+): string {
   const lines = clusterLines(frags);
   if (lines.length === 0) return '';
   const charW = medianCharWidth(frags);
@@ -128,7 +158,40 @@ export function pdfPageToMarkdown(frags: PdfTextFragment[]): string {
   const tol = Math.max(4, charW * 1.5); // Spalten-x-Toleranz über Zeilen
 
   const rows = lines.map(items => splitCells(items, colGap));
+
   const out: string[] = [];
+  /** Ebene der zuletzt ausgegebenen Zeile (null = Fließtext) — für den Umbruch. */
+  let letzteStufe: number | null = null;
+
+  /**
+   * Setzt eine über zwei Zeilen umbrochene Überschrift wieder zusammen. Ohne das
+   * wird aus „3 Angestrebte Funktionalitäten und relevante Parameter / mit
+   * zugehörigem Lösungsweg" zweimal `#` — die zweite Hälfte stünde als eigenes
+   * Kapitel in der Gliederung. Zwei echte Überschriften hintereinander bleiben
+   * getrennt: eine neue beginnt mit ihrer Nummer, eine Fortsetzung nie.
+   */
+  const istFortsetzung = (vorher: string, jetzt: string): boolean => {
+    if (/^[\d•▪–-]/.test(jetzt.trim())) return false;
+    if (/[.:!?]$/.test(vorher.trim())) return false;
+    return vorher.trim().length >= 40;
+  };
+
+  /** Eine Nicht-Tabellen-Zeile ausgeben — ggf. als `#`-Überschrift. */
+  const alsZeile = (idx: number): void => {
+    const text = (rows[idx] ?? []).map(c => c.text).join(' ');
+    const stufe = stufeFuer ? stufeFuer({ text, groesse: zeilenGroesse(lines[idx] ?? []) }) : null;
+    const vorher = out[out.length - 1];
+    if (stufe && stufe === letzteStufe && vorher !== undefined) {
+      const roh = vorher.replace(/^#+ /, '');
+      if (istFortsetzung(roh, text)) {
+        out[out.length - 1] = '#'.repeat(stufe) + ' ' + roh + ' ' + text;
+        return;
+      }
+    }
+    letzteStufe = stufe;
+    out.push(stufe ? '#'.repeat(stufe) + ' ' + text : text);
+  };
+
   let i = 0;
   while (i < rows.length) {
     const row = rows[i];
@@ -147,11 +210,11 @@ export function pdfPageToMarkdown(frags: PdfTextFragment[]): string {
       // Tabelle nur, wenn ≥2 Zeilen UND die Spaltenzahl mit den Zellen je Zeile
       // zusammenpasst (sauber ausgerichtet) — sonst zerstreute Lücken → Fließtext.
       const tabellarisch = run.length >= MIN_TABLE_ROWS && cols.length >= MIN_COLS && cols.length <= maxCells + 1;
-      if (tabellarisch) out.push(emitTable(run, cols));
-      else for (const r of run) out.push(r.map(c => c.text).join(' '));
+      if (tabellarisch) { out.push(emitTable(run, cols)); letzteStufe = null; }
+      else for (let k = i; k < j; k++) alsZeile(k);
       i = j;
     } else {
-      out.push(row.map(c => c.text).join(' '));
+      alsZeile(i);
       i++;
     }
   }

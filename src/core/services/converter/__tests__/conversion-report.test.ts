@@ -1,5 +1,36 @@
 import { describe, it, expect } from 'vitest';
-import { buildConversionReport, maxConversionLevel } from '../conversion-report';
+import { buildConversionReport, maxConversionLevel, DOCX_UMWEG_MELDUNG } from '../conversion-report';
+
+describe('PDF: was aus der Gliederung wurde', () => {
+  const pdf = (stufe: 'strukturiert' | 'geschaetzt' | 'flach' | undefined) =>
+    buildConversionReport({ format: 'pdf', text: 'x'.repeat(4000), pages: 4, pdfStruktur: stufe });
+
+  it('meldet den Umweg über den PDF-Client NUR, wenn die Gliederung fehlt oder geraten ist', () => {
+    const hat = (stufe: 'strukturiert' | 'geschaetzt' | 'flach'): boolean =>
+      pdf(stufe).warnings.some(w => w.message === DOCX_UMWEG_MELDUNG);
+    expect(hat('strukturiert')).toBe(false);
+    expect(hat('geschaetzt')).toBe(true);
+    expect(hat('flach')).toBe(true);
+  });
+
+  it('stuft „flach" als Warnung ein, „geschätzt" als Hinweis — und alarmiert nicht, wenn alles gut ist', () => {
+    expect(maxConversionLevel(pdf('flach'))).toBe('warnung');
+    expect(maxConversionLevel(pdf('geschaetzt'))).toBe('hinweis');
+    expect(maxConversionLevel(pdf('strukturiert'))).toBe('gut');
+  });
+
+  it('reicht die Stufe im Bericht durch — und schweigt ohne sie (Stand bis v6.27)', () => {
+    expect(pdf('strukturiert').pdfStruktur).toBe('strukturiert');
+    expect(pdf(undefined).pdfStruktur).toBeUndefined();
+    expect(pdf(undefined).warnings).toHaveLength(0);
+  });
+
+  it('sagt bei 0 Zeichen nichts über die Gliederung — dann ist der Text das Problem', () => {
+    const r = buildConversionReport({ format: 'pdf', text: '', pages: 4, pdfStruktur: 'flach' });
+    expect(r.warnings.some(w => w.message.includes('gescanntes PDF'))).toBe(true);
+    expect(r.warnings.some(w => w.message === DOCX_UMWEG_MELDUNG)).toBe(false);
+  });
+});
 
 describe('PDF: fehlendes Zusatz-Asset', () => {
   // Der Regelfall ist der stille Textverlust — pdf.js warnt und liefert

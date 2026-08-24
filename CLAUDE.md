@@ -52,6 +52,7 @@ Decision-Tree für häufige Aufgaben. Erst hier nachsehen, **bevor** du die Code
 | Code-Katalog des Fachsystems (505 Statuseinträge aus der Kürzel-Zuarbeit, Ordnerbaum, Rollen AB/FB/QS/PA/Juristen, `D_`/`T_`/`X`-Spaltenkonvention, Ordner-Spalten der Fördertabelle) | [docs/status-system/KATALOG-CODES.md](docs/status-system/KATALOG-CODES.md) + Pitfalls #42/#43 |
 | Ruhende Kürzel (243 ohne Export-Spalte, Sektion „Nicht im Blick", `ruht`-Ausnahme, Einsatz-Bestandslauf) | [KATALOG-CODES.md → Was wir sehen können](docs/status-system/KATALOG-CODES.md) + Pitfall #53 |
 | Bearbeitungs-Meilensteine (Soll-Wochen ab Eingang, Frist-Prognose, Team-Sidecar, Flag `meilensteinMonitoring`) | [meilensteine.md](docs/architecture/meilensteine.md) + Pitfall #41 |
+| Hochgeladenes Dokument → internes Markdown (PDF-Leiter Tag-Baum/Schriftgrößen/flach, Bericht + Kofax-Umweg, warum DOCX der Maßstab ist) | [pdf-konvertierung.md](docs/architecture/pdf-konvertierung.md) |
 | Datei-Pfade auf SMB-Share | [docs/architecture/data-layout.md](docs/architecture/data-layout.md) |
 | CSV-Auto-Refresh (täglicher Selbst-Import, Frische-Ampel „● CSV", Projektions-Rebuild bei Mapping-Nachzug) | [docs/architecture/csv-auto-refresh.md](docs/architecture/csv-auto-refresh.md) |
 | Source-Tree (welche Datei gehört wo?) | [docs/architecture/project-structure.md](docs/architecture/project-structure.md) |

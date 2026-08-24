@@ -343,7 +343,7 @@ function IntakeRow({ item, typOptionen, onSetTyp, onAssign, onDiscard, onRemove 
                 Konvertierung prüfen
               </button>
               {lvl === 'warnung' && <span className="text-[var(--tf-warning-text)]">⚠ mögliche Konvertierungsprobleme</span>}
-              {lvl === 'hinweis' && <span className="text-[var(--tf-text-tertiary)]">Hinweise zur Konvertierung</span>}
+              {(lvl === 'hinweis' || lvl === 'gut') && <span className="text-[var(--tf-text-tertiary)]">Hinweise zur Konvertierung</span>}
               {item.ersetzt && (
                 <span className="text-[var(--tf-text-tertiary)]">vorherige Fassung ersetzt</span>
               )}

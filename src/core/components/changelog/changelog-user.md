@@ -19,6 +19,13 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v6.28 — 2026-08
+
+### Verbesserungen
+- **Aus einem PDF kommt jetzt die Gliederung mit.** Bisher wurde ein hochgeladenes PDF zu einem einzigen Textblock — Überschriften, Aufzählungen und Absatzstruktur gingen verloren, und auch die Kopfzeile stand auf jeder Seite mitten im Text. Jetzt liest die App die Gliederung aus dem Dokument selbst, sofern sie darin steht (bei allem, was aus Word als PDF gespeichert wurde, ist das der Fall).
+- **Die App sagt, was sie aus dem PDF herausgeholt hat.** Unter „Konvertierung prüfen" steht künftig eine von drei Aussagen: Gliederung übernommen (grüner Haken), Überschriften nur geschätzt, oder keine Gliederung vorhanden. In den letzten beiden Fällen schlägt sie vor, das Dokument im PDF-Client (Kofax) nach Word umzuwandeln und die Word-Datei hochzuladen — daraus kommt die Gliederung immer vollständig.
+- **Das Inhaltsverzeichnis wird als Verzeichnis erkannt** und nicht mehr als Kapitelliste mitgezählt.
+
 ## v6.27 — 2026-08
 
 ### Neu

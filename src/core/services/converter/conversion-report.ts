@@ -12,7 +12,26 @@
 
 import { PDF_ASSET_MELDUNG } from './pdf-assets';
 
-export type ConversionLevel = 'warnung' | 'hinweis';
+/**
+ * `gut` ist kein Problem, sondern eine Zusicherung („die Gliederung ist da").
+ * Sie steht in derselben Liste, weil sie dieselbe Frage beantwortet wie die
+ * Warnungen — nur mit dem anderen Ausgang; und sie darf die Zeile nie
+ * alarmieren (siehe `maxConversionLevel`).
+ */
+export type ConversionLevel = 'warnung' | 'hinweis' | 'gut';
+
+/**
+ * Welche Sprosse der PDF-Leiter getragen hat (siehe `leseAllePdfSeiten`):
+ * `strukturiert` = Tag-Baum, `geschaetzt` = Schriftgrößen, `flach` = nur Text.
+ */
+export type PdfStrukturStufe = 'strukturiert' | 'geschaetzt' | 'flach';
+
+/**
+ * Der Satz, der den Bearbeiter zum PDF-Client schickt. Steht hier einmal, weil
+ * ihn zwei Sprossen brauchen — und weil ein Test ihn festhält.
+ */
+export const DOCX_UMWEG_MELDUNG =
+  'Tipp: Das Dokument im PDF-Client (Kofax) nach Word (.docx) umwandeln und die DOCX hochladen — daraus liest die App die Gliederung vollständig.';
 
 export interface ConversionWarning {
   level: ConversionLevel;
@@ -25,6 +44,8 @@ export interface ConversionReport {
   pages?: number;
   tableCount?: number;
   imageCount?: number;
+  /** Nur PDF: welche Sprosse der Leiter getragen hat. */
+  pdfStruktur?: PdfStrukturStufe;
   warnings: ConversionWarning[];
 }
 
@@ -38,6 +59,11 @@ export interface ConversionInput {
    * `pdf-assets.ts`. Fehlt das Feld, ändert sich nichts.
    */
   pdfCmapFehlt?: boolean;
+  /**
+   * Welche Sprosse der PDF-Leiter getragen hat. Fehlt das Feld, sagt der
+   * Bericht über die Gliederung nichts (Verhalten bis v6.27).
+   */
+  pdfStruktur?: PdfStrukturStufe;
   /** mammoth-HTML (nur DOCX) — Quelle für Tabellen-/Bild-Zählung. */
   html?: string;
   pages?: number;
@@ -57,6 +83,38 @@ function dedupe(arr: string[]): string[] {
     if (t && !seen.has(t)) { seen.add(t); out.push(t); }
   }
   return out;
+}
+
+/**
+ * Meldungen zur PDF-Gliederung. Eine Zeile je Sprosse — und nur dort, wo der
+ * Bearbeiter etwas TUN kann, folgt der Hinweis auf den PDF-Client.
+ */
+function gliederungsMeldungen(stufe: PdfStrukturStufe | undefined): ConversionWarning[] {
+  if (stufe === 'strukturiert') {
+    return [{
+      level: 'gut',
+      message: 'Gliederung aus dem PDF übernommen — Überschriften, Listen und Tabellen stehen wie im Original.',
+    }];
+  }
+  if (stufe === 'geschaetzt') {
+    return [
+      {
+        level: 'hinweis',
+        message: 'Dieses PDF trägt keine Gliederungs-Tags — die Überschriften wurden aus den Schriftgrößen GESCHÄTZT. Bitte in der Vorschau prüfen.',
+      },
+      { level: 'hinweis', message: DOCX_UMWEG_MELDUNG },
+    ];
+  }
+  if (stufe === 'flach') {
+    return [
+      {
+        level: 'warnung',
+        message: 'Dieses PDF trägt keine Gliederung: Der Text kommt vollständig an, aber ALLE Überschriften sind verloren — die KI sieht das Dokument als einen Block.',
+      },
+      { level: 'hinweis', message: DOCX_UMWEG_MELDUNG },
+    ];
+  }
+  return [];
 }
 
 export function buildConversionReport(input: ConversionInput): ConversionReport {
@@ -88,7 +146,17 @@ export function buildConversionReport(input: ConversionInput): ConversionReport 
         message: `Sehr wenig Text extrahiert (Ø ${Math.round(charCount / pages!)} Zeichen/Seite) — evtl. ein bildbasiertes PDF. Bitte Konvertierung prüfen.`,
       });
     }
-    return { charCount, ...(pages !== undefined ? { pages } : {}), warnings };
+    // Was ist aus der GLIEDERUNG geworden? Das entscheidet, ob der Bearbeiter
+    // den Umweg über den PDF-Client gehen sollte — und es steht nur dort, wo
+    // überhaupt Text ankam (bei 0 Zeichen ist die Gliederung nicht das Problem).
+    if (charCount > 0) warnings.push(...gliederungsMeldungen(input.pdfStruktur));
+
+    return {
+      charCount,
+      ...(pages !== undefined ? { pages } : {}),
+      ...(input.pdfStruktur !== undefined ? { pdfStruktur: input.pdfStruktur } : {}),
+      warnings,
+    };
   }
 
   if (input.format === 'docx') {
@@ -125,5 +193,7 @@ export function buildConversionReport(input: ConversionInput): ConversionReport 
 /** Höchster Schweregrad in einem Report (für Banner-Styling); null wenn keine. */
 export function maxConversionLevel(report: ConversionReport | undefined): ConversionLevel | null {
   if (!report || report.warnings.length === 0) return null;
-  return report.warnings.some(w => w.level === 'warnung') ? 'warnung' : 'hinweis';
+  if (report.warnings.some(w => w.level === 'warnung')) return 'warnung';
+  if (report.warnings.some(w => w.level === 'hinweis')) return 'hinweis';
+  return 'gut';
 }

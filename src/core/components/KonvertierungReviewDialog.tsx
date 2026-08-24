@@ -75,14 +75,21 @@ export function KonvertierungReviewDialog({ open, filename, format, pages, markd
   );
 }
 
+/** Zeichen + Farbe je Stufe — `gut` ist eine Zusicherung und darf nicht mahnen. */
+const MARKE: Record<ConversionWarning['level'], { zeichen: string; farbe: string }> = {
+  warnung: { zeichen: '✕', farbe: 'var(--tf-danger-text)' },
+  hinweis: { zeichen: '!', farbe: 'var(--tf-warning-text)' },
+  gut: { zeichen: '✓', farbe: 'var(--tf-success-text)' },
+};
+
 function WarnLine({ w }: { w: ConversionWarning }): React.ReactElement {
-  const danger = w.level === 'warnung';
+  const marke = MARKE[w.level];
   return (
     <div className="flex items-start gap-2.5 text-[12.5px]">
-      <span className="w-3.5 text-center shrink-0 mt-0.5" style={{ color: danger ? 'var(--tf-danger-text)' : 'var(--tf-warning-text)' }}>
-        {danger ? '✕' : '!'}
+      <span className="w-3.5 text-center shrink-0 mt-0.5" style={{ color: marke.farbe }}>{marke.zeichen}</span>
+      <span className={w.level === 'warnung' ? 'text-[var(--tf-text)]' : 'text-[var(--tf-text-secondary)]'}>
+        {w.message}
       </span>
-      <span className={danger ? 'text-[var(--tf-text)]' : 'text-[var(--tf-text-secondary)]'}>{w.message}</span>
     </div>
   );
 }
