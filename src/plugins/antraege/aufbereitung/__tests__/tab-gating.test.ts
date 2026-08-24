@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  ABDECKUNG_PAUSE_HINWEIS, FRAGEN_PAUSE_HINWEIS, ZEITPLAN_PAUSE_HINWEIS,
+  ABDECKUNG_PAUSE_HINWEIS, FRAGEN_PAUSE_HINWEIS,
 } from '../pausierte-module';
 import { deriveTabZustaende } from '../tab-gating';
 import type { BausteinUiStatus } from '../useAufbereitung';
@@ -67,8 +67,6 @@ describe('deriveTabZustaende', () => {
 
   it('sperrt die pausierten Tabs dauerhaft — auch vor dem ersten Lauf', () => {
     const z = deriveTabZustaende({ gebundeneTabs: alleFehlt(), activeTab: 'uebersicht' });
-    expect(z.zeitplan.zustand).toBe('inaktiv');
-    expect(z.zeitplan.title).toBe(ZEITPLAN_PAUSE_HINWEIS);
     expect(z.fragen.zustand).toBe('inaktiv');
     expect(z.fragen.title).toBe(FRAGEN_PAUSE_HINWEIS);
     expect(z.abdeckung.zustand).toBe('inaktiv');
@@ -83,18 +81,20 @@ describe('deriveTabZustaende', () => {
 
   it('lässt die activeTab-Ausnahme die Pausen NICHT aushebeln', () => {
     // Die Ausnahme schützt einen offenen Tab — ein pausierter ist gar nicht erst erreichbar.
-    for (const tab of ['zeitplan', 'fragen', 'abdeckung'] as const) {
+    for (const tab of ['fragen', 'abdeckung'] as const) {
       const z = deriveTabZustaende({ gebundeneTabs: alleFehlt(), activeTab: tab });
       expect(z[tab].zustand).toBe('inaktiv');
     }
   });
 
-  it('öffnet den Zeitplan, sobald eine Einreichungs-JSON vorliegt — und nur den', () => {
-    const z = deriveTabZustaende({ gebundeneTabs: alleFehlt(), activeTab: 'uebersicht', hatEinreichungsJson: true });
-    expect(z.zeitplan.zustand).toBe('aktiv');
-    // Fragen/Abdeckung hängen nicht an der JSON — sie bleiben pausiert.
-    expect(z.fragen.zustand).toBe('inaktiv');
-    expect(z.abdeckung.zustand).toBe('inaktiv');
+  it('hält den Zeitplan offen — ohne jede Bedingung (Pause aufgehoben, v6.29)', () => {
+    // Er ist an keinen Baustein gebunden und trägt seinen eigenen Leerzustand, wenn der
+    // Antrag keinen Arbeitsplan hergibt. Auch ein laufender Baustein sperrt ihn nicht.
+    const leer = deriveTabZustaende({ gebundeneTabs: alleFehlt(), activeTab: 'uebersicht' });
+    expect(leer.zeitplan.zustand).toBe('aktiv');
+    expect(leer.zeitplan.title).toBeUndefined();
+    const waehrendLauf = deriveTabZustaende({ gebundeneTabs: alleFehlt({ steckbrief: 'laeuft' }), activeTab: 'uebersicht' });
+    expect(waehrendLauf.zeitplan.zustand).toBe('aktiv');
   });
 
   /**

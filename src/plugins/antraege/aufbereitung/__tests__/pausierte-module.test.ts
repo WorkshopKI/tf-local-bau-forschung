@@ -11,10 +11,9 @@ import {
   ABDECKUNG_PAUSIERT,
   FRAGEN_PAUSIERT,
   ZAHL_KATEGORIEN_PRUEFRELEVANT,
-  ZEITPLAN_PAUSIERT,
   istZahlKategorieGesperrt,
-  zeitplanVerfuegbar,
 } from '../pausierte-module';
+import * as pausierteModule from '../pausierte-module';
 import { ZAHL_KATEGORIE_IDS } from '../zahlen';
 
 describe('pausierte-module', () => {
@@ -36,14 +35,19 @@ describe('pausierte-module', () => {
     expect(istZahlKategorieGesperrt('markt')).toBe(false);
   });
 
-  it('hat Zeitplan, Fragen und Abdeckung pausiert (Stand heute)', () => {
-    expect(ZEITPLAN_PAUSIERT).toBe(true);
+  it('hat Fragen und Abdeckung pausiert (Stand heute)', () => {
     expect(FRAGEN_PAUSIERT).toBe(true);
     expect(ABDECKUNG_PAUSIERT).toBe(true);
   });
 
-  it('hebt die Zeitplan-Pause NUR mit Einreichungs-JSON auf', () => {
-    expect(zeitplanVerfuegbar(false)).toBe(false);
-    expect(zeitplanVerfuegbar(true)).toBe(true);
+  /**
+   * Die Zeitplan-Pause ist mit v6.29 aufgehoben (die Arbeitspaket-Ernte trägt, seit der
+   * Konverter den PDF-Tag-Baum liest). Der Guard hält fest, dass sie GANZ verschwunden
+   * ist statt nur auf `false` zu stehen: eine stillgelegte Mechanik, die niemand mehr
+   * bemerkt, ist der Weg zurück in genau diesen Zustand.
+   */
+  it('führt die Zeitplan-Pause nicht mehr — restlos entfernt, nicht nur ausgeschaltet', () => {
+    const namen = Object.keys(pausierteModule);
+    expect(namen.filter(n => n.toLowerCase().includes('zeitplan'))).toEqual([]);
   });
 });

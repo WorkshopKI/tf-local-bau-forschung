@@ -46,9 +46,9 @@ export function ZeitplanTab({ run, loading, neu, toggle, ctx, onIngested, einrei
     return <div className="py-16 text-center text-[13px] text-[var(--tf-text-tertiary)]">Aufbereitung wird geladen …</div>;
   }
 
-  // Einreichungs-JSON schlägt alles: sie ist der Grund, aus dem dieser Tab überhaupt
-  // erreichbar ist (`zeitplanVerfuegbar`). Die PDF-Zeilen daneben zu zeigen würde die
-  // Pause unterlaufen.
+  // Einreichungs-JSON schlägt alles: deklarierte Felder sind die stärkere Quelle als
+  // eine aus dem Dokument geerntete Tabelle. Die geernteten Zeilen daneben zu zeigen
+  // stellte zwei Wahrheiten nebeneinander, ohne dass eine davon die andere prüft.
   if (einreichung?.zeitplan) {
     return <div><EinreichungsPlan bezug={einreichung} /></div>;
   }
@@ -183,7 +183,10 @@ function ZeitplanInhalt({
         <KennzahlenKarte
           zeilen={zeilen}
           quelleName={herkunft === 'vb' ? 'Text-Projektplan' : 'Anlage 5'}
-          quelleHash={run.quellen.find(q => q.rolle === (herkunft === 'vb' ? 'vb' : 'anlage5'))?.hash ?? null}
+          // Die Anlage 5 kann ein eigenes Dokument sein oder ein Abschnitt der VB —
+          // gestempelt wird die Datei, aus der die Zeilen tatsächlich stammen.
+          quelleHash={run.quellen.find(q => q.rolle === (herkunft === 'vb' ? 'vb' : 'anlage5'))?.hash
+            ?? run.quellen.find(q => q.rolle === 'vb')?.hash ?? null}
         />
       </div>
 

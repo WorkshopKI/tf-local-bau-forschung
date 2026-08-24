@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { sammleFragen, formatFragenMarkdown, type SammleFragenInput } from '../fragen';
 import { PRUEF_ASPEKTE, type AspektMapping } from '../aspekte';
-import { ZEITPLAN_PAUSIERT } from '../pausierte-module';
 import type { VbSektion } from '../gliederung';
 import type { AufbereitungRun } from '../types';
 import type { Befund } from '../tabellen';
@@ -37,19 +36,13 @@ function vollAbgedeckt(): AspektMapping {
 }
 
 describe('sammleFragen', () => {
-  it('Zeitplan-/Kapazitäts-Befunde landen in Aspekt H (solange nicht pausiert), Meta listet nicht-ok-Bausteine', () => {
+  it('Zeitplan-/Kapazitäts-Befunde landen in Aspekt H, Meta listet nicht-ok-Bausteine', () => {
     const run = baseRun({ befunde: [KAPAZITAET] });
     const m = sammleFragen({ run, mapping: null, zahlen: null, status: { aspekte: 'fehlt', zahlen: 'fehlt' } });
     const h = m.gruppen.find(g => g.aspektId === 'H');
-    if (ZEITPLAN_PAUSIERT) {
-      // Zeitplan-Befunde stammen aus seiner PDF-Ernte → stumm, kein Aspekt-H-Eintrag.
-      expect(h).toBeUndefined();
-      expect(m.gesamt).toBe(0);
-    } else {
-      expect(h?.eintraege[0]!.key).toBe('kapazitaet::MA 1 überplant');
-      expect(h?.eintraege[0]!.frage).toContain('leistbar');
-      expect(m.gesamt).toBe(1);
-    }
+    expect(h?.eintraege[0]!.key).toBe('kapazitaet::MA 1 überplant');
+    expect(h?.eintraege[0]!.frage).toContain('leistbar');
+    expect(m.gesamt).toBe(1);
     // Meta ist unabhängig von den Befunden (nur Baustein-Status).
     expect(m.meta.map(x => x.baustein)).toEqual(['Aspekt-Mapping', 'Zahlen-Inventar']);
   });
@@ -92,23 +85,19 @@ describe('sammleFragen', () => {
     expect(m.gruppen).toEqual([]);
   });
 
-  it('lässt Zahlen-Widersprüche aus, solange der Zeitplan pausiert ist', () => {
-    // „18 Monate" widerspricht dem Zeitplan-Horizont (achseMax 24) → ohne Pause ein Aspekt-H-Eintrag.
+  it('nimmt Zahlen-Widersprüche gegen den Zeitplan-Horizont auf', () => {
+    // „18 Monate" widerspricht dem Zeitplan-Horizont (achseMax 24) → ein Aspekt-H-Eintrag.
     const zahlen: ZahlenDaten = {
       schemaVersion: 1,
       claims: [{ wert: '18 Monate', einheit: 'Monate', kategorie: 'zeit', relevanz: 'kern', kontext: 'Laufzeit von 18 Monaten', sektionIds: ['k-7'] }],
     };
     const m = sammleFragen({ run: baseRun(), mapping: null, zahlen, status: { aspekte: 'ok', zahlen: 'ok' } });
     const keys = m.gruppen.flatMap(g => g.eintraege.map(e => e.key));
-    if (ZEITPLAN_PAUSIERT) {
-      expect(keys.some(k => k.startsWith('zahl-widerspruch:'))).toBe(false);
-    } else {
-      expect(keys).toContain('zahl-widerspruch:laufzeit:18-monate');
-    }
+    expect(keys).toContain('zahl-widerspruch:laufzeit:18-monate');
   });
 
   it('ist deterministisch (gleiche Eingabe → gleiche Keys)', () => {
-    // Flag-unabhängige Quelle (aspekt-fehlt), damit der Test auch bei pausiertem Zeitplan nicht leer läuft.
+    // Quelle unabhängig vom Zeitplan (aspekt-fehlt), damit der Test nicht an einer Ecke hängt.
     const mapping: AspektMapping = { zuordnung: {}, fehlend: { I: ['Preisvorstellungen'] } };
     const input: SammleFragenInput = { run: baseRun({ befunde: [KAPAZITAET] }), mapping, zahlen: null, status: { aspekte: 'ok', zahlen: 'ok' } };
     const a = sammleFragen(input).gruppen.flatMap(g => g.eintraege.map(e => e.key));

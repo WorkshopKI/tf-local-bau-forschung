@@ -155,9 +155,10 @@ function ernteAnlagePlan(markdown: string): { zeilen: ApZeile[]; achseMax: numbe
 
 /**
  * Reine, deterministische Assemblierung eines Runs aus den aufgelösten Quellen.
- * Anlage 5 gewinnt für den angezeigten Zeitplan; die VB-Text-Tabelle dient als
- * Vergleichsquelle für die Befunde. Kein IO. Im echten Verbund (≥2 TV) übernimmt
- * `baueVerbundRun` (pro TV eine Anlage-5-Ernte, kein Text-Abgleich).
+ * Anlage 5 gewinnt für den angezeigten Zeitplan — aus dem eigenen Dokument, sonst aus
+ * dem gleichnamigen Abschnitt der VB; die VB-Text-Tabelle dient als Vergleichsquelle
+ * für die Befunde. Kein IO. Im echten Verbund (≥2 TV) übernimmt `baueVerbundRun`
+ * (pro TV eine Anlage-5-Ernte, kein Text-Abgleich).
  */
 export function baueRun(
   antragKey: string, vb: QuellEingang | null, anlage: QuellEingang | null,
@@ -187,9 +188,19 @@ export function baueRun(
   const tabellen = [...vbTabellen, ...anlageTabellen];
 
   // Zeitplan-Zeilen: Anlage 5 gewinnt; VB-Text-Tabelle als Vergleichsquelle.
-  const anlageZeilen: ApZeile[] = anlageTabellen
+  //
+  // Die Anlage 5 liegt NICHT immer als eigenes Dokument vor: in der Praxis trägt die VB
+  // sie am Ende als eigenen Abschnitt („Anlage 5: Arbeitspakete, Personalaufwand und
+  // Termine"). Fehlt das separate Dokument, wird sie darum aus der VB gelesen — sonst
+  // zeigte der Zeitplan den schwächeren Text-Projektplan (8–9 Zeilen ohne PM/MA),
+  // während die vollständige Tabelle (21–24 Zeilen) unbeachtet in derselben Datei steht.
+  // Das eigene Dokument behält den Vorrang: es ist die eingereichte Fassung.
+  const anlageAusDokument: ApZeile[] = anlageTabellen
     .filter(t => t.klasse === 'anlage5')
     .flatMap(t => normalisiereAnlage5(t));
+  const anlageZeilen: ApZeile[] = anlageAusDokument.length > 0
+    ? anlageAusDokument
+    : vbTabellen.filter(t => t.klasse === 'anlage5').flatMap(t => normalisiereAnlage5(t));
   const ersteTextTabelle = vbTabellen.find(t => t.klasse === 'ap-zeitplan-text');
   const textZeilen: ApZeile[] = vbTabellen
     .filter(t => t.klasse === 'ap-zeitplan-text')

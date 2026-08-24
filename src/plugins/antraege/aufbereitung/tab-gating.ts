@@ -17,13 +17,13 @@
  *  - Ein PAUSIERTES Modul schlägt alles andere: es ist dauerhaft `inaktiv`, auch vor dem
  *    ersten Lauf und auch als `activeTab` (die activeTab-Ausnahme schützt einen offenen
  *    Tab — ein pausierter Tab ist gar nicht erst erreichbar). Pausiert sind derzeit
- *    `fragen` und `abdeckung` unbedingt, `zeitplan` nur ohne Einreichungs-JSON
- *    (`zeitplanVerfuegbar`) — die Gründe stehen alle in `pausierte-module.ts`.
+ *    `fragen` und `abdeckung` — die Gründe stehen in `pausierte-module.ts`. `zeitplan`
+ *    ist seit v6.29 wieder offen (er trägt seinen eigenen Leerzustand, wenn der Antrag
+ *    keinen Arbeitsplan hergibt).
  */
 import type { AufbereitungTabId } from './AufbereitungTabs';
 import {
   ABDECKUNG_PAUSE_HINWEIS, ABDECKUNG_PAUSIERT, FRAGEN_PAUSE_HINWEIS, FRAGEN_PAUSIERT,
-  ZEITPLAN_PAUSE_HINWEIS, zeitplanVerfuegbar,
 } from './pausierte-module';
 import type { BausteinUiStatus } from './useAufbereitung';
 
@@ -53,14 +53,12 @@ export const IMMER_AKTIVE_TABS: readonly AufbereitungTabId[] = [
 ];
 
 /**
- * Pausierte Tabs samt Grund — eine Quelle für Tab-Zustand und Tooltip. `zeitplan`
- * hängt am Prädikat (Einreichungs-JSON hebt die Pause auf), die anderen beiden sind
- * unbedingt. Ein leerer Eintrag = nicht pausiert.
+ * Pausierte Tabs samt Grund — eine Quelle für Tab-Zustand und Tooltip. Ein leerer
+ * Eintrag = nicht pausiert.
  */
-function pauseHinweis(tab: AufbereitungTabId, hatEinreichungsJson: boolean): string | null {
+function pauseHinweis(tab: AufbereitungTabId): string | null {
   if (tab === 'fragen') return FRAGEN_PAUSIERT ? FRAGEN_PAUSE_HINWEIS : null;
   if (tab === 'abdeckung') return ABDECKUNG_PAUSIERT ? ABDECKUNG_PAUSE_HINWEIS : null;
-  if (tab === 'zeitplan') return zeitplanVerfuegbar(hatEinreichungsJson) ? null : ZEITPLAN_PAUSE_HINWEIS;
   return null;
 }
 
@@ -82,11 +80,6 @@ export interface TabGatingEingang {
   weitereStatus?: BausteinUiStatus[];
   /** Aktuell offener Tab — nie sperren. */
   activeTab: AufbereitungTabId;
-  /**
-   * Liegt zum Vorgang eine Einreichungs-JSON vor (MAP-Einreichung derselben VB
-   * zugeordnet)? Hebt allein die Zeitplan-Pause auf. Fehlt → `false`.
-   */
-  hatEinreichungsJson?: boolean;
 }
 
 /**
@@ -94,7 +87,7 @@ export interface TabGatingEingang {
  * Vor dem ersten Lauf (alle `fehlt`) → alles klickbar; sonst greift das Gating.
  */
 export function deriveTabZustaende(eingang: TabGatingEingang): Record<AufbereitungTabId, TabZustandInfo> {
-  const { gebundeneTabs, weitereStatus = [], activeTab, hatEinreichungsJson = false } = eingang;
+  const { gebundeneTabs, weitereStatus = [], activeTab } = eingang;
   const alleStatus: BausteinUiStatus[] = [...Object.values(gebundeneTabs), ...weitereStatus];
   // Gesperrt wird NUR, solange tatsaechlich ein Lauf unterwegs ist. Frueher galt
   // „irgendein Baustein != fehlt" als Startsignal — das war ein Proxy, der hielt,
@@ -108,7 +101,7 @@ export function deriveTabZustaende(eingang: TabGatingEingang): Record<Aufbereitu
   const ergebnis = {} as Record<AufbereitungTabId, TabZustandInfo>;
   for (const tab of ALLE_TABS) {
     // Pausiertes Modul zuerst — bewusst VOR der `activeTab`-Ausnahme unten.
-    const pause = pauseHinweis(tab, hatEinreichungsJson);
+    const pause = pauseHinweis(tab);
     if (pause) {
       ergebnis[tab] = { zustand: 'inaktiv', title: pause };
       continue;

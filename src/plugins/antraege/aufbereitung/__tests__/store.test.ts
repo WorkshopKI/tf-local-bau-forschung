@@ -57,6 +57,34 @@ describe('baueRun', () => {
     expect(nurText.befunde).toEqual([]);
   });
 
+  /**
+   * In der Praxis trägt die VB die Anlage 5 als eigenen Abschnitt am Ende, statt sie als
+   * zweites Dokument beizulegen (so in allen drei synthetischen Anträgen). Ohne diesen
+   * Zweig zeigte der Zeitplan den schwächeren Text-Projektplan, während die vollständige
+   * Tabelle unbeachtet in derselben Datei stand.
+   */
+  it('liest die Anlage 5 auch aus der VB, wenn sie kein eigenes Dokument ist', () => {
+    const vbMitAnlage = `${VB_MD}\n\n# Anlage 5: Arbeitspakete\n\n${ANLAGE_MD}\n`;
+    const r = baueRun('A5-IN-VB', { markdown: vbMitAnlage, name: 'p.docx' }, null, [], NOW);
+    expect(r.zeitplan?.herkunft).toBe('beide');
+    expect(r.zeitplan?.zeilen.map(z => z.nummer)).toEqual(['1', '3', '3.1', '3.2']);
+    // Die MA-/PM-Spalten sind der eigentliche Gewinn — der Text-Plan trägt sie nicht.
+    expect(r.zeitplan?.zeilen.some(z => !!z.maNr)).toBe(true);
+    // Der Text↔Anlage-5-Abgleich läuft, obwohl beide aus derselben Datei stammen.
+    expect(r.befunde.some(b => b.typ === 'zeitraum-abweichung')).toBe(true);
+  });
+
+  it('lässt dem eigenen Anlage-5-Dokument den Vorrang vor dem VB-Abschnitt', () => {
+    const vbMitAnlage = `${VB_MD}\n\n# Anlage 5: Arbeitspakete\n\n${ANLAGE_MD}\n`;
+    const eigenes = [
+      '| AP | Bezeichnung | Beginn | Ende | MA Nr | Aufwand PM |',
+      '| --- | --- | --- | --- | --- | --- |',
+      '| 7 | Eingereichte Fassung | 01.01.2023 | 28.02.2023 | MA09 | 2 |',
+    ].join('\n');
+    const r = baueRun('A5-DOK', { markdown: vbMitAnlage, name: 'p.docx' }, { markdown: eigenes, name: 'Anlage 5.docx' }, [], NOW);
+    expect(r.zeitplan?.zeilen.map(z => z.nummer)).toEqual(['7']);
+  });
+
   it('keine VB → definierter leerer Run mit Hinweis (nie Fehler)', () => {
     const leer = baueRun('X', null, null, [], NOW);
     expect(leer.gliederung).toEqual([]);

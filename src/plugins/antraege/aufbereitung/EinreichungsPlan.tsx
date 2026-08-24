@@ -1,12 +1,11 @@
 /**
  * Projektplan aus einer Einreichungs-JSON (MAP-Einreichung, derselben
- * Vorhabensbeschreibung zugeordnet). Die ehrliche Gegen-Quelle zur pausierten
- * PDF-Ernte: die Arbeitspakete stammen aus deklarierten Feldern, nicht aus einer
- * bei der Extraktion zerfallenen Tabelle.
+ * Vorhabensbeschreibung zugeordnet). Sie schlägt die Dokument-Ernte: die Arbeitspakete
+ * stammen aus deklarierten Feldern statt aus einer geernteten Tabelle.
  *
  * Bewusst schmaler als `ZeitplanInhalt`:
- *  - **keine** Plausibilitäts-Befunde — die stammen alle aus der PDF-Ernte und
- *    schweigen, solange die pausiert ist (`sichtbareZeitplanBefunde`).
+ *  - **keine** Plausibilitäts-Befunde — die vergleichen VB-Text gegen Anlage 5, hier
+ *    gibt es nur die eine, deklarierte Quelle.
  *  - **keine** Rohtabellen — es gibt keine geernteten Tabellen zu vergleichen.
  *  - **keine** „Nach Person"-Ansicht — die Einsatzplanung führt je Arbeitspaket
  *    mehrere Personen, die Zeilen tragen darum keine `maNr` (`map-verknuepfung.ts`).

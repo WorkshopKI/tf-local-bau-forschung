@@ -19,6 +19,17 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v6.29 — 2026-08
+
+### Neu
+- Der **Zeitplan** in der Antrag-Aufbereitung ist wieder da: Balkenplan, Kennzahlen und die Plausibilitätsprüfung gegen den Text stehen für jeden Antrag offen, dessen Arbeitsplan sich lesen lässt.
+### Verbesserungen
+- Steht die **Anlage 5 als Abschnitt in der Vorhabensbeschreibung** (statt als eigene Datei), wird sie von dort gelesen — der Arbeitsplan muss nicht mehr doppelt hochgeladen werden.
+- Findet die App keinen Arbeitsplan, sagt sie das — statt den Reiter zu sperren.
+- Die Zahlen der Vorhabensbeschreibung werden wieder gegen den Zeitplan gegengerechnet (Laufzeit, Personenmonate); Abweichungen erscheinen als offener Punkt am betroffenen Wert.
+### Bugfixes
+- Arbeitsplan-Tabellen mit Datumsangaben („Januar 2024") wurden als Monat 2024 gelesen — der Balkenplan reichte dadurch bis Monat 2026.
+
 ## v6.28 — 2026-08
 
 ### Verbesserungen

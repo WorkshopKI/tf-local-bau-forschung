@@ -248,12 +248,57 @@ export function normalisiereAnlage5(t: RohTabelle): ApZeile[] {
     }));
 }
 
+/** Deutsche Monatsnamen → 1–12 (Lang- und gebräuchliche Kurzform). */
+const MONATSNAMEN: ReadonlyMap<string, number> = new Map([
+  ['januar', 1], ['jan', 1], ['februar', 2], ['feb', 2], ['märz', 3], ['maerz', 3], ['mrz', 3], ['mär', 3],
+  ['april', 4], ['apr', 4], ['mai', 5], ['juni', 6], ['jun', 6], ['juli', 7], ['jul', 7],
+  ['august', 8], ['aug', 8], ['september', 9], ['sep', 9], ['sept', 9], ['oktober', 10], ['okt', 10],
+  ['november', 11], ['nov', 11], ['dezember', 12], ['dez', 12],
+]);
+
+/**
+ * Kalendermonat aus einer Zelle lesen, die ein DATUM trägt statt eines Monats-Index:
+ * `Januar 2024`, `Jan. 2024`, `01.01.2024`, `01/2024`. **Ohne Jahreszahl kein Treffer** —
+ * ein blankes „Januar" ist genauso gut ein Monats-Index wie ein Datum, und im Zweifel
+ * wird hier nicht geraten.
+ */
+function parseMonatJahr(s: string | undefined): { y: number; m: number } | null {
+  if (!s) return null;
+  const datum = parseDeDatum(s);
+  if (datum) return { y: datum.y, m: datum.m };
+  const roh = s.trim();
+  const name = /([a-zäöüß]{3,9})\.?\s+(\d{4})/i.exec(roh);
+  if (name) {
+    const m = MONATSNAMEN.get(name[1]!.toLowerCase().normalize('NFC'));
+    if (m) return { y: +name[2]!, m };
+  }
+  const num = /^(\d{1,2})[./](\d{4})$/.exec(roh);
+  if (num && +num[1]! >= 1 && +num[1]! <= 12) return { y: +num[2]!, m: +num[1]! };
+  return null;
+}
+
+/** Obergrenze für einen Monats-INDEX (20 Jahre) — darüber ist es keine Monatszahl mehr. */
+const MAX_MONAT_INDEX = 240;
+
+/**
+ * Monats-Index aus einer Zelle. Ein Wert jenseits von `MAX_MONAT_INDEX` ist verirrter
+ * Inhalt (Jahreszahl, Betrag) und liefert lieber nichts als eine falsche Achse.
+ */
+function monatIndex(s: string | undefined): number | undefined {
+  const n = parseGanzzahl(s);
+  return n != null && n >= 0 && n <= MAX_MONAT_INDEX ? n : undefined;
+}
+
 /**
  * ap-zeitplan-text → `ApZeile[]`. Monatszahlen direkt aus getrennten
  * Monat-Beginn/Ende-Spalten ODER aus einer Laufzeit-Range-Spalte. Zeilen ohne
  * eigene AP-Nummer bekommen eine laufende Nummer; die Bezeichnung ist der
  * Schlüssel. `pm` NUR aus einer echten PM-Spalte (nie aus „Aufwand"/„Dauer" —
  * dort steckt oft Personentage bzw. Monatsdauer, nicht Personenmonate).
+ *
+ * Die Beginn/Ende-Spalten heißen zwar „Monat …", tragen in echten Anträgen aber oft ein
+ * DATUM (`Januar 2024`). Trägt irgendeine Zeile eines, gilt die Kalender-Lesart für die
+ * ganze Tabelle — **M1 = frühester Beginn**, wie in `normalisiereAnlage5`.
  */
 export function normalisiereZeitplanText(t: RohTabelle): ApZeile[] {
   const apIdx = spaltenIndex(t.header, h => h === 'ap' || h === 'nr' || h === 'apnr' || h.includes('arbeitspaket'));
@@ -267,10 +312,26 @@ export function normalisiereZeitplanText(t: RohTabelle): ApZeile[] {
   // reine Titel ohne Nummer ist), sonst die erste nicht-numerische Spalte.
   const textIdx = bezIdx >= 0 ? bezIdx : apIdx >= 0 ? apIdx : 0;
 
+  // Kalender-Lesart der Beginn/Ende-Spalten (nur wenn keine Laufzeit-Spalte gewinnt).
+  // Index-treu zu `t.rows`, damit die Zuordnung die Leerzeilen-Filterung überlebt.
+  const kalender = laufzeitIdx < 0 && (beginnIdx >= 0 || endeIdx >= 0)
+    ? t.rows.map(r => ({
+      von: beginnIdx >= 0 ? parseMonatJahr(r[beginnIdx]) : null,
+      bis: endeIdx >= 0 ? parseMonatJahr(r[endeIdx]) : null,
+    }))
+    : [];
+  const basis = kalender
+    .flatMap(k => [k.von, k.bis])
+    .filter((d): d is { y: number; m: number } => d !== null)
+    .reduce<{ y: number; m: number } | null>((min, d) => (min === null || datumAbsolut(d) < datumAbsolut(min) ? d : min), null);
+  const zuMonat = (d: { y: number; m: number } | null | undefined): number | undefined =>
+    d && basis ? datumAbsolut(d) - datumAbsolut(basis) + 1 : undefined;
+
   let lauf = 0;
   return t.rows
-    .filter(r => (r[textIdx] ?? '').trim() !== '')
-    .map(r => {
+    .map((r, i) => ({ r, i }))
+    .filter(({ r }) => (r[textIdx] ?? '').trim() !== '')
+    .map(({ r, i }) => {
       lauf += 1;
       const apZelle = apIdx >= 0 ? (r[apIdx] ?? '').trim() : '';
       const nummer = /\d/.test(apZelle) ? apZelle.replace(/^ap\s*/i, '') : String(lauf);
@@ -278,9 +339,12 @@ export function normalisiereZeitplanText(t: RohTabelle): ApZeile[] {
       let ende: number | undefined;
       if (laufzeitIdx >= 0) {
         ({ start, ende } = parseMonatRange(r[laufzeitIdx] ?? ''));
+      } else if (basis) {
+        start = zuMonat(kalender[i]?.von);
+        ende = zuMonat(kalender[i]?.bis);
       } else {
-        start = beginnIdx >= 0 ? parseGanzzahl(r[beginnIdx]) : undefined;
-        ende = endeIdx >= 0 ? parseGanzzahl(r[endeIdx]) : undefined;
+        start = monatIndex(beginnIdx >= 0 ? r[beginnIdx] : undefined);
+        ende = monatIndex(endeIdx >= 0 ? r[endeIdx] : undefined);
       }
       return {
         nummer,

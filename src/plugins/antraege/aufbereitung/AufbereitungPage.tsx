@@ -258,7 +258,6 @@ export function AufbereitungPage({ antragKey }: { antragKey: string }): React.Re
             },
             weitereStatus: [aufb.recherchePrompt.status],
             activeTab: tab,
-            hatEinreichungsJson: aufb.einreichungsBezug?.zeitplan != null,
           })}
         />
       </div>

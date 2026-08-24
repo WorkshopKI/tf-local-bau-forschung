@@ -111,8 +111,14 @@ export function QuellenPanel({ ctx, run, korpusMass, laufZiel, onStarkErzwungen,
   const marketingNamen = (run?.quellen.filter(q => q.rolle === 'verwertung') ?? []).map(q => q.name);
   // Im Verbund (≥2 TV) trägt der Run pro-TV-Zeitpläne — dann pro TV eine Anlage-5-Zeile.
   const teilplaene = run?.teilplaene ?? null;
+  // Die Anlage 5 liegt oft NICHT als eigenes Dokument bei, sondern als Abschnitt am Ende
+  // der VB (`baueRun` liest sie dann von dort). Sie zählt als vorhanden, sobald der
+  // Zeitplan sie als Quelle nennt — sonst stünde „fehlt — ohne sie kein Zeitplan" über
+  // einem sichtbaren Zeitplan samt Kapazitätsprüfung.
+  const anlageHerkunft = run?.zeitplan?.herkunft;
+  const anlageAusVb = !anlageQuelle && (anlageHerkunft === 'anlage5' || anlageHerkunft === 'beide');
   // Nur nach einer Aufbereitung wissen wir sicher, dass Anlage 5 fehlt (Solo-Fall).
-  const anlageFehlt = !!run && !teilplaene && !anlageQuelle;
+  const anlageFehlt = !!run && !teilplaene && !anlageQuelle && !anlageAusVb;
 
   const [offen, setOffen] = useState(true);
   const [aufnahmeManuell, setAufnahmeManuell] = useState(false);
@@ -133,7 +139,7 @@ export function QuellenPanel({ ctx, run, korpusMass, laufZiel, onStarkErzwungen,
             VB {vbQuelle ? '✓' : '–'}
             {teilplaene
               ? ` · Anlage 5 ${teilplaene.filter(t => t.anlage).length}/${teilplaene.length} TV`
-              : ` · Anlage 5 ${anlageQuelle ? '✓' : '–'}`}
+              : ` · Anlage 5 ${anlageQuelle || anlageAusVb ? '✓' : '–'}`}
             {marketingNamen.length ? ` · Marketing ✓` : ''}
           </span>
         )}
@@ -167,6 +173,7 @@ export function QuellenPanel({ ctx, run, korpusMass, laufZiel, onStarkErzwungen,
             <QuelleZeile
               label="Arbeitsplan / Anlage 5"
               name={anlageQuelle?.name ?? null}
+              zusatz={anlageAusVb ? `als Abschnitt in ${vbQuelle?.name ?? 'der Vorhabensbeschreibung'}` : undefined}
               fehltHinweis="fehlt — ohne sie kein Zeitplan / keine Kapazitätsprüfung"
               warnen={anlageFehlt}
             />
@@ -216,10 +223,12 @@ export function QuellenPanel({ ctx, run, korpusMass, laufZiel, onStarkErzwungen,
 }
 
 function QuelleZeile({
-  label, name, fehltHinweis, warnen,
+  label, name, zusatz, fehltHinweis, warnen,
 }: {
   label: string;
   name: string | null;
+  /** Vorhanden, aber nicht als eigene Datei — woher sie stammt (z. B. Abschnitt der VB). */
+  zusatz?: string;
   fehltHinweis?: string;
   warnen?: boolean;
 }): React.ReactElement {
@@ -230,6 +239,11 @@ function QuelleZeile({
         <span className="inline-flex items-center gap-1.5 min-w-0">
           <Check size={13} className="text-[var(--tf-success-text)] shrink-0" />
           <span className="font-mono text-[12px] text-[var(--tf-text)] truncate" title={name}>{name}</span>
+        </span>
+      ) : zusatz ? (
+        <span className="inline-flex items-center gap-1.5 min-w-0">
+          <Check size={13} className="text-[var(--tf-success-text)] shrink-0" />
+          <span className="text-[var(--tf-text-secondary)] truncate" title={zusatz}>{zusatz}</span>
         </span>
       ) : (
         <span className={warnen ? 'text-[var(--tf-warning-text)]' : 'text-[var(--tf-text-tertiary)]'}>

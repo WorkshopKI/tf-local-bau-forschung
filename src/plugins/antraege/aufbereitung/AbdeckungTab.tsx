@@ -23,7 +23,6 @@ import {
   type AspektMapping, type AspektSubstanz,
 } from './aspekte';
 import { zuordneRisiken, risikoFehltKandidaten } from './risiken';
-import { sichtbareZeitplanBefunde } from './pausierte-module';
 import { befundKey } from './store';
 import type { BausteinUiState } from './useAufbereitung';
 import type { AufbereitungRun } from './types';
@@ -62,7 +61,6 @@ export function AbdeckungTab({
     return <div className="py-16 text-center text-[13px] text-[var(--tf-text-tertiary)]">KI-Aufbereitung läuft — Prüfaspekte werden zugeordnet …</div>;
   }
   if (aspekte.status === 'fehler') {
-    // Der frühere Zusatz „Der Zeitplan-Tab bleibt nutzbar" ist seit `ZEITPLAN_PAUSIERT` falsch.
     return <BausteinFehler begruendung={aspekte.begruendung} bausteine={bausteine} />;
   }
   // degradiert oder ok:
@@ -126,11 +124,10 @@ function AbdeckungInhalt({
     [mapping, risikoZuordnung.ohneRisiko],
   );
   // Zeitplan-Widersprüche (Warnungs-Befunde) — Zusatz-Badge bei Aspekt H (Projektplan).
-  // Stumm, solange der Zeitplan pausiert ist (dieselbe Quelle wie im Fragen-Tab).
-  const widersprueche = useMemo(() => sichtbareZeitplanBefunde(run.befunde).filter(b => b.schwere === 'warnung').length, [run.befunde]);
+  const widersprueche = useMemo(() => run.befunde.filter(b => b.schwere === 'warnung').length, [run.befunde]);
   // Bereits als offen markierte Zeitplan-Befunde (im OFFENE-PUNKTE-Abschnitt konsolidiert).
   const uebernommeneBefunde = useMemo(
-    () => sichtbareZeitplanBefunde(run.befunde).filter(b => run.offenePunkte.includes(befundKey(b))),
+    () => run.befunde.filter(b => run.offenePunkte.includes(befundKey(b))),
     [run.befunde, run.offenePunkte],
   );
 
