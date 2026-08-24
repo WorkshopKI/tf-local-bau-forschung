@@ -19,6 +19,13 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v6.31 — 2026-08
+
+### Verbesserungen
+- Die **Schlagworte der Doppelförderungs-Prüfung** werden nicht mehr blind übernommen: Die KI schlägt je Achse mehrere Begriffe vom engsten zum weitesten vor, und die App nimmt den engsten, der im Bestand überhaupt etwas findet. Fast jedes zweite Schlagwort traf vorher gar nichts — jetzt ist es noch nicht einmal jedes dritte.
+- Hat die App ein Schlagwort ausgetauscht, steht ein **↳** davor; der Tooltip nennt den ursprünglichen Vorschlag und warum er nicht genommen wurde.
+- Deutlich weniger Meldungen enden mit **„nicht beurteilbar"** (jede dritte vorher, jede zehnte jetzt). Der Preis: eine Prüfung dauert rund die Hälfte länger.
+
 ## v6.29 — 2026-08
 
 ### Neu

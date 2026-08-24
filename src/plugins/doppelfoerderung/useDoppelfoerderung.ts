@@ -38,9 +38,10 @@ import {
 } from './services/abgleich';
 import { baueTraegerIndex, traegerAbgleich } from './services/traeger';
 import { ermittleSchlagworte } from './services/schlagworte-lauf';
+import { beschraenkeAuf, waehleSchlagworte } from './services/wortwahl';
 import type {
-  AehnlichkeitsAusfall, BereichsWahl, MeldungsZeile, SchlagwortTreffer, TraegerBezug,
-  TrefferBefund, ZeilenErgebnis,
+  AchsenWahl, AehnlichkeitsAusfall, BereichsWahl, MeldungsZeile, SchlagwortTreffer,
+  TraegerBezug, TrefferBefund, ZeilenErgebnis,
 } from './types';
 
 export type Phase = 'aufnehmen' | 'pruefen' | 'ergebnis';
@@ -69,6 +70,8 @@ interface RohErgebnis {
   fehler?: string;
   /** Warum diese eine Zeile ohne Ähnlichkeit auskommen musste. */
   ausfall?: AehnlichkeitsAusfall;
+  /** Was je Achse zur Wahl stand; fehlt bei von Hand eingetragenen Worten. */
+  wortwahl?: readonly AchsenWahl[];
 }
 
 /**
@@ -97,7 +100,7 @@ function baueRohErgebnis(
   vektor: ReadonlyMap<string, number> | null,
   ctx: AbgleichKontext,
   bereichsGroesse: number,
-  ausfall: AehnlichkeitsAusfall | undefined,
+  dazu: { ausfall?: AehnlichkeitsAusfall; wortwahl?: readonly AchsenWahl[] },
 ): RohErgebnis {
   const zuWeit = zuWeiteSchlagworte(wortlaut.treffer, bereichsGroesse);
   const traeger = ctx.traegerIndex
@@ -108,7 +111,8 @@ function baueRohErgebnis(
     schlagworte: [...schlagworte],
     schlagwortTreffer: wortlaut.treffer,
     befunde: vereineBefunde(wortlaut.proAktenzeichen, vektor ?? new Map(), ctx, zuWeit, traeger),
-    ...(ausfall ? { ausfall } : {}),
+    ...(dazu.ausfall ? { ausfall: dazu.ausfall } : {}),
+    ...(dazu.wortwahl ? { wortwahl: dazu.wortwahl } : {}),
   };
 }
 
@@ -308,16 +312,23 @@ export function useDoppelfoerderung(schwelle: number): UseDoppelfoerderung {
             continue;
           }
 
-          const wortlaut = wortlautAbdeckung(lauf.schlagworte, korpus);
+          // Nachschlagen VOR dem Urteil: einmal über alle Vorschläge suchen,
+          // dann je Achse den tragfähigsten wählen. Die Suche über die
+          // Verworfenen ist der ganze Mehraufwand — rund 6 ms je Vorschlag,
+          // während der KI-Lauf derselben Zeile Sekunden braucht.
+          const wortlautAlle = wortlautAbdeckung(lauf.achsen.flat(), korpus);
+          const wahl = waehleSchlagworte(lauf.achsen, wortlautAlle.treffer, korpus.size);
+          const wortlaut = beschraenkeAuf(wortlautAlle, wahl.gewaehlt);
           const aehn = await aehnlichkeitsStufe(
             aehnlichkeitsText(zeile.thema, zeile.aufgabenbeschreibung),
             ctx, embedden, new Set(wortlaut.proAktenzeichen.keys()), ctrl.signal,
           );
           if (ctrl.signal.aborted) return;
 
+          const zeilenGrund = zeilenAusfall(aehn.ausfall);
           gesammelt.push(baueRohErgebnis(
-            zeile, lauf.schlagworte, wortlaut, aehn.treffer, ctx, korpus.size,
-            zeilenAusfall(aehn.ausfall),
+            zeile, wahl.gewaehlt, wortlaut, aehn.treffer, ctx, korpus.size,
+            { ...(zeilenGrund ? { ausfall: zeilenGrund } : {}), wortwahl: wahl.achsen },
           ));
           setRoh([...gesammelt]);
         }
@@ -368,7 +379,13 @@ export function useDoppelfoerderung(schwelle: number): UseDoppelfoerderung {
         e.zeile.zeilenNr === zeilenNr
           // Der Fehlervermerk fällt weg: die Zeile hat jetzt Schlagworte, auch
           // wenn die KI keine liefern konnte. Genau dafür ist der Weg da.
-          ? baueRohErgebnis(e.zeile, schlagworte, wortlaut, vektor, k, k.korpus.size, ausfall)
+          //
+          // OHNE `wortwahl`: der Nutzer hat die Worte gesetzt, damit gibt es
+          // keine Achse mehr, aus der nachgeschlagen worden wäre — die alte
+          // Wahl danebenstehen zu lassen behauptete eine Herkunft, die nicht
+          // mehr stimmt.
+          ? baueRohErgebnis(e.zeile, schlagworte, wortlaut, vektor, k, k.korpus.size,
+            ausfall ? { ausfall } : {})
           : e
       )));
     };
@@ -406,6 +423,7 @@ export function useDoppelfoerderung(schwelle: number): UseDoppelfoerderung {
       ...faelleUrteil(e.befunde, schwelle, undefined, e.schlagwortTreffer),
       ...(e.fehler ? { fehler: e.fehler } : {}),
       ...(e.ausfall ? { aehnlichkeitAusfall: e.ausfall } : {}),
+      ...(e.wortwahl ? { wortwahl: e.wortwahl } : {}),
     })),
     [roh, schwelle],
   );

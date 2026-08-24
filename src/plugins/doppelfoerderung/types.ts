@@ -133,6 +133,27 @@ export interface SchlagwortTreffer {
   treffer: number;
 }
 
+/**
+ * Was auf einer der drei Achsen zur Wahl stand — und was gewonnen hat.
+ *
+ * Das Modell liefert je Achse mehrere Vorschläge, von eng nach weit. Welcher
+ * davon das Urteil trägt, entscheidet **nicht** das Modell, sondern der
+ * Bestand: die App schlägt jeden Vorschlag nach und nimmt den engsten, der
+ * überhaupt etwas trifft, ohne zu fluten ([wortwahl.ts](./services/wortwahl.ts)).
+ *
+ * Die verworfenen Vorschläge bleiben stehen, weil eine stille Ersetzung eine
+ * Behauptung wäre: der Nutzer sieht am Chip, was das Modell zuerst wollte und
+ * warum es nicht genommen wurde.
+ */
+export interface AchsenWahl {
+  /** Das Wort, das diese Achse im Urteil vertritt. */
+  wort: string;
+  /** Die übrigen Vorschläge derselben Achse mit ihrer Trefferzahl, in Modellreihenfolge. */
+  alternativen: readonly SchlagwortTreffer[];
+  /** `true`, wenn nicht der erste Vorschlag des Modells gewonnen hat. */
+  nachgeschlagen: boolean;
+}
+
 /** Das Ergebnis einer Zeile: Schlagworte, Befunde, Urteil. */
 export interface ZeilenErgebnis {
   zeile: MeldungsZeile;
@@ -146,6 +167,13 @@ export interface ZeilenErgebnis {
    * zweiten Lauf über den Korpus.
    */
   schlagwortTreffer: readonly SchlagwortTreffer[];
+  /**
+   * Je Achse, was zur Wahl stand — nur bei Schlagworten aus dem KI-Lauf.
+   *
+   * Trägt der Nutzer die Worte von Hand ein, gibt es nichts nachzuschlagen und
+   * das Feld bleibt leer.
+   */
+  wortwahl?: readonly AchsenWahl[];
   /** Alle Befunde, sortiert: Abdeckung absteigend, dann Ähnlichkeit. */
   befunde: readonly TrefferBefund[];
   uebereinstimmung: boolean;

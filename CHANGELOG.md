@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v6.31.0 — Doppelfoerderung: der Bestand waehlt das Schlagwort (August 2026)
+
+MINOR — Der erste Messlauf gegen die interne KI zeigte: 45,6 % der gelieferten Schlagworte trafen im Bestand **nichts**, 13,4 % fluteten. Das ist kein Prompt-Mangel, sondern eine Wissensgrenze — das Modell sieht den Bestand nicht, die App schon. Detail: [doppelfoerderung.md](docs/architecture/doppelfoerderung.md).
+
+- Das Modell liefert je Achse **zwei bis drei Vorschläge eng → weit** statt eines Worts; ein KI-Lauf je Zeile wie bisher ([schlagworte.ts](src/plugins/doppelfoerderung/services/schlagworte.ts))
+- Die Wahl trifft der Bestand: Rang `trägt` vor `markiert` vor `tot` vor `flutet`, bei Gleichstand der engere ([wortwahl.ts](src/plugins/doppelfoerderung/services/wortwahl.ts))
+- Ein nachgeschlagenes Wort trägt `↳` und nennt im Tooltip den verworfenen Erstvorschlag mit seiner Trefferzahl ([ErgebnisTabelle.tsx](src/plugins/doppelfoerderung/components/ErgebnisTabelle.tsx))
+- Gemessen (3 × 29 Meldungen, 261 Schlagworte): tote Wörter **45,6 % → 29,1 %**, „zu weit" **13,4 % → 7,3 %**, Median 1 → 4, „nicht beurteilbar" 9 → 3 Zeilen; Wartezeit +55 %
+- **Nicht gelöst**: die Wiederholbarkeit — 8 von 29 Zeilen wechseln über drei Läufe weiter ihr Urteil (Abschnitt 12)
+
 ### v6.30.0 — Abschnitt A: Zweck, Weglass-Liste und das verlorene Ausgabeformat (August 2026)
 
 MINOR — Die Kurzfassung wird veröffentlicht und steht dort allein — das stand nirgends, und ohne den Zweck war nicht begründbar, warum Antragsteller, FuE-Risiko und Abgrenzung zum Stand der Technik nicht hineingehören. Darunter lagen zwei Defekte, die erst der Messlauf zeigte. Detail: [gutachten-kurzfassung.md](docs/architecture/gutachten-kurzfassung.md).

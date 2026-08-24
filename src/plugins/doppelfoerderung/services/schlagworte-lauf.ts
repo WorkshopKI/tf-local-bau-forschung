@@ -33,12 +33,18 @@ const MELDUNG = {
 } as const;
 
 export type SchlagwortErgebnis =
-  | { ok: true; schlagworte: string[] }
+  | { ok: true; achsen: string[][] }
   | { ok: false; fehler: string; verbindungFehlt?: boolean };
 
 /**
- * Thema und Aufgabenbeschreibung einer Zeile in bis zu drei Schlagworte
- * übersetzen. Wirft nie — Fehler kommen als Ergebnis zurück.
+ * Thema und Aufgabenbeschreibung einer Zeile in bis zu drei **Achsen** mit je
+ * bis zu drei Vorschlägen übersetzen. Wirft nie — Fehler kommen als Ergebnis
+ * zurück.
+ *
+ * Der Lauf liefert bewusst Vorschläge, keine Entscheidung: welcher Vorschlag
+ * einer Achse das Urteil trägt, entscheidet erst der Bestand
+ * ([wortwahl.ts](./wortwahl.ts)). Das Modell kann diese Frage nicht beantworten,
+ * weil es den Bestand nicht sieht.
  */
 export async function ermittleSchlagworte(
   bridge: AIBridge,
@@ -62,9 +68,9 @@ export async function ermittleSchlagworte(
   });
   if (!lauf.ok) return lauf;
 
-  const schlagworte = parseSchlagworte(lauf.roh);
-  if (schlagworte.length === 0) return { ok: false, fehler: MELDUNG.keineWorte };
-  return { ok: true, schlagworte };
+  const achsen = parseSchlagworte(lauf.roh);
+  if (achsen.length === 0) return { ok: false, fehler: MELDUNG.keineWorte };
+  return { ok: true, achsen };
 }
 
 /** Für die Tests der Aufrufer — die Meldungen sind Teil des Verhaltens. */

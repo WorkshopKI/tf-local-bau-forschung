@@ -24,6 +24,8 @@ Die Zuarbeit führt Teilvorhaben als eigene Zeilen — `01MF26003A` bis `…F` s
 
 **Schlagworte.** Die interne KI bildet je Zeile drei Schlagworte aus Thema und Aufgabenbeschreibung — ein Lauf je Zeile, mit frischem Chat. Der Prompt verlangt drei **verschiedene Achsen**: Verfahren, Gegenstand, Anwendung.
 
+**Welches Wort zählt, entscheidet der Bestand.** Je Achse schlägt die KI mehrere Begriffe vom engsten zum weitesten vor; die App sucht jeden davon und nimmt den engsten, der überhaupt etwas trifft, ohne die Liste aufzureissen. Ein so gewähltes Wort trägt ein `↳` und nennt im Tooltip, was stattdessen vorgeschlagen war und warum es nicht genommen wurde. Über 87 gemessene Läufe sank damit der Anteil der Schlagworte, die im Bestand nichts treffen, von 46 % auf 29 %.
+
 **Wortlaut-Stufe.** Je Schlagwort eine Suche. Jeder Treffer trägt damit seine **Abdeckung** — wie viele der drei Schlagworte er führt (`3/3`, `2/3`, `1/3`). Ein Schlagwort über 2 % des Bereichs zählt **nicht** mit und ist am Chip als „zählt nicht" markiert.
 
 **Ähnlichkeits-Stufe.** Thema + Beschreibung werden eingebettet und gegen die Vektoren des Bestands gehalten. Findet dasselbe Vorhaben unter anderem Namen. Entfällt mit sichtbarem Hinweis, wenn kein Embedding-Modell geladen ist.

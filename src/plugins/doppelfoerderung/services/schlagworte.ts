@@ -87,6 +87,18 @@ export const ZU_WEITE_WOERTER: readonly string[] = [
   'Qualifizierung', 'Sensibilisierung',
 ];
 
+/**
+ * So viele Vorschläge verlangt der Prompt JE ACHSE.
+ *
+ * Drei, nicht mehr: der Nutzen liegt in der Staffelung eng → weit, und die vierte
+ * Stufe wäre nur noch ein Synonym der dritten. Der Aufwand ist eine Suche mehr je
+ * Vorschlag (rund 6 ms über 4.327 Einträge) — der KI-Lauf bleibt EINER.
+ */
+export const KANDIDATEN_JE_ACHSE = 3;
+
+/** Die drei Achsen in ihrer festen Reihenfolge — zugleich die JSON-Schlüssel. */
+export const ACHSEN = ['verfahren', 'gegenstand', 'anwendung'] as const;
+
 export interface SchlagwortPrompt {
   systemPrompt: string;
   userPrompt: string;
@@ -98,6 +110,15 @@ export interface SchlagwortPrompt {
  * **Ohne Beispiel-JSON**, aus demselben Grund wie beim Frageplan: ein Modell,
  * das eine Schablone wiederholt, lieferte sonst die Schablone. Die Felder stehen
  * als Aufzählung da.
+ *
+ * **Warum je Achse mehrere Vorschläge.** An 87 Läufen gegen die interne KI
+ * gemessen (24.08.2026) traf fast die Hälfte der gelieferten Schlagworte im
+ * Bestand **nichts** (119 von 261), ein Achtel flutete (35 über einem Prozent) —
+ * die Verteilung ist zweigipflig, und welcher Gipfel getroffen wird, kann das
+ * Modell nicht wissen: es sieht den Bestand nicht. Eine Staffel eng → weit gibt
+ * ihm eine Aufgabe, die es am eigenen Text lösen kann; welcher Vorschlag das
+ * Urteil trägt, entscheidet danach die App durch Nachschlagen
+ * ([wortwahl.ts](./wortwahl.ts)).
  */
 export function baueSchlagwortPrompt(
   thema: string,
@@ -108,19 +129,26 @@ export function baueSchlagwortPrompt(
     'Datenbank deutscher Förderanträge (ZIM) abgeglichen werden kann.',
     'Du bewertest nichts und fasst nichts zusammen — du benennst nur, wonach gesucht werden soll.',
     '',
-    `Antworte mit GENAU EINEM JSON-Objekt mit dem Schlüssel "schlagworte": einer Liste von genau ${SCHLAGWORT_ANZAHL} Zeichenketten.`,
+    'Antworte mit GENAU EINEM JSON-Objekt mit den drei Schlüsseln',
+    `"${ACHSEN.join('", "')}" — je Schlüssel eine Liste von zwei bis ${KANDIDATEN_JE_ACHSE} Zeichenketten.`,
     '',
     'Regeln:',
     '- Deutsch, je ein bis zwei Wörter, Substantive in Grundform.',
-    '- DREI VERSCHIEDENE ACHSEN, in dieser Reihenfolge:',
-    '    1. das VERFAHREN oder die Methode (wie wird gearbeitet),',
-    '    2. der GEGENSTAND: Werkstoff, Bauteil, Stoff, Datenart (woran),',
-    '    3. die ANWENDUNG oder das Ziel (wofür).',
+    '- Die drei Schlüssel sind DREI VERSCHIEDENE ACHSEN:',
+    '    verfahren  — das Verfahren oder die Methode (wie wird gearbeitet),',
+    '    gegenstand — Werkstoff, Bauteil, Stoff, Datenart (woran),',
+    '    anwendung  — die Anwendung oder das Ziel (wofür).',
     '  Nenne NICHT dreimal dasselbe mit anderen Worten. „Verschleissschutz" und',
     '  „Korrosionsschutz" sind eine Achse, nicht zwei — ein Treffer auf beiden ist',
     '  EIN Beleg, wird aber als zwei gezählt und verfälscht damit das Urteil.',
-    '  Gibt der Text zu einer Achse nichts her, nimm dafür ein weiteres Wort einer',
-    '  anderen Achse, das etwas ANDERES benennt.',
+    '  Gibt der Text zu einer Achse nichts her, füll sie mit einem Wort, das etwas',
+    '  ANDERES benennt als die beiden übrigen Achsen — leer bleiben darf keine.',
+    '- Die Liste EINER Achse benennt DIESELBE Sache, nur unterschiedlich eng:',
+    '  zuerst der engste Begriff, dann der nächstweitere Oberbegriff.',
+    '  Richtig: ["Laserauftragschweissen", "Auftragschweissen", "Schweissverfahren"].',
+    '  Falsch: ["Laserauftragschweissen", "Eisenaluminid", "Armaturenbau"] — das sind',
+    '  drei Achsen in einer Liste. Aus jeder Liste wird GENAU EIN Wort verwendet;',
+    '  steht dort etwas anderes, verschiebt das den Sinn statt die Weite.',
     '- FACHLICH UND SPEZIFISCH: das Verfahren, der Werkstoff, das Bauteil, die',
     '  Anwendung — das, was dieses Vorhaben von anderen unterscheidet.',
     '- Die Schlagworte werden ODER-verknüpft gesucht. Ein einziges zu weites Wort',
@@ -128,6 +156,9 @@ export function baueSchlagwortPrompt(
     '  Vorhaben, „KI" 36 %, „Sensor" 24 %. Solche Wörter sind deshalb VERBOTEN, auch',
     '  wenn sie im Text stehen:',
     `    ${ZU_WEITE_WOERTER.join(' · ')}`,
+    '  Das gilt für JEDEN Eintrag, auch für den weitesten einer Liste: die Staffelung',
+    '  eng → weit endet UNTERHALB dieser Wörter. Lieber eine Liste mit zwei Einträgen',
+    '  als ein drittes, das eine ganze Branche benennt.',
     '- Steht im Text nur ein solches Allerweltswort, nimm den engeren Begriff daneben',
     '  („Künstliche Intelligenz zur Fehlererkennung in Schweissnähten" → „Fehlererkennung",',
     '  „Schweissnaht"), nicht das weite Wort.',
@@ -161,8 +192,8 @@ function ausListenzeile(zeile: string): string {
   return zeile.replace(/^\s*(?:[-*•]|\d+[.)])\s*/, '').replace(/^["'„»]|["'“«]$/g, '').trim();
 }
 
-/** Trimmen, normalisieren, entdoppeln, deckeln. */
-function sammle(kandidaten: readonly string[]): string[] {
+/** Trimmen, normalisieren, entdoppeln, deckeln — innerhalb EINER Achse. */
+function sammle(kandidaten: readonly string[], deckel: number): string[] {
   const gesehen = new Set<string>();
   const out: string[] = [];
   for (const k of kandidaten) {
@@ -172,36 +203,59 @@ function sammle(kandidaten: readonly string[]): string[] {
     if (gesehen.has(key)) continue;
     gesehen.add(key);
     out.push(wort);
-    if (out.length === SCHLAGWORT_ANZAHL) break;
+    if (out.length === deckel) break;
   }
   return out;
 }
 
+/** Achsen ohne Vorschlag fallen weg; mehr als drei Achsen gibt es nicht. */
+function alsAchsen(rohAchsen: readonly (readonly string[])[]): string[][] {
+  return rohAchsen
+    .map(a => sammle(a, KANDIDATEN_JE_ACHSE))
+    .filter(a => a.length > 0)
+    .slice(0, SCHLAGWORT_ANZAHL);
+}
+
 /**
- * Die Schlagworte aus der Rohantwort. Leere Liste heisst „nichts Verwertbares".
+ * Die Vorschläge je Achse aus der Rohantwort. Leere Liste heisst „nichts
+ * Verwertbares".
  *
- * Zwei Wege, in dieser Reihenfolge: das letzte balancierte JSON-Objekt der
+ * Drei Wege, in dieser Reihenfolge: das letzte balancierte JSON-Objekt der
  * Antwort (schreibt das Modell erst eine Erläuterung, ist das Ergebnis das
- * hintere — dieselbe Regel wie in `parseFrageplan`), sonst die Aufzählung im
- * Fliesstext. Der zweite Weg ist kein Luxus: ein Modell, das gerade Prosa
- * schreibt, liefert die drei Wörter oft trotzdem, nur eben als Liste.
+ * hintere — dieselbe Regel wie in `parseFrageplan`) mit den drei Achsen-
+ * Schlüsseln, **sonst** dasselbe Objekt mit dem alten flachen Schlüssel
+ * `schlagworte`, sonst die Aufzählung im Fliesstext.
  *
- * Weniger als drei Schlagworte sind ein gültiges Ergebnis — die Suche läuft dann
- * mit zweien, und die Anzeige sagt, wie viele es waren. Ein Retry wäre nur
- * Wartezeit (Pflicht 6 des einschüssigen Laufs).
+ * Der zweite Weg ist die Rückfalllinie für ein Modell, das die Achsen-Form nicht
+ * trifft: eine flache Liste wird als drei Achsen mit je EINEM Vorschlag gelesen —
+ * dann gibt es nichts nachzuschlagen, und die Zeile verhält sich wie vor v6.31.
+ * Der dritte Weg ist kein Luxus: ein Modell, das gerade Prosa schreibt, liefert
+ * die Wörter oft trotzdem, nur eben als Liste.
+ *
+ * Weniger als drei Achsen sind ein gültiges Ergebnis — die Suche läuft dann mit
+ * zweien, und die Anzeige sagt, wie viele es waren. Ein Retry wäre nur Wartezeit
+ * (Pflicht 6 des einschüssigen Laufs).
  */
-export function parseSchlagworte(roh: string): string[] {
+export function parseSchlagworte(roh: string): string[][] {
   const text = stripMarkdownWrapper(roh ?? '');
 
   const objekte = parseJsonArrayTolerant(text).filter(istRecord);
   const obj = objekte[objekte.length - 1];
   if (obj) {
-    const ausJson = sammle(alsListe(obj.schlagworte).map(alsText));
-    if (ausJson.length > 0) return ausJson;
+    const nachAchsen = alsAchsen(ACHSEN.map(a => alsListe(obj[a]).map(alsText)));
+    if (nachAchsen.length > 0) return nachAchsen;
+
+    const flach = sammle(alsListe(obj.schlagworte).map(alsText), SCHLAGWORT_ANZAHL);
+    if (flach.length > 0) return flach.map(w => [w]);
   }
 
   const zeilen = text.split('\n')
     .filter(z => /^\s*(?:[-*•]|\d+[.)])\s+/.test(z))
     .map(ausListenzeile);
-  return sammle(zeilen);
+  return sammle(zeilen, SCHLAGWORT_ANZAHL).map(w => [w]);
+}
+
+/** Der erste Vorschlag jeder Achse — das, was das Modell selbst vorn sieht. */
+export function ersteWahl(achsen: readonly (readonly string[])[]): string[] {
+  return achsen.map(a => a[0]).filter((w): w is string => typeof w === 'string');
 }

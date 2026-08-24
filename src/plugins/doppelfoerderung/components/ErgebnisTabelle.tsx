@@ -15,6 +15,7 @@
 import { useState } from 'react';
 import { AlertTriangle, Check, ChevronDown, ChevronRight, HelpCircle, Pencil } from 'lucide-react';
 import { AEHNLICHKEIT_AUS_TEXT, istZuWeit, zaehltNicht } from '../services/abgleich';
+import { warumGewaehlt } from '../services/wortwahl';
 import { TrefferListe } from './TrefferListe';
 import type { ZeilenErgebnis } from '../types';
 
@@ -132,15 +133,27 @@ function SchlagwortChips(props: {
         const zuWeit = istZuWeit(treffer, bereichsGroesse);
         const stumm = zaehltNicht(treffer, bereichsGroesse);
         const anteil = bereichsGroesse ? ` (${PROZENT.format(treffer / bereichsGroesse)})` : '';
+        const achse = e.wortwahl?.find(a => a.wort === w);
         return (
           <span
             key={w}
             className="inline-flex items-center gap-1.5 rounded-[6px] px-2 py-0.5 text-[12px]"
             style={{ background: 'var(--tf-bg-secondary)', color: 'var(--tf-text)' }}
-            title={zuWeit
-              ? `„${w}" kommt in ${treffer} Vorhaben des Betrachtungsbereichs vor${anteil} — zu viele, um noch etwas zu unterscheiden.${stumm ? ' Es zählt deshalb nicht zur Abdeckung.' : ''} Ersetzen Sie es durch den engeren Begriff daneben.`
-              : `„${w}" kommt in ${treffer} Vorhaben des Betrachtungsbereichs vor${anteil}`}
+            title={[
+              zuWeit
+                ? `„${w}" kommt in ${treffer} Vorhaben des Betrachtungsbereichs vor${anteil} — zu viele, um noch etwas zu unterscheiden.${stumm ? ' Es zählt deshalb nicht zur Abdeckung.' : ''} Ersetzen Sie es durch den engeren Begriff daneben.`
+                : `„${w}" kommt in ${treffer} Vorhaben des Betrachtungsbereichs vor${anteil}`,
+              ...(achse && achse.alternativen.length > 0
+                ? [`Auf derselben Achse vorgeschlagen: ${achse.alternativen.map(a => `„${a.wort}" (${a.treffer})`).join(', ')}.`]
+                : []),
+              ...(achse ? [warumGewaehlt(achse)].filter((s): s is string => s !== null) : []),
+            ].join('\n')}
           >
+            {/* Die Marke sagt: hier hat nicht das Modell entschieden, sondern der
+                Bestand. Ohne sie wäre die Ersetzung eine stille Behauptung. */}
+            {achse?.nachgeschlagen && (
+              <span className="text-[11px] text-[var(--tf-text-tertiary)]" aria-hidden>↳</span>
+            )}
             {w}
             <span className="tabular-nums text-[11px] text-[var(--tf-text-tertiary)]">{treffer}</span>
             {zuWeit && (

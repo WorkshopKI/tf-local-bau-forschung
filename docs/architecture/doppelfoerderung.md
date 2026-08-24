@@ -247,7 +247,71 @@ Wort, das die App selbst anzweifelt.
 Die Verbotsliste ist damit **nicht** das Werkzeug, das den Ausschlag gibt: sie
 fängt 8 der 35 zu weiten Wörter. Die anderen 27 sind fachlich unauffällig und
 trotzdem zu weit — was ein Wort im **Bestand** anrichtet, weiss die App zur
-Suchzeit ohnehin, das Modell aber nie. Die Folgerung steht in Abschnitt 12.
+Suchzeit ohnehin, das Modell aber nie.
+
+### Nachschlagen vor dem Urteil (v6.31)
+
+Die Folgerung aus dieser Messung ist **keine schärfere Regel im Prompt**. Der
+Prompt kann noch so genau sagen „sei spezifisch" — die Wahrheit, an der sich das
+misst, steht in einer Datenbank, die das Modell nicht sieht. Also bekommt es eine
+Aufgabe, die es am eigenen Text lösen kann, und die App übernimmt die, für die
+sie Daten hat:
+
+1. Das Modell liefert je Achse **zwei bis drei Vorschläge, gestaffelt eng → weit**
+   (`{"verfahren":[…],"gegenstand":[…],"anwendung":[…]}`) — dieselben Achsen wie
+   vorher, nur mit Ausweichmöglichkeit. **Ein** KI-Lauf je Zeile, wie bisher.
+2. Die Wortlaut-Stufe läuft über **alle** Vorschläge statt über drei Wörter.
+   Mehraufwand: rund 6 ms je zusätzlichem Vorschlag.
+3. [wortwahl.ts](../../src/plugins/doppelfoerderung/services/wortwahl.ts) wählt je
+   Achse den Vorschlag mit dem besten **Rang** — `trägt` (1 Treffer bis unter ein
+   Prozent) vor `markiert` (1–2 %) vor `tot` (kein Treffer) vor `flutet` (über
+   2 %). Bei Gleichstand gewinnt der frühere, also der engere.
+
+Drei Eigenschaften tragen den Zuschnitt:
+
+- **Rang, nicht Trefferzahl.** Das trefferstärkste Wort zu nehmen wäre genau der
+  Fehler, den die Abdeckung schon hat: sie zählt Schlagworte, statt sie zu wiegen.
+- **Tot schlägt flutend.** Beide belegen nichts, aber das flutende Wort schleppt
+  hunderte Befunde in die Trefferliste und macht aus einem ehrlichen „nicht
+  beurteilbar" ein „keine Übereinstimmung".
+- **Die Stufe kann eine Zeile nicht verschlechtern.** Findet sich nichts
+  Besseres, bleibt der erste Vorschlag stehen — genau das Wort, das ohne sie
+  gegolten hätte. Trifft das Modell die Achsen-Form gar nicht, liest der Parser
+  die flache Liste als drei Achsen mit je einem Vorschlag, und es gibt nichts
+  nachzuschlagen.
+
+Ein nachgeschlagenes Wort **sagt das am Chip** (`↳` plus Grund im Tooltip): eine
+stille Ersetzung wäre eine Behauptung, und der Nutzer sähe nicht, dass hier nicht
+das Modell entschieden hat.
+
+**Gemessen, gleicher Aufbau wie oben** (dreimal dieselbe 72er-Liste, 87 Läufe,
+261 Schlagworte, `gpt-oss-120b`, Betrachtungsbereich 4.327):
+
+| | vorher | nachher |
+|---|---|---|
+| Schlagworte ohne jeden Treffer | 119 (45,6 %) | **76 (29,1 %)** |
+| als „zu weit" markiert | 35 (13,4 %) | **19 (7,3 %)** |
+| Median der Trefferzahl | 1 | **4** |
+| Zeilen „nicht beurteilbar" | 9 von 87 | **3 von 87** |
+| „Übereinstimmung" | 6 von 87 | 17 von 87 |
+| davon ohne ein markiertes Wort | 3 von 6 | 9 von 17 |
+| Median der Trefferliste | 80 | **69** |
+| Urteilswechsel über drei Läufe | 9 von 29 | 8 von 29 |
+| Wortüberschneidung über drei Läufe | 1,00 von 3 | 0,72 von 3 |
+| Dauer je Durchgang | ~160 s | ~250 s |
+
+Die Stufe griff bei **126 von 261 Wörtern** (48 %) ein. Die Belege wurden besser:
+weniger tote Wörter, weniger flutende, kürzere Trefferlisten, dreimal so viele
+Zeilen mit einem Urteil statt eines Achselzuckens — und der Anteil der
+Übereinstimmungen, die **ohne** ein angezweifeltes Wort auskommen, blieb dabei
+gleich (50 % → 53 %). Der Preis steht in der letzten Zeile: neun statt drei
+Wörter kosten rund 55 % mehr Wartezeit.
+
+**Was sie NICHT löst, und das ist der ehrlichere Teil:** die Wiederholbarkeit.
+Immer noch bekommt keine Zeile dreimal dasselbe Trio, und 8 statt 9 Zeilen
+wechseln ihr Urteil. Die Wortüberschneidung sank sogar — das Modell wählt jetzt
+aus neun statt drei Wörtern, und die Wahl streut mit. Wer ein stabiles Urteil
+will, braucht den zweiten Weg aus Abschnitt 12, nicht diesen.
 
 ## 7. Die drei Suchstufen
 
@@ -411,18 +475,20 @@ Neukalibrierung aller Schwellen und brächte keinen Erkenntnisgewinn.
 
 ## 12. Offen
 
-- **Die Wiederholbarkeit des KI-Laufs ist offen** — gemessen (Abschnitt 6), nicht
-  gelöst. Form und Achsen hält das Modell ein, die Spezifität nicht, und dieselbe
-  Zeile bekommt in drei Durchgängen drei verschiedene Schlagwort-Trios; 31 % der
-  Zeilen wechseln dabei ihr Urteil. Zwei Wege stehen offen, beide ungebaut:
-  **entweder** die Wortlaut-Stufe nachschlagen lassen, bevor das Urteil fällt
-  (ein Wort über der Zwei-Prozent-Schwelle zählt schon heute nicht mit — ein Wort
-  ohne jeden Treffer könnte einen zweiten, engeren Vorschlag anfordern),
-  **oder** je Zeile mehrere Läufe fahren und nur behalten, was sich wiederholt.
-  Der zweite Weg kostet das Dreifache an Wartezeit; der erste nutzt, was die App
-  ohnehin weiss. Vor beiden steht die Frage, ob ein wechselndes Urteil für einen
-  **Hinweis** überhaupt schädlich ist — die Trefferliste steht in jeder Zeile
-  offen, und entschieden wird in der Fachprüfung.
+- **Die Wiederholbarkeit des KI-Laufs ist offen.** Das Nachschlagen (Abschnitt 6)
+  hat die Belege verbessert, die Streuung nicht: keine Zeile bekommt dreimal
+  dasselbe Trio, 8 von 29 wechseln ihr Urteil. Der verbleibende Weg wäre,
+  **je Zeile mehrere Läufe zu fahren und nur zu behalten, was sich wiederholt** —
+  er kostet das Dreifache an Wartezeit, und ein Durchgang dauert heute schon
+  250 s. Vorher ist zu klären, ob ein wechselndes Urteil für einen **Hinweis**
+  überhaupt schädlich ist: die Trefferliste steht in jeder Zeile offen, und
+  entschieden wird in der Fachprüfung.
+- **Die Rangfolge `markiert` vor `tot` ist eine Setzung, keine Messung.** Sie
+  bringt einer Achse ohne engen Treffer wenigstens ein zählendes Wort ein — und
+  holt damit gelegentlich ein als „zu weit" markiertes Wort ins Urteil (im
+  Messlauf trugen 8 der 17 Übereinstimmungen mindestens eines). Ob das der
+  richtige Tausch ist, entscheidet die Fachprüfung an echten Meldungen, nicht
+  eine weitere Zahl.
 - Die **Gattung** (`LP-Systematik`, `vb_phase`) wird geführt und angezeigt, aber
   nicht ausgewertet. Ein Filter „nur Netzwerke" wäre billig; die Messung zeigte
   nur, dass er allein wenig bringt — die Zentrums-Meldungen fallen auch unter
