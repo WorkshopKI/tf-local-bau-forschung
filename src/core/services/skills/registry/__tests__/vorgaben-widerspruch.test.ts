@@ -108,7 +108,7 @@ describe('buildPromptVorgaben — Vorrang der Zeichenzahl', () => {
 
   it('schweigt ohne Zeichenlimit (Bestands-Skills bleiben unverändert)', () => {
     const block = buildPromptVorgaben([regel('sa', 'Satzanzahl', 'satzanzahl', { min: 8, max: 9 })]);
-    expect(block).toContain('Schreibe 8 bis 9 Sätze.');
+    expect(block).toContain('Der finale Text hat 8 bis 9 Sätze.');
     expect(block).not.toContain('Vorrang');
   });
 

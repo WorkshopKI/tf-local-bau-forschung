@@ -19,6 +19,15 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v6.32 — 2026-08
+
+### Verbesserungen
+- **Technische Risiken (Abschnitt C)** fallen jetzt ausführlicher aus. Der Abschnitt kam bisher rund ein Drittel zu kurz, weil im Prompt nur stand, wie lang ein Risiko im Zwischen-Entwurf sein soll — für den fertigen Text stand es nirgends.
+
+### Bugfixes
+- **Hintergrund, Stand der Technik, Lösungsweg (Abschnitt B)** verlangte im Prompt mindestens 750 Wörter und in der Vorgabe 400 bis 500. Beides zugleich war nicht erfüllbar; die Vorgabe des Teams gilt jetzt allein.
+- Die Vorgabe „Schreibe 400 bis 500 Wörter" sagt jetzt dazu, dass sie den **fertigen Text** meint — bei Abschnitten mit Zwischenschritten war das vorher offen.
+
 ## v6.31 — 2026-08
 
 ### Verbesserungen

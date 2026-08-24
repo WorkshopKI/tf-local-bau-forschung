@@ -47,8 +47,10 @@ import {
   buildKurzfassungPrompt,
   abschnittTemplate,
   B_ABSCHNITT_OPTS,
+  B_ABSCHNITT_OPTS_TEILE_ABSOLUT,
   B_ABSCHNITT_OPTS_UMFANG_ALT,
   C_ABSCHNITT_OPTS_ALT,
+  C_ABSCHNITT_OPTS,
   C_ABSCHNITT_OPTS_NEU,
   C_ABSCHNITT_OPTS_NEU_UMFANG_ALT,
   MARKT_SKILL_ID,
@@ -139,6 +141,12 @@ export const GA_FACHPRUEFER_MIGRATION = 'ga-fachpruefer-2026-08';
 /** ID des Veröffentlichungs-Kontrakts von A (Zweck, Weglass-Liste, Länge, Ausgabeformat). */
 export const GA_A_VEROEFFENTLICHUNG_MIGRATION = 'ga-a-veroeffentlichung-2026-08';
 
+/** ID der Umstellung der B-Teil-Richtwerte von fester Wortzahl auf Anteil am Gesamtumfang. */
+export const GA_B_TEIL_ANTEILE_MIGRATION = 'ga-b-teil-anteile-2026-08';
+
+/** ID der eigenen Tiefenangabe für den finalen Text von C. */
+export const GA_C_FINAL_UMFANG_MIGRATION = 'ga-c-final-umfang-2026-08';
+
 export interface ReconcileResult {
   file: SkillRegistryFile;
   /** True, wenn dieser Lauf etwas geändert hat und der Aufrufer zurückschreiben soll. */
@@ -177,8 +185,11 @@ function applyBelegKontrakt(skills: SkillRecord[]): SkillRecord[] {
 function applyBelegKontraktRevert(skills: SkillRecord[]): SkillRecord[] {
   const altA = buildKurzfassungPrompt(false);
   const neuA = buildKurzfassungPrompt(true);
-  const altB = abschnittTemplate({ ...B_ABSCHNITT_OPTS });
-  const neuB = abschnittTemplate({ ...B_ABSCHNITT_OPTS, belegKontrakt: true });
+  // Gegen den EINGEFRORENEN Zwischenstand, nicht gegen den Live-Seed: `B_ABSCHNITT_OPTS`
+  // ist seit `applyBTeilAnteile` weitergezogen, dieser Rückbau zielt aber auf den Stand,
+  // der damals live war. Ein mitwanderndes Ziel träfe keinen Bestands-Share mehr.
+  const altB = abschnittTemplate({ ...B_ABSCHNITT_OPTS_TEILE_ABSOLUT });
+  const neuB = abschnittTemplate({ ...B_ABSCHNITT_OPTS_TEILE_ABSOLUT, belegKontrakt: true });
   return skills.map(s => {
     if (s.id === KURZFASSUNG_SKILL_ID && s.promptTemplate === neuA) {
       return { ...s, promptTemplate: altA, version: Math.max(s.version, 2) };
@@ -267,7 +278,10 @@ function applyUmfangDedup(skills: SkillRecord[]): SkillRecord[] {
   const altA = buildKurzfassungPrompt(false, true); // Vor-Dedup-Wortlaut („ca. 10 Sätze")
   const neuA = buildKurzfassungPrompt(false); // de-dupliziert (Live-Seed)
   const altB = abschnittTemplate({ ...B_ABSCHNITT_OPTS_UMFANG_ALT });
-  const neuB = abschnittTemplate({ ...B_ABSCHNITT_OPTS });
+  // Ziel ist der Stand DIESER Migration (Total-Zahl raus, Teil-Richtwerte noch absolut) —
+  // die Anteils-Fassung hebt danach `applyBTeilAnteile`. Jede Migration schreibt genau
+  // den Stand, für den sie geschrieben wurde; die Kette bleibt so nachvollziehbar.
+  const neuB = abschnittTemplate({ ...B_ABSCHNITT_OPTS_TEILE_ABSOLUT });
   return skills.map(s => {
     if (s.id === KURZFASSUNG_SKILL_ID && s.promptTemplate === altA) {
       return { ...s, promptTemplate: neuA, version: Math.max(s.version, 2) };
@@ -779,6 +793,55 @@ function applyAVeroeffentlichung(skills: SkillRecord[]): SkillRecord[] {
   });
 }
 
+/**
+ * Abschnitt B: die drei Teil-Richtwerte nennen ihren **Anteil am Gesamtumfang** statt
+ * einer festen Wortzahl (Nachmessung 08/2026).
+ *
+ * `applyUmfangDedup` nahm seinerzeit die Total-Zahl aus der Prosa, ließ die Teile aber
+ * als „≥ 150 / ≥ 150 / ≥ 450 Wörter" stehen. Als das Team die Regel danach von
+ * „mindestens 750" auf „400–500" kurierte, verlangte die Prosa unverändert mindestens
+ * 750 — Teil 3 allein riss die Obergrenze. Haiku lieferte 360–364 Wörter und brach
+ * damit beide Vorgaben. Ein Anteil kann dem Ganzen nicht widersprechen, gleich welchen
+ * Wert der Kurator setzt; das Verhältnis 1:1:3 des Alt-Stands bleibt erhalten.
+ *
+ * Pristine-Guard: nur ein B, dessen Template byte-genau dem Absolut-Teile-Stand
+ * entspricht, wird gehoben. Ein kuratierter Edit bleibt unberührt — der Skill-Editor
+ * zeigt dort seit dieser Version den Summen-Konflikt als Hinweis an.
+ */
+function applyBTeilAnteile(skills: SkillRecord[]): SkillRecord[] {
+  const altB = abschnittTemplate({ ...B_ABSCHNITT_OPTS_TEILE_ABSOLUT });
+  const neuB = abschnittTemplate({ ...B_ABSCHNITT_OPTS });
+  return skills.map(s =>
+    s.id === AUSGANGSLAGE_SKILL_ID && s.promptTemplate === altB
+      ? { ...s, promptTemplate: neuB, version: Math.max(s.version, 4) }
+      : s);
+}
+
+/**
+ * Abschnitt C: der finale Text bekommt eine **eigene** Tiefenangabe.
+ *
+ * `applyCFuenfRisiken` hob den Risiko-Deckel drei → fünf, mit der Rechnung „fünf Risiken
+ * à zwei bis drei Sätze treffen die 300–350 Wörter". Nachgemessen trug sie nicht: Haiku
+ * lieferte 203 / 235 / 218 Wörter in 12–14 Sätzen — die Satzzahl stimmte exakt, die
+ * Rechnung unterstellte nur rund 24 Wörter je Satz statt der geschriebenen 15 bis 17.
+ *
+ * Der Grund liegt tiefer: „2–3 Sätze je Risiko" steht im Prompt am **Entwurf**, der
+ * finale Text hatte gar keine eigene Tiefenangabe und erbte die Rate des Entwurfs. Eine
+ * feste Satzzahl je Risiko kann eine feste Gesamtzahl ohnehin nicht treffen, solange die
+ * Zahl der aufgenommenen Risiken schwankt. Der finale Text bekommt darum den
+ * Gesamtumfang als Budget, das sich auf die aufgenommenen Risiken verteilt.
+ *
+ * Pristine-Guard wie bei B; die kuratierte 300–350-Vorgabe wird NICHT angefasst.
+ */
+function applyCFinalUmfang(skills: SkillRecord[]): SkillRecord[] {
+  const altC = abschnittTemplate({ ...C_ABSCHNITT_OPTS_FUENF });
+  const neuC = abschnittTemplate({ ...C_ABSCHNITT_OPTS });
+  return skills.map(s =>
+    s.id === RISIKEN_SKILL_ID && s.promptTemplate === altC
+      ? { ...s, promptTemplate: neuC, version: Math.max(s.version, 4) }
+      : s);
+}
+
 interface EinzelMigration {
   marker: string;
   /** Bekommt die GANZE Datei — Migrationen dürfen auch `regeln` anfassen. */
@@ -812,6 +875,8 @@ const MIGRATIONEN: EinzelMigration[] = [
   { marker: GA_A_ZEICHEN_HERKUNFT_MIGRATION, apply: nurSkills(applyAZeichenHerkunft) },
   { marker: GA_FACHPRUEFER_MIGRATION, apply: applyFachpruefer },
   { marker: GA_A_VEROEFFENTLICHUNG_MIGRATION, apply: nurSkills(applyAVeroeffentlichung) },
+  { marker: GA_B_TEIL_ANTEILE_MIGRATION, apply: nurSkills(applyBTeilAnteile) },
+  { marker: GA_C_FINAL_UMFANG_MIGRATION, apply: nurSkills(applyCFinalUmfang) },
 ];
 
 /**

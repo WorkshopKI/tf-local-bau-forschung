@@ -15,7 +15,8 @@ import type { AITransport } from '@/core/services/ai/transports/streamlit';
 import { STEP_ORDER, type StepId } from '@/plugins/antraege/gutachten/types';
 import { runOneSection } from './eval-run';
 import { runJudge } from './judge';
-import { resolveRegistry, getWorkflowSections, resolveSkill } from './registry-load';
+import { resolveRegistry, getWorkflowSections, resolveSkill, type SectionDef } from './registry-load';
+import { findeUmfangKonflikte, findeVorgabenWidersprueche, type SkillRegistryFile } from '@/core/services/skills';
 import { aggregate } from './aggregate';
 import { toJson, toCsv, toHtml } from './report';
 import { NodeOpenAITransport } from './node-transport';
@@ -157,6 +158,37 @@ async function runPool<T>(items: T[], concurrency: number, worker: (item: T, ind
 
 /* -------------------------------- main ----------------------------------- */
 
+/**
+ * Hält die Prompts der zu messenden Abschnitte gegen die vorhandenen Kurator-Wächter —
+ * VOR dem ersten Modell-Aufruf.
+ *
+ * Der Anlass: zwei Prompt-Defekte in Folge (A ohne Ausgabeformat-Block, B mit
+ * Teil-Richtwerten, die sich gegen die eigene Regel summierten) kosteten je einen
+ * vollständigen Messlauf, obwohl der Skill-Editor beide Male eine Warnung angezeigt
+ * hätte. Die Warnung lebte nur dort, und dort sieht sie beim Messen niemand. 21 Läufe
+ * gegen einen unerfüllbaren Prompt messen das Modell nicht, sondern den Prompt.
+ *
+ * Bewusst nur eine Meldung, kein Abbruch: ein Widerspruch kann der Gegenstand der
+ * Messung sein.
+ */
+function meldePromptWidersprueche(sections: SectionDef[], registry: SkillRegistryFile): void {
+  const zeilen: string[] = [];
+  for (const s of sections) {
+    const resolved = resolveSkill(registry, s.skillId);
+    if (!resolved) continue;
+    const befunde = [
+      ...findeUmfangKonflikte(resolved.skill.promptTemplate, resolved.regeln),
+      ...findeVorgabenWidersprueche(resolved.regeln),
+    ];
+    for (const b of befunde) zeilen.push(`  ${s.abschnitt}: ${b}`);
+  }
+  if (zeilen.length === 0) return;
+  console.log(`\n⚠ ${zeilen.length} Prompt-Widerspruch/-Widersprüche VOR dem Lauf — der Messwert `
+    + 'beschreibt dann den Prompt, nicht das Modell:');
+  for (const z of zeilen) console.log(z);
+  console.log('');
+}
+
 async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
   if (!args.fixtures || !args.models) {
@@ -202,6 +234,7 @@ async function main(): Promise<void> {
   console.log(`Modelle: ${models.map(m => m.id).join(', ')} | Abschnitte: ${sections.map(s => s.abschnitt).join('')} | Kontext: ${kontexte.join('+')}`);
   console.log(`Kombinationen: ${combos.length} gesamt, ${doneRunKeys.size} erledigt, ${pending.length} offen.`);
   console.log(`Modus: ${args.dryRun ? 'DRY-RUN (Stub-Transport)' : 'LIVE'} | Judge: ${judgeConfig ? (args.dryRun ? 'Stub' : judgeConfig.id) : 'aus'} | Concurrency: ${args.concurrency}`);
+  meldePromptWidersprueche(sections, registry);
 
   // Transports je Modell cachen.
   const transports = new Map<string, AITransport>();

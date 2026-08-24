@@ -212,6 +212,37 @@ Der eine verbleibende Überhang (81 Zeichen) ist der Fall, für den der beschrä
 
 Umgesetzt in `mitVeroeffentlichungsKontrakt` ([gutachten-kurzfassung.seed.ts](../../src/core/services/skills/registry/gutachten-kurzfassung.seed.ts)) — **eine** reine, idempotente Funktion für Seed **und** Migration, damit beide nicht auseinanderlaufen. `buildKurzfassungPrompt` bleibt byte-identisch: zwei ältere Migrationen vergleichen ihre Ausgabe. Rollout über `ga-a-veroeffentlichung-2026-08`, additiv und zeilenweise über Anker, die den kuratierten Share **und** den Seed tragen — A ist der eine live kuratierte Gutachten-Prompt, ein Voll-Template-Guard könnte hier nie greifen. Eine selbst geschriebene `beschreibung` bleibt stehen.
 
+## B und C: die zwei Abschnitte, die 3/3 zu kurz lieferten (v6.32, gemessen)
+
+Nach A wurden B und C durch dieselbe Schleife geschickt — mit derselben ersten Frage: **misst die Messung den Text oder die Hülle?** Bei A war es die Hülle. Bei B und C nicht: alle sechs Nullpunkt-Läufe parsten sauber, die Abschnitte waren wirklich zu kurz. Die Gründe lagen im Prompt, und in beiden Fällen war es **eine Zahl, die einen Formwechsel überlebt hat**.
+
+**B — die Teile widersprachen dem Ganzen.** Der Prompt forderte in der Aufgabe „Richtwert ≥ 150 / ≥ 150 / ≥ 450 Wörter", zusammen also mindestens 750. Die Regel, vom Team im Editor kuratiert, stand auf **400–500**. Teil 3 allein riss die Obergrenze. Entstanden ist das durch eine halbe Ent-Dopplung: `applyUmfangDedup` nahm 2026-07 die Total-Zahl aus der Prosa, ließ die Teil-Richtwerte aber als absolute Wortzahlen stehen — und die waren auf den alten 750er-Stand geeicht.
+
+**C — der Umfang gehörte einer Form, die es nicht mehr gab.** Die 300–350 Wörter stammen aus der Zeit, als der finale Text **alle** Risiken mit Kurztitel trug. Heute ist er eine gefilterte Teilmenge (höchstens fünf, als Fließtext). `applyCFuenfRisiken` hatte das bereits einmal zu heilen versucht, indem es den Deckel von drei auf fünf hob — mit der Rechnung „fünf Risiken à zwei bis drei Sätze treffen die 300–350 Wörter". Nachgemessen trug sie nicht: das Modell hielt die Satzzahl exakt ein (12–14 Sätze), die Rechnung unterstellte nur rund 24 Wörter je Satz statt der geschriebenen 15 bis 17. Der eigentliche Grund lag tiefer — „2–3 Sätze je Risiko" steht am **Entwurf**, der finale Text hatte gar keine eigene Tiefenangabe und erbte die Rate des Entwurfs.
+
+Gemessen (Haiku 4.5, drei fiktive VBs, je ein Lauf):
+
+| | Nullpunkt | Anteile / Budget | + Zuschreibung an den finalen Text |
+|---|---|---|---|
+| **B**, Ziel 400–500 | 360 / 364 / 364 | 310 / 328 / 364 | 440 / 321 / 337 |
+| **C**, Ziel 300–350 | 203 / 235 / 218 | 282 / 249 / 255 | **309 / 244 / 283** |
+
+**C ist besser geworden, B nicht.** C legt in allen drei Dokumenten gegenüber dem Nullpunkt zu (+106 / +9 / +65); B schwankt ohne Richtung (+80 / −43 / −27). Der Widerspruch in B ist beseitigt — das ist für sich richtig —, aber er war nicht die Ursache der Kürze. Über drei Konfigurationen und neun Läufe landet B zwischen 310 und 440 mit einem Mittel um 350: **das Ziel 400–500 liegt über dem, was Haiku für diesen Abschnitt schreibt, unabhängig vom Prompt.** Die Quelle ist nicht der Engpass — die Fixture-VBs tragen 12.000–14.000 Wörter mit 400–600-Wort-Abschnitten.
+
+**Warum keine Selbstkorrektur greift:** `chooseRetryModifier` ([retry-policy.ts](../../src/plugins/antraege/gutachten/retry-policy.ts)) startet einen Versuch nur bei `level === 'fehler'`. Die Wortanzahl ist an B und C ein **`hinweis`**. Der `laenger`-Retry existiert, ist verdrahtet und feuert bei zu kurzem Text nie — die gemessenen Zahlen sind damit exakt das, was im Programm ankommt. Wer die Zielzahl durchsetzen will, hat den Hebel in einem Feld: `schweregrad` auf `fehler`. Das kostet einen zweiten Modell-Lauf je Abschnitt und ist eine Fachentscheidung, keine Prompt-Frage.
+
+Rollout über `ga-b-teil-anteile-2026-08` und `ga-c-final-umfang-2026-08`, beide pristine-only. Die kuratierten Wortzahl-Vorgaben wurden **nicht** angefasst.
+
+### Der Wächter, der das hätte fangen müssen
+
+`findeUmfangKonflikte` gibt es seit 2026-07 genau für „Prosa-Zahl weicht von der Regel ab" — und es schloss weiche Teil-Richtwerte ausdrücklich aus, damit „(Richtwert ≥ 150 Wörter)" keinen Fehlalarm auslöst. Die Begründung stimmt für einen einzelnen Richtwert und übersieht, dass Teile sich **summieren**. Seit v6.32 prüft der Wächter mehrere Wort-Richtwerte zusätzlich als Summe gegen die Obergrenze der Regel; ein einzelner bleibt bewusst stumm.
+
+Zweitens sah diese Warnung beim Messen niemand: sie lebt im Skill-Editor, und der Eval-Lauf fragt sie nicht. Das hat jetzt zweimal einen vollständigen Messlauf gekostet (A ohne Ausgabeformat-Block, B mit der Summe). `npm run eval:skills` hält die Prompts der zu messenden Abschnitte darum **vor dem ersten Modell-Aufruf** gegen `findeUmfangKonflikte` + `findeVorgabenWidersprueche` und meldet, was es findet — ohne abzubrechen, denn ein Widerspruch kann der Gegenstand der Messung sein.
+
+### Die Wortzahl-Zeile nennt jetzt ihren Bezug
+
+`zeichen_max`, `absatz_min`, `keine_aufzaehlungen` und `platzhalter_frei` schrieben seit jeher „**der finale Text** …". Die beiden Größen-Regeln sagten „Schreibe 400 bis 500 Wörter." — ohne Bezug, während `runRegelChecks` ausschließlich `parsed.finalerText` misst. Bei mehrteiliger Ausgabe (Quellenanalyse / Entwurf / Finaler Text) war damit offen, worauf sich die Zahl bezieht. `wortanzahl` und `satzanzahl` sprechen jetzt wie ihre vier Geschwister.
+
 ## Was der Messlauf 08/2026 an den Vorgaben geändert hat (v6.15)
 
 Erster gemessener Lauf der Kette A–G gegen die interne KI, geeicht an Haiku 4.5 / Sonnet 5 /

@@ -145,14 +145,12 @@ export const B_ABSCHNITT_OPTS_UMFANG_ALT = {
 } as const;
 
 /**
- * Live-Seed-Optionen für Abschnitt B — **Umfang single-source**: die Prosa nennt KEINE
- * Total-Wort-/Absatzzahl mehr. Die stand bisher doppelt (hier UND im regel-abgeleiteten
- * `## Formale Vorgaben`-Block) und lief bei Regel-Edits auseinander (der Prompt trug den
- * alten Wert weiter). Wort-/Absatzzahl kommen jetzt allein aus den Regeln
- * (`seed-b-wortanzahl` / `seed-b-absatz-min`). Die Teil-Richtwerte (≥150/≥150/≥450) bleiben
- * als weiche Struktur-Hinweise erhalten. `aufgabe`/`name` byte-identisch zum Alt-Stand.
+ * Zwischenstand von B: Prosa ohne Total-Zahl, Teil-Richtwerte aber weiter als feste
+ * Wortzahlen (≥150/≥150/≥450). Eingefroren für die BYTE-genaue Erkennung der
+ * `ga-b-teil-anteile`-Migration. NICHT mehr live geseedet — Muster wie
+ * `C_ABSCHNITT_OPTS_NEU`.
  */
-export const B_ABSCHNITT_OPTS = {
+export const B_ABSCHNITT_OPTS_TEILE_ABSOLUT = {
   name: B_ABSCHNITT_OPTS_UMFANG_ALT.name,
   aufgabe: B_ABSCHNITT_OPTS_UMFANG_ALT.aufgabe,
   formatRegeln: [
@@ -161,6 +159,42 @@ export const B_ABSCHNITT_OPTS = {
   finalText:
     'Der finale Fließtext: Hintergrund, Stand der Technik und Lösungsweg in dieser '
     + 'Reihenfolge, ohne Aufzählungen.',
+} as const;
+
+/**
+ * Live-Seed-Optionen für Abschnitt B — **Umfang single-source, jetzt auch in den Teilen**.
+ *
+ * Die Total-Zahl war bereits aus der Prosa entfernt (sie kommt aus `seed-b-wortanzahl`),
+ * die drei Teil-Richtwerte blieben als „weiche Struktur-Hinweise" stehen — aber als feste
+ * Wortzahlen. Damit war die Ent-Dopplung nur halb: das Team kurierte die Regel später von
+ * „mindestens 750" auf „400–500", und die Prosa verlangte unverändert ≥150 + ≥150 + ≥450,
+ * also mindestens 750. Teil 3 allein riss schon die Obergrenze.
+ *
+ * Gemessen (Haiku, drei fiktive VBs, 08/2026): 360 / 364 / 364 Wörter — das Modell brach
+ * BEIDE Vorgaben und wurde kürzer, statt sich für eine zu entscheiden. Dieselbe Reaktion
+ * wie an Abschnitt A, wo Umfang und Inhalt gegeneinander zogen.
+ *
+ * Aufgelöst über die Form, nicht über eine neue Zahl: die Teile nennen jetzt ihren
+ * **Anteil am Gesamtumfang** (ein Fünftel / ein Fünftel / drei Fünftel = das alte
+ * Verhältnis 1:1:3). Ein Anteil kann dem Ganzen nicht widersprechen, gleich wie der
+ * Kurator die Regel setzt. `findeUmfangKonflikte` meldet die Summen-Variante seither.
+ */
+export const B_ABSCHNITT_OPTS = {
+  name: B_ABSCHNITT_OPTS_UMFANG_ALT.name,
+  aufgabe:
+    'Stelle Hintergrund, Stand der Technik und Lösungsweg des Vorhabens in drei gedanklichen Teilen dar:\n'
+    + '1. **Hintergrund / Ausgangssituation** (rund ein Fünftel des Gesamtumfangs): Problem, Bedarf, Motivation.\n'
+    + '2. **Stand der Technik** (rund ein Fünftel des Gesamtumfangs): bestehende Ansätze/Lösungen und ihre Grenzen.\n'
+    + '3. **Lösungsweg** (rund drei Fünftel des Gesamtumfangs): der im Antrag beschriebene Lösungsansatz in '
+    + 'einigen Absätzen — KEINE mehrseitige, ins Detail gehende Darstellung des Lösungswegs.',
+  formatRegeln: [
+    ...B_ABSCHNITT_OPTS_TEILE_ABSOLUT.formatRegeln,
+    'Der Gesamtumfang aus den formalen Vorgaben gilt für den **finalen Text** und verteilt sich im '
+      + 'Verhältnis 1:1:3 auf die drei Teile — der Lösungsweg wird also rund dreimal so lang wie '
+      + 'jeder der beiden anderen. Schöpfe den Umfang aus: die Vorhabensbeschreibung trägt zu jedem '
+      + 'der drei Teile mehr Material, als in den Abschnitt passt.',
+  ],
+  finalText: B_ABSCHNITT_OPTS_TEILE_ABSOLUT.finalText,
 } as const;
 
 /** Skill-ID des Abschnitts C (Konstante für Lookups + Rollout-Migration). */
@@ -276,6 +310,45 @@ export const C_ABSCHNITT_OPTS_FUENF = {
   stilbeispiel: C_ABSCHNITT_OPTS_NEU.stilbeispiel,
 } as const;
 
+/**
+ * Live-Seed der C-Optionen seit 08/2026 — der finale Text bekommt eine **eigene**
+ * Umfangs-Ansage.
+ *
+ * Der Vorgänger-Stand hob die Risiko-Grenze von drei auf fünf, mit der Rechnung „fünf
+ * Risiken à zwei bis drei Sätze treffen die 300–350 Wörter". Nachgemessen (Haiku, drei
+ * fiktive VBs) trug sie nicht: 203 / 235 / 218 Wörter bei 12–14 Sätzen. Das Modell hielt
+ * sich exakt an „fünf × 2–3 Sätze" — die Rechnung unterstellte nur rund 24 Wörter je
+ * Satz, geschrieben werden 15 bis 17.
+ *
+ * Der eigentliche Grund liegt eine Ebene tiefer: „2–3 Sätze je Risiko" ist im Prompt am
+ * **Entwurf** festgemacht, der finale Text hatte gar keine eigene Tiefenangabe. Das Modell
+ * übernahm mangels Alternative die Rate, mit der es gerade den Entwurf geschrieben hatte
+ * (gemessen 25–32 Wörter je Risiko) — und traf damit zwangsläufig ein Fünftel bis ein
+ * Drittel unter dem Ziel.
+ *
+ * Eine feste Satzzahl je Risiko kann das nicht heilen: die Zahl der aufgenommenen Risiken
+ * schwankt (7–10 im Entwurf, bis zu fünf im finalen Text), eine feste Rate × schwankende
+ * Anzahl trifft keine feste Summe. Der finale Text bekommt darum den **Gesamtumfang als
+ * Budget**, das sich auf die aufgenommenen Risiken verteilt — bei wenigen Risiken
+ * entsprechend ausführlicher je Risiko. Dieselbe Auflösung wie an B (Anteil statt fester
+ * Zahl); die kuratierte 300–350-Vorgabe bleibt unangetastet.
+ */
+export const C_ABSCHNITT_OPTS = {
+  name: C_ABSCHNITT_OPTS_FUENF.name,
+  aufgabe: C_ABSCHNITT_OPTS_FUENF.aufgabe,
+  formatRegeln: [
+    ...C_ABSCHNITT_OPTS_FUENF.formatRegeln,
+    'Der Gesamtumfang aus den formalen Vorgaben gilt für den **finalen Text** und verteilt sich zu '
+      + 'gleichen Teilen auf die dort aufgenommenen Risiken. Je Risiko fällt er damit deutlich '
+      + 'ausführlicher aus als die 2–3 Sätze des Entwurfs: der Entwurf listet, der finale Text erklärt '
+      + '(Ursache, Auswirkung auf das Vorhabenziel, Umgang im Vorhaben). Schöpfe den Umfang aus — '
+      + 'nimmst du weniger Risiken auf, wird jedes entsprechend ausführlicher.',
+  ],
+  entwurf: C_ABSCHNITT_OPTS_FUENF.entwurf,
+  finalText: C_ABSCHNITT_OPTS_FUENF.finalText,
+  stilbeispiel: C_ABSCHNITT_OPTS_FUENF.stilbeispiel,
+} as const;
+
 /** Skill-ID des Abschnitts D (Markt) — Konstante für Lookups + Umfang-Dedup-Migration. */
 export const MARKT_SKILL_ID = 'gutachten-markt';
 
@@ -374,7 +447,9 @@ export const SEED_SKILLS_BG: SkillRecord[] = [
     beschreibung: 'Abschnitt B des ZIM-Gutachtens: Hintergrund, Stand der Technik und Lösungsweg.',
     // v2: Beleg→Satz-Marker-Kontrakt zurückgebaut (wie A) — Quellenbezug rein
     // deterministisch (belegAbleitung.ts), nicht vom Modell erfragt.
-    version: 2,
+    // v4: Teil-Richtwerte als Anteil statt fester Wortzahl (`applyBTeilAnteile`) — die
+    // festen ≥150/≥150/≥450 summierten sich auf 750 gegen eine kuratierte Regel „400–500".
+    version: 4,
     promptTemplate: abschnittTemplate({ ...B_ABSCHNITT_OPTS }),
     systemPrompt: SEED_SYSTEM_PROMPT_ABSCHNITT,
     maxTokens: 4096,
@@ -395,8 +470,10 @@ export const SEED_SKILLS_BG: SkillRecord[] = [
     // sonst auf dem DirectLLM-/Eval-Pfad abgeschnitten. Rollout: `applyRisikenEntwurf`.
     // v3: Risiko-Deckel drei → fünf (`applyCFuenfRisiken`), damit Deckel und
     // Wortzahl-Vorgabe nicht länger gegeneinander stehen.
-    version: 3,
-    promptTemplate: abschnittTemplate({ ...C_ABSCHNITT_OPTS_FUENF }),
+    // v4: der finale Text bekommt eine eigene Tiefenangabe (`applyCFinalUmfang`) — der
+    // Deckel-Fix von v3 hielt nachgemessen nicht (203–235 statt 300–350 Wörter).
+    version: 4,
+    promptTemplate: abschnittTemplate({ ...C_ABSCHNITT_OPTS }),
     systemPrompt: SEED_SYSTEM_PROMPT_ABSCHNITT,
     maxTokens: 4096,
     modifiers: ABSCHNITT_MODIFIERS,

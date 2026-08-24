@@ -31,6 +31,8 @@ import {
   GA_A_ZEICHEN_HERKUNFT_MIGRATION,
   GA_FACHPRUEFER_MIGRATION,
   GA_A_VEROEFFENTLICHUNG_MIGRATION,
+  GA_B_TEIL_ANTEILE_MIGRATION,
+  GA_C_FINAL_UMFANG_MIGRATION,
 } from '../migrations';
 import {
   KURZFASSUNG_SKILL_ID,
@@ -45,6 +47,10 @@ import {
   A_MODIFIERS_UMFANG_ALT,
   C_ABSCHNITT_OPTS_NEU,
   C_ABSCHNITT_OPTS_FUENF,
+  C_ABSCHNITT_OPTS,
+  AUSGANGSLAGE_SKILL_ID,
+  B_ABSCHNITT_OPTS,
+  B_ABSCHNITT_OPTS_TEILE_ABSOLUT,
   ZIM_EP_DEF,
   abschnittTemplate,
 } from '../seed';
@@ -59,6 +65,7 @@ const ALLE_MARKER = [
   GA_TEILSTRUKTUR_ENTFERNEN_MIGRATION, GA_C_FUENF_RISIKEN_MIGRATION,
   GA_A_UMFANG_KURATIERT_MIGRATION, GA_EF_VORGABEN_MIGRATION, GA_EP_AUTO_RETRY_MIGRATION,
   GA_A_ZEICHEN_HERKUNFT_MIGRATION, GA_FACHPRUEFER_MIGRATION, GA_A_VEROEFFENTLICHUNG_MIGRATION,
+  GA_B_TEIL_ANTEILE_MIGRATION, GA_C_FINAL_UMFANG_MIGRATION,
 ];
 /** Alle Marker AUSSER dem geprüften — isoliert genau eine Migration. */
 const ausser = (marker: string): string[] => ALLE_MARKER.filter(m => m !== marker);
@@ -334,5 +341,105 @@ describe('der Seed selbst trägt alle vier Entscheidungen', () => {
       expect(s.autoRetry, s.id).toBe(true);
       expect(s.maxRetries, s.id).toBe(1);
     }
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* Nachmessung 08/2026: die zwei Abschnitte, die 3/3 zu kurz lieferten         */
+/* -------------------------------------------------------------------------- */
+
+const ABSOLUT_B = abschnittTemplate({ ...B_ABSCHNITT_OPTS_TEILE_ABSOLUT });
+const ANTEIL_B = abschnittTemplate({ ...B_ABSCHNITT_OPTS });
+
+describe('B: Teil-Richtwerte als Anteil statt fester Wortzahl', () => {
+  const NUR = ausser(GA_B_TEIL_ANTEILE_MIGRATION);
+
+  it('pristine Absolut-Stand → Anteils-Stand, Version steigt auf 4', () => {
+    const { file: out, geaendert } = reconcileEinmaligeAktivierungen(
+      file([skill(AUSGANGSLAGE_SKILL_ID, { promptTemplate: ABSOLUT_B, version: 3 })], NUR),
+    );
+    expect(geaendert).toBe(true);
+    expect(out.skills[0]!.promptTemplate).toBe(ANTEIL_B);
+    expect(out.skills[0]!.version).toBe(4);
+  });
+
+  it('der neue Stand nennt KEINE absolute Wortzahl mehr, das Verhältnis 1:1:3 bleibt', () => {
+    expect(ABSOLUT_B).toMatch(/Richtwert ≥ 450 Wörter/);
+    expect(ANTEIL_B).not.toMatch(/\d+\s*Wörter/);
+    expect(ANTEIL_B).toContain('rund ein Fünftel des Gesamtumfangs');
+    expect(ANTEIL_B).toContain('rund drei Fünftel des Gesamtumfangs');
+  });
+
+  it('der Gesamtumfang wird dem FINALEN Text zugeschrieben — wie an C', () => {
+    // Der Auto-Block „## Formale Vorgaben" steht ganz am Ende des zusammengesetzten
+    // Prompts; die Zuschreibung gehört zu den Format-Regeln, wo der Abschnitt seine
+    // eigene Form beschreibt. An C war genau diese Zeile die messbar wirksame Änderung.
+    expect(ABSOLUT_B).not.toContain('Der Gesamtumfang aus den formalen Vorgaben');
+    expect(ANTEIL_B).toContain('Der Gesamtumfang aus den formalen Vorgaben gilt für den **finalen Text**');
+    expect(ANTEIL_B).toContain('Verhältnis 1:1:3');
+  });
+
+  it('senkt eine höhere Version nicht', () => {
+    const { file: out } = reconcileEinmaligeAktivierungen(
+      file([skill(AUSGANGSLAGE_SKILL_ID, { promptTemplate: ABSOLUT_B, version: 9 })], NUR),
+    );
+    expect(out.skills[0]!.version).toBe(9);
+  });
+
+  it('kuratierter B-Edit bleibt UNBERÜHRT', () => {
+    const kuratiert = `${ABSOLUT_B}\n\nEigener Zusatz des Kurators.`;
+    const { file: out } = reconcileEinmaligeAktivierungen(
+      file([skill(AUSGANGSLAGE_SKILL_ID, { promptTemplate: kuratiert })], NUR),
+    );
+    expect(out.skills[0]!.promptTemplate).toBe(kuratiert);
+  });
+
+  it('läuft nur einmal: gesetzter Marker lässt den Absolut-Stand stehen', () => {
+    const { file: out, geaendert } = reconcileEinmaligeAktivierungen(
+      file([skill(AUSGANGSLAGE_SKILL_ID, { promptTemplate: ABSOLUT_B })], ALLE_MARKER),
+    );
+    expect(geaendert).toBe(false);
+    expect(out.skills[0]!.promptTemplate).toBe(ABSOLUT_B);
+  });
+});
+
+const TIEFE_C = abschnittTemplate({ ...C_ABSCHNITT_OPTS });
+
+describe('C: eigene Tiefenangabe für den finalen Text', () => {
+  const NUR = ausser(GA_C_FINAL_UMFANG_MIGRATION);
+
+  it('pristine Fünf-Risiken-Stand → Tiefen-Stand, Version steigt auf 4', () => {
+    const { file: out, geaendert } = reconcileEinmaligeAktivierungen(
+      file([skill(RISIKEN_SKILL_ID, { promptTemplate: FUENF_C, version: 3 })], NUR),
+    );
+    expect(geaendert).toBe(true);
+    expect(out.skills[0]!.promptTemplate).toBe(TIEFE_C);
+    expect(out.skills[0]!.version).toBe(4);
+  });
+
+  it('der Gesamtumfang wird dem FINALEN Text zugeschrieben, nicht dem Entwurf', () => {
+    expect(FUENF_C).not.toContain('Der Gesamtumfang aus den formalen Vorgaben');
+    expect(TIEFE_C).toContain('Der Gesamtumfang aus den formalen Vorgaben gilt für den **finalen Text**');
+    // Die Entwurfs-Rate bleibt, wo sie hingehört — sie ist die Quelle, aus der das
+    // Modell bisher mangels eigener Angabe auch den finalen Text bemaß.
+    expect(TIEFE_C).toContain('2–3 Sätzen (vollständige Liste)');
+    // Der Deckel aus dem Vorgänger-Fix bleibt unangetastet.
+    expect(TIEFE_C).toContain('höchstens fünf');
+  });
+
+  it('kuratierter C-Edit bleibt UNBERÜHRT', () => {
+    const kuratiert = `${FUENF_C}\n\nEigener Zusatz des Kurators.`;
+    const { file: out } = reconcileEinmaligeAktivierungen(
+      file([skill(RISIKEN_SKILL_ID, { promptTemplate: kuratiert })], NUR),
+    );
+    expect(out.skills[0]!.promptTemplate).toBe(kuratiert);
+  });
+
+  it('läuft nur einmal: gesetzter Marker lässt den Fünf-Stand stehen', () => {
+    const { file: out, geaendert } = reconcileEinmaligeAktivierungen(
+      file([skill(RISIKEN_SKILL_ID, { promptTemplate: FUENF_C })], ALLE_MARKER),
+    );
+    expect(geaendert).toBe(false);
+    expect(out.skills[0]!.promptTemplate).toBe(FUENF_C);
   });
 });

@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v6.32.0 — Abschnitt B und C: die Zahl ueberlebte den Formwechsel (August 2026)
+
+MINOR — Beide Abschnitte lieferten 3/3 zu wenig Wörter, und beide Male war es eine Umfangs-Zahl, die eine Form überlebt hat, für die sie nie geeicht war. Anders als bei A war die Messung selbst in Ordnung. Detail: [gutachten-kurzfassung.md](docs/architecture/gutachten-kurzfassung.md).
+
+- **B forderte in der Prosa mindestens 750 Wörter, in der Regel 400–500** — die Teil-Richtwerte ≥150/≥150/≥450 blieben bei der Ent-Dopplung 2026-07 stehen und waren auf den alten Stand geeicht ([gutachten-bg.seed.ts](src/core/services/skills/registry/gutachten-bg.seed.ts))
+- **C's Umfang gehörte zu einer Form, die es nicht mehr gibt**: 300–350 Wörter galten, als der finale Text ALLE Risiken mit Kurztitel trug; heute ist er eine gefilterte Teilmenge ohne eigene Tiefenangabe
+- Gemessen (Haiku, 3 VBs): **C 203/235/218 → 309/244/283**, B ohne Richtung (360/364/364 → 440/321/337) — B's Ziel liegt über dem, was das Modell für diesen Abschnitt schreibt
+- **Der `laenger`-Retry feuert bei zu kurzem Text nie** — `chooseRetryModifier` startet nur bei `fehler`, die Wortanzahl ist an B und C ein `hinweis` ([retry-policy.ts](src/plugins/antraege/gutachten/retry-policy.ts))
+- Der Wächter, der das hätte fangen müssen, prüft Teil-Richtwerte jetzt als **Summe**; `npm run eval:skills` meldet Prompt-Widersprüche VOR dem ersten Modell-Aufruf ([check-engine.ts](src/core/services/skills/registry/check-engine.ts), [cli.ts](src/core/services/skill-eval/cli.ts))
+
 ### v6.31.0 — Doppelfoerderung: der Bestand waehlt das Schlagwort (August 2026)
 
 MINOR — Der erste Messlauf gegen die interne KI zeigte: 45,6 % der gelieferten Schlagworte trafen im Bestand **nichts**, 13,4 % fluteten. Das ist kein Prompt-Mangel, sondern eine Wissensgrenze — das Modell sieht den Bestand nicht, die App schon. Detail: [doppelfoerderung.md](docs/architecture/doppelfoerderung.md).

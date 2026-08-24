@@ -41,7 +41,7 @@ describe('Beleg-Kontrakt in Seed A + B — zurückgebaut', () => {
     const b = SEED_SKILLS_BG.find(s => s.id === AUSGANGSLAGE_SKILL_ID);
     expect(b).toBeDefined();
     expect(b!.promptTemplate).not.toContain(MARKE_LOSE);
-    expect(b!.version).toBe(2);
+    expect(b!.version).toBe(4);
   });
 
   it('C–G tragen die Beleg→Satz-Instruktion NICHT; nur D blieb bei version 1', () => {
@@ -51,7 +51,7 @@ describe('Beleg-Kontrakt in Seed A + B — zurückgebaut', () => {
       expect(s.promptTemplate, s.id).not.toContain(MARKE_LOSE);
     }
     // Jede Version hier stammt aus einem EIGENEN Umbau, nie aus dem Beleg-Kontrakt:
-    // C v3 (Entwurf → gefilterter Fließtext, dann Risiko-Deckel 3 → 5), G v2
+    // C v4 (Entwurf → gefilterter Fließtext, Risiko-Deckel 3 → 5, eigene Tiefenangabe), G v2
     // (Pflicht-Anfang in den eigenen Block), E + F v2 (erstmals eigene Vorgaben).
     // D ist der einzige Abschnitt, den seit dem Seed nichts angefasst hat.
     const eigenerUmbau = new Set<string>([
@@ -61,7 +61,7 @@ describe('Beleg-Kontrakt in Seed A + B — zurückgebaut', () => {
       expect(s.version, s.id).toBe(1);
     }
     const v = (id: string): number | undefined => SEED_SKILLS_BG.find(s => s.id === id)?.version;
-    expect(v(RISIKEN_SKILL_ID)).toBe(3);
+    expect(v(RISIKEN_SKILL_ID)).toBe(4);
     expect(v(KOMPETENZ_SKILL_ID)).toBe(2);
     expect(v(UNTERNEHMEN_SKILL_ID)).toBe(2);
     expect(v(VERWERTUNG_SKILL_ID)).toBe(2);

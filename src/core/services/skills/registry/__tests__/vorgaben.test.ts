@@ -78,7 +78,7 @@ describe('vorgabenZuRegeln', () => {
 
   it('ist von Check-Engine und Kategorie-Ableitung wie eine echte Regel verwertbar', () => {
     const regeln = vorgabenZuRegeln('demo', { satzanzahl: { schweregrad: 'fehler', min: 2, max: 3 } }, STAND);
-    expect(buildPromptVorgaben(regeln)).toContain('Schreibe 2 bis 3 Sätze.');
+    expect(buildPromptVorgaben(regeln)).toContain('Der finale Text hat 2 bis 3 Sätze.');
     const checks = runRegelChecks('Ein Satz. Noch einer.', regeln);
     expect(checks).toHaveLength(1);
     expect(checks[0]!.level).toBe('ok');

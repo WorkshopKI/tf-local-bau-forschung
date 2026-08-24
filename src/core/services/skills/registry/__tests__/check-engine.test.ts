@@ -233,7 +233,7 @@ describe('buildPromptVorgaben / buildPromptHinweis', () => {
       regel('zukunfts_typ', {}),
     ]);
     expect(block).toContain('## Formale Vorgaben');
-    expect(block).toContain('Schreibe 8 bis 12 Sätze.');
+    expect(block).toContain('Der finale Text hat 8 bis 12 Sätze.');
     expect(block).toContain('maximal 1000 Zeichen');
     expect(block).not.toContain('Aufzählungen');
   });

@@ -331,13 +331,18 @@ const HANDLERS: Record<RegelTyp, RegelHandler> = {
             : {}),
       };
     },
+    // Nennt den BEZUG („der finale Text") wie die vier übrigen Vorgaben-Zeilen —
+    // `zeichen_max`, `absatz_min`, `keine_aufzaehlungen` und `platzhalter_frei` tun das
+    // seit jeher, die beiden Größen-Regeln taten es als einzige nicht. Gemessen wurde
+    // ohnehin immer nur `parsed.finalerText`; bei mehrteiliger Ausgabe (Quellenanalyse /
+    // Entwurf / Finaler Text) war für das Modell offen, worauf sich die Zahl bezieht.
     hint: params => {
       const min = optNumParam(params, 'min');
       const max = optNumParam(params, 'max');
-      if (min !== undefined && max !== undefined) return `Schreibe ${min} bis ${max} Wörter.`;
-      if (min !== undefined) return `Schreibe mindestens ${min} Wörter.`;
-      if (max !== undefined) return `Schreibe höchstens ${max} Wörter.`;
-      return 'Halte die Wortanzahl im vorgegebenen Bereich.';
+      if (min !== undefined && max !== undefined) return `Der finale Text hat ${min} bis ${max} Wörter.`;
+      if (min !== undefined) return `Der finale Text hat mindestens ${min} Wörter.`;
+      if (max !== undefined) return `Der finale Text hat höchstens ${max} Wörter.`;
+      return 'Halte die Wortanzahl des finalen Textes im vorgegebenen Bereich.';
     },
   },
 
@@ -358,7 +363,8 @@ const HANDLERS: Record<RegelTyp, RegelHandler> = {
             : { detail: 'Zu lang — kürzen.', richtung: 'zu_lang' }),
       };
     },
-    hint: params => `Schreibe ${numParam(params, 'min', 8)} bis ${numParam(params, 'max', 12)} Sätze.`,
+    // Bezug wie bei `wortanzahl` — siehe dort.
+    hint: params => `Der finale Text hat ${numParam(params, 'min', 8)} bis ${numParam(params, 'max', 12)} Sätze.`,
   },
 
   satzlaenge_max: {
@@ -609,6 +615,23 @@ function umfangKonflikt(regelName: string, prosa: string, regel: string): string
 }
 
 /**
+ * Weiche Teil-Richtwerte („Richtwert ≥ 150 Wörter") einer Vorlage, in Textreihenfolge.
+ * Einzeln sind sie bewusst KEIN Konflikt (siehe `findeUmfangKonflikte`) — sie beschreiben
+ * die Gewichtung innerhalb des Abschnitts, nicht seinen Gesamtumfang.
+ */
+function teilRichtwerte(promptTemplate: string): number[] {
+  return [...promptTemplate.matchAll(/Richtwert\s*(?:[≥>]=?|ab)\s*(\d+)\s*Wörter/g)].map(m => Number(m[1]));
+}
+
+function teilSummeKonflikt(regelName: string, teile: number[], regel: string): string {
+  const summe = teile.reduce((a, b) => a + b, 0);
+  return `Die Teil-Richtwerte im Prompt-Text (${teile.join(' + ')} Wörter) verlangen zusammen `
+    + `mindestens ${summe} Wörter, die Regel „${regelName}" fordert aber ${regel}. `
+    + 'Jede Zahl für sich wirkt harmlos, in der Summe sind sie mit dem Gesamtumfang nicht '
+    + 'erfüllbar. Nenne die Teile als Anteil des Gesamtumfangs statt als feste Wortzahl.';
+}
+
+/**
  * Findet Widersprüche zwischen fest in der Prompt-PROSA genannten Umfangs-Zahlen und der
  * zugeordneten Umfangs-Regel (Wortanzahl/Satzanzahl/Absätze). Genau diese Doppelquelle ließ
  * Regel-Edits ins Leere laufen — der Prompt trug den alten Wert weiter. Der Auto-Block
@@ -620,6 +643,11 @@ function umfangKonflikt(regelName: string, prosa: string, regel: string): string
  * „N bis M"/„Toleranz N–M"/„ca. N"), NICHT die weichen Teil-Richtwerte („Richtwert ≥ 150
  * Wörter", „(1–2 Sätze)"). Ein Prosa-Wert, der einen Regel-Wert nur restated, ist KEIN
  * Konflikt — nur echte Abweichung wird gemeldet. Render-only; blockt nichts.
+ *
+ * EINE Ausnahme von der Teil-Richtwert-Nachsicht: mehrere Wort-Richtwerte werden
+ * zusätzlich als SUMME geprüft. Einzeln beschreibt ein Richtwert die Gewichtung im
+ * Abschnitt, zusammen bilden sie eine harte Untergrenze — und die kann über der
+ * Obergrenze der Regel liegen, ohne dass eine einzelne Zahl auffällt (der Fall B).
  */
 export function findeUmfangKonflikte(promptTemplate: string, regeln: QualitaetsRegel[]): string[] {
   const meldungen: string[] = [];
@@ -641,6 +669,14 @@ export function findeUmfangKonflikte(promptTemplate: string, regeln: QualitaetsR
       for (const m of promptTemplate.matchAll(/höchstens\s*(\d+)\s*Wörter/g)) {
         const n = Number(m[1]);
         if (max === undefined || n !== max) meldungen.push(umfangKonflikt(r.name, `höchstens ${n} Wörter`, umfangBandText(min, max, 'Wörter')));
+      }
+      // Die Lücke, die Abschnitt B durchfallen ließ: einzeln bleibt ein Teil-Richtwert
+      // bewusst stumm, aber MEHRERE addieren sich zu einer harten Untergrenze. B trug
+      // „≥150 + ≥150 + ≥450" gegen eine kuratierte Regel „400–500" — die Summe der Teile
+      // lag über der Obergrenze des Ganzen, und das Modell brach beide Vorgaben nach unten.
+      const teile = teilRichtwerte(promptTemplate);
+      if (teile.length >= 2 && max !== undefined && teile.reduce((a, b) => a + b, 0) > max) {
+        meldungen.push(teilSummeKonflikt(r.name, teile, umfangBandText(min, max, 'Wörter')));
       }
     } else if (r.typ === 'satzanzahl') {
       for (const m of promptTemplate.matchAll(/ca\.\s*(\d+)\s*Sätze[n]?/g)) {

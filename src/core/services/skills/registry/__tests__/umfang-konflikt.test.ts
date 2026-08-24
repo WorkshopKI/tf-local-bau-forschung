@@ -60,3 +60,39 @@ describe('findeUmfangKonflikte', () => {
     expect(findeUmfangKonflikte('mindestens 750 Wörter', [regel('wortanzahl', { min: 450 }, { aktiv: false })])).toEqual([]);
   });
 });
+
+/**
+ * Die Lücke, die Abschnitt B durchfallen ließ: EINZELN ist jeder Teil-Richtwert
+ * harmlos (und wird oben bewusst nicht gemeldet), aber Teile SUMMIEREN sich. B trug
+ * „≥ 150 + ≥ 150 + ≥ 450 Wörter" in der Prosa, während die kuratierte Regel auf
+ * „400–500" stand — die Untergrenze der Teile lag über der Obergrenze des Ganzen.
+ * Gemessen lieferte Haiku 360–364 Wörter: das Modell brach beide Vorgaben und wurde
+ * kürzer, statt sich für eine zu entscheiden.
+ */
+describe('findeUmfangKonflikte — Teil-Richtwerte, die sich zum Widerspruch summieren', () => {
+  const B_PROSA = '1. **Hintergrund / Ausgangssituation** (Richtwert ≥ 150 Wörter): Problem, Bedarf, Motivation.\n'
+    + '2. **Stand der Technik** (Richtwert ≥ 150 Wörter): bestehende Ansätze/Lösungen und ihre Grenzen.\n'
+    + '3. **Lösungsweg** (Richtwert ≥ 450 Wörter): der im Antrag beschriebene Lösungsansatz.';
+
+  it('≥150 + ≥150 + ≥450 gegen Regel 400–500 → Konflikt, mit Summe und Einzelwerten im Text', () => {
+    const k = findeUmfangKonflikte(B_PROSA, [regel('wortanzahl', { min: 400, max: 500 })]);
+    expect(k.length).toBe(1);
+    expect(k[0]).toContain('750');
+    expect(k[0]).toContain('150 + 150 + 450');
+    expect(k[0]).toContain('400–500');
+  });
+
+  it('dieselben Teile gegen Regel „mindestens 750" → KEIN Konflikt (der Stand vor der Kuration)', () => {
+    expect(findeUmfangKonflikte(B_PROSA, [regel('wortanzahl', { min: 750 })])).toEqual([]);
+  });
+
+  it('Summe innerhalb der Obergrenze → KEIN Konflikt', () => {
+    const text = 'A (Richtwert ≥ 100 Wörter) und B (Richtwert ≥ 200 Wörter).';
+    expect(findeUmfangKonflikte(text, [regel('wortanzahl', { min: 400, max: 500 })])).toEqual([]);
+  });
+
+  it('EIN Teil-Richtwert allein bleibt stumm — auch über der Obergrenze (bewusst konservativ)', () => {
+    const text = 'Lösungsweg (Richtwert ≥ 600 Wörter): der Ansatz.';
+    expect(findeUmfangKonflikte(text, [regel('wortanzahl', { min: 400, max: 500 })])).toEqual([]);
+  });
+});

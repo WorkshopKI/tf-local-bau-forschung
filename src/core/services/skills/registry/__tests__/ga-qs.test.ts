@@ -47,8 +47,12 @@ describe('GA-Skill-Abgleich (v20) — additive Stärken, GA-Verhalten unverände
     const b = getSkillById(SEED_REGISTRY, 'gutachten-ausgangslage')!;
     // Umfang single-source (2026-07): der Prompt-Text trägt keine feste Total-Zahl mehr —
     // die stand doppelt (Prosa + regel-abgeleiteter Block) und lief bei Regel-Edits auseinander.
-    expect(b.promptTemplate).not.toContain('750 Wörter');
-    expect(b.promptTemplate).not.toContain('Gesamtumfang');
+    //
+    // Geprüft wird seit 08/2026 die ABSICHT statt eines Stellvertreter-Wortes: KEINE
+    // absolute Wortzahl irgendwo in der Prosa. „Gesamtumfang" als Wort taugte dafür nicht
+    // mehr — die Teil-Richtwerte nennen ihren ANTEIL am Gesamtumfang („rund ein Fünftel"),
+    // beziehen sich also bewusst darauf, ohne eine Zahl zu setzen (`applyBTeilAnteile`).
+    expect(b.promptTemplate).not.toMatch(/\d+\s*Wörter/);
     expect(b.promptTemplate).not.toContain('mindestens vier Absätze');
     // Die 3-teilige Struktur (Hintergrund / Stand der Technik / Lösungsweg) bleibt.
     expect(b.promptTemplate).toContain('Lösungsweg');
