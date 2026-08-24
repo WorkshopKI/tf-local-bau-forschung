@@ -55,6 +55,18 @@ export interface EvalRunResult {
   checks: CheckResult[];
   /** Gesetzt, wenn der Lauf scheiterte (Transport-Fehler, fehlender Skill). */
   fehler?: string;
+  /**
+   * Zahl der Modell-Aufrufe dieses Laufs — 1 ohne Auto-Retry, sonst 1 + die
+   * automatischen Korrektur-Versuche. Fehlt in Alt-Zeilen (dort immer 1).
+   */
+  versuche?: number;
+  /**
+   * Die Modifier der automatischen Versuche in Reihenfolge (`laenger`, `kuerzer`,
+   * `neu`) — macht im Report sichtbar, WAS die Korrektur versucht hat.
+   */
+  retryModifier?: string[];
+  /** Wortzahl des finalen Textes im ERSTEN Versuch (nur gesetzt, wenn nachkorrigiert wurde). */
+  erstVersuchWoerter?: number;
   /** Wandzeit des Laufs in Millisekunden. */
   dauerMs: number;
 }

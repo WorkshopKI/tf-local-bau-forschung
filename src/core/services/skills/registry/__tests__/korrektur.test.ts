@@ -38,6 +38,12 @@ describe('regelKorrekturAnweisung — Modifier + Zielwert je Typ', () => {
     expect(k!.anweisung).toBe('Kürze auf höchstens 1000 Zeichen.');
   });
 
+  /**
+   * Genannt wird der VERLETZTE Rand, nicht die Spanne. Das ist eine gemessene
+   * Entscheidung, keine Selbstverständlichkeit: zwei Alternativen („N bis M" und
+   * „rund MITTE (Spanne N bis M)") schnitten über B und C zusammen schlechter ab
+   * (10/18 und 11/18 gegen 14/18). Detail im Docblock von `groessenKorrektur`.
+   */
   it('wortanzahl zu_lang → kuerzer(max); zu_kurz → laenger(min)', () => {
     const lang = regelKorrekturAnweisung(check({ richtung: 'zu_lang', messwert: 300 }), regel('wortanzahl', { min: 100, max: 200 }));
     expect(lang!.modifier).toBe('kuerzer');
@@ -45,6 +51,18 @@ describe('regelKorrekturAnweisung — Modifier + Zielwert je Typ', () => {
     const kurz = regelKorrekturAnweisung(check({ richtung: 'zu_kurz', messwert: 50 }), regel('wortanzahl', { min: 100, max: 200 }));
     expect(kurz!.modifier).toBe('laenger');
     expect(kurz!.anweisung).toBe('Erweitere auf mindestens 100 Wörter; aktuell 50.');
+  });
+
+  it('nennt NICHT die Spanne — der Wortlaut ist gemessen, nicht geraten', () => {
+    const kurz = regelKorrekturAnweisung(check({ richtung: 'zu_kurz', messwert: 50 }), regel('wortanzahl', { min: 100, max: 200 }));
+    expect(kurz!.anweisung).not.toContain('200');
+    expect(kurz!.anweisung).not.toContain('Spanne');
+  });
+
+  it('wortanzahl mit NUR einem Rand: die Gegenrichtung hat kein Limit → null', () => {
+    const nurMin = regelKorrekturAnweisung(check({ richtung: 'zu_kurz', messwert: 50 }), regel('wortanzahl', { min: 100 }));
+    expect(nurMin!.anweisung).toBe('Erweitere auf mindestens 100 Wörter; aktuell 50.');
+    expect(regelKorrekturAnweisung(check({ richtung: 'zu_lang', messwert: 300 }), regel('wortanzahl', { min: 100 }))).toBeNull();
   });
 
   it('wortanzahl ohne richtung (ok) → null', () => {

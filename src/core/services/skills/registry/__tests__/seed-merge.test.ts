@@ -88,10 +88,10 @@ describe('B–G-Seeds — Kohärenz', () => {
     }
   });
 
-  it('B nutzt absatz_min(4) + Mindestwortzahl, G hat den Pflicht-Anfang', () => {
+  it('B nutzt absatz_min(4) + die Wortanzahl-Spanne, G hat den Pflicht-Anfang', () => {
     const b = resolveRegeln(SEED_REGISTRY, getSkillById(SEED_REGISTRY, 'gutachten-ausgangslage')!);
     expect(b.find(r => r.typ === 'absatz_min')?.params.min).toBe(4);
-    expect(b.find(r => r.typ === 'wortanzahl')?.params.min).toBe(750);
+    expect(b.find(r => r.typ === 'wortanzahl')?.params.min).toBe(400);
 
     const g = resolveRegeln(SEED_REGISTRY, getSkillById(SEED_REGISTRY, 'gutachten-kompetenz')!);
     const pflicht = g.find(r => r.typ === 'pflicht_anfang');

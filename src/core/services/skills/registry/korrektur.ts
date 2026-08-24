@@ -85,6 +85,48 @@ export function regelLimit(regel: QualitaetsRegel, richtung?: CheckResult['richt
  * keine KI-Aktion vorgesehen ist (siehe Contract oben). Level-agnostisch — das UI
  * entscheidet separat, für welche Schweregrade der Button erscheint (nur `fehler`).
  */
+/**
+ * Korrektur-Anweisung für die zweiseitigen Größen-Regeln (`wortanzahl`/`satzanzahl`).
+ * Nennt den VERLETZTEN Rand — bewusst, gegen die naheliegende Vermutung.
+ *
+ * Zwei Alternativen wurden gemessen (Haiku, drei fiktive VBs, je drei Läufe, 08/2026;
+ * gezählt sind die Läufe, deren korrigierter Text im Zielband liegt, über B und C):
+ *
+ * | Anweisung                          | B (400–500) | C (300–350) | zusammen |
+ * |------------------------------------|-------------|-------------|----------|
+ * | „mindestens 400" (diese Fassung)   | 9/9         | 5/9         | **14/18** |
+ * | „400 bis 500"                      | 4/9         | 6/9         | 10/18    |
+ * | „rund 450 (Spanne 400 bis 500)"    | 4/9         | 7/9         | 11/18    |
+ *
+ * Der Mechanismus dahinter: bei einer Untergrenze zielt das Modell darüber (+5 bis
+ * +25 %), bei einer Spanne auf deren unteren Rand. Ob das trifft, hängt an der BREITE
+ * des Bandes — B (100 Wörter breit) fängt den Überschuss, C (50) nicht. Eine Anweisung,
+ * die für beide passt, gibt es in diesen drei Fassungen nicht; die hier ist die beste
+ * gemessene, nicht die eleganteste.
+ *
+ * Offen (n=1, danach war das Mess-Budget erschöpft): „mindestens N, ziele auf rund
+ * MITTE, überschreite MAX nicht" — der einzige Lauf lag mit 397/393/353 näher an den
+ * Rändern als jede andere Fassung. Vor dem Einbau messen, nicht vermuten.
+ */
+function groessenKorrektur(
+  check: CheckResult,
+  p: QualitaetsRegel['params'],
+  einheit: 'Wörter' | 'Sätze',
+  ist: number | undefined,
+): RegelKorrektur | null {
+  if (check.richtung === 'zu_kurz') {
+    const min = optNum(p, 'min');
+    if (min == null) return null;
+    return mk('laenger', `Erweitere auf mindestens ${min} ${einheit}${istTail(ist)}`);
+  }
+  if (check.richtung === 'zu_lang') {
+    const max = optNum(p, 'max');
+    if (max == null) return null;
+    return mk('kuerzer', `Kürze auf höchstens ${max} ${einheit}${istTail(ist)}`);
+  }
+  return null;
+}
+
 export function regelKorrekturAnweisung(check: CheckResult, regel: QualitaetsRegel): RegelKorrektur | null {
   // Nicht-textliche Regeln werden nicht deterministisch per Modifier korrigiert.
   if (regel.pruefart === 'fachlich' || regel.pruefart === 'administrativ') return null;
@@ -98,32 +140,10 @@ export function regelKorrekturAnweisung(check: CheckResult, regel: QualitaetsReg
       if (max == null) return null;
       return mk('kuerzer', `Kürze auf höchstens ${max} Zeichen${istTail(ist)}`);
     }
-    case 'wortanzahl': {
-      if (check.richtung === 'zu_kurz') {
-        const min = optNum(p, 'min');
-        if (min == null) return null;
-        return mk('laenger', `Erweitere auf mindestens ${min} Wörter${istTail(ist)}`);
-      }
-      if (check.richtung === 'zu_lang') {
-        const max = optNum(p, 'max');
-        if (max == null) return null;
-        return mk('kuerzer', `Kürze auf höchstens ${max} Wörter${istTail(ist)}`);
-      }
-      return null;
-    }
-    case 'satzanzahl': {
-      if (check.richtung === 'zu_kurz') {
-        const min = optNum(p, 'min');
-        if (min == null) return null;
-        return mk('laenger', `Erweitere auf mindestens ${min} Sätze${istTail(ist)}`);
-      }
-      if (check.richtung === 'zu_lang') {
-        const max = optNum(p, 'max');
-        if (max == null) return null;
-        return mk('kuerzer', `Kürze auf höchstens ${max} Sätze${istTail(ist)}`);
-      }
-      return null;
-    }
+    case 'wortanzahl':
+      return groessenKorrektur(check, p, 'Wörter', ist);
+    case 'satzanzahl':
+      return groessenKorrektur(check, p, 'Sätze', ist);
     case 'absatz_min': {
       // Min-Regel (keine `richtung` in der Engine) — Untererfüllung → erweitern.
       const min = optNum(p, 'min');

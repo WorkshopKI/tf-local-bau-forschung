@@ -62,7 +62,7 @@ import {
   applyBearbeitung, applyZuruecksetzen, applyPruefen, freigeben, erneutOeffnen, weiterschalten, verwerfen, uebernehmen,
   firstNonFreigegeben, leereSchritte, setVorlageRef,
 } from './runner';
-import { chooseRetryModifier } from './retry-policy';
+import { chooseRetryModifier, retryKorrekturAnweisung } from './retry-policy';
 import type { StepId, WorkflowRun } from './types';
 
 /**
@@ -560,7 +560,12 @@ export function useGutachtenWorkflow(ctx: KurzfassungContext): GutachtenWorkflow
       const mod = chooseRetryModifier(checks);
       if (!mod) return; // nur ok/hinweis → fertig
       attempt += 1;
-      checks = await runGeneration(stepId, { modifier: mod });
+      // Der Modifier sagt nur die Richtung. Den ZIELWERT gibt es deterministisch aus der
+      // verletzten Regel — ohne ihn schoss die Korrektur gemessen über (270 → 363 Wörter
+      // bei einem Band von 300–350). Fehlt eine passende Ableitung, läuft es wie bisher.
+      const sc = skillMap.get(stepId);
+      const kontext = sc ? retryKorrekturAnweisung(checks, regelnFuer(sc, tweak), mod) : null;
+      checks = await runGeneration(stepId, { modifier: mod, ...(kontext ? { kontext } : {}) });
     }
     // Decke erreicht und weiterhin retry-würdige Fehler → neutraler Vermerk (kein roter Error).
     if (checks && attempt > 0 && chooseRetryModifier(checks)) {

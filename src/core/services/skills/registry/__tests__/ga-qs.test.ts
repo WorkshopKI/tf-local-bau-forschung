@@ -57,8 +57,13 @@ describe('GA-Skill-Abgleich (v20) — additive Stärken, GA-Verhalten unverände
     // Die 3-teilige Struktur (Hintergrund / Stand der Technik / Lösungsweg) bleibt.
     expect(b.promptTemplate).toContain('Lösungsweg');
     // Der Wert lebt jetzt allein in der Skill-Vorgabe (seit v2.296; davor die
-    // Ein-Skill-Regel `seed-b-wortanzahl`).
-    expect(b.vorgaben?.wortanzahl?.min).toBe(750);
+    // Ein-Skill-Regel `seed-b-wortanzahl`). Seit 08/2026 trägt der Seed die 400–500,
+    // die das Team im Editor gesetzt hat — die alte 750 erreichte nachgemessen kein
+    // Modell, auch nach der automatischen Korrektur nicht.
+    expect(b.vorgaben?.wortanzahl?.min).toBe(400);
+    expect(b.vorgaben?.wortanzahl?.max).toBe(500);
+    // `fehler`, nicht `hinweis`: nur so startet `chooseRetryModifier` den `laenger`-Versuch.
+    expect(b.vorgaben?.wortanzahl?.schweregrad).toBe('fehler');
     expect(SEED_REGISTRY.regeln.find(r => r.id === 'seed-b-wortanzahl')).toBeUndefined();
   });
 

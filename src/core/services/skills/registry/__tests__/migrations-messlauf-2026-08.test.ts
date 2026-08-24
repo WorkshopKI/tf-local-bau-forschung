@@ -33,6 +33,7 @@ import {
   GA_A_VEROEFFENTLICHUNG_MIGRATION,
   GA_B_TEIL_ANTEILE_MIGRATION,
   GA_C_FINAL_UMFANG_MIGRATION,
+  GA_BC_UMFANG_DURCHSETZEN_MIGRATION,
 } from '../migrations';
 import {
   KURZFASSUNG_SKILL_ID,
@@ -54,7 +55,7 @@ import {
   ZIM_EP_DEF,
   abschnittTemplate,
 } from '../seed';
-import type { SkillRecord, SkillRegistryFile, WorkflowDef, WorkflowStep } from '../types';
+import type { SkillRecord, SkillRegistryFile, SkillVorgaben, WorkflowDef, WorkflowStep } from '../types';
 
 const ALLE_MARKER = [
   ANFRAGE_ANON_AKTIV_MIGRATION, GA_BELEG_KONTRAKT_MIGRATION, GA_BELEG_KONTRAKT_REVERT_MIGRATION,
@@ -65,7 +66,7 @@ const ALLE_MARKER = [
   GA_TEILSTRUKTUR_ENTFERNEN_MIGRATION, GA_C_FUENF_RISIKEN_MIGRATION,
   GA_A_UMFANG_KURATIERT_MIGRATION, GA_EF_VORGABEN_MIGRATION, GA_EP_AUTO_RETRY_MIGRATION,
   GA_A_ZEICHEN_HERKUNFT_MIGRATION, GA_FACHPRUEFER_MIGRATION, GA_A_VEROEFFENTLICHUNG_MIGRATION,
-  GA_B_TEIL_ANTEILE_MIGRATION, GA_C_FINAL_UMFANG_MIGRATION,
+  GA_B_TEIL_ANTEILE_MIGRATION, GA_C_FINAL_UMFANG_MIGRATION, GA_BC_UMFANG_DURCHSETZEN_MIGRATION,
 ];
 /** Alle Marker AUSSER dem geprüften — isoliert genau eine Migration. */
 const ausser = (marker: string): string[] => ALLE_MARKER.filter(m => m !== marker);
@@ -441,5 +442,76 @@ describe('C: eigene Tiefenangabe für den finalen Text', () => {
     );
     expect(geaendert).toBe(false);
     expect(out.skills[0]!.promptTemplate).toBe(FUENF_C);
+  });
+});
+
+/**
+ * `hinweis` → `fehler`: der Unterschied ist nicht die Farbe des Checks, sondern OB
+ * überhaupt etwas passiert. `chooseRetryModifier` startet einen Korrektur-Versuch nur
+ * bei `fehler`; als `hinweis` war der `laenger`-Zweig für einen zu kurzen Abschnitt
+ * unerreichbar. Die Migration ändert deshalb den Schweregrad — und NUR ihn.
+ */
+describe('B + C: die Wortanzahl wird durchsetzbar', () => {
+  const NUR = ausser(GA_BC_UMFANG_DURCHSETZEN_MIGRATION);
+  const mitWort = (id: string, wortanzahl: SkillVorgaben['wortanzahl']): SkillRecord =>
+    skill(id, { vorgaben: { ...(wortanzahl ? { wortanzahl } : {}) } });
+
+  it('kuratierte Zahlen bleiben stehen — nur der Schweregrad kippt', () => {
+    const { file: out, geaendert } = reconcileEinmaligeAktivierungen(
+      file([mitWort(RISIKEN_SKILL_ID, { schweregrad: 'hinweis', min: 280, max: 330 })], NUR),
+    );
+    expect(geaendert).toBe(true);
+    expect(out.skills[0]!.vorgaben?.wortanzahl).toEqual({ schweregrad: 'fehler', min: 280, max: 330 });
+  });
+
+  it('pristines B (Alt-Seed „mindestens 750, kein Max") bekommt zusätzlich die 400–500 des Teams', () => {
+    const { file: out } = reconcileEinmaligeAktivierungen(
+      file([mitWort(AUSGANGSLAGE_SKILL_ID, { schweregrad: 'fehler', min: 750, persoenlichAnpassbar: true })], NUR),
+    );
+    expect(out.skills[0]!.vorgaben?.wortanzahl).toEqual({
+      schweregrad: 'fehler', min: 400, max: 500, persoenlichAnpassbar: true,
+    });
+  });
+
+  it('ein B mit EIGENEN Zahlen behält sie — die 750-Erkennung ist byte-genau', () => {
+    const { file: out } = reconcileEinmaligeAktivierungen(
+      file([mitWort(AUSGANGSLAGE_SKILL_ID, { schweregrad: 'hinweis', min: 750, max: 900 })], NUR),
+    );
+    expect(out.skills[0]!.vorgaben?.wortanzahl).toEqual({ schweregrad: 'fehler', min: 750, max: 900 });
+  });
+
+  it('bereits `fehler` → der Skill kommt unverändert zurück (nur der Marker wird notiert)', () => {
+    const vorher = mitWort(RISIKEN_SKILL_ID, { schweregrad: 'fehler', min: 300, max: 350 });
+    const { file: out } = reconcileEinmaligeAktivierungen(file([vorher], NUR));
+    expect(out.skills[0]).toEqual(vorher);
+  });
+
+  it('Skill ohne Wortanzahl-Vorgabe bleibt unberührt', () => {
+    const { file: out } = reconcileEinmaligeAktivierungen(
+      file([skill(RISIKEN_SKILL_ID, { vorgaben: { keineAufzaehlungen: { schweregrad: 'fehler' } } })], NUR),
+    );
+    expect(out.skills[0]!.vorgaben?.wortanzahl).toBeUndefined();
+  });
+
+  it('fremde Skills bleiben unberührt', () => {
+    const { file: out } = reconcileEinmaligeAktivierungen(
+      file([mitWort(MARKT_SKILL_ID, { schweregrad: 'hinweis', min: 300, max: 350 })], NUR),
+    );
+    expect(out.skills[0]!.vorgaben?.wortanzahl?.schweregrad).toBe('hinweis');
+  });
+
+  it('läuft nur einmal: gesetzter Marker lässt den Hinweis stehen', () => {
+    const { file: out, geaendert } = reconcileEinmaligeAktivierungen(
+      file([mitWort(RISIKEN_SKILL_ID, { schweregrad: 'hinweis', min: 300, max: 350 })], ALLE_MARKER),
+    );
+    expect(geaendert).toBe(false);
+    expect(out.skills[0]!.vorgaben?.wortanzahl?.schweregrad).toBe('hinweis');
+  });
+
+  it('der Seed selbst führt B und C als `fehler` — sonst zöge ein frischer Share nach', () => {
+    for (const id of [AUSGANGSLAGE_SKILL_ID, RISIKEN_SKILL_ID]) {
+      const s = SEED_SKILLS_BG.find(x => x.id === id)!;
+      expect(s.vorgaben?.wortanzahl?.schweregrad, id).toBe('fehler');
+    }
   });
 });

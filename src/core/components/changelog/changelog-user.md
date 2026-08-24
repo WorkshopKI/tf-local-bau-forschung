@@ -19,6 +19,13 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v6.33 — 2026-08
+
+### Verbesserungen
+- **Zu kurze Gutachten-Abschnitte werden jetzt automatisch nachgebessert.** Bisher stand bei „Hintergrund, Stand der Technik, Lösungsweg" und „Technische Risiken" nur ein Hinweis, dass der Text zu kurz sei — passiert ist nichts. Jetzt hängt die KI einen Korrektur-Lauf an, wie sie es bei einem zu langen Text schon immer getan hat.
+- Der Abschnitt B trifft damit in allen Testläufen seinen Zielumfang von 400 bis 500 Wörtern; vorher lag er regelmäßig darunter. Der Preis: ein zweiter KI-Lauf, wenn der erste zu kurz ausfällt.
+- Der Zielumfang von B steht neu bei 400 bis 500 Wörtern statt bei 750. Die 750 stammten aus einer alten Voreinstellung, die nachgemessen kein Modell erreicht.
+
 ## v6.32 — 2026-08
 
 ### Verbesserungen

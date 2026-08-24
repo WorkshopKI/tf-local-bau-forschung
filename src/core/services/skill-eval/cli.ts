@@ -16,7 +16,10 @@ import { STEP_ORDER, type StepId } from '@/plugins/antraege/gutachten/types';
 import { runOneSection } from './eval-run';
 import { runJudge } from './judge';
 import { resolveRegistry, getWorkflowSections, resolveSkill, type SectionDef } from './registry-load';
-import { findeUmfangKonflikte, findeVorgabenWidersprueche, type SkillRegistryFile } from '@/core/services/skills';
+import {
+  findeUmfangKonflikte, findeVorgabenWidersprueche, clampMaxRetries,
+  type SkillRegistryFile,
+} from '@/core/services/skills';
 import { aggregate } from './aggregate';
 import { toJson, toCsv, toHtml } from './report';
 import { NodeOpenAITransport } from './node-transport';
@@ -56,6 +59,8 @@ interface Args {
   kontext: KontextArg;
   /** VB-Kürzung im Judge-Prompt; `null` = `JUDGE_VB_CAP_DEFAULT` (ganze VB). */
   judgeVbCap: number | null;
+  /** Bildet den beschraenkten Auto-Retry der App nach (Decke aus der Workflow-Definition). */
+  autoRetry: boolean;
 }
 
 const DEFAULTS: Args = {
@@ -63,6 +68,9 @@ const DEFAULTS: Args = {
   out: './skill-eval-out', sections: null, limit: null,
   concurrency: 1, noJudge: false, dryRun: false, kontext: 'voll',
   judgeVbCap: null,
+  // Default AN, weil die App es tut: jeder ZIM-EP-Schritt trägt `autoRetry: true`.
+  // Ein Lauf ohne Nachkorrektur misst den ersten Wurf, den so niemand zu sehen bekommt.
+  autoRetry: true,
 };
 
 function parseArgs(argv: string[]): Args {
@@ -87,6 +95,9 @@ function parseArgs(argv: string[]): Args {
       // ein knapper Auszug deckelt `fachliche_korrektheit` nach oben (siehe judge.ts).
       case '--judge-vb-cap': a.judgeVbCap = Math.max(1000, Number.parseInt(argv[++i] ?? '', 10) || 0) || null; break;
       case '--no-judge': a.noJudge = true; break;
+      // Schaltet die Nachkorrektur ab — für den Vergleich mit Alt-Läufen, die noch
+      // ohne sie entstanden sind, und um den ersten Wurf isoliert zu sehen.
+      case '--no-auto-retry': a.autoRetry = false; break;
       case '--dry-run': a.dryRun = true; break;
       case '--kontext': {
         const v = (argv[++i] ?? '').trim();
@@ -157,6 +168,20 @@ async function runPool<T>(items: T[], concurrency: number, worker: (item: T, ind
 }
 
 /* -------------------------------- main ----------------------------------- */
+
+/**
+ * Retry-Decke eines Abschnitts — aus der WORKFLOW-Definition der Registry, nicht aus
+ * einem eigenen Flag-Wert. Der Schritt entscheidet, ob und wie oft die App
+ * nachkorrigiert (`autoRetry` / `maxRetries`); die Harness hat dazu keine eigene
+ * Meinung, sonst misst sie einen Ablauf, den es nicht gibt. Kein Schritt gefunden ⇒ 0.
+ */
+function maxRetriesFuer(registry: SkillRegistryFile, abschnitt: StepId): number {
+  for (const wf of registry.workflows ?? []) {
+    const step = wf.steps.find(s => s.id === abschnitt);
+    if (step) return step.autoRetry ? clampMaxRetries(step.maxRetries) : 0;
+  }
+  return 0;
+}
 
 /**
  * Hält die Prompts der zu messenden Abschnitte gegen die vorhandenen Kurator-Wächter —
@@ -233,7 +258,7 @@ async function main(): Promise<void> {
   const pending = pendingCombos(combos, doneRunKeys);
   console.log(`Modelle: ${models.map(m => m.id).join(', ')} | Abschnitte: ${sections.map(s => s.abschnitt).join('')} | Kontext: ${kontexte.join('+')}`);
   console.log(`Kombinationen: ${combos.length} gesamt, ${doneRunKeys.size} erledigt, ${pending.length} offen.`);
-  console.log(`Modus: ${args.dryRun ? 'DRY-RUN (Stub-Transport)' : 'LIVE'} | Judge: ${judgeConfig ? (args.dryRun ? 'Stub' : judgeConfig.id) : 'aus'} | Concurrency: ${args.concurrency}`);
+  console.log(`Modus: ${args.dryRun ? 'DRY-RUN (Stub-Transport)' : 'LIVE'} | Judge: ${judgeConfig ? (args.dryRun ? 'Stub' : judgeConfig.id) : 'aus'} | Concurrency: ${args.concurrency} | Auto-Retry: ${args.autoRetry ? 'wie die App' : 'AUS'}`);
   meldePromptWidersprueche(sections, registry);
 
   // Transports je Modell cachen.
@@ -285,10 +310,12 @@ async function main(): Promise<void> {
     const res = await runOneSection(transportFor(modell), fixture, abschnitt, registry, modell.id, {
       kontext,
       ...(vbMarkdown ? { vbMarkdown } : {}),
+      ...(args.autoRetry ? { maxRetries: maxRetriesFuer(registry, abschnitt) } : {}),
     });
     appendFileSync(resultsPath, serializeJsonl(res));
     done++;
-    const status = res.fehler ? `FEHLER: ${res.fehler}` : `ok (${res.checks.filter(c => c.level === 'fehler').length} Check-Fehler)`;
+    const nachlauf = res.retryModifier?.length ? ` nach ${res.retryModifier.join('+')}` : '';
+    const status = res.fehler ? `FEHLER: ${res.fehler}` : `ok (${res.checks.filter(c => c.level === 'fehler').length} Check-Fehler${nachlauf})`;
     console.log(`[${done}/${pending.length}] ${keyOfCombo(combo)} → ${status}`);
 
     // Judge nur bei erfolgreichem Lauf + aktivem Judge + noch nicht bewertet.

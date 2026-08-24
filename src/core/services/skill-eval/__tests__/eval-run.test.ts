@@ -146,6 +146,81 @@ describe('runOneSection', () => {
   });
 });
 
+/**
+ * Der beschränkte Auto-Retry der App, in der Harness nachgebildet. Ohne ihn maß die
+ * Harness den ERSTEN Wurf — den in der App niemand zu sehen bekommt, weil ein `fehler`
+ * dort still einen zweiten Lauf mit `kuerzer`/`laenger` anhängt. Solange eine Vorgabe
+ * ein `hinweis` ist, passiert nichts (das ist der Fall an B und C).
+ */
+describe('runOneSection — Auto-Retry wie in der App', () => {
+  /** Transport, der der Reihe nach andere Antworten liefert. */
+  function folgeStub(antworten: string[]): { transport: AITransport; calls: ConversationMessage[][] } {
+    const calls: ConversationMessage[][] = [];
+    let i = 0;
+    const naechste = (): string => antworten[Math.min(i++, antworten.length - 1)]!;
+    return {
+      calls,
+      transport: {
+        name: 'stub-folge',
+        ping: async () => true,
+        submitMessage: async () => naechste(),
+        submitConversation: async (messages) => { calls.push(messages); return naechste(); },
+      },
+    };
+  }
+
+  const ZU_LANG = '### Finaler Text\nDieser Text ist deutlich länger als das Limit von zehn Zeichen.';
+  const KURZ = '### Finaler Text\nKurz.';
+
+  it('ohne maxRetries bleibt es bei EINEM Aufruf (Bestandsverhalten)', async () => {
+    const { transport, calls } = folgeStub([ZU_LANG, KURZ]);
+    const res = await runOneSection(transport, makeFixture(), 'A', makeRegistry({ max: 10 }), 'm');
+    expect(calls).toHaveLength(1);
+    expect(res.versuche).toBe(1);
+    expect(res.retryModifier).toBeUndefined();
+    expect(res.checks.find(c => c.regelId === 'r-max')?.level).toBe('fehler');
+  });
+
+  it('mit maxRetries=1 korrigiert ein „zu lang" nach und liefert das ERGEBNIS der Korrektur', async () => {
+    const { transport, calls } = folgeStub([ZU_LANG, KURZ]);
+    const res = await runOneSection(transport, makeFixture(), 'A', makeRegistry({ max: 10 }), 'm', { maxRetries: 1 });
+    expect(calls).toHaveLength(2);
+    expect(res.versuche).toBe(2);
+    expect(res.retryModifier).toEqual(['kuerzer']);
+    expect(res.parsed?.finalerText).toBe('Kurz.');
+    expect(res.checks.find(c => c.regelId === 'r-max')?.level).toBe('ok');
+  });
+
+  it('der Korrektur-Lauf bekommt den bisherigen Text mit — sonst schriebe er neu statt fort', async () => {
+    const { transport, calls } = folgeStub([ZU_LANG, KURZ]);
+    await runOneSection(transport, makeFixture(), 'A', makeRegistry({ max: 10 }), 'm', { maxRetries: 1 });
+    const zweiter = calls[1]![0]!.content;
+    expect(zweiter).toContain('Bisheriger finaler Text');
+    expect(zweiter).toContain('Dieser Text ist deutlich länger');
+  });
+
+  it('hält die Wortzahl des ersten Versuchs fest — sonst wäre unsichtbar, was die Korrektur bewirkt hat', async () => {
+    const { transport } = folgeStub([ZU_LANG, KURZ]);
+    const res = await runOneSection(transport, makeFixture(), 'A', makeRegistry({ max: 10 }), 'm', { maxRetries: 1 });
+    expect(res.erstVersuchWoerter).toBe(11);
+  });
+
+  it('ein sauberer erster Wurf löst KEINEN zweiten Aufruf aus', async () => {
+    const { transport, calls } = folgeStub([KURZ, ZU_LANG]);
+    const res = await runOneSection(transport, makeFixture(), 'A', makeRegistry({ max: 100 }), 'm', { maxRetries: 1 });
+    expect(calls).toHaveLength(1);
+    expect(res.versuche).toBe(1);
+  });
+
+  it('bleibt der Fehler bestehen, hört es bei der Decke auf (kein Endlos-Nachfassen)', async () => {
+    const { transport, calls } = folgeStub([ZU_LANG]);
+    const res = await runOneSection(transport, makeFixture(), 'A', makeRegistry({ max: 10 }), 'm', { maxRetries: 1 });
+    expect(calls).toHaveLength(2);
+    expect(res.versuche).toBe(2);
+    expect(res.checks.find(c => c.regelId === 'r-max')?.level).toBe('fehler');
+  });
+});
+
 describe('registry-load', () => {
   it('resolveRegistry: null → SEED_REGISTRY (mit den Gutachten-Skills)', () => {
     const reg = resolveRegistry(null);

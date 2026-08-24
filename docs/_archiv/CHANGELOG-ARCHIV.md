@@ -2,6 +2,127 @@
 
 Ältere Versionsblöcke (append-only, chronologisch absteigend). Die jüngsten Versionen stehen im Root-[CHANGELOG.md](../CHANGELOG.md). Bump-Regeln + Architektur: [CLAUDE.md](../CLAUDE.md).
 
+### v5.0.0 — Bridge spricht die neue AitisiGPT-Oberflaeche direkt an (August 2026)
+
+MAJOR — Die interne KI wurde neu gebaut: nicht mehr Streamlit, sondern htmx auf servergerendertem HTML. Die Bridge zielte durchgehend auf Streamlit-`data-testid`-Attribute, von denen kein einziges mehr existiert — Fragen gingen hinaus, **Antworten wurden nicht mehr gelesen**. Belegt an zwei DOM-Dumps vom Produktivsystem. Der Ersatz ist besser als das Original: die neue Oberfläche hat eine HTTP-Schnittstelle und einen SSE-Strom mit `done`-Ereignis.
+
+- **Senden per `POST`, Empfangen per SSE** — die Endpunkte liest das Bookmarklet aus den `hx-post`-Attributen der Seite, statt Routen zu verdrahten; die Sitzung reist als `X-Session-Id` mit ([bridge-snippet.source.js](src/core/services/ai/streamlit-bridge/bridge-snippet.source.js))
+- **Ersatzlos entfallen**: Echo-Erkennung, Antwort-Auswahl im Nachrichten-Roster, Lauf-Indikator-Polling, Ruhefenster-Heuristik — allesamt Umgehungen eines fehlenden Fertig-Signals, das der Strom jetzt als `done` liefert (`answer-selection.ts` + `echo-match.ts` gelöscht)
+- **Modell und Kontextfenster werden von der Seite gelesen**, nicht geraten — Options-Text statt Dateiname, `Qwen3-VL` explizit ausgeschlossen ([modell-erkennung.ts](src/core/services/ai/streamlit-bridge/modell-erkennung.ts))
+- **`rev`-Handschlag**: die App erkennt ein veraltetes Lesezeichen und sagt es in den Einstellungen — ein altes Snippet ist nicht mehr harmlos ([snippet.ts](src/core/services/ai/streamlit-bridge/snippet.ts), [VerbindungGruppe.tsx](src/plugins/einstellungen/ki/VerbindungGruppe.tsx))
+- Die Datenquellen-Auswahl der Seite wird vor jedem Lauf neutralisiert — unsere Aufträge bringen ihren Kontext vollständig selbst mit
+
+**Migration**: Jeder Nutzer muss das **Lesezeichen neu ziehen** (Einstellungen → KI → Einrichtung) und im KI-Tab einmal anklicken. Bis dahin meldet die App das veraltete Lesezeichen und rechnet konservativ mit dem kleinen Kontextfenster. Kein Daten-Layout und keine IndexedDB-Änderung.
+
+### v4.136.0 — Schweigt der eigene Regelsatz, sagt die Zeile was laeuft (August 2026)
+
+MINOR — Unter „Meine Anträge" stand weiter „Gutachten freigeben", obwohl v4.132 beide Motoren zusammengelegt hatte. Grund: in der **FB-Sicht** schweigt die Kaskade fast überall — R19 („in QS") wartet auf die QS, R21 („GA schreiben") ist die AB zuständig, keine nennt den FB, also greift kein Leihweg. Dann sprach wieder die alte Status-Formel, und die ist an 101 von 102 Vorgängen widerlegt. Gemessen: 17 von 19 offenen Vorgängen mit Kürzel THü.
+
+- **Schweigt der eigene Regelsatz, wird der AB-Satz gelesen** und als fremde Aufgabe gezeigt — „in QS · wartet auf QS" statt einer Handlung, die es für die eigene Rolle nicht gibt (`Aufgabe.gelesenAls`, [aufgabe.ts](src/core/status/aufgabe.ts))
+- **Fünfter Anzeige-Zustand `fremd`** neben `kaskade`/`gesperrt`/`rueckfall`/`laedt`; der Rückfall auf die Status-Formel bleibt, wo auch der AB-Satz nichts sagt ([aufgaben-anzeige.ts](src/core/status/aufgaben-anzeige.ts))
+- **Der fremde Satz wird benannt, nicht stillschweigend gelesen** — der Ausklapp schreibt „Aufgabe · Regelsatz AB · nicht FB", „warum?" zeigt R19 samt `D_AK4`/`D_AT4` ([AufgabenZeile.tsx](src/plugins/antraege/ausklapp/kopfkarte/AufgabenZeile.tsx))
+- **Keine Graustufe als Träger**: dass die Aufgabe woanders liegt, sagt die Adresse in Worten — `--tf-text-tertiary` misst 2,62:1 und liegt unter AA ([status-achsen.md](docs/architecture/status-achsen.md))
+- Ein Treffer der eigenen Rolle und eine für sie greifende Sperre gehen immer vor; die AB-Sicht und die Engine bleiben unverändert ([aufgaben-anzeige.test.ts](src/core/status/__tests__/aufgaben-anzeige.test.ts))
+
+### v4.135.0 — Suchsprache: beide Platzhalter erklaert, jedes Feld gezeigt (August 2026)
+
+MINOR — Der Reiter „Suchsprache" erklärte den Stern (seit v4.123) und verschwieg das Fragezeichen: die Suche kann `?` seit v4.101, in der Oberfläche stand dazu keine Zeile. Die Feldsuche war halb vorgemacht — sechs der dreizehn Felder als Beispiel, der Rest eine nackte Präfix-Aufzählung im Fußsatz, aus der man `bl` und `ast` raten musste, daneben drei Spaltencodes als Prosa.
+
+- **Beide Platzhalter stehen als eigene, ausführbare Zeile** — `mob*spec` „Stern — beliebig viele Zeichen, auch keines" (33) und neu `16KN0830?1` „Fragezeichen — genau ein Zeichen" (14); getrennt, weil die Wahl zwischen beiden der Inhalt ist ([suchsprache.ts](src/plugins/suche/start/suchsprache.ts))
+- **Neuer Block „Alle Felder — vor dem Doppelpunkt"**: alle dreizehn Felder mit Beispiel, Bedeutung und Spaltencode, jede Zeile anklickbar — er ersetzt die Prosa-Aufzählung im Fußsatz ([feldliste.ts](src/plugins/suche/start/feldliste.ts), [StartSuchsprache.tsx](src/plugins/suche/start/StartSuchsprache.tsx))
+- **Der Spaltencode je Feld ist eine Einzelquelle** (`FELD_SPALTE`), abgeleitet statt abgeschrieben wie Präfix und Bedeutung ([feldpraefix.ts](src/core/services/search/feldpraefix.ts))
+- **Reiter-Zahl und „alle N ansehen" lesen dieselbe Konstante** (`SUCHSPRACHE_ZEILEN`, jetzt 26) — nachgezählt stimmt sie ([SucheStartzustand.tsx](src/plugins/suche/SucheStartzustand.tsx))
+- Alle Beispiele in dev:local an 14.225 Anträgen nachgemessen; Guards halten Vollständigkeit, Ausführbarkeit und Herkunft der drei Angaben ([feldliste.test.ts](src/plugins/suche/start/__tests__/feldliste.test.ts))
+
+### v4.134.0 — Vier Widgets sagen, was sie zählen (August 2026)
+
+MINOR — Vier Startseiten-Karten benannten eine Menge, die sie nicht führen. Am Bestand gemessen: die Bahn „Wartet auf Antragsteller" stand auf 0, während zehn Karten daneben genau das sagten; „QS-Freigaben offen" meldete „keine", während die Karte darüber denselben Entwurf zum Weiterarbeiten anbot; das Fristen-Widget führte 108 von 124 Anlässen auf vier Meilensteine zurück, die **keine Bedingung** tragen und deshalb nie erfüllbar sind; und „Änderungen der letzten Nacht" zeigte 402 Zeilen, von denen 7 den Leser angingen.
+
+- **Die Kategorie `nachforderung` heißt „Nachforderung läuft"** (app-weit: Kanban-Bahn, Reiter, Filter-Chips, Suchfacetten) — sie umfasst genau einen Status, „NF gestellt"; wer wartet, sagt die To-do-Kaskade je Zeile ([status-category-labels.ts](src/core/utils/status-category-labels.ts))
+- **„QS-Freigaben offen" heißt „Meine Entwürfe in dieser App"** und filtert nicht mehr nach dem Kürzel des Antrags — die Runs liegen gerätelokal, wer sie sieht, hat sie selbst erzeugt ([qsFreigaben.ts](src/plugins/home/widgets/qsFreigaben.ts), [useQsFreigaben.ts](src/plugins/home/widgets/useQsFreigaben.ts))
+- **Meilenstein-Knoten ohne auswertbare Bedingung gelten nicht mehr als gerissen**, sondern als `ohneBedingung` — gezählt in der Fußzeile des Widgets, markiert im Editor; die Projektions-Signatur trägt jetzt die `BEWERTUNGS_VERSION`, sonst wirkt eine Engine-Änderung erst am nächsten Tag ([bewertung.ts](src/core/meilensteine/bewertung.ts), [projektion.ts](src/core/meilensteine/projektion.ts))
+- **„Änderungen der letzten Nacht" folgt dem Bearbeiter-Ausschnitt, gruppiert je Antrag und weicht auf den letzten Lauf MIT Änderungen aus** (4 von 9 Stempeln waren leer); die Karte rückt einmalig ans Spaltenende ([nachtlaufGruppen.ts](src/plugins/home/widgets/nachtlaufGruppen.ts), [lesen.ts](src/core/status/journal/lesen.ts), Config v3)
+- **Die Fristen-Liste zeigt beide Quellen**, statt die kleinere in der Sortierung verschwinden zu lassen, und der Kanban-Kopf nennt die Einheit samt der Kategorien außerhalb seiner Bahnen ([fristAnlaesse.ts](src/plugins/home/widgets/fristAnlaesse.ts), [kanbanLanes.ts](src/plugins/home/widgets/kanbanLanes.ts))
+
+### v4.133.0 — Zuletzt geändert: der Klick landet beim Eintrag, der Rückweg führt heim (August 2026)
+
+MINOR — Das Startseiten-Widget hieß „Registry-Änderungen" — ein Wort aus `registry.json`, das in der Oberfläche sonst nirgends vorkommt. Und sein Klick warf weg, worauf man geklickt hatte: man landete auf der Skills-Liste ohne Auswahl und ohne Weg zurück. Der Deep-Link dafür war seit Juni 2026 gebaut (`b70c02d7`, Provenienz-Affordanz des Gutachten-Flows), nur rief ihn niemand auf.
+
+- **Die Karte heißt „Zuletzt geändert"**, in der Widget-Liste „Zuletzt geändert: Skills & Regeln" (dort steht das Label allein zwischen „Notizen" und „Auslastung"); die Typ-Id `registry-aenderungen` bleibt, weil sie in den Startseiten-Configs der Nutzer steht ([RegistryAenderungenWidget.tsx](src/plugins/home/widgets/RegistryAenderungenWidget.tsx), [widgetCatalog.ts](src/plugins/home/widgets/widgetCatalog.ts))
+- **Ein Klick öffnet genau den angeklickten Eintrag** — Skill wie Qualitätsregel über dieselbe Route `/kuration/skill-verwaltung/<eintragId>`; bisher konnte sie nur Skills, während das Widget Regeln gleichrangig führt ([Router.tsx](src/core/Router.tsx), [SkillVerwaltungPage.tsx](src/plugins/skill-verwaltung-kuration/SkillVerwaltungPage.tsx))
+- **Die Skill-Verwaltung hat einen Rückweg** („← Zurück zu Home") über dem Titel — das X des Detail-Panels behält seine andere Aussage: Editor schließen, nicht Seite verlassen
+- **Die Rückweg-Mechanik trägt jetzt zwei Wirte statt einen**: `LISTEN_ROUTEN` statt des Pfad-Literals `/antraege`, und `rueckwegAus` bekommt die eigene Route als Parameter statt als eingebaute Sonderregel ([herkunft.ts](src/core/nav/herkunft.ts)); der Knopf selbst ist geteilt ([RueckwegLink.tsx](src/core/nav/RueckwegLink.tsx))
+- Tests: 6 neue — der Skill-Deep-Link zählt zum Detail und wird nie eigene Herkunft, `rueckwegAus` schweigt für die eigene Route, und die Typ-Id überlebt jede Umbenennung des Labels
+
+### v4.132.0 — Eine Aussage je Vorgang: Startseite, Board und Liste lesen dieselbe Kaskade (August 2026)
+
+MINOR — Die App beantwortete „was ist zu tun?" mit **zwei** Motoren: einer 10-Zeilen-Tabelle über den Rohstatus (Startseite, Kanban, Tabellenspalte) und der 27-Regel-Kaskade über die gesetzten Kürzel (Vorgangs-Board). Am Nachtexport vom 20.08.2026 gemessen sagten sie bei **262 von 845** offenen Vorgängen (31 %) etwas Verschiedenes — allen voran „Gutachten freigeben" bei **101 von 102** Vorgängen, deren `D_AT4` längst gesetzt war.
+
+- **Ein Bestandslauf, eine Ablage, drei Leser**: der Lauf des Boards steht jetzt in [bestands-lauf.ts](src/core/status/bestands-lauf.ts), sein Ergebnis in [useBestandsAufgaben.ts](src/core/hooks/useBestandsAufgaben.ts) — Startseite und Förderanträge-Liste lesen dieselbe Rechnung (Board-Zahlen unverändert, 4,9 s über 12.359 Vorgänge)
+- **Startseite, Kanban-Karten und Tabellenspalte nennen die Aufgabe der Kaskade** samt Adresse („in QS · wartet auf QS" statt „Gutachten freigeben"); wo die Kaskade schweigt, bleibt die alte Formel der Rückfall ([aufgaben-anzeige.ts](src/core/status/aufgaben-anzeige.ts))
+- **Was laut Kürzeln erledigt ist, zählt nicht mehr als offen**: drei Vorgänge im Bestand tragen einen Schlussvermerk über einem offenen `STATUS_TV` — sie stehen am Ende der Liste mit „Keine Aufgabe mehr" und werden gemeldet statt weggeräumt ([dashboardAggregate.ts](src/plugins/home/dashboardAggregate.ts))
+- **Eine Regel, die eine Rolle als zuständig NENNT, ist für sie sichtbar**: bis hierher entstand die FB-Sicht allein aus `wartetAuf`, und R12 („Widerspruch gg Abl bearbeiten", AB/FB/Jur) fehlte ihr ganz — der FB sah ein leeres Board ([todo-engine.ts](src/core/status/todo-engine.ts))
+- **Die Chips heißen, was sie zählen**: ohne Rollenwahl „Jemand ist zuständig" statt „Meine Aufgaben" (für THü: 17, davon 16 beim AB), und die Rollen-Zeile der Einstellungen sagt, was in den Daten steht — „407× FB · 0× AB" ([zustaendigkeit.ts](src/plugins/vorgangs-board/zustaendigkeit.ts), [AntraegeSichtGruppe.tsx](src/plugins/einstellungen/profil/AntraegeSichtGruppe.tsx))
+
+### v4.131.1 — Kontext-Doc-Reissleine zweistufig (August 2026)
+
+PATCH — In v4.131.0 wurde eine korrekte Drei-Zeilen-Ergänzung in `antraege.md` auf einen Halbsatz eingedampft, bis 54.999 von 55.000 Zeichen dastanden. Genau davor warnt der Kommentar am Guard seit v4.72, und die README verbietet es ausdrücklich — eine Reißleine mit einem Zeichen Luft ist ein Budget.
+
+- **Die Reißleine ist zweistufig**: global 45.000 Zeichen, eigene Grenze für `antraege.md` in `REISSLEINE_JE_DOC` ([conventions-daten.test.ts](src/__tests__/conventions-daten.test.ts)) — eine gemeinsame Zahl, die für die größte Seite passt, fing für die übrigen 18 Docs nichts mehr (bei 55.000 hätte sich `suche.md` verdoppeln können)
+- **Ein zweiter Guard sichert die Ausnahme-Tabelle**: jeder Eintrag muss zu einem existierenden Doc gehören, über der globalen Grenze liegen und darf nicht mehr als dessen doppelte Länge betragen — sonst wäre er ein Freibrief statt einer Grenze
+- **1.300 Zeichen aus `antraege.md` entfernt**, die dort nicht hingehörten: Layout-Begründungen, drei Historien-Nebensätze (Doku-Konvention 1) und eine doppelt beschriebene Trefferzahl — gemessen bleiben 177 Aufzählungspunkte à 300 Zeichen, längste Zeile 666 von 700, null Code-Marker außerhalb „Technik"
+- Beide Doku-Stellen nannten noch die Reißleine von 10.000 aus der Zeit vor sechs Anhebungen ([README](docs/feedback-kontext/README.md), [update-screen-context.md](docs/agents/update-screen-context.md)) und sagen jetzt auch, in welcher Reihenfolge man auf eine Reisse reagiert
+
+### v4.131.0 — Startseite: die Befunde der Bug-Jagd behoben (August 2026)
+
+MINOR — Ergebnis der read-only Jagd auf die Startseite entlang der Frage „zeigt sie dieselbe Wahrheit wie die Seite, auf die sie verlinkt?" (48 Roh → 15 adversarisch gekippt → 20 behoben). Ein Muster trägt die Hälfte: die Startseite rechnete Zahlen selbst nach, statt die Engine der Zielseite zu fragen — und Zähler nannten Auszüge wie Bestände.
+
+- **Die Frist kommt aus DERSELBEN Engine wie die Liste** (`criticalFristErgebnis` statt eigener `antragsdatum + 90`-Rechnung): am Bestand haben 113 von 577 Anträgen keine laufende Uhr — sie standen mit dreistelligem Rückstand oben in einer Karte, die „Sortierung: Frist" verspricht, und stehen jetzt geschlossen am Ende ([dashboardAggregate.ts](src/plugins/home/dashboardAggregate.ts))
+- **Kein Zähler behauptet mehr einen Bestand, wenn er einen Auszug meint**: Kanban-Kopf (573 von 6.581) und Vollbild nennen, was außerhalb der Bahnen liegt; Feedback-News und Registry-Änderungen zeigen den Bestand statt ihrer Kappungs-Grenze; das Fristen-Widget sagt eingeklappt „—" statt „0" ([kanbanLanes.ts](src/plugins/home/widgets/kanbanLanes.ts), [registryAenderungen.ts](src/plugins/home/widgets/registryAenderungen.ts))
+- **Jeder wirksame Filter steht in der Chip-Zeile**: der persistente Spaltenkopf-Trichter machte aus der zugesagten „Kritisch 524" eine fast leere Tabelle, ohne dass etwas es sagte; „+ N weitere →" einer Kanban-Bahn landet in ihrer Kategorie statt in der Voll-Liste ([AntraegeMain.tsx](src/plugins/antraege/AntraegeMain.tsx), `kategorieQuickfilter` in [store.ts](src/plugins/antraege/store.ts))
+- **„Rückgängig" nimmt zurück, wovon die Leiste spricht** — nicht den ganzen Vorstand (gemessen: ein zwischenzeitliches Einklappen sprang stillschweigend mit zurück); die Reue-Frist hängt an einem Zeitstempel statt an der Lebensdauer der Leiste ([rueckgaengigStore.ts](src/plugins/home/anpassen/rueckgaengigStore.ts))
+- Weiter behoben: „nur lokal auf diesem Gerät" war falsch (die Config wird in den persönlichen Ordner gespiegelt), Verbund-Marke fehlte in „Meine Anträge", Positions-Zähler und Tausch meinten verschiedene Nachbarn, Inaktiv-Ausschluss fehlte in Ampel und Kanban, ein Antrag mit fremdem Kürzel stand weiter im Übernahme-Angebot, „Alle Einstellungen" sprang in einen Abschnitt — Bericht: [home-widgets.md](docs/architecture/home-widgets.md)
+
+### v4.130.0 — Ein Paket bringt den ganzen kuratierten Stand auf einen anderen Share (August 2026)
+
+MINOR — Skills, die auf dem Entwicklungs-Share gewachsen sind, kamen bisher nicht am Stück auf den Produktiv-Share: der Seed ergänzt nur fehlende IDs, und ein Einzel-Bündel legt bei ID-Kollision bewusst eine Kopie an. 23 Skills zu übertragen hieß 23 Downloads und danach ein Ziel voller Doubletten.
+
+- **Kuratur-Paket**: Skills + Regeln + Workflows + Textbausteine in EINER Datei, vier reine Module ohne IO ([paket/](src/core/services/skills/paket/), `kind: 'teamflow-kuratur-paket'`)
+- **Vorschau vor dem Schreiben** je Eintrag — neu / geändert / unverändert mit der Wahl übernehmen · aktualisieren · als Kopie · überspringen, Knopf „Paket…" in der Skill-Verwaltung ([PaketDialog.tsx](src/plugins/skill-verwaltung-kuration/PaketDialog.tsx), [PaketImportPanel.tsx](src/plugins/skill-verwaltung-kuration/PaketImportPanel.tsx))
+- **Aktualisieren verliert den Ziel-Stand nie**: neue Fassung, der bisherige Stand rückt in die Historie und ist per Rollback erreichbar ([einspielen.ts](src/core/services/skills/paket/einspielen.ts))
+- **Workflow-Schritt-IDs bleiben stabil** (Zuordnung über `ankerKey` → `nr` → `label+skillId`) — `WorkflowRun.schritte` hängt daran; nur der Kopie-Pfad vergibt sie neu
+- Der Inhaltsvergleich ist kanonisch über den ganzen Record, nicht feldweise — sonst fielen `vorgaben`/`teilStruktur`/`aktiv` durchs Raster ([vergleich.ts](src/core/services/skills/paket/vergleich.ts)); Detail: [gutachten-kurzfassung.md](docs/architecture/gutachten-kurzfassung.md)
+
+### v4.129.0 — Feedback-System: 27 Befunde der Bug-Jagd behoben (August 2026)
+
+MINOR — Ergebnis der read-only Jagd auf die beiden Feedback-Oberflächen (43 Roh → 12 adversarisch gekippt → 27 nach Zusammenführung). Zwei Muster tragen die Hälfte: die Nutzer-Vorschau verbarg, was sie nicht verbot, und „Archivierte zeigen" wirkte nur in der Liste, während der Zähler die volle Zahl versprach.
+
+- **Verändernde Bedienelemente hängen an EINER Bedingung** (`darfSchreiben` = Recht UND Entwickler-Sicht): Auswahl-Häkchen, Bulk-Leiste mit „Archivieren", Verwaltungs-Zahnrad und der Verwaltungs-Block im Detail waren in der Nutzer-Vorschau erreichbar ([typen.ts](src/plugins/feedback-board/ticket/typen.ts), [FeedbackBoardPage.tsx](src/plugins/feedback-board/FeedbackBoardPage.tsx))
+- **Archiviertes hat jetzt eine Bahn, eine Facette und einen eigenen Stepper-Endpunkt** statt zu verschwinden bzw. „Umgesetzt" zu behaupten; Karten in ausgeblendeten Spalten melden sich ([boardSpalten.ts](src/plugins/feedback-board/boardSpalten.ts), [FacettenLeiste.tsx](src/plugins/feedback-board/ticket/FacettenLeiste.tsx), [feedbackStepper.ts](src/core/services/feedback/feedbackStepper.ts))
+- **Jede Facettenzahl gilt neben Suche und den anderen Achsen** — „Rückfrage 1" lieferte beim Klick 0 ([boardZahlen.ts](src/plugins/feedback-board/boardZahlen.ts), `FacettenEinschraenkung`)
+- **Escape gehört der obersten Ebene**: im Annotator warf es Typ, Text und Screenshot weg; am Board schlossen Kaskade **und** `MasterDetailLayout` zusätzlich das Detail — beide fragen jetzt `eineEbeneLiegtDarueber()` (wirkt app-weit) ([FeedbackAnnotator.tsx](src/components/feedback/FeedbackAnnotator.tsx), [masterDetailLayout-logic.ts](src/components/master-detail/masterDetailLayout-logic.ts))
+- Weiter behoben: stummes Absenden + Duplikate bei Wiederholung, überschriebene Entwürfe im Verwaltungs-Block, zwei Budget-Konten je Person, nur-lokales FAQ, verlustbehaftetes Inbox-„Genehmigen", gesperrtes Zurückziehen bei erreichtem Ziel, Sponsoren-Zahl als Personen, tote Chatbot-Einstellungen — Bericht: [feedback-system.md](docs/architecture/feedback-system.md)
+
+### v4.128.2 — Der Index sagt, welcher er ist — und was ihm fehlt (August 2026)
+
+PATCH — Aus dem Test: „Vektoren neu gebaut, App neu geladen — die Seite sagt trotzdem, es gebe keinen Index, und bietet Nachziehen für 136 an." Beide Meldungen stimmten und widersprachen sich trotzdem: die Ampel meinte den Dokumenten-Index, und die 136 fehlten wirklich — der Korpus kam vom Datenspeicher, gebaut in einer anderen Variante mit eigenem Antragsstand.
+
+- **Jedes Ampel-Label nennt seinen Gegenstand** („Kein Dokumenten-Index — bitte indexieren"); seit v4.127 stehen zwei Indizes auf der Seite ([indexAmpel.ts](src/core/services/search/indexAmpel.ts), [katalog.ts](src/core/sichtbarkeit/katalog.ts))
+- **„Synchron mit dem Datenspeicher" und „vollständig für diesen Bestand" sind getrennt** — deckt der geholte Korpus Vorhaben von hier nicht ab, steht das im Klartext statt als ✓ neben einem Knopf mit einer Zahl ([EmbeddingKorpusSection.tsx](src/plugins/kuration/suche-index/sections/EmbeddingKorpusSection.tsx))
+- **Der Lauf meldet seine Bilanz** (eingebettet / übersprungen / voll erzwungen) — `BuildErgebnis` gab es seit je, gelesen hat es niemand ([useKorpusBau.ts](src/plugins/kuration/suche-index/hooks/useKorpusBau.ts))
+- **Der automatische Nachlauf verliert seinen einen Versuch nicht mehr an die Startaufgaben**: vorübergehende Sperren geben den Latch frei, Datenaktualisierung und Korpus-Abgleich sind Abhängigkeiten ([useEmbeddingKorpusAbgleich.ts](src/core/hooks/useEmbeddingKorpusAbgleich.ts), `SPERRE_VORUEBERGEHEND`)
+- Während die Bestandsaufnahme läuft, steht „Bestand wird ermittelt…" statt „0 von 0 · nichts offen"; die Hub-Suche fand den Vektor-Korpus noch unter „Selten gebraucht" ([kurationPanels.tsx](src/plugins/kuration/kurationPanels.tsx))
+
+### v4.128.1 — Ein Netzwerk steht einmal in der Vorschlagsliste, nicht je Schreibweise (August 2026)
+
+PATCH — Aus dem Test: unter `nw:CANNABIS` standen zwei Zeilen, „CannabisNET" und „CANNABIS-NET", beide mit 60 — das las sich wie zwei Mengen. Es ist eine (alle 60 im Netzwerk `16KN0896`); der Export führt allein für dieses Netzwerk elf Schreibweisen. Seit die Suche fugenblind vergleicht (v4.125), ist eine Zeile je Bindestrich eine Unterscheidung ohne Unterschied.
+
+- **Ein Netzwerk steht einmal in der Liste**, beschriftet mit der häufigsten Schreibweise, die Trefferzahl ist die Summe der Gruppe — 61 der 1.025 Schreibweisen fallen zusammen, 222 der 688 Netzwerke standen mehrfach ([wert-index.ts](src/plugins/antraege/services/wert-index.ts))
+- **Der Klick setzt den Namenskern ein statt zu zitieren**: `nw:"NaFa Tech"` fand 9, `nw:NaFa-Tech` 29 — dasselbe Netzwerk, und der Unterschied kam aus der Klammer statt aus den Daten (189 Namen mit Leerzeichen betroffen, [vervollstaendigung.ts](src/plugins/suche/vervollstaendigung.ts))
+- **Der Rang hängt am Kern, nicht an der angezeigten Schreibweise** — nach der Faltung ist sie nur noch Stellvertreterin ihrer Gruppe; „Cannabis-Net" wäre sonst hinter das unverwandte „Netzwerk Cannabisnetz" gerutscht ([wert-index.ts](src/plugins/antraege/services/wert-index.ts), `sammlePassende`)
+- „Stöbern" baut dieselbe Anfrage wie die Vorschlagsliste ([stoebern.ts](src/plugins/suche/start/stoebern.ts))
+- Kein Befund an der Suche: eindeutig ist ohnehin das Kennzeichen (`fkz:16KN0896` → 61 statt 60, weil ein Teilvorhaben einen fremden Netzwerknamen trägt — 96 solcher Fehlzeiger im Bestand), aber es gilt je Förderrunde ([suche.md](docs/feedback-kontext/suche.md))
+
 ### v4.128.0 — Die Metadaten-Extraktion zeigt nur noch die Wege, die diese Fassung gehen kann (August 2026)
 
 MINOR — Im Aufklappmenü „Metadaten-Extraktion" (Datenpflege → Suche & Index) standen sechs Wege, zwei davon in `zah-pl` ohne Wirkung: „Interne KI-API" und „OpenRouter API" bauen ihren Transport aus der Provider-Adresse, die nur der dev-Build setzen kann — in pl steht dort die Streamlit-Adresse, gegen die ein API-Ping scheitert. OpenRouter sperrt für Metadaten ohnehin die Transport-Policy.

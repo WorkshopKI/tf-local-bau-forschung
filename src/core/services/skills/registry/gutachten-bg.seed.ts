@@ -63,16 +63,30 @@ const GA_ABSCHNITT_REGEL_IDS = ['seed-passiv-stil', INTERPUNKTION_REGEL_ID];
  */
 export const SEED_REGELN_BG: QualitaetsRegel[] = [];
 
-/** Umfangs-/Form-Vorgaben des Abschnitts B (vormals `seed-b-*`). */
+/**
+ * Umfangs-/Form-Vorgaben des Abschnitts B (vormals `seed-b-*`).
+ *
+ * Wortanzahl **400–500** statt der alten 750: das ist der Wert, den das Team im Editor
+ * gesetzt hat und den jeder Bestands-Share führt. Der Seed trug weiter die 750 und
+ * hätte einen frischen Share auf ein Ziel gestellt, das nachgemessen niemand erreicht
+ * (Haiku landet auch nach der Korrektur bei rund 430).
+ */
 const SEED_VORGABEN_B: SkillVorgaben = {
-  wortanzahl: { schweregrad: 'fehler', min: 750, persoenlichAnpassbar: true },
+  wortanzahl: { schweregrad: 'fehler', min: 400, max: 500, persoenlichAnpassbar: true },
   absatzMin: { schweregrad: 'fehler', min: 4 },
   keineAufzaehlungen: { schweregrad: 'fehler' },
 };
 
-/** Umfangs-/Form-Vorgaben des Abschnitts C (vormals `seed-c-umfang`/`seed-c-keine-aufzaehlungen`). */
+/**
+ * Umfangs-/Form-Vorgaben des Abschnitts C (vormals `seed-c-umfang`/`seed-c-keine-aufzaehlungen`).
+ *
+ * Wortanzahl als **`fehler`**: als `hinweis` hatte die Vorgabe keinen Durchsetzungsweg —
+ * `chooseRetryModifier` startet einen Korrektur-Versuch nur bei `fehler`, der
+ * `laenger`-Zweig war für einen zu kurzen Abschnitt also unerreichbar. Gemessen hob das
+ * den Abschnitt von 244–321 auf 288–378 Wörter (Haiku, drei fiktive VBs, je drei Läufe).
+ */
 const SEED_VORGABEN_C: SkillVorgaben = {
-  wortanzahl: { schweregrad: 'hinweis', min: 300, max: 350, persoenlichAnpassbar: true },
+  wortanzahl: { schweregrad: 'fehler', min: 300, max: 350, persoenlichAnpassbar: true },
   keineAufzaehlungen: { schweregrad: 'fehler' },
 };
 

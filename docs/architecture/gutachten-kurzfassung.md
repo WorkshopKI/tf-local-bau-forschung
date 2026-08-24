@@ -227,17 +227,46 @@ Gemessen (Haiku 4.5, drei fiktive VBs, je ein Lauf):
 | **B**, Ziel 400–500 | 360 / 364 / 364 | 310 / 328 / 364 | 440 / 321 / 337 |
 | **C**, Ziel 300–350 | 203 / 235 / 218 | 282 / 249 / 255 | **309 / 244 / 283** |
 
-**C ist besser geworden, B nicht.** C legt in allen drei Dokumenten gegenüber dem Nullpunkt zu (+106 / +9 / +65); B schwankt ohne Richtung (+80 / −43 / −27). Der Widerspruch in B ist beseitigt — das ist für sich richtig —, aber er war nicht die Ursache der Kürze. Über drei Konfigurationen und neun Läufe landet B zwischen 310 und 440 mit einem Mittel um 350: **das Ziel 400–500 liegt über dem, was Haiku für diesen Abschnitt schreibt, unabhängig vom Prompt.** Die Quelle ist nicht der Engpass — die Fixture-VBs tragen 12.000–14.000 Wörter mit 400–600-Wort-Abschnitten.
+**C ist besser geworden, B nicht.** C legt in allen drei Dokumenten gegenüber dem Nullpunkt zu (+106 / +9 / +65); B schwankt ohne Richtung (+80 / −43 / −27). Der Widerspruch in B war real und seine Beseitigung richtig — nur war er nicht die Ursache der Kürze. Die Quelle ist es auch nicht: die Fixture-VBs tragen 12.000–14.000 Wörter mit 400–600-Wort-Abschnitten.
 
-**Warum keine Selbstkorrektur greift:** `chooseRetryModifier` ([retry-policy.ts](../../src/plugins/antraege/gutachten/retry-policy.ts)) startet einen Versuch nur bei `level === 'fehler'`. Die Wortanzahl ist an B und C ein **`hinweis`**. Der `laenger`-Retry existiert, ist verdrahtet und feuert bei zu kurzem Text nie — die gemessenen Zahlen sind damit exakt das, was im Programm ankommt. Wer die Zielzahl durchsetzen will, hat den Hebel in einem Feld: `schweregrad` auf `fehler`. Das kostet einen zweiten Modell-Lauf je Abschnitt und ist eine Fachentscheidung, keine Prompt-Frage.
+**Warum an dieser Stelle keine Selbstkorrektur griff:** `chooseRetryModifier` ([retry-policy.ts](../../src/plugins/antraege/gutachten/retry-policy.ts)) startet einen Versuch nur bei `level === 'fehler'`. Die Wortanzahl war an B und C ein **`hinweis`** — der `laenger`-Zweig existierte, war verdrahtet und getestet und für einen zu kurzen Abschnitt trotzdem unerreichbar. Ein weicher Grenzwert hat keinen Durchsetzungsweg; die Zielzahl war ein Wunsch. Das ist der Hebel, den der nächste Abschnitt zieht — und mit ihm fällt der Befund „das Ziel liegt über dem, was das Modell schreibt".
 
-Rollout über `ga-b-teil-anteile-2026-08` und `ga-c-final-umfang-2026-08`, beide pristine-only. Die kuratierten Wortzahl-Vorgaben wurden **nicht** angefasst.
+Rollout über `ga-b-teil-anteile-2026-08` und `ga-c-final-umfang-2026-08`, beide pristine-only.
 
 ### Der Wächter, der das hätte fangen müssen
 
 `findeUmfangKonflikte` gibt es seit 2026-07 genau für „Prosa-Zahl weicht von der Regel ab" — und es schloss weiche Teil-Richtwerte ausdrücklich aus, damit „(Richtwert ≥ 150 Wörter)" keinen Fehlalarm auslöst. Die Begründung stimmt für einen einzelnen Richtwert und übersieht, dass Teile sich **summieren**. Seit v6.32 prüft der Wächter mehrere Wort-Richtwerte zusätzlich als Summe gegen die Obergrenze der Regel; ein einzelner bleibt bewusst stumm.
 
 Zweitens sah diese Warnung beim Messen niemand: sie lebt im Skill-Editor, und der Eval-Lauf fragt sie nicht. Das hat jetzt zweimal einen vollständigen Messlauf gekostet (A ohne Ausgabeformat-Block, B mit der Summe). `npm run eval:skills` hält die Prompts der zu messenden Abschnitte darum **vor dem ersten Modell-Aufruf** gegen `findeUmfangKonflikte` + `findeVorgabenWidersprueche` und meldet, was es findet — ohne abzubrechen, denn ein Widerspruch kann der Gegenstand der Messung sein.
+
+### Die Durchsetzung war der Hebel, nicht der Prompt (v6.33, gemessen)
+
+Der obige Befund „das Ziel liegt über dem, was Haiku schreibt" galt für einen **einzelnen** Wurf. Er stimmt nicht mehr, sobald die Vorgabe durchsetzbar ist.
+
+`chooseRetryModifier` ([retry-policy.ts](../../src/plugins/antraege/gutachten/retry-policy.ts)) startet einen automatischen Korrektur-Versuch nur bei `level === 'fehler'`. Mit der Wortanzahl als `fehler` greift der vorhandene `laenger`-Zweig — und die Zahlen sind erreichbar:
+
+| | ohne Durchsetzung (`hinweis`) | mit Durchsetzung (`fehler`, ein Versuch) |
+|---|---|---|
+| **B**, Ziel 400–500 | 310–440, Mittel ~350 | **417–479, 9 von 9 im Band** |
+| **C**, Ziel 300–350 | 244–321 | 288–378, 5 von 9 im Band |
+
+Die Zielzahlen bleiben deshalb, wie das Team sie gesetzt hat. Gesenkt wurde nichts; der Seed übernimmt für B die kuratierten **400–500** statt der alten 750, die kein Modell erreicht.
+
+**Sonnet 5 löst es nicht.** Ein einzelner Wurf liefert 349–384 (B) und 258–269 (C) — kein Gewinn gegenüber Haiku-mit-Korrektur, bei höheren Kosten. Zwei Modellklassen im selben Band sind kein Modelldefekt.
+
+**Zwei Versuche statt einem** (Probe, zwei Läufe): mal 6/6 sauber, mal ein Überschuss auf 506 bzw. 360. Kein klarer Gewinn für einen dritten Modell-Aufruf — bewusst nicht eingebaut.
+
+**Was der Wortlaut der Korrektur ausmacht — und was nicht.** Drei Fassungen, je neun Läufe, gezählt sind die Läufe im Zielband:
+
+| Anweisung | B (400–500) | C (300–350) | zusammen |
+|---|---|---|---|
+| „Erweitere auf **mindestens 400** Wörter" (Bestand, beibehalten) | 9/9 | 5/9 | **14/18** |
+| „Erweitere auf **400 bis 500** Wörter" | 4/9 | 6/9 | 10/18 |
+| „Erweitere auf **rund 450** (Spanne 400 bis 500)" | 4/9 | 7/9 | 11/18 |
+
+Bei einer Untergrenze zielt das Modell darüber, bei einer Spanne auf deren unteren Rand. Ob das trifft, hängt an der **Breite** des Bandes: B fängt den Überschuss (100 Wörter breit), C nicht (50). Die beiden „prinzipielleren" Fassungen sind messbar schlechter und wurden **zurückgenommen** — der Bestands-Wortlaut bleibt. Eine vierte Fassung („mindestens N, ziele auf rund MITTE, überschreite MAX nicht") sah im einzigen Lauf am dichtesten aus, blieb aber unbelegt, weil das Mess-Budget erschöpft war.
+
+**Die Harness kennt den Auto-Retry jetzt.** `runOneSection` fährt dieselbe Schleife wie die App (`chooseRetryModifier` + `modifier` + `vorherigerText`), mit der Decke aus der **Workflow-Definition** statt einer eigenen Zahl; `--no-auto-retry` schaltet sie für den Vergleich mit Alt-Läufen ab. Ohne sie maß jede Zahl den ersten Wurf, den in der App niemand zu sehen bekommt. `retryKorrekturAnweisung` reicht dem Korrektur-Lauf denselben Zielwert nach, den der manuelle Korrektur-Knopf schon nannte — **ohne messbaren Effekt**, aber der automatische und der manuelle Weg sagen dem Modell jetzt dasselbe.
 
 ### Die Wortzahl-Zeile nennt jetzt ihren Bezug
 

@@ -147,6 +147,9 @@ export const GA_B_TEIL_ANTEILE_MIGRATION = 'ga-b-teil-anteile-2026-08';
 /** ID der eigenen Tiefenangabe für den finalen Text von C. */
 export const GA_C_FINAL_UMFANG_MIGRATION = 'ga-c-final-umfang-2026-08';
 
+/** ID der Durchsetzung der B-/C-Wortanzahl (`hinweis` → `fehler`, aktiviert den Auto-Retry). */
+export const GA_BC_UMFANG_DURCHSETZEN_MIGRATION = 'ga-bc-umfang-durchsetzen-2026-08';
+
 export interface ReconcileResult {
   file: SkillRegistryFile;
   /** True, wenn dieser Lauf etwas geändert hat und der Aufrufer zurückschreiben soll. */
@@ -842,6 +845,41 @@ function applyCFinalUmfang(skills: SkillRecord[]): SkillRecord[] {
       : s);
 }
 
+/**
+ * Abschnitte B + C: die Wortanzahl wird **durchsetzbar** (`hinweis` → `fehler`).
+ *
+ * Der Befund, der das auslöste: `chooseRetryModifier` startet einen automatischen
+ * Korrektur-Versuch nur bei `level === 'fehler'`. Solange die Wortanzahl ein `hinweis`
+ * war, blieb der vorhandene, getestete `laenger`-Zweig für einen zu kurzen Abschnitt
+ * unerreichbar — die Zielzahl war ein Wunsch ohne Weg. Gemessen (Haiku, drei fiktive
+ * VBs, je drei Läufe): B stieg von 310–440 auf 388–440, C von 244–321 auf 288–378.
+ *
+ * **Abweichung von der Regel „kuratierte Werte nie anfassen", bewusst und eng
+ * geschnitten:** die Migration ändert AUSSCHLIESSLICH den `schweregrad`. Min und Max
+ * bleiben stehen, wie der Kurator sie gesetzt hat — die Zahlen sind seine Entscheidung,
+ * die Durchsetzung war eine Team-Entscheidung. Ein Abschnitt, dessen Wortanzahl gar
+ * nicht gesetzt oder bereits `fehler` ist, bleibt unberührt.
+ *
+ * Zusätzlich für einen PRISTINEN B (noch auf dem Alt-Seed „mindestens 750, kein Max"):
+ * Übernahme der 400–500, die das Team im Editor gesetzt hat. Ein Share mit eigenen
+ * Zahlen behält sie.
+ */
+function applyBcUmfangDurchsetzen(skills: SkillRecord[]): SkillRecord[] {
+  const alterBSeed = (v: SkillVorgaben['wortanzahl']): boolean =>
+    v?.min === 750 && v.max === undefined;
+  return skills.map(s => {
+    if (s.id !== AUSGANGSLAGE_SKILL_ID && s.id !== RISIKEN_SKILL_ID) return s;
+    const wort = s.vorgaben?.wortanzahl;
+    if (!wort) return s;
+    const zahlen = s.id === AUSGANGSLAGE_SKILL_ID && alterBSeed(wort)
+      ? { min: 400, max: 500 }
+      : { ...(wort.min !== undefined ? { min: wort.min } : {}), ...(wort.max !== undefined ? { max: wort.max } : {}) };
+    const neu = { ...wort, ...zahlen, schweregrad: 'fehler' as const };
+    if (JSON.stringify(neu) === JSON.stringify(wort)) return s;
+    return { ...s, vorgaben: { ...s.vorgaben, wortanzahl: neu } };
+  });
+}
+
 interface EinzelMigration {
   marker: string;
   /** Bekommt die GANZE Datei — Migrationen dürfen auch `regeln` anfassen. */
@@ -877,6 +915,7 @@ const MIGRATIONEN: EinzelMigration[] = [
   { marker: GA_A_VEROEFFENTLICHUNG_MIGRATION, apply: nurSkills(applyAVeroeffentlichung) },
   { marker: GA_B_TEIL_ANTEILE_MIGRATION, apply: nurSkills(applyBTeilAnteile) },
   { marker: GA_C_FINAL_UMFANG_MIGRATION, apply: nurSkills(applyCFinalUmfang) },
+  { marker: GA_BC_UMFANG_DURCHSETZEN_MIGRATION, apply: nurSkills(applyBcUmfangDurchsetzen) },
 ];
 
 /**
