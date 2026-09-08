@@ -320,6 +320,41 @@ describe('runAutoRefresh — abweichende Datei-Sicht (Divergenz)', () => {
     expect(csv.saveSchemaStempelVon).toContain(h.eigenerName);
   });
 
+  // Produktiv-Beleg 08.09.2026: ein Laptop mit einem Export-Ordner vom 21.08.
+  // importierte dreimal am Tag die alten Dateien ueber den aktuellen Team-Stand
+  // und setzte ihn um 18 Tage zurueck. Eine Datei, die aelter ist als die, die das
+  // Team schon hat, wird NICHT automatisch importiert — nur mit Zustimmung.
+  it('Datei aelter als der Team-Stempel: kein Import, Eintrag im Bericht, kein Publish', async () => {
+    const TAG = 24 * 60 * 60 * 1000;
+    const kandidaten = KANDIDATEN.map(k => mitFremdemTeamStempel(k, DATEI_MTIME + 18 * TAG));
+    const report = await runAutoRefresh(idb, kandidaten, { kuratorName: h.eigenerName });
+
+    expect(csv.importCalls).toHaveLength(0);
+    expect(report.processed).toHaveLength(0);
+    expect(report.veraltet.map(v => v.schemaId)).toEqual(['7737-bgl', '9097-anb']);
+    expect(report.veraltet[0]).toMatchObject({
+      schemaName: '7737-bgl',
+      teamStempel: { lastModified: DATEI_MTIME + 18 * TAG, von: 'BIB' },
+      datei: { name: 'q.csv', lastModified: DATEI_MTIME, size: 3 },
+    });
+    expect(csv.snapshotCalls).toEqual([]);
+    // Kein Stempel: der naechste Lauf sieht dieselbe Lage wieder, statt sie stillzulegen.
+    expect(csv.saveSchemaCalls).toHaveLength(0);
+    expect(audit.calls.filter(a => a.action === 'csv_quelle_veraltet')).toHaveLength(2);
+  });
+
+  it('„Trotzdem importieren" hebt den Veraltet-Block fuer genau diese Quelle auf', async () => {
+    const TAG = 24 * 60 * 60 * 1000;
+    const kandidaten = KANDIDATEN.map(k => mitFremdemTeamStempel(k, DATEI_MTIME + 18 * TAG));
+    const report = await runAutoRefresh(idb, kandidaten, {
+      kuratorName: h.eigenerName,
+      driftAkzeptiertFuer: ['7737-bgl'],
+    });
+
+    expect(csv.importCalls.map(c => c.schemaId)).toEqual(['7737-bgl']);
+    expect(report.veraltet.map(v => v.schemaId)).toEqual(['9097-anb']);
+  });
+
   it('protokolliert je Kandidat, WARUM er als neu galt', async () => {
     const kandidaten: RefreshCandidate[] = KANDIDATEN.map(k => ({
       ...k,

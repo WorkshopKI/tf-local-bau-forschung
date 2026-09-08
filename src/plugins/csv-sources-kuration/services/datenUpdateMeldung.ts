@@ -80,6 +80,11 @@ export function beschreibeDatenUpdate(r: DataUpdateResult, opts: MeldungOptionen
   const abweichend = r.csvReport?.divergenzen?.length ?? 0;
   if (abweichend > 0) teile.push(`${abweichend} Quelle(n) mit abweichender Datei — ${wohin}`);
 
+  // Eine Datei aus der Vergangenheit: nicht importiert, damit sie den Team-Stand
+  // nicht zurücksetzt — der Nutzer entscheidet im Bericht.
+  const veraltet = r.csvReport?.veraltet?.length ?? 0;
+  if (veraltet > 0) teile.push(`${veraltet} Quelle(n) mit veralteter Datei übersprungen — ${wohin}`);
+
   if (r.lockBusy) {
     teile.push(`CSV-Import übersprungen — ${r.lockBusy.blockingKurator} aktualisiert gerade`);
   }

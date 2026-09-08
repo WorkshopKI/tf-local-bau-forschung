@@ -80,6 +80,19 @@ Drift-Dialog (Team-Datei mit Größe, Datum, Urheber `source_stamped_by` neben d
 Audit-Eintrag `csv_quelle_divergenz`. Ohne Zeilen-Änderung ist es keine Divergenz, sondern nur ein
 veralteter Stempel; mit einem Team-Stempel aus der Vornacht der normale Tages-Export.
 
+**Veraltete Datei = Block** (v6.37.1, `istVeralteteDatei`): das Produktiv-Audit-Log vom 08.09.2026 nannte
+den Verursacher — ein Laptop, auf dem für Dev-Zwecke ein anderer CSV-Ordner eingestellt war (Exporte
+vom 21./23.08., 7 945 statt 8 011 Zeilen), lief an diesem Tag gegen den echten Share. Dreimal
+importierte er die alten Dateien über den aktuellen Stand (`changed 1028, heldRemovals 66`), dreimal
+drehte der nächste Kollege ihn wieder vor (`new 66, changed 1028`). Die 6-h-Divergenz greift hier
+nicht, die Dateien liegen 18 Tage auseinander — in die **falsche** Richtung. Regel: ist die eigene
+Datei um mindestens einen Export-Zyklus (`VERALTET_SCHWELLE_MS` = 24 h) **älter** als der
+Team-Stempel und nicht byte-gleich, wird sie **nicht importiert** und nicht gestempelt (der nächste
+Lauf meldet dieselbe Lage wieder); `RefreshReport.veraltet`, Audit `csv_quelle_veraltet`, Dialog mit
+beiden Dateien und „Trotzdem importieren" (dieselbe `driftAkzeptiertFuer`-Zustimmung wie bei
+Drift). Anders als die Divergenz derselben Nacht bewusst ein Block: eine ältere Datei über einen
+neueren Stand zu legen ist nie richtig, egal welcher Rechner recht hat.
+
 **Der Start-Bericht erreicht den Banner** ([start-bericht.ts](../../src/plugins/csv-sources-kuration/services/start-bericht.ts)):
 der Start-Pass in App.tsx zeigte sein CSV-Ergebnis nur als 6-Sekunden-Toast; eine Divergenz oder
 ein Fehler aus genau diesem Lauf erreichte niemanden (die Quelle ist gestempelt, also kein Kandidat,

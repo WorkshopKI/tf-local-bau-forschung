@@ -49,6 +49,8 @@ export function CsvAutoRefreshDriftDialog({
   const encodingKorrigiert = report.processed.filter(p => p.korrigiertesEncoding);
   // Quellen, bei denen das Team dieselbe Nacht eine ANDERE Datei importiert hat.
   const divergenzen = report.divergenzen;
+  // Quellen, deren Datei aelter ist als der Team-Stand — bewusst NICHT importiert.
+  const veraltet = report.veraltet;
 
   const datum = (ms: number | null): string => ms == null
     ? 'unbekannt'
@@ -79,6 +81,8 @@ export function CsvAutoRefreshDriftDialog({
               <span className="font-medium text-[var(--tf-text)]">{totalProcessed}</span> Quelle
               {totalProcessed === 1 ? ' wurde' : 'n wurden'} automatisch aktualisiert.
             </>
+          ) : veraltet.length > 0 ? (
+            <>Keine Quelle wurde importiert — die verknüpften Dateien sind älter als der Stand des Teams.</>
           ) : (
             <>Keine Quelle konnte automatisch aktualisiert werden.</>
           )}
@@ -110,6 +114,51 @@ export function CsvAutoRefreshDriftDialog({
                   verstümmelt worden.
                 </div>
               ))}
+            </div>
+          </div>
+        ) : null}
+
+        {veraltet.length > 0 ? (
+          <div className="rounded-md border-[0.5px] border-red-300 bg-red-50 p-3">
+            <div className="flex items-start gap-2 mb-2">
+              <AlertTriangle size={14} className="mt-0.5 flex-shrink-0 text-red-700" />
+              <div className="text-[12.5px] font-medium text-red-900">
+                {veraltet.length} Quelle{veraltet.length === 1 ? '' : 'n'} nicht importiert — die verknüpfte
+                Datei ist älter als der Stand des Teams.
+              </div>
+            </div>
+            <div className="ml-6 space-y-2">
+              {veraltet.map(v => (
+                <div key={v.schemaId} className="flex items-start justify-between gap-2 rounded border-[0.5px] border-red-200 bg-white px-2.5 py-2 text-[11px] text-red-900">
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[12px] font-medium text-[var(--tf-text)]">{v.schemaName}</div>
+                    <div className="mt-0.5">
+                      Deine Datei: <span className="font-mono">{v.datei.name}</span>{' '}
+                      ({bytes(v.datei.size)}, {datum(v.datei.lastModified)}).
+                    </div>
+                    <div>
+                      Das Team hat zuletzt importiert:{' '}
+                      <span className="font-mono">{v.teamStempel.fileName ?? '?'}</span>{' '}
+                      ({bytes(v.teamStempel.size)}, {datum(v.teamStempel.lastModified)}
+                      {v.teamStempel.von ? `, von ${v.teamStempel.von}` : ''}).
+                    </div>
+                  </div>
+                  {onTrotzdemImportieren ? (
+                    <button
+                      type="button"
+                      onClick={() => trotzdem([v.schemaId])}
+                      className="shrink-0 inline-flex items-center rounded border-[0.5px] border-red-300 bg-white px-2 py-1 text-[11.5px] text-red-900 hover:bg-red-100 cursor-pointer"
+                    >
+                      Trotzdem importieren
+                    </button>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+            <div className="ml-6 mt-2 text-[11px] text-red-900">
+              Ein Import dieser Datei würde den Stand des Teams auf ihr Datum zurücksetzen. Meist zeigt der
+              verknüpfte CSV-Ordner auf eine alte Kopie — in „Einstellungen → Daten" den aktuellen
+              Export-Ordner verknüpfen. „Trotzdem importieren" gilt nur für diesen Lauf.
             </div>
           </div>
         ) : null}
@@ -294,7 +343,8 @@ export function CsvAutoRefreshDriftDialog({
         ) : null}
 
         {totalDrift === 0 && totalErrors === 0 && uebergangen.length === 0
-          && encodingKorrigiert.length === 0 && divergenzen.length === 0 && totalProcessed > 0 ? (
+          && encodingKorrigiert.length === 0 && divergenzen.length === 0 && veraltet.length === 0
+          && totalProcessed > 0 ? (
           <div className="text-[11.5px] text-[var(--tf-text-tertiary)]">
             Alle Quellen wurden ohne Probleme aktualisiert. Bestehende Mappings sind unverändert.
           </div>

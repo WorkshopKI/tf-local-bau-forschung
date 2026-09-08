@@ -91,6 +91,8 @@ export function CsvAutoRefreshBanner({ state }: { state: AutoRefreshCheckState }
   // Und für eine abweichende Datei-Sicht: das Team hat dieselbe Nacht schon eine
   // ANDERE Datei importiert — zwei Rechner lesen verschiedene Export-Kopien.
   const divergenzen = state.report?.divergenzen.length ?? 0;
+  // Und für Dateien aus der Vergangenheit, die der Lauf NICHT importiert hat.
+  const veraltet = state.report?.veraltet.length ?? 0;
   // EINE Regel für „muss stehen bleiben" — dieselbe, nach der der Start-Pass
   // seinen Bericht überhaupt erst hierher reicht.
   const reportZeigenswert = state.report ? berichtZeigenswert(state.report) : false;
@@ -182,6 +184,8 @@ export function CsvAutoRefreshBanner({ state }: { state: AutoRefreshCheckState }
               ? ' — Encoding korrigiert' : ''}
             {divergenzen > 0
               ? ` — ⚠ ${divergenzen} Quelle${divergenzen === 1 ? '' : 'n'} mit abweichender Datei` : ''}
+            {veraltet > 0
+              ? ` — ⚠ ${veraltet} Quelle${veraltet === 1 ? '' : 'n'} mit veralteter Datei übersprungen` : ''}
             {state.report!.errors.length > 0 ? ` — ${state.report!.errors.length} Fehler` : ''}.
           </span>
         ) : (

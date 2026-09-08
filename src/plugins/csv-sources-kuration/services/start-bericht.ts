@@ -22,7 +22,7 @@ import type { RefreshReport } from './auto-refresh';
 
 /** Hat der Lauf etwas, das am Bildschirm stehen bleiben muss? */
 export function berichtZeigenswert(r: RefreshReport): boolean {
-  if (r.divergenzen.length > 0 || r.drift.length > 0 || r.errors.length > 0) return true;
+  if (r.divergenzen.length > 0 || r.veraltet.length > 0 || r.drift.length > 0 || r.errors.length > 0) return true;
   return r.processed.some(p => (p.uebergangeneSpalten?.length ?? 0) > 0 || p.korrigiertesEncoding != null);
 }
 

@@ -126,6 +126,7 @@ function logTiming(
     + ` changed=${result.csvReport?.changedAntraege ?? 0}`
     + ` errors=${result.csvReport?.errors.length ?? 0}`
     + ` divergenz=${result.csvReport?.divergenzen.length ?? 0}`
+    + ` veraltet=${result.csvReport?.veraltet.length ?? 0}`
     + (c ? ` parse=${round(c.parseMs)}ms hashDiff=${round(c.hashDiffMs)}ms merge=${round(c.mergeMs)}ms snapshotWrite=${round(c.snapshotWriteMs)}ms` : '')
     + (result.lockBusy ? ` lockBusy=${result.lockBusy.blockingKurator}` : '');
   // Always-on (wie das bestehende `[snapshot-sync]`-info) — soll auch im
@@ -165,6 +166,7 @@ function logTiming(
         changedAntraege: result.csvReport?.changedAntraege ?? 0,
         errors: result.csvReport?.errors.length ?? 0,
         divergenzen: result.csvReport?.divergenzen.length ?? 0,
+        veraltet: result.csvReport?.veraltet.length ?? 0,
         parseMs: c ? round(c.parseMs) : 0,
         hashDiffMs: c ? round(c.hashDiffMs) : 0,
         mergeMs: c ? round(c.mergeMs) : 0,

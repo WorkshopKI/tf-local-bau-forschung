@@ -59,6 +59,13 @@ describe('beschreibeDatenUpdate', () => {
     expect(m).toMatch(/1 Quelle\(n\) mit abweichender Datei — Details im Banner/);
   });
 
+  it('nennt übersprungene Quellen mit veralteter Datei', () => {
+    const m = beschreibeDatenUpdate(ergebnis({
+      csvReport: report({ veraltet: [{ schemaId: 'a' }, { schemaId: 'b' }] as RefreshReport['veraltet'] }),
+    }));
+    expect(m).toBe('2 Quelle(n) mit veralteter Datei übersprungen — Details im Banner');
+  });
+
   it('nennt Importe UND Blockaden nebeneinander', () => {
     const m = beschreibeDatenUpdate(ergebnis({
       csvReport: report({

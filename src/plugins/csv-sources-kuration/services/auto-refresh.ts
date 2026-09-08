@@ -70,7 +70,13 @@ import {
   type UpdatePruefung,
 } from '../csv-source-handle';
 import { loadSharedCsvFilenames } from '../csv-source-filenames';
-import { istQuellDivergenz, teamStempelAus, type QuellDivergenz } from './csv-quell-divergenz';
+import {
+  istQuellDivergenz,
+  istVeralteteDatei,
+  teamStempelAus,
+  type QuellDivergenz,
+  type VeralteteQuelle,
+} from './csv-quell-divergenz';
 import {
   validateHeaders,
   hasDrift,
@@ -284,6 +290,12 @@ export interface RefreshReport {
    * Audit-Log nennen beide Sichten.
    */
   divergenzen: QuellDivergenz[];
+  /**
+   * Quellen, deren Datei um mindestens einen Export-Zyklus ÄLTER ist als die,
+   * die das Team zuletzt importiert hat — NICHT importiert (ein Import setzte
+   * den Team-Stand zurück), Ausweg „Trotzdem importieren" wie bei Drift.
+   */
+  veraltet: VeralteteQuelle[];
   /** Aufsummiertes Per-Phasen-Timing über alle importierten Quellen (ms) —
    *  fürs Performance-Logging des Daten-Update-Orchestrators. */
   importTimings: { parseMs: number; hashDiffMs: number; mergeMs: number; snapshotWriteMs: number };
@@ -503,7 +515,7 @@ export async function runAutoRefresh(
   opts: RunAutoRefreshOptions = {},
 ): Promise<RefreshReport> {
   const report: RefreshReport = {
-    processed: [], drift: [], errors: [], divergenzen: [], journal: [],
+    processed: [], drift: [], errors: [], divergenzen: [], veraltet: [], journal: [],
     importTimings: { parseMs: 0, hashDiffMs: 0, mergeMs: 0, snapshotWriteMs: 0 },
     skippedInactiveUnterprogramm: 0,
     heldRemovals: 0,
@@ -588,6 +600,28 @@ async function laufeKandidatenAb(
     } catch (err) {
       report.errors.push({ schemaId, schemaName: name, message: (err as Error).message });
       continue;
+    }
+
+    // Aelter als das, was das Team schon hat? Dann ist das kein neuer Export,
+    // sondern ein Ordner aus der Vergangenheit — ein Import setzte den Team-
+    // Stand zurueck (Produktiv-Beleg 08.09.2026: dreimal am Tag um 18 Tage).
+    // Nicht stempeln: der naechste Lauf soll dieselbe Lage wieder melden, statt
+    // sie stillzulegen. Ausweg wie bei Drift: „Trotzdem importieren".
+    if (!akzeptiert.has(schemaId)) {
+      const teamStempel = teamStempelAus(schema);
+      const dateiMeta = { name: file.name, lastModified: file.lastModified, size: file.size };
+      if (istVeralteteDatei(teamStempel, dateiMeta)) {
+        const eintrag: VeralteteQuelle = { schemaId, schemaName: name, teamStempel, datei: dateiMeta };
+        report.veraltet.push(eintrag);
+        console.warn(
+          `[csv-auto-refresh] „${name}": die verknüpfte Datei (${new Date(file.lastModified).toISOString()}) ist älter `
+          + `als die zuletzt vom Team importierte (${new Date(teamStempel.lastModified!).toISOString()}, von `
+          + `${teamStempel.von ?? 'unbekannt'}) — nicht importiert. Verknüpften CSV-Ordner prüfen.`,
+        );
+        await logAudit(idb, { action: 'csv_quelle_veraltet', user: opts.kuratorName, details: eintrag })
+          .catch(() => undefined);
+        continue;
+      }
     }
 
     opts.onProgress?.({ index: i, total: candidates.length, schemaName: name, phase: 'validating' });
@@ -838,6 +872,7 @@ async function laufeKandidatenAb(
       drift: report.drift.length,
       errors: report.errors.length,
       divergenzen: report.divergenzen.length,
+      veraltet: report.veraltet.length,
       changedAntraege: report.changedAntraege,
     },
   });

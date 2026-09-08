@@ -54,6 +54,41 @@ export interface QuellDivergenz {
   geaenderteZeilen: number;
 }
 
+/**
+ * Eine Datei gilt als VERALTET, wenn sie um mindestens einen Export-Zyklus
+ * älter ist als die Datei, die das Team zuletzt importiert hat. Die Exporte
+ * entstehen 1× nachts; ein Versatz unter 24 h ist Uhr- oder SMB-Versatz,
+ * darüber liegt eine Datei aus der Vergangenheit — ein Import setzte den
+ * Team-Stand zurück. Produktiv-Beleg 08.09.2026: ein Laptop mit einem
+ * Export-Ordner vom 21.08. importierte dreimal am Tag über den aktuellen Stand
+ * (`changed 1028, heldRemovals 66`), jedes Mal um 18 Tage zurück.
+ */
+export const VERALTET_SCHWELLE_MS = 24 * 60 * 60 * 1000;
+
+/** Eine Quelle, deren Datei älter ist als der Team-Stempel — nicht automatisch importiert. */
+export interface VeralteteQuelle {
+  schemaId: string;
+  schemaName: string;
+  teamStempel: TeamStempel;
+  datei: { name: string; lastModified: number; size: number };
+}
+
+/**
+ * Älter als der Team-Stempel um mindestens einen Export-Zyklus — und nicht
+ * dieselben Bytes (dann gäbe es nichts zu importieren). Ohne Team-Zeit kein
+ * Urteil. Bewusst ein BLOCK (mit „Trotzdem importieren"), anders als die
+ * Divergenz derselben Nacht: eine ältere Datei über einen neueren Stand zu
+ * legen ist nie richtig, egal welcher Rechner recht hat.
+ */
+export function istVeralteteDatei(
+  team: TeamStempel,
+  datei: { name: string; lastModified: number; size: number; checksum?: string },
+): boolean {
+  if (team.lastModified == null) return false;
+  if (datei.checksum != null && team.checksum != null && datei.checksum === team.checksum) return false;
+  return team.lastModified - datei.lastModified >= VERALTET_SCHWELLE_MS;
+}
+
 export function teamStempelAus(schema: CsvSchema): TeamStempel {
   return {
     fileName: schema.source_file_name ?? null,

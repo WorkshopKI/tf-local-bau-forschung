@@ -11,8 +11,10 @@
 import { describe, it, expect } from 'vitest';
 import {
   istQuellDivergenz,
+  istVeralteteDatei,
   teamStempelAus,
   DIVERGENZ_FENSTER_MS,
+  VERALTET_SCHWELLE_MS,
   type TeamStempel,
   type DateiSicht,
 } from '../csv-quell-divergenz';
@@ -65,6 +67,41 @@ describe('istQuellDivergenz', () => {
 
   it('gleicher Checksum ist keine Divergenz', () => {
     expect(istQuellDivergenz({ ...team, checksum: datei.checksum }, datei, 5)).toBe(false);
+  });
+});
+
+/**
+ * Der Produktiv-Beleg vom 08.09.2026: „TH PL zbook" stempelte dreimal Dateien vom
+ * 21./23. August (7 945 statt 8 011 Zeilen), während vier Kollegen den Export vom
+ * 8. September lasen. Jeder zbook-Start setzte den Team-Stand um 18 Tage zurück
+ * (`changed 1028, heldRemovals 66`), der nächste Kollege drehte ihn wieder vor.
+ * Eine Datei, die ÄLTER ist als die, die das Team schon importiert hat, ist kein
+ * neuer Export — sie darf nicht automatisch importiert werden.
+ */
+describe('istVeralteteDatei', () => {
+  const TAG = 24 * 60 * 60 * 1000;
+
+  it('Datei 18 Tage älter als der Team-Stempel → veraltet', () => {
+    const alt: DateiSicht = { ...datei, lastModified: NACHT - 18 * TAG };
+    expect(istVeralteteDatei(team, alt)).toBe(true);
+  });
+
+  it('die Schwelle ist ein Export-Zyklus (24 h) — knapp darunter ist Uhr-Versatz, nicht Vergangenheit', () => {
+    expect(VERALTET_SCHWELLE_MS).toBe(TAG);
+    expect(istVeralteteDatei(team, { ...datei, lastModified: NACHT - TAG + 1 })).toBe(false);
+    expect(istVeralteteDatei(team, { ...datei, lastModified: NACHT - TAG - 1 })).toBe(true);
+  });
+
+  it('gleiche Bytes sind nie veraltet — dann wäre gar nichts zu importieren', () => {
+    expect(istVeralteteDatei(team, { ...datei, lastModified: NACHT - 18 * TAG, checksum: team.checksum! })).toBe(false);
+  });
+
+  it('ohne Team-Zeit kein Urteil', () => {
+    expect(istVeralteteDatei({ ...team, lastModified: null }, { ...datei, lastModified: NACHT - 18 * TAG })).toBe(false);
+  });
+
+  it('eine neuere Datei ist der normale Tages-Export', () => {
+    expect(istVeralteteDatei(team, { ...datei, lastModified: NACHT + TAG })).toBe(false);
   });
 });
 

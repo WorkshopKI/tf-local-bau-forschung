@@ -12,7 +12,7 @@ import type { RefreshReport } from '../auto-refresh';
 
 function report(p: Partial<RefreshReport> = {}): RefreshReport {
   return {
-    processed: [], drift: [], errors: [], divergenzen: [], journal: [],
+    processed: [], drift: [], errors: [], divergenzen: [], veraltet: [], journal: [],
     importTimings: { parseMs: 0, hashDiffMs: 0, mergeMs: 0, snapshotWriteMs: 0 },
     skippedInactiveUnterprogramm: 0, heldRemovals: 0, unknownUnterprogramm: 0, changedAntraege: 0,
     ...p,
@@ -33,6 +33,7 @@ describe('berichtZeigenswert', () => {
     expect(berichtZeigenswert(report({ divergenzen: [{ schemaId: 'a' } as RefreshReport['divergenzen'][number]] }))).toBe(true);
     expect(berichtZeigenswert(report({ drift: [{ schemaId: 'a' } as RefreshReport['drift'][number]] }))).toBe(true);
     expect(berichtZeigenswert(report({ errors: [{ schemaId: 'a', schemaName: 'A', message: 'x' }] }))).toBe(true);
+    expect(berichtZeigenswert(report({ veraltet: [{ schemaId: 'a' } as RefreshReport['veraltet'][number]] }))).toBe(true);
   });
 
   it('auch übergangene Spalten und eine Encoding-Korrektur gehören gesagt', () => {
