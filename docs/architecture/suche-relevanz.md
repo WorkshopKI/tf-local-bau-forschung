@@ -38,7 +38,7 @@ drei verschiedenen Schlüsseln liegt.
 Die Zuordnung kommt deshalb aus
 [korpusFeldAufloesung.ts](../../src/plugins/antraege/services/korpusFeldAufloesung.ts):
 aufgelöst über den Spalten-**CODE** (`VB_INHALT`, `ORG_AST`, …) per
-`resolveFieldKey`, gleiches Muster wie `resolveFbStatusFelder`. Die alten
+`resolveFieldKey`, gleiches Muster wie `resolveStatusDatumFelder`. Die alten
 Alias-Listen bleiben als Fallback, damit ein Programm ohne passendes Schema nicht
 schlechter sucht als vorher. Die Reihenfolge der Slots ist dabei die
 Kollisions-Regel: eine Quelle mappt `ORG_AST` auf denselben Schlüssel wie das

@@ -5,6 +5,14 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v6.40.1 — Ein abgebrochener Umbau wird abgeschlossen: totes Duplikat entfernt (September 2026)
+
+PATCH — `fb-status-felder.ts` war seit Juni 2026 eine zweite Wahrheit: die Verallgemeinerung nach `status-datum-gruppen.ts` war fertig, aber die Löschung blieb liegen — ein Notfall-Restore (`3b5bc857`) hatte sie zurückgeholt, nachdem ein fremder Commit die gestagte Löschung einer Parallel-Session mitgenommen und `master` gebrochen hatte.
+
+- **`fb-status-felder.ts` + Test gelöscht** (228 LOC): keine Produktions-Importstelle; beide Dateien führten dieselbe 11-elementige `FB_STATUS_CODES`-Liste byte-identisch
+- Kein Testverlust: [status-datum-gruppen.test.ts](src/core/services/csv/__tests__/status-datum-gruppen.test.ts) deckt jede Zusicherung des gelöschten Tests ab und zusätzlich `D_PC?`/`D_XPC?`
+- Zwei Doku-Verweise auf die tote Datei nachgezogen ([korpusFeldAufloesung.ts](src/plugins/antraege/services/korpusFeldAufloesung.ts), [suche-relevanz.md](docs/architecture/suche-relevanz.md))
+
 ### v6.40.0 — Die Clean-Code-Achse: elf Regeln zur Codeform, jede mit gemessenem Ist (September 2026)
 
 MINOR — Die ~90 vorhandenen Guards prüfen ausschließlich Fachregeln; eine Achse für die Form des Codes gab es nicht. Sie fehlte nicht, weil die Disziplin fehlt — vier der elf Regeln haben heute **null** Verstöße und halten damit gratis einen Zustand, den bisher nur Gewohnheit hielt.

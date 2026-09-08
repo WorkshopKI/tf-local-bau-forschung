@@ -21,7 +21,6 @@
  *    kanonischen ausfuehrenden Stelle — `antragsteller` (7737).
  *
  * Deshalb wird hier ueber den Spalten-CODE aufgeloest. Gleiches Muster wie
- * [fb-status-felder.ts](src/core/services/csv/fb-status-felder.ts) und
  * [status-datum-gruppen.ts](src/core/services/csv/status-datum-gruppen.ts).
  *
  * Rein: keine IDB-Zugriffe, kein React — die Schemas laedt der Aufrufer.
