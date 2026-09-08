@@ -5,6 +5,13 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v6.41.1 — Zwei Guards nennen ihre Reichweite (September 2026)
+
+PATCH — Zwei der neuen Ratschen messen weniger, als ihr Name nahelegt. Das steht jetzt bei ihnen — dieselbe Verwechslung machte `no-raw-async-onclick` monatelang zu einem Guard ohne Reichweite.
+
+- **`vier-parameter-sind-ein-objekt`** sieht nur einzeilige `function`-Deklarationen; eine AST-Messung findet 375 Signaturen mit ≥4 Parametern, nicht 18. Der Ausschnitt ist Absicht (88 % aller Signaturen sind niladisch bis dyadisch), aber er muss dranstehen
+- **`verschachtelung-vierzehn`** misst Einrückung, nicht Kontrollfluss-Tiefe: die echte maximale Verschachtelung im Bestand ist **6**, erreicht von fünf Funktionen — ein Verschachtelungsproblem gibt es nicht
+
 ### v6.41.0 — Zwei blinde Flecken: ein Guard ohne Reichweite, fuenf Dateien binaer fuer git (September 2026)
 
 MINOR — Zwei Befunde aus der adversarischen Gegenprüfung der Messung, beide seit Monaten unbemerkt durch das komplette Gate gelaufen: ein Guard, der eine Abdeckung behauptet, die er nicht hat — und fünf Quelldateien, die git als binär führt.

@@ -359,6 +359,22 @@ describe('vier-parameter-sind-ein-objekt', () => {
   // Ist 18. Ab vier Positionsparametern kann der Aufrufer die Reihenfolge nicht
   // mehr im Kopf halten, und zwei gleiche Typen nebeneinander vertauschen sich
   // lautlos. Destrukturierte Props-Objekte zaehlen NICHT (das `{` schliesst sie aus).
+  //
+  // REICHWEITE, ehrlich benannt: dieses Muster sieht nur EINZEILIGE
+  // `function`-Deklarationen. Eine AST-Messung findet im selben Bestand 375
+  // Signaturen mit >= 4 Parametern — Arrow-Funktionen, Methoden und mehrzeilige
+  // Signaturen bleiben unsichtbar. Die 18 sind also kein Gesamtbestand, sondern
+  // ein Ausschnitt.
+  //
+  // Das ist Absicht und kein Versehen: 88 % aller 8.255 Signaturen des Repos sind
+  // niladisch bis dyadisch (Schnitt 1,61 Parameter), und ein Ratchet auf 375
+  // zaehlte massenhaft legitime Muster mit. Der schmale Ausschnitt haelt die
+  // haeufigste und am leichtesten vermeidbare Form fest.
+  //
+  // Wer die Zahl spaeter weiten will, weitet sie mit einem AST-Schritt — nicht
+  // mit einem laengeren Regex. Und er nennt die neue Reichweite hier, damit
+  // niemand 18 fuer den Gesamtbestand haelt (genau diese Verwechslung machte
+  // `no-raw-async-onclick` monatelang zu einem Guard ohne Reichweite).
   const DECKEL = 18;
   // (Muster steht in MUSTER.vierParameter — dort laeuft es gegen seine Proben.)
   it(`hoechstens ${DECKEL} Funktionen mit >= 4 Positionsparametern`, () => {
@@ -378,7 +394,18 @@ describe('vier-parameter-sind-ein-objekt', () => {
 });
 
 describe('verschachtelung-vierzehn', () => {
-  // Ist 12. Gemessen als Einrueckung, nicht als echte Tiefe — deshalb NUR .ts:
+  // Ist 12. WAS DIESE ZAHL IST UND WAS NICHT: sie misst Einrueckung, nicht
+  // Kontrollfluss-Tiefe. Eine AST-Messung ueber alle 21.417 Funktionen findet als
+  // maximale echte Verschachtelung SECHS Ebenen, erreicht von genau fuenf
+  // Funktionen — der Bestand ist in dieser Hinsicht also gesund, und ein
+  // Verschachtelungs-Problem gibt es nicht.
+  //
+  // Was die Einrueckung trotzdem taugt: sie faengt lange Ketten aus Einrueckung
+  // UND Zeilenlaenge, also Stellen, die beim Lesen teuer sind, ohne formal tief
+  // zu sein. Als Ratsche auf 12 haelt sie den Ist-Stand; als Aussage ueber
+  // Verschachtelung waere sie falsch.
+  //
+  // Gemessen als Einrueckung, nicht als echte Tiefe — deshalb NUR .ts:
   // JSX erreicht 14 Zeichen Einzug routinemaessig, ohne dass irgendetwas
   // verschachtelt waere. Die Schwelle ist gemessen, nicht gerundet: bei >= 10
   // waeren es 150 Treffer (der Guard waere am Tag eins tot), bei >= 16 nur 2
