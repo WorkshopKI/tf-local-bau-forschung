@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v6.38.0 — AI-native SDLC: Grill-Skill, Zeiger-Skills, Hook, Glossar, Review-Policy (September 2026)
+
+MINOR — Anthropics AI-native SDLC Playbook und Pococks `grill-with-docs`, auf dieses Repo übertragen: Regeln, die bisher nur Prosa waren (keine Heredocs, `git add` nur mit Pathspec), erzwingt jetzt ein Hook; die riskantesten Cheatsheets laden als Skill automatisch; das Interview vor dem Bauen hat ein Format; ein Entwickler-Glossar und eine Review-Policy gibt es erstmals. Detail: [entwicklungsprozess.md](docs/architecture/entwicklungsprozess.md).
+
+- **Hook + Deny-Regeln** in [.claude/settings.json](.claude/settings.json): [bash-guard.mjs](scripts/hooks/bash-guard.mjs) blockt Heredocs, `git add -A/./-u` und verwerfende Git-Befehle mit Grund; eingefrorene Pfade (`_archive/`, `_reference/`, `src/generated/`) sind für Edit/Write gesperrt
+- **Skill `grillen`** ([SKILL.md](.claude/skills/grillen/SKILL.md)): Befund zuerst, Frontier-Runden mit Empfehlung, Pflicht-Zweige des Repos, Glossar-Pflege inline — Frage-Schritt des Brainstormings
+- **Acht Zeiger-Skills** (`plugin-anlegen` … `filter-facet-anlegen`) öffnen ihr Cheatsheet automatisch; die Quelle bleibt [docs/agents/](docs/agents/README.md)
+- **Glossar + Review-Policy**: [CONTEXT.md](CONTEXT.md) (Begriffe, *nicht sagen*, Mehrdeutigkeiten) und [REVIEW.md](REVIEW.md) (vier Pässe, Nit-Deckel 5) für `/code-review`
+- **Leichte Artefakt-Kette**: `## 0. Anlass` als Pflicht-Abschnitt jeder Spec, Schwelle für Spec + Plan im Repo ([docs/superpowers/README.md](docs/superpowers/README.md)); Guard [agent-konfiguration.test.ts](src/__tests__/agent-konfiguration.test.ts) prüft Skills, Hook, Settings und Specs in `check:docs`
+
 ### v6.37.1 — Veraltete CSV-Datei wird nicht mehr über den Team-Stand importiert (September 2026)
 
 PATCH — Das Produktiv-Audit-Log nannte den Verursacher von v6.37.0: ein Laptop mit einem für Dev-Zwecke eingestellten CSV-Ordner (Exporte vom 21./23.08.) lief gegen den echten Share und importierte dreimal am Tag die alten Dateien über den aktuellen Stand (`changed 1028, heldRemovals 66`) — 18 Tage zurück, bis der nächste Kollege wieder vordrehte. Die 6-h-Divergenz aus v6.37.0 greift dort nicht; die Dateien liegen 18 Tage auseinander, in die falsche Richtung. Detail: [csv-auto-refresh.md](docs/architecture/csv-auto-refresh.md).

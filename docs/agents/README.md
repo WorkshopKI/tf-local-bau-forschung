@@ -29,6 +29,10 @@ Kompakte Checklisten für häufige Erweiterungen, die jeweils mehrere synchronis
 | Design-Export aus Claude Design Tool portieren | [port-design-export.md](port-design-export.md) |
 | Bildschirmseiten-Kontext-Doc pflegen (Feedback-KI-Kontext) | [update-screen-context.md](update-screen-context.md) |
 
+## Zeiger-Skills
+
+Acht Cheatsheets laden automatisch, weil ein Skill unter `.claude/skills/` auf sie zeigt (Trigger in der Skill-Beschreibung, Ablauf in drei Zeilen: lesen, jeden Touch-Point abarbeiten, Gate): `plugin-anlegen` → add-plugin · `feature-flag-anlegen` → add-feature-flag · `csv-feld-anlegen` → add-csv-field · `idb-store-anlegen` → add-idb-store · `einstellung-anlegen` → add-settings-section · `sidecar-anlegen` → add-sidecar-persistence · `view-anlegen` → add-view · `filter-facet-anlegen` → add-filter-facet. Das Cheatsheet bleibt die einzige Quelle; ein neuer Zeiger-Skill entsteht nur nach einem belegten Fehlgriff ([entwicklungsprozess.md](../architecture/entwicklungsprozess.md) §5).
+
 ## Wann nicht aktualisieren
 
 Die Cheatsheets sind **bewusst kurz** — keine Code-Beispiele, keine Erklärungen, nur Touch-Point-Listen. Wenn ein Pfad sich ändert oder ein neuer Touch-Point dazukommt, hier eintragen. Wenn nur Logik in einer bereits gelisteten Datei sich ändert, **nicht** anfassen.

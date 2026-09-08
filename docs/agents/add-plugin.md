@@ -41,6 +41,25 @@ automatisch generiert.
    in `PLUGINS_WITH_CUSTOM_ROUTE` (siehe `src/plugins.config.ts`) eintragen
    — sonst kollidiert die generierte Flat-Route mit den Detail-Routen.
 
+5. **Sichtbarkeits-Katalog** `src/core/sichtbarkeit/katalog.ts`: ein
+   `seite('<id>', '<Name>', BETA)`-Eintrag — neue Seiten starten als `beta`.
+   Guard `sichtbarkeit-katalog-deckt-plugins` schlägt sonst rot
+   ([sichtbarkeitsstufen.md](../architecture/sichtbarkeitsstufen.md)).
+
+6. **Seitenkopf mit Hilfe-Knopf**: `PageHeader` mit
+   `actions={<SeitenHilfeButton pluginId="<id>" />}` — der Guard in
+   `conventions-ui` und `seitenHilfe.test.ts` („kein Einbau ohne Doc, kein Doc
+   ohne Einbau") verlangen den Knopf zusammen mit Punkt 7.
+
+7. **Bildschirmseiten-Kontext-Doc** `docs/feedback-kontext/<id>.md` nach der
+   Schablone in [update-screen-context.md](update-screen-context.md), plus eine
+   Zeile in `docs/feedback-kontext/_app.md` unter „Hauptbereiche". Guard
+   `screen-context-coverage`.
+
+8. **Sichtbarkeits-Matrix** in [build-varianten.md](../architecture/build-varianten.md):
+   eine Zeile für das Plugin (welche Variante zeigt es) — die Quelle für
+   [which-build-to-run.md](which-build-to-run.md).
+
 ## Sidebar-Gruppe wählen
 
 Die Sidebar zeigt drei beschriftete Blöcke ([groupNavPlugins.ts](../../src/core/nav/groupNavPlugins.ts)):
@@ -97,8 +116,6 @@ damit ein neuer Eintrag nicht versehentlich zwischen zwei Gruppen rutscht.
 
 ## Verifikation
 
-- TypeScript: `npx tsc --noEmit`
-- Tests: `npm test` (Convention-Tests laufen mit)
-- Build: `npm run build:prod`
-- HTML aus `dist-single/` per Doppelklick öffnen, Plugin in der Sidebar
-  anklicken — URL muss sich auf `#<route>` ändern und die Page rendern.
+- Innerer Loop `npm run check:quick`, vor dem Commit `npm run check` (Convention-Guards laufen mit).
+- Abnahme selbst in `npm run dev:local`: Sidebar-Eintrag anklicken (Gruppe „In Erprobung"; trägt die Seite `beta`, mit **eingeschaltetem** Beta-Schalter), URL wechselt auf `#<route>`, Seite rendert, `window.__tf.fehler()` = 0.
+- Build laut [which-build-to-run.md](which-build-to-run.md): ohne `featureFlag` landet das Plugin auch in prod → `npm run build:all`; mit Flag (prod `false`) reicht `npm run build:devpl`. Beim Nutzer bleibt der `file://`-Doppelklick auf die HTML unter `dist-single/`.

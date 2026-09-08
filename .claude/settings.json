@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "deny": [
+      "Edit(_archive/**)",
+      "Write(_archive/**)",
+      "Edit(_reference/**)",
+      "Write(_reference/**)",
+      "Edit(src/generated/**)",
+      "Write(src/generated/**)",
+      "Edit(package-lock.json)",
+      "Write(package-lock.json)",
+      "Edit(src/core/services/skill-eval/fixtures/eval-fixtures.data.json)",
+      "Write(src/core/services/skill-eval/fixtures/eval-fixtures.data.json)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/scripts/hooks/bash-guard.mjs\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -11,41 +11,37 @@
  * die Doku, nicht der Code.
  */
 import { describe, it, expect } from 'vitest';
-import { readFileSync, existsSync, statSync } from 'node:fs';
+import { readFileSync, readdirSync, existsSync, statSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { extractHrefs, stripAnchor, isRelativeDocLink } from './conventions-lib';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 
+// Alle Skills unter .claude/skills/ — jeder SKILL.md ist ein Marker-Doc, das ein
+// Agent über einen Zeiger erreicht; ein kaputter Link darin ist ein toter Zeiger.
+const SKILLS_DIR = resolve(ROOT, '.claude/skills');
+const SKILL_DOCS = existsSync(SKILLS_DIR)
+  ? readdirSync(SKILLS_DIR)
+      .map(d => `.claude/skills/${d}/SKILL.md`)
+      .filter(p => existsSync(resolve(ROOT, p)))
+  : [];
+
 const DOC_FILES = [
   'CLAUDE.md',
+  'CONTEXT.md',
+  'REVIEW.md',
   'docs/agents/README.md',
+  'docs/superpowers/README.md',
+  'docs/architecture/entwicklungsprozess.md',
   'src/plugins/auslastung/CLAUDE.md',
   'src/core/services/assistent/CLAUDE.md',
   'src/plugins/antraege/CLAUDE.md',
+  ...SKILL_DOCS,
 ];
 
 // Generierte, gitignorete Dateien: dürfen fehlen (precheck-Hook erzeugt sie).
 const GENERATED_WHITELIST = new Set(['docs/architecture/code-map.md']);
-
-function extractHrefs(md: string): string[] {
-  const re = /\[[^\]]*\]\(([^)\s]+)\)/g;
-  const out: string[] = [];
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(md)) !== null) {
-    if (m[1]) out.push(m[1]);
-  }
-  return out;
-}
-
-function stripAnchor(href: string): string {
-  return href.split('#')[0] ?? '';
-}
-
-function isRelativeDocLink(href: string): boolean {
-  if (/^(https?:|mailto:)/i.test(href)) return false;
-  return stripAnchor(href).length > 0; // reine #anchor-Links ignorieren
-}
 
 describe('doc-links', () => {
   for (const docRel of DOC_FILES) {

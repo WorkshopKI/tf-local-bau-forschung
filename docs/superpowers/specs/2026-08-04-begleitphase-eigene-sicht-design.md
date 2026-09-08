@@ -2,6 +2,10 @@
 
 Stand: 2026-08-04 · Ausgangspunkt: Nutzer-Rückmeldung „Reiter *Offen 35* gegen Pille *Offen 33* ist verwirrend".
 
+## 0. Anlass
+
+In den Worten des Auslösers: *„Reiter Offen 35 gegen Pille Offen 33 ist verwirrend"* — auf derselben Seite stehen zwei Zahlen mit demselben Namen, die verschieden groß sind. (Abschnitt nachgerüstet am 2026-09-09; die Kopfzeile trug den Anlass bereits.)
+
 ## 1. Warum
 
 Auf der Förderanträge-Seite trägt das Wort **„Offen" zwei Bedeutungen**:

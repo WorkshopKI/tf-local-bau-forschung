@@ -12,7 +12,11 @@ Decision-Tree für häufige Aufgaben. Erst hier nachsehen, **bevor** du die Code
 
 | Aufgabe | Wo nachsehen |
 |---------|--------------|
-| Plugin / CSV-Feld / Filter / IDB-Store / Feedback-Status / Embedding-Modell / Tab / … anlegen | [docs/agents/](docs/agents/README.md) — passenden Cheatsheet wählen |
+| Plugin / CSV-Feld / Filter / IDB-Store / Feedback-Status / Embedding-Modell / Tab / … anlegen | [docs/agents/](docs/agents/README.md) — passenden Cheatsheet wählen (die acht riskantesten laden als Zeiger-Skill automatisch) |
+| Vorhaben schärfen, bevor gebaut wird (Befund zuerst, Frontier-Runden mit Empfehlung) | Skill `grillen` ([SKILL.md](.claude/skills/grillen/SKILL.md)) — auch als Frage-Schritt des Brainstormings |
+| Begriff nachschlagen (Verbund/TV, Schnitt/Fassung/Entwurf, Kürzel-Homonym, vier Sichtbarkeits-Achsen) | [CONTEXT.md](CONTEXT.md) — nur Begriffe, vom Grill-Skill gepflegt |
+| Review-Pässe, Wichtig vs. Nit, Ausnahmen (`/code-review`) | [REVIEW.md](REVIEW.md) |
+| Entwicklungsprozess: Anlass → Spec → Plan (Schwelle, Schablonen), Hook + Deny-Regeln, Zeiger-Skills, Guard der Agent-Konfiguration | [entwicklungsprozess.md](docs/architecture/entwicklungsprozess.md) + [docs/superpowers/README.md](docs/superpowers/README.md) |
 | Bildschirmseiten-Kontext-Doc pflegen (Feedback-KI-Kontext) | [docs/agents/update-screen-context.md](docs/agents/update-screen-context.md) |
 | UI-Patch (Komponenten, Farben, Tokens) | [DESIGN_GUIDE.md](DESIGN_GUIDE.md) |
 | Vorschlagsliste im Frage-Modus (Beispielfragen, Vorlagen mit Lücken `‹…›`, Tastatur) | [frage-vorschlaege](src/components/frage-vorschlaege/abschnitte.ts) — Mechanik geteilt, `FrageKatalog` je Seite |
@@ -296,7 +300,8 @@ Der Plan-Modus bleibt der Standard-Einstieg, aber er ist ein Werkzeug, kein Ritu
 - **Höchstens ein Explore-Agent**, und nur wenn der Entscheidungsbaum oben (*„Ich will… → wo nachsehen"*) die Datei **nicht** nennt. Nennt er sie: direkt lesen. Der Baum existiert genau dafür — ihn zu überspringen und stattdessen zu scannen kostet Minuten und liefert schlechtere Antworten.
 - **Kein separater Plan-Agent.** Die Design-Entscheidung fällt im Hauptlauf; die Cheatsheets unter [docs/agents/](docs/agents/README.md) ersetzen die Architektur-Recherche.
 - **Plan-Datei in Kurzform**: Kontext, Schritte, Verifikation. Keine Alternativen-Abwägung, keine Datei-für-Datei-Liste, wenn sich ein Muster wiederholt.
-- **Rückfragen an den Nutzer bleiben.** Sie sind der Teil des Ablaufs, der Fehler verhindert, statt sie nur später zu finden.
+- **Rückfragen an den Nutzer bleiben.** Sie sind der Teil des Ablaufs, der Fehler verhindert, statt sie nur später zu finden. Sie laufen über den Skill `grillen`: Befund zuerst, dann die ganze Frontier je Runde, jede Frage mit Empfehlung.
+- **Spec + Plan ins Repo ab Schwelle** (neues Plugin/Flag/Store/Sidecar/Skill/Hook oder > 5 Dateien) nach [docs/superpowers/README.md](docs/superpowers/README.md); jede Spec beginnt mit `## 0. Anlass` in den Worten des Auslösers.
 - Subagenten sonst nach der stehenden Freigabe: nur bei disjunkten Dateimengen, höchstens ein `dev:local`-Server, und Gate/Abnahme/Commit bleiben im Hauptlauf.
 
 ## Abnahme: selbst ansehen, nicht ansagen
@@ -313,6 +318,8 @@ Die Dev-Maschine ist Windows — Heredocs/Here-Strings schlagen in der Shell feh
 2. **Mehrzeilige Datei-Inhalte** ausschließlich über das Write/Edit-Tool erzeugen — nie per `echo`/`cat` zusammenbauen.
 3. **Commit-Messages**: Message per Write-Tool nach `.git/COMMIT_MSG.tmp`, dann `git commit -F .git/COMMIT_MSG.tmp`. Einzeiler dürfen weiter `git commit -m "…"` nutzen.
 4. **Kein mehrzeiliges Inline-`python -c` / `node -e`** — stattdessen Wegwerf-Script unter `scripts/tmp/` anlegen (gitignored), ausführen, löschen.
+
+Regel 1, `git add` ohne Pathspec und verwerfende Git-Befehle blockt ein PreToolUse-Hook mit Grund ([bash-guard.mjs](scripts/hooks/bash-guard.mjs), Detail in [entwicklungsprozess.md](docs/architecture/entwicklungsprozess.md)).
 
 ## Build-Varianten (v3.0: drei statt fünf)
 

@@ -118,6 +118,32 @@ export function findFilesViolating(
   return out;
 }
 
+// --- Markdown-Links ---------------------------------------------------------
+// Zwei Guards lesen Links aus Markdown (`doc-links`, `agent-konfiguration`).
+// Extraktion und Klassifikation sind Primitive wie der Datei-Walk; welche
+// Dateien geprüft werden, entscheidet jeder Guard selbst.
+
+/** Alle `href`s aus `[text](href)`-Links, in Dateireihenfolge. */
+export function extractHrefs(md: string): string[] {
+  const re = /\[[^\]]*\]\(([^)\s]+)\)/g;
+  const out: string[] = [];
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(md)) !== null) {
+    if (m[1]) out.push(m[1]);
+  }
+  return out;
+}
+
+export function stripAnchor(href: string): string {
+  return href.split('#')[0] ?? '';
+}
+
+/** Relativer Doc-Link (kein http/mailto, kein reiner `#anker`). */
+export function isRelativeDocLink(href: string): boolean {
+  if (/^(https?:|mailto:)/i.test(href)) return false;
+  return stripAnchor(href).length > 0;
+}
+
 // --- Farbrechnung -----------------------------------------------------------
 // Zwei Guards prüfen Kontraste (`preset-contrast-contract`,
 // `band-fuellung-kontrast`). Die Rechnung ist ein Primitiv wie der Datei-Walk;
