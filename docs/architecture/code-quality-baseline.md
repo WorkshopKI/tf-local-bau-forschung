@@ -7,14 +7,14 @@
 > dass ein Guard unter `src/__tests__/` sie einfriert — und der misst selbst nach,
 > statt diese Datei zu lesen.
 
-**Umfang:** 2.859 Dateien unter `src/` (2.049 Produktion / 327.669 LOC · 810 Test / 119.887 LOC). `src/generated/` ist ausgeschlossen.
+**Umfang:** 2.860 Dateien unter `src/` (2.049 Produktion / 327.669 LOC · 811 Test / 120.487 LOC). `src/generated/` ist ausgeschlossen.
 
 ## Größe
 
 | | Dateien | LOC | p50 | p90 | p99 | max | >400 | >500 | >800 | >1000 |
 |---|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|
 | Produktion | 2.049 | 327.669 | 117 | 336 | 751 | 1.232 | 135 | 77 | 16 | 6 |
-| Test | 810 | 119.887 | 115 | 271 | 561 | 1.915 | 28 | 15 | 4 | 3 |
+| Test | 811 | 120.487 | 115 | 274 | 561 | 1.915 | 29 | 16 | 4 | 3 |
 
 Größte Produktionsdateien:
 
@@ -35,19 +35,19 @@ Größte Produktionsdateien:
 |---|--:|
 | `as any` (Produktion) | 25 |
 | `: any` (Produktion) | 7 |
-| `@ts-ignore` / `@ts-nocheck` | 0 |
-| `@ts-expect-error` | 6 |
-| `eslint-disable` gesamt | 72 |
+| `@ts-ignore` / `@ts-nocheck` | 7 |
+| `@ts-expect-error` | 10 |
+| `eslint-disable` gesamt | 75 |
 | davon **wirksam** (Regel ist aktiv) | 0 |
-| davon **inert** (Regel gar nicht aktiv) | 72 |
+| davon **inert** (Regel gar nicht aktiv) | 75 |
 
 **Inerte Direktiven sind Vorab-Stummschaltung.** Sie unterdrücken eine Regel, die
 `eslint.config.js` nicht aktiviert — wer die Regel je einschaltet, bekommt null Treffer
 und hält das für ein sauberes Ergebnis. Verteilung:
 
-- `react-hooks/exhaustive-deps` — 49×
-- `no-console` — 13×
-- `@typescript-eslint/no-explicit-any` — 7×
+- `react-hooks/exhaustive-deps` — 50×
+- `no-console` — 14×
+- `@typescript-eslint/no-explicit-any` — 8×
 - `@typescript-eslint/no-implied-eval` — 1×
 - `@typescript-eslint/no-this-alias` — 1×
 - `max-len` — 1×
@@ -197,11 +197,11 @@ Dichteste Nester:
 
 | Kennzahl | Ist |
 |---|--:|
-| Guard-Dateien unter `src/__tests__/` | 8 |
-| `describe`-Blöcke | 90 |
-| davon zeilenweise scannend | 50 |
-| mit Positiv-/Musterkontrolle | 18 |
-| **ohne Kontrolle** | 72 |
+| Guard-Dateien unter `src/__tests__/` | 9 |
+| `describe`-Blöcke | 102 |
+| davon zeilenweise scannend | 59 |
+| mit Positiv-/Musterkontrolle | 20 |
+| **ohne Kontrolle** | 82 |
 | Dateien in `ISOLATED_TESTS` | 51 |
 | Testdateien mit `vi.mock` | 55 |
 | davon **ohne** Isolationseintrag | 11 |

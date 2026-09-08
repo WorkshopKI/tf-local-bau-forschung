@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v6.40.0 — Die Clean-Code-Achse: elf Regeln zur Codeform, jede mit gemessenem Ist (September 2026)
+
+MINOR — Die ~90 vorhandenen Guards prüfen ausschließlich Fachregeln; eine Achse für die Form des Codes gab es nicht. Sie fehlte nicht, weil die Disziplin fehlt — vier der elf Regeln haben heute **null** Verstöße und halten damit gratis einen Zustand, den bisher nur Gewohnheit hielt.
+
+- **[conventions-clean-code.test.ts](src/__tests__/conventions-clean-code.test.ts)**: 4 Verbote (Ist 0) + 7 Ratschen (Ist eingefroren, darf nur sinken) — jede Schwelle am Bestand gemessen, jede einmal ROT gesehen
+- **Ratsche statt Drift-Warnung**, weil die Projekthistorie das entscheidet: über die vier `health-baseline`-Schwellen stehen **70 Anhebungen gegen 5 Senkungen**
+- **`eslint-disable-nur-fuer-inaktive-regel`** dreht eine geladene Falle in einen Stolperdraht: alle 72 Direktiven unterdrücken heute *inaktive* Regeln — wer `exhaustive-deps` einschaltet, bekommt sonst null Treffer und hält das für sauber
+- **Musterkontrollen für jedes Muster** (Probe + Gegenprobe): ein absichtlich gebrochenes `as any`-Muster fand 0 statt 25 Stellen, die Ratsche blieb dabei **grün** — nur die Kontrolle bemerkte den entwaffneten Guard
+- Die Datei nimmt **sich selbst** aus jedem Scan: sie muss die verbotenen Muster im Klartext nennen (dieselbe Klasse wie die 7 Wochen, in denen `MAX_FILE_LOC` die Guard-Datei maß)
+
 ### v6.39.1 — Guard-Scanner: 27,5 Prozent weniger Lesearbeit, Blockregeln moeglich, frischer Klon laeuft (September 2026)
 
 PATCH — Der geteilte Guard-Scanner las bei jedem Voll-Durchlauf eine 7,00-MB-Datei mit, die keine Konvention enthält; nur ein einziger Guard hatte die Falle bemerkt und für sich allein repariert. Dazu zwei Vorarbeiten für die Clean-Code-Achse.
