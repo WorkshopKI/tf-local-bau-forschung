@@ -1,7 +1,7 @@
 {
   "name": "teamflow-local",
   "private": true,
-  "version": "6.39.0",
+  "version": "6.39.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -35,9 +35,11 @@
     "build:devpl": "node scripts/build-with-config.mjs --config configs/dev.config.json && node scripts/build-with-config.mjs --config configs/pl.config.json",
     "config-ui": "node scripts/serve-config-ui.mjs",
     "preview": "vite preview",
+    "pretypecheck": "npm run generate:ort-wasm",
     "typecheck": "tsc --build",
     "typecheck:full": "tsc --build --force",
     "lint": "eslint . --cache --cache-location node_modules/.cache/eslint",
+    "pretest": "npm run generate:ort-wasm",
     "test": "vitest run",
     "test:changed": "vitest run --changed",
     "test:phase2": "vitest run src/phase2",

@@ -347,10 +347,8 @@ describe('no-inline-frist-arithmetik (v3.6 — die Uhr hat EINE Heimat)', () => 
     for (const file of ALL_TS_FILES) {
       if (HEIMAT.some(h => file.endsWith(h))) continue;
       if (file.includes(`${sep}__tests__${sep}`) || file.endsWith('.test.ts')) continue;
-      // `src/generated/` traegt das inline-gzippte ORT-WASM als base64-Zeile
-      // (~19 MB). Jede Ziffernfolge kommt darin vor; ohne diesen Ausschluss
-      // meldet der Guard sie und die Fehlermeldung sprengt jede Konsole.
-      if (file.includes(`${sep}src${sep}generated${sep}`)) continue;
+      // (`src/generated/` schliesst seit v6.40 der geteilte Scanner aus — die
+      // Begruendung steht bei UEBERSPRUNGEN in conventions-lib.ts.)
       findings.push(...findInFile(
         file,
         l => !istKommentar(l) && zahl.test(l) && fristNah.test(l),

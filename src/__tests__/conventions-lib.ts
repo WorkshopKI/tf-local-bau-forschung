@@ -14,12 +14,28 @@ import { join, sep } from 'node:path';
 
 export const ROOT = join(__dirname, '..');
 
+/**
+ * Verzeichnisse, die KEIN Guard scannen soll.
+ *
+ * `generated` traegt das inline-gzippte ORT-WASM als base64: 7,34 MB in EINER
+ * Zeile von 7.340.705 Zeichen. Das sind 27,5 % von allem, was die Guards lesen —
+ * bei rund 74 Voll-Durchlaeufen je Suite-Lauf etwa 543 MB Lesen und Zeilen-Splitten
+ * fuer eine Datei, die keine einzige Konvention enthaelt. Und jede Zahlen-Heuristik
+ * trifft dort, weil in einer base64-Zeile jede Ziffernfolge vorkommt; die
+ * Fehlermeldung sprengt dann jede Konsole.
+ *
+ * Der Ausschluss stand bis v6.40 in genau EINEM Guard
+ * (`no-inline-frist-arithmetik`), der die Falle als Einziger getreten hatte.
+ * Hier steht er einmal fuer alle.
+ */
+const UEBERSPRUNGEN = new Set(['node_modules', 'dist', '.vite', 'generated']);
+
 export function walk(dir: string, out: string[] = []): string[] {
   for (const entry of readdirSync(dir)) {
     const p = join(dir, entry);
     const s = statSync(p);
     if (s.isDirectory()) {
-      if (entry === 'node_modules' || entry === 'dist' || entry === '.vite') continue;
+      if (UEBERSPRUNGEN.has(entry)) continue;
       walk(p, out);
     } else if (s.isFile() && (entry.endsWith('.ts') || entry.endsWith('.tsx'))) {
       out.push(p);
@@ -38,7 +54,7 @@ export function walkCss(dir: string, out: string[] = []): string[] {
     const p = join(dir, entry);
     const s = statSync(p);
     if (s.isDirectory()) {
-      if (entry === 'node_modules' || entry === 'dist' || entry === '.vite') continue;
+      if (UEBERSPRUNGEN.has(entry)) continue;
       walkCss(p, out);
     } else if (s.isFile() && entry.endsWith('.css')) {
       out.push(p);
@@ -74,6 +90,35 @@ export function findInFile(
     if (predicate(line)) {
       out.push({ file: relPath(file), line: i + 1, text: line.trim() });
     }
+  }
+  return out;
+}
+
+/**
+ * Wie `findInFile`, aber ueber den GANZEN Dateitext — fuer Regeln, die ueber
+ * einem BLOCK entscheiden statt ueber einer Zeile (leerer `catch`-Rumpf,
+ * mehrzeilige Signatur, `it`-Block ohne Zusicherung).
+ *
+ * `re` MUSS das `g`-Flag tragen und darf `\n` matchen. Die gemeldete Zeile ist
+ * die ERSTE des Treffers; entsprechend muss auch der `// allow-…`-Marker dort
+ * stehen, nicht irgendwo im Block.
+ *
+ * Existiert, damit ein blockweiser Guard nicht seinen eigenen Datei-Scan
+ * mitbringt — der Modulkopf oben nennt genau das als Zweck dieser Datei.
+ */
+export function findInContent(
+  file: string,
+  re: RegExp,
+  whitelistMarker: string,
+): Finding[] {
+  const content = readFileSync(file, 'utf-8');
+  const lines = content.split(/\r?\n/);
+  const out: Finding[] = [];
+  for (const m of content.matchAll(re)) {
+    const nr = content.slice(0, m.index).split(/\r?\n/).length;
+    const zeile = lines[nr - 1] ?? '';
+    if (zeile.includes(whitelistMarker)) continue;
+    out.push({ file: relPath(file), line: nr, text: zeile.trim() });
   }
   return out;
 }

@@ -5,6 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v6.39.1 — Guard-Scanner: 27,5 Prozent weniger Lesearbeit, Blockregeln moeglich, frischer Klon laeuft (September 2026)
+
+PATCH — Der geteilte Guard-Scanner las bei jedem Voll-Durchlauf eine 7,00-MB-Datei mit, die keine Konvention enthält; nur ein einziger Guard hatte die Falle bemerkt und für sich allein repariert. Dazu zwei Vorarbeiten für die Clean-Code-Achse.
+
+- **`src/generated/` fliegt aus [conventions-lib.ts](src/__tests__/conventions-lib.ts)**: eine Datei, 7,00 MB, **27,5 %** jedes Voll-Scans — Testlaufzeit von `check:docs` 18,6 s → 15,0 s
+- Die lokale Reparatur in [conventions-status.test.ts](src/__tests__/conventions-status.test.ts) entfällt; die Begründung steht jetzt einmal bei `UEBERSPRUNGEN`
+- **`findInContent`** ergänzt: Regeln, die über einem BLOCK entscheiden (leerer `catch`, mehrzeilige Signatur), brauchen keinen eigenen Datei-Scan mehr
+- **Frischer Klon lief nicht**: `src/generated/ort-wasm-gz.ts` ist gitignored und wird statisch importiert, aber kein Pre-Hook von `typecheck`/`test` erzeugte sie — `pretypecheck`/`pretest` schließen das (0,19 s, idempotent)
+
 ### v6.39.0 — Codequalitaets-Baseline: die Kennzahlen bekommen einen Zaehler (September 2026)
 
 MINOR — Technische Schuld war bisher nur als Gefühl vorhanden: die einzige Struktur-Schranke (`MAX_FILE_LOC` und Geschwister) wurde 70-mal angehoben und 5-mal gesenkt, und sieben Wochen lang maß sie die Guard-Datei selbst statt den Produktionscode. Dieser Schritt misst nur — er verbietet nichts.
