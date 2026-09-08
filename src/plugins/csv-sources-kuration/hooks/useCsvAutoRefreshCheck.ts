@@ -34,6 +34,7 @@ import { refreshAntraegeStoreAfterSync } from '@/plugins/antraege/snapshot-refre
 import { acquireDataMutation, releaseDataMutation } from '@/core/services/csv/data-mutation-gate';
 import { bumpCsvSourcesSignal, useCsvSourcesSignal } from '@/core/services/csv/csv-sources-signal';
 import { useStartupDataStatus } from '@/core/services/csv/startup-data-status';
+import { useStartBericht } from '../services/start-bericht';
 import {
   runAutoRefresh,
   collectCandidates,
@@ -54,6 +55,12 @@ export interface AutoRefreshCheckState {
   /** Quellen ohne gespeichertes Datei-Handle (z.B. pl-Build: Schemas per
    *  Snapshot, aber nie eine Datei gepickt). Über `linkSource()` verknüpfbar. */
   unlinked: PermissionNeededEntry[];
+  /**
+   * Der verknüpfte CSV-Ordner ist der App-eigene Kopie-Ordner — jeder Lauf liest
+   * das eigene Erzeugnis statt des Exports. Bis hierher nur eine Konsolen-
+   * Warnung, die kein pl-Nutzer sieht; der Banner sagt es jetzt.
+   */
+  quellordnerIstKopie: boolean;
   /** Hintergrund-Check laeuft gerade. */
   checking: boolean;
   /** Banner vom User dismisst. */
@@ -121,6 +128,7 @@ export function useCsvAutoRefreshCheck(): AutoRefreshCheckState {
   const [candidates, setCandidates] = useState<RefreshCandidate[]>([]);
   const [permissionNeeded, setPermissionNeeded] = useState<PermissionNeededEntry[]>([]);
   const [unlinked, setUnlinked] = useState<PermissionNeededEntry[]>([]);
+  const [quellordnerIstKopie, setQuellordnerIstKopie] = useState(false);
   const [checking, setChecking] = useState(false);
   const [dismissed, setDismissed] = useState(false);
 
@@ -146,6 +154,7 @@ export function useCsvAutoRefreshCheck(): AutoRefreshCheckState {
       setCandidates(r.candidates);
       setPermissionNeeded(r.permissionNeeded);
       setUnlinked(r.unlinked);
+      setQuellordnerIstKopie(r.quellordnerIstKopie);
     } catch (err) {
       console.warn('[csv-auto-refresh] check failed', err);
     } finally {
@@ -203,6 +212,19 @@ export function useCsvAutoRefreshCheck(): AutoRefreshCheckState {
     checkedRef.current = true;
     void runCheck();
   }, [sourcesSignal, startupPhase, enabled, requireSession, session.isActive, smbStatus.status, runCheck]);
+
+  // Bericht des Start-Passes (App.tsx) übernehmen: Divergenz, Drift oder Fehler
+  // aus dem automatischen Lauf sollen im Banner und im Dialog stehen wie bei
+  // einem eigenen Lauf — sonst blieb davon nur ein 6-Sekunden-Toast.
+  const startBericht = useStartBericht(s => s.bericht);
+  useEffect(() => {
+    if (!startBericht) return;
+    const r = useStartBericht.getState().abholen();
+    if (r && mountedRef.current) {
+      setReport(r);
+      setDismissed(false);
+    }
+  }, [startBericht]);
 
   const dismiss = useCallback(() => setDismissed(true), []);
   const clearReport = useCallback(() => {
@@ -346,6 +368,7 @@ export function useCsvAutoRefreshCheck(): AutoRefreshCheckState {
     candidates,
     permissionNeeded,
     unlinked,
+    quellordnerIstKopie,
     checking,
     dismissed,
     refreshing,

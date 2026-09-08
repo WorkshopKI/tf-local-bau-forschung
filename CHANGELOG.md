@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v6.37.0 — CSV-Quellen: lokaler Import-Stempel, Divergenz-Warnung (September 2026)
+
+MINOR — Produktivsystem, fünf pl-Rechner nach dem Share-Umzug: bei **jedem** Start importierte die App alle drei Quellen neu (Konsole: `imported=3 upToDate=0`, drei Merges mit ~1000 „geänderten" Zeilen, Publish), obwohl die Exporte nur nachts entstehen. Alles, woran die App „schon importiert" erkannte, lag im Snapshot — und den ersetzt der jeweils letzte Publizierer; sehen zwei Rechner die Quelle verschieden, importieren und veröffentlichen sie im Wechsel. Detail: [csv-auto-refresh.md](docs/architecture/csv-auto-refresh.md), [recurring-bug-classes.md #26](docs/architecture/recurring-bug-classes.md).
+
+- **Lokaler Import-Stempel** je Quelle im kv-Store, nie im Snapshot: ein Rechner importiert eine Datei höchstens einmal, egal wessen Stempel der Sync hereinträgt ([lokaler-stempel.ts](src/core/services/csv/lokaler-stempel.ts), [csv-source-handle.ts](src/plugins/csv-sources-kuration/csv-source-handle.ts))
+- **Divergenz-Warnung**: gleiche Export-Nacht, anderer Inhalt, trotzdem Änderungen ⇒ zwei Rechner lesen verschiedene Kopien — Banner, Dialog (beide Dateien mit Größe, Datum, Urheber) und Audit `csv_quelle_divergenz`; Warnung, kein Block ([csv-quell-divergenz.ts](src/plugins/csv-sources-kuration/services/csv-quell-divergenz.ts))
+- **Der Start-Pass berichtet in den Banner** statt nur in einen 6-Sekunden-Toast — Divergenz, Drift, Fehler aus dem automatischen Lauf bleiben stehen ([start-bericht.ts](src/plugins/csv-sources-kuration/services/start-bericht.ts))
+- **Diagnose im Audit-Log**: `csv_auto_refresh_started` nennt je Kandidat den Grund samt eigener Datei und Team-Stempel, `csv_source_auto_updated` Größe + Checksum, das Schema seinen Urheber (`source_stamped_by`); `[data-update]` führt `changed= errors= divergenz=` ([auto-refresh.ts](src/plugins/csv-sources-kuration/services/auto-refresh.ts))
+- Der Kopie-Ordner-Guard steht jetzt im Banner statt nur in der Konsole, die pl-Nutzer nie sehen ([CsvAutoRefreshBanner.tsx](src/plugins/csv-sources-kuration/components/CsvAutoRefreshBanner.tsx))
+
 ### v6.36.1 — Abschnitt D bekommt seine Umfangs-Vorgabe zurueck (August 2026)
 
 PATCH — Beim Nebeneinanderlegen der Vorgaben aller sieben Abschnitte (v6.36) stand D als einziger auf `{}`. Der Seed führt 300–350 seit jeher; auf den Share kam der Wert nie, und niemand hat je gemerkt, dass D ungeprüft lief. Detail: [artefakt-engine.md](docs/architecture/artefakt-engine.md).

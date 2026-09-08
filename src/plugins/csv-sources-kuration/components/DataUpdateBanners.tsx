@@ -31,6 +31,7 @@ import { isDataShareEnabled, isKuratorMenusEnabled, isCsvAutoRefreshEnabled } fr
 import { useCsvAutoRefreshCheck } from '../hooks/useCsvAutoRefreshCheck';
 import { runDataUpdate } from '../services/data-update';
 import { phaseToastLabel } from '../services/data-update-toast';
+import { berichtZeigenswert } from '../services/start-bericht';
 import type { RefreshReport } from '../services/auto-refresh';
 import { NewSnapshotBanner } from '@/core/components/NewSnapshotBanner';
 import { CsvAutoRefreshBanner } from './CsvAutoRefreshBanner';
@@ -83,7 +84,8 @@ export function DataUpdateBanners(): React.ReactElement | null {
           }
         },
       });
-      if ((r.csvReport?.drift.length ?? 0) > 0) setCombinedDrift(r.csvReport ?? null);
+      // Drift, Divergenz, Fehler: alles, was nach dem Lauf stehen bleiben muss.
+      if (r.csvReport && berichtZeigenswert(r.csvReport)) setCombinedDrift(r.csvReport);
     } catch (err) {
       console.warn('[data-update-banners] kombinierter Lauf fehlgeschlagen', err);
     } finally {

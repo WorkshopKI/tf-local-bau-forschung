@@ -37,6 +37,7 @@ import { bumpCsvSourcesSignal } from '@/core/services/csv/csv-sources-signal';
 import { useStartupDataStatus } from '@/core/services/csv/startup-data-status';
 import { runDataUpdate } from '@/plugins/csv-sources-kuration/services/data-update';
 import { phaseToastLabel, completionToast } from '@/plugins/csv-sources-kuration/services/data-update-toast';
+import { useStartBericht } from '@/plugins/csv-sources-kuration/services/start-bericht';
 import { migrateLegacyDmsSource } from '@/core/services/dms-sources';
 import { runtimeConfig } from '@/config/runtime-config';
 import { isDemoDataBundled, dataConfig, isMaLoginEnabled, canWriteDatenShare } from '@/config/feature-flags';
@@ -664,6 +665,10 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
             },
           });
           if (cancelled) return;
+          // Divergenz, Drift, Fehler aus DIESEM Lauf zum Banner reichen — der
+          // Toast unten verschwindet nach 6 s, und die Quellen sind danach
+          // gestempelt, also keine Kandidaten mehr (siehe start-bericht.ts).
+          useStartBericht.getState().setBericht(r.csvReport ?? null);
           const finalMsg = completionToast(r);
           if (finalMsg) {
             setSyncToast(finalMsg);

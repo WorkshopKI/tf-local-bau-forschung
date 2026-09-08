@@ -19,6 +19,14 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v6.37 — 2026-09
+
+### Neu
+- Lesen zwei Rechner im Team verschiedene Kopien desselben CSV-Exports, sagt die App das jetzt: Banner und Bericht nennen beide Dateien mit Größe, Datum und wer sie zuletzt importiert hat — statt jeden Tag stumm „neue Daten" zu melden.
+### Bugfixes
+- Nach einem Neustart importierte die App CSV-Exporte erneut, die sie längst verarbeitet hatte, und veröffentlichte den unveränderten Stand für das Team. Jeder Rechner merkt sich jetzt selbst, welche Datei er schon importiert hat — eine Datei wird nur noch einmal verarbeitet.
+- Warnungen und Fehler aus dem automatischen Import beim Start bleiben im Banner stehen, statt nach sechs Sekunden zu verschwinden.
+
 ## v6.36 — 2026-08
 
 ### Neu

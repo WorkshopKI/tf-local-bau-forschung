@@ -187,6 +187,13 @@ export interface CsvSchema {
    * fortgeschrittenen mtime zu vertrauen (Citrix-False-Negative-Fix, v2.137).
    */
   last_file_size?: number;
+  /**
+   * Wer den Team-Stempel (`source_file_name`/`source_last_modified`/
+   * `last_file_size`/`file_checksum`) zuletzt gesetzt hat — Urheber-Identität
+   * wie im Snapshot-`createdBy`. Nur Diagnose: lesen zwei Rechner verschiedene
+   * Export-Kopien, sagt die Divergenz-Warnung, WESSEN Sicht der Stempel ist.
+   */
+  source_stamped_by?: string;
   created_at: string;
 }
 
@@ -446,6 +453,13 @@ export interface ImportResult {
    * weiter, meldet sie aber.
    */
   parseErrors?: { code: string; anzahl: number; beispielZeile: number }[];
+  /**
+   * SHA-1 der importierten Rohbytes — derselbe Wert, den der Importer gegen
+   * `file_checksum` hält. Nach oben gereicht, damit der Auto-Refresh die
+   * Datei-Sicht dieses Rechners gegen den Team-Stempel halten kann, ohne die
+   * Datei ein zweites Mal zu hashen.
+   */
+  fileChecksum?: string;
 }
 
 export interface ParsedRow {

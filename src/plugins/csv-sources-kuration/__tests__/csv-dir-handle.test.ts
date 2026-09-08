@@ -16,6 +16,8 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import 'fake-indexeddb/auto';
 import { IDBStore } from '@/core/services/storage/idb-store';
 import { CSV_SOURCE_DIR_HANDLE_IDB_KEY } from '@/core/services/infrastructure/types';
+import { leseLokaleStempel, schreibeLokalenStempel } from '@/core/services/csv/lokaler-stempel';
+import { sha1Hex } from '@/core/services/csv/sha1';
 import {
   resolveFileViaDir,
   checkSourceForUpdate,
@@ -182,6 +184,43 @@ describe('checkSourceForUpdate (Ordner-Handle)', () => {
     // schema OHNE source_file_name: nur die Filemap kann den schnellen Pfad liefern
     const r = await checkSourceForUpdate(idb, makeSchema({ source_file_name: undefined, source_last_modified: 1000 }));
     expect(r.state).toBe('update_available');
+  });
+
+  // Der Produktiv-Fall (Sept. 2026): der Sync hat den Team-Stempel eines Rechners
+  // hereingetragen, der die Quelle anders sieht. Der lokale Beleg dieses Rechners
+  // gewinnt — sonst gälte die eigene, längst importierte Datei wieder als neu.
+  it('fremder Team-Stempel im Schema, aber lokaler Import-Stempel dieser Datei → up_to_date (lokal)', async () => {
+    const idb = await freshIdb();
+    injectDir(idb, new MemDir().add(new MemFile('antraege.csv', CSV_OK, 5000)));
+    await schreibeLokalenStempel(idb, 'schema-1', {
+      fileName: 'antraege.csv',
+      lastModified: 5000,
+      size: new Blob([CSV_OK]).size,
+      checksum: 'egal-fast-path',
+      importedAt: '2026-09-08T05:00:00.000Z',
+    });
+    const r = await checkSourceForUpdate(idb, makeSchema({
+      source_file_name: 'antraege.csv',
+      source_last_modified: 1000,
+      last_file_size: 999,
+      file_checksum: 'fremder-checksum',
+    }));
+    expect(r).toMatchObject({ state: 'up_to_date', quelle: 'lokal' });
+  });
+
+  it('bestätigt der Team-Checksum die Datei, wird sie als lokaler Beleg gemerkt (nächster Start ohne Hash-Lauf)', async () => {
+    const idb = await freshIdb();
+    injectDir(idb, new MemDir().add(new MemFile('antraege.csv', CSV_OK, 5000)));
+    const checksum = await sha1Hex(new Blob([CSV_OK]));
+    const r = await checkSourceForUpdate(idb, makeSchema({
+      source_file_name: 'antraege.csv',
+      source_last_modified: 1000, // mtime „älter" als die Datei → Fast-Path greift nicht
+      file_checksum: checksum,
+    }));
+    expect(r).toMatchObject({ state: 'up_to_date', quelle: 'team' });
+    expect((await leseLokaleStempel(idb))['schema-1']).toMatchObject({
+      fileName: 'antraege.csv', lastModified: 5000, size: new Blob([CSV_OK]).size, checksum,
+    });
   });
 });
 

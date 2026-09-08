@@ -120,6 +120,12 @@ function logTiming(
     + ` inaktivesUP=${result.csvReport?.skippedInactiveUnterprogramm ?? 0})`
     + ` zurueckgehalteneLoeschungen=${result.csvReport?.heldRemovals ?? 0}`
     + ` unbekanntesUP=${result.csvReport?.unknownUnterprogramm ?? 0}`
+    // Was der Lauf am Bestand geändert, verweigert oder als abweichende Datei-Sicht
+    // erkannt hat — der Produktiv-Fall Sept. 2026 stand mit `imported=3` da, ohne
+    // dass die Zeile sagte, ob das Daten waren oder ein Konfigurationsproblem.
+    + ` changed=${result.csvReport?.changedAntraege ?? 0}`
+    + ` errors=${result.csvReport?.errors.length ?? 0}`
+    + ` divergenz=${result.csvReport?.divergenzen.length ?? 0}`
     + (c ? ` parse=${round(c.parseMs)}ms hashDiff=${round(c.hashDiffMs)}ms merge=${round(c.mergeMs)}ms snapshotWrite=${round(c.snapshotWriteMs)}ms` : '')
     + (result.lockBusy ? ` lockBusy=${result.lockBusy.blockingKurator}` : '');
   // Always-on (wie das bestehende `[snapshot-sync]`-info) — soll auch im
@@ -155,6 +161,10 @@ function logTiming(
         // >0 = Codes im Export, die der Katalog nicht kennt: nicht importiert,
         // aber auch nicht gelöscht.
         unknownUnterprogramm: result.csvReport?.unknownUnterprogramm ?? 0,
+        // Inhaltlich geänderte Anträge, abgewiesene Quellen, abweichende Datei-Sichten.
+        changedAntraege: result.csvReport?.changedAntraege ?? 0,
+        errors: result.csvReport?.errors.length ?? 0,
+        divergenzen: result.csvReport?.divergenzen.length ?? 0,
         parseMs: c ? round(c.parseMs) : 0,
         hashDiffMs: c ? round(c.hashDiffMs) : 0,
         mergeMs: c ? round(c.mergeMs) : 0,

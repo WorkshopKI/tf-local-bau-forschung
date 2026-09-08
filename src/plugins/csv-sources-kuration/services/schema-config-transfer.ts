@@ -9,7 +9,7 @@
  *
  * Bewusst NICHT übertragen (identitäts-/instanz-spezifisch): `id`, `programm_id`,
  * `created_at`, `source_file_name`/`source_last_modified`/`last_file_size`,
- * `file_checksum`, `last_imported_at`, `last_row_count`. `applyConfigToSchema`
+ * `file_checksum`, `source_stamped_by`, `last_imported_at`, `last_row_count`. `applyConfigToSchema`
  * behält diese Felder des Ziel-Schemas → die Ziel-ID bleibt stabil (keine
  * Row-Hash-/Snapshot-Migration), nur Name + Mapping + Merge-Parameter werden
  * überschrieben. `is_master` bleibt strukturell beim Ziel (1 Master pro Programm).

@@ -267,6 +267,17 @@ export const CSV_SOURCE_DIR_HANDLE_IDB_KEY = 'csv-source-dir-handle';
  */
 export const CSV_SOURCE_DIR_FILEMAP_IDB_KEY = 'csv-source-dir-filemap';
 
+/**
+ * Lokaler Import-Stempel je CSV-Quelle (`Record<schemaId, LokalerImportStempel>`,
+ * siehe `csv/lokaler-stempel.ts`): „DIESER Rechner hat DIESE Datei (mtime, Größe,
+ * SHA-1) verarbeitet". Bewusst ein maschine-lokaler Key wie die Filemap — der
+ * Team-Stempel im Schema wird beim Snapshot-Sync durch die Sicht des letzten
+ * Publizierers ersetzt; sieht der die Quelle anders, gälte die eigene, längst
+ * importierte Datei ohne diesen Beleg bei jedem Start wieder als „neu"
+ * (Import-Publish-Kette zwischen zwei Rechnern, Produktiv-Fall Sept. 2026).
+ */
+export const CSV_SOURCE_LOKAL_STEMPEL_IDB_KEY = 'csv-source-lokal-stempel';
+
 /** Backup-Root. v1.9: ohne programm-test-Zwischenordner; Rolling 4 Generationen. */
 export const BACKUPS_DIR = 'backups';
 export const BACKUP_MAX_GENERATIONS = 4;

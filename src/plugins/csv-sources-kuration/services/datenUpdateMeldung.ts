@@ -75,6 +75,11 @@ export function beschreibeDatenUpdate(r: DataUpdateResult, opts: MeldungOptionen
   const fehler = r.csvReport?.errors.length ?? 0;
   if (fehler > 0) teile.push(`${fehler} Quelle(n) mit Fehler — ${wohin}`);
 
+  // Zwei Rechner lesen verschiedene Export-Kopien: kein Import-Erfolg, sondern
+  // der Grund, warum das Team jeden Tag „neue Daten" bekam.
+  const abweichend = r.csvReport?.divergenzen?.length ?? 0;
+  if (abweichend > 0) teile.push(`${abweichend} Quelle(n) mit abweichender Datei — ${wohin}`);
+
   if (r.lockBusy) {
     teile.push(`CSV-Import übersprungen — ${r.lockBusy.blockingKurator} aktualisiert gerade`);
   }

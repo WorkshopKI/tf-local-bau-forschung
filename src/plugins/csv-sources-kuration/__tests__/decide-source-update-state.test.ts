@@ -9,6 +9,7 @@ import { describe, it, expect } from 'vitest';
 import { decideSourceUpdateState } from '../csv-source-handle';
 import { sha1Hex } from '@/core/services/csv/sha1';
 import type { CsvSchema } from '@/core/services/csv/types';
+import type { LokalerImportStempel } from '@/core/services/csv/lokaler-stempel';
 
 const CONTENT = 'AZ;Titel\n16KN1;Projekt A\n';
 
@@ -109,5 +110,92 @@ describe('decideSourceUpdateState', () => {
     expect(baseline.state).toBe('up_to_date');
     const forced = await decideSourceUpdateState(file, schema, 'quelle.csv', { forceRecheck: true });
     expect(forced.state).toBe('update_available');
+  });
+});
+
+/**
+ * Lokaler Import-Stempel (Sept. 2026, Produktiv-Fall): der Snapshot-Sync ersetzt
+ * `source_last_modified`/`last_file_size`/`file_checksum` im Schema durch die
+ * Sicht des Rechners, der zuletzt publiziert hat. Sieht der die Quelle anders
+ * (andere Kopie, andere Kodierung, Citrix-mtime), gilt die eigene, längst
+ * importierte Datei bei jedem Start wieder als „neu" — Import, Publish, und beim
+ * anderen Rechner dasselbe Spiel. Der lokale Beleg „DIESER Rechner hat DIESE
+ * Datei importiert" reist nie über den Share und bricht die Kette.
+ */
+function machLokal(file: File, checksum: string, over: Partial<LokalerImportStempel> = {}): LokalerImportStempel {
+  return {
+    fileName: file.name,
+    lastModified: file.lastModified,
+    size: file.size,
+    checksum,
+    importedAt: '2026-09-08T05:00:00.000Z',
+    ...over,
+  };
+}
+
+describe('decideSourceUpdateState — lokaler Import-Stempel', () => {
+  it('fremder Team-Stempel, eigene Datei längst importiert (mtime + Größe) → up_to_date aus dem lokalen Beleg', async () => {
+    const file = makeFile(CONTENT, 1_900_000_000_000);
+    // Der Team-Stempel beschreibt eine ANDERE Datei: älter, andere Größe, anderer Inhalt.
+    const schema = makeSchema({
+      file_checksum: 'fremder-checksum',
+      source_last_modified: 1_800_000_000_000,
+      last_file_size: file.size + 40,
+    });
+    const r = await decideSourceUpdateState(file, schema, 'quelle.csv', { lokal: machLokal(file, 'egal') });
+    expect(r).toMatchObject({ state: 'up_to_date', quelle: 'lokal' });
+  });
+
+  it('lokaler Beleg per Inhalt: mtime neuer, Bytes gleich → up_to_date (lokal)', async () => {
+    const file = makeFile(CONTENT, 1_900_000_000_000);
+    const checksum = await sha1Hex(new Blob([CONTENT]));
+    const schema = makeSchema({ file_checksum: 'fremder-checksum', source_last_modified: 1_800_000_000_000 });
+    const lokal = machLokal(file, checksum, { lastModified: 1_850_000_000_000 });
+    const r = await decideSourceUpdateState(file, schema, 'quelle.csv', { lokal });
+    expect(r).toMatchObject({ state: 'up_to_date', quelle: 'lokal', checksum });
+  });
+
+  it('lokaler Beleg passt nicht, Team-Stempel passt → up_to_date (team)', async () => {
+    const file = makeFile(CONTENT, 1_900_000_000_000);
+    const checksum = await sha1Hex(new Blob([CONTENT]));
+    const schema = makeSchema({ file_checksum: checksum, source_last_modified: undefined });
+    const lokal = machLokal(file, 'alter-eigener-import', { size: file.size + 7, lastModified: 1_000 });
+    const r = await decideSourceUpdateState(file, schema, 'quelle.csv', { lokal });
+    expect(r).toMatchObject({ state: 'up_to_date', quelle: 'team', checksum });
+  });
+
+  it('weder lokal noch Team → update_available, mit Grund und beiden Sichten', async () => {
+    const file = makeFile(CONTENT, 1_900_000_000_000);
+    const schema = makeSchema({
+      file_checksum: 'team-sha',
+      source_last_modified: 1_800_000_000_000,
+      last_file_size: 999,
+    });
+    const lokal = machLokal(file, 'alter-eigener-import', { size: file.size + 7, lastModified: 1_000 });
+    const r = await decideSourceUpdateState(file, schema, 'quelle.csv', { lokal });
+    expect(r).toMatchObject({
+      state: 'update_available',
+      grund: 'checksum',
+      datei: { name: 'quelle.csv', lastModified: 1_900_000_000_000, size: file.size },
+      teamStempel: { lastModified: 1_800_000_000_000, size: 999, checksum: 'team-sha' },
+    });
+  });
+
+  it('ohne jede Baseline → grund keine-baseline', async () => {
+    const r = await decideSourceUpdateState(makeFile(CONTENT, 1_900_000_000_000), makeSchema(), 'quelle.csv');
+    expect(r).toMatchObject({
+      state: 'update_available',
+      grund: 'keine-baseline',
+      teamStempel: { lastModified: null, size: null, checksum: null },
+    });
+  });
+
+  it('forceRecheck übergeht auch den lokalen Beleg', async () => {
+    const file = makeFile(CONTENT, 1_900_000_000_000);
+    const r = await decideSourceUpdateState(file, makeSchema(), 'quelle.csv', {
+      forceRecheck: true,
+      lokal: machLokal(file, 'egal'),
+    });
+    expect(r).toMatchObject({ state: 'update_available', grund: 'erzwungen' });
   });
 });

@@ -45,6 +45,7 @@ import {
 } from '@/core/services/csv';
 import type { CsvEncoding, CsvSchema } from '@/core/services/csv/types';
 import { logAudit } from '@/core/services/infrastructure/audit-log';
+import { sha1Hex } from '@/core/services/csv/sha1';
 import {
   acquireBuildLock,
   forceLock,
@@ -66,8 +67,10 @@ import {
   getCsvDirFileMap,
   setCsvDirFileMapEntries,
   type UpdateCheckResult,
+  type UpdatePruefung,
 } from '../csv-source-handle';
 import { loadSharedCsvFilenames } from '../csv-source-filenames';
+import { istQuellDivergenz, teamStempelAus, type QuellDivergenz } from './csv-quell-divergenz';
 import {
   validateHeaders,
   hasDrift,
@@ -79,7 +82,10 @@ import { adoptNewColumnsAsIgnoredMapping } from './new-column-mapping';
 
 export interface RefreshCandidate {
   schemaId: string;
+  /** Das Schema VOR dem Import — trägt den Team-Stempel, gegen den die eigene Datei-Sicht gehalten wird. */
   schema: CsvSchema;
+  /** Warum die Quelle als neu galt (Grund, eigene Datei, Team-Stempel) — fürs Audit-Log. */
+  pruefung?: UpdatePruefung;
 }
 
 export interface PermissionNeededEntry {
@@ -124,6 +130,13 @@ export interface CollectResult {
    * Citrix-False-Negative landet die eigentlich neue Datei hier.
    */
   upToDate: UpToDateEntry[];
+  /**
+   * Der verknüpfte CSV-Ordner ist der App-eigene Kopie-Ordner
+   * (`<share>/programm/antraege/imports`): jeder Import liest dann das eigene
+   * Erzeugnis statt des Exports. Bis hierher stand die Warnung nur in der
+   * Konsole — pl-Nutzer sehen keine; der Banner sagt es jetzt.
+   */
+  quellordnerIstKopie: boolean;
 }
 
 /**
@@ -149,6 +162,7 @@ export async function collectCandidates(
   // bevor wir prüfen — so löst ein frisch verknüpfter CSV-Ordner direkt per
   // Dateiname auf (kein teurer Header-Scan), auch auf einem neuen PL-Rechner.
   // Lokale Einträge (eigener Scan/Heal) haben Vorrang und werden NICHT überschrieben.
+  let quellordnerIstKopie = false;
   try {
     const dir = await getCsvSourceDirHandle(idb);
     if (dir) {
@@ -158,6 +172,7 @@ export async function collectCandidates(
       // Erkennung ist dabei in Ordnung, die Verknüpfung nicht. Nur melden, nicht
       // abbrechen: die Entscheidung bleibt beim Nutzer, wie bei `fixtures`.
       if (await istEigenerKopieOrdner(idb, dir)) {
+        quellordnerIstKopie = true;
         console.warn(
           '[csv-auto-refresh] Der CSV-Quellordner ist der App-eigene Kopie-Ordner '
           + `(<share>/programm/${CSV_SOURCES_SUBDIR}). Die App importiert damit ihr eigenes `
@@ -189,7 +204,11 @@ export async function collectCandidates(
     const base = { schemaId: schema.id, schemaName: schema.csv_source_name };
     switch (r.state) {
       case 'update_available':
-        candidates.push({ schemaId: schema.id, schema });
+        candidates.push({
+          schemaId: schema.id,
+          schema,
+          pruefung: { grund: r.grund, datei: r.datei, teamStempel: r.teamStempel },
+        });
         break;
       case 'permission_required':
         permissionNeeded.push(base);
@@ -212,7 +231,7 @@ export async function collectCandidates(
         break;
     }
   }
-  return { candidates, permissionNeeded, unlinked, fixtures, fileMissing, upToDate };
+  return { candidates, permissionNeeded, unlinked, fixtures, fileMissing, upToDate, quellordnerIstKopie };
 }
 
 export interface DriftEntry {
@@ -257,6 +276,14 @@ export interface RefreshReport {
   processed: ProcessedEntry[];
   drift: DriftEntry[];
   errors: ErrorEntry[];
+  /**
+   * Quellen, bei denen das Team in derselben Export-Nacht schon eine ANDERE
+   * Datei importiert hatte und unser Import trotzdem Zeilen änderte: zwei
+   * Rechner lesen verschiedene Kopien (siehe `csv-quell-divergenz.ts`). Eine
+   * Warnung — Import und Publish laufen weiter, aber Banner, Dialog und
+   * Audit-Log nennen beide Sichten.
+   */
+  divergenzen: QuellDivergenz[];
   /** Aufsummiertes Per-Phasen-Timing über alle importierten Quellen (ms) —
    *  fürs Performance-Logging des Daten-Update-Orchestrators. */
   importTimings: { parseMs: number; hashDiffMs: number; mergeMs: number; snapshotWriteMs: number };
@@ -376,6 +403,7 @@ async function persistSourceMeta(
   file: File,
   handle: FileSystemFileHandle | null,
   kuratorName: string | undefined,
+  checksum: string | null,
 ): Promise<void> {
   if (handle) {
     try {
@@ -391,8 +419,13 @@ async function persistSourceMeta(
       source_file_name: file.name,
       source_last_modified: file.lastModified,
       last_file_size: file.size,
+      // Wessen Sicht dieser Team-Stempel ist — die Divergenz-Warnung nennt ihn.
+      ...(kuratorName ? { source_stamped_by: kuratorName } : {}),
     });
   }
+  // Größe + Checksum dazu: damit steht im Audit-Log, WELCHE Datei ein Rechner
+  // gestempelt hat — zwei Rechner mit verschiedenen Kopien sind dann dort
+  // ablesbar, statt nur an den Merge-Zahlen erahnbar.
   await logAudit(idb, {
     action: 'csv_source_auto_updated',
     user: kuratorName,
@@ -400,6 +433,8 @@ async function persistSourceMeta(
       schemaId,
       fileName: file.name,
       lastModified: new Date(file.lastModified).toISOString(),
+      size: file.size,
+      checksum,
     },
   });
 }
@@ -468,7 +503,7 @@ export async function runAutoRefresh(
   opts: RunAutoRefreshOptions = {},
 ): Promise<RefreshReport> {
   const report: RefreshReport = {
-    processed: [], drift: [], errors: [], journal: [],
+    processed: [], drift: [], errors: [], divergenzen: [], journal: [],
     importTimings: { parseMs: 0, hashDiffMs: 0, mergeMs: 0, snapshotWriteMs: 0 },
     skippedInactiveUnterprogramm: 0,
     heldRemovals: 0,
@@ -524,10 +559,17 @@ async function laufeKandidatenAb(
   // Quellen, deren fehlende Spalten der Nutzer für DIESEN Lauf abgenickt hat.
   const akzeptiert = new Set(opts.driftAkzeptiertFuer ?? []);
 
+  // Je Kandidat WARUM er als neu galt (Grund, eigene Datei, Team-Stempel): der
+  // Produktiv-Fall Sept. 2026 war aus dem Audit-Log nicht zu lesen, weil dort nur
+  // stand, DASS importiert wurde.
   await logAudit(idb, {
     action: 'csv_auto_refresh_started',
     user: opts.kuratorName,
-    details: { count: candidates.length, schemaIds: candidates.map(c => c.schemaId) },
+    details: {
+      count: candidates.length,
+      schemaIds: candidates.map(c => c.schemaId),
+      kandidaten: candidates.map(c => ({ schemaId: c.schemaId, ...(c.pruefung ?? {}) })),
+    },
   });
 
   for (let i = 0; i < candidates.length; i++) {
@@ -646,7 +688,30 @@ async function laufeKandidatenAb(
       });
 
       opts.onProgress?.({ index: i, total: candidates.length, schemaName: name, phase: 'persisting' });
-      await persistSourceMeta(idb, schemaId, file, handle, opts.kuratorName);
+      const fileSha = result.fileChecksum ?? await sha1Hex(file).catch(() => null);
+      await persistSourceMeta(idb, schemaId, file, handle, opts.kuratorName, fileSha);
+
+      // Abweichende Datei-Sicht? `schema` ist der Stand VOR dem Import und trägt
+      // damit den Team-Stempel, den der Sync hereingebracht hat. Hat das Team in
+      // derselben Nacht eine andere Datei importiert und wir finden trotzdem
+      // Änderungen, lesen zwei Rechner verschiedene Kopien — Warnung, kein Block.
+      const geaenderteZeilen = result.buckets.new + result.buckets.changed + result.buckets.removed;
+      if (fileSha) {
+        const teamStempel = teamStempelAus(schema);
+        const datei = { name: file.name, lastModified: file.lastModified, size: file.size, checksum: fileSha };
+        if (istQuellDivergenz(teamStempel, datei, geaenderteZeilen)) {
+          const divergenz: QuellDivergenz = { schemaId, schemaName: name, teamStempel, datei, geaenderteZeilen };
+          report.divergenzen.push(divergenz);
+          console.warn(
+            `[csv-auto-refresh] „${name}": das Team hat in derselben Nacht eine ANDERE Datei importiert `
+            + `(${teamStempel.fileName ?? '?'}, ${teamStempel.size ?? '?'} B, von ${teamStempel.von ?? 'unbekannt'}); `
+            + `unsere Datei ${datei.name} (${datei.size} B) änderte ${geaenderteZeilen} Zeilen. `
+            + 'Zwei Rechner lesen verschiedene Export-Kopien — verknüpften CSV-Ordner prüfen.',
+          );
+          await logAudit(idb, { action: 'csv_quelle_divergenz', user: opts.kuratorName, details: divergenz })
+            .catch(() => undefined);
+        }
+      }
 
       if (result.importTimings) {
         report.importTimings.parseMs += result.importTimings.parseMs;
@@ -772,6 +837,8 @@ async function laufeKandidatenAb(
       processed: report.processed.length,
       drift: report.drift.length,
       errors: report.errors.length,
+      divergenzen: report.divergenzen.length,
+      changedAntraege: report.changedAntraege,
     },
   });
 

@@ -33,6 +33,8 @@ import { IDBStore } from '../../storage/idb-store';
 import { putProgramm } from '../idb-csv';
 import { saveSchema, loadSchema } from '../schemaRegistry';
 import { importCsvSource } from '../importer';
+import { leseLokaleStempel } from '../lokaler-stempel';
+import { sha1Hex } from '../sha1';
 import type { CsvSchema, Programm } from '../types';
 
 beforeEach(async () => {
@@ -101,5 +103,58 @@ describe('importCsvSource — source-Baseline-Stempelung', () => {
     const persisted = await loadSchema(idb, 'schema-1');
     expect(persisted?.source_last_modified).toBeUndefined();
     expect(persisted?.source_file_name).toBeUndefined();
+  });
+});
+
+/**
+ * Lokaler Import-Stempel (Sept. 2026): „DIESER Rechner hat DIESE Datei
+ * importiert" — im kv-Store, nie im Schema, also nie Teil des Snapshots. Der
+ * Team-Stempel im Schema wird beim Sync durch die Sicht des letzten
+ * Publizierers ersetzt; der lokale Beleg bleibt und verhindert, dass die eigene
+ * Datei danach wieder als „neu" gilt.
+ */
+describe('importCsvSource — lokaler Import-Stempel', () => {
+  const T = 1_717_000_000_000;
+
+  it('schreibt den lokalen Stempel dieses Rechners und liefert den Datei-Checksum zurück', async () => {
+    const idb = await freshIdb();
+    await putProgramm(idb, makeProgramm(PID));
+    await saveSchema(idb, makeSchema());
+    const file = new File([HEADER_ONLY_CSV], 'quelle.csv', { type: 'text/csv', lastModified: T });
+
+    const result = await importCsvSource(idb, 'schema-1', file, { force: true });
+
+    const checksum = await sha1Hex(new Blob([HEADER_ONLY_CSV]));
+    expect(result.fileChecksum).toBe(checksum);
+    const lokal = (await leseLokaleStempel(idb))['schema-1'];
+    expect(lokal).toMatchObject({ fileName: 'quelle.csv', lastModified: T, size: file.size, checksum });
+    expect(lokal?.importedAt).toBeTruthy();
+    // Der Beleg gehört NICHT ins Schema — dort stünde er im Snapshot.
+    const persisted = await loadSchema(idb, 'schema-1') as Record<string, unknown> | null;
+    expect(persisted).not.toHaveProperty('lokalerStempel');
+  });
+
+  it('auch der Checksum-Skip (byte-gleiche Datei) setzt den lokalen Stempel', async () => {
+    const idb = await freshIdb();
+    await putProgramm(idb, makeProgramm(PID));
+    const checksum = await sha1Hex(new Blob([HEADER_ONLY_CSV]));
+    await saveSchema(idb, { ...makeSchema(), file_checksum: checksum });
+    const file = new File([HEADER_ONLY_CSV], 'quelle.csv', { type: 'text/csv', lastModified: T });
+
+    const result = await importCsvSource(idb, 'schema-1', file);
+
+    expect(result.skipped).toBe(true);
+    expect(result.fileChecksum).toBe(checksum);
+    expect((await leseLokaleStempel(idb))['schema-1']).toMatchObject({ lastModified: T, size: file.size, checksum });
+  });
+
+  it('ein reiner Blob hinterlässt keinen lokalen Stempel', async () => {
+    const idb = await freshIdb();
+    await putProgramm(idb, makeProgramm(PID));
+    await saveSchema(idb, makeSchema());
+
+    await importCsvSource(idb, 'schema-1', new Blob([HEADER_ONLY_CSV], { type: 'text/csv' }), { force: true });
+
+    expect(await leseLokaleStempel(idb)).toEqual({});
   });
 });

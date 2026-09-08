@@ -34,6 +34,108 @@ Pro Quelle entscheidet `checkSourceForUpdate` (mtime + Größen-Guard `last_file
 Der **erzwungene Re-Check** (`collectCandidates(idb, { forceRecheck })`) umgeht den mtime-Fast-Path — nötig,
 wenn eine Inhaltsänderung ohne mtime-Bump vorlag (dev/kurator, v2.155/v2.156.1).
 
+## Lokaler Import-Stempel + Divergenz-Warnung (v6.37.0)
+
+> **Der Produktiv-Fall (Sept. 2026).** Fünf pl-Rechner am echten Share, kurz nach dem Umzug von
+> App- und Share-Pfad: bei **jedem** Start importierte die App alle drei Quellen neu, obwohl die
+> Exporte nur einmal nachts entstehen, und publizierte danach — jeder andere Rechner bekam
+> „Neuer Datenbestand", holte den Stand und importierte beim nächsten Start selbst wieder. Die
+> Konsole eines pl-Rechners zeigte den Mechanismus in einer Zeile: `[snapshot-sync] antraege
+> delta … applied=6` (fremden Stand geholt), direkt danach `csv … imported=3 … upToDate=0`, drei
+> Merges mit `touched=1094 / 824 / 903`, `snapshotWrite=25235ms` — und im selben Lauf
+> `[journal] uebersprungen` für den Master, der Export war dem Journal also längst bekannt.
+
+**Warum das eine Kette war.** Alles, woran die App „schon importiert" erkannte, lag im **Schema**
+(`source_last_modified` / `last_file_size` / `file_checksum`) und in `csv_row_hashes` — beides
+Stores, die `writeSmallStores` bei jedem Voll- **und** Delta-Publish neu schreibt und der Leser bei
+Hash-Abweichung komplett ersetzt. Der Stempel beschreibt damit immer die Datei-Sicht **des
+zuletzt publizierenden Rechners**. Sehen zwei Rechner die Quelle verschieden (andere Kopie, andere
+Kodierung — die App-eigene UTF-8-Kopie unter `programm/antraege/imports`, 18.08.2026 —, ein anderer
+Ordner nach dem Umzug, Citrix-mtime), gilt für B nach A's Publish die eigene, längst importierte
+Datei wieder als neu; B importiert, findet gegen A's Row-Hashes „Änderungen", publiziert; A's
+Stempel sind ersetzt, A importiert beim nächsten Start … Der Encoding-Sonderfall war seit v4.102.1
+bekannt, die Klasse dahinter nicht ([recurring-bug-classes #26](recurring-bug-classes.md)).
+
+**Lokaler Import-Stempel** ([lokaler-stempel.ts](../../src/core/services/csv/lokaler-stempel.ts), kv-Key
+`csv-source-lokal-stempel`, `Record<schemaId, {fileName, lastModified, size, checksum, importedAt}>`):
+„DIESER Rechner hat DIESE Datei verarbeitet" — maschine-lokal wie die Filemap, nie im Snapshot, von
+keinem Sync ersetzt. **Ein** Schreibpunkt: `importCsvSource`, im vollen Pfad und im Checksum-Skip
+(beide nur für echte `File`s). `decideSourceUpdateState` fragt ihn **vor** dem Team-Stempel (billig
+per mtime + Größe, sonst per Checksum; die Datei wird höchstens einmal gehasht und gegen beide
+Belege gehalten); `up_to_date` trägt `quelle: 'lokal' | 'team'`. Bestätigt der Team-Checksum die
+Datei, merkt `checkSourceForUpdate` sie zusätzlich lokal (`merkeBestaetigteDatei`) — der nächste
+Start nimmt den billigen Pfad, und ein später hereingesyncter fremder Stempel macht sie nicht wieder
+zur Kandidatin. Wirkung: ein Rechner importiert eine gegebene Datei höchstens einmal; die Kette
+braucht den Re-Import des jeweils anderen, und der bleibt aus. `forceRecheck` übergeht wie bisher alles.
+
+**Divergenz-Warnung** ([csv-quell-divergenz.ts](../../src/plugins/csv-sources-kuration/services/csv-quell-divergenz.ts)):
+nach jedem Import hält `laufeKandidatenAb` die eigene Datei-Sicht gegen den Team-Stempel, den
+`candidate.schema` VOR dem Import trug. Team-Checksum vorhanden und ungleich, `|Δ mtime| <
+DIVERGENZ_FENSTER_MS` (6 h — Exporte liegen ≥ 24 h auseinander, das Fenster verträgt
+SMB-/Citrix-Versatz) **und** der Import hat Zeilen geändert ⇒ zwei Rechner lesen verschiedene
+Kopien desselben Exports. Bewusst eine **Warnung, kein Block** (Entscheidung 08.09.2026): welche
+Sicht die richtige ist, weiß nur der Mensch, und die Schleife stoppt der lokale Stempel ohnehin.
+Sie steht in `RefreshReport.divergenzen`, im Banner („⚠ N Quelle(n) mit abweichender Datei"), im
+Drift-Dialog (Team-Datei mit Größe, Datum, Urheber `source_stamped_by` neben der eigenen) und als
+Audit-Eintrag `csv_quelle_divergenz`. Ohne Zeilen-Änderung ist es keine Divergenz, sondern nur ein
+veralteter Stempel; mit einem Team-Stempel aus der Vornacht der normale Tages-Export.
+
+**Der Start-Bericht erreicht den Banner** ([start-bericht.ts](../../src/plugins/csv-sources-kuration/services/start-bericht.ts)):
+der Start-Pass in App.tsx zeigte sein CSV-Ergebnis nur als 6-Sekunden-Toast; eine Divergenz oder
+ein Fehler aus genau diesem Lauf erreichte niemanden (die Quelle ist gestempelt, also kein Kandidat,
+und `useCsvAutoRefreshCheck.report` füllt nur der eigene Lauf). Jetzt legt App.tsx den Bericht in
+einem Übergabefach ab — nur wenn `berichtZeigenswert` (Divergenz, Drift, Fehler, übergangene
+Spalten, Encoding-Korrektur) —, der Hook holt ihn ab und zeigt ihn wie einen eigenen Lauf.
+`DataUpdateBanners.runCombined` nutzt dieselbe Regel.
+
+**Diagnose ohne IDB-Dump.** `csv_auto_refresh_started` trägt je Kandidat `grund`
+(`keine-baseline` | `checksum` | `checksum-unlesbar` | `erzwungen`), die eigene Datei
+(Name/mtime/Größe) und den Team-Stempel; `csv_source_auto_updated` zusätzlich `size` + `checksum`;
+die `[data-update]`-Zeile und `teamflow_last_data_update_timing` führen `changed= errors=
+divergenz=`. Der Kopie-Ordner-Guard (`istEigenerKopieOrdner`) steht nicht mehr nur in der Konsole,
+sondern als `CollectResult.quellordnerIstKopie` im Banner.
+
+Erstdiagnose am Share, wenn Importe sich wiederholen (PowerShell, Pfad anpassen):
+
+```powershell
+Select-String -Path '<share>\_intern\audit-log.jsonl' -Pattern '"action":"(csv_auto_refresh_started|csv_source_auto_updated|csv_import"|csv_quelle_divergenz|snapshot_written|csv_schema_encoding_korrigiert|csv_quellordner_ist_kopieordner)' | Select-Object -Last 60 | ForEach-Object { $_.Line }
+```
+
+Lesart: stempeln zwei Nutzer für dieselbe Quelle am selben Tag verschiedene `fileName`/`size`/`checksum`,
+lesen sie verschiedene Dateien; `csv_import` mit `changed≈1000` auf unverändertem Export ist die
+Row-Hash-Divergenz; abwechselnde `csv_schema_encoding_korrigiert` sind die UTF-8-Kopie.
+
+Und auf einem einzelnen pl-Rechner, in der Browser-Konsole der laufenden App (nur lesend; DB-Name je
+Variante, pl = `teamflow-zah-pl`): je Quelle Team-Stempel, lokaler Beleg und die tatsächlich
+verknüpfte Datei nebeneinander — `gleich: false` heißt, dieser Rechner liest eine andere Datei als
+der letzte Publizierer.
+
+```js
+(async () => {
+  const db = await new Promise((res, rej) => { const r = indexedDB.open('teamflow-zah-pl'); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
+  const get = (store, key) => new Promise((res, rej) => { const q = db.transaction(store).objectStore(store).get(key); q.onsuccess = () => res(q.result); q.onerror = () => rej(q.error); });
+  const all = store => new Promise((res, rej) => { const q = db.transaction(store).objectStore(store).getAll(); q.onsuccess = () => res(q.result); q.onerror = () => rej(q.error); });
+  const sha1 = async f => [...new Uint8Array(await crypto.subtle.digest('SHA-1', await f.arrayBuffer()))].map(b => b.toString(16).padStart(2, '0')).join('');
+  const dir = await get('kv', 'csv-source-dir-handle');
+  const filemap = (await get('kv', 'csv-source-dir-filemap')) ?? {};
+  const lokal = (await get('kv', 'csv-source-lokal-stempel')) ?? {};
+  const zeilen = [];
+  for (const s of await all('csv_schemas')) {
+    const name = s.source_file_name ?? filemap[s.id];
+    let datei = null;
+    try { if (dir && name) { const f = await (await dir.getFileHandle(name)).getFile(); datei = { name: f.name, mtime: new Date(f.lastModified).toISOString(), size: f.size, sha1: await sha1(f) }; } }
+    catch (e) { datei = { fehler: String(e) }; }
+    zeilen.push({ quelle: s.id, teamSha: s.file_checksum?.slice(0, 8), dateiSha: datei?.sha1?.slice(0, 8), gleich: s.file_checksum === datei?.sha1,
+      teamSize: s.last_file_size, dateiSize: datei?.size, teamMtime: s.source_last_modified ? new Date(s.source_last_modified).toISOString() : null,
+      dateiMtime: datei?.mtime, von: s.source_stamped_by ?? null, lokalerBeleg: lokal[s.id]?.checksum?.slice(0, 8) ?? null,
+      ordnerVerknuepft: !!dir, fehler: datei?.fehler });
+  }
+  db.close();
+  console.table(zeilen);
+  return zeilen;
+})();
+```
+
 ## `runAutoRefresh` — sequenzielle Pipeline
 
 Pro Kandidat: Datei via gespeichertem Handle laden (kein Picker) → Header gegen Schema validieren →

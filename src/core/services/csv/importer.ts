@@ -12,6 +12,7 @@ import { canonicalRowHash } from './hash';
 import { sha1Hex } from './sha1';
 import { parseCsvAllStreamed, readWithEncodingFallback } from './parser';
 import { saveCsvSourceFile, saveSchema, loadSchema } from './schemaRegistry';
+import { schreibeLokalenStempel, stempelFuerDatei } from './lokaler-stempel';
 import {
   deleteRowHashes,
   getRowHashesForSchema,
@@ -156,11 +157,16 @@ export async function importCsvSource(
   try {
     // SHA-1 der Datei berechnen
     const fileSha = await sha1Hex(csvBlob);
+    result.fileChecksum = fileSha;
     // `force` umgeht den Skip: ein expliziter Re-Import (z.B. nach Mapping-
     // Aenderung) muss auch bei byte-gleicher Datei neu verarbeiten.
     if (!opts.force && schema.file_checksum === fileSha) {
       result.skipped = true;
       result.durationMs = Date.now() - started;
+      // Auch „byte-gleich, nichts zu tun" ist ein Beleg dieses Rechners: der
+      // Team-Stempel, der den Skip erlaubt hat, kann beim naechsten Sync durch
+      // eine fremde Sicht ersetzt sein — der lokale nicht.
+      if (csvBlob instanceof File) await schreibeLokalenStempel(idb, schemaId, stempelFuerDatei(csvBlob, fileSha));
       await logAudit(idb, {
         action: 'csv_import_skipped',
         details: { schemaId, reason: 'checksum_match' },
@@ -398,7 +404,13 @@ export async function importCsvSource(
       // Recompute-/SMB-Reimport-Pfad uebergibt einen Blob ohne sinnvolle
       // lastModified — dort die Original-Baseline NICHT ueberschreiben.
       ...(csvBlob instanceof File
-        ? { source_file_name: csvBlob.name, source_last_modified: csvBlob.lastModified, last_file_size: csvBlob.size }
+        ? {
+            source_file_name: csvBlob.name,
+            source_last_modified: csvBlob.lastModified,
+            last_file_size: csvBlob.size,
+            // Wessen Sicht dieser Stempel ist — die Divergenz-Warnung nennt ihn.
+            source_stamped_by: await resolveSnapshotAuthor(idb).catch(() => undefined),
+          }
         : {}),
     };
 
@@ -459,6 +471,11 @@ export async function importCsvSource(
       await deleteRowHashes(idb, schemaId, removedJoinValues);
     }
     await saveSchema(idb, updatedSchema);
+    // Lokaler Beleg „DIESER Rechner hat DIESE Datei verarbeitet" — im kv-Store,
+    // nie im Schema (das reist im Snapshot und wird beim Sync ersetzt). Nur fuer
+    // echte Dateien: der Recompute-/SMB-Reimport-Pfad uebergibt einen Blob ohne
+    // sinnvolle Metadaten.
+    if (csvBlob instanceof File) await schreibeLokalenStempel(idb, schemaId, stempelFuerDatei(csvBlob, fileSha));
 
     // Nach Merge: Antrag-Counts + Auto-Zeitraum pro Unterprogramm neu berechnen (für Admin-Panel).
     // Ohne Deltas bleiben die Counts gleich → ueberspringen.

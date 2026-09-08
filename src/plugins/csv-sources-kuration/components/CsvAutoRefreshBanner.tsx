@@ -29,6 +29,7 @@ import { useDataMutationBusy } from '@/core/services/csv/data-mutation-gate';
 import { pluginIdToRoute } from '@/core/routes';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { beschreibeLockKonflikt } from './lockKonfliktText';
+import { berichtZeigenswert } from '../services/start-bericht';
 import type { RefreshProgress } from '../services/auto-refresh';
 
 /** Kurzes Verb je Pipeline-Phase fuer das Banner. */
@@ -87,7 +88,12 @@ export function CsvAutoRefreshBanner({ state }: { state: AutoRefreshCheckState }
   // Dasselbe für eine automatisch korrigierte Encoding-Drift: der Import lief
   // durch, aber das Schema wurde dabei geändert — das gehört gesagt.
   const reportHatEncodingKorrektur = (state.report?.processed ?? []).some(p => p.korrigiertesEncoding);
-  const reportZeigenswert = reportHasDrift || reportHatUebergangene || reportHatEncodingKorrektur;
+  // Und für eine abweichende Datei-Sicht: das Team hat dieselbe Nacht schon eine
+  // ANDERE Datei importiert — zwei Rechner lesen verschiedene Export-Kopien.
+  const divergenzen = state.report?.divergenzen.length ?? 0;
+  // EINE Regel für „muss stehen bleiben" — dieselbe, nach der der Start-Pass
+  // seinen Bericht überhaupt erst hierher reicht.
+  const reportZeigenswert = state.report ? berichtZeigenswert(state.report) : false;
   // Wortlaut kommt aus der reinen `beschreibeLockKonflikt` — der Banner nennt
   // nie den eigenen Namen als Fremd-Blockierer (v3.46.1).
   const lockAnzeige = state.lockConflict ? beschreibeLockKonflikt(state.lockConflict) : null;
@@ -100,9 +106,11 @@ export function CsvAutoRefreshBanner({ state }: { state: AutoRefreshCheckState }
     if (hasReport && reportZeigenswert) setDriftDialogOpen(true);
   }, [hasReport, reportZeigenswert]);
 
-  // Banner ausblenden, wenn nichts zu tun und kein Report/Dialog aktiv.
+  // Banner ausblenden, wenn nichts zu tun und kein Report/Dialog aktiv. Der
+  // Kopie-Ordner-Hinweis hält ihn offen: er ist eine Fehlkonfiguration, kein Lauf.
   if (state.dismissed && !state.refreshing && !state.lockConflict && !linkDialogOpen) return null;
-  if (total === 0 && !hasReport && !state.lockConflict && !state.refreshError && !linkDialogOpen) return null;
+  if (total === 0 && !hasReport && !state.lockConflict && !state.refreshError && !linkDialogOpen
+    && !state.quellordnerIstKopie) return null;
 
   /**
    * Zu den registrierten Quellen — seit v4.36 ein Panel des Kuration-Hubs.
@@ -172,10 +180,19 @@ export function CsvAutoRefreshBanner({ state }: { state: AutoRefreshCheckState }
             {!reportHasDrift && reportHatUebergangene ? ' — mit übergangenen Spalten' : ''}
             {!reportHasDrift && !reportHatUebergangene && reportHatEncodingKorrektur
               ? ' — Encoding korrigiert' : ''}
+            {divergenzen > 0
+              ? ` — ⚠ ${divergenzen} Quelle${divergenzen === 1 ? '' : 'n'} mit abweichender Datei` : ''}
             {state.report!.errors.length > 0 ? ` — ${state.report!.errors.length} Fehler` : ''}.
           </span>
         ) : (
           <span className="flex-1">
+            {state.quellordnerIstKopie ? (
+              <span className="inline-flex items-center gap-1.5">
+                <AlertTriangle size={13} className="shrink-0" />
+                Der verknüpfte CSV-Ordner ist der Kopie-Ordner der App — jeder Import liest das eigene
+                Erzeugnis statt des Exports. In „Einstellungen → Daten" den echten Export-Ordner verknüpfen.
+              </span>
+            ) : null}
             {state.candidates.length > 0 ? (
               <>
                 <strong>{state.candidates.length}</strong> CSV-Quelle{state.candidates.length === 1 ? '' : 'n'} {state.candidates.length === 1 ? 'hat' : 'haben'} neue Daten.

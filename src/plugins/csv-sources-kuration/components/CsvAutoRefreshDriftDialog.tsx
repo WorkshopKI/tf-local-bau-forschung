@@ -47,6 +47,13 @@ export function CsvAutoRefreshDriftDialog({
   const uebergangen = report.processed.filter(p => (p.uebergangeneSpalten?.length ?? 0) > 0);
   // Quellen, deren Drift nur ein Encoding-Wechsel war — automatisch korrigiert.
   const encodingKorrigiert = report.processed.filter(p => p.korrigiertesEncoding);
+  // Quellen, bei denen das Team dieselbe Nacht eine ANDERE Datei importiert hat.
+  const divergenzen = report.divergenzen;
+
+  const datum = (ms: number | null): string => ms == null
+    ? 'unbekannt'
+    : new Date(ms).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  const bytes = (n: number | null): string => n == null ? '? Byte' : `${n.toLocaleString('de-DE')} Byte`;
 
   // Bewusst NICHT `onClose()`: das verwirft den Report und blendet den Banner aus
   // („dismissed"), sodass das Ergebnis des Nachlaufs niemand mehr saehe. Der
@@ -70,7 +77,7 @@ export function CsvAutoRefreshDriftDialog({
           {totalProcessed > 0 ? (
             <>
               <span className="font-medium text-[var(--tf-text)]">{totalProcessed}</span> Quelle
-              {totalProcessed === 1 ? '' : 'n'} wurden automatisch aktualisiert.
+              {totalProcessed === 1 ? ' wurde' : 'n wurden'} automatisch aktualisiert.
             </>
           ) : (
             <>Keine Quelle konnte automatisch aktualisiert werden.</>
@@ -103,6 +110,42 @@ export function CsvAutoRefreshDriftDialog({
                   verstümmelt worden.
                 </div>
               ))}
+            </div>
+          </div>
+        ) : null}
+
+        {divergenzen.length > 0 ? (
+          <div className="rounded-md border-[0.5px] border-amber-300 bg-amber-50 p-3">
+            <div className="flex items-start gap-2 mb-2">
+              <AlertTriangle size={14} className="mt-0.5 flex-shrink-0 text-amber-700" />
+              <div className="text-[12.5px] font-medium text-amber-900">
+                {divergenzen.length} Quelle{divergenzen.length === 1 ? '' : 'n'} mit abweichender Datei — zwei
+                Rechner lesen verschiedene Export-Kopien.
+              </div>
+            </div>
+            <div className="ml-6 space-y-2">
+              {divergenzen.map(d => (
+                <div key={d.schemaId} className="rounded border-[0.5px] border-amber-200 bg-white px-2.5 py-2 text-[11px] text-amber-900">
+                  <div className="text-[12px] font-medium text-[var(--tf-text)]">{d.schemaName}</div>
+                  <div className="mt-0.5">
+                    Das Team hat in derselben Nacht bereits importiert:{' '}
+                    <span className="font-mono">{d.teamStempel.fileName ?? '?'}</span>{' '}
+                    ({bytes(d.teamStempel.size)}, {datum(d.teamStempel.lastModified)}
+                    {d.teamStempel.von ? `, von ${d.teamStempel.von}` : ''}).
+                  </div>
+                  <div>
+                    Deine Datei: <span className="font-mono">{d.datei.name}</span>{' '}
+                    ({bytes(d.datei.size)}, {datum(d.datei.lastModified)}) — der Import änderte{' '}
+                    {d.geaenderteZeilen.toLocaleString('de-DE')} Zeile{d.geaenderteZeilen === 1 ? '' : 'n'}.
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="ml-6 mt-2 text-[11px] text-amber-900">
+              Gleicher Export, andere Bytes: meist eine andere Kopie (z.B. der Kopie-Ordner der App,
+              eine mit Excel gespeicherte Datei) oder ein anderer Ordner nach einem Umzug. Solange zwei
+              Rechner verschiedene Dateien lesen, importiert und veröffentlicht jeder den Stand des
+              anderen erneut. Den verknüpften CSV-Ordner in „Einstellungen → Daten" prüfen.
             </div>
           </div>
         ) : null}
@@ -251,7 +294,7 @@ export function CsvAutoRefreshDriftDialog({
         ) : null}
 
         {totalDrift === 0 && totalErrors === 0 && uebergangen.length === 0
-          && encodingKorrigiert.length === 0 && totalProcessed > 0 ? (
+          && encodingKorrigiert.length === 0 && divergenzen.length === 0 && totalProcessed > 0 ? (
           <div className="text-[11.5px] text-[var(--tf-text-tertiary)]">
             Alle Quellen wurden ohne Probleme aktualisiert. Bestehende Mappings sind unverändert.
           </div>

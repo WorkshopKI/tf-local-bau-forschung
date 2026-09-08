@@ -95,6 +95,12 @@ const csv = vi.hoisted(() => ({
   saveSchemaEncodings: [] as (string | undefined)[],
   /** true = Import meldet KEINE Zeilen-Deltas (unveraenderter Export). */
   ohneDeltas: false,
+  /** Urheber, den jedes `saveSchema` als `source_stamped_by` traegt. */
+  saveSchemaStempelVon: [] as (string | undefined)[],
+}));
+
+const audit = vi.hoisted(() => ({
+  calls: [] as { action: string; details?: Record<string, unknown> }[],
 }));
 
 vi.mock('@/core/services/csv', () => ({
@@ -112,12 +118,14 @@ vi.mock('@/core/services/csv', () => ({
       importTimings: { parseMs: 1, hashDiffMs: 1, mergeMs: 1, snapshotWriteMs: 0 },
       changedAktenzeichen: ['16EP250140'],
       removedAktenzeichen: [],
+      fileChecksum: 'sha-eigene-datei',
     };
   },
   loadSchema: async (_idb: unknown, schemaId: string) => machSchema(schemaId),
   saveSchema: async (_idb: unknown, schema: CsvSchema) => {
     csv.saveSchemaCalls.push(schema.id);
     csv.saveSchemaEncodings.push(schema.encoding);
+    csv.saveSchemaStempelVon.push(schema.source_stamped_by);
   },
   // Mit erzwungenem Encoding = die (moeglicherweise falsche) Schema-Sicht,
   // ohne = die Auto-Erkennung. Genau diese Zweiteilung nutzt die Heilung.
@@ -150,7 +158,9 @@ vi.mock('@/core/services/infrastructure/smb-handle', () => ({
 }));
 
 vi.mock('@/core/services/infrastructure/audit-log', () => ({
-  logAudit: async () => undefined,
+  logAudit: async (_idb: unknown, eintrag: { action: string; details?: Record<string, unknown> }) => {
+    audit.calls.push(eintrag);
+  },
 }));
 
 vi.mock('@/core/status/journal', () => ({
@@ -246,7 +256,87 @@ beforeEach(() => {
   csv.autoHeaders = null;
   csv.autoEncoding = null;
   csv.saveSchemaEncodings.length = 0;
+  csv.saveSchemaStempelVon.length = 0;
   csv.ohneDeltas = false;
+  audit.calls.length = 0;
+});
+
+/** Die Datei, die `loadFileFromStoredHandle` oben liefert: `AZ\n`, 3 Byte. */
+const DATEI_MTIME = 1_717_000_000_000;
+
+/** Team-Stempel derselben Nacht, aber von einer ANDEREN Datei. */
+function mitFremdemTeamStempel(k: RefreshCandidate, lastModified = DATEI_MTIME - 60_000): RefreshCandidate {
+  return {
+    ...k,
+    schema: {
+      ...k.schema,
+      source_file_name: 'q.csv',
+      file_checksum: 'sha-team-datei',
+      source_last_modified: lastModified,
+      last_file_size: 999,
+      source_stamped_by: 'BIB',
+    },
+  };
+}
+
+describe('runAutoRefresh — abweichende Datei-Sicht (Divergenz)', () => {
+  it('Team hat dieselbe Nacht eine ANDERE Datei importiert, wir finden Deltas → Divergenz im Bericht und im Audit-Log', async () => {
+    const report = await runAutoRefresh(idb, KANDIDATEN.map(k => mitFremdemTeamStempel(k)), { kuratorName: h.eigenerName });
+
+    expect(report.divergenzen.map(d => d.schemaId)).toEqual(['7737-bgl', '9097-anb']);
+    expect(report.divergenzen[0]).toMatchObject({
+      schemaName: '7737-bgl',
+      teamStempel: { fileName: 'q.csv', checksum: 'sha-team-datei', size: 999, von: 'BIB' },
+      datei: { name: 'q.csv', lastModified: DATEI_MTIME, size: 3, checksum: 'sha-eigene-datei' },
+      geaenderteZeilen: 1,
+    });
+    const gemeldet = audit.calls.filter(a => a.action === 'csv_quelle_divergenz');
+    expect(gemeldet).toHaveLength(2);
+    expect(gemeldet[0]?.details).toMatchObject({ schemaId: '7737-bgl', teamStempel: { von: 'BIB' } });
+    // Warnung, kein Block: Import und Publish laufen weiter — welche Sicht die
+    // richtige ist, weiss nur der Mensch.
+    expect(report.processed).toHaveLength(2);
+    expect(csv.snapshotCalls).toEqual(['default-programm']);
+  });
+
+  it('Team-Stempel aus der Vornacht → normaler Tages-Export, kein Verdacht', async () => {
+    const gestern = KANDIDATEN.map(k => mitFremdemTeamStempel(k, DATEI_MTIME - 24 * 60 * 60 * 1000));
+    const report = await runAutoRefresh(idb, gestern, { kuratorName: h.eigenerName });
+
+    expect(report.divergenzen).toEqual([]);
+    expect(audit.calls.filter(a => a.action === 'csv_quelle_divergenz')).toHaveLength(0);
+  });
+
+  it('ohne Zeilen-Deltas keine Divergenz — der Stempel war nur veraltet', async () => {
+    csv.ohneDeltas = true;
+    const report = await runAutoRefresh(idb, KANDIDATEN.map(k => mitFremdemTeamStempel(k)), { kuratorName: h.eigenerName });
+
+    expect(report.divergenzen).toEqual([]);
+  });
+
+  it('der Team-Stempel traegt seinen Urheber (source_stamped_by)', async () => {
+    await runAutoRefresh(idb, KANDIDATEN, { kuratorName: h.eigenerName });
+
+    expect(csv.saveSchemaStempelVon).toContain(h.eigenerName);
+  });
+
+  it('protokolliert je Kandidat, WARUM er als neu galt', async () => {
+    const kandidaten: RefreshCandidate[] = KANDIDATEN.map(k => ({
+      ...k,
+      pruefung: {
+        grund: 'checksum',
+        datei: { name: 'q.csv', lastModified: DATEI_MTIME, size: 3 },
+        teamStempel: { lastModified: DATEI_MTIME - 60_000, size: 999, checksum: 'sha-team-datei' },
+      },
+    }));
+    await runAutoRefresh(idb, kandidaten, { kuratorName: h.eigenerName });
+
+    const start = audit.calls.find(a => a.action === 'csv_auto_refresh_started');
+    expect(start?.details?.kandidaten).toEqual([
+      expect.objectContaining({ schemaId: '7737-bgl', grund: 'checksum', datei: expect.objectContaining({ name: 'q.csv' }) }),
+      expect.objectContaining({ schemaId: '9097-anb', grund: 'checksum' }),
+    ]);
+  });
 });
 
 describe('runAutoRefresh — ein Lock je Lauf', () => {

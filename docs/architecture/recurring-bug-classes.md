@@ -525,3 +525,23 @@ Gemessen im Regeln-Reiter des Status-Cockpits (v4.121), drei Fälle auf einem Bi
 **Querverweis:** CLAUDE.md Pitfall #55 (dieselbe Klasse zwischen Entwurf und aktiver Fassung: die Ansicht zeigt den einen Stand und liest den anderen), Klasse 15 (Zähler und Filter aus zwei Vokabularen).
 
 **Kanonische Dateien:** [useRegelWirkung.ts](../../src/plugins/status-cockpit/useRegelWirkung.ts) (`gemessenerSatz`, `fremderSatz`), [TodoRegelListe.tsx](../../src/plugins/status-cockpit/TodoRegelListe.tsx), [RegelProbelauf.tsx](../../src/plugins/status-cockpit/RegelProbelauf.tsx).
+
+## 26. Geteilter Zustand ersetzt den lokalen Beleg — zwei Rechner arbeiten im Wechsel gegeneinander
+
+**Symptom:** Eine Arbeit, die längst getan ist, wird bei jedem Start wieder getan — und jedes Mal für das Team veröffentlicht. Nichts ist rot; die Zahlen sehen nach Arbeit aus (~1000 „geänderte" Zeilen), das Team bekommt täglich „neue Daten", und der Bestand ist danach derselbe wie vorher.
+
+**Root-Cause:** Die Frage „habe ich das schon verarbeitet?" wird gegen einen **geteilten** Zustand beantwortet, den der jeweils letzte Schreiber komplett ersetzt. Solange alle Beteiligten dasselbe sehen, fällt das nicht auf. Sobald zwei Rechner denselben Gegenstand verschieden sehen (andere Kopie, andere Kodierung, andere mtime, anderer Ordner nach einem Umzug), beschreibt der geteilte Zustand nach jedem Publish die Sicht des **anderen** — die eigene, erledigte Arbeit gilt wieder als offen. A publiziert → B arbeitet und publiziert → A arbeitet … Jeder Schritt sieht für sich korrekt aus.
+
+Gemessen im Produktivsystem (Sept. 2026, fünf pl-Rechner): Team-Stempel im CSV-Schema + `csv_row_hashes` reisen im Snapshot; beide werden bei jedem Publish neu geschrieben und beim Sync ersetzt. Ergebnis: jeder Start ein Voll-Import unveränderter Exporte, jeder Import ein Publish, jeder Publish eine Team-Benachrichtigung. Der Encoding-Sonderfall derselben Klasse war am 18.08.2026 zwischen `dev:local` und `zah-pl` gemessen worden (195× `csv_schema_encoding_korrigiert`) — und als Encoding-Problem behandelt statt als das, was er war.
+
+**Fix-Pattern:**
+- **Ein lokaler Beleg neben dem geteilten Zustand:** „DIESER Rechner hat DIESES Ding verarbeitet" liegt maschine-lokal (kv-Store), reist nie über den Share und wird von keinem Sync ersetzt. Er wird **vor** dem geteilten Zustand befragt. Vorbild: [lokaler-stempel.ts](../../src/core/services/csv/lokaler-stempel.ts).
+- **Der geteilte Zustand trägt seinen Urheber** (`source_stamped_by`): wessen Sicht ist das? Ohne Namen ist eine Abweichung nur eine Zahl.
+- **Die Abweichung selbst wird erkannt und benannt**, nicht nur ihre Folge: gleicher Zeitraum, anderer Inhalt, trotzdem Änderungen ⇒ zwei Sichten. Als Warnung mit beiden Sichten nebeneinander (Banner, Dialog, Audit-Log), nicht als Block — welche Sicht stimmt, weiß nur der Mensch. Vorbild: [csv-quell-divergenz.ts](../../src/plugins/csv-sources-kuration/services/csv-quell-divergenz.ts).
+- **Der automatische Lauf berichtet dorthin, wo ein Mensch hinsieht** — ein 6-Sekunden-Toast ist kein Ort für eine Warnung ([start-bericht.ts](../../src/plugins/csv-sources-kuration/services/start-bericht.ts)).
+
+**Prüffrage beim Review:** Woran erkennt dieser Rechner, dass er das schon getan hat — und kann ein anderer Rechner diese Erkenntnis überschreiben? Wenn ja: was passiert, wenn der andere den Gegenstand anders sieht als ich?
+
+**Querverweis:** Klasse 3 (parallele Varianten teilen Storage), Klasse 6 (Tracking-Baseline nach dem Snapshot geschrieben), Klasse 16 (eine Team-Sidecar, mehrere Schreiber), [csv-auto-refresh.md → Lokaler Import-Stempel](csv-auto-refresh.md#lokaler-import-stempel--divergenz-warnung-v6370).
+
+**Kanonische Dateien:** [lokaler-stempel.ts](../../src/core/services/csv/lokaler-stempel.ts), [csv-source-handle.ts](../../src/plugins/csv-sources-kuration/csv-source-handle.ts) (`decideSourceUpdateState`, `merkeBestaetigteDatei`), [csv-quell-divergenz.ts](../../src/plugins/csv-sources-kuration/services/csv-quell-divergenz.ts), [auto-refresh.ts](../../src/plugins/csv-sources-kuration/services/auto-refresh.ts) (`laufeKandidatenAb`).

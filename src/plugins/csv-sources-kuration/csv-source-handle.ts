@@ -21,6 +21,12 @@ import type { CsvSchema, CsvEncoding } from '@/core/services/csv/types';
 import { getSchema, putSchema } from '@/core/services/csv/idb-csv';
 import { parseCsvPreview } from '@/core/services/csv';
 import { sha1Hex } from '@/core/services/csv/sha1';
+import {
+  leseLokaleStempel,
+  schreibeLokalenStempel,
+  stempelFuerDatei,
+  type LokalerImportStempel,
+} from '@/core/services/csv/lokaler-stempel';
 import { isFixtureSchemaId } from '@/core/services/seed/fixture-ids';
 import { validateHeaders } from './services/csv-drift-check';
 import { saveSharedCsvFilenames } from './csv-source-filenames';
@@ -290,85 +296,162 @@ export async function resolveFileViaDir(
   return vollstaendig[0]!;
 }
 
+/** Warum eine Quelle als „neu" gilt — steht im Audit-Log (`csv_auto_refresh_started`). */
+export type UpdateGrund =
+  /** Weder Team-Checksum noch lokaler Beleg vorhanden — nur ein Import kann es klären. */
+  | 'keine-baseline'
+  /** Inhalt weicht von Team-Stempel UND lokalem Beleg ab. */
+  | 'checksum'
+  /** Die Datei liess sich nicht hashen — konservativ als neu behandelt. */
+  | 'checksum-unlesbar'
+  /** „Erzwungen neu prüfen" — alle Belege bewusst übergangen. */
+  | 'erzwungen';
+
+export interface DateiMeta { name: string; lastModified: number; size: number }
+export interface TeamStempelMeta { lastModified: number | null; size: number | null; checksum: string | null }
+
+/** Die Prüfung, die eine Quelle zum Kandidaten machte — reist bis ins Audit-Log. */
+export interface UpdatePruefung {
+  grund: UpdateGrund;
+  datei: DateiMeta;
+  teamStempel: TeamStempelMeta;
+}
+
 export type UpdateCheckResult =
   | { state: 'no_handle' }
   /** Dev-Seed-Fixture (docs/fixtures) — keine externe Quelle, nie ein Auto-Update-Kandidat. */
   | { state: 'local_fixture' }
   | { state: 'permission_required'; handle: FileSystemFileHandle | null; fileName: string }
   | { state: 'file_missing'; reason: string }
-  | { state: 'up_to_date'; lastModified: number; fileName: string }
-  | { state: 'update_available'; lastModified: number; fileName: string; previousLastModified: number | null };
+  | {
+      state: 'up_to_date';
+      lastModified: number;
+      fileName: string;
+      /** Welcher Beleg die Datei bestätigt hat: der eigene Import-Stempel oder der Team-Stempel. */
+      quelle: 'lokal' | 'team';
+      /** SHA-1 der Datei, soweit bekannt (gehasht oder aus dem greifenden Beleg übernommen). */
+      checksum: string | null;
+    }
+  | ({ state: 'update_available'; lastModified: number; fileName: string; previousLastModified: number | null }
+      & UpdatePruefung);
 
 /**
  * Entscheidet `up_to_date` vs. `update_available` für eine aufgelöste Quelldatei.
- * Zweistufig:
+ * Zwei Belege, je zweistufig — erst der eigene, dann der des Teams:
  *
- *  1. **Billig** (Metadaten, kein File-Read): `file.lastModified <= source_last_modified`
- *     **UND** `file.size === last_file_size` → `up_to_date`. Greift nur, wenn
- *     beide Baselines gesetzt sind. mtime allein genügt NICHT: die nächtlich neu
- *     geschriebene CSV kann eine mtime tragen, die die (per Snapshot gereiste,
- *     nicht-portable) Baseline nicht überschreitet (Timestamp-Preserve, Uhr-Skew,
- *     SMB/Citrix-Metadaten-Cache) → der reine mtime-Pfad verschluckte sonst die
- *     Inhaltsänderung still (Citrix-False-Negative, v2.137). `File.size` ist
- *     portabel (gleiche Datei = gleiche Byte-Zahl) und reist im Snapshot mit.
- *  2. **Sonst** (mtime neuer, Größe abweichend/unbekannt ODER Baseline fehlt):
- *     per **Inhalt** bestätigen. `File.lastModified` ist NICHT portabel — die
- *     Baseline reist über den Snapshot zu pl-Rechnern, wo die mtime der lokalen
- *     Datei-Kopie nicht zum stempelnden (Kurator-)Rechner passt; auf einem
- *     frischen Snapshot ist sie zudem oft `undefined`. `file_checksum` (SHA-1 der
- *     Rohbytes, im Snapshot mitgeführt) IST portabel: stimmt der SHA der Live-
- *     Datei überein → byte-gleich → `up_to_date` (kein Fehlalarm-Banner). Nur bei
- *     echtem Inhalts-Unterschied (oder fehlendem `file_checksum`) → `update_available`.
+ *  0. **Lokaler Import-Stempel** (`opts.lokal`, kv-Store dieses Rechners, nie im
+ *     Snapshot): hat DIESER Rechner diese Datei schon verarbeitet? Der
+ *     Team-Stempel unten wird beim Sync durch die Sicht des letzten Publizierers
+ *     ersetzt — sieht der die Quelle anders (andere Kopie, Kodierung, Citrix-
+ *     mtime), gälte die eigene, längst importierte Datei ohne diesen Beleg bei
+ *     jedem Start wieder als neu, und zwei Rechner importierten und publizierten
+ *     im Wechsel (Produktiv-Fall Sept. 2026). Billig per mtime + Größe, sonst
+ *     per Checksum.
+ *  1. **Team-Stempel, billig** (Metadaten, kein File-Read): `file.lastModified <=
+ *     source_last_modified` **UND** `file.size === last_file_size` → `up_to_date`.
+ *     Greift nur, wenn beide Baselines gesetzt sind. mtime allein genügt NICHT:
+ *     die nächtlich neu geschriebene CSV kann eine mtime tragen, die die (per
+ *     Snapshot gereiste, nicht-portable) Baseline nicht überschreitet
+ *     (Timestamp-Preserve, Uhr-Skew, SMB/Citrix-Metadaten-Cache) → der reine
+ *     mtime-Pfad verschluckte sonst die Inhaltsänderung still (Citrix-False-
+ *     Negative, v2.137). `File.size` ist portabel und reist im Snapshot mit.
+ *  2. **Sonst per Inhalt**: `file_checksum` (SHA-1 der Rohbytes, im Snapshot
+ *     mitgeführt) IST portabel: stimmt der SHA der Live-Datei überein →
+ *     byte-gleich → `up_to_date`. Nur bei echtem Inhalts-Unterschied (oder
+ *     fehlendem Checksum) → `update_available`, mit dem Grund und beiden Sichten
+ *     für das Audit-Log.
+ *
+ * Die Datei wird höchstens EINMAL gehasht und gegen beide Belege gehalten.
  *
  * Rest-Blindfleck (bewusst): gleiche Byte-Größe + geänderter Inhalt + stale mtime
  * würde weiterhin geskippt — selten; nur ein immer-Hash-Pfad deckte das ab.
  *
- * Der SHA-Read liest die ganze Datei, läuft aber nur wenn der billige Pfad nicht
- * greift und nur einmal pro Background-Check (collectCandidates, `checkedRef`).
  * Exportiert für den Unit-Test (kein IDB/Handle-Mock nötig).
  */
 export async function decideSourceUpdateState(
   file: File,
   schema: CsvSchema,
   fileName: string,
-  opts?: { forceRecheck?: boolean },
+  opts?: { forceRecheck?: boolean; lokal?: LokalerImportStempel | null },
 ): Promise<UpdateCheckResult> {
-  // „Erzwungen neu prüfen" (v2.155): mtime/Größe/Checksum-Fast-Path KOMPLETT
-  // umgehen und die Quelle als Kandidat behandeln. Der Importer difft ohnehin
-  // per Row-Hash und schreibt nur bei echtem Delta (leerer Merge = No-Op) —
-  // deckt daher den bewussten Rest-Blindfleck (gleiche Größe + geänderter Inhalt
-  // + stale mtime, Citrix/SMB) manuell ab, ohne Fehl-Importe zu riskieren.
-  if (opts?.forceRecheck) {
-    return {
-      state: 'update_available',
-      lastModified: file.lastModified,
-      fileName,
-      previousLastModified: schema.source_last_modified ?? null,
-    };
-  }
-  const recorded = schema.source_last_modified ?? null;
-  const sizeUnchanged = schema.last_file_size != null && file.size === schema.last_file_size;
-  // Billiger Skip NUR wenn mtime nicht neuer UND Größe unverändert — mtime allein
-  // ist über die Snapshot-/SMB-Grenze unzuverlässig (False-Positive UND -Negative).
-  if (recorded != null && file.lastModified <= recorded && sizeUnchanged) {
-    return { state: 'up_to_date', lastModified: file.lastModified, fileName };
-  }
-  // mtime „neuer" / Größe abweichend|unbekannt / keine Baseline → per Inhalt bestätigen.
-  if (schema.file_checksum) {
-    try {
-      if ((await sha1Hex(file)) === schema.file_checksum) {
-        return { state: 'up_to_date', lastModified: file.lastModified, fileName };
-      }
-    } catch {
-      /* Read/Hash-Fehler → konservativ als Update behandeln (Banner zeigen). */
-    }
-  }
-  return {
+  const datei: DateiMeta = { name: fileName, lastModified: file.lastModified, size: file.size };
+  const teamStempel: TeamStempelMeta = {
+    lastModified: schema.source_last_modified ?? null,
+    size: schema.last_file_size ?? null,
+    checksum: schema.file_checksum ?? null,
+  };
+  const neu = (grund: UpdateGrund): UpdateCheckResult => ({
     state: 'update_available',
     lastModified: file.lastModified,
     fileName,
-    previousLastModified: recorded,
-  };
+    previousLastModified: teamStempel.lastModified,
+    grund,
+    datei,
+    teamStempel,
+  });
+  const bekannt = (quelle: 'lokal' | 'team', checksum: string | null): UpdateCheckResult => ({
+    state: 'up_to_date', lastModified: file.lastModified, fileName, quelle, checksum,
+  });
+
+  // „Erzwungen neu prüfen" (v2.155): alle Belege KOMPLETT umgehen und die Quelle
+  // als Kandidat behandeln. Der Importer difft ohnehin per Row-Hash und schreibt
+  // nur bei echtem Delta (leerer Merge = No-Op) — deckt daher den bewussten
+  // Rest-Blindfleck (gleiche Größe + geänderter Inhalt + stale mtime, Citrix/SMB)
+  // manuell ab, ohne Fehl-Importe zu riskieren.
+  if (opts?.forceRecheck) return neu('erzwungen');
+
+  // 0. Eigener Beleg, billig.
+  const lokal = opts?.lokal ?? null;
+  if (lokal && file.lastModified <= lokal.lastModified && file.size === lokal.size) {
+    return bekannt('lokal', lokal.checksum);
+  }
+  // 1. Team-Stempel, billig — NUR wenn mtime nicht neuer UND Größe unverändert;
+  //    mtime allein ist über die Snapshot-/SMB-Grenze unzuverlässig.
+  const sizeUnchanged = teamStempel.size != null && file.size === teamStempel.size;
+  if (teamStempel.lastModified != null && file.lastModified <= teamStempel.lastModified && sizeUnchanged) {
+    return bekannt('team', teamStempel.checksum);
+  }
+  // 2. Per Inhalt — einmal hashen, gegen beide Belege.
+  if (lokal || teamStempel.checksum) {
+    let sha: string;
+    try {
+      sha = await sha1Hex(file);
+    } catch {
+      // Read/Hash-Fehler → konservativ als Update behandeln (Banner zeigen).
+      return neu('checksum-unlesbar');
+    }
+    if (lokal && sha === lokal.checksum) return bekannt('lokal', sha);
+    if (teamStempel.checksum && sha === teamStempel.checksum) return bekannt('team', sha);
+    return neu(teamStempel.checksum ? 'checksum' : 'keine-baseline');
+  }
+  return neu('keine-baseline');
+}
+
+/**
+ * Nach einem `up_to_date` den lokalen Beleg auf DIESE Datei ziehen: hat der
+ * Team-Checksum sie bestätigt (oder der lokale nur per Inhalt, bei anderer
+ * mtime), merkt sich der Rechner mtime/Größe/Checksum — der nächste Start nimmt
+ * den billigen Pfad statt 70 MB zu hashen, und ein später hereingesyncter
+ * fremder Team-Stempel macht die Datei nicht wieder zur Kandidatin.
+ */
+async function merkeBestaetigteDatei(
+  idb: IDBStore,
+  schemaId: string,
+  file: File,
+  r: UpdateCheckResult,
+  lokal: LokalerImportStempel | null,
+): Promise<void> {
+  if (r.state !== 'up_to_date' || !r.checksum) return;
+  const deckungsgleich = lokal
+    && lokal.lastModified === file.lastModified
+    && lokal.size === file.size
+    && lokal.checksum === r.checksum;
+  if (deckungsgleich) return;
+  try {
+    await schreibeLokalenStempel(idb, schemaId, stempelFuerDatei(file, r.checksum, lokal?.importedAt));
+  } catch (e) {
+    console.warn('[csv-source-handle] lokaler Import-Stempel nicht geschrieben', e);
+  }
 }
 
 /**
@@ -388,6 +471,15 @@ export async function checkSourceForUpdate(
   // echte Share-CSV (z.B. die 65-MB-9052-Datei) und bietet an, das 14-Zeilen-
   // Sample mit ~42k Echt-Zeilen zu überschreiben. Nie ein Update-Kandidat.
   if (isFixtureSchemaId(schema.id)) return { state: 'local_fixture' };
+
+  // Der eigene Beleg dieses Rechners — gewinnt vor dem (synchronisierten)
+  // Team-Stempel, siehe `decideSourceUpdateState`.
+  const lokal = (await leseLokaleStempel(idb))[schema.id] ?? null;
+  const entscheide = async (file: File, fileName: string): Promise<UpdateCheckResult> => {
+    const r = await decideSourceUpdateState(file, schema, fileName, { ...opts, lokal });
+    await merkeBestaetigteDatei(idb, schema.id, file, r, lokal);
+    return r;
+  };
 
   // v2.27: bevorzugt das verknüpfte Ordner-Handle (Permission kaskadiert auf
   // alle CSVs → ein Re-Grant deckt alle ab). Per-Datei-Handle bleibt Fallback.
@@ -415,7 +507,7 @@ export async function checkSourceForUpdate(
       if (fileMap[schema.id] !== resolved.fileName) {
         await setCsvDirFileMapEntries(idb, { [schema.id]: resolved.fileName });
       }
-      return await decideSourceUpdateState(resolved.file, schema, resolved.fileName, opts);
+      return await entscheide(resolved.file, resolved.fileName);
     }
     // Ordner verknüpft + granted, aber Datei nicht (mehr) drin → Per-Datei-Pfad.
   }
@@ -437,7 +529,7 @@ export async function checkSourceForUpdate(
   } catch (err) {
     return { state: 'file_missing', reason: (err as Error).message || 'Datei nicht erreichbar' };
   }
-  return await decideSourceUpdateState(file, schema, file.name, opts);
+  return await entscheide(file, file.name);
 }
 
 /**

@@ -47,6 +47,18 @@ describe('beschreibeDatenUpdate', () => {
     expect(m).toMatch(/1 Quelle\(n\) mit Fehler/);
   });
 
+  // Zwei Rechner lesen verschiedene Export-Kopien (Sept. 2026): das ist kein
+  // Import-Erfolg, sondern der Grund, warum das Team jeden Tag geweckt wurde.
+  it('nennt Quellen mit abweichender Datei-Sicht', () => {
+    const m = beschreibeDatenUpdate(ergebnis({
+      csvReport: report({
+        processed: [{ schemaId: 'a', skipped: false }] as RefreshReport['processed'],
+        divergenzen: [{ schemaId: 'a' }] as RefreshReport['divergenzen'],
+      }),
+    }));
+    expect(m).toMatch(/1 Quelle\(n\) mit abweichender Datei — Details im Banner/);
+  });
+
   it('nennt Importe UND Blockaden nebeneinander', () => {
     const m = beschreibeDatenUpdate(ergebnis({
       csvReport: report({
