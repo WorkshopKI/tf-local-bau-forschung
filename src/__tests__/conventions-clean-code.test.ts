@@ -38,7 +38,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import {
-  ROOT, ALL_TS_FILES, relPath, findInFile, findInContent, type Finding,
+  ROOT, ALL_TS_FILES, relPath, findInFile, findInContent, fmt, type Finding,
 } from './conventions-lib';
 
 // ------------------------------------------------------------------ Werkzeug
@@ -73,10 +73,6 @@ const prodDateien = scanDateien.filter(f => !istTestdatei(relPath(f)));
  * Ausnahmemoeglichkeit waere selbst das Risiko.
  */
 const KEINE_AUSNAHME = '\u0000';
-
-const fmt = (findings: Finding[], max = 15): string =>
-  findings.slice(0, max).map(f => `  ${f.file}:${f.line}  ${f.text.slice(0, 110)}`).join('\n') +
-  (findings.length > max ? `\n  … und ${findings.length - max} weitere` : '');
 
 /** Fehlertext einer RATSCHE. Bewusst anders formuliert als `drift()` in
  *  health-baseline: dort ist Anheben der vorgesehene Weg, hier der Ausnahmefall. */
@@ -234,6 +230,54 @@ describe('eslint-disable-nur-fuer-inaktive-regel (die Stolperdrahtregel)', () =>
         `Treffer:\n${fmt(treffer)}`,
       );
     }
+  });
+});
+
+describe('keine-steuerzeichen-im-quelltext', () => {
+  // Steuerzeichen als Trenner sind hier eine RICHTIGE Idee — sie kommen in
+  // Nutzdaten nicht vor, taugen also als Verbinder fuer zusammengesetzte
+  // Schluessel (`aspekte.join('\\u0000')`, `${configId}\\u001f${mode}`).
+  //
+  // Falsch war nur die Schreibweise. Bis v6.41 standen sie als LITERALES BYTE in
+  // sechs Quelldateien — und eine Datei mit einem NUL fuehrt git als BINAER.
+  // Fuer fuenf dieser Dateien gab es dadurch monatelang kein Diff-Review, kein
+  // textuelles Merge, kein `git log -S`, und `git blame` war entwertet. Das
+  // komplette Gate lief daran vorbei, weil zur Laufzeit alles stimmte.
+  //
+  // Die Escape-Sequenz `\\u0000` ist derselbe Wert und bleibt Text.
+  //
+  // Ist 0 — und der Weg dorthin war eine Zeichen-fuer-Zeichen-Ersetzung ohne
+  // jede Verhaltensaenderung.
+  const STEUERZEICHEN = /[\u0000-\u0008\u000b\u000c\u000e-\u001f]/;
+
+  it('kein literales Steuerzeichen — Escape-Sequenz schreiben', () => {
+    const treffer: Finding[] = [];
+    for (const file of scanDateien) {
+      treffer.push(...findInFile(file, l => STEUERZEICHEN.test(l), 'allow-steuerzeichen'));
+    }
+    if (treffer.length > 0) {
+      expect.fail(
+        `Literales Steuerzeichen im Quelltext. Enthaelt eine Datei ein NUL, fuehrt\n` +
+        `git sie als BINAER: kein Diff, kein textuelles Merge, kein \`git log -S\`,\n` +
+        `und \`git blame\` zeigt nichts Brauchbares mehr.\n\n` +
+        `Der Wert ist richtig, nur die Schreibweise nicht — statt des Bytes die\n` +
+        `Escape-Sequenz setzen:\n` +
+        `  const TRENNER = '\\u0000';      statt eines literalen NUL\n` +
+        `  \`\${a}\\u001f\${b}\`               statt eines literalen U+001F\n\n` +
+        `Der Laufzeitwert ist derselbe.\n\n` +
+        `Treffer:\n${fmt(treffer)}`,
+      );
+    }
+  });
+
+  it('das Muster greift (Musterkontrolle)', () => {
+    expect(STEUERZEICHEN.test(`const T = '${String.fromCharCode(0)}';`)).toBe(true);
+    expect(STEUERZEICHEN.test(`const S = '${String.fromCharCode(31)}';`)).toBe(true);
+    // Gegenproben: die Escape-SCHREIBWEISE ist der Weg raus und darf nie treffen,
+    // ebenso Tabulator und normaler Text.
+    expect(STEUERZEICHEN.test("const T = '\\u0000';")).toBe(false);
+    expect(STEUERZEICHEN.test('\tconst x = 1;')).toBe(false);
+    expect(STEUERZEICHEN.test('const s = "Grüße";')).toBe(false);
   });
 });
 

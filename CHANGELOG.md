@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v6.41.0 — Zwei blinde Flecken: ein Guard ohne Reichweite, fuenf Dateien binaer fuer git (September 2026)
+
+MINOR — Zwei Befunde aus der adversarischen Gegenprüfung der Messung, beide seit Monaten unbemerkt durch das komplette Gate gelaufen: ein Guard, der eine Abdeckung behauptet, die er nicht hat — und fünf Quelldateien, die git als binär führt.
+
+- **`no-raw-async-onclick` sah nur eine von drei Schreibweisen**: sein Muster trifft `onClick={() => void fn()}`, nicht die Blockform (33×) und kein anderes Handler-Prop (17×). **Alle 50** liegen außerhalb der Whitelist, in 38 Dateien — darunter `App.tsx` und ausgerechnet die als Vorbild genannte `CsvQuellenPanel.tsx`
+- Die Lücke wird jetzt **gezählt und gedeckelt** statt geweitet-und-whitelistet ([conventions-ui.test.ts](src/__tests__/conventions-ui.test.ts)), dazu eine Musterkontrolle für beide Muster
+- **Sechs Dateien trugen literale Steuerzeichen**, fünf davon mit NUL und damit für git **binär**: kein Diff-Review, kein textuelles Merge, kein `git log -S`, `git blame` entwertet. Zeichengleich auf Escape-Sequenzen umgestellt — der Laufzeitwert ist derselbe
+- Neuer Guard **`keine-steuerzeichen-im-quelltext`** (Ist 0) hält das fest
+- **`fmt` wieder eine Quelle**: die neue Guard-Datei hatte sich eine eigene Kopie gebaut; die geteilte Fassung in [conventions-lib.ts](src/__tests__/conventions-lib.ts) kann jetzt kappen
+
 ### v6.40.1 — Ein abgebrochener Umbau wird abgeschlossen: totes Duplikat entfernt (September 2026)
 
 PATCH — `fb-status-felder.ts` war seit Juni 2026 eine zweite Wahrheit: die Verallgemeinerung nach `status-datum-gruppen.ts` war fertig, aber die Löschung blieb liegen — ein Notfall-Restore (`3b5bc857`) hatte sie zurückgeholt, nachdem ein fremder Commit die gestagte Löschung einer Parallel-Session mitgenommen und `master` gebrochen hatte.

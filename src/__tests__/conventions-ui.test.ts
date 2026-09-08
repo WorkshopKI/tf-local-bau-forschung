@@ -151,6 +151,69 @@ describe('no-raw-async-onclick (CLAUDE.md Pitfall #15)', () => {
       expect.fail(msg);
     }
   });
+
+  // ---------------------------------------------------------------------
+  // Die REICHWEITE des Musters oben — und warum diese zweite Pruefung noetig ist.
+  //
+  // `pattern` trifft genau EINE Schreibweise: `onClick={() => void fn()}`.
+  // Gemessen (v6.41) sieht es damit 60 Stellen, alle in der Whitelist — der
+  // Guard ist also gruen. Unsichtbar bleiben zwei gleichwertige Formen:
+  //
+  //   `onClick={() => { void fn(); }}`   Blockform          33 Stellen
+  //   `onRefresh={() => void fn()}`      anderes Handler-Prop 17 Stellen
+  //
+  // ALLE 50 liegen AUSSERHALB der Whitelist, in 38 Dateien — darunter
+  // src/core/App.tsx und, mit besonderer Ironie, genau die Datei, die die
+  // Fehlermeldung oben als Vorbild nennt (CsvQuellenPanel.tsx:351/369).
+  //
+  // Das ist teurer als kein Guard: er behauptet eine Abdeckung, die er nicht
+  // hat, und unter file:// ist die Konsole zu — eine verschluckte Rejection
+  // sieht niemand.
+  //
+  // Bewusst NICHT getan: das Muster oben einfach weiten. Das machte aus 0
+  // Treffern 50, und die haetten alle in die Whitelist gemusst — dieselbe
+  // Unsichtbarkeit, nur mit mehr Zeilen. Stattdessen wird die Luecke GEZAEHLT
+  // und gedeckelt: sie darf nur sinken, und jede Migration senkt sie sichtbar.
+  const WEITERE_FORMEN = /\bon[A-Z]\w*=\{\(\)\s*=>\s*\{?\s*void\s+/;
+  const LUECKE_DECKEL = 50;
+
+  it(`hoechstens ${LUECKE_DECKEL} weitere void-Handler-Formen (Blockform + andere on*-Props)`, () => {
+    const weitere: Finding[] = [];
+    for (const file of ALL_TS_FILES) {
+      if (!file.endsWith('.tsx')) continue;
+      weitere.push(...findInFile(
+        file,
+        l => WEITERE_FORMEN.test(l) && !pattern.test(l),
+        'allow-raw-async-onclick',
+      ));
+    }
+    if (weitere.length > LUECKE_DECKEL) {
+      expect.fail(
+        `Weitere ungeschuetzte void-Handler: ${weitere.length}, eingefroren waren ${LUECKE_DECKEL}.\n\n` +
+        `Die Pruefung oben sieht nur \`onClick={() => void fn()}\`. Diese hier zaehlt,\n` +
+        `was ihr entgeht — Blockform und andere Handler-Props. Beide schlucken\n` +
+        `Rejections genauso, und unter file:// ist die Konsole zu.\n\n` +
+        `Diese Zahl darf nur SINKEN: Migration auf useAsyncAction senkt sie,\n` +
+        `neuer Code darf sie nicht heben. Kein Whitelist-Eintrag hilft hier —\n` +
+        `das ist Absicht, die Datei-Whitelist oben hat die Luecke erst erzeugt.\n\n` +
+        `Treffer:\n${fmt(weitere)}`,
+      );
+    }
+  });
+
+  it('die Muster greifen beide (Musterkontrolle)', () => {
+    // Ohne diese Probe ist "0 Treffer" nicht von "Regex kaputt" zu unterscheiden —
+    // genau der Zustand, in dem die Reichweiten-Luecke oben monatelang unbemerkt blieb.
+    expect(pattern.test('  <button onClick={() => void speichere()}>')).toBe(true);
+    expect(pattern.test('  <button onClick={() => { void speichere(); }}>')).toBe(false);
+
+    expect(WEITERE_FORMEN.test('  <button onClick={() => { void speichere(); }}>')).toBe(true);
+    expect(WEITERE_FORMEN.test('  <Panel onRefresh={() => void lade()} />')).toBe(true);
+    expect(WEITERE_FORMEN.test('  <Panel onRestored={() => { void lade(); }} />')).toBe(true);
+    // Gegenproben: der empfohlene Weg und ein synchroner Handler duerfen nie treffen.
+    expect(WEITERE_FORMEN.test('  <button onClick={speichern.run}>')).toBe(false);
+    expect(WEITERE_FORMEN.test('  <button onClick={() => setOffen(true)}>')).toBe(false);
+  });
 });
 
 describe('no-raw-clipboard (v2.301.3 — „Document is not focused")', () => {

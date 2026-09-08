@@ -16,7 +16,7 @@ const MAX_CACHE_ENTRIES = 32;
 const cache = new Map<string, number[]>();
 
 function cacheKey(text: string, configId: string, mode: 'query' | 'document'): string {
-  return `${configId}${mode}${text}`;
+  return `${configId}\u001f${mode}\u001f${text}`;
 }
 
 /** Cache-aware Query-Embedding. Bei Treffer in <1 ms zurueck, sonst delegiert

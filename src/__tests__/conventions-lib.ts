@@ -123,8 +123,18 @@ export function findInContent(
   return out;
 }
 
-export function fmt(findings: Finding[]): string {
-  return findings.map(f => `  ${f.file}:${f.line}\n    ${f.text}`).join('\n');
+/**
+ * Fundstellen fuer eine Fehlermeldung formatieren.
+ *
+ * `max` kappt die Liste — noetig fuer Ratschen, die dreistellige Trefferzahlen
+ * fuehren koennen: eine Fehlermeldung, die 300 Zeilen ausrollt, wird nicht
+ * gelesen, sondern weggescrollt. Ohne `max` bleibt das Verhalten wie bisher.
+ */
+export function fmt(findings: Finding[], max?: number): string {
+  const gezeigt = max === undefined ? findings : findings.slice(0, max);
+  const liste = gezeigt.map(f => `  ${f.file}:${f.line}\n    ${f.text}`).join('\n');
+  const rest = findings.length - gezeigt.length;
+  return rest > 0 ? `${liste}\n  … und ${rest} weitere` : liste;
 }
 
 /**
