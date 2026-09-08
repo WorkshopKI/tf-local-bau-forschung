@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v6.39.0 — Codequalitaets-Baseline: die Kennzahlen bekommen einen Zaehler (September 2026)
+
+MINOR — Technische Schuld war bisher nur als Gefühl vorhanden: die einzige Struktur-Schranke (`MAX_FILE_LOC` und Geschwister) wurde 70-mal angehoben und 5-mal gesenkt, und sieben Wochen lang maß sie die Guard-Datei selbst statt den Produktionscode. Dieser Schritt misst nur — er verbietet nichts.
+
+- **Mess-Modul** [quality-metrics.mjs](scripts/lib/quality-metrics.mjs): zehn Kennzahlen (Größe, Typsicherheit, Fehlerbehandlung, Marker, Guard-Ausnahmen, Kopplung, Duplikate, Testbezug, tote Exporte, Guard-Suite über sich selbst), reine Node-Stdlib
+- **Bericht** [code-quality-baseline.md](docs/architecture/code-quality-baseline.md) per `npm run qualitaet` — versioniert und **ohne Lauf-Datum**, damit ein Diff nur bei echter Drift entsteht; bewusst NICHT im `precheck`
+- **`countLoc()` genau einmal definiert** — bis hierher zählte `health-baseline` `split(/\r?\n/)` und `code-map` die Newlines: bei `SuchSeite.tsx` 1233 gegen 1232
+- **`src/generated/` ausgeschlossen**: das inline-gzippte ORT-WASM sind 7,34 MB in EINER Zeile und trägt keine Kennzahl
+- Erster Befund: 72 `eslint-disable` unterdrücken **ausnahmslos inaktive** Regeln (49× `exhaustive-deps`), und 11 der 55 `vi.mock`-Testdateien stehen nicht in `ISOLATED_TESTS`
+
 ### v6.38.0 — AI-native SDLC: Grill-Skill, Zeiger-Skills, Hook, Glossar, Review-Policy (September 2026)
 
 MINOR — Anthropics AI-native SDLC Playbook und Pococks `grill-with-docs`, auf dieses Repo übertragen: Regeln, die bisher nur Prosa waren (keine Heredocs, `git add` nur mit Pathspec), erzwingt jetzt ein Hook; die riskantesten Cheatsheets laden als Skill automatisch; das Interview vor dem Bauen hat ein Format; ein Entwickler-Glossar und eine Review-Policy gibt es erstmals. Detail: [entwicklungsprozess.md](docs/architecture/entwicklungsprozess.md).
