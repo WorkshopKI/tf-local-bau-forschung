@@ -400,6 +400,21 @@ export function isEigeneSpaltenEnabled(): boolean {
   return features.eigeneSpalten === true;
 }
 
+/**
+ * Tagesbrief: das Home-Widget ganz oben, das über Quellengrenzen hinweg rankt,
+ * was zuerst dran ist.
+ *
+ * Der Text entsteht **deterministisch** aus bestehenden Quellen — kein LLM beim
+ * Laden; die Rückfrage geht an das bestehende Assistent-Dock und hängt dort an
+ * `isAssistentPanelEnabled()`, nicht an diesem Flag (fehlt das Panel,
+ * verschwindet nur der Knopf, nicht der Brief). dev + pl.
+ *
+ * Default false (`=== true`, Backward-Kompat).
+ */
+export function isTagesbriefEnabled(): boolean {
+  return features.tagesbrief === true;
+}
+
 /** v2.18: CSV-Auto-Refresh-Banner + „CSV-Quelle verknüpfen"-Picker auch ohne
  *  Kurator-Menüs (z.B. pl-Variante). Der Kurator-Banner läuft unabhängig über
  *  `isKuratorMenusEnabled()` — dieser Flag ist eine *zusätzliche* Bedingung für

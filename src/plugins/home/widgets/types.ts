@@ -14,6 +14,11 @@
 import type { FeedbackLane } from '@/components/feedback/feedbackLanes';
 import type { TfBahnSpalten } from '@/components/kanban/tfBoardBahn';
 import type { StatusCategory } from '@/core/utils/status-canonical';
+// Der Tagesbrief bringt seinen Config-Typ mit; er lebt bei seinem Modul, damit
+// dessen reiner Kern ohne den Umweg über dieses Schema testbar bleibt.
+import type { TagesbriefWidgetConfig } from '../tagesbrief/typen';
+
+export type { TagesbriefWidgetConfig };
 
 export interface HomeWidgetConfig {
   /**
@@ -36,8 +41,13 @@ export interface HomeWidgetConfig {
    *   nie. Der Versions-Stempel ist zugleich das Gedächtnis: sobald jemand
    *   irgendetwas an seiner Startseite ändert, persistiert `mutiere` v5, und ein
    *   Ausblenden hält (s. `migriereV4Entdeckung`).
+   * - **v6** (v6.45): der **Tagesbrief** wird einmalig eingeblendet — und als
+   *   einziger Schritt auch UMGESTELLT, an den Kopf der Hauptspalte. Begründete
+   *   Ausnahme von „`position` bleibt unberührt": bei einer Karte, die rankt,
+   *   was zuerst dran ist, IST die Position die Sache selbst (s.
+   *   `migriereV5Tagesbrief`). Einmalig, kein Pin.
    */
-  version: 5;
+  version: 6;
   /** ISO-Zeitstempel — Last-Writer-Wins analog PersonalEinstellungen. */
   updatedAt: string;
   widgets: WidgetInstanz[];
@@ -98,6 +108,7 @@ export type WidgetTyp =
   | 'neue-antraege'
   | 'status-verlauf'
   | 'fristen'
+  | 'tagesbrief'
   // Abgelöst von `fristen` (v4.87): sie zeigten dieselbe Frage aus zwei
   // Fristsystemen nebeneinander. Die Typen bleiben lesbar, damit gespeicherte
   // Configs nicht brechen — im Katalog stehen sie auf `verfuegbar: false` und
@@ -285,6 +296,7 @@ export interface LeereWidgetConfig {
 }
 
 export type WidgetSpezifischeConfig =
+  | TagesbriefWidgetConfig
   | KanbanWidgetConfig
   | AmpelWidgetConfig
   | NotizenWidgetConfig
@@ -297,8 +309,9 @@ export type WidgetSpezifischeConfig =
 
 /**
  * EINZIGE Wahrheit: Hat dieses Widget ein Detail-Formular? Nur Typen mit echten
- * Reglern — Kanban (Lanes/Farbe/Quelle), Ampel (Schwellen) und „Änderungen der
- * letzten Nacht" (Umfang/Zeitraum/Ausschnitt). Alle anderen (Weitermachen,
+ * Reglern — Kanban (Lanes/Farbe/Quelle), Ampel (Schwellen), „Änderungen der
+ * letzten Nacht" (Umfang/Zeitraum/Ausschnitt) und der Tagesbrief
+ * (Themenwahl). Alle anderen (Weitermachen,
  * Meine Anträge, AI-Assistent, Notizen, Feedback-Neuigkeiten, Auslastung,
  * QS-Freigaben, Registry-Änderungen, Neue Anträge für dich, Status & Verlauf)
  * haben keine Einstellungen.
@@ -308,5 +321,6 @@ export type WidgetSpezifischeConfig =
  * (WidgetsSettingsSection). Muss zu den Branches in WidgetConfigForm passen.
  */
 export function hatWidgetDetailConfig(config: WidgetSpezifischeConfig): boolean {
-  return config.art === 'kanban' || config.art === 'ampel' || config.art === 'nachtlauf';
+  return config.art === 'kanban' || config.art === 'ampel'
+    || config.art === 'nachtlauf' || config.art === 'tagesbrief';
 }

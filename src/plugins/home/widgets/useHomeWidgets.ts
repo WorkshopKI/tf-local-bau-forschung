@@ -53,13 +53,16 @@ export const useHomeWidgetsStore = create<HomeWidgetsState>((set, get) => ({
   mutiere: async (idb, mutator) => {
     const aktuell = get().config;
     if (!aktuell) return;
-    // Der Versions-Stempel ist zugleich das Gedächtnis der Entdeckungs-
-    // Einblendung (v5): solange niemand etwas ändert, läuft `migriereV4Entdeckung`
-    // bei jedem Laden erneut — folgenlos, weil idempotent. Die erste echte
-    // Änderung persistiert v5, und ab da hält ein Ausblenden.
+    // Der Versions-Stempel ist zugleich das Gedächtnis der einmaligen Schritte
+    // (v5 Entdeckungs-Einblendung, v6 Tagesbrief an den Kopf): solange niemand
+    // etwas ändert, laufen sie bei jedem Laden erneut — folgenlos, weil
+    // idempotent. Die erste echte Änderung persistiert v6, und ab da hält ein
+    // Ausblenden bzw. ein Verschieben. **Der Stempel muss mit der Schema-Version
+    // mitwandern** — bliebe er auf 5, verschöbe v6 die Karte bei jedem Laden aufs
+    // Neue an den Kopf.
     const next: HomeWidgetConfig = {
       ...mutator(aktuell),
-      version: 5,
+      version: 6,
       updatedAt: new Date().toISOString(),
     };
     set({ config: next });

@@ -208,6 +208,11 @@ export interface TeamflowFeatures {
    *  Nutzer selbst anlegt. Gated Picker-Fuß, Editor und die Projektion der
    *  referenzierten Rohfelder. dev/pl. Optional, default false. */
   eigeneSpalten?: boolean;
+  /** Tagesbrief: das Home-Widget ganz oben, das über Quellengrenzen hinweg rankt,
+   *  was zuerst dran ist. Deterministisch aus bestehenden Quellen gebaut, KEIN
+   *  LLM beim Laden — die Rückfrage geht an das Assistent-Dock und hängt an
+   *  dessen eigenem Flag. dev/pl. Optional, default false. */
+  tagesbrief?: boolean;
   /** Metadaten-Extraktion über eine frei konfigurierte API-Adresse — die Einträge
    *  „Interne KI-API" und „OpenRouter API" im Aufklappmenü der Seite „Suche &
    *  Index". Beide bauen ihren `DirectLLMTransport` aus dem `ai-provider`-Eintrag,

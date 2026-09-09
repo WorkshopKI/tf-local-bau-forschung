@@ -42,16 +42,33 @@ function persistOpen(open: boolean): void {
 export interface AssistentPanelUiState {
   open: boolean;
   width: number;
+  /**
+   * Eine von aussen mitgegebene Frage, die das Panel beim Öffnen in sein
+   * Eingabefeld übernimmt (Tagesbrief: „dazu nachfragen").
+   *
+   * **Transient und bewusst nicht persistiert** — dasselbe Muster wie der
+   * `kategorieQuickfilter` der Fördertabelle: sie beschreibt eine Geste, keinen
+   * Zustand. Und sie wird **nicht abgeschickt**: der Nutzer sieht die Frage im
+   * Feld und löst den einen Aufruf selbst aus.
+   */
+  vorgabe: string | null;
   setOpen: (open: boolean) => void;
   toggle: () => void;
   setWidth: (w: number) => void;
+  /** Panel öffnen und die Frage vorlegen. */
+  oeffneMitFrage: (frage: string) => void;
+  /** Vom Panel gerufen, sobald es die Vorgabe übernommen hat. */
+  vorgabeVerbraucht: () => void;
 }
 
 export const assistentPanelUiStore = createStore<AssistentPanelUiState>((set, get) => ({
   open: loadOpen(),
   width: loadWidth(),
+  vorgabe: null,
   setOpen: (open) => { persistOpen(open); set({ open }); },
   toggle: () => { const next = !get().open; persistOpen(next); set({ open: next }); },
+  oeffneMitFrage: (frage) => { persistOpen(true); set({ open: true, vorgabe: frage }); },
+  vorgabeVerbraucht: () => set({ vorgabe: null }),
   setWidth: (w) => {
     const cw = clampPanelWidth(w);
     try { localStorage.setItem(WIDTH_KEY, String(cw)); } catch { /* ignore */ }

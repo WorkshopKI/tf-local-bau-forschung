@@ -20,26 +20,15 @@
  * Scope ist der bereits berechnete Dashboard-Aggregat (`ctx.data.meineAntraege`),
  * kein zweiter Bearbeiter-Filter. Geladen wird nur im ausgeklappten Zustand.
  */
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef } from 'react';
 import { useNavigation } from '@/core/hooks/useNavigation';
-import { useStorage } from '@/core/hooks/useStorage';
 import { useBearbeiterSicht } from '@/core/hooks/useBearbeiterSicht';
 import { bearbeiterScopeLabel } from '@/plugins/antraege/bearbeiterFilter';
 import { isMeilensteinMonitoringEnabled, isVorgangssystemEnabled } from '@/config/feature-flags';
 import {
-  getVerbund, listAntraegeByVerbund, listProgramme, listSchemasByProgramm,
-} from '@/core/services/csv/idb-csv';
-import {
-  getAktiveVersion, ladeAktiveVersion, baueFeldAufloesung, sammleVorkommen,
-  findeStatusCode, pruefeStillstand,
-} from '@/core/status';
-import {
-  freigegebeneFassung, holeProjektion, knotenOhneBedingung, ladePlan,
-} from '@/core/meilensteine';
-import {
-  bilanzText, buendleNachVerbund, meilensteinAnlaesse, sichtbareMischung, sortiereAnlaesse,
-  ueberTageText, zieltagAnlass, type FristAnlass,
+  bilanzText, buendleNachVerbund, sichtbareMischung, ueberTageText, type FristAnlass,
 } from './fristAnlaesse';
+import { useFristAnlaesse } from './useFristAnlaesse';
 import { WidgetShell } from './WidgetShell';
 import type { WidgetProps } from './widgetProps';
 
@@ -55,19 +44,12 @@ function farbe(a: FristAnlass): string {
 export function FristenWidget({
   instanz, ctx, onToggleEingeklappt,
 }: WidgetProps): React.ReactElement | null {
-  const idb = useStorage().idb;
   const { navigate } = useNavigation();
   // Vor jedem Flag-Return (React-Hook-Regel); trägt die Schreibweise der Kürzel.
   const { mode: bearbeiterMode } = useBearbeiterSicht();
   const aktiv = !instanz.eingeklappt;
   // EIN Stichtag je Mount, in die reinen Bausteine injiziert.
   const heuteRef = useRef<string>(new Date().toISOString());
-
-  const [laden, setLaden] = useState(false);
-  const [anlaesse, setAnlaesse] = useState<FristAnlass[]>([]);
-  const [unbewertet, setUnbewertet] = useState(0);
-  /** Knoten des Plans ohne auswertbare Bedingung — eine Aussage über den PLAN. */
-  const [ohneBedingung, setOhneBedingung] = useState(0);
 
   /** verbund_id → Akronym, aus dem bereits berechneten Dashboard-Aggregat. */
   const meineVerbuende = useMemo(() => {
@@ -79,95 +61,9 @@ export function FristenWidget({
     return m;
   }, [ctx.data.meineAntraege]);
 
-  useEffect(() => {
-    const zieltage = isVorgangssystemEnabled();
-    const meilensteine = isMeilensteinMonitoringEnabled();
-    if (!aktiv || (!zieltage && !meilensteine) || meineVerbuende.size === 0) {
-      setAnlaesse([]);
-      setUnbewertet(0);
-      return;
-    }
-    let abgebrochen = false;
-    setLaden(true);
-    void (async () => {
-      const gesammelt: FristAnlass[] = [];
-      let ohneZiel = 0;
-      let planLuecken = 0;
-
-      // --- Stillstand (Zieltage je Status) ---
-      if (zieltage) {
-        try {
-          const version = getAktiveVersion() ?? await ladeAktiveVersion(idb);
-          const schemaCache = new Map<string, Awaited<ReturnType<typeof listSchemasByProgramm>>>();
-          for (const [verbundId, akronym] of meineVerbuende) {
-            const [verbund, antraege] = await Promise.all([
-              getVerbund(idb, verbundId), listAntraegeByVerbund(idb, verbundId),
-            ]);
-            if (abgebrochen) return;
-            const programmId = verbund?.programm_id ?? antraege[0]?.programm_id ?? null;
-            if (!programmId) continue;
-            let schemas = schemaCache.get(programmId);
-            if (!schemas) {
-              schemas = await listSchemasByProgramm(idb, programmId);
-              schemaCache.set(programmId, schemas);
-            }
-            if (abgebrochen) return;
-            const aufloesung = baueFeldAufloesung(schemas, version.felder);
-            const vbRecord = (verbund ?? {}) as unknown as Record<string, unknown>;
-            const statusRoh = typeof verbund?.status === 'string' ? verbund.status : '';
-            const waechter = pruefeStillstand({
-              version,
-              vorkommen: sammleVorkommen(version.felder, vbRecord, antraege.map(a => ({
-                aktenzeichen: a.aktenzeichen, record: a as unknown as Record<string, unknown>,
-              })), aufloesung),
-              statusCode: findeStatusCode(statusRoh)?.eintrag.code ?? null,
-              stichtag: heuteRef.current,
-            });
-            if (waechter.urteil === 'unbewertet') { ohneZiel += 1; continue; }
-            if (waechter.urteil !== 'haengt') continue;
-            gesammelt.push(zieltagAnlass(verbundId, akronym, statusRoh, waechter));
-          }
-        } catch {
-          // Eine Hälfte, die nicht lädt, darf die andere nicht mitnehmen.
-        }
-      }
-
-      // --- Meilensteine (Sollwoche ab Eingang) ---
-      if (meilensteine) {
-        try {
-          const geladen = await ladePlan(idb);
-          const plan = freigegebeneFassung(geladen.plan);
-          if (plan) {
-            // Seit v4.134 zaehlen Knoten ohne Bedingung nicht mehr als gerissen
-            // — aber sie verschweigen sich auch nicht: die Fusszeile nennt sie,
-            // damit jemand die Bedingung nachtraegt.
-            planLuecken = knotenOhneBedingung(plan.knoten).length;
-            const programme = await listProgramme(idb);
-            for (const p of programme) {
-              const schemas = await listSchemasByProgramm(idb, p.id);
-              const projektion = await holeProjektion(idb, p.id, plan, schemas, heuteRef.current);
-              if (abgebrochen) return;
-              gesammelt.push(...meilensteinAnlaesse(
-                projektion.verbuende.filter(b => meineVerbuende.has(b.verbundId)),
-                plan.knoten,
-                id => meineVerbuende.get(id) ?? id,
-                new Date(heuteRef.current).getTime(),
-              ));
-            }
-          }
-        } catch {
-          // s.o.
-        }
-      }
-
-      if (abgebrochen) return;
-      setAnlaesse(sortiereAnlaesse(gesammelt));
-      setUnbewertet(ohneZiel);
-      setOhneBedingung(planLuecken);
-      setLaden(false);
-    })();
-    return () => { abgebrochen = true; };
-  }, [idb, aktiv, meineVerbuende]);
+  // Geteilt mit dem Tagesbrief (v6.45) — eine Herleitung, zwei Leser.
+  const { anlaesse, unbewertet, ohneBedingung, laden } =
+    useFristAnlaesse(aktiv, meineVerbuende, heuteRef.current);
 
   const zieltageAn = isVorgangssystemEnabled();
   const meilensteineAn = isMeilensteinMonitoringEnabled();

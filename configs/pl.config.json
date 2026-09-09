@@ -48,6 +48,7 @@
     "meilensteinMonitoring": true,
     "vorgangssystem": true,
     "eigeneSpalten": true,
+    "tagesbrief": true,
     "sucheNatuerlicheSprache": true,
     "doppelfoerderung": true
   },

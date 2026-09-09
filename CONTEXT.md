@@ -62,6 +62,12 @@ Format je Eintrag: **Begriff** — Bedeutung in einem Satz. *Nicht sagen:* Synon
 - **Cheatsheet** — Touch-Point-Checkliste unter `docs/agents/` für Erweiterungen mit mehreren synchronen Stellen; die acht riskantesten haben einen **Zeiger-Skill**, der sie auto-lädt. → [docs/agents/README.md](docs/agents/README.md)
 - **Anlass / Spec / Plan** — die leichte Artefakt-Kette: `## 0. Anlass` in den Worten des Auslösers, Spec und Plan ab Schwelle im Repo. → [docs/superpowers/README.md](docs/superpowers/README.md)
 
+## Startseite
+
+- **Tagesbrief** — das Home-Widget ganz oben: ein **deterministisch** gebauter Kurztext, der über Quellengrenzen hinweg rankt, was zuerst dran ist; klickbare Stellen im Satz, Rückfrage über das bestehende Assistent-Dock. *Nicht sagen:* „Morning Brief" (englisch, und er rechnet den ganzen Tag neu); „heute" im Namen — das gehört der Hero-Karte „Braucht heute Aufmerksamkeit". → [home-widgets.md](docs/architecture/home-widgets.md)
+- **Thema (Tagesbrief)** — eine der wählbaren Aussagen des Briefs, im Code deklariert, mit genau einer bestehenden Quelle; Uhr-Themen ranken nach Tagen, die übrigen stehen im Nachsatz. *Nicht sagen:* „Baustein" (gehört dem Textbaustein-Katalog), „Regel" (gehört den To-do-Regeln). → [home-widgets.md](docs/architecture/home-widgets.md)
+- **Hero-Band** — das fixe Band über den Widget-Spalten (Resume + „Braucht heute Aufmerksamkeit"); seine Kacheln zählen **Alter**, der Tagesbrief rechnet **Frist**. *Nicht sagen:* Hero-Karten seien Widgets — sie haben keine Position und keinen Bereich. → [home-widgets.md](docs/architecture/home-widgets.md)
+
 ## Mehrdeutigkeiten (geflaggt, bewusst nicht aufgelöst)
 
 - **Kürzel** — (a) Statuskürzel des Fachsystems (`D_AAE`) · (b) Bearbeiter-Kürzel einer Person („THÜ"). Beide heißen in UI und Code „Kürzel"; im Zweifel den Zusatz sagen.

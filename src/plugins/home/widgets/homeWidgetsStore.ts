@@ -61,6 +61,7 @@ const BEREICHE = new Set(['haupt', 'seite']);
  * `hero.sichtbar.alert`.
  */
 export const ENTDECKUNG_WIDGETS: WidgetTyp[] = [
+  'tagesbrief',
   'meine-antraege',
   'fristen',
   'nachtlauf',
@@ -70,7 +71,7 @@ export const ENTDECKUNG_WIDGETS: WidgetTyp[] = [
 ];
 
 /**
- * Default-Config (v5): der Auslieferungszustand einer frischen Startseite —
+ * Default-Config (v6): der Auslieferungszustand einer frischen Startseite —
  * `ENTDECKUNG_WIDGETS` sichtbar, dazu der KI-Assistent; `kanban` bleibt Opt-in.
  * `weitermachen` steht seit v2 nicht mehr im Default — das Hero-Band (HomeHero)
  * zeigt „Weiter, wo du aufgehört hast" prominent; das gleichnamige Widget bleibt
@@ -104,18 +105,19 @@ export function defaultHomeWidgetConfig(
     config: WIDGET_KATALOG[typ].defaultConfig(),
   });
   return {
-    version: 5,
+    version: 6,
     updatedAt: new Date(0).toISOString(),
     hero: HERO_CONFIG_DEFAULT,
     widgets: [
-      instanz('w-meine-antraege', 'meine-antraege', 0, true, opts?.meineAntraegeEingeklappt ?? false),
-      instanz('w-kanban', 'kanban', 1, false),
-      instanz('w-fristen', 'fristen', 2, true),
-      instanz('w-antragseingang', 'antragseingang', 3, true),
-      instanz('w-ai-assistent', 'ai-assistent', 4, true),
-      instanz('w-feedback-news', 'feedback-news', 5, true),
-      instanz('w-nachtlauf', 'nachtlauf', 6, true),
-      instanz('w-notizen', 'notizen', 7, true),
+      instanz('w-tagesbrief', 'tagesbrief', 0, true),
+      instanz('w-meine-antraege', 'meine-antraege', 1, true, opts?.meineAntraegeEingeklappt ?? false),
+      instanz('w-kanban', 'kanban', 2, false),
+      instanz('w-fristen', 'fristen', 3, true),
+      instanz('w-antragseingang', 'antragseingang', 4, true),
+      instanz('w-ai-assistent', 'ai-assistent', 5, true),
+      instanz('w-feedback-news', 'feedback-news', 6, true),
+      instanz('w-nachtlauf', 'nachtlauf', 7, true),
+      instanz('w-notizen', 'notizen', 8, true),
     ],
   };
 }
@@ -223,6 +225,49 @@ export function migriereV4Entdeckung(cfg: HomeWidgetConfig): HomeWidgetConfig {
 }
 
 /**
+ * v5 → v6 (v6.45): der **Tagesbrief** wird einmalig eingeblendet — und als
+ * einziger Schritt dieser Kette auch **umgestellt**, an den Kopf der Hauptspalte.
+ *
+ * **Warum die Ausnahme.** Alle bisherigen Schritte lassen `position` bewusst in
+ * Ruhe: die Anordnung gehört dem Nutzer. Beim Tagesbrief IST die Position aber
+ * die Sache selbst — er rankt, was zuerst dran ist, und ein Ranking, das unter
+ * fünf Karten steht, beantwortet die Frage nicht mehr, für die es da ist. Ein
+ * angehängter Brief wäre eingebaut und trotzdem wirkungslos.
+ *
+ * **Einmalig, kein Pin.** Wer ihn danach verschiebt oder ausblendet, behält
+ * seine Anordnung — der Versions-Stempel sorgt dafür, dass dieser Schritt nach
+ * der ersten echten Änderung nicht mehr läuft. Bis dahin ist er idempotent und
+ * folgenlos (gleiche Eingabe, gleiche Ausgabe).
+ *
+ * **Erst anlegen, dann einblenden** (wie v4 → v5): ein gewachsener Stand kennt
+ * den Typ gar nicht, deshalb reconciled der Schritt selbst.
+ */
+export function migriereV5Tagesbrief(cfg: HomeWidgetConfig): HomeWidgetConfig {
+  const voll = reconcileVerfuegbareWidgets(cfg);
+  const brief = voll.widgets.find(w => w.typ === 'tagesbrief');
+  if (!brief) return voll;
+
+  // Die kleinste Position der Hauptspalte ist der Bezugspunkt — nicht die 0:
+  // die Positionen sind eine GLOBALE Ordnungszahl über beide Spalten, und ein
+  // hart gesetztes 0 verschöbe die Seitenspalte gleich mit.
+  const haupt = voll.widgets.filter(w => w.bereich === 'haupt' && w.id !== brief.id);
+  const kopf = haupt.length > 0 ? Math.min(...haupt.map(w => w.position)) : 0;
+  const stehtSchonOben = brief.sichtbar && brief.position < kopf;
+  if (stehtSchonOben) return voll;
+
+  return {
+    ...voll,
+    widgets: voll.widgets.map(w => {
+      if (w.id === brief.id) return { ...w, sichtbar: true, position: kopf };
+      // Nur die Hauptspalte rückt nach; die Seitenspalte bleibt, wo sie ist.
+      return w.bereich === 'haupt' && w.position >= kopf
+        ? { ...w, position: w.position + 1 }
+        : w;
+    }),
+  };
+}
+
+/**
  * Die Hero-Karten aus einem Config-Stand — jeder fehlende oder kaputte Wert
  * bedeutet „an". Additiv statt versioniert: das Feld kam mit v4.41 dazu, und ein
  * Stand ohne es soll exakt so aussehen wie bisher (beide Karten, alle Kacheln).
@@ -255,19 +300,22 @@ export function leseHomeWidgetConfig(raw: unknown): HomeWidgetConfig | null {
   if (!raw || typeof raw !== 'object') return null;
   const cfg = raw as Record<string, unknown>;
   const version = cfg.version;
-  if (version !== 1 && version !== 2 && version !== 3 && version !== 4 && version !== 5) return null;
+  // Whitelist statt Bereich: unbekannte Versionen werden bewusst NICHT geraten.
+  if (version !== 1 && version !== 2 && version !== 3
+    && version !== 4 && version !== 5 && version !== 6) return null;
   if (typeof cfg.updatedAt !== 'string' || !Array.isArray(cfg.widgets)) return null;
   let widgets = cfg.widgets.filter(isWidgetInstanz);
   if (version === 1) widgets = migriereV1HeroWeitermachen(widgets);
   if (version < 3) widgets = migriereV2NachtlaufAnsEnde(widgets);
   if (version < 4) widgets = migriereV3NachtlaufConfig(widgets);
   const gelesen: HomeWidgetConfig = {
-    version: 5,
+    version: 6,
     updatedAt: cfg.updatedAt,
     hero: leseHeroConfig(cfg.hero),
     widgets,
   };
-  return version < 5 ? migriereV4Entdeckung(gelesen) : gelesen;
+  const nachV5 = version < 5 ? migriereV4Entdeckung(gelesen) : gelesen;
+  return version < 6 ? migriereV5Tagesbrief(nachV5) : nachV5;
 }
 
 /** Einmaliger Seed des alten Collapse-Zustands ('1' = eingeklappt). Defensive

@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v6.46.0 — Tagesbrief — was zuerst dran ist (September 2026)
+
+MINOR — Die Startseite zeigte sechs richtige Karten und sagte trotzdem nicht, was **zuerst** dran ist: die überfällige Frist stand in „Fristen", die Änderung von heute Nacht im Nachtlauf, der eigene Entwurf woanders. Der deterministische Kern dafür lag seit dem Assistent-Panel bereit (`baueArbeitsvorratUebersicht`) — er ging nur in einen Prompt, nie auf den Bildschirm.
+
+- **[src/plugins/home/tagesbrief/](src/plugins/home/tagesbrief/)**: neues Home-Widget am Kopf der Hauptspalte, Flag `tagesbrief` (dev + pl) — deterministisch gerankter Kurztext, LLM erst bei der Rückfrage ([home-widgets.md → Tagesbrief](docs/architecture/home-widgets.md))
+- **[useFristAnlaesse.ts](src/plugins/home/widgets/useFristAnlaesse.ts)**: der Ladeeffekt des Fristen-Widgets ist **gehoben, nicht kopiert** — eine Herleitung, zwei Leser
+- **Config v6** (`migriereV5Tagesbrief`): einmalig einblenden **und** an den Kopf stellen — die einzige begründete Ausnahme von „`position` bleibt unberührt"
+- **In der Abnahme gefunden**: über den rohen Bestandslauf standen drei Vorgänge mit „seit 4028 Tagen überfällig" an der Spitze (Karte darunter: höchstens 223), und das Journal zählte 262 statt 7 Vorgängen — beides zieht jetzt aus derselben Quelle wie die Nachbarkarte
+- **Neuer Guard `entdeckung-ohne-marke`**: keine Karte in `ENTDECKUNG_WIDGETS` trägt eine Beta-/Experten-Marke — eine Marke legte die Selbst-Einblendung still (der gemessene v6.19-Fall)
+
 ### v6.45.0 — Eine Groesse, ein Name — und Ratschen, deren Ausweg wirklich offen steht (September 2026)
 
 MINOR — Zwei Größen liefen im Bestand unter mehreren Namen: `strOrNull` stand zehnmal privat in `plugins/antraege/` — unter **einem** Namen mit **vier** Verhalten —, ein Tag in Millisekunden 13-mal unter vier Namen. Beim Nachziehen der Ratsche fiel auf, dass **fünf von fünf** Ratschen einen Ausweg nennen, den ihr eigener Code nicht annimmt.

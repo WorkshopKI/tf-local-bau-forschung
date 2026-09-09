@@ -299,6 +299,13 @@ export const DEFAULT_CONFIG = {
      *  Projektion der referenzierten Rohfelder. dev/pl. Optional, default false
      *  (kein requiredFlags-Eintrag → `=== true` Backward-Kompat). */
     eigeneSpalten: false,
+    /** Tagesbrief: das Home-Widget ganz oben, das über Quellengrenzen hinweg
+     *  rankt, was zuerst dran ist — deterministisch aus bestehenden Quellen
+     *  gebaut, KEIN LLM beim Laden (die Rückfrage geht an das Assistent-Dock).
+     *  Gated Katalog-Eintrag, Renderer und die Selbst-Einblendung. dev/pl.
+     *  Optional, default false (kein requiredFlags-Eintrag → `=== true`
+     *  Backward-Kompat). */
+    tagesbrief: false,
     /** Suche mit natürlicher Sprache: die interne KI übersetzt eine Frage in
      *  einen Frageplan (Leitbegriffe mit ihren Schreibweisen, Einschränkungen,
      *  Facetten), die Suchstufe läuft unverändert weiter. Die KI ist damit die

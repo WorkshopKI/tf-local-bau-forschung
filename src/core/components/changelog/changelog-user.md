@@ -19,6 +19,16 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v6.46 — 2026-09
+
+### Neu
+- **Tagesbrief** — ganz oben auf der Startseite steht jetzt ein kurzer Text, der über alle Karten hinweg sagt, was zuerst dran ist: die dringlichsten Vorgänge mit ihrer Frist, darunter ein Satz für alles, was sich sonst getan hat. Zahlen und Namen im Text führen direkt an die passende Stelle.
+- **Nachfragen statt selbst suchen** — hinter jedem Satz ein kleines Fragezeichen: es öffnet den Assistenten mit der passenden Frage im Eingabefeld. Abgeschickt wird sie erst auf Ihren Klick.
+- **Sie bestimmen die Themen** — über das `⋯`-Menü der Karte lässt sich jedes Thema einzeln an- und abwählen (Arbeitsvorrat, Bewegung, Eigenes, Umfeld). Ist nichts zu melden, sagt der Brief, was er geprüft hat.
+
+### Verbesserungen
+- Der Brief wiederholt nicht, was die Karte „Braucht heute Aufmerksamkeit" darüber schon zeigt: die zählt das Alter der Anträge, der Brief die Frist.
+
 ## v6.37 — 2026-09
 
 ### Neu

@@ -42,6 +42,17 @@ export function AssistentPanelHost(): React.ReactElement | null {
 
   const [activePanel, setActivePanel] = useState<ActivePanel | null>(null);
   const [input, setInput] = useState('');
+
+  // Eine von aussen vorgelegte Frage (Tagesbrief: „dazu nachfragen") landet im
+  // Eingabefeld — sie wird NICHT abgeschickt. Der eine Aufruf pro Turn bleibt
+  // eine Geste des Nutzers; eine Karte, die ungefragt ein Modell anstösst, wäre
+  // eine andere Zusage als „Rückfrage stellen".
+  const vorgabe = useStore(assistentPanelUiStore, s => s.vorgabe);
+  useEffect(() => {
+    if (vorgabe === null) return;
+    setInput(vorgabe);
+    assistentPanelUiStore.getState().vorgabeVerbraucht();
+  }, [vorgabe]);
   // Live-Zähler aktiver Gedächtnis-Einträge (Phase 2) für den Kontext-Chip.
   // Aktualisiert bei Öffnen/Navigation und nach jedem Turn (Konsolidierung kann
   // zwischenzeitlich Einträge geändert haben).

@@ -25,6 +25,7 @@ import {
   migriereV2NachtlaufAnsEnde,
   migriereV3NachtlaufConfig,
   migriereV4Entdeckung,
+  migriereV5Tagesbrief,
   moveInstanz,
   reconcileVerfuegbareWidgets,
   saveHomeWidgets,
@@ -34,6 +35,7 @@ import {
 } from '../homeWidgetsStore';
 import type { HomeWidgetConfig, WidgetInstanz, WidgetTyp } from '../types';
 import { WIDGET_KATALOG } from '../widgetCatalog';
+import { SICHTBARKEITS_KATALOG, widgetId } from '@/core/sichtbarkeit';
 
 beforeEach(async () => {
   const { IDBFactory } = await import('fake-indexeddb');
@@ -56,27 +58,29 @@ function cfgMit(updatedAt: string, marker: string): HomeWidgetConfig {
   };
 }
 
-describe('defaultHomeWidgetConfig — v5 (Entdeckung)', () => {
+describe('defaultHomeWidgetConfig — v6 (Entdeckung + Tagesbrief)', () => {
   it('bildet Reihenfolge, Bereiche und Sichtbarkeit ab — OHNE weitermachen (Hero-Band)', () => {
     const cfg = defaultHomeWidgetConfig();
-    expect(cfg.version).toBe(5);
+    expect(cfg.version).toBe(6);
     const sortiert = sortiereInstanzen(cfg.widgets);
     // weitermachen ist nicht mehr im Default — das Hero-Band ersetzt es.
     expect(sortiert.map(w => w.typ)).toEqual([
-      'meine-antraege', 'kanban', 'fristen',
+      'tagesbrief', 'meine-antraege', 'kanban', 'fristen',
       'antragseingang', 'ai-assistent', 'feedback-news',
       'nachtlauf', 'notizen',
     ]);
     expect(sortiert.some(w => w.typ === 'weitermachen')).toBe(false);
-    // Haupt vs. Seite — nachtlauf steht am Ende seiner Spalte (Nachschlage-
-    // Karte, nicht Arbeitsliste).
+    // Haupt vs. Seite — der Tagesbrief steht am KOPF seiner Spalte (er rankt,
+    // was zuerst dran ist; unter fünf Karten beantwortete er die Frage nicht
+    // mehr), nachtlauf am Ende (Nachschlage-Karte, nicht Arbeitsliste).
     expect(sortiert.filter(w => w.bereich === 'haupt').map(w => w.typ))
-      .toEqual(['meine-antraege', 'kanban', 'fristen', 'nachtlauf']);
+      .toEqual(['tagesbrief', 'meine-antraege', 'kanban', 'fristen', 'nachtlauf']);
     expect(sortiert.filter(w => w.bereich === 'seite').map(w => w.typ))
       .toEqual(['antragseingang', 'ai-assistent', 'feedback-news', 'notizen']);
     // Alles aus ENTDECKUNG_WIDGETS sichtbar; kanban bleibt Opt-in.
     const sichtbarkeit = Object.fromEntries(sortiert.map(w => [w.typ, w.sichtbar]));
     expect(sichtbarkeit).toEqual({
+      tagesbrief: true,
       'meine-antraege': true,
       kanban: false,
       fristen: true,
@@ -118,18 +122,19 @@ describe('leseHomeWidgetConfig — toleranter Read + v1→v2-Migration', () => {
   });
 
   it('verwirft unbekannte Versionen (Migrations-Einstieg: nie raten)', () => {
-    expect(leseHomeWidgetConfig({ version: 6, updatedAt: 'x', widgets: [] })).toBeNull();
+    expect(leseHomeWidgetConfig({ version: 7, updatedAt: 'x', widgets: [] })).toBeNull();
     expect(leseHomeWidgetConfig({ version: 0, updatedAt: 'x', widgets: [] })).toBeNull();
   });
 
-  it('liest v5 verbatim (ergänzt nur die Hero-Karten)', () => {
+  it('liest v6 verbatim (ergänzt nur die Hero-Karten)', () => {
     // `hero` kam mit v4.41 additiv dazu — ein Stand ohne das Feld bekommt beim
-    // Lesen den bisherigen Zustand „alles an" (kein Versions-Bump). Ein v5-Stand
+    // Lesen den bisherigen Zustand „alles an" (kein Versions-Bump). Ein v6-Stand
     // ist fertig migriert und wird sonst NICHT angefasst: kein Reconcile, keine
-    // Einblendung. Genau das lässt ein späteres Ausblenden halten.
-    const gelesen = leseHomeWidgetConfig({ version: 5, updatedAt: 'x', widgets: [] });
+    // Einblendung, keine Umstellung. Genau das lässt ein späteres Ausblenden
+    // ODER Verschieben halten.
+    const gelesen = leseHomeWidgetConfig({ version: 6, updatedAt: 'x', widgets: [] });
     expect(gelesen).toEqual({
-      version: 5,
+      version: 6,
       updatedAt: 'x',
       widgets: [],
       hero: {
@@ -146,7 +151,7 @@ describe('leseHomeWidgetConfig — toleranter Read + v1→v2-Migration', () => {
       updatedAt: '2026-01-01T00:00:00.000Z',
       widgets: [valide, { id: 'kaputt' }, 42],
     });
-    expect(gelesen?.version).toBe(5);
+    expect(gelesen?.version).toBe(6);
     // Die kaputten sind raus; der v5-Schritt legt danach die fehlenden Typen an.
     expect(gelesen?.widgets.some(w => w.id === 'kaputt')).toBe(false);
     expect(gelesen?.widgets.find(w => w.id === valide.id)).toEqual(valide);
@@ -164,7 +169,7 @@ describe('leseHomeWidgetConfig — toleranter Read + v1→v2-Migration', () => {
     const gelesen = leseHomeWidgetConfig({
       version: 1, updatedAt: '2026-01-01T00:00:00.000Z', widgets: [weiter, meine],
     });
-    expect(gelesen?.version).toBe(5);
+    expect(gelesen?.version).toBe(6);
     // weitermachen ausgeblendet, sonst unverändert; andere Widgets unberührt.
     expect(gelesen?.widgets.find(w => w.typ === 'weitermachen')?.sichtbar).toBe(false);
     expect(gelesen?.widgets.find(w => w.typ === 'meine-antraege')?.sichtbar).toBe(true);
@@ -180,7 +185,7 @@ describe('leseHomeWidgetConfig — toleranter Read + v1→v2-Migration', () => {
       updatedAt: '2026-01-01T00:00:00.000Z',
       widgets: [instanz('meine-antraege', 0), instanz('nachtlauf', 1), instanz('fristen', 2)],
     });
-    expect(gelesen?.version).toBe(5);
+    expect(gelesen?.version).toBe(6);
     const nacht = gelesen?.widgets.find(w => w.typ === 'nachtlauf')!;
     // Nur gegen die drei mitgebrachten prüfen: der v5-Schritt hängt danach die
     // fehlenden Katalog-Typen an, die stehen naturgemäß dahinter.
@@ -201,7 +206,13 @@ describe('leseHomeWidgetConfig — toleranter Read + v1→v2-Migration', () => {
       updatedAt: '2026-01-01T00:00:00.000Z',
       widgets: [instanz('nachtlauf', 0), instanz('meine-antraege', 1)],
     });
-    expect(gelesen?.widgets.find(w => w.typ === 'nachtlauf')?.position).toBe(0);
+    // Geprüft wird die ORDNUNG, nicht die absolute Zahl: nachtlauf bleibt über
+    // meine-antraege. Die Zahl selbst verschiebt der v6-Schritt, der den
+    // Tagesbrief an den Kopf der Hauptspalte setzt — eine Zusage über sie wäre
+    // eine Zusage über etwas, das dieser Test nicht meint.
+    const nacht = gelesen!.widgets.find(w => w.typ === 'nachtlauf')!;
+    const meine = gelesen!.widgets.find(w => w.typ === 'meine-antraege')!;
+    expect(nacht.position).toBeLessThan(meine.position);
   });
 
   it('v3 → v4: die Nachtlauf-Instanz bekommt ihre Detail-Config', () => {
@@ -250,7 +261,7 @@ describe('loadHomeWidgets — LWW kv vs. PersonalEinstellungen-Mirror', () => {
   it('ohne Daten: Default (v5) — weitermachen als Opt-in (sichtbar:false) nachgezogen', async () => {
     const idb = await frischeIdb();
     const cfg = await loadHomeWidgets(idb);
-    expect(cfg.version).toBe(5);
+    expect(cfg.version).toBe(6);
     // meine-antraege ist sichtbar; weitermachen wird per reconcile als Opt-in
     // (sichtbar:false) ergänzt — der Hero zeigt „Weitermachen" prominent.
     expect(cfg.widgets.find(w => w.typ === 'meine-antraege')?.sichtbar).toBe(true);
@@ -410,7 +421,7 @@ describe('moveInstanz — pro Spalte (bereich) unabhängig', () => {
   it('tauscht mit dem Nachbarn derselben Spalte (haupt)', () => {
     const cfg = defaultHomeWidgetConfig();
     const bewegt = moveInstanz(cfg, 'w-kanban', 'hoch');
-    expect(bereichOrder(bewegt, 'haupt')).toEqual(['kanban', 'meine-antraege', 'fristen', 'nachtlauf']);
+    expect(bereichOrder(bewegt, 'haupt')).toEqual(['tagesbrief', 'kanban', 'meine-antraege', 'fristen', 'nachtlauf']);
     // Seiten-Spalte unberührt.
     expect(bereichOrder(bewegt, 'seite')).toEqual(bereichOrder(cfg, 'seite'));
   });
@@ -423,13 +434,13 @@ describe('moveInstanz — pro Spalte (bereich) unabhängig', () => {
     expect(bereichOrder(bewegt, 'seite'))
       .toEqual(['ai-assistent', 'antragseingang', 'feedback-news', 'notizen']);
     expect(bereichOrder(bewegt, 'haupt'))
-      .toEqual(['meine-antraege', 'kanban', 'fristen', 'nachtlauf']);
+      .toEqual(['tagesbrief', 'meine-antraege', 'kanban', 'fristen', 'nachtlauf']);
   });
 
   it('am Spalten-Anfang/-Ende ein No-op — auch wenn global nicht Rand', () => {
     const cfg = defaultHomeWidgetConfig();
-    // meine-antraege ist erstes haupt-Widget.
-    expect(moveInstanz(cfg, 'w-meine-antraege', 'hoch')).toBe(cfg);
+    // tagesbrief ist erstes haupt-Widget.
+    expect(moveInstanz(cfg, 'w-tagesbrief', 'hoch')).toBe(cfg);
     // antragseingang ist erstes seite-Widget (global aber an Position 2).
     expect(moveInstanz(cfg, 'w-antragseingang', 'hoch')).toBe(cfg);
     // nachtlauf ist letztes haupt-Widget, notizen letztes seite-Widget.
@@ -500,7 +511,7 @@ describe('migriereV4Entdeckung (rein) — einmalig einblenden, nie ausblenden', 
     // Der Reconcile-Schritt in loadHomeWidgets kommt DANACH und legte sie als
     // `sichtbar: false` an; ein blosses Umlegen des Haekchens faende hier nichts.
     const alt: HomeWidgetConfig = {
-      version: 5,
+      version: 6,
       updatedAt: '2026-01-01T00:00:00.000Z',
       hero: { sichtbar: { resume: true, alert: true }, chips: { kritisch: true, warnung: true, qs: true } },
       widgets: [{
@@ -564,11 +575,11 @@ describe('migriereV4Entdeckung (rein) — einmalig einblenden, nie ausblenden', 
     expect(migriereV4Entdeckung(einmal)).toBe(einmal);
   });
 
-  it('greift genau einmal: ein persistierter v5-Stand wird nicht mehr angefasst', () => {
+  it('greift genau einmal: ein persistierter v6-Stand wird nicht mehr angefasst', () => {
     // Das ist das Gedaechtnis: wer eine Karte ausblendet, loest ein `mutiere`
-    // aus, das v5 stempelt — danach haelt das Ausblenden.
+    // aus, das v6 stempelt — danach haelt das Ausblenden.
     const ausgeblendet = {
-      version: 5,
+      version: 6,
       updatedAt: '2026-01-01T00:00:00.000Z',
       hero: { sichtbar: { resume: true, alert: true }, chips: { kritisch: true, warnung: true, qs: true } },
       widgets: [{
@@ -582,6 +593,79 @@ describe('migriereV4Entdeckung (rein) — einmalig einblenden, nie ausblenden', 
   });
 });
 
+describe('migriereV5Tagesbrief (rein) — einmalig einblenden UND an den Kopf', () => {
+  /** Ein gewachsener v5-Stand: Hauptspalte belegt, Seitenspalte daneben. */
+  function bestandV5(): HomeWidgetConfig {
+    const instanz = (typ: WidgetTyp, position: number, bereich: 'haupt' | 'seite'): WidgetInstanz => ({
+      id: `w-${typ}`, typ, position, bereich,
+      sichtbar: true, eingeklappt: false, config: { art: 'keine' },
+    });
+    return {
+      version: 6,
+      updatedAt: '2026-01-01T00:00:00.000Z',
+      hero: { sichtbar: { resume: true, alert: true }, chips: { kritisch: true, warnung: true, qs: true } },
+      widgets: [
+        instanz('meine-antraege', 0, 'haupt'),
+        instanz('fristen', 1, 'haupt'),
+        instanz('antragseingang', 2, 'seite'),
+        instanz('notizen', 3, 'seite'),
+      ],
+    };
+  }
+
+  const haupt = (c: HomeWidgetConfig): WidgetTyp[] =>
+    sortiereInstanzen(c.widgets).filter(w => w.bereich === 'haupt').map(w => w.typ);
+  const seite = (c: HomeWidgetConfig): WidgetTyp[] =>
+    sortiereInstanzen(c.widgets).filter(w => w.bereich === 'seite').map(w => w.typ);
+
+  it('legt die fehlende Instanz selbst an und blendet sie ein', () => {
+    // Erst anlegen, dann einblenden: ein Stand von vor dem Tagesbrief trägt für
+    // den Typ gar keine Instanz, und der Reconcile in loadHomeWidgets käme
+    // danach und legte sie als `sichtbar: false` an.
+    const nach = migriereV5Tagesbrief(bestandV5());
+    expect(nach.widgets.find(w => w.typ === 'tagesbrief')?.sichtbar).toBe(true);
+  });
+
+  it('setzt ihn an den KOPF der Hauptspalte — die begründete Ausnahme', () => {
+    const nach = migriereV5Tagesbrief(bestandV5());
+    expect(haupt(nach)[0]).toBe('tagesbrief');
+    // Die vorhandene Ordnung bleibt, sie rückt nur nach. (Der Reconcile hängt
+    // die übrigen Katalog-Typen als Opt-in HINTEN an — deshalb ein Vergleich
+    // der bekannten Karten, kein Vergleich der ganzen Liste.)
+    const bekannt = haupt(nach).filter(t => t === 'meine-antraege' || t === 'fristen');
+    expect(bekannt).toEqual(['meine-antraege', 'fristen']);
+  });
+
+  it('lässt die Ordnung der Seitenspalte in Ruhe', () => {
+    const vorher = bestandV5();
+    const nach = migriereV5Tagesbrief(vorher);
+    // Nur die HAUPTspalte rückt nach; die vorhandenen Seiten-Karten behalten
+    // ihre Reihenfolge (der Reconcile ergänzt dort ebenfalls Opt-in-Instanzen).
+    const vorhanden = new Set(seite(vorher));
+    expect(seite(nach).filter(t => vorhanden.has(t))).toEqual(seite(vorher));
+  });
+
+  it('ist idempotent — ein zweiter Lauf schiebt nicht weiter', () => {
+    const einmal = migriereV5Tagesbrief(bestandV5());
+    const zweimal = migriereV5Tagesbrief(einmal);
+    expect(haupt(zweimal)).toEqual(haupt(einmal));
+    expect(zweimal).toBe(einmal);
+  });
+
+  it('kein Pin: wer ihn wegschiebt, behält seine Anordnung', () => {
+    // Nach der ersten echten Änderung stempelt `mutiere` v6, und `leseHomeWidgetConfig`
+    // ruft diesen Schritt gar nicht mehr. Direkt aufgerufen darf er eine bereits
+    // eingeblendete, tiefer stehende Karte zwar wieder hochholen — der
+    // Versions-Stempel ist das Gedächtnis, nicht diese Funktion.
+    const einmal = migriereV5Tagesbrief(bestandV5());
+    const verschoben = leseHomeWidgetConfig({ ...einmal, version: 6, widgets: einmal.widgets.map(
+      w => (w.typ === 'tagesbrief' ? { ...w, position: 99 } : w),
+    ) });
+    const ordnung = haupt(verschoben!);
+    expect(ordnung[ordnung.length - 1]).toBe('tagesbrief');
+  });
+});
+
 describe('entdeckung-default-deckungsgleich', () => {
   it('der Auslieferungszustand zeigt jede Karte, die die Migration einblendet', () => {
     // Zwei Wege zum selben Bild: der Default eines frischen Geraets (und damit
@@ -592,5 +676,24 @@ describe('entdeckung-default-deckungsgleich', () => {
       expect(frisch.widgets.find(w => w.typ === typ)?.sichtbar).toBe(true);
     }
     expect(frisch.hero.sichtbar.alert).toBe(true);
+  });
+});
+
+describe('entdeckung-ohne-marke', () => {
+  it('keine Karte aus ENTDECKUNG_WIDGETS trägt eine Beta-/Experten-Marke', () => {
+    // Der gemessene v6.19-Fall: `fristen` und `nachtlauf` standen in
+    // ENTDECKUNG_WIDGETS UND trugen BETA. Das Häkchen stand damit an,
+    // `widgetAnzeigbar` verwarf die Karte trotzdem — und zwar bei genau dem
+    // Nutzer, der sie entdecken sollte (4 von 6 Karten kamen an). Eine Marke
+    // legt die Selbst-Einblendung still; wer eine Karte hier aufnimmt, prüft
+    // sie mit. Das erledigt ab v6.45 dieser Guard statt eines Doc-Satzes.
+    const markiert = ENTDECKUNG_WIDGETS.filter(typ => {
+      const eintrag = SICHTBARKEITS_KATALOG.find(e => e.id === widgetId(typ));
+      return eintrag?.marken.beta === true || eintrag?.marken.experte === true;
+    });
+    expect(
+      markiert,
+      `Karten in ENTDECKUNG_WIDGETS mit Beta-/Experten-Marke (die Einblendung wäre stillgelegt):\n${markiert.join('\n')}`,
+    ).toEqual([]);
   });
 });

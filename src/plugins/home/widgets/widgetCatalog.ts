@@ -19,6 +19,7 @@ import {
   ListChecks,
   Megaphone,
   Milestone,
+  Newspaper,
   Play,
   StickyNote,
   TimerOff,
@@ -26,6 +27,7 @@ import {
 import {
   isMeilensteinMonitoringEnabled,
   isStatusCockpitEnabled,
+  isTagesbriefEnabled,
   isVorgangssystemEnabled,
 } from '@/config/feature-flags';
 import { isAuslastungFreigeschaltet, isKuratorFreigeschaltet } from '@/core/modul-freischaltung';
@@ -211,6 +213,22 @@ export const WIDGET_KATALOG: Record<WidgetTyp, WidgetKatalogEintrag> = {
     // das Widget sagt dann selbst, dass es nur eine Haelfte zeigt.
     sichtbarWenn: () => isVorgangssystemEnabled() || isMeilensteinMonitoringEnabled(),
     defaultConfig: KEINE,
+  },
+  tagesbrief: {
+    typ: 'tagesbrief',
+    label: 'Tagesbrief',
+    icon: Newspaper,
+    bereich: 'haupt',
+    verfuegbar: true,
+    // Am eigenen Flag, nicht am Vorgangssystem: der Brief traegt zehn Themen aus
+    // vier Familien, und welche davon in diesem Build etwas sagen koennen,
+    // entscheidet jedes Thema fuer sich (`themen.ts`). Ein Brief, der an der
+    // Quelle seiner staerksten Themen haengt, waere in jeder anderen Variante
+    // gar nicht erst abwaehlbar.
+    sichtbarWenn: isTagesbriefEnabled,
+    // Nichts abgewaehlt: Abwahl statt Auswahl, damit ein spaeter ergaenztes
+    // Thema von selbst erscheint statt stumm zu bleiben.
+    defaultConfig: (): WidgetSpezifischeConfig => ({ art: 'tagesbrief', aus: [] }),
   },
   // --- Abgeloest von `fristen` (v4.87) ------------------------------------
   // Sie beantworteten dieselbe Frage aus zwei Systemen, nebeneinander, ohne dass

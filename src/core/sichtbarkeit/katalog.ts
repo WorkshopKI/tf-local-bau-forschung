@@ -330,6 +330,10 @@ export const SICHTBARKEITS_KATALOG: readonly KatalogEintrag[] = [
   abschnitt('aufbereitung', 'karte-einzelanfragen', 'Einzel-Suchanfragen aus dem Steckbrief'),
 
   // ------------------------------------------------- Startseiten-Widgets --
+  // Ohne Marke, und das ist die Bedingung seiner Aufnahme in ENTDECKUNG_WIDGETS:
+  // eine Beta-Marke legte die Selbst-Einblendung still (der gemessene v6.19-Fall
+  // an `fristen`/`nachtlauf`). Guard `entdeckung-ohne-marke`.
+  widget('tagesbrief', 'Tagesbrief'),
   widget('weitermachen', 'Weitermachen'),
   widget('meine-antraege', 'Meine Anträge'),
   widget('kanban', 'Kanban'),

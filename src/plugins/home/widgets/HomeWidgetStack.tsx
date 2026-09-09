@@ -23,6 +23,7 @@ import { RegistryAenderungenWidget } from './RegistryAenderungenWidget';
 import { StatusVerlaufWidget } from './StatusVerlaufWidget';
 import { NachtlaufWidget } from './NachtlaufWidget';
 import { FristenWidget } from './FristenWidget';
+import { TagesbriefWidget } from '../tagesbrief/TagesbriefWidget';
 import { useHomeWidgets } from './useHomeWidgets';
 import type { WidgetTyp } from './types';
 import type { HomeWidgetContext, WidgetProps } from './widgetProps';
@@ -43,6 +44,7 @@ const RENDERERS: Record<WidgetTyp, React.ComponentType<WidgetProps> | null> = {
   'neue-antraege': NeueAntraegeWidget,
   'status-verlauf': StatusVerlaufWidget,
   fristen: FristenWidget,
+  tagesbrief: TagesbriefWidget,
   // Abgeloest von `fristen` (v4.87): im Katalog `verfuegbar: false`, also nie
   // gerendert. Der Eintrag bleibt, weil `RENDERERS` alle Typen fuehren muss.
   meilensteine: null,

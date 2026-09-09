@@ -191,6 +191,77 @@ die **eine** Deklaration dessen, was ein Nutzer vorfindet: `meine-antraege`,
   zurück — sonst stünden 40 Zeilen unter einem Regler, der 10 sagt. Der Zustand
   ist bewusst **nur Sitzung**: er beschreibt einen Blick, keine Einstellung.
 
+## Tagesbrief — was zuerst dran ist (v6.45)
+
+Die Karte am Kopf der Hauptspalte ([src/plugins/home/tagesbrief/](../../src/plugins/home/tagesbrief/)),
+Flag `tagesbrief` (dev + pl). Sie beantwortet die eine Frage, die keine der Karten
+darunter beantwortet: **was zuerst?** Die Karten bleiben das Nachschlagewerk,
+der Brief rankt über ihre Grenzen hinweg.
+
+- **Kein LLM beim Laden.** Der Satzbau ist deterministisch
+  ([punkte.ts](../../src/plugins/home/tagesbrief/punkte.ts) + [baueBrief.ts](../../src/plugins/home/tagesbrief/baueBrief.ts),
+  `now` injiziert, node-testbar). Das Modell kommt erst bei der Rückfrage ins
+  Spiel — je Punkt ein „dazu nachfragen", das das **bestehende** Assistent-Dock
+  mit vorbefüllter Frage öffnet (transienter `vorgabe`-Slot im `panelUiStore`,
+  Muster `kategorieQuickfilter`). Es wird **nicht** abgeschickt: der eine Aufruf
+  pro Turn bleibt eine Geste des Nutzers. Ohne `assistentPanel`-Flag verschwindet
+  der Knopf — ausblenden, nicht ausgrauen.
+- **Der Brief leitet nichts Neues ab.** Jedes Thema konsumiert eine bestehende
+  reine bzw. gecachte Quelle. Die Frist-Anlässe teilt er sich mit dem
+  Fristen-Widget: dessen Ladeeffekt ist nach
+  [useFristAnlaesse.ts](../../src/plugins/home/widgets/useFristAnlaesse.ts)
+  **gehoben, nicht kopiert** — zwei Flächen, die dieselbe Zahl unabhängig
+  herleiten, laufen genau dann auseinander, wenn es darauf ankommt (v4.131).
+- **Rangfolge nur, wo eine Uhr tickt.** Von den Themen tragen drei eine
+  Fälligkeit (Fristen = Meilensteine, Stillstand = Zieltage, Was zu tun ist);
+  die übrigen sind Neuigkeiten ohne Termin und stehen in EINEM Nachsatz. Eine
+  gemeinsame Skala müsste Gewichte erfinden, die gegen nichts prüfbar wären.
+  Deckel 5, Schwelle `DRINGLICH_AB_TAGEN`; **am echten Bestand gemessen**
+  (09.09.2026, Kürzel ATh): 12 verschiedene Vorgänge unter der Schwelle, die
+  dringlichsten 167/165/152/142/138 Tage über — die Schwelle bindet dort also
+  nicht, der Deckel schon.
+- **Ein Vorgang spricht einmal.** `BriefPunkt.gruppe` (Verbund-Id) entdoppelt den
+  gerankten Absatz; behalten wird der dringlichste Punkt. Gemessen stand „WidyLa"
+  sonst zweimal darin (zwei Meilensteine desselben Verbunds) — ein Brief, der
+  einen Vorgang wiederholt, fasst nichts zusammen.
+- **Die Zeile ist eine Segment-Liste, kein Satz** (Muster der Nachtlauf-Zeile,
+  v6.1): Zahlen und Namen IM Satz sind die Sprungziele, `aria-label` trägt
+  dieselbe Aussage am Stück. `satz` entsteht immer aus `segmente` (`satzAus`),
+  nie daneben geschrieben.
+- **Dieselbe Grundmenge wie die Karte darunter** — beides in der Abnahme
+  gefunden und behoben: `zu-tun` zieht aus `ctx.data.meineAntraege` (dort steht
+  `fristTage` aus `criticalFristErgebnis`) statt aus dem rohen Bestandslauf; über
+  den standen sonst drei Vorgänge mit „seit 4028 Tagen überfällig" an der Spitze,
+  während die Karte 13 Einträge mit höchstens 223 Tagen zeigte. Das
+  Journal-Thema folgt dem Bearbeiter-Ausschnitt der Kopfzeile wie „Änderungen der
+  letzten Nacht" — ohne ihn zählte der Brief 262 Vorgänge unter einem Chip, der
+  „Kürzel ATh" sagt, die Karte daneben 7.
+- **Keine Überschneidung mit der Hero-Karte darüber:** deren drei Kacheln zählen
+  ALTER (>90 / 31–90 Tage), der Brief rechnet FRIST. Zwei Achsen, und keine Zahl
+  steht zweimal — deshalb trägt der Brief auch kein Ampel-Sprungziel und zählt
+  unter „Bewegung" die `antrag-neu`-Einträge des Journals statt der Eingangs-Ampel.
+- **Leere braucht eine Erklärung**: „Nichts Dringendes gefunden. Geprüft: …"
+  nennt die aktiven Themen; solange eine Quelle lädt, behauptet der Brief nichts.
+  Eingeklappt zeigt der Zähler „—", nicht „0".
+- **Themenwahl = Abwahl** (`TagesbriefWidgetConfig.aus`), damit ein später
+  ergänztes Thema von selbst erscheint. Themen, die dieser Build nicht bedienen
+  kann, stehen gar nicht in der Liste.
+- **Auslastung ist bewusst KEIN Thema.** Sie war geplant und ist der einzige
+  Fall, dessen Quelle sonst niemand auf der Startseite lädt (zwei Läufe über den
+  vollen Antragsbestand — deshalb startet schon das Auslastungs-Widget
+  eingeklappt). Eine Karte, die eine andere Karte teuer macht, ist der falsche
+  Handel; die Zahl steht einen Klick entfernt auf ihrer eigenen Karte.
+- **Config-Version v6**: `migriereV5Tagesbrief` blendet die Karte einmalig ein
+  **und stellt sie um** — an den Kopf der Hauptspalte. Das ist die **einzige**
+  Ausnahme von „`position` bleibt unberührt": bei einer Karte, die rankt, was
+  zuerst dran ist, IST die Position die Sache selbst; angehängt wäre sie
+  eingebaut und trotzdem wirkungslos. Einmalig, kein Pin — der Versions-Stempel
+  in `useHomeWidgets` ist das Gedächtnis und muss mit der Schema-Version
+  mitwandern.
+- **Ohne Marke, und das ist Bedingung**: der Brief steht in
+  `ENTDECKUNG_WIDGETS`, und eine Beta-Marke legte diese Einblendung still (der
+  gemessene v6.19-Fall). Der neue Guard `entdeckung-ohne-marke` hält das fest.
+
 ## Startseite anpassen (v4.7, Handoff `_design/handoff/homepage-anpassen`)
 
 Konfiguration dort, wo die Wirkung sichtbar ist: [src/plugins/home/anpassen/](../../src/plugins/home/anpassen/). Die Einstellungs-Sektion bleibt und ist aus jedem Menü erreichbar — sie ist nur nicht mehr der einzige Weg.

@@ -1,0 +1,207 @@
+/**
+ * Tagesbrief — die Sätze.
+ *
+ * Ein reiner Bauer je Thema. Die Eingaben sind bewusst **schmal und eigen**:
+ * `useTagesbrief` passt die echten Quellen darauf an, damit dieses Modul ohne
+ * Hooks, ohne Uhr und ohne Store node-testbar bleibt.
+ *
+ * **`satz` entsteht immer aus `segmente`** ({@link satzAus}) — nie von Hand
+ * daneben geschrieben. Sonst liest die Vorlesesoftware etwas anderes als die
+ * Maus zeigt, und niemand merkt es.
+ */
+import type { BriefPunkt, Segment, Sprungziel, ThemaId } from './typen';
+
+/** Fügt die Segment-Texte zum Satz. Die einzige Quelle für `BriefPunkt.satz`. */
+export function satzAus(segmente: readonly Segment[]): string {
+  return segmente.map(s => s.text).join('');
+}
+
+function punkt(
+  themaId: ThemaId,
+  segmente: Segment[],
+  tage: number | null,
+  frage: string,
+  extra?: { rueckfall?: boolean; gruppe?: string },
+): BriefPunkt {
+  return {
+    themaId,
+    segmente,
+    satz: satzAus(segmente),
+    tage,
+    frage,
+    ...(extra?.rueckfall ? { rueckfall: true } : {}),
+    ...(extra?.gruppe ? { gruppe: extra.gruppe } : {}),
+  };
+}
+
+const text = (t: string): Segment => ({ art: 'text', text: t });
+const ziel = (t: string, z: Sprungziel): Segment => ({ art: 'ziel', text: t, ziel: z });
+
+/** „3 Vorgänge" / „ein Vorgang" — die Eins ausgeschrieben, wie im Fließtext üblich. */
+function anzahl(n: number, ein: string, viele: string): string {
+  return n === 1 ? `ein ${ein}` : `${n} ${viele}`;
+}
+
+// ---------------------------------------------------------------- Uhr-Themen --
+
+/**
+ * Ein Frist-Anlass, wie ihn `fristAnlaesse.ts` liefert — auf das reduziert, was
+ * der Satz braucht.
+ *
+ * **Achtung Vorzeichen:** `ueberTage` zählt Tage ÜBER dem Vorgesehenen (negativ
+ * = so viel bleibt noch), `BriefPunkt.tage` zählt Tage BIS zur Fälligkeit. Der
+ * Adapter dreht das Vorzeichen — hier steht es schon gedreht.
+ */
+export interface FristRoh {
+  verbundId: string;
+  akronym: string;
+  /** Was los ist: Status, Kürzel-Paar oder Meilenstein-Bezeichnung. */
+  grund: string;
+  /** Tage bis zur Fälligkeit; negativ = überfällig. */
+  tage: number;
+  /** Wie viele weitere Anlässe desselben Verbunds diese Zeile mitvertritt. */
+  weitere: number;
+}
+
+function fristSatz(r: FristRoh, thema: ThemaId, wort: string): BriefPunkt {
+  const zielAntrag: Sprungziel = { art: 'antrag', scopeId: r.verbundId };
+  const wann = r.tage < 0
+    ? `seit ${Math.abs(r.tage)} Tagen ${wort}`
+    : r.tage === 0
+      ? `heute ${wort}`
+      : `in ${r.tage} Tagen ${wort}`;
+  const segmente: Segment[] = [
+    ziel(r.akronym, zielAntrag),
+    text(` ist ${wann}`),
+    text(r.grund ? ` (${r.grund})` : ''),
+    text(r.weitere > 0 ? ` — und ${r.weitere} weitere im selben Verbund` : ''),
+    text('.'),
+  ];
+  return punkt(thema, segmente, r.tage, `Was ist bei ${r.akronym} zu tun?`, { gruppe: r.verbundId });
+}
+
+/** Meilensteine: ein Termin, gerechnet ab Antragseingang. */
+export function meilensteinPunkte(anlaesse: readonly FristRoh[]): BriefPunkt[] {
+  return anlaesse.map(r => fristSatz(r, 'fristen', 'fällig'));
+}
+
+/** Zieltage: der Stillstands-Wächter — misst Liegezeit, keinen Termin. */
+export function stillstandPunkte(anlaesse: readonly FristRoh[]): BriefPunkt[] {
+  return anlaesse.map(r => fristSatz(r, 'stillstand', 'überfällig'));
+}
+
+/** Die Handlung an einem Vorgang, aus der To-do-Kaskade (oder dem Rückfall). */
+export interface AufgabeRoh {
+  /** Sprungziel: Verbund-Id, ersatzweise Aktenzeichen. */
+  scopeId: string;
+  titel: string;
+  /** Der To-do-Text der Kaskade bzw. der alten Formel. */
+  text: string;
+  /** Restfrist in Tagen; negativ = überfällig. */
+  tage: number;
+  /** Der Text kommt aus dem Rückfall, nicht aus der Kaskade. */
+  rueckfall: boolean;
+}
+
+/**
+ * Die Uhr gehört IN den Satz.
+ *
+ * Der Brief ist nach Tagen sortiert; steht die Zahl nicht da, liest sich die
+ * Reihenfolge als willkürlich. Gemessen am echten Bestand standen drei To-dos
+ * ohne jede Zeitangabe über einer Frist, die „seit 167 Tagen fällig" sagte —
+ * niemand konnte sehen, warum.
+ */
+function uhrText(tage: number): string {
+  if (tage < 0) return `seit ${Math.abs(tage)} Tagen überfällig`;
+  if (tage === 0) return 'heute fällig';
+  return `noch ${tage} Tage`;
+}
+
+export function zuTunPunkte(aufgaben: readonly AufgabeRoh[]): BriefPunkt[] {
+  return aufgaben.map(a => {
+    const segmente: Segment[] = [
+      ziel(a.titel, { art: 'antrag', scopeId: a.scopeId }),
+      text(` (${uhrText(a.tage)}): ${a.text}`),
+      // Ein Rückfall, der sich nicht zu erkennen gibt, spricht die widerlegte
+      // Formel, als wäre sie belegt.
+      text(a.rueckfall ? ' — aus dem Status abgeleitet, keine Regel greift' : ''),
+      text('.'),
+    ];
+    return punkt('zu-tun', segmente, a.tage, `Was ist bei ${a.titel} zu tun?`, { rueckfall: a.rueckfall, gruppe: a.scopeId });
+  });
+}
+
+// ------------------------------------------------------------ Nachsatz-Themen --
+
+/** Änderungen des letzten Nachtlaufs. **Keine Personen-Achse** (Pitfall #48). */
+export function nachtlaufPunkt(
+  vorgaenge: number,
+  zeitraum: string,
+): BriefPunkt | null {
+  if (vorgaenge <= 0) return null;
+  const segmente: Segment[] = [
+    ziel(anzahl(vorgaenge, 'Vorgang', 'Vorgänge'), { art: 'seite', plugin: 'antraege' }),
+    text(vorgaenge === 1 ? ' hat sich ' : ' haben sich '),
+    text(`${zeitraum} geändert`),
+  ];
+  return punkt('nachtlauf', segmente, null, 'Was hat sich über Nacht geändert?');
+}
+
+/**
+ * Neu dazugekommen — die `antrag-neu`-Einträge des Journals.
+ *
+ * Bewusst **nicht** die Eingangs-Ampel: deren zwei Zahlen stehen bereits als
+ * Kacheln in der Hero-Karte darüber, und sie messen Alter, nicht Zugang.
+ */
+export function neuPunkt(anzahlNeu: number): BriefPunkt | null {
+  if (anzahlNeu <= 0) return null;
+  const segmente: Segment[] = [
+    ziel(anzahl(anzahlNeu, 'Antrag', 'Anträge'), { art: 'seite', plugin: 'antraege' }),
+    text(anzahlNeu === 1 ? ' ist neu dazugekommen' : ' sind neu dazugekommen'),
+  ];
+  return punkt('eingang', segmente, null, 'Welche Anträge sind neu dazugekommen?');
+}
+
+export function entwuerfePunkt(anzahlOffen: number, ersterScopeId: string | null): BriefPunkt | null {
+  if (anzahlOffen <= 0) return null;
+  const beschriftung = anzahl(anzahlOffen, 'eigener Entwurf', 'eigene Entwürfe');
+  const segmente: Segment[] = [
+    ersterScopeId
+      ? ziel(beschriftung, { art: 'antrag', scopeId: ersterScopeId })
+      : text(beschriftung),
+    text(anzahlOffen === 1 ? ' wartet auf dich' : ' warten auf dich'),
+  ];
+  return punkt('entwuerfe', segmente, null, 'Welche Entwürfe habe ich offen?');
+}
+
+export function weitermachenPunkt(titel: string, scopeId: string): BriefPunkt | null {
+  if (!titel.trim()) return null;
+  const segmente: Segment[] = [
+    text('zuletzt warst du bei '),
+    ziel(titel, { art: 'antrag', scopeId }),
+  ];
+  return punkt('weitermachen', segmente, null, `Wo stehe ich bei ${titel}?`);
+}
+
+export function feedbackPunkt(neuigkeiten: number): BriefPunkt | null {
+  if (neuigkeiten <= 0) return null;
+  const segmente: Segment[] = [
+    ziel(
+      anzahl(neuigkeiten, 'Feedback-Neuigkeit', 'Feedback-Neuigkeiten'),
+      { art: 'seite', plugin: 'feedback-board' },
+    ),
+  ];
+  return punkt('feedback', segmente, null, 'Was gibt es Neues im Feedback?');
+}
+
+export function registryPunkt(aenderungen: number): BriefPunkt | null {
+  if (aenderungen <= 0) return null;
+  const segmente: Segment[] = [
+    ziel(
+      anzahl(aenderungen, 'Änderung', 'Änderungen'),
+      { art: 'seite', plugin: 'skill-verwaltung' },
+    ),
+    text(' an Skills und Regeln'),
+  ];
+  return punkt('registry', segmente, null, 'Was wurde an Skills und Regeln geändert?');
+}

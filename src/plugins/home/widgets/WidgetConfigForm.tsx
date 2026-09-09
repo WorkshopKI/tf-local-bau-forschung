@@ -34,6 +34,7 @@ import { KATEGORIE_REIHENFOLGE, getStatusCategoryLabel } from '@/core/utils/stat
 // ueber die Einstellungen zurueck hierher. `constants.ts` ist reines Datenmodul.
 import { STATUS_LABELS, STATUS_LANE_ACCENT } from '@/components/feedback/constants';
 import { NachtlaufConfigForm } from './NachtlaufConfigForm';
+import { TagesbriefConfigForm } from '../tagesbrief/TagesbriefConfigForm';
 import { KANBAN_LANE_ACCENT } from './kanbanLanes';
 import { FEEDBACK_LANE_STATUS, wechsleKanbanQuelle } from './feedbackKanbanLanes';
 import type {
@@ -57,7 +58,7 @@ export interface WidgetConfigFormProps {
 
 // Prädikat „hat Detail-Formular?" lebt in ./types (hatWidgetDetailConfig) —
 // dort pur + node-testbar, ohne die schweren UI-/Feedback-Imports dieses Moduls.
-// Muss zu den Branches unten (kanban/ampel) passen.
+// Muss zu den Branches unten (kanban/ampel/nachtlauf/tagesbrief) passen.
 
 export function WidgetConfigForm({ instanz, kontext, onUpdateConfig }: WidgetConfigFormProps): React.ReactElement {
   const cfg = instanz.config;
@@ -69,6 +70,9 @@ export function WidgetConfigForm({ instanz, kontext, onUpdateConfig }: WidgetCon
   }
   if (cfg.art === 'nachtlauf') {
     return <NachtlaufConfigForm cfg={cfg} onUpdate={onUpdateConfig} />;
+  }
+  if (cfg.art === 'tagesbrief') {
+    return <TagesbriefConfigForm cfg={cfg} onUpdate={onUpdateConfig} />;
   }
   return (
     <p className="text-[12px] text-[var(--tf-text-tertiary)]">
