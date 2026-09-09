@@ -20,6 +20,7 @@ import { readFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseCsvAll } from '@/core/services/csv/parser';
+import { beschreibeMitFixture } from '@/__tests__/fixture-gate';
 import { getStatusCategory } from '@/core/utils/status-canonical';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -31,7 +32,6 @@ const BGL_CSV = path.join(FIXTURES_DIR, 'sample_7737_Bgl.csv');
 const PRJBSP_CSV = path.join(FIXTURES_DIR, 'sample_9052_PrjBsp_AitisiGPT.csv');
 
 const hasMaster = existsSync(MASTER_CSV);
-const describeWithMaster = hasMaster ? describe : describe.skip;
 
 async function loadAndParse(filePath: string): ReturnType<typeof parseCsvAll> {
   const text = readFileSync(filePath, 'utf-8');
@@ -39,7 +39,8 @@ async function loadAndParse(filePath: string): ReturnType<typeof parseCsvAll> {
   return parseCsvAll(blob);
 }
 
-describeWithMaster('Real Fixture CSV — Master (sample_9097_AnB)', () => {
+beschreibeMitFixture('Real Fixture CSV — Master (sample_9097_AnB)', MASTER_CSV,
+  'docs/fixtures/*.csv liegen bewusst nur lokal (.gitignore:63) — es sind echte Exportdaten.', () => {
   it('parsed mit Encoding-Auto-Detection (UTF-8 nach prebuild-Normalisierung)', async () => {
     const { rows, headers, separator, encoding } = await loadAndParse(MASTER_CSV);
     expect(rows.length).toBeGreaterThan(0);
@@ -117,10 +118,8 @@ describeWithMaster('Real Fixture CSV — Master (sample_9097_AnB)', () => {
   });
 });
 
-const hasBgl = existsSync(BGL_CSV);
-const describeWithBgl = hasBgl ? describe : describe.skip;
-
-describeWithBgl('Real Fixture CSV — Bgl (Bewilligungsdetails)', () => {
+beschreibeMitFixture('Real Fixture CSV — Bgl (Bewilligungsdetails)', BGL_CSV,
+  'docs/fixtures/*.csv liegen bewusst nur lokal (.gitignore:63) — es sind echte Exportdaten.', () => {
   it('hat die fuer Bgl typischen Bearbeiter-Slots (ZTP_KUERZ, PFM_KUERZ)', async () => {
     const { headers } = await loadAndParse(BGL_CSV);
     expect(headers).toContain('ZTP_KUERZ');
@@ -137,10 +136,8 @@ describeWithBgl('Real Fixture CSV — Bgl (Bewilligungsdetails)', () => {
   });
 });
 
-const hasPrjBsp = existsSync(PRJBSP_CSV);
-const describeWithPrjBsp = hasPrjBsp ? describe : describe.skip;
-
-describeWithPrjBsp('Real Fixture CSV — PrjBsp (Projektbeschreibung)', () => {
+beschreibeMitFixture('Real Fixture CSV — PrjBsp (Projektbeschreibung)', PRJBSP_CSV,
+  'docs/fixtures/*.csv liegen bewusst nur lokal (.gitignore:63) — es sind echte Exportdaten.', () => {
   it('hat den Volltext-Slot VB_INHALT', async () => {
     const { headers, rows } = await loadAndParse(PRJBSP_CSV);
     expect(headers).toContain('VB_INHALT');

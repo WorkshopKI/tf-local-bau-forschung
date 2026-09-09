@@ -7,14 +7,14 @@
 > dass ein Guard unter `src/__tests__/` sie einfriert — und der misst selbst nach,
 > statt diese Datei zu lesen.
 
-**Umfang:** 2.877 Dateien unter `src/` (2.067 Produktion / 327.780 LOC · 810 Test / 120.518 LOC). `src/generated/` ist ausgeschlossen.
+**Umfang:** 2.878 Dateien unter `src/` (2.067 Produktion / 327.780 LOC · 811 Test / 120.698 LOC). `src/generated/` ist ausgeschlossen.
 
 ## Größe
 
 | | Dateien | LOC | p50 | p90 | p99 | max | >400 | >500 | >800 | >1000 |
 |---|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|
 | Produktion | 2.067 | 327.780 | 116 | 335 | 749 | 1.232 | 133 | 74 | 15 | 6 |
-| Test | 810 | 120.518 | 115 | 274 | 568 | 1.915 | 29 | 16 | 4 | 3 |
+| Test | 811 | 120.698 | 115 | 274 | 568 | 1.915 | 29 | 16 | 4 | 3 |
 
 Größte Produktionsdateien:
 
@@ -198,10 +198,10 @@ Dichteste Nester:
 | Kennzahl | Ist |
 |---|--:|
 | Guard-Dateien unter `src/__tests__/` | 9 |
-| `describe`-Blöcke | 103 |
-| davon zeilenweise scannend | 60 |
+| `describe`-Blöcke | 104 |
+| davon zeilenweise scannend | 61 |
 | mit Positiv-/Musterkontrolle | 22 |
-| **ohne Kontrolle** | 81 |
+| **ohne Kontrolle** | 82 |
 | Dateien in `ISOLATED_TESTS` | 51 |
 | Testdateien mit `vi.mock` | 55 |
 | davon **ohne** Isolationseintrag | 11 |

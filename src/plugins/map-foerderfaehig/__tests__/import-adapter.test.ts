@@ -10,6 +10,7 @@ import { importiereEinreichung } from '../import/adapter';
 import { findeVerdaechtigeWerte } from '../import/redaktion';
 import { erkenneSchema } from '../import/schema-erkennung';
 import type { MapEinreichung, MapImportReport } from '../types';
+import { beschreibeMitFixture } from '@/__tests__/fixture-gate';
 import {
   DRIFT_PFAD, DUMMY_PFAD, ECHTFALL_PFAD, ECHTFALL_VORHANDEN, TEST_KONTEXT, leseFixture,
 } from './fixtures';
@@ -203,7 +204,14 @@ describe('Schema-Erkennung — Randfaelle', () => {
   });
 });
 
-const beschreibeEchtfall = ECHTFALL_VORHANDEN ? describe : describe.skip;
+// Der Torwaechter meldet beim Ueberspringen, WAS ausfaellt und warum —
+// siehe src/__tests__/fixture-gate.ts.
+const beschreibeEchtfall = (name: string, fn: () => void): void =>
+  beschreibeMitFixture(
+    name, ECHTFALL_PFAD,
+    'Die Echtfall-Einreichung liegt bewusst nur lokal — sie enthaelt echte Antragsdaten.',
+    fn,
+  );
 
 /**
  * Faul laden: `describe.skip` führt den Callback trotzdem aus, um die Tests zu

@@ -16,6 +16,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as CFB from 'cfb';
 import { parseMsg } from '../parse-msg';
+import { beschreibeWenn } from '@/__tests__/fixture-gate';
 
 // ── Encoder + Synthetik-Builder ──────────────────────────────────────────────
 function enc16(s: string): Uint8Array {
@@ -159,7 +160,12 @@ const realFiles = existsSync(localDir)
   ? readdirSync(localDir).filter(f => f.toLowerCase().endsWith('.msg'))
   : [];
 
-describe.skipIf(realFiles.length === 0)('parseMsg — echte Outlook-.msg (lokal, nicht committed)', () => {
+beschreibeWenn(
+  'parseMsg — echte Outlook-.msg (lokal, nicht committed)',
+  realFiles.length > 0,
+  localDir,
+  'Echte .msg-Dateien liegen bewusst nur lokal — sie tragen Absender und Inhalt echter Anfragen.',
+  () => {
   for (const f of realFiles) {
     it(`extrahiert Betreff/Absender/Body aus ${f}`, () => {
       const bytes = Uint8Array.from(readFileSync(join(localDir, f)));

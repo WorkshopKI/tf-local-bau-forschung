@@ -5,6 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v6.44.0 — Stille Test-Auslassungen werden laut (September 2026)
+
+MINOR — 16 Tests liefen nur auf der Dev-Maschine: sie hängen an Fixtures, die per `.gitignore` bewusst nicht im Repo liegen. Auf einem frischen Klon verschwanden sie **wortlos**, und der Lauf blieb in beiden Fällen grün — zwei Entwickler führten aus demselben Commit unterschiedliche Testmengen aus.
+
+- **[fixture-gate.ts](src/__tests__/fixture-gate.ts)**: ein gemeinsamer Torwächter statt fünf handgeschriebener `existsSync(…) ? describe : describe.skip`
+- **Wächter `fixture-tore-melden-sich`** wird **rot**, wenn ein Block nicht laufen kann — mit Quittung `TF_OHNE_FIXTURES=1`, damit ein Rechner ohne Fixtures nicht dauerhaft rot bleibt
+- Zweiter Wächter verhindert, dass sich künftig wieder ein Block an der Bilanz vorbei selbst abschaltet
+- **Gemessen statt vermutet**: vitest 4 zeigt `console`-Ausgaben bestandener Tests im Standard-Reporter *nicht* — weder aus der Sammelphase noch aus einem laufenden Test. „Laut" heißt in diesem Reporter zwangsläufig „rot"
+
 ### v6.43.0 — importCsvSource wird ein Orchestrator mit benannten Schritten (September 2026)
 
 MINOR — Der dritte und letzte der geplanten Schnitte, und der einzige, der Logik bewegt statt nur Dateien: `importCsvSource` war eine Prozedur von 469 Zeilen, deren Rumpf aus genau EINEM `try`-Block bestand — vierzehn Phasen, jede eine Ebene tiefer als die Funktion, die sie enthielt.

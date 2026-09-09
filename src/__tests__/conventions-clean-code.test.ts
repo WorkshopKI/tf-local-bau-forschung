@@ -281,6 +281,77 @@ describe('keine-steuerzeichen-im-quelltext', () => {
   });
 });
 
+describe('fixture-tore-melden-sich (ein stiller Skip ist schlimmer als ein fehlender Test)', () => {
+  // Mehrere Testbloecke haengen an Dateien, die per .gitignore bewusst NICHT im
+  // Repo liegen — echte CSV-Exporte, echte Outlook-Mails, eine echte Einreichung.
+  // Bis v6.44 schaltete jeder von ihnen sich selbst ab und sagte nichts: auf
+  // dieser Maschine liefen 16 Tests, auf einem frischen Klon verschwanden sie
+  // wortlos, und der Lauf blieb in BEIDEN Faellen gruen. Zwei Entwickler fuehrten
+  // aus demselben Commit unterschiedliche Testmengen aus, ohne dass die Ausgabe
+  // das verriet.
+  //
+  // WARUM DIESER WAECHTER ROT WIRD statt zu warnen: gemessen, nicht vermutet.
+  // Vitest 4 zeigt Konsolen-Ausgaben bestandener Tests im Standard-Reporter
+  // nicht an — weder aus der Sammelphase noch aus einem laufenden Test (mit
+  // einer Sonde geprueft: ein `console.warn` in einem gruenen Test erscheint
+  // nirgends). Der einzige Kanal, den dieser Reporter zuverlaessig zeigt, ist
+  // ein roter Test. „Laut" heisst hier also zwangslaeufig „rot".
+  //
+  // Damit ein Rechner ohne Fixtures nicht dauerhaft rot bleibt, gibt es eine
+  // QUITTUNG: `TF_OHNE_FIXTURES=1`. Wer sie setzt, hat die Meldung gelesen und
+  // weiss, dass sein Lauf einen Teil nicht prueft. Genau das war das Ziel.
+  const TORE = [
+    ['docs/fixtures/sample_9097_AnB_AitisiGPT.csv', 'Real-CSV Master (Antraege+Bewilligungen)'],
+    ['docs/fixtures/sample_7737_Bgl.csv', 'Real-CSV Bgl (Bewilligungsdetails)'],
+    ['docs/fixtures/sample_9052_PrjBsp_AitisiGPT.csv', 'Real-CSV PrjBsp (Projektbeschreibung)'],
+    ['src/plugins/map-foerderfaehig/__tests__/fixtures-local/echtfall-2026.json', 'MAP-Echtfall-Einreichung'],
+    ['src/core/services/msg/__tests__/fixtures-local', 'echte Outlook-.msg'],
+  ] as const;
+
+  it('jeder fixture-gebundene Block kann hier laufen — oder es ist quittiert', () => {
+    const fehlend = TORE.filter(([p]) => !existsSync(join(ROOT, '..', p)));
+    if (fehlend.length === 0) return;
+    if (process.env.TF_OHNE_FIXTURES === '1') return;
+    expect.fail(
+      `${fehlend.length} von ${TORE.length} fixture-gebundenen Testbloecken koennen auf\n` +
+      `dieser Maschine NICHT laufen. Der Rest der Suite ist gruen — er prueft diese\n` +
+      `Teile aber nicht.\n\n` +
+      fehlend.map(([p, was]) => `  fehlt: ${p}\n         → ${was}`).join('\n') + '\n\n' +
+      `Diese Dateien liegen bewusst nicht im Repo: es sind echte Exportdaten, echte\n` +
+      `Mails und eine echte Einreichung (.gitignore). Das ist richtig so — nur darf\n` +
+      `es nicht stumm passieren.\n\n` +
+      `Zwei Wege weiter:\n` +
+      `  • Fixtures vom Daten-Share holen und hierher legen, dann laufen sie.\n` +
+      `  • Oder quittieren: TF_OHNE_FIXTURES=1 setzen. Damit ist festgehalten,\n` +
+      `    dass dieser Lauf einen Teil bewusst auslaesst.`,
+    );
+  });
+
+  it('kein Testblock schaltet sich an einer Fixture vorbei selbst ab', () => {
+    // Der Weg fuehrt ueber beschreibeMitFixture/beschreibeWenn aus fixture-gate.ts.
+    // Ein handgeschriebenes `existsSync(...) ? describe : describe.skip` umgeht den
+    // Waechter oben — dann steht der Block wieder in keiner Bilanz.
+    const HANDGEMACHT = /existsSync\([^)]*\)\s*\?\s*describe\s*:\s*describe\.skip|describe\.skipIf\(/;
+    const treffer: Finding[] = [];
+    for (const file of scanDateien) {
+      if (!istTestdatei(relPath(file))) continue;
+      treffer.push(...findInFile(file, l => HANDGEMACHT.test(l), 'allow-eigenes-fixture-tor'));
+    }
+    if (treffer.length > 0) {
+      expect.fail(
+        `Ein Testblock schaltet sich selbst an einer Fixture ab, ohne den gemeinsamen\n` +
+        `Waechter zu benutzen. Er faellt damit aus der Bilanz oben heraus und wird\n` +
+        `wieder still uebersprungen.\n\n` +
+        `Stattdessen:\n` +
+        `  import { beschreibeMitFixture } from '@/__tests__/fixture-gate';\n` +
+        `  beschreibeMitFixture('Name', PFAD, 'warum liegt das nicht im Repo', () => { … });\n\n` +
+        `Und den Pfad in TORE (dieser Datei) eintragen.\n\n` +
+        `Treffer:\n${fmt(treffer)}`,
+      );
+    }
+  });
+});
+
 // ========================================================== RATSCHEN (Ist > 0)
 
 describe('as-any-bleibt-die-ausnahme', () => {
