@@ -536,7 +536,7 @@ describe('local-fs-gate-eingegrenzt (Variante „local")', () => {
   // relPath() liefert `src/...` mit Forward-Slashes (auch auf Windows).
   const ERLAUBT = [
     'src/core/services/infrastructure/local-fs/',      // der Adapter selbst
-    'src/core/services/infrastructure/smb-handle.ts',  // Haupt-Einhaengepunkt
+    'src/core/services/infrastructure/smb-handle/',    // Haupt-Einhaengepunkt (v6.42: Ordner statt Datei)
     'src/core/services/gutachten-vorlagen/vorlagen-quelle.ts',
     'src/plugins/csv-sources-kuration/csv-source-handle.ts',
     'src/core/App.tsx',                                // Profil-Seed
@@ -1334,7 +1334,7 @@ describe('personal-roots-single-reader (v4.1 — die Wurzeln haben EINE Lesestel
   // in die Slot-Schicht; Anwendungscode liest ueber `getUserFoldersRoots`.
   const ERLAUBT = [
     `${sep}infrastructure${sep}types.ts`,
-    `${sep}infrastructure${sep}smb-handle.ts`,
+    `${sep}infrastructure${sep}smb-handle${sep}`,   // v6.42: Ordner statt Datei
     `${sep}infrastructure${sep}local-fs${sep}`,
     `${sep}__tests__${sep}`,
   ];

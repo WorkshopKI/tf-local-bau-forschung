@@ -7,14 +7,14 @@
 > dass ein Guard unter `src/__tests__/` sie einfriert — und der misst selbst nach,
 > statt diese Datei zu lesen.
 
-**Umfang:** 2.858 Dateien unter `src/` (2.048 Produktion / 327.553 LOC · 810 Test / 120.491 LOC). `src/generated/` ist ausgeschlossen.
+**Umfang:** 2.876 Dateien unter `src/` (2.066 Produktion / 327.639 LOC · 810 Test / 120.518 LOC). `src/generated/` ist ausgeschlossen.
 
 ## Größe
 
 | | Dateien | LOC | p50 | p90 | p99 | max | >400 | >500 | >800 | >1000 |
 |---|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|
-| Produktion | 2.048 | 327.553 | 117 | 336 | 751 | 1.232 | 135 | 77 | 16 | 6 |
-| Test | 810 | 120.491 | 115 | 274 | 568 | 1.915 | 29 | 16 | 4 | 3 |
+| Produktion | 2.066 | 327.639 | 116 | 335 | 749 | 1.232 | 133 | 75 | 15 | 6 |
+| Test | 810 | 120.518 | 115 | 274 | 568 | 1.915 | 29 | 16 | 4 | 3 |
 
 Größte Produktionsdateien:
 
@@ -24,10 +24,10 @@ Größte Produktionsdateien:
 4. `src/plugins/antraege/tableColumns.tsx` — 1.154 LOC
 5. `src/core/services/skills/registry/migrations.ts` — 1.083 LOC
 6. `src/plugins/antraege/AntraegeMain.tsx` — 1.075 LOC
-7. `src/core/services/infrastructure/smb-handle.ts` — 941 LOC
-8. `src/plugins/csv-sources-kuration/services/auto-refresh.ts` — 881 LOC
-9. `src/core/services/skills/registry/check-engine.ts` — 848 LOC
-10. `src/plugins/antraege/gutachten/GutachtenSection.tsx` — 840 LOC
+7. `src/plugins/csv-sources-kuration/services/auto-refresh.ts` — 881 LOC
+8. `src/core/services/skills/registry/check-engine.ts` — 848 LOC
+9. `src/plugins/antraege/gutachten/GutachtenSection.tsx` — 840 LOC
+10. `src/core/services/search/frageplan.ts` — 838 LOC
 
 ## Typsicherheit
 
@@ -136,7 +136,7 @@ Dateipaare mit mindestens einem geteilten Fenster: **7**
 
 ## Testbezug
 
-**306** von 1.311 reinen `.ts`-Modulen (23.3 %) werden in keiner Testdatei auch nur genannt.
+**312** von 1.329 reinen `.ts`-Modulen (23.5 %) werden in keiner Testdatei auch nur genannt.
 
 > Bewusst kein Abdeckungsmaß: ein Modul ohne Erwähnung ist sicher ungetestet — eines
 > mit Erwähnung ist damit noch nicht geprüft. Für die `.tsx`-Schicht existiert gar
@@ -173,7 +173,7 @@ Größte Module ohne jeden Testbezug:
 
 ## Exporte ohne Nutzer
 
-**339** von 5.946 exportierten Werten (5.7 %) kommen im ganzen Baum nur in ihrer eigenen Datei vor.
+**339** von 5.952 exportierten Werten (5.7 %) kommen im ganzen Baum nur in ihrer eigenen Datei vor.
 
 > Näherung per Token-Index. Sie ist genau deshalb ergiebig, weil `noUnusedLocals` alles
 > *unterhalb* der Export-Grenze sauber hält — das hier ist der Blindfleck, den der
@@ -186,12 +186,12 @@ Dichteste Nester:
 - `src/core/services/skill-feedback/maturity.ts` — 7
 - `src/core/services/feedback/feedbackLlm.ts` — 5
 - `src/plugins/einstellungen/_shared/settings-primitives.tsx` — 5
-- `src/core/services/infrastructure/smb-handle.ts` — 4
 - `src/plugins/antraege/aufbereitung/aufbereitung-settings.ts` — 4
 - `src/plugins/antraege/filter/projektartQuickfilter.ts` — 4
 - `src/plugins/antraege/nachforderungen/nf-service.ts` — 4
 - `src/plugins/auslastung/services/matching/verbund-embedding.ts` — 4
 - `src/plugins/auslastung/services/verbund/verbund-aggregation.ts` — 4
+- `src/plugins/status-cockpit/klaerfragenExport.ts` — 4
 
 ## Die Guard-Suite über sich selbst
 

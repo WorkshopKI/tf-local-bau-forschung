@@ -5,6 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v6.42.0 — Zwei DAOs werden Ordner: idb-csv und smb-handle (September 2026)
+
+MINOR — Zwei Dateien mit zusammen 1.574 LOC und 192 Importeuren waren formal je EINE Verantwortung, faktisch ein DAO für zehn Entitäten und ein Handle-Manager mit vier Fremdaufgaben. Beide Schnitte sind reine Verschiebearbeit: **kein Import-Spezifizierer ändert sich**, die Export-Menge ist nachweislich identisch.
+
+- **[idb-csv/](src/core/services/csv/idb-csv/)** — 633 LOC → 10 Module je Entität; am Dateinamen ist jetzt ablesbar, ob der Voll-Store oder die Slim-Projektion angefasst wird (Pitfall #32)
+- **[smb-handle/](src/core/services/infrastructure/smb-handle/)** — 941 LOC → 7 Module entlang der schon vorhandenen Kommentar-Banner; die Berechtigungs-Orchestrierung (37 % der Datei, trägt die `file://`-Regel „ein Prompt pro Gesture") ist jetzt ein eigenes Modul
+- Submodule importieren einander **direkt**, nie über ihr Barrel — sonst Zyklus, und `npm run cycles` fährt mit leerer Allowlist (0 Cluster über 2.067 Dateien)
+- **Zwei Convention-Guards mussten mitziehen**: sie führten `smb-handle.ts` als Pfad-Fragment auf ihrer Erlaubt-Liste und wurden vom Umzug rot ([conventions-daten.test.ts](src/__tests__/conventions-daten.test.ts))
+
 ### v6.41.1 — Zwei Guards nennen ihre Reichweite (September 2026)
 
 PATCH — Zwei der neuen Ratschen messen weniger, als ihr Name nahelegt. Das steht jetzt bei ihnen — dieselbe Verwechslung machte `no-raw-async-onclick` monatelang zu einem Guard ohne Reichweite.
