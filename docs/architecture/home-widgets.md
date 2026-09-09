@@ -206,6 +206,16 @@ der Brief rankt über ihre Grenzen hinweg.
   Muster `kategorieQuickfilter`). Es wird **nicht** abgeschickt: der eine Aufruf
   pro Turn bleibt eine Geste des Nutzers. Ohne `assistentPanel`-Flag verschwindet
   der Knopf — ausblenden, nicht ausgrauen.
+- **Die Frage nennt ihren Vorgang** (v6.47.1). Neben dem Text reist `p.gruppe` als
+  `vorgabeScope` mit und übersteuert im Panel die Store-Selektion
+  ([assistent-panel.md → Welche Entität gilt](assistent-panel.md)).
+  Ohne ihn stand im Faktenblock „Keine Entität ausgewählt", und das Modell
+  antwortete regelkonform, es wisse nichts über den Vorgang, nach dem eben gefragt
+  wurde. Der Knopf **navigiert weiterhin nicht** — er ist die zweite Geste neben dem
+  Sprung-Link, und die Karte bleibt stehen. Wer nach EINEM Vorgang fragt, benennt
+  ihn (`fristen`/`stillstand`/`zu-tun`/`weitermachen`); Listenfragen wie „Welche
+  Entwürfe habe ich offen?" bleiben bewusst ohne — ein einzelner Vorgang wäre dort
+  eine Verengung, die die Frage nicht meint.
 - **Der Brief leitet nichts Neues ab.** Jedes Thema konsumiert eine bestehende
   reine bzw. gecachte Quelle. Die Frist-Anlässe teilt er sich mit dem
   Fristen-Widget: dessen Ladeeffekt ist nach

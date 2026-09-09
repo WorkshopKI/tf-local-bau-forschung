@@ -72,7 +72,12 @@ export interface AssistentController {
   setFeedback: (mid: string, fb: 'up' | 'down') => void;
 }
 
-export function useAssistentController(): AssistentController {
+/**
+ * @param scopeSchluessel Ausdrücklich mitgegebener Vorgang (Verbund-Nummer oder
+ *   Aktenzeichen), der die Store-Selektion für diesen Turn übersteuert — gesetzt,
+ *   wenn eine Karte die Frage samt Subjekt vorgelegt hat.
+ */
+export function useAssistentController(scopeSchluessel?: string | null): AssistentController {
   const bridge = useAIBridge();
   const { search } = useSearch();
   const storage = useStorage();
@@ -82,7 +87,7 @@ export function useAssistentController(): AssistentController {
     const deps: AssistentTurnDeps = {
       // DSGVO-Gate: intern-only, wirft bei externem Provider (→ Degradation).
       getTransport: () => bridge.getTransportForAssistent(),
-      getKontext: () => baueKontextSnapshot(),
+      getKontext: () => baueKontextSnapshot(Date.now(), scopeSchluessel),
       retrieve: async (f) => {
         if (getOramaDB() === null) return null; // Index (noch) nicht geladen → kein Retrieval
         try {
@@ -105,7 +110,7 @@ export function useAssistentController(): AssistentController {
     if (assistentSessionStore.getState().error === DEGRADATION_MELDUNG) {
       useKiConnectPrompt.getState().oeffnen();
     }
-  }, [bridge, search, storage]);
+  }, [bridge, search, storage, scopeSchluessel]);
 
   return {
     messages: state.messages,

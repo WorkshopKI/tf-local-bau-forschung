@@ -128,3 +128,36 @@ describe('punkte — Einzahl und Mehrzahl', () => {
     expect(entwuerfePunkt(2, 'VB1')!.satz).toBe('2 eigene Entwürfe warten auf dich');
   });
 });
+
+/**
+ * `gruppe` ist nicht nur der Entdopplungs-Schlüssel — es ist das Subjekt, das der
+ * Rückfrage-Knopf dem Assistenten mitgibt. Ein Punkt, der nach EINEM Vorgang
+ * fragt und ihn nicht benennt, landet beim Modell als „Keine Entität ausgewählt".
+ */
+describe('punkte — wer nach einem Vorgang fragt, benennt ihn', () => {
+  const FRIST: FristRoh = {
+    verbundId: 'VB1', akronym: 'CALYPSO', grund: 'Widerspruch', tage: -302, weitere: 0,
+  };
+
+  it('Frist-, Stillstands- und To-do-Punkte tragen ihren Vorgang', () => {
+    expect(meilensteinPunkte([FRIST])[0]!.gruppe).toBe('VB1');
+    expect(stillstandPunkte([FRIST])[0]!.gruppe).toBe('VB1');
+    expect(zuTunPunkte([
+      { scopeId: 'VB2', titel: 'KITED', text: 'Rückmeldung', tage: -204, rueckfall: false },
+    ])[0]!.gruppe).toBe('VB2');
+  });
+
+  it('„Wo stehe ich bei X?" trägt ihn auch', () => {
+    const p = weitermachenPunkt('HACKKI', 'VB3')!;
+    expect(p.frage).toBe('Wo stehe ich bei HACKKI?');
+    expect(p.gruppe).toBe('VB3');
+  });
+
+  it('eine Listenfrage bleibt ohne Vorgang', () => {
+    // „Welche Entwürfe habe ich offen?" spricht über eine Menge; ein einzelner
+    // Vorgang daneben wäre eine Verengung, die die Frage nicht meint.
+    expect(entwuerfePunkt(3, 'VB1')!.gruppe).toBeUndefined();
+    expect(nachtlaufPunkt(5, 'über Nacht')!.gruppe).toBeUndefined();
+    expect(feedbackPunkt(2)!.gruppe).toBeUndefined();
+  });
+});

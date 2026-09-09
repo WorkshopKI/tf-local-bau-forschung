@@ -180,7 +180,10 @@ export function weitermachenPunkt(titel: string, scopeId: string): BriefPunkt | 
     text('zuletzt warst du bei '),
     ziel(titel, { art: 'antrag', scopeId }),
   ];
-  return punkt('weitermachen', segmente, null, `Wo stehe ich bei ${titel}?`);
+  // Die Frage nach dem Stand braucht ihren Vorgang am dringendsten. Im Nachsatz
+  // kostet die Gruppe nichts: die Entdopplung in `baueBrief` läuft nur über die
+  // Uhr-Punkte (`tage !== null`), der Nachsatz wird getrennt gefiltert.
+  return punkt('weitermachen', segmente, null, `Wo stehe ich bei ${titel}?`, { gruppe: scopeId });
 }
 
 export function feedbackPunkt(neuigkeiten: number): BriefPunkt | null {

@@ -6,7 +6,7 @@
  * gefunden."
  */
 import { describe, it, expect } from 'vitest';
-import { loeseDetailAuf, type DetailKandidat } from '../detailAufloesung';
+import { artDesSchluessels, loeseDetailAuf, type DetailKandidat } from '../detailAufloesung';
 import { pseudoVerbundIdFor } from '../pseudoVerbund';
 
 const BESTAND: DetailKandidat[] = [
@@ -67,5 +67,41 @@ describe('loeseDetailAuf', () => {
   it('behandelt einen leeren Verbund-Eintrag wie keinen', () => {
     expect(loeseDetailAuf([{ aktenzeichen: '16A', verbund_id: '' }], '16A', null))
       .toEqual({ verbundId: pseudoVerbundIdFor('16A'), expanded: '16A' });
+  });
+});
+
+/**
+ * Dieselbe Frage ohne den Routen-Teil der Antwort: der Assistent braucht sie, um
+ * seinem Faktenblock die richtige Entität zu geben. Ohne diese Auflösung sah das
+ * Modell bei einer Verbund-Nummer im Aktenzeichen-Slot nur den nackten Schlüssel.
+ */
+describe('artDesSchluessels', () => {
+  it('erkennt ein Aktenzeichen', () => {
+    expect(artDesSchluessels(BESTAND, '16DS260261')).toBe('antrag');
+    expect(artDesSchluessels(BESTAND, '16EP250023')).toBe('antrag');
+  });
+
+  it('erkennt eine Verbund-Nummer', () => {
+    expect(artDesSchluessels(BESTAND, 'ZDS26026')).toBe('verbund');
+  });
+
+  it('das Aktenzeichen gewinnt gegen eine gleichnamige Verbund-Nummer', () => {
+    // Dieselbe Vorrangregel wie oben — sonst änderte sich Verhalten, das heute
+    // richtig ist: ein selektiertes Aktenzeichen bleibt ein Antrag.
+    const bestand: DetailKandidat[] = [
+      { aktenzeichen: 'X1', verbund_id: 'X2' },
+      { aktenzeichen: 'X2', verbund_id: 'ZKN1' },
+    ];
+    expect(artDesSchluessels(bestand, 'X2')).toBe('antrag');
+  });
+
+  it('nennt Unbekanntes unbekannt', () => {
+    expect(artDesSchluessels(BESTAND, '16ZZ999999')).toBe('unbekannt');
+    expect(artDesSchluessels([], '16DS260261')).toBe('unbekannt');
+    expect(artDesSchluessels(BESTAND, '')).toBe('unbekannt');
+  });
+
+  it('behandelt einen leeren Verbund-Eintrag wie keinen', () => {
+    expect(artDesSchluessels([{ aktenzeichen: '16A', verbund_id: '' }], '')).toBe('unbekannt');
   });
 });

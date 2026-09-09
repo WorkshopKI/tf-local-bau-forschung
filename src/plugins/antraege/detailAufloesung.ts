@@ -35,6 +35,57 @@ function nichtLeer(s: unknown): s is string {
   return typeof s === 'string' && s.length > 0;
 }
 
+interface Fund {
+  /** Der Antrag, dessen Aktenzeichen der Schlüssel ist. */
+  treffer: DetailKandidat | undefined;
+  /** Mindestens ein Antrag führt den Schlüssel als seinen Verbund. */
+  istVerbundNummer: boolean;
+}
+
+/**
+ * EIN Durchlauf über die Projektion (~14k Einträge): beide Fragen zugleich —
+ * ist der Schlüssel ein Aktenzeichen, oder ist er eine Verbund-Nummer?
+ *
+ * Der `break` beim Aktenzeichen-Treffer lässt `istVerbundNummer` womöglich auf
+ * `false` stehen, obwohl später noch ein Verbund dieses Namens käme. Das ist
+ * gewollt: ein exaktes Aktenzeichen gewinnt bei beiden Verbrauchern ohnehin.
+ */
+function sucheSchluessel(antraege: readonly DetailKandidat[], schluessel: string): Fund {
+  let treffer: DetailKandidat | undefined;
+  let istVerbundNummer = false;
+  for (const a of antraege) {
+    if (a.aktenzeichen === schluessel) { treffer = a; break; }
+    if (!istVerbundNummer && a.verbund_id === schluessel) istVerbundNummer = true;
+  }
+  return { treffer, istVerbundNummer };
+}
+
+/** Was der Schlüssel bezeichnet — sofern die Liste ihn überhaupt kennt. */
+export type SchluesselArt = 'antrag' | 'verbund' | 'unbekannt';
+
+/**
+ * Wofür steht dieser Schlüssel?
+ *
+ * Dieselbe Frage wie in {@link loeseDetailAuf}, nur ohne den Routen-Teil der
+ * Antwort — der Assistent braucht sie, um dem Faktenblock die richtige Entität
+ * zu geben. Bewusst hier und nicht dort nachgebaut: eine zweite Handtabelle
+ * neben dieser Schleife drifte garantiert von ihr weg, und das Heilmittel unten
+ * war schon einmal die Lehre eines Bugs.
+ *
+ * **Aktenzeichen zuerst.** Ein Schlüssel, den die Liste als Aktenzeichen kennt,
+ * ist ein Antrag — auch wenn irgendwo eine Verbund-Nummer gleichen Namens
+ * stünde. Sonst änderte sich Verhalten, das heute richtig ist.
+ */
+export function artDesSchluessels(
+  antraege: readonly DetailKandidat[],
+  schluessel: string,
+): SchluesselArt {
+  if (!nichtLeer(schluessel)) return 'unbekannt';
+  const { treffer, istVerbundNummer } = sucheSchluessel(antraege, schluessel);
+  if (treffer) return 'antrag';
+  return istVerbundNummer ? 'verbund' : 'unbekannt';
+}
+
 export function loeseDetailAuf(
   antraege: readonly DetailKandidat[],
   selectedAz: string | null,
@@ -45,14 +96,7 @@ export function loeseDetailAuf(
   }
   if (!nichtLeer(selectedAz)) return null;
 
-  // EIN Durchlauf über die Projektion (~14k Einträge): beide Fragen zugleich —
-  // ist der Schlüssel ein Aktenzeichen, oder ist er eine Verbund-Nummer?
-  let treffer: DetailKandidat | undefined;
-  let istVerbundNummer = false;
-  for (const a of antraege) {
-    if (a.aktenzeichen === selectedAz) { treffer = a; break; }
-    if (!istVerbundNummer && a.verbund_id === selectedAz) istVerbundNummer = true;
-  }
+  const { treffer, istVerbundNummer } = sucheSchluessel(antraege, selectedAz);
 
   if (treffer) {
     return nichtLeer(treffer.verbund_id)

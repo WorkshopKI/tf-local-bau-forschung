@@ -78,7 +78,11 @@ export function TagesbriefWidget({
         {panelDa ? (
           <button
             type="button"
-            onClick={() => oeffneMitFrage(p.frage)}
+            // Die Frage nennt einen Vorgang — also reist er mit. Ohne ihn steht
+            // der Assistent auf der Startseite vor „Keine Entität ausgewählt"
+            // und antwortet regelkonform, er wisse nichts über genau den
+            // Vorgang, nach dem eben gefragt wurde.
+            onClick={() => oeffneMitFrage(p.frage, p.gruppe)}
             title="Dazu nachfragen"
             aria-label={`Dazu nachfragen: ${p.frage}`}
             className="ml-1 inline-flex translate-y-[2px] text-[var(--tf-text-tertiary)] hover:text-[var(--tf-primary)] cursor-pointer"

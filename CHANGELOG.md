@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v6.47.1 — die Rückfrage aus dem Tagesbrief nimmt ihren Vorgang mit (September 2026)
+
+PATCH — Der Rückfrage-Knopf des Tagesbriefs legte „Was ist bei CALYPSO zu tun?" ins Dock und gab nur den Text mit: auf der Startseite ist nichts selektiert, also stand im Faktenblock „Keine Entität ausgewählt" — die Antwort „dazu liegen mir keine Informationen vor" war prompt-konform. Der zweite Fund wog schwerer und war unsichtbar: Deep-Links legen regelmäßig eine Verbund-Nummer in den Aktenzeichen-Slot; die Detailseite heilt das seit v4.82, der Kontext-Snapshot des Assistenten nicht.
+
+- **[TagesbriefWidget.tsx](src/plugins/home/tagesbrief/TagesbriefWidget.tsx)** + **[panelUiStore.ts](src/plugins/chat/assistent/panelUiStore.ts)**: die vorgelegte Frage reist mit ihrem Vorgang; der Chip nennt ihn, statt „Startseite" zu sagen ([assistent-panel.md](docs/architecture/assistent-panel.md))
+- **[kontextSnapshot.ts](src/plugins/chat/assistent/kontextSnapshot.ts)**: ein ausdrücklich mitgegebener Vorgang hat Vorrang vor der Store-Selektion — und der Aktenzeichen-Zweig heilt jetzt eine Verbund-Nummer, statt auf einen Stub ohne Status und Frist zu fallen
+- **[detailAufloesung.ts](src/plugins/antraege/detailAufloesung.ts)**: `artDesSchluessels` hebt die Frage „Aktenzeichen oder Verbund?" aus `loeseDetailAuf` heraus — eine Schleife, zwei Leser, kein Drift
+- **[punkte.ts](src/plugins/home/tagesbrief/punkte.ts)**: „Wo stehe ich bei X?" trug seinen Vorgang bisher nicht mit; Listenfragen bleiben bewusst ohne
+- **Am echten Bestand abgenommen** (14 225 Anträge): Chip „Startseite" → „Verbund WidyLa · DS · 1 Frist", Sprung auf `#/antraege/ZKN121715` zeigt „Verbund ATLAS · FuE · 1 Frist" statt der nackten Nummer
+
 ### v6.47.0 — Der Bestandslauf wartet auf den Start — und die Leser folgen der Generation (September 2026)
 
 MINOR — Ein Performance-Audit über die ganze App fand als stärksten Hebel nicht die Rechnung, sondern den Zeitpunkt: der Bestandslauf startete im Leerlauf mitten in den Start-Datenlauf hinein, belegte dessen Thread und SMB-Leitung — und wurde danach über die Bestands-Generation entwertet. Am ersten Start des Tages fiel er zweimal an. Der zweite Fund ist ein Wahrheitsproblem: der Schlüssel trägt die Generation, die Leser folgten ihr nicht.

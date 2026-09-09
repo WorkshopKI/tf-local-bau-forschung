@@ -136,6 +136,24 @@ describe('baueBrief — ein Vorgang spricht einmal', () => {
     });
     expect(b.punkte).toHaveLength(2);
   });
+
+  it('die Entdopplung greift NICHT in den Nachsatz', () => {
+    // Seit die Nachsatz-Punkte ihren Vorgang mitführen (damit die Rückfrage ihn
+    // dem Assistenten mitgeben kann), tragen auch sie eine `gruppe`. Sie darf
+    // sie nicht verdrängen: „zuletzt warst du bei CALYPSO" ist eine andere
+    // Aussage als „CALYPSO ist überfällig", auch wenn beide denselben Vorgang
+    // nennen. Die Entdopplung läuft nur über die Uhr-Punkte.
+    const b = baueBrief({
+      punkte: [
+        mitGruppe('fristen', -302, 'VB1', 'CALYPSO überfällig'),
+        { ...punkt('weitermachen', null, 'zuletzt warst du bei CALYPSO'), gruppe: 'VB1' },
+      ],
+      aktiv: ALLE,
+      laedt: false,
+    });
+    expect(b.punkte.map(p => p.satz)).toEqual(['CALYPSO überfällig']);
+    expect(b.nachsatz.map(p => p.satz)).toEqual(['zuletzt warst du bei CALYPSO']);
+  });
 });
 
 describe('baueBrief — Themenwahl', () => {

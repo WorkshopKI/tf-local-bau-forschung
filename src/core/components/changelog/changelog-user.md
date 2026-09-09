@@ -19,6 +19,12 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v6.47 — 2026-09
+
+### Bugfixes
+- Das Fragezeichen im Tagesbrief nimmt den Vorgang jetzt mit: Wer „Was ist bei CALYPSO zu tun?" anklickt, bekommt eine Antwort über CALYPSO — vorher wusste der Assistent nicht, wovon die Frage handelt.
+- Der Assistent kannte einen Vorgang nicht, wenn man ihn über einen Verbund-Link geöffnet hatte: Die Seite zeigte das Richtige, im Panel fehlten Status und Frist. Jetzt stimmen beide überein.
+
 ## v6.46 — 2026-09
 
 ### Neu

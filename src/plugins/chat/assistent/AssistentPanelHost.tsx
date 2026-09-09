@@ -35,7 +35,10 @@ export function AssistentPanelHost(): React.ReactElement | null {
   const width = useStore(assistentPanelUiStore, s => s.width);
   const setOpen = assistentPanelUiStore.getState().setOpen;
 
-  const c = useAssistentController();
+  // Der von aussen mitgegebene Vorgang (Tagesbrief) übersteuert die
+  // Store-Selektion — für den Turn UND für den Chip, der ihn anzeigt.
+  const vorgabeScope = useStore(assistentPanelUiStore, s => s.vorgabeScope);
+  const c = useAssistentController(vorgabeScope);
   const location = useLocation();
   // Selektion abonnieren → Chips + Beispiele reagieren auf Navigation/Auswahl.
   const sel = useAntraegeStore(s => `${s.selectedAktenzeichen ?? ''}|${s.selectedVerbundId ?? ''}`);
@@ -53,12 +56,27 @@ export function AssistentPanelHost(): React.ReactElement | null {
     setInput(vorgabe);
     assistentPanelUiStore.getState().vorgabeVerbraucht();
   }, [vorgabe]);
+
+  // Den geliehenen Vorgang beim Routenwechsel loslassen. Ein von der Startseite
+  // mitgegebenes CALYPSO, das nach der Navigation zu einem ANDEREN Vorgang
+  // weitergälte, ließe den Chip lügen — und der Chip ist die Zusage „nur das geht
+  // ins Modell". Ref-Vergleich statt nackter Effekt: beim Mount ist nichts
+  // gewechselt, und ein Löschen dort käme dem Öffnen von der Karte zuvor.
+  const routeRef = useRef(location.key);
+  useEffect(() => {
+    if (routeRef.current === location.key) return;
+    routeRef.current = location.key;
+    assistentPanelUiStore.getState().scopeLoeschen();
+  }, [location.key]);
   // Live-Zähler aktiver Gedächtnis-Einträge (Phase 2) für den Kontext-Chip.
   // Aktualisiert bei Öffnen/Navigation und nach jedem Turn (Konsolidierung kann
   // zwischenzeitlich Einträge geändert haben).
   const [gedAnzahl, setGedAnzahl] = useState(0);
 
-  const snapshot = useMemo(() => baueKontextSnapshot(), [location.key, sel, open]);
+  const snapshot = useMemo(
+    () => baueKontextSnapshot(Date.now(), vorgabeScope),
+    [location.key, sel, open, vorgabeScope],
+  );
   const chips = beschreibeKontext(snapshot.entitaet, snapshot.routeBeschreibung);
   // Routen-sensitive Quick Actions (Topf 1) statt statischer Beispielfragen: reiner
   // Katalog, die (unreine) Orama-Index-Präsenz wird hereingereicht. Index-Präsenz ist
@@ -167,8 +185,11 @@ export function AssistentPanelHost(): React.ReactElement | null {
               <span className="assistant-badge">Assistent</span>
               <div className="head-spacer" />
               <div className="head-actions">
+                {/* Eine neue Unterhaltung erbt den geliehenen Vorgang nicht —
+                    sonst spräche sie stumm weiter über den, nach dem gestern
+                    gefragt wurde. */}
                 <button className="icon-btn" title="Neue Unterhaltung" aria-label="Neue Unterhaltung"
-                  onClick={() => c.neueUnterhaltung()}>
+                  onClick={() => { assistentPanelUiStore.getState().scopeLoeschen(); c.neueUnterhaltung(); }}>
                   <SquarePen size={16} />
                 </button>
                 <button className="icon-btn" title="Assistent schließen" aria-label="Assistent schließen"

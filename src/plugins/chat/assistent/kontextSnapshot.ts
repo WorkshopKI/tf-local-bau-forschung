@@ -14,6 +14,7 @@ import type { AntragListItem } from '@/core/services/csv/types';
 import type { EingangAmpel } from '@/plugins/antraege/eingangAmpel';
 import { fristAnzeigeFromDays, fristTageVon } from '@/plugins/antraege/fristAnzeige';
 import { criticalFristErgebnis } from '@/plugins/antraege/groupAggregates';
+import { artDesSchluessels } from '@/plugins/antraege/detailAufloesung';
 import type { KontextEntitaet } from '@/core/services/assistent/kontext';
 import { baueArbeitsvorratUebersicht } from './arbeitsvorratUebersicht';
 import type { AssistentTurnKontext } from './turn';
@@ -103,22 +104,58 @@ function verbundEntitaet(verbundId: string, now: number): KontextEntitaet {
 }
 
 /**
- * Baut den aktuellen Route-/Entitäts-Kontext. `now` injizierbar (Frist-Relativität).
- * Priorität der Entität = die aktive Store-Selektion (auf Detailseiten die
- * angesehene, sonst die zuletzt gewählte — bewusst indirekt, siehe Panel-Ort).
+ * Die Entität hinter einem Schlüssel, der ein Aktenzeichen ODER eine
+ * Verbund-Nummer sein kann.
+ *
+ * Die Detailseite verkraftet diese Zweideutigkeit seit v4.82 (`loeseDetailAuf`),
+ * der Assistent tat es nicht: Deep-Links legen regelmäßig eine Verbund-Nummer in
+ * den Aktenzeichen-Slot (Tagesbrief, Dokument-Panel, Vorgangs-Board), und wo die
+ * Seite den richtigen Verbund zeigte, sah das Modell den nackten Stub
+ * `{art:'antrag', id:'ZDS26026', titel:'ZDS26026'}` — ohne Status, Frist und
+ * nächsten Schritt. Die Auflösung fragt deshalb dieselbe reine Ableitung, statt
+ * die Vorrangregel „Aktenzeichen zuerst" hier ein zweites Mal hinzuschreiben.
+ *
+ * Das kostet im Treffer-Fall einen zweiten Durchlauf über die Projektion (das
+ * `find` nach der Art-Frage). Bewusst in Kauf genommen: `verbundEntitaet`
+ * darunter filtert ohnehin einmal voll durch, und eine zweite Handtabelle für die
+ * Reihenfolge wäre der teurere Fehler.
  */
-export function baueKontextSnapshot(now: number = Date.now()): AssistentTurnKontext {
+function entitaetFuerSchluessel(schluessel: string, now: number): KontextEntitaet {
+  const st = useAntraegeStore.getState();
+  const art = artDesSchluessels(st.antraege, schluessel);
+  if (art === 'verbund') return verbundEntitaet(schluessel, now);
+  if (art === 'antrag') {
+    const a = st.antraege.find(x => x.aktenzeichen === schluessel);
+    if (a) return antragEntitaet(a, now); // `artDesSchluessels` hat ihn eben gefunden
+  }
+  // Unbekannt: der Schlüssel selbst ist alles, was wir ehrlich sagen können.
+  return { art: 'antrag', id: schluessel, titel: schluessel };
+}
+
+/**
+ * Baut den aktuellen Route-/Entitäts-Kontext. `now` injizierbar (Frist-Relativität).
+ *
+ * Vorrang der Entität:
+ * 1. ein **ausdrücklich mitgegebener** `scopeSchluessel` — eine Karte, die eine
+ *    Frage vorlegt, benennt damit auch deren Subjekt (Tagesbrief: „dazu
+ *    nachfragen"). Ohne ihn käme auf der Startseite „Keine Entität ausgewählt"
+ *    an, und das Modell antwortete prompt-konform, es wisse nichts über den
+ *    Vorgang, nach dem gerade gefragt wurde.
+ * 2. sonst die aktive Store-Selektion (auf Detailseiten die angesehene, sonst die
+ *    zuletzt gewählte — bewusst indirekt, siehe Panel-Ort).
+ */
+export function baueKontextSnapshot(
+  now: number = Date.now(),
+  scopeSchluessel?: string | null,
+): AssistentTurnKontext {
   const st = useAntraegeStore.getState();
   const rb = routeBeschreibung(typeof window !== 'undefined' ? window.location.hash : '');
+  if (scopeSchluessel) {
+    return { routeBeschreibung: rb, entitaet: entitaetFuerSchluessel(scopeSchluessel, now) };
+  }
   if (st.selectedVerbundId) return { routeBeschreibung: rb, entitaet: verbundEntitaet(st.selectedVerbundId, now) };
   if (st.selectedAktenzeichen) {
-    const a = st.antraege.find(x => x.aktenzeichen === st.selectedAktenzeichen);
-    return {
-      routeBeschreibung: rb,
-      entitaet: a
-        ? antragEntitaet(a, now)
-        : { art: 'antrag', id: st.selectedAktenzeichen, titel: st.selectedAktenzeichen },
-    };
+    return { routeBeschreibung: rb, entitaet: entitaetFuerSchluessel(st.selectedAktenzeichen, now) };
   }
   // Kein-Entität-Fall (Liste/Startseite): deterministische Arbeitsvorrat-Übersicht
   // beilegen, damit „Fristen"/„Was ist heute dran?" faktengestützt sind.

@@ -52,23 +52,45 @@ export interface AssistentPanelUiState {
    * Feld und löst den einen Aufruf selbst aus.
    */
   vorgabe: string | null;
+  /**
+   * Der Vorgang, über den die vorgelegte Frage spricht (Verbund-Nummer,
+   * ersatzweise Aktenzeichen) — das Subjekt zur Frage.
+   *
+   * **Andere Lebensdauer als {@link vorgabe}.** Der Text ist verbraucht, sobald
+   * er im Eingabefeld steht; der Schlüssel muss das Absenden ÜBERLEBEN (sonst
+   * wäre er beim Turn schon wieder weg) und gilt auch für Nachfragen derselben
+   * Unterhaltung. Er endet mit `scopeLoeschen()` — bei Routenwechsel und bei
+   * „Neue Unterhaltung".
+   *
+   * Ebenfalls transient: nichts davon wird persistiert.
+   */
+  vorgabeScope: string | null;
   setOpen: (open: boolean) => void;
   toggle: () => void;
   setWidth: (w: number) => void;
-  /** Panel öffnen und die Frage vorlegen. */
-  oeffneMitFrage: (frage: string) => void;
+  /** Panel öffnen und die Frage vorlegen — mit dem Vorgang, um den es geht. */
+  oeffneMitFrage: (frage: string, scope?: string | null) => void;
   /** Vom Panel gerufen, sobald es die Vorgabe übernommen hat. */
   vorgabeVerbraucht: () => void;
+  /** Die geliehene Entität wieder loslassen (Routenwechsel, neue Unterhaltung). */
+  scopeLoeschen: () => void;
 }
 
 export const assistentPanelUiStore = createStore<AssistentPanelUiState>((set, get) => ({
   open: loadOpen(),
   width: loadWidth(),
   vorgabe: null,
+  vorgabeScope: null,
   setOpen: (open) => { persistOpen(open); set({ open }); },
   toggle: () => { const next = !get().open; persistOpen(next); set({ open: next }); },
-  oeffneMitFrage: (frage) => { persistOpen(true); set({ open: true, vorgabe: frage }); },
+  oeffneMitFrage: (frage, scope) => {
+    persistOpen(true);
+    // Ein neuer Aufruf ersetzt den Schlüssel IMMER — auch mit `undefined`. Sonst
+    // hinge an einer Frage ohne Subjekt noch das Subjekt der vorigen.
+    set({ open: true, vorgabe: frage, vorgabeScope: scope ?? null });
+  },
   vorgabeVerbraucht: () => set({ vorgabe: null }),
+  scopeLoeschen: () => set({ vorgabeScope: null }),
   setWidth: (w) => {
     const cw = clampPanelWidth(w);
     try { localStorage.setItem(WIDTH_KEY, String(cw)); } catch { /* ignore */ }

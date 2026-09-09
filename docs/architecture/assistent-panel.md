@@ -22,12 +22,41 @@ Feature-Flag `features.assistentPanel` (`isAssistentPanelEnabled()`, dev + pl + 
 | Transport-Gate | [bridge.ts](../../src/core/services/ai/bridge.ts) `getTransportForAssistent()` | intern-only, wirft bei extern |
 | Turn-Orchestrator (rein) | [turn.ts](../../src/plugins/chat/assistent/turn.ts) | `fuehreAssistentTurnAus(frage, turns, deps)`; Transport→ping→Kontext→Retrieval→assemble→resetChat→submit; nie werfend |
 | Session-Store (vanilla) | [sessionStore.ts](../../src/plugins/chat/assistent/sessionStore.ts) | session-only Historie, optimistischer Append + Rollback bei Fehler |
-| Kontext-Snapshot (unrein) | [kontextSnapshot.ts](../../src/plugins/chat/assistent/kontextSnapshot.ts) | Route + selektierte Entität (Antraege-Store) → `KontextEntitaet`; im Kein-Entität-Fall zusätzlich die Arbeitsvorrat-Übersicht |
+| Kontext-Snapshot (unrein) | [kontextSnapshot.ts](../../src/plugins/chat/assistent/kontextSnapshot.ts) | Route + Entität → `KontextEntitaet` (Vorrang: mitgegebener Schlüssel vor Store-Selektion, siehe unten); im Kein-Entität-Fall zusätzlich die Arbeitsvorrat-Übersicht |
 | Quick-Action-Katalog (rein) | [quickActions.ts](../../src/plugins/chat/assistent/quickActions.ts) | `quickActionsFuer(snapshot + hatIndex) → QuickAction[]`; routen-sensitive Presets (v1.1) |
 | Arbeitsvorrat-Übersicht (rein) | [arbeitsvorratUebersicht.ts](../../src/plugins/chat/assistent/arbeitsvorratUebersicht.ts) | `baueArbeitsvorratUebersicht(antraege, now)`; frist-sortierte Übersicht für den Kein-Entität-Faktenblock |
-| UI-Dock-Zustand | [panelUiStore.ts](../../src/plugins/chat/assistent/panelUiStore.ts) | offen/Breite (localStorage) — geteilt zwischen Shell-Mount, Suche-Button, Command-Palette |
+| UI-Dock-Zustand | [panelUiStore.ts](../../src/plugins/chat/assistent/panelUiStore.ts) | offen/Breite (localStorage) — geteilt zwischen Shell-Mount, Suche-Button, Command-Palette; dazu die transienten `vorgabe`/`vorgabeScope` |
 | Controller (Hook) | [useAssistentController.ts](../../src/plugins/chat/assistent/useAssistentController.ts) | verdrahtet Transport/Kontext/Retrieval, exponiert schlanken Controller |
 | Panel-UI | [AssistentPanelHost.tsx](../../src/plugins/chat/assistent/AssistentPanelHost.tsx) | shell-weites Dock; Wiederverwendung `MessageList`/`SourcePanel`/chat.css |
+
+## Welche Entität gilt (v6.47.1)
+
+`baueKontextSnapshot(now, scopeSchluessel?)` entscheidet in dieser Reihenfolge:
+
+1. **Ein ausdrücklich mitgegebener Schlüssel** (`vorgabeScope`). Eine Karte, die
+   eine Frage vorlegt, benennt damit auch deren Subjekt — der Tagesbrief reicht zu
+   „Was ist bei CALYPSO zu tun?" die Verbund-Nummer mit. Ohne ihn stand auf der
+   Startseite „Keine Entität ausgewählt" im Faktenblock, und die Antwort „dazu
+   liegen mir keine Informationen vor" war die regelkonforme Folge, kein
+   Modellfehler.
+2. **Die Store-Selektion** — `selectedVerbundId`, sonst `selectedAktenzeichen`.
+
+**Der Schlüssel ist zweideutig, und das ist Absicht.** Deep-Links legen
+regelmäßig eine Verbund-Nummer in den Aktenzeichen-Slot (`#/antraege/ZKN121715`).
+Die Detailseite verkraftet das seit v4.82; der Snapshot tat es nicht und zeigte dem
+Modell den nackten Stub `{art:'antrag', id:'ZKN121715', titel:'ZKN121715'}` — ohne
+Status, Frist und nächsten Schritt, während die Seite daneben den richtigen Verbund
+rendete. Beide fragen jetzt dieselbe reine Ableitung
+([`artDesSchluessels`](../../src/plugins/antraege/detailAufloesung.ts), aus
+`loeseDetailAuf` herausgehoben statt danebengebaut): **Aktenzeichen zuerst**, dann
+Verbund-Nummer, sonst der Schlüssel selbst.
+
+**Der geliehene Vorgang wird wieder losgelassen** — bei Routenwechsel und bei „Neue
+Unterhaltung" (`scopeLoeschen`). Er überlebt dagegen das Absenden und gilt für
+Nachfragen derselben Unterhaltung; verschiedene Lebensdauern also, weshalb
+`vorgabeVerbraucht()` nur den Text löscht. Ein von der Startseite geliehenes
+CALYPSO, das nach der Navigation zu einem *anderen* Vorgang weitergälte, ließe den
+Kontext-Chip lügen — und der Chip ist die Zusage „nur das geht ins Modell".
 
 ## Kontext-Assembler — feste Blockreihenfolge
 
