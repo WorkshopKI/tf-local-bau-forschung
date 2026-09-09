@@ -546,3 +546,24 @@ Gemessen im Produktivsystem (Sept. 2026, fünf pl-Rechner): Team-Stempel im CSV-
 **Querverweis:** Klasse 3 (parallele Varianten teilen Storage), Klasse 6 (Tracking-Baseline nach dem Snapshot geschrieben), Klasse 16 (eine Team-Sidecar, mehrere Schreiber), [csv-auto-refresh.md → Lokaler Import-Stempel](csv-auto-refresh.md#lokaler-import-stempel--divergenz-warnung-v6370).
 
 **Kanonische Dateien:** [lokaler-stempel.ts](../../src/core/services/csv/lokaler-stempel.ts), [csv-source-handle.ts](../../src/plugins/csv-sources-kuration/csv-source-handle.ts) (`decideSourceUpdateState`, `merkeBestaetigteDatei`), [csv-quell-divergenz.ts](../../src/plugins/csv-sources-kuration/services/csv-quell-divergenz.ts), [auto-refresh.ts](../../src/plugins/csv-sources-kuration/services/auto-refresh.ts) (`laufeKandidatenAb`).
+
+## 27. Die Heilung eines zweideutigen Schlüssels sitzt bei einem Leser — der Nachbar liest roh
+
+**Symptom:** Zwei Flächen auf demselben Bildschirm sprechen über denselben Vorgang, und nur eine kennt ihn. Die sichtbarere ist die richtige — die Seite rendert Status, Frist und Teilvorhaben —, während die Fläche daneben nur den Schlüssel selbst zeigt oder „nicht gefunden" sagt. Weil die Hauptansicht stimmt, liest sich der Rest als Eigenart der Nebenfläche, nicht als derselbe Defekt.
+
+**Root-Cause:** Ein Schlüssel ist zweideutig (hier: Aktenzeichen **oder** Verbund-Nummer im selben Slot), und die Heilung dafür wurde einmal geschrieben — an dem Leser, an dem der Defekt gemeldet wurde. Jeder später hinzukommende Leser desselben Slots greift roh zu. Der neue Leser fällt nicht auf, weil er meist neben dem geheilten steht und dessen richtiges Ergebnis die Aufmerksamkeit bindet.
+
+Gemessen im Assistent-Panel (v6.47.1): Deep-Links legen regelmäßig eine Verbund-Nummer in den Aktenzeichen-Slot (`#/antraege/ZKN121715` — Tagesbrief, Dokument-Panel, Vorgangs-Board). [`loeseDetailAuf`](../../src/plugins/antraege/detailAufloesung.ts) heilt das seit v4.82 und rendert den richtigen Verbund, schreibt das Ergebnis aber **nicht** in den Store zurück (es ist nur `detailProps`). `baueKontextSnapshot` las denselben Store roh und gab dem Modell den Stub `{art:'antrag', id:'ZKN121715', titel:'ZKN121715'}` — ohne Status, Frist und nächsten Schritt. Die Antwort „dazu liegen mir keine Informationen vor" war regelkonform und sah trotzdem nach einem Modellfehler aus.
+
+**Fix-Pattern:**
+- **Die Ableitung wird herausgehoben, nicht nachgebaut.** `artDesSchluessels` entstand aus der Schleife von `loeseDetailAuf` — eine Schleife, zwei Leser. Eine zweite Handtabelle für dieselbe Vorrangregel driftet garantiert.
+- **Die Vorrangregel steht an genau einer Stelle** und wird von beiden gefragt („Aktenzeichen zuerst, dann Verbund-Nummer, sonst der Schlüssel selbst") — auch wenn das den zweiten Leser einen Durchlauf kostet.
+- **Ein Leser, der ein Ergebnis nur rendert, heilt nur für sich.** Wer die Heilung breiter braucht, hebt sie in eine reine Funktion, statt sie in den Store zurückzuschreiben — Zurückschreiben macht aus einer Ableitung stillen Zustand.
+- **Ein Stub ist eine Aussage.** `{id, titel: id}` sieht aus wie „gefunden, aber leer"; wer ihn baut, prüft, ob nicht in Wahrheit „nicht aufgelöst" gemeint ist.
+
+**Prüffrage beim Review:** Wer liest diesen Schlüssel noch — und kann er dasselbe bedeuten wie hier? Wenn eine Ansicht ihn bereits toleranter liest als die andere: warum steht die Toleranz dort und nicht in einer geteilten Funktion?
+
+**Querverweis:** Klasse 15 (Zähler und Filter aus zwei Vokabularen), Klasse 25 (ein Ergebnis überlebt seinen Parameter), [assistent-panel.md → Welche Entität gilt](assistent-panel.md).
+
+**Kanonische Dateien:** [detailAufloesung.ts](../../src/plugins/antraege/detailAufloesung.ts) (`artDesSchluessels`, `loeseDetailAuf`), [kontextSnapshot.ts](../../src/plugins/chat/assistent/kontextSnapshot.ts) (`entitaetFuerSchluessel`).
+
