@@ -7,13 +7,13 @@
 > dass ein Guard unter `src/__tests__/` sie einfriert — und der misst selbst nach,
 > statt diese Datei zu lesen.
 
-**Umfang:** 2.876 Dateien unter `src/` (2.066 Produktion / 327.639 LOC · 810 Test / 120.518 LOC). `src/generated/` ist ausgeschlossen.
+**Umfang:** 2.877 Dateien unter `src/` (2.067 Produktion / 327.780 LOC · 810 Test / 120.518 LOC). `src/generated/` ist ausgeschlossen.
 
 ## Größe
 
 | | Dateien | LOC | p50 | p90 | p99 | max | >400 | >500 | >800 | >1000 |
 |---|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|
-| Produktion | 2.066 | 327.639 | 116 | 335 | 749 | 1.232 | 133 | 75 | 15 | 6 |
+| Produktion | 2.067 | 327.780 | 116 | 335 | 749 | 1.232 | 133 | 74 | 15 | 6 |
 | Test | 810 | 120.518 | 115 | 274 | 568 | 1.915 | 29 | 16 | 4 | 3 |
 
 Größte Produktionsdateien:
@@ -136,7 +136,7 @@ Dateipaare mit mindestens einem geteilten Fenster: **7**
 
 ## Testbezug
 
-**312** von 1.329 reinen `.ts`-Modulen (23.5 %) werden in keiner Testdatei auch nur genannt.
+**313** von 1.330 reinen `.ts`-Modulen (23.5 %) werden in keiner Testdatei auch nur genannt.
 
 > Bewusst kein Abdeckungsmaß: ein Modul ohne Erwähnung ist sicher ungetestet — eines
 > mit Erwähnung ist damit noch nicht geprüft. Für die `.tsx`-Schicht existiert gar
@@ -163,17 +163,17 @@ Größte Module ohne jeden Testbezug:
 - `src/plugins/kuration/suche-index/hooks/useKorpusBau.ts` — 819 LOC
 - `src/plugins/dev-infrastructure-test/panels/useTriagePanel.ts` — 646 LOC
 - `src/core/services/skills/registry/gutachten-bg.seed.ts` — 582 LOC
+- `src/core/services/csv/importer-schritte.ts` — 478 LOC
 - `src/plugins/vorgangs-board/useVorgangsBoard.ts` — 446 LOC
 - `src/plugins/doppelfoerderung/useDoppelfoerderung.ts` — 435 LOC
 - `src/core/services/skills/registry/gutachten-kurzfassung.seed.ts` — 431 LOC
 - `src/core/glossar/abkuerzungen.seed.ts` — 407 LOC
 - `src/plugins/csv-sources-kuration/hooks/useCsvAutoRefreshCheck.ts` — 387 LOC
 - `src/plugins/antraege/kurzfassung/useKurzfassung.ts` — 369 LOC
-- `src/plugins/auslastung/services/onboarding/onboarding-import.ts` — 364 LOC
 
 ## Exporte ohne Nutzer
 
-**339** von 5.952 exportierten Werten (5.7 %) kommen im ganzen Baum nur in ihrer eigenen Datei vor.
+**339** von 5.959 exportierten Werten (5.7 %) kommen im ganzen Baum nur in ihrer eigenen Datei vor.
 
 > Näherung per Token-Index. Sie ist genau deshalb ergiebig, weil `noUnusedLocals` alles
 > *unterhalb* der Export-Grenze sauber hält — das hier ist der Blindfleck, den der

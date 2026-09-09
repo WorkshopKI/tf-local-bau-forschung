@@ -5,6 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v6.43.0 — importCsvSource wird ein Orchestrator mit benannten Schritten (September 2026)
+
+MINOR — Der dritte und letzte der geplanten Schnitte, und der einzige, der Logik bewegt statt nur Dateien: `importCsvSource` war eine Prozedur von 469 Zeilen, deren Rumpf aus genau EINEM `try`-Block bestand — vierzehn Phasen, jede eine Ebene tiefer als die Funktion, die sie enthielt.
+
+- **[importer-schritte.ts](src/core/services/csv/importer-schritte.ts)**: sieben benannte Phasen; **kein Schritt schreibt in ein geteiltes `result`/`timings`-Objekt** — jeder gibt zurück, was er ermittelt hat
+- `importCsvSource` **469 → 237 Zeilen** und ist jetzt lesbar als das, was es ist: Lock, drei Abbruch-Schranken, Speicher-Freigabe, Ergebnis-Zusammenbau
+- Die **Abbruch-Schranke vor dem Ersetzen der Share-Kopie** bleibt bewusst im Orchestrator sichtbar — sie verhindert, dass ein abgebrochener Lauf Kopie und Bestand auseinanderlaufen lässt
+- **Der Guard `ein-name-eine-implementierung` hat sofort etwas gefunden**: der Importer trug eine byte-gleiche private Kopie von `findJoinColumn`, die es in [merger/helpers.ts](src/core/services/csv/merger/helpers.ts) längst gab — sichtbar erst, als die Extraktion sie aus dem Modul-Privaten hob
+
 ### v6.42.0 — Zwei DAOs werden Ordner: idb-csv und smb-handle (September 2026)
 
 MINOR — Zwei Dateien mit zusammen 1.574 LOC und 192 Importeuren waren formal je EINE Verantwortung, faktisch ein DAO für zehn Entitäten und ein Handle-Manager mit vier Fremdaufgaben. Beide Schnitte sind reine Verschiebearbeit: **kein Import-Spezifizierer ändert sich**, die Export-Menge ist nachweislich identisch.

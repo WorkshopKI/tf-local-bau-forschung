@@ -1,38 +1,26 @@
 import type { IDBStore } from '../storage/idb-store';
 import { logAudit } from '../infrastructure/audit-log';
 import { acquireBuildLock, forceLock, releaseLock, startHeartbeat } from '../infrastructure/build-lock';
-import { getDatenShareHandle } from '../infrastructure/smb-handle';
-import { resolveSnapshotAuthor } from '../infrastructure/update-author';
-import { writeProgrammSnapshot, writeProgrammSnapshotDelta } from './snapshot';
-import {
-  isDeltaSnapshotWriteEnabled, isMeilensteinMonitoringEnabled, isStatusCockpitEnabled,
-} from '@/config/feature-flags';
 import { BUILD_LOCK_STUFE, MAX_SKIP_WARNINGS } from './constants';
-import { canonicalRowHash } from './hash';
 import { sha1Hex } from './sha1';
-import { parseCsvAllStreamed, readWithEncodingFallback } from './parser';
+import { readWithEncodingFallback } from './parser';
 import { saveCsvSourceFile, saveSchema, loadSchema } from './schemaRegistry';
 import { schreibeLokalenStempel, stempelFuerDatei } from './lokaler-stempel';
+import { deleteRowHashes, putRowHashes } from './idb-csv';
+import { recomputeUnterprogrammStats } from './unterprogrammRegistry';
+// Die benannten Phasen des Laufs. Der Orchestrator unten haelt nur noch das
+// zusammen, was ueber sie hinweg gilt: Lock + Heartbeat, die drei
+// Abbruch-Schranken, die Speicher-Freigabe vor dem Merge und das ImportResult.
 import {
-  deleteRowHashes,
-  getRowHashesForSchema,
-  listAntraegeByProgramm,
-  listSchemasByProgramm,
-  putRowHashes,
-} from './idb-csv';
-import { teileNachAbdeckung } from './loeschregel';
-import {
-  loadScopedSchemasWithRows,
-  recomputeMultipleBatched,
-} from './merger';
-import {
-  findUnterprogrammColumn,
-  getUnterprogrammFilter,
-  recomputeUnterprogrammStats,
-} from './unterprogrammRegistry';
-import type { UnterprogrammFilter } from './unterprogrammRegistry';
-import { logMem } from '../../utils/log-mem';
-import type { CsvEncoding, CsvSchema, ImportResult } from './types';
+  baueAktualisiertesSchema,
+  berechneRowDiff,
+  laufeNachImportIntegrationen,
+  leseUndPruefe,
+  runMergeForDeltas,
+  schreibeSnapshot,
+  warneBeiFormatDrift,
+} from './importer-schritte';
+import type { CsvEncoding, ImportResult } from './types';
 
 export interface ImportProgress {
   phase: 'hashing' | 'parsing' | 'diffing' | 'merging' | 'finalizing' | 'done';
@@ -174,268 +162,91 @@ export async function importCsvSource(
       return result;
     }
 
-    // Parse (mit Schema-persistierten Encoding/Separator, falls vorhanden).
-    // encodingOverride hat Vorrang — wird vom Re-Import-Dialog auf 'UTF-8'
-    // gesetzt, weil die SMB-gespeicherte Datei immer UTF-8 ist.
+
+    // ---- Schritt 1: lesen und pruefen ------------------------------------
+    // Wirft, wenn die Join-Spalte in der GELESENEN Kopfzeile fehlt — bewusst VOR
+    // jedem Share-Write und jedem Schema-Stempel, damit die Share-Kopie
+    // unangetastet bleibt und der naechste Lauf es erneut versucht.
     const effectiveEncoding = opts.encodingOverride ?? schema.encoding;
     opts.signal?.throwIfAborted();
-    opts.onProgress?.({ phase: 'parsing', done: 0, total: csvBlob.size });
-    const tParse = performance.now();
-    let { rows, headers, parseErrors } = await parseCsvAllStreamed(csvBlob, {
-      encoding: effectiveEncoding,
-      separator: schema.separator,
-      onProgress: (bytes, totalBytes) => {
-        opts.onProgress?.({ phase: 'parsing', done: bytes, total: totalBytes });
-      },
-    });
-    timings.parseMs = performance.now() - tParse;
+    const lese = await leseUndPruefe(idb, schemaId, schema, csvBlob, effectiveEncoding, opts);
+    let rows = lese.rows;
+    timings.parseMs = lese.parseMs;
     result.rowCount = rows.length;
-
-    // PapaParse meldet verschobene Zeilen (falsche Feldzahl, ungeschlossene
-    // Anführungszeichen). Der Import übernahm sie bisher kommentarlos: die
-    // Werte stehen dann in den falschen Spalten. Er läuft weiter — ein einzelner
-    // Ausreisser soll den Tages-Import nicht kippen —, aber er sagt es.
-    if (parseErrors.length > 0) {
-      result.parseErrors = parseErrors;
-      const text = parseErrors.map(e => `${e.code}×${e.anzahl} (ab Zeile ${e.beispielZeile})`).join(', ');
-      console.warn(
-        `[csv-import] „${schema.csv_source_name}": ${text} — betroffene Zeilen sind gegenüber`
-        + ' der Kopfzeile verschoben, ihre Werte landen in den falschen Spalten.',
-      );
-      await logAudit(idb, {
-        action: 'csv_import_parse_fehler',
-        details: { schemaId, schemaName: schema.csv_source_name, fehler: parseErrors },
-      }).catch(() => undefined);
-    }
-
-    // Die Join-Spalte muss in der GELESENEN Kopfzeile stehen, nicht nur im
-    // Mapping. `findJoinColumn` löst gegen `column_mapping` auf — wird die
-    // Spalte im Export umbenannt oder fällt sie weg, bleibt das Mapping formal
-    // gültig, `row[joinCol]` ist aber in JEDER Zeile leer: `seen` bleibt leer,
-    // alle bisherigen Join-Werte landen in `removedJoinValues`, und der Merge
-    // löscht den kompletten Bestand der Quelle — im Auto-Refresh team-weit
-    // publiziert, während die Quelle als erledigt gestempelt wird und nie
-    // wieder anläuft. Der Abbruch steht bewusst VOR `saveCsvSourceFile` und
-    // vor jedem Schema-Stempel: so bleibt die Share-Kopie unangetastet und der
-    // nächste Lauf versucht es erneut, statt den Fehler stillzulegen.
-    const joinCol = findJoinColumn(schema);
-    if (!joinCol) throw new Error(`Schema ${schemaId}: join_key-Spalte nicht im Mapping`);
-    if (!headers.includes(joinCol)) {
-      throw new Error(
-        `Join-Spalte "${joinCol}" fehlt in der Kopfzeile von „${schema.csv_source_name}" — `
-        + `Import abgebrochen, damit die ${result.rowCount} Zeilen der Quelle nicht als gelöscht gelten. `
-        + `Wurde die Spalte im Export umbenannt, die Quelle über „Spalten neu zuordnen" nachziehen.`,
-      );
-    }
+    if (lese.parseErrors.length > 0) result.parseErrors = lese.parseErrors;
 
     // Rohe Export-Zeilen durchreichen (Journal). Best-effort: ein Fehler hier
     // darf den Import nicht abbrechen.
     if (opts.onRows) {
-      await opts.onRows(rows, headers).catch((err: unknown) =>
+      await opts.onRows(rows, lese.headers).catch((err: unknown) =>
         console.warn('[csv-import] onRows fehlgeschlagen', err));
     }
 
-    // Persist CSV to SMB (für Merge beim nächsten Recompute + für Backup).
-    // CSV in UTF-8 normalisieren bevor sie auf den Share geht — der Merge-Pfad
-    // (loadCsvSourceFile -> readText -> Blob.text()) dekodiert per Spec immer
-    // als UTF-8. Ohne Normalisierung gehen Umlaute aus windows-1252-CSVs beim
+    // ---- Share-Kopie ersetzen --------------------------------------------
+    // CSV in UTF-8 normalisieren, bevor sie auf den Share geht — der Merge-Pfad
+    // (loadCsvSourceFile -> readText -> Blob.text()) dekodiert per Spec immer als
+    // UTF-8. Ohne Normalisierung gehen Umlaute aus windows-1252-CSVs beim
     // Roundtrip kaputt.
     const { text: csvText } = await readWithEncodingFallback(csvBlob, effectiveEncoding);
     const utf8Blob = new Blob([csvText], { type: 'text/csv;charset=utf-8' });
-    // Abbruch-Schranke VOR dem Ersetzen der Share-Kopie. Der Merge liest seine
-    // Zeilen ausschliesslich aus dieser Kopie; wurde sie ersetzt und der Lauf
-    // danach abgebrochen, beschrieben Row-Hashes, `file_checksum` und alle
-    // Anträge den ALTEN Stand, die Kopie aber den NEUEN — und der nächste,
-    // völlig unabhängige Import einer ANDEREN Quelle rechnete die von ihm
-    // berührten Anträge mit den Werten des abgebrochenen Exports neu. Der
-    // Bestand wurde zur Mischung und so publiziert; der Dialog hatte „Keine
-    // Änderungen am Datenbestand" zugesagt.
+    // ABBRUCH-SCHRANKE 2 von 3 — die wichtigste, und deshalb steht sie hier im
+    // Orchestrator und nicht in einem Schritt: Der Merge liest seine Zeilen
+    // ausschliesslich aus dieser Kopie. Wurde sie ersetzt und der Lauf danach
+    // abgebrochen, beschrieben Row-Hashes, `file_checksum` und alle Antraege den
+    // ALTEN Stand, die Kopie aber den NEUEN — und der naechste, voellig
+    // unabhaengige Import einer ANDEREN Quelle rechnete die von ihm beruehrten
+    // Antraege mit den Werten des abgebrochenen Exports neu. Der Bestand wurde
+    // zur Mischung und so publiziert; der Dialog hatte „Keine Änderungen am
+    // Datenbestand" zugesagt.
     opts.signal?.throwIfAborted();
     await saveCsvSourceFile(idb, schemaId, utf8Blob);
 
-    // Row-Diff
-    const tDiff = performance.now();
-    opts.onProgress?.({ phase: 'diffing', done: 0, total: rows.length });
-    const prevHashes = await getRowHashesForSchema(idb, schemaId);
-    const prevMap = new Map(prevHashes.map(h => [h.join_value, h.row_hash]));
-
-    // Unterprogramm-Filter (nur Master)
-    const upFilter = await getUnterprogrammFilter(idb, schema);
-    const upCol = upFilter !== null ? findUnterprogrammColumn(schema) : null;
-
-    const seen = new Set<string>();
-    const newHashes: { csv_schema_id: string; join_value: string; row_hash: string }[] = [];
-    const skippedWarnings: string[] = [];
-    const changedJoinValues: string[] = [];
-    const newJoinValues: string[] = [];
-    let skippedInactive = 0;
-    // Zeilen, die im Export STEHEN, deren Unterprogramm der Import aber nicht
-    // auflösen konnte. Sie werden nicht importiert — dürfen aber auch nicht als
-    // Löschung durchgehen, sonst löscht eine leere Zelle den Antrag.
-    const nichtAufgeloest = new Set<string>();
-    let rowsWithoutJoinValue = 0;
-
-    const DIFF_PROGRESS_STEP = 500;
-    let diffDone = 0;
-
-    for (const row of rows) {
-      const jv = (row[joinCol] ?? '').trim();
-      const upUrteil = upFilter && upCol ? beurteileUnterprogramm(row[upCol], upFilter) : 'aktiv';
-      if (!jv) {
-        rowsWithoutJoinValue++;
-        if (skippedWarnings.length < MAX_SKIP_WARNINGS) {
-          skippedWarnings.push(`Leerer Join-Value in Zeile, Spalte "${joinCol}"`);
-        }
-      } else if (upUrteil === 'unbekannt') {
-        nichtAufgeloest.add(jv);
-      } else if (upUrteil === 'deaktiviert') {
-        skippedInactive++;
-      } else {
-        seen.add(jv);
-        const hash = canonicalRowHash(row, schema.column_mapping);
-        newHashes.push({ csv_schema_id: schemaId, join_value: jv, row_hash: hash });
-        const prev = prevMap.get(jv);
-        if (prev === undefined) {
-          result.buckets.new++;
-          newJoinValues.push(jv);
-        } else if (prev !== hash) {
-          result.buckets.changed++;
-          changedJoinValues.push(jv);
-        } else {
-          result.buckets.unchanged++;
-        }
-      }
-      diffDone++;
-      if (diffDone % DIFF_PROGRESS_STEP === 0) {
-        opts.onProgress?.({ phase: 'diffing', done: diffDone, total: rows.length });
-        await new Promise(r => setTimeout(r, 0));
-        opts.signal?.throwIfAborted();
-      }
+    // ---- Schritt 2: Row-Diff ---------------------------------------------
+    const diff = await berechneRowDiff({
+      idb, schemaId, schema, rows, joinCol: lese.joinCol, opts,
+    });
+    result.buckets = diff.buckets;
+    result.skippedJoinValues = diff.skippedWarnings;
+    result.skippedInactiveUnterprogramm = diff.skippedInactive;
+    if (diff.unbekannteUnterprogramme > 0) result.unknownUnterprogramm = diff.unbekannteUnterprogramme;
+    if (diff.rowsWithoutJoinValue > 0) result.rowsWithoutJoinValue = diff.rowsWithoutJoinValue;
+    if (diff.gehalten.length > 0) {
+      result.heldRemovals = diff.gehalten.length;
+      result.heldRemovalExamples = diff.gehalten.slice(0, MAX_SKIP_WARNINGS);
     }
-    opts.onProgress?.({ phase: 'diffing', done: diffDone, total: rows.length });
+    timings.hashDiffMs = diff.hashDiffMs;
 
-    result.skippedInactiveUnterprogramm = skippedInactive;
-    if (nichtAufgeloest.size > 0) result.unknownUnterprogramm = nichtAufgeloest.size;
-    if (rowsWithoutJoinValue > 0) result.rowsWithoutJoinValue = rowsWithoutJoinValue;
+    // ---- Schritt 3: Frühwarnung Format-Drift ------------------------------
+    await warneBeiFormatDrift(
+      idb, schemaId, schema, rows.length, diff.buckets.new + diff.buckets.changed,
+    );
 
-    // Gefiltert heisst „ich weiss es nicht", nicht „gibt es nicht": ein Antrag,
-    // dessen Zeile im Export steht, aber nicht auswertbar war, bleibt stehen.
-    //
-    // Zeilen OHNE Join-Wert bleiben davon unberührt — sie werden gezählt und
-    // gemeldet, lösen aber keine Sonderbehandlung aus. Am echten Bestand
-    // gemessen: die Projektbeschreibung führt 28 926 von 43 149 Zeilen ohne
-    // Förderkennzeichen, weil sie Beteiligungen an Verbünden listet und nicht
-    // Anträge (Sonderstatus, Skizzen, assoziierte und internationale Partner —
-    // wer keinen Zuwendungsbescheid bekommt, bekommt kein FKZ). Der NORMALFALL
-    // dieser Quelle also, kein Signal: wer daraufhin die Löschungen des Laufs
-    // aussetzt, legt sie für diese Quelle dauerhaft still. Ohne Join-Wert stand
-    // die Zeile ausserdem nie in `prevMap` — sie kann für sich genommen gar
-    // keine Löschung auslösen.
-    const removedJoinValues: string[] = [];
-    for (const [jv] of prevMap) {
-      if (!seen.has(jv) && !nichtAufgeloest.has(jv)) removedJoinValues.push(jv);
-    }
+    // ---- Schritt 4: aktualisiertes Schema in-memory -----------------------
+    const updatedSchema = await baueAktualisiertesSchema(
+      idb, schema, csvBlob, fileSha, rows.length,
+    );
 
-    // Gelöscht wird erst, wenn der Antrag in ALLEN Quellen verschwunden ist.
-    // Die Quellen haben unterschiedlich lange Historien — dass eine Zeile in
-    // DIESEM Export fehlt, heisst nicht, dass es den Antrag nicht mehr gibt.
-    const { zuLoeschen, gehalten } = await teileLoeschkandidaten(idb, schema, removedJoinValues);
-    result.buckets.removed = zuLoeschen.length;
-    if (gehalten.length > 0) {
-      result.heldRemovals = gehalten.length;
-      result.heldRemovalExamples = gehalten.slice(0, MAX_SKIP_WARNINGS);
-      console.info(
-        `[csv-import] ${gehalten.length} Löschung(en) zurückgehalten — andere Quellen führen`
-        + ` diese Anträge weiter: ${result.heldRemovalExamples.join(', ')}`
-        + `${gehalten.length > MAX_SKIP_WARNINGS ? ' …' : ''}`,
-      );
-      await logAudit(idb, {
-        action: 'csv_import_loeschung_zurueckgehalten',
-        details: {
-          schemaId,
-          schemaName: schema.csv_source_name,
-          anzahl: gehalten.length,
-          beispiele: result.heldRemovalExamples,
-        },
-      }).catch(() => undefined);
-    }
-    result.skippedJoinValues = skippedWarnings;
-    timings.hashDiffMs = performance.now() - tDiff;
-
-    // Frühwarnung CSV-Format-Drift: wenn fast ALLE Zeilen als „geändert" gelten,
-    // hat sich meist nicht der Inhalt, sondern das Export-FORMAT geändert
-    // (Encoding, Zahlen-/Datumsformatierung, z.B. via Excel-Roundtrip). Der
-    // Import ist dann korrekt, aber unnötig teuer (Voll-Merge + Voll-Write).
-    const changedRows = result.buckets.new + result.buckets.changed;
-    if (rows.length > 200 && changedRows > rows.length * 0.8) {
-      const pct = Math.round((changedRows / rows.length) * 100);
-      console.warn(`[csv-import] möglicher CSV-Format-Drift: ${changedRows}/${rows.length} Zeilen (${pct}%) als geändert erkannt — Encoding/Zahlen-/Datumsformat des Exports prüfen (nicht über Excel speichern).`);
-      await logAudit(idb, {
-        action: 'csv_import_format_drift_warning',
-        details: { schemaId, schemaName: schema.csv_source_name, changedRows, totalRows: rows.length, pct },
-      }).catch(() => undefined);
-    }
-
-    // updatedSchema in-memory bauen (Cancel-Barriere bereits passiert)
-    const updatedSchema: CsvSchema = {
-      ...schema,
-      // `file_checksum` beschreibt die VERKNÜPFTE Exportdatei — genau wie
-      // `source_file_name`/`source_last_modified`/`last_file_size` daneben.
-      // Der Remap-Dialog reicht die auf dem Share gespeicherte, nach UTF-8
-      // normalisierte Kopie als Blob herein; deren SHA weicht bei jeder
-      // windows-1252- oder BOM-Quelle ab (gemessen an `sample_7737_Bgl`:
-      // 8ef7a94beee1 / 12 389 B roh gegen 3ddcc7bf8855 / 12 428 B normalisiert).
-      // Wurde er trotzdem gestempelt, beschrieb der Checksum ab dem Re-Mapping
-      // eine andere Datei: der nächste Neuschrieb mit IDENTISCHEM Inhalt fiel
-      // aus dem billigen Pfad, der Inhalts-Vergleich schlug fehl, und Ampel und
-      // Banner meldeten einmalig „neuer Export" für eine unveränderte Datei —
-      // team-weit, denn der falsche Checksum reist über den Share mit.
-      ...(csvBlob instanceof File ? { file_checksum: fileSha } : {}),
-      last_imported_at: new Date().toISOString(),
-      last_row_count: rows.length,
-      // Quelldatei-Baseline HIER stempeln — VOR saveSchema + writeProgrammSnapshot
-      // (unten), damit der Share-Snapshot den frischen lastModified traegt. Sonst
-      // lesen Snapshot-only-Konsumenten (pl-Build / jeder Rechner nach „clear site
-      // data") einen veralteten oder leeren `source_last_modified` und melden die
-      // Quelle bei JEDEM Cold-Start als „neue Daten" (Auto-Refresh-Fehlalarm,
-      // checkSourceForUpdate). Bisher wurde dieses Feld nur post-import in
-      // persistCsvSourceMeta/persistSourceMeta gesetzt — also in der LOKALEN IDB
-      // des Importeurs, NACH dem Snapshot-Write. `instanceof File`-Guard: der
-      // Recompute-/SMB-Reimport-Pfad uebergibt einen Blob ohne sinnvolle
-      // lastModified — dort die Original-Baseline NICHT ueberschreiben.
-      ...(csvBlob instanceof File
-        ? {
-            source_file_name: csvBlob.name,
-            source_last_modified: csvBlob.lastModified,
-            last_file_size: csvBlob.size,
-            // Wessen Sicht dieser Stempel ist — die Divergenz-Warnung nennt ihn.
-            source_stamped_by: await resolveSnapshotAuthor(idb).catch(() => undefined),
-          }
-        : {}),
-    };
-
-    // Letzte Cancel-Barriere vor IDB-Writes
+    // ABBRUCH-SCHRANKE 3 von 3: letzte vor den IDB-Writes.
     opts.signal?.throwIfAborted();
 
     // Nur wenn es echte Deltas gibt, die teuren Schritte (Merge, Unterprogramm-
-    // Statistik, Snapshot-Write ~50-100 MB + SHA-256, Phase-2-Rematch) fahren.
-    // Ein force-Re-Import ohne Aenderungen (gleiche Datei + gleiches Mapping)
-    // aktualisiert nur Hashes/Schema und ist damit quasi-instant — kein voller
-    // 13k-Recompute + kein synchrones JSON.stringify des gesamten Programms.
-    // Zurückgehaltene Löschungen zählen bewusst NICHT als Delta: am Antrags-
-    // Bestand ändert sich nichts, nur die Row-Hashes dieser Quelle ziehen nach
-    // (weiter unten, ausserhalb dieses Gates).
-    const hasDeltas =
-      newJoinValues.length > 0 || changedJoinValues.length > 0 || zuLoeschen.length > 0;
+    // Statistik, Snapshot-Write, Phase-2-Rematch) fahren. Ein force-Re-Import
+    // ohne Aenderungen aktualisiert nur Hashes/Schema und ist quasi-instant.
+    // Zurueckgehaltene Loeschungen zaehlen bewusst NICHT als Delta: am
+    // Antrags-Bestand aendert sich nichts, nur die Row-Hashes dieser Quelle
+    // ziehen nach (weiter unten, ausserhalb dieses Gates).
+    const hasDeltas = diff.newJoinValues.length > 0
+      || diff.changedJoinValues.length > 0
+      || diff.zuLoeschen.length > 0;
 
-    // Speicher freigeben (v2.61.5 OOM-Fix): die geparsten Rows dieser Quelle
-    // werden ab hier nicht mehr gebraucht (Diff fertig, rowCount + Schema
-    // gestempelt). Der Merge liest die Quelle ohnehin frisch vom Share
-    // (loadScopedSchemasWithRows) → kein Datenverlust, aber eine volle
-    // Quell-Kopie weniger gleichzeitig im RAM neben dem Merge-Cache.
+    // Speicher freigeben (v2.61.5 OOM-Fix) — bleibt bewusst im Orchestrator: die
+    // geparsten Rows werden ab hier nicht mehr gebraucht (Diff fertig, rowCount +
+    // Schema gestempelt), und der Merge liest die Quelle ohnehin frisch vom
+    // Share. Ein Schritt, der die Zeilen laenger festhaelt, bringt den
+    // Citrix-OOM zurueck.
     rows = [];
 
-    // Merge für alle betroffenen Antraege (IDB-Writes pro Antrag)
+    // ---- Schritt 5: Merge (IDB-Writes pro Antrag) -------------------------
     let mergeTouched: string[] = [];
     let mergeRemoved: string[] = [];
     if (hasDeltas) {
@@ -444,31 +255,30 @@ export async function importCsvSource(
       const mr = await runMergeForDeltas({
         idb,
         schema: updatedSchema,
-        newJoinValues,
-        changedJoinValues,
-        removedJoinValues: zuLoeschen,
-        onProgress: (done, total) =>
-          opts.onProgress?.({ phase: 'merging', done, total }),
+        newJoinValues: diff.newJoinValues,
+        changedJoinValues: diff.changedJoinValues,
+        removedJoinValues: diff.zuLoeschen,
+        onProgress: (done, total) => opts.onProgress?.({ phase: 'merging', done, total }),
       });
       mergeTouched = mr.touchedAz;
       mergeRemoved = mr.removedAz;
       timings.mergeMs = performance.now() - tMerge;
     }
-    // Geänderte/entfernte Antrag-Keys nach oben reichen — der Batch-Caller
-    // (runAutoRefresh) sammelt sie für EINEN Delta-Snapshot-Write (v2.97).
+    // Geaenderte/entfernte Antrag-Keys nach oben reichen — der Batch-Caller
+    // (runAutoRefresh) sammelt sie fuer EINEN Delta-Snapshot-Write (v2.97).
     result.changedAktenzeichen = mergeTouched;
     result.removedAktenzeichen = mergeRemoved;
 
-    // Hashes + Schema NACH erfolgreichem Merge persistieren — Cancel zwischen
+    // Hashes + Schema NACH erfolgreichem Merge persistieren — ein Cancel zwischen
     // Diff und Merge hat dann nichts in IDB hinterlassen.
     opts.onProgress?.({ phase: 'finalizing', done: 0, total: 4, stage: 'Row-Hashes speichern' });
-    await putRowHashes(idb, newHashes);
-    // Bewusst die VOLLE Liste, auch die zurückgehaltenen: die Row-Hashes
-    // spiegeln, was DIESE Quelle trägt — und die trägt die Zeile nicht mehr.
-    // Bliebe der Hash stehen, hielte diese Quelle den Antrag später gegen die
-    // Löschung durch die letzte verbleibende Quelle fest, und er stürbe nie.
-    if (removedJoinValues.length > 0) {
-      await deleteRowHashes(idb, schemaId, removedJoinValues);
+    await putRowHashes(idb, diff.newHashes);
+    // Bewusst die VOLLE Liste, auch die zurueckgehaltenen: die Row-Hashes
+    // spiegeln, was DIESE Quelle traegt — und die traegt die Zeile nicht mehr.
+    // Bliebe der Hash stehen, hielte diese Quelle den Antrag spaeter gegen die
+    // Loeschung durch die letzte verbleibende Quelle fest, und er stuerbe nie.
+    if (diff.removedJoinValues.length > 0) {
+      await deleteRowHashes(idb, schemaId, diff.removedJoinValues);
     }
     await saveSchema(idb, updatedSchema);
     // Lokaler Beleg „DIESER Rechner hat DIESE Datei verarbeitet" — im kv-Store,
@@ -477,50 +287,22 @@ export async function importCsvSource(
     // sinnvolle Metadaten.
     if (csvBlob instanceof File) await schreibeLokalenStempel(idb, schemaId, stempelFuerDatei(csvBlob, fileSha));
 
-    // Nach Merge: Antrag-Counts + Auto-Zeitraum pro Unterprogramm neu berechnen (für Admin-Panel).
-    // Ohne Deltas bleiben die Counts gleich → ueberspringen.
+    // Nach Merge: Antrag-Counts + Auto-Zeitraum pro Unterprogramm neu berechnen
+    // (fuer das Admin-Panel). Ohne Deltas bleiben die Counts gleich.
     if (schema.is_master && hasDeltas) {
       opts.onProgress?.({ phase: 'finalizing', done: 1, total: 4, stage: 'Unterprogramm-Statistiken' });
       await recomputeUnterprogrammStats(idb, schema.programm_id);
     }
 
-    // Snapshot ins Daten-Share — best-effort, blockiert den Import-Result nicht.
-    // Bei 13k+ Antraegen sind die JSONL-Files ~50-100 MB — der Write kann
-    // 10-20 s dauern, daher hier eine eigene 'finalizing'-Sub-Stage damit der
-    // User nicht im "100%-Stillstand" haengt. Ohne Deltas ist der Antraege-Stand
+    // ---- Schritt 6: Snapshot ins Daten-Share ------------------------------
+    // Best-effort, blockiert das Result nicht. Ohne Deltas ist der Antraege-Stand
     // unveraendert → der vorhandene Snapshot ist bereits aktuell, Write entfaellt.
-    if (hasDeltas && !opts.deferSnapshotWrite) try {
-      const handle = await getDatenShareHandle(idb);
-      if (handle) {
-        opts.onProgress?.({ phase: 'finalizing', done: 2, total: 4, stage: 'Snapshot in Daten-Share schreiben (kann einige Sekunden dauern)' });
-        // Urheber-Identität fürs `createdBy` (Nachname-Fallback statt „unbekannt",
-        // wenn kein Kürzel/Kurator-Name vorhanden — z.B. pl/as mit Kürzel „alle").
-        const kuratorName = await resolveSnapshotAuthor(idb);
-        const tSnap = performance.now();
-        if (isDeltaSnapshotWriteEnabled()) {
-          await writeProgrammSnapshotDelta(idb, handle, schema.programm_id, kuratorName, { touchedAz: mergeTouched, removedAz: mergeRemoved });
-        } else {
-          await writeProgrammSnapshot(idb, handle, schema.programm_id, kuratorName);
-        }
-        timings.snapshotWriteMs = performance.now() - tSnap;
-        opts.onProgress?.({ phase: 'finalizing', done: 3, total: 4, stage: 'Audit-Log' });
-        // Audit-Write selbst defensiv — sonst landet ein erfolgreicher Snapshot
-        // mit einem fehlgeschlagenen Audit faelschlich im snapshot_failed-catch.
-        await logAudit(idb, {
-          action: 'snapshot_written',
-          details: { programmId: schema.programm_id, schemaId },
-        }).catch(() => undefined);
-      }
-    } catch (e) {
-      await logAudit(idb, {
-        action: 'snapshot_failed',
-        details: { programmId: schema.programm_id, schemaId, error: (e as Error).message },
-      }).catch(() => undefined);
-      console.warn('[csv-import] Snapshot-Write fehlgeschlagen:', e);
-      // Der Import selbst ist durch (IDB steht), aber das Team sieht ihn nicht.
-      // Ohne diese Zeile meldete der Wizard „Import abgeschlossen", während der
-      // Schwund-Guard (v4.9.0) den Write gerade absichtlich abgebrochen hatte.
-      result.publishError = (e as Error).message;
+    if (hasDeltas && !opts.deferSnapshotWrite) {
+      const snap = await schreibeSnapshot({
+        idb, schemaId, schema, opts, mergeTouched, mergeRemoved,
+      });
+      timings.snapshotWriteMs = snap.snapshotWriteMs;
+      if (snap.publishError !== undefined) result.publishError = snap.publishError;
     }
 
     result.durationMs = Date.now() - started;
@@ -537,41 +319,15 @@ export async function importCsvSource(
         heldRemovals: result.heldRemovals ?? 0,
         unknownUnterprogramm: result.unknownUnterprogramm ?? 0,
         rowsWithoutJoinValue: result.rowsWithoutJoinValue ?? 0,
-        activeUnterprogramme: upFilter ? Array.from(upFilter.aktiv).sort() : null,
+        activeUnterprogramme: diff.upFilter ? Array.from(diff.upFilter.aktiv).sort() : null,
       },
     });
 
-    // Phase 2: Pending-Antrag-Bucket nach Import re-matchen, damit
-    // Projektbeschreibungen, die vor dem Antrag eingegangen sind, jetzt
-    // automatisch zugeordnet werden. Best-effort, blockiert das Result nicht.
-    // Ohne neue/geaenderte Antraege gibt es nichts neu zu matchen → ueberspringen.
-    if (hasDeltas) try {
-      const { rematchOnSnapshotReload } = await import('../../../phase2');
-      await rematchOnSnapshotReload(idb, schema.programm_id);
-    } catch (e) {
-      console.warn('[csv-import] phase2 pending re-match fehlgeschlagen:', e);
-    }
-
-    // Status-System neu: Auto-Discovery unbekannter Statuswerte + Historie-
-    // Reconcile (append-only Status-Events). Best-effort, gated hinter
-    // `statusCockpit`; ohne Deltas gibt es nichts Neues → ueberspringen.
-    if (hasDeltas && isStatusCockpitEnabled()) try {
-      const { nachImportStatusPflege } = await import('@/core/status/import-integration');
-      await nachImportStatusPflege(
-        idb, schema.programm_id, result.changedAktenzeichen ?? [], new Date().toISOString(),
-      );
-    } catch (e) {
-      console.warn('[csv-import] Status-System Nachpflege fehlgeschlagen:', e);
-    }
-
-    // Bearbeitungs-Meilensteine: Frist-Projektion der offenen Verbuende neu
-    // rechnen. Best-effort, gated hinter `meilensteinMonitoring`; ohne Deltas
-    // aendert sich am Stand nichts → ueberspringen.
-    if (hasDeltas && isMeilensteinMonitoringEnabled()) try {
-      const { nachImportMeilensteinPflege } = await import('@/core/meilensteine/import-integration');
-      await nachImportMeilensteinPflege(idb, schema.programm_id, new Date().toISOString());
-    } catch (e) {
-      console.warn('[csv-import] Meilenstein-Nachpflege fehlgeschlagen:', e);
+    // ---- Schritt 7: nachlaufende Integrationen ----------------------------
+    // Phase-2-Rematch, Status-System, Meilensteine — alle best-effort und alle
+    // nur bei echten Deltas.
+    if (hasDeltas) {
+      await laufeNachImportIntegrationen(idb, schema, result.changedAktenzeichen ?? []);
     }
     return result;
   } finally {
@@ -580,97 +336,4 @@ export async function importCsvSource(
       await releaseLock(idb).catch(() => undefined);
     }
   }
-}
-
-/**
- * Urteil über die Unterprogramm-Zelle einer Master-Zeile.
- *
- * Der Schnitt entscheidet, ob eine nicht importierte Zeile als Löschung zählt
- * (Team-Entscheidung 2026-08-13: gefiltert heisst „ich weiss es nicht", nicht
- * „gibt es nicht"):
- *
- *   - `aktiv`        → Zeile wird importiert
- *   - `deaktiviert`  → Code steht im Katalog, der Kurator hat ihn abgewählt.
- *                      Eine Entscheidung, also darf sie löschen.
- *   - `unbekannt`    → Zelle leer oder Code nicht im Katalog. Eine Lücke im
- *                      Wissen, keine Aussage über den Antrag — nicht löschen.
- */
-function beurteileUnterprogramm(
-  zelle: string | undefined,
-  filter: UnterprogrammFilter,
-): 'aktiv' | 'deaktiviert' | 'unbekannt' {
-  const code = (zelle ?? '').trim();
-  if (filter.aktiv.has(code)) return 'aktiv';
-  return filter.bekannt.has(code) ? 'deaktiviert' : 'unbekannt';
-}
-
-/**
- * Teilt die Löschkandidaten einer Quelle in „wirklich weg" und „eine andere
- * Quelle führt den Antrag weiter". Die Regel selbst steht in
- * [loeschregel.ts](./loeschregel.ts) — sie gilt für jeden Vorgang, der eine
- * Quelle aus dem Bestand nimmt, nicht nur für den Import.
- */
-async function teileLoeschkandidaten(
-  idb: IDBStore,
-  schema: CsvSchema,
-  kandidaten: string[],
-): Promise<{ zuLoeschen: string[]; gehalten: string[] }> {
-  if (schema.join_key !== 'aktenzeichen') return { zuLoeschen: kandidaten, gehalten: [] };
-  const andere = (await listSchemasByProgramm(idb, schema.programm_id))
-    .filter(s => s.id !== schema.id);
-  return teileNachAbdeckung(idb, andere, kandidaten);
-}
-
-function findJoinColumn(schema: CsvSchema): string | null {
-  const entry = Object.entries(schema.column_mapping).find(
-    ([, e]) => e.canonical === schema.join_key && !e.ignore,
-  );
-  return entry ? entry[0] : null;
-}
-
-interface MergeArgs {
-  idb: IDBStore;
-  schema: CsvSchema;
-  newJoinValues: string[];
-  changedJoinValues: string[];
-  removedJoinValues: string[];
-  onProgress?: (done: number, total: number) => void;
-}
-
-async function runMergeForDeltas(args: MergeArgs): Promise<{ touchedAz: string[]; removedAz: string[] }> {
-  const { idb, schema, newJoinValues, changedJoinValues, removedJoinValues, onProgress } = args;
-  const touchedAz = new Set<string>();
-  let removedAz: string[] = [];
-
-  if (schema.join_key === 'aktenzeichen') {
-    for (const jv of [...newJoinValues, ...changedJoinValues]) touchedAz.add(jv);
-    removedAz = removedJoinValues;
-  } else {
-    // Join via verbund_id / akronym → finde alle Antraege im Programm die davon betroffen sind
-    const all = await listAntraegeByProgramm(idb, schema.programm_id);
-    const changedSet = new Set([...newJoinValues, ...changedJoinValues, ...removedJoinValues]);
-    for (const a of all) {
-      const key = schema.join_key === 'akronym'
-        ? (typeof a.akronym === 'string' ? a.akronym : undefined)
-        : (typeof a.verbund_id === 'string' ? a.verbund_id : undefined);
-      if (key && changedSet.has(key)) touchedAz.add(a.aktenzeichen);
-    }
-  }
-
-  // Delta-skopiert laden (v2.61.5 OOM-Fix): nur die CSV-Rows, die zur
-  // Neuberechnung der touchedAz noetig sind — NICHT mehr alle Quellen des
-  // Programms komplett (das war der Citrix-OOM-Treiber). Reihenfolge bewusst
-  // NACH der touchedAz-Ermittlung.
-  logMem(`merge:start (touched=${touchedAz.size}, removed=${removedAz.length})`);
-  const cache = await loadScopedSchemasWithRows(idb, schema.programm_id, touchedAz);
-  logMem(`merge:scoped-loaded (schemas=${cache.length})`);
-
-  await recomputeMultipleBatched(
-    idb,
-    schema.programm_id,
-    { touchedAz: [...touchedAz], removedAz, schemasCache: cache },
-    onProgress,
-  );
-  logMem('merge:done');
-  return { touchedAz: [...touchedAz], removedAz };
 }
