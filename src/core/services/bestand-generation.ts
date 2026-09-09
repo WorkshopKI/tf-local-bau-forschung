@@ -27,12 +27,29 @@
 
 let generation = 0;
 
+const hoerer = new Set<() => void>();
+
 /** Der aktuelle Stand. Teil des Cache-Schlüssels der Bestands-Seiten. */
 export function bestandGeneration(): number {
   return generation;
 }
 
+/**
+ * Sagt Bescheid, wenn der Zähler weiterspringt.
+ *
+ * Wozu: Ein Leser, der den Stand nur beim Rendern abliest, friert ihn ein — sein
+ * Cache-Schlüssel trüge nach einem Import weiter die alte Generation, während der
+ * Lauf sein Ergebnis längst unter der neuen ablegt. Die beiden fänden sich nie
+ * wieder. Über `useSyncExternalStore` folgt der Schlüssel dem Zähler, ohne dass
+ * diese Datei React kennen muss (sie importiert bewusst nichts).
+ */
+export function subscribeBestandGeneration(hoere: () => void): () => void {
+  hoerer.add(hoere);
+  return () => { hoerer.delete(hoere); };
+}
+
 /** Meldet: der Bestand wurde ersetzt. Einziger Aufrufer: `snapshot-refresh.ts`. */
 export function markiereBestandGeaendert(): void {
   generation += 1;
+  for (const hoere of hoerer) hoere();
 }

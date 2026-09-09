@@ -184,7 +184,49 @@ export function sammleVorkommen(
   antraege: readonly { aktenzeichen: string; record: Record<string, unknown> }[],
   aufloesung?: FeldAufloesung,
 ): FeldVorkommen[] {
-  return sammleVorkommenGeplant(baueVorkommenPlan(felder, aufloesung), verbundRecord, antraege);
+  return sammleVorkommenGeplant(planFuer(felder, aufloesung), verbundRecord, antraege);
+}
+
+/** Steht für „ohne Auflösung" — eine WeakMap braucht ein Objekt als Schlüssel. */
+const OHNE_AUFLOESUNG: FeldAufloesung = new Map();
+
+/**
+ * Der kompilierte Plan, memoisiert über **beide** Eingaben.
+ *
+ * Wozu: Der Board-Pfad hebt den Plan von Hand aus der Schleife
+ * ([vorgangs-quelle.ts](./vorgangs-quelle.ts)); das Cockpit geht über
+ * `baueVerbundFelder` je Verbund hinein und kompilierte ihn dadurch rund 7 500
+ * mal je Kaltbesuch — dieselben ~550 Felder, jedes Mal neu.
+ *
+ * WeakMap statt Map, aus demselben Grund wie in
+ * [version-index.ts](./version-index.ts): das Cockpit erzeugt bei jedem
+ * Tastendruck eine neue Fassung, eine starke Map hielte jeden Zwischenstand für
+ * die Sitzung fest.
+ *
+ * **Über beide Eingaben geschlüsselt, und das ist keine Kosmetik**: dieselbe
+ * Spalte liegt je Programm unter einem anderen Record-Key. Ein Plan, der nur an
+ * `felder` hinge, wäre im zweiten Programm still falsch (Bug-Klasse 5). Weil
+ * jedes Programm seine eigene `aufloesung` mitbringt, kann der Plan hier gar
+ * nicht über die Programmgrenze rutschen.
+ */
+let planCache = new WeakMap<object, WeakMap<object, VorkommenPlan>>();
+
+function planFuer(
+  felder: readonly StatusFeldEintrag[], aufloesung?: FeldAufloesung,
+): VorkommenPlan {
+  const zweiter = aufloesung ?? OHNE_AUFLOESUNG;
+  let innen = planCache.get(felder);
+  if (!innen) { innen = new WeakMap<object, VorkommenPlan>(); planCache.set(felder, innen); }
+  const treffer = innen.get(zweiter);
+  if (treffer) return treffer;
+  const plan = baueVorkommenPlan(felder, aufloesung);
+  innen.set(zweiter, plan);
+  return plan;
+}
+
+/** Nur für Tests: die Memoisierung leeren (Vorbild `leereVersionIndexCache`). */
+export function leereVorkommenPlanCache(): void {
+  planCache = new WeakMap<object, WeakMap<object, VorkommenPlan>>();
 }
 
 /**

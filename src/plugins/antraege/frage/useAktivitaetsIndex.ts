@@ -9,7 +9,7 @@
  * **Ein Cache muss sagen, dass er einer ist.** Die Zeile am Filter nennt das
  * Alter; stille Momentaufnahmen sind genau die Art Unehrlichkeit, gegen die der
  * Wächter argumentiert. Mechanik und Schlüssel nach dem Vorbild von
- * [boardCache.ts](src/plugins/vorgangs-board/boardCache.ts) — mit **einem
+ * [useBestandsAufgaben.ts](src/core/hooks/useBestandsAufgaben.ts) — mit **einem
  * Unterschied**: der Betrachtungsbereich steht NICHT im Schlüssel, weil der
  * Index bereichsfrei über den ganzen Bestand gebaut wird und damit über
  * Bereichswechsel hinweg gültig bleibt.

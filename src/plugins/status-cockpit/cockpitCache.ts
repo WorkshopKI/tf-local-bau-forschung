@@ -2,7 +2,7 @@
  * Der durchgerechnete Bestand der Vorgangs-Regeln-Seite, **über den
  * Seitenwechsel hinweg**.
  *
- * Schwester von `plugins/vorgangs-board/boardCache.ts`; die Begründung steht
+ * Schwester von `core/hooks/useBestandsAufgaben.ts`; die Begründung steht
  * dort. Zwei Unterschiede, die aus der Sache folgen:
  *
  * 1. Gecacht wird **nur der Bestand** (`ladeBestand`) — nicht die Fassung, nicht

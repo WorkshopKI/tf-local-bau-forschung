@@ -351,13 +351,40 @@ export interface WirkungsZeile {
 export function wirkungZeilen(
   trigger: readonly TriggerZeile[], kuerzel: string, legende?: TextbausteinLegende,
 ): WirkungsZeile[] {
-  const key = normKey(kuerzel);
-  return trigger
-    .filter(z => normKey(z.kuerzel) === key)
+  return [...(triggerNachKuerzel(trigger).get(normKey(kuerzel)) ?? [])]
     .sort((a, b) => (
       a.programm.localeCompare(b.programm, 'de', { numeric: true }) || a.folge - b.folge
     ))
     .map(z => ({ programm: z.programm, folge: z.folge, satz: triggerSatzVon(z, legende) }));
+}
+
+/**
+ * Die Trigger-Tabelle, einmal nach Kürzel gebündelt.
+ *
+ * Wozu: Der Kürzel-Reiter des Cockpits ruft {@link wirkungZeilen} für **jede**
+ * Feld-Zeile — bei ~505 Feldern gegen ~2 450 Trigger-Zeilen sind das über eine
+ * Million `normKey`-Aufrufe je Render, und zwar auch für Klappen, die zu sind,
+ * und bei jedem Tastendruck im Suchfeld.
+ *
+ * WeakMap auf der Tabelle selbst: sie kommt als stabile Referenz aus der
+ * Sidecar-Datei, und ein neuer Import bringt ein neues Array mit — der Index
+ * kann gar nicht schal werden. Die Sortierung bleibt in `wirkungZeilen`, damit
+ * das Ergebnis Zeile für Zeile dasselbe ist wie vorher (`sort` mutiert, deshalb
+ * die Kopie).
+ */
+const wirkungIndexCache = new WeakMap<object, Map<string, TriggerZeile[]>>();
+
+function triggerNachKuerzel(trigger: readonly TriggerZeile[]): Map<string, TriggerZeile[]> {
+  const treffer = wirkungIndexCache.get(trigger);
+  if (treffer) return treffer;
+  const index = new Map<string, TriggerZeile[]>();
+  for (const z of trigger) {
+    const key = normKey(z.kuerzel);
+    const bisher = index.get(key);
+    if (bisher) bisher.push(z); else index.set(key, [z]);
+  }
+  wirkungIndexCache.set(trigger, index);
+  return index;
 }
 
 /** Eine Wirkung, die in mehreren Richtlinien gleich lautet — mit Erklärungen. */

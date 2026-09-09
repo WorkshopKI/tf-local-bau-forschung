@@ -15,12 +15,13 @@
  * füllen (Startseite, Liste), startet ihn im Leerlauf und zeigt bis dahin einen
  * Platzhalter — nie eine zweite, andere Antwort, die sich danach ändert.
  */
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useSyncExternalStore } from 'react';
 import { create } from 'zustand';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useBereich } from '@/core/hooks/useBereich';
-import { bestandGeneration } from '@/core/services/bestand-generation';
+import { bestandGeneration, subscribeBestandGeneration } from '@/core/services/bestand-generation';
 import { scheduleIdle } from '@/core/utils/scheduleIdle';
+import { useStartupDataStatus } from '@/core/services/csv/startup-data-status';
 import { useProfile } from '@/core/hooks/useProfile';
 import {
   getAktiveVersion, ladeAktiveVersion, leseStatusRolle, REGELSATZ_DEFAULT,
@@ -36,6 +37,16 @@ import { laufeBestand, type BestandZeile } from '@/core/status/bestands-lauf';
  * sofort.
  */
 export const BESTAND_CACHE_TTL_MS = 5 * 60 * 1000;
+
+/**
+ * Wie lange ein Leerlauf-Leser höchstens auf das Ende des Start-Datenlaufs
+ * wartet, bevor er ohne dessen Signal anläuft.
+ *
+ * Kein Performance-Wert, sondern eine Reißleine: die Startphase kann hängen
+ * bleiben (siehe Effekt unten), und eine dauerhaft leere Aufgaben-Spalte wäre
+ * schlimmer als ein zu früher Lauf.
+ */
+export const LEERLAUF_RUECKFALL_MS = 60 * 1000;
 
 export interface BestandsDaten {
   version: MappingVersion;
@@ -246,9 +257,16 @@ export function useBestandsAufgaben(start: LaufStart, stichtag: string): Bestand
   // keine Kaskade und der Lauf entfällt (die Leser fallen auf ihre bisherige
   // Anzeige zurück).
   const version = getAktiveVersion();
+  // Die Generation gehört in den Schlüssel (siehe `bestandsSchluessel`) — also
+  // muss der Leser ihr auch FOLGEN. Ohne das Abo läse das Memo sie genau einmal
+  // ab und bliebe nach einem Import auf der alten Generation stehen, während
+  // `anstossen` sein Ergebnis unter der neuen ablegt: der Leser fände seinen
+  // eigenen Lauf nie wieder und zeigte bis zum Sitzungsende die Zahlen von vor
+  // dem Import.
+  const generation = useSyncExternalStore(subscribeBestandGeneration, bestandGeneration);
   const schluessel = useMemo(
     () => (version ? bestandsSchluessel(version, bereichMenge, stichtag) : null),
-    [version, bereichMenge, stichtag],
+    [version, bereichMenge, stichtag, generation],
   );
 
   const anstossen = useCallback((neu: boolean) => {
@@ -265,7 +283,41 @@ export function useBestandsAufgaben(start: LaufStart, stichtag: string): Bestand
     if (start === 'nie') return;
     if (schluessel !== null && ablageGilt(zustand, schluessel, Date.now())) return;
     if (start === 'sofort') { anstossen(false); return; }
-    return scheduleIdle(() => anstossen(false));
+
+    // Leerlauf-Leser (Startseite, Anträge-Liste) warten den Start-Datenlauf ab.
+    // Vorher gestartet, schadet der Lauf zweifach: seine synchrone Innenschleife
+    // belegt denselben Thread und dieselbe SMB-Leitung, auf die der Start wartet
+    // — und `runDataUpdate` zählt danach die Bestands-Generation hoch und
+    // entwertet das Ergebnis ohnehin. Am ersten Start des Tages fiel der ganze
+    // Durchgang deshalb zweimal an. Vorbild mit derselben Begründung:
+    // `plugins/auslastung/index.tsx` (`nachStartDatenupdateVorwaermen`).
+    let abbrechenIdle: (() => void) | null = null;
+    let gestartet = false;
+    const los = (): void => {
+      if (gestartet) return;
+      gestartet = true;
+      abbrechenIdle = scheduleIdle(() => anstossen(false));
+    };
+
+    if (useStartupDataStatus.getState().phase === 'done') {
+      los();
+      return () => { abbrechenIdle?.(); };
+    }
+
+    const abmelden = useStartupDataStatus.subscribe((s) => { if (s.phase === 'done') los(); });
+    // Rückfall gegen eine hängende Phase: `getDatenShareHandle` liegt in
+    // App.tsx außerhalb jedes `try`, und 'done' wird nur `if (!cancelled)`
+    // gesetzt. Ohne diesen Timer bliebe die Aufgaben-Spalte im Fehlerfall für
+    // die ganze Sitzung leer — das sähe aus wie ein Hänger, den wir gerade
+    // beheben wollten. Großzügig bemessen: ein LANGSAMER Start-Pass soll
+    // ausgewartet werden, nur ein toter nicht.
+    const rueckfall = window.setTimeout(los, LEERLAUF_RUECKFALL_MS);
+
+    return () => {
+      abmelden();
+      window.clearTimeout(rueckfall);
+      abbrechenIdle?.();
+    };
     // `zustand` bewusst NICHT in den Dependencies: der Effekt soll auf einen
     // Wechsel von Bereich/Fassung reagieren, nicht auf jede Store-Änderung, die
     // er selbst auslöst.

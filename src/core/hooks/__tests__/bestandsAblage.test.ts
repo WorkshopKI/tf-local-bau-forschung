@@ -14,6 +14,9 @@ import {
   useBestandsAblage, ablageGilt, bestandsSchluessel, BESTAND_CACHE_TTL_MS,
   type BestandsDaten,
 } from '@/core/hooks/useBestandsAufgaben';
+import {
+  markiereBestandGeaendert, subscribeBestandGeneration,
+} from '@/core/services/bestand-generation';
 import type { MappingVersion } from '@/core/status';
 
 const VERSION = { version: 3, zeitstempel: '2026-08-01T00:00:00.000Z' } as MappingVersion;
@@ -107,5 +110,47 @@ describe('bestandsSchluessel', () => {
     const stichtag = '2026-08-18T10:00:00.000Z';
     expect(bestandsSchluessel(VERSION, new Set(['16KN', '16EP']), stichtag))
       .toBe(bestandsSchluessel(VERSION, new Set(['16EP', '16KN']), stichtag));
+  });
+
+  it('ein Bestandswechsel ändert den Schlüssel', () => {
+    const stichtag = '2026-08-18T10:00:00.000Z';
+    const vorher = bestandsSchluessel(VERSION, null, stichtag);
+    markiereBestandGeaendert();
+    expect(bestandsSchluessel(VERSION, null, stichtag)).not.toBe(vorher);
+  });
+});
+
+/**
+ * Der Schlüssel trägt die Generation — also muss der LESER ihr folgen können.
+ *
+ * Ohne dieses Abo läse ein gemounteter Leser den Stand genau einmal ab und
+ * bliebe nach einem Import auf der alten Generation stehen, während der Lauf
+ * sein Ergebnis unter der neuen ablegt. Die beiden fänden sich nie wieder: die
+ * Startseite zeigte bis zum Sitzungsende die To-dos von VOR dem Import, und
+ * `laeuftNoch` bliebe dauerhaft wahr. Das ist kein Tempo-, sondern ein
+ * Wahrheitsproblem — deshalb steht der Test hier und nicht in einer Messung.
+ */
+describe('subscribeBestandGeneration', () => {
+  it('meldet jeden Bestandswechsel und hört nach dem Abmelden auf', () => {
+    let gerufen = 0;
+    const abmelden = subscribeBestandGeneration(() => { gerufen += 1; });
+
+    markiereBestandGeaendert();
+    expect(gerufen).toBe(1);
+    markiereBestandGeaendert();
+    expect(gerufen).toBe(2);
+
+    abmelden();
+    markiereBestandGeaendert();
+    expect(gerufen).toBe(2);
+  });
+
+  it('bedient mehrere Leser — sie teilen sich eine Ablage', () => {
+    const gesehen: string[] = [];
+    const ab1 = subscribeBestandGeneration(() => gesehen.push('startseite'));
+    const ab2 = subscribeBestandGeneration(() => gesehen.push('liste'));
+    markiereBestandGeaendert();
+    expect(gesehen).toEqual(['startseite', 'liste']);
+    ab1(); ab2();
   });
 });

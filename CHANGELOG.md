@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v6.47.0 — Der Bestandslauf wartet auf den Start — und die Leser folgen der Generation (September 2026)
+
+MINOR — Ein Performance-Audit über die ganze App fand als stärksten Hebel nicht die Rechnung, sondern den Zeitpunkt: der Bestandslauf startete im Leerlauf mitten in den Start-Datenlauf hinein, belegte dessen Thread und SMB-Leitung — und wurde danach über die Bestands-Generation entwertet. Am ersten Start des Tages fiel er zweimal an. Der zweite Fund ist ein Wahrheitsproblem: der Schlüssel trägt die Generation, die Leser folgten ihr nicht.
+
+- **[useBestandsAufgaben.ts](src/core/hooks/useBestandsAufgaben.ts)**: Leerlauf-Leser warten den Start-Datenlauf ab (Vorbild `auslastung/index.tsx`), mit Zeit-Rückfall gegen eine hängende Startphase — `'sofort'` (Board) und `'nie'` unberührt
+- **[bestand-generation.ts](src/core/services/bestand-generation.ts)**: `subscribeBestandGeneration` — die Leser folgen dem Zähler jetzt per `useSyncExternalStore`; vorher fror ein gemounteter Leser seinen Schlüssel ein und zeigte bis Sitzungsende die To-dos von VOR dem Import
+- **[feld-aufloesung.ts](src/core/status/feld-aufloesung.ts)**: der Vorkommen-Plan wird über (Feldliste, Auflösung) memoisiert — das Cockpit kompilierte ihn je Verbund neu (~7 535× je Kaltbesuch), der Board-Pfad hob ihn längst heraus
+- **[navigator.ts](src/core/status/navigator.ts)**: `wirkungZeilen` liest aus einem Kürzel-Index statt die ganze Trigger-Tabelle je Feld-Zeile zu filtern — im Kürzel-Reiter waren das über eine Million `normKey`-Aufrufe je Render, auch für zugeklappte Klappen
+- **Gemessen am echten Bestand** (14 225 Anträge, 12 359 Vorgänge, 7 535 Verbünde): Bestandslauf 5 531 ms, davon **idb 3 125 ms** — die Rechnung (sammeln 938 · todo 189 · wächter 597) ist nicht mehr der Engpass ([§17](docs/architecture/vorgangssystem.md))
+
 ### v6.46.0 — Tagesbrief — was zuerst dran ist (September 2026)
 
 MINOR — Die Startseite zeigte sechs richtige Karten und sagte trotzdem nicht, was **zuerst** dran ist: die überfällige Frist stand in „Fristen", die Änderung von heute Nacht im Nachtlauf, der eigene Entwurf woanders. Der deterministische Kern dafür lag seit dem Assistent-Panel bereit (`baueArbeitsvorratUebersicht`) — er ging nur in einen Prompt, nie auf den Bildschirm.

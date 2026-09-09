@@ -1,5 +1,5 @@
 /**
- * Der Sitzungs-Cache der Vorgangs-Regeln. Schwester von `boardCache.test.ts`;
+ * Der Sitzungs-Cache der Vorgangs-Regeln. Schwester von `bestandsAblage.test.ts`;
  * die Begründung der Fälle steht dort.
  *
  * Der eine eigene Fall hier: gecacht wird **nur der Bestand**, nie die Fassung.

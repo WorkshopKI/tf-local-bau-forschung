@@ -17,6 +17,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   sammleVorkommen, sammleVorkommenGeplant, baueVorkommenPlan, herkunftVon,
+  leereVorkommenPlanCache,
   type FeldAufloesung, type FeldVorkommen,
 } from '@/core/status/feld-aufloesung';
 import {
@@ -156,6 +157,49 @@ describe('Hoistung v4.103: byte-identisch zum ersetzten Code', () => {
     const { verbundRecord, antraege } = BESTAND[7]!;
     expect(JSON.stringify(sammleVorkommen(SEED.felder, verbundRecord, antraege)))
       .toBe(JSON.stringify(orakelSammleVorkommen(SEED.felder, verbundRecord, antraege)));
+  });
+
+  // Der Plan wird seit v6.47 ueber (felder, aufloesung) memoisiert, damit das
+  // Cockpit ihn nicht je Verbund neu kompiliert. Damit entsteht genau EINE neue
+  // Gefahr, und sie ist Bug-Klasse 5: dieselbe Spalte liegt je PROGRAMM unter
+  // einem anderen Record-Key. Wuerde der Memo nur an `felder` haengen, bekaeme
+  // das zweite Programm still den Plan des ersten — gleiche Feldliste, falsche
+  // Keys, und niemand saehe es an einer Ausnahme.
+  it('der memoisierte Plan trennt zwei Aufloesungen derselben Feldliste', () => {
+    const { verbundRecord, antraege } = BESTAND[7]!;
+    // Zwei Programme: dasselbe Feld zeigt auf verschiedene Record-Keys.
+    const feldId = SEED.felder[0]!.feldId;
+    const programmA: FeldAufloesung = new Map([[feldId, { recordKey: 'spalte_a' }]]);
+    const programmB: FeldAufloesung = new Map([[feldId, { recordKey: 'spalte_b' }]]);
+    // Werte unter BEIDEN Keys, sonst liefen beide Wege gleichermassen ins Leere
+    // und der Test ginge auch bei verwechseltem Plan durch.
+    const tvs = antraege.map(a => ({
+      aktenzeichen: a.aktenzeichen,
+      record: { ...a.record, spalte_a: 'wert-A', spalte_b: 'wert-B' },
+    }));
+    const rec = { ...verbundRecord, spalte_a: 'wert-A', spalte_b: 'wert-B' };
+
+    const a = sammleVorkommen(SEED.felder, rec, tvs, programmA);
+    const b = sammleVorkommen(SEED.felder, rec, tvs, programmB);
+    // Jede Seite gegen ihr eigenes Orakel — ein verwechselter Plan faellt hier.
+    expect(JSON.stringify(a)).toBe(JSON.stringify(orakelSammleVorkommen(SEED.felder, rec, tvs, programmA)));
+    expect(JSON.stringify(b)).toBe(JSON.stringify(orakelSammleVorkommen(SEED.felder, rec, tvs, programmB)));
+    // Positiv-Kontrolle: die beiden Aufloesungen wirken ueberhaupt verschieden.
+    expect(JSON.stringify(a)).not.toBe(JSON.stringify(b));
+  });
+
+  it('derselbe Plan wird bei gleicher Eingabe wiederverwendet', () => {
+    const { verbundRecord, antraege } = BESTAND[3]!;
+    const aufloesung: FeldAufloesung = new Map();
+    const erst = sammleVorkommen(SEED.felder, verbundRecord, antraege, aufloesung);
+    const zweit = sammleVorkommen(SEED.felder, verbundRecord, antraege, aufloesung);
+    // Gleiches Ergebnis trotz Memo — und der Memo greift wirklich: nach dem
+    // Leeren muss dasselbe herauskommen, sonst waere der Cache die Wahrheit
+    // geworden statt eine Abkuerzung.
+    expect(JSON.stringify(zweit)).toBe(JSON.stringify(erst));
+    leereVorkommenPlanCache();
+    expect(JSON.stringify(sammleVorkommen(SEED.felder, verbundRecord, antraege, aufloesung)))
+      .toBe(JSON.stringify(erst));
   });
 
   it('zieltageFuer === der lineare find, ueber alle Codes des Katalogs', () => {

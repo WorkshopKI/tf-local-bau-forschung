@@ -53,7 +53,7 @@ export interface IndexErgebnis {
    *
    * Der Cache stellt daran scharf: null Einträge hat zwei sehr verschiedene
    * Ursachen (Cold Start vs. ein Bestand ohne datierte Kürzel), und nur die
-   * gelesene Zahl unterscheidet sie (dieselbe Regel wie in `boardCache`).
+   * gelesene Zahl unterscheidet sie (dieselbe Regel wie in `useBestandsAufgaben`).
    */
   gelesen: number;
 }

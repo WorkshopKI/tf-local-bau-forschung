@@ -2610,7 +2610,7 @@ Seite am Leben, also startete jede Rückkehr bei null.
 
 ### Die drei Hebel, nach gemessenem Gewinn
 
-1. **Ergebnis über den Seitenwechsel halten** ([boardCache.ts](../../src/plugins/vorgangs-board/boardCache.ts),
+1. **Ergebnis über den Seitenwechsel halten** ([useBestandsAufgaben.ts](../../src/core/hooks/useBestandsAufgaben.ts),
    [cockpitCache.ts](../../src/plugins/status-cockpit/cockpitCache.ts)). Der mit
    Abstand größte Hebel: Wiederbesuch < 1 s bzw. 126 ms. Schlüssel = Fassung
    (Nummer **und** Zeitstempel) + Betrachtungsbereich + Bestands-Generation +
@@ -2654,3 +2654,56 @@ gegen die `trigger-share.ts` beim stillen Rückfall argumentiert.
 
 **Bewusst NICHT gemacht:** `listeVersionen` beim Mount durch ein `count()`
 ersetzen. Gemessen 17–39 ms für 25 Fassungen — Aufwand ohne Gegenwert.
+
+### Nachtrag v6.47: der Zeitpunkt war der Hebel, nicht die Rechnung (September 2026)
+
+Ein Performance-Audit über die ganze App suchte den Rest der Kaltpfad-Sekunden.
+Die Rechnung war es nicht mehr — **gemessen in `dev:local` am echten Bestand**
+(14 225 Anträge, 12 359 Vorgänge im Bereich, 7 535 Verbünde):
+
+```
+[bestands-lauf] gesamt 5531 ms | katalog 0 | journal 75 | bestand 5455
+                (idb 3125 · sammeln 938 · todo 189 · wächter 597)
+```
+
+**`idb 3125 ms` sind 57 % des Laufs** — Deserialisierung der vollen Records. Die
+drei Hebel oben haben die Rechnung auf ~1,7 s gedrückt; wer hier weiter
+optimiert, holt Promille. Der Rest ist I/O.
+
+Zwei andere Dinge kosteten mehr:
+
+1. **Der Lauf startete gegen den Start.** Die Leerlauf-Leser (Startseite,
+   Tagesbrief, Widgets, Anträge-Tabelle) stießen ihn per `scheduleIdle` in
+   dasselbe Fenster wie `runDataUpdate`. Er belegte denselben Thread und dieselbe
+   SMB-Leitung, auf die der Start wartet — und `runDataUpdate` zählte danach die
+   Bestands-Generation hoch und entwertete sein Ergebnis. Am ersten Start des
+   Tages fiel der ganze Durchgang **zweimal** an. Jetzt warten die
+   Leerlauf-Leser auf `phase === 'done'` (Vorbild: `auslastung/index.tsx`), mit
+   einem Zeit-Rückfall gegen eine hängende Startphase — `getDatenShareHandle`
+   liegt in App.tsx außerhalb jedes `try`.
+2. **Die Leser folgten der Generation nicht.** Sie steht im Schlüssel, wurde aber
+   nur beim Rendern einmal abgelesen. Nach einem Import legte der Lauf sein
+   Ergebnis unter der neuen Generation ab, während der gemountete Leser weiter
+   die alte trug — die beiden fanden sich nie wieder, die Startseite zeigte bis
+   Sitzungsende die To-dos von VOR dem Import und `laeuftNoch` blieb wahr. Das
+   war kein Tempo-, sondern ein Wahrheitsproblem
+   ([subscribeBestandGeneration](../../src/core/services/bestand-generation.ts)).
+
+Dazu zwei kleine Schnitte: der **Vorkommen-Plan** wird jetzt über (Feldliste,
+Auflösung) memoisiert — das Cockpit kompilierte ihn je Verbund neu, während der
+Board-Pfad ihn längst heraushob; und `wirkungZeilen` liest aus einem
+Kürzel-Index statt je Feld-Zeile die ganze Trigger-Tabelle zu filtern.
+
+**Die Vorgangs-Regeln-Seite bleibt der offene Posten.** Kalt gemessen:
+
+```
+[status-cockpit] gesamt 15564 ms | fassung 79 | versionen 27 (25) | bestand 11915 (7535 Verbünde)
+[tf-perf] cockpit ladeBestand: 7535 Verbünde, 3 Schemas in 11238ms (io 5073ms)
+```
+
+Sie fährt einen **zweiten, eigenen Voll-Durchgang** neben `laufeBestand` — mit
+eigenem `getAll` über dieselben Records. Der Plan-Memo holt davon 1–3 %; der
+Hebel wäre ein gemeinsamer Roh-Halter für beide Durchgänge oder eine schmale
+Projektion. Beides ist mehr als ein Quick Win und braucht eine eigene Spec.
+(`trigger 15485` in derselben Zeile ist weiterhin **Wartezeit**, keine Arbeit —
+siehe die zweite Messfalle oben.)
