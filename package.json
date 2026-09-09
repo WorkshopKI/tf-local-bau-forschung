@@ -47,6 +47,7 @@
     "eval:aufbereitung": "vite-node --config vitest.config.mts src/core/services/skill-eval/aufbereitung-eval.ts --",
     "eval:gedaechtnis": "vite-node --config vitest.config.mts src/core/services/skill-eval/gedaechtnis-eval.ts --",
     "map": "node scripts/generate-code-map.mjs",
+    "docs:dashboard": "node scripts/docu-dashboard/build.mjs",
     "qualitaet": "node scripts/code-quality-metrics.mjs",
     "gen:status-codes": "node scripts/gen-status-codes.mjs",
     "gen:kuerzel-katalog": "node scripts/gen-kuerzel-katalog.mjs",

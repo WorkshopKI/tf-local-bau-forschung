@@ -18,6 +18,7 @@ Decision-Tree für häufige Aufgaben. Erst hier nachsehen, **bevor** du die Code
 | Review-Pässe, Wichtig vs. Nit, Ausnahmen (`/code-review`) | [REVIEW.md](REVIEW.md) |
 | Entwicklungsprozess: Anlass → Spec → Plan (Schwelle, Schablonen), Hook + Deny-Regeln, Zeiger-Skills, Guard der Agent-Konfiguration | [entwicklungsprozess.md](docs/architecture/entwicklungsprozess.md) + [docs/superpowers/README.md](docs/superpowers/README.md) |
 | Bildschirmseiten-Kontext-Doc pflegen (Feedback-KI-Kontext) | [docs/agents/update-screen-context.md](docs/agents/update-screen-context.md) |
+| Doku-Dashboard für Einsteiger und Entwickler aktualisieren (animierte Abläufe, Kennzahlen, Glossar; monatlich oder nach neuem Feature) | Skill `docu-dashboard` ([SKILL.md](.claude/skills/docu-dashboard/SKILL.md)) → `npm run docs:dashboard`, Aufbau in [docs/docu-dashboard/README.md](docs/docu-dashboard/README.md) |
 | UI-Patch (Komponenten, Farben, Tokens) | [DESIGN_GUIDE.md](DESIGN_GUIDE.md) |
 | Vorschlagsliste im Frage-Modus (Beispielfragen, Vorlagen mit Lücken `‹…›`, Tastatur) | [frage-vorschlaege](src/components/frage-vorschlaege/abschnitte.ts) — Mechanik geteilt, `FrageKatalog` je Seite |
 | Baumartige Ansicht (Aufklappen, Tastatur, Checkboxen, Umbenennen, Ziehen) | [tree-komponenten.md](docs/architecture/tree-komponenten.md) — `TfTree` aus `@/components/tree` |

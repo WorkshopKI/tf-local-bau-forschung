@@ -1,0 +1,52 @@
+{
+  "builtAt": "2026-09-10T07:38:15.130Z",
+  "version": "6.48.0",
+  "commit": "1ecd04ca",
+  "commitDate": "2026-09-10T06:57:26+02:00",
+  "curatedFor": "v6.48.0",
+  "curatedAt": "2026-09-10",
+  "kennzahlen": {
+    "commits": 2159,
+    "pluginCount": 20,
+    "featureFlags": 32,
+    "idbStores": 21,
+    "idbVersion": 11,
+    "pitfalls": 55,
+    "skills": 11,
+    "guards": 9,
+    "files": 2891,
+    "prodLoc": 329555,
+    "testLoc": 121570,
+    "docsArchitecture": 53
+  },
+  "flows": [
+    {
+      "id": "login",
+      "steps": 15
+    },
+    {
+      "id": "datenbestand",
+      "steps": 16
+    },
+    {
+      "id": "antraege",
+      "steps": 12
+    },
+    {
+      "id": "suche",
+      "steps": 14
+    },
+    {
+      "id": "zuweisung",
+      "steps": 15
+    },
+    {
+      "id": "gutachten",
+      "steps": 14
+    },
+    {
+      "id": "feedback",
+      "steps": 8
+    }
+  ]
+}
