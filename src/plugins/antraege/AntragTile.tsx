@@ -13,6 +13,7 @@ import {
 import { StatusBarRow } from './StatusBarRow';
 import { MaKuerzelBadge } from './MaKuerzelBadge';
 import { useAntraegeStore } from './store';
+import { strOrNull } from './fieldLookup';
 
 interface Props {
   group: AntragGroup;
@@ -22,12 +23,6 @@ interface Props {
   showMa: boolean;
   onOpenAntrag: (aktenzeichen: string) => void;
   onOpenVerbund: (verbundId: string) => void;
-}
-
-function strOrNull(v: unknown): string | null {
-  if (typeof v !== 'string') return null;
-  const t = v.trim();
-  return t.length === 0 ? null : t;
 }
 
 /**

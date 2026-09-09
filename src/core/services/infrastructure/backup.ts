@@ -15,6 +15,7 @@ import {
   BACKUPS_DIR,
   BACKUP_MAX_GENERATIONS,
 } from './types';
+import { MS_TAG } from '@/core/utils/zeitEinheiten';
 
 const EXCLUDED_SUBDIR = 'dokumente';
 
@@ -170,7 +171,7 @@ function isoWeek(d: Date): string {
   const dayNum = date.getUTCDay() || 7;
   date.setUTCDate(date.getUTCDate() + 4 - dayNum);
   const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
-  const weekNo = Math.ceil((((date.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+  const weekNo = Math.ceil((((date.getTime() - yearStart.getTime()) / MS_TAG) + 1) / 7);
   return `${date.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`;
 }
 

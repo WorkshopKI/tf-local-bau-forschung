@@ -42,6 +42,7 @@ import {
   isBewilligtStatus,
   isTerminalStatus,
 } from '@/core/utils/status-canonical';
+import { strOrNull } from './fieldLookup';
 
 /**
  * Normalisiert einen Antragsteller-Namen für den Gleichstands-Vergleich:
@@ -94,12 +95,6 @@ interface FindParams {
   currentVerbundId: string | null;
   /** In-Memory-Slim-Liste des Programms. */
   antraege: readonly AntragListItem[];
-}
-
-function strOrNull(v: unknown): string | null {
-  if (typeof v !== 'string') return null;
-  const t = v.trim();
-  return t.length === 0 ? null : t;
 }
 
 /**

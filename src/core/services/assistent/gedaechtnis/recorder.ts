@@ -23,12 +23,12 @@ import {
   loescheEintrag,
   schreibeStapel,
 } from './store';
+import { MS_TAG } from '@/core/utils/zeitEinheiten';
 
 let idbRef: IDBStore | null = null;
 let aktivCache = false;
 let idZaehler = 0;
 
-const TAG_MS = 24 * 60 * 60 * 1000;
 
 /** ID-Fabrik für neue Gedächtnis-Einträge (crypto.randomUUID mit Fallback). */
 export function neueGedaechtnisId(): string {
@@ -38,7 +38,7 @@ export function neueGedaechtnisId(): string {
 }
 
 async function laufInvalidiertenRetention(idb: IDBStore): Promise<void> {
-  const cutoff = Date.now() - INVALID_RETENTION_TAGE * TAG_MS;
+  const cutoff = Date.now() - INVALID_RETENTION_TAGE * MS_TAG;
   await entferneInvalidierteAelterAls(idb, cutoff);
 }
 

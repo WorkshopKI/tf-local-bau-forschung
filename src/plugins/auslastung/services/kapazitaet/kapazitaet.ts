@@ -21,6 +21,7 @@ import {
   type MaQuartalsAuslastung,
 } from './quartals-auslastung';
 import { effektiveJahresStunden } from './kapazitaet-pro-typ';
+import { MS_TAG } from '@/core/utils/zeitEinheiten';
 
 /** Bucket-Snapshot pro MA fuer die KapazitaetsView. */
 export interface KapazitaetsBucket {
@@ -145,5 +146,5 @@ export function tageImQuartal(quartal: string, now: Date = new Date()): number {
   const endDate = new Date(year, endMonth, endDay, 23, 59, 59, 999).getTime();
   const diff = endDate - now.getTime();
   if (diff <= 0) return 0;
-  return Math.ceil(diff / 86400000);
+  return Math.ceil(diff / MS_TAG);
 }

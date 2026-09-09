@@ -41,12 +41,7 @@ import {
 import {
   FILTER_EMPTY_LABEL, jahrGruppe, monatsFilterLabel, monatsWertOderLeer, neuesteZuerst,
 } from './spaltenFilterWerte';
-
-function strOrNull(v: unknown): string | null {
-  if (typeof v !== 'string') return null;
-  const t = v.trim();
-  return t.length === 0 ? null : t;
-}
+import { strOrNull } from './fieldLookup';
 
 /** Jahr aus ISO (YYYY-…) oder dd.mm.yyyy für den Datums-Spaltenfilter (analog
  *  zum Jahr-Filter der Suche). Leerer/unparsbarer Wert → '' (wird von

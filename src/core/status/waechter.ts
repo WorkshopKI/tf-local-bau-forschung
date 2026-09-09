@@ -33,8 +33,8 @@ import type { FeldVorkommen } from './feld-aufloesung';
 import type { TodoErgebnis } from './todo-engine';
 import type { MappingVersion, Rolle } from './typen';
 import { versionIndex } from './version-index';
+import { MS_TAG } from '@/core/utils/zeitEinheiten';
 
-const MS_TAG = 86_400_000;
 
 export type WaechterUrteil = 'ok' | 'haengt' | 'unbewertet';
 

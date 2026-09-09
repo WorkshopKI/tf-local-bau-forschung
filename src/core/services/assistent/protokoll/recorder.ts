@@ -38,6 +38,7 @@ import {
   loescheAlle,
   statistik,
 } from './store';
+import { MS_TAG } from '@/core/utils/zeitEinheiten';
 
 // Modul-Zustand: injizierter Store + In-Memory-Opt-in-Cache (damit Hot-Handler
 // synchron & billig gaten, ohne pro Ereignis async in die IDB zu lesen).
@@ -45,7 +46,6 @@ let idbRef: IDBStore | null = null;
 let aktivCache = false;
 let schreibZaehler = 0;
 
-const TAG_MS = 24 * 60 * 60 * 1000;
 
 function neueId(): string {
   const c = (globalThis as { crypto?: { randomUUID?: () => string } }).crypto;
@@ -72,7 +72,7 @@ function sanitizeDetail(
 }
 
 async function laufRetention(idb: IDBStore): Promise<void> {
-  const cutoff = Date.now() - RETENTION_TAGE * TAG_MS;
+  const cutoff = Date.now() - RETENTION_TAGE * MS_TAG;
   await loescheAelterAls(idb, cutoff);
   await kapazitaetKappen(idb, MAX_EREIGNISSE);
 }

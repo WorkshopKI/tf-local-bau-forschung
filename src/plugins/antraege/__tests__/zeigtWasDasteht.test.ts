@@ -11,7 +11,7 @@
 import { describe, it, expect } from 'vitest';
 import type { AntragListItem, CsvSchema } from '@/core/services/csv/types';
 import { asAntragStatusRaw } from '@/core/services/csv/types';
-import { MS_PER_DAY } from '@/core/services/csv/frist';
+
 import { rohSpaltenJeFeld } from '@/core/services/csv/spalten-inventar';
 import { getSortOption } from '../sort';
 import { tvsVonZeilen, archivAufschluesselung } from '../arbeitsvorrat';
@@ -19,6 +19,7 @@ import { beschraenkeAufSichtbare } from '../tabellenSicht';
 import { baueSpaltenHilfe } from '../spaltenHilfe';
 import { fristErgebnisVon } from '../fristAnzeige';
 import { getEffectiveTableGroupingMode } from '../store';
+import { MS_TAG } from '@/core/utils/zeitEinheiten';
 
 const ANTRAGSDATUM = '2026-01-01T00:00:00.000Z';
 
@@ -56,8 +57,8 @@ describe('Sortierung „Frist (kürzeste)" — angehaltene Uhren sinken ans Ende
   });
 
   it('zwei laufende Uhren bleiben nach Restlaufzeit geordnet', () => {
-    const frueher = antrag('A', 'in Prüfung', { antragsdatum: new Date(Date.now() - 80 * MS_PER_DAY).toISOString() });
-    const spaeter = antrag('B', 'in Prüfung', { antragsdatum: new Date(Date.now() - 10 * MS_PER_DAY).toISOString() });
+    const frueher = antrag('A', 'in Prüfung', { antragsdatum: new Date(Date.now() - 80 * MS_TAG).toISOString() });
+    const spaeter = antrag('B', 'in Prüfung', { antragsdatum: new Date(Date.now() - 10 * MS_TAG).toISOString() });
     expect([spaeter, frueher].sort(compare).map(a => a.aktenzeichen)).toEqual(['A', 'B']);
   });
 

@@ -18,6 +18,7 @@ import { AntragstellerProfilHover } from './AntragstellerProfilHover';
 import { isNetzwerkLead } from './netzwerk';
 import { TvDetailBlock } from './TvDetailBlock';
 import { TvTitelCopyButton } from './TvTitelCopyButton';
+import { strOrNull } from './fieldLookup';
 
 /**
  * Zuwendung des Teilvorhabens als Kurztext — oder `null`, wenn die Zeile dazu
@@ -37,12 +38,6 @@ function zuwendungText(tv: Antrag): string | null {
   const n = typeof roh === 'number' ? roh : typeof roh === 'string' ? Number(roh.replace(/[^0-9,.-]/g, '').replace(',', '.')) : NaN;
   if (!Number.isFinite(n)) return null;
   return n === 0 ? 'noch nicht bewilligt' : `${Math.round(n).toLocaleString('de-DE')} €`;
-}
-
-function strOrNull(v: unknown): string | null {
-  if (typeof v !== 'string') return null;
-  const t = v.trim();
-  return t.length === 0 ? null : t;
 }
 
 /** Normalisiert für den Duplikat-Vergleich Titel↔Antragsteller (Whitespace/Case). */

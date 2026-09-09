@@ -30,6 +30,7 @@ import {
 } from '@/components/feedback/constants';
 import { feedbackAuthorLabel, feedbackTitle } from '@/components/feedback/feedbackUi';
 import { alterInTagen } from '@/core/utils/relativeZeit';
+import { MS_TAG } from '@/core/utils/zeitEinheiten';
 
 export type FeedbackNewsArt = 'antwort' | 'status' | 'neu-team' | 'stimmen';
 
@@ -87,7 +88,7 @@ export function istBeteiligt(t: FeedbackItem, ich: MeineIdentitaet): boolean {
 function tagenSeit(createdAt: string, nowMs: number): number | null {
   const t = Date.parse(createdAt);
   if (Number.isNaN(t)) return null;
-  return Math.max(0, Math.floor((nowMs - t) / 86_400_000));
+  return Math.max(0, Math.floor((nowMs - t) / MS_TAG));
 }
 
 function typLabel(cat: FeedbackCategory | undefined): string {

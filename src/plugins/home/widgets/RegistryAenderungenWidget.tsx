@@ -29,6 +29,7 @@ import {
 } from './registryAenderungen';
 import { WidgetShell } from './WidgetShell';
 import type { WidgetProps } from './widgetProps';
+import { MS_TAG } from '@/core/utils/zeitEinheiten';
 
 const DEFAULT_MAX = 3;
 
@@ -53,7 +54,7 @@ const REIFEGRAD_LABEL: Record<string, string> = {
 function tageSeit(iso: string, nowMs: number): number | null {
   const t = Date.parse(iso);
   if (Number.isNaN(t)) return null;
-  return Math.max(0, Math.floor((nowMs - t) / 86_400_000));
+  return Math.max(0, Math.floor((nowMs - t) / MS_TAG));
 }
 
 export function RegistryAenderungenWidget({ instanz, onToggleEingeklappt }: WidgetProps): React.ReactElement {

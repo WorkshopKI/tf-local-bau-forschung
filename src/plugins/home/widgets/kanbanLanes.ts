@@ -21,6 +21,7 @@ import {
   type BearbeiterFilterMode,
 } from '@/plugins/antraege/bearbeiterFilter';
 import type { KanbanLane, KanbanWidgetConfig, VollbildLane } from './types';
+import { MS_TAG } from '@/core/utils/zeitEinheiten';
 
 /** Lane-Kopf-Akzente (bunt): feste Kategorie→Token-Zuordnung. Tokens leben in
  *  theme.css (:root + dark — theme-token-contract). Kein Hex im Widget-Code. */
@@ -119,7 +120,7 @@ function alterVon(a: AntragListItem, nowMs: number): number | null {
   if (!a.antragsdatum) return null;
   const t = Date.parse(String(a.antragsdatum));
   if (Number.isNaN(t)) return null;
-  return Math.floor((nowMs - t) / 86_400_000);
+  return Math.floor((nowMs - t) / MS_TAG);
 }
 
 /**

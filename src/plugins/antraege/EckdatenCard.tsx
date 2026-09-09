@@ -9,18 +9,10 @@ import {
   type FieldDisplay,
 } from './eckdatenConfig';
 import { useUnterprogrammLabels } from './useUnterprogrammLabels';
+import { strOrNull } from './fieldLookup';
 
 interface Props {
   antrag: Antrag;
-}
-
-function strOrNull(v: unknown): string | null {
-  if (typeof v === 'string') {
-    const t = v.trim();
-    return t.length === 0 ? null : t;
-  }
-  if (typeof v === 'number') return String(v);
-  return null;
 }
 
 export function EckdatenCard({ antrag }: Props): React.ReactElement {

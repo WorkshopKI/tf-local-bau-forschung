@@ -15,8 +15,8 @@
 
 import { isBegleitungStatus } from '@/core/utils/status-canonical';
 import type { AntragListItem } from './types';
+import { MS_TAG } from '@/core/utils/zeitEinheiten';
 
-export const MS_PER_DAY = 1000 * 60 * 60 * 24;
 export const ANTRAG_SLA_DAYS = 90;
 export const VN_SLA_MONTHS = 6;
 
@@ -39,7 +39,7 @@ export function addMonths(iso: string, months: number): string | null {
 export function addDays(iso: string, days: number): string | null {
   const ms = new Date(iso).getTime();
   if (Number.isNaN(ms)) return null;
-  return new Date(ms + days * MS_PER_DAY).toISOString();
+  return new Date(ms + days * MS_TAG).toISOString();
 }
 
 /**
@@ -165,5 +165,5 @@ export function daysUntilFristAware(
   if (!frist) return null;
   const ms = new Date(frist).getTime();
   if (Number.isNaN(ms)) return null;
-  return Math.ceil((ms - nowMs) / MS_PER_DAY);
+  return Math.ceil((ms - nowMs) / MS_TAG);
 }

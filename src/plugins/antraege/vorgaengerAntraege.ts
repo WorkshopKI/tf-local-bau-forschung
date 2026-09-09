@@ -16,6 +16,7 @@
  */
 import type { AntragListItem } from '@/core/services/csv/types';
 import { isAbgelehntZurueckgezogenStatus } from '@/core/utils/status-canonical';
+import { strOrNull } from './fieldLookup';
 
 /**
  * Normalisiert einen Kurznamen für den „gleicher VB_KURZNAM"-Vergleich:
@@ -68,12 +69,6 @@ interface FindParams {
   currentAktenzeichen: ReadonlySet<string>;
   /** In-Memory-Slim-Liste des Programms. */
   antraege: readonly AntragListItem[];
-}
-
-function strOrNull(v: unknown): string | null {
-  if (typeof v !== 'string') return null;
-  const t = v.trim();
-  return t.length === 0 ? null : t;
 }
 
 /**

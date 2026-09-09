@@ -21,6 +21,7 @@ import {
 import { matchesAntragstyp } from '@/plugins/auslastung/services/kapazitaet';
 import { formatFkzRange } from '@/plugins/antraege/antragGroups';
 import { readXsw, xswMatchesOwnKuerzel } from '@/plugins/antraege/xsw';
+import { MS_TAG } from '@/core/utils/zeitEinheiten';
 
 /** Ein offener (freigegebener, für den User passender) Teilvorhaben-Eintrag.
  *  Früher inline in NeueAntraegeFuerDich.tsx — hierher gezogen, damit die
@@ -190,8 +191,8 @@ export function buildOffeneEintraege(
     const claimed = zugewiesen
       || isClaimed(k.antragId, ctx.claimedSet, ctx.pendingAktenzeichen, ctx.retractedSet);
     const freigegebenAm = k.freigegebenAm ? new Date(k.freigegebenAm).getTime() : null;
-    const deadline = freigegebenAm != null ? freigegebenAm + ctx.fristTage * 86400000 : null;
-    const daysLeft = deadline != null ? Math.max(0, Math.ceil((deadline - ctx.now) / 86400000)) : ctx.fristTage;
+    const deadline = freigegebenAm != null ? freigegebenAm + ctx.fristTage * MS_TAG : null;
+    const daysLeft = deadline != null ? Math.max(0, Math.ceil((deadline - ctx.now) / MS_TAG)) : ctx.fristTage;
     // Frist gilt nur für noch nicht vorgemerkte Anträge — vorgemerkte bleiben
     // sichtbar. `ignoriereFrist` behält auch abgelaufene (neuer Block).
     if (!ctx.ignoriereFrist && !claimed && deadline != null && daysLeft <= 0) continue;

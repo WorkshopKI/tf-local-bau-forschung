@@ -10,6 +10,7 @@
  * in VerbundDetail ab, die den Verbund-Titel zuerst nimmt.
  */
 import type { KurzfassungContext } from './types';
+import { strOrNull } from '../fieldLookup';
 
 interface VerbundLike {
   akronym?: unknown;
@@ -20,11 +21,6 @@ interface TvLike {
   akronym?: unknown;
   titel?: unknown;
   antragsteller?: unknown;
-}
-
-function strOrNull(v: unknown): string | null {
-  const s = typeof v === 'string' ? v.trim() : '';
-  return s.length > 0 ? s : null;
 }
 
 export function buildKurzfassungContext(

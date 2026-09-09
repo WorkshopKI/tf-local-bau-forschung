@@ -12,6 +12,7 @@
 import type { AnonymerMitarbeiter, AuslastungConfig, UeberKategorie } from '../../types';
 import type { MaQuartalsAuslastung } from './quartals-auslastung';
 import { effektiveJahresStunden } from './kapazitaet-pro-typ';
+import { MS_TAG } from '@/core/utils/zeitEinheiten';
 
 export interface QuartalsStatistik {
   quartal: {
@@ -71,12 +72,12 @@ export function tageVergangenImQuartal(quartal: string, now: Date = new Date()):
   const start = new Date(year, startMonth, 1, 0, 0, 0, 0);
   // Quartal-Ende exklusiv (= naechstes Quartal Start).
   const endStart = new Date(year, startMonth + 3, 1, 0, 0, 0, 0);
-  const tageGesamt = Math.round((endStart.getTime() - start.getTime()) / 86400000);
+  const tageGesamt = Math.round((endStart.getTime() - start.getTime()) / MS_TAG);
 
   const nowMs = now.getTime();
   if (nowMs < start.getTime()) return { tagAktuell: 0, tageGesamt };
   if (nowMs >= endStart.getTime()) return { tagAktuell: tageGesamt, tageGesamt };
-  const diffDays = Math.floor((nowMs - start.getTime()) / 86400000) + 1;
+  const diffDays = Math.floor((nowMs - start.getTime()) / MS_TAG) + 1;
   return { tagAktuell: diffDays, tageGesamt };
 }
 

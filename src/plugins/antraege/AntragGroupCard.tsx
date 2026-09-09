@@ -13,6 +13,7 @@ import type { AntragGroup } from './antragGroups';
 import { isNetzwerkLead } from './netzwerk';
 import { XswSuffix } from './XswSuffix';
 import { MaKuerzelBadge } from './MaKuerzelBadge';
+import { strOrNull } from './fieldLookup';
 
 interface Props {
   group: AntragGroup;
@@ -27,12 +28,6 @@ interface Props {
    *  `NetzwerkClusterCard` gesetzt, weil dort der äußere Netzwerk-Rahmen
    *  bereits den primary-Akzent trägt — eine zweite Linie wäre redundant. */
   hideClusterAccent?: boolean;
-}
-
-function strOrNull(v: unknown): string | null {
-  if (typeof v !== 'string') return null;
-  const t = v.trim();
-  return t.length === 0 ? null : t;
 }
 
 export function AntragGroupCard({

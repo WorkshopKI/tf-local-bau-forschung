@@ -26,8 +26,8 @@
  */
 import type { WaechterErgebnis } from '@/core/status';
 import type { MeilensteinKnoten, MstZustand, VerbundMeilensteine } from '@/core/meilensteine';
+import { MS_TAG } from '@/core/utils/zeitEinheiten';
 
-const MS_TAG = 86_400_000;
 
 /** Aus welchem Fristsystem ein Anlass stammt. */
 export type FristArt = 'zieltag' | 'meilenstein';

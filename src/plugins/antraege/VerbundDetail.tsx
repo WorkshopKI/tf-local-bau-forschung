@@ -15,7 +15,7 @@ import { TvTitelCopyButton } from './TvTitelCopyButton';
 import { VerbundHistorie } from './VerbundHistorie';
 import { ArtefaktLeiste } from './artefakte/ArtefaktLeiste';
 import { TvDetailBlock } from './TvDetailBlock';
-import { findFieldValueAcross } from './fieldLookup';
+import { strOrNull, findFieldValueAcross } from './fieldLookup';
 import { readXsw } from './xsw';
 import { isPseudoVerbundId, aktenzeichenFromPseudoVerbundId } from './pseudoVerbund';
 import { useVerbundDetailData } from './useVerbundDetailData';
@@ -63,12 +63,6 @@ interface Props {
  *  linke Flucht wie die vollbreiten Texten-Werkstätten (Gutachten/NF). Cap-Wert =
  *  Handoff-Breite (`_design/handoff/alle-felder/felder.css` `.af-wrap`). */
 const READ_COL = 'max-w-[1180px]';
-
-function strOrNull(v: unknown): string | null {
-  if (typeof v !== 'string') return null;
-  const t = v.trim();
-  return t.length === 0 ? null : t;
-}
 
 /** Wortgleich? (trim + Whitespace kollabiert + case-insensitiv) — für den
  *  Untertitel-Dedup gegen die Kurzbeschreibungs-Karte. */

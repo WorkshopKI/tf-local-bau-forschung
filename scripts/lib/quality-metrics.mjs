@@ -323,14 +323,37 @@ export function toteExporte(files) {
       vorkommen.get(k).add(f.rel);
     }
   }
-  const tot = decl.filter((d) => {
+  const ohneFremdnutzer = decl.filter((d) => {
     const dateien = vorkommen.get(d.name);
     return dateien && dateien.size === 1 && dateien.has(d.rel);
   });
+
+  // Die Menge zerfaellt in zwei sehr verschiedene Faelle, und sie zusammen zu
+  // zaehlen laedt zum Fehlschluss ein (v6.45 nachgemessen):
+  //
+  //   UEBEREXPORTIERT — der Name wird in seiner eigenen Datei benutzt, nur
+  //                     nirgends sonst. Die Funktion lebt; das `export` ist ein
+  //                     Versprechen ohne Abnehmer. Weg raus: `export` streichen.
+  //   TOT             — der Name kommt auch in seiner Heimat kein zweites Mal
+  //                     vor. Erst hier ist Loeschen ueberhaupt die Frage.
+  //
+  // Das Musterbeispiel ist `isAppGateRequired`: keine Fremdnutzung, aber EINE
+  // Zeile tiefer benutzt. Wer die Gesamtzahl als „so viel toter Code" liest,
+  // haelt solche Faelle faelschlich fuer Loeschkandidaten.
+  const inhaltVon = new Map(files.map((f) => [f.rel, f.content]));
+  const zerlegt = ohneFremdnutzer.map((d) => {
+    const treffer = inhaltVon.get(d.rel).match(new RegExp(`(?<![\\w$])${d.name}(?![\\w$])`, 'g'));
+    return { ...d, eigene: treffer ? treffer.length : 0 };
+  });
+  const tot = zerlegt.filter((d) => d.eigene <= 1);
+  const uebermaessig = zerlegt.filter((d) => d.eigene > 1);
+
   const jeDatei = new Map();
   for (const t of tot) jeDatei.set(t.rel, (jeDatei.get(t.rel) || 0) + 1);
   return {
     exporteGesamt: decl.length,
+    ohneFremdnutzer: ohneFremdnutzer.length,
+    uebermaessig: uebermaessig.length,
     tot: tot.length,
     nester: [...jeDatei.entries()].map(([rel, n]) => ({ rel, n }))
       .sort((a, b) => b.n - a.n || (a.rel < b.rel ? -1 : 1)).slice(0, 10),

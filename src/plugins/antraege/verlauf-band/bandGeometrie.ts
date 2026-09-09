@@ -25,6 +25,7 @@
  * kommt von außen.
  */
 import type { VerlaufsSegment, VerlaufsSpur } from '@/core/status/verlauf';
+import { MS_TAG } from '@/core/utils/zeitEinheiten';
 
 /** Kleinste Breite eines Achsen-Intervalls in px. Darunter ist nichts mehr klickbar. */
 export const MIN_INTERVALL = 24;
@@ -57,7 +58,6 @@ export function bodenFuer(n: number, breite: number): number {
  */
 const STAUCH_SCHWELLE = 0.125;
 
-const MS_TAG = 86_400_000;
 
 function tagMs(iso: string): number {
   return new Date(`${iso}T00:00:00Z`).getTime();

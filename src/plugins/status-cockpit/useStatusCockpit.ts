@@ -7,6 +7,7 @@
  * eine neue Version an, aktiviert sie, setzt den `getStatusCategory`-Snapshot neu
  * und veröffentlicht sie auf dem Daten-Share (der Katalog gilt team-weit).
  */
+import { MS_TAG } from '@/core/utils/zeitEinheiten';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ladeBestand, type Bestand } from './ladeBestand';
 import { useCockpitCache } from './cockpitCache';
@@ -961,7 +962,7 @@ export function useStatusCockpit(): StatusCockpitApi {
       );
       const tage = letzteAktivitaet
         ? Math.floor(
-          (new Date(heuteRef.current).getTime() - new Date(letzteAktivitaet).getTime()) / 86_400_000,
+          (new Date(heuteRef.current).getTime() - new Date(letzteAktivitaet).getTime()) / MS_TAG,
         )
         : null;
       const nimm = (roh: string | undefined): void => {

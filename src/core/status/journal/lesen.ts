@@ -17,6 +17,7 @@ import { dedupliziere } from './diff';
 import { journalMonatsPfad, monateZwischen } from './pfade';
 import { leereStandCache, leseStand } from './stand';
 import type { JournalEintrag, JournalStand, Stempel } from './typen';
+import { MS_TAG } from '@/core/utils/zeitEinheiten';
 
 /**
  * Monats-Cache für die Sitzung, entwertet vom Stempel des Stands.
@@ -101,7 +102,6 @@ export interface JournalFrische {
   eintraegeImMonat: number;
 }
 
-const MS_TAG = 86_400_000;
 
 /**
  * Wie alt der letzte Export ist. Rein — die Uhr kommt von außen.

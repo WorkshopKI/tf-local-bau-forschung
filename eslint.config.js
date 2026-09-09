@@ -5,6 +5,22 @@
 // überflutet wird. `exhaustive-deps` bleibt bewusst aus; kann später separat
 // aktiviert werden.
 //
+// WAS DAS KOSTEN WÜRDE — gemessen am 09.09.2026 (v6.45), damit die Entscheidung
+// nicht länger gegen eine unbekannte Zahl läuft:
+//
+//   49 Verstöße in 38 Dateien  — wenn die Regel HEUTE auf `warn` ginge
+//                                (die vorhandenen Direktiven bleiben wirksam)
+//   91 Verstöße in 67 Dateien  — ohne jede Inline-Direktive (`--no-inline-config`)
+//   ⇒ 42 davon verdecken die 50 vorhandenen `exhaustive-deps`-Direktiven.
+//
+// Nachzustellen mit: Regel unten auf 'warn', dann
+// `npx eslint . --no-cache -f json` (einmal mit, einmal ohne `--no-inline-config`).
+//
+// Die Zahl ist also endlich, nicht „eine Flut" — aber sie ist auch nicht null,
+// und die 42 verdeckten sind der eigentliche Bestand: Direktiven, die eine
+// AUSGESCHALTETE Regel stummschalten, verbergen echte Befunde für den Tag, an
+// dem jemand sie einschaltet. Wer die Regel aktiviert, hebt beide Hälften.
+//
 // Kein type-aware Linting (kein `parserOptions.project`) → entkoppelt von der
 // TypeScript-Version, schnell. Lauf: `npm run lint`.
 //

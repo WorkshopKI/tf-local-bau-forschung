@@ -5,8 +5,9 @@
  */
 import { describe, expect, it } from 'vitest';
 import type { AntragListItem } from '@/core/services/csv/types';
-import { MS_PER_DAY } from '@/core/services/csv/frist';
+
 import { baueArbeitsvorratUebersicht, NAECHSTE_FRISTEN_CAP } from '../arbeitsvorratUebersicht';
+import { MS_TAG } from '@/core/utils/zeitEinheiten';
 
 const NOW = new Date('2026-07-16T00:00:00.000Z').getTime();
 
@@ -18,7 +19,7 @@ function antrag(
   opts: { restTage: number | null; status?: string; akronym?: string },
 ): AntragListItem {
   const { restTage, status = 'techn geprüft', akronym } = opts;
-  const antragsdatum = restTage === null ? '' : new Date(NOW - (90 - restTage) * MS_PER_DAY).toISOString();
+  const antragsdatum = restTage === null ? '' : new Date(NOW - (90 - restTage) * MS_TAG).toISOString();
   return { aktenzeichen, programm_id: 'P', status, antragsdatum, akronym } as AntragListItem;
 }
 
@@ -73,6 +74,6 @@ describe('baueArbeitsvorratUebersicht', () => {
     const eine = [antrag('A', { restTage: 10 })];
     expect(baueArbeitsvorratUebersicht(eine, NOW)).toEqual(baueArbeitsvorratUebersicht(eine, NOW));
     // 20 Tage später ist die (ehemals in 10 T fällige) Frist überfällig.
-    expect(baueArbeitsvorratUebersicht(eine, NOW + 20 * MS_PER_DAY).ueberfaellig).toBe(1);
+    expect(baueArbeitsvorratUebersicht(eine, NOW + 20 * MS_TAG).ueberfaellig).toBe(1);
   });
 });

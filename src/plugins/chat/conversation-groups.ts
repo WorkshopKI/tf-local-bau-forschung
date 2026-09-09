@@ -4,6 +4,7 @@
  * Pure — `now` wird übergeben (deterministisch testbar).
  */
 import type { ConversationMeta } from './types';
+import { MS_TAG } from '@/core/utils/zeitEinheiten';
 
 export type ConversationFilter = 'all' | 'antrag' | 'pinned';
 
@@ -17,13 +18,12 @@ export interface GroupedConversations {
   counts: { all: number; antrag: number; pinned: number };
 }
 
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 function dateBucket(updatedAt: string, now: number): string {
   const ts = new Date(updatedAt).getTime();
   const sameDay = new Date(ts).toDateString() === new Date(now).toDateString();
   if (sameDay) return 'Heute';
-  if (now - ts <= 7 * DAY_MS) return 'Letzte 7 Tage';
+  if (now - ts <= 7 * MS_TAG) return 'Letzte 7 Tage';
   return 'Älter';
 }
 

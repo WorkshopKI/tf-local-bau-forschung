@@ -2,6 +2,7 @@ import type { AntragListItem } from '@/core/services/csv/types';
 import { isOpenStatus } from '@/core/utils/status-canonical';
 import { isIrrlaeufer } from '@/core/utils/vb-phase-mappings';
 import { antragMatchesBearbeiter, type BearbeiterFilterMode } from './bearbeiterFilter';
+import { MS_TAG } from '@/core/utils/zeitEinheiten';
 
 /**
  * Eingangs-Ampel basierend auf dem Datum Antragseingang (`antragsdatum`).
@@ -45,7 +46,7 @@ export function daysSinceEingang(a: { antragsdatum?: unknown }): number | null {
   if (!d) return null;
   const ms = new Date(d).getTime();
   if (Number.isNaN(ms)) return null;
-  return Math.floor((Date.now() - ms) / (1000 * 60 * 60 * 24));
+  return Math.floor((Date.now() - ms) / MS_TAG);
 }
 
 export function getEingangAmpel(a: EingangAmpelInput): EingangAmpel | null {

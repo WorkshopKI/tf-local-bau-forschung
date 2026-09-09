@@ -35,6 +35,7 @@ import { erklaereSegmente, erklaerKatalog, type ErklaertesSegment } from './trig
 import { rollenLabel, rollenVonFeld } from './rollen';
 import { zahPhaseLabel, SEED_CODE_ZU_ZAH_PHASE, SEED_MARKER_CODES } from './zah-phasen';
 import type { MappingVersion, Rolle, TriggerZeile, ZahPhaseId } from './typen';
+import { MS_TAG } from '@/core/utils/zeitEinheiten';
 
 /** Ein Eintrag der Verlaufs-Näherung. */
 export interface VerlaufSchritt {
@@ -157,7 +158,6 @@ export interface HerleitungEingabe {
   maxVerlauf?: number;
 }
 
-const MS_TAG = 86_400_000;
 
 /** Chronik-Eintrag → Anzeige-Schritt. */
 function alsSchritt(e: ChronikEintrag): VerlaufSchritt {

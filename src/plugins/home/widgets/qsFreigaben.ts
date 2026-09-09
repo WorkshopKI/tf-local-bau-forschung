@@ -27,6 +27,7 @@
  * wird erst mit ABL/RNE-Artefakten sichtbar. Das Widget gibt NIE frei (Invariante).
  */
 import type { WorkflowRun } from '@/plugins/antraege/gutachten/types';
+import { MS_TAG } from '@/core/utils/zeitEinheiten';
 
 /** Ein lokal gelesener Run inkl. aus dem Key geparstem Artefakt-Typ + Scope. */
 export interface QsRunEintrag {
@@ -72,7 +73,7 @@ function alterVon(iso: string | undefined, nowMs: number): number | null {
   if (!iso) return null;
   const t = Date.parse(iso);
   if (Number.isNaN(t)) return null;
-  return Math.max(0, Math.floor((nowMs - t) / 86_400_000));
+  return Math.max(0, Math.floor((nowMs - t) / MS_TAG));
 }
 
 /**

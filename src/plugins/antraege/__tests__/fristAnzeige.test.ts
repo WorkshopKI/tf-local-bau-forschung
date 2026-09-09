@@ -4,9 +4,10 @@
  * Reine Funktions-Tests ohne DOM — `nowMs` wird explizit injiziert (statt
  * `vi.setSystemTime`), damit „Tage bis zur Frist" deterministisch ist.
  */
+import { MS_TAG } from '@/core/utils/zeitEinheiten';
 import { describe, it, expect } from 'vitest';
 import type { AntragListItem } from '@/core/services/csv/types';
-import { MS_PER_DAY } from '@/core/services/csv/frist';
+
 import {
   fristTextFromDays,
   fristAmpelFromDays,
@@ -21,7 +22,7 @@ const ANTRAGSDATUM = '2026-01-01T00:00:00.000Z';
 const ANTRAGSDATUM_MS = new Date(ANTRAGSDATUM).getTime();
 /** `now`, so gewählt dass die 90-Tage-Frist noch `restTage` entfernt ist. */
 function nowFor(restTage: number): number {
-  return ANTRAGSDATUM_MS + (90 - restTage) * MS_PER_DAY;
+  return ANTRAGSDATUM_MS + (90 - restTage) * MS_TAG;
 }
 
 function antrag(status: string, extra?: Partial<AntragListItem>): AntragListItem {

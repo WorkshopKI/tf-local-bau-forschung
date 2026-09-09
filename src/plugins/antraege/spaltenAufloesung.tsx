@@ -23,10 +23,7 @@ import {
   kategorieStatusColumns, renderHerleitung,
 } from './tableColumns';
 import type { AntragTableRow } from './tableGrouping';
-
-function strOrNull(v: unknown): string | null {
-  return typeof v === 'string' && v.trim() !== '' ? v : null;
-}
+import { strOrNull } from './fieldLookup';
 
 /**
  * Wird die MA-Spalte im Übersichtsmodus erzwungen?

@@ -17,6 +17,7 @@
  * am Bildschirm und im Audit-Log steht statt in Merge-Zahlen versteckt.
  */
 
+import { MS_TAG } from '@/core/utils/zeitEinheiten';
 import type { CsvSchema } from '@/core/services/csv/types';
 
 /**
@@ -63,7 +64,7 @@ export interface QuellDivergenz {
  * Export-Ordner vom 21.08. importierte dreimal am Tag über den aktuellen Stand
  * (`changed 1028, heldRemovals 66`), jedes Mal um 18 Tage zurück.
  */
-export const VERALTET_SCHWELLE_MS = 24 * 60 * 60 * 1000;
+export const VERALTET_SCHWELLE_MS = MS_TAG;
 
 /** Eine Quelle, deren Datei älter ist als der Team-Stempel — nicht automatisch importiert. */
 export interface VeralteteQuelle {

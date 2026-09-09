@@ -7,6 +7,7 @@
 import { getKategorieLabel } from '@/plugins/antraege/filter/kategorieQuickfilter';
 import type { AntragstypBucket, Zuweisung } from '../types';
 import type { VerbundZuweisungRow } from '../services/verbund';
+import { MS_TAG } from '@/core/utils/zeitEinheiten';
 
 /** Status-Filter der Verbund-Liste. `selbst` = „Übernahme-Wunsch" (v2.9).
  *  `offen` und `selbst` überlappen bewusst: ein Wunsch ist eine Bewerbung,
@@ -163,7 +164,7 @@ export function tageSeitFreigabe(z: Zuweisung, jetzt: number): number | null {
   if (!z.freigegebenAm) return null;
   const t = Date.parse(z.freigegebenAm);
   if (Number.isNaN(t)) return null;
-  return Math.max(0, Math.floor((jetzt - t) / 86_400_000));
+  return Math.max(0, Math.floor((jetzt - t) / MS_TAG));
 }
 
 /** Alter der ältesten Freigabe eines Verbundes in Tagen — aber nur, wenn die

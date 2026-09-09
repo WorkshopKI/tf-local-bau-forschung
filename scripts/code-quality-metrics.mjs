@@ -199,16 +199,41 @@ function render(m) {
   const te = m.toteExporte;
   o.push('## Exporte ohne Nutzer');
   o.push('');
-  o.push(`**${te.tot}** von ${de(te.exporteGesamt)} exportierten Werten (${pct(te.tot, te.exporteGesamt)})` +
-    ' kommen im ganzen Baum nur in ihrer eigenen Datei vor.');
+  o.push(`**${te.ohneFremdnutzer}** von ${de(te.exporteGesamt)} exportierten Werten ` +
+    `(${pct(te.ohneFremdnutzer, te.exporteGesamt)}) kommen im ganzen Baum nur in ihrer eigenen ` +
+    'Datei vor. Die Menge zerfällt in zwei Fälle, die verschiedene Antworten verlangen:');
+  o.push('');
+  o.push('| | Anzahl | Was zu tun wäre |');
+  o.push('|---|--:|---|');
+  o.push(`| **überexportiert** — lebt intern, nur der Export hat keinen Abnehmer | ${te.uebermaessig} | \`export\` streichen |`);
+  o.push(`| **tot** — kommt auch in der eigenen Datei kein zweites Mal vor | ${te.tot} | erst hier ist Löschen die Frage |`);
   o.push('');
   o.push('> Näherung per Token-Index. Sie ist genau deshalb ergiebig, weil `noUnusedLocals` alles');
   o.push('> *unterhalb* der Export-Grenze sauber hält — das hier ist der Blindfleck, den der');
-  o.push('> Compiler nicht sehen kann. Ein ungenutztes `is…Enabled()` kann allerdings auch heißen,');
-  o.push('> dass ein Modul **gar nicht** gated ist: das ist ein fachlicher Befund, kein Aufräumfall.');
+  o.push('> Compiler nicht sehen kann.');
+  o.push('>');
+  o.push('> **Die Trennung ist nicht kosmetisch.** `isAppGateRequired` hat keinen Fremdnutzer, wird');
+  o.push('> aber eine Zeile tiefer verwendet — als „toter Code" gelesen wäre es ein Fehlschluss.');
+  o.push('>');
+  o.push('> Ein wirklich ungenutztes `is…Enabled()` kann dagegen heißen, dass ein Modul **gar nicht**');
+  o.push('> gated ist — ein fachlicher Befund, kein Aufräumfall. Die toten Flag-Zugriffe in');
+  o.push('> `feature-flags.ts` sind v6.45 einzeln nachgeprüft; sie ergaben **drei verschiedene**');
+  o.push('> Antworten, und das ist der Grund, warum diese Menge keine Sammelbehandlung verträgt:');
+  o.push('>');
+  o.push('> - **redundant** (`isDokumenteEnabled`, `isMapFoerderfaehigEnabled`) — beide Module hängen');
+  o.push('>   am `featureFlag` ihres Plugin-Manifests; der Zugriff ist ein zweiter Weg zur selben');
+  o.push('>   Frage. Löschen ist gefahrlos.');
+  o.push('> - **tot, aber der Schalter lebt** (`isLocalLlamaEnabled`) — `ki.localLlama.enabled` wirkt');
+  o.push('>   zur Bauzeit (`config-schema.mjs` verlangt mindestens einen Anbieter); zur Laufzeit');
+  o.push('>   kommt der Endpunkt aus den KI-Einstellungen des Nutzers, nicht aus der Build-Config.');
+  o.push('> - **noch nicht gebaut** — ein Flag kann angelegt und in Varianten geschaltet sein, bevor');
+  o.push('>   die erste Zeile Code ihn liest. Diese Messung hat genau das einmal erwischt und');
+  o.push('>   beinahe als „Feature existiert nicht" berichtet, während es nebenan entstand.');
+  o.push('>   **Ein Befund aus dieser Liste braucht vor dem Urteil einen Blick auf `git status`:**');
+  o.push('>   der Baum ist geteilt, und die Messung sieht nur den Augenblick.');
   o.push('');
   if (te.nester.length > 0) {
-    o.push('Dichteste Nester:');
+    o.push('Dichteste Nester unter den **toten**:');
     o.push('');
     te.nester.forEach((n) => o.push(`- \`${n.rel}\` — ${n.n}`));
     o.push('');

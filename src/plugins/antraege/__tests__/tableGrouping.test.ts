@@ -1,3 +1,4 @@
+import { MS_TAG } from '@/core/utils/zeitEinheiten';
 import { describe, it, expect } from 'vitest';
 import {
   buildVerbundTableRows,
@@ -249,7 +250,7 @@ describe('buildFristSectionRows (Gruppierung: Frist)', () => {
    *  Antragsphase = Antragsdatum + 90 Tage. */
   const EINGANG = '2026-01-01T00:00:00.000Z';
   const EINGANG_MS = new Date(EINGANG).getTime();
-  const TAG_MS = 86_400_000;
+  const TAG_MS = MS_TAG;
   /** `now`, bei dem die 90-Tage-Frist noch `rest` Tage entfernt ist. */
   const nowFor = (rest: number): number => EINGANG_MS + (90 - rest) * TAG_MS;
   /** Offener Antrag mit laufender Uhr. */

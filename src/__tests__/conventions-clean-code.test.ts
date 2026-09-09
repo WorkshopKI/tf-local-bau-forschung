@@ -74,6 +74,29 @@ const prodDateien = scanDateien.filter(f => !istTestdatei(relPath(f)));
  */
 const KEINE_AUSNAHME = '\u0000';
 
+/**
+ * Prosa erklaert eine Regel, sie fuehrt sie nicht aus.
+ *
+ * Ein Guard, der am Kommentar haengenbleibt, meldet seinen eigenen Erklaertext.
+ * Genau das tat `zeitkonstante-hat-einen-namen` bis v6.45: zwei seiner neun
+ * Treffer waren Fliesstext (einer davon die Datei, die die Konstante EINFUEHRT).
+ * Das Geschwister `no-inline-frist-arithmetik` hat den Filter seit v3.6.
+ */
+const istKommentar = (l: string): boolean => /^\s*(?:\/\/|\/?\*)/.test(l);
+
+/**
+ * `export const STALE_HEARTBEAT_MS = 2 * 60 * 60 * 1000;` — eine benannte
+ * Konstante in UPPER_SNAKE_CASE.
+ *
+ * Sie darf nicht als Treffer zaehlen, weil sie DER WEG RAUS ist, den die Regel
+ * selbst nennt ("eine benannte Konstante am Modulkopf"). Fuenf der neun Treffer
+ * von `zeitkonstante-hat-einen-namen` waren bis v6.45 genau diese Form: der
+ * Guard zaehlte die Loesung als Problem und war damit nicht abarbeitbar — wer
+ * ihm folgte, blieb rot.
+ */
+const istBenannteKonstante = (l: string): boolean =>
+  /^\s*(?:export\s+)?const\s+[A-Z][A-Z0-9_]*\s*(?::[^=]+)?=/.test(l);
+
 /** Fehlertext einer RATSCHE. Bewusst anders formuliert als `drift()` in
  *  health-baseline: dort ist Anheben der vorgesehene Weg, hier der Ausnahmefall. */
 const ratsche = (regel: string, ist: number, deckel: number, warum: string, weg: string): string =>
@@ -362,7 +385,7 @@ describe('as-any-bleibt-die-ausnahme', () => {
   it(`hoechstens ${DECKEL} \`as any\` im Produktionscode`, () => {
     const treffer: Finding[] = [];
     for (const file of prodDateien) {
-      treffer.push(...findInFile(file, l => MUSTER.asAny.test(l), 'allow-as-any'));
+      treffer.push(...findInFile(file, l => MUSTER.asAny.test(l), 'allow-as-any-bleibt-die-ausnahme'));
     }
     if (treffer.length > DECKEL) {
       expect.fail(ratsche(
@@ -388,7 +411,7 @@ describe('core-kennt-keine-plugins (Schichtrichtung)', () => {
       treffer.push(...findInFile(
         file,
         l => /from\s+'(@\/plugins\/|(\.\.\/)+plugins\/)/.test(l),
-        'allow-core-kennt-plugins',
+        'allow-core-kennt-keine-plugins',
       ));
     }
     if (treffer.length > DECKEL) {
@@ -405,15 +428,35 @@ describe('core-kennt-keine-plugins (Schichtrichtung)', () => {
 });
 
 describe('zeitkonstante-hat-einen-namen', () => {
-  // Ist 21. Eine nackte 86400000 sagt nicht, ob Tage, Stunden oder Millisekunden
-  // gemeint sind — und dieselbe Zahl steht im Bestand unter VIER Namen
-  // (MS_TAG, TAG_MS, DAY_MS, MS_PER_DAY). Wer sie aendert, findet nicht alle.
-  const DECKEL = 21;
+  // Ist 2. Eine nackte Millisekunden-Zahl sagt ihre Einheit nicht.
+  //
+  // Von 21 auf 2 in v6.45, und die Differenz teilt sich in zwei sehr
+  // verschiedene Haelften — die Unterscheidung ist der Grund, warum hier
+  // ueberhaupt etwas steht:
+  //
+  //   12 waren ECHT. Ein Tag in Millisekunden stand 13-mal im Produktionscode,
+  //   unter vier Namen (MS_TAG 9x, TAG_MS 2x, DAY_MS 1x, MS_PER_DAY 1x) und in
+  //   drei Schreibweisen, dazu 15 nackte Literale. Alle zeigen jetzt auf
+  //   `MS_TAG` aus core/utils/zeitEinheiten.
+  //
+  //   7 waren ES NIE. Zwei Treffer waren Fliesstext, fuenf waren die DEFINITION
+  //   einer benannten Konstante (`STALE_HEARTBEAT_MS = 2 * 60 * 60 * 1000`) —
+  //   also genau der Weg raus, den die Fehlermeldung nennt. Der Guard zaehlte
+  //   seine eigene Loesung als Verstoss und war damit nicht abarbeitbar: wer ihm
+  //   folgte, blieb rot. Das fangen jetzt `istKommentar` + `istBenannteKonstante`.
+  //
+  // Wer die Zahl senken will, hat noch zwei nackte Minuten-Literale vor sich
+  // (checkpoint.ts, relativeZeit.ts). Der Rest ist sauber.
+  const DECKEL = 2;
   // (Muster steht in MUSTER.zeit — dort laeuft es gegen seine Proben.)
   it(`hoechstens ${DECKEL} nackte Zeitkonstanten im Produktionscode`, () => {
     const treffer: Finding[] = [];
     for (const file of prodDateien) {
-      treffer.push(...findInFile(file, l => MUSTER.zeit.test(l), 'allow-zeitkonstante'));
+      treffer.push(...findInFile(
+        file,
+        l => !istKommentar(l) && !istBenannteKonstante(l) && MUSTER.zeit.test(l),
+        'allow-zeitkonstante-hat-einen-namen',
+      ));
     }
     if (treffer.length > DECKEL) {
       expect.fail(ratsche(
@@ -451,7 +494,7 @@ describe('vier-parameter-sind-ein-objekt', () => {
   it(`hoechstens ${DECKEL} Funktionen mit >= 4 Positionsparametern`, () => {
     const treffer: Finding[] = [];
     for (const file of prodDateien) {
-      treffer.push(...findInFile(file, l => MUSTER.vierParameter.test(l), 'allow-vier-parameter'));
+      treffer.push(...findInFile(file, l => MUSTER.vierParameter.test(l), 'allow-vier-parameter-sind-ein-objekt'));
     }
     if (treffer.length > DECKEL) {
       expect.fail(ratsche(
@@ -487,7 +530,7 @@ describe('verschachtelung-vierzehn', () => {
     const treffer: Finding[] = [];
     for (const file of prodDateien) {
       if (!relPath(file).endsWith('.ts')) continue;
-      treffer.push(...findInFile(file, l => MUSTER.tiefeVerschachtelung.test(l), 'allow-verschachtelung'));
+      treffer.push(...findInFile(file, l => MUSTER.tiefeVerschachtelung.test(l), 'allow-verschachtelung-vierzehn'));
     }
     if (treffer.length > DECKEL) {
       expect.fail(ratsche(
@@ -579,6 +622,47 @@ describe('ein-name-eine-implementierung', () => {
   });
 });
 
+describe('ausweg-heisst-wie-die-regel', () => {
+  // WAS HIER SCHIEFGING (v6.40 bis v6.45, gefunden beim ersten roten Lauf einer
+  // Ratsche): `ratsche()` baut den Ausweg aus dem Regelnamen — die Meldung sagt
+  // also „markiere die Zeile mit allow-zeitkonstante-hat-einen-namen". Der Code
+  // daneben akzeptierte aber den kuerzeren Marker allow-zeitkonstante. Fuenf von
+  // fuenf Ratschen hatten diese Abweichung.
+  //
+  // Die Folge ist kein Fehlalarm, sondern etwas Schlimmeres: wer der Meldung
+  // GENAU folgt, bleibt rot und sieht nicht warum. Das Ventil, das den Druck von
+  // der Ratsche nehmen soll, war zugeschraubt — und weil im Bestand kein
+  // einziger dieser Marker stand, hatte es das nie jemand bemerkt.
+  //
+  // Diese Pruefung liest die Guard-Datei als TEXT. Sie ist damit die eine
+  // Stelle, die vom SELBST-Ausschluss ausgenommen sein muss: sie misst
+  // absichtlich sich selbst.
+  it('jede Ratsche akzeptiert genau den Marker, den ihre Meldung nennt', () => {
+    const quelle = readFileSync(join(ROOT, '__tests__', 'conventions-clean-code.test.ts'), 'utf-8');
+    const regeln = [...new Set(
+      [...quelle.matchAll(/ratsche\(\s*'([a-z0-9-]+)'/g)].map(m => m[1]!),
+    )];
+
+    // Positiv-Kontrolle: findet das Muster nichts, prueft der Guard nichts —
+    // und saehe dabei genauso gruen aus wie ein bestandener Lauf.
+    expect(regeln.length, 'keine ratsche()-Aufrufe gefunden — der Guard ist blind')
+      .toBeGreaterThanOrEqual(5);
+
+    const fehlend = regeln.filter(r => !quelle.includes(`'allow-${r}'`));
+    if (fehlend.length > 0) {
+      expect.fail(
+        `${fehlend.length} Ratsche(n) nennen einen Ausweg, den ihr eigener Code nicht\n` +
+        `annimmt. Die Fehlermeldung entsteht aus dem Regelnamen, der Marker im\n` +
+        `findInFile-Aufruf ist von Hand geschrieben — sie laufen auseinander, sobald\n` +
+        `eine Regel umbenannt wird.\n\n` +
+        `Betroffen:\n${fehlend.map(r => `  ${r}`).join('\n')}\n\n` +
+        `Weg raus: im findInFile-Aufruf denselben Namen verwenden wie im\n` +
+        `ratsche()-Aufruf. Der Marker heisst immer wie die Regel.`,
+      );
+    }
+  });
+});
+
 // ====================================================== MUSTERKONTROLLEN
 
 describe('musterkontrollen (jedes Muster beweist, dass es noch greift)', () => {
@@ -660,6 +744,27 @@ describe('musterkontrollen (jedes Muster beweist, dass es noch greift)', () => {
     // Gegenproben: benannte Konstanten sind der Weg raus und duerfen nicht treffen.
     expect(trifft(MUSTER.zeit, 'const ttl = MS_PRO_TAG;')).toBe(false);
     expect(trifft(MUSTER.zeit, 'const n = 8640000012;')).toBe(false);
+  });
+
+  it('istKommentar haelt Prosa vom Muster fern', () => {
+    expect(istKommentar('// 86400000 ist ein Tag')).toBe(true);
+    expect(istKommentar(' * `24 * 60 * 60 * 1000` stand hier 13-mal')).toBe(true);
+    expect(istKommentar('/** Ein Tag in Millisekunden. */')).toBe(true);
+    // Gegenproben: Code bleibt Code, auch mit angehaengtem Kommentar.
+    expect(istKommentar('const ttl = 86400000; // ein Tag')).toBe(false);
+    expect(istKommentar('  return ms / 86400000;')).toBe(false);
+  });
+
+  it('istBenannteKonstante erkennt genau den Weg raus, den die Regel nennt', () => {
+    expect(istBenannteKonstante('export const STALE_HEARTBEAT_MS = 2 * 60 * 60 * 1000;')).toBe(true);
+    expect(istBenannteKonstante('const MS_TAG = 86_400_000;')).toBe(true);
+    expect(istBenannteKonstante('export const TTL_MS: number = 60000;')).toBe(true);
+    // Gegenproben: die Ausnahme gilt der DEFINITION, nicht dem Rechnen damit.
+    // Ein kleingeschriebener Name ist keine Konstante nach Projekt-Konvention,
+    // und eine Zuweisung in eine Variable ist keine Definition am Modulkopf.
+    expect(istBenannteKonstante('const ttlMs = tage * 86400000;')).toBe(false);
+    expect(istBenannteKonstante('  return (jetzt - t) / 86400000;')).toBe(false);
+    expect(istBenannteKonstante('let MAX_MS = 60000;')).toBe(false);
   });
 
   it('vierParameter trifft ab vier Positionsparametern, nicht Props-Objekte', () => {

@@ -40,6 +40,7 @@ import { jederVorgang } from './vorgangs-quelle';
 import { pruefeStillstand, type WaechterErgebnis } from './waechter';
 import { fristLaeuftVon, SEED_CODE_ZU_ZAH_PHASE, zahPhaseLabel } from './zah-phasen';
 import type { MappingVersion, Rolle, ZahPhase, ZahPhaseId } from './typen';
+import { MS_TAG } from '@/core/utils/zeitEinheiten';
 
 /** Eine Zeile des Bestands — ein Teilvorhaben mit seinem ermittelten To-do. */
 export interface BestandZeile {
@@ -254,7 +255,7 @@ export async function laufeBestand(
       ? computeFristDatum({ status: a.status, antragsdatum: eingang, vn_eingang_datum: vnEingang })
       : null;
     const restTage = frist
-      ? Math.ceil((new Date(frist).getTime() - new Date(stichtag).getTime()) / 86_400_000)
+      ? Math.ceil((new Date(frist).getTime() - new Date(stichtag).getTime()) / MS_TAG)
       : null;
     const zahPhase = code !== null
       ? vIndex.ersterWertNachCode.get(code)?.zahPhaseId

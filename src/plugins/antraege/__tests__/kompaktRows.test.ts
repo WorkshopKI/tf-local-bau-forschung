@@ -5,9 +5,10 @@
  * wird für die Frist explizit injiziert (deterministisch, wie im
  * `fristAnzeige`-Test).
  */
+import { MS_TAG } from '@/core/utils/zeitEinheiten';
 import { describe, it, expect } from 'vitest';
 import type { AntragListItem } from '@/core/services/csv/types';
-import { MS_PER_DAY } from '@/core/services/csv/frist';
+
 import {
   kompaktLabel,
   matchesKompaktFilter,
@@ -22,7 +23,7 @@ const ANTRAGSDATUM = '2026-01-01T00:00:00.000Z';
 const ANTRAGSDATUM_MS = new Date(ANTRAGSDATUM).getTime();
 /** `now`, so dass die 90-Tage-Antragsfrist noch `restTage` entfernt ist. */
 function nowFor(restTage: number): number {
-  return ANTRAGSDATUM_MS + (90 - restTage) * MS_PER_DAY;
+  return ANTRAGSDATUM_MS + (90 - restTage) * MS_TAG;
 }
 
 // Lockeres `extra` (roher String für `status`) wie im fristAnzeige-Test — der

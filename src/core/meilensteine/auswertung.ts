@@ -15,8 +15,8 @@
 import { parseGermanDate } from '@/core/services/csv/dateParse';
 import { ANTRAGSTYP_BUCKETS } from '@/core/utils/vb-phase-mappings';
 import type { AntragstypBucket, MeilensteinPlan, VerbundMeilensteine } from './typen';
+import { MS_TAG } from '@/core/utils/zeitEinheiten';
 
-const MS_TAG = 86_400_000;
 
 /** Dauer-Klassen der Bearbeitungszeit (Tage ab Antragseingang). */
 export type DauerBucket = 'bis60' | 'bis90' | 'bis120' | 'ueber120';

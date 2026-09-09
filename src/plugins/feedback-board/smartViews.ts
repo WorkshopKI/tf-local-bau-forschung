@@ -23,6 +23,7 @@ import {
   type MeineIdentitaet,
 } from '@/core/services/feedback';
 import type { FeedbackSort } from '@/components/feedback/FeedbackSortSelect';
+import { MS_TAG } from '@/core/utils/zeitEinheiten';
 
 /** Die offenen Status — aus `istOffen` abgeleitet statt danebengeschrieben.
  *  Eine zweite Handliste liefe beim nächsten Status auseinander (Pitfall #21). */
@@ -76,7 +77,7 @@ function tageSeit(iso: string, heute: string): number {
   const a = new Date(iso).getTime();
   const b = new Date(heute).getTime();
   if (Number.isNaN(a) || Number.isNaN(b)) return Number.POSITIVE_INFINITY;
-  return (b - a) / 86_400_000;
+  return (b - a) / MS_TAG;
 }
 
 /** Anzahl budgetfreier Stimmen — das `↑ n` auf der Karte. */

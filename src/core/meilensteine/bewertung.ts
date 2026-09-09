@@ -22,8 +22,8 @@ import type {
   Prognose, VerbundMeilensteine,
 } from './typen';
 import { feldRefsAusBedingung } from './felder';
+import { MS_TAG } from '@/core/utils/zeitEinheiten';
 
-const MS_TAG = 86_400_000;
 
 /**
  * Version der **Bewertungs-Semantik**. Hochzählen, sobald dieselbe Datenlage ein

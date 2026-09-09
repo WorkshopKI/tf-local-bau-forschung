@@ -17,6 +17,7 @@
  * gezielt testen will, nimmt `resetOnboarding()` aus actions.ts.
  */
 
+import { MS_TAG } from '@/core/utils/zeitEinheiten';
 import type { StorageService } from '@/core/services/storage';
 import type { IDBStore } from '@/core/services/storage/idb-store';
 import { CSV_STORES, FILTER_STORE_NAME } from '@/core/services/storage/idb-store';
@@ -114,7 +115,7 @@ export async function ensureKuratorSession(idb: IDBStore): Promise<void> {
   assertDevFixtures();
   const dev = getDevConfig();
   const session = useKuratorSession.getState();
-  const ttlMs = dev.sessionTtlDays * 24 * 60 * 60 * 1000;
+  const ttlMs = dev.sessionTtlDays * MS_TAG;
   session.setTtl(ttlMs);
   if (!session.isActive) {
     await session.aktiviere(idb, dev.defaultKuratorName);

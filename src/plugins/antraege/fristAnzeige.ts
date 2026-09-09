@@ -22,6 +22,7 @@ import {
 import type { ZahPhase } from '@/core/status/typen';
 import type { HaltedatumHerkunft } from '@/core/status/haltedatum';
 import type { EingangAmpel } from './eingangAmpel';
+import { MS_TAG } from '@/core/utils/zeitEinheiten';
 
 export interface FristAnzeige {
   /** Relative Anzeige: `in {n} T`, `seit {n} T`, `heute`, `angehalten`, `—`. */
@@ -107,7 +108,7 @@ function stillstandText(ergebnis: FristErgebnis, nowMs: number): string {
   if (halt === undefined) return 'angehalten';
   const ms = new Date(halt).getTime();
   if (Number.isNaN(ms)) return 'angehalten';
-  const tage = Math.floor((nowMs - ms) / 86_400_000);
+  const tage = Math.floor((nowMs - ms) / MS_TAG);
   if (tage < 0) return 'angehalten';
   return `${tage} T angehalten`;
 }

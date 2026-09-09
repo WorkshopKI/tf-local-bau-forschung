@@ -7,21 +7,21 @@
 > dass ein Guard unter `src/__tests__/` sie einfriert — und der misst selbst nach,
 > statt diese Datei zu lesen.
 
-**Umfang:** 2.878 Dateien unter `src/` (2.067 Produktion / 327.780 LOC · 811 Test / 120.698 LOC). `src/generated/` ist ausgeschlossen.
+**Umfang:** 2.882 Dateien unter `src/` (2.070 Produktion / 328.069 LOC · 812 Test / 120.952 LOC). `src/generated/` ist ausgeschlossen.
 
 ## Größe
 
 | | Dateien | LOC | p50 | p90 | p99 | max | >400 | >500 | >800 | >1000 |
 |---|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|
-| Produktion | 2.067 | 327.780 | 116 | 335 | 749 | 1.232 | 133 | 74 | 15 | 6 |
-| Test | 811 | 120.698 | 115 | 274 | 568 | 1.915 | 29 | 16 | 4 | 3 |
+| Produktion | 2.070 | 328.069 | 116 | 335 | 749 | 1.232 | 133 | 74 | 15 | 6 |
+| Test | 812 | 120.952 | 115 | 272 | 568 | 1.915 | 29 | 16 | 5 | 3 |
 
 Größte Produktionsdateien:
 
 1. `src/plugins/suche/SuchSeite.tsx` — 1.232 LOC
 2. `src/plugins/antraege/services/antraege-search-service.ts` — 1.175 LOC
-3. `src/plugins/status-cockpit/useStatusCockpit.ts` — 1.162 LOC
-4. `src/plugins/antraege/tableColumns.tsx` — 1.154 LOC
+3. `src/plugins/status-cockpit/useStatusCockpit.ts` — 1.163 LOC
+4. `src/plugins/antraege/tableColumns.tsx` — 1.149 LOC
 5. `src/core/services/skills/registry/migrations.ts` — 1.083 LOC
 6. `src/plugins/antraege/AntraegeMain.tsx` — 1.075 LOC
 7. `src/plugins/csv-sources-kuration/services/auto-refresh.ts` — 881 LOC
@@ -74,7 +74,7 @@ angefasst, ohne dass die vorgeschlagene Aufteilung kam.
 
 ## Guard-Ausnahmen (`// allow-…`)
 
-**49** Ausnahmen über **14** Regeln, außerhalb der Guard-Dateien selbst (dort sind gleichlautende Vorkommen Fehlermeldungs-Text und Fixtures).
+**50** Ausnahmen über **15** Regeln, außerhalb der Guard-Dateien selbst (dort sind gleichlautende Vorkommen Fehlermeldungs-Text und Fixtures).
 
 | Regel | Ausnahmen | ohne Begründung |
 |---|--:|--:|
@@ -99,7 +99,7 @@ Plugin greift auf ein fremdes Plugin (Top 10):
 
 | Kante | Importzeilen |
 |---|--:|
-| home → antraege | 34 |
+| home → antraege | 35 |
 | map-foerderfaehig → antraege | 24 |
 | home → auslastung | 23 |
 | auslastung → antraege | 15 |
@@ -136,7 +136,7 @@ Dateipaare mit mindestens einem geteilten Fenster: **7**
 
 ## Testbezug
 
-**313** von 1.330 reinen `.ts`-Modulen (23.5 %) werden in keiner Testdatei auch nur genannt.
+**312** von 1.333 reinen `.ts`-Modulen (23.4 %) werden in keiner Testdatei auch nur genannt.
 
 > Bewusst kein Abdeckungsmaß: ein Modul ohne Erwähnung ist sicher ungetestet — eines
 > mit Erwähnung ist damit noch nicht geprüft. Für die `.tsx`-Schicht existiert gar
@@ -151,11 +151,11 @@ Dateipaare mit mindestens einem geteilten Fenster: **7**
 | `plugins/skill-verwaltung-kuration` | 9.103 | 1.169 | 0.13 |
 | `plugins/meilensteine` | 4.201 | 648 | 0.15 |
 | `components` | 21.428 | 3.329 | 0.16 |
-| `plugins/feedback-board` | 4.890 | 832 | 0.17 |
+| `plugins/feedback-board` | 4.891 | 832 | 0.17 |
 | `core/components` | 3.412 | 613 | 0.18 |
-| `plugins/status-cockpit` | 12.815 | 2.507 | 0.20 |
+| `plugins/status-cockpit` | 12.816 | 2.507 | 0.20 |
 | `plugins/anfragen` | 3.156 | 689 | 0.22 |
-| `plugins/csv-sources-kuration` | 11.227 | 2.816 | 0.25 |
+| `plugins/csv-sources-kuration` | 11.228 | 2.816 | 0.25 |
 | `plugins/suche` | 11.217 | 3.164 | 0.28 |
 
 Größte Module ohne jeden Testbezug:
@@ -173,35 +173,59 @@ Größte Module ohne jeden Testbezug:
 
 ## Exporte ohne Nutzer
 
-**339** von 5.959 exportierten Werten (5.7 %) kommen im ganzen Baum nur in ihrer eigenen Datei vor.
+**343** von 5.966 exportierten Werten (5.7 %) kommen im ganzen Baum nur in ihrer eigenen Datei vor. Die Menge zerfällt in zwei Fälle, die verschiedene Antworten verlangen:
+
+| | Anzahl | Was zu tun wäre |
+|---|--:|---|
+| **überexportiert** — lebt intern, nur der Export hat keinen Abnehmer | 254 | `export` streichen |
+| **tot** — kommt auch in der eigenen Datei kein zweites Mal vor | 89 | erst hier ist Löschen die Frage |
 
 > Näherung per Token-Index. Sie ist genau deshalb ergiebig, weil `noUnusedLocals` alles
 > *unterhalb* der Export-Grenze sauber hält — das hier ist der Blindfleck, den der
-> Compiler nicht sehen kann. Ein ungenutztes `is…Enabled()` kann allerdings auch heißen,
-> dass ein Modul **gar nicht** gated ist: das ist ein fachlicher Befund, kein Aufräumfall.
+> Compiler nicht sehen kann.
+>
+> **Die Trennung ist nicht kosmetisch.** `isAppGateRequired` hat keinen Fremdnutzer, wird
+> aber eine Zeile tiefer verwendet — als „toter Code" gelesen wäre es ein Fehlschluss.
+>
+> Ein wirklich ungenutztes `is…Enabled()` kann dagegen heißen, dass ein Modul **gar nicht**
+> gated ist — ein fachlicher Befund, kein Aufräumfall. Die toten Flag-Zugriffe in
+> `feature-flags.ts` sind v6.45 einzeln nachgeprüft; sie ergaben **drei verschiedene**
+> Antworten, und das ist der Grund, warum diese Menge keine Sammelbehandlung verträgt:
+>
+> - **redundant** (`isDokumenteEnabled`, `isMapFoerderfaehigEnabled`) — beide Module hängen
+>   am `featureFlag` ihres Plugin-Manifests; der Zugriff ist ein zweiter Weg zur selben
+>   Frage. Löschen ist gefahrlos.
+> - **tot, aber der Schalter lebt** (`isLocalLlamaEnabled`) — `ki.localLlama.enabled` wirkt
+>   zur Bauzeit (`config-schema.mjs` verlangt mindestens einen Anbieter); zur Laufzeit
+>   kommt der Endpunkt aus den KI-Einstellungen des Nutzers, nicht aus der Build-Config.
+> - **noch nicht gebaut** — ein Flag kann angelegt und in Varianten geschaltet sein, bevor
+>   die erste Zeile Code ihn liest. Diese Messung hat genau das einmal erwischt und
+>   beinahe als „Feature existiert nicht" berichtet, während es nebenan entstand.
+>   **Ein Befund aus dieser Liste braucht vor dem Urteil einen Blick auf `git status`:**
+>   der Baum ist geteilt, und die Messung sieht nur den Augenblick.
 
-Dichteste Nester:
+Dichteste Nester unter den **toten**:
 
-- `src/config/feature-flags.ts` — 11
-- `src/core/services/skill-feedback/maturity.ts` — 7
-- `src/core/services/feedback/feedbackLlm.ts` — 5
+- `src/config/feature-flags.ts` — 5
 - `src/plugins/einstellungen/_shared/settings-primitives.tsx` — 5
-- `src/plugins/antraege/aufbereitung/aufbereitung-settings.ts` — 4
-- `src/plugins/antraege/filter/projektartQuickfilter.ts` — 4
-- `src/plugins/antraege/nachforderungen/nf-service.ts` — 4
-- `src/plugins/auslastung/services/matching/verbund-embedding.ts` — 4
-- `src/plugins/auslastung/services/verbund/verbund-aggregation.ts` — 4
-- `src/plugins/status-cockpit/klaerfragenExport.ts` — 4
+- `src/core/services/search/document-scanner.ts` — 3
+- `src/plugins/home/tagesbrief/themen.ts` — 3
+- `src/core/services/feedback/feedbackLlm.ts` — 2
+- `src/core/services/infrastructure/types.ts` — 2
+- `src/plugins/auslastung/services/matching/embedding-corpus.ts` — 2
+- `src/plugins/auslastung/services/onboarding/onboarding-kalibrierung.ts` — 2
+- `src/plugins/auslastung/services/verbund/verbund-aggregation.ts` — 2
+- `src/plugins/suche/suchseite-utils.ts` — 2
 
 ## Die Guard-Suite über sich selbst
 
 | Kennzahl | Ist |
 |---|--:|
 | Guard-Dateien unter `src/__tests__/` | 9 |
-| `describe`-Blöcke | 104 |
+| `describe`-Blöcke | 105 |
 | davon zeilenweise scannend | 61 |
 | mit Positiv-/Musterkontrolle | 22 |
-| **ohne Kontrolle** | 82 |
+| **ohne Kontrolle** | 83 |
 | Dateien in `ISOLATED_TESTS` | 51 |
 | Testdateien mit `vi.mock` | 55 |
 | davon **ohne** Isolationseintrag | 11 |

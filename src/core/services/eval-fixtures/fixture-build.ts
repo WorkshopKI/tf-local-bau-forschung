@@ -29,7 +29,7 @@ export interface Fixture {
  */
 export function sechsstellig(seed: string, offset = 0): number {
   const u = parseInt(sha1Hex(seed).slice(0, 8), 16) >>> 0;
-  return (((u % 900000) + offset) % 900000) + 100000;
+  return (((u % 900000) + offset) % 900000) + 100000; // allow-zeitkonstante-hat-einen-namen: Modulus fuer eine 6-stellige Nummer, keine Zeitspanne
 }
 
 export function mintFkz(prefix: FkzPrefix, seed: string, offset = 0): string {

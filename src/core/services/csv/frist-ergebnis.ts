@@ -33,7 +33,8 @@ import type { ZahPhase } from '@/core/status/typen';
 // zählt `import type` nicht als Laufzeit-Kante. Die Herkunft an zwei Stellen zu
 // definieren wäre die Alternative — und die erste Erweiterung liefe auseinander.
 import type { HaltedatumHerkunft, HaltedatumQuelle } from '@/core/status/haltedatum';
-import { MS_PER_DAY, addDays, addMonths, ANTRAG_SLA_DAYS, VN_SLA_MONTHS, wirksamerEingang } from './frist';
+import { addDays, addMonths, ANTRAG_SLA_DAYS, VN_SLA_MONTHS, wirksamerEingang } from './frist';
+import { MS_TAG } from '@/core/utils/zeitEinheiten';
 
 /**
  * - `laeuft` — die Uhr zählt; `tageRest` ist belastbar (negativ = überschritten).
@@ -112,7 +113,7 @@ function tageBis(zielIso: string, vonIso: string): number | null {
   const ziel = new Date(zielIso).getTime();
   const von = new Date(vonIso).getTime();
   if (Number.isNaN(ziel) || Number.isNaN(von)) return null;
-  return Math.ceil((ziel - von) / MS_PER_DAY);
+  return Math.ceil((ziel - von) / MS_TAG);
 }
 
 function alsDatum(v: string | null | undefined): string | null {

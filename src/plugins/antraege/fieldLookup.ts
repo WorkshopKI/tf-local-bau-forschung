@@ -15,6 +15,33 @@ export function normalizeKey(s: string): string {
 }
 
 /**
+ * Ein Feldwert als nicht-leerer, **getrimmter** String — oder `null`.
+ *
+ * Die eine Heimat fuer eine Frage, die in `src/plugins/antraege/` zehnmal
+ * privat beantwortet wurde (v6.45). Unter demselben Namen `strOrNull` standen
+ * dabei VIER verschiedene Verhalten:
+ *
+ * - siebenmal genau dies hier,
+ * - einmal dieselbe Semantik in anderer Schreibweise (`kurzfassung/context-builder`),
+ * - einmal zusaetzlich `number` → `String(v)` (`EckdatenCard`) — an seinen drei
+ *   Aufrufstellen (`antragsteller`/`branche`/`foerdergeber`, alle `string?`)
+ *   unerreichbar, also toter Zweig,
+ * - einmal pruefend getrimmt, aber den Wert UNGETRIMMT zurueckgebend
+ *   (`spaltenAufloesung`).
+ *
+ * Der letzte Fall blieb folgenlos, weil jeder Abnehmer sich selbst wehrt
+ * (`naechsterSchritt` trimmt, `statusLabel`/`statusRang` normalisieren ueber
+ * `status-canonical`). Folgenlos ist aber nicht harmlos: die Funktion verspricht
+ * im Namen einen Wert-oder-nichts und liefert je nach Datei etwas anderes — die
+ * naechste Aufrufstelle ohne eigene Abwehr haette den Unterschied getragen.
+ */
+export function strOrNull(v: unknown): string | null {
+  if (typeof v !== 'string') return null;
+  const t = v.trim();
+  return t.length === 0 ? null : t;
+}
+
+/**
  * Findet einen Wert auf dem Antrag fuer einen oder mehrere Kandidaten-Bezeichner.
  *
  * Hintergrund: CSV-Spalten landen im Antrag-Objekt entweder als snake_case-Custom-Key

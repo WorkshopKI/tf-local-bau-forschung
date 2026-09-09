@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v6.45.0 — Eine Groesse, ein Name — und Ratschen, deren Ausweg wirklich offen steht (September 2026)
+
+MINOR — Zwei Größen liefen im Bestand unter mehreren Namen: `strOrNull` stand zehnmal privat in `plugins/antraege/` — unter **einem** Namen mit **vier** Verhalten —, ein Tag in Millisekunden 13-mal unter vier Namen. Beim Nachziehen der Ratsche fiel auf, dass **fünf von fünf** Ratschen einen Ausweg nennen, den ihr eigener Code nicht annimmt.
+
+- **[fieldLookup.ts](src/plugins/antraege/fieldLookup.ts)**: ein `strOrNull` statt zehn — eine Kopie gab ungetrimmt zurück, eine akzeptierte zusätzlich `number` (an ihren drei Aufrufstellen unerreichbar)
+- **[zeitEinheiten.ts](src/core/utils/zeitEinheiten.ts)**: `MS_TAG` als einzige Heimat; `MS_TAG`/`TAG_MS`/`DAY_MS`/`MS_PER_DAY` und 15 nackte Literale zeigen jetzt dorthin — Ratsche `zeitkonstante-hat-einen-namen` **21 → 2**
+- **Guard-Defekt behoben**: der Marker im Code hieß anders als der, den die Fehlermeldung nennt (5 von 5 Ratschen) — neuer Wächter `ausweg-heisst-wie-die-regel` hält beide zusammen
+- **Zweiter Guard-Defekt**: `zeitkonstante-hat-einen-namen` zählte Fließtext und die *Definition* benannter Konstanten mit — also genau den Weg raus, den er empfiehlt (7 der 9 Treffer)
+- **[code-quality-baseline.md](docs/architecture/code-quality-baseline.md)**: „Exporte ohne Nutzer" trennt jetzt **überexportiert** (254, `export` streichen) von **tot** (86); `exhaustive-deps` kostet gemessen 49 Verstöße, die vorhandenen Direktiven verdecken weitere 42 ([eslint.config.js](eslint.config.js))
+
 ### v6.44.1 — Ein Timeout heisst zuerst: sshd steht (September 2026)
 
 PATCH — Der Laptop-Tunnel zur internen KI lief in eine Timeout-Schleife; `sshd` stand nach einem Neustart auf `Stopped`. Die Fehlersuch-Tabelle schickte für dieses Bild auf DHCP und VPN und ordnete den gestoppten Dienst „Connection refused" zu — beides führt am Fund vorbei.

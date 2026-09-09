@@ -14,8 +14,8 @@ import { parseGermanDate } from '@/core/services/csv/dateParse';
 import { toVbPhaseNumber } from '@/core/utils/vb-phase-mappings';
 import type { Bedingung } from './typen';
 import { normalisiereWert } from './typen';
+import { MS_TAG } from '@/core/utils/zeitEinheiten';
 
-const MS_TAG = 86_400_000;
 
 /**
  * Auswertungs-Kontext: feldId → alle beobachteten Werte. Ein Feld kann MEHRERE

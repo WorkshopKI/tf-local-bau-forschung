@@ -10,8 +10,8 @@
  * „gesetzt", die alle dasselbe sagen.
  */
 import type { EintragsArt, JournalEintrag, JournalWert, JournalWerte, Stempel } from './typen';
+import { MS_TAG } from '@/core/utils/zeitEinheiten';
 
-const MS_TAG = 86_400_000;
 
 export interface DiffMeta {
   stempel: Stempel;
