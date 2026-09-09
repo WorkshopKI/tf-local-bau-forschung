@@ -77,6 +77,12 @@ vor der Installation in einen **Timeout**. Ein geschlossener Port antwortet mit 
 refused"); ein Timeout heißt, die Firewall verwirft die Pakete still. Eine Messung vom Laptop aus
 hätte vorher also in jedem Fall `False` geliefert — unabhängig davon, was das VPN tut.
 
+**Dieselbe Stille tritt später wieder auf, und das ist der Punkt:** die Regel ist an das *Programm*
+`%SystemRoot%\system32\OpenSSH\sshd.exe` gebunden, nicht an Port 22 allein. Steht der Dienst — nach
+jedem Neustart, siehe `StartupType Manual` —, greift sie nicht, und der Laptop sieht wieder einen
+**Timeout**. Ein Timeout belegt also **nicht**, dass es am Netz liegt; `Get-Service sshd` steht vor
+jeder Suche nach DHCP-Wechsel oder VPN.
+
 ### 2 · Netzweg messen
 
 Auf dem **Firmenlaptop, bei aufgebautem VPN**:
@@ -289,9 +295,9 @@ Assistenten-Turn danach antwortete in 4,5 s. Das trägt auch **nach einem Neulad
 | Bild | Ursache zuerst prüfen |
 |---|---|
 | `ssh` bricht sofort ab, „remote port forwarding failed" | Auf der Dev-Maschine belegt etwas Port 443 (`Get-NetTCPConnection -State Listen`). Genau dafür steht `ExitOnForwardFailure=yes` in der `.cmd`: **ohne** den Schalter käme die Sitzung zustande und der Tunnel wäre trotzdem tot — eine lebende Verbindung, die nichts weiterleitet. |
-| `ssh` läuft, aber `curl` meldet „Connection refused" | Der Dienst `sshd` läuft nicht (`Get-Service sshd`), oder die Weiterleitung bindet nicht auf Loopback. |
-| Nach einem **Neustart der Dev-Maschine** verbindet der Laptop nicht mehr | `sshd` steht bewusst auf `StartupType Manual` — der Dienst läuft, wenn er gebraucht wird, nicht dauerhaft. `Start-Service sshd` (erhöht). Wer den Tunnel täglich nutzt, stellt auf `Automatic` um und nimmt die dauerhaft offene Tür in Kauf. |
-| „Connection timed out" beim Verbinden | Die IP der Dev-Maschine hat sich geändert (DHCP) — im Router reservieren oder in der `.cmd` nachziehen. Oder das VPN kappt das lokale Netz (Schritt 2). |
+| `ssh` läuft, aber `curl` meldet „Connection refused" | Die Weiterleitung bindet nicht auf Loopback (`Get-NetTCPConnection -State Listen` → Port 443 auf `127.0.0.1` **und** `::1`). Am Dienst liegt es hier nicht: steht eine SSH-Sitzung, läuft `sshd` per Definition. |
+| Nach einem **Neustart der Dev-Maschine** verbindet der Laptop nicht mehr | `sshd` steht bewusst auf `StartupType Manual` — der Dienst läuft, wenn er gebraucht wird, nicht dauerhaft. `Start-Service sshd` (erhöht). Von außen sieht dieser Zustand wie ein **Timeout** aus, nicht wie „Connection refused" (Zeile darunter). Wer den Tunnel täglich nutzt, stellt auf `Automatic` um und nimmt die dauerhaft offene Tür in Kauf. |
+| „Connection timed out" beim Verbinden | **Zuerst `Get-Service sshd`.** `Stopped` ist bereits die Antwort — die Firewall-Regel hängt am Programm (Schritt 1), greift ohne laufenden Dienst nicht und verwirft die Pakete still. Erst danach die Leitung verdächtigen: IP der Dev-Maschine per DHCP gewechselt (im Router reservieren oder in der `.cmd` nachziehen), oder ein VPN-Client kappt das lokale Netz (Schritt 2). Gemessen: ein aktiver NordVPN-Tunnel **auf der Dev-Maschine** stört nicht — der Weg lief mit `NordLynx` oben. |
 | Schlüssel wird ignoriert, es fragt nach dem Passwort | `administrators_authorized_keys` statt `~/.ssh/authorized_keys`, oder die Rechte an der Datei sind zu weit (Schritt 3). |
 | **„REMOTE HOST IDENTIFICATION HAS CHANGED!"** beim ersten Verbinden | Erwartbar: `sshd` erzeugt seine Host-Schlüssel bei der Installation neu, und die Adresse kommt per DHCP — im `known_hosts` des Laptops kann noch ein Eintrag eines Vorgängers stehen. **Nicht blind bestätigen**, die Meldung sieht bei einem Angriff genauso aus. Den echten Fingerabdruck auf der Dev-Maschine über **Loopback** holen (nicht über das LAN, sonst prüft man die Leitung mit sich selbst): `ssh-keyscan -t ecdsa,ed25519 127.0.0.1 \| ssh-keygen -lf -`. Stimmt er mit dem gemeldeten überein, auf dem Laptop `ssh-keygen -R <ip>` und neu verbinden. |
 | Port lässt sich nicht binden, obwohl frei | Windows reserviert Portbereiche vorab (Hyper-V/WSL): `netsh interface ipv4 show excludedportrange protocol=tcp`. Für 443 und 22 auf dieser Maschine geprüft — beide liegen außerhalb. |
@@ -321,6 +327,11 @@ Assistenten-Turn danach antwortete in 4,5 s. Das trägt auch **nach einem Neulad
 
 Chromium berücksichtigt die hosts-Datei; Secure DNS läuft **nicht** daran vorbei — das war vorab
 nicht messbar und ist damit erledigt.
+
+**Nachgemessen am 09.09.2026**, nachdem der Laptop nur noch Timeouts sah: `sshd` stand auf
+`Stopped`. Ein `Start-Service sshd` (erhöht) genügte — die Schleife in der `.cmd` baute den Tunnel
+binnen Sekunden selbst wieder auf, `curl` meldete erneut **HTTP 200** (TLS 0,17 s, gesamt 0,34 s).
+Der Weg trägt also über Neustarts hinweg; er braucht nur den einen Handgriff.
 
 **Ein vollständiger Lauf ist durch**: Assistenten-Turn aus dem App-Tab → `postMessage` → KI-Tab →
 `/send` + SSE → Tunnel → VPN → interne KI → Antwort zurück, 0 Konsolenfehler. Die Bridge wurde dabei
