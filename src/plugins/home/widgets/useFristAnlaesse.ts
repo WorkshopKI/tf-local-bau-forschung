@@ -21,7 +21,7 @@ import {
   getVerbund, listAntraegeByVerbund, listProgramme, listSchemasByProgramm,
 } from '@/core/services/csv/idb-csv';
 import {
-  baueFeldAufloesung, findeStatusCode, getAktiveVersion, ladeAktiveVersion,
+  baueFeldAufloesung, findeStatusCode, getAktiveVersion, kuerzelIndex, ladeAktiveVersion,
   pruefeStillstand, sammleVorkommen,
 } from '@/core/status';
 import {
@@ -58,6 +58,8 @@ async function sammleZieltage(
   const anlaesse: FristAnlass[] = [];
   let unbewertet = 0;
   const version = getAktiveVersion() ?? await ladeAktiveVersion(idb);
+  // Einmal je Lauf — trägt das Kürzel-Paar eines Anlasses zu seinen Feldern.
+  const kuerzel = kuerzelIndex(version.felder);
   const schemaCache = new Map<string, Awaited<ReturnType<typeof listSchemasByProgramm>>>();
 
   for (const [verbundId, akronym] of meineVerbuende) {
@@ -88,7 +90,7 @@ async function sammleZieltage(
     });
     if (waechter.urteil === 'unbewertet') { unbewertet += 1; continue; }
     if (waechter.urteil !== 'haengt') continue;
-    anlaesse.push(zieltagAnlass(verbundId, akronym, statusRoh, waechter));
+    anlaesse.push(zieltagAnlass(verbundId, akronym, statusRoh, waechter, kuerzel));
   }
   return { anlaesse, unbewertet };
 }

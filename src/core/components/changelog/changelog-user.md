@@ -22,6 +22,7 @@
 ## v6.51 — 2026-09
 
 ### Verbesserungen
+- Home: Auch Fristen-Zeilen wie „ALT gesetzt, ALU fehlt" nennen beim Überfahren ihre Spalten, und zwar die beider Kürzel mit Code und Beschriftung, so wie der Status-Katalog sie führt.
 - „Alle Felder" zeigt hinter jedem Feldnamen die CSV-Spalte, aus der es liest. Beim Überfahren erscheint dazu die Beschriftung. Beim gespeicherten Frist-Datum steht außerdem, dass es beim Import gerechnet wurde und deshalb von der Frist-Spalte abweichen kann.
 - Home: In der Fristen-Liste erscheint beim Überfahren des Grundes, aus welchen Spalten die Warnung gelesen wurde. Die Phasen-Marke im Status-Verlauf nennt die Spalte des Verbund-Status.
 - Frist-Spalte und Status-Filter nennen ihre Spalten mit Code und Klartext, zum Beispiel „Antragseingang, D_AAE" statt nur „D_AAE".

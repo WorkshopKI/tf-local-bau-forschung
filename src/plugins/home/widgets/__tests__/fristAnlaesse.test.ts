@@ -10,10 +10,12 @@ import {
   anlassBilanz, bilanzText, buendleNachVerbund, meilensteinAnlaesse, sichtbareMischung,
   sortiereAnlaesse, ueberTageText, zieltagAnlass, type FristAnlass,
 } from '../fristAnlaesse';
-import type { WaechterErgebnis } from '@/core/status';
+import { kuerzelIndex, type WaechterErgebnis } from '@/core/status';
 import type { MeilensteinKnoten, VerbundMeilensteine } from '@/core/meilensteine';
 
 const HEUTE = new Date('2026-08-17T00:00:00.000Z').getTime();
+/** Die Quellspalten prüft fristAnlaesseQuellen.test.ts — hier geht es um Zeile und Abstand. */
+const KEIN_KATALOG = kuerzelIndex([]);
 const TAG = 86_400_000;
 const iso = (offsetTage: number): string => new Date(HEUTE + offsetTage * TAG).toISOString();
 
@@ -40,7 +42,7 @@ function bewertung(verbundId: string, knotenId: string, zustand: string, sollTag
 
 describe('zieltagAnlass — der Stillstand wird eine Zeile', () => {
   it('trägt seine Herkunft und den Abstand zum Zieltag', () => {
-    const a = zieltagAnlass('vb-1', 'ALPHA', 'NF gestellt', waechter());
+    const a = zieltagAnlass('vb-1', 'ALPHA', 'NF gestellt', waechter(), KEIN_KATALOG);
     expect(a.marke, 'ohne Herkunft ist die Warnung nicht abstellbar').toBe('Zieltag');
     expect(a.art).toBe('zieltag');
     // 40 Tage still bei 21 Zieltagen = 19 darüber. NICHT die 40 selbst — das
@@ -53,15 +55,15 @@ describe('zieltagAnlass — der Stillstand wird eine Zeile', () => {
   it('nennt das halb offene Paar, wenn es eines gibt — es erklärt den Stau', () => {
     const a = zieltagAnlass('vb-1', 'ALPHA', 'techn geprüft', waechter({
       paar: { gesetzt: 'AT4', fehlt: 'AK4' } as WaechterErgebnis['paar'],
-    }));
+    }), KEIN_KATALOG);
     expect(a.grund).toBe('AT4 gesetzt, AK4 fehlt');
   });
 
   it('beziffert NICHT, wenn eine der beiden Zahlen fehlt', () => {
     // Eine erfundene Zahl wäre schlimmer als keine: der Stillstand ist
     // festgestellt, sein Ausmaß nicht.
-    expect(zieltagAnlass('v', 'A', 's', waechter({ zieltage: null })).ueberTage).toBeNull();
-    expect(zieltagAnlass('v', 'A', 's', waechter({ tage: null })).ueberTage).toBeNull();
+    expect(zieltagAnlass('v', 'A', 's', waechter({ zieltage: null }), KEIN_KATALOG).ueberTage).toBeNull();
+    expect(zieltagAnlass('v', 'A', 's', waechter({ tage: null }), KEIN_KATALOG).ueberTage).toBeNull();
   });
 });
 

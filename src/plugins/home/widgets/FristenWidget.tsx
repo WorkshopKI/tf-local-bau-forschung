@@ -46,8 +46,9 @@ function farbe(a: FristAnlass): string {
 
 /**
  * Woraus der Grund einer Zeile gelesen wurde — der Meilenstein mit seiner
- * Bedingung, der Zieltag mit dem Verbund-Status. `null`, wo die Zeile ihre
- * Quellspalten nicht belegen kann (Kürzel-Paar); dann bleibt der blanke Text.
+ * Bedingung, der Zieltag mit dem Verbund-Status oder den Feldern seines
+ * Kürzel-Paars. `null`, wo die Zeile ihre Quellspalten nicht belegen kann
+ * (Kürzel, das der Katalog nicht kennt); dann bleibt der blanke Text.
  */
 function erklaererVon(z: FristAnlass): Erklaerer | null {
   if (z.knoten) {

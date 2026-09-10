@@ -5,6 +5,14 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v6.51.1 — Kürzel-Paar der Fristen nennt seine CSV-Spalten (September 2026)
+
+PATCH — Die letzte Lücke aus v6.51: ein Zieltag-Anlass „ALT gesetzt, ALU fehlt" zeigte keine Quellspalten. Das Kürzel findet sein Feld jetzt über den Katalog (`kuerzelIndex` der aktiven Fassung) statt über ein geratenes `D_` + Kürzel (Pitfall #44). Am echten Bestand haben alle 84 Paar-Anlässe von 301 Zieltagen zwei Felder.
+
+- **Home-Fristen**: `zieltagAnlass` bekommt den Kürzel-Index und nennt die Felder beider Kürzel, das gesetzte zuerst; unbekannte Kürzel bleiben unbelegt ([fristAnlaesse.ts](src/plugins/home/widgets/fristAnlaesse.ts), [useFristAnlaesse.ts](src/plugins/home/widgets/useFristAnlaesse.ts))
+- **Test**: NFD im Katalog gegen NFC im Paar, und keine zusammengesetzte Spalte ([fristAnlaesseQuellen.test.ts](src/plugins/home/widgets/__tests__/fristAnlaesseQuellen.test.ts))
+- **Doku**: [ui-muster.md](docs/architecture/ui-muster.md) und [feedback-kontext/home.md](docs/feedback-kontext/home.md) nachgezogen
+
 ### v6.51.0 — Quellspalten auch an Frist, Home und Alle Felder (September 2026)
 
 MINOR — Stufe C des Quellspalten-Vorhabens ([Spec](docs/superpowers/specs/2026-09-10-quellspalten-design.md)). Die übrigen Stellen, an denen ein Wert aus CSV-Spalten abgeleitet wird, nennen jetzt ebenfalls ihre Quellspalten, statt nur Codes oder gar nichts zu zeigen. Die festen Codes der Frist-Spalte nehmen ihre Beschriftung aus dem Schema.

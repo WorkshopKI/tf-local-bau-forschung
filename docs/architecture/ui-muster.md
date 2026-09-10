@@ -60,12 +60,12 @@ Guard `spalten-hilfe-abdeckung` ([conventions-ui.test.ts](../../src/__tests__/co
 Eingebaut in:
 - Meilenstein-Konfiguration (Zusammenfassungszeile, Gesamtfrist), Meilenstein-Leiste und „Diese Woche".
 - To-do-Regeln und To-do-Herleitung („warum?").
-- Home-Fristen (Meilenstein-Anlass über den Knoten, Zieltag über `STATUS_VB`) und die Phasen-Marke des StatusVerlauf-Widgets.
+- Home-Fristen (Meilenstein-Anlass über den Knoten, Zieltag über `STATUS_VB`, beim Kürzel-Paar über die Katalog-Felder beider Kürzel) und die Phasen-Marke des StatusVerlauf-Widgets.
 - „Alle Felder": Code inline, der `title` nennt die Quellspalten. Bei `frist_datum` steht dazu, dass es beim Import gerechnet wird.
 - Der Status-Filter hat eine Zeile „Spalte". `FRIST_GRUND` und der Tooltip der Frist-Zelle nennen Code und Klartext.
 - Die festen Codes der Frist-Spalte (`FESTE_FELDER`) nehmen ihre Beschriftung aus dem Schema; die Hand-Labels sind nur der Rückfall.
 
-Nicht belegt wird das Kürzel-Paar eines Zieltag-Anlasses: seine Spalten kennt nur der Katalog, und eine aus dem Kürzel zusammengesetzte Spalte wäre geraten. Guard `quellspalten-an-bedingungen` ([conventions-ui.test.ts](../../src/__tests__/conventions-ui.test.ts)): Wer eine Bedingung als Satz rendert, rendert auch ihre Quellspalten.
+Das Kürzel-Paar eines Zieltag-Anlasses („AT4 gesetzt, AK4 fehlt") findet seine Felder über `kuerzelIndex` der aktiven Fassung, einmal je Lauf gebaut und an `zieltagAnlass` gereicht. `D_` + Kürzel wäre geraten (Pitfall #44). Kennt der Katalog ein Kürzel nicht, fehlt dessen Spalte, statt erfunden zu werden. Guard `quellspalten-an-bedingungen` ([conventions-ui.test.ts](../../src/__tests__/conventions-ui.test.ts)): Wer eine Bedingung als Satz rendert, rendert auch ihre Quellspalten.
 
 **Icon-Vokabular** (v3.24, aus der Feedback-Nachlese — dieselbe Bedeutung, dieselbe Glyphe):
 

@@ -24,7 +24,8 @@
  * Jede Zeile trägt ihre **Herkunft** (`marke`). Ohne sie wäre die Liste eine
  * Sammlung anonymer Warnungen, die niemand abstellen kann.
  */
-import type { WaechterErgebnis } from '@/core/status';
+import type { KuerzelIndex, WaechterErgebnis } from '@/core/status';
+import { normKey } from '@/core/status/normalisierung';
 import type { MeilensteinKnoten, MstZustand, VerbundMeilensteine } from '@/core/meilensteine';
 import { MS_TAG } from '@/core/utils/zeitEinheiten';
 
@@ -63,9 +64,10 @@ export interface FristAnlass {
   /** Bei Meilenstein-Anlässen der Plan-Knoten — für die Quellspalten im Tooltip. */
   knoten?: MeilensteinKnoten;
   /**
-   * Bei Zieltag-Anlässen die Felder, aus denen `grund` gelesen wurde (der
-   * Verbund-Status). Fehlt beim Kürzel-Paar: dessen Spalten kennt nur der
-   * Katalog, und eine aus dem Kürzel zusammengesetzte Spalte wäre geraten.
+   * Bei Zieltag-Anlässen die Felder, aus denen `grund` gelesen wurde: der
+   * Verbund-Status, beim Kürzel-Paar die Katalog-Felder beider Kürzel. Fehlt,
+   * wenn der Katalog keines der Kürzel kennt — eine aus dem Kürzel
+   * zusammengesetzte Spalte wäre geraten (Pitfall #44).
    */
   quellFelder?: readonly string[];
 }
@@ -76,10 +78,16 @@ export interface FristAnlass {
  * Erwartet ausschließlich Ergebnisse mit `urteil === 'haengt'`; `unbewertet`
  * zählt der Aufrufer separat, weil es kein Alarm ist, sondern eine Aussage über
  * die Belastbarkeit der Zahl daneben (so hielt es schon „Hängt fest").
+ *
+ * @param kuerzel `kuerzelIndex` der aktiven Fassung — einmal je Lauf gebaut.
+ *   Nur über ihn findet ein Kürzel-Paar seine Spalten.
  */
 export function zieltagAnlass(
   verbundId: string, akronym: string, statusRoh: string, w: WaechterErgebnis,
+  kuerzel: KuerzelIndex,
 ): FristAnlass {
+  // `statusRoh` ist der Verbund-Status (`useFristAnlaesse`) — seine Quellspalte.
+  const quellFelder = w.paar ? paarFelder(w.paar, kuerzel) : ['STATUS_VB'];
   return {
     id: `zieltag:${verbundId}`,
     verbundId,
@@ -91,9 +99,25 @@ export function zieltagAnlass(
     // aber nicht bezifferbar — und eine erfundene Zahl wäre schlimmer als keine.
     ueberTage: w.tage !== null && w.zieltage !== null ? w.tage - w.zieltage : null,
     gerissen: true,
-    // `statusRoh` ist der Verbund-Status (`useFristAnlaesse`) — seine Quellspalte.
-    ...(w.paar ? {} : { quellFelder: ['STATUS_VB'] }),
+    ...(quellFelder.length > 0 ? { quellFelder } : {}),
   };
+}
+
+/**
+ * Die Katalog-Felder hinter „X gesetzt, Y fehlt", gesetzt zuerst.
+ *
+ * Nachgeschlagen, nie zusammengesetzt: `D_` + Kürzel träfe meist, aber nicht
+ * immer (Pitfall #44) — und ein Tooltip mit falscher Spalte verdeckte genau den
+ * Fehler, den er finden helfen soll. Was der Katalog nicht kennt, fehlt.
+ */
+function paarFelder(paar: { gesetzt: string; fehlt: string }, kuerzel: KuerzelIndex): string[] {
+  const felder: string[] = [];
+  for (const k of [paar.gesetzt, paar.fehlt]) {
+    // Die Index-Schlüssel stehen in `normKey`-Form, der Suchbegriff muss mit.
+    const feld = kuerzel.get(normKey(k));
+    if (feld) felder.push(feld.feldId);
+  }
+  return felder;
 }
 
 /**
