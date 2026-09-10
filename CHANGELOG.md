@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v6.50.0 — Quellspalten: Bedingungen und Felder nennen ihre CSV-Spalten (September 2026)
+
+MINOR — Stufe B des Quellspalten-Vorhabens ([Spec](docs/superpowers/specs/2026-09-10-quellspalten-design.md)): „TIB gefüllt UND BIB gefüllt" sagte nicht, welche CSV-Spalte dahinter steht. Selbst Fachleute konnten eine falsche Spalte oder Kombination nur im Code finden. Jede Bedingung, die als Satz auf dem Bildschirm steht, nennt jetzt ihre Quellspalten, und zwar aus dem Schema aufgelöst statt von Hand abgeschrieben.
+
+- **[spalten-inventar.ts](src/core/services/csv/spalten-inventar.ts)**: `baueQuellSpaltenIndex` löst jede Schreibweise einer `feldId` auf (kanonisch, custom, roher Code) und nennt die Programme, die das Feld nicht mappen. `rohSpaltenJeFeld` ist jetzt eine Projektion desselben Durchgangs ([ui-muster.md](docs/architecture/ui-muster.md))
+- **[bedingung-quellen.ts](src/core/status/bedingung-quellen.ts)** + **[quellen.ts](src/core/meilensteine/quellen.ts)**: Die Erklärung einer Bedingung oder eines Meilensteins nimmt ihre Felder aus `bedingungFeldRefs` und den Satz aus `bedingungSatz`
+- **[QuellSpaltenTooltip](src/components/quellspalten/QuellSpaltenTooltip.tsx)**: Der Index lädt erst beim Überfahren (`useQuellSpaltenIndex`). `SpaltenHilfeInhalt` gruppiert nach Feld
+- **Eingebaut** in Meilenstein-Konfiguration, Leiste, „Diese Woche", To-do-Regeln und To-do-Herleitung. Der `FeldWaehler` zeigt `← D_AAE` am Auslöser
+- **Guard `quellspalten-an-bedingungen`** ([conventions-ui.test.ts](src/__tests__/conventions-ui.test.ts)): Wer eine Bedingung rendert, rendert ihre Quellspalten. Der Guard wurde einmal rot gesehen
+
 ### v6.49.0 — Ein Anker: Meilensteine zählen ab dem wirksamen Eingang (September 2026)
 
 MINOR — Stufe A des Quellspalten-Vorhabens ([Spec](docs/superpowers/specs/2026-09-10-quellspalten-design.md)): Wer fragt, aus welchen Spalten eine Frist rechnet, fand zwei Antworten. Die Frist-Spalte der Tabelle zählte ab dem späteren aus `D_AAE` und `D_XTE`, der Meilenstein-Anker nur ab `D_AAE`, und das an drei Rechenstellen je für sich. Jetzt gibt es einen einzigen Anker. Gepaart gemessen: 28 von 2 082 offenen Verbünden verschieben sich um +1 bis +61 T (Median +8), kein Zustand und keine Prognose kippt.

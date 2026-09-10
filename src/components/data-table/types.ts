@@ -35,8 +35,13 @@ export type MessSchrift =
 export interface SpaltenHilfe {
   /** Ein Satz: was zeigt die Spalte. Pflichtteil — ohne ihn gibt es keine Hilfe. */
   satz: string;
-  /** Die Felder, aus denen sich die Spalte speist: roher Code + Klartext. */
-  felder?: { code: string; label: string }[];
+  /**
+   * Die Felder, aus denen sich die Spalte speist: roher Code + Klartext.
+   * `fuer` nennt das logische Feld, das die Spalte speist — gesetzt, sobald
+   * mehrere Felder in eine Aussage laufen (eine Bedingung über TIB UND BIB);
+   * der Renderer gruppiert dann danach.
+   */
+  felder?: { code: string; label: string; fuer?: string }[];
   /** Wie der angezeigte Wert gewählt wird („jüngstes Datum gewinnt"). */
   regel?: string;
   /**

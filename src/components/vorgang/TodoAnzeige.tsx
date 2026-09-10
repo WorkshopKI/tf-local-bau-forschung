@@ -16,7 +16,11 @@
  * daneben zählte dieselbe Seite „davon N abgeleitet": zwei Wörter für eine
  * Sache.
  */
+import { Tooltip } from '@/components/ui/Tooltip';
+import { SpaltenHilfeInhalt } from '@/components/data-table/SpaltenHilfeInhalt';
+import { useQuellSpaltenIndex } from '@/core/hooks/useQuellSpaltenIndex';
 import { ROLLE_LABEL, ROLLE_LANG, type Rolle, type TodoErgebnis } from '@/core/status';
+import { feldQuellen } from '@/core/status/bedingung-quellen';
 
 /**
  * Kurztext des Markers; `null`, wenn das To-do aus einer eigenen Regel stammt.
@@ -74,6 +78,10 @@ export function TodoHerleitung({ e, rolle, waechterGrund }: {
   waechterGrund?: string;
 }): React.ReactElement {
   const abgeleitet = abgeleitetTitel(e, rolle);
+  // Die Quellspalten der Belege. Die Herleitung wird erst beim Aufklappen
+  // gerendert — eine Liste mit hundert To-dos liest deshalb nichts, bis jemand
+  // „warum?" fragt.
+  const { index } = useQuellSpaltenIndex();
   return (
     <div className="flex flex-col gap-0.5">
       {e.beschreibung !== null && (
@@ -86,13 +94,33 @@ export function TodoHerleitung({ e, rolle, waechterGrund }: {
         <span className="text-[11px] text-[var(--tf-text-tertiary)]">Wächter: {waechterGrund}</span>
       )}
       <ul className="flex flex-wrap gap-x-3 gap-y-0.5">
-        {e.belege.map(b => (
-          <li key={b.feldId} className="text-[11px] text-[var(--tf-text-tertiary)]">
-            <span className="font-mono">{b.feldId}</span>
-            {' = '}
-            {b.werte.length > 0 ? b.werte.join(', ') : <em>leer</em>}
-          </li>
-        ))}
+        {e.belege.map(b => {
+          // Label + roher Code, dazu die Quellspalten, wo sie anders heißen als
+          // die `feldId` (`status ← STATUS_TV`). Ohne Index nur der Code — der
+          // Stand vor dem ersten Laden, kein Fehler.
+          const name = index?.labelVon(b.feldId) ?? b.feldId;
+          const codes = (index?.quellSpaltenVon(b.feldId).spalten ?? [])
+            .map(s => s.code).filter(c => c !== b.feldId);
+          return (
+            <li key={b.feldId} className="text-[11px] text-[var(--tf-text-tertiary)]">
+              <Tooltip
+                content={index
+                  ? <SpaltenHilfeInhalt hilfe={feldQuellen([b.feldId], index, `Beleg: ${name}`)} />
+                  : 'Quellspalten werden geladen …'}
+                maxWidth={380}
+                wrapperClassName="inline"
+              >
+                <span className="cursor-help">
+                  {name !== b.feldId && <>{name} </>}
+                  <span className="font-mono">{b.feldId}</span>
+                  {codes.length > 0 && <span className="font-mono"> ← {codes.join(', ')}</span>}
+                </span>
+              </Tooltip>
+              {' = '}
+              {b.werte.length > 0 ? b.werte.join(', ') : <em>leer</em>}
+            </li>
+          );
+        })}
       </ul>
     </div>
   );

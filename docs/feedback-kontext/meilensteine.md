@@ -44,6 +44,14 @@ Tooltip an „Gesamtfrist" und an „Eingang" nennt die beiden Spalten.
     Bedingungs-Editor — UND/ODER-Gruppen mit Feld, Operator und Wert aus den
     gemappten CSV-Spalten.
 
+  - **Quellspalten**: Wer die Kurzform der Bedingung überfährt (auch in der
+    Leiste und unter „Diese Woche" an der Bezeichnung), sieht, aus welchen
+    CSV-Spalten sie liest — je Feld Code und Label, dazu die Regel „erfüllt,
+    sobald ein Teilvorhaben sie trägt; Ist-Termin = frühestes Datum". Mappt ein
+    Programm ein Feld nicht, steht das dabei. Der Feld-Wähler zeigt die
+    Quellspalte kurz hinter dem Feldnamen („Antrags eingang · antragsdatum
+    ← D_AAE").
+
   - **Die zugeklappte Zeile sagt, woran der Meilenstein hängt**: Bedingung in
     Kurzform, Antragstyp-Beschränkung (nur wenn es eine gibt), Ist-Termin-Feld
     und die Zahl der Unter-Meilensteine. Das Bezeichnungsfeld ist dafür schmaler

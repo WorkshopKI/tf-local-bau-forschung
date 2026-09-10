@@ -9,8 +9,9 @@
  * ist heute". Kalenderdaten stehen in den Tooltips.
  */
 import { Tooltip } from '@/components/ui/Tooltip';
+import { QuellSpaltenTooltip } from '@/components/quellspalten';
 import type { MeilensteinKnoten, MstErgebnis, VerbundMeilensteine } from '@/core/meilensteine';
-import { sortiereKnoten, tiefeVon } from '@/core/meilensteine';
+import { knotenQuellen, sortiereKnoten, tiefeVon } from '@/core/meilensteine';
 import {
   VOR_EINGANG_HINWEIS, ZUSTAND_FARBE, ZUSTAND_LABEL, ZUSTAND_TEXT_FARBE,
   feldStil, formatAbweichung, formatDatum,
@@ -144,13 +145,17 @@ export function MeilensteinLeiste({ bewertung, knoten }: {
               <span className="text-[10.5px] font-mono text-[var(--tf-text-tertiary)] shrink-0">
                 {k.nummer}
               </span>
-              <span
-                className="text-[12px] truncate"
-                style={{ color: e.zustand === 'nichtRelevant' ? 'var(--tf-text-tertiary)' : 'var(--tf-text)' }}
-                title={k.label}
-              >
-                {k.label}
-              </span>
+              {/* Die Quellspalten des Meilensteins: woraus „erreicht" und der
+                  Ist-Termin gelesen werden. Kein `title` daneben — der native
+                  Kasten legte sich über den erklärenden. */}
+              <QuellSpaltenTooltip erklaere={idx => knotenQuellen(k, idx)} wrapperClassName="min-w-0 truncate">
+                <span
+                  className="text-[12px] truncate cursor-help"
+                  style={{ color: e.zustand === 'nichtRelevant' ? 'var(--tf-text-tertiary)' : 'var(--tf-text)' }}
+                >
+                  {k.label}
+                </span>
+              </QuellSpaltenTooltip>
             </div>
 
             <div className="relative flex-1 h-full">
@@ -188,7 +193,7 @@ export function MeilensteinLeiste({ bewertung, knoten }: {
                   links={sollLinks}
                   farbe="var(--tf-border-hover)"
                   gefuellt={false}
-                  titel={`Soll: Woche ${k.sollWoche} (${formatDatum(e.sollDatum)})`}
+                  titel={`Soll: Woche ${k.sollWoche} (${formatDatum(e.sollDatum)}) — wirksamer Eingang + ${k.sollWoche} × 7 Tage`}
                 />
               )}
               {istLinks !== null && (

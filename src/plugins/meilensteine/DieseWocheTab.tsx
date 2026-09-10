@@ -25,7 +25,8 @@ import { useMemo, useState } from 'react';
 import { ToggleChip } from '@/components/ui/ToggleChip';
 import { useNavigation } from '@/core/hooks/useNavigation';
 import { ChevronDown, ChevronRight, ExternalLink } from 'lucide-react';
-import type { MeilensteinPlan } from '@/core/meilensteine';
+import { QuellSpaltenTooltip } from '@/components/quellspalten';
+import { knotenQuellen, type MeilensteinKnoten, type MeilensteinPlan } from '@/core/meilensteine';
 import {
   gruppiereNachVerbund, nurMeinePunkte, sammleWochenPunkte,
   type VerbundGruppe, type WochenPunkt,
@@ -45,8 +46,28 @@ function restText(restTage: number | null): string {
   return restTage < 0 ? `${-restTage} T überfällig` : `in ${restTage} T`;
 }
 
-function PunktZeile({ p, eingerueckt, onOeffnen }: {
+/**
+ * Die Bezeichnung eines Meilensteins mit seinen Quellspalten im Tooltip — woraus
+ * „überfällig" hier gelesen wird. Ohne Knoten (Plan inzwischen geändert) bleibt
+ * der blanke Text.
+ */
+function KnotenLabel({ knoten, className, children }: {
+  knoten: MeilensteinKnoten | undefined;
+  className: string;
+  children: React.ReactNode;
+}): React.ReactElement {
+  if (!knoten) return <span className={className}>{children}</span>;
+  return (
+    <QuellSpaltenTooltip erklaere={idx => knotenQuellen(knoten, idx)} wrapperClassName={className}>
+      <span className="cursor-help">{children}</span>
+    </QuellSpaltenTooltip>
+  );
+}
+
+function PunktZeile({ p, knoten, eingerueckt, onOeffnen }: {
   p: WochenPunkt;
+  /** Der Plan-Knoten des Punktes — für die Quellspalten im Tooltip. */
+  knoten: MeilensteinKnoten | undefined;
   /** Als Kind einer Gruppe: eingerückt, ohne Akronym (steht in der Gruppenzeile). */
   eingerueckt?: boolean;
   onOeffnen: () => void;
@@ -71,9 +92,9 @@ function PunktZeile({ p, eingerueckt, onOeffnen }: {
         </span>
       )}
       <span className="shrink-0 text-[10.5px] font-mono text-[var(--tf-text-tertiary)]">{p.nummer}</span>
-      <span className="flex-1 min-w-0 truncate text-[12px] text-[var(--tf-text-secondary)]" title={p.label}>
+      <KnotenLabel knoten={knoten} className="flex-1 min-w-0 truncate text-[12px] text-[var(--tf-text-secondary)]">
         {p.label}
-      </span>
+      </KnotenLabel>
       <span className="shrink-0 text-[11px] text-[var(--tf-text-tertiary)]">
         Soll {formatDatum(p.sollDatum)}
       </span>
@@ -95,8 +116,9 @@ function PunktZeile({ p, eingerueckt, onOeffnen }: {
   );
 }
 
-function GruppenZeile({ gruppe, offen, onToggle, onOeffnen }: {
+function GruppenZeile({ gruppe, knotenById, offen, onToggle, onOeffnen }: {
   gruppe: VerbundGruppe;
+  knotenById: ReadonlyMap<string, MeilensteinKnoten>;
   offen: boolean;
   onToggle: () => void;
   onOeffnen: () => void;
@@ -128,9 +150,12 @@ function GruppenZeile({ gruppe, offen, onToggle, onOeffnen }: {
           >
             {gruppe.akronym}
           </span>
-          <span className="flex-1 min-w-0 truncate text-[12px] text-[var(--tf-text-secondary)]">
+          <KnotenLabel
+            knoten={knotenById.get(d.knotenId)}
+            className="flex-1 min-w-0 truncate text-[12px] text-[var(--tf-text-secondary)]"
+          >
             {wortlaut} <span className="font-mono text-[10.5px]">{d.nummer}</span> {d.label}
-          </span>
+          </KnotenLabel>
           <span className="shrink-0 text-[11px] text-[var(--tf-text-tertiary)]">
             Soll {formatDatum(d.sollDatum)}
           </span>
@@ -164,7 +189,9 @@ function GruppenZeile({ gruppe, offen, onToggle, onOeffnen }: {
       {offen && (
         <div className="flex flex-col gap-0.5 py-1">
           {gruppe.punkte.map(p => (
-            <PunktZeile key={p.knotenId} p={p} eingerueckt onOeffnen={onOeffnen} />
+            <PunktZeile
+              key={p.knotenId} p={p} knoten={knotenById.get(p.knotenId)} eingerueckt onOeffnen={onOeffnen}
+            />
           ))}
         </div>
       )}
@@ -172,11 +199,12 @@ function GruppenZeile({ gruppe, offen, onToggle, onOeffnen }: {
   );
 }
 
-function Gruppe({ titel, sektion, punkte, gruppiert, offene, onToggle, onOeffnen }: {
+function Gruppe({ titel, sektion, punkte, knotenById, gruppiert, offene, onToggle, onOeffnen }: {
   titel: string;
   /** Aufklapp-Zustand je Sektion getrennt — ein Verbund kann in beiden stehen. */
   sektion: string;
   punkte: WochenPunkt[];
+  knotenById: ReadonlyMap<string, MeilensteinKnoten>;
   gruppiert: boolean;
   offene: ReadonlySet<string>;
   onToggle: (schluessel: string) => void;
@@ -201,7 +229,7 @@ function Gruppe({ titel, sektion, punkte, gruppiert, offene, onToggle, onOeffnen
       {gruppiert
         ? verbuende.map(g => (
           <GruppenZeile
-            key={g.verbundId} gruppe={g}
+            key={g.verbundId} gruppe={g} knotenById={knotenById}
             offen={offene.has(`${sektion}:${g.verbundId}`)}
             onToggle={() => onToggle(`${sektion}:${g.verbundId}`)}
             onOeffnen={() => onOeffnen(g.verbundId)}
@@ -209,7 +237,7 @@ function Gruppe({ titel, sektion, punkte, gruppiert, offene, onToggle, onOeffnen
         ))
         : punkte.map(p => (
           <PunktZeile
-            key={`${p.verbundId}:${p.knotenId}`} p={p}
+            key={`${p.verbundId}:${p.knotenId}`} p={p} knoten={knotenById.get(p.knotenId)}
             onOeffnen={() => onOeffnen(p.verbundId)}
           />
         ))}
@@ -257,6 +285,7 @@ export function DieseWocheTab({ zeilen, plan, meineTokens, meineTokensAnzeige, s
   /** Schneidet gerade ein Filter die Liste? Dann darf die Leere nichts Absolutes sagen. */
   const gefiltert = nurMeine && hatKuerzel;
 
+  const knotenById = useMemo(() => new Map(plan.knoten.map(k => [k.id, k])), [plan.knoten]);
   const ueberfaellig = useMemo(() => punkte.filter(p => p.zustand === 'gerissen'), [punkte]);
   const faellig = useMemo(() => punkte.filter(p => p.zustand === 'faellig'), [punkte]);
   const oeffneVerbund = (id: string): void => navigate('antraege', { selectedId: id });
@@ -296,12 +325,12 @@ export function DieseWocheTab({ zeilen, plan, meineTokens, meineTokensAnzeige, s
       ) : (
         <>
           <Gruppe
-            titel="Überfällig" sektion="ueberfaellig" punkte={ueberfaellig} gruppiert={gruppiert}
-            offene={offene} onToggle={toggleVerbund} onOeffnen={oeffneVerbund}
+            titel="Überfällig" sektion="ueberfaellig" punkte={ueberfaellig} knotenById={knotenById}
+            gruppiert={gruppiert} offene={offene} onToggle={toggleVerbund} onOeffnen={oeffneVerbund}
           />
           <Gruppe
-            titel="Diese Woche fällig" sektion="faellig" punkte={faellig} gruppiert={gruppiert}
-            offene={offene} onToggle={toggleVerbund} onOeffnen={oeffneVerbund}
+            titel="Diese Woche fällig" sektion="faellig" punkte={faellig} knotenById={knotenById}
+            gruppiert={gruppiert} offene={offene} onToggle={toggleVerbund} onOeffnen={oeffneVerbund}
           />
         </>
       )}

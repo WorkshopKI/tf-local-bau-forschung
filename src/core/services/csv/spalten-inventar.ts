@@ -17,6 +17,7 @@
  *
  * Rein: keine IO. Die Schemas reicht der Aufrufer herein.
  */
+import { normCode } from './status-datum-gruppen';
 import type { CsvSchema } from './types';
 
 /** Welche Operatoren zu einem Feld passen. */
@@ -26,6 +27,61 @@ export type SpaltenTyp = 'datum' | 'wert';
 export interface RohSpalte {
   code: string;
   label: string;
+}
+
+/** Ein Treffer im Inventar: die Spalte und das Programm, dessen Schema sie mappt. */
+interface Treffer {
+  spalte: RohSpalte;
+  programmId: string;
+}
+
+interface Sammlung {
+  /** Kanonischer oder Custom-Key → die Spalten, die in ihn schreiben. */
+  jeFeld: Map<string, Treffer[]>;
+  /** Roher Spalten-Code (`normCode`-Form) → die Spalte selbst. */
+  jeCode: Map<string, Treffer[]>;
+  programme: Set<string>;
+}
+
+/**
+ * EIN Durchgang über alle Mappings, aus dem beide Fragen beantwortet werden:
+ * „woraus entsteht dieses Feld?" (`rohSpaltenJeFeld`) und „welche Quellspalten
+ * stehen hinter dieser feldId, gleich in welcher Schreibweise?"
+ * (`baueQuellSpaltenIndex`). Zwei eigene Schleifen liefen bei der ersten
+ * Mapping-Feinheit auseinander — genau das ist dem Tooltip der Fördertabelle
+ * bis v4.121 passiert.
+ */
+function sammle(schemas: readonly CsvSchema[]): Sammlung {
+  const jeFeld = new Map<string, Treffer[]>();
+  const jeCode = new Map<string, Treffer[]>();
+  const programme = new Set<string>();
+  const merke = (m: Map<string, Treffer[]>, key: string, t: Treffer): void => {
+    const liste = m.get(key) ?? [];
+    if (liste.some(x => x.spalte.code === t.spalte.code && x.programmId === t.programmId)) return;
+    liste.push(t);
+    m.set(key, liste);
+  };
+  for (const schema of schemas) {
+    programme.add(schema.programm_id);
+    for (const [spalte, entry] of Object.entries(schema.column_mapping ?? {})) {
+      if (!entry || entry.ignore) continue;
+      const t: Treffer = {
+        spalte: { code: spalte, label: entry.label?.trim() || '' },
+        programmId: schema.programm_id,
+      };
+      const feld = entry.canonical?.trim() || entry.custom?.trim();
+      if (feld) merke(jeFeld, feld, t);
+      merke(jeCode, normCode(spalte), t);
+    }
+  }
+  return { jeFeld, jeCode, programme };
+}
+
+/** Die Spalten eines Treffer-Satzes, je Code einmal — der erste Treffer gewinnt. */
+function eindeutig(treffer: readonly Treffer[]): RohSpalte[] {
+  const out: RohSpalte[] = [];
+  for (const t of treffer) if (!out.some(s => s.code === t.spalte.code)) out.push(t.spalte);
+  return out;
 }
 
 /**
@@ -51,19 +107,64 @@ export interface RohSpalte {
 export function rohSpaltenJeFeld(
   schemas: readonly CsvSchema[],
 ): Map<string, RohSpalte[]> {
-  const out = new Map<string, RohSpalte[]>();
-  for (const schema of schemas) {
-    for (const [spalte, entry] of Object.entries(schema.column_mapping ?? {})) {
-      if (!entry || entry.ignore) continue;
-      const feld = entry.canonical?.trim() || entry.custom?.trim();
-      if (!feld) continue;
-      const liste = out.get(feld) ?? [];
-      if (liste.some(f => f.code === spalte)) continue;
-      liste.push({ code: spalte, label: entry.label?.trim() || '' });
-      out.set(feld, liste);
-    }
-  }
-  return out;
+  const { jeFeld } = sammle(schemas);
+  return new Map([...jeFeld].map(([feld, treffer]) => [feld, eindeutig(treffer)]));
+}
+
+/** Was hinter einer `feldId` steht. */
+export interface QuellSpaltenAuskunft {
+  /** Die rohen CSV-Spalten, aus denen das Feld liest — je Code einmal. */
+  spalten: RohSpalte[];
+  /**
+   * Programme, deren Schemas das Feld NICHT mappen: dort bleibt es leer, und
+   * eine Bedingung darauf trifft nie. Leer, wenn alle es mappen — oder wenn es
+   * gar keine Quellspalte gibt; dann ist `spalten` leer, und DAS ist die Aussage.
+   */
+  fehltIn: string[];
+}
+
+export interface QuellSpaltenIndex {
+  quellSpaltenVon: (feldId: string) => QuellSpaltenAuskunft;
+  /** Anzeigename einer `feldId` aus dem Schema-Label (einzeilig); sonst die `feldId`. */
+  labelVon: (feldId: string) => string;
+  /** Alle Programme, deren Schemas der Index kennt (sortiert). */
+  programme: readonly string[];
+}
+
+/**
+ * Der Nachschlage-Index für die **Quellspalten** (CONTEXT.md) — eine `feldId`
+ * in jeder der drei Schreibweisen, die im Repo vorkommen:
+ *
+ * - kanonischer Key (`antragsdatum`, `status`) → alle Spalten, die ihn speisen,
+ * - Custom-Key (`alle_an_trage_da`) → ebenso,
+ * - roher Spalten-Code (`D_XTE`, `T_XPC+`, auch als `d_xte`) → die Spalte selbst.
+ *
+ * Kanonisch/Custom hat Vorrang vor dem Code: eine Katalog-Fassung nennt ein
+ * Feld mal so, mal so (`status` neben `D_AAE`), und dieselbe Frage — „woraus
+ * liest das?" — muss für beide dieselbe Art Antwort geben. Das ist die dritte
+ * Konvention neben `rohSpaltenJeFeld` (canonical|custom) und `csvSpaltenJeFeld`
+ * (canonical + Rohname); ein Index für alle drei statt einer vierten Kopie.
+ *
+ * Rein; der Aufrufer baut ihn einmal je Schema-Satz.
+ */
+export function baueQuellSpaltenIndex(schemas: readonly CsvSchema[]): QuellSpaltenIndex {
+  const { jeFeld, jeCode, programme } = sammle(schemas);
+  const alle = [...programme].sort((a, b) => a.localeCompare(b, 'de'));
+  const trefferVon = (feldId: string): Treffer[] =>
+    jeFeld.get(feldId) ?? jeCode.get(normCode(feldId)) ?? [];
+  return {
+    programme: alle,
+    quellSpaltenVon: feldId => {
+      const treffer = trefferVon(feldId);
+      if (treffer.length === 0) return { spalten: [], fehltIn: [] };
+      const mit = new Set(treffer.map(t => t.programmId));
+      return { spalten: eindeutig(treffer), fehltIn: alle.filter(p => !mit.has(p)) };
+    },
+    labelVon: feldId => {
+      const label = eindeutig(trefferVon(feldId)).find(s => s.label)?.label;
+      return label ? einzeiligesLabel(label) : feldId;
+    },
+  };
 }
 
 /**
@@ -108,6 +209,12 @@ export interface SpaltenEintrag {
    * `feldId` schon der Code.
    */
   quellCodes: string[];
+  /**
+   * Die Quellspalten samt Beschriftung — bei `quelle: 'kanonisch'` die Spalten
+   * hinter `quellCodes`, bei `quelle: 'csv'` die Spalte selbst. Optional, weil
+   * synthetische Einträge (Tests, Todo-Feldvorrat) ohne Schema entstehen.
+   */
+  quellSpalten?: RohSpalte[];
 }
 
 /**
@@ -139,6 +246,12 @@ export function baueSpaltenKatalog(schemas: readonly CsvSchema[]): SpaltenEintra
         bestehend.schemaAnzahl++;
         continue;
       }
+      // Über ALLE Schemas, nicht nur über das gerade betrachtete: zwei
+      // Programme dürfen dasselbe kanonische Feld aus verschiedenen Spalten
+      // speisen, und dann gehören beide Codes in die Herkunft.
+      const quellSpalten = kanonisch
+        ? (rohJeKanonisch.get(kanonisch) ?? [])
+        : [{ code: spalte, label: entry.label?.trim() || '' }];
       perFeld.set(feldId, {
         feldId,
         label: entry.label?.trim() || (kanonisch ? kanonisch : spalte),
@@ -146,10 +259,8 @@ export function baueSpaltenKatalog(schemas: readonly CsvSchema[]): SpaltenEintra
         quelle: kanonisch ? 'kanonisch' : 'csv',
         schemaAnzahl: 1,
         programmAnzahl: 1,
-        // Über ALLE Schemas, nicht nur über das gerade betrachtete: zwei
-        // Programme dürfen dasselbe kanonische Feld aus verschiedenen Spalten
-        // speisen, und dann gehören beide Codes in die Herkunft.
-        quellCodes: kanonisch ? (rohJeKanonisch.get(kanonisch) ?? []).map(r => r.code) : [],
+        quellCodes: kanonisch ? quellSpalten.map(r => r.code) : [],
+        quellSpalten,
       });
     }
   }

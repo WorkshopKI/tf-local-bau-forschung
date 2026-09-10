@@ -260,7 +260,9 @@ wird.
   erste zutreffende Regel gewinnt. Die Reihenfolge IST das Ergebnis, deshalb
   wird sie über Pfeile gesetzt, nicht per Ziehen. Jede Regel liest sich als
   deutscher Satz („WENN Status 71 und D_ARQ leer → To-do «RNE ergänzen»,
-  zuständig AB").
+  zuständig AB"). Beim Überfahren der Bedingung nennt ein Tooltip ihre
+  **Quellspalten**: je Feld Code und Label der CSV-Spalte, aus der es liest,
+  und die Programme, die das Feld nicht mappen (dort trifft die Regel nie).
 
   - Der Reiter heißt bewusst nicht mehr „To-dos": wer das liest, erwartet seine
     Aufgaben, und die stehen im Vorgangs-Board. Von dort führt ein Verweis

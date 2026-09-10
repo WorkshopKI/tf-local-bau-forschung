@@ -50,6 +50,15 @@ Die **Feldlisten werden nicht aufgeschrieben, sondern aufgelöst**: `baueSpalten
 
 Guard `spalten-hilfe-abdeckung` ([conventions-ui.test.ts](../../src/__tests__/conventions-ui.test.ts)) hält die Vollständigkeit **in beide Richtungen**: Spalte ohne Satz und Satz ohne Spalte fallen beide auf.
 
+**Bedingungen und Felder außerhalb der Tabelle nennen ihre Quellspalten** (v6.50). „TIB gefüllt UND BIB gefüllt" sagt nicht, welche CSV-Spalte dahinter steht, und genau dort entstehen falsche Regeln. Die Bausteine:
+
+- Der Index ist `baueQuellSpaltenIndex` ([spalten-inventar.ts](../../src/core/services/csv/spalten-inventar.ts)). Er löst eine `feldId` in allen drei Schreibweisen des Repos auf: kanonisch, custom und roher Code. Dazu nennt er die Programme, die das Feld **nicht** mappen. `rohSpaltenJeFeld` ist eine Projektion desselben Durchgangs, sodass es keine zweite Schleife gibt.
+- Die Erklärung liefern `bedingungQuellen` / `feldQuellen` ([bedingung-quellen.ts](../../src/core/status/bedingung-quellen.ts)) und `knotenQuellen` ([quellen.ts](../../src/core/meilensteine/quellen.ts)). Die Felder kommen aus `bedingungFeldRefs`, der Satz aus `bedingungSatz`. Für Meilensteine kommt die Verbund-Regel dazu: erfüllt, sobald ein Teilvorhaben die Bedingung trägt; der Ist-Termin ist das früheste Datum über die Teilvorhaben.
+- Die Anzeige übernimmt `QuellSpaltenTooltip` ([components/quellspalten](../../src/components/quellspalten/QuellSpaltenTooltip.tsx)). Der Inhalt hängt sich erst beim Überfahren ein und lädt dann den Index (`useQuellSpaltenIndex`, Schemas aller Programme). Eine Liste mit tausend Zeilen liest deshalb nichts, bis jemand hinsieht. Gerendert wird mit `SpaltenHilfeInhalt`, gruppiert nach `felder[].fuer`.
+- Der `FeldWaehler` zeigt am zugeklappten Auslöser `← D_AAE` inline und die Quellspalten mit Label im nativen `title`. Ein Portal-Tooltip bliebe über dem offenen Popover stehen.
+
+Eingebaut in: Meilenstein-Konfiguration (Zusammenfassungszeile, Gesamtfrist), Meilenstein-Leiste, „Diese Woche", To-do-Regeln und To-do-Herleitung („warum?"). Guard `quellspalten-an-bedingungen` ([conventions-ui.test.ts](../../src/__tests__/conventions-ui.test.ts)): Wer eine Bedingung als Satz rendert, rendert auch ihre Quellspalten.
+
 **Icon-Vokabular** (v3.24, aus der Feedback-Nachlese — dieselbe Bedeutung, dieselbe Glyphe):
 
 | Bedeutung | Icon | Nicht verwechseln mit |

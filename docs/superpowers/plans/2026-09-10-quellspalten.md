@@ -53,18 +53,18 @@ TypeScript, React 19, Vitest (node). Tooltip = `Tooltip` aus `@/components/ui/To
 - [x] `anker` neben `antragsdatum` (Jahresfilter bleibt beim Antragsdatum); `BEWERTUNGS_VERSION` 3
 - [x] Texte: „ab wirksamem Eingang", `ANKER_ERKLAERUNG`, `VOR_EINGANG_HINWEIS`
 - [x] Gepaarte Messung auf denselben Daten → meilensteine.md
-- [ ] Gate, Build, Commit
+- [x] Gate, Build, Commit (`0b1e770b`)
 
-## Stufe B — Baustein + Meilensteine + To-do
+## Stufe B — Baustein + Meilensteine + To-do (v6.50)
 
-- [ ] `baueQuellSpaltenIndex` + Tests; `rohSpaltenJeFeld` als Projektion (bestehende Tests grün)
-- [ ] `bedingungQuellen` + Tests (inkl. `datumNachFeld` mit zwei Feldern)
-- [ ] `SpaltenHilfe.felder[].fuer` + Gruppierung in `SpaltenHilfeInhalt`
-- [ ] Konfigurations-Zeile, `FeldWaehler`-Auslöser (inline `← Code`), Gesamtfrist
-- [ ] Übersicht, Leiste, Diese Woche
-- [ ] `TodoRegelSatz`, `TodoHerleitung`
-- [ ] Guard (Ist-Wert messen, ROT sehen)
-- [ ] Abnahme dev:local, Doku (ui-muster, feedback-kontext), Gate, Build, Commit
+- [x] `baueQuellSpaltenIndex` + Tests; `rohSpaltenJeFeld` als Projektion (bestehende Tests grün)
+- [x] `bedingungQuellen` + Tests (inkl. `datumNachFeld` mit zwei Feldern)
+- [x] `SpaltenHilfe.felder[].fuer` + Gruppierung in `SpaltenHilfeInhalt`
+- [x] Konfigurations-Zeile, `FeldWaehler`-Auslöser (inline `← Code`), Gesamtfrist
+- [x] Leiste, Diese Woche — die Übersicht bekommt den Tooltip **nicht** an jedem Zustandspunkt (≈ 2 000 Zeilen × Knoten), sondern über die Leiste im Detailbereich
+- [x] `TodoRegelSatz`, `TodoHerleitung`
+- [x] Guard (Ist-Wert 2 Dateien, beide abgedeckt → Verbot; mit Wegwerf-Datei ROT gesehen)
+- [x] Abnahme dev:local (Codes + Labels gegen `column_mapping`, `fehler()` = 0), Doku (ui-muster, feedback-kontext), Gate, Build, Commit
 
 ## Stufe C — restliche Flächen
 

@@ -19,6 +19,14 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v6.50 — 2026-09
+
+### Neu
+- Fristen & Meilensteine und die Vorgangs-Regeln zeigen jetzt, aus welchen CSV-Spalten eine Bedingung liest. Beim Überfahren von „TIB gefüllt UND BIB gefüllt" erscheinen Spaltencode und Beschriftung jedes Feldes. Mappt ein Programm eines der Felder nicht, steht das mit dabei.
+- Auch das „warum?" einer Aufgabe nennt zu jedem gelesenen Feld seine Quellspalte.
+### Verbesserungen
+- Der Feld-Wähler der Meilensteine zeigt die Quellspalte direkt hinter dem Feldnamen, zum Beispiel „Antrags eingang · antragsdatum ← D_AAE".
+
 ## v6.49 — 2026-09
 
 ### Verbesserungen

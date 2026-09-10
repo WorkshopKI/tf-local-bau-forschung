@@ -210,6 +210,17 @@ export function FeldWaehler({
     ? feldBeschriftung(gewaehlt)
     : (wert === '' && leerOption !== undefined ? leerOption : `${wert} (nicht gemappt)`);
 
+  // Die Quellspalten des gewählten Feldes: kurz in der Zeile (wie in der Liste
+  // darunter), vollständig mit Beschriftung im Tooltip. Ein nativer `title`
+  // statt des Portal-Tooltips, weil der Auslöser ein Popover öffnet — ein
+  // Portal-Tooltip bliebe über der offenen Liste stehen.
+  const quelleKurz = gewaehlt ? herkunft(gewaehlt) : '';
+  const quellTitel = gewaehlt?.quellSpalten?.length
+    ? `\nSpeist sich aus: ${gewaehlt.quellSpalten
+      .map(s => (s.label && s.label !== s.code ? `${s.code} (${einzeiligesLabel(s.label)})` : s.code))
+      .join(', ')}`
+    : '';
+
   let index = -1;
   const naechsterIndex = (): number => { index += 1; return index; };
 
@@ -220,7 +231,7 @@ export function FeldWaehler({
           type="button"
           disabled={disabled}
           aria-label={ariaLabel}
-          title={ausloeserText}
+          title={`${ausloeserText}${quellTitel}`}
           className={cn(
             'flex items-center gap-1 rounded px-1.5 py-0.5 text-[12px] text-left',
             'bg-[var(--tf-bg)] text-[var(--tf-text)] cursor-pointer',
@@ -231,6 +242,11 @@ export function FeldWaehler({
           style={{ border: '0.5px solid var(--tf-border)' }}
         >
           <span className="truncate">{ausloeserText}</span>
+          {quelleKurz && (
+            <span className="shrink-0 font-mono text-[10.5px] text-[var(--tf-text-tertiary)]">
+              ← {quelleKurz}
+            </span>
+          )}
           <ChevronsUpDown size={11} className="shrink-0 text-[var(--tf-text-tertiary)]" />
         </button>
       </PopoverTrigger>

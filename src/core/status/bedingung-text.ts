@@ -32,6 +32,15 @@ function aufloeser(quelle: FeldLabelQuelle): (feldId: string) => string {
   return typeof quelle === 'function' ? quelle : (id: string) => feldLabel(quelle, id);
 }
 
+/**
+ * Der Namens-Auflöser als Funktion — für Aufrufer, die neben dem Satz auch die
+ * einzelnen Felder benennen (die Quellspalten-Erklärung). Dieselbe Auflösung
+ * wie im Satz; sonst hieße ein Feld im Tooltip anders als im Text daneben.
+ */
+export function labelAufloeser(quelle: FeldLabelQuelle): (feldId: string) => string {
+  return aufloeser(quelle);
+}
+
 function tage(n: number): string {
   return `${n >= 0 ? '+' : ''}${n} T`;
 }

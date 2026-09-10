@@ -64,6 +64,11 @@
  *     core/nav/rueckwegSatz.ts. Ein neues Plugin ohne Eintrag faellt hier auf
  *     (sonst stuende „Zurueck zu Suche" statt „zur Suche"), eine Fuegung ohne
  *     Seite ebenso.
+ *   - quellspalten-an-bedingungen       → jede Bedingung, die als Satz auf dem
+ *     Bildschirm steht, bietet ihre Quellspalten an (v6.50): „TIB gefuellt" sagt
+ *     nicht, welche CSV-Spalte dahinter steht, und genau dort entstehen falsche
+ *     Regeln. Wer bedingungSatz/bedingungAlsText rendert, rendert auch
+ *     bedingungQuellen/knotenQuellen/feldQuellen oder den QuellSpaltenTooltip.
  */
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
@@ -1494,6 +1499,41 @@ describe('spalten-hilfe-abdeckung (jeder Spaltenkopf erklaert seine Herkunft, v4
         + `  FELD_SPALTEN     — liest genau ein projiziertes Feld gleichen Namens\n`
         + `                     (fehlt das Mapping, bleibt die Zelle garantiert leer)\n`
         + `  ABGELEITETE_SPALTEN — rechnet, verdichtet oder laedt aus zweiter Quelle`,
+      );
+    }
+  });
+});
+
+describe('quellspalten-an-bedingungen (jede gezeigte Bedingung nennt ihre Quellspalten, v6.50)', () => {
+  // Ist-Wert bei Einfuehrung (10.09.2026): zwei .tsx rendern eine Bedingung als
+  // Satz — TodoRegelSatz und KonfigurationTab —, beide jetzt mit Quellspalten.
+  // Also Verbot statt Ratsche.
+  const RENDERT = /\bbedingung(?:Satz|AlsText)\(/;
+  const ERKLAERT = /\b(?:bedingungQuellen|knotenQuellen|feldQuellen)\(|<QuellSpaltenTooltip\b/;
+
+  it('Probe und Gegenprobe der Muster', () => {
+    expect(RENDERT.test('{bedingungSatz(r.bedingung, version)}')).toBe(true);
+    expect(RENDERT.test('teile.push(bedingungAlsText(b, v))')).toBe(true);
+    expect(RENDERT.test('import { bedingungSatz } from')).toBe(false);
+    expect(ERKLAERT.test('erklaere={idx => bedingungQuellen(r.bedingung, idx, version)}')).toBe(true);
+    expect(ERKLAERT.test('<QuellSpaltenTooltip erklaere={x}>')).toBe(true);
+    expect(ERKLAERT.test('import { bedingungQuellen } from')).toBe(false);
+  });
+
+  it('jede .tsx, die eine Bedingung als Satz zeigt, bietet ihre Quellspalten an', () => {
+    const ohne = ALL_TS_FILES
+      .filter(f => f.endsWith('.tsx') && !f.includes(`${sep}__tests__${sep}`))
+      .filter(f => {
+        const src = readFileSync(f, 'utf8');
+        return RENDERT.test(src) && !ERKLAERT.test(src);
+      })
+      .map(f => `  ${relPath(f)}`);
+    if (ohne.length > 0) {
+      expect.fail(
+        `Bedingung ohne Quellspalten:\n${ohne.join('\n')}\n\n`
+        + 'Den Satz in <QuellSpaltenTooltip erklaere={idx => bedingungQuellen(b, idx, quelle)}>\n'
+        + 'huellen (src/components/quellspalten). Die Spalten kommen aus dem Schema —\n'
+        + 'eine abgeschriebene Liste waere ab der naechsten Mapping-Aenderung still falsch.',
       );
     }
   });

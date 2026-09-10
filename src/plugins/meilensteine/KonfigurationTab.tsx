@@ -26,15 +26,17 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ToggleChip } from '@/components/ui/ToggleChip';
 import { FeldWaehler, type FeldWaehlerVorschlag } from '@/components/ui/FeldWaehler';
+import { QuellSpaltenTooltip } from '@/components/quellspalten';
 import { TfTree } from '@/components/tree';
 import { ContextMenuItem, ContextMenuLabel, ContextMenuSeparator } from '@/components/ui/context-menu';
 import {
-  aendereKnoten, darfUmhaengen, entferneKnoten, fuegeKnotenHinzu, haengeKnotenUm,
-  hebeKnotenAn, knotenOhneBedingung, planEndeTage, schlageBedingungVor, schlageFelderVor,
-  verschiebeKnoten,
+  ANKER_SPALTEN, aendereKnoten, darfUmhaengen, entferneKnoten, fuegeKnotenHinzu, haengeKnotenUm,
+  hebeKnotenAn, knotenOhneBedingung, knotenQuellen, planEndeTage, schlageBedingungVor,
+  schlageFelderVor, verschiebeKnoten,
   type MeilensteinKnoten, type SpaltenEintrag,
 } from '@/core/meilensteine';
 import { bedingungIstLeer, bedingungSatz } from '@/core/status';
+import { feldQuellen } from '@/core/status/bedingung-quellen';
 import { berechneAutoHoehe } from '@/core/utils/autoGrowHoehe';
 import { ANTRAGSTYP_BUCKETS } from '@/core/utils/vb-phase-mappings';
 import { BedingungEditor } from './BedingungEditor';
@@ -87,13 +89,18 @@ function KnotenZusammenfassung({ knoten, alle, spalten }: {
 
   if (teile.length === 0) return null;
   const voll = teile.join(' · ');
+  // Der Tooltip nennt die Quellspalten der Bedingung und des Ist-Termins —
+  // „TIB gefüllt" sagt nicht, welche CSV-Spalte dahinter steht, und genau dort
+  // entstehen die falschen Regeln. Die Feldnamen wie im Satz daneben (`labelVon`).
   return (
-    <span
-      className="min-w-0 flex-1 truncate text-[11.5px] text-[var(--tf-text-secondary)]"
-      title={voll}
+    <QuellSpaltenTooltip
+      erklaere={idx => knotenQuellen(knoten, idx, labelVon)}
+      wrapperClassName="min-w-0 flex-1 truncate"
     >
-      {voll}
-    </span>
+      <span className="block truncate cursor-help text-[11.5px] text-[var(--tf-text-secondary)]">
+        {voll}
+      </span>
+    </QuellSpaltenTooltip>
   );
 }
 
@@ -479,11 +486,15 @@ export function KonfigurationTab({
   return (
     <div className="flex flex-col gap-3 pt-4">
       <div className="flex items-center gap-3 flex-wrap">
-        <label
-          className="flex items-center gap-1.5 text-[12.5px] text-[var(--tf-text-secondary)]"
-          title={ANKER_ERKLAERUNG}
-        >
-          Gesamtfrist ab wirksamem Eingang
+        <label className="flex items-center gap-1.5 text-[12.5px] text-[var(--tf-text-secondary)]">
+          {/* Die Quellspalten des Ankers — dieselben Codes, die die Rechnung liest. */}
+          <QuellSpaltenTooltip
+            erklaere={idx => feldQuellen(
+              [ANKER_SPALTEN.antragseingang, ANKER_SPALTEN.alleAntraegeDa], idx, ANKER_ERKLAERUNG,
+            )}
+          >
+            <span className="cursor-help">Gesamtfrist ab wirksamem Eingang</span>
+          </QuellSpaltenTooltip>
           <input
             type="number" min={1}
             value={gesamtfristTage}

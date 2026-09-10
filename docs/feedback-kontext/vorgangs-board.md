@@ -66,7 +66,9 @@ Verfügung.
 - **Zeile**: Aktenzeichen (Klick öffnet den Verbund), Titel, Status, zuständige
   Rolle bzw. „wartet auf …", und ein **„warum?"** — es klappt die treffende Regel
   samt der gelesenen Feldwerte auf. Ohne diese Herleitung wäre ein To-do eine
-  Behauptung.
+  Behauptung. Jedes gelesene Feld steht mit Namen, Code und — wo sie anders
+  heißt — seiner Quellspalte da; der Tooltip daran nennt Code und Label der
+  CSV-Spalte.
   - Im Detail steht oben links **„Zurück zum Vorgangs-Board"**: der Weg zurück auf genau
     diese Liste, mit allen Filtern und Reitern, wie sie waren. Auch das Schließen
     des Details (×) führt dorthin, nicht in die Förderanträge-Tabelle.
