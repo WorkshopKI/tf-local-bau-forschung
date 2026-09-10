@@ -1,0 +1,2230 @@
+{
+  "meta": {
+    "appName": "TeamFlow Local",
+    "pageTitle": "TeamFlow Local Doku-Dashboard",
+    "repo": "WorkshopKI/tf-local-bau-forschung",
+    "curatedAt": "2026-09-10",
+    "curatedFor": "v6.48.0",
+    "updateRhythm": "monatlich (1. des Monats) über den Claude-Code-Skill docu-dashboard"
+  },
+  "intro": {
+    "tagline": "Eine Browser-App ohne Server für ein Förderantrags-Team: Anträge aus dem Fachsystem lesen, Vorgänge verstehen, mit KI suchen, Gutachten und Nachforderungen entwerfen — alles aus einer HTML-Datei auf dem Netzlaufwerk.",
+    "beginner": [
+      "TeamFlow Local ist die Arbeitsoberfläche eines Teams, das Förderanträge (ZIM) bearbeitet. Die App wird nicht installiert und läuft nicht auf einem Server: Sie ist eine einzige HTML-Datei, die per Doppelklick im Browser aufgeht. Alle Daten liegen in einem Netzlaufwerk-Ordner, den die App einmal freigeben lässt.",
+      "Die Anträge selbst legt niemand in der App an. Sie kommen jede Nacht als CSV-Export aus dem Fachsystem C16, werden beim App-Start eingelesen und als Verbünde (mehrere Teilvorhaben unter einer Projektbeschreibung) gezeigt. Die App erklärt Status, warnt bei Stillstand, findet Anträge über eine KI-Suche und hilft beim Schreiben von Gutachten — der amtliche Status bleibt immer der aus dem Fachsystem."
+    ],
+    "dev": [
+      "React 19 + TypeScript, Vite-Single-File-Build, Zustand-Stores, IndexedDB als Cache und File System Access API auf den SMB-Daten-Share als Source of Truth. Jedes Feature ist ein Plugin mit Manifest; Sichtbarkeit läuft über vier Achsen (Flag, Modul-Schloss, Beta/Experte, Kurator). KI-Läufe mit Dokumentinhalten gehen ausschließlich an die interne KI über eine Bookmarklet-Bridge."
+    ]
+  },
+  "constraints": [
+    {
+      "k": "file://",
+      "v": "Kein HTTP-Server, kein Backend, kein Node zur Laufzeit — die App läuft aus einer Datei."
+    },
+    {
+      "k": "Ein Bundle",
+      "v": "vite-plugin-singlefile baut alles in eine index.html (~19 MB nach Post-Build-Strip)."
+    },
+    {
+      "k": "Keine Chrome-Flags",
+      "v": "Standard-Chrome/Edge genügt; Worker nur als ?worker&inline (Blob-URL)."
+    },
+    {
+      "k": "Kein relatives fetch",
+      "v": "Alle Daten über IndexedDB oder File System Access API."
+    },
+    {
+      "k": "IDB je Variante",
+      "v": "DB-Name teamflow-<outputFilename>; Share = Wahrheit, IDB = Cache."
+    },
+    {
+      "k": "Vertrauensmodell",
+      "v": "Schutz clientseitig: Schreibpfade nur hinter Kurator-/Rollen-Passwort; Backups gegen Versehen."
+    }
+  ],
+  "flows": [
+    {
+      "id": "login",
+      "title": "App-Start & Anmeldung",
+      "kicker": "Vom Doppelklick bis zur Seitenleiste",
+      "summary": "Nach dem Öffnen der HTML-Datei arbeitet die App eine feste Kette von Vollbild-Schritten ab — Profil, Passwort, Ordner-Freigabe, persönliche Anmeldung. Jeder Schritt merkt sich sein Ergebnis, damit er beim nächsten Start übersprungen wird.",
+      "lanes": [
+        "Nutzer",
+        "App-Shell (React)",
+        "Core-Services",
+        "IndexedDB",
+        "Daten-Share (SMB)",
+        "Browser-Sitzung"
+      ],
+      "steps": [
+        {
+          "lane": 0,
+          "label": "Doppelklick auf zah-pl.html",
+          "beginner": "Die App ist eine einzige HTML-Datei auf dem Netzlaufwerk. Sie öffnet sich im Browser wie ein Dokument — ohne Installation und ohne Server. Ein Ladebildschirm mit Sekundenzähler erscheint sofort.",
+          "dev": {
+            "file": "index.html",
+            "fn": "#tf-loader · window.__tfLoaderCleanup",
+            "effect": "Loader-Overlay ist vor jedem JavaScript sichtbar; Statuszeile #tf-loader-status wird später vom Init-Effekt beschrieben."
+          },
+          "log": "index.html  →  #tf-loader sichtbar"
+        },
+        {
+          "lane": 1,
+          "label": "React-Root mounten",
+          "beginner": "Der Browser startet die eigentliche Anwendung.",
+          "dev": {
+            "file": "src/main.tsx",
+            "fn": "createRoot(...).render(<StrictMode><App/></StrictMode>)",
+            "effect": "App.tsx bekommt ErrorBoundary + StorageContext."
+          },
+          "log": "main.tsx  →  createRoot().render(<App/>)"
+        },
+        {
+          "lane": 2,
+          "label": "StorageService anlegen",
+          "beginner": "Die App richtet ihren Zugang zur lokalen Browser-Datenbank ein. Jede Build-Variante bekommt eine eigene Datenbank, damit sich Test- und Produktivstand nicht vermischen.",
+          "dev": {
+            "file": "src/core/App.tsx · src/config/runtime-config.ts",
+            "fn": "new StorageService() · getVariantDbName()",
+            "effect": "IDB-Name teamflow-<outputFilename> (z. B. teamflow-zah-pl). Nie der nackte Name 'teamflow'."
+          },
+          "log": "App.tsx  →  new StorageService()  [db: teamflow-zah-pl]"
+        },
+        {
+          "lane": 3,
+          "label": "IDB öffnen, Handles laden",
+          "beginner": "Die Datenbank wird geöffnet und die gemerkten Ordner-Verweise vom letzten Mal werden geladen — noch ohne Nachfrage beim Nutzer.",
+          "dev": {
+            "file": "src/core/services/storage/index.ts",
+            "fn": "StorageService.init()",
+            "effect": "idb.open() (Version 11, 21 Stores), navigator.storage.persist() best-effort, Directory-Handles nur per queryPermission."
+          },
+          "log": "storage/index.ts  →  idb.open()  v11 · queryPermission()"
+        },
+        {
+          "lane": 2,
+          "label": "Init-Kette",
+          "beginner": "Kleine Aufräum- und Vorbereitungsschritte: Statuskatalog laden, Listen-Projektion prüfen. Der Fortschritt steht im Ladebildschirm.",
+          "dev": {
+            "file": "src/core/App.tsx (Zeilen ~345–528)",
+            "fn": "migrateLegacyDmsSource · initProtokoll · initStatusKatalog · ensureListViewProjection",
+            "effect": "Blockiert einmalig ~5 s bei 13 k Anträgen, wenn die Slim-Projektion neu gebaut werden muss (LIST_VIEW_PROJECTION_VERSION = 9)."
+          },
+          "log": "App.tsx  →  initStatusKatalog() · ensureListViewProjection()"
+        },
+        {
+          "lane": 3,
+          "label": "Onboarding-Weiche",
+          "beginner": "Beim allerersten Start fragt ein Assistent Name, Kürzel und Lieblingsfarbe ab und bietet an, den persönlichen Ordner zu verbinden. Danach ist dieser Schritt erledigt.",
+          "dev": {
+            "file": "src/core/Onboarding.tsx",
+            "fn": "idb.get('onboarding-complete') → Onboarding · handleFinish",
+            "effect": "Ein Persist am Ende: idb.set('profile'), idb.set('onboarding-complete', true), applyThemeColor; Rettungskopie <pers>/ZAH/profile.json."
+          },
+          "log": "idb.get('onboarding-complete')  →  true  (übersprungen)"
+        },
+        {
+          "lane": 1,
+          "label": "App-Passwort-Wall?",
+          "beginner": "In den Varianten für Projektleitung und Entwicklung schützt ein Rollen-Passwort den Start. Solange der Browser-Tab offen ist, muss es nicht erneut eingegeben werden.",
+          "dev": {
+            "file": "src/core/hooks/useAppGateSession.ts",
+            "fn": "anmeldungSteht()",
+            "effect": "runtimeConfig.auth.required && sessionStorage['tf-app-gate'] !== 'unlocked' → AppPasswordGate rendert VOR dem StartupScreen."
+          },
+          "log": "useAppGateSession.ts  →  anmeldungSteht() = true"
+        },
+        {
+          "lane": 0,
+          "label": "Passwort eingeben",
+          "beginner": "Das Passwort selbst ist nirgends gespeichert. Beim Bauen der App wurde nur ein verschlüsselter Prüf-Schnipsel hinterlegt; lässt er sich mit dem getippten Passwort entschlüsseln, war es richtig.",
+          "dev": {
+            "file": "src/core/AppPasswordGate.tsx · infrastructure/app-password.ts · crypto.ts",
+            "fn": "verifyAnyPassword(pw) → verifyGegenEbenen(auth, moduleAuth, pw)",
+            "effect": "PBKDF2-SHA-256 (200 000 Iterationen) + AES-GCM-256; Sentinel {v:1, role}. Basis-Ebene ohne Rollenprüfung, Modul-Slots auslastung/kurator mit."
+          },
+          "log": "app-password.ts  →  deriveKey(PBKDF2 ×200000) · decrypt(AES-GCM)  ✓ role=pl"
+        },
+        {
+          "lane": 5,
+          "label": "Sitzung merken",
+          "beginner": "Ein Häkchen im Browser-Tab merkt sich die erfolgreiche Anmeldung. Ein Kurator-Passwort öffnet zusätzlich die Datenpflege für zwölf Stunden.",
+          "dev": {
+            "file": "src/core/hooks/useAppGateSession.ts · useKuratorSession.ts",
+            "fn": "setAppGateSession() · useKuratorSession.aktiviere(idb, name)",
+            "effect": "sessionStorage['tf-app-gate']='unlocked' (TTL = Tab). Kurator: IDB 'admin-session-meta', 12 h, Activity-Tracker verlängert, Minuten-Timer in der Shell beendet."
+          },
+          "log": "sessionStorage['tf-app-gate'] = 'unlocked'"
+        },
+        {
+          "lane": 1,
+          "label": "Daten-Share verbinden",
+          "beginner": "Die App braucht den Netzlaufwerk-Ordner mit den Team-Daten. Beim ersten Mal wählt man ihn im Browser-Dialog; der Ordner muss „ZAH“ heißen und die erwartete Struktur haben.",
+          "dev": {
+            "file": "src/core/App.tsx · WelcomeScreen.tsx · smb-handle/",
+            "fn": "refreshHandleGate(profile) → pickAndStoreDatenShareHandle · validateSelectedFolder",
+            "effect": "showDirectoryPicker({mode}) — readwrite nur mit canWriteDatenShare. Handle in IDB 'smb-handles' (Slot 'daten-share'); Name ≠ expectedFolderName → Rollback."
+          },
+          "log": "smb-handle/kern.ts  →  showDirectoryPicker()  →  idb['smb-handles'].daten-share"
+        },
+        {
+          "lane": 4,
+          "label": "Berechtigungen erneuern",
+          "beginner": "Aus Sicherheitsgründen verfällt die Erlaubnis für den Ordner beim Schließen des Browsers. Der Startbildschirm fragt sie deshalb Ordner für Ordner mit je einem Klick neu ab — oder läuft ohne Klick durch, wenn alles noch gilt.",
+          "dev": {
+            "file": "src/core/StartupScreen.tsx · components/GuidedGrantSteps.tsx · smb-handle/permissions.ts",
+            "fn": "listPendingGrants() → grantPending() → requestPermission()",
+            "effect": "Ein Prompt pro User-Gesture (Bug-Klasse 2). Reihenfolge Datenordner → Persönlicher Ordner → CSV-Quelle. Warm-Start: queryAllPermissions → applyRefreshResult → onReady()."
+          },
+          "log": "permissions.ts  →  requestPermission('daten-share')  granted"
+        },
+        {
+          "lane": 2,
+          "label": "MA-Login entscheiden",
+          "beginner": "In der Endnutzer-Variante gibt es keinen freien Kürzel-Eintrag: Wer die App nutzt, meldet sich mit einem persönlichen Passwort an — falls die Zugangsdatei auf dem Share existiert.",
+          "dev": {
+            "file": "src/core/App.tsx · zugang-config.ts",
+            "fn": "decideMaGate() → isZugangConfigured()",
+            "effect": "Nur mit features.maLogin (prod). Prüft _intern/auslastung-zugang.enc; fehlt sie, wird die Wall übersprungen."
+          },
+          "log": "App.tsx  →  decideMaGate()  [prod: fileExists(_intern/auslastung-zugang.enc)]"
+        },
+        {
+          "lane": 0,
+          "label": "Persönliches Passwort (prod)",
+          "beginner": "Die App weiß nicht, welcher Eintrag zu einem gehört, und probiert deshalb alle Einträge der verschlüsselten Liste durch — im Hintergrund, damit die Oberfläche flüssig bleibt. Der erste Treffer liefert das Kürzel.",
+          "dev": {
+            "file": "src/core/MaLoginGate.tsx · zugang-config.ts · zugang-worker.ts",
+            "fn": "session.login() → verifyPasswortAgainstAll() im Worker",
+            "effect": "Je Eintrag deriveKey(salt) + decrypt(verschluesseltesKuerzel), Early-Exit. Zurück kommt nur {kuerzel, anonId}; NFC-normalisiert (Pitfall #22)."
+          },
+          "log": "zugang-worker.ts  →  verifyPasswortAgainstAll()  ✓ kuerzel=THÜ anonId=MA07"
+        },
+        {
+          "lane": 5,
+          "label": "Kürzel in der Sitzung",
+          "beginner": "Das gefundene Kürzel gilt bis der Tab geschlossen wird. Überall in der App wird „mein Kürzel“ über eine einzige Stelle gelesen.",
+          "dev": {
+            "file": "src/core/hooks/useMAIdentity.ts · useMeinKuerzel.ts",
+            "fn": "writeSessionKuerzel() · useMeinKuerzel()",
+            "effect": "sessionStorage['tf-ma-kuerzel']; useMeinKuerzel liest Session vor profile.bearbeiter_kuerzel (Pitfall #27) — im Login-Modus fallen 'alle' und Vertretungs-Kürzel weg."
+          },
+          "log": "sessionStorage['tf-ma-kuerzel'] = 'THÜ'"
+        },
+        {
+          "lane": 1,
+          "label": "Shell rendern",
+          "beginner": "Jetzt erscheint die App mit Seitenleiste. Im Hintergrund prüft sie gleich, ob neue Antragsdaten vorliegen (siehe „Datenbestand aktualisieren“).",
+          "dev": {
+            "file": "src/core/Router.tsx · ShellLayout.tsx · nav/groupNavPlugins.ts",
+            "fn": "createHashRouter → RootLayout → ShellLayout",
+            "effect": "Sidebar-Gruppen aus groupNavPlugins(); Gates aus → setReady(true), hideLoader(); im Idle scheduleIdle → runDataUpdate."
+          },
+          "log": "Router.tsx  →  ShellLayout gemountet · hideLoader()"
+        }
+      ]
+    },
+    {
+      "id": "datenbestand",
+      "title": "Datenbestand aktualisieren",
+      "kicker": "Nacht-Export aus C16 → IndexedDB → Team-Snapshot",
+      "summary": "Anträge entstehen nie in der App. Das Fachsystem C16 schreibt jede Nacht CSV-Dateien; die App erkennt beim Start, ob sie neu sind, importiert nur die geänderten Zeilen und veröffentlicht den Stand als Snapshot für das Team.",
+      "lanes": [
+        "Fachsystem C16",
+        "App-Start",
+        "csv-sources-kuration",
+        "core/services/csv",
+        "IndexedDB",
+        "Daten-Share (SMB)"
+      ],
+      "steps": [
+        {
+          "lane": 0,
+          "label": "Nächtlicher CSV-Export",
+          "beginner": "Das Fachsystem exportiert nachts die Antragsdaten als CSV (Antragsbasis, Bewilligungsdetails, Projektbeschreibung). Die Datei von gestern wird dabei überschrieben.",
+          "dev": {
+            "file": "Export-Ordner (außerhalb der App)",
+            "fn": "9097_AnB · 7737_Bgl · 9052_PrjBsp",
+            "effect": "~13,3 MB, ~13 000 Zeilen; 9052_PrjBsp mit 163 Spalten, C16 kürzt Spaltenköpfe auf 10 Zeichen (PapaParse benennt Dubletten _1, _2 …)."
+          },
+          "log": "C16  →  9097_AnB.csv  (13,3 MB, 13 085 Zeilen)"
+        },
+        {
+          "lane": 1,
+          "label": "Idle nach First Paint",
+          "beginner": "Erst wenn die Oberfläche steht, beginnt die Prüfung im Hintergrund. Es läuft immer nur ein Datenlauf gleichzeitig.",
+          "dev": {
+            "file": "src/core/App.tsx · csv-sources-kuration/services/data-update.ts",
+            "fn": "scheduleIdle → runDataUpdate() · acquireDataMutation()",
+            "effect": "Zweiter Aufruf bekommt {nichtGelaufen:'gate-belegt'}. Phasen: snapshot → csv-check → csv-import → publishing."
+          },
+          "log": "data-update.ts  →  runDataUpdate()  phase=snapshot"
+        },
+        {
+          "lane": 5,
+          "label": "Snapshot vom Share holen",
+          "beginner": "Zuerst holt sich die App den Team-Stand vom Netzlaufwerk, falls ein Kollege inzwischen etwas veröffentlicht hat.",
+          "dev": {
+            "file": "src/core/services/csv/snapshot-sync.ts · verbuende-rebuild.ts",
+            "fn": "syncProgrammSnapshot(force:true) → replaceStore · healMissingVerbuende()",
+            "effect": "manifest.json + 9 *.jsonl je Programm; Delta-Dateien antraege.delta.<seq>.jsonl; Sync-Marken snapshot-* im kv-Store."
+          },
+          "log": "snapshot-sync.ts  →  manifest.json v… → replaceStore(antraege)"
+        },
+        {
+          "lane": 2,
+          "label": "Kandidaten sammeln",
+          "beginner": "Welche CSV-Quellen sind registriert, erreichbar und möglicherweise neu?",
+          "dev": {
+            "file": "csv-sources-kuration/services/auto-refresh.ts",
+            "fn": "collectCandidates(idb, {forceRecheck})",
+            "effect": "Sechs Buckets: candidates · permissionNeeded · unlinked · fixtures (hart ausgeschlossen) · fileMissing · upToDate."
+          },
+          "log": "auto-refresh.ts  →  collectCandidates()  candidates=1 upToDate=2"
+        },
+        {
+          "lane": 2,
+          "label": "Ist die Datei neu?",
+          "beginner": "Nur wenn weder ich noch das Team diese Datei schon verarbeitet haben, wird importiert. Das Änderungsdatum allein reicht bewusst nicht — der Inhalt wird per Prüfsumme verglichen.",
+          "dev": {
+            "file": "csv-sources-kuration/csv-source-handle.ts",
+            "fn": "decideSourceUpdateState(file, schema)",
+            "effect": "Stufe 0 lokaler Stempel (kv csv-source-lokal-stempel, v6.37) → Stufe 1 Team-Stempel im Schema (source_last_modified + last_file_size) → Stufe 2 sha1Hex(file) gegen beide Belege."
+          },
+          "log": "csv-source-handle.ts  →  sha1Hex(file) ≠ file_checksum  →  update_available"
+        },
+        {
+          "lane": 2,
+          "label": "Drift-Check",
+          "beginner": "Haben sich die Spalten geändert? Neue Spalten werden still übernommen, fehlende blockieren mit einem Dialog — nichts wird geraten.",
+          "dev": {
+            "file": "csv-sources-kuration/services/csv-drift-check.ts",
+            "fn": "validateHeaders(schema, headers) → entscheideDrift()",
+            "effect": "Vier Stufen: Encoding-Heilung → mehrdeutige Aliasgruppe (blockt hart) → neue Spalten als {ignore:true} → missingFromCsv blockiert (CsvAutoRefreshDriftDialog)."
+          },
+          "log": "csv-drift-check.ts  →  entscheideDrift()  newColumns=2 → auto-ignored"
+        },
+        {
+          "lane": 3,
+          "label": "Import starten (Lock)",
+          "beginner": "Der Import sperrt den Share kurz für andere Importe, damit nicht zwei Rechner gleichzeitig schreiben.",
+          "dev": {
+            "file": "src/core/services/csv/importer.ts · infrastructure/build-lock.ts",
+            "fn": "importCsvSource(idb, schemaId, file, {lockHeldByCaller, onRows, deferSnapshotWrite}) · acquireBuildLock · startHeartbeat",
+            "effect": "_intern/build-lock.json, Stufe csv-import (stale nach 3 min); EIN Lock je Auto-Refresh-Lauf."
+          },
+          "log": "importer.ts  →  importCsvSource()  lock=csv-import hb=30s"
+        },
+        {
+          "lane": 3,
+          "label": "Lesen & prüfen",
+          "beginner": "Die CSV wird zeilenweise gelesen. Fehlt die Schlüsselspalte (Förderkennzeichen), bricht der Import ab, bevor irgendetwas geschrieben wird.",
+          "dev": {
+            "file": "src/core/services/csv/importer-schritte.ts · parser.ts",
+            "fn": "leseUndPruefe() → parseCsvAllStreamed (PapaParse) · findJoinColumn",
+            "effect": "rows, headers, parseErrors verdichtet nach Code. Abbruch-Schranke 1/3."
+          },
+          "log": "importer-schritte.ts  →  leseUndPruefe()  rows=13085 joinCol=FKZ"
+        },
+        {
+          "lane": 5,
+          "label": "Share-Kopie ersetzen",
+          "beginner": "Eine bereinigte Kopie der CSV wandert auf das Netzlaufwerk — nur von dort liest der Zusammenbau.",
+          "dev": {
+            "file": "src/core/services/csv/schemaRegistry.ts",
+            "fn": "readWithEncodingFallback → saveCsvSourceFile",
+            "effect": "programm/antraege/imports/ (UTF-8-normalisiert). Abbruch-Schranke 2/3 unmittelbar davor."
+          },
+          "log": "schemaRegistry.ts  →  saveCsvSourceFile(programm/antraege/imports/…)"
+        },
+        {
+          "lane": 3,
+          "label": "Zeilen-Diff",
+          "beginner": "Jede Zeile bekommt einen Fingerabdruck. Nur Zeilen, deren Fingerabdruck neu, geändert oder verschwunden ist, werden weiterverarbeitet.",
+          "dev": {
+            "file": "importer-schritte.ts · hash.ts · loeschregel.ts",
+            "fn": "berechneRowDiff() → canonicalRowHash(row, column_mapping) · beurteileUnterprogramm · teileNachAbdeckung",
+            "effect": "Buckets new/changed/unchanged/removed gegen Store csv_row_hashes. Unterprogramm aktiv → importieren; deaktiviert → darf löschen; unbekannt → weder noch."
+          },
+          "log": "berechneRowDiff()  new=41 changed=1 012 unchanged=12 030 removed=2"
+        },
+        {
+          "lane": 3,
+          "label": "Merge",
+          "beginner": "Für die betroffenen Anträge werden alle registrierten Quellen gemeinsam neu zusammengesetzt; bei Konflikten gewinnt die Master-Quelle.",
+          "dev": {
+            "file": "src/core/services/csv/merger/batched.ts · single.ts · list-view.ts",
+            "fn": "runMergeForDeltas() → recomputeMultipleBatched()",
+            "effect": "Zweiphasig, priority-asc: Pass 0 nur join_key=aktenzeichen (seedet akronym/verbund_id), Pass 1 alle Quellen. Schreibt antraege, antraege_list_view (toAntragListItem), verbuende, akronym_index, antrag_historie, verbund_historie."
+          },
+          "log": "merger/batched.ts  →  recomputeMultipleBatched()  putAntraege ×1 053"
+        },
+        {
+          "lane": 4,
+          "label": "Stempel & Hashes",
+          "beginner": "Die App merkt sich, welche Datei sie verarbeitet hat — einmal für das Team (reist im Snapshot mit) und einmal nur für diesen Rechner.",
+          "dev": {
+            "file": "importer.ts · idb-csv/row-hash.ts · lokaler-stempel.ts",
+            "fn": "putRowHashes · saveSchema · schreibeLokalenStempel",
+            "effect": "Team-Stempel: file_checksum, source_last_modified, last_file_size, source_stamped_by. Lokaler Stempel kv['csv-source-lokal-stempel'] — nie im Snapshot (behebt die Import-Kette über fünf PL-Rechner)."
+          },
+          "log": "lokaler-stempel.ts  →  schreibeLokalenStempel(schemaId, sha1)"
+        },
+        {
+          "lane": 5,
+          "label": "Import-Diff-Journal",
+          "beginner": "Weil der Nacht-Export überschrieben wird, führt die App ein eigenes Tagebuch: Was wurde seit dem letzten Export gesetzt, geändert oder geleert? Ohne festzuhalten, wer es war.",
+          "dev": {
+            "file": "src/core/status/journal/import-anbindung.ts · lauf.ts · diff.ts",
+            "fn": "journalisiereImport() → laufeJournal() → berechneDiff()",
+            "effect": "Nur Master-Schema; D_*-Spalten + STATUS_TV/VB (110 Spalten) gegen _intern/vorgangssystem/journal/stand.json; Einträge nach journal-YYYY-MM.jsonl (gesetzt · geaendert · geleert · antrag-neu · antrag-fehlt). Erst JSONL, dann Stand."
+          },
+          "log": "journal/lauf.ts  →  laufeJournal()  diff: 1 271 Einträge, Stempel 3f9a…"
+        },
+        {
+          "lane": 5,
+          "label": "Snapshot publizieren",
+          "beginner": "Der neue Bestand wird als Snapshot auf das Netzlaufwerk geschrieben, damit die Kollegen ihn beim nächsten Start bekommen. Geschrieben wird erst in eine Nebendatei, dann umbenannt — nie halbfertig.",
+          "dev": {
+            "file": "src/core/services/csv/snapshot.ts · infrastructure/atomic-write.ts · audit-log.ts",
+            "fn": "writeProgrammSnapshot() / writeProgrammSnapshotDelta() → atomicWriteStream · logAudit('csv_import')",
+            "effect": "9 *.jsonl + manifest.json; Publish-Guard pruefeAntraegeSchwund (< Hälfte lokal → Abbruch); heal-before-serialize; ~10–25 s bei 13 k Anträgen."
+          },
+          "log": "snapshot.ts  →  atomicWriteStream(antraege.jsonl)  25 235 ms · audit csv_import"
+        },
+        {
+          "lane": 3,
+          "label": "Nachlauf-Integrationen",
+          "beginner": "Nach dem Import ziehen andere Module nach: Dokument-Zuordnungen, Status-Ereignisse, Meilenstein-Bewertung.",
+          "dev": {
+            "file": "importer-schritte.ts",
+            "fn": "laufeNachImportIntegrationen() · hb.stop() vor releaseLock()",
+            "effect": "phase2 rematchOnSnapshotReload · nachImportStatusPflege (Flag statusCockpit) · nachImportMeilensteinPflege (Flag meilensteinMonitoring). Heartbeat zuerst stoppen (Pitfall #52)."
+          },
+          "log": "laufeNachImportIntegrationen()  →  rematch · status · meilensteine  ·  releaseLock()"
+        },
+        {
+          "lane": 1,
+          "label": "Rückmeldung an den Nutzer",
+          "beginner": "Ein farbiger Punkt „● CSV“ in der Fußzeile zeigt, ob alles eingelesen ist; bei Auffälligkeiten erscheint ein Start-Bericht.",
+          "dev": {
+            "file": "csv-sources-kuration/services/csv-freshness-state.ts · CsvFreshnessIndicator.tsx · start-bericht.ts",
+            "fn": "deriveCsvFreshnessState() → csvFreshnessAussage() · useStartBericht.setBericht",
+            "effect": "Zustände fresh/stale/needs_link/no_sources/offline; Toast 6 s; Bericht nur bei Divergenz, Drift, Fehler, übergangenen Spalten, Encoding-Korrektur."
+          },
+          "log": "csv-freshness-state.ts  →  fresh  ·  toast 'Datenbestand aktualisiert'"
+        }
+      ]
+    },
+    {
+      "id": "antraege",
+      "title": "Anträge ansehen",
+      "kicker": "Liste → Verbund-Detail mit 14 Sektionen",
+      "summary": "Die Förderantrags-Seite legt keine Daten an, sie zeigt sie: links die Liste aus einer schlanken Projektion, rechts der geöffnete Verbund mit allen Teilvorhaben. Drei unabhängige Regler bestimmen, was die Liste zeigt — Sicht-Tabs, Filter und der Betrachtungsbereich.",
+      "lanes": [
+        "Nutzer",
+        "antraege-Plugin (UI)",
+        "Store & Hooks",
+        "core/services",
+        "IndexedDB"
+      ],
+      "steps": [
+        {
+          "lane": 0,
+          "label": "„Förderanträge“ in der Sidebar",
+          "beginner": "Der Menüpunkt öffnet die Antragsliste.",
+          "dev": {
+            "file": "src/plugins.config.ts · src/plugins/antraege/index.ts",
+            "fn": "antraegePlugin {id:'antraege', route:'/antraege', category:'workflow', order:2}",
+            "effect": "Route mit eigenen Kind-Routen (Verbund, Aufbereitung, :aktenzeichen) in Router.tsx."
+          },
+          "log": "Router  →  #/antraege"
+        },
+        {
+          "lane": 1,
+          "label": "Seite montieren",
+          "beginner": "Kopfzeile mit Sicht-Tabs und Suchfeld, darunter die Liste, rechts das Detail.",
+          "dev": {
+            "file": "src/plugins/antraege/AntraegePage.tsx · AntraegeHeader.tsx · AntraegeMain.tsx",
+            "fn": "AntraegePage → ScopeTabs · BereichChip · SuchFeld · FilterSpalte",
+            "effect": "shouldShowList(hasDetail, listCollapsed) ist die eine Ableitung für 'Liste sichtbar?'."
+          },
+          "log": "AntraegePage.tsx  →  Header + Main + Detail gemountet"
+        },
+        {
+          "lane": 4,
+          "label": "Slim-Projektion laden",
+          "beginner": "Weil ein Antrag über 400 Spalten hat, hält die App eine abgespeckte Kopie mit 36 Feldern für die Liste — so lädt sie schnell.",
+          "dev": {
+            "file": "src/plugins/antraege/services/antraege-search-service.ts · core/services/csv/list-view.ts",
+            "fn": "getAntraegeListCache(idb, programmId) → Store antraege_list_view",
+            "effect": "AntragListItem: 36 Felder + kat_status + frei_roh; ~95 % weniger structured-clone bei 14 k Records."
+          },
+          "log": "idb.getAll('antraege_list_view')  →  14 225 Items"
+        },
+        {
+          "lane": 2,
+          "label": "Filter anwenden",
+          "beginner": "Sicht-Tabs (z. B. „Vor Entscheidung“), Filter-Facetten und der Betrachtungsbereich-Chip entscheiden gemeinsam, welche Anträge zum Arbeitsvorrat zählen.",
+          "dev": {
+            "file": "src/plugins/antraege/useFilteredAntraege.ts · views.ts · core/status/betrachtungsbereich.ts",
+            "fn": "useFilteredAntraege() · getView() · istImBereich(unterprogrammId, bereichMenge)",
+            "effect": "7 Facet-Typen (Store filter_definitionen); Bereich = Richtlinien-Generationen (Seed: die drei jüngsten) — schneidet den Arbeitsvorrat, nie die Suche (Pitfall #46)."
+          },
+          "log": "useFilteredAntraege()  →  view='vor-entscheidung' bereich=3 Gen.  →  845 Zeilen"
+        },
+        {
+          "lane": 2,
+          "label": "Bearbeiter-Sicht",
+          "beginner": "„Meine Anträge“ hängt von der Rolle ab: fachliche Bearbeiter stehen in einer anderen Spalte als administrative.",
+          "dev": {
+            "file": "src/core/hooks/useMeinKuerzel.ts · useBearbeiterSicht.ts · plugins/antraege/bearbeiterFilter.ts",
+            "fn": "useMeinKuerzel() → parseBearbeiterFilter(kuerzel, inklBegleitung) → spaltenFuer(mode)",
+            "effect": "FB: tib_kuerz/ztp_kuerz · AB: bib_kuerz/bfm_kuerz/pfm_kuerz; 'alle' oder leer = inaktiv; 'MUE, SCH' = Vertretung."
+          },
+          "log": "bearbeiterFilter.ts  →  applyBearbeiterFilter(rolle=fb, THÜ)"
+        },
+        {
+          "lane": 3,
+          "label": "Aufgabe je Zeile",
+          "beginner": "Jede Zeile sagt, was als Nächstes zu tun ist. Solange die Berechnung läuft, steht „…“ — nie zwei Antworten hintereinander.",
+          "dev": {
+            "file": "src/core/hooks/useBestandsAufgaben.ts · core/status/aufgaben-anzeige.ts · bestands-lauf.ts",
+            "fn": "useZeilenAufgaben() → aufgabeAusBestand() → aufgabenAnzeige()",
+            "effect": "Bestandslauf rechnet je TV die To-do-Kaskade (ermittleTodosAlleRollen) + Stillstand; Ablage 5 min gecacht; Rückfall = schrittText über den Rohstatus."
+          },
+          "log": "aufgaben-anzeige.ts  →  quelle='kaskade' text='SV in QS' anteil='3 von 4 TV'"
+        },
+        {
+          "lane": 0,
+          "label": "Zeile anklicken",
+          "beginner": "Ein Klick öffnet den Verbund — auch wenn man ein einzelnes Teilvorhaben angeklickt hat, denn zusammen gehören sie auf eine Seite.",
+          "dev": {
+            "file": "src/plugins/antraege/detailPfad.ts",
+            "fn": "antragDetailPfad({verbundId, aktenzeichen, ziel})",
+            "effect": "Verbund gewinnt, außer bei Pseudo-Verbund (__pseudo__…); ?ziel=<anker> für Sprünge."
+          },
+          "log": "detailPfad.ts  →  #/antraege/verbund/VB-2026-0417"
+        },
+        {
+          "lane": 2,
+          "label": "Auswahl setzen",
+          "beginner": "Die App merkt sich den geöffneten Verbund und protokolliert lokal (nur mit Opt-in), dass er geöffnet wurde.",
+          "dev": {
+            "file": "src/core/Router.tsx · plugins/antraege/store.ts",
+            "fn": "VerbundRoute → useAntraegeStore.setSelectedVerbundId · protokolliereEreignis({typ:'antrag_geoeffnet'})",
+            "effect": "Assistent-Ereignisprotokoll strikt gerätelokal (Pitfall #37)."
+          },
+          "log": "useAntraegeStore.setSelectedVerbundId('VB-2026-0417')"
+        },
+        {
+          "lane": 4,
+          "label": "Voll-Record laden",
+          "beginner": "Für das Detail werden jetzt alle Felder des Antrags geladen — samt Historie.",
+          "dev": {
+            "file": "src/core/services/csv/idb-csv/antrag.ts · verbund.ts",
+            "fn": "Store antraege (~461 Felder) · verbuende.teilantrags_ids · antrag_historie",
+            "effect": "Antrag.verbund_id → Verbund (n:1); verbuende ist ein vom Merge gepflegter Cache, selbst heilend."
+          },
+          "log": "idb.get('antraege', '16KN0417…') ×4  ·  verbuende.teilantrags_ids=4"
+        },
+        {
+          "lane": 1,
+          "label": "Verbund-Detail rendern",
+          "beginner": "Vierzehn auf- und zuklappbare Abschnitte: Kurzbeschreibung, Status, offene Aufgaben, nächste Schritte, Meilensteine, Gutachten, Nachforderungen, Alle Felder, Historie …",
+          "dev": {
+            "file": "src/plugins/antraege/VerbundDetail.tsx · detailSektionen.ts",
+            "fn": "DETAIL_SEKTIONEN (14) · Klappvorgabe boolean | 'wennGefuellt'",
+            "effect": "Nur 'antragsdaten' startet offen; Sichtbarkeit je Sektion über WennDetailSektion (Beta/Experte-Achse)."
+          },
+          "log": "VerbundDetail.tsx  →  14 Sektionen, offen: antragsdaten"
+        },
+        {
+          "lane": 1,
+          "label": "„Alle Felder“",
+          "beginner": "Alle 400+ Spalten mit Klartext-Beschriftung aus der Excel-Zuarbeit, in fünf Lesegruppen sortiert; jede Zelle hat ihre Feld-Historie.",
+          "dev": {
+            "file": "src/plugins/antraege/alleFelder/buildDisplayRows.ts · felderGruppen.ts",
+            "fn": "buildDisplayRows(antrag, schemas) → groupDisplayRows → GRUPPEN_ORDER",
+            "effect": "Label-Rang: dominante Source > Master > Priority; zt_*-Flags als Cluster herausgehoben; Historie aus antrag_historie."
+          },
+          "log": "buildDisplayRows()  →  461 Zeilen in 5 Gruppen"
+        },
+        {
+          "lane": 3,
+          "label": "Status erklären",
+          "beginner": "Das graue Info-Symbol zeigt, woher der Status kommt: Rohtext aus C16 → amtlicher Code → Verfahrensschritt → Arbeitsliste. Der Kürzel-Navigator zeigt, welches Kürzel als Nächstes möglich wäre.",
+          "dev": {
+            "file": "src/core/status/herleitung.ts · navigator.ts · plugins/antraege/status/NaechsteSchritte.tsx",
+            "fn": "baueHerleitung() · navigatorKandidaten()",
+            "effect": "Die eine Achse: findeStatusCode → phaseFuerCode → kategorieFuerCode → getStatusCategory. Navigator prüft nur die Trigger des Programms; nicht Auswertbares heißt 'unpruefbar', nicht 'ungültig'."
+          },
+          "log": "herleitung.ts  →  'VN geprüft' → Code 88 → begleitung → StatusCategory begleitung"
+        }
+      ]
+    },
+    {
+      "id": "suche",
+      "title": "Suche mit KI",
+      "kicker": "Drei Stufen streamen, ein KI-Aufruf übersetzt die Frage",
+      "summary": "Die Suchseite fragt drei Quellen hintereinander und zeigt Ergebnisse schon nach der ersten: wörtlich in den Stammdaten, thematisch ähnlich über Vektoren, zuletzt im Dokumentenindex. Im Frage-Modus übersetzt die interne KI einen ganzen Satz in Leitbegriffe — sie liefert Wörter, keine Treffer.",
+      "lanes": [
+        "Nutzer",
+        "suche-Plugin (UI)",
+        "useUnifiedSearch",
+        "Embedding (Transformers.js)",
+        "Orama-Index",
+        "Interne KI (Bridge)"
+      ],
+      "steps": [
+        {
+          "lane": 0,
+          "label": "Suchbegriff tippen",
+          "beginner": "Man tippt wie in jeder Suche; die Ergebnisse erscheinen beim Tippen.",
+          "dev": {
+            "file": "src/plugins/suche/SearchInput.tsx · store.ts",
+            "fn": "useSucheStore.setQuery(query)",
+            "effect": "Feldpräfixe wie ast:GMBU werden erkannt (feldpraefix.ts) und schalten die Stufen 2 + 3 ab."
+          },
+          "log": "SearchInput  →  setQuery('Wasserstoff Elektrolyse')"
+        },
+        {
+          "lane": 1,
+          "label": "Wirksame Anfrage bilden",
+          "beginner": "Abgewählte Wörter (Chips) fallen aus der Anfrage, das Suchfeld bleibt unverändert.",
+          "dev": {
+            "file": "src/plugins/suche/SuchSeite.tsx",
+            "fn": "wirksameAnfrage(query, verknuepfung, abgewaehlteWoerter) → useDeferredValue",
+            "effect": "Verknüpfung UND/ODER aus useSuchVerknuepfung."
+          },
+          "log": "SuchSeite.tsx  →  wirksameAnfrage()  verknuepfung=und"
+        },
+        {
+          "lane": 2,
+          "label": "Debounce + Abbruch",
+          "beginner": "Die Suche wartet 300 ms nach dem letzten Tastendruck und bricht einen noch laufenden Lauf ab.",
+          "dev": {
+            "file": "src/core/hooks/useUnifiedSearch.ts",
+            "fn": "DEBOUNCE_MS = 300 · AbortController",
+            "effect": "Streaming-Phasen: substring → vector → orama → done."
+          },
+          "log": "useUnifiedSearch  →  debounce 300 ms · abort(prev)"
+        },
+        {
+          "lane": 2,
+          "label": "Stufe 0: Caches",
+          "beginner": "Die Stammdaten aller Anträge liegen als Text-Korpus im Speicher bereit.",
+          "dev": {
+            "file": "src/plugins/antraege/services/antraege-search-service.ts",
+            "fn": "getAntraegeListCache · getProgrammCaches",
+            "effect": "byAkz, textCorpus, filenameToAkz (Dokumentname → Aktenzeichen)."
+          },
+          "log": "getProgrammCaches()  →  textCorpus 14 225 · filenameToAkz 3 812"
+        },
+        {
+          "lane": 2,
+          "label": "Stufe 1: Wortlaut",
+          "beginner": "Wörtliche Treffer in Titel, Akronym, Deskriptoren, Organisation … samt Wortstämmen („Elektrolyse“ findet „Elektrolyseur“). Diese Treffer erscheinen sofort.",
+          "dev": {
+            "file": "antraege-search-service.ts · core/services/search/wortstamm.ts · trefferstelle.ts",
+            "fn": "searchAntraegeWortlaut() → substringMatches → feldZuordnung · wortStamm()",
+            "effect": "Synchron ~10 ms; je Antrag Trefferfelder + Abdeckung; Varianten-Chips (max. 64 gesammelt, 8 sichtbar); emit() streamt."
+          },
+          "log": "searchAntraegeWortlaut()  →  212 Treffer  (10 ms)  emit()"
+        },
+        {
+          "lane": 3,
+          "label": "Stufe 2: Ähnlichkeit",
+          "beginner": "Optional rechnet die App die Bedeutung der Anfrage als Zahlenvektor und vergleicht sie mit einem Vektor je Vorhaben — findet also thematisch Verwandtes ohne gleiche Wörter.",
+          "dev": {
+            "file": "core/services/embedding-corpus/wrapper.ts · search/query-embedder.ts · model-registry.ts",
+            "fn": "ensureEmbeddingReady → embedQueryCached(q) → searchAntraegeVector(queryVec, embeddings)",
+            "effect": "EmbeddingGemma 300M (768 d, q8, WebGPU oder WASM, Main-Thread — Pitfall #8); Floor 0,35, relativ 0,85 · Top-K 50; Korpus-Spiegel _intern/auslastung-embedding-corpus.*"
+          },
+          "log": "embedQueryCached()  →  768-d  ·  searchAntraegeVector()  38 über Schwelle"
+        },
+        {
+          "lane": 4,
+          "label": "Stufe 3: Dokumente",
+          "beginner": "Zuletzt wird im Index der hochgeladenen Dokumente gesucht — Volltext immer, Vektor füllt freie Plätze auf.",
+          "dev": {
+            "file": "src/core/services/search/orama-store.ts",
+            "fn": "hybridSearch(q, queryVec, {limit: 50, threshold})",
+            "effect": "mode fulltext zuerst (behält Platz), dann hybrid (similarity 0,2) für freie Plätze; deduplicateBySource max 2 je Dokument; normalizeScore = score / log2(chunks+1)."
+          },
+          "log": "hybridSearch()  →  fulltext 27 · hybrid +9  (Index: orama-db)"
+        },
+        {
+          "lane": 2,
+          "label": "Faltung + Relevanz",
+          "beginner": "Alle Fundstellen eines Vorhabens werden zu einer Zeile mit einer Relevanzzahl verrechnet; Wortlaut zählt mehr als bloße Ähnlichkeit.",
+          "dev": {
+            "file": "useUnifiedSearch.ts · search/trefferstelle.ts",
+            "fn": "filenameToAkz.get(h.source) → baueAntragTreffer → berechneRelevanz(belege, wortAbdeckung)",
+            "effect": "relevanz = abdeckung × (0,75·stärke + 0,25·breite); Gewichte titel/akronym 3 · kurzbeschreibung/dokument 2 · deskriptoren/aehnlichkeit 1,5; Ähnlichkeit gedeckelt bei 0,5."
+          },
+          "log": "berechneRelevanz()  →  hoch 14 · mittel 63 · niedrig 173"
+        },
+        {
+          "lane": 1,
+          "label": "Rendern",
+          "beginner": "Tabelle oder Liste, mit markierten Fundstellen. Treffer außerhalb des Betrachtungsbereichs werden markiert, nicht versteckt.",
+          "dev": {
+            "file": "src/plugins/suche/useSearchResults.ts · SearchResultsTable.tsx · DeutungsZeile.tsx · search/markierung.ts",
+            "fn": "dataSource → columnFiltered → sorted · markiereText()",
+            "effect": "ausserhalbBereich: true statt Entfernen (Pitfall #46); protokolliereEreignis('suche_ausgefuehrt')."
+          },
+          "log": "SearchResultsTable  →  250 Zeilen · phase=done"
+        },
+        {
+          "lane": 0,
+          "label": "Frage-Modus: ganzer Satz",
+          "beginner": "Umschalten auf „Frage“ und einen Satz eingeben, z. B. „Welche Netzwerke in Bayern arbeiten an Wasserstoff?“ — gesucht wird erst nach Enter.",
+          "dev": {
+            "file": "src/plugins/suche/SuchSeite.tsx",
+            "fn": "nlModus · frageStellen(frage)",
+            "effect": "Flag sucheNatuerlicheSprache (dev + pl). frageOffen ⇒ keine Nullsuche; Guards: leer, hatLuecke('‹…›'), planLaeuft."
+          },
+          "log": "SuchSeite.tsx  →  frageStellen('Welche Netzwerke in Bayern …')"
+        },
+        {
+          "lane": 5,
+          "label": "Frageplan (1 KI-Aufruf)",
+          "beginner": "Die interne KI übersetzt den Satz in Leitbegriffe mit Schreibweisen und Einschränkungen. Sie sucht nicht selbst — danach rechnet die App wieder deterministisch.",
+          "dev": {
+            "file": "src/core/services/search/frageplan.ts · frageplan-lauf.ts · ai/ein-schuss-lauf.ts",
+            "fn": "baueFrageplanPrompt → ermittleFrageplan → fuehreEinSchussLauf → parseFrageplan",
+            "effect": "Nur interner Transport (getTransportForDatenLauf), Rolle standard, frischer Chat, ein Aufruf, kein Retry. Grenzen: 6 Leitbegriffe, 12 Nadeln."
+          },
+          "log": "ein-schuss-lauf.ts  →  tf-request(standard)  ·  plan: 2 Leitbegriffe, pflicht: Bayern"
+        },
+        {
+          "lane": 2,
+          "label": "Plan → Suche",
+          "beginner": "Jeder Leitbegriff wird ein Suchteil; Themen sind Alternativen, Einschränkungen wie „in Bayern“ müssen alle zutreffen. Chips lassen sich abwählen — ohne neuen KI-Aufruf.",
+          "dev": {
+            "file": "SuchSeite.tsx · useUnifiedSearch.ts",
+            "fn": "aktiveLeitbegriffe(plan, abgewaehlt) → planTeile → searchAntraegeWortlaut({planTeile})",
+            "effect": "effektiveVerknuepfung = 'oder' über Themen; PlanBegriff.pflicht = UND; planSchraenktEin ⇒ Stufen 2 + 3 ruhen."
+          },
+          "log": "planTeile  →  Wasserstoff|H2|Elektrolyse  ∧  Bayern  →  87 Treffer"
+        },
+        {
+          "lane": 5,
+          "label": "Antwortkarte (2. KI-Aufruf)",
+          "beginner": "Aus den Treffern entsteht ein kurzer Antworttext mit nummerierten Belegen — pro Frage und Trefferstand genau einmal.",
+          "dev": {
+            "file": "src/plugins/suche/antwort/useFrageAntwort.ts · frageBefund.ts · assistentKontext.ts · search/frageantwort-lauf.ts",
+            "fn": "baueBefund (rein) · waehleKontextTreffer · ermittleFrageantwort",
+            "effect": "Belege (40) und Kandidaten (12) getrennt; KONTEXT_CHAR_BUDGET 24 000; MAX_ANTWORT_ZEICHEN 1 400; Schlüssel ${frage}::${treffer.length}."
+          },
+          "log": "useFrageAntwort()  →  Befund + 40 Belege  →  Antwortkarte [1]…[6]"
+        },
+        {
+          "lane": 1,
+          "label": "Chat andocken",
+          "beginner": "Rechts klappt ein Chat auf, der die aktuellen Treffer als Kontext mitbekommt und seine Quellen als [1], [2] zitiert.",
+          "dev": {
+            "file": "src/plugins/chat/ChatPanelHost.tsx · useChatController.ts · ai/rag-context.ts",
+            "fn": "getPinnedContext → generateAssistant → ragSearch → buildRAGContextString · buildChatSources",
+            "effect": "RAG-Pfad nutzt useSearch().search mit optionalem Cross-Encoder-Re-Ranker (bge-reranker-base); Streaming-Flush 80 ms; extraContext nur an der letzten User-Message."
+          },
+          "log": "ChatPanelHost  →  pinnedKontext (8 Treffer) · streamConversation()"
+        }
+      ]
+    },
+    {
+      "id": "zuweisung",
+      "title": "Antragszuweisung",
+      "kicker": "Klassifizieren → Matching → Zuweisen (Auslastungs-Modul)",
+      "summary": "Zwei Hälften: „Wovon handelt der Antrag?“ (Klassifizierung in eine von fünf Überkategorien, drei Stufen der Reihe nach) und „Wer bearbeitet ihn?“ (Matching aus fachlicher Passung und freier Quartalskapazität). Zugewiesen wird immer der ganze Verbund; Personen erscheinen nur als MA01…MAxx.",
+      "lanes": [
+        "PL (Nutzer)",
+        "auslastung-Plugin (UI)",
+        "Klassifizierung",
+        "Matching",
+        "Store useAuslastungData",
+        "Daten-Share (SMB)"
+      ],
+      "steps": [
+        {
+          "lane": 0,
+          "label": "Modul freischalten",
+          "beginner": "Das Auslastungs-Modul ist mit einem Zusatzpasswort gesperrt; einmal eingegeben, bleibt es zwölf Stunden offen.",
+          "dev": {
+            "file": "src/core/AppPasswordGate.tsx · core/hooks/useModulFreischaltung.ts · config/modul-schloss.ts",
+            "fn": "verifyAnyPassword → useModulFreischaltung.freischalten(idb) → reload",
+            "effect": "Manifest modulSchloss:'auslastung'; IDB modul-freischaltung, 12 h, gerätelokal; Deep-Links laufen durch ModulSchlossGate."
+          },
+          "log": "useModulFreischaltung.freischalten()  →  auslastungBis=+12h · reload"
+        },
+        {
+          "lane": 1,
+          "label": "Vorwärmen",
+          "beginner": "Beim Start lädt das Modul die Team-Datei mit Mitarbeitenden, Klassifizierungen und Zuweisungen sowie alle Anträge in den Speicher.",
+          "dev": {
+            "file": "src/plugins/auslastung/index.tsx · hooks/useAuslastungData.ts · useAntraegeCache.ts",
+            "fn": "onInit → useAuslastungData.load + useKuerzelMap.load · warmupAntraegeCache()",
+            "effect": "_intern/auslastung.json (normalizeAuslastungData) + _intern/auslastung-kuerzel-map.json; ~13 k Voll-Records; Ladephasen auslastungsdaten → antraege → themenvektoren."
+          },
+          "log": "useAuslastungData.load()  →  79 MAs · 5 Kategorien · Q3  ·  warmupAntraegeCache 13 085"
+        },
+        {
+          "lane": 2,
+          "label": "Verteil-Pool schneiden",
+          "beginner": "Zu verteilen sind neue Verbünde der letzten sechs Monate ohne Bearbeiter — und nur, wenn alle Teilanträge da sind.",
+          "dev": {
+            "file": "src/plugins/auslastung/services/verbund/verbund-aggregation.ts",
+            "fn": "verteilCutoffDatum(quartal, lookback) · istZuVerteilen(antrag, cutoff) · istVollstaendigFuerTypAz",
+            "effect": "Ohne tib_kuerz, nicht abgelehnt/zurückgezogen, kein Irrläufer; Vollständigkeit FuE/DS → D_XTEC, DL/NW → D_ADV — unvollständig ⇒ kein Live-Match, Pill gesperrt."
+          },
+          "log": "buildVerbundClassificationViews()  →  Pool 142 Verbünde (6 Monate)"
+        },
+        {
+          "lane": 2,
+          "label": "Stufe 0: Ankreuzfelder",
+          "beginner": "Kreuzt der Antrag Zukunftstechnologien an (z. B. „Künstliche Intelligenz“), ergibt sich die Überkategorie direkt.",
+          "dev": {
+            "file": "services/klassifizierung/klassifizierung-engine.ts · services/default-labels.ts",
+            "fn": "matchZukunftstechnologien → matchZukunftstechnologienFromKlartexte",
+            "effect": "ZT-Spalten → ZUKUNFTSTECHNOLOGIE_FELDER.defaultUeberKategorie (IT · DT · EU · LG · NM); Confidence 1,0 (eine Kategorie) / 0,8 (mehrere)."
+          },
+          "log": "matchZukunftstechnologien()  →  IT (1.0)"
+        },
+        {
+          "lane": 2,
+          "label": "Stufe 1: Deskriptoren",
+          "beginner": "Sonst zählt die App, welche Stichwortliste die Deskriptoren des Antrags am häufigsten treffen.",
+          "dev": {
+            "file": "klassifizierung-engine.ts · services/identitaet/profil-aggregator.ts",
+            "fn": "matchDeskriptoren(deskriptoren, kategorien) · readAntragDeskriptoren",
+            "effect": "Treffer-Count je UeberKategorie.deskriptorenMapping; Confidence 1,0 / 0,7."
+          },
+          "log": "matchDeskriptoren()  →  DT (0.7)  [3 Treffer]"
+        },
+        {
+          "lane": 2,
+          "label": "Stufe 2: Embedding-Centroid",
+          "beginner": "Erst wenn beides schweigt, vergleicht die KI den Antragstext mit dem „Schwerpunkt“ jeder Kategorie.",
+          "dev": {
+            "file": "klassifizierung-engine.ts · hooks/useKategorieReferenzen.ts",
+            "fn": "matchEmbeddings(query, kategorien, 0.15) · cosineSimilarity · computeKategorieCentroids",
+            "effect": "Cosine gegen UeberKategorie.referenzEmbedding (Mean + L2-Norm, nur Primärkategorien, Verbund-Dedup); Top-1 primär, Top-2 Aspekt bei Δ < 0,15; leere Zentren-Map schreibt nie."
+          },
+          "log": "matchEmbeddings()  →  EU 0.71 (primär) · IT 0.62 (Aspekt)"
+        },
+        {
+          "lane": 0,
+          "label": "Klassifizierung freigeben",
+          "beginner": "Die Projektleitung prüft die Vorschläge, korrigiert per Pill und gibt frei — für alle Teilvorhaben des Verbunds auf einmal.",
+          "dev": {
+            "file": "src/plugins/auslastung/views/KlassifizierungsReview.tsx",
+            "fn": "applyVerbundOverride(view, kategorieId, add) · freigebeVerbund → freigebenKategorienBulk",
+            "effect": "Max. 2 Kategorien, methode 'manuell'; ein persist für alle TVs (Pitfall #16/#20); 'Hohe Confidences freigeben' teilt eine Kandidatenfunktion mit Knopf und Dialog."
+          },
+          "log": "freigebenKategorienBulk()  →  4 TVs · methode=manuell · persist"
+        },
+        {
+          "lane": 3,
+          "label": "Query-Embedding",
+          "beginner": "Für das Matching wird der Antrag (Titel + Projektbeschreibung) einmal als Vektor berechnet.",
+          "dev": {
+            "file": "src/plugins/auslastung/views/ZuweisungsCockpit.tsx · hooks/useMatchingCorpus.ts",
+            "fn": "ensureEmbeddingReady · embedText(verbund_titel + titel + beschreibung, 'query') · loadCorpus()",
+            "effect": "Gecacht je Aktenzeichen (queryEmbeddingCacheRef); Korpus einmal je Datenstand."
+          },
+          "log": "embedText(query)  →  768-d  ·  loadCorpus()  corpusEmbeddings 13 085"
+        },
+        {
+          "lane": 3,
+          "label": "Pool + Ausschlussgründe",
+          "beginner": "Wer kommt infrage? Mitarbeitende mit passender Haupt- oder Nebenkategorie; wer inaktiv ist, keine Stunden hat oder den Antragstyp nicht bearbeitet, wird mit Grund ausgeschlossen.",
+          "dev": {
+            "file": "src/plugins/auslastung/services/matching/matching-engine.ts",
+            "fn": "runMatchingWithContext(input) → hauptIds / nebenIds · AusgeschlossenerMa",
+            "effect": "Reihenfolge: inaktiv → keine-stunden (effektiveJahresStunden ≤ 0) → antragstyp → abgemeldet → kein-onboarding; UI 'Nicht vorgeschlagen'-Liste."
+          },
+          "log": "runMatchingWithContext()  →  haupt 23 · neben 11 · ausgeschlossen 45"
+        },
+        {
+          "lane": 3,
+          "label": "BM25 + Embedding",
+          "beginner": "Zwei Blicke auf die fachliche Passung: Stichwort-Ähnlichkeit zum Kompetenzprofil und Ähnlichkeit zu früheren Projekten der Person.",
+          "dev": {
+            "file": "services/matching/bm25-matcher.ts · embedding-matcher.ts",
+            "fn": "runBm25Matching() · runEmbeddingMatching() · computeAlpha(bm25)",
+            "effect": "Mini-BM25 mit deutschen Stoppwörtern, Kompetenz-Tokens level-gewichtet (Level 3 = 3×); α nach Deckung: ≥ 0,5 → 1,0 · ≥ 0,2 → 0,5 · sonst 0,2."
+          },
+          "log": "runBm25Matching()  deckung=0.61 α=1.0  ·  runEmbeddingMatching()  top-K"
+        },
+        {
+          "lane": 3,
+          "label": "Endscore",
+          "beginner": "Passung und freie Quartalskapazität werden zu einer Rangliste gemischt. Ausgelastete Personen sinken, verschwinden aber nicht.",
+          "dev": {
+            "file": "matching-engine.ts · services/kapazitaet/kapazitaet.ts · matching/kontingent.ts",
+            "fn": "histScore = clamp01(α·bm25 + (1−α)·emb + astBoost) · matrixScoreForUeber · kapazitaetsScore · kontingentInfoFor",
+            "effect": "finalScore = (kompetenz·gK + (balance·0,5 + kap·0,5)·gB) · Kontingent · kapMultiplier; AST-Boost U +0,20 / F +0,05; Top-5 Haupt + Neben."
+          },
+          "log": "finalScore  →  MA07 0.84 · MA12 0.79 · MA03 0.71 · MA21 0.66 · MA15 0.60"
+        },
+        {
+          "lane": 1,
+          "label": "Vorschläge anzeigen",
+          "beginner": "Fünf Vorschläge mit Prozentwert und Begründung — die Personen stehen anonym als MA-Nummern da.",
+          "dev": {
+            "file": "views/DetailPanel.tsx · components/VorschlagRow.tsx · ScoreBreakdownPanel.tsx · AnonymIdBadge.tsx",
+            "fn": "MatchResult.breakdown {matchKind, alpha, histScore, matrixScore, matrixGewicht}",
+            "effect": "Echte Kürzel nur in pl/dev per useDeAnonResolver; Kürzel-Map append-only (Pitfall #17/#22)."
+          },
+          "log": "VorschlagRow ×5  ·  'Auch geeignet · Nebenkompetenz' ×3"
+        },
+        {
+          "lane": 0,
+          "label": "„Zuweisen“",
+          "beginner": "Ein Klick weist den ganzen Verbund einer Person zu — eine Einheit, ein Bearbeiter.",
+          "dev": {
+            "file": "views/ZuweisungsCockpit.tsx · hooks/useAuslastungData.ts",
+            "fn": "zuweisen(match) → assignVerbund(storage, {tvAktenzeichen, leadAktenzeichen, anonId, quartal, stunden, anzahlTV})",
+            "effect": "Löscht alle Zuweisungen der TVs im Quartal, setzt genau eine status:'freigegeben' auf den Lead-TV; Guard !selectedVollstaendig ⇒ Abbruch."
+          },
+          "log": "assignVerbund()  →  MA07 · Q3 · 4 TVs · status=freigegeben"
+        },
+        {
+          "lane": 5,
+          "label": "Persistieren",
+          "beginner": "Die Team-Datei wird atomar geschrieben, mit rollierenden Sicherungskopien.",
+          "dev": {
+            "file": "src/plugins/auslastung/services/auslastung-store.ts · infrastructure/atomic-write.ts",
+            "fn": "schedulePersist → saveAuslastungData → archiveCurrentAuslastung → atomicWrite",
+            "effect": "_intern/auslastung.json; Backups _intern/auslastung-backups/ (max 1/10 min, 20 Generationen); Save-Lock gegen Doppelschreiben."
+          },
+          "log": "atomicWrite(_intern/auslastung.json)  ·  backup 2026-09-09T…"
+        },
+        {
+          "lane": 0,
+          "label": "Export & Bestätigung",
+          "beginner": "Die Zuweisungen gehen als Excel mit echten Kürzeln an die Leitung und per Mail an die Person. Sobald das Fachsystem den Bearbeiter führt, räumt die App ihre eigene Zuweisung ab — die CSV ist die Wahrheit.",
+          "dev": {
+            "file": "services/export-service.ts · hooks/useKuerzelExport.ts · tib-mail.ts · useReconcileZuweisungen.ts",
+            "fn": "buildExportRows → exportDeAnonymizedXlsx({anonymMap}) · buildMailtoUrl · reconcileZuweisungen()",
+            "effect": "auslastung-kuerzel-{quartal}.xlsx (Option 1–5, Kürzel · 87 % · 21 TVs); echte Kürzel nur im RAM; tib_kuerz im Import ⇒ App-Records des Antrags fallen weg; 'CSV-Bestätigung offen · N T' ab 3 Tagen amber."
+          },
+          "log": "exportDeAnonymizedXlsx()  →  auslastung-kuerzel-2026-Q3.xlsx  ·  reconcileZuweisungen()"
+        }
+      ]
+    },
+    {
+      "id": "gutachten",
+      "title": "Gutachten-Kurzfassung mit KI",
+      "kicker": "Dokument-Aufnahme → App-Skill → Prüfen → Freigabe → Word-Vorlage",
+      "summary": "Ein Gutachter zieht die Vorhabensbeschreibung auf die Verbund-Seite; ein App-Skill (Prompt-Vorlage + Regeln aus dem Netzlaufwerk) lässt die interne KI die Kurzfassung schreiben; deterministische Checks prüfen Umfang und Form; am Ende füllt die App den Text an seine Überschrift in die Word-Vorlage. Die KI ist optional — nur die Generierung braucht sie.",
+      "lanes": [
+        "Gutachter",
+        "Verbund-Detail (UI)",
+        "Skill-Runner",
+        "Interne KI (Bridge)",
+        "Check-Engine",
+        "IndexedDB / Share"
+      ],
+      "steps": [
+        {
+          "lane": 0,
+          "label": "Vorhabensbeschreibung hochziehen",
+          "beginner": "PDF oder Word per Drag & Drop auf die Aufnahmefläche. Steht das Förderkennzeichen im Dateinamen, ist die Datei sofort zugeordnet — sonst fragt die App.",
+          "dev": {
+            "file": "src/core/components/DokumentAufnahme.tsx · dokumentAufnahmeFkz.ts · phase2/matcher/fkz-extractor.ts",
+            "fn": "handleFiles → classifyFkz(filename, knownIds) → fkzCase 'match' | 'ambig'",
+            "effect": "IntakeItem je Datei; 'match' ⇒ ingest(), 'ambig' ⇒ Klick 'Diesem Verbund zuordnen'."
+          },
+          "log": "classifyFkz('16KN041742_VB.docx')  →  match  →  ingest()"
+        },
+        {
+          "lane": 1,
+          "label": "PDF/DOCX → Markdown",
+          "beginner": "Die App wandelt das Dokument in Text mit Überschriften und Tabellen um. Word-Dateien sind dabei der Maßstab, PDFs werden über eine Leiter absteigender Verlässlichkeit gelesen.",
+          "dev": {
+            "file": "src/core/services/converter/index.ts · pdf-struktur.ts · pdf-tables.ts",
+            "fn": "DocConverter.convert(file) → {markdown, pages, report}",
+            "effect": "PDF: strukturiert (Tag-Baum, ab 60 % Anteil) → geschätzt (Schriftgrößen) → flach; DOCX: mammoth → turndown. Main-Thread (Pitfall #5)."
+          },
+          "log": "DocConverter.convert()  →  markdown 48 210 Zeichen · level=docx"
+        },
+        {
+          "lane": 5,
+          "label": "Dokument ablegen + indexieren",
+          "beginner": "Der Text wird am Verbund gespeichert und in den Suchindex gelegt.",
+          "dev": {
+            "file": "src/plugins/dokumente/store.ts · src/core/hooks/useSearch.ts · src/plugins/antraege/kurzfassung/vbDokument.ts",
+            "fn": "add(inhalt) → kv 'doc:<id>' (tags [verbundKey, 'vorhabensbeschreibung']) · indexDocument · pickAktiveVb",
+            "effect": "Kein Antrag-Write (Pitfall #29); Dublette mit gleichem Namen wird neue Fassung; VB-Wahl: explizit → DOCX vor PDF → jüngste."
+          },
+          "log": "kv.set('doc:7c1f…')  ·  indexDocument()  ·  pickAktiveVb()  →  DOCX"
+        },
+        {
+          "lane": 2,
+          "label": "Skill & Regeln laden",
+          "beginner": "Ein „Skill“ ist reine Daten: eine Prompt-Vorlage plus Regeln, vom Kurator auf dem Netzlaufwerk gepflegt — kein Code-Deployment nötig.",
+          "dev": {
+            "file": "src/core/services/skills/registry/storage.ts · selectors.ts · vorgaben.ts",
+            "fn": "loadSkillRegistry → getSkillById('gutachten-kurzfassung') → resolveRegeln(file, skill)",
+            "effect": "_intern/skills/registry.json (Cache skill-registry:cache); Regeln = Skill-Vorgaben (synthetisch) + regelIds + Standardsatz des Workflows (standardRegelIds, Abwahl ohneStandard)."
+          },
+          "log": "loadSkillRegistry()  →  gutachten-kurzfassung v14  ·  resolveRegeln()  9 Regeln"
+        },
+        {
+          "lane": 2,
+          "label": "Prompt komponieren",
+          "beginner": "Aus Vorlage, Stammdaten des Antrags, dem Dokumenttext, den formalen Vorgaben und ggf. einer persönlichen Stil-Schicht entsteht eine Nachricht.",
+          "dev": {
+            "file": "src/core/services/skills/run/run-skill.ts · registry/check-engine.ts · tweaks/store.ts",
+            "fn": "composeSkillPrompt() · buildPromptVorgaben(regeln) · capVbMarkdown(md, cap)",
+            "effect": "Rangfolge: Template ({{stammdaten}}, {{vbMarkdown}}) → Tweak-Block → Formale Vorgaben (zuletzt = Recency) → Modifier → Zusatzanweisung; VB_CHAR_CAP 334 000 am Absatzende."
+          },
+          "log": "composeSkillPrompt()  →  system 2 140 · user 51 300 Zeichen · vbGekuerzt=false"
+        },
+        {
+          "lane": 2,
+          "label": "Transport wählen (DSGVO)",
+          "beginner": "Weil der Prompt Dokumentinhalte trägt, darf er nur an die interne KI gehen. Ein externer Anbieter wird mit Begründung abgelehnt.",
+          "dev": {
+            "file": "src/core/services/ai/transport-policy.ts · bridge.ts",
+            "fn": "skillEnthaeltDokumentInhalte(skill) → bridge.getTransportForSkillRun(skill)",
+            "effect": "Scannt den Template-TEXT nach {{vbMarkdown}} / INHALTS_SLOTS (Pitfall #35); erlaubteTransportKlassen ⇒ ['intern']; wirft bei externem Provider (Pitfall #30). Guard no-raw-active-transport."
+          },
+          "log": "transport-policy.ts  →  enthaeltDokumentInhalte=true  →  Transport 'Interne KI'"
+        },
+        {
+          "lane": 3,
+          "label": "Frischer Chat + Lauf",
+          "beginner": "Die App öffnet die interne KI in einem zweiten Tab (Bookmarklet einmal anklicken), setzt den Chat zurück und schickt die Nachricht.",
+          "dev": {
+            "file": "src/core/services/ai/chat-reset.ts · transports/streamlit.ts · modell-katalog.ts",
+            "fn": "starteFrischenChat(transport, ziel) → runSkill() → postMessage {type:'tf-request', id, message, modell}",
+            "effect": "Pitfall #36 (stateful Chat); Modellrolle standard (gpt-oss-120b) oder stark (qwen3.6-35b) nur über den Katalog (Guard modellname-nur-im-katalog); Auto-Eskalation nur aufwärts."
+          },
+          "log": "streamlit.ts  →  tf-reset ok  ·  tf-request #a91 modell=standard"
+        },
+        {
+          "lane": 3,
+          "label": "Streaming zurück",
+          "beginner": "Der Text erscheint live, während die KI schreibt; ein Herzschlag verhindert, dass ein langer Lauf als abgebrochen gilt.",
+          "dev": {
+            "file": "transports/streamlit.ts · transports/deadline.ts · plugins/antraege/kurzfassung/StreamingVorschau.tsx",
+            "fn": "tf-stream (Voll-Snapshots → Delta) · tf-progress → touch() · tf-response",
+            "effect": "RESPONSE_IDLE_TIMEOUT 200 s, HARD 660 s; useStreamingBuffer mit LaufPhase formulieren | feinschliff."
+          },
+          "log": "tf-stream ×184  ·  tf-response #a91 (reasoning 1 220 · content 3 980 Zeichen)"
+        },
+        {
+          "lane": 2,
+          "label": "Antwort zerlegen",
+          "beginner": "Die Antwort hat drei Teile: Quellenanalyse, Entwurf und finaler Text. Fehlen die Überschriften, wird alles als finaler Text genommen und gewarnt.",
+          "dev": {
+            "file": "src/core/services/skills/run/parse.ts",
+            "fn": "parseSkillOutput(raw, teilStruktur?) · parseBelege",
+            "effect": "Regex auf ### Quellenanalyse | Entwurf | Finaler Text; Belege '→ stützt Satz n' (1-basiert im Format, 0-basiert intern); teilStruktur = JSON-Teilfelder mit Plain-Text-Fallback."
+          },
+          "log": "parseSkillOutput()  →  quellenanalyse ✓ entwurf ✓ finalerText 1 830 Zeichen · 4 Belege"
+        },
+        {
+          "lane": 4,
+          "label": "Deterministische Checks",
+          "beginner": "Ohne KI prüft die App Umfang und Form: Zeichen, Wörter, Sätze, verbotene Muster, Pflicht-Anfang. Dieselbe Regel, die im Prompt stand, wird hier gemessen.",
+          "dev": {
+            "file": "src/core/services/skills/registry/check-engine.ts · kategorien.ts",
+            "fn": "runRegelChecks(finalerText, regeln) → CheckResult[] · splitSentences · effektiveKategorie()",
+            "effect": "RegelTyp zeichen_max · wortanzahl · satzanzahl · satzlaenge_max · verbotenes_muster · pflicht_anfang · keine_aufzaehlungen · absatz_min · keine_ueberschriften; Prüfart textlich/fachlich/administrativ; Level ok/hinweis/fehler."
+          },
+          "log": "runRegelChecks()  →  ok 7 · hinweis 1 (satzlaenge_max 27>25) · fehler 1 (zeichen_max 1 830>1 800)"
+        },
+        {
+          "lane": 2,
+          "label": "Auto-Korrektur",
+          "beginner": "Ein Fehler löst genau einen Überarbeitungslauf aus — mit einer Anweisung, die Ziel und Ist-Wert nennt („kürzer, 1 800 statt 1 830 Zeichen“).",
+          "dev": {
+            "file": "src/plugins/antraege/gutachten/retry-policy.ts · registry/korrektur.ts",
+            "fn": "chooseRetryModifier() → regelKorrekturAnweisung(check, regel) → runSkill(modifier)",
+            "effect": "Nur bei level 'fehler'; Zielwert aus regel.params, Ist aus CheckResult.messwert; Überarbeitung bekommt keinen Feinschliff; Scheitern degradiert zum Rohentwurf."
+          },
+          "log": "chooseRetryModifier()  →  'kuerzer' · Anweisung 'Ziel 1 800 Zeichen (ist 1 830)'  →  runSkill()"
+        },
+        {
+          "lane": 1,
+          "label": "Review",
+          "beginner": "Quellenanalyse, finaler Text, Denkprozess, Unterschied zur Vorversion und die Check-Liste. Aktionen: Freigeben, Neu, Kürzer, Länger, Prüfen.",
+          "dev": {
+            "file": "src/plugins/antraege/kurzfassung/ReviewCard.tsx · CheckList.tsx · kurzfassung-diff.ts · useKurzfassung.ts",
+            "fn": "useKurzfassung(ctx) → generate · modify · pruefen · freigeben · uebernehmen(index)",
+            "effect": "Alle Aktionen self-catching (Pitfall #15); Verlauf max 5 Versionen; Diff via diff-match-patch; Persist nach jedem Statuswechsel, nie während der Generierung."
+          },
+          "log": "ReviewCard  →  status=entwurf · checks 8 ok · diff +12/−31"
+        },
+        {
+          "lane": 5,
+          "label": "Persistieren",
+          "beginner": "Die Kurzfassung wird am Verbund gespeichert — als eigenes Objekt, nicht im Antrag.",
+          "dev": {
+            "file": "src/plugins/antraege/kurzfassung/kurzfassung-store.ts · types.ts",
+            "fn": "putKurzfassung(idb, record) → kv 'gutachten-kurzfassung:<verbund-key>'",
+            "effect": "KurzfassungRecord {quellenanalyse, entwurf, finalerText, checks, status, modell, skillId, verlauf …}; kein dedizierter Store (kein IDB-Version-Bump unter file://); Personal-Mirror im persönlichen Ordner."
+          },
+          "log": "kv.set('gutachten-kurzfassung:VB-2026-0417')  status=freigegeben"
+        },
+        {
+          "lane": 0,
+          "label": "Word-Vorlage füllen",
+          "beginner": "Zum Schluss setzt die App den freigegebenen Text an seine Überschrift in der Gutachten-Vorlage (Abschnitte A–G) und speichert das Word-Dokument.",
+          "dev": {
+            "file": "src/plugins/antraege/kurzfassung/VorlageDialog.tsx · gutachten-vorlagen/fill-template.ts · anchor-mapping.ts · save-docx.ts",
+            "fn": "fillTemplate(buf, antrag, sections, {dryRun}) → processDocumentXml → saveGutachtenDocx",
+            "effect": "Vorlage immer frisch gelesen (Pitfall #33); Anker A 'Kurzfassung der Projektbeschreibung' … G 'Auswirkungen …'; SHA-256-Stempel in WorkflowRun.vorlageRef; Fallback Browser-Download."
+          },
+          "log": "fillTemplate(dryRun)  →  7 Anker gefunden  ·  saveGutachtenDocx('Gutachten_EP_16KN0417.docx')"
+        }
+      ]
+    },
+    {
+      "id": "feedback",
+      "title": "Feedback abgeben",
+      "kicker": "Vom schwebenden Knopf bis zum Ticket im Board",
+      "summary": "Ein schwebender Knopf öffnet ein kleines Formular mit Screenshot. Wer Schreibrecht auf dem Netzlaufwerk hat, schreibt direkt in die geteilte Datei; alle anderen in eine persönliche „Outbox“, die das Board automatisch einsammelt. Aus einem Ticket entsteht per Knopf ein fertiger Entwicklungsauftrag.",
+      "lanes": [
+        "Nutzer",
+        "Feedback-UI",
+        "Feedback-Service",
+        "Interne KI",
+        "Daten-Share (SMB)",
+        "Persönlicher Ordner"
+      ],
+      "steps": [
+        {
+          "lane": 0,
+          "label": "Knopf anklicken",
+          "beginner": "Der Feedback-Knopf schwebt auf jeder Seite; mit Tastenkürzel gleich mit Screenshot.",
+          "dev": {
+            "file": "src/components/feedback/FeedbackButton.tsx",
+            "fn": "FeedbackButton() · Shortcut mod+alt+s",
+            "effect": "Shell-weit gemountet; öffnet FeedbackPanel (470 px, backdrop-blur)."
+          },
+          "log": "FeedbackButton  →  open(panel, focusScreenshot=true)"
+        },
+        {
+          "lane": 1,
+          "label": "Formular ausfüllen",
+          "beginner": "Typ (Problem, Idee, Frage …), Bereich = die erkannte Seite, Beschreibung und ein annotierbarer Screenshot.",
+          "dev": {
+            "file": "src/components/feedback/FeedbackPanel.tsx · constants.ts · FeedbackAnnotator.tsx · core/services/feedback/screenContext.ts",
+            "fn": "sichtbareFelder() · context.screenRef · ticketBereich() · addFiles",
+            "effect": "Feld 'steps' bleibt im Schema, nur nicht im Formular (Alt-Tickets byte-gleich); Aufnahme-Modus schrumpft das Panel auf 320 px, Entwurf bleibt erhalten."
+          },
+          "log": "FeedbackPanel  →  typ=problem · bereich='antraege' · screenshot 1"
+        },
+        {
+          "lane": 3,
+          "label": "Optional: mit KI verbessern",
+          "beginner": "Die KI stellt erst Rückfragen und formuliert dann Ist und Soll — nur mit der internen KI.",
+          "dev": {
+            "file": "src/core/services/feedback/feedbackImprove.ts · components/feedback/FeedbackVerbessernFlow.tsx",
+            "fn": "brauchtRueckfragen → askClarifyingQuestions → improveFeedbackGuided → GuidedImproveResult",
+            "effect": "Festes Ziel-Modell FEEDBACK_ZIEL; Ergebnis cls.anforderung (Ist/Soll)."
+          },
+          "log": "improveFeedbackGuided()  →  2 Rückfragen  →  anforderung {ist, soll}"
+        },
+        {
+          "lane": 2,
+          "label": "Absenden",
+          "beginner": "Das Feedback wird zuerst immer lokal gespeichert, dann weitergeleitet.",
+          "dev": {
+            "file": "src/core/services/feedback/feedbackService.ts",
+            "fn": "submitFeedback(storage, data, routing, attachments)",
+            "effect": "loadLocalItems/saveLocalItems; Retry mit vorgabeId ersetzt den Stand; Dispatch über routing.writeToShared."
+          },
+          "log": "submitFeedback()  →  local ✓  routing.writeToShared=false (prod)"
+        },
+        {
+          "lane": 4,
+          "label": "Mit Schreibrecht: geteilte Datei",
+          "edge": "canWriteDatenShare",
+          "beginner": "Kuratoren und PL schreiben direkt in die Team-Datei — nach erneutem Lesen und Zusammenführen, damit nichts überschrieben wird.",
+          "dev": {
+            "file": "feedbackService.ts · infrastructure/atomic-write.ts",
+            "fn": "writeSharedAttachment · readSharedFileLage · mergeItems · writeSharedFile",
+            "effect": "_intern/feedback/feedback.json; Lage 'unlesbar' wird NIE als 'leer' behandelt (sonst überschriebe der Write den Teambestand)."
+          },
+          "log": "writeSharedFile(_intern/feedback/feedback.json)  merge +1"
+        },
+        {
+          "lane": 5,
+          "label": "Ohne Schreibrecht: Outbox",
+          "from": 3,
+          "edge": "sonst (prod)",
+          "beginner": "Endnutzer schreiben in eine private Outbox-Datei im persönlichen Ordner — sonst ginge ihr Feedback verloren.",
+          "dev": {
+            "file": "src/core/services/feedback/feedbackStorage.ts",
+            "fn": "submitToOutbox(persHandle, kuerzel, payload, blobs)",
+            "effect": "ZAH/feedback/outbox/ im persönlichen Ordner; category, structured, attachments, context reisen mit; Fehler nur console.warn (lokales Item existiert)."
+          },
+          "log": "submitToOutbox()  →  <pers>/ZAH/feedback/outbox/THÜ-….json"
+        },
+        {
+          "lane": 4,
+          "label": "Board sammelt ein",
+          "from": [
+            4,
+            5
+          ],
+          "beginner": "Beim Öffnen des Feedback-Boards werden alle Outboxen eingesammelt; das Ticket erscheint mit Status, Stimmen und Kommentaren.",
+          "dev": {
+            "file": "src/plugins/feedback-board/verwaltung/useAutoCollectFeedback.ts · core/services/feedback/feedbackOutboxCollect.ts",
+            "fn": "useAutoCollectFeedback() → autoCollectFeedbackOutboxes · autoCollectFeedbackVotes · autoCollectFeedbackComments",
+            "effect": "Hängt am Board (einziger Pfad für prod-Feedback); Whitelist beim Einsammeln; Sponsoring über Quartals-Budget."
+          },
+          "log": "autoCollectFeedbackOutboxes()  →  3 neue Tickets  ·  emitFeedbackUpdated()"
+        },
+        {
+          "lane": 1,
+          "label": "Ticket → Entwicklungsauftrag",
+          "beginner": "Wer verwalten darf, erzeugt aus dem Ticket per Knopf einen Markdown-Auftrag für Claude Code — mit Reproduktionsschritten, Ist und Soll.",
+          "dev": {
+            "file": "src/core/services/feedback/promptGenerator.ts · components/feedback/FeedbackVerwaltungBlock.tsx",
+            "fn": "generateClaudeCodePrompt(ticket) → STRUCTURED_SECTIONS · CATEGORY_LABELS_DE",
+            "effect": "cls.anforderung als Ist/Soll-Abschnitt zuerst; LLM-Summary als Einleitung, Felder bleiben Beleg; nur mit ctx.darfSchreiben."
+          },
+          "log": "generateClaudeCodePrompt()  →  Markdown 1 420 Zeichen (kopiert)"
+        }
+      ]
+    }
+  ],
+  "dataModel": {
+    "beginner": "Ein Antrag ist eine Tabellenzeile aus dem Fachsystem, erkannt an seinem Förderkennzeichen (Aktenzeichen). Mehrere Anträge, die zum selben Projekt gehören, teilen eine Verbund-Nummer — die App zeigt sie deshalb als einen Verbund mit mehreren Teilvorhaben. Weil ein Antrag über 400 Spalten hat, gibt es zusätzlich eine schlanke Kopie mit 36 Feldern für Listen.",
+    "entities": [
+      {
+        "name": "Verbund",
+        "key": "verbund_id (= VB_NUMMER)",
+        "fields": "akronym · titel (VB_TITEL) · status (STATUS_VB) · teilantrags_ids[]",
+        "note": "Aggregat, vom Merge gepflegter Cache; selbst heilend (healMissingVerbuende)"
+      },
+      {
+        "name": "Antrag = Teilvorhaben (TV)",
+        "key": "aktenzeichen (= FKZ, 16XX######)",
+        "fields": "programm_id · unterprogramm_id (FM_NUMMER) · akronym · titel (THEMA_AD) · antragsteller · status (STATUS_TV) · verbund_id · dokumente[] · [key: string]: unknown (~450 Custom-Felder) · _field_sources · _updated_at",
+        "note": "~461 Felder, ~36 KB je Record; nur ~10 explizit typisiert"
+      },
+      {
+        "name": "AntragListItem",
+        "key": "aktenzeichen",
+        "fields": "36 Whitelist-Felder (LIST_VIEW_FIELDS) + kat_status + frei_roh",
+        "note": "Slim-Projektion für Home und Listen — wer antraege schreibt, zieht sie mit"
+      },
+      {
+        "name": "CsvSchema",
+        "key": "id (z. B. fixture-real-anb)",
+        "fields": "join_key · priority · is_master · column_mapping · Team-Stempel (file_checksum, source_last_modified, last_file_size, source_stamped_by)",
+        "note": "Eine CSV-Quelle; drei produktiv (Master 9097_AnB, 7737_Bgl, 9052_PrjBsp)"
+      },
+      {
+        "name": "Unterprogramm",
+        "key": "id = FM-Nummer",
+        "fields": "code · label · aktiv (Import-Allowlist) · antrag_count_cached",
+        "note": "Richtlinien-Generationen bilden den Betrachtungsbereich"
+      }
+    ],
+    "columns": [
+      {
+        "k": "D_<CODE>",
+        "v": "Datum, an dem ein Vorgangskürzel des Fachsystems gesetzt wurde (z. B. D_AAE Antragseingang). Nie als Literal — nur todoFeld()."
+      },
+      {
+        "k": "T_<CODE>",
+        "v": "Freitext zum Kürzel (T_HINT Bemerkung, T_XSW Wiedereinreicher)."
+      },
+      {
+        "k": "X…",
+        "v": "Kürzel mit X am Anfang liegen auf Verbund-Ebene (identisch auf jeder TV-Zeile)."
+      },
+      {
+        "k": "tib_kuerz / ztp_kuerz",
+        "v": "Fachliche Bearbeitung (FB) und Begleitung; bib_kuerz / bfm_kuerz / pfm_kuerz = administrative (AB)."
+      },
+      {
+        "k": "STATUS_TV / STATUS_VB",
+        "v": "Rohstatus aus C16, gebrandet als AntragStatusRaw — nie mit Literal vergleichen, nur Kategorie-Helfer (Pitfall #12)."
+      }
+    ]
+  },
+  "stores": [
+    {
+      "name": "kv",
+      "key": "out-of-line",
+      "since": 1,
+      "note": "Punkt-Werte: profile, onboarding-complete, doc:*, gutachten-kurzfassung:*, workflow-run:*, aufbereitung:*, skill-registry:cache …"
+    },
+    {
+      "name": "programme",
+      "key": "id",
+      "since": 2,
+      "note": ""
+    },
+    {
+      "name": "unterprogramme",
+      "key": "id",
+      "since": 2,
+      "note": "Index programm_id"
+    },
+    {
+      "name": "csv_schemas",
+      "key": "id",
+      "since": 2,
+      "note": "Index programm_id, is_master"
+    },
+    {
+      "name": "csv_row_hashes",
+      "key": "[csv_schema_id, join_value]",
+      "since": 2,
+      "note": "Diff-Grundlage"
+    },
+    {
+      "name": "antraege",
+      "key": "aktenzeichen",
+      "since": 2,
+      "note": "Voll-Record; Index programm_id, verbund_id, akronym"
+    },
+    {
+      "name": "antrag_historie",
+      "key": "id",
+      "since": 2,
+      "note": "Feld-Diffs je Aktenzeichen"
+    },
+    {
+      "name": "verbuende",
+      "key": "verbund_id",
+      "since": 2,
+      "note": "Cache, selbst heilend"
+    },
+    {
+      "name": "akronym_index",
+      "key": "[programm_id, akronym]",
+      "since": 2,
+      "note": "→ aktenzeichen[]"
+    },
+    {
+      "name": "filter_definitionen",
+      "key": "id",
+      "since": 2,
+      "note": "system / admin / user"
+    },
+    {
+      "name": "verbund_historie",
+      "key": "id",
+      "since": 3,
+      "note": ""
+    },
+    {
+      "name": "phase2_skip_list",
+      "key": "filename",
+      "since": 5,
+      "note": "classifier_version-Reset"
+    },
+    {
+      "name": "phase2_pending_antraege",
+      "key": "id",
+      "since": 5,
+      "note": "Holding-Bucket"
+    },
+    {
+      "name": "phase2_scan_manifest",
+      "key": "filename",
+      "since": 5,
+      "note": "Triage-Ergebnisse"
+    },
+    {
+      "name": "phase2_scan_config",
+      "key": "id",
+      "since": 6,
+      "note": "Legacy"
+    },
+    {
+      "name": "dms_sources",
+      "key": "id",
+      "since": 7,
+      "note": "Multi-Source ab v1.15"
+    },
+    {
+      "name": "antraege_list_view",
+      "key": "aktenzeichen",
+      "since": 8,
+      "note": "Slim-Projektion, 36 Felder"
+    },
+    {
+      "name": "assistent_ereignisprotokoll",
+      "key": "id",
+      "since": 9,
+      "note": "strikt gerätelokal, opt-in"
+    },
+    {
+      "name": "assistent_gedaechtnis",
+      "key": "id",
+      "since": 10,
+      "note": "strikt gerätelokal"
+    },
+    {
+      "name": "status_katalog",
+      "key": "version",
+      "since": 11,
+      "note": "gerätelokal"
+    },
+    {
+      "name": "status_event",
+      "key": "id",
+      "since": 11,
+      "note": "append-only, gerätelokal"
+    }
+  ],
+  "shareLayout": [
+    {
+      "path": "<Daten-Share>/",
+      "note": "eigener SMB-Share, getrennt vom App-Share mit der HTML; Ordnername ZAH"
+    },
+    {
+      "path": "├─ programm/antraege/imports/",
+      "note": "UTF-8-normalisierte Share-Kopien der CSVs — der Merge liest nur hieraus"
+    },
+    {
+      "path": "├─ programm/antraege/snapshot/<programmId>/",
+      "note": "manifest.json + 9 *.jsonl (+ antraege.delta.<seq>.jsonl, backups/)"
+    },
+    {
+      "path": "├─ programm/schemas/ · programm/index/",
+      "note": "Column-Mapping-JSONs · Orama-Snapshots + index-meta.json"
+    },
+    {
+      "path": "├─ _intern/audit-log.jsonl · build-lock.json",
+      "note": "append-only Audit · Heartbeat-Lock"
+    },
+    {
+      "path": "├─ _intern/skills/registry.json · textbausteine.json",
+      "note": "App-Skills (Prompts, Regeln, Workflows) · Textbaustein-Katalog"
+    },
+    {
+      "path": "├─ _intern/auslastung.json · auslastung-kuerzel-map.json · auslastung-zugang.enc",
+      "note": "Auslastung · Kürzel→MAxx (append-only) · verschlüsselte Zugangsdatei"
+    },
+    {
+      "path": "├─ _intern/feedback/feedback.json · eigene-spalten.json · sichtbarkeit.json · meilensteine.json",
+      "note": "Team-Sidecars, alle über atomicWrite()"
+    },
+    {
+      "path": "├─ _intern/vorgangssystem/journal/stand.json · journal-YYYY-MM.jsonl",
+      "note": "Import-Diff-Journal (3,4 MB Stand @ 7 269 Anträge)"
+    },
+    {
+      "path": "├─ backups/YYYY-MM-DD/",
+      "note": "wöchentlich, rollierend 4 Generationen"
+    },
+    {
+      "path": "└─ README.txt",
+      "note": ""
+    },
+    {
+      "path": "<Persönlicher Ordner>/ZAH/",
+      "note": "profile.json · einstellungen.json · feedback/outbox/ · auslastung-uebernahme.json · skill-tweaks.json"
+    }
+  ],
+  "statusAxis": {
+    "beginner": "Der Status kommt aus dem Fachsystem und gilt wie importiert — die App leitet nie einen ab. Sie liest ihn nur auf drei Ebenen: der amtliche Code, der Verfahrensschritt (kuratierbar, „wo im Verfahren“) und die feste Arbeitsliste („wer ist am Zug“), die Reiter, Farben und Kanban-Bahnen steuert.",
+    "chain": [
+      {
+        "label": "Rohtext",
+        "example": "„VN geprüft“",
+        "fn": "findeStatusCode(text)",
+        "file": "core/status/status-codes.ts",
+        "note": "505 Katalogeinträge, 30 Codes"
+      },
+      {
+        "label": "Amtlicher Code",
+        "example": "88",
+        "fn": "phaseFuerCode(code)",
+        "file": "core/status/zah-phasen.ts",
+        "note": "Schnitt aus der aktiven Fassung (snapshot.ts)"
+      },
+      {
+        "label": "ZAH-Phase",
+        "example": "begleitung",
+        "fn": "kategorieFuerCode(code)",
+        "file": "core/status/kategorie-ableitung.ts",
+        "note": "6 kuratierbare Verfahrensschritte"
+      },
+      {
+        "label": "StatusCategory",
+        "example": "begleitung",
+        "fn": "getStatusCategory(raw)",
+        "file": "core/utils/status-canonical.ts",
+        "note": "9 feste Werte, nicht kuratierbar"
+      }
+    ],
+    "categories": [
+      {
+        "id": "offen",
+        "label": "Offen",
+        "note": "Eingang, noch nicht in Prüfung"
+      },
+      {
+        "id": "in_pruefung",
+        "label": "In Prüfung",
+        "note": "techn./kaufm./Gutachten, vor Bewilligung"
+      },
+      {
+        "id": "nachforderung",
+        "label": "Nachforderung läuft",
+        "note": "genau ein Status: NF gestellt (Code 35)"
+      },
+      {
+        "id": "entscheidung",
+        "label": "Entscheidung",
+        "note": "Entscheidungsvorbereitung"
+      },
+      {
+        "id": "bewilligt",
+        "label": "Bewilligt",
+        "note": "Code 59"
+      },
+      {
+        "id": "begleitung",
+        "label": "Begleitung",
+        "note": "VN-/ZB-Prüfung, andere Zuständigkeit (ZTP/PFM)"
+      },
+      {
+        "id": "abgelehnt",
+        "label": "Abgelehnt",
+        "note": "semantischer Platz, vom Katalog unbesetzt"
+      },
+      {
+        "id": "abgeschlossen",
+        "label": "Abgeschlossen",
+        "note": "Schlussvermerk (99), abgebrochen, zurückgezogen (73)"
+      },
+      {
+        "id": "sonstige",
+        "label": "Sonstige",
+        "note": "Irrläufer, unvollständig, leer, unbekannt"
+      }
+    ],
+    "zahPhasen": [
+      "eingang",
+      "vollstaendigkeit",
+      "pruefung",
+      "entscheidung",
+      "begleitung",
+      "abgeschlossen"
+    ]
+  },
+  "plugins": [
+    {
+      "id": "home",
+      "name": "Home",
+      "category": "workflow",
+      "order": 0,
+      "route": "/",
+      "flag": "",
+      "lock": "",
+      "desc": "Startseite aus Widget-Instanzen: Tagesbrief (was zuerst dran ist, Flag tagesbrief), Meine Anträge, Kanban, Fristen, Nachtlauf, Notizen … Konfiguration strikt gerätelokal."
+    },
+    {
+      "id": "antraege",
+      "name": "Förderanträge",
+      "category": "workflow",
+      "order": 2,
+      "route": "/antraege",
+      "flag": "",
+      "lock": "",
+      "desc": "Liste + Verbund-Detail über das CSV-Schema; Filter, Sichten, Betrachtungsbereich, Gutachten, Nachforderungen, Aufbereitung."
+    },
+    {
+      "id": "auslastung",
+      "name": "Auslastung",
+      "category": "workflow",
+      "order": 4,
+      "route": "/auslastung",
+      "flag": "auslastung",
+      "lock": "auslastung",
+      "desc": "Klassifizierung in Überkategorien, MA-Matching, Quartalskapazität, Kompetenzmatrix, anonymisiert MA01…MAxx."
+    },
+    {
+      "id": "meilensteine",
+      "name": "Fristen & Meilensteine",
+      "category": "erprobung",
+      "order": 40,
+      "route": "/meilensteine",
+      "flag": "meilensteinMonitoring",
+      "lock": "",
+      "desc": "Versionierter, freigebbarer Plan mit Soll-Wochen ab Antragseingang und Frist-Prognose."
+    },
+    {
+      "id": "anfragen",
+      "name": "E-Mail Anfragen",
+      "category": "erprobung",
+      "order": 42,
+      "route": "/anfragen",
+      "flag": "anfragen",
+      "lock": "",
+      "desc": ".msg einlesen → intern anonymisieren → extern beantworten → deterministisch wiedereinsetzen."
+    },
+    {
+      "id": "map-foerderfaehig",
+      "name": "Förderfähigkeit",
+      "category": "erprobung",
+      "order": 44,
+      "route": "/map-foerderfaehig",
+      "flag": "mapFoerderfaehig",
+      "lock": "",
+      "desc": "Einreichungs-JSON → Rechenchecks → versionierte Checkliste → Abschluss-Entwurf (Gutachten/NF/Ablehnung)."
+    },
+    {
+      "id": "vorgangs-board",
+      "name": "Vorgangs-Board",
+      "category": "erprobung",
+      "order": 45,
+      "route": "/vorgangs-board",
+      "flag": "vorgangssystem",
+      "lock": "",
+      "desc": "Gruppierte Listen nach To-do (Arbeit · Fristen · Auswertung) — kein Kanban, nichts wird gezogen."
+    },
+    {
+      "id": "status-cockpit",
+      "name": "Vorgangs-Regeln",
+      "category": "erprobung",
+      "order": 46,
+      "route": "/status-cockpit",
+      "flag": "statusCockpit",
+      "lock": "",
+      "desc": "Reiter Ebenen · Statuswerte · Kürzel · To-do-Regeln · Klärfragen; Fassungen kuratieren."
+    },
+    {
+      "id": "doppelfoerderung",
+      "name": "Doppelförderung",
+      "category": "erprobung",
+      "order": 46,
+      "route": "/doppelfoerderung",
+      "flag": "doppelfoerderung",
+      "lock": "",
+      "desc": "Meldeliste (XLSX) → 3 Schlagworte je Zeile (KI) → Wortlaut + Ähnlichkeit + Träger → Urteil. hideFromNav."
+    },
+    {
+      "id": "suche",
+      "name": "Suche",
+      "category": "tools",
+      "order": 20,
+      "route": "/suche",
+      "flag": "",
+      "lock": "",
+      "desc": "Hybrid-Suche (Wortlaut · Ähnlichkeit · Dokumente), Frage-Modus, angedockter Chat."
+    },
+    {
+      "id": "glossar",
+      "name": "Glossar",
+      "category": "tools",
+      "order": 21,
+      "route": "/glossar",
+      "flag": "",
+      "lock": "",
+      "desc": "Kürzel-Glossar des Fachsystems mit Wirkung und Regelbezug."
+    },
+    {
+      "id": "skill-verwaltung-kuration",
+      "name": "Skill-Verwaltung",
+      "category": "tools",
+      "order": 22,
+      "route": "/kuration/skill-verwaltung",
+      "flag": "skillVerwaltung",
+      "lock": "",
+      "desc": "App-Skills, Regeln, Workflows, Textbausteine, Eval — alles als Daten auf dem Share."
+    },
+    {
+      "id": "feedback-board",
+      "name": "Feedback",
+      "category": "tools",
+      "order": 24,
+      "route": "/feedback-board",
+      "flag": "",
+      "lock": "",
+      "desc": "Die eine Feedback-Seite: Liste/Kanban, Verwaltung, Sponsoring, Claude-Code-Prompt."
+    },
+    {
+      "id": "zu-klaeren",
+      "name": "Zu klären",
+      "category": "tools",
+      "order": 26,
+      "route": "/zu-klaeren",
+      "flag": "vorgangssystem",
+      "lock": "",
+      "desc": "Fachfragen asynchron beantworten; Weg Klärung → Export → Seed → Release."
+    },
+    {
+      "id": "dokumente",
+      "name": "Dokumente",
+      "category": "tools",
+      "order": 30,
+      "route": "/dokumente",
+      "flag": "dokumente",
+      "lock": "",
+      "desc": "Dokumenten-Browser (Phase-2-Platzhalter)."
+    },
+    {
+      "id": "einstellungen",
+      "name": "Einstellungen",
+      "category": "system",
+      "order": 20,
+      "route": "/einstellungen",
+      "flag": "",
+      "lock": "",
+      "desc": "Profil, Theme, KI-Assistent, Freischaltung, Umfang (Beta/Experte), Speicher. Im Sidebar-Fuß."
+    },
+    {
+      "id": "kuration",
+      "name": "Datenpflege",
+      "category": "kuration",
+      "order": 10,
+      "route": "/kuration",
+      "flag": "",
+      "lock": "kurator",
+      "desc": "Der Kurations-Hub: Übersicht, CSV-Quellen, Förderprogramme, Suche & Index, Dienste, Sichtbarkeit."
+    },
+    {
+      "id": "dokument-review",
+      "name": "Dokument-Review",
+      "category": "kuration",
+      "order": 30,
+      "route": "/kuration/dokument-review",
+      "flag": "dokumentenscan",
+      "lock": "kurator",
+      "desc": "Review-Queue der Phase-2-Triage; Tastatur j/k/n/i/r/a."
+    },
+    {
+      "id": "dev-state-inspector",
+      "name": "DEV: State",
+      "category": "werkbank",
+      "order": 98,
+      "route": "/dev-state-inspector",
+      "flag": "devFixtures",
+      "lock": "",
+      "desc": "IDB-Store-Counts, Handles, Session, Flags, Build-Info."
+    },
+    {
+      "id": "dev-infrastructure-test",
+      "name": "DEV: Infra",
+      "category": "werkbank",
+      "order": 99,
+      "route": "/dev-infrastructure-test",
+      "flag": "devInfraPanel",
+      "lock": "",
+      "desc": "Test-Harness mit Panels inkl. Phase-2-Triage."
+    }
+  ],
+  "pluginGroups": [
+    {
+      "id": "workflow",
+      "label": "Arbeit (ohne Überschrift)"
+    },
+    {
+      "id": "tools",
+      "label": "Werkzeuge"
+    },
+    {
+      "id": "erprobung",
+      "label": "In Erprobung"
+    },
+    {
+      "id": "kuration",
+      "label": "Kuration"
+    },
+    {
+      "id": "werkbank",
+      "label": "Developer"
+    },
+    {
+      "id": "system",
+      "label": "System"
+    }
+  ],
+  "variants": [
+    {
+      "id": "dev",
+      "file": "dev.config.json",
+      "out": "dist-single/dev/zah-dev.html",
+      "label": "ZAH dev",
+      "who": "Entwicklung",
+      "flags": "30/32",
+      "auth": "Rollen-Passwort",
+      "notes": "OpenRouter erlaubt (nur hier), Dev-Fixtures, Dev-Panels"
+    },
+    {
+      "id": "pl",
+      "file": "pl.config.json",
+      "out": "dist-single/zah-pl.html",
+      "label": "ZAH PL",
+      "who": "Projektleitung / voller Fach-Stack",
+      "flags": "26/32",
+      "auth": "Rollen-Passwort + Modul-Schlösser auslastung & kurator",
+      "notes": "Schreibrecht auf den Daten-Share"
+    },
+    {
+      "id": "prod",
+      "file": "prod.config.json",
+      "out": "dist-single/zim-dashboard.html",
+      "label": "ZAH",
+      "who": "Endnutzer (read-only)",
+      "flags": "1/32 (maLogin)",
+      "auth": "MA-Login (persönliches Passwort)",
+      "notes": "Nur Snapshot-Sync, kein CSV-Import, Feedback über Outbox"
+    },
+    {
+      "id": "local",
+      "file": "local.config.json",
+      "out": "wird nie gebaut",
+      "label": "ZAH local",
+      "who": "Abnahme im Dev-Server (Port 5175)",
+      "flags": "30/32",
+      "auth": "—",
+      "notes": "feste lokale Ordner statt Picker, window.__tf-Hook"
+    },
+    {
+      "id": "local-fiktiv",
+      "file": "local-fiktiv.config.json",
+      "out": "wird nie gebaut",
+      "label": "ZAH fiktiv",
+      "who": "Skill-Messung ohne Echtdaten (Port 5176)",
+      "flags": "30/32",
+      "auth": "—",
+      "notes": "eigene IDB teamflow-zah-local-fiktiv"
+    }
+  ],
+  "visibility": [
+    {
+      "axis": "Feature-Flag",
+      "question": "Ist es einkompiliert?",
+      "when": "Bauzeit",
+      "where": "features.<modul> in configs/*.config.json → scripts/config-schema.mjs → src/config/feature-flags.ts",
+      "manifest": "featureFlag"
+    },
+    {
+      "axis": "Modul-Freischaltung",
+      "question": "Darf ich es sehen? (Zusatzpasswort)",
+      "when": "Laufzeit, 12 h",
+      "where": "src/config/modul-schloss.ts · core/modul-freischaltung.ts · ModulSchlossGate (Router)",
+      "manifest": "modulSchloss: 'auslastung' | 'kurator'"
+    },
+    {
+      "axis": "Beta / Experte",
+      "question": "Will ich es sehen?",
+      "when": "Laufzeit, ohne Neuladen",
+      "where": "core/sichtbarkeit/katalog.ts (einzige Quelle) · useSichtbar() · Sidecar _intern/sichtbarkeit.json · Schalter im Profil",
+      "manifest": "Katalog-Marken (199 Einträge, 46 markiert)"
+    },
+    {
+      "axis": "kuratorOnly",
+      "question": "Habe ich die Rolle?",
+      "when": "Laufzeit",
+      "where": "profile.is_kurator · useKuratorSeiten() · GeschuetzteSeite (Router)",
+      "manifest": "kuratorOnly: true"
+    }
+  ],
+  "ki": {
+    "beginner": "Die App hat keinen direkten Draht zur internen Firmen-KI. Sie öffnet deren Weboberfläche in einem zweiten Tab, in dem man einmal ein Lesezeichen (Bookmarklet) anklickt; danach reden die Tabs miteinander. Alles, was Dokument- oder Antragsinhalte trägt, darf nur diesen internen Weg gehen.",
+    "transports": [
+      {
+        "name": "Interne KI (KI-Bridge)",
+        "class": "intern",
+        "how": "Bookmarklet im KI-Tab + window.postMessage (tf-request · tf-stream · tf-progress · tf-response · tf-reset)",
+        "file": "core/services/ai/transports/streamlit.ts",
+        "variants": "alle"
+      },
+      {
+        "name": "llama.cpp lokal / LAN",
+        "class": "intern",
+        "how": "OpenAI-kompatibles HTTP (http://localhost:8081), SSE-Streaming",
+        "file": "core/services/ai/transports/direct-llm.ts",
+        "variants": "alle"
+      },
+      {
+        "name": "OpenRouter (Cloud)",
+        "class": "extern",
+        "how": "OpenAI-kompatibles HTTP mit API-Key",
+        "file": "direct-llm.ts · transport-policy.ts",
+        "variants": "nur dev — und nie für dokumenttragende Läufe"
+      }
+    ],
+    "roles": [
+      {
+        "role": "standard",
+        "model": "gpt-oss-120b",
+        "window": "62 000 Token",
+        "use": "Frageplan, Antragsplan, Antwortkarte, Klassifizierung, Skill-Läufe"
+      },
+      {
+        "role": "stark",
+        "model": "qwen3.6-35b",
+        "window": "259 000 Token",
+        "use": "lange Korpora, Ziel-Fallback stark→standard nur wo ziel wirkt"
+      }
+    ],
+    "gates": [
+      {
+        "fn": "getTransportForSkillRun(skill)",
+        "for": "Gutachten, NF, QS, Batch — Dokumentbezug aus dem Template abgeleitet (skillEnthaeltDokumentInhalte)"
+      },
+      {
+        "fn": "getTransportForDatenLauf(zweck)",
+        "for": "Frageplan, Frageantwort, Antragsplan, Wortformen, Auslastungs-Klassifizierung — hart intern"
+      },
+      {
+        "fn": "getTransportForAssistent()",
+        "for": "Assistent-Panel (ein Aufruf je Turn, resetChat, session-only Historie)"
+      },
+      {
+        "fn": "getTransportForKonsolidierung()",
+        "for": "Gedächtnis-Konsolidierung — Lease nur bei freier Bridge (Bridge-Mutex)"
+      }
+    ],
+    "oneShot": "fuehreEinSchussLauf (ein-schuss-lauf.ts): nur intern · passiver Ping · frischer Chat · Rolle standard · System-Prompt inline · ein Aufruf, kein Retry, wirft nie."
+  },
+  "devSetup": {
+    "commands": [
+      {
+        "cmd": "npm install",
+        "note": "einmalig; Node ≥ 20 (praktisch 22 LTS), keine engines-Angabe"
+      },
+      {
+        "cmd": "npm run dev",
+        "note": "Vite-Dev-Server, Port 5173, Ordner-Picker bleibt manuell"
+      },
+      {
+        "cmd": "npm run dev:local",
+        "note": "Variante local, Port 5175 — feste lokale Ordner, kein Welcome-Screen, window.__tf-Hook (Abnahme durch den Agenten)"
+      },
+      {
+        "cmd": "npm run dev:fiktiv",
+        "note": "Variante local-fiktiv, Port 5176 — nur fiktive Daten für KI-Messungen"
+      },
+      {
+        "cmd": "npm run check:docs",
+        "note": "nur die Guards unter src/__tests__/ (~6 s)"
+      },
+      {
+        "cmd": "npm run check:quick",
+        "note": "typecheck + lint + Testsuite (~26 s) — innerer Loop"
+      },
+      {
+        "cmd": "npm run check",
+        "note": "typecheck + lint + cycles + Tests (~33 s) — Phasen-Gate vor jedem Commit"
+      },
+      {
+        "cmd": "npm run build:devpl",
+        "note": "dev + pl bauen (Standard-Paar nach jedem Patch), Exit-Code prüfen"
+      },
+      {
+        "cmd": "npm run build:prod",
+        "note": "Endnutzer-Bundle dist-single/zim-dashboard.html"
+      },
+      {
+        "cmd": "npm run version:bump -- <major|minor|patch> \"<Titel>\"",
+        "note": "Version + Changelog-Skeleton; Kopf nie manuell editieren"
+      },
+      {
+        "cmd": "npm run docs:dashboard",
+        "note": "dieses Doku-Dashboard neu erzeugen (docs/docu-dashboard/dashboard.html)"
+      }
+    ],
+    "gates": [
+      {
+        "name": "check:docs",
+        "seconds": 6,
+        "scope": "Guards (src/__tests__)"
+      },
+      {
+        "name": "check:quick",
+        "seconds": 26,
+        "scope": "typecheck · lint · Tests"
+      },
+      {
+        "name": "check",
+        "seconds": 33,
+        "scope": "+ cycles (Allowlist leer)"
+      },
+      {
+        "name": "build:devpl",
+        "seconds": 0,
+        "scope": "Bundle-Nachweis mit Exit-Code"
+      }
+    ],
+    "guards": [
+      {
+        "file": "conventions-daten.test.ts",
+        "n": 51,
+        "what": "Persistenz, Share, Transport, Prompts, Feedback (größte Datei der Codebase)"
+      },
+      {
+        "file": "conventions-ui.test.ts",
+        "n": 47,
+        "what": "Oberfläche, Design-Tokens, Kontrast, geteilte Bauteile"
+      },
+      {
+        "file": "conventions-status.test.ts",
+        "n": 43,
+        "what": "Status, Kürzel, Verlauf, Journal (Domänentrennung, todoFeld(), NFC)"
+      },
+      {
+        "file": "conventions-clean-code.test.ts",
+        "n": 29,
+        "what": "Regeln zur Codeform mit gemessenem Ist und Ratschen (Fehlersichtbarkeit, Modulgrenzen, Duplikate, Zeitkonstanten)"
+      },
+      {
+        "file": "agent-konfiguration.test.ts",
+        "n": 7,
+        "what": "Skills, Hooks, Deny-Regeln, Specs — die Dateien, die Claude Code steuern"
+      },
+      {
+        "file": "version-bump.test.ts",
+        "n": 7,
+        "what": "pure Funktionen des Version-Bumps"
+      },
+      {
+        "file": "health-baseline.test.ts",
+        "n": 5,
+        "what": "Struktur-Kennzahlen als Drift-Warnung (Anzahl Flags, Service-Dirs, max. LOC je Datei)"
+      },
+      {
+        "file": "doc-links.test.ts",
+        "n": 2,
+        "what": "alle relativen Markdown-Links zeigen auf existierende Dateien"
+      },
+      {
+        "file": "dark-mode-convention.test.ts",
+        "n": 1,
+        "what": "setDarkMode nur mit profile.theme.dark"
+      }
+    ],
+    "skills": [
+      {
+        "name": "grillen",
+        "what": "Frontier-Interview vor dem Bauen: Befund aus dem Bestand, dann nummerierte Fragen mit Empfehlung"
+      },
+      {
+        "name": "plugin-anlegen",
+        "what": "Zeiger → docs/agents/add-plugin.md"
+      },
+      {
+        "name": "feature-flag-anlegen",
+        "what": "Zeiger → add-feature-flag.md"
+      },
+      {
+        "name": "csv-feld-anlegen",
+        "what": "Zeiger → add-csv-field.md"
+      },
+      {
+        "name": "idb-store-anlegen",
+        "what": "Zeiger → add-idb-store.md"
+      },
+      {
+        "name": "einstellung-anlegen",
+        "what": "Zeiger → add-settings-section.md"
+      },
+      {
+        "name": "sidecar-anlegen",
+        "what": "Zeiger → add-sidecar-persistence.md"
+      },
+      {
+        "name": "view-anlegen",
+        "what": "Zeiger → add-view.md"
+      },
+      {
+        "name": "filter-facet-anlegen",
+        "what": "Zeiger → add-filter-facet.md"
+      },
+      {
+        "name": "feedback-kontext-pflege",
+        "what": "prüft docs/feedback-kontext/<plugin>.md nach Feature-Änderungen"
+      },
+      {
+        "name": "docu-dashboard",
+        "what": "aktualisiert dieses Doku-Dashboard (monatlich): Repo frisch klonen, Änderungen seit dem letzten Stand sichten, data.json pflegen, bauen"
+      }
+    ],
+    "conventions": [
+      {
+        "k": "Commit",
+        "v": "<typ>(<scope>): <deutscher Satz> (v<version>) — z. B. feat(csv): … (v6.43.0); Message per Datei .git/COMMIT_MSG.tmp"
+      },
+      {
+        "k": "Version",
+        "v": "MAJOR = Migration nötig · MINOR = additiv · PATCH = Bugfix; package.json ist die einzige Quelle"
+      },
+      {
+        "k": "Pitfalls",
+        "v": "nummeriert, append-only; mit Guard in docs/architecture/pitfalls.md, ohne Guard in CLAUDE.md"
+      },
+      {
+        "k": "Spec/Plan",
+        "v": "ab Schwelle (Plugin, Flag, Store, Sidecar, Skill, Hook oder > 5 Dateien) unter docs/superpowers/"
+      },
+      {
+        "k": "Abnahme",
+        "v": "jede sichtbare Änderung selbst in dev:local ansehen, window.__tf.fehler() === 0"
+      },
+      {
+        "k": "Bash-Guard",
+        "v": "Hook blockt Heredocs, git add ohne Pathspec und verwerfende Git-Befehle (scripts/hooks/bash-guard.mjs)"
+      },
+      {
+        "k": "Dateigröße",
+        "v": "Kohäsion vor Zeilenzahl — ab ~400–500 Zeilen prüfen, nie nach Zahl splitten"
+      }
+    ]
+  },
+  "glossary": [
+    {
+      "term": "Fachsystem C16",
+      "def": "Das führende System, in dem Bearbeiter Vorgangskürzel setzen; die App liest den nächtlichen CSV-Export und ist Companion, keine zweite Workflow-Engine."
+    },
+    {
+      "term": "Antrag / Teilvorhaben (TV)",
+      "def": "Der Datensatz aus dem CSV-Import, identifiziert über das Aktenzeichen (Förderkennzeichen). Antrag und Teilvorhaben sind dasselbe Objekt."
+    },
+    {
+      "term": "Verbund",
+      "def": "Mehrere Teilanträge unter einer gemeinsamen Projektbeschreibung (VB_NUMMER); der Verbund-Record führt nur Titel und Status. EP/DL sind bewusst Ein-TV-Verbünde."
+    },
+    {
+      "term": "Aktenzeichen",
+      "def": "Join-Schlüssel und Route-Id eines Antrags (Format 16XX######) — nicht Verbund-Nummer oder Akronym."
+    },
+    {
+      "term": "Daten-Share",
+      "def": "Der SMB-Ordner (ZAH) mit allen geteilten Daten und Configs: programm/, _intern/, backups/. Share = Source of Truth, IndexedDB = Cache."
+    },
+    {
+      "term": "Sidecar",
+      "def": "Persistente Datei auf dem Daten-Share neben dem IDB-Cache, geschrieben über atomicWrite() mit bewusst gewähltem Schreibprofil."
+    },
+    {
+      "term": "Snapshot",
+      "def": "(a) Programm-Snapshot auf dem Share = Team-Datenstand · (b) Katalog-Snapshot = Momentaufnahme der aktiven Status-Fassung · (c) Backup-Ordner."
+    },
+    {
+      "term": "Statuskürzel (Vorgangskürzel)",
+      "def": "Code des Fachsystems, dessen Setzung als Spalte im Export liegt: D_<CODE> Datum, T_<CODE> Text; X am Anfang = Verbund-Ebene."
+    },
+    {
+      "term": "Bearbeiter-Kürzel",
+      "def": "Personenkennung in den Zuständigkeits-Spalten (tib_kuerz = FB, bib_kuerz = AB), gelesen nur über useMeinKuerzel(), immer NFC-normalisiert."
+    },
+    {
+      "term": "Rohstatus",
+      "def": "Der CSV-Rohwert aus C16 (beantragt, VN geprüft …), gebrandet als AntragStatusRaw — nie mit Literal vergleichen."
+    },
+    {
+      "term": "Die eine Achse",
+      "def": "Rohtext → amtlicher Code → ZAH-Phase → StatusCategory; Verfahrensschritt und Arbeitsliste führen beide vom Code weg."
+    },
+    {
+      "term": "ZAH-Phase (Verfahrensschritt)",
+      "def": "Kuratierbare Zuordnung Code → Phase (eingang … abgeschlossen): sagt, wo im Verfahren der Vorgang steht; leitet nichts ab."
+    },
+    {
+      "term": "StatusCategory (Arbeitsliste)",
+      "def": "Die feste 9er-Achse im Code („Wer ist am Zug?“), steuert Reiter, Farben, Kanban-Bahnen; nicht kuratierbar."
+    },
+    {
+      "term": "Fassung / Schnitt / Entwurf",
+      "def": "Fassung = versionierter Katalogstand; Schnitt = Zuordnung Code → ZAH-Phase; Entwurf = im Cockpit bearbeiteter, ungespeicherter Stand."
+    },
+    {
+      "term": "Zieltage",
+      "def": "Eine Zahl je Status-Code, Grundlage des Stillstands-Wächters — misst Stillstand, nicht Termine."
+    },
+    {
+      "term": "Bearbeitungs-Meilenstein",
+      "def": "Knoten eines versionierten, freigebbaren Plans mit Sollwoche ab Antragseingang (Anker: spätestes Antragsdatum aller TVs)."
+    },
+    {
+      "term": "Betrachtungsbereich",
+      "def": "Die Richtlinien-Generationen, die zum Arbeitsvorrat zählen (Chip im Seitenkopf) — die Suche bleibt am Vollbestand."
+    },
+    {
+      "term": "Regelsatz",
+      "def": "Die Rollen-Spur einer To-do-Regel (fehlend = AB); eine Rolle ohne eigene Regel bekommt einen abgeleiteten Platzhalter."
+    },
+    {
+      "term": "Journal",
+      "def": "Der auf dem Share mitgeführte Stand des letzten Exports plus append-only Monatsdateien mit fünf Aussagen — ohne Personen-Achse."
+    },
+    {
+      "term": "Variante",
+      "def": "Ein pro Einsatz-Kontext gebauter Build: dev (alles + OpenRouter), pl (voller Fach-Stack), prod (Endnutzer); local wird nie gebaut."
+    },
+    {
+      "term": "Flag vs. Freischaltung",
+      "def": "Flag = Bauzeit-Schalter („einkompiliert“); Freischaltung = Laufzeit-Öffnung per Zusatzpasswort für 12 h („darf gesehen werden“)."
+    },
+    {
+      "term": "Beta / Experte",
+      "def": "Vierte Sichtbarkeits-Achse („will ich das sehen?“): zwei UND-verknüpfte Marken mit Schalter im Profil; schützt nichts."
+    },
+    {
+      "term": "Kurator / PL",
+      "def": "Kurator = App-Rolle mit Schreibrecht auf dem Share und Zugriff auf die Datenpflege; PL = Projektleitung, kuratiert Fassungen (Fachrollen sind AB/FB/QS/PA/Juristen)."
+    },
+    {
+      "term": "App-Skill",
+      "def": "Kuratierte Daten (SkillRecord: Prompt-Vorlage, Modifier, Regeln, Slots), ausgeführt vom transport-agnostischen Runner runSkill — nicht der Claude-Code-Skill."
+    },
+    {
+      "term": "Artefakt",
+      "def": "Die Achse artefaktTyp (ga · nf · abl · rne), orthogonal zum amtlichen Status; ein Run ist je (Typ, Scope) gekeyt."
+    },
+    {
+      "term": "Prüfart",
+      "def": "Wie eine QS-Regel läuft: textlich (deterministisch), fachlich (LLM), administrativ."
+    },
+    {
+      "term": "Gate",
+      "def": "(a) Entwicklungs-Gate npm run check · (b) Zugangs-Gate zur Laufzeit (AppPasswordGate, ModulSchlossGate) · (c) Daten-Gate (requireOnline, Daten-Mutations-Gate)."
+    },
+    {
+      "term": "Guard",
+      "def": "Ein Convention-Test unter src/__tests__/, der eine Regel maschinell erzwingt; Ausnahme nur inline // allow-<rule>: <grund>."
+    },
+    {
+      "term": "Pitfall",
+      "def": "Nummerierte, append-only Ein-Satz-Regel mit Link ins Themen-Doc; mit Guard in pitfalls.md, ohne Guard in CLAUDE.md."
+    }
+  ],
+  "ambiguities": [
+    {
+      "term": "Kürzel",
+      "a": "Statuskürzel des Fachsystems (D_AAE)",
+      "b": "Bearbeiter-Kürzel einer Person („THÜ“)"
+    },
+    {
+      "term": "Skill",
+      "a": "App-Skill = Prompt-Vorlage der Anwendung (registry.json)",
+      "b": "Claude-Code-Skill = .claude/skills/<name>/SKILL.md"
+    },
+    {
+      "term": "Phase",
+      "a": "ZAH-Phase = Verfahrensschritt",
+      "b": "VB_PHASE = Antragstyp NW/FuE/DL/DS · Begleitphase = Lebenszyklus nach Bewilligung"
+    },
+    {
+      "term": "Gate",
+      "a": "Entwicklungs-Gate (npm run check)",
+      "b": "Zugangs-Gate (AppPasswordGate) · Daten-Gate (requireOnline)"
+    },
+    {
+      "term": "Snapshot",
+      "a": "Programm-Snapshot auf dem Share",
+      "b": "Katalog-Snapshot (snapshot.ts) · Backup-Ordner"
+    }
+  ]
+}

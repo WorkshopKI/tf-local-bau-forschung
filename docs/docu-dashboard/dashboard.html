@@ -1,0 +1,1028 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!--tf:head-start-->
+<title>TeamFlow Local Doku-Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  color-scheme:light;
+  --bg:#f5f7fa; --surface:#ffffff; --surface-2:#eef1f5; --surface-3:#e4e9ef;
+  --ink:#1b2430; --ink-2:#465364; --muted:#75828f; --line:#d5dce5; --line-2:#e6eaf0;
+  --primary:#506786; --primary-ink:#ffffff; --primary-soft:#e2e8f0; --primary-soft-2:#c9d4e2;
+  --accent:#c9561d; --accent-ink:#ffffff; --accent-soft:#f9e7dc;
+  --code-bg:#eef1f5; --term-bg:#1b2430; --term-ink:#dfe6ee; --term-dim:#8593a3; --term-accent:#f2a97f; --term-line:#2b3644;
+  --ok:#0ca30c; --warn:#fab219; --crit:#d03b3b;
+  --cat-workflow:#2a78d6; --cat-tools:#1baf7a; --cat-erprobung:#eb6834; --cat-kuration:#4a3aa7; --cat-werkbank:#e87ba4; --cat-system:#75828f;
+  --shadow:0 1px 2px rgba(27,36,48,.06), 0 8px 24px -12px rgba(27,36,48,.18);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#12161c; --surface:#1a2029; --surface-2:#212a35; --surface-3:#2a3440;
+    --ink:#e6eaf0; --ink-2:#b6c0cc; --muted:#8894a3; --line:#2f3946; --line-2:#252e39;
+    --primary:#8fa6c2; --primary-ink:#12161c; --primary-soft:#26313f; --primary-soft-2:#334256;
+    --accent:#e0906c; --accent-ink:#12161c; --accent-soft:#3b2a21;
+    --code-bg:#222b36; --term-bg:#0c1016; --term-ink:#dfe6ee; --term-dim:#7f8b99; --term-accent:#f2a97f; --term-line:#1f2833;
+    --cat-workflow:#3987e5; --cat-tools:#199e70; --cat-erprobung:#d95926; --cat-kuration:#9085e9; --cat-werkbank:#d55181; --cat-system:#8894a3;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.6);
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#12161c; --surface:#1a2029; --surface-2:#212a35; --surface-3:#2a3440;
+  --ink:#e6eaf0; --ink-2:#b6c0cc; --muted:#8894a3; --line:#2f3946; --line-2:#252e39;
+  --primary:#8fa6c2; --primary-ink:#12161c; --primary-soft:#26313f; --primary-soft-2:#334256;
+  --accent:#e0906c; --accent-ink:#12161c; --accent-soft:#3b2a21;
+  --code-bg:#222b36; --term-bg:#0c1016; --term-ink:#dfe6ee; --term-dim:#7f8b99; --term-accent:#f2a97f; --term-line:#1f2833;
+  --cat-workflow:#3987e5; --cat-tools:#199e70; --cat-erprobung:#d95926; --cat-kuration:#9085e9; --cat-werkbank:#d55181; --cat-system:#8894a3;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.6);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion: reduce){ html{scroll-behavior:auto} }
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 "Geist","Segoe UI",system-ui,-apple-system,sans-serif;-webkit-font-smoothing:antialiased}
+.tf-docu{min-height:100vh}
+code,kbd,.mono{font-family:"Geist Mono",ui-monospace,"Cascadia Mono",Consolas,monospace;font-size:.86em}
+code{background:var(--code-bg);padding:.1em .38em;border-radius:4px;color:var(--ink)}
+a{color:var(--primary);text-decoration:none}
+a:hover{text-decoration:underline}
+h1,h2,h3,h4{margin:0;text-wrap:balance;letter-spacing:-.015em;line-height:1.2}
+h1{font-size:34px;font-weight:700}
+h2{font-size:26px;font-weight:650;letter-spacing:-.02em}
+h3{font-size:18px;font-weight:600}
+h4{font-size:14px;font-weight:600}
+p{margin:0}
+.eyebrow{font-size:11px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+.lede{font-size:17px;line-height:1.55;color:var(--ink-2);max-width:68ch}
+.prose{max-width:68ch;color:var(--ink-2)}
+.prose p + p{margin-top:12px}
+.hint{font-size:13px;color:var(--muted)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+
+/* ---- top bar */
+.tf-top{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--line-2)}
+.tf-top .wrap{display:flex;align-items:center;gap:16px;min-height:58px;flex-wrap:wrap;padding-top:8px;padding-bottom:8px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:650;font-size:15px;letter-spacing:-.01em}
+.brand .mark{width:26px;height:26px;border-radius:7px;background:var(--primary);color:var(--primary-ink);display:grid;place-items:center;font-size:11px;font-weight:700;letter-spacing:.02em}
+.brand .sub{color:var(--muted);font-weight:500}
+.stamp{font-family:"Geist Mono",ui-monospace,monospace;font-size:12px;color:var(--muted);display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.stamp b{color:var(--ink);font-weight:500}
+.top-right{margin-left:auto;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:999px;padding:3px;background:var(--surface)}
+.seg button{border:0;background:transparent;color:var(--ink-2);font:inherit;font-size:13px;font-weight:500;padding:5px 12px;border-radius:999px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--primary);color:var(--primary-ink)}
+.iconbtn{border:1px solid var(--line);background:var(--surface);color:var(--ink-2);width:34px;height:34px;border-radius:999px;display:grid;place-items:center;cursor:pointer}
+.iconbtn svg{width:16px;height:16px}
+.wrap{max-width:1260px;margin:0 auto;padding:0 24px}
+
+/* ---- layout */
+.layout{display:grid;grid-template-columns:212px minmax(0,1fr);gap:44px;align-items:start}
+.nav{position:sticky;top:78px;display:flex;flex-direction:column;gap:2px;padding-top:36px;font-size:13.5px}
+.nav a{color:var(--ink-2);padding:5px 10px;border-radius:6px;border-left:2px solid transparent}
+.nav a:hover{background:var(--surface-2);text-decoration:none}
+.nav a.on{color:var(--ink);border-left-color:var(--accent);background:var(--surface-2)}
+.nav .navcap{margin:18px 10px 6px}
+.nav .modehint{margin:20px 10px 0;font-size:12px;color:var(--muted);line-height:1.5}
+main{min-width:0}
+section{padding:54px 0 16px;border-top:1px solid var(--line-2)}
+section:first-child{border-top:0;padding-top:34px}
+.sec-head{display:flex;flex-direction:column;gap:8px;margin-bottom:22px}
+.sec-head .lede{margin-top:4px}
+.grid{display:grid;gap:16px}
+.g2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.g4{grid-template-columns:repeat(4,minmax(0,1fr))}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px 20px}
+.card h3{margin-bottom:8px}
+.card h4{margin-bottom:6px}
+.raised{box-shadow:var(--shadow)}
+.stack{display:flex;flex-direction:column;gap:12px}
+.row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:500;padding:3px 9px;border-radius:999px;background:var(--surface-2);color:var(--ink-2);border:1px solid var(--line-2);white-space:nowrap}
+.chip .dot{width:8px;height:8px;border-radius:50%;background:var(--muted)}
+.chip.lock{background:var(--accent-soft);border-color:transparent;color:var(--ink)}
+.pill{display:inline-block;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;padding:2px 8px;border-radius:5px;background:var(--primary-soft);color:var(--primary)}
+[data-mode="einsteiger"] .dev-only{display:none !important}
+.mode-badge{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);padding:2px 0}
+.mode-badge::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--primary)}
+
+/* ---- KPI tiles */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(138px,1fr));gap:12px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px 12px;display:flex;flex-direction:column;gap:2px}
+.kpi .v{font-size:28px;font-weight:650;letter-spacing:-.02em;font-variant-numeric:tabular-nums;line-height:1.1}
+.kpi .l{font-size:12px;color:var(--muted)}
+.kpi .s{font-size:11.5px;color:var(--ink-2);font-family:"Geist Mono",ui-monospace,monospace}
+
+/* ---- definition lists / tables */
+.kv{display:grid;grid-template-columns:max-content 1fr;gap:6px 16px;font-size:14px}
+.kv dt{font-weight:600;color:var(--ink)}
+.kv dd{margin:0;color:var(--ink-2)}
+table.tf{width:100%;border-collapse:collapse;font-size:13.5px}
+table.tf th{text-align:left;font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);font-weight:600;padding:8px 10px;border-bottom:1px solid var(--line)}
+table.tf td{padding:8px 10px;border-bottom:1px solid var(--line-2);vertical-align:top;color:var(--ink-2)}
+table.tf td:first-child{color:var(--ink);font-weight:500}
+table.tf tr:last-child td{border-bottom:0}
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+.num{font-variant-numeric:tabular-nums;text-align:right}
+
+/* ---- bars */
+.bars{display:flex;flex-direction:column;gap:8px}
+.bar{display:grid;grid-template-columns:150px 1fr 64px;align-items:center;gap:10px;font-size:13px}
+.bar .lab{color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar .trk{height:12px;background:var(--surface-2);border-radius:4px;overflow:hidden}
+.bar .fil{height:100%;background:var(--primary);border-radius:0 4px 4px 0;min-width:2px;transition:width .6s ease}
+.bar .fil.acc{background:var(--accent)}
+.bar .val{font-variant-numeric:tabular-nums;color:var(--ink);text-align:right;font-size:12.5px}
+
+/* ---- figures */
+figure{margin:0}
+figure svg{width:100%;height:auto;display:block;color:var(--ink)}
+figcaption{font-size:13px;color:var(--muted);margin-top:10px;max-width:70ch}
+.fig-frame{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;overflow-x:auto}
+.svg-box{fill:var(--surface);stroke:var(--line)}
+.svg-box.soft{fill:var(--surface-2)}
+.svg-box.prim{fill:var(--primary-soft);stroke:var(--primary)}
+.svg-box.acc{fill:var(--accent-soft);stroke:var(--accent)}
+.svg-frame{fill:none;stroke:var(--line);stroke-dasharray:5 4}
+.svg-t{font-family:"Geist",system-ui,sans-serif;font-size:12.5px;fill:var(--ink);font-weight:600}
+.svg-s{font-family:"Geist",system-ui,sans-serif;font-size:11px;fill:var(--ink-2)}
+.svg-m{font-family:"Geist Mono",ui-monospace,monospace;font-size:10.5px;fill:var(--muted)}
+.svg-l{font-family:"Geist",system-ui,sans-serif;font-size:10.5px;fill:var(--muted)}
+.svg-e{fill:none;stroke:var(--ink-2);stroke-width:1.3}
+.svg-e.acc{stroke:var(--accent);stroke-width:1.6}
+.svg-e.dash{stroke-dasharray:4 3}
+
+/* ---- flow player */
+.flow-tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px}
+.flow-tabs button{font:inherit;font-size:13.5px;font-weight:500;padding:8px 14px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--ink-2);cursor:pointer;display:inline-flex;align-items:center;gap:8px}
+.flow-tabs button .n{font-family:"Geist Mono",ui-monospace,monospace;font-size:11px;color:var(--muted)}
+.flow-tabs button[aria-selected="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.flow-tabs button[aria-selected="true"] .n{color:inherit;opacity:.7}
+.flow{background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);overflow:clip}
+.flow-head{padding:20px 22px 16px;border-bottom:1px solid var(--line-2);display:grid;grid-template-columns:minmax(0,1fr) auto;gap:16px 24px;align-items:start}
+.flow-head .kicker{color:var(--accent);font-weight:600;font-size:13px;margin-bottom:4px}
+.flow-head p{color:var(--ink-2);max-width:72ch;margin-top:6px;font-size:14px}
+.ctrls{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.btn{font:inherit;font-size:13px;font-weight:600;padding:8px 14px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.btn svg{width:14px;height:14px}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn:disabled{opacity:.45;cursor:default}
+.ctrls select{font:inherit;font-size:13px;padding:7px 10px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
+.progress{font-family:"Geist Mono",ui-monospace,monospace;font-size:12px;color:var(--muted);min-width:96px;text-align:right}
+.flow-stage{display:flex;flex-direction:column}
+.flow-diagram{padding:14px 12px 18px;overflow-x:auto}
+.flow-diagram svg{display:block;height:auto;margin:0 auto}
+.flow-side{position:sticky;bottom:0;z-index:5;background:var(--surface);border-top:1px solid var(--line);padding:14px 18px 16px;display:grid;grid-template-columns:minmax(0,1.1fr) minmax(280px,.9fr);gap:14px;box-shadow:0 -10px 24px -18px rgba(0,0,0,.35)}
+.flow-side .stepcard{max-height:250px;overflow:auto}
+.stepcard{border:1px solid var(--line);border-radius:10px;padding:14px 16px;background:var(--surface)}
+.stepcard .top{display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap}
+.stepcard .no{font-family:"Geist Mono",ui-monospace,monospace;font-size:12px;color:var(--accent);font-weight:600}
+.stepcard h4{font-size:15px;margin-bottom:6px}
+.stepcard .beg{font-size:14px;color:var(--ink-2)}
+.stepcard .dev{margin-top:12px;padding-top:12px;border-top:1px dashed var(--line);display:grid;grid-template-columns:max-content 1fr;gap:5px 12px;font-size:12.5px}
+.stepcard .dev dt{color:var(--muted);font-weight:500}
+.stepcard .dev dd{margin:0;color:var(--ink);font-family:"Geist Mono",ui-monospace,monospace;font-size:12px;overflow-wrap:anywhere}
+.stepcard .dev dd.eff{font-family:"Geist",system-ui,sans-serif;font-size:13px;color:var(--ink-2)}
+.term{background:var(--term-bg);color:var(--term-ink);border-radius:10px;font-family:"Geist Mono",ui-monospace,monospace;font-size:12px;line-height:1.5;overflow:hidden;border:1px solid var(--term-line)}
+.term-bar{display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--term-line);color:var(--term-dim);font-size:11px;letter-spacing:.06em;text-transform:uppercase}
+.term-bar .led{width:8px;height:8px;border-radius:50%;background:var(--term-dim)}
+.term-bar .led.on{background:var(--term-accent);box-shadow:0 0 8px var(--term-accent)}
+.term-lines{list-style:none;margin:0;padding:10px 12px;max-height:150px;min-height:96px;overflow:auto;display:flex;flex-direction:column;gap:3px}
+.term-lines li{display:grid;grid-template-columns:26px 1fr;gap:8px;animation:tf-in .35s ease both;overflow-wrap:anywhere}
+.term-lines .ln{color:var(--term-dim)}
+.term-lines li.cur .txt{color:var(--term-accent)}
+.term-lines li.cur .ln{color:var(--term-accent)}
+.term-lines .cursor{display:inline-block;width:7px;height:12px;background:var(--term-accent);vertical-align:-2px;margin-left:2px;animation:tf-blink 1s steps(2) infinite}
+@keyframes tf-in{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:none}}
+@keyframes tf-blink{to{visibility:hidden}}
+.term-hint{padding:8px 12px 10px;color:var(--term-dim);font-size:11px;border-top:1px solid var(--term-line)}
+/* svg flow nodes */
+.fl-lane{fill:var(--surface-2);opacity:.55}
+.fl-lane.alt{opacity:0}
+.fl-lanehead{font-family:"Geist",system-ui,sans-serif;font-size:10.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;fill:var(--muted)}
+.fl-node rect{fill:var(--surface);stroke:var(--line);stroke-width:1.2;transition:fill .3s,stroke .3s}
+.fl-node text{font-family:"Geist",system-ui,sans-serif;font-size:11.5px;fill:var(--ink);font-weight:500;transition:fill .3s}
+.fl-node .idx{font-family:"Geist Mono",ui-monospace,monospace;font-size:10px;fill:var(--muted);font-weight:500}
+.fl-node{cursor:pointer}
+.fl-node.done rect{fill:var(--primary-soft);stroke:var(--primary)}
+.fl-node.active rect{fill:var(--accent);stroke:var(--accent)}
+.fl-node.active text{fill:var(--accent-ink)}
+.fl-node.active .idx{fill:var(--accent-ink);opacity:.85}
+.fl-node .halo{fill:none;stroke:var(--accent);stroke-width:2;opacity:0}
+.fl-node.active .halo{animation:tf-halo 1.6s ease-out infinite}
+@keyframes tf-halo{0%{opacity:.7;transform:scale(1)}100%{opacity:0;transform:scale(1.06)}}
+.fl-edge{fill:none;stroke:var(--line);stroke-width:1.6;transition:stroke .3s}
+.fl-edge.done{stroke:var(--primary)}
+.fl-edge.active{stroke:var(--accent);stroke-width:2}
+.fl-elabel{font-family:"Geist",system-ui,sans-serif;font-size:10.5px;fill:var(--muted);font-style:italic}
+.fl-packet{fill:var(--accent);stroke:var(--surface);stroke-width:2;opacity:0}
+.fl-arrow{fill:var(--line)}
+.fl-arrow.done{fill:var(--primary)}
+.fl-arrow.active{fill:var(--accent)}
+@media (prefers-reduced-motion: reduce){
+  .fl-node.active .halo{animation:none;opacity:.6}
+  .term-lines li{animation:none}
+  .term-lines .cursor{animation:none}
+  .bar .fil{transition:none}
+}
+
+/* ---- plugin map */
+.plugin-groups{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px}
+.pgroup{border:1px solid var(--line);border-radius:12px;padding:14px 16px;background:var(--surface)}
+.pgroup h4{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.pgroup h4 .dot{width:10px;height:10px;border-radius:3px}
+.plug{display:grid;grid-template-columns:1fr auto;gap:4px 10px;padding:8px 0;border-top:1px solid var(--line-2);font-size:13.5px}
+.plug:first-of-type{border-top:0}
+.plug .name{font-weight:600;color:var(--ink)}
+.plug .route{font-family:"Geist Mono",ui-monospace,monospace;font-size:11px;color:var(--muted)}
+.plug .desc{grid-column:1/-1;color:var(--ink-2);font-size:13px}
+.plug .tags{grid-column:1/-1;display:flex;gap:6px;flex-wrap:wrap}
+
+/* ---- misc */
+.axes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.axis{border:1px solid var(--line);border-radius:10px;padding:14px 16px;background:var(--surface);display:flex;flex-direction:column;gap:6px}
+.axis .q{font-size:15px;font-weight:600}
+.axis .w{font-size:12.5px;color:var(--muted)}
+.chain{display:flex;gap:0;align-items:stretch;overflow-x:auto;padding-bottom:4px}
+.chain .link{position:relative;flex:1 1 0;min-width:170px;background:var(--surface);border:1px solid var(--line);padding:12px 14px 12px 22px;clip-path:polygon(0 0,calc(100% - 14px) 0,100% 50%,calc(100% - 14px) 100%,0 100%,14px 50%);margin-right:-8px}
+.chain .link:first-child{padding-left:14px;clip-path:polygon(0 0,calc(100% - 14px) 0,100% 50%,calc(100% - 14px) 100%,0 100%)}
+.chain .link .l{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.chain .link .ex{font-size:16px;font-weight:600;margin:2px 0}
+.chain .link .fn{font-family:"Geist Mono",ui-monospace,monospace;font-size:11px;color:var(--primary)}
+.chain .link .nt{font-size:12px;color:var(--ink-2)}
+.cats{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px}
+.cat{border:1px solid var(--line-2);background:var(--surface-2);border-radius:8px;padding:8px 10px;font-size:13px}
+.cat b{display:block;font-size:13px}
+.cat span{color:var(--muted);font-size:12px}
+.tree{font-family:"Geist Mono",ui-monospace,monospace;font-size:12px;line-height:1.6;color:var(--ink);white-space:pre-wrap}
+.tree .n{color:var(--muted);font-family:"Geist",system-ui,sans-serif;font-size:12px}
+.glossary{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px 22px}
+.glossary dt{font-weight:600;margin-top:8px}
+.glossary dd{margin:2px 0 0;color:var(--ink-2);font-size:13.5px}
+.changelog{display:flex;flex-direction:column}
+.clog{display:grid;grid-template-columns:96px 1fr;gap:6px 16px;padding:12px 0;border-top:1px solid var(--line-2)}
+.clog:first-child{border-top:0}
+.clog .v{font-family:"Geist Mono",ui-monospace,monospace;font-size:12.5px;color:var(--ink);font-weight:500}
+.clog .v small{display:block;color:var(--muted);font-size:11px;margin-top:2px}
+.clog .t{font-weight:600}
+.clog .b{color:var(--ink-2);font-size:13.5px;grid-column:2}
+.callout{border-left:3px solid var(--accent);background:var(--accent-soft);padding:12px 16px;border-radius:0 10px 10px 0;font-size:14px;color:var(--ink)}
+.steps-ol{margin:0;padding-left:20px;color:var(--ink-2);font-size:14px;display:flex;flex-direction:column;gap:6px}
+.stairs{display:flex;align-items:flex-end;gap:10px;height:150px;padding-top:10px}
+.stair{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:6px;font-size:12px;color:var(--ink-2);text-align:center}
+.stair .col{width:100%;background:var(--primary);border-radius:4px 4px 0 0;position:relative}
+.stair .col.acc{background:var(--accent)}
+.stair .col b{position:absolute;top:-20px;left:0;right:0;text-align:center;color:var(--ink);font-variant-numeric:tabular-nums}
+.stair .nm{font-family:"Geist Mono",ui-monospace,monospace;font-size:11.5px;color:var(--ink)}
+.storeline{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.storeline .st{font-family:"Geist Mono",ui-monospace,monospace;font-size:11.5px;padding:3px 8px;border-radius:5px;background:var(--surface-2);border:1px solid var(--line-2);color:var(--ink)}
+.storeline .st.local{border-color:var(--accent);background:var(--accent-soft)}
+.storeline .ver{font-size:11px;color:var(--muted);font-weight:600;margin-left:6px}
+footer{padding:40px 0 60px;color:var(--muted);font-size:13px;border-top:1px solid var(--line-2);margin-top:40px}
+footer .wrap{display:flex;flex-wrap:wrap;gap:8px 24px}
+
+@media (max-width: 1080px){
+  .layout{grid-template-columns:1fr;gap:0}
+  .nav{position:static;flex-direction:row;flex-wrap:wrap;gap:4px;padding-top:20px}
+  .nav .navcap,.nav .modehint{display:none}
+  .flow-side{grid-template-columns:1fr;position:static}
+  .g3,.g4{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (max-width: 720px){
+  .g2,.g3,.g4,.axes{grid-template-columns:1fr}
+  .flow-head{grid-template-columns:1fr}
+  .ctrls{justify-content:flex-start}
+  .bar{grid-template-columns:110px 1fr 56px}
+  h1{font-size:28px}
+  .clog{grid-template-columns:1fr}
+  .clog .b{grid-column:1}
+}
+</style>
+<!--tf:head-end-->
+</head>
+<body>
+<!--tf:body-start-->
+<div class="tf-docu" id="top">
+<header class="tf-top">
+  <div class="wrap">
+    <div class="brand"><span class="mark">TF</span><span>TeamFlow Local</span><span class="sub">Doku-Dashboard</span></div>
+    <div class="stamp"><span>Stand <b id="st-version">v6.48.0</b></span><span>Commit <b id="st-commit">1ecd04ca</b></span><span>gebaut <b id="st-built">2026-09-10</b></span></div>
+    <div class="top-right">
+      <div class="seg" role="group" aria-label="Lesemodus">
+        <button type="button" data-mode-btn="einsteiger" aria-pressed="true">Einsteiger</button>
+        <button type="button" data-mode-btn="entwickler" aria-pressed="false">Entwickler</button>
+      </div>
+      <button type="button" class="iconbtn" id="theme-btn" aria-label="Hell/Dunkel umschalten" title="Hell/Dunkel">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4 7 17M17 7l1.4-1.4"/><circle cx="12" cy="12" r="4"/></svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+<div class="layout">
+<aside class="nav" aria-label="Abschnitte">
+  <a href="#ueberblick">Überblick</a>
+  <a href="#architektur">Architektur</a>
+  <a href="#ablaeufe">Abläufe (animiert)</a>
+  <a href="#datenmodell">Datenmodell</a>
+  <a href="#status">Status-System</a>
+  <a href="#plugins">Plugins</a>
+  <a href="#varianten">Build-Varianten</a>
+  <a href="#sichtbarkeit">Sichtbarkeit</a>
+  <a href="#ki">KI-Anbindung</a>
+  <a href="#entwicklung" class="dev-only">Entwicklung</a>
+  <a href="#glossar">Glossar</a>
+  <a href="#changelog">Changelog</a>
+  <a href="#pflege">Pflege dieser Doku</a>
+  <div class="modehint" id="modehint"></div>
+</aside>
+
+<main>
+<!-- ================================================================ Überblick -->
+<section id="ueberblick">
+  <div class="sec-head">
+    <span class="eyebrow">Was ist das?</span>
+    <h1>TeamFlow Local</h1>
+    <p class="lede" id="intro-tagline"></p>
+  </div>
+  <div class="grid g2" style="align-items:start">
+    <div class="prose" id="intro-beginner"></div>
+    <div class="stack">
+      <div class="card">
+        <h4>Technisch in einem Satz</h4>
+        <p style="color:var(--ink-2);font-size:14px" id="intro-dev"></p>
+      </div>
+      <div class="card">
+        <h4>Harte Rahmenbedingungen</h4>
+        <dl class="kv" id="constraints"></dl>
+      </div>
+    </div>
+  </div>
+  <div style="margin-top:22px">
+    <span class="eyebrow">Kennzahlen aus dem Repo — beim Bau gemessen</span>
+    <div class="kpis" id="kpis" style="margin-top:10px"></div>
+  </div>
+</section>
+
+<!-- ================================================================ Architektur -->
+<section id="architektur">
+  <div class="sec-head">
+    <span class="eyebrow">Architektur</span>
+    <h2>Eine HTML-Datei, ein Netzlaufwerk, ein zweiter Tab für die KI</h2>
+    <p class="lede">Die App läuft komplett im Browser. Der Netzlaufwerk-Ordner ist die Wahrheit, die Browser-Datenbank nur ein schneller Cache. Anträge kommen als nächtlicher CSV-Export aus dem Fachsystem; die interne KI wird über einen zweiten Tab angesprochen.</p>
+  </div>
+  <figure class="fig-frame">
+    <svg viewBox="0 0 980 440" role="img" aria-label="Architektur: Fachsystem C16 exportiert CSV in einen Export-Ordner; der Browser lädt eine einzige HTML-Datei mit App-Shell, 20 Plugins, Core-Services und IndexedDB; der SMB-Daten-Share ist die Wahrheit, mit dem IndexedDB synchronisiert; die interne KI läuft in einem zweiten Tab über postMessage.">
+      <defs>
+        <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker>
+        <marker id="ar-acc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" style="fill:var(--accent)"/></marker>
+      </defs>
+      <!-- C16 -->
+      <rect class="svg-box soft" x="20" y="40" width="176" height="64" rx="8"/>
+      <text class="svg-t" x="108" y="66" text-anchor="middle">Fachsystem C16</text>
+      <text class="svg-s" x="108" y="84" text-anchor="middle">führendes System, setzt Status</text>
+      <path class="svg-e" d="M108 104 V166" marker-end="url(#ar)"/>
+      <text class="svg-l" x="116" y="140">nächtlicher CSV-Export</text>
+      <rect class="svg-box soft" x="20" y="170" width="176" height="68" rx="8"/>
+      <text class="svg-t" x="108" y="194" text-anchor="middle">Export-Ordner</text>
+      <text class="svg-m" x="108" y="211" text-anchor="middle">9097_AnB · 7737_Bgl</text>
+      <text class="svg-m" x="108" y="226" text-anchor="middle">9052_PrjBsp (163 Spalten)</text>
+      <path class="svg-e" d="M196 204 H268" marker-end="url(#ar)"/>
+      <text class="svg-l" x="232" y="196" text-anchor="middle">Auto-Refresh liest</text>
+      <text class="svg-l" x="232" y="220" text-anchor="middle">(FSAPI)</text>
+      <!-- Browser frame -->
+      <rect class="svg-frame" x="244" y="20" width="440" height="400" rx="12"/>
+      <text class="svg-l" x="258" y="40">Browser (Chrome / Edge) · file:// · keine Flags</text>
+      <rect class="svg-box prim" x="270" y="52" width="388" height="40" rx="8"/>
+      <text class="svg-t" x="464" y="72" text-anchor="middle">zah-pl.html — ein einziges Bundle</text>
+      <text class="svg-m" x="464" y="86" text-anchor="middle">~19 MB inkl. ONNX-WASM (gzip inline)</text>
+      <path class="svg-e" d="M464 92 V110" marker-end="url(#ar)"/>
+      <rect class="svg-box" x="270" y="112" width="388" height="46" rx="8"/>
+      <text class="svg-t" x="464" y="132" text-anchor="middle">App-Shell</text>
+      <text class="svg-s" x="464" y="149" text-anchor="middle">Gates · HashRouter · Sidebar (ShellLayout) · Feedback-FAB</text>
+      <path class="svg-e" d="M360 158 V180" marker-end="url(#ar)"/>
+      <path class="svg-e" d="M568 158 V180" marker-end="url(#ar)"/>
+      <rect class="svg-box" x="270" y="182" width="184" height="66" rx="8"/>
+      <text class="svg-t" x="362" y="204" text-anchor="middle">Plugins (20)</text>
+      <text class="svg-s" x="362" y="221" text-anchor="middle">Förderanträge · Suche · Auslastung</text>
+      <text class="svg-s" x="362" y="236" text-anchor="middle">Feedback · Datenpflege · …</text>
+      <rect class="svg-box" x="474" y="182" width="184" height="66" rx="8"/>
+      <text class="svg-t" x="566" y="204" text-anchor="middle">Core-Services</text>
+      <text class="svg-s" x="566" y="221" text-anchor="middle">csv · search · skills · status</text>
+      <text class="svg-s" x="566" y="236" text-anchor="middle">ai · infrastructure · storage</text>
+      <path class="svg-e" d="M454 215 H474" marker-end="url(#ar)" marker-start="url(#ar)"/>
+      <path class="svg-e" d="M464 248 V274" marker-end="url(#ar)"/>
+      <rect class="svg-box" x="270" y="276" width="388" height="52" rx="8"/>
+      <text class="svg-t" x="464" y="297" text-anchor="middle">IndexedDB — der Cache</text>
+      <text class="svg-m" x="464" y="314" text-anchor="middle">teamflow-&lt;variante&gt; · <tspan id="svg-idb-stamp">Version 11 · 21 Stores</tspan></text>
+      <!-- KI second tab -->
+      <rect class="svg-box acc" x="270" y="358" width="388" height="46" rx="8"/>
+      <text class="svg-t" x="464" y="378" text-anchor="middle">Zweiter Tab: Interne KI (AitisiGPT)</text>
+      <text class="svg-s" x="464" y="394" text-anchor="middle">Bookmarklet → postMessage · tf-request / tf-stream / tf-response</text>
+      <path class="svg-e acc" d="M620 248 V356" marker-end="url(#ar-acc)"/>
+      <text class="svg-l" x="628" y="345">Bridge</text>
+      <!-- Share -->
+      <rect class="svg-box prim" x="728" y="112" width="232" height="132" rx="8"/>
+      <text class="svg-t" x="844" y="134" text-anchor="middle">Daten-Share (SMB) — die Wahrheit</text>
+      <text class="svg-m" x="742" y="158">programm/  snapshot · imports · index</text>
+      <text class="svg-m" x="742" y="176">_intern/   Sidecars · Audit · Lock · Skills</text>
+      <text class="svg-m" x="742" y="194">backups/   wöchentlich, 4 Generationen</text>
+      <text class="svg-s" x="742" y="222">alle Writes über atomicWrite()</text>
+      <path class="svg-e" d="M658 302 H700 V200 H728" marker-end="url(#ar)" marker-start="url(#ar)"/>
+      <text class="svg-l" x="704" y="262" transform="rotate(-90 704 262)" text-anchor="middle">Snapshot-Sync · Sidecars</text>
+      <!-- personal folder -->
+      <rect class="svg-box" x="728" y="270" width="232" height="60" rx="8"/>
+      <text class="svg-t" x="844" y="292" text-anchor="middle">Persönlicher Ordner (Home)</text>
+      <text class="svg-m" x="844" y="310" text-anchor="middle">ZAH/profile.json · feedback/outbox/ · tweaks</text>
+      <path class="svg-e dash" d="M658 318 H724" marker-end="url(#ar)"/>
+      <text class="svg-l" x="690" y="312" text-anchor="middle">Mirror</text>
+      <!-- llama -->
+      <rect class="svg-box" x="728" y="358" width="232" height="46" rx="8"/>
+      <text class="svg-t" x="844" y="378" text-anchor="middle">llama.cpp lokal / LAN</text>
+      <text class="svg-s" x="844" y="394" text-anchor="middle">OpenAI-kompatibel, HTTP + SSE — ebenfalls „intern“</text>
+      <path class="svg-e dash" d="M658 381 H724" marker-end="url(#ar)"/>
+    </svg>
+    <figcaption>Datenfluss: Das Fachsystem schreibt nachts CSVs; die App liest sie beim Start, hält den Bestand als Cache in IndexedDB und veröffentlicht ihn als Snapshot auf dem Daten-Share, von dem alle Rechner lesen. Dokumenttragende KI-Läufe verlassen nie den internen Weg.</figcaption>
+  </figure>
+  <div class="grid g3" style="margin-top:18px">
+    <div class="card"><h4>Kein Server</h4><p class="hint">Deployment = Datei auf den File-Server kopieren. Kein IT-Support, keine Installation, keine Flags.</p></div>
+    <div class="card"><h4>Share = Wahrheit, IDB = Cache</h4><p class="hint">Ein Varianten-Wechsel startet mit leerer Datenbank und lädt frisch vom Share — es gibt keinen Migrationscode.</p></div>
+    <div class="card"><h4>Trust-Modell</h4><p class="hint">Alle haben SMB-Schreibrecht; der Schutz ist clientseitig (Kurator-/Rollen-Passwort), Backups schützen gegen Versehen.</p></div>
+  </div>
+</section>
+
+<!-- ================================================================ Abläufe -->
+<section id="ablaeufe">
+  <div class="sec-head">
+    <span class="eyebrow">Abläufe · animiert</span>
+    <h2>So läuft der Code bei den typischen Aufgaben</h2>
+    <p class="lede">Jeder Ablauf ist ein Sequenzdiagramm: Spalten sind die Beteiligten (Nutzer, Oberfläche, Services, Speicher, KI), Kästen die Schritte in Reihenfolge. „Abspielen“ läuft die Schritte durch und zeigt rechts, was passiert — und im Protokoll, welche Datei und Funktion gerade arbeitet. Im Entwickler-Modus stehen Dateien, Funktionen und Effekte dabei.</p>
+  </div>
+  <div class="flow-tabs" role="tablist" id="flow-tabs"></div>
+  <div class="flow" id="flow"></div>
+</section>
+
+<!-- ================================================================ Datenmodell -->
+<section id="datenmodell">
+  <div class="sec-head">
+    <span class="eyebrow">Datenmodell</span>
+    <h2>Antrag, Verbund, Projektion</h2>
+    <p class="lede" id="dm-beginner"></p>
+  </div>
+  <figure class="fig-frame">
+    <svg viewBox="0 0 900 262" role="img" aria-label="Datenmodell: drei CSV-Quellen werden über das Förderkennzeichen gemergt zum Antrag (Teilvorhaben); Anträge gehören n:1 zu einem Verbund; aus dem Antrag wird die schlanke Listen-Projektion antraege_list_view abgeleitet; der akronym_index verweist auf Aktenzeichen.">
+      <defs><marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker></defs>
+      <rect class="svg-box soft" x="20" y="28" width="160" height="46" rx="8"/><text class="svg-t" x="100" y="48" text-anchor="middle">9097_AnB</text><text class="svg-m" x="100" y="64" text-anchor="middle">Master · priority 100</text>
+      <rect class="svg-box soft" x="20" y="98" width="160" height="46" rx="8"/><text class="svg-t" x="100" y="118" text-anchor="middle">7737_Bgl</text><text class="svg-m" x="100" y="134" text-anchor="middle">Bewilligungsdetails</text>
+      <rect class="svg-box soft" x="20" y="168" width="160" height="46" rx="8"/><text class="svg-t" x="100" y="188" text-anchor="middle">9052_PrjBsp</text><text class="svg-m" x="100" y="204" text-anchor="middle">Projektbeschreibung</text>
+      <path class="svg-e" d="M180 51 H210 V110 H236" marker-end="url(#ar2)"/>
+      <path class="svg-e" d="M180 121 H236" marker-end="url(#ar2)"/>
+      <path class="svg-e" d="M180 191 H210 V132 H236"/>
+      <text class="svg-l" x="208" y="92" text-anchor="middle">join FKZ</text>
+      <rect class="svg-box" x="238" y="90" width="124" height="62" rx="8"/><text class="svg-t" x="300" y="114" text-anchor="middle">Merge</text><text class="svg-m" x="300" y="130" text-anchor="middle">recomputeMultiple</text><text class="svg-m" x="300" y="143" text-anchor="middle">Batched · Master gewinnt</text>
+      <path class="svg-e" d="M362 121 H404" marker-end="url(#ar2)"/>
+      <rect class="svg-box prim" x="406" y="72" width="214" height="98" rx="8"/>
+      <text class="svg-t" x="513" y="94" text-anchor="middle">Antrag = Teilvorhaben (TV)</text>
+      <text class="svg-m" x="420" y="114">aktenzeichen  (FKZ, Primärschlüssel)</text>
+      <text class="svg-m" x="420" y="129">verbund_id · akronym · titel · status</text>
+      <text class="svg-m" x="420" y="144">unterprogramm_id · tib_kuerz · bib_kuerz</text>
+      <text class="svg-m" x="420" y="159">+ ~450 Custom-Felder (D_*, T_* …)</text>
+      <path class="svg-e" d="M620 96 H660 V58 H682" marker-end="url(#ar2)"/>
+      <text class="svg-l" x="650" y="48" text-anchor="middle">Projektion</text>
+      <rect class="svg-box" x="684" y="28" width="196" height="58" rx="8"/><text class="svg-t" x="782" y="50" text-anchor="middle">antraege_list_view</text><text class="svg-m" x="782" y="67" text-anchor="middle">36 Felder statt ~461</text>
+      <path class="svg-e" d="M620 146 H660 V176 H682" marker-end="url(#ar2)"/>
+      <text class="svg-l" x="650" y="136" text-anchor="middle">n : 1</text>
+      <rect class="svg-box" x="684" y="150" width="196" height="76" rx="8"/><text class="svg-t" x="782" y="172" text-anchor="middle">Verbund</text><text class="svg-m" x="782" y="189" text-anchor="middle">verbund_id (VB_NUMMER)</text><text class="svg-m" x="782" y="204" text-anchor="middle">titel · status (STATUS_VB)</text><text class="svg-m" x="782" y="218" text-anchor="middle">teilantrags_ids[]</text>
+      <path class="svg-e dash" d="M513 170 V194" marker-end="url(#ar2)"/>
+      <rect class="svg-box" x="406" y="196" width="214" height="40" rx="8"/><text class="svg-t" x="513" y="213" text-anchor="middle">akronym_index</text><text class="svg-m" x="513" y="228" text-anchor="middle">(programm_id, akronym) → aktenzeichen[]</text>
+    </svg>
+    <figcaption>Ein Antrag ist eine Zeile des Fachsystems; die Master-Quelle trägt Aktenzeichen und Unterprogramm, die anderen Quellen ergänzen Felder. Der Verbund ist ein vom Merge gepflegter Cache und heilt sich beim Start selbst.</figcaption>
+  </figure>
+  <div class="grid g2" style="margin-top:18px;align-items:start">
+    <div class="card">
+      <h4>Spalten-Konventionen des Exports</h4>
+      <dl class="kv" id="dm-columns" style="margin-top:8px"></dl>
+    </div>
+    <div class="card">
+      <h4>Daten-Share-Layout</h4>
+      <div class="tree" id="share-layout" style="margin-top:8px"></div>
+    </div>
+  </div>
+  <div class="card dev-only" style="margin-top:16px">
+    <h4>Entitäten (src/core/services/csv/types.ts)</h4>
+    <div class="tablewrap" style="margin-top:8px;border:0"><table class="tf" id="dm-entities"><thead><tr><th>Entität</th><th>Schlüssel</th><th>Felder</th></tr></thead><tbody></tbody></table></div>
+  </div>
+  <div class="card dev-only" style="margin-top:16px">
+    <h4 id="stores-h">IndexedDB</h4>
+    <p class="hint" style="margin:6px 0 10px">Stores gruppiert nach der Datenbank-Version, in der sie dazukamen. Orange = strikt gerätelokal (nie im Snapshot).</p>
+    <div id="stores-timeline" class="stack" style="gap:8px"></div>
+  </div>
+</section>
+
+<!-- ================================================================ Status -->
+<section id="status">
+  <div class="sec-head">
+    <span class="eyebrow">Status-System</span>
+    <h2>Die eine Achse: Rohtext → Code → Verfahrensschritt → Arbeitsliste</h2>
+    <p class="lede" id="status-beginner"></p>
+  </div>
+  <div class="chain" id="status-chain"></div>
+  <div style="margin-top:20px">
+    <span class="eyebrow">Die neun Werte der Arbeitsliste (StatusCategory) — nicht kuratierbar</span>
+    <div class="cats" id="status-cats" style="margin-top:10px"></div>
+  </div>
+  <div class="grid g3" style="margin-top:18px">
+    <div class="card"><h4>Erklären</h4><p class="hint">Woher kommt dieser Status? Herleitung als Popover am Antrag; Kürzel-Glossar mit Wirkung.</p></div>
+    <div class="card"><h4>Navigieren &amp; warnen</h4><p class="hint">Kürzel-Navigator zeigt mögliche nächste Kürzel je Richtlinie; Stillstands-Wächter vergleicht mit Zieltagen.</p></div>
+    <div class="card"><h4>Steuern</h4><p class="hint">To-do-Kaskade: geordnete Regeln je Rolle (AB-Seed: 4 Sperren + 27 Regeln), erste passende gewinnt; Fristen-Cockpit mit Ampel 14/30 Tage.</p></div>
+  </div>
+</section>
+
+<!-- ================================================================ Plugins -->
+<section id="plugins">
+  <div class="sec-head">
+    <span class="eyebrow">Plugins</span>
+    <h2 id="plugins-h">Plugins in sechs Sidebar-Gruppen</h2>
+    <p class="lede">Jedes Feature ist ein Plugin mit Manifest (id, route, name, icon, category, order, component; optional featureFlag, modulSchloss, kuratorOnly, hideFromNav). Neue Plugins starten in „In Erprobung“.</p>
+  </div>
+  <div class="plugin-groups" id="plugin-groups"></div>
+</section>
+
+<!-- ================================================================ Varianten -->
+<section id="varianten">
+  <div class="sec-head">
+    <span class="eyebrow">Build-Varianten</span>
+    <h2>Drei Builds, zwei Dev-Server-Varianten</h2>
+    <p class="lede">Aus derselben Codebasis entstehen drei HTML-Dateien mit unterschiedlichen Feature-Flags und Zugängen. Die Endnutzer-Variante ist read-only und bekommt nur den Snapshot.</p>
+  </div>
+  <div class="tablewrap"><table class="tf" id="variants"><thead><tr><th>Variante</th><th>Wer</th><th>Ausgabe</th><th>Flags an</th><th>Zugang</th><th>Besonderes</th></tr></thead><tbody></tbody></table></div>
+  <div class="grid g2 dev-only" style="margin-top:16px;align-items:start">
+    <div class="card"><h4 id="flags-prod-h">In prod aus</h4><div class="row" id="flags-prod-off" style="margin-top:8px;gap:6px"></div></div>
+    <div class="card"><h4 id="flags-pl-h">In pl aus</h4><div class="row" id="flags-pl-off" style="margin-top:8px;gap:6px"></div><p class="hint" style="margin-top:10px">Deep-Merge in drei Schichten: buildBasis() (alle Flags false) ← _shared.json ← Variant-Config; validateConfig bricht bei OpenRouter + festem Share-Pfad in production ab.</p></div>
+  </div>
+  <div class="grid g2 dev-only" style="margin-top:16px;align-items:start">
+    <div class="card">
+      <h4>Bundle-Diät</h4>
+      <p class="hint" style="margin:4px 0 12px">Die ONNX-WASM lag zweimal als base64 im Bundle; jetzt gzip inline + Post-Build-Strip.</p>
+      <div class="bars">
+        <div class="bar"><span class="lab">vorher</span><span class="trk"><span class="fil" style="width:100%"></span></span><span class="val">73 MB</span></div>
+        <div class="bar"><span class="lab">WASM roh → gzip</span><span class="trk"><span class="fil" style="width:31%"></span></span><span class="val">22,8 → 5,5 MB</span></div>
+        <div class="bar"><span class="lab">nachher</span><span class="trk"><span class="fil acc" style="width:26%"></span></span><span class="val">19 MB</span></div>
+      </div>
+    </div>
+    <div class="card">
+      <h4>Build-Ablauf (scripts/build-with-config.mjs)</h4>
+      <ol class="steps-ol" style="margin-top:8px">
+        <li>Config laden, mit <code>_shared.json</code> deep-mergen, <code>validateConfig</code></li>
+        <li>Env setzen: <code>TEAMFLOW_CONFIG</code>, Build-Zeit, Git-Hash</li>
+        <li><code>tsc -b &amp;&amp; vite build --mode single</code> (vite-plugin-singlefile)</li>
+        <li>Post-Build-Strip der doppelten WASM-Payloads (Guard: 1–4 Fundstellen)</li>
+        <li>Kopie nach <code>dist-single/&lt;outputFilename&gt;.html</code>, .bat-Helfer mit CRLF</li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<!-- ================================================================ Sichtbarkeit -->
+<section id="sichtbarkeit">
+  <div class="sec-head">
+    <span class="eyebrow">Sichtbarkeit</span>
+    <h2>Vier Achsen entscheiden, ob ein Feature erscheint</h2>
+    <p class="lede">Ein Feature ist sichtbar, wenn alle vier es zulassen: einkompiliert (Flag), freigeschaltet (Zusatzpasswort), gewollt (Beta/Experte-Schalter) und die passende Rolle (Kurator). Abnahme immer mit ausgeschaltetem Beta-Schalter.</p>
+  </div>
+  <div class="axes" id="axes"></div>
+</section>
+
+<!-- ================================================================ KI -->
+<section id="ki">
+  <div class="sec-head">
+    <span class="eyebrow">KI-Anbindung</span>
+    <h2>Interne KI über einen zweiten Tab, Rollen statt Modellnamen</h2>
+    <p class="lede" id="ki-beginner"></p>
+  </div>
+  <div class="tablewrap"><table class="tf" id="ki-transports"><thead><tr><th>Transport</th><th>Klasse</th><th>Wie</th><th class="dev-only">Datei</th><th>Varianten</th></tr></thead><tbody></tbody></table></div>
+  <div class="grid g2" style="margin-top:16px;align-items:start">
+    <div class="card">
+      <h4>Modellrollen</h4>
+      <div class="tablewrap" style="margin-top:8px;border:0"><table class="tf" id="ki-roles"><thead><tr><th>Rolle</th><th>Modell</th><th>Fenster</th><th>Einsatz</th></tr></thead><tbody></tbody></table></div>
+      <p class="hint" style="margin-top:10px">Nur <code>modell-katalog.ts</code> nennt Modelle beim Namen (Guard). Auto-Eskalation nur aufwärts, gemeldet bevor der Transport das Ziel sieht.</p>
+    </div>
+    <div class="card dev-only">
+      <h4>Die vier gegateten Transport-Wahlen</h4>
+      <dl class="kv" id="ki-gates" style="margin-top:8px"></dl>
+      <p class="hint" style="margin-top:10px" id="ki-oneshot"></p>
+    </div>
+  </div>
+  <div class="callout" style="margin-top:16px"><b>DSGVO-Regel (Pitfall #30/#35):</b> Was Dokument- oder Antragsinhalte trägt, läuft nur intern. Die Entscheidung liest den Template-<em>Text</em> nach Inhalts-Slots wie <code>{{vbMarkdown}}</code> — nicht ein Flag, das jemand vergessen könnte. Ein externer Provider wird mit ausformulierter Meldung abgelehnt.</div>
+</section>
+
+<!-- ================================================================ Entwicklung -->
+<section id="entwicklung" class="dev-only">
+  <div class="sec-head">
+    <span class="eyebrow">Entwicklung</span>
+    <h2>Vom Klon zum Commit</h2>
+    <p class="lede">Der innere Loop dauert eine halbe Minute; vor jedem Commit läuft das Phasen-Gate. Convention-Guards erzwingen die nummerierten Pitfalls, Claude-Code-Skills laden die Cheatsheets automatisch.</p>
+  </div>
+  <div class="grid g2" style="align-items:start">
+    <div class="card">
+      <h4>Kommandos</h4>
+      <div class="tablewrap" style="margin-top:8px;border:0"><table class="tf" id="dev-cmds"><tbody></tbody></table></div>
+    </div>
+    <div class="stack">
+      <div class="card">
+        <h4>Gate-Treppe</h4>
+        <div class="stairs" id="gates"></div>
+      </div>
+      <div class="card">
+        <h4>Konventionen</h4>
+        <dl class="kv" id="dev-conventions" style="margin-top:8px"></dl>
+      </div>
+    </div>
+  </div>
+  <div class="grid g2" style="margin-top:16px;align-items:start">
+    <div class="card">
+      <h4>Guards in src/__tests__/</h4>
+      <div class="tablewrap" style="margin-top:8px;border:0"><table class="tf" id="guards"><thead><tr><th>Datei</th><th class="num">it()</th><th>Zweck</th></tr></thead><tbody></tbody></table></div>
+    </div>
+    <div class="card">
+      <h4>Claude-Code-Skills (.claude/skills/)</h4>
+      <div class="tablewrap" style="margin-top:8px;border:0"><table class="tf" id="skills"><tbody></tbody></table></div>
+    </div>
+  </div>
+  <div class="grid g2" style="margin-top:16px;align-items:start">
+    <div class="card">
+      <h4>Code nach Ordner (LOC, Produktion + Tests)</h4>
+      <div class="bars" id="loc-bars" style="margin-top:10px"></div>
+    </div>
+    <div class="card">
+      <h4>Commit-Typen (gesamt)</h4>
+      <div class="bars" id="commit-bars" style="margin-top:10px"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================================================================ Glossar -->
+<section id="glossar">
+  <div class="sec-head">
+    <span class="eyebrow">Glossar</span>
+    <h2>Begriffe, wie das Team sie meint</h2>
+    <p class="lede">Aus dem Entwickler-Glossar CONTEXT.md — was ein Wort in diesem Repo bedeutet und was man stattdessen nicht sagt.</p>
+  </div>
+  <dl class="glossary" id="glossary"></dl>
+  <div style="margin-top:22px">
+    <span class="eyebrow">Bewusst mehrdeutig — im Zweifel den Zusatz sagen</span>
+    <div class="tablewrap" style="margin-top:10px"><table class="tf" id="ambiguities"><thead><tr><th>Wort</th><th>Bedeutung (a)</th><th>Bedeutung (b)</th></tr></thead><tbody></tbody></table></div>
+  </div>
+</section>
+
+<!-- ================================================================ Changelog -->
+<section id="changelog">
+  <div class="sec-head">
+    <span class="eyebrow">Changelog</span>
+    <h2>Die letzten Versionen</h2>
+    <p class="lede">Aus dem Kopf von CHANGELOG.md beim Bau gelesen. Versionsschema: MAJOR = Migration nötig, MINOR = additiv, PATCH = Bugfix.</p>
+  </div>
+  <div class="changelog" id="changelog-list"></div>
+</section>
+
+<!-- ================================================================ Pflege -->
+<section id="pflege">
+  <div class="sec-head">
+    <span class="eyebrow">Pflege dieser Doku</span>
+    <h2>Wie das Dashboard aktuell bleibt</h2>
+  </div>
+  <div class="grid g2" style="align-items:start">
+    <div class="prose">
+      <p>Die Kennzahlen, der Changelog und der Commit-Stempel werden bei jedem Bau direkt aus dem Repo gemessen (<code>npm run docs:dashboard</code>). Die Abläufe, Texte und das Glossar sind kuratiert und liegen in <code>docs/docu-dashboard/data.json</code>.</p>
+      <p style="margin-top:12px">Einmal im Monat klont der Claude-Code-Skill <code>docu-dashboard</code> das Repo frisch, vergleicht den Stand mit <code>last-build.json</code>, sichtet die Changelog-Einträge seither auf neue oder geänderte Features, pflegt die betroffenen Abläufe nach und baut die Datei neu. Das Ergebnis ist dieses eine HTML — als Download und als geteilte Seite.</p>
+    </div>
+    <div class="card">
+      <h4>Dieser Stand</h4>
+      <dl class="kv" id="pflege-stand" style="margin-top:8px"></dl>
+    </div>
+  </div>
+</section>
+</main>
+</div>
+</div>
+<footer><div class="wrap"><span>TeamFlow Local · Doku-Dashboard</span><span id="foot-stamp"></span><span>Quelle: <span id="foot-repo" class="mono"></span></span></div></footer>
+</div>
+
+<script>window.__TF_DOCU__ = {"meta":{"appName":"TeamFlow Local","pageTitle":"TeamFlow Local Doku-Dashboard","repo":"WorkshopKI/tf-local-bau-forschung","curatedAt":"2026-09-10","curatedFor":"v6.48.0","updateRhythm":"monatlich (1. des Monats) über den Claude-Code-Skill docu-dashboard"},"intro":{"tagline":"Eine Browser-App ohne Server für ein Förderantrags-Team: Anträge aus dem Fachsystem lesen, Vorgänge verstehen, mit KI suchen, Gutachten und Nachforderungen entwerfen — alles aus einer HTML-Datei auf dem Netzlaufwerk.","beginner":["TeamFlow Local ist die Arbeitsoberfläche eines Teams, das Förderanträge (ZIM) bearbeitet. Die App wird nicht installiert und läuft nicht auf einem Server: Sie ist eine einzige HTML-Datei, die per Doppelklick im Browser aufgeht. Alle Daten liegen in einem Netzlaufwerk-Ordner, den die App einmal freigeben lässt.","Die Anträge selbst legt niemand in der App an. Sie kommen jede Nacht als CSV-Export aus dem Fachsystem C16, werden beim App-Start eingelesen und als Verbünde (mehrere Teilvorhaben unter einer Projektbeschreibung) gezeigt. Die App erklärt Status, warnt bei Stillstand, findet Anträge über eine KI-Suche und hilft beim Schreiben von Gutachten — der amtliche Status bleibt immer der aus dem Fachsystem."],"dev":["React 19 + TypeScript, Vite-Single-File-Build, Zustand-Stores, IndexedDB als Cache und File System Access API auf den SMB-Daten-Share als Source of Truth. Jedes Feature ist ein Plugin mit Manifest; Sichtbarkeit läuft über vier Achsen (Flag, Modul-Schloss, Beta/Experte, Kurator). KI-Läufe mit Dokumentinhalten gehen ausschließlich an die interne KI über eine Bookmarklet-Bridge."]},"constraints":[{"k":"file://","v":"Kein HTTP-Server, kein Backend, kein Node zur Laufzeit — die App läuft aus einer Datei."},{"k":"Ein Bundle","v":"vite-plugin-singlefile baut alles in eine index.html (~19 MB nach Post-Build-Strip)."},{"k":"Keine Chrome-Flags","v":"Standard-Chrome/Edge genügt; Worker nur als ?worker&inline (Blob-URL)."},{"k":"Kein relatives fetch","v":"Alle Daten über IndexedDB oder File System Access API."},{"k":"IDB je Variante","v":"DB-Name teamflow-<outputFilename>; Share = Wahrheit, IDB = Cache."},{"k":"Vertrauensmodell","v":"Schutz clientseitig: Schreibpfade nur hinter Kurator-/Rollen-Passwort; Backups gegen Versehen."}],"flows":[{"id":"login","title":"App-Start & Anmeldung","kicker":"Vom Doppelklick bis zur Seitenleiste","summary":"Nach dem Öffnen der HTML-Datei arbeitet die App eine feste Kette von Vollbild-Schritten ab — Profil, Passwort, Ordner-Freigabe, persönliche Anmeldung. Jeder Schritt merkt sich sein Ergebnis, damit er beim nächsten Start übersprungen wird.","lanes":["Nutzer","App-Shell (React)","Core-Services","IndexedDB","Daten-Share (SMB)","Browser-Sitzung"],"steps":[{"lane":0,"label":"Doppelklick auf zah-pl.html","beginner":"Die App ist eine einzige HTML-Datei auf dem Netzlaufwerk. Sie öffnet sich im Browser wie ein Dokument — ohne Installation und ohne Server. Ein Ladebildschirm mit Sekundenzähler erscheint sofort.","dev":{"file":"index.html","fn":"#tf-loader · window.__tfLoaderCleanup","effect":"Loader-Overlay ist vor jedem JavaScript sichtbar; Statuszeile #tf-loader-status wird später vom Init-Effekt beschrieben."},"log":"index.html  →  #tf-loader sichtbar"},{"lane":1,"label":"React-Root mounten","beginner":"Der Browser startet die eigentliche Anwendung.","dev":{"file":"src/main.tsx","fn":"createRoot(...).render(<StrictMode><App/><\/StrictMode>)","effect":"App.tsx bekommt ErrorBoundary + StorageContext."},"log":"main.tsx  →  createRoot().render(<App/>)"},{"lane":2,"label":"StorageService anlegen","beginner":"Die App richtet ihren Zugang zur lokalen Browser-Datenbank ein. Jede Build-Variante bekommt eine eigene Datenbank, damit sich Test- und Produktivstand nicht vermischen.","dev":{"file":"src/core/App.tsx · src/config/runtime-config.ts","fn":"new StorageService() · getVariantDbName()","effect":"IDB-Name teamflow-<outputFilename> (z. B. teamflow-zah-pl). Nie der nackte Name 'teamflow'."},"log":"App.tsx  →  new StorageService()  [db: teamflow-zah-pl]"},{"lane":3,"label":"IDB öffnen, Handles laden","beginner":"Die Datenbank wird geöffnet und die gemerkten Ordner-Verweise vom letzten Mal werden geladen — noch ohne Nachfrage beim Nutzer.","dev":{"file":"src/core/services/storage/index.ts","fn":"StorageService.init()","effect":"idb.open() (Version 11, 21 Stores), navigator.storage.persist() best-effort, Directory-Handles nur per queryPermission."},"log":"storage/index.ts  →  idb.open()  v11 · queryPermission()"},{"lane":2,"label":"Init-Kette","beginner":"Kleine Aufräum- und Vorbereitungsschritte: Statuskatalog laden, Listen-Projektion prüfen. Der Fortschritt steht im Ladebildschirm.","dev":{"file":"src/core/App.tsx (Zeilen ~345–528)","fn":"migrateLegacyDmsSource · initProtokoll · initStatusKatalog · ensureListViewProjection","effect":"Blockiert einmalig ~5 s bei 13 k Anträgen, wenn die Slim-Projektion neu gebaut werden muss (LIST_VIEW_PROJECTION_VERSION = 9)."},"log":"App.tsx  →  initStatusKatalog() · ensureListViewProjection()"},{"lane":3,"label":"Onboarding-Weiche","beginner":"Beim allerersten Start fragt ein Assistent Name, Kürzel und Lieblingsfarbe ab und bietet an, den persönlichen Ordner zu verbinden. Danach ist dieser Schritt erledigt.","dev":{"file":"src/core/Onboarding.tsx","fn":"idb.get('onboarding-complete') → Onboarding · handleFinish","effect":"Ein Persist am Ende: idb.set('profile'), idb.set('onboarding-complete', true), applyThemeColor; Rettungskopie <pers>/ZAH/profile.json."},"log":"idb.get('onboarding-complete')  →  true  (übersprungen)"},{"lane":1,"label":"App-Passwort-Wall?","beginner":"In den Varianten für Projektleitung und Entwicklung schützt ein Rollen-Passwort den Start. Solange der Browser-Tab offen ist, muss es nicht erneut eingegeben werden.","dev":{"file":"src/core/hooks/useAppGateSession.ts","fn":"anmeldungSteht()","effect":"runtimeConfig.auth.required && sessionStorage['tf-app-gate'] !== 'unlocked' → AppPasswordGate rendert VOR dem StartupScreen."},"log":"useAppGateSession.ts  →  anmeldungSteht() = true"},{"lane":0,"label":"Passwort eingeben","beginner":"Das Passwort selbst ist nirgends gespeichert. Beim Bauen der App wurde nur ein verschlüsselter Prüf-Schnipsel hinterlegt; lässt er sich mit dem getippten Passwort entschlüsseln, war es richtig.","dev":{"file":"src/core/AppPasswordGate.tsx · infrastructure/app-password.ts · crypto.ts","fn":"verifyAnyPassword(pw) → verifyGegenEbenen(auth, moduleAuth, pw)","effect":"PBKDF2-SHA-256 (200 000 Iterationen) + AES-GCM-256; Sentinel {v:1, role}. Basis-Ebene ohne Rollenprüfung, Modul-Slots auslastung/kurator mit."},"log":"app-password.ts  →  deriveKey(PBKDF2 ×200000) · decrypt(AES-GCM)  ✓ role=pl"},{"lane":5,"label":"Sitzung merken","beginner":"Ein Häkchen im Browser-Tab merkt sich die erfolgreiche Anmeldung. Ein Kurator-Passwort öffnet zusätzlich die Datenpflege für zwölf Stunden.","dev":{"file":"src/core/hooks/useAppGateSession.ts · useKuratorSession.ts","fn":"setAppGateSession() · useKuratorSession.aktiviere(idb, name)","effect":"sessionStorage['tf-app-gate']='unlocked' (TTL = Tab). Kurator: IDB 'admin-session-meta', 12 h, Activity-Tracker verlängert, Minuten-Timer in der Shell beendet."},"log":"sessionStorage['tf-app-gate'] = 'unlocked'"},{"lane":1,"label":"Daten-Share verbinden","beginner":"Die App braucht den Netzlaufwerk-Ordner mit den Team-Daten. Beim ersten Mal wählt man ihn im Browser-Dialog; der Ordner muss „ZAH“ heißen und die erwartete Struktur haben.","dev":{"file":"src/core/App.tsx · WelcomeScreen.tsx · smb-handle/","fn":"refreshHandleGate(profile) → pickAndStoreDatenShareHandle · validateSelectedFolder","effect":"showDirectoryPicker({mode}) — readwrite nur mit canWriteDatenShare. Handle in IDB 'smb-handles' (Slot 'daten-share'); Name ≠ expectedFolderName → Rollback."},"log":"smb-handle/kern.ts  →  showDirectoryPicker()  →  idb['smb-handles'].daten-share"},{"lane":4,"label":"Berechtigungen erneuern","beginner":"Aus Sicherheitsgründen verfällt die Erlaubnis für den Ordner beim Schließen des Browsers. Der Startbildschirm fragt sie deshalb Ordner für Ordner mit je einem Klick neu ab — oder läuft ohne Klick durch, wenn alles noch gilt.","dev":{"file":"src/core/StartupScreen.tsx · components/GuidedGrantSteps.tsx · smb-handle/permissions.ts","fn":"listPendingGrants() → grantPending() → requestPermission()","effect":"Ein Prompt pro User-Gesture (Bug-Klasse 2). Reihenfolge Datenordner → Persönlicher Ordner → CSV-Quelle. Warm-Start: queryAllPermissions → applyRefreshResult → onReady()."},"log":"permissions.ts  →  requestPermission('daten-share')  granted"},{"lane":2,"label":"MA-Login entscheiden","beginner":"In der Endnutzer-Variante gibt es keinen freien Kürzel-Eintrag: Wer die App nutzt, meldet sich mit einem persönlichen Passwort an — falls die Zugangsdatei auf dem Share existiert.","dev":{"file":"src/core/App.tsx · zugang-config.ts","fn":"decideMaGate() → isZugangConfigured()","effect":"Nur mit features.maLogin (prod). Prüft _intern/auslastung-zugang.enc; fehlt sie, wird die Wall übersprungen."},"log":"App.tsx  →  decideMaGate()  [prod: fileExists(_intern/auslastung-zugang.enc)]"},{"lane":0,"label":"Persönliches Passwort (prod)","beginner":"Die App weiß nicht, welcher Eintrag zu einem gehört, und probiert deshalb alle Einträge der verschlüsselten Liste durch — im Hintergrund, damit die Oberfläche flüssig bleibt. Der erste Treffer liefert das Kürzel.","dev":{"file":"src/core/MaLoginGate.tsx · zugang-config.ts · zugang-worker.ts","fn":"session.login() → verifyPasswortAgainstAll() im Worker","effect":"Je Eintrag deriveKey(salt) + decrypt(verschluesseltesKuerzel), Early-Exit. Zurück kommt nur {kuerzel, anonId}; NFC-normalisiert (Pitfall #22)."},"log":"zugang-worker.ts  →  verifyPasswortAgainstAll()  ✓ kuerzel=THÜ anonId=MA07"},{"lane":5,"label":"Kürzel in der Sitzung","beginner":"Das gefundene Kürzel gilt bis der Tab geschlossen wird. Überall in der App wird „mein Kürzel“ über eine einzige Stelle gelesen.","dev":{"file":"src/core/hooks/useMAIdentity.ts · useMeinKuerzel.ts","fn":"writeSessionKuerzel() · useMeinKuerzel()","effect":"sessionStorage['tf-ma-kuerzel']; useMeinKuerzel liest Session vor profile.bearbeiter_kuerzel (Pitfall #27) — im Login-Modus fallen 'alle' und Vertretungs-Kürzel weg."},"log":"sessionStorage['tf-ma-kuerzel'] = 'THÜ'"},{"lane":1,"label":"Shell rendern","beginner":"Jetzt erscheint die App mit Seitenleiste. Im Hintergrund prüft sie gleich, ob neue Antragsdaten vorliegen (siehe „Datenbestand aktualisieren“).","dev":{"file":"src/core/Router.tsx · ShellLayout.tsx · nav/groupNavPlugins.ts","fn":"createHashRouter → RootLayout → ShellLayout","effect":"Sidebar-Gruppen aus groupNavPlugins(); Gates aus → setReady(true), hideLoader(); im Idle scheduleIdle → runDataUpdate."},"log":"Router.tsx  →  ShellLayout gemountet · hideLoader()"}]},{"id":"datenbestand","title":"Datenbestand aktualisieren","kicker":"Nacht-Export aus C16 → IndexedDB → Team-Snapshot","summary":"Anträge entstehen nie in der App. Das Fachsystem C16 schreibt jede Nacht CSV-Dateien; die App erkennt beim Start, ob sie neu sind, importiert nur die geänderten Zeilen und veröffentlicht den Stand als Snapshot für das Team.","lanes":["Fachsystem C16","App-Start","csv-sources-kuration","core/services/csv","IndexedDB","Daten-Share (SMB)"],"steps":[{"lane":0,"label":"Nächtlicher CSV-Export","beginner":"Das Fachsystem exportiert nachts die Antragsdaten als CSV (Antragsbasis, Bewilligungsdetails, Projektbeschreibung). Die Datei von gestern wird dabei überschrieben.","dev":{"file":"Export-Ordner (außerhalb der App)","fn":"9097_AnB · 7737_Bgl · 9052_PrjBsp","effect":"~13,3 MB, ~13 000 Zeilen; 9052_PrjBsp mit 163 Spalten, C16 kürzt Spaltenköpfe auf 10 Zeichen (PapaParse benennt Dubletten _1, _2 …)."},"log":"C16  →  9097_AnB.csv  (13,3 MB, 13 085 Zeilen)"},{"lane":1,"label":"Idle nach First Paint","beginner":"Erst wenn die Oberfläche steht, beginnt die Prüfung im Hintergrund. Es läuft immer nur ein Datenlauf gleichzeitig.","dev":{"file":"src/core/App.tsx · csv-sources-kuration/services/data-update.ts","fn":"scheduleIdle → runDataUpdate() · acquireDataMutation()","effect":"Zweiter Aufruf bekommt {nichtGelaufen:'gate-belegt'}. Phasen: snapshot → csv-check → csv-import → publishing."},"log":"data-update.ts  →  runDataUpdate()  phase=snapshot"},{"lane":5,"label":"Snapshot vom Share holen","beginner":"Zuerst holt sich die App den Team-Stand vom Netzlaufwerk, falls ein Kollege inzwischen etwas veröffentlicht hat.","dev":{"file":"src/core/services/csv/snapshot-sync.ts · verbuende-rebuild.ts","fn":"syncProgrammSnapshot(force:true) → replaceStore · healMissingVerbuende()","effect":"manifest.json + 9 *.jsonl je Programm; Delta-Dateien antraege.delta.<seq>.jsonl; Sync-Marken snapshot-* im kv-Store."},"log":"snapshot-sync.ts  →  manifest.json v… → replaceStore(antraege)"},{"lane":2,"label":"Kandidaten sammeln","beginner":"Welche CSV-Quellen sind registriert, erreichbar und möglicherweise neu?","dev":{"file":"csv-sources-kuration/services/auto-refresh.ts","fn":"collectCandidates(idb, {forceRecheck})","effect":"Sechs Buckets: candidates · permissionNeeded · unlinked · fixtures (hart ausgeschlossen) · fileMissing · upToDate."},"log":"auto-refresh.ts  →  collectCandidates()  candidates=1 upToDate=2"},{"lane":2,"label":"Ist die Datei neu?","beginner":"Nur wenn weder ich noch das Team diese Datei schon verarbeitet haben, wird importiert. Das Änderungsdatum allein reicht bewusst nicht — der Inhalt wird per Prüfsumme verglichen.","dev":{"file":"csv-sources-kuration/csv-source-handle.ts","fn":"decideSourceUpdateState(file, schema)","effect":"Stufe 0 lokaler Stempel (kv csv-source-lokal-stempel, v6.37) → Stufe 1 Team-Stempel im Schema (source_last_modified + last_file_size) → Stufe 2 sha1Hex(file) gegen beide Belege."},"log":"csv-source-handle.ts  →  sha1Hex(file) ≠ file_checksum  →  update_available"},{"lane":2,"label":"Drift-Check","beginner":"Haben sich die Spalten geändert? Neue Spalten werden still übernommen, fehlende blockieren mit einem Dialog — nichts wird geraten.","dev":{"file":"csv-sources-kuration/services/csv-drift-check.ts","fn":"validateHeaders(schema, headers) → entscheideDrift()","effect":"Vier Stufen: Encoding-Heilung → mehrdeutige Aliasgruppe (blockt hart) → neue Spalten als {ignore:true} → missingFromCsv blockiert (CsvAutoRefreshDriftDialog)."},"log":"csv-drift-check.ts  →  entscheideDrift()  newColumns=2 → auto-ignored"},{"lane":3,"label":"Import starten (Lock)","beginner":"Der Import sperrt den Share kurz für andere Importe, damit nicht zwei Rechner gleichzeitig schreiben.","dev":{"file":"src/core/services/csv/importer.ts · infrastructure/build-lock.ts","fn":"importCsvSource(idb, schemaId, file, {lockHeldByCaller, onRows, deferSnapshotWrite}) · acquireBuildLock · startHeartbeat","effect":"_intern/build-lock.json, Stufe csv-import (stale nach 3 min); EIN Lock je Auto-Refresh-Lauf."},"log":"importer.ts  →  importCsvSource()  lock=csv-import hb=30s"},{"lane":3,"label":"Lesen & prüfen","beginner":"Die CSV wird zeilenweise gelesen. Fehlt die Schlüsselspalte (Förderkennzeichen), bricht der Import ab, bevor irgendetwas geschrieben wird.","dev":{"file":"src/core/services/csv/importer-schritte.ts · parser.ts","fn":"leseUndPruefe() → parseCsvAllStreamed (PapaParse) · findJoinColumn","effect":"rows, headers, parseErrors verdichtet nach Code. Abbruch-Schranke 1/3."},"log":"importer-schritte.ts  →  leseUndPruefe()  rows=13085 joinCol=FKZ"},{"lane":5,"label":"Share-Kopie ersetzen","beginner":"Eine bereinigte Kopie der CSV wandert auf das Netzlaufwerk — nur von dort liest der Zusammenbau.","dev":{"file":"src/core/services/csv/schemaRegistry.ts","fn":"readWithEncodingFallback → saveCsvSourceFile","effect":"programm/antraege/imports/ (UTF-8-normalisiert). Abbruch-Schranke 2/3 unmittelbar davor."},"log":"schemaRegistry.ts  →  saveCsvSourceFile(programm/antraege/imports/…)"},{"lane":3,"label":"Zeilen-Diff","beginner":"Jede Zeile bekommt einen Fingerabdruck. Nur Zeilen, deren Fingerabdruck neu, geändert oder verschwunden ist, werden weiterverarbeitet.","dev":{"file":"importer-schritte.ts · hash.ts · loeschregel.ts","fn":"berechneRowDiff() → canonicalRowHash(row, column_mapping) · beurteileUnterprogramm · teileNachAbdeckung","effect":"Buckets new/changed/unchanged/removed gegen Store csv_row_hashes. Unterprogramm aktiv → importieren; deaktiviert → darf löschen; unbekannt → weder noch."},"log":"berechneRowDiff()  new=41 changed=1 012 unchanged=12 030 removed=2"},{"lane":3,"label":"Merge","beginner":"Für die betroffenen Anträge werden alle registrierten Quellen gemeinsam neu zusammengesetzt; bei Konflikten gewinnt die Master-Quelle.","dev":{"file":"src/core/services/csv/merger/batched.ts · single.ts · list-view.ts","fn":"runMergeForDeltas() → recomputeMultipleBatched()","effect":"Zweiphasig, priority-asc: Pass 0 nur join_key=aktenzeichen (seedet akronym/verbund_id), Pass 1 alle Quellen. Schreibt antraege, antraege_list_view (toAntragListItem), verbuende, akronym_index, antrag_historie, verbund_historie."},"log":"merger/batched.ts  →  recomputeMultipleBatched()  putAntraege ×1 053"},{"lane":4,"label":"Stempel & Hashes","beginner":"Die App merkt sich, welche Datei sie verarbeitet hat — einmal für das Team (reist im Snapshot mit) und einmal nur für diesen Rechner.","dev":{"file":"importer.ts · idb-csv/row-hash.ts · lokaler-stempel.ts","fn":"putRowHashes · saveSchema · schreibeLokalenStempel","effect":"Team-Stempel: file_checksum, source_last_modified, last_file_size, source_stamped_by. Lokaler Stempel kv['csv-source-lokal-stempel'] — nie im Snapshot (behebt die Import-Kette über fünf PL-Rechner)."},"log":"lokaler-stempel.ts  →  schreibeLokalenStempel(schemaId, sha1)"},{"lane":5,"label":"Import-Diff-Journal","beginner":"Weil der Nacht-Export überschrieben wird, führt die App ein eigenes Tagebuch: Was wurde seit dem letzten Export gesetzt, geändert oder geleert? Ohne festzuhalten, wer es war.","dev":{"file":"src/core/status/journal/import-anbindung.ts · lauf.ts · diff.ts","fn":"journalisiereImport() → laufeJournal() → berechneDiff()","effect":"Nur Master-Schema; D_*-Spalten + STATUS_TV/VB (110 Spalten) gegen _intern/vorgangssystem/journal/stand.json; Einträge nach journal-YYYY-MM.jsonl (gesetzt · geaendert · geleert · antrag-neu · antrag-fehlt). Erst JSONL, dann Stand."},"log":"journal/lauf.ts  →  laufeJournal()  diff: 1 271 Einträge, Stempel 3f9a…"},{"lane":5,"label":"Snapshot publizieren","beginner":"Der neue Bestand wird als Snapshot auf das Netzlaufwerk geschrieben, damit die Kollegen ihn beim nächsten Start bekommen. Geschrieben wird erst in eine Nebendatei, dann umbenannt — nie halbfertig.","dev":{"file":"src/core/services/csv/snapshot.ts · infrastructure/atomic-write.ts · audit-log.ts","fn":"writeProgrammSnapshot() / writeProgrammSnapshotDelta() → atomicWriteStream · logAudit('csv_import')","effect":"9 *.jsonl + manifest.json; Publish-Guard pruefeAntraegeSchwund (< Hälfte lokal → Abbruch); heal-before-serialize; ~10–25 s bei 13 k Anträgen."},"log":"snapshot.ts  →  atomicWriteStream(antraege.jsonl)  25 235 ms · audit csv_import"},{"lane":3,"label":"Nachlauf-Integrationen","beginner":"Nach dem Import ziehen andere Module nach: Dokument-Zuordnungen, Status-Ereignisse, Meilenstein-Bewertung.","dev":{"file":"importer-schritte.ts","fn":"laufeNachImportIntegrationen() · hb.stop() vor releaseLock()","effect":"phase2 rematchOnSnapshotReload · nachImportStatusPflege (Flag statusCockpit) · nachImportMeilensteinPflege (Flag meilensteinMonitoring). Heartbeat zuerst stoppen (Pitfall #52)."},"log":"laufeNachImportIntegrationen()  →  rematch · status · meilensteine  ·  releaseLock()"},{"lane":1,"label":"Rückmeldung an den Nutzer","beginner":"Ein farbiger Punkt „● CSV“ in der Fußzeile zeigt, ob alles eingelesen ist; bei Auffälligkeiten erscheint ein Start-Bericht.","dev":{"file":"csv-sources-kuration/services/csv-freshness-state.ts · CsvFreshnessIndicator.tsx · start-bericht.ts","fn":"deriveCsvFreshnessState() → csvFreshnessAussage() · useStartBericht.setBericht","effect":"Zustände fresh/stale/needs_link/no_sources/offline; Toast 6 s; Bericht nur bei Divergenz, Drift, Fehler, übergangenen Spalten, Encoding-Korrektur."},"log":"csv-freshness-state.ts  →  fresh  ·  toast 'Datenbestand aktualisiert'"}]},{"id":"antraege","title":"Anträge ansehen","kicker":"Liste → Verbund-Detail mit 14 Sektionen","summary":"Die Förderantrags-Seite legt keine Daten an, sie zeigt sie: links die Liste aus einer schlanken Projektion, rechts der geöffnete Verbund mit allen Teilvorhaben. Drei unabhängige Regler bestimmen, was die Liste zeigt — Sicht-Tabs, Filter und der Betrachtungsbereich.","lanes":["Nutzer","antraege-Plugin (UI)","Store & Hooks","core/services","IndexedDB"],"steps":[{"lane":0,"label":"„Förderanträge“ in der Sidebar","beginner":"Der Menüpunkt öffnet die Antragsliste.","dev":{"file":"src/plugins.config.ts · src/plugins/antraege/index.ts","fn":"antraegePlugin {id:'antraege', route:'/antraege', category:'workflow', order:2}","effect":"Route mit eigenen Kind-Routen (Verbund, Aufbereitung, :aktenzeichen) in Router.tsx."},"log":"Router  →  #/antraege"},{"lane":1,"label":"Seite montieren","beginner":"Kopfzeile mit Sicht-Tabs und Suchfeld, darunter die Liste, rechts das Detail.","dev":{"file":"src/plugins/antraege/AntraegePage.tsx · AntraegeHeader.tsx · AntraegeMain.tsx","fn":"AntraegePage → ScopeTabs · BereichChip · SuchFeld · FilterSpalte","effect":"shouldShowList(hasDetail, listCollapsed) ist die eine Ableitung für 'Liste sichtbar?'."},"log":"AntraegePage.tsx  →  Header + Main + Detail gemountet"},{"lane":4,"label":"Slim-Projektion laden","beginner":"Weil ein Antrag über 400 Spalten hat, hält die App eine abgespeckte Kopie mit 36 Feldern für die Liste — so lädt sie schnell.","dev":{"file":"src/plugins/antraege/services/antraege-search-service.ts · core/services/csv/list-view.ts","fn":"getAntraegeListCache(idb, programmId) → Store antraege_list_view","effect":"AntragListItem: 36 Felder + kat_status + frei_roh; ~95 % weniger structured-clone bei 14 k Records."},"log":"idb.getAll('antraege_list_view')  →  14 225 Items"},{"lane":2,"label":"Filter anwenden","beginner":"Sicht-Tabs (z. B. „Vor Entscheidung“), Filter-Facetten und der Betrachtungsbereich-Chip entscheiden gemeinsam, welche Anträge zum Arbeitsvorrat zählen.","dev":{"file":"src/plugins/antraege/useFilteredAntraege.ts · views.ts · core/status/betrachtungsbereich.ts","fn":"useFilteredAntraege() · getView() · istImBereich(unterprogrammId, bereichMenge)","effect":"7 Facet-Typen (Store filter_definitionen); Bereich = Richtlinien-Generationen (Seed: die drei jüngsten) — schneidet den Arbeitsvorrat, nie die Suche (Pitfall #46)."},"log":"useFilteredAntraege()  →  view='vor-entscheidung' bereich=3 Gen.  →  845 Zeilen"},{"lane":2,"label":"Bearbeiter-Sicht","beginner":"„Meine Anträge“ hängt von der Rolle ab: fachliche Bearbeiter stehen in einer anderen Spalte als administrative.","dev":{"file":"src/core/hooks/useMeinKuerzel.ts · useBearbeiterSicht.ts · plugins/antraege/bearbeiterFilter.ts","fn":"useMeinKuerzel() → parseBearbeiterFilter(kuerzel, inklBegleitung) → spaltenFuer(mode)","effect":"FB: tib_kuerz/ztp_kuerz · AB: bib_kuerz/bfm_kuerz/pfm_kuerz; 'alle' oder leer = inaktiv; 'MUE, SCH' = Vertretung."},"log":"bearbeiterFilter.ts  →  applyBearbeiterFilter(rolle=fb, THÜ)"},{"lane":3,"label":"Aufgabe je Zeile","beginner":"Jede Zeile sagt, was als Nächstes zu tun ist. Solange die Berechnung läuft, steht „…“ — nie zwei Antworten hintereinander.","dev":{"file":"src/core/hooks/useBestandsAufgaben.ts · core/status/aufgaben-anzeige.ts · bestands-lauf.ts","fn":"useZeilenAufgaben() → aufgabeAusBestand() → aufgabenAnzeige()","effect":"Bestandslauf rechnet je TV die To-do-Kaskade (ermittleTodosAlleRollen) + Stillstand; Ablage 5 min gecacht; Rückfall = schrittText über den Rohstatus."},"log":"aufgaben-anzeige.ts  →  quelle='kaskade' text='SV in QS' anteil='3 von 4 TV'"},{"lane":0,"label":"Zeile anklicken","beginner":"Ein Klick öffnet den Verbund — auch wenn man ein einzelnes Teilvorhaben angeklickt hat, denn zusammen gehören sie auf eine Seite.","dev":{"file":"src/plugins/antraege/detailPfad.ts","fn":"antragDetailPfad({verbundId, aktenzeichen, ziel})","effect":"Verbund gewinnt, außer bei Pseudo-Verbund (__pseudo__…); ?ziel=<anker> für Sprünge."},"log":"detailPfad.ts  →  #/antraege/verbund/VB-2026-0417"},{"lane":2,"label":"Auswahl setzen","beginner":"Die App merkt sich den geöffneten Verbund und protokolliert lokal (nur mit Opt-in), dass er geöffnet wurde.","dev":{"file":"src/core/Router.tsx · plugins/antraege/store.ts","fn":"VerbundRoute → useAntraegeStore.setSelectedVerbundId · protokolliereEreignis({typ:'antrag_geoeffnet'})","effect":"Assistent-Ereignisprotokoll strikt gerätelokal (Pitfall #37)."},"log":"useAntraegeStore.setSelectedVerbundId('VB-2026-0417')"},{"lane":4,"label":"Voll-Record laden","beginner":"Für das Detail werden jetzt alle Felder des Antrags geladen — samt Historie.","dev":{"file":"src/core/services/csv/idb-csv/antrag.ts · verbund.ts","fn":"Store antraege (~461 Felder) · verbuende.teilantrags_ids · antrag_historie","effect":"Antrag.verbund_id → Verbund (n:1); verbuende ist ein vom Merge gepflegter Cache, selbst heilend."},"log":"idb.get('antraege', '16KN0417…') ×4  ·  verbuende.teilantrags_ids=4"},{"lane":1,"label":"Verbund-Detail rendern","beginner":"Vierzehn auf- und zuklappbare Abschnitte: Kurzbeschreibung, Status, offene Aufgaben, nächste Schritte, Meilensteine, Gutachten, Nachforderungen, Alle Felder, Historie …","dev":{"file":"src/plugins/antraege/VerbundDetail.tsx · detailSektionen.ts","fn":"DETAIL_SEKTIONEN (14) · Klappvorgabe boolean | 'wennGefuellt'","effect":"Nur 'antragsdaten' startet offen; Sichtbarkeit je Sektion über WennDetailSektion (Beta/Experte-Achse)."},"log":"VerbundDetail.tsx  →  14 Sektionen, offen: antragsdaten"},{"lane":1,"label":"„Alle Felder“","beginner":"Alle 400+ Spalten mit Klartext-Beschriftung aus der Excel-Zuarbeit, in fünf Lesegruppen sortiert; jede Zelle hat ihre Feld-Historie.","dev":{"file":"src/plugins/antraege/alleFelder/buildDisplayRows.ts · felderGruppen.ts","fn":"buildDisplayRows(antrag, schemas) → groupDisplayRows → GRUPPEN_ORDER","effect":"Label-Rang: dominante Source > Master > Priority; zt_*-Flags als Cluster herausgehoben; Historie aus antrag_historie."},"log":"buildDisplayRows()  →  461 Zeilen in 5 Gruppen"},{"lane":3,"label":"Status erklären","beginner":"Das graue Info-Symbol zeigt, woher der Status kommt: Rohtext aus C16 → amtlicher Code → Verfahrensschritt → Arbeitsliste. Der Kürzel-Navigator zeigt, welches Kürzel als Nächstes möglich wäre.","dev":{"file":"src/core/status/herleitung.ts · navigator.ts · plugins/antraege/status/NaechsteSchritte.tsx","fn":"baueHerleitung() · navigatorKandidaten()","effect":"Die eine Achse: findeStatusCode → phaseFuerCode → kategorieFuerCode → getStatusCategory. Navigator prüft nur die Trigger des Programms; nicht Auswertbares heißt 'unpruefbar', nicht 'ungültig'."},"log":"herleitung.ts  →  'VN geprüft' → Code 88 → begleitung → StatusCategory begleitung"}]},{"id":"suche","title":"Suche mit KI","kicker":"Drei Stufen streamen, ein KI-Aufruf übersetzt die Frage","summary":"Die Suchseite fragt drei Quellen hintereinander und zeigt Ergebnisse schon nach der ersten: wörtlich in den Stammdaten, thematisch ähnlich über Vektoren, zuletzt im Dokumentenindex. Im Frage-Modus übersetzt die interne KI einen ganzen Satz in Leitbegriffe — sie liefert Wörter, keine Treffer.","lanes":["Nutzer","suche-Plugin (UI)","useUnifiedSearch","Embedding (Transformers.js)","Orama-Index","Interne KI (Bridge)"],"steps":[{"lane":0,"label":"Suchbegriff tippen","beginner":"Man tippt wie in jeder Suche; die Ergebnisse erscheinen beim Tippen.","dev":{"file":"src/plugins/suche/SearchInput.tsx · store.ts","fn":"useSucheStore.setQuery(query)","effect":"Feldpräfixe wie ast:GMBU werden erkannt (feldpraefix.ts) und schalten die Stufen 2 + 3 ab."},"log":"SearchInput  →  setQuery('Wasserstoff Elektrolyse')"},{"lane":1,"label":"Wirksame Anfrage bilden","beginner":"Abgewählte Wörter (Chips) fallen aus der Anfrage, das Suchfeld bleibt unverändert.","dev":{"file":"src/plugins/suche/SuchSeite.tsx","fn":"wirksameAnfrage(query, verknuepfung, abgewaehlteWoerter) → useDeferredValue","effect":"Verknüpfung UND/ODER aus useSuchVerknuepfung."},"log":"SuchSeite.tsx  →  wirksameAnfrage()  verknuepfung=und"},{"lane":2,"label":"Debounce + Abbruch","beginner":"Die Suche wartet 300 ms nach dem letzten Tastendruck und bricht einen noch laufenden Lauf ab.","dev":{"file":"src/core/hooks/useUnifiedSearch.ts","fn":"DEBOUNCE_MS = 300 · AbortController","effect":"Streaming-Phasen: substring → vector → orama → done."},"log":"useUnifiedSearch  →  debounce 300 ms · abort(prev)"},{"lane":2,"label":"Stufe 0: Caches","beginner":"Die Stammdaten aller Anträge liegen als Text-Korpus im Speicher bereit.","dev":{"file":"src/plugins/antraege/services/antraege-search-service.ts","fn":"getAntraegeListCache · getProgrammCaches","effect":"byAkz, textCorpus, filenameToAkz (Dokumentname → Aktenzeichen)."},"log":"getProgrammCaches()  →  textCorpus 14 225 · filenameToAkz 3 812"},{"lane":2,"label":"Stufe 1: Wortlaut","beginner":"Wörtliche Treffer in Titel, Akronym, Deskriptoren, Organisation … samt Wortstämmen („Elektrolyse“ findet „Elektrolyseur“). Diese Treffer erscheinen sofort.","dev":{"file":"antraege-search-service.ts · core/services/search/wortstamm.ts · trefferstelle.ts","fn":"searchAntraegeWortlaut() → substringMatches → feldZuordnung · wortStamm()","effect":"Synchron ~10 ms; je Antrag Trefferfelder + Abdeckung; Varianten-Chips (max. 64 gesammelt, 8 sichtbar); emit() streamt."},"log":"searchAntraegeWortlaut()  →  212 Treffer  (10 ms)  emit()"},{"lane":3,"label":"Stufe 2: Ähnlichkeit","beginner":"Optional rechnet die App die Bedeutung der Anfrage als Zahlenvektor und vergleicht sie mit einem Vektor je Vorhaben — findet also thematisch Verwandtes ohne gleiche Wörter.","dev":{"file":"core/services/embedding-corpus/wrapper.ts · search/query-embedder.ts · model-registry.ts","fn":"ensureEmbeddingReady → embedQueryCached(q) → searchAntraegeVector(queryVec, embeddings)","effect":"EmbeddingGemma 300M (768 d, q8, WebGPU oder WASM, Main-Thread — Pitfall #8); Floor 0,35, relativ 0,85 · Top-K 50; Korpus-Spiegel _intern/auslastung-embedding-corpus.*"},"log":"embedQueryCached()  →  768-d  ·  searchAntraegeVector()  38 über Schwelle"},{"lane":4,"label":"Stufe 3: Dokumente","beginner":"Zuletzt wird im Index der hochgeladenen Dokumente gesucht — Volltext immer, Vektor füllt freie Plätze auf.","dev":{"file":"src/core/services/search/orama-store.ts","fn":"hybridSearch(q, queryVec, {limit: 50, threshold})","effect":"mode fulltext zuerst (behält Platz), dann hybrid (similarity 0,2) für freie Plätze; deduplicateBySource max 2 je Dokument; normalizeScore = score / log2(chunks+1)."},"log":"hybridSearch()  →  fulltext 27 · hybrid +9  (Index: orama-db)"},{"lane":2,"label":"Faltung + Relevanz","beginner":"Alle Fundstellen eines Vorhabens werden zu einer Zeile mit einer Relevanzzahl verrechnet; Wortlaut zählt mehr als bloße Ähnlichkeit.","dev":{"file":"useUnifiedSearch.ts · search/trefferstelle.ts","fn":"filenameToAkz.get(h.source) → baueAntragTreffer → berechneRelevanz(belege, wortAbdeckung)","effect":"relevanz = abdeckung × (0,75·stärke + 0,25·breite); Gewichte titel/akronym 3 · kurzbeschreibung/dokument 2 · deskriptoren/aehnlichkeit 1,5; Ähnlichkeit gedeckelt bei 0,5."},"log":"berechneRelevanz()  →  hoch 14 · mittel 63 · niedrig 173"},{"lane":1,"label":"Rendern","beginner":"Tabelle oder Liste, mit markierten Fundstellen. Treffer außerhalb des Betrachtungsbereichs werden markiert, nicht versteckt.","dev":{"file":"src/plugins/suche/useSearchResults.ts · SearchResultsTable.tsx · DeutungsZeile.tsx · search/markierung.ts","fn":"dataSource → columnFiltered → sorted · markiereText()","effect":"ausserhalbBereich: true statt Entfernen (Pitfall #46); protokolliereEreignis('suche_ausgefuehrt')."},"log":"SearchResultsTable  →  250 Zeilen · phase=done"},{"lane":0,"label":"Frage-Modus: ganzer Satz","beginner":"Umschalten auf „Frage“ und einen Satz eingeben, z. B. „Welche Netzwerke in Bayern arbeiten an Wasserstoff?“ — gesucht wird erst nach Enter.","dev":{"file":"src/plugins/suche/SuchSeite.tsx","fn":"nlModus · frageStellen(frage)","effect":"Flag sucheNatuerlicheSprache (dev + pl). frageOffen ⇒ keine Nullsuche; Guards: leer, hatLuecke('‹…›'), planLaeuft."},"log":"SuchSeite.tsx  →  frageStellen('Welche Netzwerke in Bayern …')"},{"lane":5,"label":"Frageplan (1 KI-Aufruf)","beginner":"Die interne KI übersetzt den Satz in Leitbegriffe mit Schreibweisen und Einschränkungen. Sie sucht nicht selbst — danach rechnet die App wieder deterministisch.","dev":{"file":"src/core/services/search/frageplan.ts · frageplan-lauf.ts · ai/ein-schuss-lauf.ts","fn":"baueFrageplanPrompt → ermittleFrageplan → fuehreEinSchussLauf → parseFrageplan","effect":"Nur interner Transport (getTransportForDatenLauf), Rolle standard, frischer Chat, ein Aufruf, kein Retry. Grenzen: 6 Leitbegriffe, 12 Nadeln."},"log":"ein-schuss-lauf.ts  →  tf-request(standard)  ·  plan: 2 Leitbegriffe, pflicht: Bayern"},{"lane":2,"label":"Plan → Suche","beginner":"Jeder Leitbegriff wird ein Suchteil; Themen sind Alternativen, Einschränkungen wie „in Bayern“ müssen alle zutreffen. Chips lassen sich abwählen — ohne neuen KI-Aufruf.","dev":{"file":"SuchSeite.tsx · useUnifiedSearch.ts","fn":"aktiveLeitbegriffe(plan, abgewaehlt) → planTeile → searchAntraegeWortlaut({planTeile})","effect":"effektiveVerknuepfung = 'oder' über Themen; PlanBegriff.pflicht = UND; planSchraenktEin ⇒ Stufen 2 + 3 ruhen."},"log":"planTeile  →  Wasserstoff|H2|Elektrolyse  ∧  Bayern  →  87 Treffer"},{"lane":5,"label":"Antwortkarte (2. KI-Aufruf)","beginner":"Aus den Treffern entsteht ein kurzer Antworttext mit nummerierten Belegen — pro Frage und Trefferstand genau einmal.","dev":{"file":"src/plugins/suche/antwort/useFrageAntwort.ts · frageBefund.ts · assistentKontext.ts · search/frageantwort-lauf.ts","fn":"baueBefund (rein) · waehleKontextTreffer · ermittleFrageantwort","effect":"Belege (40) und Kandidaten (12) getrennt; KONTEXT_CHAR_BUDGET 24 000; MAX_ANTWORT_ZEICHEN 1 400; Schlüssel ${frage}::${treffer.length}."},"log":"useFrageAntwort()  →  Befund + 40 Belege  →  Antwortkarte [1]…[6]"},{"lane":1,"label":"Chat andocken","beginner":"Rechts klappt ein Chat auf, der die aktuellen Treffer als Kontext mitbekommt und seine Quellen als [1], [2] zitiert.","dev":{"file":"src/plugins/chat/ChatPanelHost.tsx · useChatController.ts · ai/rag-context.ts","fn":"getPinnedContext → generateAssistant → ragSearch → buildRAGContextString · buildChatSources","effect":"RAG-Pfad nutzt useSearch().search mit optionalem Cross-Encoder-Re-Ranker (bge-reranker-base); Streaming-Flush 80 ms; extraContext nur an der letzten User-Message."},"log":"ChatPanelHost  →  pinnedKontext (8 Treffer) · streamConversation()"}]},{"id":"zuweisung","title":"Antragszuweisung","kicker":"Klassifizieren → Matching → Zuweisen (Auslastungs-Modul)","summary":"Zwei Hälften: „Wovon handelt der Antrag?“ (Klassifizierung in eine von fünf Überkategorien, drei Stufen der Reihe nach) und „Wer bearbeitet ihn?“ (Matching aus fachlicher Passung und freier Quartalskapazität). Zugewiesen wird immer der ganze Verbund; Personen erscheinen nur als MA01…MAxx.","lanes":["PL (Nutzer)","auslastung-Plugin (UI)","Klassifizierung","Matching","Store useAuslastungData","Daten-Share (SMB)"],"steps":[{"lane":0,"label":"Modul freischalten","beginner":"Das Auslastungs-Modul ist mit einem Zusatzpasswort gesperrt; einmal eingegeben, bleibt es zwölf Stunden offen.","dev":{"file":"src/core/AppPasswordGate.tsx · core/hooks/useModulFreischaltung.ts · config/modul-schloss.ts","fn":"verifyAnyPassword → useModulFreischaltung.freischalten(idb) → reload","effect":"Manifest modulSchloss:'auslastung'; IDB modul-freischaltung, 12 h, gerätelokal; Deep-Links laufen durch ModulSchlossGate."},"log":"useModulFreischaltung.freischalten()  →  auslastungBis=+12h · reload"},{"lane":1,"label":"Vorwärmen","beginner":"Beim Start lädt das Modul die Team-Datei mit Mitarbeitenden, Klassifizierungen und Zuweisungen sowie alle Anträge in den Speicher.","dev":{"file":"src/plugins/auslastung/index.tsx · hooks/useAuslastungData.ts · useAntraegeCache.ts","fn":"onInit → useAuslastungData.load + useKuerzelMap.load · warmupAntraegeCache()","effect":"_intern/auslastung.json (normalizeAuslastungData) + _intern/auslastung-kuerzel-map.json; ~13 k Voll-Records; Ladephasen auslastungsdaten → antraege → themenvektoren."},"log":"useAuslastungData.load()  →  79 MAs · 5 Kategorien · Q3  ·  warmupAntraegeCache 13 085"},{"lane":2,"label":"Verteil-Pool schneiden","beginner":"Zu verteilen sind neue Verbünde der letzten sechs Monate ohne Bearbeiter — und nur, wenn alle Teilanträge da sind.","dev":{"file":"src/plugins/auslastung/services/verbund/verbund-aggregation.ts","fn":"verteilCutoffDatum(quartal, lookback) · istZuVerteilen(antrag, cutoff) · istVollstaendigFuerTypAz","effect":"Ohne tib_kuerz, nicht abgelehnt/zurückgezogen, kein Irrläufer; Vollständigkeit FuE/DS → D_XTEC, DL/NW → D_ADV — unvollständig ⇒ kein Live-Match, Pill gesperrt."},"log":"buildVerbundClassificationViews()  →  Pool 142 Verbünde (6 Monate)"},{"lane":2,"label":"Stufe 0: Ankreuzfelder","beginner":"Kreuzt der Antrag Zukunftstechnologien an (z. B. „Künstliche Intelligenz“), ergibt sich die Überkategorie direkt.","dev":{"file":"services/klassifizierung/klassifizierung-engine.ts · services/default-labels.ts","fn":"matchZukunftstechnologien → matchZukunftstechnologienFromKlartexte","effect":"ZT-Spalten → ZUKUNFTSTECHNOLOGIE_FELDER.defaultUeberKategorie (IT · DT · EU · LG · NM); Confidence 1,0 (eine Kategorie) / 0,8 (mehrere)."},"log":"matchZukunftstechnologien()  →  IT (1.0)"},{"lane":2,"label":"Stufe 1: Deskriptoren","beginner":"Sonst zählt die App, welche Stichwortliste die Deskriptoren des Antrags am häufigsten treffen.","dev":{"file":"klassifizierung-engine.ts · services/identitaet/profil-aggregator.ts","fn":"matchDeskriptoren(deskriptoren, kategorien) · readAntragDeskriptoren","effect":"Treffer-Count je UeberKategorie.deskriptorenMapping; Confidence 1,0 / 0,7."},"log":"matchDeskriptoren()  →  DT (0.7)  [3 Treffer]"},{"lane":2,"label":"Stufe 2: Embedding-Centroid","beginner":"Erst wenn beides schweigt, vergleicht die KI den Antragstext mit dem „Schwerpunkt“ jeder Kategorie.","dev":{"file":"klassifizierung-engine.ts · hooks/useKategorieReferenzen.ts","fn":"matchEmbeddings(query, kategorien, 0.15) · cosineSimilarity · computeKategorieCentroids","effect":"Cosine gegen UeberKategorie.referenzEmbedding (Mean + L2-Norm, nur Primärkategorien, Verbund-Dedup); Top-1 primär, Top-2 Aspekt bei Δ < 0,15; leere Zentren-Map schreibt nie."},"log":"matchEmbeddings()  →  EU 0.71 (primär) · IT 0.62 (Aspekt)"},{"lane":0,"label":"Klassifizierung freigeben","beginner":"Die Projektleitung prüft die Vorschläge, korrigiert per Pill und gibt frei — für alle Teilvorhaben des Verbunds auf einmal.","dev":{"file":"src/plugins/auslastung/views/KlassifizierungsReview.tsx","fn":"applyVerbundOverride(view, kategorieId, add) · freigebeVerbund → freigebenKategorienBulk","effect":"Max. 2 Kategorien, methode 'manuell'; ein persist für alle TVs (Pitfall #16/#20); 'Hohe Confidences freigeben' teilt eine Kandidatenfunktion mit Knopf und Dialog."},"log":"freigebenKategorienBulk()  →  4 TVs · methode=manuell · persist"},{"lane":3,"label":"Query-Embedding","beginner":"Für das Matching wird der Antrag (Titel + Projektbeschreibung) einmal als Vektor berechnet.","dev":{"file":"src/plugins/auslastung/views/ZuweisungsCockpit.tsx · hooks/useMatchingCorpus.ts","fn":"ensureEmbeddingReady · embedText(verbund_titel + titel + beschreibung, 'query') · loadCorpus()","effect":"Gecacht je Aktenzeichen (queryEmbeddingCacheRef); Korpus einmal je Datenstand."},"log":"embedText(query)  →  768-d  ·  loadCorpus()  corpusEmbeddings 13 085"},{"lane":3,"label":"Pool + Ausschlussgründe","beginner":"Wer kommt infrage? Mitarbeitende mit passender Haupt- oder Nebenkategorie; wer inaktiv ist, keine Stunden hat oder den Antragstyp nicht bearbeitet, wird mit Grund ausgeschlossen.","dev":{"file":"src/plugins/auslastung/services/matching/matching-engine.ts","fn":"runMatchingWithContext(input) → hauptIds / nebenIds · AusgeschlossenerMa","effect":"Reihenfolge: inaktiv → keine-stunden (effektiveJahresStunden ≤ 0) → antragstyp → abgemeldet → kein-onboarding; UI 'Nicht vorgeschlagen'-Liste."},"log":"runMatchingWithContext()  →  haupt 23 · neben 11 · ausgeschlossen 45"},{"lane":3,"label":"BM25 + Embedding","beginner":"Zwei Blicke auf die fachliche Passung: Stichwort-Ähnlichkeit zum Kompetenzprofil und Ähnlichkeit zu früheren Projekten der Person.","dev":{"file":"services/matching/bm25-matcher.ts · embedding-matcher.ts","fn":"runBm25Matching() · runEmbeddingMatching() · computeAlpha(bm25)","effect":"Mini-BM25 mit deutschen Stoppwörtern, Kompetenz-Tokens level-gewichtet (Level 3 = 3×); α nach Deckung: ≥ 0,5 → 1,0 · ≥ 0,2 → 0,5 · sonst 0,2."},"log":"runBm25Matching()  deckung=0.61 α=1.0  ·  runEmbeddingMatching()  top-K"},{"lane":3,"label":"Endscore","beginner":"Passung und freie Quartalskapazität werden zu einer Rangliste gemischt. Ausgelastete Personen sinken, verschwinden aber nicht.","dev":{"file":"matching-engine.ts · services/kapazitaet/kapazitaet.ts · matching/kontingent.ts","fn":"histScore = clamp01(α·bm25 + (1−α)·emb + astBoost) · matrixScoreForUeber · kapazitaetsScore · kontingentInfoFor","effect":"finalScore = (kompetenz·gK + (balance·0,5 + kap·0,5)·gB) · Kontingent · kapMultiplier; AST-Boost U +0,20 / F +0,05; Top-5 Haupt + Neben."},"log":"finalScore  →  MA07 0.84 · MA12 0.79 · MA03 0.71 · MA21 0.66 · MA15 0.60"},{"lane":1,"label":"Vorschläge anzeigen","beginner":"Fünf Vorschläge mit Prozentwert und Begründung — die Personen stehen anonym als MA-Nummern da.","dev":{"file":"views/DetailPanel.tsx · components/VorschlagRow.tsx · ScoreBreakdownPanel.tsx · AnonymIdBadge.tsx","fn":"MatchResult.breakdown {matchKind, alpha, histScore, matrixScore, matrixGewicht}","effect":"Echte Kürzel nur in pl/dev per useDeAnonResolver; Kürzel-Map append-only (Pitfall #17/#22)."},"log":"VorschlagRow ×5  ·  'Auch geeignet · Nebenkompetenz' ×3"},{"lane":0,"label":"„Zuweisen“","beginner":"Ein Klick weist den ganzen Verbund einer Person zu — eine Einheit, ein Bearbeiter.","dev":{"file":"views/ZuweisungsCockpit.tsx · hooks/useAuslastungData.ts","fn":"zuweisen(match) → assignVerbund(storage, {tvAktenzeichen, leadAktenzeichen, anonId, quartal, stunden, anzahlTV})","effect":"Löscht alle Zuweisungen der TVs im Quartal, setzt genau eine status:'freigegeben' auf den Lead-TV; Guard !selectedVollstaendig ⇒ Abbruch."},"log":"assignVerbund()  →  MA07 · Q3 · 4 TVs · status=freigegeben"},{"lane":5,"label":"Persistieren","beginner":"Die Team-Datei wird atomar geschrieben, mit rollierenden Sicherungskopien.","dev":{"file":"src/plugins/auslastung/services/auslastung-store.ts · infrastructure/atomic-write.ts","fn":"schedulePersist → saveAuslastungData → archiveCurrentAuslastung → atomicWrite","effect":"_intern/auslastung.json; Backups _intern/auslastung-backups/ (max 1/10 min, 20 Generationen); Save-Lock gegen Doppelschreiben."},"log":"atomicWrite(_intern/auslastung.json)  ·  backup 2026-09-09T…"},{"lane":0,"label":"Export & Bestätigung","beginner":"Die Zuweisungen gehen als Excel mit echten Kürzeln an die Leitung und per Mail an die Person. Sobald das Fachsystem den Bearbeiter führt, räumt die App ihre eigene Zuweisung ab — die CSV ist die Wahrheit.","dev":{"file":"services/export-service.ts · hooks/useKuerzelExport.ts · tib-mail.ts · useReconcileZuweisungen.ts","fn":"buildExportRows → exportDeAnonymizedXlsx({anonymMap}) · buildMailtoUrl · reconcileZuweisungen()","effect":"auslastung-kuerzel-{quartal}.xlsx (Option 1–5, Kürzel · 87 % · 21 TVs); echte Kürzel nur im RAM; tib_kuerz im Import ⇒ App-Records des Antrags fallen weg; 'CSV-Bestätigung offen · N T' ab 3 Tagen amber."},"log":"exportDeAnonymizedXlsx()  →  auslastung-kuerzel-2026-Q3.xlsx  ·  reconcileZuweisungen()"}]},{"id":"gutachten","title":"Gutachten-Kurzfassung mit KI","kicker":"Dokument-Aufnahme → App-Skill → Prüfen → Freigabe → Word-Vorlage","summary":"Ein Gutachter zieht die Vorhabensbeschreibung auf die Verbund-Seite; ein App-Skill (Prompt-Vorlage + Regeln aus dem Netzlaufwerk) lässt die interne KI die Kurzfassung schreiben; deterministische Checks prüfen Umfang und Form; am Ende füllt die App den Text an seine Überschrift in die Word-Vorlage. Die KI ist optional — nur die Generierung braucht sie.","lanes":["Gutachter","Verbund-Detail (UI)","Skill-Runner","Interne KI (Bridge)","Check-Engine","IndexedDB / Share"],"steps":[{"lane":0,"label":"Vorhabensbeschreibung hochziehen","beginner":"PDF oder Word per Drag & Drop auf die Aufnahmefläche. Steht das Förderkennzeichen im Dateinamen, ist die Datei sofort zugeordnet — sonst fragt die App.","dev":{"file":"src/core/components/DokumentAufnahme.tsx · dokumentAufnahmeFkz.ts · phase2/matcher/fkz-extractor.ts","fn":"handleFiles → classifyFkz(filename, knownIds) → fkzCase 'match' | 'ambig'","effect":"IntakeItem je Datei; 'match' ⇒ ingest(), 'ambig' ⇒ Klick 'Diesem Verbund zuordnen'."},"log":"classifyFkz('16KN041742_VB.docx')  →  match  →  ingest()"},{"lane":1,"label":"PDF/DOCX → Markdown","beginner":"Die App wandelt das Dokument in Text mit Überschriften und Tabellen um. Word-Dateien sind dabei der Maßstab, PDFs werden über eine Leiter absteigender Verlässlichkeit gelesen.","dev":{"file":"src/core/services/converter/index.ts · pdf-struktur.ts · pdf-tables.ts","fn":"DocConverter.convert(file) → {markdown, pages, report}","effect":"PDF: strukturiert (Tag-Baum, ab 60 % Anteil) → geschätzt (Schriftgrößen) → flach; DOCX: mammoth → turndown. Main-Thread (Pitfall #5)."},"log":"DocConverter.convert()  →  markdown 48 210 Zeichen · level=docx"},{"lane":5,"label":"Dokument ablegen + indexieren","beginner":"Der Text wird am Verbund gespeichert und in den Suchindex gelegt.","dev":{"file":"src/plugins/dokumente/store.ts · src/core/hooks/useSearch.ts · src/plugins/antraege/kurzfassung/vbDokument.ts","fn":"add(inhalt) → kv 'doc:<id>' (tags [verbundKey, 'vorhabensbeschreibung']) · indexDocument · pickAktiveVb","effect":"Kein Antrag-Write (Pitfall #29); Dublette mit gleichem Namen wird neue Fassung; VB-Wahl: explizit → DOCX vor PDF → jüngste."},"log":"kv.set('doc:7c1f…')  ·  indexDocument()  ·  pickAktiveVb()  →  DOCX"},{"lane":2,"label":"Skill & Regeln laden","beginner":"Ein „Skill“ ist reine Daten: eine Prompt-Vorlage plus Regeln, vom Kurator auf dem Netzlaufwerk gepflegt — kein Code-Deployment nötig.","dev":{"file":"src/core/services/skills/registry/storage.ts · selectors.ts · vorgaben.ts","fn":"loadSkillRegistry → getSkillById('gutachten-kurzfassung') → resolveRegeln(file, skill)","effect":"_intern/skills/registry.json (Cache skill-registry:cache); Regeln = Skill-Vorgaben (synthetisch) + regelIds + Standardsatz des Workflows (standardRegelIds, Abwahl ohneStandard)."},"log":"loadSkillRegistry()  →  gutachten-kurzfassung v14  ·  resolveRegeln()  9 Regeln"},{"lane":2,"label":"Prompt komponieren","beginner":"Aus Vorlage, Stammdaten des Antrags, dem Dokumenttext, den formalen Vorgaben und ggf. einer persönlichen Stil-Schicht entsteht eine Nachricht.","dev":{"file":"src/core/services/skills/run/run-skill.ts · registry/check-engine.ts · tweaks/store.ts","fn":"composeSkillPrompt() · buildPromptVorgaben(regeln) · capVbMarkdown(md, cap)","effect":"Rangfolge: Template ({{stammdaten}}, {{vbMarkdown}}) → Tweak-Block → Formale Vorgaben (zuletzt = Recency) → Modifier → Zusatzanweisung; VB_CHAR_CAP 334 000 am Absatzende."},"log":"composeSkillPrompt()  →  system 2 140 · user 51 300 Zeichen · vbGekuerzt=false"},{"lane":2,"label":"Transport wählen (DSGVO)","beginner":"Weil der Prompt Dokumentinhalte trägt, darf er nur an die interne KI gehen. Ein externer Anbieter wird mit Begründung abgelehnt.","dev":{"file":"src/core/services/ai/transport-policy.ts · bridge.ts","fn":"skillEnthaeltDokumentInhalte(skill) → bridge.getTransportForSkillRun(skill)","effect":"Scannt den Template-TEXT nach {{vbMarkdown}} / INHALTS_SLOTS (Pitfall #35); erlaubteTransportKlassen ⇒ ['intern']; wirft bei externem Provider (Pitfall #30). Guard no-raw-active-transport."},"log":"transport-policy.ts  →  enthaeltDokumentInhalte=true  →  Transport 'Interne KI'"},{"lane":3,"label":"Frischer Chat + Lauf","beginner":"Die App öffnet die interne KI in einem zweiten Tab (Bookmarklet einmal anklicken), setzt den Chat zurück und schickt die Nachricht.","dev":{"file":"src/core/services/ai/chat-reset.ts · transports/streamlit.ts · modell-katalog.ts","fn":"starteFrischenChat(transport, ziel) → runSkill() → postMessage {type:'tf-request', id, message, modell}","effect":"Pitfall #36 (stateful Chat); Modellrolle standard (gpt-oss-120b) oder stark (qwen3.6-35b) nur über den Katalog (Guard modellname-nur-im-katalog); Auto-Eskalation nur aufwärts."},"log":"streamlit.ts  →  tf-reset ok  ·  tf-request #a91 modell=standard"},{"lane":3,"label":"Streaming zurück","beginner":"Der Text erscheint live, während die KI schreibt; ein Herzschlag verhindert, dass ein langer Lauf als abgebrochen gilt.","dev":{"file":"transports/streamlit.ts · transports/deadline.ts · plugins/antraege/kurzfassung/StreamingVorschau.tsx","fn":"tf-stream (Voll-Snapshots → Delta) · tf-progress → touch() · tf-response","effect":"RESPONSE_IDLE_TIMEOUT 200 s, HARD 660 s; useStreamingBuffer mit LaufPhase formulieren | feinschliff."},"log":"tf-stream ×184  ·  tf-response #a91 (reasoning 1 220 · content 3 980 Zeichen)"},{"lane":2,"label":"Antwort zerlegen","beginner":"Die Antwort hat drei Teile: Quellenanalyse, Entwurf und finaler Text. Fehlen die Überschriften, wird alles als finaler Text genommen und gewarnt.","dev":{"file":"src/core/services/skills/run/parse.ts","fn":"parseSkillOutput(raw, teilStruktur?) · parseBelege","effect":"Regex auf ### Quellenanalyse | Entwurf | Finaler Text; Belege '→ stützt Satz n' (1-basiert im Format, 0-basiert intern); teilStruktur = JSON-Teilfelder mit Plain-Text-Fallback."},"log":"parseSkillOutput()  →  quellenanalyse ✓ entwurf ✓ finalerText 1 830 Zeichen · 4 Belege"},{"lane":4,"label":"Deterministische Checks","beginner":"Ohne KI prüft die App Umfang und Form: Zeichen, Wörter, Sätze, verbotene Muster, Pflicht-Anfang. Dieselbe Regel, die im Prompt stand, wird hier gemessen.","dev":{"file":"src/core/services/skills/registry/check-engine.ts · kategorien.ts","fn":"runRegelChecks(finalerText, regeln) → CheckResult[] · splitSentences · effektiveKategorie()","effect":"RegelTyp zeichen_max · wortanzahl · satzanzahl · satzlaenge_max · verbotenes_muster · pflicht_anfang · keine_aufzaehlungen · absatz_min · keine_ueberschriften; Prüfart textlich/fachlich/administrativ; Level ok/hinweis/fehler."},"log":"runRegelChecks()  →  ok 7 · hinweis 1 (satzlaenge_max 27>25) · fehler 1 (zeichen_max 1 830>1 800)"},{"lane":2,"label":"Auto-Korrektur","beginner":"Ein Fehler löst genau einen Überarbeitungslauf aus — mit einer Anweisung, die Ziel und Ist-Wert nennt („kürzer, 1 800 statt 1 830 Zeichen“).","dev":{"file":"src/plugins/antraege/gutachten/retry-policy.ts · registry/korrektur.ts","fn":"chooseRetryModifier() → regelKorrekturAnweisung(check, regel) → runSkill(modifier)","effect":"Nur bei level 'fehler'; Zielwert aus regel.params, Ist aus CheckResult.messwert; Überarbeitung bekommt keinen Feinschliff; Scheitern degradiert zum Rohentwurf."},"log":"chooseRetryModifier()  →  'kuerzer' · Anweisung 'Ziel 1 800 Zeichen (ist 1 830)'  →  runSkill()"},{"lane":1,"label":"Review","beginner":"Quellenanalyse, finaler Text, Denkprozess, Unterschied zur Vorversion und die Check-Liste. Aktionen: Freigeben, Neu, Kürzer, Länger, Prüfen.","dev":{"file":"src/plugins/antraege/kurzfassung/ReviewCard.tsx · CheckList.tsx · kurzfassung-diff.ts · useKurzfassung.ts","fn":"useKurzfassung(ctx) → generate · modify · pruefen · freigeben · uebernehmen(index)","effect":"Alle Aktionen self-catching (Pitfall #15); Verlauf max 5 Versionen; Diff via diff-match-patch; Persist nach jedem Statuswechsel, nie während der Generierung."},"log":"ReviewCard  →  status=entwurf · checks 8 ok · diff +12/−31"},{"lane":5,"label":"Persistieren","beginner":"Die Kurzfassung wird am Verbund gespeichert — als eigenes Objekt, nicht im Antrag.","dev":{"file":"src/plugins/antraege/kurzfassung/kurzfassung-store.ts · types.ts","fn":"putKurzfassung(idb, record) → kv 'gutachten-kurzfassung:<verbund-key>'","effect":"KurzfassungRecord {quellenanalyse, entwurf, finalerText, checks, status, modell, skillId, verlauf …}; kein dedizierter Store (kein IDB-Version-Bump unter file://); Personal-Mirror im persönlichen Ordner."},"log":"kv.set('gutachten-kurzfassung:VB-2026-0417')  status=freigegeben"},{"lane":0,"label":"Word-Vorlage füllen","beginner":"Zum Schluss setzt die App den freigegebenen Text an seine Überschrift in der Gutachten-Vorlage (Abschnitte A–G) und speichert das Word-Dokument.","dev":{"file":"src/plugins/antraege/kurzfassung/VorlageDialog.tsx · gutachten-vorlagen/fill-template.ts · anchor-mapping.ts · save-docx.ts","fn":"fillTemplate(buf, antrag, sections, {dryRun}) → processDocumentXml → saveGutachtenDocx","effect":"Vorlage immer frisch gelesen (Pitfall #33); Anker A 'Kurzfassung der Projektbeschreibung' … G 'Auswirkungen …'; SHA-256-Stempel in WorkflowRun.vorlageRef; Fallback Browser-Download."},"log":"fillTemplate(dryRun)  →  7 Anker gefunden  ·  saveGutachtenDocx('Gutachten_EP_16KN0417.docx')"}]},{"id":"feedback","title":"Feedback abgeben","kicker":"Vom schwebenden Knopf bis zum Ticket im Board","summary":"Ein schwebender Knopf öffnet ein kleines Formular mit Screenshot. Wer Schreibrecht auf dem Netzlaufwerk hat, schreibt direkt in die geteilte Datei; alle anderen in eine persönliche „Outbox“, die das Board automatisch einsammelt. Aus einem Ticket entsteht per Knopf ein fertiger Entwicklungsauftrag.","lanes":["Nutzer","Feedback-UI","Feedback-Service","Interne KI","Daten-Share (SMB)","Persönlicher Ordner"],"steps":[{"lane":0,"label":"Knopf anklicken","beginner":"Der Feedback-Knopf schwebt auf jeder Seite; mit Tastenkürzel gleich mit Screenshot.","dev":{"file":"src/components/feedback/FeedbackButton.tsx","fn":"FeedbackButton() · Shortcut mod+alt+s","effect":"Shell-weit gemountet; öffnet FeedbackPanel (470 px, backdrop-blur)."},"log":"FeedbackButton  →  open(panel, focusScreenshot=true)"},{"lane":1,"label":"Formular ausfüllen","beginner":"Typ (Problem, Idee, Frage …), Bereich = die erkannte Seite, Beschreibung und ein annotierbarer Screenshot.","dev":{"file":"src/components/feedback/FeedbackPanel.tsx · constants.ts · FeedbackAnnotator.tsx · core/services/feedback/screenContext.ts","fn":"sichtbareFelder() · context.screenRef · ticketBereich() · addFiles","effect":"Feld 'steps' bleibt im Schema, nur nicht im Formular (Alt-Tickets byte-gleich); Aufnahme-Modus schrumpft das Panel auf 320 px, Entwurf bleibt erhalten."},"log":"FeedbackPanel  →  typ=problem · bereich='antraege' · screenshot 1"},{"lane":3,"label":"Optional: mit KI verbessern","beginner":"Die KI stellt erst Rückfragen und formuliert dann Ist und Soll — nur mit der internen KI.","dev":{"file":"src/core/services/feedback/feedbackImprove.ts · components/feedback/FeedbackVerbessernFlow.tsx","fn":"brauchtRueckfragen → askClarifyingQuestions → improveFeedbackGuided → GuidedImproveResult","effect":"Festes Ziel-Modell FEEDBACK_ZIEL; Ergebnis cls.anforderung (Ist/Soll)."},"log":"improveFeedbackGuided()  →  2 Rückfragen  →  anforderung {ist, soll}"},{"lane":2,"label":"Absenden","beginner":"Das Feedback wird zuerst immer lokal gespeichert, dann weitergeleitet.","dev":{"file":"src/core/services/feedback/feedbackService.ts","fn":"submitFeedback(storage, data, routing, attachments)","effect":"loadLocalItems/saveLocalItems; Retry mit vorgabeId ersetzt den Stand; Dispatch über routing.writeToShared."},"log":"submitFeedback()  →  local ✓  routing.writeToShared=false (prod)"},{"lane":4,"label":"Mit Schreibrecht: geteilte Datei","edge":"canWriteDatenShare","beginner":"Kuratoren und PL schreiben direkt in die Team-Datei — nach erneutem Lesen und Zusammenführen, damit nichts überschrieben wird.","dev":{"file":"feedbackService.ts · infrastructure/atomic-write.ts","fn":"writeSharedAttachment · readSharedFileLage · mergeItems · writeSharedFile","effect":"_intern/feedback/feedback.json; Lage 'unlesbar' wird NIE als 'leer' behandelt (sonst überschriebe der Write den Teambestand)."},"log":"writeSharedFile(_intern/feedback/feedback.json)  merge +1"},{"lane":5,"label":"Ohne Schreibrecht: Outbox","from":3,"edge":"sonst (prod)","beginner":"Endnutzer schreiben in eine private Outbox-Datei im persönlichen Ordner — sonst ginge ihr Feedback verloren.","dev":{"file":"src/core/services/feedback/feedbackStorage.ts","fn":"submitToOutbox(persHandle, kuerzel, payload, blobs)","effect":"ZAH/feedback/outbox/ im persönlichen Ordner; category, structured, attachments, context reisen mit; Fehler nur console.warn (lokales Item existiert)."},"log":"submitToOutbox()  →  <pers>/ZAH/feedback/outbox/THÜ-….json"},{"lane":4,"label":"Board sammelt ein","from":[4,5],"beginner":"Beim Öffnen des Feedback-Boards werden alle Outboxen eingesammelt; das Ticket erscheint mit Status, Stimmen und Kommentaren.","dev":{"file":"src/plugins/feedback-board/verwaltung/useAutoCollectFeedback.ts · core/services/feedback/feedbackOutboxCollect.ts","fn":"useAutoCollectFeedback() → autoCollectFeedbackOutboxes · autoCollectFeedbackVotes · autoCollectFeedbackComments","effect":"Hängt am Board (einziger Pfad für prod-Feedback); Whitelist beim Einsammeln; Sponsoring über Quartals-Budget."},"log":"autoCollectFeedbackOutboxes()  →  3 neue Tickets  ·  emitFeedbackUpdated()"},{"lane":1,"label":"Ticket → Entwicklungsauftrag","beginner":"Wer verwalten darf, erzeugt aus dem Ticket per Knopf einen Markdown-Auftrag für Claude Code — mit Reproduktionsschritten, Ist und Soll.","dev":{"file":"src/core/services/feedback/promptGenerator.ts · components/feedback/FeedbackVerwaltungBlock.tsx","fn":"generateClaudeCodePrompt(ticket) → STRUCTURED_SECTIONS · CATEGORY_LABELS_DE","effect":"cls.anforderung als Ist/Soll-Abschnitt zuerst; LLM-Summary als Einleitung, Felder bleiben Beleg; nur mit ctx.darfSchreiben."},"log":"generateClaudeCodePrompt()  →  Markdown 1 420 Zeichen (kopiert)"}]}],"dataModel":{"beginner":"Ein Antrag ist eine Tabellenzeile aus dem Fachsystem, erkannt an seinem Förderkennzeichen (Aktenzeichen). Mehrere Anträge, die zum selben Projekt gehören, teilen eine Verbund-Nummer — die App zeigt sie deshalb als einen Verbund mit mehreren Teilvorhaben. Weil ein Antrag über 400 Spalten hat, gibt es zusätzlich eine schlanke Kopie mit 36 Feldern für Listen.","entities":[{"name":"Verbund","key":"verbund_id (= VB_NUMMER)","fields":"akronym · titel (VB_TITEL) · status (STATUS_VB) · teilantrags_ids[]","note":"Aggregat, vom Merge gepflegter Cache; selbst heilend (healMissingVerbuende)"},{"name":"Antrag = Teilvorhaben (TV)","key":"aktenzeichen (= FKZ, 16XX######)","fields":"programm_id · unterprogramm_id (FM_NUMMER) · akronym · titel (THEMA_AD) · antragsteller · status (STATUS_TV) · verbund_id · dokumente[] · [key: string]: unknown (~450 Custom-Felder) · _field_sources · _updated_at","note":"~461 Felder, ~36 KB je Record; nur ~10 explizit typisiert"},{"name":"AntragListItem","key":"aktenzeichen","fields":"36 Whitelist-Felder (LIST_VIEW_FIELDS) + kat_status + frei_roh","note":"Slim-Projektion für Home und Listen — wer antraege schreibt, zieht sie mit"},{"name":"CsvSchema","key":"id (z. B. fixture-real-anb)","fields":"join_key · priority · is_master · column_mapping · Team-Stempel (file_checksum, source_last_modified, last_file_size, source_stamped_by)","note":"Eine CSV-Quelle; drei produktiv (Master 9097_AnB, 7737_Bgl, 9052_PrjBsp)"},{"name":"Unterprogramm","key":"id = FM-Nummer","fields":"code · label · aktiv (Import-Allowlist) · antrag_count_cached","note":"Richtlinien-Generationen bilden den Betrachtungsbereich"}],"columns":[{"k":"D_<CODE>","v":"Datum, an dem ein Vorgangskürzel des Fachsystems gesetzt wurde (z. B. D_AAE Antragseingang). Nie als Literal — nur todoFeld()."},{"k":"T_<CODE>","v":"Freitext zum Kürzel (T_HINT Bemerkung, T_XSW Wiedereinreicher)."},{"k":"X…","v":"Kürzel mit X am Anfang liegen auf Verbund-Ebene (identisch auf jeder TV-Zeile)."},{"k":"tib_kuerz / ztp_kuerz","v":"Fachliche Bearbeitung (FB) und Begleitung; bib_kuerz / bfm_kuerz / pfm_kuerz = administrative (AB)."},{"k":"STATUS_TV / STATUS_VB","v":"Rohstatus aus C16, gebrandet als AntragStatusRaw — nie mit Literal vergleichen, nur Kategorie-Helfer (Pitfall #12)."}]},"stores":[{"name":"kv","key":"out-of-line","since":1,"note":"Punkt-Werte: profile, onboarding-complete, doc:*, gutachten-kurzfassung:*, workflow-run:*, aufbereitung:*, skill-registry:cache …"},{"name":"programme","key":"id","since":2,"note":""},{"name":"unterprogramme","key":"id","since":2,"note":"Index programm_id"},{"name":"csv_schemas","key":"id","since":2,"note":"Index programm_id, is_master"},{"name":"csv_row_hashes","key":"[csv_schema_id, join_value]","since":2,"note":"Diff-Grundlage"},{"name":"antraege","key":"aktenzeichen","since":2,"note":"Voll-Record; Index programm_id, verbund_id, akronym"},{"name":"antrag_historie","key":"id","since":2,"note":"Feld-Diffs je Aktenzeichen"},{"name":"verbuende","key":"verbund_id","since":2,"note":"Cache, selbst heilend"},{"name":"akronym_index","key":"[programm_id, akronym]","since":2,"note":"→ aktenzeichen[]"},{"name":"filter_definitionen","key":"id","since":2,"note":"system / admin / user"},{"name":"verbund_historie","key":"id","since":3,"note":""},{"name":"phase2_skip_list","key":"filename","since":5,"note":"classifier_version-Reset"},{"name":"phase2_pending_antraege","key":"id","since":5,"note":"Holding-Bucket"},{"name":"phase2_scan_manifest","key":"filename","since":5,"note":"Triage-Ergebnisse"},{"name":"phase2_scan_config","key":"id","since":6,"note":"Legacy"},{"name":"dms_sources","key":"id","since":7,"note":"Multi-Source ab v1.15"},{"name":"antraege_list_view","key":"aktenzeichen","since":8,"note":"Slim-Projektion, 36 Felder"},{"name":"assistent_ereignisprotokoll","key":"id","since":9,"note":"strikt gerätelokal, opt-in"},{"name":"assistent_gedaechtnis","key":"id","since":10,"note":"strikt gerätelokal"},{"name":"status_katalog","key":"version","since":11,"note":"gerätelokal"},{"name":"status_event","key":"id","since":11,"note":"append-only, gerätelokal"}],"shareLayout":[{"path":"<Daten-Share>/","note":"eigener SMB-Share, getrennt vom App-Share mit der HTML; Ordnername ZAH"},{"path":"├─ programm/antraege/imports/","note":"UTF-8-normalisierte Share-Kopien der CSVs — der Merge liest nur hieraus"},{"path":"├─ programm/antraege/snapshot/<programmId>/","note":"manifest.json + 9 *.jsonl (+ antraege.delta.<seq>.jsonl, backups/)"},{"path":"├─ programm/schemas/ · programm/index/","note":"Column-Mapping-JSONs · Orama-Snapshots + index-meta.json"},{"path":"├─ _intern/audit-log.jsonl · build-lock.json","note":"append-only Audit · Heartbeat-Lock"},{"path":"├─ _intern/skills/registry.json · textbausteine.json","note":"App-Skills (Prompts, Regeln, Workflows) · Textbaustein-Katalog"},{"path":"├─ _intern/auslastung.json · auslastung-kuerzel-map.json · auslastung-zugang.enc","note":"Auslastung · Kürzel→MAxx (append-only) · verschlüsselte Zugangsdatei"},{"path":"├─ _intern/feedback/feedback.json · eigene-spalten.json · sichtbarkeit.json · meilensteine.json","note":"Team-Sidecars, alle über atomicWrite()"},{"path":"├─ _intern/vorgangssystem/journal/stand.json · journal-YYYY-MM.jsonl","note":"Import-Diff-Journal (3,4 MB Stand @ 7 269 Anträge)"},{"path":"├─ backups/YYYY-MM-DD/","note":"wöchentlich, rollierend 4 Generationen"},{"path":"└─ README.txt","note":""},{"path":"<Persönlicher Ordner>/ZAH/","note":"profile.json · einstellungen.json · feedback/outbox/ · auslastung-uebernahme.json · skill-tweaks.json"}],"statusAxis":{"beginner":"Der Status kommt aus dem Fachsystem und gilt wie importiert — die App leitet nie einen ab. Sie liest ihn nur auf drei Ebenen: der amtliche Code, der Verfahrensschritt (kuratierbar, „wo im Verfahren“) und die feste Arbeitsliste („wer ist am Zug“), die Reiter, Farben und Kanban-Bahnen steuert.","chain":[{"label":"Rohtext","example":"„VN geprüft“","fn":"findeStatusCode(text)","file":"core/status/status-codes.ts","note":"505 Katalogeinträge, 30 Codes"},{"label":"Amtlicher Code","example":"88","fn":"phaseFuerCode(code)","file":"core/status/zah-phasen.ts","note":"Schnitt aus der aktiven Fassung (snapshot.ts)"},{"label":"ZAH-Phase","example":"begleitung","fn":"kategorieFuerCode(code)","file":"core/status/kategorie-ableitung.ts","note":"6 kuratierbare Verfahrensschritte"},{"label":"StatusCategory","example":"begleitung","fn":"getStatusCategory(raw)","file":"core/utils/status-canonical.ts","note":"9 feste Werte, nicht kuratierbar"}],"categories":[{"id":"offen","label":"Offen","note":"Eingang, noch nicht in Prüfung"},{"id":"in_pruefung","label":"In Prüfung","note":"techn./kaufm./Gutachten, vor Bewilligung"},{"id":"nachforderung","label":"Nachforderung läuft","note":"genau ein Status: NF gestellt (Code 35)"},{"id":"entscheidung","label":"Entscheidung","note":"Entscheidungsvorbereitung"},{"id":"bewilligt","label":"Bewilligt","note":"Code 59"},{"id":"begleitung","label":"Begleitung","note":"VN-/ZB-Prüfung, andere Zuständigkeit (ZTP/PFM)"},{"id":"abgelehnt","label":"Abgelehnt","note":"semantischer Platz, vom Katalog unbesetzt"},{"id":"abgeschlossen","label":"Abgeschlossen","note":"Schlussvermerk (99), abgebrochen, zurückgezogen (73)"},{"id":"sonstige","label":"Sonstige","note":"Irrläufer, unvollständig, leer, unbekannt"}],"zahPhasen":["eingang","vollstaendigkeit","pruefung","entscheidung","begleitung","abgeschlossen"]},"plugins":[{"id":"home","name":"Home","category":"workflow","order":0,"route":"/","flag":"","lock":"","desc":"Startseite aus Widget-Instanzen: Tagesbrief (was zuerst dran ist, Flag tagesbrief), Meine Anträge, Kanban, Fristen, Nachtlauf, Notizen … Konfiguration strikt gerätelokal."},{"id":"antraege","name":"Förderanträge","category":"workflow","order":2,"route":"/antraege","flag":"","lock":"","desc":"Liste + Verbund-Detail über das CSV-Schema; Filter, Sichten, Betrachtungsbereich, Gutachten, Nachforderungen, Aufbereitung."},{"id":"auslastung","name":"Auslastung","category":"workflow","order":4,"route":"/auslastung","flag":"auslastung","lock":"auslastung","desc":"Klassifizierung in Überkategorien, MA-Matching, Quartalskapazität, Kompetenzmatrix, anonymisiert MA01…MAxx."},{"id":"meilensteine","name":"Fristen & Meilensteine","category":"erprobung","order":40,"route":"/meilensteine","flag":"meilensteinMonitoring","lock":"","desc":"Versionierter, freigebbarer Plan mit Soll-Wochen ab Antragseingang und Frist-Prognose."},{"id":"anfragen","name":"E-Mail Anfragen","category":"erprobung","order":42,"route":"/anfragen","flag":"anfragen","lock":"","desc":".msg einlesen → intern anonymisieren → extern beantworten → deterministisch wiedereinsetzen."},{"id":"map-foerderfaehig","name":"Förderfähigkeit","category":"erprobung","order":44,"route":"/map-foerderfaehig","flag":"mapFoerderfaehig","lock":"","desc":"Einreichungs-JSON → Rechenchecks → versionierte Checkliste → Abschluss-Entwurf (Gutachten/NF/Ablehnung)."},{"id":"vorgangs-board","name":"Vorgangs-Board","category":"erprobung","order":45,"route":"/vorgangs-board","flag":"vorgangssystem","lock":"","desc":"Gruppierte Listen nach To-do (Arbeit · Fristen · Auswertung) — kein Kanban, nichts wird gezogen."},{"id":"status-cockpit","name":"Vorgangs-Regeln","category":"erprobung","order":46,"route":"/status-cockpit","flag":"statusCockpit","lock":"","desc":"Reiter Ebenen · Statuswerte · Kürzel · To-do-Regeln · Klärfragen; Fassungen kuratieren."},{"id":"doppelfoerderung","name":"Doppelförderung","category":"erprobung","order":46,"route":"/doppelfoerderung","flag":"doppelfoerderung","lock":"","desc":"Meldeliste (XLSX) → 3 Schlagworte je Zeile (KI) → Wortlaut + Ähnlichkeit + Träger → Urteil. hideFromNav."},{"id":"suche","name":"Suche","category":"tools","order":20,"route":"/suche","flag":"","lock":"","desc":"Hybrid-Suche (Wortlaut · Ähnlichkeit · Dokumente), Frage-Modus, angedockter Chat."},{"id":"glossar","name":"Glossar","category":"tools","order":21,"route":"/glossar","flag":"","lock":"","desc":"Kürzel-Glossar des Fachsystems mit Wirkung und Regelbezug."},{"id":"skill-verwaltung-kuration","name":"Skill-Verwaltung","category":"tools","order":22,"route":"/kuration/skill-verwaltung","flag":"skillVerwaltung","lock":"","desc":"App-Skills, Regeln, Workflows, Textbausteine, Eval — alles als Daten auf dem Share."},{"id":"feedback-board","name":"Feedback","category":"tools","order":24,"route":"/feedback-board","flag":"","lock":"","desc":"Die eine Feedback-Seite: Liste/Kanban, Verwaltung, Sponsoring, Claude-Code-Prompt."},{"id":"zu-klaeren","name":"Zu klären","category":"tools","order":26,"route":"/zu-klaeren","flag":"vorgangssystem","lock":"","desc":"Fachfragen asynchron beantworten; Weg Klärung → Export → Seed → Release."},{"id":"dokumente","name":"Dokumente","category":"tools","order":30,"route":"/dokumente","flag":"dokumente","lock":"","desc":"Dokumenten-Browser (Phase-2-Platzhalter)."},{"id":"einstellungen","name":"Einstellungen","category":"system","order":20,"route":"/einstellungen","flag":"","lock":"","desc":"Profil, Theme, KI-Assistent, Freischaltung, Umfang (Beta/Experte), Speicher. Im Sidebar-Fuß."},{"id":"kuration","name":"Datenpflege","category":"kuration","order":10,"route":"/kuration","flag":"","lock":"kurator","desc":"Der Kurations-Hub: Übersicht, CSV-Quellen, Förderprogramme, Suche & Index, Dienste, Sichtbarkeit."},{"id":"dokument-review","name":"Dokument-Review","category":"kuration","order":30,"route":"/kuration/dokument-review","flag":"dokumentenscan","lock":"kurator","desc":"Review-Queue der Phase-2-Triage; Tastatur j/k/n/i/r/a."},{"id":"dev-state-inspector","name":"DEV: State","category":"werkbank","order":98,"route":"/dev-state-inspector","flag":"devFixtures","lock":"","desc":"IDB-Store-Counts, Handles, Session, Flags, Build-Info."},{"id":"dev-infrastructure-test","name":"DEV: Infra","category":"werkbank","order":99,"route":"/dev-infrastructure-test","flag":"devInfraPanel","lock":"","desc":"Test-Harness mit Panels inkl. Phase-2-Triage."}],"pluginGroups":[{"id":"workflow","label":"Arbeit (ohne Überschrift)"},{"id":"tools","label":"Werkzeuge"},{"id":"erprobung","label":"In Erprobung"},{"id":"kuration","label":"Kuration"},{"id":"werkbank","label":"Developer"},{"id":"system","label":"System"}],"variants":[{"id":"dev","file":"dev.config.json","out":"dist-single/dev/zah-dev.html","label":"ZAH dev","who":"Entwicklung","flags":"30/32","auth":"Rollen-Passwort","notes":"OpenRouter erlaubt (nur hier), Dev-Fixtures, Dev-Panels"},{"id":"pl","file":"pl.config.json","out":"dist-single/zah-pl.html","label":"ZAH PL","who":"Projektleitung / voller Fach-Stack","flags":"26/32","auth":"Rollen-Passwort + Modul-Schlösser auslastung & kurator","notes":"Schreibrecht auf den Daten-Share"},{"id":"prod","file":"prod.config.json","out":"dist-single/zim-dashboard.html","label":"ZAH","who":"Endnutzer (read-only)","flags":"1/32 (maLogin)","auth":"MA-Login (persönliches Passwort)","notes":"Nur Snapshot-Sync, kein CSV-Import, Feedback über Outbox"},{"id":"local","file":"local.config.json","out":"wird nie gebaut","label":"ZAH local","who":"Abnahme im Dev-Server (Port 5175)","flags":"30/32","auth":"—","notes":"feste lokale Ordner statt Picker, window.__tf-Hook"},{"id":"local-fiktiv","file":"local-fiktiv.config.json","out":"wird nie gebaut","label":"ZAH fiktiv","who":"Skill-Messung ohne Echtdaten (Port 5176)","flags":"30/32","auth":"—","notes":"eigene IDB teamflow-zah-local-fiktiv"}],"visibility":[{"axis":"Feature-Flag","question":"Ist es einkompiliert?","when":"Bauzeit","where":"features.<modul> in configs/*.config.json → scripts/config-schema.mjs → src/config/feature-flags.ts","manifest":"featureFlag"},{"axis":"Modul-Freischaltung","question":"Darf ich es sehen? (Zusatzpasswort)","when":"Laufzeit, 12 h","where":"src/config/modul-schloss.ts · core/modul-freischaltung.ts · ModulSchlossGate (Router)","manifest":"modulSchloss: 'auslastung' | 'kurator'"},{"axis":"Beta / Experte","question":"Will ich es sehen?","when":"Laufzeit, ohne Neuladen","where":"core/sichtbarkeit/katalog.ts (einzige Quelle) · useSichtbar() · Sidecar _intern/sichtbarkeit.json · Schalter im Profil","manifest":"Katalog-Marken (199 Einträge, 46 markiert)"},{"axis":"kuratorOnly","question":"Habe ich die Rolle?","when":"Laufzeit","where":"profile.is_kurator · useKuratorSeiten() · GeschuetzteSeite (Router)","manifest":"kuratorOnly: true"}],"ki":{"beginner":"Die App hat keinen direkten Draht zur internen Firmen-KI. Sie öffnet deren Weboberfläche in einem zweiten Tab, in dem man einmal ein Lesezeichen (Bookmarklet) anklickt; danach reden die Tabs miteinander. Alles, was Dokument- oder Antragsinhalte trägt, darf nur diesen internen Weg gehen.","transports":[{"name":"Interne KI (KI-Bridge)","class":"intern","how":"Bookmarklet im KI-Tab + window.postMessage (tf-request · tf-stream · tf-progress · tf-response · tf-reset)","file":"core/services/ai/transports/streamlit.ts","variants":"alle"},{"name":"llama.cpp lokal / LAN","class":"intern","how":"OpenAI-kompatibles HTTP (http://localhost:8081), SSE-Streaming","file":"core/services/ai/transports/direct-llm.ts","variants":"alle"},{"name":"OpenRouter (Cloud)","class":"extern","how":"OpenAI-kompatibles HTTP mit API-Key","file":"direct-llm.ts · transport-policy.ts","variants":"nur dev — und nie für dokumenttragende Läufe"}],"roles":[{"role":"standard","model":"gpt-oss-120b","window":"62 000 Token","use":"Frageplan, Antragsplan, Antwortkarte, Klassifizierung, Skill-Läufe"},{"role":"stark","model":"qwen3.6-35b","window":"259 000 Token","use":"lange Korpora, Ziel-Fallback stark→standard nur wo ziel wirkt"}],"gates":[{"fn":"getTransportForSkillRun(skill)","for":"Gutachten, NF, QS, Batch — Dokumentbezug aus dem Template abgeleitet (skillEnthaeltDokumentInhalte)"},{"fn":"getTransportForDatenLauf(zweck)","for":"Frageplan, Frageantwort, Antragsplan, Wortformen, Auslastungs-Klassifizierung — hart intern"},{"fn":"getTransportForAssistent()","for":"Assistent-Panel (ein Aufruf je Turn, resetChat, session-only Historie)"},{"fn":"getTransportForKonsolidierung()","for":"Gedächtnis-Konsolidierung — Lease nur bei freier Bridge (Bridge-Mutex)"}],"oneShot":"fuehreEinSchussLauf (ein-schuss-lauf.ts): nur intern · passiver Ping · frischer Chat · Rolle standard · System-Prompt inline · ein Aufruf, kein Retry, wirft nie."},"devSetup":{"commands":[{"cmd":"npm install","note":"einmalig; Node ≥ 20 (praktisch 22 LTS), keine engines-Angabe"},{"cmd":"npm run dev","note":"Vite-Dev-Server, Port 5173, Ordner-Picker bleibt manuell"},{"cmd":"npm run dev:local","note":"Variante local, Port 5175 — feste lokale Ordner, kein Welcome-Screen, window.__tf-Hook (Abnahme durch den Agenten)"},{"cmd":"npm run dev:fiktiv","note":"Variante local-fiktiv, Port 5176 — nur fiktive Daten für KI-Messungen"},{"cmd":"npm run check:docs","note":"nur die Guards unter src/__tests__/ (~6 s)"},{"cmd":"npm run check:quick","note":"typecheck + lint + Testsuite (~26 s) — innerer Loop"},{"cmd":"npm run check","note":"typecheck + lint + cycles + Tests (~33 s) — Phasen-Gate vor jedem Commit"},{"cmd":"npm run build:devpl","note":"dev + pl bauen (Standard-Paar nach jedem Patch), Exit-Code prüfen"},{"cmd":"npm run build:prod","note":"Endnutzer-Bundle dist-single/zim-dashboard.html"},{"cmd":"npm run version:bump -- <major|minor|patch> \"<Titel>\"","note":"Version + Changelog-Skeleton; Kopf nie manuell editieren"},{"cmd":"npm run docs:dashboard","note":"dieses Doku-Dashboard neu erzeugen (docs/docu-dashboard/dashboard.html)"}],"gates":[{"name":"check:docs","seconds":6,"scope":"Guards (src/__tests__)"},{"name":"check:quick","seconds":26,"scope":"typecheck · lint · Tests"},{"name":"check","seconds":33,"scope":"+ cycles (Allowlist leer)"},{"name":"build:devpl","seconds":0,"scope":"Bundle-Nachweis mit Exit-Code"}],"guards":[{"file":"conventions-daten.test.ts","n":51,"what":"Persistenz, Share, Transport, Prompts, Feedback (größte Datei der Codebase)"},{"file":"conventions-ui.test.ts","n":47,"what":"Oberfläche, Design-Tokens, Kontrast, geteilte Bauteile"},{"file":"conventions-status.test.ts","n":43,"what":"Status, Kürzel, Verlauf, Journal (Domänentrennung, todoFeld(), NFC)"},{"file":"conventions-clean-code.test.ts","n":29,"what":"Regeln zur Codeform mit gemessenem Ist und Ratschen (Fehlersichtbarkeit, Modulgrenzen, Duplikate, Zeitkonstanten)"},{"file":"agent-konfiguration.test.ts","n":7,"what":"Skills, Hooks, Deny-Regeln, Specs — die Dateien, die Claude Code steuern"},{"file":"version-bump.test.ts","n":7,"what":"pure Funktionen des Version-Bumps"},{"file":"health-baseline.test.ts","n":5,"what":"Struktur-Kennzahlen als Drift-Warnung (Anzahl Flags, Service-Dirs, max. LOC je Datei)"},{"file":"doc-links.test.ts","n":2,"what":"alle relativen Markdown-Links zeigen auf existierende Dateien"},{"file":"dark-mode-convention.test.ts","n":1,"what":"setDarkMode nur mit profile.theme.dark"}],"skills":[{"name":"grillen","what":"Frontier-Interview vor dem Bauen: Befund aus dem Bestand, dann nummerierte Fragen mit Empfehlung"},{"name":"plugin-anlegen","what":"Zeiger → docs/agents/add-plugin.md"},{"name":"feature-flag-anlegen","what":"Zeiger → add-feature-flag.md"},{"name":"csv-feld-anlegen","what":"Zeiger → add-csv-field.md"},{"name":"idb-store-anlegen","what":"Zeiger → add-idb-store.md"},{"name":"einstellung-anlegen","what":"Zeiger → add-settings-section.md"},{"name":"sidecar-anlegen","what":"Zeiger → add-sidecar-persistence.md"},{"name":"view-anlegen","what":"Zeiger → add-view.md"},{"name":"filter-facet-anlegen","what":"Zeiger → add-filter-facet.md"},{"name":"feedback-kontext-pflege","what":"prüft docs/feedback-kontext/<plugin>.md nach Feature-Änderungen"},{"name":"docu-dashboard","what":"aktualisiert dieses Doku-Dashboard (monatlich): Repo frisch klonen, Änderungen seit dem letzten Stand sichten, data.json pflegen, bauen"}],"conventions":[{"k":"Commit","v":"<typ>(<scope>): <deutscher Satz> (v<version>) — z. B. feat(csv): … (v6.43.0); Message per Datei .git/COMMIT_MSG.tmp"},{"k":"Version","v":"MAJOR = Migration nötig · MINOR = additiv · PATCH = Bugfix; package.json ist die einzige Quelle"},{"k":"Pitfalls","v":"nummeriert, append-only; mit Guard in docs/architecture/pitfalls.md, ohne Guard in CLAUDE.md"},{"k":"Spec/Plan","v":"ab Schwelle (Plugin, Flag, Store, Sidecar, Skill, Hook oder > 5 Dateien) unter docs/superpowers/"},{"k":"Abnahme","v":"jede sichtbare Änderung selbst in dev:local ansehen, window.__tf.fehler() === 0"},{"k":"Bash-Guard","v":"Hook blockt Heredocs, git add ohne Pathspec und verwerfende Git-Befehle (scripts/hooks/bash-guard.mjs)"},{"k":"Dateigröße","v":"Kohäsion vor Zeilenzahl — ab ~400–500 Zeilen prüfen, nie nach Zahl splitten"}]},"glossary":[{"term":"Fachsystem C16","def":"Das führende System, in dem Bearbeiter Vorgangskürzel setzen; die App liest den nächtlichen CSV-Export und ist Companion, keine zweite Workflow-Engine."},{"term":"Antrag / Teilvorhaben (TV)","def":"Der Datensatz aus dem CSV-Import, identifiziert über das Aktenzeichen (Förderkennzeichen). Antrag und Teilvorhaben sind dasselbe Objekt."},{"term":"Verbund","def":"Mehrere Teilanträge unter einer gemeinsamen Projektbeschreibung (VB_NUMMER); der Verbund-Record führt nur Titel und Status. EP/DL sind bewusst Ein-TV-Verbünde."},{"term":"Aktenzeichen","def":"Join-Schlüssel und Route-Id eines Antrags (Format 16XX######) — nicht Verbund-Nummer oder Akronym."},{"term":"Daten-Share","def":"Der SMB-Ordner (ZAH) mit allen geteilten Daten und Configs: programm/, _intern/, backups/. Share = Source of Truth, IndexedDB = Cache."},{"term":"Sidecar","def":"Persistente Datei auf dem Daten-Share neben dem IDB-Cache, geschrieben über atomicWrite() mit bewusst gewähltem Schreibprofil."},{"term":"Snapshot","def":"(a) Programm-Snapshot auf dem Share = Team-Datenstand · (b) Katalog-Snapshot = Momentaufnahme der aktiven Status-Fassung · (c) Backup-Ordner."},{"term":"Statuskürzel (Vorgangskürzel)","def":"Code des Fachsystems, dessen Setzung als Spalte im Export liegt: D_<CODE> Datum, T_<CODE> Text; X am Anfang = Verbund-Ebene."},{"term":"Bearbeiter-Kürzel","def":"Personenkennung in den Zuständigkeits-Spalten (tib_kuerz = FB, bib_kuerz = AB), gelesen nur über useMeinKuerzel(), immer NFC-normalisiert."},{"term":"Rohstatus","def":"Der CSV-Rohwert aus C16 (beantragt, VN geprüft …), gebrandet als AntragStatusRaw — nie mit Literal vergleichen."},{"term":"Die eine Achse","def":"Rohtext → amtlicher Code → ZAH-Phase → StatusCategory; Verfahrensschritt und Arbeitsliste führen beide vom Code weg."},{"term":"ZAH-Phase (Verfahrensschritt)","def":"Kuratierbare Zuordnung Code → Phase (eingang … abgeschlossen): sagt, wo im Verfahren der Vorgang steht; leitet nichts ab."},{"term":"StatusCategory (Arbeitsliste)","def":"Die feste 9er-Achse im Code („Wer ist am Zug?“), steuert Reiter, Farben, Kanban-Bahnen; nicht kuratierbar."},{"term":"Fassung / Schnitt / Entwurf","def":"Fassung = versionierter Katalogstand; Schnitt = Zuordnung Code → ZAH-Phase; Entwurf = im Cockpit bearbeiteter, ungespeicherter Stand."},{"term":"Zieltage","def":"Eine Zahl je Status-Code, Grundlage des Stillstands-Wächters — misst Stillstand, nicht Termine."},{"term":"Bearbeitungs-Meilenstein","def":"Knoten eines versionierten, freigebbaren Plans mit Sollwoche ab Antragseingang (Anker: spätestes Antragsdatum aller TVs)."},{"term":"Betrachtungsbereich","def":"Die Richtlinien-Generationen, die zum Arbeitsvorrat zählen (Chip im Seitenkopf) — die Suche bleibt am Vollbestand."},{"term":"Regelsatz","def":"Die Rollen-Spur einer To-do-Regel (fehlend = AB); eine Rolle ohne eigene Regel bekommt einen abgeleiteten Platzhalter."},{"term":"Journal","def":"Der auf dem Share mitgeführte Stand des letzten Exports plus append-only Monatsdateien mit fünf Aussagen — ohne Personen-Achse."},{"term":"Variante","def":"Ein pro Einsatz-Kontext gebauter Build: dev (alles + OpenRouter), pl (voller Fach-Stack), prod (Endnutzer); local wird nie gebaut."},{"term":"Flag vs. Freischaltung","def":"Flag = Bauzeit-Schalter („einkompiliert“); Freischaltung = Laufzeit-Öffnung per Zusatzpasswort für 12 h („darf gesehen werden“)."},{"term":"Beta / Experte","def":"Vierte Sichtbarkeits-Achse („will ich das sehen?“): zwei UND-verknüpfte Marken mit Schalter im Profil; schützt nichts."},{"term":"Kurator / PL","def":"Kurator = App-Rolle mit Schreibrecht auf dem Share und Zugriff auf die Datenpflege; PL = Projektleitung, kuratiert Fassungen (Fachrollen sind AB/FB/QS/PA/Juristen)."},{"term":"App-Skill","def":"Kuratierte Daten (SkillRecord: Prompt-Vorlage, Modifier, Regeln, Slots), ausgeführt vom transport-agnostischen Runner runSkill — nicht der Claude-Code-Skill."},{"term":"Artefakt","def":"Die Achse artefaktTyp (ga · nf · abl · rne), orthogonal zum amtlichen Status; ein Run ist je (Typ, Scope) gekeyt."},{"term":"Prüfart","def":"Wie eine QS-Regel läuft: textlich (deterministisch), fachlich (LLM), administrativ."},{"term":"Gate","def":"(a) Entwicklungs-Gate npm run check · (b) Zugangs-Gate zur Laufzeit (AppPasswordGate, ModulSchlossGate) · (c) Daten-Gate (requireOnline, Daten-Mutations-Gate)."},{"term":"Guard","def":"Ein Convention-Test unter src/__tests__/, der eine Regel maschinell erzwingt; Ausnahme nur inline // allow-<rule>: <grund>."},{"term":"Pitfall","def":"Nummerierte, append-only Ein-Satz-Regel mit Link ins Themen-Doc; mit Guard in pitfalls.md, ohne Guard in CLAUDE.md."}],"ambiguities":[{"term":"Kürzel","a":"Statuskürzel des Fachsystems (D_AAE)","b":"Bearbeiter-Kürzel einer Person („THÜ“)"},{"term":"Skill","a":"App-Skill = Prompt-Vorlage der Anwendung (registry.json)","b":"Claude-Code-Skill = .claude/skills/<name>/SKILL.md"},{"term":"Phase","a":"ZAH-Phase = Verfahrensschritt","b":"VB_PHASE = Antragstyp NW/FuE/DL/DS · Begleitphase = Lebenszyklus nach Bewilligung"},{"term":"Gate","a":"Entwicklungs-Gate (npm run check)","b":"Zugangs-Gate (AppPasswordGate) · Daten-Gate (requireOnline)"},{"term":"Snapshot","a":"Programm-Snapshot auf dem Share","b":"Katalog-Snapshot (snapshot.ts) · Backup-Ordner"}],"metrics":{"version":"6.48.0","dependencies":32,"devDependencies":17,"npmScripts":53,"idbVersion":11,"idbStores":21,"featureFlags":32,"pluginCount":20,"pitfalls":55,"guards":9,"skills":11,"skillNames":["csv-feld-anlegen","docu-dashboard","einstellung-anlegen","feature-flag-anlegen","feedback-kontext-pflege","filter-facet-anlegen","grillen","idb-store-anlegen","plugin-anlegen","sidecar-anlegen","view-anlegen"],"docsArchitecture":53,"docsAgents":25,"commits":2159,"lastCommit":{"hash":"1ecd04ca","date":"2026-09-10T06:57:26+02:00","subject":"perf(bestand): ein Durchgang, viele Mitfahrer — der geteilte Roh-Halter (v6.48.0)"},"firstCommitDate":"2026-03-27T22:12:21+01:00","commitsLast30":301,"commitTypes":[{"typ":"feat","n":1018},{"typ":"fix","n":634},{"typ":"refactor","n":105},{"typ":"docs","n":90},{"typ":"chore","n":77},{"typ":"sonstige","n":59},{"typ":"style","n":53},{"typ":"perf","n":50},{"typ":"test","n":19},{"typ":"workflow","n":9},{"typ":"gutachten","n":8},{"typ":"ux","n":7},{"typ":"qs","n":5},{"typ":"redesign","n":5},{"typ":"ui","n":4},{"typ":"release","n":3},{"typ":"regeln","n":3},{"typ":"nf","n":2},{"typ":"verbuende","n":1},{"typ":"antraege","n":1},{"typ":"tweak","n":1},{"typ":"build","n":1},{"typ":"cleanup","n":1},{"typ":"tune","n":1},{"typ":"config","n":1},{"typ":"rename","n":1}],"files":{"total":2891,"prodFiles":2077,"testFiles":814,"prodLoc":329555,"testLoc":121570,"folders":[{"name":"plugins","files":1658,"tests":418,"loc":266651},{"name":"core","files":954,"tests":341,"loc":145748},{"name":"components","files":198,"tests":29,"loc":24757},{"name":"__tests__","files":11,"tests":11,"loc":6851},{"name":"phase2","files":44,"tests":9,"loc":4364},{"name":"config","files":11,"tests":6,"loc":1620},{"name":"dev-fixtures","files":10,"tests":0,"loc":946},{"name":"(root)","files":2,"tests":0,"loc":116},{"name":"ui","files":2,"tests":0,"loc":66},{"name":"lib","files":1,"tests":0,"loc":6}]},"flags":{"total":32,"variants":[{"id":"dev","on":31,"total":32,"onNames":["kuratorMenus","dokumentenscan","devInfraPanel","devFixtures","dokumente","auslastung","datenShareSchreibrecht","feedbackDelete","csvAutoRefresh","onlineStatusTab","gutachtenKurzfassung","gutachtenWorkflow","workflowEntwuerfe","nfNachforderungen","artefaktWerkbank","antragAufbereitung","skillVerwaltung","anfragen","deltaSnapshotWrite","assistentProtokoll","assistentPanel","assistentGedaechtnis","mapFoerderfaehig","statusCockpit","meilensteinMonitoring","vorgangssystem","eigeneSpalten","tagesbrief","sucheNatuerlicheSprache","doppelfoerderung","metadatenDirektApi"],"off":["maLogin"]},{"id":"local-fiktiv","on":31,"total":32,"onNames":["kuratorMenus","dokumentenscan","devInfraPanel","devFixtures","dokumente","auslastung","datenShareSchreibrecht","feedbackDelete","csvAutoRefresh","onlineStatusTab","gutachtenKurzfassung","gutachtenWorkflow","workflowEntwuerfe","nfNachforderungen","artefaktWerkbank","antragAufbereitung","skillVerwaltung","anfragen","deltaSnapshotWrite","assistentProtokoll","assistentPanel","assistentGedaechtnis","mapFoerderfaehig","statusCockpit","meilensteinMonitoring","vorgangssystem","eigeneSpalten","tagesbrief","sucheNatuerlicheSprache","doppelfoerderung","metadatenDirektApi"],"off":["maLogin"]},{"id":"local","on":31,"total":32,"onNames":["kuratorMenus","dokumentenscan","devInfraPanel","devFixtures","dokumente","auslastung","datenShareSchreibrecht","feedbackDelete","csvAutoRefresh","onlineStatusTab","gutachtenKurzfassung","gutachtenWorkflow","workflowEntwuerfe","nfNachforderungen","artefaktWerkbank","antragAufbereitung","skillVerwaltung","anfragen","deltaSnapshotWrite","assistentProtokoll","assistentPanel","assistentGedaechtnis","mapFoerderfaehig","statusCockpit","meilensteinMonitoring","vorgangssystem","eigeneSpalten","tagesbrief","sucheNatuerlicheSprache","doppelfoerderung","metadatenDirektApi"],"off":["maLogin"]},{"id":"pl","on":27,"total":32,"onNames":["kuratorMenus","dokumentenscan","auslastung","datenShareSchreibrecht","feedbackDelete","csvAutoRefresh","onlineStatusTab","gutachtenKurzfassung","gutachtenWorkflow","workflowEntwuerfe","nfNachforderungen","artefaktWerkbank","antragAufbereitung","skillVerwaltung","anfragen","deltaSnapshotWrite","assistentProtokoll","assistentPanel","assistentGedaechtnis","mapFoerderfaehig","statusCockpit","meilensteinMonitoring","vorgangssystem","eigeneSpalten","tagesbrief","sucheNatuerlicheSprache","doppelfoerderung"],"off":["devInfraPanel","devFixtures","dokumente","maLogin","metadatenDirektApi"]},{"id":"prod","on":1,"total":32,"onNames":["maLogin"],"off":["kuratorMenus","dokumentenscan","devInfraPanel","devFixtures","dokumente","auslastung","datenShareSchreibrecht","feedbackDelete","csvAutoRefresh","onlineStatusTab","gutachtenKurzfassung","gutachtenWorkflow","workflowEntwuerfe","nfNachforderungen","artefaktWerkbank","antragAufbereitung","skillVerwaltung","anfragen","deltaSnapshotWrite","assistentProtokoll","assistentPanel","assistentGedaechtnis","mapFoerderfaehig","statusCockpit","meilensteinMonitoring","vorgangssystem","eigeneSpalten","tagesbrief","sucheNatuerlicheSprache","doppelfoerderung","metadatenDirektApi"]}]},"buildConfigs":5},"changelog":[{"version":"v6.48.0","title":"Ein Durchgang, viele Mitfahrer: der geteilte Roh-Halter des Bestands","when":"September 2026","art":"MINOR","body":"Der Bestand wird an dreizehn Stellen gelesen, und jeder Lesevorgang kostet ~2,2–3,3 s: IndexedDB cacht die Deserialisierung von 14 225 Records nicht. Gleichzeitige Durchgänge teilten sich nichts, sondern behinderten sich — zwei nebeneinander kosteten je …"},{"version":"v6.47.1","title":"die Rückfrage aus dem Tagesbrief nimmt ihren Vorgang mit","when":"September 2026","art":"PATCH","body":"Der Rückfrage-Knopf des Tagesbriefs legte „Was ist bei CALYPSO zu tun?\" ins Dock und gab nur den Text mit: auf der Startseite ist nichts selektiert, also stand im Faktenblock „Keine Entität ausgewählt\" — die Antwort „dazu liegen mir keine Informationen …"},{"version":"v6.47.0","title":"Der Bestandslauf wartet auf den Start — und die Leser folgen der Generation","when":"September 2026","art":"MINOR","body":"Ein Performance-Audit über die ganze App fand als stärksten Hebel nicht die Rechnung, sondern den Zeitpunkt: der Bestandslauf startete im Leerlauf mitten in den Start-Datenlauf hinein, belegte dessen Thread und SMB-Leitung — und wurde danach über die …"},{"version":"v6.46.0","title":"Tagesbrief — was zuerst dran ist","when":"September 2026","art":"MINOR","body":"Die Startseite zeigte sechs richtige Karten und sagte trotzdem nicht, was zuerst dran ist: die überfällige Frist stand in „Fristen\", die Änderung von heute Nacht im Nachtlauf, der eigene Entwurf woanders. Der deterministische Kern dafür lag seit dem …"},{"version":"v6.45.0","title":"Eine Groesse, ein Name — und Ratschen, deren Ausweg wirklich offen steht","when":"September 2026","art":"MINOR","body":"Zwei Größen liefen im Bestand unter mehreren Namen: `strOrNull` stand zehnmal privat in `plugins/antraege/` — unter einem Namen mit vier Verhalten —, ein Tag in Millisekunden 13-mal unter vier Namen. Beim Nachziehen der Ratsche fiel auf, dass fünf von fünf …"},{"version":"v6.44.1","title":"Ein Timeout heisst zuerst: sshd steht","when":"September 2026","art":"PATCH","body":"Der Laptop-Tunnel zur internen KI lief in eine Timeout-Schleife; `sshd` stand nach einem Neustart auf `Stopped`. Die Fehlersuch-Tabelle schickte für dieses Bild auf DHCP und VPN und ordnete den gestoppten Dienst „Connection refused\" zu — beides führt am …"},{"version":"v6.44.0","title":"Stille Test-Auslassungen werden laut","when":"September 2026","art":"MINOR","body":"16 Tests liefen nur auf der Dev-Maschine: sie hängen an Fixtures, die per `.gitignore` bewusst nicht im Repo liegen. Auf einem frischen Klon verschwanden sie wortlos, und der Lauf blieb in beiden Fällen grün — zwei Entwickler führten aus demselben Commit …"},{"version":"v6.43.0","title":"importCsvSource wird ein Orchestrator mit benannten Schritten","when":"September 2026","art":"MINOR","body":"Der dritte und letzte der geplanten Schnitte, und der einzige, der Logik bewegt statt nur Dateien: `importCsvSource` war eine Prozedur von 469 Zeilen, deren Rumpf aus genau EINEM `try`-Block bestand — vierzehn Phasen, jede eine Ebene tiefer als die …"},{"version":"v6.42.0","title":"Zwei DAOs werden Ordner: idb-csv und smb-handle","when":"September 2026","art":"MINOR","body":"Zwei Dateien mit zusammen 1.574 LOC und 192 Importeuren waren formal je EINE Verantwortung, faktisch ein DAO für zehn Entitäten und ein Handle-Manager mit vier Fremdaufgaben. Beide Schnitte sind reine Verschiebearbeit: kein Import-Spezifizierer ändert …"},{"version":"v6.41.1","title":"Zwei Guards nennen ihre Reichweite","when":"September 2026","art":"PATCH","body":"Zwei der neuen Ratschen messen weniger, als ihr Name nahelegt. Das steht jetzt bei ihnen — dieselbe Verwechslung machte `no-raw-async-onclick` monatelang zu einem Guard ohne Reichweite."},{"version":"v6.41.0","title":"Zwei blinde Flecken: ein Guard ohne Reichweite, fuenf Dateien binaer fuer git","when":"September 2026","art":"MINOR","body":"Zwei Befunde aus der adversarischen Gegenprüfung der Messung, beide seit Monaten unbemerkt durch das komplette Gate gelaufen: ein Guard, der eine Abdeckung behauptet, die er nicht hat — und fünf Quelldateien, die git als binär führt."},{"version":"v6.40.1","title":"Ein abgebrochener Umbau wird abgeschlossen: totes Duplikat entfernt","when":"September 2026","art":"PATCH","body":"`fb-status-felder.ts` war seit Juni 2026 eine zweite Wahrheit: die Verallgemeinerung nach `status-datum-gruppen.ts` war fertig, aber die Löschung blieb liegen — ein Notfall-Restore (`3b5bc857`) hatte sie zurückgeholt, nachdem ein fremder Commit die …"}],"build":{"builtAt":"2026-09-10T07:38:15.130Z","commit":"1ecd04ca","commitDate":"2026-09-10T06:57:26+02:00","version":"6.48.0"}};</script>
+<script>
+(function(){
+  'use strict';
+  const D = window.__TF_DOCU__ || {};
+  const $ = (sel, root) => (root || document).querySelector(sel);
+  const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const fmt = (n) => (typeof n === 'number' ? n.toLocaleString('de-DE') : esc(n));
+  const reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const store = { get(k){ try { return localStorage.getItem(k); } catch { return null; } }, set(k,v){ try { localStorage.setItem(k, v); } catch {} } };
+
+  // ---------------------------------------------------------------- Modus + Theme
+  const root = document.documentElement;
+  function setMode(m){
+    root.dataset.mode = m;
+    document.querySelectorAll('[data-mode-btn]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.modeBtn === m)));
+    const h = $('#modehint');
+    if (h) h.textContent = m === 'einsteiger'
+      ? 'Einsteiger-Modus: Erklärungen in Alltagssprache. Für Dateien, Funktionen und Kennzahlen auf „Entwickler“ wechseln.'
+      : 'Entwickler-Modus: mit Dateipfaden, Funktionsnamen und Effekten je Schritt.';
+    store.set('tf-docu-mode', m);
+    document.dispatchEvent(new CustomEvent('tf-mode', { detail: m }));
+  }
+  document.querySelectorAll('[data-mode-btn]').forEach(b => b.addEventListener('click', () => setMode(b.dataset.modeBtn)));
+  setMode(store.get('tf-docu-mode') === 'entwickler' ? 'entwickler' : 'einsteiger');
+
+  $('#theme-btn').addEventListener('click', () => {
+    const cur = root.dataset.theme;
+    const sysDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const isDark = cur ? cur === 'dark' : sysDark;
+    root.dataset.theme = isDark ? 'light' : 'dark';
+  });
+
+  // ---------------------------------------------------------------- Überblick
+  const M = D.metrics || {}; const F = (M.files) || {}; const B = D.build || {};
+  $('#intro-tagline').textContent = (D.intro && D.intro.tagline) || '';
+  $('#intro-beginner').innerHTML = ((D.intro && D.intro.beginner) || []).map(p => `<p>${esc(p)}</p>`).join('');
+  $('#intro-dev').textContent = ((D.intro && D.intro.dev) || []).join(' ');
+  $('#constraints').innerHTML = (D.constraints || []).map(c => `<dt>${esc(c.k)}</dt><dd>${esc(c.v)}</dd>`).join('');
+  const kpis = [
+    { v: 'v' + (M.version || '?'), l: 'Version', s: (M.lastCommit && M.lastCommit.hash) || '' },
+    { v: fmt(M.commits), l: 'Commits', s: (M.commitsLast30 || 0) + ' in 30 Tagen' },
+    { v: fmt(M.pluginCount), l: 'Plugins', s: (D.pluginGroups || []).length + ' Sidebar-Gruppen' },
+    { v: fmt(F.prodLoc), l: 'Zeilen Produktionscode', s: fmt(F.prodFiles) + ' Dateien' },
+    { v: fmt(F.testLoc), l: 'Zeilen Tests', s: fmt(F.testFiles) + ' Test-Dateien' },
+    { v: fmt(M.idbStores), l: 'IndexedDB-Stores', s: 'Version ' + (M.idbVersion || '?') },
+    { v: fmt(M.featureFlags), l: 'Feature-Flags', s: (M.buildConfigs || 5) + ' Build-Configs' },
+    { v: fmt(M.pitfalls), l: 'Pitfalls', s: fmt(M.guards) + ' Guard-Dateien' },
+    { v: fmt(M.docsArchitecture), l: 'Architektur-Docs', s: fmt(M.docsAgents) + ' Cheatsheets · ' + fmt(M.skills) + ' Skills' },
+  ];
+  $('#kpis').innerHTML = kpis.map(k => `<div class="kpi"><span class="v">${k.v}</span><span class="l">${esc(k.l)}</span><span class="s">${esc(k.s)}</span></div>`).join('');
+  const stampTxt = `v${M.version || '?'} · ${(M.lastCommit && M.lastCommit.hash) || ''} · gebaut ${(B.builtAt || '').slice(0,10)}`;
+  $('#foot-stamp').textContent = stampTxt;
+  $('#foot-repo').textContent = (D.meta && D.meta.repo) || '';
+
+  // ---------------------------------------------------------------- Flow-Player
+  const flows = D.flows || [];
+  const tabs = $('#flow-tabs'); const host = $('#flow');
+  let cur = 0, active = 0, timer = null, playing = false, speed = 1, rafId = 0;
+  const STEP_MS = 1500;
+  const ICON_PLAY = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 5v14l12-7z"/></svg>';
+  const ICON_PAUSE = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>';
+  const ICON_NEXT = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 5v14l8-7zM16 5h2v14h-2z"/></svg>';
+  const ICON_RESET = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>';
+
+  tabs.innerHTML = flows.map((f, i) => `<button type="button" role="tab" aria-selected="${i===0}" data-i="${i}">${esc(f.title)}<span class="n">${f.steps.length} Schritte</span></button>`).join('');
+  tabs.addEventListener('click', e => { const b = e.target.closest('button[data-i]'); if (b) selectFlow(Number(b.dataset.i)); });
+
+  function wrapLabel(s, max){
+    const words = String(s).split(' '); const lines = []; let line = '';
+    for (const w of words) {
+      if ((line + ' ' + w).trim().length > max && line) { lines.push(line); line = w; } else line = (line + ' ' + w).trim();
+    }
+    if (line) lines.push(line);
+    if (lines.length > 2) { lines[1] = lines.slice(1).join(' '); lines.length = 2; if (lines[1].length > max + 2) lines[1] = lines[1].slice(0, max) + '…'; }
+    return lines;
+  }
+  function fromOf(step, i){ if (step.from == null) return i === 0 ? [] : [i - 1]; return Array.isArray(step.from) ? step.from : [step.from]; }
+
+  function buildSvg(f){
+    const laneW = 152, headH = 40, rowH = 64, nodeW = 138, nodeH = 44, padL = 10, padR = 10, padB = 14;
+    const W = padL + f.lanes.length * laneW + padR, H = headH + f.steps.length * rowH + padB;
+    const cx = (lane) => padL + lane * laneW + laneW / 2;
+    const cy = (i) => headH + i * rowH + rowH / 2;
+    let s = `<svg viewBox="0 0 ${W} ${H}" width="${W}" role="img" aria-label="Ablauf ${esc(f.title)} als Sequenzdiagramm mit ${f.steps.length} Schritten in ${f.lanes.length} Spalten">`;
+    s += `<defs><marker id="fa-${f.id}" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" class="fl-arrow" data-arrow/></marker></defs>`;
+    f.lanes.forEach((l, li) => {
+      s += `<rect class="fl-lane ${li % 2 ? 'alt' : ''}" x="${padL + li * laneW}" y="0" width="${laneW}" height="${H}" rx="6"/>`;
+      s += `<text class="fl-lanehead" x="${cx(li)}" y="20" text-anchor="middle">${esc(l)}</text>`;
+    });
+    // edges first (under nodes)
+    f.steps.forEach((st, i) => {
+      for (const from of fromOf(st, i)) {
+        const x1 = cx(f.steps[from].lane), y1 = cy(from) + nodeH / 2, x2 = cx(st.lane), y2 = cy(i) - nodeH / 2;
+        const midY = y1 + (y2 - y1) / 2;
+        const d = x1 === x2 ? `M${x1} ${y1} V${y2}` : `M${x1} ${y1} V${midY} H${x2} V${y2}`;
+        s += `<path class="fl-edge" data-edge="${i}" data-from="${from}" d="${d}" marker-end="url(#fa-${f.id})"/>`;
+        if (st.edge) {
+          const lx = x1 === x2 ? x1 + 8 : (x1 + x2) / 2, ly = x1 === x2 ? midY + 4 : midY - 5;
+          s += `<text class="fl-elabel" x="${lx}" y="${ly}" text-anchor="${x1 === x2 ? 'start' : 'middle'}">${esc(st.edge)}</text>`;
+        }
+      }
+    });
+    s += `<circle class="fl-packet" data-packet r="5" cx="0" cy="0"/>`;
+    f.steps.forEach((st, i) => {
+      const x = cx(st.lane) - nodeW / 2, y = cy(i) - nodeH / 2;
+      const lines = wrapLabel(st.label, 19);
+      const ty = lines.length === 1 ? cy(i) + 4 : cy(i) - 3;
+      s += `<g class="fl-node" data-node="${i}" tabindex="0" role="button" aria-label="Schritt ${i+1}: ${esc(st.label)}">`;
+      s += `<rect class="halo" x="${x-3}" y="${y-3}" width="${nodeW+6}" height="${nodeH+6}" rx="11" style="transform-origin:${cx(st.lane)}px ${cy(i)}px"/>`;
+      s += `<rect x="${x}" y="${y}" width="${nodeW}" height="${nodeH}" rx="8"/>`;
+      s += `<text class="idx" x="${x+8}" y="${y+12}">${String(i+1).padStart(2,'0')}</text>`;
+      s += `<text x="${cx(st.lane)}" y="${ty}" text-anchor="middle">${lines.map((l, k) => `<tspan x="${cx(st.lane)}" dy="${k ? 14 : 0}">${esc(l)}</tspan>`).join('')}</text>`;
+      s += `</g>`;
+    });
+    s += `</svg>`;
+    return s;
+  }
+
+  function renderFlow(){
+    const f = flows[cur]; if (!f) return;
+    host.innerHTML = `
+      <div class="flow-head">
+        <div><div class="kicker">${esc(f.kicker)}</div><h3>${esc(f.title)}</h3><p>${esc(f.summary)}</p></div>
+        <div class="ctrls">
+          <span class="progress" id="fl-progress"></span>
+          <button type="button" class="btn" id="fl-reset" title="Von vorn">${ICON_RESET}</button>
+          <button type="button" class="btn" id="fl-next" title="Nächster Schritt">${ICON_NEXT}<span>Schritt</span></button>
+          <button type="button" class="btn primary" id="fl-play">${ICON_PLAY}<span>Abspielen</span></button>
+          <select id="fl-speed" aria-label="Tempo"><option value="0.6">langsam</option><option value="1" selected>normal</option><option value="2">schnell</option></select>
+        </div>
+      </div>
+      <div class="flow-stage">
+        <div class="flow-diagram" id="fl-diagram">${buildSvg(f)}</div>
+        <div class="flow-side">
+          <div class="stepcard" id="fl-card"></div>
+          <div class="term"><div class="term-bar"><span class="led" id="fl-led"></span>Ausführung · ${esc(f.title)}</div><ol class="term-lines" id="fl-log"></ol><div class="term-hint">Jede Zeile: Datei → Funktion, so wie der Code den Schritt ausführt.</div></div>
+        </div>
+      </div>`;
+    $('#fl-play').addEventListener('click', () => playing ? pause() : play());
+    $('#fl-next').addEventListener('click', () => { pause(); go(Math.min(active + 1, f.steps.length - 1), true); });
+    $('#fl-reset').addEventListener('click', () => { pause(); resetLog(); go(0, false); });
+    $('#fl-speed').addEventListener('change', e => { speed = Number(e.target.value) || 1; });
+    $('#fl-diagram').addEventListener('click', e => { const n = e.target.closest('[data-node]'); if (n) { pause(); go(Number(n.dataset.node), false); } });
+    $('#fl-diagram').addEventListener('keydown', e => { const n = e.target.closest('[data-node]'); if (n && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); pause(); go(Number(n.dataset.node), false); } });
+    active = -1; resetLog(); go(0, false);
+  }
+
+  function resetLog(){ const log = $('#fl-log'); if (log) log.innerHTML = ''; }
+  function appendLog(i){
+    const f = flows[cur]; const log = $('#fl-log'); if (!log) return;
+    log.querySelectorAll('li.cur').forEach(li => li.classList.remove('cur'));
+    const existing = log.querySelector(`li[data-i="${i}"]`);
+    if (existing) { existing.classList.add('cur'); existing.scrollIntoView({ block: 'nearest' }); return; }
+    // drop lines after i (when jumping back)
+    log.querySelectorAll('li').forEach(li => { if (Number(li.dataset.i) > i) li.remove(); });
+    const li = document.createElement('li'); li.dataset.i = i; li.className = 'cur';
+    li.innerHTML = `<span class="ln">${String(i+1).padStart(2,'0')}</span><span class="txt">${esc(f.steps[i].log || f.steps[i].label)}</span>`;
+    log.appendChild(li); log.scrollTop = log.scrollHeight;
+  }
+  function renderCard(i){
+    const f = flows[cur], st = f.steps[i]; const card = $('#fl-card'); if (!card) return;
+    const dev = st.dev || {};
+    card.innerHTML = `<div class="top"><span class="no">Schritt ${i+1} / ${f.steps.length}</span><span class="chip"><span class="dot" style="background:var(--primary)"></span>${esc(f.lanes[st.lane])}</span></div>
+      <h4>${esc(st.label)}</h4><p class="beg">${esc(st.beginner)}</p>
+      <dl class="dev dev-only"><dt>Datei</dt><dd>${esc(dev.file)}</dd><dt>Aufruf</dt><dd>${esc(dev.fn)}</dd><dt>Effekt</dt><dd class="eff">${esc(dev.effect)}</dd></dl>`;
+    $('#fl-progress').textContent = `${i+1} / ${f.steps.length}`;
+  }
+  function paint(i, animateEdge){
+    const svg = $('#fl-diagram svg'); if (!svg) return;
+    svg.querySelectorAll('[data-node]').forEach(n => { const k = Number(n.dataset.node); n.classList.toggle('done', k < i); n.classList.toggle('active', k === i); });
+    svg.querySelectorAll('[data-edge]').forEach(e => { const k = Number(e.dataset.edge); e.classList.toggle('done', k < i); e.classList.toggle('active', k === i); });
+    const packet = svg.querySelector('[data-packet]');
+    cancelAnimationFrame(rafId);
+    if (packet) packet.style.opacity = '0';
+    const edge = svg.querySelector(`[data-edge="${i}"]`);
+    if (animateEdge && edge && packet && !reduced) {
+      const len = edge.getTotalLength(); const dur = 520 / speed; const t0 = performance.now();
+      packet.style.opacity = '1';
+      const tick = (now) => {
+        const p = Math.min(1, (now - t0) / dur); const pt = edge.getPointAtLength(len * p);
+        packet.setAttribute('cx', pt.x); packet.setAttribute('cy', pt.y);
+        if (p < 1) rafId = requestAnimationFrame(tick); else packet.style.opacity = '0';
+      };
+      rafId = requestAnimationFrame(tick);
+    }
+    const node = svg.querySelector(`[data-node="${i}"]`);
+    if (animateEdge && node && typeof node.scrollIntoView === 'function' && !reduced) node.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'smooth' });
+  }
+  function go(i, animateEdge){
+    const f = flows[cur]; if (!f) return; if (i < 0 || i >= f.steps.length) return;
+    active = i; paint(i, animateEdge); renderCard(i); appendLog(i);
+    if (playing && i === f.steps.length - 1) pause();
+  }
+  function play(){
+    const f = flows[cur]; if (!f) return;
+    if (active >= f.steps.length - 1) { resetLog(); go(0, false); }
+    playing = true; $('#fl-led').classList.add('on');
+    const b = $('#fl-play'); b.innerHTML = `${ICON_PAUSE}<span>Pause</span>`;
+    const step = () => { if (!playing) return; if (active < f.steps.length - 1) go(active + 1, true); if (active < f.steps.length - 1) timer = setTimeout(step, STEP_MS / speed); else pause(); };
+    timer = setTimeout(step, STEP_MS / speed);
+  }
+  function pause(){
+    playing = false; clearTimeout(timer); const led = $('#fl-led'); if (led) led.classList.remove('on');
+    const b = $('#fl-play'); if (b) b.innerHTML = `${ICON_PLAY}<span>${active >= (flows[cur] ? flows[cur].steps.length - 1 : 0) ? 'Noch einmal' : 'Abspielen'}</span>`;
+  }
+  function selectFlow(i){
+    pause(); cur = i; tabs.querySelectorAll('button').forEach(b => b.setAttribute('aria-selected', String(Number(b.dataset.i) === i)));
+    renderFlow();
+  }
+  if (flows.length) {
+    renderFlow();
+    // einmal automatisch abspielen, sobald der Abschnitt sichtbar wird
+    if (!reduced && 'IntersectionObserver' in window) {
+      let done = false;
+      const io = new IntersectionObserver(es => { if (!done && es.some(e => e.isIntersecting)) { done = true; io.disconnect(); setTimeout(() => { if (!playing && active === 0) play(); }, 600); } }, { threshold: 0.35 });
+      io.observe(host);
+    }
+  }
+  document.addEventListener('tf-mode', () => { if (flows[cur]) renderCard(active); });
+
+  // ---------------------------------------------------------------- Datenmodell
+  const DM = D.dataModel || {};
+  $('#dm-beginner').textContent = DM.beginner || '';
+  $('#dm-columns').innerHTML = (DM.columns || []).map(c => `<dt><code>${esc(c.k)}</code></dt><dd>${esc(c.v)}</dd>`).join('');
+  $('#dm-entities tbody').innerHTML = (DM.entities || []).map(e => `<tr><td>${esc(e.name)}<br><span class="hint">${esc(e.note)}</span></td><td class="mono">${esc(e.key)}</td><td>${esc(e.fields)}</td></tr>`).join('');
+  const byVer = {};
+  (D.stores || []).forEach(s => (byVer[s.since] ??= []).push(s));
+  $('#stores-timeline').innerHTML = Object.keys(byVer).map(Number).sort((a,b)=>a-b).map(v => `<div class="storeline"><span class="ver">v${v}</span>${byVer[v].map(s => `<span class="st ${/gerätelokal/.test(s.note) ? 'local' : ''}" title="${esc(s.key)} · ${esc(s.note)}">${esc(s.name)}</span>`).join('')}</div>`).join('');
+  $('#share-layout').innerHTML = (D.shareLayout || []).map(l => `${esc(l.path)}${l.note ? `  <span class="n">— ${esc(l.note)}</span>` : ''}`).join('\n');
+
+  // ---------------------------------------------------------------- Status
+  const SA = D.statusAxis || {};
+  $('#status-beginner').textContent = SA.beginner || '';
+  $('#status-chain').innerHTML = (SA.chain || []).map(c => `<div class="link"><div class="l">${esc(c.label)}</div><div class="ex">${esc(c.example)}</div><div class="fn dev-only">${esc(c.fn)}</div><div class="nt">${esc(c.note)}</div></div>`).join('');
+  $('#status-cats').innerHTML = (SA.categories || []).map(c => `<div class="cat"><b>${esc(c.label)} <span class="mono dev-only">${esc(c.id)}</span></b><span>${esc(c.note)}</span></div>`).join('');
+
+  // ---------------------------------------------------------------- Plugins
+  const groups = D.pluginGroups || []; const plugs = D.plugins || [];
+  $('#plugin-groups').innerHTML = groups.map(g => {
+    const list = plugs.filter(p => p.category === g.id).sort((a,b) => a.order - b.order);
+    if (!list.length) return '';
+    return `<div class="pgroup"><h4><span class="dot" style="background:var(--cat-${esc(g.id)})"></span>${esc(g.label)} <span class="hint">· ${list.length}</span></h4>` +
+      list.map(p => `<div class="plug"><span class="name">${esc(p.name)}</span><span class="route">${esc(p.route)}</span><span class="desc">${esc(p.desc)}</span>` +
+        ((p.flag || p.lock) ? `<span class="tags dev-only">${p.flag ? `<span class="chip">Flag ${esc(p.flag)}</span>` : ''}${p.lock ? `<span class="chip lock">Schloss ${esc(p.lock)}</span>` : ''}</span>` : '') + `</div>`).join('') + `</div>`;
+  }).join('');
+
+  // ---------------------------------------------------------------- Varianten
+  const FL = (M.flags && M.flags.variants) || [];
+  const flOf = (id) => FL.find(x => x.id === id);
+  $('#variants tbody').innerHTML = (D.variants || []).map(v => { const x = flOf(v.id); const flags = x ? `${x.on}/${x.total}` + (x.on <= 3 ? ` (${esc(x.onNames.join(', '))})` : '') : esc(v.flags); return `<tr><td>${esc(v.label)}<br><span class="mono hint">${esc(v.file)}</span></td><td>${esc(v.who)}</td><td class="mono">${esc(v.out)}</td><td>${flags}</td><td>${esc(v.auth)}</td><td>${esc(v.notes)}</td></tr>`; }).join('');
+  const prodOff = (flOf('prod') || {}).off || D.flagsProdOff || [], plOff = (flOf('pl') || {}).off || D.flagsPlOff || [];
+  const total = (M.flags && M.flags.total) || M.featureFlags || 0;
+  $('#flags-prod-h').textContent = `In prod aus (${prodOff.length} von ${total} Flags)`;
+  $('#flags-pl-h').textContent = `In pl aus (${plOff.length} von ${total} Flags)`;
+  $('#flags-prod-off').innerHTML = prodOff.map(f => `<span class="chip mono">${esc(f)}</span>`).join('');
+  $('#flags-pl-off').innerHTML = plOff.map(f => `<span class="chip mono">${esc(f)}</span>`).join('');
+  $('#stores-h').textContent = `IndexedDB — ${fmt(M.idbStores)} Stores, Version ${M.idbVersion || '?'}`;
+  $('#plugins-h').textContent = `${fmt(M.pluginCount)} Plugins in ${['null','einer','zwei','drei','vier','fünf','sechs','sieben','acht'][(D.pluginGroups||[]).length] || (D.pluginGroups||[]).length} Sidebar-Gruppen`;
+  const idbStamp = $('#svg-idb-stamp'); if (idbStamp) idbStamp.textContent = `Version ${M.idbVersion || '?'} · ${fmt(M.idbStores)} Stores`;
+
+  // ---------------------------------------------------------------- Sichtbarkeit
+  $('#axes').innerHTML = (D.visibility || []).map((a, i) => `<div class="axis"><span class="eyebrow">Achse ${i+1} · ${esc(a.when)}</span><span class="q">${esc(a.axis)} — ${esc(a.question)}</span><span class="w dev-only mono">${esc(a.manifest)}</span><span class="w">${esc(a.where)}</span></div>`).join('');
+
+  // ---------------------------------------------------------------- KI
+  const KI = D.ki || {};
+  $('#ki-beginner').textContent = KI.beginner || '';
+  $('#ki-transports tbody').innerHTML = (KI.transports || []).map(t => `<tr><td>${esc(t.name)}</td><td><span class="pill" style="${t.class === 'extern' ? 'background:var(--accent-soft);color:var(--accent)' : ''}">${esc(t.class)}</span></td><td>${esc(t.how)}</td><td class="mono dev-only">${esc(t.file)}</td><td>${esc(t.variants)}</td></tr>`).join('');
+  $('#ki-roles tbody').innerHTML = (KI.roles || []).map(r => `<tr><td>${esc(r.role)}</td><td class="mono">${esc(r.model)}</td><td>${esc(r.window)}</td><td>${esc(r.use)}</td></tr>`).join('');
+  $('#ki-gates').innerHTML = (KI.gates || []).map(g => `<dt class="mono">${esc(g.fn)}</dt><dd>${esc(g.for)}</dd>`).join('');
+  $('#ki-oneshot').textContent = KI.oneShot || '';
+
+  // ---------------------------------------------------------------- Entwicklung
+  const DV = D.devSetup || {};
+  $('#dev-cmds tbody').innerHTML = (DV.commands || []).map(c => `<tr><td class="mono">${esc(c.cmd)}</td><td>${esc(c.note)}</td></tr>`).join('');
+  const gates = DV.gates || []; const maxS = Math.max(1, ...gates.map(g => g.seconds));
+  $('#gates').innerHTML = gates.map(g => `<div class="stair"><div class="col ${g.seconds ? '' : 'acc'}" style="height:${g.seconds ? Math.max(8, Math.round(100 * g.seconds / maxS)) : 100}px"><b>${g.seconds ? g.seconds + ' s' : 'Build'}</b></div><span class="nm">${esc(g.name)}</span><span>${esc(g.scope)}</span></div>`).join('');
+  $('#dev-conventions').innerHTML = (DV.conventions || []).map(c => `<dt>${esc(c.k)}</dt><dd>${esc(c.v)}</dd>`).join('');
+  $('#guards tbody').innerHTML = (DV.guards || []).map(g => `<tr><td class="mono">${esc(g.file)}</td><td class="num">${fmt(g.n)}</td><td>${esc(g.what)}</td></tr>`).join('');
+  $('#skills tbody').innerHTML = (DV.skills || []).map(s => `<tr><td class="mono">${esc(s.name)}</td><td>${esc(s.what)}</td></tr>`).join('');
+  const folders = (F.folders || []).filter(f => f.loc > 500).slice(0, 7); const maxLoc = Math.max(1, ...folders.map(f => f.loc));
+  $('#loc-bars').innerHTML = folders.map(f => `<div class="bar" title="${esc(f.name)}: ${fmt(f.files)} Dateien, davon ${fmt(f.tests)} Tests"><span class="lab mono">src/${esc(f.name)}</span><span class="trk"><span class="fil" style="width:${Math.round(100*f.loc/maxLoc)}%"></span></span><span class="val">${fmt(f.loc)}</span></div>`).join('');
+  const ct = (M.commitTypes || []).slice(0, 7); const maxC = Math.max(1, ...ct.map(c => c.n));
+  $('#commit-bars').innerHTML = ct.map(c => `<div class="bar"><span class="lab mono">${esc(c.typ)}</span><span class="trk"><span class="fil" style="width:${Math.round(100*c.n/maxC)}%"></span></span><span class="val">${fmt(c.n)}</span></div>`).join('');
+
+  // ---------------------------------------------------------------- Glossar
+  $('#glossary').innerHTML = (D.glossary || []).map(g => `<div><dt>${esc(g.term)}</dt><dd>${esc(g.def)}</dd></div>`).join('');
+  $('#ambiguities tbody').innerHTML = (D.ambiguities || []).map(a => `<tr><td>${esc(a.term)}</td><td>${esc(a.a)}</td><td>${esc(a.b)}</td></tr>`).join('');
+
+  // ---------------------------------------------------------------- Changelog
+  $('#changelog-list').innerHTML = (D.changelog || []).map(c => `<div class="clog"><div class="v">${esc(c.version)}<small>${esc(c.when)}${c.art ? ' · ' + esc(c.art) : ''}</small></div><div class="t">${esc(c.title)}</div><div class="b">${esc(c.body)}</div></div>`).join('') || '<p class="hint">Kein Changelog gefunden.</p>';
+
+  // ---------------------------------------------------------------- Pflege
+  $('#pflege-stand').innerHTML = [
+    ['Version', 'v' + (M.version || '?')], ['Commit', (M.lastCommit && (M.lastCommit.hash + ' · ' + (M.lastCommit.date || '').slice(0,10))) || ''],
+    ['Gebaut', (B.builtAt || '').replace('T', ' ').slice(0,16) + ' UTC'], ['Inhalte kuratiert', ((D.meta && D.meta.curatedAt) || '') + ' für ' + ((D.meta && D.meta.curatedFor) || '')],
+    ['Rhythmus', (D.meta && D.meta.updateRhythm) || ''], ['Quelle', (D.meta && D.meta.repo) || ''],
+  ].map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('');
+
+  // ---------------------------------------------------------------- Nav-Highlight
+  const links = Array.from(document.querySelectorAll('.nav a[href^="#"]'));
+  const secs = links.map(a => document.getElementById(a.getAttribute('href').slice(1))).filter(Boolean);
+  if ('IntersectionObserver' in window) {
+    const io2 = new IntersectionObserver(es => { es.forEach(e => { if (e.isIntersecting) links.forEach(a => a.classList.toggle('on', a.getAttribute('href') === '#' + e.target.id)); }); }, { rootMargin: '-30% 0px -60% 0px' });
+    secs.forEach(s => io2.observe(s));
+  }
+})();
+</script>
+<!--tf:body-end-->
+</body>
+</html>
