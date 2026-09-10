@@ -51,6 +51,32 @@ export interface KontextEntitaet {
   fristenAnzahl?: number;
   /** Kleine, kuratierte Stammdaten-Zeilen (schon UI-fertig, Label→Wert). */
   stammdaten?: ReadonlyArray<{ label: string; wert: string }>;
+  /**
+   * „Was ist an diesem Vorgang zu tun?" — das Ergebnis der **To-do-Kaskade**,
+   * wortgleich mit dem, was die Karten der App zeigen (`aufgabenAnzeige`).
+   *
+   * Der Assembler bevorzugt es vor `naechsterSchritt`/`schrittText`. Ohne dieses
+   * Feld sprach der Faktenblock allein die alte Status-Formel, und der Assistent
+   * widersprach der Karte daneben: sie sagte „Widerspruch gg Abl bearbeiten ·
+   * liegt bei AB/FB/Jur", er sagte „Ablehnungsbescheid erstellen" (gemessen an
+   * DynaMaint, 10.09.2026). Die Kaskade ist die Quelle, die Formel der Rückfall
+   * (CLAUDE.md → „Was ist zu tun?").
+   *
+   * Der Controller füllt es aus der **bereits gerechneten** Ablage; liegt keine
+   * vor, bleibt das Feld weg und der Assembler nimmt wieder die Formel.
+   */
+  aufgabe?: {
+    /** Der Aufgabentext der Zeile. */
+    text: string;
+    /**
+     * `false` = der Text kommt aus der alten Status-Formel, weil keine Regel
+     * griff. Ein Rückfall, der sich nicht zu erkennen gibt, spricht die
+     * widerlegte Formel, als wäre sie belegt — der Faktenblock sagt es dazu.
+     */
+    ausKaskade: boolean;
+    /** Die Nebenzeile der Karte: „wartet auf QS", „liegt bei AB/FB". */
+    neben?: string;
+  };
 }
 
 export interface AssistentTurn {

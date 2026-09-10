@@ -13,6 +13,7 @@ import { useLocation } from 'react-router-dom';
 import { useStore } from 'zustand';
 import { AlertTriangle, Brain, Loader2, RefreshCw, Send, Sparkles, SquarePen, X } from 'lucide-react';
 import { useAntraegeStore } from '@/plugins/antraege/store';
+import { useZeilenAufgaben } from '@/core/hooks/useBestandsAufgaben';
 import { getOramaDB } from '@/core/services/search/orama-store';
 import { beschreibeKontext } from '@/core/services/assistent/kontext';
 import { useAutoGrow } from '@/core/hooks/useAutoGrow';
@@ -38,7 +39,14 @@ export function AssistentPanelHost(): React.ReactElement | null {
   // Der von aussen mitgegebene Vorgang (Tagesbrief) übersteuert die
   // Store-Selektion — für den Turn UND für den Chip, der ihn anzeigt.
   const vorgabeScope = useStore(assistentPanelUiStore, s => s.vorgabeScope);
-  const c = useAssistentController(vorgabeScope);
+  // Die To-do-Kaskade für den Faktenblock — `'nie'` heisst: NUR lesen, was schon
+  // gerechnet ist. Das Panel ist auf jeder Route gemountet; einen Bestandslauf
+  // (Sekunden, voller Antragsbestand) anzustossen, nur weil das Dock da ist, wäre
+  // der falsche Handel. Liegt nichts vor, fällt der Faktenblock auf die alte
+  // Status-Formel zurück und sagt das dazu.
+  const heuteRef = useRef(new Date().toISOString());
+  const zeilen = useZeilenAufgaben('nie', heuteRef.current);
+  const c = useAssistentController(vorgabeScope, zeilen);
   const location = useLocation();
   // Selektion abonnieren → Chips + Beispiele reagieren auf Navigation/Auswahl.
   const sel = useAntraegeStore(s => `${s.selectedAktenzeichen ?? ''}|${s.selectedVerbundId ?? ''}`);
@@ -74,8 +82,8 @@ export function AssistentPanelHost(): React.ReactElement | null {
   const [gedAnzahl, setGedAnzahl] = useState(0);
 
   const snapshot = useMemo(
-    () => baueKontextSnapshot(Date.now(), vorgabeScope),
-    [location.key, sel, open, vorgabeScope],
+    () => baueKontextSnapshot(Date.now(), vorgabeScope, zeilen),
+    [location.key, sel, open, vorgabeScope, zeilen],
   );
   const chips = beschreibeKontext(snapshot.entitaet, snapshot.routeBeschreibung);
   // Routen-sensitive Quick Actions (Topf 1) statt statischer Beispielfragen: reiner

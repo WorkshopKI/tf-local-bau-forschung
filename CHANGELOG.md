@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v6.48.1 — der Assistent spricht die Kaskade, nicht die alte Formel (September 2026)
+
+PATCH — Beim Lauf gegen die interne KI (v6.47.1, DynaMaint) widersprach der Assistent der Karte 20 Pixel daneben: sie sagte „Widerspruch gg Abl bearbeiten · liegt bei AB/FB/Jur", er sagte „Ablehnungsbescheid erstellen". Der Faktenblock sprach allein `schrittText` — die Formel, die das Projekt längst als Rückfall führt. Solange der Assistent „dazu weiß ich nichts" antwortete, fiel das nicht auf; mit der mitgereisten Entität wurde daraus eine falsche Handlungsanweisung.
+
+- **[assembliere.ts](src/core/services/assistent/kontext/assembliere.ts)**: `KontextEntitaet.aufgabe` (Ergebnis von `aufgabenAnzeige`) hat Vorrang vor `schrittText`; ein Rückfall gibt sich zu erkennen ([assistent-panel.md](docs/architecture/assistent-panel.md))
+- **[kontextSnapshot.ts](src/plugins/chat/assistent/kontextSnapshot.ts)**: füllt es aus der **bereits gerechneten** Ablage — Verbund gefaltet über alle TVs, wie die Verbundzeile
+- **[AssistentPanelHost.tsx](src/plugins/chat/assistent/AssistentPanelHost.tsx)**: `useZeilenAufgaben('nie', …)` liest nur, was da ist — ein shell-weites Dock stößt keinen Bestandslauf an
+- **[CONTEXT.md](CONTEXT.md)**: „N Tage überfällig" sind **zwei** Zähler (Meilenstein-SollDatum vs. kritische Frist) — DynaMaint 324 gegen 318, beide richtig; gemessen, kein Fehler
+- **An der internen KI abgenommen**: dieselbe Frage, Antwort jetzt „Widerspruch gegen die Ablehnung zu bearbeiten — das liegt bei AB/FB/Jur", `fehler()` = 0
+
 ### v6.48.0 — Ein Durchgang, viele Mitfahrer: der geteilte Roh-Halter des Bestands (September 2026)
 
 MINOR — Der Bestand wird an dreizehn Stellen gelesen, und jeder Lesevorgang kostet ~2,2–3,3 s: IndexedDB cacht die Deserialisierung von 14 225 Records nicht. Gleichzeitige Durchgänge teilten sich nichts, sondern behinderten sich — zwei nebeneinander kosteten je das 1,6-fache, also mehr als nacheinander. Ein sitzungslanger Halter scheidet aus (die Roh-Records sind 284 MB); ein laufzeit-begrenzter ist gratis.

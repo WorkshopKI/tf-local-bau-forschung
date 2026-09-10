@@ -58,6 +58,33 @@ Nachfragen derselben Unterhaltung; verschiedene Lebensdauern also, weshalb
 CALYPSO, das nach der Navigation zu einem *anderen* Vorgang weitergälte, ließe den
 Kontext-Chip lügen — und der Chip ist die Zusage „nur das geht ins Modell".
 
+## Was zu tun ist — die Kaskade vor der Formel (v6.48.1)
+
+Der Faktenblock sprach bis v6.48.0 allein `schrittText` — die alte Status-Formel,
+die das Projekt längst als **Rückfall** führt (CLAUDE.md → „Was ist zu tun?").
+Gemessen an DynaMaint (10.09.2026, gegen die interne KI): die Karte zeigte
+*„Widerspruch gg Abl bearbeiten · liegt bei AB/FB/Jur"*, der Assistent sagte
+*„Ablehnungsbescheid erstellen"* — zwei gegensätzliche Anweisungen auf einem
+Bildschirm. Solange der Assistent „dazu weiß ich nichts" antwortete, fiel das
+niemandem auf; mit der mitgereisten Entität wurde es zur falschen Handlungsanweisung.
+
+Jetzt trägt `KontextEntitaet.aufgabe` das Ergebnis von `aufgabenAnzeige` — wortgleich
+mit der Karte, inklusive Nebenzeile. Der Assembler bevorzugt es und macht einen
+Rückfall kenntlich („aus dem Status abgeleitet, keine Regel greift"); fehlt das
+Feld, gilt unverändert die Formel.
+
+**Gelesen wird nur, was schon gerechnet ist.** Das Panel hängt an
+`useZeilenAufgaben('nie', …)` — ein reiner Leser der Bestands-Ablage, der **keinen**
+Lauf auslöst. Ein Dock, das auf jeder Route einen Bestandslauf über den vollen
+Antragsbestand anstößt, wäre der falsche Handel; und weil der Schlüssel Fassung,
+Betrachtungsbereich, Generation und Stichtag trägt, kann dabei kein fremdes
+Ergebnis gelesen werden ([Bug-Klasse 25](recurring-bug-classes.md)).
+
+> **Zwei Uhren, kein Fehler.** Der Frist-Hinweis im Faktenblock rechnet gegen die
+> kritische Frist, der Tagesbrief gegen das Meilenstein-SollDatum — für denselben
+> Vorgang dürfen dort verschiedene Zahlen stehen (DynaMaint: 318 gegen 324 Tage).
+> Siehe [CONTEXT.md → „N Tage überfällig"](../../CONTEXT.md).
+
 ## Kontext-Assembler — feste Blockreihenfolge
 
 Analog zur fixen Skill-Komposition: **System → Fakten → Retrieval → Historie → Frage**.

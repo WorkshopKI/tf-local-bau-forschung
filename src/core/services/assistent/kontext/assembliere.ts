@@ -105,8 +105,18 @@ function entitaetZeilen(e: KontextEntitaet): string[] {
   // gegen die die Umbenennung von v2.409 geschrieben ist.
   if (e.phaseLabel) zeilen.push(`Fördervariante: ${e.phaseLabel}`);
 
-  const schritt = schrittText(e.status, e.precheckLabel);
-  if (schritt) zeilen.push(`Nächster Schritt: ${schritt}`);
+  // Was zu tun ist: die To-do-Kaskade hat Vorrang vor der alten Status-Formel —
+  // dieselbe Rangfolge wie in den Karten der App (CLAUDE.md → „Was ist zu tun?").
+  // Ohne sie sagte der Assistent „Ablehnungsbescheid erstellen", während die
+  // Karte daneben „Widerspruch gg Abl bearbeiten" zeigte.
+  if (e.aufgabe) {
+    const herkunft = e.aufgabe.ausKaskade ? '' : ' (aus dem Status abgeleitet, keine Regel greift)';
+    const neben = e.aufgabe.neben ? ` — ${e.aufgabe.neben}` : '';
+    zeilen.push(`Was zu tun ist${herkunft}: ${collapse(e.aufgabe.text)}${neben}`);
+  } else {
+    const schritt = schrittText(e.status, e.precheckLabel);
+    if (schritt) zeilen.push(`Nächster Schritt: ${schritt}`);
+  }
   if (e.fristHinweis) zeilen.push(`Frist: ${e.fristHinweis}`);
 
   if (e.stammdaten && e.stammdaten.length > 0) {

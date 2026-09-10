@@ -19,6 +19,11 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v6.48 — 2026-09
+
+### Bugfixes
+- Der Assistent sagt jetzt dasselbe wie die Karten: Auf „Was ist bei X zu tun?" antwortet er mit der Aufgabe aus den gesetzten Kürzeln samt Zuständigkeit („liegt bei AB/FB/Jur") — vorher leitete er den nächsten Schritt aus dem Status ab und widersprach damit gelegentlich der Liste daneben.
+
 ## v6.47 — 2026-09
 
 ### Bugfixes

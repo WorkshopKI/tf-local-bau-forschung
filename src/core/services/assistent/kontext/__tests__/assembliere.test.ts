@@ -140,6 +140,44 @@ describe('assembliereAssistentKontext', () => {
   });
 });
 
+/**
+ * Was zu tun ist: die To-do-Kaskade vor der alten Status-Formel.
+ *
+ * Gemessen an DynaMaint (10.09.2026, interne KI): die Karte zeigte „Widerspruch
+ * gg Abl bearbeiten · liegt bei AB/FB/Jur", der Assistent sagte
+ * „Ablehnungsbescheid erstellen" — zwei gegensätzliche Anweisungen auf einem
+ * Bildschirm, weil der Faktenblock allein `schrittText` sprach.
+ */
+describe('assembliereAssistentKontext — was zu tun ist', () => {
+  const mitAufgabe = (aufgabe: KontextEntitaet['aufgabe']): AssistentKontextEingabe =>
+    base({ entitaet: { ...entitaet, status: 'Abl in QS', aufgabe } });
+
+  it('nimmt die Kaskade und lässt die alte Formel weg', () => {
+    const { promptText } = assembliereAssistentKontext(mitAufgabe({
+      text: 'Widerspruch gg Abl bearbeiten', ausKaskade: true, neben: 'liegt bei AB/FB/Jur',
+    }));
+    expect(promptText).toContain('Was zu tun ist: Widerspruch gg Abl bearbeiten — liegt bei AB/FB/Jur');
+    // Die beiden Quellen dürfen nicht nebeneinander stehen: zwei „nächste
+    // Schritte" im selben Block sind schlimmer als einer.
+    expect(promptText).not.toContain('Nächster Schritt:');
+  });
+
+  it('macht den Rückfall auf die Status-Formel kenntlich', () => {
+    const { promptText } = assembliereAssistentKontext(mitAufgabe({
+      text: 'Ablehnungsbescheid erstellen', ausKaskade: false,
+    }));
+    expect(promptText).toContain(
+      'Was zu tun ist (aus dem Status abgeleitet, keine Regel greift): Ablehnungsbescheid erstellen',
+    );
+  });
+
+  it('fällt ohne Kaskaden-Feld auf die alte Formel zurück (unverändertes Verhalten)', () => {
+    const { promptText } = assembliereAssistentKontext(base());
+    expect(promptText).toContain('Nächster Schritt:');
+    expect(promptText).not.toContain('Was zu tun ist');
+  });
+});
+
 describe('assembliereAssistentKontext — Gedächtnis-Block (Phase 2)', () => {
   it('ohne Gedächtnis: kein Block, gedaechtnisAnzahl 0', () => {
     const { promptText, gedaechtnisAnzahl } = assembliereAssistentKontext(base());

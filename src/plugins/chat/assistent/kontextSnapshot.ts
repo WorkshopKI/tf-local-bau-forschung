@@ -15,6 +15,9 @@ import type { EingangAmpel } from '@/plugins/antraege/eingangAmpel';
 import { fristAnzeigeFromDays, fristTageVon } from '@/plugins/antraege/fristAnzeige';
 import { criticalFristErgebnis } from '@/plugins/antraege/groupAggregates';
 import { artDesSchluessels } from '@/plugins/antraege/detailAufloesung';
+import { aufgabenAnzeige } from '@/core/status';
+import { schrittText } from '@/core/utils/naechsterSchritt';
+import type { ZeilenAufgaben } from '@/core/hooks/useBestandsAufgaben';
 import type { KontextEntitaet } from '@/core/services/assistent/kontext';
 import { baueArbeitsvorratUebersicht } from './arbeitsvorratUebersicht';
 import type { AssistentTurnKontext } from './turn';
@@ -54,9 +57,41 @@ function stammdatenZeilen(rows: Array<[string, string | null]>): Array<{ label: 
     .map(([label, wert]) => ({ label, wert }));
 }
 
-function antragEntitaet(a: AntragListItem, now: number): KontextEntitaet {
+/**
+ * „Was ist zu tun?" aus der To-do-Kaskade — dieselbe Rechnung wie in den Karten.
+ *
+ * `zeilen` kommt aus `useZeilenAufgaben('nie', …)`: ein **reiner Leser** der
+ * bereits gerechneten Ablage, der keinen Bestandslauf auslöst (der kostet
+ * Sekunden, und das Panel ist auf jeder Route gemountet). Liegt nichts vor,
+ * bleibt das Feld weg und der Assembler nimmt wieder `schrittText`.
+ */
+function aufgabeVon(
+  aktenzeichen: readonly string[],
+  status: string | undefined,
+  zeilen: ZeilenAufgaben | null | undefined,
+): KontextEntitaet['aufgabe'] {
+  if (!zeilen || aktenzeichen.length === 0) return undefined;
+  const anzeige = aufgabenAnzeige({
+    aufgabe: zeilen.fuer(aktenzeichen),
+    rueckfall: schrittText(status ?? ''),
+    laeuftNoch: zeilen.laeuftNoch,
+    regeln: zeilen.regeln,
+    status: status ?? null,
+  });
+  // Ein Platzhalter ist keine Aussage — er gehört nicht in einen Faktenblock.
+  // (Mit `'nie'` ist `laeuftNoch` false, der Fall also ohnehin nicht zu erwarten.)
+  if (anzeige.quelle === 'laedt' || !anzeige.text.trim()) return undefined;
+  return {
+    text: anzeige.text,
+    ausKaskade: anzeige.quelle !== 'rueckfall',
+    ...(anzeige.neben ? { neben: anzeige.neben } : {}),
+  };
+}
+
+function antragEntitaet(a: AntragListItem, now: number, zeilen?: ZeilenAufgaben | null): KontextEntitaet {
   const laufzeit = a.laufzeitbeginn && a.laufzeitende ? `${a.laufzeitbeginn} – ${a.laufzeitende}` : null;
   const hinweis = fristHinweis(a.status, fristTageVon(a, now));
+  const aufgabe = aufgabeVon([a.aktenzeichen], a.status, zeilen);
   return {
     art: 'antrag',
     id: a.aktenzeichen,
@@ -66,6 +101,7 @@ function antragEntitaet(a: AntragListItem, now: number): KontextEntitaet {
     phaseLabel: getVbPhaseLabel(a.vb_phase) ?? undefined,
     fristHinweis: hinweis,
     fristenAnzahl: hinweis ? 1 : 0,
+    ...(aufgabe ? { aufgabe } : {}),
     stammdaten: stammdatenZeilen([
       ['Antragsteller', a.antragsteller ?? null],
       ['Ort', a.ort_ast ?? null],
@@ -75,12 +111,14 @@ function antragEntitaet(a: AntragListItem, now: number): KontextEntitaet {
   };
 }
 
-function verbundEntitaet(verbundId: string, now: number): KontextEntitaet {
+function verbundEntitaet(verbundId: string, now: number, zeilen?: ZeilenAufgaben | null): KontextEntitaet {
   const st = useAntraegeStore.getState();
   const v = st.verbundById.get(verbundId);
   const tvs = st.antraege.filter(a => a.verbund_id === verbundId);
   const rep = tvs[0];
   const status = v?.status ?? rep?.status;
+  // Die Kaskade faltet über ALLE Teilvorhaben des Verbunds — wie die Verbundzeile.
+  const aufgabe = aufgabeVon(tvs.map(t => t.aktenzeichen), status, zeilen);
   // Die dringendste LAUFENDE Frist im Verbund — nicht die aus dem spätesten
   // Antragsdatum gerechnete. Wo keine Uhr läuft, sagt der Assistent nichts,
   // statt eine Zahl zu melden, die die Liste nicht zeigt.
@@ -95,6 +133,7 @@ function verbundEntitaet(verbundId: string, now: number): KontextEntitaet {
     phaseLabel: getVbPhaseLabel(rep?.vb_phase) ?? undefined,
     fristHinweis: hinweis,
     fristenAnzahl: offeneFristen,
+    ...(aufgabe ? { aufgabe } : {}),
     stammdaten: stammdatenZeilen([
       ['Teilvorhaben', tvs.length > 0 ? String(tvs.length) : null],
       ['Antragsteller (Konsortialführer)', rep?.antragsteller ?? null],
@@ -120,13 +159,15 @@ function verbundEntitaet(verbundId: string, now: number): KontextEntitaet {
  * darunter filtert ohnehin einmal voll durch, und eine zweite Handtabelle für die
  * Reihenfolge wäre der teurere Fehler.
  */
-function entitaetFuerSchluessel(schluessel: string, now: number): KontextEntitaet {
+function entitaetFuerSchluessel(
+  schluessel: string, now: number, zeilen?: ZeilenAufgaben | null,
+): KontextEntitaet {
   const st = useAntraegeStore.getState();
   const art = artDesSchluessels(st.antraege, schluessel);
-  if (art === 'verbund') return verbundEntitaet(schluessel, now);
+  if (art === 'verbund') return verbundEntitaet(schluessel, now, zeilen);
   if (art === 'antrag') {
     const a = st.antraege.find(x => x.aktenzeichen === schluessel);
-    if (a) return antragEntitaet(a, now); // `artDesSchluessels` hat ihn eben gefunden
+    if (a) return antragEntitaet(a, now, zeilen); // `artDesSchluessels` hat ihn eben gefunden
   }
   // Unbekannt: der Schlüssel selbst ist alles, was wir ehrlich sagen können.
   return { art: 'antrag', id: schluessel, titel: schluessel };
@@ -147,15 +188,18 @@ function entitaetFuerSchluessel(schluessel: string, now: number): KontextEntitae
 export function baueKontextSnapshot(
   now: number = Date.now(),
   scopeSchluessel?: string | null,
+  zeilen?: ZeilenAufgaben | null,
 ): AssistentTurnKontext {
   const st = useAntraegeStore.getState();
   const rb = routeBeschreibung(typeof window !== 'undefined' ? window.location.hash : '');
   if (scopeSchluessel) {
-    return { routeBeschreibung: rb, entitaet: entitaetFuerSchluessel(scopeSchluessel, now) };
+    return { routeBeschreibung: rb, entitaet: entitaetFuerSchluessel(scopeSchluessel, now, zeilen) };
   }
-  if (st.selectedVerbundId) return { routeBeschreibung: rb, entitaet: verbundEntitaet(st.selectedVerbundId, now) };
+  if (st.selectedVerbundId) {
+    return { routeBeschreibung: rb, entitaet: verbundEntitaet(st.selectedVerbundId, now, zeilen) };
+  }
   if (st.selectedAktenzeichen) {
-    return { routeBeschreibung: rb, entitaet: entitaetFuerSchluessel(st.selectedAktenzeichen, now) };
+    return { routeBeschreibung: rb, entitaet: entitaetFuerSchluessel(st.selectedAktenzeichen, now, zeilen) };
   }
   // Kein-Entität-Fall (Liste/Startseite): deterministische Arbeitsvorrat-Übersicht
   // beilegen, damit „Fristen"/„Was ist heute dran?" faktengestützt sind.

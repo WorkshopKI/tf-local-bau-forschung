@@ -14,6 +14,7 @@ import { isAssistentGedaechtnisEnabled } from '@/config/feature-flags';
 import { istProtokollAktiv } from '@/core/services/assistent/protokoll';
 import { istGedaechtnisAktiv, ladeAktiveEintraege } from '@/core/services/assistent/gedaechtnis';
 import { baueVorhabenDokumente, type RohDokument } from '@/core/services/assistent/vorhaben-dokumente';
+import type { ZeilenAufgaben } from '@/core/hooks/useBestandsAufgaben';
 import type { KontextEntitaet, VorhabenDokument } from '@/core/services/assistent/kontext';
 import type { IDBStore } from '@/core/services/storage';
 import type { DocumentFull } from '@/plugins/dokumente/store';
@@ -76,8 +77,14 @@ export interface AssistentController {
  * @param scopeSchluessel Ausdrücklich mitgegebener Vorgang (Verbund-Nummer oder
  *   Aktenzeichen), der die Store-Selektion für diesen Turn übersteuert — gesetzt,
  *   wenn eine Karte die Frage samt Subjekt vorgelegt hat.
+ * @param zeilen Reiner Leser der To-do-Kaskade (`useZeilenAufgaben('nie', …)`)
+ *   für den Faktenblock. Ohne ihn spricht der Assistent die alte Status-Formel
+ *   und widerspricht damit den Karten der App.
  */
-export function useAssistentController(scopeSchluessel?: string | null): AssistentController {
+export function useAssistentController(
+  scopeSchluessel?: string | null,
+  zeilen?: ZeilenAufgaben | null,
+): AssistentController {
   const bridge = useAIBridge();
   const { search } = useSearch();
   const storage = useStorage();
@@ -87,7 +94,7 @@ export function useAssistentController(scopeSchluessel?: string | null): Assiste
     const deps: AssistentTurnDeps = {
       // DSGVO-Gate: intern-only, wirft bei externem Provider (→ Degradation).
       getTransport: () => bridge.getTransportForAssistent(),
-      getKontext: () => baueKontextSnapshot(Date.now(), scopeSchluessel),
+      getKontext: () => baueKontextSnapshot(Date.now(), scopeSchluessel, zeilen),
       retrieve: async (f) => {
         if (getOramaDB() === null) return null; // Index (noch) nicht geladen → kein Retrieval
         try {
@@ -110,7 +117,7 @@ export function useAssistentController(scopeSchluessel?: string | null): Assiste
     if (assistentSessionStore.getState().error === DEGRADATION_MELDUNG) {
       useKiConnectPrompt.getState().oeffnen();
     }
-  }, [bridge, search, storage, scopeSchluessel]);
+  }, [bridge, search, storage, scopeSchluessel, zeilen]);
 
   return {
     messages: state.messages,
