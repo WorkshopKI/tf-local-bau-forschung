@@ -12,13 +12,11 @@
  * Sekunden, und der Router mountet die Seite bei jeder Rückkehr neu. Gecacht
  * wird NUR dieses Ergebnis — nie die Fassung, die hier das Arbeitsstück ist.
  */
-import {
-  listProgramme, listVerbuendeByProgramm, listAntraegeByProgramm, listSchemasByProgramm,
-} from '@/core/services/csv/idb-csv';
 import type { CsvSchema } from '@/core/services/csv/types';
 import type { IDBStore } from '@/core/services/storage/idb-store';
 import { tfPerfLog } from '@/core/utils/tfPerf';
 import { bestandGeneration } from '@/core/services/bestand-generation';
+import { jedesProgrammRoh } from '@/core/status/roh-halter';
 import {
   baueVerbundFelder, zaehleVorkommen, zuletztGesehen, csvSpaltenJeFeld,
   type VerbundFelder,
@@ -79,7 +77,6 @@ export async function ladeBestand(
     // der Schleife darunter. Sequenziell gelesen wartete er auf sie, obwohl er
     // nichts von ihr braucht.
     const eventsP = getAlleEvents(idb);
-    const programme = await listProgramme(idb);
     const vf: VerbundFelder[] = [];
     const schemas: CsvSchema[] = [];
     // Fällt hier kostenlos ab: die Schleife liest die Anträge ohnehin. Ein
@@ -87,14 +84,15 @@ export async function ladeBestand(
     const programmAntraege = new Map<string, number>();
     let antraegeOhneProgramm = 0;
     const programmUneinheitlich: { verbundId: string; nummern: string[] }[] = [];
-    for (const p of programme) {
-      const tIo = performance.now();
-      const [verbuende, antraege, programmSchemas] = await Promise.all([
-        listVerbuendeByProgramm(idb, p.id),
-        listAntraegeByProgramm(idb, p.id),
-        listSchemasByProgramm(idb, p.id),
-      ]);
-      ioMs += performance.now() - tIo;
+    // Der Lauf liest nicht mehr selbst: der Halter teilt die Roh-Arrays mit
+    // jedem Durchgang, der gerade läuft (`roh-halter.ts`). Bis v6.47 war dies
+    // der dreizehnte Leser derselben drei Stores — und der einzige, der den
+    // Lesecode von `jederVorgang` dupliziert statt ihn zu benutzen.
+    let mitgefahren = 0;
+    for await (const { roh, takt: rohTakt } of jedesProgrammRoh(idb)) {
+      const { verbuende, antraege, schemas: programmSchemas } = roh;
+      ioMs += rohTakt.ioMs;
+      if (!rohTakt.gelesen) mitgefahren += 1;
       schemas.push(...programmSchemas);
       // Je Programm auflösen: dieselbe Spalte kann in verschiedenen Programmen
       // unter verschiedenen Record-Keys liegen.
@@ -134,7 +132,8 @@ export async function ladeBestand(
     }
     tfPerfLog(
       `cockpit ladeBestand: ${vf.length} Verbünde, ${schemas.length} Schemas`
-      + ` in ${(performance.now() - tBestand).toFixed(0)}ms (io ${ioMs.toFixed(0)}ms)`,
+      + ` in ${(performance.now() - tBestand).toFixed(0)}ms (io ${ioMs.toFixed(0)}ms`
+      + (mitgefahren > 0 ? `, ${mitgefahren}× mitgefahren` : ', gelesen') + ')',
     );
     const bestand: Bestand = {
       verbundFelder: vf,

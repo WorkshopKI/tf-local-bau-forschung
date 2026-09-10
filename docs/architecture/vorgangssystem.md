@@ -2707,3 +2707,62 @@ Hebel wäre ein gemeinsamer Roh-Halter für beide Durchgänge oder eine schmale
 Projektion. Beides ist mehr als ein Quick Win und braucht eine eigene Spec.
 (`trigger 15485` in derselben Zeile ist weiterhin **Wartezeit**, keine Arbeit —
 siehe die zweite Messfalle oben.)
+
+### Nachtrag v6.48: ein Durchgang, viele Mitfahrer — und eine Richtigstellung
+
+Der offene Posten von oben ist bearbeitet
+([Spec](../superpowers/specs/2026-09-10-geteilter-bestands-durchgang-design.md)).
+Beim Nachmessen fielen zwei Zahlen des Nachtrags v6.47 um.
+
+**Richtigstellung 1: die „~12–15 s" der Regeln-Seite gab es so nie.** Sie sind
+der **Dev-StrictMode** — `ladeAlles` läuft beim Mount zweimal, beide Läufe
+treffen den noch leeren Cache. Ein sauberer Einzellauf über „neu berechnen"
+(Klick-Handler, kein Zwilling) kostet **6,4–6,9 s**: 3,3 s Lesen, 3,4 s Rechnen.
+Produktiv gibt es den Zwilling nicht.
+
+**Richtigstellung 2: „ein zweiter Durchgang neben `laufeBestand`" war zu eng
+gefasst.** Es sind **dreizehn** Leser derselben drei Stores — zwölf über
+`jederVorgang`, plus `ladeBestand`, das den Lesecode duplizierte. Und ein
+Lesevorgang kostet **immer** ~2,2–3,3 s: vier Runden `getAll` hintereinander im
+Leerlauf ergaben 3 035 · 3 181 · 3 089 · 3 211 ms. **IndexedDB cacht die
+Deserialisierung nicht.**
+
+Gleichzeitigkeit macht es schlimmer statt besser — zwei identische Durchgänge
+nebeneinander kosteten je das 1,6-fache (`io` 3 105 → 4 975 ms, gesamt 6 447 →
+10 268 ms), also mehr als nacheinander.
+
+**Was gebaut wurde**: [roh-halter.ts](../../src/core/status/roh-halter.ts) hält
+die Roh-Arrays eines Programms für die Dauer der Durchgänge, die sie brauchen —
+Nutzerzähler statt TTL. Wer startet, während schon einer läuft, fährt mit.
+`jederVorgang` und `ladeBestand` fahren beide darauf; im Log steht seither
+`gelesen` bzw. `1× mitgefahren`, und beide zeigen **denselben** `io`-Wert, weil
+sie auf dieselbe Promise warten.
+
+**Warum kein Cache**: die Roh-Records sind **284 MB** (375 Felder je Antrag, 167
+gesetzt); allein die gesetzten Werte 142 MB. Ein Halter, der den Lauf überlebt,
+hielte den Bestand für die Sitzung fest — genau das, was `jederVorgang` mit
+seinem Callback vermeidet. Beide Wege aus dem v6.47-Nachtrag („Roh-Halter",
+„schmale Projektion") scheitern als *sitzungslanger* Halter an dieser Zahl; nur
+der laufzeit-begrenzte ist gratis.
+
+**Der Schnitt liegt UNTER `jederVorgang`, nicht darin.** `ladeBestand` darauf zu
+heben hätte die Ausgabe verändert: `sammleVorkommenGeplant` gibt bei
+`art: 'verbund-aus-tv'` **einen** Eintrag je Verbund aus — den ersten TV mit
+Wert. `jederVorgang` ruft es je Antrag mit `[einem]` auf, `ladeBestand` je
+Verbund mit allen. Bei zwei TVs mit verschiedenen Werten in derselben `X`-Spalte
+liefe das auseinander (Pitfall #44/#45).
+
+**Eine Messfalle mehr, fürs Protokoll:** die erste Fassung des Halters nahm ein
+`besuche`-Callback. Damit wanderte der Rumpf der Programm-Schleife in eine
+Closure, seine Zähler lagen im Heap-Kontext statt in Stack-Slots — und der Lauf
+wurde bei **byte-identischem Rumpf um ~400 ms langsamer** (3 413 → 3 800 ms
+Rechenzeit). Mit `for await (… of …)` über einen Async-Generator bleibt der
+Rumpf im Scope seines Aufrufers; die Rechenzeit ist danach auf 1 ms identisch
+(3 413 vs. 3 414 ms, je drei Proben).
+
+**Und eine Warnung an die nächste Messung:** der Boden dieser Maschine schwankt
+über eine Sitzung um **±33 %** (2 207 · 3 129 · 3 293 ms für dieselben vier
+`getAll`-Runden) — teils *innerhalb* eines Fensters von einer Minute. Vergleiche
+zwischen zwei Ständen sind nur **gepaart** belastbar: Boden messen, Läufe
+messen, Boden messen, dann den Stand wechseln. Zeitversetzte Vorher/Nachher-
+Zahlen sagen hier nichts.

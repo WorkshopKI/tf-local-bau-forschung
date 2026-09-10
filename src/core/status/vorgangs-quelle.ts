@@ -17,10 +17,8 @@
  * **Kein Betrachtungsbereich hier drin** (Pitfall #46): dies ist der Daten-Layer.
  * Wer filtert, tut es sichtbar im Aufrufer.
  */
-import {
-  listProgramme, listVerbuendeByProgramm, listAntraegeByProgramm, listSchemasByProgramm,
-} from '@/core/services/csv/idb-csv';
 import type { IDBStore } from '@/core/services/storage/idb-store';
+import { jedesProgrammRoh } from './roh-halter';
 import {
   baueFeldAufloesung, baueVorkommenPlan, sammleVorkommenGeplant, type FeldVorkommen,
 } from './feld-aufloesung';
@@ -67,6 +65,12 @@ export interface VorgangsTakt {
  * kein Problem mehr, weil die fetten Records nach dem Lauf nicht mehr gehalten
  * werden.
  *
+ * **Und seit v6.48 nur einmal, auch wenn zwei Durchgänge es gleichzeitig
+ * wollen**: das Lesen liegt im [roh-halter](./roh-halter.ts), der die Arrays
+ * eines Programms unter allen laufenden Durchgängen teilt. `takt.ioMs` ist für
+ * einen Mitfahrer entsprechend die Wartezeit auf den Leser, nicht ein zweiter
+ * `getAll`.
+ *
  * `takt` ist **opt-in**: die Zeitnahme kostet zwei `performance.now()` je Antrag
  * und hat im ungemessenen Betrieb nichts im heißen Pfad verloren.
  */
@@ -76,14 +80,9 @@ export async function jederVorgang(
   besuche: (v: VorgangsRohsatz) => void,
   takt?: (t: VorgangsTakt) => void,
 ): Promise<void> {
-  for (const p of await listProgramme(idb)) {
-    const t0 = takt ? performance.now() : 0;
-    const [verbuende, antraege, schemas] = await Promise.all([
-      listVerbuendeByProgramm(idb, p.id),
-      listAntraegeByProgramm(idb, p.id),
-      listSchemasByProgramm(idb, p.id),
-    ]);
-    const ioMs = takt ? performance.now() - t0 : 0;
+  for await (const { roh, takt: rohTakt } of jedesProgrammRoh(idb)) {
+    const { programmId, verbuende, antraege, schemas } = roh;
+    const ioMs = takt ? rohTakt.ioMs : 0;
     // EINMAL je Programm kompiliert statt je Antrag aufgelöst: der Plan hängt
     // nur an Schemas und Fassung, nicht am einzelnen Satz.
     const plan = baueVorkommenPlan(version.felder, baueFeldAufloesung(schemas, version.felder));
@@ -116,6 +115,6 @@ export async function jederVorgang(
       }
     }
 
-    takt?.({ programmId: p.id, ioMs, sammelMs, besucheMs, n: antraege.length });
+    takt?.({ programmId, ioMs, sammelMs, besucheMs, n: antraege.length });
   }
 }

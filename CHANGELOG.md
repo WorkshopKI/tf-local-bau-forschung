@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v6.48.0 — Ein Durchgang, viele Mitfahrer: der geteilte Roh-Halter des Bestands (September 2026)
+
+MINOR — Der Bestand wird an dreizehn Stellen gelesen, und jeder Lesevorgang kostet ~2,2–3,3 s: IndexedDB cacht die Deserialisierung von 14 225 Records nicht. Gleichzeitige Durchgänge teilten sich nichts, sondern behinderten sich — zwei nebeneinander kosteten je das 1,6-fache, also mehr als nacheinander. Ein sitzungslanger Halter scheidet aus (die Roh-Records sind 284 MB); ein laufzeit-begrenzter ist gratis.
+
+- **[roh-halter.ts](src/core/status/roh-halter.ts)** (neu): die Roh-Arrays eines Programms, geteilt unter allen Durchgängen, die gerade laufen — Nutzerzähler statt TTL, `bestandGeneration()` als Schlüssel ([§17](docs/architecture/vorgangssystem.md))
+- **[vorgangs-quelle.ts](src/core/status/vorgangs-quelle.ts)** + **[ladeBestand.ts](src/plugins/status-cockpit/ladeBestand.ts)**: beide lesen über den Halter; `ladeBestand` gibt damit den Lesecode ab, den es von `jederVorgang` dupliziert hatte
+- **Async-Generator statt Callback**, nachgemessen: als Callback wanderte der Schleifenrumpf in eine Closure und wurde bei byte-identischem Code ~400 ms langsamer; mit `for await` ist die Rechenzeit auf 1 ms identisch
+- **Richtigstellung zu v6.47**: die dort notierten „12–15 s" der Regeln-Seite waren der Dev-StrictMode-Zwilling — produktiv sind es 6,4–6,9 s ([§17](docs/architecture/vorgangssystem.md))
+- **[Spec](docs/superpowers/specs/2026-09-10-geteilter-bestands-durchgang-design.md)** + **[Plan](docs/superpowers/plans/2026-09-10-geteilter-bestands-durchgang.md)**: Befund, Messfallen und die Warnung, dass der Boden dieser Maschine um ±33 % schwankt — Vergleiche nur gepaart
+
 ### v6.47.1 — die Rückfrage aus dem Tagesbrief nimmt ihren Vorgang mit (September 2026)
 
 PATCH — Der Rückfrage-Knopf des Tagesbriefs legte „Was ist bei CALYPSO zu tun?" ins Dock und gab nur den Text mit: auf der Startseite ist nichts selektiert, also stand im Faktenblock „Keine Entität ausgewählt" — die Antwort „dazu liegen mir keine Informationen vor" war prompt-konform. Der zweite Fund wog schwerer und war unsichtbar: Deep-Links legen regelmäßig eine Verbund-Nummer in den Aktenzeichen-Slot; die Detailseite heilt das seit v4.82, der Kontext-Snapshot des Assistenten nicht.

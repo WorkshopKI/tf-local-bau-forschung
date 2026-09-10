@@ -242,6 +242,7 @@ export {
   type BestandZeile, type BestandLauf, type LaufTakt,
 } from './bestands-lauf';
 export { jederVorgang, type VorgangsRohsatz, type VorgangsTakt } from './vorgangs-quelle';
+export { jedesProgrammRoh, type ProgrammRoh, type RohTakt } from './roh-halter';
 export {
   ladeVorkommen, zaehleCodes, codeAusSatz, kuerzelEinesVorgangs, type VorkommenStand,
 } from './vorkommen';
