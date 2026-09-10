@@ -57,7 +57,15 @@ Guard `spalten-hilfe-abdeckung` ([conventions-ui.test.ts](../../src/__tests__/co
 - Die Anzeige übernimmt `QuellSpaltenTooltip` ([components/quellspalten](../../src/components/quellspalten/QuellSpaltenTooltip.tsx)). Der Inhalt hängt sich erst beim Überfahren ein und lädt dann den Index (`useQuellSpaltenIndex`, Schemas aller Programme). Eine Liste mit tausend Zeilen liest deshalb nichts, bis jemand hinsieht. Gerendert wird mit `SpaltenHilfeInhalt`, gruppiert nach `felder[].fuer`.
 - Der `FeldWaehler` zeigt am zugeklappten Auslöser `← D_AAE` inline und die Quellspalten mit Label im nativen `title`. Ein Portal-Tooltip bliebe über dem offenen Popover stehen.
 
-Eingebaut in: Meilenstein-Konfiguration (Zusammenfassungszeile, Gesamtfrist), Meilenstein-Leiste, „Diese Woche", To-do-Regeln und To-do-Herleitung („warum?"). Guard `quellspalten-an-bedingungen` ([conventions-ui.test.ts](../../src/__tests__/conventions-ui.test.ts)): Wer eine Bedingung als Satz rendert, rendert auch ihre Quellspalten.
+Eingebaut in:
+- Meilenstein-Konfiguration (Zusammenfassungszeile, Gesamtfrist), Meilenstein-Leiste und „Diese Woche".
+- To-do-Regeln und To-do-Herleitung („warum?").
+- Home-Fristen (Meilenstein-Anlass über den Knoten, Zieltag über `STATUS_VB`) und die Phasen-Marke des StatusVerlauf-Widgets.
+- „Alle Felder": Code inline, der `title` nennt die Quellspalten. Bei `frist_datum` steht dazu, dass es beim Import gerechnet wird.
+- Der Status-Filter hat eine Zeile „Spalte". `FRIST_GRUND` und der Tooltip der Frist-Zelle nennen Code und Klartext.
+- Die festen Codes der Frist-Spalte (`FESTE_FELDER`) nehmen ihre Beschriftung aus dem Schema; die Hand-Labels sind nur der Rückfall.
+
+Nicht belegt wird das Kürzel-Paar eines Zieltag-Anlasses: seine Spalten kennt nur der Katalog, und eine aus dem Kürzel zusammengesetzte Spalte wäre geraten. Guard `quellspalten-an-bedingungen` ([conventions-ui.test.ts](../../src/__tests__/conventions-ui.test.ts)): Wer eine Bedingung als Satz rendert, rendert auch ihre Quellspalten.
 
 **Icon-Vokabular** (v3.24, aus der Feedback-Nachlese — dieselbe Bedeutung, dieselbe Glyphe):
 

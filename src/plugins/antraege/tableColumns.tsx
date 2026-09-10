@@ -84,9 +84,11 @@ function fristTooltip(e: FristErgebnis, verbund: boolean): string | undefined {
   }
   if (!e.zielDatum) return undefined;
   const datum = new Date(e.zielDatum).toLocaleDateString('de-DE');
-  const basis = e.basisFeld === 'D_XTE' ? 'alle Anträge eingegangen' : 'Antragseingang';
+  // Die Quellspalte steht als Code dabei — sie ist genau das, was die Engine
+  // als `basisFeld` gewählt hat, nicht eine Beschreibung davon.
+  const basis = e.basisFeld === 'D_XTE' ? '„alle Anträge da", D_XTE' : 'Antragseingang, D_AAE';
   return e.basisFeld === undefined
-    ? `${vorsatz}VN-Frist: ${datum} (VN-Eingang + 6 Monate)`
+    ? `${vorsatz}VN-Frist: ${datum} (VN-Eingang D_VBE + 6 Monate)`
     : `${vorsatz}Bearbeitungsfrist: ${datum} (${basis} + ${ANTRAG_SLA_DAYS} Tage)`;
 }
 

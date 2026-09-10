@@ -76,9 +76,11 @@ export interface FristErgebnis {
 }
 
 /** Grund-Texte an einer Stelle — sie stehen im Tooltip und im kopierten Text. */
+// Code UND Klartext: die Codes sind die Quellspalten, die der Rechenweg liest
+// (`FristBasisFeld`), die Beschriftung macht sie für die Bearbeitung lesbar.
 export const FRIST_GRUND = {
-  ohneEingang: 'kein Eingangsdatum in D_AAE/D_XTE',
-  ohneVnEingang: 'kein Verwendungsnachweis eingegangen (D_VBE)',
+  ohneEingang: 'kein Eingangsdatum in D_AAE (Antragseingang) oder D_XTE („alle Anträge da")',
+  ohneVnEingang: 'kein Verwendungsnachweis eingegangen (D_VBE, Eingang Verwendungsnachweis)',
   haltedatumUnbekannt: 'Haltedatum unbekannt',
 } as const;
 

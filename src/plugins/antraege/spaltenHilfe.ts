@@ -20,7 +20,7 @@
 import type { SortableColumn, SpaltenHilfe } from '@/components/data-table/types';
 import type { CsvSchema } from '@/core/services/csv/types';
 import { ANTRAG_SLA_DAYS, VN_SLA_MONTHS } from '@/core/services/csv/frist';
-import { rohSpaltenJeFeld } from '@/core/services/csv/spalten-inventar';
+import { baueQuellSpaltenIndex, rohSpaltenJeFeld } from '@/core/services/csv/spalten-inventar';
 import {
   resolveStatusDatumGruppen,
   type ResolvedKategorieSpalten,
@@ -196,9 +196,17 @@ export function baueSpaltenHilfe(
 ): Map<string, SpaltenHilfe> {
   const roh = rohSpaltenJeFeld(schemas);
   const karte = new Map<string, SpaltenHilfe>();
+  // Die festen Codes stehen fest, weil der Rechenweg genau sie liest — ihre
+  // Beschriftung aber kommt aus dem Schema, wo es sie führt. Die Hand-Labels
+  // bleiben nur der Rückfall vor dem ersten Import.
+  const index = baueQuellSpaltenIndex(schemas);
+  const mitSchemaLabel = (f: { code: string; label: string }): { code: string; label: string } => {
+    const label = index.labelVon(f.code);
+    return label === f.code ? f : { code: f.code, label };
+  };
 
   for (const [key, satz] of Object.entries(SAETZE)) {
-    const felder = FESTE_FELDER[key] ?? roh.get(key);
+    const felder = FESTE_FELDER[key]?.map(mitSchemaLabel) ?? roh.get(key);
     const leer = !felder || felder.length === 0;
     karte.set(key, {
       satz,

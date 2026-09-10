@@ -66,9 +66,9 @@ TypeScript, React 19, Vitest (node). Tooltip = `Tooltip` aus `@/components/ui/To
 - [x] Guard (Ist-Wert 2 Dateien, beide abgedeckt → Verbot; mit Wegwerf-Datei ROT gesehen)
 - [x] Abnahme dev:local (Codes + Labels gegen `column_mapping`, `fehler()` = 0), Doku (ui-muster, feedback-kontext), Gate, Build, Commit
 
-## Stufe C — restliche Flächen
+## Stufe C — restliche Flächen (v6.51)
 
-- [ ] Frist-Zelle, `FESTE_FELDER.frist`-Labels aus dem Index
-- [ ] Home-Fristen, StatusVerlauf-Widget
-- [ ] „Alle Felder", Status-Filter
-- [ ] Abnahme dev:local, Doku, Gate, Build, Commit
+- [x] Frist-Zelle (`FRIST_GRUND` + Zellen-Tooltip mit Code und Klartext), `FESTE_FELDER.frist`-Labels aus dem Index
+- [x] Home-Fristen (Meilenstein über den Knoten, Zieltag über `STATUS_VB`; Kürzel-Paar bewusst ohne), StatusVerlauf-Widget
+- [x] „Alle Felder" (Code inline, `frist_datum` mit Herleitung), Status-Filter (Zeile „Spalte")
+- [x] Abnahme dev:local nach sauberem Reload (`fehler()` = 0; 20 „IDBStore not opened" zuvor waren ein HMR-Artefakt der Zwischenstände), Doku, Gate, Build, Commit

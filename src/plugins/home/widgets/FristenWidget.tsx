@@ -21,6 +21,9 @@
  * kein zweiter Bearbeiter-Filter. Geladen wird nur im ausgeklappten Zustand.
  */
 import { useMemo, useRef } from 'react';
+import { QuellSpaltenTooltip, type Erklaerer } from '@/components/quellspalten';
+import { knotenQuellen } from '@/core/meilensteine';
+import { feldQuellen } from '@/core/status/bedingung-quellen';
 import { useNavigation } from '@/core/hooks/useNavigation';
 import { useBearbeiterSicht } from '@/core/hooks/useBearbeiterSicht';
 import { bearbeiterScopeLabel } from '@/plugins/antraege/bearbeiterFilter';
@@ -39,6 +42,23 @@ const MIN_JE_QUELLE = 2;
 /** Die Farbe sagt „gerissen" gegen „steht bevor" — nicht, aus welchem System. */
 function farbe(a: FristAnlass): string {
   return a.gerissen ? 'var(--tf-danger-text)' : 'var(--tf-warning-text)';
+}
+
+/**
+ * Woraus der Grund einer Zeile gelesen wurde — der Meilenstein mit seiner
+ * Bedingung, der Zieltag mit dem Verbund-Status. `null`, wo die Zeile ihre
+ * Quellspalten nicht belegen kann (Kürzel-Paar); dann bleibt der blanke Text.
+ */
+function erklaererVon(z: FristAnlass): Erklaerer | null {
+  if (z.knoten) {
+    const k = z.knoten;
+    return idx => knotenQuellen(k, idx);
+  }
+  if (z.quellFelder?.length) {
+    const felder = z.quellFelder;
+    return idx => feldQuellen(felder, idx, z.grund);
+  }
+  return null;
 }
 
 export function FristenWidget({
@@ -115,11 +135,15 @@ export function FristenWidget({
         </p>
       ) : (
         <div className="flex flex-col gap-1.5">
-          {sichtbar.map(z => (
+          {sichtbar.map(z => {
+            const erklaere = erklaererVon(z);
+            return (
             <button
               key={z.id}
               type="button"
-              title={z.grund}
+              // Mit Quellspalten-Tooltip kein `title` daneben — der native Kasten
+              // legte sich über den erklärenden.
+              title={erklaere ? undefined : z.grund}
               onClick={() => navigate('antraege', { selectedId: z.verbundId })}
               className="flex w-full items-center gap-2 min-w-0 rounded-[10px] bg-[var(--tf-bg)] px-3 py-1.5 text-left transition-colors hover:bg-[var(--tf-bg-secondary)] cursor-pointer"
               style={{ border: '0.5px solid var(--tf-border)' }}
@@ -136,9 +160,15 @@ export function FristenWidget({
               <span className="shrink-0 text-[10.5px] font-mono text-[var(--tf-text-tertiary)]">
                 {z.marke}
               </span>
-              <span className="flex-1 min-w-0 truncate text-[12px] text-[var(--tf-text-secondary)]">
-                {z.grund}
-              </span>
+              {erklaere ? (
+                <QuellSpaltenTooltip erklaere={erklaere} wrapperClassName="flex-1 min-w-0 truncate">
+                  <span className="text-[12px] text-[var(--tf-text-secondary)] cursor-help">{z.grund}</span>
+                </QuellSpaltenTooltip>
+              ) : (
+                <span className="flex-1 min-w-0 truncate text-[12px] text-[var(--tf-text-secondary)]">
+                  {z.grund}
+                </span>
+              )}
               {(z.weitere ?? 0) > 0 && (
                 <span
                   className="shrink-0 text-[11px] tabular-nums text-[var(--tf-text-tertiary)]"
@@ -151,7 +181,8 @@ export function FristenWidget({
                 {ueberTageText(z.ueberTage)}
               </span>
             </button>
-          ))}
+            );
+          })}
           {rest > 0 && (
             <p className="pt-0.5 text-[11px] text-[var(--tf-text-tertiary)]">
               +{rest} weitere {rest === 1 ? 'Vorgang' : 'Vorgänge'}

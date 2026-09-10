@@ -4,6 +4,7 @@ import { TfTree } from '@/components/tree';
 import type { TfTreeNodeRenderProps } from '@/components/tree';
 import { groupStatusValues, type GroupedItem, type GroupedPhase, type PhaseId } from '../statusGroups';
 import { PinNadel } from '../PinNadel';
+import { useQuellSpaltenIndex } from '@/core/hooks/useQuellSpaltenIndex';
 import {
   baueStatusBaum, checkedAusFilter, filterAusChecked, filtereStatusPhasen,
   istGesetzt, phaseKnotenId, statusHoverDaten, type StatusKnoten,
@@ -230,8 +231,22 @@ function StatusTooltip({ p, item, phaseId, phasen }: {
       {d.weitereSchreibweisen.length > 0 && (
         <Zeile k="Auch" v={d.weitereSchreibweisen.join(', ')} />
       )}
+      <SpaltenZeile />
     </div>
   );
+}
+
+/**
+ * Aus welcher CSV-Spalte der Status gelesen wird. Der Filter steht nur an
+ * Filtern mit `feld === 'status'` (`FilterSidebarItem`); die Spalte dahinter
+ * löst das Schema auf, statt hier „STATUS_TV" festzuschreiben. Der Tooltip
+ * hängt sich erst beim Überfahren ein — der Index lädt also nur dann.
+ */
+function SpaltenZeile(): React.ReactElement | null {
+  const { index } = useQuellSpaltenIndex();
+  const spalten = index?.quellSpaltenVon('status').spalten ?? [];
+  if (spalten.length === 0) return null;
+  return <Zeile k="Spalte" v={spalten.map(s => s.code).join(', ')} />;
 }
 
 function Zeile({ k, v }: { k: string; v: string }): React.ReactElement {

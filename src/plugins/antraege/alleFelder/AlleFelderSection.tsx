@@ -1,6 +1,10 @@
 import { useMemo, useRef, useState } from 'react';
 import { Search } from 'lucide-react';
 import type { CsvSchema } from '@/core/services/csv/types';
+import { ANTRAG_SLA_DAYS, VN_SLA_MONTHS } from '@/core/services/csv/frist';
+import {
+  baueQuellSpaltenIndex, einzeiligesLabel, type RohSpalte,
+} from '@/core/services/csv/spalten-inventar';
 import './felder.css';
 import { type DisplayGroup, type DisplayRow } from './buildDisplayRows';
 import { classifyField, adminBadgeLabel, baueFelderWerte } from './felderKuration';
@@ -31,6 +35,29 @@ interface Props {
 const OTHER_LABEL = 'Weitere Felder';
 const FLAG_KEY = '__flags__';
 const FLAG_TITLE = 'Technologie-Kennzeichen';
+
+/**
+ * Der Tooltip am Feldnamen: aus welchen CSV-Spalten das Feld liest — und bei
+ * der gespeicherten Frist, wie sie entstand. `frist_datum` ist KEIN importierter
+ * Wert, sondern beim Import gerechnet, und zwar anders als die Frist-Spalte der
+ * Tabelle; ohne diesen Satz lasen sich zwei verschiedene Daten als Widerspruch.
+ */
+function quellTitel(feld: string, quell: readonly RohSpalte[]): string | undefined {
+  const teile: string[] = [];
+  if (quell.length > 0) {
+    teile.push(`Speist sich aus: ${quell
+      .map(s => (s.label && s.label !== s.code ? `${s.code} (${einzeiligesLabel(s.label)})` : s.code))
+      .join(', ')}`);
+  }
+  if (feld === 'frist_datum') {
+    teile.push(
+      `Beim Import gerechnet: Antragseingang (D_AAE) + ${ANTRAG_SLA_DAYS} Tage, in der Begleitphase `
+      + `VN-Eingang (D_VBE) + ${VN_SLA_MONTHS} Monate. Die Frist-Spalte der Förderanträge rechnet dagegen `
+      + 'ab dem wirksamen Eingang (dem späteren aus D_AAE und D_XTE) und nur, wo die Uhr läuft.',
+    );
+  }
+  return teile.length > 0 ? teile.join('\n') : undefined;
+}
 
 function isEmptyRow(r: DisplayRow): boolean {
   if (r.rawValue === null || r.rawValue === undefined) return true;
@@ -68,6 +95,9 @@ export function AlleFelderSection({
   headerVariant = 'compact',
 }: Props): React.ReactElement {
   const [tab, setTab] = useState<Tab>('relevant');
+  // Die Quellspalten je Feld — aus denselben Schemas, aus denen die Zeilen
+  // entstehen, also ohne zweiten Lesevorgang.
+  const quellIndex = useMemo(() => baueQuellSpaltenIndex(schemas), [schemas]);
   const [q, setQ] = useState('');
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
   const [activeIdx, setActiveIdx] = useState<string | null>(null);
@@ -245,10 +275,16 @@ export function AlleFelderSection({
                         {e.rows.map(r => {
                           const cls = classifyField(r, felderWerte);
                           const badge = adminBadgeLabel(cls);
+                          const quell = quellIndex.quellSpaltenVon(r.field).spalten;
                           return (
                             <div key={r.field} className="af-row">
-                              <span className="af-k">
+                              <span className="af-k" title={quellTitel(r.field, quell)}>
                                 {r.label}
+                                {quell.length > 0 && (
+                                  <span className="ml-1 font-mono text-[10px] text-[var(--tf-text-tertiary)]">
+                                    {quell.map(s => s.code).join(', ')}
+                                  </span>
+                                )}
                                 {badge ? (
                                   <span className="af-badge-admin" title={cls.dupOf ? `Duplikat von ${cls.dupOf}` : undefined}>
                                     {badge}

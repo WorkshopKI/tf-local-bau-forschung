@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v6.51.0 — Quellspalten auch an Frist, Home und Alle Felder (September 2026)
+
+MINOR — Stufe C des Quellspalten-Vorhabens ([Spec](docs/superpowers/specs/2026-09-10-quellspalten-design.md)). Die übrigen Stellen, an denen ein Wert aus CSV-Spalten abgeleitet wird, nennen jetzt ebenfalls ihre Quellspalten, statt nur Codes oder gar nichts zu zeigen. Die festen Codes der Frist-Spalte nehmen ihre Beschriftung aus dem Schema.
+
+- **Frist**: Bei `FRIST_GRUND` und dem Tooltip der Frist-Zelle ([tableColumns.tsx](src/plugins/antraege/tableColumns.tsx)) stehen Code und Klartext. `FESTE_FELDER.frist` beschriftet sich aus dem Index ([spaltenHilfe.ts](src/plugins/antraege/spaltenHilfe.ts))
+- **Home**: Die Fristen-Anlässe tragen ihre Quelle, beim Meilenstein den Knoten und beim Zieltag `STATUS_VB`. Das Kürzel-Paar bleibt bewusst ohne ([fristAnlaesse.ts](src/plugins/home/widgets/fristAnlaesse.ts)). Die Phasen-Marke des StatusVerlauf-Widgets liest `STATUS_VB` aus dem Schema
+- **[„Alle Felder"](src/plugins/antraege/alleFelder/AlleFelderSection.tsx)**: Code inline und Quellspalten im Tooltip. `frist_datum` sagt, dass es beim Import gerechnet wird
+- **[Status-Filter](src/plugins/antraege/filter/facets/StatusFilterFacet.tsx)**: Der Tooltip hat eine Zeile „Spalte" aus dem Schema
+- **Abnahme** in dev:local nach sauberem Reload, `fehler()` = 0 ([ui-muster.md](docs/architecture/ui-muster.md))
+
 ### v6.50.0 — Quellspalten: Bedingungen und Felder nennen ihre CSV-Spalten (September 2026)
 
 MINOR — Stufe B des Quellspalten-Vorhabens ([Spec](docs/superpowers/specs/2026-09-10-quellspalten-design.md)): „TIB gefüllt UND BIB gefüllt" sagte nicht, welche CSV-Spalte dahinter steht. Selbst Fachleute konnten eine falsche Spalte oder Kombination nur im Code finden. Jede Bedingung, die als Satz auf dem Bildschirm steht, nennt jetzt ihre Quellspalten, und zwar aus dem Schema aufgelöst statt von Hand abgeschrieben.

@@ -33,6 +33,8 @@ import { bearbeiterScopeLabel } from '@/plugins/antraege/bearbeiterFilter';
 import { getVerbund } from '@/core/services/csv/idb-csv';
 import { useZeilenAufgaben, type ZeilenAufgaben } from '@/core/hooks/useBestandsAufgaben';
 import { isStatusCockpitEnabled } from '@/config/feature-flags';
+import { QuellSpaltenTooltip } from '@/components/quellspalten';
+import { feldQuellen } from '@/core/status/bedingung-quellen';
 import {
   getAktiveVersion, getStatusEvents, aufgabenAnzeige,
   zahPhaseLabel, zahPhaseFuerStatusText,
@@ -261,16 +263,23 @@ function StatusZeile({
         // auseinanderlaufen: CALYPSO trägt am Verbund „abgelehnt/zurückgezogen"
         // (Phase: Abgeschlossen), am Teilvorhaben „Widerspruch zur Ablehnung".
         // Beides stimmt — ohne dieses Wort las es sich als Widerspruch (v4.132).
-        <span
-          className="shrink-0 inline-flex items-center rounded-[6px] px-1.5 py-0.5 text-[11px]"
-          title={`Verfahrensschritt des Verbund-Status (STATUS_VB) — die Teilvorhaben können weiter sein.`}
-          style={{
-            color: 'color-mix(in srgb, var(--tf-primary) 75%, var(--tf-text))',
-            background: 'color-mix(in srgb, var(--tf-primary) 12%, var(--tf-bg))',
-          }}
+        // Die Quellspalte kommt aus dem Schema statt als festes „(STATUS_VB)" im
+        // Text — so sagt der Tooltip auch, wenn ein Programm sie nicht mappt.
+        <QuellSpaltenTooltip
+          erklaere={idx => feldQuellen(['STATUS_VB'], idx,
+            'Verfahrensschritt des Verbund-Status — die Teilvorhaben können weiter sein.')}
+          wrapperClassName="shrink-0 inline-flex"
         >
-          {zahPhaseLabel(phase, version.zahPhasen)}
-        </span>
+          <span
+            className="inline-flex items-center rounded-[6px] px-1.5 py-0.5 text-[11px] cursor-help"
+            style={{
+              color: 'color-mix(in srgb, var(--tf-primary) 75%, var(--tf-text))',
+              background: 'color-mix(in srgb, var(--tf-primary) 12%, var(--tf-bg))',
+            }}
+          >
+            {zahPhaseLabel(phase, version.zahPhasen)}
+          </span>
+        </QuellSpaltenTooltip>
       ) : laden ? (
         <span className="shrink-0 text-[11px] text-[var(--tf-text-tertiary)]">…</span>
       ) : null}

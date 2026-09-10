@@ -60,6 +60,14 @@ export interface FristAnlass {
    * (0/undefined = keine). Wird von `buendleNachVerbund` gesetzt.
    */
   weitere?: number;
+  /** Bei Meilenstein-Anlässen der Plan-Knoten — für die Quellspalten im Tooltip. */
+  knoten?: MeilensteinKnoten;
+  /**
+   * Bei Zieltag-Anlässen die Felder, aus denen `grund` gelesen wurde (der
+   * Verbund-Status). Fehlt beim Kürzel-Paar: dessen Spalten kennt nur der
+   * Katalog, und eine aus dem Kürzel zusammengesetzte Spalte wäre geraten.
+   */
+  quellFelder?: readonly string[];
 }
 
 /**
@@ -83,6 +91,8 @@ export function zieltagAnlass(
     // aber nicht bezifferbar — und eine erfundene Zahl wäre schlimmer als keine.
     ueberTage: w.tage !== null && w.zieltage !== null ? w.tage - w.zieltage : null,
     gerissen: true,
+    // `statusRoh` ist der Verbund-Status (`useFristAnlaesse`) — seine Quellspalte.
+    ...(w.paar ? {} : { quellFelder: ['STATUS_VB'] }),
   };
 }
 
@@ -115,6 +125,7 @@ export function meilensteinAnlaesse(
         grund: k.label,
         ueberTage: Number.isNaN(sollMs) ? null : Math.floor((heuteMs - sollMs) / MS_TAG),
         gerissen: e.zustand === 'gerissen',
+        knoten: k,
       });
     }
   }
