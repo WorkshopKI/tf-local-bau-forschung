@@ -252,6 +252,24 @@ function forEachKuerzelValue(
 }
 
 /**
+ * Welche Fachrollen an diesem Antrag **besetzt** sind — ob in der
+ * Bearbeiter-Spalte der Rolle überhaupt ein Kürzel steht, nicht welches.
+ *
+ * Für den Assistenten („sind AB und FB zugewiesen?"): er darf wissen, DASS eine
+ * Rolle besetzt ist, nie WER. Mit dem datierten Verlauf daneben entstünde sonst
+ * ein Aktivitätsprotokoll (vorgangssystem.md §12.6). Deshalb kommen hier nur
+ * Rollen heraus, keine Werte — und die Spaltennamen bleiben in dieser Datei.
+ */
+export function besetzteRollen(antrag: AntragListItem): Rolle[] {
+  const out: Rolle[] = [];
+  for (const [rolle, spalten] of Object.entries(ROLLEN_SPALTEN) as [Rolle, { bearbeiter: string[] }][]) {
+    const keys = spalten.bearbeiter;
+    if (forEachKuerzelValue(antrag, keys, new Set(keys), () => true)) out.push(rolle);
+  }
+  return out;
+}
+
+/**
  * Sucht zu den (bereits uppercase) Tokens die **Schreibweise, die in den Daten
  * steht** — „THü" zu `THÜ`. Nur zum Beschriften (`anzeigeTokens`).
  *

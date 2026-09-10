@@ -1,0 +1,86 @@
+# Der Assistent kennt den Vorgang und schlägt Fragen vor — Umsetzungsplan
+
+> **Für agentische Bearbeiter:** ERFORDERLICHER SUB-SKILL: `superpowers:executing-plans` (Schritte mit Checkboxen). Gate/Abnahme/Commit bleiben im Hauptlauf.
+
+**Grundlage:** [docs/superpowers/specs/2026-09-10-assistent-fragevorschlaege-design.md](../specs/2026-09-10-assistent-fragevorschlaege-design.md)
+
+## Ziel
+
+Der Assistent bekommt zu jedem Vorgang eine deterministische **Vorgangsakte** und bietet klickbare Fragen an, die nur erscheinen, wenn ihr Signal vorliegt — im leeren Dock und als Folgefragen unter jeder Antwort. Die PL wird im Profil sichtbar und bekommt eigene Fragen. Der Bestandslauf rechnet nur noch über die zwei jüngsten Richtlinien.
+
+## Architektur
+
+```
+Profil (Fachrolle + PL) ─┐
+useStatusVerlauf(vb) ────┤
+useVerbundMeilensteine ──┼─▶ baueVorgangsakte (rein) ─▶ VorgangsAkte + AkteSignale
+Anträge-Store (Titel) ───┘                                   │               │
+                                                              ▼               ▼
+                              assembliere (Faktenblock + Blöcke)     fragenFuer / folgefragen (rein)
+                                                              │               │
+                                                              ▼               ▼
+                                    Turn: waehleModellFuerLauf('standard') ─▶ Dock: Chips, ein Klick schickt ab
+```
+
+Blöcke je Frage: `akte` immer (mit Entität) · `verlauf` · `journal` · `bestand` (Etappen 2 und 3). Ein zugeschalteter Block bleibt für die Unterhaltung stehen.
+
+## Tech-Stack
+
+TypeScript, React 19, Zustand (vanilla Session-Store), Vitest (node).
+
+## Global Constraints
+
+- **Pitfalls/Invarianten:** Panel-Invarianten 1–6 ([assistent-panel.md](../../architecture/assistent-panel.md)): nur intern, resetChat je Turn (#36), Fakten deterministisch, ein Aufruf je Turn. #44 (kein Status abgeleitet), #46 (kein Zustand ohne sichtbare Auskunft), #12 (Status nur über Kategorie-Helfer), #27 (Kürzel nur über `useMeinKuerzel`), §12.6 (keine Personen-Achse).
+- **Rein bleibt rein:** Akte-Bau, Katalog und Assembler ohne React/IDB/Uhr; die unreine Grenze sind Hooks und `kontextSnapshot.ts`.
+- **Gate:** `check:quick` im Loop, `check` vor jedem Commit, danach `build:devpl` im Hintergrund, Exit-Code prüfen.
+- **Tests:** Schlägt ein neuer Test nur im Suite-Lauf fehl → Datei in `ISOLATED_TESTS`; den Test nicht verbiegen. Jeder neue Guard einmal rot gesehen.
+- **Windows-Shell:** keine Heredocs; Commit-Message per Write nach `.git/COMMIT_MSG.tmp`.
+- **Parallele Sessions:** nur eigene Pfade stagen. Der geteilte Bestands-Durchgang (`roh-halter.ts`) ist gebaut; Etappe 3 ändert nur, *welche* Programme gerechnet werden.
+- **Abnahme:** `dev:local` (freien Port aus `.claude/launch.json` wählen), `__tf.bereit()`, `__tf.fehler()` = 0, mit ausgeschaltetem Beta-Schalter.
+
+## Dateien im Überblick
+
+| Datei | Rolle |
+|---|---|
+| `src/core/services/assistent/kontext/akte.ts` (neu, + Test) | Typ `VorgangsAkte`, `akteZeilen()` — rendert, rechnet nicht |
+| `src/core/services/assistent/kontext/{types,assembliere,index}.ts` (+ Test) | Akte + Nutzerrolle in den Faktenblock, Blöcke, Systemtext, Budget |
+| `src/plugins/chat/assistent/vorgangsakte.ts` (neu, + Test) | `baueVorgangsakte()` aus Verlauf, Meilensteinen, Anträgen — rein |
+| `src/plugins/chat/assistent/useVorgangsakte.ts` (neu) | Hook: Verbund auflösen, laden, memoisieren |
+| `src/plugins/chat/assistent/fragenKatalog.ts` (neu, + Test) — ersetzt `quickActions.ts` | Katalog, `fragenFuer`, `folgefragen` |
+| `src/plugins/chat/assistent/nutzerRolle.ts` (neu, + Test) | Fachrolle + PL aus dem Profil lesen |
+| `src/plugins/chat/assistent/{turn,sessionStore,kontextSnapshot,useAssistentController,AssistentPanelHost}.ts(x)` (+ `turn.test.ts`) | Verdrahtung, Modellwahl, Folgefragen |
+| `src/core/types/config.ts`, `src/plugins/einstellungen/profil/AntraegeSichtGruppe.tsx` | Profilfeld `projektleitung`, Schalter, Wortwahl „nur Projektleitung" |
+| `src/__tests__/conventions-daten.test.ts` | Guard: keine Bearbeiter-Spalten im Assistenten |
+| Etappe 3: `src/core/status/betrachtungsbereich.ts`, `src/core/hooks/useBestandsAufgaben.ts`, `src/core/status/aufgaben-anzeige.ts` + die sechs Leser von `aufgabenAnzeige`, `src/plugins/vorgangs-board/*` | Lauf über zwei Richtlinien, benannter Grund |
+| Doku: `assistent-panel.md`, `CONTEXT.md`, `feedback-kontext/*`, `vorgangssystem.md`, CHANGELOG + `changelog-user.md` | Ist-Zustand |
+
+## Etappe 1 — Vorgangsakte, Katalog, PL, Modell (v6.54)
+
+- [x] **T1 Nutzerrolle:** `projektleitung?: boolean` im Profil; `leseNutzerRolle(profile)` → `{ fachrolle: Rolle | 'alle', projektleitung: boolean }`; `leseStatusRolle` unverändert. Test.
+- [x] **T2 Profil-UI:** Schalter „Projektleitung" unter „Meine Rolle" (sichtbar, wo das Assistent-Panel freigeschaltet ist); mit Schalter heißt „Alle Rollen" „Keine eigene – nur Projektleitung"; die Befund-Zeile schlägt dann keine Rolle aus alten Fällen vor.
+- [x] **T3 Akte-Typ + Renderer** (`kontext/akte.ts`): Lage, Aufgaben je Rolle (mit Adresse, TV-Anteil, „abgeleitet"), offene Paare, Frist-Zustand mit Basis/Grund, Stillstand (belegt/„mindestens"), Meilenstein-Prognose, Verlaufs-Kennzahlen + Hauptereignisse, Titel von Verbund und TV, Kurzbeschreibung. Leere Signale entfallen. Test.
+- [x] **T4 Akte-Bau** (`vorgangsakte.ts`): aus `StatusVerlauf`-Daten (`ermittleTodosAlleRollen` → `baueAufgabe` je Rolle, `offenePaareJeTeilvorhaben`, `pruefeStillstand`, `baueChronik`, `verlaufKennzahlen`), `fristErgebnisVon`, `VerbundMeilensteine`; TV-Entität schneidet auf ihr Teilvorhaben. Keine Bearbeiter-Kürzel im Ergebnis. `AkteSignale` für den Katalog. Test mit Fixture.
+- [x] **T5 Hook** `useVorgangsakte(entitaet)`: Verbund auflösen (Antrag → `verbund_id`), `useStatusVerlauf`, `useVerbundMeilensteine` nur mit Flag; nur bei offenem Dock.
+- [x] **T6 Assembler:** Eingabe `akte` + `nutzer`; Faktenblock rendert beides; Systemtext „Bearbeitung (AB, FB) und Projektleitung"; `GESAMT_MAX_CHARS` → 100 000. Bestehende Tests grün, neue für Akte/Nutzer.
+- [x] **T7 Turn:** Modellwahl `waehleModellFuerLauf('standard', prompt.length)` → `ziel` an `submitMessage` und `starteFrischenChat`. Test: `ziel` kommt an, Aufstieg bei Überlänge.
+- [x] **T8 Katalog** (`fragenKatalog.ts`): Gruppen A, B (ohne Liegezeit-Vergleich), C (nur „seit Eingang" + „TV-Eingänge", Rest Etappe 2), D, G1/G2 + Startseiten-Fragen ohne Bestand; `fragenFuer(signale)`, `folgefragen(signale, gestellt, letzteGruppe)`. `quickActions.ts` + Test entfallen. Test: jede Frage mit/ohne Signal, nie leer, Folgefragen ohne Gestelltes.
+- [x] **T9 Dock:** Akte in Snapshot/Controller; leeres Dock zeigt die Katalogfragen nach Gruppe; unter der letzten Antwort 2–3 Folgefragen; Klick schickt ab.
+- [x] **T10 Guard** „keine Bearbeiter-Spalten im Assistenten", rot gesehen. Modul-lokal in `__tests__/ohnePersonen.test.ts` — in `conventions-daten.test.ts` riss er die Größen-Ratsche (1 948 > 1 925 Zeilen).
+- [x] **T11 Messen + Abnahme** (10.09.2026, dev:local 5177): Akte CALYPSO 3 263 Zeichen / 43 Zeilen, ZKN084412 (7 TV, 239 Termine, gekappt auf 30) 3 865 / 48 — rund 4 % des Budgets. Chips folgen den Signalen (offenes Paar → „Worauf wartet er?"); PL-Gruppe nur mit Schalter, mit Beta/Experte aus; Klick schickt ab; `__tf.fehler()` = 0. Befund dabei: „abgeschlossen" nannte noch 303 Tage Überschreitung — behoben, Test. Offen: echte Antwort + Folgefragen nur mit interner KI.
+- [x] **T12 Doku + Version:** `assistent-panel.md` (Quick Actions → Fragen-Katalog, Vorgangsakte, Modell, Personen), `CONTEXT.md` (PL), Feedback-Kontext, Bump minor, Gate, Build, Commit.
+
+## Etappe 2 — Verlauf und Journal (v6.55)
+
+- [ ] **T13 Block `verlauf`:** volle Chronik (Kürzel × Tag, Rollen, Träger) + Statusabschnitte mit Dauer/Konfidenz (`baueVerlaufFuerVorgang`), Kopf mit „rekonstruiert", Fassung, Nullpunkt. Test.
+- [ ] **T14 Block `journal`:** nur aus einem schon geladenen `useJournalChroniken`-Ergebnis; Änderungen, Zurückgenommenes, unscharfe Spannen, Nullpunkt. Test.
+- [ ] **T15 Blöcke im Session-Store:** zugeschaltete Blöcke je Unterhaltung; „Neue Unterhaltung" und Routenwechsel lösen sie. Test.
+- [ ] **T16 Katalog C vollständig**, dazu E (Artefakt-Stand, Prüfer-Hinweise, Werkbank) und F (Vorgänger, Zuwendung) mit ihren Signalen.
+- [ ] **T17 Messen, Abnahme, Doku, Version, Gate, Build, Commit.**
+
+## Etappe 3 — Bestandslauf über zwei Richtlinien, Bestandsfragen (v6.56)
+
+- [ ] **T18 Lauf-Menge:** `BESTANDSLAUF_PROGRAMME` aus `RICHTLINIEN_GENERATIONEN.slice(-2)`; `bestandslaufMenge(bereich)` = Bereich ∩ zwei Generationen. `useBestandsAufgaben` rechnet damit; der Schlüssel trägt die Menge. Test.
+- [ ] **T19 Benannter Grund:** `ZeilenAufgaben.ausserhalbLauf(unterprogrammId)`; `aufgabenAnzeige` sagt bei Rückfall „für diese Richtlinie rechnet der Bestandslauf nicht"; die sechs Leser reichen es durch. Vorgangs-Board: Bereichs-Chip zählt nur den Bereich, die nicht gerechnete Richtlinie steht als eigener Hinweis. Test.
+- [ ] **T20 Block `bestand`:** Stau je Rolle, ZAH-Phasen-Verteilung, Liegezeit-Verteilung (`medianLiegezeit`), Fristen der nächsten 14 Tage, ohne Bearbeiter (gezählt); Grundlage „Richtlinien 2020 und 2025". Rein + Test.
+- [ ] **T21 Katalog G (Bestand) + B5 (Liegezeit-Vergleich);** Klick ohne gültiges Ergebnis startet den Lauf, Dock zeigt „rechne Bestand …", danach wird abgeschickt.
+- [ ] **T22 Messen** (Lauf vorher/nachher gepaart, gleiche Daten), Abnahme, Doku (`vorgangssystem.md`, `assistent-panel.md`), Version, Gate, Build, Commit.

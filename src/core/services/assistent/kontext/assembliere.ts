@@ -13,7 +13,12 @@ import { statusKurzLabel, statusLabel } from '@/core/utils/status-wert-labels';
 import { schrittText } from '@/core/utils/naechsterSchritt';
 import { QUELLENTREUE_REGELN } from '@/core/services/skills/registry/grundsatz';
 import type { OramaSearchResult } from '@/core/services/search/orama-store';
-import type { ArbeitsvorratUebersicht, AssistentKontextEingabe, AssistentPrompt, AssistentTurn, KontextEntitaet, VorhabenDokument } from './types';
+import { ROLLE_LANG } from '@/core/status/rollen';
+import { akteZeilen, type VorgangsAkte } from './akte';
+import type {
+  ArbeitsvorratUebersicht, AssistentKontextEingabe, AssistentPrompt, AssistentTurn, KontextEntitaet,
+  NutzerRolle, VorhabenDokument,
+} from './types';
 
 // ── Deterministische Budget-Konstanten (mit Begründung, keine Magie) ─────────
 /** Top-k Retrieval-Chunks im Prompt (bevorzugt die stärksten Treffer). */
@@ -31,8 +36,16 @@ export const HISTORIE_TURN_MAX_CHARS = 1200;
 /** Gesamt-Zeichen-Budget der Historie (ältester Turn zuerst gekürzt). */
 export const HISTORIE_MAX_CHARS = 6000;
 /** Hartes Gesamt-Budget. Bei Überschreitung wird in fester Reihenfolge gekürzt:
- *  erst Historie (älteste zuerst), dann Retrieval-k — der Faktenblock NIE. */
-export const GESAMT_MAX_CHARS = 24_000;
+ *  erst Historie (älteste zuerst), dann Retrieval-k — der Faktenblock NIE.
+ *
+ *  100 000 Zeichen sind geschätzt 25–30k Token: das Standard-Modell (gpt-oss,
+ *  62k Fenster) behält Luft für Denken und Antwort. Bis v6.53 waren es 24 000 —
+ *  ein Zehntel des Fensters, bemessen, als der Faktenblock fünf Zeilen hatte.
+ *  Ist ein Prompt größer als das Fenster der Rolle, steigt der Turn auf das
+ *  starke Modell (`waehleModellFuerLauf`). Mehr Platz heißt nicht mehr Inhalt:
+ *  welche Blöcke mitreisen, entscheidet die Frage, weil irrelevanter Kontext
+ *  die Modelle verwirrt. */
+export const GESAMT_MAX_CHARS = 100_000;
 
 function collapse(s: string): string {
   return s.replace(/\s+/g, ' ').trim();
@@ -54,10 +67,14 @@ function trimTo(s: string, max: number): string {
 // ── Block 1: Systemblock (inkl. geteiltem Grundsatz-Block) ───────────────────
 const SYSTEM_BLOCK = [
   'Du bist der Assistent in TeamFlow Local — einer lokalen App für ZIM-Förderanträge.',
-  'Du unterstützt Gutachter und Projektleitung bei ihrer aktuellen Arbeit.',
+  'Du unterstützt die Bearbeitung (AB, FB) und die Projektleitung bei ihrer aktuellen Arbeit.',
   '',
   'Grenzen:',
   '- Nutze AUSSCHLIESSLICH die unten bereitgestellten Fakten und Auszüge. Kennst du etwas nicht, sage das offen — rate nicht.',
+  // Die Fakten tragen bewusst keine Bearbeiter-Kürzel (Aktivitätsprotokoll,
+  // vorgangssystem.md §12.6). Ohne diese Zeile ergänzte ein Modell auf „wer
+  // bearbeitet das?" womöglich einen Namen aus einem Dokumentauszug.
+  '- Nenne keine Personen. Wer zuständig ist, sagst du als Rolle (AB, FB, QS, PA, Juristen, Antragsteller).',
   // Vorher: „Triff keine Rechts- oder Förderentscheidungen" ohne erlaubte Alternative.
   // Auf „Ist das förderfähig?" — in einer App mit einem Förderfähigkeits-Modul die
   // naheliegendste Frage — sagte der Prompt nicht, was das Modell stattdessen TUN soll.
@@ -88,7 +105,27 @@ function gedaechtnisBlock(eintraege: ReadonlyArray<{ text: string }>): string {
 }
 
 // ── Block 2: Faktenblock (deterministisch, wird NIE gekürzt) ─────────────────
-function entitaetZeilen(e: KontextEntitaet): string[] {
+/**
+ * Wer fragt — damit „was muss ICH tun?" eine Antwort hat. `null`, wenn weder
+ * Fachrolle noch Projektleitung gewählt ist: eine Zeile „Rolle: alle" wäre keine
+ * Auskunft, sondern ein Rätsel.
+ */
+function nutzerZeile(n: NutzerRolle | undefined): string | null {
+  if (!n) return null;
+  const fach = n.fachrolle === 'alle' ? null : ROLLE_LANG[n.fachrolle];
+  if (n.projektleitung) {
+    return `Fragende Person: Projektleitung${fach ? `, bearbeitet zusätzlich als ${fach}` : ' (bearbeitet selbst keine Vorgänge)'}`;
+  }
+  return fach ? `Fragende Person: ${fach}` : null;
+}
+
+/**
+ * @param akteTraegtAufgaben Die Vorgangsakte führt die Aufgaben aller Regelsätze.
+ *   Dann entfällt der RÜCKFALL (alte Status-Formel) — neben den Regeltreffern der
+ *   Akte stünde sonst „keine Regel greift", und beides zugleich kann nicht wahr
+ *   sein. Die eigene Kaskaden-Zeile der Karte bleibt.
+ */
+function entitaetZeilen(e: KontextEntitaet, akteTraegtAufgaben: boolean): string[] {
   const zeilen: string[] = [];
   const artLabel = e.art === 'verbund' ? 'Verbund' : 'Antrag';
   zeilen.push(`${artLabel}: ${e.titel} (${e.id})`);
@@ -109,11 +146,11 @@ function entitaetZeilen(e: KontextEntitaet): string[] {
   // dieselbe Rangfolge wie in den Karten der App (CLAUDE.md → „Was ist zu tun?").
   // Ohne sie sagte der Assistent „Ablehnungsbescheid erstellen", während die
   // Karte daneben „Widerspruch gg Abl bearbeiten" zeigte.
-  if (e.aufgabe) {
+  if (e.aufgabe && (e.aufgabe.ausKaskade || !akteTraegtAufgaben)) {
     const herkunft = e.aufgabe.ausKaskade ? '' : ' (aus dem Status abgeleitet, keine Regel greift)';
     const neben = e.aufgabe.neben ? ` — ${e.aufgabe.neben}` : '';
     zeilen.push(`Was zu tun ist${herkunft}: ${collapse(e.aufgabe.text)}${neben}`);
-  } else {
+  } else if (!e.aufgabe && !akteTraegtAufgaben) {
     const schritt = schrittText(e.status, e.precheckLabel);
     if (schritt) zeilen.push(`Nächster Schritt: ${schritt}`);
   }
@@ -126,10 +163,20 @@ function entitaetZeilen(e: KontextEntitaet): string[] {
   return zeilen;
 }
 
+/** Die Akte, sofern sie zur Entität dieses Turns gehört. */
+function passendeAkte(eingabe: AssistentKontextEingabe): VorgangsAkte | null {
+  const { akte, entitaet } = eingabe;
+  return akte && entitaet && akte.fuer === entitaet.id ? akte : null;
+}
+
 function faktenBlock(eingabe: AssistentKontextEingabe): string {
   const zeilen = ['=== Kontext (deterministisch aus der App) ===', `Ansicht: ${eingabe.routeBeschreibung}`];
+  const nutzer = nutzerZeile(eingabe.nutzer);
+  if (nutzer) zeilen.push(nutzer);
   if (eingabe.entitaet) {
-    zeilen.push(...entitaetZeilen(eingabe.entitaet));
+    const akte = passendeAkte(eingabe);
+    zeilen.push(...entitaetZeilen(eingabe.entitaet, (akte?.aufgaben.length ?? 0) > 0));
+    if (akte) zeilen.push(...akteZeilen(akte));
   } else {
     zeilen.push('Keine Entität ausgewählt — es liegen nur die Ansicht und ggf. Suchtreffer vor.');
   }

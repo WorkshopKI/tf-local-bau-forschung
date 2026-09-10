@@ -19,5 +19,18 @@ export type {
   AssistentPrompt,
   AssistentTurn,
   KontextEntitaet,
+  NutzerRolle,
   VorhabenDokument,
 } from './types';
+export { akteZeilen, AKTE_MAX_TERMINE } from './akte';
+export type {
+  AkteAufgabe,
+  AkteFrist,
+  AkteMeilensteine,
+  AkteOffenesPaar,
+  AkteStillstand,
+  AkteTeilvorhaben,
+  AkteTermin,
+  AkteVerlauf,
+  VorgangsAkte,
+} from './akte';

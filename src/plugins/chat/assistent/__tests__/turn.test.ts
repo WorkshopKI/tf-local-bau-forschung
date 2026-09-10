@@ -76,6 +76,23 @@ describe('fuehreAssistentTurnAus', () => {
     expect(gesehen).toEqual([calypso]);
   });
 
+  it('schickt Reset und Frage an das Modell, das `modellFuer` nach der Promptlänge wählt', async () => {
+    // Reset und Senden müssen denselben Tab treffen — ein frischer Chat im
+    // Standard-Tab schützt eine Frage im starken Tab nicht (Pitfall #36).
+    const gesehen: unknown[] = [];
+    const transport = fakeTransport({
+      resetChat: async (ziel) => { gesehen.push(['reset', ziel]); return 'ok'; },
+      submitMessage: async (_m, _s, opts) => { gesehen.push(['submit', opts?.ziel]); return 'A.'; },
+    });
+    const laengen: number[] = [];
+    await fuehreAssistentTurnAus('Frage', [], {
+      ...deps(transport),
+      modellFuer: z => { laengen.push(z); return 'stark'; },
+    });
+    expect(gesehen).toEqual([['reset', 'stark'], ['submit', 'stark']]);
+    expect(laengen[0]).toBeGreaterThan(100); // der ganze Prompt, nicht nur die Frage
+  });
+
   it('meldet einen Fehler bei leerer Antwort', async () => {
     const res = await fuehreAssistentTurnAus('Frage', [], deps(fakeTransport({ submitMessage: async () => '   ' })));
     expect(res.ok).toBe(false);

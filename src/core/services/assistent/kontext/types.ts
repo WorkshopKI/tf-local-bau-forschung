@@ -13,8 +13,21 @@
  * bleibt der Assembler byte-deterministisch.
  */
 import type { OramaSearchResult } from '@/core/services/search/orama-store';
+import type { Rolle } from '@/core/status/typen';
+import type { VorgangsAkte } from './akte';
 
 export type AssistentEntitaetArt = 'antrag' | 'verbund';
+
+/**
+ * Wer fragt — die Fachrolle aus dem Profil und, unabhängig davon, ob der Nutzer
+ * Projektleitung ist. Zwei Angaben, weil viele PL nebenbei noch als FB oder AB
+ * bearbeiten.
+ */
+export interface NutzerRolle {
+  /** `alle` = keine eigene Fachrolle gewählt. */
+  fachrolle: Rolle | 'alle';
+  projektleitung: boolean;
+}
 
 /**
  * Selektierte Entität, wie der Controller sie aus dem Antraege-Store aufbereitet.
@@ -167,6 +180,14 @@ export interface AssistentKontextEingabe {
    * kein Block (bei selektierter Entität trägt deren eigener Faktenblock).
    */
   arbeitsvorratUebersicht?: ArbeitsvorratUebersicht | null;
+  /**
+   * Die Vorgangsakte der Entität — deterministisch im Plugin gebaut. Gerendert
+   * nur, wenn `akte.fuer` zur Entität passt; eine Akte, die einen Wechsel des
+   * Vorgangs überlebt hat, spräche über den falschen.
+   */
+  akte?: VorgangsAkte | null;
+  /** Wer fragt. Fehlt sie oder ist nichts gewählt, entfällt die Zeile. */
+  nutzer?: NutzerRolle;
 }
 
 export interface AssistentPrompt {

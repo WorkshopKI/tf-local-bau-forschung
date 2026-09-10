@@ -12,6 +12,7 @@ Feature-Flag `features.assistentPanel` (`isAssistentPanelEnabled()`, dev + pl + 
 4. **Ein Aufruf pro Turn.** Kein Auto-Retry, keine Schleife, keine Selbstkorrektur. Fehler → verständliche Panel-Meldung, Frage bleibt im Eingabefeld, **Historie unverändert** (der fehlgeschlagene Turn wird nicht einsortiert).
 5. **Geteilter Grundsatz-Block, kein Duplikat.** Der Basis-Block „streng quellenbasiert / nichts erfinden / aktiver Stil" lebt in EINER Konstante `GRUNDSATZ_REGELN` ([grundsatz.ts](../../src/core/services/skills/registry/grundsatz.ts)); Seed-Builder (`seed.ts`) UND der Assembler referenzieren sie. Byte-Identität ist kritisch (Journey-Paket-4-Rollout-Migration) → Guard `grundsatz.test.ts`.
 6. **Session-only Historie.** Kein IDB, kein Share, keine Persistenz der Konversation.
+7. **Keine Personen im Prompt** (v6.54). Die Vorgangsakte trägt einen datierten Verlauf; ein Bearbeiter-Kürzel daneben machte „wie lange hat X gebraucht?" beantwortbar — ein Aktivitätsprotokoll ([vorgangssystem.md §12.6](vorgangssystem.md)). Die Besetzung zählt `besetzteRollen` (nur Rollen, nie Werte), der Systemblock verbietet Namen. Guard `assistent-ohne-personen` ([ohnePersonen.test.ts](../../src/plugins/chat/assistent/__tests__/ohnePersonen.test.ts)).
 
 ## Bausteine
 
@@ -23,7 +24,10 @@ Feature-Flag `features.assistentPanel` (`isAssistentPanelEnabled()`, dev + pl + 
 | Turn-Orchestrator (rein) | [turn.ts](../../src/plugins/chat/assistent/turn.ts) | `fuehreAssistentTurnAus(frage, turns, deps)`; Transport→ping→Kontext→Retrieval→assemble→resetChat→submit; nie werfend |
 | Session-Store (vanilla) | [sessionStore.ts](../../src/plugins/chat/assistent/sessionStore.ts) | session-only Historie, optimistischer Append + Rollback bei Fehler |
 | Kontext-Snapshot (unrein) | [kontextSnapshot.ts](../../src/plugins/chat/assistent/kontextSnapshot.ts) | Route + Entität → `KontextEntitaet` (Vorrang: mitgegebener Schlüssel vor Store-Selektion, siehe unten); im Kein-Entität-Fall zusätzlich die Arbeitsvorrat-Übersicht |
-| Quick-Action-Katalog (rein) | [quickActions.ts](../../src/plugins/chat/assistent/quickActions.ts) | `quickActionsFuer(snapshot + hatIndex) → QuickAction[]`; routen-sensitive Presets (v1.1) |
+| Fragen-Katalog (rein) | [fragenKatalog.ts](../../src/plugins/chat/assistent/fragenKatalog.ts) | `fragenFuer` / `fragenNachGruppe` / `folgefragen`; jede Frage an ein Signal der Vorgangsakte gebunden (v6.54, löst die Quick Actions ab) |
+| Vorgangsakte (rein) | [akte.ts](../../src/core/services/assistent/kontext/akte.ts) (Form + Text), [vorgangsakte.ts](../../src/plugins/chat/assistent/vorgangsakte.ts) (Bau) | was die App über EINEN Vorgang schon rechnet, als Faktenblock |
+| Akte-Hook (unrein) | [useVorgangsakte.ts](../../src/plugins/chat/assistent/useVorgangsakte.ts) | lädt `useStatusVerlauf` + `useVerbundMeilensteine`, nur bei offenem Dock |
+| Wer fragt | [nutzerRolle.ts](../../src/plugins/chat/assistent/nutzerRolle.ts) | Fachrolle + Projektleitung aus dem Profil |
 | Arbeitsvorrat-Übersicht (rein) | [arbeitsvorratUebersicht.ts](../../src/plugins/chat/assistent/arbeitsvorratUebersicht.ts) | `baueArbeitsvorratUebersicht(antraege, now)`; frist-sortierte Übersicht für den Kein-Entität-Faktenblock |
 | UI-Dock-Zustand | [panelUiStore.ts](../../src/plugins/chat/assistent/panelUiStore.ts) | offen/Breite (localStorage) — geteilt zwischen Shell-Mount, Suche-Button, Command-Palette; dazu die transienten `vorgabe`/`vorgabeScope` |
 | Controller (Hook) | [useAssistentController.ts](../../src/plugins/chat/assistent/useAssistentController.ts) | verdrahtet Transport/Kontext/Retrieval, exponiert schlanken Controller |
@@ -128,13 +132,13 @@ danach hätte die eigenen Treffer dort schon verloren.
 Analog zur fixen Skill-Komposition: **System → Fakten → Retrieval → Historie → Frage**.
 
 1. **System** — Rolle, Grenzen (nur bereitgestellte Fakten; fehlt Info → sagen statt raten; keine Rechts-/Förderentscheidungen), Deutsch, kurz. Bindet `GRUNDSATZ_REGELN` ein.
-2. **Fakten (deterministisch, wird NIE gekürzt)** — Route in Worten, Entität + Stammdaten, Status-Label + Kategorie, `naechsterSchritt()`, Frist-Hinweis (vom Controller aus `fristAnzeige`/`daysUntilFristAware` vorformatiert; hält den Assembler frei von Plugin-Importen).
+2. **Fakten (deterministisch, wird NIE gekürzt)** — Route in Worten, die fragende Person (Fachrolle, Projektleitung), Entität + Stammdaten, Status-Label + Kategorie, was zu tun ist, Frist-Hinweis (vom Controller vorformatiert; hält den Assembler frei von Plugin-Importen) und die **Vorgangsakte** (siehe unten). Trägt die Akte die Aufgaben aller Regelsätze, entfällt der Rückfall auf die alte Status-Formel — „keine Regel greift" neben Regeltreffern kann nicht wahr sein.
    - **2a. Arbeitsvorrat-Übersicht (nur Kein-Entität-Fall, deterministisch, wird NIE gekürzt)** — auf Liste/Startseite ohne selektierte Entität hängt der Assembler direkt nach den Fakten einen kompakten Übersichtsblock an (In-Arbeit-Zahl, überfällig/dringend, die nächsten Fristen mit nächstem Schritt). So tragen die Quick Actions „Fristen"/„Was ist heute dran?" auch ohne Entität echte Fakten. Der Controller füllt `arbeitsvorratUebersicht` (aus `partitionArbeitsvorrat` + `daysUntilFristAware`); bei selektierter Entität `null` (deren eigener Faktenblock trägt).
 3. **Retrieval (optional)** — Top-k Orama-Chunks (k=5), Treffer **unter `RETRIEVAL_MIN_SCORE` verworfen** → dann KEIN Block (statt schlechtem Block); als `[n] Titel: Auszug`. Das Retrieval selbst läuft im Controller (`useSearch().search`, unrein) und wird als `treffer` hereingereicht → Assembler bleibt byte-deterministisch. **Mit Entität nur aus deren Dokumenten** (siehe unten).
 4. **Historie** — bisherige Turns dieser Sitzung.
 5. **Frage** + Ausgabeanweisung: auf Auszüge gestützte Aussagen referenzieren `[n]` (mappt auf `ChatSource.n`).
 
-**Budget** (`GESAMT_MAX_CHARS`): bei Überschreitung wird in fester Reihenfolge gekürzt — erst Historie (ältester Turn zuerst), dann Retrieval-k (schwächster Treffer zuerst); **Fakten + Frage bleiben unangetastet**.
+**Budget** (`GESAMT_MAX_CHARS` = 100 000 Zeichen, geschätzt 25–30k Token; bis v6.53 waren es 24 000): bei Überschreitung wird in fester Reihenfolge gekürzt — erst Historie (ältester Turn zuerst), dann Retrieval-k (schwächster Treffer zuerst); **Fakten + Frage bleiben unangetastet**.
 
 ## Fundstellen = Orama + bestehendes Chat-Zitatsystem
 
@@ -148,19 +152,47 @@ Shell-weit: EINMAL in [ShellLayout](../../src/core/ShellLayout.tsx) hinter `isAs
 
 **Dock-Form:** Geschlossen eine dauerhafte schmale Spine am rechten Blattrand (`SPINE_WIDTH` = 28px, [panelUiStore.ts](../../src/plugins/chat/assistent/panelUiStore.ts)) — Mini-Primär-Badge oben + dauerhaft sichtbares vertikales Label „ASSISTENT" (kein Tooltip, das Label ist ohnehin sichtbar). Die Spine **bleibt bei offenem Panel sichtbar** und togglet (Klick schließt wieder); das Panel legt sich als Overlay links daneben (`right: SPINE_WIDTH`), verdeckt sie also nicht — breite Tabellen behalten unter dem Overlay ihre Breite. Auf der Suche steht das Panel stattdessen **im Fluss** neben der Tabelle (in-flow `<aside>`), endet aber ebenso an der Spine. ShellLayout reserviert `SPINE_WIDTH` als rechten `<main>`-Rand, sobald irgendeine Spine steht (`spineAktiv = dockAktiv || Suche`), damit die fixe Spine Inhalt/Scrollbar nicht überlappt.
 
-## Quick-Action-Leiste (v1.1, Topf 1)
+## Vorgangsakte (v6.54)
 
-Statt statischer Beispielfragen zeigt die Erststart-Leiste **routen-sensitive Quick Actions** — vorgefertigte Fragen, die den Turn-Pfad **nicht** ändern: ein Klick schickt `action.frage` durch denselben `c.send()` wie eine getippte Frage (ein Aufruf pro Turn, resetChat, intern, deterministische Fakten). Der Katalog ist **rein** ([quickActions.ts](../../src/plugins/chat/assistent/quickActions.ts), Guard: kein LLM entscheidet die Sichtbarkeit), die Sichtbarkeit rein deterministisch aus `snapshot.entitaet`/`routeBeschreibung` + der (unrein ermittelten, hereingereichten) Orama-Index-Präsenz. **Voraussetzung nicht erfüllt → ausblenden, nicht ausgrauen.**
+Bis v6.53 trug der Faktenblock Status, Fördervariante, die Aufgabe, einen Frist-Hinweis und vier Stammdaten. Alles andere, was die App über einen Vorgang schon rechnet, reiste nicht mit — und die Schnellfragen boten nur an, was diese Zeilen trugen. Die **Vorgangsakte** ([akte.ts](../../src/core/services/assistent/kontext/akte.ts)) holt es nach, ohne einen neuen Rechenweg: jede Aussage kommt aus der Funktion, die auch die Karte daneben speist ([vorgangsakte.ts](../../src/plugins/chat/assistent/vorgangsakte.ts)).
 
-| id | sichtbar wenn | Träger |
+| Aussage | Quelle |
+|---|---|
+| Verfahrensschritt | `zahPhaseFuerStatusText` → `zahPhaseLabel` |
+| Aufgaben je Regelsatz, mit Adresse, TV-Anteil, „abgeleitet" | `ermittleTodosAlleRollen` → `baueAufgabe` je Rolle |
+| Halb offene Kürzel-Paare | `offenePaareJeTeilvorhaben` |
+| Bearbeitungsfrist mit Basis (D_AAE/D_XTE) | `fristErgebnisVon` / `criticalFristErgebnis` |
+| Stillstands-Wächter (ohne Journal → „mindestens") | `pruefeStillstand` |
+| Meilenstein-Prognose, gerissene und fällige Knoten | `useVerbundMeilensteine` (Flag `meilensteinMonitoring`) |
+| Verlaufs-Kennzahlen + die jüngsten 30 Termine | `baueChronik`, `verlaufKennzahlen` |
+| Teilvorhaben mit Status und Eingang, „alle Anträge da" | Projektion + Katalogfelder `AAE`/`XTE` |
+| Zuweisung AB/FB (nur gezählt) | `besetzteRollen` |
+
+- **Ein Antrag schneidet auf sein Teilvorhaben**, ein Verbund zeigt alle — dieselbe Auswahl wie `useZeilenTodo`.
+- **Kaskade, Paare und Wächter nur mit Flag `vorgangssystem`** — eine Aussage aus einer Rechnung, die in der Variante nirgends sichtbar ist, könnte niemand nachprüfen.
+- **Leere Signale entfallen** ohne Platzhalter. Die Akte trägt `fuer` (die Entität); der Assembler rendert sie nur, wenn sie zur Entität des Turns passt.
+- **Geladen nur bei offenem Dock** ([useVorgangsakte.ts](../../src/plugins/chat/assistent/useVorgangsakte.ts)) — dieselben Leser wie die Detailseite, kein Bestandslauf.
+
+## Fragen-Katalog (v6.54)
+
+Statt fünf fester Quick Actions zeigt das Dock die Fragen, die der Assistent **zu diesem Vorgang** beantworten kann ([fragenKatalog.ts](../../src/plugins/chat/assistent/fragenKatalog.ts)). Jeder Eintrag hängt an einem Signal der Akte; fehlt es, fehlt die Frage („ausblenden, nicht ausgrauen"). **Die App entscheidet, nicht das Modell** — ließe man es Folgefragen erfinden, böte es Fragen an, zu denen es keine Daten hat. Ein Klick schickt die Frage durch denselben `c.send()` wie eine getippte.
+
+| Gruppe | Fragen | erscheint, wenn |
 |---|---|---|
-| `naechster-schritt` | Entität selektiert | `naechsterSchritt()` im Faktenblock |
-| `wo-stehe-ich` | Entität selektiert | Status/Kategorie + nächster Schritt im Faktenblock |
-| `fristen` | immer (Leiste nie leer) | Entitäts-Frist bzw. Arbeitsvorrat-Übersichtsblock |
-| `heute-dran` | keine Entität (Liste/Startseite) | Arbeitsvorrat-Übersichtsblock (2a) |
-| `zusammenfassen` | Entität selektiert **und** Orama-Index vorhanden | echter Retrieval-/LLM-Fall (mit Fundstellen) |
+| Lage und Zuständigkeit | nächster Schritt · meine Aufgabe als FB/AB · worauf wartet er · wo steht er · Teilvorhaben im Vergleich | Entität; Fachrolle gewählt; wartende Rolle oder offenes Paar; Verbund mit verschiedenem TV-Stand |
+| Fristen und Plan | wie viel Zeit bleibt · warum angehalten · Plan noch zu halten · liegt er zu lange | Frist läuft / steht; Prognose weder abgeschlossen noch unbekannt; Wächter „hängt" |
+| Verlauf | was ist seit Eingang passiert · Eingänge der Teilanträge | Termine vorhanden; Verbund mit mehr als einem Eingang |
+| Inhalt | worum geht es · zusammenfassen | immer (die Titel reichen für einen Anfang); Suchindex geladen |
+| Projektleitung | ist er gefährdet · AB und FB zugewiesen | Profil-Schalter „Projektleitung" an |
+| Arbeitsvorrat | Fristen · was ist heute dran | keine Entität (Liste, Startseite) |
 
-**„Plan bis Bewilligung" bewusst weggelassen:** bräuchte eine Spine-Restschritt-Ableitung (verbleibende Workflow-Stationen bis zur Bewilligung), die es als reinen Helfer nicht gibt (nur der grobe `statusZuStepperPosition(status).station < 4`-Gate). Statt einer neuen Statusmaschine bleibt die Aktion außen vor. Leisten-Position: im Erststart-`empty`-Zustand über dem Chat (kein persistenter Streifen über dem Eingabefeld).
+Im leeren Dock stehen die Fragen nach Gruppe. Unter jeder fertigen Antwort stehen bis zu drei **Folgefragen**: sichtbar, noch nicht gestellt, zuerst aus der Gruppe der letzten Frage.
+
+**Wer fragt** ([nutzerRolle.ts](../../src/plugins/chat/assistent/nutzerRolle.ts)): die Fachrolle aus dem Profil und, unabhängig davon, der Schalter „Projektleitung" (`profile.projektleitung`). Zwei Angaben statt einer sechsten Rolle, weil viele PL nebenbei als FB oder AB bearbeiten; wer nur PL ist, lässt die Fachrolle auf „alle" — das Auswahlfeld heißt dann „Keine eigene – nur Projektleitung". `leseStatusRolle` bleibt unberührt, Statusliste, Chronik und Board lesen weiter nur die Fachrolle.
+
+## Modell (v6.54)
+
+Der Turn fährt mit der Rolle **`standard`** (gpt-oss, 62k Fenster) statt am aktiven Tab; passt der Prompt nicht, steigt er auf `stark` — nur aufwärts, `waehleModellFuerLauf`. Reset und Senden treffen denselben Tab (Pitfall #36). Das größere Fenster ist kein Grund, mehr mitzuschicken: irrelevanter Kontext verwirrt die Modelle.
 
 ## Abgrenzung / offen
 

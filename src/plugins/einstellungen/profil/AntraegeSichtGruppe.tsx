@@ -17,7 +17,7 @@ import { ROLLEN, ROLLE_LABEL, ROLLE_LANG, leseStatusRolle, type Rolle } from '@/
 import { useMeinKuerzel } from '@/core/hooks/useMeinKuerzel';
 import { useAntraegeStore } from '@/plugins/antraege/store';
 import { parseBearbeiterFilter, rollenBefundFuerKuerzel } from '@/plugins/antraege/bearbeiterFilter';
-import { isMaLoginEnabled } from '@/config/feature-flags';
+import { isAssistentPanelEnabled, isMaLoginEnabled } from '@/config/feature-flags';
 import { isAuslastungFreigeschaltet } from '@/core/modul-freischaltung';
 import { SettingsGruppe, SettingsOption, SettingsStepper } from '@/components/settings';
 import {
@@ -28,6 +28,8 @@ import {
 
 const HINT_ROLLE =
   'Das Fachsystem vermerkt bei jedem Statuseintrag, wer ihn setzt. Die Auswahl ist eine Vorauswahl: die Statusliste auf der Antragsseite startet darauf gefiltert, alles Übrige bleibt einen Klick entfernt. Einträge, die jeder setzen darf, bleiben immer sichtbar.';
+const HINT_PL =
+  'Für Projektleitungen. Der Assistent bietet dann auch Fragen aus Sicht der Projektleitung an — etwa, ob ein Vorgang gefährdet ist und ob AB und FB zugewiesen sind. Wer nebenbei noch bearbeitet, wählt oben zusätzlich seine Rolle. Wer nur noch Projektleitung ist, stellt die Rolle auf „Keine eigene" und das Bearbeiter-Kürzel auf „Alle".';
 const HINT_KUERZEL_WAHL =
   'Ihr eigenes Kürzel — es bestimmt, welche Anträge als „Ihre" gelten. Die Liste führt die Kürzel beider Bearbeiter-Spalten (fachlich und administrativ) und auch ehemalige Kolleg:innen (als „ehem." markiert), weil viele PL früher selbst bearbeitet haben. Zwischen Ihren Anträgen und allen wechseln Sie über den Chip im Seitenkopf.';
 const HINT_KUERZEL_FREI =
@@ -65,7 +67,12 @@ export function AntraegeSichtGruppe(): React.ReactElement | null {
       <SettingsOption
         label="Meine Rolle"
         hint={HINT_ROLLE}
-        kurzzeile={<RollenBefundZeile gewaehlt={leseStatusRolle(profile.status_rolle)} />}
+        kurzzeile={(
+          <RollenBefundZeile
+            gewaehlt={leseStatusRolle(profile.status_rolle)}
+            nurProjektleitung={!!profile.projektleitung}
+          />
+        )}
       >
         <select
           value={leseStatusRolle(profile.status_rolle)}
@@ -74,10 +81,22 @@ export function AntraegeSichtGruppe(): React.ReactElement | null {
           className={SELECT_CLASS}
           style={SELECT_STYLE}
         >
-          <option value="alle">Alle Rollen</option>
+          {/* Derselbe Wert „alle", zwei Lesarten: ohne PL-Schalter „ich wähle
+              keine Vorauswahl", mit ihm „ich setze selbst keine Kürzel". */}
+          <option value="alle">{profile.projektleitung ? 'Keine eigene – nur Projektleitung' : 'Alle Rollen'}</option>
           {ROLLEN.map(r => <option key={r} value={r}>{ROLLE_LANG[r]}</option>)}
         </select>
       </SettingsOption>
+
+      {isAssistentPanelEnabled() && (
+        <SettingsOption label="Projektleitung" hint={HINT_PL}>
+          <Switch
+            checked={!!profile.projektleitung}
+            onCheckedChange={v => updateProfile({ projektleitung: v })}
+            aria-label="Ich bin Projektleitung"
+          />
+        </SettingsOption>
+      )}
 
       <KuerzelZeile />
 
@@ -117,13 +136,23 @@ export function AntraegeSichtGruppe(): React.ReactElement | null {
  * Vertretungen und PL mit Doppelrolle ist die Zahl mehrdeutig, und dann sagt die
  * Zeile das auch.
  */
-function RollenBefundZeile({ gewaehlt }: { gewaehlt: Rolle | 'alle' }): React.ReactElement | null {
+function RollenBefundZeile({ gewaehlt, nurProjektleitung }: {
+  gewaehlt: Rolle | 'alle';
+  /** PL-Schalter an — dann heißt „alle" hier „setzt selbst keine Kürzel". */
+  nurProjektleitung: boolean;
+}): React.ReactElement | null {
   const antraege = useAntraegeStore(s => s.antraege);
   const meinKuerzel = useMeinKuerzel();
   const befund = useMemo(() => {
     const tokens = parseBearbeiterFilter(meinKuerzel ?? undefined, false).tokens;
     return rollenBefundFuerKuerzel(antraege, tokens);
   }, [antraege, meinKuerzel]);
+
+  // Eine PL, die früher bearbeitet hat, steht noch in alten Fällen — die Zählung
+  // schlüge ihr sonst die Rolle von damals vor.
+  if (nurProjektleitung && gewaehlt === 'alle') {
+    return <>Als Projektleitung ohne eigene Vorgänge passt „Keine eigene“.</>;
+  }
 
   const mitTreffern = befund.proRolle.filter(t => t.anzahl > 0);
   if (mitTreffern.length === 0) return null;

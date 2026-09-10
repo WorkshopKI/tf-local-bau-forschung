@@ -17,7 +17,8 @@ import {
   baueVorhabenDokumente, traegtKennung, trefferGehoertZumVorhaben, type RohDokument,
 } from '@/core/services/assistent/vorhaben-dokumente';
 import type { ZeilenAufgaben } from '@/core/hooks/useBestandsAufgaben';
-import type { KontextEntitaet } from '@/core/services/assistent/kontext';
+import type { KontextEntitaet, NutzerRolle, VorgangsAkte } from '@/core/services/assistent/kontext';
+import { waehleModellFuerLauf } from '@/core/services/ai/modell-wahl';
 import type { IDBStore } from '@/core/services/storage';
 import type { DocumentFull } from '@/plugins/dokumente/store';
 import type { ChatMessage } from '../types';
@@ -105,10 +106,14 @@ export interface AssistentController {
  * @param zeilen Reiner Leser der To-do-Kaskade (`useZeilenAufgaben('nie', …)`)
  *   für den Faktenblock. Ohne ihn spricht der Assistent die alte Status-Formel
  *   und widerspricht damit den Karten der App.
+ * @param zusatz Die Vorgangsakte der gesehenen Entität und wer fragt. Die Akte
+ *   reist nur mit, wenn sie zur Entität des Turns passt — der Snapshot wird beim
+ *   Senden neu gebaut, und eine Akte des vorigen Vorgangs spräche über den falschen.
  */
 export function useAssistentController(
   scopeSchluessel?: string | null,
   zeilen?: ZeilenAufgaben | null,
+  zusatz?: { akte: VorgangsAkte | null; nutzer: NutzerRolle },
 ): AssistentController {
   const bridge = useAIBridge();
   const { search } = useSearch();
@@ -125,7 +130,17 @@ export function useAssistentController(
     const deps: AssistentTurnDeps = {
       // DSGVO-Gate: intern-only, wirft bei externem Provider (→ Degradation).
       getTransport: () => bridge.getTransportForAssistent(),
-      getKontext: () => baueKontextSnapshot(Date.now(), scopeSchluessel, zeilen),
+      getKontext: () => {
+        const k = baueKontextSnapshot(Date.now(), scopeSchluessel, zeilen);
+        const akte = zusatz?.akte ?? null;
+        return {
+          ...k,
+          akte: akte && k.entitaet && akte.fuer === k.entitaet.id ? akte : null,
+          ...(zusatz ? { nutzer: zusatz.nutzer } : {}),
+        };
+      },
+      // Standard-Modell, Aufstieg nur bei Überlänge (Spec 3.7).
+      modellFuer: zeichen => waehleModellFuerLauf('standard', zeichen).modell,
       retrieve: async (f, entitaet) => {
         if (getOramaDB() === null) return null; // Index (noch) nicht geladen → kein Retrieval
         try {
@@ -158,7 +173,7 @@ export function useAssistentController(
     if (assistentSessionStore.getState().error === DEGRADATION_MELDUNG) {
       useKiConnectPrompt.getState().oeffnen();
     }
-  }, [bridge, search, storage, scopeSchluessel, zeilen]);
+  }, [bridge, search, storage, scopeSchluessel, zeilen, zusatz?.akte, zusatz?.nutzer]);
 
   return {
     messages: state.messages,

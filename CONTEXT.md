@@ -48,7 +48,7 @@ Format je Eintrag: **Begriff** — Bedeutung in einem Satz. *Nicht sagen:* Synon
 - **`kuratorOnly`** — Plugin-Manifest-Flag für die Kurator-Rolle. *Nicht sagen:* zusammen mit `beta`/`experte` am selben Wirt. → [sichtbarkeitsstufen.md](docs/architecture/sichtbarkeitsstufen.md)
 - **Die vier Achsen** — Flag · Freischaltung · Beta/Experte · `kuratorOnly`; ein Feature ist sichtbar, wenn alle vier es zulassen. Abnahme mit ausgeschaltetem Beta-Schalter. → [sichtbarkeitsstufen.md](docs/architecture/sichtbarkeitsstufen.md), Pitfall #54
 - **Kurator** — App-Rolle mit Schreibrecht auf dem Daten-Share und Zugriff auf die Kuration; 12-h-Session plus Profil-Flagge. *Nicht sagen:* Gate-Session = Kurator-Session. → [infrastructure-layer.md](docs/architecture/infrastructure-layer.md)
-- **PL (Projektleitung)** — die Rolle, die Fassungen kuratiert und persönliche Ordner einsammelt. *Nicht sagen:* PL = Fachrolle (AB/FB/QS/PA/Juristen). → [v2-handle-architektur.md](docs/architecture/v2-handle-architektur.md)
+- **PL (Projektleitung)** — die Rolle, die Fassungen kuratiert und persönliche Ordner einsammelt; seit v6.54 auch eine Profilangabe (Schalter „Projektleitung") **zusätzlich** zur Fachrolle: viele PL bearbeiten nebenbei als FB oder AB, wer nur PL ist, lässt die Fachrolle auf „alle". Gelesen nur vom Assistenten. *Nicht sagen:* PL = Fachrolle (AB/FB/QS/PA/Juristen); `pl` als sechster `Rolle`-Wert. → [v2-handle-architektur.md](docs/architecture/v2-handle-architektur.md), [assistent-panel.md](docs/architecture/assistent-panel.md)
 
 ## Artefakte und App-Skills
 
@@ -71,6 +71,11 @@ Format je Eintrag: **Begriff** — Bedeutung in einem Satz. *Nicht sagen:* Synon
 - **Tagesbrief** — das Home-Widget ganz oben: ein **deterministisch** gebauter Kurztext, der über Quellengrenzen hinweg rankt, was zuerst dran ist; klickbare Stellen im Satz, Rückfrage über das bestehende Assistent-Dock. *Nicht sagen:* „Morning Brief" (englisch, und er rechnet den ganzen Tag neu); „heute" im Namen — das gehört der Hero-Karte „Braucht heute Aufmerksamkeit". → [home-widgets.md](docs/architecture/home-widgets.md)
 - **Thema (Tagesbrief)** — eine der wählbaren Aussagen des Briefs, im Code deklariert, mit genau einer bestehenden Quelle; Uhr-Themen ranken nach Tagen, die übrigen stehen im Nachsatz. *Nicht sagen:* „Baustein" (gehört dem Textbaustein-Katalog), „Regel" (gehört den To-do-Regeln). → [home-widgets.md](docs/architecture/home-widgets.md)
 - **Hero-Band** — das fixe Band über den Widget-Spalten (Resume + „Braucht heute Aufmerksamkeit"); seine Kacheln zählen **Alter**, der Tagesbrief rechnet **Frist**. *Nicht sagen:* Hero-Karten seien Widgets — sie haben keine Position und keinen Bereich. → [home-widgets.md](docs/architecture/home-widgets.md)
+
+## Assistent
+
+- **Vorgangsakte** — was der Assistent über EINEN Vorgang als deterministischen Faktenblock bekommt (Aufgaben je Regelsatz, offene Paare, Frist, Wächter, Meilensteine, Verlauf, Teilvorhaben); gebaut aus den Funktionen, die auch die Karten speisen, ohne Bearbeiter-Kürzel. *Nicht sagen:* „Kontext" für die Akte allein (der Kontext umfasst auch Auszüge und Historie); „Akte" für die C16-Akte. → [assistent-panel.md](docs/architecture/assistent-panel.md)
+- **Fragen-Katalog** — die klickbaren Fragen des Assistenten, jede an ein Signal der Akte gebunden; die App entscheidet, was erscheint, nie das Modell. *Nicht sagen:* „Quick Actions" (abgelöst mit v6.54). → [fragenKatalog.ts](src/plugins/chat/assistent/fragenKatalog.ts)
 
 ## Mehrdeutigkeiten (geflaggt, bewusst nicht aufgelöst)
 

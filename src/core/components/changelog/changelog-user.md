@@ -19,6 +19,15 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v6.54 — 2026-09
+
+### Neu
+- Der Assistent kennt jetzt den ganzen Vorgang: die Aufgaben aller Rollen, offene Kürzel-Paare, Frist, Stillstand, Meilensteine, den Verlauf seit Eingang und die Teilvorhaben.
+- Statt fester Schnellfragen bietet er nur Fragen an, die er zu diesem Vorgang beantworten kann – im leeren Fenster nach Themen geordnet, nach jeder Antwort als „Weiter fragen".
+- Im Profil gibt es den Schalter „Projektleitung". Wer nebenbei bearbeitet, wählt zusätzlich seine Rolle; wer nur Projektleitung ist, stellt die Rolle auf „Keine eigene".
+### Verbesserungen
+- Der Assistent nennt keine Personen – Zuständigkeit sagt er als Rolle.
+
 ## v6.53 — 2026-09
 
 ### Verbesserungen

@@ -14,6 +14,7 @@ import { useStore } from 'zustand';
 import { AlertTriangle, Brain, Loader2, RefreshCw, Send, Sparkles, SquarePen, X } from 'lucide-react';
 import { useAntraegeStore } from '@/plugins/antraege/store';
 import { useZeilenAufgaben } from '@/core/hooks/useBestandsAufgaben';
+import { useProfile } from '@/core/hooks/useProfile';
 import { getOramaDB } from '@/core/services/search/orama-store';
 import { beschreibeKontext } from '@/core/services/assistent/kontext';
 import { useAutoGrow } from '@/core/hooks/useAutoGrow';
@@ -21,7 +22,9 @@ import { MessageList, type ActivePanel } from '../components/MessageList';
 import { SourcePanel } from '../components/SourcePanel';
 import { useAssistentController, ladeAssistentGedaechtnis } from './useAssistentController';
 import { baueKontextSnapshot } from './kontextSnapshot';
-import { quickActionsFuer } from './quickActions';
+import { folgefragen, fragenNachGruppe, type FragenKontext } from './fragenKatalog';
+import { leseNutzerRolle } from './nutzerRolle';
+import { useVorgangsakte } from './useVorgangsakte';
 import { assistentPanelUiStore, clampPanelWidth, SPINE_WIDTH } from './panelUiStore';
 import { AssistentSpine } from './AssistentSpine';
 import '../chat.css';
@@ -43,12 +46,12 @@ export function AssistentPanelHost(): React.ReactElement | null {
   // gerechnet ist. Das Panel ist auf jeder Route gemountet; einen Bestandslauf
   // (Sekunden, voller Antragsbestand) anzustossen, nur weil das Dock da ist, wäre
   // der falsche Handel. Liegt nichts vor, fällt der Faktenblock auf die alte
-  // Status-Formel zurück und sagt das dazu.
+  // Status-Formel zurück und sagt das dazu — oder die Vorgangsakte trägt die
+  // Aufgaben aller Regelsätze, dann entfällt der Rückfall.
   const heuteRef = useRef(new Date().toISOString());
   const zeilen = useZeilenAufgaben('nie', heuteRef.current);
-  const c = useAssistentController(vorgabeScope, zeilen);
   const location = useLocation();
-  // Selektion abonnieren → Chips + Beispiele reagieren auf Navigation/Auswahl.
+  // Selektion abonnieren → Chips + Fragen reagieren auf Navigation/Auswahl.
   const sel = useAntraegeStore(s => `${s.selectedAktenzeichen ?? ''}|${s.selectedVerbundId ?? ''}`);
 
   const [activePanel, setActivePanel] = useState<ActivePanel | null>(null);
@@ -75,15 +78,36 @@ export function AssistentPanelHost(): React.ReactElement | null {
     [location.key, sel, open, vorgabeScope, zeilen],
   );
   const chips = beschreibeKontext(snapshot.entitaet, snapshot.routeBeschreibung);
-  // Routen-sensitive Quick Actions (Topf 1) statt statischer Beispielfragen: reiner
-  // Katalog, die (unreine) Orama-Index-Präsenz wird hereingereicht. Index-Präsenz ist
-  // wie bisher unreaktiv (kein Memo-Dep) — „Zusammenfassen" kann nach Index-Load leicht
-  // verzögert erscheinen; Verhalten bewusst identisch zum bisherigen Beispiel-Memo. Die
-  // Leiste ist nie leer (Katalog hält „Fristen" überall sichtbar).
-  const aktionen = useMemo(
-    () => quickActionsFuer({ ...snapshot, hatIndex: getOramaDB() !== null }),
-    [snapshot],
+
+  // Wer fragt (Fachrolle + Projektleitung) und was die App über den gesehenen
+  // Vorgang weiß. Die Akte lädt nur bei offenem Dock.
+  const { profile } = useProfile();
+  const statusRolle = profile?.status_rolle;
+  const projektleitung = profile?.projektleitung;
+  const nutzer = useMemo(
+    () => leseNutzerRolle({ status_rolle: statusRolle, projektleitung }),
+    [statusRolle, projektleitung],
   );
+  const akte = useVorgangsakte(snapshot.entitaet, open, heuteRef.current);
+  const zusatz = useMemo(() => ({ akte, nutzer }), [akte, nutzer]);
+  const c = useAssistentController(vorgabeScope, zeilen, zusatz);
+
+  // Die Fragen, die der Assistent hier beantworten kann — reiner Katalog, jede
+  // an ein Signal der Akte gebunden. Die Index-Präsenz ist wie bisher unreaktiv:
+  // „Zusammenfassen" kann nach dem Laden des Index leicht verzögert erscheinen.
+  const fragenKontext = useMemo<FragenKontext>(() => ({
+    entitaet: snapshot.entitaet,
+    routeBeschreibung: snapshot.routeBeschreibung,
+    akte,
+    nutzer,
+    hatIndex: getOramaDB() !== null,
+  }), [snapshot, akte, nutzer]);
+  const abschnitte = useMemo(() => fragenNachGruppe(fragenKontext), [fragenKontext]);
+  const gestellt = useMemo(
+    () => c.messages.filter(m => m.role === 'user').map(m => m.content),
+    [c.messages],
+  );
+  const weiter = useMemo(() => folgefragen(fragenKontext, gestellt), [fragenKontext, gestellt]);
 
   // Gedächtnis-Zähler laden (nur bei aktivem Flag + beiden Opt-ins → sonst 0).
   useEffect(() => {
@@ -116,10 +140,10 @@ export function AssistentPanelHost(): React.ReactElement | null {
   }, [c]);
 
   // Eine von aussen vorgelegte Frage (Tagesbrief: „dazu nachfragen") wird
-  // abgeschickt — der Klick auf die Karte IST die Geste, wie bei den Quick
-  // Actions unten. Erst entnehmen, dann senden: ein zweiter Lauf des Effekts
-  // findet den Slot leer und schickt nicht doppelt. Läuft gerade eine Antwort,
-  // verwürfe `absenden` die Frage wortlos — dann steht sie im Eingabefeld.
+  // abgeschickt — der Klick auf die Karte IST die Geste, wie bei den Fragen
+  // unten. Erst entnehmen, dann senden: ein zweiter Lauf des Effekts findet den
+  // Slot leer und schickt nicht doppelt. Läuft gerade eine Antwort, verwürfe
+  // `absenden` die Frage wortlos — dann steht sie im Eingabefeld.
   const vorgabe = useStore(assistentPanelUiStore, s => s.vorgabe);
   useEffect(() => {
     const { vorgabe: frage, vorgabeVerbraucht } = assistentPanelUiStore.getState();
@@ -165,6 +189,10 @@ export function AssistentPanelHost(): React.ReactElement | null {
   const autoGrow = useAutoGrow(composerRef, input, ASSISTENT_MAX_ZEILEN);
 
   const empty = c.messages.length === 0 && !c.busy;
+  // Folgefragen nur unter einer fertigen Antwort — nicht während sie entsteht,
+  // und nicht unter einer Frage, deren Turn gescheitert ist.
+  const letzte = c.messages[c.messages.length - 1];
+  const zeigeWeiter = !empty && !c.busy && letzte?.role === 'assistant' && weiter.length > 0;
 
   // Die Spine (28px, rechter Blattrand) ist ein eigenes Bauteil — die Suche
   // trägt denselben Streifen für ihren Voll-Chat. Sie bleibt auch bei offenem
@@ -234,11 +262,18 @@ export function AssistentPanelHost(): React.ReactElement | null {
                   <div className="empty-sub">
                     Ich kenne die aktuelle Ansicht und die dazugehörigen Dokumente — aber keine früheren Sitzungen.
                   </div>
-                  <div className="suggest-row">
-                    {aktionen.map(a => (
-                      <button key={a.id} className="suggest" title={a.frage} onClick={() => absenden(a.frage)}>
-                        {a.label}
-                      </button>
+                  <div className="fragen-gruppen">
+                    {abschnitte.map(g => (
+                      <div key={g.gruppe} className="fragen-gruppe">
+                        <div className="fragen-titel">{g.titel}</div>
+                        <div className="suggest-row">
+                          {g.fragen.map(f => (
+                            <button key={f.id} className="suggest" title={f.frage} onClick={() => absenden(f.frage)}>
+                              {f.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
                     ))}
                   </div>
                 </div>
@@ -255,6 +290,17 @@ export function AssistentPanelHost(): React.ReactElement | null {
                 />
               )}
             </div>
+
+            {zeigeWeiter && (
+              <div className="folgefragen" role="group" aria-label="Weiter fragen">
+                <span className="folgefragen-titel">Weiter fragen</span>
+                {weiter.map(f => (
+                  <button key={f.id} className="suggest" title={f.frage} onClick={() => absenden(f.frage)}>
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+            )}
 
             {c.busy && (
               <div className="flex items-center gap-2 px-4 py-2 text-[13px] text-[var(--tf-text-tertiary)]">

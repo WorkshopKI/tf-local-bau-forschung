@@ -12,7 +12,10 @@ import type { OramaSearchResult } from '@/core/services/search/orama-store';
 import { resetHatVerlaufsrisiko, starteFrischenChat } from '@/core/services/ai/chat-reset';
 import { extractThinking } from '@/core/services/ai/thinking-parser';
 import { assembliereAssistentKontext } from '@/core/services/assistent/kontext';
-import type { ArbeitsvorratUebersicht, AssistentTurn, KontextEntitaet, VorhabenDokument } from '@/core/services/assistent/kontext';
+import type {
+  ArbeitsvorratUebersicht, AssistentTurn, KontextEntitaet, NutzerRolle, VorgangsAkte, VorhabenDokument,
+} from '@/core/services/assistent/kontext';
+import type { KiRolle } from '@/core/services/ai/modell-katalog';
 import { buildChatSources } from '../services/rag-sources';
 import type { ChatSource } from '../types';
 
@@ -30,6 +33,10 @@ export interface AssistentTurnKontext {
    * „Was ist heute dran?" ohne selektierte Entität.
    */
   arbeitsvorratUebersicht?: ArbeitsvorratUebersicht | null;
+  /** Die Vorgangsakte der Entität (nur gerendert, wenn sie zu ihr passt). */
+  akte?: VorgangsAkte | null;
+  /** Wer fragt — Fachrolle und Projektleitung aus dem Profil. */
+  nutzer?: NutzerRolle;
 }
 
 export interface AssistentTurnDeps {
@@ -55,6 +62,13 @@ export interface AssistentTurnDeps {
    * Block. Entitäts-scoped (Verbund-ID) — anders als das globale Volltext-Retrieval.
    */
   getVorhabenDokumente?: (entitaet: KontextEntitaet | null) => Promise<ReadonlyArray<VorhabenDokument>>;
+  /**
+   * Welches Modell den Turn fährt, gemessen an der Promptlänge. Der Controller
+   * wählt `standard` und steigt nur auf, wenn das Fenster nicht reicht
+   * (`waehleModellFuerLauf`). Fehlt der Dep, sendet der Turn ohne Rolle — an
+   * den aktiven Tab, wie bis v6.53.
+   */
+  modellFuer?: (zeichen: number) => KiRolle;
 }
 
 export type AssistentTurnErgebnis =
@@ -116,16 +130,24 @@ export async function fuehreAssistentTurnAus(
     gedaechtnis,
     vorhabenDokumente,
     arbeitsvorratUebersicht: kontext.arbeitsvorratUebersicht ?? null,
+    akte: kontext.akte ?? null,
+    ...(kontext.nutzer ? { nutzer: kontext.nutzer } : {}),
   });
 
-  // 5. resetChat VOR dem Senden (Pitfall #36) — best-effort, Kontaminations-Warnung.
-  const resetStatus = await starteFrischenChat(transport);
+  // 5. Modell nach Umfang — Reset UND Senden treffen denselben Tab.
+  const ziel = deps.modellFuer?.(prompt.promptText.length);
+
+  // 6. resetChat VOR dem Senden (Pitfall #36) — best-effort, Kontaminations-Warnung.
+  const resetStatus = await starteFrischenChat(transport, ziel);
   const resetWarnung = resetHatVerlaufsrisiko(resetStatus);
 
-  // 6. Genau EIN Aufruf.
+  // 7. Genau EIN Aufruf.
   let roh: string;
   try {
-    roh = await transport.submitMessage(prompt.promptText, undefined, signal ? { signal } : undefined);
+    const optionen = { ...(ziel ? { ziel } : {}), ...(signal ? { signal } : {}) };
+    roh = await transport.submitMessage(
+      prompt.promptText, undefined, Object.keys(optionen).length > 0 ? optionen : undefined,
+    );
   } catch (e) {
     if (signal?.aborted) return { ok: false, fehler: ABGEBROCHEN_MELDUNG };
     return { ok: false, fehler: e instanceof Error ? e.message : DEGRADATION_MELDUNG };

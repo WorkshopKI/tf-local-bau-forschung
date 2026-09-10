@@ -110,6 +110,16 @@ export interface UserProfile {
    * Lesen wie `alle` behandelt — immer über `leseStatusRolle` (`status/rollen.ts`).
    */
   status_rolle?: StatusRolle | 'alle' | 'beide';
+  /**
+   * Projektleitung — **zusätzlich** zur Fachrolle, keine sechste Rolle.
+   *
+   * Die Fachrollen oben sagen, wer im Fachsystem ein Kürzel setzt; die PL setzt
+   * keines. Viele PL bearbeiten nebenbei noch als FB oder AB — sie wählen ihre
+   * Fachrolle UND diesen Schalter. Wer nur noch PL ist, lässt die Fachrolle auf
+   * „alle". Gelesen vom Assistenten (Fragen der Projektleitung), nicht von
+   * Statusliste, Chronik oder Board — dort wirkt weiter nur `status_rolle`.
+   */
+  projektleitung?: boolean;
 }
 
 export interface AIProviderConfig {

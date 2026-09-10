@@ -303,6 +303,15 @@
 .chat-app .suggest:hover { border-color: var(--tf-border-hover); background: var(--tf-bg-secondary); color: var(--tf-text); }
 .chat-app .suggest svg { color: var(--tf-text-tertiary); flex-shrink: 0; }
 
+/* Fragen des Assistenten nach Gruppe (leeres Dock) und Folgefragen unter der
+   letzten Antwort. Dieselben `.suggest`-Knöpfe; nur die Gruppierung ist neu. */
+.chat-app .fragen-gruppen { display: flex; flex-direction: column; gap: 14px; margin-top: 18px; max-width: var(--convo-w); }
+.chat-app .fragen-gruppe .suggest-row { margin-top: 6px; }
+.chat-app .fragen-titel { font-size: 11.5px; color: var(--tf-text-secondary); text-align: center; }
+.chat-app .folgefragen { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 4px 14px 8px; }
+.chat-app .folgefragen .suggest { padding: 6px 10px; font-size: 12.5px; }
+.chat-app .folgefragen-titel { font-size: 11.5px; color: var(--tf-text-secondary); margin-right: 2px; }
+
 /* ---------- Slide-over Quellen-Panel ---------- */
 .chat-app .srcpanel { width: 360px; flex-shrink: 0; background: var(--tf-bg); border-left: var(--tf-border-thin) solid var(--tf-border); box-shadow: var(--tf-shadow-dialog); display: flex; flex-direction: column; }
 .chat-app .srcpanel-head { display: flex; align-items: flex-start; justify-content: space-between; padding: 18px 18px 0; }

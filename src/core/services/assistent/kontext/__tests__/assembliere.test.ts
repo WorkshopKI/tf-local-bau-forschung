@@ -14,6 +14,7 @@ import {
   RETRIEVAL_MIN_SCORE,
 } from '../index';
 import type { AssistentKontextEingabe, KontextEntitaet } from '../types';
+import type { VorgangsAkte } from '../akte';
 import type { OramaSearchResult } from '@/core/services/search/orama-store';
 
 function treffer(id: string, score: number, text = `Auszug ${id}`): OramaSearchResult {
@@ -178,6 +179,55 @@ describe('assembliereAssistentKontext — was zu tun ist', () => {
   });
 });
 
+/**
+ * Die Vorgangsakte und wer fragt (v6.54). Die Akte gilt nur für ihre Entität,
+ * und wo sie die Aufgaben aller Regelsätze trägt, entfällt der Rückfall auf die
+ * alte Formel — „keine Regel greift" neben Regeltreffern kann nicht wahr sein.
+ */
+describe('assembliereAssistentKontext — Vorgangsakte und fragende Person', () => {
+  const akte: VorgangsAkte = {
+    fuer: entitaet.id,
+    verfahrensschritt: 'Begutachtung',
+    aufgaben: [{ rolle: 'AB', text: 'GA schreiben', adresse: 'liegt bei AB', abgeleitet: false }],
+    offenePaare: [],
+    teilvorhaben: [],
+  };
+
+  it('rendert die Akte, wenn sie zur Entität gehört', () => {
+    const { promptText } = assembliereAssistentKontext(base({ akte }));
+    expect(promptText).toContain('Verfahrensschritt: Begutachtung');
+    expect(promptText).toContain('- AB: GA schreiben (liegt bei AB)');
+  });
+
+  it('rendert die Akte eines anderen Vorgangs nicht', () => {
+    const { promptText } = assembliereAssistentKontext(base({ akte: { ...akte, fuer: 'ANDERER' } }));
+    expect(promptText).not.toContain('Verfahrensschritt:');
+    expect(promptText).toContain('Nächster Schritt:');
+  });
+
+  it('lässt den Rückfall weg, wenn die Akte Aufgaben trägt', () => {
+    expect(assembliereAssistentKontext(base({ akte })).promptText).not.toContain('Nächster Schritt:');
+    const mitRueckfall = base({
+      akte,
+      entitaet: { ...entitaet, aufgabe: { text: 'Ablehnungsbescheid erstellen', ausKaskade: false } },
+    });
+    expect(assembliereAssistentKontext(mitRueckfall).promptText).not.toContain('keine Regel greift');
+  });
+
+  it('nennt die fragende Person — und schweigt ohne Angabe', () => {
+    const pl = assembliereAssistentKontext(base({ nutzer: { fachrolle: 'fb', projektleitung: true } })).promptText;
+    expect(pl).toContain('Fragende Person: Projektleitung, bearbeitet zusätzlich als FB — fachliche Bearbeitung');
+    const nurPl = assembliereAssistentKontext(base({ nutzer: { fachrolle: 'alle', projektleitung: true } })).promptText;
+    expect(nurPl).toContain('Fragende Person: Projektleitung (bearbeitet selbst keine Vorgänge)');
+    const niemand = assembliereAssistentKontext(base({ nutzer: { fachrolle: 'alle', projektleitung: false } })).promptText;
+    expect(niemand).not.toContain('Fragende Person');
+  });
+
+  it('verbietet dem Modell, Personen zu nennen', () => {
+    expect(assembliereAssistentKontext(base()).promptText).toContain('Nenne keine Personen.');
+  });
+});
+
 describe('assembliereAssistentKontext — Gedächtnis-Block (Phase 2)', () => {
   it('ohne Gedächtnis: kein Block, gedaechtnisAnzahl 0', () => {
     const { promptText, gedaechtnisAnzahl } = assembliereAssistentKontext(base());
@@ -203,18 +253,27 @@ describe('assembliereAssistentKontext — Gedächtnis-Block (Phase 2)', () => {
   });
 
   it('kürzt das Gedächtnis ZUERST (vor Historie/Retrieval), Fakten bleiben', () => {
-    const grosseStammdaten = Array.from({ length: 31 }, (_, i) => ({ label: `Feld ${i}`, wert: 'x'.repeat(600) }));
     const gedaechtnis = Array.from({ length: 12 }, (_, i) => ({ text: `MEM_${i} ${'g'.repeat(300)}` }));
     const turns = [
       { rolle: 'nutzer' as const, text: `TURN_0 ${'y'.repeat(800)}` },
       { rolle: 'assistent' as const, text: `TURN_1 ${'z'.repeat(800)}` },
     ];
-    const { promptText, gedaechtnisAnzahl, verwendeteTreffer } = assembliereAssistentKontext(base({
-      entitaet: { ...entitaet, stammdaten: grosseStammdaten },
-      gedaechtnis,
+    // Das Polster wird aus dem Budget gerechnet, nicht fest angenommen: der
+    // Überhang ist die HALBE Gedächtnislänge — dann muss die Kürzung mitten im
+    // Gedächtnis stoppen, gleich wie groß GESAMT_MAX_CHARS gerade ist.
+    const mit = (stammdaten: KontextEntitaet['stammdaten'], mitGedaechtnis = true): AssistentKontextEingabe => base({
+      entitaet: { ...entitaet, stammdaten },
+      ...(mitGedaechtnis ? { gedaechtnis } : {}),
       turns,
       treffer: [treffer('a', 0.9)],
-    }));
+    });
+    const knapp = [{ label: 'Feld 30', wert: 'x' }];
+    const laenge = assembliereAssistentKontext(mit(knapp)).promptText.length;
+    const gedLaenge = laenge - assembliereAssistentKontext(mit(knapp, false)).promptText.length;
+    const polster = GESAMT_MAX_CHARS - laenge + Math.floor(gedLaenge / 2);
+    const { promptText, gedaechtnisAnzahl, verwendeteTreffer } = assembliereAssistentKontext(
+      mit([{ label: 'Polster', wert: 'x'.repeat(polster) }, ...knapp]),
+    );
     // Gedächtnis wird TEILWEISE gekürzt (von hinten). Dass noch Einträge übrig
     // sind (>0) BEWEIST, dass die Kaskade in der Gedächtnis-Phase gestoppt hat —
     // Historie + Retrieval + Fakten wurden also nie angetastet.
@@ -306,14 +365,28 @@ describe('assembliereAssistentKontext — Vorhaben-Dokumente (entitäts-scoped)'
   it('wird im Budget ZULETZT gekürzt (nach Historie + Retrieval) — entitäts-scoped = am wertvollsten', () => {
     // Großer Faktenblock drückt über das Budget → Historie + Retrieval werden geopfert,
     // der Vorhaben-Dokumente-Block überlebt (wird als Letztes gekürzt).
-    const grosseStammdaten = Array.from({ length: 35 }, (_, i) => ({ label: `Feld ${i}`, wert: 'x'.repeat(600) }));
     const turns = Array.from({ length: 10 }, (_, i) => ({ rolle: 'nutzer' as const, text: `TURN_${i} ${'y'.repeat(1200)}` }));
-    const { promptText, verwendeteTreffer } = assembliereAssistentKontext(base({
-      entitaet: { ...entitaet, stammdaten: grosseStammdaten },
-      treffer: Array.from({ length: RETRIEVAL_K }, (_, i) => treffer(`t${i}`, 0.9, 'z'.repeat(600))),
-      turns,
+    const alleTreffer = Array.from({ length: RETRIEVAL_K }, (_, i) => treffer(`t${i}`, 0.9, 'z'.repeat(600)));
+    const mit = (
+      stammdaten: KontextEntitaet['stammdaten'], mitTurns = true, mitTreffern = true,
+    ): AssistentKontextEingabe => base({
+      entitaet: { ...entitaet, stammdaten },
+      treffer: mitTreffern ? alleTreffer : null,
+      turns: mitTurns ? turns : [],
       vorhabenDokumente: [{ typLabel: 'Vorhabensbeschreibung', name: 'vb.pdf', auszug: 'wichtiger VB-Auszug' }],
-    }));
+    });
+    // Überhang = die ganze (gekappte) Historie plus die HALBE Retrieval-Länge:
+    // dann fällt die Historie komplett, das Retrieval zum Teil — und der
+    // Dokument-Block muss stehen bleiben. Aus dem Budget gerechnet, nicht fest.
+    const knapp = [{ label: 'Feld 0', wert: 'x' }];
+    const laenge = (e: AssistentKontextEingabe): number => assembliereAssistentKontext(e).promptText.length;
+    const voll = laenge(mit(knapp));
+    const ohneTurns = laenge(mit(knapp, false));
+    const retrieval = ohneTurns - laenge(mit(knapp, false, false));
+    const polster = GESAMT_MAX_CHARS - voll + (voll - ohneTurns) + Math.floor(retrieval / 2);
+    const { promptText, verwendeteTreffer } = assembliereAssistentKontext(
+      mit([{ label: 'Polster', wert: 'x'.repeat(polster) }, ...knapp]),
+    );
     expect(promptText).toContain('vb.pdf');                      // Dokument-Block überlebt
     expect(verwendeteTreffer.length).toBeLessThan(RETRIEVAL_K);   // Retrieval wurde (teils) geopfert
     expect(promptText).not.toContain('TURN_0');                  // älteste Historie geopfert

@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v6.54.0 — Assistent: Vorgangsakte und Fragen-Katalog (September 2026)
+
+MINOR — Der Assistent bekam zum Vorgang Status, Frist, eine Aufgabe und vier Stammdaten; seine fünf festen Schnellfragen wussten nichts davon. Jetzt reist eine Vorgangsakte mit (Aufgaben je Regelsatz, offene Paare, Frist, Wächter, Meilensteine, Verlauf, Teilvorhaben), und das Dock bietet nur Fragen an, deren Signal vorliegt — im leeren Dock und als Folgefragen unter jeder Antwort. Die Projektleitung ist als eigener Schalter im Profil sichtbar.
+
+- **Vorgangsakte**: aus den Funktionen der Karten, ohne Bearbeiter-Kürzel ([akte.ts](src/core/services/assistent/kontext/akte.ts), [vorgangsakte.ts](src/plugins/chat/assistent/vorgangsakte.ts), [useVorgangsakte.ts](src/plugins/chat/assistent/useVorgangsakte.ts))
+- **Fragen-Katalog** statt Quick Actions: sechs Gruppen, Folgefragen ([fragenKatalog.ts](src/plugins/chat/assistent/fragenKatalog.ts), [AssistentPanelHost.tsx](src/plugins/chat/assistent/AssistentPanelHost.tsx))
+- **Projektleitung** als Profil-Schalter neben der Fachrolle, „nur PL" = „Keine eigene" ([AntraegeSichtGruppe.tsx](src/plugins/einstellungen/profil/AntraegeSichtGruppe.tsx), [nutzerRolle.ts](src/plugins/chat/assistent/nutzerRolle.ts))
+- **Modell + Budget**: Rolle `standard`, Aufstieg nur bei Überlänge; 100 000 statt 24 000 Zeichen ([turn.ts](src/plugins/chat/assistent/turn.ts), [assembliere.ts](src/core/services/assistent/kontext/assembliere.ts))
+- **Guard** `assistent-ohne-personen` ([ohnePersonen.test.ts](src/plugins/chat/assistent/__tests__/ohnePersonen.test.ts)); Doku [assistent-panel.md](docs/architecture/assistent-panel.md), [Spec](docs/superpowers/specs/2026-09-10-assistent-fragevorschlaege-design.md)
+
 ### v6.53.1 — Assistent: Auszüge nur aus Dokumenten des gefragten Vorgangs (September 2026)
 
 PATCH — Bei „Was ist bei CALYPSO zu tun?" bot der Prompt als Beleg [1] einen Auszug aus der Anlage 4 von KITED an, einem fremden Antrag. Das Retrieval suchte global über den Fragetext und kannte den Vorgang nicht. Jetzt kommen mit Vorgang nur Auszüge aus seinen eigenen Dokumenten, und ohne eigene gibt es keinen Auszug.
