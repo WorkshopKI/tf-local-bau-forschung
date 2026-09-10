@@ -42,15 +42,12 @@ function antrag(
 describe('Sortierung „Frist (kürzeste)" — angehaltene Uhren sinken ans Ende', () => {
   const compare = getSortOption('frist_asc').compare;
 
-  it('ein abgelehnter Altfall mit gesetztem frist_datum steht NICHT vor einem laufenden', () => {
-    // Genau der gemessene Fall: „Ablehnung" trägt im Export weiterhin ein
+  it('ein abgelehnter Altfall steht NICHT vor einem laufenden', () => {
+    // Genau der gemessene Fall: „Ablehnung" trug bis v6.52 ein gespeichertes
     // `frist_datum`, aber in dieser Phase läuft keine Uhr. Über das Rohfeld
     // sortiert stand er mit „seit 853 T" an der Spitze, während die Spalte
     // daneben „angehalten" zeigte.
-    const angehalten = antrag(
-      'ALT', 'Ablehnung',
-      { antragsdatum: '2015-01-01T00:00:00.000Z', frist_datum: '2015-04-01T00:00:00.000Z' },
-    );
+    const angehalten = antrag('ALT', 'Ablehnung', { antragsdatum: '2015-01-01T00:00:00.000Z' });
     const laeuft = antrag('NEU', 'in Prüfung');
     expect(compare(angehalten, laeuft)).toBeGreaterThan(0);
     expect([angehalten, laeuft].sort(compare).map(a => a.aktenzeichen)).toEqual(['NEU', 'ALT']);

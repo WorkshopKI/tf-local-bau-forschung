@@ -39,7 +39,6 @@ const SLOT_ORDER: string[] = [
   'vb_phase',
   'antragsdatum',
   'bewilligung_datum',
-  'frist_datum',
   'foerdersumme',
   'antragsteller',
   'unterprogramm_id',

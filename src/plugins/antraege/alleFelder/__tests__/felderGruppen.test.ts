@@ -32,7 +32,6 @@ describe('kuratierteGruppe', () => {
     expect(kuratierteGruppe(row('akronym', 'Akronym'))).toBe('Vorhabensinformation');
     expect(kuratierteGruppe(row('foerdersumme', 'Fördersumme'))).toBe('Finanzen');
     expect(kuratierteGruppe(row('antragsdatum', 'Antragsdatum'))).toBe('Termine');
-    expect(kuratierteGruppe(row('frist_datum', 'Fristdatum'))).toBe('Termine');
   });
 
   it('mappt per C16-Label (label-tolerant)', () => {

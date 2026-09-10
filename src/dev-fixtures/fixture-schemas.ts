@@ -72,7 +72,7 @@ export const FIXTURE_SCHEMAS: Record<FixtureKey, FixtureSchema> = {
       AKZ_LFD: { canonical: 'aktenzeichen', type: 'string', required: true },
       STATUS_FLG: { canonical: 'status', type: 'string' },
       BEARBEITER: { custom: 'bearbeiter', type: 'string' },
-      FRIST_NEU: { canonical: 'frist_datum', type: 'date' },
+      FRIST_NEU: { custom: 'frist_neu', type: 'date' },
     },
   },
   'stammdaten-big': {
@@ -141,7 +141,7 @@ export const FIXTURE_SCHEMAS: Record<FixtureKey, FixtureSchema> = {
       AKZ_LFD: { canonical: 'aktenzeichen', type: 'string', required: true },
       STATUS_FLG: { canonical: 'status', type: 'string' },
       BEARBEITER: { custom: 'bearbeiter', type: 'string' },
-      FRIST_NEU: { canonical: 'frist_datum', type: 'date' },
+      FRIST_NEU: { custom: 'frist_neu', type: 'date' },
     },
   },
   'stammdaten-mit-up': {

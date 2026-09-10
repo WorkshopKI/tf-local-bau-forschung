@@ -46,7 +46,6 @@ export function toAntragListItem(
   // `t_xsw` 0 von 14 225, `wiedereinreicher` 1 452 gefüllt). Ohne den Rückfall
   // erreichte der Wiedereinreicher-Hinweis die Listen-/Home-Ansichten nie (v4.124).
   copyStringFieldMitRueckfall(antrag, item, 't_xsw', ['wiedereinreicher']);
-  copyStringField(antrag, item, 'frist_datum');
   copyStringField(antrag, item, 'bewilligung_datum');
   copyStringField(antrag, item, 'erstentscheidung');
   copyStringField(antrag, item, 'antragsdatum');

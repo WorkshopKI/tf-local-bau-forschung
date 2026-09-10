@@ -154,6 +154,19 @@ export function kombiAktiv(
   return gesetzt.every(g => wertDeckt(active.find(a => a.filterId === g.filterId)?.value, g.value));
 }
 
+/**
+ * Hat jede Achse dieses Kombi-Pins noch eine Filter-Definition? Fehlt eine —
+ * Kuration umgebaut, System-Filter ausgemustert (v6.52: `system-frist-datum`) —,
+ * blendet die Leiste den Pin aus wie einen Einzel-Pin ohne Definition. Sonst
+ * stünde ein Chip „Filter-Kombination" da, der einen Filter ohne Definition
+ * setzt und damit nichts schaltet. Gespeichert bleibt der Pin trotzdem.
+ */
+export function kombiVollstaendig(
+  gesetzt: readonly ActiveFilter[], definitionen: { has(id: string): boolean },
+): boolean {
+  return gesetzt.every(g => definitionen.has(g.filterId));
+}
+
 /** Eine Slot-Änderung: `value === null` heißt „Filter leeren". */
 export interface SlotAenderung {
   filterId: string;

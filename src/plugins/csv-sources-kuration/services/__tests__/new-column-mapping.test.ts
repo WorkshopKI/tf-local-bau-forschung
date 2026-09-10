@@ -35,9 +35,9 @@ describe('buildNewColumnEntry', () => {
   });
 
   it('maps canonical mode with type + trackHistory defaults', () => {
-    const d: PerColumnDecision = { mode: 'canonical', canonical: 'frist_datum', type: 'date' };
-    expect(buildNewColumnEntry('FRIST', d)).toEqual({
-      canonical: 'frist_datum',
+    const d: PerColumnDecision = { mode: 'canonical', canonical: 'bewilligung_datum', type: 'date' };
+    expect(buildNewColumnEntry('BEW_DAT', d)).toEqual({
+      canonical: 'bewilligung_datum',
       type: 'date',
       trackHistory: false,
     });

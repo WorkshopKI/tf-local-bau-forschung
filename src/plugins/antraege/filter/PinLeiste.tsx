@@ -28,6 +28,7 @@ import { generateLabel } from './frequentFilters';
 import {
   usePinnedFilters,
   pinKey,
+  kombiVollstaendig,
   wertAktiv,
   wertUmschalten,
   kombiAktiv,
@@ -93,6 +94,9 @@ export function PinLeiste(): React.ReactElement | null {
     <>
       {pins.map(p => {
         if (p.art === 'kombination') {
+          // Wie beim Einzel-Pin unten: fehlt einer Achse die Definition, bleibt
+          // der Pin liegen, zeigt aber nichts an (v6.52).
+          if (!kombiVollstaendig(p.gesetzt, defById)) return null;
           const an = kombiAktiv(active, p.gesetzt);
           const label = generateLabel(p.gesetzt, definitions, valueLabels);
           return (

@@ -42,7 +42,7 @@ import {
   type ResolvedStatusDatumGruppe,
 } from '../status-datum-gruppen';
 import type { AntragListItem } from '../types';
-import { applyFristDatumFallback, coerceValue, findJoinColumn, resolveFieldKey } from './helpers';
+import { coerceValue, findJoinColumn, resolveFieldKey } from './helpers';
 import { loadAllSchemasWithRows, type SchemaWithRows } from './loader';
 
 interface RecomputeBatch {
@@ -274,8 +274,6 @@ function recomputeAntragIntoBatch(
       }
     }
   }
-
-  applyFristDatumFallback(merged);
 
   const nowIso = merged._updated_at;
   if (existing) {

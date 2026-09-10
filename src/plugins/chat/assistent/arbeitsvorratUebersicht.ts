@@ -7,7 +7,7 @@
  * tragen „Fristen"/„Was ist heute dran?" auch ohne selektierte Entität echte Fakten.
  *
  * KEINE neue Ableitung — es werden ausschließlich bestehende reine Helfer konsumiert:
- * `partitionArbeitsvorrat` (Terminalität), `daysUntilFristAware` + `fristAnzeigeFromDays`
+ * `partitionArbeitsvorrat` (Terminalität), `fristTageVon` + `fristAnzeigeFromDays`
  * (dieselbe phasen-bewusste Frist-Infra wie der Entitäts-Faktenblock — bewusst statt
  * der age-basierten Eingangs-Ampel, weil frist-relativ = „was ist WANN fällig") und
  * `naechsterSchritt` (Handlungs-Formel).

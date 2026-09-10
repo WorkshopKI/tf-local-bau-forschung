@@ -188,8 +188,8 @@ function antragToVorgangLike(
   // es keine Restzeit. Für einen Solo-Antrag (`tvs = [a]`) ist das Ergebnis
   // identisch zu `fristErgebnisVon(a)`.
   //
-  // Vorher rechnete die Startseite selbst (`computeVerbundFristDatum` +
-  // eigene `daysUntil`-Formel). Zwei Rechnungen, zwei Ergebnisse: die eigene
+  // Vorher rechnete die Startseite selbst (Verbund-Frist ab spätestem `D_AAE`
+  // + eigene `daysUntil`-Formel; der Helfer dafür entfiel mit v6.52). Zwei Rechnungen, zwei Ergebnisse: die eigene
   // kannte weder den wirksamen Eingang (`D_XTE`) noch das Haltekriterium der
   // ZAH-Phase (`fristLaeuft`) und ließ die 90-Tage-Uhr auch für abgelehnte
   // Vorgänge weiterlaufen. `deadline` trägt deshalb nur noch ein Datum, wo

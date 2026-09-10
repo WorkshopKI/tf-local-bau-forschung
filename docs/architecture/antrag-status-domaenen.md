@@ -50,10 +50,10 @@ Bis v2.403 steuerte er zusätzlich die Sichtbarkeit: ohne Toggle verschwanden Be
 Die antragsdatum-basierten Flächen der Startseite (Meine-Anträge-Liste, Rückstands-Balken, Fristen) rechnen weiterhin die Antragsphase — bedingungslos und aus demselben Grund, aus dem die Sichten `diese_woche_faellig`/`ueberfaellig` die Begleitung ausschließen: eine 3–4-Jahres-Uhr in einem antragsdatum-Bucket ergibt kein Arbeitssignal. Der Ausschluss hängt am Lebenszyklus, nie am Toggle.
 
 (iii) **Frist-Berechnung phasen-abhängig**:
-- Antragsphase = `antragsdatum + 90 Tage` (Bearbeitungs-SLA)
-- Begleitphase = `vn_eingang_datum + 6 Monate` (VN-Frist, D_VBE in Bgl-CSV)
-- Wenn D_VBE leer ist, hat ein VN-Antrag keine Frist (`frist_datum = null`)
-- Zentraler Helper: `computeFristDatum` in [src/core/services/csv/frist.ts](../../src/core/services/csv/frist.ts)
+- Antragsphase = wirksamer Eingang (das spätere aus `D_AAE` und `D_XTE`) + 90 Tage (Bearbeitungs-SLA)
+- Begleitphase = `vn_eingang_datum + 6 Monate` (VN-Frist, D_VBE in Bgl-CSV, dort custom als `eingang_vn_sach` gemappt)
+- Wenn D_VBE leer ist, hat ein VN-Antrag keine Frist (`nicht_berechenbar`)
+- Ob die Uhr überhaupt läuft, entscheidet die ZAH-Phase (`fristLaeuft`). Die eine Antwort gibt `berechneFrist` in [frist-ergebnis.ts](../../src/core/services/csv/frist-ergebnis.ts), die Arithmetik darunter steht in [frist.ts](../../src/core/services/csv/frist.ts). Gespeichert wird die Frist nicht: das beim Import gerechnete `frist_datum` ist mit v6.52 entfallen ([Spec](../superpowers/specs/2026-09-10-frist-datum-entfaellt-design.md)).
 
 Zwischenstand-Doku (Mai 2026 kurzzeitig, dann revidiert): Toggle steuerte NUR KUERZ-Spalten, TIB-Match überstimmte die Phase — diese Variante gilt nicht mehr.
 

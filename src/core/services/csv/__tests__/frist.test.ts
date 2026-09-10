@@ -11,8 +11,6 @@ import {
   addDays,
   addMonths,
   computeFristDatum,
-  computeVerbundFristDatum,
-  daysUntilFristAware,
   verbundAntragsdatum,
   verbundWirksamerEingang,
   wirksamerEingang,
@@ -125,32 +123,6 @@ describe('computeFristDatum — Begleitphase', () => {
   });
 });
 
-describe('daysUntilFristAware', () => {
-  // TEST_TODAY = 2026-05-12
-  it('positiv = Zeit uebrig', () => {
-    const a = mk({ status: 'beantragt', antragsdatum: '2026-03-01' });
-    // frist_datum = 2026-05-30 → 18 Tage uebrig
-    expect(daysUntilFristAware(a)).toBe(18);
-  });
-  it('negativ = ueberfaellig', () => {
-    const a = mk({ status: 'beantragt', antragsdatum: '2026-01-01' });
-    // frist_datum = 2026-04-01 → 41 Tage ueberfaellig
-    expect(daysUntilFristAware(a)).toBe(-41);
-  });
-  it('null wenn computeFristDatum null returnt', () => {
-    const a = mk({ status: 'beantragt' });
-    expect(daysUntilFristAware(a)).toBeNull();
-  });
-  it('VN-Antrag mit gesetztem vn_eingang_datum', () => {
-    const a = mk({
-      status: 'VN geprüft',
-      vn_eingang_datum: '2026-02-01',
-    });
-    // frist_datum = 2026-08-01 → 81 Tage uebrig
-    expect(daysUntilFristAware(a)).toBe(81);
-  });
-});
-
 describe('verbundAntragsdatum', () => {
   it('liefert das spaeteste antragsdatum ueber alle TVs (zuletzt eingegangenes TV)', () => {
     const tvs = [
@@ -181,39 +153,6 @@ describe('verbundAntragsdatum', () => {
   });
   it('Solo-TV: liefert dessen antragsdatum', () => {
     expect(verbundAntragsdatum([{ antragsdatum: '2026-04-01' }])).toBe('2026-04-01');
-  });
-});
-
-describe('computeVerbundFristDatum', () => {
-  it('Antragsphase: max-antragsdatum + 90 Tage (spaetestes TV bestimmt die Frist)', () => {
-    const tvs = [
-      mk({ status: 'beantragt', antragsdatum: '2026-01-15' }),
-      mk({ status: 'beantragt', antragsdatum: '2026-02-01' }),
-    ];
-    // max = 2026-02-01 → +90 Tage = 2026-05-02
-    expect(computeVerbundFristDatum(tvs, tvs[0]!)).toBe('2026-05-02T00:00:00.000Z');
-  });
-  it('Solo / einzelnes TV ist identisch zu computeFristDatum (kein Regress)', () => {
-    const a = mk({ status: 'beantragt', antragsdatum: '2026-01-15' });
-    expect(computeVerbundFristDatum([a], a)).toBe(computeFristDatum(a));
-  });
-  it('Begleitphase: per-TV VN-Frist, NICHT max-antragsdatum (Regel nur Antragsphase)', () => {
-    const rep = mk({
-      status: 'VN geprüft',
-      antragsdatum: '2023-01-15',
-      vn_eingang_datum: '2026-01-15',
-    });
-    const tvs = [
-      rep,
-      // spaeteres antragsdatum darf die VN-Frist NICHT verschieben
-      mk({ status: 'VN geprüft', antragsdatum: '2026-04-01', vn_eingang_datum: '2026-01-15' }),
-    ];
-    // bleibt VN-Frist des representative: 2026-01-15 + 6 Monate = 2026-07-15
-    expect(computeVerbundFristDatum(tvs, rep)).toBe('2026-07-15T00:00:00.000Z');
-  });
-  it('null wenn Antragsphase und kein TV ein antragsdatum hat', () => {
-    const rep = mk({ status: 'beantragt' });
-    expect(computeVerbundFristDatum([rep], rep)).toBeNull();
   });
 });
 

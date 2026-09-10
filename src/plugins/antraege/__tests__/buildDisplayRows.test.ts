@@ -39,6 +39,24 @@ function makeSchema(opts: {
   };
 }
 
+describe('buildDisplayRows — ausgemusterte Felder (v6.52)', () => {
+  it('überspringt frist_datum aus dem Altbestand, wenn kein Schema es mappt', () => {
+    const antrag = makeAntrag({ frist_datum: '2026-06-01', antragsdatum: '2026-03-03' });
+    const master = makeSchema({
+      id: 'm', isMaster: true, mapping: { D_AAE: { canonical: 'antragsdatum', type: 'date' } },
+    });
+    const felder = buildDisplayRows(antrag, [master]).map(r => r.field);
+    expect(felder).not.toContain('frist_datum');
+    expect(felder).toContain('antragsdatum');
+  });
+
+  it('zeigt es, sobald ein Schema es mappt — dann ist es ein importierter Wert', () => {
+    const antrag = makeAntrag({ frist_datum: '2026-06-01' });
+    const quelle = makeSchema({ id: 'q', mapping: { FRIST: { custom: 'frist_datum', type: 'date' } } });
+    expect(buildDisplayRows(antrag, [quelle]).map(r => r.field)).toContain('frist_datum');
+  });
+});
+
 describe('buildDisplayRows — Custom-Label-Resolution', () => {
   it('Ohne Schemas: Fallback auf prettyfied Slug', () => {
     const antrag = makeAntrag({ kunstliche_intelligenz_ki_tv_ebene: 'Y' });

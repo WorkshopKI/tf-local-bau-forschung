@@ -3,14 +3,21 @@
  *
  * Zwei verschiedene Lebenszyklen mit unterschiedlichen Fristen:
  * - **Antragsphase** (Stati: offen / in_pruefung / nachforderung / entscheidung):
- *   Bearbeitungs-SLA = `antragsdatum` (D_AAE) + 90 Tage. Bezugsdatum: Antrags-
- *   eingang. Schwellen synchron zur Eingangs-Ampel (`eingangAmpel.ts`).
+ *   Bearbeitungs-SLA = Eingang + 90 Tage. Schwellen synchron zur Eingangs-Ampel
+ *   (`eingangAmpel.ts`).
  * - **Begleitphase** (Stati: begleitung, VN-/ZB-Pruefung):
  *   VN-Frist = `vn_eingang_datum` (D_VBE) + 6 Monate. Bezugsdatum: Eingang
  *   Verwendungsnachweis. Wenn D_VBE leer ist, gibt es keine Frist.
  *
- * Wohnt im csv-Layer (nicht im Plugin), damit der Merger-Fallback
- * (`applyFristDatumFallback`) ohne Plugin-Cycle drauf zugreifen kann.
+ * **Die Frist ist ein Zustand, kein gespeichertes Feld.** Die eine Antwort gibt
+ * `berechneFrist` (`frist-ergebnis.ts`): wirksamer Eingang, Haltekriterium der
+ * ZAH-Phase, VN-Frist. Bis v6.52 schrieb der Merger zusätzlich `frist_datum` in
+ * jeden Datensatz — nur aus `D_AAE` und ohne Halt; 13 021 von 13 690 Werten
+ * standen dort, wo die Frist-Spalte „angehalten" zeigte. Die Bausteine hier sind
+ * die Arithmetik darunter.
+ *
+ * Wohnt im csv-Layer (nicht im Plugin), damit core-Konsumenten wie der
+ * Bestandslauf und `berechneFrist` ohne Plugin-Cycle darauf zugreifen.
  */
 
 import { isBegleitungStatus } from '@/core/utils/status-canonical';
@@ -49,8 +56,9 @@ export function addDays(iso: string, days: number): string | null {
  * - Sonst (Antragsphase) + `antragsdatum` gesetzt → `antragsdatum + 90 Tage`
  * - Sonst leer → `null`
  *
- * Akzeptiert auch das schlanke `AntragListItem` oder einen vollen `Antrag`-
- * Record (beide haben die relevanten Felder als optionale Strings).
+ * Kennt kein Haltekriterium — ob die Uhr überhaupt läuft, beantwortet
+ * `berechneFrist`. Wer den wirksamen Eingang meint, reicht ihn als
+ * `antragsdatum` herein (so der Bestandslauf).
  */
 export function computeFristDatum(
   antrag: Pick<AntragListItem, 'status' | 'antragsdatum' | 'vn_eingang_datum'>,
@@ -99,44 +107,16 @@ export function verbundAntragsdatum(
 }
 
 /**
- * Frist-Datum eines Verbundes — Verbund-aware Variante von `computeFristDatum`:
- * - **Antragsphase**: `max(antragsdatum über alle TVs) + 90 Tage` — die Frist
- *   startet ab dem zuletzt eingegangenen TV (siehe `verbundAntragsdatum`).
- * - **Begleitphase**: per-TV wie gehabt (`computeFristDatum(representative)`,
- *   `vn_eingang_datum + 6 Monate`) — die „letztes TV"-Regel gilt nur für die
- *   Antragsphase.
- *
- * Für einen Solo-Antrag (`tvs = [antrag]`, `representative = antrag`) ist das
- * Ergebnis identisch zu `computeFristDatum(antrag)` → kein Regress bei Einzelanträgen.
- */
-export function computeVerbundFristDatum(
-  tvs: ReadonlyArray<Pick<AntragListItem, 'status' | 'antragsdatum' | 'vn_eingang_datum'>>,
-  representative: Pick<AntragListItem, 'status' | 'antragsdatum' | 'vn_eingang_datum'>,
-): string | null {
-  // Begleitphase: eigener Lebenszyklus (VN-Frist), Regel greift nicht.
-  if (isBegleitungStatus(representative.status)) {
-    return computeFristDatum(representative);
-  }
-  // Antragsphase: Frist ab dem spätesten Antragsdatum aller TVs.
-  const maxAntragsdatum = verbundAntragsdatum(tvs);
-  if (!maxAntragsdatum) return computeFristDatum(representative);
-  return computeFristDatum({ ...representative, antragsdatum: maxAntragsdatum });
-}
-
-/**
  * **Wirksamer Eingang** = das spätere von Antragseingang (`D_AAE`) und „alle
  * Anträge da" (`D_XTE`).
  *
  * So startet die AB-Mappe alle Tage-Zählungen und damit faktisch die 90-Tage-Uhr:
  * bearbeitet werden kann erst, wenn wirklich alles vorliegt. Fehlt `D_XTE`,
- * bleibt es beim Antragseingang — das ist der heutige Stand und damit
- * abwärtskompatibel.
+ * bleibt es beim Antragseingang.
  *
- * **Bewusst additiv.** `computeFristDatum` speist über den Merger das
- * persistierte `frist_datum` des gesamten Bestands; diese Regel dort einzubauen
- * änderte auf einen Schlag Zahlen in Listen, Ampeln und Home. Sie wird deshalb
- * erst dort verwendet, wo sie ausgewiesen ist, und ihre Wirkung auf den Bestand
- * wird gemessen, bevor sie irgendwo zum Default wird.
+ * Damit rechnen die Frist-Spalte (`berechneFrist`), der Bestandslauf und seit
+ * v6.49 der Meilenstein-Anker. Ein gespeichertes Frist-Feld, das den Eingang
+ * anders läse, gibt es seit v6.52 nicht mehr.
  *
  * Nimmt die beiden Werte als Parameter statt sie aus dem Antrag zu lesen:
  * `D_XTE` ist in den Schemas **custom** gemappt (`alle_an_trage_da`) und steht
@@ -187,17 +167,4 @@ export function verbundWirksamerEingang(
     }
   }
   return best;
-}
-
-/** Tage bis zur Frist (Vorzeichen-konsistent). Negativ = ueberfaellig,
- *  positiv = noch Zeit, `null` = keine Frist berechenbar. */
-export function daysUntilFristAware(
-  antrag: Pick<AntragListItem, 'status' | 'antragsdatum' | 'vn_eingang_datum'>,
-  nowMs: number = Date.now(),
-): number | null {
-  const frist = computeFristDatum(antrag);
-  if (!frist) return null;
-  const ms = new Date(frist).getTime();
-  if (Number.isNaN(ms)) return null;
-  return Math.ceil((ms - nowMs) / MS_TAG);
 }

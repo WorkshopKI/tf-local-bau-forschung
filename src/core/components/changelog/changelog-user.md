@@ -19,6 +19,15 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v6.52 — 2026-09
+
+### Verbesserungen
+- Der Filter „Fristdatum" und die Zeile „Fristdatum" unter „Alle Felder" sind entfallen. Das Datum wurde beim Import gerechnet und passte fast nie zur Frist-Spalte der Förderanträge: Die meisten Werte gehörten zu Vorgängen, deren Frist längst ruht. Maßgeblich ist allein die Frist-Spalte, zusammen mit der Sicht „Fristen" und der Sortierung nach Frist.
+### Verbesserungen
+<!-- - … -->
+### Bugfixes
+<!-- - … -->
+
 ## v6.51 — 2026-09
 
 ### Verbesserungen

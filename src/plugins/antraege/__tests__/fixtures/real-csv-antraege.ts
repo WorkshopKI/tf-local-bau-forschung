@@ -36,32 +36,32 @@ export const REAL_CSV_ANTRAEGE: readonly AntragListItem[] = [
   // 1 — offen, ≤30d (gruen), frist in 5d (diese_woche_faellig)
   mk({
     aktenzeichen: 'REAL-001', status: 'beantragt', vb_phase: 1,
-    antragsdatum: '2026-04-20', frist_datum: '2026-05-17',
+    antragsdatum: '2026-04-20',
   }),
   // 2 — in_pruefung, 41d (gelb), frist far future
   mk({
     aktenzeichen: 'REAL-002', status: 'VN geprüft', vb_phase: 2,
-    antragsdatum: '2026-04-01', frist_datum: '2026-12-01',
+    antragsdatum: '2026-04-01',
   }),
   // 3 — in_pruefung (techn geprueft), 72d (orange), ueberfaellig
   mk({
     aktenzeichen: 'REAL-003', status: 'techn geprüft', vb_phase: 3,
-    antragsdatum: '2026-03-01', frist_datum: '2026-04-01',
+    antragsdatum: '2026-03-01',
   }),
   // 4 — in_pruefung (kaufm), 131d (rot), frist far future
   mk({
     aktenzeichen: 'REAL-004', status: 'kaufm geprüft', vb_phase: 3,
-    antragsdatum: '2026-01-01', frist_datum: '2026-09-01',
+    antragsdatum: '2026-01-01',
   }),
   // 5 — nachforderung, 25d (gruen), ueberfaellig
   mk({
     aktenzeichen: 'REAL-005', status: 'NF gestellt', vb_phase: 3,
-    antragsdatum: '2026-04-17', frist_datum: '2026-04-01',
+    antragsdatum: '2026-04-17',
   }),
   // 6 — nachforderung, 87d (orange), SLA-Risiko diese Woche (rot bei >90)
   mk({
     aktenzeichen: 'REAL-006', status: 'NF gestellt', vb_phase: 4,
-    antragsdatum: '2026-02-14', frist_datum: '2026-05-15',
+    antragsdatum: '2026-02-14',
   }),
   // 7 — bewilligt, in current year (bewilligt_jahr)
   mk({

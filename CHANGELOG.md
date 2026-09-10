@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v6.52.0 — Das gespeicherte Fristdatum entfällt (September 2026)
+
+MINOR — Nach v6.49 lasen noch zwei Rechenwege nur `D_AAE`. Einer davon schrieb beim Import `frist_datum` in jeden Datensatz. Das Feld stimmte nur bei 506 von 13 690 Anträgen mit der Frist-Spalte überein; 13 021 Werte standen dort, wo die Spalte „angehalten" zeigt. Es entfällt, statt umgestellt zu werden ([Spec](docs/superpowers/specs/2026-09-10-frist-datum-entfaellt-design.md)).
+
+- **Rechenwege**: der Merger-Rückfall `applyFristDatumFallback` und die toten `computeVerbundFristDatum`/`daysUntilFristAware` entfernt ([frist.ts](src/core/services/csv/frist.ts), [merger/helpers.ts](src/core/services/csv/merger/helpers.ts))
+- **Datenmodell**: `frist_datum` fällt aus Standardfeldern, Listen-Projektion (v10) und Wizard-Slot. Altwerte sind über `AUSGEMUSTERTE_FELDER` nur noch sichtbar, wenn ein Schema sie mappt ([constants.ts](src/core/services/csv/constants.ts), [buildDisplayRows.ts](src/plugins/antraege/alleFelder/buildDisplayRows.ts))
+- **Filter**: Der System-Filter „Fristdatum" entfällt. Der Seed räumt ausgemusterte System-Filter ab, und Kombi-Pins ohne Definition blenden sich aus ([filterRegistry.ts](src/core/services/csv/filter/filterRegistry.ts), [pinnedFilters.ts](src/plugins/antraege/filter/pinnedFilters.ts))
+- **Gemessen** in dev:local (14 225 Anträge): Die Frist-Spalte ist vorher und nachher identisch (982 läuft · 13 021 angehalten · 222 nicht berechenbar, gleicher Hash). 0 Listen-Einträge tragen noch das Feld
+- **Doku**: [antrag-status-domaenen.md](docs/architecture/antrag-status-domaenen.md), [ui-muster.md](docs/architecture/ui-muster.md), [CONTEXT.md](CONTEXT.md) (Begriff „Frist")
+
 ### v6.51.1 — Kürzel-Paar der Fristen nennt seine CSV-Spalten (September 2026)
 
 PATCH — Die letzte Lücke aus v6.51: ein Zieltag-Anlass „ALT gesetzt, ALU fehlt" zeigte keine Quellspalten. Das Kürzel findet sein Feld jetzt über den Katalog (`kuerzelIndex` der aktiven Fassung) statt über ein geratenes `D_` + Kürzel (Pitfall #44). Am echten Bestand haben alle 84 Paar-Anlässe von 301 Zieltagen zwei Felder.

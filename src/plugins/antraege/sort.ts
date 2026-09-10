@@ -53,7 +53,7 @@ function compareDateAsc(a: AntragListItem, b: AntragListItem, field: 'bewilligun
  *
  * `fristTageVon` liefert `null`, wo keine Uhr läuft (angehalten, unberechenbar);
  * diese Zeilen sinken ans Ende. Bis v4.121 las die Sortierung stattdessen das
- * rohe Feld `frist_datum` (`daysUntilFrist`) — das trägt auch dort ein Datum, wo
+ * rohe Feld `frist_datum` (`daysUntilFrist`, seit v6.52 ganz entfallen) — das trug auch dort ein Datum, wo
  * die Uhr längst steht. Ein 2015 abgelehnter Vorgang stand damit mit „seit 853 T"
  * an der Spitze eines Reiters, dessen Spalte daneben „angehalten" zeigte: zwei
  * Sortierungen namens „Frist" auf einem Bild, und die Vorgabe war die falsche.

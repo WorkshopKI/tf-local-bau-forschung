@@ -1,7 +1,6 @@
 import { useMemo, useRef, useState } from 'react';
 import { Search } from 'lucide-react';
 import type { CsvSchema } from '@/core/services/csv/types';
-import { ANTRAG_SLA_DAYS, VN_SLA_MONTHS } from '@/core/services/csv/frist';
 import {
   baueQuellSpaltenIndex, einzeiligesLabel, type RohSpalte,
 } from '@/core/services/csv/spalten-inventar';
@@ -37,26 +36,15 @@ const FLAG_KEY = '__flags__';
 const FLAG_TITLE = 'Technologie-Kennzeichen';
 
 /**
- * Der Tooltip am Feldnamen: aus welchen CSV-Spalten das Feld liest — und bei
- * der gespeicherten Frist, wie sie entstand. `frist_datum` ist KEIN importierter
- * Wert, sondern beim Import gerechnet, und zwar anders als die Frist-Spalte der
- * Tabelle; ohne diesen Satz lasen sich zwei verschiedene Daten als Widerspruch.
+ * Der Tooltip am Feldnamen: aus welchen CSV-Spalten das Feld liest. Jede Zeile
+ * hier ist importiert — das beim Import gerechnete `frist_datum`, das eine
+ * eigene Erklärung brauchte, ist mit v6.52 entfallen.
  */
-function quellTitel(feld: string, quell: readonly RohSpalte[]): string | undefined {
-  const teile: string[] = [];
-  if (quell.length > 0) {
-    teile.push(`Speist sich aus: ${quell
-      .map(s => (s.label && s.label !== s.code ? `${s.code} (${einzeiligesLabel(s.label)})` : s.code))
-      .join(', ')}`);
-  }
-  if (feld === 'frist_datum') {
-    teile.push(
-      `Beim Import gerechnet: Antragseingang (D_AAE) + ${ANTRAG_SLA_DAYS} Tage, in der Begleitphase `
-      + `VN-Eingang (D_VBE) + ${VN_SLA_MONTHS} Monate. Die Frist-Spalte der Förderanträge rechnet dagegen `
-      + 'ab dem wirksamen Eingang (dem späteren aus D_AAE und D_XTE) und nur, wo die Uhr läuft.',
-    );
-  }
-  return teile.length > 0 ? teile.join('\n') : undefined;
+function quellTitel(quell: readonly RohSpalte[]): string | undefined {
+  if (quell.length === 0) return undefined;
+  return `Speist sich aus: ${quell
+    .map(s => (s.label && s.label !== s.code ? `${s.code} (${einzeiligesLabel(s.label)})` : s.code))
+    .join(', ')}`;
 }
 
 function isEmptyRow(r: DisplayRow): boolean {
@@ -278,7 +266,7 @@ export function AlleFelderSection({
                           const quell = quellIndex.quellSpaltenVon(r.field).spalten;
                           return (
                             <div key={r.field} className="af-row">
-                              <span className="af-k" title={quellTitel(r.field, quell)}>
+                              <span className="af-k" title={quellTitel(quell)}>
                                 {r.label}
                                 {quell.length > 0 && (
                                   <span className="ml-1 font-mono text-[10px] text-[var(--tf-text-tertiary)]">

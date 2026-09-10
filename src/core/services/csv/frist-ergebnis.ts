@@ -110,7 +110,7 @@ export interface FristEingabe {
   phasen?: readonly ZahPhase[];
 }
 
-/** Tage zwischen zwei ISO-Daten, aufgerundet — wie `daysUntilFristAware`. */
+/** Tage zwischen zwei ISO-Daten, aufgerundet (`Math.ceil`, negativ = überschritten). */
 function tageBis(zielIso: string, vonIso: string): number | null {
   const ziel = new Date(zielIso).getTime();
   const von = new Date(vonIso).getTime();

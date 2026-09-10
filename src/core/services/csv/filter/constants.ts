@@ -86,16 +86,6 @@ export const SYSTEM_FILTERS_SEED: SystemFilterSeed[] = [
     versteckt: false,
   },
   {
-    id: 'system-frist-datum',
-    scope: 'system',
-    name: 'Fristdatum',
-    feld: 'frist_datum',
-    typ: 'date_range',
-    config: {},
-    anzeige_reihenfolge: 60,
-    versteckt: false,
-  },
-  {
     id: 'system-dokumenttyp',
     scope: 'system',
     name: 'Dokumenttyp',

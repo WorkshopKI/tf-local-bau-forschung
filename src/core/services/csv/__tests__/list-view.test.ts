@@ -28,7 +28,6 @@ describe('toAntragListItem', () => {
       status: 'eingereicht',
       antragsteller: 'Inst XY',
       branche: 'Bau',
-      frist_datum: '2026-06-01',
       bewilligung_datum: '2025-11-01',
       erstentscheidung: '2025-10-20',
       antragsdatum: '2025-09-15',
@@ -46,7 +45,6 @@ describe('toAntragListItem', () => {
     expect(it2.status).toBe('eingereicht');
     expect(it2.antragsteller).toBe('Inst XY');
     expect(it2.branche).toBe('Bau');
-    expect(it2.frist_datum).toBe('2026-06-01');
     expect(it2.bewilligung_datum).toBe('2025-11-01');
     expect(it2.erstentscheidung).toBe('2025-10-20');
     expect(it2.antragsdatum).toBe('2025-09-15');
@@ -95,6 +93,16 @@ describe('toAntragListItem', () => {
     expect((it5 as unknown as Record<string, unknown>).irgendein_anderes_feld).toBeUndefined();
   });
 
+  // v6.52: `frist_datum` entfiel — der Merger schreibt es nicht mehr, aber
+  // Altdatensätze im Voll-Store und im Snapshot tragen es weiter, bis der Antrag
+  // neu gerechnet wird. Die Projektion darf es nicht zurück in die Liste holen.
+  it('ein Altdatensatz mit frist_datum ergibt ein Listen-Item ohne das Feld', () => {
+    const item = toAntragListItem(makeAntrag({ frist_datum: '2026-06-01', antragsdatum: '2026-03-03' }));
+    expect(item.antragsdatum).toBe('2026-03-03');
+    expect((item as unknown as Record<string, unknown>).frist_datum).toBeUndefined();
+    expect(LIST_VIEW_FIELDS).not.toContain('frist_datum');
+  });
+
   // ─────────────────────────────────────────────────────────────────────────
   // Feldschluessel gegen Mapping: der Konsument liest den kanonischen Key, das
   // Schema legt die Spalte unter einen Custom-Key. Im echten Bestand traf das
@@ -134,7 +142,6 @@ describe('toAntragListItem', () => {
     expect(LIST_VIEW_FIELDS).toContain('programm_id');
     expect(LIST_VIEW_FIELDS).toContain('_updated_at');
     expect(LIST_VIEW_FIELDS).toContain('titel');
-    expect(LIST_VIEW_FIELDS).toContain('frist_datum');
     expect(LIST_VIEW_FIELDS).toContain('tib_kuerz');
   });
 });

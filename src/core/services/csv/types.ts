@@ -11,7 +11,6 @@ export type CanonicalField =
   | 'antragsdatum'
   // D_AZ1_1: Datum der vorläufigen Erstentscheidung (Ablehnung etc.), gegen die noch Widerspruch möglich ist.
   | 'erstentscheidung'
-  | 'frist_datum'
   | 'vn_eingang_datum'
   | 'foerdersumme'
   | 'foerdergeber'
@@ -249,7 +248,6 @@ export interface AntragListItem {
   /** Verbund-Phasen-Code aus CSV-Spalte `VB_PHASE` (1=NW1, 2=NW2, 3=FuE, 4=DL, 5=DS, 9=Irrläufer). */
   vb_phase?: number;
   // Sort + View-Predicates
-  frist_datum?: string;
   bewilligung_datum?: string;
   /** D_AZ1_1 = Datum der vorläufigen Erstentscheidung (z.B. Ablehnung). Leer,
    *  solange noch keine Erstentscheidung getroffen wurde; gegen eine getroffene

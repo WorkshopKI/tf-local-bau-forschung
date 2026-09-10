@@ -43,7 +43,7 @@ export interface KontextEntitaet {
   /**
    * Vorformatierter Frist-Hinweis, z. B. „in 45 T (im Zeitplan)". Der Controller
    * baut ihn aus den PLUGIN-lokalen Frist-Helfern (`fristAnzeige` /
-   * `daysUntilFristAware`) — so bleibt der Assembler frei von Plugin-Importen
+   * `fristTageVon`) — so bleibt der Assembler frei von Plugin-Importen
    * und von `Date.now()`. Fehlt eine berechenbare Frist → weglassen.
    */
   fristHinweis?: string;

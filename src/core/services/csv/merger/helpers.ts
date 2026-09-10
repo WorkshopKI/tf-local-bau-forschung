@@ -5,9 +5,7 @@
  * (single/batched) wiederverwendet.
  */
 
-import { isBegleitungStatus } from '@/core/utils/status-canonical';
 import { parseGermanDate } from '../dateParse';
-import { computeFristDatum } from '../frist';
 import type { Antrag, ColumnMappingEntry, CsvSchema } from '../types';
 
 export function coerceValue(raw: string, entry: ColumnMappingEntry | undefined): unknown {
@@ -45,29 +43,6 @@ export function findJoinColumn(schema: CsvSchema): string | null {
     ([, e]) => e.canonical === schema.join_key && !e.ignore,
   );
   return entry ? entry[0] : null;
-}
-
-/**
- * Fallback: `frist_datum` wird aus phasen-abhaengiger Berechnung in
- * `computeFristDatum` gefuellt, wenn kein Schema explizit ein `frist_datum`
- * mappt:
- * - Antragsphase: `antragsdatum + 90 Tage` (Bearbeitungs-SLA)
- * - Begleitphase: `vn_eingang_datum + 6 Monate` (VN-Frist)
- * - Wenn Quellfeld leer ist: kein `frist_datum`.
- *
- * Explizit gesetztes `frist_datum` (z.B. Dev-Fixture `status-aktive-mini`
- * mit `FRIST_NEU`-Spalte) gewinnt — das Gate prueft auf leeres Feld.
- */
-export function applyFristDatumFallback(merged: Antrag): void {
-  const current = merged.frist_datum;
-  if (current != null && current !== '') return;
-  const fd = computeFristDatum(merged as Parameters<typeof computeFristDatum>[0]);
-  if (!fd) return;
-  merged.frist_datum = fd;
-  // Source-Attribution: bei Begleitphase aus vn_eingang_datum, sonst aus antragsdatum.
-  const sourceField = isBegleitungStatus(merged.status as string) ? 'vn_eingang_datum' : 'antragsdatum';
-  const src = merged._field_sources[sourceField];
-  if (src) merged._field_sources.frist_datum = src;
 }
 
 export function findMatchingRows(

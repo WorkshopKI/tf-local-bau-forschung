@@ -39,6 +39,14 @@ export async function seedSystemFilters(idb: IDBStore, programmId: string): Prom
     };
     await putFilter(idb, def);
   }
+  // Abräumen: System-Filter entstehen NUR aus dem Seed. Eine Definition, deren
+  // Id er nicht mehr führt, ist ausgemustert (v6.52: `system-frist-datum`) —
+  // ohne diesen Schritt stünde sie für immer in der Sidebar, weil der Upsert
+  // oben nur anlegt. Kurator-Filter liegen unter `'admin'` und bleiben stehen.
+  const seedIds = new Set(SYSTEM_FILTERS_SEED.map(s => s.id));
+  for (const alt of existing) {
+    if (!seedIds.has(alt.id)) await deleteFilterDef(idb, alt.id);
+  }
 }
 
 /**

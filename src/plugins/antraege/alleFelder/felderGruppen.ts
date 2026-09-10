@@ -93,7 +93,6 @@ const GRUPPEN: GruppenEntry[] = [
       'laufzeitende', 'TV Ende',
       'VB Beginn',
       'VB Ende',
-      'frist_datum', 'Fristdatum',
     ],
   },
   {

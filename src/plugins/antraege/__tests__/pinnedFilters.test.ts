@@ -5,6 +5,7 @@ import {
   wertAktiv,
   wertUmschalten,
   kombiAktiv,
+  kombiVollstaendig,
   kombiEinschalten,
   kombiAusschalten,
   aktivIstAngepinnt,
@@ -28,6 +29,21 @@ function def(id: string, typ: FilterTyp = 'multi_select'): FilterDefinition {
     aktualisiert_am: '2026-01-01',
   };
 }
+
+describe('Schnellzugriff — Kombi-Pin ohne Definition (v6.52)', () => {
+  const gesetzt: ActiveFilter[] = [
+    { filterId: 'system-status', value: ['beantragt'] },
+    { filterId: 'system-frist-datum', value: { from: '2025-01-01' } },
+  ];
+
+  it('ist vollständig, solange jede Achse eine Definition hat', () => {
+    expect(kombiVollstaendig(gesetzt, new Set(['system-status', 'system-frist-datum']))).toBe(true);
+  });
+
+  it('ist unvollständig, sobald eine Definition fehlt — die Leiste blendet ihn aus', () => {
+    expect(kombiVollstaendig(gesetzt, new Map([['system-status', def('system-status')]]))).toBe(false);
+  });
+});
 
 describe('Schnellzugriff — Identität eines Pins', () => {
   it('unterscheidet die drei Arten, auch bei gleicher filterId', () => {

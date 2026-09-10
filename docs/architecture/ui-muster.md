@@ -61,7 +61,7 @@ Eingebaut in:
 - Meilenstein-Konfiguration (Zusammenfassungszeile, Gesamtfrist), Meilenstein-Leiste und „Diese Woche".
 - To-do-Regeln und To-do-Herleitung („warum?").
 - Home-Fristen (Meilenstein-Anlass über den Knoten, Zieltag über `STATUS_VB`, beim Kürzel-Paar über die Katalog-Felder beider Kürzel) und die Phasen-Marke des StatusVerlauf-Widgets.
-- „Alle Felder": Code inline, der `title` nennt die Quellspalten. Bei `frist_datum` steht dazu, dass es beim Import gerechnet wird.
+- „Alle Felder": Code inline, der `title` nennt die Quellspalten.
 - Der Status-Filter hat eine Zeile „Spalte". `FRIST_GRUND` und der Tooltip der Frist-Zelle nennen Code und Klartext.
 - Die festen Codes der Frist-Spalte (`FESTE_FELDER`) nehmen ihre Beschriftung aus dem Schema; die Hand-Labels sind nur der Rückfall.
 

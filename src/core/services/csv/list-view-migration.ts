@@ -47,8 +47,12 @@ import type { Programm } from './types';
  * zurück (3 169 Bemerkungen erreichten das Zuweisungscockpit nie), und das neue
  * `alle_antraege_da` holt `D_XTE` aus `alle_an_trage_da` (10 282 Werte, trägt
  * den wirksamen Eingang der Frist), v4.126.
+ * v10: `frist_datum` entfällt (v6.52). Der Merger schreibt es nicht mehr, der
+ * Altbestand im Voll-Store trägt es aber weiter, bis der Antrag neu gerechnet
+ * wird — ohne Bump behielte die Liste den Wert aus der alten Projektion, und der
+ * Filter hätte einen Wert, den keine Definition mehr kennt.
  */
-export const LIST_VIEW_PROJECTION_VERSION = 9;
+export const LIST_VIEW_PROJECTION_VERSION = 10;
 /**
  * Signatur der aus ALLEN Programm-Schemas aufgelösten Status-Datum-Felder
  * (FB/PC). Ergänzt den reinen Code-Versions-Marker: Eine Mapping-Änderung (eine

@@ -15,7 +15,7 @@ export type ViewKey =
 
 // `daysUntilFrist` (rohes `frist_datum`, ungeachtet des Verfahrensschritts) ist
 // mit v4.121 entfallen. Es hatte genau einen Aufrufer — die Sortierung „Frist
-// (kürzeste)" —, und dort war es falsch: das Feld trägt auch dort ein Datum, wo
+// (kürzeste)" —, und dort war es falsch: das Feld trug auch dort ein Datum, wo
 // die Uhr steht. Wer Restzeit braucht, nimmt `fristTageVon` aus `fristAnzeige.ts`;
 // das ist dieselbe Quelle, aus der die Zelle ihren Text zieht.
 

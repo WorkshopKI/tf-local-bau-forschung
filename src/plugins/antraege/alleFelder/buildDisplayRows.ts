@@ -1,4 +1,4 @@
-import { CANONICAL_FIELD_KEYS, getCanonicalLabel } from '@/core/services/csv/constants';
+import { AUSGEMUSTERTE_FELDER, CANONICAL_FIELD_KEYS, getCanonicalLabel } from '@/core/services/csv/constants';
 import { formatDatumsWert, parseGermanDate } from '@/core/services/csv';
 import type { Antrag, CsvSchema } from '@/core/services/csv/types';
 import { getVbPhaseLabel } from '@/core/utils/vb-phase-mappings';
@@ -48,8 +48,14 @@ export function buildDisplayRows(antrag: Antrag, schemas: CsvSchema[] = []): Dis
     }
   }
 
+  // Ausgemusterte Schlüssel (`frist_datum` bis v6.52) liegen im Altbestand noch
+  // im Datensatz, bis der Antrag neu gerechnet wird. Gezeigt werden sie nur, wo
+  // ein Schema sie mappt — dann sind sie ein importierter Wert, kein Rest.
+  const istGemappt = (k: string): boolean =>
+    schemas.some(s => s.column_mapping != null && findMappingEntry(s.column_mapping, k) !== null);
   const customKeys = Object.keys(antrag)
     .filter(k => !seen.has(k) && !k.startsWith('_') && !['aktenzeichen', 'programm_id'].includes(k))
+    .filter(k => !AUSGEMUSTERTE_FELDER.has(k) || istGemappt(k))
     .sort();
 
   for (const key of customKeys) {

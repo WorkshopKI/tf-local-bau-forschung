@@ -566,7 +566,6 @@ export function guessDecision(col: string, samples: string[] = []): PerColumnDec
   if (/fm.?nummer|foerdermassnahme|foerder.?massn|unterprog/.test(c)) return { mode: 'canonical', canonical: 'unterprogramm_id', type: 'string' };
   if (/bew.*dat|bewilligung/.test(c)) return { mode: 'canonical', canonical: 'bewilligung_datum', type: 'date' };
   if (/antrags.*dat/.test(c)) return { mode: 'canonical', canonical: 'antragsdatum', type: 'date' };
-  if (/frist/.test(c)) return { mode: 'canonical', canonical: 'frist_datum', type: 'date' };
   if (/foerder|summe|betrag/.test(c)) return { mode: 'canonical', canonical: 'foerdersumme', type: 'number' };
   if (/export_ts|timestamp/.test(c)) return { mode: 'ignore' };
   return { mode: 'custom', custom: col.toLowerCase(), type: detectFieldType(samples) };

@@ -21,7 +21,6 @@ export const CANONICAL_FIELDS: CanonicalFieldDef[] = [
   { key: 'bewilligung_datum', type: 'date', label: 'Bewilligungsdatum', level: 'antrag' },
   { key: 'antragsdatum', type: 'date', label: 'Antragsdatum', level: 'antrag' },
   { key: 'erstentscheidung', type: 'date', label: 'Erstentscheidung', level: 'antrag' },
-  { key: 'frist_datum', type: 'date', label: 'Fristdatum', level: 'antrag' },
   { key: 'vn_eingang_datum', type: 'date', label: 'Eingang VN-Sach', level: 'antrag' },
   { key: 'foerdersumme', type: 'number', label: 'Fördersumme', level: 'antrag' },
   { key: 'ort_ast', type: 'string', label: 'Ort Antragsteller', level: 'antrag' },
@@ -43,6 +42,24 @@ export const CANONICAL_FIELDS: CanonicalFieldDef[] = [
 ];
 
 export const CANONICAL_FIELD_KEYS = CANONICAL_FIELDS.map(f => f.key);
+
+/**
+ * **Ausgemusterte Felder**: Schlüssel, die ältere Stände selbst in den
+ * Antrag-Datensatz schrieben und die heute niemand mehr schreibt.
+ *
+ * Ein Import rechnet nur geänderte Zeilen neu (`touchedAz`); im Voll-Store und
+ * im Snapshot bleiben solche Schlüssel deshalb liegen, bis der Antrag das
+ * nächste Mal angefasst wird. Umgeschrieben wird der Bestand dafür nicht — ein
+ * Schreiblauf über alle Datensätze und den Share für einen Schlüssel, den
+ * niemand mehr liest, wäre das größere Risiko. Leser zeigen einen
+ * ausgemusterten Schlüssel nur, wenn ein Schema ihn mappt.
+ *
+ * - `frist_datum` (bis v6.52): beim Import aus `D_AAE` + 90 Tage gerechnet,
+ *   ohne wirksamen Eingang und ohne Haltekriterium — 13 021 von 13 690 Werten
+ *   standen dort, wo die Frist-Spalte „angehalten" zeigte. Die Frist ist ein
+ *   Zustand (`berechneFrist`), kein gespeichertes Feld.
+ */
+export const AUSGEMUSTERTE_FELDER: ReadonlySet<string> = new Set(['frist_datum']);
 
 /**
  * Bekannte abweichende CSV-Spaltennamen, die im Quell-System eingebürgert sind
@@ -97,7 +114,6 @@ export const LIST_VIEW_FIELDS: readonly string[] = [
   't_xsw',
   'vb_phase',
   // Sort + View-Predicates
-  'frist_datum',
   'bewilligung_datum',
   'erstentscheidung',
   'antragsdatum',
