@@ -85,6 +85,44 @@ Ergebnis gelesen werden ([Bug-Klasse 25](recurring-bug-classes.md)).
 > Vorgang dürfen dort verschiedene Zahlen stehen (DynaMaint: 318 gegen 324 Tage).
 > Siehe [CONTEXT.md → „N Tage überfällig"](../../CONTEXT.md).
 
+## Auszüge nur vom gefragten Vorgang (v6.53.1)
+
+Bis v6.53.0 lief das Retrieval **global** über den Fragetext. Bei „Was ist bei
+CALYPSO zu tun?" (10.09.2026) stand deshalb im Faktenblock der richtige Verbund,
+im Auszugs-Block als Beleg `[1]` aber die Anlage 4 von KITED, einem fremden
+Antrag. Sie tauchte auch als Quellen-Chip auf. Bemerkt hat das niemand, weil der
+Block „Dokumente zum Vorhaben" für CALYPSO leer war: Der fremde Auszug war der
+einzige und sah deshalb wie der richtige aus.
+
+**Welche Treffer zum Vorgang gehören**
+([`trefferGehoertZumVorhaben`](../../src/core/services/assistent/vorhaben-dokumente.ts))
+
+Die Tags eines Treffers taugen dafür nicht. Der Indexlauf schreibt dort
+`topic_tags`, der DMS-Scan nur das Verzeichnis. Die Regel ist deshalb dieselbe wie
+in der Aufnahmefläche. `KontextEntitaet.kennungen` enthält die Verbund-Nummer und
+die Aktenzeichen aller Teilvorhaben, also die Menge `knownIds`. Bei einem Antrag
+kommt seine Verbund-Nummer dazu, denn die Verbund-VB gehört zu jedem TV. Ein
+Treffer zählt, wenn eine der beiden Bedingungen gilt:
+
+1. Sein Chunk (`<docId>-…`) gehört zu einem Dokument, dessen Tags eine Kennung
+   tragen.
+2. Sein Dateiname trägt eine Kennung (`classifyFkz`). Das deckt die DMS-Dateien
+   `16KN… - Datum-Anlage …` ab.
+
+**Wo der Zuschnitt greift**
+
+Die Suche holt 50 statt 10 Kandidaten und filtert über `SearchFilters.nur`, und
+zwar **vor** dem Re-Ranker. Der behält nur 10 von 15 Kandidaten. Ein Filter
+danach hätte die eigenen Treffer dort schon verloren.
+
+**Was die Antwort bekommt**
+
+- Bleibt nichts Eigenes übrig, gibt es **keinen** Auszug statt eines fremden.
+- Ohne Entität (Liste, Startseite ohne Scope) bleibt die Suche global. Dort ist sie
+  gewollt.
+- Den `doc:`-Scan macht der Controller einmal je Turn. Retrieval und
+  Dokument-Block lesen denselben Scan.
+
 ## Kontext-Assembler — feste Blockreihenfolge
 
 Analog zur fixen Skill-Komposition: **System → Fakten → Retrieval → Historie → Frage**.
@@ -92,7 +130,7 @@ Analog zur fixen Skill-Komposition: **System → Fakten → Retrieval → Histor
 1. **System** — Rolle, Grenzen (nur bereitgestellte Fakten; fehlt Info → sagen statt raten; keine Rechts-/Förderentscheidungen), Deutsch, kurz. Bindet `GRUNDSATZ_REGELN` ein.
 2. **Fakten (deterministisch, wird NIE gekürzt)** — Route in Worten, Entität + Stammdaten, Status-Label + Kategorie, `naechsterSchritt()`, Frist-Hinweis (vom Controller aus `fristAnzeige`/`daysUntilFristAware` vorformatiert; hält den Assembler frei von Plugin-Importen).
    - **2a. Arbeitsvorrat-Übersicht (nur Kein-Entität-Fall, deterministisch, wird NIE gekürzt)** — auf Liste/Startseite ohne selektierte Entität hängt der Assembler direkt nach den Fakten einen kompakten Übersichtsblock an (In-Arbeit-Zahl, überfällig/dringend, die nächsten Fristen mit nächstem Schritt). So tragen die Quick Actions „Fristen"/„Was ist heute dran?" auch ohne Entität echte Fakten. Der Controller füllt `arbeitsvorratUebersicht` (aus `partitionArbeitsvorrat` + `daysUntilFristAware`); bei selektierter Entität `null` (deren eigener Faktenblock trägt).
-3. **Retrieval (optional)** — Top-k Orama-Chunks (k=5), Treffer **unter `RETRIEVAL_MIN_SCORE` verworfen** → dann KEIN Block (statt schlechtem Block); als `[n] Titel: Auszug`. Das Retrieval selbst läuft im Controller (`useSearch().search`, unrein) und wird als `treffer` hereingereicht → Assembler bleibt byte-deterministisch.
+3. **Retrieval (optional)** — Top-k Orama-Chunks (k=5), Treffer **unter `RETRIEVAL_MIN_SCORE` verworfen** → dann KEIN Block (statt schlechtem Block); als `[n] Titel: Auszug`. Das Retrieval selbst läuft im Controller (`useSearch().search`, unrein) und wird als `treffer` hereingereicht → Assembler bleibt byte-deterministisch. **Mit Entität nur aus deren Dokumenten** (siehe unten).
 4. **Historie** — bisherige Turns dieser Sitzung.
 5. **Frage** + Ausgabeanweisung: auf Auszüge gestützte Aussagen referenzieren `[n]` (mappt auf `ChatSource.n`).
 

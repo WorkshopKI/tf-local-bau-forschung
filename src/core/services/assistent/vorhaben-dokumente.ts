@@ -8,7 +8,8 @@
  * Prinzip „einmal hochladen → überall verfügbar" auch im Assistenten um.
  */
 import type { AntragDokumentTyp } from '@/core/services/csv/types';
-import { typAusTags, typLabelFuerDokument } from '@/core/components/dokumentAufnahmeFkz';
+import type { OramaSearchResult } from '@/core/services/search/orama-store';
+import { classifyFkz, typAusTags, typLabelFuerDokument } from '@/core/components/dokumentAufnahmeFkz';
 import type { VorhabenDokument } from './kontext/types';
 
 /** Zeichen-Cap je Dokument-Auszug (Prompt-Explosion vermeiden). */
@@ -47,4 +48,40 @@ export function baueVorhabenDokumente(
     if (out.length >= VORHABEN_DOK_MAX) break;
   }
   return out;
+}
+
+/** Trägt ein Dokument über seine Tags eine der Kennungen des Vorhabens? */
+export function traegtKennung(tags: ReadonlyArray<string>, kennungen: ReadonlyArray<string>): boolean {
+  return kennungen.some(k => k.trim().length > 0 && tags.includes(k));
+}
+
+/**
+ * Nur die Suchtreffer, die zum Vorhaben gehören. Die Volltextsuche selbst kennt
+ * keinen Vorgang. Bei „Was ist bei CALYPSO zu tun?" lieferte sie deshalb einen
+ * Chunk aus der Anlage 4 von KITED, und der Prompt bot ihn als Beleg `[1]` an.
+ *
+ * Nach den Tags des Treffers lässt sich nicht filtern: Der Indexlauf schreibt dort
+ * `topic_tags`, der DMS-Scan nur das Verzeichnis. Ein Treffer gehört deshalb zum
+ * Vorhaben, wenn
+ * 1. sein Chunk zu einem über den Tag zugeordneten Dokument gehört (Chunk-Ids sind
+ *    `${docId}-…`, der Ablage-Pfad legt die reine `docId` ab), oder
+ * 2. sein Dateiname eine der Kennungen trägt. Das ist dieselbe Regel wie in der
+ *    Aufnahmefläche (`classifyFkz`) und deckt die DMS-Dateien `16KN… - Datum-Anlage …`.
+ */
+export function trefferGehoertZumVorhaben(
+  treffer: Pick<OramaSearchResult, 'id' | 'source'>,
+  kennungen: ReadonlyArray<string>,
+  docIds: ReadonlyArray<string>,
+): boolean {
+  return docIds.some(d => treffer.id === d || treffer.id.startsWith(`${d}-`))
+    || classifyFkz(treffer.source ?? '', [...kennungen]).matchedId !== null;
+}
+
+/** `trefferGehoertZumVorhaben` über eine Trefferliste — die Reihenfolge der Suche bleibt. */
+export function trefferDesVorhabens(
+  treffer: ReadonlyArray<OramaSearchResult>,
+  kennungen: ReadonlyArray<string>,
+  docIds: ReadonlyArray<string>,
+): OramaSearchResult[] {
+  return treffer.filter(t => trefferGehoertZumVorhaben(t, kennungen, docIds));
 }

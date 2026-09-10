@@ -52,6 +52,14 @@ export interface KontextEntitaet {
   /** Kleine, kuratierte Stammdaten-Zeilen (schon UI-fertig, Label→Wert). */
   stammdaten?: ReadonlyArray<{ label: string; wert: string }>;
   /**
+   * Alle Kennungen, unter denen Dokumente dieses Vorgangs liegen: Verbund-Nummer
+   * und die Aktenzeichen aller Teilvorhaben, dieselbe Menge wie `knownIds` der
+   * Aufnahmefläche. Das Retrieval schneidet damit auf die eigenen Dokumente zu.
+   * Ohne diesen Zuschnitt suchte es global, und bei „Was ist bei CALYPSO zu tun?"
+   * kam ein Auszug aus der Anlage 4 von KITED in den Prompt (10.09.2026).
+   */
+  kennungen?: ReadonlyArray<string>;
+  /**
    * „Was ist an diesem Vorgang zu tun?" — das Ergebnis der **To-do-Kaskade**,
    * wortgleich mit dem, was die Karten der App zeigen (`aufgabenAnzeige`).
    *

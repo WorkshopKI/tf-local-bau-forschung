@@ -63,6 +63,19 @@ describe('fuehreAssistentTurnAus', () => {
     expect(gesehen).toEqual([{ openIfNeeded: false }]);
   });
 
+  it('reicht dem Retrieval die Entität des Snapshots mit', async () => {
+    // Ohne sie suchte der Assistent global: bei „Was ist bei CALYPSO zu tun?"
+    // kam ein Auszug aus einem fremden Antrag (KITED) in den Prompt.
+    const calypso = { art: 'verbund' as const, id: 'ZEP250140', titel: 'CALYPSO', kennungen: ['ZEP250140'] };
+    const gesehen: unknown[] = [];
+    await fuehreAssistentTurnAus('Was ist bei CALYPSO zu tun?', [], {
+      getTransport: () => fakeTransport(),
+      getKontext: async () => ({ routeBeschreibung: 'Startseite', entitaet: calypso }),
+      retrieve: async (_frage, entitaet) => { gesehen.push(entitaet); return null; },
+    });
+    expect(gesehen).toEqual([calypso]);
+  });
+
   it('meldet einen Fehler bei leerer Antwort', async () => {
     const res = await fuehreAssistentTurnAus('Frage', [], deps(fakeTransport({ submitMessage: async () => '   ' })));
     expect(res.ok).toBe(false);

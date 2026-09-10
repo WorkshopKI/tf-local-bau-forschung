@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { baueVorhabenDokumente, VORHABEN_DOK_AUSZUG_MAX, VORHABEN_DOK_MAX, type RohDokument } from '../vorhaben-dokumente';
+import type { OramaSearchResult } from '@/core/services/search/orama-store';
+import {
+  baueVorhabenDokumente, trefferDesVorhabens, VORHABEN_DOK_AUSZUG_MAX, VORHABEN_DOK_MAX, type RohDokument,
+} from '../vorhaben-dokumente';
 
 const VB_ID = 'ZKN116622';
 
@@ -49,5 +52,45 @@ describe('baueVorhabenDokumente', () => {
 
   it('kein Match → leeres Array', () => {
     expect(baueVorhabenDokumente([doc('a.pdf', ['X'], 'y')], VB_ID)).toEqual([]);
+  });
+});
+
+/**
+ * Der Befund (10.09.2026): „Was ist bei CALYPSO zu tun?" bekam als Auszug [1] einen
+ * Chunk aus der Anlage 4 von KITED — die globale Suche kannte den Vorgang nicht.
+ */
+describe('trefferDesVorhabens', () => {
+  const CALYPSO = ['ZEP250140', '16KN999999'];
+
+  function hit(id: string, source: string, score = 0.5): OramaSearchResult {
+    return { id, text: 'Auszug', title: source, source, tags: [], type: 'dokument', score, method: 'hybrid' };
+  }
+
+  it('verwirft den Treffer aus einem fremden Antrag', () => {
+    const kited = hit('dms-7f3-0', '16KN125320 - 2025-12-23-Anlage 4 KITED =PROGMKM7501=.pdf');
+    expect(trefferDesVorhabens([kited], CALYPSO, [])).toEqual([]);
+  });
+
+  it('behält eine DMS-Datei, deren Name ein TV-Aktenzeichen trägt', () => {
+    const eigen = hit('dms-a1-2', '16KN999999 - 2025-01-10-Anlage 4 CALYPSO.pdf');
+    expect(trefferDesVorhabens([eigen], CALYPSO, [])).toEqual([eigen]);
+  });
+
+  it('behält die Chunks eines über den Tag zugeordneten Dokuments — und nur seine', () => {
+    const chunk = hit('docX-3', 'Vorhabensbeschreibung.docx');
+    const lazy = hit('docX', 'Vorhabensbeschreibung.docx');
+    const nachbar = hit('docXY-1', 'Vorhabensbeschreibung.docx'); // anderes Dokument, gleicher Name
+    expect(trefferDesVorhabens([chunk, lazy, nachbar], CALYPSO, ['docX'])).toEqual([chunk, lazy]);
+  });
+
+  it('hält die Reihenfolge der Suche', () => {
+    const a = hit('docX-0', 'a.pdf', 0.9);
+    const b = hit('dms-1', '16KN999999 - b.pdf', 0.7);
+    const fremd = hit('dms-2', '16KN125320 - c.pdf', 0.8);
+    expect(trefferDesVorhabens([a, fremd, b], CALYPSO, ['docX'])).toEqual([a, b]);
+  });
+
+  it('ohne Kennungen und Dokumente bleibt nichts', () => {
+    expect(trefferDesVorhabens([hit('x-0', 'x.pdf')], [], [])).toEqual([]);
   });
 });

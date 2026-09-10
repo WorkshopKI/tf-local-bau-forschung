@@ -13,9 +13,11 @@ import { getOramaDB } from '@/core/services/search/orama-store';
 import { isAssistentGedaechtnisEnabled } from '@/config/feature-flags';
 import { istProtokollAktiv } from '@/core/services/assistent/protokoll';
 import { istGedaechtnisAktiv, ladeAktiveEintraege } from '@/core/services/assistent/gedaechtnis';
-import { baueVorhabenDokumente, type RohDokument } from '@/core/services/assistent/vorhaben-dokumente';
+import {
+  baueVorhabenDokumente, traegtKennung, trefferGehoertZumVorhaben, type RohDokument,
+} from '@/core/services/assistent/vorhaben-dokumente';
 import type { ZeilenAufgaben } from '@/core/hooks/useBestandsAufgaben';
-import type { KontextEntitaet, VorhabenDokument } from '@/core/services/assistent/kontext';
+import type { KontextEntitaet } from '@/core/services/assistent/kontext';
 import type { IDBStore } from '@/core/services/storage';
 import type { DocumentFull } from '@/plugins/dokumente/store';
 import type { ChatMessage } from '../types';
@@ -35,25 +37,48 @@ export async function ladeAssistentGedaechtnis(): Promise<ReadonlyArray<{ text: 
 }
 
 /**
- * Dem aktuellen Vorhaben (Verbund) zugeordnete Dokumente über die Tag-Relation
- * (Verbund-ID = `entitaet.id`) laden: `doc:*`-Scan → nur passende → newest-first →
- * deterministisch formatiert (`baueVorhabenDokumente`). Wirft NIE (Turn läuft sonst
- * ohne Dokument-Block). Der Assistent-Transport ist ohnehin intern-only (DSGVO ok).
+ * Kandidaten der ersten Suchstufe, wenn auf einen Vorgang zugeschnitten wird. Die
+ * Vorgabe von 10 reicht dafür nicht: Die globale Suche füllt sie mit den stärksten
+ * Treffern des GANZEN Bestands, und nach dem Zuschnitt bliebe fast immer keiner übrig.
  */
-export async function ladeVorhabenDokumente(
+const VORGANG_SUCHE_LIMIT = 50;
+
+/** Ein über den Tag zugeordnetes Dokument des Vorgangs, wie es der `doc:`-Scan liefert. */
+interface VorhabenScanDokument extends RohDokument {
+  id: string;
+  created: string;
+}
+
+/** Die Kennungen einer Entität — ohne Snapshot-Feld mindestens ihre Id. */
+function kennungenDer(entitaet: KontextEntitaet): string[] {
+  return [...new Set([entitaet.id, ...(entitaet.kennungen ?? [])])];
+}
+
+/**
+ * Die über den Tag zugeordneten Dokumente eines Vorgangs, neueste zuerst. Ein
+ * `doc:`-Scan je Turn, den zwei Stellen lesen: der Block „Dokumente zum Vorhaben"
+ * und der Zuschnitt des Retrievals. Wirft NIE, der Turn läuft sonst ohne beides
+ * weiter. Der Assistent-Transport ist ohnehin intern-only (DSGVO ok).
+ */
+async function scanneVorhabenDokumente(
   idb: IDBStore, entitaet: KontextEntitaet | null,
-): Promise<ReadonlyArray<VorhabenDokument>> {
+): Promise<VorhabenScanDokument[]> {
   if (!entitaet) return [];
+  const kennungen = kennungenDer(entitaet);
   try {
     const keys = await idb.keys('doc:');
-    const roh: Array<RohDokument & { created: string }> = [];
+    const out: VorhabenScanDokument[] = [];
     for (const key of keys) {
       const doc = await idb.get<DocumentFull>(key);
-      if (!doc || !Array.isArray(doc.tags) || !doc.tags.includes(entitaet.id)) continue;
-      roh.push({ filename: doc.filename, markdown: doc.markdown, tags: doc.tags, created: doc.created ?? '' });
+      if (!doc || !Array.isArray(doc.tags) || !traegtKennung(doc.tags, kennungen)) continue;
+      // Der Schlüssel IST die docId (`doc:<id>`); Index-Chunks heißen `<id>-…`.
+      out.push({
+        id: key.slice('doc:'.length), filename: doc.filename, markdown: doc.markdown,
+        tags: doc.tags, created: doc.created ?? '',
+      });
     }
-    roh.sort((a, b) => b.created.localeCompare(a.created)); // neueste zuerst (Kappung behält die frischesten)
-    return baueVorhabenDokumente(roh, entitaet.id);
+    out.sort((a, b) => b.created.localeCompare(a.created)); // neueste zuerst (Kappung behält die frischesten)
+    return out;
   } catch {
     return [];
   }
@@ -91,20 +116,36 @@ export function useAssistentController(
   const state = useStore(assistentSessionStore);
 
   const send = useCallback(async (frage: string): Promise<void> => {
+    // EIN `doc:`-Scan je Turn: Retrieval und Dokument-Block bekommen dieselbe
+    // Entität aus demselben Snapshot, der zweite Leser wartet auf den ersten.
+    let scan: Promise<VorhabenScanDokument[]> | null = null;
+    const scanFuer = (e: KontextEntitaet | null): Promise<VorhabenScanDokument[]> =>
+      (scan ??= scanneVorhabenDokumente(storage.idb, e));
+
     const deps: AssistentTurnDeps = {
       // DSGVO-Gate: intern-only, wirft bei externem Provider (→ Degradation).
       getTransport: () => bridge.getTransportForAssistent(),
       getKontext: () => baueKontextSnapshot(Date.now(), scopeSchluessel, zeilen),
-      retrieve: async (f) => {
+      retrieve: async (f, entitaet) => {
         if (getOramaDB() === null) return null; // Index (noch) nicht geladen → kein Retrieval
         try {
-          return await search(f);
+          if (!entitaet) return await search(f);
+          // Mit Vorgang nur seine eigenen Dokumente. Global gesucht landete bei
+          // „Was ist bei CALYPSO zu tun?" die Anlage 4 von KITED als Beleg [1] im Prompt.
+          // Findet sich nichts Eigenes, gibt es keinen Auszug statt eines fremden.
+          const kennungen = kennungenDer(entitaet);
+          const docIds = (await scanFuer(entitaet)).map(d => d.id);
+          return await search(f, {
+            limit: VORGANG_SUCHE_LIMIT,
+            nur: t => trefferGehoertZumVorhaben(t, kennungen, docIds),
+          });
         } catch {
           return null; // Retrieval-Fehler degradiert zu „kein Auszug", nicht zum Turn-Fehler
         }
       },
       getGedaechtnis: ladeAssistentGedaechtnis,
-      getVorhabenDokumente: (entitaet) => ladeVorhabenDokumente(storage.idb, entitaet),
+      getVorhabenDokumente: async (entitaet) =>
+        (entitaet ? baueVorhabenDokumente(await scanFuer(entitaet), entitaet.id) : []),
     };
     await assistentSessionStore.getState().send(frage, deps);
 

@@ -37,8 +37,12 @@ export interface AssistentTurnDeps {
   getTransport: () => AITransport;
   /** Aktueller Route-/Entitäts-Snapshot (unrein — liest Stores/Location). */
   getKontext: () => AssistentTurnKontext | Promise<AssistentTurnKontext>;
-  /** Orama-Retrieval (unrein). `null`/`[]` = kein Retrieval für diesen Turn. */
-  retrieve: (frage: string) => Promise<ReadonlyArray<OramaSearchResult> | null>;
+  /**
+   * Orama-Retrieval (unrein). `null`/`[]` = kein Retrieval für diesen Turn.
+   * Mit Entität liefert es nur Treffer aus den Dokumenten dieses Vorgangs.
+   * Global gesucht kam bei CALYPSO ein Auszug aus einem fremden Antrag in den Prompt.
+   */
+  retrieve: (frage: string, entitaet: KontextEntitaet | null) => Promise<ReadonlyArray<OramaSearchResult> | null>;
   /**
    * Aktive Gedächtnis-Einträge (Assistent Phase 2, unrein — liest IDB). Optional:
    * fehlt der Dep oder wirft er, läuft der Turn ohne Gedächtnis-Block. Nur bei
@@ -94,7 +98,7 @@ export async function fuehreAssistentTurnAus(
 
   // 3. Kontext-Snapshot + optionales Retrieval + optionales Gedächtnis + Vorhaben-Doks.
   const kontext = await deps.getKontext();
-  const treffer = await deps.retrieve(frage).catch(() => null);
+  const treffer = await deps.retrieve(frage, kontext.entitaet).catch(() => null);
   const gedaechtnis = deps.getGedaechtnis
     ? await deps.getGedaechtnis().catch(() => [] as ReadonlyArray<{ text: string }>)
     : [];

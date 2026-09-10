@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v6.53.1 — Assistent: Auszüge nur aus Dokumenten des gefragten Vorgangs (September 2026)
+
+PATCH — Bei „Was ist bei CALYPSO zu tun?" bot der Prompt als Beleg [1] einen Auszug aus der Anlage 4 von KITED an, einem fremden Antrag. Das Retrieval suchte global über den Fragetext und kannte den Vorgang nicht. Jetzt kommen mit Vorgang nur Auszüge aus seinen eigenen Dokumenten, und ohne eigene gibt es keinen Auszug.
+
+- **Zugehörigkeit**: `trefferGehoertZumVorhaben` nach Dokument-Tag oder Kennung im Dateinamen, dieselbe Regel wie in der Aufnahmefläche ([vorhaben-dokumente.ts](src/core/services/assistent/vorhaben-dokumente.ts))
+- **Kennungen**: `KontextEntitaet.kennungen` = Verbund-Nummer + Aktenzeichen aller TVs ([kontextSnapshot.ts](src/plugins/chat/assistent/kontextSnapshot.ts), [types.ts](src/core/services/assistent/kontext/types.ts))
+- **Suche**: `SearchFilters.limit` + `nur`, der Filter greift vor dem Re-Ranker ([useSearch.ts](src/core/hooks/useSearch.ts))
+- **Turn**: `retrieve(frage, entitaet)`, ein `doc:`-Scan je Turn für Retrieval und Dokument-Block ([turn.ts](src/plugins/chat/assistent/turn.ts), [useAssistentController.ts](src/plugins/chat/assistent/useAssistentController.ts))
+- **Doku**: [assistent-panel.md → Auszüge nur vom gefragten Vorgang](docs/architecture/assistent-panel.md)
+
 ### v6.53.0 — Tagesbrief: Rückfrage wird gleich abgeschickt (September 2026)
 
 MINOR — Das Fragezeichen am Tagesbrief-Punkt legte die Frage nur ins Eingabefeld des Assistent-Docks; man musste ein zweites Mal senden. Der Klick auf der Karte ist jetzt selbst die Geste, wie bei den Quick Actions im Dock.

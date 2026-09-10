@@ -51,6 +51,14 @@ function fristHinweis(status: string | undefined, days: number | null): string |
   return anz ? `${anz.text} (${AMPEL_WORT[anz.ampel]})` : undefined;
 }
 
+/**
+ * Die Kennungen, unter denen Dokumente eines Vorgangs liegen, ohne leere und
+ * doppelte Einträge. Das Retrieval schneidet damit auf die eigenen Dokumente zu.
+ */
+function kennungenAus(...ids: ReadonlyArray<string | null | undefined>): string[] {
+  return [...new Set(ids.filter((k): k is string => typeof k === 'string' && k.trim().length > 0))];
+}
+
 function stammdatenZeilen(rows: Array<[string, string | null]>): Array<{ label: string; wert: string }> {
   return rows
     .filter((r): r is [string, string] => typeof r[1] === 'string' && r[1].trim().length > 0)
@@ -102,6 +110,8 @@ function antragEntitaet(a: AntragListItem, now: number, zeilen?: ZeilenAufgaben 
     fristHinweis: hinweis,
     fristenAnzahl: hinweis ? 1 : 0,
     ...(aufgabe ? { aufgabe } : {}),
+    // Mit Verbund-Nummer: die Verbund-VB gehört zu jedem seiner Teilvorhaben.
+    kennungen: kennungenAus(a.aktenzeichen, a.verbund_id),
     stammdaten: stammdatenZeilen([
       ['Antragsteller', a.antragsteller ?? null],
       ['Ort', a.ort_ast ?? null],
@@ -134,6 +144,7 @@ function verbundEntitaet(verbundId: string, now: number, zeilen?: ZeilenAufgaben
     fristHinweis: hinweis,
     fristenAnzahl: offeneFristen,
     ...(aufgabe ? { aufgabe } : {}),
+    kennungen: kennungenAus(verbundId, ...tvs.map(t => t.aktenzeichen)),
     stammdaten: stammdatenZeilen([
       ['Teilvorhaben', tvs.length > 0 ? String(tvs.length) : null],
       ['Antragsteller (Konsortialführer)', rep?.antragsteller ?? null],
@@ -170,7 +181,7 @@ function entitaetFuerSchluessel(
     if (a) return antragEntitaet(a, now, zeilen); // `artDesSchluessels` hat ihn eben gefunden
   }
   // Unbekannt: der Schlüssel selbst ist alles, was wir ehrlich sagen können.
-  return { art: 'antrag', id: schluessel, titel: schluessel };
+  return { art: 'antrag', id: schluessel, titel: schluessel, kennungen: kennungenAus(schluessel) };
 }
 
 /**

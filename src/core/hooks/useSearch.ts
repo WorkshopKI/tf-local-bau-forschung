@@ -13,11 +13,23 @@ import type { EmbeddingModelConfig } from '@/core/services/search/model-registry
 import type { StorageService } from '@/core/services/storage';
 import { pipelineLog } from '@/core/services/search/pipeline-logger';
 
+export interface SearchFilters {
+  type?: string;
+  /** Kandidaten der ersten Stufe (Vorgabe: 10, mit Re-Ranker 30). */
+  limit?: number;
+  /**
+   * Nur Treffer, die das Prädikat bestehen. Der Filter greift **vor** dem
+   * Re-Ranker, der aus 15 Kandidaten 10 behält: Ein nachträglicher Filter hätte
+   * die eigenen Treffer eines Vorgangs dort schon verloren (Assistent, v6.53.1).
+   */
+  nur?: (treffer: OramaSearchResult) => boolean;
+}
+
 interface SearchContextValue {
   /** Setzt `results` UND gibt sie zurück — Rückgabewert nutzen, wenn die
    *  Ergebnisse direkt nach dem await gebraucht werden (React-State wäre
    *  im selben Callback noch der alte Stand, z.B. Chat-RAG). */
-  search: (query: string, filters?: { type?: string }) => Promise<OramaSearchResult[]>;
+  search: (query: string, filters?: SearchFilters) => Promise<OramaSearchResult[]>;
   results: OramaSearchResult[];
   loading: boolean;
   vectorReady: boolean;
@@ -158,7 +170,7 @@ export function useSearchProvider(storage: StorageService): SearchContextValue {
     finally { setVectorLoading(false); }
   }, [storage]);
 
-  const search = useCallback(async (query: string, filters?: { type?: string }): Promise<OramaSearchResult[]> => {
+  const search = useCallback(async (query: string, filters?: SearchFilters): Promise<OramaSearchResult[]> => {
     if (!query.trim()) { setResults([]); return []; }
     setLoading(true);
     const t0 = performance.now();
@@ -174,8 +186,10 @@ export function useSearchProvider(storage: StorageService): SearchContextValue {
         pipelineLog.warn('Embedding', 'Nicht bereit — nur BM25 Fulltext-Suche');
       }
       const reRankerActive = isReRankerReady();
-      const stage1Limit = reRankerActive ? 30 : undefined;
-      const stage1 = hybridSearch(query, queryVector, { type: filters?.type, limit: stage1Limit });
+      const stage1Limit = filters?.limit ?? (reRankerActive ? 30 : undefined);
+      const roh = hybridSearch(query, queryVector, { type: filters?.type, limit: stage1Limit });
+      const nur = filters?.nur;
+      const stage1 = nur ? roh.filter(nur) : roh;
       pipelineLog.info('Orama', `${queryVector ? 'Hybrid' : 'Fulltext'}-Suche: ${stage1.length} Ergebnisse`);
       const r = reRankerActive ? await rerank(query, stage1, 15, 10) : stage1;
       if (reRankerActive) pipelineLog.info('Re-Ranker', `${stage1.length} → ${r.length} Ergebnisse`);

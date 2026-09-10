@@ -23,6 +23,8 @@
 
 ### Verbesserungen
 - Das Fragezeichen hinter einem Punkt im Tagesbrief stellt dem Assistenten die Frage jetzt gleich, statt sie nur ins Eingabefeld zu legen. Denkt der Assistent gerade noch an einer anderen Antwort, wartet die Frage im Eingabefeld auf Ihr Senden.
+### Bugfixes
+- Fragen Sie den Assistenten nach einem bestimmten Vorgang, stützt er sich nur noch auf Dokumente dieses Vorgangs. Bisher konnte ein Auszug aus einem fremden Antrag als Beleg in der Antwort landen. Liegt zum Vorgang kein passendes Dokument vor, antwortet er ohne Auszug.
 
 ## v6.52 — 2026-09
 
