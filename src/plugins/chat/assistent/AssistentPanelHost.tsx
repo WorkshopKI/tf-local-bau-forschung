@@ -13,9 +13,12 @@ import { useLocation } from 'react-router-dom';
 import { useStore } from 'zustand';
 import { AlertTriangle, Brain, Loader2, RefreshCw, Send, Sparkles, SquarePen, X } from 'lucide-react';
 import { useAntraegeStore } from '@/plugins/antraege/store';
-import { useZeilenAufgaben } from '@/core/hooks/useBestandsAufgaben';
+import { useBestandsAufgaben, useZeilenAufgaben } from '@/core/hooks/useBestandsAufgaben';
 import { useProfile } from '@/core/hooks/useProfile';
 import { getOramaDB } from '@/core/services/search/orama-store';
+import { BESTANDSLAUF_RICHTLINIEN } from '@/core/status';
+import type { BestandZeile } from '@/core/status/bestands-lauf';
+import { isMeilensteinMonitoringEnabled } from '@/config/feature-flags';
 import { beschreibeKontext } from '@/core/services/assistent/kontext';
 import { useAutoGrow } from '@/core/hooks/useAutoGrow';
 import { MessageList, type ActivePanel } from '../components/MessageList';
@@ -26,6 +29,8 @@ import { folgefragen, fragenNachGruppe, mitBloecken, type FragenKontext } from '
 import { BLOCK_LABEL, type BlockId } from './zusatzBloecke';
 import { leseNutzerRolle } from './nutzerRolle';
 import { useVorgangsakte } from './useVorgangsakte';
+import { bestandBlock } from './bestandBlock';
+import { usePlanRisiken } from './usePlanRisiken';
 import { assistentPanelUiStore, clampPanelWidth, SPINE_WIDTH } from './panelUiStore';
 import { AssistentSpine } from './AssistentSpine';
 import '../chat.css';
@@ -51,6 +56,9 @@ export function AssistentPanelHost(): React.ReactElement | null {
   // Aufgaben aller Regelsätze, dann entfällt der Rückfall.
   const heuteRef = useRef(new Date().toISOString());
   const zeilen = useZeilenAufgaben('nie', heuteRef.current);
+  // Der Bestand für die Bestandsfragen — ebenfalls nur gelesen. Eine Frage, die
+  // ihn braucht, stößt den Lauf erst beim Klick an (`absenden`).
+  const bestand = useBestandsAufgaben('nie', heuteRef.current);
   const location = useLocation();
   // Selektion abonnieren → Chips + Fragen reagieren auf Navigation/Auswahl.
   const sel = useAntraegeStore(s => `${s.selectedAktenzeichen ?? ''}|${s.selectedVerbundId ?? ''}`);
@@ -60,6 +68,8 @@ export function AssistentPanelHost(): React.ReactElement | null {
   // Zugeschaltete Blöcke (voller Verlauf, Journal): eine Frage schaltet sie zu,
   // Nachfragen derselben Unterhaltung behalten sie. Session-only wie die Historie.
   const [aktiveBloecke, setAktiveBloecke] = useState<BlockId[]>([]);
+  // Eine Bestandsfrage, die auf den Lauf wartet (Spec 3.6: der Klick startet ihn).
+  const [wartet, setWartet] = useState<{ frage: string; bloecke: BlockId[] } | null>(null);
 
   // Den geliehenen Vorgang beim Routenwechsel loslassen. Ein von der Startseite
   // mitgegebenes CALYPSO, das nach der Navigation zu einem ANDEREN Vorgang
@@ -96,7 +106,39 @@ export function AssistentPanelHost(): React.ReactElement | null {
   );
   const wissen = useVorgangsakte(snapshot.entitaet, open, heuteRef.current);
   const akte = wissen.akte;
-  const zusatz = useMemo(() => ({ akte, nutzer, bloecke: wissen.bloecke }), [akte, nutzer, wissen.bloecke]);
+
+  // Der Bestand-Block: Aggregate über den Lauf, dazu die Plan-Risiken aus der
+  // Meilenstein-Projektion — geladen erst, wenn eine Frage den Bestand braucht.
+  const plan = usePlanRisiken(open && (aktiveBloecke.includes('bestand') || wartet !== null), heuteRef.current);
+  // Für den Liegezeit-Vergleich: das Teilvorhaben des gesehenen Vorgangs, das am
+  // längsten liegt.
+  const fokus = useMemo(() => {
+    const e = snapshot.entitaet;
+    if (!e || !akte || akte.fuer !== e.id) return null;
+    const eigene = akte.teilvorhaben
+      .map(t => bestand.nachAktenzeichen.get(t.aktenzeichen))
+      .filter((z): z is BestandZeile => z !== undefined);
+    const laengste = eigene.reduce<BestandZeile | null>(
+      (m, z) => (m === null || (z.waechter.tage ?? -1) > (m.waechter.tage ?? -1) ? z : m), null,
+    );
+    return laengste ? { titel: e.titel, statusRoh: laengste.statusRoh, tage: laengste.waechter.tage } : null;
+  }, [snapshot.entitaet, akte, bestand.nachAktenzeichen]);
+  const bestandWert = useMemo(() => (bestand.bereit
+    ? bestandBlock({
+      zeilen: bestand.zeilen,
+      nichtGerechnet: bestand.nichtGerechnet.size,
+      jahre: BESTANDSLAUF_RICHTLINIEN.map(g => g.jahr),
+      fokus,
+      planRisiken: plan.risiken,
+    })
+    : null), [bestand.bereit, bestand.zeilen, bestand.nichtGerechnet, fokus, plan.risiken]);
+  // Bereit heißt: der Lauf liegt vor und die Plan-Projektion ist geladen (wo es sie gibt).
+  const bestandBereit = bestandWert !== null && !plan.laden;
+  const bloecke = useMemo(
+    () => (bestandWert ? { ...wissen.bloecke, bestand: bestandWert } : wissen.bloecke),
+    [wissen.bloecke, bestandWert],
+  );
+  const zusatz = useMemo(() => ({ akte, nutzer, bloecke }), [akte, nutzer, bloecke]);
   const c = useAssistentController(vorgabeScope, zeilen, zusatz);
 
   // Die Fragen, die der Assistent hier beantworten kann — reiner Katalog, jede
@@ -108,7 +150,10 @@ export function AssistentPanelHost(): React.ReactElement | null {
     akte,
     nutzer,
     hatIndex: getOramaDB() !== null,
-  }), [snapshot, akte, nutzer]);
+    // Ohne Katalog-Fassung läuft kein Bestandslauf — dann keine Bestandsfragen.
+    bestandMoeglich: bestand.version !== null,
+    planMoeglich: isMeilensteinMonitoringEnabled(),
+  }), [snapshot, akte, nutzer, bestand.version]);
   const abschnitte = useMemo(() => fragenNachGruppe(fragenKontext), [fragenKontext]);
   const gestellt = useMemo(
     () => c.messages.filter(m => m.role === 'user').map(m => m.content),
@@ -141,12 +186,19 @@ export function AssistentPanelHost(): React.ReactElement | null {
 
   const absenden = useCallback((text: string, neueBloecke: readonly BlockId[] = []): void => {
     const t = text.trim();
-    if (!t || c.busy) return;
-    const bloecke = mitBloecken(aktiveBloecke, neueBloecke);
-    if (bloecke.length !== aktiveBloecke.length) setAktiveBloecke(bloecke);
+    if (!t || c.busy || wartet !== null) return;
+    const naechste = mitBloecken(aktiveBloecke, neueBloecke);
+    if (naechste.length !== aktiveBloecke.length) setAktiveBloecke(naechste);
     setInput('');
-    void c.send(t, bloecke);
-  }, [c, aktiveBloecke]);
+    // Braucht die Frage den Bestand und liegt er nicht vor, wartet sie auf den
+    // Lauf — gestartet erst jetzt, nicht beim Öffnen des Docks.
+    if (naechste.includes('bestand') && !bestandBereit) {
+      setWartet({ frage: t, bloecke: naechste });
+      if (!bestand.bereit && !bestand.laden) bestand.neuBerechnen();
+      return;
+    }
+    void c.send(t, naechste);
+  }, [c, aktiveBloecke, wartet, bestandBereit, bestand]);
 
   // Eine von aussen vorgelegte Frage (Tagesbrief: „dazu nachfragen") wird
   // abgeschickt — der Klick auf die Karte IST die Geste, wie bei den Fragen
@@ -161,6 +213,18 @@ export function AssistentPanelHost(): React.ReactElement | null {
     if (c.busy) setInput(frage);
     else absenden(frage);
   }, [vorgabe, absenden, c.busy]);
+
+  // Die wartende Bestandsfrage abschicken, sobald Lauf (und Plan) vorliegen.
+  // Scheitert der Lauf, kommt die Frage ins Eingabefeld zurück, statt still zu
+  // verschwinden.
+  useEffect(() => {
+    if (wartet === null) return;
+    if (bestand.fehler) { setInput(wartet.frage); setWartet(null); return; }
+    if (!bestandBereit) return;
+    const w = wartet;
+    setWartet(null);
+    void c.send(w.frage, w.bloecke);
+  }, [wartet, bestandBereit, bestand.fehler, c]);
 
   const onRetry = useCallback((): void => {
     const q = c.letzteFehlerFrage;
@@ -237,7 +301,7 @@ export function AssistentPanelHost(): React.ReactElement | null {
                     sonst spräche sie stumm weiter über den, nach dem gestern
                     gefragt wurde. */}
                 <button className="icon-btn" title="Neue Unterhaltung" aria-label="Neue Unterhaltung"
-                  onClick={() => { assistentPanelUiStore.getState().scopeLoeschen(); setAktiveBloecke([]); c.neueUnterhaltung(); }}>
+                  onClick={() => { assistentPanelUiStore.getState().scopeLoeschen(); setAktiveBloecke([]); setWartet(null); c.neueUnterhaltung(); }}>
                   <SquarePen size={16} />
                 </button>
                 <button className="icon-btn" title="Assistent schließen" aria-label="Assistent schließen"
@@ -314,6 +378,12 @@ export function AssistentPanelHost(): React.ReactElement | null {
                     {f.label}
                   </button>
                 ))}
+              </div>
+            )}
+
+            {wartet !== null && (
+              <div className="flex items-center gap-2 px-4 py-2 text-[13px] text-[var(--tf-text-secondary)]" role="status">
+                <Loader2 size={14} className="animate-spin" />rechne Bestand … die Frage wird danach abgeschickt
               </div>
             )}
 

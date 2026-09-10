@@ -278,6 +278,7 @@ function MeineAntraegeListe({
           aufgabe: aufgaben.fuer(v.tv_aktenzeichen ?? [v.id]),
           rueckfall: schrittText(v.status, v.precheck_status_label ?? ''),
           laeuftNoch: aufgaben.laeuftNoch,
+          ausserhalbLauf: aufgaben.ausserhalb(v.tv_aktenzeichen ?? [v.id]),
           regeln: aufgaben.regeln,
         });
 

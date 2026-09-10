@@ -87,6 +87,33 @@ export const AKTUELLE_RICHTLINIE: readonly string[] =
   RICHTLINIEN_GENERATIONEN.slice(-1).flatMap(g => g.programme);
 
 /**
+ * Wie viele Generationen der **Bestandslauf** rechnet — die aktuelle Richtlinie
+ * und die davor.
+ *
+ * Kleiner als der Bereich, und das mit Absicht (Spec Assistent-Fragevorschläge
+ * 3.6): C16-Trigger gibt es ohnehin nur für die beiden jüngsten Generationen, der
+ * Verlauf älterer Vorgänge ist nicht ableitbar, und jeder gerechnete Altvorgang
+ * kostet Zeit auf jeder Seite, die den Lauf braucht. Listen, Zähler und Chip
+ * bleiben beim Bereich; eine Zeile außerhalb sagt, warum ihr die Kaskade fehlt.
+ */
+export const BESTANDSLAUF_GENERATIONEN = 2;
+
+/** Die Generationen des Bestandslaufs — abgeleitet wie Seed und „Aktuelle Richtlinie". */
+export const BESTANDSLAUF_RICHTLINIEN: readonly RichtlinienGeneration[] =
+  RICHTLINIEN_GENERATIONEN.slice(-BESTANDSLAUF_GENERATIONEN);
+
+/**
+ * Die Programme, die der Bestandslauf rechnet: der gewählte Bereich, geschnitten
+ * mit den zwei jüngsten Generationen. Auch die Stufe „Alle" (`null`) rechnet nur
+ * diese zwei. Rein.
+ */
+export function bestandslaufMenge(bereich: ReadonlySet<string> | null): ReadonlySet<string> {
+  const lauf = bereichsMenge(BESTANDSLAUF_RICHTLINIEN.flatMap(g => g.programme));
+  if (bereich === null) return lauf;
+  return new Set([...lauf].filter(p => bereich.has(p)));
+}
+
+/**
  * Die Stufen der persönlichen Auswahl (reiner Domänen-Typ).
  *
  * Drei davon sind **listenlos und abgeleitet** (`standard`, `aktuell`, `alle`) —

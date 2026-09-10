@@ -11,7 +11,7 @@ import { ROLLEN } from '../rollen';
 import type { Rolle } from '../typen';
 import type { TodoErgebnis } from '../todo-engine';
 import { baueAufgabe, type TvTodo } from '../aufgabe';
-import { aufgabenAnzeige, regelTraf } from '../aufgaben-anzeige';
+import { AUSSERHALB_LAUF_NEBEN, aufgabenAnzeige, regelTraf } from '../aufgaben-anzeige';
 
 function erg(p: Partial<TodoErgebnis> = {}): TodoErgebnis {
   return {
@@ -46,6 +46,16 @@ describe('aufgabenAnzeige — fünf Zustände, jeder mit seiner Herkunft', () =>
     const a = aufgabenAnzeige({ aufgabe: null, rueckfall: RUECKFALL, laeuftNoch: false });
     expect(a.quelle).toBe('rueckfall');
     expect(a.text).toBe(RUECKFALL);
+  });
+
+  it('sagt beim Rückfall außerhalb des Bestandslaufs, warum die Kaskade fehlt', () => {
+    // Ohne diese Nebenzeile läse sich die Status-Formel einer 2015er-Zeile wie
+    // eine Kaskaden-Aussage (Pitfall #46).
+    const a = aufgabenAnzeige({ aufgabe: null, rueckfall: RUECKFALL, laeuftNoch: false, ausserhalbLauf: true });
+    expect(a.quelle).toBe('rueckfall');
+    expect(a.text).toBe(RUECKFALL);
+    expect(a.neben).toBe(AUSSERHALB_LAUF_NEBEN);
+    expect(a.titel).toContain('nur die aktuelle und die vorige Richtlinie');
   });
 
   it('nennt die eigene Aufgabe mit ihrer Adresse', () => {

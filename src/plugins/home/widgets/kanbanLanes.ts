@@ -132,6 +132,8 @@ export interface KartenAufgaben {
   fuer: (aktenzeichen: readonly string[]) => Aufgabe | null;
   laeuftNoch: boolean;
   regeln: readonly TodoRegel[];
+  /** Alle Teilvorhaben außerhalb der Richtlinien des Bestandslaufs? */
+  ausserhalb?: (aktenzeichen: readonly string[]) => boolean;
 }
 
 function zuKarte(
@@ -147,6 +149,7 @@ function zuKarte(
     aufgabe: aufgaben ? aufgaben.fuer(gruppe.map(a => a.aktenzeichen)) : null,
     rueckfall: schrittText(rep.status, rep.precheck_status_label ?? ''),
     laeuftNoch: aufgaben?.laeuftNoch === true,
+    ausserhalbLauf: aufgaben?.ausserhalb?.(gruppe.map(a => a.aktenzeichen)) === true,
     regeln: aufgaben?.regeln,
     status: rep.status,
   });

@@ -2630,6 +2630,24 @@ Seite am Leben, also startete jede Rückkehr bei null.
    [todo-engine.ts](../../src/core/status/todo-engine.ts)): sammeln 1 547 → 1 036 ms,
    todo 253 → 163 ms.
 
+### Zwei Richtlinien statt drei (v6.56)
+
+Der Lauf rechnet nur noch die aktuelle und die vorige Generation im Bereich
+(`bestandslaufMenge`); die dritte wird gelesen, aber nicht gerechnet, und ihre
+Zeilen sagen das (`ausserhalbLauf`, [status-achsen.md](status-achsen.md)).
+Gepaart gemessen am 10.09.2026 in `dev:local` auf denselben Daten (Standard-
+Bereich, 12 Programme), abwechselnd alt und neu:
+
+| | gerechnet | nicht gerechnet | gesamt | idb | todo | wächter |
+|---|---:|---:|---:|---:|---:|---:|
+| drei Generationen | 12 359 | — | 4 747 / 4 490 ms | 2 806 / 2 781 | 139 / 121 | 546 / 549 |
+| zwei Generationen | 7 273 | 5 086 | 3 923 / 3 926 ms | 2 651 / 2 662 | 69 / 73 | 320 / 314 |
+
+Rund 0,7 s (15 %). Mehr gibt der Schnitt nicht her: das Lesen (`idb`) bleibt, weil
+alle Richtlinien in derselben Import-Quelle liegen und sich erst am Datensatz
+unterscheiden lassen. Der Gewinn ist vor allem einer der Aussage — die Kaskade
+spricht nicht mehr über Vorgänge, für die es keine Trigger gibt.
+
 ### Zwei Messfallen, beide selbst hineingelaufen
 
 - **Gechunktes Lesen ist hier LANGSAMER.** `forEachAntragChunkByProgramm` sieht

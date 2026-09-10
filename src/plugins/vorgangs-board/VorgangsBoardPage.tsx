@@ -202,7 +202,21 @@ export function VorgangsBoardPage(): React.ReactElement {
         <PageHeader
           title="Vorgangs-Board"
           subtitle="Was steht an, wo klemmt es, wann läuft es ab"
-          meta={<BereichChip ausgeblendet={api.ausgeblendet} />}
+          meta={(
+            <>
+              <BereichChip ausgeblendet={api.ausgeblendet} />
+              {/* Das Board rechnet nur die zwei jüngsten Richtlinien; wer darüber
+                  hinaus im Bereich liegt, fehlt hier — und das wird gesagt. */}
+              {api.nichtGerechnet > 0 && (
+                <span
+                  className="text-[12px] text-[var(--tf-text-secondary)]"
+                  title={'Das Board rechnet nur die aktuelle und die vorige Richtlinie. Ältere Vorgänge stehen weiter in Liste und Suche, bekommen hier aber keine Karte.'}
+                >
+                  {api.nichtGerechnet.toLocaleString('de-DE')} Vorgänge älterer Richtlinien nicht gerechnet
+                </span>
+              )}
+            </>
+          )}
           actions={
             <div className="flex items-center gap-2">
               {/* Der Verweis trifft die Frage im Moment ihres Entstehens: Wer

@@ -220,6 +220,7 @@ export function useTagesbrief(aktiv: boolean, ctx: HomeWidgetContext, aus: reado
           aufgabe,
           rueckfall: schrittText(statusRoh),
           laeuftNoch: zeilenAufgaben.laeuftNoch,
+          ausserhalbLauf: zeilenAufgaben.ausserhalb(akten),
           regeln: zeilenAufgaben.regeln,
           status: statusRoh,
         });

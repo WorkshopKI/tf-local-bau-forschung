@@ -176,6 +176,37 @@ describe('fragenFuer — Verlauf, Journal, eigene Arbeit, Umfeld', () => {
   });
 });
 
+describe('fragenFuer — Bestand', () => {
+  const pl = { fachrolle: 'alle' as const, projektleitung: true };
+  const startseite = (over: Partial<FragenKontext> = {}): FragenKontext =>
+    k({ entitaet: null, akte: null, nutzer: pl, ...over });
+
+  it('die Bestandsfragen nur ohne Vorgang, mit PL-Schalter und möglichem Lauf', () => {
+    expect(ids(startseite())).not.toContain('pl-stau');
+    const mit = ids(startseite({ bestandMoeglich: true }));
+    expect(mit).toEqual(expect.arrayContaining(['pl-stau', 'pl-fristen', 'pl-ohne-bearbeiter', 'pl-phasen', 'pl-liegezeiten']));
+    expect(mit).not.toContain('pl-plan');
+    expect(ids(startseite({ bestandMoeglich: true, planMoeglich: true }))).toContain('pl-plan');
+    expect(ids(k({ entitaet: null, akte: null, bestandMoeglich: true }))).not.toContain('pl-stau');
+    expect(ids(k({ nutzer: pl, bestandMoeglich: true }))).not.toContain('pl-stau');
+  });
+
+  it('jede Bestandsfrage schaltet den Bestand zu', () => {
+    for (const f of fragenFuer(startseite({ bestandMoeglich: true, planMoeglich: true })).filter(x => x.id.startsWith('pl-'))) {
+      expect(f.bloecke, f.id).toEqual(['bestand']);
+    }
+  });
+
+  it('der Liegezeit-Vergleich braucht einen bewertbaren Stillstand', () => {
+    const ok = akte({ stillstand: { urteil: 'ok', text: 'x' } });
+    expect(ids(k({ akte: ok }))).not.toContain('liegezeit-vergleich');
+    expect(fragenFuer(k({ akte: ok, bestandMoeglich: true })).find(f => f.id === 'liegezeit-vergleich')?.bloecke)
+      .toEqual(['bestand']);
+    const unbewertet = akte({ stillstand: { urteil: 'unbewertet', text: 'x' } });
+    expect(ids(k({ akte: unbewertet, bestandMoeglich: true }))).not.toContain('liegezeit-vergleich');
+  });
+});
+
 describe('mitBloecken', () => {
   it('vereinigt ohne Doppel und in stabiler Reihenfolge', () => {
     expect(mitBloecken(['verlauf'], ['journal', 'verlauf'])).toEqual(['verlauf', 'journal']);

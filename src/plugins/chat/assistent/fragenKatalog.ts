@@ -48,6 +48,13 @@ export interface FragenKontext {
   nutzer: NutzerRolle;
   /** Ist der Orama-Index geladen? (unrein ermittelt, hereingereicht) */
   hatIndex: boolean;
+  /**
+   * Kann der Bestandslauf rechnen (Katalog-Fassung geladen)? Sonst gibt es keine
+   * Bestandsfragen — ein Klick würde einen Lauf starten, der nie kommt.
+   */
+  bestandMoeglich?: boolean;
+  /** Liefert der Meilenstein-Plan Risiken (Flag `meilensteinMonitoring`)? */
+  planMoeglich?: boolean;
 }
 
 export interface Frage {
@@ -84,6 +91,9 @@ interface KatalogEintrag {
 }
 
 const mitVorgang = (k: FragenKontext): boolean => k.entitaet !== null;
+/** Bestandsfragen: ohne Vorgang, mit PL-Schalter, und nur, wenn ein Lauf möglich ist. */
+const imBestand = (k: FragenKontext): boolean =>
+  k.entitaet === null && k.nutzer.projektleitung && k.bestandMoeglich === true;
 const fachKurz = (k: FragenKontext): string =>
   (k.nutzer.fachrolle === 'alle' ? '' : ROLLE_LABEL[k.nutzer.fachrolle]);
 
@@ -147,6 +157,13 @@ const KATALOG: readonly KatalogEintrag[] = [
     id: 'liegt-zu-lange', gruppe: 'fristen', label: 'Liegt er zu lange?',
     frage: 'Liegt der Vorgang zu lange?',
     sichtbarWenn: (_k, a) => a?.stillstand?.urteil === 'haengt',
+  },
+  {
+    // Der Vergleich braucht den Bestand: Median und p90 je Status.
+    id: 'liegezeit-vergleich', gruppe: 'fristen', label: 'Ist das ungewöhnlich lang?',
+    frage: 'Ist die Liegezeit für diesen Status ungewöhnlich lang?', bloecke: ['bestand'],
+    sichtbarWenn: (k, a) => k.bestandMoeglich === true
+      && a?.stillstand !== undefined && a.stillstand.urteil !== 'unbewertet',
   },
 
   // ── Verlauf ───────────────────────────────────────────────────────────────
@@ -229,6 +246,38 @@ const KATALOG: readonly KatalogEintrag[] = [
     id: 'pl-zugewiesen', gruppe: 'projektleitung', label: 'AB und FB zugewiesen?',
     frage: 'Sind AB und FB zugewiesen?',
     sichtbarWenn: (k, a) => k.nutzer.projektleitung && (a?.zuweisung?.von ?? 0) > 0,
+  },
+  // Über den ganzen Bestand — auf Startseite und Liste, nur mit PL-Schalter. Der
+  // Klick startet den Bestandslauf, falls kein gültiges Ergebnis vorliegt.
+  {
+    id: 'pl-stau', gruppe: 'projektleitung', label: 'Wo klemmt es?',
+    frage: 'Wo klemmt es – bei welcher Rolle stauen sich Vorgänge?', bloecke: ['bestand'],
+    sichtbarWenn: k => imBestand(k),
+  },
+  {
+    id: 'pl-plan', gruppe: 'projektleitung', label: 'Wer reißt den Plan?',
+    frage: 'Welche Verbünde reißen ihren Bearbeitungsplan?', bloecke: ['bestand'],
+    sichtbarWenn: k => imBestand(k) && k.planMoeglich === true,
+  },
+  {
+    id: 'pl-fristen', gruppe: 'projektleitung', label: 'Fristen der nächsten 14 Tage',
+    frage: 'Welche Fristen laufen in den nächsten 14 Tagen ab – über alle?', bloecke: ['bestand'],
+    sichtbarWenn: k => imBestand(k),
+  },
+  {
+    id: 'pl-ohne-bearbeiter', gruppe: 'projektleitung', label: 'Ohne Bearbeiter',
+    frage: 'Wie viele offene Vorgänge haben keine AB oder keinen FB?', bloecke: ['bestand'],
+    sichtbarWenn: k => imBestand(k),
+  },
+  {
+    id: 'pl-phasen', gruppe: 'projektleitung', label: 'Verteilung auf Verfahrensschritte',
+    frage: 'Wie verteilt sich der Bestand auf die Verfahrensschritte?', bloecke: ['bestand'],
+    sichtbarWenn: k => imBestand(k),
+  },
+  {
+    id: 'pl-liegezeiten', gruppe: 'projektleitung', label: 'Liegezeiten je Status',
+    frage: 'Wie lange liegen Vorgänge je Status – wo ist der lange Schwanz?', bloecke: ['bestand'],
+    sichtbarWenn: k => imBestand(k),
   },
 
   // ── Arbeitsvorrat (Liste, Startseite) ─────────────────────────────────────

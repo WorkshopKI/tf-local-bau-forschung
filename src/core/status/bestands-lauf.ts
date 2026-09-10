@@ -98,6 +98,12 @@ export interface BestandLauf {
   zeilen: BestandZeile[];
   /** Vom Betrachtungsbereich übersprungen — GELESEN, nicht „übrig". */
   uebergangen: number;
+  /**
+   * Im Bereich, aber außerhalb der Richtlinien des Bestandslaufs — gelesen, nicht
+   * gerechnet. Die Aktenzeichen, damit jede Zeile sagen kann, warum ihr die
+   * Kaskade fehlt (Pitfall #46: kein Zustand ohne sichtbare Auskunft).
+   */
+  nichtGerechnet: string[];
   takt: LaufTakt;
 }
 
@@ -188,12 +194,16 @@ function jahrVon(rec: Record<string, unknown>): string {
  * @param bereichMenge Betrachtungsbereich; `null` = alles. Er wirkt **vor** der
  *   teuren Arbeit: was nicht im Bereich liegt, wird gar nicht erst gerechnet.
  * @param stichtag ISO — injiziert, nie eine Uhr in der Berechnung.
+ * @param laufMenge Die Programme, die gerechnet werden (`bestandslaufMenge`);
+ *   `null` = alle im Bereich. Was im Bereich, aber nicht in dieser Menge liegt,
+ *   landet in `nichtGerechnet` statt in `zeilen`.
  */
 export async function laufeBestand(
   idb: IDBStore,
   version: MappingVersion,
   bereichMenge: ReadonlySet<string> | null,
   stichtag: string,
+  laufMenge: ReadonlySet<string> | null = null,
 ): Promise<BestandLauf> {
   const begonnen = performance.now();
   const regeln = version.todoRegeln ?? [];
@@ -211,6 +221,7 @@ export async function laufeBestand(
   const zeilen: BestandZeile[] = [];
   const tBestand = performance.now();
   let uebergangen = 0;
+  const nichtGerechnet: string[] = [];
   let idbMs = 0;
   let sammelnMs = 0;
   let todoMs = 0;
@@ -220,6 +231,9 @@ export async function laufeBestand(
     const { aktenzeichen, unterprogrammId, verbundId: vbId, record: rec, vorkommen } = satz;
     const a = rec as unknown as AntragListItem;
     if (!istImBereich(unterprogrammId, bereichMenge)) { uebergangen += 1; return; }
+    // Im Bereich, aber ältere Richtlinie: nicht rechnen, aber festhalten, damit
+    // die Zeile ihren Rückfall begründen kann.
+    if (!istImBereich(unterprogrammId, laufMenge)) { nichtGerechnet.push(aktenzeichen); return; }
     const tT = performance.now();
     const todos = ermittleTodosAlleRollen(regeln, baueTodoKontext(vorkommen), stichtag);
     todoMs += performance.now() - tT;
@@ -294,12 +308,14 @@ export async function laufeBestand(
     + ` | bestand ${bestandMs} (idb ${r(idbMs)} · sammeln ${r(sammelnMs)}`
     + ` · todo ${r(todoMs)} · wächter ${r(waechterMs)})`
     + ` | ${zeilen.length} Vorgänge`
-    + (uebergangen > 0 ? ` · ${uebergangen} außerhalb des Bereichs übersprungen` : ''),
+    + (uebergangen > 0 ? ` · ${uebergangen} außerhalb des Bereichs übersprungen` : '')
+    + (nichtGerechnet.length > 0 ? ` · ${nichtGerechnet.length} älterer Richtlinien nicht gerechnet` : ''),
   );
 
   return {
     zeilen,
     uebergangen,
+    nichtGerechnet,
     takt: {
       gesamtMs, katalogMs, journalMs, bestandMs,
       idbMs: r(idbMs), sammelnMs: r(sammelnMs), todoMs: r(todoMs), waechterMs: r(waechterMs),

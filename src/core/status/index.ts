@@ -91,6 +91,7 @@ export { indexNachSchreibweise } from './wert-index';
 export {
   BETRACHTUNGSBEREICH_SEED, AKTUELLE_RICHTLINIE, bereichsProgramme, bereichsMenge,
   istImBereich, bereichWeichtVomSeedAb, RICHTLINIEN_GENERATIONEN,
+  BESTANDSLAUF_GENERATIONEN, BESTANDSLAUF_RICHTLINIEN, bestandslaufMenge,
 } from './betrachtungsbereich';
 export {
   EINSATZ_GENERATIONEN, aktuelleProgramme, einsatzJahre,

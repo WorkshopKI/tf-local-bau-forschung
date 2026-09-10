@@ -71,6 +71,7 @@ function mitAufgabenKaskade(
     // („Bewilligt → Bewilligt", in der Abnahme gesehen).
     rueckfall: naechsterSchritt(strOrNull(r.status), r.precheck_status_label ?? '')?.aktion ?? '',
     laeuftNoch: aufgaben.laeuftNoch,
+    ausserhalbLauf: aufgaben.ausserhalb(zeilenAktenzeichen(r)),
     regeln: aufgaben.regeln,
     status: r.status,
   });

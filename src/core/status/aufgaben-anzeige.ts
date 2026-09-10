@@ -85,6 +85,13 @@ export interface AufgabenAnzeige {
 
 const PLATZHALTER = '…';
 
+/**
+ * Nebenzeile einer Zeile außerhalb des Bestandslaufs. Sichtbar, nicht nur im
+ * Tooltip: ein Rückfall, der sich nicht zu erkennen gibt, liest sich wie eine
+ * Kaskaden-Aussage (Pitfall #46).
+ */
+export const AUSSERHALB_LAUF_NEBEN = 'ältere Richtlinie – aus dem Status abgeleitet';
+
 /** Die Beschreibungen der greifenden Sperren, in Kaskaden-Reihenfolge. */
 function sperrNamen(ids: readonly string[], regeln: readonly TodoRegel[]): string[] {
   const namen: string[] = [];
@@ -107,6 +114,12 @@ export interface AnzeigeEingabe {
   rueckfall: string;
   /** Läuft der Bestandslauf noch? Dann ist `null` kein Ergebnis, sondern Warten. */
   laeuftNoch: boolean;
+  /**
+   * Die Zeile gehört zu einer Richtlinie, die der Bestandslauf nicht rechnet
+   * (älter als die vorige). Dann heißt `aufgabe === null`: die Kaskade wurde
+   * nicht gefragt — und die Nebenzeile sagt das.
+   */
+  ausserhalbLauf?: boolean;
   /** Die Regeln der geltenden Fassung — nur zum Benennen der Sperren. */
   regeln?: readonly TodoRegel[];
   /**
@@ -125,6 +138,13 @@ export function aufgabenAnzeige(e: AnzeigeEingabe): AufgabenAnzeige {
       return {
         text: PLATZHALTER, quelle: 'laedt', neben: '', anteil: '',
         titel: 'Die Aufgabe wird gerade aus den gesetzten Kürzeln ermittelt.',
+      };
+    }
+    if (e.ausserhalbLauf) {
+      return {
+        text: rueckfall, quelle: 'rueckfall', neben: AUSSERHALB_LAUF_NEBEN, anteil: '',
+        titel: `${rueckfall ? `${rueckfall} — ` : ''}abgeleitet aus dem Status. Die Kaskade rechnet nur `
+          + 'die aktuelle und die vorige Richtlinie; dieser Vorgang gehört zu einer älteren.',
       };
     }
     return {

@@ -83,6 +83,7 @@ function aufgabeVon(
     aufgabe: zeilen.fuer(aktenzeichen),
     rueckfall: schrittText(status ?? ''),
     laeuftNoch: zeilen.laeuftNoch,
+    ausserhalbLauf: zeilen.ausserhalb(aktenzeichen),
     regeln: zeilen.regeln,
     status: status ?? null,
   });

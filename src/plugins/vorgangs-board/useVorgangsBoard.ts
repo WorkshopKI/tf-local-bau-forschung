@@ -159,6 +159,8 @@ export interface VorgangsBoardApi {
   kuerzelModus: BearbeiterFilterMode;
   /** Wie viele Anträge der Betrachtungsbereich weggenommen hat (für den Chip). */
   ausgeblendet: number;
+  /** Im Bereich, aber älterer Richtlinie — nicht gerechnet, also ohne Karte. */
+  nichtGerechnet: number;
   /** Rechenzeit des letzten Laufs über den Bestand, in Millisekunden. */
   ladeMs: number | null;
   /**
@@ -439,7 +441,8 @@ export function useVorgangsBoard(): VorgangsBoardApi {
     jahre, setJahre, varianten, setVarianten, phasen, setPhasen,
     jahrOptionen, variantenOptionen, phasenOptionen,
     letzteDrei, zeigtAltbestand: reichtInAltbestand(jahre, heuteRef.current),
-    kuerzelModus, ausgeblendet: bestand.ausgeblendet, ladeMs: bestand.ladeMs,
+    kuerzelModus, ausgeblendet: bestand.ausgeblendet, nichtGerechnet: bestand.nichtGerechnet.size,
+    ladeMs: bestand.ladeMs,
     berechnetAm: bestand.berechnetAm, neuBerechnen: bestand.neuBerechnen,
     nurHaengt, setNurHaengt, stau, unbewertet, rollenBilanz,
   };

@@ -32,7 +32,7 @@ Verfügung.
   Gesamtmenge (Auswertung). Gleich aussehend, aber nicht gegeneinander lesbar.
 - **Betrachtungsbereich-Chip** im Seitenkopf: „Anzeige: letzte 3 Richtlinien". Er sagt, welche Förder-Richtlinien zum Arbeitsvorrat zählen — die drei jüngsten ZIM-Generationen 2015, 2020, 2025; draußen bleibt nur die Generation 2012. Wie viele Anträge das ausblendet, steht im Tooltip; im Chip selbst erst dann, wenn jemand einzelne Programme abwählt.
   - **Klick öffnet die Auswahl:** drei Kurzwahlen — Standard-Bereich / Aktuelle Richtlinie (nur die jüngste Generation, Chip: „Anzeige: Richtlinie 2025") / Alle Richtlinien — darunter die Programme mit Klartext-Namen, **nach Generation gruppiert**; ein Häkchen macht daraus eine eigene Liste.
-  - **Für die Generation 2015 führt die Trigger-Zuarbeit nichts** — dort steht am Vorgang „für Programm N keine Trigger importiert", und es entsteht kein To-do.
+  - **Das Board rechnet nur die aktuelle und die vorige Richtlinie** (2020 und 2025). Vorgänge älterer Richtlinien im Bereich — heute die Generation 2015, für die die Trigger-Zuarbeit ohnehin nichts führt — bekommen hier keine Karte; neben dem Chip steht dann „N Vorgänge älterer Richtlinien nicht gerechnet". In Liste, Startseite und Suche bleiben sie, mit der Nebenzeile „ältere Richtlinie – aus dem Status abgeleitet" statt einer Aufgabe aus den Kürzeln.
   - Die **Suche bleibt immer am ganzen Bestand** — Treffer außerhalb sind gekennzeichnet und lassen sich öffnen.
 - **Wer dran ist**, eigene Chip-Zeile unter den Reitern (nur im Reiter *Arbeit*).
   Vier Teile mit ihrer Zahl, und **die vier addieren sich zur Gesamtmenge** —

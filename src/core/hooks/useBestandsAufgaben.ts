@@ -25,7 +25,7 @@ import { useStartupDataStatus } from '@/core/services/csv/startup-data-status';
 import { useProfile } from '@/core/hooks/useProfile';
 import {
   getAktiveVersion, ladeAktiveVersion, leseStatusRolle, REGELSATZ_DEFAULT,
-  aufgabeAusBestand, type Aufgabe, type MappingVersion, type Rolle, type TodoRegel,
+  aufgabeAusBestand, bestandslaufMenge, type Aufgabe, type MappingVersion, type Rolle, type TodoRegel,
 } from '@/core/status';
 import { laufeBestand, type BestandZeile } from '@/core/status/bestands-lauf';
 
@@ -53,6 +53,8 @@ export interface BestandsDaten {
   zeilen: BestandZeile[];
   /** Vom Betrachtungsbereich übersprungen. */
   ausgeblendet: number;
+  /** Im Bereich, aber älterer Richtlinie — gelesen, nicht gerechnet (Aktenzeichen). */
+  nichtGerechnet: ReadonlySet<string>;
   ladeMs: number;
   /** `aktenzeichen` → Zeile. Einmal beim Ablegen gebaut, nicht je Render. */
   nachAktenzeichen: ReadonlyMap<string, BestandZeile>;
@@ -127,15 +129,18 @@ export function ablageGilt(
  * (Nummer UND Zeitstempel — bei einer Nummern-Kollision kann dieselbe Nummer
  * verschiedenen Inhalt tragen), den Betrachtungsbereich, die Bestands-Generation
  * und den Stichtag-TAG (alle Liegezeiten sind relativ zu ihm; eine über
- * Mitternacht offene Sitzung zeigte sonst die Zahlen von gestern).
+ * Mitternacht offene Sitzung zeigte sonst die Zahlen von gestern) — und die
+ * Programme, die tatsächlich gerechnet werden (`bestandslaufMenge`).
  */
 export function bestandsSchluessel(
   version: MappingVersion, bereichMenge: ReadonlySet<string> | null, stichtag: string,
+  laufMenge: ReadonlySet<string> | null = null,
 ): string {
   return [
     version.version,
     version.zeitstempel ?? '',
     bereichMenge === null ? 'alle' : [...bereichMenge].sort().join(','),
+    laufMenge === null ? '-' : [...laufMenge].sort().join(','),
     bestandGeneration(),
     stichtag.slice(0, 10),
   ].join('|');
@@ -143,6 +148,7 @@ export function bestandsSchluessel(
 
 function baueDaten(
   version: MappingVersion, zeilen: BestandZeile[], ausgeblendet: number, ladeMs: number,
+  nichtGerechnet: readonly string[] = [],
 ): BestandsDaten {
   const nachAktenzeichen = new Map<string, BestandZeile>();
   const nachVerbund = new Map<string, BestandZeile[]>();
@@ -155,7 +161,10 @@ function baueDaten(
     const liste = nachVerbund.get(z.verbundId);
     if (liste) liste.push(z); else nachVerbund.set(z.verbundId, [z]);
   }
-  return { version, zeilen, ausgeblendet, ladeMs, nachAktenzeichen, nachVerbund, abgeschlossen };
+  return {
+    version, zeilen, ausgeblendet, nichtGerechnet: new Set(nichtGerechnet), ladeMs,
+    nachAktenzeichen, nachVerbund, abgeschlossen,
+  };
 }
 
 /**
@@ -171,6 +180,7 @@ async function starteLauf(
   bereichMenge: ReadonlySet<string> | null,
   stichtag: string,
   schluessel: string,
+  laufMenge: ReadonlySet<string> | null,
 ): Promise<void> {
   const vorhanden = laufend.get(schluessel);
   if (vorhanden) return vorhanden;
@@ -178,13 +188,13 @@ async function starteLauf(
     const store = useBestandsAblage.getState();
     store.setLaden(true);
     try {
-      const lauf = await laufeBestand(idb, version, bereichMenge, stichtag);
+      const lauf = await laufeBestand(idb, version, bereichMenge, stichtag, laufMenge);
       useBestandsAblage.getState().setzen(
         schluessel,
-        baueDaten(version, lauf.zeilen, lauf.uebergangen, lauf.takt.gesamtMs),
+        baueDaten(version, lauf.zeilen, lauf.uebergangen, lauf.takt.gesamtMs, lauf.nichtGerechnet),
         // GELESEN, nicht „übrig": ein Bereich, der alles wegnimmt, ist eine
         // Antwort — ein leerer Store ist keine.
-        lauf.zeilen.length + lauf.uebergangen,
+        lauf.zeilen.length + lauf.uebergangen + lauf.nichtGerechnet.length,
       );
     } catch (err) {
       // Entwerten, damit ein gescheiterter Lauf beim nächsten Aufruf heilt statt
@@ -224,6 +234,8 @@ export interface BestandsAufgaben {
   bereit: boolean;
   /** Wie viele Anträge der Betrachtungsbereich weggenommen hat. */
   ausgeblendet: number;
+  /** Aktenzeichen im Bereich, aber älterer Richtlinie — nicht gerechnet. */
+  nichtGerechnet: ReadonlySet<string>;
   /** Rechenzeit des letzten Laufs, in Millisekunden. */
   ladeMs: number | null;
   /** Wann die Zahlen gerechnet wurden (`Date.now()`); `0` = noch nie. */
@@ -238,6 +250,7 @@ const LEER_AKTEN: ReadonlyMap<string, BestandZeile> = new Map();
 const LEER_VERBUND: ReadonlyMap<string, BestandZeile[]> = new Map();
 const LEER_ZEILEN: BestandZeile[] = [];
 const LEER_ABGESCHLOSSEN: ReadonlySet<string> = new Set();
+const LEER_NICHT_GERECHNET: ReadonlySet<string> = new Set();
 
 /**
  * Das Ergebnis des Bestandslaufs lesen — und ihn anstoßen, wenn er fehlt.
@@ -251,6 +264,8 @@ const LEER_ABGESCHLOSSEN: ReadonlySet<string> = new Set();
 export function useBestandsAufgaben(start: LaufStart, stichtag: string): BestandsAufgaben {
   const idb = useStorage().idb;
   const bereichMenge = useBereich().menge;
+  // Gerechnet werden nur die zwei jüngsten Richtlinien im Bereich (Spec 3.6).
+  const laufMenge = useMemo(() => bestandslaufMenge(bereichMenge), [bereichMenge]);
   const zustand = useBestandsAblage();
 
   // Die Fassung steht ohne `statusCockpit` gar nicht zur Verfügung; dann gibt es
@@ -265,19 +280,19 @@ export function useBestandsAufgaben(start: LaufStart, stichtag: string): Bestand
   // dem Import.
   const generation = useSyncExternalStore(subscribeBestandGeneration, bestandGeneration);
   const schluessel = useMemo(
-    () => (version ? bestandsSchluessel(version, bereichMenge, stichtag) : null),
-    [version, bereichMenge, stichtag, generation],
+    () => (version ? bestandsSchluessel(version, bereichMenge, stichtag, laufMenge) : null),
+    [version, bereichMenge, laufMenge, stichtag, generation],
   );
 
   const anstossen = useCallback((neu: boolean) => {
     void (async () => {
       const v = getAktiveVersion() ?? await ladeAktiveVersion(idb);
-      const key = bestandsSchluessel(v, bereichMenge, stichtag);
+      const key = bestandsSchluessel(v, bereichMenge, stichtag, laufMenge);
       if (!neu && ablageGilt(useBestandsAblage.getState(), key, Date.now())) return;
       if (neu) useBestandsAblage.getState().entwerten();
-      await starteLauf(idb, v, bereichMenge, stichtag, key);
+      await starteLauf(idb, v, bereichMenge, stichtag, key, laufMenge);
     })();
-  }, [idb, bereichMenge, stichtag]);
+  }, [idb, bereichMenge, laufMenge, stichtag]);
 
   useEffect(() => {
     if (start === 'nie') return;
@@ -338,6 +353,7 @@ export function useBestandsAufgaben(start: LaufStart, stichtag: string): Bestand
     abgeschlossen: daten?.abgeschlossen ?? LEER_ABGESCHLOSSEN,
     bereit: daten !== null,
     ausgeblendet: daten?.ausgeblendet ?? 0,
+    nichtGerechnet: daten?.nichtGerechnet ?? LEER_NICHT_GERECHNET,
     ladeMs: daten?.ladeMs ?? null,
     berechnetAm: gilt ? zustand.berechnetAm : 0,
     ohneRegeln: version !== null && (version.todoRegeln ?? []).length === 0,
@@ -354,12 +370,29 @@ export interface ZeilenAufgaben {
   fuer: (aktenzeichen: readonly string[]) => Aufgabe | null;
   /** Der Lauf ist unterwegs — dann zeigt die Anzeige einen Platzhalter. */
   laeuftNoch: boolean;
+  /**
+   * Liegen ALLE diese Teilvorhaben außerhalb der Richtlinien des Bestandslaufs?
+   * Dann heißt `fuer(…) === null` nicht „die Kaskade schweigt", sondern „sie wurde
+   * nicht gefragt" — die Anzeige sagt das (`aufgabenAnzeige.ausserhalbLauf`).
+   */
+  ausserhalb: (aktenzeichen: readonly string[]) => boolean;
   /** Die Regeln der geltenden Fassung; nur zum Benennen der Sperren. */
   regeln: readonly TodoRegel[];
   /** Der gelesene Regelsatz — gehört sichtbar an die Anzeige. */
   rolle: Rolle;
   /** Die Fassung führt keine To-do-Regeln. */
   ohneRegeln: boolean;
+}
+
+/**
+ * Liegen alle Teilvorhaben einer Zeile außerhalb des Bestandslaufs? Eine leere
+ * Liste ist KEIN „außerhalb" — sie hat nichts, worüber sie etwas sagen könnte.
+ * Rein.
+ */
+export function alleNichtGerechnet(
+  aktenzeichen: readonly string[], nichtGerechnet: ReadonlySet<string>,
+): boolean {
+  return aktenzeichen.length > 0 && aktenzeichen.every(az => nichtGerechnet.has(az));
 }
 
 /**
@@ -383,9 +416,15 @@ export function useZeilenAufgaben(start: LaufStart, stichtag: string): ZeilenAuf
       aufgabeAusBestand(aktenzeichen, register, rolle, ohneRegeln),
     [register, rolle, ohneRegeln],
   );
+  const nicht = bestand.nichtGerechnet;
+  const ausserhalb = useCallback(
+    (aktenzeichen: readonly string[]): boolean => alleNichtGerechnet(aktenzeichen, nicht),
+    [nicht],
+  );
 
   return {
     fuer,
+    ausserhalb,
     // Ohne Fassung (kein `statusCockpit`) läuft gar nichts — dann ist die
     // Kaskade nicht „unterwegs", sie gibt es hier nicht. Ein gescheiterter Lauf
     // zählt genauso: beide Male ist der Rückfall die ehrliche Anzeige.

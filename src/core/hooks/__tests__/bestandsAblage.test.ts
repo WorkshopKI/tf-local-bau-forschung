@@ -25,6 +25,7 @@ const daten = (n: number): BestandsDaten => ({
   version: VERSION,
   zeilen: Array.from({ length: n }, () => ({})) as BestandsDaten['zeilen'],
   ausgeblendet: 0,
+  nichtGerechnet: new Set(),
   ladeMs: 1234,
   nachAktenzeichen: new Map(),
   nachVerbund: new Map(),

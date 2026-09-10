@@ -237,6 +237,7 @@ function StatusZeile({
     aufgabe: aufgaben.fuer(zeile.tvAktenzeichen),
     rueckfall: '',
     laeuftNoch: aufgaben.laeuftNoch,
+    ausserhalbLauf: aufgaben.ausserhalb(zeile.tvAktenzeichen),
     regeln: aufgaben.regeln,
   });
   const naechster = anzeige.text || null;

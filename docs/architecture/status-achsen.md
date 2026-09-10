@@ -386,8 +386,15 @@ Drei Festlegungen, die wichtiger sind als die Tabelle:
    [bestands-lauf.ts](../../src/core/status/bestands-lauf.ts), sein Ergebnis in
    [useBestandsAufgaben.ts](../../src/core/hooks/useBestandsAufgaben.ts) — mit
    demselben Schlüssel und derselben TTL wie vorher (Fassung · Bereich ·
-   Bestands-Generation · Stichtag-TAG, 5 min). Wer ihn nur ergänzend braucht,
-   stößt ihn im Leerlauf an und blockiert nicht.
+   Lauf-Menge · Bestands-Generation · Stichtag-TAG, 5 min). Wer ihn nur
+   ergänzend braucht, stößt ihn im Leerlauf an und blockiert nicht.
+4. **Zwei Richtlinien, nicht der ganze Bereich** (v6.56). Gerechnet werden nur
+   die aktuelle und die vorige Richtlinien-Generation innerhalb des Bereichs
+   (`bestandslaufMenge`, [betrachtungsbereich.ts](../../src/core/status/betrachtungsbereich.ts));
+   für ältere führt die C16-Zuarbeit ohnehin keine Trigger. Eine Zeile
+   außerhalb bekommt keine Kaskade, sondern den Rückfall mit der Nebenzeile
+   „ältere Richtlinie – aus dem Status abgeleitet" (`ausserhalbLauf`) — der
+   Grund steht an der Zeile, nicht nur im Tooltip (Pitfall #46).
 
 **Die Faltung gibt sich zu erkennen.** Eine Verbundzeile wertet **je
 Teilvorhaben** aus und faltet danach (`baueAufgabe`); tragen nicht alle dieselbe

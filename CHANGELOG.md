@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v6.56.0 — Bestandslauf über zwei Richtlinien, Bestandsfragen der Projektleitung (September 2026)
+
+MINOR — Der Bestandslauf rechnete den ganzen Bereich, auch die Richtlinie 2015, für die C16 keine Trigger führt. Jetzt rechnet er nur die aktuelle und die vorige Richtlinie; ältere Zeilen sagen, warum ihnen die Kaskade fehlt. Auf dem Bestand bauen die Fragen der Projektleitung im Assistenten auf (gepaart gemessen: ~15 % schneller, das Lesen bleibt).
+
+- **Lauf-Menge**: `bestandslaufMenge` = Bereich ∩ zwei jüngste Generationen, `nichtGerechnet` ([betrachtungsbereich.ts](src/core/status/betrachtungsbereich.ts), [bestands-lauf.ts](src/core/status/bestands-lauf.ts), [useBestandsAufgaben.ts](src/core/hooks/useBestandsAufgaben.ts))
+- **Benannter Rückfall**: Nebenzeile „ältere Richtlinie – aus dem Status abgeleitet" in sechs Lesern ([aufgaben-anzeige.ts](src/core/status/aufgaben-anzeige.ts)); Board-Hinweis neben dem Chip ([VorgangsBoardPage.tsx](src/plugins/vorgangs-board/VorgangsBoardPage.tsx))
+- **Block `bestand`**: Stau, Verfahrensschritte, Fristen, Zuweisung gezählt, Liegezeiten, Plan-Risiken ([bestandBlock.ts](src/plugins/chat/assistent/bestandBlock.ts), [usePlanRisiken.ts](src/plugins/chat/assistent/usePlanRisiken.ts))
+- **Bestandsfragen der PL + Liegezeit-Vergleich**; der Klick startet einen fehlenden Lauf ([fragenKatalog.ts](src/plugins/chat/assistent/fragenKatalog.ts), [AssistentPanelHost.tsx](src/plugins/chat/assistent/AssistentPanelHost.tsx))
+- **Doku**: [vorgangssystem.md §17](docs/architecture/vorgangssystem.md), [status-achsen.md](docs/architecture/status-achsen.md), [assistent-panel.md](docs/architecture/assistent-panel.md)
+
 ### v6.55.0 — Assistent: voller Verlauf, Änderungs-Journal und eigene Arbeit (September 2026)
 
 MINOR — Die Vorgangsakte trug vom Verlauf nur Kennzahlen und 30 Termine, vom Journal nichts. Jetzt schalten Fragen den vollen Verlauf (alle Termine, Statusabschnitte mit Dauer) und das Änderungs-Journal zu; dazu kennt der Assistent den Stand von Gutachten und Nachforderungen und frühere abgelehnte Einreichungen. Das Journal liest er nie selbst — er nimmt den Lauf der Detailseite mit.

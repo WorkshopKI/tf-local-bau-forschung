@@ -23,7 +23,8 @@ import { baueZurueckgenommene } from '@/core/status/chronik-zurueckgenommen';
 import { eintragText, nullpunktText, tagDe, wannText } from '@/plugins/antraege/status/journalTexte';
 import { baueSpaltenAufloesung, spaltenAuskunft } from '@/plugins/antraege/status/journalSpalten';
 
-export type BlockId = 'verlauf' | 'journal';
+/** `bestand` gehört keinem Vorgang (bestandBlock.ts), die übrigen ihrer Akte. */
+export type BlockId = 'verlauf' | 'journal' | 'bestand';
 
 export interface ZusatzBlock extends KontextBlock {
   id: BlockId;
@@ -33,6 +34,7 @@ export interface ZusatzBlock extends KontextBlock {
 export const BLOCK_LABEL: Record<BlockId, string> = {
   verlauf: 'voller Verlauf',
   journal: 'Änderungs-Journal',
+  bestand: 'Bestand',
 };
 
 /** Kappung der Termine im Verlaufs-Block — die jüngsten bleiben. */

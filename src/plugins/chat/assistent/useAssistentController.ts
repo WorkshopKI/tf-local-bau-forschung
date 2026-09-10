@@ -141,10 +141,11 @@ export function useAssistentController(
         const k = baueKontextSnapshot(Date.now(), scopeSchluessel, zeilen);
         const akte = zusatz?.akte ?? null;
         const passt = akte !== null && k.entitaet !== null && akte.fuer === k.entitaet.id;
-        // Blöcke gehören derselben Akte — gilt sie nicht, gelten sie auch nicht.
-        const bloecke = passt
-          ? bloeckeIds.map(b => zusatz?.bloecke?.[b]).filter((b): b is ZusatzBlock => b !== undefined)
-          : [];
+        // Die Blöcke eines Vorgangs gehören seiner Akte — gilt sie nicht, gelten
+        // sie auch nicht. Der Bestand gehört keinem Vorgang und reist immer mit.
+        const bloecke = bloeckeIds
+          .map(b => zusatz?.bloecke?.[b])
+          .filter((b): b is ZusatzBlock => b !== undefined && (b.id === 'bestand' || passt));
         return {
           ...k,
           akte: passt ? akte : null,

@@ -19,6 +19,14 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v6.56 — 2026-09
+
+### Neu
+- Mit dem Schalter „Projektleitung" bietet der Assistent auf Startseite und Liste Fragen zum ganzen Bestand an: wo es klemmt, welche Verbünde ihren Plan reißen, welche Fristen in den nächsten 14 Tagen ablaufen, wie sich der Bestand verteilt und wie lange Vorgänge je Status liegen.
+- Am einzelnen Vorgang kann der Assistent sagen, ob die Liegezeit für diesen Status ungewöhnlich lang ist.
+### Verbesserungen
+- Die Aufgaben-Rechnung umfasst nur noch die aktuelle und die vorige Richtlinie – sie ist dadurch etwas schneller. Vorgänge älterer Richtlinien zeigen stattdessen „ältere Richtlinie – aus dem Status abgeleitet", und das Vorgangs-Board sagt, wie viele es deshalb nicht rechnet.
+
 ## v6.55 — 2026-09
 
 ### Neu
