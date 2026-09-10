@@ -19,6 +19,11 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v6.53 — 2026-09
+
+### Verbesserungen
+- Das Fragezeichen hinter einem Punkt im Tagesbrief stellt dem Assistenten die Frage jetzt gleich, statt sie nur ins Eingabefeld zu legen. Denkt der Assistent gerade noch an einer anderen Antwort, wartet die Frage im Eingabefeld auf Ihr Senden.
+
 ## v6.52 — 2026-09
 
 ### Verbesserungen

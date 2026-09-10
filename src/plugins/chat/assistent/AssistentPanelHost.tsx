@@ -54,17 +54,6 @@ export function AssistentPanelHost(): React.ReactElement | null {
   const [activePanel, setActivePanel] = useState<ActivePanel | null>(null);
   const [input, setInput] = useState('');
 
-  // Eine von aussen vorgelegte Frage (Tagesbrief: „dazu nachfragen") landet im
-  // Eingabefeld — sie wird NICHT abgeschickt. Der eine Aufruf pro Turn bleibt
-  // eine Geste des Nutzers; eine Karte, die ungefragt ein Modell anstösst, wäre
-  // eine andere Zusage als „Rückfrage stellen".
-  const vorgabe = useStore(assistentPanelUiStore, s => s.vorgabe);
-  useEffect(() => {
-    if (vorgabe === null) return;
-    setInput(vorgabe);
-    assistentPanelUiStore.getState().vorgabeVerbraucht();
-  }, [vorgabe]);
-
   // Den geliehenen Vorgang beim Routenwechsel loslassen. Ein von der Startseite
   // mitgegebenes CALYPSO, das nach der Navigation zu einem ANDEREN Vorgang
   // weitergälte, ließe den Chip lügen — und der Chip ist die Zusage „nur das geht
@@ -125,6 +114,20 @@ export function AssistentPanelHost(): React.ReactElement | null {
     setInput('');
     void c.send(t);
   }, [c]);
+
+  // Eine von aussen vorgelegte Frage (Tagesbrief: „dazu nachfragen") wird
+  // abgeschickt — der Klick auf die Karte IST die Geste, wie bei den Quick
+  // Actions unten. Erst entnehmen, dann senden: ein zweiter Lauf des Effekts
+  // findet den Slot leer und schickt nicht doppelt. Läuft gerade eine Antwort,
+  // verwürfe `absenden` die Frage wortlos — dann steht sie im Eingabefeld.
+  const vorgabe = useStore(assistentPanelUiStore, s => s.vorgabe);
+  useEffect(() => {
+    const { vorgabe: frage, vorgabeVerbraucht } = assistentPanelUiStore.getState();
+    if (frage === null) return;
+    vorgabeVerbraucht();
+    if (c.busy) setInput(frage);
+    else absenden(frage);
+  }, [vorgabe, absenden, c.busy]);
 
   const onRetry = useCallback((): void => {
     const q = c.letzteFehlerFrage;

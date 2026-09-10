@@ -202,9 +202,10 @@ der Brief rankt über ihre Grenzen hinweg.
   ([punkte.ts](../../src/plugins/home/tagesbrief/punkte.ts) + [baueBrief.ts](../../src/plugins/home/tagesbrief/baueBrief.ts),
   `now` injiziert, node-testbar). Das Modell kommt erst bei der Rückfrage ins
   Spiel — je Punkt ein „dazu nachfragen", das das **bestehende** Assistent-Dock
-  mit vorbefüllter Frage öffnet (transienter `vorgabe`-Slot im `panelUiStore`,
-  Muster `kategorieQuickfilter`). Es wird **nicht** abgeschickt: der eine Aufruf
-  pro Turn bleibt eine Geste des Nutzers. Ohne `assistentPanel`-Flag verschwindet
+  öffnet und die Frage gleich abschickt (transienter `vorgabe`-Slot im
+  `panelUiStore`, Muster `kategorieQuickfilter`). Der Klick ist die Geste, wie bei
+  den Quick Actions im Dock; läuft dort gerade eine Antwort, steht die Frage im
+  Eingabefeld statt verloren zu gehen. Ohne `assistentPanel`-Flag verschwindet
   der Knopf — ausblenden, nicht ausgrauen.
 - **Die Frage nennt ihren Vorgang** (v6.47.1). Neben dem Text reist `p.gruppe` als
   `vorgabeScope` mit und übersteuert im Panel die Store-Selektion

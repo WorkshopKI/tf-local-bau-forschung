@@ -43,13 +43,13 @@ export interface AssistentPanelUiState {
   open: boolean;
   width: number;
   /**
-   * Eine von aussen mitgegebene Frage, die das Panel beim Öffnen in sein
-   * Eingabefeld übernimmt (Tagesbrief: „dazu nachfragen").
+   * Eine von aussen mitgegebene Frage, die das Panel beim Öffnen abschickt
+   * (Tagesbrief: „dazu nachfragen") — der Klick auf der Karte ist die Geste.
+   * Läuft gerade eine Antwort, landet sie stattdessen im Eingabefeld.
    *
    * **Transient und bewusst nicht persistiert** — dasselbe Muster wie der
    * `kategorieQuickfilter` der Fördertabelle: sie beschreibt eine Geste, keinen
-   * Zustand. Und sie wird **nicht abgeschickt**: der Nutzer sieht die Frage im
-   * Feld und löst den einen Aufruf selbst aus.
+   * Zustand.
    */
   vorgabe: string | null;
   /**

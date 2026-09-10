@@ -5,6 +5,13 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v6.53.0 — Tagesbrief: Rückfrage wird gleich abgeschickt (September 2026)
+
+MINOR — Das Fragezeichen am Tagesbrief-Punkt legte die Frage nur ins Eingabefeld des Assistent-Docks; man musste ein zweites Mal senden. Der Klick auf der Karte ist jetzt selbst die Geste, wie bei den Quick Actions im Dock.
+
+- **Dock**: eine vorgelegte Frage wird beim Übernehmen abgeschickt; läuft gerade eine Antwort, steht sie im Eingabefeld statt verloren zu gehen ([AssistentPanelHost.tsx](src/plugins/chat/assistent/AssistentPanelHost.tsx), [panelUiStore.ts](src/plugins/chat/assistent/panelUiStore.ts))
+- **Doku**: [home-widgets.md → Tagesbrief](docs/architecture/home-widgets.md), [feedback-kontext/home.md](docs/feedback-kontext/home.md)
+
 ### v6.52.0 — Das gespeicherte Fristdatum entfällt (September 2026)
 
 MINOR — Nach v6.49 lasen noch zwei Rechenwege nur `D_AAE`. Einer davon schrieb beim Import `frist_datum` in jeden Datensatz. Das Feld stimmte nur bei 506 von 13 690 Anträgen mit der Frist-Spalte überein; 13 021 Werte standen dort, wo die Spalte „angehalten" zeigt. Es entfällt, statt umgestellt zu werden ([Spec](docs/superpowers/specs/2026-09-10-frist-datum-entfaellt-design.md)).
