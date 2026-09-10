@@ -26,7 +26,8 @@ Feature-Flag `features.assistentPanel` (`isAssistentPanelEnabled()`, dev + pl + 
 | Kontext-Snapshot (unrein) | [kontextSnapshot.ts](../../src/plugins/chat/assistent/kontextSnapshot.ts) | Route + Entität → `KontextEntitaet` (Vorrang: mitgegebener Schlüssel vor Store-Selektion, siehe unten); im Kein-Entität-Fall zusätzlich die Arbeitsvorrat-Übersicht |
 | Fragen-Katalog (rein) | [fragenKatalog.ts](../../src/plugins/chat/assistent/fragenKatalog.ts) | `fragenFuer` / `fragenNachGruppe` / `folgefragen`; jede Frage an ein Signal der Vorgangsakte gebunden (v6.54, löst die Quick Actions ab) |
 | Vorgangsakte (rein) | [akte.ts](../../src/core/services/assistent/kontext/akte.ts) (Form + Text), [vorgangsakte.ts](../../src/plugins/chat/assistent/vorgangsakte.ts) (Bau) | was die App über EINEN Vorgang schon rechnet, als Faktenblock |
-| Akte-Hook (unrein) | [useVorgangsakte.ts](../../src/plugins/chat/assistent/useVorgangsakte.ts) | lädt `useStatusVerlauf` + `useVerbundMeilensteine`, nur bei offenem Dock |
+| Akte-Hook (unrein) | [useVorgangsakte.ts](../../src/plugins/chat/assistent/useVorgangsakte.ts) | lädt `useStatusVerlauf`, `useVerbundMeilensteine`, die Artefakt-Leiste und den Gutachten-Lauf, nur bei offenem Dock; nimmt ein schon geladenes Journal mit |
+| Zuschaltbare Blöcke (rein) | [zusatzBloecke.ts](../../src/plugins/chat/assistent/zusatzBloecke.ts) | voller Verlauf (alle Termine + Statusabschnitte) und Änderungs-Journal, nur auf Anfrage einer Frage |
 | Wer fragt | [nutzerRolle.ts](../../src/plugins/chat/assistent/nutzerRolle.ts) | Fachrolle + Projektleitung aus dem Profil |
 | Arbeitsvorrat-Übersicht (rein) | [arbeitsvorratUebersicht.ts](../../src/plugins/chat/assistent/arbeitsvorratUebersicht.ts) | `baueArbeitsvorratUebersicht(antraege, now)`; frist-sortierte Übersicht für den Kein-Entität-Faktenblock |
 | UI-Dock-Zustand | [panelUiStore.ts](../../src/plugins/chat/assistent/panelUiStore.ts) | offen/Breite (localStorage) — geteilt zwischen Shell-Mount, Suche-Button, Command-Palette; dazu die transienten `vorgabe`/`vorgabeScope` |
@@ -167,6 +168,10 @@ Bis v6.53 trug der Faktenblock Status, Fördervariante, die Aufgabe, einen Frist
 | Verlaufs-Kennzahlen + die jüngsten 30 Termine | `baueChronik`, `verlaufKennzahlen` |
 | Teilvorhaben mit Status und Eingang, „alle Anträge da" | Projektion + Katalogfelder `AAE`/`XTE` |
 | Zuweisung AB/FB (nur gezählt) | `besetzteRollen` |
+| Änderungs-Journal: Nullpunkt, belegte Änderungen, zurückgenommene Termine (nur gezählt) | ein schon geladener Lauf der Seite (`laufendeJournalChroniken`), `baueZurueckgenommene` |
+| Stand von Gutachten und Nachforderungen, Prüfer-Hinweise | `buildGutachtenKarte` / `buildNachforderungKarte` (die Karten der Artefakt-Leiste), `StepRun.qsHinweise` |
+| Frühere abgelehnte Einreichungen desselben Projekts | `findAbgelehnteVorgaenger` |
+| Signal „Statusabschnitte ableitbar" | `baueVerlaufFuerVorgang` (ohne Journal) |
 
 - **Ein Antrag schneidet auf sein Teilvorhaben**, ein Verbund zeigt alle — dieselbe Auswahl wie `useZeilenTodo`.
 - **Kaskade, Paare und Wächter nur mit Flag `vorgangssystem`** — eine Aussage aus einer Rechnung, die in der Variante nirgends sichtbar ist, könnte niemand nachprüfen.
@@ -181,14 +186,30 @@ Statt fünf fester Quick Actions zeigt das Dock die Fragen, die der Assistent **
 |---|---|---|
 | Lage und Zuständigkeit | nächster Schritt · meine Aufgabe als FB/AB · worauf wartet er · wo steht er · Teilvorhaben im Vergleich | Entität; Fachrolle gewählt; wartende Rolle oder offenes Paar; Verbund mit verschiedenem TV-Stand |
 | Fristen und Plan | wie viel Zeit bleibt · warum angehalten · Plan noch zu halten · liegt er zu lange | Frist läuft / steht; Prognose weder abgeschlossen noch unbekannt; Wächter „hängt" |
-| Verlauf | was ist seit Eingang passiert · Eingänge der Teilanträge | Termine vorhanden; Verbund mit mehr als einem Eingang |
+| Verlauf | was ist seit Eingang passiert · wie lange in welchem Status · Eingänge der Teilanträge · was hat sich seit dem letzten Export geändert · zurückgenommen oder verschoben | Termine vorhanden; Statusabschnitte ableitbar; Verbund mit mehr als einem Eingang; Journal geladen mit Änderungen bzw. Rücknahmen |
+| Eigene Arbeit | Stand des Gutachtens · Stand der Nachforderungen · Hinweise der Prüfer | Karte der Artefakt-Leiste vorhanden; Prüfer-Hinweise vorhanden |
 | Inhalt | worum geht es · zusammenfassen | immer (die Titel reichen für einen Anfang); Suchindex geladen |
+| Umfeld | frühere Anträge | abgelehnte Vorgänger desselben Projekts gefunden |
 | Projektleitung | ist er gefährdet · AB und FB zugewiesen | Profil-Schalter „Projektleitung" an |
 | Arbeitsvorrat | Fristen · was ist heute dran | keine Entität (Liste, Startseite) |
 
 Im leeren Dock stehen die Fragen nach Gruppe. Unter jeder fertigen Antwort stehen bis zu drei **Folgefragen**: sichtbar, noch nicht gestellt, zuerst aus der Gruppe der letzten Frage.
 
 **Wer fragt** ([nutzerRolle.ts](../../src/plugins/chat/assistent/nutzerRolle.ts)): die Fachrolle aus dem Profil und, unabhängig davon, der Schalter „Projektleitung" (`profile.projektleitung`). Zwei Angaben statt einer sechsten Rolle, weil viele PL nebenbei als FB oder AB bearbeiten; wer nur PL ist, lässt die Fachrolle auf „alle" — das Auswahlfeld heißt dann „Keine eigene – nur Projektleitung". `leseStatusRolle` bleibt unberührt, Statusliste, Chronik und Board lesen weiter nur die Fachrolle.
+
+## Zuschaltbare Blöcke (v6.55)
+
+Die Akte trägt vom Verlauf nur Kennzahlen und die jüngsten 30 Termine, vom Journal nur Zähler. Die volle Länge reist erst mit, wenn eine Frage sie braucht ([zusatzBloecke.ts](../../src/plugins/chat/assistent/zusatzBloecke.ts)) — irrelevanter Kontext verwirrt die Modelle, auch wenn das Fenster ihn fasste.
+
+| Block | Inhalt | zugeschaltet von |
+|---|---|---|
+| `verlauf` | alle Termine der Chronik (gekappt auf 400) und die Statusabschnitte je Spur mit Dauer; Kopf „rekonstruiert, keine beobachtete Historie" + Katalogfassung | „Was ist passiert?", „Wie lange in welchem Status?" |
+| `journal` | Nullpunkt-Satz, belegte Änderungen neueste zuerst (gekappt auf 80), zurückgenommene oder verschobene Termine | „Was hat sich geändert?", „Zurückgenommen oder verschoben?" |
+
+- **Ein zugeschalteter Block bleibt für die Unterhaltung stehen**, damit Nachfragen dieselbe Grundlage haben; „Neue Unterhaltung" und Routenwechsel lösen ihn. Der Kontext-Chip nennt ihn („+ voller Verlauf") — der Chip ist die Zusage „nur das geht ins Modell".
+- **Blöcke gelten nur mit ihrer Akte**: passt die Akte nicht zur Entität des Turns, reisen auch die Blöcke nicht mit.
+- **Deterministisch und gekappt**, deshalb im Budget wie der Faktenblock nie gekürzt.
+- **Das Journal liest das Dock nie selbst.** `stand.json` wiegt über 5 MB und ist ungecacht; das Dock nimmt nur einen Lauf mit, den eine Anzeige der Seite schon angestoßen hat (`laufendeJournalChroniken`, [useJournalChroniken.ts](../../src/plugins/antraege/status/useJournalChroniken.ts)). Der Schlüssel passt ohne den Stichtag, weil die Detailseite ihn sekundengenau stempelt. Ohne einen solchen Lauf schweigt die Akte zum Journal, und die Journal-Fragen erscheinen nicht.
 
 ## Modell (v6.54)
 

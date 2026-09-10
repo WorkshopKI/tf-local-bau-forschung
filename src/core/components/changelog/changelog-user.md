@@ -19,6 +19,15 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v6.55 — 2026-09
+
+### Neu
+- Der Assistent kann auf Nachfrage den ganzen Verlauf eines Vorgangs heranziehen – alle Termine seit Eingang und wie lange er in welchem Status stand.
+- Er weiß, was sich seit dem letzten Export geändert hat und welche Termine zurückgenommen oder verschoben wurden, sobald die Antragsseite das Änderungs-Journal geladen hat.
+- Er kennt den Stand von Gutachten und Nachforderungen, die Hinweise der Prüfer und frühere abgelehnte Anträge desselben Projekts.
+### Verbesserungen
+- Oben im Assistenten steht, welche zusätzlichen Informationen gerade mitgeschickt werden, etwa „+ voller Verlauf".
+
 ## v6.54 — 2026-09
 
 ### Neu

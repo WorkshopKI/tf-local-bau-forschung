@@ -188,6 +188,18 @@ export interface AssistentKontextEingabe {
   akte?: VorgangsAkte | null;
   /** Wer fragt. Fehlt sie oder ist nichts gewählt, entfällt die Zeile. */
   nutzer?: NutzerRolle;
+  /**
+   * Zugeschaltete Blöcke (Verlauf, Journal, Bestand) — deterministisch im Plugin
+   * gebaut und gekappt, nur mitgeschickt, wenn eine Frage sie braucht. Wie der
+   * Faktenblock NIE gekürzt.
+   */
+  bloecke?: ReadonlyArray<KontextBlock>;
+}
+
+/** Ein zugeschalteter, deterministischer Block des Faktenteils. */
+export interface KontextBlock {
+  titel: string;
+  zeilen: readonly string[];
 }
 
 export interface AssistentPrompt {

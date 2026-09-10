@@ -71,11 +71,11 @@ TypeScript, React 19, Zustand (vanilla Session-Store), Vitest (node).
 
 ## Etappe 2 — Verlauf und Journal (v6.55)
 
-- [ ] **T13 Block `verlauf`:** volle Chronik (Kürzel × Tag, Rollen, Träger) + Statusabschnitte mit Dauer/Konfidenz (`baueVerlaufFuerVorgang`), Kopf mit „rekonstruiert", Fassung, Nullpunkt. Test.
-- [ ] **T14 Block `journal`:** nur aus einem schon geladenen `useJournalChroniken`-Ergebnis; Änderungen, Zurückgenommenes, unscharfe Spannen, Nullpunkt. Test.
-- [ ] **T15 Blöcke im Session-Store:** zugeschaltete Blöcke je Unterhaltung; „Neue Unterhaltung" und Routenwechsel lösen sie. Test.
-- [ ] **T16 Katalog C vollständig**, dazu E (Artefakt-Stand, Prüfer-Hinweise, Werkbank) und F (Vorgänger, Zuwendung) mit ihren Signalen.
-- [ ] **T17 Messen, Abnahme, Doku, Version, Gate, Build, Commit.**
+- [x] **T13 Block `verlauf`:** alle Termine + Statusabschnitte mit Dauer (`baueVerlaufFuerVorgang`, ohne Journal), Kopf „rekonstruiert" + Fassung. Test.
+- [x] **T14 Block `journal`:** nur aus einem Lauf der Seite (`laufendeJournalChroniken`, Schlüssel ohne Stichtag, weil die Detailseite ihn sekundengenau stempelt); Änderungen neueste zuerst, Zurückgenommenes, unscharfe Spannen, Nullpunkt. Test.
+- [x] **T15 Blöcke je Unterhaltung:** im Dock-Zustand statt im Session-Store (beides session-only; der Store kennt keine Route); „Neue Unterhaltung" und Routenwechsel lösen sie, der Kontext-Chip nennt sie. `mitBloecken` getestet.
+- [x] **T16 Katalog:** C vollständig (Statusdauer, seit Export, zurückgenommen), E (Stand Gutachten und Nachforderungen aus den Karten der Artefakt-Leiste, Prüfer-Hinweise) und F (Vorgänger). **Abweichung:** „Zuwendung seit Bewilligung" entfällt — die Beträge stehen nicht in der Listen-Projektion; Werkbank-Punkte ebenso (eigener kv-Scan, kein Signal im Dock).
+- [x] **T17 Messen + Abnahme** (dev:local 5177): Verlaufs-Block ZKN084412 = 239 Termine, 341 Zeilen, 24 062 Zeichen; 91 Statusabschnitte. CALYPSO: Journal-Lauf der Detailseite nach ~8 s mitgenommen, 2 Änderungen + 2 verschobene Termine → beide Journal-Fragen sichtbar. Klick schaltet „+ voller Verlauf" in den Chip; `__tf.fehler()` = 0. Offen: Gutachten-/NF-Karten und Prüfer-Hinweise ohne Läufe im lokalen Bestand nur per Test belegt.
 
 ## Etappe 3 — Bestandslauf über zwei Richtlinien, Bestandsfragen (v6.56)
 

@@ -226,6 +226,16 @@ describe('assembliereAssistentKontext — Vorgangsakte und fragende Person', () 
   it('verbietet dem Modell, Personen zu nennen', () => {
     expect(assembliereAssistentKontext(base()).promptText).toContain('Nenne keine Personen.');
   });
+
+  it('rendert zugeschaltete Blöcke vollständig, kürzt sie nie und lässt leere weg', () => {
+    const lang = Array.from({ length: 200 }, (_, i) => `Zeile ${i} ${'x'.repeat(100)}`);
+    const { promptText } = assembliereAssistentKontext(base({
+      bloecke: [{ titel: 'Verlauf seit Eingang', zeilen: lang }, { titel: 'Leer', zeilen: [] }],
+    }));
+    expect(promptText).toContain('=== Verlauf seit Eingang (deterministisch aus der App) ===');
+    expect(promptText).toContain('Zeile 199');
+    expect(promptText).not.toContain('=== Leer');
+  });
 });
 
 describe('assembliereAssistentKontext — Gedächtnis-Block (Phase 2)', () => {

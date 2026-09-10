@@ -13,7 +13,8 @@ import { resetHatVerlaufsrisiko, starteFrischenChat } from '@/core/services/ai/c
 import { extractThinking } from '@/core/services/ai/thinking-parser';
 import { assembliereAssistentKontext } from '@/core/services/assistent/kontext';
 import type {
-  ArbeitsvorratUebersicht, AssistentTurn, KontextEntitaet, NutzerRolle, VorgangsAkte, VorhabenDokument,
+  ArbeitsvorratUebersicht, AssistentTurn, KontextBlock, KontextEntitaet, NutzerRolle, VorgangsAkte,
+  VorhabenDokument,
 } from '@/core/services/assistent/kontext';
 import type { KiRolle } from '@/core/services/ai/modell-katalog';
 import { buildChatSources } from '../services/rag-sources';
@@ -37,6 +38,8 @@ export interface AssistentTurnKontext {
   akte?: VorgangsAkte | null;
   /** Wer fragt — Fachrolle und Projektleitung aus dem Profil. */
   nutzer?: NutzerRolle;
+  /** Zugeschaltete Blöcke (Verlauf, Journal) — nur, wenn eine Frage sie braucht. */
+  bloecke?: ReadonlyArray<KontextBlock>;
 }
 
 export interface AssistentTurnDeps {
@@ -132,6 +135,7 @@ export async function fuehreAssistentTurnAus(
     arbeitsvorratUebersicht: kontext.arbeitsvorratUebersicht ?? null,
     akte: kontext.akte ?? null,
     ...(kontext.nutzer ? { nutzer: kontext.nutzer } : {}),
+    ...(kontext.bloecke && kontext.bloecke.length > 0 ? { bloecke: kontext.bloecke } : {}),
   });
 
   // 5. Modell nach Umfang — Reset UND Senden treffen denselben Tab.

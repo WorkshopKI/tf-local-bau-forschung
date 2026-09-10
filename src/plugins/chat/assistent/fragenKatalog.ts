@@ -20,15 +20,19 @@
  */
 import { ROLLE_LABEL } from '@/core/status/rollen';
 import type { KontextEntitaet, NutzerRolle, VorgangsAkte } from '@/core/services/assistent/kontext';
+import type { BlockId } from './zusatzBloecke';
 
-export type FragenGruppe = 'lage' | 'fristen' | 'verlauf' | 'inhalt' | 'projektleitung' | 'arbeitsvorrat';
+export type FragenGruppe =
+  | 'lage' | 'fristen' | 'verlauf' | 'arbeit' | 'inhalt' | 'umfeld' | 'projektleitung' | 'arbeitsvorrat';
 
 /** Reihenfolge der Gruppen im leeren Dock — und Beschriftung. */
 export const GRUPPEN: readonly { gruppe: FragenGruppe; titel: string }[] = [
   { gruppe: 'lage', titel: 'Lage und Zuständigkeit' },
   { gruppe: 'fristen', titel: 'Fristen und Plan' },
   { gruppe: 'verlauf', titel: 'Verlauf' },
+  { gruppe: 'arbeit', titel: 'Eigene Arbeit' },
   { gruppe: 'inhalt', titel: 'Inhalt' },
+  { gruppe: 'umfeld', titel: 'Umfeld' },
   { gruppe: 'projektleitung', titel: 'Projektleitung' },
   { gruppe: 'arbeitsvorrat', titel: 'Arbeitsvorrat' },
 ];
@@ -54,6 +58,11 @@ export interface Frage {
   label: string;
   /** Genau dieser Text geht in `c.send()`. */
   frage: string;
+  /**
+   * Blöcke, die diese Frage zuschaltet (Verlauf, Journal). Sie bleiben für die
+   * Unterhaltung stehen, damit Nachfragen dieselbe Grundlage haben.
+   */
+  bloecke?: readonly BlockId[];
 }
 
 export interface FragenAbschnitt {
@@ -69,6 +78,7 @@ interface KatalogEintrag {
   gruppe: FragenGruppe;
   label: Text;
   frage: Text;
+  bloecke?: readonly BlockId[];
   /** Rein deterministisch — nie entscheidet ein Modell, was erscheint. */
   sichtbarWenn: (k: FragenKontext, akte: VorgangsAkte | null) => boolean;
 }
@@ -141,15 +151,50 @@ const KATALOG: readonly KatalogEintrag[] = [
 
   // ── Verlauf ───────────────────────────────────────────────────────────────
   {
+    // Mit dem vollen Verlauf: die Akte trägt nur die jüngsten 30 Termine.
     id: 'seit-eingang', gruppe: 'verlauf', label: 'Was ist passiert?',
-    frage: 'Was ist seit dem Eingang passiert?',
+    frage: 'Was ist seit dem Eingang passiert?', bloecke: ['verlauf'],
     sichtbarWenn: (_k, a) => (a?.verlauf?.termine.length ?? 0) > 0,
+  },
+  {
+    // Nur, wo die Verlaufsableitung Statusabschnitte ergibt (C16-Trigger vorhanden).
+    id: 'status-dauer', gruppe: 'verlauf', label: 'Wie lange in welchem Status?',
+    frage: 'Wie lange stand der Vorgang in welchem Status?', bloecke: ['verlauf'],
+    sichtbarWenn: (_k, a) => (a?.verlauf?.statusAbschnitte ?? 0) > 0,
   },
   {
     id: 'tv-eingaenge', gruppe: 'verlauf', label: 'Eingänge der Teilanträge',
     frage: 'Wann kamen die Teilanträge – und wann war der Verbund vollständig?',
     sichtbarWenn: (k, a) => k.entitaet?.art === 'verbund' && a !== null
       && a.teilvorhaben.filter(t => t.eingang !== undefined).length > 1,
+  },
+  {
+    // Nur mit einem Journal, das eine Anzeige der Seite schon geladen hat.
+    id: 'seit-export', gruppe: 'verlauf', label: 'Was hat sich geändert?',
+    frage: 'Was hat sich seit dem letzten Export geändert?', bloecke: ['journal'],
+    sichtbarWenn: (_k, a) => (a?.journal?.aenderungen ?? 0) > 0,
+  },
+  {
+    id: 'zurueckgenommen', gruppe: 'verlauf', label: 'Zurückgenommen oder verschoben?',
+    frage: 'Wurde etwas zurückgenommen oder verschoben?', bloecke: ['journal'],
+    sichtbarWenn: (_k, a) => (a?.journal?.zurueckgenommen ?? 0) > 0,
+  },
+
+  // ── Eigene Arbeit ─────────────────────────────────────────────────────────
+  {
+    id: 'gutachten-stand', gruppe: 'arbeit', label: 'Stand des Gutachtens',
+    frage: 'Wie weit ist das Gutachten?',
+    sichtbarWenn: (_k, a) => a?.artefakte?.gutachten !== undefined,
+  },
+  {
+    id: 'nf-stand', gruppe: 'arbeit', label: 'Stand der Nachforderungen',
+    frage: 'Wie weit sind die Nachforderungen?',
+    sichtbarWenn: (_k, a) => a?.artefakte?.nachforderung !== undefined,
+  },
+  {
+    id: 'pruefer', gruppe: 'arbeit', label: 'Hinweise der Prüfer',
+    frage: 'Was haben die Prüfer am Gutachten angemerkt?',
+    sichtbarWenn: (_k, a) => (a?.artefakte?.pruefHinweise.length ?? 0) > 0,
   },
 
   // ── Inhalt ────────────────────────────────────────────────────────────────
@@ -163,6 +208,13 @@ const KATALOG: readonly KatalogEintrag[] = [
     id: 'zusammenfassen', gruppe: 'inhalt', label: 'Zusammenfassen',
     frage: 'Fasse den aktuellen Vorgang zusammen.',
     sichtbarWenn: k => mitVorgang(k) && k.hatIndex,
+  },
+
+  // ── Umfeld ────────────────────────────────────────────────────────────────
+  {
+    id: 'vorgaenger', gruppe: 'umfeld', label: 'Frühere Anträge',
+    frage: 'Gab es frühere, abgelehnte Anträge zu diesem Projekt?',
+    sichtbarWenn: (_k, a) => (a?.vorgaenger?.length ?? 0) > 0,
   },
 
   // ── Projektleitung ────────────────────────────────────────────────────────
@@ -206,7 +258,19 @@ export function fragenFuer(k: FragenKontext): Frage[] {
   const akte = akteDer(k);
   return KATALOG
     .filter(e => e.sichtbarWenn(k, akte))
-    .map(e => ({ id: e.id, gruppe: e.gruppe, label: aufloesen(e.label, k), frage: aufloesen(e.frage, k) }));
+    .map(e => ({
+      id: e.id, gruppe: e.gruppe, label: aufloesen(e.label, k), frage: aufloesen(e.frage, k),
+      ...(e.bloecke ? { bloecke: e.bloecke } : {}),
+    }));
+}
+
+/**
+ * Die Blöcke nach einem Klick: die schon zugeschalteten plus die der Frage, in
+ * stabiler Reihenfolge. Zugeschaltet bleibt zugeschaltet, bis die Unterhaltung
+ * neu beginnt oder der Vorgang wechselt.
+ */
+export function mitBloecken(aktiv: readonly BlockId[], neue: readonly BlockId[] = []): BlockId[] {
+  return [...new Set([...aktiv, ...neue])];
 }
 
 /** Die sichtbaren Fragen nach Gruppe; leere Gruppen entfallen. */

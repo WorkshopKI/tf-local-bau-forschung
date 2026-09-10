@@ -19,6 +19,7 @@ import {
 import type { ZeilenAufgaben } from '@/core/hooks/useBestandsAufgaben';
 import type { KontextEntitaet, NutzerRolle, VorgangsAkte } from '@/core/services/assistent/kontext';
 import { waehleModellFuerLauf } from '@/core/services/ai/modell-wahl';
+import type { BlockId, ZusatzBlock } from './zusatzBloecke';
 import type { IDBStore } from '@/core/services/storage';
 import type { DocumentFull } from '@/plugins/dokumente/store';
 import type { ChatMessage } from '../types';
@@ -91,7 +92,8 @@ export interface AssistentController {
   error: string | null;
   resetWarnung: boolean;
   letzteFehlerFrage: string | null;
-  send: (frage: string) => Promise<void>;
+  /** @param bloecke Die zugeschalteten Blöcke dieses Turns (Verlauf, Journal). */
+  send: (frage: string, bloecke?: readonly BlockId[]) => Promise<void>;
   /** Bricht den laufenden Turn ab (Bridge kennt kein maxTokens, es gibt keinen Timeout). */
   abbrechen: () => void;
   neueUnterhaltung: () => void;
@@ -113,14 +115,19 @@ export interface AssistentController {
 export function useAssistentController(
   scopeSchluessel?: string | null,
   zeilen?: ZeilenAufgaben | null,
-  zusatz?: { akte: VorgangsAkte | null; nutzer: NutzerRolle },
+  zusatz?: {
+    akte: VorgangsAkte | null;
+    nutzer: NutzerRolle;
+    /** Die zuschaltbaren Blöcke derselben Akte. */
+    bloecke?: Partial<Record<BlockId, ZusatzBlock>>;
+  },
 ): AssistentController {
   const bridge = useAIBridge();
   const { search } = useSearch();
   const storage = useStorage();
   const state = useStore(assistentSessionStore);
 
-  const send = useCallback(async (frage: string): Promise<void> => {
+  const send = useCallback(async (frage: string, bloeckeIds: readonly BlockId[] = []): Promise<void> => {
     // EIN `doc:`-Scan je Turn: Retrieval und Dokument-Block bekommen dieselbe
     // Entität aus demselben Snapshot, der zweite Leser wartet auf den ersten.
     let scan: Promise<VorhabenScanDokument[]> | null = null;
@@ -133,10 +140,16 @@ export function useAssistentController(
       getKontext: () => {
         const k = baueKontextSnapshot(Date.now(), scopeSchluessel, zeilen);
         const akte = zusatz?.akte ?? null;
+        const passt = akte !== null && k.entitaet !== null && akte.fuer === k.entitaet.id;
+        // Blöcke gehören derselben Akte — gilt sie nicht, gelten sie auch nicht.
+        const bloecke = passt
+          ? bloeckeIds.map(b => zusatz?.bloecke?.[b]).filter((b): b is ZusatzBlock => b !== undefined)
+          : [];
         return {
           ...k,
-          akte: akte && k.entitaet && akte.fuer === k.entitaet.id ? akte : null,
+          akte: passt ? akte : null,
           ...(zusatz ? { nutzer: zusatz.nutzer } : {}),
+          ...(bloecke.length > 0 ? { bloecke } : {}),
         };
       },
       // Standard-Modell, Aufstieg nur bei Überlänge (Spec 3.7).
@@ -173,7 +186,7 @@ export function useAssistentController(
     if (assistentSessionStore.getState().error === DEGRADATION_MELDUNG) {
       useKiConnectPrompt.getState().oeffnen();
     }
-  }, [bridge, search, storage, scopeSchluessel, zeilen, zusatz?.akte, zusatz?.nutzer]);
+  }, [bridge, search, storage, scopeSchluessel, zeilen, zusatz?.akte, zusatz?.nutzer, zusatz?.bloecke]);
 
   return {
     messages: state.messages,

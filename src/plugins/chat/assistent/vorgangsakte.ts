@@ -4,9 +4,10 @@
  * Kein neuer Rechenweg: jede Aussage kommt aus der Funktion, die auch die Karte
  * daneben speist — die To-do-Kaskade (`ermittleTodosAlleRollen` → `baueAufgabe`
  * je Rolle), der Stillstands-Wächter, die Chronik, die Frist-Engine, die
- * Meilenstein-Bewertung. Zwei Stellen, die denselben Vorgang verschieden
- * beschreiben, lesen sich wie zwei Sachverhalte; genau das passierte, als der
- * Faktenblock noch die alte Status-Formel sprach (assistent-panel.md).
+ * Meilenstein-Bewertung, die Karten der Artefakt-Leiste. Zwei Stellen, die
+ * denselben Vorgang verschieden beschreiben, lesen sich wie zwei Sachverhalte;
+ * genau das passierte, als der Faktenblock noch die alte Status-Formel sprach
+ * (assistent-panel.md).
  *
  * **Ein Antrag schneidet auf sein Teilvorhaben**, ein Verbund zeigt alle —
  * dieselbe Auswahl wie `useZeilenTodo` für Verbund- und TV-Zeilen.
@@ -19,6 +20,7 @@
 import { ROLLEN, ROLLE_LABEL, rollenLabel } from '@/core/status/rollen';
 import { adressText, adresseFuerWaechter, baueAufgabe, type TvTodo } from '@/core/status/aufgabe';
 import { baueChronik, traegerLabel } from '@/core/status/chronik';
+import { baueZurueckgenommene } from '@/core/status/chronik-zurueckgenommen';
 import { baueTodoKontext, ermittleTodosAlleRollen } from '@/core/status/todo-engine';
 import { findeStatusCode } from '@/core/status/status-codes';
 import { offenePaareJeTeilvorhaben, pruefeStillstand, tageZwischen, type OffenesPaarJeTv } from '@/core/status/waechter';
@@ -26,6 +28,8 @@ import { verlaufKennzahlen } from '@/core/status/verlauf-kennzahlen';
 import { zahPhaseFuerStatusText } from '@/core/status/kategorie-ableitung';
 import { zahPhaseLabel } from '@/core/status/zah-phasen';
 import type { FeldVorkommen } from '@/core/status/feld-aufloesung';
+import type { AntragsChronikMitId } from '@/core/status/journal/lesen';
+import type { VerlaufsSpur } from '@/core/status/verlauf/typen';
 import type { MappingVersion } from '@/core/status/typen';
 import type { MeilensteinPlan, Prognose, VerbundMeilensteine } from '@/core/meilensteine/typen';
 import { isTerminalStatus } from '@/core/utils/status-canonical';
@@ -34,12 +38,17 @@ import { parseGermanDate } from '@/core/services/csv/dateParse';
 import type { FristBasisFeld, FristErgebnis } from '@/core/services/csv/frist-ergebnis';
 import type { AntragListItem } from '@/core/services/csv/types';
 import type {
-  AkteAufgabe, AkteFrist, AkteMeilensteine, AkteOffenesPaar, AkteTeilvorhaben, AkteVerlauf,
-  VorgangsAkte,
+  AkteArtefakte, AkteAufgabe, AkteFrist, AkteJournal, AkteMeilensteine, AkteOffenesPaar,
+  AkteTeilvorhaben, AkteVerlauf, VorgangsAkte,
 } from '@/core/services/assistent/kontext';
 import { fristErgebnisVon } from '@/plugins/antraege/fristAnzeige';
 import { criticalFristErgebnis } from '@/plugins/antraege/groupAggregates';
 import { besetzteRollen } from '@/plugins/antraege/bearbeiterFilter';
+import { findAbgelehnteVorgaenger } from '@/plugins/antraege/vorgaengerAntraege';
+import { nullpunktText } from '@/plugins/antraege/status/journalTexte';
+import type { GutachtenKarte, NachforderungKarte } from '@/plugins/antraege/artefakte/artefaktKarten';
+import type { StepStatus, WorkflowRun } from '@/plugins/antraege/gutachten/types';
+import { relevanteSpuren, zaehleAbschnitte } from './zusatzBloecke';
 
 /** Was `useStatusVerlauf` für einen Verbund liefert — nur die gelesenen Felder. */
 export interface AkteVerlaufQuelle {
@@ -48,6 +57,13 @@ export interface AkteVerlaufQuelle {
   vorkommen: readonly FeldVorkommen[];
   /** Dieselben Einträge je Teilvorhaben — Grundlage von Kaskade und Wächter. */
   jeTeilvorhaben: readonly { aktenzeichen: string; vorkommen: readonly FeldVorkommen[] }[];
+}
+
+/** Die Karten der Artefakt-Leiste plus der Gutachten-Lauf (für die Prüfer-Hinweise). */
+export interface AkteArtefaktQuelle {
+  gutachten: GutachtenKarte | null;
+  nachforderung: NachforderungKarte | null;
+  gaRun: WorkflowRun | null;
 }
 
 export interface AkteEingabe {
@@ -65,7 +81,22 @@ export interface AkteEingabe {
   vorgangssystem: boolean;
   /** ISO — der Tag, gegen den alle Liegezeiten und Fristen gerechnet werden. */
   stichtag: string;
+  /** Die Verlaufsspuren (`baueVerlaufFuerVorgang`) — Signal „Statusabschnitte ableitbar". */
+  spuren?: readonly VerlaufsSpur[] | null;
+  /**
+   * Die Journal-Chroniken — nur, wenn eine Anzeige der Seite sie schon geladen
+   * hat. `undefined` = nicht geladen (dann schweigt die Akte zum Journal).
+   */
+  journal?: readonly AntragsChronikMitId[] | null;
+  artefakte?: AkteArtefaktQuelle | null;
+  /** Der ganze Bestand der Projektion — für abgelehnte Vorgänger desselben Projekts. */
+  alleAntraege?: readonly AntragListItem[];
+  /** Kurzname des Verbunds (`VB_KURZNAM`). */
+  akronym?: string | null;
 }
+
+/** Wie viele Prüfer-Hinweise die Akte höchstens nennt. */
+export const AKTE_MAX_PRUEF_HINWEISE = 8;
 
 /** ISO-Tag (`YYYY-MM-DD…`) → deutsches Datum; alles andere → `undefined`. */
 function deDatum(iso: string | null | undefined): string | undefined {
@@ -197,7 +228,7 @@ function meilensteineVon(
   };
 }
 
-// ── Verlauf und Teilvorhaben ────────────────────────────────────────────────
+// ── Verlauf, Journal, Teilvorhaben ──────────────────────────────────────────
 
 function verlaufVon(
   vorkommen: readonly FeldVorkommen[], offenePaare: readonly OffenesPaarJeTv[], tvAnzahl: number,
@@ -221,6 +252,27 @@ function verlaufVon(
   };
 }
 
+/**
+ * Was das Journal über die Entität sagt. `null`-Chroniken heißt „auf diesem
+ * Share wird keins geführt" — eine andere Aussage als „nichts geändert".
+ */
+function journalVon(
+  chroniken: readonly AntragsChronikMitId[] | null, azs: ReadonlySet<string>,
+  version: MappingVersion | null, aktuell: readonly FeldVorkommen[],
+): AkteJournal {
+  if (chroniken === null) return { hinweis: nullpunktText(null, false), aenderungen: 0, zurueckgenommen: 0 };
+  const eigene = chroniken.filter(c => azs.has(c.antragId));
+  const aenderungen = eigene.reduce((s, c) => s + c.felder.reduce((t, f) => t + f.eintraege.length, 0), 0);
+  const zurueckgenommen = version
+    ? baueZurueckgenommene(eigene, version.felder, baueChronik(aktuell)).length
+    : 0;
+  return {
+    hinweis: nullpunktText(chroniken[0]?.journalAb ?? null, eigene.some(c => c.gefuehrt)),
+    aenderungen,
+    zurueckgenommen,
+  };
+}
+
 function teilvorhabenVon(
   tvs: readonly AntragListItem[],
   jeTv: readonly { aktenzeichen: string; vorkommen: readonly FeldVorkommen[] }[],
@@ -239,6 +291,63 @@ function teilvorhabenVon(
   });
 }
 
+function zuweisungVon(tvs: readonly AntragListItem[]): VorgangsAkte['zuweisung'] {
+  let ab = 0;
+  let fb = 0;
+  for (const t of tvs) {
+    const besetzt = besetzteRollen(t);
+    if (besetzt.includes('ab')) ab += 1;
+    if (besetzt.includes('fb')) fb += 1;
+  }
+  return { ab, fb, von: tvs.length };
+}
+
+// ── Artefakte und Vorgänger ─────────────────────────────────────────────────
+
+const SCHRITT_STATUS_TEXT: Record<StepStatus, string> = {
+  leer: 'noch nicht erzeugt', entwurf: 'im Entwurf', freigegeben: 'freigegeben',
+};
+
+/** Dieselben Karten wie die Artefakt-Leiste, in Worten. */
+function artefakteVon(q: AkteArtefaktQuelle): AkteArtefakte | undefined {
+  const out: AkteArtefakte = { pruefHinweise: [] };
+  const g = q.gutachten;
+  if (g?.kind === 'leer') {
+    out.gutachten = 'Gutachten: noch nicht begonnen (der Vorgang ist in der Fachprüfung).';
+  } else if (g?.kind === 'fortschritt') {
+    out.gutachten = `Gutachten: ${g.freigegeben} von ${g.gesamt} Abschnitten freigegeben; offen ist Abschnitt `
+      + `${g.aktiverSchritt}${g.aktiverLabel ? ` (${g.aktiverLabel})` : ''}, ${SCHRITT_STATUS_TEXT[g.aktiverStatus]}.`;
+  }
+  const n = q.nachforderung;
+  if (n) {
+    out.nachforderung = `Nachforderungen: ${n.versendet} von ${n.tvGesamt} Teilvorhaben versandreif`
+      + `${n.naechstesTv ? `; als Nächstes TV ${n.naechstesTv.index} (${n.naechstesTv.aktenzeichen})` : ''}`
+      // Die kurze Frist endet selbst auf einen Punkt („12.09.").
+      + `${n.fristKurz ? `; Frist ${n.fristKurz}` : '.'}`;
+  }
+  for (const [id, schritt] of Object.entries(q.gaRun?.schritte ?? {})) {
+    for (const h of schritt?.qsHinweise ?? []) {
+      if (h.bewertung === 'ok') continue;
+      out.pruefHinweise.push(`Abschnitt ${id} · ${h.dimension}${h.bewertung === 'unklar' ? ' (unklar)' : ''}: ${h.text}`);
+    }
+  }
+  out.pruefHinweise = out.pruefHinweise.slice(0, AKTE_MAX_PRUEF_HINWEISE);
+  return out.gutachten || out.nachforderung || out.pruefHinweise.length > 0 ? out : undefined;
+}
+
+function vorgaengerVon(e: AkteEingabe): string[] {
+  if (!e.alleAntraege || !e.akronym) return [];
+  return findAbgelehnteVorgaenger({
+    currentVerbundId: e.antraege[0]?.verbund_id ?? e.entitaet.id,
+    currentAkronym: e.akronym,
+    currentAktenzeichen: new Set(e.antraege.map(a => a.aktenzeichen)),
+    antraege: e.alleAntraege,
+  }).map(v => {
+    const entscheid = v.erstentscheidung ? `, Erstentscheidung ${exportDatum(v.erstentscheidung) ?? v.erstentscheidung}` : '';
+    return `${v.akronymRaw} (${v.verbundId}) — ${v.tvCount} Teilvorhaben, davon ${v.abgelehntCount} abgelehnt oder zurückgezogen${entscheid}`;
+  });
+}
+
 // ── Die Akte ────────────────────────────────────────────────────────────────
 
 export function baueVorgangsakte(e: AkteEingabe): VorgangsAkte {
@@ -251,6 +360,7 @@ export function baueVorgangsakte(e: AkteEingabe): VorgangsAkte {
   const terminal = isTerminalStatus(status);
   const version = e.verlauf?.version ?? null;
   const jeTvVorkommen = (e.verlauf?.jeTeilvorhaben ?? []).filter(t => azs.has(t.aktenzeichen));
+  const aktuell = istVerbund ? (e.verlauf?.vorkommen ?? []) : jeTvVorkommen.flatMap(t => t.vorkommen);
 
   const akte: VorgangsAkte = {
     fuer: e.entitaet.id,
@@ -305,25 +415,21 @@ export function baueVorgangsakte(e: AkteEingabe): VorgangsAkte {
   }
 
   if (e.verlauf) {
-    const quelle = istVerbund ? e.verlauf.vorkommen : jeTvVorkommen.flatMap(t => t.vorkommen);
-    const verlauf = verlaufVon(quelle, offenePaare, tvs.length);
-    if (verlauf) akte.verlauf = verlauf;
+    const verlauf = verlaufVon(aktuell, offenePaare, tvs.length);
+    const abschnitte = e.spuren ? zaehleAbschnitte(relevanteSpuren(e.spuren, istVerbund, azs)) : 0;
+    if (verlauf) akte.verlauf = abschnitte > 0 ? { ...verlauf, statusAbschnitte: abschnitte } : verlauf;
     if (istVerbund) {
       const xte = exportDatum(e.verlauf.vorkommen.find(v => v.feld.code === 'XTE')?.wert);
       if (xte) akte.vollstaendigAm = xte;
     }
   }
 
-  if (tvs.length > 0) {
-    let ab = 0;
-    let fb = 0;
-    for (const t of tvs) {
-      const besetzt = besetzteRollen(t);
-      if (besetzt.includes('ab')) ab += 1;
-      if (besetzt.includes('fb')) fb += 1;
-    }
-    akte.zuweisung = { ab, fb, von: tvs.length };
-  }
+  if (e.journal !== undefined) akte.journal = journalVon(e.journal, azs, version, aktuell);
+  if (tvs.length > 0) akte.zuweisung = zuweisungVon(tvs);
+  const artefakte = e.artefakte ? artefakteVon(e.artefakte) : undefined;
+  if (artefakte) akte.artefakte = artefakte;
+  const vorgaenger = vorgaengerVon(e);
+  if (vorgaenger.length > 0) akte.vorgaenger = vorgaenger;
 
   return akte;
 }

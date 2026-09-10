@@ -16,8 +16,8 @@ import type { OramaSearchResult } from '@/core/services/search/orama-store';
 import { ROLLE_LANG } from '@/core/status/rollen';
 import { akteZeilen, type VorgangsAkte } from './akte';
 import type {
-  ArbeitsvorratUebersicht, AssistentKontextEingabe, AssistentPrompt, AssistentTurn, KontextEntitaet,
-  NutzerRolle, VorhabenDokument,
+  ArbeitsvorratUebersicht, AssistentKontextEingabe, AssistentPrompt, AssistentTurn, KontextBlock,
+  KontextEntitaet, NutzerRolle, VorhabenDokument,
 } from './types';
 
 // ── Deterministische Budget-Konstanten (mit Begründung, keine Magie) ─────────
@@ -209,6 +209,16 @@ function arbeitsvorratBlock(u: ArbeitsvorratUebersicht | null | undefined): stri
   return zeilen.join('\n');
 }
 
+// ── Block 2a': zugeschaltete Blöcke (Verlauf, Journal, Bestand) ──────────────
+/**
+ * Ein Block, den eine Frage ausdrücklich braucht — deterministisch und im
+ * Plugin gekappt, deshalb wie der Faktenblock NIE gekürzt. Leer = kein Block.
+ */
+function zusatzBlock(b: KontextBlock): string {
+  if (b.zeilen.length === 0) return '';
+  return [`=== ${b.titel} (deterministisch aus der App) ===`, ...b.zeilen, `=== Ende ${b.titel} ===`].join('\n');
+}
+
 // ── Block 2b: Dokumente zum Vorhaben (entitäts-scoped, deterministisch) ───────
 /**
  * Liste der dem Vorhaben zugeordneten Dokumente (VB/Anlage 5/Marketing/…), jeweils
@@ -316,6 +326,7 @@ export function assembliereAssistentKontext(eingabe: AssistentKontextEingabe): A
       gedaechtnisBlock(gedEintraege),
       fakten,
       arbeitsvorratBlock(eingabe.arbeitsvorratUebersicht),
+      ...(eingabe.bloecke ?? []).map(zusatzBlock),
       vorhabenDokumenteBlock(doks),
       retrievalBlock(chunks),
       historieBlock(histZeilen),

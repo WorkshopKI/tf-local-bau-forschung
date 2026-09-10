@@ -97,6 +97,36 @@ export function leereJournalChronikCache(): void {
   CACHE.clear();
 }
 
+/**
+ * Passt ein Cache-Schlüssel zu diesen Anträgen und diesem Datenstand — gleich,
+ * mit welchem Stichtag er gezogen wurde?
+ *
+ * Der Stichtag bestimmt nur, bis zu welchem Monat gelesen wird; zwei Anzeigen
+ * derselben Sitzung lesen denselben Stand. Rein, damit die Regel testbar ist.
+ */
+export function schluesselPasst(key: string, aktenzeichen: readonly string[], datenStand: number): boolean {
+  const teile = key.split('|');
+  const ids = [...aktenzeichen].sort((a, b) => a.localeCompare(b)).join('|');
+  return teile[0] === String(datenStand) && teile.slice(2).join('|') === ids;
+}
+
+/**
+ * Ein Lauf, den eine Anzeige dieser Seite für genau diese Anträge schon
+ * angestoßen hat — **ohne** eigenen Lesevorgang.
+ *
+ * Für den Assistenten: er soll das Journal eines Vorgangs kennen, wenn die
+ * Detailseite es ohnehin geladen hat, aber `stand.json` (über 5 MB, ungecacht)
+ * nie selbst ein zweites Mal über SMB ziehen. `null` = niemand hat es geladen.
+ */
+export function laufendeJournalChroniken(
+  aktenzeichen: readonly string[], datenStand: number,
+): Promise<AntragsChronikMitId[] | null> | null {
+  for (const [key, lauf] of CACHE) {
+    if (schluesselPasst(key, aktenzeichen, datenStand)) return lauf;
+  }
+  return null;
+}
+
 export function useJournalChroniken(
   aktenzeichen: readonly string[], stichtag: string,
 ): JournalChroniken {

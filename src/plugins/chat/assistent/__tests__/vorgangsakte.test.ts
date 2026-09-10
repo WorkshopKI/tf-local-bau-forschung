@@ -10,6 +10,9 @@ import type { FeldVorkommen } from '@/core/status/feld-aufloesung';
 import type { MappingVersion, StatusFeldEintrag } from '@/core/status/typen';
 import type { MeilensteinPlan, VerbundMeilensteine } from '@/core/meilensteine/typen';
 import type { AntragListItem } from '@/core/services/csv/types';
+import type { AntragsChronikMitId } from '@/core/status/journal/lesen';
+import type { VerlaufsSpur } from '@/core/status/verlauf/typen';
+import type { WorkflowRun } from '@/plugins/antraege/gutachten/types';
 
 const STICHTAG = '2026-08-01T00:00:00.000Z';
 
@@ -149,5 +152,69 @@ describe('baueVorgangsakte — Signale', () => {
       meilensteine: { plan, bewertung: { ...bewertung, prognose: 'abgeschlossen', restTage: -303 } },
     }));
     expect(zu.meilensteine).toEqual({ prognose: 'abgeschlossen', restTage: null, gerissen: [], faellig: [] });
+  });
+});
+
+describe('baueVorgangsakte — Journal, eigene Arbeit, Umfeld', () => {
+  it('zählt das Journal nur, wenn es geladen ist — und nur die eigenen Anträge', () => {
+    expect(baueVorgangsakte(eingabe()).journal).toBeUndefined();
+    const chroniken = [
+      {
+        antragId: 'AZ-1', journalAb: '2026-07-01', gefuehrt: true, letzteAenderung: '2026-07-22',
+        felder: [{ feld: 'D_AK4', eintraege: [{ stempel: 's', antragId: 'AZ-1', art: 'geaendert', feld: 'D_AK4', von: 20260701, nach: 20260722, datum: '2026-07-22' }] }],
+      },
+      {
+        antragId: 'AZ-X', journalAb: '2026-07-01', gefuehrt: true, letzteAenderung: '2026-07-02',
+        felder: [{ feld: 'D_AAE', eintraege: [{ stempel: 's', antragId: 'AZ-X', art: 'gesetzt', feld: 'D_AAE', nach: 20260701, datum: '2026-07-02' }] }],
+      },
+    ] as unknown as AntragsChronikMitId[];
+    const akte = baueVorgangsakte(eingabe({ journal: chroniken }));
+    expect(akte.journal?.aenderungen).toBe(1);
+    // AK4 stand am 01.07. im Export, heute am 22.07. — der alte Tag ist verschoben.
+    expect(akte.journal?.zurueckgenommen).toBe(1);
+    expect(akte.journal?.hinweis).toContain('ab 01.07.2026 belegt');
+  });
+
+  it('nennt den Stand der eigenen Arbeit in den Worten der Leiste', () => {
+    const akte = baueVorgangsakte(eingabe({
+      artefakte: {
+        gutachten: { kind: 'fortschritt', freigegeben: 2, gesamt: 7, aktiverSchritt: 'C', aktiverLabel: 'Innovation', aktiverStatus: 'entwurf' },
+        nachforderung: { versendet: 1, tvGesamt: 2, naechstesTv: { index: 2, aktenzeichen: 'AZ-2' }, fristKurz: '12.09.' },
+        gaRun: {
+          schritte: {
+            B: {
+              qsHinweise: [
+                { dimension: 'Kohärenz', bewertung: 'hinweis', text: 'Zahl weicht ab.' },
+                { dimension: 'Erdung', bewertung: 'ok', text: 'passt' },
+              ],
+            },
+          },
+        } as unknown as WorkflowRun,
+      },
+    }));
+    expect(akte.artefakte).toEqual({
+      gutachten: 'Gutachten: 2 von 7 Abschnitten freigegeben; offen ist Abschnitt C (Innovation), im Entwurf.',
+      nachforderung: 'Nachforderungen: 1 von 2 Teilvorhaben versandreif; als Nächstes TV 2 (AZ-2); Frist 12.09.',
+      pruefHinweise: ['Abschnitt B · Kohärenz: Zahl weicht ab.'],
+    });
+  });
+
+  it('ohne Artefakte gibt es keine Zeile', () => {
+    const akte = baueVorgangsakte(eingabe({ artefakte: { gutachten: null, nachforderung: null, gaRun: null } }));
+    expect(akte.artefakte).toBeUndefined();
+  });
+
+  it('findet abgelehnte Vorgänger desselben Projekts', () => {
+    const alt = tv('ALT-1', { verbund_id: 'VB-0', akronym: '(MUSTER)', status: 'abgelehnt/zurückgezogen' });
+    const akte = baueVorgangsakte(eingabe({ akronym: 'MUSTER', alleAntraege: [...eingabe().antraege, alt] }));
+    expect(akte.vorgaenger).toEqual(['(MUSTER) (VB-0) — 1 Teilvorhaben, davon 1 abgelehnt oder zurückgezogen']);
+  });
+
+  it('zählt die Statusabschnitte nur aus den Spuren der Entität', () => {
+    const spuren = [
+      { art: 'tv', id: 'AZ-1', zustand: 'verlauf', segmente: [{ statusRef: { roh: 'x', code: 1, lang: 'X' } }, { statusRef: null }] },
+      { art: 'tv', id: 'AZ-9', zustand: 'verlauf', segmente: [{ statusRef: { roh: 'y', code: 2, lang: 'Y' } }] },
+    ] as unknown as VerlaufsSpur[];
+    expect(baueVorgangsakte(eingabe({ spuren })).verlauf?.statusAbschnitte).toBe(1);
   });
 });

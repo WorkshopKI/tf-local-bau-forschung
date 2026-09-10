@@ -98,6 +98,30 @@ export interface AkteVerlauf {
   nichtGesetzt: number;
   /** Die Termine der Chronik ohne Nebensächliches, chronologisch. */
   termine: AkteTermin[];
+  /**
+   * Wie viele Statusabschnitte die Verlaufsableitung für diesen Vorgang ergibt.
+   * Nur ein Signal (die Abschnitte selbst trägt der Verlaufs-Block); `0` oder
+   * fehlend heißt: die Liegezeiten je Status sind hier nicht ableitbar.
+   */
+  statusAbschnitte?: number;
+}
+
+/** Was das Änderungs-Journal über diesen Vorgang sagen kann. */
+export interface AkteJournal {
+  /** Der Nullpunkt-Satz — gehört an jede Journal-Aussage (vorgangssystem.md §12.2). */
+  hinweis: string;
+  /** Belegte Änderungen ab dem Nullpunkt. */
+  aenderungen: number;
+  /** Termine, die ein früherer Export trug und der heutige nicht mehr. */
+  zurueckgenommen: number;
+}
+
+/** Der Stand der eigenen Arbeit — dieselben Karten wie die Artefakt-Leiste. */
+export interface AkteArtefakte {
+  gutachten?: string;
+  nachforderung?: string;
+  /** Beratende Hinweise der Prüfer, je Abschnitt und Dimension. */
+  pruefHinweise: string[];
 }
 
 export interface AkteTeilvorhaben {
@@ -130,6 +154,11 @@ export interface VorgangsAkte {
   vollstaendigAm?: string;
   /** Wie viele Teilvorhaben eine AB bzw. einen FB zugewiesen haben — nur gezählt. */
   zuweisung?: { ab: number; fb: number; von: number };
+  /** Nur, wenn eine Anzeige der Seite das Journal schon geladen hat. */
+  journal?: AkteJournal;
+  artefakte?: AkteArtefakte;
+  /** Frühere abgelehnte oder zurückgezogene Einreichungen desselben Projekts. */
+  vorgaenger?: string[];
 }
 
 /**
@@ -230,10 +259,34 @@ export function akteZeilen(a: VorgangsAkte): string[] {
   }
   if (a.meilensteine) z.push(...meilensteinZeilen(a.meilensteine));
   if (a.verlauf) z.push(...verlaufZeilen(a.verlauf));
+  if (a.journal) z.push(journalZeile(a.journal));
   z.push(...teilvorhabenZeilen(a));
   if (a.zuweisung && a.zuweisung.von > 0) {
     const { ab, fb, von } = a.zuweisung;
     z.push(`Zuweisung: AB in ${ab} von ${von}, FB in ${fb} von ${von} Teilvorhaben besetzt`);
+  }
+  if (a.artefakte) z.push(...artefaktZeilen(a.artefakte));
+  if (a.vorgaenger && a.vorgaenger.length > 0) {
+    z.push('Frühere abgelehnte oder zurückgezogene Einreichungen desselben Projekts:');
+    for (const v of a.vorgaenger) z.push(`- ${v}`);
+  }
+  return z;
+}
+
+function journalZeile(j: AkteJournal): string {
+  const zahlen = j.aenderungen > 0 || j.zurueckgenommen > 0
+    ? ` Belegt: ${plural(j.aenderungen, 'Änderung', 'Änderungen')}, ${plural(j.zurueckgenommen, 'zurückgenommener oder verschobener Termin', 'zurückgenommene oder verschobene Termine')}.`
+    : '';
+  return `Änderungs-Journal: ${j.hinweis}${zahlen}`;
+}
+
+function artefaktZeilen(a: AkteArtefakte): string[] {
+  const z: string[] = [];
+  if (a.gutachten) z.push(a.gutachten);
+  if (a.nachforderung) z.push(a.nachforderung);
+  if (a.pruefHinweise.length > 0) {
+    z.push('Hinweise der Prüfer zum Gutachten (beratend, ändern weder Text noch Status):');
+    for (const h of a.pruefHinweise) z.push(`- ${h}`);
   }
   return z;
 }

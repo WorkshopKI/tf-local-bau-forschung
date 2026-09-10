@@ -22,7 +22,8 @@ import { MessageList, type ActivePanel } from '../components/MessageList';
 import { SourcePanel } from '../components/SourcePanel';
 import { useAssistentController, ladeAssistentGedaechtnis } from './useAssistentController';
 import { baueKontextSnapshot } from './kontextSnapshot';
-import { folgefragen, fragenNachGruppe, type FragenKontext } from './fragenKatalog';
+import { folgefragen, fragenNachGruppe, mitBloecken, type FragenKontext } from './fragenKatalog';
+import { BLOCK_LABEL, type BlockId } from './zusatzBloecke';
 import { leseNutzerRolle } from './nutzerRolle';
 import { useVorgangsakte } from './useVorgangsakte';
 import { assistentPanelUiStore, clampPanelWidth, SPINE_WIDTH } from './panelUiStore';
@@ -56,6 +57,9 @@ export function AssistentPanelHost(): React.ReactElement | null {
 
   const [activePanel, setActivePanel] = useState<ActivePanel | null>(null);
   const [input, setInput] = useState('');
+  // Zugeschaltete Blöcke (voller Verlauf, Journal): eine Frage schaltet sie zu,
+  // Nachfragen derselben Unterhaltung behalten sie. Session-only wie die Historie.
+  const [aktiveBloecke, setAktiveBloecke] = useState<BlockId[]>([]);
 
   // Den geliehenen Vorgang beim Routenwechsel loslassen. Ein von der Startseite
   // mitgegebenes CALYPSO, das nach der Navigation zu einem ANDEREN Vorgang
@@ -67,6 +71,8 @@ export function AssistentPanelHost(): React.ReactElement | null {
     if (routeRef.current === location.key) return;
     routeRef.current = location.key;
     assistentPanelUiStore.getState().scopeLoeschen();
+    // Die Blöcke gehörten dem vorigen Vorgang.
+    setAktiveBloecke([]);
   }, [location.key]);
   // Live-Zähler aktiver Gedächtnis-Einträge (Phase 2) für den Kontext-Chip.
   // Aktualisiert bei Öffnen/Navigation und nach jedem Turn (Konsolidierung kann
@@ -88,8 +94,9 @@ export function AssistentPanelHost(): React.ReactElement | null {
     () => leseNutzerRolle({ status_rolle: statusRolle, projektleitung }),
     [statusRolle, projektleitung],
   );
-  const akte = useVorgangsakte(snapshot.entitaet, open, heuteRef.current);
-  const zusatz = useMemo(() => ({ akte, nutzer }), [akte, nutzer]);
+  const wissen = useVorgangsakte(snapshot.entitaet, open, heuteRef.current);
+  const akte = wissen.akte;
+  const zusatz = useMemo(() => ({ akte, nutzer, bloecke: wissen.bloecke }), [akte, nutzer, wissen.bloecke]);
   const c = useAssistentController(vorgabeScope, zeilen, zusatz);
 
   // Die Fragen, die der Assistent hier beantworten kann — reiner Katalog, jede
@@ -132,12 +139,14 @@ export function AssistentPanelHost(): React.ReactElement | null {
     setActivePanel(prev => (prev && prev.mid === mid && prev.n === n ? null : { mid, n }));
   };
 
-  const absenden = useCallback((text: string): void => {
+  const absenden = useCallback((text: string, neueBloecke: readonly BlockId[] = []): void => {
     const t = text.trim();
     if (!t || c.busy) return;
+    const bloecke = mitBloecken(aktiveBloecke, neueBloecke);
+    if (bloecke.length !== aktiveBloecke.length) setAktiveBloecke(bloecke);
     setInput('');
-    void c.send(t);
-  }, [c]);
+    void c.send(t, bloecke);
+  }, [c, aktiveBloecke]);
 
   // Eine von aussen vorgelegte Frage (Tagesbrief: „dazu nachfragen") wird
   // abgeschickt — der Klick auf die Karte IST die Geste, wie bei den Fragen
@@ -156,13 +165,13 @@ export function AssistentPanelHost(): React.ReactElement | null {
   const onRetry = useCallback((): void => {
     const q = c.letzteFehlerFrage;
     c.clearError();
-    if (q) void c.send(q);
-  }, [c]);
+    if (q) void c.send(q, aktiveBloecke);
+  }, [c, aktiveBloecke]);
 
   const onRegenerate = useCallback((): void => {
     const lastUser = [...c.messages].reverse().find(m => m.role === 'user');
-    if (lastUser) void c.send(lastUser.content);
-  }, [c]);
+    if (lastUser) void c.send(lastUser.content, aktiveBloecke);
+  }, [c, aktiveBloecke]);
 
   // Breite per Drag am linken Rand. Das Panel öffnet als Overlay LINKS neben der
   // Spine (Rechtskante bei innerWidth − SPINE_WIDTH), daher die Spine-Breite
@@ -228,7 +237,7 @@ export function AssistentPanelHost(): React.ReactElement | null {
                     sonst spräche sie stumm weiter über den, nach dem gestern
                     gefragt wurde. */}
                 <button className="icon-btn" title="Neue Unterhaltung" aria-label="Neue Unterhaltung"
-                  onClick={() => { assistentPanelUiStore.getState().scopeLoeschen(); c.neueUnterhaltung(); }}>
+                  onClick={() => { assistentPanelUiStore.getState().scopeLoeschen(); setAktiveBloecke([]); c.neueUnterhaltung(); }}>
                   <SquarePen size={16} />
                 </button>
                 <button className="icon-btn" title="Assistent schließen" aria-label="Assistent schließen"
@@ -242,6 +251,12 @@ export function AssistentPanelHost(): React.ReactElement | null {
             <div className="assistant-ctxchip" title="Nur dieser Kontext geht ins Modell.">
               <Sparkles size={12} />
               <span>{chips}</span>
+              {/* Zugeschaltete Blöcke gehören zur Zusage „nur das geht ins Modell". */}
+              {aktiveBloecke.length > 0 && (
+                <span className="ml-1 pl-2" style={{ borderLeft: '0.5px solid var(--tf-border)' }}>
+                  + {aktiveBloecke.map(b => BLOCK_LABEL[b]).join(', ')}
+                </span>
+              )}
               {gedAnzahl > 0 && (
                 <span
                   className="inline-flex items-center gap-1 ml-1 pl-2"
@@ -268,7 +283,7 @@ export function AssistentPanelHost(): React.ReactElement | null {
                         <div className="fragen-titel">{g.titel}</div>
                         <div className="suggest-row">
                           {g.fragen.map(f => (
-                            <button key={f.id} className="suggest" title={f.frage} onClick={() => absenden(f.frage)}>
+                            <button key={f.id} className="suggest" title={f.frage} onClick={() => absenden(f.frage, f.bloecke)}>
                               {f.label}
                             </button>
                           ))}
@@ -295,7 +310,7 @@ export function AssistentPanelHost(): React.ReactElement | null {
               <div className="folgefragen" role="group" aria-label="Weiter fragen">
                 <span className="folgefragen-titel">Weiter fragen</span>
                 {weiter.map(f => (
-                  <button key={f.id} className="suggest" title={f.frage} onClick={() => absenden(f.frage)}>
+                  <button key={f.id} className="suggest" title={f.frage} onClick={() => absenden(f.frage, f.bloecke)}>
                     {f.label}
                   </button>
                 ))}

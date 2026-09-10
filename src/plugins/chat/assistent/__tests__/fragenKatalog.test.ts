@@ -4,7 +4,7 @@
  * erscheint, obwohl sie ein Signal braucht, ist eine Einladung ins Leere.
  */
 import { describe, expect, it } from 'vitest';
-import { folgefragen, fragenFuer, fragenNachGruppe, type FragenKontext } from '../fragenKatalog';
+import { folgefragen, fragenFuer, fragenNachGruppe, mitBloecken, type FragenKontext } from '../fragenKatalog';
 import { leseNutzerRolle } from '../nutzerRolle';
 import type { KontextEntitaet, VorgangsAkte } from '@/core/services/assistent/kontext';
 
@@ -135,6 +135,51 @@ describe('folgefragen', () => {
   it('eine getippte Frage ohne Katalogtreffer: Katalogreihenfolge', () => {
     const f = folgefragen(k({ akte: reich }), ['Was steht in Anlage 5?']);
     expect(f.map(x => x.id)).toEqual(['naechster-schritt', 'wo-stehe-ich', 'frist-rest']);
+  });
+});
+
+describe('fragenFuer — Verlauf, Journal, eigene Arbeit, Umfeld', () => {
+  const termin = { tag: '01.07.2026', label: 'Eingang', rollen: 'alle', traeger: 'Verbund' };
+  const verlauf = (statusAbschnitte?: number): VorgangsAkte['verlauf'] => ({
+    von: null, bis: null, schritte: 1, datumsangaben: 1, nichtGesetzt: 0, termine: [termin],
+    ...(statusAbschnitte !== undefined ? { statusAbschnitte } : {}),
+  });
+  const frage = (x: FragenKontext, id: string) => fragenFuer(x).find(f => f.id === id);
+
+  it('„Was ist passiert?" schaltet den vollen Verlauf zu', () => {
+    expect(frage(k({ akte: akte({ verlauf: verlauf() }) }), 'seit-eingang')?.bloecke).toEqual(['verlauf']);
+  });
+
+  it('„Wie lange in welchem Status?" nur mit Statusabschnitten', () => {
+    expect(ids(k({ akte: akte({ verlauf: verlauf() }) }))).not.toContain('status-dauer');
+    expect(frage(k({ akte: akte({ verlauf: verlauf(3) }) }), 'status-dauer')?.bloecke).toEqual(['verlauf']);
+  });
+
+  it('die Journal-Fragen nur mit geladenem Journal und passendem Zähler', () => {
+    const j = (aenderungen: number, zurueckgenommen: number): VorgangsAkte =>
+      akte({ journal: { hinweis: 'ab 05.08.2026 belegt', aenderungen, zurueckgenommen } });
+    expect(ids(k({ akte: j(0, 0) })).filter(i => i === 'seit-export' || i === 'zurueckgenommen')).toEqual([]);
+    expect(ids(k({ akte: j(4, 0) }))).toContain('seit-export');
+    expect(ids(k({ akte: j(4, 0) }))).not.toContain('zurueckgenommen');
+    expect(frage(k({ akte: j(4, 1) }), 'zurueckgenommen')?.bloecke).toEqual(['journal']);
+  });
+
+  it('Eigene Arbeit und Umfeld folgen ihren Signalen', () => {
+    expect(ids(k()).filter(i => ['gutachten-stand', 'nf-stand', 'pruefer', 'vorgaenger'].includes(i))).toEqual([]);
+    const voll = akte({
+      artefakte: { gutachten: 'Gutachten: …', nachforderung: 'Nachforderungen: …', pruefHinweise: ['Abschnitt B · Kohärenz: …'] },
+      vorgaenger: ['(MUSTER) (VB-0) — 1 Teilvorhaben'],
+    });
+    const g = fragenNachGruppe(k({ akte: voll }));
+    expect(g.find(x => x.gruppe === 'arbeit')?.fragen.map(f => f.id)).toEqual(['gutachten-stand', 'nf-stand', 'pruefer']);
+    expect(g.find(x => x.gruppe === 'umfeld')?.fragen.map(f => f.id)).toEqual(['vorgaenger']);
+  });
+});
+
+describe('mitBloecken', () => {
+  it('vereinigt ohne Doppel und in stabiler Reihenfolge', () => {
+    expect(mitBloecken(['verlauf'], ['journal', 'verlauf'])).toEqual(['verlauf', 'journal']);
+    expect(mitBloecken([], undefined)).toEqual([]);
   });
 });
 
