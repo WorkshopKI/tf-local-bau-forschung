@@ -39,16 +39,22 @@ export function dauerBucket(tage: number): DauerBucket {
 export interface AbschlussFall {
   verbundId: string;
   typ: AntragstypBucket | null;
-  /** Maßgebliches Antragsdatum (Anker). */
+  /** Spätestes Antragsdatum der TVs — nur zur Einordnung nach Eingangsjahr. */
   antragsdatum: string | null;
+  /**
+   * Anker der Dauer: wirksamer Eingang (das spätere aus `D_AAE` und `D_XTE`),
+   * über die TVs das späteste — derselbe Anker wie für die Soll-Termine.
+   */
+  anker: string | null;
   /** Abschluss = Bewilligung, ersatzweise finale Erstentscheidung. */
   abschlussDatum: string | null;
 }
 
-/** Bearbeitungsdauer in Tagen; `null` wenn eines der Daten fehlt/unparsbar ist
- *  oder der Abschluss vor dem Eingang liegt (Datenfehler statt Negativ-Wert). */
+/** Bearbeitungsdauer in Tagen ab dem Anker; `null` wenn eines der Daten
+ *  fehlt/unparsbar ist oder der Abschluss vor dem Eingang liegt (Datenfehler
+ *  statt Negativ-Wert). */
 export function bearbeitungsdauerTage(fall: AbschlussFall): number | null {
-  const von = fall.antragsdatum ? parseGermanDate(fall.antragsdatum) : null;
+  const von = fall.anker ? parseGermanDate(fall.anker) : null;
   const bis = fall.abschlussDatum ? parseGermanDate(fall.abschlussDatum) : null;
   if (!von || !bis) return null;
   const vonMs = new Date(von).getTime();

@@ -17,7 +17,9 @@ import { sektionOffenDefault, sektionsKey } from '../detailSektionen';
 import { isMeilensteinMonitoringEnabled } from '@/config/feature-flags';
 import { sortiereKnoten, type MeilensteinRisiko } from '@/core/meilensteine';
 import { MeilensteinLeiste } from '@/plugins/meilensteine/MeilensteinLeiste';
-import { PROGNOSE_FARBE, PROGNOSE_LABEL, feldStil, formatDatum } from '@/plugins/meilensteine/labels';
+import {
+  ANKER_ERKLAERUNG, PROGNOSE_FARBE, PROGNOSE_LABEL, feldStil, formatDatum,
+} from '@/plugins/meilensteine/labels';
 import { RisikoFormular } from './RisikoFormular';
 import { useVerbundMeilensteine } from './useVerbundMeilensteine';
 
@@ -92,7 +94,9 @@ export function MeilensteinSection({ verbundId }: { verbundId: string }): React.
           <span className="text-[16px] font-medium text-[var(--tf-text)]">Fristen &amp; Meilensteine</span>
         </button>
         <span style={{ color: PROGNOSE_FARBE[b.prognose] }}>{PROGNOSE_LABEL[b.prognose]}</span>
-        <span className="text-[var(--tf-text-secondary)]">Eingang {formatDatum(b.antragsdatum)}</span>
+        <span className="text-[var(--tf-text-secondary)]" title={ANKER_ERKLAERUNG}>
+          Eingang {formatDatum(b.anker)}
+        </span>
         <span className="text-[var(--tf-text-secondary)]">Frist {formatDatum(b.fristDatum)}</span>
         <span className="text-[var(--tf-text-secondary)]">
           {b.restTage === null

@@ -39,16 +39,20 @@ import { MS_TAG } from '@/core/utils/zeitEinheiten';
  *
  * 1 → 2 (v4.134): Knoten ohne auswertbare Bedingung sind `ohneBedingung` statt
  * `gerissen`/`erreicht` und zählen nicht in die Prognose.
+ * 2 → 3 (v6.49): der Anker ist der wirksame Eingang (`D_AAE` oder `D_XTE`,
+ * das spätere) statt des Antragsdatums allein.
  */
-export const BEWERTUNGS_VERSION = 2;
+export const BEWERTUNGS_VERSION = 3;
 
 /** Vorwarnfenster: so viele Tage vor dem Soll-Termin gilt ein Meilenstein als fällig. */
 export const FAELLIG_FENSTER_TAGE = 7;
 
 export interface BewertungsEingabe {
   verbundId: string;
-  /** Maßgebliches Antragsdatum (spätestes über alle TVs, `verbundAntragsdatum`). */
+  /** Spätestes Antragsdatum über alle TVs (`verbundAntragsdatum`) — nur zur Einordnung. */
   antragsdatum: string | null;
+  /** Anker aller Termine: wirksamer Eingang des Verbunds (`verbundWirksamerEingang`). */
+  anker: string | null;
   typ: AntragstypBucket | null;
   kontext: BedingungsKontext;
   /**
@@ -249,7 +253,7 @@ export function bewerteVerbund(
   heute: string,
 ): VerbundMeilensteine {
   const heuteMs = new Date(heute).getTime();
-  const ankerMs = alsMs(eingabe.antragsdatum);
+  const ankerMs = alsMs(eingabe.anker);
   const ankerIso = ankerMs === null ? null : new Date(ankerMs).toISOString();
   const befunde = baueBefunde(plan, eingabe.kontext, eingabe.typ, heute);
 
@@ -301,6 +305,7 @@ export function bewerteVerbund(
   return {
     verbundId: eingabe.verbundId,
     antragsdatum: eingabe.antragsdatum,
+    anker: ankerIso,
     typ: eingabe.typ,
     wocheAktuell: ankerMs === null ? null : Math.max(1, Math.floor((heuteMs - ankerMs) / (7 * MS_TAG)) + 1),
     fristDatum,

@@ -4,9 +4,13 @@
 
 Der amtliche Status sagt, WO ein Verbund steht — dieses Modul, ob er dort
 **rechtzeitig** steht. Ziel ist die vollständige Bearbeitung binnen einer
-Gesamtfrist (Standard 90 Tage) ab Antragseingang, unterteilt in Meilensteine mit
-Soll-Wochen (MST 1 … 6). Anker ist das **späteste** Antragsdatum aller
-Teilvorhaben.
+Gesamtfrist (Standard 90 Tage) ab dem **wirksamen Eingang**, unterteilt in
+Meilensteine mit Soll-Wochen (MST 1 … 6). Wirksamer Eingang heißt: je
+Teilvorhaben das spätere aus Antragseingang (`D_AAE`) und „alle Anträge da"
+(`D_XTE`), über alle Teilvorhaben das späteste. Ab diesem einen Datum zählen
+Soll-Termine, Bearbeitungswoche, Gesamtfrist und die Dauern der Auswertung —
+dasselbe Datum, von dem auch die Frist-Spalte der Förderanträge rechnet. Der
+Tooltip an „Gesamtfrist" und an „Eingang" nennt die beiden Spalten.
 
 ## Bereiche
 

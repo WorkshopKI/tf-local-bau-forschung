@@ -274,7 +274,7 @@ export function MeilensteinePage(): React.ReactElement {
   const kopf = (
     <PageHeader
       title="Fristen & Meilensteine"
-      subtitle="Bearbeitungs-Meilensteine je Verbund, gemessen ab Antragseingang"
+      subtitle="Bearbeitungs-Meilensteine je Verbund, gemessen ab dem wirksamen Eingang"
       meta={<BereichChip ausgeblendet={stand.ausgeblendet} />}
       actions={<SeitenHilfeButton pluginId="meilensteine" />}
     />

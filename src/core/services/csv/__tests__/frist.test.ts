@@ -14,6 +14,7 @@ import {
   computeVerbundFristDatum,
   daysUntilFristAware,
   verbundAntragsdatum,
+  verbundWirksamerEingang,
   wirksamerEingang,
 } from '../frist';
 import { asAntragStatusRaw, type AntragListItem } from '../types';
@@ -221,6 +222,31 @@ describe('computeVerbundFristDatum', () => {
  * So startet die AB-Mappe ihre Zählungen — bearbeitet werden kann erst, wenn
  * alles vorliegt.
  */
+describe('verbundWirksamerEingang', () => {
+  it('nimmt je TV das spätere, über die TVs das späteste', () => {
+    expect(verbundWirksamerEingang([
+      { antragsdatum: '2026-01-10', alleAntraegeDa: '2026-02-20' },
+      { antragsdatum: '2026-03-01', alleAntraegeDa: null },
+      { antragsdatum: '2026-01-05', alleAntraegeDa: undefined },
+    ])).toBe('2026-03-01');
+    expect(verbundWirksamerEingang([
+      { antragsdatum: '2026-01-10', alleAntraegeDa: '2026-04-01' },
+      { antragsdatum: '2026-03-01', alleAntraegeDa: null },
+    ])).toBe('2026-04-01');
+  });
+
+  it('ist ohne D_XTE dasselbe wie verbundAntragsdatum', () => {
+    const tvs = [{ antragsdatum: '2026-01-15' }, { antragsdatum: '2026-03-20' }, { antragsdatum: '' }];
+    expect(verbundWirksamerEingang(tvs.map(t => ({ ...t, alleAntraegeDa: null }))))
+      .toBe(verbundAntragsdatum(tvs));
+  });
+
+  it('liefert null, wenn kein TV ein lesbares Datum trägt', () => {
+    expect(verbundWirksamerEingang([])).toBeNull();
+    expect(verbundWirksamerEingang([{ antragsdatum: 'kaputt', alleAntraegeDa: '' }])).toBeNull();
+  });
+});
+
 describe('wirksamerEingang', () => {
   it('nimmt das spätere der beiden Daten', () => {
     expect(wirksamerEingang('2026-01-10', '2026-02-20')).toBe('2026-02-20');

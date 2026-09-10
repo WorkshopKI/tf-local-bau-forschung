@@ -11,7 +11,7 @@ const HEUTE = '2026-08-01T00:00:00.000Z';
 
 function zeile(p: Partial<VerbundZeile> & { verbundId: string; prognose: Prognose }): VerbundZeile {
   return {
-    akronym: p.verbundId, titel: '', kuerzel: [], kuerzelAnzeige: [], antragsdatum: '2026-01-05',
+    akronym: p.verbundId, titel: '', kuerzel: [], kuerzelAnzeige: [], antragsdatum: '2026-01-05', anker: '2026-01-05',
     typ: 'FuE', wocheAktuell: 30, fristDatum: '2026-04-05', restTage: 10,
     ergebnisse: [], ...p,
   };

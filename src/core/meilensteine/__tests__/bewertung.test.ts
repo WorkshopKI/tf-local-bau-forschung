@@ -41,6 +41,7 @@ function plan(knotenListe: MeilensteinKnoten[], gesamtfristTage = 90): Meilenste
 const eingabe = (kontextFelder: Record<string, string>, extra: Record<string, unknown> = {}) => ({
   verbundId: 'VB-1',
   antragsdatum: ANKER,
+  anker: ANKER,
   typ: null,
   kontext: baueKontext(kontextFelder),
   ...extra,
@@ -97,8 +98,19 @@ describe('bewerteVerbund — Zustände', () => {
     expect(r.ergebnisse[0]!.istDatum).toBe('2026-01-08');
   });
 
+  it('rechnet Soll, Woche und Frist ab dem Anker, nicht ab dem Antragsdatum', () => {
+    // Antrag am 05.01. eingegangen, „alle Anträge da" erst am 19.01. — bearbeitbar
+    // ist der Verbund erst ab dann, also zählen alle Termine ab dem 19.01.
+    const r = bewerteVerbund(p, { ...eingabe({}), anker: '2026-01-19' }, '2026-01-20T00:00:00.000Z');
+    expect(r.anker?.slice(0, 10)).toBe('2026-01-19');
+    expect(r.antragsdatum).toBe(ANKER);
+    expect(r.ergebnisse[0]!.sollDatum?.slice(0, 10)).toBe('2026-01-26');
+    expect(r.fristDatum?.slice(0, 10)).toBe('2026-04-19');
+    expect(r.wocheAktuell).toBe(1);
+  });
+
   it('liefert ohne Ankerdatum definierte Werte statt zu werfen', () => {
-    const r = bewerteVerbund(p, { ...eingabe({}), antragsdatum: null }, '2026-01-20T00:00:00.000Z');
+    const r = bewerteVerbund(p, { ...eingabe({}), antragsdatum: null, anker: null }, '2026-01-20T00:00:00.000Z');
     expect(r.ergebnisse[0]!.zustand).toBe('offen');
     expect(r.ergebnisse[0]!.sollDatum).toBeNull();
     expect(r.wocheAktuell).toBeNull();
@@ -221,7 +233,7 @@ describe('bewerteVerbund — Auslieferungs-Plan', () => {
     const p = baueSeedPlan();
     const r = bewerteVerbund(
       p,
-      { verbundId: 'VB-1', antragsdatum: ANKER, typ: 'FuE', kontext: baueKontext({ antragsdatum: '05.01.2026' }) },
+      { verbundId: 'VB-1', antragsdatum: ANKER, anker: ANKER, typ: 'FuE', kontext: baueKontext({ antragsdatum: '05.01.2026' }) },
       '2026-01-08T00:00:00.000Z',
     );
     const mst11 = r.ergebnisse.find(e => e.knotenId === 'mst-1-1')!;
@@ -233,7 +245,7 @@ describe('bewerteVerbund — Auslieferungs-Plan', () => {
     const p = baueSeedPlan();
     const r = bewerteVerbund(
       p,
-      { verbundId: 'VB-2', antragsdatum: ANKER, typ: 'FuE', kontext: baueKontext({ antragsdatum: '05.01.2026' }) },
+      { verbundId: 'VB-2', antragsdatum: ANKER, anker: ANKER, typ: 'FuE', kontext: baueKontext({ antragsdatum: '05.01.2026' }) },
       '2026-03-01T00:00:00.000Z',
     );
     expect(r.prognose).toBe('nichtHaltbar');
@@ -244,7 +256,7 @@ describe('bewerteVerbund — Auslieferungs-Plan', () => {
     const p = baueSeedPlan();
     const r = bewerteVerbund(
       p,
-      { verbundId: 'VB-3', antragsdatum: null, typ: null, kontext: baueKontext({}) },
+      { verbundId: 'VB-3', antragsdatum: null, anker: null, typ: null, kontext: baueKontext({}) },
       '2026-03-01T00:00:00.000Z',
     );
     expect(r.ergebnisse.map(e => e.knotenId)).toEqual(p.knoten.map(k => k.id));

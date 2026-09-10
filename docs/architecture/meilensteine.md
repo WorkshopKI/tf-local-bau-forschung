@@ -40,9 +40,28 @@ auf 0, und die Fassung war nicht nur aus dem Blick, sondern aus der Datei.
 
 ## Bewertung ([bewertung.ts](../../src/core/meilensteine/bewertung.ts))
 
-- **Anker** = `verbundAntragsdatum(tvs)`, das **späteste** Antragsdatum aller
-  Teilvorhaben (vorher ist der Verbund nicht vollständig bearbeitbar).
-  `sollDatum = anker + sollWoche * 7`.
+- **Anker** = der **wirksame Eingang** des Verbunds: je Teilvorhaben das spätere
+  aus `D_AAE` (Antragseingang) und `D_XTE` („alle Anträge da"), über die
+  Teilvorhaben das späteste (`verbundWirksamerEingang`, gelesen über
+  `baueAnkerLeser` in [anker.ts](../../src/core/meilensteine/anker.ts)). Vorher
+  ist der Verbund nicht vollständig bearbeitbar. `sollDatum = anker + sollWoche * 7`,
+  `fristDatum = anker + gesamtfristTage`; die Dauern der Auswertung zählen ab
+  demselben Anker.
+  - **Ein Anker für alle drei Rechenstellen** — Projektion, Verbund-Detailseite
+    und Auswertung. Bis v6.49 las der Anker nur `D_AAE`, während die
+    Frist-Spalte der Tabelle und der Bestandslauf schon `wirksamerEingang`
+    nutzten: zweimal „90 Tage ab Eingang" aus verschiedenen Quellspalten.
+  - `D_XTE` ist custom gemappt (produktiv `alle_an_trage_da`); der Record-Key
+    wird über `loeseFelderAuf` aufgelöst, nie geraten. Mappt kein Schema die
+    Spalte, bleibt es beim Antragsdatum.
+  - `VerbundMeilensteine.antragsdatum` (spätestes `D_AAE`) bleibt daneben
+    stehen — nur für die Einordnung nach Eingangsjahr (Zeitraum-Filter).
+  - **Gemessen** (10.09.2026, dev:local, 14 225 Anträge, Plan-Fassung 30, alt
+    und neu auf DENSELBEN Daten gerechnet): 28 von 2 082 offenen Verbünden
+    (1,3 %) bekommen einen späteren Anker, +1 bis +61 Tage (Median +8); dabei
+    kippt **kein** Meilenstein-Zustand und keine Prognose. Auswertung (ganzer
+    Bestand, ohne Bereichs-/Jahresfilter): 125 von 5 969 Dauern werden kürzer
+    (Median −5 T); Ø 132 → 131 T, Median 117 T unverändert, im Soll 32 → 33 %.
 - **Zustände**: `erreicht` · `gerissen` (Soll überschritten) · `faellig`
   (Soll in ≤ `FAELLIG_FENSTER_TAGE` = 7) · `offen` · `nichtRelevant` (inaktiv
   oder typ-fremd) · `ohneBedingung`. Ein inaktiver Knoten wird nie als gerissen
@@ -162,8 +181,8 @@ Aus einer Bug-Jagd auf genau diese Oberfläche. Alle Regeln haben dieselbe Wurze
 - **Der heutige Tag ist ein eigener Fall.** `restTageBis` normalisiert `-0` zu
   `0`, die Anzeige schreibt „heute fällig" — `Math.ceil` liefert für einen
   Termin von heute Mitternacht `-0`, und `-0 < 0` ist `false`.
-- **Geklemmt heißt markiert.** Ein Ist-Termin vor Woche 0 (Anker = spätestes
-  Antragsdatum, Ist-Feld datiert früher) wird in der Leiste als Dreieck am
+- **Geklemmt heißt markiert.** Ein Ist-Termin vor Woche 0 (Anker = spätester
+  wirksamer Eingang, Ist-Feld datiert früher) wird in der Leiste als Dreieck am
   Achsenanfang gezeichnet und in der Auswertung mit ⚠ + `VOR_EINGANG_HINWEIS`
   erklärt, statt als Punkt auf „Eingang" zu sitzen (471 Ergebnisse in 426 von
   1767 Verbünden).

@@ -129,8 +129,17 @@ export interface MstErgebnis {
 
 export interface VerbundMeilensteine {
   verbundId: string;
-  /** Maßgebliches Antragsdatum des Verbunds (spätestes TV-Antragsdatum). */
+  /**
+   * Spätestes Antragsdatum (`D_AAE`) der Teilvorhaben. Nur noch für die
+   * Einordnung nach Eingangsjahr (Zeitraum-Filter) — gerechnet wird mit `anker`.
+   */
   antragsdatum: string | null;
+  /**
+   * Der Anker aller Termine: wirksamer Eingang des Verbunds, das spätere aus
+   * `D_AAE` und `D_XTE` („alle Anträge da"), über die TVs das späteste
+   * (`verbundWirksamerEingang`). Soll-Termine, Woche und Gesamtfrist zählen ab hier.
+   */
+  anker: string | null;
   typ: AntragstypBucket | null;
   /** Laufende Bearbeitungswoche (1 = erste Woche nach Eingang). `null` ohne Anker. */
   wocheAktuell: number | null;

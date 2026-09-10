@@ -19,6 +19,7 @@ import { istImBereich } from '@/core/status/betrachtungsbereich';
 import {
   listAllAntraegeListView, listProgramme, listSchemasByProgramm,
 } from '@/core/services/csv/idb-csv';
+import { verbundWirksamerEingang } from '@/core/services/csv/frist';
 import { getAntragstypBucket, type AntragstypBucket } from '@/core/utils/vb-phase-mappings';
 import { anzeigeTokensFuer, parseBearbeiterFilter } from '@/plugins/antraege/bearbeiterFilter';
 import { kuerzelFormen } from './monitoringLogic';
@@ -189,23 +190,33 @@ export function useMeilensteinStand(): MeilensteinStandApi {
    * Anträge ohne `verbund_id` als Einzelfall zählen.
    */
   const abschluesse = useMemo<AbschlussFall[]>(() => {
-    const proVerbund = new Map<string, { typ: AntragstypBucket | null; anker: string | null; abschluss: string | null }>();
+    const proVerbund = new Map<string, {
+      typ: AntragstypBucket | null;
+      antragsdatum: string | null;
+      /** Wirksamer Eingang je TV, gesammelt — der Anker ist ihr spätester. */
+      eingaenge: { antragsdatum: string | null; alleAntraegeDa: string | null }[];
+      abschluss: string | null;
+    }>();
     for (const a of listItems) {
       if (bereich.menge !== null && !istImBereich(a.unterprogramm_id, bereich.menge)) continue;
       const id = a.verbund_id || `solo:${a.aktenzeichen}`;
-      const vorhanden = proVerbund.get(id) ?? { typ: null, anker: null, abschluss: null };
+      const vorhanden = proVerbund.get(id) ?? { typ: null, antragsdatum: null, eingaenge: [], abschluss: null };
       if (vorhanden.typ === null) vorhanden.typ = getAntragstypBucket(a.vb_phase);
-      const ad = a.antragsdatum?.trim();
-      if (ad && (vorhanden.anker === null || ad > vorhanden.anker)) vorhanden.anker = ad;
+      const ad = a.antragsdatum?.trim() || null;
+      if (ad && (vorhanden.antragsdatum === null || ad > vorhanden.antragsdatum)) vorhanden.antragsdatum = ad;
+      // `alle_antraege_da` (= `D_XTE`) führt die Listen-Projektion seit v4.126 —
+      // derselbe Wert, den die Frist-Zelle der Tabelle liest.
+      vorhanden.eingaenge.push({ antragsdatum: ad, alleAntraegeDa: a.alle_antraege_da?.trim() || null });
       const ab = abschlussDatumVon(a);
       if (ab && (vorhanden.abschluss === null || ab > vorhanden.abschluss)) vorhanden.abschluss = ab;
       proVerbund.set(id, vorhanden);
     }
     return [...proVerbund.entries()]
-      .filter(([, v]) => v.anker !== null && v.abschluss !== null)
       .map(([verbundId, v]) => ({
-        verbundId, typ: v.typ, antragsdatum: v.anker, abschlussDatum: v.abschluss,
-      }));
+        verbundId, typ: v.typ, antragsdatum: v.antragsdatum,
+        anker: verbundWirksamerEingang(v.eingaenge), abschlussDatum: v.abschluss,
+      }))
+      .filter(f => f.anker !== null && f.abschlussDatum !== null);
   }, [listItems, bereich.menge]);
 
   /**

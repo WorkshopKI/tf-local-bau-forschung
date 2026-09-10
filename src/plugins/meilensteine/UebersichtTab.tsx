@@ -20,7 +20,7 @@ import { MeilensteinLeiste } from './MeilensteinLeiste';
 import { filtereZeilen, standardFilter, type UebersichtFilter } from './monitoringLogic';
 import { ladeUebersichtFilter, speichereUebersichtFilter } from './ansichtPersistenz';
 import {
-  PROGNOSE_FARBE, PROGNOSE_LABEL, PROGNOSE_REIHENFOLGE, TYP_LABEL, ZUSTAND_FARBE,
+  ANKER_ERKLAERUNG, PROGNOSE_FARBE, PROGNOSE_LABEL, PROGNOSE_REIHENFOLGE, TYP_LABEL, ZUSTAND_FARBE,
   ZUSTAND_LABEL, feldStil, formatDatum, restzeitText,
 } from './labels';
 import type { VerbundZeile } from './useMeilensteinStand';
@@ -216,8 +216,8 @@ export function UebersichtTab({ zeilen, plan, meineTokens, meineTokensAnzeige }:
 
       <div className="flex items-center gap-3 flex-wrap text-[12px]">
         <span style={{ color: PROGNOSE_FARBE[aktiv.prognose] }}>{PROGNOSE_LABEL[aktiv.prognose]}</span>
-        <span className="text-[var(--tf-text-secondary)]">
-          Eingang {formatDatum(aktiv.antragsdatum)}
+        <span className="text-[var(--tf-text-secondary)]" title={ANKER_ERKLAERUNG}>
+          Eingang {formatDatum(aktiv.anker)}
         </span>
         <span className="text-[var(--tf-text-secondary)]">
           Frist {formatDatum(aktiv.fristDatum)}

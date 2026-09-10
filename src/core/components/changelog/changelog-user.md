@@ -19,6 +19,13 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v6.49 — 2026-09
+
+### Verbesserungen
+- Fristen & Meilensteine: Beim Überfahren von „Gesamtfrist" und „Eingang" steht jetzt, aus welchen beiden Spalten der Eingang kommt: dem Antragseingang und „alle Anträge da".
+### Bugfixes
+- Fristen & Meilensteine zählen jetzt ab demselben Eingang wie die Frist-Spalte der Förderanträge, also ab dem späteren Datum aus Antragseingang und „alle Anträge da". Bisher lagen die beiden Fristen bei einigen Verbünden bis zu zwei Monate auseinander.
+
 ## v6.48 — 2026-09
 
 ### Bugfixes

@@ -3,7 +3,7 @@
  * `--tf-*`-Tokens (Guard `theme-token-contract`).
  */
 import { parseGermanDate, formatGermanDate } from '@/core/services/csv/dateParse';
-import { einzeiligesLabel } from '@/core/meilensteine';
+import { ANKER_SPALTEN, einzeiligesLabel } from '@/core/meilensteine';
 import type {
   MstZustand, Prognose, SpaltenEintrag, VerbundMeilensteine,
 } from '@/core/meilensteine';
@@ -82,13 +82,25 @@ export const PROGNOSE_FARBE: Record<Prognose, string> = {
  * Erklärt einen Ist-Termin **vor** Woche 0.
  *
  * Auf der Achse gibt es keine Woche vor dem Eingang — die Zahl entsteht, weil
- * der Anker das SPÄTESTE Antragsdatum aller Teilvorhaben ist, das Ist-Datum aber
- * aus einem Feld kommt, das früher datiert (etwa dem frühesten Antragsdatum).
- * Der Wert wird darum markiert statt versteckt oder geglättet.
+ * der Anker der SPÄTESTE wirksame Eingang aller Teilvorhaben ist (Antragseingang
+ * oder „alle Anträge da", das spätere), das Ist-Datum aber aus einem Feld kommt,
+ * das früher datiert (etwa dem frühesten Antragsdatum). Der Wert wird darum
+ * markiert statt versteckt oder geglättet.
  */
 export const VOR_EINGANG_HINWEIS =
-  'Ist-Termin liegt vor dem Eingang: der Anker ist das späteste Antragsdatum des Verbunds, '
-  + 'das Ist-Datum stammt aus einem Feld, das früher datiert.';
+  'Ist-Termin liegt vor dem Eingang: der Anker ist der späteste wirksame Eingang des Verbunds '
+  + '(Antragseingang oder „alle Anträge da", das spätere), das Ist-Datum stammt aus einem Feld, '
+  + 'das früher datiert.';
+
+/**
+ * Was „Eingang" auf dieser Seite meint — derselbe Satz an jeder Stelle, die das
+ * Anker-Datum zeigt. Die Codes kommen aus `ANKER_SPALTEN`, also aus derselben
+ * Konstante, die die Rechnung liest.
+ */
+export const ANKER_ERKLAERUNG: string =
+  `Wirksamer Eingang: das spätere aus ${ANKER_SPALTEN.antragseingang} (Antragseingang) und `
+  + `${ANKER_SPALTEN.alleAntraegeDa} („alle Anträge da"), über die Teilvorhaben das späteste. `
+  + 'Soll-Termine, Bearbeitungswoche und Gesamtfrist zählen ab hier.';
 
 /** Reihenfolge für Filter-Leisten und Verteilungs-Anzeigen. */
 export const PROGNOSE_REIHENFOLGE: readonly Prognose[] = [

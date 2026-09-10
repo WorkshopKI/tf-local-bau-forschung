@@ -26,6 +26,7 @@ import { getAntragstypBucket } from '@/core/utils/vb-phase-mappings';
 import type { MeilensteinPlan, VerbundMeilensteine } from './typen';
 import { baueMeilensteinKontext, benoetigteFelder, loeseFelderAuf } from './felder';
 import { BEWERTUNGS_VERSION, bewerteVerbund } from './bewertung';
+import { baueAnkerLeser } from './anker';
 
 const PROJEKTION_PREFIX = 'meilenstein-stand:';
 
@@ -78,6 +79,7 @@ export async function berechneProjektion(
   heute: string,
 ): Promise<VerbundMeilensteine[]> {
   const aufloesung = loeseFelderAuf(schemas, benoetigteFelder(plan));
+  const ankerVon = baueAnkerLeser(schemas);
   const verbuende = await listVerbuendeByProgramm(idb, programmId);
   const out: VerbundMeilensteine[] = [];
 
@@ -98,6 +100,7 @@ export async function berechneProjektion(
     out.push(bewerteVerbund(plan, {
       verbundId: verbund.verbund_id,
       antragsdatum: verbundAntragsdatum(antraege),
+      anker: ankerVon(records.map(r => r.record)),
       typ: getAntragstypBucket(antraege[0]?.vb_phase),
       kontext: baueMeilensteinKontext(
         aufloesung, verbund as unknown as Record<string, unknown>, records,

@@ -38,7 +38,7 @@ import { bedingungIstLeer, bedingungSatz } from '@/core/status';
 import { berechneAutoHoehe } from '@/core/utils/autoGrowHoehe';
 import { ANTRAGSTYP_BUCKETS } from '@/core/utils/vb-phase-mappings';
 import { BedingungEditor } from './BedingungEditor';
-import { TYP_LABEL, feldStil, spaltenLabel } from './labels';
+import { ANKER_ERKLAERUNG, TYP_LABEL, feldStil, spaltenLabel } from './labels';
 import {
   MEILENSTEIN_BAUM_ROOT, baueMeilensteinBaum, type MeilensteinBaumKnoten,
 } from './meilensteinBaum';
@@ -479,8 +479,11 @@ export function KonfigurationTab({
   return (
     <div className="flex flex-col gap-3 pt-4">
       <div className="flex items-center gap-3 flex-wrap">
-        <label className="flex items-center gap-1.5 text-[12.5px] text-[var(--tf-text-secondary)]">
-          Gesamtfrist ab Antragseingang
+        <label
+          className="flex items-center gap-1.5 text-[12.5px] text-[var(--tf-text-secondary)]"
+          title={ANKER_ERKLAERUNG}
+        >
+          Gesamtfrist ab wirksamem Eingang
           <input
             type="number" min={1}
             value={gesamtfristTage}

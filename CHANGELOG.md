@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v6.49.0 — Ein Anker: Meilensteine zählen ab dem wirksamen Eingang (September 2026)
+
+MINOR — Stufe A des Quellspalten-Vorhabens ([Spec](docs/superpowers/specs/2026-09-10-quellspalten-design.md)): Wer fragt, aus welchen Spalten eine Frist rechnet, fand zwei Antworten. Die Frist-Spalte der Tabelle zählte ab dem späteren aus `D_AAE` und `D_XTE`, der Meilenstein-Anker nur ab `D_AAE`, und das an drei Rechenstellen je für sich. Jetzt gibt es einen einzigen Anker. Gepaart gemessen: 28 von 2 082 offenen Verbünden verschieben sich um +1 bis +61 T (Median +8), kein Zustand und keine Prognose kippt.
+
+- **[anker.ts](src/core/meilensteine/anker.ts)** (neu): `baueAnkerLeser` löst `D_XTE` über das Schema auf. Projektion und Verbund-Detailseite nutzen denselben Leser ([meilensteine.md](docs/architecture/meilensteine.md) § Bewertung)
+- **[frist.ts](src/core/services/csv/frist.ts)**: `verbundWirksamerEingang` ist die Verbund-Schwester von `wirksamerEingang`
+- **[bewertung.ts](src/core/meilensteine/bewertung.ts)** + **[auswertung.ts](src/core/meilensteine/auswertung.ts)**: Soll, Woche, Frist und Dauern zählen ab `anker`. `antragsdatum` bleibt für den Jahresfilter, `BEWERTUNGS_VERSION` 3
+- **[useMeilensteinStand.ts](src/plugins/meilensteine/useMeilensteinStand.ts)**: Die Dauern der Auswertung zählen ab demselben Anker (125 von 5 969 werden kürzer, Median −5 T)
+- **Beschriftung**: „Gesamtfrist ab wirksamem Eingang"; die Tooltips an Gesamtfrist und „Eingang" nennen `D_AAE`/`D_XTE` ([labels.ts](src/plugins/meilensteine/labels.ts)). Neue Glossar-Einträge „Quellspalte" und „wirksamer Eingang" in [CONTEXT.md](CONTEXT.md)
+
 ### v6.48.1 — der Assistent spricht die Kaskade, nicht die alte Formel (September 2026)
 
 PATCH — Beim Lauf gegen die interne KI (v6.47.1, DynaMaint) widersprach der Assistent der Karte 20 Pixel daneben: sie sagte „Widerspruch gg Abl bearbeiten · liegt bei AB/FB/Jur", er sagte „Ablehnungsbescheid erstellen". Der Faktenblock sprach allein `schrittText` — die Formel, die das Projekt längst als Rückfall führt. Solange der Assistent „dazu weiß ich nichts" antwortete, fiel das nicht auf; mit der mitgereisten Entität wurde daraus eine falsche Handlungsanweisung.

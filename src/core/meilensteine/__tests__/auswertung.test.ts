@@ -7,9 +7,14 @@ import { baueKontext } from '@/core/status';
 import type { AbschlussFall } from '@/core/meilensteine/auswertung';
 import type { MeilensteinPlan, VerbundMeilensteine } from '@/core/meilensteine/typen';
 
-const fall = (p: Partial<AbschlussFall>): AbschlussFall => ({
-  verbundId: 'VB', typ: 'FuE', antragsdatum: '01.01.2026', abschlussDatum: '01.03.2026', ...p,
-});
+/** Ohne eigenen Anker fällt er mit dem Antragsdatum zusammen — der Normalfall ohne `D_XTE`. */
+const fall = (p: Partial<AbschlussFall>): AbschlussFall => {
+  const antragsdatum = p.antragsdatum === undefined ? '01.01.2026' : p.antragsdatum;
+  return {
+    verbundId: 'VB', typ: 'FuE', abschlussDatum: '01.03.2026', ...p,
+    antragsdatum, anker: p.anker === undefined ? antragsdatum : p.anker,
+  };
+};
 
 describe('bearbeitungsdauerTage', () => {
   it('rechnet Antragseingang bis Abschluss in Tagen', () => {
@@ -24,6 +29,14 @@ describe('bearbeitungsdauerTage', () => {
     expect(bearbeitungsdauerTage(fall({ abschlussDatum: null }))).toBeNull();
     expect(bearbeitungsdauerTage(fall({ antragsdatum: 'demnächst' }))).toBeNull();
     expect(bearbeitungsdauerTage(fall({ antragsdatum: '01.03.2026', abschlussDatum: '01.01.2026' }))).toBeNull();
+  });
+
+  it('zählt ab dem Anker, nicht ab dem Antragsdatum', () => {
+    // „alle Anträge da" kam zehn Tage nach dem Antragseingang — erst ab dann
+    // läuft die Bearbeitung, also auch die Dauer.
+    expect(bearbeitungsdauerTage(fall({
+      antragsdatum: '01.01.2026', anker: '11.01.2026', abschlussDatum: '31.01.2026',
+    }))).toBe(20);
   });
 });
 
@@ -93,7 +106,7 @@ describe('werteKnotenAus', () => {
 
   const bewerte = (a: string | undefined, heute: string): VerbundMeilensteine =>
     bewerteVerbund(plan, {
-      verbundId: 'VB', antragsdatum: '2026-01-05', typ: 'FuE',
+      verbundId: 'VB', antragsdatum: '2026-01-05', anker: '2026-01-05', typ: 'FuE',
       kontext: baueKontext(a ? { a } : {}),
     }, heute);
 
@@ -137,7 +150,7 @@ describe('werteKnotenAus', () => {
       knoten: [{ ...plan.knoten[0]!, nurTypen: ['DS'] }],
     };
     const b = [bewerteVerbund(nurDs, {
-      verbundId: 'VB', antragsdatum: '2026-01-05', typ: 'FuE', kontext: baueKontext({}),
+      verbundId: 'VB', antragsdatum: '2026-01-05', anker: '2026-01-05', typ: 'FuE', kontext: baueKontext({}),
     }, '2026-02-01T00:00:00.000Z')];
     const [k] = werteKnotenAus(nurDs, b);
     expect(k!.betrachtet).toBe(0);
@@ -148,7 +161,7 @@ describe('werteKnotenAus', () => {
 describe('zaehlePrognosen', () => {
   it('zählt jede Prognose-Stufe, auch die leeren', () => {
     const mk = (prognose: VerbundMeilensteine['prognose']): VerbundMeilensteine => ({
-      verbundId: 'x', antragsdatum: null, typ: null, wocheAktuell: null,
+      verbundId: 'x', antragsdatum: null, anker: null, typ: null, wocheAktuell: null,
       fristDatum: null, restTage: null, ergebnisse: [], prognose,
     });
     expect(zaehlePrognosen([mk('imPlan'), mk('imPlan'), mk('nichtHaltbar')]))

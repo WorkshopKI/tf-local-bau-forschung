@@ -13,7 +13,7 @@ import { verbundAntragsdatum } from '@/core/services/csv/frist';
 import { isTerminalStatus } from '@/core/utils/status-canonical';
 import { getAntragstypBucket } from '@/core/utils/vb-phase-mappings';
 import {
-  baueMeilensteinKontext, benoetigteFelder, bewerteVerbund, ergaenzeRisiko, erledigeRisiko,
+  baueAnkerLeser, baueMeilensteinKontext, benoetigteFelder, bewerteVerbund, ergaenzeRisiko, erledigeRisiko,
   freigegebeneFassung, ladePlan, leseEigeneRisiken, loeseFelderAuf, offeneRisiken,
   schreibeEigeneRisiken,
   type MeilensteinPlan, type MeilensteinRisiko, type VerbundMeilensteine,
@@ -84,6 +84,9 @@ export function useVerbundMeilensteine(
         setBewertung(bewerteVerbund(gueltig, {
           verbundId,
           antragsdatum: verbundAntragsdatum(antraege),
+          // Derselbe Leser wie in der Projektion — die Detailseite und die
+          // Übersicht dürfen für denselben Verbund keine zwei Anker kennen.
+          anker: baueAnkerLeser(schemas)(records.map(r => r.record)),
           typ: getAntragstypBucket(antraege[0]?.vb_phase),
           kontext: baueMeilensteinKontext(
             aufloesung, (verbund ?? {}) as unknown as Record<string, unknown>, records,

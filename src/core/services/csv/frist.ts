@@ -155,6 +155,40 @@ export function wirksamerEingang(
   return kandidaten.reduce((a, b) => (b.ms > a.ms ? b : a)).iso;
 }
 
+/**
+ * Wirksamer Eingang eines **Verbundes** = der späteste `wirksamerEingang` über
+ * alle Teilvorhaben.
+ *
+ * Die Verbund-Schwester von `wirksamerEingang`, so wie `verbundAntragsdatum`
+ * die von `antragsdatum` ist: bearbeitbar ist ein Verbund erst, wenn sein
+ * letztes Teilvorhaben eingegangen ist UND alle Anträge da sind. Der
+ * Meilenstein-Anker las bis v6.49 nur `D_AAE` (`verbundAntragsdatum`), die
+ * Frist-Spalte der Tabelle dagegen beide Spalten — zweimal „90 Tage ab
+ * Eingang" aus verschiedenen Quellspalten.
+ *
+ * Wie `wirksamerEingang` nimmt sie die Werte als Parameter: `D_XTE` ist custom
+ * gemappt, den Record-Key löst der Aufrufer über das Schema auf.
+ */
+export function verbundWirksamerEingang(
+  tvs: ReadonlyArray<{
+    antragsdatum: string | null | undefined;
+    alleAntraegeDa: string | null | undefined;
+  }>,
+): string | null {
+  let best: string | null = null;
+  let bestMs = -Infinity;
+  for (const tv of tvs) {
+    const eingang = wirksamerEingang(tv.antragsdatum, tv.alleAntraegeDa);
+    if (!eingang) continue;
+    const ms = new Date(eingang).getTime();
+    if (ms > bestMs) {
+      bestMs = ms;
+      best = eingang;
+    }
+  }
+  return best;
+}
+
 /** Tage bis zur Frist (Vorzeichen-konsistent). Negativ = ueberfaellig,
  *  positiv = noch Zeit, `null` = keine Frist berechenbar. */
 export function daysUntilFristAware(

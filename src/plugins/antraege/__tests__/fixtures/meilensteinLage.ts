@@ -46,6 +46,7 @@ export function lageDa(
     bewertung: {
       verbundId: 'VB-1',
       antragsdatum: ANKER,
+      anker: ANKER,
       typ: null,
       wocheAktuell: 5,
       fristDatum: '2026-04-05',

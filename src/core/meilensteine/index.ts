@@ -38,6 +38,7 @@ export {
   type SpaltenEintrag, type SpaltenTyp,
 } from './spalten-katalog';
 export { schlageFelderVor, schlageBedingungVor, type FeldVorschlag } from './feld-vorschlag';
+export { ANKER_SPALTEN, baueAnkerLeser, type AnkerLeser } from './anker';
 export {
   aendereKnoten, darfUmhaengen, entferneKnoten, fuegeKnotenHinzu, haengeKnotenUm,
   hebeKnotenAn, istNachfahre, kinderVon, naechsteKnotenId, nummeriereNeu,
