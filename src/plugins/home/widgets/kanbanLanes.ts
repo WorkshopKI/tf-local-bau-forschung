@@ -72,6 +72,8 @@ export interface KanbanKarte {
   adresse: string;
   /** Tooltip: die Herleitung bzw. der Grund. */
   titel: string;
+  /** Die Aufgabe stammt aus dem Bestand vor der letzten Datenaktualisierung. */
+  vorlaeufig: boolean;
   /** Eingangsalter in Tagen (antragsdatum) — null wenn unbekannt. */
   alterTage: number | null;
   /** Gruppengröße des Verbunds (1 = Solo-Antrag). */
@@ -131,6 +133,8 @@ function alterVon(a: AntragListItem, nowMs: number): number | null {
 export interface KartenAufgaben {
   fuer: (aktenzeichen: readonly string[]) => Aufgabe | null;
   laeuftNoch: boolean;
+  /** Die Daten stammen aus dem Bestand vor der letzten Datenaktualisierung. */
+  vorlaeufig?: boolean;
   regeln: readonly TodoRegel[];
   /** Alle Teilvorhaben außerhalb der Richtlinien des Bestandslaufs? */
   ausserhalb?: (aktenzeichen: readonly string[]) => boolean;
@@ -149,6 +153,7 @@ function zuKarte(
     aufgabe: aufgaben ? aufgaben.fuer(gruppe.map(a => a.aktenzeichen)) : null,
     rueckfall: schrittText(rep.status, rep.precheck_status_label ?? ''),
     laeuftNoch: aufgaben?.laeuftNoch === true,
+    vorlaeufig: aufgaben?.vorlaeufig === true,
     ausserhalbLauf: aufgaben?.ausserhalb?.(gruppe.map(a => a.aktenzeichen)) === true,
     regeln: aufgaben?.regeln,
     status: rep.status,
@@ -160,6 +165,7 @@ function zuKarte(
     schrittText: anzeige.text,
     adresse: anzeige.neben,
     titel: anzeige.titel,
+    vorlaeufig: anzeige.vorlaeufig === true,
     alterTage: alterVon(rep, nowMs),
     tvCount: gruppe.length,
   };

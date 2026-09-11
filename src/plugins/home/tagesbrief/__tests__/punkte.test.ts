@@ -107,6 +107,22 @@ describe('punkte — der Rückfall gibt sich zu erkennen', () => {
   });
 });
 
+describe('punkte — der Stand von vor dem Import gibt sich zu erkennen', () => {
+  it('sagt in Worten, dass die Aufgabe noch neu berechnet wird', () => {
+    const p = zuTunPunkte([
+      { scopeId: 'VB1', titel: 'HACKKI', text: 'Gutachten anfordern', tage: 2, rueckfall: false, vorlaeufig: true },
+    ])[0]!;
+    expect(p.satz).toContain('Stand vor der Datenaktualisierung');
+  });
+
+  it('schweigt darüber ohne den Vermerk', () => {
+    const p = zuTunPunkte([
+      { scopeId: 'VB1', titel: 'HACKKI', text: 'Gutachten anfordern', tage: 2, rueckfall: false },
+    ])[0]!;
+    expect(p.satz).not.toContain('Datenaktualisierung');
+  });
+});
+
 describe('punkte — leere Quellen schweigen', () => {
   it('gibt null zurück, statt eine Null zu melden', () => {
     expect(nachtlaufPunkt(0, 'über Nacht')).toBeNull();

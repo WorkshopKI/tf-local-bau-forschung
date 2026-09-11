@@ -14,7 +14,9 @@ import { useStorage } from '@/core/hooks/useStorage';
 import { useMeinKuerzel } from '@/core/hooks/useMeinKuerzel';
 import { useBearbeiterSicht } from '@/core/hooks/useBearbeiterSicht';
 import { useAuslastungData } from '@/plugins/auslastung/hooks/useAuslastungData';
-import { useAntraegeCache } from '@/plugins/auslastung/hooks/useAntraegeCache';
+import { refreshAntraegeCacheIfStale, useAntraegeCache } from '@/plugins/auslastung/hooks/useAntraegeCache';
+import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
+import { useBestandGeneration } from '@/core/hooks/useBestandGeneration';
 import { useKuerzelMap } from '@/plugins/auslastung/hooks/useKuerzelMap';
 import { useMyAuslastungProfil } from '@/plugins/auslastung/hooks/useMyAuslastungProfil';
 import {
@@ -70,6 +72,19 @@ export function AuslastungWidget({ instanz, onToggleEingeklappt }: WidgetProps):
   useEffect(() => {
     if (aktiv && !loaded) void load(storage);
   }, [aktiv, loaded, load, storage]);
+
+  // Nach einem Import zieht der Antrags-Cache der Auslastung nach — sonst zeigte
+  // die Karte bis zum Reload den Bestand von davor. Seine Selbst-Invalidierung
+  // (`useAntraegeCacheSnapshotRefresh`) hängt nur in der Auslastungs-Ansicht;
+  // hier genügt das Ereignis, kein Intervall. Billig, wenn nichts neu ist: ein
+  // IDB-Get und ein Versionsvergleich. Generation 0 = in dieser Sitzung wurde
+  // noch nichts ersetzt, der Cache ist so frisch wie sein Erst-Load.
+  const activeProgrammId = useActiveProgramm(s => s.activeProgrammId);
+  const generation = useBestandGeneration();
+  useEffect(() => {
+    if (!aktiv || !activeProgrammId || generation === 0) return;
+    void refreshAntraegeCacheIfStale(storage, activeProgrammId);
+  }, [aktiv, activeProgrammId, generation, storage]);
 
   const bereit = aktiv && loaded && kuerzelMapLoaded && !profilLoading;
   const sicht = ermittleSicht(cfg.sicht, myAnonId);

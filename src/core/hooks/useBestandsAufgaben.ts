@@ -13,13 +13,35 @@
  *
  * **Niemand wartet blockierend.** Wer den Lauf nur braucht, um eine Spalte zu
  * füllen (Startseite, Liste), startet ihn im Leerlauf und zeigt bis dahin einen
- * Platzhalter — nie eine zweite, andere Antwort, die sich danach ändert.
+ * Platzhalter — nie die Status-Formel, die sich danach in etwas anderes
+ * verwandelt.
+ *
+ * **Nach einem Import bleibt der alte Stand stehen, als solcher markiert**
+ * (`vorlaeufig`). Der Import entwertet das Ergebnis sofort, gerechnet wird aber
+ * erst nach dem Veröffentlichen — auf dem echten Share 30–40 s, in denen die
+ * Startseite sonst in jeder Zeile „…" zeigte und sich wie ein Hänger las. Die
+ * To-dos von vor dem Import stimmen fast immer noch. Das gilt nur, wenn sich
+ * **allein** die Bestands-Generation geändert hat: ein anderer Bereich, eine
+ * andere Fassung, ein anderer Tag ist eine andere Frage, und deren alte Antwort
+ * wäre falsch, nicht nur alt.
+ *
+ * **Gezeigt wird, was zum Schlüssel passt — nicht, was jünger als die TTL ist.**
+ * Die TTL entscheidet nur, ob der nächste Anstoß neu rechnet. Bis v6.57.1 hing
+ * auch die Anzeige an ihr: geprüft wurde bei jedem Render gegen die Uhr, der
+ * Effekt, der neu rechnet, hing aber nur am Schlüssel. Eine Startseite, die
+ * länger als fünf Minuten offen stand, zeigte beim nächsten Re-Render in allen
+ * To-do-Zellen „…" und rechnete nie wieder — bis zum Reload (gemessen
+ * 11.09.2026: 0 → 13 Platzhalter, kein Lauf in 12 s). Einen Timer auf den
+ * Ablauf gibt es bewusst nicht: der Lauf belegt den Hauptthread mehrere
+ * Sekunden, und ein Ergebnis, dessen Schlüssel noch passt, ist nicht falsch —
+ * jeder Bestandswechsel ändert den Schlüssel.
  */
-import { useCallback, useEffect, useMemo, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { create } from 'zustand';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useBereich } from '@/core/hooks/useBereich';
-import { bestandGeneration, subscribeBestandGeneration } from '@/core/services/bestand-generation';
+import { bestandGeneration } from '@/core/services/bestand-generation';
+import { useBestandGeneration } from '@/core/hooks/useBestandGeneration';
 import { scheduleIdle } from '@/core/utils/scheduleIdle';
 import { useStartupDataStatus } from '@/core/services/csv/startup-data-status';
 import { useProfile } from '@/core/hooks/useProfile';
@@ -73,6 +95,12 @@ export interface BestandsDaten {
 
 interface AblageState {
   schluessel: string | null;
+  /**
+   * Der Schlüssel OHNE Bestands-Generation ({@link bestandsBasis}). Stimmt er mit
+   * dem gefragten überein, während der volle Schlüssel abweicht, hat sich nur der
+   * Bestand geändert — dann darf der alte Stand vorläufig stehen bleiben.
+   */
+  basis: string | null;
   daten: BestandsDaten | null;
   /** Wann gerechnet wurde (für „berechnet vor N min"). */
   berechnetAm: number;
@@ -80,7 +108,7 @@ interface AblageState {
   standAt: number;
   laden: boolean;
   fehler: string | null;
-  setzen: (schluessel: string, daten: BestandsDaten, gelesen: number) => void;
+  setzen: (schluessel: string, daten: BestandsDaten, gelesen: number, basis?: string | null) => void;
   setLaden: (v: boolean) => void;
   setFehler: (v: string | null) => void;
   entwerten: () => void;
@@ -88,13 +116,15 @@ interface AblageState {
 
 export const useBestandsAblage = create<AblageState>(set => ({
   schluessel: null,
+  basis: null,
   daten: null,
   berechnetAm: 0,
   standAt: 0,
   laden: false,
   fehler: null,
-  setzen: (schluessel, daten, gelesen) => set({
+  setzen: (schluessel, daten, gelesen, basis = null) => set({
     schluessel,
+    basis,
     daten,
     berechnetAm: Date.now(),
     // Scharf nur, wenn wirklich etwas gelesen wurde — und gemessen an den
@@ -109,19 +139,47 @@ export const useBestandsAblage = create<AblageState>(set => ({
   }),
   setLaden: laden => set({ laden }),
   setFehler: fehler => set({ fehler }),
-  entwerten: () => set({ schluessel: null, daten: null, standAt: 0, berechnetAm: 0 }),
+  entwerten: () => set({ schluessel: null, basis: null, daten: null, standAt: 0, berechnetAm: 0 }),
 }));
 
-/** Gilt der Eintrag noch? Rein — `jetzt` kommt von aussen. */
+/**
+ * Passt der Eintrag zur Frage? Dann wird er gezeigt — egal wie alt. Rein.
+ *
+ * Nicht scharf (`standAt === 0`) passt nie: ein Cold Start mit leerer IDB ist
+ * keine Antwort.
+ */
+export function ablagePasst(
+  state: Pick<AblageState, 'schluessel' | 'daten' | 'standAt'>,
+  schluessel: string,
+): boolean {
+  return state.daten !== null && state.schluessel === schluessel && state.standAt > 0;
+}
+
+/**
+ * Ist der Eintrag noch frisch, also KEIN neuer Lauf nötig? Rein — `jetzt` kommt
+ * von aussen. Entscheidet nur über den Anstoß, nicht über die Anzeige
+ * ({@link ablagePasst}; siehe Dateikopf).
+ */
 export function ablageGilt(
   state: Pick<AblageState, 'schluessel' | 'daten' | 'standAt'>,
   schluessel: string,
   jetzt: number,
 ): boolean {
-  return state.daten !== null
-    && state.schluessel === schluessel
-    && state.standAt > 0
-    && jetzt - state.standAt < BESTAND_CACHE_TTL_MS;
+  return ablagePasst(state, schluessel) && jetzt - state.standAt < BESTAND_CACHE_TTL_MS;
+}
+
+/**
+ * Darf der Eintrag vorläufig stehen bleiben? Genau dann, wenn er zu einer
+ * anderen Bestands-Generation gehört, sonst aber dieselbe Frage beantwortet —
+ * gleiche {@link bestandsBasis}. Rein.
+ */
+export function ablageVorlaeufig(
+  state: Pick<AblageState, 'schluessel' | 'basis' | 'daten' | 'standAt'>,
+  schluessel: string,
+  basis: string,
+): boolean {
+  return state.daten !== null && state.standAt > 0
+    && state.basis === basis && state.schluessel !== schluessel;
 }
 
 /**
@@ -136,12 +194,22 @@ export function bestandsSchluessel(
   version: MappingVersion, bereichMenge: ReadonlySet<string> | null, stichtag: string,
   laufMenge: ReadonlySet<string> | null = null,
 ): string {
+  return `${bestandsBasis(version, bereichMenge, stichtag, laufMenge)}|g${bestandGeneration()}`;
+}
+
+/**
+ * Der Schlüssel ohne die Bestands-Generation — alles, was die FRAGE ausmacht,
+ * nicht den Bestand, auf den sie trifft. Siehe {@link ablageVorlaeufig}.
+ */
+export function bestandsBasis(
+  version: MappingVersion, bereichMenge: ReadonlySet<string> | null, stichtag: string,
+  laufMenge: ReadonlySet<string> | null = null,
+): string {
   return [
     version.version,
     version.zeitstempel ?? '',
     bereichMenge === null ? 'alle' : [...bereichMenge].sort().join(','),
     laufMenge === null ? '-' : [...laufMenge].sort().join(','),
-    bestandGeneration(),
     stichtag.slice(0, 10),
   ].join('|');
 }
@@ -181,6 +249,7 @@ async function starteLauf(
   stichtag: string,
   schluessel: string,
   laufMenge: ReadonlySet<string> | null,
+  basis: string,
 ): Promise<void> {
   const vorhanden = laufend.get(schluessel);
   if (vorhanden) return vorhanden;
@@ -195,6 +264,7 @@ async function starteLauf(
         // GELESEN, nicht „übrig": ein Bereich, der alles wegnimmt, ist eine
         // Antwort — ein leerer Store ist keine.
         lauf.zeilen.length + lauf.uebergangen + lauf.nichtGerechnet.length,
+        basis,
       );
     } catch (err) {
       // Entwerten, damit ein gescheiterter Lauf beim nächsten Aufruf heilt statt
@@ -230,8 +300,14 @@ export interface BestandsAufgaben {
   nachVerbund: ReadonlyMap<string, BestandZeile[]>;
   /** Aktenzeichen mit greifender Sperre und ohne To-do — Verfahren durch. */
   abgeschlossen: ReadonlySet<string>;
-  /** Ein gültiges Ergebnis liegt vor — auch wenn es leer ist. */
+  /** Ein zur Frage passendes Ergebnis liegt vor — auch wenn es leer ist. */
   bereit: boolean;
+  /**
+   * Die Daten stammen aus der Bestands-Generation VOR der letzten
+   * Datenaktualisierung und stehen nur, bis der neue Lauf durch ist. `bereit`
+   * ist dann `false` — wer eine Aussage als Fakt weitergibt (Assistent), wartet.
+   */
+  vorlaeufig: boolean;
   /** Wie viele Anträge der Betrachtungsbereich weggenommen hat. */
   ausgeblendet: number;
   /** Aktenzeichen im Bereich, aber älterer Richtlinie — nicht gerechnet. */
@@ -278,10 +354,16 @@ export function useBestandsAufgaben(start: LaufStart, stichtag: string): Bestand
   // `anstossen` sein Ergebnis unter der neuen ablegt: der Leser fände seinen
   // eigenen Lauf nie wieder und zeigte bis zum Sitzungsende die Zahlen von vor
   // dem Import.
-  const generation = useSyncExternalStore(subscribeBestandGeneration, bestandGeneration);
+  const generation = useBestandGeneration();
   const schluessel = useMemo(
     () => (version ? bestandsSchluessel(version, bereichMenge, stichtag, laufMenge) : null),
     [version, bereichMenge, laufMenge, stichtag, generation],
+  );
+  // Die Frage ohne den Bestand — trifft die Ablage sie, aber nicht den Schlüssel,
+  // hat sich nur der Bestand geändert (siehe `ablageVorlaeufig`).
+  const basis = useMemo(
+    () => (version ? bestandsBasis(version, bereichMenge, stichtag, laufMenge) : null),
+    [version, bereichMenge, laufMenge, stichtag],
   );
 
   const anstossen = useCallback((neu: boolean) => {
@@ -290,7 +372,8 @@ export function useBestandsAufgaben(start: LaufStart, stichtag: string): Bestand
       const key = bestandsSchluessel(v, bereichMenge, stichtag, laufMenge);
       if (!neu && ablageGilt(useBestandsAblage.getState(), key, Date.now())) return;
       if (neu) useBestandsAblage.getState().entwerten();
-      await starteLauf(idb, v, bereichMenge, stichtag, key, laufMenge);
+      await starteLauf(idb, v, bereichMenge, stichtag, key, laufMenge,
+        bestandsBasis(v, bereichMenge, stichtag, laufMenge));
     })();
   }, [idb, bereichMenge, laufMenge, stichtag]);
 
@@ -339,8 +422,13 @@ export function useBestandsAufgaben(start: LaufStart, stichtag: string): Bestand
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [start, schluessel, anstossen]);
 
-  const gilt = schluessel !== null && ablageGilt(zustand, schluessel, Date.now());
-  const daten = gilt ? zustand.daten : null;
+  // Gezeigt wird, was zur Frage passt — die TTL entscheidet oben nur über den
+  // Anstoß (siehe Dateikopf). Passt nur die Frage, nicht der Bestand, steht der
+  // alte Stand vorläufig da, bis der neue Lauf ihn ersetzt.
+  const passt = schluessel !== null && ablagePasst(zustand, schluessel);
+  const vorlaeufig = !passt && schluessel !== null && basis !== null
+    && ablageVorlaeufig(zustand, schluessel, basis);
+  const daten = passt || vorlaeufig ? zustand.daten : null;
   const neuBerechnen = useCallback(() => anstossen(true), [anstossen]);
 
   return {
@@ -351,11 +439,12 @@ export function useBestandsAufgaben(start: LaufStart, stichtag: string): Bestand
     nachAktenzeichen: daten?.nachAktenzeichen ?? LEER_AKTEN,
     nachVerbund: daten?.nachVerbund ?? LEER_VERBUND,
     abgeschlossen: daten?.abgeschlossen ?? LEER_ABGESCHLOSSEN,
-    bereit: daten !== null,
+    bereit: passt,
+    vorlaeufig,
     ausgeblendet: daten?.ausgeblendet ?? 0,
     nichtGerechnet: daten?.nichtGerechnet ?? LEER_NICHT_GERECHNET,
     ladeMs: daten?.ladeMs ?? null,
-    berechnetAm: gilt ? zustand.berechnetAm : 0,
+    berechnetAm: daten ? zustand.berechnetAm : 0,
     ohneRegeln: version !== null && (version.todoRegeln ?? []).length === 0,
     neuBerechnen,
   };
@@ -370,6 +459,11 @@ export interface ZeilenAufgaben {
   fuer: (aktenzeichen: readonly string[]) => Aufgabe | null;
   /** Der Lauf ist unterwegs — dann zeigt die Anzeige einen Platzhalter. */
   laeuftNoch: boolean;
+  /**
+   * `fuer` antwortet aus dem Bestand vor der letzten Datenaktualisierung, bis
+   * der neue Lauf durch ist — die Anzeige markiert das (`aufgabenAnzeige`).
+   */
+  vorlaeufig: boolean;
   /**
    * Liegen ALLE diese Teilvorhaben außerhalb der Richtlinien des Bestandslaufs?
    * Dann heißt `fuer(…) === null` nicht „die Kaskade schweigt", sondern „sie wurde
@@ -430,6 +524,7 @@ export function useZeilenAufgaben(start: LaufStart, stichtag: string): ZeilenAuf
     // zählt genauso: beide Male ist der Rückfall die ehrliche Anzeige.
     laeuftNoch: start !== 'nie' && !bestand.bereit
       && bestand.version !== null && bestand.fehler === null,
+    vorlaeufig: bestand.vorlaeufig,
     regeln: bestand.version?.todoRegeln ?? [],
     rolle,
     ohneRegeln,

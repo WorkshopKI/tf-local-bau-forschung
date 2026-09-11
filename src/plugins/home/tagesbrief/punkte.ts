@@ -101,6 +101,8 @@ export interface AufgabeRoh {
   tage: number;
   /** Der Text kommt aus dem Rückfall, nicht aus der Kaskade. */
   rueckfall: boolean;
+  /** Der Text stammt aus dem Bestand vor der letzten Datenaktualisierung. */
+  vorlaeufig?: boolean;
 }
 
 /**
@@ -125,6 +127,9 @@ export function zuTunPunkte(aufgaben: readonly AufgabeRoh[]): BriefPunkt[] {
       // Ein Rückfall, der sich nicht zu erkennen gibt, spricht die widerlegte
       // Formel, als wäre sie belegt.
       text(a.rueckfall ? ' — aus dem Status abgeleitet, keine Regel greift' : ''),
+      // Der Stand von vor dem Import sagt, dass er einer ist — in Worten wie der
+      // Rückfall: der Brief ist Text, ein Symbol hätte hier keinen Platz.
+      text(a.vorlaeufig ? ' (Stand vor der Datenaktualisierung, wird neu berechnet)' : ''),
       text('.'),
     ];
     return punkt('zu-tun', segmente, a.tage, `Was ist bei ${a.titel} zu tun?`, { rueckfall: a.rueckfall, gruppe: a.scopeId });

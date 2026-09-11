@@ -34,6 +34,7 @@ import { getVerbund } from '@/core/services/csv/idb-csv';
 import { useZeilenAufgaben, type ZeilenAufgaben } from '@/core/hooks/useBestandsAufgaben';
 import { isStatusCockpitEnabled } from '@/config/feature-flags';
 import { QuellSpaltenTooltip } from '@/components/quellspalten';
+import { VorlaeufigMarke } from '@/components/ui/VorlaeufigMarke';
 import { feldQuellen } from '@/core/status/bedingung-quellen';
 import {
   getAktiveVersion, getStatusEvents, aufgabenAnzeige,
@@ -237,6 +238,7 @@ function StatusZeile({
     aufgabe: aufgaben.fuer(zeile.tvAktenzeichen),
     rueckfall: '',
     laeuftNoch: aufgaben.laeuftNoch,
+    vorlaeufig: aufgaben.vorlaeufig,
     ausserhalbLauf: aufgaben.ausserhalb(zeile.tvAktenzeichen),
     regeln: aufgaben.regeln,
   });
@@ -290,6 +292,7 @@ function StatusZeile({
           title={anzeige.titel}
         >
           {naechster}
+          {anzeige.vorlaeufig ? <VorlaeufigMarke className="ml-1" /> : null}
           {anzeige.neben ? (
             <span className="ml-1.5 text-[11px] text-[var(--tf-text-tertiary)]">{anzeige.neben}</span>
           ) : null}

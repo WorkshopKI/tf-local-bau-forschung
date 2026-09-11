@@ -21,6 +21,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useBestandsAufgaben, useZeilenAufgaben } from '@/core/hooks/useBestandsAufgaben';
+import { useBestandGeneration } from '@/core/hooks/useBestandGeneration';
 import { aufgabeAusBestand, aufgabenAnzeige } from '@/core/status';
 import { letzterNachtLauf } from '@/core/status';
 import { schrittText } from '@/core/utils/naechsterSchritt';
@@ -112,6 +113,10 @@ export function useTagesbrief(aktiv: boolean, ctx: HomeWidgetContext, aus: reado
     return s;
   }, [alleAntraege, bearbeiterMode]);
 
+  // Die Generation gehört in die Abhängigkeiten: ein Import schreibt einen neuen
+  // Nachtlauf ins Journal, und ohne sie nannte der Satz bis zum Reload die Zahl
+  // von davor (gemessen 11.09.2026 — kein Journal-Read nach dem Bestandswechsel).
+  const generation = useBestandGeneration();
   const [journalRoh, setJournalRoh] = useState<JournalEintrag[] | null>(null);
   useEffect(() => {
     if (!aktiv) return;
@@ -121,7 +126,7 @@ export function useTagesbrief(aktiv: boolean, ctx: HomeWidgetContext, aus: reado
       if (!abgebrochen) setJournalRoh(lauf?.eintraege ?? []);
     })();
     return () => { abgebrochen = true; };
-  }, [idb, aktiv]);
+  }, [idb, aktiv, generation]);
 
   const journal = useMemo((): Journalstand | null => {
     if (journalRoh === null) return null;
@@ -220,6 +225,7 @@ export function useTagesbrief(aktiv: boolean, ctx: HomeWidgetContext, aus: reado
           aufgabe,
           rueckfall: schrittText(statusRoh),
           laeuftNoch: zeilenAufgaben.laeuftNoch,
+          vorlaeufig: zeilenAufgaben.vorlaeufig,
           ausserhalbLauf: zeilenAufgaben.ausserhalb(akten),
           regeln: zeilenAufgaben.regeln,
           status: statusRoh,
@@ -231,6 +237,7 @@ export function useTagesbrief(aktiv: boolean, ctx: HomeWidgetContext, aus: reado
           text: anzeige.text,
           tage: a.fristTage as number,
           rueckfall: anzeige.quelle === 'rueckfall',
+          vorlaeufig: anzeige.vorlaeufig === true,
         });
       }
       raus.push(...zuTunPunkte(aufgaben));
@@ -273,7 +280,10 @@ export function useTagesbrief(aktiv: boolean, ctx: HomeWidgetContext, aus: reado
   ]);
 
   // Solange irgendeine Quelle unterwegs ist, ist Leere kein Befund.
-  const laedt = fristen.laden || bestand.laden || zeilenAufgaben.laeuftNoch || journal === null;
+  // Ein vorläufiger Stand ist kein Warten: der Brief steht, nur seine To-dos
+  // tragen den Vermerk — und der Zähler bleibt eine Zahl.
+  const laedt = fristen.laden || bestand.laden
+    || (zeilenAufgaben.laeuftNoch && !zeilenAufgaben.vorlaeufig) || journal === null;
 
   return useMemo(
     () => baueBrief({ punkte, aktiv: themen, laedt }),

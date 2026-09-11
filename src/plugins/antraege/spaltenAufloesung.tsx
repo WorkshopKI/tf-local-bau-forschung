@@ -11,6 +11,7 @@
  * auseinanderzuhalten waren.
  */
 import { Badge } from '@/components/ui/badge';
+import { VorlaeufigMarke } from '@/components/ui/VorlaeufigMarke';
 import type { SortableColumn } from '@/components/data-table/types';
 import type { ZeilenAufgaben } from '@/core/hooks/useBestandsAufgaben';
 import { aufgabenAnzeige, regelTraf, type AufgabenAnzeige } from '@/core/status';
@@ -71,6 +72,7 @@ function mitAufgabenKaskade(
     // („Bewilligt → Bewilligt", in der Abnahme gesehen).
     rueckfall: naechsterSchritt(strOrNull(r.status), r.precheck_status_label ?? '')?.aktion ?? '',
     laeuftNoch: aufgaben.laeuftNoch,
+    vorlaeufig: aufgaben.vorlaeufig,
     ausserhalbLauf: aufgaben.ausserhalb(zeilenAktenzeichen(r)),
     regeln: aufgaben.regeln,
     status: r.status,
@@ -87,8 +89,9 @@ function mitAufgabenKaskade(
       if (!s) return '';
       const a = anzeigeVon(r);
       // Der Ladezustand gehört nicht in eine Datei: dort steht dann der Status
-      // allein, statt eines Platzhalters, den niemand mehr auflösen kann.
-      if (a.quelle === 'laedt') return statusLabel(s);
+      // allein, statt eines Platzhalters, den niemand mehr auflösen kann. Ein
+      // vorläufiger Stand ebenso wenig — seine Markierung reist nicht mit.
+      if (a.quelle === 'laedt' || a.vorlaeufig) return statusLabel(s);
       const zusatz = a.neben ? `${a.text} (${a.neben})` : a.text;
       return zusatz ? `${statusLabel(s)} → ${zusatz}` : statusLabel(s);
     },
@@ -124,6 +127,7 @@ function mitAufgabenKaskade(
               : 'ml-1.5 text-[var(--tf-text-secondary)]'}
             >
               → {a.text}
+              {a.vorlaeufig ? <VorlaeufigMarke className="ml-1" /> : null}
             </span>
           ) : null}
           {a.neben ? (

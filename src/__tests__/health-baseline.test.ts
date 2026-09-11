@@ -5,7 +5,7 @@
  * Feature-Zuwachs. Schlaegt eine Assertion fehl, ist die erste Frage „ist der
  * Zuwachs gewollt?" — wenn ja, die Konstante bewusst anheben.
  *
- * Geschwister-Dateien: conventions-status.test.ts, conventions-ui.test.ts, conventions-daten.test.ts.
+ * Geschwister-Dateien: conventions-status.test.ts, conventions-ui.test.ts, conventions-daten.test.ts, conventions-bestand.test.ts.
  */
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
@@ -33,7 +33,7 @@ describe('health-baseline (Drift-Warnung, kein Verbot)', () => {
   // 3212 (die Guard-Datei), waehrend die groesste echte Datei unbemerkt von 846 auf
   // 1011 LOC gewachsen war.
   const MAX_FILE_LOC = 1235;       // Ist 1223 (SuchSeite.tsx) — Produktionscode ohne Tests. Angehoben (v6.13) fuer die Suchart-Ruecknahme in `starteSuche`: die Datei ist der Orchestrator der Suchseite, jede Zeile hat dort ihre eigene Komponente und jede Rechnung ihr eigenes reines Modul (Modulkopf). Was hier waechst, ist Verdrahtung — sie legt fest, WELCHE der vorhandenen Suchweisen ein Klick ausloest, und laesst sich nicht sinnvoll woandershin schneiden.
-  const MAX_TEST_FILE_LOC = 1925;  // Ist 1916 (conventions-daten.test.ts). Testdateien duerfen groesser sein: ein Guard-Aggregat ist kohaerent, aber es soll nicht wieder auf das Dreifache laufen. Zuletzt angehoben (v6.0.0) fuer `modellname-nur-im-katalog`: die interne KI tauscht ihre Modelle nach fremdem Fahrplan, ein Modellname ausserhalb des Katalogs veraltet still. Thematisch richtig (Transport ist eine Daten-Konvention); die Geschwister decken Status und Oberflaeche.
+  const MAX_TEST_FILE_LOC = 1925;  // Ist 1857 (conventions-daten.test.ts; v6.57.2 die Bestands-Guards nach conventions-bestand.test.ts herausgeloest, statt die Schwelle zu heben). Testdateien duerfen groesser sein: ein Guard-Aggregat ist kohaerent, aber es soll nicht wieder auf das Dreifache laufen. Zuletzt angehoben (v6.0.0) fuer `modellname-nur-im-katalog`: die interne KI tauscht ihre Modelle nach fremdem Fahrplan, ein Modellname ausserhalb des Katalogs veraltet still. Thematisch richtig (Transport ist eine Daten-Konvention); die Geschwister decken Status und Oberflaeche.
   const MAX_UI_SHIM_IMPORTS = 0;   // Ist 0 — @/ui-Barrel vollständig auf @/components/ui/* migriert (v2.111); Dialog/Select nur noch als Adapter via @/ui/Dialog|Select (Subpfad, zählt nicht). Darf nur SINKEN.
 
   const drift = (was: string, ist: number, schwelle: number, hinweis: string): string =>

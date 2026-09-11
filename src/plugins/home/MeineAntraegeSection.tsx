@@ -3,6 +3,7 @@ import { useNavigate as useRouterNavigate } from 'react-router-dom';
 import { ArrowRight, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ListItem } from '@/components/ui/ListItem';
+import { VorlaeufigMarke } from '@/components/ui/VorlaeufigMarke';
 import { useNavigation } from '@/core/hooks/useNavigation';
 import { useBearbeiterSicht } from '@/core/hooks/useBearbeiterSicht';
 import { isKuerzelDropdownEnabled } from '@/config/feature-flags';
@@ -278,6 +279,7 @@ function MeineAntraegeListe({
           aufgabe: aufgaben.fuer(v.tv_aktenzeichen ?? [v.id]),
           rueckfall: schrittText(v.status, v.precheck_status_label ?? ''),
           laeuftNoch: aufgaben.laeuftNoch,
+          vorlaeufig: aufgaben.vorlaeufig,
           ausserhalbLauf: aufgaben.ausserhalb(v.tv_aktenzeichen ?? [v.id]),
           regeln: aufgaben.regeln,
         });
@@ -332,6 +334,7 @@ function MeineAntraegeListe({
                     >
                       {anzeige.text}
                     </span>
+                    {anzeige.vorlaeufig ? <VorlaeufigMarke /> : null}
                     {/* Die Adresse steht DANEBEN, nicht im Aufgaben-Text: „in QS"
                         ist die Aufgabe, „wartet auf QS" die Auskunft, wer am Zug
                         ist. Zusammengeschrieben läse sich beides als Anweisung

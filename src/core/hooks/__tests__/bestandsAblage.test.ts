@@ -11,8 +11,8 @@
  */
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import {
-  useBestandsAblage, ablageGilt, bestandsSchluessel, BESTAND_CACHE_TTL_MS,
-  type BestandsDaten,
+  useBestandsAblage, ablageGilt, ablagePasst, ablageVorlaeufig, bestandsBasis, bestandsSchluessel,
+  BESTAND_CACHE_TTL_MS, type BestandsDaten,
 } from '@/core/hooks/useBestandsAufgaben';
 import {
   markiereBestandGeaendert, subscribeBestandGeneration,
@@ -86,6 +86,82 @@ describe('Bestands-Ablage', () => {
     expect(useBestandsAblage.getState().berechnetAm).toBe(Date.now());
     vi.advanceTimersByTime(180_000);
     expect(Date.now() - useBestandsAblage.getState().berechnetAm).toBe(180_000);
+  });
+});
+
+/**
+ * Anzeige und Anstoß sind zwei Fragen.
+ *
+ * Bis v6.57.1 hing auch die ANZEIGE an der TTL: geprüft wurde bei jedem Render
+ * gegen die Uhr, der Effekt, der neu rechnet, hing aber nur am Schlüssel. Nach
+ * fünf Minuten zeigte jede To-do-Zelle der Startseite „…", und nichts rechnete
+ * neu (gemessen 11.09.2026: 0 → 13 Platzhalter, kein Lauf in 12 s).
+ */
+describe('Anzeige hängt am Schlüssel, der Anstoß an der TTL', () => {
+  beforeEach(() => {
+    useBestandsAblage.getState().entwerten();
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-08-18T10:00:00.000Z'));
+  });
+  afterEach(() => { vi.useRealTimers(); });
+
+  it('nach der TTL passt sie weiter — nur ein neuer Lauf ist fällig', () => {
+    useBestandsAblage.getState().setzen('a', daten(5), 5);
+    vi.advanceTimersByTime(BESTAND_CACHE_TTL_MS + 60_000);
+    expect(ablageGilt(useBestandsAblage.getState(), 'a', Date.now())).toBe(false);
+    expect(ablagePasst(useBestandsAblage.getState(), 'a')).toBe(true);
+    expect(ablagePasst(useBestandsAblage.getState(), 'b')).toBe(false);
+  });
+
+  it('ein Cold Start passt auch ohne Uhr nicht', () => {
+    useBestandsAblage.getState().setzen('a', daten(0), 0);
+    expect(ablagePasst(useBestandsAblage.getState(), 'a')).toBe(false);
+  });
+});
+
+/**
+ * Der Stand von vor dem Import bleibt stehen, bis neu gerechnet ist — aber nur,
+ * wenn sich ALLEIN der Bestand geändert hat. Ein anderer Bereich, eine andere
+ * Fassung, ein anderer Tag ist eine andere Frage; deren alte Antwort wäre
+ * falsch, nicht nur alt.
+ */
+describe('vorläufiger Stand', () => {
+  const stichtag = '2026-08-18T10:00:00.000Z';
+  const basis = (): string => bestandsBasis(VERSION, null, stichtag);
+  const schluessel = (): string => bestandsSchluessel(VERSION, null, stichtag);
+  beforeEach(() => { useBestandsAblage.getState().entwerten(); });
+
+  it('ein Bestandswechsel lässt den alten Stand vorläufig stehen', () => {
+    useBestandsAblage.getState().setzen(schluessel(), daten(5), 5, basis());
+    markiereBestandGeaendert();
+    const s = useBestandsAblage.getState();
+    expect(ablagePasst(s, schluessel())).toBe(false);
+    expect(ablageVorlaeufig(s, schluessel(), basis())).toBe(true);
+  });
+
+  it('ein anderer Bereich ist eine andere Frage — kein vorläufiger Stand', () => {
+    useBestandsAblage.getState().setzen(schluessel(), daten(5), 5, basis());
+    const bereich = new Set(['16KN']);
+    expect(ablageVorlaeufig(
+      useBestandsAblage.getState(),
+      bestandsSchluessel(VERSION, bereich, stichtag),
+      bestandsBasis(VERSION, bereich, stichtag),
+    )).toBe(false);
+  });
+
+  it('der passende Stand ist nicht vorläufig, ein entwerteter gar keiner', () => {
+    useBestandsAblage.getState().setzen(schluessel(), daten(5), 5, basis());
+    expect(ablageVorlaeufig(useBestandsAblage.getState(), schluessel(), basis())).toBe(false);
+    // Der Fehlerpfad entwertet — dann steht der Rückfall, nicht der alte Stand.
+    useBestandsAblage.getState().entwerten();
+    markiereBestandGeaendert();
+    expect(ablageVorlaeufig(useBestandsAblage.getState(), schluessel(), basis())).toBe(false);
+  });
+
+  it('ein Cold Start (nichts gelesen) wird nie zum vorläufigen Stand', () => {
+    useBestandsAblage.getState().setzen(schluessel(), daten(0), 0, basis());
+    markiereBestandGeaendert();
+    expect(ablageVorlaeufig(useBestandsAblage.getState(), schluessel(), basis())).toBe(false);
   });
 });
 

@@ -28,6 +28,15 @@
  * **Nie zwei Antworten hintereinander.** Solange gerechnet wird, steht dort ein
  * Platzhalter und nicht der Rückfall — ein Text, der sich nach fünf Sekunden in
  * einen anderen verwandelt, ist schlimmer als einer, der auf sich warten lässt.
+ *
+ * **Ausnahme: der Stand von vor dem Import** (`vorlaeufig`). Nach einer
+ * Datenaktualisierung rechnet der Bestandslauf erst nach dem Veröffentlichen neu;
+ * bis dahin steht die Kaskaden-Aussage des alten Bestands da, als solche
+ * markiert (Symbol + Tooltip). Sie ist keine zweite Antwort neben der ersten,
+ * sondern die erste mit Datum — der Platzhalter über allen Zeilen las sich als
+ * Hänger. Nur wo die Kaskade etwas gesagt hatte: Platzhalter und Rückfall haben
+ * keinen alten Stand.
+ *
  * Rein und ohne React.
  */
 import { getStatusCategory, type StatusCategory } from '@/core/utils/status-canonical';
@@ -81,6 +90,11 @@ export interface AufgabenAnzeige {
    * gibt, ist schlimmer als keine.
    */
   anteil: string;
+  /**
+   * Die Aussage stammt aus dem Bestand VOR der letzten Datenaktualisierung und
+   * steht nur, bis neu gerechnet ist. Nur gesetzt, wenn wahr.
+   */
+  vorlaeufig?: true;
 }
 
 const PLATZHALTER = '…';
@@ -115,6 +129,12 @@ export interface AnzeigeEingabe {
   /** Läuft der Bestandslauf noch? Dann ist `null` kein Ergebnis, sondern Warten. */
   laeuftNoch: boolean;
   /**
+   * Die Daten des Laufs stammen aus dem Bestand vor der letzten
+   * Datenaktualisierung (`useZeilenAufgaben().vorlaeufig`). Markiert jede
+   * Aussage, die aus ihnen kommt.
+   */
+  vorlaeufig?: boolean;
+  /**
    * Die Zeile gehört zu einer Richtlinie, die der Bestandslauf nicht rechnet
    * (älter als die vorige). Dann heißt `aufgabe === null`: die Kaskade wurde
    * nicht gefragt — und die Nebenzeile sagt das.
@@ -130,7 +150,18 @@ export interface AnzeigeEingabe {
   status?: string | null;
 }
 
+/** Vorangestellt im Tooltip einer vorläufigen Aussage. */
+const VORLAEUFIG_TITEL = 'Stand vor der letzten Datenaktualisierung — wird gerade neu berechnet.';
+
 export function aufgabenAnzeige(e: AnzeigeEingabe): AufgabenAnzeige {
+  const a = anzeigeAusAufgabe(e);
+  // Vorläufig ist nur, was aus den alten Laufdaten kam. Platzhalter und reiner
+  // Rückfall (`aufgabe === null`) haben keinen alten Stand, den man markieren könnte.
+  if (!e.vorlaeufig || e.aufgabe === null) return a;
+  return { ...a, vorlaeufig: true, titel: `${VORLAEUFIG_TITEL} ${a.titel}` };
+}
+
+function anzeigeAusAufgabe(e: AnzeigeEingabe): AufgabenAnzeige {
   const { aufgabe, rueckfall, laeuftNoch } = e;
 
   if (aufgabe === null) {

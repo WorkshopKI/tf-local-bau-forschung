@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v6.57.2 — Startseite rechnet nach Import ohne Reload neu (September 2026)
+
+PATCH — Nach einem CSV-Import oder geholten Datenbestand stand die Startseite teils bis zum Browser-Reload: nach fünf Minuten Offenstehen kippten alle To-do-Zellen dauerhaft auf „…" (gemessen 0 → 13, kein neuer Lauf), „Änderungen der letzten Nacht" und der Nachtlauf-Satz des Tagesbriefs lasen das Journal nie neu. Während des Veröffentlichens standen 30–40 s lang nur Platzhalter.
+
+- **Anzeige am Schlüssel, nicht an der Uhr**: die 5-Min-TTL entscheidet nur noch über den Anstoß ([useBestandsAufgaben.ts](src/core/hooks/useBestandsAufgaben.ts))
+- **Alter Stand bleibt markiert stehen** (↻ + Tooltip, im Tagesbrief in Worten), bis nach dem Import neu gerechnet ist — nur wenn sich allein der Bestand änderte ([aufgaben-anzeige.ts](src/core/status/aufgaben-anzeige.ts), [VorlaeufigMarke.tsx](src/components/ui/VorlaeufigMarke.tsx))
+- **Journal-Leser und Auslastungs-Karte folgen der Bestands-Generation** ([useBestandGeneration.ts](src/core/hooks/useBestandGeneration.ts), [NachtlaufWidget.tsx](src/plugins/home/widgets/NachtlaufWidget.tsx), [useTagesbrief.ts](src/plugins/home/tagesbrief/useTagesbrief.ts), [AuslastungWidget.tsx](src/plugins/home/widgets/AuslastungWidget.tsx))
+- **Guard** `journal-leser-folgt-dem-bestand`, zusammen mit dem Choke-Point-Guard in [conventions-bestand.test.ts](src/__tests__/conventions-bestand.test.ts)
+- Doku: [recurring-bug-classes.md §1](docs/architecture/recurring-bug-classes.md), [home-widgets.md](docs/architecture/home-widgets.md), [feedback-kontext/home.md](docs/feedback-kontext/home.md)
+
 ### v6.57.1 — Assistent: ein Teilvorhaben im Widerspruch hält den Verbund offen (September 2026)
 
 PATCH — Bei CALYPSO (Verbund abgelehnt, das Teilvorhaben im Widerspruch) schwieg der Assistent zur Frist und nannte den Vorgang „erledigt", während Liste und Detailseite „304 Tage überfällig" zeigten. Die Sperre fragte nur den Verbund-Status; ein Widerspruch ist offene Arbeit.

@@ -9,7 +9,8 @@
  * werden ignoriert. Bitte den Grund knapp dokumentieren — das macht die
  * Ausnahme review-bar.
  *
- * Geschwister-Dateien: conventions-status.test.ts, conventions-ui.test.ts, health-baseline.test.ts. Der Schnitt ist thematisch;
+ * Geschwister-Dateien: conventions-status.test.ts, conventions-ui.test.ts, conventions-bestand.test.ts
+ * (Bestands-Generation: ein Schreiber, alle Leser folgen), health-baseline.test.ts. Der Schnitt ist thematisch;
  * Datei-Walk + Such-Primitive liegen gemeinsam in conventions-lib.ts.
  *
  * Geprueft:
@@ -104,7 +105,6 @@
  */
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
-import { bestandGeneration, markiereBestandGeaendert } from '../core/services/bestand-generation';
 import { join, sep } from 'node:path';
 import { KURATION_PLUGIN_IDS } from '../core/services/feedback/screenContext';
 import { CSV_SOURCES_SUBDIR } from '../core/services/csv/constants';
@@ -1715,64 +1715,6 @@ describe('csv-quellordner-nicht-kopieordner', () => {
         + `Encoding-Heilung abwechselnd das \`encoding\`-Feld.\n`
         + `Richtig ist der Ordner, in dem der taegliche EXPORT liegt.\n\nTreffer:\n`
         + treffer.map(t => `  ${t}`).join('\n'),
-      );
-    }
-  });
-});
-
-/**
- * Die Bestands-Generation ist das Signal, an dem die Sitzungs-Caches von
- * Vorgangs-Board und Vorgangs-Regeln haengen. Ihr Wert steht und faellt damit,
- * dass genau EINE Stelle sie hochzaehlt: streute man `markiereBestandGeaendert()`
- * ueber die Aufrufer, waere der erste vergessene Aufruf ein Cache, der
- * schweigend veraltete Zahlen zeigt — und das fiele niemandem auf, weil nichts
- * fehlschlaegt.
- */
-describe('bestand-generation', () => {
-  it('zaehlt monoton hoch', () => {
-    const vorher = bestandGeneration();
-    markiereBestandGeaendert();
-    expect(bestandGeneration()).toBe(vorher + 1);
-    markiereBestandGeaendert();
-    expect(bestandGeneration()).toBe(vorher + 2);
-  });
-});
-
-describe('bestand-generation-am-choke-point', () => {
-  // `relPath` liefert Vorwaertsschraegstriche — auf Windows waere `path.sep`
-  // hier genau der Grund, warum der Guard nichts faende.
-  const DEFINITION = 'core/services/bestand-generation.ts';
-  const CHOKE_POINT = 'plugins/antraege/snapshot-refresh.ts';
-
-  /** Alle Nicht-Test-Quellen, die den Marker AUFRUFEN (nicht nur importieren). */
-  function aufrufer(): string[] {
-    const out: string[] = [];
-    for (const file of ALL_SOURCE_FILES) {
-      const rel = relPath(file);
-      if (rel.includes('/__tests__/') || rel.endsWith('.test.ts')) continue;
-      if (rel.includes(DEFINITION)) continue;
-      if (readFileSync(file, 'utf-8').includes('markiereBestandGeaendert(')) out.push(rel);
-    }
-    return out;
-  }
-
-  it('der Choke-Point ruft ihn', () => {
-    const treffer = aufrufer();
-    // Positiv-Kontrolle zuerst: findet der Scan ueberhaupt etwas? Ohne sie ginge
-    // der Test auch dann durch, wenn ALL_SOURCE_FILES leer waere.
-    expect(treffer.length).toBeGreaterThan(0);
-    expect(treffer.some(f => f.includes(CHOKE_POINT))).toBe(true);
-  });
-
-  it('und sonst niemand', () => {
-    const fremde = aufrufer().filter(f => !f.includes(CHOKE_POINT));
-    if (fremde.length > 0) {
-      expect.fail(
-        `markiereBestandGeaendert() darf NUR in ${CHOKE_POINT} gerufen werden — dort\n`
-        + `laeuft jeder Bestandswechsel ohnehin durch (Snapshot-Watcher, beide Phasen der\n`
-        + `Datenaktualisierung, die Kurations-Dialoge). Ein zweiter Schreiber macht den\n`
-        + `Zaehler zur Vermutung: welcher Aufruf fehlt, sieht man erst an falschen Zahlen\n`
-        + `in einem Cache.\n\nFremde Aufrufer:\n  ${fremde.join('\n  ')}`,
       );
     }
   });

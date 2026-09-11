@@ -70,6 +70,31 @@ describe('aufgabenAnzeige — fünf Zustände, jeder mit seiner Herkunft', () =>
     expect(regelTraf(a.quelle)).toBe(true);
   });
 
+  it('markiert eine Aussage aus dem Bestand vor dem Import als vorläufig', () => {
+    // Nach einer Datenaktualisierung steht der alte Stand, bis neu gerechnet ist
+    // — mit Vermerk, damit er sich nicht als frische Aussage liest.
+    const aufgabe = baueAufgabe({
+      jeTv: [tv('A1', { ab: erg({ todo: 'GA schreiben', regelId: 'r21', zustaendig: ['ab'] }) })],
+      rolle: 'ab', ohneRegeln: false,
+    });
+    const a = aufgabenAnzeige({ aufgabe, rueckfall: RUECKFALL, laeuftNoch: true, vorlaeufig: true });
+    expect(a.vorlaeufig).toBe(true);
+    expect(a.quelle).toBe('kaskade');
+    expect(a.text).toBe('GA schreiben');
+    expect(a.titel).toContain('Stand vor der letzten Datenaktualisierung');
+    // Ohne Vermerk bleibt das Feld weg — die Leser fragen es auf Wahrheit ab.
+    expect(aufgabenAnzeige({ aufgabe, rueckfall: RUECKFALL, laeuftNoch: false }).vorlaeufig).toBeUndefined();
+  });
+
+  it('eine Zeile ohne alten Stand wartet weiter mit dem Platzhalter', () => {
+    // Ein Aktenzeichen, das erst der Import gebracht hat, steht im alten Register
+    // nicht — dort gibt es nichts, was vorläufig stehen bleiben könnte.
+    const a = aufgabenAnzeige({ aufgabe: null, rueckfall: RUECKFALL, laeuftNoch: true, vorlaeufig: true });
+    expect(a.quelle).toBe('laedt');
+    expect(a.text).toBe('…');
+    expect(a.vorlaeufig).toBeUndefined();
+  });
+
   it('zeigt eine fremde Aufgabe als Auskunft statt einer erfundenen Handlung', () => {
     // Der gemeldete Fall: der FB las „Gutachten freigeben", während das
     // Gutachten längst in der QS lag.

@@ -46,6 +46,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { TRENNLINIE_GEDAEMPFT } from '@/components/ui/ListItem';
 import { Tooltip } from '@/components/ui/Tooltip';
 import { useStorage } from '@/core/hooks/useStorage';
+import { useBestandGeneration } from '@/core/hooks/useBestandGeneration';
 import { useNavigation } from '@/core/hooks/useNavigation';
 import { useBearbeiterSicht } from '@/core/hooks/useBearbeiterSicht';
 import { isVorgangssystemEnabled } from '@/config/feature-flags';
@@ -197,7 +198,10 @@ export function NachtlaufWidget({ instanz, onToggleEingeklappt }: WidgetProps): 
 
   // Ein Wechsel des Zeitraums muss neu laden — sonst zeigte die Karte weiter
   // den Lauf, mit dem sie geöffnet wurde, und der Titel behauptete etwas anderes.
-  useEffect(() => { setGeladen(false); }, [tage]);
+  // Ebenso ein Import: er bringt einen neuen Nachtlauf ins Journal, und die
+  // Karte zeigte bis zum Reload den von davor (gemessen 11.09.2026).
+  const generation = useBestandGeneration();
+  useEffect(() => { setGeladen(false); }, [tage, generation]);
 
   // Aktenzeichen → Antrag. Das Journal keyt auf `aktenzeichen` (im Export die
   // FKZ-Spalte), der Store also direkt der Join-Partner.

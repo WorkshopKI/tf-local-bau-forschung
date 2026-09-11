@@ -90,7 +90,9 @@ function aufgabeVon(
   });
   // Ein Platzhalter ist keine Aussage — er gehört nicht in einen Faktenblock.
   // (Mit `'nie'` ist `laeuftNoch` false, der Fall also ohnehin nicht zu erwarten.)
-  if (anzeige.quelle === 'laedt' || !anzeige.text.trim()) return undefined;
+  // Ein vorläufiger Stand (vor dem letzten Import) auch nicht: der Bildschirm
+  // markiert ihn, ein Faktenblock kann das nicht — dann lieber `schrittText`.
+  if (anzeige.quelle === 'laedt' || anzeige.vorlaeufig || !anzeige.text.trim()) return undefined;
   return {
     text: anzeige.text,
     ausKaskade: anzeige.quelle !== 'rueckfall',

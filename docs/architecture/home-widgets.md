@@ -191,6 +191,28 @@ die **eine** Deklaration dessen, was ein Nutzer vorfindet: `meine-antraege`,
   zurück — sonst stünden 40 Zeilen unter einem Regler, der 10 sagt. Der Zustand
   ist bewusst **nur Sitzung**: er beschreibt einen Blick, keine Einstellung.
 
+## Nach einer Datenaktualisierung (v6.57.2)
+
+Jeder Import und jeder geholte Datenbestand läuft durch
+`refreshAntraegeStoreAfterSync`: Bestands-Generation +1, Anträge-Store neu. Was
+die Startseite zeigt, folgt einem der beiden Signale — ohne Reload.
+
+- **To-do-Zellen** (Meine Anträge, Status & Verlauf, Kanban, Tagesbrief, Liste)
+  lesen die Ablage des Bestandslaufs. Nach dem Import bleibt der alte Stand
+  stehen, **markiert** (↻ + Tooltip, im Tagesbrief in Worten), bis der neue Lauf
+  durch ist — gerechnet wird erst nach dem Veröffentlichen, auf dem echten Share
+  30–40 s später. Zeilen ohne alten Eintrag zeigen „…". Gezeigt wird, was zum
+  Schlüssel passt; die 5-Min-TTL entscheidet nur über den nächsten Anstoß
+  ([useBestandsAufgaben.ts](../../src/core/hooks/useBestandsAufgaben.ts)).
+- **Journal-Leser** („Änderungen der letzten Nacht", Nachtlauf-Satz des
+  Tagesbriefs) und die **Auslastungs-Karte** nehmen `useBestandGeneration()` in
+  ihre Effekt-Abhängigkeiten; für die Journal-Leser hält es der Guard
+  `journal-leser-folgt-dem-bestand` fest.
+- **Neue Karte, die eigene Daten lädt?** Liest sie im Mount-Effekt aus IDB oder
+  Share, gehört `useBestandGeneration()` in die Abhängigkeiten — sonst zeigt sie
+  bis zum Reload den Stand von davor
+  ([recurring-bug-classes.md §1](recurring-bug-classes.md)).
+
 ## Tagesbrief — was zuerst dran ist (v6.45)
 
 Die Karte am Kopf der Hauptspalte ([src/plugins/home/tagesbrief/](../../src/plugins/home/tagesbrief/)),

@@ -10,6 +10,7 @@
  * React-Wurzel, und dort gibt es keinen Router-Kontext.
  */
 import { alterInTagen } from '@/core/utils/relativeZeit';
+import { VorlaeufigMarke } from '@/components/ui/VorlaeufigMarke';
 import type { KanbanKarte } from './kanbanLanes';
 
 export interface KanbanKarteViewProps {
@@ -36,6 +37,7 @@ export function KanbanKarteView({ karte, onOpen }: KanbanKarteViewProps): React.
         // demselben Grund einen. Greift bei langen Status-Kurzformen.
         <p className="mt-0.5 text-[12px] leading-snug text-[var(--tf-text-secondary)] line-clamp-2" title={karte.titel || karte.schrittText}>
           {karte.schrittText}
+          {karte.vorlaeufig ? <VorlaeufigMarke className="ml-1" /> : null}
         </p>
       ) : null}
       {/* Wer am Zug ist, steht in einer EIGENEN Zeile: „in QS" ist die Aufgabe,
