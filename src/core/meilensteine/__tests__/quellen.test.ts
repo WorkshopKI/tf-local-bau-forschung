@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { baueQuellSpaltenIndex } from '@/core/services/csv/spalten-inventar';
 import type { CsvSchema } from '@/core/services/csv/types';
-import { knotenQuellen, knotenRegel } from '@/core/meilensteine/quellen';
+import { IST_AUS_BEDINGUNG, knotenQuellen, knotenRegel } from '@/core/meilensteine/quellen';
 import type { MeilensteinKnoten } from '@/core/meilensteine/typen';
 
 const index = baueQuellSpaltenIndex([{
@@ -35,7 +35,7 @@ describe('knotenQuellen', () => {
     expect(knotenQuellen(k, index).regel).toBe(knotenRegel(k));
     expect(knotenRegel(k)).toContain('sobald ein Teilvorhaben');
     expect(knotenRegel(k)).toContain('Ist-Termin-Feldes');
-    expect(knotenRegel(knoten({}))).toContain('früheste Datum der Bedingungsfelder');
+    expect(knotenRegel(knoten({}))).toContain(IST_AUS_BEDINGUNG);
   });
 
   it('sagt bei einem Knoten ohne Bedingung, dass er über die Unter-Meilensteine läuft', () => {

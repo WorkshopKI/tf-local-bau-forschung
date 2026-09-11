@@ -47,7 +47,10 @@ Tooltip an „Gesamtfrist" und an „Eingang" nennt die beiden Spalten.
   - **Quellspalten**: Wer die Kurzform der Bedingung überfährt (auch in der
     Leiste und unter „Diese Woche" an der Bezeichnung), sieht, aus welchen
     CSV-Spalten sie liest — je Feld Code und Label, dazu die Regel „erfüllt,
-    sobald ein Teilvorhaben sie trägt; Ist-Termin = frühestes Datum". Mappt ein
+    sobald ein Teilvorhaben sie trägt; Ist-Termin = der Tag, an dem die
+    Bedingung wahr wurde — bei „alle" das späteste, bei „eine" das früheste
+    Datum der erfüllten Bedingungen". Dieselbe Regel steht neben der Auswahl
+    „Ist-Termin", solange dort kein eigenes Feld gewählt ist. Mappt ein
     Programm ein Feld nicht, steht das dabei. Der Feld-Wähler zeigt die
     Quellspalte kurz hinter dem Feldnamen („Antrags eingang · antragsdatum
     ← D_AAE").

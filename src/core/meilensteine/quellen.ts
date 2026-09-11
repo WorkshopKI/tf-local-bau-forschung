@@ -4,9 +4,10 @@
  *
  * Die Regel steht mit im Tooltip, weil sie die zweite Fehlerquelle neben der
  * falschen Spalte ist: eine Bedingung gilt für den Verbund, sobald IRGENDEIN
- * Teilvorhaben sie trägt (`baueMeilensteinKontext`), und der Ist-Termin ist das
- * früheste Datum über die Teilvorhaben (`fruehestesDatum` in der Bewertung).
- * Wer das nicht weiß, liest einen früh erreichten Meilenstein als Datenfehler.
+ * Teilvorhaben sie trägt (`baueMeilensteinKontext`); je Feld zählt das früheste
+ * Datum über die Teilvorhaben, und ohne Ist-Termin-Feld folgt der Ist-Termin der
+ * Verknüpfung (`erfuellungsDatum` in der Bewertung). Wer das nicht weiß, liest
+ * einen früh erreichten Meilenstein als Datenfehler.
  *
  * Rein; den Index reicht der Aufrufer herein.
  */
@@ -16,13 +17,21 @@ import { feldQuellen, type QuellSpaltenErklaerung } from '@/core/status/bedingun
 import { feldRefsAusKnoten } from './felder';
 import type { MeilensteinKnoten } from './typen';
 
+/**
+ * Die Regel des Ist-Termins ohne eigenes Feld, in Worten des Editors. Eine
+ * Konstante, weil sie zweimal steht: im Quellspalten-Tooltip und neben der
+ * Auswahl „Ist-Termin" — zwei Fassungen liefen beim nächsten Umbau auseinander.
+ */
+export const IST_AUS_BEDINGUNG =
+  'bei „alle“ das späteste, bei „eine“ das früheste Datum der erfüllten Bedingungen';
+
 /** Wie aus den Teilvorhaben ein Verbund-Wert wird — in einem Satz. */
 export function knotenRegel(k: MeilensteinKnoten): string {
   const ist = k.istDatumFeld
     ? 'das Datum des Ist-Termin-Feldes'
-    : 'das früheste Datum der Bedingungsfelder';
+    : `der Tag, an dem die Bedingung wahr wurde — ${IST_AUS_BEDINGUNG}`;
   return 'Erfüllt, sobald ein Teilvorhaben des Verbunds die Bedingung trägt. '
-    + `Ist-Termin: ${ist}, über die Teilvorhaben das früheste.`;
+    + `Ist-Termin: ${ist}; je Feld zählt das früheste Datum über die Teilvorhaben.`;
 }
 
 /**

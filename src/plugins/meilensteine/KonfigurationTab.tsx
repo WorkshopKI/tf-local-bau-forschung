@@ -31,7 +31,7 @@ import { TfTree } from '@/components/tree';
 import { ContextMenuItem, ContextMenuLabel, ContextMenuSeparator } from '@/components/ui/context-menu';
 import {
   ANKER_SPALTEN, aendereKnoten, darfUmhaengen, entferneKnoten, fuegeKnotenHinzu, haengeKnotenUm,
-  hebeKnotenAn, knotenOhneBedingung, knotenQuellen, planEndeTage, schlageBedingungVor,
+  IST_AUS_BEDINGUNG, hebeKnotenAn, knotenOhneBedingung, knotenQuellen, planEndeTage, schlageBedingungVor,
   schlageFelderVor, verschiebeKnoten,
   type MeilensteinKnoten, type SpaltenEintrag,
 } from '@/core/meilensteine';
@@ -423,11 +423,16 @@ function KnotenKoerper({ knoten, alle, spalten, schreibgeschuetzt, probe, onKnot
               wert={knoten.istDatumFeld ?? ''}
               onWaehle={feldId => patch({ istDatumFeld: feldId || undefined })}
               nurTyp="datum"
-              leerOption="— frühestes Datum der Bedingungs-Felder —"
+              leerOption="— aus der Bedingung —"
               ariaLabel="Ist-Termin aus Feld"
               disabled={schreibgeschuetzt}
               className="max-w-[280px]"
             />
+            {!knoten.istDatumFeld && (
+              <span className="ml-2 min-w-0 pt-[3px] text-[11.5px] text-[var(--tf-text-secondary)]">
+                {IST_AUS_BEDINGUNG}
+              </span>
+            )}
           </div>
         </div>
     </div>

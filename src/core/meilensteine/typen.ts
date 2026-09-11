@@ -49,8 +49,9 @@ export interface MeilensteinKnoten {
   bedingung: Bedingung;
   /**
    * Feld, dessen Datumswert als Ist-Termin gilt (z.B. `D_AZ1_1` für die
-   * Erstentscheidung). Fehlt es, wird der Ist-Termin aus dem Status-Event-Log
-   * abgeleitet; fehlt auch der, gilt der Meilenstein als erreicht ohne Datum.
+   * Erstentscheidung). Fehlt es, gilt der Tag, an dem die Bedingung wahr wurde
+   * (`erfuellungsDatum` in der Bewertung); trägt keiner ihrer Teile ein Datum,
+   * ist der Meilenstein erreicht ohne Datum.
    */
   istDatumFeld?: string;
   /** Sortierung unter Geschwistern (aufsteigend). */

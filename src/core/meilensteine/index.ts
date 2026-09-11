@@ -43,7 +43,7 @@ export {
 } from './spalten-katalog';
 export { schlageFelderVor, schlageBedingungVor, type FeldVorschlag } from './feld-vorschlag';
 export { ANKER_SPALTEN, baueAnkerLeser, type AnkerLeser } from './anker';
-export { knotenQuellen, knotenRegel } from './quellen';
+export { IST_AUS_BEDINGUNG, knotenQuellen, knotenRegel } from './quellen';
 export {
   aendereKnoten, darfUmhaengen, entferneKnoten, fuegeKnotenHinzu, haengeKnotenUm,
   hebeKnotenAn, istNachfahre, kinderVon, naechsteKnotenId, nummeriereNeu,

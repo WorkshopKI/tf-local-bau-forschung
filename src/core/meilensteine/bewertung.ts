@@ -6,8 +6,9 @@
  * Zwei Entwurfs-Entscheidungen, die den Rest tragen:
  *
  * 1. **Der Ist-Termin kommt aus den Daten, nicht aus einem Log.** Entweder aus
- *    dem am Knoten benannten `istDatumFeld` oder — als Rückfall — aus dem
- *    frühesten parsbaren Datum unter den Feldern, die den Meilenstein erfüllen.
+ *    dem am Knoten benannten `istDatumFeld` oder — als Rückfall — aus dem Tag,
+ *    an dem die Bedingung wahr wurde (`erfuellungsDatum`: bei „alle“ das
+ *    späteste, bei „eine“ das früheste Datum der zutreffenden Teile).
  *    Damit ist auch der Bestand vom letzten Quartal auswertbar; ein Event-Log
  *    beginnt erst beim ersten Import und wüsste über Altfälle nichts.
  * 2. **Nur Blätter zählen in die Prognose.** Ein Sammel-Knoten (MST 1, 1.4)
@@ -16,12 +17,13 @@
  */
 import { addDays } from '@/core/services/csv/frist';
 import { parseGermanDate } from '@/core/services/csv/dateParse';
-import { bedingungIstLeer, pruefeBedingung, type BedingungsKontext } from '@/core/status';
+import {
+  bedingungIstLeer, pruefeBedingung, type Bedingung, type BedingungsKontext,
+} from '@/core/status';
 import type {
   AntragstypBucket, MeilensteinKnoten, MeilensteinPlan, MstErgebnis, MstZustand,
   Prognose, VerbundMeilensteine,
 } from './typen';
-import { feldRefsAusBedingung } from './felder';
 import { MS_TAG } from '@/core/utils/zeitEinheiten';
 
 
@@ -41,8 +43,10 @@ import { MS_TAG } from '@/core/utils/zeitEinheiten';
  * `gerissen`/`erreicht` und zählen nicht in die Prognose.
  * 2 → 3 (v6.49): der Anker ist der wirksame Eingang (`D_AAE` oder `D_XTE`,
  * das spätere) statt des Antragsdatums allein.
+ * 3 → 4 (v6.59.2): der Ist-Termin ohne `istDatumFeld` folgt der Verknüpfung
+ * (`erfuellungsDatum`) statt dem frühesten Datum aller Bedingungsfelder.
  */
-export const BEWERTUNGS_VERSION = 3;
+export const BEWERTUNGS_VERSION = 4;
 
 /** Vorwarnfenster: so viele Tage vor dem Soll-Termin gilt ein Meilenstein als fällig. */
 export const FAELLIG_FENSTER_TAGE = 7;
@@ -129,21 +133,48 @@ function alsMs(raw: string | null | undefined): number | null {
   return Number.isNaN(ms) ? null : ms;
 }
 
-/** Frühestes parsbares Datum unter den Werten der genannten Felder. */
-function fruehestesDatum(ctx: BedingungsKontext, feldIds: readonly string[]): string | null {
-  let bestMs = Infinity;
+/** Das späteste (`spaeter`) bzw. früheste parsbare Datum der Liste; `null` ohne eines. */
+function waehleDatum(daten: readonly (string | null)[], spaeter: boolean): string | null {
   let best: string | null = null;
-  for (const feldId of feldIds) {
-    for (const roh of ctx.get(feldId) ?? []) {
-      const iso = parseGermanDate(roh);
-      if (!iso) continue;
-      const ms = new Date(iso).getTime();
-      if (Number.isNaN(ms) || ms >= bestMs) continue;
+  let bestMs: number | null = null;
+  for (const d of daten) {
+    const ms = alsMs(d);
+    if (ms === null) continue;
+    if (bestMs === null || (spaeter ? ms > bestMs : ms < bestMs)) {
+      best = d;
       bestMs = ms;
-      best = iso;
     }
   }
   return best;
+}
+
+/** Frühestes parsbares Datum eines Feldes über die Teilvorhaben (ISO). */
+function fruehestesFeldDatum(ctx: BedingungsKontext, feldId: string): string | null {
+  return waehleDatum((ctx.get(feldId) ?? []).map(roh => parseGermanDate(roh) || null), false);
+}
+
+/**
+ * Der Tag, an dem eine **erfüllte** Bedingung wahr wurde — der Ist-Termin, wenn
+ * der Knoten kein `istDatumFeld` nennt.
+ *
+ * - Blatt: das früheste Datum **seines** Feldes über die Teilvorhaben. Bei
+ *   „A nach B" (`datumNachFeld`) ist das A — das Vergleichsfeld B liegt per
+ *   Definition davor und hat den Meilenstein nicht ausgelöst.
+ * - „alle": das **späteste** Datum der Teile — wahr erst, wenn der letzte zutrifft.
+ * - „eine": das **früheste** Datum der **zutreffenden** Teile; ein Teil, der
+ *   nicht zutrifft, hat nichts ausgelöst, auch wenn sein Feld ein Datum trägt.
+ *
+ * Teile ohne Datum (Status-, Förderart-Vergleiche) fallen heraus. Vorher galt
+ * das früheste Datum ALLER Bedingungsfelder: bei „alle" maß das den ersten statt
+ * den letzten Schritt, und die Abweichung sah besser aus, als sie war.
+ */
+function erfuellungsDatum(b: Bedingung, ctx: BedingungsKontext, heute: string): string | null {
+  if ('alle' in b) return waehleDatum(b.alle.map(x => erfuellungsDatum(x, ctx, heute)), true);
+  if ('einige' in b) {
+    const zutreffend = b.einige.filter(x => pruefeBedingung(x, ctx, heute));
+    return waehleDatum(zutreffend.map(x => erfuellungsDatum(x, ctx, heute)), false);
+  }
+  return fruehestesFeldDatum(ctx, b.feldId);
 }
 
 /** Gilt der Knoten für diesen Verbund? Inaktive und typ-fremde zählen nirgends mit. */
@@ -202,21 +233,17 @@ function baueBefunde(
 
     let ergebnis: KnotenBefund;
     if (pruefeBedingung(k.bedingung, ctx, heute)) {
-      const refs = k.istDatumFeld ? [k.istDatumFeld] : feldRefsAusBedingung(k.bedingung);
-      ergebnis = { erreicht: true, ueberKinder: false, istDatum: fruehestesDatum(ctx, refs) };
+      const istDatum = k.istDatumFeld
+        ? fruehestesFeldDatum(ctx, k.istDatumFeld)
+        : erfuellungsDatum(k.bedingung, ctx, heute);
+      ergebnis = { erreicht: true, ueberKinder: false, istDatum };
     } else {
       const relevanteKinder = (kinder.get(k.id) ?? []).filter(c => istRelevant(c, typ));
       const kindBefunde = relevanteKinder.map(befund);
       const alleErreicht = kindBefunde.length > 0 && kindBefunde.every(b => b.erreicht);
-      // Ein Sammel-Knoten ist erst fertig, wenn sein LETZTES Kind fertig ist.
-      const spaetestes = alleErreicht
-        ? kindBefunde.reduce<string | null>((best, b) => {
-          const ms = alsMs(b.istDatum);
-          if (ms === null) return best;
-          const bestMs = alsMs(best);
-          return bestMs === null || ms > bestMs ? b.istDatum : best;
-        }, null)
-        : null;
+      // Ein Sammel-Knoten ist erst fertig, wenn sein LETZTES Kind fertig ist —
+      // dieselbe Regel wie bei „alle" innerhalb einer Bedingung.
+      const spaetestes = alleErreicht ? waehleDatum(kindBefunde.map(b => b.istDatum), true) : null;
       ergebnis = { erreicht: alleErreicht, ueberKinder: alleErreicht, istDatum: spaetestes };
     }
 

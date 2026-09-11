@@ -5,6 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v6.59.2 — Ist-Termin folgt der Verknüpfung der Bedingung (September 2026)
+
+PATCH — Frage der PL: „Was bedeutet das Dropdown Ist-Termin?" Beim Nachlesen fiel auf, dass der Rückfall ohne eigenes Feld das früheste Datum ALLER Bedingungsfelder nahm — bei „alle" also den ersten statt den letzten Schritt, bei „A nach B" das Vergleichsdatum. Die Abweichung sah dadurch besser aus, als sie war (im ausgelieferten Plan MST 3).
+
+- Ist-Termin ohne `istDatumFeld` folgt der Verknüpfung (`erfuellungsDatum`: „alle" das späteste, „eine" das früheste der zutreffenden Teile); `BEWERTUNGS_VERSION` 3 → 4 ([bewertung.ts](src/core/meilensteine/bewertung.ts))
+- Die Regel als eine Konstante `IST_AUS_BEDINGUNG` neben der Auswahl „Ist-Termin" und im Quellspalten-Tooltip ([quellen.ts](src/core/meilensteine/quellen.ts), [KonfigurationTab.tsx](src/plugins/meilensteine/KonfigurationTab.tsx))
+- Tests: „alle", „eine" mit nicht zutreffendem Teil, Verschachtelung, „A nach B", Teile ohne Datum ([bewertung.test.ts](src/core/meilensteine/__tests__/bewertung.test.ts))
+- Themen-Doc § Bewertung und Kontext-Doc nachgezogen ([meilensteine.md](docs/architecture/meilensteine.md))
+
 ### v6.59.1 — Guard gegen fremden cn-Import (September 2026)
 
 PATCH — `npx shadcn@latest add` (CLI 4.21) schrieb in v6.59.0 trotz korrektem `components.json` `import { cn } from "cn"` samt fremdem npm-Paket und lieferte ein Menü, das geschlossen noch über eine Sekunde klickbar im DOM stand. Typecheck und Lint waren grün, aufgefallen ist es nur am `git diff package.json`. Beides fängt jetzt das Gate: Ist-Wert je 0, also Verbot statt Ratsche, und jeder Guard wurde einmal rot gesehen.

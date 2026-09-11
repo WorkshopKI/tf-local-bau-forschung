@@ -83,10 +83,20 @@ auf 0, und die Fassung war nicht nur aus dem Blick, sondern aus der Datei.
 - **Eltern-ODER-Regel**: ein Sammel-Knoten gilt als erreicht, wenn seine eigene
   Bedingung zutrifft **oder** alle relevanten Kinder erreicht sind. Sein
   Ist-Termin ist dann das **späteste** Kind-Datum.
-- **Ist-Termin aus den Daten, nicht aus einem Log**: `istDatumFeld`, sonst das
-  früheste parsbare Datum unter den Feldern der Bedingung. Bewusste Abweichung
-  vom ursprünglichen Entwurf — ein Event-Log beginnt beim ersten Import und
-  wüsste über Altfälle nichts; so ist auch der Bestand auswertbar.
+- **Ist-Termin aus den Daten, nicht aus einem Log**: `istDatumFeld`, sonst der
+  Tag, an dem die Bedingung wahr wurde (`erfuellungsDatum`). Ein Blatt liefert
+  das früheste Datum **seines** Feldes über die Teilvorhaben — bei „A nach B"
+  (`datumNachFeld`) also A, nicht das per Definition frühere Vergleichsfeld.
+  Eine „alle"-Gruppe nimmt das **späteste** Datum ihrer Teile (wahr erst, wenn
+  der letzte zutrifft), eine „eine"-Gruppe das **früheste** der **zutreffenden**
+  Teile. Teile ohne Datum (Status-, Förderart-Vergleiche) fallen heraus. Warum
+  nicht das früheste aller Bedingungsfelder: bei „alle" maß das den ersten statt
+  den letzten Schritt, und die Abweichung sah besser aus, als sie war (im
+  ausgelieferten Plan MST 3 — „alle" über zwei „eine"-Gruppen aus vier
+  Datumsspalten). Die Regel steht als `IST_AUS_BEDINGUNG` neben der Auswahl und
+  im Quellspalten-Tooltip. Bewusste Abweichung vom ursprünglichen Entwurf — ein
+  Event-Log beginnt beim ersten Import und wüsste über Altfälle nichts; so ist
+  auch der Bestand auswertbar.
 - **Prognose**: der größte aktuelle Verzug wird auf den Plan-Endpunkt
   aufgeschlagen; überschreitet die Summe `gesamtfristTage`, ist die Frist
   `nichtHaltbar`. Nur **Blätter** zählen — ein Sammel-Knoten würde denselben

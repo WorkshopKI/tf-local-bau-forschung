@@ -89,13 +89,51 @@ describe('bewerteVerbund — Zustände', () => {
     expect(alsFue.ergebnisse[0]!.zustand).toBe('erreicht');
   });
 
-  it('nimmt ohne istDatumFeld das früheste Datum der erfüllenden Felder', () => {
-    const p2 = plan([knoten({
-      id: 'k1', sollWoche: 4,
-      bedingung: { einige: [{ feldId: 'x', op: 'gefuellt' }, { feldId: 'y', op: 'gefuellt' }] },
-    })]);
-    const r = bewerteVerbund(p2, eingabe({ x: '20.01.2026', y: '08.01.2026' }), '2026-02-10T00:00:00.000Z');
-    expect(r.ergebnisse[0]!.istDatum).toBe('2026-01-08');
+  describe('Ist-Termin ohne istDatumFeld = der Tag, an dem die Bedingung wahr wurde', () => {
+    const istVon = (bedingung: Bedingung, felder: Record<string, string>): string | null =>
+      bewerteVerbund(plan([knoten({ id: 'k1', sollWoche: 4, bedingung })]), eingabe(felder),
+        '2026-02-10T00:00:00.000Z').ergebnisse[0]!.istDatum;
+    const x = { feldId: 'x', op: 'gefuellt' } as const;
+    const y = { feldId: 'y', op: 'gefuellt' } as const;
+
+    it('„eine": das früheste Datum der zutreffenden Teile', () => {
+      expect(istVon({ einige: [x, y] }, { x: '20.01.2026', y: '08.01.2026' })).toBe('2026-01-08');
+    });
+
+    it('„eine": ein Teil, der nicht zutrifft, trägt sein Datum nicht bei', () => {
+      // y liegt vor heute, „y nach heute" trifft also nicht zu — ausgelöst hat x.
+      const yNachHeute = { feldId: 'y', op: 'datumNach', tageRelativHeute: 0 } as const;
+      expect(istVon({ einige: [x, yNachHeute] }, { x: '20.01.2026', y: '08.01.2026' })).toBe('2026-01-20');
+    });
+
+    it('„alle": das späteste Datum — wahr erst, wenn der letzte Teil zutrifft', () => {
+      expect(istVon({ alle: [x, y] }, { x: '20.01.2026', y: '08.01.2026' })).toBe('2026-01-20');
+    });
+
+    it('verschachtelt: jede Gruppe nach ihrer eigenen Verknüpfung', () => {
+      // (a ODER b) UND c: die ODER-Gruppe am 10.01. erfüllt, c am 12.01. → 12.01.
+      const b: Bedingung = {
+        alle: [{ einige: [{ feldId: 'a', op: 'gefuellt' }, { feldId: 'b', op: 'gefuellt' }] },
+          { feldId: 'c', op: 'gefuellt' }],
+      };
+      expect(istVon(b, { a: '10.01.2026', b: '14.01.2026', c: '12.01.2026' })).toBe('2026-01-12');
+    });
+
+    it('„A nach B": das Datum von A, nicht das frühere Vergleichsdatum', () => {
+      expect(istVon({ feldId: 'al', op: 'datumNachFeld', vergleichFeldId: 'an' },
+        { al: '15.01.2026', an: '09.01.2026' })).toBe('2026-01-15');
+    });
+
+    it('Teile ohne Datum fallen heraus', () => {
+      expect(istVon({ alle: [{ feldId: 's', op: 'ist', wert: 'bewilligt' }, x] },
+        { s: 'bewilligt', x: '14.01.2026' })).toBe('2026-01-14');
+    });
+
+    it('ein benanntes istDatumFeld gilt vor der Bedingung', () => {
+      const p2 = plan([knoten({ id: 'k1', sollWoche: 4, bedingung: { alle: [x, y] }, istDatumFeld: 'y' })]);
+      const r = bewerteVerbund(p2, eingabe({ x: '20.01.2026', y: '08.01.2026' }), '2026-02-10T00:00:00.000Z');
+      expect(r.ergebnisse[0]!.istDatum).toBe('2026-01-08');
+    });
   });
 
   it('rechnet Soll, Woche und Frist ab dem Anker, nicht ab dem Antragsdatum', () => {

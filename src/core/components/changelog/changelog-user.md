@@ -30,6 +30,8 @@
 - Gruppen lassen sich zuklappen und zeigen dann ihre Regel in einem Satz. Der Knopf „+ Bedingung in ‚PreCheck AB‘“ sagt, wohin eine neue Bedingung kommt.
 - Derselbe Bedingungs-Bereich gilt beim Bearbeiten der To-do-Regeln im Status-Cockpit und im Dialog „Eigene Spalte“ der Förderanträge – dort ohne Probe.
 - Gruppennamen kennt erst diese Version: Ältere Versionen zeigen die Gruppe ohne Namen, die Regel wirkt dort unverändert. Wer den Plan mit einer älteren Version speichert, speichert ihn ohne die Namen.
+### Bugfixes
+- Der Ist-Termin eines Meilensteins ohne eigenes Datumsfeld ist jetzt der Tag, an dem seine Bedingung erfüllt wurde: Müssen alle Bedingungen zutreffen, zählt das späteste Datum, genügt eine, das früheste der erfüllten. Bisher galt immer das früheste Datum aller beteiligten Spalten – bei „alle“ lag der Ist-Termin damit zu früh. Die Regel steht jetzt neben der Auswahl „Ist-Termin“.
 
 ## v6.57 — 2026-09
 
