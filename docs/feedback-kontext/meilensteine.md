@@ -38,7 +38,10 @@ Tooltip an „Gesamtfrist" und an „Eingang" nennt die beiden Spalten.
   Dauer-Statistik zählt abgeschlossene Vorgänge, die Meilenstein-Statistik offene.
 - **Konfiguration**: der Meilenstein-Baum (Nummer, Bezeichnung, Soll-Woche,
   Schalter „aktiv" und „Frist", daneben „gilt für" mit den Antragstypen als
-  Chips) plus Fassungs-Leiste und frühere Fassungen.
+  Chips) plus Fassungs-Leiste und frühere Fassungen. Soll-Woche und Schalter
+  stehen rechts in jeder Zeile an derselben Stelle, auch bei Unter-Meilensteinen
+  und dort, wo die Kurzfassung fehlt; ist das Fenster zu schmal, rutschen sie in
+  allen Zeilen gleich in eine zweite Zeile.
 
   - Das Dreieck klappt die **Unter-Meilensteine** auf; ein Klick auf die Zeile
     öffnet **darunter** eine leise Zeile für die Beschreibung und den Bereich
@@ -60,8 +63,10 @@ Tooltip an „Gesamtfrist" und an „Eingang" nennt die beiden Spalten.
   - **Die zugeklappte Zeile sagt, woran der Meilenstein hängt**: Bedingung in
     Kurzform, Ist-Termin-Feld und die Zahl der Unter-Meilensteine (die
     Antragstypen stehen als Chips „gilt für" im Kopf). Eine benannte Gruppe steht dort mit
-    ihrem Namen vor dem Inhalt („PreCheck AB: (…)"). Das Bezeichnungsfeld ist
-    dafür schmaler und bricht bei langen Titeln auf zwei Zeilen um.
+    ihrem Namen vor dem Inhalt („PreCheck AB: (…)"). Das Bezeichnungsfeld hat
+    eine feste, mit dem Fenster wachsende Breite und bricht bei langen Titeln
+    auf zwei Zeilen um. Am Ende der Kurzfassung, vor den Schaltern, stehen der
+    Befund-Punkt und die Hinweise „unbestätigt" bzw. „ohne Bedingung".
 
   - **Das Feld einer Bedingung wird in einer Auswahl-Tabelle gewählt**, nicht in
     einem Auswahlfeld: Suche über Kürzel, Beschreibung und rohen Spalten-Code,
@@ -71,14 +76,19 @@ Tooltip an „Gesamtfrist" und an „Eingang" nennt die beiden Spalten.
     Meilenstein ohne Bedingung bekommt zusätzlich eine Zeile „Vorschlag …
     Übernehmen" — der Vorschlag wird nie von selbst gesetzt. In der Karte steht
     der Feldname schlicht mit gepunkteter Unterlinie, darunter Vergleich und
-    Wert.
+    Wert. Ein langer Feldname bricht um, statt abgeschnitten zu werden
+    („alle Anträge in C16 eingegeben · D_XTEC" steht vollständig da).
 
   - **Karten nebeneinander**: jede Gruppe steht als Karte, eine einzelne
     Bedingung als kleine Karte, eine Gruppe in einer Gruppe als Innenkarte.
     Darüber steht die Regel in einem Satz, etwa „Erfüllt, wenn „PreCheck AB"
     und „PreCheck FB" zutreffen." — wer ihn überfährt, sieht die Quellspalten.
     Im Kopf einer Karte steht, wie ihre Bedingungen zusammenwirken („alle
-    müssen zutreffen" bzw. „eine genügt").
+    müssen zutreffen" bzw. „eine genügt"). Die Karten teilen sich die Breite:
+    bei voller Fensterbreite stehen drei nebeneinander, mit offener
+    Seitenleiste auf kleineren Bildschirmen zwei; mehr Platz gibt das
+    Einklappen der Seitenleiste. Im To-do-Regel-Detail und im Dialog „Eigene
+    Spalte" steht eine Karte je Zeile.
 
   - **„und" und „oder" sind Schalter**: zwischen zwei Karten und zwischen zwei
     Bedingungen steht eine getönte Pille „und" bzw. „oder". Ein Klick schaltet

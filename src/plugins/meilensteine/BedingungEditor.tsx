@@ -302,12 +302,20 @@ function Zelle({ ctx, pfad, blatt }: { ctx: Ctx; pfad: BedingungsPfad; blatt: Bl
   );
 }
 
+/**
+ * Karten wachsen mit der Reihe (Grundbreite 380 px, höchstens 480 px): drei
+ * nebeneinander genügen, lesbar muss vor allem der Feldname sein. Feste 320 px
+ * schnitten ihn ab — „alle Anträge in C16 eingegeben · D…" war nur per Tooltip
+ * zu lesen. In schmalen Wirten (To-do-Detail, Dialog) steht eine Karte je Zeile.
+ */
+const KARTEN_BREITE = 'min-w-[260px] max-w-[480px] flex-[1_1_380px]';
+
 /** Eine Einzelbedingung auf oberster Ebene — eine kleine Karte ohne Kopf. */
 function EinzelKarte({ ctx, pfad, blatt }: { ctx: Ctx; pfad: BedingungsPfad; blatt: Blatt }): React.ReactElement {
   const wirdGezogen = !!ctx.gezogen && gleich(ctx.gezogen, pfad);
   return (
     <div
-      className="flex w-[280px] shrink-0 flex-col justify-center rounded-[8px] bg-[var(--tf-bg)] p-1"
+      className={cn(KARTEN_BREITE, 'flex flex-col justify-center rounded-[8px] bg-[var(--tf-bg)] p-1')}
       style={{ border: '0.5px solid var(--tf-border)', ...(wirdGezogen ? { outline: '1px dashed var(--tf-border-hover)' } : {}) }}
     >
       <Zelle ctx={ctx} pfad={pfad} blatt={blatt} />
@@ -355,7 +363,7 @@ function Karte({ ctx, pfad, gruppe, platzhalter, innen = false }: {
     <div
       className={innen
         ? 'mx-1 my-0.5 flex flex-col rounded-[6px] bg-[var(--tf-bg-secondary)]'
-        : 'flex w-[320px] shrink-0 flex-col rounded-[8px] bg-[var(--tf-bg)]'}
+        : cn(KARTEN_BREITE, 'flex flex-col rounded-[8px] bg-[var(--tf-bg)]')}
       style={{
         border: '0.5px solid var(--tf-border)',
         ...(kastenAktiv ? { outline: '1px solid var(--tf-primary)' } : {}),

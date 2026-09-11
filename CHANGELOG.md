@@ -5,6 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v6.60.1 — Regelbereich: Kopfzeile bündig, breitere Karten (September 2026)
+
+PATCH — PL zu v6.60: „bitte rechten Teil visuell alignen, das sieht jetzt sehr schlecht zu lesen aus wenn alle meilensteine eingeklappt sind" und „die cards der bedingung breiter machen so das ohne tooltip auch der spaltenname lesbar ist … es reicht wenn 3 cards nebeinander passen". Woche/Schalter/„gilt für" standen je Zeile woanders, der Feldname der Karte war abgeschnitten.
+
+- Meilenstein-Kopf dreigeteilt (Titel · Mitte mit Zusammenfassung und Marken · fester Schalter-Block), Schalter in jeder Zeile bündig; „unbestätigt" bricht nicht mehr um ([KonfigurationTab.tsx](src/plugins/meilensteine/KonfigurationTab.tsx))
+- Bedingungs-Karten wachsen mit der Reihe (`KARTEN_BREITE`, drei nebeneinander bei voller Breite) ([BedingungEditor.tsx](src/plugins/meilensteine/BedingungEditor.tsx))
+- `FeldWaehler` `variante: 'leise'` bricht den Feldnamen um statt abzuschneiden ([FeldWaehler.tsx](src/components/ui/FeldWaehler.tsx))
+- Doku [meilensteine.md](docs/architecture/meilensteine.md), [Feedback-Kontext](docs/feedback-kontext/meilensteine.md)
+
 ### v6.60.0 — Regelbereich als Karten (September 2026)
 
 MINOR — PL nach v6.59: „es ist immer noch nicht sehr übersichtlich … bitte weitere design ideen"; aus vier Entwürfen und einem klickbaren Prototyp gewählt: Karten nebeneinander mit „und"/„oder"-Schaltern (C3). Beim Auslesen der Probe fielen echte Planfehler auf, die die alte Oberfläche verbarg (MST 4.3 bei allen offenen Verbünden erfüllt, MST 5 mit einem Status ohne Treffer, MST 2/5 ohne Datum). [Spec](docs/superpowers/specs/2026-09-11-regelbereich-karten.md)

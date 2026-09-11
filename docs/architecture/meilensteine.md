@@ -310,7 +310,11 @@ nebeneinander auf einen Blick:
 - **Jedes Kind der Wurzel ist eine Karte**, nebeneinander und umbrechend: eine
   Gruppe als Karte mit Name, Verknüpfungstext („alle müssen zutreffen" / „eine
   genügt", ab zwei Bedingungen), ⋯, Probe-Slot und ihren Bedingungen; eine
-  Einzelbedingung als kleine Karte ohne Kopf. Eine Gruppe in einer Gruppe ist
+  Einzelbedingung als kleine Karte ohne Kopf. Beide äußeren Karten wachsen mit
+  der Reihe (`KARTEN_BREITE`: Grundbreite 380 px, höchstens 480, mindestens
+  260): bei voller Fensterbreite stehen drei nebeneinander, in schmalen Wirten
+  (To-do-Detail, Dialog „Eigene Spalte") eine je Zeile. Maßstab ist der
+  Feldname — feste 320 px schnitten ihn ab. Eine Gruppe in einer Gruppe ist
   eine **Innenkarte** (getönt, Platzhalter „Gruppe 1.1"), rekursiv bis zum
   Deckel von 6 Ebenen, der sich ansagt. Eine Innenkarte mit genau einer
   Bedingung sagt „wirkt wie die Bedingung allein" und bietet „Auflösen" an.
@@ -324,6 +328,8 @@ nebeneinander auf einen Blick:
   Feld, darunter Vergleich, Wert und — bei den Meilensteinen — die Treffer. Der
   Feld-Wähler steht dort in der `variante: 'leise'` (nur der Feldname mit
   gepunkteter Unterkante): ein Dutzend gerahmter Felder übertönte die Regel.
+  Dort bricht der Name um statt abgeschnitten zu werden — er ist das, was die
+  Bedingung ausmacht, und muss ohne Tooltip lesbar sein.
   **Griff und ⋯ erscheinen nur an der Zelle unter der Maus oder im Fokus**
   (`focus-within`, per Tab erreichbar) — ein Dutzend Bündel nebeneinander war
   das Rauschen, das die PL „nicht übersichtlich" fand.
@@ -465,14 +471,26 @@ ohne `[role="menu"]` klappte „Nach oben" den Bereich zu.
 **Der Meilenstein um den Regelbereich**
 ([KonfigurationTab.tsx](../../src/plugins/meilensteine/KonfigurationTab.tsx)):
 
+- **Der Kopf der Meilenstein-Zeile ist dreigeteilt** (`KnotenKopf`): links die
+  Bezeichnung mit fester, mitwachsender Breite (240–520 px, kein Anteil mit
+  Umbruch), in der Mitte Zusammenfassung und Marken, rechts ein fester Block
+  Woche · aktiv · Frist · gilt für. Die Mitte füllt immer den Rest — auch ohne
+  Zusammenfassung —, deshalb steht der rechte Block in jeder Zeile an derselben
+  Stelle; wird es zu eng, bricht er in allen Zeilen gleich in die zweite Zeile
+  um. `KnotenAktionen` hält bei Wurzel-Meilensteinen die Breite des Knopfs
+  „Eine Ebene höher" als unsichtbaren Platzhalter, damit auch Unter-Meilensteine
+  bündig bleiben.
 - **„gilt für" steht im Kopf der Meilenstein-Zeile**, als Chips neben „aktiv"
   und „Frist", statt als eigene Zeile im Regelbereich; die linke
   Beschriftungsspalte des Bereichs ist entfallen, die Beschreibung steht als
   leise Zeile darüber. Die Abwahl des letzten Typs ist gesperrt (leer hieße
   „gilt für alle"), alle vier gewählt wird wieder zur leeren Liste.
-- **Ein Punkt am Ende der Zeile** zeigt, dass die Probe einen Befund hat — auch
-  zugeklappt; der Tooltip nennt ihn (`knotenBefunde`, dieselben Fakten wie in
-  der Wirkungsleiste, siehe Probe am Bestand).
+- **Die Marken stehen rechtsbündig am Ende der Mitte** (`KnotenMarken`), vor
+  dem Schalter-Block, nicht dahinter — dort verschoben sie die Spalten und
+  brachen bei voller Breite um: ein Punkt, wenn die Probe einen Befund hat
+  (auch zugeklappt; der Tooltip nennt ihn, `knotenBefunde`, dieselben Fakten
+  wie in der Wirkungsleiste, siehe Probe am Bestand), dazu „unbestätigt" und
+  „ohne Bedingung".
 - **Ein Sammel-Meilenstein** (keine eigene Bedingung, aber Unter-Meilensteine)
   zeigt seine Unter-Meilensteine als Karten: Nummer, Bezeichnung, „erfüllt bei
   … offen · … abgeschl."; ein Klick öffnet den Unter-Meilenstein. Zwischen den

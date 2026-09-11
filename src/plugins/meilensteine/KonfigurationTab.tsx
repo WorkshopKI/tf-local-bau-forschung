@@ -155,8 +155,10 @@ function KnotenKopf({ knoten, alle, spalten, schreibgeschuetzt, frisch, zusammen
 
   /**
    * Das Bezeichnungsfeld ist ein `textarea`, damit ein langer Titel umbricht
-   * statt abgeschnitten zu werden — es hat seit v5.2 nur noch einen Teil der
-   * Zeilenbreite, der Rest gehört der Zusammenfassung.
+   * statt abgeschnitten zu werden. Es hat eine feste, mit der Zeile wachsende
+   * Breite (240–520 px) statt eines Anteils mit Umbruch: so steht die
+   * Zusammenfassung in jeder Zeile an derselben Kante, und die Zeile bricht erst
+   * um, wenn Titel und Schalter-Block zusammen nicht mehr passen.
    *
    * Höhe per Callback-Ref, nicht per Mount-Effekt (Bug-Klasse 23): das Feld
    * steht hinter bedingtem Rendern, und ein `[]`-Effekt liefe beim Wieder-
@@ -189,70 +191,92 @@ function KnotenKopf({ knoten, alle, spalten, schreibgeschuetzt, frisch, zusammen
         disabled={schreibgeschuetzt}
         aria-label="Bezeichnung"
         title={knoten.label}
-        className="basis-[42%] min-w-[160px] max-w-[520px] resize-none overflow-y-auto text-[13px] leading-[18px] rounded px-2 py-0.5 bg-[var(--tf-bg)] text-[var(--tf-text)] disabled:opacity-60"
+        className="w-[clamp(240px,36%,520px)] shrink-0 resize-none overflow-y-auto text-[13px] leading-[18px] rounded px-2 py-0.5 bg-[var(--tf-bg)] text-[var(--tf-text)] disabled:opacity-60"
         style={feldStil}
       />
 
-      {zusammenfassen && (
-        <KnotenZusammenfassung knoten={knoten} alle={alle} spalten={spalten} />
-      )}
+      {/* Die Mitte füllt immer den Rest — auch ohne Zusammenfassung (zugeklappt
+          ohne Bedingung, aufgeklappt) —, damit der Block rechts in jeder Zeile an
+          derselben Stelle steht. Die Marken hängen rechtsbündig an ihrem Ende,
+          nicht hinter den Schaltern: dort verschoben sie die Spalten und brachen
+          bei voller Breite in eine zweite Zeile um. */}
+      <span className="flex min-w-0 flex-1 items-center gap-2">
+        {zusammenfassen && (
+          <KnotenZusammenfassung knoten={knoten} alle={alle} spalten={spalten} />
+        )}
+        <KnotenMarken befunde={befunde} unbestaetigt={knoten.unbestaetigt === true} ohneBedingung={ohneBedingung} />
+      </span>
 
-      <label className="flex shrink-0 items-center gap-1 text-[11.5px] text-[var(--tf-text-tertiary)]">
-        Woche
-        <input
-          type="number" min={0}
-          value={knoten.sollWoche}
-          onChange={e => patch({ sollWoche: Math.max(0, Number(e.target.value) || 0) })}
-          disabled={schreibgeschuetzt}
-          className="w-[56px] text-[12px] rounded px-1.5 py-0.5 bg-[var(--tf-bg)] text-[var(--tf-text)] text-right disabled:opacity-60"
-          style={feldStil}
-        />
-      </label>
-
-      <ToggleChip
-        label="aktiv" groesse="dicht"
-        selected={knoten.aktiv}
-        onToggle={() => patch({ aktiv: !knoten.aktiv })}
-        disabled={schreibgeschuetzt}
-        title="Inaktive Meilensteine werden nie als gerissen gezählt"
-      />
-      <ToggleChip
-        label="Frist" groesse="dicht"
-        selected={knoten.relevantFuerFrist}
-        onToggle={() => patch({ relevantFuerFrist: !knoten.relevantFuerFrist })}
-        disabled={schreibgeschuetzt}
-        title="Zählt in die Prognose zur Gesamtfrist"
-      />
-
-      <span aria-hidden className="h-4 w-px shrink-0 bg-[var(--tf-border-hover)]" />
-      <span className="shrink-0 text-[11.5px] text-[var(--tf-text-tertiary)]">gilt für</span>
-      {ANTRAGSTYP_BUCKETS.map(t => {
-        const gewaehlt = knoten.nurTypen.length === 0 || knoten.nurTypen.includes(t);
-        const letzter = gewaehlt && knoten.nurTypen.length === 1;
-        return (
-          <ToggleChip
-            key={t}
-            label={TYP_LABEL[t]}
-            groesse="dicht"
-            selected={gewaehlt}
-            disabled={schreibgeschuetzt || letzter}
-            title={letzter
-              ? 'Mindestens ein Antragstyp muss ausgewählt bleiben — ohne Auswahl gälte der Meilenstein wieder für alle.'
-              : `Gilt für ${TYP_LABEL[t]}`}
-            onToggle={() => {
-              const aktuell = knoten.nurTypen.length === 0 ? [...ANTRAGSTYP_BUCKETS] : knoten.nurTypen;
-              const naechste = aktuell.includes(t) ? aktuell.filter(x => x !== t) : [...aktuell, t];
-              // Leere Liste heißt „gilt für alle" — die Abwahl des LETZTEN
-              // Typs schaltete damit alle vier wieder ein. Also: nicht wählbar
-              // (der Schalter ist oben schon gesperrt), hier nur die zweite Sicherung.
-              if (naechste.length === 0) return;
-              // Alle ausgewählt ⇒ wieder „gilt für alle" (leere Liste).
-              patch({ nurTypen: naechste.length === ANTRAGSTYP_BUCKETS.length ? [] : naechste });
-            }}
+      <span className="ml-auto flex shrink-0 items-center gap-2">
+        <label className="flex shrink-0 items-center gap-1 text-[11.5px] text-[var(--tf-text-tertiary)]">
+          Woche
+          <input
+            type="number" min={0}
+            value={knoten.sollWoche}
+            onChange={e => patch({ sollWoche: Math.max(0, Number(e.target.value) || 0) })}
+            disabled={schreibgeschuetzt}
+            className="w-[56px] text-[12px] rounded px-1.5 py-0.5 bg-[var(--tf-bg)] text-[var(--tf-text)] text-right disabled:opacity-60"
+            style={feldStil}
           />
-        );
-      })}
+        </label>
 
+        <ToggleChip
+          label="aktiv" groesse="dicht"
+          selected={knoten.aktiv}
+          onToggle={() => patch({ aktiv: !knoten.aktiv })}
+          disabled={schreibgeschuetzt}
+          title="Inaktive Meilensteine werden nie als gerissen gezählt"
+        />
+        <ToggleChip
+          label="Frist" groesse="dicht"
+          selected={knoten.relevantFuerFrist}
+          onToggle={() => patch({ relevantFuerFrist: !knoten.relevantFuerFrist })}
+          disabled={schreibgeschuetzt}
+          title="Zählt in die Prognose zur Gesamtfrist"
+        />
+
+        <span aria-hidden className="h-4 w-px shrink-0 bg-[var(--tf-border-hover)]" />
+        <span className="shrink-0 text-[11.5px] text-[var(--tf-text-tertiary)]">gilt für</span>
+        {ANTRAGSTYP_BUCKETS.map(t => {
+          const gewaehlt = knoten.nurTypen.length === 0 || knoten.nurTypen.includes(t);
+          const letzter = gewaehlt && knoten.nurTypen.length === 1;
+          return (
+            <ToggleChip
+              key={t}
+              label={TYP_LABEL[t]}
+              groesse="dicht"
+              selected={gewaehlt}
+              disabled={schreibgeschuetzt || letzter}
+              title={letzter
+                ? 'Mindestens ein Antragstyp muss ausgewählt bleiben — ohne Auswahl gälte der Meilenstein wieder für alle.'
+                : `Gilt für ${TYP_LABEL[t]}`}
+              onToggle={() => {
+                const aktuell = knoten.nurTypen.length === 0 ? [...ANTRAGSTYP_BUCKETS] : knoten.nurTypen;
+                const naechste = aktuell.includes(t) ? aktuell.filter(x => x !== t) : [...aktuell, t];
+                // Leere Liste heißt „gilt für alle" — die Abwahl des LETZTEN
+                // Typs schaltete damit alle vier wieder ein. Also: nicht wählbar
+                // (der Schalter ist oben schon gesperrt), hier nur die zweite Sicherung.
+                if (naechste.length === 0) return;
+                // Alle ausgewählt ⇒ wieder „gilt für alle" (leere Liste).
+                patch({ nurTypen: naechste.length === ANTRAGSTYP_BUCKETS.length ? [] : naechste });
+              }}
+            />
+          );
+        })}
+      </span>
+    </span>
+  );
+}
+
+/** Befund-Punkt und Warn-Marken am Ende der Zeilenmitte. */
+function KnotenMarken({ befunde, unbestaetigt, ohneBedingung }: {
+  befunde: readonly string[];
+  unbestaetigt: boolean;
+  ohneBedingung: boolean;
+}): React.ReactElement | null {
+  if (befunde.length === 0 && !unbestaetigt && !ohneBedingung) return null;
+  return (
+    <span className="ml-auto flex shrink-0 items-center gap-1.5">
       {befunde.length > 0 && (
         <span
           role="img"
@@ -261,13 +285,11 @@ function KnotenKopf({ knoten, alle, spalten, schreibgeschuetzt, frisch, zusammen
           className="size-[7px] shrink-0 rounded-full bg-[var(--tf-warning-text)]"
         />
       )}
-
-      {knoten.unbestaetigt && (
+      {unbestaetigt && (
         <span title="Vorbelegung aus dem Auslieferungs-Plan — bitte prüfen">
           <Badge variant="warning">unbestätigt</Badge>
         </span>
       )}
-
       {ohneBedingung && (
         <span title="Weder eine eigene Bedingung noch Unter-Meilensteine — dieser Meilenstein wird nicht bewertet. Bedingung ergänzen oder ihm Unter-Meilensteine geben.">
           <Badge variant="warning">ohne Bedingung</Badge>
@@ -300,8 +322,10 @@ function KnotenAktionen({ knoten, alle, onKnoten, onErgaenzen }: {
       >
         <ChevronDown size={13} />
       </button>
-      {/* Der Rückweg aus der Unterordnung — ohne ihn hilft nur die Maus. */}
-      {knoten.elternId !== null && (
+      {/* Der Rückweg aus der Unterordnung — ohne ihn hilft nur die Maus. Oben
+          hält ein unsichtbarer Platzhalter die Breite, sonst stünden die
+          Schalter der Unter-Meilensteine eine Knopfbreite weiter links. */}
+      {knoten.elternId !== null ? (
         <button
           type="button" aria-label="Eine Ebene höher"
           title="Eine Ebene höher — dann kein Unter-Meilenstein mehr"
@@ -310,6 +334,8 @@ function KnotenAktionen({ knoten, alle, onKnoten, onErgaenzen }: {
         >
           <ChevronLeft size={13} />
         </button>
+      ) : (
+        <span aria-hidden className="invisible p-1"><ChevronLeft size={13} /></span>
       )}
       <button
         type="button" aria-label="Unter-Meilenstein anlegen" title="Unter-Meilenstein anlegen"

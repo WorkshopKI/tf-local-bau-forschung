@@ -30,6 +30,8 @@
 - Das Menü (⋯) einer Karte kann sie nach links oder rechts schieben, duplizieren und auflösen – und sagt vorher, ob das Auflösen die Aussage der Regel ändert. Griff und Menü erscheinen nur an der Bedingung unter der Maus.
 - Jede Zahl trägt ihre Beschriftung, etwa „872 offen · 213 abgeschl.“ – an jeder Karte, an jeder Bedingung und in der Feld-Suche, die je Feld zeigt, bei wie vielen Verbünden es gefüllt ist.
 - Die Antragstypen („gilt für“) stehen jetzt im Kopf des Meilensteins neben „aktiv“ und „Frist“. Ein Sammel-Meilenstein zeigt seine Unter-Meilensteine als Karten; ein Klick öffnet sie.
+- In der Konfiguration stehen „Woche“, „aktiv“, „Frist“ und „gilt für“ in jeder Meilenstein-Zeile an derselben Stelle – auch dort, wo die Kurzfassung fehlt oder „unbestätigt“ steht. Die Hinweise „unbestätigt“ und „ohne Bedingung“ stehen vor diesen Schaltern und rutschen nicht mehr in eine zweite Zeile.
+- Die Karten im Bereich „Erfüllt, wenn“ sind breiter und nutzen die verfügbare Breite; bei voller Fensterbreite passen drei nebeneinander. Der Feldname steht vollständig da und bricht bei Bedarf um, statt abgeschnitten zu werden – er ist ohne Überfahren lesbar. Wer mehr Platz braucht, klappt die Seitenleiste ein.
 
 ## v6.59 — 2026-09
 

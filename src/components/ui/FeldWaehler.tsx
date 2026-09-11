@@ -257,7 +257,11 @@ export function FeldWaehler({
           )}
           style={leise ? undefined : { border: '0.5px solid var(--tf-border)' }}
         >
-          <span className={cn('truncate', leise && 'underline decoration-dotted decoration-[var(--tf-border-hover)] underline-offset-[3px]')}>
+          {/* Leise bricht der Name um statt abzuschneiden: in einer Karte ist er
+              das, was die Bedingung ausmacht — per Tooltip lesen genügt nicht. */}
+          <span className={cn(leise
+            ? 'min-w-0 break-words underline decoration-dotted decoration-[var(--tf-border-hover)] underline-offset-[3px]'
+            : 'truncate')}>
             {ausloeserText}
           </span>
           {quelleKurz && (
