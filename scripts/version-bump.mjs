@@ -70,8 +70,23 @@ export function insertChangelogSkeleton(changelogText, { version, title, kind, m
   return header + skeleton + blocks.join('');
 }
 
-/** Fügt ein geglättetes Skeleton vor dem ersten `## v` in changelog-user.md ein. */
+/** Steht in changelog-user.md schon ein Block `## v<majorMinor>`? */
+export function hatUserBlock(userText, majorMinor) {
+  const escaped = majorMinor.replace(/\./g, '\\.');
+  // `(?![\d.])`: `## v6.6` ist nicht `## v6.60`.
+  return new RegExp(`^## v${escaped}(?![\\d.])`, 'm').test(userText);
+}
+
+/**
+ * Fügt ein geglättetes Skeleton vor dem ersten `## v` in changelog-user.md ein.
+ *
+ * Die Nutzer-Fassung führt einen Block je Minor-Version; ein Patch mit `--user`
+ * gehört in den bestehenden. Steht `## v<majorMinor>` schon da, bleibt der Text
+ * unverändert — vorher entstand eine zweite gleichnamige Überschrift, die jedes
+ * Mal von Hand zusammengeführt werden musste.
+ */
 export function insertUserSkeleton(userText, { majorMinor, isoMonth }) {
+  if (hatUserBlock(userText, majorMinor)) return userText;
   const parts = userText.split(/(?=^## v)/m);
   const header = parts[0] ?? '';
   const rest = parts.slice(1).join('');
@@ -154,19 +169,26 @@ function main() {
   writeFileSync(CHANGELOG, r.changelog, 'utf8');
   if (r.rotated > 0) writeFileSync(ARCHIV, r.archive, 'utf8');
 
+  let userHinweis = '';
   if (args.user) {
     const [maj, min] = version.split('.');
+    const majorMinor = `${maj}.${min}`;
     const isoMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-    const withUser = insertUserSkeleton(readFileSync(USER_CHANGELOG, 'utf8'), {
-      majorMinor: `${maj}.${min}`, isoMonth,
-    });
-    writeFileSync(USER_CHANGELOG, withUser, 'utf8');
+    const vorher = readFileSync(USER_CHANGELOG, 'utf8');
+    const withUser = insertUserSkeleton(vorher, { majorMinor, isoMonth });
+    if (withUser === vorher) {
+      userHinweis = `  → changelog-user.md: Block „## v${majorMinor}" besteht — die Einträge dort ergänzen.`;
+    } else {
+      writeFileSync(USER_CHANGELOG, withUser, 'utf8');
+    }
   }
 
+  const userNeu = args.user && userHinweis === '';
   console.log(
-    `✓ v${version} — Skeleton in CHANGELOG.md${args.user ? ' + changelog-user.md' : ''} eingefügt` +
+    `✓ v${version} — Skeleton in CHANGELOG.md${userNeu ? ' + changelog-user.md' : ''} eingefügt` +
       (r.rotated > 0 ? `; ${r.rotated} alte Blöcke ins Archiv rotiert` : ''),
   );
+  if (userHinweis) console.log(userHinweis);
   console.log('  → Skeleton-Kommentare im Kompaktformat ausfüllen (max. 3 Zeilen Motivation + max. 5 Bullets).');
 }
 

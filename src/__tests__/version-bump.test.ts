@@ -9,6 +9,7 @@ import {
   splitIntoBlocks,
   insertChangelogSkeleton,
   insertUserSkeleton,
+  hatUserBlock,
   rotateChangelog,
 } from '../../scripts/version-bump.mjs';
 
@@ -88,5 +89,27 @@ describe('insertUserSkeleton', () => {
     expect(iNew).toBeGreaterThan(-1);
     expect(iNew).toBeLessThan(iOld);
     expect(out).toContain('### Verbesserungen');
+  });
+
+  it('lässt den Text unverändert, wenn der Block der Minor-Version schon steht (Patch mit --user)', () => {
+    const u = '<!-- header -->\n\n## v6.60 — 2026-09\n\n### Neu\n- x\n\n## v6.59 — 2026-09\n';
+    expect(insertUserSkeleton(u, { majorMinor: '6.60', isoMonth: '2026-09' })).toBe(u);
+  });
+
+  it('verwechselt v6.6 nicht mit v6.60', () => {
+    const u = '<!-- header -->\n\n## v6.60 — 2026-09\n\n### Neu\n- x\n';
+    const out = insertUserSkeleton(u, { majorMinor: '6.6', isoMonth: '2026-09' });
+    expect(out).toContain('## v6.6 — 2026-09');
+    expect(out.indexOf('## v6.6 —')).toBeLessThan(out.indexOf('## v6.60'));
+  });
+});
+
+describe('hatUserBlock', () => {
+  const u = '<!-- ## v9.9 im Kommentar zählt nicht -->\n\n## v6.60 — 2026-09\n';
+  it('findet nur eine echte Überschrift der Minor-Version', () => {
+    expect(hatUserBlock(u, '6.60')).toBe(true);
+    expect(hatUserBlock(u, '6.6')).toBe(false);
+    expect(hatUserBlock(u, '6.61')).toBe(false);
+    expect(hatUserBlock(u, '9.9')).toBe(false);
   });
 });

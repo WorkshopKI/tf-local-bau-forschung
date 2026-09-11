@@ -13,6 +13,8 @@ export function insertChangelogSkeleton(
   opts: { version: string; title: string; kind: string; monthYear: string },
 ): string;
 
+export function hatUserBlock(userText: string, majorMinor: string): boolean;
+
 export function insertUserSkeleton(
   userText: string,
   opts: { majorMinor: string; isoMonth: string },

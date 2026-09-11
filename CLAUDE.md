@@ -347,7 +347,7 @@ Bump-Regeln (semver-pragmatisch für diese App):
 
 Beim MAJOR-Bump zusätzlich: Migrations-Notiz in [CHANGELOG.md](CHANGELOG.md) ergänzen (analog v1.9-Block in [docs/architecture/infrastructure-layer.md](docs/architecture/infrastructure-layer.md)), und sicherstellen dass `migrateLegacyStructure()` (oder Pendant) die alte Struktur erkennt.
 
-**Bump + Changelog-Skeleton** laufen über `npm run version:bump -- <major|minor|patch> "<Titel>" [--user]`: das Script bumpt `package.json#version`, fügt oben in CHANGELOG.md ein Kompakt-Skeleton ein (bei `--user` zusätzlich in `changelog-user.md`) und rotiert übergroße CHANGELOG.md-Blöcke ins Archiv (> 100 KB → ≤ 80 KB, ≥ 30 neueste bleiben). CHANGELOG.md wird **nie manuell am Kopf editiert** — nur das Skeleton ausfüllen.
+**Bump + Changelog-Skeleton** laufen über `npm run version:bump -- <major|minor|patch> "<Titel>" [--user]`: das Script bumpt `package.json#version`, fügt oben in CHANGELOG.md ein Kompakt-Skeleton ein (bei `--user` zusätzlich in `changelog-user.md` — dort ein Block je Minor-Version: steht `## vX.Y` schon, bleibt die Datei unverändert und der Patch-Eintrag gehört in den bestehenden Block) und rotiert übergroße CHANGELOG.md-Blöcke ins Archiv (> 100 KB → ≤ 80 KB, ≥ 30 neueste bleiben). CHANGELOG.md wird **nie manuell am Kopf editiert** — nur das Skeleton ausfüllen.
 
 Versionshistorie: jüngste Versionen in **[CHANGELOG.md](CHANGELOG.md)**, ältere in **[docs/_archiv/CHANGELOG-ARCHIV.md](docs/_archiv/CHANGELOG-ARCHIV.md)** (beide append-only, chronologisch absteigend). Migrationsnotizen stehen beim jeweiligen MAJOR-Block.
 

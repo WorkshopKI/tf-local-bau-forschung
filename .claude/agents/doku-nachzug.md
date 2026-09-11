@@ -22,7 +22,7 @@ Du schreibst den Doku-Nachzug zu einer Änderung, deren Code steht und deren Gat
 | Datei | Wann | Regel |
 |---|---|---|
 | `CHANGELOG.md` | immer | nur das Skeleton der aktuellen Version füllen: max. 3 Zeilen Motivation, max. 5 Bullets à 1 Zeile (WAS + Datei-Link, kein WIE); sonst nichts am Kopf anfassen |
-| `changelog-user.md` | nur wenn dort ein Skeleton der Version steht | geglättet, ohne Dateinamen |
+| `changelog-user.md` | nur wenn mit `--user` gebumpt wurde (steht im Auftrag) | geglättet, ohne Dateinamen; ein Block je Minor-Version — ein neues Skeleton füllen, bei einem Patch die Einträge im bestehenden Block `## vX.Y` ergänzen |
 | `docs/feedback-kontext/<plugin-id>.md` | UI, Begriffe oder Datenmodell eines Plugins geändert | [update-screen-context.md](../../docs/agents/update-screen-context.md) |
 | `CONTEXT.md` | neuer Fachbegriff | Begriff · Bedeutung · nicht sagen · Quelle |
 | `docs/architecture/<thema>.md` | Verhalten des Themas geändert | Ist-Zustand umschreiben, nicht anhängen |

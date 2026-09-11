@@ -5,6 +5,13 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v6.60.3 — version:bump --user ohne doppelten Minor-Block (September 2026)
+
+PATCH — Ein Patch mit `--user` legte in changelog-user.md eine zweite Überschrift `## vX.Y` an (v6.59.2, v6.60.1), die von Hand zusammengeführt werden musste. Die Nutzer-Fassung führt einen Block je Minor-Version.
+
+- `insertUserSkeleton` lässt den Text unverändert, wenn der Block der Minor-Version steht (`hatUserBlock`); das Script sagt dann, wohin der Eintrag gehört ([version-bump.mjs](scripts/version-bump.mjs), [Tests](src/__tests__/version-bump.test.ts))
+- [CLAUDE.md → Versionierung](CLAUDE.md) und Agent [doku-nachzug](.claude/agents/doku-nachzug.md) nachgezogen: bei einem Patch den bestehenden Block ergänzen
+
 ### v6.60.2 — Meilensteine: Titel rückt an die Nummer (September 2026)
 
 PATCH — PL zu v6.60.1: „die Titel textbox kann nach links breiter sein, da ist ein relativ grosser abstand". Die Nummernspalte war fest 46 px breit, die Nummern brauchen 15–22 px.
