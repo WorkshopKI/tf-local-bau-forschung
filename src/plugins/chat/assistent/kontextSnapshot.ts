@@ -122,6 +122,26 @@ function antragEntitaet(a: AntragListItem, now: number, zeilen?: ZeilenAufgaben 
   };
 }
 
+/**
+ * Frist-Satz und Frist-Zahl des Verbunds für Faktenblock und Kontext-Chip.
+ *
+ * Der Satz nennt die dringendste LAUFENDE Frist im Verbund — nicht die aus dem
+ * spätesten Antragsdatum gerechnete. Wo keine Uhr läuft, sagt der Assistent
+ * nichts, statt eine Zahl zu melden, die die Liste nicht zeigt.
+ *
+ * Die Zahl folgt dem Satz: ein abgeschlossener Verbund hat keinen, auch wenn
+ * ein Teilvorhaben noch eine Uhr führt (CALYPSO: Verbund abgelehnt, das TV im
+ * Widerspruch). Sonst meldete der Chip „1 Frist", zu der Faktenblock und
+ * Vorgangsakte schweigen — wie beim Einzelantrag (`hinweis ? 1 : 0`).
+ */
+export function verbundFrist(
+  status: string | undefined, tvs: readonly AntragListItem[], now: number,
+): { hinweis: string | undefined; anzahl: number } {
+  const hinweis = fristHinweis(status, criticalFristErgebnis([...tvs], now).tageRest ?? null);
+  const anzahl = hinweis ? tvs.filter(t => fristTageVon(t, now) !== null).length : 0;
+  return { hinweis, anzahl };
+}
+
 function verbundEntitaet(verbundId: string, now: number, zeilen?: ZeilenAufgaben | null): KontextEntitaet {
   const st = useAntraegeStore.getState();
   const v = st.verbundById.get(verbundId);
@@ -130,11 +150,7 @@ function verbundEntitaet(verbundId: string, now: number, zeilen?: ZeilenAufgaben
   const status = v?.status ?? rep?.status;
   // Die Kaskade faltet über ALLE Teilvorhaben des Verbunds — wie die Verbundzeile.
   const aufgabe = aufgabeVon(tvs.map(t => t.aktenzeichen), status, zeilen);
-  // Die dringendste LAUFENDE Frist im Verbund — nicht die aus dem spätesten
-  // Antragsdatum gerechnete. Wo keine Uhr läuft, sagt der Assistent nichts,
-  // statt eine Zahl zu melden, die die Liste nicht zeigt.
-  const hinweis = fristHinweis(status, criticalFristErgebnis(tvs, now).tageRest ?? null);
-  const offeneFristen = tvs.filter(t => fristTageVon(t, now) !== null).length;
+  const frist = verbundFrist(status, tvs, now);
   const summe = tvs.reduce((s, t) => s + (typeof t.foerdersumme === 'number' ? t.foerdersumme : 0), 0);
   return {
     art: 'verbund',
@@ -142,8 +158,8 @@ function verbundEntitaet(verbundId: string, now: number, zeilen?: ZeilenAufgaben
     titel: v?.akronym || v?.titel || verbundId,
     status,
     phaseLabel: getVbPhaseLabel(rep?.vb_phase) ?? undefined,
-    fristHinweis: hinweis,
-    fristenAnzahl: offeneFristen,
+    fristHinweis: frist.hinweis,
+    fristenAnzahl: frist.anzahl,
     ...(aufgabe ? { aufgabe } : {}),
     kennungen: kennungenAus(verbundId, ...tvs.map(t => t.aktenzeichen)),
     stammdaten: stammdatenZeilen([

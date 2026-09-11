@@ -26,6 +26,8 @@
 - Am einzelnen Vorgang kann der Assistent sagen, ob die Liegezeit für diesen Status ungewöhnlich lang ist.
 ### Verbesserungen
 - Die Aufgaben-Rechnung umfasst nur noch die aktuelle und die vorige Richtlinie – sie ist dadurch etwas schneller. Vorgänge älterer Richtlinien zeigen stattdessen „ältere Richtlinie – aus dem Status abgeleitet", und das Vorgangs-Board sagt, wie viele es deshalb nicht rechnet.
+### Bugfixes
+- Bei einem abgeschlossenen Verbund meldete die Zeile oben im Assistenten noch „1 Frist", obwohl der Assistent selbst keine Frist nannte. Jetzt stimmen beide überein.
 
 ## v6.55 — 2026-09
 

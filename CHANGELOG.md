@@ -5,6 +5,12 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v6.56.1 — Assistent: der Frist-Chip folgt dem Frist-Satz (September 2026)
+
+PATCH — Bei CALYPSO (Verbund abgelehnt, das Teilvorhaben im Widerspruch mit laufender Uhr) meldete der Kontext-Chip „1 Frist", während Faktenblock und Vorgangsakte zur Frist schwiegen. Die Zahl zählte die Uhren je Teilvorhaben ohne die Sperre für abgeschlossene Verbünde, die der Satz hat.
+
+- **Frist-Zahl folgt dem Frist-Satz**: eine reine `verbundFrist` liefert beide aus einer Sperre ([kontextSnapshot.ts](src/plugins/chat/assistent/kontextSnapshot.ts), Test [verbundFrist.test.ts](src/plugins/chat/assistent/__tests__/verbundFrist.test.ts))
+
 ### v6.56.0 — Bestandslauf über zwei Richtlinien, Bestandsfragen der Projektleitung (September 2026)
 
 MINOR — Der Bestandslauf rechnete den ganzen Bereich, auch die Richtlinie 2015, für die C16 keine Trigger führt. Jetzt rechnet er nur die aktuelle und die vorige Richtlinie; ältere Zeilen sagen, warum ihnen die Kaskade fehlt. Auf dem Bestand bauen die Fragen der Projektleitung im Assistenten auf (gepaart gemessen: ~15 % schneller, das Lesen bleibt).
