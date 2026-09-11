@@ -2,6 +2,146 @@
 
 Ältere Versionsblöcke (append-only, chronologisch absteigend). Die jüngsten Versionen stehen im Root-[CHANGELOG.md](../CHANGELOG.md). Bump-Regeln + Architektur: [CLAUDE.md](../CLAUDE.md).
 
+### v6.25.2 — Doppelförderung: die fehlende Ähnlichkeit nennt ihren Grund (August 2026)
+
+PATCH — Fehlte die Ähnlichkeit, sah das aus wie ein Vorhaben ohne inhaltliche Nachbarn — dabei war oft nur das Modell nicht bereit. Beim Abnehmen von v6.25.1 kostete genau das drei Fehlversuche. Detail: [doppelfoerderung.md](docs/architecture/doppelfoerderung.md).
+
+- **Vier getrennte Gründe statt einer stummen Leerstelle** (`modell-fehlt` · `vektoren-fehlen` · `vektoren-unlesbar` · `einbetten-schlug-fehl`) ([types.ts](src/plugins/doppelfoerderung/types.ts))
+- **Was den ganzen Lauf betrifft, steht im Seitenkopf; was eine Zeile betrifft, an ihrer Karte** — samt der rohen Meldung des Modells ([ErgebnisTabelle.tsx](src/plugins/doppelfoerderung/components/ErgebnisTabelle.tsx))
+- **`embedden` fängt nichts mehr ab**: die Klassifizierung sitzt in `aehnlichkeitsStufe`, die Stapellauf und Handeingabe gleichermaßen bedient ([abgleich.ts](src/plugins/doppelfoerderung/services/abgleich.ts))
+- Die drei Wege, die vorher gemeinsam in `catch(() => new Map())` endeten, werden beim Laden der Einbettungen einzeln benannt ([useDoppelfoerderung.ts](src/plugins/doppelfoerderung/useDoppelfoerderung.ts))
+- Abgenommen in der laufenden App: Kopfzeile bei ungeladenem Modell, Zeilenvermerk „(Model not initialized)" nach Handeingabe, 0 Konsolenfehler
+
+### v6.25.1 — Handweg holt die Ähnlichkeit nach (August 2026)
+
+PATCH — Die Handeingabe aus v6.24 rechnete nur Wortlaut und Träger nach. Ohne erreichbare KI kam der Stapel nie bis zur Ähnlichkeitsstufe — und ohne sie kann das Träger-Urteil nicht auslösen, weil es eine inhaltliche Mindestnähe verlangt. Der Eingabeweg zeigte damit genau das nicht, wofür es ihn gibt.
+
+- **Wer Schlagworte von Hand einträgt, bekommt die Ähnlichkeitsstufe jetzt nachgereicht**, sofern die Zeile noch keine Werte hat und das Embedding-Modell geladen ist ([useDoppelfoerderung.ts](src/plugins/doppelfoerderung/useDoppelfoerderung.ts))
+- Abgenommen an `49MF260044`: „keine Übereinstimmung" mit 9 Befunden wird zu **„Übereinstimmung (gleicher Träger)"** mit 10, VetDx/ZytoVet auf Platz 1
+
+### v6.25.0 — Kategorie-Referenzen ohne Neubau (August 2026)
+
+MINOR — Die Kategorie-Referenzen liegen in `auslastung.json`, nicht im Korpus. Wer den Korpus vom Datenspeicher **holte**, bekam sie nie — die Karte meldete „synchron", die Themen-Erkennung blieb stumm, und der einzige Ausweg war ein Neubau (ohne Grafikkarte über zwölf Stunden). Zwei Umgebungen mit getrennten Daten-Shares treffen genau das. Detail: [auslastung.md](docs/architecture/auslastung.md).
+
+- **Nach „Vom Datenspeicher laden" werden die Kategorie-Referenzen nachgezogen** — ein Mittelwert über die geholten Verbund-Vektoren, ohne Modell und ohne Grafikkarte ([useKategorieReferenzen.ts](src/plugins/auslastung/hooks/useKategorieReferenzen.ts))
+- **Der Hinweis „Kategorie-Referenzen fehlen" trägt jetzt den Knopf „Jetzt berechnen"** statt einer Anleitung zum Korpus-Bau, die seit v4.127 zudem auf den falschen Reiter zeigte ([KlassifizierungsReview.tsx](src/plugins/auslastung/views/KlassifizierungsReview.tsx))
+- **Eine leere Zentren-Map schreibt nichts** — vorher hätte ein Lauf ohne Klassifizierungen die Referenzen des ganzen Teams gelöscht ([kategorie-referenzen.ts](src/plugins/auslastung/services/klassifizierung/kategorie-referenzen.ts))
+- **Ein gescheiterter Schreibvorgang bricht den Bau nicht mehr ab**: die Spiegelung läuft weiter, die Karte sagt, dass die Referenzen nur in dieser Sitzung gelten ([useKorpusBau.ts](src/plugins/kuration/suche-index/hooks/useKorpusBau.ts))
+- Ohne das Auslastungs-Modul (`features.auslastung === false`) entfällt der Schritt ganz — samt des Schreibversuchs, der in einer Nur-Lese-Variante nur scheitern konnte
+
+### v6.24.0 — Doppelförderung: der Zuwendungsempfänger wird zum Beleg (August 2026)
+
+MINOR — ZIM fördert selbst Netzwerke; Mittelstand-Digital-Zentren sind ihnen ähnlich. Die halbe Beispielliste war damit nicht unprüfbar, sondern gegen den falschen Teil des Bestands gehalten. Ein zweiter Messlauf über dieselben 45 Meldungen hat die neue Achse und drei weitere Änderungen belegt. Detail: [doppelfoerderung.md](docs/architecture/doppelfoerderung.md).
+
+- **Der Zuwendungsempfänger ist jetzt ein Beleg, keine Anzeige** — Namensgleichheit statt Token-Seltenheit (28 von 45 Zeilen, Median 1 Treffer, keine Fehltreffer); löst nur zusammen mit inhaltlicher Nähe ein Urteil aus ([traeger.ts](src/plugins/doppelfoerderung/services/traeger.ts))
+- **Teilvorhaben werden zusammengefasst** — 45 Prüfungen werden 29, und ein Vorhaben über 1,2 Mio € fällt nicht mehr als sechs Zeilen à 200.000 € unter die Betragsschwelle ([liste-lesen.ts](src/plugins/doppelfoerderung/services/liste-lesen.ts))
+- **„nicht beurteilbar" als eigenes Urteil**, wenn kein Schlagwort im Bestand vorkam — fünf Meldungen der Liste gaben sonst ein Nein aus, das keine Prüfung hinter sich hatte ([abgleich.ts](src/plugins/doppelfoerderung/services/abgleich.ts))
+- **Schlagworte über 2 % des Bereichs zählen nicht mehr zur Abdeckung** und der Prompt verlangt drei verschiedene Achsen (Verfahren/Gegenstand/Anwendung) statt drei Wörtern ([schlagworte.ts](src/plugins/doppelfoerderung/services/schlagworte.ts))
+- **Ohne erreichbare KI bleibt die Seite benutzbar**: alle Meldungen bekommen ihre Karte, Schlagworte lassen sich von Hand eintragen ([ErgebnisTabelle.tsx](src/plugins/doppelfoerderung/components/ErgebnisTabelle.tsx))
+
+### v6.23.0 — Doppelförderung: an einer echten Liste kalibriert (August 2026)
+
+MINOR — Alle 45 Meldungen über der Betragsschwelle aus der 72er-Beispielliste einmal durch den echten Suchpfad gefahren, mit von Hand formulierten Schlagworten (die interne KI war nicht erreichbar). Der Lauf hat zwei Zahlen widerlegt, die bisher geschätzt waren. Detail: [doppelfoerderung.md](docs/architecture/doppelfoerderung.md).
+
+- **Die Ähnlichkeitsschwelle lag über dem gesamten beobachteten Wertebereich** — höchster Wert der Liste 0,621, Schwelle 0,75: die Stufe lief und trug zu keinem Urteil bei. Jetzt 0,52, mit der Messtabelle am Wert ([abgleich.ts](src/plugins/doppelfoerderung/services/abgleich.ts))
+- **Sieben nachgemessene Sammelbegriffe im Prompt-Verbot** — Automatisierung trifft 852 von 4.327 Vorhaben, Maschinenbau 672, Medizintechnik 353 ([schlagworte.ts](src/plugins/doppelfoerderung/services/schlagworte.ts))
+- **Schlagworte ab 1 % des Bereichs tragen die Marke „zu weit"**: das Urteil zählt Schlagworte, es wiegt sie nicht — ohne die Marke liest sich eine Übereinstimmung, die allein an „Automatisierung" hängt, wie ein Fund ([ErgebnisTabelle.tsx](src/plugins/doppelfoerderung/components/ErgebnisTabelle.tsx))
+- **Regler „3 von 3" ist an echten Listen leer** (0 von 45 Meldungen) — die Reglerhilfe sagt das jetzt, statt Schärfe zu versprechen ([DoppelfoerderungSeite.tsx](src/plugins/doppelfoerderung/DoppelfoerderungSeite.tsx))
+- **Laufzeit gemessen statt geschätzt**: 145 ms je Zeile für beide Stufen, 6,5 s für die ganze Liste — die Wartezeit liegt vollständig beim KI-Lauf
+
+### v6.22.0 — Der Vollbau überlebt einen Seiten-Neustart (August 2026)
+
+MINOR — Der gemeldete Fehlertext war eine nackte Zahl (`12851960`) — ein roher Emscripten-Abbruch. Damit war klar, warum der Ausweich-Pfad aus v6.20 nicht greifen kann: WebGPU- und CPU-Provider liegen in EINEM WASM-Modul, das ORT global hält. Ist es tot, ist es in dieser Seite tot. Nur ein frischer Seitenkontext hilft. Detail: [auslastung.md](docs/architecture/auslastung.md).
+
+- **Der Bau merkt sich, was offen ist, lädt die Seite neu und macht weiter** — angekündigt, abbrechbar, mit erhaltenen Vektoren ([korpus-fortsetzung.ts](src/plugins/auslastung/services/matching/korpus-fortsetzung.ts))
+- **Die Restliste steht explizit im Merker**, nicht als Position: ein abgebrochener Vollbau im gleichen Vektorraum hinterlässt sonst einen Zustand, in dem „nichts offen" ist ([embedding-corpus.ts](src/plugins/auslastung/services/matching/embedding-corpus.ts) — neue Option `nurDiese`)
+- **Zwei Bremsen gegen die Endlosschleife**: Obergrenze 30 Neustarts, und eine Runde ohne einen einzigen neuen Vektor beendet den Bau
+- **Auch die Verbund-Phase wird fortgesetzt** — sie kommt nach den Vorhaben und kann selbst scheitern ([useKorpusBau.ts](src/plugins/kuration/suche-index/hooks/useKorpusBau.ts))
+
+### v6.21.0 — Doppelförderung: gemeldete Vorhaben gegen den Bestand halten (August 2026)
+
+MINOR — Zweimal im Monat kommt eine Ressort-Liste gemeldeter Forschungsvorhaben, die von Hand gegen den ZIM-Bestand gehalten wurde. Die Anforderung nennt „drei Schlagworte, ODER-verknüpft" — in der App am echten Bestand gemessen trifft ein weites Trio damit 1.150 von 4.327 Vorhaben, also ein Viertel des Bereichs: als Warnung wertlos. Deshalb trägt jeder Treffer seine Abdeckung, und das Urteil hängt an einer Schwelle. Detail: [doppelfoerderung.md](docs/architecture/doppelfoerderung.md).
+
+- **Neue Seite hinter dem ⋯-Menü der Suchseite**: XLSX aufnehmen, je Zeile drei Schlagworte von der internen KI, Wortlaut- + Ähnlichkeitsstufe, Urteil je Zeile mit Titel und Kurzbeschreibung der Treffer ([doppelfoerderung/](src/plugins/doppelfoerderung/), [SuchAktionenMenu.tsx](src/plugins/suche/SuchAktionenMenu.tsx))
+- **Urteil ab 2 von 3 Schlagworten**, Regler auf 1 (das wörtliche ODER) oder 3; die Trefferliste nennt ihre Gesamtzahl, statt still zu schneiden ([abgleich.ts](src/plugins/doppelfoerderung/services/abgleich.ts))
+- **Betrachtungsbereich als drei abschaltbare Achsen** — 4.327 von 14.225 Anträgen; abgelehnte über `isAbgelehntZurueckgezogenStatus`, denn die Kategorie `abgelehnt` ist unbesetzt und ein Vergleich gegen sie liefe still ins Leere ([bereich.ts](src/plugins/doppelfoerderung/services/bereich.ts))
+- **Ein Schlagwort bleibt eine Einheit**: bei der Messung fiel auf, dass „Mobile Fabrik" ODER-verknüpft in seine Wörter zerfiel und 535 statt 2 Vorhaben traf — Test einmal ROT gesehen ([abgleich.test.ts](src/plugins/doppelfoerderung/__tests__/abgleich.test.ts))
+- **Beträge werden nicht geraten**: `1.850` und `899650.65` lesen den Punkt verschieden; unlesbare Zellen fallen nicht still unter die Schwelle, sondern in eine sichtbare Gruppe ([liste-lesen.ts](src/plugins/doppelfoerderung/services/liste-lesen.ts))
+
+### v6.20.1 — Jede Einbettung gibt ihre Grafikpuffer zurück (August 2026)
+
+PATCH — Der Nutzer maß mit: 12 GB Grafikspeicher, Verbrauch schwankend zwischen 2,6 und 3,3 GB — also **kein** Speichermangel, und Position 808 der Queue hat 17 Zeichen, ist also auch kein Ausreißer. Der Sägezahn war die Spur: die `Tensor`-Objekte aus Transformers.js halten je einen GPU-Puffer, der erst beim nächsten JS-GC frei wird. `dispose()` gab es die ganze Zeit — gerufen wurde es nur beim Entladen des Modells, einmal statt 14.221-mal.
+
+- **Jede Einbettung gibt ihre Ein- und Ausgabe-Tensoren zurück**, auch wenn die Auswertung wirft ([embedding-service.ts](src/core/services/search/embedding-service.ts))
+- **Der Fehlertext eines gescheiterten Nachladens steht jetzt in der Karte** — ohne ihn war die Ferndiagnose auf halbem Weg zu Ende ([EmbeddingKorpusSection.tsx](src/plugins/kuration/suche-index/sections/EmbeddingKorpusSection.tsx))
+- Test einmal ROT gesehen: ohne die Freigabe fallen 3 von 4 Prüfungen ([embedding-tensor-freigabe.test.ts](src/core/services/search/__tests__/embedding-tensor-freigabe.test.ts))
+
+### v6.20.0 — Ein gescheiterter Rettungsversuch sagt es — und weicht aus (August 2026)
+
+MINOR — Ein gemeldeter Abbruch (807 Vektoren, 20 fehlgeschlagen) ließ sich nicht ferndiagnostizieren: die Karte sagt nichts darüber, ob eine Erholung überhaupt versucht wurde, und v6.18 ging ohne eigenen Versionsbump raus — „v6.19.0" beschrieb damit zwei verschiedene Stände. Beides ist hier behoben. Detail: [auslastung.md](docs/architecture/auslastung.md).
+
+- **Scheitert das Neuladen auf der Grafikkarte, wird sofort der Hauptprozessor versucht** — ONNX hält seine WebGPU-Umgebung global; ist die zerlegt, entsteht dort auch keine frische Session mehr, und die Erholung war genau im Ernstfall wirkungslos ([erholung.ts](src/core/services/embedding-corpus/erholung.ts))
+- **Ein gescheiterter Rettungsversuch steht im Protokoll und in der Karte** — sonst ist „es wurde nichts versucht" von „der Versuch misslang" nicht zu unterscheiden ([EmbeddingKorpusSection.tsx](src/plugins/kuration/suche-index/sections/EmbeddingKorpusSection.tsx))
+- **Eigene Versionsnummer**, damit ein gemeldeter Stand wieder eindeutig ist
+
+### v6.19.0 — Die Startseite zeigt, was sie kann — und das Untermenue rueckt an (August 2026)
+
+MINOR — `reconcileVerfuegbareWidgets` zieht neue Widgets bewusst als Opt-in nach — wer nie ins Untermenü sah, fand „Fristen“ oder „Änderungen der letzten Nacht“ nie. Sieben Karten erscheinen jetzt einmalig von selbst; ein Ausblenden hält danach. Detail: [home-widgets.md](docs/architecture/home-widgets.md).
+
+- **Config v5 blendet `ENTDECKUNG_WIDGETS` + die Alert-Karte einmalig ein** — nur einblenden, nie ausblenden; Position und Einklapp-Zustand bleiben ([homeWidgetsStore.ts](src/plugins/home/widgets/homeWidgetsStore.ts))
+- **Der Versions-Stempel ist das Gedächtnis**: die erste Nutzer-Änderung persistiert v5, ab da hält ein Ausblenden über Neustarts ([useHomeWidgets.ts](src/plugins/home/widgets/useHomeWidgets.ts))
+- **`fristen` und `nachtlauf` verlieren ihre Beta-Marke** — sie hätte die Einblendung stillgelegt: Häkchen an, Karte trotzdem verworfen (gemessen 4 von 6 Karten) ([katalog.ts](src/core/sichtbarkeit/katalog.ts))
+- **Das Untermenü schließt nicht mehr am Panel-Innenrand** — nur noch echte Zeilen (`data-menue-zeile`) schließen es ([StartseiteMenue.tsx](src/plugins/home/anpassen/StartseiteMenue.tsx), [menueZeilen.tsx](src/plugins/home/anpassen/menueZeilen.tsx))
+- **`ABSTAND` 6 → 0**: die Panels berühren sich, die tote Lücke auf dem Weg nach rechts ist weg ([StartseiteMenue.tsx](src/plugins/home/anpassen/StartseiteMenue.tsx))
+
+### v6.18.0 — Der Bau überlebt, wenn die Grafikkarte aufgibt (August 2026)
+
+MINOR — v6.17 hat den Absturz sichtbar gemacht, nicht behoben: der WebGPU-Kontext stirbt beim Vollbau nach ~810 Vektoren (807 beim Nutzer, 827 in der Abnahme), und danach war der Lauf tot — `embedText` kannte keinerlei Erholung. Jetzt lädt er das Modell nach und wechselt notfalls auf den Hauptprozessor. Detail: [auslastung.md](docs/architecture/auslastung.md).
+
+- **Der Lauf überlebt einen Geräteverlust**: Modell nachladen, denselben Datensatz wiederholen, weiterrechnen ([erholung.ts](src/core/services/embedding-corpus/erholung.ts))
+- **Die Leiter ist rein, getestet und an gemessenen Zahlen kalibriert**: Grafikkarte 0,067 s je Vektor gegen 2,02 s auf dem Hauptprozessor (Faktor 30, Vollbau dort > 12 h), Ladelauf 38 s — deshalb hält sie an der Grafikkarte fest, solange ein Ladelauf mehr als 25 Vektoren einbringt ([geraet.ts](src/core/services/embedding-corpus/geraet.ts))
+- **Zwei Leitplanken gegen eine teure Rettung**: höchstens ein Neuladen je Datensatz, und nur bei einem erkannten Geräteverlust — ein kaputter Datensatz löst keine Ladekette aus ([erholung.test.ts](src/core/services/embedding-corpus/__tests__/erholung.test.ts))
+- **Der Wechsel überlebt den Lauf** und gilt für den ganzen Such-Stack, sichtbar in der Karte samt Rückweg „Wieder mit Grafikkarte versuchen" ([EmbeddingKorpusSection.tsx](src/plugins/kuration/suche-index/sections/EmbeddingKorpusSection.tsx), [SucheIndexPanel.tsx](src/plugins/kuration/suche-index/SucheIndexPanel.tsx))
+- **Die gemessene Rate trägt ihr Rechenwerk** — eine Messung von der Grafikkarte sagt über einen Lauf auf dem Hauptprozessor nichts, dann steht am Knopf wieder die Anzahl ([korpus-messung.ts](src/plugins/auslastung/services/matching/korpus-messung.ts))
+
+### v6.17.0 — Korpus-Bau: ein Balken, gemessene Restzeit, Fehler die auffallen (August 2026)
+
+MINOR — Gemeldet war ein Fortschrittsbalken, der mehrfach bis 100 % zählt, und eine Restzeit, die 25 Minuten sagte, wo fünf gemessen wurden. Die fünf Minuten waren aber kein schneller Lauf, sondern ein abgestürzter: der WebGPU-Kontext starb nach ~800 Vektoren, und die restlichen 13.418 Fehlschläge verschluckte der Bau einzeln per `console.warn` und meldete „fertig". In der Abnahme auf der Dev-Maschine trat derselbe Fehler auf (`[Device] is lost` nach 827). Detail: [auslastung.md](docs/architecture/auslastung.md).
+
+- **Ein Balken über den ganzen Lauf** statt je Phase von vorne — Vorbereiten, Vorhaben, Verbünde, Centroids, Spiegeln auf einer Skala ([bauFortschritt.ts](src/plugins/kuration/suche-index/hooks/bauFortschritt.ts))
+- **Restzeit aus einem gleitenden Fenster** über beide Phasen; die Schätzung am Knopf kommt aus der letzten gemessenen Laufzeit, vorher nennt er nur die Anzahl ([korpus-messung.ts](src/plugins/auslastung/services/matching/korpus-messung.ts), [eta.ts](src/core/utils/eta.ts))
+- **Fehler sind keine „übersprungenen"**: getrennte Zähler, Abbruch nach 20 Fehlschlägen in Folge, erster Fehlertext in der Karte — und ein unsauberer Lauf wird weder gestempelt noch gespiegelt ([embedding-corpus.ts](src/plugins/auslastung/services/matching/embedding-corpus.ts), [useKorpusBau.ts](src/plugins/kuration/suche-index/hooks/useKorpusBau.ts))
+- **Spiegeln übersteht eine wacklige Strecke**: frischer Verzeichnis-Handle je Versuch, drei Anläufe, 42 MB in Scheiben mit Fortschritt — plus Knopf „Erneut spiegeln", der den fertigen Bau ohne Neurechnung hochlädt ([mirror.ts](src/core/services/embedding-corpus/mirror.ts))
+- **Der gelbe Neuaufbau-Hinweis nennt die Lage statt der Projektgeschichte** ([EmbeddingKorpusSection.tsx](src/plugins/kuration/suche-index/sections/EmbeddingKorpusSection.tsx))
+
+### v6.16.0 — Suche & Index: Kartenkopf entquetscht, Vektoren-Karte nach oben (August 2026)
+
+MINOR — Die Karte „Vektoren der Ähnlichkeitssuche" lag so weit unten, dass man zu ihr scrollen musste. Zwei Ursachen: die obere Kartenzeile war doppelt so hoch wie nötig, weil der Kopftext neben einer nicht schrumpfenden Ordner-Steuerung auf 74 px gequetscht war (gemessen bei 233 px Kartenbreite) — und davor stand noch die Karte, die man einmal einstellt und dann nicht wieder anfasst.
+
+- **Der Kartenkopf bricht um, statt den Text zu quetschen** — Textspalte 74 → 203 px, der Worttrennungs-Hinweis 6 → 2 Zeilen, die Rasterzeile 445 → 351 px ([ActionCard.tsx](src/plugins/kuration/suche-index/actions/ActionCard.tsx))
+- **„Index aktualisieren" und „Dokumente scannen" nutzen den geteilten Rahmen**, statt ihn samt Defekt zweimal nachzubauen ([ActionCardIndex.tsx](src/plugins/kuration/suche-index/actions/ActionCardIndex.tsx), [ActionCardDocuments.tsx](src/plugins/kuration/suche-index/actions/ActionCardDocuments.tsx))
+- **Die Vektoren stehen direkt unter „Index pflegen"**, die Dokumentenquellen dahinter; „Selten gebraucht" bleibt unten ([SucheIndexPanel.tsx](src/plugins/kuration/suche-index/SucheIndexPanel.tsx))
+- **Die Hub-Suche listet ihre Treffer wieder in Sichtreihenfolge** ([kurationPanels.tsx](src/plugins/kuration/kurationPanels.tsx))
+- **Der Ordnername wird abgeschnitten statt über die Kartenkante geschoben** — wie es die Schwesterkarte längst tut ([ActionCardIndex.tsx](src/plugins/kuration/suche-index/actions/ActionCardIndex.tsx))
+
+### v6.15.0 — Was der Messlauf fand, ist repariert: sechs Befunde an der Gutachten-Kette (August 2026)
+
+MINOR — Der Messlauf aus v6.14.0 fand sechs Befunde an der Gutachten-Kette; vier davon waren Vorgaben-Defekte, die über alle vier gemessenen Modelle hinweg gleich ausfielen. Alle sechs sind repariert, die fachlichen Entscheidungen (C auf fünf Risiken, A einheitlich 9–11 Sätze, Vorgaben für E und F) traf der Nutzer. Detail: [gutachten-kurzfassung.md](docs/architecture/gutachten-kurzfassung.md), Bericht: [gutachten-modellvergleich-2026-08.md](docs/_archiv/gutachten-modellvergleich-2026-08.md).
+
+- **Der Feinschliff verwirft sich, wenn er eine erfüllte Vorgabe bräche** — gemessen an Abschnitt G, wo der Lektor den Pflicht-Anfang wegformulierte ([lektorat.ts](src/plugins/antraege/gutachten/lektorat.ts))
+- **Ein automatischer Korrektur-Versuch je Abschnitt**: der beschränkte Auto-Retry gab es seit v4.124, eingeschaltet war er an keinem Schritt ([seed.ts](src/core/services/skills/registry/seed.ts))
+- **Abschnitt C nennt fünf statt drei Risiken**, damit Deckel und Wortzahl nicht länger gegeneinander stehen; **Abschnitt A** nennt die Satzzahl nur noch in der Vorgabe, dort und in den Modifiern 9–11 ([migrations.ts](src/core/services/skills/registry/migrations.ts))
+- **E und F prüfen erstmals mehr als die Interpunktion** — Wort-Boden, Satzlänge, keine Aufzählungen; die Skill-Liste zählt jetzt alle Regeln, die wirklich prüfen ([SkillsTab.tsx](src/plugins/skill-verwaltung-kuration/SkillsTab.tsx))
+- **Liegt eine Vorhabensbeschreibung als DOCX und als PDF vor, gilt die DOCX** — die PDF-Fassung verliert im Konverter jede Überschrift ([vbDokument.ts](src/plugins/antraege/kurzfassung/vbDokument.ts))
+
+### v6.14.2 — Die Verbindungs-Pille der internen KI verfaellt nicht mehr nach fuenf Sekunden (August 2026)
+
+PATCH — Bei der Messreihe zu v6.14.1 lief ein echter Frage-Lauf durch, während die Status-Karte in den Einstellungen „Nicht verbunden" behauptete. Sie las allein `testErgebnis` — und das räumt sich fünf Sekunden nach dem Test selbst weg. Zehn andere Stellen lasen `useBridgeStatus` längst; diese eine blieb beim Nachzug übrig (in [AiAssistantCard](src/plugins/home/AiAssistantCard.tsx) war derselbe Fall schon einmal behoben).
+
+- **Die Karte liest den lebenden Bridge-Status**, das Test-Echo ergänzt ihn nur ([verbindungsAnzeige.ts](src/plugins/einstellungen/ki/verbindungsAnzeige.ts), neu — eigene reine Datei, weil sich die Entscheidung in der `.tsx` nicht festnageln ließ)
+- **Ein alter Fehlversuch widerspricht keiner lebenden Bridge mehr**: „Nicht erreichbar" gilt nur, solange nichts verbunden ist ([VerbindungGruppe.tsx](src/plugins/einstellungen/ki/VerbindungGruppe.tsx))
+- **Dreiwertig in der Farbe, zweiwertig im Wort** — grün / amber getrennt / grau `unknown`, genau wie im [BridgeStatusIndicator](src/components/ui/BridgeStatusIndicator.tsx), der einzigen anderen Stelle, die den Zustand anzeigt statt ihn zu einem Ja/Nein zu verrechnen
+
 ### v6.14.1 — Die Frage-Suche erfindet keinen Bearbeitungsstand mehr (August 2026)
 
 PATCH — Erste Reproduzierbarkeits-Messung des Frage-Modus: je Frage **drei** Runden statt einer (24 Läufe, 0 Konsolenfehler). Befund: die Suche selbst ist stabil (Bayern/Leichtbau lieferte roh 82 in allen Runden) — was streute, war eine **erfundene Status-Facette** auf Fragen, die keinen Bearbeitungsstand nennen. Sie schnitt die 82 still auf 11 und auf 0.

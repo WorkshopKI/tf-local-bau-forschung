@@ -19,6 +19,18 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v6.62 — 2026-09
+
+### Neu
+- In der Konfiguration der Meilensteine lässt sich die Zuordnung eines Meilensteins zu seiner Datenspalte jetzt bestätigen: ein Klick auf „unbestätigt" in der neuen Spalte „Zuordnung" (oder im Menü ⋯) bestätigt sie, ein weiterer nimmt das zurück. Wie jede Planänderung wirkt das erst nach Speichern und Freigabe. Oben zählt eine Pille, wie viele Zuordnungen noch zu prüfen sind.
+### Verbesserungen
+- Der Meilenstein-Plan in der Konfiguration ist eine Tabelle mit Spaltenköpfen: Meilenstein, Erfüllt, wenn, Zuordnung, Woche, Zustand, Gilt für. Die Zeilen brechen nicht mehr um, die Spalten stehen auch bei Unter-Meilensteinen bündig, und bei schmalem Fenster scrollt nur die Tabelle.
+- „Erfüllt, wenn" steht in jeder Zeile, auch wenn der Regelbereich darunter offen ist: Feldnamen hervorgehoben, Gruppen mit ihrem Namen, darunter etwa „4 Bedingungen in 2 Gruppen". Den vollen Satz und die Datenspalten zeigt der Tooltip. Hat die Probe am Bestand einen Befund, steht dort ein Warn-Dreieck.
+- Griff und Menü ⋯ erscheinen, wenn Sie über eine Zeile fahren. Nach oben, nach unten, eine Ebene höher, Unter-Meilenstein anlegen und Löschen stehen im Menü ⋯ und im Rechtsklick-Menü; was gerade nicht geht, nennt seinen Grund.
+- „Gilt für" ist eine zusammenhängende Auswahl der vier Antragstypen, gewählte Typen sind dunkel hinterlegt.
+### Bugfixes
+- Lange Bezeichnungen eines Meilensteins zeigen bis zu drei Zeilen, und einzeilige Bezeichnungen haben keinen überflüssigen Scrollbalken mehr.
+
 ## v6.61 — 2026-09
 
 ### Neu

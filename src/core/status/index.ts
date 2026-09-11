@@ -54,7 +54,10 @@ export {
   baueKontext, pruefeBedingung, bedingungIstLeer, bedingungFeldRefs, referenzierbareFelder,
   type BedingungsKontext,
 } from './bedingung';
-export { bedingungAlsText, bedingungKopfsatz, bedingungSatz, type FeldLabelQuelle } from './bedingung-text';
+export {
+  bedingungAlsText, bedingungKopfsatz, bedingungSatz, bedingungUebersicht, satzText,
+  type BedingungsUebersicht, type FeldLabelQuelle, type SatzTeil,
+} from './bedingung-text';
 export {
   MAX_GRUPPENNAME,
   alsBedingungsGruppe, aufloesenAendertAussage, bedingungsTiefe, benenneBedingungsGruppe, darfBedingungAusruecken,

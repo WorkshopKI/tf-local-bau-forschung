@@ -36,12 +36,13 @@ Tooltip an „Gesamtfrist" und an „Eingang" nennt die beiden Spalten.
 - **Auswertung**: Ø-Dauer, Median, Anteil im Soll und Abweichung — gesamt und je
   FuE/DS/DL/NW; je Meilenstein Soll-Woche, Ø Ist-Woche, Δ und Reißquote. Die
   Dauer-Statistik zählt abgeschlossene Vorgänge, die Meilenstein-Statistik offene.
-- **Konfiguration**: der Meilenstein-Baum (Nummer, Bezeichnung, Soll-Woche,
-  Schalter „aktiv" und „Frist", daneben „gilt für" mit den Antragstypen als
-  Chips) plus Fassungs-Leiste und frühere Fassungen. Soll-Woche und Schalter
-  stehen rechts in jeder Zeile an derselben Stelle, auch bei Unter-Meilensteinen
-  und dort, wo die Kurzfassung fehlt; ist das Fenster zu schmal, rutschen sie in
-  allen Zeilen gleich in eine zweite Zeile.
+- **Konfiguration**: der Meilenstein-Plan als Tabelle mit Spaltenköpfen —
+  Meilenstein (Nummer und Bezeichnung), Erfüllt, wenn, Zuordnung, Woche,
+  Zustand (Schalter „aktiv" und „Frist") und Gilt für (die vier Antragstypen als
+  zusammenhängende Auswahl, gewählte dunkel hinterlegt) —, dazu Fassungs-Leiste
+  und frühere Fassungen. Die Spalten stehen auch bei Unter-Meilensteinen bündig;
+  ist das Fenster zu schmal, scrollt die Tabelle waagerecht. Bezeichnung und
+  Woche sehen wie Text aus, bis man sie überfährt.
 
   - Das Dreieck klappt die **Unter-Meilensteine** auf; ein Klick auf die Zeile
     öffnet **darunter** eine leise Zeile für die Beschreibung und den Bereich
@@ -60,13 +61,23 @@ Tooltip an „Gesamtfrist" und an „Eingang" nennt die beiden Spalten.
     Quellspalte kurz hinter dem Feldnamen („Antrags eingang · antragsdatum
     ← D_AAE").
 
-  - **Die zugeklappte Zeile sagt, woran der Meilenstein hängt**: Bedingung in
-    Kurzform, Ist-Termin-Feld und die Zahl der Unter-Meilensteine (die
-    Antragstypen stehen als Chips „gilt für" im Kopf). Eine benannte Gruppe steht dort mit
-    ihrem Namen vor dem Inhalt („PreCheck AB: (…)"). Das Bezeichnungsfeld hat
-    eine feste, mit dem Fenster wachsende Breite und bricht bei langen Titeln
-    auf zwei Zeilen um. Am Ende der Kurzfassung, vor den Schaltern, stehen der
-    Befund-Punkt und die Hinweise „unbestätigt" bzw. „ohne Bedingung".
+  - **„Erfüllt, wenn" sagt in jeder Zeile, woran der Meilenstein hängt**, auch
+    wenn der Regelbereich darunter offen ist: Einzelbedingungen als Satz mit
+    hervorgehobenen Feldnamen, Gruppen nur mit ihrem Namen („PreCheck AB") oder
+    als „Gruppe 1", verbunden durch UND bzw. ODER. Darunter stehen etwa
+    „4 Bedingungen in 2 Gruppen" und das Ist-Termin-Feld; den vollen Satz nennt
+    der Tooltip. Ein Sammel-Meilenstein sagt „wenn alle aktiven
+    Unter-Meilensteine erreicht sind", ein aktiver Meilenstein ohne Bedingung
+    in Rot „keine Bedingung — wird nicht geprüft". Ein Warn-Dreieck am Ende
+    meldet einen Befund der Probe. Inaktive Meilensteine stehen grau. Unter der
+    Bezeichnung steht die Zahl der Unter-Meilensteine; lange Titel brechen auf
+    bis zu drei Zeilen um.
+
+  - **Zuordnung**: „unbestätigt" heißt, die Datenspalte ist aus dem
+    Auslieferungs-Plan vorbelegt und noch nicht geprüft. Ein Klick bestätigt
+    sie, ein weiterer nimmt das zurück (auch im Menü ⋯). Oben zählt die Pille
+    „N Zuordnungen unbestätigt". Bestätigen ändert den Plan: es wirkt erst nach
+    „Als neue Fassung speichern" und Freigabe.
 
   - **Das Feld einer Bedingung wird in einer Auswahl-Tabelle gewählt**, nicht in
     einem Auswahlfeld: Suche über Kürzel, Beschreibung und rohen Spalten-Code,
@@ -152,7 +163,8 @@ Tooltip an „Gesamtfrist" und an „Eingang" nennt die beiden Spalten.
     ist „erfüllt bei allen" oder „erfüllt bei keinem"; die Regel liefert „kein
     Datum"; oder etwa „224 ohne Termin": so viele offene Verbünde gelten als
     erreicht, haben aber kein Ist-Datum und fehlen damit in jeder Abweichung.
-    Ein Punkt in der Meilenstein-Zeile zeigt Befunde auch zugeklappt.
+    Ein Warn-Dreieck in der Spalte „Erfüllt, wenn" zeigt Befunde auch
+    zugeklappt.
 
   - Ausnahme: ein Meilenstein, der nur verlangt, dass sein Ist-Termin-Feld
     gefüllt ist (etwa „Antrag im System eingegeben"), soll bei jedem Verbund
@@ -180,12 +192,15 @@ Tooltip an „Gesamtfrist" und an „Eingang" nennt die beiden Spalten.
     Klick schließt sie.
 
   - Umsortiert und untergeordnet wird per **Ziehen am Griff**: eine Marke zeigt
-    die Einfügestelle, ein Rahmen das Hineinlegen. Als Zweitweg die Pfeile
-    hoch/runter und „eine Ebene höher" (◁, nur an Unter-Meilensteinen).
+    die Einfügestelle, ein Rahmen das Hineinlegen. Griff und ⋯ erscheinen beim
+    Überfahren der Zeile; mit der Tastatur, bei offenem Menü und bei offenem
+    Regelbereich bleiben sie stehen. Das Menü ⋯ und der Rechtsklick bieten
+    dieselben Einträge: Nach oben · Nach unten · Eine Ebene höher ·
+    Unter-Meilenstein anlegen · Zuordnung bestätigen · Stilllegen · Löschen.
+    Was gerade nicht geht, bleibt stehen und nennt seinen Grund.
 
   - Ein neuer Meilenstein erscheint **sofort** — aufgeklappt, mit dem Cursor in
-    der Bezeichnung. Rechtsklick: Unter-Meilenstein anlegen · Eine Ebene höher ·
-    Stilllegen · Löschen.
+    der Bezeichnung.
 
 ## Wichtig
 
@@ -199,7 +214,8 @@ Tooltip an „Gesamtfrist" und an „Eingang" nennt die beiden Spalten.
   ist, ändert also nirgends eine Zahl; alle sehen weiter die vorige Freigabe.
   Das ist der häufigste Grund für „meine Änderung kommt nicht an".
 - Meilensteine mit unbestätigter CSV-Zuordnung tragen „unbestätigt"; ohne bekannte
-  Quelle sind sie inaktiv und gelten nie als gerissen.
+  Quelle sind sie inaktiv und gelten nie als gerissen. Bestätigen macht einen
+  Meilenstein nicht aktiv — „aktiv" ist ein eigener Schalter.
 - Derselbe Zeitstrahl steht auf der Verbund-Detailseite; dort lässt sich auch ein
   **Risiko melden** — die Meldung geht in den persönlichen Ordner, die PL sammelt
   sie ein.
@@ -217,6 +233,11 @@ Vollbild-Seite (`/meilensteine`, Flag `meilensteinMonitoring`; dev/pl/as/kurator
 Plan als Team-Sidecar, Ansicht gemerkt in `ansichtPersistenz.ts`;
 Architektur: `docs/architecture/meilensteine.md` (§ Der Bedingungs-Bereich,
 § Probe am Bestand).
+
+Tabellenzeile und Spaltenkopf: `MeilensteinZeile.tsx` (`KnotenZeile`,
+`SpaltenKopf`, `meilensteinAktionen` = eine Liste für ⋯ und Kontextmenü);
+„Erfüllt, wenn" über `bedingungUebersicht` (Satzteile desselben Formatierers
+wie `bedingungSatz`); Zuordnung = Feld `unbestaetigt` am Knoten.
 
 Bedingungs-Editor: `BedingungEditor.tsx` (Karten, Innenkarten, Kopfsatz
 `bedingungKopfsatz`) + `BlattZeile.tsx` (Zelle) + `BedingungsFugen.tsx`

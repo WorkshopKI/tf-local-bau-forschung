@@ -9,9 +9,11 @@
  * Dreieck beides nicht — es öffnete den Editor, und Unter-Meilensteine waren
  * immer sichtbar.
  *
- * **Umsortiert wird durch Ziehen.** Die Hoch/Runter/Ausrücken-Schalter bleiben
- * als Zweitweg: sie waren bisher der einzige, stehen in jeder Einweisung und
- * funktionieren ohne Maus.
+ * Seit v6.62 ist die zugeklappte Liste eine **Tabelle mit Spaltenköpfen**
+ * (`MeilensteinZeile.tsx`): Zeile, Kopf und die Umbau-Schalter leben dort.
+ *
+ * **Umsortiert wird durch Ziehen.** „Nach oben / unten" bleiben als Zweitweg im
+ * ⋯-Menü der Zeile: sie stehen in jeder Einweisung und funktionieren ohne Maus.
  *
  * Der Regel-Bereich hängt an einem EIGENEN Satz offener Zeilen, nicht an der
  * Auswahl: zwei Meilensteine sollen ihre Bedingungen nebeneinander zeigen
@@ -20,19 +22,17 @@
  * Unbestätigte Zuordnungen aus dem Auslieferungs-Plan tragen einen sichtbaren
  * Hinweis — wer eine geratene Zahl für bare Münze nimmt, plant falsch.
  */
-import { Fragment, useCallback, useMemo, useState } from 'react';
-import { ChevronDown, ChevronLeft, ChevronUp, GripVertical, Plus, Sparkles, Trash2 } from 'lucide-react';
+import { Fragment, useMemo, useState } from 'react';
+import { Plus, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ToggleChip } from '@/components/ui/ToggleChip';
 import { FeldWaehler, type FeldWaehlerVorschlag } from '@/components/ui/FeldWaehler';
 import { QuellSpaltenTooltip } from '@/components/quellspalten';
 import { TfTree } from '@/components/tree';
-import { ContextMenuItem, ContextMenuLabel, ContextMenuSeparator } from '@/components/ui/context-menu';
 import {
-  ANKER_SPALTEN, aendereKnoten, darfUmhaengen, entferneKnoten, fuegeKnotenHinzu, haengeKnotenUm,
-  hebeKnotenAn, istDatumsFeldAus, istTerminErklaerung, knotenOhneBedingung, knotenQuellen, misstNurZeitpunkt,
-  planEndeTage, probeBefund, schlageBedingungVor, schlageFelderVor, verschiebeKnoten,
+  ANKER_SPALTEN, aendereKnoten, darfUmhaengen, fuegeKnotenHinzu, haengeKnotenUm,
+  istDatumsFeldAus, istTerminErklaerung, knotenOhneBedingung, misstNurZeitpunkt,
+  planEndeTage, probeBefund, schlageBedingungVor, schlageFelderVor,
   type KnotenProbe, type MeilensteinKnoten, type SpaltenEintrag,
 } from '@/core/meilensteine';
 import {
@@ -40,18 +40,20 @@ import {
   istBedingungsGruppe, type Bedingung,
 } from '@/core/status';
 import { feldQuellen } from '@/core/status/bedingung-quellen';
-import { berechneAutoHoehe } from '@/core/utils/autoGrowHoehe';
-import { ANTRAGSTYP_BUCKETS } from '@/core/utils/vb-phase-mappings';
 import { BedingungEditor } from './BedingungEditor';
 import { Verbinder } from './BedingungsFugen';
 import {
   BlattTreffer, GruppenProbe, Wirkungsleiste, zahlenKurz, zahlenText, type IstTerminAnzeige,
 } from './ProbeAnzeige';
 import type { MeilensteinProbeApi } from './useMeilensteinProbe';
-import { ANKER_ERKLAERUNG, TYP_LABEL, feldStil, spaltenLabel } from './labels';
+import { ANKER_ERKLAERUNG, feldStil, spaltenLabel } from './labels';
 import {
   MEILENSTEIN_BAUM_ROOT, baueMeilensteinBaum, type MeilensteinBaumKnoten,
 } from './meilensteinBaum';
+import {
+  AktionsZelle, EINZUG, Griff, KnotenZeile, KontextEintraege, SpaltenKopf, meilensteinAktionen,
+} from './MeilensteinZeile';
+import { ZeilenAktionen } from './ZeilenAktionen';
 
 interface Props {
   knoten: MeilensteinKnoten[];
@@ -62,299 +64,6 @@ interface Props {
   onGesamtfrist: (tage: number) => void;
   /** Probe am Bestand — ohne sie zeigt der Reiter keine Zahlen. */
   probe?: MeilensteinProbeApi;
-}
-
-/**
- * Was der zugeklappte Meilenstein über sich verrät.
- *
- * Der Plan hat zehn Zeilen; ohne diese Zusammenfassung musste man jede einzeln
- * aufklappen, um zu sehen, WORAN sie hängt — und das Bezeichnungsfeld spannte
- * dabei die volle Breite, ohne etwas zu sagen.
- *
- * Reihenfolge nach Aussagekraft: die Bedingung zuerst, dann die Herkunft des
- * Ist-Termins, zuletzt die Zahl der Unter-Meilensteine. **Was fehlt, fällt
- * weg** — ein „—" je Feld wäre in zehn Zeilen nur Rauschen. Die Antragstypen
- * stehen seit v6.60 als Chips „gilt für" im Kopf jeder Zeile, hier nicht mehr.
- */
-function KnotenZusammenfassung({ knoten, alle, spalten }: {
-  knoten: MeilensteinKnoten;
-  alle: MeilensteinKnoten[];
-  spalten: SpaltenEintrag[];
-}): React.ReactElement | null {
-  const labelVon = useMemo(() => spaltenLabel(spalten), [spalten]);
-  const kinder = alle.filter(k => k.elternId === knoten.id).length;
-
-  const teile: string[] = [];
-  // Die leere Bedingung sagt nichts (v4.134) — dafür trägt die Zeile bereits
-  // die Marke „ohne Bedingung"; hier wäre „()" nur verwirrend.
-  if (!bedingungIstLeer(knoten.bedingung)) {
-    teile.push(bedingungSatz(knoten.bedingung, labelVon));
-  }
-  const istFeld = knoten.istDatumFeld;
-  if (istFeld) teile.push(`Ist: ${labelVon(istFeld)}`);
-  if (kinder > 0) teile.push(`${kinder} Unter-${kinder === 1 ? 'Meilenstein' : 'Meilensteine'}`);
-
-  if (teile.length === 0) return null;
-  const voll = teile.join(' · ');
-  // Der Tooltip nennt die Quellspalten der Bedingung und des Ist-Termins —
-  // „TIB gefüllt" sagt nicht, welche CSV-Spalte dahinter steht, und genau dort
-  // entstehen die falschen Regeln. Die Feldnamen wie im Satz daneben (`labelVon`).
-  return (
-    <QuellSpaltenTooltip
-      erklaere={idx => knotenQuellen(knoten, idx, labelVon)}
-      wrapperClassName="min-w-0 flex-1 truncate"
-    >
-      <span className="block truncate cursor-help text-[11.5px] text-[var(--tf-text-secondary)]">
-        {voll}
-      </span>
-    </QuellSpaltenTooltip>
-  );
-}
-
-/**
- * Zwei Zeilen sind der Deckel; darüber scrollt das Feld statt die Liste zu
- * zerreißen. 22 px je Zeile bei `leading-[18px]` plus 2×2 px Polsterung.
- */
-const BEZEICHNUNG_GRUND_HOEHE = 22;
-const BEZEICHNUNG_MAX_HOEHE = 44;
-
-function messeElement(el: HTMLTextAreaElement): void {
-  el.style.height = 'auto';
-  el.style.height = `${berechneAutoHoehe(
-    el.scrollHeight, BEZEICHNUNG_GRUND_HOEHE, undefined, BEZEICHNUNG_MAX_HOEHE,
-  )}px`;
-}
-
-/**
- * Kopfzeile eines Knotens: Nummer, Bezeichnung, Soll-Woche, Zustandsschalter
- * und — seit v6.60 — „gilt für" als Chips daneben, statt als eigene Zeile im
- * Regelbereich. Ein Punkt am Ende zeigt, dass die Probe etwas Auffälliges fand.
- */
-function KnotenKopf({ knoten, alle, spalten, schreibgeschuetzt, frisch, zusammenfassen, befunde, onKnoten }: {
-  knoten: MeilensteinKnoten;
-  alle: MeilensteinKnoten[];
-  spalten: SpaltenEintrag[];
-  schreibgeschuetzt: boolean;
-  /** Befunde der Probe (trifft keinen/jeden, ohne Ist-Termin) — leer: kein Punkt. */
-  befunde: readonly string[];
-  /** Gerade angelegt — der Cursor steht dann gleich in der Bezeichnung. */
-  frisch: boolean;
-  /** Der Regel-Bereich ist zu — dann sagt die Zeile selbst, was drinsteht. */
-  zusammenfassen: boolean;
-  onKnoten: (k: MeilensteinKnoten[]) => void;
-}): React.ReactElement {
-  const patch = (p: Partial<MeilensteinKnoten>): void => onKnoten(aendereKnoten(alle, knoten.id, p));
-  // Ein Knoten, der weder eine eigene Bedingung noch Kinder hat, kann NIE
-  // erfüllt werden. Bis v4.134 galt er ab seiner Soll-Woche für immer als
-  // gerissen; jetzt wird er nicht mehr bewertet — und genau deshalb muss die
-  // Zeile es sagen, sonst bleibt die Lücke für immer stehen.
-  const ohneBedingung = useMemo(
-    () => knotenOhneBedingung(alle).some(k => k.id === knoten.id),
-    [alle, knoten.id],
-  );
-
-  /**
-   * Das Bezeichnungsfeld ist ein `textarea`, damit ein langer Titel umbricht
-   * statt abgeschnitten zu werden. Es hat eine feste, mit der Zeile wachsende
-   * Breite (260–560 px) statt eines Anteils mit Umbruch: so steht die
-   * Zusammenfassung in jeder Zeile an derselben Kante, und die Zeile bricht erst
-   * um, wenn Titel und Schalter-Block zusammen nicht mehr passen.
-   *
-   * Höhe per Callback-Ref, nicht per Mount-Effekt (Bug-Klasse 23): das Feld
-   * steht hinter bedingtem Rendern, und ein `[]`-Effekt liefe beim Wieder-
-   * Einhängen nie wieder. Zwei Zeilen sind der Deckel — darüber hinaus scrollt
-   * das Feld, sonst zerrisse eine einzelne Zeile die Liste.
-   */
-  const messe = useCallback((el: HTMLTextAreaElement | null) => {
-    if (!el) return;
-    messeElement(el);
-    if (frisch) { el.focus(); el.select(); }
-  }, [frisch]);
-
-  return (
-    // Die Eingabefelder dürfen den Zeilen-Klick nicht auslösen — der klappt
-    // die Unter-Meilensteine auf.
-    <span
-      className="flex min-w-0 flex-1 flex-wrap items-center gap-2"
-      onClick={e => e.stopPropagation()}
-      onDoubleClick={e => e.stopPropagation()}
-    >
-      {/* So schmal wie „10" bzw. „4.3" — feste 46 px ließen eine Lücke vor dem
-          Titel; eine tiefere Nummer („4.3.1") verbreitert nur ihre eigene Zeile. */}
-      <span className="min-w-[26px] shrink-0 text-[12px] font-mono text-[var(--tf-text-tertiary)]">
-        {knoten.nummer || '—'}
-      </span>
-
-      <textarea
-        ref={messe}
-        rows={1}
-        value={knoten.label}
-        onChange={e => { messeElement(e.currentTarget); patch({ label: e.target.value }); }}
-        disabled={schreibgeschuetzt}
-        aria-label="Bezeichnung"
-        title={knoten.label}
-        className="w-[clamp(260px,38%,560px)] shrink-0 resize-none overflow-y-auto text-[13px] leading-[18px] rounded px-2 py-0.5 bg-[var(--tf-bg)] text-[var(--tf-text)] disabled:opacity-60"
-        style={feldStil}
-      />
-
-      {/* Die Mitte füllt immer den Rest — auch ohne Zusammenfassung (zugeklappt
-          ohne Bedingung, aufgeklappt) —, damit der Block rechts in jeder Zeile an
-          derselben Stelle steht. Die Marken hängen rechtsbündig an ihrem Ende,
-          nicht hinter den Schaltern: dort verschoben sie die Spalten und brachen
-          bei voller Breite in eine zweite Zeile um. */}
-      <span className="flex min-w-0 flex-1 items-center gap-2">
-        {zusammenfassen && (
-          <KnotenZusammenfassung knoten={knoten} alle={alle} spalten={spalten} />
-        )}
-        <KnotenMarken befunde={befunde} unbestaetigt={knoten.unbestaetigt === true} ohneBedingung={ohneBedingung} />
-      </span>
-
-      <span className="ml-auto flex shrink-0 items-center gap-2">
-        <label className="flex shrink-0 items-center gap-1 text-[11.5px] text-[var(--tf-text-tertiary)]">
-          Woche
-          <input
-            type="number" min={0}
-            value={knoten.sollWoche}
-            onChange={e => patch({ sollWoche: Math.max(0, Number(e.target.value) || 0) })}
-            disabled={schreibgeschuetzt}
-            className="w-[56px] text-[12px] rounded px-1.5 py-0.5 bg-[var(--tf-bg)] text-[var(--tf-text)] text-right disabled:opacity-60"
-            style={feldStil}
-          />
-        </label>
-
-        <ToggleChip
-          label="aktiv" groesse="dicht"
-          selected={knoten.aktiv}
-          onToggle={() => patch({ aktiv: !knoten.aktiv })}
-          disabled={schreibgeschuetzt}
-          title="Inaktive Meilensteine werden nie als gerissen gezählt"
-        />
-        <ToggleChip
-          label="Frist" groesse="dicht"
-          selected={knoten.relevantFuerFrist}
-          onToggle={() => patch({ relevantFuerFrist: !knoten.relevantFuerFrist })}
-          disabled={schreibgeschuetzt}
-          title="Zählt in die Prognose zur Gesamtfrist"
-        />
-
-        <span aria-hidden className="h-4 w-px shrink-0 bg-[var(--tf-border-hover)]" />
-        <span className="shrink-0 text-[11.5px] text-[var(--tf-text-tertiary)]">gilt für</span>
-        {ANTRAGSTYP_BUCKETS.map(t => {
-          const gewaehlt = knoten.nurTypen.length === 0 || knoten.nurTypen.includes(t);
-          const letzter = gewaehlt && knoten.nurTypen.length === 1;
-          return (
-            <ToggleChip
-              key={t}
-              label={TYP_LABEL[t]}
-              groesse="dicht"
-              selected={gewaehlt}
-              disabled={schreibgeschuetzt || letzter}
-              title={letzter
-                ? 'Mindestens ein Antragstyp muss ausgewählt bleiben — ohne Auswahl gälte der Meilenstein wieder für alle.'
-                : `Gilt für ${TYP_LABEL[t]}`}
-              onToggle={() => {
-                const aktuell = knoten.nurTypen.length === 0 ? [...ANTRAGSTYP_BUCKETS] : knoten.nurTypen;
-                const naechste = aktuell.includes(t) ? aktuell.filter(x => x !== t) : [...aktuell, t];
-                // Leere Liste heißt „gilt für alle" — die Abwahl des LETZTEN
-                // Typs schaltete damit alle vier wieder ein. Also: nicht wählbar
-                // (der Schalter ist oben schon gesperrt), hier nur die zweite Sicherung.
-                if (naechste.length === 0) return;
-                // Alle ausgewählt ⇒ wieder „gilt für alle" (leere Liste).
-                patch({ nurTypen: naechste.length === ANTRAGSTYP_BUCKETS.length ? [] : naechste });
-              }}
-            />
-          );
-        })}
-      </span>
-    </span>
-  );
-}
-
-/** Befund-Punkt und Warn-Marken am Ende der Zeilenmitte. */
-function KnotenMarken({ befunde, unbestaetigt, ohneBedingung }: {
-  befunde: readonly string[];
-  unbestaetigt: boolean;
-  ohneBedingung: boolean;
-}): React.ReactElement | null {
-  if (befunde.length === 0 && !unbestaetigt && !ohneBedingung) return null;
-  return (
-    <span className="ml-auto flex shrink-0 items-center gap-1.5">
-      {befunde.length > 0 && (
-        <span
-          role="img"
-          aria-label={`Befund der Probe: ${befunde.join(' · ')}`}
-          title={`Befund der Probe: ${befunde.join(' · ')}`}
-          className="size-[7px] shrink-0 rounded-full bg-[var(--tf-warning-text)]"
-        />
-      )}
-      {unbestaetigt && (
-        <span title="Vorbelegung aus dem Auslieferungs-Plan — bitte prüfen">
-          <Badge variant="warning">unbestätigt</Badge>
-        </span>
-      )}
-      {ohneBedingung && (
-        <span title="Weder eine eigene Bedingung noch Unter-Meilensteine — dieser Meilenstein wird nicht bewertet. Bedingung ergänzen oder ihm Unter-Meilensteine geben.">
-          <Badge variant="warning">ohne Bedingung</Badge>
-        </span>
-      )}
-    </span>
-  );
-}
-
-/** Hoch/Runter/Ausrücken/Anlegen/Löschen — rechtsbündig. */
-function KnotenAktionen({ knoten, alle, onKnoten, onErgaenzen }: {
-  knoten: MeilensteinKnoten;
-  alle: MeilensteinKnoten[];
-  onKnoten: (k: MeilensteinKnoten[]) => void;
-  onErgaenzen: (elternId: string | null) => void;
-}): React.ReactElement {
-  return (
-    <span className="flex shrink-0 items-center gap-0.5" onClick={e => e.stopPropagation()}>
-      <button
-        type="button" aria-label="Nach oben" title="Nach oben"
-        onClick={() => onKnoten(verschiebeKnoten(alle, knoten.id, 'hoch'))}
-        className="p-1 rounded text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text)] cursor-pointer"
-      >
-        <ChevronUp size={13} />
-      </button>
-      <button
-        type="button" aria-label="Nach unten" title="Nach unten"
-        onClick={() => onKnoten(verschiebeKnoten(alle, knoten.id, 'runter'))}
-        className="p-1 rounded text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text)] cursor-pointer"
-      >
-        <ChevronDown size={13} />
-      </button>
-      {/* Der Rückweg aus der Unterordnung — ohne ihn hilft nur die Maus. Oben
-          hält ein unsichtbarer Platzhalter die Breite, sonst stünden die
-          Schalter der Unter-Meilensteine eine Knopfbreite weiter links. */}
-      {knoten.elternId !== null ? (
-        <button
-          type="button" aria-label="Eine Ebene höher"
-          title="Eine Ebene höher — dann kein Unter-Meilenstein mehr"
-          onClick={() => onKnoten(hebeKnotenAn(alle, knoten.id))}
-          className="p-1 rounded text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text)] cursor-pointer"
-        >
-          <ChevronLeft size={13} />
-        </button>
-      ) : (
-        <span aria-hidden className="invisible p-1"><ChevronLeft size={13} /></span>
-      )}
-      <button
-        type="button" aria-label="Unter-Meilenstein anlegen" title="Unter-Meilenstein anlegen"
-        onClick={() => onErgaenzen(knoten.id)}
-        className="p-1 rounded text-[var(--tf-text-tertiary)] hover:text-[var(--tf-text)] cursor-pointer"
-      >
-        <Plus size={13} />
-      </button>
-      <button
-        type="button" aria-label="Meilenstein löschen" title="Meilenstein und Unter-Meilensteine löschen"
-        onClick={() => onKnoten(entferneKnoten(alle, knoten.id))}
-        className="p-1 rounded text-[var(--tf-text-tertiary)] hover:text-[var(--tf-danger-text)] cursor-pointer"
-      >
-        <Trash2 size={13} />
-      </button>
-    </span>
-  );
 }
 
 /**
@@ -593,48 +302,29 @@ function knotenBefunde(
 
 const KEINE_BEFUNDE: readonly string[] = [];
 
-function Menue({ knoten, alle, onKnoten, onErgaenzen }: {
-  knoten: MeilensteinKnoten;
-  alle: MeilensteinKnoten[];
-  onKnoten: (k: MeilensteinKnoten[]) => void;
-  onErgaenzen: (elternId: string | null) => void;
-}): React.ReactElement {
-  return (
-    <>
-      <ContextMenuLabel>{knoten.nummer || '—'} · Woche {knoten.sollWoche}</ContextMenuLabel>
-      <ContextMenuItem onSelect={() => onErgaenzen(knoten.id)}>
-        Unter-Meilenstein anlegen
-      </ContextMenuItem>
-      {knoten.elternId !== null && (
-        <ContextMenuItem onSelect={() => onKnoten(hebeKnotenAn(alle, knoten.id))}>
-          Eine Ebene höher
-        </ContextMenuItem>
-      )}
-      <ContextMenuItem onSelect={() => onKnoten(aendereKnoten(alle, knoten.id, { aktiv: !knoten.aktiv }))}>
-        {knoten.aktiv ? 'Stilllegen' : 'Wieder aktivieren'}
-      </ContextMenuItem>
-      <ContextMenuSeparator />
-      <ContextMenuItem variant="danger" onSelect={() => onKnoten(entferneKnoten(alle, knoten.id))}>
-        Meilenstein und Unter-Meilensteine löschen
-      </ContextMenuItem>
-    </>
-  );
-}
-
 /**
  * Bedienelemente der Zeile: ein Klick darauf meint das Element, nicht den
  * Regel-Bereich. Der Zeilen-Klick läuft in der Capture-Phase und sieht deshalb
  * auch die Klicks, die das Element selbst später stoppt.
  *
- * `[role="menu"]`: das ⋯-Menü des Bedingungs-Editors liegt im Portal, React
- * reicht seine Klicks aber durch den Komponenten-Baum bis hierher — und seine
- * Einträge sind `div`s, keine Buttons. Ohne diesen Eintrag klappte „Nach oben"
- * den ganzen Regel-Bereich zu.
+ * `[role="menu"]`: das ⋯-Menü liegt im Portal, React reicht seine Klicks aber
+ * durch den Komponenten-Baum bis hierher — und seine Einträge sind `div`s,
+ * keine Buttons. Ohne diesen Eintrag klappte „Nach oben" den ganzen
+ * Regel-Bereich zu.
  *
  * `[data-regelbereich]` (v6.60): die Karten des Editors sind Flächen — ein Klick
  * darauf, neben ein Feld, meint die Karte, nicht die Zeile.
  */
 const BEDIENELEMENTE = 'input, select, textarea, button, label, [draggable="true"], [role="menu"], [data-regelbereich]';
+
+/**
+ * Griff und ⋯ erscheinen beim Überfahren der Zeile — fünf Symbole in jeder der
+ * zehn Zeilen waren der größte Unruheherd. Mit der Tastatur (Fokus im Baum oder
+ * auf ⋯), bei offenem Menü und bei offenem Regelbereich bleiben sie stehen.
+ * Deckkraft statt Ausblenden: die Breite bleibt, die Spalten wandern nicht.
+ */
+const NUR_BEIM_UEBERFAHREN = 'opacity-0 transition-opacity duration-150 group-hover/zeile:opacity-100 '
+  + 'focus-within:opacity-100 has-[[data-state=open]]:opacity-100';
 
 export function KonfigurationTab({
   knoten, gesamtfristTage, spalten, schreibgeschuetzt, onKnoten, onGesamtfrist, probe,
@@ -694,6 +384,10 @@ export function KonfigurationTab({
     probe?.starte();
   };
 
+  /** Griff und ⋯ einer Zeile: sichtbar bei Fokus und offenem Regelbereich, sonst beim Überfahren. */
+  const aktionenKlasse = (id: string, fokus: boolean): string =>
+    (fokus || koerperOffen.includes(id) ? '' : NUR_BEIM_UEBERFAHREN);
+
   return (
     <div className="flex flex-col gap-3 pt-4">
       <div className="flex items-center gap-3 flex-wrap">
@@ -722,8 +416,10 @@ export function KonfigurationTab({
           </Button>
         )}
         {unbestaetigt > 0 && (
-          <span className="text-[12px] text-[var(--tf-warning-text)]">
-            {unbestaetigt} {unbestaetigt === 1 ? 'Zuordnung wartet' : 'Zuordnungen warten'} auf Bestätigung
+          <span title="Vorbelegt aus dem Auslieferungs-Plan — in der Spalte „Zuordnung“ per Klick bestätigen.">
+            <Badge variant="warning">
+              {unbestaetigt} {unbestaetigt === 1 ? 'Zuordnung' : 'Zuordnungen'} unbestätigt
+            </Badge>
           </span>
         )}
       </div>
@@ -745,97 +441,99 @@ export function KonfigurationTab({
           Noch kein Meilenstein angelegt.
         </p>
       ) : (
-        <TfTree<MeilensteinBaumKnoten>
-          items={items}
-          rootId={rootId}
-          label="Meilenstein-Plan"
-          features={{
-            selection: true,
-            dnd: !schreibgeschuetzt,
-            reorder: !schreibgeschuetzt,
-            dragHandle: true,
-          }}
-          expandedItems={offen}
-          onExpandedChange={setOffen}
-          selectedItems={gewaehlt}
-          onSelectedChange={setGewaehlt}
-          onZeilenKlick={(id, _daten, e) => {
-            const ziel = e.target as Element | null;
-            if (ziel?.closest?.(BEDIENELEMENTE)) return;
-            schalteKoerper(id);
-          }}
-          canDrag={ids => ids.every(i => i !== MEILENSTEIN_BAUM_ROOT)}
-          canDrop={(quellen, ziel) => quellen.every(q =>
-            darfUmhaengen(knoten, q, ziel === MEILENSTEIN_BAUM_ROOT ? null : ziel))}
-          onDrop={(quellen, ziel, index) => {
-            const elternId = ziel === MEILENSTEIN_BAUM_ROOT ? null : ziel;
-            // Reihum anwenden: jeder Zug rechnet auf dem Ergebnis des
-            // vorigen, sonst kollidierten die neu vergebenen Sortierungen.
-            let naechste = knoten;
-            quellen.forEach((q, i) => {
-              naechste = haengeKnotenUm(naechste, q, elternId, index === undefined ? undefined : index + i);
-            });
-            onKnoten(naechste);
-          }}
-          slots={{
-            leading: p => (p.dragHandleProps && !schreibgeschuetzt ? (
-              <span
-                {...p.dragHandleProps}
-                className="shrink-0 cursor-grab text-[var(--tf-text-tertiary)] active:cursor-grabbing"
-                title="Ziehen, um umzusortieren oder unterzuordnen"
-              >
-                <GripVertical size={13} />
-              </span>
-            ) : null),
-            label: p => (p.data.art === 'meilenstein' ? (
-              <KnotenKopf
-                knoten={p.data.knoten}
-                alle={knoten}
-                spalten={spalten}
-                schreibgeschuetzt={schreibgeschuetzt}
-                frisch={p.id === frischeId}
-                zusammenfassen={!koerperOffen.includes(p.id)}
-                befunde={befunde.get(p.id) ?? KEINE_BEFUNDE}
-                onKnoten={onKnoten}
-              />
-            ) : null),
-            trailing: p => (p.data.art === 'meilenstein' && !schreibgeschuetzt
-              ? (
-                <KnotenAktionen
-                  knoten={p.data.knoten} alle={knoten}
-                  onKnoten={onKnoten} onErgaenzen={ergaenze}
-                />
-              )
-              : null),
-            // Der Bedingungs-Editor hängt am eigenen Satz offener Zeilen — das
-            // Chevron bleibt beim Auf-/Zuklappen der Unter-Meilensteine.
-            body: p => (koerperOffen.includes(p.id) && p.data.art === 'meilenstein' ? (
-              <KnotenKoerper
-                knoten={p.data.knoten}
-                alle={knoten}
-                spalten={spalten}
-                schreibgeschuetzt={schreibgeschuetzt}
-                probe={probe}
-                onKnoten={onKnoten}
-                onOeffneKind={oeffneKind}
-              />
-            ) : null),
-            // Bei mehreren offenen Bereichen sagt die Kante, welcher Block zu
-            // welcher Zeile gehört. `boxShadow` statt Hintergrund, damit der
-            // Hover-Zustand der Zeile erhalten bleibt — beim Ziehen tritt sie
-            // zurück, sonst verdeckte der Inline-Stil den Drop-Rahmen (auch er
-            // ein `box-shadow`).
-            zeilenStil: p => (koerperOffen.includes(p.id) && !p.isDropZiel
-              ? { boxShadow: 'inset 2px 0 0 var(--tf-primary)' }
-              : undefined),
-            contextMenu: p => (p.data.art === 'meilenstein' && !schreibgeschuetzt ? (
-              <Menue
-                knoten={p.data.knoten} alle={knoten}
-                onKnoten={onKnoten} onErgaenzen={ergaenze}
-              />
-            ) : null),
-          }}
-        />
+        // Der Container misst die Titelspalte (`cqw`); unter der Summe der
+        // Mindestbreiten (Titel 200 + „Erfüllt, wenn" 220 + feste Spalten,
+        // Abstände, Griff, ⋯ ≈ 985 px) scrollt die Tabelle waagerecht, statt die
+        // Regel zu quetschen oder Zeilen umzubrechen.
+        <div className="@container overflow-x-auto">
+          <div className="min-w-[990px]">
+            <SpaltenKopf mitAktionen={!schreibgeschuetzt} />
+            <TfTree<MeilensteinBaumKnoten>
+              items={items}
+              rootId={rootId}
+              label="Meilenstein-Plan"
+              indent={EINZUG}
+              features={{
+                selection: true,
+                dnd: !schreibgeschuetzt,
+                reorder: !schreibgeschuetzt,
+                dragHandle: true,
+              }}
+              expandedItems={offen}
+              onExpandedChange={setOffen}
+              selectedItems={gewaehlt}
+              onSelectedChange={setGewaehlt}
+              onZeilenKlick={(id, _daten, e) => {
+                const ziel = e.target as Element | null;
+                if (ziel?.closest?.(BEDIENELEMENTE)) return;
+                schalteKoerper(id);
+              }}
+              canDrag={ids => ids.every(i => i !== MEILENSTEIN_BAUM_ROOT)}
+              canDrop={(quellen, ziel) => quellen.every(q =>
+                darfUmhaengen(knoten, q, ziel === MEILENSTEIN_BAUM_ROOT ? null : ziel))}
+              onDrop={(quellen, ziel, index) => {
+                const elternId = ziel === MEILENSTEIN_BAUM_ROOT ? null : ziel;
+                // Reihum anwenden: jeder Zug rechnet auf dem Ergebnis des
+                // vorigen, sonst kollidierten die neu vergebenen Sortierungen.
+                let naechste = knoten;
+                quellen.forEach((q, i) => {
+                  naechste = haengeKnotenUm(naechste, q, elternId, index === undefined ? undefined : index + i);
+                });
+                onKnoten(naechste);
+              }}
+              slots={{
+                leading: p => (p.dragHandleProps && !schreibgeschuetzt ? (
+                  <Griff props={p.dragHandleProps} className={aktionenKlasse(p.id, p.isFocused)} />
+                ) : null),
+                label: p => (p.data.art === 'meilenstein' ? (
+                  <KnotenZeile
+                    knoten={p.data.knoten}
+                    alle={knoten}
+                    spalten={spalten}
+                    level={p.level}
+                    schreibgeschuetzt={schreibgeschuetzt}
+                    frisch={p.id === frischeId}
+                    befunde={befunde.get(p.id) ?? KEINE_BEFUNDE}
+                    onKnoten={onKnoten}
+                  />
+                ) : null),
+                trailing: p => (p.data.art === 'meilenstein' && !schreibgeschuetzt ? (
+                  <AktionsZelle className={aktionenKlasse(p.id, p.isFocused)}>
+                    <ZeilenAktionen
+                      was="Meilenstein"
+                      eintraege={meilensteinAktionen(p.data.knoten, knoten, onKnoten, ergaenze)}
+                    />
+                  </AktionsZelle>
+                ) : null),
+                zeilenKlasse: () => 'group/zeile',
+                // Der Bedingungs-Editor hängt am eigenen Satz offener Zeilen — das
+                // Chevron bleibt beim Auf-/Zuklappen der Unter-Meilensteine.
+                body: p => (koerperOffen.includes(p.id) && p.data.art === 'meilenstein' ? (
+                  <KnotenKoerper
+                    knoten={p.data.knoten}
+                    alle={knoten}
+                    spalten={spalten}
+                    schreibgeschuetzt={schreibgeschuetzt}
+                    probe={probe}
+                    onKnoten={onKnoten}
+                    onOeffneKind={oeffneKind}
+                  />
+                ) : null),
+                // Bei mehreren offenen Bereichen sagt die Kante, welcher Block zu
+                // welcher Zeile gehört. `boxShadow` statt Hintergrund, damit der
+                // Hover-Zustand der Zeile erhalten bleibt — beim Ziehen tritt sie
+                // zurück, sonst verdeckte der Inline-Stil den Drop-Rahmen (auch er
+                // ein `box-shadow`).
+                zeilenStil: p => (koerperOffen.includes(p.id) && !p.isDropZiel
+                  ? { boxShadow: 'inset 2px 0 0 var(--tf-primary)' }
+                  : undefined),
+                contextMenu: p => (p.data.art === 'meilenstein' && !schreibgeschuetzt ? (
+                  <KontextEintraege eintraege={meilensteinAktionen(p.data.knoten, knoten, onKnoten, ergaenze)} />
+                ) : null),
+              }}
+            />
+          </div>
+        </div>
       )}
     </div>
   );

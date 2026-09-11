@@ -26,7 +26,8 @@ Rein deterministisch, kein LLM. Gated hinter `meilensteinMonitoring`
 `MeilensteinKnoten` ([typen.ts](../../src/core/meilensteine/typen.ts)): flacher
 Baum über `elternId`, Tiefe frei. Je Knoten `sollWoche` (Ende der n-ten Woche
 nach Antragseingang), `relevantFuerFrist`, `nurTypen` (FuE/DS/DL/NW, leer = alle),
-`aktiv`, `bedingung` und optional `istDatumFeld`.
+`aktiv`, `bedingung` und optional `istDatumFeld` sowie `unbestaetigt`
+(die Spalten-Zuordnung ist vorbelegt und noch nicht geprüft).
 
 `MeilensteinPlan`: versioniert + freigebbar wie der
 [Textbaustein-Katalog](textbaustein-katalog.md) — `status` ist eine eigene Achse
@@ -469,29 +470,66 @@ ohne `[role="menu"]` klappte „Nach oben" den Bereich zu.
   ein Klick, nie automatisch.
 
 **Der Meilenstein um den Regelbereich**
-([KonfigurationTab.tsx](../../src/plugins/meilensteine/KonfigurationTab.tsx)):
+([MeilensteinZeile.tsx](../../src/plugins/meilensteine/MeilensteinZeile.tsx),
+[KonfigurationTab.tsx](../../src/plugins/meilensteine/KonfigurationTab.tsx)).
+Die zugeklappte Liste folgt einem Entwurf von Claude Design (v6.62), der
+aufgeklappte Regelbereich nicht. Bis dahin trug jede Zeile ihre eigenen
+Beschriftungen („Woche", „gilt für"). Bei 1 360 px brach der rechte Block in
+jeder Zeile um, und die Regel wurde abgeschnitten:
 
-- **Der Kopf der Meilenstein-Zeile ist dreigeteilt** (`KnotenKopf`): links die
-  Nummer (so schmal wie „10" bzw. „4.3", mindestens 26 px — feste 46 px ließen
-  eine Lücke) und die Bezeichnung mit fester, mitwachsender Breite (260–560 px,
-  kein Anteil mit Umbruch), in der Mitte Zusammenfassung und Marken, rechts ein fester Block
-  Woche · aktiv · Frist · gilt für. Die Mitte füllt immer den Rest — auch ohne
-  Zusammenfassung —, deshalb steht der rechte Block in jeder Zeile an derselben
-  Stelle; wird es zu eng, bricht er in allen Zeilen gleich in die zweite Zeile
-  um. `KnotenAktionen` hält bei Wurzel-Meilensteinen die Breite des Knopfs
-  „Eine Ebene höher" als unsichtbaren Platzhalter, damit auch Unter-Meilensteine
-  bündig bleiben.
-- **„gilt für" steht im Kopf der Meilenstein-Zeile**, als Chips neben „aktiv"
-  und „Frist", statt als eigene Zeile im Regelbereich; die linke
-  Beschriftungsspalte des Bereichs ist entfallen, die Beschreibung steht als
-  leise Zeile darüber. Die Abwahl des letzten Typs ist gesperrt (leer hieße
-  „gilt für alle"), alle vier gewählt wird wieder zur leeren Liste.
-- **Die Marken stehen rechtsbündig am Ende der Mitte** (`KnotenMarken`), vor
-  dem Schalter-Block, nicht dahinter — dort verschoben sie die Spalten und
-  brachen bei voller Breite um: ein Punkt, wenn die Probe einen Befund hat
-  (auch zugeklappt; der Tooltip nennt ihn, `knotenBefunde`, dieselben Fakten
-  wie in der Wirkungsleiste, siehe Probe am Bestand), dazu „unbestätigt" und
-  „ohne Bedingung".
+- **Die Liste ist eine Tabelle mit Spaltenköpfen** (`SpaltenKopf`,
+  `KnotenZeile`): Nummer · Meilenstein · Erfüllt, wenn · Zuordnung · Woche ·
+  Zustand (aktiv, Frist) · Gilt für. Kopf und Zeile lesen dieselben festen
+  Spaltenbreiten (`SP`). Der Kopf baut außerdem das Gerüst der Zeile (Griff,
+  Chevron, ⋯) mit Platzhaltern gleicher Breite nach — ein Kopf mit eigenen
+  Maßen liefe beim ersten geänderten Abstand still auseinander.
+- **Bündig über alle Ebenen.** Der Baum rückt Unter-Meilensteine um `EINZUG`
+  (18 px) je Ebene ein, und die Titelspalte wird um genau diesen Einzug schmaler
+  (`clamp(200px, 28cqw, 420px)` minus Einzug). Sonst stünde „Erfüllt, wenn" je
+  Ebene versetzt. `cqw` misst den Tabellen-Container, nicht das Fenster. Unter
+  990 px Tabellenbreite (Summe der Mindestbreiten; „Erfüllt, wenn" hält 220 px)
+  scrollt die Tabelle im eigenen Container waagerecht, die Seite nicht.
+- **Felder sehen wie Text aus**, bis man sie überfährt oder fokussiert
+  (Bezeichnung, Woche). Die Bezeichnung wächst auf bis zu drei Zeilen, darunter
+  steht „N Unter-Meilensteine". Die Höhe misst ein Callback-Ref, der Rand
+  zählt mit — ohne ihn lief jedes einzeilige Feld 2 px über und zeigte einen
+  Scrollbalken. In einer inaktiven Zeile stehen Bezeichnung und Regel in
+  Sekundärfarbe.
+- **„Erfüllt, wenn" zeigt die oberste Ebene der Regel** (`bedingungUebersicht`).
+  Einzelbedingungen stehen als Satz, Gruppen nur mit Namen oder „Gruppe n",
+  dazwischen ein kleines UND/ODER, Feldnamen hervorgehoben. Darunter stehen
+  „N Bedingungen in M Gruppen" und „Ist-Termin: …". Den vollen Satz und die
+  Quellspalten nennt der Tooltip (`knotenQuellen`). Die Zelle bleibt auch bei
+  offenem Regelbereich stehen: sie ist die Zeile, der Bereich ihr Detail. Ohne
+  Bedingung steht beim Sammel-Meilenstein „wenn alle aktiven Unter-Meilensteine
+  erreicht sind", sonst „keine Bedingung — wird nicht geprüft" (rot nur bei
+  aktivem Knoten).
+- **Befunde der Probe stehen als Warn-Dreieck** am Ende von „Erfüllt, wenn"
+  (`knotenBefunde`, dieselben Fakten wie in der Wirkungsleiste, siehe Probe am
+  Bestand; der Tooltip nennt sie). Sie melden die Regel, nicht die Woche. Ein
+  Dreieck statt eines Punkts, weil gleich daneben der Punkt der Zuordnung in
+  derselben Farbe steht.
+- **Die Zuordnung wird in der Oberfläche bestätigt.** Die Spalte zeigt
+  „● unbestätigt" bzw. „● bestätigt", ein Klick schaltet `unbestaetigt` um;
+  derselbe Schalter steht im ⋯-Menü. Bis v6.61 setzte nur der
+  Auslieferungs-Plan das Feld, und die Oberfläche kannte keinen Weg zurück.
+  Bestätigen ist eine Planänderung im Entwurf wie jede andere: gespeichert als
+  neue Fassung, wirksam erst mit der Freigabe. `aktiv` bleibt davon unberührt.
+  Die Pille „N Zuordnungen unbestätigt" in der Werkzeugleiste zählt mit.
+- **„Gilt für" ist eine verbundene Mehrfachauswahl** (`TypSchalter`,
+  `aria-pressed` je Typ; nicht `SegmentedToggle`, das ist eine Einfachauswahl).
+  Gewählt ist dunkel gefüllt wie eine aktive Filter-Pill. Die Abwahl des letzten
+  Typs ist gesperrt, weil leer „gilt für alle" hieße; der gesperrte Knopf bleibt
+  gefüllt. Alle vier gewählt wird wieder zur leeren Liste.
+- **Griff und ⋯ erscheinen beim Überfahren.** Sie werden über die Deckkraft
+  eingeblendet, damit die Breite bleibt; bei Tastaturfokus, offenem Menü und
+  offenem Regelbereich stehen sie fest. Die Umbau-Schalter liegen im ⋯-Menü
+  (`ZeilenAktionen`), und das Kontextmenü zeigt dieselbe Liste
+  (`meilensteinAktionen`): Nach oben · Nach unten · Eine Ebene höher ·
+  Unter-Meilenstein anlegen · Zuordnung bestätigen bzw. wieder als unbestätigt
+  markieren · Stilllegen bzw. Wieder aktivieren · Löschen. „Nach oben/unten"
+  sind der Weg ohne Maus. Ein gesperrter Eintrag bleibt stehen und nennt seinen
+  Grund („Ist schon ein Haupt-Meilenstein.").
 - **Ein Sammel-Meilenstein** (keine eigene Bedingung, aber Unter-Meilensteine)
   zeigt seine Unter-Meilensteine als Karten: Nummer, Bezeichnung, „erfüllt bei
   … offen · … abgeschl."; ein Klick öffnet den Unter-Meilenstein. Zwischen den
@@ -500,14 +538,43 @@ ohne `[role="menu"]` klappte „Nach oben" den Bereich zu.
   gestrichelt am Ende und „zählen nicht mit". Darunter „Oder eine eigene
   Bedingung — dann ist er auch erreicht, sobald sie zutrifft" mit dem Editor.
 
-Die zugeklappte Meilenstein-Zeile fasst außerdem zusammen, **woran** ein
-Meilenstein hängt (Bedingung in Kurzform über den EINEN Formatierer
-`bedingungSatz`, benannte Gruppen mit ihrem Namen vor dem Inhalt,
-Ist-Termin-Feld, Zahl der Unter-Meilensteine; die Antragstypen stehen seit v6.60 als
-Chips „gilt für" im Kopf). Der Formatierer nimmt dafür seit
-v5.2 wahlweise eine Katalog-Fassung **oder** einen Namens-Auflöser
+Zelle und Tooltip gehen durch den EINEN Formatierer
+([bedingung-text.ts](../../src/core/status/bedingung-text.ts)). Eine
+Einzelbedingung entsteht als Folge von `SatzTeil`en mit Rolle (feld, wert,
+text, verknuepfung, gruppe). `bedingungAlsText` fügt genau diese Teile zum Satz
+zusammen, `bedingungUebersicht` gibt sie der Zelle zum Hervorheben — wortgleich,
+belegt je Operator in
+[bedingung-uebersicht.test.ts](../../src/core/status/__tests__/bedingung-uebersicht.test.ts).
+Kopfsatz und Übersicht zählen Gruppen über dieselbe Aufzählung (`obereEbene`),
+damit „Gruppe 2" an beiden Stellen dieselbe Karte meint. Der Formatierer nimmt
+seit v5.2 wahlweise eine Katalog-Fassung **oder** einen Namens-Auflöser
 (`FeldLabelQuelle`) — der Meilenstein-Plan hat keine Fassung, und ein zweiter
-Formatierer liefe beim ersten neuen Operator still auseinander.
+Formatierer liefe beim ersten neuen Operator still auseinander. Der Guard
+`quellspalten-an-bedingungen` zählt `bedingungUebersicht(` mit.
+
+Aus dem Entwurf bewusst **nicht** übernommen:
+
+- „nur bei positiver Ersteinschätzung" als Eigenschaft mit Link-Symbol. Das ist
+  nur Titeltext; die Bewertung kennt allein `aktiv` und den Antragstyp
+  (`istRelevant` in [bewertung.ts](../../src/core/meilensteine/bewertung.ts)).
+  Gemessen (11.09.2026, dev:local, Richtlinie 2025, Fassung 41 vom Share,
+  `bewerteVerbund` über den Ladeweg der Probe): 459 der 1 793 Verbünde haben
+  4.5 „Abl/RNE versendet" erreicht (200 offen, 259 abgeschlossen). Davon stehen
+  an MST 5 184 offene und 258 abgeschlossene auf „gerissen", an MST 6 102 und
+  259. Zum Maßstab: auch ohne sie sind 864 von 1 117 übrigen offenen an MST 5
+  gerissen — die negativen machen 184 von 1 048 gerissenen offenen aus. Und die
+  Regeln sind selbst nicht „nur positiv": MST 5 prüft auch „Widerspruch zur
+  Ablehnung" und „Stellungnahme zur Rücknahmeempf.", MST 6 auch
+  „ablehnungsreif"; eine positive Ersteinschätzung hat keinen eigenen Knoten
+  (der Sammel-MST 4 „Ersteinschätzung positiv …" enthält 4.5 selbst). Titel und
+  Bedingung widersprechen sich — ob MST 5/6 für negative Verbünde gelten,
+  entscheidet die PL, bevor eine Voraussetzung ins Datenmodell kommt.
+- Der Satz „erscheint im Antragsdetail" am Beschreibungsfeld: die Beschreibung
+  liest nur der Editor. Der Platzhalter bleibt „Beschreibung (optional)".
+- Verkürzte Bedingungstexte ohne „ist": sie hätten den einen Formatierer überall
+  geändert. Außerdem der Befund-Punkt an der Woche, der Pfeil als Öffner des
+  Regelbereichs (bei uns klappt er die Unter-Meilensteine auf) und der
+  weggelassene Knopf „+ Meilenstein".
 
 ### Probe am Bestand
 
@@ -602,15 +669,15 @@ Meilenstein-Modul reicht Zahlen in den Editor.
   Zahl steht da, das Urteil fällt die PL. Anlass war der ausgelieferte Plan
   (11.09.2026): „VB Kurzname ist gefüllt" machte MST 4.3 bei allen 1 094
   offenen Verbünden erfüllt, „Status ist Stellungnahme zur Rücknahmeempf." in
-  MST 5 traf keinen. Dieselben Befunde sammelt `knotenBefunde` für den Punkt in
-  der Meilenstein-Zeile.
+  MST 5 traf keinen. Dieselben Befunde sammelt `knotenBefunde` für das
+  Warn-Dreieck in der Meilenstein-Zeile.
 - **Ausnahme: ein Meilenstein, der nur einen Zeitpunkt misst**
   (`misstNurZeitpunkt`, [ist-termin.ts](../../src/core/meilensteine/ist-termin.ts)).
   Verlangt seine Regel allein, dass das Ist-Termin-Feld gefüllt ist — MST 9
   „Antrag im System eingegeben": Antragseingang gefüllt, Ist-Termin =
   Antragseingang; Gruppen mit genau einem Kind werden dabei durchschaut —, SOLL
   sie bei jedem Verbund zutreffen. Dort gibt es keinen Befund, weder an der
-  Bedingung noch in der Leiste noch als Punkt: der Lärm entwertete die echten
+  Bedingung noch in der Leiste noch in der Zeile: der Lärm entwertete die echten
   Befunde.
 - **„N ohne Termin" ist gezählt, nicht geschätzt** (`KnotenProbe.ohneDatum`):
   je Verbund „erreicht, aber `istDatum === null`" aus demselben Bewertungslauf,
@@ -657,9 +724,9 @@ Vier Zusagen, die alle aus derselben Beobachtung stammen — der Editor ist ein
   das vorige, und zwei Regeln ließen sich nie vergleichen. Geschaltet wird über
   `onZeilenKlick` (Capture-Phase) mit einem `closest()`-Filter auf die
   Bedienelemente der Zeile.
-- **Der Rückweg aus der Unterordnung** ist ein Knopf (`hebeKnotenAn`), nicht nur
-  ein Zug mit der Maus: der Knoten wird Geschwister seines Elternteils und landet
-  direkt dahinter.
+- **Der Rückweg aus der Unterordnung** ist ein Menüeintrag „Eine Ebene höher"
+  (`hebeKnotenAn`, im ⋯- und im Kontextmenü), nicht nur ein Zug mit der Maus:
+  der Knoten wird Geschwister seines Elternteils und landet direkt dahinter.
 - **Beide Ausgänge des Ziehens sind sichtbar**: die Einfüge-Marke des `TfTree`
   für „dazwischen", der Rahmen der Zeile für „hinein". Die linke Kante der
   offenen Zeile weicht dabei zurück — sie ist ein Inline-`box-shadow` und würde
@@ -673,7 +740,9 @@ verbindlich. Die **Zuordnung** zu CSV-Spalten ist es nicht: welcher der ~150
 Knoten bestätigt und aktiv (1.1 Antragseingang, 1.2 Zuweisung, 6 Bewilligung);
 plausible Zuordnungen tragen `unbestaetigt`, und wo keine plausible Quelle
 existierte, ist der Knoten zusätzlich inaktiv (1.4.2, 4, 5). Ein geratener
-Meilenstein wäre schlimmer als ein fehlender.
+Meilenstein wäre schlimmer als ein fehlender. Hat das Team eine Zuordnung
+geprüft, bestätigt es sie in der Spalte „Zuordnung" des Konfigurations-Reiters
+(siehe Der Meilenstein um den Regelbereich).
 
 ## Guards
 

@@ -1561,12 +1561,15 @@ describe('quellspalten-an-bedingungen (jede gezeigte Bedingung nennt ihre Quells
   // Ist-Wert bei Einfuehrung (10.09.2026): zwei .tsx rendern eine Bedingung als
   // Satz — TodoRegelSatz und KonfigurationTab —, beide jetzt mit Quellspalten.
   // Also Verbot statt Ratsche.
-  const RENDERT = /\bbedingung(?:Satz|AlsText)\(/;
+  // `bedingungUebersicht` (v6.62) ist dieselbe Aussage in Teilen — die
+  // Meilenstein-Zeile hebt damit Feldnamen hervor; auch sie nennt die Spalten.
+  const RENDERT = /\bbedingung(?:Satz|AlsText|Uebersicht)\(/;
   const ERKLAERT = /\b(?:bedingungQuellen|knotenQuellen|feldQuellen)\(|<QuellSpaltenTooltip\b/;
 
   it('Probe und Gegenprobe der Muster', () => {
     expect(RENDERT.test('{bedingungSatz(r.bedingung, version)}')).toBe(true);
     expect(RENDERT.test('teile.push(bedingungAlsText(b, v))')).toBe(true);
+    expect(RENDERT.test('const u = bedingungUebersicht(k.bedingung, labelVon)')).toBe(true);
     expect(RENDERT.test('import { bedingungSatz } from')).toBe(false);
     expect(ERKLAERT.test('erklaere={idx => bedingungQuellen(r.bedingung, idx, version)}')).toBe(true);
     expect(ERKLAERT.test('<QuellSpaltenTooltip erklaere={x}>')).toBe(true);
