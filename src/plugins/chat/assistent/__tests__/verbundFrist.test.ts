@@ -27,8 +27,16 @@ describe('verbundFrist', () => {
     expect(f.hinweis).toMatch(/dringend/);
   });
 
+  it('ein offenes Teilvorhaben hält den abgelehnten Verbund offen — mit Frist', () => {
+    // Ob die Uhr im Widerspruch läuft, sagt der Phasen-Katalog (im Seed steht
+    // sie). Geprüft wird hier die Weiche, also ein TV mit sicher laufender Uhr.
+    const f = verbundFrist('abgelehnt/zurückgezogen', [tv('A', -304, 'techn geprüft')], NOW);
+    expect(f.hinweis).toMatch(/überfällig/);
+    expect(f.anzahl).toBe(1);
+  });
+
   it('ein abgeschlossener Verbund hat weder Frist-Satz noch Frist-Zahl', () => {
-    const f = verbundFrist('abgelehnt/zurückgezogen', [tv('A', -304)], NOW);
+    const f = verbundFrist('abgelehnt/zurückgezogen', [tv('A', -304, 'abgelehnt/zurückgezogen')], NOW);
     expect(f.hinweis).toBeUndefined();
     expect(f.anzahl).toBe(0);
   });

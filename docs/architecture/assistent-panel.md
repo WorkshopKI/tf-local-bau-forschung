@@ -176,6 +176,7 @@ Bis v6.53 trug der Faktenblock Status, Fördervariante, die Aufgabe, einen Frist
 
 - **Ein Antrag schneidet auf sein Teilvorhaben**, ein Verbund zeigt alle — dieselbe Auswahl wie `useZeilenTodo`.
 - **Kaskade, Paare und Wächter nur mit Flag `vorgangssystem`** — eine Aussage aus einer Rechnung, die in der Variante nirgends sichtbar ist, könnte niemand nachprüfen.
+- **Abgeschlossen erst mit allen Teilvorhaben** ([abgeschlossen.ts](../../src/plugins/chat/assistent/abgeschlossen.ts)) — Frist und Wächter schweigen erst, wenn der Verbund-Status UND jedes Teilvorhaben terminal sind. Ein TV im Widerspruch zur Ablehnung ist offene Arbeit: der Verbund bleibt offen, die Frist spricht wie in Liste und Detailseite. Frist-Satz, Frist-Zahl im Kontext-Chip (`verbundFrist`) und Akte fragen dieselbe Weiche.
 - **Leere Signale entfallen** ohne Platzhalter. Die Akte trägt `fuer` (die Entität); der Assembler rendert sie nur, wenn sie zur Entität des Turns passt.
 - **Geladen nur bei offenem Dock** ([useVorgangsakte.ts](../../src/plugins/chat/assistent/useVorgangsakte.ts)) — dieselben Leser wie die Detailseite, kein Bestandslauf.
 

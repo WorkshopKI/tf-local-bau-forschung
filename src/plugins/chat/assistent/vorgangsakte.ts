@@ -32,7 +32,6 @@ import type { AntragsChronikMitId } from '@/core/status/journal/lesen';
 import type { VerlaufsSpur } from '@/core/status/verlauf/typen';
 import type { MappingVersion } from '@/core/status/typen';
 import type { MeilensteinPlan, Prognose, VerbundMeilensteine } from '@/core/meilensteine/typen';
-import { isTerminalStatus } from '@/core/utils/status-canonical';
 import { statusLabel } from '@/core/utils/status-wert-labels';
 import { parseGermanDate } from '@/core/services/csv/dateParse';
 import type { FristBasisFeld, FristErgebnis } from '@/core/services/csv/frist-ergebnis';
@@ -49,6 +48,7 @@ import { nullpunktText } from '@/plugins/antraege/status/journalTexte';
 import type { GutachtenKarte, NachforderungKarte } from '@/plugins/antraege/artefakte/artefaktKarten';
 import type { StepStatus, WorkflowRun } from '@/plugins/antraege/gutachten/types';
 import { relevanteSpuren, zaehleAbschnitte } from './zusatzBloecke';
+import { vorgangAbgeschlossen } from './abgeschlossen';
 
 /** Was `useStatusVerlauf` für einen Verbund liefert — nur die gelesenen Felder. */
 export interface AkteVerlaufQuelle {
@@ -357,7 +357,9 @@ export function baueVorgangsakte(e: AkteEingabe): VorgangsAkte {
     : e.antraege.filter(a => a.aktenzeichen === e.entitaet.id);
   const azs = new Set(tvs.map(t => t.aktenzeichen));
   const status = istVerbund ? (text(e.verbundStatus) ?? text(tvs[0]?.status)) : text(tvs[0]?.status);
-  const terminal = isTerminalStatus(status);
+  // Ein Verbund ist erst abgeschlossen, wenn jedes Teilvorhaben es ist — ein TV
+  // im Widerspruch hält ihn offen, und Frist und Wächter sprechen weiter.
+  const terminal = vorgangAbgeschlossen(status, tvs.map(t => t.status));
   const version = e.verlauf?.version ?? null;
   const jeTvVorkommen = (e.verlauf?.jeTeilvorhaben ?? []).filter(t => azs.has(t.aktenzeichen));
   const aktuell = istVerbund ? (e.verlauf?.vorkommen ?? []) : jeTvVorkommen.flatMap(t => t.vorkommen);

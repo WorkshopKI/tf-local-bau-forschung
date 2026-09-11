@@ -24,6 +24,8 @@
 ### Verbesserungen
 - Ist rechts der Assistent geöffnet, rückt die Startseite zur Seite, statt unter ihm zu liegen.
 - Ist in der rechten Spalte der Startseite kein Widget eingeschaltet, fällt sie ganz weg, und die Hauptspalte bekommt die Breite. Zurück kommt sie über „Startseite anpassen" → „Widgets".
+### Bugfixes
+- Liegt ein Teilvorhaben im Widerspruch, gilt der Verbund für den Assistenten nicht mehr als erledigt: er nennt die Frist wie Liste und Detailseite und bietet die Frist-Fragen wieder an.
 
 ## v6.56 — 2026-09
 

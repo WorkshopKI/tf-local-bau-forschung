@@ -20,6 +20,7 @@ import { schrittText } from '@/core/utils/naechsterSchritt';
 import type { ZeilenAufgaben } from '@/core/hooks/useBestandsAufgaben';
 import type { KontextEntitaet } from '@/core/services/assistent/kontext';
 import { baueArbeitsvorratUebersicht } from './arbeitsvorratUebersicht';
+import { vorgangAbgeschlossen } from './abgeschlossen';
 import type { AssistentTurnKontext } from './turn';
 
 const AMPEL_WORT: Record<EingangAmpel, string> = {
@@ -45,8 +46,8 @@ function euro(n: number | undefined): string | null {
   return typeof n === 'number' && Number.isFinite(n) ? `${n.toLocaleString('de-DE')} €` : null;
 }
 
-function fristHinweis(status: string | undefined, days: number | null): string | undefined {
-  if (isTerminalStatus(status)) return undefined;
+function fristHinweis(abgeschlossen: boolean, days: number | null): string | undefined {
+  if (abgeschlossen) return undefined;
   const anz = fristAnzeigeFromDays(days);
   return anz ? `${anz.text} (${AMPEL_WORT[anz.ampel]})` : undefined;
 }
@@ -99,7 +100,7 @@ function aufgabeVon(
 
 function antragEntitaet(a: AntragListItem, now: number, zeilen?: ZeilenAufgaben | null): KontextEntitaet {
   const laufzeit = a.laufzeitbeginn && a.laufzeitende ? `${a.laufzeitbeginn} – ${a.laufzeitende}` : null;
-  const hinweis = fristHinweis(a.status, fristTageVon(a, now));
+  const hinweis = fristHinweis(isTerminalStatus(a.status), fristTageVon(a, now));
   const aufgabe = aufgabeVon([a.aktenzeichen], a.status, zeilen);
   return {
     art: 'antrag',
@@ -129,15 +130,16 @@ function antragEntitaet(a: AntragListItem, now: number, zeilen?: ZeilenAufgaben 
  * spätesten Antragsdatum gerechnete. Wo keine Uhr läuft, sagt der Assistent
  * nichts, statt eine Zahl zu melden, die die Liste nicht zeigt.
  *
- * Die Zahl folgt dem Satz: ein abgeschlossener Verbund hat keinen, auch wenn
- * ein Teilvorhaben noch eine Uhr führt (CALYPSO: Verbund abgelehnt, das TV im
- * Widerspruch). Sonst meldete der Chip „1 Frist", zu der Faktenblock und
- * Vorgangsakte schweigen — wie beim Einzelantrag (`hinweis ? 1 : 0`).
+ * Abgeschlossen ist der Verbund erst, wenn auch jedes Teilvorhaben es ist
+ * (`vorgangAbgeschlossen` — ein TV im Widerspruch hält ihn offen). Die Zahl
+ * folgt dem Satz, wie beim Einzelantrag (`hinweis ? 1 : 0`): sonst meldete der
+ * Chip eine Frist, zu der Faktenblock und Vorgangsakte schweigen.
  */
 export function verbundFrist(
   status: string | undefined, tvs: readonly AntragListItem[], now: number,
 ): { hinweis: string | undefined; anzahl: number } {
-  const hinweis = fristHinweis(status, criticalFristErgebnis([...tvs], now).tageRest ?? null);
+  const abgeschlossen = vorgangAbgeschlossen(status, tvs.map(t => t.status));
+  const hinweis = fristHinweis(abgeschlossen, criticalFristErgebnis([...tvs], now).tageRest ?? null);
   const anzahl = hinweis ? tvs.filter(t => fristTageVon(t, now) !== null).length : 0;
   return { hinweis, anzahl };
 }

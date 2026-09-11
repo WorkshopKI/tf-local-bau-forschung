@@ -5,6 +5,14 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v6.57.1 — Assistent: ein Teilvorhaben im Widerspruch hält den Verbund offen (September 2026)
+
+PATCH — Bei CALYPSO (Verbund abgelehnt, das Teilvorhaben im Widerspruch) schwieg der Assistent zur Frist und nannte den Vorgang „erledigt", während Liste und Detailseite „304 Tage überfällig" zeigten. Die Sperre fragte nur den Verbund-Status; ein Widerspruch ist offene Arbeit.
+
+- **Weiche `vorgangAbgeschlossen`**: ein Verbund ist erst abgeschlossen, wenn auch jedes Teilvorhaben es ist ([abgeschlossen.ts](src/plugins/chat/assistent/abgeschlossen.ts))
+- **Frist-Satz, Frist-Zahl und Vorgangsakte** (Frist, Stillstands-Wächter) fragen dieselbe Weiche ([kontextSnapshot.ts](src/plugins/chat/assistent/kontextSnapshot.ts), [vorgangsakte.ts](src/plugins/chat/assistent/vorgangsakte.ts))
+- **Doku**: [assistent-panel.md](docs/architecture/assistent-panel.md) (Leitplanken der Vorgangsakte)
+
 ### v6.57.0 — Startseite macht Platz für den Assistenten (September 2026)
 
 MINOR — Das Assistent-Dock liegt als Overlay über dem Blatt. Auf der Startseite verdeckte es die rechte Spalte und einen Streifen der Hauptspalte, und eine leere Seitenspalte hielt trotzdem 332 px besetzt. Jetzt fällt eine leere Seitenspalte weg, und die Startseite weicht dem offenen Dock aus.

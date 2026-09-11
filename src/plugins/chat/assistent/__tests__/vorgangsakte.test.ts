@@ -132,6 +132,27 @@ describe('baueVorgangsakte — Signale', () => {
     expect(akte.frist?.basis).toContain('D_AAE');
   });
 
+  it('ein offenes Teilvorhaben hält den abgelehnten Verbund offen: Frist und Wächter sprechen', () => {
+    // CALYPSO: Verbund „abgelehnt/zurückgezogen", das Teilvorhaben im Widerspruch.
+    const akte = baueVorgangsakte(eingabe({
+      verbundStatus: 'abgelehnt/zurückgezogen',
+      antraege: [tv('AZ-1', { status: 'Widerspruch zur Ablehnung' }), tv('AZ-2', { status: 'abgelehnt/zurückgezogen' })],
+    }));
+    // Den Zustand der Uhr liefert die Frist-Engine je Phase; hier zählt, dass sie spricht.
+    expect(akte.frist).toBeDefined();
+    expect(akte.stillstand).toBeDefined();
+  });
+
+  it('ein abgeschlossener Verbund hat weder Frist noch Wächter', () => {
+    const zu = 'abgelehnt/zurückgezogen';
+    const akte = baueVorgangsakte(eingabe({
+      verbundStatus: zu,
+      antraege: [tv('AZ-1', { status: zu }), tv('AZ-2', { status: zu })],
+    }));
+    expect(akte.frist).toBeUndefined();
+    expect(akte.stillstand).toBeUndefined();
+  });
+
   it('übersetzt die Meilenstein-Bewertung in Worte', () => {
     const plan = {
       knoten: [{ id: 'k1', nummer: '1.4', label: 'Gutachten beauftragt' }],
