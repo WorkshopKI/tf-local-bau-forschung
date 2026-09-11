@@ -61,33 +61,66 @@ export interface FristRoh {
   tage: number;
   /** Wie viele weitere Anlässe desselben Verbunds diese Zeile mitvertritt. */
   weitere: number;
+  /**
+   * Die Handlung an diesem Verbund — aus derselben Kaskade wie die Karte „Meine
+   * Anträge". Vertritt ein Frist-Anlass den Verbund im Brief, verdrängt er dort
+   * den To-do-Punkt; ohne dieses Feld fiele die Aufgabe dann ganz weg.
+   */
+  aufgabe?: AufgabeText;
 }
 
-function fristSatz(r: FristRoh, thema: ThemaId, wort: string): BriefPunkt {
+/**
+ * Die Uhr nennt ihre Herkunft, der Grund steht in Anführung dahinter.
+ *
+ * Eine nackte Klammer las sich als Zustand: „KITED ist seit 227 Tagen fällig
+ * (QS freigegeben und versendet)" meinte einen Meilenstein, der seit 227 Tagen
+ * NICHT erreicht war — und die Karte darunter sagte „Stellungnahme RNE prüfen"
+ * (gemessen 11.09.2026). Das Fristen-Widget trägt die Herkunft seit v4.86 als
+ * Marke; der Brief hatte sie weggeworfen.
+ */
+function fristSatz(r: FristRoh, { thema, herkunft, wort }: FristArt): BriefPunkt {
   const zielAntrag: Sprungziel = { art: 'antrag', scopeId: r.verbundId };
   const wann = r.tage < 0
     ? `seit ${Math.abs(r.tage)} Tagen ${wort}`
     : r.tage === 0
       ? `heute ${wort}`
       : `in ${r.tage} Tagen ${wort}`;
-  const segmente: Segment[] = [
-    ziel(r.akronym, zielAntrag),
-    text(` ist ${wann}`),
-    text(r.grund ? ` (${r.grund})` : ''),
-    text(r.weitere > 0 ? ` — und ${r.weitere} weitere im selben Verbund` : ''),
-    text('.'),
-  ];
-  return punkt(thema, segmente, r.tage, `Was ist bei ${r.akronym} zu tun?`, { gruppe: r.verbundId });
+  const uhr = `${herkunft}${r.grund ? ` „${r.grund}“` : ''} ${wann}`
+    + (r.weitere > 0 ? ` — und ${r.weitere} weitere im selben Verbund` : '');
+  const a = r.aufgabe;
+  // Mit Aufgabe dieselbe Form wie ein To-do-Punkt: die Uhr in der Klammer, die
+  // Handlung hinter dem Doppelpunkt.
+  const segmente: Segment[] = a
+    ? [ziel(r.akronym, zielAntrag), text(` (${uhr}): ${a.text}`), ...vermerke(a), text('.')]
+    : [ziel(r.akronym, zielAntrag), text(`: ${uhr}`), text('.')];
+  return punkt(thema, segmente, r.tage, `Was ist bei ${r.akronym} zu tun?`, {
+    rueckfall: a?.rueckfall === true,
+    gruppe: r.verbundId,
+  });
 }
+
+/** Wie ein Frist-Satz je Quelle spricht: Thema, Herkunftswort, Fälligkeitswort. */
+interface FristArt {
+  thema: ThemaId;
+  herkunft: string;
+  wort: string;
+}
+
+/**
+ * Meilensteine sind „fällig", Zieltage „überfällig" — CONTEXT.md: der eine misst
+ * einen Termin ab Eingang, der andere Stillstand; im Brief klingen sie nicht gleich.
+ */
+const MEILENSTEIN: FristArt = { thema: 'fristen', herkunft: 'Meilenstein', wort: 'fällig' };
+const STILLSTAND: FristArt = { thema: 'stillstand', herkunft: 'Stillstand', wort: 'überfällig' };
 
 /** Meilensteine: ein Termin, gerechnet ab Antragseingang. */
 export function meilensteinPunkte(anlaesse: readonly FristRoh[]): BriefPunkt[] {
-  return anlaesse.map(r => fristSatz(r, 'fristen', 'fällig'));
+  return anlaesse.map(r => fristSatz(r, MEILENSTEIN));
 }
 
 /** Zieltage: der Stillstands-Wächter — misst Liegezeit, keinen Termin. */
 export function stillstandPunkte(anlaesse: readonly FristRoh[]): BriefPunkt[] {
-  return anlaesse.map(r => fristSatz(r, 'stillstand', 'überfällig'));
+  return anlaesse.map(r => fristSatz(r, STILLSTAND));
 }
 
 /** Die Handlung an einem Vorgang, aus der To-do-Kaskade (oder dem Rückfall). */
@@ -103,6 +136,21 @@ export interface AufgabeRoh {
   rueckfall: boolean;
   /** Der Text stammt aus dem Bestand vor der letzten Datenaktualisierung. */
   vorlaeufig?: boolean;
+}
+
+/** Der Teil einer Aufgabe, den ein Satz spricht — ohne Uhr und Sprungziel. */
+export type AufgabeText = Pick<AufgabeRoh, 'text' | 'rueckfall' | 'vorlaeufig'>;
+
+/** Die Vermerke einer Aufgabe — an jedem Satz, der eine spricht. */
+function vermerke(a: AufgabeText): Segment[] {
+  return [
+    // Ein Rückfall, der sich nicht zu erkennen gibt, spricht die widerlegte
+    // Formel, als wäre sie belegt.
+    text(a.rueckfall ? ' — aus dem Status abgeleitet, keine Regel greift' : ''),
+    // Der Stand von vor dem Import sagt, dass er einer ist — in Worten wie der
+    // Rückfall: der Brief ist Text, ein Symbol hätte hier keinen Platz.
+    text(a.vorlaeufig ? ' (Stand vor der Datenaktualisierung, wird neu berechnet)' : ''),
+  ];
 }
 
 /**
@@ -124,12 +172,7 @@ export function zuTunPunkte(aufgaben: readonly AufgabeRoh[]): BriefPunkt[] {
     const segmente: Segment[] = [
       ziel(a.titel, { art: 'antrag', scopeId: a.scopeId }),
       text(` (${uhrText(a.tage)}): ${a.text}`),
-      // Ein Rückfall, der sich nicht zu erkennen gibt, spricht die widerlegte
-      // Formel, als wäre sie belegt.
-      text(a.rueckfall ? ' — aus dem Status abgeleitet, keine Regel greift' : ''),
-      // Der Stand von vor dem Import sagt, dass er einer ist — in Worten wie der
-      // Rückfall: der Brief ist Text, ein Symbol hätte hier keinen Platz.
-      text(a.vorlaeufig ? ' (Stand vor der Datenaktualisierung, wird neu berechnet)' : ''),
+      ...vermerke(a),
       text('.'),
     ];
     return punkt('zu-tun', segmente, a.tage, `Was ist bei ${a.titel} zu tun?`, { rueckfall: a.rueckfall, gruppe: a.scopeId });

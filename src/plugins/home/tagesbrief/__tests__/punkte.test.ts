@@ -177,3 +177,56 @@ describe('punkte — wer nach einem Vorgang fragt, benennt ihn', () => {
     expect(feedbackPunkt(2)!.gruppe).toBeUndefined();
   });
 });
+
+/**
+ * Gemessen 11.09.2026 (Kürzel THü): der Brief sagte „KITED ist seit 227 Tagen
+ * fällig (QS freigegeben und versendet)", die Karte darunter „Stellungnahme RNE
+ * prüfen". Die Klammer war das Label des Meilensteins 1.4.3 — ein Termin, der
+ * NICHT erreicht ist, gelesen als Zustand, der eingetreten ist. Und weil der
+ * Meilenstein den Verbund im Brief vertrat, fiel die Aufgabe ganz weg.
+ */
+describe('punkte — der Meilenstein nennt sich, die Handlung kommt aus der Kaskade', () => {
+  const MST: FristRoh = {
+    verbundId: 'VB1', akronym: 'KITED', grund: 'QS freigegeben und versendet', tage: -227, weitere: 0,
+  };
+
+  it('ein Meilenstein steht als Meilenstein da, nicht als nackte Klammer', () => {
+    expect(meilensteinPunkte([MST])[0]!.satz)
+      .toBe('KITED: Meilenstein „QS freigegeben und versendet“ seit 227 Tagen fällig.');
+  });
+
+  it('mit Aufgabe: die Uhr in der Klammer, die Handlung hinter dem Doppelpunkt', () => {
+    const p = meilensteinPunkte([{ ...MST, aufgabe: { text: 'Stellungnahme RNE prüfen', rueckfall: false } }])[0]!;
+    expect(p.satz)
+      .toBe('KITED (Meilenstein „QS freigegeben und versendet“ seit 227 Tagen fällig): Stellungnahme RNE prüfen.');
+  });
+
+  it('Stillstand nimmt die Aufgabe genauso mit und bleibt „überfällig"', () => {
+    const p = stillstandPunkte([
+      { ...MST, grund: 'Gutachten fertig', tage: -9, aufgabe: { text: 'QS anstoßen', rueckfall: false } },
+    ])[0]!;
+    expect(p.satz).toBe('KITED (Stillstand „Gutachten fertig“ seit 9 Tagen überfällig): QS anstoßen.');
+  });
+
+  it('gebündelte Geschwister stehen bei der Uhr, nicht bei der Aufgabe', () => {
+    const p = meilensteinPunkte([
+      { ...MST, weitere: 2, aufgabe: { text: 'Stellungnahme RNE prüfen', rueckfall: false } },
+    ])[0]!;
+    expect(p.satz).toBe(
+      'KITED (Meilenstein „QS freigegeben und versendet“ seit 227 Tagen fällig — und 2 weitere im selben Verbund): Stellungnahme RNE prüfen.',
+    );
+  });
+
+  it('Rückfall und vorläufiger Stand geben sich auch am Frist-Satz zu erkennen', () => {
+    const p = meilensteinPunkte([
+      { ...MST, aufgabe: { text: 'Gutachten anfordern', rueckfall: true, vorlaeufig: true } },
+    ])[0]!;
+    expect(p.rueckfall).toBe(true);
+    expect(p.satz).toContain('aus dem Status abgeleitet');
+    expect(p.satz).toContain('Stand vor der Datenaktualisierung');
+  });
+
+  it('ohne Aufgabe trägt der Punkt keinen Rückfall', () => {
+    expect(meilensteinPunkte([MST])[0]!.rueckfall).toBeUndefined();
+  });
+});

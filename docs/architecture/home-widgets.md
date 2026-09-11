@@ -274,6 +274,14 @@ der Brief rankt über ihre Grenzen hinweg.
   Journal-Thema folgt dem Bearbeiter-Ausschnitt der Kopfzeile wie „Änderungen der
   letzten Nacht" — ohne ihn zählte der Brief 262 Vorgänge unter einem Chip, der
   „Kürzel ATh" sagt, die Karte daneben 7.
+- **Die Handlung kommt aus der Kaskade, auch wenn eine Frist rankt** (v6.57.4).
+  Ein Meilenstein- oder Stillstands-Punkt verdrängt beim Entdoppeln den
+  To-do-Punkt desselben Verbunds; deshalb spricht er dessen Aufgabe selbst
+  (`FristRoh.aufgabe`, dieselbe `aufgabenAnzeige` wie die Karte) und nennt seine
+  Herkunft: „KITED (Meilenstein „QS freigegeben und versendet“ seit 227 Tagen
+  fällig): Stellungnahme RNE prüfen." Vorher stand das Meilenstein-Label als
+  nackte Klammer da und las sich als eingetretener Zustand — gemessen 11.09.2026
+  unter einer Karte, die für denselben Verbund „Stellungnahme RNE prüfen" sagte.
 - **Keine Überschneidung mit der Hero-Karte darüber:** deren drei Kacheln zählen
   ALTER (>90 / 31–90 Tage), der Brief rechnet FRIST. Zwei Achsen, und keine Zahl
   steht zweimal — deshalb trägt der Brief auch kein Ampel-Sprungziel und zählt

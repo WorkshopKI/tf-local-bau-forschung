@@ -5,6 +5,14 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v6.57.4 — Tagesbrief nennt die Aufgabe statt des Meilenstein-Namens (September 2026)
+
+PATCH — Der Tagesbrief sagte „KITED ist seit 227 Tagen fällig (QS freigegeben und versendet)", die Karte „Meine Anträge" darunter „Stellungnahme RNE prüfen". Die Klammer war das Label eines Meilensteins, der NICHT erreicht war, und las sich als eingetretener Zustand; weil der Meilenstein den Verbund vertrat, fiel die Aufgabe ganz weg.
+
+- **Frist-Sätze nennen ihre Herkunft** („Meilenstein „…“" / „Stillstand „…“") und sprechen die Aufgabe des Verbunds mit, samt Rückfall- und Vorläufig-Vermerk ([punkte.ts](src/plugins/home/tagesbrief/punkte.ts))
+- **Eine Aufgaben-Rechnung für alle Uhr-Themen** (`aufgabeFuer`, dieselbe `aufgabenAnzeige` wie die Karte) ([useTagesbrief.ts](src/plugins/home/tagesbrief/useTagesbrief.ts))
+- Tests [punkte.test.ts](src/plugins/home/tagesbrief/__tests__/punkte.test.ts); Doku [home-widgets.md → Tagesbrief](docs/architecture/home-widgets.md), [feedback-kontext/home.md](docs/feedback-kontext/home.md)
+
 ### v6.57.3 — Status-Fassung bei jeder Datenaktualisierung nachziehen (September 2026)
 
 PATCH — Die Status-Fassung (Kürzel-Klartext, ZAH-Phasen, Zieltage, To-do-Regeln, Betrachtungsbereich) kam genau einmal je Sitzung vom Share. Eine tagsüber veröffentlichte Fassung sah jeder andere Rechner erst beim nächsten Start. Jetzt holt jede Datenaktualisierung sie mit.

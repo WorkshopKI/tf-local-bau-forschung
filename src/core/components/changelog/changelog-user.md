@@ -27,6 +27,7 @@
 - Während die Startseite nach einem Datenimport neu rechnet, bleiben die bisherigen Aufgaben stehen, markiert mit einem kleinen Kreispfeil (↻), statt überall „…" zu zeigen.
 - Veröffentlicht die Projektleitung eine neue Status-Fassung (Aufgaben-Regeln, Phasen, Bezeichnungen), übernimmt die App sie bei der nächsten Datenaktualisierung und nicht erst beim nächsten Start.
 ### Bugfixes
+- Der Tagesbrief nennt bei jedem Vorgang dieselbe Aufgabe wie „Meine Anträge“. Rückt ein überschrittener Meilenstein einen Vorgang nach oben, steht er ausdrücklich als Meilenstein da – vorher las sich sein Name wie ein bereits erreichter Stand.
 - Liegt ein Teilvorhaben im Widerspruch, gilt der Verbund für den Assistenten nicht mehr als erledigt: er nennt die Frist wie Liste und Detailseite und bietet die Frist-Fragen wieder an.
 - Nach einem CSV-Import oder einem neu geholten Datenbestand rechnet die Startseite von selbst neu, auch „Änderungen der letzten Nacht" und der Tagesbrief. Ein Browser-Reload ist dafür nicht mehr nötig.
 - Stand die Startseite länger offen, zeigten die Aufgaben manchmal nur noch „…". Das passiert nicht mehr.

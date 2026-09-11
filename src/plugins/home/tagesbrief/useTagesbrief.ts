@@ -40,11 +40,12 @@ import { berechneFeedbackNews } from '../widgets/feedbackNews';
 import { zaehleRegistryAenderungen } from '../widgets/registryAenderungen';
 import { useWeitermachenRows } from '../WeitermachenSection';
 import type { HomeWidgetContext } from '../widgets/widgetProps';
+import type { AntragVorgang } from '../dashboardAggregate';
 import { baueBrief } from './baueBrief';
 import {
   entwuerfePunkt, feedbackPunkt, meilensteinPunkte, nachtlaufPunkt, neuPunkt,
   registryPunkt, stillstandPunkte, weitermachenPunkt, zuTunPunkte,
-  type AufgabeRoh, type FristRoh,
+  type AufgabeRoh, type AufgabeText, type FristRoh,
 } from './punkte';
 import { aktiveThemen } from './themen';
 import type { Brief, BriefPunkt, ThemaId } from './typen';
@@ -172,17 +173,59 @@ export function useTagesbrief(aktiv: boolean, ctx: HomeWidgetContext, aus: reado
   const punkte = useMemo((): BriefPunkt[] => {
     const raus: BriefPunkt[] = [];
 
+    // Die Handlung an einem Vorgang: `aufgabenAnzeige` — dieselbe Formel wie die
+    // Zeilen der Karte „Meine Anträge", inklusive des BESCHRIFTETEN Rückfalls auf
+    // die alte Status-Formel. EINE Rechnung für alle Uhr-Themen: rankt ein
+    // Meilenstein den Verbund, verdrängt er dessen To-do-Punkt, und der Satz muss
+    // die Aufgabe dann selbst sprechen. Gemessen 11.09.2026: „KITED ist seit 227
+    // Tagen fällig (QS freigegeben und versendet)" über einer Karte, die
+    // „Stellungnahme RNE prüfen" sagte.
+    const aufgabeFuer = (a: AntragVorgang): AufgabeText | null => {
+      const akten = a.tv_aktenzeichen ?? [];
+      if (akten.length === 0) return null;
+      const aufgabe = aufgabeAusBestand(
+        akten, bestand.nachAktenzeichen, zeilenAufgaben.rolle, zeilenAufgaben.ohneRegeln,
+      );
+      const statusRoh = a.status ?? '';
+      const anzeige = aufgabenAnzeige({
+        aufgabe,
+        rueckfall: schrittText(statusRoh),
+        laeuftNoch: zeilenAufgaben.laeuftNoch,
+        vorlaeufig: zeilenAufgaben.vorlaeufig,
+        ausserhalbLauf: zeilenAufgaben.ausserhalb(akten),
+        regeln: zeilenAufgaben.regeln,
+        status: statusRoh,
+      });
+      if (!anzeige.text.trim()) return null;
+      return {
+        text: anzeige.text,
+        rueckfall: anzeige.quelle === 'rueckfall',
+        vorlaeufig: anzeige.vorlaeufig === true,
+      };
+    };
+
+    /** verbund_id → der Eintrag der Karte (Verbünde stehen dort als einer). */
+    const vorgangVon = new Map<string, AntragVorgang>();
+    for (const a of ctx.data.meineAntraege) {
+      if (a.verbund_id && !vorgangVon.has(a.verbund_id)) vorgangVon.set(a.verbund_id, a);
+    }
+
     // Frist-Anlässe: EINE Quelle, zwei Themen — getrennt nach ihrer Art, weil
     // Zieltage Stillstand messen und Meilensteine einen Termin ab Eingang
     // (CONTEXT.md). Vorzeichen gedreht: `ueberTage` zählt Tage ÜBER dem
     // Vorgesehenen, `BriefPunkt.tage` Tage BIS zur Fälligkeit.
-    const roh = (a: (typeof fristen.anlaesse)[number]): FristRoh => ({
-      verbundId: a.verbundId,
-      akronym: a.akronym,
-      grund: a.grund,
-      tage: -(a.ueberTage ?? 0),
-      weitere: a.weitere ?? 0,
-    });
+    const roh = (a: (typeof fristen.anlaesse)[number]): FristRoh => {
+      const vorgang = vorgangVon.get(a.verbundId);
+      const aufgabe = vorgang ? aufgabeFuer(vorgang) : null;
+      return {
+        verbundId: a.verbundId,
+        akronym: a.akronym,
+        grund: a.grund,
+        tage: -(a.ueberTage ?? 0),
+        weitere: a.weitere ?? 0,
+        ...(aufgabe ? { aufgabe } : {}),
+      };
+    };
     const bezifferbar = fristen.anlaesse.filter(a => a.ueberTage !== null);
     if (themen.has('fristen')) {
       raus.push(...meilensteinPunkte(
@@ -196,8 +239,7 @@ export function useTagesbrief(aktiv: boolean, ctx: HomeWidgetContext, aus: reado
     }
 
     // Was zu tun ist: die Vorgänge mit laufender Uhr, dringlichste zuerst. Der
-    // Text kommt aus `aufgabenAnzeige` — dieselbe Formel wie die Zeilen darunter,
-    // inklusive des BESCHRIFTETEN Rückfalls auf die alte Status-Formel.
+    // Text kommt aus `aufgabeFuer` (s.o.).
     if (themen.has('zu-tun')) {
       // Grundmenge, Uhr und Namen kommen aus DEMSELBEN Aggregat, das die Karte
       // „Meine Anträge" rendert — nicht aus dem rohen Bestandslauf.
@@ -215,29 +257,15 @@ export function useTagesbrief(aktiv: boolean, ctx: HomeWidgetContext, aus: reado
         .slice(0, KANDIDATEN);
       const aufgaben: AufgabeRoh[] = [];
       for (const a of kandidaten) {
-        const akten = a.tv_aktenzeichen ?? [];
-        if (akten.length === 0) continue;
-        const aufgabe = aufgabeAusBestand(
-          akten, bestand.nachAktenzeichen, zeilenAufgaben.rolle, zeilenAufgaben.ohneRegeln,
-        );
-        const statusRoh = a.status ?? '';
-        const anzeige = aufgabenAnzeige({
-          aufgabe,
-          rueckfall: schrittText(statusRoh),
-          laeuftNoch: zeilenAufgaben.laeuftNoch,
-          vorlaeufig: zeilenAufgaben.vorlaeufig,
-          ausserhalbLauf: zeilenAufgaben.ausserhalb(akten),
-          regeln: zeilenAufgaben.regeln,
-          status: statusRoh,
-        });
-        if (!anzeige.text.trim()) continue;
+        const aufgabe = aufgabeFuer(a);
+        if (!aufgabe) continue;
+        // `aufgabeFuer` liefert nur bei mindestens einem Aktenzeichen etwas.
+        const akte = a.tv_aktenzeichen![0]!;
         aufgaben.push({
-          scopeId: a.verbund_id ?? akten[0]!,
-          titel: a.acronym ?? a.verbund_titel ?? a.title ?? akten[0]!,
-          text: anzeige.text,
+          scopeId: a.verbund_id ?? akte,
+          titel: a.acronym ?? a.verbund_titel ?? a.title ?? akte,
+          ...aufgabe,
           tage: a.fristTage as number,
-          rueckfall: anzeige.quelle === 'rueckfall',
-          vorlaeufig: anzeige.vorlaeufig === true,
         });
       }
       raus.push(...zuTunPunkte(aufgaben));
@@ -276,7 +304,7 @@ export function useTagesbrief(aktiv: boolean, ctx: HomeWidgetContext, aus: reado
     return raus;
   }, [
     themen, fristen.anlaesse, bestand.zeilen, bestand.nachAktenzeichen, zeilenAufgaben,
-    meineVerbuende, journal, qsZeilen, weitermachen, feedbackItems, anker, ich, registryAnzahl,
+    ctx.data.meineAntraege, meineVerbuende, journal, qsZeilen, weitermachen, feedbackItems, anker, ich, registryAnzahl,
   ]);
 
   // Solange irgendeine Quelle unterwegs ist, ist Leere kein Befund.
