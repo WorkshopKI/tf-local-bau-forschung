@@ -16,15 +16,16 @@ import { TOUR_STEPS } from '@/core/components/tour/tourSteps';
 import { useAntraegeStore } from '@/plugins/antraege/store';
 import { useActiveProgramm } from '@/core/hooks/useActiveProgramm';
 import { useDashboardData } from './useDashboardData';
+import { DockAussparung } from './DockAussparung';
 import { HomeZweiSpalten } from './HomeZweiSpalten';
 import { HomeHero } from './HomeHero';
 import { ProgrammeOverviewCards } from './ProgrammeOverviewCards';
 import { useEingangAmpelCounts } from './useEingangAmpelCounts';
 import { formatHomeSubtitle } from './homeSubtitle';
 import type { AmpelBucket } from '@/plugins/antraege/eingangAmpel';
-import { HomeWidgetStack } from './widgets/HomeWidgetStack';
+import { HomeWidgetStack, renderbareWidgets } from './widgets/HomeWidgetStack';
 import { ampelSchwellenAusConfig } from './widgets/homeWidgetsStore';
-import { useHomeWidgetsStore } from './widgets/useHomeWidgets';
+import { useHomeWidgets, useHomeWidgetsStore } from './widgets/useHomeWidgets';
 import type { HomeWidgetContext } from './widgets/widgetProps';
 import { isDataShareEnabled, isEndUserProdVariant } from '@/config/feature-flags';
 import { getDatenShareHandle } from '@/core/services/infrastructure/smb-handle';
@@ -97,6 +98,11 @@ export function HomePage(): React.ReactElement {
     // die Ampel-Schwellen schon im ersten sichtbaren Frame.
     ladeWidgetConfig(storage.idb).catch(() => {});
   }, [ladeWidgetConfig, storage.idb]);
+  // Leere Seitenspalte fällt weg (v6.57) — dieselbe Regel, die im Stack den
+  // Leer-Hinweis auslöst. Solange die Config lädt, bleibt die Spalte stehen:
+  // sonst spränge das Layout im Normalfall (Seitenspalte belegt) beim Laden.
+  const { geladen: widgetsGeladen, seite: seitenWidgets } = useHomeWidgets();
+  const seiteLeer = widgetsGeladen && renderbareWidgets(seitenWidgets).length === 0;
   const schwellen = ampelSchwellenAusConfig(homeWidgetConfig);
   const ampelCounts = useEingangAmpelCounts(schwellen);
   const subtitle = formatHomeSubtitle(ampelCounts.total);
@@ -189,14 +195,16 @@ export function HomePage(): React.ReactElement {
     const hour = new Date().getHours();
     const greeting = hour < 12 ? 'Guten Morgen' : hour < 18 ? 'Guten Tag' : 'Guten Abend';
     return (
-      <div className="px-8 pt-4 pb-6 max-w-[1600px]">
+      <DockAussparung className="px-8 pt-4 pb-6 max-w-[1600px]">
         <div className="mb-6">
           <h1 className="text-[22px] font-medium text-[var(--tf-text)]">
             {greeting}{name ? `, ${name}` : ''}
           </h1>
           <p className="text-[13px] text-[var(--tf-text-tertiary)]">Lade Vorgänge …</p>
         </div>
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_260px] gap-8">
+        {/* Das Skelett folgt der Seitenspalten-Entscheidung — sonst stünde hier
+            eine rechte Spalte, die im nächsten Frame verschwindet. */}
+        <div className={`grid grid-cols-1 gap-8 ${seiteLeer ? '' : 'lg:grid-cols-[1fr_260px]'}`}>
           <div className="min-w-0">
             <div className="h-4 w-40 rounded bg-[var(--tf-bg-secondary)] animate-pulse mb-3" />
             <div className="space-y-2">
@@ -205,16 +213,18 @@ export function HomePage(): React.ReactElement {
               ))}
             </div>
           </div>
-          <div className="space-y-4">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <div
-                key={i}
-                className="h-24 rounded-[var(--tf-radius)] bg-[var(--tf-bg-secondary)] animate-pulse"
-              />
-            ))}
-          </div>
+          {seiteLeer ? null : (
+            <div className="space-y-4">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="h-24 rounded-[var(--tf-radius)] bg-[var(--tf-bg-secondary)] animate-pulse"
+                />
+              ))}
+            </div>
+          )}
         </div>
-      </div>
+      </DockAussparung>
     );
   }
 
@@ -242,7 +252,7 @@ export function HomePage(): React.ReactElement {
   }
 
   return (
-    <div className="px-8 pt-4 pb-6" onContextMenu={beiRechtsklick}>
+    <DockAussparung className="px-8 pt-4 pb-6" onContextMenu={beiRechtsklick}>
       {/* Header — über die VOLLE Blattbreite (die 1600px-Grenze gilt erst dem
           Rumpf darunter): der Hilfe-Knopf steht auf jeder Seite am rechten
           Blattrand (ui-muster.md, Guard `hilfe-knopf-am-blattrand`). */}
@@ -306,7 +316,7 @@ export function HomePage(): React.ReactElement {
               </div>
             </div>
           }
-          seite={<HomeWidgetStack bereich="seite" ctx={widgetCtx} className="space-y-3" />}
+          seite={seiteLeer ? null : <HomeWidgetStack bereich="seite" ctx={widgetCtx} className="space-y-3" />}
         />
       </div>
 
@@ -314,7 +324,7 @@ export function HomePage(): React.ReactElement {
           Baum ist egal, sie stehen hier nur beieinander. */}
       <StartseiteMenue />
       <RueckgaengigLeiste />
-    </div>
+    </DockAussparung>
   );
 }
 

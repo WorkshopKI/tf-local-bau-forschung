@@ -4,9 +4,13 @@
  * entscheiden Selbst-Verstecken (null wie die heutigen Sektionen) und
  * rendern ihre WidgetShell selbst (eigene Titel/Meta/Zähler-Slots).
  *
- * Seit v4.6 endet jede Spalte mit „Widget hinzufügen" — auch die leere. Vorher
- * verschwand eine leergeräumte Spalte samt jedem Anfasser; wer alles ausgeblendet
- * hatte, kam nur über die Einstellungen zurück.
+ * Jede angezeigte Spalte endet mit „Widget hinzufügen" (v4.6) — die Hauptspalte
+ * auch dann, wenn sie leer ist. Eine LEERE Seitenspalte zeigt die Startseite seit
+ * v6.57 gar nicht erst (`renderbareWidgets` in HomePage): ihre 300 px gehören dann
+ * der Hauptspalte und dem Assistent-Dock. Der Rückweg, für den v4.6 den Knopf in
+ * jede Spalte setzte, ist seit v4.7 dreifach da — „Startseite anpassen", Rechts-
+ * klick und „Widget hinzufügen" der Hauptspalte öffnen alle `Widgets ▸`, dessen
+ * Gruppe „Seitenspalte" auch die ausgeblendeten Widgets führt.
  */
 import { WidgetHinzufuegen } from '../anpassen/WidgetHinzufuegen';
 import { AiAssistentWidget } from '../AiAssistantCard';
@@ -25,7 +29,7 @@ import { NachtlaufWidget } from './NachtlaufWidget';
 import { FristenWidget } from './FristenWidget';
 import { TagesbriefWidget } from '../tagesbrief/TagesbriefWidget';
 import { useHomeWidgets } from './useHomeWidgets';
-import type { WidgetTyp } from './types';
+import type { WidgetInstanz, WidgetTyp } from './types';
 import type { HomeWidgetContext, WidgetProps } from './widgetProps';
 
 /** Jeder Katalog-Typ hat einen Renderer (v1.1 komplett). Neue Zukunfts-Typen
@@ -52,6 +56,12 @@ const RENDERERS: Record<WidgetTyp, React.ComponentType<WidgetProps> | null> = {
   nachtlauf: NachtlaufWidget,
 };
 
+/** Die Instanzen, für die es einen Renderer gibt — was eine Spalte tatsächlich
+ *  zeigt. HomePage entscheidet damit, ob die Seitenspalte überhaupt steht. */
+export function renderbareWidgets(widgets: WidgetInstanz[]): WidgetInstanz[] {
+  return widgets.filter(w => RENDERERS[w.typ] !== null);
+}
+
 interface Props {
   bereich: 'haupt' | 'seite';
   ctx: HomeWidgetContext;
@@ -60,8 +70,7 @@ interface Props {
 
 export function HomeWidgetStack({ bereich, ctx, className }: Props): React.ReactElement | null {
   const api = useHomeWidgets();
-  const widgets = bereich === 'haupt' ? api.haupt : api.seite;
-  const renderbar = widgets.filter(w => RENDERERS[w.typ] !== null);
+  const renderbar = renderbareWidgets(bereich === 'haupt' ? api.haupt : api.seite);
   if (!api.geladen) return null;
   return (
     <div className={className}>

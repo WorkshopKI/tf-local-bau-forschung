@@ -5,6 +5,14 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v6.57.0 — Startseite macht Platz für den Assistenten (September 2026)
+
+MINOR — Das Assistent-Dock liegt als Overlay über dem Blatt. Auf der Startseite verdeckte es die rechte Spalte und einen Streifen der Hauptspalte, und eine leere Seitenspalte hielt trotzdem 332 px besetzt. Jetzt fällt eine leere Seitenspalte weg, und die Startseite weicht dem offenen Dock aus.
+
+- **Leere Seitenspalte fällt weg**: dieselbe Regel wie der Leer-Hinweis, das Lade-Skelett folgt ([HomePage.tsx](src/plugins/home/HomePage.tsx), [HomeZweiSpalten.tsx](src/plugins/home/HomeZweiSpalten.tsx), [HomeWidgetStack.tsx](src/plugins/home/widgets/HomeWidgetStack.tsx))
+- **Startseite weicht dem offenen Dock aus**: rechter Außenabstand = Dock-Breite, nur auf dieser Seite ([DockAussparung.tsx](src/plugins/home/DockAussparung.tsx))
+- Doku: [home-widgets.md](docs/architecture/home-widgets.md), Ausnahme vom Overlay in [assistent-panel.md](docs/architecture/assistent-panel.md), [feedback-kontext/home.md](docs/feedback-kontext/home.md)
+
 ### v6.56.1 — Assistent: der Frist-Chip folgt dem Frist-Satz (September 2026)
 
 PATCH — Bei CALYPSO (Verbund abgelehnt, das Teilvorhaben im Widerspruch mit laufender Uhr) meldete der Kontext-Chip „1 Frist", während Faktenblock und Vorgangsakte zur Frist schwiegen. Die Zahl zählte die Uhren je Teilvorhaben ohne die Sperre für abgeschlossene Verbünde, die der Satz hat.

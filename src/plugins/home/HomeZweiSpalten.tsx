@@ -23,10 +23,13 @@ export function clampSeiteBreite(px: number): number {
 
 export interface HomeZweiSpaltenProps {
   main: React.ReactNode;
-  seite: React.ReactNode;
+  /** `null` = keine Seitenspalte: die Hauptspalte nimmt die volle Breite, kein
+   *  Griff. Die gemerkte Breite bleibt liegen und gilt wieder, sobald sie zurückkommt. */
+  seite: React.ReactNode | null;
 }
 
 export function HomeZweiSpalten({ main, seite }: HomeZweiSpaltenProps): React.ReactElement {
+  if (seite === null) return <>{main}</>;
   return (
     <ZweiSpaltenResizable
       haupt={main}

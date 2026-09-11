@@ -19,6 +19,12 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v6.57 — 2026-09
+
+### Verbesserungen
+- Ist rechts der Assistent geöffnet, rückt die Startseite zur Seite, statt unter ihm zu liegen.
+- Ist in der rechten Spalte der Startseite kein Widget eingeschaltet, fällt sie ganz weg, und die Hauptspalte bekommt die Breite. Zurück kommt sie über „Startseite anpassen" → „Widgets".
+
 ## v6.56 — 2026-09
 
 ### Neu
