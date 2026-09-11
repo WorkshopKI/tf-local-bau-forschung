@@ -8,6 +8,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Bedingung } from '../typen';
 import {
+  aufloesenAendertAussage, dupliziereBedingung, loeseGruppeAuf,
   benenneBedingungsGruppe, darfBedingungAusruecken, darfBedingungEinruecken, darfBedingungVerschieben,
   entferneBedingungAn, ersetzeBedingungAn,
   fuegeBedingungEin, holeBedingungAn, istBedingungsGruppe, gruppenKinder, pfadLiegtUnter, mitGruppenKindern,
@@ -291,5 +292,39 @@ describe('bedingung-baum · Gruppenname', () => {
     // Ohne Namen bleibt der Satz wie bisher.
     expect(bedingungSatz({ alle: [a, { einige: [b, c] }] }, namen))
       .toBe('tib_kuerz gefüllt UND (bib_kuerz gefüllt ODER status ist „beantragt")');
+  });
+});
+
+describe('bedingung-baum · Duplizieren und Auflösen (Karten-Menü)', () => {
+  it('dupliziert direkt hinter das Original, eine benannte Gruppe als „(Kopie)"', () => {
+    expect(dupliziereBedingung({ alle: [a, { einige: [c], name: 'AB' }] }, [1]))
+      .toEqual({ alle: [a, { einige: [c], name: 'AB' }, { einige: [c], name: 'AB (Kopie)' }] });
+    expect(dupliziereBedingung(baum(), [0])).toEqual({ alle: [a, a, b, { einige: [c] }] });
+  });
+
+  it('die Wurzel und tote Pfade bleiben unverändert', () => {
+    expect(dupliziereBedingung(baum(), [])).toEqual(baum());
+    expect(dupliziereBedingung(baum(), [9])).toEqual(baum());
+  });
+
+  it('löst eine Gruppe auf: ihre Kinder treten an ihre Stelle', () => {
+    expect(loeseGruppeAuf({ alle: [a, { einige: [b, c] }, a] }, [1])).toEqual({ alle: [a, b, c, a] });
+    expect(loeseGruppeAuf(baum(), [0])).toEqual(baum());
+    expect(loeseGruppeAuf(baum(), [])).toEqual(baum());
+  });
+
+  it('sagt ehrlich, ob das Auflösen die Aussage ändert', () => {
+    const r: Bedingung = { alle: [{ einige: [c] }, { einige: [a, b] }, { alle: [a, b] }, { einige: [] }] };
+    expect(aufloesenAendertAussage(r, [0])).toBe(false); // ein Kind: gleich unter „alle" wie „eine"
+    expect(aufloesenAendertAussage(r, [1])).toBe(true);  // „eine" mit zwei Kindern unter „alle"
+    expect(aufloesenAendertAussage(r, [2])).toBe(false); // gleiche Verknüpfung wie die Eltern
+    expect(aufloesenAendertAussage(r, [3])).toBe(true);  // leere „eine" hält „alle" falsch
+    expect(aufloesenAendertAussage(r, [])).toBe(false);
+  });
+
+  it('Auflösen einer Ein-Kind-Gruppe ändert tatsächlich kein Ergebnis', () => {
+    const r: Bedingung = { alle: [a, { einige: [c] }] };
+    const ctx = baueKontext({ tib_kuerz: 'X', status: 'beantragt' });
+    expect(pruefeBedingung(loeseGruppeAuf(r, [1]), ctx)).toBe(pruefeBedingung(r, ctx));
   });
 });

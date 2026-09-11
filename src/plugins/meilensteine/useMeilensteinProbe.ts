@@ -39,7 +39,8 @@ import { getAntragstypBucket, type AntragstypBucket } from '@/core/utils/vb-phas
 import {
   ANKER_SPALTEN, baueAnkerLeser, baueProbeFaelle, benoetigteFelder, freigegebeneFassung,
   loeseFelderAuf, probeMeilensteine, zaehleBedingung,
-  type KnotenProbe, type MeilensteinPlan, type ProbeVerbund, type ProbeZahlen, type SpaltenEintrag,
+  type KnotenProbe, type MeilensteinPlan, type ProbeFall, type ProbeVerbund, type ProbeZahlen,
+  type SpaltenEintrag,
 } from '@/core/meilensteine';
 
 /** Vollständig gelesene Anträge je Transaktion. */
@@ -72,7 +73,26 @@ export interface MeilensteinProbeApi {
   fassungVersion: number | null;
   /** Was eine Gruppe trifft, mit dem Nenner des Meilensteins (`nurTypen`). */
   zaehle: (b: Bedingung, nurTypen: readonly AntragstypBucket[]) => ProbeZahlen | null;
+  /**
+   * Bei wie vielen Verbünden ein Feld gefüllt ist — für JEDES Feld des
+   * Spalten-Katalogs, auch eines, das der Plan noch nicht benutzt (die
+   * Kennzahl der Feld-Suche).
+   */
+  zaehleFeld: (feldId: string, nurTypen: readonly AntragstypBucket[]) => ProbeZahlen | null;
 }
+
+/**
+ * Kontexte über ALLE Felder des Katalogs — nur für {@link MeilensteinProbeApi.zaehleFeld}.
+ * Die Probe-Kontexte kennen bloß die Felder, die der Plan schon benutzt; ein
+ * noch nicht gewähltes Feld stünde dort immer auf 0. Gebaut beim ersten Aufruf
+ * und je Bestand gemerkt — ein Modul-Cache statt eines Refs, weil die
+ * Feld-Suche während des Renderns fragt.
+ */
+const FELD_FAELLE = new WeakMap<readonly ProbeVerbund[], {
+  schemas: readonly CsvSchema[];
+  faelle: ProbeFall[];
+  zahlen: Map<string, ProbeZahlen>;
+}>();
 
 /** Nur die genannten Felder — der Rest des 461-Feld-Datensatzes fällt weg. */
 function waehle(rec: Record<string, unknown>, keys: ReadonlySet<string>): Record<string, unknown> {
@@ -208,6 +228,29 @@ export function useMeilensteinProbe(
     [faelle, stand],
   );
 
+  const zaehleFeld = useCallback(
+    (feldId: string, nurTypen: readonly AntragstypBucket[]): ProbeZahlen | null => {
+      if (!bestand || !stand) return null;
+      let eintrag = FELD_FAELLE.get(bestand);
+      if (!eintrag || eintrag.schemas !== schemas) {
+        eintrag = {
+          schemas,
+          faelle: baueProbeFaelle(bestand, loeseFelderAuf(schemas, spalten.map(s => s.feldId))),
+          zahlen: new Map(),
+        };
+        FELD_FAELLE.set(bestand, eintrag);
+      }
+      const schluessel = `${feldId}${TRENNER}${nurTypen.join(',')}`;
+      let z = eintrag.zahlen.get(schluessel);
+      if (!z) {
+        z = zaehleBedingung({ feldId, op: 'gefuellt' }, eintrag.faelle, nurTypen, stand);
+        eintrag.zahlen.set(schluessel, z);
+      }
+      return z;
+    },
+    [bestand, stand, schemas, spalten],
+  );
+
   return {
     bereit: bestand !== null,
     aktion,
@@ -220,5 +263,6 @@ export function useMeilensteinProbe(
     fassung: fassungProbe,
     fassungVersion: fassungPlan?.version ?? null,
     zaehle,
+    zaehleFeld,
   };
 }

@@ -345,3 +345,51 @@ export function rueckeBedingungAus(root: Bedingung, pfad: BedingungsPfad): Bedin
   if (elternIndex === undefined) return root;
   return verschiebeBedingung(root, pfad, elternPfad.slice(0, -1), elternIndex + 1);
 }
+
+/**
+ * Setzt eine Kopie des Knotens direkt HINTER das Original. Eine benannte Gruppe
+ * heißt danach „Name (Kopie)" — zwei gleichnamige Karten nebeneinander wären im
+ * Kopfsatz nicht zu unterscheiden. Anlass: FB- und AB-Schriftstück (MST 4.1 und
+ * 4.2) sind spiegelgleich gebaut. Die Wurzel lässt sich nicht duplizieren.
+ */
+export function dupliziereBedingung(root: Bedingung, pfad: BedingungsPfad): Bedingung {
+  const teil = zerlege(pfad);
+  const knoten = holeBedingungAn(root, pfad);
+  if (!teil || !knoten) return root;
+  const kopie: Bedingung = structuredClone(knoten);
+  const neu = istBedingungsGruppe(kopie) && kopie.name
+    ? baueGruppe(verknuepfungVon(kopie), gruppenKinder(kopie), `${kopie.name} (Kopie)`.slice(0, MAX_GRUPPENNAME))
+    : kopie;
+  return fuegeBedingungEin(root, teil.eltern, teil.index + 1, neu);
+}
+
+/**
+ * Löst die Gruppe an `pfad` auf: ihre Kinder treten an ihre Stelle, in ihrer
+ * Reihenfolge. Die Wurzel und Blätter bleiben unberührt.
+ */
+export function loeseGruppeAuf(root: Bedingung, pfad: BedingungsPfad): Bedingung {
+  const teil = zerlege(pfad);
+  const knoten = holeBedingungAn(root, pfad);
+  if (!teil || !knoten || !istBedingungsGruppe(knoten)) return root;
+  const eltern = holeBedingungAn(root, teil.eltern);
+  if (!eltern || !istBedingungsGruppe(eltern)) return root;
+  const kinder = [...gruppenKinder(eltern)];
+  kinder.splice(teil.index, 1, ...gruppenKinder(knoten));
+  return ersetzeBedingungAn(root, teil.eltern, mitGruppenKindern(eltern, kinder));
+}
+
+/**
+ * Ändert das Auflösen die Aussage der Regel? Nein, wenn die Gruppe genau ein
+ * Kind hat (unter „alle" wie „eine" dasselbe) oder dieselbe Verknüpfung wie
+ * ihre Eltern trägt. Sonst ja — auch bei einer LEEREN Gruppe: eine leere „eine"
+ * unter „alle" ist immer falsch und hält die Eltern falsch; fällt sie weg, kann
+ * die Regel plötzlich zutreffen. Der Editor sagt „ändert nichts" nur, wenn es
+ * stimmt.
+ */
+export function aufloesenAendertAussage(root: Bedingung, pfad: BedingungsPfad): boolean {
+  if (pfad.length === 0) return false;
+  const knoten = holeBedingungAn(root, pfad);
+  const eltern = holeBedingungAn(root, pfad.slice(0, -1));
+  if (!knoten || !eltern || !istBedingungsGruppe(knoten) || !istBedingungsGruppe(eltern)) return false;
+  return gruppenKinder(knoten).length !== 1 && verknuepfungVon(knoten) !== verknuepfungVon(eltern);
+}

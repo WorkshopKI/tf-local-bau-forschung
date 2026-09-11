@@ -19,6 +19,18 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v6.60 — 2026-09
+
+### Neu
+- Der Bereich „Erfüllt, wenn“ zeigt Gruppen als Karten nebeneinander, einzelne Bedingungen als kleine Karten und eine Gruppe in einer Gruppe als Innenkarte. Darüber steht die Regel in einem Satz, etwa „Erfüllt, wenn „PreCheck AB“ und „PreCheck FB“ zutreffen.“ Das gilt auch für die To-do-Regeln im Status-Cockpit und für den Dialog „Eigene Spalte“ der Förderanträge.
+- Unter den Karten eines Meilensteins steht, was er bewirkt: bei wie vielen offenen und abgeschlossenen Verbünden er erfüllt ist, was sich gegenüber der freigegebenen Fassung ändert und woher sein Ist-Termin kommt – als Satz für genau diese Regel.
+- Auffälligkeiten sind markiert, ohne Schwellen: eine Bedingung, die keinen oder jeden Verbund trifft (mit der Zahl, die die Regel ohne sie träfe), ein Meilenstein, der bei allen erfüllt ist, eine Regel ohne Datum und Verbünde, die als erreicht gelten, aber keinen Ist-Termin haben. Ein Punkt in der Meilenstein-Zeile zeigt das auch zugeklappt.
+### Verbesserungen
+- „und“ und „oder“ zwischen Karten und Bedingungen sind Schalter: ein Klick ändert die Verknüpfung. Der Schalter „alle | eine“ und das Zuklappen einzelner Gruppen sind dafür entfallen.
+- Das Menü (⋯) einer Karte kann sie nach links oder rechts schieben, duplizieren und auflösen – und sagt vorher, ob das Auflösen die Aussage der Regel ändert. Griff und Menü erscheinen nur an der Bedingung unter der Maus.
+- Jede Zahl trägt ihre Beschriftung, etwa „872 offen · 213 abgeschl.“ – an jeder Karte, an jeder Bedingung und in der Feld-Suche, die je Feld zeigt, bei wie vielen Verbünden es gefüllt ist.
+- Die Antragstypen („gilt für“) stehen jetzt im Kopf des Meilensteins neben „aktiv“ und „Frist“. Ein Sammel-Meilenstein zeigt seine Unter-Meilensteine als Karten; ein Klick öffnet sie.
+
 ## v6.59 — 2026-09
 
 ### Neu

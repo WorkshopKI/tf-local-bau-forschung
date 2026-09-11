@@ -1,147 +1,134 @@
 /**
- * Struktureller Bedingungs-Editor — verschachtelte UND/ODER-Gruppen, je Blatt
- * Feld · Operator · Wert (siehe [BlattZeile.tsx](./BlattZeile.tsx)).
+ * Struktureller Bedingungs-Editor — als **Karten** (v6.60). Feld · Vergleich ·
+ * Wert je Bedingung stehen in [BlattZeile.tsx](./BlattZeile.tsx).
  *
  * Die Komponente ist bewusst domänenfrei gegenüber den Meilensteinen: sie kennt
- * nur `Bedingung`. Deshalb bedient dieselbe Datei auch den Regel-Tab des
+ * nur `Bedingung`. Deshalb bedient dieselbe Datei auch die To-do-Regeln des
  * Status-Cockpits und den Dialog „Eigene Spalte".
  *
- * **Die Hierarchie ist nachträglich änderbar** (v5.3). Der Umbau selbst rechnet
- * nicht hier, sondern in der reinen [bedingung-baum.ts](../../core/status/bedingung-baum.ts);
- * diese Datei hält nur den Zeiger darauf, welcher Knoten gemeint ist — einen
- * **Kind-Index-Pfad**, weil `Bedingung` keine Ids kennt.
+ * **Warum Karten.** Die PL fand den Bereich nach v6.59 noch „nicht übersichtlich
+ * genug, gerade bei verschachtelten Gruppen". Aus vier Entwürfen und einem
+ * klickbaren Prototyp mit echten Probe-Zahlen (Spec
+ * `docs/superpowers/specs/2026-09-11-regelbereich-karten.md`) wurde:
+ * - Über allem der **Kopfsatz** (`bedingungKopfsatz`): „Erfüllt, wenn „PreCheck
+ *   AB" und „PreCheck FB" zutreffen." — im Quellspalten-Tooltip.
+ * - Jedes Kind der Wurzel ist eine **Karte**: eine Gruppe mit Name,
+ *   Verknüpfungstext, ⋯, Probe-Slot und ihren Bedingungen; eine Einzelbedingung
+ *   als kleine Karte. Das häufigste Muster des Plans — „alle von: eine von …" —
+ *   liest sich so auf einen Blick.
+ * - Eine Gruppe in einer Gruppe ist eine **Innenkarte**, rekursiv bis `MAX_TIEFE`.
+ * - Die **Verbinder** („und" / „oder") zwischen Karten und zwischen Bedingungen
+ *   sind die Schalter der Verknüpfung ([BedingungsFugen.tsx](./BedingungsFugen.tsx)).
+ * - Die gestrichelte Karte am Ende legt eine Einzelbedingung oder Gruppe an.
  *
- * **Geschwister sehen wie Geschwister aus** (v6.3): das Verknüpfungs-Wort steht
- * in der linken Rinne jeder Zeile ([BedingungsFugen.tsx](./BedingungsFugen.tsx))
- * — man liest wörtlich „A und B und (PreCheck AB) und C".
+ * Probe-Zahlen, Treffer je Bedingung und die Kennzahl der Feld-Suche reicht der
+ * Aufrufer als Render-Funktionen herein (Meilensteine); To-do-Regeln und Eigene
+ * Spalte reichen nichts.
  *
- * **Benannte Kästen** (v6.59). Die PL fand den Bereich beim ersten Anlegen
- * „nicht intuitiv und übersichtlich genug, gerade bei verschachtelten Gruppen".
- * Vier Dinge antworten darauf:
- * - Eine Gruppe trägt einen **Namen**, direkt im Kopf editierbar; ohne Namen
- *   steht „Gruppe n" als Platzhalter. Der Name steht auch im Kurzsatz
- *   („PreCheck AB: (…)") und hat keine Wirkung auf die Auswertung.
- * - **Ein Vokabular**: der Kopf schaltet „alle | eine", die Rinne sagt „und /
- *   oder" als sein Echo. Vorher standen ALLE/EINE im Kopf und UND/ODER in der
- *   Rinne — zwei Wortfamilien für eine Sache, und ein Dropdown für zwei Werte.
- * - Gruppen lassen sich **zuklappen** und zeigen dann ihren Kurzsatz.
- * - Die Umbau-Schalter stehen in einem **⋯-Menü** direkt am Inhalt statt als
- *   sieben Icons am rechten Rand ([ZeilenAktionen.tsx](./ZeilenAktionen.tsx)).
+ * **Ziehen bleibt**: Griff an jeder Bedingung, Marken zwischen den Bedingungen
+ * einer Karte, die Karte selbst als „hier hinein"-Ziel, die Kartenreihe als
+ * „ans Ende". Karten wandern über ⋯ (links / rechts). Die Drag-Ereignisse enden
+ * an der Wurzel dieses Editors, damit der Meilenstein-Baum darüber sie nicht als
+ * Meilenstein-Zug missversteht.
  *
- * **Zuklappen hängt am Pfad** — und Pfade sind flüchtig: nach einem Umbau der
- * Struktur (verschieben, ein-/ausrücken, verpacken, entfernen, ablegen) zeigt
- * ein gemerkter Pfad auf einen anderen Knoten. Deshalb läuft jeder solche
- * Umbau über `umbau()`, das die Klappen zurücksetzt. Anhängen, Umbenennen,
- * Umschalten und Blatt-Änderungen verschieben keinen Pfad und behalten sie.
- *
- * **Warum kein `TfTree`.** Er wäre die architekturtreue Wahl für einen Baum mit
- * Ziehen — liefe im Meilenstein-Tab aber INNERHALB des `body`-Slots des äußeren
- * `TfTree`, also zwei Drag-Instanzen im selben Ereignispfad, deren Drop-Ziele
- * sich überlagern. Dazu kommt, dass Pfad-Ids sich bei jeder Bearbeitung ändern
- * und den Aufklapp-/Auswahl-Zustand eines Baums damit bei jedem Tastendruck
- * zerrissen. Was hier steht, ist ein **Formular** mit Verschachtelung. Die
- * Drag-Ereignisse werden an der Wurzel dieses Editors gestoppt, damit der
- * äußere Baum sie nicht als Meilenstein-Zug missversteht.
+ * **Warum kein `TfTree`.** Er liefe im Meilenstein-Tab INNERHALB des
+ * `body`-Slots des äußeren `TfTree` — zwei Drag-Instanzen im selben
+ * Ereignispfad. Dazu kommt, dass Pfad-Adressen sich bei jeder Bearbeitung
+ * ändern. Was hier steht, ist ein **Formular** mit Verschachtelung.
  */
-import { useMemo, useRef, useState } from 'react';
-import { ChevronDown, ChevronRight, Plus } from 'lucide-react';
+import { Fragment, useMemo, useRef, useState } from 'react';
+import {
+  ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Copy, Group, IndentDecrease, IndentIncrease, Plus, Ungroup, X,
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { SegmentedToggle } from '@/components/ui/SegmentedToggle';
 import type { FeldWaehlerVorschlag } from '@/components/ui/FeldWaehler';
 import { QuellSpaltenTooltip } from '@/components/quellspalten';
 import { bedingungQuellen } from '@/core/status/bedingung-quellen';
 import {
-  MAX_GRUPPENNAME, alsBedingungsGruppe, bedingungSatz, benenneBedingungsGruppe,
-  darfBedingungAusruecken, darfBedingungEinruecken,
-  darfBedingungVerschieben, entferneBedingungAn, ersetzeBedingungAn, fuegeBedingungEin,
-  gruppenKinder, holeBedingungAn, istBedingungsGruppe, mitVerknuepfung,
-  rueckeBedingungAus, rueckeBedingungEin, verknuepfungVon, verpackeBedingungInGruppe,
-  verschiebeBedingung, verschiebeBedingungsGeschwister,
+  MAX_GRUPPENNAME, alsBedingungsGruppe, aufloesenAendertAussage, bedingungKopfsatz, benenneBedingungsGruppe,
+  darfBedingungAusruecken, darfBedingungEinruecken, darfBedingungVerschieben, dupliziereBedingung,
+  entferneBedingungAn, ersetzeBedingungAn, fuegeBedingungEin, gruppenKinder, holeBedingungAn,
+  istBedingungsGruppe, loeseGruppeAuf, mitVerknuepfung, rueckeBedingungAus, rueckeBedingungEin,
+  verknuepfungVon, verpackeBedingungInGruppe, verschiebeBedingung, verschiebeBedingungsGeschwister,
   type Bedingung, type BedingungsGruppe, type BedingungsPfad, type Verknuepfung,
 } from '@/core/status';
 import type { SpaltenEintrag } from '@/core/meilensteine';
 import { BlattZeile, type Blatt, type FeldPruefung } from './BlattZeile';
-import { Marke, Rinne, type DropZiel } from './BedingungsFugen';
-import { ZeilenAktionen } from './ZeilenAktionen';
+import { Marke, Verbinder, type DropZiel } from './BedingungsFugen';
+import { ZeilenAktionen, type AktionsEintrag } from './ZeilenAktionen';
 import { spaltenLabel } from './labels';
 
 export type { FeldPruefung } from './BlattZeile';
 
 /**
- * Einrück-Deckel. Bis v5.1 lag die Grenze bei 2 und blendete „+ Gruppe"
- * kommentarlos aus — eine Regel mit drei Ebenen ließ sich schlicht nicht bauen.
- * Jetzt ist sie so hoch, dass sie im Alltag nicht greift, und dort, wo sie
- * greift, sagt sie es: bei sechs Ebenen ist die Einrückung breiter als der
- * Bereich, und die Regel wäre ohnehin nicht mehr zu lesen.
+ * Einrück-Deckel. Bei sechs Ebenen ist die Einrückung breiter als eine Karte,
+ * und die Regel wäre ohnehin nicht mehr zu lesen.
  */
 const MAX_TIEFE = 6;
-
-/** Einzug der Bedienzeilen, damit sie unter den Bedingungen stehen, nicht unter der Rinne. */
-const UNTER_RINNE = 'pl-[38px]';
-
-const VERKNUEPFUNGEN = [
-  { id: 'alle' as const, label: 'alle' },
-  { id: 'einige' as const, label: 'eine' },
-];
 
 const gleich = (a: BedingungsPfad, b: BedingungsPfad): boolean =>
   a.length === b.length && a.every((x, i) => b[i] === x);
 
-const pfadSchluessel = (p: BedingungsPfad): string => p.join('.');
+const andere = (v: Verknuepfung): Verknuepfung => (v === 'alle' ? 'einige' : 'alle');
 
-export function BedingungEditor({ bedingung, spalten, pruefeFeld, vorschlaege, probe, onChange }: {
+function verknuepfungsText(v: Verknuepfung, kinder: number): string {
+  if (kinder < 2) return '';
+  return v === 'alle' ? 'alle müssen zutreffen' : 'eine genügt';
+}
+
+interface EditorProps {
   bedingung: Bedingung;
   spalten: SpaltenEintrag[];
   /** Ohne diese Prop verhält sich der Editor wie vor v2.386 (Meilensteine). */
   pruefeFeld?: FeldPruefung;
-  /**
-   * Angeheftete Feld-Kandidaten für den Wähler. Der Editor weiß nicht, woher
-   * sie kommen — die Meilensteine leiten sie aus der Bezeichnung ab, andere
-   * Aufrufer reichen nichts herein.
-   */
+  /** Angeheftete Feld-Kandidaten für den Wähler. */
   vorschlaege?: readonly FeldWaehlerVorschlag[];
-  /**
-   * Was eine Gruppe am Bestand trifft — vom Aufrufer gerendert, hier nur
-   * platziert (im Kopf jeder Gruppe außer der Wurzel). Der Editor weiß nicht,
-   * gegen welchen Bestand gezählt wird; die Meilensteine zählen die aktuelle
-   * Richtlinie, andere Aufrufer reichen nichts herein.
-   *
-   * Die Wurzel bekommt bewusst keine Zahl: für sie steht die Zahl des ganzen
-   * Meilensteins daneben, und die rechnet mit Unter-Meilensteinen — zwei
-   * verschiedene Zahlen für scheinbar dasselbe wären ein Widerspruch.
-   */
+  /** Was eine Gruppe am Bestand trifft — im Kopf ihrer Karte (nicht in Innenkarten). */
   probe?: (gruppe: Bedingung) => React.ReactNode;
+  /** Was eine einzelne Bedingung trifft — rechts in ihrer zweiten Zeile. */
+  trefferBlatt?: (blatt: Bedingung, pfad: BedingungsPfad) => React.ReactNode;
+  /** Kennzahl je Feld in der Feld-Suche. */
+  kennzahlFeld?: (feldId: string) => string | undefined;
   onChange: (b: Bedingung) => void;
-}): React.ReactElement {
-  // Ein Blatt als Wurzel wird angehoben, damit immer eine Verknüpfung sichtbar
-  // ist. Der Aufrufer bekommt danach ebenfalls eine Gruppe zurück.
-  const wurzel: Bedingung = alsBedingungsGruppe(bedingung);
+}
+
+/** Was jede Karte und Zelle braucht — einmal gebündelt statt durch fünf Ebenen gereicht. */
+interface Ctx extends Omit<EditorProps, 'bedingung' | 'onChange'> {
+  wurzel: BedingungsGruppe;
+  aendere: (b: Bedingung) => void;
+  gezogen: BedingungsPfad | null;
+  ziel: DropZiel | null;
+  setGezogen: (p: BedingungsPfad | null) => void;
+  setZiel: (z: DropZiel | null) => void;
+  ablegen: () => void;
+  ersteSpalte: string;
+}
+
+export function BedingungEditor({ bedingung, onChange, ...rest }: EditorProps): React.ReactElement {
+  // Ein Blatt als Wurzel wird angehoben, damit immer eine Verknüpfung da ist.
+  const wurzel = alsBedingungsGruppe(bedingung);
   const [gezogen, setGezogen] = useState<BedingungsPfad | null>(null);
   const [ziel, setZiel] = useState<DropZiel | null>(null);
-  const [zu, setZu] = useState<ReadonlySet<string>>(() => new Set());
-  const labelVon = useMemo(() => spaltenLabel(spalten), [spalten]);
-
-  /** Ein Umbau der Struktur: gemerkte Klappen zeigen danach auf andere Knoten. */
-  const umbau = (neu: Bedingung): void => {
-    setZu(new Set());
-    onChange(neu);
-  };
-
-  const schalteZu = (pfad: BedingungsPfad): void => setZu(vorher => {
-    const neu = new Set(vorher);
-    const k = pfadSchluessel(pfad);
-    if (neu.has(k)) neu.delete(k); else neu.add(k);
-    return neu;
-  });
+  const labelVon = useMemo(() => spaltenLabel(rest.spalten), [rest.spalten]);
+  const kinder = gruppenKinder(wurzel);
+  const v = verknuepfungVon(wurzel);
 
   const beendeZug = (): void => { setGezogen(null); setZiel(null); };
-
   const ablegen = (): void => {
     if (gezogen && ziel && darfBedingungVerschieben(wurzel, gezogen, ziel.elternPfad)) {
-      umbau(verschiebeBedingung(wurzel, gezogen, ziel.elternPfad, ziel.index));
+      onChange(verschiebeBedingung(wurzel, gezogen, ziel.elternPfad, ziel.index));
     }
     beendeZug();
   };
+  const ctx: Ctx = {
+    ...rest, wurzel, aendere: onChange, gezogen, ziel, setGezogen, setZiel, ablegen,
+    ersteSpalte: rest.spalten[0]?.feldId ?? 'status',
+  };
+  const schalteWurzel = (): void => onChange(mitVerknuepfung(wurzel, andere(v)));
+  const reiheIstZiel = !!gezogen && darfBedingungVerschieben(wurzel, gezogen, []);
+  const reiheLeuchtet = !!ziel && ziel.elternPfad.length === 0;
+  let gruppenNr = 0;
 
   return (
     // Die Drag-Ereignisse enden hier: ein Meilenstein-Baum kann darüber liegen.
@@ -150,94 +137,211 @@ export function BedingungEditor({ bedingung, spalten, pruefeFeld, vorschlaege, p
       onDrop={e => { if (gezogen) e.stopPropagation(); }}
       onDragEnd={beendeZug}
     >
-      <Gruppe
-        wurzel={wurzel}
-        pfad={[]}
-        spalten={spalten}
-        pruefeFeld={pruefeFeld}
-        vorschlaege={vorschlaege}
-        probe={probe}
-        labelVon={labelVon}
-        zu={zu}
-        schalteZu={schalteZu}
-        onWurzel={onChange}
-        onUmbau={umbau}
-        gezogen={gezogen}
-        ziel={ziel}
-        setGezogen={setGezogen}
-        setZiel={setZiel}
-        onAblegen={ablegen}
-      />
+      {kinder.length > 0 && (
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
+          <QuellSpaltenTooltip erklaere={idx => bedingungQuellen(wurzel, idx, labelVon)}>
+            <span className="cursor-help text-[13px] text-[var(--tf-text)]">{bedingungKopfsatz(wurzel, labelVon)}</span>
+          </QuellSpaltenTooltip>
+          {kinder.length > 1 && (
+            <span className="text-[11px] text-[var(--tf-text-secondary)]">„und" / „oder" anklicken schaltet um</span>
+          )}
+        </div>
+      )}
+
+      <div
+        className="mt-2 flex flex-wrap items-stretch gap-2.5 rounded-[8px]"
+        style={reiheLeuchtet ? { outline: '1px dashed var(--tf-primary)', outlineOffset: 3 } : undefined}
+        // Die Reihe selbst ist das Ziel „ans Ende der Wurzel" — die Karten
+        // stoppen ihre Ereignisse, also greift sie nur in den Lücken.
+        onDragOver={e => {
+          if (!reiheIstZiel) return;
+          e.preventDefault();
+          e.stopPropagation();
+          setZiel({ elternPfad: [], index: kinder.length });
+        }}
+        onDrop={e => { if (!reiheIstZiel) return; e.preventDefault(); e.stopPropagation(); ablegen(); }}
+      >
+        {kinder.map((kind, i) => {
+          const pfad = [i];
+          const gruppe = istBedingungsGruppe(kind);
+          if (gruppe) gruppenNr += 1;
+          return (
+            <Fragment key={i}>
+              {i > 0 && <Verbinder verknuepfung={v} onSchalte={schalteWurzel} />}
+              {gruppe
+                ? <Karte ctx={ctx} pfad={pfad} gruppe={kind} platzhalter={`Gruppe ${gruppenNr}`} />
+                : <EinzelKarte ctx={ctx} pfad={pfad} blatt={kind as Blatt} />}
+            </Fragment>
+          );
+        })}
+
+        <div
+          className="flex shrink-0 flex-col items-center justify-center gap-0.5 rounded-[8px] px-3 py-2"
+          style={{ border: '1px dashed var(--tf-border-hover)' }}
+        >
+          <Button
+            variant="ghost" size="xs" icon={Plus}
+            title="Eine einzelne Bedingung als eigene Karte"
+            onClick={() => onChange(fuegeBedingungEin(wurzel, [], kinder.length, { feldId: ctx.ersteSpalte, op: 'gefuellt' }))}
+          >
+            Bedingung
+          </Button>
+          <Button
+            variant="ghost" size="xs" icon={Plus}
+            title="Eine neue Karte für mehrere Bedingungen, die zusammen gelten"
+            onClick={() => onChange(fuegeBedingungEin(wurzel, [], kinder.length, { einige: [] }))}
+          >
+            Gruppe
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }
 
-interface BaumProps {
-  wurzel: Bedingung;
-  pfad: BedingungsPfad;
-  spalten: SpaltenEintrag[];
-  pruefeFeld?: FeldPruefung;
-  vorschlaege?: readonly FeldWaehlerVorschlag[];
-  probe?: (gruppe: Bedingung) => React.ReactNode;
-  labelVon: (feldId: string) => string;
-  /** Pfade der zugeklappten Gruppen. */
-  zu: ReadonlySet<string>;
-  schalteZu: (pfad: BedingungsPfad) => void;
-  /** Änderung ohne Pfad-Verschiebung (Blatt, Name, Verknüpfung, Anhängen). */
-  onWurzel: (b: Bedingung) => void;
-  /** Änderung der Struktur — setzt die Klappen zurück. */
-  onUmbau: (b: Bedingung) => void;
-  gezogen: BedingungsPfad | null;
-  ziel: DropZiel | null;
-  setGezogen: (p: BedingungsPfad | null) => void;
-  setZiel: (z: DropZiel | null) => void;
-  onAblegen: () => void;
-  /** Das Bedienbündel DIESER Gruppe — steht in ihrem Kopf. Die Wurzel hat keins. */
-  aktionen?: React.ReactNode;
-  /** 1-basiert unter den Geschwister-Gruppen derselben Liste. */
-  nummer?: number;
+/** Verschieben unter Geschwistern — auf der Kartenebene heißt es links / rechts. */
+function verschiebeEintraege(ctx: Ctx, pfad: BedingungsPfad): AktionsEintrag[] {
+  const { wurzel, aendere } = ctx;
+  const i = pfad[pfad.length - 1] ?? 0;
+  const eltern = holeBedingungAn(wurzel, pfad.slice(0, -1));
+  const n = eltern && istBedingungsGruppe(eltern) ? gruppenKinder(eltern).length : 0;
+  const karte = pfad.length === 1;
+  return [
+    {
+      icon: karte ? ArrowLeft : ArrowUp, label: karte ? 'Nach links' : 'Nach oben',
+      aus: i === 0, grund: 'Steht schon am Anfang.',
+      onSelect: () => aendere(verschiebeBedingungsGeschwister(wurzel, pfad, 'hoch')),
+    },
+    {
+      icon: karte ? ArrowRight : ArrowDown, label: karte ? 'Nach rechts' : 'Nach unten',
+      aus: i >= n - 1, grund: 'Steht schon am Ende.',
+      onSelect: () => aendere(verschiebeBedingungsGeschwister(wurzel, pfad, 'runter')),
+    },
+  ];
 }
 
-function Gruppe(p: BaumProps): React.ReactElement {
-  const {
-    wurzel, pfad, spalten, pruefeFeld, vorschlaege, probe, labelVon, zu, schalteZu,
-    onWurzel, onUmbau, gezogen, ziel, setGezogen, setZiel, onAblegen, aktionen, nummer,
-  } = p;
-  const knoten = holeBedingungAn(wurzel, pfad);
-  if (!knoten || !istBedingungsGruppe(knoten)) return <></>;
-  const gruppe: BedingungsGruppe = knoten;
+function blattAktionen(ctx: Ctx, pfad: BedingungsPfad): AktionsEintrag[] {
+  const { wurzel, aendere } = ctx;
+  const karte = pfad.length === 1;
+  return [
+    ...verschiebeEintraege(ctx, pfad),
+    {
+      icon: Group, label: karte ? 'Zur Gruppe machen' : 'In eine eigene Gruppe verpacken', trennerDavor: true,
+      aus: pfad.length >= MAX_TIEFE, grund: 'Die tiefste Ebene ist erreicht.',
+      onSelect: () => aendere(verpackeBedingungInGruppe(wurzel, pfad, 'einige')),
+    },
+    {
+      icon: IndentIncrease, label: 'In die Gruppe davor',
+      aus: !darfBedingungEinruecken(wurzel, pfad), grund: 'Nur möglich, wenn direkt davor eine Gruppe steht.',
+      onSelect: () => aendere(rueckeBedingungEin(wurzel, pfad)),
+    },
+    {
+      icon: IndentDecrease, label: 'Aus der Gruppe lösen',
+      aus: !darfBedingungAusruecken(pfad), grund: 'Steht bereits als eigene Karte da.',
+      onSelect: () => aendere(rueckeBedingungAus(wurzel, pfad)),
+    },
+    {
+      icon: X, label: 'Bedingung entfernen', gefahr: true, trennerDavor: true,
+      onSelect: () => aendere(entferneBedingungAn(wurzel, pfad)),
+    },
+  ];
+}
+
+function gruppenAktionen(ctx: Ctx, pfad: BedingungsPfad): AktionsEintrag[] {
+  const { wurzel, aendere } = ctx;
+  return [
+    ...verschiebeEintraege(ctx, pfad),
+    {
+      icon: Copy, label: 'Duplizieren', trennerDavor: true,
+      onSelect: () => aendere(dupliziereBedingung(wurzel, pfad)),
+    },
+    {
+      icon: Ungroup,
+      label: aufloesenAendertAussage(wurzel, pfad) ? 'Auflösen — ändert die Aussage' : 'Auflösen — ändert nichts',
+      onSelect: () => aendere(loeseGruppeAuf(wurzel, pfad)),
+    },
+    {
+      icon: IndentDecrease, label: 'Aus der Gruppe lösen',
+      aus: !darfBedingungAusruecken(pfad), grund: 'Steht bereits als eigene Karte da.',
+      onSelect: () => aendere(rueckeBedingungAus(wurzel, pfad)),
+    },
+    {
+      icon: X, label: 'Gruppe entfernen', gefahr: true, trennerDavor: true,
+      onSelect: () => aendere(entferneBedingungAn(wurzel, pfad)),
+    },
+  ];
+}
+
+function Zelle({ ctx, pfad, blatt }: { ctx: Ctx; pfad: BedingungsPfad; blatt: Blatt }): React.ReactElement {
+  return (
+    <BlattZeile
+      blatt={blatt}
+      spalten={ctx.spalten}
+      pruefeFeld={ctx.pruefeFeld}
+      vorschlaege={ctx.vorschlaege}
+      kennzahlFeld={ctx.kennzahlFeld}
+      treffer={ctx.trefferBlatt?.(blatt, pfad)}
+      onChange={b => ctx.aendere(ersetzeBedingungAn(ctx.wurzel, pfad, b))}
+      aktionen={(
+        <ZeilenAktionen
+          was="Bedingung"
+          eintraege={blattAktionen(ctx, pfad)}
+          griffProps={{
+            draggable: true,
+            onDragStart: e => {
+              e.stopPropagation();
+              // Der gezogene Knoten steht im Zustand, NICHT im `dataTransfer`:
+              // der Zug bleibt in diesem Editor, und eine Datei aus dem
+              // Betriebssystem bleibt wirkungslos (`gezogen` ist dann `null`).
+              ctx.setGezogen(pfad);
+            },
+          }}
+        />
+      )}
+    />
+  );
+}
+
+/** Eine Einzelbedingung auf oberster Ebene — eine kleine Karte ohne Kopf. */
+function EinzelKarte({ ctx, pfad, blatt }: { ctx: Ctx; pfad: BedingungsPfad; blatt: Blatt }): React.ReactElement {
+  const wirdGezogen = !!ctx.gezogen && gleich(ctx.gezogen, pfad);
+  return (
+    <div
+      className="flex w-[280px] shrink-0 flex-col justify-center rounded-[8px] bg-[var(--tf-bg)] p-1"
+      style={{ border: '0.5px solid var(--tf-border)', ...(wirdGezogen ? { outline: '1px dashed var(--tf-border-hover)' } : {}) }}
+    >
+      <Zelle ctx={ctx} pfad={pfad} blatt={blatt} />
+    </div>
+  );
+}
+
+/** Eine Gruppe als Karte — oder, eine Ebene tiefer, als Innenkarte. */
+function Karte({ ctx, pfad, gruppe, platzhalter, innen = false }: {
+  ctx: Ctx;
+  pfad: BedingungsPfad;
+  gruppe: BedingungsGruppe;
+  platzhalter: string;
+  innen?: boolean;
+}): React.ReactElement {
+  const { wurzel, aendere, gezogen, ziel, setZiel, ablegen } = ctx;
   const kinder = gruppenKinder(gruppe);
-  const verknuepfung = verknuepfungVon(gruppe);
-  const istUnd = verknuepfung === 'alle';
-  const wort = istUnd ? 'und' : 'oder';
-  const tiefe = pfad.length;
-  const istWurzel = tiefe === 0;
-  const zugeklappt = !istWurzel && zu.has(pfadSchluessel(pfad));
-  const platzhalter = `Gruppe ${nummer ?? 1}`;
-  const anzeigeName = gruppe.name ?? platzhalter;
-  const ersteSpalte = spalten[0]?.feldId ?? 'status';
-  const darfTiefer = tiefe < MAX_TIEFE;
-
-  const setzeVerknuepfung = (v: Verknuepfung): void =>
-    onWurzel(ersetzeBedingungAn(wurzel, pfad, mitVerknuepfung(gruppe, v)));
-  const ergaenzeKind = (kind: Bedingung): void =>
-    onWurzel(fuegeBedingungEin(wurzel, pfad, kinder.length, kind));
-
-  /** Darf hier abgelegt werden? Nicht in den eigenen Teilbaum. */
+  const v = verknuepfungVon(gruppe);
   const dropErlaubt = !!gezogen && darfBedingungVerschieben(wurzel, gezogen, pfad);
-  /** Zielt der laufende Zug in genau DIESE Liste? Dann leuchtet der Kasten. */
   const kastenAktiv = !!ziel && gleich(ziel.elternPfad, pfad);
+  const wirdGezogen = !!gezogen && gleich(gezogen, pfad);
+  const schalte = (): void => aendere(ersetzeBedingungAn(wurzel, pfad, mitVerknuepfung(gruppe, andere(v))));
+  const ergaenze = (k: Bedingung): void => aendere(fuegeBedingungEin(wurzel, pfad, kinder.length, k));
 
   const marke = (index: number): React.ReactElement => (
     <Marke
       elternPfad={pfad} index={index}
       aktiv={!!ziel && ziel.index === index && gleich(ziel.elternPfad, pfad)}
       erlaubt={dropErlaubt} zeigen={!!gezogen}
-      setZiel={setZiel} onAblegen={onAblegen}
+      setZiel={setZiel} onAblegen={ablegen}
     />
   );
 
-  /** Die nähere Kante einer Blattzeile gewinnt: obere Hälfte = davor. */
+  /** Die nähere Kante einer Zelle gewinnt: obere Hälfte = davor. */
   const kante = (i: number) => (e: React.DragEvent): void => {
     if (!dropErlaubt) return;
     e.preventDefault();
@@ -246,234 +350,130 @@ function Gruppe(p: BaumProps): React.ReactElement {
     setZiel({ elternPfad: pfad, index: e.clientY < r.top + r.height / 2 ? i : i + 1 });
   };
 
-  // Der Kurzsatz der zugeklappten Gruppe — ohne ihren Namen, der steht schon
-  // im Eingabefeld davor. Nur Anzeige, nichts davon wird gespeichert.
-  const ohneName: Bedingung = istUnd ? { alle: kinder } : { einige: kinder };
-  const kurzsatz = zugeklappt && kinder.length > 0 ? bedingungSatz(ohneName, labelVon) : '';
-  const verknuepfungsText = istUnd ? 'alle müssen zutreffen' : 'eine genügt';
-
+  let innerNr = 0;
   return (
     <div
-      className="flex flex-col gap-1 rounded px-2 py-1"
+      className={innen
+        ? 'mx-1 my-0.5 flex flex-col rounded-[6px] bg-[var(--tf-bg-secondary)]'
+        : 'flex w-[320px] shrink-0 flex-col rounded-[8px] bg-[var(--tf-bg)]'}
       style={{
-        ...(istWurzel
-          ? { background: 'var(--tf-bg)' }
-          : { background: 'var(--tf-bg-secondary)', border: '0.5px solid var(--tf-border)' }),
+        border: '0.5px solid var(--tf-border)',
         ...(kastenAktiv ? { outline: '1px solid var(--tf-primary)' } : {}),
+        ...(wirdGezogen ? { outline: '1px dashed var(--tf-border-hover)' } : {}),
       }}
-      // Der Kasten selbst ist das „hier hinein"-Ziel: an das Ende dieser Gruppe.
-      // Die Marken und Zeilenkanten darin stoppen ihre Ereignisse, also gewinnt
-      // immer die feinere Geste.
+      // Die Karte selbst ist das „hier hinein"-Ziel: an ihr Ende. Marken und
+      // Zellkanten darin stoppen ihre Ereignisse — die feinere Geste gewinnt.
       onDragOver={e => {
         if (!dropErlaubt) return;
         e.preventDefault();
         e.stopPropagation();
         setZiel({ elternPfad: pfad, index: kinder.length });
       }}
-      onDrop={e => { if (!dropErlaubt) return; e.preventDefault(); e.stopPropagation(); onAblegen(); }}
+      onDrop={e => { if (!dropErlaubt) return; e.preventDefault(); e.stopPropagation(); ablegen(); }}
     >
-      <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-        {!istWurzel && (
-          <button
-            type="button"
-            onClick={() => schalteZu(pfad)}
-            aria-expanded={!zugeklappt}
-            aria-label={`${anzeigeName} ${zugeklappt ? 'aufklappen' : 'zuklappen'}`}
-            title={zugeklappt ? 'Aufklappen' : 'Zuklappen — die Gruppe zeigt dann ihren Kurzsatz'}
-            className="p-0.5 rounded cursor-pointer text-[var(--tf-text-secondary)]
-              hover:bg-[var(--tf-hover)] hover:text-[var(--tf-text)]"
-          >
-            {zugeklappt ? <ChevronRight size={13} /> : <ChevronDown size={13} />}
-          </button>
-        )}
-        {!istWurzel && (
-          // `key`: ein von außen geänderter Name (Laden, Fassung übernehmen)
-          // setzt den Entwurf im Feld zurück.
-          <GruppenName
-            key={gruppe.name ?? ''}
-            name={gruppe.name ?? ''}
-            platzhalter={platzhalter}
-            onBenenne={name => onWurzel(benenneBedingungsGruppe(wurzel, pfad, name))}
+      <div className={cn('flex min-w-0 items-center gap-1.5', innen ? 'px-2 pt-1.5' : 'px-2.5 pb-1 pt-2')}>
+        {/* `key`: ein von außen geänderter Name (Laden, Fassung übernehmen)
+            setzt den Entwurf im Feld zurück. */}
+        <GruppenName
+          key={gruppe.name ?? ''}
+          name={gruppe.name ?? ''}
+          platzhalter={platzhalter}
+          klein={innen}
+          onBenenne={name => aendere(benenneBedingungsGruppe(wurzel, pfad, name))}
+        />
+        <span className="truncate text-[11.5px] text-[var(--tf-text-secondary)]">{verknuepfungsText(v, kinder.length)}</span>
+        <span className="ml-auto shrink-0">
+          <ZeilenAktionen
+            was="Gruppe"
+            eintraege={gruppenAktionen(ctx, pfad)}
+            griffProps={innen ? {
+              draggable: true,
+              onDragStart: e => { e.stopPropagation(); ctx.setGezogen(pfad); },
+            } : undefined}
           />
-        )}
-
-        {zugeklappt && kinder.length === 0 && (
-          <span className="text-[11.5px] text-[var(--tf-text-secondary)]">{verknuepfungsText} · leer</span>
-        )}
-        {zugeklappt && kinder.length > 0 && (
-          // Wie die zugeklappte Meilenstein-Zeile: der Tooltip nennt die
-          // Quellspalten — „TIB gefüllt" sagt nicht, welche CSV-Spalte dahinter
-          // steht, und genau dort entstehen die falschen Regeln.
-          <QuellSpaltenTooltip
-            erklaere={idx => bedingungQuellen(ohneName, idx, labelVon)}
-            wrapperClassName="min-w-0 max-w-[560px] truncate"
-          >
-            <span className="block cursor-help truncate text-[11.5px] text-[var(--tf-text-secondary)]">
-              {verknuepfungsText} · {kurzsatz}
-            </span>
-          </QuellSpaltenTooltip>
-        )}
-        {!zugeklappt && (
-          <>
-            <SegmentedToggle
-              dicht rolle="auswahl" ariaLabel="Verknüpfung"
-              value={verknuepfung} options={VERKNUEPFUNGEN} onChange={setzeVerknuepfung}
-            />
-            <span className="text-[12px] text-[var(--tf-text-secondary)]">
-              {istWurzel
-                ? (istUnd ? 'der folgenden zutreffen' : 'der folgenden zutrifft')
-                : (istUnd ? 'müssen zutreffen' : 'genügt')}
-            </span>
-
-            {/* Der Gruppen-Knopf steht OBEN, neben der Verknüpfung, auf die er sich
-                bezieht. Unten in der eingerückten Liste las er sich als
-                „Untergruppe" — dabei legt er eine Gruppe auf DIESER Ebene an. */}
-            {darfTiefer && (
-              <Button
-                variant="ghost" size="xs" icon={Plus}
-                title="Gruppe auf dieser Ebene — sie liegt neben den Bedingungen, nicht darin"
-                onClick={() => ergaenzeKind({ einige: [] })}
-              >
-                Gruppe
-              </Button>
-            )}
-            {!darfTiefer && (
-              <span
-                className="text-[11px] text-[var(--tf-text-tertiary)]"
-                title={`Ab ${MAX_TIEFE} Ebenen ist die Einrückung breiter als der Bereich — die Regel wäre nicht mehr zu lesen.`}
-              >
-                tiefste Ebene
-              </span>
-            )}
-
-            {kinder.length === 0 && (
-              <span className="text-[11.5px] text-[var(--tf-text-tertiary)]">
-                {istUnd
-                  ? 'Leer = immer erfüllt — bitte Bedingung ergänzen.'
-                  : 'Leer = nie direkt erfüllt (nur über Unter-Meilensteine).'}
-              </span>
-            )}
-          </>
-        )}
-
-        {!istWurzel && probe && <span className="shrink-0">{probe(gruppe)}</span>}
-        {aktionen && <span className="shrink-0">{aktionen}</span>}
+        </span>
       </div>
 
-      {!zugeklappt && (
-        <div className="flex flex-col pl-2.5 border-l border-[var(--tf-border)]">
-          {marke(0)}
-          {kinder.map((kind, i) => {
-            const kindPfad = [...pfad, i];
-            const istGruppe = istBedingungsGruppe(kind);
-            const kindAktionen = (
-              <ZeilenAktionen
-                was={istGruppe ? 'Gruppe' : 'Bedingung'}
-                griffProps={{
-                  draggable: true,
-                  onDragStart: e => {
-                    e.stopPropagation();
-                    // Der gezogene Knoten steht im Zustand, NICHT im `dataTransfer`:
-                    // der Zug bleibt in diesem Editor, und was ihn verlässt, ist
-                    // kein Bedingungs-Pfad. Zugleich bleibt damit das Ablegen einer
-                    // Datei aus dem Betriebssystem wirkungslos (`gezogen` ist dann
-                    // `null`, und ohne `preventDefault` gibt es kein Drop).
-                    setGezogen(kindPfad);
-                  },
-                }}
-                kannHoch={i > 0}
-                kannRunter={i < kinder.length - 1}
-                kannEinruecken={darfBedingungEinruecken(wurzel, kindPfad) && darfTiefer}
-                einrueckenGrund={darfTiefer
-                  ? 'Nur möglich, wenn direkt darüber eine Gruppe steht — sonst entstünde eine Gruppe, die niemand gewählt hat.'
-                  : 'Die tiefste Ebene ist erreicht.'}
-                kannAusruecken={darfBedingungAusruecken(kindPfad)}
-                ausrueckenGrund="Steht bereits auf der obersten Ebene — parallel zu den übrigen Bedingungen."
-                kannVerpacken={tiefe + 1 < MAX_TIEFE}
-                onHoch={() => onUmbau(verschiebeBedingungsGeschwister(wurzel, kindPfad, 'hoch'))}
-                onRunter={() => onUmbau(verschiebeBedingungsGeschwister(wurzel, kindPfad, 'runter'))}
-                onEinruecken={() => onUmbau(rueckeBedingungEin(wurzel, kindPfad))}
-                onAusruecken={() => onUmbau(rueckeBedingungAus(wurzel, kindPfad))}
-                onVerpacken={() => onUmbau(verpackeBedingungInGruppe(wurzel, kindPfad, 'alle'))}
-                onEntfernen={() => onUmbau(entferneBedingungAn(wurzel, kindPfad))}
-              />
-            );
-            const wirdGezogen = !!gezogen && gleich(gezogen, kindPfad);
-            // 1-basiert unter den Geschwister-GRUPPEN, nicht unter allen Kindern:
-            // „Gruppe 2" soll die zweite Gruppe meinen, nicht das zweite Kind.
-            const gruppenNummer = istGruppe
-              ? kinder.slice(0, i + 1).filter(istBedingungsGruppe).length
-              : undefined;
-            return (
-              <div key={i} style={wirdGezogen ? { outline: '1px dashed var(--tf-border-hover)' } : undefined}>
-                <div className="flex items-start" onDragOver={istGruppe ? undefined : kante(i)}
-                  onDrop={istGruppe ? undefined : (e => {
-                    if (!dropErlaubt) return;
-                    e.preventDefault(); e.stopPropagation(); onAblegen();
-                  })}
-                >
-                  <Rinne wort={i > 0 ? wort : null} />
-                  <div className="flex-1 min-w-0">
-                    {istGruppe ? (
-                      <Gruppe {...p} pfad={kindPfad} aktionen={kindAktionen} nummer={gruppenNummer} />
-                    ) : (
-                      <BlattZeile
-                        blatt={kind as Blatt}
-                        spalten={spalten}
-                        pruefeFeld={pruefeFeld}
-                        vorschlaege={vorschlaege}
-                        onChange={b => onWurzel(ersetzeBedingungAn(wurzel, kindPfad, b))}
-                        aktionen={kindAktionen}
-                      />
-                    )}
-                  </div>
-                </div>
-                {marke(i + 1)}
+      {!innen && ctx.probe && <div className="px-2.5 pb-2">{ctx.probe(gruppe)}</div>}
+      {!innen && <div className="mb-1 h-px bg-[var(--tf-border)]" />}
+
+      <div className="flex flex-col px-1">
+        {marke(0)}
+        {kinder.map((kind, i) => {
+          const kindPfad = [...pfad, i];
+          const istGruppe = istBedingungsGruppe(kind);
+          if (istGruppe) innerNr += 1;
+          return (
+            <Fragment key={i}>
+              {i > 0 && <Verbinder verknuepfung={v} onSchalte={schalte} linie />}
+              <div
+                onDragOver={istGruppe ? undefined : kante(i)}
+                onDrop={istGruppe ? undefined : (e => {
+                  if (!dropErlaubt) return;
+                  e.preventDefault(); e.stopPropagation(); ablegen();
+                })}
+                style={!istGruppe && gezogen && gleich(gezogen, kindPfad)
+                  ? { outline: '1px dashed var(--tf-border-hover)', borderRadius: 6 }
+                  : undefined}
+              >
+                {istGruppe
+                  ? <Karte ctx={ctx} pfad={kindPfad} gruppe={kind} platzhalter={`${platzhalter}.${innerNr}`} innen />
+                  : <Zelle ctx={ctx} pfad={kindPfad} blatt={kind as Blatt} />}
               </div>
-            );
-          })}
+              {marke(i + 1)}
+            </Fragment>
+          );
+        })}
 
-          {kinder.length === 0 && dropErlaubt && (
-            <div
-              aria-hidden
-              className={`${UNTER_RINNE} my-1 rounded py-1 text-center text-[11px] text-[var(--tf-text-secondary)]`}
-              style={{ border: '1px dashed var(--tf-primary)' }}
+        {kinder.length === 0 && (
+          <p className="px-2 py-2 text-[11.5px] text-[var(--tf-text-secondary)]">
+            {v === 'alle' ? 'Leer = immer erfüllt — bitte Bedingung ergänzen.' : 'Leer = nie erfüllt — bitte Bedingung ergänzen.'}
+          </p>
+        )}
+        {innen && kinder.length === 1 && (
+          <p className="px-2 pb-1 text-[11px] leading-snug text-[var(--tf-text-secondary)]">
+            Gruppe mit einer Bedingung — wirkt wie die Bedingung allein.{' '}
+            <button
+              type="button"
+              className="cursor-pointer text-[var(--tf-primary)] hover:underline"
+              onClick={() => aendere(loeseGruppeAuf(wurzel, pfad))}
             >
-              hierher ziehen
-            </div>
-          )}
+              Auflösen
+            </button>
+          </p>
+        )}
+      </div>
 
-          <div className={`flex items-center gap-1 pt-0.5 ${UNTER_RINNE}`}>
-            {/* Der Knopf nennt sein Ziel: bei drei verschachtelten Gruppen war
-                „+ Bedingung" nicht anzusehen, WOHIN sie kommt. */}
-            <Button
-              variant="ghost" size="xs" icon={Plus}
-              onClick={() => ergaenzeKind({ feldId: ersteSpalte, op: 'gefuellt' })}
-            >
-              {istWurzel ? 'Bedingung' : `Bedingung in „${anzeigeName}"`}
-            </Button>
-          </div>
-        </div>
-      )}
+      <div className={cn('mt-auto flex items-center gap-1', innen ? 'px-1.5 pb-1.5' : 'px-2 pb-2 pt-1')}>
+        <Button variant="ghost" size="xs" icon={Plus} onClick={() => ergaenze({ feldId: ctx.ersteSpalte, op: 'gefuellt' })}>
+          Bedingung
+        </Button>
+        {!innen && pfad.length < MAX_TIEFE && (
+          <Button
+            variant="ghost" size="xs" icon={Plus}
+            title="Eine Gruppe in dieser Karte — ihre Bedingungen hängen mit eigener Verknüpfung zusammen"
+            onClick={() => ergaenze({ einige: [] })}
+          >
+            Gruppe
+          </Button>
+        )}
+      </div>
     </div>
   );
 }
 
 /**
- * Der Name einer Gruppe, direkt im Kopf editierbar.
+ * Der Name einer Gruppe, direkt im Kartenkopf editierbar.
  *
  * Übernommen wird mit Enter oder beim Verlassen, Esc verwirft — nicht bei jedem
  * Tastendruck: jede Übernahme ist eine Änderung am Plan, und ein halb getippter
- * Name soll nicht zwischendurch im Kurzsatz stehen.
- *
- * Ohne Namen steht der Platzhalter „Gruppe n" da (1-basiert unter den
- * Geschwister-Gruppen). Er wird nicht gespeichert und wandert mit der Position.
- * Die gestrichelte Unterkante sagt, dass hier etwas einzugeben ist; sonst läse
- * sich der Platzhalter wie eine feste Beschriftung.
+ * Name soll nicht zwischendurch im Kopfsatz stehen. Ohne Namen steht der
+ * Platzhalter „Gruppe n" da; er wird nicht gespeichert.
  */
-function GruppenName({ name, platzhalter, onBenenne }: {
+function GruppenName({ name, platzhalter, klein, onBenenne }: {
   name: string;
   platzhalter: string;
+  klein?: boolean;
   onBenenne: (name: string) => void;
 }): React.ReactElement {
   const [text, setText] = useState(name);
@@ -504,10 +504,13 @@ function GruppenName({ name, platzhalter, onBenenne }: {
       placeholder={platzhalter}
       maxLength={MAX_GRUPPENNAME}
       aria-label="Name der Gruppe"
-      title="Name der Gruppe — steht auch im Kurzsatz. Enter übernimmt, Esc verwirft."
-      className="min-w-0 rounded-sm px-1 py-0.5 bg-transparent text-[12.5px] font-medium text-[var(--tf-text)]
-        placeholder:font-medium placeholder:text-[var(--tf-text-secondary)]
-        hover:bg-[var(--tf-bg)] focus:bg-[var(--tf-bg)] focus:outline-1 focus:outline-[var(--tf-primary)]"
+      title="Name der Gruppe — steht auch im Kopfsatz. Enter übernimmt, Esc verwirft."
+      className={cn(
+        'min-w-0 rounded-sm px-1 py-0.5 bg-transparent font-semibold text-[var(--tf-text)]',
+        'placeholder:font-medium placeholder:text-[var(--tf-text-secondary)]',
+        'hover:bg-[var(--tf-bg)] focus:bg-[var(--tf-bg)] focus:outline-1 focus:outline-[var(--tf-primary)]',
+        klein ? 'text-[12px]' : 'text-[12.5px]',
+      )}
       style={{ width: `${breite}ch`, borderBottom: '0.5px dashed var(--tf-border-hover)' }}
     />
   );

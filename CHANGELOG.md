@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v6.60.0 — Regelbereich als Karten (September 2026)
+
+MINOR — PL nach v6.59: „es ist immer noch nicht sehr übersichtlich … bitte weitere design ideen"; aus vier Entwürfen und einem klickbaren Prototyp gewählt: Karten nebeneinander mit „und"/„oder"-Schaltern (C3). Beim Auslesen der Probe fielen echte Planfehler auf, die die alte Oberfläche verbarg (MST 4.3 bei allen offenen Verbünden erfüllt, MST 5 mit einem Status ohne Treffer, MST 2/5 ohne Datum). [Spec](docs/superpowers/specs/2026-09-11-regelbereich-karten.md)
+
+- **Regelbereich als Karten** in allen drei Aufrufern: Kopfsatz, Gruppen als Karten, Innenkarten, Verbinder als Schalter; „alle | eine" und das Zuklappen einzelner Gruppen entfallen; ⋯-Menü mit Duplizieren/Auflösen ([BedingungEditor.tsx](src/plugins/meilensteine/BedingungEditor.tsx), [BedingungsFugen.tsx](src/plugins/meilensteine/BedingungsFugen.tsx), [ZeilenAktionen.tsx](src/plugins/meilensteine/ZeilenAktionen.tsx))
+- Reine Bausteine `bedingungKopfsatz`, `dupliziereBedingung`, `loeseGruppeAuf`, `aufloesenAendertAussage` ([bedingung-text.ts](src/core/status/bedingung-text.ts), [bedingung-baum.ts](src/core/status/bedingung-baum.ts))
+- **Wirkungsleiste und Befund-Marken** der Meilensteine: Probe, Vergleich mit der Fassung, Ist-Termin als Satz für genau diese Regel; `ohneDatum` exakt gezählt, `probeBefund`, `misstNurZeitpunkt` ([probe.ts](src/core/meilensteine/probe.ts), [ist-termin.ts](src/core/meilensteine/ist-termin.ts), [ProbeAnzeige.tsx](src/plugins/meilensteine/ProbeAnzeige.tsx))
+- Meilenstein-Kopf mit „gilt für" und Befund-Punkt, Sammel-Meilenstein zeigt Unter-Meilensteine als Karten, Treffer je Feld in der Feld-Suche (`zaehleFeld`, `FeldWaehler` `variante: 'leise'` + `kennzahl`) ([KonfigurationTab.tsx](src/plugins/meilensteine/KonfigurationTab.tsx), [useMeilensteinProbe.ts](src/plugins/meilensteine/useMeilensteinProbe.ts), [FeldWaehler.tsx](src/components/ui/FeldWaehler.tsx))
+- Tests [bedingung-kopfsatz.test.ts](src/core/status/__tests__/bedingung-kopfsatz.test.ts), [ist-termin.test.ts](src/core/meilensteine/__tests__/ist-termin.test.ts), [bedingung-baum.test.ts](src/core/status/__tests__/bedingung-baum.test.ts), [probe.test.ts](src/core/meilensteine/__tests__/probe.test.ts); Doku [meilensteine.md](docs/architecture/meilensteine.md)
+
 ### v6.59.2 — Ist-Termin folgt der Verknüpfung der Bedingung (September 2026)
 
 PATCH — Frage der PL: „Was bedeutet das Dropdown Ist-Termin?" Beim Nachlesen fiel auf, dass der Rückfall ohne eigenes Feld das früheste Datum ALLER Bedingungsfelder nahm — bei „alle" also den ersten statt den letzten Schritt, bei „A nach B" das Vergleichsdatum. Die Abweichung sah dadurch besser aus, als sie war (im ausgelieferten Plan MST 3).

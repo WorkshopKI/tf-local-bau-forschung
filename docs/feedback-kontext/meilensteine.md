@@ -37,27 +37,29 @@ Tooltip an „Gesamtfrist" und an „Eingang" nennt die beiden Spalten.
   FuE/DS/DL/NW; je Meilenstein Soll-Woche, Ø Ist-Woche, Δ und Reißquote. Die
   Dauer-Statistik zählt abgeschlossene Vorgänge, die Meilenstein-Statistik offene.
 - **Konfiguration**: der Meilenstein-Baum (Nummer, Bezeichnung, Soll-Woche,
-  Schalter „aktiv" und „Frist") plus Fassungs-Leiste und frühere Fassungen.
+  Schalter „aktiv" und „Frist", daneben „gilt für" mit den Antragstypen als
+  Chips) plus Fassungs-Leiste und frühere Fassungen.
 
   - Das Dreieck klappt die **Unter-Meilensteine** auf; ein Klick auf die Zeile
-    öffnet **darunter** Beschreibung, Antragstyp-Filter und den Bereich
+    öffnet **darunter** eine leise Zeile für die Beschreibung und den Bereich
     **„Erfüllt, wenn"**: Bedingungen aus Feld, Vergleich und Wert aus den
-    gemappten CSV-Spalten, zusammengefasst in Gruppen.
+    gemappten CSV-Spalten, zusammengefasst in Gruppen. Klicks in den Bereich
+    selbst klappen ihn nicht zu.
 
   - **Quellspalten**: Wer die Kurzform der Bedingung überfährt (auch in der
     Leiste und unter „Diese Woche" an der Bezeichnung), sieht, aus welchen
     CSV-Spalten sie liest — je Feld Code und Label, dazu die Regel „erfüllt,
     sobald ein Teilvorhaben sie trägt; Ist-Termin = der Tag, an dem die
     Bedingung wahr wurde — bei „alle" das späteste, bei „eine" das früheste
-    Datum der erfüllten Bedingungen". Dieselbe Regel steht neben der Auswahl
-    „Ist-Termin", solange dort kein eigenes Feld gewählt ist. Mappt ein
+    Datum der erfüllten Bedingungen". Neben der Auswahl „Ist-Termin" steht
+    diese Regel übersetzt auf den gerade offenen Meilenstein. Mappt ein
     Programm ein Feld nicht, steht das dabei. Der Feld-Wähler zeigt die
     Quellspalte kurz hinter dem Feldnamen („Antrags eingang · antragsdatum
     ← D_AAE").
 
   - **Die zugeklappte Zeile sagt, woran der Meilenstein hängt**: Bedingung in
-    Kurzform, Antragstyp-Beschränkung (nur wenn es eine gibt), Ist-Termin-Feld
-    und die Zahl der Unter-Meilensteine. Eine benannte Gruppe steht dort mit
+    Kurzform, Ist-Termin-Feld und die Zahl der Unter-Meilensteine (die
+    Antragstypen stehen als Chips „gilt für" im Kopf). Eine benannte Gruppe steht dort mit
     ihrem Namen vor dem Inhalt („PreCheck AB: (…)"). Das Bezeichnungsfeld ist
     dafür schmaler und bricht bei langen Titeln auf zwei Zeilen um.
 
@@ -67,62 +69,99 @@ Tooltip an „Gesamtfrist" und an „Eingang" nennt die beiden Spalten.
     per ↑/↓/Enter. Passt die Bezeichnung des Meilensteins zu Spalten, stehen
     diese oben als **Vorschlag** mit dem Wort, das sie ausgelöst hat. Ein
     Meilenstein ohne Bedingung bekommt zusätzlich eine Zeile „Vorschlag …
-    Übernehmen" — der Vorschlag wird nie von selbst gesetzt. Feld und Vergleich
-    stehen in festen Spalten, damit die Zeilen einer Gruppe untereinander
-    fluchten.
+    Übernehmen" — der Vorschlag wird nie von selbst gesetzt. In der Karte steht
+    der Feldname schlicht mit gepunkteter Unterlinie, darunter Vergleich und
+    Wert.
 
-  - **Alle oder eine**: oben im Bereich und im Kopf jeder Gruppe legt ein
-    Schalter „alle | eine" fest, wie die Bedingungen zusammenwirken. Oben liest
-    sich das als Satz („Erfüllt, wenn alle der folgenden zutreffen" bzw. „eine
-    der folgenden zutrifft"), in einer Gruppe als „alle müssen zutreffen" bzw.
-    „eine genügt". Zwischen den Zeilen steht links klein „und" bzw. „oder",
-    auch vor und hinter einem Gruppenkasten. Eine Gruppe neben Bedingungen ist
-    damit erkennbar deren **Nachbarin**, keine Untergruppe.
+  - **Karten nebeneinander**: jede Gruppe steht als Karte, eine einzelne
+    Bedingung als kleine Karte, eine Gruppe in einer Gruppe als Innenkarte.
+    Darüber steht die Regel in einem Satz, etwa „Erfüllt, wenn „PreCheck AB"
+    und „PreCheck FB" zutreffen." — wer ihn überfährt, sieht die Quellspalten.
+    Im Kopf einer Karte steht, wie ihre Bedingungen zusammenwirken („alle
+    müssen zutreffen" bzw. „eine genügt").
+
+  - **„und" und „oder" sind Schalter**: zwischen zwei Karten und zwischen zwei
+    Bedingungen steht eine getönte Pille „und" bzw. „oder". Ein Klick schaltet
+    die Verknüpfung dieser Gruppe um — alle Pillen derselben Gruppe wechseln
+    zugleich. Einen eigenen Schalter „alle | eine" gibt es nicht mehr, und
+    Gruppen klappen nicht einzeln zu: die Karten sind kompakt, der Satz oben
+    sagt die Regel.
+
+  - **Anlegen**: die gestrichelte Karte am Ende legt eine einzelne Bedingung
+    oder eine neue Gruppe an; am Fuß jeder Karte stehen „+ Bedingung" und
+    „+ Gruppe" (eine Gruppe in dieser Karte). Eine leere Gruppe sagt dazu, was
+    sie bedeutet: „Leer = immer erfüllt" bzw. „Leer = nie erfüllt".
 
   - **Gruppen tragen einen Namen**: ohne Namen steht grau „Gruppe 1",
-    „Gruppe 2" im Kopf; hineinklicken und tippen benennt sie („PreCheck AB").
-    Enter oder Wegklicken übernimmt, Esc verwirft. Der Name ist ein Etikett —
-    an der Auswertung ändert er nichts. Am Fuß jeder Gruppe sagt „+ Bedingung
-    in „PreCheck AB"", wohin eine neue Bedingung kommt; „+ Gruppe" oben neben
-    dem Schalter legt eine Gruppe auf **derselben** Ebene an.
+    „Gruppe 2" im Kartenkopf (in einer Innenkarte „Gruppe 1.1");
+    hineinklicken und tippen benennt sie („PreCheck AB"). Enter oder
+    Wegklicken übernimmt, Esc verwirft. Der Name ist ein Etikett — an der
+    Auswertung ändert er nichts.
 
-  - **Gruppen klappen zu**: der Pfeil vor dem Namen klappt eine Gruppe
-    zusammen. Sie zeigt dann „alle müssen zutreffen · …" bzw. „eine genügt · …"
-    mit ihrer Regel in einem Satz; wer ihn überfährt, sieht die Quellspalten.
-    Nach dem Verschieben, Ein- oder Ausrücken, Verpacken oder Entfernen klappen
-    alle Gruppen wieder auf.
+  - **Menü (⋯) an Karte und Bedingung**: Griff und Menü erscheinen an der
+    Bedingung unter der Maus (oder per Tab). Eine Karte lässt sich nach links
+    oder rechts schieben, duplizieren (eine benannte heißt dann „… (Kopie)"),
+    auflösen, aus ihrer Gruppe lösen und entfernen. Beim Auflösen sagt der
+    Eintrag vorher, ob sich die Aussage der Regel ändert („Auflösen — ändert
+    nichts" bzw. „Auflösen — ändert die Aussage").
 
-  - **Umhängen über Griff und Menü**: jede Bedingung und jede Gruppe trägt
-    direkt hinter ihrem Inhalt einen Griff zum Ziehen und ein Menü (⋯) mit
-    „Nach oben", „Nach unten", „Eine Ebene höher — hinter die eigene Gruppe",
-    „In die Gruppe darüber", „In eine eigene Gruppe verpacken" und
-    „entfernen". Das Menü geht auch per Tastatur (Tab, Enter, Pfeiltasten).
-    Was gerade nicht geht, bleibt im Menü stehen und nennt in einer zweiten
-    Zeile den Grund. Eingerückt wird nur in eine Gruppe, die schon darüber
-    steht.
+  - Eine Bedingung lässt sich nach oben oder unten schieben (als eigene Karte:
+    nach links oder rechts), zur Gruppe machen bzw. in eine eigene Gruppe
+    verpacken, in die Gruppe davor schieben, aus der Gruppe lösen und
+    entfernen. Das Menü geht auch per Tastatur (Tab, Enter, Pfeiltasten). Was
+    gerade nicht geht, bleibt stehen und nennt in einer zweiten Zeile den
+    Grund.
 
-  - **Beim Ziehen einer Bedingung zeigen sich alle möglichen Ablagestellen.**
-    Zwischen zwei Zeilen legt eine Linie sie dort ab, auf einen Gruppenkasten
-    gezogen landet sie in dieser Gruppe.
+  - **Ziehen am Griff** verschiebt eine Bedingung an eine andere Stelle oder in
+    eine andere Karte. Sobald man zieht, zeigen sich die Ablagestellen:
+    zwischen zwei Bedingungen eine Linie, auf eine Karte gezogen landet sie am
+    Ende dieser Karte, in der Lücke zwischen den Karten als eigene Karte am
+    Ende. Karten selbst wandern über das Menü.
 
-  - **Probe am Bestand**: sobald der erste Regel-Bereich aufgeht, lädt die
+  - **Zahlen am Bestand**: sobald der erste Regel-Bereich aufgeht, lädt die
     Seite einmal die Verbünde der Richtlinie 2025 und rechnet danach bei jeder
-    Änderung sofort mit. Unter dem Bereich steht dann etwa „Probe · Richtlinie
-    2025: erfüllt bei 988 von 1.094 offenen · 347 von 429 abgeschlossenen ·
-    unverändert gegenüber Fassung 37". Ändert sich die Regel, stehen die
-    Differenzen zur freigegebenen Fassung dahinter, etwa „(−985)". Der Tooltip
-    nennt, über wie viele Verbünde gezählt wurde, den Stand und die Ladezeit.
+    Änderung sofort mit. Jede Zahl trägt ihre Beschriftung: im Kopf jeder Karte
+    etwa „trifft 1.000 offen · 359 abgeschl." mit einem Balken, an jeder
+    Bedingung etwa „872 offen · 213 abgeschl.". Wer eine Zahl überfährt, sieht
+    die Gesamtzahlen dazu. Gezählt wird nur über Verbünde, für die der
+    Meilenstein gilt.
 
-  - Im Kopf jeder Gruppe steht knapp, was sie allein trifft („trifft
-    1.000/1.094 offen · 359/429 abgeschl."). Gezählt wird nur über Verbünde,
-    für die der Meilenstein gilt (Antragstyp-Filter). Ein inaktiver
-    Meilenstein wird gezählt, als wäre er aktiv, und sagt das dazu; einer ohne
-    Bedingung sagt „nichts zu zählen".
+  - **Die Wirkungsleiste** unter den Karten hat drei Spalten. „Probe": etwa
+    erfüllt bei 988 von 1.094 offenen und 347 von 429 abgeschlossenen
+    Verbünden, je mit Balken. „Gegenüber Fassung 37": unverändert oder
+    geändert, darunter etwa „offen +92 · abgeschlossen +68". „Ist-Termin": die
+    Auswahl eines Datumsfelds und ein Satz, woher der Termin bei genau dieser
+    Regel kommt, etwa „Hier: das spätere Datum von Gruppe 1 und Gruppe 2; je
+    Gruppe das frühere ihrer gefüllten Datumsspalten."
+
+  - **Befunde**: eine gelbe Marke steht nur bei einer Tatsache, nie bei einer
+    Schwelle. Eine Bedingung „trifft keinen Verbund" oder „trifft jeden
+    Verbund" (dann steht dabei, was die Regel ohne sie träfe); ein Meilenstein
+    ist „erfüllt bei allen" oder „erfüllt bei keinem"; die Regel liefert „kein
+    Datum"; oder etwa „224 ohne Termin": so viele offene Verbünde gelten als
+    erreicht, haben aber kein Ist-Datum und fehlen damit in jeder Abweichung.
+    Ein Punkt in der Meilenstein-Zeile zeigt Befunde auch zugeklappt.
+
+  - Ausnahme: ein Meilenstein, der nur verlangt, dass sein Ist-Termin-Feld
+    gefüllt ist (etwa „Antrag im System eingegeben"), soll bei jedem Verbund
+    zutreffen und bekommt deshalb keinen Befund.
+
+  - **Feld-Suche mit Treffern**: in der Auswahl-Tabelle eines Felds zeigt die
+    Spalte „offen · abg.", bei wie vielen offenen und abgeschlossenen Verbünden
+    das Feld gefüllt ist — auch für Felder, die der Plan noch nicht benutzt.
 
   - **Warum offen und abgeschlossen getrennt**: bei abgeschlossenen Verbünden
     sollte fast jeder Meilenstein erfüllt sein. Trifft eine Bedingung dort
     wenig, liest sie vermutlich die falsche Spalte. Eine Warnschwelle gibt es
     bewusst nicht — die Zahl steht da, das Urteil fällt die Projektleitung.
+    Ein inaktiver Meilenstein wird gezählt, als wäre er aktiv, und sagt das
+    dazu; einer ohne Bedingung sagt „nichts zu zählen".
+
+  - **Sammel-Meilenstein**: hat ein Meilenstein keine eigene Bedingung, aber
+    Unter-Meilensteine, zeigt er diese als Karten mit ihren Zahlen; ein Klick
+    öffnet den Unter-Meilenstein. Inaktive stehen gestrichelt daneben und
+    „zählen nicht mit". Darunter lässt sich trotzdem eine eigene Bedingung
+    anlegen — dann ist er auch erreicht, sobald sie zutrifft.
 
   - **Mehrere Meilensteine bleiben gleichzeitig offen**, damit sich Regeln
     vergleichen lassen; die offene Zeile trägt links eine Kante, ein zweiter
@@ -167,10 +206,21 @@ Plan als Team-Sidecar, Ansicht gemerkt in `ansichtPersistenz.ts`;
 Architektur: `docs/architecture/meilensteine.md` (§ Der Bedingungs-Bereich,
 § Probe am Bestand).
 
-Bedingungs-Editor: `BedingungEditor.tsx` + `ZeilenAktionen.tsx` (⋯-Menü) +
-`BlattZeile.tsx`, geteilt mit den To-do-Regeln des Status-Cockpits und dem
-Dialog „Eigene Spalte". Gruppenname = optionales `name` an `{alle}`/`{einige}`
-der `Bedingung`, max. 80 Zeichen, ohne Wirkung auf `pruefeBedingung`; Builds vor
-v6.59 verwerfen ihn beim Lesen. Probe: `probe.ts` (rein), `useMeilensteinProbe.ts`
-(lädt die Richtlinie 2025 einmal), `ProbeAnzeige.tsx`; nur im Meilenstein-Modul.
-Spec: `docs/superpowers/specs/2026-09-11-bedingungs-editor-gruppen.md`.
+Bedingungs-Editor: `BedingungEditor.tsx` (Karten, Innenkarten, Kopfsatz
+`bedingungKopfsatz`) + `BlattZeile.tsx` (Zelle) + `BedingungsFugen.tsx`
+(`Verbinder` = Schalter der Verknüpfung) + `ZeilenAktionen.tsx` (⋯-Menü, Einträge
+vom Aufrufer), geteilt mit den To-do-Regeln des Status-Cockpits und dem Dialog
+„Eigene Spalte"; Zahlen nur über Render-Props (`probe`, `trefferBlatt`,
+`kennzahlFeld`). Gruppenname = optionales `name` an `{alle}`/`{einige}` der
+`Bedingung`, max. 80 Zeichen, ohne Wirkung auf `pruefeBedingung`; Builds vor
+v6.59 verwerfen ihn beim Lesen. Umbau rein in `bedingung-baum.ts`
+(`dupliziereBedingung`, `loeseGruppeAuf`, `aufloesenAendertAussage`).
+
+Probe: `probe.ts` (rein; `ohneDatum`, `probeBefund`), `ist-termin.ts`
+(`istTerminErklaerung`, `istDatumsFeldAus`, `misstNurZeitpunkt`),
+`useMeilensteinProbe.ts` (lädt die Richtlinie 2025 einmal; `zaehleFeld` für die
+Feld-Suche), `ProbeAnzeige.tsx` (Karte, Bedingung, Wirkungsleiste); nur im
+Meilenstein-Modul. Der Regelbereich trägt `data-regelbereich`, damit ein Klick
+auf eine Karte die Zeile nicht zuklappt. Specs:
+`docs/superpowers/specs/2026-09-11-bedingungs-editor-gruppen.md`,
+`docs/superpowers/specs/2026-09-11-regelbereich-karten.md`.

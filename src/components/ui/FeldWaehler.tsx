@@ -46,6 +46,19 @@ export interface FeldWaehlerProps {
   disabled?: boolean;
   /** Breite des Auslösers; ohne Angabe passt er sich dem Inhalt an. */
   className?: string;
+  /**
+   * `feld` (Default): Auslöser mit Rahmen, wie ein Eingabefeld.
+   * `leise`: nur der Feldname mit gepunkteter Unterkante — für die Karten des
+   * Bedingungs-Editors, wo ein Dutzend gerahmter Felder die Regel übertönte.
+   */
+  variante?: 'feld' | 'leise';
+  /**
+   * Eine Kennzahl je Feld statt der Programm-Deckung — die Meilensteine zeigen
+   * dort, bei wie vielen Verbünden das Feld gefüllt ist. Der Aufrufer liefert
+   * den fertigen Text; die Spalte trägt `kennzahlTitel` als Kopf.
+   */
+  kennzahl?: (feldId: string) => string | undefined;
+  kennzahlTitel?: string;
 }
 
 type Spalte = 'feldId' | 'label' | 'deckung';
@@ -103,7 +116,9 @@ function Kopf({ spalte, aktiv, richtung, onSort, className, children }: {
 
 export function FeldWaehler({
   spalten, wert, onWaehle, nurTyp, vorschlaege, leerOption, ariaLabel, disabled, className,
+  variante = 'feld', kennzahl, kennzahlTitel = 'Treffer',
 }: FeldWaehlerProps): React.ReactElement {
+  const leise = variante === 'leise';
   const [offen, setOffen] = useState(false);
   const [suche, setSuche] = useState('');
   const [sortSpalte, setSortSpalte] = useState<Spalte | null>(KATALOG);
@@ -233,15 +248,18 @@ export function FeldWaehler({
           aria-label={ariaLabel}
           title={`${ausloeserText}${quellTitel}`}
           className={cn(
-            'flex items-center gap-1 rounded px-1.5 py-0.5 text-[12px] text-left',
-            'bg-[var(--tf-bg)] text-[var(--tf-text)] cursor-pointer',
+            'flex items-center gap-1 rounded text-[12px] text-left text-[var(--tf-text)] cursor-pointer',
             'disabled:cursor-not-allowed disabled:opacity-60',
-            'hover:border-[var(--tf-border-hover)]',
+            leise
+              ? 'min-w-0 px-0.5 py-0 bg-transparent hover:bg-[var(--tf-hover)]'
+              : 'px-1.5 py-0.5 bg-[var(--tf-bg)] hover:border-[var(--tf-border-hover)]',
             className ?? 'max-w-[240px]',
           )}
-          style={{ border: '0.5px solid var(--tf-border)' }}
+          style={leise ? undefined : { border: '0.5px solid var(--tf-border)' }}
         >
-          <span className="truncate">{ausloeserText}</span>
+          <span className={cn('truncate', leise && 'underline decoration-dotted decoration-[var(--tf-border-hover)] underline-offset-[3px]')}>
+            {ausloeserText}
+          </span>
           {quelleKurz && (
             <span className="shrink-0 font-mono text-[10.5px] text-[var(--tf-text-tertiary)]">
               ← {quelleKurz}
@@ -300,7 +318,11 @@ export function FeldWaehler({
             className="min-w-0 flex-1">
             Beschreibung
           </Kopf>
-          {zeigeDeckung && (
+          {kennzahl ? (
+            <span className="w-[74px] shrink-0 text-right text-[10.5px] uppercase tracking-wide text-[var(--tf-text-tertiary)]">
+              {kennzahlTitel}
+            </span>
+          ) : zeigeDeckung && (
             <Kopf spalte="deckung" aktiv={sortSpalte} richtung={richtung} onSort={sortiere}
               className="w-[46px] shrink-0 justify-end">
               Progr.
@@ -321,6 +343,7 @@ export function FeldWaehler({
                     key={`v-${e.feldId}`} eintrag={e} index={i}
                     aktiv={i === cursor} gewaehlt={e.feldId === wert}
                     zeigeDeckung={zeigeDeckung} zusatz={v.grund}
+                    kennzahlText={kennzahl ? (kennzahl(e.feldId) ?? '') : undefined}
                     onWaehle={() => waehle(e.feldId)}
                   />
                 );
@@ -351,6 +374,7 @@ export function FeldWaehler({
                 key={e.feldId} eintrag={e} index={i}
                 aktiv={i === cursor} gewaehlt={e.feldId === wert}
                 zeigeDeckung={zeigeDeckung}
+                kennzahlText={kennzahl ? (kennzahl(e.feldId) ?? '') : undefined}
                 onWaehle={() => waehle(e.feldId)}
               />
             );
@@ -381,13 +405,15 @@ export function FeldWaehler({
   }
 }
 
-function Zeile({ eintrag, index, aktiv, gewaehlt, zeigeDeckung, zusatz, onWaehle }: {
+function Zeile({ eintrag, index, aktiv, gewaehlt, zeigeDeckung, zusatz, kennzahlText, onWaehle }: {
   eintrag: SpaltenEintrag;
   index: number;
   aktiv: boolean;
   gewaehlt: boolean;
   zeigeDeckung: boolean;
   zusatz?: string;
+  /** Gesetzt: diese Kennzahl statt der Programm-Deckung. */
+  kennzahlText?: string;
   onWaehle: () => void;
 }): React.ReactElement {
   const quelle = herkunft(eintrag);
@@ -415,7 +441,11 @@ function Zeile({ eintrag, index, aktiv, gewaehlt, zeigeDeckung, zusatz, onWaehle
           </span>
         )}
       </span>
-      {zeigeDeckung && (
+      {kennzahlText !== undefined ? (
+        <span className="w-[74px] shrink-0 text-right text-[11px] tabular-nums text-[var(--tf-text-secondary)]">
+          {kennzahlText}
+        </span>
+      ) : zeigeDeckung && (
         <span className="w-[46px] shrink-0 text-right text-[11px] tabular-nums text-[var(--tf-text-tertiary)]">
           {deckungVon(eintrag)}×
         </span>

@@ -7,7 +7,7 @@
 import { describe, expect, it } from 'vitest';
 import { loeseFelderAuf } from '@/core/meilensteine/felder';
 import {
-  baueProbeFaelle, probeMeilensteine, zaehleBedingung, type ProbeVerbund,
+  baueProbeFaelle, probeBefund, probeMeilensteine, zaehleBedingung, type ProbeVerbund,
 } from '@/core/meilensteine/probe';
 import type { MeilensteinKnoten, MeilensteinPlan } from '@/core/meilensteine/typen';
 import type { Bedingung } from '@/core/status';
@@ -78,6 +78,7 @@ describe('probeMeilensteine', () => {
     const r = probeMeilensteine(plan([knoten({ id: 'k1' })]), faelle, HEUTE);
     expect(r.get('k1')).toEqual({
       offen: { treffer: 1, von: 2 }, abgeschlossen: { treffer: 2, von: 2 }, inaktiv: false,
+      ohneDatum: { offen: 0, abgeschlossen: 0 },
     });
   });
 
@@ -99,6 +100,7 @@ describe('probeMeilensteine', () => {
     expect(r.get('p')).toEqual({ ...r.get('c1'), inaktiv: false });
     expect(r.get('c2')).toEqual({
       offen: { treffer: 1, von: 2 }, abgeschlossen: { treffer: 0, von: 2 }, inaktiv: true,
+      ohneDatum: { offen: 0, abgeschlossen: 0 },
     });
   });
 
@@ -106,6 +108,32 @@ describe('probeMeilensteine', () => {
     const r = probeMeilensteine(plan([knoten({ id: 'k', bedingung: { alle: [] } })]), faelle, HEUTE);
     expect(r.get('k')).toEqual({
       offen: { treffer: 0, von: 0 }, abgeschlossen: { treffer: 0, von: 0 }, inaktiv: false,
+      ohneDatum: { offen: 0, abgeschlossen: 0 },
     });
+  });
+
+  it('zählt „erreicht ohne Ist-Termin" exakt aus der Bewertung', () => {
+    // W1 trägt nur das Kürzel (kein Datum), W2 Kürzel und Datum, W3 (abgeschlossen) nur das Kürzel.
+    const faelle2 = baueProbeFaelle([
+      verbund('W1', 'FuE', false, { k: 'ABC' }),
+      verbund('W2', 'FuE', false, { k: 'ABC', a: '01.02.2026' }),
+      verbund('W3', 'FuE', true, { k: 'XYZ' }),
+    ], loeseFelderAuf([], ['a', 'k']));
+    const r = probeMeilensteine(plan([knoten({ id: 'k1', bedingung: { einige: [{ feldId: 'k', op: 'gefuellt' }, A] } })]), faelle2, HEUTE);
+    expect(r.get('k1')?.offen).toEqual({ treffer: 2, von: 2 });
+    expect(r.get('k1')?.ohneDatum).toEqual({ offen: 1, abgeschlossen: 1 });
+  });
+});
+
+describe('probeBefund', () => {
+  it('trifft keinen, trifft jeden — sonst kein Befund', () => {
+    expect(probeBefund(zaehleBedingung({ feldId: 'fehlt', op: 'gefuellt' }, faelle, [], HEUTE))).toBe('keiner');
+    expect(probeBefund({ offen: { treffer: 2, von: 2 }, abgeschlossen: { treffer: 1, von: 1 } })).toBe('alle');
+    expect(probeBefund(zaehleBedingung(A, faelle, [], HEUTE))).toBeNull();
+  });
+
+  it('ohne Nenner kein Befund', () => {
+    expect(probeBefund({ offen: { treffer: 0, von: 0 }, abgeschlossen: { treffer: 0, von: 0 } })).toBeNull();
+    expect(probeBefund(null)).toBeNull();
   });
 });

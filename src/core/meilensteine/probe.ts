@@ -65,15 +65,51 @@ export interface ProbeZahlen {
   abgeschlossen: ProbeTeil;
 }
 
+/** Erreicht, aber ohne Ist-Termin — getrennt nach offen und abgeschlossen. */
+export interface OhneDatum {
+  offen: number;
+  abgeschlossen: number;
+}
+
 export interface KnotenProbe extends ProbeZahlen {
   /** Im Plan inaktiv — gezählt in einem Lauf, in dem nur dieser Knoten aktiv ist. */
   inaktiv: boolean;
+  /**
+   * Erreicht, aber OHNE Ist-Termin: die Regel traf nur über eine datumslose
+   * Bedingung zu (Status, Kürzel, „VB Kurzname"). Solche Verbünde fehlen still
+   * in jeder Abweichung der Auswertung. Gezählt aus demselben Bewertungslauf —
+   * exakt, nicht als Differenz zweier Regeln geschätzt.
+   */
+  ohneDatum: OhneDatum;
 }
+
+type LaufZahlen = ProbeZahlen & { ohneDatum: OhneDatum };
 
 const leer = (): ProbeZahlen => ({
   offen: { treffer: 0, von: 0 },
   abgeschlossen: { treffer: 0, von: 0 },
 });
+
+const leerLauf = (): LaufZahlen => ({ ...leer(), ohneDatum: { offen: 0, abgeschlossen: 0 } });
+
+/** Was eine Zahl als Befund sagt. */
+export type ProbeBefund = 'keiner' | 'alle';
+
+/**
+ * Trifft die Bedingung **keinen** oder **jeden** Verbund? Beides ist keine
+ * Schwelle, sondern ein Befund: so eine Bedingung unterscheidet nichts. Der
+ * Anlass stand im ausgelieferten Plan — „VB Kurzname ist gefüllt" machte MST 4.3
+ * bei allen 1 094 offenen Verbünden „erreicht", ein Statuswert in MST 5 traf
+ * keinen (gemessen 11.09.2026). Ohne Nenner kein Befund.
+ */
+export function probeBefund(z: ProbeZahlen | null): ProbeBefund | null {
+  if (!z) return null;
+  const von = z.offen.von + z.abgeschlossen.von;
+  if (von === 0) return null;
+  const treffer = z.offen.treffer + z.abgeschlossen.treffer;
+  if (treffer === 0) return 'keiner';
+  return treffer === von ? 'alle' : null;
+}
 
 /** Kontexte je Verbund — neu zu bauen, sobald die Feldmenge sich ändert. */
 export function baueProbeFaelle(
@@ -129,18 +165,20 @@ function zaehleLauf(
   faelle: readonly ProbeFall[],
   heute: string,
   nur?: string,
-): Map<string, ProbeZahlen> {
-  const out = new Map<string, ProbeZahlen>();
+): Map<string, LaufZahlen> {
+  const out = new Map<string, LaufZahlen>();
   for (const f of faelle) {
     const r = bewerteVerbund(plan, eingabe(f), heute);
     for (const e of r.ergebnisse) {
       if (nur !== undefined && e.knotenId !== nur) continue;
       if (e.zustand === 'nichtRelevant' || e.zustand === 'ohneBedingung') continue;
-      const z = out.get(e.knotenId) ?? leer();
+      const z = out.get(e.knotenId) ?? leerLauf();
       out.set(e.knotenId, z);
       const teil = f.verbund.abgeschlossen ? z.abgeschlossen : z.offen;
       teil.von += 1;
-      if (e.zustand === 'erreicht') teil.treffer += 1;
+      if (e.zustand !== 'erreicht') continue;
+      teil.treffer += 1;
+      if (e.istDatum === null) z.ohneDatum[f.verbund.abgeschlossen ? 'abgeschlossen' : 'offen'] += 1;
     }
   }
   return out;
@@ -160,7 +198,7 @@ export function probeMeilensteine(
   const out = new Map<string, KnotenProbe>();
   const echt = zaehleLauf(plan, faelle, heute);
   for (const k of plan.knoten) {
-    if (k.aktiv) out.set(k.id, { ...(echt.get(k.id) ?? leer()), inaktiv: false });
+    if (k.aktiv) out.set(k.id, { ...(echt.get(k.id) ?? leerLauf()), inaktiv: false });
   }
   for (const k of plan.knoten) {
     if (k.aktiv) continue;
@@ -169,7 +207,7 @@ export function probeMeilensteine(
       knoten: plan.knoten.map(x => (x.id === k.id ? { ...x, aktiv: true } : x)),
     };
     const lauf = zaehleLauf(nurDieser, faelle, heute, k.id);
-    out.set(k.id, { ...(lauf.get(k.id) ?? leer()), inaktiv: true });
+    out.set(k.id, { ...(lauf.get(k.id) ?? leerLauf()), inaktiv: true });
   }
   return out;
 }

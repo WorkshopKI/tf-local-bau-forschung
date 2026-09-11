@@ -101,3 +101,35 @@ export function bedingungSatz(b: Bedingung, quelle: FeldLabelQuelle): string {
   const text = bedingungAlsText(b, quelle);
   return text.startsWith('(') && text.endsWith(')') ? text.slice(1, -1) : text;
 }
+
+/**
+ * Der Kopfsatz über den Karten des Editors: „Erfüllt, wenn „PreCheck AB" und
+ * „PreCheck FB" zutreffen."
+ *
+ * Er nennt nur die Teile der **obersten** Ebene — eine Gruppe mit ihrem Namen
+ * oder als „Gruppe n" (gezählt unter den Gruppen, wie der Platzhalter der
+ * Karte), eine Einzelbedingung mit ihrem Satz. Was in einer Gruppe steht, sagt
+ * deren Karte darunter. Das Verb folgt der Verknüpfung („zutreffen" /
+ * „zutrifft"); ab vier Teilen wird der Satz generisch, sonst läse er sich als
+ * Aufzählung statt als Regel.
+ */
+export function bedingungKopfsatz(b: Bedingung, quelle: FeldLabelQuelle): string {
+  const labelVon = aufloeser(quelle);
+  const und = !('einige' in b);
+  const kinder = 'alle' in b ? b.alle : ('einige' in b ? b.einige : [b]);
+  if (kinder.length === 0) return 'Noch keine Bedingung.';
+  let gruppe = 0;
+  const namen = kinder.map(k => {
+    if (!('alle' in k) && !('einige' in k)) return `„${blatt(k, labelVon)}"`;
+    gruppe += 1;
+    return k.name ? `„${k.name}"` : `Gruppe ${gruppe}`;
+  });
+  if (namen.length === 1) return `Erfüllt, wenn ${namen[0]} zutrifft.`;
+  if (namen.length > 3) {
+    return und
+      ? `Erfüllt, wenn alle ${namen.length} Teile zutreffen.`
+      : `Erfüllt, wenn einer der ${namen.length} Teile zutrifft.`;
+  }
+  const liste = `${namen.slice(0, -1).join(', ')}${und ? ' und ' : ' oder '}${namen[namen.length - 1]}`;
+  return `Erfüllt, wenn ${liste} ${und ? 'zutreffen' : 'zutrifft'}.`;
+}

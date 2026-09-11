@@ -15,9 +15,11 @@ export {
   type BewertungsEingabe,
 } from './bewertung';
 export {
-  baueProbeFaelle, probeMeilensteine, zaehleBedingung,
-  type KnotenProbe, type ProbeFall, type ProbeTeil, type ProbeVerbund, type ProbeZahlen,
+  baueProbeFaelle, probeBefund, probeMeilensteine, zaehleBedingung,
+  type KnotenProbe, type OhneDatum, type ProbeBefund, type ProbeFall, type ProbeTeil, type ProbeVerbund,
+  type ProbeZahlen,
 } from './probe';
+export { istDatumsFeldAus, istTerminErklaerung, misstNurZeitpunkt, type IstTerminErklaerung } from './ist-termin';
 export {
   werteDauernAus, werteKnotenAus, zaehlePrognosen, bearbeitungsdauerTage, dauerBucket,
   DAUER_BUCKETS, DAUER_BUCKET_GRENZE,

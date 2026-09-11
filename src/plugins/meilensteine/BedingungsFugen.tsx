@@ -1,60 +1,67 @@
 /**
- * Die Fugen zwischen zwei Bedingungs-Zeilen: das **Verknüpfungs-Wort** in der
- * linken Rinne und die **Einfüge-Marke** des Ziehens.
+ * Die Fugen zwischen zwei Bedingungen: der **Verbinder** („und" / „oder") und
+ * die **Einfüge-Marke** des Ziehens.
  *
- * Beides beantwortet dieselbe Frage — „wie hängen diese zwei Zeilen zusammen?"
- * —, gehört aber nicht in die Struktur-Rekursion des
- * [BedingungEditor](./BedingungEditor.tsx), die schon genug zu tun hat.
+ * **Der Verbinder ist der Schalter** (v6.60, Prototyp C3). Bis v6.59 stand das
+ * Wort als stilles Echo in einer linken Rinne, geschaltet wurde oben im Kopf
+ * („alle | eine") — zwei Stellen für eine Sache, und die PL fand den Bereich
+ * damit „noch nicht übersichtlich genug". Jetzt steht das Wort genau dort, wo
+ * man eine Regel liest: zwischen zwei Karten oder zwei Bedingungen. Ein Klick
+ * macht aus „und" ein „oder" — für alle Verbinder derselben Gruppe zugleich,
+ * weil es EINE Verknüpfung ist. Der `title` sagt vorher, was der Klick tut.
  *
- * **Warum das Wort in einer Rinne steht und nicht in einer eigenen Zeile.**
- * Eine Gruppe zeigt ihre Verknüpfung im Kopf („ALLE müssen zutreffen"), aber
- * gelesen wird eine Regel zwischen den Zeilen. Ohne das Wort dort sah ein
- * Gruppen-Kasten, der Geschwister der Blätter ist, wie deren Untergruppe aus —
- * genau die Rückmeldung, aus der dieses Modul entstand. Eine eigene Zeile je
- * Fuge kostete bei vier Bedingungen rund 42 px und nähme die Dichte zurück,
- * die v5.3 gewonnen hat; die Rinne kostet **null** Höhe und richtet die Kette
- * zusätzlich an einer Kante aus.
- *
- * Die Farbe ist `--tf-text-secondary` (gemessen 5,33:1): das Wort trägt
- * Bedeutung und muss lesbar sein — `--tf-text-tertiary` läge mit 2,61:1 unter AA.
- *
- * **Klein und in Gewicht 500** (v6.59): „und / oder" statt „UND / ODER" in 600.
- * Der Schalter im Gruppenkopf sagt „alle / eine"; das Wort hier ist sein Echo
- * zwischen den Zeilen, kein zweites Bedienelement — und Versalien in Gewicht
- * 600 zogen den Blick auf die Fuge statt auf die Bedingungen (DESIGN_GUIDE:
- * keine Versalien außerhalb von Abschnittsköpfen, nie 600).
+ * Getönt (`--tf-primary-light` / `--tf-primary`), damit man ihn als Bedienelement
+ * erkennt; ungetönt läse er sich wieder als Text. Ohne `onSchalte` (Sammel-
+ * Meilenstein: Unter-Meilensteine gelten immer alle) bleibt er stilles Wort.
  */
-import type { BedingungsPfad } from '@/core/status';
+import type { BedingungsPfad, Verknuepfung } from '@/core/status';
 
 /** Wohin ein gezogener Knoten fällt: in diese Liste, an diese Stelle. */
 export interface DropZiel { elternPfad: BedingungsPfad; index: number }
 
-export const RINNE_BREITE = 'w-[38px]';
-
-/**
- * Die linke Rinne einer Zeile — ab dem zweiten Geschwister mit dem Wort der
- * Verknüpfung, davor leer. `wort` ist `null` beim ersten Kind.
- */
-export function Rinne({ wort }: { wort: string | null }): React.ReactElement {
-  return (
-    <span
-      className={`${RINNE_BREITE} shrink-0 self-start pt-[4px] pr-1.5 text-right select-none
-        text-[11px] font-medium leading-[16px]
-        text-[var(--tf-text-secondary)]`}
+export function Verbinder({ verknuepfung, onSchalte, linie = false }: {
+  verknuepfung: Verknuepfung;
+  /** Fehlt: nur das Wort, kein Schalter. */
+  onSchalte?: () => void;
+  /** Zwischen zwei Bedingungen einer Karte: mit Haarlinie links und rechts. */
+  linie?: boolean;
+}): React.ReactElement {
+  const und = verknuepfung === 'alle';
+  const wort = und ? 'und' : 'oder';
+  const pille = onSchalte ? (
+    <button
+      type="button"
+      onClick={onSchalte}
+      title={und ? 'Klick: „oder" — dann genügt eine' : 'Klick: „und" — dann müssen alle zutreffen'}
+      aria-label={`Verknüpfung „${wort}" — Klick schaltet auf „${und ? 'oder' : 'und'}"`}
+      className="shrink-0 cursor-pointer select-none rounded-full px-2.5 py-[1px] text-[11px] font-medium leading-[16px]
+        bg-[var(--tf-primary-light)] text-[var(--tf-primary)] hover:brightness-95
+        focus-visible:outline-2 focus-visible:outline-[var(--tf-primary)] focus-visible:outline-offset-1"
+      style={{ border: '0.5px solid var(--tf-border-hover)' }}
     >
-      {wort ?? ''}
-    </span>
+      {wort}
+    </button>
+  ) : (
+    <span className="shrink-0 px-1.5 text-[11px] font-medium text-[var(--tf-text-secondary)]">{wort}</span>
+  );
+  if (!linie) return <span className="flex shrink-0 items-center self-center">{pille}</span>;
+  return (
+    <div className="flex items-center gap-2 px-3 py-0.5">
+      <span className="h-px flex-1 bg-[var(--tf-border)]" />
+      {pille}
+      <span className="h-px flex-1 bg-[var(--tf-border)]" />
+    </div>
   );
 }
 
 /**
- * Die Einfüge-Marke zwischen zwei Geschwistern.
+ * Die Einfüge-Marke zwischen zwei Bedingungen einer Karte.
  *
  * Zeilen selbst sind **kein** „hier hinein"-Ziel: „auf die Zeile" wäre zwischen
  * „davor" und „hinein" nicht zu unterscheiden, und die Regel bekäme beim
  * Loslassen eine andere Bedeutung, als die Geste zeigte. Blattzeilen melden
  * stattdessen ihre nähere **Kante** (obere Hälfte = davor), in eine Gruppe
- * hinein führt deren Kasten.
+ * hinein führt deren Karte.
  *
  * **Sichtbar, sobald ein Zug läuft** (v6.3): vorher bekam die Marke erst Farbe,
  * wenn man sie genau traf — wer nicht weiß, dass es Ziele gibt, sucht keine.
@@ -83,7 +90,7 @@ export function Marke({ elternPfad, index, aktiv, erlaubt, zeigen, setZiel, onAb
       }}
       onDrop={e => { if (!erlaubt) return; e.preventDefault(); e.stopPropagation(); onAblegen(); }}
       aria-hidden
-      className="h-[10px] -my-[4px] flex items-center"
+      className="h-[10px] -my-[4px] flex items-center px-2"
     >
       <div
         className="h-[2px] w-full rounded-full"

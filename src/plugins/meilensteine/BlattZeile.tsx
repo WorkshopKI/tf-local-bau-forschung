@@ -45,6 +45,13 @@ const selectKlasse =
   'text-[12px] rounded px-1.5 py-0.5 bg-[var(--tf-bg)] text-[var(--tf-text)] cursor-pointer';
 
 /**
+ * Der Vergleich als leises Auswahlfeld (v6.60): „ist gefüllt" steht in fast
+ * jeder Bedingung — gerahmt übertönte er das Feld, um das es geht.
+ */
+const vergleichKlasse =
+  'max-w-full text-[11.5px] rounded px-0.5 py-0 bg-transparent text-[var(--tf-text-secondary)] cursor-pointer hover:bg-[var(--tf-hover)]';
+
+/**
  * Optionale Zusatzprüfung des Aufrufers: kennt die Zielwelt das Feld?
  *
  * Die Spaltenliste eines Editors und der Vorrat, gegen den später ausgewertet
@@ -57,13 +64,26 @@ export type FeldPruefung = (feldId: string) => string | null;
 
 export type Blatt = Exclude<Bedingung, BedingungsGruppe>;
 
-export function BlattZeile({ blatt, spalten, pruefeFeld, vorschlaege, onChange, aktionen }: {
+/**
+ * Eine Bedingung als **Zelle** einer Karte (v6.60): oben das Feld, darunter
+ * Vergleich, Wert und — bei den Meilensteinen — was sie am Bestand trifft.
+ * Griff und ⋯ erscheinen an der Zelle unter der Maus oder im Fokus; ein
+ * Dutzend Bündel nebeneinander war das Rauschen, das die PL „nicht übersichtlich"
+ * fand. Per Tab bleiben sie erreichbar (`focus-within`).
+ */
+export function BlattZeile({
+  blatt, spalten, pruefeFeld, vorschlaege, kennzahlFeld, treffer, onChange, aktionen,
+}: {
   blatt: Blatt;
   spalten: SpaltenEintrag[];
   pruefeFeld?: FeldPruefung;
   vorschlaege?: readonly FeldWaehlerVorschlag[];
+  /** Kennzahl je Feld in der Feld-Suche (Meilensteine: Treffer am Bestand). */
+  kennzahlFeld?: (feldId: string) => string | undefined;
+  /** Was diese Bedingung am Bestand trifft — rechts in der zweiten Zeile. */
+  treffer?: React.ReactNode;
   onChange: (b: Bedingung) => void;
-  /** Das Bedienbündel am rechten Rand — vom Editor gestellt, samt Griff. */
+  /** Griff und ⋯ — vom Editor gestellt. */
   aktionen: React.ReactNode;
 }): React.ReactElement {
   const eintrag = spalten.find(s => s.feldId === blatt.feldId);
@@ -125,25 +145,26 @@ export function BlattZeile({ blatt, spalten, pruefeFeld, vorschlaege, onChange, 
   ].filter((m): m is string => typeof m === 'string' && m.length > 0);
 
   return (
-    <div className="flex flex-col gap-0.5">
-      <div className="flex items-center gap-1 flex-wrap">
-        {/* Feste Breiten für Feld und Operator (v6.59): Geschwister-Zeilen
-            fluchten dann untereinander, und eine Gruppe liest sich als Tabelle
-            statt als Flattersatz. */}
+    <div className="group/zelle flex flex-col gap-0.5 rounded-[6px] px-2 py-1.5 hover:bg-[var(--tf-hover)] focus-within:bg-[var(--tf-hover)]">
+      <div className="flex min-w-0 items-center gap-1">
         <FeldWaehler
+          variante="leise"
           spalten={spalten}
           wert={blatt.feldId}
           onWaehle={setFeld}
           vorschlaege={vorschlaege}
+          kennzahl={kennzahlFeld}
+          kennzahlTitel="offen · abg."
           ariaLabel="Feld"
-          className="w-[240px]"
+          className="min-w-0 flex-1"
         />
-
+        <span className="shrink-0 opacity-0 group-hover/zelle:opacity-100 focus-within:opacity-100">{aktionen}</span>
+      </div>
+      <div className="flex flex-wrap items-center gap-1">
         <select
           value={blatt.op}
           onChange={e => setOperator(e.target.value)}
-          className={`${selectKlasse} w-[168px]`}
-          style={feldStil}
+          className={vergleichKlasse}
           aria-label="Operator"
         >
           {operatoren.map(op => (
@@ -155,7 +176,7 @@ export function BlattZeile({ blatt, spalten, pruefeFeld, vorschlaege, onChange, 
           <select
             value={'wert' in blatt ? blatt.wert ?? '' : ''}
             onChange={e => onChange({ ...blatt, wert: e.target.value } as Bedingung)}
-            className={`${selectKlasse} max-w-[220px]`}
+            className={`${selectKlasse} max-w-[200px]`}
             style={feldStil}
             aria-label="Statuswert"
           >
@@ -169,7 +190,7 @@ export function BlattZeile({ blatt, spalten, pruefeFeld, vorschlaege, onChange, 
             value={'wert' in blatt ? blatt.wert ?? '' : ''}
             onChange={e => onChange({ ...blatt, wert: e.target.value } as Bedingung)}
             placeholder="Wert"
-            className="text-[12px] rounded px-2 py-0.5 bg-[var(--tf-bg)] text-[var(--tf-text)] w-[160px]"
+            className="text-[12px] rounded px-2 py-0.5 bg-[var(--tf-bg)] text-[var(--tf-text)] w-[140px]"
             style={feldStil}
             aria-label="Wert"
           />
@@ -206,11 +227,14 @@ export function BlattZeile({ blatt, spalten, pruefeFeld, vorschlaege, onChange, 
 
         {zeigeVergleichsfeld && (
           <FeldWaehler
+            variante="leise"
             spalten={spalten}
             wert={'vergleichFeldId' in blatt ? blatt.vergleichFeldId : ''}
             onWaehle={feldId => onChange({ ...blatt, vergleichFeldId: feldId } as Bedingung)}
+            kennzahl={kennzahlFeld}
+            kennzahlTitel="offen · abg."
             ariaLabel="Vergleichsfeld"
-            className="max-w-[240px]"
+            className="min-w-0 max-w-[200px]"
           />
         )}
 
@@ -237,9 +261,7 @@ export function BlattZeile({ blatt, spalten, pruefeFeld, vorschlaege, onChange, 
           </span>
         )}
 
-        {/* Direkt hinter dem Inhalt, nicht am rechten Rand: dort lag das
-            Bündel bei voller Breite eine halbe Bildschirmbreite entfernt. */}
-        <span className="ml-1">{aktionen}</span>
+        {treffer && <span className="ml-auto pl-1">{treffer}</span>}
       </div>
       {monita.map(m => (
         <p key={m} className="text-[11.5px] text-[var(--tf-danger-text)] pl-0.5">{m}</p>

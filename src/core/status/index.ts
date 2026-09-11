@@ -54,10 +54,11 @@ export {
   baueKontext, pruefeBedingung, bedingungIstLeer, bedingungFeldRefs, referenzierbareFelder,
   type BedingungsKontext,
 } from './bedingung';
-export { bedingungAlsText, bedingungSatz, type FeldLabelQuelle } from './bedingung-text';
+export { bedingungAlsText, bedingungKopfsatz, bedingungSatz, type FeldLabelQuelle } from './bedingung-text';
 export {
   MAX_GRUPPENNAME,
-  alsBedingungsGruppe, bedingungsTiefe, benenneBedingungsGruppe, darfBedingungAusruecken,
+  alsBedingungsGruppe, aufloesenAendertAussage, bedingungsTiefe, benenneBedingungsGruppe, darfBedingungAusruecken,
+  dupliziereBedingung, loeseGruppeAuf,
   darfBedingungEinruecken,
   darfBedingungVerschieben, entferneBedingungAn, ersetzeBedingungAn, fuegeBedingungEin,
   gruppenKinder, holeBedingungAn, istBedingungsGruppe, mitGruppenKindern, mitVerknuepfung,

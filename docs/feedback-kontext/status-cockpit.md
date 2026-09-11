@@ -318,6 +318,13 @@ wird.
     Markern für Sperre, stillgelegt und „trifft nie zu", rechts die Regel mit
     Editor. Die Trennlinie ist ziehbar und ihre Lage bleibt erhalten; Esc bringt
     die Karten zurück.
+  - **Die Bedingung einer Regel** entsteht im selben Baukasten wie bei den
+    Meilensteinen: Gruppen als Karten nebeneinander, einzelne Bedingungen als
+    kleine Karten, darüber die Regel in einem Satz. „und" bzw. „oder" zwischen
+    Karten und Bedingungen sind Schalter — ein Klick ändert die Verknüpfung.
+    Umgebaut wird über Griff und Menü (⋯) an Karte und Bedingung. Zahlen am
+    Bestand zeigt der Baukasten hier nicht; dafür gibt es „Wirkung am Bestand
+    messen".
   - In der geteilten Ansicht stehen die **Positions-Pfeile im Regel-Kopf**
     („Position 5 von 27"), weil die schlanken Zeilen selbst nur die Auswahl
     tragen. Erklärtext, Nachziehen-Hinweis und die Tagesordnung erscheinen nur,
