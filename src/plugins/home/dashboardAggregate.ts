@@ -49,6 +49,11 @@ export type AntragVorgang = Vorgang & {
    *  die Marke „N TV" (wie die Kanban-Karte), der Balken die TV-Summe. Wird nur
    *  in `meineAntraege` gesetzt. */
   tv_count?: number;
+  /** Laut Kürzeln erledigt, der amtliche Status sagt noch offen (eine Sperre
+   *  der Kaskade griff). Genau die Menge, die „Meine Anträge" als Zählzeile
+   *  nennt — der Tagesbrief liest sie hier, statt sie ein zweites Mal
+   *  herzuleiten. Nur gesetzt, wenn wahr. */
+  erledigtLautKuerzeln?: true;
   /** Die Aktenzeichen des Clusters (bei Solo-Anträgen genau eines). Grundlage
    *  für die Aufgabe der Zeile — sie wird über diese Teilvorhaben gefaltet. */
   tv_aktenzeichen?: string[];
@@ -330,7 +335,7 @@ export function computeDashboardAggregate(
       // Begleit-Vorgänge, die in dieser Liste nie standen (gemessen 20.08.2026).
       if (options.gesperrt?.has(a.aktenzeichen) === true) {
         erledigtLautKuerzeln++;
-        erledigteAntraege.push(v);
+        erledigteAntraege.push({ ...v, erledigtLautKuerzeln: true });
         continue;
       }
       stats.offen++;

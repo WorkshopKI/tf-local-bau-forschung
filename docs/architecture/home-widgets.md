@@ -241,9 +241,11 @@ der Brief rankt über ihre Grenzen hinweg.
   antwortete regelkonform, es wisse nichts über den Vorgang, nach dem eben gefragt
   wurde. Der Knopf **navigiert weiterhin nicht** — er ist die zweite Geste neben dem
   Sprung-Link, und die Karte bleibt stehen. Wer nach EINEM Vorgang fragt, benennt
-  ihn (`stillstand`/`zu-tun`/`weitermachen`); Listenfragen wie „Welche
-  Entwürfe habe ich offen?" bleiben bewusst ohne — ein einzelner Vorgang wäre dort
-  eine Verengung, die die Frage nicht meint.
+  ihn (`stillstand`/`zu-tun`/`weitermachen`, dazu `liegt-bei-anderen` und
+  `kuerzel-status`, wenn ihre Liste genau einen Namen hat); Listenfragen wie
+  „Welche Entwürfe habe ich offen?" oder „Welche meiner Vorgänge liegen bei AB?"
+  bleiben bewusst ohne — ein einzelner Vorgang wäre dort eine Verengung, die die
+  Frage nicht meint.
 - **Der Brief leitet nichts Neues ab.** Jedes Thema konsumiert eine bestehende
   reine bzw. gecachte Quelle. Die Zieltage teilt er sich mit dem
   Fristen-Widget: dessen Ladeeffekt ist nach
@@ -255,8 +257,12 @@ der Brief rankt über ihre Grenzen hinweg.
   fällt für ihn weg.
 - **Rangfolge nur, wo eine Uhr tickt.** Von den Themen tragen zwei eine
   Fälligkeit (Stillstand = Zieltage, Was zu tun ist = kritische Frist);
-  die übrigen sind Neuigkeiten ohne Termin und stehen in EINEM Nachsatz. Eine
+  die übrigen stehen in EINEM Nachsatz — Neuigkeiten ohne Termin und die beiden
+  Arbeitsvorrats-Themen ohne Uhr („Liegt bei anderen", „Kürzel ↔ Status"), die
+  Auskunft und Befund sind, keine eigene Handlung. Eine
   gemeinsame Skala müsste Gewichte erfinden, die gegen nichts prüfbar wären.
+  Der Arbeitsvorrat umfasst damit Stillstand, Was zu tun ist, Liegt bei anderen
+  und Kürzel ↔ Status.
   Deckel 5, Schwelle `DRINGLICH_AB_TAGEN`; **am echten Bestand gemessen**
   (09.09.2026, Kürzel ATh): 12 verschiedene Vorgänge unter der Schwelle, die
   dringlichsten 167/165/152/142/138 Tage über — die Schwelle bindet dort also
@@ -286,6 +292,60 @@ der Brief rankt über ihre Grenzen hinweg.
   „überfällig", nicht „fällig". Ohne die Herkunft las sich die Klammer als
   eingetretener Zustand — gemessen 11.09.2026 unter einer Karte, die für
   denselben Verbund eine andere Aufgabe sagte.
+- **Wer ist dran — gegen die Rolle des LESERS** (v6.61). Jeder Kandidat beider
+  Uhr-Themen wird eingeordnet, bevor er rankt
+  ([useTagesbrief.ts](../../src/plugins/home/tagesbrief/useTagesbrief.ts)):
+  dieselbe Vierteilung wie das Vorgangs-Board
+  ([zustaendigkeitVon](../../src/plugins/vorgangs-board/zustaendigkeit.ts)),
+  gelesen gegen die Profil-Rolle. `meine` rankt; `warten` steht unter „Liegt bei
+  anderen", je Adresse eine Namensliste („bei AB liegen A und B", „auf den
+  Antragsteller wartet C"). Die Adresse zerlegt `adresseTeile`
+  ([aufgabe.ts](../../src/core/status/aufgabe.ts)), die eine Quelle auch von
+  `adressText` — Satz und Nebenzeile der Karte laufen nicht auseinander. Greift
+  für die eigene Rolle eine Sperre (Kaskaden-Quelle `gesperrt`, auf der Karte
+  „Keine Aufgabe mehr"), kommt die Adresse aus dem AB-Satz über
+  `adresseFuerWaechter`, wie bei der „Liegt bei"-Kachel und dem
+  Stillstands-Wächter; nennt er niemanden, schweigt der Brief zu diesem Vorgang.
+  Rückfall und Platzhalter ranken wie bisher. Die Grundmenge der Fremden sind
+  dieselben Kandidaten (Tage bis Fälligkeit ≤ `DRINGLICH_AB_TAGEN`, aus
+  kritischer Frist wie aus Stillstand), je Vorgang einmal, am dringlichsten Anlass. **Gekappt
+  (`KANDIDATEN`) wird erst nach der Einordnung** — vorher gekappt leerte sich die
+  eigene Liste, sobald die dringlichsten Kandidaten bei anderen lagen. Gemessen
+  11.09.2026 (Kürzel THü, liest als FB): oben stand AIRES „GA schreiben" (liegt
+  bei AB) und zwei Vorgänge mit „Keine Aufgabe mehr", deren FB-Teil durch war und
+  die beim AB lagen. Abgewählt verschwinden die Fremden aus dem Brief; in die
+  Rangliste kehren sie nicht zurück.
+- **Kürzel ↔ Status liest die Zählzeile der Karte, statt sie herzuleiten.**
+  `computeDashboardAggregate` markiert die Vorgänge, die „Meine Anträge" als
+  „laut Kürzeln erledigt" beziffert (Sperre im AB-Satz, amtlicher Status noch
+  offen), mit `AntragVorgang.erledigtLautKuerzeln`
+  ([dashboardAggregate.ts](../../src/plugins/home/dashboardAggregate.ts)). Der
+  Brief nennt genau diese Menge neutral im Nachsatz, mit dem rohen Status in
+  Worten („X ist laut Kürzeln erledigt, der Status sagt noch „…“"), und nimmt sie
+  aus beiden Uhr-Themen — auch wenn das Thema abgewählt ist, denn eine Aufgabe
+  sind sie nicht. Er behauptet nicht, wer den Widerspruch auflöst: die App leitet
+  keinen Status ab ([Pitfall #44](vorgangssystem.md)). Nicht zu verwechseln mit
+  „Keine Aufgabe mehr" aus einer Sperre im Satz einer ANDEREN Rolle (FB nach
+  „RNE oder Ablehnung begonnen") — dort liegt der Vorgang beim AB, und das sagt
+  „Liegt bei anderen".
+- **Über Nacht mit Namen.** Der Nachtlauf-Satz nennt die geänderten Vorgänge,
+  statt sie zu zählen: „über Nacht geändert: BauKo-Pilot (Status jetzt „…“) und
+  LewisAI". [nachtlaufNamen.ts](../../src/plugins/home/tagesbrief/nachtlaufNamen.ts)
+  (rein) faltet die Journal-Einträge je Verbund (Akronym, sonst Aktenzeichen),
+  zählt sie und nimmt als neuen Status `STATUS_VB`, ersatzweise einen
+  `STATUS_TV`, den alle geänderten Teilvorhaben teilen; Vorgänge mit
+  Statuswechsel zuerst, dann nach Zahl der Einträge. `antrag-neu` zählt nicht —
+  das ist Zugang und steht unter „Neu dazugekommen". `D_`-Kürzel bleiben der
+  Karte „Änderungen der letzten Nacht", die jedes mit seinem Tooltip erklärt.
+  Keine Personen-Achse (Pitfall #48). Anlass: der Satz sagte „4 Vorgänge haben
+  sich über Nacht geändert", gemeint waren zwei Verbünde.
+- **Namenslisten im Nachsatz** (`namensListe` in
+  [punkte.ts](../../src/plugins/home/tagesbrief/punkte.ts)): höchstens
+  `MAX_NAMEN` = 3 Namen, jeder ein eigenes Sprungziel; der Rest wird als „und N
+  weitere" gezählt, nicht verschwiegen, und ist kein Sprungziel, weil keine Seite
+  genau diese Menge zeigt. Weil die Punkte selbst Kommata tragen, trennt der
+  Nachsatz sie mit **Semikolon**
+  ([TagesbriefWidget.tsx](../../src/plugins/home/tagesbrief/TagesbriefWidget.tsx)).
 - **Meilensteine sind bewusst KEIN Thema** (v6.60.4). Ein Meilenstein ist ein
   Soll-Termin ab Eingang über den ganzen Plan — eine Aussage über das Tempo,
   keine Handlung für heute. Im Brief verdrängte er beim Entdoppeln den
@@ -300,6 +360,12 @@ der Brief rankt über ihre Grenzen hinweg.
 - **Leere braucht eine Erklärung**: „Nichts Dringendes gefunden. Geprüft: …"
   nennt die aktiven Themen; solange eine Quelle lädt, behauptet der Brief nichts.
   Eingeklappt zeigt der Zähler „—", nicht „0".
+- **Die Rangliste wartet auf die Kaskade** (v6.61). Wer dran ist, weiß der Brief
+  erst mit ihr; bis dahin steht oben „Der Brief wird zusammengestellt …", der
+  Nachsatz darf schon stehen. Vorher standen Vorgänge mit „…" oben und sprangen
+  Sekunden später in den Nachsatz (gemessen nach einem Reload am 11.09.2026:
+  AIRES und DIVA NOTE). Ein vorläufiger Stand von vor dem Import ist beschriftet
+  und rankt weiter.
 - **Themenwahl = Abwahl** (`TagesbriefWidgetConfig.aus`), damit ein später
   ergänztes Thema von selbst erscheint. Themen, die dieser Build nicht bedienen
   kann, stehen gar nicht in der Liste.

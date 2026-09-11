@@ -123,11 +123,29 @@ function adresseVon(e: TodoErgebnis): Rolle | 'ast' | null {
  * uns handeln kann. `null` heißt „keine Rolle benannt" — nicht „niemand".
  */
 export function adressText(e: TodoErgebnis): string | null {
+  const t = adresseTeile(e);
+  return t === null ? null : `${t.art === 'wartet' ? 'wartet auf' : 'liegt bei'} ${t.wer}`;
+}
+
+/** Die Adresse in ihren Teilen — die eine Quelle von {@link adressText}. */
+export interface AdressTeile {
+  /** `wartet` = im Haus kann gerade niemand handeln; `liegt` = eine Rolle ist zuständig. */
+  art: 'wartet' | 'liegt';
+  /** „QS", „AB/FB", „Antragsteller" — dieselben Wörter wie in der Nebenzeile. */
+  wer: string;
+}
+
+/**
+ * Die Adresse zerlegt, für Flächen, die sie in einen eigenen Satz stellen
+ * („bei FB liegen A, B und C" im Tagesbrief). Dieselbe Regel wie
+ * {@link adressText}, damit Satz und Nebenzeile nicht auseinanderlaufen.
+ */
+export function adresseTeile(e: TodoErgebnis): AdressTeile | null {
   if (e.wartetAuf !== null) {
-    return `wartet auf ${e.wartetAuf === 'ast' ? 'Antragsteller' : ROLLE_LABEL[e.wartetAuf]}`;
+    return { art: 'wartet', wer: e.wartetAuf === 'ast' ? 'Antragsteller' : ROLLE_LABEL[e.wartetAuf] };
   }
   if (e.zustaendig.length === 0) return null;
-  return `liegt bei ${sortiereRollen(e.zustaendig).map(r => ROLLE_LABEL[r]).join('/')}`;
+  return { art: 'liegt', wer: sortiereRollen(e.zustaendig).map(r => ROLLE_LABEL[r]).join('/') };
 }
 
 /**

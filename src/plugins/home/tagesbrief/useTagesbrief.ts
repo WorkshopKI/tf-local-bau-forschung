@@ -22,13 +22,18 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useStorage } from '@/core/hooks/useStorage';
 import { useBestandsAufgaben, useZeilenAufgaben } from '@/core/hooks/useBestandsAufgaben';
 import { useBestandGeneration } from '@/core/hooks/useBestandGeneration';
-import { aufgabeAusBestand, aufgabenAnzeige } from '@/core/status';
+import {
+  adresseFuerWaechter, adresseTeile, aufgabeAusBestand, aufgabenAnzeige, type AdressTeile,
+} from '@/core/status';
 import { letzterNachtLauf } from '@/core/status';
 import { schrittText } from '@/core/utils/naechsterSchritt';
 import { useMeineFeedbackIdentitaet } from '@/core/hooks/useMeineFeedbackIdentitaet';
 import { useBearbeiterSicht } from '@/core/hooks/useBearbeiterSicht';
 import { antragMatchesBearbeiter } from '@/plugins/antraege/bearbeiterFilter';
 import { useAntraegeStore } from '@/plugins/antraege/store';
+// Direkt aus dem Modul, nicht über das Plugin-Barrel: gebraucht wird die reine
+// Vierteilung, nicht das Plugin samt Seite.
+import { zustaendigkeitVon } from '@/plugins/vorgangs-board/zustaendigkeit';
 import type { JournalEintrag } from '@/core/status/journal/typen';
 import { getFeedbackList } from '@/core/services/feedback';
 import type { FeedbackItem } from '@/core/types/feedback';
@@ -41,18 +46,20 @@ import { zaehleRegistryAenderungen } from '../widgets/registryAenderungen';
 import { useWeitermachenRows } from '../WeitermachenSection';
 import type { HomeWidgetContext } from '../widgets/widgetProps';
 import type { AntragVorgang } from '../dashboardAggregate';
-import { baueBrief } from './baueBrief';
+import { baueBrief, DRINGLICH_AB_TAGEN } from './baueBrief';
+import { nachtlaufNamen, type AntragKopf, type NachtlaufName } from './nachtlaufNamen';
 import {
-  entwuerfePunkt, feedbackPunkt, nachtlaufPunkt, neuPunkt,
+  entwuerfePunkt, feedbackPunkt, kuerzelStatusPunkt, liegtBeiAnderenPunkte, nachtlaufPunkt, neuPunkt,
   registryPunkt, stillstandPunkte, weitermachenPunkt, zuTunPunkte,
-  type AufgabeRoh, type AufgabeText, type FristRoh,
+  type AufgabeRoh, type AufgabeText, type FremdRoh, type FristRoh, type WiderspruchRoh,
 } from './punkte';
 import { aktiveThemen } from './themen';
 import type { Brief, BriefPunkt, ThemaId } from './typen';
 
 /**
- * So viele Kandidaten je Uhr-Thema — mehr braucht der Deckel nie, und die
- * teuren Schritte (`aufgabeAusBestand` je Vorgang) laufen nur für diese.
+ * So viele eigene Punkte je Uhr-Thema — mehr braucht der Deckel nie. Gekappt
+ * wird NACH der Einordnung „wer ist dran": vorher gekappt leerte sich die
+ * eigene Liste, sobald die dringlichsten Kandidaten bei anderen liegen.
  */
 const KANDIDATEN = 8;
 
@@ -60,10 +67,23 @@ const KANDIDATEN = 8;
 const ART_NEU = 'antrag-neu';
 
 interface Journalstand {
-  /** Vorgänge mit mindestens einer Feld-Änderung (ohne `antrag-neu`). */
-  geaendert: number;
+  /** Die geänderten Vorgänge mit Namen (ohne `antrag-neu`), je Verbund einer. */
+  namen: NachtlaufName[];
   /** Anträge, die erstmals im Export standen. */
   neu: number;
+}
+
+/**
+ * Eine Aufgabe und wer an ihr dran ist.
+ *
+ * `meine` rankt, `andere` steht unter „Liegt bei anderen", `fertig` spricht gar
+ * nicht: für den Leser ist nichts zu tun, und niemand sonst ist benannt.
+ */
+interface Einordnung {
+  aufgabe: AufgabeText;
+  dran: 'meine' | 'andere' | 'fertig';
+  /** Die Adresse bei `andere`; sonst `null`. */
+  adresse: AdressTeile | null;
 }
 
 export function useTagesbrief(aktiv: boolean, ctx: HomeWidgetContext, aus: readonly ThemaId[]): Brief {
@@ -109,12 +129,15 @@ export function useTagesbrief(aktiv: boolean, ctx: HomeWidgetContext, aus: reado
    */
   const { mode: bearbeiterMode } = useBearbeiterSicht();
   const alleAntraege = useAntraegeStore(s => s.antraege);
+  // Aktenzeichen → Verbund und Akronym: der Brief nennt die Änderungen je
+  // Vorgang, nicht je Teilvorhaben (`nachtlaufNamen`).
   const meineAkten = useMemo(() => {
-    const s = new Set<string>();
+    const m = new Map<string, AntragKopf>();
     for (const a of alleAntraege) {
-      if (!bearbeiterMode.active || antragMatchesBearbeiter(a, bearbeiterMode)) s.add(a.aktenzeichen);
+      if (bearbeiterMode.active && !antragMatchesBearbeiter(a, bearbeiterMode)) continue;
+      m.set(a.aktenzeichen, { verbund_id: a.verbund_id, akronym: a.akronym });
     }
-    return s;
+    return m;
   }, [alleAntraege, bearbeiterMode]);
 
   // Die Generation gehört in die Abhängigkeiten: ein Import schreibt einen neuen
@@ -134,7 +157,7 @@ export function useTagesbrief(aktiv: boolean, ctx: HomeWidgetContext, aus: reado
 
   const journal = useMemo((): Journalstand | null => {
     if (journalRoh === null) return null;
-    const betroffen = new Set<string>();
+    const geaendert: JournalEintrag[] = [];
     let neu = 0;
     for (const e of journalRoh) {
       // Ein Eintrag zu einem Antrag außerhalb des Ausschnitts geht diesen Leser
@@ -144,9 +167,9 @@ export function useTagesbrief(aktiv: boolean, ctx: HomeWidgetContext, aus: reado
       const drin = meineAkten.has(e.antragId);
       if (e.art === ART_NEU) { if (drin || meineAkten.size === 0) neu += 1; continue; }
       if (!drin) continue;
-      betroffen.add(e.antragId);
+      geaendert.push(e);
     }
-    return { geaendert: betroffen.size, neu };
+    return { namen: nachtlaufNamen(geaendert, id => meineAkten.get(id)), neu };
   }, [journalRoh, meineAkten]);
 
   const ich = useMeineFeedbackIdentitaet();
@@ -183,7 +206,14 @@ export function useTagesbrief(aktiv: boolean, ctx: HomeWidgetContext, aus: reado
     // die Aufgabe dann selbst sprechen. Gemessen 11.09.2026 (damals am
     // Meilenstein): „KITED ist seit 227 Tagen fällig (QS freigegeben und
     // versendet)" über einer Karte, die „Stellungnahme RNE prüfen" sagte.
-    const aufgabeFuer = (a: AntragVorgang): AufgabeText | null => {
+    //
+    // Dazu **wer dran ist** (v6.61): dieselbe Vierteilung wie das Vorgangs-Board
+    // (`zustaendigkeitVon`), gelesen gegen die Rolle des LESERS. Gemessen
+    // 11.09.2026 (Kürzel THü, liest als FB): oben standen AIRES „GA schreiben"
+    // (liegt bei AB) und zwei Vorgänge mit „Keine Aufgabe mehr", deren FB-Teil
+    // durch war und die beim AB lagen. Rückfall und Platzhalter ranken wie
+    // bisher; über sie weiß der Brief nicht mehr als die Karte.
+    const einordnen = (a: AntragVorgang): Einordnung | null => {
       const akten = a.tv_aktenzeichen ?? [];
       if (akten.length === 0) return null;
       const aufgabe = aufgabeAusBestand(
@@ -200,11 +230,31 @@ export function useTagesbrief(aktiv: boolean, ctx: HomeWidgetContext, aus: reado
         status: statusRoh,
       });
       if (!anzeige.text.trim()) return null;
-      return {
+      const text: AufgabeText = {
         text: anzeige.text,
         rueckfall: anzeige.quelle === 'rueckfall',
         vorlaeufig: anzeige.vorlaeufig === true,
       };
+      if (anzeige.quelle === 'gesperrt') {
+        // Für die eigene Rolle griff eine Sperre („Keine Aufgabe mehr") — der
+        // Vorgang kann trotzdem bei jemand anderem liegen. Die Adresse kommt
+        // dann aus dem AB-Satz, wie die „Liegt bei"-Kachel und der
+        // Stillstands-Wächter sie lesen. Nennt er niemanden (oder die
+        // Teilvorhaben sind uneinig), ist hier nichts zu melden.
+        const jeTv = akten.flatMap(x => {
+          const z = bestand.nachAktenzeichen.get(x);
+          return z ? [z] : [];
+        });
+        const lage = adresseFuerWaechter(jeTv);
+        const adresse = lage.todo ? adresseTeile(lage.todo) : null;
+        return { aufgabe: text, dran: adresse ? 'andere' : 'fertig', adresse };
+      }
+      const ergebnis = aufgabe?.ergebnis ?? null;
+      const traf = anzeige.quelle === 'kaskade' || anzeige.quelle === 'fremd';
+      const adresse = traf && ergebnis ? adresseTeile(ergebnis) : null;
+      const andere = adresse !== null && ergebnis !== null
+        && zustaendigkeitVon(ergebnis, zeilenAufgaben.rolle) === 'warten';
+      return { aufgabe: text, dran: andere ? 'andere' : 'meine', adresse: andere ? adresse : null };
     };
 
     /** verbund_id → der Eintrag der Karte (Verbünde stehen dort als einer). */
@@ -213,65 +263,92 @@ export function useTagesbrief(aktiv: boolean, ctx: HomeWidgetContext, aus: reado
       if (a.verbund_id && !vorgangVon.has(a.verbund_id)) vorgangVon.set(a.verbund_id, a);
     }
 
+    /** Was bei anderen liegt — aus beiden Uhr-Quellen; je Vorgang einmal (im Bauer). */
+    const fremde: FremdRoh[] = [];
+
+    // Solange die Kaskade zum ersten Mal rechnet, weiß der Brief nicht, wer dran
+    // ist — er rankt dann gar nicht, statt Vorgänge zu zeigen, die Sekunden
+    // später in den Nachsatz springen (gemessen nach einem Reload am
+    // 11.09.2026: AIRES und DIVA NOTE standen mit „…" oben und wanderten dann
+    // zu „bei AB liegen …"). Ein vorläufiger Stand von vor dem Import ist kein
+    // Warten: er ist beschriftet und bleibt stehen.
+    const kaskadeFehlt = zeilenAufgaben.laeuftNoch && !zeilenAufgaben.vorlaeufig;
+
     // Stillstand (Zieltage). Vorzeichen gedreht: `ueberTage` zählt Tage ÜBER dem
     // Vorgesehenen, `BriefPunkt.tage` Tage BIS zur Fälligkeit.
-    const roh = (a: (typeof zieltage.anlaesse)[number]): FristRoh => {
+    const stillstand: FristRoh[] = [];
+    for (const a of kaskadeFehlt ? [] : zieltage.anlaesse) {
+      if (a.art !== 'zieltag' || a.ueberTage === null) continue;
       const vorgang = vorgangVon.get(a.verbundId);
-      const aufgabe = vorgang ? aufgabeFuer(vorgang) : null;
-      return {
+      // Laut Kürzeln erledigt ist kein Stillstand, sondern ein Befund — er steht
+      // unter „Kürzel ↔ Status" (aus `meineAntraege`, s.u.).
+      if (vorgang?.erledigtLautKuerzeln) continue;
+      const tage = -a.ueberTage;
+      const e = vorgang ? einordnen(vorgang) : null;
+      if (e?.dran === 'fertig') continue;
+      if (e?.dran === 'andere' && e.adresse) {
+        if (tage <= DRINGLICH_AB_TAGEN) {
+          fremde.push({ scopeId: a.verbundId, titel: a.akronym, tage, adresse: e.adresse });
+        }
+        continue;
+      }
+      stillstand.push({
         verbundId: a.verbundId,
         akronym: a.akronym,
         grund: a.grund,
-        tage: -(a.ueberTage ?? 0),
+        tage,
         weitere: a.weitere ?? 0,
-        ...(aufgabe ? { aufgabe } : {}),
-      };
-    };
-    if (themen.has('stillstand')) {
-      raus.push(...stillstandPunkte(
-        zieltage.anlaesse
-          .filter(a => a.art === 'zieltag' && a.ueberTage !== null)
-          .slice(0, KANDIDATEN)
-          .map(roh),
-      ));
+        ...(e ? { aufgabe: e.aufgabe } : {}),
+      });
     }
+    if (themen.has('stillstand')) raus.push(...stillstandPunkte(stillstand.slice(0, KANDIDATEN)));
 
-    // Was zu tun ist: die Vorgänge mit laufender Uhr, dringlichste zuerst. Der
-    // Text kommt aus `aufgabeFuer` (s.o.).
-    if (themen.has('zu-tun')) {
-      // Grundmenge, Uhr und Namen kommen aus DEMSELBEN Aggregat, das die Karte
-      // „Meine Anträge" rendert — nicht aus dem rohen Bestandslauf.
-      //
-      // Gemessen, warum: über `bestand.zeilen` lief der Brief über alle ~12 000
-      // Zeilen und nahm die rohe `restTage`. An der Spitze standen dann drei
-      // Vorgänge mit „seit 4028 Tagen überfällig" (Aktenzeichen von 2015, ohne
-      // Akronym), während die Karte zwanzig Pixel darunter 13 Einträge mit
-      // höchstens 223 Tagen zeigte. `fristTage` ist dagegen `null`, wo die Uhr
-      // steht (`criticalFristErgebnis`, dieselbe Engine wie die Fördertabelle) —
-      // dieselbe Lehre wie v4.131.
-      const kandidaten = ctx.data.meineAntraege
-        .filter(a => typeof a.fristTage === 'number')
-        .sort((a, b) => (a.fristTage as number) - (b.fristTage as number))
-        .slice(0, KANDIDATEN);
-      const aufgaben: AufgabeRoh[] = [];
-      for (const a of kandidaten) {
-        const aufgabe = aufgabeFuer(a);
-        if (!aufgabe) continue;
-        // `aufgabeFuer` liefert nur bei mindestens einem Aktenzeichen etwas.
-        const akte = a.tv_aktenzeichen![0]!;
-        aufgaben.push({
-          scopeId: a.verbund_id ?? akte,
-          titel: a.acronym ?? a.verbund_titel ?? a.title ?? akte,
-          ...aufgabe,
-          tage: a.fristTage as number,
-        });
+    // Was zu tun ist: die Vorgänge mit laufender Uhr, dringlichste zuerst.
+    //
+    // Grundmenge, Uhr und Namen kommen aus DEMSELBEN Aggregat, das die Karte
+    // „Meine Anträge" rendert — nicht aus dem rohen Bestandslauf. Gemessen,
+    // warum: über `bestand.zeilen` lief der Brief über alle ~12 000 Zeilen und
+    // nahm die rohe `restTage`. An der Spitze standen dann drei Vorgänge mit
+    // „seit 4028 Tagen überfällig" (Aktenzeichen von 2015, ohne Akronym),
+    // während die Karte zwanzig Pixel darunter 13 Einträge mit höchstens 223
+    // Tagen zeigte. `fristTage` ist dagegen `null`, wo die Uhr steht
+    // (`criticalFristErgebnis`, dieselbe Engine wie die Fördertabelle) —
+    // dieselbe Lehre wie v4.131.
+    const aufgaben: AufgabeRoh[] = [];
+    const widersprueche: WiderspruchRoh[] = [];
+    for (const a of ctx.data.meineAntraege) {
+      const akte = a.tv_aktenzeichen?.[0] ?? a.id;
+      const scopeId = a.verbund_id ?? akte;
+      const titel = a.acronym ?? a.verbund_titel ?? a.title ?? akte;
+      // Laut Kürzeln erledigt: dieselbe Menge, die „Meine Anträge" als
+      // Zählzeile führt und nicht mehr als offen zählt — gelesen, nicht neu
+      // hergeleitet. Aus der Rangliste bleibt der Vorgang auch dann, wenn das
+      // Thema abgewählt ist: eine Aufgabe ist er nicht.
+      if (a.erledigtLautKuerzeln) {
+        widersprueche.push({ scopeId, titel, status: a.status ?? '' });
+        continue;
       }
-      raus.push(...zuTunPunkte(aufgaben));
+      if (kaskadeFehlt || typeof a.fristTage !== 'number' || a.fristTage > DRINGLICH_AB_TAGEN) continue;
+      const e = einordnen(a);
+      if (!e || e.dran === 'fertig') continue;
+      if (e.dran === 'andere' && e.adresse) {
+        fremde.push({ scopeId, titel, tage: a.fristTage, adresse: e.adresse });
+        continue;
+      }
+      aufgaben.push({ scopeId, titel, ...e.aufgabe, tage: a.fristTage });
+    }
+    if (themen.has('zu-tun')) {
+      raus.push(...zuTunPunkte(aufgaben.sort((x, y) => x.tage - y.tage).slice(0, KANDIDATEN)));
+    }
+    if (themen.has('liegt-bei-anderen')) raus.push(...liegtBeiAnderenPunkte(fremde));
+    if (themen.has('kuerzel-status')) {
+      const p = kuerzelStatusPunkt(widersprueche);
+      if (p) raus.push(p);
     }
 
     // --- ohne Uhr: der Nachsatz ---
     if (themen.has('nachtlauf') && journal) {
-      const p = nachtlaufPunkt(journal.geaendert, 'über Nacht');
+      const p = nachtlaufPunkt(journal.namen, 'über Nacht');
       if (p) raus.push(p);
     }
     if (themen.has('eingang') && journal) {

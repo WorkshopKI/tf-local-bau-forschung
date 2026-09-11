@@ -16,7 +16,7 @@ function punkt(themaId: ThemaId, tage: number | null, text: string = themaId): B
 }
 
 const ALLE: ReadonlySet<ThemaId> = new Set<ThemaId>([
-  'stillstand', 'zu-tun', 'nachtlauf', 'eingang',
+  'stillstand', 'zu-tun', 'liegt-bei-anderen', 'kuerzel-status', 'nachtlauf', 'eingang',
   'entwuerfe', 'weitermachen', 'feedback', 'registry',
 ]);
 

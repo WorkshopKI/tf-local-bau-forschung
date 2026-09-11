@@ -58,6 +58,32 @@ export const THEMEN: readonly Thema[] = [
     verfuegbarWenn: isVorgangssystemEnabled,
   },
   {
+    id: 'liegt-bei-anderen',
+    label: 'Liegt bei anderen',
+    familie: 'arbeitsvorrat',
+    // KEINE Uhr im Rang: eine Aufgabe, die bei einer anderen Rolle liegt oder
+    // auf jemanden wartet, ist eine Auskunft, keine Handlung
+    // (aufgaben-anzeige.ts). Gemessen am 11.09.2026 (Kürzel THü, liest als
+    // FB): oben standen AIRES „GA schreiben" (liegt bei AB) und zwei Vorgänge
+    // mit „Keine Aufgabe mehr", deren FB-Teil durch war und die beim AB lagen.
+    // Die Rangliste gehört dem, was man selbst tun kann; die übrigen stehen
+    // hier mit Namen. Abgewählt verschwinden sie aus dem Brief, in die
+    // Rangliste kehren sie nicht zurück.
+    uhr: false,
+    verfuegbarWenn: isVorgangssystemEnabled,
+  },
+  {
+    id: 'kuerzel-status',
+    label: 'Kürzel ↔ Status',
+    familie: 'arbeitsvorrat',
+    // Laut Kürzeln erledigt, der amtliche Status sagt noch offen — dieselbe
+    // Menge, die „Meine Anträge" als Zählzeile führt und nicht mehr als offen
+    // zählt. Ein Befund ohne Handlungsanweisung: die App leitet keinen Status
+    // ab (Pitfall #44). Abgewählt bleibt der Vorgang trotzdem aus der Rangliste.
+    uhr: false,
+    verfuegbarWenn: isVorgangssystemEnabled,
+  },
+  {
     id: 'nachtlauf',
     label: 'Änderungen über Nacht',
     familie: 'bewegung',

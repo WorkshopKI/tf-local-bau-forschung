@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
   entwuerfePunkt,
   feedbackPunkt,
+  kuerzelStatusPunkt,
+  liegtBeiAnderenPunkte,
+  MAX_NAMEN,
   nachtlaufPunkt,
   neuPunkt,
   registryPunkt,
@@ -9,26 +12,40 @@ import {
   stillstandPunkte,
   weitermachenPunkt,
   zuTunPunkte,
+  type FremdRoh,
   type FristRoh,
 } from '../punkte';
+import type { NachtlaufName } from '../nachtlaufNamen';
 import { aktiveThemen, THEMEN } from '../themen';
-import type { BriefPunkt, ThemaId } from '../typen';
+import type { BriefPunkt, Segment, ThemaId } from '../typen';
 
 const frist = (over: Partial<FristRoh> = {}): FristRoh => ({
   verbundId: 'VB1', akronym: 'HACKKI', grund: 'Gutachten offen', tage: 3, weitere: 0, ...over,
 });
 
+const name = (n: string, over: Partial<NachtlaufName> = {}): NachtlaufName => ({
+  scopeId: `VB-${n}`, name: n, anzahl: 1, statusNeu: null, ...over,
+});
+
+const fremd = (titel: string, tage: number, over: Partial<FremdRoh> = {}): FremdRoh => ({
+  scopeId: `VB-${titel}`, titel, tage, adresse: { art: 'liegt', wer: 'FB' }, ...over,
+});
+
+const ziele = (p: BriefPunkt): Extract<Segment, { art: 'ziel' }>[] =>
+  p.segmente.filter((s): s is Extract<Segment, { art: 'ziel' }> => s.art === 'ziel');
+
 /** Jeder Bauer, einmal mit Inhalt aufgerufen — für die Quer-Invarianten. */
 const ALLE_PUNKTE = (): BriefPunkt[] => [
   ...stillstandPunkte([frist({ tage: -9 })]),
   ...zuTunPunkte([{ scopeId: 'VB2', titel: 'ZKN', text: 'QS anstoßen', tage: 4, rueckfall: false }]),
-  nachtlaufPunkt(3, 'über Nacht')!,
+  ...liegtBeiAnderenPunkte([fremd('CALYPSO', -304), fremd('KITED', -172)]),
+  kuerzelStatusPunkt([{ scopeId: 'VB9', titel: 'HACKKI', status: 'techn geprüft' }])!,
+  nachtlaufPunkt([name('BauKo-Pilot'), name('LewisAI')], 'über Nacht')!,
   neuPunkt(2)!,
   entwuerfePunkt(1, 'VB3')!,
   weitermachenPunkt('HACKKI', 'VB1')!,
   feedbackPunkt(2)!,
   registryPunkt(5)!,
-
 ];
 
 describe('punkte — satz und segmente können nicht auseinanderlaufen', () => {
@@ -45,10 +62,13 @@ describe('punkte — satz und segmente können nicht auseinanderlaufen', () => {
     }
   });
 
-  it('jeder Punkt hat genau ein Sprungziel — eine Zahl, eine Stelle', () => {
+  it('jeder Punkt hat ein Sprungziel, und keines steht doppelt', () => {
+    // Seit v6.61 tragen Namenslisten mehrere Ziele — jedes Wort eine Stelle,
+    // aber nie zweimal dieselbe.
     for (const p of ALLE_PUNKTE()) {
-      const ziele = p.segmente.filter(s => s.art === 'ziel');
-      expect(ziele.length, `Thema ${p.themaId}`).toBe(1);
+      const z = ziele(p).map(s => JSON.stringify(s.ziel));
+      expect(z.length, `Thema ${p.themaId}`).toBeGreaterThan(0);
+      expect(new Set(z).size, `Thema ${p.themaId}`).toBe(z.length);
     }
   });
 
@@ -115,8 +135,10 @@ describe('punkte — der Stand von vor dem Import gibt sich zu erkennen', () => 
 });
 
 describe('punkte — leere Quellen schweigen', () => {
-  it('gibt null zurück, statt eine Null zu melden', () => {
-    expect(nachtlaufPunkt(0, 'über Nacht')).toBeNull();
+  it('gibt null bzw. nichts zurück, statt eine Null zu melden', () => {
+    expect(nachtlaufPunkt([], 'über Nacht')).toBeNull();
+    expect(liegtBeiAnderenPunkte([])).toEqual([]);
+    expect(kuerzelStatusPunkt([])).toBeNull();
     expect(neuPunkt(0)).toBeNull();
     expect(entwuerfePunkt(0, null)).toBeNull();
     expect(feedbackPunkt(0)).toBeNull();
@@ -127,12 +149,105 @@ describe('punkte — leere Quellen schweigen', () => {
 
 describe('punkte — Einzahl und Mehrzahl', () => {
   it('schreibt die Eins aus und beugt das Verb mit', () => {
-    expect(nachtlaufPunkt(1, 'über Nacht')!.satz).toBe('ein Vorgang hat sich über Nacht geändert');
-    expect(nachtlaufPunkt(3, 'über Nacht')!.satz).toBe('3 Vorgänge haben sich über Nacht geändert');
     expect(neuPunkt(1)!.satz).toBe('ein Antrag ist neu dazugekommen');
     expect(neuPunkt(4)!.satz).toBe('4 Anträge sind neu dazugekommen');
     expect(entwuerfePunkt(1, 'VB1')!.satz).toBe('ein eigener Entwurf wartet auf dich');
     expect(entwuerfePunkt(2, 'VB1')!.satz).toBe('2 eigene Entwürfe warten auf dich');
+    expect(liegtBeiAnderenPunkte([fremd('CALYPSO', -1)])[0]!.satz).toBe('bei FB liegt CALYPSO');
+    expect(liegtBeiAnderenPunkte([fremd('A', -2), fremd('B', -1)])[0]!.satz).toBe('bei FB liegen A und B');
+  });
+});
+
+/**
+ * Gemessen 11.09.2026 (Kürzel THü): der Brief sagte „4 Vorgänge haben sich über
+ * Nacht geändert" — gemeint waren BauKo-Pilot (3 TV) und LewisAI.
+ */
+describe('punkte — über Nacht mit Namen', () => {
+  it('nennt die Vorgänge und den neuen Status in Worten', () => {
+    const p = nachtlaufPunkt(
+      [name('BauKo-Pilot', { statusNeu: 'bewilligungsreif' }), name('LewisAI')], 'über Nacht',
+    )!;
+    expect(p.satz).toBe('über Nacht geändert: BauKo-Pilot (Status jetzt „bewilligungsreif“) und LewisAI');
+  });
+
+  it(`nennt höchstens ${MAX_NAMEN} Namen und zählt den Rest`, () => {
+    const p = nachtlaufPunkt(['A', 'B', 'C', 'D', 'E'].map(n => name(n)), 'über Nacht')!;
+    expect(p.satz).toBe('über Nacht geändert: A, B, C und 2 weitere');
+  });
+
+  it('jeder Name springt in seinen Vorgang', () => {
+    const p = nachtlaufPunkt([name('BauKo-Pilot'), name('LewisAI')], 'über Nacht')!;
+    expect(ziele(p).map(s => s.ziel)).toEqual([
+      { art: 'antrag', scopeId: 'VB-BauKo-Pilot' },
+      { art: 'antrag', scopeId: 'VB-LewisAI' },
+    ]);
+  });
+});
+
+/**
+ * Gemessen 11.09.2026 (Kürzel THü, liest als FB): AIRES „GA schreiben" — liegt
+ * bei AB — stand an der Spitze, als wäre es die Aufgabe des Lesers.
+ */
+describe('punkte — was bei anderen liegt', () => {
+  it('eine Liste je Adresse, in den Wörtern der Nebenzeile', () => {
+    const p = liegtBeiAnderenPunkte([
+      fremd('CALYPSO', -304),
+      fremd('KITED', -172),
+      fremd('ATLAS', -5, { adresse: { art: 'wartet', wer: 'Antragsteller' } }),
+      fremd('ZKN', -3, { adresse: { art: 'wartet', wer: 'QS' } }),
+    ]);
+    expect(p.map(x => x.satz)).toEqual([
+      'bei FB liegen CALYPSO und KITED',
+      'auf den Antragsteller wartet ATLAS',
+      'auf QS wartet ZKN',
+    ]);
+    expect(p.every(x => x.themaId === 'liegt-bei-anderen' && x.tage === null)).toBe(true);
+  });
+
+  it('dringlichste zuerst, höchstens drei Namen', () => {
+    const p = liegtBeiAnderenPunkte([
+      fremd('E', 20), fremd('B', -100), fremd('D', 3), fremd('A', -300), fremd('C', -2),
+    ])[0]!;
+    expect(p.satz).toBe('bei FB liegen A, B, C und 2 weitere');
+  });
+
+  it('ein Vorgang steht einmal, an seinem dringlichsten Anlass', () => {
+    const p = liegtBeiAnderenPunkte([
+      fremd('KITED', -10, { scopeId: 'VB1' }), fremd('KITED', -172, { scopeId: 'VB1' }),
+    ])[0]!;
+    expect(p.satz).toBe('bei FB liegt KITED');
+  });
+
+  it('ein einzelner Vorgang reist mit der Rückfrage, eine Liste nicht', () => {
+    expect(liegtBeiAnderenPunkte([fremd('KITED', -1)])[0]!.gruppe).toBe('VB-KITED');
+    expect(liegtBeiAnderenPunkte([fremd('A', -1), fremd('B', -2)])[0]!.gruppe).toBeUndefined();
+  });
+});
+
+/**
+ * „Meine Anträge" zählt laut Kürzeln erledigte Vorgänge nicht mehr als offen
+ * (Sperre im AB-Satz); der Brief nennt dieselbe Menge als Befund.
+ */
+describe('punkte — Kürzel ↔ Status', () => {
+  it('nennt den Widerspruch, ohne eine Handlung zu behaupten', () => {
+    const p = kuerzelStatusPunkt([{ scopeId: 'VB9', titel: 'HACKKI', status: 'techn geprüft' }])!;
+    expect(p.satz).toBe('HACKKI ist laut Kürzeln erledigt, der Status sagt noch „techn geprüft“');
+    expect(p.tage).toBeNull();
+    expect(p.gruppe).toBe('VB9');
+  });
+
+  it('ohne Status-Text sagt er nur, dass der Status offen ist', () => {
+    expect(kuerzelStatusPunkt([{ scopeId: 'VB9', titel: 'X', status: ' ' }])!.satz)
+      .toBe('X ist laut Kürzeln erledigt, trägt aber noch einen offenen Status');
+  });
+
+  it('mehrere: eine Liste, jeder mit seinem Status', () => {
+    const p = kuerzelStatusPunkt([
+      { scopeId: 'VB1', titel: 'A', status: 'ablehnungsreif' },
+      { scopeId: 'VB2', titel: 'B', status: 'techn geprüft' },
+    ])!;
+    expect(p.satz).toBe('laut Kürzeln erledigt, der Status sagt noch etwas anderes: A („ablehnungsreif“) und B („techn geprüft“)');
+    expect(p.gruppe).toBeUndefined();
   });
 });
 
@@ -163,7 +278,7 @@ describe('punkte — wer nach einem Vorgang fragt, benennt ihn', () => {
     // „Welche Entwürfe habe ich offen?" spricht über eine Menge; ein einzelner
     // Vorgang daneben wäre eine Verengung, die die Frage nicht meint.
     expect(entwuerfePunkt(3, 'VB1')!.gruppe).toBeUndefined();
-    expect(nachtlaufPunkt(5, 'über Nacht')!.gruppe).toBeUndefined();
+    expect(nachtlaufPunkt([name('A'), name('B')], 'über Nacht')!.gruppe).toBeUndefined();
     expect(feedbackPunkt(2)!.gruppe).toBeUndefined();
   });
 });
@@ -218,7 +333,7 @@ describe('punkte — der Stillstand nennt sich, die Handlung kommt aus der Kaska
  * Entdoppeln den To-do-Punkt und schob eine lange Bedingungs-Bezeichnung vor
  * die Aufgabe — im Brief stand ein Plan-Termin statt einer Handlung.
  */
-describe('themen — Meilensteine sind kein Thema des Briefs', () => {
+describe('themen — der Katalog', () => {
   it('der Katalog führt kein Meilenstein-Thema mehr', () => {
     expect(THEMEN.map(t => t.id as string)).not.toContain('fristen');
   });
@@ -226,5 +341,13 @@ describe('themen — Meilensteine sind kein Thema des Briefs', () => {
   it('eine alte Abwahl „fristen" in einer gespeicherten Config schadet nicht', () => {
     const alt = ['fristen'] as unknown as ThemaId[];
     expect(aktiveThemen(alt)).toEqual(aktiveThemen([]));
+  });
+
+  it('„Liegt bei anderen" und „Kürzel ↔ Status" sind Themen ohne Uhr', () => {
+    for (const id of ['liegt-bei-anderen', 'kuerzel-status'] as const) {
+      const t = THEMEN.find(x => x.id === id);
+      expect(t?.uhr, id).toBe(false);
+      expect(t?.familie, id).toBe('arbeitsvorrat');
+    }
   });
 });

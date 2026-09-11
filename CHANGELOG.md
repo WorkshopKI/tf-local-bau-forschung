@@ -5,6 +5,17 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v6.61.0 — Tagesbrief: wer ist dran, Namen, Kürzel ↔ Status (September 2026)
+
+MINOR — Nutzer: „folgende Ideen umsetzen: Wer ist dran? · Über Nacht mit Namen · Widerspruch Kürzel ↔ Status“. Oben stand AIRES „GA schreiben“ (liegt bei AB) für einen FB-Leser, und der Nachtlauf-Satz nannte vier Vorgänge, wo zwei Verbünde gemeint waren.
+Die Rangliste gehört jetzt den eigenen Aufgaben; Fremdes, Befunde und Nachtlauf stehen mit Namen im Nachsatz.
+
+- Einordnung „wer ist dran“ gegen die Rolle des Lesers (`zustaendigkeitVon`, gesperrt → Adresse aus dem AB-Satz), Kappung erst danach ([useTagesbrief.ts](src/plugins/home/tagesbrief/useTagesbrief.ts), [adresseTeile](src/core/status/aufgabe.ts))
+- Zwei neue Themen im Arbeitsvorrat ohne Uhr: „Liegt bei anderen“ und „Kürzel ↔ Status“ ([themen.ts](src/plugins/home/tagesbrief/themen.ts), [typen.ts](src/plugins/home/tagesbrief/typen.ts), [punkte.ts](src/plugins/home/tagesbrief/punkte.ts))
+- „Kürzel ↔ Status“ liest die Zählzeile von „Meine Anträge“ als Markierung `erledigtLautKuerzeln` ([dashboardAggregate.ts](src/plugins/home/dashboardAggregate.ts), [Test](src/plugins/antraege/__tests__/dashboardCounts.test.ts))
+- Nachtlauf mit Namen je Verbund plus neuem Status; Nachsatz-Punkte mit Semikolon getrennt ([nachtlaufNamen.ts](src/plugins/home/tagesbrief/nachtlaufNamen.ts), [TagesbriefWidget.tsx](src/plugins/home/tagesbrief/TagesbriefWidget.tsx))
+- Doku [home-widgets.md → Tagesbrief](docs/architecture/home-widgets.md), [CONTEXT.md](CONTEXT.md), [Feedback-Kontext](docs/feedback-kontext/home.md)
+
 ### v6.60.4 — Tagesbrief ohne Meilensteine (September 2026)
 
 PATCH — Nutzer: „beim Tagesbrief die Meilensteine rausnehmen, die passen da nicht." Vier von fünf gerankten Zeilen waren Meilenstein-Sätze: ein Plan-Termin ab Eingang statt einer Handlung, und beim Entdoppeln verdrängte er den To-do-Punkt desselben Verbunds.

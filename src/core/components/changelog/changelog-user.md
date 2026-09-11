@@ -19,6 +19,17 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v6.61 — 2026-09
+
+### Neu
+- Der Tagesbrief auf der Startseite unterscheidet, wer an einem Vorgang dran ist. Die Sätze oben nennen nur noch, was Sie selbst tun können. Was bei einer anderen Rolle liegt oder auf jemanden wartet, steht mit Namen im Nachsatz, etwa „bei AB liegen AIRES und DIVA NOTE mit GenAI; auf den Antragsteller warten LIFT und DAWM“.
+- Neues Thema „Kürzel ↔ Status“: ist ein Vorgang laut Kürzeln erledigt, obwohl sein Status noch offen sagt, nennt der Brief ihn im Nachsatz, mit dem Status in Worten. Das sind dieselben Vorgänge, die „Meine Anträge“ über der Liste beziffert. Der Brief sagt nicht, welche Seite recht hat.
+- Beide Themen stehen in den Widget-Einstellungen unter Arbeitsvorrat und lassen sich abwählen.
+### Verbesserungen
+- „Über Nacht geändert“ nennt die Vorgänge beim Namen statt einer Zahl, je Verbund einen, und bei einem neuen Status auch diesen, etwa „BauKo-Pilot (Status jetzt „Bewilligungsentwurf VDI/VDE-IT“) und LewisAI“. Jeder Name führt zum Vorgang; ab vier Namen steht „und N weitere“.
+- „Keine Aufgabe mehr“ steht nicht mehr oben im Brief. Liegt ein solcher Vorgang noch bei einer anderen Rolle, nennt der Nachsatz ihn dort.
+- Die Punkte im Nachsatz sind durch Semikolon getrennt, damit die Namenslisten darin lesbar bleiben.
+
 ## v6.60 — 2026-09
 
 ### Neu

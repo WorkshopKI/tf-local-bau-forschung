@@ -22,6 +22,9 @@ export type ThemaId =
   // Arbeitsvorrat (Uhr) — Meilensteine bewusst nicht (s. `themen.ts`)
   | 'stillstand'
   | 'zu-tun'
+  // Arbeitsvorrat (ohne Uhr — Auskunft und Befund, keine eigene Handlung)
+  | 'liegt-bei-anderen'
+  | 'kuerzel-status'
   // Bewegung
   | 'nachtlauf'
   | 'eingang'

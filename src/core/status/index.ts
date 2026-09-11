@@ -235,8 +235,8 @@ export {
   regelsatzVon, sperreGiltFuer, sperrEintragTrifft, strangAusEintrag,
 } from './regelsatz';
 export {
-  baueAufgabe, adresseFuerWaechter, adressText, aufgabeAusBestand,
-  type Aufgabe, type AufgabenEingabe, type AufgabenGruppe, type AdressLage, type TvTodo,
+  baueAufgabe, adresseFuerWaechter, adresseTeile, adressText, aufgabeAusBestand,
+  type Aufgabe, type AufgabenEingabe, type AufgabenGruppe, type AdressLage, type AdressTeile, type TvTodo,
 } from './aufgabe';
 export {
   aufgabenAnzeige, regelTraf,

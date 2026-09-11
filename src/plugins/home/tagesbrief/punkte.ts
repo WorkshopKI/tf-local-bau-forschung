@@ -9,6 +9,8 @@
  * daneben geschrieben. Sonst liest die Vorlesesoftware etwas anderes als die
  * Maus zeigt, und niemand merkt es.
  */
+import type { AdressTeile } from '@/core/status';
+import type { NachtlaufName } from './nachtlaufNamen';
 import type { BriefPunkt, Segment, Sprungziel, ThemaId } from './typen';
 
 /** Fügt die Segment-Texte zum Satz. Die einzige Quelle für `BriefPunkt.satz`. */
@@ -166,16 +168,151 @@ export function zuTunPunkte(aufgaben: readonly AufgabeRoh[]): BriefPunkt[] {
 
 // ------------------------------------------------------------ Nachsatz-Themen --
 
-/** Änderungen des letzten Nachtlaufs. **Keine Personen-Achse** (Pitfall #48). */
-export function nachtlaufPunkt(
-  vorgaenge: number,
-  zeitraum: string,
-): BriefPunkt | null {
-  if (vorgaenge <= 0) return null;
+/** Wie viele Namen eine Liste im Nachsatz nennt, bevor „und N weitere" übernimmt. */
+export const MAX_NAMEN = 3;
+
+/** Ein Name einer Liste: Sprungziel plus optionaler Zusatz dahinter. */
+interface ListenName {
+  text: string;
+  scopeId: string;
+  zusatz?: string;
+}
+
+/**
+ * „A, B und C" bzw. „A, B, C und 2 weitere" — jeder Name ein eigenes Sprungziel.
+ *
+ * Der Rest wird gezählt, nicht verschwiegen. Er ist kein Sprungziel, weil keine
+ * Seite genau diese Menge zeigt.
+ */
+function namensListe(namen: readonly ListenName[]): Segment[] {
+  const gezeigt = namen.slice(0, MAX_NAMEN);
+  const rest = namen.length - gezeigt.length;
+  const segmente: Segment[] = [];
+  gezeigt.forEach((n, i) => {
+    if (i > 0) segmente.push(text(rest === 0 && i === gezeigt.length - 1 ? ' und ' : ', '));
+    segmente.push(ziel(n.text, { art: 'antrag', scopeId: n.scopeId }));
+    if (n.zusatz) segmente.push(text(n.zusatz));
+  });
+  if (rest > 0) segmente.push(text(` und ${rest} weitere`));
+  return segmente;
+}
+
+/** Ein Vorgang, dessen Aufgabe bei einer anderen Rolle liegt oder auf jemanden wartet. */
+export interface FremdRoh {
+  scopeId: string;
+  titel: string;
+  /** Tage bis bzw. seit Fälligkeit — ordnet die Liste, der Satz nennt sie nicht. */
+  tage: number;
+  adresse: AdressTeile;
+}
+
+/** Im Satz „auf den Antragsteller"; die Rollen bleiben Kürzel wie in der Nebenzeile. */
+function wartetAufWen(wer: string): string {
+  return wer === 'Antragsteller' ? 'den Antragsteller' : wer;
+}
+
+/**
+ * Was bei anderen liegt — je Adresse ein Punkt im Nachsatz, dringlichste zuerst.
+ *
+ * Eine Aufgabe einer anderen Rolle ist eine Auskunft, keine Handlung
+ * (aufgaben-anzeige.ts). Gemessen am 11.09.2026 (Kürzel THü, liest als FB)
+ * stand AIRES „GA schreiben" — liegt bei AB — an der Spitze, als wäre es die
+ * Aufgabe des Lesers. Ein Vorgang steht einmal, an seinem dringlichsten Anlass.
+ */
+export function liegtBeiAnderenPunkte(fremde: readonly FremdRoh[]): BriefPunkt[] {
+  const gruppen = new Map<string, FremdRoh[]>();
+  const gesehen = new Set<string>();
+  for (const f of [...fremde].sort((a, b) => a.tage - b.tage)) {
+    if (gesehen.has(f.scopeId)) continue;
+    gesehen.add(f.scopeId);
+    const schluessel = `${f.adresse.art}:${f.adresse.wer}`;
+    const liste = gruppen.get(schluessel);
+    if (liste) liste.push(f); else gruppen.set(schluessel, [f]);
+  }
+  return [...gruppen.values()].map(liste => {
+    const erster = liste[0]!;
+    const { art, wer } = erster.adresse;
+    const eins = liste.length === 1;
+    const kopf = art === 'liegt'
+      ? `bei ${wer} ${eins ? 'liegt' : 'liegen'} `
+      : `auf ${wartetAufWen(wer)} ${eins ? 'wartet' : 'warten'} `;
+    const segmente: Segment[] = [
+      text(kopf),
+      ...namensListe(liste.map(f => ({ text: f.titel, scopeId: f.scopeId }))),
+    ];
+    if (eins) {
+      return punkt('liegt-bei-anderen', segmente, null, `Wo steht ${erster.titel} gerade?`, { gruppe: erster.scopeId });
+    }
+    return punkt('liegt-bei-anderen', segmente, null, art === 'liegt'
+      ? `Welche meiner Vorgänge liegen bei ${wer}?`
+      : `Welche meiner Vorgänge warten auf ${wartetAufWen(wer)}?`);
+  });
+}
+
+/** Ein Vorgang, der laut Kürzeln erledigt ist, dessen amtlicher Status aber noch offen sagt. */
+export interface WiderspruchRoh {
+  scopeId: string;
+  titel: string;
+  /** Der rohe amtliche Status — nur gezeigt, nie verglichen (Pitfall #12). */
+  status: string;
+}
+
+/**
+ * Kürzel ↔ Status — ein Befund, keine Aufgabe.
+ *
+ * Die Kürzel sind der jüngere Stand; „Meine Anträge" zählt solche Vorgänge
+ * nicht mehr als offen (Sperre im AB-Satz, `erledigtLautKuerzeln`). Der Satz
+ * nennt den Widerspruch und behauptet nichts darüber, wer ihn auflöst: die App
+ * leitet keinen Status ab (Pitfall #44).
+ *
+ * Nicht zu verwechseln mit „Keine Aufgabe mehr" in der Sicht einer ANDEREN
+ * Rolle: ist nur deren Satz gesperrt (FB nach „RNE oder Ablehnung begonnen"),
+ * liegt der Vorgang beim AB — das sagt „Liegt bei anderen", nicht dieser Satz.
+ */
+export function kuerzelStatusPunkt(vorgaenge: readonly WiderspruchRoh[]): BriefPunkt | null {
+  if (vorgaenge.length === 0) return null;
+  if (vorgaenge.length === 1) {
+    const v = vorgaenge[0]!;
+    const status = v.status.trim();
+    const segmente: Segment[] = [
+      ziel(v.titel, { art: 'antrag', scopeId: v.scopeId }),
+      text(status
+        ? ` ist laut Kürzeln erledigt, der Status sagt noch „${status}“`
+        : ' ist laut Kürzeln erledigt, trägt aber noch einen offenen Status'),
+    ];
+    return punkt('kuerzel-status', segmente, null,
+      `Warum sagt der Status bei ${v.titel} noch etwas anderes als die Kürzel?`, { gruppe: v.scopeId });
+  }
   const segmente: Segment[] = [
-    ziel(anzahl(vorgaenge, 'Vorgang', 'Vorgänge'), { art: 'seite', plugin: 'antraege' }),
-    text(vorgaenge === 1 ? ' hat sich ' : ' haben sich '),
-    text(`${zeitraum} geändert`),
+    text('laut Kürzeln erledigt, der Status sagt noch etwas anderes: '),
+    ...namensListe(vorgaenge.map(v => ({
+      text: v.titel,
+      scopeId: v.scopeId,
+      ...(v.status.trim() ? { zusatz: ` („${v.status.trim()}“)` } : {}),
+    }))),
+  ];
+  return punkt('kuerzel-status', segmente, null,
+    'Welche Vorgänge sind laut Kürzeln erledigt, tragen aber noch einen offenen Status?');
+}
+
+/**
+ * Änderungen des letzten Nachtlaufs — mit Namen, je Vorgang einer.
+ *
+ * Bis v6.60 stand hier nur die Zahl („4 Vorgänge haben sich über Nacht
+ * geändert"); gemeint waren zwei Verbünde. Hat sich der amtliche Status
+ * geändert, steht der neue in Worten dabei; reine Kürzel-Setzungen nennen nur
+ * den Namen — ihr Klartext steht auf der Karte „Änderungen der letzten Nacht".
+ * **Keine Personen-Achse** (Pitfall #48).
+ */
+export function nachtlaufPunkt(namen: readonly NachtlaufName[], zeitraum: string): BriefPunkt | null {
+  if (namen.length === 0) return null;
+  const segmente: Segment[] = [
+    text(`${zeitraum} geändert: `),
+    ...namensListe(namen.map(n => ({
+      text: n.name,
+      scopeId: n.scopeId,
+      ...(n.statusNeu ? { zusatz: ` (Status jetzt „${n.statusNeu}“)` } : {}),
+    }))),
   ];
   return punkt('nachtlauf', segmente, null, 'Was hat sich über Nacht geändert?');
 }

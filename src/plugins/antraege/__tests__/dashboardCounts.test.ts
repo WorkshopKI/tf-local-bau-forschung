@@ -390,6 +390,15 @@ describe('computeDashboardAggregate — laut Kürzeln erledigt', () => {
     expect(agg.offeneVorgaenge.some(v => v.id === 'REAL-003'), 'als offen nicht').toBe(false);
   });
 
+  it('markiert ihn — der Tagesbrief liest dieselbe Menge, statt sie neu herzuleiten', () => {
+    const agg = computeDashboardAggregate(
+      REAL_CSV_ANTRAEGE, NEUTRAL, { ...opts, gesperrt: new Set(['REAL-003']) },
+    );
+    const markiert = agg.meineAntraege.filter(v => v.erledigtLautKuerzeln === true);
+    expect(markiert.map(v => v.id)).toEqual(['REAL-003']);
+    expect(markiert.length, 'gleich der Zählzeile der Karte').toBe(agg.erledigtLautKuerzeln);
+  });
+
   it('sortiert ihn ans ENDE der Liste — die Karte verspricht „Sortierung: Frist"', () => {
     const agg = computeDashboardAggregate(
       REAL_CSV_ANTRAEGE, NEUTRAL, { ...opts, gesperrt: new Set(['REAL-003']) },

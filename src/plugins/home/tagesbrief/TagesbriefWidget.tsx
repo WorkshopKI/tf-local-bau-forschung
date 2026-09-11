@@ -94,8 +94,10 @@ export function TagesbriefWidget({
     </li>
   );
 
+  // Semikolon, nicht Komma: die Punkte tragen selbst Namenslisten („bei FB
+  // liegen A, B und C"), und ein Komma zwischen ihnen verschwömme mit denen darin.
   const nachsatz = brief.nachsatz.length > 0
-    ? `Außerdem: ${brief.nachsatz.map(p => p.satz).join(', ')}.`
+    ? `Außerdem: ${brief.nachsatz.map(p => p.satz).join('; ')}.`
     : null;
   const rest = weitereText(brief.weitere);
 
@@ -119,6 +121,13 @@ export function TagesbriefWidget({
           <ul className="space-y-1">{brief.punkte.map(zeile)}</ul>
         ) : null}
 
+        {/* Lade-Zustand: die Rangliste braucht die Kaskade (wer ist dran?) und
+            erscheint erst mit ihr; der Nachsatz darf schon stehen. Gesagt wird
+            das dort, wo die Rangliste fehlt — oben, nicht unter dem Nachsatz. */}
+        {brief.laedt && brief.punkte.length === 0 ? (
+          <p className="text-[12.5px] text-[var(--tf-text-tertiary)]">Der Brief wird zusammengestellt …</p>
+        ) : null}
+
         {rest ? (
           <p className="mt-1.5 text-[12px] text-[var(--tf-text-tertiary)]">{rest}.</p>
         ) : null}
@@ -133,17 +142,11 @@ export function TagesbriefWidget({
               {brief.nachsatz.map((p, i) => (
                 <span key={`${p.themaId}-${i}`}>
                   {p.segmente.map(segment)}
-                  {i < brief.nachsatz.length - 1 ? ', ' : '.'}
+                  {i < brief.nachsatz.length - 1 ? '; ' : '.'}
                 </span>
               ))}
             </span>
           </p>
-        ) : null}
-
-        {/* Lade-Zustand: die Uhr-Sätze stehen sofort, die Kaskaden-Sätze füllen
-            nach. Gesagt wird das nur, solange noch nichts dasteht. */}
-        {brief.laedt && brief.punkte.length === 0 && brief.nachsatz.length === 0 ? (
-          <p className="text-[12.5px] text-[var(--tf-text-tertiary)]">Der Brief wird zusammengestellt …</p>
         ) : null}
 
         {/* Leere braucht eine Erklärung — nicht „nichts zu tun", sondern was
