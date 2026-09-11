@@ -212,9 +212,11 @@ export function NachtlaufWidget({ instanz, onToggleEingeklappt }: WidgetProps): 
 
   // Die Nachschlage-Indizes der Fassung: EINMAL gebaut, nicht je Zeile — die
   // Suche läuft sonst linear über ~509 Katalog-Felder, mal zehn Zeilen.
+  // Der Generation folgend: eine nachgezogene Status-Fassung (`zieheFassungNach`)
+  // bumpt sie, und die Klartexte der Kürzel kommen aus eben dieser Fassung.
   const aufloesung = useMemo(
     () => baueSpaltenAufloesung(getAktiveVersion()?.felder ?? []),
-    [],
+    [generation],
   );
 
   // Der Ausschnitt der Karte. Die Einstellung übersteuert NUR den Umschalter im

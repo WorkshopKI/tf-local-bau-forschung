@@ -28,7 +28,7 @@ import { getDatenShareHandle } from '@/core/services/infrastructure/smb-handle';
 import { readText } from '@/core/services/infrastructure/atomic-write';
 import { listProgramme } from '@/core/services/csv';
 import { syncProgrammSnapshot } from '@/core/services/csv/snapshot-sync';
-import { refreshAntraegeStoreAfterSync } from '@/plugins/antraege/snapshot-refresh';
+import { refreshAntraegeStoreAfterSync, zieheFassungNach } from '@/plugins/antraege/snapshot-refresh';
 import { acquireDataMutation, releaseDataMutation } from '@/core/services/csv/data-mutation-gate';
 import { bumpCsvSourcesSignal } from '@/core/services/csv/csv-sources-signal';
 import { useStartupDataStatus } from '@/core/services/csv/startup-data-status';
@@ -210,6 +210,10 @@ export function useSnapshotWatcher(opts: UseSnapshotWatcherOptions = {}): Snapsh
     try {
       const handle = await getDatenShareHandle(storage.idb);
       if (!handle) throw new Error('Daten-Share nicht verbunden');
+      // Wer einen Kollegen-Stand holt, holt auch dessen Status-Fassung — vor dem
+      // Sync, weil die Projektion ihre Ordner-Spalten aus ihr auflöst. Derselbe
+      // Schritt wie am Anfang von `runDataUpdate`.
+      await zieheFassungNach(storage.idb);
       const total = availableUpdates.length;
       for (let i = 0; i < total; i++) {
         const u = availableUpdates[i];

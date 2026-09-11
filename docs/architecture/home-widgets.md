@@ -208,6 +208,11 @@ die Startseite zeigt, folgt einem der beiden Signale — ohne Reload.
   Tagesbriefs) und die **Auslastungs-Karte** nehmen `useBestandGeneration()` in
   ihre Effekt-Abhängigkeiten; für die Journal-Leser hält es der Guard
   `journal-leser-folgt-dem-bestand` fest.
+- **Die Status-Fassung** (To-do-Regeln, ZAH-Phasen, Klartexte, Ordner-Spalten)
+  holt jede Datenaktualisierung mit, wenn das Team eine neuere veröffentlicht
+  hat (`zieheFassungNach`, v6.57.3). Danach zeichnen die Karten wie nach einem
+  Import neu; die To-do-Zellen zeigen „…" statt eines vorläufigen Stands — eine
+  andere Fassung ist eine andere Frage.
 - **Neue Karte, die eigene Daten lädt?** Liest sie im Mount-Effekt aus IDB oder
   Share, gehört `useBestandGeneration()` in die Abhängigkeiten — sonst zeigt sie
   bis zum Reload den Stand von davor

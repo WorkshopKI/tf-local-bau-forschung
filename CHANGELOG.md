@@ -5,6 +5,15 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v6.57.3 — Status-Fassung bei jeder Datenaktualisierung nachziehen (September 2026)
+
+PATCH — Die Status-Fassung (Kürzel-Klartext, ZAH-Phasen, Zieltage, To-do-Regeln, Betrachtungsbereich) kam genau einmal je Sitzung vom Share. Eine tagsüber veröffentlichte Fassung sah jeder andere Rechner erst beim nächsten Start. Jetzt holt jede Datenaktualisierung sie mit.
+
+- **`holeNeuereFassung`** ersetzt den einmaligen Grant-Nachlauf: 4 KB Dateikopf, volle Datei nur bei neuer Nummer ([core/status/index.ts](src/core/status/index.ts))
+- **`zieheFassungNach`** übernimmt und zieht Projektion + Anträge-Store nach, als Phase 0 von `runDataUpdate` und im Watcher „Jetzt laden" ([snapshot-refresh.ts](src/plugins/antraege/snapshot-refresh.ts), [data-update.ts](src/plugins/csv-sources-kuration/services/data-update.ts), [useSnapshotWatcher.ts](src/core/hooks/useSnapshotWatcher.ts))
+- **Nachtlauf-Karte**: Kürzel-Klartexte folgen der Generation ([NachtlaufWidget.tsx](src/plugins/home/widgets/NachtlaufWidget.tsx)); Tests [katalog-nachlauf.test.ts](src/core/status/__tests__/katalog-nachlauf.test.ts)
+- Doku: [status-system/README.md](docs/status-system/README.md), [recurring-bug-classes.md §1](docs/architecture/recurring-bug-classes.md), [home-widgets.md](docs/architecture/home-widgets.md)
+
 ### v6.57.2 — Startseite rechnet nach Import ohne Reload neu (September 2026)
 
 PATCH — Nach einem CSV-Import oder geholten Datenbestand stand die Startseite teils bis zum Browser-Reload: nach fünf Minuten Offenstehen kippten alle To-do-Zellen dauerhaft auf „…" (gemessen 0 → 13, kein neuer Lauf), „Änderungen der letzten Nacht" und der Nachtlauf-Satz des Tagesbriefs lasen das Journal nie neu. Während des Veröffentlichens standen 30–40 s lang nur Platzhalter.

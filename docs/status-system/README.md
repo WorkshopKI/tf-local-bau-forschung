@@ -82,16 +82,23 @@ unerreichbar. Schreib-Profil: [add-sidecar-persistence.md](../agents/add-sidecar
   `uebernehmeKatalogVomShare` den lokalen Stand einmalig unter
   `status-katalog:vor-share-uebernahme`; lokale Fassungen mit Nummern, die der
   Share nicht kennt, bleiben stehen.
-- **Der Abgleich läuft zweimal, weil einmal zu früh ist** (v4.85.1).
+- **Der Abgleich läuft bei jeder Datenaktualisierung** (v4.85.1, v6.57.3).
   `initStatusKatalog` hängt in [App.tsx](../../src/core/App.tsx) **vor** dem
   Ordner-Picker: auf einer frischen Installation gibt es dort kein Handle, nach
   einem echten Browser-Neustart steht die FSAPI-Berechtigung unter `file://`
   wieder auf `prompt` ([recurring-bug-classes.md](../architecture/recurring-bug-classes.md)
-  Klasse 2). Deshalb setzt `synchronisiereKatalogNachGrant` nach, sobald der
-  Share offen ist — vor `runDataUpdate`, weil die List-View-Projektion ihre
-  `kat_status`-Ordnerspalten aus der aktiven Fassung auflöst. Der Nachlauf liest
-  erst 4 KB Dateikopf (`leseKatalogNummer`) und die Megabyte dahinter nur bei
-  abweichender Nummer; er entfällt, wenn der Startlauf die Datei schon hatte.
+  Klasse 2). Deshalb gleicht `holeNeuereFassung` am Anfang **jeder**
+  Datenaktualisierung nach — Start-Pass, Banner, „● CSV", Einstellungen →
+  Speicher (alle `runDataUpdate`) und Watcher „Jetzt laden" — über
+  `zieheFassungNach` ([snapshot-refresh.ts](../../src/plugins/antraege/snapshot-refresh.ts)).
+  Vor dem Snapshot-Sync, weil die List-View-Projektion ihre `kat_status`-Ordnerspalten
+  aus der aktiven Fassung auflöst. Gelesen werden erst 4 KB Dateikopf
+  (`leseKatalogNummer`), die Megabyte dahinter nur bei abweichender Nummer. Hat
+  die Fassung gewechselt, baut `ensureListViewProjection` die Projektion neu (die
+  Fassung steht in ihrer Signatur) und der Anträge-Store lädt samt
+  Bestands-Generation nach — sonst hielte eine offene Seite die alte Fassung fest.
+  Bis v6.57.2 lief der Nachlauf einmal je Sitzung: eine tagsüber veröffentlichte
+  Fassung sah ein anderer Rechner erst beim nächsten Start.
   `ladeAktiveVersion` bleibt IDB-only, weil sie an jedem Import hängt — und
   **schreibt beim Lesen nichts**: den Seed als Fassung 1 ablegen darf nur
   `sorgeFuerGespeicherteFassung` (einziger Aufrufer: das Cockpit beim Öffnen).

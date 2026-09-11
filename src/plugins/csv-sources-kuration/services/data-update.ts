@@ -3,6 +3,9 @@
  * (pl + kurator). Sequenziert die beiden bisher getrennten Subsysteme in der
  * vom Fachbereich gewünschten Reihenfolge:
  *
+ *   0. „Status-Fassung" — hat das Team eine neuere veröffentlicht, wird sie
+ *      übernommen und Projektion + Store ziehen nach (`zieheFassungNach`).
+ *      Vor dem Snapshot, weil dessen Projektion die Fassung liest.
  *   1. „Datenbestand" — Snapshot-Sync je Programm (syncProgrammSnapshot):
  *      Manifest prüfen → bei neuer Version Stores laden → In-Memory-Store +
  *      Phase-2-Pending-Bucket aktualisieren.
@@ -21,7 +24,7 @@
 import type { IDBStore } from '@/core/services/storage/idb-store';
 import { ensureDefaultProgramm, listProgramme, healMissingVerbuende } from '@/core/services/csv';
 import { syncProgrammSnapshot, type SnapshotTimings } from '@/core/services/csv/snapshot-sync';
-import { refreshAntraegeStoreAfterSync } from '@/plugins/antraege/snapshot-refresh';
+import { refreshAntraegeStoreAfterSync, zieheFassungNach } from '@/plugins/antraege/snapshot-refresh';
 import { rematchOnSnapshotReload } from '@/phase2';
 import { resolveSnapshotAuthor } from '@/core/services/infrastructure/update-author';
 import { isKuratorMenusEnabled, isCsvAutoRefreshEnabled } from '@/config/feature-flags';
@@ -63,6 +66,11 @@ export interface DataUpdateResult {
    * Toast Erfolg samt neuem Stand, und der Banner kam sofort wieder.
    */
   snapshotUnvollstaendig?: boolean;
+  /**
+   * Nummer der Status-Fassung, die dieser Lauf vom Share übernommen hat
+   * (`zieheFassungNach`) — fehlt, wenn die geltende schon die des Teams war.
+   */
+  fassungUebernommen?: number;
   /** Gesamt-Wall-Clock (ms). */
   totalMs: number;
 }
@@ -212,8 +220,14 @@ export async function runDataUpdate(
   const csvEnabled = includeCsv && (isKuratorMenusEnabled() || isCsvAutoRefreshEnabled());
 
   try {
-    // ─── Phase 1: Datenbestand (Snapshot) ──────────────────────────────────
+    // ─── Phase 0: Status-Fassung ───────────────────────────────────────────
+    // Vor dem Snapshot: die Projektion löst ihre Ordner-Spalten aus der aktiven
+    // Fassung auf. Billig, wenn nichts neu ist (4 KB Dateikopf).
     await ensureDefaultProgramm(idb);
+    const fassung = await zieheFassungNach(idb);
+    if (fassung !== null) result.fassungUebernommen = fassung;
+
+    // ─── Phase 1: Datenbestand (Snapshot) ──────────────────────────────────
     const programme = await listProgramme(idb);
     for (let i = 0; i < programme.length; i++) {
       if (signal?.cancelled) return result;

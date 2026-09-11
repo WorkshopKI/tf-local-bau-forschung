@@ -31,7 +31,7 @@ import { scheduleIdle } from '@/core/utils/scheduleIdle';
 import { ensureListViewProjection } from '@/core/services/csv/list-view-migration';
 import { initProtokoll } from '@/core/services/assistent/protokoll';
 import { initGedaechtnis, starteKonsolidierungWennFaellig } from '@/core/services/assistent/gedaechtnis';
-import { initStatusKatalog, synchronisiereKatalogNachGrant } from '@/core/status';
+import { initStatusKatalog } from '@/core/status';
 import { useSichtbarkeitStore } from '@/core/sichtbarkeit';
 import { bumpCsvSourcesSignal } from '@/core/services/csv/csv-sources-signal';
 import { useStartupDataStatus } from '@/core/services/csv/startup-data-status';
@@ -620,15 +620,9 @@ function AppInner({ storage }: { storage: StorageService }): React.ReactElement 
           useStartupDataStatus.getState().setPhase('done');
           return;
         }
-        // Jetzt erst ist der Share offen: `initStatusKatalog` lief oben VOR dem
-        // Ordner-Picker und ging auf einer frischen Installation zwangsläufig
-        // leer aus. Muss VOR runDataUpdate stehen — die List-View-Projektion
-        // löst ihre `kat_status`-Spalten aus der aktiven Fassung auf.
-        try {
-          await synchronisiereKatalogNachGrant(storage.idb);
-        } catch (e) {
-          console.warn('[App] synchronisiereKatalogNachGrant fehlgeschlagen', e);
-        }
+        // Die Status-Fassung holt `runDataUpdate` selbst nach (`zieheFassungNach`,
+        // vor dem Snapshot-Sync) — hier lief bis v6.57.2 ein eigener, einmaliger
+        // Nachlauf, weil `initStatusKatalog` oben VOR dem Ordner-Picker liegt.
         // Dasselbe Nachlauf-Muster für die Beta/Experte-Kuration: oben lief nur
         // der Cache, hier steht der Share offen.
         try {

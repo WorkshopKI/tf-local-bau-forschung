@@ -1,4 +1,7 @@
 import { markiereBestandGeaendert } from '@/core/services/bestand-generation';
+import { listProgramme } from '@/core/services/csv';
+import { ensureListViewProjection } from '@/core/services/csv/list-view-migration';
+import { holeNeuereFassung } from '@/core/status';
 import { useAntraegeStore } from './store';
 import type { IDBStore } from '@/core/services/storage/idb-store';
 import type { SnapshotStoreName } from '@/core/services/csv/snapshot';
@@ -40,4 +43,42 @@ export async function refreshAntraegeStoreAfterSync(
   // Netzwerk hieße sonst bis zum Browser-Reload „Netzwerk 1062".
   store.resetNetzwerkNameIndex();
   await store.loadAll(idb, programmId, { force: true });
+}
+
+/**
+ * Holt eine neuere Status-Fassung vom Share und zieht nach, was an ihr hängt —
+ * am Anfang jeder Datenaktualisierung (`runDataUpdate`, Snapshot-Watcher).
+ *
+ * Die Fassung bestimmt, wie die App den Bestand LIEST (Kategorien, ZAH-Phasen,
+ * Klartexte, To-do-Regeln, Ordner-Spalten). Wechselt sie, ändert sich kein
+ * einziger Record — deshalb zieht dieser Schritt selbst nach:
+ *  1. die Slim-Projektion, deren `kat_status`-Spalten über die Fassung
+ *     aufgelöst werden. `ensureListViewProjection` baut nur neu, wenn sich
+ *     dadurch die Signatur ändert (die Fassung steht in ihr);
+ *  2. den Anträge-Store samt Bestands-Generation: die Seiten zeichnen neu und
+ *     ihre Caches (Bestandslauf, Vorgangs-Regeln) lesen die neue Fassung. Ohne
+ *     das hielte eine offene Seite die alte bis zum nächsten Neuzeichnen fest.
+ *
+ * VOR dem Snapshot-Sync aufrufen: ein neuer Datenbestand projiziert dann gleich
+ * mit der neuen Fassung. Best-effort, wirft nicht.
+ *
+ * @returns die neue Fassungsnummer oder `null`, wenn nichts gewechselt hat.
+ */
+export async function zieheFassungNach(idb: IDBStore): Promise<number | null> {
+  const neu = await holeNeuereFassung(idb);
+  if (neu === null) return null;
+  try {
+    await ensureListViewProjection(idb);
+  } catch (err) {
+    console.warn('[fassung] Ordner-Spalten konnten nicht neu projiziert werden', err);
+  }
+  try {
+    for (const p of await listProgramme(idb)) {
+      await refreshAntraegeStoreAfterSync(idb, p.id, ['antraege', 'verbuende']);
+    }
+  } catch (err) {
+    console.warn('[fassung] Anträge konnten nicht nachgeladen werden', err);
+  }
+  console.info(`[fassung] Status-Fassung ${neu} vom Share übernommen`);
+  return neu;
 }

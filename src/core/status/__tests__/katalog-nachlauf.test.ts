@@ -1,14 +1,16 @@
 /**
- * Der zweite Anlauf, nachdem der Daten-Share freigegeben ist.
+ * Der Abgleich der Status-Fassung mit dem Share — bei jeder Datenaktualisierung.
  *
  * `initStatusKatalog` läuft in `App.tsx` VOR dem Ordner-Picker: auf einer
  * frischen Installation gibt es dort kein Handle, nach einem Browser-Neustart
- * steht die FSAPI-Berechtigung unter `file://` wieder auf `prompt`. Ohne
- * Nachlauf galt die ganze Sitzung der Auslieferungs-Seed statt der kuratierten
- * Team-Fassung — samt ZAH-Phasen, Code→Phase-Schnitt und AB-Regeln.
+ * steht die FSAPI-Berechtigung unter `file://` wieder auf `prompt`. Bis v6.57.2
+ * setzte deshalb EIN Nachlauf nach dem Grant nach — und dabei blieb es für die
+ * Sitzung: eine tagsüber veröffentlichte Fassung sah ein anderer Rechner erst
+ * beim nächsten Start. `holeNeuereFassung` läuft jetzt am Anfang jeder
+ * Datenaktualisierung (über `zieheFassungNach`).
  *
  * Der Share ist gespiegelt wie in `katalog-share.test.ts`, die IndexedDB echt.
- * Läuft im Projekt `isolated`: der Nachlauf führt Sitzungs-Merker im Modul.
+ * Läuft im Projekt `isolated`: der Abgleich führt einen Lauf-Merker im Modul.
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import 'fake-indexeddb/auto';
@@ -56,7 +58,7 @@ vi.mock('@/core/status/sidecar-datei', () => ({
 }));
 
 const {
-  initStatusKatalog, synchronisiereKatalogNachGrant, resetKatalogNachlaufFuerTests,
+  initStatusKatalog, holeNeuereFassung, resetKatalogNachlaufFuerTests,
   getAktiveVersion, setStatusKatalogSnapshot, getAktiveVersionsnummer,
 } = await import('@/core/status');
 const { baueSeedVersion } = await import('@/core/status/seed');
@@ -66,9 +68,12 @@ function fassung(nr: number): MappingVersion {
   return { ...baueSeedVersion(), version: nr, kommentar: `Team-Fassung ${nr}` };
 }
 
-function teamDatei(nr: number): StatusKatalogDatei {
+function teamDatei(nr: number, weitere: number[] = []): StatusKatalogDatei {
   return {
-    version: 1, aktiv: nr, fassungen: [fassung(nr)], updatedAt: '2026-08-01T00:00:00.000Z',
+    version: 1,
+    aktiv: nr,
+    fassungen: [...weitere.map(fassung), fassung(nr)],
+    updatedAt: '2026-08-01T00:00:00.000Z',
   };
 }
 
@@ -97,7 +102,7 @@ afterEach(() => {
   resetKatalogNachlaufFuerTests();
 });
 
-describe('Katalog-Nachlauf nach dem Share-Grant', () => {
+describe('Fassungs-Abgleich mit dem Share', () => {
   it('holt die Team-Fassung, wenn der Startlauf vor dem Grant leer ausging', async () => {
     const idb = await frisch();
     // Kaltstart: Datei liegt da, ist aber (noch) nicht lesbar.
@@ -107,24 +112,39 @@ describe('Katalog-Nachlauf nach dem Share-Grant', () => {
     expect(getAktiveVersion()?.version).toBe(1);
     expect(await getAktiveVersionsnummer(idb)).toBeNull();
 
-    // Jetzt ist der Ordner freigegeben.
+    // Jetzt ist der Ordner freigegeben — die erste Datenaktualisierung holt nach.
     share.lesbar = true;
-    await synchronisiereKatalogNachGrant(idb);
+    expect(await holeNeuereFassung(idb)).toBe(7);
     expect(getAktiveVersion()?.version).toBe(7);
     expect(getAktiveVersion()?.kommentar).toBe('Team-Fassung 7');
     expect(await getAktiveVersionsnummer(idb)).toBe(7);
   });
 
-  it('ist ein No-op, wenn der Startlauf die Datei schon gelesen hat', async () => {
+  it('holt eine Fassung, die im Lauf der Sitzung veröffentlicht wurde', async () => {
+    // Der gemeldete Fall: die Projektleitung veröffentlicht tagsüber, dieser
+    // Rechner läuft seit dem Morgen. Bis v6.57.2 sah er Fassung 5 erst beim
+    // nächsten Start.
     const idb = await frisch();
     share.datei = teamDatei(4);
     await initStatusKatalog(idb);
     expect(getAktiveVersion()?.version).toBe(4);
 
-    const vorher = share.vollLesungen;
-    await synchronisiereKatalogNachGrant(idb);
-    expect(share.kopfLesungen).toBe(0);
-    expect(share.vollLesungen).toBe(vorher);
+    share.datei = teamDatei(5, [4]);
+    expect(await holeNeuereFassung(idb)).toBe(5);
+    expect(getAktiveVersion()?.kommentar).toBe('Team-Fassung 5');
+    expect(await getAktiveVersionsnummer(idb)).toBe(5);
+  });
+
+  it('liest bei gleicher Nummer nur den Dateikopf — bei jedem Lauf', async () => {
+    const idb = await frisch();
+    share.datei = teamDatei(4);
+    await initStatusKatalog(idb);
+    const voll = share.vollLesungen;
+
+    expect(await holeNeuereFassung(idb)).toBeNull();
+    expect(await holeNeuereFassung(idb)).toBeNull();
+    expect(share.kopfLesungen).toBe(2);
+    expect(share.vollLesungen).toBe(voll);
   });
 
   it('liest nur den Dateikopf, wenn es nichts zu holen gibt', async () => {
@@ -133,26 +153,22 @@ describe('Katalog-Nachlauf nach dem Share-Grant', () => {
     await initStatusKatalog(idb);
     const vorher = share.vollLesungen;
 
-    await synchronisiereKatalogNachGrant(idb);
+    expect(await holeNeuereFassung(idb)).toBeNull();
     expect(share.kopfLesungen).toBe(1);
     expect(share.vollLesungen).toBe(vorher);
     expect(getAktiveVersion()?.version).toBe(1);
   });
 
-  it('läuft höchstens einmal je Sitzung', async () => {
+  it('läuft nicht zweimal nebeneinander', async () => {
     const idb = await frisch();
     share.datei = teamDatei(7);
     share.lesbar = false;
     await initStatusKatalog(idb);
 
     share.lesbar = true;
-    await synchronisiereKatalogNachGrant(idb);
-    const kopf = share.kopfLesungen;
-    const voll = share.vollLesungen;
-    await synchronisiereKatalogNachGrant(idb);
-    await synchronisiereKatalogNachGrant(idb);
-    expect(share.kopfLesungen).toBe(kopf);
-    expect(share.vollLesungen).toBe(voll);
+    const ergebnisse = await Promise.all([holeNeuereFassung(idb), holeNeuereFassung(idb)]);
+    expect(ergebnisse.filter(e => e !== null)).toEqual([7]);
+    expect(share.kopfLesungen).toBe(1);
   });
 
   it('zieht die kuratierten ZAH-Phasen mit, nicht nur die Kürzel', async () => {
@@ -168,7 +184,7 @@ describe('Katalog-Nachlauf nach dem Share-Grant', () => {
     expect(zahPhasenVon().some(p => p.id === 'eigene')).toBe(false);
 
     share.lesbar = true;
-    await synchronisiereKatalogNachGrant(idb);
+    await holeNeuereFassung(idb);
     expect(zahPhasenVon().some(p => p.id === 'eigene')).toBe(true);
   });
 });

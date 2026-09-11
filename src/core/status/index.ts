@@ -341,78 +341,72 @@ import { leseKatalogNummer, synchronisiereKatalogVomShare } from './katalog-shar
 import { getAktiveVersion, setStatusKatalogSnapshot } from './snapshot';
 
 /**
- * Einmalige Initialisierung beim App-Start (nach `storage.init()`):
+ * Initialisierung beim App-Start (nach `storage.init()`):
  * (1) Team-Fassung vom Daten-Share holen, falls vorhanden, (2) aktive Version
- * laden (seedet Version 1 beim allerersten Mal), (3) In-Memory-Snapshot setzen,
+ * laden (Seed als Rückfall, nicht abgelegt), (3) In-Memory-Snapshot setzen,
  * aus dem `getStatusCategory` liest. No-op ohne Flag.
  *
- * Der Share-Abgleich läuft **genau hier einmal** und nicht in `ladeAktiveVersion`:
- * die wird bei jedem Import aufgerufen (Reconcile, Auto-Discovery) und darf
- * nicht jedes Mal SMB anfassen. Best-effort — ohne erreichbaren Share bleibt der
- * lokale Stand maßgeblich und die App startet wie zuvor.
+ * Der Share-Abgleich läuft hier und in {@link holeNeuereFassung}, nie in
+ * `ladeAktiveVersion`: die wird bei jedem Import aufgerufen (Reconcile,
+ * Auto-Discovery) und darf nicht jedes Mal SMB anfassen. Best-effort — ohne
+ * erreichbaren Share bleibt der lokale Stand maßgeblich und die App startet wie
+ * zuvor.
  */
 export async function initStatusKatalog(idb: IDBStore): Promise<void> {
   if (!isStatusCockpitEnabled()) return;
-  startAbgleichHatShareGelesen = (await synchronisiereKatalogVomShare(idb)) != null;
+  await synchronisiereKatalogVomShare(idb);
   const version = await ladeAktiveVersion(idb);
   setStatusKatalogSnapshot(version);
 }
 
-/**
- * Hat der Startlauf oben die Team-Datei tatsächlich gelesen? Nur dann erübrigt
- * sich der Nachlauf. Sitzungs-lokal und bewusst nicht persistiert — die Frage
- * gilt für diesen Start, nicht für den nächsten.
- */
-let startAbgleichHatShareGelesen = false;
-let nachlaufLaeuft = false;
+let abgleichLaeuft = false;
 
-/** Nur für Tests: beide Sitzungs-Merker zurücksetzen. */
+/** Nur für Tests: den Lauf-Merker zurücksetzen. */
 export function resetKatalogNachlaufFuerTests(): void {
-  startAbgleichHatShareGelesen = false;
-  nachlaufLaeuft = false;
+  abgleichLaeuft = false;
 }
 
 /**
- * Zweiter Anlauf, sobald der Daten-Share wirklich offen ist.
+ * Holt eine neuere Team-Fassung vom Share, wenn er eine andere führt als die
+ * gerade geltende — **bei jeder Datenaktualisierung**, nicht einmal je Sitzung.
  *
- * `initStatusKatalog` läuft in `App.tsx` **vor** dem Ordner-Picker und vor dem
- * Permission-Grant — auf einer frischen Installation gibt es dort noch gar kein
- * Handle, und nach einem echten Browser-Neustart steht die FSAPI-Berechtigung
- * unter `file://` wieder auf `prompt`. Der Startlauf lieferte deshalb regelmäßig
- * nichts, und weil er der einzige war, galt die ganze Sitzung der
- * Auslieferungs-Seed statt der kuratierten Team-Fassung: Kürzel, ZAH-Phasen,
- * Code→Phase-Schnitt und AB-Regeln hingen am Build-Stand. Gleiches Muster wie
- * `nachStartDatenupdateVorwaermen` im Auslastungs-Modul.
+ * Bis v6.57.2 lief der Abgleich genau zweimal: beim Start (`initStatusKatalog`)
+ * und einmal nach dem Share-Grant. Veröffentlichte die Projektleitung tagsüber
+ * eine neue Fassung, sah jeder andere Rechner sie erst beim nächsten Start —
+ * Aufgaben, Phasen, Klartexte und Ordner-Spalten rechneten bis dahin mit der
+ * alten.
  *
- * Aufgerufen in `App.tsx`, sobald das Handle steht und **bevor** `runDataUpdate`
- * läuft: die List-View-Projektion löst ihre `kat_status`-Ordnerspalten aus der
- * aktiven Fassung auf, die also vorher stimmen muss.
+ * Aufgerufen über `zieheFassungNach` (plugins/antraege/snapshot-refresh.ts) am
+ * Anfang jeder Datenaktualisierung, auch des Start-Passes. Damit deckt er den
+ * alten Grant-Nachlauf mit ab: `initStatusKatalog` läuft in `App.tsx` VOR dem
+ * Ordner-Picker und geht auf einer frischen Installation zwangsläufig leer aus
+ * (recurring-bug-classes §1, fünfter Mechanismus). Er läuft **vor** dem
+ * Snapshot-Sync, weil die List-View-Projektion ihre `kat_status`-Ordnerspalten
+ * aus der aktiven Fassung auflöst.
  *
- * Best-effort und höchstens einmal je Sitzung. Gelesen werden zuerst 4 KB
- * Dateikopf (`leseKatalogNummer`) statt der Megabyte dahinter — die volle Datei
- * nur, wenn der Share eine andere Fassung führt als die gerade geltende.
+ * Billig: zuerst 4 KB Dateikopf (`leseKatalogNummer`), die volle Datei nur bei
+ * abweichender Nummer. Best-effort, wirft nicht.
+ *
+ * @returns die neue Fassungsnummer, wenn gewechselt wurde — sonst `null`.
  */
-export async function synchronisiereKatalogNachGrant(idb: IDBStore): Promise<void> {
-  if (!isStatusCockpitEnabled()) return;
-  if (startAbgleichHatShareGelesen || nachlaufLaeuft) return;
-  // VOR dem ersten `await` setzen: der Effekt in App.tsx feuert bei
-  // Gate-Übergängen mehrfach, sonst liefen zwei Nachläufe nebeneinander.
-  nachlaufLaeuft = true;
+export async function holeNeuereFassung(idb: IDBStore): Promise<number | null> {
+  if (!isStatusCockpitEnabled()) return null;
+  if (abgleichLaeuft) return null;
+  // VOR dem ersten `await` setzen, sonst liefen zwei Abgleiche nebeneinander.
+  abgleichLaeuft = true;
   try {
     const nummerAufShare = await leseKatalogNummer(idb);
     // Keine Datei, kein Handle, unerwarteter Kopf — nichts zu holen.
-    if (nummerAufShare == null) return;
-    if (nummerAufShare === getAktiveVersion()?.version) {
-      // Gleiche Nummer: der Startlauf hat sie offenbar doch gesehen.
-      startAbgleichHatShareGelesen = true;
-      return;
-    }
-    if ((await synchronisiereKatalogVomShare(idb)) == null) return;
-    startAbgleichHatShareGelesen = true;
-    setStatusKatalogSnapshot(await ladeAktiveVersion(idb));
+    if (nummerAufShare == null) return null;
+    if (nummerAufShare === getAktiveVersion()?.version) return null;
+    if ((await synchronisiereKatalogVomShare(idb)) == null) return null;
+    const version = await ladeAktiveVersion(idb);
+    setStatusKatalogSnapshot(version);
+    return version.version;
   } catch (err) {
-    // Offen lassen: ein späterer Gate-Übergang darf es erneut versuchen.
-    nachlaufLaeuft = false;
-    console.warn('[status] synchronisiereKatalogNachGrant fehlgeschlagen:', err);
+    console.warn('[status] Fassungs-Abgleich mit dem Share fehlgeschlagen:', err);
+    return null;
+  } finally {
+    abgleichLaeuft = false;
   }
 }
