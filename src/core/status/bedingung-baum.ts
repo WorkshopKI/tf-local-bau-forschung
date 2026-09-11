@@ -30,8 +30,17 @@ import type { Bedingung } from './typen';
 /** Adresse eines Knotens: Kind-Indizes von der Wurzel aus. `[]` = Wurzel. */
 export type BedingungsPfad = readonly number[];
 
-/** Eine UND- oder ODER-Gruppe. */
-export type BedingungsGruppe = { alle: Bedingung[] } | { einige: Bedingung[] };
+/** Eine UND- oder ODER-Gruppe, optional benannt. */
+export type BedingungsGruppe = Extract<Bedingung, { alle: Bedingung[] } | { einige: Bedingung[] }>;
+
+/** UND (`alle`) oder ODER (`einige`). */
+export type Verknuepfung = 'alle' | 'einige';
+
+/**
+ * Obergrenze eines Gruppennamens — eine Quelle für Editor und Normalisierung.
+ * Ein Name ist ein Etikett im Gruppenkopf und im Kurzsatz, kein Beschreibungsfeld.
+ */
+export const MAX_GRUPPENNAME = 80;
 
 export function istBedingungsGruppe(b: Bedingung): b is BedingungsGruppe {
   return 'alle' in b || 'einige' in b;
@@ -41,9 +50,32 @@ export function gruppenKinder(g: BedingungsGruppe): Bedingung[] {
   return 'alle' in g ? g.alle : g.einige;
 }
 
-/** Dieselbe Verknüpfung, andere Kinder. */
+export function verknuepfungVon(g: BedingungsGruppe): Verknuepfung {
+  return 'alle' in g ? 'alle' : 'einige';
+}
+
+/**
+ * Die EINE Stelle, an der eine Gruppe neu entsteht. Jeder Umbau läuft hier
+ * durch — deshalb überlebt der Name jeden Umbau, und ein leerer Name wird gar
+ * nicht erst geschrieben.
+ */
+function baueGruppe(v: Verknuepfung, kinder: Bedingung[], name?: string): BedingungsGruppe {
+  const g: BedingungsGruppe = v === 'alle' ? { alle: kinder } : { einige: kinder };
+  return name ? { ...g, name } : g;
+}
+
+/** Dieselbe Verknüpfung, derselbe Name, andere Kinder. */
 export function mitGruppenKindern(g: BedingungsGruppe, kinder: Bedingung[]): BedingungsGruppe {
-  return 'alle' in g ? { alle: kinder } : { einige: kinder };
+  return baueGruppe(verknuepfungVon(g), kinder, g.name);
+}
+
+/**
+ * Andere Verknüpfung, dieselben Kinder, derselbe Name. Vorher baute der Editor
+ * hier `{ alle: kinder }` von Hand — der Weg, auf dem ein Name beim ersten
+ * Umschalten still verloren ginge.
+ */
+export function mitVerknuepfung(g: BedingungsGruppe, v: Verknuepfung): BedingungsGruppe {
+  return baueGruppe(v, gruppenKinder(g), g.name);
 }
 
 /**
@@ -281,6 +313,24 @@ export function verpackeBedingungInGruppe(
   if (!knoten) return root;
   const huelle: Bedingung = verknuepfung === 'alle' ? { alle: [knoten] } : { einige: [knoten] };
   return ersetzeBedingungAn(root, pfad, huelle);
+}
+
+/**
+ * Benennt die Gruppe an `pfad`. Getrimmt und auf {@link MAX_GRUPPENNAME}
+ * gekappt; ein leerer Name **entfernt** das Feld, statt `name: ''` zu speichern.
+ * Ein Blatt oder ein toter Pfad lässt den Baum unverändert.
+ */
+export function benenneBedingungsGruppe(
+  root: Bedingung,
+  pfad: BedingungsPfad,
+  name: string,
+): Bedingung {
+  const knoten = holeBedingungAn(root, pfad);
+  if (!knoten || !istBedingungsGruppe(knoten)) return root;
+  const sauber = name.trim().slice(0, MAX_GRUPPENNAME).trimEnd();
+  return ersetzeBedingungAn(
+    root, pfad, baueGruppe(verknuepfungVon(knoten), gruppenKinder(knoten), sauber || undefined),
+  );
 }
 
 /** Ausrücken heißt: eine Ebene höher, direkt HINTER die eigene Gruppe. */

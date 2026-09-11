@@ -79,9 +79,18 @@ export function bedingungAlsText(b: Bedingung, quelle: FeldLabelQuelle): string 
 }
 
 function mitAufloeser(b: Bedingung, labelVon: (feldId: string) => string): string {
-  if ('alle' in b) return `(${b.alle.map(x => mitAufloeser(x, labelVon)).join(' UND ')})`;
-  if ('einige' in b) return `(${b.einige.map(x => mitAufloeser(x, labelVon)).join(' ODER ')})`;
+  if ('alle' in b) return benannt(b.name, `(${b.alle.map(x => mitAufloeser(x, labelVon)).join(' UND ')})`);
+  if ('einige' in b) return benannt(b.name, `(${b.einige.map(x => mitAufloeser(x, labelVon)).join(' ODER ')})`);
   return blatt(b, labelVon);
+}
+
+/**
+ * Ein Gruppenname steht **vor** seinem Inhalt, nie statt seiner:
+ * „PreCheck AB: (… ODER …)". Der Name allein verbärge, was geprüft wird — und
+ * genau dort entstehen die falschen Regeln.
+ */
+function benannt(name: string | undefined, text: string): string {
+  return name ? `${name}: ${text}` : text;
 }
 
 /**

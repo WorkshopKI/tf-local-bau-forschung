@@ -56,12 +56,15 @@ export {
 } from './bedingung';
 export { bedingungAlsText, bedingungSatz, type FeldLabelQuelle } from './bedingung-text';
 export {
-  alsBedingungsGruppe, bedingungsTiefe, darfBedingungAusruecken, darfBedingungEinruecken,
+  MAX_GRUPPENNAME,
+  alsBedingungsGruppe, bedingungsTiefe, benenneBedingungsGruppe, darfBedingungAusruecken,
+  darfBedingungEinruecken,
   darfBedingungVerschieben, entferneBedingungAn, ersetzeBedingungAn, fuegeBedingungEin,
-  gruppenKinder, holeBedingungAn, istBedingungsGruppe, mitGruppenKindern, pfadLiegtUnter,
-  rueckeBedingungAus, rueckeBedingungEin, verpackeBedingungInGruppe,
+  gruppenKinder, holeBedingungAn, istBedingungsGruppe, mitGruppenKindern, mitVerknuepfung,
+  pfadLiegtUnter,
+  rueckeBedingungAus, rueckeBedingungEin, verknuepfungVon, verpackeBedingungInGruppe,
   verschiebeBedingung, verschiebeBedingungsGeschwister,
-  type BedingungsGruppe, type BedingungsPfad,
+  type BedingungsGruppe, type BedingungsPfad, type Verknuepfung,
 } from './bedingung-baum';
 export { normKey, loseKey } from './normalisierung';
 // Die Snapshot-SETZER sind bewusst NICHT hier: sie haben genau einen Aufrufer

@@ -133,6 +133,13 @@ erreicht. Deshalb gilt jetzt: verliert eine UND-Gruppe einen Zweig, wird sie
 `{einige: []}` = nie erfüllt. Ein Roundtrip-Test über `Bedingung['op']` hält die
 Operator-Liste vollständig — ein zehnter bricht den Typecheck.
 
+Ebenso übersteht der **Gruppenname** das Lesen: `normalisiereBedingung` behält
+ihn (getrimmt, auf `MAX_GRUPPENNAME` gekappt), auch am Sicherheits-Rückfall
+`{einige: []}` — dort zeigt er, WELCHE Gruppe beim Laden zerbrach. Builds vor
+v6.59 kennen das Feld nicht und verwerfen es beim Lesen; die Aussage der Regel
+bleibt dieselbe. Weil `schreibePlanAufShare` den geladenen, normalisierten Plan
+schreibt, speichert ein solcher Build den Plan ohne Namen zurück.
+
 Aus demselben Grund verwirft die Normalisierung seit v4.118 auch ein
 `ist`/`istNicht` **ohne Wert** (wie `datumNachFeld` ohne zweites Feld):
 `istNicht` ohne Wert ist `!werte.some(v => v === '')` und damit für jeden
@@ -158,7 +165,8 @@ von vorhin, weil Plan, Schema und Tag dieselben waren. Wer die Semantik von
 - **Plugin `meilensteine`** (`/meilensteine`): Übersicht (Master/Detail mit
   Zustands-Punkten und Zeitstrahl), „Diese Woche" (überfällig/fällig über alle
   Verbünde), Auswertung (Ø-Dauer je Antragstyp, Soll gegen Ist je Knoten),
-  Konfiguration (Baum- + Bedingungs-Editor, Fassungen, Freigabe).
+  Konfiguration (Baum- + Bedingungs-Editor mit Probe am Bestand, Fassungen,
+  Freigabe).
 - **Home-Widget „Fristen"** — eine Liste für beide Fristsysteme (Zieltage +
   Meilensteine), Auszug für die eigenen Verbünde, **je Vorgang eine Zeile**
   (gebündelt wie im Modul, `buendleNachVerbund`). Das frühere Einzel-Widget
@@ -258,11 +266,19 @@ Der **Bedingungs-Editor**
 ([BedingungEditor.tsx](../../src/plugins/meilensteine/BedingungEditor.tsx)) ist
 domänenfrei gegenüber den Meilensteinen — er kennt nur `Bedingung` und bedient
 deshalb auch die To-do-Regeln des Status-Cockpits und den Dialog „Eigene Spalte".
+Die Probe am Bestand (unten) platziert er nur: sie kommt als Render-Funktion
+`probe: (gruppe) => ReactNode` herein, der Editor weiß nichts von
+„offen/abgeschlossen". Die beiden anderen Aufrufer reichen keine herein und
+zeigen deshalb keine Zahlen.
 
-### Der Bedingungs-Bereich (v5.3, erweitert v6.3)
+### Der Bedingungs-Bereich
 
-Vier Änderungen an derselben Beobachtung: der Bereich war vollständig, aber nicht
-zu bedienen.
+Der Bereich unter „Erfüllt, wenn" ist dreimal an derselben Frage umgebaut worden
+— vollständig, aber nicht zu bedienen (v5.3), Geschwister lasen sich als
+Untergruppen (v6.3), und beim ersten Anlegen „noch nicht intuitiv und
+übersichtlich genug, gerade bei komplexeren und verschachtelten Gruppen" (v6.59,
+[Spec](../superpowers/specs/2026-09-11-bedingungs-editor-gruppen.md)). Der
+Feld-Wähler war dabei das, was die PL lobte. Der Ist-Zustand:
 
 - **Ein Feld wird gewählt, nicht gesucht.** Das nackte `<select>` ist dem
   geteilten [FeldWaehler](../../src/components/ui/FeldWaehler.tsx) gewichen:
@@ -272,7 +288,11 @@ zu bedienen.
   Er sitzt im `BedingungEditor` und wirkt damit an **allen drei** Aufrufern,
   zusätzlich am „Ist-Termin aus Feld" (`nurTyp: 'datum'`). Die
   Deckungs-Spalte blendet sich aus, wo der Vorrat synthetisch ist (To-do-Regeln)
-  — eine leere Spalte behauptete sonst eine Zahl, die es nicht gibt.
+  — eine leere Spalte behauptete sonst eine Zahl, die es nicht gibt. Feld und
+  Operator stehen in **festen Spalten**
+  ([BlattZeile.tsx](../../src/plugins/meilensteine/BlattZeile.tsx)):
+  Geschwister-Zeilen fluchten, eine Gruppe liest sich als Tabelle statt als
+  Flattersatz.
 - **Vorschläge aus Bezeichnung + Schema**
   ([feld-vorschlag.ts](../../src/core/meilensteine/feld-vorschlag.ts), rein):
   Token-Abgleich gegen Spalten-Label, `feldId` und `quellCodes`, plus eine
@@ -284,10 +304,8 @@ zu bedienen.
   Meilenstein betreffen („Antrag"), zählen nicht. Trifft nichts, steht nichts da.
   Ein Meilenstein ohne Bedingung bekommt die Zeile „Vorschlag … [Übernehmen]" —
   ein Klick, nie automatisch.
-- **Die Hierarchie ist nachträglich änderbar.** Jede Zeile — Blatt wie Gruppe —
-  trägt Griff, ↑, ↓, Aus-/Einrücken und ✕
-  ([ZeilenAktionen.tsx](../../src/plugins/meilensteine/ZeilenAktionen.tsx)); der
-  Umbau selbst rechnet in der reinen
+- **Die Hierarchie ist nachträglich änderbar**, über Griff und ⋯-Menü jeder
+  Zeile (unten); der Umbau selbst rechnet in der reinen
   [bedingung-baum.ts](../../src/core/status/bedingung-baum.ts) über
   Kind-Index-Pfade (`Bedingung` kennt keine Ids). **Eingerückt wird nur in eine
   Gruppe, die schon dasteht** — Vorgänger und Knoten stillschweigend in eine neu
@@ -305,33 +323,89 @@ zu bedienen.
   Einfüge-Marken **zwischen** Zeilen, nie auf einer Zeile — „davor" und „hinein"
   wären sonst nicht zu unterscheiden.
 
-**Geschwister sehen wie Geschwister aus** (v6.3). Eine Gruppe neben zwei Blättern
-IST deren Geschwister; sie sah nur wie deren Untergruppe aus, weil ihr Kasten
-eigene Polsterung und eine zweite Einrück-Spalte mitbringt. Das war keine
-Meinungsfrage, sondern eine Rückmeldung aus dem Betrieb: „ich will sie als
-parallele Gruppe, nicht als Untergruppe" — bei einem Baum, der sie längst
-parallel führte. Vier Dinge halten das jetzt gerade:
+**Geschwister sehen wie Geschwister aus.** Eine Gruppe neben zwei Blättern IST
+deren Geschwister; sie sah nur wie deren Untergruppe aus, weil ihr Kasten eigene
+Polsterung und eine zweite Einrück-Spalte mitbringt — eine Rückmeldung aus dem
+Betrieb („ich will sie als parallele Gruppe, nicht als Untergruppe") bei einem
+Baum, der sie längst parallel führte. Dazu kommt die Übersicht in
+verschachtelten Regeln:
 
+- **Ein Vokabular für die Verknüpfung.** Der Gruppenkopf schaltet „alle | eine"
+  (`SegmentedToggle` in der Variante `dicht`, 20 statt 26 px hoch — sonst stünde
+  er höher als die Auswahlfelder daneben), gefolgt von „müssen zutreffen" bzw.
+  „genügt"; an der Wurzel „der folgenden zutreffen" bzw. „zutrifft", sodass sich
+  mit „Erfüllt, wenn" ein Satz ergibt. Umgeschaltet wird über `mitVerknuepfung`,
+  das Kinder und Namen behält. Ein Dropdown für zwei Werte und zwei Wortfamilien
+  für eine Sache (ALLE/EINE im Kopf, UND/ODER in der Rinne) waren der Befund.
 - **Das Verknüpfungs-Wort steht zwischen den Zeilen**, in einer festen linken
   Rinne je Ebene ([BedingungsFugen.tsx](../../src/plugins/meilensteine/BedingungsFugen.tsx)):
-  man liest wörtlich „A UND B UND (Gruppe 1) UND C". Eine eigene **Zeile** je
+  man liest wörtlich „A und B und (PreCheck AB) und C". Klein und in Gewicht 500:
+  es ist das Echo des Schalters, kein zweites Bedienelement, und Versalien in 600
+  zogen den Blick auf die Fuge statt auf die Bedingungen. Eine eigene **Zeile** je
   Fuge kostete rund 42 px je Meilenstein und nähme die Dichte zurück, die v5.3
   gewonnen hat; die Rinne kostet keine Höhe und gibt jeder Ebene ihre eigene
-  Kante. Gesteuert wird weiter im Gruppenkopf — das Wort ist sein Echo.
-- **Gruppen benennen sich** („GRUPPE 1", 1-basiert unter den Geschwister-Gruppen
-  derselben Liste) und tragen ihr Bedienbündel **im Kopf**, an derselben rechten
-  Kante wie eine Blattzeile.
+  Kante. Der Kurzsatz des Formatierers bleibt bei „UND"/„ODER".
+- **Gruppen tragen einen Namen** (`name?: string` an `{alle}`/`{einige}`,
+  [typen.ts](../../src/core/status/typen.ts)), direkt im Kopf editierbar. Ohne
+  Namen steht der Platzhalter „Gruppe n" — 1-basiert unter den
+  Geschwister-Gruppen derselben Liste, nie gespeichert, er wandert mit der
+  Position. Übernommen wird mit Enter oder beim Verlassen, Esc verwirft: jede
+  Übernahme ist eine Änderung am Plan, und ein halb getippter Name soll nicht im
+  Kurzsatz stehen. Die Wurzel hat keinen Namen — sie ist der Meilenstein.
+  - **Ohne Wirkung, aber sichtbar.** `pruefeBedingung` liest den Namen nie. Im
+    Kurzsatz steht er **vor** dem Inhalt, nie statt seiner — „PreCheck AB: (…
+    ODER …)" ([bedingung-text.ts](../../src/core/status/bedingung-text.ts)); der
+    Name allein verbärge, was geprüft wird, und genau dort entstehen falsche
+    Regeln.
+  - **Er übersteht jeden Umbau**, weil jede Gruppe über die eine Stelle
+    `baueGruppe` entsteht ([bedingung-baum.ts](../../src/core/status/bedingung-baum.ts)):
+    `mitGruppenKindern`, `mitVerknuepfung` und `benenneBedingungsGruppe` laufen
+    hindurch. Umschalten, Kinder-Tausch und Laden sind die drei Stellen, an denen
+    ein Name sonst still verloren ginge (Laden: siehe Persistenz).
+    `benenneBedingungsGruppe` trimmt, kappt auf `MAX_GRUPPENNAME` (80, eine Quelle
+    für Editor und Normalisierung) und **entfernt** das Feld bei leerem Namen,
+    statt `name: ''` zu speichern. Verpacken legt eine **unbenannte** Hülle um eine
+    benannte Gruppe.
+- **Griff und ⋯-Menü statt sieben Icons**
+  ([ZeilenAktionen.tsx](../../src/plugins/meilensteine/ZeilenAktionen.tsx)). Jede
+  Zeile — Blatt wie Gruppe — trägt direkt hinter ihrem Inhalt den Griff zum
+  Ziehen und ein Menü: Nach oben · Nach unten · Eine Ebene höher — hinter die
+  eigene Gruppe · In die Gruppe darüber · In eine eigene Gruppe verpacken ·
+  entfernen. Per `ml-auto` an den rechten Rand geschoben, lag das Bündel bei
+  voller Breite eine halbe Bildschirmbreite von seiner Zeile entfernt.
+  - **Ohne Maus erreichbar** (Radix-DropdownMenu: Tab auf ⋯, Enter, Pfeiltasten).
+    Tastatur-Ereignisse enden am Menü: es liegt im Portal, React reicht seine
+    Ereignisse aber durch den Komponenten-Baum, und dort verschöben die
+    Pfeiltasten des Meilenstein-`TfTree` die Auswahl. Aus demselben Grund steht
+    `[role="menu"]` in den `BEDIENELEMENTE` des Konfigurations-Reiters — ohne ihn
+    klappte „Nach oben" den ganzen Regel-Bereich zu.
+  - **Ein gesperrter Eintrag sagt, warum.** Er bleibt sichtbar und nennt den
+    Grund in einer zweiten Zeile, statt zu verblassen („Nur möglich, wenn direkt
+    darüber eine Gruppe steht …"). Gesperrt `--tf-text-tertiary`, der Grund
+    `--tf-text-secondary` (5,33:1), weil er Bedeutung trägt.
+  - **[dropdown-menu.tsx](../../src/components/ui/dropdown-menu.tsx) ist nach
+    `context-menu.tsx` gebaut, ohne Animation.** Die shadcn-CLI (4.21)
+    installierte ein fremdes npm-Paket `cn` und importierte `cn` von dort (wieder
+    deinstalliert), und ihre Ausblend-Animation hielt das geschlossene Menü über
+    eine Sekunde mit `pointer-events: auto` im DOM.
+- **Gruppen klappen zu** (Pfeil im Kopf, nicht an der Wurzel). Zugeklappt zeigt
+  eine Gruppe „alle müssen zutreffen · ‹Kurzsatz›" bzw. „eine genügt · …", die
+  Quellspalten im Tooltip wie an der zugeklappten Meilenstein-Zeile; den Namen
+  lässt der Kurzsatz dort weg, er steht schon im Feld davor. **Die Klappen hängen
+  am Pfad — und Pfade sind flüchtig**: jeder Struktur-Umbau (verschieben, ein-
+  und ausrücken, verpacken, entfernen, ablegen) läuft über `umbau()` und setzt
+  sie zurück, sonst zeigte ein gemerkter Pfad auf einen anderen Knoten.
+  Anhängen, Umbenennen, Umschalten und Blatt-Änderungen verschieben keinen Pfad
+  und behalten sie.
+- **„+ Bedingung in ‚‹Name›'" nennt sein Ziel** — bei drei verschachtelten
+  Gruppen war einem „+ Bedingung" nicht anzusehen, wohin sie kommt. An der
+  Wurzel bleibt es „+ Bedingung".
 - **Ziele zeigen sich, sobald ein Zug läuft.** Vorher bekam eine Einfüge-Marke
   erst Farbe, wenn man sie genau traf — wer nicht weiß, dass es Ziele gibt, sucht
   keine. Dazu kommen zwei gröbere Gesten: eine Blattzeile meldet ihre **nähere
   Kante** (obere Hälfte = davor), und der **Gruppenkasten selbst** ist das
   „hier hinein"-Ziel. Die feinere Geste gewinnt, weil Marken und Zeilen ihre
   Ereignisse stoppen.
-- **Ein gesperrter Schalter sagt, warum.** „Ausrücken" auf der obersten Ebene ist
-  korrekt gesperrt, versprach im Tooltip aber weiter „Eine Ebene höher"; jetzt
-  steht dort der Grund. Und die Farbe: gesperrt lag bei `--tf-border-hover`
-  (gemessen 1,41:1 über Weiß — unsichtbar), aktiv bei `--tf-text-tertiary`
-  (2,61:1). Jetzt 2,61:1 gesperrt und `--tf-text-secondary` (5,33:1) aktiv.
 
 Neu ist dazu **„in eine eigene Gruppe verpacken"** (`verpackeBedingungInGruppe`):
 weil viele Meilensteine aus mehreren Gruppen bestehen, ist der Weg dorthin ein
@@ -340,12 +414,86 @@ zu verpacken ist bedeutungsneutral — eine Gruppe mit einem Kind wertet unter
 `alle` wie unter `einige` identisch aus. Deshalb ist es erlaubt, während das
 Einrücken über einen Nicht-Gruppen-Vorgänger gesperrt bleibt.
 
-Die zugeklappte Zeile fasst außerdem zusammen, **woran** ein Meilenstein hängt
-(Bedingung in Kurzform über den EINEN Formatierer `bedingungSatz`, Typ-Beschränkung,
-Ist-Termin-Feld, Zahl der Unter-Meilensteine). Der Formatierer nimmt dafür seit
+Die zugeklappte Meilenstein-Zeile fasst außerdem zusammen, **woran** ein
+Meilenstein hängt (Bedingung in Kurzform über den EINEN Formatierer
+`bedingungSatz`, benannte Gruppen mit ihrem Namen vor dem Inhalt,
+Typ-Beschränkung, Ist-Termin-Feld, Zahl der Unter-Meilensteine). Der Formatierer nimmt dafür seit
 v5.2 wahlweise eine Katalog-Fassung **oder** einen Namens-Auflöser
 (`FeldLabelQuelle`) — der Meilenstein-Plan hat keine Fassung, und ein zweiter
 Formatierer liefe beim ersten neuen Operator still auseinander.
+
+### Probe am Bestand
+
+Anlass (PL, 11.09.2026): „Würde man dann beim Bauen der Meilensteine sehen,
+welche Auswirkungen diese haben?" Bis dahin zeigte sich eine Regel erst nach
+Speichern, Freigeben und Neuberechnen. Jetzt steht im Konfigurations-Reiter unter
+dem Editor eines Meilensteins „Probe · Richtlinie 2025: erfüllt bei 988 von 1.094
+offenen · 347 von 429 abgeschlossenen · unverändert gegenüber Fassung 37" — mit
+Differenz hinter der Zahl, sobald der Entwurf abweicht („(−985)") — und im Kopf
+jeder Gruppe außer der Wurzel „trifft 1.000/1.094 offen · 359/429 abgeschl.".
+Rechnung rein in [probe.ts](../../src/core/meilensteine/probe.ts), Laden in
+[useMeilensteinProbe.ts](../../src/plugins/meilensteine/useMeilensteinProbe.ts),
+Anzeige in [ProbeAnzeige.tsx](../../src/plugins/meilensteine/ProbeAnzeige.tsx);
+Entscheidungen und Abweichungen in der
+[Spec](../superpowers/specs/2026-09-11-bedingungs-editor-gruppen.md). Nur das
+Meilenstein-Modul reicht eine Probe in den Editor.
+
+- **Die Grundmenge ist die aktuelle Richtlinie, nicht der Chip im Seitenkopf**
+  (`AKTUELLE_RICHTLINIE`, heute Richtlinie 2025 = Programme 136–139); auch der
+  Eingangs-Zeitraum wirkt nicht. Die Probe prüft eine Regel und ist kein
+  Arbeitsvorrat; der Bereich bleibt ein expliziter Parameter (Pitfall #46), hier
+  bewusst ein fester — und die PL wollte es so: „nur für die aktuelle richtlinie,
+  dann sind es weniger daten zu laden". Die Anzeige nennt die Grundmenge an jeder
+  Zahl.
+- **Kein zweiter Evaluator.** Gruppen zählen über `pruefeBedingung`, mit dem
+  Nenner des Meilensteins (`nurTypen` über `giltFuerTyp`, dafür aus
+  [bewertung.ts](../../src/core/meilensteine/bewertung.ts) exportiert — eine
+  zweite Fassung liefe beim ersten neuen Typ still auseinander). Meilensteine
+  zählen über `bewerteVerbund`: Eltern-ODER-Regel, `nurTypen` und
+  `ohneBedingung` gelten wie in Übersicht und Auswertung; `nichtRelevant` und
+  `ohneBedingung` zählen in keinen Nenner („ohne Bedingung — nichts zu zählen").
+  Die Wurzel bekommt keine Gruppenzahl: daneben steht die des ganzen
+  Meilensteins, die mit Unter-Meilensteinen rechnet — zwei Zahlen für scheinbar
+  dasselbe wären ein Widerspruch.
+- **Lesepfad.** Der Antrags-Store hat keinen Index auf `unterprogramm_id`, und im
+  Bestand steht EIN Programm („default-programm") mit allen 14 225 Anträgen — ein
+  Lesen je Programm läse alles. Deshalb wird die Listen-Projektion (24 Felder,
+  `getAll` 222 ms) nach Richtlinie gefiltert; nur deren 2 537 Schlüssel
+  (1 793 Verbünde: 1 317 offen, 476 abgeschlossen) liest `getAntraegeByKeys` in
+  Blöcken zu 500 voll, und jeder Block wird sofort auf die Felder des
+  Spalten-Katalogs projiziert — die 461-Feld-Records bleiben nie im Speicher.
+  Ladezeit 0,8 s (gemessen 11.09.2026, dev:local, echter Bestand).
+- **Einmal laden, dann live.** Angestoßen wird beim ersten Aufklappen eines
+  Regel-Bereichs oder Anlegen eines Meilensteins — ein Ereignis, kein
+  Mount-Effekt: wer nur die Liste ansieht, lädt nichts. Danach bleibt der Bestand
+  im Speicher; die Kontexte werden neu gebaut, wenn sich die **Feldmenge** von
+  Entwurf oder Fassung ändert, nicht bei jedem Tastendruck. Stichtag ist der
+  Ladezeitpunkt; der Tooltip nennt Umfang, Stand und Ladezeit. Scheitert das
+  Laden, steht „nicht möglich — …" mit „Erneut versuchen" (`useAsyncAction`,
+  Pitfall #15). Das trennt die Probe von der Regel-Wirkung der To-do-Regeln: die
+  läuft auf Knopfdruck über den ganzen Bereich.
+- **Vergleich mit der freigegebenen Fassung.** Entwurf und
+  `freigegebeneFassung` werden über denselben Bestand gezählt; die Anzeige sagt
+  „unverändert gegenüber Fassung n", „Differenz zur freigegebenen Fassung n" oder
+  „neu gegenüber Fassung n".
+- **Offen und abgeschlossen getrennt — als Plausibilitätsprüfung.**
+  „Abgeschlossen" ist der terminale Leit-Status (Verbund-Status, sonst der des
+  ersten Teilvorhabens), derselbe Schnitt wie in der Projektion. Dort müsste fast
+  jeder Meilenstein erfüllt sein; trifft eine Bedingung dort wenig, liest sie
+  vermutlich die falsche Spalte — die Prüfung, die ein „unbestätigt" im Plan
+  nicht leisten kann.
+- **Inaktive Knoten zählen in je einem eigenen Lauf**, in dem nur sie aktiv sind
+  („inaktiv — gezählt, als wäre er aktiv"). Gerade sie baut die PL: die
+  unbestätigten Knoten des Auslieferungs-Plans sind inaktiv. Die übrigen Knoten
+  behalten die Zahl des echten Plans — ein zusätzlich aktivierter Kind-Knoten
+  verschöbe sonst die Eltern-ODER-Regel seiner Eltern, und die Probe
+  widerspräche der Auswertung.
+- **Keine Warnschwelle.** Welcher Anteil bei abgeschlossenen Verbünden plausibel
+  ist, hängt am Meilenstein und ist nicht gemessen. Die Zahl steht da; das Urteil
+  fällt die PL.
+- **Nachbarzahl** (11.09.2026): der Offen-Nenner der Probe, 1 317, ist genau die
+  Zahl offener Verbünde der gespeicherten Projektion in Richtlinie 2025; nach
+  FuE/DS gefiltert sind es beidseitig 1 094 — der Nenner an Meilenstein 3.
 
 ### Der Baum-Editor (v4.4)
 

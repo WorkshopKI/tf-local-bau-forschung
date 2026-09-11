@@ -31,6 +31,7 @@ import { History } from 'lucide-react';
 import { useMeilensteinPlan, type MeilensteinPlanApi } from './useMeilensteinPlan';
 import { useMeilensteinStand } from './useMeilensteinStand';
 import { KonfigurationTab } from './KonfigurationTab';
+import { useMeilensteinProbe } from './useMeilensteinProbe';
 import { UebersichtTab } from './UebersichtTab';
 import { DieseWocheTab } from './DieseWocheTab';
 import { AuswertungTab } from './AuswertungTab';
@@ -220,6 +221,8 @@ function KeinPlanHinweis({ onZurKonfiguration }: { onZurKonfiguration: () => voi
 export function MeilensteinePage(): React.ReactElement {
   const planApi = useMeilensteinPlan();
   const stand = useMeilensteinStand();
+  // Lädt erst, wenn im Konfigurations-Reiter ein Regel-Bereich aufgeht.
+  const probe = useMeilensteinProbe(planApi.entwurf, planApi.gespeichert, planApi.schemas, planApi.spalten);
   const [tab, setTabState] = useState<TabKey>(ladeTab);
 
   // Eingangs-Zeitraum: EIN Vorfilter für Übersicht und Auswertung. Beide Tabs
@@ -405,6 +408,7 @@ export function MeilensteinePage(): React.ReactElement {
                   schreibgeschuetzt={!planApi.darfSchreiben}
                   onKnoten={planApi.setKnoten}
                   onGesamtfrist={planApi.setGesamtfrist}
+                  probe={probe}
                 />
               )}
               <FassungenPanel api={planApi} />

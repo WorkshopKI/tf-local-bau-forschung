@@ -516,8 +516,11 @@ export type Werkzeug = 'gutachten' | 'nachforderung' | 'ablehnung';
  * `feldId` fiele aus dem Auswertungs-Kontext und evaluierte still zu `false`.
  */
 export type Bedingung =
-  | { alle: Bedingung[] }
-  | { einige: Bedingung[] }
+  /** Gruppen tragen optional einen **Namen** — ein Etikett für Editor und
+   *  Kurzsatz („PreCheck AB"), ohne jede Wirkung auf die Auswertung:
+   *  `pruefeBedingung` liest ihn nie. */
+  | { alle: Bedingung[]; name?: string }
+  | { einige: Bedingung[]; name?: string }
   | { feldId: string; op: 'ist' | 'istNicht' | 'gefuellt' | 'leer'; wert?: string }
   /** Feld-Datum liegt vor/nach `heute + tageRelativHeute`. `datumVor` mit `0`
    *  ist zugleich „heute ist über den Termin hinaus" — dafür braucht es keinen

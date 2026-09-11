@@ -19,6 +19,18 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v6.59 — 2026-09
+
+### Neu
+- Beim Bauen eines Meilensteins zeigt die Konfiguration eine Probe am Bestand: wie viele offene und wie viele abgeschlossene Verbünde der Richtlinie 2025 der Meilenstein und jede seiner Gruppen treffen – und was sich gegenüber der freigegebenen Fassung ändert. Die Verbünde werden beim ersten Aufklappen einer Regel einmal geladen, danach rechnet die Probe bei jeder Änderung sofort mit.
+- Bedingungs-Gruppen lassen sich benennen, etwa „PreCheck AB“. Der Name steht im Kopf der Gruppe und in der Kurzfassung der Regel vor ihrem Inhalt; an der Auswertung ändert er nichts.
+### Verbesserungen
+- Der Bereich „Erfüllt, wenn“ ist übersichtlicher: Ein Schalter „alle | eine“ legt fest, wie die Bedingungen einer Gruppe zusammenwirken, zwischen den Zeilen steht klein „und“ bzw. „oder“. Feld und Vergleich stehen in festen Spalten untereinander.
+- Statt sieben Symbolen je Zeile gibt es einen Griff zum Ziehen und ein Menü (⋯) zum Verschieben, Ein- und Ausrücken, Verpacken und Entfernen – auch per Tastatur. Was gerade nicht geht, nennt dort seinen Grund.
+- Gruppen lassen sich zuklappen und zeigen dann ihre Regel in einem Satz. Der Knopf „+ Bedingung in ‚PreCheck AB‘“ sagt, wohin eine neue Bedingung kommt.
+- Derselbe Bedingungs-Bereich gilt beim Bearbeiten der To-do-Regeln im Status-Cockpit und im Dialog „Eigene Spalte“ der Förderanträge – dort ohne Probe.
+- Gruppennamen kennt erst diese Version: Ältere Versionen zeigen die Gruppe ohne Namen, die Regel wirkt dort unverändert. Wer den Plan mit einer älteren Version speichert, speichert ihn ohne die Namen.
+
 ## v6.57 — 2026-09
 
 ### Verbesserungen

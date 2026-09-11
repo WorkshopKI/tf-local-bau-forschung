@@ -107,6 +107,24 @@ describe('normalisiereBedingung', () => {
   it('lässt eine ECHT leere UND-Gruppe unangetastet', () => {
     expect(normalisiereBedingung({ alle: [] })).toEqual({ alle: [] });
   });
+
+  it('der Gruppenname überlebt den Roundtrip — getrimmt, leer verworfen, gekappt', () => {
+    const blatt = { feldId: 'a', op: 'gefuellt' } as const;
+    expect(normalisiereBedingung({ einige: [blatt], name: '  PreCheck AB ' }))
+      .toEqual({ einige: [blatt], name: 'PreCheck AB' });
+    expect(normalisiereBedingung({ alle: [{ einige: [blatt], name: 'innen' }], name: 'außen' }))
+      .toEqual({ alle: [{ einige: [blatt], name: 'innen' }], name: 'außen' });
+    expect(normalisiereBedingung({ alle: [blatt], name: '   ' })).toEqual({ alle: [blatt] });
+    expect(normalisiereBedingung({ alle: [blatt], name: 42 })).toEqual({ alle: [blatt] });
+    expect((normalisiereBedingung({ alle: [blatt], name: 'x'.repeat(200) }) as { name: string }).name)
+      .toHaveLength(80);
+  });
+
+  it('der Sicherheits-Rückfall einer UND-Gruppe behält ihren Namen', () => {
+    // Sonst sähe man nicht mehr, WELCHE Gruppe beim Laden kaputt ging.
+    expect(normalisiereBedingung({ alle: [{ op: 'kaputt' }], name: 'PreCheck' }))
+      .toEqual({ einige: [], name: 'PreCheck' });
+  });
 });
 
 describe('normalisiereKnoten', () => {

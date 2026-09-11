@@ -40,6 +40,8 @@ import { feldQuellen } from '@/core/status/bedingung-quellen';
 import { berechneAutoHoehe } from '@/core/utils/autoGrowHoehe';
 import { ANTRAGSTYP_BUCKETS } from '@/core/utils/vb-phase-mappings';
 import { BedingungEditor } from './BedingungEditor';
+import { GruppenProbe, MeilensteinProbe } from './ProbeAnzeige';
+import type { MeilensteinProbeApi } from './useMeilensteinProbe';
 import { ANKER_ERKLAERUNG, TYP_LABEL, feldStil, spaltenLabel } from './labels';
 import {
   MEILENSTEIN_BAUM_ROOT, baueMeilensteinBaum, type MeilensteinBaumKnoten,
@@ -52,6 +54,8 @@ interface Props {
   schreibgeschuetzt: boolean;
   onKnoten: (k: MeilensteinKnoten[]) => void;
   onGesamtfrist: (tage: number) => void;
+  /** Probe am Bestand — ohne sie zeigt der Reiter keine Zahlen. */
+  probe?: MeilensteinProbeApi;
 }
 
 /**
@@ -292,14 +296,19 @@ function Beschriftung({ children }: { children: React.ReactNode }): React.ReactE
 }
 
 /** Detail-Bereich unter dem ausgewählten Knoten. */
-function KnotenKoerper({ knoten, alle, spalten, schreibgeschuetzt, onKnoten }: {
+function KnotenKoerper({ knoten, alle, spalten, schreibgeschuetzt, probe, onKnoten }: {
   knoten: MeilensteinKnoten;
   alle: MeilensteinKnoten[];
   spalten: SpaltenEintrag[];
   schreibgeschuetzt: boolean;
+  probe?: MeilensteinProbeApi;
   onKnoten: (k: MeilensteinKnoten[]) => void;
 }): React.ReactElement {
   const patch = (p: Partial<MeilensteinKnoten>): void => onKnoten(aendereKnoten(alle, knoten.id, p));
+  const ohneBedingung = useMemo(
+    () => knotenOhneBedingung(alle).some(k => k.id === knoten.id),
+    [alle, knoten.id],
+  );
 
   // Bezeichnung UND Beschreibung speisen den Vorschlag — das entscheidende Wort
   // steht oft erst in der Beschreibung („Bearbeiter mit passender Expertise …").
@@ -392,8 +401,17 @@ function KnotenKoerper({ knoten, alle, spalten, schreibgeschuetzt, onKnoten }: {
                   bedingung={knoten.bedingung}
                   spalten={spalten}
                   vorschlaege={vorschlaege}
+                  // Die Gruppe zählt mit dem Nenner DIESES Meilensteins
+                  // (`nurTypen`) — sonst stünde im Kopf eine Zahl über Verbünde,
+                  // für die er gar nicht gilt.
+                  probe={probe?.bereit
+                    ? g => <GruppenProbe zahlen={probe.zaehle(g, knoten.nurTypen)} grundmenge={probe.grundmenge} />
+                    : undefined}
                   onChange={b => patch({ bedingung: b })}
                 />
+                {probe && (
+                  <MeilensteinProbe probe={probe} knotenId={knoten.id} ohneBedingung={ohneBedingung} />
+                )}
               </div>
             )}
           </div>
@@ -448,11 +466,16 @@ function Menue({ knoten, alle, onKnoten, onErgaenzen }: {
  * Bedienelemente der Zeile: ein Klick darauf meint das Element, nicht den
  * Regel-Bereich. Der Zeilen-Klick läuft in der Capture-Phase und sieht deshalb
  * auch die Klicks, die das Element selbst später stoppt.
+ *
+ * `[role="menu"]`: das ⋯-Menü des Bedingungs-Editors liegt im Portal, React
+ * reicht seine Klicks aber durch den Komponenten-Baum bis hierher — und seine
+ * Einträge sind `div`s, keine Buttons. Ohne diesen Eintrag klappte „Nach oben"
+ * den ganzen Regel-Bereich zu.
  */
-const BEDIENELEMENTE = 'input, select, textarea, button, label, [draggable="true"]';
+const BEDIENELEMENTE = 'input, select, textarea, button, label, [draggable="true"], [role="menu"]';
 
 export function KonfigurationTab({
-  knoten, gesamtfristTage, spalten, schreibgeschuetzt, onKnoten, onGesamtfrist,
+  knoten, gesamtfristTage, spalten, schreibgeschuetzt, onKnoten, onGesamtfrist, probe,
 }: Props): React.ReactElement {
   const [offen, setOffen] = useState<string[]>([]);
   const [gewaehlt, setGewaehlt] = useState<string[]>([]);
@@ -464,8 +487,12 @@ export function KonfigurationTab({
   const unbestaetigt = knoten.filter(k => k.unbestaetigt).length;
   const planEnde = useMemo(() => planEndeTage(knoten), [knoten]);
 
-  const schalteKoerper = (id: string): void =>
+  const schalteKoerper = (id: string): void => {
+    // Das erste Aufklappen eines Regel-Bereichs lädt die Probe — ein Ereignis,
+    // kein Mount-Effekt: wer nur die Liste ansieht, lädt nichts.
+    if (!koerperOffen.includes(id)) probe?.starte();
     setKoerperOffen(o => (o.includes(id) ? o.filter(x => x !== id) : [...o, id]));
+  };
 
   /**
    * Anlegen MIT sichtbarem Ergebnis: der neue Knoten steht unter einer
@@ -481,6 +508,7 @@ export function KonfigurationTab({
     if (elternId !== null) setOffen(o => (o.includes(elternId) ? o : [...o, elternId]));
     setKoerperOffen(o => (o.includes(neu.id) ? o : [...o, neu.id]));
     setFrischeId(neu.id);
+    probe?.starte();
   };
 
   return (
@@ -603,6 +631,7 @@ export function KonfigurationTab({
                 alle={knoten}
                 spalten={spalten}
                 schreibgeschuetzt={schreibgeschuetzt}
+                probe={probe}
                 onKnoten={onKnoten}
               />
             ) : null),

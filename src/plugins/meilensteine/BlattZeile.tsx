@@ -11,7 +11,7 @@
  * Ein Tippfehler kann so keinen Meilenstein still unerfüllbar machen.
  */
 import { FeldWaehler, type FeldWaehlerVorschlag } from '@/components/ui/FeldWaehler';
-import type { Bedingung } from '@/core/status';
+import type { Bedingung, BedingungsGruppe } from '@/core/status';
 import { VB_PHASE_LABELS } from '@/core/utils/vb-phase-mappings';
 import { STATUS_FELDER, bekannteStatusWerte, type SpaltenEintrag } from '@/core/meilensteine';
 import { OPERATOR_LABEL, feldStil } from './labels';
@@ -55,7 +55,7 @@ const selectKlasse =
  */
 export type FeldPruefung = (feldId: string) => string | null;
 
-export type Blatt = Exclude<Bedingung, { alle: Bedingung[] } | { einige: Bedingung[] }>;
+export type Blatt = Exclude<Bedingung, BedingungsGruppe>;
 
 export function BlattZeile({ blatt, spalten, pruefeFeld, vorschlaege, onChange, aktionen }: {
   blatt: Blatt;
@@ -127,19 +127,22 @@ export function BlattZeile({ blatt, spalten, pruefeFeld, vorschlaege, onChange, 
   return (
     <div className="flex flex-col gap-0.5">
       <div className="flex items-center gap-1 flex-wrap">
+        {/* Feste Breiten für Feld und Operator (v6.59): Geschwister-Zeilen
+            fluchten dann untereinander, und eine Gruppe liest sich als Tabelle
+            statt als Flattersatz. */}
         <FeldWaehler
           spalten={spalten}
           wert={blatt.feldId}
           onWaehle={setFeld}
           vorschlaege={vorschlaege}
           ariaLabel="Feld"
-          className="max-w-[240px]"
+          className="w-[240px]"
         />
 
         <select
           value={blatt.op}
           onChange={e => setOperator(e.target.value)}
-          className={selectKlasse}
+          className={`${selectKlasse} w-[168px]`}
           style={feldStil}
           aria-label="Operator"
         >
@@ -234,7 +237,9 @@ export function BlattZeile({ blatt, spalten, pruefeFeld, vorschlaege, onChange, 
           </span>
         )}
 
-        <span className="ml-auto">{aktionen}</span>
+        {/* Direkt hinter dem Inhalt, nicht am rechten Rand: dort lag das
+            Bündel bei voller Breite eine halbe Bildschirmbreite entfernt. */}
+        <span className="ml-1">{aktionen}</span>
       </div>
       {monita.map(m => (
         <p key={m} className="text-[11.5px] text-[var(--tf-danger-text)] pl-0.5">{m}</p>

@@ -17,6 +17,12 @@
  *
  * Die Farbe ist `--tf-text-secondary` (gemessen 5,33:1): das Wort trägt
  * Bedeutung und muss lesbar sein — `--tf-text-tertiary` läge mit 2,61:1 unter AA.
+ *
+ * **Klein und in Gewicht 500** (v6.59): „und / oder" statt „UND / ODER" in 600.
+ * Der Schalter im Gruppenkopf sagt „alle / eine"; das Wort hier ist sein Echo
+ * zwischen den Zeilen, kein zweites Bedienelement — und Versalien in Gewicht
+ * 600 zogen den Blick auf die Fuge statt auf die Bedingungen (DESIGN_GUIDE:
+ * keine Versalien außerhalb von Abschnittsköpfen, nie 600).
  */
 import type { BedingungsPfad } from '@/core/status';
 
@@ -32,8 +38,8 @@ export const RINNE_BREITE = 'w-[38px]';
 export function Rinne({ wort }: { wort: string | null }): React.ReactElement {
   return (
     <span
-      className={`${RINNE_BREITE} shrink-0 self-start pt-[3px] pr-1.5 text-right select-none
-        text-[10.5px] font-semibold leading-[16px] tracking-[0.06em]
+      className={`${RINNE_BREITE} shrink-0 self-start pt-[4px] pr-1.5 text-right select-none
+        text-[11px] font-medium leading-[16px]
         text-[var(--tf-text-secondary)]`}
     >
       {wort ?? ''}

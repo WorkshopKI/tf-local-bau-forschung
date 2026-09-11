@@ -8,12 +8,15 @@
 import { describe, expect, it } from 'vitest';
 import type { Bedingung } from '../typen';
 import {
-  darfBedingungAusruecken, darfBedingungEinruecken, darfBedingungVerschieben, entferneBedingungAn, ersetzeBedingungAn,
-  fuegeBedingungEin, holeBedingungAn, istBedingungsGruppe, gruppenKinder, pfadLiegtUnter, mitGruppenKindern, rueckeBedingungAus,
+  benenneBedingungsGruppe, darfBedingungAusruecken, darfBedingungEinruecken, darfBedingungVerschieben,
+  entferneBedingungAn, ersetzeBedingungAn,
+  fuegeBedingungEin, holeBedingungAn, istBedingungsGruppe, gruppenKinder, pfadLiegtUnter, mitGruppenKindern,
+  mitVerknuepfung, rueckeBedingungAus,
   rueckeBedingungEin, bedingungsTiefe, verpackeBedingungInGruppe, verschiebeBedingung,
   verschiebeBedingungsGeschwister,
 } from '../bedingung-baum';
-import { bedingungAlsText } from '../bedingung-text';
+import { baueKontext, pruefeBedingung } from '../bedingung';
+import { bedingungAlsText, bedingungSatz } from '../bedingung-text';
 
 const a: Bedingung = { feldId: 'tib_kuerz', op: 'gefuellt' };
 const b: Bedingung = { feldId: 'bib_kuerz', op: 'gefuellt' };
@@ -216,5 +219,77 @@ describe('bedingung-baum · Verpacken', () => {
     expect(darfBedingungAusruecken([1, 0])).toBe(true);
     expect(rueckeBedingungAus(verpackt, [1, 0]))
       .toEqual({ alle: [a, { alle: [] }, b, { einige: [c] }] });
+  });
+});
+
+/*
+ * Der Gruppenname ist ein Etikett ohne Aussage — aber er darf bei keinem Umbau
+ * verloren gehen. Die Gefahr liegt dort, wo eine Gruppe NEU gebaut wird
+ * (`mitGruppenKindern`, Umschalten der Verknüpfung): ein `{ alle: kinder }`
+ * statt einer Kopie, und der Name ist beim nächsten Klick still weg.
+ */
+describe('bedingung-baum · Gruppenname', () => {
+  const namen = (feldId: string): string => feldId;
+  /** `{ alle: [a, { einige: [b, c], name: 'PreCheck' }] }` */
+  const benannt = (): Bedingung => ({ alle: [a, { einige: [b, c], name: 'PreCheck' }] });
+  const nameAn = (root: Bedingung, pfad: number[]): string | undefined => {
+    const k = holeBedingungAn(root, pfad);
+    return k && istBedingungsGruppe(k) ? k.name : undefined;
+  };
+
+  it('mitGruppenKindern behält den Namen', () => {
+    expect(mitGruppenKindern({ einige: [a], name: 'X' }, [b])).toEqual({ einige: [b], name: 'X' });
+  });
+
+  it('mitVerknuepfung schaltet um und behält Name und Kinder', () => {
+    expect(mitVerknuepfung({ einige: [a, b], name: 'X' }, 'alle')).toEqual({ alle: [a, b], name: 'X' });
+    expect(mitVerknuepfung({ alle: [a] }, 'einige')).toEqual({ einige: [a] });
+  });
+
+  it('benenneBedingungsGruppe setzt, trimmt und entfernt den Namen', () => {
+    expect(nameAn(benenneBedingungsGruppe(benannt(), [1], '  PreCheck AB  '), [1])).toBe('PreCheck AB');
+    const geleert = benenneBedingungsGruppe(benannt(), [1], '   ');
+    expect(holeBedingungAn(geleert, [1])).toEqual({ einige: [b, c] });
+    expect('name' in (holeBedingungAn(geleert, [1]) as object)).toBe(false);
+  });
+
+  it('benenneBedingungsGruppe lässt Blätter und tote Pfade unangetastet', () => {
+    expect(benenneBedingungsGruppe(benannt(), [0], 'X')).toEqual(benannt());
+    expect(benenneBedingungsGruppe(benannt(), [9], 'X')).toEqual(benannt());
+  });
+
+  it('überlebt jeden Umbau in und um die Gruppe', () => {
+    expect(nameAn(ersetzeBedingungAn(benannt(), [1, 0], a), [1])).toBe('PreCheck');
+    expect(nameAn(entferneBedingungAn(benannt(), [1, 0]), [1])).toBe('PreCheck');
+    expect(nameAn(fuegeBedingungEin(benannt(), [1], 0, a), [1])).toBe('PreCheck');
+    expect(nameAn(verschiebeBedingungsGeschwister(benannt(), [1, 1], 'hoch'), [1])).toBe('PreCheck');
+    // Die Gruppe selbst wandert — ihr Name wandert mit.
+    expect(nameAn(verschiebeBedingungsGeschwister(benannt(), [1], 'hoch'), [0])).toBe('PreCheck');
+    expect(nameAn(verschiebeBedingung(benannt(), [0], [1], 0), [0])).toBe('PreCheck');
+    expect(nameAn(rueckeBedingungEin({ alle: [{ einige: [b], name: 'N' }, a] }, [1]), [0])).toBe('N');
+    expect(nameAn(rueckeBedingungAus(benannt(), [1, 0]), [1])).toBe('PreCheck');
+  });
+
+  it('verpacken legt eine UNBENANNTE Hülle um die benannte Gruppe', () => {
+    const verpackt = verpackeBedingungInGruppe(benannt(), [1]);
+    expect(nameAn(verpackt, [1])).toBeUndefined();
+    expect(nameAn(verpackt, [1, 0])).toBe('PreCheck');
+  });
+
+  it('der Evaluator ignoriert den Namen', () => {
+    const ctx = baueKontext({ bib_kuerz: 'AB' });
+    const ohne: Bedingung = { alle: [a, { einige: [b, c] }] };
+    expect(pruefeBedingung(benannt(), ctx)).toBe(pruefeBedingung(ohne, ctx));
+    expect(pruefeBedingung({ einige: [b], name: 'N' }, ctx)).toBe(true);
+  });
+
+  it('der Formatierer stellt den Namen VOR den Inhalt', () => {
+    expect(bedingungAlsText({ einige: [b, c], name: 'PreCheck' }, namen))
+      .toBe('PreCheck: (bib_kuerz gefüllt ODER status ist „beantragt")');
+    expect(bedingungSatz(benannt(), namen))
+      .toBe('tib_kuerz gefüllt UND PreCheck: (bib_kuerz gefüllt ODER status ist „beantragt")');
+    // Ohne Namen bleibt der Satz wie bisher.
+    expect(bedingungSatz({ alle: [a, { einige: [b, c] }] }, namen))
+      .toBe('tib_kuerz gefüllt UND (bib_kuerz gefüllt ODER status ist „beantragt")');
   });
 });

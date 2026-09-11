@@ -27,6 +27,7 @@ import type { IDBStore } from '@/core/services/storage/idb-store';
 import { atomicWrite, readText } from '@/core/services/infrastructure/atomic-write';
 import { getDatenShareHandle, queryPermission } from '@/core/services/infrastructure/smb-handle';
 import type { Bedingung } from '@/core/status';
+import { MAX_GRUPPENNAME } from '@/core/status/bedingung-baum';
 import { ANTRAGSTYP_BUCKETS } from '@/core/utils/vb-phase-mappings';
 import type {
   AntragstypBucket, MeilensteinKnoten, MeilensteinPlan, MeilensteinPlanSnapshot,
@@ -78,6 +79,13 @@ export function normalisiereBedingung(raw: unknown): Bedingung | null {
   if (typeof raw !== 'object' || raw === null) return null;
   const b = raw as Record<string, unknown>;
 
+  // Der Gruppenname ist ein Etikett ohne Aussage — er muss den Neustart
+  // trotzdem überleben, sonst ist er am Folgetag weg (dieselbe Falle wie bei den
+  // drei Operatoren bis v4.3). Er bleibt auch am Sicherheits-Rückfall unten
+  // stehen: sonst sähe man nicht mehr, WELCHE Gruppe beim Laden zerbrach.
+  const name = typeof b.name === 'string' ? b.name.trim().slice(0, MAX_GRUPPENNAME).trimEnd() : '';
+  const benannt = <G extends Bedingung>(g: G): G => (name ? { ...g, name } : g);
+
   if (Array.isArray(b.alle)) {
     const kinder = b.alle.map(normalisiereBedingung).filter((x): x is Bedingung => x !== null);
     // Ein Verlust in einer UND-Gruppe LOCKERT die Bedingung: ein Zweig weniger
@@ -86,14 +94,14 @@ export function normalisiereBedingung(raw: unknown): Bedingung | null {
     // erreicht. Deshalb dieselbe sichere Richtung wie oben: nie erfüllt.
     // (`{alle: []}` als ECHTE Eingabe bleibt erlaubt und heißt weiter „immer
     // erfüllt"; der Editor sagt das an seiner leeren Gruppe auch so.)
-    if (kinder.length < b.alle.length) return { einige: [] };
-    return { alle: kinder };
+    if (kinder.length < b.alle.length) return benannt({ einige: [] });
+    return benannt({ alle: kinder });
   }
   if (Array.isArray(b.einige)) {
     // Umgekehrte Richtung: ein verlorener ODER-Zweig macht die Aussage STRENGER.
     // Durchfallen ist hier die sichere Wahl.
     const kinder = b.einige.map(normalisiereBedingung).filter((x): x is Bedingung => x !== null);
-    return { einige: kinder };
+    return benannt({ einige: kinder });
   }
 
   const feldId = asString(b.feldId).trim();

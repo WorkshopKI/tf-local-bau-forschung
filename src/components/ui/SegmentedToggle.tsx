@@ -12,11 +12,12 @@
  * Fett-Sprung verbreitert das Label und ruckelt bei jedem Wechsel den ganzen
  * Track (Pitfall #14, dieselbe Regel wie beim Haken-Slot der Toggle-Pills).
  *
- * Zwei additive Props fuer das Darstellungs-Menue (`DarstellungDropdown`), beide
- * mit dem bisherigen Verhalten als Default — die Bestandsaufrufer
- * (`FarbmodusToggle`, `MaListFilterBar`) bleiben unveraendert:
- * `rolle='auswahl'` fuer eine Einfachauswahl, die kein Tabpanel oeffnet, und
- * `breit` fuer die gestapelte Zeile, in der das Segment die Breite fuellt.
+ * Drei additive Props, alle mit dem bisherigen Verhalten als Default — die
+ * Bestandsaufrufer (`FarbmodusToggle`, `MaListFilterBar`) bleiben unveraendert:
+ * `rolle='auswahl'` fuer eine Einfachauswahl, die kein Tabpanel oeffnet,
+ * `breit` fuer die gestapelte Zeile, in der das Segment die Breite fuellt, und
+ * `dicht` fuer Formularzeilen (Bedingungs-Editor), die 20 statt 26 px hoch sind —
+ * sonst stuende der Schalter hoeher als die Auswahlfelder daneben.
  */
 export interface SegmentedToggleOption<T extends string> {
   id: T;
@@ -37,10 +38,12 @@ interface Props<T extends string> {
   rolle?: 'tabs' | 'auswahl';
   /** Fuellt die verfuegbare Breite, Optionen zu gleichen Teilen. */
   breit?: boolean;
+  /** Dichte Variante fuer Formularzeilen: 20 statt 26 px hoch. */
+  dicht?: boolean;
 }
 
 export function SegmentedToggle<T extends string>({
-  value, onChange, options, ariaLabel, rolle = 'tabs', breit = false,
+  value, onChange, options, ariaLabel, rolle = 'tabs', breit = false, dicht = false,
 }: Props<T>): React.ReactElement {
   const auswahl = rolle === 'auswahl';
   return (
@@ -50,8 +53,8 @@ export function SegmentedToggle<T extends string>({
       className={breit ? 'flex w-full items-center' : 'inline-flex items-center'}
       style={{
         border: '0.5px solid var(--tf-border)',
-        borderRadius: 8,
-        padding: 2,
+        borderRadius: dicht ? 6 : 8,
+        padding: dicht ? 1 : 2,
         background: 'var(--tf-bg-secondary)',
         gap: 0,
       }}
@@ -69,10 +72,10 @@ export function SegmentedToggle<T extends string>({
               breit ? ' flex-1 min-w-0' : ''
             } focus-visible:outline-2 focus-visible:outline-[var(--tf-primary)] focus-visible:outline-offset-1`}
             style={{
-              height: 26,
-              padding: '0 10px',
-              fontSize: 12,
-              borderRadius: 6,
+              height: dicht ? 20 : 26,
+              padding: dicht ? '0 8px' : '0 10px',
+              fontSize: dicht ? 11.5 : 12,
+              borderRadius: dicht ? 5 : 6,
               background: active ? 'var(--tf-bg)' : 'transparent',
               color: active ? 'var(--tf-text)' : 'var(--tf-text-secondary)',
               border: active ? '0.5px solid var(--tf-border)' : '0.5px solid transparent',

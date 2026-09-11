@@ -40,9 +40,9 @@ Tooltip an „Gesamtfrist" und an „Eingang" nennt die beiden Spalten.
   Schalter „aktiv" und „Frist") plus Fassungs-Leiste und frühere Fassungen.
 
   - Das Dreieck klappt die **Unter-Meilensteine** auf; ein Klick auf die Zeile
-    öffnet **darunter** Beschreibung, Antragstyp-Filter und den
-    Bedingungs-Editor — UND/ODER-Gruppen mit Feld, Operator und Wert aus den
-    gemappten CSV-Spalten.
+    öffnet **darunter** Beschreibung, Antragstyp-Filter und den Bereich
+    **„Erfüllt, wenn"**: Bedingungen aus Feld, Vergleich und Wert aus den
+    gemappten CSV-Spalten, zusammengefasst in Gruppen.
 
   - **Quellspalten**: Wer die Kurzform der Bedingung überfährt (auch in der
     Leiste und unter „Diese Woche" an der Bezeichnung), sieht, aus welchen
@@ -54,8 +54,9 @@ Tooltip an „Gesamtfrist" und an „Eingang" nennt die beiden Spalten.
 
   - **Die zugeklappte Zeile sagt, woran der Meilenstein hängt**: Bedingung in
     Kurzform, Antragstyp-Beschränkung (nur wenn es eine gibt), Ist-Termin-Feld
-    und die Zahl der Unter-Meilensteine. Das Bezeichnungsfeld ist dafür schmaler
-    und bricht bei langen Titeln auf zwei Zeilen um.
+    und die Zahl der Unter-Meilensteine. Eine benannte Gruppe steht dort mit
+    ihrem Namen vor dem Inhalt („PreCheck AB: (…)"). Das Bezeichnungsfeld ist
+    dafür schmaler und bricht bei langen Titeln auf zwei Zeilen um.
 
   - **Das Feld einer Bedingung wird in einer Auswahl-Tabelle gewählt**, nicht in
     einem Auswahlfeld: Suche über Kürzel, Beschreibung und rohen Spalten-Code,
@@ -63,23 +64,62 @@ Tooltip an „Gesamtfrist" und an „Eingang" nennt die beiden Spalten.
     per ↑/↓/Enter. Passt die Bezeichnung des Meilensteins zu Spalten, stehen
     diese oben als **Vorschlag** mit dem Wort, das sie ausgelöst hat. Ein
     Meilenstein ohne Bedingung bekommt zusätzlich eine Zeile „Vorschlag …
-    Übernehmen" — der Vorschlag wird nie von selbst gesetzt.
+    Übernehmen" — der Vorschlag wird nie von selbst gesetzt. Feld und Vergleich
+    stehen in festen Spalten, damit die Zeilen einer Gruppe untereinander
+    fluchten.
 
-  - **Bedingungen und Gruppen lassen sich nachträglich umhängen**: jede Zeile hat
-    Griff, Hoch, Runter, Aus- und Einrücken sowie „in eine eigene Gruppe
-    verpacken". Eingerückt wird nur in eine Gruppe, die schon darüber steht;
-    „+ Gruppe" liegt oben neben der Verknüpfung und legt eine Gruppe auf
-    **derselben** Ebene an. Gesperrte Schalter nennen im Tooltip den Grund.
+  - **Alle oder eine**: oben im Bereich und im Kopf jeder Gruppe legt ein
+    Schalter „alle | eine" fest, wie die Bedingungen zusammenwirken. Oben liest
+    sich das als Satz („Erfüllt, wenn alle der folgenden zutreffen" bzw. „eine
+    der folgenden zutrifft"), in einer Gruppe als „alle müssen zutreffen" bzw.
+    „eine genügt". Zwischen den Zeilen steht links klein „und" bzw. „oder",
+    auch vor und hinter einem Gruppenkasten. Eine Gruppe neben Bedingungen ist
+    damit erkennbar deren **Nachbarin**, keine Untergruppe.
 
-  - **Die Verknüpfung steht zwischen den Zeilen**: links vor jeder Bedingung ab
-    der zweiten steht „UND" bzw. „ODER", auch vor und hinter einem Gruppenkasten.
-    Eine Gruppe neben Bedingungen ist damit erkennbar deren **Nachbarin**, keine
-    Untergruppe; Gruppen heißen „GRUPPE 1", „GRUPPE 2" und tragen ihre
-    Verknüpfung im Kopf.
+  - **Gruppen tragen einen Namen**: ohne Namen steht grau „Gruppe 1",
+    „Gruppe 2" im Kopf; hineinklicken und tippen benennt sie („PreCheck AB").
+    Enter oder Wegklicken übernimmt, Esc verwirft. Der Name ist ein Etikett —
+    an der Auswertung ändert er nichts. Am Fuß jeder Gruppe sagt „+ Bedingung
+    in „PreCheck AB"", wohin eine neue Bedingung kommt; „+ Gruppe" oben neben
+    dem Schalter legt eine Gruppe auf **derselben** Ebene an.
+
+  - **Gruppen klappen zu**: der Pfeil vor dem Namen klappt eine Gruppe
+    zusammen. Sie zeigt dann „alle müssen zutreffen · …" bzw. „eine genügt · …"
+    mit ihrer Regel in einem Satz; wer ihn überfährt, sieht die Quellspalten.
+    Nach dem Verschieben, Ein- oder Ausrücken, Verpacken oder Entfernen klappen
+    alle Gruppen wieder auf.
+
+  - **Umhängen über Griff und Menü**: jede Bedingung und jede Gruppe trägt
+    direkt hinter ihrem Inhalt einen Griff zum Ziehen und ein Menü (⋯) mit
+    „Nach oben", „Nach unten", „Eine Ebene höher — hinter die eigene Gruppe",
+    „In die Gruppe darüber", „In eine eigene Gruppe verpacken" und
+    „entfernen". Das Menü geht auch per Tastatur (Tab, Enter, Pfeiltasten).
+    Was gerade nicht geht, bleibt im Menü stehen und nennt in einer zweiten
+    Zeile den Grund. Eingerückt wird nur in eine Gruppe, die schon darüber
+    steht.
 
   - **Beim Ziehen einer Bedingung zeigen sich alle möglichen Ablagestellen.**
     Zwischen zwei Zeilen legt eine Linie sie dort ab, auf einen Gruppenkasten
     gezogen landet sie in dieser Gruppe.
+
+  - **Probe am Bestand**: sobald der erste Regel-Bereich aufgeht, lädt die
+    Seite einmal die Verbünde der Richtlinie 2025 und rechnet danach bei jeder
+    Änderung sofort mit. Unter dem Bereich steht dann etwa „Probe · Richtlinie
+    2025: erfüllt bei 988 von 1.094 offenen · 347 von 429 abgeschlossenen ·
+    unverändert gegenüber Fassung 37". Ändert sich die Regel, stehen die
+    Differenzen zur freigegebenen Fassung dahinter, etwa „(−985)". Der Tooltip
+    nennt, über wie viele Verbünde gezählt wurde, den Stand und die Ladezeit.
+
+  - Im Kopf jeder Gruppe steht knapp, was sie allein trifft („trifft
+    1.000/1.094 offen · 359/429 abgeschl."). Gezählt wird nur über Verbünde,
+    für die der Meilenstein gilt (Antragstyp-Filter). Ein inaktiver
+    Meilenstein wird gezählt, als wäre er aktiv, und sagt das dazu; einer ohne
+    Bedingung sagt „nichts zu zählen".
+
+  - **Warum offen und abgeschlossen getrennt**: bei abgeschlossenen Verbünden
+    sollte fast jeder Meilenstein erfüllt sein. Trifft eine Bedingung dort
+    wenig, liest sie vermutlich die falsche Spalte. Eine Warnschwelle gibt es
+    bewusst nicht — die Zahl steht da, das Urteil fällt die Projektleitung.
 
   - **Mehrere Meilensteine bleiben gleichzeitig offen**, damit sich Regeln
     vergleichen lassen; die offene Zeile trägt links eine Kante, ein zweiter
@@ -121,4 +161,13 @@ Alles ab hier bekommt nur die KI — der Hilfe-Dialog schneidet es weg
 
 Vollbild-Seite (`/meilensteine`, Flag `meilensteinMonitoring`; dev/pl/as/kurator).
 Plan als Team-Sidecar, Ansicht gemerkt in `ansichtPersistenz.ts`;
-Architektur: `docs/architecture/meilensteine.md`.
+Architektur: `docs/architecture/meilensteine.md` (§ Der Bedingungs-Bereich,
+§ Probe am Bestand).
+
+Bedingungs-Editor: `BedingungEditor.tsx` + `ZeilenAktionen.tsx` (⋯-Menü) +
+`BlattZeile.tsx`, geteilt mit den To-do-Regeln des Status-Cockpits und dem
+Dialog „Eigene Spalte". Gruppenname = optionales `name` an `{alle}`/`{einige}`
+der `Bedingung`, max. 80 Zeichen, ohne Wirkung auf `pruefeBedingung`; Builds vor
+v6.59 verwerfen ihn beim Lesen. Probe: `probe.ts` (rein), `useMeilensteinProbe.ts`
+(lädt die Richtlinie 2025 einmal), `ProbeAnzeige.tsx`; nur im Meilenstein-Modul.
+Spec: `docs/superpowers/specs/2026-09-11-bedingungs-editor-gruppen.md`.

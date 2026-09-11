@@ -11,9 +11,13 @@ export {
   baueMeilensteinKontext, type FeldAufloesung,
 } from './felder';
 export {
-  bewerteVerbund, planEndeTage, knotenOhneBedingung, restTageBis, FAELLIG_FENSTER_TAGE,
+  bewerteVerbund, giltFuerTyp, planEndeTage, knotenOhneBedingung, restTageBis, FAELLIG_FENSTER_TAGE,
   type BewertungsEingabe,
 } from './bewertung';
+export {
+  baueProbeFaelle, probeMeilensteine, zaehleBedingung,
+  type KnotenProbe, type ProbeFall, type ProbeTeil, type ProbeVerbund, type ProbeZahlen,
+} from './probe';
 export {
   werteDauernAus, werteKnotenAus, zaehlePrognosen, bearbeitungsdauerTage, dauerBucket,
   DAUER_BUCKETS, DAUER_BUCKET_GRENZE,

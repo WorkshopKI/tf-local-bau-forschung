@@ -147,10 +147,20 @@ function fruehestesDatum(ctx: BedingungsKontext, feldIds: readonly string[]): st
 }
 
 /** Gilt der Knoten für diesen Verbund? Inaktive und typ-fremde zählen nirgends mit. */
+/**
+ * Gilt ein Knoten für diesen Antragstyp? Leere Liste = für alle. Exportiert,
+ * weil die Probe am Bestand (`probe.ts`) denselben Nenner braucht — eine zweite
+ * Fassung dieser Regel liefe beim ersten neuen Typ still auseinander.
+ */
+export function giltFuerTyp(
+  nurTypen: readonly AntragstypBucket[], typ: AntragstypBucket | null,
+): boolean {
+  if (nurTypen.length === 0) return true;
+  return typ !== null && nurTypen.includes(typ);
+}
+
 function istRelevant(k: MeilensteinKnoten, typ: AntragstypBucket | null): boolean {
-  if (!k.aktiv) return false;
-  if (k.nurTypen.length === 0) return true;
-  return typ !== null && k.nurTypen.includes(typ);
+  return k.aktiv && giltFuerTyp(k.nurTypen, typ);
 }
 
 interface KnotenBefund {

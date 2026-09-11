@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v6.59.0 — Bedingungs-Editor: benannte Gruppen und Probe am Bestand (September 2026)
+
+MINOR — Rückmeldung der PL nach dem ersten Anlegen: der Bedingungs-Bereich sei „noch nicht intuitiv und übersichtlich genug, gerade bei komplexeren und verschachtelten Gruppen", die Gruppennamen sollten änderbar sein — und man wolle beim Bauen sehen, was ein Meilenstein am Bestand trifft. Der gelobte Feld-Wähler bleibt. Builds vor v6.59 verwerfen den Gruppennamen beim Lesen; die Aussage der Regel bleibt gleich.
+
+- **Benannte Gruppen**: optionaler `name` an UND/ODER-Gruppen, übersteht jeden Umbau und das Laden, steht im Kurzsatz vor dem Inhalt ([bedingung-baum.ts](src/core/status/bedingung-baum.ts), [bedingung-text.ts](src/core/status/bedingung-text.ts), [plan-storage.ts](src/core/meilensteine/plan-storage.ts))
+- **Übersichtlicherer Editor**: Schalter „alle | eine", Rinne „und / oder", feste Spalten, Griff + ⋯-Menü statt sieben Icons, zuklappbare Gruppen, „+ Bedingung in ‚<Name>'" ([BedingungEditor.tsx](src/plugins/meilensteine/BedingungEditor.tsx), [ZeilenAktionen.tsx](src/plugins/meilensteine/ZeilenAktionen.tsx))
+- **Probe am Bestand** im Konfigurations-Reiter: Treffer je Gruppe und Meilenstein über die Richtlinie 2025, offen/abgeschlossen getrennt, Differenz zur freigegebenen Fassung ([probe.ts](src/core/meilensteine/probe.ts), [useMeilensteinProbe.ts](src/plugins/meilensteine/useMeilensteinProbe.ts), [ProbeAnzeige.tsx](src/plugins/meilensteine/ProbeAnzeige.tsx))
+- **UI-Bausteine**: neues `dropdown-menu.tsx` (ohne Animation, nach `context-menu.tsx`), `SegmentedToggle` mit Prop `dicht` ([dropdown-menu.tsx](src/components/ui/dropdown-menu.tsx), [SegmentedToggle.tsx](src/components/ui/SegmentedToggle.tsx))
+- Tests [bedingung-baum.test.ts](src/core/status/__tests__/bedingung-baum.test.ts), [plan-storage.test.ts](src/core/meilensteine/__tests__/plan-storage.test.ts), [probe.test.ts](src/core/meilensteine/__tests__/probe.test.ts); Doku [meilensteine.md](docs/architecture/meilensteine.md), [Spec](docs/superpowers/specs/2026-09-11-bedingungs-editor-gruppen.md), [feedback-kontext/meilensteine.md](docs/feedback-kontext/meilensteine.md)
+
 ### v6.58.0 — Kürzerer Durchlauf: Plan-Modus ab Schwelle, eine Spec, Doku-Agent (September 2026)
 
 MINOR — Der Durchlauf je Commit galt als langsam, verdächtigt waren die neuen Checks. Gemessen mit `npm run turnaround`: die Gates kosten 2,3 min und 1,3 rote Läufe je Commit — weniger als im August (3,0–3,2 min, 1,6–1,9); von 19,5 min Claude-aktiv sind 14,1 Modellzeit, dazu 4,7 min Warten auf Freigaben. Effort bleibt `xhigh`.
