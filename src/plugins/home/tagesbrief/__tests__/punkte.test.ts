@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import {
   entwuerfePunkt,
   feedbackPunkt,
-  meilensteinPunkte,
   nachtlaufPunkt,
   neuPunkt,
   registryPunkt,
@@ -12,7 +11,8 @@ import {
   zuTunPunkte,
   type FristRoh,
 } from '../punkte';
-import type { BriefPunkt } from '../typen';
+import { aktiveThemen, THEMEN } from '../themen';
+import type { BriefPunkt, ThemaId } from '../typen';
 
 const frist = (over: Partial<FristRoh> = {}): FristRoh => ({
   verbundId: 'VB1', akronym: 'HACKKI', grund: 'Gutachten offen', tage: 3, weitere: 0, ...over,
@@ -20,7 +20,6 @@ const frist = (over: Partial<FristRoh> = {}): FristRoh => ({
 
 /** Jeder Bauer, einmal mit Inhalt aufgerufen — für die Quer-Invarianten. */
 const ALLE_PUNKTE = (): BriefPunkt[] => [
-  ...meilensteinPunkte([frist()]),
   ...stillstandPunkte([frist({ tage: -9 })]),
   ...zuTunPunkte([{ scopeId: 'VB2', titel: 'ZKN', text: 'QS anstoßen', tage: 4, rueckfall: false }]),
   nachtlaufPunkt(3, 'über Nacht')!,
@@ -53,39 +52,31 @@ describe('punkte — satz und segmente können nicht auseinanderlaufen', () => {
     }
   });
 
-  it('nur die drei Uhr-Themen tragen eine Tageszahl', () => {
+  it('nur die zwei Uhr-Themen tragen eine Tageszahl', () => {
     const mitUhr = ALLE_PUNKTE().filter(p => p.tage !== null).map(p => p.themaId);
-    expect(new Set(mitUhr)).toEqual(new Set(['fristen', 'stillstand', 'zu-tun']));
+    expect(new Set(mitUhr)).toEqual(new Set(['stillstand', 'zu-tun']));
   });
 });
 
-describe('punkte — Frist-Sätze', () => {
+describe('punkte — Stillstands-Sätze', () => {
   it('unterscheidet überfällig, heute und bevorstehend', () => {
-    expect(meilensteinPunkte([frist({ tage: -4 })])[0]!.satz)
-      .toContain('seit 4 Tagen fällig');
-    expect(meilensteinPunkte([frist({ tage: 0 })])[0]!.satz)
-      .toContain('heute fällig');
-    expect(meilensteinPunkte([frist({ tage: 6 })])[0]!.satz)
-      .toContain('in 6 Tagen fällig');
-  });
-
-  it('Zieltage sprechen von Überfälligkeit, Meilensteine von Fälligkeit', () => {
-    // CONTEXT.md: Zieltage messen Stillstand, Meilensteine einen Termin —
-    // die beiden dürfen im Brief nicht gleich klingen.
-    expect(stillstandPunkte([frist({ tage: -9 })])[0]!.satz).toContain('überfällig');
-    expect(meilensteinPunkte([frist({ tage: -9 })])[0]!.satz).toContain('fällig');
-    expect(meilensteinPunkte([frist({ tage: -9 })])[0]!.satz).not.toContain('überfällig');
+    expect(stillstandPunkte([frist({ tage: -4 })])[0]!.satz)
+      .toContain('seit 4 Tagen überfällig');
+    expect(stillstandPunkte([frist({ tage: 0 })])[0]!.satz)
+      .toContain('heute überfällig');
+    expect(stillstandPunkte([frist({ tage: 6 })])[0]!.satz)
+      .toContain('in 6 Tagen überfällig');
   });
 
   it('nennt gebündelte Geschwister, statt sie zu verschweigen', () => {
-    expect(meilensteinPunkte([frist({ weitere: 2 })])[0]!.satz)
+    expect(stillstandPunkte([frist({ weitere: 2 })])[0]!.satz)
       .toContain('und 2 weitere im selben Verbund');
-    expect(meilensteinPunkte([frist({ weitere: 0 })])[0]!.satz)
+    expect(stillstandPunkte([frist({ weitere: 0 })])[0]!.satz)
       .not.toContain('weitere');
   });
 
   it('reicht die Tageszahl unverändert durch — der Adapter dreht das Vorzeichen', () => {
-    expect(meilensteinPunkte([frist({ tage: -4 })])[0]!.tage).toBe(-4);
+    expect(stillstandPunkte([frist({ tage: -4 })])[0]!.tage).toBe(-4);
   });
 });
 
@@ -155,8 +146,7 @@ describe('punkte — wer nach einem Vorgang fragt, benennt ihn', () => {
     verbundId: 'VB1', akronym: 'CALYPSO', grund: 'Widerspruch', tage: -302, weitere: 0,
   };
 
-  it('Frist-, Stillstands- und To-do-Punkte tragen ihren Vorgang', () => {
-    expect(meilensteinPunkte([FRIST])[0]!.gruppe).toBe('VB1');
+  it('Stillstands- und To-do-Punkte tragen ihren Vorgang', () => {
     expect(stillstandPunkte([FRIST])[0]!.gruppe).toBe('VB1');
     expect(zuTunPunkte([
       { scopeId: 'VB2', titel: 'KITED', text: 'Rückmeldung', tage: -204, rueckfall: false },
@@ -179,47 +169,39 @@ describe('punkte — wer nach einem Vorgang fragt, benennt ihn', () => {
 });
 
 /**
- * Gemessen 11.09.2026 (Kürzel THü): der Brief sagte „KITED ist seit 227 Tagen
- * fällig (QS freigegeben und versendet)", die Karte darunter „Stellungnahme RNE
- * prüfen". Die Klammer war das Label des Meilensteins 1.4.3 — ein Termin, der
- * NICHT erreicht ist, gelesen als Zustand, der eingetreten ist. Und weil der
- * Meilenstein den Verbund im Brief vertrat, fiel die Aufgabe ganz weg.
+ * Gemessen 11.09.2026 (Kürzel THü, damals am Meilenstein-Thema): der Brief sagte
+ * „KITED ist seit 227 Tagen fällig (QS freigegeben und versendet)", die Karte
+ * darunter „Stellungnahme RNE prüfen". Die Klammer las sich als eingetretener
+ * Zustand — und weil der Frist-Punkt den Verbund im Brief vertrat, fiel die
+ * Aufgabe ganz weg. Für den Stillstand gilt dieselbe Form.
  */
-describe('punkte — der Meilenstein nennt sich, die Handlung kommt aus der Kaskade', () => {
-  const MST: FristRoh = {
-    verbundId: 'VB1', akronym: 'KITED', grund: 'QS freigegeben und versendet', tage: -227, weitere: 0,
+describe('punkte — der Stillstand nennt sich, die Handlung kommt aus der Kaskade', () => {
+  const ST: FristRoh = {
+    verbundId: 'VB1', akronym: 'KITED', grund: 'Gutachten fertig', tage: -9, weitere: 0,
   };
 
-  it('ein Meilenstein steht als Meilenstein da, nicht als nackte Klammer', () => {
-    expect(meilensteinPunkte([MST])[0]!.satz)
-      .toBe('KITED: Meilenstein „QS freigegeben und versendet“ seit 227 Tagen fällig.');
+  it('ein Stillstand steht als Stillstand da, nicht als nackte Klammer', () => {
+    expect(stillstandPunkte([ST])[0]!.satz)
+      .toBe('KITED: Stillstand „Gutachten fertig“ seit 9 Tagen überfällig.');
   });
 
   it('mit Aufgabe: die Uhr in der Klammer, die Handlung hinter dem Doppelpunkt', () => {
-    const p = meilensteinPunkte([{ ...MST, aufgabe: { text: 'Stellungnahme RNE prüfen', rueckfall: false } }])[0]!;
-    expect(p.satz)
-      .toBe('KITED (Meilenstein „QS freigegeben und versendet“ seit 227 Tagen fällig): Stellungnahme RNE prüfen.');
-  });
-
-  it('Stillstand nimmt die Aufgabe genauso mit und bleibt „überfällig"', () => {
-    const p = stillstandPunkte([
-      { ...MST, grund: 'Gutachten fertig', tage: -9, aufgabe: { text: 'QS anstoßen', rueckfall: false } },
-    ])[0]!;
+    const p = stillstandPunkte([{ ...ST, aufgabe: { text: 'QS anstoßen', rueckfall: false } }])[0]!;
     expect(p.satz).toBe('KITED (Stillstand „Gutachten fertig“ seit 9 Tagen überfällig): QS anstoßen.');
   });
 
   it('gebündelte Geschwister stehen bei der Uhr, nicht bei der Aufgabe', () => {
-    const p = meilensteinPunkte([
-      { ...MST, weitere: 2, aufgabe: { text: 'Stellungnahme RNE prüfen', rueckfall: false } },
+    const p = stillstandPunkte([
+      { ...ST, weitere: 2, aufgabe: { text: 'QS anstoßen', rueckfall: false } },
     ])[0]!;
     expect(p.satz).toBe(
-      'KITED (Meilenstein „QS freigegeben und versendet“ seit 227 Tagen fällig — und 2 weitere im selben Verbund): Stellungnahme RNE prüfen.',
+      'KITED (Stillstand „Gutachten fertig“ seit 9 Tagen überfällig — und 2 weitere im selben Verbund): QS anstoßen.',
     );
   });
 
-  it('Rückfall und vorläufiger Stand geben sich auch am Frist-Satz zu erkennen', () => {
-    const p = meilensteinPunkte([
-      { ...MST, aufgabe: { text: 'Gutachten anfordern', rueckfall: true, vorlaeufig: true } },
+  it('Rückfall und vorläufiger Stand geben sich auch am Stillstands-Satz zu erkennen', () => {
+    const p = stillstandPunkte([
+      { ...ST, aufgabe: { text: 'Gutachten anfordern', rueckfall: true, vorlaeufig: true } },
     ])[0]!;
     expect(p.rueckfall).toBe(true);
     expect(p.satz).toContain('aus dem Status abgeleitet');
@@ -227,6 +209,22 @@ describe('punkte — der Meilenstein nennt sich, die Handlung kommt aus der Kask
   });
 
   it('ohne Aufgabe trägt der Punkt keinen Rückfall', () => {
-    expect(meilensteinPunkte([MST])[0]!.rueckfall).toBeUndefined();
+    expect(stillstandPunkte([ST])[0]!.rueckfall).toBeUndefined();
+  });
+});
+
+/**
+ * Bis v6.60.3 gab es das Thema „Fristen" (Meilensteine). Es verdrängte beim
+ * Entdoppeln den To-do-Punkt und schob eine lange Bedingungs-Bezeichnung vor
+ * die Aufgabe — im Brief stand ein Plan-Termin statt einer Handlung.
+ */
+describe('themen — Meilensteine sind kein Thema des Briefs', () => {
+  it('der Katalog führt kein Meilenstein-Thema mehr', () => {
+    expect(THEMEN.map(t => t.id as string)).not.toContain('fristen');
+  });
+
+  it('eine alte Abwahl „fristen" in einer gespeicherten Config schadet nicht', () => {
+    const alt = ['fristen'] as unknown as ThemaId[];
+    expect(aktiveThemen(alt)).toEqual(aktiveThemen([]));
   });
 });

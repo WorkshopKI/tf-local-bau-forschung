@@ -16,14 +16,14 @@ function punkt(themaId: ThemaId, tage: number | null, text: string = themaId): B
 }
 
 const ALLE: ReadonlySet<ThemaId> = new Set<ThemaId>([
-  'fristen', 'stillstand', 'zu-tun', 'nachtlauf', 'eingang',
+  'stillstand', 'zu-tun', 'nachtlauf', 'eingang',
   'entwuerfe', 'weitermachen', 'feedback', 'registry',
 ]);
 
 describe('baueBrief — Rangfolge nur wo eine Uhr tickt', () => {
   it('sortiert Uhr-Punkte aufsteigend: überfällig zuerst', () => {
     const b = baueBrief({
-      punkte: [punkt('fristen', 5, 'A'), punkt('stillstand', -12, 'B'), punkt('zu-tun', 0, 'C')],
+      punkte: [punkt('zu-tun', 5, 'A'), punkt('stillstand', -12, 'B'), punkt('zu-tun', 0, 'C')],
       aktiv: ALLE,
       laedt: false,
     });
@@ -32,7 +32,7 @@ describe('baueBrief — Rangfolge nur wo eine Uhr tickt', () => {
 
   it('Punkte ohne Uhr ranken nie mit — sie landen im Nachsatz', () => {
     const b = baueBrief({
-      punkte: [punkt('nachtlauf', null, 'N'), punkt('fristen', 3, 'F'), punkt('feedback', null, 'FB')],
+      punkte: [punkt('nachtlauf', null, 'N'), punkt('stillstand', 3, 'F'), punkt('feedback', null, 'FB')],
       aktiv: ALLE,
       laedt: false,
     });
@@ -52,8 +52,8 @@ describe('baueBrief — Rangfolge nur wo eine Uhr tickt', () => {
 
   it('bei Gleichstand entscheidet die Katalog-Reihenfolge', () => {
     const b = baueBrief({
-      // zu-tun steht im Katalog HINTER fristen — gleiche Tageszahl
-      punkte: [punkt('zu-tun', 7, 'spaeter'), punkt('fristen', 7, 'frueher')],
+      // zu-tun steht im Katalog HINTER stillstand — gleiche Tageszahl
+      punkte: [punkt('zu-tun', 7, 'spaeter'), punkt('stillstand', 7, 'frueher')],
       aktiv: ALLE,
       laedt: false,
     });
@@ -63,20 +63,20 @@ describe('baueBrief — Rangfolge nur wo eine Uhr tickt', () => {
 
 describe('baueBrief — Deckel und Schwelle', () => {
   it('kappt auf den Deckel und nennt die Zahl der weggelassenen', () => {
-    const viele = Array.from({ length: DECKEL + 3 }, (_, i) => punkt('fristen', i, `P${i}`));
+    const viele = Array.from({ length: DECKEL + 3 }, (_, i) => punkt('stillstand', i, `P${i}`));
     const b = baueBrief({ punkte: viele, aktiv: ALLE, laedt: false });
     expect(b.punkte).toHaveLength(DECKEL);
     expect(b.weitere).toBe(3);
   });
 
   it('ohne Kappung ist `weitere` 0', () => {
-    const b = baueBrief({ punkte: [punkt('fristen', 1)], aktiv: ALLE, laedt: false });
+    const b = baueBrief({ punkte: [punkt('stillstand', 1)], aktiv: ALLE, laedt: false });
     expect(b.weitere).toBe(0);
   });
 
   it('verwirft, was jenseits der Dringlichkeits-Schwelle liegt', () => {
     const b = baueBrief({
-      punkte: [punkt('fristen', DRINGLICH_AB_TAGEN + 1, 'fern'), punkt('fristen', DRINGLICH_AB_TAGEN, 'nah')],
+      punkte: [punkt('stillstand', DRINGLICH_AB_TAGEN + 1, 'fern'), punkt('stillstand', DRINGLICH_AB_TAGEN, 'nah')],
       aktiv: ALLE,
       laedt: false,
     });
@@ -86,7 +86,7 @@ describe('baueBrief — Deckel und Schwelle', () => {
   });
 
   it('ein eigener Deckel überschreibt den Standard (Messläufe)', () => {
-    const viele = Array.from({ length: 4 }, (_, i) => punkt('fristen', i));
+    const viele = Array.from({ length: 4 }, (_, i) => punkt('stillstand', i));
     const b = baueBrief({ punkte: viele, aktiv: ALLE, laedt: false, deckel: 2 });
     expect(b.punkte).toHaveLength(2);
     expect(b.weitere).toBe(2);
@@ -98,13 +98,13 @@ describe('baueBrief — ein Vorgang spricht einmal', () => {
     ({ ...punkt(themaId, tage, satz), gruppe });
 
   it('behält je Vorgang nur den dringlichsten Punkt', () => {
-    // Gemessen: „WidyLa" stand zweimal im selben Absatz (zwei Meilensteine
+    // Gemessen: „WidyLa" stand zweimal im selben Absatz (damals zwei Meilensteine
     // desselben Verbunds). Ein Brief, der einen Vorgang wiederholt, fasst nichts
     // zusammen.
     const b = baueBrief({
       punkte: [
-        mitGruppe('fristen', -167, 'VB1', 'WidyLa spät'),
-        mitGruppe('fristen', -139, 'VB1', 'WidyLa weniger spät'),
+        mitGruppe('stillstand', -167, 'VB1', 'WidyLa spät'),
+        mitGruppe('zu-tun', -139, 'VB1', 'WidyLa weniger spät'),
         mitGruppe('stillstand', -150, 'VB2', 'ATLAS'),
       ],
       aktiv: ALLE,
@@ -117,8 +117,8 @@ describe('baueBrief — ein Vorgang spricht einmal', () => {
     // Sonst versprächen „und N weitere" Vorgänge, die längst genannt sind.
     const b = baueBrief({
       punkte: [
-        mitGruppe('fristen', -9, 'VB1', 'A'),
-        mitGruppe('fristen', -8, 'VB1', 'A nochmal'),
+        mitGruppe('stillstand', -9, 'VB1', 'A'),
+        mitGruppe('zu-tun', -8, 'VB1', 'A nochmal'),
       ],
       aktiv: ALLE,
       laedt: false,
@@ -130,7 +130,7 @@ describe('baueBrief — ein Vorgang spricht einmal', () => {
 
   it('ein Punkt ohne Gruppe spricht für sich', () => {
     const b = baueBrief({
-      punkte: [punkt('fristen', -5, 'A'), punkt('stillstand', -4, 'B')],
+      punkte: [punkt('zu-tun', -5, 'A'), punkt('stillstand', -4, 'B')],
       aktiv: ALLE,
       laedt: false,
     });
@@ -145,7 +145,7 @@ describe('baueBrief — ein Vorgang spricht einmal', () => {
     // nennen. Die Entdopplung läuft nur über die Uhr-Punkte.
     const b = baueBrief({
       punkte: [
-        mitGruppe('fristen', -302, 'VB1', 'CALYPSO überfällig'),
+        mitGruppe('zu-tun', -302, 'VB1', 'CALYPSO überfällig'),
         { ...punkt('weitermachen', null, 'zuletzt warst du bei CALYPSO'), gruppe: 'VB1' },
       ],
       aktiv: ALLE,
@@ -159,7 +159,7 @@ describe('baueBrief — ein Vorgang spricht einmal', () => {
 describe('baueBrief — Themenwahl', () => {
   it('lässt abgewählte Themen ganz weg, in beiden Teilen', () => {
     const b = baueBrief({
-      punkte: [punkt('fristen', 2, 'F'), punkt('stillstand', 1, 'S'), punkt('feedback', null, 'FB')],
+      punkte: [punkt('zu-tun', 2, 'Z'), punkt('stillstand', 1, 'S'), punkt('feedback', null, 'FB')],
       aktiv: new Set<ThemaId>(['stillstand']),
       laedt: false,
     });
@@ -172,11 +172,11 @@ describe('baueBrief — Leere braucht eine Erklärung', () => {
   it('benennt die geprüften Themen, statt „nichts zu tun" zu behaupten', () => {
     const b = baueBrief({
       punkte: [],
-      aktiv: new Set<ThemaId>(['fristen', 'nachtlauf', 'entwuerfe']),
+      aktiv: new Set<ThemaId>(['stillstand', 'nachtlauf', 'entwuerfe']),
       laedt: false,
     });
     expect(b.leerText).toBe(
-      'Nichts Dringendes gefunden. Geprüft: Fristen, Änderungen über Nacht, Meine Entwürfe.',
+      'Nichts Dringendes gefunden. Geprüft: Stillstand, Änderungen über Nacht, Meine Entwürfe.',
     );
   });
 
@@ -199,7 +199,7 @@ describe('baueBrief — rein', () => {
   });
 
   it('lässt die Eingabe unangetastet', () => {
-    const eingabe = [punkt('fristen', 9), punkt('stillstand', -1)];
+    const eingabe = [punkt('zu-tun', 9), punkt('stillstand', -1)];
     const kopie = JSON.parse(JSON.stringify(eingabe)) as unknown;
     baueBrief({ punkte: eingabe, aktiv: ALLE, laedt: false });
     expect(JSON.parse(JSON.stringify(eingabe))).toEqual(kopie);

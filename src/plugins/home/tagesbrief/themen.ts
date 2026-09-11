@@ -10,10 +10,7 @@
  * **Abwahl** in der Widget-Config, damit später ergänzte Themen von selbst
  * erscheinen statt stumm zu bleiben.
  */
-import {
-  isMeilensteinMonitoringEnabled,
-  isVorgangssystemEnabled,
-} from '@/config/feature-flags';
+import { isVorgangssystemEnabled } from '@/config/feature-flags';
 import { isKuratorFreigeschaltet } from '@/core/modul-freischaltung';
 import type { Familie, ThemaId } from './typen';
 
@@ -40,15 +37,12 @@ const immer = (): boolean => true;
  * die Reihenfolge des Nachsatzes.
  */
 export const THEMEN: readonly Thema[] = [
-  {
-    id: 'fristen',
-    label: 'Fristen',
-    familie: 'arbeitsvorrat',
-    uhr: true,
-    // Dieselbe Bedingung wie das Fristen-Widget: die Frist-Anlässe speisen sich
-    // aus Zieltagen (Vorgangssystem) UND Meilensteinen.
-    verfuegbarWenn: () => isVorgangssystemEnabled() || isMeilensteinMonitoringEnabled(),
-  },
+  // **Meilensteine stehen bewusst NICHT hier** (bis v6.60.3 das Thema
+  // „Fristen"). Ein Meilenstein ist ein Soll-Termin ab Eingang über den ganzen
+  // Plan — eine Aussage über das Tempo, keine Handlung für heute. Im Brief
+  // verdrängte er beim Entdoppeln den To-do-Punkt desselben Verbunds und schob
+  // eine lange Bedingungs-Bezeichnung vor die Aufgabe; gemessen standen vier von
+  // fünf Zeilen so da. Die Termine stehen auf der Fristen-Karte.
   {
     id: 'stillstand',
     label: 'Stillstand',

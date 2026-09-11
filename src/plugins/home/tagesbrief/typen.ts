@@ -19,8 +19,7 @@ export type Familie = 'arbeitsvorrat' | 'bewegung' | 'eigenes' | 'umfeld';
  * mit **genau einer** bestehenden Quelle — der Brief leitet nichts Neues ab.
  */
 export type ThemaId =
-  // Arbeitsvorrat (Uhr)
-  | 'fristen'
+  // Arbeitsvorrat (Uhr) — Meilensteine bewusst nicht (s. `themen.ts`)
   | 'stillstand'
   | 'zu-tun'
   // Bewegung

@@ -132,18 +132,21 @@ async function sammleMeilensteine(
  * @param meineVerbuende `verbund_id` → Akronym, aus dem bereits berechneten
  *   Dashboard-Aggregat. **Kein zweiter Bearbeiter-Filter.**
  * @param stichtag ISO, einmal je Aufrufer gestempelt.
+ * @param mitMeilensteinen `false` = nur Zieltage. Der Tagesbrief führt keine
+ *   Meilensteine und spart sich damit die Plan-Projektion über alle Programme.
  */
 export function useFristAnlaesse(
   aktiv: boolean,
   meineVerbuende: ReadonlyMap<string, string>,
   stichtag: string,
+  mitMeilensteinen = true,
 ): FristAnlaesse {
   const idb = useStorage().idb;
   const [stand, setStand] = useState<FristAnlaesse>(LEER);
 
   useEffect(() => {
     const zieltage = isVorgangssystemEnabled();
-    const meilensteine = isMeilensteinMonitoringEnabled();
+    const meilensteine = mitMeilensteinen && isMeilensteinMonitoringEnabled();
     if (!aktiv || (!zieltage && !meilensteine) || meineVerbuende.size === 0) {
       setStand(LEER);
       return;
@@ -182,7 +185,7 @@ export function useFristAnlaesse(
       });
     })();
     return () => { abgebrochen = true; };
-  }, [idb, aktiv, meineVerbuende, stichtag]);
+  }, [idb, aktiv, meineVerbuende, stichtag, mitMeilensteinen]);
 
   return stand;
 }

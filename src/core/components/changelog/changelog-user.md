@@ -32,6 +32,7 @@
 - Die Antragstypen („gilt für“) stehen jetzt im Kopf des Meilensteins neben „aktiv“ und „Frist“. Ein Sammel-Meilenstein zeigt seine Unter-Meilensteine als Karten; ein Klick öffnet sie.
 - In der Konfiguration stehen „Woche“, „aktiv“, „Frist“ und „gilt für“ in jeder Meilenstein-Zeile an derselben Stelle – auch dort, wo die Kurzfassung fehlt oder „unbestätigt“ steht. Die Hinweise „unbestätigt“ und „ohne Bedingung“ stehen vor diesen Schaltern und rutschen nicht mehr in eine zweite Zeile.
 - Die Karten im Bereich „Erfüllt, wenn“ sind breiter und nutzen die verfügbare Breite; bei voller Fensterbreite passen drei nebeneinander. Der Feldname steht vollständig da und bricht bei Bedarf um, statt abgeschnitten zu werden – er ist ohne Überfahren lesbar. Wer mehr Platz braucht, klappt die Seitenleiste ein.
+- Der Tagesbrief auf der Startseite nennt keine Meilensteine mehr, sondern die Handlung: ein Satz sagt, was an einem Vorgang zu tun ist oder wo er still liegt, etwa „KITED (seit 172 Tagen überfällig): Stellungnahme RNE prüfen.“ Die Meilenstein-Termine stehen weiter auf der Karte „Fristen“; in der Themenwahl des Briefs entfällt dafür der Punkt „Fristen“.
 
 ## v6.59 — 2026-09
 

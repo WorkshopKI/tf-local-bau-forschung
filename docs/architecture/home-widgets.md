@@ -241,17 +241,20 @@ der Brief rankt über ihre Grenzen hinweg.
   antwortete regelkonform, es wisse nichts über den Vorgang, nach dem eben gefragt
   wurde. Der Knopf **navigiert weiterhin nicht** — er ist die zweite Geste neben dem
   Sprung-Link, und die Karte bleibt stehen. Wer nach EINEM Vorgang fragt, benennt
-  ihn (`fristen`/`stillstand`/`zu-tun`/`weitermachen`); Listenfragen wie „Welche
+  ihn (`stillstand`/`zu-tun`/`weitermachen`); Listenfragen wie „Welche
   Entwürfe habe ich offen?" bleiben bewusst ohne — ein einzelner Vorgang wäre dort
   eine Verengung, die die Frage nicht meint.
 - **Der Brief leitet nichts Neues ab.** Jedes Thema konsumiert eine bestehende
-  reine bzw. gecachte Quelle. Die Frist-Anlässe teilt er sich mit dem
+  reine bzw. gecachte Quelle. Die Zieltage teilt er sich mit dem
   Fristen-Widget: dessen Ladeeffekt ist nach
   [useFristAnlaesse.ts](../../src/plugins/home/widgets/useFristAnlaesse.ts)
   **gehoben, nicht kopiert** — zwei Flächen, die dieselbe Zahl unabhängig
   herleiten, laufen genau dann auseinander, wenn es darauf ankommt (v4.131).
-- **Rangfolge nur, wo eine Uhr tickt.** Von den Themen tragen drei eine
-  Fälligkeit (Fristen = Meilensteine, Stillstand = Zieltage, Was zu tun ist);
+  Der Brief ruft ihn mit `mitMeilensteinen: false` und nur, solange das Thema
+  Stillstand aktiv ist; die Meilenstein-Plan-Projektion über alle Programme
+  fällt für ihn weg.
+- **Rangfolge nur, wo eine Uhr tickt.** Von den Themen tragen zwei eine
+  Fälligkeit (Stillstand = Zieltage, Was zu tun ist = kritische Frist);
   die übrigen sind Neuigkeiten ohne Termin und stehen in EINEM Nachsatz. Eine
   gemeinsame Skala müsste Gewichte erfinden, die gegen nichts prüfbar wären.
   Deckel 5, Schwelle `DRINGLICH_AB_TAGEN`; **am echten Bestand gemessen**
@@ -259,9 +262,9 @@ der Brief rankt über ihre Grenzen hinweg.
   dringlichsten 167/165/152/142/138 Tage über — die Schwelle bindet dort also
   nicht, der Deckel schon.
 - **Ein Vorgang spricht einmal.** `BriefPunkt.gruppe` (Verbund-Id) entdoppelt den
-  gerankten Absatz; behalten wird der dringlichste Punkt. Gemessen stand „WidyLa"
-  sonst zweimal darin (zwei Meilensteine desselben Verbunds) — ein Brief, der
-  einen Vorgang wiederholt, fasst nichts zusammen.
+  gerankten Absatz; behalten wird der dringlichste Punkt. Stillstand und Was zu
+  tun ist treffen oft denselben Verbund — ein Brief, der einen Vorgang
+  wiederholt, fasst nichts zusammen.
 - **Die Zeile ist eine Segment-Liste, kein Satz** (Muster der Nachtlauf-Zeile,
   v6.1): Zahlen und Namen IM Satz sind die Sprungziele, `aria-label` trägt
   dieselbe Aussage am Stück. `satz` entsteht immer aus `segmente` (`satzAus`),
@@ -274,14 +277,22 @@ der Brief rankt über ihre Grenzen hinweg.
   Journal-Thema folgt dem Bearbeiter-Ausschnitt der Kopfzeile wie „Änderungen der
   letzten Nacht" — ohne ihn zählte der Brief 262 Vorgänge unter einem Chip, der
   „Kürzel ATh" sagt, die Karte daneben 7.
-- **Die Handlung kommt aus der Kaskade, auch wenn eine Frist rankt** (v6.57.4).
-  Ein Meilenstein- oder Stillstands-Punkt verdrängt beim Entdoppeln den
-  To-do-Punkt desselben Verbunds; deshalb spricht er dessen Aufgabe selbst
-  (`FristRoh.aufgabe`, dieselbe `aufgabenAnzeige` wie die Karte) und nennt seine
-  Herkunft: „KITED (Meilenstein „QS freigegeben und versendet“ seit 227 Tagen
-  fällig): Stellungnahme RNE prüfen." Vorher stand das Meilenstein-Label als
-  nackte Klammer da und las sich als eingetretener Zustand — gemessen 11.09.2026
-  unter einer Karte, die für denselben Verbund „Stellungnahme RNE prüfen" sagte.
+- **Die Handlung kommt aus der Kaskade, auch wenn ein Stillstand rankt** (v6.57.4).
+  Ein Stillstands-Punkt verdrängt beim Entdoppeln den To-do-Punkt desselben
+  Verbunds; deshalb spricht er dessen Aufgabe selbst (`FristRoh.aufgabe`,
+  dieselbe `aufgabenAnzeige` wie die Karte) und nennt seine Herkunft: „KITED
+  (Stillstand „Gutachten fertig“ seit 9 Tagen überfällig): QS anstoßen."
+  Zieltage messen Liegezeit, keinen Termin — deshalb
+  „überfällig", nicht „fällig". Ohne die Herkunft las sich die Klammer als
+  eingetretener Zustand — gemessen 11.09.2026 unter einer Karte, die für
+  denselben Verbund eine andere Aufgabe sagte.
+- **Meilensteine sind bewusst KEIN Thema** (v6.60.4). Ein Meilenstein ist ein
+  Soll-Termin ab Eingang über den ganzen Plan — eine Aussage über das Tempo,
+  keine Handlung für heute. Im Brief verdrängte er beim Entdoppeln den
+  To-do-Punkt desselben Verbunds und schob eine lange Bedingungs-Bezeichnung vor
+  die Aufgabe; gemessen standen vier von fünf gerankten Zeilen so da. Die
+  Termine stehen auf der Fristen-Karte. Eine gespeicherte Abwahl `aus:
+  ['fristen']` aus älteren Configs bleibt wirkungslos stehen.
 - **Keine Überschneidung mit der Hero-Karte darüber:** deren drei Kacheln zählen
   ALTER (>90 / 31–90 Tage), der Brief rechnet FRIST. Zwei Achsen, und keine Zahl
   steht zweimal — deshalb trägt der Brief auch kein Ampel-Sprungziel und zählt

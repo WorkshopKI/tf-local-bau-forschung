@@ -87,8 +87,9 @@ Betrachtungsbereich, Generation und Stichtag trägt, kann dabei kein fremdes
 Ergebnis gelesen werden ([Bug-Klasse 25](recurring-bug-classes.md)).
 
 > **Zwei Uhren, kein Fehler.** Der Frist-Hinweis im Faktenblock rechnet gegen die
-> kritische Frist, der Tagesbrief gegen das Meilenstein-SollDatum — für denselben
-> Vorgang dürfen dort verschiedene Zahlen stehen (DynaMaint: 318 gegen 324 Tage).
+> kritische Frist — beim To-do dieselbe wie der Tagesbrief —, die Fristen-Karte
+> gegen das Meilenstein-SollDatum. Für denselben Vorgang dürfen dort
+> verschiedene Zahlen stehen (DynaMaint: 318 gegen 324 Tage).
 > Siehe [CONTEXT.md → „N Tage überfällig"](../../CONTEXT.md).
 
 ## Auszüge nur vom gefragten Vorgang (v6.53.1)

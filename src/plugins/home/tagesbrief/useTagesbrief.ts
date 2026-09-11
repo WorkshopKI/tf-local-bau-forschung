@@ -8,9 +8,9 @@
  * **Kosten.** Die Startseite startet den Bestandslauf der To-do-Kaskade ohnehin
  * viermal mit `'leerlauf'` (useDashboardData, useEingangAmpelCounts,
  * MeineAntraegeSection, AntragKanbanWidget); der Brief hängt sich an denselben
- * gecachten Lauf und kostet dafür nichts. Die Frist-Anlässe teilt er sich mit
- * dem Fristen-Widget (`useFristAnlaesse`, v6.45 gehoben) — eine Herleitung, zwei
- * Leser, kein Drift.
+ * gecachten Lauf und kostet dafür nichts. Die Zieltage teilt er sich mit dem
+ * Fristen-Widget (`useFristAnlaesse`, v6.45 gehoben) — eine Herleitung, zwei
+ * Leser, kein Drift. Meilensteine lädt er gar nicht erst (s. `themen.ts`).
  *
  * **Ausnahme Auslastung.** Das einzige Thema, dessen Quelle sonst niemand auf
  * der Startseite lädt: sein Datenstand kostet zwei Läufe über den vollen
@@ -43,7 +43,7 @@ import type { HomeWidgetContext } from '../widgets/widgetProps';
 import type { AntragVorgang } from '../dashboardAggregate';
 import { baueBrief } from './baueBrief';
 import {
-  entwuerfePunkt, feedbackPunkt, meilensteinPunkte, nachtlaufPunkt, neuPunkt,
+  entwuerfePunkt, feedbackPunkt, nachtlaufPunkt, neuPunkt,
   registryPunkt, stillstandPunkte, weitermachenPunkt, zuTunPunkte,
   type AufgabeRoh, type AufgabeText, type FristRoh,
 } from './punkte';
@@ -87,7 +87,10 @@ export function useTagesbrief(aktiv: boolean, ctx: HomeWidgetContext, aus: reado
     return m;
   }, [ctx.data.meineAntraege]);
 
-  const fristen = useFristAnlaesse(aktiv, meineVerbuende, heuteRef.current);
+  // Nur Zieltage: `mitMeilensteinen = false` spart die Plan-Projektion.
+  const zieltage = useFristAnlaesse(
+    aktiv && themen.has('stillstand'), meineVerbuende, heuteRef.current, false,
+  );
   const bestand = useBestandsAufgaben('leerlauf', heuteRef.current);
   const zeilenAufgaben = useZeilenAufgaben('leerlauf', heuteRef.current);
   const { zeilen: qsZeilen } = useQsFreigaben(aktiv);
@@ -175,11 +178,11 @@ export function useTagesbrief(aktiv: boolean, ctx: HomeWidgetContext, aus: reado
 
     // Die Handlung an einem Vorgang: `aufgabenAnzeige` — dieselbe Formel wie die
     // Zeilen der Karte „Meine Anträge", inklusive des BESCHRIFTETEN Rückfalls auf
-    // die alte Status-Formel. EINE Rechnung für alle Uhr-Themen: rankt ein
-    // Meilenstein den Verbund, verdrängt er dessen To-do-Punkt, und der Satz muss
-    // die Aufgabe dann selbst sprechen. Gemessen 11.09.2026: „KITED ist seit 227
-    // Tagen fällig (QS freigegeben und versendet)" über einer Karte, die
-    // „Stellungnahme RNE prüfen" sagte.
+    // die alte Status-Formel. EINE Rechnung für beide Uhr-Themen: rankt ein
+    // Stillstand den Verbund, verdrängt er dessen To-do-Punkt, und der Satz muss
+    // die Aufgabe dann selbst sprechen. Gemessen 11.09.2026 (damals am
+    // Meilenstein): „KITED ist seit 227 Tagen fällig (QS freigegeben und
+    // versendet)" über einer Karte, die „Stellungnahme RNE prüfen" sagte.
     const aufgabeFuer = (a: AntragVorgang): AufgabeText | null => {
       const akten = a.tv_aktenzeichen ?? [];
       if (akten.length === 0) return null;
@@ -210,11 +213,9 @@ export function useTagesbrief(aktiv: boolean, ctx: HomeWidgetContext, aus: reado
       if (a.verbund_id && !vorgangVon.has(a.verbund_id)) vorgangVon.set(a.verbund_id, a);
     }
 
-    // Frist-Anlässe: EINE Quelle, zwei Themen — getrennt nach ihrer Art, weil
-    // Zieltage Stillstand messen und Meilensteine einen Termin ab Eingang
-    // (CONTEXT.md). Vorzeichen gedreht: `ueberTage` zählt Tage ÜBER dem
+    // Stillstand (Zieltage). Vorzeichen gedreht: `ueberTage` zählt Tage ÜBER dem
     // Vorgesehenen, `BriefPunkt.tage` Tage BIS zur Fälligkeit.
-    const roh = (a: (typeof fristen.anlaesse)[number]): FristRoh => {
+    const roh = (a: (typeof zieltage.anlaesse)[number]): FristRoh => {
       const vorgang = vorgangVon.get(a.verbundId);
       const aufgabe = vorgang ? aufgabeFuer(vorgang) : null;
       return {
@@ -226,15 +227,12 @@ export function useTagesbrief(aktiv: boolean, ctx: HomeWidgetContext, aus: reado
         ...(aufgabe ? { aufgabe } : {}),
       };
     };
-    const bezifferbar = fristen.anlaesse.filter(a => a.ueberTage !== null);
-    if (themen.has('fristen')) {
-      raus.push(...meilensteinPunkte(
-        bezifferbar.filter(a => a.art === 'meilenstein').slice(0, KANDIDATEN).map(roh),
-      ));
-    }
     if (themen.has('stillstand')) {
       raus.push(...stillstandPunkte(
-        bezifferbar.filter(a => a.art === 'zieltag').slice(0, KANDIDATEN).map(roh),
+        zieltage.anlaesse
+          .filter(a => a.art === 'zieltag' && a.ueberTage !== null)
+          .slice(0, KANDIDATEN)
+          .map(roh),
       ));
     }
 
@@ -303,14 +301,14 @@ export function useTagesbrief(aktiv: boolean, ctx: HomeWidgetContext, aus: reado
 
     return raus;
   }, [
-    themen, fristen.anlaesse, bestand.zeilen, bestand.nachAktenzeichen, zeilenAufgaben,
+    themen, zieltage.anlaesse, bestand.zeilen, bestand.nachAktenzeichen, zeilenAufgaben,
     ctx.data.meineAntraege, meineVerbuende, journal, qsZeilen, weitermachen, feedbackItems, anker, ich, registryAnzahl,
   ]);
 
   // Solange irgendeine Quelle unterwegs ist, ist Leere kein Befund.
   // Ein vorläufiger Stand ist kein Warten: der Brief steht, nur seine To-dos
   // tragen den Vermerk — und der Zähler bleibt eine Zahl.
-  const laedt = fristen.laden || bestand.laden
+  const laedt = zieltage.laden || bestand.laden
     || (zeilenAufgaben.laeuftNoch && !zeilenAufgaben.vorlaeufig) || journal === null;
 
   return useMemo(

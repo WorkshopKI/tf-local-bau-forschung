@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v6.60.4 — Tagesbrief ohne Meilensteine (September 2026)
+
+PATCH — Nutzer: „beim Tagesbrief die Meilensteine rausnehmen, die passen da nicht." Vier von fünf gerankten Zeilen waren Meilenstein-Sätze: ein Plan-Termin ab Eingang statt einer Handlung, und beim Entdoppeln verdrängte er den To-do-Punkt desselben Verbunds.
+
+- Thema `fristen` (Meilensteine) aus `THEMEN`/`ThemaId` entfernt; Uhr-Themen sind Stillstand und Was zu tun ist ([themen.ts](src/plugins/home/tagesbrief/themen.ts), [typen.ts](src/plugins/home/tagesbrief/typen.ts))
+- `meilensteinPunkte` entfällt, der Frist-Satz spricht nur noch Stillstand ([punkte.ts](src/plugins/home/tagesbrief/punkte.ts), [useTagesbrief.ts](src/plugins/home/tagesbrief/useTagesbrief.ts))
+- `useFristAnlaesse` mit Parameter `mitMeilensteinen`; der Brief lädt nur Zieltage, das Fristen-Widget unverändert beide ([useFristAnlaesse.ts](src/plugins/home/widgets/useFristAnlaesse.ts))
+- Tests nachgezogen, alte Abwahl `aus: ['fristen']` schadet nicht ([punkte.test.ts](src/plugins/home/tagesbrief/__tests__/punkte.test.ts), [baueBrief.test.ts](src/plugins/home/tagesbrief/__tests__/baueBrief.test.ts))
+- Doku [home-widgets.md → Tagesbrief](docs/architecture/home-widgets.md), [CONTEXT.md](CONTEXT.md), [assistent-panel.md](docs/architecture/assistent-panel.md), [Feedback-Kontext](docs/feedback-kontext/home.md)
+
 ### v6.60.3 — version:bump --user ohne doppelten Minor-Block (September 2026)
 
 PATCH — Ein Patch mit `--user` legte in changelog-user.md eine zweite Überschrift `## vX.Y` an (v6.59.2, v6.60.1), die von Hand zusammengeführt werden musste. Die Nutzer-Fassung führt einen Block je Minor-Version.

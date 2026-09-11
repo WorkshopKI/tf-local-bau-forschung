@@ -45,8 +45,9 @@ function anzahl(n: number, ein: string, viele: string): string {
 // ---------------------------------------------------------------- Uhr-Themen --
 
 /**
- * Ein Frist-Anlass, wie ihn `fristAnlaesse.ts` liefert — auf das reduziert, was
- * der Satz braucht.
+ * Ein Stillstands-Anlass (Zieltage), wie ihn `fristAnlaesse.ts` liefert — auf
+ * das reduziert, was der Satz braucht. Meilensteine führt der Brief nicht
+ * (s. `themen.ts`).
  *
  * **Achtung Vorzeichen:** `ueberTage` zählt Tage ÜBER dem Vorgesehenen (negativ
  * = so viel bleibt noch), `BriefPunkt.tage` zählt Tage BIS zur Fälligkeit. Der
@@ -55,7 +56,7 @@ function anzahl(n: number, ein: string, viele: string): string {
 export interface FristRoh {
   verbundId: string;
   akronym: string;
-  /** Was los ist: Status, Kürzel-Paar oder Meilenstein-Bezeichnung. */
+  /** Was los ist: Status oder Kürzel-Paar. */
   grund: string;
   /** Tage bis zur Fälligkeit; negativ = überfällig. */
   tage: number;
@@ -63,8 +64,8 @@ export interface FristRoh {
   weitere: number;
   /**
    * Die Handlung an diesem Verbund — aus derselben Kaskade wie die Karte „Meine
-   * Anträge". Vertritt ein Frist-Anlass den Verbund im Brief, verdrängt er dort
-   * den To-do-Punkt; ohne dieses Feld fiele die Aufgabe dann ganz weg.
+   * Anträge". Vertritt ein Stillstands-Anlass den Verbund im Brief, verdrängt er
+   * dort den To-do-Punkt; ohne dieses Feld fiele die Aufgabe dann ganz weg.
    */
   aufgabe?: AufgabeText;
 }
@@ -73,19 +74,22 @@ export interface FristRoh {
  * Die Uhr nennt ihre Herkunft, der Grund steht in Anführung dahinter.
  *
  * Eine nackte Klammer las sich als Zustand: „KITED ist seit 227 Tagen fällig
- * (QS freigegeben und versendet)" meinte einen Meilenstein, der seit 227 Tagen
+ * (QS freigegeben und versendet)" meinte einen Termin, der seit 227 Tagen
  * NICHT erreicht war — und die Karte darunter sagte „Stellungnahme RNE prüfen"
- * (gemessen 11.09.2026). Das Fristen-Widget trägt die Herkunft seit v4.86 als
- * Marke; der Brief hatte sie weggeworfen.
+ * (gemessen 11.09.2026, damals am Meilenstein-Thema). Das Fristen-Widget trägt
+ * die Herkunft seit v4.86 als Marke; der Brief hatte sie weggeworfen.
+ *
+ * Zieltage messen Liegezeit, keinen Termin — deshalb „überfällig", nicht
+ * „fällig" (CONTEXT.md).
  */
-function fristSatz(r: FristRoh, { thema, herkunft, wort }: FristArt): BriefPunkt {
+function stillstandSatz(r: FristRoh): BriefPunkt {
   const zielAntrag: Sprungziel = { art: 'antrag', scopeId: r.verbundId };
   const wann = r.tage < 0
-    ? `seit ${Math.abs(r.tage)} Tagen ${wort}`
+    ? `seit ${Math.abs(r.tage)} Tagen überfällig`
     : r.tage === 0
-      ? `heute ${wort}`
-      : `in ${r.tage} Tagen ${wort}`;
-  const uhr = `${herkunft}${r.grund ? ` „${r.grund}“` : ''} ${wann}`
+      ? 'heute überfällig'
+      : `in ${r.tage} Tagen überfällig`;
+  const uhr = `Stillstand${r.grund ? ` „${r.grund}“` : ''} ${wann}`
     + (r.weitere > 0 ? ` — und ${r.weitere} weitere im selben Verbund` : '');
   const a = r.aufgabe;
   // Mit Aufgabe dieselbe Form wie ein To-do-Punkt: die Uhr in der Klammer, die
@@ -93,34 +97,15 @@ function fristSatz(r: FristRoh, { thema, herkunft, wort }: FristArt): BriefPunkt
   const segmente: Segment[] = a
     ? [ziel(r.akronym, zielAntrag), text(` (${uhr}): ${a.text}`), ...vermerke(a), text('.')]
     : [ziel(r.akronym, zielAntrag), text(`: ${uhr}`), text('.')];
-  return punkt(thema, segmente, r.tage, `Was ist bei ${r.akronym} zu tun?`, {
+  return punkt('stillstand', segmente, r.tage, `Was ist bei ${r.akronym} zu tun?`, {
     rueckfall: a?.rueckfall === true,
     gruppe: r.verbundId,
   });
 }
 
-/** Wie ein Frist-Satz je Quelle spricht: Thema, Herkunftswort, Fälligkeitswort. */
-interface FristArt {
-  thema: ThemaId;
-  herkunft: string;
-  wort: string;
-}
-
-/**
- * Meilensteine sind „fällig", Zieltage „überfällig" — CONTEXT.md: der eine misst
- * einen Termin ab Eingang, der andere Stillstand; im Brief klingen sie nicht gleich.
- */
-const MEILENSTEIN: FristArt = { thema: 'fristen', herkunft: 'Meilenstein', wort: 'fällig' };
-const STILLSTAND: FristArt = { thema: 'stillstand', herkunft: 'Stillstand', wort: 'überfällig' };
-
-/** Meilensteine: ein Termin, gerechnet ab Antragseingang. */
-export function meilensteinPunkte(anlaesse: readonly FristRoh[]): BriefPunkt[] {
-  return anlaesse.map(r => fristSatz(r, MEILENSTEIN));
-}
-
 /** Zieltage: der Stillstands-Wächter — misst Liegezeit, keinen Termin. */
 export function stillstandPunkte(anlaesse: readonly FristRoh[]): BriefPunkt[] {
-  return anlaesse.map(r => fristSatz(r, STILLSTAND));
+  return anlaesse.map(stillstandSatz);
 }
 
 /** Die Handlung an einem Vorgang, aus der To-do-Kaskade (oder dem Rückfall). */
