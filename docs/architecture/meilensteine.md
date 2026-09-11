@@ -472,8 +472,9 @@ ohne `[role="menu"]` klappte „Nach oben" den Bereich zu.
 ([KonfigurationTab.tsx](../../src/plugins/meilensteine/KonfigurationTab.tsx)):
 
 - **Der Kopf der Meilenstein-Zeile ist dreigeteilt** (`KnotenKopf`): links die
-  Bezeichnung mit fester, mitwachsender Breite (240–520 px, kein Anteil mit
-  Umbruch), in der Mitte Zusammenfassung und Marken, rechts ein fester Block
+  Nummer (so schmal wie „10" bzw. „4.3", mindestens 26 px — feste 46 px ließen
+  eine Lücke) und die Bezeichnung mit fester, mitwachsender Breite (260–560 px,
+  kein Anteil mit Umbruch), in der Mitte Zusammenfassung und Marken, rechts ein fester Block
   Woche · aktiv · Frist · gilt für. Die Mitte füllt immer den Rest — auch ohne
   Zusammenfassung —, deshalb steht der rechte Block in jeder Zeile an derselben
   Stelle; wird es zu eng, bricht er in allen Zeilen gleich in die zweite Zeile

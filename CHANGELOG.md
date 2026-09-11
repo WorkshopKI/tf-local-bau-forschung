@@ -5,6 +5,13 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v6.60.2 — Meilensteine: Titel rückt an die Nummer (September 2026)
+
+PATCH — PL zu v6.60.1: „die Titel textbox kann nach links breiter sein, da ist ein relativ grosser abstand". Die Nummernspalte war fest 46 px breit, die Nummern brauchen 15–22 px.
+
+- Nummernspalte mindestens 26 px, das Titelfeld nimmt die Breite mit (260–560 px) ([KonfigurationTab.tsx](src/plugins/meilensteine/KonfigurationTab.tsx))
+- Absatz über 700 Zeichen aus v6.60.1 im [Feedback-Kontext](docs/feedback-kontext/meilensteine.md) geteilt (Guard des Hilfe-Dialogs); [meilensteine.md](docs/architecture/meilensteine.md) nachgezogen
+
 ### v6.60.1 — Regelbereich: Kopfzeile bündig, breitere Karten (September 2026)
 
 PATCH — PL zu v6.60: „bitte rechten Teil visuell alignen, das sieht jetzt sehr schlecht zu lesen aus wenn alle meilensteine eingeklappt sind" und „die cards der bedingung breiter machen so das ohne tooltip auch der spaltenname lesbar ist … es reicht wenn 3 cards nebeinander passen". Woche/Schalter/„gilt für" standen je Zeile woanders, der Feldname der Karte war abgeschnitten.

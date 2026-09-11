@@ -156,7 +156,7 @@ function KnotenKopf({ knoten, alle, spalten, schreibgeschuetzt, frisch, zusammen
   /**
    * Das Bezeichnungsfeld ist ein `textarea`, damit ein langer Titel umbricht
    * statt abgeschnitten zu werden. Es hat eine feste, mit der Zeile wachsende
-   * Breite (240–520 px) statt eines Anteils mit Umbruch: so steht die
+   * Breite (260–560 px) statt eines Anteils mit Umbruch: so steht die
    * Zusammenfassung in jeder Zeile an derselben Kante, und die Zeile bricht erst
    * um, wenn Titel und Schalter-Block zusammen nicht mehr passen.
    *
@@ -179,7 +179,9 @@ function KnotenKopf({ knoten, alle, spalten, schreibgeschuetzt, frisch, zusammen
       onClick={e => e.stopPropagation()}
       onDoubleClick={e => e.stopPropagation()}
     >
-      <span className="text-[12px] font-mono text-[var(--tf-text-tertiary)] w-[46px] shrink-0">
+      {/* So schmal wie „10" bzw. „4.3" — feste 46 px ließen eine Lücke vor dem
+          Titel; eine tiefere Nummer („4.3.1") verbreitert nur ihre eigene Zeile. */}
+      <span className="min-w-[26px] shrink-0 text-[12px] font-mono text-[var(--tf-text-tertiary)]">
         {knoten.nummer || '—'}
       </span>
 
@@ -191,7 +193,7 @@ function KnotenKopf({ knoten, alle, spalten, schreibgeschuetzt, frisch, zusammen
         disabled={schreibgeschuetzt}
         aria-label="Bezeichnung"
         title={knoten.label}
-        className="w-[clamp(240px,36%,520px)] shrink-0 resize-none overflow-y-auto text-[13px] leading-[18px] rounded px-2 py-0.5 bg-[var(--tf-bg)] text-[var(--tf-text)] disabled:opacity-60"
+        className="w-[clamp(260px,38%,560px)] shrink-0 resize-none overflow-y-auto text-[13px] leading-[18px] rounded px-2 py-0.5 bg-[var(--tf-bg)] text-[var(--tf-text)] disabled:opacity-60"
         style={feldStil}
       />
 

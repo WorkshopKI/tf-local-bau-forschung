@@ -74,10 +74,12 @@ Tooltip an „Gesamtfrist" und an „Eingang" nennt die beiden Spalten.
     per ↑/↓/Enter. Passt die Bezeichnung des Meilensteins zu Spalten, stehen
     diese oben als **Vorschlag** mit dem Wort, das sie ausgelöst hat. Ein
     Meilenstein ohne Bedingung bekommt zusätzlich eine Zeile „Vorschlag …
-    Übernehmen" — der Vorschlag wird nie von selbst gesetzt. In der Karte steht
-    der Feldname schlicht mit gepunkteter Unterlinie, darunter Vergleich und
-    Wert. Ein langer Feldname bricht um, statt abgeschnitten zu werden
-    („alle Anträge in C16 eingegeben · D_XTEC" steht vollständig da).
+    Übernehmen" — der Vorschlag wird nie von selbst gesetzt.
+
+  - **In der Karte** steht der Feldname schlicht mit gepunkteter Unterlinie,
+    darunter Vergleich und Wert. Ein langer Feldname bricht um, statt
+    abgeschnitten zu werden („alle Anträge in C16 eingegeben · D_XTEC" steht
+    vollständig da).
 
   - **Karten nebeneinander**: jede Gruppe steht als Karte, eine einzelne
     Bedingung als kleine Karte, eine Gruppe in einer Gruppe als Innenkarte.
