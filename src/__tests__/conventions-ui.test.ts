@@ -69,6 +69,10 @@
  *     nicht, welche CSV-Spalte dahinter steht, und genau dort entstehen falsche
  *     Regeln. Wer bedingungSatz/bedingungAlsText rendert, rendert auch
  *     bedingungQuellen/knotenQuellen/feldQuellen oder den QuellSpaltenTooltip.
+ *   - menue-ohne-ein-ausblend-animation → DESIGN_GUIDE Kap. 7 (v6.59.1): kein
+ *     `animate-in`/`animate-out` in src/components/ui/*-menu.tsx. Radix haengt ein
+ *     geschlossenes Menue erst nach der Ausblend-Animation aus — es stand >1 s
+ *     klickbar im DOM. `shadcn add` liefert die Klassen mit.
  */
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
@@ -452,6 +456,55 @@ describe('no-new-tf-ui-files (P1b: src/ui/ ist nur noch Re-Export-Shim)', () => 
         `Treffer:\n${offenders.map(o => `  src/ui/${o}`).join('\n')}`;
       expect.fail(msg);
     }
+  });
+});
+
+describe('menue-ohne-ein-ausblend-animation (DESIGN_GUIDE Kap. 7, v6.59.1)', () => {
+  // `shadcn add` liefert Menues mit `data-[state=closed]:animate-out`. Radix
+  // haengt ein geschlossenes Menue erst aus, wenn diese Animation zu Ende ist —
+  // gemessen im Bedingungs-Editor (v6.59.0): nach der Auswahl eines Eintrags
+  // stand das Menue noch ueber eine Sekunde im DOM, `data-state="closed"`, volle
+  // Deckkraft, `pointer-events: auto`. Der DESIGN_GUIDE erlaubt Ein-/Ausblenden
+  // ohnehin nur am Dialog (Kap. 7).
+  //
+  // Ist 0 in beiden Menues (context-menu, dropdown-menu). Popover, Select und
+  // HoverCard tragen die Klassen noch — sie sind keine Menues und hier bewusst
+  // nicht erfasst; ob sie denselben Nachlauf zeigen, ist nicht gemessen.
+  const MENUE_DATEI = /^src\/components\/ui\/[^/]+-menu\.tsx$/;
+  const ANIMATION = /\banimate-(?:in|out)\b/;
+  const istKommentar = (l: string): boolean => /^\s*(?:\/\/|\/?\*)/.test(l);
+
+  it('kein `animate-in`/`animate-out` in src/components/ui/*-menu.tsx', () => {
+    const menues = ALL_TS_FILES.filter(f => MENUE_DATEI.test(relPath(f)));
+    // Positiv-Kontrolle: findet der Filter kein Menue, prueft der Guard nichts
+    // und sieht dabei genauso gruen aus wie ein bestandener Lauf.
+    expect(menues.length, 'keine *-menu.tsx gefunden — der Guard ist blind').toBeGreaterThanOrEqual(2);
+    const treffer: Finding[] = menues.flatMap(f =>
+      findInFile(f, l => !istKommentar(l) && ANIMATION.test(l), 'allow-menue-animation'));
+    if (treffer.length > 0) {
+      expect.fail(
+        `Ein-/Ausblend-Animation an einem Menue. Radix haengt das geschlossene Menue\n` +
+        `erst nach dem Ende der Animation aus — solange steht es unsichtbar, aber\n` +
+        `klickbar im DOM (v6.59.0: ueber eine Sekunde).\n\n` +
+        `Stattdessen die Klassen \`animate-in\`/\`animate-out\` samt \`fade-*\`/\`zoom-*\`/\n` +
+        `\`slide-in-*\` streichen — Vorbild ist src/components/ui/context-menu.tsx.\n` +
+        `DESIGN_GUIDE Kap. 7 erlaubt Animation nur am Dialog.\n\n` +
+        `Treffer:\n${fmt(treffer)}`,
+      );
+    }
+  });
+
+  it('das Muster greift (Musterkontrolle)', () => {
+    expect(ANIMATION.test('"data-[state=open]:animate-in data-[state=closed]:animate-out"')).toBe(true);
+    expect(ANIMATION.test("'data-open:animate-in data-open:fade-in-0'")).toBe(true);
+    expect(MENUE_DATEI.test('src/components/ui/dropdown-menu.tsx')).toBe(true);
+    expect(istKommentar(' * Die generierte shadcn-Fassung trug `animate-in`/`animate-out`.')).toBe(true);
+    // Gegenproben: der Lade-Spinner ist erlaubt (Kap. 7), Code bleibt Code, und
+    // Popover sowie ein Menue ausserhalb von components/ui sind nicht erfasst.
+    expect(ANIMATION.test('<Loader2 className="animate-spin" />')).toBe(false);
+    expect(istKommentar('  "data-open:animate-in",')).toBe(false);
+    expect(MENUE_DATEI.test('src/components/ui/popover.tsx')).toBe(false);
+    expect(MENUE_DATEI.test('src/plugins/antraege/kontext-menu.tsx')).toBe(false);
   });
 });
 

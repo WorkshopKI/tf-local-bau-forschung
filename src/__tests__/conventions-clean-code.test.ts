@@ -129,7 +129,17 @@ const MUSTER = {
   vierParameter: /^\s*(export\s+)?(async\s+)?function\s+\w+\s*\(\s*[A-Za-z_$][^{)]*?(,[^,{)]*){3,}\)/,
   tiefeVerschachtelung: /^ {14,}(if|for|while|switch|try)\s*[({]/,
   exportFunktion: /^export\s+(?:async\s+)?function\s+([A-Za-z_$][\w$]*)/,
+  cnPaket: /(?:\bfrom\s+|\bimport\s*\(\s*|\brequire\s*\(\s*)['"]cn(?:\/[^'"]*)?['"]/,
+  cnFremdeHerkunft: /import\s*\{[^}]*\bcn\b[^}]*\}\s*from\s*['"](?!@\/lib\/utils['"])[^'"]+['"]/g,
 } as const;
+
+/** Die Abhaengigkeits-Sektionen der package.json, in denen ein Paket stehen kann. */
+const DEP_SEKTIONEN = ['dependencies', 'devDependencies', 'peerDependencies', 'optionalDependencies'] as const;
+const sektionenMitPaket = (pkg: Record<string, unknown>, name: string): string[] =>
+  DEP_SEKTIONEN.filter(s => {
+    const d = pkg[s];
+    return typeof d === 'object' && d !== null && name in d;
+  });
 
 // ============================================================ VERBOTE (Ist 0)
 
@@ -370,6 +380,75 @@ describe('fixture-tore-melden-sich (ein stiller Skip ist schlimmer als ein fehle
         `  beschreibeMitFixture('Name', PFAD, 'warum liegt das nicht im Repo', () => { … });\n\n` +
         `Und den Pfad in TORE (dieser Datei) eintragen.\n\n` +
         `Treffer:\n${fmt(treffer)}`,
+      );
+    }
+  });
+});
+
+describe('cn-kommt-aus-lib-utils (die shadcn-CLI loeste den Alias falsch auf)', () => {
+  // v6.59.0: `npx shadcn@latest add dropdown-menu` (CLI 4.21.0) schrieb trotz
+  // korrektem components.json (`aliases.utils: "@/lib/utils"`) in die neue
+  // Komponente `import { cn } from "cn"` und trug das gleichnamige npm-Paket
+  // `cn@0.2.6` in package.json + Lock ein. Typecheck und Lint blieben GRUEN —
+  // das fremde Paket existiert ja und liefert etwas, das sich importieren laesst.
+  // Aufgefallen ist es nur am `git diff package.json`.
+  //
+  // Unser `cn` ist `twMerge(clsx(…))` aus src/lib/utils.ts, und alle 23
+  // Importstellen holen es von dort. Ist 0 auf allen drei Achsen — die Regel
+  // haelt fest, was die CLI beim naechsten `add` wieder kaputtmachen kann.
+  it('kein Import des npm-Pakets `cn`', () => {
+    const treffer: Finding[] = [];
+    for (const file of scanDateien) {
+      treffer.push(...findInFile(file, l => MUSTER.cnPaket.test(l), KEINE_AUSNAHME));
+    }
+    if (treffer.length > 0) {
+      expect.fail(
+        `Import des npm-Pakets \`cn\` — das ist NICHT unser Klassen-Helfer.\n\n` +
+        `Unser \`cn\` ist \`twMerge(clsx(…))\` aus src/lib/utils.ts. Das gleichnamige\n` +
+        `npm-Paket ist etwas Fremdes, das \`npx shadcn@latest add\` (CLI 4.21) trotz\n` +
+        `korrektem components.json eingetragen hat — Typecheck und Lint bleiben dabei gruen.\n\n` +
+        `Stattdessen: import { cn } from '@/lib/utils' — und \`npm uninstall cn\`.\n\n` +
+        `Treffer:\n${fmt(treffer)}`,
+      );
+    }
+  });
+
+  it('benannter Import `cn` nur aus @/lib/utils', () => {
+    const treffer: Finding[] = [];
+    for (const file of scanDateien) {
+      treffer.push(...findInContent(
+        file, new RegExp(MUSTER.cnFremdeHerkunft), 'allow-cn-kommt-aus-lib-utils',
+      ));
+    }
+    if (treffer.length > 0) {
+      expect.fail(
+        `\`cn\` wird aus einer anderen Quelle als '@/lib/utils' importiert.\n\n` +
+        `Es gibt genau EINEN Klassen-Helfer; jede andere Quelle ist entweder ein\n` +
+        `falsch aufgeloester Alias (so schreibt ihn die shadcn-CLI, wenn sie\n` +
+        `components.json nicht folgt) oder eine zweite Fassung mit anderem Verhalten.\n\n` +
+        `Stattdessen: import { cn } from '@/lib/utils'.\n\n` +
+        `Treffer:\n${fmt(treffer)}`,
+      );
+    }
+  });
+
+  it('package.json fuehrt keine Abhaengigkeit `cn`', () => {
+    // Das Lockfile bleibt bewusst aussen vor: dort darf `cn` als transitive
+    // Abhaengigkeit eines legitimen Pakets auftauchen, und `npm uninstall`
+    // bereinigt ohnehin beide Dateien.
+    const pkg = JSON.parse(readFileSync(join(ROOT, '..', 'package.json'), 'utf-8')) as Record<string, unknown>;
+    // Positiv-Kontrolle: eine unlesbare oder falsch gelesene package.json saehe
+    // genauso gruen aus wie eine saubere.
+    expect(sektionenMitPaket(pkg, 'react'), 'package.json muss lesbar sein und react fuehren')
+      .toEqual(['dependencies']);
+    const fund = sektionenMitPaket(pkg, 'cn');
+    if (fund.length > 0) {
+      expect.fail(
+        `package.json fuehrt das npm-Paket \`cn\` (${fund.join(', ')}).\n\n` +
+        `Das hat \`npx shadcn@latest add\` eingetragen, nicht jemand mit Absicht —\n` +
+        `unser \`cn\` kommt aus src/lib/utils.ts und braucht kein Paket.\n\n` +
+        `Weg raus: \`npm uninstall cn\`, dann den Import in der neuen Komponente\n` +
+        `auf '@/lib/utils' stellen.`,
       );
     }
   });
@@ -792,6 +871,35 @@ describe('musterkontrollen (jedes Muster beweist, dass es noch greift)', () => {
     // (sonst wuerde jede lokale Hilfsfunktion als Namensdublette gelten).
     expect('function intern(): void {'.match(MUSTER.exportFunktion)).toBe(null);
     expect('export const baueListe = (x: A): B => {'.match(MUSTER.exportFunktion)).toBe(null);
+  });
+
+  it('cnPaket trifft jede Importform des npm-Pakets, nicht unseren Helfer', () => {
+    expect(trifft(MUSTER.cnPaket, 'import { cn } from "cn"')).toBe(true);
+    expect(trifft(MUSTER.cnPaket, "import cnPaket from 'cn';")).toBe(true);
+    expect(trifft(MUSTER.cnPaket, "const { cn } = require('cn');")).toBe(true);
+    // Gegenproben: der richtige Weg, und Pakete, deren Name nur mit cn beginnt.
+    expect(trifft(MUSTER.cnPaket, 'import { cn } from "@/lib/utils"')).toBe(false);
+    expect(trifft(MUSTER.cnPaket, "import x from 'cn-utils';")).toBe(false);
+    expect(trifft(MUSTER.cnPaket, "import { clsx } from 'clsx';")).toBe(false);
+  });
+
+  it('cnFremdeHerkunft trifft `cn` aus jeder Quelle ausser @/lib/utils, auch mehrzeilig', () => {
+    expect(trifft(MUSTER.cnFremdeHerkunft, 'import { cn } from "cn"')).toBe(true);
+    expect(trifft(MUSTER.cnFremdeHerkunft, "import { cn } from 'lib/utils';")).toBe(true);
+    expect(trifft(MUSTER.cnFremdeHerkunft, "import {\n  cva,\n  cn,\n} from '@/components/lib/utils';")).toBe(true);
+    // Gegenproben: der richtige Weg in beiden Anfuehrungszeichen, und ein Name,
+    // der nur mit cn beginnt.
+    expect(trifft(MUSTER.cnFremdeHerkunft, 'import { cn } from "@/lib/utils"')).toBe(false);
+    expect(trifft(MUSTER.cnFremdeHerkunft, "import { cn } from '@/lib/utils'")).toBe(false);
+    expect(trifft(MUSTER.cnFremdeHerkunft, "import { cnVarianten } from './stil';")).toBe(false);
+  });
+
+  it('sektionenMitPaket findet das Paket in jeder Sektion, nicht als Namensteil', () => {
+    expect(sektionenMitPaket({ dependencies: { cn: '^0.2.6' } }, 'cn')).toEqual(['dependencies']);
+    expect(sektionenMitPaket({ devDependencies: { cn: '^0.2.6' } }, 'cn')).toEqual(['devDependencies']);
+    // Gegenproben: ein Paket, das nur mit cn beginnt, und eine fehlende Sektion.
+    expect(sektionenMitPaket({ dependencies: { 'cn-utils': '1.0.0', clsx: '2.1.1' } }, 'cn')).toEqual([]);
+    expect(sektionenMitPaket({}, 'cn')).toEqual([]);
   });
 
   it('die Scan-Menge ist nicht leer und schliesst diese Datei aus', () => {

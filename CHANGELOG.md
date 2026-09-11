@@ -5,6 +5,14 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v6.59.1 — Guard gegen fremden cn-Import (September 2026)
+
+PATCH — `npx shadcn@latest add` (CLI 4.21) schrieb in v6.59.0 trotz korrektem `components.json` `import { cn } from "cn"` samt fremdem npm-Paket und lieferte ein Menü, das geschlossen noch über eine Sekunde klickbar im DOM stand. Typecheck und Lint waren grün, aufgefallen ist es nur am `git diff package.json`. Beides fängt jetzt das Gate: Ist-Wert je 0, also Verbot statt Ratsche, und jeder Guard wurde einmal rot gesehen.
+
+- Guard `cn-kommt-aus-lib-utils`: kein Import des npm-Pakets `cn`, `{ cn }` nur aus `@/lib/utils`, keine `cn`-Dependency in package.json, mit Probe und Gegenprobe ([conventions-clean-code.test.ts](src/__tests__/conventions-clean-code.test.ts))
+- Guard `menue-ohne-ein-ausblend-animation`: kein `animate-in`/`animate-out` in `src/components/ui/*-menu.tsx` ([conventions-ui.test.ts](src/__tests__/conventions-ui.test.ts))
+- DESIGN_GUIDE §5 (nach `shadcn add` prüfen) und Kap. 7 (Menüs ohne Animation) nennen beide Guards ([DESIGN_GUIDE.md](DESIGN_GUIDE.md))
+
 ### v6.59.0 — Bedingungs-Editor: benannte Gruppen und Probe am Bestand (September 2026)
 
 MINOR — Rückmeldung der PL nach dem ersten Anlegen: der Bedingungs-Bereich sei „noch nicht intuitiv und übersichtlich genug, gerade bei komplexeren und verschachtelten Gruppen", die Gruppennamen sollten änderbar sein — und man wolle beim Bauen sehen, was ein Meilenstein am Bestand trifft. Der gelobte Feld-Wähler bleibt. Builds vor v6.59 verwerfen den Gruppennamen beim Lesen; die Aussage der Regel bleibt gleich.

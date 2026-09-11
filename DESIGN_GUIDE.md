@@ -204,7 +204,7 @@ TeamFlow nutzt **shadcn/ui** (Radix-basiert, Nova-Preset) für Standard-Komponen
 **Eine UI-Bibliothek (P1b):** `src/components/ui/` ist die einzige Heimat — genau **eine Implementierung pro Primitive**. `@/ui` ist seit P1b nur ein **Kompatibilitäts-Shim** (Re-Export); in neuem Code direkt `@/components/ui/*` importieren. Der `Button` versteht zusätzlich die TF-Aliase `variant="primary|secondary|danger"`, `size="md"` sowie `loading`/`icon`. Maschinell erzwungen durch den Convention-Test `no-new-tf-ui-files` (keine neuen Dateien in `src/ui/`).
 
 **Grundregeln:**
-- Fehlende shadcn-Komponenten per `npx shadcn@latest add <n>` nachinstallieren
+- Fehlende shadcn-Komponenten per `npx shadcn@latest add <n>` nachinstallieren — danach `git diff package.json` lesen und die neue Datei an die Machart von `context-menu.tsx` angleichen. Die CLI 4.21 schrieb trotz korrektem `components.json` `import { cn } from "cn"` samt fremdem npm-Paket (Guard `cn-kommt-aus-lib-utils`) und lieferte Menüs mit Ausblend-Animation (Guard `menue-ohne-ein-ausblend-animation`, Kap. 7)
 - shadcn-Komponenten sind bereits auf das Theme-System abgestimmt (CSS Custom Properties)
 - Eigene Komponenten nur wenn shadcn nichts passendes hat (z.B. Filter-Pills sind custom)
 - Die Spezifikationen unten gelten zusätzlich zu den shadcn-Defaults — z.B. "kein Bold" überschreibt den shadcn-Button der default auf font-medium steht
@@ -753,6 +753,7 @@ Referenz-Adopter: [src/plugins/antraege/](src/plugins/antraege/) (Original), [sr
 - Keine Skeleton-Loading-Screens (einfacher Spinner oder "Laden..." Text)
 - Keine Animierten Fortschrittsbalken (nur bei Admin-Indexierung erlaubt)
 - Keine Tooltip-Delays unter 500ms
+- Keine Ein-/Ausblend-Animation an Menüs (`animate-in`/`animate-out` in `src/components/ui/*-menu.tsx`): Radix hängt das geschlossene Menü erst nach der Animation aus — es blieb über eine Sekunde unsichtbar, aber klickbar im DOM. Guard `menue-ohne-ein-ausblend-animation`
 
 ---
 
