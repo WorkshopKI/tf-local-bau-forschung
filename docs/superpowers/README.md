@@ -1,17 +1,18 @@
-# Spec und Plan — die leichte Artefakt-Kette
+# Spec — die leichte Artefakt-Kette
 
-Zwei Ordner, zwei Artefakte: `specs/` hält fest, **was und warum** gebaut wird, `plans/` hält fest, **wie**. Beides entsteht im Brainstorming beziehungsweise im Plan-Modus und wird mit der Umsetzung committet. Der Prozess dahinter: [docs/architecture/entwicklungsprozess.md](../architecture/entwicklungsprozess.md).
+Ein Ordner, ein Artefakt: `specs/` hält fest, **was, warum und wie** gebaut wird. Der freigegebene Plan-Modus-Plan wird selbst zur Spec — es entsteht kein zweites Dokument daneben. Die Spec wird mit der Umsetzung committet. Der Prozess dahinter: [docs/architecture/entwicklungsprozess.md](../architecture/entwicklungsprozess.md).
 
-## Wann Spec und Plan ins Repo gehören
+## Wann eine Spec ins Repo gehört
 
-Ab dieser **Schwelle** werden beide committet — sonst bleibt der Plan-Modus-Plan außerhalb des Repos:
+Ab dieser **Schwelle** — sonst bleibt der Plan-Modus-Plan außerhalb des Repos:
 
-- ein neues Plugin, ein neuer Feature-Flag, ein neuer IDB-Store, eine neue Sidecar-Datei, ein neuer Skill oder Hook, **oder**
-- mehr als fünf geänderte Dateien.
+- ein neues Plugin, ein neuer Feature-Flag, ein neuer IDB-Store, eine neue Sidecar-Datei, ein neuer Skill, Hook oder Agent.
 
-Dateiname: `YYYY-MM-DD-<slug>-design.md` (Spec) und `YYYY-MM-DD-<slug>.md` (Plan). Der Plan verlinkt seine Spec unter **Grundlage**. Erledigte Paare wandern nach [docs/_archiv/superpowers/](../_archiv/README.md) (Doku-Konvention 8); sie behalten ihren Namen.
+Die Zahl geänderter Dateien ist bewusst kein Kriterium: sie trifft fast jedes Feature und macht aus jedem Plan ein Repo-Dokument, ohne dass eine neue Achse entsteht.
 
-## Spec-Schablone
+Dateiname: `specs/YYYY-MM-DD-<slug>.md`. Ältere Paare (`…-design.md` in `specs/` plus Plan in `plans/`) bleiben, wie sie sind; `plans/` bekommt keine neuen Dateien. Erledigte Specs wandern nach [docs/_archiv/superpowers/](../_archiv/README.md) (Doku-Konvention 8); sie behalten ihren Namen.
+
+## Schablone
 
 ```markdown
 # <Titel>
@@ -28,12 +29,11 @@ Das Problem hinter dem Anlass; was die wörtliche Bitte nicht sagt.
 Gemessen, mit Datum, Datenstand und Fundstellen. Zahlen tragen Einheit und Quelle.
 
 ## 3. Entwurf
-Bausteine, Datenfluss, Fehlerfälle, Tests — in Abschnitten je Baustein.
+Bausteine, Datenfluss, Fehlerfälle, Tests — in Abschnitten je Baustein. Entscheidungen aus der Grill-Runde mit einem Satz Grund.
 
-## 4. Verifikation
+## 4. Schritte
+Der freigegebene Plan-Modus-Plan, übernommen: je Schritt Dateien, Schnittstellen, Reihenfolge. Checkboxen `- [ ]` nur, wenn die Umsetzung über mehrere Sitzungen läuft.
+
+## 5. Verifikation
 Wie die Änderung Ende-zu-Ende geprüft wird (Gate, Abnahme in dev:local, Handtest unter file://).
 ```
-
-## Plan-Schablone
-
-Kopfzeile mit dem Sub-Skill für die Umsetzung, dann: **Ziel** · **Architektur** · **Tech-Stack** · **Grundlage** (Link auf die Spec) · `## Global Constraints` (betroffene Pitfall-Nummern, innerer Loop und Phasen-Gate, Windows-Shell, parallele Sessions, Testprojekte) · `## Dateien im Überblick` (Tabelle Datei → Rolle) · Tasks mit Checkboxen `- [ ]`, je Task Dateien, Schnittstellen, Schritte und Verifikation. Vorbild: das jüngste Exemplar in `plans/`.

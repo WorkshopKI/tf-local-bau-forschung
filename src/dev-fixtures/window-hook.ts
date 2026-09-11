@@ -126,8 +126,12 @@ export function installiereTfHook(storage: StorageService): void {
      * Wichtigste Funktion des Hooks: ohne den `datenPhase === 'done'`-Anteil
      * fotografiert eine Automation eine leere Tabelle, weil der Startup-
      * Datenlauf (Snapshot + CSV-Check) noch läuft.
+     *
+     * Standard 40 s: bleibt unter der 45-s-Grenze eines `javascript_tool`-
+     * Aufrufs. Darüber bräche das Werkzeug ab und verschluckte die Phase; so
+     * meldet der Timeout sie, und der Aufrufer ruft erneut.
      */
-    async bereit(timeoutMs = 180_000): Promise<TfZustand> {
+    async bereit(timeoutMs = 40_000): Promise<TfZustand> {
       const ende = Date.now() + timeoutMs;
       for (;;) {
         const phase = useStartupDataStatus.getState().phase;

@@ -18,6 +18,7 @@ import { pruefeBefehl } from '../../scripts/hooks/bash-guard.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const SKILLS_DIR = resolve(ROOT, '.claude/skills');
+const AGENTS_DIR = resolve(ROOT, '.claude/agents');
 const SPECS_DIR = resolve(ROOT, 'docs/superpowers/specs');
 
 /** `.claude/skills/<name>/SKILL.md`, sortiert — leer, wenn der Ordner fehlt. */
@@ -70,6 +71,21 @@ describe('agent-konfiguration', () => {
       }
     }
     expect(fehler, `Kaputte Links in Skills:\n${fehler.join('\n')}`).toEqual([]);
+  });
+
+  it('jeder Agent unter .claude/agents/ hat Frontmatter mit name = Dateiname und einer Beschreibung', () => {
+    expect(existsSync(AGENTS_DIR), '.claude/agents/ fehlt').toBe(true);
+    const dateien = readdirSync(AGENTS_DIR).filter(f => f.endsWith('.md')).sort();
+    expect(dateien.length, 'mindestens ein Agent unter .claude/agents/').toBeGreaterThan(0);
+    const fehler: string[] = [];
+    for (const datei of dateien) {
+      const fm = frontmatter(readFileSync(join(AGENTS_DIR, datei), 'utf8'));
+      if (fm === null) { fehler.push(`${datei}: kein Frontmatter-Block`); continue; }
+      const erwartet = datei.replace(/\.md$/, '');
+      if (fm.name !== erwartet) fehler.push(`${datei}: name "${fm.name ?? ''}" ≠ Dateiname`);
+      if (!fm.description) fehler.push(`${datei}: description fehlt`);
+    }
+    expect(fehler, fehler.join('\n')).toEqual([]);
   });
 
   it('.claude/settings.json ist parsebar und jedes Hook-Skript existiert', () => {

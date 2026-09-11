@@ -1,7 +1,7 @@
 {
   "name": "teamflow-local",
   "private": true,
-  "version": "6.57.4",
+  "version": "6.58.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -55,7 +55,8 @@
     "cycles": "node scripts/check-cycles.mjs",
     "precheck": "npm run map",
     "check:docs": "vitest run src/__tests__",
-    "check:quick": "npm run typecheck && npm run lint && npm run test",
+    "check:quick": "npm run check",
+    "turnaround": "node scripts/turnaround-metrik.mjs",
     "check": "npm run typecheck && npm run lint && npm run cycles && npm run test"
   },
   "dependencies": {

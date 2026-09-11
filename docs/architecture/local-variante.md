@@ -22,7 +22,7 @@ hier die Trennlinie im Detail.
 | Texte, Beschriftungen, Zahlen | `read_page` / `get_page_text` gegen die konkrete Zeichenkette |
 | Layout, Abstände, Abschneiden | Screenshot + `scrollWidth > clientWidth`-Messung im DOM |
 | Interaktion (Klick, Filter, Navigation) | `computer`-Klick → `read_page`, Route über `location.hash` |
-| Zustände nach Reload | `location.reload()` + `await window.__tf.bereit()` |
+| Zustände nach Reload | `location.reload()` im eigenen Aufruf, dann der Warte-Einzeiler + `bereit()` ([Ablauf](#ablauf-für-einen-sicht-check)) |
 | Persistenz | Wert direkt aus `localStorage` / der Varianten-IDB lesen |
 | Konsolen-Sauberkeit | `window.__tf.fehler()` **muss 0 sein** |
 | Dark Mode, Responsive | `resize_window({colorScheme})` / `({preset})` |
@@ -98,6 +98,14 @@ demselben Zertifikat — und ein Gutachten-Lauf gehört in die obere Tabelle. De
     prüfen — gehört deshalb in EINEN `javascript_tool`-Aufruf. Ein „State war
     plötzlich zurückgesetzt" zwischen zwei Aufrufen ist zuerst ein
     Pane-Artefakt, kein Befund.
+11. **Direkt nach `location.reload()` oder einem Seitenwechsel ist
+    `window.__tf` undefined** — der Hook entsteht erst nach `storage.init()`.
+    Den Reload in einen **eigenen** Aufruf legen (im selben Aufruf stirbt das
+    Script mit „Inspected target navigated or closed"), im nächsten erst auf
+    den Hook warten (Einzeiler unter [Ablauf](#ablauf-für-einen-sicht-check)).
+    Ist das Pane verdeckt, läuft ein Aufruf nach 45 s ab — `bereit()` bricht
+    deshalb schon nach 40 s mit der Phase ab; bei einem langen Kaltstart
+    einfach erneut rufen.
 
 ## Warum
 
@@ -122,14 +130,16 @@ laufen parallel). Die App landet ohne Zwischenschritt auf Home.
 ### Ablauf für einen Sicht-Check
 
 ```js
-await window.__tf.bereit();          // wartet auf Mount UND datenPhase === 'done'
+for (let i = 0; i < 50 && !window.__tf; i++) await new Promise(r => setTimeout(r, 200)); // Hook abwarten (≤ 10 s)
+await window.__tf.bereit();          // wartet auf Mount UND datenPhase === 'done' (≤ 40 s)
 window.__tf.navigiere('/antraege');
 window.__tf.fehler();                // gesammelte console.error seit Seitenstart
 ```
 
 `bereit()` ist die wichtigste Funktion: ohne den `datenPhase`-Anteil
 fotografiert die Automation eine leere Tabelle, während der Startup-Datenlauf
-noch läuft.
+noch läuft. Die erste Zeile gehört nach jedem Reload und Seitenwechsel davor —
+siehe Fallstrick 11.
 
 ## Architektur
 

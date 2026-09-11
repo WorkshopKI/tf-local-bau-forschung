@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v6.58.0 — Kürzerer Durchlauf: Plan-Modus ab Schwelle, eine Spec, Doku-Agent (September 2026)
+
+MINOR — Der Durchlauf je Commit galt als langsam, verdächtigt waren die neuen Checks. Gemessen mit `npm run turnaround`: die Gates kosten 2,3 min und 1,3 rote Läufe je Commit — weniger als im August (3,0–3,2 min, 1,6–1,9); von 19,5 min Claude-aktiv sind 14,1 Modellzeit, dazu 4,7 min Warten auf Freigaben. Effort bleibt `xhigh`.
+
+- **Plan-Modus ab Schwelle**, von Claude selbst aufgerufen; Rückfragen vorn gebündelt, Memory nur bei neuer Lehre ([CLAUDE.md](CLAUDE.md), [entwicklungsprozess.md](docs/architecture/entwicklungsprozess.md))
+- **Eine Spec statt Spec + Plan**, Schwelle ohne „mehr als fünf Dateien" ([docs/superpowers/README.md](docs/superpowers/README.md), [Spec](docs/superpowers/specs/2026-09-11-turnaround.md))
+- **Doku-Nachzug als Hintergrund-Agent** (Experiment) plus Guard für Agent-Frontmatter ([doku-nachzug.md](.claude/agents/doku-nachzug.md), [agent-konfiguration.test.ts](src/__tests__/agent-konfiguration.test.ts))
+- **Ein Gate-Lauf** (`check:quick` = `check`) und `__tf.bereit()` bricht nach 40 s mit der Phase ab ([package.json](package.json), [window-hook.ts](src/dev-fixtures/window-hook.ts), [local-variante.md](docs/architecture/local-variante.md))
+- **Messung wiederholbar**: `npm run turnaround` ([turnaround-metrik.mjs](scripts/turnaround-metrik.mjs))
+
 ### v6.57.4 — Tagesbrief nennt die Aufgabe statt des Meilenstein-Namens (September 2026)
 
 PATCH — Der Tagesbrief sagte „KITED ist seit 227 Tagen fällig (QS freigegeben und versendet)", die Karte „Meine Anträge" darunter „Stellungnahme RNE prüfen". Die Klammer war das Label eines Meilensteins, der NICHT erreicht war, und las sich als eingetretener Zustand; weil der Meilenstein den Verbund vertrat, fiel die Aufgabe ganz weg.

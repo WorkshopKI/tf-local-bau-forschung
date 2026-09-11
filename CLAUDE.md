@@ -16,7 +16,7 @@ Decision-Tree für häufige Aufgaben. Erst hier nachsehen, **bevor** du die Code
 | Vorhaben schärfen, bevor gebaut wird (Befund zuerst, Frontier-Runden mit Empfehlung) | Skill `grillen` ([SKILL.md](.claude/skills/grillen/SKILL.md)) — auch als Frage-Schritt des Brainstormings |
 | Begriff nachschlagen (Verbund/TV, Schnitt/Fassung/Entwurf, Kürzel-Homonym, vier Sichtbarkeits-Achsen) | [CONTEXT.md](CONTEXT.md) — nur Begriffe, vom Grill-Skill gepflegt |
 | Review-Pässe, Wichtig vs. Nit, Ausnahmen (`/code-review`) | [REVIEW.md](REVIEW.md) |
-| Entwicklungsprozess: Anlass → Spec → Plan (Schwelle, Schablonen), Hook + Deny-Regeln, Zeiger-Skills, Guard der Agent-Konfiguration | [entwicklungsprozess.md](docs/architecture/entwicklungsprozess.md) + [docs/superpowers/README.md](docs/superpowers/README.md) |
+| Entwicklungsprozess: Anlass → Spec (Schwelle, Schablone), Plan-Modus ab Schwelle, Hook + Deny-Regeln, Zeiger-Skills, Doku-Agent, Guard der Agent-Konfiguration | [entwicklungsprozess.md](docs/architecture/entwicklungsprozess.md) + [docs/superpowers/README.md](docs/superpowers/README.md) |
 | Bildschirmseiten-Kontext-Doc pflegen (Feedback-KI-Kontext) | [docs/agents/update-screen-context.md](docs/agents/update-screen-context.md) |
 | Doku-Dashboard für Einsteiger und Entwickler aktualisieren (animierte Abläufe, Kennzahlen, Glossar; monatlich oder nach neuem Feature) | Skill `docu-dashboard` ([SKILL.md](.claude/skills/docu-dashboard/SKILL.md)) → `npm run docs:dashboard`, Aufbau in [docs/docu-dashboard/README.md](docs/docu-dashboard/README.md) |
 | UI-Patch (Komponenten, Farben, Tokens) | [DESIGN_GUIDE.md](DESIGN_GUIDE.md) |
@@ -35,6 +35,7 @@ Decision-Tree für häufige Aufgaben. Erst hier nachsehen, **bevor** du die Code
 | `file://`-Constraint vergessen? | [docs/agents/file-protocol-pitfalls.md](docs/agents/file-protocol-pitfalls.md) + Critical Constraints unten |
 | Bug-Risiko-Check vor Commit | [Common Pitfalls](#common-pitfalls) unten (nummerierte Liste) überfliegen |
 | Technische Schuld messen (Größe, Duplikate, tote Exporte, Testbezug, Guard-Suite über sich selbst) | `npm run qualitaet` → [code-quality-baseline.md](docs/architecture/code-quality-baseline.md); Mess-Modul [quality-metrics.mjs](scripts/lib/quality-metrics.mjs) |
+| Durchlaufzeit je Commit messen (Modell vs. Gates vs. Abnahme vs. Warten, aus den Sitzungsprotokollen) | `npm run turnaround` → [turnaround-metrik.mjs](scripts/turnaround-metrik.mjs); Befund in [entwicklungsprozess.md §4](docs/architecture/entwicklungsprozess.md) |
 | Codequalitäts-Regel anlegen (Codeform, nicht Fachregel) | [conventions-clean-code.test.ts](src/__tests__/conventions-clean-code.test.ts) — Ist-Wert MESSEN, dann Verbot (bei 0) oder Ratsche (darf nur sinken); Muster nach `MUSTER` heben und Probe + Gegenprobe ergänzen |
 | Wiederkehrende Bug-Klassen (Cold-Start-Refresh, FSAPI, Parallel-Varianten, Embedding-Caches) | [docs/architecture/recurring-bug-classes.md](docs/architecture/recurring-bug-classes.md) |
 | Welche(n) Build nach dem Patch bauen | [docs/agents/which-build-to-run.md](docs/agents/which-build-to-run.md) |
@@ -291,21 +292,22 @@ Die Vitest-Suite läuft in **zwei Projekten** (`vitest.config.mts`): `fast` (ohn
 ## Entwicklungs-Gate (innerer Loop vs. Phasen-Gate)
 
 - **Nach Doc-/Guard-Schreiben** (Sekunden): `npm run check:docs` — nur die Guards unter [src/__tests__/](src/__tests__/) (~6 s gemessen). Fängt Reißleinen, Link-Risse und Struktur-Schwellen **sofort**, statt am Ende des Voll-Gates. Reine Doc-Änderungen erreichen sonst keinen einzigen Test.
-- **Innerer Loop** (nach jedem Fix/Teilschritt): `npm run check:quick` — inkrementeller Typecheck + gecachtes Lint + **komplette** Testsuite. Die Suite braucht ~26 s (632 Dateien); `--changed` sparte davon so wenig, dass es die Blindstelle bei Doc-Änderungen nicht wert war.
+- **Innerer Loop** (nach jedem Fix/Teilschritt): gezielt `npx vitest run <betroffene Testdateien>` + `npm run typecheck` (inkrementell, ~2 s). Die volle Suite (~40 s, 820 Dateien) läuft **einmal** im Phasen-Gate — ein grünes Gate ohne Änderung danach wird nicht wiederholt. `check:quick` ist ein Alias für `check` (Altverweise bleiben gültig).
 - **Phasen-Gate** (vor jedem Commit): `npm run check` — Typecheck + Lint + `cycles` + komplette Testsuite. **Ohne Build**: der Bundle-Nachweis ist der abschließende `npm run build:devpl`, der dev ohnehin baut — ihn zweimal zu bauen kostete nur Wartezeit.
-- **Zyklen** ([check-cycles.mjs](scripts/check-cycles.mjs), nicht in `check:quick`): Allowlist ist **leer** — neuer Laufzeit-Zyklus wird aufgelöst (Barrel-Import → Direktimport), nicht eingetragen.
+- **Zyklen** ([check-cycles.mjs](scripts/check-cycles.mjs), Teil von `check`): Allowlist ist **leer** — neuer Laufzeit-Zyklus wird aufgelöst (Barrel-Import → Direktimport), nicht eingetragen.
 - Bei Verdacht auf stale Typecheck-Cache (Branch-Wechsel, seltsame Fehler): `npm run typecheck:full` (`tsc --build --force`).
-- **Der Build läuft im Hintergrund.** Sobald `check` grün ist, `npm run build:devpl` als Hintergrund-Lauf starten und währenddessen Docs + Changelog schreiben. Vor Commit und vor jedem „fertig" den **Exit-Code prüfen** — ein gestarteter Build ist kein Beleg.
+- **Build und Doku-Nachzug laufen im Hintergrund.** Sobald `check` grün und der Bump gelaufen ist: `npm run build:devpl` als Hintergrund-Lauf **und** den Agenten `doku-nachzug` ([.claude/agents/doku-nachzug.md](.claude/agents/doku-nachzug.md)) im Hintergrund starten — Auftrag: Version, Anlass, geänderte Dateien, was sichtbar ist. Währenddessen die Abnahme in `dev:local`. Danach den Doku-Diff lesen, `check:docs`, den Build-**Exit-Code prüfen** (ein gestarteter Build ist kein Beleg), dann committen. Der Agent ist ein Experiment; ob er den Durchlauf verkürzt, zeigt `npm run turnaround`.
 
 ## Planung: schlank halten
 
-Der Plan-Modus bleibt der Standard-Einstieg, aber er ist ein Werkzeug, kein Ritual. Verbindlich:
+Der Plan-Modus ist ein Werkzeug, kein Standard-Einstieg: Sitzungen starten im normalen Modus, und Claude ruft `EnterPlanMode` **selbst** auf, sobald die Aufgabe über die Schwelle geht — Feature, neues Plugin/Flag/Store/Sidecar/Skill/Hook/Agent, Frage an Datenmodell oder Achse, unklare Anforderung. Ein Bugfix mit klarer Reproduktion und Kleinkram gehen direkt. Verbindlich:
 
 - **Höchstens ein Explore-Agent**, und nur wenn der Entscheidungsbaum oben (*„Ich will… → wo nachsehen"*) die Datei **nicht** nennt. Nennt er sie: direkt lesen. Der Baum existiert genau dafür — ihn zu überspringen und stattdessen zu scannen kostet Minuten und liefert schlechtere Antworten.
 - **Kein separater Plan-Agent.** Die Design-Entscheidung fällt im Hauptlauf; die Cheatsheets unter [docs/agents/](docs/agents/README.md) ersetzen die Architektur-Recherche.
 - **Plan-Datei in Kurzform**: Kontext, Schritte, Verifikation. Keine Alternativen-Abwägung, keine Datei-für-Datei-Liste, wenn sich ein Muster wiederholt.
-- **Rückfragen an den Nutzer bleiben.** Sie sind der Teil des Ablaufs, der Fehler verhindert, statt sie nur später zu finden. Sie laufen über den Skill `grillen`: Befund zuerst, dann die ganze Frontier je Runde, jede Frage mit Empfehlung.
-- **Spec + Plan ins Repo ab Schwelle** (neues Plugin/Flag/Store/Sidecar/Skill/Hook oder > 5 Dateien) nach [docs/superpowers/README.md](docs/superpowers/README.md); jede Spec beginnt mit `## 0. Anlass` in den Worten des Auslösers.
+- **Rückfragen an den Nutzer bleiben.** Sie sind der Teil des Ablaufs, der Fehler verhindert, statt sie nur später zu finden. Sie laufen über den Skill `grillen`: Befund zuerst, dann die ganze Frontier je Runde, jede Frage mit Empfehlung — **vorn gebündelt**, bevor gebaut wird; eine Rückfrage mitten im Lauf hält alles an, bis der Nutzer zurück ist.
+- **Eine Spec ins Repo ab Schwelle** (neues Plugin/Flag/Store/Sidecar/Skill/Hook/Agent) nach [docs/superpowers/README.md](docs/superpowers/README.md): der freigegebene Plan wird selbst zur Spec, kein zweites Dokument; sie beginnt mit `## 0. Anlass` in den Worten des Auslösers.
+- **Memory nur bei neuer Lehre**, die weder Repo noch Git trägt — nicht pro Feature; eine bestehende Notiz fortschreiben statt eine neue anlegen.
 - Subagenten sonst nach der stehenden Freigabe: nur bei disjunkten Dateimengen, höchstens ein `dev:local`-Server, und Gate/Abnahme/Commit bleiben im Hauptlauf.
 
 ## Abnahme: selbst ansehen, nicht ansagen
