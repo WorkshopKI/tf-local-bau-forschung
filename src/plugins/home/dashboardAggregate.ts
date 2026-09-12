@@ -27,6 +27,7 @@ import {
 } from '@/plugins/antraege/bearbeiterFilter';
 import { isIrrlaeufer } from '@/core/utils/vb-phase-mappings';
 import { getStatusCategory, type StatusCategory } from '@/core/utils/status-canonical';
+import { precheckUrteilVonZeile } from '@/core/utils/naechsterSchritt';
 
 export type AntragVorgang = Vorgang & {
   _isAntrag: true;
@@ -81,10 +82,18 @@ export type AntragVorgang = Vorgang & {
   /** Bewilligungsdatum (CSV `bewilligung_datum`), roh. Nur für den Ampel-Null-
    *  Guard (gesetzt ⇒ keine Ampel). */
   bewilligung_datum?: string;
-  /** PreCheck-Status-Label (List-View-Projektion `precheck_status_label`, z.B.
-   *  „PreCheck positiv - Verbund"). Speist die PreCheck-Regeln der Handlungs-
-   *  Formel `naechsterSchritt` in „Meine Anträge". */
-  precheck_status_label?: string;
+  /**
+   * Das **ausschlaggebende** PreCheck-Label (`precheckUrteil`), z.B. „pre-check
+   * negativ". Speist die PreCheck-Regeln der Handlungs-Formel `naechsterSchritt`
+   * in „Meine Anträge".
+   *
+   * Seit v6.65 zusammengeführt aus den zwei Teilen `precheck_tv_status_label`
+   * (AB) und `precheck_vb_status_label` (FB) — vorher trug die Projektion die
+   * eine gemeinsame Spalte, in der das jüngere Verbund-Urteil ein negatives
+   * TV-Urteil überschrieb. Der Name sagt deshalb „Urteil", nicht „Status": es
+   * ist keine Spalte mehr, sondern die Zusammenführung zweier.
+   */
+  precheck_urteil_label?: string;
 };
 
 export interface DashboardStats {
@@ -243,9 +252,7 @@ function antragToVorgangLike(
     tib_kuerz: typeof a.tib_kuerz === 'string' && a.tib_kuerz.trim().length > 0 ? a.tib_kuerz.trim() : undefined,
     antragsdatum,
     bewilligung_datum: typeof a.bewilligung_datum === 'string' ? a.bewilligung_datum : undefined,
-    precheck_status_label: typeof a.precheck_status_label === 'string' && a.precheck_status_label.trim().length > 0
-      ? a.precheck_status_label
-      : undefined,
+    precheck_urteil_label: precheckUrteilVonZeile(a).label || undefined,
   };
 }
 

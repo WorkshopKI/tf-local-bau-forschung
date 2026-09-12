@@ -404,10 +404,15 @@ nicht-grünen Punkt — der Kernschutz gegen „läuft durch, ohne dass etwas an
 Die Home-Liste liest die Slim-Projektion `ANTRAEGE_LIST_VIEW`, nicht den Voll-Store. Zwei Rebuild-Achsen
 ([list-view-migration.ts](../../src/core/services/csv/list-view-migration.ts)):
 
-1. **Code-Versions-Marker** `LIST_VIEW_PROJECTION_VERSION` (aktuell **5**) — bumpt, wenn `toAntragListItem`
+1. **Code-Versions-Marker** `LIST_VIEW_PROJECTION_VERSION` (aktuell **11**) — bumpt, wenn `toAntragListItem`
    neue Felder projiziert.
 2. **Schema-Signatur** (`computeStatusDatumSchemaSig`, v2.158.2) — deterministischer Hash der aus **allen**
    Programm-Schemas aufgelösten FB/PC-Status-Datum-Felder (`code>feld#label`).
+
+**v11 (v6.65): `precheck_status_*` zerfällt in `precheck_tv_status_*` und `precheck_vb_status_*`.** Die
+Schema-Signatur führt die Gruppen ohnehin und hätte den Rebuild auch allein ausgelöst; der Marker bumpt
+trotzdem, weil sonst die **alten** Schlüssel im Altbestand liegen blieben und eine Zeile zwei
+PreCheck-Wahrheiten trüge. Folge für den Nutzer: einmaliger Voll-Rebuild beim ersten Start.
 
 **Warum die Signatur nötig ist:** Wird eine FB/PC-Spalte **nachträglich** gemappt (bei gleichem Code-Marker und
 unveränderten Rohdaten), ändert das **keinen** Antrag-Record → weder der Count-Backfill noch der inkrementelle

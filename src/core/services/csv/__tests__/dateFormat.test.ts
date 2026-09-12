@@ -56,3 +56,33 @@ describe('formatDatumsWert — ein Tag, eine Anzeige', () => {
     }
   });
 });
+
+/**
+ * **Der Schrägstrich ist in dieser App schon vergeben.**
+ *
+ * `mergeAntraegeForDisplay` fügt uneinheitliche Werte mehrerer Teilvorhaben mit
+ * `„ / "` zusammen (`verbundMerge.ts`), und `buildDisplayRows.mehrfachwert`
+ * formatiert so eine Zelle nur dann teilweise, wenn **alle** Teile Daten sind —
+ * sonst bleibt sie roh (`„2025-08-29 / offen"`).
+ *
+ * Das Fachsystem plant für den neuen Export dieselbe Zeichenkonvention mit einer
+ * ANDEREN Bedeutung: alle historischen Werte EINES Feldes, `/`-getrennt, dazu
+ * eine gleich gebaute Kürzel-Spalte. Zwei Bedeutungen auf einem Trennzeichen —
+ * und die äußere (Teilvorhaben) schachtelt die innere (Verlauf) ineinander,
+ * sobald beide auftreten.
+ *
+ * Dieser Block hält deshalb den **heutigen, strengen** Stand fest: eine Zelle mit
+ * Schrägstrich ist kein Datum. Wer hier Toleranz einbaut, muss vorher die
+ * Schachtelung lösen — ein Versuch am 12.09.2026 nahm `„2025-08-29 / offen"` als
+ * Datum und verschluckte das „offen".
+ */
+describe('parseGermanDate — der Schrägstrich ist NICHT das Verlaufs-Trennzeichen', () => {
+  it('liest eine Zelle mit mehreren Werten nicht als Datum', () => {
+    expect(parseGermanDate('22.01.2026/05.08.2026')).toBeNull();
+    expect(parseGermanDate('2025-08-29 / 2025-09-01')).toBeNull();
+  });
+
+  it('lässt sie deshalb in der Anzeige unverändert stehen', () => {
+    expect(formatDatumsWert('2025-08-29 / offen')).toBe('2025-08-29 / offen');
+  });
+});

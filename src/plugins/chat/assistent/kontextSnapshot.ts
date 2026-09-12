@@ -16,7 +16,7 @@ import { fristAnzeigeFromDays, fristTageVon } from '@/plugins/antraege/fristAnze
 import { criticalFristErgebnis } from '@/plugins/antraege/groupAggregates';
 import { artDesSchluessels } from '@/plugins/antraege/detailAufloesung';
 import { aufgabenAnzeige } from '@/core/status';
-import { schrittText } from '@/core/utils/naechsterSchritt';
+import { schrittText, precheckUrteilVonZeile } from '@/core/utils/naechsterSchritt';
 import type { ZeilenAufgaben } from '@/core/hooks/useBestandsAufgaben';
 import type { KontextEntitaet } from '@/core/services/assistent/kontext';
 import { baueArbeitsvorratUebersicht } from './arbeitsvorratUebersicht';
@@ -109,7 +109,7 @@ function antragEntitaet(a: AntragListItem, now: number, zeilen?: ZeilenAufgaben 
     id: a.aktenzeichen,
     titel: a.akronym || a.titel || a.aktenzeichen,
     status: a.status,
-    precheckLabel: a.precheck_status_label ?? null,
+    precheckLabel: precheckUrteilVonZeile(a).label || null,
     phaseLabel: getVbPhaseLabel(a.vb_phase) ?? undefined,
     fristHinweis: hinweis,
     fristenAnzahl: hinweis ? 1 : 0,

@@ -40,6 +40,7 @@ describe('istTerminErklaerung', () => {
     ] };
     expect(istTerminErklaerung(b, undefined, label, istDatum)).toEqual({
       keinDatum: false,
+      momentaufnahme: false,
       text: 'Hier: das spätere Datum von „PreCheck AB" und „PreCheck FB"; je Gruppe das frühere ihrer gefüllten Datumsspalten.',
     });
   });
@@ -59,12 +60,42 @@ describe('istTerminErklaerung', () => {
   it('ohne jede Datumsspalte ein Befund (MST 2)', () => {
     const r = istTerminErklaerung({ alle: [g('tib_kuerz'), g('bib_kuerz')] }, undefined, label, istDatum);
     expect(r.keinDatum).toBe(true);
+    expect(r.momentaufnahme).toBe(false);
     expect(r.text).toContain('keine Datumsspalte');
+  });
+
+  /**
+   * Der Fall, der 9.074 Teilvorhaben dauerhaft überfällig stellte (MST 5 der
+   * Fassung 43): `status ist „Stellungnahme zur Rücknahmeempf."` ist nicht nur
+   * termlos, sondern kann nach dem Weiterziehen nie wieder wahr werden. Der
+   * Satz muss das sagen, sonst liest er sich wie der harmlose Fall darüber.
+   */
+  it('nennt den Status-Schnappschuss als eigenen, schärferen Befund (MST 5)', () => {
+    const b: Bedingung = { einige: [
+      { feldId: 'status', op: 'ist', wert: 'NL eingegangen' },
+      { feldId: 'status', op: 'ist', wert: 'Stellungnahme zur Rücknahmeempf.' },
+    ] };
+    const r = istTerminErklaerung(b, undefined, label, istDatum);
+    expect(r.keinDatum).toBe(true);
+    expect(r.momentaufnahme).toBe(true);
+    expect(r.text).toContain('nur den heutigen Status');
+  });
+
+  it('ein Datums-Zweig neben dem Status hebt den Befund auf', () => {
+    const b: Bedingung = { einige: [
+      g('D_ARW'),
+      { feldId: 'status', op: 'ist', wert: 'Stellungnahme zur Rücknahmeempf.' },
+    ] };
+    const r = istTerminErklaerung(b, undefined, label, istDatum);
+    expect(r.keinDatum).toBe(false);
+    expect(r.momentaufnahme).toBe(false);
   });
 
   it('ein eigenes Ist-Termin-Feld gilt vor der Bedingung', () => {
     expect(istTerminErklaerung({ alle: [g('tib_kuerz')] }, 'antragsdatum', label, istDatum)).toEqual({
-      keinDatum: false, text: 'Datum aus „Antragseingang", über die Teilvorhaben das früheste.',
+      keinDatum: false,
+      momentaufnahme: false,
+      text: 'Datum aus „Antragseingang", über die Teilvorhaben das früheste.',
     });
   });
 

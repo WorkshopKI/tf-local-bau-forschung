@@ -5,7 +5,8 @@ import {
   computeStatusDatum,
   STATUS_DATUM_GRUPPEN,
   FB_STATUS_CODES,
-  PRECHECK_STATUS_CODES,
+  PRECHECK_TV_STATUS_CODES,
+  PRECHECK_VB_STATUS_CODES,
   type StatusDatumFeld,
 } from '../status-datum-gruppen';
 import type { CsvSchema, ColumnMapping } from '../types';
@@ -114,30 +115,46 @@ describe('computeStatusDatum', () => {
 });
 
 describe('STATUS_DATUM_GRUPPEN (Registry)', () => {
-  it('enthaelt FB- und PreCheck-Gruppe mit den richtigen Slim-Keys', () => {
+  it('enthaelt FB- und BEIDE PreCheck-Gruppen mit den richtigen Slim-Keys', () => {
     const ids = STATUS_DATUM_GRUPPEN.map(g => g.id);
-    expect(ids).toEqual(['fb', 'precheck']);
+    expect(ids).toEqual(['fb', 'precheck_tv', 'precheck_vb']);
     const fb = STATUS_DATUM_GRUPPEN.find(g => g.id === 'fb')!;
-    const pc = STATUS_DATUM_GRUPPEN.find(g => g.id === 'precheck')!;
+    const tv = STATUS_DATUM_GRUPPEN.find(g => g.id === 'precheck_tv')!;
+    const vb = STATUS_DATUM_GRUPPEN.find(g => g.id === 'precheck_vb')!;
     expect([fb.labelKey, fb.datumKey]).toEqual(['fb_status_label', 'fb_status_datum']);
-    expect([pc.labelKey, pc.datumKey]).toEqual(['precheck_status_label', 'precheck_status_datum']);
+    expect([tv.labelKey, tv.datumKey]).toEqual(['precheck_tv_status_label', 'precheck_tv_status_datum']);
+    expect([vb.labelKey, vb.datumKey]).toEqual(['precheck_vb_status_label', 'precheck_vb_status_datum']);
   });
 
-  it('FB hat 11, PreCheck 9 Codes; PreCheck enthaelt die ?-Codes', () => {
+  /**
+   * Die Trennlinie ist die **Ebene des Katalogs**, nicht eine Auswahl von Hand:
+   * `D_PC*` ist `ebene: 'tv'`, `D_XPC*` ist `ebene: 'verbund'`. Landete ein
+   * `X`-Code wieder in der TV-Liste, wäre die alte Vermischung zurück — und mit
+   * ihr die 256 verdeckten negativen TV-PreChecks.
+   */
+  it('trennt TV- und Verbund-Codes sauber am X-Präfix', () => {
     expect(FB_STATUS_CODES).toHaveLength(11);
-    expect(PRECHECK_STATUS_CODES).toHaveLength(9);
-    expect(PRECHECK_STATUS_CODES).toContain('D_PC?');
-    expect(PRECHECK_STATUS_CODES).toContain('D_XPC?');
+    expect(PRECHECK_TV_STATUS_CODES).toHaveLength(6);
+    expect(PRECHECK_VB_STATUS_CODES).toHaveLength(3);
+    expect(PRECHECK_TV_STATUS_CODES).toContain('D_PC?');
+    expect(PRECHECK_VB_STATUS_CODES).toContain('D_XPC?');
+    expect(PRECHECK_TV_STATUS_CODES.every(c => !c.startsWith('D_X'))).toBe(true);
+    expect(PRECHECK_VB_STATUS_CODES.every(c => c.startsWith('D_X'))).toBe(true);
+    // Kein Code steht in beiden — sonst zählte er doppelt.
+    expect(PRECHECK_TV_STATUS_CODES.filter(c => PRECHECK_VB_STATUS_CODES.includes(c))).toEqual([]);
   });
 
-  it('resolveStatusDatumGruppen loest beide Gruppen unabhaengig auf (D_XPC+ in beiden)', () => {
+  it('resolveStatusDatumGruppen loest die Gruppen unabhaengig auf (D_XPC+ in FB und PC-Verbund)', () => {
     const gruppen = resolveStatusDatumGruppen([
       schema({ 'D_XPC+': { custom: 'xpc_plus', label: 'XPC+' } }),
     ]);
     const fb = gruppen.find(g => g.labelKey === 'fb_status_label')!;
-    const pc = gruppen.find(g => g.labelKey === 'precheck_status_label')!;
-    // D_XPC+ ist in beiden Code-Listen → beide Gruppen lösen es auf.
+    const vb = gruppen.find(g => g.labelKey === 'precheck_vb_status_label')!;
+    const tv = gruppen.find(g => g.labelKey === 'precheck_tv_status_label');
+    // D_XPC+ steht in der FB- UND in der Verbund-PreCheck-Liste → beide lösen auf.
     expect(fb.felder.find(f => f.code === 'D_XPC+')?.feld).toBe('xpc_plus');
-    expect(pc.felder.find(f => f.code === 'D_XPC+')?.feld).toBe('xpc_plus');
+    expect(vb.felder.find(f => f.code === 'D_XPC+')?.feld).toBe('xpc_plus');
+    // Die TV-Gruppe bleibt leer — sie kennt den Code nicht mehr.
+    expect(tv?.felder ?? []).toEqual([]);
   });
 });

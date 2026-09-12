@@ -5,6 +5,19 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v6.65.0 — PreCheck getrennt, Werte je Teilvorhaben, R7 bekommt einen Ausgang (September 2026)
+
+MINOR — Nutzer: „wir wollen die Konsistenz und Fehlerfreiheit der App bei der Anzeige von Anträgen und deren Status und Events, Fristen etc. verbessern."
+Drei C16-Screens des Verbunds KITED (ZKN125314) gegen die App gehalten: eine Zahl für drei verschiedene, ein Meilenstein am Status von heute, eine Aufgabe ohne Ausgang, zwei Rollen-Urteile in einer Spalte.
+Alles am Tagesexport vom 11.09.2026 nachgezählt (12.359 TV-Zeilen), bevor etwas geändert wurde.
+
+- Unter „Ohne Termin im Export" eine Zeile je verschiedenem Wert mit eigenem Träger statt einer Zahl für alle Teilvorhaben (2.214 von 2.289 `T_ABK`-Verbünden weichen ab) — [ohneDatum.ts](src/plugins/antraege/ausklapp/vorgangsverlauf/ohneDatum.ts), [OhneDatumBlock.tsx](src/plugins/antraege/ausklapp/vorgangsverlauf/OhneDatumBlock.tsx)
+- Meilenstein-Seed 5/6 tragen die Datums-Zweige vor den Status-Zweigen; eine reine Status-Bedingung bekommt die Marke „nur Status": `momentaufnahme` ([seed.ts](src/core/meilensteine/seed.ts), [ist-termin.ts](src/core/meilensteine/ist-termin.ts), [ProbeAnzeige.tsx](src/plugins/meilensteine/ProbeAnzeige.tsx))
+- R26 „NL prüfen", R27 „Erinnerung an NF", R28 „NF abwarten" geben R7 einen Ausgang — Strang `rne`, `datumNachFeld` gegen `D_ARW` ([todo-regeln.seed.ts](src/core/status/todo-regeln.seed.ts))
+- PreCheck TV (AB) und PreCheck Verbund (FB) als zwei Spalten und zwei Projektions-Felder, zusammengeführt über `precheckUrteil` (negativ schlägt positiv) und über die Teilvorhaben gefaltet ([status-datum-gruppen.ts](src/core/services/csv/status-datum-gruppen.ts), [naechsterSchritt.ts](src/core/utils/naechsterSchritt.ts), [groupAggregates.ts](src/plugins/antraege/groupAggregates.ts), [tableColumns.tsx](src/plugins/antraege/tableColumns.tsx))
+- Zwei Spalten auf einem Feld-Key werden beim Öffnen eines Schemas gemeldet statt still überschrieben — 20 Fälle im Bestand, darunter `termin_fur_nachlieferung ← D_ANT + T_ANT`, das R10/R27 wirkungslos macht ([spalten-kollisionen.ts](src/core/services/csv/spalten-kollisionen.ts), [CsvSchemaDetailDialog.tsx](src/plugins/csv-sources-kuration/CsvSchemaDetailDialog.tsx)); Wunschliste an C16: [export-wunschliste-c16.md](docs/architecture/export-wunschliste-c16.md)
+- Ein Nenner für „Meilensteine" in Karte und Klappe (war 10 gegen 9), „vor N Tagen" nennt seine Einheit, List-View-Projektion **10 → 11** (einmaliger Voll-Rebuild) ([ZeitverlaufReiter.tsx](src/plugins/antraege/ausklapp/zeitverlauf/ZeitverlaufReiter.tsx), [MeineAntraegeSection.tsx](src/plugins/home/MeineAntraegeSection.tsx), [list-view-migration.ts](src/core/services/csv/list-view-migration.ts)); Doku [todo-regeln-ab-seed.md](docs/architecture/todo-regeln-ab-seed.md), [vorgangssystem.md](docs/architecture/vorgangssystem.md), [meilensteine.md](docs/architecture/meilensteine.md), [csv-auto-refresh.md](docs/architecture/csv-auto-refresh.md), [CONTEXT.md](CONTEXT.md), [Feedback-Kontext](docs/feedback-kontext/antraege.md)
+
 ### v6.64.1 — Anlegen-Knoepfe leiser, Bedingungen schwerer, Kartenfuss auf Hover (September 2026)
 
 PATCH — Nutzer zum Regelbereich aus v6.64.0: „wollten wir die +bedingung und + gruppe nicht optisch leiser machen (nicht fett) wie im screen von claude design?" und „und dafür die bedingungen fett".

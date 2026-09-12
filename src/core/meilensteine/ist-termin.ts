@@ -14,6 +14,10 @@
  * leer. Gemessen im ausgelieferten Plan (11.09.2026), bis dahin von niemandem
  * bemerkt.
  *
+ * Der Status-Fall ist dabei **nicht nur termlos, sondern rückwärts blind**: er
+ * kann nach dem Weiterziehen nie wieder wahr werden. Das trennt
+ * {@link IstTerminErklaerung.momentaufnahme} vom allgemeinen `keinDatum`.
+ *
  * Rein: kein React, keine Probe. Welche Felder Datumsspalten sind, reicht der
  * Aufrufer herein ({@link istDatumsFeldAus}).
  */
@@ -27,9 +31,37 @@ export interface IstTerminErklaerung {
   text: string;
   /** Aus der Bedingung kann kein Datum kommen — der Meilenstein bliebe ohne Termin. */
   keinDatum: boolean;
+  /**
+   * Die Bedingung hängt an einem **Status-Schnappschuss** — der schärfere Fall
+   * von {@link keinDatum}.
+   *
+   * `status` und `verbund_status` sind keine Ereignisse, sondern der Wert von
+   * heute. Ein Meilenstein, der `status ist „Stellungnahme zur Rücknahmeempf."`
+   * prüft, ist nur an den Tagen erreicht, an denen der Vorgang zufällig dort
+   * steht; zieht er weiter, fällt der Meilenstein auf `gerissen` zurück — und
+   * bleibt es. Gemessen am Export vom 11.09.2026: **9.145** Teilvorhaben tragen
+   * den Datumsbeleg für „Rückmeldung des Antragstellers" (`D_ARW`/`D_AL`/
+   * `D_ABLW`), aber nur **72** stehen heute auf einem der drei Statuswerte.
+   * 9.074 gelten damit dauerhaft als überfällig, obwohl derselbe Export den
+   * Termin führt.
+   */
+  momentaufnahme: boolean;
 }
 
 type Blatt = Extract<Bedingung, { feldId: string }>;
+
+/**
+ * Die beiden Felder, die den **heutigen Stand** tragen statt eines Ereignisses.
+ * `vb_phase` gehört nicht dazu — die Fördervariante wandert nicht.
+ */
+const SCHNAPPSCHUSS_FELDER: ReadonlySet<string> = new Set(['status', 'verbund_status']);
+
+/** Prüft die Bedingung (auch) einen Status-Schnappschuss? */
+function pruefteSchnappschuss(b: Bedingung): boolean {
+  return istBedingungsGruppe(b)
+    ? gruppenKinder(b).some(pruefteSchnappschuss)
+    : SCHNAPPSCHUSS_FELDER.has(b.feldId);
+}
 
 /**
  * Welche Felder tragen ein Datum? Laut Spalten-Katalog (`typ: 'datum'`) — oder
@@ -84,14 +116,28 @@ export function istTerminErklaerung(
   istDatum: (feldId: string) => boolean,
 ): IstTerminErklaerung {
   if (istDatumFeld) {
-    return { text: `Datum aus „${labelVon(istDatumFeld)}", über die Teilvorhaben das früheste.`, keinDatum: false };
+    return {
+      text: `Datum aus „${labelVon(istDatumFeld)}", über die Teilvorhaben das früheste.`,
+      keinDatum: false,
+      momentaufnahme: false,
+    };
   }
   const wurzel = istBedingungsGruppe(b) ? b : { alle: [b] };
   if (!traegtDatum(wurzel, istDatum)) {
-    return {
-      text: 'Die Bedingung prüft keine Datumsspalte — daraus ergibt sich kein Termin. Bitte ein Datumsfeld wählen.',
-      keinDatum: true,
-    };
+    return pruefteSchnappschuss(wurzel)
+      ? {
+        text: 'Die Bedingung prüft nur den heutigen Status. Der ist kein Ereignis: sobald der '
+          + 'Vorgang weiterzieht, gilt der Meilenstein wieder als nicht erreicht — und bleibt '
+          + 'überfällig, obwohl der Schritt längst passiert ist. Bitte die Datumsspalte des '
+          + 'Ereignisses ergänzen; der Status darf als zusätzlicher Zweig stehen bleiben.',
+        keinDatum: true,
+        momentaufnahme: true,
+      }
+      : {
+        text: 'Die Bedingung prüft keine Datumsspalte — daraus ergibt sich kein Termin. Bitte ein Datumsfeld wählen.',
+        keinDatum: true,
+        momentaufnahme: false,
+      };
   }
 
   const kinder = gruppenKinder(wurzel);
@@ -121,5 +167,5 @@ export function istTerminErklaerung(
 
   const ohne = [...new Set(blaetter(wurzel).filter(x => !istDatum(x.feldId)).map(x => `„${labelVon(x.feldId)}"`))];
   const nachsatz = ohne.length ? ` ${liste(ohne)} ${ohne.length === 1 ? 'trägt' : 'tragen'} kein Datum.` : '';
-  return { text: `Hier: ${saetze.join('; ')}.${nachsatz}`, keinDatum: false };
+  return { text: `Hier: ${saetze.join('; ')}.${nachsatz}`, keinDatum: false, momentaufnahme: false };
 }

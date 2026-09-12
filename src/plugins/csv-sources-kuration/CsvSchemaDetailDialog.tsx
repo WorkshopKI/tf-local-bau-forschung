@@ -9,6 +9,7 @@ import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { saveSchema } from '@/core/services/csv';
 import { logAudit } from '@/core/services/infrastructure/audit-log';
 import { getCanonicalLabel } from '@/core/services/csv/constants';
+import { findeSpaltenKollisionen } from '@/core/services/csv/spalten-kollisionen';
 import type { CsvSchema, ColumnMapping, ColumnMappingEntry } from '@/core/services/csv/types';
 import { NewColumnRow } from './NewColumnRow';
 import { decisionFromEntry, applyDecisionToEntry } from './services/new-column-mapping';
@@ -75,6 +76,9 @@ export function CsvSchemaDetailDialog({ schema: initialSchema, onClose, onSaved 
     () => Object.values(columnMapping).some(e => (e.group_path?.length ?? 0) > 0),
     [columnMapping],
   );
+
+  /** Feld-Keys, auf die mehrere Spalten zeigen — stiller Datenverlust beim Merge. */
+  const kollisionen = useMemo(() => findeSpaltenKollisionen(schema), [schema]);
 
   const buckets: GroupBucket[] = useMemo(() => {
     const cols = Object.keys(columnMapping);
@@ -329,6 +333,45 @@ export function CsvSchemaDetailDialog({ schema: initialSchema, onClose, onSaved 
       }
     >
       <div className="flex flex-col gap-4 pb-4 text-[13px]">
+        {/* Ganz oben, weil es kein Detail ist, sondern ein Datenverlust: zwei
+            Spalten auf einem Feld-Key, die hintere überschreibt die vordere.
+            Steht vor den Metadaten, damit niemand danach suchen muss. */}
+        {kollisionen.length > 0 && (
+          <section
+            className="rounded px-3 py-2.5 flex flex-col gap-1.5"
+            style={{
+              border: '0.5px solid var(--tf-danger-text)',
+              background: 'var(--tf-danger-bg)',
+            }}
+          >
+            <div className="text-[12.5px] font-medium text-[var(--tf-text)]">
+              {kollisionen.length === 1
+                ? 'Eine Spalte teilt sich ihr Feld mit einer anderen'
+                : `${kollisionen.length} Felder werden von mehreren Spalten beschrieben`}
+            </div>
+            <p className="text-[11.5px] text-[var(--tf-text-secondary)]">
+              Beim Import gewinnt die zuletzt geschriebene Spalte; der Wert der anderen fehlt
+              danach. Häufigste Ursache: die Label-XLS gibt einer Datums- und ihrer Textspalte
+              dieselbe Bezeichnung. Auflösen über „Spalten neu zuordnen" — einer der beiden einen
+              eigenen Feldnamen geben.
+            </p>
+            <ul className="flex flex-col gap-0.5">
+              {kollisionen.map(k => (
+                <li key={k.feldKey} className="text-[11.5px] text-[var(--tf-text)]">
+                  <span className="font-mono text-[11px]">{k.feldKey}</span>
+                  {' ← '}
+                  {k.spalten.map(s => `${s.spalte} (${s.typ})`).join(' + ')}
+                  {k.typenGemischt && (
+                    <span style={{ color: 'var(--tf-danger-text)' }}>
+                      {' '}· verschiedene Typen
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
         <section>
           <div className="text-[11px] uppercase tracking-wider text-[var(--tf-text-tertiary)] mb-1">
             Metadaten

@@ -17,7 +17,7 @@ function row(patch: Record<string, unknown>): AntragTableRow {
 }
 
 const fbStatus = ANTRAG_TABLE_COLUMNS.find(c => c.key === 'fb_status')!;
-const preCheck = ANTRAG_TABLE_COLUMNS.find(c => c.key === 'precheck_status')!;
+const preCheck = ANTRAG_TABLE_COLUMNS.find(c => c.key === 'precheck_tv_status')!;
 
 describe('Datums-Status-Spalten — Export zeigt das Label, Sortierung das Datum', () => {
   const r = row({ fb_status_label: 'Prüfung läuft', fb_status_datum: '2026-03-14' });
@@ -37,7 +37,7 @@ describe('Datums-Status-Spalten — Export zeigt das Label, Sortierung das Datum
   });
 
   it('gilt genauso für die PreCheck-Spalte (dieselbe Factory)', () => {
-    const p = row({ precheck_status_label: 'PreCheck positiv', precheck_status_datum: '2026-01-02' });
+    const p = row({ precheck_tv_status_label: 'PreCheck positiv', precheck_tv_status_datum: '2026-01-02' });
     expect(preCheck.exportValue!(p)).toBe('PreCheck positiv');
     expect(preCheck.accessor(p)).toBe('2026-01-02');
   });

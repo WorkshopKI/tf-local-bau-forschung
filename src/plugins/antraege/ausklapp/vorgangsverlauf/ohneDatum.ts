@@ -28,58 +28,90 @@
  */
 import { traegerLabel, type FeldVorkommen } from '@/core/status';
 
+/** Ein Wert dieses Feldes und die Teilvorhaben, die genau ihn tragen. */
+export interface OhneDatumWert {
+  /** Der Wert, wie er im Export steht. */
+  wert: string;
+  /** „Verbund", ein Aktenzeichen oder „N Teilvorhaben". */
+  traeger: string;
+}
+
 export interface OhneDatumEintrag {
   /** Stabiler Key der Zeile — die `feldId`, also die Spalte. */
   feldId: string;
   /** Code des Fachsystems (`ABK`) — der Griff für die Rückfrage ans Team. */
   code: string;
   label: string;
-  wert: string;
-  /** „Verbund", ein Aktenzeichen oder „N Teilvorhaben". */
-  traeger: string;
+  /**
+   * Die **verschiedenen** Werte des Feldes, in der Reihenfolge der Teilvorhaben.
+   *
+   * Nie leer. Ein Eintrag = alle Träger sagen dasselbe (der Normalfall bei
+   * `XAT`, `XPC+`, `XINNO`); mehrere = die Teilvorhaben weichen voneinander ab.
+   */
+  werte: OhneDatumWert[];
 }
 
 /**
  * Sammelt die terminlosen Einträge aus den Vorkommen einer Zeile.
  *
- * **Ein Eintrag je Feld** — dieselbe Entdopplung wie in `baueChronik`: dieselbe
- * Spalte steht auf jeder TV-Zeile, und vier Teilvorhaben mit demselben Wert sind
- * ein Eintrag mit vier Trägern, nicht vier Einträge. Weichen die Werte
- * ausnahmsweise ab, gewinnt der erste gefundene und die weiteren Träger stehen
- * trotzdem daneben — eine Zeile je Wert wäre hier Rauschen, die Ordner-Ansicht
- * der Detailseite zeigt sie einzeln.
+ * **Ein Eintrag je Feld, eine Zeile je verschiedenem Wert.** Dieselbe Spalte
+ * steht auf jeder TV-Zeile; vier Teilvorhaben mit demselben Wert sind ein Wert
+ * mit vier Trägern, nicht vier Einträge. Weichen sie ab, bekommt jeder Wert
+ * seine eigene Zeile mit seinen eigenen Trägern.
+ *
+ * Bis v6.65 gewann hier der erste gefundene Wert und die übrigen Träger standen
+ * trotzdem daneben — der Kommentar nannte das „ausnahmsweise". Am Bestand vom
+ * 11.09.2026 ist es der Normalfall: von 2.289 Verbünden mit `T_ABK` tragen
+ * **2.214** je Teilvorhaben verschiedene Beträge (96,7 %), bei `T_AAI` 1.105 von
+ * 1.133. Bei KITED (ZKN125314) las die Zeile „280000 · 3 Teilvorhaben", während
+ * die drei Anträge 280.000, 492.225 und 331.006 beantragt hatten. Eine falsche
+ * Zahl ist teurer als eine Zeile mehr.
  *
  * Sortiert nach Bezeichnung: die Liste ist zum Nachschlagen da, und eine
- * Reihenfolge nach Fundort wäre keine.
+ * Reihenfolge nach Fundort wäre keine. **Innerhalb** eines Feldes bleibt die
+ * Fundreihenfolge stehen — sie ist die Reihenfolge der Teilvorhaben.
  */
 export function baueOhneDatum(vorkommen: readonly FeldVorkommen[]): OhneDatumEintrag[] {
-  const proFeld = new Map<string, { eintrag: OhneDatumEintrag; tvIds: string[] }>();
+  const proFeld = new Map<string, {
+    feldId: string;
+    code: string;
+    label: string;
+    /** Je Wert die Träger, in Fundreihenfolge (Map hält sie). */
+    werte: Map<string, string[]>;
+  }>();
 
   for (const v of vorkommen) {
     if (v.feld.typ !== 'text') continue;
     if (!v.feld.aktiv) continue;
     if (v.feld.prominenzDefault === 'ignoriert') continue;
 
-    const vorhanden = proFeld.get(v.feld.feldId);
-    if (vorhanden) {
-      if (v.tvId && !vorhanden.tvIds.includes(v.tvId)) vorhanden.tvIds.push(v.tvId);
-      continue;
-    }
-    proFeld.set(v.feld.feldId, {
-      eintrag: {
+    let eintrag = proFeld.get(v.feld.feldId);
+    if (!eintrag) {
+      eintrag = {
         feldId: v.feld.feldId,
         // Ohne Code fällt die Spalte ein — sie ist der einzige andere
         // Bezeichner, den das Fachsystem kennt (unkuratierte Funde).
         code: v.feld.code ?? v.feld.feldId,
         label: v.feld.label,
-        wert: v.wert,
-        traeger: '',
-      },
-      tvIds: v.tvId ? [v.tvId] : [],
-    });
+        werte: new Map(),
+      };
+      proFeld.set(v.feld.feldId, eintrag);
+    }
+
+    const traeger = eintrag.werte.get(v.wert);
+    if (traeger) {
+      if (v.tvId && !traeger.includes(v.tvId)) traeger.push(v.tvId);
+    } else {
+      eintrag.werte.set(v.wert, v.tvId ? [v.tvId] : []);
+    }
   }
 
   return [...proFeld.values()]
-    .map(({ eintrag, tvIds }) => ({ ...eintrag, traeger: traegerLabel(tvIds) }))
+    .map(e => ({
+      feldId: e.feldId,
+      code: e.code,
+      label: e.label,
+      werte: [...e.werte].map(([wert, tvIds]) => ({ wert, traeger: traegerLabel(tvIds) })),
+    }))
     .sort((a, b) => a.label.localeCompare(b.label, 'de') || a.code.localeCompare(b.code, 'de'));
 }

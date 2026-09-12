@@ -143,6 +143,63 @@ export const AB_TODO_REGELN: readonly TodoRegel[] = [
     bedingung: alle(gefuellt('ARZ'), leer('ARW'), tageSeit('ARZ', 31), leer('AVK'), leer('XKS')),
     todo: 'SV erstellen', zustaendig: ['ab'], aktiv: true,
   },
+  /**
+   * **R26–R28: was NACH der Stellungnahme passiert ist.**
+   *
+   * R7 hatte keinen Ausgang: `ARZ`+`ARW` gesetzt, `AAR`/`XKS` leer — und das
+   * bleibt es, bis der Vorgang zurückgezogen oder die kaufmännische QS erfolgt
+   * ist. Gemessen am Export vom 11.09.2026 traf R7 auf 297 Teilvorhaben; bei
+   * **171** war die Nachlieferung des Antragstellers danach schon eingegangen,
+   * bei **143** die Nachforderung längst hinausgegangen. Das Board sagte ihnen
+   * allen „Stellungnahme RNE prüfen" — eine Aufgabe, die nachweislich erledigt
+   * war. Bei KITED (ZKN125314) stand sie an allen drei Teilvorhaben, während
+   * TV1 die Nachlieferung seit dem 31.08. zurück hatte und bei TV2/TV3 der
+   * Nachlieferungstermin (08.09./11.09.) verstrichen war.
+   *
+   * **Warum kein `leer('AN')` an R7.** Das war der naheliegende Ausgang und
+   * wäre falsch: 16 der 297 tragen ein `D_AN` aus einer Nachforderungs-Runde
+   * **vor** der Rücknahmeempfehlung. Für sie ist die Stellungnahme sehr wohl
+   * noch zu prüfen. Die Regeln vergleichen deshalb Daten gegeneinander
+   * (`datumNachFeld`), statt bloße Anwesenheit zu prüfen.
+   *
+   * **Warum eigene Regeln statt R10/R22 vorzuziehen.** R22 („NL prüfen") liegt
+   * im Strang `nachforderung` und ist hier von S3 (`ART` gesetzt) stillgelegt;
+   * sie höbe kein Umsortieren. R10 („Erinnerung an NF") trägt keinen Strang und
+   * trifft, verlöre aber vorgezogen genau die 16 Fälle oben an eine ältere
+   * Runde. Die drei Regeln hier stehen im Strang `rne` — sie erben damit dessen
+   * Sperren (Schlussvermerk, ZuwB) und sonst nichts. Den To-do-Text teilen sie
+   * bewusst mit R22 bzw. R10: das Board gruppiert danach, und fachlich ist es
+   * dieselbe Aufgabe (dieselbe Begründung wie bei R23a/R23b).
+   */
+  {
+    id: 'r26', reihenfolge: 84, beschreibung: 'R26 · Nachlieferung nach der Stellungnahme eingegangen',
+    strang: 'rne',
+    bedingung: alle(
+      gefuellt('ARZ'), gefuellt('ARW'), leer('AAR'), leer('XKS'),
+      { feldId: feld('AL'), op: 'datumNachFeld', vergleichFeldId: feld('ARW') },
+    ),
+    todo: 'NL prüfen', zustaendig: ['ab', 'fb'], aktiv: true,
+  },
+  {
+    id: 'r27', reihenfolge: 86, beschreibung: 'R27 · NF nach der Stellungnahme, Termin verstrichen',
+    strang: 'rne',
+    bedingung: alle(
+      gefuellt('ARZ'), gefuellt('ARW'), leer('AAR'), leer('XKS'), leer('AL'),
+      { feldId: feld('AN'), op: 'datumNachFeld', vergleichFeldId: feld('ARW') },
+      gefuellt('ANT'),
+      { feldId: feld('ANT'), op: 'datumVor', tageRelativHeute: 0 },
+    ),
+    todo: 'Erinnerung an NF', zustaendig: ['ab'], aktiv: true,
+  },
+  {
+    id: 'r28', reihenfolge: 88, beschreibung: 'R28 · NF nach der Stellungnahme, Frist läuft',
+    strang: 'rne',
+    bedingung: alle(
+      gefuellt('ARZ'), gefuellt('ARW'), leer('AAR'), leer('XKS'), leer('AL'),
+      { feldId: feld('AN'), op: 'datumNachFeld', vergleichFeldId: feld('ARW') },
+    ),
+    todo: 'NF abwarten', zustaendig: [], wartetAuf: 'ast', aktiv: true,
+  },
   {
     id: 'r7', reihenfolge: 90, beschreibung: 'R7 · Widerspruch gegen RNE eingegangen',
     strang: 'rne',

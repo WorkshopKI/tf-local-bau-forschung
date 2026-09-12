@@ -7,7 +7,9 @@
  * Beschriftung des Verfahrensschritts prüft `zah-phasen-daten.test.ts`.
  */
 import { describe, it, expect, afterEach } from 'vitest';
-import { naechsterSchritt, normalisierePrecheck, schrittText } from '../naechsterSchritt';
+import {
+  naechsterSchritt, normalisierePrecheck, precheckUrteil, precheckUrteilVonZeile, schrittText,
+} from '../naechsterSchritt';
 import {
   setCodePhasenSnapshot, resetZahPhasenSnapshotFuerTests, SEED_PHASEN_SCHNITT,
 } from '@/core/status/zah-phasen';
@@ -214,5 +216,50 @@ describe('normalisierePrecheck', () => {
   ];
   it.each(cases)('%o → %s', (label, expected) => {
     expect(normalisierePrecheck(label)).toBe(expected);
+  });
+});
+
+/**
+ * Der KITED-Fall (16KN125321, Export 11.09.2026): `D_PC-` am 22.01.2026, einen
+ * Tag später `D_XPC+` am Verbund. Bis v6.65 standen beide in EINER Spalte, in
+ * der das jüngste Datum gewann — die Zeile las „PreCheck positiv - Verbund" und
+ * der Filter zählte den Antrag unter „positiv". 256 Teilvorhaben im Bestand.
+ */
+describe('precheckUrteil — zwei Teile, ein Urteil', () => {
+  it('negativ am Teilvorhaben schlägt positiv am Verbund', () => {
+    expect(precheckUrteil({ tv: 'pre-check negativ', vb: 'PreCheck positiv - Verbund' }))
+      .toEqual({ klasse: 'negativ', label: 'pre-check negativ' });
+  });
+
+  it('negativ am Verbund schlägt positiv am Teilvorhaben — die Richtung ist egal', () => {
+    expect(precheckUrteil({ tv: 'pre-check positiv', vb: 'PreCheck negativ' }).klasse).toBe('negativ');
+  });
+
+  it('sind sich beide einig, trägt das Urteil den Wortlaut des Teilvorhabens', () => {
+    expect(precheckUrteil({ tv: 'pre-check positiv', vb: 'PreCheck positiv' }))
+      .toEqual({ klasse: 'positiv', label: 'pre-check positiv' });
+  });
+
+  it('ein gesetzter Teil genügt — der fehlende zieht das Urteil nicht auf „ohne"', () => {
+    expect(precheckUrteil({ vb: 'PreCheck positiv - Verbund' }))
+      .toEqual({ klasse: 'positiv', label: 'PreCheck positiv - Verbund' });
+    expect(precheckUrteil({ tv: 'pre-check negativ', vb: '' }).klasse).toBe('negativ');
+  });
+
+  it('ausstehend steht über gar nichts, aber unter einem echten Urteil', () => {
+    expect(precheckUrteil({ tv: 'PreCheck ausstehend', vb: '' }).klasse).toBe('offen');
+    expect(precheckUrteil({ tv: 'PreCheck ausstehend', vb: 'PreCheck positiv' }).klasse).toBe('positiv');
+  });
+
+  it('ohne beide Teile bleibt das Label leer — kein erfundener Wortlaut', () => {
+    expect(precheckUrteil({})).toEqual({ klasse: 'ohne', label: '' });
+    expect(precheckUrteilVonZeile({})).toEqual({ klasse: 'ohne', label: '' });
+  });
+
+  it('liest dieselben Felder aus einer List-View-Zeile', () => {
+    expect(precheckUrteilVonZeile({
+      precheck_tv_status_label: 'pre-check negativ',
+      precheck_vb_status_label: 'PreCheck positiv - Verbund',
+    }).klasse).toBe('negativ');
   });
 });

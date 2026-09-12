@@ -78,6 +78,35 @@ describe('buildVerbundTableRows (Ansicht: Antrag)', () => {
     // dominantStatus bevorzugt den Verbund-Status.
     expect(row.status).toBe(st('bewilligt'));
   });
+
+  /**
+   * KITED (ZKN125314): drei Teilvorhaben, das zweite mit negativem PreCheck. Die
+   * verdichtete Zeile entsteht aus `...lead` — sie erbte damit den PreCheck des
+   * ERSTEN Teilvorhabens und meldete „positiv", während ein Antrag des Verbunds
+   * abgelehnt wurde.
+   */
+  it('faltet den TV-PreCheck über alle Teilvorhaben — ein negativer schlägt durch', () => {
+    const input = [
+      mk('16KN125320', { verbund_id: 'V1', precheck_tv_status_label: 'pre-check positiv', precheck_tv_status_datum: '2026-01-22' }),
+      mk('16KN125321', { verbund_id: 'V1', precheck_tv_status_label: 'pre-check negativ', precheck_tv_status_datum: '2026-01-22' }),
+      mk('16KN125322', { verbund_id: 'V1', precheck_tv_status_label: 'pre-check positiv', precheck_tv_status_datum: '2026-01-22' }),
+    ];
+    const row = buildVerbundTableRows(input, null)[0]!;
+    expect(row.precheck_tv_status_label).toBe('pre-check negativ');
+  });
+
+  it('lässt den PreCheck der Lead-Zeile stehen, wenn kein Teilvorhaben widerspricht', () => {
+    const input = [
+      mk('A', { verbund_id: 'V1', precheck_tv_status_label: 'pre-check positiv' }),
+      mk('B', { verbund_id: 'V1', precheck_tv_status_label: 'pre-check positiv' }),
+    ];
+    expect(buildVerbundTableRows(input, null)[0]!.precheck_tv_status_label).toBe('pre-check positiv');
+  });
+
+  it('trägt kein Teilvorhaben einen PreCheck, erfindet die Faltung keinen', () => {
+    const input = [mk('A', { verbund_id: 'V1' }), mk('B', { verbund_id: 'V1' })];
+    expect(buildVerbundTableRows(input, null)[0]!.precheck_tv_status_label).toBeUndefined();
+  });
 });
 
 describe('buildStatusSectionRows (Gruppiert: Status)', () => {

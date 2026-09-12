@@ -1046,7 +1046,13 @@ describe('screen-context-coverage (Feedback-KI-Kontext: docs/feedback-kontext/)'
   const DOCS_DIR = join(ROOT, '..', 'docs', 'feedback-kontext');
   const REISSLEINE_DOC_CHARS = 45000;
   const REISSLEINE_JE_DOC: Readonly<Record<string, number>> = {
-    'antraege.md': 58000,
+    // 58000 → 60000 (v6.65): Die Fördertabelle hat statt einer PreCheck-Spalte
+    // zwei (TV/Verbund) plus die Rangfolge, nach der die verdichtete Spalte
+    // entscheidet — Bildschirm-Fakten, die die Feedback-KI braucht. Vorher
+    // wurden nach der README-Reihenfolge Historien-Nebensätze und
+    // Layout-Begründungen entfernt; gemessen bleiben 58208 Zeichen, und die
+    // sind belegt. Nicht weiter kürzen, um eine Zahl zu treffen.
+    'antraege.md': 60000,
   };
 
   // Text-Scan statt Import: plugins.config.ts importiert alle Plugin-Komponenten

@@ -168,7 +168,12 @@ export function ZeitverlaufReiter({
       {hatMeilensteine && (
         <GliederungSektion
           gliederung={gliederung}
-          stufen={befund.stufenOben}
+          // `relevant`, nicht `stufenOben`: die Kopfkarte derselben Ansicht
+          // schreibt „N gerissen von {relevant}". Bis v6.65 stand hier die Zahl
+          // der obersten Knoten — am selben Bildschirm las man „3 gerissen von
+          // 10" und 700 px darunter „9 Stufen · 3 gerissen". Zwei Nenner unter
+          // einem Wort; der Zähler war schon derselbe.
+          stufen={befund.relevant}
           gerissen={befund.gerissen}
           hervorgehoben={trifft}
           onHover={setGehovert}

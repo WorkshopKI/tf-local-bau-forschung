@@ -34,7 +34,7 @@ import {
 } from './antragGroups';
 import { extractNetzwerkId } from './netzwerk';
 import {
-  dominantStatus, fristErgebnisFuerZeile, sumFoerdersumme, verbundFkz,
+  dominantPrecheckTv, dominantStatus, fristErgebnisFuerZeile, sumFoerdersumme, verbundFkz,
 } from './groupAggregates';
 import { FRIST_AMPEL_STUFEN, fristAnzeigeVon } from './fristAnzeige';
 
@@ -171,6 +171,9 @@ export function buildVerbundTableRows(
       status: dom != null ? asAntragStatusRaw(dom) : lead.status,
       antragsdatum: verbundAntragsdatum(tvs) ?? lead.antragsdatum,
       foerdersumme: sumFoerdersumme(tvs) ?? lead.foerdersumme,
+      // Der TV-PreCheck ist ein Urteil JE Teilvorhaben — `...lead` erbte den des
+      // ersten und verschwieg ein negatives im zweiten (`dominantPrecheckTv`).
+      ...dominantPrecheckTv(tvs),
       _verbund: {
         verbundId: g.verbundId,
         tvCount: tvs.length,

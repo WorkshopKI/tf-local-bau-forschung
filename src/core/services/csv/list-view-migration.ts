@@ -51,8 +51,13 @@ import type { Programm } from './types';
  * Altbestand im Voll-Store trägt es aber weiter, bis der Antrag neu gerechnet
  * wird — ohne Bump behielte die Liste den Wert aus der alten Projektion, und der
  * Filter hätte einen Wert, den keine Definition mehr kennt.
+ * v11: `precheck_status_*` zerfällt in `precheck_tv_status_*` (AB) und
+ * `precheck_vb_status_*` (FB), v6.65. Die Schema-Signatur unten führt die
+ * Gruppen ohnehin und löste den Rebuild hier auch allein aus — der Bump steht
+ * trotzdem da, weil die ALTEN Schlüssel sonst im Altbestand liegen blieben und
+ * eine Zeile zwei PreCheck-Wahrheiten trüge.
  */
-export const LIST_VIEW_PROJECTION_VERSION = 10;
+export const LIST_VIEW_PROJECTION_VERSION = 11;
 /**
  * Signatur der aus ALLEN Programm-Schemas aufgelösten Status-Datum-Felder
  * (FB/PC). Ergänzt den reinen Code-Versions-Marker: Eine Mapping-Änderung (eine

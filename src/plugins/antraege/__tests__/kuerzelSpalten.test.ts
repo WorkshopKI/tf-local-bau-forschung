@@ -266,10 +266,29 @@ describe('Verdichtete Spalten', () => {
     expect(zustaendig().exportValue!(row({ ztp_kuerz: 'FW', pfm_kuerz: 'AAt' }))).toBe('');
   });
 
-  it('exportiert „FB / PreCheck" den VOLLEN Wortlaut beider Felder', () => {
-    const r = row({ fb_status_label: 'Ablehnungsreif', precheck_status_label: 'PreCheck negativ - Verbund' });
-    expect(fbPc().exportValue!(r)).toBe('FB: Ablehnungsreif · PC: PreCheck negativ - Verbund');
+  it('exportiert „FB / PreCheck" den VOLLEN Wortlaut ALLER Felder', () => {
+    const r = row({
+      fb_status_label: 'Ablehnungsreif',
+      precheck_vb_status_label: 'PreCheck negativ - Verbund',
+    });
+    expect(fbPc().exportValue!(r)).toBe('FB: Ablehnungsreif · PC Verbund: PreCheck negativ - Verbund');
     expect(fbPc().exportValue!(row())).toBe('');
+  });
+
+  /**
+   * Der KITED-Fall (16KN125321): TV negativ, Verbund positiv. Die Zelle zeigt
+   * das ausschlaggebende Urteil, die Datei muss BEIDE tragen — sonst ist im
+   * Export nicht mehr ablesbar, wessen Urteil man liest.
+   */
+  it('trägt der Export beide PreCheck-Teile, wenn sie sich widersprechen', () => {
+    const r = row({
+      precheck_tv_status_label: 'pre-check negativ',
+      precheck_vb_status_label: 'PreCheck positiv - Verbund',
+    });
+    expect(fbPc().exportValue!(r))
+      .toBe('PC TV: pre-check negativ · PC Verbund: PreCheck positiv - Verbund');
+    // …und das negative TV-Urteil trägt die Sortierung, nicht das jüngere positive.
+    expect(String(fbPc().accessor(r)).startsWith('negativ')).toBe(true);
   });
 
   it('erbt „FB / PreCheck" die Status-Rubrik — und damit die Ausklapp-Klickzone', () => {
@@ -279,8 +298,8 @@ describe('Verdichtete Spalten', () => {
   it('sortiert „FB / PreCheck" nach der PreCheck-Klasse, nicht nach dem Rohlabel', () => {
     // Die Klasse ist die kuratierte Aussage (positiv/negativ/offen); das Label
     // ist Label-XLS-getrieben und sortierte alphabetisch sinnlos.
-    const negativ = fbPc().accessor(row({ precheck_status_label: 'PreCheck negativ' }));
-    const positiv = fbPc().accessor(row({ precheck_status_label: 'PreCheck positiv' }));
+    const negativ = fbPc().accessor(row({ precheck_tv_status_label: 'PreCheck negativ' }));
+    const positiv = fbPc().accessor(row({ precheck_tv_status_label: 'PreCheck positiv' }));
     const leer = fbPc().accessor(row());
     expect(String(negativ).startsWith('negativ')).toBe(true);
     expect(String(positiv).startsWith('positiv')).toBe(true);

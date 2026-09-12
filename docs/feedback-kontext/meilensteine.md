@@ -158,10 +158,17 @@ Tooltip an „Gesamtfrist" und an „Eingang" nennt die beiden Spalten.
 
   - **Der Ist-Termin steht als eigene Zeile** unter den Karten und ist immer zu
     sehen: die Beschriftung „Ist-Termin", die Auswahl des Datumsfelds, die
-    gelben Marken „kein Datum" bzw. etwa „224 ohne Termin" und ein Satz, woher
-    der Termin bei genau dieser Regel kommt — etwa „Hier: das spätere Datum von
-    Gruppe 1 und Gruppe 2; je Gruppe das frühere ihrer gefüllten
-    Datumsspalten."
+    gelben Marken „kein Datum", „nur Status" bzw. etwa „224 ohne Termin" und
+    ein Satz, woher der Termin bei genau dieser Regel kommt — etwa „Hier: das
+    spätere Datum von Gruppe 1 und Gruppe 2; je Gruppe das frühere ihrer
+    gefüllten Datumsspalten."
+
+  - **„nur Status"** steht dort, wo die Regel allein den heutigen Status prüft.
+    Ein Status ist kein Ereignis, sondern der Wert von heute: sobald der Vorgang
+    weiterzieht, gilt der Meilenstein wieder als nicht erreicht — und bleibt
+    überfällig, obwohl der Schritt längst passiert ist. Der Satz daneben nennt
+    den Ausweg: die Datumsspalte des Ereignisses ergänzen; der Status darf als
+    zusätzlicher Zweig stehen bleiben.
 
   - **Die Probe am Bestand** darunter ist eine leise Zeile, bis man sie
     anklickt; der Auf-/Zu-Zustand bleibt für den ganzen Reiter und nach dem
@@ -179,7 +186,7 @@ Tooltip an „Gesamtfrist" und an „Eingang" nennt die beiden Spalten.
     Schwelle. Eine Bedingung „trifft keinen Verbund" oder „trifft jeden
     Verbund" (dann steht dabei, was die Regel ohne sie träfe); ein Meilenstein
     ist „erfüllt bei allen" oder „erfüllt bei keinem"; die Regel liefert „kein
-    Datum"; oder etwa „224 ohne Termin": so viele offene Verbünde gelten als
+    Datum" oder „nur Status"; oder etwa „224 ohne Termin": so viele offene Verbünde gelten als
     erreicht, haben aber kein Ist-Datum und fehlen damit in jeder Abweichung.
     Ein Warn-Dreieck in der Spalte „Erfüllt, wenn" zeigt Befunde auch
     zugeklappt.

@@ -51,9 +51,12 @@ const SAETZE: Record<string, string> = {
     'Der amtliche Status aus dem Fachsystem und daneben die Handlung, die als Nächstes ansteht. Die App leitet den Status nicht ab — sie zeigt ihn, wie er importiert wurde.',
   status: 'Der amtliche Status des Teilvorhabens aus dem Fachsystem, ohne den nächsten Schritt.',
   fb_status: 'Der zuletzt gesetzte Bearbeitungsstand aus der FB-Spur.',
-  precheck_status: 'Der zuletzt gesetzte Stand der Vorprüfung (pre-check).',
+  precheck_tv_status:
+    'Der zuletzt gesetzte Stand der Vorprüfung am Teilvorhaben — die betriebswirtschaftliche Prüfung des AB. Bei einer Verbund-Zeile steht hier das schwerwiegendste Urteil seiner Teilvorhaben, nicht das des ersten.',
+  precheck_vb_status:
+    'Der zuletzt gesetzte Stand der Vorprüfung am Verbund — die inhaltliche Prüfung des FB. Sie ist für alle Teilvorhaben desselben Verbundes dieselbe und kann dem Urteil am Teilvorhaben widersprechen.',
   fb_precheck:
-    'FB-Spur und Vorprüfung nebeneinander in einer Spalte — dieselben zwei Werte wie in den Einzelspalten. Der Punkt markiert nur die Vorprüfung: für sie gibt es die Einteilung positiv, negativ und offen, für die FB-Spur nicht.',
+    'FB-Spur und Vorprüfung nebeneinander in einer Spalte. Der Punkt markiert nur die Vorprüfung: für sie gibt es die Einteilung positiv, negativ und offen, für die FB-Spur nicht. Gezeigt wird das schwerwiegendere der beiden Vorprüfungs-Urteile (Teilvorhaben und Verbund); beide im Wortlaut stehen im Tooltip und im Export.',
   frist:
     'Verbleibende Zeit der Bearbeitungsfrist. Kein importiertes Datum, sondern gerechnet — und nur dort, wo die Uhr in dieser Phase überhaupt läuft.',
   titel: 'Vollständiger Titel des Teilvorhabens.',
@@ -149,7 +152,7 @@ const FELD_SPALTEN: ReadonlySet<string> = new Set<string>([
  *  ein fehlendes Mapping sagt über sie nichts. */
 const ABGELEITETE_SPALTEN: ReadonlySet<string> = new Set<string>([
   'antrag', 'zustaendig', 'status_naechster_schritt', 'fb_precheck',
-  'fb_status', 'precheck_status', 'frist', 'vb_phase', 'verbund_titel',
+  'fb_status', 'precheck_tv_status', 'precheck_vb_status', 'frist', 'vb_phase', 'verbund_titel',
 ]);
 
 /** Für den Guard: die Aufteilung als Paar. */

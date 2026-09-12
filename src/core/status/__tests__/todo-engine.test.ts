@@ -44,13 +44,13 @@ const HEUTE = vorTagen(0);
 const GESTERN = vorTagen(1);
 
 describe('Regelsatz — Aufbau', () => {
-  it('führt 26 Regeln und 4 Sperren, jede Id genau einmal', () => {
+  it('führt 29 Regeln und 4 Sperren, jede Id genau einmal', () => {
     // S0/S0b kamen mit der Fachabstimmung dazu (die fixierten Slicer der Mappe),
-    // R23 wurde nach Rollen in R23a/R23b geteilt.
+    // R23 wurde nach Rollen in R23a/R23b geteilt, R26–R28 gaben R7 seinen Ausgang.
     const sperren = AB_TODO_REGELN.filter(r => (r.sperrt?.length ?? 0) > 0);
     expect(sperren.map(s => s.id)).toEqual(['s0', 's0b', 's1', 's2']);
-    expect(AB_TODO_REGELN).toHaveLength(30);
-    expect(new Set(AB_TODO_REGELN.map(r => r.id)).size).toBe(30);
+    expect(AB_TODO_REGELN).toHaveLength(33);
+    expect(new Set(AB_TODO_REGELN.map(r => r.id)).size).toBe(33);
   });
 
   it('ist streng aufsteigend sortiert — die Reihenfolge IST die Kaskade', () => {
@@ -156,6 +156,11 @@ const FAELLE: [string, Record<string, string>, string][] = [
     ['r23b', { _status: 'beantragt', _vb_phase: '3', 'PC+': GESTERN }, 'PC offen'],
     ['r24', { ALU: GESTERN }, 'NF ergänzen'],
   ['r25', { _status: 'bearbeitungsreif' }, 'NF erstellen'],
+  // R26–R28 geben R7 seinen Ausgang. Alle drei setzen `ARZ`+`ARW` — ohne die
+  // fiele der Fall auf R10/R22 und der Test prüfte nicht, was er soll.
+  ['r26', { ARZ: vorTagen(40), ARW: vorTagen(20), AL: vorTagen(5) }, 'NL prüfen'],
+  ['r27', { ARZ: vorTagen(40), ARW: vorTagen(20), AN: vorTagen(10), ANT: vorTagen(2) }, 'Erinnerung an NF'],
+  ['r28', { ARZ: vorTagen(40), ARW: vorTagen(20), AN: vorTagen(10) }, 'NF abwarten'],
 ];
 
 /** Nur Id + Feldlage — die Erwartung braucht das Gatter nicht. */
@@ -686,5 +691,53 @@ describe('Regressionsgatter — Strang-Sperren statt Id-Listen (v2.412)', () => 
     const e = ermittleTodo(mitAusnahme, ctx({ AAR: GESTERN, 'PC-': GESTERN }), STICHTAG);
     expect(e.gesperrtDurch).toContain('s1');
     expect(e.todo).toBe('Abl/RNE erstellen');
+  });
+});
+
+/**
+ * Der Fall, der R26–R28 ausgelöst hat — die drei Teilvorhaben von KITED
+ * (ZKN125314), Feldlage aus dem Export vom 11.09.2026, Stichtag 12.09.2026.
+ *
+ * Vorher sagte das Board allen dreien „Stellungnahme RNE prüfen" und die
+ * Kopfkarte „3 von 3 Teilvorhaben" — während TV1 die Nachlieferung längst
+ * zurück hatte und bei TV2/TV3 der Nachlieferungstermin verstrichen war. Die
+ * Aufgabe war seit dem 05.08. erledigt; die Regel konnte das nur nicht sagen.
+ */
+describe('R26–R28 — KITED, die drei Teilvorhaben', () => {
+  const KITED = '2026-09-12T00:00:00.000Z';
+  /** Gemeinsame Lage aller drei: RNE raus, Stellungnahme da, NF nachgeschoben. */
+  const gemeinsam = {
+    ART: '10.06.2026', ARZ: '17.06.2026', ARW: '05.08.2026',
+    ALS: '18.08.2026', AT4: '21.08.2026', XALF: '25.08.2026', AN: '25.08.2026',
+  };
+  const todo = (werte: Record<string, string>): string | null =>
+    ermittleTodo(REGELN, ctx({ ...gemeinsam, ...werte }), KITED).todo;
+
+  it('TV1 (16KN125320): Nachlieferung am 31.08. eingegangen → NL prüfen', () => {
+    expect(todo({ ALT: '18.08.2026', ALSB: '31.08.2026', AL: '31.08.2026', ANT: '08.09.2026' }))
+      .toBe('NL prüfen');
+  });
+
+  it('TV2 (16KN125321): Termin 08.09. verstrichen, nichts gekommen → Erinnerung an NF', () => {
+    expect(todo({ ALU: '18.08.2026', ALT: '25.08.2026', ANT: '08.09.2026' }))
+      .toBe('Erinnerung an NF');
+  });
+
+  it('TV3 (16KN125322): Fristverlängerung auf 11.09. — auch die ist durch', () => {
+    expect(todo({ ALU: '18.08.2026', ALT: '25.08.2026', ANT: '11.09.2026' }))
+      .toBe('Erinnerung an NF');
+  });
+
+  it('läuft der Nachlieferungstermin noch, wird gewartet statt erinnert', () => {
+    expect(todo({ ANT: '30.09.2026' })).toBe('NF abwarten');
+  });
+
+  /**
+   * Die Gegenprobe, an der `leer('AN')` als Ausgang gescheitert wäre: 16 der 297
+   * Teilvorhaben tragen ein `D_AN` aus einer Runde VOR der Stellungnahme. Für
+   * sie bleibt die Prüfung offen.
+   */
+  it('eine Nachforderung VOR der Stellungnahme lässt R7 stehen', () => {
+    expect(todo({ AN: '01.07.2026' })).toBe('Stellungnahme RNE prüfen');
   });
 });

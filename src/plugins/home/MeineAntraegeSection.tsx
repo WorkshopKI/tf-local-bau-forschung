@@ -277,7 +277,7 @@ function MeineAntraegeListe({
         // schweigt (`aufgabenAnzeige`) — nie unter den bisherigen Stand zurück.
         const anzeige = aufgabenAnzeige({
           aufgabe: aufgaben.fuer(v.tv_aktenzeichen ?? [v.id]),
-          rueckfall: schrittText(v.status, v.precheck_status_label ?? ''),
+          rueckfall: schrittText(v.status, v.precheck_urteil_label ?? ''),
           laeuftNoch: aufgaben.laeuftNoch,
           vorlaeufig: aufgaben.vorlaeufig,
           ausserhalbLauf: aufgaben.ausserhalb(v.tv_aktenzeichen ?? [v.id]),
@@ -357,8 +357,17 @@ function MeineAntraegeListe({
             titleClassName="text-[12.5px] leading-[1.4] min-w-0"
             meta={
               ageLabel ? (
-                <span className="text-[11px] tabular-nums text-[var(--tf-text-tertiary)] whitespace-nowrap">
+                // „seit Eingang" steht dabei, seit die Zahl eine Nachbarin hat,
+                // die etwas anderes zählt: der Tagesbrief direkt darüber schreibt
+                // „seit 173 Tagen überfällig", diese Spalte sagte für denselben
+                // Vorgang „vor 263 Tagen" (= seit Antragseingang). Beide stimmen,
+                // aber nur eine nannte ihre Einheit.
+                <span
+                  className="text-[11px] tabular-nums text-[var(--tf-text-tertiary)] whitespace-nowrap"
+                  title="Zeit seit dem Antragseingang — nicht der Frist-Rückstand."
+                >
                   {ageLabel}
+                  <span className="text-[var(--tf-text-tertiary)]"> seit Eingang</span>
                 </span>
               ) : undefined
             }

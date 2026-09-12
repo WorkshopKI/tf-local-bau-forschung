@@ -355,8 +355,8 @@ Sidecar team-weit gilt. Automatisch wirkt nichts.
 
 Je kuratiertem Ordner gibt es eine einblendbare Spalte mit dem **jüngsten**
 Termin des Ordners (Bezeichnung als Badge, Datum im Tooltip und als
-Sortierschlüssel) — dieselbe Mechanik wie „FB Status"/„PreCheck Status", nur
-kuratiert statt im Code.
+Sortierschlüssel) — dieselbe Mechanik wie „FB Status"/„PreCheck TV"/„PreCheck
+Verbund", nur kuratiert statt im Code.
 
 Zwei Konsequenzen daraus:
 

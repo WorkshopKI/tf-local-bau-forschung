@@ -304,10 +304,19 @@ export interface AntragListItem {
   fb_status_label?: string;
   /** Das jüngste FB-Status-Datum (ISO YYYY-MM-DD) — Tooltip + Sortierung. */
   fb_status_datum?: string;
-  /** Label der Spalte mit dem jüngsten PreCheck-Status-Datum (Badge-Text). */
-  precheck_status_label?: string;
-  /** Das jüngste PreCheck-Status-Datum (ISO YYYY-MM-DD) — Tooltip + Sortierung. */
-  precheck_status_datum?: string;
+  /**
+   * PreCheck des **Teilvorhabens** (AB) — Label der Spalte mit dem jüngsten
+   * Datum. Getrennt vom Verbund-PreCheck seit v6.65: zusammengerechnet gewann
+   * das jüngere Verbund-Urteil und löschte 256 negative TV-PreChecks
+   * (`PRECHECK_VB_STATUS_CODES`).
+   */
+  precheck_tv_status_label?: string;
+  /** Das jüngste TV-PreCheck-Datum (ISO YYYY-MM-DD) — Tooltip + Sortierung. */
+  precheck_tv_status_datum?: string;
+  /** PreCheck des **Verbunds** (FB) — Label der Spalte mit dem jüngsten Datum. */
+  precheck_vb_status_label?: string;
+  /** Das jüngste Verbund-PreCheck-Datum (ISO YYYY-MM-DD). */
+  precheck_vb_status_datum?: string;
   /**
    * Je **kuratiertem Ordner** des Statuskatalogs der jüngste Eintrag: `l` =
    * Bezeichnung des Feldes, das ihn liefert, `d` = ISO-Datum. Speist die

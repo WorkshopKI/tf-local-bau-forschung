@@ -615,9 +615,10 @@ Damit ersetzt **jede geschriebene FB-Regel genau einen Platzhalter** — schritt
 ohne Stichtag, an dem etwas „umgestellt" wird.
 
 **Zwei Leihwege seit v4.132.** `wartetAuf` war nicht der einzige Fall: eine Regel
-kann eine Rolle auch ausdrücklich als **zuständig** nennen. Drei tun das (R7
+kann eine Rolle auch ausdrücklich als **zuständig** nennen. Vier tun das (R7
 „Stellungnahme RNE prüfen", R12 „Widerspruch gg Abl bearbeiten", R22 „NL prüfen"
-— alle mit `fb` im `zustaendig`), und keine davon kam in der FB-Sicht an:
+und seit v6.65 R26 „NL prüfen" im Strang `rne` — alle mit `fb` im `zustaendig`);
+gemessen wurde der Fall an den ersten dreien, und keine davon kam in der FB-Sicht an:
 `trefferLauf` überspringt jede Regel eines fremden Regelsatzes, und der
 Platzhalter fragte nur `wartetAuf`. Der FB bekam ein **leeres** Board, obwohl der
 AB-Regelsatz ihn namentlich nennt. Die drei Bedingungen treffen auf 40 / 24 / 176
@@ -754,7 +755,7 @@ Regelsatz AB): zwei der 30 Regeln bleiben ohne Wirkung — `R10`
 die Tagesordnung des Fachtermins, nicht in den nächsten Messlauf.
 
 **Die Stränge des ausgelieferten Satzes**: `precheck` (R1, R2, R23a, R23b),
-`nachforderung` (R22, R24, R25), `rne` (R6–R9), `ablehnung` (R11–R16),
+`nachforderung` (R22, R24, R25), `rne` (R6–R9 und R26–R28), `ablehnung` (R11–R16),
 `gutachten` (R17–R21), `zuwb` (R3), `schluss` (R4, R5). **R10**
 („Nachlieferungstermin verstrichen") bleibt **ohne** Strang: sie steht in keiner
 Sperre und liegt zwischen Nachforderung und Erinnerung — geraten wird nicht.
@@ -2434,7 +2435,18 @@ fand keinen Verlauf. Jetzt drei Blöcke
    über denselben Daten wären zwei Wahrheiten, und die Zeile soll zeigen, was der
    Nutzer dort kennt.
 2. **Ohne Termin im Export** ([ohneDatum.ts](../../src/plugins/antraege/ausklapp/vorgangsverlauf/ohneDatum.ts)) —
-   standardmäßig zu, Anzahl in der Überschrift.
+   standardmäßig zu, Anzahl in der Überschrift. **Ein Eintrag je Feld, eine Zeile
+   je verschiedenem Wert** (v6.65): dieselbe Spalte steht auf jeder TV-Zeile, und
+   vier Teilvorhaben mit demselben Wert sind ein Wert mit vier Trägern. Weichen
+   sie ab, bekommt jeder Wert seine eigene Zeile mit seinen eigenen Trägern; die
+   Bezeichnung steht einmal oben und trägt dann „N verschiedene Werte". Bis
+   v6.65 gewann der erste gefundene Wert, und die übrigen Träger standen
+   trotzdem daneben — der Kommentar nannte das „ausnahmsweise". Am Bestand vom
+   11.09.2026 ist es der Normalfall: von 2 289 Verbünden mit `T_ABK` tragen
+   **2 214** je Teilvorhaben verschiedene Beträge (96,7 %), bei `T_AAI` 1 105 von
+   1 133. Bei KITED (ZKN125314) las die Zeile „280000 · 3 Teilvorhaben", während
+   die drei Anträge 280 000, 492 225 und 331 006 beantragt hatten — eine falsche
+   Zahl ist teurer als eine Zeile mehr.
 3. **Fristrechnung** — unverändert, nur mit Überschrift; ebenfalls zu.
 
 **Drei Sichten, drei Fragen** — sie zeigen absichtlich verschieden viel:

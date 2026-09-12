@@ -15,7 +15,7 @@ import { VorlaeufigMarke } from '@/components/ui/VorlaeufigMarke';
 import type { SortableColumn } from '@/components/data-table/types';
 import type { ZeilenAufgaben } from '@/core/hooks/useBestandsAufgaben';
 import { aufgabenAnzeige, regelTraf, type AufgabenAnzeige } from '@/core/status';
-import { naechsterSchritt } from '@/core/utils/naechsterSchritt';
+import { naechsterSchritt, precheckUrteilVonZeile } from '@/core/utils/naechsterSchritt';
 import { isTerminalStatus, statusRang } from '@/core/utils/status-canonical';
 import { getStatusVariant } from '@/core/utils/status-mappings';
 import { statusKurzLabel, statusLabel, statusLabelMitQuelle } from '@/core/utils/status-wert-labels';
@@ -70,7 +70,7 @@ function mitAufgabenKaskade(
     // Nur die HANDLUNG als Rückfall, nicht `schrittText`: dessen Rückfall auf die
     // Status-Kurzform stünde hier neben dem Badge, das sie schon zeigt
     // („Bewilligt → Bewilligt", in der Abnahme gesehen).
-    rueckfall: naechsterSchritt(strOrNull(r.status), r.precheck_status_label ?? '')?.aktion ?? '',
+    rueckfall: naechsterSchritt(strOrNull(r.status), precheckUrteilVonZeile(r).label)?.aktion ?? '',
     laeuftNoch: aufgaben.laeuftNoch,
     vorlaeufig: aufgaben.vorlaeufig,
     ausserhalbLauf: aufgaben.ausserhalb(zeilenAktenzeichen(r)),

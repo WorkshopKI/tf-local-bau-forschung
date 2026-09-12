@@ -45,17 +45,40 @@ export const FB_STATUS_CODES: readonly string[] = [
   'D_ZBT',
 ];
 
-/** PreCheck-Status-Quell-Spalten (CSV-Header), Reihenfolge = Tie-Break. */
-export const PRECHECK_STATUS_CODES: readonly string[] = [
+/**
+ * PreCheck **des Teilvorhabens** — die betriebswirtschaftliche Vorprüfung des AB
+ * (Katalog: alle `ebene: 'tv'`). Reihenfolge = Tie-Break.
+ */
+export const PRECHECK_TV_STATUS_CODES: readonly string[] = [
   'D_PC+',
   'D_PC?',
   'D_PC-',
-  'D_XPC+',
-  'D_XPC?',
-  'D_XPC-',
   'D_PCQ',
   'D_PCAN',
   'D_PCAL',
+];
+
+/**
+ * PreCheck **des Verbunds** — die inhaltliche Vorprüfung des FB (Katalog: alle
+ * `ebene: 'verbund'`).
+ *
+ * **Warum getrennt von {@link PRECHECK_TV_STATUS_CODES}.** Bis v6.65 standen
+ * beide in EINER Gruppe, und `computeStatusDatum` nahm das jüngste Datum. Der
+ * Verbund-PreCheck wird typischerweise nach dem des Teilvorhabens gesetzt — also
+ * gewann er fast immer und überschrieb ein negatives TV-Urteil. Am Export vom
+ * 11.09.2026: **414** Teilvorhaben tragen `D_PC-` ohne `D_PC+`, **256** davon in
+ * einem Verbund mit `D_XPC+`. Bei KITED trug 16KN125321 am 22.01.2026 einen
+ * negativen PreCheck, die Spalte las einen Tag später „PreCheck positiv -
+ * Verbund", und der Filter zählte den Verbund unter „positiv".
+ *
+ * Dass es zwei Urteile zweier Rollen sind, steht auch im Regelsatz: R23a wartet
+ * auf den AB, R23b auf den FB (`todo-regeln.seed.ts`). Eine Spalte, die beide zu
+ * einem Wert verrechnet, kann diese Frage nicht mehr beantworten.
+ */
+export const PRECHECK_VB_STATUS_CODES: readonly string[] = [
+  'D_XPC+',
+  'D_XPC?',
+  'D_XPC-',
 ];
 
 export interface StatusDatumFeld {
@@ -144,9 +167,9 @@ export interface StatusDatumGruppe {
   /** Quell-Spalten-Codes der Gruppe (Reihenfolge = Tie-Break). */
   codes: readonly string[];
   /** Slim-Feld-Key für das Badge-Label in `AntragListItem`. */
-  labelKey: 'fb_status_label' | 'precheck_status_label';
+  labelKey: 'fb_status_label' | 'precheck_tv_status_label' | 'precheck_vb_status_label';
   /** Slim-Feld-Key für das ISO-Datum in `AntragListItem`. */
-  datumKey: 'fb_status_datum' | 'precheck_status_datum';
+  datumKey: 'fb_status_datum' | 'precheck_tv_status_datum' | 'precheck_vb_status_datum';
 }
 
 /**
@@ -156,7 +179,18 @@ export interface StatusDatumGruppe {
  */
 export const STATUS_DATUM_GRUPPEN: readonly StatusDatumGruppe[] = [
   { id: 'fb', codes: FB_STATUS_CODES, labelKey: 'fb_status_label', datumKey: 'fb_status_datum' },
-  { id: 'precheck', codes: PRECHECK_STATUS_CODES, labelKey: 'precheck_status_label', datumKey: 'precheck_status_datum' },
+  {
+    id: 'precheck_tv',
+    codes: PRECHECK_TV_STATUS_CODES,
+    labelKey: 'precheck_tv_status_label',
+    datumKey: 'precheck_tv_status_datum',
+  },
+  {
+    id: 'precheck_vb',
+    codes: PRECHECK_VB_STATUS_CODES,
+    labelKey: 'precheck_vb_status_label',
+    datumKey: 'precheck_vb_status_datum',
+  },
 ];
 
 export interface ResolvedStatusDatumGruppe {

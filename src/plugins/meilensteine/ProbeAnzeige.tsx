@@ -140,6 +140,8 @@ export interface IstTerminAnzeige {
   auswahl?: React.ReactNode;
   text: string;
   keinDatum: boolean;
+  /** Schärfer als {@link keinDatum}: die Regel hängt am heutigen Status. */
+  momentaufnahme?: boolean;
 }
 
 const SPALTE = 'flex min-w-0 flex-col gap-1.5 px-3.5 py-2.5';
@@ -299,7 +301,9 @@ export function IstTerminZeile({ ist, probe, knotenId, ohneBedingung }: {
         Ist-Termin
       </span>
       {ist.auswahl && <span className="min-w-0 max-w-[260px] flex-1">{ist.auswahl}</span>}
-      {ist.keinDatum && <BefundMarke>kein Datum</BefundMarke>}
+      {/* „nur Status" statt „kein Datum": der schärfere Befund gewinnt, sonst
+          liest sich der gravierendere Fall wie der harmlosere. */}
+      {ist.keinDatum && <BefundMarke>{ist.momentaufnahme ? 'nur Status' : 'kein Datum'}</BefundMarke>}
       {ohne && (
         <BefundMarke title={`${zahl(ohne.offen)} offene und ${zahl(ohne.abgeschlossen)} abgeschlossene Verbünde gelten als erreicht, `
           + 'ohne dass ein Datum vorliegt — für sie gibt es keinen Ist-Termin und keine Abweichung.'}

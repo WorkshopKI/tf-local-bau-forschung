@@ -18,7 +18,7 @@ function row(status: string | undefined, precheckLabel?: string): AntragTableRow
     aktenzeichen: '16DL260001',
     programm_id: 'p1',
     status,
-    precheck_status_label: precheckLabel,
+    precheck_tv_status_label: precheckLabel,
   } as unknown as AntragTableRow;
 }
 

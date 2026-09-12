@@ -767,12 +767,26 @@ Meilenstein-Modul reicht Zahlen in den Editor.
   das spätere Datum von Gruppe 1 und Gruppe 2; je Gruppe das frühere ihrer
   gefüllten Datumsspalten." —, datumslose Bedingungen nennt ein Nachsatz. Prüft
   die Bedingung keine Datumsspalte, sagt die Zeile das und trägt die Marke
-  „kein Datum" (MST 2: Kürzel TIB/BIB, MST 5: Status — Ist-Termin und
-  Abweichung blieben dort für immer leer). Welche Felder Datumsspalten sind,
+  „kein Datum" (MST 2: Kürzel TIB/BIB — Ist-Termin und Abweichung blieben dort
+  für immer leer). Welche Felder Datumsspalten sind,
   entscheidet `istDatumsFeldAus`: `typ: 'datum'` im Spalten-Katalog **oder** die
   Code-Konvention `D_…` — das Inventar führt einige `D_`-Spalten aus seinen
   Stichproben als „wert". Ein Sammel-Meilenstein nennt „das späteste Datum
   seiner aktiven Unter-Meilensteine".
+- **Ein Status ist eine Momentaufnahme, kein Ereignis** (`momentaufnahme`,
+  v6.65). Der schärfere Fall von „kein Datum": `status` und `verbund_status`
+  tragen den Wert von **heute**. Ein Meilenstein, der `status ist
+  „Stellungnahme zur Rücknahmeempf."` prüft, ist nur an den Tagen erreicht, an
+  denen der Vorgang zufällig dort steht; zieht er weiter, fällt der Meilenstein
+  auf `gerissen` zurück — und bleibt es. Gemessen am Export vom 11.09.2026:
+  **9 145** Teilvorhaben tragen den Datumsbeleg für „Rückmeldung des
+  Antragstellers" (`D_ARW`/`D_AL`/`D_ABLW`), aber nur **72** stehen heute auf
+  einem der drei Statuswerte — 9 074 gelten dauerhaft als überfällig, obwohl
+  derselbe Export den Termin führt. Die Zeile trägt dann die Marke **„nur
+  Status"** statt „kein Datum" (der gravierendere Fall darf sich nicht wie der
+  harmlosere lesen) und nennt den Ausweg: die Datumsspalte des Ereignisses
+  ergänzen, den Status als zusätzlichen Zweig stehen lassen. `vb_phase` zählt
+  **nicht** dazu — die Fördervariante wandert nicht.
 - **Treffer je Feld für die Feld-Suche** (`zaehleFeld`). Die Probe-Kontexte
   kennen nur die Felder, die der Plan benutzt; ein noch nicht gewähltes Feld
   stünde dort immer auf 0. Der Hook baut deshalb beim ersten Aufruf einmal
@@ -819,6 +833,14 @@ existierte, ist der Knoten zusätzlich inaktiv (1.4.2, 4, 5). Ein geratener
 Meilenstein wäre schlimmer als ein fehlender. Hat das Team eine Zuordnung
 geprüft, bestätigt es sie in der Spalte „Zuordnung" des Konfigurations-Reiters
 (siehe Der Meilenstein um den Regelbereich).
+
+**MST 5 und MST 6 lesen seit v6.65 zuerst ein Datum.** Beide hingen allein an
+Status-Werten und waren damit Momentaufnahmen (siehe Probe am Bestand): MST 5
+trägt jetzt `D_ARW`/`D_AL`/`D_ABLW` **vor** seinen drei Status-Zweigen, MST 6
+`D_XKS`/`erstentscheidung` vor seinen. Die Status-Zweige bleiben stehen — sie
+fangen die Fälle, in denen der Beleg fehlt; `{einige}` macht das Hinzufügen rein
+additiv. Beide Knoten bleiben `unbestaetigt`: die Spalten sind plausibel, geprüft
+hat sie das Team noch nicht.
 
 ## Guards
 

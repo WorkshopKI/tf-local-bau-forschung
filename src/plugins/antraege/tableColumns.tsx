@@ -22,7 +22,7 @@ import { formatGermanDate, formatDatumsWert } from '@/core/services/csv/datePars
 import { ANTRAG_SLA_DAYS } from '@/core/services/csv/frist';
 import { FRIST_GRUND, type FristErgebnis } from '@/core/services/csv/frist-ergebnis';
 import { isTerminalStatus, statusRang } from '@/core/utils/status-canonical';
-import { naechsterSchritt } from '@/core/utils/naechsterSchritt';
+import { naechsterSchritt, precheckUrteilVonZeile } from '@/core/utils/naechsterSchritt';
 import { isVorgangssystemEnabled } from '@/config/feature-flags';
 import { HerleitungPopover } from './status/HerleitungPopover';
 import { useAusklappSteuerung } from './ausklapp/kontext';
@@ -658,7 +658,7 @@ const ROH_SPALTEN: SortableColumn<AntragTableRow>[] = [
     accessor: r => {
       const s = strOrNull(r.status);
       if (!s) return '99'; // leerer Status ans Ende
-      const schritt = naechsterSchritt(s, r.precheck_status_label ?? '');
+      const schritt = naechsterSchritt(s, precheckUrteilVonZeile(r).label);
       const aktion = (schritt?.aktion || statusKurzLabel(s)).toLowerCase();
       return `${String(statusRang(s)).padStart(2, '0')} ${aktion}`;
     },
@@ -669,7 +669,7 @@ const ROH_SPALTEN: SortableColumn<AntragTableRow>[] = [
     exportValue: r => {
       const s = strOrNull(r.status);
       if (!s) return '';
-      const schritt = naechsterSchritt(s, r.precheck_status_label ?? '');
+      const schritt = naechsterSchritt(s, precheckUrteilVonZeile(r).label);
       const aktion = isTerminalStatus(s) ? '' : (schritt?.aktion ?? '');
       return aktion ? `${statusLabel(s)} → ${aktion}` : statusLabel(s);
     },
@@ -690,7 +690,7 @@ const ROH_SPALTEN: SortableColumn<AntragTableRow>[] = [
           </span>
         );
       }
-      const schritt = naechsterSchritt(s, r.precheck_status_label ?? '');
+      const schritt = naechsterSchritt(s, precheckUrteilVonZeile(r).label);
       const aktion = schritt?.aktion ?? '';
       // Inline gehalten (kein Flex): das nowrap-`<td>` (overflow:hidden +
       // text-overflow:ellipsis) clippt den nachgestellten Aktions-Text zuerst;
@@ -770,13 +770,25 @@ const ROH_SPALTEN: SortableColumn<AntragTableRow>[] = [
     getLabel: r => r.fb_status_label,
     getDatum: r => r.fb_status_datum,
   }),
+  // Zwei PreCheck-Spalten, nicht eine: `D_PC±` ist die Vorprüfung des AB am
+  // Teilvorhaben, `D_XPC±` die des FB am Verbund (R23a/R23b). Bis v6.65 standen
+  // beide in einer Spalte, in der das jüngere Datum gewann — bei 256 Anträgen
+  // verdeckte das positive Verbund-Urteil ein negatives TV-Urteil.
   statusDatumColumn({
-    key: 'precheck_status',
-    label: 'PreCheck Status',
+    key: 'precheck_tv_status',
+    label: 'PreCheck TV',
     gruppe: G_STATUS,
     variant: 'default',
-    getLabel: r => r.precheck_status_label,
-    getDatum: r => r.precheck_status_datum,
+    getLabel: r => r.precheck_tv_status_label,
+    getDatum: r => r.precheck_tv_status_datum,
+  }),
+  statusDatumColumn({
+    key: 'precheck_vb_status',
+    label: 'PreCheck Verbund',
+    gruppe: G_STATUS,
+    variant: 'default',
+    getLabel: r => r.precheck_vb_status_label,
+    getDatum: r => r.precheck_vb_status_datum,
   }),
   {
     // FB-Status und PreCheck in EINER Spur — die beiden Einzelspalten darüber
@@ -801,19 +813,27 @@ const ROH_SPALTEN: SortableColumn<AntragTableRow>[] = [
     messZuschlag: 34,
     // Sortiert nach PreCheck-Klasse (die getragene Aussage), FB als Tie-Break.
     accessor: r =>
-      `${classifyPrecheckBucket(r.precheck_status_label)} ${strOrNull(r.fb_status_label) ?? ''}`,
+      `${classifyPrecheckBucket(precheckUrteilVonZeile(r).label)} ${strOrNull(r.fb_status_label) ?? ''}`,
     // Export trägt den VOLLEN Wortlaut beider Felder — die Zelle kürzt, die
-    // Datei ist das Einzige, was die App verlässt.
+    // Datei ist das Einzige, was die App verlässt. Beide PreCheck-Teile stehen
+    // einzeln da: welcher das Urteil trägt, ist in der Datei nicht ablesbar,
+    // wenn nur der Sieger exportiert wird.
     exportValue: r => {
       const fb = strOrNull(r.fb_status_label);
-      const pc = strOrNull(r.precheck_status_label);
-      return [fb ? `FB: ${fb}` : null, pc ? `PC: ${pc}` : null].filter(Boolean).join(' · ');
+      const pcTv = strOrNull(r.precheck_tv_status_label);
+      const pcVb = strOrNull(r.precheck_vb_status_label);
+      return [
+        fb ? `FB: ${fb}` : null,
+        pcTv ? `PC TV: ${pcTv}` : null,
+        pcVb ? `PC Verbund: ${pcVb}` : null,
+      ].filter(Boolean).join(' · ');
     },
     render: r => {
       const fb = strOrNull(r.fb_status_label);
-      const pc = strOrNull(r.precheck_status_label);
+      const urteil = precheckUrteilVonZeile(r);
+      const pc = strOrNull(urteil.label);
       if (!fb && !pc) return null;
-      const klasse = classifyPrecheckBucket(r.precheck_status_label);
+      const klasse = classifyPrecheckBucket(urteil.label);
       const pcFarbe = klasse === 'positiv'
         ? 'var(--tf-success-text)'
         : klasse === 'negativ' ? 'var(--tf-danger-text)' : 'var(--tf-border-hover)';
@@ -828,7 +848,20 @@ const ROH_SPALTEN: SortableColumn<AntragTableRow>[] = [
             </span>
           ) : null}
           {pc ? (
-            <span className="inline-flex items-center gap-1 min-w-0" title={`PreCheck: ${pc}${datum(r.precheck_status_datum)}`}>
+            // Der Titel nennt BEIDE Teile, auch wenn die Zelle nur den
+            // ausschlaggebenden zeigt: sonst liest sich ein negatives TV-Urteil
+            // wie das Urteil des Verbunds (und umgekehrt).
+            <span
+              className="inline-flex items-center gap-1 min-w-0"
+              title={[
+                strOrNull(r.precheck_tv_status_label)
+                  ? `PreCheck TV: ${r.precheck_tv_status_label}${datum(r.precheck_tv_status_datum)}`
+                  : null,
+                strOrNull(r.precheck_vb_status_label)
+                  ? `PreCheck Verbund: ${r.precheck_vb_status_label}${datum(r.precheck_vb_status_datum)}`
+                  : null,
+              ].filter(Boolean).join('\n')}
+            >
               <span
                 className="shrink-0 w-1.5 h-1.5 rounded-full"
                 style={{ background: pcFarbe }}

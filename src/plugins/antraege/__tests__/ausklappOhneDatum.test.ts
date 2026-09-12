@@ -47,7 +47,7 @@ describe('baueOhneDatum', () => {
       text('T_AMA', '3', { code: 'AMA', label: 'Anzahl Mitarbeiter' }),
     ]);
     expect(liste.map(e => e.code)).toEqual(['AMA', 'ABK']);   // nach Bezeichnung
-    expect(liste.map(e => e.wert)).toEqual(['3', '302400']);
+    expect(liste.map(e => e.werte[0]?.wert)).toEqual(['3', '302400']);
   });
 
   it('lässt Datumsfelder draußen — sie stehen in der Chronik', () => {
@@ -92,7 +92,40 @@ describe('baueOhneDatum', () => {
       text('T_AVB', 'NF', { code: 'AVB', tvId: '16DS261012' }),
     ]);
     expect(liste).toHaveLength(1);
-    expect(liste[0]?.traeger).toBe('2 Teilvorhaben');
+    expect(liste[0]?.werte).toEqual([{ wert: 'NF', traeger: '2 Teilvorhaben' }]);
+  });
+
+  /**
+   * Der Fall, der die Umstellung ausgelöst hat: KITED (ZKN125314) beantragt je
+   * Teilvorhaben 280.000 / 492.225 / 331.006. Bis v6.65 gewann der erste Wert
+   * und trug die Marke „3 Teilvorhaben" — zwei der drei Zahlen waren falsch,
+   * ohne dass die Zeile es zugab. Am Bestand ist das kein Sonderfall: 2.214 von
+   * 2.289 Verbünden mit `T_ABK` weichen je Teilvorhaben ab.
+   */
+  it('gibt jedem abweichenden Wert eine eigene Zeile mit seinem Träger', () => {
+    const liste = baueOhneDatum([
+      text('T_ABK', '280000', { code: 'ABK', tvId: '16KN125320' }),
+      text('T_ABK', '492225', { code: 'ABK', tvId: '16KN125321' }),
+      text('T_ABK', '331006', { code: 'ABK', tvId: '16KN125322' }),
+    ]);
+    expect(liste).toHaveLength(1);
+    expect(liste[0]?.werte).toEqual([
+      { wert: '280000', traeger: '16KN125320' },
+      { wert: '492225', traeger: '16KN125321' },
+      { wert: '331006', traeger: '16KN125322' },
+    ]);
+  });
+
+  it('bündelt je Wert die Träger, die ihn teilen', () => {
+    const liste = baueOhneDatum([
+      text('T_AMA', '1,5', { code: 'AMA', tvId: '16KN125320' }),
+      text('T_AMA', '5', { code: 'AMA', tvId: '16KN125321' }),
+      text('T_AMA', '5', { code: 'AMA', tvId: '16KN125322' }),
+    ]);
+    expect(liste[0]?.werte).toEqual([
+      { wert: '1,5', traeger: '16KN125320' },
+      { wert: '5', traeger: '2 Teilvorhaben' },
+    ]);
   });
 
   it('nennt das einzelne Teilvorhaben beim Namen, den Verbund als Verbund', () => {
@@ -100,7 +133,7 @@ describe('baueOhneDatum', () => {
       text('T_AVU', '200000', { code: 'AVU', label: 'A', tvId: '16EP260076' }),
       text('T_XAT', '1', { code: 'XAT', label: 'B' }),
     ]);
-    expect(liste.map(e => e.traeger)).toEqual(['16EP260076', 'Verbund']);
+    expect(liste.map(e => e.werte[0]?.traeger)).toEqual(['16EP260076', 'Verbund']);
   });
 
   it('fällt ohne Code auf die Spalte zurück', () => {

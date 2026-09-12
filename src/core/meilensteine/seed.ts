@@ -126,8 +126,14 @@ export function baueSeedKnoten(): MeilensteinKnoten[] {
       label: 'Rückmeldung des Antragstellers',
       beschreibung: 'Nachlieferung oder Widerspruch zur Rücknahmeempfehlung / Ablehnung.',
       sollWoche: 7, relevantFuerFrist: true, aktiv: true, unbestaetigt: true,
+      // Datum zuerst, Status als Rückfall: ein Status ist der Wert von heute, kein
+      // Ereignis — zieht der Vorgang weiter, gälte der Meilenstein wieder als
+      // nicht erreicht (`IstTerminErklaerung.momentaufnahme` in `ist-termin.ts`).
       bedingung: {
         einige: [
+          { feldId: 'D_ARW', op: 'gefuellt' },
+          { feldId: 'D_AL', op: 'gefuellt' },
+          { feldId: 'D_ABLW', op: 'gefuellt' },
           { feldId: 'status', op: 'ist', wert: 'NL eingegangen' },
           { feldId: 'status', op: 'ist', wert: 'Widerspruch zur Ablehnung' },
           { feldId: 'status', op: 'ist', wert: 'Stellungnahme zur Rücknahmeempf.' },
@@ -139,8 +145,13 @@ export function baueSeedKnoten(): MeilensteinKnoten[] {
       label: 'Erstentscheidung finalisiert',
       beschreibung: 'Gutachten bei positiver Nachlieferung, finale Widerspruchsentscheidung bei RNE / ABL.',
       sollWoche: 9, relevantFuerFrist: true, aktiv: true, unbestaetigt: true,
+      // Datum zuerst, Status als Rückfall: ein Status ist der Wert von heute, kein
+      // Ereignis — zieht der Vorgang weiter, gälte der Meilenstein wieder als
+      // nicht erreicht (`IstTerminErklaerung.momentaufnahme` in `ist-termin.ts`).
       bedingung: {
         einige: [
+          { feldId: 'D_XKS', op: 'gefuellt' },
+          { feldId: 'erstentscheidung', op: 'gefuellt' },
           { feldId: 'status', op: 'ist', wert: 'Gutachten fertig' },
           { feldId: 'status', op: 'ist', wert: 'bewilligungsreif' },
           { feldId: 'status', op: 'ist', wert: 'ablehnungsreif' },

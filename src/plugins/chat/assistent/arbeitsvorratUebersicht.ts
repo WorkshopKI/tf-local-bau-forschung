@@ -16,7 +16,7 @@ import type { AntragListItem } from '@/core/services/csv/types';
 import type { ArbeitsvorratFrist, ArbeitsvorratUebersicht } from '@/core/services/assistent/kontext';
 import { partitionArbeitsvorrat } from '@/plugins/antraege/arbeitsvorrat';
 import { fristAnzeigeFromDays, fristTageVon } from '@/plugins/antraege/fristAnzeige';
-import { naechsterSchritt } from '@/core/utils/naechsterSchritt';
+import { naechsterSchritt, precheckUrteilVonZeile } from '@/core/utils/naechsterSchritt';
 import type { EingangAmpel } from '@/plugins/antraege/eingangAmpel';
 
 /** Menschliches Ampel-Wort — identisch zur Entitäts-Frist in kontextSnapshot. */
@@ -62,7 +62,7 @@ export function baueArbeitsvorratUebersicht(
 
     if (naechsteFristen.length < NAECHSTE_FRISTEN_CAP) {
       // PreCheck-aware nächster Schritt (opt-in via ?? null) — wie Liste/Home.
-      const schritt = naechsterSchritt(a.status, a.precheck_status_label ?? null);
+      const schritt = naechsterSchritt(a.status, precheckUrteilVonZeile(a).label || null);
       naechsteFristen.push({
         titel: a.akronym || a.titel || a.aktenzeichen,
         hinweis: `${anz.text} (${AMPEL_WORT[anz.ampel]})`,

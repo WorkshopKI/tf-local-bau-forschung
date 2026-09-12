@@ -6,7 +6,9 @@ Stand: 03.08.2026 (Fachabstimmung eingearbeitet) · Quelle: WENN-Formeln der Map
 
 **Geordnete Liste, erste zutreffende Regel gewinnt** — exakt die Semantik der verschachtelten WENNs. In der App: Zeilenreihenfolge = Auswertungsreihenfolge (per Drag änderbar), keine Prioritätszahlen. Trifft keine Regel → **„kein To-do ermittelt"** (sichtbar, nicht leer).
 
-**Bedingungs-Vokabular** (vollständig für alle 25 Regeln): Feld gefüllt / leer · Datum A nach Datum B · Tage seit Feld > N · heute > Termin-Feld · `STATUS_TV` = Wert · Fördervariante ∈ {…}.
+**Bedingungs-Vokabular** (vollständig für alle 28 Regeln): Feld gefüllt / leer · Datum A nach Datum B · Tage seit Feld > N · heute > Termin-Feld · `STATUS_TV` = Wert · Fördervariante ∈ {…}.
+
+R1–R25 sind die Transkription der Mappe; **R26–R28 (v6.65) sind Ergänzungen der App** aus einer Messung am Bestand, kein Mappen-Inhalt. Sie stehen in diesem Doc, weil sie denselben Satz bilden — beim nächsten Abgleich mit der Fachseite sind sie als unsere Zutat kenntlich.
 
 **Globale Sperren** (vor allen Regeln geprüft):
 
@@ -53,8 +55,15 @@ S0/S0b rekonstruieren die **fixierten Slicer** der Mappe („Bitte untere Auswah
 | R7 | `D_ARZ` gefüllt und `D_ARW` gefüllt (Widerspruch AST), `D_AAR` leer | **Stellungnahme RNE prüfen** | AB/FB |
 | R8 | `D_ARZ` gefüllt, `D_ARW` leer (≤ 31 Tage), `D_AAR` leer | **RNE abwarten** | wartet auf ASt |
 | R9 | `D_ART` gefüllt (RNE techn. erstellt), `D_ARZ` leer, `D_AAR` leer | **RNE ergänzen** (kaufm. Teil) | AB |
+| R26 | wie R7, zusätzlich `D_AL` **nach** `D_ARW` (Nachlieferung nach der Stellungnahme) | **NL prüfen** | AB/FB |
+| R27 | wie R7, zusätzlich `D_AL` leer, `D_AN` **nach** `D_ARW`, `D_ANT` gefüllt, heute > `D_ANT` | **Erinnerung an NF** | AB |
+| R28 | wie R7, zusätzlich `D_AL` leer, `D_AN` **nach** `D_ARW` | **NF abwarten** | wartet auf ASt |
 
 *Gate `D_XKS` leer (kaufm. QS noch nicht erfolgt) an allen vier Regeln — **V1 beantwortet: Absicht**. Nach erfolgter kaufmännischer QS ist der RNE-Vorgang aus AB-Sicht durch; eine Erinnerung daran wäre Lärm. Seit v2.387 reguläre Bedingung, nicht mehr Vorbehalt.*
+
+*R26–R28 (v6.65) geben **R7 einen Ausgang**. R7 stand, bis der Vorgang zurückgezogen (`D_AAR`) oder die kaufmännische QS erfolgt war (`D_XKS`) — dazwischen gab es keinen Weg heraus. Gemessen am Export vom 11.09.2026 traf R7 auf **297** Teilvorhaben; bei **171** war die Nachlieferung danach schon eingegangen, bei **143** die Nachforderung längst hinausgegangen. Ihnen allen sagte das Board „Stellungnahme RNE prüfen" — eine nachweislich erledigte Aufgabe. Bei KITED (ZKN125314) stand sie an allen drei Teilvorhaben.*
+
+*Warum kein `D_AN` leer an R7: **16** der 297 tragen ein `D_AN` aus einer Nachforderungs-Runde **vor** der Rücknahmeempfehlung — für sie ist die Stellungnahme sehr wohl noch zu prüfen. Die drei Regeln vergleichen deshalb Daten gegeneinander (`datumNachFeld` gegen `D_ARW`) statt bloße Anwesenheit. Warum eigene Regeln statt R10/R22 vorzuziehen: R22 liegt im Strang `nachforderung` und ist hier von S3 stillgelegt, R10 trägt keinen Strang und verlöre vorgezogen genau diese 16 Fälle an eine ältere Runde. Den To-do-Text teilen sie bewusst mit R22 bzw. R10 — dieselbe Aufgabe, und das Board gruppiert danach (dieselbe Begründung wie bei R23a/R23b).*
 
 ### 5 · Nachforderungs-Erinnerung
 

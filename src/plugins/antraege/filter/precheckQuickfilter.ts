@@ -20,7 +20,7 @@
  * (Alle = positiv + negativ + offen).
  */
 import type { AntragListItem } from '@/core/services/csv/types';
-import { normalisierePrecheck } from '@/core/utils/naechsterSchritt';
+import { normalisierePrecheck, precheckUrteil } from '@/core/utils/naechsterSchritt';
 import type { CollapsibleSegItem } from './CollapsibleSeg';
 
 /** Sichtbarer Bucket in der PreCheck-Pille. */
@@ -39,10 +39,25 @@ export function classifyPrecheckBucket(label: string | null | undefined): Exclud
   return 'offen'; // 'offen' | 'ohne'
 }
 
+/**
+ * Der Bucket eines Antrags aus **beiden** PreCheck-Teilen (seit v6.65).
+ *
+ * Vorher las die Pille nur die gemeinsame Spalte, in der das jüngste Datum
+ * gewann — 256 Anträge mit negativem TV-PreCheck standen deshalb unter
+ * „positiv" (`precheckUrteil`).
+ */
+export function bucketVonAntrag(item: AntragListItem): Exclude<PrecheckBucket, 'Alle'> {
+  const { klasse } = precheckUrteil({
+    tv: item.precheck_tv_status_label,
+    vb: item.precheck_vb_status_label,
+  });
+  return klasse === 'positiv' || klasse === 'negativ' ? klasse : 'offen';
+}
+
 /** True, wenn der Antrag in den gewählten Bucket fällt (`'Alle'` matcht immer). */
 export function matchesPrecheckBucket(item: AntragListItem, bucket: PrecheckBucket): boolean {
   if (bucket === 'Alle') return true;
-  return classifyPrecheckBucket(item.precheck_status_label) === bucket;
+  return bucketVonAntrag(item) === bucket;
 }
 
 /** Reiner Filter-Schritt für die Antrags-Pipeline. */
@@ -63,7 +78,7 @@ export function getPrecheckItems(countBase: AntragListItem[]): CollapsibleSegIte
     offen: 0,
   };
   for (const a of countBase) {
-    counts[classifyPrecheckBucket(a.precheck_status_label)]++;
+    counts[bucketVonAntrag(a)]++;
   }
   return [
     { label: 'Alle', count: countBase.length },

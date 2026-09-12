@@ -162,7 +162,7 @@ describe('ensureListViewProjection — Schema-Signatur-Guard (v2.158.2)', () => 
     await putAntraege(idb, [antrag]);
     // „Vor dem Mapping projiziert": Slim-Eintrag OHNE Status-Label (kein gruppen-Arg).
     await putAntraegeListView(idb, [toAntragListItem(antrag)]);
-    expect((await listAntraegeListViewByProgramm(idb, PID))[0]?.precheck_status_label ?? '').toBe('');
+    expect((await listAntraegeListViewByProgramm(idb, PID))[0]?.precheck_vb_status_label ?? '').toBe('');
     // Marker ist aktuell (KEIN Code-Versions-Trigger), aber die gespeicherte
     // Signatur stammt aus der Zeit VOR dem Mapping → muss den Rebuild auslösen.
     await idb.set(VERSION_KEY, LIST_VIEW_PROJECTION_VERSION);
@@ -171,8 +171,8 @@ describe('ensureListViewProjection — Schema-Signatur-Guard (v2.158.2)', () => 
     await ensureListViewProjection(idb);
 
     const lv = await listAntraegeListViewByProgramm(idb, PID);
-    expect(lv[0]?.precheck_status_label).toBe('PreCheck positiv - Verbund');
-    expect(lv[0]?.precheck_status_datum).toBe('2025-05-21');
+    expect(lv[0]?.precheck_vb_status_label).toBe('PreCheck positiv - Verbund');
+    expect(lv[0]?.precheck_vb_status_datum).toBe('2025-05-21');
     // Signatur wurde auf den aktuellen Stand nachgezogen (nicht mehr der Sentinel).
     expect(await idb.get<string>(SIG_KEY)).not.toBe('sig-before-mapping');
   });
@@ -213,7 +213,7 @@ describe('ensureListViewProjection — Schema-Signatur-Guard (v2.158.2)', () => 
 
     // Erst-Projektion: Marker + Signatur (P1+P2 OHNE PreCheck-Mapping) werden hinterlegt.
     await ensureListViewProjection(idb);
-    expect((await listAntraegeListViewByProgramm(idb, PID2))[0]?.precheck_status_label ?? '').toBe('');
+    expect((await listAntraegeListViewByProgramm(idb, PID2))[0]?.precheck_vb_status_label ?? '').toBe('');
     const sig0 = await idb.get<string>(SIG_KEY);
 
     // Jetzt NUR im zweiten Programm das PreCheck-Datumsfeld mappen (Marker bleibt v5).
@@ -229,7 +229,7 @@ describe('ensureListViewProjection — Schema-Signatur-Guard (v2.158.2)', () => 
     // das Label im zweiten Programm ist gefüllt. Bliebe P2 aus der Signatur, wäre es leer.
     expect(await idb.get<string>(SIG_KEY)).not.toBe(sig0);
     const lv2 = await listAntraegeListViewByProgramm(idb, PID2);
-    expect(lv2[0]?.precheck_status_label).toBe('PreCheck positiv - Verbund');
-    expect(lv2[0]?.precheck_status_datum).toBe('2025-05-21');
+    expect(lv2[0]?.precheck_vb_status_label).toBe('PreCheck positiv - Verbund');
+    expect(lv2[0]?.precheck_vb_status_datum).toBe('2025-05-21');
   });
 });

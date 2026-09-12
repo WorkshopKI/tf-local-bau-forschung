@@ -63,6 +63,59 @@ export function normalisierePrecheck(label: string | null | undefined): Precheck
   return 'offen';
 }
 
+/**
+ * Die beiden PreCheck-Teile eines Antrags, so wie die List-View sie führt.
+ * `tv` = Vorprüfung des AB am Teilvorhaben, `vb` = Vorprüfung des FB am Verbund.
+ */
+export interface PrecheckTeile {
+  tv?: string | null;
+  vb?: string | null;
+}
+
+/** Das zusammengeführte Urteil plus das Label, das es trägt. */
+export interface PrecheckUrteil {
+  klasse: PrecheckKlasse;
+  /** Das Label des Teils, der das Urteil trägt — leer bei `'ohne'`. */
+  label: string;
+}
+
+/** Rang der Klassen: das Schwerwiegendere gewinnt. */
+const KLASSEN_RANG: Record<PrecheckKlasse, number> = { negativ: 0, positiv: 1, offen: 2, ohne: 3 };
+
+/**
+ * Führt TV- und Verbund-PreCheck zu **einem** Urteil zusammen — für die Stellen,
+ * die genau eine Aussage brauchen (Quickfilter, „nächster Schritt", die
+ * verdichtete Spalte „FB / PreCheck").
+ *
+ * **Negativ schlägt positiv, nicht das jüngere Datum.** Genau das war der Fehler
+ * der alten gemeinsamen Gruppe: sie nahm das jüngste Datum, und weil der
+ * Verbund-PreCheck nach dem des Teilvorhabens kommt, verschwanden 256 negative
+ * TV-Urteile hinter einem positiven Verbund-Urteil (gemessen 11.09.2026). Ein
+ * negativer PreCheck ist die Aussage, die man nicht verlieren darf: der
+ * Regelsatz hängt an ihr die Aufgabe „Abl/RNE erstellen" auf (R1).
+ *
+ * Innerhalb eines Teils entscheidet weiterhin das jüngste Datum
+ * (`computeStatusDatum`) — eine Korrektur von `D_PC-` auf `D_PC+` wirkt also.
+ */
+export function precheckUrteil(teile: PrecheckTeile): PrecheckUrteil {
+  const kandidaten: { klasse: PrecheckKlasse; label: string }[] = [
+    { klasse: normalisierePrecheck(teile.tv), label: teile.tv ?? '' },
+    { klasse: normalisierePrecheck(teile.vb), label: teile.vb ?? '' },
+  ];
+  const sieger = kandidaten.reduce((a, b) => (KLASSEN_RANG[b.klasse] < KLASSEN_RANG[a.klasse] ? b : a));
+  return sieger.klasse === 'ohne' ? { klasse: 'ohne', label: '' } : sieger;
+}
+
+/**
+ * Dasselbe Urteil direkt aus einer List-View-Zeile — strukturell getypt, damit
+ * `AntragListItem` und `AntragTableRow` denselben Weg nehmen.
+ */
+export function precheckUrteilVonZeile(
+  r: { precheck_tv_status_label?: string; precheck_vb_status_label?: string },
+): PrecheckUrteil {
+  return precheckUrteil({ tv: r.precheck_tv_status_label, vb: r.precheck_vb_status_label });
+}
+
 /** Ein Tabelleneintrag: die Handlung, plus die Notiz für die PreCheck-Regel. */
 interface SchrittEintrag extends NaechsterSchritt {
   /**

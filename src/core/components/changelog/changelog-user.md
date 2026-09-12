@@ -19,6 +19,17 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v6.65 — 2026-09
+
+### Neu
+- **Die Vorprüfung steht jetzt in zwei Spalten: „PreCheck TV" und „PreCheck Verbund".** Das sind zwei verschiedene Urteile von zwei verschiedenen Rollen — die betriebswirtschaftliche Prüfung am Teilvorhaben und die inhaltliche am Verbund. Bisher standen beide in einer Spalte, in der immer das jüngere Datum gewann; weil das Verbund-Urteil meist später kommt, verschwand ein negativer PreCheck am Teilvorhaben dahinter. Die verdichtete Spalte „FB / PreCheck" zeigt weiterhin einen Wert, aber den schwerwiegenderen der beiden; beide im Wortlaut stehen beim Überfahren und im Export.
+
+### Verbesserungen
+- **Die Filter-Pille „PreCheck" zählt einen negativen PreCheck am Teilvorhaben wieder als negativ.** Vorher standen solche Anträge unter „positiv", wenn der Verbund später positiv vorgeprüft wurde. Auf einer verdichteten Verbund-Zeile steht jetzt außerdem das schwerwiegendste Urteil seiner Teilvorhaben, nicht das des ersten.
+- **Im Vorgangsverlauf unter „Ohne Termin im Export" steht je Teilvorhaben sein eigener Wert.** Bisher zeigte die Zeile einen Wert und dahinter „3 Teilvorhaben" — auch dann, wenn die drei verschiedene Beträge beantragt hatten. Tragen alle denselben Wert, bleibt es wie bisher bei einer Zeile.
+- **Das Board nennt bei laufender Nachforderung die Nachforderung.** Lag zu einer Rücknahmeempfehlung eine Stellungnahme vor, stand dort dauerhaft „Stellungnahme RNE prüfen" — auch wenn die Nachlieferung längst zurück oder die nächste Nachforderung längst hinaus war. Jetzt heißt die Aufgabe „NL prüfen", „Erinnerung an NF" oder „NF abwarten", je nachdem, was nach der Stellungnahme passiert ist.
+- **In den Meilensteinen hängt „Rückmeldung des Antragstellers" und „Erstentscheidung finalisiert" nicht mehr nur am heutigen Status.** Ein Status ist der Wert von heute, kein Ereignis: zog ein Vorgang weiter, galt der Meilenstein wieder als nicht erreicht und blieb überfällig, obwohl der Schritt längst passiert war. Beide lesen jetzt zuerst die Datumsfelder des Ereignisses. Eine Regel, die nur einen Status prüft, ist in der Konfiguration mit „nur Status" markiert und sagt im Klartext, warum daraus kein Termin werden kann.
+
 ## v6.64 — 2026-09
 
 ### Neu

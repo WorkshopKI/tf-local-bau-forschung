@@ -1,5 +1,6 @@
 import type { AntragListItem, Verbund } from '@/core/services/csv/types';
 import { getStatusCategory, type StatusCategory } from '@/core/utils/status-canonical';
+import { normalisierePrecheck, type PrecheckKlasse } from '@/core/utils/naechsterSchritt';
 import { getEingangAmpel, type EingangAmpel } from './eingangAmpel';
 import type { FristErgebnis } from '@/core/services/csv/frist-ergebnis';
 import { fristErgebnisVon, fristTageVon } from './fristAnzeige';
@@ -157,6 +158,43 @@ export function dominantStatus(
     if (s) return s;
   }
   return null;
+}
+
+/** Die zwei PreCheck-Felder, die eine Faltung braucht. */
+interface PrecheckTv {
+  precheck_tv_status_label?: string;
+  precheck_tv_status_datum?: string;
+}
+
+/**
+ * Der TV-PreCheck einer **Verbund-Zeile**: das schwerwiegendste Urteil über alle
+ * Teilvorhaben, nicht das des Lead-Teilvorhabens.
+ *
+ * `buildVerbundTableRows` baut die verdichtete Zeile aus `...lead` — sie erbt
+ * also alles, was nicht ausdrücklich gefaltet wird. Beim PreCheck ist das
+ * falsch: er ist ein **Urteil je Teilvorhaben**, und ein einziges negatives
+ * entscheidet über den Verbund. Bei KITED (ZKN125314) trug das zweite von drei
+ * Teilvorhaben einen negativen PreCheck; die Zeile las den des ersten und meldete
+ * „positiv" — auch nach dem Spalten-Split hätte sie das getan.
+ *
+ * Dieselbe Rangfolge wie in `precheckUrteil` (negativ vor positiv vor offen), nur
+ * über die Teilvorhaben statt über die zwei Ebenen. Der Verbund-PreCheck
+ * (`precheck_vb_*`) braucht keine Faltung — er steht auf jedem TV-Record gleich.
+ */
+export function dominantPrecheckTv(tvs: ReadonlyArray<PrecheckTv>): PrecheckTv | null {
+  const rang: Record<PrecheckKlasse, number> = { negativ: 0, positiv: 1, offen: 2, ohne: 3 };
+  let beste: { tv: PrecheckTv; r: number } | null = null;
+  for (const tv of tvs) {
+    const r = rang[normalisierePrecheck(tv.precheck_tv_status_label)];
+    if (beste === null || r < beste.r) beste = { tv, r };
+  }
+  if (beste === null || beste.r === rang.ohne) return null;
+  return {
+    ...(beste.tv.precheck_tv_status_label !== undefined
+      ? { precheck_tv_status_label: beste.tv.precheck_tv_status_label } : {}),
+    ...(beste.tv.precheck_tv_status_datum !== undefined
+      ? { precheck_tv_status_datum: beste.tv.precheck_tv_status_datum } : {}),
+  };
 }
 
 /**

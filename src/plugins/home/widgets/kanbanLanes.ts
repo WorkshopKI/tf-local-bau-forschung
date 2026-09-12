@@ -12,7 +12,7 @@ import { leseSpalten, type TfBahnSpalten } from '@/components/kanban/tfBoardBahn
 import { verschiebeUmEinen } from '@/components/ui/laneFolge';
 import { getStatusCategory, type StatusCategory } from '@/core/utils/status-canonical';
 import { KATEGORIE_REIHENFOLGE, istStatusCategory } from '@/core/utils/status-category-labels';
-import { schrittText } from '@/core/utils/naechsterSchritt';
+import { schrittText, precheckUrteilVonZeile } from '@/core/utils/naechsterSchritt';
 import { aufgabenAnzeige, type Aufgabe, type TodoRegel } from '@/core/status';
 import { isIrrlaeufer } from '@/core/utils/vb-phase-mappings';
 import {
@@ -151,7 +151,7 @@ function zuKarte(
   // Rückfall, wo die Kaskade schweigt.
   const anzeige = aufgabenAnzeige({
     aufgabe: aufgaben ? aufgaben.fuer(gruppe.map(a => a.aktenzeichen)) : null,
-    rueckfall: schrittText(rep.status, rep.precheck_status_label ?? ''),
+    rueckfall: schrittText(rep.status, precheckUrteilVonZeile(rep).label),
     laeuftNoch: aufgaben?.laeuftNoch === true,
     vorlaeufig: aufgaben?.vorlaeufig === true,
     ausserhalbLauf: aufgaben?.ausserhalb?.(gruppe.map(a => a.aktenzeichen)) === true,

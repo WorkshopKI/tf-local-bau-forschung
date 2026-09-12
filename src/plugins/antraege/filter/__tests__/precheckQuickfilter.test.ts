@@ -8,9 +8,9 @@ import {
   asPrecheckBucket,
 } from '../precheckQuickfilter';
 
-/** Minimaler AntragListItem-Stub: nur `precheck_status_label` wird gelesen. */
+/** Minimaler AntragListItem-Stub: nur der TV-PreCheck wird gesetzt. */
 function item(label: string | null | undefined): AntragListItem {
-  return { aktenzeichen: 'x', precheck_status_label: label } as unknown as AntragListItem;
+  return { aktenzeichen: 'x', precheck_tv_status_label: label } as unknown as AntragListItem;
 }
 
 describe('classifyPrecheckBucket', () => {

@@ -26,7 +26,11 @@ export function GliederungSektion({
   gliederung, stufen, gerissen, hervorgehoben, onHover,
 }: {
   gliederung: Gliederung;
-  /** Relevante Stufen der obersten Ebene. */
+  /**
+   * Der Nenner der Kopfkarte: relevante **Blatt**-Stufen (`befund.relevant`).
+   * Muss dieselbe Zahl sein wie dort — sonst tragen „N Stufen" und „von N" auf
+   * einem Bildschirm verschiedene Bedeutungen.
+   */
   stufen: number;
   /** Gerissene Blätter — dieselbe Zählung wie in der Kopfkarte. */
   gerissen: number;
