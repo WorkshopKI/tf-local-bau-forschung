@@ -13,6 +13,7 @@ import type {
   LabelParseResult,
 } from '@/core/services/csv/filter/xlsLabelParser';
 import { parseCsvPreview, applyAmbiguousResolution } from '@/core/services/csv';
+import { eindeutigerFeldKey } from '@/core/services/csv/spalten-kollisionen';
 
 export type WizardStep = 1 | 2 | 3 | 4 | 5;
 
@@ -382,6 +383,19 @@ export function useCsvWizardState(): WizardApi {
       const labelByCol = new Map<string, string>();
       for (const e of result.columnEntries) labelByCol.set(e.csv_column, e.label);
       const refreshed: Record<string, PerColumnDecision> = { ...s.decisions };
+      // **Vergebene Namen mitführen.** Bis v6.65 lief diese Schleife blind: das
+      // Fachsystem gibt einer `D_…`- und ihrer `T_…`-Spalte regelmäßig dieselbe
+      // Bezeichnung, beide bekamen denselben Slug, und beim Merge überschrieb
+      // die hintere die vordere — gemessen 20 Fälle über drei Schemas, darunter
+      // `termin_fur_nachlieferung ← D_ANT + T_ANT`, wo der Text das Datum
+      // verdrängte und zwei To-do-Regeln dadurch nie griffen. Die Kürzung auf
+      // 40 Zeichen in `slugifyFieldName` erzeugt dieselbe Lage auch ohne
+      // gleiche Bezeichnung.
+      const vergeben = new Set<string>();
+      for (const [col, d] of Object.entries(refreshed)) {
+        if (d.mode === 'canonical' && d.canonical) vergeben.add(d.canonical);
+        else if (d.mode === 'custom') vergeben.add(d.custom ?? col.toLowerCase());
+      }
       for (const [col, d] of Object.entries(refreshed)) {
         if (d.mode !== 'custom') continue;
         const autoName = col.toLowerCase();
@@ -390,7 +404,11 @@ export function useCsvWizardState(): WizardApi {
         if (!label || label === col) continue;
         const slug = slugifyFieldName(label);
         if (!slug || slug === autoName) continue;
-        refreshed[col] = { ...d, custom: slug };
+        // Der eigene Auto-Name gibt seinen Platz frei, bevor der neue geprüft wird.
+        vergeben.delete(autoName);
+        const eindeutig = eindeutigerFeldKey(slug, col, vergeben);
+        vergeben.add(eindeutig);
+        refreshed[col] = { ...d, custom: eindeutig };
       }
       return {
         ...s,

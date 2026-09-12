@@ -7,7 +7,9 @@
  * brauchen, trafen auf keinen einzigen von 2.537 gemessenen Vorgängen zu.
  */
 import { describe, it, expect } from 'vitest';
-import { findeSpaltenKollisionen, kollisionsSatz } from '../spalten-kollisionen';
+import {
+  eindeutigerFeldKey, entflechteFeldKeys, findeSpaltenKollisionen, kollisionsSatz,
+} from '../spalten-kollisionen';
 import type { ColumnMapping, CsvSchema } from '../types';
 
 function schema(column_mapping: ColumnMapping): CsvSchema {
@@ -92,5 +94,106 @@ describe('findeSpaltenKollisionen', () => {
 
   it('liefert für ein leeres Mapping eine leere Liste', () => {
     expect(findeSpaltenKollisionen(schema({}))).toEqual([]);
+  });
+});
+
+describe('eindeutigerFeldKey', () => {
+  it('lässt einen freien Namen unverändert', () => {
+    expect(eindeutigerFeldKey('termin', 'D_ANT', new Set())).toBe('termin');
+  });
+
+  it('nutzt die Konvention des Fachsystems statt einer Zahl', () => {
+    const belegt = new Set(['termin']);
+    expect(eindeutigerFeldKey('termin', 'T_ANT', belegt)).toBe('termin_text');
+    expect(eindeutigerFeldKey('termin', 'D_ANT', belegt)).toBe('termin_datum');
+    expect(eindeutigerFeldKey('pc', 'D_XRN+', new Set(['pc']))).toBe('pc_plus');
+    expect(eindeutigerFeldKey('pc', 'D_XRN-', new Set(['pc']))).toBe('pc_minus');
+  });
+
+  it('fällt auf den Spaltennamen zurück, wenn auch der Zusatz belegt ist', () => {
+    expect(eindeutigerFeldKey('termin', 'T_ANT', new Set(['termin', 'termin_text'])))
+      .toBe('termin_t_ant');
+  });
+
+  it('zählt erst, wenn kein sprechender Name mehr frei ist', () => {
+    const belegt = new Set(['t', 't_text', 't_t_ant']);
+    expect(eindeutigerFeldKey('t', 'T_ANT', belegt)).toBe('t_2');
+  });
+});
+
+describe('entflechteFeldKeys', () => {
+  it('gibt der HINTEREN Spalte den neuen Namen — die vordere bekommt ihren Wert zurück', () => {
+    const { mapping, umbenannt } = entflechteFeldKeys({
+      D_ANT: { custom: 'termin_fur_nachlieferung', type: 'date', label: 'Termin für Nachlieferung' },
+      T_ANT: { custom: 'termin_fur_nachlieferung', type: 'string', label: 'Termin für Nachlieferung' },
+    });
+    expect(mapping.D_ANT?.custom).toBe('termin_fur_nachlieferung');
+    expect(mapping.T_ANT?.custom).toBe('termin_fur_nachlieferung_text');
+    expect(umbenannt).toEqual([
+      { spalte: 'T_ANT', von: 'termin_fur_nachlieferung', nach: 'termin_fur_nachlieferung_text' },
+    ]);
+  });
+
+  it('trennt Zusage und Verneinung (D_XRN+ / D_XRN-)', () => {
+    const { mapping } = entflechteFeldKeys({
+      'D_XRN+': { custom: 'nw_partner', type: 'date' },
+      'D_XRN-': { custom: 'nw_partner', type: 'string' },
+    });
+    expect(mapping['D_XRN+']?.custom).toBe('nw_partner');
+    expect(mapping['D_XRN-']?.custom).toBe('nw_partner_minus');
+  });
+
+  it('löst auch drei Spalten auf einem Feld', () => {
+    const { mapping } = entflechteFeldKeys({
+      PLZ_AFS: { custom: 'ausfuhrende_stelle', type: 'number' },
+      ORT_AFS: { custom: 'ausfuhrende_stelle', type: 'string' },
+      BULAND_AFS: { custom: 'ausfuhrende_stelle', type: 'string' },
+    });
+    const keys = Object.values(mapping).map(e => e.custom);
+    expect(new Set(keys).size).toBe(3);
+    expect(keys[0]).toBe('ausfuhrende_stelle');
+  });
+
+  it('lässt ein sauberes Mapping Byte für Byte in Ruhe', () => {
+    const sauber = {
+      D_AAI: { custom: 'antragsimport', type: 'string' as const },
+      T_AAI: { custom: 'vorgangscode', type: 'string' as const },
+    };
+    const { mapping, umbenannt } = entflechteFeldKeys(sauber);
+    expect(umbenannt).toEqual([]);
+    expect(mapping).toEqual(sauber);
+  });
+
+  it('fasst Standardfelder nicht an — sie sind das Schema der App, keine Ableitung', () => {
+    const { mapping, umbenannt } = entflechteFeldKeys({
+      FKZ: { canonical: 'aktenzeichen', type: 'string' },
+      AKZ: { canonical: 'aktenzeichen', type: 'string' },
+    });
+    expect(umbenannt).toEqual([]);
+    expect(mapping.AKZ?.canonical).toBe('aktenzeichen');
+  });
+
+  it('überspringt ignorierte Spalten, statt ihnen einen Namen zu geben', () => {
+    const { mapping, umbenannt } = entflechteFeldKeys({
+      D_ANT: { custom: 'termin', type: 'date' },
+      T_ANT: { custom: 'termin', type: 'string', ignore: true },
+    });
+    expect(umbenannt).toEqual([]);
+    expect(mapping.T_ANT?.custom).toBe('termin');
+  });
+
+  /** Nach dem Entflechten darf `findeSpaltenKollisionen` nichts mehr finden. */
+  it('ist die Umkehrung des Finders', () => {
+    const roh = {
+      D_ANT: { custom: 'termin', type: 'date' as const },
+      T_ANT: { custom: 'termin', type: 'string' as const },
+      D_ADS: { custom: 'fkz_ds', type: 'string' as const },
+      T_ADS: { custom: 'fkz_ds', type: 'string' as const },
+      'D_XRN+': { custom: 'nw', type: 'date' as const },
+      'D_XRN-': { custom: 'nw', type: 'string' as const },
+    };
+    expect(findeSpaltenKollisionen(schema(roh))).toHaveLength(3);
+    const { mapping } = entflechteFeldKeys(roh);
+    expect(findeSpaltenKollisionen(schema(mapping))).toEqual([]);
   });
 });

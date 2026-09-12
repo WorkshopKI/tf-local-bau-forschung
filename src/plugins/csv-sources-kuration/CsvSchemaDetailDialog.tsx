@@ -9,7 +9,7 @@ import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { saveSchema } from '@/core/services/csv';
 import { logAudit } from '@/core/services/infrastructure/audit-log';
 import { getCanonicalLabel } from '@/core/services/csv/constants';
-import { findeSpaltenKollisionen } from '@/core/services/csv/spalten-kollisionen';
+import { findeSpaltenKollisionen, entflechteFeldKeys } from '@/core/services/csv/spalten-kollisionen';
 import type { CsvSchema, ColumnMapping, ColumnMappingEntry } from '@/core/services/csv/types';
 import { NewColumnRow } from './NewColumnRow';
 import { decisionFromEntry, applyDecisionToEntry } from './services/new-column-mapping';
@@ -191,6 +191,32 @@ export function CsvSchemaDetailDialog({ schema: initialSchema, onClose, onSaved 
     onSaved?.();
   });
 
+  /**
+   * Gibt jeder Spalte einen eigenen Feld-Key. Die erste behält ihren, die
+   * hintere zieht um — nur dadurch kommt der Wert der ersten überhaupt an.
+   *
+   * Kurator-Aktion mit Audit-Eintrag, kein Automatismus: unter dem bisherigen
+   * Namen steht danach ein anderer Wert (bei `termin_fur_nachlieferung` das
+   * Datum statt des Textes), und wirksam wird das erst mit dem nächsten Import
+   * dieser Quelle. Beides steht am Knopf.
+   */
+  const entflechten = useAsyncAction(async () => {
+    const { mapping, umbenannt } = entflechteFeldKeys(columnMapping);
+    if (umbenannt.length === 0) return;
+    const updated: CsvSchema = { ...schema, column_mapping: mapping };
+    await saveSchema(storage.idb, updated);
+    await logAudit(storage.idb, {
+      action: 'csv_schema_feldnamen_entflochten',
+      user: session.kuratorName ?? undefined,
+      details: {
+        schemaId: schema.id,
+        umbenannt: umbenannt.map(u => `${u.spalte}: ${u.von} → ${u.nach}`),
+      },
+    });
+    setSchema(updated);
+    onSaved?.();
+  });
+
   // Konfiguration exportieren: Name + Mapping (inkl. Labels) + Merge-Parameter als
   // JSON herunterladen. Instanz-Felder (id, source_file_name, checksum …) bleiben
   // draußen (siehe schema-config-transfer.ts).
@@ -369,6 +395,28 @@ export function CsvSchemaDetailDialog({ schema: initialSchema, onClose, onSaved 
                 </li>
               ))}
             </ul>
+            <div className="flex items-center gap-2 pt-0.5">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => entflechten.run()}
+                disabled={entflechten.busy || !session.isActive}
+              >
+                {entflechten.busy ? 'Entflechte …' : 'Feldnamen entflechten'}
+              </Button>
+              <span className="text-[11px] text-[var(--tf-text-tertiary)]">
+                {session.isActive
+                  ? 'Die erste Spalte behält ihren Namen, die hintere bekommt einen eigenen. '
+                    + 'Unter dem bisherigen Namen steht danach der Wert der ersten Spalte — '
+                    + 'wirksam mit dem nächsten Import dieser Quelle.'
+                  : KURATOR_NOETIG}
+              </span>
+            </div>
+            {entflechten.error !== null && (
+              <p className="text-[11.5px]" style={{ color: 'var(--tf-danger-text)' }}>
+                ⚠ {entflechten.error}
+              </p>
+            )}
           </section>
         )}
 

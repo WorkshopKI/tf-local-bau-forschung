@@ -47,9 +47,15 @@ Ebenfalls betroffen: `nw_partner ← D_XRN+ + D_XRN-` (die Zusage und ihre
 Verneinung in einem Feld) und `ausfuhrende_stelle ← PLZ_AFS + ORT_AFS +
 BULAND_AFS` (drei Adressteile, übrig bleibt das Bundesland).
 
-**Bitte an C16:** je Spalte eine eigene Bezeichnung in der Label-XLS. Wo das
-nicht geht, lösen wir es im Remap-Dialog; seit v6.65 meldet die App die
-Kollisionen beim Öffnen eines Schemas ([spalten-kollisionen.ts](../../src/core/services/csv/spalten-kollisionen.ts)).
+**Erledigt, ohne C16 (v6.65).** Die Ableitung des Feldnamens fragt jetzt, ob der
+Name schon vergeben ist, und hängt den Unterschied an, den das Fachsystem selbst
+benennt: `_datum` / `_text` bei `D_`/`T_`, `_plus` / `_minus` bei `+`/`−`. Der
+Bestand wird über den Knopf **„Feldnamen entflechten"** im Schema-Dialog
+nachgezogen — die erste Spalte behält ihren Namen, die hintere bekommt einen
+eigenen ([spalten-kollisionen.ts](../../src/core/services/csv/spalten-kollisionen.ts)).
+Wirksam wird das mit dem nächsten Import der Quelle, auch dem nächtlichen: der
+Feldname steckt im Row-Hash (`canonicalRowHash`), ein geänderter Name macht damit
+jede Zeile „geändert".
 
 ## 3. Das Trennzeichen der Verlaufs-Spalten
 
@@ -71,17 +77,21 @@ ineinander:
 
 Ein Versuch am 12.09.2026, das Datums-Lesen tolerant zu machen, hat prompt
 `„2025-08-29 / offen"` als Datum gelesen und das „offen" verschluckt — der Gate
-hat es gefangen.
+hat es gefangen und die Änderung wurde zurückgenommen.
 
-**Bitte an C16:** ein Trennzeichen, das in den Daten nicht vorkommt und das wir
-nicht schon benutzen — `|` wäre sauber. Und eine Zusage zu zwei Details, an denen
-sonst geraten wird:
+**Entscheidung des Teams (12.09.2026): das Trennzeichen ist nicht verhandelbar.**
+Auf den Export lässt sich kein Einfluss nehmen, und `/` steht ohnehin gelegentlich
+in langen Freitextfeldern, weil Bearbeiter es tippen. Mehrdeutige Werte werden
+im Zweifel **ignoriert** — es kommt selten vor. An dieser Baustelle wird
+weitergearbeitet, **wenn der neue Export vorliegt**, nicht vorher.
+
+Zwei Fragen bleiben dann als Erstes zu klären, weil daran sonst geraten wird:
 
 1. **Reihenfolge:** ältester Wert zuerst oder neuester zuerst?
-2. **Leere Positionen:** bleiben sie erhalten (`a||c`), damit Datums- und
+2. **Leere Positionen:** bleiben sie erhalten (`a//c`), damit Datums- und
    Kürzelspalte Position für Position zusammenpassen?
 
-Noch besser als die breite Form wäre eine **zweite, lange Datei**: eine Zeile je
-(Vorgang, Code, Datum, Wert, Kürzel). Dann hängt die Zuordnung Wert↔Datum↔Person
-nicht an der Positionsgleichheit dreier Listen in drei Zellen — und genau diese
-Klasse stiller Fehler ist der Grund, aus dem diese Liste entstanden ist.
+Solange das offen ist, bleibt `parseGermanDate` **streng**: eine Zelle mit
+Schrägstrich ist kein Datum. Ein Guard in `dateFormat.test.ts` hält diesen Stand
+fest und wird rot, sobald jemand Toleranz einbaut, ohne die Schachtelung mit der
+Teilvorhaben-Anzeige zu lösen.

@@ -32,7 +32,7 @@
  *
  * Rein: keine IDB, kein React.
  */
-import type { ColumnMappingEntry, CsvSchema } from './types';
+import type { ColumnMapping, ColumnMappingEntry, CsvSchema } from './types';
 import { resolveFieldKey } from './merger/helpers';
 
 /** Eine Quellspalte, die sich den Feld-Key mit mindestens einer anderen teilt. */
@@ -101,4 +101,121 @@ export function kollisionsSatz(k: SpaltenKollision): string {
   const verlierer = k.spalten.slice(0, -1).map(s => `${s.spalte} (${s.typ})`).join(', ');
   return `„${k.feldKey}" wird von ${k.spalten.length} Spalten beschrieben — `
     + `${letzte?.spalte} (${letzte?.typ}) überschreibt ${verlierer}.`;
+}
+
+// ---------------------------------------------------------------------------
+// Entflechten
+// ---------------------------------------------------------------------------
+
+/**
+ * Der Zusatz, mit dem eine zweite Spalte denselben Namen verlässt.
+ *
+ * Erst die **Konvention des Fachsystems**, weil sie den Unterschied schon
+ * benennt: `D_` ist das Datum, `T_` der Text, `+`/`−` die Zusage und ihre
+ * Verneinung (`PC+`/`PC-`, `XRN+`/`XRN-`). Ein `nachlieferung_termin_text` sagt,
+ * was drinsteht; ein `nachlieferung_termin_2` sagt nur, dass es das zweite ist.
+ */
+function zusatzFuer(spalte: string): string[] {
+  const s = spalte.trim();
+  const out: string[] = [];
+  if (s.endsWith('+')) out.push('plus');
+  if (s.endsWith('-')) out.push('minus');
+  if (/^D_/i.test(s)) out.push('datum');
+  if (/^T_/i.test(s)) out.push('text');
+  // Der Spaltenname selbst als letzte benannte Stufe — immer noch sprechender
+  // als eine Zahl, weil er in der CSV-Kopfzeile nachschlagbar ist.
+  out.push(s
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, ''));
+  return out.filter(Boolean);
+}
+
+/**
+ * Ein Feld-Key, den in dieser Menge noch niemand hat.
+ *
+ * **Die eine Stelle, an der aus Bezeichnung + Spalte ein Schlüssel wird.** Der
+ * Mapping-Wizard leitet den Namen aus der Label-XLS ab und hat bis v6.65 nicht
+ * gefragt, ob ihn schon jemand trägt — bei gleicher Bezeichnung für `D_…` und
+ * `T_…` (im Fachsystem der Normalfall) landeten beide auf einem Feld, und die
+ * hintere überschrieb die vordere. Dazu kommt die Kürzung auf 40 Zeichen: zwei
+ * verschiedene Bezeichnungen können allein dadurch zusammenfallen.
+ *
+ * `vergeben` wird **nicht** verändert — der Aufrufer entscheidet, wann ein Name
+ * als belegt gilt.
+ */
+export function eindeutigerFeldKey(
+  wunsch: string,
+  spalte: string,
+  vergeben: ReadonlySet<string>,
+): string {
+  if (!vergeben.has(wunsch)) return wunsch;
+  for (const z of zusatzFuer(spalte)) {
+    const kandidat = `${wunsch}_${z}`;
+    if (!vergeben.has(kandidat)) return kandidat;
+  }
+  for (let i = 2; i < 100; i++) {
+    const kandidat = `${wunsch}_${i}`;
+    if (!vergeben.has(kandidat)) return kandidat;
+  }
+  return `${wunsch}_${Date.now()}`;
+}
+
+/** Eine Umbenennung, die das Entflechten vorschlägt bzw. vorgenommen hat. */
+export interface Entflechtung {
+  spalte: string;
+  von: string;
+  nach: string;
+}
+
+/**
+ * Gibt jeder Spalte einen eigenen Feld-Key — **die erste behält ihren**.
+ *
+ * Warum die erste und nicht die „richtige": Umbenannt wird nur, was heute gar
+ * nicht ankommt. Die erste Spalte ist die, deren Wert beim Merge überschrieben
+ * WIRD; sie bekommt den Namen, den die Label-XLS für sie vorgesehen hat, und
+ * damit ihren Wert zurück. Die hintere zieht auf einen neuen Namen um, unter dem
+ * sie vorher nie stand — es kann also niemand von dort gelesen haben.
+ *
+ * **Was sich dadurch ändert, und das ist der Zweck:** Unter dem bisherigen Key
+ * steht danach ein anderer Wert — bei `termin_fur_nachlieferung` das Datum
+ * `08.09.2026` statt des Textes „Termin für Nachlieferung". Genau deshalb trafen
+ * R10 und R27 auf keinen einzigen Vorgang zu.
+ *
+ * Wirksam wird das erst mit dem **nächsten Import** dieser Quelle: die Records
+ * tragen die alten Schlüssel, bis sie neu geschrieben werden.
+ *
+ * Rein: verändert `mapping` nicht, liefert eine neue Zuordnung.
+ */
+export function entflechteFeldKeys(
+  mapping: ColumnMapping,
+): { mapping: ColumnMapping; umbenannt: Entflechtung[] } {
+  const neu: ColumnMapping = {};
+  const vergeben = new Set<string>();
+  const umbenannt: Entflechtung[] = [];
+
+  for (const [spalte, entry] of Object.entries(mapping)) {
+    const key = resolveFieldKey(spalte, entry);
+    if (key === null) {
+      neu[spalte] = entry;
+      continue;
+    }
+    // Standardfelder (`canonical`) bleiben unangetastet: ihr Name ist keine
+    // Ableitung aus einer Bezeichnung, sondern das Schema der App. Zwei Spalten
+    // auf einem Standardfeld sind ein anderer Fall — davor warnt der Wizard
+    // bereits beim Bearbeiten (`conflictCanonicals`).
+    if (entry.canonical) {
+      vergeben.add(key);
+      neu[spalte] = entry;
+      continue;
+    }
+    const eindeutig = eindeutigerFeldKey(key, spalte, vergeben);
+    vergeben.add(eindeutig);
+    neu[spalte] = eindeutig === key ? entry : { ...entry, custom: eindeutig };
+    if (eindeutig !== key) umbenannt.push({ spalte, von: key, nach: eindeutig });
+  }
+
+  return { mapping: neu, umbenannt };
 }

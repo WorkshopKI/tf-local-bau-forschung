@@ -5,6 +5,16 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v6.65.1 — Feldnamen-Kollisionen entflechten (September 2026)
+
+PATCH — Nutzer: „ja, mach die Mapping-Reparatur auch noch."
+v6.65.0 meldete 20 Feldnamen-Kollisionen, löste sie aber nicht. Die teuerste: `termin_fur_nachlieferung ← D_ANT + T_ANT` — der Text überschreibt das Datum, weshalb R10 und R27 auf keinen von 2.537 Vorgängen zutreffen.
+
+- Die Ableitung des Feldnamens aus der Label-XLS fragt jetzt, ob der Name vergeben ist, und hängt den Unterschied des Fachsystems an (`_datum`/`_text` bei `D_`/`T_`, `_plus`/`_minus` bei `+`/`−`) — [useCsvWizardState.ts](src/plugins/csv-sources-kuration/wizard/useCsvWizardState.ts)
+- Knopf „Feldnamen entflechten" zieht den Bestand nach: die erste Spalte behält ihren Namen, die hintere bekommt einen eigenen ([spalten-kollisionen.ts](src/core/services/csv/spalten-kollisionen.ts), [CsvSchemaDetailDialog.tsx](src/plugins/csv-sources-kuration/CsvSchemaDetailDialog.tsx))
+- Wirksam mit dem nächsten Import der Quelle, auch dem nächtlichen — der Feldname steckt in `canonicalRowHash`, ein geänderter Name macht jede Zeile „geändert"
+- Trennzeichen der geplanten Verlaufs-Spalten: Team-Entscheidung „nicht beeinflussbar, mehrdeutige Werte notfalls ignorieren, weiter wenn der Export vorliegt" im Blatt festgehalten — [export-wunschliste-c16.md](docs/architecture/export-wunschliste-c16.md)
+
 ### v6.65.0 — PreCheck getrennt, Werte je Teilvorhaben, R7 bekommt einen Ausgang (September 2026)
 
 MINOR — Nutzer: „wir wollen die Konsistenz und Fehlerfreiheit der App bei der Anzeige von Anträgen und deren Status und Events, Fristen etc. verbessern."
