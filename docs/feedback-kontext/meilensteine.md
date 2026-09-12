@@ -105,15 +105,16 @@ Tooltip an „Gesamtfrist" und an „Eingang" nennt die beiden Spalten.
     Einklappen der Seitenleiste. Im To-do-Regel-Detail und im Dialog „Eigene
     Spalte" steht eine Karte je Zeile.
 
-  - **„und" und „oder" sind Schalter**: zwischen zwei Karten und zwischen zwei
-    Bedingungen steht eine getönte Pille „und" bzw. „oder". Ein Klick schaltet
+  - **„UND" und „ODER" sind Schalter**: zwischen zwei Karten und zwischen zwei
+    Bedingungen steht eine getönte Pille „UND" bzw. „ODER" — groß geschrieben
+    wie die Regel in der Zeile darüber. Ein Klick schaltet
     die Verknüpfung dieser Gruppe um — alle Pillen derselben Gruppe wechseln
     zugleich. Einen eigenen Schalter „alle | eine" gibt es nicht mehr, und
     Gruppen klappen nicht einzeln zu: die Karten sind kompakt, der Satz oben
     sagt die Regel.
 
-  - **Anlegen**: die gestrichelte Karte am Ende legt eine einzelne Bedingung
-    oder eine neue Gruppe an; am Fuß jeder Karte stehen „+ Bedingung" und
+  - **Anlegen**: unter den Karten stehen „+ Bedingung" und „+ Gruppe" für die
+    oberste Ebene; am Fuß jeder Karte stehen ebenfalls „+ Bedingung" und
     „+ Gruppe" (eine Gruppe in dieser Karte). Eine leere Gruppe sagt dazu, was
     sie bedeutet: „Leer = immer erfüllt" bzw. „Leer = nie erfüllt".
 
@@ -145,26 +146,30 @@ Tooltip an „Gesamtfrist" und an „Eingang" nennt die beiden Spalten.
 
   - **Zahlen am Bestand**: sobald der erste Regel-Bereich aufgeht, lädt die
     Seite einmal die Verbünde der Richtlinie 2025 und rechnet danach bei jeder
-    Änderung sofort mit. Jede Zahl trägt ihre Beschriftung: im Kopf jeder Karte
-    etwa „trifft 1.000 offen · 359 abgeschl." mit einem Balken, an jeder
+    Änderung sofort mit. Jede Zahl trägt ihre Beschriftung: rechts im Kopf jeder
+    Karte etwa „trifft 1.000 offen · 359 abgeschl.", an jeder
     Bedingung etwa „872 offen · 213 abgeschl.". Wer eine Zahl überfährt, sieht
     die Gesamtzahlen dazu. Gezählt wird nur über Verbünde, für die der
     Meilenstein gilt.
 
-  - **Die Wirkungsleiste** „Wirkung am Bestand" unter den Karten ist
-    zugeklappt, bis man ihre Kopfzeile anklickt; der Auf-/Zu-Zustand bleibt für
-    den ganzen Reiter und nach dem Neuladen erhalten. Zugeklappt steht in der
-    Kopfzeile die Kurzfassung: etwa „Probe · Richtlinie 2025: erfüllt bei 1.084
-    von 1.094 offenen · 424 von 429 abgeschlossenen", dazu „· geändert" oder
-    „· neu" und jede gelbe Marke, die aufgeklappt zu sehen wäre.
+  - **Der Ist-Termin steht als eigene Zeile** unter den Karten und ist immer zu
+    sehen: die Beschriftung „Ist-Termin", die Auswahl des Datumsfelds, die
+    gelben Marken „kein Datum" bzw. etwa „224 ohne Termin" und ein Satz, woher
+    der Termin bei genau dieser Regel kommt — etwa „Hier: das spätere Datum von
+    Gruppe 1 und Gruppe 2; je Gruppe das frühere ihrer gefüllten
+    Datumsspalten."
 
-  - **Aufgeklappt** hat sie drei Spalten. „Probe": etwa erfüllt bei 988 von
+  - **Die Probe am Bestand** darunter ist eine leise Zeile, bis man sie
+    anklickt; der Auf-/Zu-Zustand bleibt für den ganzen Reiter und nach dem
+    Neuladen erhalten. Zugeklappt steht hinter der Beschriftung „Probe am
+    Bestand" die Kurzfassung: etwa „erfüllt bei 988 von 1.094 offenen · 347 von
+    429 abgeschlossenen · unverändert gegenüber Fassung 43", dazu die gelbe Marke „erfüllt bei allen"
+    bzw. „erfüllt bei keinem". Überfahren nennt Umfang, Stand und Ladezeit.
+
+  - **Aufgeklappt** hat sie zwei Spalten. „Probe": etwa erfüllt bei 988 von
     1.094 offenen und 347 von 429 abgeschlossenen Verbünden, je mit Balken.
     „Gegenüber Fassung 37": unverändert oder geändert, darunter etwa „offen +92
-    · abgeschlossen +68". „Ist-Termin": die Auswahl eines Datumsfelds und ein
-    Satz, woher der Termin bei genau dieser Regel kommt, etwa „Hier: das spätere
-    Datum von Gruppe 1 und Gruppe 2; je Gruppe das frühere ihrer gefüllten
-    Datumsspalten."
+    · abgeschlossen +68".
 
   - **Befunde**: eine gelbe Marke steht nur bei einer Tatsache, nie bei einer
     Schwelle. Eine Bedingung „trifft keinen Verbund" oder „trifft jeden
@@ -262,7 +267,8 @@ v6.59 verwerfen ihn beim Lesen. Umbau rein in `bedingung-baum.ts`
 Probe: `probe.ts` (rein; `ohneDatum`, `probeBefund`), `ist-termin.ts`
 (`istTerminErklaerung`, `istDatumsFeldAus`, `misstNurZeitpunkt`),
 `useMeilensteinProbe.ts` (lädt die Richtlinie 2025 einmal; `zaehleFeld` für die
-Feld-Suche), `ProbeAnzeige.tsx` (Karte, Bedingung, Wirkungsleiste); nur im
+Feld-Suche), `ProbeAnzeige.tsx` (Karte, Bedingung, `IstTerminZeile`, `Wirkungsleiste` =
+die Probe-Zeile); nur im
 Meilenstein-Modul. Der Regelbereich trägt `data-regelbereich`, damit ein Klick
 auf eine Karte die Zeile nicht zuklappt. Specs:
 `docs/superpowers/specs/2026-09-11-bedingungs-editor-gruppen.md`,

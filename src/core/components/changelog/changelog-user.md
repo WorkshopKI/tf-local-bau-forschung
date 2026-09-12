@@ -19,6 +19,16 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v6.64 — 2026-09
+
+### Neu
+- Der Ist-Termin steht jetzt als eigene Zeile direkt bei der Regel: das gewählte Datumsfeld, der Satz, woher der Termin bei genau dieser Regel kommt, und die Hinweise „kein Datum" bzw. „… ohne Termin". Bisher lag er in der zugeklappten Probe und war damit gar nicht zu sehen, obwohl er zur Regel gehört.
+
+### Verbesserungen
+- In der Konfiguration der Meilensteine sind die Bedingungen wieder das Lauteste: Die Probe am Bestand ist zugeklappt nur noch eine leise Zeile ohne Kasten, die hinter ihrer Beschriftung sagt: „erfüllt bei 988 von 1.094 offenen · 347 von 429 abgeschlossenen · unverändert gegenüber Fassung 43". Sie nennt damit beide Zahlen und ob sich gegenüber der freigegebenen Fassung etwas geändert hat; aufgeklappt bleiben die Spalten Probe und Vergleich.
+- Die Karten der Bedingungen sind breiter geworden: „+ Bedingung" und „+ Gruppe" stehen jetzt unter den Karten statt in einer gestrichelten Karte am Zeilenende, die nur Platz wegnahm. Die Zahl einer Gruppe steht in ihrer Kopfzeile rechts, ohne Balken darunter.
+- Die anklickbaren Verbinder zwischen zwei Karten heißen jetzt „UND" und „ODER" — genauso, wie die Regel in der zugeklappten Zeile darüber geschrieben steht.
+
 ## v6.63 — 2026-09
 
 ### Verbesserungen

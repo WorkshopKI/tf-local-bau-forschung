@@ -97,7 +97,8 @@ auf 0, und die Fassung war nicht nur aus dem Blick, sondern aus der Datei.
   Datumsspalten). Allgemein steht die Regel als `IST_AUS_BEDINGUNG` im
   Quellspalten-Tooltip; übersetzt auf die jeweilige Regel (`istTerminErklaerung`,
   [ist-termin.ts](../../src/core/meilensteine/ist-termin.ts)) steht sie in der
-  Wirkungsleiste neben der Auswahl (siehe Probe am Bestand). Bewusste Abweichung vom ursprünglichen Entwurf — ein
+  Ist-Termin-Zeile des Regelbereichs neben der Auswahl (siehe Probe am
+  Bestand). Bewusste Abweichung vom ursprünglichen Entwurf — ein
   Event-Log beginnt beim ersten Import und wüsste über Altfälle nichts; so ist
   auch der Bestand auswertbar.
 - **Prognose**: der größte aktuelle Verzug wird auf den Plan-Endpunkt
@@ -178,8 +179,8 @@ von vorhin, weil Plan, Schema und Tag dieselben waren. Wer die Semantik von
 - **Plugin `meilensteine`** (`/meilensteine`): Übersicht (Master/Detail mit
   Zustands-Punkten und Zeitstrahl), „Diese Woche" (überfällig/fällig über alle
   Verbünde), Auswertung (Ø-Dauer je Antragstyp, Soll gegen Ist je Knoten),
-  Konfiguration (Baum-Editor, Regelbereich als Karten mit Probe am Bestand und
-  Wirkungsleiste, Fassungen, Freigabe).
+  Konfiguration (Baum-Editor, Regelbereich als Karten mit Ist-Termin-Zeile und
+  Probe am Bestand, Fassungen, Freigabe).
 - **Home-Widget „Fristen"** — eine Liste für beide Fristsysteme (Zieltage +
   Meilensteine), Auszug für die eigenen Verbünde, **je Vorgang eine Zeile**
   (gebündelt wie im Modul, `buendleNachVerbund`). Das frühere Einzel-Widget
@@ -319,9 +320,13 @@ nebeneinander auf einen Blick:
   eine **Innenkarte** (getönt, Platzhalter „Gruppe 1.1"), rekursiv bis zum
   Deckel von 6 Ebenen, der sich ansagt. Eine Innenkarte mit genau einer
   Bedingung sagt „wirkt wie die Bedingung allein" und bietet „Auflösen" an.
-- **Angelegt wird an drei Stellen**: die gestrichelte Karte am Ende der Reihe
-  legt eine Einzelbedingung oder eine Gruppe auf oberster Ebene an, der Fuß
-  jeder Karte „+ Bedingung" und — nur in äußeren Karten — „+ Gruppe". Eine leere
+- **Angelegt wird an zwei Stellen**: „+ Bedingung" und „+ Gruppe" **unter** der
+  Kartenreihe legen auf oberster Ebene an, der Fuß jeder Karte „+ Bedingung"
+  und — nur in äußeren Karten — „+ Gruppe". Die gestrichelte Karte am
+  Zeilenende ist mit v6.64 entfallen: sie hielt rund 140 px — 12 % der
+  Bereichsbreite von 1 195 px — für zwei Knöpfe frei, die den Blick nichts
+  angehen, solange man liest; die Karten sind dadurch von 458 auf 480 px
+  gewachsen (gemessen 12.09.2026, dev:local, 1500 × 1100). Eine leere
   Gruppe sagt, was sie wert ist: „Leer = immer erfüllt" unter „alle", „Leer =
   nie erfüllt" unter „eine".
 - **Eine Bedingung ist eine Zelle**
@@ -341,16 +346,19 @@ nebeneinander auf einen Blick:
 **Der Verbinder ist der Schalter**
 ([BedingungsFugen.tsx](../../src/plugins/meilensteine/BedingungsFugen.tsx)).
 Zwischen zwei Karten und zwischen zwei Bedingungen einer Karte steht eine Pille
-„und" / „oder". Ein Klick schaltet über `mitVerknuepfung` (Kinder und Name
+„UND" / „ODER". Ein Klick schaltet über `mitVerknuepfung` (Kinder und Name
 bleiben) die Verknüpfung **der ganzen Gruppe** — alle Verbinder derselben
 Gruppe wechseln zugleich, weil es EINE Verknüpfung ist. Der `title` sagt vorher,
 was der Klick tut; über dem Kopfsatz steht „„und" / „oder" anklicken schaltet
 um". Die Pille ist getönt (`--tf-primary-light` / `--tf-primary`), ungetönt
 läse sie sich als Text. Damit steht die Verknüpfung genau **einmal** da, dort,
 wo man die Regel liest — nicht zusätzlich als Schalter „alle | eine" im Kopf
-und als Wort in einer Rinne. Ohne `onSchalte` bleibt der Verbinder ein bloßes
-Wort (zwischen den Unter-Meilensteinen eines Sammel-Meilensteins, siehe unten).
-Der Kurzsatz des Formatierers bleibt bei „UND"/„ODER".
+und als Wort in einer Rinne. **Die Schreibweise trennt Schalter von Text**
+(v6.64): die schaltbare Pille schreibt groß, wie es der Kurzsatz des
+Formatierers und die Zelle „Erfüllt, wenn" längst tun („TIB gefüllt UND BIB
+gefüllt"); ohne `onSchalte` bleibt der Verbinder ein bloßes, klein
+geschriebenes Wort (zwischen den Unter-Meilensteinen eines Sammel-Meilensteins,
+siehe unten).
 
 **Gruppen tragen einen Namen** (`name?: string` an `{alle}`/`{einige}`,
 [typen.ts](../../src/core/status/typen.ts)), direkt im Kartenkopf editierbar.
@@ -505,7 +513,7 @@ jeder Zeile um, und die Regel wurde abgeschnitten:
   erreicht sind", sonst „keine Bedingung — wird nicht geprüft" (rot nur bei
   aktivem Knoten).
 - **Befunde der Probe stehen als Warn-Dreieck** am Ende von „Erfüllt, wenn"
-  (`knotenBefunde`, dieselben Fakten wie in der Wirkungsleiste, siehe Probe am
+  (`knotenBefunde`, dieselben Fakten wie in der Probe-Zeile, siehe Probe am
   Bestand; der Tooltip nennt sie). Sie melden die Regel, nicht die Woche. Ein
   Dreieck statt eines Punkts, weil gleich daneben der Punkt der Zuordnung in
   derselben Farbe steht.
@@ -579,6 +587,20 @@ Aus dem Entwurf bewusst **nicht** übernommen:
   Regelbereichs (bei uns klappt er die Unter-Meilensteine auf) und der
   weggelassene Knopf „+ Meilenstein".
 
+Aus dem **zweiten** Entwurf („die Zusatz-Dinge leiser, die Bedingungen lauter",
+v6.64) ist alles übernommen, was ein echtes Delta war — leise Zeile statt
+Kasten, Ist-Termin als eigene Zeile, Gruppen-Zahl im Kartenkopf, „+ Bedingung"
+unter den Karten. **Nicht** übernommen:
+
+- „abg." statt „abgeschl.": `zahlenText` ist geteilt — das gäbe zwei
+  Schreibweisen im selben Bild.
+- Der Kopfsatz „TIB UND BIB zutreffen" ohne Operator. Bei „ist nicht gefüllt"
+  wäre der Satz schlicht falsch; er behält „TIB gefüllt".
+- „kein Datum" als Satzpräfix statt gelber Marke. Die **Befund-Marke** ist in
+  [CONTEXT.md](../../CONTEXT.md) definiert und bleibt eine Marke.
+- Die Kartenbreite aus dem Bild abgeleitet: ein Entwurfsbild ohne bekannten
+  Maßstab liefert keine Pixel.
+
 ### Probe am Bestand
 
 Anlass (PL, 11.09.2026): „Würde man dann beim Bauen der Meilensteine sehen,
@@ -587,15 +609,20 @@ Speichern, Freigeben und Neuberechnen. Jetzt stehen die Zahlen an drei Stellen
 des Regelbereichs, und **jede Zahl trägt ihre Beschriftung** — die PL fragte am
 Prototyp „warum sind immer zwei zahlen hinter den feldnamen?":
 
-- im **Kopf jeder Karte** „trifft 1.000 offen · 359 abgeschl." mit einem Balken
-  für den Anteil der offenen;
+- im **Kopf jeder Karte**, rechts, „trifft 1.000 offen · 359 abgeschl." — als
+  bloße Zeile, **ohne Balken** (v6.64): er stand unter derselben Zahl, die
+  daneben schon in Worten steht, und nahm jeder Karte zwei Zeilen Höhe;
 - an **jeder Bedingung** „872 offen · 213 abgeschl.";
-- in der **Wirkungsleiste** unter den Karten — einer einklappbaren Karte
-  „Wirkung am Bestand", aufgeklappt in drei Spalten: **Probe** („erfüllt bei
-  988 von 1.094 offenen" / „347 von 429 abgeschlossenen", je mit Balken) ·
-  **gegenüber Fassung n** (siehe Vergleich) · **Ist-Termin** (Auswahl und der
-  Satz für genau diese Regel). Die Regel bleibt oben unter sich; was sie
-  bewirkt und wann sie als erreicht gilt, steht an EINER Stelle darunter.
+- in der **Probe-Zeile** unter den Karten (Bauteil `Wirkungsleiste`),
+  aufgeklappt in zwei Spalten: **Probe** („erfüllt bei 988 von 1.094 offenen" /
+  „347 von 429 abgeschlossenen", je mit Balken) · **gegenüber Fassung n** (siehe
+  Vergleich). Die Regel bleibt oben unter sich; was sie am Bestand bewirkt,
+  steht an EINER Stelle darunter.
+
+**Die Beschriftung heißt „Probe am Bestand", nicht „Wirkung"** (v6.64): das Wort
+gehört laut [CONTEXT.md](../../CONTEXT.md) der Regel-Wirkung der To-do-Regeln —
+auf Knopfdruck, über den ganzen Bereich. Zwei Dinge unter einem Namen wären der
+Anfang einer Verwechslung. Der Bauteil-Name `Wirkungsleiste` bleibt.
 
 Der Titel jeder Zahl nennt die Gesamtzahlen („… von 1.094 offenen und … von 429
 abgeschlossenen Verbünden") und den Satz zur Kontrollgruppe. Dazu kommt die
@@ -609,21 +636,27 @@ Entscheidungen und Abweichungen in den Specs
 [Karten](../superpowers/specs/2026-09-11-regelbereich-karten.md). Nur das
 Meilenstein-Modul reicht Zahlen in den Editor.
 
-- **Die Wirkungsleiste startet zugeklappt** (PL, 12.09.2026: „card probe bitte
+- **Die Probe-Zeile startet zugeklappt** (PL, 12.09.2026: „card probe bitte
   collapsible machen, und standard einklappen"). Wer eine Regel schreibt, sieht
-  zuerst die Regel; ein Klick auf die Kopfzeile klappt die drei Spalten auf. Der
-  Zustand gilt für den ganzen Reiter und überlebt den Reload
-  (`wirkungOffen` im bestehenden Ansichts-Schlüssel,
+  zuerst die Regel; ein Klick klappt die zwei Spalten auf. Der Zustand gilt für
+  den ganzen Reiter und überlebt den Reload (`wirkungOffen` im bestehenden
+  Ansichts-Schlüssel,
   [ansichtPersistenz.ts](../../src/plugins/meilensteine/ansichtPersistenz.ts)).
-  Zugeklappt bleibt der Kopf sprechend: die **Kurzfassung** trägt die Zahlen mit
-  ihrem Nenner („Probe · Richtlinie 2025: erfüllt bei 1.084 von 1.094 offenen ·
-  424 von 429 abgeschlossenen"), „· geändert" bzw. „· neu" gegenüber der Fassung
-  und **jede** Marke, die aufgeklappt stünde (erfüllt bei allen/keinem, kein
-  Datum, N ohne Termin) — ein zugeklappter Streifen, der seine Warnung
-  verschluckt, entwertete die Probe. Damit Kopf und Spalte nicht auseinander
-  laufen, steht ihr Fall-Unterschied in je einer Kaskade (`probeZustand`,
-  `vergleichStand`), aus der beide lesen; nur Balken, Deltas und Sätze bleiben
-  dem offenen Streifen vorbehalten.
+  **Zugeklappt ist sie eine leise Zeile, kein Kasten** (v6.64): ohne Rahmen,
+  ohne Füllung, ohne Kolben-Symbol, 25 px statt 33 — Rahmen und Tönung machten
+  die Nebensache zum lautesten Element des Regelbereichs. Der Kasten erscheint
+  erst beim Aufklappen, wo er die Spalten trennt.
+- **Die Kurzfassung sagt beide Zahlen und das Vergleichswort**: „erfüllt bei
+  988 von 1.094 offenen · 347 von 429 abgeschlossenen · unverändert gegenüber
+  Fassung 43", dazu der Befund der Regel (erfüllt bei allen/keinem). Auch
+  „unverändert" steht da — das ist eine Auskunft, kein Nichts (`vergleichsWort`,
+  ein Wort für Spalte **und** Kurzfassung). Die Grundmenge steht nicht mehr vor
+  jeder Zahl, sondern im Titel der Zeile und weiter in der Probe-Spalte
+  (`probeErklaerung`, ein Titel für beide). Die Marken des Ist-Termins trägt
+  seine eigene Zeile, die ohnehin immer sichtbar ist. Damit Kopf und Spalte
+  nicht auseinander laufen, steht der Fall-Unterschied in je einer Kaskade
+  (`probeZustand`, `vergleichStand`), aus der beide lesen; nur Balken, Deltas
+  und Sätze bleiben dem offenen Streifen vorbehalten.
 - **Die Grundmenge ist die aktuelle Richtlinie, nicht der Chip im Seitenkopf**
   (`AKTUELLE_RICHTLINIE`, heute Richtlinie 2025 = Programme 136–139); auch der
   Eingangs-Zeitraum wirkt nicht. Die Probe prüft eine Regel und ist kein
@@ -639,7 +672,7 @@ Meilenstein-Modul reicht Zahlen in den Editor.
   `ohneBedingung` gelten wie in Übersicht und Auswertung; `nichtRelevant` und
   `ohneBedingung` zählen in keinen Nenner („ohne Bedingung — nichts zu zählen").
   Eine Gruppenzahl tragen nur die Karten der obersten Ebene. Die Wurzel nicht:
-  in der Wirkungsleiste steht die des ganzen Meilensteins, die mit
+  in der Probe-Zeile steht die des ganzen Meilensteins, die mit
   Unter-Meilensteinen rechnet — zwei Zahlen für scheinbar dasselbe wären ein
   Widerspruch. Innenkarten nicht: ihre Bedingungen tragen je ihre eigene.
 - **Lesepfad.** Der Antrags-Store hat keinen Index auf `unterprogramm_id`, und im
@@ -660,8 +693,8 @@ Meilenstein-Modul reicht Zahlen in den Editor.
   Pitfall #15). Das trennt die Probe von der Regel-Wirkung der To-do-Regeln: die
   läuft auf Knopfdruck über den ganzen Bereich.
 - **Vergleich mit der freigegebenen Fassung.** Entwurf und
-  `freigegebeneFassung` werden über denselben Bestand gezählt; die mittlere
-  Spalte der Wirkungsleiste sagt „unverändert" oder „geändert", darunter
+  `freigegebeneFassung` werden über denselben Bestand gezählt; die rechte
+  Spalte der Probe-Zeile sagt „unverändert" oder „geändert", darunter
   „offen ±n · abgeschlossen ±n"; „neu", wenn der Knoten in der Fassung fehlt,
   und „noch keine freigegeben", wenn es keine gibt. Belegt (11.09.2026,
   dev:local, Entwurf zu Fassung 37): MST 3 mit dem Verbinder „oder" statt „und"
@@ -696,8 +729,8 @@ Meilenstein-Modul reicht Zahlen in den Editor.
   „Antrag im System eingegeben": Antragseingang gefüllt, Ist-Termin =
   Antragseingang; Gruppen mit genau einem Kind werden dabei durchschaut —, SOLL
   sie bei jedem Verbund zutreffen. Dort gibt es keinen Befund, weder an der
-  Bedingung noch in der Leiste noch in der Zeile: der Lärm entwertete die echten
-  Befunde.
+  Bedingung noch in der Probe-Zeile noch in der Meilenstein-Zeile: der Lärm
+  entwertete die echten Befunde.
 - **„N ohne Termin" ist gezählt, nicht geschätzt** (`KnotenProbe.ohneDatum`):
   je Verbund „erreicht, aber `istDatum === null`" aus demselben Bewertungslauf,
   offen und abgeschlossen getrennt. Solche Verbünde trafen die Regel nur über
@@ -705,11 +738,17 @@ Meilenstein-Modul reicht Zahlen in den Editor.
   jeder Abweichung der Auswertung — MST 4.3: 224 offene. Der Prototyp rechnete
   „Regel minus Regel ohne datumslose Bedingungen"; das stimmt nur, wo diese
   unter „eine" hängen.
+- **Der Ist-Termin ist eine eigene Zeile im Regelbereich** (`IstTerminZeile`,
+  v6.64), über der Probe-Zeile und immer sichtbar: Kapitälchen-Beschriftung,
+  die Auswahl des Datumsfelds, seine Marken („kein Datum", „N ohne Termin") und
+  der Satz für genau diese Regel — eine Zeile, 24 px. Er gehört zur Regel
+  („wann gilt sie als erreicht"), nicht zur Messung, und lag in der zugeklappten
+  Probe unerreichbar.
 - **Der Ist-Termin als Satz für genau diese Regel** (`istTerminErklaerung`).
-  Die dritte Spalte übersetzt die Bewertung auf die Regel, die dasteht — „Hier:
+  Die Zeile übersetzt die Bewertung auf die Regel, die dasteht — „Hier:
   das spätere Datum von Gruppe 1 und Gruppe 2; je Gruppe das frühere ihrer
   gefüllten Datumsspalten." —, datumslose Bedingungen nennt ein Nachsatz. Prüft
-  die Bedingung keine Datumsspalte, sagt die Spalte das und trägt die Marke
+  die Bedingung keine Datumsspalte, sagt die Zeile das und trägt die Marke
   „kein Datum" (MST 2: Kürzel TIB/BIB, MST 5: Status — Ist-Termin und
   Abweichung blieben dort für immer leer). Welche Felder Datumsspalten sind,
   entscheidet `istDatumsFeldAus`: `typ: 'datum'` im Spalten-Katalog **oder** die

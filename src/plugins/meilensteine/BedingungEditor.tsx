@@ -175,25 +175,27 @@ export function BedingungEditor({ bedingung, onChange, ...rest }: EditorProps): 
           );
         })}
 
-        <div
-          className="flex shrink-0 flex-col items-center justify-center gap-0.5 rounded-[8px] px-3 py-2"
-          style={{ border: '1px dashed var(--tf-border-hover)' }}
+      </div>
+
+      {/* Anlegen steht UNTER den Karten, nicht in einer eigenen Spalte daneben
+          (v6.64): die gestrichelte Karte am Zeilenende hielt rund 140 px — 12 %
+          der Bereichsbreite — für zwei Knöpfe frei, die den Blick nichts
+          angehen, solange man liest. */}
+      <div className="mt-2 flex flex-wrap items-center gap-1">
+        <Button
+          variant="ghost" size="xs" icon={Plus}
+          title="Eine einzelne Bedingung als eigene Karte"
+          onClick={() => onChange(fuegeBedingungEin(wurzel, [], kinder.length, { feldId: ctx.ersteSpalte, op: 'gefuellt' }))}
         >
-          <Button
-            variant="ghost" size="xs" icon={Plus}
-            title="Eine einzelne Bedingung als eigene Karte"
-            onClick={() => onChange(fuegeBedingungEin(wurzel, [], kinder.length, { feldId: ctx.ersteSpalte, op: 'gefuellt' }))}
-          >
-            Bedingung
-          </Button>
-          <Button
-            variant="ghost" size="xs" icon={Plus}
-            title="Eine neue Karte für mehrere Bedingungen, die zusammen gelten"
-            onClick={() => onChange(fuegeBedingungEin(wurzel, [], kinder.length, { einige: [] }))}
-          >
-            Gruppe
-          </Button>
-        </div>
+          Bedingung
+        </Button>
+        <Button
+          variant="ghost" size="xs" icon={Plus}
+          title="Eine neue Karte für mehrere Bedingungen, die zusammen gelten"
+          onClick={() => onChange(fuegeBedingungEin(wurzel, [], kinder.length, { einige: [] }))}
+        >
+          Gruppe
+        </Button>
       </div>
     </div>
   );
@@ -390,7 +392,11 @@ function Karte({ ctx, pfad, gruppe, platzhalter, innen = false }: {
           onBenenne={name => aendere(benenneBedingungsGruppe(wurzel, pfad, name))}
         />
         <span className="truncate text-[11.5px] text-[var(--tf-text-secondary)]">{verknuepfungsText(v, kinder.length)}</span>
-        <span className="ml-auto shrink-0">
+        {/* Die Zahl der Gruppe steht IM Kopf, rechts — nicht mehr als eigene
+            Zeile mit Balken darunter (v6.64): zwei Zeilen Höhe für dieselbe
+            Auskunft machten die Nebensache größer als die Bedingung. */}
+        {!innen && ctx.probe && <span className="ml-auto shrink-0">{ctx.probe(gruppe)}</span>}
+        <span className={cn('shrink-0', innen || !ctx.probe ? 'ml-auto' : '')}>
           <ZeilenAktionen
             was="Gruppe"
             eintraege={gruppenAktionen(ctx, pfad)}
@@ -402,8 +408,7 @@ function Karte({ ctx, pfad, gruppe, platzhalter, innen = false }: {
         </span>
       </div>
 
-      {!innen && ctx.probe && <div className="px-2.5 pb-2">{ctx.probe(gruppe)}</div>}
-      {!innen && <div className="mb-1 h-px bg-[var(--tf-border)]" />}
+      {!innen && <div className="mb-1 mt-1 h-px bg-[var(--tf-border)]" />}
 
       <div className="flex flex-col px-1">
         {marke(0)}

@@ -43,7 +43,7 @@ import { feldQuellen } from '@/core/status/bedingung-quellen';
 import { BedingungEditor } from './BedingungEditor';
 import { Verbinder } from './BedingungsFugen';
 import {
-  BlattTreffer, GruppenProbe, Wirkungsleiste, zahlenKurz, zahlenText, type IstTerminAnzeige,
+  BlattTreffer, GruppenProbe, IstTerminZeile, Wirkungsleiste, zahlenKurz, zahlenText, type IstTerminAnzeige,
 } from './ProbeAnzeige';
 import type { MeilensteinProbeApi } from './useMeilensteinProbe';
 import { ANKER_ERKLAERUNG, feldStil, spaltenLabel } from './labels';
@@ -203,7 +203,8 @@ function KnotenKoerper({ knoten, alle, spalten, schreibgeschuetzt, probe, onKnot
         </>
       )}
 
-      <Wirkungsleiste probe={probe} knotenId={knoten.id} ohneBedingung={ohneBedingung} ist={ist} ohneBefund={zeitpunkt} />
+      <IstTerminZeile ist={ist} probe={probe} knotenId={knoten.id} ohneBedingung={ohneBedingung} />
+      <Wirkungsleiste probe={probe} knotenId={knoten.id} ohneBedingung={ohneBedingung} ohneBefund={zeitpunkt} />
     </div>
   );
 }

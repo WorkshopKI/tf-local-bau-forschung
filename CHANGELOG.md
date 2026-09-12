@@ -5,6 +5,17 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v6.64.0 — Regelbereich: Bedingungen lauter, Probe leiser, Ist-Termin sichtbar (September 2026)
+
+MINOR — Nutzer zu einem Claude-Design-Entwurf des Regelbereichs: „es ging darum die zusatz dinge (wirkung im bestand etc.) visuell leiser zu machen und die bedingungen aus denen sich ein meilenstein ergibt visuell lauter zu machen. was davon können wir übernehmen?"
+Rahmen, Füllung und Kolben-Symbol machten den Probe-Streifen zum lautesten Element des Bereichs; der Ist-Termin lag darin zugeklappt unerreichbar, und eine gestrichelte Karte hielt am Zeilenende 140 px für zwei Knöpfe frei.
+
+- Probe am Bestand zugeklappt als leise Zeile ohne Kasten, Label „Probe am Bestand"; aufgeklappt zwei Spalten statt drei ([ProbeAnzeige.tsx](src/plugins/meilensteine/ProbeAnzeige.tsx))
+- Ist-Termin als eigene Zeile im Regelbereich — Auswahl, Satz und seine Marken, immer sichtbar: `IstTerminZeile` ([ProbeAnzeige.tsx](src/plugins/meilensteine/ProbeAnzeige.tsx), [KonfigurationTab.tsx](src/plugins/meilensteine/KonfigurationTab.tsx))
+- Kurzfassung ohne Grundmengen-Präfix, dafür mit Vergleichswort und Fassung — auch „unverändert": `vergleichsWort`, `probeErklaerung` ([ProbeAnzeige.tsx](src/plugins/meilensteine/ProbeAnzeige.tsx))
+- Gruppen-Zahl ohne Balken rechts im Kartenkopf; „+ Bedingung / + Gruppe" unter den Karten statt in der gestrichelten Karte (Karten 458 → 480 px) ([BedingungEditor.tsx](src/plugins/meilensteine/BedingungEditor.tsx))
+- Schaltbarer Verbinder schreibt „UND"/„ODER" groß, das stille Wort bleibt klein ([BedingungsFugen.tsx](src/plugins/meilensteine/BedingungsFugen.tsx)); Doku [meilensteine.md → Probe am Bestand](docs/architecture/meilensteine.md), [Feedback-Kontext](docs/feedback-kontext/meilensteine.md)
+
 ### v6.63.0 — Wirkung am Bestand einklappbar, Unter-Meilenstein-Karten einzeilig (September 2026)
 
 MINOR — Nutzer: „card probe bitte collapsible machen, und standard einklappen" und „die cards für die untermeilensteine sollen übersichtlich und kompakt sein, Text ‚erfüllt bei' in eine Zeile bringen".

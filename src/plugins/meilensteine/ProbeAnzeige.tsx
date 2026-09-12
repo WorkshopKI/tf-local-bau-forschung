@@ -19,7 +19,7 @@ import { useState } from 'react';
 import { ChevronRight, FlaskConical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
-  probeBefund, type KnotenProbe, type OhneDatum, type ProbeBefund, type ProbeTeil, type ProbeZahlen,
+  probeBefund, type KnotenProbe, type ProbeBefund, type ProbeTeil, type ProbeZahlen,
 } from '@/core/meilensteine';
 import { ladeWirkungOffen, speichereWirkungOffen } from './ansichtPersistenz';
 import { formatDatum } from './labels';
@@ -76,7 +76,14 @@ function Balken({ prozent }: { prozent: number }): React.ReactElement {
   );
 }
 
-/** Was eine Gruppe trifft — im Kopf ihrer Karte, mit Balken (Anteil der offenen). */
+/**
+ * Was eine Gruppe trifft — rechts IM Kopf ihrer Karte, als bloße Zeile.
+ *
+ * **Ohne Balken** (v6.64, Entwurf „leiser/lauter"): er stand unter derselben
+ * Zahl, die daneben schon in Worten steht, und nahm jeder Karte zwei Zeilen
+ * Höhe für eine Auskunft, die keine neue war. Den Anteil zeigt weiterhin die
+ * Probe-Spalte des aufgeklappten Streifens — dort für den ganzen Meilenstein.
+ */
 export function GruppenProbe({ zahlen, grundmenge }: {
   zahlen: ProbeZahlen | null;
   grundmenge: string;
@@ -84,13 +91,13 @@ export function GruppenProbe({ zahlen, grundmenge }: {
   if (!zahlen) return null;
   const befund = probeBefund(zahlen);
   return (
-    <div className="flex flex-col gap-1" title={zahlenTitel(zahlen, 'die Gruppe trifft', grundmenge)}>
-      <Balken prozent={anteilProzent(zahlen.offen)} />
-      <span className="flex flex-wrap items-center gap-1.5 text-[11px] tabular-nums text-[var(--tf-text-secondary)]">
-        trifft {zahlenText(zahlen)}
-        {befund && <BefundMarke title={BEFUND_TITEL[befund]}>{BEFUND_BLATT[befund]}</BefundMarke>}
-      </span>
-    </div>
+    <span
+      className="flex items-center gap-1.5 whitespace-nowrap text-[11px] tabular-nums text-[var(--tf-text-secondary)]"
+      title={zahlenTitel(zahlen, 'die Gruppe trifft', grundmenge)}
+    >
+      trifft {zahlenText(zahlen)}
+      {befund && <BefundMarke title={BEFUND_TITEL[befund]}>{BEFUND_BLATT[befund]}</BefundMarke>}
+    </span>
   );
 }
 
@@ -168,30 +175,35 @@ function probeZustand(
 }
 
 /**
- * Die Wirkung eines Meilensteins am Bestand — unter den Karten, in drei Spalten:
- * Probe (mit Balken), gegenüber der freigegebenen Fassung, Ist-Termin. Aus
- * Entwurf D des Regelbereichs: die Regel selbst bleibt oben unter sich, was sie
- * bewirkt und wann sie als erreicht gilt, steht an EINER Stelle darunter.
+ * Die Probe eines Meilensteins am Bestand — unter den Karten, aufgeklappt in
+ * zwei Spalten: Probe (mit Balken) und gegenüber der freigegebenen Fassung.
  *
  * **Zugeklappt als Standard** (v6.63, PL): wer eine Regel schreibt, sieht zuerst
- * die Regel. Der Kopf bleibt aber sprechend — die Kurzfassung trägt die Zahlen
- * MIT Nenner und jede gelbe Marke (erfüllt bei allen/keinem, kein Datum, ohne
- * Termin) weiter. Ein zugeklappter Streifen, der seine Warnung verschluckt,
- * hätte genau das entwertet, wofür die Probe gebaut wurde. Der Auf-/Zu-Zustand
- * gilt für den ganzen Reiter und überlebt den Reload (`ansichtPersistenz`).
+ * die Regel. Der Kopf bleibt aber sprechend — die Kurzfassung trägt beide Zahlen
+ * MIT Nenner, das Vergleichswort und den Befund der Regel.
+ *
+ * **Leise Zeile statt Kasten** (v6.64, Entwurf „leiser/lauter"): Rahmen,
+ * Hintergrund und Kolben-Symbol machten die Nebensache zum lautesten Element des
+ * Regelbereichs. Der Kasten erscheint erst beim Aufklappen, wo er die Spalten
+ * trennt. Die Beschriftung heißt **Probe** am Bestand, nicht „Wirkung": das Wort
+ * gehört laut [CONTEXT.md](../../../CONTEXT.md) der Regel-Wirkung der To-do-Regeln
+ * (auf Knopfdruck, über den ganzen Bereich) — zwei Dinge, ein Name wäre der
+ * Anfang einer Verwechslung. Der Bauteil-Name bleibt `Wirkungsleiste`.
+ *
+ * Der **Ist-Termin** steht seit v6.64 nicht mehr hier, sondern als eigene Zeile
+ * im Regelbereich ({@link IstTerminZeile}): er gehört zur Regel („wann gilt sie
+ * als erreicht"), nicht zur Messung — und lag zugeklappt sonst unerreichbar.
  */
-export function Wirkungsleiste({ probe, knotenId, ohneBedingung, ist, ohneBefund = false }: {
+export function Wirkungsleiste({ probe, knotenId, ohneBedingung, ohneBefund = false }: {
   probe?: MeilensteinProbeApi;
   knotenId: string;
   /** Der Knoten trägt keine auswertbare Bedingung — dann gibt es nichts zu zählen. */
   ohneBedingung: boolean;
-  ist: IstTerminAnzeige;
   /** Der Meilenstein misst nur einen Zeitpunkt — „erfüllt bei allen" ist dort gewollt. */
   ohneBefund?: boolean;
 }): React.ReactElement {
   const [offen, setOffen] = useState(ladeWirkungOffen);
   const zustand = probeZustand(probe, knotenId, ohneBedingung);
-  const z = zustand.art === 'zahlen' ? zustand.z : null;
   const schalte = (): void => {
     setOffen(vorher => {
       speichereWirkungOffen(!vorher);
@@ -199,42 +211,37 @@ export function Wirkungsleiste({ probe, knotenId, ohneBedingung, ist, ohneBefund
     });
   };
   return (
-    <div
-      className="mt-1 rounded-[8px] bg-[var(--tf-bg-secondary)]"
-      style={{ border: '0.5px solid var(--tf-border)' }}
-    >
+    <div className="mt-0.5">
       <button
         type="button"
         onClick={schalte}
         aria-expanded={offen}
-        title={offen ? 'Wirkung am Bestand einklappen' : 'Wirkung am Bestand ausklappen'}
-        className="flex w-full cursor-pointer items-center gap-2 px-3.5 py-2 text-left"
+        title={probeErklaerung(probe)}
+        className="flex w-full cursor-pointer items-center gap-1.5 rounded-[6px] px-1 py-1 text-left hover:bg-[var(--tf-hover)]"
       >
         <ChevronRight
-          size={13}
+          size={12}
           className="shrink-0 text-[var(--tf-text-tertiary)] transition-transform duration-200"
           style={{ transform: offen ? 'rotate(90deg)' : 'rotate(0deg)' }}
         />
-        <span className="shrink-0 text-[11.5px] font-medium text-[var(--tf-text-secondary)]">Wirkung am Bestand</span>
+        <span className="shrink-0 text-[11.5px] text-[var(--tf-text-secondary)]">Probe am Bestand</span>
         {!offen && (
           <Kurzfassung
             zustand={zustand}
             vergleich={vergleichStand(probe, knotenId)}
-            grundmenge={probe?.grundmenge ?? 'aktuelle Richtlinie'}
-            ist={ist}
+            version={probe?.fassungVersion ?? null}
             ohneBefund={ohneBefund}
           />
         )}
       </button>
       {offen && (
         <div
-          className="grid grid-cols-1 divide-y divide-[var(--tf-border)]
-            md:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)_minmax(0,1.5fr)] md:divide-x md:divide-y-0"
-          style={{ borderTop: '0.5px solid var(--tf-border)' }}
+          className="mt-0.5 grid grid-cols-1 divide-y divide-[var(--tf-border)] rounded-[8px] bg-[var(--tf-bg-secondary)]
+            md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] md:divide-x md:divide-y-0"
+          style={{ border: '0.5px solid var(--tf-border)' }}
         >
           <ProbeSpalte probe={probe} zustand={zustand} ohneBefund={ohneBefund} />
           <VergleichSpalte stand={vergleichStand(probe, knotenId)} version={probe?.fassungVersion ?? null} />
-          <IstSpalte ist={ist} ohneDatum={z ? z.ohneDatum : null} />
         </div>
       )}
     </div>
@@ -242,40 +249,85 @@ export function Wirkungsleiste({ probe, knotenId, ohneBedingung, ist, ohneBefund
 }
 
 /**
- * Was der zugeklappte Kopf sagt: die Zahlen der Probe mit ihrem Nenner, ob sich
- * gegenüber der Fassung etwas geändert hat, und JEDE Marke, die aufgeklappt
- * stünde. Sie ist eine Kurzfassung, keine Auswahl — nur die Balken, die Deltas
- * und die Sätze bleiben dem offenen Streifen vorbehalten.
+ * Was der zugeklappte Kopf sagt: beide Zahlen mit ihrem Nenner, das
+ * Vergleichswort samt Fassung — auch „unverändert", das ist eine Auskunft — und
+ * der Befund der Regel. Die Grundmenge steht im Titel der Zeile, nicht ein
+ * zweites Mal davor; die Marken des Ist-Termins stehen in seiner eigenen Zeile,
+ * die ohnehin immer sichtbar ist.
  */
-function Kurzfassung({ zustand, vergleich, grundmenge, ist, ohneBefund }: {
+function Kurzfassung({ zustand, vergleich, version, ohneBefund }: {
   zustand: ProbeZustand;
   vergleich: VergleichStand;
-  grundmenge: string;
-  ist: IstTerminAnzeige;
+  version: number | null;
   ohneBefund: boolean;
 }): React.ReactElement {
   const z = zustand.art === 'zahlen' ? zustand.z : null;
   const befund = z && !ohneBefund ? probeBefund(z) : null;
-  const ohne = !ist.keinDatum && z && z.ohneDatum.offen + z.ohneDatum.abgeschlossen > 0 ? z.ohneDatum : null;
   const text = z
     ? `erfüllt bei ${zahl(z.offen.treffer)} von ${zahl(z.offen.von)} offenen`
       + ` · ${zahl(z.abgeschlossen.treffer)} von ${zahl(z.abgeschlossen.von)} abgeschlossenen`
     : (zustand.art === 'hinweis' ? zustand.text : '');
-  const geaendert = vergleich.art === 'neu'
-    ? 'neu'
-    : (vergleich.art === 'delta' && (vergleich.dO !== 0 || vergleich.dA !== 0) ? 'geändert' : null);
   return (
     <span className="flex min-w-0 flex-wrap items-center gap-1.5 text-[11.5px] text-[var(--tf-text-secondary)]">
-      <FlaskConical size={11} className="shrink-0" />
       <span className={`truncate tabular-nums ${zustand.art === 'hinweis' && zustand.fehler === true ? 'text-[var(--tf-danger-text)]' : ''}`}>
-        Probe · {grundmenge}{text ? `: ${text}` : ''}
+        {text}
       </span>
-      {geaendert && <span className="shrink-0">· {geaendert}</span>}
+      {z && version !== null && <span className="shrink-0">· {vergleichsWort(vergleich)} gegenüber Fassung {version}</span>}
       {befund && <BefundMarke title={BEFUND_REGEL_TITEL}>{BEFUND_REGEL[befund]}</BefundMarke>}
-      {ist.keinDatum && <BefundMarke>kein Datum</BefundMarke>}
-      {ohne && <BefundMarke>{zahl(ohne.offen)} ohne Termin</BefundMarke>}
     </span>
   );
+}
+
+/**
+ * Der Ist-Termin als eigene Zeile im Regelbereich — Beschriftung, Auswahl, der
+ * Satz für genau diese Regel und die Marken, die ihn betreffen („kein Datum",
+ * „N ohne Termin"). Er steht damit bei der Regel, deren Teil er ist, statt in
+ * einem Streifen, der zugeklappt startet.
+ */
+export function IstTerminZeile({ ist, probe, knotenId, ohneBedingung }: {
+  ist: IstTerminAnzeige;
+  probe?: MeilensteinProbeApi;
+  knotenId: string;
+  ohneBedingung: boolean;
+}): React.ReactElement {
+  const zustand = probeZustand(probe, knotenId, ohneBedingung);
+  const z = zustand.art === 'zahlen' ? zustand.z : null;
+  const ohne = !ist.keinDatum && z && z.ohneDatum.offen + z.ohneDatum.abgeschlossen > 0 ? z.ohneDatum : null;
+  return (
+    <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+      <span className="shrink-0 text-[10.5px] font-medium uppercase tracking-[0.06em] text-[var(--tf-text-tertiary)]">
+        Ist-Termin
+      </span>
+      {ist.auswahl && <span className="min-w-0 max-w-[260px] flex-1">{ist.auswahl}</span>}
+      {ist.keinDatum && <BefundMarke>kein Datum</BefundMarke>}
+      {ohne && (
+        <BefundMarke title={`${zahl(ohne.offen)} offene und ${zahl(ohne.abgeschlossen)} abgeschlossene Verbünde gelten als erreicht, `
+          + 'ohne dass ein Datum vorliegt — für sie gibt es keinen Ist-Termin und keine Abweichung.'}
+        >
+          {zahl(ohne.offen)} ohne Termin
+        </BefundMarke>
+      )}
+      <span className="min-w-0 flex-1 text-[11.5px] leading-[16px] text-[var(--tf-text-secondary)]">{ist.text}</span>
+    </div>
+  );
+}
+
+/**
+ * Umfang, Stand und Ladezeit der Probe — am Titel der leisen Zeile UND an der
+ * Probe-Spalte. Hier steht die Grundmenge, die die Kurzfassung nicht mehr vor
+ * jede Zahl schreibt.
+ */
+function probeErklaerung(probe: MeilensteinProbeApi | undefined): string {
+  const u = probe?.umfang ?? null;
+  const ms = probe?.dauerMs ?? null;
+  const dauer = ms === null
+    ? ''
+    : `, geladen in ${(ms / 1000).toLocaleString('de-DE', { maximumFractionDigits: 1 })} s`;
+  return `Gezählt über ${u ? zahl(u.offen) : '?'} offene und ${u ? zahl(u.abgeschlossen) : '?'} `
+    + `abgeschlossene Verbünde der ${probe?.grundmenge ?? 'aktuellen Richtlinie'}, `
+    + `Stand ${formatDatum(probe?.stand ?? null)}${dauer}. `
+    + 'Abgeschlossen heißt amtlich fertig: dort sollte fast jeder Meilenstein erfüllt sein — '
+    + 'trifft er dort wenig, liest die Bedingung vermutlich die falsche Spalte.';
 }
 
 function ProbeSpalte({ probe, zustand, ohneBefund }: {
@@ -305,20 +357,9 @@ function ProbeSpalte({ probe, zustand, ohneBefund }: {
     );
   }
   const z = zustand.z;
-  // Ab hier steht die Probe: `probe` ist gesetzt, sonst wäre oben ein Hinweis gekommen.
-  const u = probe?.umfang ?? null;
-  const ms = probe?.dauerMs ?? null;
-  const dauer = ms === null
-    ? ''
-    : `, geladen in ${(ms / 1000).toLocaleString('de-DE', { maximumFractionDigits: 1 })} s`;
-  const erklaerung = `Gezählt über ${u ? zahl(u.offen) : '?'} offene und ${u ? zahl(u.abgeschlossen) : '?'} `
-    + `abgeschlossene Verbünde der ${probe?.grundmenge ?? 'aktuellen Richtlinie'}, `
-    + `Stand ${formatDatum(probe?.stand ?? null)}${dauer}. `
-    + 'Abgeschlossen heißt amtlich fertig: dort sollte fast jeder Meilenstein erfüllt sein — '
-    + 'trifft er dort wenig, liest die Bedingung vermutlich die falsche Spalte.';
   const befund = ohneBefund ? null : probeBefund(z);
   return (
-    <div className={SPALTE} title={erklaerung}>
+    <div className={SPALTE} title={probeErklaerung(probe)}>
       {kopf}
       <div>
         <div className={GROSS}>erfüllt bei <span className="font-medium">{zahl(z.offen.treffer)}</span> von {zahl(z.offen.von)} offenen</div>
@@ -356,6 +397,13 @@ function vergleichStand(probe: MeilensteinProbeApi | undefined, knotenId: string
   };
 }
 
+/** Das eine Wort, das Spalte und Kurzfassung sagen — „unverändert" ist eine Auskunft, kein Nichts. */
+function vergleichsWort(stand: VergleichStand): string {
+  if (stand.art === 'neu') return 'neu';
+  if (stand.art === 'delta') return stand.dO === 0 && stand.dA === 0 ? 'unverändert' : 'geändert';
+  return '—';
+}
+
 function VergleichSpalte({ stand, version }: { stand: VergleichStand; version: number | null }): React.ReactElement {
   const kopf = <div className={KOPF}>{version === null ? 'freigegebene Fassung' : `gegenüber Fassung ${version}`}</div>;
   if (stand.art === 'ohne') return <div className={SPALTE}>{kopf}<span className={GROSS}>—</span></div>;
@@ -374,26 +422,9 @@ function VergleichSpalte({ stand, version }: { stand: VergleichStand; version: n
   return (
     <div className={SPALTE}>
       {kopf}
-      <span className={GROSS}>{stand.dO === 0 && stand.dA === 0 ? 'unverändert' : 'geändert'}</span>
+      <span className={GROSS}>{vergleichsWort(stand)}</span>
       <span className="text-[11.5px] tabular-nums text-[var(--tf-text-secondary)]">
         offen {vorzeichen(stand.dO)} · abgeschlossen {vorzeichen(stand.dA)}
-      </span>
-    </div>
-  );
-}
-
-function IstSpalte({ ist, ohneDatum }: { ist: IstTerminAnzeige; ohneDatum: OhneDatum | null }): React.ReactElement {
-  const ohne = !ist.keinDatum && ohneDatum && ohneDatum.offen + ohneDatum.abgeschlossen > 0 ? ohneDatum : null;
-  return (
-    <div className={SPALTE}>
-      <div className={KOPF}>Ist-Termin</div>
-      {ist.auswahl}
-      {ist.keinDatum && <BefundMarke>kein Datum</BefundMarke>}
-      {ohne && <BefundMarke>{zahl(ohne.offen)} ohne Termin</BefundMarke>}
-      <span className="text-[11.5px] leading-[16px] text-[var(--tf-text-secondary)]">
-        {ist.text}
-        {ohne && ` ${zahl(ohne.offen)} offene und ${zahl(ohne.abgeschlossen)} abgeschlossene Verbünde gelten als erreicht, `
-          + 'ohne dass ein Datum vorliegt — für sie gibt es keinen Ist-Termin und keine Abweichung.'}
       </span>
     </div>
   );

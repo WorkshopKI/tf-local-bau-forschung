@@ -34,12 +34,16 @@ export function Verbinder({ verknuepfung, onSchalte, linie = false }: {
       onClick={onSchalte}
       title={und ? 'Klick: „oder" — dann genügt eine' : 'Klick: „und" — dann müssen alle zutreffen'}
       aria-label={`Verknüpfung „${wort}" — Klick schaltet auf „${und ? 'oder' : 'und'}"`}
+      // GROSS geschrieben (v6.64): die zugeklappte Zeile über dem Bereich sagt
+      // längst „TIB gefüllt UND BIB gefüllt" — dieselbe Verknüpfung soll hier
+      // nicht kleiner aussehen. Das stille Wort (ohne `onSchalte`) bleibt klein:
+      // so trennt die Schreibweise Schalter von Text.
       className="shrink-0 cursor-pointer select-none rounded-full px-2.5 py-[1px] text-[11px] font-medium leading-[16px]
         bg-[var(--tf-primary-light)] text-[var(--tf-primary)] hover:brightness-95
         focus-visible:outline-2 focus-visible:outline-[var(--tf-primary)] focus-visible:outline-offset-1"
       style={{ border: '0.5px solid var(--tf-border-hover)' }}
     >
-      {wort}
+      {wort.toUpperCase()}
     </button>
   ) : (
     <span className="shrink-0 px-1.5 text-[11px] font-medium text-[var(--tf-text-secondary)]">{wort}</span>
