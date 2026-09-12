@@ -70,6 +70,7 @@ interface Gespeichert {
   uebersicht?: Omit<UebersichtFilter, 'suche'>;
   wocheNurMeine?: boolean;
   wocheGruppiert?: boolean;
+  wirkungOffen?: boolean;
 }
 
 function readAll(): Gespeichert {
@@ -185,4 +186,19 @@ export function ladeWocheGruppiert(): boolean {
 
 export function speichereWocheGruppiert(gruppiert: boolean): void {
   writePatch({ wocheGruppiert: gruppiert });
+}
+
+/**
+ * Die Wirkungsleiste im Regelbereich (Probe · Vergleich · Ist-Termin); beim
+ * ersten Besuch ZU. Wer eine Regel schreibt, sieht zuerst die Regel — die Zahlen
+ * stehen zugeklappt als Kurzfassung im Kopf. Wer sie ausklappt, findet sie beim
+ * nächsten Meilenstein und nach dem Reload offen vor.
+ */
+export function ladeWirkungOffen(): boolean {
+  const o = readAll().wirkungOffen;
+  return typeof o === 'boolean' ? o : false;
+}
+
+export function speichereWirkungOffen(offen: boolean): void {
+  writePatch({ wirkungOffen: offen });
 }

@@ -5,6 +5,17 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v6.63.0 — Wirkung am Bestand einklappbar, Unter-Meilenstein-Karten einzeilig (September 2026)
+
+MINOR — Nutzer: „card probe bitte collapsible machen, und standard einklappen" und „die cards für die untermeilensteine sollen übersichtlich und kompakt sein, Text ‚erfüllt bei' in eine Zeile bringen".
+Die Wirkungsleiste schob die Regel nach oben aus dem Blick; in den Unter-Meilenstein-Karten brach die Zahlenzeile dreifach um (179 px Text in 170 px Innenmaß).
+
+- Wirkungsleiste als einklappbare Karte „Wirkung am Bestand", beim ersten Besuch zu ([ProbeAnzeige.tsx](src/plugins/meilensteine/ProbeAnzeige.tsx))
+- Zugeklappt trägt der Kopf eine Kurzfassung: Zahlen mit Nenner, „geändert"/„neu" und jede Befund-Marke ([ProbeAnzeige.tsx](src/plugins/meilensteine/ProbeAnzeige.tsx))
+- Auf-/Zu-Zustand gilt für den Reiter und überlebt den Reload: `wirkungOffen` ([ansichtPersistenz.ts](src/plugins/meilensteine/ansichtPersistenz.ts), [Test](src/plugins/meilensteine/__tests__/ansichtPersistenz.test.ts))
+- Kaskaden `probeZustand`/`vergleichStand` für Kopf und Spalte gemeinsam ([ProbeAnzeige.tsx](src/plugins/meilensteine/ProbeAnzeige.tsx))
+- Unter-Meilenstein-Karten 208 px breit, Zahlenzeile einzeilig, alle gleich hoch ([KonfigurationTab.tsx](src/plugins/meilensteine/KonfigurationTab.tsx)); Doku [meilensteine.md → Probe am Bestand](docs/architecture/meilensteine.md), [Feedback-Kontext](docs/feedback-kontext/meilensteine.md)
+
 ### v6.62.0 — Meilenstein-Plan als Tabelle, Zuordnung bestätigen (September 2026)
 
 MINOR — Nutzer: „Fristen und Meilensteine wurde visuell von claude design überarbeitet (screen 1 und 2) was können wir davon übernehmen?" Übernommen ist die zugeklappte Liste der Konfiguration.

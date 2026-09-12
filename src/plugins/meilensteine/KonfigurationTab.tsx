@@ -229,7 +229,11 @@ function SammelKinder({ kinder, probe, onOeffne }: {
         type="button"
         onClick={() => onOeffne(k.id)}
         title={`${k.nummer} ${k.label} — öffnen`}
-        className="flex w-[190px] shrink-0 cursor-pointer flex-col gap-0.5 rounded-[8px] px-2.5 py-1.5 text-left hover:bg-[var(--tf-hover)]"
+        // 208 px statt 190: „erfüllt bei 1.094 offen · 429 abgeschl." misst
+        // 179 px (11 px, gemessen 12.09.2026 in dev:local) — in 170 px Innenmaß
+        // brach die Zeile dreifach um und zog die Karte auf 103 px Höhe. Jetzt
+        // EINE Zeile und 86 px, bei zweizeiliger Bezeichnung.
+        className="flex w-[208px] shrink-0 cursor-pointer flex-col gap-0.5 rounded-[8px] px-2.5 py-1.5 text-left hover:bg-[var(--tf-hover)]"
         style={{
           border: `0.5px ${inaktiv ? 'dashed' : 'solid'} var(--tf-border-hover)`,
           background: inaktiv ? 'transparent' : 'var(--tf-bg)',
@@ -239,7 +243,7 @@ function SammelKinder({ kinder, probe, onOeffne }: {
         <span className={`line-clamp-2 text-[12px] ${inaktiv ? 'text-[var(--tf-text-secondary)]' : 'text-[var(--tf-text)]'}`}>
           {k.label}
         </span>
-        <span className="text-[11px] tabular-nums text-[var(--tf-text-secondary)]">
+        <span className="truncate whitespace-nowrap text-[11px] tabular-nums text-[var(--tf-text-secondary)]">
           {inaktiv ? 'zählt nicht mit' : (z ? `erfüllt bei ${zahlenText(z)}` : '')}
         </span>
       </button>

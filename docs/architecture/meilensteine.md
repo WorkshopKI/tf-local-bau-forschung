@@ -532,7 +532,10 @@ jeder Zeile um, und die Regel wurde abgeschnitten:
   Grund („Ist schon ein Haupt-Meilenstein.").
 - **Ein Sammel-Meilenstein** (keine eigene Bedingung, aber Unter-Meilensteine)
   zeigt seine Unter-Meilensteine als Karten: Nummer, Bezeichnung, „erfüllt bei
-  … offen · … abgeschl."; ein Klick öffnet den Unter-Meilenstein. Zwischen den
+  … offen · … abgeschl."; ein Klick öffnet den Unter-Meilenstein. Die Zahlenzeile
+  steht in EINER Zeile (Karte 208 px breit, gemessen 12.09.2026: die Zeile misst
+  179 px und brach in der alten Karte dreifach um), alle Karten der Reihe bleiben
+  dadurch gleich hoch. Zwischen den
   aktiven steht „und" als bloßes Wort — die Eltern-ODER-Regel verlangt immer
   alle relevanten Kinder, da gibt es nichts zu schalten —, inaktive stehen
   gestrichelt am Ende und „zählen nicht mit". Darunter „Oder eine eigene
@@ -587,10 +590,11 @@ Prototyp „warum sind immer zwei zahlen hinter den feldnamen?":
 - im **Kopf jeder Karte** „trifft 1.000 offen · 359 abgeschl." mit einem Balken
   für den Anteil der offenen;
 - an **jeder Bedingung** „872 offen · 213 abgeschl.";
-- in der **Wirkungsleiste** unter den Karten, in drei Spalten: **Probe**
-  („erfüllt bei 988 von 1.094 offenen" / „347 von 429 abgeschlossenen", je mit
-  Balken) · **gegenüber Fassung n** (siehe Vergleich) · **Ist-Termin** (Auswahl
-  und der Satz für genau diese Regel). Die Regel bleibt oben unter sich; was sie
+- in der **Wirkungsleiste** unter den Karten — einer einklappbaren Karte
+  „Wirkung am Bestand", aufgeklappt in drei Spalten: **Probe** („erfüllt bei
+  988 von 1.094 offenen" / „347 von 429 abgeschlossenen", je mit Balken) ·
+  **gegenüber Fassung n** (siehe Vergleich) · **Ist-Termin** (Auswahl und der
+  Satz für genau diese Regel). Die Regel bleibt oben unter sich; was sie
   bewirkt und wann sie als erreicht gilt, steht an EINER Stelle darunter.
 
 Der Titel jeder Zahl nennt die Gesamtzahlen („… von 1.094 offenen und … von 429
@@ -605,6 +609,21 @@ Entscheidungen und Abweichungen in den Specs
 [Karten](../superpowers/specs/2026-09-11-regelbereich-karten.md). Nur das
 Meilenstein-Modul reicht Zahlen in den Editor.
 
+- **Die Wirkungsleiste startet zugeklappt** (PL, 12.09.2026: „card probe bitte
+  collapsible machen, und standard einklappen"). Wer eine Regel schreibt, sieht
+  zuerst die Regel; ein Klick auf die Kopfzeile klappt die drei Spalten auf. Der
+  Zustand gilt für den ganzen Reiter und überlebt den Reload
+  (`wirkungOffen` im bestehenden Ansichts-Schlüssel,
+  [ansichtPersistenz.ts](../../src/plugins/meilensteine/ansichtPersistenz.ts)).
+  Zugeklappt bleibt der Kopf sprechend: die **Kurzfassung** trägt die Zahlen mit
+  ihrem Nenner („Probe · Richtlinie 2025: erfüllt bei 1.084 von 1.094 offenen ·
+  424 von 429 abgeschlossenen"), „· geändert" bzw. „· neu" gegenüber der Fassung
+  und **jede** Marke, die aufgeklappt stünde (erfüllt bei allen/keinem, kein
+  Datum, N ohne Termin) — ein zugeklappter Streifen, der seine Warnung
+  verschluckt, entwertete die Probe. Damit Kopf und Spalte nicht auseinander
+  laufen, steht ihr Fall-Unterschied in je einer Kaskade (`probeZustand`,
+  `vergleichStand`), aus der beide lesen; nur Balken, Deltas und Sätze bleiben
+  dem offenen Streifen vorbehalten.
 - **Die Grundmenge ist die aktuelle Richtlinie, nicht der Chip im Seitenkopf**
   (`AKTUELLE_RICHTLINIE`, heute Richtlinie 2025 = Programme 136–139); auch der
   Eingangs-Zeitraum wirkt nicht. Die Probe prüft eine Regel und ist kein

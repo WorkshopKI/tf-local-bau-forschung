@@ -66,12 +66,14 @@ Tooltip an „Gesamtfrist" und an „Eingang" nennt die beiden Spalten.
     hervorgehobenen Feldnamen, Gruppen nur mit ihrem Namen („PreCheck AB") oder
     als „Gruppe 1", verbunden durch UND bzw. ODER. Darunter stehen etwa
     „4 Bedingungen in 2 Gruppen" und das Ist-Termin-Feld; den vollen Satz nennt
-    der Tooltip. Ein Sammel-Meilenstein sagt „wenn alle aktiven
-    Unter-Meilensteine erreicht sind", ein aktiver Meilenstein ohne Bedingung
-    in Rot „keine Bedingung — wird nicht geprüft". Ein Warn-Dreieck am Ende
-    meldet einen Befund der Probe. Inaktive Meilensteine stehen grau. Unter der
-    Bezeichnung steht die Zahl der Unter-Meilensteine; lange Titel brechen auf
-    bis zu drei Zeilen um.
+    der Tooltip.
+
+  - **Sonderfälle derselben Spalte**: Ein Sammel-Meilenstein sagt „wenn alle
+    aktiven Unter-Meilensteine erreicht sind", ein aktiver Meilenstein ohne
+    Bedingung in Rot „keine Bedingung — wird nicht geprüft". Ein Warn-Dreieck am
+    Ende meldet einen Befund der Probe. Inaktive Meilensteine stehen grau. Unter
+    der Bezeichnung steht die Zahl der Unter-Meilensteine; lange Titel brechen
+    auf bis zu drei Zeilen um.
 
   - **Zuordnung**: „unbestätigt" heißt, die Datenspalte ist aus dem
     Auslieferungs-Plan vorbelegt und noch nicht geprüft. Ein Klick bestätigt
@@ -149,13 +151,20 @@ Tooltip an „Gesamtfrist" und an „Eingang" nennt die beiden Spalten.
     die Gesamtzahlen dazu. Gezählt wird nur über Verbünde, für die der
     Meilenstein gilt.
 
-  - **Die Wirkungsleiste** unter den Karten hat drei Spalten. „Probe": etwa
-    erfüllt bei 988 von 1.094 offenen und 347 von 429 abgeschlossenen
-    Verbünden, je mit Balken. „Gegenüber Fassung 37": unverändert oder
-    geändert, darunter etwa „offen +92 · abgeschlossen +68". „Ist-Termin": die
-    Auswahl eines Datumsfelds und ein Satz, woher der Termin bei genau dieser
-    Regel kommt, etwa „Hier: das spätere Datum von Gruppe 1 und Gruppe 2; je
-    Gruppe das frühere ihrer gefüllten Datumsspalten."
+  - **Die Wirkungsleiste** „Wirkung am Bestand" unter den Karten ist
+    zugeklappt, bis man ihre Kopfzeile anklickt; der Auf-/Zu-Zustand bleibt für
+    den ganzen Reiter und nach dem Neuladen erhalten. Zugeklappt steht in der
+    Kopfzeile die Kurzfassung: etwa „Probe · Richtlinie 2025: erfüllt bei 1.084
+    von 1.094 offenen · 424 von 429 abgeschlossenen", dazu „· geändert" oder
+    „· neu" und jede gelbe Marke, die aufgeklappt zu sehen wäre.
+
+  - **Aufgeklappt** hat sie drei Spalten. „Probe": etwa erfüllt bei 988 von
+    1.094 offenen und 347 von 429 abgeschlossenen Verbünden, je mit Balken.
+    „Gegenüber Fassung 37": unverändert oder geändert, darunter etwa „offen +92
+    · abgeschlossen +68". „Ist-Termin": die Auswahl eines Datumsfelds und ein
+    Satz, woher der Termin bei genau dieser Regel kommt, etwa „Hier: das spätere
+    Datum von Gruppe 1 und Gruppe 2; je Gruppe das frühere ihrer gefüllten
+    Datumsspalten."
 
   - **Befunde**: eine gelbe Marke steht nur bei einer Tatsache, nie bei einer
     Schwelle. Eine Bedingung „trifft keinen Verbund" oder „trifft jeden
@@ -182,8 +191,9 @@ Tooltip an „Gesamtfrist" und an „Eingang" nennt die beiden Spalten.
     dazu; einer ohne Bedingung sagt „nichts zu zählen".
 
   - **Sammel-Meilenstein**: hat ein Meilenstein keine eigene Bedingung, aber
-    Unter-Meilensteine, zeigt er diese als Karten mit ihren Zahlen; ein Klick
-    öffnet den Unter-Meilenstein. Inaktive stehen gestrichelt daneben und
+    Unter-Meilensteine, zeigt er diese als gleich hohe Karten mit ihren Zahlen
+    in einer Zeile; ein Klick öffnet den Unter-Meilenstein. Inaktive stehen
+    gestrichelt daneben und
     „zählen nicht mit". Darunter lässt sich trotzdem eine eigene Bedingung
     anlegen — dann ist er auch erreicht, sobald sie zutrifft.
 

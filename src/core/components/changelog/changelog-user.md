@@ -19,6 +19,13 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v6.63 — 2026-09
+
+### Verbesserungen
+- In der Konfiguration der Meilensteine ist „Wirkung am Bestand" jetzt eine Karte, die Sie auf- und zuklappen können — und die zunächst zugeklappt ist. So steht Ihre Regel wieder oben im Blick. Ein Klick auf die Kopfzeile zeigt die drei Spalten Probe, Vergleich mit der freigegebenen Fassung und Ist-Termin; ob Sie sie offen oder zu haben wollen, merkt sich die Seite auch nach dem Neuladen.
+- Zugeklappt sagt die Kopfzeile trotzdem das Wichtigste: „erfüllt bei 1.084 von 1.094 offenen · 424 von 429 abgeschlossenen", dazu „geändert" oder „neu" gegenüber der freigegebenen Fassung — und jeder Hinweis, der aufgeklappt zu sehen wäre, etwa „kein Datum" oder „224 ohne Termin".
+- Die Karten der Unter-Meilensteine eines Sammel-Meilensteins sind kompakter: „erfüllt bei … offen · … abgeschl." steht in einer Zeile, die Karten sind etwas breiter und alle gleich hoch.
+
 ## v6.62 — 2026-09
 
 ### Neu

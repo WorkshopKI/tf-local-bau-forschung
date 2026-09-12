@@ -15,9 +15,13 @@
  * Ist-Termin. Welcher Anteil sonst plausibel ist, hängt am Meilenstein — das
  * Urteil fällt die PL.
  */
-import { FlaskConical } from 'lucide-react';
+import { useState } from 'react';
+import { ChevronRight, FlaskConical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { probeBefund, type OhneDatum, type ProbeBefund, type ProbeTeil, type ProbeZahlen } from '@/core/meilensteine';
+import {
+  probeBefund, type KnotenProbe, type OhneDatum, type ProbeBefund, type ProbeTeil, type ProbeZahlen,
+} from '@/core/meilensteine';
+import { ladeWirkungOffen, speichereWirkungOffen } from './ansichtPersistenz';
 import { formatDatum } from './labels';
 import type { MeilensteinProbeApi } from './useMeilensteinProbe';
 
@@ -42,6 +46,10 @@ function zahlenTitel(z: ProbeZahlen, was: string, grundmenge: string): string {
 }
 
 const BEFUND_BLATT: Record<ProbeBefund, string> = { keiner: 'trifft keinen Verbund', alle: 'trifft jeden Verbund' };
+/** Derselbe Befund an der GANZEN Regel — Probe-Spalte und zugeklappter Kopf sagen dasselbe Wort. */
+const BEFUND_REGEL: Record<ProbeBefund, string> = { keiner: 'erfüllt bei keinem', alle: 'erfüllt bei allen' };
+const BEFUND_REGEL_TITEL = 'Die Regel unterscheidet nichts — meist steckt eine Bedingung dahinter, '
+  + 'die keinen oder jeden Verbund trifft.';
 const BEFUND_TITEL: Record<ProbeBefund, string> = {
   keiner: 'Diese Bedingung trifft keinen Verbund der Grundmenge — liest sie den richtigen Wert?',
   alle: 'Diese Bedingung unterscheidet nichts: sie trifft jeden Verbund der Grundmenge.',
@@ -132,10 +140,45 @@ const KOPF = 'flex items-center gap-1.5 text-[11.5px] text-[var(--tf-text-second
 const GROSS = 'text-[12.5px] tabular-nums text-[var(--tf-text)]';
 
 /**
+ * Der Stand der Probe an einem Knoten — EINE Kaskade für beide Leser: die
+ * Probe-Spalte (offen) und die Kurzfassung im Kopf (zugeklappt). Zwei Fassungen
+ * derselben Kaskade liefen beim ersten neuen Fall auseinander.
+ */
+type ProbeZustand =
+  | { art: 'hinweis'; text: string; fehler?: boolean }
+  | { art: 'zahlen'; z: KnotenProbe }
+  /** Der Knoten steht (noch) nicht im Lauf — dann steht dort nichts. */
+  | { art: 'leer' };
+
+function probeZustand(
+  probe: MeilensteinProbeApi | undefined,
+  knotenId: string,
+  ohneBedingung: boolean,
+): ProbeZustand {
+  if (!probe) return { art: 'hinweis', text: 'nicht verfügbar' };
+  if (probe.aktion.error) return { art: 'hinweis', text: `nicht möglich — ${probe.aktion.error}`, fehler: true };
+  if (!probe.bereit || !probe.entwurf) return { art: 'hinweis', text: 'lädt die Verbünde …' };
+  if (ohneBedingung) return { art: 'hinweis', text: 'ohne Bedingung — nichts zu zählen' };
+  const z = probe.entwurf.get(knotenId);
+  if (!z) return { art: 'leer' };
+  if (z.offen.von + z.abgeschlossen.von === 0) {
+    return { art: 'hinweis', text: 'gilt für keinen Verbund dieser Richtlinie' };
+  }
+  return { art: 'zahlen', z };
+}
+
+/**
  * Die Wirkung eines Meilensteins am Bestand — unter den Karten, in drei Spalten:
  * Probe (mit Balken), gegenüber der freigegebenen Fassung, Ist-Termin. Aus
  * Entwurf D des Regelbereichs: die Regel selbst bleibt oben unter sich, was sie
  * bewirkt und wann sie als erreicht gilt, steht an EINER Stelle darunter.
+ *
+ * **Zugeklappt als Standard** (v6.63, PL): wer eine Regel schreibt, sieht zuerst
+ * die Regel. Der Kopf bleibt aber sprechend — die Kurzfassung trägt die Zahlen
+ * MIT Nenner und jede gelbe Marke (erfüllt bei allen/keinem, kein Datum, ohne
+ * Termin) weiter. Ein zugeklappter Streifen, der seine Warnung verschluckt,
+ * hätte genau das entwertet, wofür die Probe gebaut wurde. Der Auf-/Zu-Zustand
+ * gilt für den ganzen Reiter und überlebt den Reload (`ansichtPersistenz`).
  */
 export function Wirkungsleiste({ probe, knotenId, ohneBedingung, ist, ohneBefund = false }: {
   probe?: MeilensteinProbeApi;
@@ -146,24 +189,98 @@ export function Wirkungsleiste({ probe, knotenId, ohneBedingung, ist, ohneBefund
   /** Der Meilenstein misst nur einen Zeitpunkt — „erfüllt bei allen" ist dort gewollt. */
   ohneBefund?: boolean;
 }): React.ReactElement {
-  const z = probe?.bereit ? probe.entwurf?.get(knotenId) ?? null : null;
+  const [offen, setOffen] = useState(ladeWirkungOffen);
+  const zustand = probeZustand(probe, knotenId, ohneBedingung);
+  const z = zustand.art === 'zahlen' ? zustand.z : null;
+  const schalte = (): void => {
+    setOffen(vorher => {
+      speichereWirkungOffen(!vorher);
+      return !vorher;
+    });
+  };
   return (
     <div
-      className="mt-1 grid grid-cols-1 divide-y divide-[var(--tf-border)] rounded-[8px] bg-[var(--tf-bg-secondary)]
-        md:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)_minmax(0,1.5fr)] md:divide-x md:divide-y-0"
+      className="mt-1 rounded-[8px] bg-[var(--tf-bg-secondary)]"
       style={{ border: '0.5px solid var(--tf-border)' }}
     >
-      <ProbeSpalte probe={probe} knotenId={knotenId} ohneBedingung={ohneBedingung} ohneBefund={ohneBefund} />
-      <VergleichSpalte probe={probe} knotenId={knotenId} />
-      <IstSpalte ist={ist} ohneDatum={z && !ohneBedingung ? z.ohneDatum : null} />
+      <button
+        type="button"
+        onClick={schalte}
+        aria-expanded={offen}
+        title={offen ? 'Wirkung am Bestand einklappen' : 'Wirkung am Bestand ausklappen'}
+        className="flex w-full cursor-pointer items-center gap-2 px-3.5 py-2 text-left"
+      >
+        <ChevronRight
+          size={13}
+          className="shrink-0 text-[var(--tf-text-tertiary)] transition-transform duration-200"
+          style={{ transform: offen ? 'rotate(90deg)' : 'rotate(0deg)' }}
+        />
+        <span className="shrink-0 text-[11.5px] font-medium text-[var(--tf-text-secondary)]">Wirkung am Bestand</span>
+        {!offen && (
+          <Kurzfassung
+            zustand={zustand}
+            vergleich={vergleichStand(probe, knotenId)}
+            grundmenge={probe?.grundmenge ?? 'aktuelle Richtlinie'}
+            ist={ist}
+            ohneBefund={ohneBefund}
+          />
+        )}
+      </button>
+      {offen && (
+        <div
+          className="grid grid-cols-1 divide-y divide-[var(--tf-border)]
+            md:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)_minmax(0,1.5fr)] md:divide-x md:divide-y-0"
+          style={{ borderTop: '0.5px solid var(--tf-border)' }}
+        >
+          <ProbeSpalte probe={probe} zustand={zustand} ohneBefund={ohneBefund} />
+          <VergleichSpalte stand={vergleichStand(probe, knotenId)} version={probe?.fassungVersion ?? null} />
+          <IstSpalte ist={ist} ohneDatum={z ? z.ohneDatum : null} />
+        </div>
+      )}
     </div>
   );
 }
 
-function ProbeSpalte({ probe, knotenId, ohneBedingung, ohneBefund }: {
+/**
+ * Was der zugeklappte Kopf sagt: die Zahlen der Probe mit ihrem Nenner, ob sich
+ * gegenüber der Fassung etwas geändert hat, und JEDE Marke, die aufgeklappt
+ * stünde. Sie ist eine Kurzfassung, keine Auswahl — nur die Balken, die Deltas
+ * und die Sätze bleiben dem offenen Streifen vorbehalten.
+ */
+function Kurzfassung({ zustand, vergleich, grundmenge, ist, ohneBefund }: {
+  zustand: ProbeZustand;
+  vergleich: VergleichStand;
+  grundmenge: string;
+  ist: IstTerminAnzeige;
+  ohneBefund: boolean;
+}): React.ReactElement {
+  const z = zustand.art === 'zahlen' ? zustand.z : null;
+  const befund = z && !ohneBefund ? probeBefund(z) : null;
+  const ohne = !ist.keinDatum && z && z.ohneDatum.offen + z.ohneDatum.abgeschlossen > 0 ? z.ohneDatum : null;
+  const text = z
+    ? `erfüllt bei ${zahl(z.offen.treffer)} von ${zahl(z.offen.von)} offenen`
+      + ` · ${zahl(z.abgeschlossen.treffer)} von ${zahl(z.abgeschlossen.von)} abgeschlossenen`
+    : (zustand.art === 'hinweis' ? zustand.text : '');
+  const geaendert = vergleich.art === 'neu'
+    ? 'neu'
+    : (vergleich.art === 'delta' && (vergleich.dO !== 0 || vergleich.dA !== 0) ? 'geändert' : null);
+  return (
+    <span className="flex min-w-0 flex-wrap items-center gap-1.5 text-[11.5px] text-[var(--tf-text-secondary)]">
+      <FlaskConical size={11} className="shrink-0" />
+      <span className={`truncate tabular-nums ${zustand.art === 'hinweis' && zustand.fehler === true ? 'text-[var(--tf-danger-text)]' : ''}`}>
+        Probe · {grundmenge}{text ? `: ${text}` : ''}
+      </span>
+      {geaendert && <span className="shrink-0">· {geaendert}</span>}
+      {befund && <BefundMarke title={BEFUND_REGEL_TITEL}>{BEFUND_REGEL[befund]}</BefundMarke>}
+      {ist.keinDatum && <BefundMarke>kein Datum</BefundMarke>}
+      {ohne && <BefundMarke>{zahl(ohne.offen)} ohne Termin</BefundMarke>}
+    </span>
+  );
+}
+
+function ProbeSpalte({ probe, zustand, ohneBefund }: {
   probe?: MeilensteinProbeApi;
-  knotenId: string;
-  ohneBedingung: boolean;
+  zustand: ProbeZustand;
   ohneBefund: boolean;
 }): React.ReactElement {
   const kopf = (
@@ -172,35 +289,31 @@ function ProbeSpalte({ probe, knotenId, ohneBedingung, ohneBefund }: {
       Probe · {probe?.grundmenge ?? 'aktuelle Richtlinie'}
     </div>
   );
-  if (!probe) return <div className={SPALTE}>{kopf}<span className="text-[11.5px] text-[var(--tf-text-secondary)]">nicht verfügbar</span></div>;
-  if (probe.aktion.error) {
+  if (zustand.art === 'leer') return <div className={SPALTE}>{kopf}</div>;
+  if (zustand.art === 'hinweis') {
+    const farbe = zustand.fehler === true ? 'text-[var(--tf-danger-text)]' : 'text-[var(--tf-text-secondary)]';
     return (
       <div className={SPALTE}>
         {kopf}
-        <span className="text-[11.5px] text-[var(--tf-danger-text)]">nicht möglich — {probe.aktion.error}</span>
-        <Button variant="ghost" size="xs" disabled={probe.aktion.busy} onClick={() => probe.aktion.run()}>
-          {probe.aktion.busy ? 'Lädt …' : 'Erneut versuchen'}
-        </Button>
+        <span className={`text-[11.5px] ${farbe}`}>{zustand.text}</span>
+        {zustand.fehler === true && probe && (
+          <Button variant="ghost" size="xs" disabled={probe.aktion.busy} onClick={() => probe.aktion.run()}>
+            {probe.aktion.busy ? 'Lädt …' : 'Erneut versuchen'}
+          </Button>
+        )}
       </div>
     );
   }
-  if (!probe.bereit || !probe.entwurf) {
-    return <div className={SPALTE}>{kopf}<span className="text-[11.5px] text-[var(--tf-text-secondary)]">lädt die Verbünde …</span></div>;
-  }
-  if (ohneBedingung) {
-    return <div className={SPALTE}>{kopf}<span className="text-[11.5px] text-[var(--tf-text-secondary)]">ohne Bedingung — nichts zu zählen</span></div>;
-  }
-  const z = probe.entwurf.get(knotenId);
-  if (!z) return <div className={SPALTE}>{kopf}</div>;
-  if (z.offen.von + z.abgeschlossen.von === 0) {
-    return <div className={SPALTE}>{kopf}<span className="text-[11.5px] text-[var(--tf-text-secondary)]">gilt für keinen Verbund dieser Richtlinie</span></div>;
-  }
-  const u = probe.umfang;
-  const dauer = probe.dauerMs === null
+  const z = zustand.z;
+  // Ab hier steht die Probe: `probe` ist gesetzt, sonst wäre oben ein Hinweis gekommen.
+  const u = probe?.umfang ?? null;
+  const ms = probe?.dauerMs ?? null;
+  const dauer = ms === null
     ? ''
-    : `, geladen in ${(probe.dauerMs / 1000).toLocaleString('de-DE', { maximumFractionDigits: 1 })} s`;
+    : `, geladen in ${(ms / 1000).toLocaleString('de-DE', { maximumFractionDigits: 1 })} s`;
   const erklaerung = `Gezählt über ${u ? zahl(u.offen) : '?'} offene und ${u ? zahl(u.abgeschlossen) : '?'} `
-    + `abgeschlossene Verbünde der ${probe.grundmenge}, Stand ${formatDatum(probe.stand)}${dauer}. `
+    + `abgeschlossene Verbünde der ${probe?.grundmenge ?? 'aktuellen Richtlinie'}, `
+    + `Stand ${formatDatum(probe?.stand ?? null)}${dauer}. `
     + 'Abgeschlossen heißt amtlich fertig: dort sollte fast jeder Meilenstein erfüllt sein — '
     + 'trifft er dort wenig, liest die Bedingung vermutlich die falsche Spalte.';
   const befund = ohneBefund ? null : probeBefund(z);
@@ -215,11 +328,7 @@ function ProbeSpalte({ probe, knotenId, ohneBedingung, ohneBefund }: {
         <div className={GROSS}><span className="font-medium">{zahl(z.abgeschlossen.treffer)}</span> von {zahl(z.abgeschlossen.von)} abgeschlossenen</div>
         <div className="mt-1"><Balken prozent={anteilProzent(z.abgeschlossen)} /></div>
       </div>
-      {befund && (
-        <BefundMarke title="Die Regel unterscheidet nichts — meist steckt eine Bedingung dahinter, die keinen oder jeden Verbund trifft.">
-          {befund === 'alle' ? 'erfüllt bei allen' : 'erfüllt bei keinem'}
-        </BefundMarke>
-      )}
+      {befund && <BefundMarke title={BEFUND_REGEL_TITEL}>{BEFUND_REGEL[befund]}</BefundMarke>}
       {z.inaktiv && <span className="text-[11.5px] text-[var(--tf-text-secondary)]">inaktiv — gezählt, als wäre er aktiv</span>}
     </div>
   );
@@ -227,24 +336,47 @@ function ProbeSpalte({ probe, knotenId, ohneBedingung, ohneBefund }: {
 
 const vorzeichen = (d: number): string => (d > 0 ? `+${zahl(d)}` : (d < 0 ? `−${zahl(-d)}` : '±0'));
 
-function VergleichSpalte({ probe, knotenId }: { probe?: MeilensteinProbeApi; knotenId: string }): React.ReactElement {
-  const v = probe?.fassungVersion ?? null;
-  const kopf = <div className={KOPF}>{v === null ? 'freigegebene Fassung' : `gegenüber Fassung ${v}`}</div>;
+/** Wie der Entwurf zur freigegebenen Fassung steht — EINE Kaskade für Spalte und Kopf. */
+type VergleichStand =
+  | { art: 'ohne' }
+  | { art: 'keineFassung' }
+  | { art: 'neu' }
+  | { art: 'delta'; dO: number; dA: number };
+
+function vergleichStand(probe: MeilensteinProbeApi | undefined, knotenId: string): VergleichStand {
   const z = probe?.bereit ? probe.entwurf?.get(knotenId) : undefined;
-  if (!z) return <div className={SPALTE}>{kopf}<span className={GROSS}>—</span></div>;
-  if (v === null) return <div className={SPALTE}>{kopf}<span className="text-[11.5px] text-[var(--tf-text-secondary)]">noch keine freigegeben</span></div>;
+  if (!z) return { art: 'ohne' };
+  if ((probe?.fassungVersion ?? null) === null) return { art: 'keineFassung' };
   const f = probe?.fassung?.get(knotenId);
-  if (!f) {
-    return <div className={SPALTE}>{kopf}<span className={GROSS}>neu</span><span className="text-[11.5px] text-[var(--tf-text-secondary)]">in Fassung {v} nicht vorhanden</span></div>;
+  if (!f) return { art: 'neu' };
+  return {
+    art: 'delta',
+    dO: z.offen.treffer - f.offen.treffer,
+    dA: z.abgeschlossen.treffer - f.abgeschlossen.treffer,
+  };
+}
+
+function VergleichSpalte({ stand, version }: { stand: VergleichStand; version: number | null }): React.ReactElement {
+  const kopf = <div className={KOPF}>{version === null ? 'freigegebene Fassung' : `gegenüber Fassung ${version}`}</div>;
+  if (stand.art === 'ohne') return <div className={SPALTE}>{kopf}<span className={GROSS}>—</span></div>;
+  if (stand.art === 'keineFassung') {
+    return <div className={SPALTE}>{kopf}<span className="text-[11.5px] text-[var(--tf-text-secondary)]">noch keine freigegeben</span></div>;
   }
-  const dO = z.offen.treffer - f.offen.treffer;
-  const dA = z.abgeschlossen.treffer - f.abgeschlossen.treffer;
+  if (stand.art === 'neu') {
+    return (
+      <div className={SPALTE}>
+        {kopf}
+        <span className={GROSS}>neu</span>
+        <span className="text-[11.5px] text-[var(--tf-text-secondary)]">in Fassung {version} nicht vorhanden</span>
+      </div>
+    );
+  }
   return (
     <div className={SPALTE}>
       {kopf}
-      <span className={GROSS}>{dO === 0 && dA === 0 ? 'unverändert' : 'geändert'}</span>
+      <span className={GROSS}>{stand.dO === 0 && stand.dA === 0 ? 'unverändert' : 'geändert'}</span>
       <span className="text-[11.5px] tabular-nums text-[var(--tf-text-secondary)]">
-        offen {vorzeichen(dO)} · abgeschlossen {vorzeichen(dA)}
+        offen {vorzeichen(stand.dO)} · abgeschlossen {vorzeichen(stand.dA)}
       </span>
     </div>
   );

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
-  ladeBereich, ladeTab, ladeUebersichtFilter, ladeWocheNurMeine,
-  speichereBereich, speichereTab, speichereUebersichtFilter, speichereWocheNurMeine,
+  ladeBereich, ladeTab, ladeUebersichtFilter, ladeWirkungOffen, ladeWocheNurMeine,
+  speichereBereich, speichereTab, speichereUebersichtFilter, speichereWirkungOffen, speichereWocheNurMeine,
 } from '@/plugins/meilensteine/ansichtPersistenz';
 import { LEERER_FILTER, standardBereich } from '@/plugins/meilensteine/monitoringLogic';
 
@@ -54,6 +54,10 @@ describe('Ansicht der Meilenstein-Seite — Standard beim ersten Besuch', () => 
     expect(ladeUebersichtFilter(false)).toEqual(LEERER_FILTER);
     expect(ladeWocheNurMeine(false)).toBe(false);
   });
+
+  it('hält die Wirkungsleiste zugeklappt — die Regel steht vor ihren Zahlen', () => {
+    expect(ladeWirkungOffen()).toBe(false);
+  });
 });
 
 describe('Ansicht der Meilenstein-Seite — Merken und Wiederherstellen', () => {
@@ -90,14 +94,23 @@ describe('Ansicht der Meilenstein-Seite — Merken und Wiederherstellen', () => 
     expect(ladeWocheNurMeine(true)).toBe(false);
   });
 
+  it('merkt eine aufgeklappte Wirkungsleiste über den Reload hinweg', () => {
+    speichereWirkungOffen(true);
+    expect(ladeWirkungOffen()).toBe(true);
+    speichereWirkungOffen(false);
+    expect(ladeWirkungOffen()).toBe(false);
+  });
+
   it('hält die Werte auseinander — ein Schreiben löscht die anderen nicht', () => {
     speichereTab('uebersicht');
     speichereBereich(null);
     speichereWocheNurMeine(true);
+    speichereWirkungOffen(true);
     speichereUebersichtFilter({ ...LEERER_FILTER, typen: ['NW'] });
     expect(ladeTab()).toBe('uebersicht');
     expect(ladeBereich(2026)).toBeNull();
     expect(ladeWocheNurMeine(true)).toBe(true);
+    expect(ladeWirkungOffen()).toBe(true);
     expect(ladeUebersichtFilter(true).typen).toEqual(['NW']);
   });
 });
