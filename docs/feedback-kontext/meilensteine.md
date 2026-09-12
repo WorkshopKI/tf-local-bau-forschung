@@ -89,10 +89,10 @@ Tooltip an „Gesamtfrist" und an „Eingang" nennt die beiden Spalten.
     Meilenstein ohne Bedingung bekommt zusätzlich eine Zeile „Vorschlag …
     Übernehmen" — der Vorschlag wird nie von selbst gesetzt.
 
-  - **In der Karte** steht der Feldname schlicht mit gepunkteter Unterlinie,
-    darunter Vergleich und Wert. Ein langer Feldname bricht um, statt
-    abgeschnitten zu werden („alle Anträge in C16 eingegeben · D_XTEC" steht
-    vollständig da).
+  - **In der Karte** steht der Feldname hervorgehoben mit gepunkteter
+    Unterlinie, darunter Vergleich und Wert. Er ist das Kräftigste in der Karte
+    — er ist die Bedingung. Ein langer Feldname bricht um, statt abgeschnitten
+    zu werden („alle Anträge in C16 eingegeben · D_XTEC" steht vollständig da).
 
   - **Karten nebeneinander**: jede Gruppe steht als Karte, eine einzelne
     Bedingung als kleine Karte, eine Gruppe in einer Gruppe als Innenkarte.
@@ -114,9 +114,13 @@ Tooltip an „Gesamtfrist" und an „Eingang" nennt die beiden Spalten.
     sagt die Regel.
 
   - **Anlegen**: unter den Karten stehen „+ Bedingung" und „+ Gruppe" für die
-    oberste Ebene; am Fuß jeder Karte stehen ebenfalls „+ Bedingung" und
-    „+ Gruppe" (eine Gruppe in dieser Karte). Eine leere Gruppe sagt dazu, was
-    sie bedeutet: „Leer = immer erfüllt" bzw. „Leer = nie erfüllt".
+    oberste Ebene — immer sichtbar. Am Fuß jeder Karte stehen ebenfalls
+    „+ Bedingung" und „+ Gruppe" (eine Gruppe in dieser Karte), diese beiden
+    aber erst, wenn die Maus über der Karte steht oder ein Knopf per Tab den
+    Fokus hat; sonst ständen zwei fast gleich aussehende Paare dicht
+    übereinander, die Verschiedenes tun. Alle vier Knöpfe sind bewusst leiser
+    gesetzt als die Bedingungen. Eine leere Gruppe sagt dazu, was sie bedeutet:
+    „Leer = immer erfüllt" bzw. „Leer = nie erfüllt".
 
   - **Gruppen tragen einen Namen**: ohne Namen steht grau „Gruppe 1",
     „Gruppe 2" im Kartenkopf (in einer Innenkarte „Gruppe 1.1");

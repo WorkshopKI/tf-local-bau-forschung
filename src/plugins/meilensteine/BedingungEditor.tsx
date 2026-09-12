@@ -183,14 +183,14 @@ export function BedingungEditor({ bedingung, onChange, ...rest }: EditorProps): 
           angehen, solange man liest. */}
       <div className="mt-2 flex flex-wrap items-center gap-1">
         <Button
-          variant="ghost" size="xs" icon={Plus}
+          variant="ghost" size="xs" icon={Plus} className={ANLEGEN_STIL}
           title="Eine einzelne Bedingung als eigene Karte"
           onClick={() => onChange(fuegeBedingungEin(wurzel, [], kinder.length, { feldId: ctx.ersteSpalte, op: 'gefuellt' }))}
         >
           Bedingung
         </Button>
         <Button
-          variant="ghost" size="xs" icon={Plus}
+          variant="ghost" size="xs" icon={Plus} className={ANLEGEN_STIL}
           title="Eine neue Karte für mehrere Bedingungen, die zusammen gelten"
           onClick={() => onChange(fuegeBedingungEin(wurzel, [], kinder.length, { einige: [] }))}
         >
@@ -312,6 +312,27 @@ function Zelle({ ctx, pfad, blatt }: { ctx: Ctx; pfad: BedingungsPfad; blatt: Bl
  */
 const KARTEN_BREITE = 'min-w-[260px] max-w-[480px] flex-[1_1_380px]';
 
+/**
+ * „+ Bedingung" / „+ Gruppe" sind Angebote, keine Aussagen (v6.64, Entwurf
+ * „leiser/lauter"): mageres Grau statt der halbfetten Vorgabe des Knopfes — sie
+ * standen sonst kräftiger da als die Bedingung, um die es geht. Erst beim
+ * Überfahren nehmen sie Textfarbe an.
+ */
+const ANLEGEN_STIL = 'font-normal text-[var(--tf-text-secondary)] hover:text-[var(--tf-text)]';
+
+/**
+ * Im Fuß einer Karte erscheinen sie **erst, wenn die Maus über der Karte
+ * steht**: innen und außen standen sonst zwei gleich aussehende Paare rund
+ * 40 px übereinander, die Verschiedenes tun (in diese Gruppe einfügen vs. eine
+ * neue Karte anlegen). Verborgen wird per `opacity`, nicht per `display` — der
+ * Platz bleibt reserviert (kein Springen) und die Tastatur erreicht sie über
+ * `focus-within`. Tailwind hängt `group-hover` an `@media (hover: hover)`; auf
+ * einem reinen Tastbildschirm bliebe der Fuß also unsichtbar — für eine
+ * `file://`-App auf Windows-Arbeitsplätzen in Kauf genommen, der Weg über die
+ * Tastatur bleibt.
+ */
+const FUSS_AUF_HOVER = 'opacity-0 transition-opacity focus-within:opacity-100';
+
 /** Eine Einzelbedingung auf oberster Ebene — eine kleine Karte ohne Kopf. */
 function EinzelKarte({ ctx, pfad, blatt }: { ctx: Ctx; pfad: BedingungsPfad; blatt: Blatt }): React.ReactElement {
   const wirdGezogen = !!ctx.gezogen && gleich(ctx.gezogen, pfad);
@@ -364,8 +385,8 @@ function Karte({ ctx, pfad, gruppe, platzhalter, innen = false }: {
   return (
     <div
       className={innen
-        ? 'mx-1 my-0.5 flex flex-col rounded-[6px] bg-[var(--tf-bg-secondary)]'
-        : cn(KARTEN_BREITE, 'flex flex-col rounded-[8px] bg-[var(--tf-bg)]')}
+        ? 'group/innenkarte mx-1 my-0.5 flex flex-col rounded-[6px] bg-[var(--tf-bg-secondary)]'
+        : cn(KARTEN_BREITE, 'group/karte flex flex-col rounded-[8px] bg-[var(--tf-bg)]')}
       style={{
         border: '0.5px solid var(--tf-border)',
         ...(kastenAktiv ? { outline: '1px solid var(--tf-primary)' } : {}),
@@ -457,13 +478,21 @@ function Karte({ ctx, pfad, gruppe, platzhalter, innen = false }: {
         )}
       </div>
 
-      <div className={cn('mt-auto flex items-center gap-1', innen ? 'px-1.5 pb-1.5' : 'px-2 pb-2 pt-1')}>
-        <Button variant="ghost" size="xs" icon={Plus} onClick={() => ergaenze({ feldId: ctx.ersteSpalte, op: 'gefuellt' })}>
+      <div
+        className={cn(
+          'mt-auto flex items-center gap-1', FUSS_AUF_HOVER,
+          innen ? 'px-1.5 pb-1.5 group-hover/innenkarte:opacity-100' : 'px-2 pb-2 pt-1 group-hover/karte:opacity-100',
+        )}
+      >
+        <Button
+          variant="ghost" size="xs" icon={Plus} className={ANLEGEN_STIL}
+          onClick={() => ergaenze({ feldId: ctx.ersteSpalte, op: 'gefuellt' })}
+        >
           Bedingung
         </Button>
         {!innen && pfad.length < MAX_TIEFE && (
           <Button
-            variant="ghost" size="xs" icon={Plus}
+            variant="ghost" size="xs" icon={Plus} className={ANLEGEN_STIL}
             title="Eine Gruppe in dieser Karte — ihre Bedingungen hängen mit eigener Verknüpfung zusammen"
             onClick={() => ergaenze({ einige: [] })}
           >

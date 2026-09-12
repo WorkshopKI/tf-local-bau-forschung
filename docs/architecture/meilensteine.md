@@ -329,13 +329,31 @@ nebeneinander auf einen Blick:
   gewachsen (gemessen 12.09.2026, dev:local, 1500 × 1100). Eine leere
   Gruppe sagt, was sie wert ist: „Leer = immer erfüllt" unter „alle", „Leer =
   nie erfüllt" unter „eine".
+  **Alle vier Knöpfe sind Angebote, keine Aussagen** (`ANLEGEN_STIL`): mager
+  (400) und sekundärfarben statt der halbfetten Knopf-Vorgabe (500), Textfarbe
+  erst beim Überfahren — sie standen sonst kräftiger da als die Bedingung, um
+  die es geht. **Der Fuß einer Karte erscheint erst unter der Maus**
+  (`FUSS_AUF_HOVER`, dazu `group/karte` für äußere und `group/innenkarte` für
+  innere Karten, damit eine Innenkarte den Fuß der Elternkarte nicht mitzieht):
+  ohne das standen innen und außen zwei gleich aussehende Paare rund 40 px
+  übereinander, die Verschiedenes tun — in diese Gruppe einfügen vs. eine neue
+  Karte anlegen. Verborgen wird per `opacity`, nicht per `display`: der Platz
+  bleibt reserviert (kein Springen) und die Tastatur erreicht die Knöpfe über
+  `focus-within`. Die Knöpfe **unter** der Reihe bleiben immer sichtbar.
+  Bekannte Grenze: Tailwind hängt `group-hover` an `@media (hover: hover)` — auf
+  einem reinen Tastbildschirm bliebe der Fuß unsichtbar, für eine `file://`-App
+  auf Windows-Arbeitsplätzen in Kauf genommen.
 - **Eine Bedingung ist eine Zelle**
   ([BlattZeile.tsx](../../src/plugins/meilensteine/BlattZeile.tsx)): oben das
   Feld, darunter Vergleich, Wert und — bei den Meilensteinen — die Treffer. Der
   Feld-Wähler steht dort in der `variante: 'leise'` (nur der Feldname mit
   gepunkteter Unterkante): ein Dutzend gerahmter Felder übertönte die Regel.
   Dort bricht der Name um statt abgeschnitten zu werden — er ist das, was die
-  Bedingung ausmacht, und muss ohne Tooltip lesbar sein.
+  Bedingung ausmacht, und muss ohne Tooltip lesbar sein. Aus demselben Grund
+  trägt er `font-medium`: 500 ist das schwerste Gewicht der Skala im
+  [DESIGN_GUIDE](../../DESIGN_GUIDE.md) (Bold kennt das System nicht), also
+  dasselbe wie ein Kartentitel. Das gilt in jeder Bedingungs-Karte, auch im
+  To-do-Regel-Detail und im Dialog „Eigene Spalte".
   **Griff und ⋯ erscheinen nur an der Zelle unter der Maus oder im Fokus**
   (`focus-within`, per Tab erreichbar) — ein Dutzend Bündel nebeneinander war
   das Rauschen, das die PL „nicht übersichtlich" fand.

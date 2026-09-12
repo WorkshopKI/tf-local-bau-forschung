@@ -5,6 +5,17 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v6.64.1 — Anlegen-Knoepfe leiser, Bedingungen schwerer, Kartenfuss auf Hover (September 2026)
+
+PATCH — Nutzer zum Regelbereich aus v6.64.0: „wollten wir die +bedingung und + gruppe nicht optisch leiser machen (nicht fett) wie im screen von claude design?" und „und dafür die bedingungen fett".
+Seit die gestrichelte Anlege-Karte entfallen ist, standen „+ Bedingung / + Gruppe" zweimal fast gleich aussehend übereinander — im Kartenfuß und unter der Kartenreihe — und kräftiger als die Bedingung, um die es geht.
+
+- Alle vier Anlege-Knöpfe mager und sekundärfarben statt halbfett, Textfarbe erst beim Überfahren: `ANLEGEN_STIL` ([BedingungEditor.tsx](src/plugins/meilensteine/BedingungEditor.tsx))
+- Der Fuß einer Karte erscheint erst, wenn die Maus über ihr steht oder ein Knopf den Fokus hat: `FUSS_AUF_HOVER` ([BedingungEditor.tsx](src/plugins/meilensteine/BedingungEditor.tsx))
+- Getrennte Gruppen-Namen `group/karte` und `group/innenkarte`, damit eine Innenkarte nicht den Fuß der Elternkarte mitzieht ([BedingungEditor.tsx](src/plugins/meilensteine/BedingungEditor.tsx))
+- Feldname in der Variante `leise` auf `font-medium` — er ist die Bedingung und trägt das Gewicht eines Kartentitels ([FeldWaehler.tsx](src/components/ui/FeldWaehler.tsx))
+- Doku: [meilensteine.md → Der Bedingungs-Bereich](docs/architecture/meilensteine.md), [Feedback-Kontext](docs/feedback-kontext/meilensteine.md)
+
 ### v6.64.0 — Regelbereich: Bedingungen lauter, Probe leiser, Ist-Termin sichtbar (September 2026)
 
 MINOR — Nutzer zu einem Claude-Design-Entwurf des Regelbereichs: „es ging darum die zusatz dinge (wirkung im bestand etc.) visuell leiser zu machen und die bedingungen aus denen sich ein meilenstein ergibt visuell lauter zu machen. was davon können wir übernehmen?"

@@ -259,8 +259,12 @@ export function FeldWaehler({
         >
           {/* Leise bricht der Name um statt abzuschneiden: in einer Karte ist er
               das, was die Bedingung ausmacht — per Tooltip lesen genügt nicht. */}
+          {/* `font-medium`: der Feldname IST die Bedingung — er trägt dasselbe
+              Gewicht wie ein Kartentitel (500, das Schwerste der Skala im
+              DESIGN_GUIDE; Bold kennt das System nicht). Die Knöpfe daneben
+              („+ Bedingung") sind dafür auf 400 gefallen. */}
           <span className={cn(leise
-            ? 'min-w-0 break-words underline decoration-dotted decoration-[var(--tf-border-hover)] underline-offset-[3px]'
+            ? 'min-w-0 break-words font-medium underline decoration-dotted decoration-[var(--tf-border-hover)] underline-offset-[3px]'
             : 'truncate')}>
             {ausloeserText}
           </span>
