@@ -19,6 +19,16 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v6.66 — 2026-09
+
+### Verbesserungen
+- **Jede Uhr hat jetzt ihr eigenes Wort.** Bisher hießen die Bearbeitungsfrist, ein verpasster Meilenstein und ein Vorgang ohne Bewegung alle „überfällig", und alle standen in Rot — an einem Antrag konnten so mehrere rote Tageszahlen nebeneinander stehen, ohne dass klar war, welche was meint. Jetzt gilt: Die **Frist** steht als „12 Tage über der Frist", „noch 5 Tage" oder „angehalten" da. Ein **Meilenstein** ist „gerissen"; seit wann, steht beim Überfahren. Ein **Stillstand** heißt „keine Bewegung seit 26 Tagen, Ziel 7 Tage" und ist orange statt rot: Er ist ein Zeichen, einzugreifen, bevor die Frist reißt, aber noch kein Rückstand.
+- **Der Tagesbrief spricht dieselbe Sprache.** Etwa „AXPUMP (119 Tage über der Frist): GA schreiben." oder „DeepWard (keine Bewegung seit mindestens 26 Tagen, Ziel 7 Tage, „ALT gesetzt, ALU fehlt“): NL prüfen." Steht „mindestens" dabei, ist die Zeit ohne Bewegung aus dem letzten Kürzel-Datum geschätzt.
+- **Unter „Fristen & Meilensteine" unterscheidet die Prognose jetzt zwei Fälle.** Ist die Frist schon überschritten, steht dort „Über der Frist". Ist sie noch nicht überschritten, aber durch den Rückstand der Meilensteine nicht mehr zu schaffen, steht dort „Frist nicht mehr zu halten". Unter „Diese Woche" heißt der obere Abschnitt jetzt „Gerissen".
+
+### Bugfixes
+- **Der Meilenstein-Abschnitt nennt dieselbe Frist wie die Frist-Spalte.** Bisher lief dort eine eigene 90-Tage-Uhr, die nie anhielt. Deshalb stand bei vielen Verbünden „Tage überfällig", obwohl die Frist-Spalte für denselben Verbund „angehalten" zeigte, etwa weil er schon in der Entscheidung war. Jetzt steht dort in solchen Fällen „Frist angehalten"; auch die Filter der Prognose haben dafür einen eigenen Eintrag.
+
 ## v6.65 — 2026-09
 
 ### Neu

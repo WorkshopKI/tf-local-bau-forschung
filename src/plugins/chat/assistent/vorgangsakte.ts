@@ -34,6 +34,7 @@ import type { MappingVersion } from '@/core/status/typen';
 import type { MeilensteinPlan, Prognose, VerbundMeilensteine } from '@/core/meilensteine/typen';
 import { statusLabel } from '@/core/utils/status-wert-labels';
 import { parseGermanDate } from '@/core/services/csv/dateParse';
+import { gerissenWort } from '@/core/utils/uhrWorte';
 import type { FristBasisFeld, FristErgebnis } from '@/core/services/csv/frist-ergebnis';
 import type { AntragListItem } from '@/core/services/csv/types';
 import type {
@@ -192,7 +193,7 @@ function fristVon(f: FristErgebnis): AkteFrist {
 
 const PROGNOSE_TEXT: Record<Prognose, string> = {
   imPlan: 'im Plan', gefaehrdet: 'gefährdet', nichtHaltbar: 'nicht haltbar',
-  abgeschlossen: 'abgeschlossen', unbekannt: 'unbekannt',
+  angehalten: 'Frist angehalten', abgeschlossen: 'abgeschlossen', unbekannt: 'unbekannt',
 };
 
 function meilensteineVon(
@@ -215,7 +216,7 @@ function meilensteineVon(
     .filter(r => r.zustand === 'gerissen')
     .map(r => {
       const ueber = r.sollDatum ? tageZwischen(r.sollDatum, stichtag) : null;
-      return `${name(r.knotenId)}${soll(r.sollDatum)}${ueber !== null && ueber > 0 ? `, ${ueber} Tage über` : ''}`;
+      return `${name(r.knotenId)}${soll(r.sollDatum)}${ueber !== null && ueber > 0 ? `, ${gerissenWort(ueber, 'lang')}` : ''}`;
     });
   const faellig = b.ergebnisse
     .filter(r => r.zustand === 'faellig')

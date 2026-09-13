@@ -83,7 +83,7 @@ describe('bestandBlock', () => {
     expect(b.zeilen.find(z => z.startsWith('Der gesehene Vorgang CALYPSO'))).toBeDefined();
   });
 
-  it('zählt Plan-Risiken und sortiert nach der knappsten Gesamtfrist', () => {
+  it('zählt Plan-Risiken und sortiert nach der knappsten Bearbeitungsfrist', () => {
     const b = block([], {
       planRisiken: [
         { verbundId: 'V2', titel: 'Zwei', prognose: 'gefährdet', restTage: 12 },
@@ -93,6 +93,6 @@ describe('bestandBlock', () => {
     const text = b.zeilen.join('\n');
     expect(text).toContain('Bearbeitungsplan (Meilensteine): 1 Verbünde nicht haltbar, 1 gefährdet');
     expect(text.indexOf('Eins (V1)')).toBeLessThan(text.indexOf('Zwei (V2)'));
-    expect(text).toContain('Gesamtfrist seit 4 Tagen überschritten');
+    expect(text).toContain('Bearbeitungsfrist: 4 Tage über der Frist');
   });
 });

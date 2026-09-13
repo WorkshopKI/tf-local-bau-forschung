@@ -49,7 +49,9 @@ function euro(n: number | undefined): string | null {
 function fristHinweis(abgeschlossen: boolean, days: number | null): string | undefined {
   if (abgeschlossen) return undefined;
   const anz = fristAnzeigeFromDays(days);
-  return anz ? `${anz.text} (${AMPEL_WORT[anz.ampel]})` : undefined;
+  if (!anz) return undefined;
+  // Rot trägt kein Wort dahinter: „12 T über Frist (überfällig)" sagte dasselbe zweimal.
+  return anz.ampel === 'rot' ? anz.text : `${anz.text} (${AMPEL_WORT[anz.ampel]})`;
 }
 
 /**

@@ -21,8 +21,9 @@ import { filtereZeilen, standardFilter, type UebersichtFilter } from './monitori
 import { ladeUebersichtFilter, speichereUebersichtFilter } from './ansichtPersistenz';
 import {
   ANKER_ERKLAERUNG, PROGNOSE_FARBE, PROGNOSE_LABEL, PROGNOSE_REIHENFOLGE, TYP_LABEL, ZUSTAND_FARBE,
-  ZUSTAND_LABEL, feldStil, formatDatum, restzeitText,
+  ZUSTAND_LABEL, feldStil, formatDatum, prognoseText, restzeitText,
 } from './labels';
+import { fristTageWort } from '@/core/utils/uhrWorte';
 import type { VerbundZeile } from './useMeilensteinStand';
 
 function ZustandsPunkt({ zustand }: { zustand: MstZustand }): React.ReactElement {
@@ -75,7 +76,7 @@ function Zeile({ zeile, hauptKnotenIds, aktiv, onWaehlen }: {
         title={
           zeile.prognose === 'unbekannt'
             ? `Unbekannt — kein Meilenstein des Plans gilt für diesen Verbund; die Frist ${formatDatum(zeile.fristDatum)} ist rechnerisch, aber durch keinen Meilenstein belegt.`
-            : `${PROGNOSE_LABEL[zeile.prognose]} · Frist ${formatDatum(zeile.fristDatum)}`
+            : `${prognoseText(zeile)}${zeile.fristDatum === null ? '' : ` · Frist ${formatDatum(zeile.fristDatum)}`}`
         }
       >
         {/* Eine Restzeit steht nur da, wo der Plan sie auch trägt: bei
@@ -83,7 +84,7 @@ function Zeile({ zeile, hauptKnotenIds, aktiv, onWaehlen }: {
             die Tageszahl aus der Gesamtfrist läse sich als geprüfte Frist. */}
         {zeile.restTage === null || zeile.prognose === 'unbekannt'
           ? PROGNOSE_LABEL[zeile.prognose]
-          : `${zeile.restTage} T`}
+          : fristTageWort(zeile.restTage)}
       </span>
     </button>
   );
@@ -215,14 +216,21 @@ export function UebersichtTab({ zeilen, plan, meineTokens, meineTokensAnzeige }:
       </div>
 
       <div className="flex items-center gap-3 flex-wrap text-[12px]">
-        <span style={{ color: PROGNOSE_FARBE[aktiv.prognose] }}>{PROGNOSE_LABEL[aktiv.prognose]}</span>
+        <span style={{ color: PROGNOSE_FARBE[aktiv.prognose] }}>{prognoseText(aktiv)}</span>
         <span className="text-[var(--tf-text-secondary)]" title={ANKER_ERKLAERUNG}>
           Eingang {formatDatum(aktiv.anker)}
         </span>
-        <span className="text-[var(--tf-text-secondary)]">
-          Frist {formatDatum(aktiv.fristDatum)}
-        </span>
-        <span className="text-[var(--tf-text-secondary)]">{restzeitText(aktiv)}</span>
+        {aktiv.fristDatum !== null && (
+          <span className="text-[var(--tf-text-secondary)]">
+            Frist {formatDatum(aktiv.fristDatum)}
+          </span>
+        )}
+        {/* Wie im Meilenstein-Abschnitt des Verbunds: bei angehaltener Frist sagt es die Prognose schon. */}
+        {aktiv.prognose !== 'angehalten' && (
+          <span className={aktiv.restTage !== null && aktiv.restTage < 0 ? 'text-[var(--tf-danger-text)]' : 'text-[var(--tf-text-secondary)]'}>
+            {restzeitText(aktiv)}
+          </span>
+        )}
         {aktiv.kuerzelAnzeige.length > 0 && (
           <span className="text-[var(--tf-text-tertiary)]">
             Bearbeitung: {aktiv.kuerzelAnzeige.join(', ')}

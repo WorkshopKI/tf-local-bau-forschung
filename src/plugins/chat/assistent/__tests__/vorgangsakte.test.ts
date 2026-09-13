@@ -164,7 +164,7 @@ describe('baueVorgangsakte — Signale', () => {
     const akte = baueVorgangsakte(eingabe({ meilensteine: { plan, bewertung } }));
     expect(akte.meilensteine).toEqual({
       prognose: 'gefährdet', restTage: 12, fristDatum: '13.08.2026',
-      gerissen: ['1.4 Gutachten beauftragt — Soll 22.07.2026, 10 Tage über'], faellig: [],
+      gerissen: ['1.4 Gutachten beauftragt — Soll 22.07.2026, seit 10 Tagen gerissen'], faellig: [],
     });
 
     // Abgeschlossen misst nichts mehr: keine Resttage, keine gerissenen Knoten —

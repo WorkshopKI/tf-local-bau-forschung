@@ -40,10 +40,10 @@ describe('baueArbeitsvorratUebersicht', () => {
     // Nächste Frist zuerst (überfällig ganz vorn), fristlos nicht gelistet.
     expect(u.naechsteFristen.map(f => f.titel)).toEqual(['ROT', 'ORANGE', 'GELB', 'GRUEN']);
     expect(u.naechsteFristen.map(f => f.hinweis)).toEqual([
-      'seit 10 T (überfällig)',
-      'in 10 T (dringend)',
-      'in 25 T (näher rückend)',
-      'in 60 T (im Zeitplan)',
+      '10 T über Frist',
+      'noch 10 T (dringend)',
+      'noch 25 T (näher rückend)',
+      'noch 60 T (im Zeitplan)',
     ]);
     // Aktion aus naechsterSchritt (techn geprüft → „Gutachten beginnen").
     expect(u.naechsteFristen.every(f => f.aktion === 'Gutachten beginnen')).toBe(true);

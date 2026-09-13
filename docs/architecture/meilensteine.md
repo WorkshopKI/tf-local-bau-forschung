@@ -45,9 +45,9 @@ auf 0, und die Fassung war nicht nur aus dem Blick, sondern aus der Datei.
   aus `D_AAE` (Antragseingang) und `D_XTE` („alle Anträge da"), über die
   Teilvorhaben das späteste (`verbundWirksamerEingang`, gelesen über
   `baueAnkerLeser` in [anker.ts](../../src/core/meilensteine/anker.ts)). Vorher
-  ist der Verbund nicht vollständig bearbeitbar. `sollDatum = anker + sollWoche * 7`,
-  `fristDatum = anker + gesamtfristTage`; die Dauern der Auswertung zählen ab
-  demselben Anker.
+  ist der Verbund nicht vollständig bearbeitbar. `sollDatum = anker + sollWoche * 7`;
+  die Dauern der Auswertung zählen ab demselben Anker. Die **Frist** kommt nicht
+  aus dem Anker, sondern aus der Frist-Spalte (nächster Punkt).
   - **Ein Anker für alle drei Rechenstellen** — Projektion, Verbund-Detailseite
     und Auswertung. Bis v6.49 las der Anker nur `D_AAE`, während die
     Frist-Spalte der Tabelle und der Bestandslauf schon `wirksamerEingang`
@@ -63,6 +63,23 @@ auf 0, und die Fassung war nicht nur aus dem Blick, sondern aus der Datei.
     kippt **kein** Meilenstein-Zustand und keine Prognose. Auswertung (ganzer
     Bestand, ohne Bereichs-/Jahresfilter): 125 von 5 969 Dauern werden kürzer
     (Median −5 T); Ø 132 → 131 T, Median 117 T unverändert, im Soll 32 → 33 %.
+- **Frist = die Bearbeitungsfrist der Frist-Spalte** (seit v6.66,
+  [frist-lage.ts](../../src/core/meilensteine/frist-lage.ts)). Das Pflichtfeld
+  `BewertungsEingabe.frist` füllt `verbundFristLage`: die Teilvorhaben laufen
+  durch die Listen-Projektion und dieselbe Faltung wie die Fördertabelle
+  (`verbundFristErgebnis` in
+  [frist-ergebnis.ts](../../src/core/services/csv/frist-ergebnis.ts),
+  `criticalFristErgebnis` delegiert dorthin) — die knappste laufende Uhr, sonst
+  angehalten, sonst nicht berechenbar. Die Brücke `fristErgebnisVon`/`FristQuelle`
+  wohnt dafür im csv-Layer; `fristAnzeige.ts` reicht sie nur weiter.
+  `fristDatum` und `restTage` stehen **nur bei laufender Uhr**, sonst `null`;
+  `fristZustand` trägt den Zustand. Die Soll-Wochen zählen weiter ab dem Anker.
+  - **Warum:** vorher rechnete `bewerteVerbund` `anker + gesamtfristTage` ohne
+    Halt — zweimal „90 Tage" mit verschiedenen Regeln. **Gemessen** (13.09.2026,
+    dev:local, 14 225 Anträge, Plan-Fassung 43): von 2 081 offenen Verbünden
+    nannte diese Uhr 1 917 „über der Frist"; die Frist-Spalte zeigte davon
+    1 348× „angehalten", 90× „nicht berechenbar", 151× „noch in der Frist" und
+    nur 328× ebenfalls „über".
 - **Zustände**: `erreicht` · `gerissen` (Soll überschritten) · `faellig`
   (Soll in ≤ `FAELLIG_FENSTER_TAGE` = 7) · `offen` · `nichtRelevant` (inaktiv
   oder typ-fremd) · `ohneBedingung`. Ein inaktiver Knoten wird nie als gerissen
@@ -101,11 +118,24 @@ auf 0, und die Fassung war nicht nur aus dem Blick, sondern aus der Datei.
   Bestand). Bewusste Abweichung vom ursprünglichen Entwurf — ein
   Event-Log beginnt beim ersten Import und wüsste über Altfälle nichts; so ist
   auch der Bestand auswertbar.
-- **Prognose**: der größte aktuelle Verzug wird auf den Plan-Endpunkt
-  aufgeschlagen; überschreitet die Summe `gesamtfristTage`, ist die Frist
-  `nichtHaltbar`. Nur **Blätter** zählen — ein Sammel-Knoten würde denselben
+- **Prognose** (`imPlan` · `gefaehrdet` · `nichtHaltbar` · `angehalten` ·
+  `abgeschlossen` · `unbekannt`): nach `abgeschlossen` kommt `angehalten` —
+  steht die Uhr der Frist-Spalte, gibt es nichts vorherzusagen. Sonst ist eine
+  schon überschrittene Frist (`restTage < 0`) `nichtHaltbar`; läuft sie noch,
+  wird der größte aktuelle Verzug auf den Plan-Endpunkt aufgeschlagen, und
+  überschreitet die Summe `gesamtfristTage`, ist sie ebenfalls `nichtHaltbar`.
+  Nur **Blätter** zählen — ein Sammel-Knoten würde denselben
   Verzug ein zweites Mal in die Rechnung tragen. Das Modell ist bewusst
   pessimistisch: es unterstellt, dass eine verlorene Woche nicht aufgeholt wird.
+  - **Die Anzeige trennt die beiden Ursachen von `nichtHaltbar`**
+    ([labels.ts](../../src/plugins/meilensteine/labels.ts)): im Kopf des
+    Meilenstein-Abschnitts der Verbund-Detailseite und unter „Diese Woche" (dort
+    über `WochenPunkt.fristTage`) sagt `prognoseText` „Über der Frist"
+    (`restTage < 0`, schon passiert) oder
+    „Frist nicht mehr zu halten" (Vorhersage) — beides „Frist nicht haltbar" zu
+    nennen, las sich bei einer längst überschrittenen Frist wie eine Vorhersage.
+    Filter-Chips und Verteilungen zählen eine Menge und bleiben bei
+    `PROGNOSE_LABEL` („Frist nicht zu halten", „Frist angehalten").
 
 ## Feld-Auflösung ([felder.ts](../../src/core/meilensteine/felder.ts))
 
@@ -171,13 +201,15 @@ der stale List-View). **Die Bewertungs-Version kam mit v4.134 dazu**: eine
 geänderte Regel ist für die Ablage dasselbe wie ein geänderter Plan — ohne sie
 zeigte das Fristen-Widget nach der Engine-Änderung unverändert die 108 Anlässe
 von vorhin, weil Plan, Schema und Tag dieselben waren. Wer die Semantik von
-`bewerteVerbund` ändert, zählt `BEWERTUNGS_VERSION` hoch. Gepflegt wird die Projektion in einem eigenen Post-Import-Pass neben
+`bewerteVerbund` ändert, zählt `BEWERTUNGS_VERSION` hoch — zuletzt 4 → 5 mit
+v6.66 (Frist aus der Frist-Spalte, Prognose `angehalten`), die Projektion
+rechnet danach einmal neu. Gepflegt wird die Projektion in einem eigenen Post-Import-Pass neben
 `nachImportStatusPflege` (andere Flags, andere Datenquelle).
 
 ## Oberfläche
 
 - **Plugin `meilensteine`** (`/meilensteine`): Übersicht (Master/Detail mit
-  Zustands-Punkten und Zeitstrahl), „Diese Woche" (überfällig/fällig über alle
+  Zustands-Punkten und Zeitstrahl), „Diese Woche" (gerissen/fällig über alle
   Verbünde), Auswertung (Ø-Dauer je Antragstyp, Soll gegen Ist je Knoten),
   Konfiguration (Baum-Editor, Regelbereich als Karten mit Ist-Termin-Zeile und
   Probe am Bestand, Fassungen, Freigabe).
@@ -186,7 +218,9 @@ von vorhin, weil Plan, Schema und Tag dieselben waren. Wer die Semantik von
   (gebündelt wie im Modul, `buendleNachVerbund`). Das frühere Einzel-Widget
   „Meilensteine diese Woche" ist seit v4.87 abgelöst.
 - **Verbund-Detailseite**, Abschnitt `#meilensteine` unter `#status`: Zeitstrahl,
-  Restzeit und Risiko-Meldung.
+  Frist (`restzeitText`: dieselbe Frist und dasselbe Wort wie die Frist-Spalte,
+  „Frist angehalten" bei stehender Uhr; das Fristdatum nur bei laufender) und
+  Risiko-Meldung.
 
 ### Was die Anzeige nicht behaupten darf (v4.118)
 
@@ -194,9 +228,17 @@ Aus einer Bug-Jagd auf genau diese Oberfläche. Alle Regeln haben dieselbe Wurze
 **die Anzeige darf nichts sagen, was das Modell nicht trägt.**
 
 - **Keine Zahl ohne Deckung.** Bei Prognose `unbekannt` gilt kein Meilenstein des
-  Plans für diesen Verbund — dann steht dort das Label, nicht die aus der
-  Gesamtfrist gerechnete Restzeit (`restzeitText`). 300 von 1767 Verbünden traf
+  Plans für diesen Verbund — dann steht dort das Label, nicht die Tageszahl der
+  Frist (`restzeitText`). 300 von 1767 Verbünden traf
   das, 44 davon mit einer freundlichen positiven Tageszahl.
+- **Ein Wort je Uhr** (v6.66, [uhrWorte.ts](../../src/core/utils/uhrWorte.ts)).
+  Ein Meilenstein ist „gerissen" bzw. „fällig in N T" — in der Gliederung und
+  unter „Diese Woche" steht die Dauer („gerissen seit N T", im Titel „seit N
+  Tagen gerissen"), nie „N T über" oder „überfällig". Die Frist sagt
+  `fristTageWort` („N Tage über der Frist" / „noch N Tage" / „heute fällig"),
+  der Stillstand `bewegungWort`. Die Gruppe unter „Diese Woche" heißt „Gerissen",
+  die gebündelte Zeile „zuerst gerissen …" (vorher „hängt seit", das Wort des
+  Stillstands). Guard `ueberfaellig-nur-fuer-die-frist`.
 - **Kein Nenner im Verborgenen.** Die Reißquote je Knoten teilt durch
   `betrachtet`; die Spalte steht deshalb in der Tabelle. Vorher las man
   „0 | 1158 | 79 %".

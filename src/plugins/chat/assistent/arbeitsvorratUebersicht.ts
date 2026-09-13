@@ -65,7 +65,8 @@ export function baueArbeitsvorratUebersicht(
       const schritt = naechsterSchritt(a.status, precheckUrteilVonZeile(a).label || null);
       naechsteFristen.push({
         titel: a.akronym || a.titel || a.aktenzeichen,
-        hinweis: `${anz.text} (${AMPEL_WORT[anz.ampel]})`,
+        // Rot trägt kein Wort dahinter: „12 T über Frist (überfällig)" sagte dasselbe zweimal.
+        hinweis: anz.ampel === 'rot' ? anz.text : `${anz.text} (${AMPEL_WORT[anz.ampel]})`,
         ...(schritt?.aktion ? { aktion: schritt.aktion } : {}),
       });
     }

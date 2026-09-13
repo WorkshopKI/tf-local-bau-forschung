@@ -38,12 +38,17 @@ function plan(knotenListe: MeilensteinKnoten[], gesamtfristTage = 90): Meilenste
   };
 }
 
+/** Die Frist der Frist-Spalte: 90 Tage ab Anker, Uhr läuft — seit v6.66 eine Eingabe. */
+const FRIST_LAEUFT = { zustand: 'laeuft', zielDatum: '2026-04-05' } as const;
+const FRIST_OHNE = { zustand: 'nicht_berechenbar', zielDatum: null } as const;
+
 const eingabe = (kontextFelder: Record<string, string>, extra: Record<string, unknown> = {}) => ({
   verbundId: 'VB-1',
   antragsdatum: ANKER,
   anker: ANKER,
   typ: null,
   kontext: baueKontext(kontextFelder),
+  frist: FRIST_LAEUFT,
   ...extra,
 });
 
@@ -136,19 +141,22 @@ describe('bewerteVerbund — Zustände', () => {
     });
   });
 
-  it('rechnet Soll, Woche und Frist ab dem Anker, nicht ab dem Antragsdatum', () => {
+  it('rechnet Soll und Woche ab dem Anker, nicht ab dem Antragsdatum', () => {
     // Antrag am 05.01. eingegangen, „alle Anträge da" erst am 19.01. — bearbeitbar
     // ist der Verbund erst ab dann, also zählen alle Termine ab dem 19.01.
     const r = bewerteVerbund(p, { ...eingabe({}), anker: '2026-01-19' }, '2026-01-20T00:00:00.000Z');
     expect(r.anker?.slice(0, 10)).toBe('2026-01-19');
     expect(r.antragsdatum).toBe(ANKER);
     expect(r.ergebnisse[0]!.sollDatum?.slice(0, 10)).toBe('2026-01-26');
-    expect(r.fristDatum?.slice(0, 10)).toBe('2026-04-19');
+    // Die Frist kommt seit v6.66 aus der Frist-Spalte, nicht aus Anker + Gesamtfrist.
+    expect(r.fristDatum).toBe(FRIST_LAEUFT.zielDatum);
     expect(r.wocheAktuell).toBe(1);
   });
 
   it('liefert ohne Ankerdatum definierte Werte statt zu werfen', () => {
-    const r = bewerteVerbund(p, { ...eingabe({}), antragsdatum: null, anker: null }, '2026-01-20T00:00:00.000Z');
+    const r = bewerteVerbund(
+      p, { ...eingabe({}), antragsdatum: null, anker: null, frist: FRIST_OHNE }, '2026-01-20T00:00:00.000Z',
+    );
     expect(r.ergebnisse[0]!.zustand).toBe('offen');
     expect(r.ergebnisse[0]!.sollDatum).toBeNull();
     expect(r.wocheAktuell).toBeNull();
@@ -232,7 +240,7 @@ describe('bewerteVerbund — Prognose zur Gesamtfrist', () => {
     expect(r.restTage).toBeGreaterThan(0);
   });
 
-  it('nicht haltbar, wenn die Gesamtfrist selbst abgelaufen ist', () => {
+  it('nicht haltbar, wenn die Frist selbst überschritten ist', () => {
     const r = bewerteVerbund(p, eingabe({ a: '06.01.2026' }), '2026-04-20T00:00:00.000Z');
     expect(r.restTage).toBeLessThan(0);
     expect(r.prognose).toBe('nichtHaltbar');
@@ -246,6 +254,35 @@ describe('bewerteVerbund — Prognose zur Gesamtfrist', () => {
   it('abgeschlossen bei terminalem Status, auch mit offenen Meilensteinen', () => {
     const r = bewerteVerbund(p, eingabe({}, { terminal: true }), '2026-03-10T00:00:00.000Z');
     expect(r.prognose).toBe('abgeschlossen');
+  });
+
+  it('angehalten, wenn die Uhr der Frist-Spalte steht — auch mit gerissenen Meilensteinen (v6.66)', () => {
+    // Bis v6.65 lief die Plan-Uhr hier weiter: gemessen am 13.09.2026 sagte sie bei
+    // 1 348 offenen Verbünden „überfällig", deren Frist-Spalte „angehalten" zeigte.
+    const r = bewerteVerbund(
+      p, eingabe({}, { frist: { zustand: 'angehalten', zielDatum: null } }), '2026-04-20T00:00:00.000Z',
+    );
+    expect(r.ergebnisse.some(e => e.zustand === 'gerissen')).toBe(true);
+    expect(r.prognose).toBe('angehalten');
+    expect(r.fristZustand).toBe('angehalten');
+    expect(r.restTage).toBeNull();
+    expect(r.fristDatum).toBeNull();
+  });
+
+  it('liest Zieldatum und Resttage aus der Frist, nicht aus Anker + Gesamtfrist', () => {
+    const r = bewerteVerbund(
+      p, eingabe({}, { anker: '2026-02-01', frist: { zustand: 'laeuft', zielDatum: '2026-03-01' } }),
+      '2026-02-20T00:00:00.000Z',
+    );
+    expect(r.fristDatum).toBe('2026-03-01');
+    expect(r.restTage).toBe(9);
+    expect(r.fristZustand).toBe('laeuft');
+  });
+
+  it('unbekannt, wenn die Frist nicht berechenbar ist', () => {
+    const r = bewerteVerbund(p, eingabe({}, { frist: FRIST_OHNE }), '2026-01-24T00:00:00.000Z');
+    expect(r.restTage).toBeNull();
+    expect(r.prognose).toBe('unbekannt');
   });
 
   it('unbekannt, wenn der Plan keinen fristrelevanten Blatt-Knoten hat', () => {
@@ -271,7 +308,7 @@ describe('bewerteVerbund — Auslieferungs-Plan', () => {
     const p = baueSeedPlan();
     const r = bewerteVerbund(
       p,
-      { verbundId: 'VB-1', antragsdatum: ANKER, anker: ANKER, typ: 'FuE', kontext: baueKontext({ antragsdatum: '05.01.2026' }) },
+      { verbundId: 'VB-1', antragsdatum: ANKER, anker: ANKER, typ: 'FuE', kontext: baueKontext({ antragsdatum: '05.01.2026' }), frist: FRIST_LAEUFT },
       '2026-01-08T00:00:00.000Z',
     );
     const mst11 = r.ergebnisse.find(e => e.knotenId === 'mst-1-1')!;
@@ -283,7 +320,7 @@ describe('bewerteVerbund — Auslieferungs-Plan', () => {
     const p = baueSeedPlan();
     const r = bewerteVerbund(
       p,
-      { verbundId: 'VB-2', antragsdatum: ANKER, anker: ANKER, typ: 'FuE', kontext: baueKontext({ antragsdatum: '05.01.2026' }) },
+      { verbundId: 'VB-2', antragsdatum: ANKER, anker: ANKER, typ: 'FuE', kontext: baueKontext({ antragsdatum: '05.01.2026' }), frist: FRIST_LAEUFT },
       '2026-03-01T00:00:00.000Z',
     );
     expect(r.prognose).toBe('nichtHaltbar');
@@ -294,7 +331,7 @@ describe('bewerteVerbund — Auslieferungs-Plan', () => {
     const p = baueSeedPlan();
     const r = bewerteVerbund(
       p,
-      { verbundId: 'VB-3', antragsdatum: null, anker: null, typ: null, kontext: baueKontext({}) },
+      { verbundId: 'VB-3', antragsdatum: null, anker: null, typ: null, kontext: baueKontext({}), frist: FRIST_OHNE },
       '2026-03-01T00:00:00.000Z',
     );
     expect(r.ergebnisse.map(e => e.knotenId)).toEqual(p.knoten.map(k => k.id));

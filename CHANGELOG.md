@@ -5,6 +5,18 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v6.66.0 — Eine Frist, ein Wort je Uhr (September 2026)
+
+MINOR — Nutzer: „Es gibt viele Fristen, die alle verschiedenen berechnet werden und dem User etwas verwirren … Nur die Angabe von so vielen roten Tagen ist dann verwirrend …"
+Vier Zähler trugen dasselbe „überfällig" und dasselbe Rot; die zweite 90-Tage-Uhr des Meilenstein-Plans hielt nie an — von 1 917 Verbünden, die sie „über der Frist" nannte, zeigte die Frist-Spalte 1 348× „angehalten" und nur 328× ebenfalls „über" (13.09.2026).
+Stufe 1 von 3; die Fristen-Karte der Startseite baut v6.67.0 neu.
+
+- Der Meilenstein-Plan liest dieselbe Bearbeitungsfrist wie die Frist-Spalte, neue Prognose „Frist angehalten", `BEWERTUNGS_VERSION` 4 → 5 — [frist-lage.ts](src/core/meilensteine/frist-lage.ts), [frist-ergebnis.ts](src/core/services/csv/frist-ergebnis.ts), [bewertung.ts](src/core/meilensteine/bewertung.ts)
+- Ein Wort je Uhr: Frist „N T über Frist" / „noch N T" / „angehalten", Meilenstein „gerissen", Stillstand „keine Bewegung seit N Tagen, Ziel M Tage" — [uhrWorte.ts](src/core/utils/uhrWorte.ts)
+- Eingesetzt in Frist-Spalte, Kopfkarte, Meilenstein-Abschnitt, „Diese Woche", Vorgangs-Board, Tagesbrief und Assistent — [fristAnzeige.ts](src/plugins/antraege/fristAnzeige.ts), [kopfkarteModell.ts](src/plugins/antraege/ausklapp/kopfkarte/kopfkarteModell.ts), [DieseWocheTab.tsx](src/plugins/meilensteine/DieseWocheTab.tsx), [punkte.ts](src/plugins/home/tagesbrief/punkte.ts), [akte.ts](src/core/services/assistent/kontext/akte.ts)
+- Die Prognose am einzelnen Verbund trennt „Über der Frist" von „Frist nicht mehr zu halten" — [labels.ts](src/plugins/meilensteine/labels.ts)
+- Guard `ueberfaellig-nur-fuer-die-frist` — [conventions-status.test.ts](src/__tests__/conventions-status.test.ts); Doku [meilensteine.md](docs/architecture/meilensteine.md), [vorgangssystem.md](docs/architecture/vorgangssystem.md) §6.3, [home-widgets.md](docs/architecture/home-widgets.md), [CONTEXT.md](CONTEXT.md), Feedback-Kontext [home](docs/feedback-kontext/home.md) · [meilensteine](docs/feedback-kontext/meilensteine.md) · [antraege](docs/feedback-kontext/antraege.md) · [vorgangs-board](docs/feedback-kontext/vorgangs-board.md)
+
 ### v6.65.1 — Feldnamen-Kollisionen entflechten (September 2026)
 
 PATCH — Nutzer: „ja, mach die Mapping-Reparatur auch noch."

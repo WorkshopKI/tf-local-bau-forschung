@@ -14,7 +14,7 @@ import { isTerminalStatus } from '@/core/utils/status-canonical';
 import { getAntragstypBucket } from '@/core/utils/vb-phase-mappings';
 import {
   baueAnkerLeser, baueMeilensteinKontext, benoetigteFelder, bewerteVerbund, ergaenzeRisiko, erledigeRisiko,
-  freigegebeneFassung, ladePlan, leseEigeneRisiken, loeseFelderAuf, offeneRisiken,
+  freigegebeneFassung, ladePlan, leseEigeneRisiken, loeseFelderAuf, offeneRisiken, verbundFristLage,
   schreibeEigeneRisiken,
   type MeilensteinPlan, type MeilensteinRisiko, type VerbundMeilensteine,
 } from '@/core/meilensteine';
@@ -81,8 +81,11 @@ export function useVerbundMeilensteine(
           aktenzeichen: a.aktenzeichen,
           record: a as unknown as Record<string, unknown>,
         }));
+        const heute = stichtag ?? new Date().toISOString();
         setBewertung(bewerteVerbund(gueltig, {
           verbundId,
+          // Dieselbe Frist wie die Frist-Spalte (v6.66) — nicht eine eigene Uhr.
+          frist: verbundFristLage(antraege, heute),
           antragsdatum: verbundAntragsdatum(antraege),
           // Derselbe Leser wie in der Projektion — die Detailseite und die
           // Übersicht dürfen für denselben Verbund keine zwei Anker kennen.
@@ -92,7 +95,7 @@ export function useVerbundMeilensteine(
             aufloesung, (verbund ?? {}) as unknown as Record<string, unknown>, records,
           ),
           terminal: isTerminalStatus(verbund?.status ?? antraege[0]?.status),
-        }, stichtag ?? new Date().toISOString()));
+        }, heute));
       } catch {
         if (!abgebrochen) { setPlan(null); setBewertung(null); }
       } finally {

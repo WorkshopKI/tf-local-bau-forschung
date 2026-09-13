@@ -20,6 +20,7 @@
  * Der Plan ist **kuratierte Team-Daten**: die PL pflegt ihn, alle lesen ihn.
  */
 import type { Bedingung } from '@/core/status';
+import type { FristZustand } from '@/core/services/csv/frist-ergebnis';
 import type { AntragstypBucket } from '@/core/utils/vb-phase-mappings';
 
 export type { AntragstypBucket };
@@ -112,8 +113,23 @@ export interface MeilensteinPlan {
 export type MstZustand =
   'erreicht' | 'offen' | 'faellig' | 'gerissen' | 'nichtRelevant' | 'ohneBedingung';
 
-/** Prognose zur Gesamtfrist. */
-export type Prognose = 'imPlan' | 'gefaehrdet' | 'nichtHaltbar' | 'abgeschlossen' | 'unbekannt';
+/**
+ * Prognose zur Bearbeitungsfrist. `angehalten` (v6.66): die Uhr der Frist-Spalte
+ * steht (Entscheidung, bewilligt vor dem Verwendungsnachweis) — dann gibt es
+ * nichts vorherzusagen, und die Anzeige sagt dasselbe Wort wie die Spalte.
+ */
+export type Prognose =
+  'imPlan' | 'gefaehrdet' | 'nichtHaltbar' | 'angehalten' | 'abgeschlossen' | 'unbekannt';
+
+/**
+ * Die Bearbeitungsfrist, die der Plan liest — dieselbe wie die Frist-Spalte
+ * (`verbundFristLage`). Nur eine laufende Uhr trägt ein `zielDatum`.
+ */
+export interface FristLage {
+  zustand: FristZustand;
+  /** ISO — wirksamer Eingang + 90 Tage der dringendsten laufenden Uhr; sonst `null`. */
+  zielDatum: string | null;
+}
 
 export interface MstErgebnis {
   knotenId: string;
@@ -144,10 +160,15 @@ export interface VerbundMeilensteine {
   typ: AntragstypBucket | null;
   /** Laufende Bearbeitungswoche (1 = erste Woche nach Eingang). `null` ohne Anker. */
   wocheAktuell: number | null;
-  /** Anker + `gesamtfristTage`. */
+  /**
+   * Zieldatum der Bearbeitungsfrist — dieselbe Frist wie die Frist-Spalte
+   * (v6.66, vorher Anker + `gesamtfristTage` ohne Halt). `null`, wo keine Uhr läuft.
+   */
   fristDatum: string | null;
-  /** Tage bis zur Gesamtfrist (negativ = überfällig). */
+  /** Tage bis zur Frist (negativ = überschritten); `null`, wo keine Uhr läuft. */
   restTage: number | null;
+  /** Zustand der Bearbeitungsfrist: läuft, angehalten oder nicht berechenbar. */
+  fristZustand: FristZustand;
   ergebnisse: MstErgebnis[];
   prognose: Prognose;
 }

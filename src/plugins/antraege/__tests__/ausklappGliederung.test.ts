@@ -55,9 +55,12 @@ describe('baueGliederung — Baumbau', () => {
 });
 
 describe('baueGliederung — Zeilentexte', () => {
-  it('nennt bei einer gerissenen Stufe die Verzugstage statt des Zustandsworts', () => {
-    // 12.01.2026 → 05.08.2026 = 205 Tage.
-    expect(bauen().items['k1-2']?.data.statusText).toBe('205 T über');
+  it('nennt bei einer gerissenen Stufe das Zustandswort, die Tage stehen im Titel (v6.66)', () => {
+    // 12.01.2026 → 05.08.2026 = 205 Tage. In der Zeile trug „205 T über" dasselbe
+    // Rot wie die Frist und las sich als ihre Überschreitung.
+    const zeile = bauen().items['k1-2']?.data;
+    expect(zeile?.statusText).toBe('gerissen');
+    expect(zeile?.titel).toContain('seit 205 Tagen gerissen');
   });
 
   it('zeigt bei erreicht das Ist-Datum vierstellig, beim Soll-Termin zweistellig', () => {

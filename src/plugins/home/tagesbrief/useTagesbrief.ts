@@ -297,6 +297,9 @@ export function useTagesbrief(aktiv: boolean, ctx: HomeWidgetContext, aus: reado
         akronym: a.akronym,
         grund: a.grund,
         tage,
+        liegeTage: a.liegeTage ?? null,
+        zieltage: a.zieltage ?? null,
+        belegt: a.belegt ?? true,
         weitere: a.weitere ?? 0,
         ...(e ? { aufgabe: e.aufgabe } : {}),
       });

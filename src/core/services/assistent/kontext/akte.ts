@@ -19,6 +19,7 @@
  *
  * Rein: kein React, kein IDB, keine Uhr.
  */
+import { fristTageWort } from '@/core/utils/uhrWorte';
 
 /** Eine Aufgabe aus dem Regelsatz einer Rolle. */
 export interface AkteAufgabe {
@@ -66,11 +67,11 @@ export interface AkteStillstand {
 export interface AkteMeilensteine {
   /** „im Plan", „gefährdet", „nicht haltbar", „abgeschlossen", „unbekannt". */
   prognose: string;
-  /** Tage bis zur Gesamtfrist; negativ = überschritten. */
+  /** Tage bis zur Bearbeitungsfrist (dieselbe wie die Frist-Spalte); negativ = überschritten. */
   restTage: number | null;
-  /** Deutsches Datum der Gesamtfrist. */
+  /** Deutsches Datum der Bearbeitungsfrist. */
   fristDatum?: string;
-  /** Gerissene Meilensteine, z. B. „1.4 Gutachten beauftragt — Soll 03.02.2026, 42 Tage über". */
+  /** Gerissene Meilensteine, z. B. „1.4 Gutachten beauftragt — Soll 03.02.2026, seit 42 Tagen gerissen". */
   gerissen: string[];
   /** Fällige Meilensteine (Soll-Termin steht kurz bevor). */
   faellig: string[];
@@ -195,11 +196,8 @@ function paarZeilen(a: VorgangsAkte): string[] {
 
 function meilensteinZeilen(m: AkteMeilensteine): string[] {
   const frist = m.fristDatum ? ` (${m.fristDatum})` : '';
-  const rest = m.restTage === null
-    ? ''
-    : m.restTage >= 0
-      ? `, noch ${plural(m.restTage, 'Tag', 'Tage')} bis zur Gesamtfrist${frist}`
-      : `, Gesamtfrist seit ${plural(-m.restTage, 'Tag', 'Tagen')} überschritten${frist}`;
+  // Dieselbe Bearbeitungsfrist wie die Frist-Spalte (v6.66) und dasselbe Wort.
+  const rest = m.restTage === null ? '' : `, Bearbeitungsfrist: ${fristTageWort(m.restTage, 'lang')}${frist}`;
   return [
     `Bearbeitungsplan (Meilensteine): Prognose ${m.prognose}${rest}`,
     ...m.gerissen.map(g => `- gerissen: ${g}`),
@@ -253,7 +251,7 @@ export function akteZeilen(a: VorgangsAkte): string[] {
     z.push(`Bearbeitungsfrist: ${a.frist.text}${a.frist.basis ? ` — gerechnet ab ${a.frist.basis}` : ''}`);
   }
   if (a.stillstand) {
-    const urteil = { ok: 'läuft', haengt: 'hängt fest', unbewertet: 'nicht bewertbar' }[a.stillstand.urteil];
+    const urteil = { ok: 'läuft', haengt: 'keine Bewegung', unbewertet: 'nicht bewertbar' }[a.stillstand.urteil];
     const bei = a.stillstand.liegtBei ? `, liegt bei ${a.stillstand.liegtBei}` : '';
     z.push(`Stillstands-Wächter: ${urteil}${bei}. ${a.stillstand.text}`);
   }

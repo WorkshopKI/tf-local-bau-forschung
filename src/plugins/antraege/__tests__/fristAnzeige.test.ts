@@ -29,17 +29,17 @@ function antrag(status: string, extra?: Partial<AntragListItem>): AntragListItem
   return { aktenzeichen: 'X', programm_id: 'P', status, antragsdatum: ANTRAGSDATUM, ...extra } as AntragListItem;
 }
 
-describe('fristTextFromDays — humanisierte relative Anzeige (kein Roh-„-2807d")', () => {
-  it('Frist in der Zukunft → „in {n} T"', () => {
-    expect(fristTextFromDays(45)).toBe('in 45 T');
-    expect(fristTextFromDays(1)).toBe('in 1 T');
+describe('fristTextFromDays — die Wörter der Bearbeitungsfrist (v6.66, uhrWorte.ts)', () => {
+  it('Frist in der Zukunft → „noch {n} T"', () => {
+    expect(fristTextFromDays(45)).toBe('noch 45 T');
+    expect(fristTextFromDays(1)).toBe('noch 1 T');
   });
-  it('Frist heute → „heute"', () => {
-    expect(fristTextFromDays(0)).toBe('heute');
+  it('Frist heute → „heute fällig"', () => {
+    expect(fristTextFromDays(0)).toBe('heute fällig');
   });
-  it('überfällig → „seit {n} T" (positiver Betrag, kein Minus)', () => {
-    expect(fristTextFromDays(-12)).toBe('seit 12 T');
-    expect(fristTextFromDays(-2807)).toBe('seit 2807 T');
+  it('überschritten → „{n} T über Frist" (positiver Betrag, kein Minus)', () => {
+    expect(fristTextFromDays(-12)).toBe('12 T über Frist');
+    expect(fristTextFromDays(-2807)).toBe('2807 T über Frist');
   });
 });
 
@@ -67,24 +67,24 @@ describe('fristAnzeigeFromDays — Kombination + „keine laufende Uhr"', () => 
     expect(fristAnzeigeFromDays(null)).toBeNull();
   });
   it('kombiniert Text + Ampel', () => {
-    expect(fristAnzeigeFromDays(20)).toEqual({ text: 'in 20 T', ampel: 'gelb', zustand: 'laeuft' });
-    expect(fristAnzeigeFromDays(-5)).toEqual({ text: 'seit 5 T', ampel: 'rot', zustand: 'laeuft' });
+    expect(fristAnzeigeFromDays(20)).toEqual({ text: 'noch 20 T', ampel: 'gelb', zustand: 'laeuft' });
+    expect(fristAnzeigeFromDays(-5)).toEqual({ text: '5 T über Frist', ampel: 'rot', zustand: 'laeuft' });
   });
 });
 
 describe('fristAnzeige — Einzelantrag (phasen-aware Frist)', () => {
-  it('offener Antrag mit Rest-Frist → „in {n} T" + passende Ampel', () => {
-    expect(fristAnzeige(antrag('beantragt'), nowFor(40))).toMatchObject({ text: 'in 40 T', ampel: 'gruen' });
-    expect(fristAnzeige(antrag('beantragt'), nowFor(25))).toMatchObject({ text: 'in 25 T', ampel: 'gelb' });
-    expect(fristAnzeige(antrag('beantragt'), nowFor(10))).toMatchObject({ text: 'in 10 T', ampel: 'orange' });
+  it('offener Antrag mit Rest-Frist → „noch {n} T" + passende Ampel', () => {
+    expect(fristAnzeige(antrag('beantragt'), nowFor(40))).toMatchObject({ text: 'noch 40 T', ampel: 'gruen' });
+    expect(fristAnzeige(antrag('beantragt'), nowFor(25))).toMatchObject({ text: 'noch 25 T', ampel: 'gelb' });
+    expect(fristAnzeige(antrag('beantragt'), nowFor(10))).toMatchObject({ text: 'noch 10 T', ampel: 'orange' });
   });
 
-  it('offener Antrag am Fristtag → „heute" (orange)', () => {
-    expect(fristAnzeige(antrag('beantragt'), nowFor(0))).toMatchObject({ text: 'heute', ampel: 'orange' });
+  it('offener Antrag am Fristtag → „heute fällig" (orange)', () => {
+    expect(fristAnzeige(antrag('beantragt'), nowFor(0))).toMatchObject({ text: 'heute fällig', ampel: 'orange' });
   });
 
-  it('überfälliger offener Antrag → „seit {n} T" (rot)', () => {
-    expect(fristAnzeige(antrag('beantragt'), nowFor(-15))).toMatchObject({ text: 'seit 15 T', ampel: 'rot' });
+  it('offener Antrag über der Frist → „{n} T über Frist" (rot)', () => {
+    expect(fristAnzeige(antrag('beantragt'), nowFor(-15))).toMatchObject({ text: '15 T über Frist', ampel: 'rot' });
   });
 
   it('Begleitphase mit VN-Eingang → VN-Frist (VN-Eingang + 6 Monate)', () => {
@@ -92,7 +92,7 @@ describe('fristAnzeige — Einzelantrag (phasen-aware Frist)', () => {
       antrag('vn geprüft', { vn_eingang_datum: '2026-01-01T00:00:00.000Z' }),
       new Date('2026-02-01T00:00:00.000Z').getTime(),
     );
-    expect(a.text).toMatch(/^in \d+ T$/);
+    expect(a.text).toMatch(/^noch \d+ T$/);
     expect(a.ampel).toBe('gruen'); // ~5 Monate entfernt
   });
 });

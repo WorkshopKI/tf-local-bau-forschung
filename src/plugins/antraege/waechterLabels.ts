@@ -10,17 +10,21 @@
  *
  * `unbewertet` ist ein **eigenes** Urteil, nicht „ok": ein Status ohne gepflegte
  * Zieltage lässt sich nicht beurteilen (`waechter.ts`).
+ *
+ * **„keine Bewegung", orange** (v6.66, vorher „hängt fest" in Rot): der
+ * Stillstand ist ein Signal zum Eingreifen, kein Rückstand. Rot und Tageszahlen
+ * „über" gehören der Bearbeitungsfrist (`core/utils/uhrWorte.ts`).
  */
 import type { WaechterUrteil } from '@/core/status/waechter';
 
 export const URTEIL_LABEL: Record<WaechterUrteil, string> = {
   ok: 'läuft',
-  haengt: 'hängt fest',
+  haengt: 'keine Bewegung',
   unbewertet: 'nicht prüfbar',
 };
 
 export const URTEIL_FARBE: Record<WaechterUrteil, string> = {
   ok: 'var(--tf-success-text)',
-  haengt: 'var(--tf-danger-text)',
+  haengt: 'var(--tf-warning-text)',
   unbewertet: 'var(--tf-text-tertiary)',
 };

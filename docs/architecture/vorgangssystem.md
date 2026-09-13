@@ -257,10 +257,12 @@ Default-Filter „Meine Rolle" (aus dem Profil, Abschnitt 5a), umschaltbar auf a
 
 Zwei Stufen, beide ohne Ketten-Pflege:
 
-- **Stufe 1 (generisch):** letzte Aktivität = jüngstes Datum über alle relevanten `D_`-Spalten des Antrags. `heute − letzteAktivität > Zieltage(Status)` → „hängt fest". Robust, sofort umsetzbar.
+- **Stufe 1 (generisch):** letzte Aktivität = jüngstes Datum über alle relevanten `D_`-Spalten des Antrags. `heute − letzteAktivität > Zieltage(Status)` → Urteil `haengt`. Robust, sofort umsetzbar.
 - **Stufe 2 (gezielt):** wo der Navigator einen erwarteten nächsten Schritt kennt oder ein Kürzel-Paar halb offen ist, wird die hängende **Rolle** benannt: „D_ARF gesetzt (Entwurf RNE fertig, AB, vor 12 Tagen) — D_ARQ (QS) fehlt → hängt bei QS." · „AT4 gesetzt (fachlich fertig), AK4 fehlt → hängt bei AB."
 
 Ausgabe: Home-Widget „Hängt fest" pro Bearbeiter (`useMeinKuerzel` + Meine Rolle), PL-Gesamtliste mit Grund, Tagen und hängender Rolle. Immer mit Begründung und immer ehrlich („kein Zieltage-Wert für Status 88 definiert").
+
+**Wortlaut: „keine Bewegung", nicht „überfällig"** (v6.66). Der Stillstand ist ein Signal zum Eingreifen, kein Rückstand — deshalb heißt das Urteil `haengt` in der Oberfläche „keine Bewegung" in Warnfarbe statt Rot ([waechterLabels.ts](../../src/plugins/antraege/waechterLabels.ts)); Rot und „über der Frist" gehören der Bearbeitungsfrist. Der Fakt „Bewegung" der Kopfkarte sagt „vor N T", solange die Liegezeit im Ziel liegt, sonst „keine seit N T", daneben „Ziel N T" (nicht „Grenze", [kopfkarteModell.ts](../../src/plugins/antraege/ausklapp/kopfkarte/kopfkarteModell.ts)). Tagesbrief und Assistent sprechen `bewegungWort` aus [uhrWorte.ts](../../src/core/utils/uhrWorte.ts): „keine Bewegung seit N Tagen, Ziel M Tage", mit „mindestens", wo die Liegezeit aus dem jüngsten Kürzel-Datum genähert ist. Das Achsenende des Verlaufs-Bands liest dasselbe Label, der Filter-Chip des Vorgangs-Boards sagt dasselbe Wort, die Zeilen-Marke des Boards, die Stillstands-Spalte im Reiter „Fristen" und die Kopfzeile („Keine Bewegung: 1 bei AB …") sagen die Kurzform „keine Bewegung seit N T (Ziel M T)", mit „≥" statt „mindestens". Das Literal „überfällig" hält der Guard `ueberfaellig-nur-fuer-die-frist` aus allen Modulen außerhalb der Frist.
 
 **Ein Evaluator, aber jeder Aufrufer schneidet seine Eingaben selbst.** `pruefeStillstand` ist rein — zwei Ansichten können ihm trotzdem Verschiedenes vorlegen und dann gegenteilig antworten. Welche Quelle die „letzte belegte Änderung" ist und warum der Nullpunkt es nicht sein darf: [§12.2](#122-der-nullpunkt).
 
@@ -1887,8 +1889,8 @@ angefasst, und das steht als Test.
 
 **In derselben Etage stehen Dauer und Warnung** (v3.38). Passt der Name in den
 Balken, ist die Etage darunter frei und nimmt die Dauer; passt er nicht, hängt
-sie an ihn an („beantragt · 29 T"). Am Achsenende steht die Endmarke „hängt
-fest", wenn der Stillstands-Wächter für **diese Zeile** anschlägt.
+sie an ihn an („beantragt · 29 T"). Am Achsenende steht die Endmarke „keine
+Bewegung", wenn der Stillstands-Wächter für **diese Zeile** anschlägt.
 
 Vergeben wird in **drei Durchgängen, und die Reihenfolge ist die Rangfolge**:
 erst die Warnung (der Grund, warum jemand hinsieht), dann die Namen (die

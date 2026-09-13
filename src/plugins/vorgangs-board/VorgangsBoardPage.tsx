@@ -33,6 +33,7 @@ import {
   zustaendigkeitLabel, zustaendigkeitTitel, ZUSTAENDIGKEITEN,
 } from './zustaendigkeit';
 import { AuswertungSicht, FristenSicht } from './CockpitSichten';
+import { bewegungWort } from '@/core/utils/uhrWorte';
 
 /** Rahmen der Gruppen-Karten und des „keine Regeln"-Hinweises. */
 const feldStil: React.CSSProperties = {
@@ -87,11 +88,11 @@ function Zeile({ z, rolle, onOeffnen }: {
             className="shrink-0 text-[11px] text-[var(--tf-warning-text)] whitespace-nowrap"
             title={z.waechter.grund}
           >
-            {/* „≥" wo genähert wird: das jüngste `D_`-Datum ist eine
-                Untergrenze, weil mehrfach gesetzte Kürzel nur das letzte Datum
-                tragen (V9). Wo das Journal die Änderung belegt, steht die
-                Zahl ohne Vorbehalt. */}
-            hängt {z.waechter.belegt ? '' : '≥'}{z.waechter.tage} T
+            {/* „≥" wo genähert wird (setzt `bewegungWort`): das jüngste
+                `D_`-Datum ist eine Untergrenze, weil mehrfach gesetzte Kürzel
+                nur das letzte Datum tragen (V9). Wo das Journal die Änderung
+                belegt, steht die Zahl ohne Vorbehalt. */}
+            {bewegungWort(z.waechter.tage, z.waechter.zieltage, z.waechter.belegt)}
           </span>
         )}
         {e.zustaendig.length > 0 && (
@@ -297,8 +298,8 @@ export function VorgangsBoardPage(): React.ReactElement {
             onToggle={() => api.setNurMeine(!api.nurMeine)}
           />
           <ToggleChip
-            label="hängt fest"
-            title="Keine Vorgangs-Aktivität länger als die Zieltage des Status"
+            label="keine Bewegung"
+            title="Keine datierte Bewegung länger als die Zieltage des Status"
             selected={api.nurHaengt}
             onToggle={() => api.setNurHaengt(!api.nurHaengt)}
           />
@@ -405,7 +406,7 @@ export function VorgangsBoardPage(): React.ReactElement {
           <p className="text-[12px] text-[var(--tf-text-secondary)]">
             {api.stau.length > 0 && (
               <>
-                Hängt fest:{' '}
+                Keine Bewegung:{' '}
                 {api.stau.map(s => `${s.anzahl} bei ${
                   s.rolle === 'offen' ? 'niemandem zugeordnet'
                     : s.rolle === 'ast' ? 'Antragsteller' : ROLLE_LABEL[s.rolle]

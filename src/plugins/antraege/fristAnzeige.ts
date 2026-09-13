@@ -5,7 +5,8 @@
  * eine Zahl oder leer — und leer hieß gleichzeitig „keine Basis", „keine Frist
  * nötig" und „terminal". Jetzt:
  *
- * - `laeuft` → „in 26 T" / „seit 12 T" / „heute", mit Ampelpunkt
+ * - `laeuft` → „noch 26 T" / „12 T über Frist" / „heute fällig", mit Ampelpunkt
+ *   (die Wörter stehen seit v6.66 in `core/utils/uhrWorte.ts`)
  * - `angehalten` → „34 T bis Entscheidung" bzw. nur „angehalten", grau, **ohne**
  *   Punkt — es gibt nichts zu ampeln, wo nichts läuft
  * - `nicht_berechenbar` → „—" mit dem Grund im Tooltip
@@ -15,10 +16,10 @@
  * nachrechnet, ist die zweite Ableitung, die irgendwann auseinanderläuft.
  */
 
-import type { AntragListItem } from '@/core/services/csv/types';
 import {
-  berechneFrist, FRIST_GRUND, type FristErgebnis, type FristZustand,
+  FRIST_GRUND, fristErgebnisVon, type FristErgebnis, type FristQuelle, type FristZustand,
 } from '@/core/services/csv/frist-ergebnis';
+import { fristTageWort } from '@/core/utils/uhrWorte';
 import type { ZahPhase } from '@/core/status/typen';
 import type { HaltedatumHerkunft } from '@/core/status/haltedatum';
 import type { EingangAmpel } from './eingangAmpel';
@@ -35,13 +36,12 @@ export interface FristAnzeige {
   hinweis?: string;
 }
 
-/** Relative Tages-Anzeige aus vorzeichenbehafteten „Tagen bis zur Frist".
- *  Positiv = Frist in der Zukunft (`in n T`), 0 = `heute`, negativ =
- *  überfällig (`seit n T`). Kein Roh-`-2807d` mehr. */
+/** Relative Tages-Anzeige aus vorzeichenbehafteten „Tagen bis zur Frist":
+ *  `noch n T` · `heute fällig` · `n T über Frist`. Bis v6.65 hieß die
+ *  Überschreitung „seit n T" — ein Wort, das auch Stillstand und Meilenstein
+ *  benutzten. Die Wörter stehen jetzt an EINER Stelle (`uhrWorte.ts`). */
 export function fristTextFromDays(d: number): string {
-  if (d === 0) return 'heute';
-  if (d > 0) return `in ${d} T`;
-  return `seit ${-d} T`;
+  return fristTageWort(d, 'kurz');
 }
 
 /**
@@ -145,39 +145,13 @@ export function fristAnzeigeVon(
   };
 }
 
-/** Was die Listen-Projektion für eine Frist hergibt. */
-export type FristQuelle = Pick<
-  AntragListItem, 'status' | 'antragsdatum' | 'vn_eingang_datum' | 'alle_antraege_da'
->;
-
 /**
- * Der Frist-Zustand eines Antrags aus der Listen-Projektion — die Brücke
- * zwischen `AntragListItem` und der reinen Engine.
- *
- * Genau EINE Stelle kennt die Feldnamen der Projektion. Wer sie umgeht und
- * `berechneFrist` selbst füttert, baut die zweite Ableitung.
- *
- * **`D_XTE` steht seit v4.126 zur Verfügung.** Die Spalte („alle Anträge da")
- * ist custom gemappt und hat kein kanonisches Feld; die Projektion holt sie
- * über eine explizite Rückfall-Liste (`alle_antraege_da`), nicht über einen
- * geratenen Record-Key (recurring-bug-classes Klasse 5). Damit rechnet die
- * Liste denselben wirksamen Eingang wie Vorgangs-Board und aufgeklappter
- * Bereich — eine Engine, eine Eingabe.
+ * Die Brücke zwischen Listen-Projektion und Engine wohnt seit v6.66 im csv-Layer
+ * (`fristErgebnisVon`), damit auch der Meilenstein-Plan dieselbe Frist liest.
+ * Hier nur weitergereicht — die Aufrufer der Anträge bleiben unverändert.
  */
-export function fristErgebnisVon(
-  antrag: FristQuelle,
-  nowMs: number = Date.now(),
-  phasen?: readonly ZahPhase[],
-): FristErgebnis {
-  return berechneFrist({
-    status: antrag.status,
-    antragsdatum: typeof antrag.antragsdatum === 'string' ? antrag.antragsdatum : null,
-    alleAntraegeDa: typeof antrag.alle_antraege_da === 'string' ? antrag.alle_antraege_da : null,
-    vnEingangDatum: typeof antrag.vn_eingang_datum === 'string' ? antrag.vn_eingang_datum : null,
-    stichtag: new Date(nowMs).toISOString(),
-    ...(phasen ? { phasen } : {}),
-  });
-}
+export { fristErgebnisVon };
+export type { FristQuelle };
 
 /**
  * Relative Frist-Anzeige eines einzelnen Antrags aus der Listen-Projektion.

@@ -70,6 +70,13 @@ export interface FristAnlass {
    * zusammengesetzte Spalte wäre geraten (Pitfall #44).
    */
   quellFelder?: readonly string[];
+  /**
+   * Bei Zieltag-Anlässen die Zahlen hinter „keine Bewegung seit …": Liegezeit,
+   * Zieltage des Status und ob die Liegezeit durch das Journal belegt ist.
+   */
+  liegeTage?: number | null;
+  zieltage?: number | null;
+  belegt?: boolean;
 }
 
 /**
@@ -100,6 +107,9 @@ export function zieltagAnlass(
     ueberTage: w.tage !== null && w.zieltage !== null ? w.tage - w.zieltage : null,
     gerissen: true,
     ...(quellFelder.length > 0 ? { quellFelder } : {}),
+    liegeTage: w.tage,
+    zieltage: w.zieltage,
+    belegt: w.belegt,
   };
 }
 

@@ -27,6 +27,7 @@ import type { MeilensteinPlan, VerbundMeilensteine } from './typen';
 import { baueMeilensteinKontext, benoetigteFelder, loeseFelderAuf } from './felder';
 import { BEWERTUNGS_VERSION, bewerteVerbund } from './bewertung';
 import { baueAnkerLeser } from './anker';
+import { verbundFristLage } from './frist-lage';
 
 const PROJEKTION_PREFIX = 'meilenstein-stand:';
 
@@ -101,6 +102,8 @@ export async function berechneProjektion(
       verbundId: verbund.verbund_id,
       antragsdatum: verbundAntragsdatum(antraege),
       anker: ankerVon(records.map(r => r.record)),
+      // Dieselbe Frist wie die Frist-Spalte (v6.66) — nicht eine eigene Uhr.
+      frist: verbundFristLage(antraege, heute),
       typ: getAntragstypBucket(antraege[0]?.vb_phase),
       kontext: baueMeilensteinKontext(
         aufloesung, verbund as unknown as Record<string, unknown>, records,

@@ -28,6 +28,9 @@
  *     ausserhalb von csv/frist.ts + csv/frist-ergebnis.ts. Die Konstante
  *     ANTRAG_SLA_DAYS zu benutzen ist ausdruecklich erwuenscht; sie zu
  *     ABSCHREIBEN war der Fehler (drei Achsen mit eigenen Literalen).
+ *   - ueberfaellig-nur-fuer-die-frist   → v6.66, „überfällig" steht als Text nur in
+ *     Modulen der Bearbeitungsfrist; ein Meilenstein ist „gerissen", ein Stillstand
+ *     „keine Bewegung seit …" (Wörter aus core/utils/uhrWorte.ts).
  *   - status-kurzlabel-single-source   → die Kurzform eines Rohstatus hat EINE
  *     Quelle (StatusCodeEintrag.kurz + kuratiertes StatusWertEintrag.kurzLabel),
  *     gelesen ueber statusKurzLabel()/statusLabel() in core/utils/
@@ -311,6 +314,46 @@ describe('trigger-regeln-nur-im-verlauf (Phase 1b)', () => {
         `die Status-Ableitung nach, die Pitfall #44 ausschliesst.\n\n` +
         `Treffer:\n${fmt(findings)}`;
       expect.fail(msg);
+    }
+  });
+});
+
+describe('ueberfaellig-nur-fuer-die-frist (v6.66 — ein Wort je Uhr)', () => {
+  // Bis v6.65 hießen vier Uhren „überfällig" oder „T über", in demselben Rot:
+  // Bearbeitungsfrist, eine zweite Plan-Uhr ohne Halt, Meilenstein-Soll und
+  // Stillstand gegen Zieltage. An einem Vorgang standen so mehrere
+  // „überfällig"-Zahlen nebeneinander, alle richtig, keine erklärt (Nutzer,
+  // 13.09.2026: „Nur die Angabe von so vielen roten Tagen ist verwirrend").
+  // Seither gehört das Wort der Bearbeitungsfrist. Die Wörter wohnen in
+  // core/utils/uhrWorte.ts; hier stehen nur die Module, die von der Frist sprechen.
+  const FRIST_MODULE = [
+    `${sep}core${sep}utils${sep}uhrWorte.ts`,
+    `${sep}plugins${sep}antraege${sep}fristAnzeige.ts`,
+    `${sep}plugins${sep}chat${sep}assistent${sep}arbeitsvorratUebersicht.ts`,
+    `${sep}plugins${sep}chat${sep}assistent${sep}kontextSnapshot.ts`,
+    `${sep}core${sep}services${sep}assistent${sep}kontext${sep}assembliere.ts`,
+  ];
+  const istKommentar = (l: string): boolean => /^\s*(?:\/\/|\/?\*)/.test(l);
+  /** In einem String- oder Template-Literal oder als JSX-Text. */
+  const alsText = /(?:['"`][^'"`]*|>[^<]*)überfällig/i;
+
+  it('„überfällig" steht als Text nur in Modulen der Bearbeitungsfrist', () => {
+    const findings: Finding[] = [];
+    for (const file of ALL_TS_FILES) {
+      if (FRIST_MODULE.some(m => file.endsWith(m))) continue;
+      if (file.includes(`${sep}__tests__${sep}`) || /\.test\.tsx?$/.test(file)) continue;
+      findings.push(...findInFile(file, l => !istKommentar(l) && alsText.test(l), 'allow-ueberfaellig'));
+    }
+    if (findings.length > 0) {
+      expect.fail(
+        `„überfällig" gehört seit v6.66 nur der Bearbeitungsfrist.\n` +
+        `Stattdessen aus src/core/utils/uhrWorte.ts:\n` +
+        `  fristWort / fristTageWort   → „12 Tage über der Frist" · „noch 5 Tage" · „angehalten"\n` +
+        `  gerissenWort / faelligWort  → Meilenstein: „gerissen seit 33 T" · „fällig in 5 T"\n` +
+        `  bewegungWort                → Stillstand: „keine Bewegung seit 35 T (Ziel 21 T)"\n` +
+        `Spricht die Stelle wirklich von der Bearbeitungsfrist, die Zeile mit\n` +
+        `'// allow-ueberfaellig: <grund>' markieren.\n\nTreffer:\n${fmt(findings)}`,
+      );
     }
   });
 });

@@ -20,6 +20,7 @@ import type { BestandZeile } from '@/core/status/bestands-lauf';
 import { isTerminalStatus } from '@/core/utils/status-canonical';
 import { statusLabel } from '@/core/utils/status-wert-labels';
 import { besetzteRollen } from '@/plugins/antraege/bearbeiterFilter';
+import { fristTageWort } from '@/core/utils/uhrWorte';
 import type { ZusatzBlock } from './zusatzBloecke';
 
 /** Wie viele Einträge eine Liste im Block höchstens nennt. */
@@ -34,7 +35,7 @@ export interface PlanRisiko {
   verbundId: string;
   titel: string;
   prognose: 'gefährdet' | 'nicht haltbar';
-  /** Tage bis zur Gesamtfrist; negativ = überschritten. */
+  /** Tage bis zur Bearbeitungsfrist (dieselbe wie die Frist-Spalte); negativ = überschritten. */
   restTage: number | null;
 }
 
@@ -157,9 +158,8 @@ function planZeilen(risiken: BestandEingabe['planRisiken']): string[] {
   const out = [`Bearbeitungsplan (Meilensteine): ${risiken.length - gefaehrdet} Verbünde nicht haltbar, ${gefaehrdet} gefährdet`];
   const sortiert = [...risiken].sort((a, b) => (a.restTage ?? Infinity) - (b.restTage ?? Infinity));
   for (const r of sortiert.slice(0, BESTAND_MAX_LISTE)) {
-    const rest = r.restTage === null
-      ? ''
-      : r.restTage >= 0 ? `, noch ${tage(r.restTage)} bis zur Gesamtfrist` : `, Gesamtfrist seit ${tagenDativ(-r.restTage)} überschritten`;
+    // Dieselbe Bearbeitungsfrist wie die Frist-Spalte (v6.66) und dasselbe Wort.
+    const rest = r.restTage === null ? '' : `, Bearbeitungsfrist: ${fristTageWort(r.restTage, 'lang')}`;
     out.push(`- ${r.titel} (${r.verbundId}): ${r.prognose}${rest}`);
   }
   return out;

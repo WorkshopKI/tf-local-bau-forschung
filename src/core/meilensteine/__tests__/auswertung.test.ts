@@ -108,6 +108,7 @@ describe('werteKnotenAus', () => {
     bewerteVerbund(plan, {
       verbundId: 'VB', antragsdatum: '2026-01-05', anker: '2026-01-05', typ: 'FuE',
       kontext: baueKontext(a ? { a } : {}),
+      frist: { zustand: 'laeuft', zielDatum: '2026-04-05' },
     }, heute);
 
   // Anker 05.01.2026, sollWoche 2 ⇒ Soll-Termin 19.01.2026.
@@ -151,6 +152,7 @@ describe('werteKnotenAus', () => {
     };
     const b = [bewerteVerbund(nurDs, {
       verbundId: 'VB', antragsdatum: '2026-01-05', anker: '2026-01-05', typ: 'FuE', kontext: baueKontext({}),
+      frist: { zustand: 'laeuft', zielDatum: '2026-04-05' },
     }, '2026-02-01T00:00:00.000Z')];
     const [k] = werteKnotenAus(nurDs, b);
     expect(k!.betrachtet).toBe(0);
@@ -162,9 +164,9 @@ describe('zaehlePrognosen', () => {
   it('zählt jede Prognose-Stufe, auch die leeren', () => {
     const mk = (prognose: VerbundMeilensteine['prognose']): VerbundMeilensteine => ({
       verbundId: 'x', antragsdatum: null, anker: null, typ: null, wocheAktuell: null,
-      fristDatum: null, restTage: null, ergebnisse: [], prognose,
+      fristDatum: null, restTage: null, fristZustand: 'laeuft', ergebnisse: [], prognose,
     });
-    expect(zaehlePrognosen([mk('imPlan'), mk('imPlan'), mk('nichtHaltbar')]))
-      .toEqual({ imPlan: 2, gefaehrdet: 0, nichtHaltbar: 1, abgeschlossen: 0, unbekannt: 0 });
+    expect(zaehlePrognosen([mk('imPlan'), mk('imPlan'), mk('nichtHaltbar'), mk('angehalten')]))
+      .toEqual({ imPlan: 2, gefaehrdet: 0, nichtHaltbar: 1, angehalten: 1, abgeschlossen: 0, unbekannt: 0 });
   });
 });

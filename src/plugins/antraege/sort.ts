@@ -113,7 +113,7 @@ export const SORT_OPTIONS: readonly SortOption[] = [
     // Beschriftung „Älteste Eingänge zuerst" beschrieb `antrag_asc`.
     key: 'frist_asc',
     label: 'Frist (kürzeste)',
-    hinweis: 'Frist, kürzeste Restlaufzeit zuerst — Überfällige oben',
+    hinweis: 'Frist, kürzeste Restlaufzeit zuerst — über der Frist oben',
     compare: compareFristAsc,
   },
   {

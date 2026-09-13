@@ -2,7 +2,7 @@ import type { AntragListItem, Verbund } from '@/core/services/csv/types';
 import { getStatusCategory, type StatusCategory } from '@/core/utils/status-canonical';
 import { normalisierePrecheck, type PrecheckKlasse } from '@/core/utils/naechsterSchritt';
 import { getEingangAmpel, type EingangAmpel } from './eingangAmpel';
-import type { FristErgebnis } from '@/core/services/csv/frist-ergebnis';
+import { verbundFristErgebnis, type FristErgebnis } from '@/core/services/csv/frist-ergebnis';
 import { fristErgebnisVon, fristTageVon } from './fristAnzeige';
 import { formatFkzRange } from './antragGroups';
 import { sectionOf, type StatusSectionId } from './antragGroups';
@@ -76,21 +76,9 @@ export function criticalFristAware(tvs: AntragListItem[]): number | null {
 export function criticalFristErgebnis(
   tvs: AntragListItem[], nowMs: number = Date.now(),
 ): FristErgebnis {
-  let bester: FristErgebnis | null = null;
-  let angehalten: FristErgebnis | null = null;
-  let ohne: FristErgebnis | null = null;
-  for (const tv of tvs) {
-    const e = fristErgebnisVon(tv, nowMs);
-    if (e.zustand === 'laeuft') {
-      if (bester === null || (e.tageRest ?? Infinity) < (bester.tageRest ?? Infinity)) bester = e;
-    } else if (e.zustand === 'angehalten') {
-      angehalten ??= e;
-    } else {
-      ohne ??= e;
-    }
-  }
-  return bester ?? angehalten ?? ohne
-    ?? { zustand: 'nicht_berechenbar', haltedatumQuelle: 'unbekannt' };
+  // Die Faltung wohnt seit v6.66 im csv-Layer — der Meilenstein-Plan liest
+  // dieselbe, sonst hätte er wieder eine eigene Uhr.
+  return verbundFristErgebnis(tvs, nowMs);
 }
 
 /**

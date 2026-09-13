@@ -286,10 +286,15 @@ der Brief rankt über ihre Grenzen hinweg.
 - **Die Handlung kommt aus der Kaskade, auch wenn ein Stillstand rankt** (v6.57.4).
   Ein Stillstands-Punkt verdrängt beim Entdoppeln den To-do-Punkt desselben
   Verbunds; deshalb spricht er dessen Aufgabe selbst (`FristRoh.aufgabe`,
-  dieselbe `aufgabenAnzeige` wie die Karte) und nennt seine Herkunft: „KITED
-  (Stillstand „Gutachten fertig“ seit 9 Tagen überfällig): QS anstoßen."
-  Zieltage messen Liegezeit, keinen Termin — deshalb
-  „überfällig", nicht „fällig". Ohne die Herkunft las sich die Klammer als
+  dieselbe `aufgabenAnzeige` wie die Karte) und nennt seine Herkunft: „DeepWard
+  (keine Bewegung seit mindestens 26 Tagen, Ziel 7 Tage, „ALT gesetzt, ALU
+  fehlt“): NL prüfen." Zieltage messen Liegezeit, keinen Termin — deshalb
+  spricht die Klammer `bewegungWort` ([uhrWorte.ts](../../src/core/utils/uhrWorte.ts)),
+  „mindestens", wo die Liegezeit aus dem jüngsten Kürzel-Datum genähert ist
+  (`belegt: false`); die Zahlen reicht `zieltagAnlass` als `liegeTage`/`zieltage`/`belegt`
+  durch. Der To-do-Punkt nennt die Bearbeitungsfrist mit `fristTageWort`
+  („AXPUMP (119 Tage über der Frist): GA schreiben."); „überfällig" gehört seit
+  v6.66 nur ihr (Guard `ueberfaellig-nur-fuer-die-frist`). Ohne die Herkunft las sich die Klammer als
   eingetretener Zustand — gemessen 11.09.2026 unter einer Karte, die für
   denselben Verbund eine andere Aufgabe sagte.
 - **Wer ist dran — gegen die Rolle des LESERS** (v6.61). Jeder Kandidat beider

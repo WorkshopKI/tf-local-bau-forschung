@@ -218,7 +218,7 @@ export function werteKnotenAus(
 export function zaehlePrognosen(
   bewertungen: readonly VerbundMeilensteine[],
 ): Record<VerbundMeilensteine['prognose'], number> {
-  const out = { imPlan: 0, gefaehrdet: 0, nichtHaltbar: 0, abgeschlossen: 0, unbekannt: 0 };
+  const out = { imPlan: 0, gefaehrdet: 0, nichtHaltbar: 0, angehalten: 0, abgeschlossen: 0, unbekannt: 0 };
   for (const v of bewertungen) out[v.prognose]++;
   return out;
 }

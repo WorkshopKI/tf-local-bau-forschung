@@ -121,8 +121,13 @@ function faktBewegung(w: WaechterErgebnis | null): Fakt {
   return {
     id: 'bewegung',
     label: 'Bewegung',
-    wert: w.tage === null ? URTEIL_LABEL[w.urteil] : `vor ${w.tage} T`,
-    ...(w.zieltage === null ? {} : { zusatz: `Grenze ${w.zieltage} T` }),
+    // Beim Stillstand „keine seit N T" — dasselbe Wort wie Fristen-Karte und
+    // Tagesbrief (`bewegungWort`, v6.66); solange die Liegezeit im Ziel liegt,
+    // „vor N T". Das Ziel heißt überall „Ziel", nicht mal „Grenze".
+    wert: w.tage === null
+      ? URTEIL_LABEL[w.urteil]
+      : w.urteil === 'haengt' ? `keine seit ${w.tage} T` : `vor ${w.tage} T`,
+    ...(w.zieltage === null ? {} : { zusatz: `Ziel ${w.zieltage} T` }),
     farbe: URTEIL_FARBE[w.urteil],
     titel: `${URTEIL_LABEL[w.urteil]} — ${w.grund} (${herkunft})`,
   };

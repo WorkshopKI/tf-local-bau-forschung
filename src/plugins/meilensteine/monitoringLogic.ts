@@ -8,7 +8,7 @@
  * nur innerhalb der Liste. Das Bezugsjahr kommt überall als Parameter herein,
  * damit nichts an der Uhr hängt.
  *
- * Bewusst KEIN eigener Zustandsbegriff: „überfällig" ist genau `gerissen`,
+ * Bewusst KEIN eigener Zustandsbegriff: „gerissen" ist genau `gerissen`,
  * „diese Woche fällig" genau `faellig` (das 7-Tage-Fenster der Engine). Eine
  * zweite Schwellen-Definition in der Oberfläche würde von der Engine abweichen,
  * sobald jemand eine der beiden anfasst.
@@ -21,7 +21,7 @@ import type { VerbundZeile } from './useMeilensteinStand';
 
 /** Dringlichkeits-Rang: Prognose schlägt Restzeit. */
 const PROGNOSE_RANG: Record<Prognose, number> = {
-  nichtHaltbar: 0, gefaehrdet: 1, imPlan: 2, unbekannt: 3, abgeschlossen: 4,
+  nichtHaltbar: 0, gefaehrdet: 1, imPlan: 2, unbekannt: 3, angehalten: 4, abgeschlossen: 5,
 };
 
 // ---------------------------------------------------------------------------
@@ -221,10 +221,12 @@ export interface WochenPunkt {
   label: string;
   zustand: Extract<MstZustand, 'gerissen' | 'faellig'>;
   sollDatum: string | null;
-  /** Tage bis zum Soll-Termin (negativ = überfällig). */
+  /** Tage bis zum Soll-Termin (negativ = so lange gerissen). */
   restTage: number | null;
   kuerzel: string[];
   prognose: Prognose;
+  /** Tage bis zur Bearbeitungsfrist des Verbunds (negativ = überschritten) — für das Prognose-Wort. */
+  fristTage: number | null;
 }
 
 /**
@@ -256,6 +258,7 @@ export function sammleWochenPunkte(
         restTage: restTageBis(Number.isNaN(sollMs) ? null : sollMs, heuteMs),
         kuerzel: z.kuerzel,
         prognose: z.prognose,
+        fristTage: z.restTage,
       });
     }
   }

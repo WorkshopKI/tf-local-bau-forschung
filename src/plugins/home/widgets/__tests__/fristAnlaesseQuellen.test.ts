@@ -34,7 +34,7 @@ describe('Fristen-Anlässe tragen, woraus ihr Grund gelesen wurde', () => {
   it('ein Meilenstein-Anlass trägt seinen Plan-Knoten', () => {
     const b: VerbundMeilensteine = {
       verbundId: 'vb-1', antragsdatum: '2026-01-05', anker: '2026-01-05', typ: 'FuE',
-      wocheAktuell: 8, fristDatum: '2026-04-05', restTage: 35, prognose: 'gefaehrdet',
+      wocheAktuell: 8, fristDatum: '2026-04-05', restTage: 35, fristZustand: 'laeuft', prognose: 'gefaehrdet',
       ergebnisse: [{
         knotenId: 'k1', zustand: 'gerissen', sollDatum: '2026-01-19', istDatum: null, abweichungTage: null,
       }],

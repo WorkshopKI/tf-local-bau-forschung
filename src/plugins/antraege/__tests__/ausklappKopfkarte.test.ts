@@ -152,10 +152,10 @@ describe('baueKopfModell — die drei Fakten', () => {
     expect(bewegung?.farbe).toBeNull();
   });
 
-  it('nennt bei der Bewegung die Grenze aus dem Statuskatalog', () => {
+  it('nennt bei der Bewegung das Ziel aus dem Statuskatalog', () => {
     const f = baue(bezug()).fakten.find(x => x.id === 'bewegung');
-    expect(f?.wert).toBe('vor 4 T');
-    expect(f?.zusatz).toBe('Grenze 14 T');
+    expect(f?.wert).toBe('keine seit 4 T');
+    expect(f?.zusatz).toBe('Ziel 14 T');
   });
 
   it('markiert eine genäherte letzte Aktivität im Tooltip', () => {

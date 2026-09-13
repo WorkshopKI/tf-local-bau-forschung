@@ -35,6 +35,7 @@ import type { ZahPhase } from '@/core/status/typen';
 import type { HaltedatumHerkunft, HaltedatumQuelle } from '@/core/status/haltedatum';
 import { addDays, addMonths, ANTRAG_SLA_DAYS, VN_SLA_MONTHS, wirksamerEingang } from './frist';
 import { MS_TAG } from '@/core/utils/zeitEinheiten';
+import type { AntragListItem } from './types';
 
 /**
  * - `laeuft` — die Uhr zählt; `tageRest` ist belastbar (negativ = überschritten).
@@ -219,4 +220,70 @@ export function berechneFrist(e: FristEingabe): FristErgebnis {
     haltedatumQuelle: 'unbekannt',
     ...(rest !== null ? { tageRest: rest } : {}),
   };
+}
+
+/** Was die Listen-Projektion für eine Frist hergibt. */
+export type FristQuelle = Pick<
+  AntragListItem, 'status' | 'antragsdatum' | 'vn_eingang_datum' | 'alle_antraege_da'
+>;
+
+/**
+ * Der Frist-Zustand eines Antrags aus der Listen-Projektion — die Brücke
+ * zwischen `AntragListItem` und {@link berechneFrist}.
+ *
+ * Genau EINE Stelle kennt die Feldnamen der Projektion. Sie wohnt seit v6.66
+ * hier im csv-Layer statt in `plugins/antraege/fristAnzeige.ts`, damit auch der
+ * Meilenstein-Plan dieselbe Frist lesen kann (`verbundFristLage`). `D_XTE` kommt
+ * als `alle_antraege_da` über die Rückfall-Liste der Projektion (v4.126), nicht
+ * über einen geratenen Record-Key (recurring-bug-classes Klasse 5).
+ */
+export function fristErgebnisVon(
+  antrag: FristQuelle,
+  nowMs: number = Date.now(),
+  phasen?: readonly ZahPhase[],
+): FristErgebnis {
+  return berechneFrist({
+    status: antrag.status,
+    antragsdatum: typeof antrag.antragsdatum === 'string' ? antrag.antragsdatum : null,
+    alleAntraegeDa: typeof antrag.alle_antraege_da === 'string' ? antrag.alle_antraege_da : null,
+    vnEingangDatum: typeof antrag.vn_eingang_datum === 'string' ? antrag.vn_eingang_datum : null,
+    stichtag: new Date(nowMs).toISOString(),
+    ...(phasen ? { phasen } : {}),
+  });
+}
+
+/**
+ * Die Frist eines **Verbunds** — die Faltung über seine Teilvorhaben, absteigend
+ * nach dem, was der Nutzer wissen muss:
+ *
+ * 1. Läuft irgendwo eine Uhr, gilt die knappste. Ein Verbund mit einem laufenden
+ *    und vier angehaltenen TVs hat eine Frist.
+ * 2. Sonst: steht mindestens eine Uhr still, ist der Verbund angehalten.
+ * 3. Sonst gibt es keine Grundlage — und die Anzeige sagt das, statt leer zu
+ *    bleiben. `tvs` leer ⇒ `nicht_berechenbar`.
+ *
+ * **Eine Faltung für alle**, die „die Frist des Verbunds" zeigen: Fördertabelle
+ * (`criticalFristErgebnis`), Startseite und seit v6.66 der Meilenstein-Plan. Bis
+ * dahin rechnete der Plan eine eigene 90-Tage-Uhr ab Anker ohne Halt; gemessen
+ * am 13.09.2026 (dev:local, 2 081 offene Verbünde) sagte sie bei 1 917
+ * „überfällig", während die Frist-Spalte bei 1 348 davon „angehalten" zeigte.
+ */
+export function verbundFristErgebnis(
+  tvs: readonly FristQuelle[], nowMs: number = Date.now(),
+): FristErgebnis {
+  let bester: FristErgebnis | null = null;
+  let angehalten: FristErgebnis | null = null;
+  let ohne: FristErgebnis | null = null;
+  for (const tv of tvs) {
+    const e = fristErgebnisVon(tv, nowMs);
+    if (e.zustand === 'laeuft') {
+      if (bester === null || (e.tageRest ?? Infinity) < (bester.tageRest ?? Infinity)) bester = e;
+    } else if (e.zustand === 'angehalten') {
+      angehalten ??= e;
+    } else {
+      ohne ??= e;
+    }
+  }
+  return bester ?? angehalten ?? ohne
+    ?? { zustand: 'nicht_berechenbar', haltedatumQuelle: 'unbekannt' };
 }

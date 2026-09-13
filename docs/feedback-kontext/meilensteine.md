@@ -8,8 +8,13 @@ Gesamtfrist (Standard 90 Tage) ab dem **wirksamen Eingang**, unterteilt in
 Meilensteine mit Soll-Wochen (MST 1 … 6). Wirksamer Eingang heißt: je
 Teilvorhaben das spätere aus Antragseingang (`D_AAE`) und „alle Anträge da"
 (`D_XTE`), über alle Teilvorhaben das späteste. Ab diesem einen Datum zählen
-Soll-Termine, Bearbeitungswoche, Gesamtfrist und die Dauern der Auswertung —
-dasselbe Datum, von dem auch die Frist-Spalte der Förderanträge rechnet. Der
+Soll-Termine, Bearbeitungswoche und die Dauern der Auswertung — dasselbe Datum,
+von dem auch die Frist-Spalte der Förderanträge rechnet.
+
+Die **Frist** selbst ist dieselbe wie in der Frist-Spalte: die dringendste laufende Uhr der
+Teilvorhaben. Sie steht still, solange ein Verbund in einem Schritt ohne Frist
+ist (etwa in der Entscheidung), und heißt dann „Frist angehalten". Die
+Gesamtfrist im Plan sagt, bis wann alle Soll-Wochen erledigt sein sollen. Der
 Tooltip an „Gesamtfrist" und an „Eingang" nennt die beiden Spalten.
 
 ## Bereiche
@@ -24,15 +29,26 @@ Tooltip an „Gesamtfrist" und an „Eingang" nennt die beiden Spalten.
   Eingänge" bleiben sie erreichbar. Bezug ist der Antragseingang; Vorgänge ohne
   Antragsdatum sind nur unter „Alle Eingänge" sichtbar.
 - **Übersicht**: links je offener Verbund eine Zeile (Akronym, Antragstyp,
-  laufende Woche, ein Zustands-Punkt je Haupt-Meilenstein, Restzeit), rechts der
-  Zeitstrahl — Soll hohle Raute, Ist gefüllter Punkt. Filter: Typ, Prognose,
-  Suche, „nur meine"; nach Dringlichkeit sortiert.
-- **Diese Woche**: überfällige und in sieben Tagen fällige Meilensteine der
-  Verbünde im gewählten Eingangs-Zeitraum. Standardmäßig **nach Verbund gebündelt** (Schalter
+  laufende Woche, ein Zustands-Punkt je Haupt-Meilenstein, die Frist kurz wie in
+  der Frist-Spalte — „noch 5 T", „12 T über Frist" — oder das Prognose-Wort, wo
+  keine Uhr läuft), rechts der Zeitstrahl — Soll
+  hohle Raute, Ist gefüllter Punkt; darüber die Frist wie in der Frist-Spalte:
+  „noch 5 Tage", „heute fällig", „12 Tage über der Frist" oder „Frist
+  angehalten". Filter: Typ, Prognose (Frist nicht zu halten, Gefährdet, Im Plan,
+  Frist angehalten, Abgeschlossen, Unbekannt), Suche, „nur meine"; nach
+  Dringlichkeit sortiert.
+- **Prognose unter „Diese Woche", im Kopf der Übersicht und auf der Verbund-Detailseite**: „Über der
+  Frist", wenn die Frist schon überschritten ist; „Frist nicht mehr zu halten",
+  wenn sie noch läuft, der Rückstand der Meilensteine sie aber absehbar sprengt.
+  Die Filter fassen beides als „Frist nicht zu halten" zusammen.
+- **Diese Woche**: gerissene und in sieben Tagen fällige Meilensteine der
+  Verbünde im gewählten Eingangs-Zeitraum. Je Meilenstein steht rechts „gerissen
+  seit N T" bzw. „fällig in N T" und das Prognose-Wort seines Verbunds.
+  Standardmäßig **nach Verbund gebündelt** (Schalter
   „nach Verbund"): eine Zeile je Vorhaben, die den dringendsten Punkt nennt
-  („hängt seit 1.2 Antrag zugewiesen" bzw. „nächster …") plus die Zahl der offenen
+  („zuerst gerissen 1.2 Antrag zugewiesen" bzw. „nächster …") plus die Zahl der offenen
   Meilensteine; Klick klappt sie auf, das Pfeil-Symbol rechts führt zum Verbund.
-  Die Abschnitte Überfällig / Diese Woche fällig bleiben getrennt.
+  Die Abschnitte Gerissen / Diese Woche fällig bleiben getrennt.
 - **Auswertung**: Ø-Dauer, Median, Anteil im Soll und Abweichung — gesamt und je
   FuE/DS/DL/NW; je Meilenstein Soll-Woche, Ø Ist-Woche, Δ und Reißquote. Die
   Dauer-Statistik zählt abgeschlossene Vorgänge, die Meilenstein-Statistik offene.
@@ -166,7 +182,7 @@ Tooltip an „Gesamtfrist" und an „Eingang" nennt die beiden Spalten.
   - **„nur Status"** steht dort, wo die Regel allein den heutigen Status prüft.
     Ein Status ist kein Ereignis, sondern der Wert von heute: sobald der Vorgang
     weiterzieht, gilt der Meilenstein wieder als nicht erreicht — und bleibt
-    überfällig, obwohl der Schritt längst passiert ist. Der Satz daneben nennt
+    gerissen, obwohl der Schritt längst passiert ist. Der Satz daneben nennt
     den Ausweg: die Datumsspalte des Ereignisses ergänzen; der Status darf als
     zusätzlicher Zweig stehen bleiben.
 

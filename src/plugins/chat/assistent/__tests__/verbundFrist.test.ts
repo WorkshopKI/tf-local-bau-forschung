@@ -31,7 +31,7 @@ describe('verbundFrist', () => {
     // Ob die Uhr im Widerspruch läuft, sagt der Phasen-Katalog (im Seed steht
     // sie). Geprüft wird hier die Weiche, also ein TV mit sicher laufender Uhr.
     const f = verbundFrist('abgelehnt/zurückgezogen', [tv('A', -304, 'techn geprüft')], NOW);
-    expect(f.hinweis).toMatch(/überfällig/);
+    expect(f.hinweis).toMatch(/über Frist/);
     expect(f.anzahl).toBe(1);
   });
 

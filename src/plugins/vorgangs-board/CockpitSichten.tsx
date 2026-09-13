@@ -20,6 +20,7 @@ import { abschnittId } from '@/core/sichtbarkeit';
 import { useAsyncAction } from '@/core/hooks/useAsyncAction';
 import { ampelVon, sichtVon, type BoardZeile, type VorgangsBoardApi } from './useVorgangsBoard';
 import { exportiereCockpitXlsx } from './cockpit-export';
+import { bewegungWort, fristTageWort } from '@/core/utils/uhrWorte';
 
 const AMPEL_FARBE: Record<'rot' | 'gelb' | 'gruen', string> = {
   rot: 'var(--tf-danger-text)',
@@ -135,12 +136,12 @@ export function FristenSicht({ api }: { api: VorgangsBoardApi }): React.ReactEle
                     className={`${tdKlasse} text-right tabular-nums whitespace-nowrap`}
                     style={ampel ? { color: AMPEL_FARBE[ampel] } : undefined}
                   >
-                    {z.restTage !== null && z.restTage < 0 ? `${-z.restTage} T über` : `${z.restTage} T`}
+                    {z.restTage === null ? '—' : fristTageWort(z.restTage)}
                   </td>
                   <td className={`${tdKlasse} text-[var(--tf-text-secondary)]`}>{sichtVon(z, api.rolle).todo ?? '—'}</td>
                   <td className={`${tdKlasse} whitespace-nowrap`} title={z.waechter.grund}>
                     {z.waechter.urteil === 'haengt'
-                      ? <span style={{ color: 'var(--tf-warning-text)' }}>hängt {z.waechter.tage} T</span>
+                      ? <span style={{ color: 'var(--tf-warning-text)' }}>{bewegungWort(z.waechter.tage, z.waechter.zieltage, z.waechter.belegt)}</span>
                       : z.waechter.urteil === 'unbewertet'
                         ? <span className="text-[var(--tf-text-tertiary)]">nicht bewertbar</span>
                         : <span className="text-[var(--tf-text-tertiary)]">—</span>}
@@ -315,7 +316,7 @@ export function AuswertungSicht({ api }: { api: VorgangsBoardApi }): React.React
                   className="shrink-0 tabular-nums"
                   style={{ color: AMPEL_FARBE[ampelVon(z.restTage) ?? 'gruen'] }}
                 >
-                  {z.restTage !== null && z.restTage < 0 ? `${-z.restTage} T über` : `${z.restTage} T`}
+                  {z.restTage === null ? '—' : fristTageWort(z.restTage)}
                 </span>
               </li>
             ))}

@@ -128,7 +128,7 @@ export function istTerminErklaerung(
       ? {
         text: 'Die Bedingung prüft nur den heutigen Status. Der ist kein Ereignis: sobald der '
           + 'Vorgang weiterzieht, gilt der Meilenstein wieder als nicht erreicht — und bleibt '
-          + 'überfällig, obwohl der Schritt längst passiert ist. Bitte die Datumsspalte des '
+          + 'gerissen, obwohl der Schritt längst passiert ist. Bitte die Datumsspalte des '
           + 'Ereignisses ergänzen; der Status darf als zusätzlicher Zweig stehen bleiben.',
         keinDatum: true,
         momentaufnahme: true,

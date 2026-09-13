@@ -46,12 +46,12 @@ describe('akteZeilen', () => {
       .toContain('Zuweisung: AB in 2 von 3, FB in 1 von 3 Teilvorhaben besetzt');
   });
 
-  it('nennt eine überschrittene Gesamtfrist als überschritten, nicht als negative Restzeit', () => {
+  it('nennt eine überschrittene Bearbeitungsfrist als „über der Frist", nicht als negative Restzeit', () => {
     const text = akteZeilen({
       ...leer,
-      meilensteine: { prognose: 'nicht haltbar', restTage: -5, fristDatum: '01.02.2026', gerissen: ['1.4 Gutachten — Soll 03.01.2026, 40 Tage über'], faellig: [] },
+      meilensteine: { prognose: 'nicht haltbar', restTage: -5, fristDatum: '01.02.2026', gerissen: ['1.4 Gutachten — Soll 03.01.2026, seit 40 Tagen gerissen'], faellig: [] },
     }).join('\n');
-    expect(text).toContain('Prognose nicht haltbar, Gesamtfrist seit 5 Tagen überschritten (01.02.2026)');
+    expect(text).toContain('Prognose nicht haltbar, Bearbeitungsfrist: 5 Tage über der Frist (01.02.2026)');
     expect(text).toContain('- gerissen: 1.4 Gutachten');
     expect(text).not.toContain('-5');
   });

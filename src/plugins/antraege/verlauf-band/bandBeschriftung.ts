@@ -197,7 +197,7 @@ export interface BeschriftungsOptionen {
    */
   fokus?: string | null;
   /**
-   * Text der **Endmarke** einer Bahn (heute „hängt fest"); `null` = keine.
+   * Text der **Endmarke** einer Bahn (heute „keine Bewegung"); `null` = keine.
    *
    * WELCHE Bahn eine bekommt, entscheidet der Aufrufer — der Stillstands-Wächter
    * urteilt über einen **Vorgang**, nicht über eine Spur, und nur der Aufrufer

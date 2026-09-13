@@ -51,6 +51,7 @@ export function lageDa(
       wocheAktuell: 5,
       fristDatum: '2026-04-05',
       restTage: 40,
+      fristZustand: 'laeuft',
       ergebnisse,
       prognose: 'gefaehrdet',
       ...p,

@@ -3,6 +3,7 @@
  * `--tf-*`-Tokens (Guard `theme-token-contract`).
  */
 import { parseGermanDate, formatGermanDate } from '@/core/services/csv/dateParse';
+import { fristTageWort } from '@/core/utils/uhrWorte';
 import { ANKER_SPALTEN, einzeiligesLabel } from '@/core/meilensteine';
 import type {
   MstZustand, Prognose, SpaltenEintrag, VerbundMeilensteine,
@@ -62,10 +63,19 @@ export const ZUSTAND_TEXT_FARBE: Record<MstZustand, string> = {
   ohneBedingung: 'var(--tf-text-secondary)',
 };
 
+/**
+ * Die Prognose als Wort für **Filter-Chips und Verteilungen** — eine Menge, kein
+ * einzelner Verbund. Am einzelnen Verbund steht {@link prognoseText}: dort trennt
+ * sich „nicht zu halten" in „über der Frist" (schon passiert) und „Frist nicht
+ * mehr zu halten" (Vorhersage).
+ */
 export const PROGNOSE_LABEL: Record<Prognose, string> = {
   imPlan: 'Im Plan',
   gefaehrdet: 'Gefährdet',
-  nichtHaltbar: 'Frist nicht haltbar',
+  nichtHaltbar: 'Frist nicht zu halten',
+  // Seit v6.66: die Uhr steht (Entscheidung, bewilligt vor dem VN) — dasselbe
+  // Wort wie in der Frist-Spalte, statt „überfällig" einer zweiten Plan-Uhr.
+  angehalten: 'Frist angehalten',
   abgeschlossen: 'Abgeschlossen',
   unbekannt: 'Unbekannt',
 };
@@ -74,9 +84,23 @@ export const PROGNOSE_FARBE: Record<Prognose, string> = {
   imPlan: 'var(--tf-success-text)',
   gefaehrdet: 'var(--tf-warning-text)',
   nichtHaltbar: 'var(--tf-danger-text)',
+  angehalten: 'var(--tf-text-tertiary)',
   abgeschlossen: 'var(--tf-text-tertiary)',
   unbekannt: 'var(--tf-text-tertiary)',
 };
+
+/**
+ * Die Prognose eines **einzelnen** Verbunds. „Nicht haltbar" hat zwei Ursachen,
+ * die sich verschieden anfühlen: die Frist ist schon überschritten, oder der
+ * größte Verzug trägt das Plan-Ende über die Frist. Beides „Frist nicht haltbar"
+ * zu nennen, las sich bei einer längst gerissenen Frist wie eine Vorhersage.
+ */
+export function prognoseText(b: Pick<VerbundMeilensteine, 'prognose' | 'restTage'>): string {
+  if (b.prognose === 'nichtHaltbar') {
+    return b.restTage !== null && b.restTage < 0 ? 'Über der Frist' : 'Frist nicht mehr zu halten';
+  }
+  return PROGNOSE_LABEL[b.prognose];
+}
 
 /**
  * Erklärt einen Ist-Termin **vor** Woche 0.
@@ -104,7 +128,7 @@ export const ANKER_ERKLAERUNG: string =
 
 /** Reihenfolge für Filter-Leisten und Verteilungs-Anzeigen. */
 export const PROGNOSE_REIHENFOLGE: readonly Prognose[] = [
-  'nichtHaltbar', 'gefaehrdet', 'imPlan', 'abgeschlossen', 'unbekannt',
+  'nichtHaltbar', 'gefaehrdet', 'imPlan', 'angehalten', 'abgeschlossen', 'unbekannt',
 ];
 
 export const OPERATOR_LABEL: Record<string, string> = {
@@ -162,17 +186,20 @@ export function formatDatum(iso: string | null | undefined): string {
 }
 
 /**
- * Die Restzeit-Angabe eines Verbunds im Kopf der Detail-Ansicht.
+ * Die Frist-Angabe eines Verbunds im Kopf der Detail-Ansicht — dieselbe
+ * Bearbeitungsfrist und dasselbe Wort wie in der Frist-Spalte (v6.66).
  *
  * Bei `unbekannt` steht **keine Tageszahl**: dann gilt kein Meilenstein des
- * Plans für diesen Verbund, und die aus der Gesamtfrist gerechnete Zahl läse
- * sich als geprüfte Frist („noch 7 Tage" neben lauter „Nicht relevant").
+ * Plans für diesen Verbund, und die Zahl läse sich als vom Plan geprüfte Frist
+ * („noch 7 Tage" neben lauter „Nicht relevant").
  */
-export function restzeitText(b: Pick<VerbundMeilensteine, 'restTage' | 'prognose'>): string {
-  if (b.restTage === null) return 'Restzeit unbekannt';
+export function restzeitText(
+  b: Pick<VerbundMeilensteine, 'restTage' | 'prognose' | 'fristZustand'>,
+): string {
+  if (b.fristZustand === 'angehalten') return 'Frist angehalten';
+  if (b.restTage === null) return 'Frist nicht berechenbar';
   if (b.prognose === 'unbekannt') return 'Frist rechnerisch — kein Meilenstein belegt sie';
-  if (b.restTage === 0) return 'heute fällig';
-  return b.restTage > 0 ? `noch ${b.restTage} Tage` : `${-b.restTage} Tage überfällig`;
+  return fristTageWort(b.restTage, 'lang');
 }
 
 /** „+3 Tage" / „−12 Tage" / „pünktlich". */

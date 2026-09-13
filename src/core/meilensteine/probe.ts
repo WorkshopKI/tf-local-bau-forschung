@@ -151,6 +151,8 @@ function eingabe(f: ProbeFall): BewertungsEingabe {
     typ: v.typ,
     kontext: f.kontext,
     terminal: v.abgeschlossen,
+    // Die Probe zählt erreichte Meilensteine; Frist und Prognose liest sie nicht.
+    frist: { zustand: 'nicht_berechenbar', zielDatum: null },
   };
 }
 

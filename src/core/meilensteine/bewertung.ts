@@ -21,7 +21,7 @@ import {
   bedingungIstLeer, pruefeBedingung, type Bedingung, type BedingungsKontext,
 } from '@/core/status';
 import type {
-  AntragstypBucket, MeilensteinKnoten, MeilensteinPlan, MstErgebnis, MstZustand,
+  AntragstypBucket, FristLage, MeilensteinKnoten, MeilensteinPlan, MstErgebnis, MstZustand,
   Prognose, VerbundMeilensteine,
 } from './typen';
 import { MS_TAG } from '@/core/utils/zeitEinheiten';
@@ -45,8 +45,11 @@ import { MS_TAG } from '@/core/utils/zeitEinheiten';
  * das spätere) statt des Antragsdatums allein.
  * 3 → 4 (v6.59.2): der Ist-Termin ohne `istDatumFeld` folgt der Verknüpfung
  * (`erfuellungsDatum`) statt dem frühesten Datum aller Bedingungsfelder.
+ * 4 → 5 (v6.66): die Frist ist die Bearbeitungsfrist der Frist-Spalte
+ * (`verbundFristLage`, hält in Phasen ohne Frist) statt einer eigenen
+ * 90-Tage-Uhr ab Anker; neue Prognose `angehalten`.
  */
-export const BEWERTUNGS_VERSION = 4;
+export const BEWERTUNGS_VERSION = 5;
 
 /** Vorwarnfenster: so viele Tage vor dem Soll-Termin gilt ein Meilenstein als fällig. */
 export const FAELLIG_FENSTER_TAGE = 7;
@@ -59,6 +62,13 @@ export interface BewertungsEingabe {
   anker: string | null;
   typ: AntragstypBucket | null;
   kontext: BedingungsKontext;
+  /**
+   * Die Bearbeitungsfrist des Verbunds — **dieselbe** wie in der Frist-Spalte
+   * (`verbundFristLage`, gefaltet über die Teilvorhaben). Bis v6.65 rechnete die
+   * Engine eine eigene 90-Tage-Uhr ab Anker ohne Halt (Messung in
+   * `frist-lage.ts`). Die Soll-Wochen zählen weiter ab `anker`.
+   */
+  frist: FristLage;
   /**
    * Der Verbund ist amtlich fertig (terminaler Status). Wird vom Aufrufer über
    * `isTerminalStatus` bestimmt — die Engine kennt keine Status-Literale.
@@ -335,9 +345,10 @@ export function bewerteVerbund(
     }
   }
 
-  const fristDatum = ankerIso === null ? null : addDays(ankerIso, plan.gesamtfristTage);
-  const fristMs = alsMs(fristDatum);
-  const restTage = restTageBis(fristMs, heuteMs);
+  // Eine Frist, nicht zwei (v6.66): nur eine LAUFENDE Uhr hat ein Zieldatum und
+  // Resttage. Eine angehaltene hat keins — dort sagt die Prognose „angehalten".
+  const fristDatum = eingabe.frist.zustand === 'laeuft' ? eingabe.frist.zielDatum : null;
+  const restTage = restTageBis(alsMs(fristDatum), heuteMs);
 
   return {
     verbundId: eingabe.verbundId,
@@ -347,8 +358,11 @@ export function bewerteVerbund(
     wocheAktuell: ankerMs === null ? null : Math.max(1, Math.floor((heuteMs - ankerMs) / (7 * MS_TAG)) + 1),
     fristDatum,
     restTage,
+    fristZustand: eingabe.frist.zustand,
     ergebnisse,
-    prognose: leitePrognoseAb(plan, fristBlaetter, restTage, heuteMs, eingabe.terminal === true, ankerMs !== null),
+    prognose: leitePrognoseAb(
+      plan, fristBlaetter, restTage, heuteMs, eingabe.terminal === true, ankerMs !== null, eingabe.frist.zustand,
+    ),
   };
 }
 
@@ -367,9 +381,13 @@ function leitePrognoseAb(
   heuteMs: number,
   terminal: boolean,
   hatAnker: boolean,
+  fristZustand: FristLage['zustand'],
 ): Prognose {
   if (fristBlaetter.length === 0) return 'unbekannt';
   if (terminal || fristBlaetter.every(b => b.zustand === 'erreicht')) return 'abgeschlossen';
+  // Steht die Uhr (Entscheidung, bewilligt vor dem Verwendungsnachweis), gibt es
+  // nichts mehr zu prognostizieren — die Frist-Spalte sagt dasselbe Wort.
+  if (fristZustand === 'angehalten') return 'angehalten';
   if (!hatAnker || restTage === null) return 'unbekannt';
   if (restTage < 0) return 'nichtHaltbar';
 

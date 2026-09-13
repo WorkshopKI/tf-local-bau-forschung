@@ -86,7 +86,7 @@ describe('buildKompaktRow — Zeilen-VM (Label + relative Frist)', () => {
   it('offener Antrag mit Rest-Frist → Frist gesetzt (gefärbt wie Punkt)', () => {
     const vm = buildKompaktRow(item({ akronym: 'SCULPT' }), nowFor(6));
     expect(vm.label).toBe('SCULPT');
-    expect(vm.frist).toMatchObject({ text: 'in 6 T', ampel: 'orange' });
+    expect(vm.frist).toMatchObject({ text: 'noch 6 T', ampel: 'orange' });
   });
 
   it('terminaler Status → angehalten ohne Punkt (nicht mehr leer)', () => {
@@ -150,7 +150,7 @@ describe('buildKompaktGroups — ein Eintrag pro Verbund', () => {
       av('AZ-1', { akronym: 'X', verbund_id: 'VB-1' }),
       av('AZ-2', { akronym: 'X', verbund_id: 'VB-1' }),
     ], nowFor(6));
-    expect(rest[0]!.frist).toMatchObject({ text: 'in 6 T', ampel: 'orange' });
+    expect(rest[0]!.frist).toMatchObject({ text: 'noch 6 T', ampel: 'orange' });
     const term = buildKompaktGroups([av('AZ-3', { status: 'Schlussvermerk' })], nowFor(6));
     expect(term[0]!.frist.zustand).toBe('angehalten');
   });

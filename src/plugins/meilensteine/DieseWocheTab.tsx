@@ -34,16 +34,18 @@ import {
 import {
   ladeWocheGruppiert, ladeWocheNurMeine, speichereWocheGruppiert, speichereWocheNurMeine,
 } from './ansichtPersistenz';
-import { PROGNOSE_FARBE, PROGNOSE_LABEL, ZUSTAND_FARBE, feldStil, formatDatum } from './labels';
+import { PROGNOSE_FARBE, ZUSTAND_FARBE, feldStil, formatDatum, prognoseText } from './labels';
+import { faelligWort, gerissenWort } from '@/core/utils/uhrWorte';
 import type { VerbundZeile } from './useMeilensteinStand';
 
-/** „4692 T überfällig" / „heute fällig" / „in 3 T". */
+/**
+ * „gerissen seit 4692 T" / „heute fällig" / „fällig in 3 T" — die Wörter des
+ * Meilensteins. „Überfällig" gehört seit v6.66 nur der Bearbeitungsfrist
+ * (`core/utils/uhrWorte.ts`); der heutige Soll-Tag bleibt ein eigener Fall.
+ */
 function restText(restTage: number | null): string {
   if (restTage === null) return '—';
-  // Der heutige Soll-Tag ist ein eigener Fall: „in 0 T" liest sich als Frist,
-  // die noch läuft, und stand ausgerechnet unter der Überschrift „Überfällig".
-  if (restTage === 0) return 'heute fällig';
-  return restTage < 0 ? `${-restTage} T überfällig` : `in ${restTage} T`;
+  return restTage < 0 ? gerissenWort(-restTage) : faelligWort(restTage);
 }
 
 /**
@@ -109,7 +111,7 @@ function PunktZeile({ p, knoten, eingerueckt, onOeffnen }: {
           className="shrink-0 w-[104px] text-right text-[10.5px]"
           style={{ color: PROGNOSE_FARBE[p.prognose] }}
         >
-          {PROGNOSE_LABEL[p.prognose]}
+          {prognoseText({ prognose: p.prognose, restTage: p.fristTage })}
         </span>
       )}
     </button>
@@ -125,9 +127,9 @@ function GruppenZeile({ gruppe, knotenById, offen, onToggle, onOeffnen }: {
 }): React.ReactElement {
   const d = gruppe.dringendster;
   const Pfeil = offen ? ChevronDown : ChevronRight;
-  // „hängt seit" nur bei Gerissenen — bei Fälligen ist es der nächste Termin,
-  // da hängt noch nichts.
-  const wortlaut = d.zustand === 'gerissen' ? 'hängt seit' : 'nächster';
+  // „zuerst gerissen" nur bei Gerissenen — bei Fälligen ist es der nächste
+  // Termin. „Hängt" gehörte dem Stillstand und hieß hier etwas anderes.
+  const wortlaut = d.zustand === 'gerissen' ? 'zuerst gerissen' : 'nächster';
 
   return (
     <div className="flex flex-col">
@@ -172,7 +174,7 @@ function GruppenZeile({ gruppe, knotenById, offen, onToggle, onOeffnen }: {
             className="shrink-0 w-[104px] text-right text-[10.5px]"
             style={{ color: PROGNOSE_FARBE[d.prognose] }}
           >
-            {PROGNOSE_LABEL[d.prognose]}
+            {prognoseText({ prognose: d.prognose, restTage: d.fristTage })}
           </span>
         </button>
         <button
@@ -318,14 +320,14 @@ export function DieseWocheTab({ zeilen, plan, meineTokens, meineTokensAnzeige, s
           behauptete eine Tatsache, wo eine Auswahl gilt. */}
       {punkte.length === 0 ? (
         <p className="text-[12.5px] text-[var(--tf-text-tertiary)]">
-          Mit den aktuellen Einstellungen ist nichts überfällig und nichts in den nächsten sieben
-          Tagen fällig
+          Mit den aktuellen Einstellungen ist kein Meilenstein gerissen und keiner in den nächsten
+          sieben Tagen fällig
           {gefiltert ? ' — „nur meine" schneidet die Liste zusätzlich auf Ihre Kürzel zu.' : '.'}
         </p>
       ) : (
         <>
           <Gruppe
-            titel="Überfällig" sektion="ueberfaellig" punkte={ueberfaellig} knotenById={knotenById}
+            titel="Gerissen" sektion="ueberfaellig" punkte={ueberfaellig} knotenById={knotenById}
             gruppiert={gruppiert} offene={offene} onToggle={toggleVerbund} onOeffnen={oeffneVerbund}
           />
           <Gruppe

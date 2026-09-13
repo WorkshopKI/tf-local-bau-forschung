@@ -79,13 +79,13 @@ describe('punkte — satz und segmente können nicht auseinanderlaufen', () => {
 });
 
 describe('punkte — Stillstands-Sätze', () => {
-  it('unterscheidet überfällig, heute und bevorstehend', () => {
-    expect(stillstandPunkte([frist({ tage: -4 })])[0]!.satz)
-      .toContain('seit 4 Tagen überfällig');
-    expect(stillstandPunkte([frist({ tage: 0 })])[0]!.satz)
-      .toContain('heute überfällig');
-    expect(stillstandPunkte([frist({ tage: 6 })])[0]!.satz)
-      .toContain('in 6 Tagen überfällig');
+  it('sagt „keine Bewegung" mit Liegezeit und Ziel — nie „überfällig" (v6.66)', () => {
+    const belegt = stillstandPunkte([frist({ tage: -4, liegeTage: 25, zieltage: 21, belegt: true })])[0]!.satz;
+    expect(belegt).toContain('keine Bewegung seit 25 Tagen, Ziel 21 Tage');
+    expect(belegt).not.toContain('überfällig');
+    expect(stillstandPunkte([frist({ tage: -4, liegeTage: 25, zieltage: 21, belegt: false })])[0]!.satz)
+      .toContain('seit mindestens 25 Tagen');
+    expect(stillstandPunkte([frist({ tage: -4 })])[0]!.satz).toContain('keine Bewegung');
   });
 
   it('nennt gebündelte Geschwister, statt sie zu verschweigen', () => {
@@ -293,16 +293,17 @@ describe('punkte — wer nach einem Vorgang fragt, benennt ihn', () => {
 describe('punkte — der Stillstand nennt sich, die Handlung kommt aus der Kaskade', () => {
   const ST: FristRoh = {
     verbundId: 'VB1', akronym: 'KITED', grund: 'Gutachten fertig', tage: -9, weitere: 0,
+    liegeTage: 30, zieltage: 21, belegt: true,
   };
 
   it('ein Stillstand steht als Stillstand da, nicht als nackte Klammer', () => {
     expect(stillstandPunkte([ST])[0]!.satz)
-      .toBe('KITED: Stillstand „Gutachten fertig“ seit 9 Tagen überfällig.');
+      .toBe('KITED: keine Bewegung seit 30 Tagen, Ziel 21 Tage, „Gutachten fertig“.');
   });
 
   it('mit Aufgabe: die Uhr in der Klammer, die Handlung hinter dem Doppelpunkt', () => {
     const p = stillstandPunkte([{ ...ST, aufgabe: { text: 'QS anstoßen', rueckfall: false } }])[0]!;
-    expect(p.satz).toBe('KITED (Stillstand „Gutachten fertig“ seit 9 Tagen überfällig): QS anstoßen.');
+    expect(p.satz).toBe('KITED (keine Bewegung seit 30 Tagen, Ziel 21 Tage, „Gutachten fertig“): QS anstoßen.');
   });
 
   it('gebündelte Geschwister stehen bei der Uhr, nicht bei der Aufgabe', () => {
@@ -310,7 +311,7 @@ describe('punkte — der Stillstand nennt sich, die Handlung kommt aus der Kaska
       { ...ST, weitere: 2, aufgabe: { text: 'QS anstoßen', rueckfall: false } },
     ])[0]!;
     expect(p.satz).toBe(
-      'KITED (Stillstand „Gutachten fertig“ seit 9 Tagen überfällig — und 2 weitere im selben Verbund): QS anstoßen.',
+      'KITED (keine Bewegung seit 30 Tagen, Ziel 21 Tage, „Gutachten fertig“ — und 2 weitere im selben Verbund): QS anstoßen.',
     );
   });
 

@@ -84,7 +84,7 @@ Verfügung.
   Der zweite Teil sagt, wie viel von der Arbeit einer Rolle nur abgeleitet ist —
   und damit, wie viel Regelarbeit noch aussteht.
 - **Filter**: Rollen-Chips (Vorbelegung aus dem Profil, umschaltbar auf alle),
-  eigenes Kürzel an/aus, **„hängt fest"** — dazu drei Menüs mit
+  eigenes Kürzel an/aus, **„keine Bewegung"** — dazu drei Menüs mit
   **Mehrfachauswahl**: Jahre (Jahr des Antragseingangs), Fördervarianten und
   ZAH-Phasen. Der Kürzel-Filter folgt der Rolle: ein AB sucht sich in der
   BIB-Spalte, ein FB in TIB.
@@ -101,8 +101,9 @@ Verfügung.
     der Drei-Jahres-Grenze enthält — auch bei einem einzeln gewählten alten Jahr,
     nicht erst bei „alle".
 - **Stillstands-Wächter**: eine Zeile, an der seit länger als den **Zieltagen**
-  ihres Status nichts passiert ist, trägt die Marke „hängt n T". Im Kopf steht
-  der **Stau je Rolle**; daneben — nicht darin — die Zahl der **nicht
+  ihres Status nichts passiert ist, trägt die Marke „keine Bewegung seit n T
+  (Ziel m T)" — mit „≥", wo die Liegezeit nur genähert ist. Im Kopf steht
+  der **Stau je Rolle** („Keine Bewegung: 1 bei AB …"); daneben — nicht darin — die Zahl der **nicht
   bewertbaren** Vorgänge, für deren Status niemand Zieltage gepflegt hat.
   Zieltage werden unter „Vorgangs-Regeln" im Reiter „Statuswerte" gepflegt.
 
@@ -114,7 +115,8 @@ Verfügung.
 - **Fristen** (Bearbeiter-Sicht): die Anträge nach Restfrist, der knappste zuerst.
   Gerechnet ab **wirksamem Eingang** — dem späteren von Antragseingang und „alle
   Anträge da"; das Datum steht in einer eigenen Spalte, damit sichtbar ist,
-  worauf sich die Zahl bezieht. Ampel rot ab 14, gelb ab 30 Tagen. Daneben das
+  worauf sich die Zahl bezieht. Die Spalte sagt „noch N T", „heute fällig" oder
+  „N T über Frist". Ampel rot ab 14, gelb ab 30 Tagen. Daneben das
   To-do und das Wächter-Urteil.
   - Eine Antragsfrist läuft nur in der **Antragsphase**. Abgeschlossene und
     bewilligte Vorgänge stehen nicht in der Liste — wie viele es sind, sagt eine

@@ -10,6 +10,7 @@
  * Maus zeigt, und niemand merkt es.
  */
 import type { AdressTeile } from '@/core/status';
+import { bewegungWort, fristTageWort } from '@/core/utils/uhrWorte';
 import type { NachtlaufName } from './nachtlaufNamen';
 import type { BriefPunkt, Segment, Sprungziel, ThemaId } from './typen';
 
@@ -60,8 +61,12 @@ export interface FristRoh {
   akronym: string;
   /** Was los ist: Status oder Kürzel-Paar. */
   grund: string;
-  /** Tage bis zur Fälligkeit; negativ = überfällig. */
+  /** Sortierschlüssel: Tage bis zum Ziel; negativ = so viele Tage über dem Ziel. */
   tage: number;
+  /** Liegezeit ohne datierte Bewegung, Zieltage des Status, Liegezeit belegt? */
+  liegeTage?: number | null;
+  zieltage?: number | null;
+  belegt?: boolean;
   /** Wie viele weitere Anlässe desselben Verbunds diese Zeile mitvertritt. */
   weitere: number;
   /**
@@ -81,17 +86,16 @@ export interface FristRoh {
  * (gemessen 11.09.2026, damals am Meilenstein-Thema). Das Fristen-Widget trägt
  * die Herkunft seit v4.86 als Marke; der Brief hatte sie weggeworfen.
  *
- * Zieltage messen Liegezeit, keinen Termin — deshalb „überfällig", nicht
- * „fällig" (CONTEXT.md).
+ * Zieltage messen Liegezeit, keinen Termin — der Satz sagt deshalb „keine
+ * Bewegung seit …", nie „überfällig": das Wort gehört seit v6.66 nur der
+ * Bearbeitungsfrist (`core/utils/uhrWorte.ts`).
  */
 function stillstandSatz(r: FristRoh): BriefPunkt {
   const zielAntrag: Sprungziel = { art: 'antrag', scopeId: r.verbundId };
-  const wann = r.tage < 0
-    ? `seit ${Math.abs(r.tage)} Tagen überfällig`
-    : r.tage === 0
-      ? 'heute überfällig'
-      : `in ${r.tage} Tagen überfällig`;
-  const uhr = `Stillstand${r.grund ? ` „${r.grund}“` : ''} ${wann}`
+  const wann = r.liegeTage !== undefined
+    ? bewegungWort(r.liegeTage, r.zieltage ?? null, r.belegt ?? true, 'lang')
+    : 'keine Bewegung';
+  const uhr = `${wann}${r.grund ? `, „${r.grund}“` : ''}`
     + (r.weitere > 0 ? ` — und ${r.weitere} weitere im selben Verbund` : '');
   const a = r.aufgabe;
   // Mit Aufgabe dieselbe Form wie ein To-do-Punkt: die Uhr in der Klammer, die
@@ -149,9 +153,7 @@ function vermerke(a: AufgabeText): Segment[] {
  * niemand konnte sehen, warum.
  */
 function uhrText(tage: number): string {
-  if (tage < 0) return `seit ${Math.abs(tage)} Tagen überfällig`;
-  if (tage === 0) return 'heute fällig';
-  return `noch ${tage} Tage`;
+  return fristTageWort(tage, 'lang');
 }
 
 export function zuTunPunkte(aufgaben: readonly AufgabeRoh[]): BriefPunkt[] {

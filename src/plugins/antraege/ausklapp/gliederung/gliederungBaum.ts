@@ -2,8 +2,10 @@
  * Die **Meilenstein-Gliederung** als Baum-Bestand für `TfTree` — rein, ohne React.
  *
  * Jede Zeile beantwortet drei Fragen in einer Zeile: welche Stufe (Nummer +
- * Name), wie sie steht (erreicht / N T über / nicht relevant) und wann
- * (Ist-Datum bzw. Soll-Termin).
+ * Name), wie sie steht (erreicht / gerissen / nicht relevant) und wann
+ * (Ist-Datum bzw. Soll-Termin). Wie lange eine Stufe schon gerissen ist, steht
+ * seit v6.66 im Titel — „N T über" in der Zeile trug dasselbe Rot wie die Frist
+ * und las sich als ihre Überschreitung.
  *
  * **Eigener Adapter, nicht `baueMeilensteinBaum`.** Der des Konfigurations-Tabs
  * setzt `isFolder: true` für JEDEN Knoten — dort richtig, weil jeder ein
@@ -17,6 +19,7 @@
 import { kinderVon } from '@/core/meilensteine/knoten-edit';
 import type { MstZustand } from '@/core/meilensteine/typen';
 import { ZUSTAND_FARBE, ZUSTAND_LABEL, ZUSTAND_TEXT_FARBE, formatDatum } from '@/plugins/meilensteine/labels';
+import { gerissenWort } from '@/core/utils/uhrWorte';
 import { tageZwischen } from '@/core/status/waechter';
 import type { TfTreeItems } from '@/components/tree';
 import type { MeilensteinLage, Stufe } from '../meilensteinLage';
@@ -65,10 +68,8 @@ function kurzesJahr(iso: string | null): string {
   return lang.length === 10 ? `${lang.slice(0, 6)}${lang.slice(8)}` : lang;
 }
 
-function statusText(s: Stufe, stichtag: string): string {
-  if (s.zustand !== 'gerissen') return ZUSTAND_LABEL[s.zustand].toLowerCase();
-  const tage = tageZwischen(s.ergebnis.sollDatum ?? '', stichtag);
-  return tage === null ? 'gerissen' : `${tage} T über`;
+function statusText(s: Stufe): string {
+  return ZUSTAND_LABEL[s.zustand].toLowerCase();
 }
 
 function datumText(s: Stufe): string {
@@ -77,7 +78,7 @@ function datumText(s: Stufe): string {
   return `Soll ${kurzesJahr(s.ergebnis.sollDatum)}`;
 }
 
-function titelText(s: Stufe, statusWort: string, hatKinder: boolean): string {
+function titelText(s: Stufe, hatKinder: boolean, gerissenSeit: number | null): string {
   const kopf = `${s.knoten.nummer} ${s.knoten.label}`;
   if (s.zustand === 'erreicht') {
     // Erreicht OHNE Datum ist der Normalfall bei Bedingungen ohne Datumsfeld
@@ -90,8 +91,8 @@ function titelText(s: Stufe, statusWort: string, hatKinder: boolean): string {
   if (s.zustand === 'nichtRelevant') return `${kopf} — für diesen Antragstyp nicht vorgesehen`;
   if (s.ergebnis.sollDatum === null) return `${kopf} — ohne Antragseingang kein Soll-Termin`;
   const lage = s.zustand === 'gerissen'
-    ? `Soll ${formatDatum(s.ergebnis.sollDatum)}, offen seit ${statusWort.replace(' über', '')}`
-    : `Soll ${formatDatum(s.ergebnis.sollDatum)}, ${statusWort}`;
+    ? `Soll ${formatDatum(s.ergebnis.sollDatum)}, ${gerissenWort(gerissenSeit, 'lang')}`
+    : `Soll ${formatDatum(s.ergebnis.sollDatum)}, ${statusText(s)}`;
   return `${kopf} — ${lage}${hatKinder && s.zustand === 'gerissen' ? ' (Ursache in der Unterebene)' : ''}`;
 }
 
@@ -105,7 +106,8 @@ export function baueGliederung(lage: MeilensteinLage, stufen: readonly Stufe[], 
 
   for (const s of stufen) {
     const kinder = kindIds(s.knoten.id);
-    const wort = statusText(s, stichtag);
+    const wort = statusText(s);
+    const gerissenSeit = s.zustand === 'gerissen' ? tageZwischen(s.ergebnis.sollDatum ?? '', stichtag) : null;
     items[s.knoten.id] = {
       id: s.knoten.id,
       name: `${s.knoten.nummer} ${s.knoten.label}`,
@@ -124,7 +126,7 @@ export function baueGliederung(lage: MeilensteinLage, stufen: readonly Stufe[], 
         datumText: datumText(s),
         punktForm: PUNKT_FORM[s.zustand],
         punktFarbe: ZUSTAND_FARBE[s.zustand],
-        titel: titelText(s, wort, kinder.length > 0),
+        titel: titelText(s, kinder.length > 0, gerissenSeit),
       },
     };
   }
