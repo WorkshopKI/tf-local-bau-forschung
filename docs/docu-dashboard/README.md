@@ -71,4 +71,4 @@ Der Flow-Player zeichnet daraus ein Sequenzdiagramm (Spalten = `lanes`, Zeilen =
 
 ## Pflege
 
-Einmal im Monat — oder nach einem neuen Feature — läuft der Skill [docu-dashboard](../../.claude/skills/docu-dashboard/SKILL.md): frischer Stand, bauen, Änderungen seit `last-build.json` sichten, `data.json` nachziehen, neu bauen, ansehen, auf einem Branch committen, `dashboard.html` ausliefern.
+Einmal im Monat — oder nach einem neuen Feature — läuft der Skill [docu-dashboard](../../.claude/skills/docu-dashboard/SKILL.md): frischer Stand, bauen, Änderungen seit `last-build.json` sichten, `data.json` nachziehen, neu bauen, ansehen, auf einem Branch committen (der `post-commit`-Hook merged ihn nach `master` und pusht), `dashboard.html` ausliefern.
