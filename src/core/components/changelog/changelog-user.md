@@ -19,6 +19,20 @@
   Modal automatisch aus CHANGELOG.md ab.
 -->
 
+## v6.67 — 2026-09
+
+### Neu
+- **Die Karte „Fristen" auf der Startseite zeigt jetzt zwei Gruppen.** Unter **„Jetzt eingreifen"** (orange) stehen Ihre Vorgänge, an denen sich länger nichts bewegt hat, als für ihren Status vorgesehen ist, während die Frist noch läuft. Hier lässt sich ein verpasster Meilenstein noch verhindern; zuerst steht, was als Nächstes reißt: der nächste Meilenstein oder die Frist, je nachdem, was früher kommt. Unter **„Rückstand"** (rot) stehen Vorgänge, deren Frist überschritten ist oder bei denen ein Meilenstein gerissen ist; zuerst steht, was am weitesten über der Frist ist.
+- **Jeder Vorgang steht nur noch einmal auf der Karte, mit allem in einer Zeile:** wie viele Meilensteine gerissen sind und welcher als erster, seit wann sich nichts bewegt hat, wann der nächste Meilenstein fällig ist, rechts die Frist wie in der Förderanträge-Liste („119 T über Frist" oder „noch N T"). Darunter steht, was zu tun ist, genau wie in „Meine Anträge".
+
+### Verbesserungen
+- **Vorgänge mit angehaltener Frist stehen nicht mehr auf der Karte „Fristen".** Die Fußzeile sagt, wie viele das sind. Vorher bestand die Liste zu zwei Dritteln aus Vorgängen, die schon in der Entscheidung sind, und nannte niemandem etwas zu tun.
+- **Im Tagesbrief heißt „Stillstand" jetzt „Jetzt eingreifen".** Er nennt dieselben Vorgänge wie die Karte und sagt dazu, wann der nächste Meilenstein fällig ist, etwa „KITED (keine Bewegung seit 30 Tagen, Ziel 21 Tage, nächster Meilenstein in 5 Tagen fällig, „Gutachten fertig“): QS anstoßen." Vorgänge mit angehaltener Frist nennt er dort nicht mehr. Wer das Thema abgewählt hatte, behält die Abwahl.
+- **Der aufgeklappte Antrag sagt, was einen gerissenen Meilenstein heilt.** Unter dem Meilenstein steht, woran er als erreicht gilt, etwa „Gilt als erreicht, sobald Finale Qualitätssicherung Ablehnung gefüllt ODER Rücknahmeempfehlung Qualitätssicherung gefüllt"; beim Überfahren stehen die Spalten dazu. Statt „N T offen" heißt es jetzt „gerissen seit N T".
+
+### Bugfixes
+- **Die Karte „Fristen" nennt dasselbe Ziel wie der aufgeklappte Antrag.** Die Zieltage wurden auf der Karte am Status des Verbunds gemessen, im aufgeklappten Antrag und im Vorgangs-Board am Status des Teilvorhabens. So stand derselbe Vorgang auf der Karte mit „Ziel 14 T" und zwei Klicks weiter mit „Ziel 10 T" da.
+
 ## v6.66 — 2026-09
 
 ### Verbesserungen

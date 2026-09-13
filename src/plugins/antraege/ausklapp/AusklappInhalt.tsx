@@ -128,6 +128,9 @@ export function AusklappInhalt({
       <KopfKarte
         modell={kopf}
         befund={befund}
+        blockerKnoten={lage.art === 'da'
+          ? lage.knoten.find(k => k.id === befund.blocker?.knotenId) ?? null
+          : null}
         aufgabe={aufgabe}
         aktionen={(
           <KopfAktionen

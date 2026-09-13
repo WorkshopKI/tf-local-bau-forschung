@@ -20,7 +20,7 @@ import { aktiveThemen, THEMEN } from '../themen';
 import type { BriefPunkt, Segment, ThemaId } from '../typen';
 
 const frist = (over: Partial<FristRoh> = {}): FristRoh => ({
-  verbundId: 'VB1', akronym: 'HACKKI', grund: 'Gutachten offen', tage: 3, weitere: 0, ...over,
+  verbundId: 'VB1', akronym: 'HACKKI', grund: 'Gutachten offen', tage: 3, ...over,
 });
 
 const name = (n: string, over: Partial<NachtlaufName> = {}): NachtlaufName => ({
@@ -88,14 +88,15 @@ describe('punkte — Stillstands-Sätze', () => {
     expect(stillstandPunkte([frist({ tage: -4 })])[0]!.satz).toContain('keine Bewegung');
   });
 
-  it('nennt gebündelte Geschwister, statt sie zu verschweigen', () => {
-    expect(stillstandPunkte([frist({ weitere: 2 })])[0]!.satz)
-      .toContain('und 2 weitere im selben Verbund');
-    expect(stillstandPunkte([frist({ weitere: 0 })])[0]!.satz)
-      .not.toContain('weitere');
+  it('nennt den nächsten Meilenstein — er sagt, wie viel Zeit zum Eingreifen bleibt (v6.67)', () => {
+    expect(stillstandPunkte([frist({ naechsterTage: 5 })])[0]!.satz)
+      .toContain('nächster Meilenstein in 5 Tagen fällig');
+    expect(stillstandPunkte([frist({ naechsterTage: 0 })])[0]!.satz)
+      .toContain('nächster Meilenstein heute fällig');
+    expect(stillstandPunkte([frist({ naechsterTage: null })])[0]!.satz).not.toContain('Meilenstein');
   });
 
-  it('reicht die Tageszahl unverändert durch — der Adapter dreht das Vorzeichen', () => {
+  it('reicht die Tageszahl unverändert durch', () => {
     expect(stillstandPunkte([frist({ tage: -4 })])[0]!.tage).toBe(-4);
   });
 });
@@ -258,7 +259,7 @@ describe('punkte — Kürzel ↔ Status', () => {
  */
 describe('punkte — wer nach einem Vorgang fragt, benennt ihn', () => {
   const FRIST: FristRoh = {
-    verbundId: 'VB1', akronym: 'CALYPSO', grund: 'Widerspruch', tage: -302, weitere: 0,
+    verbundId: 'VB1', akronym: 'CALYPSO', grund: 'Widerspruch', tage: -302,
   };
 
   it('Stillstands- und To-do-Punkte tragen ihren Vorgang', () => {
@@ -292,7 +293,7 @@ describe('punkte — wer nach einem Vorgang fragt, benennt ihn', () => {
  */
 describe('punkte — der Stillstand nennt sich, die Handlung kommt aus der Kaskade', () => {
   const ST: FristRoh = {
-    verbundId: 'VB1', akronym: 'KITED', grund: 'Gutachten fertig', tage: -9, weitere: 0,
+    verbundId: 'VB1', akronym: 'KITED', grund: 'Gutachten fertig', tage: -9,
     liegeTage: 30, zieltage: 21, belegt: true,
   };
 
@@ -306,12 +307,12 @@ describe('punkte — der Stillstand nennt sich, die Handlung kommt aus der Kaska
     expect(p.satz).toBe('KITED (keine Bewegung seit 30 Tagen, Ziel 21 Tage, „Gutachten fertig“): QS anstoßen.');
   });
 
-  it('gebündelte Geschwister stehen bei der Uhr, nicht bei der Aufgabe', () => {
+  it('der nächste Meilenstein steht bei der Uhr, nicht bei der Aufgabe', () => {
     const p = stillstandPunkte([
-      { ...ST, weitere: 2, aufgabe: { text: 'QS anstoßen', rueckfall: false } },
+      { ...ST, naechsterTage: 5, aufgabe: { text: 'QS anstoßen', rueckfall: false } },
     ])[0]!;
     expect(p.satz).toBe(
-      'KITED (keine Bewegung seit 30 Tagen, Ziel 21 Tage, „Gutachten fertig“ — und 2 weitere im selben Verbund): QS anstoßen.',
+      'KITED (keine Bewegung seit 30 Tagen, Ziel 21 Tage, nächster Meilenstein in 5 Tagen fällig, „Gutachten fertig“): QS anstoßen.',
     );
   });
 

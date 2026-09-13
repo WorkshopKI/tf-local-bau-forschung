@@ -19,6 +19,11 @@
  * Blocker steht (Pitfall #44).
  */
 import { formatDatum } from '@/plugins/meilensteine/labels';
+import { QuellSpaltenTooltip } from '@/components/quellspalten';
+import { useQuellSpaltenIndex } from '@/core/hooks/useQuellSpaltenIndex';
+import { knotenQuellen, type MeilensteinKnoten } from '@/core/meilensteine';
+import { bedingungIstLeer, bedingungSatz } from '@/core/status';
+import { gerissenWort } from '@/core/utils/uhrWorte';
 import { AufgabenZeile } from './AufgabenZeile';
 import type { Aufgabe } from '@/core/status/aufgabe';
 import { BLOCKIERT_MAX, type BlockerBefund } from './blocker';
@@ -61,8 +66,35 @@ function FaktKachel({ fakt }: { fakt: Fakt }): React.ReactElement {
   );
 }
 
+/**
+ * Was den Blocker heilt — seine Bedingung als Satz, mit ihren Quellspalten.
+ *
+ * Die Frage „was kann ich tun, um das wieder zu heilen?" beantwortet der Plan
+ * selbst: ein Meilenstein gilt als erreicht, sobald seine Bedingung wahr ist.
+ * Die Aufgabe der Kaskade steht darüber; hier steht, woran der Plan den Erfolg
+ * misst (entschieden 13.09.2026, kein neues Datenmodell).
+ */
+function ErreichtSobald({ knoten }: { knoten: MeilensteinKnoten }): React.ReactElement | null {
+  const { index } = useQuellSpaltenIndex();
+  if (bedingungIstLeer(knoten.bedingung)) return null;
+  // Bis der Index geladen ist, stehen die Feld-Ids da — kein leerer Satz.
+  const satz = bedingungSatz(knoten.bedingung, index?.labelVon ?? (id => id));
+  return (
+    <span className="text-[12.5px] text-[var(--tf-text-secondary)]">
+      Gilt als erreicht, sobald{' '}
+      <QuellSpaltenTooltip erklaere={idx => knotenQuellen(knoten, idx)}>
+        <span className="cursor-help text-[var(--tf-text)]">{satz}</span>
+      </QuellSpaltenTooltip>
+    </span>
+  );
+}
+
 /** Der Blocker aus dem Meilenstein-Plan — oder der Grund, warum keiner dasteht. */
-function BlockerZeile({ befund }: { befund: BlockerBefund }): React.ReactElement {
+function BlockerZeile({ befund, knoten }: {
+  befund: BlockerBefund;
+  /** Der Plan-Knoten des Blockers — trägt die Bedingung. */
+  knoten: MeilensteinKnoten | null;
+}): React.ReactElement {
   const b = befund.blocker;
   if (b === null) {
     return <p className="text-[12.5px] text-[var(--tf-text-secondary)] min-w-0">{befund.satz}</p>;
@@ -77,17 +109,20 @@ function BlockerZeile({ befund }: { befund: BlockerBefund }): React.ReactElement
         <span className="text-[12.5px] text-[var(--tf-text-secondary)]">
           Soll {formatDatum(b.sollDatum)}
           {b.offenTage !== null && (
-            <> · <span className="text-[var(--tf-danger-text)]">{b.offenTage} T offen</span></>
+            <> · <span className="text-[var(--tf-danger-text)]">{gerissenWort(b.offenTage)}</span></>
           )}
         </span>
+        {knoten !== null && <ErreichtSobald knoten={knoten} />}
       </div>
     </div>
   );
 }
 
-export function KopfKarte({ modell, befund, aufgabe, aktionen }: {
+export function KopfKarte({ modell, befund, blockerKnoten, aufgabe, aktionen }: {
   modell: KopfModell;
   befund: BlockerBefund;
+  /** Der Plan-Knoten zu `befund.blocker`; `null` ohne Blocker oder Plan. */
+  blockerKnoten: MeilensteinKnoten | null;
   /** Die Aufgabe aus der To-do-Kaskade; `null` ohne Vorgangssystem. */
   aufgabe: Aufgabe | null;
   /** Die Aktionsknöpfe — als Slot, damit die Karte selbst nichts navigiert. */
@@ -133,13 +168,13 @@ export function KopfKarte({ modell, befund, aufgabe, aktionen }: {
         <div className="flex items-start justify-between gap-4 flex-wrap">
           {aufgabe !== null
             ? <AufgabenZeile aufgabe={aufgabe} />
-            : <BlockerZeile befund={befund} />}
+            : <BlockerZeile befund={befund} knoten={blockerKnoten} />}
           <div className="shrink-0">{aktionen}</div>
         </div>
 
         {aufgabe !== null && (
           <div className="mt-2.5">
-            <BlockerZeile befund={befund} />
+            <BlockerZeile befund={befund} knoten={blockerKnoten} />
           </div>
         )}
 

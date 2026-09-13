@@ -10,7 +10,7 @@
  * Maus zeigt, und niemand merkt es.
  */
 import type { AdressTeile } from '@/core/status';
-import { bewegungWort, fristTageWort } from '@/core/utils/uhrWorte';
+import { bewegungWort, faelligWort, fristTageWort } from '@/core/utils/uhrWorte';
 import type { NachtlaufName } from './nachtlaufNamen';
 import type { BriefPunkt, Segment, Sprungziel, ThemaId } from './typen';
 
@@ -48,27 +48,24 @@ function anzahl(n: number, ein: string, viele: string): string {
 // ---------------------------------------------------------------- Uhr-Themen --
 
 /**
- * Ein Stillstands-Anlass (Zieltage), wie ihn `fristAnlaesse.ts` liefert — auf
- * das reduziert, was der Satz braucht. Meilensteine führt der Brief nicht
- * (s. `themen.ts`).
- *
- * **Achtung Vorzeichen:** `ueberTage` zählt Tage ÜBER dem Vorgesehenen (negativ
- * = so viel bleibt noch), `BriefPunkt.tage` zählt Tage BIS zur Fälligkeit. Der
- * Adapter dreht das Vorzeichen — hier steht es schon gedreht.
+ * Eine Zeile der Gruppe „Jetzt eingreifen" aus `fristenLage.ts` — auf das
+ * reduziert, was der Satz braucht. Einen eigenen Meilenstein-Satz führt der
+ * Brief nicht (s. `themen.ts`); der nächste fällige Meilenstein steht in der
+ * Klammer, weil er sagt, wie viel Zeit zum Eingreifen bleibt.
  */
 export interface FristRoh {
   verbundId: string;
   akronym: string;
   /** Was los ist: Status oder Kürzel-Paar. */
   grund: string;
-  /** Sortierschlüssel: Tage bis zum Ziel; negativ = so viele Tage über dem Ziel. */
+  /** Rang: Tage bis zum nächsten Meilenstein, ersatzweise bis zur Frist. */
   tage: number;
   /** Liegezeit ohne datierte Bewegung, Zieltage des Status, Liegezeit belegt? */
   liegeTage?: number | null;
   zieltage?: number | null;
   belegt?: boolean;
-  /** Wie viele weitere Anlässe desselben Verbunds diese Zeile mitvertritt. */
-  weitere: number;
+  /** Tage bis zum nächsten offenen Meilenstein; `null` = keiner offen oder kein Plan. */
+  naechsterTage?: number | null;
   /**
    * Die Handlung an diesem Verbund — aus derselben Kaskade wie die Karte „Meine
    * Anträge". Vertritt ein Stillstands-Anlass den Verbund im Brief, verdrängt er
@@ -95,8 +92,10 @@ function stillstandSatz(r: FristRoh): BriefPunkt {
   const wann = r.liegeTage !== undefined
     ? bewegungWort(r.liegeTage, r.zieltage ?? null, r.belegt ?? true, 'lang')
     : 'keine Bewegung';
-  const uhr = `${wann}${r.grund ? `, „${r.grund}“` : ''}`
-    + (r.weitere > 0 ? ` — und ${r.weitere} weitere im selben Verbund` : '');
+  const naechster = r.naechsterTage === undefined || r.naechsterTage === null
+    ? ''
+    : `, nächster Meilenstein ${faelligWort(r.naechsterTage, 'lang')}`;
+  const uhr = `${wann}${naechster}${r.grund ? `, „${r.grund}“` : ''}`;
   const a = r.aufgabe;
   // Mit Aufgabe dieselbe Form wie ein To-do-Punkt: die Uhr in der Klammer, die
   // Handlung hinter dem Doppelpunkt.
@@ -109,7 +108,7 @@ function stillstandSatz(r: FristRoh): BriefPunkt {
   });
 }
 
-/** Zieltage: der Stillstands-Wächter — misst Liegezeit, keinen Termin. */
+/** Jetzt eingreifen: keine Bewegung bei laufender Frist — misst Liegezeit, keinen Termin. */
 export function stillstandPunkte(anlaesse: readonly FristRoh[]): BriefPunkt[] {
   return anlaesse.map(stillstandSatz);
 }

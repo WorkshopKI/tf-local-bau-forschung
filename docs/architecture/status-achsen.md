@@ -32,10 +32,13 @@ Dazu zwei Ebenen, die nicht „wo steht er", sondern „ist er zu spät" beantwo
 | **Zieltage** je Status | Liegt der Vorgang zu lange still? | Katalog-Fassung | dem Speichern |
 | **Meilenstein**-Sollwoche | Ist ein Termin ab Eingang gerissen? | [Meilenstein-Plan](meilensteine.md) | der **Freigabe** |
 
-Beide laufen in **eine** Liste (Home-Widget „Fristen",
-[fristAnlaesse.ts](../../src/plugins/home/widgets/fristAnlaesse.ts)) — zusammen
-gezeigt, nicht zusammen gerechnet: sie messen Verschiedenes, und jede Zeile
-nennt deshalb ihre Herkunft.
+Beide stehen auf **einer** Karte (Home-Widget „Fristen",
+[fristenLage.ts](../../src/plugins/home/widgets/fristenLage.ts)) — zusammen
+gezeigt, nicht zusammen gerechnet: sie messen Verschiedenes. Seit v6.67 steht je
+Verbund eine Zeile, in der jede Ebene ihr eigenes Wort neben der Frist trägt,
+gruppiert in „Jetzt eingreifen" (Zieltage überschritten, Frist läuft noch) und
+„Rückstand" (Frist überschritten oder Meilenstein gerissen); Detail in
+[home-widgets.md](home-widgets.md).
 
 ## Was an den Kürzeln überhaupt Handarbeit ist (v4.92)
 
@@ -581,7 +584,7 @@ Fassungsnummer allein wäre eine Zusage, die der Inhalt nicht hält.
 | Die sieben Abschnitte | [antragGroups.ts](../../src/plugins/antraege/antragGroups.ts) |
 | Der Baum-Editor | [PhasenBaum.tsx](../../src/plugins/status-cockpit/PhasenBaum.tsx) |
 | Die Ebenen-Übersicht mit Live-Zahlen | [ebenenModell.ts](../../src/plugins/status-cockpit/ebenenModell.ts) + [EbenenUebersicht.tsx](../../src/plugins/status-cockpit/EbenenUebersicht.tsx) |
-| Die zwei Fristsysteme in einer Liste | [fristAnlaesse.ts](../../src/plugins/home/widgets/fristAnlaesse.ts) |
+| Die zwei Fristsysteme auf einer Karte (Jetzt eingreifen · Rückstand) | [fristenLage.ts](../../src/plugins/home/widgets/fristenLage.ts) |
 | Die Kürzel-Ebene (509 Codes, Ordner, Rollen, Ruhe) | [KATALOG-CODES.md](../status-system/KATALOG-CODES.md) |
 | Die Meilenstein-Ebene | [meilensteine.md](meilensteine.md) |
 

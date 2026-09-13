@@ -2273,7 +2273,7 @@ Was ist zu tun?* — und legt den Nachweis darunter.
 1. **Kopfkarte** ([KopfKarte](../../src/plugins/antraege/ausklapp/kopfkarte/KopfKarte.tsx)) —
    Urteil zur Frist samt Herleitung, drei Fakten (Bewegung · Meilensteine ·
    Liegt bei), darunter die **Aufgabe** aus der To-do-Kaskade samt Aktionen und
-   **ein** Blocker mit den Stufen, die deshalb mitwarten.
+   **ein** Blocker mit dem, was ihn heilt, und den Stufen, die deshalb mitwarten.
 2. **Zwei Reiter** (`SegmentedToggle`): **Vorgangsverlauf** (Chronik, terminlose
    Einträge, Fristrechnung — Voreinstellung, siehe 16.9) und **Zeitverlauf**
    (die Bahn).
@@ -2291,7 +2291,20 @@ Eine Aufzählung aller gerissenen Meilensteine beantwortet nicht, wo man ansetzt
 die **früheste gerissene Blatt-Stufe** — Blatt in genau der Definition der Engine
 (`bewertung.ts`: ein Sammel-Knoten aggregiert seine Kinder und zählt nicht
 doppelt). Eine zweite Blattregel liefe beim ersten typgefilterten Plan
-auseinander.
+auseinander. Dieselbe Wahl nennt die Fristen-Karte der Startseite
+(`meilensteinKurzlage`, [home-widgets.md](home-widgets.md)).
+
+**Was ihn heilt, sagt der Plan selbst** (v6.67). Unter dem Blocker steht „Gilt
+als erreicht, sobald ‹Bedingungssatz›" (`ErreichtSobald` in der Kopfkarte:
+`bedingungSatz` mit den Labels des Quellspalten-Index, Tooltip `knotenQuellen`);
+ein Knoten ohne Bedingung bekommt die Zeile nicht, und bis der Index geladen
+ist, stehen die Feld-Ids da. Der Knoten reist als `blockerKnoten` aus
+`AusklappInhalt` mit. Seine Tage heißen „gerissen seit N T" (`gerissenWort`)
+statt „N T offen". Kein neues Datenmodell: ein Meilenstein gilt als erreicht,
+sobald seine Bedingung wahr ist (entschieden 13.09.2026). Gesehen an AXPUMP:
+„4.4 QS freigegeben · Soll 30.03.2026 · gerissen seit 167 T · Gilt als
+erreicht, sobald Finale Qualitätssicherung Ablehnung gefüllt ODER
+Rücknahmeempfehlung Qualitätssicherung gefüllt".
 
 **„Blockiert" ist eine Annahme, keine Tatsache.** Der Plan kennt `elternId` und
 Soll-Wochen, aber **keine** Vorgänger-Relation. Genannt werden deshalb nur die

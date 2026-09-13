@@ -49,7 +49,7 @@ Zwei Prüfungen halten die kuratierten Angaben ehrlich — beide melden, keine b
 }
 ```
 
-Die Uhren-Grafik im Abschnitt Zusammenspiel steht als SVG in `template.html`: ein erfundener Beispielvorgang, gerechnet nach den Regeln im Code (Anker = späteres von `D_AAE`/`D_XTE`, 90 Tage, Soll-Wochen und Namen aus dem Auslieferungs-Plan, `ueberTage` wie in `fristAnlaesse.ts`). Ändert sich eine dieser Regeln, wird die Grafik nachgezogen.
+Die Uhren-Grafik im Abschnitt Zusammenspiel steht als SVG in `template.html`: ein erfundener Beispielvorgang, gerechnet nach den Regeln im Code (Anker = späteres von `D_AAE`/`D_XTE`, 90 Tage, Soll-Wochen und Namen aus dem Auslieferungs-Plan, je Uhr das Wort aus `uhrWorte.ts`, auf der Fristen-Karte die Gruppen aus `fristenLage.ts`). Ändert sich eine dieser Regeln, wird die Grafik nachgezogen.
 
 ## Flow-Format (data.json → `flows[]`)
 

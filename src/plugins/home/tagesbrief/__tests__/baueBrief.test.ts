@@ -176,7 +176,7 @@ describe('baueBrief — Leere braucht eine Erklärung', () => {
       laedt: false,
     });
     expect(b.leerText).toBe(
-      'Nichts Dringendes gefunden. Geprüft: Stillstand, Änderungen über Nacht, Meine Entwürfe.',
+      'Nichts Dringendes gefunden. Geprüft: Jetzt eingreifen, Änderungen über Nacht, Meine Entwürfe.',
     );
   });
 

@@ -79,7 +79,11 @@ auf 0, und die Fassung war nicht nur aus dem Blick, sondern aus der Datei.
     dev:local, 14 225 Anträge, Plan-Fassung 43): von 2 081 offenen Verbünden
     nannte diese Uhr 1 917 „über der Frist"; die Frist-Spalte zeigte davon
     1 348× „angehalten", 90× „nicht berechenbar", 151× „noch in der Frist" und
-    nur 328× ebenfalls „über".
+    nur 328× ebenfalls „über". **Nachher** (gleiche Messung, v6.66): die
+    Plan-Uhr nennt 328 „über der Frist" — genau die, die auch die Frist-Spalte
+    so nennt; bei angehaltener, nicht berechenbarer oder noch laufender Frist
+    keinen mehr. Prognose über die 2 081: 1 128 „Frist angehalten", 514 „nicht
+    haltbar", 415 unbekannt, 12 gefährdet, 11 abgeschlossen, 1 im Plan.
 - **Zustände**: `erreicht` · `gerissen` (Soll überschritten) · `faellig`
   (Soll in ≤ `FAELLIG_FENSTER_TAGE` = 7) · `offen` · `nichtRelevant` (inaktiv
   oder typ-fremd) · `ohneBedingung`. Ein inaktiver Knoten wird nie als gerissen
@@ -213,10 +217,13 @@ rechnet danach einmal neu. Gepflegt wird die Projektion in einem eigenen Post-Im
   Verbünde), Auswertung (Ø-Dauer je Antragstyp, Soll gegen Ist je Knoten),
   Konfiguration (Baum-Editor, Regelbereich als Karten mit Ist-Termin-Zeile und
   Probe am Bestand, Fassungen, Freigabe).
-- **Home-Widget „Fristen"** — eine Liste für beide Fristsysteme (Zieltage +
-  Meilensteine), Auszug für die eigenen Verbünde, **je Vorgang eine Zeile**
-  (gebündelt wie im Modul, `buendleNachVerbund`). Das frühere Einzel-Widget
-  „Meilensteine diese Woche" ist seit v4.87 abgelöst.
+- **Home-Widget „Fristen"** — **je eigenem Verbund mit laufender Frist eine
+  Zeile**, in „Jetzt eingreifen" (keine Bewegung, Frist nicht überschritten)
+  oder „Rückstand" (Frist überschritten oder Meilenstein gerissen). Der
+  Meilenstein-Teil nennt die Zahl der Risse und den Blocker aus `findeBlocker`,
+  bei „Jetzt eingreifen" zusätzlich den nächsten fälligen Meilenstein
+  ([home-widgets.md](home-widgets.md)). Das frühere Einzel-Widget „Meilensteine
+  diese Woche" ist seit v4.87 abgelöst.
 - **Verbund-Detailseite**, Abschnitt `#meilensteine` unter `#status`: Zeitstrahl,
   Frist (`restzeitText`: dieselbe Frist und dasselbe Wort wie die Frist-Spalte,
   „Frist angehalten" bei stehender Uhr; das Fristdatum nur bei laufender) und

@@ -16,7 +16,7 @@
   --primary:#506786; --primary-ink:#ffffff; --primary-soft:#e2e8f0; --primary-soft-2:#c9d4e2;
   --accent:#c9561d; --accent-ink:#ffffff; --accent-soft:#f9e7dc;
   --code-bg:#eef1f5; --term-bg:#1b2430; --term-ink:#dfe6ee; --term-dim:#8593a3; --term-accent:#f2a97f; --term-line:#2b3644;
-  --ok:#0ca30c; --warn:#fab219; --crit:#d03b3b; --ok-ink:#16751c; --crit-ink:#b42f2f;
+  --ok:#0ca30c; --warn:#fab219; --crit:#d03b3b; --ok-ink:#16751c; --crit-ink:#b42f2f; --warn-ink:#8a5a00;
   --cat-workflow:#2a78d6; --cat-tools:#1baf7a; --cat-erprobung:#eb6834; --cat-kuration:#4a3aa7; --cat-werkbank:#e87ba4; --cat-system:#75828f;
   --shadow:0 1px 2px rgba(27,36,48,.06), 0 8px 24px -12px rgba(27,36,48,.18);
 }
@@ -29,7 +29,7 @@
     --accent:#e0906c; --accent-ink:#12161c; --accent-soft:#3b2a21;
     --code-bg:#222b36; --term-bg:#0c1016; --term-ink:#dfe6ee; --term-dim:#7f8b99; --term-accent:#f2a97f; --term-line:#1f2833;
     --cat-workflow:#3987e5; --cat-tools:#199e70; --cat-erprobung:#d95926; --cat-kuration:#9085e9; --cat-werkbank:#d55181; --cat-system:#8894a3;
-    --ok-ink:#72cf7c; --crit-ink:#f08d84;
+    --ok-ink:#72cf7c; --crit-ink:#f08d84; --warn-ink:#f2c14e;
     --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.6);
   }
 }
@@ -41,7 +41,7 @@
   --accent:#e0906c; --accent-ink:#12161c; --accent-soft:#3b2a21;
   --code-bg:#222b36; --term-bg:#0c1016; --term-ink:#dfe6ee; --term-dim:#7f8b99; --term-accent:#f2a97f; --term-line:#1f2833;
   --cat-workflow:#3987e5; --cat-tools:#199e70; --cat-erprobung:#d95926; --cat-kuration:#9085e9; --cat-werkbank:#d55181; --cat-system:#8894a3;
-  --ok-ink:#72cf7c; --crit-ink:#f08d84;
+  --ok-ink:#72cf7c; --crit-ink:#f08d84; --warn-ink:#f2c14e;
   --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.6);
 }
 *{box-sizing:border-box}
@@ -306,6 +306,8 @@ footer .wrap{display:flex;flex-wrap:wrap;gap:8px 24px}
 .ck-anchor-t{font-family:"Geist",system-ui,sans-serif;font-size:11.5px;font-weight:600;fill:var(--accent)}
 .ck-today-t{font-family:"Geist",system-ui,sans-serif;font-size:11.5px;font-weight:600;fill:var(--ink)}
 .ck-crit{font-family:"Geist",system-ui,sans-serif;font-size:12.5px;font-weight:650;fill:var(--crit-ink)}
+.ck-warn{font-family:"Geist",system-ui,sans-serif;font-size:12.5px;font-weight:650;fill:var(--warn-ink)}
+.ck-still{fill:color-mix(in srgb,var(--warn) 24%,var(--surface));stroke:var(--warn);stroke-width:1}
 .ck-where{font-family:"Geist",system-ui,sans-serif;font-size:10.5px;fill:var(--muted)}
 .ck-lab{font-family:"Geist",system-ui,sans-serif;font-size:11px;fill:var(--ink);font-weight:500}
 .ck-lab2{font-family:"Geist",system-ui,sans-serif;font-size:10.5px;fill:var(--ink-2)}
@@ -650,7 +652,7 @@ footer .wrap{display:flex;flex-wrap:wrap;gap:8px 24px}
     <p class="lede" id="zs-beginner"></p>
   </div>
   <figure class="fig-frame clock-fig">
-    <svg viewBox="0 0 960 400" role="img" aria-label="Ein Beispielvorgang auf einer Zeitachse ab dem wirksamen Eingang: Heute, an Tag 96, ist die 90-Tage-Frist um 6 Tage überschritten; die Meilensteine der Wochen 9 und 12 sind gerissen, der ältere um 33 Tage; und der Vorgang liegt seit 35 Tagen still bei 21 Zieltagen, also 14 Tage über dem Ziel.">
+    <svg viewBox="0 0 960 400" role="img" aria-label="Ein Beispielvorgang auf einer Zeitachse ab dem wirksamen Eingang: Heute, an Tag 96, ist die 90-Tage-Frist um 6 Tage überschritten; die Meilensteine der Wochen 9 und 12 sind gerissen, der ältere seit 33 Tagen; und seit 35 Tagen gibt es keine Bewegung bei einem Ziel von 21 Tagen. Jede Uhr hat ihr eigenes Wort.">
       <line class="ck-sep" x1="20" y1="116" x2="940" y2="116"/>
       <line class="ck-sep" x1="20" y1="178" x2="940" y2="178"/>
       <line class="ck-sep" x1="20" y1="282" x2="940" y2="282"/>
@@ -677,8 +679,8 @@ footer .wrap{display:flex;flex-wrap:wrap;gap:8px 24px}
       <rect class="ck-over" x="770" y="138" width="36" height="16"/>
       <text class="ck-lab" x="240" y="150">läuft · Status „NF gestellt“ steht in einer Phase mit laufender Frist</text>
       <text class="ck-num" x="770" y="132" text-anchor="middle">Tag 90</text>
-      <text class="ck-crit" x="822" y="148">6 T über</text>
-      <text class="ck-where" x="822" y="162">Frist-Spalte</text>
+      <text class="ck-crit" x="822" y="148">6 T über Frist</text>
+      <text class="ck-where" x="822" y="162">Frist-Spalte und Karte</text>
       <!-- Meilensteine -->
       <text class="ck-row" x="20" y="226">Meilensteine</text>
       <text class="ck-q" x="20" y="242">Soll-Woche ab Anker</text>
@@ -694,20 +696,20 @@ footer .wrap{display:flex;flex-wrap:wrap;gap:8px 24px}
       <path class="ck-dia" d="M734 221 L741 228 L734 235 L727 228 Z"/>
       <text class="ck-lab2" x="796" y="198" text-anchor="end">„Bewilligungsunterlagen versendet“</text>
       <text class="ck-lab" x="796" y="212" text-anchor="end">Woche 12 · gerissen</text>
-      <text class="ck-crit" x="822" y="226">33 T über</text>
-      <text class="ck-where" x="822" y="240">Fristen-Karte, +1</text>
+      <text class="ck-crit" x="822" y="226">2 gerissen</text>
+      <text class="ck-where" x="822" y="240">ältester seit 33 T</text>
       <!-- Stillstand -->
       <text class="ck-row" x="20" y="314">Stillstand</text>
       <text class="ck-q" x="20" y="330">Liegezeit gegen Ziel</text>
       <text class="ck-lab2" x="584" y="314" text-anchor="end">letzte Aktivität = jüngstes Kürzel-Datum</text>
       <rect class="ck-plan" x="596" y="302" width="126" height="16" rx="3"/>
-      <rect class="ck-over" x="722" y="302" width="84" height="16"/>
+      <rect class="ck-still" x="722" y="302" width="84" height="16"/>
       <circle class="ck-dot" cx="596" cy="310" r="5"/>
       <text class="ck-lab" x="606" y="314">Ziel 21 T</text>
       <text class="ck-num" x="596" y="336" text-anchor="middle">Tag 61</text>
       <text class="ck-num" x="722" y="336" text-anchor="middle">Tag 82</text>
-      <text class="ck-crit" x="822" y="312">14 T über</text>
-      <text class="ck-where" x="822" y="326">Fristen-Karte</text>
+      <text class="ck-warn" x="822" y="312">keine Bewegung</text>
+      <text class="ck-where" x="822" y="326">seit 35 T · Ziel 21 T</text>
       <!-- Achse -->
       <line class="ck-axis" x1="230" y1="364" x2="830" y2="364"/>
       <line class="ck-tick" x1="230" y1="364" x2="230" y2="369"/><text class="ck-num" x="230" y="382" text-anchor="middle">0</text>
@@ -720,7 +722,7 @@ footer .wrap{display:flex;flex-wrap:wrap;gap:8px 24px}
       <line class="ck-tick" x1="818" y1="364" x2="818" y2="369"/><text class="ck-num" x="818" y="382" text-anchor="middle">98</text>
       <text class="ck-row" x="20" y="382">Tage ab Anker</text>
     </svg>
-    <figcaption>Ein erfundener Beispielvorgang, gerechnet nach den Regeln im Code. Heute, an Tag 96, sagt die Frist-Spalte „6 T über“ (90 Tage ab Anker). Die Fristen-Karte der Startseite zeigt denselben Vorgang zweimal: als Meilenstein „33 T über“ (Soll Woche 9 = Tag 63, „+1“ für Woche 12) und als Stillstand „14 T über“ (35 Tage ohne Aktivität bei 21 Zieltagen). Alle drei Zahlen stimmen — sie messen Verschiedenes. Namen und Soll-Wochen der Meilensteine stammen aus dem Auslieferungs-Plan, die 21 Zieltage sind ein Beispielwert. Was zu tun ist, sagt keine dieser Uhren, sondern die To-do-Kaskade.</figcaption>
+    <figcaption>Ein erfundener Beispielvorgang, gerechnet nach den Regeln im Code. Heute, an Tag 96, sagt die Frist-Spalte „6 T über Frist“ (90 Tage ab Anker). Jede Uhr hat ihr eigenes Wort: „über der Frist“ gehört nur der Frist, ein Meilenstein ist „gerissen“ (Soll Woche 9 = Tag 63, seit 33 Tagen; dazu Woche 12), und der Stillstand heißt „keine Bewegung“ (35 Tage ohne Aktivität bei 21 Zieltagen, orange statt rot). Auf der Fristen-Karte der Startseite steht der Vorgang in <em>einer</em> Zeile unter „Rückstand“, weil seine Frist überschritten ist: „2 gerissen · Erstentscheidung finalisiert · keine Bewegung seit 35 T (Ziel 21 T) · 6 T über Frist“. Wäre die Frist noch nicht um, stünde er unter „Jetzt eingreifen“. Namen und Soll-Wochen stammen aus dem Auslieferungs-Plan, die 21 Zieltage sind ein Beispielwert. Was zu tun ist, sagt keine dieser Uhren, sondern die To-do-Kaskade — auf der Karte steht es als zweite Zeile.</figcaption>
   </figure>
   <div class="zs-sub"><h3>Was jede Rechnung liest, wer sie pflegt, wo sie sich zeigt</h3><p class="hint">Im Entwickler-Modus stehen unter jedem Namen Aufrufe und Dateien.</p></div>
   <div class="mech" id="zs-mech"></div>

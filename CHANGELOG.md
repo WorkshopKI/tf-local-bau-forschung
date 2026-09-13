@@ -5,6 +5,18 @@ Versionshistorie + Migrationsnotizen, chronologisch absteigend. **Append-only �
 
 > ℹ️ Ältere Versionen (vor den unten gelisteten) im Archiv: **[docs/CHANGELOG-ARCHIV.md](docs/CHANGELOG-ARCHIV.md)**.
 
+### v6.67.0 — Fristen-Karte: Jetzt eingreifen und Rückstand (September 2026)
+
+MINOR — Nutzer: „Ein Bearbeiter will sehen wie viel sind wir über den 90 Tagen, welche Meilensteine sind bereits gerissen, was kann ich tun um das wieder zu heilen … welche meiner Anträge stehen still um einzugreifen bevor Meilensteine gerissen werden."
+Die Fristen-Karte sortierte Anlässe zweier Uhren über eine gemeinsame „T über"-Zahl, und keine davon war die Frist. Stufe 2 + 3 von 3 nach v6.66.0.
+Es zählen nur laufende Fristen: von 1 658 Rückstands-Kandidaten des Bereichs waren 1 128 angehalten (13.09.2026).
+
+- Fristen-Karte: eine Zeile je Verbund in „Jetzt eingreifen" (keine Bewegung, Frist läuft) und „Rückstand" (über der Frist oder Meilenstein gerissen), darunter die Aufgabe — [FristenWidget.tsx](src/plugins/home/widgets/FristenWidget.tsx)
+- Modell und Hook ersetzen `fristAnlaesse.ts`/`useFristAnlaesse.ts`, Zieltage am Status der Zeile statt `STATUS_VB` — [fristenLage.ts](src/plugins/home/widgets/fristenLage.ts), [useFristenLage.ts](src/plugins/home/widgets/useFristenLage.ts)
+- Tagesbrief-Thema `stillstand` heißt „Jetzt eingreifen", liest dieselbe Gruppe und nennt den nächsten Meilenstein — [useTagesbrief.ts](src/plugins/home/tagesbrief/useTagesbrief.ts), [punkte.ts](src/plugins/home/tagesbrief/punkte.ts), [themen.ts](src/plugins/home/tagesbrief/themen.ts)
+- Kopfkarte: „Gilt als erreicht, sobald …" unter dem Blocker, „gerissen seit N T" statt „N T offen" — [KopfKarte.tsx](src/plugins/antraege/ausklapp/kopfkarte/KopfKarte.tsx), [AusklappInhalt.tsx](src/plugins/antraege/ausklapp/AusklappInhalt.tsx)
+- Doku [home-widgets.md](docs/architecture/home-widgets.md), [status-achsen.md](docs/architecture/status-achsen.md), [meilensteine.md](docs/architecture/meilensteine.md), [vorgangssystem.md](docs/architecture/vorgangssystem.md) §16.2, [CONTEXT.md](CONTEXT.md), Feedback-Kontext [home](docs/feedback-kontext/home.md) · [antraege](docs/feedback-kontext/antraege.md), [Docu-Dashboard](docs/docu-dashboard/data.json)
+
 ### v6.66.0 — Eine Frist, ein Wort je Uhr (September 2026)
 
 MINOR — Nutzer: „Es gibt viele Fristen, die alle verschiedenen berechnet werden und dem User etwas verwirren … Nur die Angabe von so vielen roten Tagen ist dann verwirrend …"

@@ -43,9 +43,15 @@ export const THEMEN: readonly Thema[] = [
   // verdrängte er beim Entdoppeln den To-do-Punkt desselben Verbunds und schob
   // eine lange Bedingungs-Bezeichnung vor die Aufgabe; gemessen standen vier von
   // fünf Zeilen so da. Die Termine stehen auf der Fristen-Karte.
+  //
+  // **„Jetzt eingreifen"** (bis v6.66 „Stillstand"): keine Bewegung bei
+  // laufender, nicht überschrittener Frist — dieselbe Gruppe wie auf der
+  // Fristen-Karte (`fristenLage.ts`). Der nächste fällige Meilenstein steht in
+  // der Klammer, nicht als eigener Satz. Die Id bleibt: gespeicherte Abwahlen
+  // zeigen auf sie.
   {
     id: 'stillstand',
-    label: 'Stillstand',
+    label: 'Jetzt eingreifen',
     familie: 'arbeitsvorrat',
     uhr: true,
     verfuegbarWenn: isVorgangssystemEnabled,

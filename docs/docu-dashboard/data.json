@@ -746,23 +746,23 @@
         {
           "lane": 5,
           "label": "Fristen-Karte",
-          "edge": "+ Meilenstein-Projektion",
-          "beginner": "Die Karte „Fristen“ der Startseite legt zwei verschiedene Warnungen in eine Liste: Stillstand gegen Zieltage und gerissene Meilensteine. Verrechnet wird nichts — jede Zeile nennt ihre Herkunft, sortiert wird nach Tagen über dem Vorgesehenen.",
+          "edge": "+ Wächter + Meilenstein-Projektion",
+          "beginner": "Die Karte „Fristen“ der Startseite zeigt jeden eigenen Vorgang in einer Zeile, sortiert in zwei Gruppen. „Jetzt eingreifen“: am Vorgang bewegt sich nichts, die Frist läuft aber noch — hier lässt sich ein verpasster Meilenstein noch verhindern. „Rückstand“: die Frist ist überschritten oder ein Meilenstein verpasst. Jede Uhr hat ihr eigenes Wort, darunter steht, was zu tun ist. Vorgänge mit angehaltener Frist fehlen; die Fußzeile zählt sie.",
           "dev": {
-            "file": "src/plugins/home/widgets/useFristAnlaesse.ts · src/plugins/home/widgets/fristAnlaesse.ts · src/plugins/home/widgets/FristenWidget.tsx",
-            "fn": "useFristAnlaesse() → zieltagAnlass() + meilensteinAnlaesse() → sortiereAnlaesse() → buendleNachVerbund()",
-            "effect": "Ruft pruefeStillstand je eigenem Verbund selbst und liest die Meilenstein-Projektion (holeProjektion). ueberTage: Liegezeit − Zieltage bzw. heute − Soll. Eine Zeile je Verbund und Quelle (+n weitere); Fußzeile zählt Status ohne Zieltage und Meilensteine ohne Bedingung."
+            "file": "src/plugins/home/widgets/useFristenLage.ts · src/plugins/home/widgets/fristenLage.ts · src/plugins/home/widgets/FristenWidget.tsx",
+            "fn": "useFristenLage() → baueFristenLage() (ordneEin · sortiereLage) → sichtbareZeilen()",
+            "effect": "Ruft pruefeStillstand je eigenem Verbund (Zieltage am STATUS_TV der Zeile) und liest die Meilenstein-Projektion (holeProjektion); Frist-Zustand und -Tage aus dem Dashboard-Aggregat. Nur laufende Fristen: eingreifen = Wächter haengt und fristTage ≥ 0, rueckstand = fristTage < 0 oder gerissen > 0. Blocker aus findeBlocker wie die Kopfkarte. 8 Zeilen, je Gruppe mindestens 2; Fußzeile zählt Vorgänge ohne laufende Frist, Status ohne Zieltage und Meilensteine ohne Bedingung."
           },
-          "log": "fristAnlaesse.ts  →  Zieltag 14 T über · Meilenstein 33 T über (+1)"
+          "log": "fristenLage.ts  →  Rückstand  ·  3 gerissen · 4.4 QS freigegeben  ·  119 T über Frist"
         },
         {
           "lane": 5,
           "label": "Tagesbrief und Assistent",
-          "beginner": "Der Tagesbrief oben auf der Startseite rankt Stillstand und Aufgaben — Meilensteine lässt er bewusst weg. Der Assistent bekommt zu einem Vorgang Aufgaben, Frist, Wächter und Meilensteine als Faktenblock.",
+          "beginner": "Der Tagesbrief oben auf der Startseite rankt „Jetzt eingreifen“ und Aufgaben — dieselben Vorgänge wie auf der Fristen-Karte, mit dem nächsten fälligen Meilenstein in der Klammer; einen eigenen Meilenstein-Satz spricht er nicht. Der Assistent bekommt zu einem Vorgang Aufgaben, Frist, Wächter und Meilensteine als Faktenblock.",
           "dev": {
             "file": "src/plugins/home/tagesbrief/useTagesbrief.ts · src/plugins/home/tagesbrief/themen.ts · src/plugins/chat/assistent/vorgangsakte.ts",
-            "fn": "useTagesbrief() · useFristAnlaesse(aktiv, meineVerbuende, stichtag, false)",
-            "effect": "Uhr-Themen stillstand und zu-tun, im Nachsatz u. a. liegt-bei-anderen, kuerzel-status, nachtlauf (Meilensteine seit v6.60.4 raus). Die Vorgangsakte entsteht aus denselben Funktionen wie die Karten, ohne Bearbeiter-Kürzel."
+            "fn": "useTagesbrief() · useFristenLage(aktiv, meineAntraege, stichtag)",
+            "effect": "Uhr-Themen stillstand (Label „Jetzt eingreifen“, Id bleibt) und zu-tun, im Nachsatz u. a. liegt-bei-anderen, kuerzel-status, nachtlauf (eigene Meilenstein-Sätze seit v6.60.4 raus). Die Vorgangsakte entsteht aus denselben Funktionen wie die Karten, ohne Bearbeiter-Kürzel."
           },
           "log": "useTagesbrief()  →  stillstand · zu-tun  ·  Vorgangsakte"
         }
@@ -2675,10 +2675,10 @@
         "beleg": "bestands-lauf.ts · waechter.ts (Stufe 2)"
       },
       {
-        "titel": "Zusammen gezeigt, nicht zusammen gerechnet",
-        "text": "Die Fristen-Karte der Startseite mischt Stillstand und Meilensteine in einer Liste. Gemeinsam ist nur die Sortierzahl „Tage über dem Vorgesehenen“; jede Zeile trägt ihre Herkunft, damit klar ist, wo man etwas abstellt.",
-        "dev": "zieltagAnlass · meilensteinAnlaesse · buendleNachVerbund",
-        "beleg": "fristAnlaesse.ts (Modulkopf) · status-achsen.md, zwei Ebenen „ist er zu spät“"
+        "titel": "Nebeneinander gezeigt, nicht gegeneinander sortiert",
+        "text": "Die Fristen-Karte der Startseite zeigt Frist, verpasste Meilensteine und Stillstand in einer Zeile je Vorgang, jede mit ihrem eigenen Wort. Die Gruppe sagt, was zu tun ist: „Jetzt eingreifen“, solange die Frist noch läuft, „Rückstand“, wenn sie überschritten oder ein Meilenstein verpasst ist.",
+        "dev": "ordneEin · meilensteinKurzlage · sortiereLage",
+        "beleg": "fristenLage.ts (Modulkopf) · status-achsen.md, zwei Ebenen „ist er zu spät“"
       },
       {
         "titel": "Veröffentlicht wirkt sofort, freigegeben wirkt später",
@@ -2694,8 +2694,8 @@
       },
       {
         "titel": "Mehrere richtige „überfällig“",
-        "text": "Liste, Detailseite, Tagesbrief und Assistent zählen gegen die kritische Frist, die Fristen-Karte gegen ein Meilenstein-Soll oder gegen die Zieltage. Für denselben Vorgang dürfen verschiedene Zahlen stehen.",
-        "dev": "criticalFristErgebnis · meilensteinAnlaesse().ueberTage · zieltagAnlass().ueberTage",
+        "text": "Die Frist zählt gegen 90 Tage ab Eingang, ein Meilenstein ist gegen sein Soll „gerissen“, ein Stillstand misst die Liegezeit gegen die Zieltage. Für denselben Vorgang dürfen verschiedene Zahlen stehen — „über der Frist“ heißt nur die Frist.",
+        "dev": "criticalFristErgebnis · gerissenWort · bewegungWort",
         "beleg": "CONTEXT.md „N Tage überfällig“: an einem Verbund 324 gegen 318 Tage, beide richtig (10.09.2026)"
       }
     ],
@@ -3111,15 +3111,15 @@
         "id": "mehrere-ueberfaellig",
         "bereich": "zahlen",
         "keinFehler": true,
-        "titel": "Derselbe Vorgang ist „6“, „14“ und „33 Tage“ überfällig",
-        "ursache": "Drei Uhren messen Verschiedenes: die Frist-Spalte die 90-Tage-Frist, die Fristen-Karte das Soll eines Meilensteins und — bei Stillstand — die Liegezeit gegen die Zieltage. Alle Zahlen können gleichzeitig stimmen, siehe die Grafik im Abschnitt Zusammenspiel.",
+        "titel": "Derselbe Vorgang trägt drei verschiedene Tageszahlen",
+        "ursache": "Drei Uhren messen Verschiedenes: die Frist die 90 Tage ab Eingang („über der Frist“), ein Meilenstein sein Soll („gerissen seit“) und der Stillstand die Liegezeit gegen die Zieltage („keine Bewegung seit“). Alle Zahlen können gleichzeitig stimmen, siehe die Grafik im Abschnitt Zusammenspiel.",
         "pruefen": [
-          "Herkunft der Zeile in der Fristen-Karte: „Zieltag“ oder Meilenstein-Nummer",
+          "das Wort hinter der Zahl: „über Frist“, „gerissen“ oder „keine Bewegung“",
           "Tooltip der Frist-Zelle nennt Basisspalte und Zieldatum"
         ],
         "dev": {
-          "file": "src/plugins/home/widgets/fristAnlaesse.ts · src/plugins/antraege/groupAggregates.ts",
-          "fn": "meilensteinAnlaesse() · zieltagAnlass() · criticalFristErgebnis(tvs)"
+          "file": "src/core/utils/uhrWorte.ts · src/plugins/home/widgets/fristenLage.ts · src/plugins/antraege/groupAggregates.ts",
+          "fn": "fristTageWort() · gerissenWort() · bewegungWort() · criticalFristErgebnis(tvs)"
         },
         "beleg": "CONTEXT.md „N Tage überfällig“: an einem Verbund gemessen 324 gegen 318 Tage, beide richtig (10.09.2026)"
       },

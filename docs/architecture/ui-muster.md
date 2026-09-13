@@ -65,7 +65,7 @@ Eingebaut in:
 - Der Status-Filter hat eine Zeile „Spalte". `FRIST_GRUND` und der Tooltip der Frist-Zelle nennen Code und Klartext.
 - Die festen Codes der Frist-Spalte (`FESTE_FELDER`) nehmen ihre Beschriftung aus dem Schema; die Hand-Labels sind nur der Rückfall.
 
-Das Kürzel-Paar eines Zieltag-Anlasses („AT4 gesetzt, AK4 fehlt") findet seine Felder über `kuerzelIndex` der aktiven Fassung, einmal je Lauf gebaut und an `zieltagAnlass` gereicht. `D_` + Kürzel wäre geraten (Pitfall #44). Kennt der Katalog ein Kürzel nicht, fehlt dessen Spalte, statt erfunden zu werden. Guard `quellspalten-an-bedingungen` ([conventions-ui.test.ts](../../src/__tests__/conventions-ui.test.ts)): Wer eine Bedingung als Satz rendert, rendert auch ihre Quellspalten.
+Das Kürzel-Paar eines Stillstands auf der Fristen-Karte („AT4 gesetzt, AK4 fehlt") findet seine Felder über `kuerzelIndex` der aktiven Fassung, einmal je Lauf gebaut und an `stillstandGrund` ([fristenLage.ts](../../src/plugins/home/widgets/fristenLage.ts)) gereicht. `D_` + Kürzel wäre geraten (Pitfall #44). Kennt der Katalog ein Kürzel nicht, fehlt dessen Spalte, statt erfunden zu werden. Guard `quellspalten-an-bedingungen` ([conventions-ui.test.ts](../../src/__tests__/conventions-ui.test.ts)): Wer eine Bedingung als Satz rendert, rendert auch ihre Quellspalten.
 
 **Icon-Vokabular** (v3.24, aus der Feedback-Nachlese — dieselbe Bedeutung, dieselbe Glyphe):
 

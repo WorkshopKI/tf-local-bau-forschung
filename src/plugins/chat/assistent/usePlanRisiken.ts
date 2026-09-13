@@ -3,7 +3,7 @@
  * Frage der Projektleitung „Welche Verbünde reißen ihren Plan?".
  *
  * Aus derselben Meilenstein-Projektion wie das Fristen-Widget (`holeProjektion`,
- * `useFristAnlaesse`), nicht neu gerechnet. Geschnitten auf die Richtlinien des
+ * `useFristenLage`), nicht neu gerechnet. Geschnitten auf die Richtlinien des
  * Bestandslaufs, damit der Block einen Nenner hat. Geladen erst, wenn eine Frage
  * den Bestand braucht; ohne Flag `meilensteinMonitoring` gibt es keine Aussage.
  */

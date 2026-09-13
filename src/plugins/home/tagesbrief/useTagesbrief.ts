@@ -8,9 +8,11 @@
  * **Kosten.** Die Startseite startet den Bestandslauf der To-do-Kaskade ohnehin
  * viermal mit `'leerlauf'` (useDashboardData, useEingangAmpelCounts,
  * MeineAntraegeSection, AntragKanbanWidget); der Brief hängt sich an denselben
- * gecachten Lauf und kostet dafür nichts. Die Zieltage teilt er sich mit dem
- * Fristen-Widget (`useFristAnlaesse`, v6.45 gehoben) — eine Herleitung, zwei
- * Leser, kein Drift. Meilensteine lädt er gar nicht erst (s. `themen.ts`).
+ * gecachten Lauf und kostet dafür nichts. „Jetzt eingreifen" teilt er sich mit
+ * der Fristen-Karte (`useFristenLage`, v6.67) — eine Herleitung, zwei Leser, kein
+ * Drift. Die Meilenstein-Projektion liest er dafür mit, um den nächsten fälligen
+ * Meilenstein zu nennen; einen eigenen Meilenstein-Satz spricht er nicht
+ * (s. `themen.ts`).
  *
  * **Ausnahme Auslastung.** Das einzige Thema, dessen Quelle sonst niemand auf
  * der Startseite lädt: sein Datenstand kostet zwei Läufe über den vollen
@@ -38,7 +40,8 @@ import type { JournalEintrag } from '@/core/status/journal/typen';
 import { getFeedbackList } from '@/core/services/feedback';
 import type { FeedbackItem } from '@/core/types/feedback';
 import { readCachedSkillRegistry } from '@/core/services/skills';
-import { useFristAnlaesse } from '../widgets/useFristAnlaesse';
+import { drohtInTagen } from '../widgets/fristenLage';
+import { useFristenLage } from '../widgets/useFristenLage';
 import { useQsFreigaben } from '../widgets/useQsFreigaben';
 import { useFeedbackNewsAnchor } from '../widgets/useFeedbackNewsAnchor';
 import { berechneFeedbackNews } from '../widgets/feedbackNews';
@@ -97,20 +100,8 @@ export function useTagesbrief(aktiv: boolean, ctx: HomeWidgetContext, aus: reado
 
   // ------------------------------------------------------------- Quellen --
 
-  /** verbund_id → Akronym, aus dem bereits berechneten Dashboard-Aggregat. */
-  const meineVerbuende = useMemo(() => {
-    const m = new Map<string, string>();
-    for (const a of ctx.data.meineAntraege) {
-      if (!a.verbund_id || m.has(a.verbund_id)) continue;
-      m.set(a.verbund_id, a.acronym ?? a.verbund_titel ?? a.title ?? a.verbund_id);
-    }
-    return m;
-  }, [ctx.data.meineAntraege]);
-
-  // Nur Zieltage: `mitMeilensteinen = false` spart die Plan-Projektion.
-  const zieltage = useFristAnlaesse(
-    aktiv && themen.has('stillstand'), meineVerbuende, heuteRef.current, false,
-  );
+  // Dieselbe Lage wie die Fristen-Karte; der Brief spricht nur „Jetzt eingreifen".
+  const lage = useFristenLage(aktiv && themen.has('stillstand'), ctx.data.meineAntraege, heuteRef.current);
   const bestand = useBestandsAufgaben('leerlauf', heuteRef.current);
   const zeilenAufgaben = useZeilenAufgaben('leerlauf', heuteRef.current);
   const { zeilen: qsZeilen } = useQsFreigaben(aktiv);
@@ -274,33 +265,34 @@ export function useTagesbrief(aktiv: boolean, ctx: HomeWidgetContext, aus: reado
     // Warten: er ist beschriftet und bleibt stehen.
     const kaskadeFehlt = zeilenAufgaben.laeuftNoch && !zeilenAufgaben.vorlaeufig;
 
-    // Stillstand (Zieltage). Vorzeichen gedreht: `ueberTage` zählt Tage ÜBER dem
-    // Vorgesehenen, `BriefPunkt.tage` Tage BIS zur Fälligkeit.
+    // Jetzt eingreifen: keine Bewegung bei laufender, nicht überschrittener
+    // Frist — die Gruppe der Fristen-Karte (`fristenLage.ts`). Laut Kürzeln
+    // Erledigtes steht dort schon nicht drin; es ist ein Befund unter
+    // „Kürzel ↔ Status". Der Rang ist, was zuerst reißt — der nächste
+    // Meilenstein oder die Frist (`drohtInTagen`, dieselbe Reihenfolge wie die Karte).
     const stillstand: FristRoh[] = [];
-    for (const a of kaskadeFehlt ? [] : zieltage.anlaesse) {
-      if (a.art !== 'zieltag' || a.ueberTage === null) continue;
-      const vorgang = vorgangVon.get(a.verbundId);
-      // Laut Kürzeln erledigt ist kein Stillstand, sondern ein Befund — er steht
-      // unter „Kürzel ↔ Status" (aus `meineAntraege`, s.u.).
-      if (vorgang?.erledigtLautKuerzeln) continue;
-      const tage = -a.ueberTage;
+    for (const z of kaskadeFehlt ? [] : lage.zeilen) {
+      if (z.gruppe !== 'eingreifen' || z.bewegung === null) continue;
+      const naechsterTage = z.meilensteine?.naechster?.tageBis ?? null;
+      const tage = drohtInTagen(z);
+      const vorgang = vorgangVon.get(z.verbundId);
       const e = vorgang ? einordnen(vorgang) : null;
       if (e?.dran === 'fertig') continue;
       if (e?.dran === 'andere' && e.adresse) {
         if (tage <= DRINGLICH_AB_TAGEN) {
-          fremde.push({ scopeId: a.verbundId, titel: a.akronym, tage, adresse: e.adresse });
+          fremde.push({ scopeId: z.verbundId, titel: z.akronym, tage, adresse: e.adresse });
         }
         continue;
       }
       stillstand.push({
-        verbundId: a.verbundId,
-        akronym: a.akronym,
-        grund: a.grund,
+        verbundId: z.verbundId,
+        akronym: z.akronym,
+        grund: z.bewegung.grund?.text ?? '',
         tage,
-        liegeTage: a.liegeTage ?? null,
-        zieltage: a.zieltage ?? null,
-        belegt: a.belegt ?? true,
-        weitere: a.weitere ?? 0,
+        liegeTage: z.bewegung.liegeTage,
+        zieltage: z.bewegung.zieltage,
+        belegt: z.bewegung.belegt,
+        naechsterTage,
         ...(e ? { aufgabe: e.aufgabe } : {}),
       });
     }
@@ -381,14 +373,14 @@ export function useTagesbrief(aktiv: boolean, ctx: HomeWidgetContext, aus: reado
 
     return raus;
   }, [
-    themen, zieltage.anlaesse, bestand.zeilen, bestand.nachAktenzeichen, zeilenAufgaben,
-    ctx.data.meineAntraege, meineVerbuende, journal, qsZeilen, weitermachen, feedbackItems, anker, ich, registryAnzahl,
+    themen, lage.zeilen, bestand.zeilen, bestand.nachAktenzeichen, zeilenAufgaben,
+    ctx.data.meineAntraege, journal, qsZeilen, weitermachen, feedbackItems, anker, ich, registryAnzahl,
   ]);
 
   // Solange irgendeine Quelle unterwegs ist, ist Leere kein Befund.
   // Ein vorläufiger Stand ist kein Warten: der Brief steht, nur seine To-dos
   // tragen den Vermerk — und der Zähler bleibt eine Zahl.
-  const laedt = zieltage.laden || bestand.laden
+  const laedt = lage.laden || bestand.laden
     || (zeilenAufgaben.laeuftNoch && !zeilenAufgaben.vorlaeufig) || journal === null;
 
   return useMemo(

@@ -39,12 +39,14 @@ die nicht, liest sich die Karte daneben als Widerspruch.
   erzeugt — gefiltert versteckte die Karte den eigenen Entwurf, während die
   Resume-Karte daneben ihn zum Weiterarbeiten anbot (gemessen: HACKKI/ZKN103113,
   Kürzel MxM/ViK). Der Hero-Chip trägt denselben Namen — ein Hook, eine Zahl.
-- **Fristen** — die Liste zeigt **beide** Quellen. Nach Abstand sortiert kam in
-  den sichtbaren acht Zeilen kein einziger Zieltag vor, während die Kopfzeile
-  „16 Zieltag" zählte; `sichtbareMischung` reserviert jeder vorhandenen Quelle
-  Plätze ([fristAnlaesse.ts](../../src/plugins/home/widgets/fristAnlaesse.ts)).
-  Die Fußzeile nennt zusätzlich die Meilensteine **ohne Bedingung**
-  ([meilensteine.md](meilensteine.md)).
+- **Fristen** — die Kappung reserviert jeder vorhandenen Gruppe Plätze. Nach
+  Abstand sortiert kam in den sichtbaren acht Zeilen kein einziger Zieltag vor,
+  während die Kopfzeile „16 Zieltag" zählte; seit v6.67 gilt dieselbe Regel für
+  „Jetzt eingreifen" und „Rückstand" (`sichtbareZeilen` in
+  [fristenLage.ts](../../src/plugins/home/widgets/fristenLage.ts)). Die Fußzeile
+  nennt zusätzlich die Meilensteine **ohne Bedingung**
+  ([meilensteine.md](meilensteine.md)). Aufbau der Karte: Abschnitt
+  „Fristen-Karte" unten.
 - **„Änderungen der letzten Nacht"** — folgt dem Bearbeiter-Ausschnitt (7 statt
   402 Zeilen), gruppiert **je Antrag** statt je Feld
   ([nachtlaufGruppen.ts](../../src/plugins/home/widgets/nachtlaufGruppen.ts)) und
@@ -218,6 +220,78 @@ die Startseite zeigt, folgt einem der beiden Signale — ohne Reload.
   bis zum Reload den Stand von davor
   ([recurring-bug-classes.md §1](recurring-bug-classes.md)).
 
+## Fristen-Karte — Jetzt eingreifen und Rückstand (v6.67)
+
+Die Karte „Fristen" (Widget-Id `fristen`,
+[FristenWidget.tsx](../../src/plugins/home/widgets/FristenWidget.tsx)) beantwortet
+die vier Fragen, mit denen ein Bearbeiter sie liest: Wie weit über der Frist?
+Welche Meilensteine sind gerissen? Steht der Vorgang still, bevor etwas reißt?
+Was ist zu tun? Seit v4.87 legte sie Stillstand gegen Zieltage und Meilenstein
+gegen Soll in eine Liste und sortierte über eine gemeinsame „T über"-Zahl — an
+einem Vorgang standen so mehrere rote Tageszahlen, und keine davon war die Frist.
+Seit v6.67 trägt jede Uhr ihr eigenes Wort
+([uhrWorte.ts](../../src/core/utils/uhrWorte.ts)), und die Zeile stellt sie
+nebeneinander, statt sie gegeneinander zu sortieren.
+
+- **Modell rein, Hook lädt nur Fehlendes.**
+  [fristenLage.ts](../../src/plugins/home/widgets/fristenLage.ts) (kein React,
+  keine IO, keine Uhr) ordnet je eigenem Verbund ein;
+  [useFristenLage.ts](../../src/plugins/home/widgets/useFristenLage.ts) lädt, was
+  das Dashboard-Aggregat nicht trägt: das Urteil des Stillstands-Wächters
+  (`pruefeStillstand` je Verbund) und die Meilenstein-Bewertung (`holeProjektion`
+  über alle Programme). Frist-Zustand und -Tage kommen aus
+  `ctx.data.meineAntraege` — dieselbe Engine wie die Frist-Spalte, kein zweiter
+  Bearbeiter-Filter. Beide Ladehälften haben ihr eigenes `try`.
+- **Zwei Gruppen** (`ordneEin`):
+  - *Jetzt eingreifen* (orange): der Wächter urteilt „keine Bewegung", die Frist
+    läuft und ist nicht überschritten. Gerissene Meilensteine schließen die
+    Gruppe nicht aus. Sortiert nach dem, was zuerst reißt (`drohtInTagen`: nächster offener Meilenstein oder Frist),
+    dann nach der längeren Liegezeit.
+  - *Rückstand* (rot): die Frist läuft und ist überschritten, oder mindestens ein
+    Meilenstein ist gerissen. Sortiert nach Überschreitung, dann nach Zahl der
+    Risse. Zuletzt entscheidet je Gruppe das Akronym, damit nichts springt.
+- **Nur laufende Fristen.** Angehaltene und nicht berechenbare Fristen stehen in
+  keiner Gruppe; die Fußzeile zählt sie (`zaehleOhneLaufendeFrist`). Gemessen am
+  13.09.2026 über den Bereich waren 1 128 von 1 658 Rückstands-Kandidaten
+  angehalten — eine Liste, die zu zwei Dritteln aus Vorgängen in der Entscheidung
+  besteht, nennt niemandem eine Handlung (Aufteilung der 1 658: 1 128 angehalten,
+  66 nicht berechenbar, 136 in der Frist, 328 über der Frist). **Nachher**, mit
+  derselben Messung am selben Tag: 98 „Jetzt eingreifen", 467 „Rückstand",
+  1 473 Verbünde ohne laufende Frist. Dass die Zieltage seither am
+  `STATUS_TV` hängen, verschiebt den Wächter über den Bereich: „keine Bewegung"
+  386 statt 583, „nicht bewertbar" 1 310 statt 1 122 — für viele Teilvorhaben-
+  Status sind keine Zieltage gepflegt; das zählt die Fußzeile.
+  Laut Kürzeln Erledigtes (`erledigtLautKuerzeln`) fehlt ebenfalls; es ist ein
+  Befund unter „Kürzel ↔ Status".
+- **Die Zeile** (`LageZeile`): Akronym · Riss „3 gerissen · 4.4 QS freigegeben"
+  (`meilensteinText`, Tooltip = Bedingung und Quellspalten des Blockers) ·
+  Bewegung „keine Bewegung seit ≥48 T (Ziel 10 T)" (`bewegungWort`, Tooltip =
+  Status bzw. Kürzel-Paar mit seinen Feldern aus `stillstandGrund`) · bei
+  *eingreifen* „nächster Meilenstein fällig in N T" (`naechsterText`) · rechts die
+  Frist „119 T über Frist" / „noch N T" (`fristTageWort`). Bei *eingreifen* steht
+  die Bewegung vorn, bei *Rückstand* der Riss. Zeile 2 ist die Aufgabe aus der
+  Kaskade mit derselben `aufgabenAnzeige` wie „Meine Anträge" (Adresse,
+  Vorläufig-Marke). Klick → `navigate('antraege', { selectedId })`.
+- **Blocker wie in der Kopfkarte.** `meilensteinKurzlage` nimmt den Blocker aus
+  `findeBlocker` und zählt die Risse wie der Kopfkarten-Fakt; eine zweite Regel
+  nennte beim ersten Gleichstand eine andere Stufe als der Ausklapp
+  ([vorgangssystem.md §16.2](vorgangssystem.md)). Der nächste Meilenstein ist das
+  früheste Soll unter den offenen oder fälligen Blatt-Stufen, Tag gegen Tag
+  gerechnet.
+- **Zieltage am Status der Zeile** (`AntragVorgang.status` = `STATUS_TV`), wie im
+  Ausklapp und im Vorgangs-Board. Bis v6.66 las die Karte `STATUS_VB`; gemessen
+  am 13.09.2026 stand AXPUMP auf der Karte mit „Ziel 14 T", in Kopfkarte und
+  Board mit „Ziel 10 T".
+- **Kappung mit Mindestplätzen.** 8 Zeilen, je vorhandener Gruppe mindestens 2
+  (`sichtbareZeilen`, wählt aus, sortiert nicht um); der Rest steht als „+N
+  weitere Vorgänge" unter seiner Gruppe. Der Zähler sagt „N eingreifen · M
+  Rückstand" (`bilanzText`), eingeklappt „—".
+- **Die Fußzeile sagt, was fehlt**: Vorgänge ohne laufende Frist, „nicht
+  bewertbar" (keine Zieltage für den Status), Meilensteine ohne Bedingung, und
+  welche Hälfte fehlt, wenn `vorgangssystem` oder `meilensteinMonitoring` aus ist.
+- **Eine Herleitung, zwei Leser.** Der Tagesbrief liest dieselbe Lage
+  (`useFristenLage`) und spricht nur „Jetzt eingreifen" (nächster Abschnitt).
+
 ## Tagesbrief — was zuerst dran ist (v6.45)
 
 Die Karte am Kopf der Hauptspalte ([src/plugins/home/tagesbrief/](../../src/plugins/home/tagesbrief/)),
@@ -247,29 +321,29 @@ der Brief rankt über ihre Grenzen hinweg.
   bleiben bewusst ohne — ein einzelner Vorgang wäre dort eine Verengung, die die
   Frage nicht meint.
 - **Der Brief leitet nichts Neues ab.** Jedes Thema konsumiert eine bestehende
-  reine bzw. gecachte Quelle. Die Zieltage teilt er sich mit dem
-  Fristen-Widget: dessen Ladeeffekt ist nach
-  [useFristAnlaesse.ts](../../src/plugins/home/widgets/useFristAnlaesse.ts)
-  **gehoben, nicht kopiert** — zwei Flächen, die dieselbe Zahl unabhängig
-  herleiten, laufen genau dann auseinander, wenn es darauf ankommt (v4.131).
-  Der Brief ruft ihn mit `mitMeilensteinen: false` und nur, solange das Thema
-  Stillstand aktiv ist; die Meilenstein-Plan-Projektion über alle Programme
-  fällt für ihn weg.
+  reine bzw. gecachte Quelle. „Jetzt eingreifen" liest dieselbe Lage wie die
+  Fristen-Karte ([useFristenLage.ts](../../src/plugins/home/widgets/useFristenLage.ts),
+  Gruppe `eingreifen`) — **gehoben, nicht kopiert**: zwei Flächen, die dieselbe
+  Zahl unabhängig herleiten, laufen genau dann auseinander, wenn es darauf
+  ankommt (v4.131). Der Brief lädt sie nur, solange das Thema aktiv ist, und
+  liest die Meilenstein-Projektion mit, um den nächsten fälligen Meilenstein zu
+  nennen.
 - **Rangfolge nur, wo eine Uhr tickt.** Von den Themen tragen zwei eine
-  Fälligkeit (Stillstand = Zieltage, Was zu tun ist = kritische Frist);
+  Fälligkeit (Jetzt eingreifen = nächster Meilenstein, ersatzweise die Frist;
+  Was zu tun ist = kritische Frist);
   die übrigen stehen in EINEM Nachsatz — Neuigkeiten ohne Termin und die beiden
   Arbeitsvorrats-Themen ohne Uhr („Liegt bei anderen", „Kürzel ↔ Status"), die
   Auskunft und Befund sind, keine eigene Handlung. Eine
   gemeinsame Skala müsste Gewichte erfinden, die gegen nichts prüfbar wären.
-  Der Arbeitsvorrat umfasst damit Stillstand, Was zu tun ist, Liegt bei anderen
+  Der Arbeitsvorrat umfasst damit Jetzt eingreifen, Was zu tun ist, Liegt bei anderen
   und Kürzel ↔ Status.
   Deckel 5, Schwelle `DRINGLICH_AB_TAGEN`; **am echten Bestand gemessen**
   (09.09.2026, Kürzel ATh): 12 verschiedene Vorgänge unter der Schwelle, die
   dringlichsten 167/165/152/142/138 Tage über — die Schwelle bindet dort also
   nicht, der Deckel schon.
 - **Ein Vorgang spricht einmal.** `BriefPunkt.gruppe` (Verbund-Id) entdoppelt den
-  gerankten Absatz; behalten wird der dringlichste Punkt. Stillstand und Was zu
-  tun ist treffen oft denselben Verbund — ein Brief, der einen Vorgang
+  gerankten Absatz; behalten wird der dringlichste Punkt. Jetzt eingreifen und
+  Was zu tun ist treffen oft denselben Verbund — ein Brief, der einen Vorgang
   wiederholt, fasst nichts zusammen.
 - **Die Zeile ist eine Segment-Liste, kein Satz** (Muster der Nachtlauf-Zeile,
   v6.1): Zahlen und Namen IM Satz sind die Sprungziele, `aria-label` trägt
@@ -283,16 +357,19 @@ der Brief rankt über ihre Grenzen hinweg.
   Journal-Thema folgt dem Bearbeiter-Ausschnitt der Kopfzeile wie „Änderungen der
   letzten Nacht" — ohne ihn zählte der Brief 262 Vorgänge unter einem Chip, der
   „Kürzel ATh" sagt, die Karte daneben 7.
-- **Die Handlung kommt aus der Kaskade, auch wenn ein Stillstand rankt** (v6.57.4).
-  Ein Stillstands-Punkt verdrängt beim Entdoppeln den To-do-Punkt desselben
+- **Die Handlung kommt aus der Kaskade, auch wenn „Jetzt eingreifen" rankt** (v6.57.4, v6.67).
+  Ein solcher Punkt verdrängt beim Entdoppeln den To-do-Punkt desselben
   Verbunds; deshalb spricht er dessen Aufgabe selbst (`FristRoh.aufgabe`,
-  dieselbe `aufgabenAnzeige` wie die Karte) und nennt seine Herkunft: „DeepWard
-  (keine Bewegung seit mindestens 26 Tagen, Ziel 7 Tage, „ALT gesetzt, ALU
-  fehlt“): NL prüfen." Zieltage messen Liegezeit, keinen Termin — deshalb
-  spricht die Klammer `bewegungWort` ([uhrWorte.ts](../../src/core/utils/uhrWorte.ts)),
+  dieselbe `aufgabenAnzeige` wie die Karte) und nennt in der Klammer seine
+  Herkunft und den nächsten Meilenstein: „KITED (keine Bewegung seit 30 Tagen,
+  Ziel 21 Tage, nächster Meilenstein in 5 Tagen fällig, „Gutachten fertig“): QS
+  anstoßen." Zieltage messen Liegezeit, keinen Termin — deshalb spricht die
+  Klammer `bewegungWort` ([uhrWorte.ts](../../src/core/utils/uhrWorte.ts)),
   „mindestens", wo die Liegezeit aus dem jüngsten Kürzel-Datum genähert ist
-  (`belegt: false`); die Zahlen reicht `zieltagAnlass` als `liegeTage`/`zieltage`/`belegt`
-  durch. Der To-do-Punkt nennt die Bearbeitungsfrist mit `fristTageWort`
+  (`belegt: false`), und `faelligWort` für `FristRoh.naechsterTage`. Der Rang
+  (`FristRoh.tage`) ist der nächste Meilenstein, ersatzweise die Frist. Ein
+  Stillstand bei angehaltener Frist gehört in keine Gruppe und wird nicht mehr
+  gesprochen (so fiel DeepWard heraus). Der To-do-Punkt nennt die Bearbeitungsfrist mit `fristTageWort`
   („AXPUMP (119 Tage über der Frist): GA schreiben."); „überfällig" gehört seit
   v6.66 nur ihr (Guard `ueberfaellig-nur-fuer-die-frist`). Ohne die Herkunft las sich die Klammer als
   eingetretener Zustand — gemessen 11.09.2026 unter einer Karte, die für
@@ -313,7 +390,7 @@ der Brief rankt über ihre Grenzen hinweg.
   Stillstands-Wächter; nennt er niemanden, schweigt der Brief zu diesem Vorgang.
   Rückfall und Platzhalter ranken wie bisher. Die Grundmenge der Fremden sind
   dieselben Kandidaten (Tage bis Fälligkeit ≤ `DRINGLICH_AB_TAGEN`, aus
-  kritischer Frist wie aus Stillstand), je Vorgang einmal, am dringlichsten Anlass. **Gekappt
+  kritischer Frist wie aus „Jetzt eingreifen"), je Vorgang einmal, am dringlichsten Anlass. **Gekappt
   (`KANDIDATEN`) wird erst nach der Einordnung** — vorher gekappt leerte sich die
   eigene Liste, sobald die dringlichsten Kandidaten bei anderen lagen. Gemessen
   11.09.2026 (Kürzel THü, liest als FB): oben stand AIRES „GA schreiben" (liegt
@@ -356,7 +433,8 @@ der Brief rankt über ihre Grenzen hinweg.
   keine Handlung für heute. Im Brief verdrängte er beim Entdoppeln den
   To-do-Punkt desselben Verbunds und schob eine lange Bedingungs-Bezeichnung vor
   die Aufgabe; gemessen standen vier von fünf gerankten Zeilen so da. Die
-  Termine stehen auf der Fristen-Karte. Eine gespeicherte Abwahl `aus:
+  Termine stehen auf der Fristen-Karte; nur den nächsten fälligen nennt die
+  Klammer von „Jetzt eingreifen". Eine gespeicherte Abwahl `aus:
   ['fristen']` aus älteren Configs bleibt wirkungslos stehen.
 - **Keine Überschneidung mit der Hero-Karte darüber:** deren drei Kacheln zählen
   ALTER (>90 / 31–90 Tage), der Brief rechnet FRIST. Zwei Achsen, und keine Zahl
