@@ -16,7 +16,7 @@
   --primary:#506786; --primary-ink:#ffffff; --primary-soft:#e2e8f0; --primary-soft-2:#c9d4e2;
   --accent:#c9561d; --accent-ink:#ffffff; --accent-soft:#f9e7dc;
   --code-bg:#eef1f5; --term-bg:#1b2430; --term-ink:#dfe6ee; --term-dim:#8593a3; --term-accent:#f2a97f; --term-line:#2b3644;
-  --ok:#0ca30c; --warn:#fab219; --crit:#d03b3b;
+  --ok:#0ca30c; --warn:#fab219; --crit:#d03b3b; --ok-ink:#16751c; --crit-ink:#b42f2f;
   --cat-workflow:#2a78d6; --cat-tools:#1baf7a; --cat-erprobung:#eb6834; --cat-kuration:#4a3aa7; --cat-werkbank:#e87ba4; --cat-system:#75828f;
   --shadow:0 1px 2px rgba(27,36,48,.06), 0 8px 24px -12px rgba(27,36,48,.18);
 }
@@ -29,6 +29,7 @@
     --accent:#e0906c; --accent-ink:#12161c; --accent-soft:#3b2a21;
     --code-bg:#222b36; --term-bg:#0c1016; --term-ink:#dfe6ee; --term-dim:#7f8b99; --term-accent:#f2a97f; --term-line:#1f2833;
     --cat-workflow:#3987e5; --cat-tools:#199e70; --cat-erprobung:#d95926; --cat-kuration:#9085e9; --cat-werkbank:#d55181; --cat-system:#8894a3;
+    --ok-ink:#72cf7c; --crit-ink:#f08d84;
     --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.6);
   }
 }
@@ -40,6 +41,7 @@
   --accent:#e0906c; --accent-ink:#12161c; --accent-soft:#3b2a21;
   --code-bg:#222b36; --term-bg:#0c1016; --term-ink:#dfe6ee; --term-dim:#7f8b99; --term-accent:#f2a97f; --term-line:#1f2833;
   --cat-workflow:#3987e5; --cat-tools:#199e70; --cat-erprobung:#d95926; --cat-kuration:#9085e9; --cat-werkbank:#d55181; --cat-system:#8894a3;
+  --ok-ink:#72cf7c; --crit-ink:#f08d84;
   --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.6);
 }
 *{box-sizing:border-box}
@@ -286,6 +288,99 @@ figcaption{font-size:13px;color:var(--muted);margin-top:10px;max-width:70ch}
 .storeline .ver{font-size:11px;color:var(--muted);font-weight:600;margin-left:6px}
 footer{padding:40px 0 60px;color:var(--muted);font-size:13px;border-top:1px solid var(--line-2);margin-top:40px}
 footer .wrap{display:flex;flex-wrap:wrap;gap:8px 24px}
+.chain .link.zweig{flex:1.5 1 0;min-width:250px;display:flex;flex-direction:column;gap:8px}
+.chain .link.zweig .zw + .zw{border-top:1px dashed var(--line);padding-top:8px}
+
+/* ---- Zusammenspiel: Uhren-Grafik */
+.clock-fig svg{min-width:780px}
+.ck-row{font-family:"Geist",system-ui,sans-serif;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;fill:var(--muted)}
+.ck-q{font-family:"Geist",system-ui,sans-serif;font-size:11px;fill:var(--ink-2)}
+.ck-sep{stroke:var(--line-2);stroke-width:1}
+.ck-axis,.ck-tick{stroke:var(--line);stroke-width:1}
+.ck-num{font-family:"Geist Mono",ui-monospace,monospace;font-size:10.5px;fill:var(--muted)}
+.ck-plan{fill:var(--primary-soft);stroke:var(--primary);stroke-width:1}
+.ck-over{fill:color-mix(in srgb,var(--crit) 22%,var(--surface));stroke:var(--crit);stroke-width:1}
+.ck-base{stroke:var(--line);stroke-width:1.4}
+.ck-today{stroke:var(--ink);stroke-width:1.2;stroke-dasharray:3 3}
+.ck-anchor{stroke:var(--accent);stroke-width:1.8}
+.ck-anchor-t{font-family:"Geist",system-ui,sans-serif;font-size:11.5px;font-weight:600;fill:var(--accent)}
+.ck-today-t{font-family:"Geist",system-ui,sans-serif;font-size:11.5px;font-weight:600;fill:var(--ink)}
+.ck-crit{font-family:"Geist",system-ui,sans-serif;font-size:12.5px;font-weight:650;fill:var(--crit-ink)}
+.ck-where{font-family:"Geist",system-ui,sans-serif;font-size:10.5px;fill:var(--muted)}
+.ck-lab{font-family:"Geist",system-ui,sans-serif;font-size:11px;fill:var(--ink);font-weight:500}
+.ck-lab2{font-family:"Geist",system-ui,sans-serif;font-size:10.5px;fill:var(--ink-2)}
+.ck-okt{font-family:"Geist",system-ui,sans-serif;font-size:11px;fill:var(--ok-ink);font-weight:600}
+.ck-dot{fill:var(--ink-2)}
+.ck-ok{fill:var(--ok)}
+.ck-dia{fill:var(--surface);stroke:var(--crit);stroke-width:1.6}
+.ck-soll{stroke:var(--ink-2);stroke-width:1.4}
+
+/* ---- Zusammenspiel: Rechenwege, Berührungen */
+.zs-sub{margin:36px 0 12px;display:flex;flex-direction:column;gap:4px}
+.mech{display:grid;grid-template-columns:minmax(220px,1.2fr) repeat(3,minmax(0,1fr));border:1px solid var(--line);border-radius:12px;background:var(--surface);overflow:hidden}
+.mech > div{padding:12px 14px;border-top:1px solid var(--line-2);font-size:13.5px;color:var(--ink-2);min-width:0}
+.mech > .mh{border-top:0;background:var(--surface-2);font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);font-weight:600;padding-top:9px;padding-bottom:8px}
+.mech .mn b{display:block;color:var(--ink);font-size:14.5px;font-weight:600}
+.mech .mn .fr{display:block;margin-top:2px;color:var(--ink)}
+.mech .mn .an{display:block;margin-top:6px;font-size:12.5px}
+.mech .mn .vw{display:block;margin-top:6px;font-size:12px;color:var(--muted)}
+.mech .mn .dv{display:block;margin-top:8px;font-family:"Geist Mono",ui-monospace,monospace;font-size:11px;color:var(--primary);overflow-wrap:anywhere}
+.mech ul,.rung ul{margin:0;padding-left:16px;display:flex;flex-direction:column;gap:3px}
+.mech .ga{display:block;margin-top:8px;font-size:12.5px;color:var(--ink)}
+.mech .ga::before{content:"gilt ab · ";color:var(--muted)}
+.touch{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 32px}
+.tp{padding:14px 0 16px;border-top:1px solid var(--line-2);display:flex;flex-direction:column;gap:6px}
+.tp p{font-size:14px;color:var(--ink-2);max-width:62ch}
+.tp .dv{font-family:"Geist Mono",ui-monospace,monospace;font-size:11.5px;color:var(--primary);overflow-wrap:anywhere}
+.tp .bl,.sym .bl{font-size:12.5px;color:var(--muted)}
+
+/* ---- Fehlersuche */
+.ladder{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border:1px solid var(--line);border-radius:12px;background:var(--surface);overflow:hidden}
+.rung{padding:14px 16px 16px;border-left:1px solid var(--line-2);display:flex;flex-direction:column;gap:8px;font-size:13px;color:var(--ink-2)}
+.rung:first-child{border-left:0}
+.rung .st{font-family:"Geist Mono",ui-monospace,monospace;font-size:12px;font-weight:600;color:var(--accent)}
+.rung h4{font-size:14.5px;color:var(--ink)}
+.fs-bar{display:flex;flex-wrap:wrap;align-items:center;gap:10px 12px;margin:24px 0 12px}
+.fs-search{font:inherit;font-size:14px;padding:8px 12px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink);flex:1 1 220px;max-width:320px}
+.fs-chips{display:flex;flex-wrap:wrap;gap:6px}
+.fs-chip{font:inherit;font-size:13px;font-weight:500;padding:6px 12px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--ink-2);cursor:pointer}
+.fs-chip .n{font-family:"Geist Mono",ui-monospace,monospace;font-size:11px;color:var(--muted);margin-left:4px}
+.fs-chip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.fs-chip[aria-pressed="true"] .n{color:inherit;opacity:.7}
+.fs-toggle{font-size:13px;color:var(--ink-2);display:inline-flex;align-items:center;gap:6px;cursor:pointer}
+.fs-count{margin-left:auto;font-family:"Geist Mono",ui-monospace,monospace;font-size:12px;color:var(--muted)}
+.fs-list{display:flex;flex-direction:column;gap:8px}
+.sym{border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+.sym[open]{box-shadow:var(--shadow)}
+.sym summary{list-style:none;cursor:pointer;display:grid;grid-template-columns:14px minmax(0,1fr) auto;align-items:center;gap:6px 12px;padding:11px 16px}
+.sym summary::-webkit-details-marker{display:none}
+.sym summary::before{content:"";width:7px;height:7px;border-right:1.6px solid var(--muted);border-bottom:1.6px solid var(--muted);transform:rotate(-45deg);transition:transform .15s}
+.sym[open] summary::before{transform:rotate(45deg)}
+.sym summary .t{font-weight:600;font-size:14.5px;color:var(--ink)}
+.sym summary .meta{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.chip.ok{background:color-mix(in srgb,var(--ok) 13%,var(--surface));border-color:transparent;color:var(--ink)}
+.chip.ok .dot{background:var(--ok)}
+.sym-body{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:12px 28px;padding:4px 16px 16px 42px}
+.sym-body h5{margin:0 0 4px;font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.sym-body p,.sym-body ol{font-size:14px;color:var(--ink-2)}
+.sym-body ol{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px}
+.sym-body .bl{grid-column:1/-1}
+.sym-body dl.dev{margin:10px 0 0;padding-top:10px;border-top:1px dashed var(--line);display:grid;grid-template-columns:max-content 1fr;gap:4px 12px;font-size:12px}
+.sym-body dl.dev dt{color:var(--muted)}
+.sym-body dl.dev dd{margin:0;font-family:"Geist Mono",ui-monospace,monospace;font-size:11.5px;color:var(--ink);overflow-wrap:anywhere}
+@media (prefers-reduced-motion: reduce){ .sym summary::before{transition:none} }
+@media (max-width: 900px){
+  .mech{grid-template-columns:1fr}
+  .mech > .mh{display:none}
+  .mech > div[data-l]::before{content:attr(data-l);display:block;font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);font-weight:600;margin-bottom:4px}
+  .mech > .mn{border-top:2px solid var(--line)}
+  .touch,.ladder{grid-template-columns:1fr}
+  .rung{border-left:0;border-top:1px solid var(--line-2)}
+  .rung:first-child{border-top:0}
+  .sym-body{grid-template-columns:1fr;padding-left:16px}
+  .sym summary{grid-template-columns:14px minmax(0,1fr)}
+  .sym summary .meta{grid-column:2;justify-content:flex-start}
+}
 
 @media (max-width: 1080px){
   .layout{grid-template-columns:1fr;gap:0}
@@ -333,6 +428,8 @@ footer .wrap{display:flex;flex-wrap:wrap;gap:8px 24px}
   <a href="#ablaeufe">Abläufe (animiert)</a>
   <a href="#datenmodell">Datenmodell</a>
   <a href="#status">Status-System</a>
+  <a href="#zusammenspiel">Regeln, Fristen &amp; Meilensteine</a>
+  <a href="#fehlersuche">Fehlersuche</a>
   <a href="#plugins">Plugins</a>
   <a href="#varianten">Build-Varianten</a>
   <a href="#sichtbarkeit">Sichtbarkeit</a>
@@ -539,9 +636,120 @@ footer .wrap{display:flex;flex-wrap:wrap;gap:8px 24px}
     <div class="cats" id="status-cats" style="margin-top:10px"></div>
   </div>
   <div class="grid g3" style="margin-top:18px">
-    <div class="card"><h4>Erklären</h4><p class="hint">Woher kommt dieser Status? Herleitung als Popover am Antrag; Kürzel-Glossar mit Wirkung.</p></div>
-    <div class="card"><h4>Navigieren &amp; warnen</h4><p class="hint">Kürzel-Navigator zeigt mögliche nächste Kürzel je Richtlinie; Stillstands-Wächter vergleicht mit Zieltagen.</p></div>
-    <div class="card"><h4>Steuern</h4><p class="hint">To-do-Kaskade: geordnete Regeln je Rolle (AB-Seed: 4 Sperren + 27 Regeln), erste passende gewinnt; Fristen-Cockpit mit Ampel 14/30 Tage.</p></div>
+    <div class="card"><h4>Erklären</h4><p class="hint">Woher kommt dieser Status? Info-Icon am Status mit Herleitung — letzter Vorgang, auslösender Trigger, „Herleitung kopieren“.</p></div>
+    <div class="card"><h4>Navigieren &amp; warnen</h4><p class="hint">Kürzel-Navigator zeigt mögliche nächste Kürzel je Richtlinie; der Stillstands-Wächter vergleicht die Liegezeit mit den Zieltagen des Status.</p></div>
+    <div class="card"><h4>Steuern</h4><p class="hint">To-do-Kaskade je Rolle (AB-Seed: 4 Sperren + 29 Regeln), die erste zutreffende Regel gewinnt. Wie sie mit Frist und Meilensteinen zusammenspielt: <a href="#zusammenspiel">nächster Abschnitt</a>.</p></div>
+  </div>
+</section>
+
+<!-- ================================================================ Zusammenspiel -->
+<section id="zusammenspiel">
+  <div class="sec-head">
+    <span class="eyebrow">Regeln, Fristen &amp; Meilensteine</span>
+    <h2>Sechs Rechnungen, ein Vorgang</h2>
+    <p class="lede" id="zs-beginner"></p>
+  </div>
+  <figure class="fig-frame clock-fig">
+    <svg viewBox="0 0 960 400" role="img" aria-label="Ein Beispielvorgang auf einer Zeitachse ab dem wirksamen Eingang: Heute, an Tag 96, ist die 90-Tage-Frist um 6 Tage überschritten; die Meilensteine der Wochen 9 und 12 sind gerissen, der ältere um 33 Tage; und der Vorgang liegt seit 35 Tagen still bei 21 Zieltagen, also 14 Tage über dem Ziel.">
+      <line class="ck-sep" x1="20" y1="116" x2="940" y2="116"/>
+      <line class="ck-sep" x1="20" y1="178" x2="940" y2="178"/>
+      <line class="ck-sep" x1="20" y1="282" x2="940" y2="282"/>
+      <line class="ck-sep" x1="20" y1="350" x2="940" y2="350"/>
+      <!-- Anker und heute: gelten für alle Zeilen -->
+      <line class="ck-anchor" x1="230" y1="38" x2="230" y2="364"/>
+      <text class="ck-anchor-t" x="230" y="28" text-anchor="middle">Anker · Tag 0</text>
+      <line class="ck-today" x1="806" y1="38" x2="806" y2="364"/>
+      <text class="ck-today-t" x="806" y="28" text-anchor="middle">heute · Tag 96</text>
+      <!-- Eingang -->
+      <text class="ck-row" x="20" y="66">Eingang</text>
+      <text class="ck-q" x="20" y="82">D_AAE · D_XTE</text>
+      <circle class="ck-dot" cx="158" cy="72" r="4.5"/>
+      <circle cx="230" cy="72" r="5.5" style="fill:var(--accent)"/>
+      <text class="ck-lab" x="150" y="96" text-anchor="end">D_AAE</text>
+      <text class="ck-num" x="150" y="109" text-anchor="end">Tag −12</text>
+      <text class="ck-lab" x="238" y="96">D_XTE</text>
+      <text class="ck-num" x="238" y="109">Tag 0</text>
+      <text class="ck-lab2" x="246" y="74">das spätere der beiden Daten ist der wirksame Eingang — der Anker aller drei Uhren</text>
+      <!-- Frist -->
+      <text class="ck-row" x="20" y="143">Frist</text>
+      <text class="ck-q" x="20" y="159">90 Tage ab Anker</text>
+      <rect class="ck-plan" x="230" y="138" width="540" height="16" rx="3"/>
+      <rect class="ck-over" x="770" y="138" width="36" height="16"/>
+      <text class="ck-lab" x="240" y="150">läuft · Status „NF gestellt“ steht in einer Phase mit laufender Frist</text>
+      <text class="ck-num" x="770" y="132" text-anchor="middle">Tag 90</text>
+      <text class="ck-crit" x="822" y="148">6 T über</text>
+      <text class="ck-where" x="822" y="162">Frist-Spalte</text>
+      <!-- Meilensteine -->
+      <text class="ck-row" x="20" y="226">Meilensteine</text>
+      <text class="ck-q" x="20" y="242">Soll-Woche ab Anker</text>
+      <line class="ck-base" x1="230" y1="228" x2="806" y2="228"/>
+      <rect class="ck-over" x="608" y="223" width="198" height="10"/>
+      <line class="ck-soll" x1="398" y1="219" x2="398" y2="237"/>
+      <circle class="ck-ok" cx="380" cy="228" r="5"/>
+      <text class="ck-okt" x="389" y="254" text-anchor="middle">Woche 4 · erreicht an Tag 25</text>
+      <text class="ck-lab2" x="389" y="268" text-anchor="middle">„PreCheck mit Erstentscheidung“</text>
+      <path class="ck-dia" d="M608 221 L615 228 L608 235 L601 228 Z"/>
+      <text class="ck-lab" x="608" y="254" text-anchor="middle">Woche 9 · gerissen</text>
+      <text class="ck-lab2" x="608" y="268" text-anchor="middle">„Erstentscheidung finalisiert“</text>
+      <path class="ck-dia" d="M734 221 L741 228 L734 235 L727 228 Z"/>
+      <text class="ck-lab2" x="796" y="198" text-anchor="end">„Bewilligungsunterlagen versendet“</text>
+      <text class="ck-lab" x="796" y="212" text-anchor="end">Woche 12 · gerissen</text>
+      <text class="ck-crit" x="822" y="226">33 T über</text>
+      <text class="ck-where" x="822" y="240">Fristen-Karte, +1</text>
+      <!-- Stillstand -->
+      <text class="ck-row" x="20" y="314">Stillstand</text>
+      <text class="ck-q" x="20" y="330">Liegezeit gegen Ziel</text>
+      <text class="ck-lab2" x="584" y="314" text-anchor="end">letzte Aktivität = jüngstes Kürzel-Datum</text>
+      <rect class="ck-plan" x="596" y="302" width="126" height="16" rx="3"/>
+      <rect class="ck-over" x="722" y="302" width="84" height="16"/>
+      <circle class="ck-dot" cx="596" cy="310" r="5"/>
+      <text class="ck-lab" x="606" y="314">Ziel 21 T</text>
+      <text class="ck-num" x="596" y="336" text-anchor="middle">Tag 61</text>
+      <text class="ck-num" x="722" y="336" text-anchor="middle">Tag 82</text>
+      <text class="ck-crit" x="822" y="312">14 T über</text>
+      <text class="ck-where" x="822" y="326">Fristen-Karte</text>
+      <!-- Achse -->
+      <line class="ck-axis" x1="230" y1="364" x2="830" y2="364"/>
+      <line class="ck-tick" x1="230" y1="364" x2="230" y2="369"/><text class="ck-num" x="230" y="382" text-anchor="middle">0</text>
+      <line class="ck-tick" x1="314" y1="364" x2="314" y2="369"/><text class="ck-num" x="314" y="382" text-anchor="middle">14</text>
+      <line class="ck-tick" x1="398" y1="364" x2="398" y2="369"/><text class="ck-num" x="398" y="382" text-anchor="middle">28</text>
+      <line class="ck-tick" x1="482" y1="364" x2="482" y2="369"/><text class="ck-num" x="482" y="382" text-anchor="middle">42</text>
+      <line class="ck-tick" x1="566" y1="364" x2="566" y2="369"/><text class="ck-num" x="566" y="382" text-anchor="middle">56</text>
+      <line class="ck-tick" x1="650" y1="364" x2="650" y2="369"/><text class="ck-num" x="650" y="382" text-anchor="middle">70</text>
+      <line class="ck-tick" x1="734" y1="364" x2="734" y2="369"/><text class="ck-num" x="734" y="382" text-anchor="middle">84</text>
+      <line class="ck-tick" x1="818" y1="364" x2="818" y2="369"/><text class="ck-num" x="818" y="382" text-anchor="middle">98</text>
+      <text class="ck-row" x="20" y="382">Tage ab Anker</text>
+    </svg>
+    <figcaption>Ein erfundener Beispielvorgang, gerechnet nach den Regeln im Code. Heute, an Tag 96, sagt die Frist-Spalte „6 T über“ (90 Tage ab Anker). Die Fristen-Karte der Startseite zeigt denselben Vorgang zweimal: als Meilenstein „33 T über“ (Soll Woche 9 = Tag 63, „+1“ für Woche 12) und als Stillstand „14 T über“ (35 Tage ohne Aktivität bei 21 Zieltagen). Alle drei Zahlen stimmen — sie messen Verschiedenes. Namen und Soll-Wochen der Meilensteine stammen aus dem Auslieferungs-Plan, die 21 Zieltage sind ein Beispielwert. Was zu tun ist, sagt keine dieser Uhren, sondern die To-do-Kaskade.</figcaption>
+  </figure>
+  <div class="zs-sub"><h3>Was jede Rechnung liest, wer sie pflegt, wo sie sich zeigt</h3><p class="hint">Im Entwickler-Modus stehen unter jedem Namen Aufrufe und Dateien.</p></div>
+  <div class="mech" id="zs-mech"></div>
+  <div class="zs-sub"><h3>Wo sie sich berühren</h3></div>
+  <div class="touch" id="zs-touch"></div>
+  <div class="zs-sub"><h3>Welche Vorgänge zählen?</h3><p class="hint">Jede Fläche hat ihre Grundmenge. Weichen zwei Zahlen voneinander ab, ist das die erste Frage.</p></div>
+  <div class="tablewrap"><table class="tf" id="zs-mengen"><thead><tr><th>Wo</th><th>Grundmenge</th><th>Warum</th></tr></thead><tbody></tbody></table></div>
+</section>
+
+<!-- ================================================================ Fehlersuche -->
+<section id="fehlersuche">
+  <div class="sec-head">
+    <span class="eyebrow">Fehlersuche</span>
+    <h2>Wenn eine Zahl nicht stimmt</h2>
+    <p class="lede" id="fs-beginner"></p>
+  </div>
+  <div class="ladder" id="fs-leiter"></div>
+  <div class="fs-bar">
+    <input type="search" id="fs-q" class="fs-search" placeholder="Symptom suchen, z. B. angehalten" aria-label="Symptome durchsuchen">
+    <div class="fs-chips" id="fs-chips" role="group" aria-label="Bereich"></div>
+    <label class="fs-toggle"><input type="checkbox" id="fs-nurfehler"> „meist kein Fehler“ ausblenden</label>
+    <span class="fs-count" id="fs-count" aria-live="polite"></span>
+  </div>
+  <div class="fs-list" id="fs-list"></div>
+  <div class="zs-sub"><h3>Werkzeuge in der App</h3></div>
+  <div class="tablewrap"><table class="tf" id="fs-tools"><thead><tr><th>Werkzeug</th><th>Wo</th><th>Beantwortet</th><th class="dev-only">Datei</th></tr></thead><tbody></tbody></table></div>
+  <div class="card dev-only" style="margin-top:16px">
+    <h4>Für Entwickler</h4>
+    <dl class="kv" id="fs-dev" style="margin-top:8px"></dl>
   </div>
 </section>
 
@@ -949,8 +1157,70 @@ footer .wrap{display:flex;flex-wrap:wrap;gap:8px 24px}
   // ---------------------------------------------------------------- Status
   const SA = D.statusAxis || {};
   $('#status-beginner').textContent = SA.beginner || '';
-  $('#status-chain').innerHTML = (SA.chain || []).map(c => `<div class="link"><div class="l">${esc(c.label)}</div><div class="ex">${esc(c.example)}</div><div class="fn dev-only">${esc(c.fn)}</div><div class="nt">${esc(c.note)}</div></div>`).join('');
+  const kettenGlied = (c) => `<div class="l">${esc(c.label)}</div><div class="ex">${esc(c.example)}</div><div class="fn dev-only">${esc(c.fn)}</div><div class="nt">${esc(c.note)}</div>`;
+  // Ein Glied mit `zweig` trägt zwei Wege, die beide vom selben Code ausgehen.
+  $('#status-chain').innerHTML = (SA.chain || []).map(c => c.zweig
+    ? `<div class="link zweig">${c.zweig.map(z => `<div class="zw">${kettenGlied(z)}</div>`).join('')}</div>`
+    : `<div class="link">${kettenGlied(c)}</div>`).join('');
   $('#status-cats').innerHTML = (SA.categories || []).map(c => `<div class="cat"><b>${esc(c.label)} <span class="mono dev-only">${esc(c.id)}</span></b><span>${esc(c.note)}</span></div>`).join('');
+
+  // ---------------------------------------------------------------- Zusammenspiel
+  const ZS = D.zusammenspiel || {};
+  const liste = (xs) => `<ul>${(xs || []).map(x => `<li>${esc(x)}</li>`).join('')}</ul>`;
+  $('#zs-beginner').textContent = ZS.beginner || '';
+  $('#zs-mech').innerHTML = '<div class="mh">Rechnung · Frage · Antwort</div><div class="mh">liest</div><div class="mh">gepflegt · gilt ab</div><div class="mh">zeigt sich in</div>' +
+    (ZS.mechanismen || []).map(m => {
+      const dev = m.dev || {};
+      return `<div class="mn" id="mech-${esc(m.id)}"><b>${esc(m.name)}</b><span class="fr">${esc(m.frage)}</span><span class="an">${esc(m.antwort)}</span><span class="vw">${esc(m.verwechslung)}</span><span class="dv dev-only">${esc(dev.fn)}<br>${esc(dev.file)}</span></div>` +
+        `<div data-l="liest">${liste(m.liest)}</div>` +
+        `<div data-l="gepflegt · gilt ab">${esc(m.pflege)}<span class="ga">${esc(m.giltAb)}</span></div>` +
+        `<div data-l="zeigt sich in">${liste(m.zeigt)}</div>`;
+    }).join('');
+  $('#zs-touch').innerHTML = (ZS.beruehrungen || []).map(b => `<div class="tp"><h4>${esc(b.titel)}</h4><p>${esc(b.text)}</p><p class="dv dev-only">${esc(b.dev)}</p><p class="bl">Beleg: ${esc(b.beleg)}</p></div>`).join('');
+  $('#zs-mengen tbody').innerHTML = (ZS.grundmengen || []).map(g => `<tr><td>${esc(g.wo)}</td><td>${esc(g.menge)}</td><td>${esc(g.warum)}</td></tr>`).join('');
+
+  // ---------------------------------------------------------------- Fehlersuche
+  const FS = D.fehlersuche || {};
+  const bereiche = FS.bereiche || []; const symptome = FS.symptome || [];
+  const bereichLabel = (id) => (bereiche.find(b => b.id === id) || {}).label || id;
+  const fsStand = { bereich: 'alle', q: '', nurFehler: false };
+  const klein = (s) => String(s == null ? '' : s).toLocaleLowerCase('de-DE');
+  $('#fs-beginner').textContent = FS.beginner || '';
+  $('#fs-leiter').innerHTML = (FS.leiter || []).map((r, i) => `<div class="rung"><span class="st">${i + 1} · ${esc(r.schritt)}</span><h4>${esc(r.frage)}</h4>${liste(r.pruefen)}</div>`).join('');
+  const fsChips = $('#fs-chips');
+  fsChips.innerHTML = [{ id: 'alle', label: 'Alle' }, ...bereiche].map(b => {
+    const n = b.id === 'alle' ? symptome.length : symptome.filter(s => s.bereich === b.id).length;
+    return `<button type="button" class="fs-chip" data-b="${esc(b.id)}" aria-pressed="${b.id === 'alle'}">${esc(b.label)}<span class="n">${n}</span></button>`;
+  }).join('');
+  function renderSymptome(){
+    const q = klein(fsStand.q).trim();
+    const treffer = symptome.filter(s => (fsStand.bereich === 'alle' || s.bereich === fsStand.bereich)
+      && (!fsStand.nurFehler || !s.keinFehler)
+      && (!q || klein([s.titel, s.ursache, (s.pruefen || []).join(' '), s.beleg, s.dev && s.dev.fn, s.dev && s.dev.file].join(' ')).includes(q)));
+    $('#fs-count').textContent = `${treffer.length} von ${symptome.length} Symptomen`;
+    $('#fs-list').innerHTML = treffer.length
+      ? treffer.map(s => {
+        const dev = s.dev || {};
+        return `<details class="sym" id="sym-${esc(s.id)}"><summary><span class="t">${esc(s.titel)}</span><span class="meta"><span class="chip">${esc(bereichLabel(s.bereich))}</span>${s.keinFehler ? '<span class="chip ok"><span class="dot"></span>meist kein Fehler</span>' : ''}</span></summary>` +
+          `<div class="sym-body"><div><h5>Warum</h5><p>${esc(s.ursache)}</p><dl class="dev dev-only"><dt>Datei</dt><dd>${esc(dev.file)}</dd><dt>Aufruf</dt><dd>${esc(dev.fn)}</dd></dl></div>` +
+          `<div><h5>In der App prüfen</h5><ol>${(s.pruefen || []).map(p => `<li>${esc(p)}</li>`).join('')}</ol></div><p class="bl">Beleg: ${esc(s.beleg)}</p></div></details>`;
+      }).join('')
+      : '<p class="hint">Kein Symptom passt. Suchbegriff kürzen oder den Bereich „Alle“ wählen.</p>';
+  }
+  fsChips.addEventListener('click', e => {
+    const b = e.target.closest('button[data-b]'); if (!b) return;
+    fsStand.bereich = b.dataset.b;
+    fsChips.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+    renderSymptome();
+  });
+  $('#fs-q').addEventListener('input', e => { fsStand.q = e.target.value; renderSymptome(); });
+  $('#fs-nurfehler').addEventListener('change', e => { fsStand.nurFehler = e.target.checked; renderSymptome(); });
+  renderSymptome();
+  // Ein Link auf #sym-<id> öffnet sein Symptom.
+  const symAnker = decodeURIComponent(location.hash.slice(1));
+  if (symAnker.startsWith('sym-')) { const el = document.getElementById(symAnker); if (el) { el.open = true; el.scrollIntoView({ block: 'start' }); } }
+  $('#fs-tools tbody').innerHTML = (FS.werkzeuge || []).map(w => `<tr><td>${esc(w.name)}</td><td>${esc(w.wo)}</td><td>${esc(w.hilft)}</td><td class="mono dev-only">${esc(w.file)}</td></tr>`).join('');
+  $('#fs-dev').innerHTML = (FS.devWerkzeuge || []).map(w => `<dt class="mono">${esc(w.name)}</dt><dd>${esc(w.was)}</dd>`).join('');
 
   // ---------------------------------------------------------------- Plugins
   const groups = D.pluginGroups || []; const plugs = D.plugins || [];

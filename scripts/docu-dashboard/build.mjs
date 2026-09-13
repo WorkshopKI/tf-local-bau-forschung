@@ -41,14 +41,14 @@ const git = (cmd, fallback = '') => {
 };
 
 // ---------------------------------------------------------------- Dateien/LOC
-function walk(dir, out) {
+function walk(dir, out, muster = /\.(ts|tsx)$/) {
   for (const e of readdirSync(dir)) {
     const p = join(dir, e);
     const st = statSync(p);
     if (st.isDirectory()) {
       if (e === 'node_modules' || e === 'generated') continue;
-      walk(p, out);
-    } else if (/\.(ts|tsx)$/.test(e)) {
+      walk(p, out, muster);
+    } else if (muster.test(e)) {
       out.push(p);
     }
   }
@@ -207,25 +207,77 @@ function leseChangelog(max = 12) {
 
 // ---------------------------------------------------------------- Dateiverweise
 /**
- * Prüft die `dev.file`-Angaben der Abläufe gegen das Repo. Geprüft wird nur,
- * was als Repo-Pfad lesbar ist (beginnt mit src/, scripts/, docs/, configs/
- * oder ist index.html); Kurzformen wie `transports/streamlit.ts` bleiben
- * unbeanstandet. Rückgabe: Liste „Flow › Schritt: Pfad“.
+ * Sammelt alle String-Werte unter einem Schlüssel (`file`, `fn`) aus data.json,
+ * mit lesbarer Fundstelle: Array-Einträge mit `id` heißen nach ihr, sonst nach
+ * ihrer Position (`#3`).
+ */
+function sammleFelder(knoten, schluessel, pfad = [], out = []) {
+  if (Array.isArray(knoten)) {
+    knoten.forEach((k, i) => sammleFelder(k, schluessel,
+      [...pfad, k && typeof k === 'object' && typeof k.id === 'string' ? k.id : `#${i + 1}`], out));
+  } else if (knoten && typeof knoten === 'object') {
+    for (const [k, v] of Object.entries(knoten)) {
+      if (k === schluessel && typeof v === 'string') out.push({ wo: pfad.join(' › '), wert: v });
+      else sammleFelder(v, schluessel, [...pfad, k], out);
+    }
+  }
+  return out;
+}
+
+/**
+ * Kurzformen, die eindeutig unter src/ wohnen (`core/status/waechter.ts`).
+ * `components/` gehört nicht dazu: es gibt src/components, src/core/components
+ * und je Plugin einen components-Ordner.
+ */
+const KURZ_UNTER_SRC = /^(core|plugins|config)\//;
+
+/**
+ * Prüft **jede** `file`-Angabe in data.json gegen das Repo — Abläufe,
+ * Status-Kette, Zusammenspiel, Fehlersuche. Geprüft wird nur, was als Repo-Pfad
+ * lesbar ist (beginnt mit src/, scripts/, docs/, configs/ oder ist index.html;
+ * core/…, plugins/…, config/… werden unter src/ gesucht); andere Kurzformen wie
+ * `transports/streamlit.ts` bleiben unbeanstandet.
+ * Rückgabe: Liste „Fundstelle: Pfad“.
  */
 function pruefeDateiVerweise(data) {
   const fehlend = [];
-  for (const f of data.flows ?? []) {
-    f.steps.forEach((st, i) => {
-      const raw = st.dev?.file ?? '';
-      for (let tok of raw.split('·')) {
-        tok = tok.trim().replace(/\s*\(.*?\)\s*$/, '').replace(/:\d+(-\d+)?$/, '').trim();
-        if (!tok) continue;
-        if (!(/^(src|scripts|docs|configs)\//.test(tok) || tok === 'index.html')) continue;
-        if (!existsSync(join(ROOT, tok))) fehlend.push(`${f.id} › Schritt ${i + 1}: ${tok}`);
-      }
-    });
+  for (const { wo, wert } of sammleFelder(data, 'file')) {
+    for (let tok of wert.split('·')) {
+      tok = tok.trim().replace(/\s*\(.*?\)\s*$/, '').replace(/:\d+(-\d+)?$/, '').trim();
+      if (!tok) continue;
+      if (KURZ_UNTER_SRC.test(tok)) tok = `src/${tok}`;
+      if (!(/^(src|scripts|docs|configs)\//.test(tok) || tok === 'index.html')) continue;
+      if (!existsSync(join(ROOT, tok))) fehlend.push(`${wo}: ${tok}`);
+    }
   }
   return fehlend;
+}
+
+// ---------------------------------------------------------------- Aufrufe
+/**
+ * Prüft die Aufrufe in allen `fn`-Angaben (`name(`) gegen den Produktionscode
+ * unter src/ und scripts/. Ein umbenannter oder entfernter Aufruf fällt so beim
+ * nächsten Bau auf, statt im Dashboard weiterzuleben. Bewusst grob: gesucht wird
+ * der Name als Wort irgendwo im Code, nicht seine Definition — Tests zählen
+ * nicht, sonst hielte ein alter Test einen gelöschten Namen am Leben.
+ */
+function pruefeAufrufe(data) {
+  const namen = new Map();
+  for (const { wo, wert } of sammleFelder(data, 'fn')) {
+    for (const m of wert.matchAll(/([A-Za-z_$][\w$]*)\s*\(/g)) {
+      if (!namen.has(m[1])) namen.set(m[1], wo);
+    }
+  }
+  if (namen.size === 0) return [];
+  const woerter = new Set();
+  const dateien = [
+    ...walk(join(ROOT, 'src'), []),
+    ...walk(join(ROOT, 'scripts'), [], /\.(mjs|js|ts)$/),
+  ].filter(f => !/\.test\.tsx?$/.test(f) && !/[\\/]__tests__[\\/]/.test(f));
+  for (const f of dateien) {
+    for (const w of readFileSync(f, 'utf8').match(/[A-Za-z_$][\w$]*/g) ?? []) woerter.add(w);
+  }
+  return [...namen].filter(([n]) => !woerter.has(n)).map(([n, wo]) => `${wo}: ${n}()`);
 }
 
 // ---------------------------------------------------------------- Bauen
@@ -283,6 +335,13 @@ async function main() {
     for (const z of fehlend) console.log('  - ' + z);
   } else {
     console.log('[docu-dashboard] Dateiverweise in data.json: alle vorhanden.');
+  }
+  const unbekannt = pruefeAufrufe(data);
+  if (unbekannt.length) {
+    console.log(`[docu-dashboard] ${unbekannt.length} Aufruf(e) in data.json kommen im Code nicht vor — im Skill docu-dashboard nachziehen:`);
+    for (const z of unbekannt) console.log('  - ' + z);
+  } else {
+    console.log('[docu-dashboard] Aufrufe in data.json: alle im Code gefunden.');
   }
 
   const kb = Math.round(statSync(outPath).size / 1024);

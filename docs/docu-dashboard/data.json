@@ -3,8 +3,8 @@
     "appName": "TeamFlow Local",
     "pageTitle": "TeamFlow Local Doku-Dashboard",
     "repo": "WorkshopKI/tf-local-bau-forschung",
-    "curatedAt": "2026-09-10",
-    "curatedFor": "v6.48.0",
+    "curatedAt": "2026-09-13",
+    "curatedFor": "v6.65.1",
     "updateRhythm": "monatlich (1. des Monats) über den Claude-Code-Skill docu-dashboard"
   },
   "intro": {
@@ -173,7 +173,7 @@
           "label": "Berechtigungen erneuern",
           "beginner": "Aus Sicherheitsgründen verfällt die Erlaubnis für den Ordner beim Schließen des Browsers. Der Startbildschirm fragt sie deshalb Ordner für Ordner mit je einem Klick neu ab — oder läuft ohne Klick durch, wenn alles noch gilt.",
           "dev": {
-            "file": "src/core/StartupScreen.tsx · components/GuidedGrantSteps.tsx · smb-handle/permissions.ts",
+            "file": "src/core/StartupScreen.tsx · src/core/components/GuidedGrantSteps.tsx · smb-handle/permissions.ts",
             "fn": "listPendingGrants() → grantPending() → requestPermission()",
             "effect": "Ein Prompt pro User-Gesture (Bug-Klasse 2). Reihenfolge Datenordner → Persönlicher Ordner → CSV-Quelle. Warm-Start: queryAllPermissions → applyRefreshResult → onReady()."
           },
@@ -257,9 +257,20 @@
           "dev": {
             "file": "src/core/App.tsx · csv-sources-kuration/services/data-update.ts",
             "fn": "scheduleIdle → runDataUpdate() · acquireDataMutation()",
-            "effect": "Zweiter Aufruf bekommt {nichtGelaufen:'gate-belegt'}. Phasen: snapshot → csv-check → csv-import → publishing."
+            "effect": "Zweiter Aufruf bekommt {nichtGelaufen:'gate-belegt'}. Phase 0 Status-Fassung, dann snapshot → csv-check → csv-import → publishing."
           },
           "log": "data-update.ts  →  runDataUpdate()  phase=snapshot"
+        },
+        {
+          "lane": 5,
+          "label": "Status-Fassung nachziehen",
+          "beginner": "Bevor Daten geholt werden, prüft die App, ob die Projektleitung eine neue Fassung der Vorgangs-Regeln veröffentlicht hat. Sonst rechneten Aufgaben, Fristen und Ordner-Spalten mit dem alten Stand.",
+          "dev": {
+            "file": "src/plugins/antraege/snapshot-refresh.ts · src/core/status/index.ts",
+            "fn": "zieheFassungNach(idb) → holeNeuereFassung(idb)",
+            "effect": "Phase 0 von runDataUpdate (seit v6.57.3 bei jeder Aktualisierung, vorher einmal je Sitzung): 4 KB Dateikopf von _intern/status-katalog.json, die volle Datei nur bei neuer Nummer; bei Wechsel ensureListViewProjection + Anträge-Store samt Bestands-Generation neu."
+          },
+          "log": "snapshot-refresh.ts  →  zieheFassungNach()  ·  Dateikopf 4 KB · Fassung unverändert"
         },
         {
           "lane": 5,
@@ -561,6 +572,199 @@
             "effect": "Die eine Achse: findeStatusCode → phaseFuerCode → kategorieFuerCode → getStatusCategory. Navigator prüft nur die Trigger des Programms; nicht Auswertbares heißt 'unpruefbar', nicht 'ungültig'."
           },
           "log": "herleitung.ts  →  'VN geprüft' → Code 88 → begleitung → StatusCategory begleitung"
+        }
+      ]
+    },
+    {
+      "id": "regeln-fristen",
+      "title": "Aufgabe, Frist & Meilenstein",
+      "kicker": "Nachtexport → Fassung & Plan → Bestandslauf → Anzeige",
+      "summary": "Was an einem Vorgang zu tun ist, ob er stillsteht, wie viel Frist bleibt und welcher Meilenstein fällig ist, rechnet die App aus denselben Exportspalten — aber in getrennten Rechnungen mit getrennten Pflegeorten. Der Ablauf zeigt, wer wann was liest und wo die Ergebnisse wieder zusammenkommen.",
+      "lanes": [
+        "Fachsystem C16",
+        "Datenaktualisierung",
+        "Katalog-Fassung",
+        "Bestandslauf",
+        "Meilenstein-Plan",
+        "Anzeige"
+      ],
+      "steps": [
+        {
+          "lane": 0,
+          "label": "Kürzel setzen, Status wechselt",
+          "beginner": "Bearbeiterinnen und Bearbeiter setzen im Fachsystem Vorgangskürzel. Hinterlegte Trigger ändern daraufhin den Status. Die App sieht davon nur, was nachts exportiert wird.",
+          "dev": {
+            "file": "docs/status-system/KATALOG-CODES.md · docs/architecture/vorgangssystem.md",
+            "fn": "D_<CODE> = Datum · T_<CODE> = Text · STATUS_TV / STATUS_VB",
+            "effect": "Je Kürzel eine Datumsspalte (nur das letzte Setzdatum) und eine Textspalte; X am Codeanfang = Verbund-Ebene. STATUS_TV/STATUS_VB gelten wie importiert — die App leitet keinen Status ab (Pitfall #44)."
+          },
+          "log": "C16-Export  →  STATUS_TV · STATUS_VB · D_AAE · D_XTE · D_…/T_…"
+        },
+        {
+          "lane": 1,
+          "label": "Fassung nachziehen",
+          "beginner": "Jede Datenaktualisierung fragt zuerst, ob die Projektleitung eine neue Fassung der Vorgangs-Regeln veröffentlicht hat, und übernimmt sie.",
+          "dev": {
+            "file": "src/plugins/csv-sources-kuration/services/data-update.ts · src/plugins/antraege/snapshot-refresh.ts",
+            "fn": "runDataUpdate() → zieheFassungNach(idb) → holeNeuereFassung(idb)",
+            "effect": "Phase 0 vor Snapshot und CSV: 4 KB Dateikopf, die volle Fassung nur bei neuer Nummer (v6.57.3)."
+          },
+          "log": "data-update.ts  →  Phase 0  zieheFassungNach()"
+        },
+        {
+          "lane": 2,
+          "label": "Regeln der Fassung gelten",
+          "from": 1,
+          "edge": "übernommen",
+          "beginner": "Die aktive Fassung bringt mit, was das Team pflegt: welche Status zu welchem Verfahrensschritt gehören und ob dort die Frist läuft, wie lange ein Status stillstehen darf, die geordneten To-do-Regeln und den Betrachtungsbereich.",
+          "dev": {
+            "file": "src/core/status/snapshot.ts · src/core/status/zah-phasen.ts · src/core/status/betrachtungsbereich.ts",
+            "fn": "setStatusKatalogSnapshot(version) · phaseFuerCode(code) · fristLaeuftVon(phase) · bereichsProgramme(version)",
+            "effect": "MappingVersion: zahPhasen (je Phase fristLaeuft, zieltageRelevant) · Code → Phase · Zieltage je Code · todoRegeln · Betrachtungsbereich. Die Arbeitsliste steht nicht darin — sie ist fest im Code."
+          },
+          "log": "snapshot.ts  →  setStatusKatalogSnapshot(Fassung n)"
+        },
+        {
+          "lane": 1,
+          "label": "Import: Spalten werden Felder",
+          "from": 1,
+          "edge": "danach",
+          "beginner": "Die Exportzeilen werden über das gespeicherte Spalten-Mapping zu Feldern. Zeigen zwei Spalten auf denselben Feldnamen, überschreibt die spätere die frühere — der Schema-Dialog meldet solche Kollisionen.",
+          "dev": {
+            "file": "src/core/services/csv/importer-schritte.ts · src/core/services/csv/spalten-kollisionen.ts",
+            "fn": "berechneRowDiff() → canonicalRowHash(row, column_mapping) · findeSpaltenKollisionen(schema)",
+            "effect": "Am Bestand vom 12.09.2026: 20 Kollisionen in 3 Schemas, darunter termin_fur_nachlieferung ← D_ANT + T_ANT — der Text überschreibt das Datum, zwei To-do-Regeln trafen deshalb nie."
+          },
+          "log": "importer-schritte.ts  →  berechneRowDiff()  ·  Kollisionen je Schema"
+        },
+        {
+          "lane": 4,
+          "label": "Freigegebenen Plan laden",
+          "from": 3,
+          "edge": "nach dem Import",
+          "beginner": "Nach dem Import holt die App den Meilenstein-Plan — und zwar die zuletzt freigegebene Fassung. Ein gespeicherter, nicht freigegebener Entwurf verändert keine Zahl.",
+          "dev": {
+            "file": "src/core/meilensteine/import-integration.ts · src/core/meilensteine/plan-storage.ts",
+            "fn": "nachImportMeilensteinPflege() → ladePlan(idb) → freigegebeneFassung(plan)",
+            "effect": "Team-Sidecar _intern/meilensteine.json; ohne freigegebene Fassung läuft nichts („Noch kein Plan freigegeben.“). Die jüngste freigegebene Fassung bleibt auch beim Kappen der Historie stehen."
+          },
+          "log": "plan-storage.ts  →  freigegebeneFassung(plan)  ✓"
+        },
+        {
+          "lane": 4,
+          "label": "Meilensteine bewerten",
+          "beginner": "Soll-Termin ist der wirksame Eingang plus die Soll-Woche. Erreicht ist ein Meilenstein, wenn seine Bedingung zutrifft; sein Ist-Termin kommt aus den Datumsspalten der Bedingung. Ist das Soll vorbei und fehlt der Beleg, ist er gerissen.",
+          "dev": {
+            "file": "src/core/meilensteine/anker.ts · src/core/meilensteine/bewertung.ts · src/core/meilensteine/projektion.ts",
+            "fn": "baueAnkerLeser(schemas) → bewerteVerbund() → speichereProjektion()",
+            "effect": "sollDatum = Anker + sollWoche × 7; erreicht · gerissen · faellig (≤ 7 T) · offen · nichtRelevant · ohneBedingung. Bedingung über denselben pruefeBedingung wie die To-do-Regeln. Signatur: BEWERTUNGS_VERSION 4 | Plan | Schema | Kalendertag."
+          },
+          "log": "bewertung.ts  →  bewerteVerbund() je offenem Verbund  ·  meilenstein-stand:<programm>"
+        },
+        {
+          "lane": 3,
+          "label": "Wer wird gerechnet?",
+          "from": [
+            2,
+            3
+          ],
+          "beginner": "Gerechnet werden nur Vorgänge im Betrachtungsbereich, davon nur die aktuelle und die vorige Richtlinie. Ältere Zeilen bekommen den Hinweis „ältere Richtlinie – aus dem Status abgeleitet“.",
+          "dev": {
+            "file": "src/core/status/betrachtungsbereich.ts · src/core/status/bestands-lauf.ts",
+            "fn": "bestandslaufMenge(bereich) → laufeBestand(idb, version, bereichMenge, stichtag, laufMenge)",
+            "effect": "Bereich-Seed = drei jüngste Richtlinien-Generationen; Lauf-Menge = Bereich ∩ zwei jüngste. Was außerhalb liegt, landet in nichtGerechnet statt still zu verschwinden (Pitfall #46)."
+          },
+          "log": "bestands-lauf.ts  →  laufeBestand()  ·  nichtGerechnet[]"
+        },
+        {
+          "lane": 3,
+          "label": "To-do-Kaskade je Rolle",
+          "beginner": "Für jedes Teilvorhaben prüft die App die Regeln der Reihe nach: zuerst die Sperren (etwa „Verfahren abgeschlossen“), dann gewinnt die erste zutreffende Regel — getrennt für jede Rolle.",
+          "dev": {
+            "file": "src/core/status/todo-engine.ts · src/core/status/regelsatz.ts",
+            "fn": "baueTodoKontext(vorkommen) → ermittleTodosAlleRollen(regeln, ctx, stichtag)",
+            "effect": "Sperr-Pass über alle aktiven Regeln (S0 · S0b sperren alles, S1 · S2 nach Strang), dann Treffer-Pass im eigenen Regelsatz; ohne eigenen Treffer ein abgeleiteter Platzhalter (zuständig vor wartetAuf). AB-Seed: 4 Sperren + 29 Regeln."
+          },
+          "log": "todo-engine.ts  →  ermittleTodosAlleRollen()  ·  ab · fb · qs …"
+        },
+        {
+          "lane": 3,
+          "label": "Stillstands-Wächter",
+          "beginner": "Die App sucht das jüngste Datum, an dem am Vorgang etwas passiert ist, und vergleicht die Liegezeit mit den Zieltagen des aktuellen Status. Ist ein Kürzel-Paar halb offen, nennt sie, bei wem es hängt.",
+          "dev": {
+            "file": "src/core/status/waechter.ts",
+            "fn": "pruefeStillstand({ version, vorkommen, statusCode, todo, journalAenderung, stichtag })",
+            "effect": "Urteil ok · haengt · unbewertet (ohne Zieltage ein eigenes Urteil, nicht ok). Letzte Aktivität = jüngstes Kürzel-Datum bis heute, „belegt“, wenn das Journal eine Änderung führt. Rolle aus halb offenem Paar oder aus dem To-do des AB-Satzes."
+          },
+          "log": "waechter.ts  →  pruefeStillstand()  urteil=haengt  tage 35 > ziel 21"
+        },
+        {
+          "lane": 3,
+          "label": "Frist: läuft die Uhr?",
+          "beginner": "90 Tage ab dem wirksamen Eingang, also dem späteren Datum von Antragseingang und „alle Anträge da“. Die Uhr steht, wenn der Verfahrensschritt keine Frist vorsieht oder der Vorgang abgeschlossen ist; die Begleitphase hat eine eigene Uhr.",
+          "dev": {
+            "file": "src/core/services/csv/frist.ts · src/core/status/bestands-lauf.ts",
+            "fn": "wirksamerEingang(D_AAE, D_XTE) → computeFristDatum() · fristLaeuftFuer(zahPhase, status, phasen)",
+            "effect": "restTage und fristLaeuft je Zeile für Board und Cockpit-Sichten. ANTRAG_SLA_DAYS = 90, Begleitphase VN-Eingang + 6 Monate. Terminal hält an, Begleitung läuft, sonst entscheidet fristLaeuft der Phase."
+          },
+          "log": "bestands-lauf.ts  →  fristLaeuftFuer()  ·  restTage -6"
+        },
+        {
+          "lane": 3,
+          "label": "Ergebnis ablegen",
+          "beginner": "Das Ergebnis liegt einmal für alle Seiten bereit. Während gerechnet wird, steht „…“; nach einem Import bleibt der alte Stand mit ↻ markiert stehen, bis der neue fertig ist.",
+          "dev": {
+            "file": "src/core/hooks/useBestandsAufgaben.ts · src/core/services/bestand-generation.ts",
+            "fn": "useBestandsAufgaben(start, stichtag) · bestandsSchluessel() · ablageVorlaeufig()",
+            "effect": "Schlüssel: Fassung · Bereich · Lauf-Menge · Bestands-Generation · Stichtag-Tag. Die 5-Minuten-TTL entscheidet nur über den Anstoß, nicht über die Anzeige (v6.57.2)."
+          },
+          "log": "useBestandsAufgaben  →  Ablage[Fassung · Bereich · Lauf · Generation · Tag]"
+        },
+        {
+          "lane": 5,
+          "label": "Aufgabe in der Zeile",
+          "beginner": "Liste, Startseite, Board und Detailseite zeigen dieselbe Aufgabe. Jede Zeile sagt, woher sie kommt: eigene Regel, Aufgabe einer anderen Rolle, gesperrt — oder, wenn keine Regel passt, die einfache Ableitung aus dem Status.",
+          "dev": {
+            "file": "src/core/status/aufgabe.ts · src/core/status/aufgaben-anzeige.ts · src/core/utils/naechsterSchritt.ts",
+            "fn": "useZeilenAufgaben() → baueAufgabe() → aufgabenAnzeige()",
+            "effect": "quelle kaskade · fremd · gesperrt · rueckfall · laedt. Verbund = Faltung über die Teilvorhaben („3 von 4 TV“); schweigt der eigene Satz, wird der AB-Satz gelesen (gelesenAls). naechsterSchritt ist nur noch Rückfall."
+          },
+          "log": "aufgaben-anzeige.ts  →  quelle = kaskade | fremd | gesperrt | rueckfall | laedt"
+        },
+        {
+          "lane": 5,
+          "label": "Frist-Spalte und Detail",
+          "edge": "daneben",
+          "beginner": "Neben der Aufgabe steht die Frist. Sie zeigt die knappste laufende Uhr der Teilvorhaben; läuft keine, sagt sie „angehalten“ oder warum sich nichts rechnen lässt.",
+          "dev": {
+            "file": "src/plugins/antraege/groupAggregates.ts · src/plugins/antraege/fristAnzeige.ts · src/core/services/csv/frist-ergebnis.ts",
+            "fn": "criticalFristErgebnis(tvs) → berechneFrist(e)",
+            "effect": "Zustand laeuft · angehalten (Haltedatum aus Journal, Datumsfeld oder Verlauf — nie geraten) · nicht_berechenbar mit FRIST_GRUND. Laufend schlägt angehalten schlägt nicht berechenbar. Dieselbe Zahl nutzen Detailseite, Sortierung, Tagesbrief-To-do und Assistent."
+          },
+          "log": "groupAggregates.ts  →  criticalFristErgebnis()  zustand=laeuft  tageRest=-6"
+        },
+        {
+          "lane": 5,
+          "label": "Fristen-Karte",
+          "edge": "+ Meilenstein-Projektion",
+          "beginner": "Die Karte „Fristen“ der Startseite legt zwei verschiedene Warnungen in eine Liste: Stillstand gegen Zieltage und gerissene Meilensteine. Verrechnet wird nichts — jede Zeile nennt ihre Herkunft, sortiert wird nach Tagen über dem Vorgesehenen.",
+          "dev": {
+            "file": "src/plugins/home/widgets/useFristAnlaesse.ts · src/plugins/home/widgets/fristAnlaesse.ts · src/plugins/home/widgets/FristenWidget.tsx",
+            "fn": "useFristAnlaesse() → zieltagAnlass() + meilensteinAnlaesse() → sortiereAnlaesse() → buendleNachVerbund()",
+            "effect": "Ruft pruefeStillstand je eigenem Verbund selbst und liest die Meilenstein-Projektion (holeProjektion). ueberTage: Liegezeit − Zieltage bzw. heute − Soll. Eine Zeile je Verbund und Quelle (+n weitere); Fußzeile zählt Status ohne Zieltage und Meilensteine ohne Bedingung."
+          },
+          "log": "fristAnlaesse.ts  →  Zieltag 14 T über · Meilenstein 33 T über (+1)"
+        },
+        {
+          "lane": 5,
+          "label": "Tagesbrief und Assistent",
+          "beginner": "Der Tagesbrief oben auf der Startseite rankt Stillstand und Aufgaben — Meilensteine lässt er bewusst weg. Der Assistent bekommt zu einem Vorgang Aufgaben, Frist, Wächter und Meilensteine als Faktenblock.",
+          "dev": {
+            "file": "src/plugins/home/tagesbrief/useTagesbrief.ts · src/plugins/home/tagesbrief/themen.ts · src/plugins/chat/assistent/vorgangsakte.ts",
+            "fn": "useTagesbrief() · useFristAnlaesse(aktiv, meineVerbuende, stichtag, false)",
+            "effect": "Uhr-Themen stillstand und zu-tun, im Nachsatz u. a. liegt-bei-anderen, kuerzel-status, nachtlauf (Meilensteine seit v6.60.4 raus). Die Vorgangsakte entsteht aus denselben Funktionen wie die Karten, ohne Bearbeiter-Kürzel."
+          },
+          "log": "useTagesbrief()  →  stillstand · zu-tun  ·  Vorgangsakte"
         }
       ]
     },
@@ -874,7 +1078,7 @@
           "label": "Vorschläge anzeigen",
           "beginner": "Fünf Vorschläge mit Prozentwert und Begründung — die Personen stehen anonym als MA-Nummern da.",
           "dev": {
-            "file": "views/DetailPanel.tsx · components/VorschlagRow.tsx · ScoreBreakdownPanel.tsx · AnonymIdBadge.tsx",
+            "file": "views/DetailPanel.tsx · src/plugins/auslastung/components/VorschlagRow.tsx · ScoreBreakdownPanel.tsx · AnonymIdBadge.tsx",
             "fn": "MatchResult.breakdown {matchKind, alpha, histScore, matrixScore, matrixGewicht}",
             "effect": "Echte Kürzel nur in pl/dev per useDeAnonResolver; Kürzel-Map append-only (Pitfall #17/#22)."
           },
@@ -1433,46 +1637,50 @@
     }
   ],
   "statusAxis": {
-    "beginner": "Der Status kommt aus dem Fachsystem und gilt wie importiert — die App leitet nie einen ab. Sie liest ihn nur auf drei Ebenen: der amtliche Code, der Verfahrensschritt (kuratierbar, „wo im Verfahren“) und die feste Arbeitsliste („wer ist am Zug“), die Reiter, Farben und Kanban-Bahnen steuert.",
+    "beginner": "Der Status kommt aus dem Fachsystem und gilt wie importiert — die App leitet nie einen ab. Aus dem amtlichen Code liest sie zwei Dinge getrennt voneinander: den Verfahrensschritt (kuratierbar: wo im Verfahren steht der Vorgang, und läuft hier die Frist-Uhr?) und die feste Arbeitsliste (wer ist am Zug?), die Reiter, Farben und Kanban-Bahnen steuert. Ein neuer Phasenschnitt kann seit v4.87 keine Arbeitsliste mehr verschieben.",
     "chain": [
       {
         "label": "Rohtext",
         "example": "„VN geprüft“",
         "fn": "findeStatusCode(text)",
         "file": "core/status/status-codes.ts",
-        "note": "505 Katalogeinträge, 30 Codes"
+        "note": "505 Katalogeinträge, rund 30 Status-Codes; NFC-normalisiert"
       },
       {
         "label": "Amtlicher Code",
-        "example": "88",
-        "fn": "phaseFuerCode(code)",
-        "file": "core/status/zah-phasen.ts",
-        "note": "Schnitt aus der aktiven Fassung (snapshot.ts)"
+        "example": "97",
+        "fn": "findeStatusCode(text).eintrag.code",
+        "file": "core/status/status-codes.ts",
+        "note": "ab hier rechnet die App mit Codes, Schreibweisen betreffen nur Labels"
       },
       {
-        "label": "ZAH-Phase",
-        "example": "begleitung",
-        "fn": "kategorieFuerCode(code)",
-        "file": "core/status/kategorie-ableitung.ts",
-        "note": "6 kuratierbare Verfahrensschritte"
-      },
-      {
-        "label": "StatusCategory",
-        "example": "begleitung",
-        "fn": "getStatusCategory(raw)",
-        "file": "core/utils/status-canonical.ts",
-        "note": "9 feste Werte, nicht kuratierbar"
+        "zweig": [
+          {
+            "label": "Verfahrensschritt (ZAH-Phase)",
+            "example": "Begleitung",
+            "fn": "phaseFuerCode(code) · fristLaeuftVon(phase)",
+            "file": "core/status/zah-phasen.ts",
+            "note": "3–9 Phasen, kuratierbar in der Fassung; je Phase „Frist läuft“"
+          },
+          {
+            "label": "Arbeitsliste (StatusCategory)",
+            "example": "Begleitung",
+            "fn": "kategorieFuerCode(code) · getStatusCategory(raw)",
+            "file": "core/status/kategorie-ableitung.ts",
+            "note": "9 feste Werte im Code — nicht kuratierbar"
+          }
+        ]
       }
     ],
     "categories": [
       {
         "id": "offen",
-        "label": "Offen",
+        "label": "Zu bearbeiten",
         "note": "Eingang, noch nicht in Prüfung"
       },
       {
         "id": "in_pruefung",
-        "label": "In Prüfung",
+        "label": "In Arbeit",
         "note": "techn./kaufm./Gutachten, vor Bewilligung"
       },
       {
@@ -1482,7 +1690,7 @@
       },
       {
         "id": "entscheidung",
-        "label": "Entscheidung",
+        "label": "Zu entscheiden",
         "note": "Entscheidungsvorbereitung"
       },
       {
@@ -1502,12 +1710,12 @@
       },
       {
         "id": "abgeschlossen",
-        "label": "Abgeschlossen",
+        "label": "Erledigt",
         "note": "Schlussvermerk (99), abgebrochen, zurückgezogen (73)"
       },
       {
         "id": "sonstige",
-        "label": "Sonstige",
+        "label": "Ohne Zuordnung",
         "note": "Irrläufer, unvollständig, leer, unbekannt"
       }
     ],
@@ -1960,14 +2168,14 @@
     ],
     "guards": [
       {
-        "file": "conventions-daten.test.ts",
+        "file": "conventions-ui.test.ts",
         "n": 51,
-        "what": "Persistenz, Share, Transport, Prompts, Feedback (größte Datei der Codebase)"
+        "what": "Oberfläche, Design-Tokens, Kontrast, geteilte Bauteile"
       },
       {
-        "file": "conventions-ui.test.ts",
-        "n": 47,
-        "what": "Oberfläche, Design-Tokens, Kontrast, geteilte Bauteile"
+        "file": "conventions-daten.test.ts",
+        "n": 48,
+        "what": "Persistenz, Share, Transport, Prompts, Feedback (größte Datei der Codebase)"
       },
       {
         "file": "conventions-status.test.ts",
@@ -1976,18 +2184,23 @@
       },
       {
         "file": "conventions-clean-code.test.ts",
-        "n": 29,
+        "n": 35,
         "what": "Regeln zur Codeform mit gemessenem Ist und Ratschen (Fehlersichtbarkeit, Modulgrenzen, Duplikate, Zeitkonstanten)"
       },
       {
+        "file": "version-bump.test.ts",
+        "n": 10,
+        "what": "pure Funktionen des Version-Bumps"
+      },
+      {
         "file": "agent-konfiguration.test.ts",
-        "n": 7,
+        "n": 8,
         "what": "Skills, Hooks, Deny-Regeln, Specs — die Dateien, die Claude Code steuern"
       },
       {
-        "file": "version-bump.test.ts",
-        "n": 7,
-        "what": "pure Funktionen des Version-Bumps"
+        "file": "conventions-bestand.test.ts",
+        "n": 6,
+        "what": "Bestands-Generation am einen Choke-Point; Journal-Leser folgen dem Bestand"
       },
       {
         "file": "health-baseline.test.ts",
@@ -2125,11 +2338,11 @@
     },
     {
       "term": "Die eine Achse",
-      "def": "Rohtext → amtlicher Code → ZAH-Phase → StatusCategory; Verfahrensschritt und Arbeitsliste führen beide vom Code weg."
+      "def": "Rohtext → amtlicher Code; vom Code führen zwei getrennte Wege weg — zum Verfahrensschritt (kuratierbar) und zur Arbeitsliste (fest im Code). Keiner führt über den anderen."
     },
     {
       "term": "ZAH-Phase (Verfahrensschritt)",
-      "def": "Kuratierbare Zuordnung Code → Phase (eingang … abgeschlossen): sagt, wo im Verfahren der Vorgang steht; leitet nichts ab."
+      "def": "Kuratierbare Zuordnung Code → Phase (ausgeliefert: Eingang … Abgeschlossen): sagt, wo im Verfahren der Vorgang steht, und je Phase, ob die Frist-Uhr läuft; leitet keinen Status ab."
     },
     {
       "term": "StatusCategory (Arbeitsliste)",
@@ -2141,11 +2354,59 @@
     },
     {
       "term": "Zieltage",
-      "def": "Eine Zahl je Status-Code, Grundlage des Stillstands-Wächters — misst Stillstand, nicht Termine."
+      "def": "Eine Zahl je Status-Code in der Katalog-Fassung, Grundlage des Stillstands-Wächters — misst Liegezeit, keinen Termin ab Eingang."
     },
     {
       "term": "Bearbeitungs-Meilenstein",
-      "def": "Knoten eines versionierten, freigebbaren Plans mit Sollwoche ab Antragseingang (Anker: spätestes Antragsdatum aller TVs)."
+      "def": "Knoten eines versionierten Plans mit Soll-Woche ab dem wirksamen Eingang des Verbunds; gewertet wird nur die freigegebene Fassung."
+    },
+    {
+      "term": "Wirksamer Eingang",
+      "def": "Je Teilvorhaben das spätere von Antragseingang (D_AAE) und „alle Anträge da“ (D_XTE), im Verbund das späteste — der eine Anker für Frist-Spalte, Bestandslauf und Meilensteine."
+    },
+    {
+      "term": "Frist",
+      "def": "Die 90-Tage-Bearbeitungsfrist als Zustand: läuft, angehalten oder nicht berechenbar (mit Grund). Ein gespeichertes Fristdatum gibt es seit v6.52 nicht mehr."
+    },
+    {
+      "term": "Stillstands-Wächter",
+      "def": "Vergleicht die Liegezeit seit der letzten datierten Aktivität mit den Zieltagen des Status: in Ordnung, hängt — oder unbewertet, wenn keine Zieltage gepflegt sind."
+    },
+    {
+      "term": "To-do-Kaskade",
+      "def": "Geordnete Regeln je Rollen-Regelsatz: erst greifen Sperren, dann gewinnt die erste zutreffende Regel; kein Treffer ist ein eigenes, sichtbares Ergebnis."
+    },
+    {
+      "term": "Bestandslauf",
+      "def": "Die eine Rechnung von Kaskade, Wächter und Restfrist über den Bestand, deren Ablage Board, Startseite, Liste und Assistent lesen — nur für die zwei jüngsten Richtlinien im Bereich."
+    },
+    {
+      "term": "Quellspalte",
+      "def": "Die rohe CSV-Spalte (etwa D_AAE samt Label), aus der ein Feld, ein Status oder eine Bedingung liest — aus dem Mapping aufgelöst, nie abgeschrieben."
+    },
+    {
+      "term": "PreCheck TV / PreCheck Verbund",
+      "def": "Zwei Vorprüfungs-Urteile zweier Rollen: D_PC± vom AB am Teilvorhaben, D_XPC± vom FB am Verbund; zusammengeführt schlägt negativ positiv."
+    },
+    {
+      "term": "Momentaufnahme (Bedingung)",
+      "def": "Eine Bedingung über den heutigen Status belegt kein Ereignis; als Meilenstein-Regel fällt sie beim Weiterziehen dauerhaft auf „gerissen“ (Marke „nur Status“)."
+    },
+    {
+      "term": "Probe am Bestand",
+      "def": "Live-Zählung im Meilenstein-Editor: was eine Bedingung an den Verbünden der aktuellen Richtlinie trifft, offen und abgeschlossen getrennt, mit Vergleich zur freigegebenen Fassung."
+    },
+    {
+      "term": "Befund-Marke",
+      "def": "Gelbe Marke der Probe für eine Tatsache — trifft keinen oder jeden Verbund, kein Datum, N ohne Termin; keine Schwelle, das Urteil fällt die PL."
+    },
+    {
+      "term": "„N Tage überfällig“",
+      "def": "Mehrere richtige Zähler für denselben Vorgang: gegen die kritische Frist (Liste, Detail, Tagesbrief, Assistent), gegen ein Meilenstein-Soll oder gegen Zieltage (beide Fristen-Karte)."
+    },
+    {
+      "term": "Tagesbrief",
+      "def": "Die oberste Karte der Startseite: deterministisch gerankter Kurztext, was zuerst dran ist — Stillstand und Aufgaben, bewusst ohne Meilensteine."
     },
     {
       "term": "Betrachtungsbereich",
@@ -2225,6 +2486,741 @@
       "term": "Snapshot",
       "a": "Programm-Snapshot auf dem Share",
       "b": "Katalog-Snapshot (snapshot.ts) · Backup-Ordner"
+    },
+    {
+      "term": "Meilenstein",
+      "a": "Bearbeitungs-Meilenstein (Plan, Soll-Woche ab wirksamem Eingang)",
+      "b": "Prominenz „Hauptereignis“ in der Chronik · Projekt-Meilensteine MS01_*–MS03_* der Begleitphase"
+    },
+    {
+      "term": "Momentaufnahme",
+      "a": "Katalog-Snapshot der aktiven Fassung",
+      "b": "Bedingung über den heutigen Status (Marke „nur Status“)"
+    },
+    {
+      "term": "Wirkung / Probe",
+      "a": "„Wirkung am Bestand“ der To-do-Regeln — auf Knopfdruck, über den ganzen Bereich",
+      "b": "„Probe am Bestand“ der Meilensteine — live, fest die aktuelle Richtlinie"
+    },
+    {
+      "term": "Rolle",
+      "a": "Fachrolle AB/FB/QS/PA/Juristen (Regelsatz, Zuständigkeit)",
+      "b": "App-Rolle Kurator/PL"
     }
-  ]
+  ],
+  "zusammenspiel": {
+    "beginner": "Sechs Rechnungen lesen dieselben Exportspalten und beantworten verschiedene Fragen: wer am Zug ist, wo im Verfahren der Vorgang steht, was zu tun ist, ob er stillsteht, wie viel Frist bleibt und ob ein Zwischentermin gerissen ist. Sie teilen sich einen Anker und einen Bedingungs-Auswerter, werden aber getrennt gepflegt und getrennt gerechnet — deshalb können an einem Vorgang mehrere „überfällig“-Zahlen gleichzeitig stimmen.",
+    "mechanismen": [
+      {
+        "id": "arbeitsliste",
+        "name": "Arbeitsliste",
+        "frage": "Wer ist am Zug — oder ist es erledigt?",
+        "antwort": "einer von 9 festen Werten (Zu bearbeiten … Ohne Zuordnung)",
+        "liest": [
+          "Status aus dem Export (STATUS_TV / STATUS_VB)"
+        ],
+        "pflege": "niemand zur Laufzeit — steht im Code",
+        "giltAb": "mit dem Release",
+        "zeigt": [
+          "Reiter, Abschnitte, Farben und Kanban-Bahnen in Förderanträge",
+          "Gutachten-Karte am Verbund"
+        ],
+        "verwechslung": "Nicht der Verfahrensschritt: ein neuer Phasenschnitt verschiebt seit v4.87 keine Arbeitsliste.",
+        "dev": {
+          "file": "src/core/status/kategorie-ableitung.ts · src/core/utils/status-canonical.ts",
+          "fn": "kategorieFuerCode(code) · getStatusCategory(raw)"
+        }
+      },
+      {
+        "id": "verfahrensschritt",
+        "name": "Verfahrensschritt",
+        "frage": "Wo im Verfahren steht der Vorgang — und läuft hier die Frist?",
+        "antwort": "eine von 3–9 Phasen (ausgeliefert 6), je Phase „Frist läuft“ und „Zieltage relevant“",
+        "liest": [
+          "amtlicher Status-Code"
+        ],
+        "pflege": "PL im Baum-Editor der Vorgangs-Regeln (Katalog-Fassung)",
+        "giltAb": "mit dem Veröffentlichen; jede Datenaktualisierung zieht nach",
+        "zeigt": [
+          "Verfahrensleiste und Filter-Gruppierung",
+          "Frist-Uhr (ausgeliefert: hält in Entscheidung, Begleitung, Abgeschlossen)",
+          "Vorgangs-Board"
+        ],
+        "verwechslung": "Nicht VB_PHASE — das ist der Antragstyp (NW / FuE / DL / DS).",
+        "dev": {
+          "file": "src/core/status/zah-phasen.ts",
+          "fn": "phaseFuerCode(code) · fristLaeuftVon(phase, phasen)"
+        }
+      },
+      {
+        "id": "kaskade",
+        "name": "To-do-Kaskade",
+        "frage": "Was ist zu tun, und wer ist dran?",
+        "antwort": "ein Aufgabentext je Rolle mit Adresse („liegt bei AB“, „wartet auf QS“) — oder gesperrt, oder kein Treffer",
+        "liest": [
+          "gesetzte Kürzel (D_ / T_) je Teilvorhaben",
+          "Status, PreCheck-Urteile u. a. über Bedingungen",
+          "Fachrolle des Lesers (Profil)"
+        ],
+        "pflege": "PL im Reiter To-do-Regeln (Katalog-Fassung); AB-Seed 4 Sperren + 29 Regeln",
+        "giltAb": "mit dem Veröffentlichen; Regeln außerhalb des AB-Satzes starten stillgelegt",
+        "zeigt": [
+          "Aufgaben-Spalte in Förderanträge",
+          "Startseite und Tagesbrief",
+          "Vorgangs-Board und Verbund-Detail",
+          "Assistent"
+        ],
+        "verwechslung": "Nicht die Status-Formel „nächster Schritt“ — die erscheint nur noch, wenn keine Regel trifft.",
+        "dev": {
+          "file": "src/core/status/todo-engine.ts · src/core/status/bestands-lauf.ts · src/core/status/aufgaben-anzeige.ts",
+          "fn": "ermittleTodosAlleRollen() · laufeBestand() · aufgabenAnzeige()"
+        }
+      },
+      {
+        "id": "waechter",
+        "name": "Stillstands-Wächter",
+        "frage": "Liegt der Vorgang zu lange still — und bei wem?",
+        "antwort": "ok · hängt · unbewertet, mit Liegezeit, Zieltagen und gegebenenfalls halb offenem Kürzel-Paar",
+        "liest": [
+          "jüngstes Kürzel-Datum bis heute (oder Journal-Änderung)",
+          "Zieltage des aktuellen Status",
+          "To-do des AB-Satzes (nur für die Rolle)"
+        ],
+        "pflege": "Zieltage je Status in der Katalog-Fassung (PL)",
+        "giltAb": "mit dem Veröffentlichen der Fassung",
+        "zeigt": [
+          "Fristen-Karte der Startseite (Zieltag)",
+          "Tagesbrief (Stillstand)",
+          "Vorgangs-Board",
+          "Assistent (Vorgangsakte)"
+        ],
+        "verwechslung": "Misst Liegezeit, keinen Termin: ein Vorgang kann in der Frist liegen und trotzdem hängen.",
+        "dev": {
+          "file": "src/core/status/waechter.ts",
+          "fn": "pruefeStillstand(e)"
+        }
+      },
+      {
+        "id": "frist",
+        "name": "Bearbeitungsfrist",
+        "frage": "Sind 90 Tage ab wirksamem Eingang um?",
+        "antwort": "läuft (Resttage) · angehalten (seit Haltedatum) · nicht berechenbar (mit Grund)",
+        "liest": [
+          "D_AAE Antragseingang und D_XTE „alle Anträge da“ — das spätere zählt",
+          "Status (abgeschlossen? Begleitphase?) und Frist-Schalter der Phase",
+          "D_VBE in der Begleitphase (VN-Eingang + 6 Monate)"
+        ],
+        "pflege": "90 Tage im Code (ANTRAG_SLA_DAYS); ob die Uhr je Phase läuft, in der Fassung",
+        "giltAb": "Uhr-Schalter mit der Fassung, die 90 Tage mit dem Release",
+        "zeigt": [
+          "Frist-Spalte, Sicht „Fristen“ und Sortierung",
+          "Verbund-Detail",
+          "Tagesbrief beim To-do",
+          "Assistent"
+        ],
+        "verwechslung": "Kein gespeichertes Datum: das Feld frist_datum ist mit v6.52 entfallen.",
+        "dev": {
+          "file": "src/core/services/csv/frist-ergebnis.ts · src/core/services/csv/frist.ts · src/plugins/antraege/groupAggregates.ts",
+          "fn": "berechneFrist(e) · wirksamerEingang() · criticalFristErgebnis(tvs)"
+        }
+      },
+      {
+        "id": "meilensteine",
+        "name": "Bearbeitungs-Meilensteine",
+        "frage": "Ist ein Zwischentermin ab Eingang gerissen?",
+        "antwort": "je Meilenstein erreicht · gerissen · fällig (≤ 7 T) · offen · nicht relevant · ohne Bedingung, dazu eine Frist-Prognose",
+        "liest": [
+          "wirksamer Eingang des Verbunds (Anker)",
+          "Bedingungen über Kürzel-Datumsspalten, Status, Antragstyp",
+          "Ist-Termin aus den Datumsspalten der Bedingung"
+        ],
+        "pflege": "Meilenstein-Plan der PL (versioniert, Team-Datei)",
+        "giltAb": "erst mit der Freigabe — Speichern allein ändert keine Zahl",
+        "zeigt": [
+          "Seite „Fristen & Meilensteine“",
+          "Fristen-Karte der Startseite",
+          "Verbund-Detail, Abschnitt Meilensteine",
+          "Assistent (Vorgangsakte)"
+        ],
+        "verwechslung": "Nicht im Tagesbrief (seit v6.60.4) und nicht die Projekt-Meilensteine MS01_* der Begleitphase.",
+        "dev": {
+          "file": "src/core/meilensteine/bewertung.ts · src/core/meilensteine/projektion.ts · src/core/meilensteine/plan-storage.ts",
+          "fn": "bewerteVerbund() · holeProjektion() · freigegebeneFassung(plan)"
+        }
+      }
+    ],
+    "beruehrungen": [
+      {
+        "titel": "Ein Anker für Frist und Meilensteine",
+        "text": "Frist-Spalte, Bestandslauf und alle Meilenstein-Termine zählen ab dem wirksamen Eingang. Bis v6.49 las der Meilenstein-Anker nur den Antragseingang — zweimal „90 Tage ab Eingang“ aus verschiedenen Spalten.",
+        "dev": "wirksamerEingang · verbundWirksamerEingang · baueAnkerLeser",
+        "beleg": "meilensteine.md § Bewertung: 28 von 2.082 offenen Verbünden bekamen einen späteren Anker (+1 bis +61 T), kein Zustand kippte"
+      },
+      {
+        "titel": "Ein Auswerter für alle Bedingungen",
+        "text": "To-do-Regeln, Meilenstein-Bedingungen und eigene Spalten werten über dieselbe Funktion aus und werden im selben Editor gebaut. Was im einen Modul zutrifft, trifft im anderen genauso.",
+        "dev": "pruefeBedingung (core/status/bedingung.ts) · BedingungEditor.tsx",
+        "beleg": "meilensteine.md § Drei Abgrenzungen — ein zweiter Auswerter liefe bei der ersten Änderung auseinander"
+      },
+      {
+        "titel": "Der Verfahrensschritt stellt die Frist-Uhr",
+        "text": "Ob die 90-Tage-Uhr läuft, steht an der Phase: ausgeliefert laufen Eingang, Vollständigkeit und Prüfung, Entscheidung und Abgeschlossen halten sie an. Wer einen Status umhängt, ändert seine Uhr — nicht aber seine Arbeitsliste.",
+        "dev": "SEED_ZAH_PHASEN · fristLaeuftVon · kategorieFuerCode",
+        "beleg": "zah-phasen.ts (Auslieferung) · status-achsen.md § Warum die Kopplung weg ist"
+      },
+      {
+        "titel": "Die Kaskade sagt dem Wächter, bei wem es hängt",
+        "text": "Findet der Stillstands-Wächter kein halb offenes Kürzel-Paar, nimmt er die Rolle aus der Aufgabe des AB-Regelsatzes. Sein Urteil selbst — hängt oder nicht — hängt nicht an der Aufgabe.",
+        "dev": "laufeBestand → pruefeStillstand({ todo: todos.ab })",
+        "beleg": "bestands-lauf.ts · waechter.ts (Stufe 2)"
+      },
+      {
+        "titel": "Zusammen gezeigt, nicht zusammen gerechnet",
+        "text": "Die Fristen-Karte der Startseite mischt Stillstand und Meilensteine in einer Liste. Gemeinsam ist nur die Sortierzahl „Tage über dem Vorgesehenen“; jede Zeile trägt ihre Herkunft, damit klar ist, wo man etwas abstellt.",
+        "dev": "zieltagAnlass · meilensteinAnlaesse · buendleNachVerbund",
+        "beleg": "fristAnlaesse.ts (Modulkopf) · status-achsen.md, zwei Ebenen „ist er zu spät“"
+      },
+      {
+        "titel": "Veröffentlicht wirkt sofort, freigegeben wirkt später",
+        "text": "Die Katalog-Fassung (Schnitt, Zieltage, To-do-Regeln, Bereich) wirkt mit dem Veröffentlichen; jede Datenaktualisierung holt sie nach. Der Meilenstein-Plan wirkt erst mit der Freigabe.",
+        "dev": "holeNeuereFassung · freigegebeneFassung",
+        "beleg": "meilensteine.md § Persistenz: häufigste Ursache für „meine neuen Meilensteine kommen nicht an“"
+      },
+      {
+        "titel": "Die Kaskade schlägt die Status-Formel",
+        "text": "Wo eine Regel trifft, gilt sie; die einfache Ableitung aus dem Status erscheint nur, wenn keine Regel passt — und gibt sich als Rückfall zu erkennen.",
+        "dev": "aufgabenAnzeige: quelle rueckfall · naechsterSchritt",
+        "beleg": "status-achsen.md § Was ist zu tun? — am 20.08.2026 sagte die Kaskade bei 101 von 102 Vorgängen mit „Gutachten fertig“ „in QS“, die Formel „Gutachten freigeben“"
+      },
+      {
+        "titel": "Mehrere richtige „überfällig“",
+        "text": "Liste, Detailseite, Tagesbrief und Assistent zählen gegen die kritische Frist, die Fristen-Karte gegen ein Meilenstein-Soll oder gegen die Zieltage. Für denselben Vorgang dürfen verschiedene Zahlen stehen.",
+        "dev": "criticalFristErgebnis · meilensteinAnlaesse().ueberTage · zieltagAnlass().ueberTage",
+        "beleg": "CONTEXT.md „N Tage überfällig“: an einem Verbund 324 gegen 318 Tage, beide richtig (10.09.2026)"
+      }
+    ],
+    "grundmengen": [
+      {
+        "wo": "Förderanträge, Vorgangs-Board, Startseite, Fristen & Meilensteine, Auslastung",
+        "menge": "Betrachtungsbereich — Chip im Seitenkopf, Standard: die drei jüngsten Richtlinien-Generationen",
+        "warum": "Arbeitsvorrat"
+      },
+      {
+        "wo": "Bestandslauf (Aufgaben, Wächter, Restfrist)",
+        "menge": "Bereich ∩ die zwei jüngsten Generationen; ältere Zeilen tragen „ältere Richtlinie – aus dem Status abgeleitet“",
+        "warum": "für ältere Richtlinien führt C16 keine Trigger"
+      },
+      {
+        "wo": "Fristen & Meilensteine, zusätzlich",
+        "menge": "Eingangs-Zeitraum (Standard: laufendes Jahr und die zwei davor) und „nur meine“",
+        "warum": "Altbestand ist kein Rückstand"
+      },
+      {
+        "wo": "Probe am Bestand (Meilenstein-Editor)",
+        "menge": "fest die aktuelle Richtlinie, unabhängig vom Chip",
+        "warum": "prüft eine Regel, ist kein Arbeitsvorrat"
+      },
+      {
+        "wo": "Globale Suche",
+        "menge": "eigene Richtlinien-Wahl, Grundzustand alle",
+        "warum": "Evidenz — nichts wird still weggenommen"
+      },
+      {
+        "wo": "Deep-Link auf einen Antrag",
+        "menge": "jeder Antrag",
+        "warum": "ein Link darf nicht abreißen"
+      }
+    ]
+  },
+  "fehlersuche": {
+    "beginner": "Die meisten „falschen“ Zahlen haben eine von vier Ursachen: der Vorgang zählt in dieser Ansicht nicht mit, der Wert steht nicht in der gelesenen Spalte, eine andere Regel oder Fassung gilt, oder das Ergebnis ist noch nicht neu gerechnet. Die Leiter prüft in dieser Reihenfolge; darunter stehen Symptome, die das Projekt schon hatte — mit Ursache, Prüfweg in der App und Beleg.",
+    "leiter": [
+      {
+        "schritt": "Sicht",
+        "frage": "Zählt der Vorgang in dieser Ansicht überhaupt mit?",
+        "pruefen": [
+          "Chip „Anzeige: …“ im Seitenkopf — der Betrachtungsbereich",
+          "auf „Fristen & Meilensteine“ zusätzlich Eingangs-Zeitraum und „nur meine“",
+          "Fachrolle im Profil: AB, FB und QS sehen verschiedene Aufgaben",
+          "fehlt eine ganze Ansicht: Beta-/Experten-Schalter im Profil"
+        ]
+      },
+      {
+        "schritt": "Daten",
+        "frage": "Steht der Wert in der Spalte, die gelesen wird?",
+        "pruefen": [
+          "Quellspalten-Tooltip an Bedingung, Frist-Zelle oder Fristen-Karte",
+          "„Alle Felder“ am Antrag: gefüllt — und unter welchem Namen?",
+          "CSV-Quellen → Schema: meldet der Dialog eine Feldnamen-Kollision?",
+          "„● CSV“ in der Fußzeile: ist der Stand von heute?"
+        ]
+      },
+      {
+        "schritt": "Regel",
+        "frage": "Welche Regel gilt — und gewinnt sie?",
+        "pruefen": [
+          "Vorgangs-Regeln veröffentlicht? Meilenstein-Plan freigegeben?",
+          "Regel aktiv, im richtigen Regelsatz, an der richtigen Position?",
+          "greift eine Sperre — und trägt die Regel einen Strang?",
+          "„Wirkung am Bestand messen“ bzw. „Probe am Bestand“ zählen nach"
+        ]
+      },
+      {
+        "schritt": "Rechnung",
+        "frage": "Ist das Ergebnis schon neu gerechnet?",
+        "pruefen": [
+          "„…“ = wird gerade gerechnet, ↻ = Stand vor dem letzten Import",
+          "„ältere Richtlinie – aus dem Status abgeleitet“ = bewusst nicht gerechnet",
+          "Meilensteine rechnen neu, wenn Plan-Fassung, Schema oder Kalendertag wechseln"
+        ]
+      }
+    ],
+    "bereiche": [
+      {
+        "id": "aufgaben",
+        "label": "Aufgaben & Regeln"
+      },
+      {
+        "id": "fristen",
+        "label": "Frist & Stillstand"
+      },
+      {
+        "id": "meilensteine",
+        "label": "Meilensteine"
+      },
+      {
+        "id": "daten",
+        "label": "Daten & Import"
+      },
+      {
+        "id": "zahlen",
+        "label": "Zahlen widersprechen sich"
+      }
+    ],
+    "symptome": [
+      {
+        "id": "regel-trifft-nie",
+        "bereich": "aufgaben",
+        "keinFehler": false,
+        "titel": "Eine To-do-Regel trifft auf keinen einzigen Vorgang zu",
+        "ursache": "Entweder beschreibt die Bedingung etwas anderes als gemeint — oder die Daten fehlen. Bei „Nachlieferungstermin verstrichen“ lag es an den Daten: Datum und Text derselben Sache hatten denselben Feldnamen, und der Text überschrieb das Datum.",
+        "pruefen": [
+          "Vorgangs-Regeln → To-do-Regeln → „Wirkung am Bestand messen“: Befund „trifft nie“?",
+          "Quellspalten der Bedingung: liest sie die gemeinte Spalte?",
+          "CSV-Quellen → Schema öffnen: Kollision gemeldet? „Feldnamen entflechten“ wirkt mit dem nächsten Import"
+        ],
+        "dev": {
+          "file": "src/plugins/status-cockpit/todoRegelnAnsicht.ts · src/core/services/csv/spalten-kollisionen.ts",
+          "fn": "wirkungsloseRegeln() · findeSpaltenKollisionen(schema)"
+        },
+        "beleg": "v6.65.0 / v6.65.1: 20 Kollisionen in 3 Schemas; R10 und R27 trafen 0 von 2.537 Vorgängen (termin_fur_nachlieferung ← D_ANT + T_ANT)"
+      },
+      {
+        "id": "regel-verdeckt",
+        "bereich": "aufgaben",
+        "keinFehler": false,
+        "titel": "Die Bedingung stimmt, die Aufgabe erscheint aber nie",
+        "ursache": "Die Kaskade nimmt die erste zutreffende Regel. Trifft eine Regel weiter oben ebenfalls zu, gewinnt sie immer — oder eine Sperre legt den ganzen Strang still.",
+        "pruefen": [
+          "„Wirkung am Bestand“: Befund „immer verdeckt“ (etwa „trifft 21 · gewinnt 0“) heißt: Position falsch",
+          "To-do-Herleitung im Ausklapp der Zeile: weitere Treffer und greifende Sperren",
+          "Reihenfolge per Pfeil ändern, neu messen"
+        ],
+        "dev": {
+          "file": "src/core/status/todo-engine.ts · src/core/status/regel-wirkung.ts",
+          "fn": "ermittleTodo() · erhebeRegelWirkung()"
+        },
+        "beleg": "vorgangssystem.md § 11b: am 18.08.2026 traf R23b auf 21 Vorgänge und gewann bei keinem"
+      },
+      {
+        "id": "regel-ohne-strang",
+        "bereich": "aufgaben",
+        "keinFehler": false,
+        "titel": "Eine neue Regel feuert auch am zurückgezogenen Antrag",
+        "ursache": "Die Sperren „Antrag zurückgezogen“ und „RNE oder Ablehnung begonnen“ legen Stränge still, nicht einzelne Regeln. Eine Regel ohne Strang erfasst keine dieser Sperren und fällt still hindurch.",
+        "pruefen": [
+          "Regel-Editor: Strang setzen (precheck, nachforderung, rne, ablehnung, gutachten, zuwb, schluss)",
+          "der Editor warnt, sobald im gezeigten Regelsatz eine Strang-Sperre greift"
+        ],
+        "dev": {
+          "file": "src/core/status/regelsatz.ts · src/core/status/todo-regeln.seed.ts",
+          "fn": "sperrEintragTrifft(eintrag, regel)"
+        },
+        "beleg": "vorgangssystem.md § 11a (v2.412) — S1/S2 sperren nach Strang, S0/S0b alles"
+      },
+      {
+        "id": "fb-fremd",
+        "bereich": "aufgaben",
+        "keinFehler": true,
+        "titel": "Die FB-Sicht zeigt „liegt bei AB“ statt einer eigenen Aufgabe",
+        "ursache": "Für die meisten Situationen gibt es nur AB-Regeln. Schweigt der eigene Regelsatz, zeigt die App die Aufgabe aus dem AB-Satz mit Adresse — eine Auskunft über jemand anderen, keine Anweisung.",
+        "pruefen": [
+          "Profil: stimmt die Fachrolle?",
+          "der Ausklapp nennt „Regelsatz AB · nicht FB“",
+          "neue Regeln außerhalb des AB-Satzes starten stillgelegt und müssen bewusst aktiviert werden"
+        ],
+        "dev": {
+          "file": "src/core/status/aufgabe.ts · src/core/status/aufgaben-anzeige.ts",
+          "fn": "baueAufgabe() · aufgabenAnzeige()"
+        },
+        "beleg": "status-achsen.md (v4.136): in der FB-Sicht 17 von 19 Zeilen · Rollout-Sperre vorgangssystem.md § 11.3"
+      },
+      {
+        "id": "laedt-vorlaeufig",
+        "bereich": "aufgaben",
+        "keinFehler": true,
+        "titel": "In der Aufgaben-Spalte steht „…“ oder ein ↻",
+        "ursache": "„…“: die Aufgaben werden gerade gerechnet — die App zeigt bewusst nicht vorher eine andere Antwort, die sich Sekunden später ändert. ↻: nach einem Import bleibt der alte Stand markiert stehen, bis neu gerechnet ist.",
+        "pruefen": [
+          "kurz warten; der Tooltip des ↻ nennt den Stand",
+          "bleibt „…“ dauerhaft stehen: Datenaktualisierung erneut anstoßen"
+        ],
+        "dev": {
+          "file": "src/core/hooks/useBestandsAufgaben.ts · src/core/status/aufgaben-anzeige.ts",
+          "fn": "useZeilenAufgaben() · ablageVorlaeufig()"
+        },
+        "beleg": "v6.57.2 — vorher kippten nach fünf Minuten alle Zellen dauerhaft auf „…“"
+      },
+      {
+        "id": "aeltere-richtlinie",
+        "bereich": "aufgaben",
+        "keinFehler": true,
+        "titel": "Die Zeile sagt „ältere Richtlinie – aus dem Status abgeleitet“",
+        "ursache": "Aufgaben werden nur für die aktuelle und die vorige Richtlinie gerechnet; für ältere führt das Fachsystem keine Trigger. Die Zeile zeigt dann die einfache Ableitung aus dem Status und sagt das dazu.",
+        "pruefen": [
+          "Programm des Antrags gegen die Richtlinien im Bereichs-Panel halten"
+        ],
+        "dev": {
+          "file": "src/core/status/betrachtungsbereich.ts · src/core/status/aufgaben-anzeige.ts",
+          "fn": "bestandslaufMenge(bereich)"
+        },
+        "beleg": "v6.56.0 · status-achsen.md § Was ist zu tun?, Festlegung 4"
+      },
+      {
+        "id": "gesperrt-status-offen",
+        "bereich": "aufgaben",
+        "keinFehler": true,
+        "titel": "„Keine Aufgabe mehr“, obwohl der Status noch offen ist",
+        "ursache": "Eine Sperre greift: laut gesetzter Kürzel ist das Verfahren abgeschlossen (etwa Schlussvermerk), der amtliche Status sagt aber noch offen. Die App leitet keinen Status ab — der Widerspruch steht in den Daten des Fachsystems.",
+        "pruefen": [
+          "der Tooltip der Zeile nennt die greifende Sperre",
+          "Tagesbrief-Thema „Kürzel ↔ Status“ und die Zählzeile „laut Kürzeln erledigt“ listen genau diese Vorgänge",
+          "im Fachsystem Status oder Kürzel richtigstellen"
+        ],
+        "dev": {
+          "file": "src/core/status/aufgabe.ts · src/plugins/home/dashboardAggregate.ts",
+          "fn": "baueAufgabe() → quelle gesperrt · erledigtLautKuerzeln"
+        },
+        "beleg": "status-achsen.md: Schlussvermerk gesetzt, Status offen — 3 Vorgänge (20.08.2026) · v6.61.0"
+      },
+      {
+        "id": "frist-angehalten",
+        "bereich": "fristen",
+        "keinFehler": true,
+        "titel": "Die Frist-Spalte zeigt „angehalten“",
+        "ursache": "In diesem Verfahrensschritt läuft keine Frist mehr — ausgeliefert halten Entscheidung und Abgeschlossen die Uhr an, bewilligte Vorgänge ebenso bis zum Verwendungsnachweis. „Haltedatum unbekannt“ heißt nur: seit wann, lässt sich nicht belegen.",
+        "pruefen": [
+          "Tooltip der Frist-Zelle: Grund und Herkunft des Haltedatums (Journal, Datumsfeld, Verlauf)",
+          "Vorgangs-Regeln → Baum-Editor der Phasen: Frist-Schalter der Phase"
+        ],
+        "dev": {
+          "file": "src/core/services/csv/frist-ergebnis.ts · src/core/status/haltedatum.ts · src/core/status/zah-phasen.ts",
+          "fn": "berechneFrist(e) · ermittleHaltedatum(e) · fristLaeuftVon()"
+        },
+        "beleg": "v6.52.0, dev:local mit 14.225 Anträgen: 982 läuft · 13.021 angehalten · 222 nicht berechenbar"
+      },
+      {
+        "id": "frist-nicht-berechenbar",
+        "bereich": "fristen",
+        "keinFehler": false,
+        "titel": "Die Frist ist „nicht berechenbar“",
+        "ursache": "Es fehlt die Grundlage: weder Antragseingang noch „alle Anträge da“ ist gefüllt — oder in der Begleitphase ist noch kein Verwendungsnachweis eingegangen.",
+        "pruefen": [
+          "der Tooltip nennt die fehlende Spalte (D_AAE / D_XTE bzw. D_VBE)",
+          "„Alle Felder“: ist die Spalte gemappt und gefüllt?"
+        ],
+        "dev": {
+          "file": "src/core/services/csv/frist-ergebnis.ts",
+          "fn": "berechneFrist(e) → FRIST_GRUND"
+        },
+        "beleg": "frist-ergebnis.ts, Reihenfolge der Fragen: Begleitphase → Uhr hält → wirksamer Eingang"
+      },
+      {
+        "id": "stillstand-unbewertet",
+        "bereich": "fristen",
+        "keinFehler": false,
+        "titel": "Die Fristen-Karte meldet Vorgänge als „nicht bewertbar“",
+        "ursache": "Für ihren Status sind keine Zieltage gepflegt. Dann urteilt der Stillstands-Wächter bewusst „unbewertet“ statt „in Ordnung“ — eine Ampel ohne Grundlage wäre schlimmer als keine.",
+        "pruefen": [
+          "Vorgangs-Regeln → Statuswerte: Zieltage für den Status pflegen und veröffentlichen"
+        ],
+        "dev": {
+          "file": "src/core/status/waechter.ts · src/plugins/home/widgets/FristenWidget.tsx",
+          "fn": "pruefeStillstand(e)"
+        },
+        "beleg": "waechter.ts: „Für Status N sind keine Zieltage definiert.“"
+      },
+      {
+        "id": "stillstand-trotz-arbeit",
+        "bereich": "fristen",
+        "keinFehler": true,
+        "titel": "Stillstand gemeldet, obwohl gestern jemand am Vorgang gearbeitet hat",
+        "ursache": "Der Wächter sieht nur, was exportiert wurde: gesetzte Kürzel mit Datum, Stand letzte Nacht. Ein mehrfach gesetztes Kürzel trägt nur sein letztes Datum, Termine in der Zukunft zählen nicht als Aktivität, und Arbeit ohne Kürzel bleibt unsichtbar.",
+        "pruefen": [
+          "Grund-Text lesen: „seit mindestens“ = aus Kürzel-Daten genähert, „seit“ = durch das Änderungs-Journal belegt",
+          "„● CSV“: ist der Export von heute eingelesen?"
+        ],
+        "dev": {
+          "file": "src/core/status/waechter.ts",
+          "fn": "pruefeStillstand({ journalAenderung })"
+        },
+        "beleg": "vorgangssystem.md § 2 (ein Datum je Kürzel-Spalte) und § 6.3"
+      },
+      {
+        "id": "phasenschnitt-frist",
+        "bereich": "fristen",
+        "keinFehler": true,
+        "titel": "Nach einer Änderung am Phasenschnitt laufen andere Fristen",
+        "ursache": "Gewollt: ob die Frist-Uhr läuft, steht an der Phase. Wer einen Status in eine andere Phase hängt, ändert damit seine Uhr. Die Arbeitsliste — Reiter, Farben, Kanban-Bahnen — bleibt davon seit v4.87 unberührt.",
+        "pruefen": [
+          "Baum-Editor: Frist-Schalter der Zielphase",
+          "Frist-Spalte vor und nach dem Veröffentlichen vergleichen"
+        ],
+        "dev": {
+          "file": "src/core/status/zah-phasen.ts · src/core/status/kategorie-ableitung.ts",
+          "fn": "fristLaeuftVon() · kategorieFuerCode(code)"
+        },
+        "beleg": "status-achsen.md: Fassung 19 verschob am 05.08.2026 448 Anträge in eine andere Arbeitsliste — seither entkoppelt"
+      },
+      {
+        "id": "plan-nicht-freigegeben",
+        "bereich": "meilensteine",
+        "keinFehler": false,
+        "titel": "Geänderte Meilensteine ändern keine Zahl",
+        "ursache": "Gewertet wird nur die freigegebene Plan-Fassung. Gespeichert ist noch nicht freigegeben: bis zur Freigabe rechnen Übersicht, Auswertung und Fristen-Karte mit der vorigen Fassung.",
+        "pruefen": [
+          "Konfiguration: steht die Speicherleiste noch, weicht der Entwurf ab?",
+          "die Auswertungs-Reiter nennen die ausgewertete Fassung",
+          "nach der Freigabe rechnet die Projektion neu — die Plan-Fassung steht in ihrer Signatur"
+        ],
+        "dev": {
+          "file": "src/core/meilensteine/plan-storage.ts · src/core/meilensteine/projektion.ts",
+          "fn": "freigegebeneFassung(plan) · baueSignatur()"
+        },
+        "beleg": "meilensteine.md § Persistenz — die häufigste Ursache für „meine neuen Meilensteine kommen nicht an“"
+      },
+      {
+        "id": "erfuellt-alle-keine",
+        "bereich": "meilensteine",
+        "keinFehler": false,
+        "titel": "Ein Meilenstein ist bei allen offenen Verbünden erfüllt — oder bei keinem",
+        "ursache": "Meist liest die Bedingung eine Spalte, die immer (oder nie) gefüllt ist. Im Auslieferungs-Plan machte „VB Kurzname ist gefüllt“ einen Meilenstein bei allen 1.094 offenen Verbünden erfüllt; eine Status-Bedingung in einem anderen traf keinen.",
+        "pruefen": [
+          "Probe am Bestand aufklappen: gelbe Befund-Marke „trifft jeden Verbund“ bzw. „trifft keinen Verbund“?",
+          "Gegenprobe abgeschlossene Verbünde: dort müsste fast jeder Meilenstein erfüllt sein",
+          "die Feld-Suche zeigt je Feld, wie viele Verbünde es gefüllt haben"
+        ],
+        "dev": {
+          "file": "src/core/meilensteine/probe.ts · src/plugins/meilensteine/ProbeAnzeige.tsx",
+          "fn": "probeBefund() · zaehleBedingung()"
+        },
+        "beleg": "meilensteine.md § Probe am Bestand (11.09.2026, MST 4.3 und MST 5)"
+      },
+      {
+        "id": "momentaufnahme",
+        "bereich": "meilensteine",
+        "keinFehler": false,
+        "titel": "Tausende Verbünde sind bei einem Meilenstein dauerhaft überfällig",
+        "ursache": "Die Bedingung prüft nur den heutigen Status. Ein Status ist eine Momentaufnahme: zieht der Vorgang weiter, gilt der Meilenstein wieder als nicht erreicht — und bleibt gerissen, obwohl der Export das Ereignis mit Datum führt.",
+        "pruefen": [
+          "Ist-Termin-Zeile im Regelbereich: Marke „nur Status“?",
+          "die Datumsspalte des Ereignisses als Zweig vorn ergänzen, den Status als zusätzlichen Zweig stehen lassen"
+        ],
+        "dev": {
+          "file": "src/core/meilensteine/ist-termin.ts · src/core/meilensteine/seed.ts",
+          "fn": "istTerminErklaerung()"
+        },
+        "beleg": "Export 11.09.2026: 9.145 Teilvorhaben mit Datumsbeleg, nur 72 auf dem geprüften Status — 9.074 galten dauerhaft als überfällig; MST 5/6 lesen seit v6.65 zuerst ein Datum"
+      },
+      {
+        "id": "ohne-ist-termin",
+        "bereich": "meilensteine",
+        "keinFehler": false,
+        "titel": "Meilenstein erreicht, aber ohne Ist-Termin — die Abweichung bleibt leer",
+        "ursache": "Die Bedingung trifft nur über Teile ohne Datum (Status, Kürzel-Text, Namensfelder). Dann gibt es nichts, woraus ein Ist-Termin entstehen kann, und der Verbund fehlt still in jeder Abweichung der Auswertung.",
+        "pruefen": [
+          "Ist-Termin-Zeile: Marken „kein Datum“ oder „N ohne Termin“",
+          "ein Ist-Termin-Feld wählen oder eine Datumsspalte in die Bedingung aufnehmen"
+        ],
+        "dev": {
+          "file": "src/core/meilensteine/ist-termin.ts · src/core/meilensteine/probe.ts",
+          "fn": "istTerminErklaerung() · misstNurZeitpunkt()"
+        },
+        "beleg": "meilensteine.md § Probe am Bestand: MST 4.3 mit 224 offenen Verbünden ohne Termin; MST 2 prüft nur Kürzel"
+      },
+      {
+        "id": "ohne-bedingung",
+        "bereich": "meilensteine",
+        "keinFehler": false,
+        "titel": "Die Fristen-Karte sagt „… tragen keine Bedingung und werden nicht bewertet“",
+        "ursache": "Ein Meilenstein ohne auswertbare Bedingung misst nichts — häufig ein Sammel-Meilenstein, dessen Unter-Meilensteine verschoben wurden. Er zählt nicht als gerissen, wird aber benannt.",
+        "pruefen": [
+          "Konfiguration: Marke „ohne Bedingung“ am Meilenstein",
+          "Bedingung ergänzen oder den Meilenstein deaktivieren — und freigeben"
+        ],
+        "dev": {
+          "file": "src/core/meilensteine/bewertung.ts · src/plugins/home/widgets/FristenWidget.tsx",
+          "fn": "knotenOhneBedingung(knoten)"
+        },
+        "beleg": "meilensteine.md § Bewertung: vor v4.134 stellten 4 von 11 aktiven Knoten 108 von 124 Anlässen der Karte (20.08.2026)"
+      },
+      {
+        "id": "fassung-kommt-nicht-an",
+        "bereich": "daten",
+        "keinFehler": false,
+        "titel": "Tagsüber veröffentlichte Vorgangs-Regeln wirken auf einem anderen Rechner nicht",
+        "ursache": "Die Fassung wird mit jeder Datenaktualisierung nachgezogen. Bleibt sie alt, lief dort keine Aktualisierung — oder der Browser hat noch keinen Zugriff auf den Daten-Ordner.",
+        "pruefen": [
+          "Datenaktualisierung auslösen: „● CSV“ in der Fußzeile oder Einstellungen → Speicher",
+          "Vorgangs-Regeln: Fassungsnummer auf beiden Rechnern vergleichen"
+        ],
+        "dev": {
+          "file": "src/plugins/antraege/snapshot-refresh.ts · src/core/status/index.ts",
+          "fn": "zieheFassungNach(idb) · holeNeuereFassung(idb)"
+        },
+        "beleg": "v6.57.3 — bis dahin einmal je Sitzung · docs/status-system/README.md § Harte Regeln"
+      },
+      {
+        "id": "feld-leer",
+        "bereich": "daten",
+        "keinFehler": false,
+        "titel": "Ein Feld ist leer, obwohl die Spalte im Export gefüllt ist",
+        "ursache": "Die Spalte wurde unter einem anderen Feldnamen gemappt, oder zwei Spalten landen auf demselben Namen und die spätere überschreibt die frühere. Wer einen festen Feldnamen liest, sieht dann nichts — ohne Fehlermeldung.",
+        "pruefen": [
+          "„Alle Felder“: unter welchem Namen steht der Wert?",
+          "CSV-Quellen → Schema: Kollisionen und Mapping prüfen",
+          "nach einer Mapping-Änderung baut sich die Listen-Projektion über die Schema-Signatur neu auf"
+        ],
+        "dev": {
+          "file": "src/core/services/csv/merger/helpers.ts · src/core/services/csv/list-view-migration.ts",
+          "fn": "resolveFieldKey() · ensureListViewProjection()"
+        },
+        "beleg": "recurring-bug-classes.md, Klassen 5 und 9"
+      },
+      {
+        "id": "mehrere-ueberfaellig",
+        "bereich": "zahlen",
+        "keinFehler": true,
+        "titel": "Derselbe Vorgang ist „6“, „14“ und „33 Tage“ überfällig",
+        "ursache": "Drei Uhren messen Verschiedenes: die Frist-Spalte die 90-Tage-Frist, die Fristen-Karte das Soll eines Meilensteins und — bei Stillstand — die Liegezeit gegen die Zieltage. Alle Zahlen können gleichzeitig stimmen, siehe die Grafik im Abschnitt Zusammenspiel.",
+        "pruefen": [
+          "Herkunft der Zeile in der Fristen-Karte: „Zieltag“ oder Meilenstein-Nummer",
+          "Tooltip der Frist-Zelle nennt Basisspalte und Zieldatum"
+        ],
+        "dev": {
+          "file": "src/plugins/home/widgets/fristAnlaesse.ts · src/plugins/antraege/groupAggregates.ts",
+          "fn": "meilensteinAnlaesse() · zieltagAnlass() · criticalFristErgebnis(tvs)"
+        },
+        "beleg": "CONTEXT.md „N Tage überfällig“: an einem Verbund gemessen 324 gegen 318 Tage, beide richtig (10.09.2026)"
+      },
+      {
+        "id": "grundmengen",
+        "bereich": "zahlen",
+        "keinFehler": true,
+        "titel": "Liste, Vorgangs-Board und Meilenstein-Seite zählen verschieden viele Vorgänge",
+        "ursache": "Jede Fläche hat ihre Grundmenge: den Betrachtungsbereich (Chip im Seitenkopf), auf der Meilenstein-Seite zusätzlich Eingangs-Zeitraum und „nur meine“; die Probe im Editor zählt fest die aktuelle Richtlinie, die Suche alle.",
+        "pruefen": [
+          "Chips und Zeitraum beider Seiten vergleichen",
+          "Tabelle „Welche Vorgänge zählen?“ im Abschnitt Zusammenspiel"
+        ],
+        "dev": {
+          "file": "src/core/status/betrachtungsbereich.ts",
+          "fn": "bereichsProgramme() · istImBereich()"
+        },
+        "beleg": "vorgangssystem.md § 10 · Pitfall #46"
+      }
+    ],
+    "werkzeuge": [
+      {
+        "name": "Quellspalten-Tooltip",
+        "wo": "an Bedingungen, Frist-Zelle, Fristen-Karte, „Alle Felder“, Feld-Wähler",
+        "hilft": "Aus welcher CSV-Spalte liest das hier?",
+        "file": "src/components/quellspalten/QuellSpaltenTooltip.tsx"
+      },
+      {
+        "name": "Status-Erklärung · „Herleitung kopieren“",
+        "wo": "Info-Icon am Status in Liste und Detail",
+        "hilft": "Warum dieser Status, was zuletzt passierte, welcher Trigger — als Text für Rückfragen",
+        "file": "src/plugins/antraege/status/HerleitungPopover.tsx"
+      },
+      {
+        "name": "Reiter „Ebenen“",
+        "wo": "Vorgangs-Regeln",
+        "hilft": "Welche Ebene wem gehört und was sie steuert, mit Live-Zahlen",
+        "file": "src/plugins/status-cockpit/EbenenUebersicht.tsx"
+      },
+      {
+        "name": "„Wirkung am Bestand messen“",
+        "wo": "Vorgangs-Regeln → To-do-Regeln",
+        "hilft": "trifft · gewinnt je Regel; Befunde „trifft nie“, „immer verdeckt“, „greift nie“",
+        "file": "src/plugins/status-cockpit/todoRegelnAnsicht.ts"
+      },
+      {
+        "name": "„Probe am Bestand“ und Befund-Marken",
+        "wo": "Fristen & Meilensteine → Konfiguration",
+        "hilft": "Was eine Bedingung trifft, offen und abgeschlossen getrennt, gegenüber der freigegebenen Fassung",
+        "file": "src/plugins/meilensteine/ProbeAnzeige.tsx"
+      },
+      {
+        "name": "Drift-Bilanz",
+        "wo": "Vorgangs-Regeln → Statuswerte",
+        "hilft": "Was die gepflegte Fassung vom ausgelieferten Stand unterscheidet",
+        "file": "src/core/status/katalog-drift.ts"
+      },
+      {
+        "name": "Feldnamen-Kollisionen",
+        "wo": "CSV-Quellen → Schema öffnen",
+        "hilft": "Zwei Spalten auf einem Feld; „Feldnamen entflechten“ repariert mit dem nächsten Import",
+        "file": "src/plugins/csv-sources-kuration/CsvSchemaDetailDialog.tsx"
+      },
+      {
+        "name": "„● CSV“",
+        "wo": "Fußzeile der Sidebar",
+        "hilft": "Ist der eingelesene Export von heute?",
+        "file": "src/components/ui/CsvFreshnessIndicator.tsx"
+      },
+      {
+        "name": "Fußzeile der Fristen-Karte",
+        "wo": "Startseite",
+        "hilft": "Wie viele Vorgänge ohne Zieltage und Meilensteine ohne Bedingung nicht bewertet sind",
+        "file": "src/plugins/home/widgets/FristenWidget.tsx"
+      }
+    ],
+    "devWerkzeuge": [
+      {
+        "name": "npm run dev:local",
+        "was": "Variante „local“ auf Port 5175 mit Fixture-Bestand — Abnahme jeder sichtbaren Änderung"
+      },
+      {
+        "name": "await window.__tf.bereit()",
+        "was": "wartet, bis die Daten geladen sind; bricht nach 40 s mit der Phase ab"
+      },
+      {
+        "name": "window.__tf.zustand() · fehler()",
+        "was": "Version, Variante, Route, Datenphase, Anzahl Anträge — und die gesammelten Konsolenfehler (muss 0 sein)"
+      },
+      {
+        "name": "window.__tf.szenario(key) · navigiere(route)",
+        "was": "Fixture-Szenario laden, Route ansteuern"
+      },
+      {
+        "name": "docs/architecture/recurring-bug-classes.md",
+        "was": "27 wiederkehrende Bug-Klassen mit Symptom, Wurzel und Fix-Muster"
+      },
+      {
+        "name": "npm run check:docs",
+        "was": "die Guards in Sekunden, darunter Doc-Links und Skill-Frontmatter"
+      }
+    ]
+  }
 }

@@ -1,23 +1,23 @@
 {
-  "builtAt": "2026-09-10T07:38:15.130Z",
-  "version": "6.48.0",
-  "commit": "1ecd04ca",
-  "commitDate": "2026-09-10T06:57:26+02:00",
-  "curatedFor": "v6.48.0",
-  "curatedAt": "2026-09-10",
+  "builtAt": "2026-09-13T08:12:26.043Z",
+  "version": "6.65.1",
+  "commit": "b2eeb496",
+  "commitDate": "2026-09-12T18:57:21+02:00",
+  "curatedFor": "v6.65.1",
+  "curatedAt": "2026-09-13",
   "kennzahlen": {
-    "commits": 2159,
+    "commits": 2194,
     "pluginCount": 20,
     "featureFlags": 32,
     "idbStores": 21,
     "idbVersion": 11,
     "pitfalls": 55,
     "skills": 11,
-    "guards": 9,
-    "files": 2891,
-    "prodLoc": 329555,
-    "testLoc": 121570,
-    "docsArchitecture": 53
+    "guards": 10,
+    "files": 2939,
+    "prodLoc": 336320,
+    "testLoc": 124695,
+    "docsArchitecture": 54
   },
   "flows": [
     {
@@ -26,11 +26,15 @@
     },
     {
       "id": "datenbestand",
-      "steps": 16
+      "steps": 17
     },
     {
       "id": "antraege",
       "steps": 12
+    },
+    {
+      "id": "regeln-fristen",
+      "steps": 15
     },
     {
       "id": "suche",
